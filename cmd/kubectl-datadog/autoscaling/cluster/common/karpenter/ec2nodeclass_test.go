@@ -1,4 +1,4 @@
-package k8s
+package karpenter
 
 import (
 	"testing"

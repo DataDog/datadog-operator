@@ -1,4 +1,4 @@
-package guess
+package eks
 
 import (
 	ekstypes "github.com/aws/aws-sdk-go-v2/service/eks/types"

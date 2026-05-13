@@ -1,4 +1,4 @@
-package aws
+package awsauth
 
 import (
 	"testing"
@@ -11,7 +11,7 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 )
 
-func TestEnsureAwsAuthRole(t *testing.T) {
+func TestEnsureRole(t *testing.T) {
 	for _, tc := range []struct {
 		name          string
 		existingRoles []RoleMapping
@@ -90,7 +90,7 @@ func TestEnsureAwsAuthRole(t *testing.T) {
 			_, err = clientset.CoreV1().ConfigMaps("kube-system").Create(t.Context(), cm, metav1.CreateOptions{})
 			require.NoError(t, err)
 
-			err = EnsureAwsAuthRole(t.Context(), clientset, tc.newRole)
+			err = EnsureRole(t.Context(), clientset, tc.newRole)
 
 			if tc.expectError {
 				assert.Error(t, err)
@@ -123,7 +123,7 @@ func TestEnsureAwsAuthRole(t *testing.T) {
 	}
 }
 
-func TestEnsureAwsAuthRole_ConfigMapNotFound(t *testing.T) {
+func TestEnsureRole_ConfigMapNotFound(t *testing.T) {
 	clientset := fake.NewSimpleClientset()
 
 	roleMapping := RoleMapping{
@@ -132,7 +132,7 @@ func TestEnsureAwsAuthRole_ConfigMapNotFound(t *testing.T) {
 		Groups:   []string{"system:bootstrappers", "system:nodes"},
 	}
 
-	err := EnsureAwsAuthRole(t.Context(), clientset, roleMapping)
+	err := EnsureRole(t.Context(), clientset, roleMapping)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to get aws-auth ConfigMap")
 }

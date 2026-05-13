@@ -27,14 +27,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/aws"
+	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/awsauth"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/clients"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/clusterinfo"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/display"
+	commoneks "github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/eks"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/eksautomode"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/helm"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/karpenter"
-	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/guess"
-	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/k8s"
 	"github.com/DataDog/datadog-operator/pkg/plugin/common"
 	"github.com/DataDog/datadog-operator/pkg/version"
 
@@ -178,7 +178,7 @@ func createCloudFormationStacks(ctx context.Context, cli *clients.Clients, opts 
 		return "", fmt.Errorf("failed to describe cluster %s: %w", opts.ClusterName, err)
 	}
 	cluster := describeOut.Cluster
-	supportsAPIAuth := guess.SupportsAPIAuthenticationMode(cluster)
+	supportsAPIAuth := commoneks.SupportsAPIAuthenticationMode(cluster)
 
 	ddStackName := DDKarpenterStackName(opts.ClusterName)
 	ddStack, err := aws.GetStack(ctx, cli.CloudFormation, ddStackName)
@@ -192,7 +192,7 @@ func createCloudFormationStacks(ctx context.Context, cli *clients.Clients, opts 
 
 	switch opts.InstallMode {
 	case InstallModeExistingNodes:
-		isUnmanagedEKSPIAInstalled, err := guess.IsThereUnmanagedEKSPodIdentityAgentInstalled(ctx, cli.EKS, opts.ClusterName)
+		isUnmanagedEKSPIAInstalled, err := commoneks.IsThereUnmanagedEKSPodIdentityAgentInstalled(ctx, cli.EKS, opts.ClusterName)
 		if err != nil {
 			return "", fmt.Errorf("failed to check if EKS pod identity agent is installed: %w", err)
 		}
@@ -207,18 +207,18 @@ func createCloudFormationStacks(ctx context.Context, cli *clients.Clients, opts 
 		return "", nil
 
 	case InstallModeFargate:
-		issuerURL, err := guess.GetClusterOIDCIssuerURL(cluster)
+		issuerURL, err := commoneks.GetClusterOIDCIssuerURL(cluster)
 		if err != nil {
 			return "", fmt.Errorf("failed to get cluster OIDC issuer URL: %w", err)
 		}
-		oidcArn, err := guess.EnsureOIDCProvider(ctx, cli.IAM, issuerURL)
+		oidcArn, err := commoneks.EnsureOIDCProvider(ctx, cli.IAM, issuerURL)
 		if err != nil {
 			return "", fmt.Errorf("failed to ensure OIDC provider: %w", err)
 		}
 
 		subnets := opts.FargateSubnets
 		if len(subnets) == 0 {
-			subnets, err = guess.GetClusterPrivateSubnets(ctx, cli.EC2, cluster)
+			subnets, err = commoneks.GetClusterPrivateSubnets(ctx, cli.EC2, cluster)
 			if err != nil {
 				return "", fmt.Errorf("failed to discover private subnets: %w", err)
 			}
@@ -298,7 +298,7 @@ func checkFargateStackImmutability(stack *aws.Stack, namespace string, subnets [
 }
 
 func updateAwsAuthConfigMap(ctx context.Context, cli *clients.Clients, clusterName string) error {
-	awsAuthConfigMapPresent, err := guess.IsAwsAuthConfigMapPresent(ctx, cli.K8sClientset)
+	awsAuthConfigMapPresent, err := awsauth.IsConfigMapPresent(ctx, cli.K8sClientset)
 	if err != nil {
 		return fmt.Errorf("failed to check if aws-auth ConfigMap is present: %w", err)
 	}
@@ -314,7 +314,7 @@ func updateAwsAuthConfigMap(ctx context.Context, cli *clients.Clients, clusterNa
 	}
 
 	// Add role mapping in the `aws-auth` ConfigMap
-	if err = aws.EnsureAwsAuthRole(ctx, cli.K8sClientset, aws.RoleMapping{
+	if err = awsauth.EnsureRole(ctx, cli.K8sClientset, awsauth.RoleMapping{
 		RoleArn:  "arn:aws:iam::" + accountID + ":role/KarpenterNodeRole-" + clusterName,
 		Username: "system:node:{{EC2PrivateDNSName}}",
 		Groups:   []string{"system:bootstrappers", "system:nodes"},
@@ -423,18 +423,18 @@ func createNodePoolResources(ctx context.Context, streams genericclioptions.IOSt
 		return nil
 	}
 
-	var nodePoolsSet *guess.NodePoolsSet
+	var nodePoolsSet *karpenter.NodePoolsSet
 	var err error
 
 	switch opts.InferenceMethod {
 	case InferenceMethodNodes:
-		nodePoolsSet, err = guess.GetNodesProperties(ctx, cli.K8sClientset, cli.EC2)
+		nodePoolsSet, err = karpenter.GetNodesProperties(ctx, cli.K8sClientset, cli.EC2)
 		if err != nil {
 			return fmt.Errorf("failed to gather nodes properties: %w", err)
 		}
 
 	case InferenceMethodNodeGroups:
-		nodePoolsSet, err = guess.GetNodeGroupsProperties(ctx, cli.EKS, cli.EC2, opts.ClusterName)
+		nodePoolsSet, err = karpenter.GetNodeGroupsProperties(ctx, cli.EKS, cli.EC2, opts.ClusterName)
 		if err != nil {
 			return fmt.Errorf("failed to gather node groups properties: %w", err)
 		}
@@ -446,7 +446,7 @@ func createNodePoolResources(ctx context.Context, streams genericclioptions.IOSt
 
 	if opts.CreateKarpenterResources == CreateKarpenterResourcesEC2NodeClass || opts.CreateKarpenterResources == CreateKarpenterResourcesAll {
 		for _, nc := range nodePoolsSet.GetEC2NodeClasses() {
-			if err = k8s.CreateOrUpdateEC2NodeClass(ctx, cli.K8sClient, opts.ClusterName, nc); err != nil {
+			if err = karpenter.CreateOrUpdateEC2NodeClass(ctx, cli.K8sClient, opts.ClusterName, nc); err != nil {
 				return fmt.Errorf("failed to create or update EC2NodeClass %s: %w", nc.GetName(), err)
 			}
 		}
@@ -454,7 +454,7 @@ func createNodePoolResources(ctx context.Context, streams genericclioptions.IOSt
 
 	if opts.CreateKarpenterResources == CreateKarpenterResourcesAll {
 		for _, np := range nodePoolsSet.GetNodePools() {
-			if err = k8s.CreateOrUpdateNodePool(ctx, cli.K8sClient, np); err != nil {
+			if err = karpenter.CreateOrUpdateNodePool(ctx, cli.K8sClient, np); err != nil {
 				return fmt.Errorf("failed to create or update NodePool %s: %w", np.GetName(), err)
 			}
 		}
