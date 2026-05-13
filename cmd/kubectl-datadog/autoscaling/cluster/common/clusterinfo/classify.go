@@ -88,7 +88,12 @@ func Classify(ctx context.Context, in ClassifyInput) (*ClusterInfo, error) {
 	}
 	info.ClusterARN, info.Region = describeClusterIdentity(ctx, in.EKS, in.ClusterName)
 
-	asgCandidates, err := classifyByLabels(ctx, in.K8sClient, info)
+	fargateProfileByNode, err := fargateProfilesByNode(ctx, in.K8sClient)
+	if err != nil {
+		return nil, err
+	}
+
+	asgCandidates, err := classifyByLabels(ctx, in.K8sClient, fargateProfileByNode, info)
 	if err != nil {
 		return nil, err
 	}
@@ -115,6 +120,35 @@ func Classify(ctx context.Context, in ClassifyInput) (*ClusterInfo, error) {
 	return info, nil
 }
 
+// fargateProfilesByNode lists Pods that carry the
+// `eks.amazonaws.com/fargate-profile` label (server-side filtered) and indexes
+// the profile name by the Node the Pod is scheduled on. EKS stamps that label
+// on the Pod, not on the Node, so the Node listing alone cannot recover the
+// profile name. A Fargate node hosts exactly one user pod, so the map is
+// uncontested in practice.
+func fargateProfilesByNode(ctx context.Context, k8sClient kubernetes.Interface) (map[string]string, error) {
+	const fargateProfileLabel = "eks.amazonaws.com/fargate-profile"
+
+	out := map[string]string{}
+	p := pager.New(func(ctx context.Context, opts metav1.ListOptions) (runtime.Object, error) {
+		return k8sClient.CoreV1().Pods(corev1.NamespaceAll).List(ctx, opts)
+	})
+	opts := metav1.ListOptions{LabelSelector: fargateProfileLabel}
+	if err := p.EachListItem(ctx, opts, func(obj runtime.Object) error {
+		pod := obj.(*corev1.Pod)
+		if pod.Spec.NodeName == "" {
+			return nil
+		}
+		if profile := pod.Labels[fargateProfileLabel]; profile != "" {
+			out[pod.Spec.NodeName] = profile
+		}
+		return nil
+	}); err != nil {
+		return nil, fmt.Errorf("failed to list Fargate pods: %w", err)
+	}
+	return out, nil
+}
+
 // asgCandidate is a node that needs an AWS API call to determine whether
 // it's in an ASG (asg bucket) or not (standalone bucket).
 type asgCandidate struct {
@@ -126,7 +160,7 @@ type asgCandidate struct {
 // decision tree (Fargate, Karpenter, EKS managed node group, unknown). Nodes
 // with an AWS EC2 providerID that don't match any of the above are returned
 // as ASG candidates for resolveASGs to bucket as asg or standalone.
-func classifyByLabels(ctx context.Context, k8sClient kubernetes.Interface, info *ClusterInfo) ([]asgCandidate, error) {
+func classifyByLabels(ctx context.Context, k8sClient kubernetes.Interface, fargateProfileByNode map[string]string, info *ClusterInfo) ([]asgCandidate, error) {
 	var candidates []asgCandidate
 
 	p := pager.New(func(ctx context.Context, opts metav1.ListOptions) (runtime.Object, error) {
@@ -134,7 +168,7 @@ func classifyByLabels(ctx context.Context, k8sClient kubernetes.Interface, info 
 	})
 	if err := p.EachListItem(ctx, metav1.ListOptions{}, func(obj runtime.Object) error {
 		node := obj.(*corev1.Node)
-		if mgr, entity, ok := classifyNodeByLabel(node); ok {
+		if mgr, entity, ok := classifyNodeByLabel(node, fargateProfileByNode); ok {
 			addToBucket(info, mgr, entity, node.Name)
 			return nil
 		}
@@ -155,12 +189,13 @@ func classifyByLabels(ctx context.Context, k8sClient kubernetes.Interface, info 
 	return candidates, nil
 }
 
-// classifyNodeByLabel applies steps 1-3 of the decision tree using only the
-// Node labels and name. Returns false when the node needs an AWS API lookup
-// or the unknown-bucket fallback.
-func classifyNodeByLabel(node *corev1.Node) (NodeManager, string, bool) {
+// classifyNodeByLabel applies steps 1-3 of the decision tree using the Node
+// labels, the Node name, and a pre-built nodeName→Fargate-profile index.
+// Returns false when the node needs an AWS API lookup or the unknown-bucket
+// fallback.
+func classifyNodeByLabel(node *corev1.Node, fargateProfileByNode map[string]string) (NodeManager, string, bool) {
 	if node.Labels["eks.amazonaws.com/compute-type"] == "fargate" || strings.HasPrefix(node.Name, "fargate-ip-") {
-		return NodeManagerFargate, node.Labels["eks.amazonaws.com/fargate-profile"], true
+		return NodeManagerFargate, fargateProfileByNode[node.Name], true
 	}
 
 	if v := node.Labels["karpenter.sh/nodepool"]; v != "" {
