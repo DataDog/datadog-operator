@@ -1374,6 +1374,157 @@ func Test_AutopilotOverrides(t *testing.T) {
 	runTestCases(t, tests, runFullReconcilerTest)
 }
 
+// Test_COSProviderOverrides verifies that the GKE COS provider strips the
+// `src` HostPath volume (and its system-probe mount) that oomkill and
+// tcpqueuelength would otherwise add — the host has no /usr/src on COS nodes.
+// The provider value flows from the DDA's `datadoghq.com/provider` annotation,
+// or from the DAP's annotation propagated onto the per-profile DDAI.
+func Test_COSProviderOverrides(t *testing.T) {
+	const resourcesName, resourcesNamespace = "foo", "bar"
+	const defaultDsName = "foo-agent"
+	const profileName = "cos-profile"
+	const profileDsName = "cos-profile-agent"
+
+	defaultRequeueDuration := 15 * time.Second
+
+	cosProfile := &v1alpha1.DatadogAgentProfile{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      profileName,
+			Namespace: resourcesNamespace,
+			Annotations: map[string]string{
+				kubernetes.ProviderAnnotationKey: kubernetes.GKECosProvider,
+			},
+		},
+		Spec: v1alpha1.DatadogAgentProfileSpec{
+			ProfileAffinity: &v1alpha1.ProfileAffinity{
+				ProfileNodeAffinity: []corev1.NodeSelectorRequirement{
+					{
+						Key:      "foo",
+						Operator: corev1.NodeSelectorOpIn,
+						Values:   []string{"cos-profile"},
+					},
+				},
+			},
+			// Config is required by the DAP webhook validator. We don't need
+			// any spec changes — the COS provider is signalled via the
+			// metadata.annotations propagated to the DDAI.
+			Config: &v2alpha1.DatadogAgentSpec{},
+		},
+	}
+
+	// assertVolumes asserts the modules volume is always present (oomkill +
+	// tcpqueuelength add it unconditionally) and the src volume is present iff
+	// wantSrc is true.
+	assertVolumes := func(t *testing.T, c client.Client, ns, name string, wantSrc bool) {
+		t.Helper()
+		ds := &appsv1.DaemonSet{}
+		err := c.Get(context.TODO(), types.NamespacedName{Namespace: ns, Name: name}, ds)
+		assert.NoError(t, err, "Failed to get DaemonSet %s/%s", ns, name)
+
+		var sp *corev1.Container
+		for i, ctn := range ds.Spec.Template.Spec.Containers {
+			if ctn.Name == string(apicommon.SystemProbeContainerName) {
+				sp = &ds.Spec.Template.Spec.Containers[i]
+				break
+			}
+		}
+		assert.NotNil(t, sp, "system-probe container not found on DaemonSet %s/%s", ns, name)
+
+		hasModulesMount, hasSrcMount := false, false
+		for _, m := range sp.VolumeMounts {
+			if m.Name == common.ModulesVolumeName {
+				hasModulesMount = true
+			}
+			if m.Name == common.SrcVolumeName {
+				hasSrcMount = true
+			}
+		}
+		assert.True(t, hasModulesMount, "system-probe modules volume mount missing on %s/%s", ns, name)
+		assert.Equal(t, wantSrc, hasSrcMount, "system-probe src volume mount: want=%v got=%v on %s/%s", wantSrc, hasSrcMount, ns, name)
+
+		hasModulesVol, hasSrcVol := false, false
+		for _, v := range ds.Spec.Template.Spec.Volumes {
+			if v.Name == common.ModulesVolumeName {
+				hasModulesVol = true
+			}
+			if v.Name == common.SrcVolumeName {
+				hasSrcVol = true
+			}
+		}
+		assert.True(t, hasModulesVol, "pod-level modules volume missing on %s/%s", ns, name)
+		assert.Equal(t, wantSrc, hasSrcVol, "pod-level src volume: want=%v got=%v on %s/%s", wantSrc, hasSrcVol, ns, name)
+	}
+
+	// buildDDA returns a DDA with oomkill + tcpqueuelength enabled. Caller
+	// may layer annotations via opts.
+	buildDDA := func(annotations map[string]string) *v2alpha1.DatadogAgent {
+		b := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+			WithOOMKillEnabled(true)
+		if len(annotations) > 0 {
+			b = b.WithAnnotations(annotations)
+		}
+		dda := b.Build()
+		dda.Spec.Features.TCPQueueLength = &v2alpha1.TCPQueueLengthFeatureConfig{
+			Enabled: ptr.To(true),
+		}
+		return dda
+	}
+
+	tests := []testCase{
+		{
+			name: "[cos] baseline DDA no annotation: src volume present on default DS",
+			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
+				dda := buildDDA(nil)
+				_ = c.Create(context.TODO(), dda)
+				return dda
+			},
+			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
+			wantErr: false,
+			wantFunc: func(t *testing.T, c client.Client) {
+				assertVolumes(t, c, resourcesNamespace, defaultDsName, true)
+			},
+		},
+		{
+			name: "[cos] DDA with gke-cos annotation strips src volume on default DS",
+			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
+				dda := buildDDA(map[string]string{
+					kubernetes.ProviderAnnotationKey: kubernetes.GKECosProvider,
+				})
+				_ = c.Create(context.TODO(), dda)
+				return dda
+			},
+			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
+			wantErr: false,
+			wantFunc: func(t *testing.T, c client.Client) {
+				assertVolumes(t, c, resourcesNamespace, defaultDsName, false)
+			},
+		},
+		{
+			name: "[cos] DDA without annotation, DAP with gke-cos strips src on profile DS only",
+			clientBuilder: fake.NewClientBuilder().
+				WithStatusSubresource(&v2alpha1.DatadogAgent{}, &v1alpha1.DatadogAgentProfile{}, &v1alpha1.DatadogAgentInternal{}).
+				WithObjects(cosProfile),
+			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
+				dda := buildDDA(nil)
+				_ = c.Create(context.TODO(), dda)
+				return dda
+			},
+			profile:         cosProfile,
+			profilesEnabled: true,
+			want:            reconcile.Result{RequeueAfter: defaultRequeueDuration},
+			wantErr:         false,
+			wantFunc: func(t *testing.T, c client.Client) {
+				// Profile DDAI inherited the DAP's COS annotation → src stripped.
+				assertVolumes(t, c, resourcesNamespace, profileDsName, false)
+				// Default DDAI has no provider annotation → src present.
+				assertVolumes(t, c, resourcesNamespace, defaultDsName, true)
+			},
+		},
+	}
+
+	runTestCases(t, tests, runFullReconcilerTest)
+}
+
 func verifyDaemonsetContainers(t *testing.T, c client.Client, resourcesNamespace, dsName string, expectedContainers []string) {
 	ds := &appsv1.DaemonSet{}
 	err := c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: dsName}, ds)
