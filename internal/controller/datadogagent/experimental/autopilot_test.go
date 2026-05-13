@@ -9,10 +9,65 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
+	mergerfake "github.com/DataDog/datadog-operator/internal/controller/datadogagent/merger/fake"
 )
+
+func findEnvVar(envs []*v1.EnvVar, name string) *v1.EnvVar {
+	for _, e := range envs {
+		if e.Name == name {
+			return e
+		}
+	}
+	return nil
+}
+
+func TestApplyExperimentalAutopilotOverrides_KubeletUseAPIServerEnvVar(t *testing.T) {
+	tests := []struct {
+		name              string
+		autopilotEnabled  bool
+		expectEnvVarValue string // empty means env var should NOT be present
+	}{
+		{
+			name:              "autopilot enabled adds DD_KUBELET_USE_API_SERVER=true",
+			autopilotEnabled:  true,
+			expectEnvVarValue: "true",
+		},
+		{
+			name:              "autopilot disabled does not add the env var",
+			autopilotEnabled:  false,
+			expectEnvVarValue: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			manager := fake.NewPodTemplateManagers(t, v1.PodTemplateSpec{})
+
+			dda := &v2alpha1.DatadogAgent{
+				ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{}},
+			}
+			if tt.autopilotEnabled {
+				dda.Annotations[getExperimentalAnnotationKey(ExperimentalAutopilotSubkey)] = "true"
+			}
+
+			applyExperimentalAutopilotOverrides(dda, manager)
+
+			got := findEnvVar(manager.EnvVarMgr.EnvVarsByC[mergerfake.AllContainers], DDKubeletUseAPIServer)
+			if tt.expectEnvVarValue == "" {
+				assert.Nil(t, got, "DD_KUBELET_USE_API_SERVER should not be set when autopilot is disabled")
+				return
+			}
+			if assert.NotNil(t, got, "DD_KUBELET_USE_API_SERVER should be set when autopilot is enabled") {
+				assert.Equal(t, tt.expectEnvVarValue, got.Value)
+			}
+		})
+	}
+}
 
 func TestGetAutopilotAllowlistVersionAnnotation(t *testing.T) {
 	tests := []struct {
