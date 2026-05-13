@@ -12,7 +12,9 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	mergerfake "github.com/DataDog/datadog-operator/internal/controller/datadogagent/merger/fake"
 )
@@ -66,6 +68,179 @@ func TestApplyExperimentalAutopilotOverrides_KubeletUseAPIServerEnvVar(t *testin
 				assert.Equal(t, tt.expectEnvVarValue, got.Value)
 			}
 		})
+	}
+}
+
+// TestApplyExperimentalAutopilotOverrides_NPMSurvives asserts that the volumes,
+// mounts, and HostPID required by the NPM feature on the system-probe container
+// are NOT stripped by the Autopilot overrides. NPM on Autopilot relies on the
+// WorkloadAllowlist to grant the required exemptions; if the operator strips
+// the mounts client-side, the system-probe container will fail to start even
+// when the allowlist would have permitted it.
+func TestApplyExperimentalAutopilotOverrides_NPMSurvives(t *testing.T) {
+	npmVolumes := []v1.Volume{
+		{Name: common.ProcdirVolumeName},
+		{Name: common.CgroupsVolumeName},
+		{Name: common.DebugfsVolumeName},
+		{Name: common.SystemProbeSocketVolumeName},
+	}
+	npmMounts := []v1.VolumeMount{
+		{Name: common.ProcdirVolumeName, MountPath: "/host/proc"},
+		{Name: common.CgroupsVolumeName, MountPath: "/host/sys/fs/cgroup"},
+		{Name: common.DebugfsVolumeName, MountPath: "/sys/kernel/debug"},
+		{Name: common.SystemProbeSocketVolumeName, MountPath: "/var/run/sysprobe"},
+	}
+
+	manager := fake.NewPodTemplateManagers(t, v1.PodTemplateSpec{
+		Spec: v1.PodSpec{
+			HostPID: true,
+			Volumes: npmVolumes,
+			Containers: []v1.Container{
+				{Name: string(apicommon.SystemProbeContainerName), VolumeMounts: npmMounts},
+				{Name: string(apicommon.CoreAgentContainerName)},
+			},
+		},
+	})
+
+	dda := &v2alpha1.DatadogAgent{
+		ObjectMeta: metav1.ObjectMeta{
+			Annotations: map[string]string{
+				getExperimentalAnnotationKey(ExperimentalAutopilotSubkey): "true",
+			},
+		},
+	}
+
+	applyExperimentalAutopilotOverrides(dda, manager)
+
+	tpl := manager.PodTemplateSpec()
+	assert.True(t, tpl.Spec.HostPID, "HostPID should be preserved on autopilot for NPM")
+
+	gotVolumes := map[string]bool{}
+	for _, v := range tpl.Spec.Volumes {
+		gotVolumes[v.Name] = true
+	}
+	for _, want := range npmVolumes {
+		assert.True(t, gotVolumes[want.Name], "NPM volume %q should survive autopilot overrides", want.Name)
+	}
+
+	var sysProbeMounts []v1.VolumeMount
+	for _, c := range tpl.Spec.Containers {
+		if c.Name == string(apicommon.SystemProbeContainerName) {
+			sysProbeMounts = c.VolumeMounts
+			break
+		}
+	}
+	gotMounts := map[string]bool{}
+	for _, m := range sysProbeMounts {
+		gotMounts[m.Name] = true
+	}
+	for _, want := range npmMounts {
+		assert.True(t, gotMounts[want.Name], "NPM mount %q should survive autopilot overrides on system-probe", want.Name)
+	}
+}
+
+func TestApplyExperimentalAutopilotOverrides_RemovesAuthTokenFilePathAndAuthMounts(t *testing.T) {
+	authEnv := []v1.EnvVar{
+		{Name: common.DDAuthTokenFilePath, Value: "/etc/datadog-agent/auth/token"},
+		{Name: common.DDClusterAgentEnabled, Value: "true"},
+	}
+
+	manager := fake.NewPodTemplateManagers(t, v1.PodTemplateSpec{
+		Spec: v1.PodSpec{
+			InitContainers: []v1.Container{
+				{
+					Name: string(apicommon.InitConfigContainerName),
+					Env:  authEnv,
+					VolumeMounts: []v1.VolumeMount{
+						{Name: common.AuthVolumeName},
+						{Name: common.CriSocketVolumeName},
+						{Name: common.LogDatadogVolumeName},
+					},
+				},
+			},
+			Volumes: []v1.Volume{
+				{Name: common.LogDatadogVolumeName},
+				{Name: common.AuthVolumeName},
+				{Name: common.DogstatsdSocketVolumeName},
+				{Name: common.ProcdirVolumeName},
+				{Name: common.CgroupsVolumeName},
+			},
+			Containers: []v1.Container{
+				{
+					Name: string(apicommon.SystemProbeContainerName),
+					Env:  authEnv,
+					VolumeMounts: []v1.VolumeMount{
+						{Name: common.LogDatadogVolumeName},
+						{Name: common.AuthVolumeName},
+						{Name: common.DogstatsdSocketVolumeName},
+						{Name: common.ProcdirVolumeName},
+						{Name: common.CgroupsVolumeName},
+					},
+				},
+				{
+					Name: string(apicommon.OtelAgent),
+					Env:  authEnv,
+					VolumeMounts: []v1.VolumeMount{
+						{Name: common.AuthVolumeName},
+						{Name: common.LogDatadogVolumeName},
+					},
+				},
+				{
+					Name: string(apicommon.AgentDataPlaneContainerName),
+					Env:  authEnv,
+					VolumeMounts: []v1.VolumeMount{
+						{Name: common.AuthVolumeName},
+						{Name: common.LogDatadogVolumeName},
+					},
+				},
+			},
+		},
+	})
+
+	dda := &v2alpha1.DatadogAgent{
+		ObjectMeta: metav1.ObjectMeta{
+			Annotations: map[string]string{
+				getExperimentalAnnotationKey(ExperimentalAutopilotSubkey): "true",
+			},
+		},
+	}
+
+	applyExperimentalAutopilotOverrides(dda, manager)
+
+	tpl := manager.PodTemplateSpec()
+	remainingVolumes := map[string]bool{}
+	for _, v := range tpl.Spec.Volumes {
+		remainingVolumes[v.Name] = true
+	}
+
+	assert.False(t, remainingVolumes[common.AuthVolumeName], "auth volume should be stripped on autopilot")
+	assert.False(t, remainingVolumes[common.DogstatsdSocketVolumeName], "DogStatsD socket volume should be stripped on autopilot")
+
+	for _, c := range tpl.Spec.InitContainers {
+		for _, e := range c.Env {
+			assert.NotEqual(t, common.DDAuthTokenFilePath, e.Name, "init container %s should not keep DD_AUTH_TOKEN_FILE_PATH on autopilot", c.Name)
+		}
+		for _, m := range c.VolumeMounts {
+			assert.NotEqual(t, common.AuthVolumeName, m.Name, "init container %s should not keep auth mount on autopilot", c.Name)
+		}
+	}
+
+	for _, c := range tpl.Spec.Containers {
+		mounts := map[string]bool{}
+		for _, e := range c.Env {
+			assert.NotEqual(t, common.DDAuthTokenFilePath, e.Name, "container %s should not keep DD_AUTH_TOKEN_FILE_PATH on autopilot", c.Name)
+		}
+		for _, m := range c.VolumeMounts {
+			mounts[m.Name] = true
+			assert.NotEqual(t, common.AuthVolumeName, m.Name, "container %s should not keep auth mount on autopilot", c.Name)
+			assert.True(t, remainingVolumes[m.Name], "mount %q should refer to an existing volume", m.Name)
+		}
+
+		if c.Name == string(apicommon.SystemProbeContainerName) {
+			assert.False(t, mounts[common.DogstatsdSocketVolumeName], "system-probe DogStatsD socket mount should be stripped with its volume")
+			assert.True(t, mounts[common.ProcdirVolumeName], "system-probe proc mount should survive for NPM/service discovery")
+			assert.True(t, mounts[common.CgroupsVolumeName], "system-probe cgroups mount should survive for NPM/service discovery")
+		}
 	}
 }
 
