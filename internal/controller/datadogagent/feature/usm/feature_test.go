@@ -106,11 +106,6 @@ func Test_usmFeature_Configure(t *testing.T) {
 				ReadOnly:  true,
 			},
 			{
-				Name:      common.DebugfsVolumeName,
-				MountPath: common.DebugfsPath,
-				ReadOnly:  false,
-			},
-			{
 				Name:      common.SystemProbeSocketVolumeName,
 				MountPath: common.SystemProbeSocketVolumePath,
 				ReadOnly:  true,

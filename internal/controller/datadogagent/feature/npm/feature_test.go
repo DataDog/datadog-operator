@@ -102,11 +102,6 @@ func Test_npmFeature_Configure(t *testing.T) {
 				MountPath: common.CgroupsMountPath,
 				ReadOnly:  true,
 			},
-			{
-				Name:      common.DebugfsVolumeName,
-				MountPath: common.DebugfsPath,
-				ReadOnly:  false,
-			},
 		}
 
 		wantProcessAgentVolMounts := append(wantVolumeMounts, corev1.VolumeMount{
@@ -116,6 +111,10 @@ func Test_npmFeature_Configure(t *testing.T) {
 		})
 
 		wantSystemProbeAgentVolMounts := append(wantVolumeMounts, corev1.VolumeMount{
+			Name:      common.DebugfsVolumeName,
+			MountPath: common.DebugfsPath,
+			ReadOnly:  false,
+		}, corev1.VolumeMount{
 			Name:      common.SystemProbeSocketVolumeName,
 			MountPath: common.SystemProbeSocketVolumePath,
 			ReadOnly:  false,
