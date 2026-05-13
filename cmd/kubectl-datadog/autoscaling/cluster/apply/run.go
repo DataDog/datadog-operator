@@ -35,6 +35,7 @@ import (
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/karpenter"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/guess"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/k8s"
+	"github.com/DataDog/datadog-operator/pkg/plugin/common"
 	"github.com/DataDog/datadog-operator/pkg/version"
 
 	_ "embed"
@@ -353,9 +354,31 @@ func installHelmChart(ctx context.Context, configFlags *genericclioptions.Config
 // 1 vCPU / 2 GiB is the smallest valid Fargate combination for 1 vCPU and
 // matches the chart's documented example for existing-nodes.
 //
+// The Karpenter OpenMetrics check is wired differently per install mode:
+//   - existing-nodes: pod-level Autodiscovery annotation, picked up by the
+//     node agent colocated with the controller pod.
+//   - fargate: endpoint-check annotation on the Karpenter Service, paired
+//     with `ad.datadoghq.com/endpoints.resolve: ip`. The default `auto`
+//     resolution would attach the backing Pod's NodeName to each scheduled
+//     check and the cluster agent would dispatch them to the (non-existent)
+//     node agent on the Fargate node. The `ip` value tells the cluster agent
+//     to ignore what's behind each endpoint IP, leaving the check as a plain
+//     cluster check dispatched to the cluster check runner.
+//
 // In fargate mode, the service account is annotated with the IRSA role ARN so
 // the controller can assume the role via sts:AssumeRoleWithWebIdentity.
 func karpenterHelmValues(clusterName string, mode InstallMode, irsaRoleArn string) map[string]any {
+	const karpenterCheckConfig = `{
+  "karpenter": {
+    "init_config": {},
+    "instances": [
+      {
+        "openmetrics_endpoint": "http://%%host%%:8080/metrics"
+      }
+    ]
+  }
+}`
+
 	values := map[string]any{
 		// See karpenter.InstalledByLabel for why these keys are Datadog-namespaced.
 		"additionalLabels": map[string]any{
@@ -366,18 +389,6 @@ func karpenterHelmValues(clusterName string, mode InstallMode, irsaRoleArn strin
 			"clusterName":       clusterName,
 			"interruptionQueue": clusterName,
 		},
-		"podAnnotations": map[string]any{
-			"ad.datadoghq.com/controller.checks": `{
-  "karpenter": {
-    "init_config": {},
-    "instances": [
-      {
-        "openmetrics_endpoint": "http://%%host%%:8080/metrics"
-      }
-    ]
-  }
-}`,
-		},
 		"controller": map[string]any{
 			"resources": map[string]any{
 				"requests": map[string]any{"cpu": "1", "memory": "2Gi"},
@@ -387,10 +398,20 @@ func karpenterHelmValues(clusterName string, mode InstallMode, irsaRoleArn strin
 	}
 
 	if mode == InstallModeFargate {
+		values["service"] = map[string]any{
+			"annotations": map[string]any{
+				common.ADPrefix + "endpoints.checks":  karpenterCheckConfig,
+				common.ADPrefix + "endpoints.resolve": "ip",
+			},
+		}
 		values["serviceAccount"] = map[string]any{
 			"annotations": map[string]any{
 				"eks.amazonaws.com/role-arn": irsaRoleArn,
 			},
+		}
+	} else {
+		values["podAnnotations"] = map[string]any{
+			common.ADPrefix + "controller.checks": karpenterCheckConfig,
 		}
 	}
 
