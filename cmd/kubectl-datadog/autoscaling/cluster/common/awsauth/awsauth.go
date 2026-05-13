@@ -16,6 +16,11 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
+const (
+	configMapNamespace = "kube-system"
+	configMapName      = "aws-auth"
+)
+
 type RoleMapping struct {
 	RoleArn  string   `yaml:"rolearn"`
 	Username string   `yaml:"username"`
@@ -24,7 +29,7 @@ type RoleMapping struct {
 
 // IsConfigMapPresent checks if the aws-auth ConfigMap exists in the kube-system namespace.
 func IsConfigMapPresent(ctx context.Context, clientset *kubernetes.Clientset) (bool, error) {
-	if _, err := clientset.CoreV1().ConfigMaps("kube-system").Get(ctx, "aws-auth", metav1.GetOptions{}); err != nil {
+	if _, err := clientset.CoreV1().ConfigMaps(configMapNamespace).Get(ctx, configMapName, metav1.GetOptions{}); err != nil {
 		if apierrors.IsNotFound(err) {
 			return false, nil
 		}
@@ -35,7 +40,7 @@ func IsConfigMapPresent(ctx context.Context, clientset *kubernetes.Clientset) (b
 }
 
 func EnsureRole(ctx context.Context, clientset kubernetes.Interface, roleMapping RoleMapping) error {
-	cm, err := clientset.CoreV1().ConfigMaps("kube-system").Get(ctx, "aws-auth", metav1.GetOptions{})
+	cm, err := clientset.CoreV1().ConfigMaps(configMapNamespace).Get(ctx, configMapName, metav1.GetOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to get aws-auth ConfigMap: %w", err)
 	}
@@ -65,7 +70,7 @@ func EnsureRole(ctx context.Context, clientset kubernetes.Interface, roleMapping
 
 	cm.Data["mapRoles"] = string(updated)
 
-	if _, err := clientset.CoreV1().ConfigMaps("kube-system").Update(ctx, cm, metav1.UpdateOptions{}); err != nil {
+	if _, err := clientset.CoreV1().ConfigMaps(configMapNamespace).Update(ctx, cm, metav1.UpdateOptions{}); err != nil {
 		return fmt.Errorf("failed to update aws-auth ConfigMap: %w", err)
 	}
 
@@ -75,7 +80,7 @@ func EnsureRole(ctx context.Context, clientset kubernetes.Interface, roleMapping
 }
 
 func RemoveRole(ctx context.Context, clientset kubernetes.Interface, roleArn string) error {
-	cm, err := clientset.CoreV1().ConfigMaps("kube-system").Get(ctx, "aws-auth", metav1.GetOptions{})
+	cm, err := clientset.CoreV1().ConfigMaps(configMapNamespace).Get(ctx, configMapName, metav1.GetOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to get aws-auth ConfigMap: %w", err)
 	}
@@ -107,7 +112,7 @@ func RemoveRole(ctx context.Context, clientset kubernetes.Interface, roleArn str
 
 	cm.Data["mapRoles"] = string(updated)
 
-	if _, err := clientset.CoreV1().ConfigMaps("kube-system").Update(ctx, cm, metav1.UpdateOptions{}); err != nil {
+	if _, err := clientset.CoreV1().ConfigMaps(configMapNamespace).Update(ctx, cm, metav1.UpdateOptions{}); err != nil {
 		return fmt.Errorf("failed to update aws-auth ConfigMap: %w", err)
 	}
 
