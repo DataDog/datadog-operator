@@ -35,8 +35,6 @@ import (
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/eksautomode"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/helm"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/karpenter"
-	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/guess"
-	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/k8s"
 	"github.com/DataDog/datadog-operator/pkg/plugin/common"
 	"github.com/DataDog/datadog-operator/pkg/version"
 
@@ -425,18 +423,18 @@ func createNodePoolResources(ctx context.Context, streams genericclioptions.IOSt
 		return nil
 	}
 
-	var nodePoolsSet *guess.NodePoolsSet
+	var nodePoolsSet *karpenter.NodePoolsSet
 	var err error
 
 	switch opts.InferenceMethod {
 	case InferenceMethodNodes:
-		nodePoolsSet, err = guess.GetNodesProperties(ctx, cli.K8sClientset, cli.EC2)
+		nodePoolsSet, err = karpenter.GetNodesProperties(ctx, cli.K8sClientset, cli.EC2)
 		if err != nil {
 			return fmt.Errorf("failed to gather nodes properties: %w", err)
 		}
 
 	case InferenceMethodNodeGroups:
-		nodePoolsSet, err = guess.GetNodeGroupsProperties(ctx, cli.EKS, cli.EC2, opts.ClusterName)
+		nodePoolsSet, err = karpenter.GetNodeGroupsProperties(ctx, cli.EKS, cli.EC2, opts.ClusterName)
 		if err != nil {
 			return fmt.Errorf("failed to gather node groups properties: %w", err)
 		}
@@ -448,7 +446,7 @@ func createNodePoolResources(ctx context.Context, streams genericclioptions.IOSt
 
 	if opts.CreateKarpenterResources == CreateKarpenterResourcesEC2NodeClass || opts.CreateKarpenterResources == CreateKarpenterResourcesAll {
 		for _, nc := range nodePoolsSet.GetEC2NodeClasses() {
-			if err = k8s.CreateOrUpdateEC2NodeClass(ctx, cli.K8sClient, opts.ClusterName, nc); err != nil {
+			if err = karpenter.CreateOrUpdateEC2NodeClass(ctx, cli.K8sClient, opts.ClusterName, nc); err != nil {
 				return fmt.Errorf("failed to create or update EC2NodeClass %s: %w", nc.GetName(), err)
 			}
 		}
@@ -456,7 +454,7 @@ func createNodePoolResources(ctx context.Context, streams genericclioptions.IOSt
 
 	if opts.CreateKarpenterResources == CreateKarpenterResourcesAll {
 		for _, np := range nodePoolsSet.GetNodePools() {
-			if err = k8s.CreateOrUpdateNodePool(ctx, cli.K8sClient, np); err != nil {
+			if err = karpenter.CreateOrUpdateNodePool(ctx, cli.K8sClient, np); err != nil {
 				return fmt.Errorf("failed to create or update NodePool %s: %w", np.GetName(), err)
 			}
 		}

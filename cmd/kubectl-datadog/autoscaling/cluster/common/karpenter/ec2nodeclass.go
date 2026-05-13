@@ -1,6 +1,4 @@
-// Package k8s provides Kubernetes-specific functionality for creating and managing
-// Karpenter custom resources including EC2NodeClass and NodePool objects.
-package k8s
+package karpenter
 
 import (
 	"context"
@@ -12,11 +10,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	commonk8s "github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/k8s"
-	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/guess"
 	"github.com/DataDog/datadog-operator/pkg/version"
 )
 
-func CreateOrUpdateEC2NodeClass(ctx context.Context, client client.Client, clusterName string, nc guess.EC2NodeClass) error {
+func CreateOrUpdateEC2NodeClass(ctx context.Context, client client.Client, clusterName string, nc EC2NodeClass) error {
 	var amiSelectorTerms []karpawsv1.AMISelectorTerm
 
 	if amiIDs := nc.GetAMIIDs(); len(amiIDs) > 0 {
@@ -91,7 +88,7 @@ func amiFamilyToAlias(amiFamily string) string {
 	}
 }
 
-func convertMetadataOptions(opts *guess.MetadataOptions) *karpawsv1.MetadataOptions {
+func convertMetadataOptions(opts *MetadataOptions) *karpawsv1.MetadataOptions {
 	if opts == nil {
 		return nil
 	}
@@ -104,12 +101,12 @@ func convertMetadataOptions(opts *guess.MetadataOptions) *karpawsv1.MetadataOpti
 	}
 }
 
-func convertBlockDeviceMappings(mappings []guess.BlockDeviceMapping) []*karpawsv1.BlockDeviceMapping {
+func convertBlockDeviceMappings(mappings []BlockDeviceMapping) []*karpawsv1.BlockDeviceMapping {
 	if len(mappings) == 0 {
 		return nil
 	}
 
-	return lo.Map(mappings, func(bdm guess.BlockDeviceMapping, _ int) *karpawsv1.BlockDeviceMapping {
+	return lo.Map(mappings, func(bdm BlockDeviceMapping, _ int) *karpawsv1.BlockDeviceMapping {
 		var volumeSize *resource.Quantity
 		if bdm.VolumeSize != nil {
 			if quantity, err := resource.ParseQuantity(*bdm.VolumeSize); err == nil {
