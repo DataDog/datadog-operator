@@ -14,6 +14,7 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/pkg/allowlistsynchronizer"
 )
 
@@ -66,7 +67,10 @@ func IsAutopilotEnabled(obj metav1.Object) bool {
 
 func applyExperimentalAutopilotOverrides(dda metav1.Object, manager feature.PodTemplateManagers) {
 	if IsAutopilotEnabled(dda) {
-		allowlistsynchronizer.CreateAllowlistSynchronizer()
+		allowlistsynchronizer.CreateAllowlistSynchronizer(
+			getExperimentalAnnotation(dda, ExperimentalAutopilotAllowlistVersionSubkey),
+			object.NewPartOfLabelValue(dda).String(),
+		)
 
 		if manager.PodTemplateSpec().Labels == nil {
 			manager.PodTemplateSpec().Labels = map[string]string{}
