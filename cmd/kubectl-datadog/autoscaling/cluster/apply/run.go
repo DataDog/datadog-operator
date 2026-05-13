@@ -21,6 +21,7 @@ import (
 	"github.com/pkg/browser"
 	"helm.sh/helm/v3/pkg/registry"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -29,9 +30,12 @@ import (
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/clients"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/clusterinfo"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/display"
+	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/eksautomode"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/helm"
+	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/karpenter"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/guess"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/k8s"
+	"github.com/DataDog/datadog-operator/pkg/plugin/common"
 	"github.com/DataDog/datadog-operator/pkg/version"
 
 	_ "embed"
@@ -106,13 +110,13 @@ func Run(ctx context.Context, streams genericclioptions.IOStreams, configFlags *
 	log.SetOutput(streams.ErrOut)
 	ctrl.SetLogger(zap.New(zap.UseDevMode(false), zap.WriteTo(streams.ErrOut)))
 
-	if autoModeEnabled, err := guess.IsEKSAutoModeEnabled(clientset.Discovery()); err != nil {
+	if autoModeEnabled, err := eksautomode.IsEnabled(clientset.Discovery()); err != nil {
 		return fmt.Errorf("failed to check for EKS auto-mode: %w", err)
 	} else if autoModeEnabled {
 		return displayEKSAutoModeMessage(streams, opts.ClusterName)
 	}
 
-	k, err := guess.FindKarpenterInstallation(ctx, clientset)
+	k, err := karpenter.FindInstallation(ctx, clientset)
 	if err != nil {
 		return fmt.Errorf("failed to check for an existing Karpenter installation: %w", err)
 	}
@@ -148,7 +152,7 @@ func Run(ctx context.Context, streams genericclioptions.IOStreams, configFlags *
 		return err
 	}
 
-	if err = recordClusterInfo(ctx, cli, opts.ClusterName, opts.KarpenterNamespace); err != nil {
+	if err = recordClusterInfo(ctx, cli, clientset.Discovery(), opts.ClusterName, opts.KarpenterNamespace); err != nil {
 		log.Printf("Warning: %v", err)
 	}
 
@@ -350,21 +354,21 @@ func installHelmChart(ctx context.Context, configFlags *genericclioptions.Config
 // 1 vCPU / 2 GiB is the smallest valid Fargate combination for 1 vCPU and
 // matches the chart's documented example for existing-nodes.
 //
+// The Karpenter OpenMetrics check is wired differently per install mode:
+//   - existing-nodes: pod-level Autodiscovery annotation, picked up by the
+//     node agent colocated with the controller pod.
+//   - fargate: endpoint-check annotation on the Karpenter Service, paired
+//     with `ad.datadoghq.com/endpoints.resolve: ip`. The default `auto`
+//     resolution would attach the backing Pod's NodeName to each scheduled
+//     check and the cluster agent would dispatch them to the (non-existent)
+//     node agent on the Fargate node. The `ip` value tells the cluster agent
+//     to ignore what's behind each endpoint IP, leaving the check as a plain
+//     cluster check dispatched to the cluster check runner.
+//
 // In fargate mode, the service account is annotated with the IRSA role ARN so
 // the controller can assume the role via sts:AssumeRoleWithWebIdentity.
 func karpenterHelmValues(clusterName string, mode InstallMode, irsaRoleArn string) map[string]any {
-	values := map[string]any{
-		// See guess.InstalledByLabel for why these keys are Datadog-namespaced.
-		"additionalLabels": map[string]any{
-			guess.InstalledByLabel:      guess.InstalledByValue,
-			guess.InstallerVersionLabel: version.GetVersion(),
-		},
-		"settings": map[string]any{
-			"clusterName":       clusterName,
-			"interruptionQueue": clusterName,
-		},
-		"podAnnotations": map[string]any{
-			"ad.datadoghq.com/controller.checks": `{
+	const karpenterCheckConfig = `{
   "karpenter": {
     "init_config": {},
     "instances": [
@@ -373,7 +377,17 @@ func karpenterHelmValues(clusterName string, mode InstallMode, irsaRoleArn strin
       }
     ]
   }
-}`,
+}`
+
+	values := map[string]any{
+		// See karpenter.InstalledByLabel for why these keys are Datadog-namespaced.
+		"additionalLabels": map[string]any{
+			karpenter.InstalledByLabel:      karpenter.InstalledByValue,
+			karpenter.InstallerVersionLabel: version.GetVersion(),
+		},
+		"settings": map[string]any{
+			"clusterName":       clusterName,
+			"interruptionQueue": clusterName,
 		},
 		"controller": map[string]any{
 			"resources": map[string]any{
@@ -384,10 +398,20 @@ func karpenterHelmValues(clusterName string, mode InstallMode, irsaRoleArn strin
 	}
 
 	if mode == InstallModeFargate {
+		values["service"] = map[string]any{
+			"annotations": map[string]any{
+				common.ADPrefix + "endpoints.checks":  karpenterCheckConfig,
+				common.ADPrefix + "endpoints.resolve": "ip",
+			},
+		}
 		values["serviceAccount"] = map[string]any{
 			"annotations": map[string]any{
 				"eks.amazonaws.com/role-arn": irsaRoleArn,
 			},
+		}
+	} else {
+		values["podAnnotations"] = map[string]any{
+			common.ADPrefix + "controller.checks": karpenterCheckConfig,
 		}
 	}
 
@@ -442,8 +466,15 @@ func createNodePoolResources(ctx context.Context, streams genericclioptions.IOSt
 // recordClusterInfo classifies every node by its current management method
 // and writes the snapshot to a ConfigMap. The information is consumed by the
 // follow-up migration step.
-func recordClusterInfo(ctx context.Context, cli *clients.Clients, clusterName, namespace string) error {
-	info, err := clusterinfo.Classify(ctx, cli.K8sClientset, cli.Autoscaling, clusterName)
+func recordClusterInfo(ctx context.Context, cli *clients.Clients, discoveryClient discovery.DiscoveryInterface, clusterName, namespace string) error {
+	info, err := clusterinfo.Classify(ctx, clusterinfo.ClassifyInput{
+		K8sClient:   cli.K8sClientset,
+		CtrlClient:  cli.K8sClient,
+		Autoscaling: cli.Autoscaling,
+		EKS:         cli.EKS,
+		Discovery:   discoveryClient,
+		ClusterName: clusterName,
+	})
 	if err != nil {
 		return fmt.Errorf("failed to classify cluster nodes: %w", err)
 	}
@@ -488,7 +519,7 @@ func displayEKSAutoModeMessage(streams genericclioptions.IOStreams, clusterName 
 	return nil
 }
 
-func displayForeignKarpenterMessage(streams genericclioptions.IOStreams, clusterName string, foreign *guess.KarpenterInstallation) error {
+func displayForeignKarpenterMessage(streams genericclioptions.IOStreams, clusterName string, foreign *karpenter.Installation) error {
 	coloredURL := openAutoscalingSettingsURL(streams, clusterName)
 
 	display.PrintBox(streams.Out,
