@@ -36,11 +36,11 @@ import (
 
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/apply"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/aws"
+	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/awsauth"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/clients"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/display"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/helm"
 	commonk8s "github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/k8s"
-	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/guess"
 	"github.com/DataDog/datadog-operator/pkg/plugin/common"
 )
 
@@ -487,7 +487,7 @@ func (o *options) uninstallHelmChart(ctx context.Context, karpenterNamespace str
 }
 
 func removeAwsAuthConfigMapRole(ctx context.Context, cli *clients.Clients, clusterName string) error {
-	awsAuthConfigMapPresent, err := guess.IsAwsAuthConfigMapPresent(ctx, cli.K8sClientset)
+	awsAuthConfigMapPresent, err := awsauth.IsConfigMapPresent(ctx, cli.K8sClientset)
 	if err != nil {
 		return fmt.Errorf("failed to check if aws-auth ConfigMap is present: %w", err)
 	}
@@ -504,7 +504,7 @@ func removeAwsAuthConfigMapRole(ctx context.Context, cli *clients.Clients, clust
 
 	roleArn := "arn:aws:iam::" + accountID + ":role/KarpenterNodeRole-" + clusterName
 
-	if err = aws.RemoveAwsAuthRole(ctx, cli.K8sClientset, roleArn); err != nil {
+	if err = awsauth.RemoveRole(ctx, cli.K8sClientset, roleArn); err != nil {
 		return fmt.Errorf("failed to remove aws-auth role: %w", err)
 	}
 

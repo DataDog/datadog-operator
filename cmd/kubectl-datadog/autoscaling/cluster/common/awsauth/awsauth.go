@@ -1,4 +1,8 @@
-package aws
+// Package awsauth reads and mutates the kube-system/aws-auth ConfigMap that
+// EKS clusters use (in CONFIG_MAP authentication mode) to grant IAM principals
+// access to the Kubernetes API. Despite the AWS-flavored name, this is purely
+// a Kubernetes operation — the ConfigMap lives in the cluster, not in AWS.
+package awsauth
 
 import (
 	"context"
@@ -7,6 +11,7 @@ import (
 	"slices"
 
 	"gopkg.in/yaml.v3"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
@@ -17,7 +22,19 @@ type RoleMapping struct {
 	Groups   []string `yaml:"groups"`
 }
 
-func EnsureAwsAuthRole(ctx context.Context, clientset kubernetes.Interface, roleMapping RoleMapping) error {
+// IsConfigMapPresent checks if the aws-auth ConfigMap exists in the kube-system namespace.
+func IsConfigMapPresent(ctx context.Context, clientset *kubernetes.Clientset) (bool, error) {
+	if _, err := clientset.CoreV1().ConfigMaps("kube-system").Get(ctx, "aws-auth", metav1.GetOptions{}); err != nil {
+		if apierrors.IsNotFound(err) {
+			return false, nil
+		}
+		return false, fmt.Errorf("failed to get aws-auth ConfigMap: %w", err)
+	}
+
+	return true, nil
+}
+
+func EnsureRole(ctx context.Context, clientset kubernetes.Interface, roleMapping RoleMapping) error {
 	cm, err := clientset.CoreV1().ConfigMaps("kube-system").Get(ctx, "aws-auth", metav1.GetOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to get aws-auth ConfigMap: %w", err)
@@ -57,7 +74,7 @@ func EnsureAwsAuthRole(ctx context.Context, clientset kubernetes.Interface, role
 	return nil
 }
 
-func RemoveAwsAuthRole(ctx context.Context, clientset kubernetes.Interface, roleArn string) error {
+func RemoveRole(ctx context.Context, clientset kubernetes.Interface, roleArn string) error {
 	cm, err := clientset.CoreV1().ConfigMaps("kube-system").Get(ctx, "aws-auth", metav1.GetOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to get aws-auth ConfigMap: %w", err)

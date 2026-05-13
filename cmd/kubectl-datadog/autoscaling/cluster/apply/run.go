@@ -27,6 +27,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/aws"
+	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/awsauth"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/clients"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/clusterinfo"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/display"
@@ -299,7 +300,7 @@ func checkFargateStackImmutability(stack *aws.Stack, namespace string, subnets [
 }
 
 func updateAwsAuthConfigMap(ctx context.Context, cli *clients.Clients, clusterName string) error {
-	awsAuthConfigMapPresent, err := guess.IsAwsAuthConfigMapPresent(ctx, cli.K8sClientset)
+	awsAuthConfigMapPresent, err := awsauth.IsConfigMapPresent(ctx, cli.K8sClientset)
 	if err != nil {
 		return fmt.Errorf("failed to check if aws-auth ConfigMap is present: %w", err)
 	}
@@ -315,7 +316,7 @@ func updateAwsAuthConfigMap(ctx context.Context, cli *clients.Clients, clusterNa
 	}
 
 	// Add role mapping in the `aws-auth` ConfigMap
-	if err = aws.EnsureAwsAuthRole(ctx, cli.K8sClientset, aws.RoleMapping{
+	if err = awsauth.EnsureRole(ctx, cli.K8sClientset, awsauth.RoleMapping{
 		RoleArn:  "arn:aws:iam::" + accountID + ":role/KarpenterNodeRole-" + clusterName,
 		Username: "system:node:{{EC2PrivateDNSName}}",
 		Groups:   []string{"system:bootstrappers", "system:nodes"},
