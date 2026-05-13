@@ -97,6 +97,13 @@ func node(name string, providerID string, labels map[string]string) *corev1.Node
 	}
 }
 
+func pod(name, namespace, nodeName string, labels map[string]string) *corev1.Pod {
+	return &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace, Labels: labels},
+		Spec:       corev1.PodSpec{NodeName: nodeName},
+	}
+}
+
 func deploymentWith(namespace, name string, labels map[string]string, image string) *appsv1.Deployment {
 	return &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: name, Labels: labels},
@@ -195,12 +202,17 @@ func TestClassify_ClusterIdentity_DescribeError(t *testing.T) {
 
 func TestClassify_AllBucketsByLabel(t *testing.T) {
 	objs := []runtime.Object{
-		// fargate via label
+		// fargate via label; profile name comes from the hosted Pod's label
+		// (EKS stamps `eks.amazonaws.com/fargate-profile` on the Pod, not the
+		// Node).
 		node("fargate-by-label", "aws:///us-east-1a/fargate-abc", map[string]string{
-			"eks.amazonaws.com/compute-type":    "fargate",
+			"eks.amazonaws.com/compute-type": "fargate",
+		}),
+		pod("workload", "default", "fargate-by-label", map[string]string{
 			"eks.amazonaws.com/fargate-profile": "fp-default",
 		}),
-		// fargate via name fallback (no compute-type label)
+		// fargate via name fallback (no compute-type label, no Pod yet
+		// scheduled) — exercises the empty-key fallback path.
 		node("fargate-ip-10-0-0-1.eu-west-3.compute.internal", "", nil),
 		// karpenter via primary label
 		node("kp-primary", "aws:///us-east-1a/i-0aaa", map[string]string{
@@ -246,6 +258,64 @@ func TestClassify_AllBucketsByLabel(t *testing.T) {
 	assert.Equal(t, []string{"orphan"},
 		info.NodeManagement[NodeManagerUnknown][""].Nodes)
 	assert.Empty(t, asg.calls, "label-only nodes must not trigger AWS calls")
+}
+
+func TestClassify_FargateMultipleProfiles(t *testing.T) {
+	clientset := fake.NewSimpleClientset(
+		node("fargate-a", "", map[string]string{"eks.amazonaws.com/compute-type": "fargate"}),
+		node("fargate-b", "", map[string]string{"eks.amazonaws.com/compute-type": "fargate"}),
+		pod("workload-a", "team-a", "fargate-a", map[string]string{
+			"eks.amazonaws.com/fargate-profile": "fp-team-a",
+		}),
+		pod("workload-b", "team-b", "fargate-b", map[string]string{
+			"eks.amazonaws.com/fargate-profile": "fp-team-b",
+		}),
+	)
+
+	info, err := Classify(t.Context(), classifyOpts(clientset, &fakeASG{}))
+	require.NoError(t, err)
+
+	assert.Equal(t, []string{"fargate-a"},
+		info.NodeManagement[NodeManagerFargate]["fp-team-a"].Nodes)
+	assert.Equal(t, []string{"fargate-b"},
+		info.NodeManagement[NodeManagerFargate]["fp-team-b"].Nodes)
+}
+
+// TestClassify_FargatePendingPodSkipped guards the empty-NodeName branch of
+// fargateProfilesByNode: a Pod that carries the Fargate label but isn't yet
+// scheduled onto a Node must not populate the index (and must not panic).
+func TestClassify_FargatePendingPodSkipped(t *testing.T) {
+	clientset := fake.NewSimpleClientset(
+		node("fargate-a", "", map[string]string{"eks.amazonaws.com/compute-type": "fargate"}),
+		// Scheduled pod -> profile resolves normally.
+		pod("workload-a", "team-a", "fargate-a", map[string]string{
+			"eks.amazonaws.com/fargate-profile": "fp-team-a",
+		}),
+		// Pending pod (no NodeName yet) -> must be ignored.
+		pod("workload-pending", "team-a", "", map[string]string{
+			"eks.amazonaws.com/fargate-profile": "fp-team-a",
+		}),
+	)
+
+	info, err := Classify(t.Context(), classifyOpts(clientset, &fakeASG{}))
+	require.NoError(t, err)
+
+	assert.Equal(t, []string{"fargate-a"},
+		info.NodeManagement[NodeManagerFargate]["fp-team-a"].Nodes)
+}
+
+// TestClassify_FargatePodListErrorPropagates guards the error path of
+// fargateProfilesByNode: a failing Pod listing must surface to the caller
+// of Classify wrapped with a recognisable message.
+func TestClassify_FargatePodListErrorPropagates(t *testing.T) {
+	clientset := fake.NewSimpleClientset()
+	clientset.PrependReactor("list", "pods", func(_ k8stesting.Action) (bool, runtime.Object, error) {
+		return true, nil, apierrors.NewServiceUnavailable("test failure")
+	})
+
+	_, err := Classify(t.Context(), classifyOpts(clientset, &fakeASG{}))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to list Fargate pods")
 }
 
 func TestClassify_ASGAndStandalone(t *testing.T) {
@@ -448,11 +518,15 @@ func TestClassify_KarpenterNodePoolOwnership_NoCRD(t *testing.T) {
 func TestClassify_FargateProfileOwnership(t *testing.T) {
 	clientset := fake.NewSimpleClientset(
 		node("fargate-1", "", map[string]string{
-			"eks.amazonaws.com/compute-type":    "fargate",
-			"eks.amazonaws.com/fargate-profile": "dd-karpenter-test",
+			"eks.amazonaws.com/compute-type": "fargate",
 		}),
 		node("fargate-2", "", map[string]string{
-			"eks.amazonaws.com/compute-type":    "fargate",
+			"eks.amazonaws.com/compute-type": "fargate",
+		}),
+		pod("workload-1", "default", "fargate-1", map[string]string{
+			"eks.amazonaws.com/fargate-profile": "dd-karpenter-test",
+		}),
+		pod("workload-2", "default", "fargate-2", map[string]string{
 			"eks.amazonaws.com/fargate-profile": "third-party",
 		}),
 	)
@@ -476,7 +550,9 @@ func TestClassify_FargateProfileOwnership_DescribeError(t *testing.T) {
 	// stays unflagged and a warning is logged.
 	clientset := fake.NewSimpleClientset(
 		node("fargate-1", "", map[string]string{
-			"eks.amazonaws.com/compute-type":    "fargate",
+			"eks.amazonaws.com/compute-type": "fargate",
+		}),
+		pod("workload-1", "default", "fargate-1", map[string]string{
 			"eks.amazonaws.com/fargate-profile": "dd-karpenter-test",
 		}),
 	)
