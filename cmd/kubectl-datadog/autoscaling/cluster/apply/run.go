@@ -30,6 +30,7 @@ import (
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/clients"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/clusterinfo"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/display"
+	commoneks "github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/eks"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/eksautomode"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/helm"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/karpenter"
@@ -178,7 +179,7 @@ func createCloudFormationStacks(ctx context.Context, cli *clients.Clients, opts 
 		return "", fmt.Errorf("failed to describe cluster %s: %w", opts.ClusterName, err)
 	}
 	cluster := describeOut.Cluster
-	supportsAPIAuth := guess.SupportsAPIAuthenticationMode(cluster)
+	supportsAPIAuth := commoneks.SupportsAPIAuthenticationMode(cluster)
 
 	ddStackName := DDKarpenterStackName(opts.ClusterName)
 	ddStack, err := aws.GetStack(ctx, cli.CloudFormation, ddStackName)
@@ -192,7 +193,7 @@ func createCloudFormationStacks(ctx context.Context, cli *clients.Clients, opts 
 
 	switch opts.InstallMode {
 	case InstallModeExistingNodes:
-		isUnmanagedEKSPIAInstalled, err := guess.IsThereUnmanagedEKSPodIdentityAgentInstalled(ctx, cli.EKS, opts.ClusterName)
+		isUnmanagedEKSPIAInstalled, err := commoneks.IsThereUnmanagedEKSPodIdentityAgentInstalled(ctx, cli.EKS, opts.ClusterName)
 		if err != nil {
 			return "", fmt.Errorf("failed to check if EKS pod identity agent is installed: %w", err)
 		}
@@ -207,18 +208,18 @@ func createCloudFormationStacks(ctx context.Context, cli *clients.Clients, opts 
 		return "", nil
 
 	case InstallModeFargate:
-		issuerURL, err := guess.GetClusterOIDCIssuerURL(cluster)
+		issuerURL, err := commoneks.GetClusterOIDCIssuerURL(cluster)
 		if err != nil {
 			return "", fmt.Errorf("failed to get cluster OIDC issuer URL: %w", err)
 		}
-		oidcArn, err := guess.EnsureOIDCProvider(ctx, cli.IAM, issuerURL)
+		oidcArn, err := commoneks.EnsureOIDCProvider(ctx, cli.IAM, issuerURL)
 		if err != nil {
 			return "", fmt.Errorf("failed to ensure OIDC provider: %w", err)
 		}
 
 		subnets := opts.FargateSubnets
 		if len(subnets) == 0 {
-			subnets, err = guess.GetClusterPrivateSubnets(ctx, cli.EC2, cluster)
+			subnets, err = commoneks.GetClusterPrivateSubnets(ctx, cli.EC2, cluster)
 			if err != nil {
 				return "", fmt.Errorf("failed to discover private subnets: %w", err)
 			}
