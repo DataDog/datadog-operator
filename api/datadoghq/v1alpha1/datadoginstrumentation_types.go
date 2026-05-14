@@ -30,7 +30,7 @@ type DatadogInstrumentationConfig struct {
 
 	// APM configures the APM product through Single Step Instrumentation for the target workload.
 	// +optional
-	APM *DatadogInstrumentationAPMConfig `json:"apm,omitempty"`
+	APM DatadogInstrumentationAPMConfig `json:"apm,omitempty"`
 }
 
 // DatadogInstrumentationAPMConfig defines workload-scoped APM configuration.
