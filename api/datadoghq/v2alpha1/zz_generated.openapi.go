@@ -1137,7 +1137,14 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_ExperimentStatus(ref common.
 					},
 					"id": {
 						SchemaProps: spec.SchemaProps{
-							Description: "ID is the unique experiment ID sent by Fleet Automation.",
+							Description: "ID is the RC task ID that triggered this experiment state.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"terminationReason": {
+						SchemaProps: spec.SchemaProps{
+							Description: "TerminationReason distinguishes why the experiment was terminated. Only set when Phase is \"terminated\".",
 							Type:        []string{"string"},
 							Format:      "",
 						},

@@ -34,10 +34,8 @@ const (
 // fleetManagementOperation is a single fleet operation for config management of a Kubernetes resource.
 // Config is a JSON merge patch (no strategic merge patch).
 type fleetManagementOperation struct {
-	Operation        Operation               `json:"operation"`
-	GroupVersionKind schema.GroupVersionKind `json:"group_version_kind"`
-	NamespacedName   types.NamespacedName    `json:"namespaced_name"`
-	Config           json.RawMessage         `json:"config"`
+	Operation Operation       `json:"operation"`
+	Config    json.RawMessage `json:"config"`
 }
 
 // remoteAPIRequest is a task sent to the fleet daemon via RC.
@@ -63,7 +61,9 @@ type expectedState struct {
 
 // experimentParams holds the parsed params for experiment methods.
 type experimentParams struct {
-	Version string `json:"version"`
+	Version          string                  `json:"version"`
+	GroupVersionKind schema.GroupVersionKind `json:"group_version_kind"`
+	NamespacedName   types.NamespacedName    `json:"namespaced_name"`
 }
 
 // handleInstallerConfigUpdate returns an RC subscription callback that parses
@@ -98,7 +98,7 @@ func handleInstallerConfigUpdate(ctx context.Context, h func(map[string]installe
 
 // handleUpdaterTaskUpdate returns an RC subscription callback that parses a single
 // UPDATER_TASK payload and forwards it as a remoteAPIRequest to h.
-// Requests that have already been executed (tracked by seen IDs) are ignored.
+// Requests that have already been accepted (tracked by seen IDs) are ignored.
 func handleUpdaterTaskUpdate(ctx context.Context, h func(remoteAPIRequest) error) func(map[string]state.RawConfig, func(string, state.ApplyStatus)) {
 	seen := make(map[string]struct{})
 	return func(updates map[string]state.RawConfig, applyStatus func(string, state.ApplyStatus)) {
@@ -114,8 +114,7 @@ func handleUpdaterTaskUpdate(ctx context.Context, h func(remoteAPIRequest) error
 			}
 
 			if _, ok := seen[req.ID]; ok {
-				// Already executed; acknowledge without re-running.
-				logger.Info("Remote API request already executed", "id", req.ID)
+				logger.Info("Remote API request already accepted", "id", req.ID)
 				applyStatus(cfgPath, state.ApplyStatus{State: state.ApplyStateAcknowledged})
 				continue
 			}
@@ -128,7 +127,6 @@ func handleUpdaterTaskUpdate(ctx context.Context, h func(remoteAPIRequest) error
 				applyStatus(cfgPath, state.ApplyStatus{State: state.ApplyStateError, Error: err.Error()})
 				continue
 			}
-
 			seen[req.ID] = struct{}{}
 			applyStatus(cfgPath, state.ApplyStatus{State: state.ApplyStateAcknowledged})
 		}
