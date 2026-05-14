@@ -7,95 +7,48 @@ package fleet
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"maps"
 	"math"
 	"time"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/util/retry"
-	ctrl "sigs.k8s.io/controller-runtime"
 
 	v2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 )
 
-// validateOperation checks that a fleetManagementOperation has the fields
-// required to locate and act on a DatadogAgent resource.
-func validateOperation(op fleetManagementOperation) error {
-	if op.NamespacedName.Name == "" {
-		return fmt.Errorf("operation namespaced name must have a non-empty name")
+// validateParams checks that experimentParams has the fields required to locate
+// and act on a DatadogAgent resource.
+func validateParams(p experimentParams) error {
+	if p.NamespacedName.Name == "" {
+		return fmt.Errorf("params namespaced_name must have a non-empty name")
 	}
-	if op.NamespacedName.Namespace == "" {
-		return fmt.Errorf("operation namespaced name must have a non-empty namespace")
+	if p.NamespacedName.Namespace == "" {
+		return fmt.Errorf("params namespaced_name must have a non-empty namespace")
 	}
-	if op.GroupVersionKind.Kind != "DatadogAgent" {
-		return fmt.Errorf("operation kind must be DatadogAgent, got %q", op.GroupVersionKind.Kind)
+	if p.GroupVersionKind.Kind != "DatadogAgent" {
+		return fmt.Errorf("params kind must be DatadogAgent, got %q", p.GroupVersionKind.Kind)
 	}
 	return nil
 }
 
-// canStart returns whether a start signal is allowed given the current experiment phase.
-//
-// Allowed from: nil/empty, rollback, timeout, promoted, aborted (start new experiment).
-// Error from: running (experiment already running), stopped (rollback in progress).
-func canStart(phase v2alpha1.ExperimentPhase) error {
-	switch phase {
-	case v2alpha1.ExperimentPhaseRunning:
-		return fmt.Errorf("experiment already running (phase=%s); stop it before starting a new one", phase)
-	case v2alpha1.ExperimentPhaseStopped:
-		return fmt.Errorf("rollback in progress (phase=%s); wait for rollback to complete before starting a new experiment", phase)
-	default:
-		// nil/empty, rollback, timeout, promoted, aborted: start is allowed
-		return nil
-	}
-}
+// experimentSignal is the signal value passed to resolveOperation, used as an error prefix.
+type experimentSignal string
 
-// canStop returns whether a stop signal is allowed given the current experiment phase.
-// Returns (true, nil) if the signal is a no-op and should be silently ignored, (false, err) if rejected, or (false, nil) to proceed.
-//
-// Allowed from: running.
-// No-op from: stopped, rollback, timeout, promoted (already terminal or in-progress rollback).
-// Error from: nil/empty (nothing to stop), aborted (terminal, user-driven state).
-func canStop(ctx context.Context, phase v2alpha1.ExperimentPhase) (bool, error) {
-	switch phase {
-	case v2alpha1.ExperimentPhaseRunning:
-		return false, nil
-	case v2alpha1.ExperimentPhaseStopped,
-		v2alpha1.ExperimentPhaseRollback,
-		v2alpha1.ExperimentPhaseTimeout,
-		v2alpha1.ExperimentPhasePromoted:
-		ctrl.LoggerFrom(ctx).Info("Stop signal ignored: experiment is not in a stoppable state", "phase", phase)
-		return true, nil
-	case v2alpha1.ExperimentPhaseAborted:
-		return false, fmt.Errorf("experiment was aborted due to a manual spec change (phase=%s)", phase)
-	default:
-		// nil/empty: no active experiment to stop
-		return false, fmt.Errorf("no active experiment to stop (phase=%s)", phase)
-	}
-}
+const (
+	signalStartDatadogAgentExperiment   experimentSignal = "start DatadogAgent experiment"
+	signalStopDatadogAgentExperiment    experimentSignal = "stop DatadogAgent experiment"
+	signalPromoteDatadogAgentExperiment experimentSignal = "promote DatadogAgent experiment"
+)
 
-// canPromote returns whether a promote signal is allowed given the current experiment phase.
-// Returns (true, nil) if the signal is a no-op and should be silently ignored, (false, err) if rejected, or (false, nil) to proceed.
-//
-// Allowed from: running.
-// No-op from: stopped, rollback, timeout, promoted (already terminal or rolling back).
-// Error from: nil/empty (nothing to promote), aborted (terminal, user-driven state).
-func canPromote(ctx context.Context, phase v2alpha1.ExperimentPhase) (bool, error) {
-	switch phase {
-	case v2alpha1.ExperimentPhaseRunning:
-		return false, nil
-	case v2alpha1.ExperimentPhaseStopped,
-		v2alpha1.ExperimentPhaseRollback,
-		v2alpha1.ExperimentPhaseTimeout,
-		v2alpha1.ExperimentPhasePromoted:
-		ctrl.LoggerFrom(ctx).Info("Promote signal ignored: experiment is not in a promotable state", "phase", phase)
-		return true, nil
-	case v2alpha1.ExperimentPhaseAborted:
-		return false, fmt.Errorf("experiment was aborted due to a manual spec change (phase=%s)", phase)
-	default:
-		// nil/empty: no active experiment to promote
-		return false, fmt.Errorf("no active experiment to promote (phase=%s)", phase)
-	}
+// resolvedOperation holds the resolved data needed to execute an experiment operation.
+type resolvedOperation struct {
+	NamespacedName types.NamespacedName
+	Config         json.RawMessage
 }
 
 // experimentBackoff is the retry backoff for k8s operations during experiment signals.
@@ -125,4 +78,41 @@ func retryWithBackoff(ctx context.Context, fn func() error) error {
 	return retry.OnError(experimentBackoff, func(err error) bool {
 		return ctx.Err() == nil && isRetryable(err)
 	}, fn)
+}
+
+// buildSignalPatch creates a JSON merge patch that sets the experiment signal
+// and ID annotations. If config is non-nil, spec fields from the config are
+// merged into the patch so that the spec and annotations are written atomically.
+func buildSignalPatch(signal, id string, config ...json.RawMessage) ([]byte, error) {
+	patch := map[string]any{
+		"metadata": map[string]any{
+			"annotations": map[string]string{
+				v2alpha1.AnnotationExperimentSignal: signal,
+				v2alpha1.AnnotationExperimentID:     id,
+			},
+		},
+	}
+
+	if len(config) > 0 && config[0] != nil {
+		var specPatch map[string]any
+		if err := json.Unmarshal(config[0], &specPatch); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal config: %w", err)
+		}
+		// Top-level maps.Copy is safe because the config currently only contains
+		// "spec" keys and never "metadata". If the config ever includes metadata,
+		// this will need a deep merge to avoid overwriting the signal annotations.
+		maps.Copy(patch, specPatch)
+	}
+
+	return json.Marshal(patch)
+}
+
+// isTerminalPhase returns true for terminal experiment phases.
+func isTerminalPhase(phase v2alpha1.ExperimentPhase) bool {
+	switch phase {
+	case v2alpha1.ExperimentPhaseTerminated, v2alpha1.ExperimentPhasePromoted, v2alpha1.ExperimentPhaseAborted:
+		return true
+	default:
+		return false
+	}
 }
