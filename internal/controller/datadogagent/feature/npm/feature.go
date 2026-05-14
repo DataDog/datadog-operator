@@ -17,6 +17,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
+	"github.com/DataDog/datadog-operator/pkg/utils"
 )
 
 func init() {
@@ -44,7 +45,7 @@ func (f *npmFeature) ID() feature.IDType {
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
-func (f *npmFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
+func (f *npmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
 	if ddaSpec.Features == nil {
 		return
 	}
@@ -54,9 +55,17 @@ func (f *npmFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.DatadogAgentSp
 			apicommon.CoreAgentContainerName,
 			apicommon.SystemProbeContainerName,
 		}
-		if !apiutils.BoolValue(ddaSpec.Features.NPM.DirectSend) {
+
+		directSendEnabled := apiutils.BoolValue(ddaSpec.Features.NPM.DirectSend)
+		const directSendMinVersion = "7.77.0-0"
+		defaultIfVersionUnknown := false
+		if !utils.IsAboveMinVersion(common.GetComponentVersion(dda, v2alpha1.NodeAgentComponentName), directSendMinVersion, &defaultIfVersionUnknown) {
+			directSendEnabled = false
+		}
+		if !directSendEnabled {
 			containers = append(containers, apicommon.ProcessAgentContainerName)
 		}
+		f.directSend = directSendEnabled
 
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
@@ -67,7 +76,6 @@ func (f *npmFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.DatadogAgentSp
 		npm := ddaSpec.Features.NPM
 		f.collectDNSStats = apiutils.BoolValue(npm.CollectDNSStats)
 		f.enableConntrack = apiutils.BoolValue(npm.EnableConntrack)
-		f.directSend = apiutils.BoolValue(npm.DirectSend)
 	}
 
 	return reqComp
@@ -117,7 +125,7 @@ func (f *npmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provi
 	// debugfs volume mount
 	debugfsVol, debugfsVolMount := volume.GetVolumes(common.DebugfsVolumeName, common.DebugfsPath, common.DebugfsPath, false)
 	managers.Volume().AddVolume(&debugfsVol)
-	managers.VolumeMount().AddVolumeMountToContainers(&debugfsVolMount, []apicommon.AgentContainerName{apicommon.ProcessAgentContainerName, apicommon.SystemProbeContainerName})
+	managers.VolumeMount().AddVolumeMountToContainer(&debugfsVolMount, apicommon.SystemProbeContainerName)
 
 	// socket volume mount (needs write perms for the system probe container but not the others)
 	socketVol, socketVolMount := volume.GetVolumesEmptyDir(common.SystemProbeSocketVolumeName, common.SystemProbeSocketVolumePath, false)

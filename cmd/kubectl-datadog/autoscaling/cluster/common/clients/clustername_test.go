@@ -1,4 +1,4 @@
-package guess
+package clients
 
 import (
 	"testing"
@@ -8,7 +8,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 )
 
-func TestGetClusterNameFromKubeConfig(t *testing.T) {
+func TestClusterNameFromKubeConfig(t *testing.T) {
 	testcases := []struct {
 		name        string
 		kubeConfig  string
@@ -37,7 +37,7 @@ func TestGetClusterNameFromKubeConfig(t *testing.T) {
 			)
 			rawConfig, err := clientConfig.RawConfig()
 			require.NoError(t, err)
-			assert.Equal(t, tc.clusterName, GetClusterNameFromKubeconfig(rawConfig, tc.kubeContext))
+			assert.Equal(t, tc.clusterName, clusterNameFromKubeconfig(rawConfig, tc.kubeContext))
 		})
 	}
 }

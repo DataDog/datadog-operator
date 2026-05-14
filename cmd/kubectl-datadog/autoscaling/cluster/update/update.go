@@ -21,7 +21,7 @@ import (
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/aws"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/clients"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/display"
-	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/guess"
+	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/karpenter"
 	"github.com/DataDog/datadog-operator/pkg/plugin/common"
 )
 
@@ -124,7 +124,7 @@ func (o *options) run() error {
 	// never modify what we did not install. Run this check before AWS
 	// client setup so a flaky AWS does not mask the "run install first"
 	// signal the user actually needs.
-	k, err := guess.FindKarpenterInstallation(ctx, o.Clientset)
+	k, err := karpenter.FindInstallation(ctx, o.Clientset)
 	if err != nil {
 		return fmt.Errorf("failed to check for an existing Karpenter installation: %w", err)
 	}

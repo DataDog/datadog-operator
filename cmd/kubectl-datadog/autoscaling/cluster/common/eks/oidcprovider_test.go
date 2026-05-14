@@ -1,4 +1,4 @@
-package guess
+package eks
 
 import (
 	"context"
