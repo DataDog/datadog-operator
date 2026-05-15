@@ -4,6 +4,7 @@ package allowlistsynchronizer
 
 import (
 	"context"
+	"slices"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -121,18 +122,33 @@ func CreateAllowlistSynchronizer(otelCollectorEnabled bool) {
 }
 
 // reconcileAllowlistSynchronizer creates the AllowlistSynchronizer resource if it does
-// not already exist, logging any failure. Extracted from CreateAllowlistSynchronizer so
-// it can be exercised with a fake client.
+// not already exist; if it exists with stale allowlistPaths (e.g. installed by an older
+// operator version that didn't reference v1.0.5), the spec is updated in place so OTel
+// collector workloads are admitted by Warden after enabling the feature. Extracted from
+// CreateAllowlistSynchronizer so it can be exercised with a fake client.
 func reconcileAllowlistSynchronizer(k8sClient client.Client, otelCollectorEnabled bool) {
+	desired := ComputeAllowlistPaths(otelCollectorEnabled)
+
 	existing := &AllowlistSynchronizer{}
-	if existingErr := k8sClient.Get(context.TODO(), client.ObjectKey{Name: "datadog-synchronizer"}, existing); existingErr == nil {
+	getErr := k8sClient.Get(context.TODO(), client.ObjectKey{Name: "datadog-synchronizer"}, existing)
+	switch {
+	case getErr == nil:
+		if slices.Equal(existing.Spec.AllowlistPaths, desired) {
+			return
+		}
+		existing.Spec.AllowlistPaths = desired
+		if updateErr := k8sClient.Update(context.TODO(), existing); updateErr != nil {
+			logger.Error(updateErr, "failed to update AllowlistSynchronizer resource")
+			return
+		}
+		logger.Info("Successfully updated AllowlistSynchronizer allowlistPaths")
 		return
-	} else if !apierrors.IsNotFound(existingErr) {
-		logger.Error(existingErr, "failed to check existing AllowlistSynchronizer resource")
+	case !apierrors.IsNotFound(getErr):
+		logger.Error(getErr, "failed to check existing AllowlistSynchronizer resource")
 		return
 	}
 
-	if err := createAllowlistSynchronizerResource(k8sClient, ComputeAllowlistPaths(otelCollectorEnabled)); err != nil {
+	if err := createAllowlistSynchronizerResource(k8sClient, desired); err != nil {
 		if apierrors.IsAlreadyExists(err) {
 			return
 		}

@@ -78,16 +78,56 @@ func TestReconcileAllowlistSynchronizer(t *testing.T) {
 		assert.Equal(t, []string{allowlistPathV101, allowlistPathV105}, got.Spec.AllowlistPaths)
 	})
 
-	t.Run("is a no-op when synchronizer already exists", func(t *testing.T) {
-		existing := newAllowlistSynchronizer([]string{allowlistPathV101})
+	t.Run("is a no-op when existing synchronizer already matches desired paths", func(t *testing.T) {
+		existing := newAllowlistSynchronizer([]string{allowlistPathV101, allowlistPathV105})
 		k8sClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(existing).Build()
+		originalRV := existing.ResourceVersion
 
-		// Call with otelCollectorEnabled=true; existing resource should NOT be overwritten.
 		reconcileAllowlistSynchronizer(k8sClient, true)
 
 		got := &AllowlistSynchronizer{}
 		require.NoError(t, k8sClient.Get(context.TODO(), client.ObjectKey{Name: "datadog-synchronizer"}, got))
-		assert.Equal(t, []string{allowlistPathV101}, got.Spec.AllowlistPaths, "existing synchronizer should be preserved")
+		assert.Equal(t, []string{allowlistPathV101, allowlistPathV105}, got.Spec.AllowlistPaths)
+		assert.Equal(t, originalRV, got.ResourceVersion, "no update should be issued when paths match")
+	})
+
+	t.Run("updates existing synchronizer when paths are stale", func(t *testing.T) {
+		// Simulates a synchronizer installed by an older operator version that only
+		// referenced v1.0.1; OTel is now enabled, so v1.0.5 must be added.
+		existing := newAllowlistSynchronizer([]string{allowlistPathV101})
+		k8sClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(existing).Build()
+		originalRV := existing.ResourceVersion
+
+		reconcileAllowlistSynchronizer(k8sClient, true)
+
+		got := &AllowlistSynchronizer{}
+		require.NoError(t, k8sClient.Get(context.TODO(), client.ObjectKey{Name: "datadog-synchronizer"}, got))
+		assert.Equal(t, []string{allowlistPathV101, allowlistPathV105}, got.Spec.AllowlistPaths)
+		assert.NotEqual(t, originalRV, got.ResourceVersion, "update should have bumped the resourceVersion")
+	})
+
+	t.Run("removes v1.0.5 from existing synchronizer when OTel is disabled", func(t *testing.T) {
+		// Covers the reverse direction: an existing resource has v1.0.5 but OTel is
+		// no longer enabled, so the path should be dropped.
+		existing := newAllowlistSynchronizer([]string{allowlistPathV101, allowlistPathV105})
+		k8sClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(existing).Build()
+
+		reconcileAllowlistSynchronizer(k8sClient, false)
+
+		got := &AllowlistSynchronizer{}
+		require.NoError(t, k8sClient.Get(context.TODO(), client.ObjectKey{Name: "datadog-synchronizer"}, got))
+		assert.Equal(t, []string{allowlistPathV101}, got.Spec.AllowlistPaths)
+	})
+
+	t.Run("returns silently when Update fails", func(t *testing.T) {
+		existing := newAllowlistSynchronizer([]string{allowlistPathV101})
+		k8sClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(existing).WithInterceptorFuncs(interceptor.Funcs{
+			Update: func(ctx context.Context, c client.WithWatch, obj client.Object, opts ...client.UpdateOption) error {
+				return errors.New("update failed")
+			},
+		}).Build()
+
+		reconcileAllowlistSynchronizer(k8sClient, true)
 	})
 
 	t.Run("returns silently on Get error other than NotFound", func(t *testing.T) {
