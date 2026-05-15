@@ -40,6 +40,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.KubeStateMetricsCoreFeatureConfig":   schema_datadog_operator_api_datadoghq_v2alpha1_KubeStateMetricsCoreFeatureConfig(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.LocalService":                        schema_datadog_operator_api_datadoghq_v2alpha1_LocalService(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.MultiCustomConfig":                   schema_datadog_operator_api_datadoghq_v2alpha1_MultiCustomConfig(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.NetworkCRDsConfig":                   schema_datadog_operator_api_datadoghq_v2alpha1_NetworkCRDsConfig(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.NetworkPolicyConfig":                 schema_datadog_operator_api_datadoghq_v2alpha1_NetworkPolicyConfig(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.OTLPFeatureConfig":                   schema_datadog_operator_api_datadoghq_v2alpha1_OTLPFeatureConfig(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.OTLPGRPCConfig":                      schema_datadog_operator_api_datadoghq_v2alpha1_OTLPGRPCConfig(ref),
@@ -1377,6 +1378,26 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_MultiCustomConfig(ref common
 	}
 }
 
+func schema_datadog_operator_api_datadoghq_v2alpha1_NetworkCRDsConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "NetworkCRDsConfig contains the configuration for collecting Gateway API, service mesh, and ingress controller CRDs in the orchestrator explorer.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"enabled": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Enabled enables collection of network topology CRDs. Default: false",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
 func schema_datadog_operator_api_datadoghq_v2alpha1_NetworkPolicyConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -1640,11 +1661,17 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_OrchestratorExplorerFeatureC
 							Format:      "",
 						},
 					},
+					"networkCRDs": {
+						SchemaProps: spec.SchemaProps{
+							Description: "NetworkCRDs enables RBAC for collecting Gateway API, service mesh, and ingress controller CRDs in the orchestrator explorer. Default: false",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.NetworkCRDsConfig"),
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.CustomConfig"},
+			"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.CustomConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.NetworkCRDsConfig"},
 	}
 }
 
