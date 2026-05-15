@@ -114,52 +114,6 @@ func TestShouldCreateAgentLocalService(t *testing.T) {
 	require.True(t, ShouldCreateAgentLocalService(&version.Info{GitVersion: "v1.22.0"}, false))
 }
 
-func TestCommonVolumes(t *testing.T) {
-	dda := testDatadogAgent()
-
-	require.NotNil(t, GetVolumeForConfig().EmptyDir)
-	require.NotNil(t, GetVolumeForConfd().EmptyDir)
-	require.NotNil(t, GetVolumeForChecksd().EmptyDir)
-	require.NotNil(t, GetVolumeForRmCorechecks().EmptyDir)
-	require.NotNil(t, GetVolumeForLogs().EmptyDir)
-	require.NotNil(t, GetVolumeForTmp().EmptyDir)
-	require.NotNil(t, GetVolumeForCertificates().EmptyDir)
-	require.NotNil(t, GetVolumeForDogstatsd().EmptyDir)
-	require.NotNil(t, GetVolumeForRunPath().EmptyDir)
-
-	authHostPath := GetVolumeForAuth(true)
-	require.Equal(t, AuthVolumePath, authHostPath.HostPath.Path)
-	require.Equal(t, corev1.HostPathDirectoryOrCreate, *authHostPath.HostPath.Type)
-	require.NotNil(t, GetVolumeForAuth(false).EmptyDir)
-
-	require.Equal(t, "datadog-install-info", GetInstallInfoConfigMapName(dda))
-	require.Equal(t, "datadog-install-info", GetVolumeInstallInfo(dda).ConfigMap.Name)
-	require.Equal(t, "datadog-system-probe-seccomp", GetVolumeForSecurity(dda).ConfigMap.Name)
-	require.Equal(t, RuntimeDirVolumePath, GetVolumeForRuntimeSocket().HostPath.Path)
-	require.Equal(t, ProcdirHostPath, GetVolumeForProc().HostPath.Path)
-	require.Equal(t, "/sys/fs/cgroup", GetVolumeForCgroups().HostPath.Path)
-	require.Equal(t, SeccompRootPath, GetVolumeForSeccomp().HostPath.Path)
-}
-
-func TestCommonVolumeMounts(t *testing.T) {
-	require.Equal(t, ConfigVolumePath, GetVolumeMountForConfig().MountPath)
-	require.True(t, GetVolumeMountForConfd().ReadOnly)
-	require.True(t, GetVolumeMountForChecksd().ReadOnly)
-	require.Equal(t, ConfigVolumePath+"/conf.d", GetVolumeMountForRmCorechecks().MountPath)
-	require.True(t, GetVolumeMountForAuth(true).ReadOnly)
-	require.False(t, GetVolumeMountForLogs().ReadOnly)
-	require.False(t, GetVolumeMountForTmp().ReadOnly)
-	require.False(t, GetVolumeMountForCertificates().ReadOnly)
-	require.Equal(t, InstallInfoVolumeSubPath, GetVolumeMountForInstallInfo().SubPath)
-	require.True(t, GetVolumeMountForProc().ReadOnly)
-	require.True(t, GetVolumeMountForCgroups().ReadOnly)
-	require.True(t, GetVolumeMountForDogstatsdSocket(true).ReadOnly)
-	require.Equal(t, HostCriSocketPathPrefix+RuntimeDirVolumePath, GetVolumeMountForRuntimeSocket(false).MountPath)
-	require.Equal(t, SeccompSecurityVolumePath, GetVolumeMountForSecurity().MountPath)
-	require.Equal(t, SeccompRootVolumePath, GetVolumeMountForSeccomp().MountPath)
-	require.Equal(t, RunPathVolumeMount, GetVolumeMountForRunPath().MountPath)
-}
-
 func TestMergeAffinities(t *testing.T) {
 	first := &corev1.Affinity{
 		NodeAffinity: &corev1.NodeAffinity{

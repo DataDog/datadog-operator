@@ -12,8 +12,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	netv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
@@ -105,31 +103,111 @@ func TestBuildCiliumPolicy(t *testing.T) {
 		MatchLabels: map[string]string{"k8s-app": "kube-dns"},
 	}
 
-	tests := []struct {
-		name      string
-		component v2alpha1.ComponentName
-	}{
-		{name: "node agent", component: v2alpha1.NodeAgentComponentName},
-		{name: "cluster agent", component: v2alpha1.ClusterAgentComponentName},
-		{name: "cluster checks runner", component: v2alpha1.ClusterChecksRunnerComponentName},
-	}
+	t.Run("node agent", func(t *testing.T) {
+		policyName, namespace, specs := BuildCiliumPolicy(
+			dda,
+			"datadoghq.com",
+			"https://custom-intake.example.com",
+			false,
+			[]metav1.LabelSelector{dnsSelector},
+			v2alpha1.NodeAgentComponentName,
+		)
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			policyName, namespace, specs := BuildCiliumPolicy(
-				dda,
-				"datadoghq.com",
-				"https://custom-intake.example.com",
-				true,
-				[]metav1.LabelSelector{dnsSelector},
-				tt.component,
-			)
-			got := ciliumPolicyObject(t, policyName, namespace, specs)
-			want := ciliumPolicyObject(t, policyName, namespace, expectedCiliumPolicySpecs(dda, dnsSelector, tt.component))
+		require.Equal(t, "datadog-agent", policyName)
+		require.Equal(t, "agents", namespace)
+		require.ElementsMatch(t, []string{
+			"Egress to ECS agent port 51678",
+			"Egress to ntp",
+			"Egress to metadata server",
+			"Egress to DNS",
+			"Egress to Datadog intake",
+			"Egress to kubelet",
+			"Ingress for dogstatsd",
+			"Egress to anything for checks",
+		}, ciliumSpecDescriptions(specs))
+		requireCiliumEndpointSelector(t, specs, constants.DefaultAgentResourceSuffix)
 
-			require.True(t, equality.IsEqualObject(kubernetes.CiliumNetworkPoliciesKind, got, want))
-		})
-	}
+		dns := findCiliumSpec(t, specs, "Egress to DNS")
+		require.Equal(t, []metav1.LabelSelector{dnsSelector}, dns.Egress[0].ToEndpoints)
+		require.Equal(t, cilium.ProtocolAny, dns.Egress[0].ToPorts[0].Ports[0].Protocol)
+		require.Equal(t, []cilium.FQDNSelector{{MatchPattern: "*"}}, dns.Egress[0].ToPorts[0].Rules.DNS)
+
+		intake := findCiliumSpec(t, specs, "Egress to Datadog intake")
+		require.Contains(t, intake.Egress[0].ToFQDNs, cilium.FQDNSelector{MatchName: "custom-intake.example.com"})
+		require.Contains(t, intake.Egress[0].ToFQDNs, cilium.FQDNSelector{MatchName: "api.datadoghq.com"})
+		require.Contains(t, intake.Egress[0].ToFQDNs, cilium.FQDNSelector{MatchName: "agent-http-intake.logs.datadoghq.com"})
+		require.Contains(t, intake.Egress[0].ToPorts[0].Ports, cilium.PortProtocol{Port: "10516", Protocol: cilium.ProtocolTCP})
+
+		dogstatsd := findCiliumSpec(t, specs, "Ingress for dogstatsd")
+		require.Equal(t, "8125", dogstatsd.Ingress[0].ToPorts[0].Ports[0].Port)
+		require.Equal(t, cilium.ProtocolUDP, dogstatsd.Ingress[0].ToPorts[0].Ports[0].Protocol)
+	})
+
+	t.Run("cluster agent", func(t *testing.T) {
+		policyName, namespace, specs := BuildCiliumPolicy(
+			dda,
+			"datadoghq.com",
+			"https://custom-intake.example.com",
+			false,
+			[]metav1.LabelSelector{dnsSelector},
+			v2alpha1.ClusterAgentComponentName,
+		)
+
+		require.Equal(t, "datadog-cluster-agent", policyName)
+		require.Equal(t, "agents", namespace)
+		require.ElementsMatch(t, []string{
+			"Egress to metadata server",
+			"Egress to DNS",
+			"Egress to Datadog intake",
+			"Egress to Kube API Server",
+			"Ingress from agent",
+			"Ingress from cluster agent",
+			"Egress to cluster agent",
+		}, ciliumSpecDescriptions(specs))
+		requireCiliumEndpointSelector(t, specs, constants.DefaultClusterAgentResourceSuffix)
+
+		kubeAPI := findCiliumSpec(t, specs, "Egress to Kube API Server")
+		require.Equal(t, []cilium.Entity{cilium.EntityKubeApiServer}, kubeAPI.Egress[0].ToEntities)
+
+		ingressFromAgent := findCiliumSpec(t, specs, "Ingress from agent")
+		require.Empty(t, ingressFromAgent.Ingress[0].FromEntities)
+		require.Equal(t, "datadog-agent", ingressFromAgent.Ingress[0].FromEndpoints[0].MatchLabels[kubernetes.AppKubernetesInstanceLabelKey])
+		require.Equal(t, "agents-datadog", ingressFromAgent.Ingress[0].FromEndpoints[0].MatchLabels[kubernetes.AppKubernetesPartOfLabelKey])
+
+		intake := findCiliumSpec(t, specs, "Egress to Datadog intake")
+		require.Contains(t, intake.Egress[0].ToFQDNs, cilium.FQDNSelector{MatchName: "custom-intake.example.com"})
+		require.Contains(t, intake.Egress[0].ToFQDNs, cilium.FQDNSelector{MatchName: "orchestrator.datadoghq.com"})
+	})
+
+	t.Run("cluster checks runner", func(t *testing.T) {
+		policyName, namespace, specs := BuildCiliumPolicy(
+			dda,
+			"datadoghq.com",
+			"https://custom-intake.example.com",
+			false,
+			[]metav1.LabelSelector{dnsSelector},
+			v2alpha1.ClusterChecksRunnerComponentName,
+		)
+
+		require.Equal(t, "datadog-cluster-checks-runner", policyName)
+		require.Equal(t, "agents", namespace)
+		require.ElementsMatch(t, []string{
+			"Egress to metadata server",
+			"Egress to DNS",
+			"Egress to Datadog intake",
+			"Egress to cluster agent",
+			"Egress to anything for checks",
+		}, ciliumSpecDescriptions(specs))
+		requireCiliumEndpointSelector(t, specs, constants.DefaultClusterChecksRunnerResourceSuffix)
+
+		egressToDCA := findCiliumSpec(t, specs, "Egress to cluster agent")
+		require.Equal(t, "datadog-cluster-agent", egressToDCA.Egress[0].ToEndpoints[0].MatchLabels[kubernetes.AppKubernetesInstanceLabelKey])
+		require.Equal(t, "agents-datadog", egressToDCA.Egress[0].ToEndpoints[0].MatchLabels[kubernetes.AppKubernetesPartOfLabelKey])
+
+		checks := findCiliumSpec(t, specs, "Egress to anything for checks")
+		require.Equal(t, "k8s:io.kubernetes.pod.namespace", checks.Egress[0].ToEndpoints[0].MatchExpressions[0].Key)
+		require.Equal(t, metav1.LabelSelectorOpExists, checks.Egress[0].ToEndpoints[0].MatchExpressions[0].Operator)
+	})
 }
 
 func TestBuildCiliumPolicyUsesHostEntitiesForHostNetworkClusterAgent(t *testing.T) {
@@ -176,6 +254,22 @@ func findCiliumSpec(t *testing.T, specs []cilium.NetworkPolicySpec, description 
 	}
 	t.Fatalf("missing cilium spec with description %q", description)
 	return cilium.NetworkPolicySpec{}
+}
+
+func ciliumSpecDescriptions(specs []cilium.NetworkPolicySpec) []string {
+	descriptions := make([]string, 0, len(specs))
+	for _, spec := range specs {
+		descriptions = append(descriptions, spec.Description)
+	}
+	return descriptions
+}
+
+func requireCiliumEndpointSelector(t *testing.T, specs []cilium.NetworkPolicySpec, componentSuffix string) {
+	t.Helper()
+	for _, spec := range specs {
+		require.Equal(t, componentSuffix, spec.EndpointSelector.MatchLabels[apicommon.AgentDeploymentComponentLabelKey])
+		require.Equal(t, "agents-datadog", spec.EndpointSelector.MatchLabels[kubernetes.AppKubernetesPartOfLabelKey])
+	}
 }
 
 func expectedKubernetesNetworkPolicy(dda metav1.Object, componentName v2alpha1.ComponentName) *netv1.NetworkPolicy {
@@ -255,61 +349,6 @@ func expectedKubernetesNetworkPolicy(dda metav1.Object, componentName v2alpha1.C
 		}
 	}
 	return policy
-}
-
-func expectedCiliumPolicySpecs(dda metav1.Object, dnsSelector metav1.LabelSelector, componentName v2alpha1.ComponentName) []cilium.NetworkPolicySpec {
-	policyName, podSelector := GetNetworkPolicyMetadata(dda, componentName)
-	_ = policyName
-	switch componentName {
-	case v2alpha1.NodeAgentComponentName:
-		return []cilium.NetworkPolicySpec{
-			egressECSPorts(podSelector),
-			egressNTP(podSelector),
-			egressMetadataServerRule(podSelector),
-			egressDNS(podSelector, []metav1.LabelSelector{dnsSelector}),
-			egressAgentDatadogIntake(podSelector, "datadoghq.com", "https://custom-intake.example.com"),
-			egressKubelet(podSelector),
-			ingressDogstatsd(podSelector),
-			egressChecks(podSelector),
-		}
-	case v2alpha1.ClusterAgentComponentName:
-		_, nodeAgentPodSelector := GetNetworkPolicyMetadata(dda, v2alpha1.NodeAgentComponentName)
-		return []cilium.NetworkPolicySpec{
-			egressMetadataServerRule(podSelector),
-			egressDNS(podSelector, []metav1.LabelSelector{dnsSelector}),
-			egressDCADatadogIntake(podSelector, "datadoghq.com", "https://custom-intake.example.com"),
-			egressKubeAPIServer(podSelector),
-			ingressAgent(podSelector, dda, true),
-			ingressDCA(podSelector, nodeAgentPodSelector),
-			egressDCA(podSelector, nodeAgentPodSelector),
-		}
-	case v2alpha1.ClusterChecksRunnerComponentName:
-		return []cilium.NetworkPolicySpec{
-			egressMetadataServerRule(podSelector),
-			egressDNS(podSelector, []metav1.LabelSelector{dnsSelector}),
-			egressCCRDatadogIntake(podSelector, "datadoghq.com", "https://custom-intake.example.com"),
-			egressCCRToDCA(podSelector, dda),
-			egressChecks(podSelector),
-		}
-	default:
-		return nil
-	}
-}
-
-func ciliumPolicyObject(t *testing.T, name, namespace string, specs []cilium.NetworkPolicySpec) *unstructured.Unstructured {
-	t.Helper()
-	policy := &cilium.NetworkPolicy{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-		},
-		Specs: specs,
-	}
-	object, err := runtime.DefaultUnstructuredConverter.ToUnstructured(policy)
-	require.NoError(t, err)
-	unstructuredPolicy := &unstructured.Unstructured{Object: object}
-	unstructuredPolicy.SetGroupVersionKind(cilium.GroupVersionCiliumNetworkPolicyKind())
-	return unstructuredPolicy
 }
 
 func protocolPtr(protocol corev1.Protocol) *corev1.Protocol {

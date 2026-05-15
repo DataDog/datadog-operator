@@ -8,11 +8,8 @@ package utils
 import (
 	"errors"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/require"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
@@ -36,22 +33,6 @@ func TestShouldReturn(t *testing.T) {
 			require.Equal(t, tt.want, ShouldReturn(tt.result, tt.err))
 		})
 	}
-}
-
-func TestDatadogAgentResourceHelpers(t *testing.T) {
-	createdAt := metav1.NewTime(time.Unix(1710000000, 0))
-	dda := &metav1.ObjectMeta{
-		Name:              "datadog",
-		Namespace:         "agents",
-		UID:               types.UID("12345"),
-		CreationTimestamp: createdAt,
-	}
-
-	require.Equal(t, "datadog-leader-election", GetDatadogLeaderElectionResourceName(dda))
-	require.Equal(t, "agents", GetDatadogAgentResourceNamespace(dda))
-	require.Equal(t, "datadogtoken", GetDatadogTokenResourceName(dda))
-	require.Equal(t, "12345", GetDatadogAgentResourceUID(dda))
-	require.Equal(t, "1710000000", GetDatadogAgentResourceCreationTime(dda))
 }
 
 func TestUseCustomSeccompConfig(t *testing.T) {

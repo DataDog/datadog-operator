@@ -8,6 +8,10 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+	"k8s.io/utils/ptr"
+
+	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -58,4 +62,129 @@ func TestServiceAccountNameOverride(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGetConfName(t *testing.T) {
+	dda := &v1.ObjectMeta{Name: "datadog"}
+	configData := "logs_enabled: true"
+
+	require.Equal(t, "custom-config", GetConfName(dda, &v2alpha1.CustomConfig{
+		ConfigMap: &v2alpha1.ConfigMapConfig{Name: "custom-config"},
+	}, "datadog-config"))
+	require.Equal(t, "datadog-datadog-config", GetConfName(dda, &v2alpha1.CustomConfig{
+		ConfigData: &configData,
+	}, "datadog-config"))
+	require.Equal(t, "datadog-datadog-config", GetConfName(dda, nil, "datadog-config"))
+}
+
+func TestGetServiceAccountByComponent(t *testing.T) {
+	ddaSpec := &v2alpha1.DatadogAgentSpec{Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{}}
+
+	require.Equal(t, "datadog-agent", GetServiceAccountByComponent("datadog", ddaSpec, v2alpha1.NodeAgentComponentName))
+	require.Equal(t, "datadog-cluster-agent", GetServiceAccountByComponent("datadog", ddaSpec, v2alpha1.ClusterAgentComponentName))
+	require.Equal(t, "datadog-cluster-checks-runner", GetServiceAccountByComponent("datadog", ddaSpec, v2alpha1.ClusterChecksRunnerComponentName))
+	require.Empty(t, GetServiceAccountByComponent("datadog", ddaSpec, v2alpha1.ComponentName("unknown")))
+}
+
+func TestGetOtelAgentGatewayServiceAccount(t *testing.T) {
+	customServiceAccount := "custom-otel-sa"
+	ddaSpec := &v2alpha1.DatadogAgentSpec{
+		Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+			v2alpha1.OtelAgentGatewayComponentName: {
+				ServiceAccountName: &customServiceAccount,
+			},
+		},
+	}
+
+	require.Equal(t, customServiceAccount, GetOtelAgentGatewayServiceAccount("datadog", ddaSpec))
+	delete(ddaSpec.Override, v2alpha1.OtelAgentGatewayComponentName)
+	require.Equal(t, "datadog-otel-agent-gateway", GetOtelAgentGatewayServiceAccount("datadog", ddaSpec))
+}
+
+func TestIsHostNetworkEnabled(t *testing.T) {
+	require.False(t, IsHostNetworkEnabled(&v2alpha1.DatadogAgentSpec{}, v2alpha1.NodeAgentComponentName))
+	require.False(t, IsHostNetworkEnabled(&v2alpha1.DatadogAgentSpec{
+		Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+			v2alpha1.NodeAgentComponentName: {},
+		},
+	}, v2alpha1.NodeAgentComponentName))
+	require.True(t, IsHostNetworkEnabled(&v2alpha1.DatadogAgentSpec{
+		Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+			v2alpha1.NodeAgentComponentName: {HostNetwork: ptr.To(true)},
+		},
+	}, v2alpha1.NodeAgentComponentName))
+}
+
+func TestClusterChecksFlags(t *testing.T) {
+	ddaSpec := &v2alpha1.DatadogAgentSpec{
+		Features: &v2alpha1.DatadogFeatures{
+			ClusterChecks: &v2alpha1.ClusterChecksFeatureConfig{
+				Enabled:                 ptr.To(true),
+				UseClusterChecksRunners: ptr.To(true),
+			},
+		},
+	}
+
+	require.True(t, IsClusterChecksEnabled(ddaSpec))
+	require.True(t, IsCCREnabled(ddaSpec))
+
+	ddaSpec.Features.ClusterChecks.Enabled = ptr.To(false)
+	ddaSpec.Features.ClusterChecks.UseClusterChecksRunners = ptr.To(false)
+	require.False(t, IsClusterChecksEnabled(ddaSpec))
+	require.False(t, IsCCREnabled(ddaSpec))
+}
+
+func TestServiceNames(t *testing.T) {
+	customLocalServiceName := "custom-local-agent"
+
+	require.Equal(t, customLocalServiceName, GetLocalAgentServiceName("datadog", &v2alpha1.DatadogAgentSpec{
+		Global: &v2alpha1.GlobalConfig{
+			LocalService: &v2alpha1.LocalService{NameOverride: &customLocalServiceName},
+		},
+	}))
+	require.Equal(t, "datadog-agent", GetLocalAgentServiceName("datadog", &v2alpha1.DatadogAgentSpec{
+		Global: &v2alpha1.GlobalConfig{},
+	}))
+	require.Equal(t, "datadog-otel-agent-gateway", GetOTelAgentGatewayServiceName("datadog"))
+}
+
+func TestIsNetworkPolicyEnabled(t *testing.T) {
+	enabled, flavor := IsNetworkPolicyEnabled(&v2alpha1.DatadogAgentSpec{})
+	require.False(t, enabled)
+	require.Empty(t, flavor)
+
+	enabled, flavor = IsNetworkPolicyEnabled(&v2alpha1.DatadogAgentSpec{
+		Global: &v2alpha1.GlobalConfig{
+			NetworkPolicy: &v2alpha1.NetworkPolicyConfig{Create: ptr.To(true)},
+		},
+	})
+	require.True(t, enabled)
+	require.Equal(t, v2alpha1.NetworkPolicyFlavorKubernetes, flavor)
+
+	enabled, flavor = IsNetworkPolicyEnabled(&v2alpha1.DatadogAgentSpec{
+		Global: &v2alpha1.GlobalConfig{
+			NetworkPolicy: &v2alpha1.NetworkPolicyConfig{
+				Create: ptr.To(true),
+				Flavor: v2alpha1.NetworkPolicyFlavorCilium,
+			},
+		},
+	})
+	require.True(t, enabled)
+	require.Equal(t, v2alpha1.NetworkPolicyFlavorCilium, flavor)
+}
+
+func TestGetDDAName(t *testing.T) {
+	require.Equal(t, "from-label", GetDDAName(&v1.ObjectMeta{
+		Name: "object-name",
+		Labels: map[string]string{
+			apicommon.DatadogAgentNameLabelKey: "from-label",
+		},
+	}))
+	require.Equal(t, "object-name", GetDDAName(&v1.ObjectMeta{
+		Name: "object-name",
+		Labels: map[string]string{
+			apicommon.DatadogAgentNameLabelKey: "",
+		},
+	}))
+	require.Equal(t, "object-name", GetDDAName(&v1.ObjectMeta{Name: "object-name"}))
 }
