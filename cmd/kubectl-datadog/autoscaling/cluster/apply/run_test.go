@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 
-	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/guess"
+	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/karpenter"
 	"github.com/DataDog/datadog-operator/pkg/plugin/common"
 )
 
@@ -36,9 +36,9 @@ func TestKarpenterHelmValues(t *testing.T) {
 
 		labels, ok := values["additionalLabels"].(map[string]any)
 		require.True(t, ok, "additionalLabels must be a map")
-		assert.Equal(t, guess.InstalledByValue, labels[guess.InstalledByLabel],
-			"installed-by sentinel must match what FindKarpenterInstallation looks for")
-		assert.Contains(t, labels, guess.InstallerVersionLabel)
+		assert.Equal(t, karpenter.InstalledByValue, labels[karpenter.InstalledByLabel],
+			"installed-by sentinel must match what karpenter.FindInstallation looks for")
+		assert.Contains(t, labels, karpenter.InstallerVersionLabel)
 
 		settings, ok := values["settings"].(map[string]any)
 		require.True(t, ok)
@@ -102,7 +102,7 @@ func TestDisplayForeignKarpenterMessage(t *testing.T) {
 	out := &bytes.Buffer{}
 	streams := genericclioptions.IOStreams{Out: out, ErrOut: &bytes.Buffer{}}
 
-	foreign := &guess.KarpenterInstallation{Namespace: "karpenter", Name: "karpenter"}
+	foreign := &karpenter.Installation{Namespace: "karpenter", Name: "karpenter"}
 	err := displayForeignKarpenterMessage(streams, "my-cluster", foreign)
 	require.NoError(t, err, "foreign Karpenter is a successful no-op, not an error")
 

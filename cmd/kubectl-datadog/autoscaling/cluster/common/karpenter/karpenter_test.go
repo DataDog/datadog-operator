@@ -1,4 +1,4 @@
-package guess
+package karpenter
 
 import (
 	"testing"
@@ -57,11 +57,11 @@ func TestImageRepoPathHasSuffix(t *testing.T) {
 	}
 }
 
-func TestFindKarpenterInstallation(t *testing.T) {
+func TestFindInstallation(t *testing.T) {
 	for _, tc := range []struct {
 		name     string
 		objects  []runtime.Object
-		expected *KarpenterInstallation
+		expected *Installation
 	}{
 		{
 			name:     "no Deployments on the cluster",
@@ -77,7 +77,7 @@ func TestFindKarpenterInstallation(t *testing.T) {
 			expected: nil,
 		},
 		{
-			name: "kubectl-datadog installation surfaces with sentinel labels",
+			name: "kubectl-datadog installation surfaces with sentinel labels and version",
 			objects: []runtime.Object{
 				deployment("dd-karpenter", "karpenter",
 					map[string]string{
@@ -87,9 +87,10 @@ func TestFindKarpenterInstallation(t *testing.T) {
 					karpenterControllerImage,
 				),
 			},
-			expected: &KarpenterInstallation{
+			expected: &Installation{
 				Namespace:        "dd-karpenter",
 				Name:             "karpenter",
+				Version:          "1.12.0",
 				InstalledBy:      InstalledByValue,
 				InstallerVersion: "v1.2.3",
 			},
@@ -99,9 +100,10 @@ func TestFindKarpenterInstallation(t *testing.T) {
 			objects: []runtime.Object{
 				deployment("karpenter", "karpenter", nil, karpenterControllerImage),
 			},
-			expected: &KarpenterInstallation{
+			expected: &Installation{
 				Namespace: "karpenter",
 				Name:      "karpenter",
+				Version:   "1.12.0",
 			},
 		},
 		{
@@ -113,9 +115,10 @@ func TestFindKarpenterInstallation(t *testing.T) {
 					"012345678901.dkr.ecr.us-west-2.amazonaws.com/karpenter/controller:1.10.0",
 				),
 			},
-			expected: &KarpenterInstallation{
+			expected: &Installation{
 				Namespace: "kube-system",
 				Name:      "their-karpenter",
+				Version:   "1.10.0",
 			},
 		},
 		{
@@ -125,9 +128,10 @@ func TestFindKarpenterInstallation(t *testing.T) {
 			objects: []runtime.Object{
 				deployment("autoscaling", "my-karpenter", nil, karpenterControllerImage),
 			},
-			expected: &KarpenterInstallation{
+			expected: &Installation{
 				Namespace: "autoscaling",
 				Name:      "my-karpenter",
+				Version:   "1.12.0",
 			},
 		},
 		{
@@ -156,9 +160,10 @@ func TestFindKarpenterInstallation(t *testing.T) {
 					[]corev1.EnvVar{{Name: "KARPENTER_SERVICE", Value: "their-karpenter"}},
 				),
 			},
-			expected: &KarpenterInstallation{
+			expected: &Installation{
 				Namespace: "kube-system",
 				Name:      "their-karpenter",
+				Version:   "1.0",
 			},
 		},
 		{
@@ -180,9 +185,10 @@ func TestFindKarpenterInstallation(t *testing.T) {
 					karpenterControllerImage,
 				),
 			},
-			expected: &KarpenterInstallation{
+			expected: &Installation{
 				Namespace:   "karpenter",
 				Name:        "karpenter",
+				Version:     "1.12.0",
 				InstalledBy: "someone-else",
 			},
 		},
@@ -190,7 +196,7 @@ func TestFindKarpenterInstallation(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			clientset := fake.NewSimpleClientset(tc.objects...)
 
-			result, err := FindKarpenterInstallation(t.Context(), clientset)
+			result, err := FindInstallation(t.Context(), clientset)
 
 			require.NoError(t, err)
 			assert.Equal(t, tc.expected, result)
@@ -203,7 +209,7 @@ func TestFindKarpenterInstallation(t *testing.T) {
 			return true, nil, apierrors.NewServiceUnavailable("test failure")
 		})
 
-		_, err := FindKarpenterInstallation(t.Context(), clientset)
+		_, err := FindInstallation(t.Context(), clientset)
 
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to list Deployments")
@@ -244,12 +250,13 @@ func TestFindKarpenterInstallation(t *testing.T) {
 			return true, pages[len(calls)-1], nil
 		})
 
-		result, err := FindKarpenterInstallation(t.Context(), clientset)
+		result, err := FindInstallation(t.Context(), clientset)
 
 		require.NoError(t, err)
-		assert.Equal(t, &KarpenterInstallation{
+		assert.Equal(t, &Installation{
 			Namespace:   "dd-karpenter",
 			Name:        "karpenter",
+			Version:     "1.12.0",
 			InstalledBy: InstalledByValue,
 		}, result)
 		assert.Equal(t, []string{"", "page2", "page3"}, calls,
@@ -277,27 +284,28 @@ func TestFindKarpenterInstallation(t *testing.T) {
 			return true, page, nil
 		})
 
-		result, err := FindKarpenterInstallation(t.Context(), clientset)
+		result, err := FindInstallation(t.Context(), clientset)
 
 		require.NoError(t, err)
-		assert.Equal(t, &KarpenterInstallation{
+		assert.Equal(t, &Installation{
 			Namespace:   "dd-karpenter",
 			Name:        "karpenter",
+			Version:     "1.12.0",
 			InstalledBy: InstalledByValue,
 		}, result, "the first Karpenter Deployment encountered must be returned, not a 'preferred' one")
 	})
 }
 
-func TestKarpenterInstallationIsOwn(t *testing.T) {
+func TestInstallationIsOwn(t *testing.T) {
 	for _, tc := range []struct {
 		name     string
-		k        *KarpenterInstallation
+		k        *Installation
 		expected bool
 	}{
 		{"nil receiver is not ours", nil, false},
-		{"empty InstalledBy is not ours", &KarpenterInstallation{}, false},
-		{"foreign InstalledBy is not ours", &KarpenterInstallation{InstalledBy: "someone-else"}, false},
-		{"matching sentinel is ours", &KarpenterInstallation{InstalledBy: InstalledByValue}, true},
+		{"empty InstalledBy is not ours", &Installation{}, false},
+		{"foreign InstalledBy is not ours", &Installation{InstalledBy: "someone-else"}, false},
+		{"matching sentinel is ours", &Installation{InstalledBy: InstalledByValue}, true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			assert.Equal(t, tc.expected, tc.k.IsOwn())

@@ -13,8 +13,6 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/remoteconfig/state"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/types"
 )
 
 // Test data
@@ -24,16 +22,7 @@ var testInstallerConfig = installerConfig{
 	Operations: []fleetManagementOperation{
 		{
 			Operation: OperationUpdate,
-			GroupVersionKind: schema.GroupVersionKind{
-				Group:   "datadoghq.com",
-				Version: "v2alpha1",
-				Kind:    "DatadogAgent",
-			},
-			NamespacedName: types.NamespacedName{
-				Namespace: "datadog",
-				Name:      "datadog-agent",
-			},
-			Config: json.RawMessage(`{"spec":{"features":{"apm":{"enabled":true}}}}`),
+			Config:    json.RawMessage(`{"spec":{"features":{"apm":{"enabled":true}}}}`),
 		},
 	},
 }
@@ -169,7 +158,16 @@ func TestRemoteAPIRequestParsesParamsVersion(t *testing.T) {
 		},
 		"method": "operator/start_datadogagent_experiment",
 		"params": {
-			"version": "aaaa-bbbb-cccc"
+			"version": "aaaa-bbbb-cccc",
+			"group_version_kind": {
+				"Group": "datadoghq.com",
+				"Kind": "DatadogAgent",
+				"Version": "v2alpha1"
+			},
+			"namespaced_name": {
+				"Name": "datadog-agent",
+				"Namespace": "datadog"
+			}
 		}
 	}`)
 
