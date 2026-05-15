@@ -22,6 +22,7 @@ This is a wrapper chart for installing EKS add-on. Charts required for the add-o
 | 0.1.24 | 2.18.1 | 2.16.0 | 1.23.1 | 7.75.0 | 7.75.0 |
 | 0.1.25 | 2.19.1 | 2.17.0 | 1.24.0 | 7.76.1 | 7.76.1 |
 | 0.1.26 | 2.21.1 | 2.18.1 | 1.25.0 | 7.77.2 | 7.77.2 |
+| 0.1.27 | 2.22.2 | 2.20.0 | 1.26.0 | 7.78.1 | 7.78.1 | 
 
 * 0.1.8 failed validation and didn't go through.
 * 0.1.11 failed validation and didn't go through.
