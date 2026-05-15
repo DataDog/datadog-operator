@@ -115,6 +115,16 @@ func addComponentDependencies(logger logr.Logger, ddaMeta metav1.Object, ddaSpec
 					errs = append(errs, err)
 				}
 			}
+			// Creates host-profiler-seccomp configMap with default seccomp profile
+			if containerName == apicommon.HostProfiler {
+				seccompConfigData := agent.DefaultSeccompConfigDataForHostProfiler()
+				err := manager.ConfigMapManager().AddConfigMap(
+					common.GetDefaultHostProfilerSeccompConfigMapName(ddaMeta),
+					ddaMeta.GetNamespace(),
+					seccompConfigData,
+				)
+				errs = append(errs, err)
+			}
 		}
 	}
 

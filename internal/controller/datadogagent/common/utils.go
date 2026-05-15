@@ -114,6 +114,11 @@ func GetDefaultSeccompConfigMapName(dda metav1.Object) string {
 	return fmt.Sprintf("%s-%s", constants.GetDDAName(dda), SystemProbeAgentSecurityConfigMapSuffixName)
 }
 
+// GetDefaultHostProfilerSeccompConfigMapName returns the default host-profiler seccomp configmap name based on the DatadogAgent name
+func GetDefaultHostProfilerSeccompConfigMapName(dda metav1.Object) string {
+	return fmt.Sprintf("%s-%s", constants.GetDDAName(dda), HostProfilerAgentSecurityConfigMapSuffixName)
+}
+
 // GetAgentVersionFromImage returns the Agent version based on the AgentImageConfig
 func GetAgentVersionFromImage(imageConfig v2alpha1.AgentImageConfig) string {
 	version := ""
