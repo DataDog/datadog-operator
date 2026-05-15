@@ -121,109 +121,112 @@ func IsNetworkPolicyEnabled(ddaSpec *v2alpha1.DatadogAgentSpec) (bool, v2alpha1.
 	return false, ""
 }
 
-// GetDefaultLivenessProbe creates a defaulted LivenessProbe
-func GetDefaultLivenessProbe() *corev1.Probe {
-	livenessProbe := &corev1.Probe{
+var (
+	defaultLivenessProbe = &corev1.Probe{
+		ProbeHandler: corev1.ProbeHandler{
+			HTTPGet: &corev1.HTTPGetAction{
+				Path: DefaultLivenessProbeHTTPPath,
+				Port: intstr.IntOrString{IntVal: DefaultAgentHealthPort},
+			},
+		},
 		InitialDelaySeconds: DefaultLivenessProbeInitialDelaySeconds,
 		PeriodSeconds:       DefaultLivenessProbePeriodSeconds,
 		TimeoutSeconds:      DefaultLivenessProbeTimeoutSeconds,
 		SuccessThreshold:    DefaultLivenessProbeSuccessThreshold,
 		FailureThreshold:    DefaultLivenessProbeFailureThreshold,
 	}
-	livenessProbe.HTTPGet = &corev1.HTTPGetAction{
-		Path: DefaultLivenessProbeHTTPPath,
-		Port: intstr.IntOrString{
-			IntVal: DefaultAgentHealthPort,
+	defaultReadinessProbe = &corev1.Probe{
+		ProbeHandler: corev1.ProbeHandler{
+			HTTPGet: &corev1.HTTPGetAction{
+				Path: DefaultReadinessProbeHTTPPath,
+				Port: intstr.IntOrString{IntVal: DefaultAgentHealthPort},
+			},
 		},
-	}
-	return livenessProbe
-}
-
-// GetDefaultReadinessProbe creates a defaulted ReadinessProbe
-func GetDefaultReadinessProbe() *corev1.Probe {
-	readinessProbe := &corev1.Probe{
 		InitialDelaySeconds: DefaultReadinessProbeInitialDelaySeconds,
 		PeriodSeconds:       DefaultReadinessProbePeriodSeconds,
 		TimeoutSeconds:      DefaultReadinessProbeTimeoutSeconds,
 		SuccessThreshold:    DefaultReadinessProbeSuccessThreshold,
 		FailureThreshold:    DefaultReadinessProbeFailureThreshold,
 	}
-	readinessProbe.HTTPGet = &corev1.HTTPGetAction{
-		Path: DefaultReadinessProbeHTTPPath,
-		Port: intstr.IntOrString{
-			IntVal: DefaultAgentHealthPort,
+	defaultStartupProbe = &corev1.Probe{
+		ProbeHandler: corev1.ProbeHandler{
+			HTTPGet: &corev1.HTTPGetAction{
+				Path: DefaultStartupProbeHTTPPath,
+				Port: intstr.IntOrString{IntVal: DefaultAgentHealthPort},
+			},
 		},
-	}
-	return readinessProbe
-}
-
-// GetDefaultStartupProbe creates a defaulted StartupProbe
-func GetDefaultStartupProbe() *corev1.Probe {
-	startupProbe := &corev1.Probe{
 		InitialDelaySeconds: DefaultStartupProbeInitialDelaySeconds,
 		PeriodSeconds:       DefaultStartupProbePeriodSeconds,
 		TimeoutSeconds:      DefaultStartupProbeTimeoutSeconds,
 		SuccessThreshold:    DefaultStartupProbeSuccessThreshold,
 		FailureThreshold:    DefaultStartupProbeFailureThreshold,
 	}
-	startupProbe.HTTPGet = &corev1.HTTPGetAction{
-		Path: DefaultStartupProbeHTTPPath,
-		Port: intstr.IntOrString{
-			IntVal: DefaultAgentHealthPort,
+	defaultTraceAgentProbe = &corev1.Probe{
+		ProbeHandler: corev1.ProbeHandler{
+			TCPSocket: &corev1.TCPSocketAction{
+				Port: intstr.IntOrString{IntVal: DefaultApmPort},
+			},
 		},
-	}
-	return startupProbe
-}
-
-// GetDefaultTraceAgentProbe creates a defaulted liveness/readiness probe for the Trace Agent
-func GetDefaultTraceAgentProbe() *corev1.Probe {
-	probe := &corev1.Probe{
 		InitialDelaySeconds: DefaultLivenessProbeInitialDelaySeconds,
 		PeriodSeconds:       DefaultLivenessProbePeriodSeconds,
 		TimeoutSeconds:      DefaultLivenessProbeTimeoutSeconds,
 	}
-	probe.TCPSocket = &corev1.TCPSocketAction{
-		Port: intstr.IntOrString{
-			IntVal: DefaultApmPort,
+	defaultAgentDataPlaneLivenessProbe = &corev1.Probe{
+		ProbeHandler: corev1.ProbeHandler{
+			HTTPGet: &corev1.HTTPGetAction{
+				Path: DefaultLivenessProbeHTTPPath,
+				Port: intstr.IntOrString{IntVal: DefaultADPHealthPort},
+			},
 		},
-	}
-	return probe
-}
-
-// GetDefaultAgentDataPlaneLivenessProbe creates a defaulted liveness probe for Agent Data Plane
-func GetDefaultAgentDataPlaneLivenessProbe() *corev1.Probe {
-	livenessProbe := &corev1.Probe{
 		InitialDelaySeconds: DefaultADPLivenessProbeInitialDelaySeconds,
 		PeriodSeconds:       DefaultADPLivenessProbePeriodSeconds,
 		TimeoutSeconds:      DefaultADPLivenessProbeTimeoutSeconds,
 		SuccessThreshold:    DefaultADPLivenessProbeSuccessThreshold,
 		FailureThreshold:    DefaultADPLivenessProbeFailureThreshold,
 	}
-	livenessProbe.HTTPGet = &corev1.HTTPGetAction{
-		Path: DefaultLivenessProbeHTTPPath,
-		Port: intstr.IntOrString{
-			IntVal: DefaultADPHealthPort,
+	defaultAgentDataPlaneReadinessProbe = &corev1.Probe{
+		ProbeHandler: corev1.ProbeHandler{
+			HTTPGet: &corev1.HTTPGetAction{
+				Path: DefaultReadinessProbeHTTPPath,
+				Port: intstr.IntOrString{IntVal: DefaultADPHealthPort},
+			},
 		},
-	}
-	return livenessProbe
-}
-
-// GetDefaultAgentDataPlaneReadinessProbe creates a defaulted readiness probe for Agent Data Plane
-func GetDefaultAgentDataPlaneReadinessProbe() *corev1.Probe {
-	readinessProbe := &corev1.Probe{
 		InitialDelaySeconds: DefaultADPReadinessProbeInitialDelaySeconds,
 		PeriodSeconds:       DefaultADPReadinessProbePeriodSeconds,
 		TimeoutSeconds:      DefaultADPReadinessProbeTimeoutSeconds,
 		SuccessThreshold:    DefaultADPReadinessProbeSuccessThreshold,
 		FailureThreshold:    DefaultADPReadinessProbeFailureThreshold,
 	}
-	readinessProbe.HTTPGet = &corev1.HTTPGetAction{
-		Path: DefaultReadinessProbeHTTPPath,
-		Port: intstr.IntOrString{
-			IntVal: DefaultADPHealthPort,
-		},
-	}
-	return readinessProbe
+)
+
+// GetDefaultLivenessProbe creates a defaulted LivenessProbe
+func GetDefaultLivenessProbe() *corev1.Probe {
+	return defaultLivenessProbe.DeepCopy()
+}
+
+// GetDefaultReadinessProbe creates a defaulted ReadinessProbe
+func GetDefaultReadinessProbe() *corev1.Probe {
+	return defaultReadinessProbe.DeepCopy()
+}
+
+// GetDefaultStartupProbe creates a defaulted StartupProbe
+func GetDefaultStartupProbe() *corev1.Probe {
+	return defaultStartupProbe.DeepCopy()
+}
+
+// GetDefaultTraceAgentProbe creates a defaulted liveness/readiness probe for the Trace Agent
+func GetDefaultTraceAgentProbe() *corev1.Probe {
+	return defaultTraceAgentProbe.DeepCopy()
+}
+
+// GetDefaultAgentDataPlaneLivenessProbe creates a defaulted liveness probe for Agent Data Plane
+func GetDefaultAgentDataPlaneLivenessProbe() *corev1.Probe {
+	return defaultAgentDataPlaneLivenessProbe.DeepCopy()
+}
+
+// GetDefaultAgentDataPlaneReadinessProbe creates a defaulted readiness probe for Agent Data Plane
+func GetDefaultAgentDataPlaneReadinessProbe() *corev1.Probe {
+	return defaultAgentDataPlaneReadinessProbe.DeepCopy()
 }
 
 // GetDDAName returns the name of the DDA from DDAI labels or directly from the DDA
