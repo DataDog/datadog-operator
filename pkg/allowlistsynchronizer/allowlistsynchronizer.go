@@ -4,6 +4,7 @@ package allowlistsynchronizer
 
 import (
 	"context"
+	"slices"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -29,6 +30,16 @@ var (
 
 var logger = logf.Log.WithName("AllowlistSynchronizer")
 
+// Allowlist paths kept in sync with the Datadog partner exemption YAMLs published in
+// the datadog-gke-workload-allowlist repo.
+const (
+	// allowlistPathV101 exempts the base agent / process-agent / trace-agent containers.
+	allowlistPathV101 = "Datadog/datadog/datadog-datadog-daemonset-exemption-v1.0.1.yaml"
+	// allowlistPathV105 exempts the otel-agent (ddot-collector) container when OTel
+	// feature gates are configured. See OTAGENT-980.
+	allowlistPathV105 = "Datadog/datadog/datadog-datadog-daemonset-exemption-v1.0.5.yaml"
+)
+
 type AllowlistSynchronizer struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata"`
@@ -46,8 +57,21 @@ type AllowlistSynchronizerSpec struct {
 	AllowlistPaths []string `json:"allowlistPaths,omitempty"`
 }
 
-func createAllowlistSynchronizerResource(k8sClient client.Client) error {
-	obj := &AllowlistSynchronizer{
+// ComputeAllowlistPaths returns the set of Datadog WorkloadAllowlist exemption paths
+// that the AllowlistSynchronizer should reference for the given DatadogAgent.
+//
+// v1.0.5 is included when the OTel collector is enabled so that the otel-agent
+// (ddot-collector image) container is permitted by GKE Autopilot Warden. See OTAGENT-980.
+func ComputeAllowlistPaths(otelCollectorEnabled bool) []string {
+	paths := []string{allowlistPathV101}
+	if otelCollectorEnabled {
+		paths = append(paths, allowlistPathV105)
+	}
+	return paths
+}
+
+func newAllowlistSynchronizer(paths []string) *AllowlistSynchronizer {
+	return &AllowlistSynchronizer{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "allowlistsynchronizers.auto.gke.io",
 			Kind:       "AllowlistSynchronizer",
@@ -60,19 +84,22 @@ func createAllowlistSynchronizerResource(k8sClient client.Client) error {
 			},
 		},
 		Spec: AllowlistSynchronizerSpec{
-			AllowlistPaths: []string{
-				"Datadog/datadog/datadog-datadog-daemonset-exemption-v1.0.1.yaml",
-			},
+			AllowlistPaths: paths,
 		},
 	}
+}
 
-	return k8sClient.Create(context.TODO(), obj)
+func createAllowlistSynchronizerResource(k8sClient client.Client, paths []string) error {
+	return k8sClient.Create(context.TODO(), newAllowlistSynchronizer(paths))
 }
 
 // CreateAllowlistSynchronizer creates a GKE AllowlistSynchronizer Custom Resource (auto.gke.io/v1) for the Datadog WorkloadAllowlist if it doesn't exist.
 // The AllowlistSynchronizer is needed so that GKE Autopilot can sync the Datadog WorkloadAllowlist to the cluster. See the CRD reference:
 // https://cloud.google.com/kubernetes-engine/docs/reference/crds/allowlistsynchronizer
-func CreateAllowlistSynchronizer() {
+//
+// otelCollectorEnabled controls whether the v1.0.5 exemption path (which permits the
+// otel-agent / ddot-collector container) is included.
+func CreateAllowlistSynchronizer(otelCollectorEnabled bool) {
 	cfg, configErr := config.GetConfig()
 	if configErr != nil {
 		logger.Error(configErr, "failed to load kubeconfig")
@@ -91,15 +118,37 @@ func CreateAllowlistSynchronizer() {
 		return
 	}
 
+	reconcileAllowlistSynchronizer(k8sClient, otelCollectorEnabled)
+}
+
+// reconcileAllowlistSynchronizer creates the AllowlistSynchronizer resource if it does
+// not already exist; if it exists with stale allowlistPaths (e.g. installed by an older
+// operator version that didn't reference v1.0.5), the spec is updated in place so OTel
+// collector workloads are admitted by Warden after enabling the feature. Extracted from
+// CreateAllowlistSynchronizer so it can be exercised with a fake client.
+func reconcileAllowlistSynchronizer(k8sClient client.Client, otelCollectorEnabled bool) {
+	desired := ComputeAllowlistPaths(otelCollectorEnabled)
+
 	existing := &AllowlistSynchronizer{}
-	if existingErr := k8sClient.Get(context.TODO(), client.ObjectKey{Name: "datadog-synchronizer"}, existing); existingErr == nil {
+	getErr := k8sClient.Get(context.TODO(), client.ObjectKey{Name: "datadog-synchronizer"}, existing)
+	switch {
+	case getErr == nil:
+		if slices.Equal(existing.Spec.AllowlistPaths, desired) {
+			return
+		}
+		existing.Spec.AllowlistPaths = desired
+		if updateErr := k8sClient.Update(context.TODO(), existing); updateErr != nil {
+			logger.Error(updateErr, "failed to update AllowlistSynchronizer resource")
+			return
+		}
+		logger.Info("Successfully updated AllowlistSynchronizer allowlistPaths")
 		return
-	} else if !apierrors.IsNotFound(existingErr) {
-		logger.Error(existingErr, "failed to check existing AllowlistSynchronizer resource")
+	case !apierrors.IsNotFound(getErr):
+		logger.Error(getErr, "failed to check existing AllowlistSynchronizer resource")
 		return
 	}
 
-	if err := createAllowlistSynchronizerResource(k8sClient); err != nil {
+	if err := createAllowlistSynchronizerResource(k8sClient, desired); err != nil {
 		if apierrors.IsAlreadyExists(err) {
 			return
 		}

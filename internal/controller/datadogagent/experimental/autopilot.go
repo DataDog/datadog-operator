@@ -64,9 +64,12 @@ func IsAutopilotEnabled(obj metav1.Object) bool {
 	return strings.EqualFold(ann[getExperimentalAnnotationKey(ExperimentalAutopilotSubkey)], "true")
 }
 
+// createAllowlistSynchronizer is overridden in tests to avoid hitting kubeconfig loading.
+var createAllowlistSynchronizer = allowlistsynchronizer.CreateAllowlistSynchronizer
+
 func applyExperimentalAutopilotOverrides(dda metav1.Object, manager feature.PodTemplateManagers) {
 	if IsAutopilotEnabled(dda) {
-		allowlistsynchronizer.CreateAllowlistSynchronizer()
+		createAllowlistSynchronizer(hasOtelAgentContainer(manager))
 
 		if manager.PodTemplateSpec().Labels == nil {
 			manager.PodTemplateSpec().Labels = map[string]string{}
@@ -150,4 +153,16 @@ func applyExperimentalAutopilotOverrides(dda metav1.Object, manager feature.PodT
 			}
 		}
 	}
+}
+
+// hasOtelAgentContainer reports whether the otel-agent (ddot-collector) container is
+// present in the PodTemplateSpec, which signals that the OTel collector feature is
+// enabled on the DatadogAgent and the v1.0.5 WorkloadAllowlist exemption is required.
+func hasOtelAgentContainer(manager feature.PodTemplateManagers) bool {
+	for _, c := range manager.PodTemplateSpec().Spec.Containers {
+		if c.Name == string(apicommon.OtelAgent) {
+			return true
+		}
+	}
+	return false
 }
