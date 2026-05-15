@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/ptr"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
@@ -171,6 +172,21 @@ func TestIsNetworkPolicyEnabled(t *testing.T) {
 	})
 	require.True(t, enabled)
 	require.Equal(t, v2alpha1.NetworkPolicyFlavorCilium, flavor)
+}
+
+func TestDefaultProbesAreIndependentCopies(t *testing.T) {
+	liveness := GetDefaultLivenessProbe()
+	liveness.HTTPGet.Path = "/changed"
+	liveness.HTTPGet.Port = intstr.FromInt(1234)
+
+	freshLiveness := GetDefaultLivenessProbe()
+	require.Equal(t, DefaultLivenessProbeHTTPPath, freshLiveness.HTTPGet.Path)
+	require.Equal(t, intstr.FromInt32(DefaultAgentHealthPort), freshLiveness.HTTPGet.Port)
+
+	trace := GetDefaultTraceAgentProbe()
+	trace.TCPSocket.Port = intstr.FromInt(1234)
+
+	require.Equal(t, intstr.FromInt(DefaultApmPort), GetDefaultTraceAgentProbe().TCPSocket.Port)
 }
 
 func TestGetDDAName(t *testing.T) {

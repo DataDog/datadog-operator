@@ -14,34 +14,34 @@ import (
 
 // RBAC for OTel Agent Gateway
 
-// GetDefaultOtelAgentGatewayClusterRolePolicyRules returns the default Cluster Role Policy Rules for the OTel Agent Gateway
-// These rules support the k8sattributes processor for enriching telemetry with Kubernetes metadata
-func GetDefaultOtelAgentGatewayClusterRolePolicyRules(dda metav1.Object, excludeNonResourceRules bool) []rbacv1.PolicyRule {
-	policyRule := []rbacv1.PolicyRule{
-		{
-			APIGroups: []string{rbac.CoreAPIGroup},
-			Resources: []string{
-				rbac.PodsResource,
-				rbac.NamespaceResource,
-			},
-			Verbs: []string{
-				rbac.GetVerb,
-				rbac.WatchVerb,
-				rbac.ListVerb,
-			},
+var defaultOtelAgentGatewayClusterRolePolicyRules = []rbacv1.PolicyRule{
+	{
+		APIGroups: []string{rbac.CoreAPIGroup},
+		Resources: []string{
+			rbac.PodsResource,
+			rbac.NamespaceResource,
 		},
-		{
-			APIGroups: []string{rbac.AppsAPIGroup},
-			Resources: []string{
-				rbac.ReplicasetsResource,
-			},
-			Verbs: []string{
-				rbac.GetVerb,
-				rbac.ListVerb,
-				rbac.WatchVerb,
-			},
+		Verbs: []string{
+			rbac.GetVerb,
+			rbac.WatchVerb,
+			rbac.ListVerb,
 		},
-	}
+	},
+	{
+		APIGroups: []string{rbac.AppsAPIGroup},
+		Resources: []string{
+			rbac.ReplicasetsResource,
+		},
+		Verbs: []string{
+			rbac.GetVerb,
+			rbac.ListVerb,
+			rbac.WatchVerb,
+		},
+	},
+}
 
-	return policyRule
+// GetDefaultOtelAgentGatewayClusterRolePolicyRules returns the default Cluster Role Policy Rules for the OTel Agent Gateway.
+// These rules support the k8sattributes processor for enriching telemetry with Kubernetes metadata.
+func GetDefaultOtelAgentGatewayClusterRolePolicyRules(_ metav1.Object, _ bool) []rbacv1.PolicyRule {
+	return rbac.ClonePolicyRules(defaultOtelAgentGatewayClusterRolePolicyRules)
 }

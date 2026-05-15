@@ -17,9 +17,8 @@ import (
 
 // RBAC for Cluster Checks Runner
 
-// GetDefaultClusterChecksRunnerClusterRolePolicyRules returns the default Cluster Role Policy Rules for the Cluster Checks Runner
-func GetDefaultClusterChecksRunnerClusterRolePolicyRules(dda metav1.Object, excludeNonResourceRules bool) []rbacv1.PolicyRule {
-	policyRule := []rbacv1.PolicyRule{
+var (
+	clusterChecksRunnerClusterRolePolicyRulesBeforeLeaderElection = []rbacv1.PolicyRule{
 		{
 			APIGroups: []string{rbac.CoreAPIGroup},
 			Resources: []string{
@@ -47,19 +46,9 @@ func GetDefaultClusterChecksRunnerClusterRolePolicyRules(dda metav1.Object, excl
 				rbac.CreateVerb,
 			},
 		},
-		{
-			APIGroups: []string{rbac.CoreAPIGroup},
-			Resources: []string{
-				rbac.ConfigMapsResource,
-			},
-			ResourceNames: []string{
-				utils.GetDatadogLeaderElectionResourceName(dda),
-			},
-			Verbs: []string{
-				rbac.GetVerb,
-				rbac.UpdateVerb,
-			},
-		},
+	}
+
+	clusterChecksRunnerClusterRolePolicyRulesAfterLeaderElection = []rbacv1.PolicyRule{
 		{
 			APIGroups: []string{rbac.OpenShiftQuotaAPIGroup},
 			Resources: []string{
@@ -118,15 +107,40 @@ func GetDefaultClusterChecksRunnerClusterRolePolicyRules(dda metav1.Object, excl
 		component.GetEKSControlPlaneMetricsPolicyRule(),
 	}
 
+	clusterChecksRunnerMetricsEndpointPolicyRule = rbacv1.PolicyRule{
+		NonResourceURLs: []string{
+			rbac.MetricsURL,
+			rbac.MetricsSLIsURL,
+		},
+		Verbs: []string{rbac.GetVerb},
+	}
+)
+
+// GetDefaultClusterChecksRunnerClusterRolePolicyRules returns the default Cluster Role Policy Rules for the Cluster Checks Runner.
+func GetDefaultClusterChecksRunnerClusterRolePolicyRules(dda metav1.Object, excludeNonResourceRules bool) []rbacv1.PolicyRule {
+	policyRule := rbac.ClonePolicyRules(clusterChecksRunnerClusterRolePolicyRulesBeforeLeaderElection)
+	policyRule = append(policyRule, clusterChecksRunnerLeaderElectionPolicyRule(dda))
+	policyRule = append(policyRule, rbac.ClonePolicyRules(clusterChecksRunnerClusterRolePolicyRulesAfterLeaderElection)...)
+
 	if !excludeNonResourceRules {
-		policyRule = append(policyRule, rbacv1.PolicyRule{
-			NonResourceURLs: []string{
-				rbac.MetricsURL,
-				rbac.MetricsSLIsURL,
-			},
-			Verbs: []string{rbac.GetVerb},
-		})
+		policyRule = append(policyRule, rbac.ClonePolicyRule(clusterChecksRunnerMetricsEndpointPolicyRule))
 	}
 
 	return policyRule
+}
+
+func clusterChecksRunnerLeaderElectionPolicyRule(dda metav1.Object) rbacv1.PolicyRule {
+	return rbacv1.PolicyRule{
+		APIGroups: []string{rbac.CoreAPIGroup},
+		Resources: []string{
+			rbac.ConfigMapsResource,
+		},
+		ResourceNames: []string{
+			utils.GetDatadogLeaderElectionResourceName(dda),
+		},
+		Verbs: []string{
+			rbac.GetVerb,
+			rbac.UpdateVerb,
+		},
+	}
 }
