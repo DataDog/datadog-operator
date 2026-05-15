@@ -9254,17 +9254,21 @@ spec:
                   Automation experiment.
                 properties:
                   id:
-                    description: ID is the unique experiment ID sent by Fleet Automation.
+                    description: ID is the RC task ID that triggered this experiment
+                      state.
                     type: string
                   phase:
                     description: Phase is the current state of the experiment.
                     enum:
                     - running
-                    - stopped
-                    - rollback
-                    - timeout
+                    - terminated
                     - promoted
                     - aborted
+                    type: string
+                  terminationReason:
+                    description: |-
+                      TerminationReason distinguishes why the experiment was terminated.
+                      Only set when Phase is "terminated".
                     type: string
                 type: object
               otelAgentGateway:
