@@ -1,6 +1,9 @@
 schema-version: v1
 ignore:
   - "test/"
+  - "**/testutils/"
+  - "**/fake/"
+  - "internal/controller/datadogagent/feature/test/"
   - "hack/"
   - "marketplaces/"
   - "examples/"

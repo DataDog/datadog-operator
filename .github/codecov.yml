@@ -36,6 +36,9 @@ comment:
 
 ignore:
   - "test/**/*"  # ignore folders and all its contents
+  - "**/testutils/**/*" # test helper packages
+  - "**/fake/**/*" # test fake implementations
+  - "internal/controller/datadogagent/feature/test/**/*" # feature test harness
   - "hack/**/*" # developer tooling
   - "marketplaces/**/*" # marketplace packaging/release tooling
   - "examples/**/*" # sample manifests
