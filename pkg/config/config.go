@@ -73,6 +73,7 @@ type WatchOptions struct {
 	DatadogDashboardEnabled       bool
 	DatadogGenericResourceEnabled bool
 	DatadogCSIDriverEnabled       bool
+	UntaintControllerEnabled      bool
 }
 
 // CacheOptions function configures Controller Runtime cache options on a resource level (supported in v0.16+).
@@ -126,14 +127,14 @@ func CacheOptions(logger logr.Logger, opts WatchOptions) cache.Options {
 		byObject[profileObj] = cache.ByObject{
 			Namespaces: agentProfileNamespaces,
 		}
+	}
 
-		// It is very important to reduce memory usage when profiles are used.
-		// For the profiles feature we need to list the agent pods, but we're only
-		// interested in the node name and the labels. This function removes all the
-		// rest of fields to reduce memory usage.
-		// Pods are watched in DatadogAgent namespace(s) since that's where Agent pods are running.
+	if opts.DatadogAgentProfileEnabled || opts.UntaintControllerEnabled {
+		// For the profiles feature and untaint controller we need to list agent pods.
+		// The profiles feature needs node name and labels; the untaint controller also needs
+		// Status.Conditions to check readiness. Pods are watched in DatadogAgent namespace(s).
 		agentNamespaces := GetWatchNamespacesFromEnv(logger, AgentWatchNamespaceEnvVar)
-		logger.Info("DatadogAgentProfile Enabled", "watching Pods in namespaces", slices.Collect(maps.Keys(agentNamespaces)))
+		logger.Info("Pod cache enabled", "watching Pods in namespaces", slices.Collect(maps.Keys(agentNamespaces)))
 		byObject[podObj] = cache.ByObject{
 			Namespaces: agentNamespaces,
 
@@ -156,14 +157,19 @@ func CacheOptions(logger logr.Logger, opts WatchOptions) cache.Options {
 					},
 				}
 
+				// Preserve conditions for the untaint controller (readiness check)
+				if opts.UntaintControllerEnabled {
+					newPod.Status.Conditions = pod.Status.Conditions
+				}
+
 				return newPod, nil
 			},
 		}
 	}
 
-	if opts.DatadogAgentProfileEnabled || opts.IntrospectionEnabled {
-		// Also for the profiles feature, we need to list the nodes, but we're only
-		// interested in the node name and the labels.
+	if opts.DatadogAgentProfileEnabled || opts.IntrospectionEnabled || opts.UntaintControllerEnabled {
+		// Also for the profiles feature, introspection and untaint controller, we need to list the
+		// nodes. The untaint controller additionally needs Spec.Taints to check for the target taint.
 		// Note that if in the future we need to list or get pods or nodes and use other
 		// fields we'll need to modify this function.
 		//
@@ -178,6 +184,11 @@ func CacheOptions(logger logr.Logger, opts WatchOptions) cache.Options {
 						Name:   node.Name,
 						Labels: node.Labels,
 					},
+				}
+
+				// Preserve taints for the untaint controller
+				if opts.UntaintControllerEnabled {
+					newNode.Spec.Taints = node.Spec.Taints
 				}
 
 				return newNode, nil

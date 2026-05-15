@@ -166,7 +166,7 @@ docker-build: generate docker-build-ci docker-build-check-ci
 # For local use
 .PHONY: docker-build-ci
 docker-build-ci:
-	docker build . -t ${IMG} --build-arg FIPS_ENABLED="${FIPS_ENABLED}" --build-arg LDFLAGS="${LDFLAGS}" --build-arg GOARCH="${GOARCH}"
+	docker build . -t ${IMG} --build-arg FIPS_ENABLED="${FIPS_ENABLED}" --build-arg LDFLAGS="${LDFLAGS}" --build-arg GOARCH="${GOARCH}" --platform=linux/${GOARCH}
 
 # For local use
 .PHONY: docker-build-check-ci
