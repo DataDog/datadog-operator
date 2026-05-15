@@ -13,9 +13,9 @@ import (
 
 // ClonePolicyRules returns an independent copy of policy rules templates.
 func ClonePolicyRules(rules []rbacv1.PolicyRule) []rbacv1.PolicyRule {
-	cloned := make([]rbacv1.PolicyRule, 0, len(rules))
-	for _, rule := range rules {
-		cloned = append(cloned, ClonePolicyRule(rule))
+	cloned := slices.Clone(rules)
+	for i := range cloned {
+		cloned[i] = ClonePolicyRule(cloned[i])
 	}
 	return cloned
 }
