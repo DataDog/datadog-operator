@@ -26,14 +26,16 @@ instances:
   - collectors:
       - pods
 `
-	defaultOptions := collectorOptions{}
-	optionsWithVPA := collectorOptions{enableVPA: true}
-	optionsWithCRD := collectorOptions{enableCRD: true}
-	optionsWithAPIService := collectorOptions{enableAPIService: true}
-	optionsWithControllerRevisions := collectorOptions{enableControllerRevisions: true}
+	defaultOptions := collectorOptions{collectSecrets: true, collectConfigMaps: true}
+	optionsWithVPA := collectorOptions{collectSecrets: true, collectConfigMaps: true, enableVPA: true}
+	optionsWithCRD := collectorOptions{collectSecrets: true, collectConfigMaps: true, enableCRD: true}
+	optionsWithAPIService := collectorOptions{collectSecrets: true, collectConfigMaps: true, enableAPIService: true}
+	optionsWithControllerRevisions := collectorOptions{collectSecrets: true, collectConfigMaps: true, enableControllerRevisions: true}
 
 	// Test custom resources
 	optionsWithCustomResources := collectorOptions{
+		collectSecrets:    true,
+		collectConfigMaps: true,
 		customResources: []v2alpha1.Resource{
 			{
 				GroupVersionKind: v2alpha1.GroupVersionKind{
@@ -46,6 +48,8 @@ instances:
 	}
 
 	optionsWithMultipleCustomResources := collectorOptions{
+		collectSecrets:    true,
+		collectConfigMaps: true,
 		customResources: []v2alpha1.Resource{
 			{
 				GroupVersionKind: v2alpha1.GroupVersionKind{
@@ -66,7 +70,9 @@ instances:
 
 	// Combined options
 	optionsWithVPAAndCustomResources := collectorOptions{
-		enableVPA: true,
+		collectSecrets:    true,
+		collectConfigMaps: true,
+		enableVPA:         true,
 		customResources: []v2alpha1.Resource{
 			{
 				GroupVersionKind: v2alpha1.GroupVersionKind{
@@ -101,6 +107,7 @@ instances:
 				enable:                   true,
 				runInClusterChecksRunner: true,
 				configConfigMapName:      defaultKubeStateMetricsCoreConf,
+				collectorOpts:            defaultOptions,
 			},
 			want: buildDefaultConfigMap(owner.GetNamespace(), defaultKubeStateMetricsCoreConf, ksmCheckConfig(true, defaultOptions)),
 		},
@@ -124,6 +131,7 @@ instances:
 				enable:                   true,
 				runInClusterChecksRunner: false,
 				configConfigMapName:      defaultKubeStateMetricsCoreConf,
+				collectorOpts:            defaultOptions,
 			},
 			want: buildDefaultConfigMap(owner.GetNamespace(), defaultKubeStateMetricsCoreConf, ksmCheckConfig(false, defaultOptions)),
 		},

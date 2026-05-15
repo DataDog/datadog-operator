@@ -956,6 +956,18 @@ type KubeStateMetricsCoreFeatureConfig struct {
 	// +optional
 	// +listType=atomic
 	CollectCrMetrics []Resource `json:"collectCrMetrics,omitempty"`
+
+	// CollectSecretMetrics enables collection of metrics on Secrets.
+	// When false, the `secrets` collector and the RBAC permission to list/watch Secrets are omitted.
+	// Default: true
+	// +optional
+	CollectSecretMetrics *bool `json:"collectSecretMetrics,omitempty"`
+
+	// CollectConfigMaps enables collection of metrics on ConfigMaps.
+	// When false, the `configmaps` collector and the RBAC permission to list/watch ConfigMaps are omitted.
+	// Default: true
+	// +optional
+	CollectConfigMaps *bool `json:"collectConfigMaps,omitempty"`
 }
 
 // Resource configures a custom resource for metric generation.

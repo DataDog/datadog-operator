@@ -425,10 +425,10 @@ datadog.hostVolumeMountPropagation: ""
 datadog.ignoreAutoConfig: ""
 datadog.kubeStateMetricsCore.annotationsAsTags: ""
 datadog.kubeStateMetricsCore.collectApiServicesMetrics: ""
-datadog.kubeStateMetricsCore.collectConfigMaps: ""
+datadog.kubeStateMetricsCore.collectConfigMaps: spec.features.kubeStateMetricsCore.collectConfigMaps
 datadog.kubeStateMetricsCore.collectCrMetrics: ""
 datadog.kubeStateMetricsCore.collectCrdMetrics: ""
-datadog.kubeStateMetricsCore.collectSecretMetrics: ""
+datadog.kubeStateMetricsCore.collectSecretMetrics: spec.features.kubeStateMetricsCore.collectSecretMetrics
 datadog.kubeStateMetricsCore.collectVpaMetrics: ""
 datadog.kubeStateMetricsCore.enabled: spec.features.kubeStateMetricsCore.enabled
 datadog.kubeStateMetricsCore.ignoreLegacyKSMCheck: ""
