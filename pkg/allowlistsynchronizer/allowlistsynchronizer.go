@@ -117,6 +117,13 @@ func CreateAllowlistSynchronizer(otelCollectorEnabled bool) {
 		return
 	}
 
+	reconcileAllowlistSynchronizer(k8sClient, otelCollectorEnabled)
+}
+
+// reconcileAllowlistSynchronizer creates the AllowlistSynchronizer resource if it does
+// not already exist, logging any failure. Extracted from CreateAllowlistSynchronizer so
+// it can be exercised with a fake client.
+func reconcileAllowlistSynchronizer(k8sClient client.Client, otelCollectorEnabled bool) {
 	existing := &AllowlistSynchronizer{}
 	if existingErr := k8sClient.Get(context.TODO(), client.ObjectKey{Name: "datadog-synchronizer"}, existing); existingErr == nil {
 		return

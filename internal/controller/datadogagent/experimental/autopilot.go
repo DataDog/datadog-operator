@@ -64,9 +64,12 @@ func IsAutopilotEnabled(obj metav1.Object) bool {
 	return strings.EqualFold(ann[getExperimentalAnnotationKey(ExperimentalAutopilotSubkey)], "true")
 }
 
+// createAllowlistSynchronizer is overridden in tests to avoid hitting kubeconfig loading.
+var createAllowlistSynchronizer = allowlistsynchronizer.CreateAllowlistSynchronizer
+
 func applyExperimentalAutopilotOverrides(dda metav1.Object, manager feature.PodTemplateManagers) {
 	if IsAutopilotEnabled(dda) {
-		allowlistsynchronizer.CreateAllowlistSynchronizer(hasOtelAgentContainer(manager))
+		createAllowlistSynchronizer(hasOtelAgentContainer(manager))
 
 		if manager.PodTemplateSpec().Labels == nil {
 			manager.PodTemplateSpec().Labels = map[string]string{}

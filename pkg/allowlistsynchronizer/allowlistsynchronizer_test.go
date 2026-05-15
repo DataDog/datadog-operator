@@ -6,9 +6,18 @@
 package allowlistsynchronizer
 
 import (
+	"context"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 )
 
 func TestComputeAllowlistPaths(t *testing.T) {
@@ -49,4 +58,109 @@ func TestNewAllowlistSynchronizer(t *testing.T) {
 	assert.Equal(t, "AllowlistSynchronizer", s.Kind)
 	assert.Equal(t, "pre-install,pre-upgrade", s.Annotations["helm.sh/hook"])
 	assert.Equal(t, paths, s.Spec.AllowlistPaths)
+
+	// DeepCopyObject returns a distinct value with the same spec, satisfying runtime.Object.
+	cp, ok := s.DeepCopyObject().(*AllowlistSynchronizer)
+	require.True(t, ok)
+	assert.Equal(t, s.Spec.AllowlistPaths, cp.Spec.AllowlistPaths)
+}
+
+func TestReconcileAllowlistSynchronizer(t *testing.T) {
+	scheme := runtime.NewScheme()
+	require.NoError(t, SchemeBuilder.AddToScheme(scheme))
+
+	t.Run("creates resource when absent", func(t *testing.T) {
+		k8sClient := fake.NewClientBuilder().WithScheme(scheme).Build()
+		reconcileAllowlistSynchronizer(k8sClient, true)
+
+		got := &AllowlistSynchronizer{}
+		require.NoError(t, k8sClient.Get(context.TODO(), client.ObjectKey{Name: "datadog-synchronizer"}, got))
+		assert.Equal(t, []string{allowlistPathV101, allowlistPathV105}, got.Spec.AllowlistPaths)
+	})
+
+	t.Run("is a no-op when synchronizer already exists", func(t *testing.T) {
+		existing := newAllowlistSynchronizer([]string{allowlistPathV101})
+		k8sClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(existing).Build()
+
+		// Call with otelCollectorEnabled=true; existing resource should NOT be overwritten.
+		reconcileAllowlistSynchronizer(k8sClient, true)
+
+		got := &AllowlistSynchronizer{}
+		require.NoError(t, k8sClient.Get(context.TODO(), client.ObjectKey{Name: "datadog-synchronizer"}, got))
+		assert.Equal(t, []string{allowlistPathV101}, got.Spec.AllowlistPaths, "existing synchronizer should be preserved")
+	})
+
+	t.Run("returns silently on Get error other than NotFound", func(t *testing.T) {
+		k8sClient := fake.NewClientBuilder().WithScheme(scheme).WithInterceptorFuncs(interceptor.Funcs{
+			Get: func(ctx context.Context, c client.WithWatch, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+				return errors.New("transient API error")
+			},
+		}).Build()
+
+		// Should not panic; should not have created anything.
+		reconcileAllowlistSynchronizer(k8sClient, true)
+
+		got := &AllowlistSynchronizer{}
+		err := k8sClient.Get(context.TODO(), client.ObjectKey{Name: "datadog-synchronizer"}, got)
+		// The interceptor is still installed, so Get returns our injected error.
+		assert.Error(t, err)
+	})
+
+	t.Run("returns silently when Create reports AlreadyExists", func(t *testing.T) {
+		k8sClient := fake.NewClientBuilder().WithScheme(scheme).WithInterceptorFuncs(interceptor.Funcs{
+			Create: func(ctx context.Context, c client.WithWatch, obj client.Object, opts ...client.CreateOption) error {
+				return apierrors.NewAlreadyExists(schema.GroupResource{Group: "auto.gke.io", Resource: "allowlistsynchronizers"}, "datadog-synchronizer")
+			},
+		}).Build()
+
+		// Should not panic; the AlreadyExists branch is the early return inside the create error handler.
+		reconcileAllowlistSynchronizer(k8sClient, true)
+	})
+
+	t.Run("returns silently on other Create errors", func(t *testing.T) {
+		k8sClient := fake.NewClientBuilder().WithScheme(scheme).WithInterceptorFuncs(interceptor.Funcs{
+			Create: func(ctx context.Context, c client.WithWatch, obj client.Object, opts ...client.CreateOption) error {
+				return errors.New("unexpected create error")
+			},
+		}).Build()
+
+		reconcileAllowlistSynchronizer(k8sClient, false)
+	})
+}
+
+func TestCreateAllowlistSynchronizerResource(t *testing.T) {
+	scheme := runtime.NewScheme()
+	require.NoError(t, SchemeBuilder.AddToScheme(scheme))
+
+	tests := []struct {
+		name                 string
+		otelCollectorEnabled bool
+		expectedPaths        []string
+	}{
+		{
+			name:                 "OTel disabled creates synchronizer with v1.0.1 only",
+			otelCollectorEnabled: false,
+			expectedPaths:        []string{allowlistPathV101},
+		},
+		{
+			name:                 "OTel enabled creates synchronizer with v1.0.1 and v1.0.5",
+			otelCollectorEnabled: true,
+			expectedPaths:        []string{allowlistPathV101, allowlistPathV105},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			k8sClient := fake.NewClientBuilder().WithScheme(scheme).Build()
+
+			err := createAllowlistSynchronizerResource(k8sClient, ComputeAllowlistPaths(tt.otelCollectorEnabled))
+			require.NoError(t, err)
+
+			got := &AllowlistSynchronizer{}
+			require.NoError(t, k8sClient.Get(context.TODO(), client.ObjectKey{Name: "datadog-synchronizer"}, got))
+			assert.Equal(t, tt.expectedPaths, got.Spec.AllowlistPaths)
+			assert.Equal(t, "pre-install,pre-upgrade", got.Annotations["helm.sh/hook"])
+			assert.Equal(t, "-1", got.Annotations["helm.sh/hook-weight"])
+		})
+	}
 }
