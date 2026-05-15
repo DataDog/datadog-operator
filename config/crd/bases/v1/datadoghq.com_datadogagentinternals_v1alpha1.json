@@ -1712,6 +1712,17 @@
               },
               "type": "object"
             },
+            "hostProfiler": {
+              "additionalProperties": false,
+              "description": "HostProfiler configuration.",
+              "properties": {
+                "enabled": {
+                  "description": "Enables the Host Profiler.\nDefault: false",
+                  "type": "boolean"
+                }
+              },
+              "type": "object"
+            },
             "kubeStateMetricsCore": {
               "additionalProperties": false,
               "description": "KubeStateMetricsCore check configuration.",
@@ -10138,6 +10149,17 @@
                       },
                       "description": "ValuesAsTags collects Helm values from a release and uses them as tags\n(Requires Agent and Cluster Agent 7.40.0+).\nDefault: {}",
                       "type": "object"
+                    }
+                  },
+                  "type": "object"
+                },
+                "hostProfiler": {
+                  "additionalProperties": false,
+                  "description": "HostProfiler configuration.",
+                  "properties": {
+                    "enabled": {
+                      "description": "Enables the Host Profiler.\nDefault: false",
+                      "type": "boolean"
                     }
                   },
                   "type": "object"

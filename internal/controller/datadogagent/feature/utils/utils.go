@@ -102,3 +102,17 @@ func IsDataPlaneDogstatsdEnabled(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
 	}
 	return true
 }
+
+// IsHostProfilerEnabled returns true if the Host Profiler is enabled.
+// CRD configuration takes precedence over the annotation.
+func IsHostProfilerEnabled(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec) bool {
+	if ddaSpec.Features != nil && ddaSpec.Features.HostProfiler != nil && ddaSpec.Features.HostProfiler.Enabled != nil {
+		return *ddaSpec.Features.HostProfiler.Enabled
+	}
+
+	if HasFeatureEnableAnnotation(dda, EnableHostProfilerAnnotation) {
+		return true
+	}
+
+	return false
+}

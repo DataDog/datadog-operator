@@ -49,12 +49,31 @@ func Test_hostProfilerFeature_Configure(t *testing.T) {
 			WantConfigure: false,
 		},
 		{
-			Name: "host profiler enabled",
+			Name: "host profiler enabled via annotation",
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithAnnotations(map[string]string{"agent.datadoghq.com/host-profiler-enabled": "true"}).
 				Build(),
 			WantConfigure: true,
 			Agent:         testExpectedAgent(apicommon.HostProfiler, defaultVolumeMounts, defaultVolumes),
+		},
+		{
+			Name:          "host profiler enabled via CRD",
+			DDA:           testutils.NewDatadogAgentBuilder().WithHostProfilerEnabled(true).Build(),
+			WantConfigure: true,
+			Agent:         testExpectedAgent(apicommon.HostProfiler, defaultVolumeMounts, defaultVolumes),
+		},
+		{
+			Name:          "host profiler disabled via CRD",
+			DDA:           testutils.NewDatadogAgentBuilder().WithHostProfilerEnabled(false).Build(),
+			WantConfigure: false,
+		},
+		{
+			Name: "host profiler CRD takes precedence over annotation",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithAnnotations(map[string]string{"agent.datadoghq.com/host-profiler-enabled": "true"}).
+				WithHostProfilerEnabled(false).
+				Build(),
+			WantConfigure: false,
 		},
 	}
 	tests.Run(t, buildHostProfilerFeature)
