@@ -8,6 +8,8 @@ package servicediscovery
 import (
 	"testing"
 
+	"k8s.io/utils/ptr"
+
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
@@ -20,6 +22,8 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
+	"github.com/DataDog/datadog-operator/pkg/images"
+	pkgutils "github.com/DataDog/datadog-operator/pkg/utils"
 )
 
 func Test_serviceDiscoveryFeature_Configure(t *testing.T) {
@@ -27,22 +31,20 @@ func Test_serviceDiscoveryFeature_Configure(t *testing.T) {
 		Spec: v2alpha1.DatadogAgentSpec{
 			Features: &v2alpha1.DatadogFeatures{
 				ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
-					Enabled: apiutils.NewBoolPointer(false),
-					NetworkStats: &v2alpha1.ServiceDiscoveryNetworkStatsConfig{
-						Enabled: apiutils.NewBoolPointer(false),
-					},
+					Enabled: ptr.To(false),
 				},
 			},
 		},
 	}
-	ddaServiceDiscoveryEnabledNoNetStats := ddaServiceDiscoveryDisabled.DeepCopy()
-	{
-		ddaServiceDiscoveryEnabledNoNetStats.Spec.Features.ServiceDiscovery.Enabled = apiutils.NewBoolPointer(true)
+	ddaServiceDiscoveryEnabled := ddaServiceDiscoveryDisabled.DeepCopy()
+	ddaServiceDiscoveryEnabled.Spec.Features.ServiceDiscovery.Enabled = ptr.To(true)
+	ddaServiceDiscoveryEnabled.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+		v2alpha1.NodeAgentComponentName: {
+			Image: &v2alpha1.AgentImageConfig{Tag: "7.78.0"},
+		},
 	}
-	ddaServiceDiscoveryEnabledWithNetStats := ddaServiceDiscoveryEnabledNoNetStats.DeepCopy()
-	{
-		ddaServiceDiscoveryEnabledWithNetStats.Spec.Features.ServiceDiscovery.NetworkStats.Enabled = apiutils.NewBoolPointer(true)
-	}
+	ddaServiceDiscoveryEnabledUnsupportedVersion := ddaServiceDiscoveryEnabled.DeepCopy()
+	ddaServiceDiscoveryEnabledUnsupportedVersion.Spec.Override[v2alpha1.NodeAgentComponentName].Image = &v2alpha1.AgentImageConfig{Tag: "7.77.2"}
 
 	tests := test.FeatureTestSuite{
 		{
@@ -51,28 +53,209 @@ func Test_serviceDiscoveryFeature_Configure(t *testing.T) {
 			WantConfigure: false,
 		},
 		{
-			Name:          "service discovery enabled - no network stats",
-			DDA:           ddaServiceDiscoveryEnabledNoNetStats,
+			Name:          "service discovery enabled",
+			DDA:           ddaServiceDiscoveryEnabled,
 			WantConfigure: true,
-			Agent:         test.NewDefaultComponentTest().WithWantFunc(getWantFunc(noNetStats)),
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(getWantFunc(true)),
 		},
 		{
-			Name:          "service discovery enabled - with network stats",
-			DDA:           ddaServiceDiscoveryEnabledWithNetStats,
+			Name:          "service discovery enabled on unsupported version",
+			DDA:           ddaServiceDiscoveryEnabledUnsupportedVersion,
 			WantConfigure: true,
-			Agent:         test.NewDefaultComponentTest().WithWantFunc(getWantFunc(withNetStats)),
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(getWantFunc(false)),
 		},
 	}
 
 	tests.Run(t, buildFeature)
 }
 
-const (
-	noNetStats   = false
-	withNetStats = true
-)
+func Test_serviceDiscoveryFeature_Configure_DefaultingByVersion(t *testing.T) {
+	tests := []struct {
+		name    string
+		ddaSpec *v2alpha1.DatadogAgentSpec
+		want    bool
+	}{
+		{
+			name:    "features nil stays disabled without mutation",
+			ddaSpec: &v2alpha1.DatadogAgentSpec{},
+			want:    false,
+		},
+		{
+			name: "omitted on inherited default agent version follows current default image policy",
+			ddaSpec: &v2alpha1.DatadogAgentSpec{
+				Features: &v2alpha1.DatadogFeatures{},
+			},
+			want: serviceDiscoveryEnabledForVersion(images.AgentLatestVersion),
+		},
+		{
+			name: "omitted on supported node agent version is auto-enabled",
+			ddaSpec: &v2alpha1.DatadogAgentSpec{
+				Features: &v2alpha1.DatadogFeatures{},
+				Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+					v2alpha1.NodeAgentComponentName: {
+						Image: &v2alpha1.AgentImageConfig{Tag: "7.78.0"},
+					},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "omitted on supported full image ref is auto-enabled",
+			ddaSpec: &v2alpha1.DatadogAgentSpec{
+				Features: &v2alpha1.DatadogFeatures{},
+				Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+					v2alpha1.NodeAgentComponentName: {
+						Image: &v2alpha1.AgentImageConfig{Name: "docker.io/datadog/agent:7.78.0"},
+					},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "omitted on unsupported node agent version stays disabled",
+			ddaSpec: &v2alpha1.DatadogAgentSpec{
+				Features: &v2alpha1.DatadogFeatures{},
+				Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+					v2alpha1.NodeAgentComponentName: {
+						Image: &v2alpha1.AgentImageConfig{Tag: "7.77.2"},
+					},
+				},
+			},
+			want: false,
+		},
+		{
+			name: "omitted on partial image override without version follows inherited default image policy",
+			ddaSpec: &v2alpha1.DatadogAgentSpec{
+				Features: &v2alpha1.DatadogFeatures{},
+				Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+					v2alpha1.NodeAgentComponentName: {
+						Image: &v2alpha1.AgentImageConfig{PullPolicy: ptr.To(corev1.PullAlways)},
+					},
+				},
+			},
+			want: serviceDiscoveryEnabledForVersion(images.AgentLatestVersion),
+		},
+		{
+			name: "omitted on unparseable node agent version is auto-enabled",
+			ddaSpec: &v2alpha1.DatadogAgentSpec{
+				Features: &v2alpha1.DatadogFeatures{},
+				Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+					v2alpha1.NodeAgentComponentName: {
+						Image: &v2alpha1.AgentImageConfig{Tag: "latest-dev"},
+					},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "explicit false is preserved on supported node agent version",
+			ddaSpec: &v2alpha1.DatadogAgentSpec{
+				Features: &v2alpha1.DatadogFeatures{
+					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
+						Enabled: ptr.To(false),
+					},
+				},
+				Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+					v2alpha1.NodeAgentComponentName: {
+						Image: &v2alpha1.AgentImageConfig{Tag: "7.78.0"},
+					},
+				},
+			},
+			want: false,
+		},
+		{
+			name: "explicit true is preserved on unsupported node agent version",
+			ddaSpec: &v2alpha1.DatadogAgentSpec{
+				Features: &v2alpha1.DatadogFeatures{
+					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
+						Enabled: ptr.To(true),
+					},
+				},
+				Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+					v2alpha1.NodeAgentComponentName: {
+						Image: &v2alpha1.AgentImageConfig{Tag: "7.77.2"},
+					},
+				},
+			},
+			want: true,
+		},
+	}
 
-func getWantFunc(withNetStats bool) func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := buildFeature(nil)
+			reqComp := f.Configure(nil, tt.ddaSpec, nil)
+
+			if tt.ddaSpec.Features == nil {
+				assert.Nil(t, tt.ddaSpec.Features)
+			} else {
+				assert.NotNil(t, tt.ddaSpec.Features.ServiceDiscovery)
+				assert.NotNil(t, tt.ddaSpec.Features.ServiceDiscovery.Enabled)
+				assert.Equal(t, tt.want, *tt.ddaSpec.Features.ServiceDiscovery.Enabled)
+			}
+			assert.Equal(t, tt.want, reqComp.Agent.IsEnabled())
+		})
+	}
+}
+
+func Test_serviceDiscoveryFeature_resolveEnabled_InheritsDefaultVersionWhenImageVersionIsOmitted(t *testing.T) {
+	expected := serviceDiscoveryEnabledForVersion(images.AgentLatestVersion)
+
+	tests := []struct {
+		name    string
+		ddaSpec *v2alpha1.DatadogAgentSpec
+	}{
+		{
+			name: "no node agent override inherits default agent version",
+			ddaSpec: &v2alpha1.DatadogAgentSpec{
+				Features: &v2alpha1.DatadogFeatures{},
+			},
+		},
+		{
+			name: "partial node agent image override inherits default agent version",
+			ddaSpec: &v2alpha1.DatadogAgentSpec{
+				Features: &v2alpha1.DatadogFeatures{},
+				Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+					v2alpha1.NodeAgentComponentName: {
+						Image: &v2alpha1.AgentImageConfig{
+							PullPolicy: ptr.To(corev1.PullAlways),
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "explicit default agent version matches inherited policy",
+			ddaSpec: &v2alpha1.DatadogAgentSpec{
+				Features: &v2alpha1.DatadogFeatures{},
+				Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+					v2alpha1.NodeAgentComponentName: {
+						Image: &v2alpha1.AgentImageConfig{
+							Tag: images.AgentLatestVersion,
+						},
+					},
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := resolveEnabled(tt.ddaSpec)
+
+			assert.Equal(t, expected, got)
+			assert.NotNil(t, tt.ddaSpec.Features.ServiceDiscovery)
+			assert.NotNil(t, tt.ddaSpec.Features.ServiceDiscovery.Enabled)
+			assert.Equal(t, expected, *tt.ddaSpec.Features.ServiceDiscovery.Enabled)
+		})
+	}
+}
+
+func serviceDiscoveryEnabledForVersion(version string) bool {
+	return pkgutils.IsAboveMinVersion(version, serviceDiscoveryAutoEnableMinVersion, nil)
+}
+
+func getWantFunc(wantSystemProbeLite bool) func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 	return func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 		mgr := mgrInterface.(*fake.PodTemplateManagers)
 
@@ -111,22 +294,6 @@ func getWantFunc(withNetStats bool) func(t testing.TB, mgrInterface feature.PodT
 				ReadOnly:  false,
 			},
 		}
-		if withNetStats {
-			wantSystemProbeVolMounts = append(wantSystemProbeVolMounts,
-				corev1.VolumeMount{
-					Name:      common.DebugfsVolumeName,
-					MountPath: common.DebugfsPath,
-					ReadOnly:  false,
-				}, corev1.VolumeMount{
-					Name:      common.ModulesVolumeName,
-					MountPath: common.ModulesVolumePath,
-					ReadOnly:  true,
-				}, corev1.VolumeMount{
-					Name:      common.SrcVolumeName,
-					MountPath: common.SrcVolumePath,
-					ReadOnly:  true,
-				})
-		}
 
 		coreAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommon.CoreAgentContainerName]
 		assert.True(t, apiutils.IsEqualStruct(coreAgentVolumeMounts, wantCoreAgentVolMounts), "Core agent volume mounts \ndiff = %s", cmp.Diff(coreAgentVolumeMounts, wantCoreAgentVolMounts))
@@ -159,31 +326,6 @@ func getWantFunc(withNetStats bool) func(t testing.TB, mgrInterface feature.PodT
 				},
 			},
 		}
-		if withNetStats {
-			wantVolumes = append(wantVolumes,
-				corev1.Volume{
-					Name: common.DebugfsVolumeName,
-					VolumeSource: corev1.VolumeSource{
-						HostPath: &corev1.HostPathVolumeSource{
-							Path: common.DebugfsPath,
-						},
-					},
-				}, corev1.Volume{
-					Name: common.ModulesVolumeName,
-					VolumeSource: corev1.VolumeSource{
-						HostPath: &corev1.HostPathVolumeSource{
-							Path: common.ModulesVolumePath,
-						},
-					},
-				}, corev1.Volume{
-					Name: common.SrcVolumeName,
-					VolumeSource: corev1.VolumeSource{
-						HostPath: &corev1.HostPathVolumeSource{
-							Path: common.SrcVolumePath,
-						},
-					},
-				})
-		}
 
 		volumes := mgr.VolumeMgr.Volumes
 		assert.True(t, apiutils.IsEqualStruct(volumes, wantVolumes), "Volumes \ndiff = %s", cmp.Diff(volumes, wantVolumes))
@@ -200,21 +342,24 @@ func getWantFunc(withNetStats bool) func(t testing.TB, mgrInterface feature.PodT
 			},
 		}
 
-		// check env vars
 		wantSPEnvVars := []*corev1.EnvVar{
 			{
 				Name:  DDServiceDiscoveryEnabled,
 				Value: "true",
 			},
-			{
-				Name:  DDServiceDiscoveryNetworkStatsEnabled,
-				Value: boolToString(withNetStats),
-			},
-			{
+		}
+		if wantSystemProbeLite {
+			wantSPEnvVars = append(wantSPEnvVars, &corev1.EnvVar{
+				Name:  DDServiceDiscoveryUseSystemProbeLite,
+				Value: "true",
+			})
+		}
+		wantSPEnvVars = append(wantSPEnvVars,
+			&corev1.EnvVar{
 				Name:  common.DDSystemProbeSocket,
 				Value: common.DefaultSystemProbeSocketPath,
 			},
-		}
+		)
 
 		agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
 		assert.True(t, apiutils.IsEqualStruct(agentEnvVars, wantAgentEnvVars), "Agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, wantAgentEnvVars))
@@ -222,11 +367,4 @@ func getWantFunc(withNetStats bool) func(t testing.TB, mgrInterface feature.PodT
 		systemProbeEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.SystemProbeContainerName]
 		assert.True(t, apiutils.IsEqualStruct(systemProbeEnvVars, wantSPEnvVars), "System Probe envvars \ndiff = %s", cmp.Diff(systemProbeEnvVars, wantSPEnvVars))
 	}
-}
-
-func boolToString(val bool) string {
-	if val {
-		return "true"
-	}
-	return "false"
 }

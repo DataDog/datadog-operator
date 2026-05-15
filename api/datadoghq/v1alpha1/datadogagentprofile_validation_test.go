@@ -8,13 +8,14 @@ package v1alpha1
 import (
 	"testing"
 
+	"k8s.io/utils/ptr"
+
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	"github.com/DataDog/datadog-operator/api/utils"
 )
 
 func TestIsValidDatadogAgentProfile(t *testing.T) {
@@ -128,7 +129,7 @@ func TestIsValidDatadogAgentProfile(t *testing.T) {
 		Config: &v2alpha1.DatadogAgentSpec{
 			Features: &v2alpha1.DatadogFeatures{
 				GPU: &v2alpha1.GPUFeatureConfig{
-					Enabled: utils.NewBoolPointer(true),
+					Enabled: ptr.To(true),
 				},
 			},
 		},
@@ -138,8 +139,8 @@ func TestIsValidDatadogAgentProfile(t *testing.T) {
 		Config: &v2alpha1.DatadogAgentSpec{
 			Features: &v2alpha1.DatadogFeatures{
 				GPU: &v2alpha1.GPUFeatureConfig{
-					Enabled:        utils.NewBoolPointer(true),
-					PrivilegedMode: utils.NewBoolPointer(true),
+					Enabled:        ptr.To(true),
+					PrivilegedMode: ptr.To(true),
 				},
 			},
 		},
@@ -149,106 +150,75 @@ func TestIsValidDatadogAgentProfile(t *testing.T) {
 		Config: &v2alpha1.DatadogAgentSpec{
 			Features: &v2alpha1.DatadogFeatures{
 				NPM: &v2alpha1.NPMFeatureConfig{
-					Enabled: utils.NewBoolPointer(true),
+					Enabled: ptr.To(true),
 				},
 			},
 		},
 	}
-	invalidFeaturesNoDDAI := &DatadogAgentProfileSpec{
-		ProfileAffinity: basicProfileAffinity,
-		Config: &v2alpha1.DatadogAgentSpec{
-			Features: &v2alpha1.DatadogFeatures{
-				GPU: &v2alpha1.GPUFeatureConfig{
-					Enabled: utils.NewBoolPointer(true),
-				},
-			},
-		},
-	}
-
 	testCases := []struct {
-		name                        string
-		spec                        *DatadogAgentProfileSpec
-		datadogAgentInternalEnabled bool
-		wantErr                     string
+		name    string
+		spec    *DatadogAgentProfileSpec
+		wantErr string
 	}{
 		{
-			name:                        "valid dap",
-			spec:                        valid,
-			datadogAgentInternalEnabled: true,
+			name: "valid dap",
+			spec: valid,
 		},
 		{
-			name:                        "valid dap, resources specified in one container only",
-			spec:                        validResourceOverrideInOneContainerOnly,
-			datadogAgentInternalEnabled: true,
+			name: "valid dap, resources specified in one container only",
+			spec: validResourceOverrideInOneContainerOnly,
 		},
 		{
-			name:                        "invalid component override",
-			spec:                        invalidComponentOverride,
-			datadogAgentInternalEnabled: true,
-			wantErr:                     "component node selector override is not supported",
+			name:    "invalid component override",
+			spec:    invalidComponentOverride,
+			wantErr: "component node selector override is not supported",
 		},
 		{
-			name:                        "invalid container override",
-			spec:                        invalidContainerOverride,
-			datadogAgentInternalEnabled: true,
-			wantErr:                     "container command override is not supported",
+			name:    "invalid container override",
+			spec:    invalidContainerOverride,
+			wantErr: "container command override is not supported",
 		},
 		{
-			name:                        "missing override when ddai disabled",
-			spec:                        missingOverride,
-			datadogAgentInternalEnabled: false,
-			wantErr:                     "config override must be defined",
+			name: "missing override is valid",
+			spec: missingOverride,
 		},
 		{
-			name:                        "missing config",
-			spec:                        missingConfig,
-			datadogAgentInternalEnabled: true,
-			wantErr:                     "config must be defined",
+			name:    "missing config",
+			spec:    missingConfig,
+			wantErr: "config must be defined",
 		},
 		{
-			name:                        "missing node selector requirement",
-			spec:                        missingNSR,
-			datadogAgentInternalEnabled: true,
-			wantErr:                     "profileNodeAffinity must have at least 1 requirement",
+			name:    "missing node selector requirement",
+			spec:    missingNSR,
+			wantErr: "profileNodeAffinity must have at least 1 requirement",
 		},
 		{
-			name:                        "missing profile node affinity",
-			spec:                        missingNodeAffinity,
-			datadogAgentInternalEnabled: true,
-			wantErr:                     "profileNodeAffinity must be defined",
+			name:    "missing profile node affinity",
+			spec:    missingNodeAffinity,
+			wantErr: "profileNodeAffinity must be defined",
 		},
 		{
-			name:                        "missing profile affinity",
-			spec:                        missingProfileAffinity,
-			datadogAgentInternalEnabled: true,
-			wantErr:                     "profileAffinity must be defined",
+			name:    "missing profile affinity",
+			spec:    missingProfileAffinity,
+			wantErr: "profileAffinity must be defined",
 		},
 		{
-			name:                        "gpu feature override",
-			spec:                        validGPUFeature,
-			datadogAgentInternalEnabled: true,
+			name: "gpu feature override",
+			spec: validGPUFeature,
 		},
 		{
-			name:                        "valid dap with features only when ddai enabled",
-			spec:                        validFeaturesNoOverride,
-			datadogAgentInternalEnabled: true,
+			name: "valid dap with features only, no override",
+			spec: validFeaturesNoOverride,
 		},
 		{
-			name:                        "dap with unsupported feature when ddai enabled",
-			spec:                        invalidFeatures,
-			datadogAgentInternalEnabled: true,
-			wantErr:                     "npm override is not supported",
-		},
-		{
-			name:                        "features not supported when ddai disabled",
-			spec:                        invalidFeaturesNoDDAI,
-			datadogAgentInternalEnabled: false,
-			wantErr:                     "the 'features' field is only supported when DatadogAgentInternal is enabled",
+			name:    "dap with unsupported feature",
+			spec:    invalidFeatures,
+			wantErr: "npm override is not supported",
 		},
 	}
 	for _, test := range testCases {
 		t.Run(test.name, func(t *testing.T) {
-			result := ValidateDatadogAgentProfileSpec(test.spec, test.datadogAgentInternalEnabled)
+			result := ValidateDatadogAgentProfileSpec(test.spec)
 			if test.wantErr != "" {
 				assert.EqualError(t, result, test.wantErr)
 			} else {

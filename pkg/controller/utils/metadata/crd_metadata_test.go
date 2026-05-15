@@ -40,9 +40,9 @@ func Test_CRDBuildPayload(t *testing.T) {
 	)
 
 	// Create a test CRD instance
-	testSpec := map[string]interface{}{
-		"global": map[string]interface{}{
-			"credentials": map[string]interface{}{
+	testSpec := map[string]any{
+		"global": map[string]any{
+			"credentials": map[string]any{
 				"apiKey": "secret-key",
 			},
 		},
@@ -75,7 +75,7 @@ func Test_CRDBuildPayload(t *testing.T) {
 	}
 
 	// Parse JSON to validate specific values
-	var parsed map[string]interface{}
+	var parsed map[string]any
 	if err := json.Unmarshal(payload, &parsed); err != nil {
 		t.Fatalf("buildPayload() returned invalid JSON: %v", err)
 	}
@@ -93,7 +93,7 @@ func Test_CRDBuildPayload(t *testing.T) {
 	}
 
 	// Validate metadata object exists
-	metadata, ok := parsed["datadog_operator_crd_metadata"].(map[string]interface{})
+	metadata, ok := parsed["datadog_operator_crd_metadata"].(map[string]any)
 	if !ok {
 		t.Fatal("buildPayload() missing or invalid datadog_operator_crd_metadata")
 	}
@@ -136,7 +136,7 @@ func Test_CRDBuildPayload(t *testing.T) {
 		t.Errorf("buildPayload() metadata.crd_spec_full = %v, want non-empty JSON string", crdSpecFull)
 	} else {
 		// Verify it's valid JSON
-		var specParsed map[string]interface{}
+		var specParsed map[string]any
 		if err := json.Unmarshal([]byte(crdSpecFull), &specParsed); err != nil {
 			t.Errorf("buildPayload() metadata.crd_spec_full is not valid JSON: %v", err)
 		}
@@ -188,7 +188,7 @@ func Test_CRDCacheDetection(t *testing.T) {
 		Kind:        "DatadogAgent",
 		Name:        "test-agent",
 		Namespace:   "default",
-		Spec:        map[string]interface{}{"version": "7.50.0"},
+		Spec:        map[string]any{"version": "7.50.0"},
 		Labels:      map[string]string{"app": "agent"},
 		Annotations: map[string]string{"owner": "team-a"},
 	}
@@ -197,7 +197,7 @@ func Test_CRDCacheDetection(t *testing.T) {
 		Kind:        "DatadogAgent",
 		Name:        "test-agent-2",
 		Namespace:   "default",
-		Spec:        map[string]interface{}{"version": "7.51.0"},
+		Spec:        map[string]any{"version": "7.51.0"},
 		Labels:      map[string]string{"app": "agent"},
 		Annotations: map[string]string{"owner": "team-b"},
 	}
@@ -215,7 +215,7 @@ func Test_CRDCacheDetection(t *testing.T) {
 
 	// Modify crd1 spec
 	crd1Modified := crd1
-	crd1Modified.Spec = map[string]interface{}{"version": "7.52.0"}
+	crd1Modified.Spec = map[string]any{"version": "7.52.0"}
 
 	// Third call with modified crd1 spec - only 1 change expected
 	changed = cmf.getCRDsToSend([]CRDInstance{crd1Modified, crd2})
@@ -260,14 +260,14 @@ func Test_CRDCacheCleanup(t *testing.T) {
 		Kind:      "DatadogAgent",
 		Name:      "test-agent",
 		Namespace: "default",
-		Spec:      map[string]interface{}{"version": "7.50.0"},
+		Spec:      map[string]any{"version": "7.50.0"},
 	}
 
 	crd2 := CRDInstance{
 		Kind:      "DatadogAgent",
 		Name:      "test-agent-2",
 		Namespace: "default",
-		Spec:      map[string]interface{}{"version": "7.51.0"},
+		Spec:      map[string]any{"version": "7.51.0"},
 	}
 
 	successfulKinds := map[string]bool{"DatadogAgent": true}
@@ -311,14 +311,14 @@ func Test_CRDPerKindErrorHandling(t *testing.T) {
 		Kind:      "DatadogAgent",
 		Name:      "test-dda",
 		Namespace: "default",
-		Spec:      map[string]interface{}{"version": "7.50.0"},
+		Spec:      map[string]any{"version": "7.50.0"},
 	}
 
 	ddaiCRD := CRDInstance{
 		Kind:      "DatadogAgentInternal",
 		Name:      "test-ddai",
 		Namespace: "default",
-		Spec:      map[string]interface{}{"version": "7.50.0"},
+		Spec:      map[string]any{"version": "7.50.0"},
 	}
 
 	cmf.getCRDsToSend([]CRDInstance{ddaCRD, ddaiCRD})
@@ -372,7 +372,7 @@ func Test_HashCRD(t *testing.T) {
 		Kind:      "DatadogAgent",
 		Name:      "test",
 		Namespace: "default",
-		Spec: map[string]interface{}{
+		Spec: map[string]any{
 			"version": "7.50.0",
 			"image":   "datadog/agent:7.50.0",
 		},
@@ -384,7 +384,7 @@ func Test_HashCRD(t *testing.T) {
 		Kind:      "DatadogAgent",
 		Name:      "test",
 		Namespace: "default",
-		Spec: map[string]interface{}{
+		Spec: map[string]any{
 			"version": "7.50.0",
 			"image":   "datadog/agent:7.50.0",
 		},
@@ -396,7 +396,7 @@ func Test_HashCRD(t *testing.T) {
 		Kind:      "DatadogAgent",
 		Name:      "test",
 		Namespace: "default",
-		Spec: map[string]interface{}{
+		Spec: map[string]any{
 			"version": "7.51.0",
 			"image":   "datadog/agent:7.51.0",
 		},
@@ -408,7 +408,7 @@ func Test_HashCRD(t *testing.T) {
 		Kind:      "DatadogAgent",
 		Name:      "test",
 		Namespace: "default",
-		Spec: map[string]interface{}{
+		Spec: map[string]any{
 			"version": "7.50.0",
 			"image":   "datadog/agent:7.50.0",
 		},
@@ -467,7 +467,7 @@ func Test_CRDHeartbeatTriggersAfter10Minutes(t *testing.T) {
 		Kind:      "DatadogAgent",
 		Name:      "test-agent",
 		Namespace: "default",
-		Spec:      map[string]interface{}{"version": "7.50.0"},
+		Spec:      map[string]any{"version": "7.50.0"},
 		Labels:    map[string]string{"app": "agent"},
 	}
 
@@ -523,7 +523,7 @@ func Test_CRDChangeDetectionWithHeartbeat(t *testing.T) {
 		Kind:      "DatadogAgent",
 		Name:      "test-agent",
 		Namespace: "default",
-		Spec:      map[string]interface{}{"version": "7.50.0"},
+		Spec:      map[string]any{"version": "7.50.0"},
 	}
 
 	// First call - new CRD
@@ -534,7 +534,7 @@ func Test_CRDChangeDetectionWithHeartbeat(t *testing.T) {
 
 	// Modify spec immediately
 	crdModified := crd
-	crdModified.Spec = map[string]interface{}{"version": "7.51.0"}
+	crdModified.Spec = map[string]any{"version": "7.51.0"}
 
 	// Should send immediately due to change
 	toSend = cmf.getCRDsToSend([]CRDInstance{crdModified})
@@ -567,7 +567,7 @@ func Test_CRDHeartbeatResetsOnChange(t *testing.T) {
 		Kind:      "DatadogAgent",
 		Name:      "test-agent",
 		Namespace: "default",
-		Spec:      map[string]interface{}{"version": "7.50.0"},
+		Spec:      map[string]any{"version": "7.50.0"},
 	}
 
 	// First call - new CRD
@@ -581,7 +581,7 @@ func Test_CRDHeartbeatResetsOnChange(t *testing.T) {
 
 	// Modify spec (heartbeat not due yet, but spec changed)
 	crdModified := crd
-	crdModified.Spec = map[string]interface{}{"version": "7.51.0"}
+	crdModified.Spec = map[string]any{"version": "7.51.0"}
 
 	// Should send due to spec change
 	toSend := cmf.getCRDsToSend([]CRDInstance{crdModified})
@@ -620,14 +620,14 @@ func Test_CRDMultipleHeartbeats(t *testing.T) {
 		Kind:      "DatadogAgent",
 		Name:      "test-agent-1",
 		Namespace: "default",
-		Spec:      map[string]interface{}{"version": "7.50.0"},
+		Spec:      map[string]any{"version": "7.50.0"},
 	}
 
 	crd2 := CRDInstance{
 		Kind:      "DatadogAgent",
 		Name:      "test-agent-2",
 		Namespace: "default",
-		Spec:      map[string]interface{}{"version": "7.50.0"},
+		Spec:      map[string]any{"version": "7.50.0"},
 	}
 
 	// First call - both new
@@ -682,21 +682,21 @@ func Test_CRDMixedChangesAndHeartbeats(t *testing.T) {
 		Kind:      "DatadogAgent",
 		Name:      "test-agent-1",
 		Namespace: "default",
-		Spec:      map[string]interface{}{"version": "7.50.0"},
+		Spec:      map[string]any{"version": "7.50.0"},
 	}
 
 	crd2 := CRDInstance{
 		Kind:      "DatadogAgent",
 		Name:      "test-agent-2",
 		Namespace: "default",
-		Spec:      map[string]interface{}{"version": "7.50.0"},
+		Spec:      map[string]any{"version": "7.50.0"},
 	}
 
 	crd3 := CRDInstance{
 		Kind:      "DatadogAgent",
 		Name:      "test-agent-3",
 		Namespace: "default",
-		Spec:      map[string]interface{}{"version": "7.50.0"},
+		Spec:      map[string]any{"version": "7.50.0"},
 	}
 
 	// Initialize all CRDs
@@ -709,7 +709,7 @@ func Test_CRDMixedChangesAndHeartbeats(t *testing.T) {
 
 	// Modify crd2
 	crd2Modified := crd2
-	crd2Modified.Spec = map[string]interface{}{"version": "7.51.0"}
+	crd2Modified.Spec = map[string]any{"version": "7.51.0"}
 
 	// Should send crd1 (heartbeat) and crd2 (changed)
 	toSend := cmf.getCRDsToSend([]CRDInstance{crd1, crd2Modified, crd3})

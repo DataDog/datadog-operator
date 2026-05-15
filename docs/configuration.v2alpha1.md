@@ -35,6 +35,8 @@ spec:
 | --------- | ----------- |
 | features.admissionController.agentCommunicationMode | AgentCommunicationMode corresponds to the mode used by the Datadog application libraries to communicate with the Agent. It can be "hostip", "service", or "socket". |
 | features.admissionController.agentSidecarInjection.clusterAgentCommunicationEnabled | ClusterAgentCommunicationEnabled enables communication between Agent sidecars and the Cluster Agent. Default : true |
+| features.admissionController.agentSidecarInjection.clusterAgentTlsVerification.copyCaConfigMap | CopyCaConfigMap enables automatic creation of a ConfigMap containing the Cluster Agent's CA certificate in namespaces where sidecar injection occurs. Default: false |
+| features.admissionController.agentSidecarInjection.clusterAgentTlsVerification.enabled | Enables TLS verification for agent sidecars communicating with the Cluster Agent. Default: false |
 | features.admissionController.agentSidecarInjection.enabled | Enables Sidecar injections. Default: false |
 | features.admissionController.agentSidecarInjection.image.jmxEnabled | Define whether the Agent image should support JMX. To be used if the `Name` field does not correspond to a full image string. |
 | features.admissionController.agentSidecarInjection.image.name | Defines the Agent image name for the pod. You can provide this as: * `<NAME>` - Use `agent` for the Datadog Agent, `cluster-agent` for the Datadog Cluster Agent, or `dogstatsd` for DogStatsD. The full image string is derived from `global.registry`, `[key].image.tag`, and `[key].image.jmxEnabled`. * `<NAME>:<TAG>` - For example, `agent:latest`. The registry is derived from `global.registry`. `[key].image.tag` and `[key].image.jmxEnabled` are ignored. * `<REGISTRY>/<NAME>:<TAG>` - For example, `gcr.io/datadoghq/agent:latest`. If the full image string is specified   like this, then `global.registry`, `[key].image.tag`, and `[key].image.jmxEnabled` are ignored. |
@@ -52,6 +54,9 @@ spec:
 | features.admissionController.kubernetesAdmissionEvents.enabled | Enable the Kubernetes Admission Events feature. Default: false |
 | features.admissionController.mutateUnlabelled | MutateUnlabelled enables config injection without the need of pod label 'admission.datadoghq.com/enabled="true"'. Default: false |
 | features.admissionController.mutation.enabled | Enables the Admission Controller mutation webhook. Default: true |
+| features.admissionController.probe.enabled | Enables the admission controller connectivity probe. The probe periodically sends dry-run ConfigMap creation requests to verify the webhook is reachable from the API server. Requires Cluster Agent 7.78.0+. Default: true |
+| features.admissionController.probe.gracePeriod | GracePeriod is the number of seconds to wait at startup before the first probe. Default: 60 |
+| features.admissionController.probe.interval | Is the number of seconds between probe executions. Default: 60 |
 | features.admissionController.registry | Defines an image registry for the admission controller. |
 | features.admissionController.serviceName | ServiceName corresponds to the webhook service name. |
 | features.admissionController.validation.enabled | Enables the Admission Controller validation webhook. Default: true |
@@ -63,6 +68,7 @@ spec:
 | features.apm.instrumentation.disabledNamespaces | DisabledNamespaces disables injecting the Datadog APM libraries into pods in specific namespaces. |
 | features.apm.instrumentation.enabled | Enables injecting the Datadog APM libraries into all pods in the cluster. Default: false |
 | features.apm.instrumentation.enabledNamespaces | EnabledNamespaces enables injecting the Datadog APM libraries into pods in specific namespaces. |
+| features.apm.instrumentation.injectionMode | InjectionMode is the injection mode to use for libraries injection. Valid values are: "auto", "init_container", "csi" (experimental, requires Cluster Agent 7.76.0+ and Datadog CSI Driver 1.2.0+), "image_volume" (experimental, requires Cluster Agent 7.77.0+). Empty by default so the Cluster Agent can apply its own defaults. |
 | features.apm.instrumentation.injector.imageTag | Set the image tag to use for the APM Injector. (Requires Cluster Agent 7.57.0+) |
 | features.apm.instrumentation.languageDetection.enabled | Enables Language Detection to automatically detect languages of user workloads (beta). Requires SingleStepInstrumentation.Enabled to be true. Default: true |
 | features.apm.instrumentation.libVersions | LibVersions configures injection of specific tracing library versions with Single Step Instrumentation. <Library>: <Version> ex: "java": "v1.18.0" |
@@ -73,6 +79,7 @@ spec:
 | features.asm.sca.enabled | Enables Software Composition Analysis (SCA). Default: false |
 | features.asm.threats.enabled | Enables ASM App & API Protection. Default: false |
 | features.autoscaling.cluster.enabled | Enables the cluster autoscaling product. (Requires Cluster Agent 7.74.0+) Default: false |
+| features.autoscaling.cluster.spot.enabled | Enables the cluster spot scheduling product. (Requires Cluster Agent 7.79.0+) Default: false |
 | features.autoscaling.workload.enabled | Enables the workload autoscaling product. Default: false |
 | features.clusterChecks.enabled | Enables Cluster Checks scheduling in the Cluster Agent. Default: true |
 | features.clusterChecks.useClusterChecksRunners | Enabled enables Cluster Checks Runners to run all Cluster Checks. Default: false |
@@ -81,8 +88,8 @@ spec:
 | features.cspm.customBenchmarks.configData | ConfigData corresponds to the configuration file content. |
 | features.cspm.customBenchmarks.configMap.items | Maps a ConfigMap data `key` to a file `path` mount. |
 | features.cspm.customBenchmarks.configMap.name | Is the name of the ConfigMap. |
-| features.cspm.enabled | Enables Cloud Security Posture Management. Default: false |
-| features.cspm.hostBenchmarks.enabled | Enables host benchmarks. Default: true |
+| features.cspm.enabled | Enables Cloud Security Posture Management, including Docker and Kubernetes benchmarks. Default: false |
+| features.cspm.hostBenchmarks.enabled | Enables Linux host benchmarks. Requires `features.cspm.enabled` to be set to `true`. Default: true |
 | features.cspm.runInSystemProbe | RunInSystemProbe configures CSPM to send payloads directly from the system-probe, without using the security-agent. This is an experimental feature. Contact support before using. Default: false |
 | features.cws.customPolicies.configData | ConfigData corresponds to the configuration file content. |
 | features.cws.customPolicies.configMap.items | Maps a ConfigMap data `key` to a file `path` mount. |
@@ -94,6 +101,8 @@ spec:
 | features.cws.remoteConfiguration.enabled | Enables Remote Configuration for Cloud Workload Security. Default: true |
 | features.cws.securityProfiles.enabled | Enables Security Profiles collection for Cloud Workload Security. Default: true |
 | features.cws.syscallMonitorEnabled | SyscallMonitorEnabled enables Syscall Monitoring (recommended for troubleshooting only). Default: false |
+| features.dataPlane.dogstatsd.enabled | Configures the Data Plane to handle DogStatsD traffic. When set to false, DogStatsD is handled by the Core Agent instead. Default: true |
+| features.dataPlane.enabled | Enables the Data Plane. Default: false |
 | features.dogstatsd.hostPortConfig.enabled | Enables host port configuration |
 | features.dogstatsd.hostPortConfig.hostPort | Port takes a port number (0 < x < 65536) to expose on the host. (Most containers do not need this.) If HostNetwork is enabled, this value must match the ContainerPort. |
 | features.dogstatsd.mapperProfiles.configData | ConfigData corresponds to the configuration file content. |
@@ -191,10 +200,11 @@ spec:
 | features.sbom.containerImage.overlayFSDirectScan | Enable this option to enable experimental overlayFS direct scan. Default: false |
 | features.sbom.containerImage.uncompressedLayersSupport | Enable this option to enable support for uncompressed layers. Default: false |
 | features.sbom.enabled | Enable this option to activate SBOM collection. Default: false |
+| features.sbom.enrichment.usage.enabled | Enable this option to activate SBOM enrichment with runtime "package in use" detection. Requires system-probe for eBPF-based file access tracking. Default: false |
 | features.sbom.host.analyzers | To use for SBOM collection. |
 | features.sbom.host.enabled | Enable this option to activate SBOM collection. Default: false |
-| features.serviceDiscovery.enabled | Enables the service discovery check. Default: false |
-| features.serviceDiscovery.networkStats.enabled | Enables the Service Discovery Network Stats feature. Default: true |
+| features.serviceDiscovery.enabled | Enables the service discovery check. Default: true when omitted and the node Agent image is >= 7.78.0. Otherwise false. If the image version cannot be determined, it is treated as latest. |
+| features.serviceDiscovery.networkStats.enabled | DEPRECATED: this field is ignored. |
 | features.tcpQueueLength.enabled | Enables the TCP queue length eBPF-based check. Default: false |
 | features.usm.enabled | Enables Universal Service Monitoring. Default: false |
 | global.checksTagCardinality | ChecksTagCardinality configures tag cardinality for the metrics collected by integrations (`low`, `orchestrator` or `high`). See also: https://docs.datadoghq.com/getting_started/tagging/assigning_tags/?tab=containerizedenvironments#tags-cardinality. Not set by default to avoid overriding existing DD_CHECKS_TAG_CARDINALITY configurations, the default value in the Agent is low. Ref: https://github.com/DataDog/datadog-agent/blob/856cf4a66142ce91fd4f8a278149436eb971184a/pkg/config/setup/config.go#L625. |
@@ -210,7 +220,12 @@ spec:
 | global.credentials.appSecret.keyName | KeyName is the key of the secret to use. |
 | global.credentials.appSecret.secretName | SecretName is the name of the secret. |
 | global.criSocketPath | Path to the container runtime socket (if different from Docker). |
-| global.csi.enabled | Enables the usage of CSI driver in Datadog Agent. Requires installation of Datadog CSI Driver https://github.com/DataDog/helm-charts/tree/main/charts/datadog-csi-driver Default: false |
+| global.csi.autoManage | AutoManage controls whether the operator automatically manages the DatadogCSIDriver custom resource on behalf of this DatadogAgent. Set to false to hand ownership over to a DatadogCSIDriver CR that you maintain yourself (useful for migrations where you need customizations not exposed on the DatadogAgent spec). When toggled from true to false, the operator cleans up the DDA-owned DatadogCSIDriver CR; you are then responsible for providing a replacement so CSI continues to work. Default: true |
+| global.csi.enabled | Enables the usage of CSI driver in Datadog Agent. When the operator is started with `--datadogCSIDriverEnabled=true`, it will also install the driver by creating a DatadogCSIDriver custom resource, unless a cluster-scoped `k8s.csi.datadoghq.com` CSIDriver is already present, in which case it defers to the existing installation (e.g. from the Datadog CSI driver Helm chart). Default: false |
+| global.csi.nodeAffinity.preferredDuringSchedulingIgnoredDuringExecution | The scheduler will prefer to schedule pods to nodes that satisfy the affinity expressions specified by this field, but it may choose a node that violates one or more of the expressions. The node that is most preferred is the one with the greatest sum of weights, i.e. for each node that meets all of the scheduling requirements (resource request, requiredDuringScheduling affinity expressions, etc.), compute a sum by iterating through the elements of this field and adding "weight" to the sum if the node matches the corresponding matchExpressions; the node(s) with the highest sum are the most preferred. |
+| global.csi.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms | Required. A list of node selector terms. The terms are ORed. |
+| global.csi.nodeSelector | NodeSelector is a map of key-value pairs for CSI driver DaemonSet pod node selection. |
+| global.csi.tolerations | Configure the CSI driver DaemonSet pod tolerations. |
 | global.disableNonResourceRules | Set DisableNonResourceRules to exclude NonResourceURLs from default ClusterRoles. Required 'true' for Google Cloud Marketplace. |
 | global.dockerSocketPath | Path to the docker runtime socket. |
 | global.endpoint.credentials.apiKey | APIKey configures your Datadog API key. See also: https://app.datadoghq.com/account/settings#agent/kubernetes |
@@ -233,7 +248,7 @@ spec:
 | global.fips.localAddress | The local IP address of the FIPS sidecar. Default: 127.0.0.1. |
 | global.fips.port | Specifies which port is used by the containers to communicate to the FIPS sidecar. Default: 9803 |
 | global.fips.portRange | The number of ports used by the containers to communicate to the FIPS sidecar. Default: 15 |
-| global.fips.resources.claims | Lists the names of resources, defined in spec.resourceClaims, that are used by this container.  This is an alpha field and requires enabling the DynamicResourceAllocation feature gate.  This field is immutable. It can only be set for containers. |
+| global.fips.resources.claims | Lists the names of resources, defined in spec.resourceClaims, that are used by this container.  This field depends on the DynamicResourceAllocation feature gate.  This field is immutable. It can only be set for containers. |
 | global.fips.resources.limits | Resource limits for the FIPS sidecar. See https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/#resource-requests-and-limits-of-pod-and-container . |
 | global.fips.resources.requests | Resource requests for the FIPS sidecar. If undefined, defaults to global.fips.resources.limits (if set), then to an implementation-defined value. See https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/#resource-requests-and-limits-of-pod-and-container . |
 | global.fips.useHTTPS | If true, enables HTTPS on the FIPS sidecar. Default: false |
@@ -243,6 +258,10 @@ spec:
 | global.kubelet.host.configMapKeyRef.optional | Specify whether the ConfigMap or its key must be defined |
 | global.kubelet.host.fieldRef.apiVersion | Version of the schema the FieldPath is written in terms of, defaults to "v1". |
 | global.kubelet.host.fieldRef.fieldPath | Path of the field to select in the specified API version. |
+| global.kubelet.host.fileKeyRef.key | The key within the env file. An invalid key will prevent the pod from starting. The keys defined within a source may consist of any printable ASCII characters except '='. During Alpha stage of the EnvFiles feature gate, the key size is limited to 128 characters. |
+| global.kubelet.host.fileKeyRef.optional | Specify whether the file or its key must be defined. If the file or key does not exist, then the env var is not published. If optional is set to true and the specified key does not exist, the environment variable will not be set in the Pod's containers.  If optional is set to false and the specified key does not exist, an error will be returned during Pod creation. |
+| global.kubelet.host.fileKeyRef.path | The path within the volume from which to select the file. Must be relative and may not contain the '..' path or start with '..'. |
+| global.kubelet.host.fileKeyRef.volumeName | The name of the volume mount containing the env file. |
 | global.kubelet.host.resourceFieldRef.containerName | Container name: required for volumes, optional for env vars |
 | global.kubelet.host.resourceFieldRef.divisor | Specifies the output format of the exposed resources, defaults to "1" |
 | global.kubelet.host.resourceFieldRef.resource | Required: resource to select |
@@ -275,17 +294,18 @@ spec:
 | global.secretBackend.roles | For Datadog to read the specified secrets, replacing `enableGlobalPermissions`. They are defined as a list of namespace/secrets. Each defined namespace needs to be present in the DatadogAgent controller using `WATCH_NAMESPACE` or `DD_AGENT_WATCH_NAMESPACE`. See also: https://github.com/DataDog/datadog-operator/blob/main/docs/secret_management.md#how-to-deploy-the-agent-components-using-the-secret-backend-feature-with-datadogagent. |
 | global.secretBackend.timeout | The command timeout in seconds. Default: `30`. |
 | global.secretBackend.type | The built-in secret backend type to use (e.g., `k8s.secrets`, `docker.secrets`, `aws.secrets`). Alternative to Command; when Type is set, the Agent uses the built-in backend to resolve secrets. Requires Agent 7.70+. |
-| global.site | Is the Datadog intake site Agent data are sent to. Set to 'datadoghq.com' to send data to the US1 site (default). Set to 'datadoghq.eu' to send data to the EU site. Set to 'us3.datadoghq.com' to send data to the US3 site. Set to 'us5.datadoghq.com' to send data to the US5 site. Set to 'ddog-gov.com' to send data to the US1-FED site. Set to 'ap1.datadoghq.com' to send data to the AP1 site. Default: 'datadoghq.com' |
+| global.site | Is the Datadog intake site Agent data is sent to. Set this to your Datadog site ({{< region-param key="dd_site" code="true" >}}). Default: 'datadoghq.com' |
 | global.tags | Contains a list of tags to attach to every metric, event and service check collected. Learn more about tagging: https://docs.datadoghq.com/tagging/ |
 | global.useFIPSAgent | UseFIPSAgent enables the FIPS flavor of the Agent. If 'true', the FIPS proxy will always be disabled. Default: 'false' |
+| global.useVSock | UseVSock allows the use of VSock communication between the Agent and containerized workloads. Default: 'false' |
 | override | The default configurations of the agents |
 <br>
 
 ### Override
 
-The table below lists parameters that can be used to override default or global settings. Maps and arrays have a type annotation in the table; properties that are configured as map values contain a `[key]` element which should be replaced by the actual map key. `override` itself is a map with the following possible keys: `nodeAgent`, `clusterAgent`, or `clusterChecksRunner`. Other keys can be added, but they do not have any effect.
+The table below lists parameters that can be used to override default or global settings. Maps and arrays have a type annotation in the table; properties that are configured as map values contain a `[key]` element which should be replaced by the actual map key. `override` itself is a map with the following possible keys: `nodeAgent`, `clusterAgent`, `otelAgentGateway`, or `clusterChecksRunner`. Other keys can be added, but they do not have any effect.
 
-For example, the manifest below can be used to override the node Agent image, tag, and the resource limits of the system probe container. 
+For example, the manifest below can be used to override the node Agent image, tag, and the resource limits of the system probe container.
 
 ```yaml
 apiVersion: datadoghq.com/v2alpha1
@@ -307,14 +327,13 @@ spec:
 ```
 In the table, `spec.override.nodeAgent.image.name` and `spec.override.nodeAgent.containers.system-probe.resources.limits` appear as `[key].image.name` and `[key].containers.[key].resources.limits`, respectively.
 
-
 | Parameter | Description |
 | --------- | ----------- |
 | [key].affinity.nodeAffinity.preferredDuringSchedulingIgnoredDuringExecution | The scheduler will prefer to schedule pods to nodes that satisfy the affinity expressions specified by this field, but it may choose a node that violates one or more of the expressions. The node that is most preferred is the one with the greatest sum of weights, i.e. for each node that meets all of the scheduling requirements (resource request, requiredDuringScheduling affinity expressions, etc.), compute a sum by iterating through the elements of this field and adding "weight" to the sum if the node matches the corresponding matchExpressions; the node(s) with the highest sum are the most preferred. |
 | [key].affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms | Required. A list of node selector terms. The terms are ORed. |
 | [key].affinity.podAffinity.preferredDuringSchedulingIgnoredDuringExecution | The scheduler will prefer to schedule pods to nodes that satisfy the affinity expressions specified by this field, but it may choose a node that violates one or more of the expressions. The node that is most preferred is the one with the greatest sum of weights, i.e. for each node that meets all of the scheduling requirements (resource request, requiredDuringScheduling affinity expressions, etc.), compute a sum by iterating through the elements of this field and adding "weight" to the sum if the node has pods which matches the corresponding podAffinityTerm; the node(s) with the highest sum are the most preferred. |
 | [key].affinity.podAffinity.requiredDuringSchedulingIgnoredDuringExecution | If the affinity requirements specified by this field are not met at scheduling time, the pod will not be scheduled onto the node. If the affinity requirements specified by this field cease to be met at some point during pod execution (e.g. due to a pod label update), the system may or may not try to eventually evict the pod from its node. When there are multiple elements, the lists of nodes corresponding to each podAffinityTerm are intersected, i.e. all terms must be satisfied. |
-| [key].affinity.podAntiAffinity.preferredDuringSchedulingIgnoredDuringExecution | The scheduler will prefer to schedule pods to nodes that satisfy the anti-affinity expressions specified by this field, but it may choose a node that violates one or more of the expressions. The node that is most preferred is the one with the greatest sum of weights, i.e. for each node that meets all of the scheduling requirements (resource request, requiredDuringScheduling anti-affinity expressions, etc.), compute a sum by iterating through the elements of this field and adding "weight" to the sum if the node has pods which matches the corresponding podAffinityTerm; the node(s) with the highest sum are the most preferred. |
+| [key].affinity.podAntiAffinity.preferredDuringSchedulingIgnoredDuringExecution | The scheduler will prefer to schedule pods to nodes that satisfy the anti-affinity expressions specified by this field, but it may choose a node that violates one or more of the expressions. The node that is most preferred is the one with the greatest sum of weights, i.e. for each node that meets all of the scheduling requirements (resource request, requiredDuringScheduling anti-affinity expressions, etc.), compute a sum by iterating through the elements of this field and subtracting "weight" from the sum if the node has pods which matches the corresponding podAffinityTerm; the node(s) with the highest sum are the most preferred. |
 | [key].affinity.podAntiAffinity.requiredDuringSchedulingIgnoredDuringExecution | If the anti-affinity requirements specified by this field are not met at scheduling time, the pod will not be scheduled onto the node. If the anti-affinity requirements specified by this field cease to be met at some point during pod execution (e.g. due to a pod label update), the system may or may not try to eventually evict the pod from its node. When there are multiple elements, the lists of nodes corresponding to each podAffinityTerm are intersected, i.e. all terms must be satisfied. |
 | [key].annotations `map[string]string` | Annotations provide annotations that are added to the different component (Datadog Agent, Cluster Agent, Cluster Check Runner) pods. |
 | [key].celWorkloadExclude `[]object` | CELWorkloadExclude enables excluding workloads from monitoring using Common Expression Language (CEL). See https://docs.datadoghq.com/containers/guide/container-discovery-management (Requires Agent 7.73+ and Cluster Agent 7.73+) |
@@ -338,7 +357,7 @@ In the table, `spec.override.nodeAgent.image.name` and `spec.override.nodeAgent.
 | [key].containers.[key].livenessProbe.successThreshold | Minimum consecutive successes for the probe to be considered successful after having failed. Defaults to 1. Must be 1 for liveness and startup. Minimum value is 1. |
 | [key].containers.[key].livenessProbe.tcpSocket.host | Optional: Host name to connect to, defaults to the pod IP. |
 | [key].containers.[key].livenessProbe.tcpSocket.port | Number or name of the port to access on the container. Number must be in the range 1 to 65535. Name must be an IANA_SVC_NAME. |
-| [key].containers.[key].livenessProbe.terminationGracePeriodSeconds | Duration (in seconds) the pod needs to terminate gracefully after the liveness probe fails. This value sets how long to wait after the processes running in the pod are sent a termination signal, before forcibly halting the processes with a kill signal. Set this value longer than the expected cleanup time for your process. Must be a non-negative integer. If 0, a kill signal is sent immediately when the liveness probe fails, giving no opportunity for the processes to shut down. Defaults to the pod’s terminationGracePeriodSeconds. |
+| [key].containers.[key].livenessProbe.terminationGracePeriodSeconds | Duration (in seconds) the pod needs to terminate gracefully after the liveness probe fails. This value sets how long to wait after the processes running in the pod are sent a termination signal, before forcibly halting the processes with a kill signal. Set this value longer than the expected cleanup time for your process. Must be a non-negative integer. If 0, a kill signal is sent immediately when the liveness probe fails, giving no opportunity for the processes to shut down. Defaults to the pod's terminationGracePeriodSeconds. |
 | [key].containers.[key].livenessProbe.timeoutSeconds | Number of seconds after which the probe times out. Defaults to 1 second. Minimum value is 1. More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes |
 | [key].containers.[key].logLevel | LogLevel sets logging verbosity (overrides global setting). Valid log levels are: trace, debug, info, warn, error, critical, and off. Default: 'info' |
 | [key].containers.[key].name | Name of the container that is overridden |
@@ -359,7 +378,7 @@ In the table, `spec.override.nodeAgent.image.name` and `spec.override.nodeAgent.
 | [key].containers.[key].readinessProbe.tcpSocket.port | Number or name of the port to access on the container. Number must be in the range 1 to 65535. Name must be an IANA_SVC_NAME. |
 | [key].containers.[key].readinessProbe.terminationGracePeriodSeconds | Optional duration in seconds the pod needs to terminate gracefully upon probe failure. The grace period is the duration in seconds after the processes running in the pod are sent a termination signal and the time when the processes are forcibly halted with a kill signal. Set this value longer than the expected cleanup time for your process. If this value is nil, the pod's terminationGracePeriodSeconds will be used. Otherwise, this value overrides the value provided by the pod spec. Value must be non-negative integer. The value zero indicates stop immediately via the kill signal (no opportunity to shut down). This is a beta field and requires enabling ProbeTerminationGracePeriod feature gate. Minimum value is 1. spec.terminationGracePeriodSeconds is used if unset. |
 | [key].containers.[key].readinessProbe.timeoutSeconds | Number of seconds after which the probe times out. Defaults to 1 second. Minimum value is 1. More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes |
-| [key].containers.[key].resources.claims | Claims lists the names of resources, defined in spec.resourceClaims, that are used by this container.  This is an alpha field and requires enabling the DynamicResourceAllocation feature gate.  This field is immutable. It can only be set for containers. |
+| [key].containers.[key].resources.claims | Claims lists the names of resources, defined in spec.resourceClaims, that are used by this container.  This field depends on the DynamicResourceAllocation feature gate.  This field is immutable. It can only be set for containers. |
 | [key].containers.[key].resources.limits | Limits describes the maximum amount of compute resources allowed. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/ |
 | [key].containers.[key].resources.requests | Requests describes the minimum amount of compute resources required. If Requests is omitted for a container, it defaults to Limits if that is explicitly specified, otherwise to an implementation-defined value. Requests cannot exceed Limits. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/ |
 | [key].containers.[key].seccompConfig.customProfile.configData | ConfigData corresponds to the configuration file content. |

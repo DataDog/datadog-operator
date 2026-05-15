@@ -143,8 +143,8 @@ func parseAnnotationsFromCommentGroup(cg *ast.CommentGroup) FieldAnnotation {
 		}
 
 		// Check for +doc-gen:link=<URL>
-		if strings.HasPrefix(text, "+doc-gen:link=") {
-			link := strings.TrimPrefix(text, "+doc-gen:link=")
+		if after, ok := strings.CutPrefix(text, "+doc-gen:link="); ok {
+			link := after
 			annotation.Link = strings.TrimSpace(link)
 		}
 	}

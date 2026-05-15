@@ -22,8 +22,10 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/testutils"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/constants"
+	"github.com/DataDog/datadog-operator/pkg/images"
+	pkgutils "github.com/DataDog/datadog-operator/pkg/utils"
 
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
@@ -1133,8 +1135,9 @@ func testProfilesFunc(testScenario profilesTestScenario) func() {
 				Expect(storedDaemonSet.Spec.Template.Spec.Affinity).Should(Equal(expectedDaemonSet.affinity))
 
 				// Check the limits and requests for each container
-				Expect(len(storedDaemonSet.Spec.Template.Spec.Containers)).Should(Equal(len(expectedDaemonSet.containerResources)))
-				for expectedContainerName, expectedResources := range expectedDaemonSet.containerResources {
+				expectedContainerResources := expectedProfileDaemonSetContainerResources(expectedDaemonSet.containerResources)
+				Expect(len(storedDaemonSet.Spec.Template.Spec.Containers)).Should(Equal(len(expectedContainerResources)))
+				for expectedContainerName, expectedResources := range expectedContainerResources {
 					for _, container := range storedDaemonSet.Spec.Template.Spec.Containers {
 						if container.Name == string(expectedContainerName) {
 							Expect(len(container.Resources.Requests)).Should(Equal(len(expectedResources.Requests)))
@@ -1193,6 +1196,23 @@ func defaultDaemonSetNamespacedName(namespace string, agent *v2alpha1.DatadogAge
 		Namespace: namespace,
 		Name:      component.GetAgentName(agent),
 	}
+}
+
+func expectedProfileDaemonSetContainerResources(containerResources map[apicommon.AgentContainerName]v1.ResourceRequirements) map[apicommon.AgentContainerName]v1.ResourceRequirements {
+	expected := make(map[apicommon.AgentContainerName]v1.ResourceRequirements, len(containerResources)+1)
+	for containerName, resources := range containerResources {
+		expected[containerName] = resources
+	}
+
+	if serviceDiscoveryEnabledForInheritedDefaultImage() {
+		expected[apicommon.SystemProbeContainerName] = v1.ResourceRequirements{}
+	}
+
+	return expected
+}
+
+func serviceDiscoveryEnabledForInheritedDefaultImage() bool {
+	return pkgutils.IsAboveMinVersion(images.AgentLatestVersion, "7.78.0-0", nil)
 }
 
 // sortAffinityRequirements sorts the affinity requirements in the given

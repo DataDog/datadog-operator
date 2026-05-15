@@ -177,7 +177,11 @@ properties:
             resources:
             - controllerrevisions
             verbs:
+            - create
+            - delete
+            - get
             - list
+            - patch
             - watch
           - apiGroups:
             - apps
@@ -197,9 +201,25 @@ properties:
             - apps
             resources:
             - replicasets
+            verbs:
+            - get
+            - list
+            - watch
+          - apiGroups:
+            - apps
+            resources:
             - statefulsets
             verbs:
             - get
+            - list
+            - patch
+            - watch
+          - apiGroups:
+            - argoproj.io
+            resources:
+            - applications
+            - applicationsets
+            verbs:
             - list
             - watch
           - apiGroups:
@@ -207,6 +227,7 @@ properties:
             resources:
             - rollouts
             verbs:
+            - get
             - list
             - patch
             - watch
@@ -299,6 +320,8 @@ properties:
             - datadogagentprofiles/finalizers
             - datadogagents
             - datadogagents/finalizers
+            - datadogcsidrivers
+            - datadogcsidrivers/finalizers
             - datadogdashboards
             - datadoggenericresources
             - datadoggenericresources/finalizers
@@ -321,6 +344,7 @@ properties:
             - datadogagentinternals/status
             - datadogagentprofiles/status
             - datadogagents/status
+            - datadogcsidrivers/status
             - datadogdashboards/status
             - datadoggenericresources/status
             - datadogmonitors/status
@@ -349,6 +373,8 @@ properties:
           - apiGroups:
             - datadoghq.com
             resources:
+            - datadogpodautoscalerclusterprofiles
+            - datadogpodautoscalerclusterprofiles/status
             - datadogpodautoscalers
             - datadogpodautoscalers/status
             verbs:
@@ -375,9 +401,11 @@ properties:
             resources:
             - endpointslices
             verbs:
+            - get
             - list
             - watch
           - apiGroups:
+            - eks.amazonaws.com
             - external.metrics.k8s.io
             - karpenter.k8s.aws
             resources:
@@ -425,6 +453,13 @@ properties:
             - list
             - patch
             - update
+            - watch
+          - apiGroups:
+            - kustomize.toolkit.fluxcd.io
+            resources:
+            - kustomizations
+            verbs:
+            - list
             - watch
           - apiGroups:
             - networking.istio.io
@@ -510,6 +545,18 @@ properties:
             verbs:
             - use
           - apiGroups:
+            - source.toolkit.fluxcd.io
+            resources:
+            - buckets
+            - externalartifacts
+            - gitrepositories
+            - helmcharts
+            - helmrepositories
+            - ocirepositories
+            verbs:
+            - list
+            - watch
+          - apiGroups:
             - storage.k8s.io
             resources:
             - storageclasses
@@ -518,9 +565,38 @@ properties:
             - get
             - list
             - watch
-          - apiGroups: [""]
-            resources: ["pods/exec"]
-            verbs: ["create"]
+          - apiGroups:
+            - storage.k8s.io
+            resources:
+            - csidrivers
+            verbs:
+            - create
+            - list
+            - watch
+          - apiGroups:
+            - storage.k8s.io
+            resourceNames:
+            - k8s.csi.datadoghq.com
+            resources:
+            - csidrivers
+            verbs:
+            - delete
+            - get
+            - patch
+            - update
+          - apiGroups:
+            - ""
+            resources:
+            - pods/exec
+            - pods/eviction
+            verbs:
+            - create
+          - apiGroups:
+            - ""
+            resources:
+            - pods/resize
+            verbs:
+            - patch
 required:
 - name
 - namespace

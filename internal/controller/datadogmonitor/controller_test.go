@@ -10,10 +10,13 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"sync"
 	"testing"
 
+	datadogapi "github.com/DataDog/datadog-api-client-go/v2/api/datadog"
+	"github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
 	"github.com/stretchr/testify/assert"
-
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -26,13 +29,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	datadogapi "github.com/DataDog/datadog-api-client-go/v2/api/datadog"
-	datadogV1 "github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
-	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 )
 
 const (
@@ -76,7 +76,7 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 			args: args{
 				loadFunc: genericDatadogMonitor,
 			},
-			wantResult: reconcile.Result{RequeueAfter: defaultRequeuePeriod},
+			wantResult: reconcile.Result{Requeue: true},
 			wantFunc: func(c client.Client) error {
 				dm := &datadoghqv1alpha1.DatadogMonitor{}
 				if err := c.Get(context.TODO(), types.NamespacedName{Name: resourcesName, Namespace: resourcesNamespace}, dm); err != nil {
@@ -104,7 +104,7 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 			},
 		},
 		{
-			name: "DatadogMonitor exists, check required tags",
+			name: "DatadogMonitor exists, adds required tags before create",
 			args: args{
 				request:             newRequest(resourcesNamespace, resourcesName),
 				loadFunc:            genericDatadogMonitor,
@@ -117,6 +117,7 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 					return err
 				}
 				assert.Contains(t, dm.Spec.Tags, "generated:kubernetes")
+				assert.False(t, dm.Status.Primary)
 				return nil
 			},
 		},
@@ -369,6 +370,24 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 			},
 		},
 		{
+			name: "DatadogMonitor, error-tracking alert",
+			args: args{
+				request:             newRequest(resourcesNamespace, resourcesName),
+				loadFunc:            testErrorTrackingMonitor,
+				firstReconcileCount: 10,
+			},
+			wantResult: reconcile.Result{RequeueAfter: defaultRequeuePeriod},
+			wantErr:    false,
+			wantFunc: func(c client.Client) error {
+				dm := &datadoghqv1alpha1.DatadogMonitor{}
+				if err := c.Get(context.TODO(), types.NamespacedName{Name: resourcesName, Namespace: resourcesNamespace}, dm); err != nil {
+					return err
+				}
+				assert.NotContains(t, dm.Status.Conditions[0].Message, "error")
+				return nil
+			},
+		},
+		{
 			name: "DatadogMonitor of unsupported type (composite)",
 			args: args{
 				request: newRequest(resourcesNamespace, resourcesName),
@@ -422,14 +441,22 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 			testAuth := setupTestAuth(httpServer.URL)
 
 			// Set up
+			os.Setenv("DD_URL", httpServer.URL)
+			os.Setenv("DD_API_KEY", "DUMMY_API_KEY")
+			os.Setenv("DD_APP_KEY", "DUMMY_APP_KEY")
+			defer os.Unsetenv("DD_API_KEY")
+			defer os.Unsetenv("DD_APP_KEY")
+			defer os.Unsetenv("DD_URL")
+			testCredsManager := config.NewCredentialManager(fake.NewClientBuilder().Build())
 			r := &Reconciler{
 				client:        fake.NewClientBuilder().WithStatusSubresource(&datadoghqv1alpha1.DatadogMonitor{}).Build(),
 				datadogClient: client,
-				datadogAuth:   testAuth,
+				credsManager:  testCredsManager,
 				scheme:        s,
 				recorder:      recorder,
 				log:           logf.Log.WithName(tt.name),
 			}
+			_ = testAuth
 
 			// First monitor action
 			dm := tt.args.request
@@ -473,6 +500,82 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestReconcileDatadogMonitor_CredentialRefresh(t *testing.T) {
+	logf.SetLogger(zap.New(zap.UseDevMode(true)))
+
+	eventBroadcaster := record.NewBroadcaster()
+	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: "TestReconcileDatadogMonitor_Reconcile"})
+
+	s := scheme.Scheme
+	s.AddKnownTypes(datadoghqv1alpha1.GroupVersion, &datadoghqv1alpha1.DatadogMonitor{})
+
+	// Track the API key seen by the mock Datadog server on each request.
+	var lastSeenAPIKey string
+	var mu sync.Mutex
+
+	httpServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		lastSeenAPIKey = r.Header.Get("Dd-Api-Key")
+		mu.Unlock()
+		w.Header().Set("Content-Type", "application/json")
+	}))
+	defer httpServer.Close()
+
+	testConfig := datadogapi.NewConfiguration()
+	testConfig.HTTPClient = httpServer.Client()
+	apiClient := datadogapi.NewAPIClient(testConfig)
+	ddClient := datadogV1.NewMonitorsApi(apiClient)
+
+	t.Setenv("DD_URL", httpServer.URL)
+	t.Setenv("DD_API_KEY", "api-1")
+	t.Setenv("DD_APP_KEY", "app-1")
+
+	credsManager := config.NewCredentialManager(fake.NewClientBuilder().Build())
+
+	r := &Reconciler{
+		client:        fake.NewClientBuilder().WithStatusSubresource(&datadoghqv1alpha1.DatadogMonitor{}).Build(),
+		datadogClient: ddClient,
+		credsManager:  credsManager,
+		scheme:        s,
+		recorder:      recorder,
+		log:           logf.Log.WithName("credential-refresh-test"),
+	}
+
+	dm := genericDatadogMonitor(r.client)
+
+	// Reconcile 3 times: add finalizer → add required tags → create monitor
+	for i := 0; i < 3; i++ {
+		_, err := r.Reconcile(context.TODO(), dm)
+		assert.NoError(t, err)
+		// Re-fetch to pick up finalizer/tag updates
+		r.client.Get(context.TODO(), types.NamespacedName{Name: resourcesName, Namespace: resourcesNamespace}, dm)
+	}
+
+	// Assert the server saw the initial API key
+	mu.Lock()
+	assert.Equal(t, "api-1", lastSeenAPIKey, "server should have received initial API key")
+	mu.Unlock()
+
+	t.Setenv("DD_API_KEY", "api-2")
+	t.Setenv("DD_APP_KEY", "app-2")
+
+	err := credsManager.Refresh(logf.Log)
+	assert.NoError(t, err)
+
+	// Trigger another reconcile (force sync by zeroing the last sync time)
+	r.client.Get(context.TODO(), types.NamespacedName{Name: resourcesName, Namespace: resourcesNamespace}, dm)
+	dm.Status.MonitorLastForceSyncTime = nil
+	r.client.Status().Update(context.TODO(), dm)
+
+	_, err = r.Reconcile(context.TODO(), dm)
+	assert.NoError(t, err)
+
+	// Assert the server now sees the rotated API key
+	mu.Lock()
+	assert.Equal(t, "api-2", lastSeenAPIKey, "server should have received rotated API key after refresh")
+	mu.Unlock()
 }
 
 func newRequest(ns, name string) *v1alpha1.DatadogMonitor {
@@ -960,92 +1063,23 @@ func testAuditMonitor(c client.Client) *datadoghqv1alpha1.DatadogMonitor {
 	return dm
 }
 
-// TestReconciler_UpdateDatadogClient tests the UpdateDatadogClient method of the Reconciler
-func TestReconciler_UpdateDatadogClient(t *testing.T) {
-	testLogger := zap.New(zap.UseDevMode(true))
-	recorder := record.NewFakeRecorder(10)
-	scheme := scheme.Scheme
-	client := fake.NewClientBuilder().Build()
-	metricForwardersMgr := datadog.NewForwardersManager(client, nil, false, nil)
-
-	tests := []struct {
-		name     string
-		newCreds config.Creds
-		wantErr  bool
-	}{
-		{
-			name: "valid credentials update",
-			newCreds: config.Creds{
-				APIKey: "test-api-key",
-				AppKey: "test-app-key",
-			},
-			wantErr: false,
+func testErrorTrackingMonitor(c client.Client) *datadoghqv1alpha1.DatadogMonitor {
+	dm := &datadoghqv1alpha1.DatadogMonitor{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "DatadogMonitor",
+			APIVersion: fmt.Sprintf("%s/%s", datadoghqv1alpha1.GroupVersion.Group, datadoghqv1alpha1.GroupVersion.Version),
 		},
-		{
-			name: "empty API key",
-			newCreds: config.Creds{
-				APIKey: "",
-				AppKey: "test-app-key",
-			},
-			wantErr: true,
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: resourcesNamespace,
+			Name:      resourcesName,
 		},
-		{
-			name: "empty App key",
-			newCreds: config.Creds{
-				APIKey: "test-api-key",
-				AppKey: "",
-			},
-			wantErr: true,
-		},
-		{
-			name: "both keys empty",
-			newCreds: config.Creds{
-				APIKey: "",
-				AppKey: "",
-			},
-			wantErr: true,
+		Spec: datadoghqv1alpha1.DatadogMonitorSpec{
+			Query:   "error-tracking-query",
+			Type:    datadoghqv1alpha1.DatadogMonitorTypeErrorTracking,
+			Name:    "test error tracking monitor",
+			Message: "something is wrong",
 		},
 	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Create reconciler with initial valid credentials
-			initialCreds := config.Creds{
-				APIKey: "initial-api-key",
-				AppKey: "initial-app-key",
-			}
-			r, err := NewReconciler(client, initialCreds, scheme, testLogger, recorder, false, metricForwardersMgr)
-			assert.NoError(t, err)
-
-			// Store original client and auth references
-			originalClient := r.datadogClient
-			originalAuth := r.datadogAuth
-
-			// Call UpdateDatadogClient
-			err = r.UpdateDatadogClient(tt.newCreds)
-
-			if tt.wantErr {
-				assert.Error(t, err)
-				// Verify original client and auth are preserved on error
-				if originalClient != r.datadogClient {
-					t.Errorf("Expected clients to be the same, but they are different")
-				}
-				if originalAuth != r.datadogAuth {
-					t.Errorf("Expected client auth to be the same, but they are different")
-				}
-				assert.Equal(t, originalClient, r.datadogClient)
-				assert.Equal(t, originalAuth, r.datadogAuth)
-			} else {
-				assert.NoError(t, err)
-				// Verify client and auth are recreated
-				// r.datadogAuth
-				if originalClient == r.datadogClient {
-					t.Errorf("Expected clients to be different, but they are the same")
-				}
-				if originalAuth == r.datadogAuth {
-					t.Errorf("Expected auths to be different, but they are the same")
-				}
-			}
-		})
-	}
+	_ = c.Create(context.TODO(), dm)
+	return dm
 }

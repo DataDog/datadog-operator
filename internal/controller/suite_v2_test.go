@@ -14,20 +14,16 @@ package controller
 
 import (
 	"context"
+	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
-
-	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-
-	gc "github.com/onsi/ginkgo/config"
-	"github.com/onsi/ginkgo/reporters"
-	st "github.com/onsi/ginkgo/reporters/stenographer"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
@@ -35,11 +31,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/testutils"
-	"github.com/DataDog/datadog-operator/pkg/kubernetes"
-
 	"github.com/DataDog/datadog-operator/pkg/config"
-	// +kubebuilder:scaffold:imports
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 // These tests use Ginkgo (BDD-style Go testing framework). Refer to
@@ -55,14 +50,10 @@ var (
 func TestAPIs(t *testing.T) {
 	RegisterFailHandler(Fail)
 
-	stenographer := st.NewFakeStenographer()
-	reporterConfig := gc.DefaultReporterConfigType{}
-	RunSpecsWithDefaultAndCustomReporters(t,
-		"Controller Suite",
-		[]Reporter{reporters.NewDefaultReporter(reporterConfig, stenographer)})
+	RunSpecs(t, "Controller Suite")
 }
 
-var _ = BeforeSuite(func() {
+var _ = BeforeSuite(func(ctx context.Context) {
 	logger := zap.New(zap.WriteTo(GinkgoWriter), zap.UseDevMode(true))
 	logf.SetLogger(logger)
 	var err error
@@ -102,11 +93,16 @@ var _ = BeforeSuite(func() {
 		Scheme: scheme.Scheme,
 	})
 
+	err = os.Setenv("DD_API_KEY", "dummy_api_key")
+	Expect(err).ToNot(HaveOccurred())
+	err = os.Setenv("DD_APP_KEY", "dummy_app_key")
+	Expect(err).ToNot(HaveOccurred())
+
 	options := SetupOptions{
 		SupportExtendedDaemonset: ExtendedDaemonsetOptions{
 			Enabled: false,
 		},
-		Creds:                      config.Creds{APIKey: "dummy_api_key", AppKey: "dummy_app_key"},
+		CredsManager:               config.NewCredentialManager(mgr.GetClient()),
 		DatadogAgentEnabled:        true,
 		DatadogMonitorEnabled:      true,
 		DatadogAgentProfileEnabled: true,
@@ -125,7 +121,7 @@ var _ = BeforeSuite(func() {
 		err = mgr.Start(mgrCtx)
 		Expect(err).ToNot(HaveOccurred())
 	}()
-}, 60)
+}, NodeTimeout(60*time.Second))
 
 var _ = AfterSuite(func() {
 	By("tearing down the test environment")
@@ -133,5 +129,10 @@ var _ = AfterSuite(func() {
 		mgrCancel()
 	}
 	err := testEnv.Stop()
+	Expect(err).ToNot(HaveOccurred())
+
+	err = os.Unsetenv("DD_API_KEY")
+	Expect(err).ToNot(HaveOccurred())
+	err = os.Unsetenv("DD_APP_KEY")
 	Expect(err).ToNot(HaveOccurred())
 })

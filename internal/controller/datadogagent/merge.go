@@ -99,9 +99,12 @@ func (r *Reconciler) ssaMergeCRD(original, modified runtime.Object) (runtime.Obj
 			return nil, fmt.Errorf("failed to apply merge: %w", err)
 		}
 
-		kv := []any{"paths", paths}
-		kv = append(kv, objectIdentityKV("original", original)...)
-		kv = append(kv, objectIdentityKV("modified", modified)...)
+		originalKV := objectIdentityKV("original", original)
+		modifiedKV := objectIdentityKV("modified", modified)
+		kv := make([]any, 0, 2+len(originalKV)+len(modifiedKV))
+		kv = append(kv, "paths", paths)
+		kv = append(kv, originalKV...)
+		kv = append(kv, modifiedKV...)
 		r.log.V(1).Info("SSA merge failed due to missing CRD schema fields; retried after stripping unknown fields", kv...)
 		return newObj, nil
 	}

@@ -16,8 +16,9 @@ import (
 func TestEKSAutoscalingSuite(t *testing.T) {
 	provisionerOptions := []provisioners.EKSProvisionerOption{
 		provisioners.WithEKSName("autoscaling-e2e"),
-		provisioners.WithEKSK8sVersion("1.32"),
+		provisioners.WithEKSK8sVersion("1.34"),
 		provisioners.WithEKSLinuxNodeGroup(),
+		provisioners.WithEKSLinuxARMNodeGroup(),
 	}
 
 	e2eOpts := []e2e.SuiteOption{

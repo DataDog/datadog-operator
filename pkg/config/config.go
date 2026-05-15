@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/go-logr/logr"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -45,6 +46,8 @@ const (
 	profileWatchNamespaceEnvVar = "DD_AGENT_PROFILE_WATCH_NAMESPACE"
 	// SLOWatchNamespaceEnvVar is a comma-separated list of namespaces watched by the DatadogSLO controller.
 	sloWatchNamespaceEnvVar = "DD_SLO_WATCH_NAMESPACE"
+	// CSIDriverWatchNamespaceEnvVar is a comma-separated list of namespaces watched by the DatadogCSIDriver controller.
+	csiDriverWatchNamespaceEnvVar = "DD_CSIDRIVER_WATCH_NAMESPACE"
 )
 
 var (
@@ -55,19 +58,21 @@ var (
 	sloObj             = &datadoghqv1alpha1.DatadogSLO{}
 	profileObj         = &datadoghqv1alpha1.DatadogAgentProfile{}
 	agentInternalObj   = &datadoghqv1alpha1.DatadogAgentInternal{}
+	csiDriverObj       = &datadoghqv1alpha1.DatadogCSIDriver{}
+	csiDaemonSetObj    = &appsv1.DaemonSet{}
 	podObj             = &corev1.Pod{}
 	nodeObj            = &corev1.Node{}
 )
 
 type WatchOptions struct {
 	DatadogAgentEnabled           bool
-	DatadogAgentInternalEnabled   bool
 	DatadogMonitorEnabled         bool
 	DatadogSLOEnabled             bool
 	DatadogAgentProfileEnabled    bool
 	IntrospectionEnabled          bool
 	DatadogDashboardEnabled       bool
 	DatadogGenericResourceEnabled bool
+	DatadogCSIDriverEnabled       bool
 	UntaintControllerEnabled      bool
 }
 
@@ -191,11 +196,28 @@ func CacheOptions(logger logr.Logger, opts WatchOptions) cache.Options {
 		}
 	}
 
-	if opts.DatadogAgentInternalEnabled {
+	// Since v1.27, DDAI is always tied to DDA — no separate flag. Kept as DDA guard since DDAI cache is only needed when DDA is enabled.
+	if opts.DatadogAgentEnabled {
 		agentInternalNamespaces := GetWatchNamespacesFromEnv(logger, AgentWatchNamespaceEnvVar)
 		logger.Info("DatadogAgentInternal Enabled", "watching namespaces", slices.Collect(maps.Keys(agentInternalNamespaces)))
 		byObject[agentInternalObj] = cache.ByObject{
 			Namespaces: agentInternalNamespaces,
+		}
+	}
+
+	if opts.DatadogCSIDriverEnabled {
+		csiDriverNamespaces := GetWatchNamespacesFromEnv(logger, csiDriverWatchNamespaceEnvVar)
+		logger.Info("DatadogCSIDriver Enabled", "watching namespaces", slices.Collect(maps.Keys(csiDriverNamespaces)))
+		byObject[csiDriverObj] = cache.ByObject{
+			Namespaces: csiDriverNamespaces,
+		}
+		// The DaemonSet owned by DatadogCSIDriver lives in the CSIDriver namespace, which may
+		// differ from the agent namespace covered by DefaultNamespaces. Explicitly add DaemonSet
+		// to ByObject merging both so neither controller loses its cache coverage.
+		daemonSetNamespaces := maps.Clone(GetWatchNamespacesFromEnv(logger, AgentWatchNamespaceEnvVar))
+		maps.Copy(daemonSetNamespaces, csiDriverNamespaces)
+		byObject[csiDaemonSetObj] = cache.ByObject{
+			Namespaces: daemonSetNamespaces,
 		}
 	}
 

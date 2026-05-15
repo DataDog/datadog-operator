@@ -30,6 +30,7 @@ import (
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/clusterchecks"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/cspm"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/cws"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/dataplane"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/dogstatsd"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/dummy"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/ebpfcheck"
@@ -57,7 +58,8 @@ import (
 )
 
 const (
-	defaultRequeuePeriod = 15 * time.Second
+	defaultRequeuePeriod    = 15 * time.Second
+	defaultErrRequeuePeriod = 5 * time.Second
 )
 
 // ReconcilerOptions provides options read from command line
@@ -87,9 +89,7 @@ func (r *Reconciler) initializeComponentRegistry() {
 }
 
 // NewReconciler returns a reconciler for DatadogAgent
-func NewReconciler(options ReconcilerOptions, client client.Client, platformInfo kubernetes.PlatformInfo,
-	scheme *runtime.Scheme, recorder record.EventRecorder, metricForwardersMgr datadog.MetricsForwardersManager,
-) (*Reconciler, error) {
+func NewReconciler(options ReconcilerOptions, client client.Client, platformInfo kubernetes.PlatformInfo, scheme *runtime.Scheme, recorder record.EventRecorder, metricForwardersMgr datadog.MetricsForwardersManager) *Reconciler {
 	r := &Reconciler{
 		options:      options,
 		client:       client,
@@ -102,7 +102,7 @@ func NewReconciler(options ReconcilerOptions, client client.Client, platformInfo
 	// Initialize component registry
 	r.initializeComponentRegistry()
 
-	return r, nil
+	return r
 }
 
 // Reconcile is similar to reconciler.Reconcile interface, but taking a context

@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"k8s.io/utils/ptr"
+
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -19,7 +21,6 @@ import (
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	agenttestutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/testutils"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/constants"
@@ -51,7 +52,7 @@ func Test_computeProfileMerge(t *testing.T) {
 				Spec: v2alpha1.DatadogAgentSpec{
 					Features: &v2alpha1.DatadogFeatures{
 						APM: &v2alpha1.APMFeatureConfig{
-							Enabled: apiutils.NewBoolPointer(true),
+							Enabled: ptr.To(true),
 						},
 					},
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
@@ -85,7 +86,7 @@ func Test_computeProfileMerge(t *testing.T) {
 				Spec: v2alpha1.DatadogAgentSpec{
 					Features: &v2alpha1.DatadogFeatures{
 						APM: &v2alpha1.APMFeatureConfig{
-							Enabled: apiutils.NewBoolPointer(true),
+							Enabled: ptr.To(true),
 						},
 					},
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
@@ -146,7 +147,7 @@ func Test_computeProfileMerge(t *testing.T) {
 				Spec: v2alpha1.DatadogAgentSpec{
 					Features: &v2alpha1.DatadogFeatures{
 						APM: &v2alpha1.APMFeatureConfig{
-							Enabled: apiutils.NewBoolPointer(true),
+							Enabled: ptr.To(true),
 						},
 					},
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
@@ -204,12 +205,12 @@ func Test_computeProfileMerge(t *testing.T) {
 				Spec: v2alpha1.DatadogAgentSpec{
 					Features: &v2alpha1.DatadogFeatures{
 						APM: &v2alpha1.APMFeatureConfig{
-							Enabled: apiutils.NewBoolPointer(true),
+							Enabled: ptr.To(true),
 						},
 					},
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 						v2alpha1.NodeAgentComponentName: {
-							Name: apiutils.NewStringPointer("foo-profile-agent"),
+							Name: ptr.To("foo-profile-agent"),
 							Affinity: &corev1.Affinity{
 								NodeAffinity: &corev1.NodeAffinity{
 									RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
@@ -260,13 +261,13 @@ func Test_computeProfileMerge(t *testing.T) {
 							},
 						},
 						v2alpha1.ClusterAgentComponentName: {
-							Disabled: apiutils.NewBoolPointer(true),
+							Disabled: ptr.To(true),
 						},
 						v2alpha1.ClusterChecksRunnerComponentName: {
-							Disabled: apiutils.NewBoolPointer(true),
+							Disabled: ptr.To(true),
 						},
 						v2alpha1.OtelAgentGatewayComponentName: {
-							Disabled: apiutils.NewBoolPointer(true),
+							Disabled: ptr.To(true),
 						},
 					},
 				},
@@ -485,7 +486,7 @@ func Test_setProfileSpec(t *testing.T) {
 				Spec: v2alpha1.DatadogAgentSpec{
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 						v2alpha1.NodeAgentComponentName: {
-							Name: apiutils.NewStringPointer("foo-profile-agent"),
+							Name: ptr.To("foo-profile-agent"),
 							Affinity: &corev1.Affinity{
 								NodeAffinity: &corev1.NodeAffinity{
 									RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
@@ -540,13 +541,13 @@ func Test_setProfileSpec(t *testing.T) {
 							},
 						},
 						v2alpha1.ClusterAgentComponentName: {
-							Disabled: apiutils.NewBoolPointer(true),
+							Disabled: ptr.To(true),
 						},
 						v2alpha1.ClusterChecksRunnerComponentName: {
-							Disabled: apiutils.NewBoolPointer(true),
+							Disabled: ptr.To(true),
 						},
 						v2alpha1.OtelAgentGatewayComponentName: {
-							Disabled: apiutils.NewBoolPointer(true),
+							Disabled: ptr.To(true),
 						},
 					},
 				},
@@ -719,7 +720,7 @@ func Test_setProfileNodeAgentOverride(t *testing.T) {
 					Namespace: "default",
 				},
 			},
-			expectedNodeAgentComponentNameOverride: apiutils.NewStringPointer("my-profile-agent"),
+			expectedNodeAgentComponentNameOverride: ptr.To("my-profile-agent"),
 			expectedLabels: map[string]string{
 				constants.ProfileLabelKey: "my-profile",
 			},
@@ -780,7 +781,7 @@ func Test_reconcileProfile(t *testing.T) {
 					Config: &v2alpha1.DatadogAgentSpec{
 						Features: &v2alpha1.DatadogFeatures{
 							GPU: &v2alpha1.GPUFeatureConfig{
-								Enabled: apiutils.NewBoolPointer(true),
+								Enabled: ptr.To(true),
 							},
 						},
 					},
@@ -886,7 +887,7 @@ func Test_reconcileProfile(t *testing.T) {
 					Config: &v2alpha1.DatadogAgentSpec{
 						Features: &v2alpha1.DatadogFeatures{
 							GPU: &v2alpha1.GPUFeatureConfig{
-								Enabled: apiutils.NewBoolPointer(true),
+								Enabled: ptr.To(true),
 							},
 						},
 					},
@@ -954,7 +955,7 @@ func Test_reconcileProfile(t *testing.T) {
 					Config: &v2alpha1.DatadogAgentSpec{
 						Features: &v2alpha1.DatadogFeatures{
 							GPU: &v2alpha1.GPUFeatureConfig{
-								Enabled: apiutils.NewBoolPointer(true),
+								Enabled: ptr.To(true),
 							},
 						},
 					},
@@ -1011,9 +1012,7 @@ func Test_reconcileProfile(t *testing.T) {
 				log:      logger,
 				scheme:   sch,
 				recorder: recorder,
-				options: ReconcilerOptions{
-					DatadogAgentInternalEnabled: true,
-				},
+				options:  ReconcilerOptions{},
 			}
 
 			// Pre-populate with default profile for nodes without a profile (matching production code)
@@ -1074,7 +1073,7 @@ func Test_reconcileProfiles(t *testing.T) {
 						Config: &v2alpha1.DatadogAgentSpec{
 							Features: &v2alpha1.DatadogFeatures{
 								GPU: &v2alpha1.GPUFeatureConfig{
-									Enabled: apiutils.NewBoolPointer(true),
+									Enabled: ptr.To(true),
 								},
 							},
 						},
@@ -1116,7 +1115,7 @@ func Test_reconcileProfiles(t *testing.T) {
 						Config: &v2alpha1.DatadogAgentSpec{
 							Features: &v2alpha1.DatadogFeatures{
 								GPU: &v2alpha1.GPUFeatureConfig{
-									Enabled: apiutils.NewBoolPointer(true),
+									Enabled: ptr.To(true),
 								},
 							},
 						},
@@ -1141,7 +1140,7 @@ func Test_reconcileProfiles(t *testing.T) {
 						Config: &v2alpha1.DatadogAgentSpec{
 							Features: &v2alpha1.DatadogFeatures{
 								GPU: &v2alpha1.GPUFeatureConfig{
-									Enabled: apiutils.NewBoolPointer(true),
+									Enabled: ptr.To(true),
 								},
 							},
 						},
@@ -1183,7 +1182,7 @@ func Test_reconcileProfiles(t *testing.T) {
 						Config: &v2alpha1.DatadogAgentSpec{
 							Features: &v2alpha1.DatadogFeatures{
 								GPU: &v2alpha1.GPUFeatureConfig{
-									Enabled: apiutils.NewBoolPointer(true),
+									Enabled: ptr.To(true),
 								},
 							},
 						},
@@ -1209,9 +1208,7 @@ func Test_reconcileProfiles(t *testing.T) {
 				log:      logger,
 				scheme:   sch,
 				recorder: recorder,
-				options: ReconcilerOptions{
-					DatadogAgentInternalEnabled: true,
-				},
+				options:  ReconcilerOptions{},
 			}
 
 			dsNSName := types.NamespacedName{

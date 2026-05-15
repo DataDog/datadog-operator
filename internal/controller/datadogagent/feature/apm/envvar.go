@@ -11,10 +11,12 @@ const (
 	DDAPMReceiverSocket                    = "DD_APM_RECEIVER_SOCKET"
 	DDAPMInstrumentationEnabled            = "DD_APM_INSTRUMENTATION_ENABLED"
 	DDAPMInstrumentationInjectorImageTag   = "DD_APM_INSTRUMENTATION_INJECTOR_IMAGE_TAG"
+	DDAPMInstrumentationInjectionMode      = "DD_APM_INSTRUMENTATION_INJECTION_MODE"
 	DDAPMInstrumentationEnabledNamespaces  = "DD_APM_INSTRUMENTATION_ENABLED_NAMESPACES"
 	DDAPMInstrumentationDisabledNamespaces = "DD_APM_INSTRUMENTATION_DISABLED_NAMESPACES"
 	DDAPMInstrumentationTargets            = "DD_APM_INSTRUMENTATION_TARGETS"
 	DDAPMInstrumentationLibVersions        = "DD_APM_INSTRUMENTATION_LIB_VERSIONS"
 	DDLanguageDetectionEnabled             = "DD_LANGUAGE_DETECTION_ENABLED"
 	DDLanguageDetectionReportingEnabled    = "DD_LANGUAGE_DETECTION_REPORTING_ENABLED"
+	DDTraceAgentHostSocketPath             = "DD_TRACE_AGENT_HOST_SOCKET_PATH"
 )

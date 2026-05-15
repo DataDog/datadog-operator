@@ -18,7 +18,9 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/defaults"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	"github.com/DataDog/datadog-operator/internal/controller/finalizer"
 	"github.com/DataDog/datadog-operator/pkg/condition"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 )
 
@@ -34,7 +36,8 @@ func (r *Reconciler) internalReconcileV2(ctx context.Context, instance *v1alpha1
 	// }
 
 	// 2. Handle finalizer logic.
-	if result, err := r.handleFinalizer(ctx, instance, r.finalizeDDAI); utils.ShouldReturn(result, err) {
+	final := finalizer.NewFinalizer(logger, r.client, r.deleteResource(), defaultRequeuePeriod, defaultErrRequeuePeriod)
+	if result, err := final.HandleFinalizer(ctx, instance, "", constants.DatadogAgentInternalFinalizer); utils.ShouldReturn(result, err) {
 		return result, err
 	}
 
@@ -117,7 +120,7 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, instance *v1alpha1
 	}
 
 	// Always requeue
-	if !result.Requeue && result.RequeueAfter == 0 {
+	if result.IsZero() {
 		result.RequeueAfter = defaultRequeuePeriod
 	}
 	return r.updateStatusIfNeededV2(ctx, instance, newStatus, result, err, now)
@@ -136,7 +139,7 @@ func (r *Reconciler) updateStatusIfNeededV2(ctx context.Context, agentdeployment
 	if !IsEqualStatus(&agentdeployment.Status, newStatus) {
 		updateAgentDeployment := agentdeployment.DeepCopy()
 		updateAgentDeployment.Status = *newStatus
-		if err := r.client.Status().Update(context.TODO(), updateAgentDeployment); err != nil {
+		if err := r.client.Status().Update(ctx, updateAgentDeployment); err != nil {
 			if apierrors.IsConflict(err) {
 				logger.V(1).Info("unable to update DatadogAgent status due to update conflict")
 				return reconcile.Result{RequeueAfter: time.Second}, nil

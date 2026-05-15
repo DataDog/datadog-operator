@@ -9,9 +9,11 @@ import (
 	"path/filepath"
 	"strconv"
 
+	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/utils/ptr"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -35,6 +37,10 @@ func init() {
 func buildDogstatsdFeature(options *feature.Options) feature.Feature {
 	dogstatsdFeat := &dogstatsdFeature{}
 
+	if options != nil {
+		dogstatsdFeat.logger = options.Logger
+	}
+
 	return dogstatsdFeat
 }
 
@@ -53,11 +59,14 @@ type dogstatsdFeature struct {
 	forceEnableLocalService bool
 	localServiceName        string
 
-	adpEnabled bool
+	dataPlaneEnabled           bool
+	dataPlaneDogstatsdEnabled  bool
+	agentSupportsADPDelegation bool
 
 	nonLocalTraffic bool
 
-	owner metav1.Object
+	logger logr.Logger
+	owner  metav1.Object
 }
 
 // ID returns the ID of the Feature
@@ -106,11 +115,13 @@ func (f *dogstatsdFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Datado
 
 	f.nonLocalTraffic = apiutils.BoolValue(dogstatsd.NonLocalTraffic)
 
-	f.adpEnabled = featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnableADPAnnotation)
+	f.dataPlaneEnabled = featureutils.IsDataPlaneEnabled(dda, ddaSpec)
+	f.dataPlaneDogstatsdEnabled = featureutils.IsDataPlaneDogstatsdEnabled(ddaSpec)
+	f.agentSupportsADPDelegation = featureutils.AgentSupportsADPDogstatsdDelegation(ddaSpec)
 
 	reqComp = feature.RequiredComponents{
 		Agent: feature.RequiredComponent{
-			IsRequired: apiutils.NewBoolPointer(true),
+			IsRequired: ptr.To(true),
 			Containers: []apicommon.AgentContainerName{
 				apicommon.CoreAgentContainerName,
 			},
@@ -150,6 +161,16 @@ func (f *dogstatsdFeature) ManageDependencies(managers feature.ResourceManagers,
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *dogstatsdFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
+	if f.udsEnabled {
+		managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
+			Name:  DDDogstatsdHostSocketPath,
+			Value: filepath.Dir(f.udsHostFilepath),
+		})
+		managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
+			Name:  DDDogstatsdSocket,
+			Value: f.udsHostFilepath,
+		})
+	}
 	return nil
 }
 
@@ -158,37 +179,31 @@ func (f *dogstatsdFeature) ManageClusterAgent(managers feature.PodTemplateManage
 // It should do nothing if the feature doesn't need to configure it.
 func (f *dogstatsdFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
 	f.manageNodeAgent(apicommon.UnprivilegedSingleAgentContainerName, managers, provider)
-
-	// When ADP is enabled, we set `DD_USE_DOGSTATSD` to `false`, and `DD_ADP_ENABLED` to `true`.
-	//
-	// This disables DSD in the Core Agent, and additionally informs it that DSD is disabled because ADP is enabled and
-	// taking over responsibilities, rather than DSD simply being disabled intentionally, such as in the case of the
-	// Cluster Checks Runner.
-	if f.adpEnabled {
-		managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
+	if f.dataPlaneEnabled && f.dataPlaneDogstatsdEnabled && !f.agentSupportsADPDelegation {
+		managers.EnvVar().AddEnvVarToContainer(apicommon.UnprivilegedSingleAgentContainerName, &corev1.EnvVar{
 			Name:  common.DDDogstatsdEnabled,
 			Value: "false",
 		})
 	}
-
 	return nil
 }
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *dogstatsdFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
-	// When ADP is enabled, we apply the DSD configuration to the ADP container instead, and set `DD_USE_DOGSTATSD` to
-	// `false` on the Core Agent container. This disables DSD in the Core Agent, and allows ADP to take over.
-	//
-	// While we _could_ leave the DSD-specific configuration set on the Core Agent -- it doesn't so matter as long as
-	// DSD is disabled -- it's cleaner to remote it entirely to avoid confusion.
-	if f.adpEnabled {
+	// When the Data Plane feature is enabled, and handling DogStatsD, we apply the DSD configuration to the Data Plane
+	// container instead. On Agent >= 7.75, the Core Agent observes DD_DATA_PLANE_ENABLED and
+	// DD_DATA_PLANE_DOGSTATSD_ENABLED (set by the dataplane feature) and disables its own DSD server
+	// automatically. On older agents those flags are unknown, so we set DD_USE_DOGSTATSD=false
+	// explicitly to prevent a bind conflict between Core Agent DSD and ADP DSD.
+	if f.dataPlaneEnabled && f.dataPlaneDogstatsdEnabled {
 		f.manageNodeAgent(apicommon.AgentDataPlaneContainerName, managers, provider)
-
-		managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
-			Name:  common.DDDogstatsdEnabled,
-			Value: "false",
-		})
+		if !f.agentSupportsADPDelegation {
+			managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
+				Name:  common.DDDogstatsdEnabled,
+				Value: "false",
+			})
+		}
 	} else {
 		f.manageNodeAgent(apicommon.CoreAgentContainerName, managers, provider)
 	}

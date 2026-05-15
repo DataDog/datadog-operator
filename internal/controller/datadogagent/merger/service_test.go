@@ -74,7 +74,7 @@ func TestServiceManager_AddService(t *testing.T) {
 		name      string
 		selector  map[string]string
 		ports     []corev1.ServicePort
-		itp       *corev1.ServiceInternalTrafficPolicyType
+		itp       *corev1.ServiceInternalTrafficPolicy
 	}
 	tests := []struct {
 		name         string

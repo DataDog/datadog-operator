@@ -25,6 +25,7 @@ import (
 	"github.com/DataDog/datadog-agent/test/e2e-framework/components/datadog/agentwithoperatorparams"
 	"github.com/DataDog/datadog-agent/test/e2e-framework/components/datadog/operatorparams"
 	"github.com/DataDog/datadog-agent/test/e2e-framework/testing/e2e"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/stretchr/testify/assert"
@@ -33,6 +34,15 @@ import (
 var (
 	matchTags = []*regexp.Regexp{regexp.MustCompile("kube_container_name:.*")}
 	matchOpts = []client.MatchOpt[*aggregator.MetricSeries]{client.WithMatchingTags[*aggregator.MetricSeries](matchTags)}
+)
+
+const (
+	coreAgentContainerName = "agent"
+	adpContainerName       = "agent-data-plane"
+	dsdSocketVolumeName    = "dsdsocket"
+	dsdSocketMountPath     = "/var/run/datadog"
+	dsdSocketHostPath      = "/var/run/datadog"
+	dsdPort                = int32(8125)
 )
 
 type k8sSuite struct {
@@ -78,6 +88,28 @@ serviceAccount:
 		lastTestName = testName
 		s.UpdateEnv(provisioners.KubernetesProvisioner(opts...))
 	}
+	// applyDDA tears down any in-stack DatadogAgent before installing the new
+	// one. Used instead of updateEnv whenever a subtest applies a DDA.
+	//
+	// Why the explicit two-step swap: applying a new DDA on top of a previous
+	// one does delete+create concurrently, which can leave the new agent
+	// DaemonSet pod stuck on resources still owned by the previous DDA. The
+	// most visible cases are:
+	//   - K8s <1.20: the legacy SA-token controller can't keep up with the SA
+	//     delete+create churn during the swap, so the new agent pod sits in
+	//     FailedMount on its auto-generated <sa>-token-<rand> Secret;
+	//   - host-port subtests (APM hostPort, DSD UDP): the previous agent pod
+	//     hasn't released the port yet when the new pod tries to bind.
+	// Both manifest as "agent pod never reaches Running" on the new DDA.
+	applyDDA := func(testName string, opts []provisioners.KubernetesProvisionerOption) {
+		cleanupOpts := []provisioners.KubernetesProvisionerOption{
+			provisioners.WithTestName(testName),
+			provisioners.WithoutDDA(),
+		}
+		cleanupOpts = append(cleanupOpts, defaultProvisionerOpts...)
+		updateEnv(testName, cleanupOpts)
+		updateEnv(testName, opts)
+	}
 	t.Cleanup(func() {
 		if lastTestName == "" {
 			return
@@ -121,7 +153,7 @@ serviceAccount:
 			provisioners.WithLocal(s.local),
 		}
 
-		updateEnv("e2e-operator-minimal-dda", provisionerOptions)
+		applyDDA("e2e-operator-minimal-dda", provisionerOptions)
 
 		err = s.Env().FakeIntake.Client().FlushServerAndResetAggregators()
 		s.Assert().NoError(err)
@@ -187,7 +219,7 @@ serviceAccount:
 			provisioners.WithLocal(s.local),
 		}
 
-		updateEnv("e2e-operator-ksm-ccr", provisionerOptions)
+		applyDDA("e2e-operator-ksm-ccr", provisionerOptions)
 
 		err = s.Env().FakeIntake.Client().FlushServerAndResetAggregators()
 		s.Assert().NoError(err)
@@ -228,7 +260,7 @@ serviceAccount:
 		provisionerOptions = append(provisionerOptions, defaultProvisionerOpts...)
 
 		// Add nginx with annotations
-		updateEnv("e2e-operator-autodiscovery", provisionerOptions)
+		applyDDA("e2e-operator-autodiscovery", provisionerOptions)
 
 		err = s.Env().FakeIntake.Client().FlushServerAndResetAggregators()
 		s.Assert().NoError(err)
@@ -274,7 +306,7 @@ serviceAccount:
 			provisioners.WithLocal(s.local),
 		}
 
-		updateEnv("e2e-operator-logs-collection", provisionerOptions)
+		applyDDA("e2e-operator-logs-collection", provisionerOptions)
 
 		err = s.Env().FakeIntake.Client().FlushServerAndResetAggregators()
 		s.Assert().NoError(err)
@@ -297,17 +329,6 @@ serviceAccount:
 	})
 
 	s.T().Run("APM hostPort k8s service UDP works", func(t *testing.T) {
-
-		// Cleanup to avoid potential lingering DatadogAgent
-		// Avoid race with the new Agent not being able to bind to the hostPort
-		withoutDDAProvisionerOptions := []provisioners.KubernetesProvisionerOption{
-			provisioners.WithTestName("e2e-operator-apm"),
-			provisioners.WithoutDDA(),
-			provisioners.WithLocal(s.local),
-		}
-		withoutDDAProvisionerOptions = append(withoutDDAProvisionerOptions, defaultProvisionerOpts...)
-		updateEnv("e2e-operator-apm", withoutDDAProvisionerOptions)
-
 		var apmAgentSelector = ",agent.datadoghq.com/name=datadog-agent-apm"
 		ddaConfigPath, err := common.GetAbsPath(filepath.Join(common.ManifestsPath, "apm", "datadog-agent-apm.yaml"))
 		assert.NoError(s.T(), err)
@@ -332,7 +353,7 @@ serviceAccount:
 		ddaProvisionerOptions = append(ddaProvisionerOptions, defaultProvisionerOpts...)
 
 		// Deploy APM DatadogAgent and tracegen
-		updateEnv("e2e-operator-apm", ddaProvisionerOptions)
+		applyDDA("e2e-operator-apm", ddaProvisionerOptions)
 
 		// Verify traces collection on agent pod
 		s.EventuallyWithTf(func(c *assert.CollectT) {
@@ -356,6 +377,150 @@ serviceAccount:
 			// Verify traces collection ingestion by fakeintake
 			s.verifyAPITraces(c)
 		}, 600*time.Second, 15*time.Second, "could not validate traces on agent pod") // TODO: check duration
+	})
+
+	// --- DogStatsD subtests ---
+
+	// --- Subtest: DSD UDP, ADP disabled ---
+	s.T().Run("DSD UDP without ADP", func(t *testing.T) {
+		ddaConfigPath, err := common.GetAbsPath(filepath.Join(common.ManifestsPath, "dogstatsd", "datadog-agent-dsd-udp.yaml"))
+		assert.NoError(s.T(), err)
+
+		ddaOpts := append([]agentwithoperatorparams.Option{
+			agentwithoperatorparams.WithDDAConfig(agentwithoperatorparams.DDAConfig{
+				Name:         "dda-dsd-udp",
+				YamlFilePath: ddaConfigPath,
+			}),
+		}, defaultDDAOpts...)
+
+		provisionerOpts := []provisioners.KubernetesProvisionerOption{
+			provisioners.WithTestName("e2e-operator-dsd-udp"),
+			provisioners.WithDDAOptions(ddaOpts...),
+		}
+		provisionerOpts = append(provisionerOpts, defaultProvisionerOpts...)
+		applyDDA("e2e-operator-dsd-udp", provisionerOpts)
+
+		agentSelector := common.NodeAgentSelector + ",agent.datadoghq.com/name=dda-dsd-udp"
+
+		s.Assert().EventuallyWithTf(func(c *assert.CollectT) {
+			utils.VerifyAgentPods(s.T(), c, common.NamespaceName, s.Env().KubernetesCluster.Client(), agentSelector)
+
+			pods, err := s.Env().KubernetesCluster.Client().CoreV1().Pods(common.NamespaceName).List(
+				context.TODO(), metav1.ListOptions{LabelSelector: agentSelector, FieldSelector: "status.phase=Running"})
+			assert.NoError(c, err)
+
+			for _, pod := range pods.Items {
+				assertContainerAbsent(c, pod, adpContainerName)
+				assertContainerHasUDPHostPort(c, pod, coreAgentContainerName, dsdPort)
+			}
+		}, 5*time.Minute, 15*time.Second, "DSD UDP without ADP: pod spec verification failed")
+	})
+
+	// --- Subtest: DSD UDP, ADP enabled ---
+	s.T().Run("DSD UDP with ADP", func(t *testing.T) {
+		ddaConfigPath, err := common.GetAbsPath(filepath.Join(common.ManifestsPath, "dogstatsd", "datadog-agent-dsd-udp-adp.yaml"))
+		assert.NoError(s.T(), err)
+
+		ddaOpts := append([]agentwithoperatorparams.Option{
+			agentwithoperatorparams.WithDDAConfig(agentwithoperatorparams.DDAConfig{
+				Name:         "dda-dsd-udp-adp",
+				YamlFilePath: ddaConfigPath,
+			}),
+		}, defaultDDAOpts...)
+
+		provisionerOpts := []provisioners.KubernetesProvisionerOption{
+			provisioners.WithTestName("e2e-operator-dsd-udp-adp"),
+			provisioners.WithDDAOptions(ddaOpts...),
+		}
+		provisionerOpts = append(provisionerOpts, defaultProvisionerOpts...)
+		applyDDA("e2e-operator-dsd-udp-adp", provisionerOpts)
+
+		agentSelector := common.NodeAgentSelector + ",agent.datadoghq.com/name=dda-dsd-udp-adp"
+
+		s.Assert().EventuallyWithTf(func(c *assert.CollectT) {
+			utils.VerifyAgentPods(s.T(), c, common.NamespaceName, s.Env().KubernetesCluster.Client(), agentSelector)
+
+			pods, err := s.Env().KubernetesCluster.Client().CoreV1().Pods(common.NamespaceName).List(
+				context.TODO(), metav1.ListOptions{LabelSelector: agentSelector, FieldSelector: "status.phase=Running"})
+			assert.NoError(c, err)
+
+			for _, pod := range pods.Items {
+				assertContainerPresent(c, pod, adpContainerName)
+				assertContainerHasUDPHostPort(c, pod, adpContainerName, dsdPort)
+				assertContainerDoesNotHaveHostPort(c, pod, coreAgentContainerName, dsdPort)
+			}
+		}, 5*time.Minute, 15*time.Second, "DSD UDP with ADP: pod spec verification failed")
+	})
+
+	// --- Subtest: DSD UDS, ADP disabled ---
+	s.T().Run("DSD UDS without ADP", func(t *testing.T) {
+		ddaConfigPath, err := common.GetAbsPath(filepath.Join(common.ManifestsPath, "dogstatsd", "datadog-agent-dsd-uds.yaml"))
+		assert.NoError(s.T(), err)
+
+		ddaOpts := append([]agentwithoperatorparams.Option{
+			agentwithoperatorparams.WithDDAConfig(agentwithoperatorparams.DDAConfig{
+				Name:         "dda-dsd-uds",
+				YamlFilePath: ddaConfigPath,
+			}),
+		}, defaultDDAOpts...)
+
+		provisionerOpts := []provisioners.KubernetesProvisionerOption{
+			provisioners.WithTestName("e2e-operator-dsd-uds"),
+			provisioners.WithDDAOptions(ddaOpts...),
+		}
+		provisionerOpts = append(provisionerOpts, defaultProvisionerOpts...)
+		applyDDA("e2e-operator-dsd-uds", provisionerOpts)
+
+		agentSelector := common.NodeAgentSelector + ",agent.datadoghq.com/name=dda-dsd-uds"
+
+		s.Assert().EventuallyWithTf(func(c *assert.CollectT) {
+			utils.VerifyAgentPods(s.T(), c, common.NamespaceName, s.Env().KubernetesCluster.Client(), agentSelector)
+
+			pods, err := s.Env().KubernetesCluster.Client().CoreV1().Pods(common.NamespaceName).List(
+				context.TODO(), metav1.ListOptions{LabelSelector: agentSelector, FieldSelector: "status.phase=Running"})
+			assert.NoError(c, err)
+
+			for _, pod := range pods.Items {
+				assertContainerAbsent(c, pod, adpContainerName)
+				assertContainerHasVolumeMount(c, pod, coreAgentContainerName, dsdSocketVolumeName, dsdSocketMountPath)
+				assertPodHasHostPathVolume(c, pod, dsdSocketVolumeName, dsdSocketHostPath)
+			}
+		}, 5*time.Minute, 15*time.Second, "DSD UDS without ADP: pod spec verification failed")
+	})
+
+	// --- Subtest: DSD UDS, ADP enabled ---
+	s.T().Run("DSD UDS with ADP", func(t *testing.T) {
+		ddaConfigPath, err := common.GetAbsPath(filepath.Join(common.ManifestsPath, "dogstatsd", "datadog-agent-dsd-uds-adp.yaml"))
+		assert.NoError(s.T(), err)
+
+		ddaOpts := append([]agentwithoperatorparams.Option{
+			agentwithoperatorparams.WithDDAConfig(agentwithoperatorparams.DDAConfig{
+				Name:         "dda-dsd-uds-adp",
+				YamlFilePath: ddaConfigPath,
+			}),
+		}, defaultDDAOpts...)
+
+		provisionerOpts := []provisioners.KubernetesProvisionerOption{
+			provisioners.WithTestName("e2e-operator-dsd-uds-adp"),
+			provisioners.WithDDAOptions(ddaOpts...),
+		}
+		provisionerOpts = append(provisionerOpts, defaultProvisionerOpts...)
+		applyDDA("e2e-operator-dsd-uds-adp", provisionerOpts)
+
+		agentSelector := common.NodeAgentSelector + ",agent.datadoghq.com/name=dda-dsd-uds-adp"
+
+		s.Assert().EventuallyWithTf(func(c *assert.CollectT) {
+			utils.VerifyAgentPods(s.T(), c, common.NamespaceName, s.Env().KubernetesCluster.Client(), agentSelector)
+
+			pods, err := s.Env().KubernetesCluster.Client().CoreV1().Pods(common.NamespaceName).List(
+				context.TODO(), metav1.ListOptions{LabelSelector: agentSelector, FieldSelector: "status.phase=Running"})
+			assert.NoError(c, err)
+
+			for _, pod := range pods.Items {
+				assertContainerPresent(c, pod, adpContainerName)
+				assertContainerHasVolumeMount(c, pod, adpContainerName, dsdSocketVolumeName, dsdSocketMountPath)
+			}
+		}, 5*time.Minute, 15*time.Second, "DSD UDS with ADP: pod spec verification failed")
 	})
 }
 
@@ -396,4 +561,92 @@ func (s *k8sSuite) verifyHTTPCheck(c *assert.CollectT) {
 			assert.Greater(c, points.Value, float64(0))
 		}
 	}
+}
+
+// --- DogStatsD assertion helpers ---
+
+// findContainer returns the container with the given name, or nil if not found.
+func findContainer(pod corev1.Pod, name string) *corev1.Container {
+	for i := range pod.Spec.Containers {
+		if pod.Spec.Containers[i].Name == name {
+			return &pod.Spec.Containers[i]
+		}
+	}
+	return nil
+}
+
+func assertContainerPresent(c *assert.CollectT, pod corev1.Pod, containerName string) {
+	container := findContainer(pod, containerName)
+	assert.NotNilf(c, container, "expected container %q to be present in pod %s", containerName, pod.Name)
+}
+
+func assertContainerAbsent(c *assert.CollectT, pod corev1.Pod, containerName string) {
+	container := findContainer(pod, containerName)
+	assert.Nilf(c, container, "expected container %q to be absent in pod %s", containerName, pod.Name)
+}
+
+func assertContainerHasUDPHostPort(c *assert.CollectT, pod corev1.Pod, containerName string, port int32) {
+	container := findContainer(pod, containerName)
+	if !assert.NotNilf(c, container, "container %q not found in pod %s", containerName, pod.Name) {
+		return
+	}
+	for _, p := range container.Ports {
+		if p.Protocol == corev1.ProtocolUDP && p.HostPort == port {
+			return
+		}
+	}
+	assert.Failf(c, "host port not found", "expected container %q in pod %s to have UDP host port %d", containerName, pod.Name, port)
+}
+
+func assertContainerDoesNotHaveHostPort(c *assert.CollectT, pod corev1.Pod, containerName string, port int32) {
+	container := findContainer(pod, containerName)
+	if container == nil {
+		return // container absent means no host port
+	}
+	for _, p := range container.Ports {
+		if p.Protocol == corev1.ProtocolUDP && p.HostPort == port {
+			assert.Failf(c, "unexpected host port", "expected container %q in pod %s to NOT have UDP host port %d", containerName, pod.Name, port)
+			return
+		}
+	}
+}
+
+func assertContainerHasEnvVar(c *assert.CollectT, pod corev1.Pod, containerName, envName, envValue string) {
+	container := findContainer(pod, containerName)
+	if !assert.NotNilf(c, container, "container %q not found in pod %s", containerName, pod.Name) {
+		return
+	}
+	for _, env := range container.Env {
+		if env.Name == envName {
+			assert.Equalf(c, envValue, env.Value, "env var %s in container %q of pod %s", envName, containerName, pod.Name)
+			return
+		}
+	}
+	assert.Failf(c, "env var not found", "expected container %q in pod %s to have env var %s=%s", containerName, pod.Name, envName, envValue)
+}
+
+func assertContainerHasVolumeMount(c *assert.CollectT, pod corev1.Pod, containerName, volumeName, mountPath string) {
+	container := findContainer(pod, containerName)
+	if !assert.NotNilf(c, container, "container %q not found in pod %s", containerName, pod.Name) {
+		return
+	}
+	for _, vm := range container.VolumeMounts {
+		if vm.Name == volumeName && vm.MountPath == mountPath {
+			return
+		}
+	}
+	assert.Failf(c, "volume mount not found", "expected container %q in pod %s to have volume mount %s at %s", containerName, pod.Name, volumeName, mountPath)
+}
+
+func assertPodHasHostPathVolume(c *assert.CollectT, pod corev1.Pod, volumeName, hostPath string) {
+	for _, vol := range pod.Spec.Volumes {
+		if vol.Name == volumeName {
+			if !assert.NotNilf(c, vol.VolumeSource.HostPath, "volume %q in pod %s is not a HostPath volume", volumeName, pod.Name) {
+				return
+			}
+			assert.Equalf(c, hostPath, vol.VolumeSource.HostPath.Path, "volume %q hostPath in pod %s", volumeName, pod.Name)
+			return
+		}
+	}
+	assert.Failf(c, "volume not found", "expected pod %s to have volume %s with hostPath %s", pod.Name, volumeName, hostPath)
 }

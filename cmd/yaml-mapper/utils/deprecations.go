@@ -114,7 +114,7 @@ var processAgentEnabledDepRule = DepRule{
 // value to sourceValues under the standard key.
 func ApplyDeprecationRules(sourceValues chartutil.Values) chartutil.Values {
 	// chartutil.Values is a map[string]interface{}
-	root := map[string]interface{}(sourceValues)
+	root := map[string]any(sourceValues)
 	depRules := depRuleRegistry()
 
 	for stdKey, depRule := range depRules {

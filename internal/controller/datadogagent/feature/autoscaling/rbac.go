@@ -11,7 +11,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
 )
 
-func getDCAClusterPolicyRules(workloadEnabled, clusterEnabled bool) []rbacv1.PolicyRule {
+func getDCAClusterPolicyRules(f *autoscalingFeature) []rbacv1.PolicyRule {
 	pr := []rbacv1.PolicyRule{
 		{
 			// Ability to generate events
@@ -26,7 +26,7 @@ func getDCAClusterPolicyRules(workloadEnabled, clusterEnabled bool) []rbacv1.Pol
 		},
 	}
 
-	if workloadEnabled {
+	if f.workloadEnabled {
 		pr = append(pr, []rbacv1.PolicyRule{
 			{
 				// Access to own CRD
@@ -34,6 +34,8 @@ func getDCAClusterPolicyRules(workloadEnabled, clusterEnabled bool) []rbacv1.Pol
 				Resources: []string{
 					rbac.DatadogPodAutoscalersResource,
 					rbac.DatadogPodAutoscalersStatusResource,
+					rbac.DatadogPodAutoscalerClusterProfilesResource,
+					rbac.DatadogPodAutoscalerClusterProfilesStatusResource,
 				},
 				Verbs: []string{
 					rbac.Wildcard,
@@ -61,27 +63,61 @@ func getDCAClusterPolicyRules(workloadEnabled, clusterEnabled bool) []rbacv1.Pol
 				},
 			},
 			{
-				// Patching Deployment to trigger rollout.
-				APIGroups: []string{rbac.AppsAPIGroup},
-				Resources: []string{
-					rbac.DeploymentsResource,
-				},
-				Verbs: []string{
-					rbac.PatchVerb,
-				},
+				// In-place resize: patching pod resources via resize subresource
+				APIGroups: []string{rbac.CoreAPIGroup},
+				Resources: []string{rbac.PodsResizeResource},
+				Verbs:     []string{rbac.PatchVerb},
 			},
 			{
 				APIGroups: []string{rbac.ArgoProjAPIGroup},
 				Resources: []string{rbac.Rollout},
 				Verbs: []string{
+					rbac.GetVerb,
+					rbac.ListVerb,
+					rbac.WatchVerb,
 					rbac.PatchVerb,
+				},
+			},
+			{
+				// List/watch for namespaces profiles
+				APIGroups: []string{rbac.CoreAPIGroup},
+				Resources: []string{rbac.NamespaceResource},
+				Verbs: []string{
+					rbac.GetVerb,
+					rbac.ListVerb,
+					rbac.WatchVerb,
 				},
 			},
 		}...,
 		)
 	}
 
-	if clusterEnabled {
+	if f.workloadEnabled || f.clusterSpotEnabled {
+		pr = append(pr, []rbacv1.PolicyRule{
+			{
+				// Patching workloads to trigger rollout / write spot-disabled-until annotation during on-demand fallback
+				APIGroups: []string{rbac.AppsAPIGroup},
+				Resources: []string{
+					rbac.DeploymentsResource,
+					rbac.StatefulsetsResource,
+				},
+				Verbs: []string{
+					rbac.GetVerb,
+					rbac.ListVerb,
+					rbac.WatchVerb,
+					rbac.PatchVerb,
+				},
+			},
+			{
+				// Evict pods: in-place resize / pending spot pods during on-demand fallback
+				APIGroups: []string{rbac.CoreAPIGroup},
+				Resources: []string{rbac.PodsEvictionResource},
+				Verbs:     []string{rbac.CreateVerb},
+			},
+		}...)
+	}
+
+	if f.clusterEnabled {
 		pr = append(pr, []rbacv1.PolicyRule{
 			{
 				// Update Karpenter resources
@@ -105,8 +141,17 @@ func getDCAClusterPolicyRules(workloadEnabled, clusterEnabled bool) []rbacv1.Pol
 					rbac.ListVerb,
 				},
 			},
+			{
+				APIGroups: []string{rbac.EKSAPIGroup},
+				Resources: []string{rbac.Wildcard},
+				Verbs: []string{
+					rbac.GetVerb,
+					rbac.ListVerb,
+				},
+			},
 		}...,
 		)
 	}
+
 	return pr
 }

@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"testing"
 
+	"k8s.io/utils/ptr"
+
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
@@ -56,7 +58,7 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 			DDA: testutils.NewDefaultDatadogAgentBuilder().
 				WithDogstatsdHostPortEnabled(true).
 				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
-					HostNetwork: apiutils.NewBoolPointer(true),
+					HostNetwork: ptr.To(true),
 				}).
 				BuildWithDefaults(),
 			WantConfigure: true,
@@ -94,7 +96,7 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 				WithDogstatsdHostPortEnabled(true).
 				WithDogstatsdHostPortConfig(1234).
 				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
-					HostNetwork: apiutils.NewBoolPointer(true),
+					HostNetwork: ptr.To(true),
 				}).
 				BuildWithDefaults(),
 			WantConfigure: true,
@@ -241,6 +243,29 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 			),
 		},
 		{
+			Name:          "uds enabled sets host socket path on cluster agent",
+			DDA:           testutils.NewDefaultDatadogAgentBuilder().BuildWithDefaults(),
+			WantConfigure: true,
+			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+					mgr := mgrInterface.(*fake.PodTemplateManagers)
+					clusterAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.ClusterAgentContainerName]
+					expectedEnvVars := []*corev1.EnvVar{
+						{
+							Name:  DDDogstatsdHostSocketPath,
+							Value: common.DogstatsdAPMSocketHostPath,
+						},
+						{
+							Name:  DDDogstatsdSocket,
+							Value: common.DogstatsdAPMSocketHostPath + "/" + common.DogstatsdSocketName,
+						},
+					}
+					assert.True(t, apiutils.IsEqualStruct(clusterAgentEnvVars, expectedEnvVars),
+						"Cluster Agent envvars \ndiff = %s", cmp.Diff(clusterAgentEnvVars, expectedEnvVars))
+				},
+			),
+		},
+		{
 			Name: "uds disabled",
 			DDA: testutils.NewDefaultDatadogAgentBuilder().
 				WithDogstatsdUnixDomainSocketConfigEnabled(false).BuildWithDefaults(),
@@ -248,6 +273,13 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 			Agent: test.NewDefaultComponentTest().WithWantFunc(
 				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					assertWants(t, mgrInterface, "11", []*corev1.VolumeMount(nil), []*corev1.Volume{}, []*corev1.EnvVar{getNonLocalTrafficEnvVar()}, nil, getWantContainerPorts())
+				},
+			),
+			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+					mgr := mgrInterface.(*fake.PodTemplateManagers)
+					clusterAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.ClusterAgentContainerName]
+					assert.Empty(t, clusterAgentEnvVars, "Cluster Agent should have no env vars when UDS is disabled")
 				},
 			),
 		},
@@ -279,6 +311,24 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 					customEnvVars := append([]*corev1.EnvVar{}, getCustomEnvVar()...)
 
 					assertWants(t, mgrInterface, "12", customVolumeMounts, customVolumes, []*corev1.EnvVar{getNonLocalTrafficEnvVar()}, customEnvVars, getWantContainerPorts())
+				},
+			),
+			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+					mgr := mgrInterface.(*fake.PodTemplateManagers)
+					clusterAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.ClusterAgentContainerName]
+					expectedEnvVars := []*corev1.EnvVar{
+						{
+							Name:  DDDogstatsdHostSocketPath,
+							Value: customVolumePath,
+						},
+						{
+							Name:  DDDogstatsdSocket,
+							Value: customPath,
+						},
+					}
+					assert.True(t, apiutils.IsEqualStruct(clusterAgentEnvVars, expectedEnvVars),
+						"Cluster Agent envvars \ndiff = %s", cmp.Diff(clusterAgentEnvVars, expectedEnvVars))
 				},
 			),
 		},
@@ -330,23 +380,130 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 			),
 		},
 		{
-			Name: "adp enabled",
+			Name: "data plane enabled via annotation (deprecated) with dogstatsd routed to ADP",
 			DDA: testutils.NewDefaultDatadogAgentBuilder().
 				WithAnnotations(map[string]string{
 					utils.EnableADPAnnotation: "true",
 				}).
+				WithDataPlaneDogstatsdEnabled(true).
 				BuildWithDefaults(),
 			WantConfigure: true,
 			Agent: test.NewDefaultComponentTest().WithWantFunc(
 				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+					mgr := mgrInterface.(*fake.PodTemplateManagers)
+
+					// Verify DogStatsD config is applied to ADP container
+					adpEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.AgentDataPlaneContainerName]
+					assert.NotEmpty(t, adpEnvVars, "ADP container should have DogStatsD env vars")
+				},
+			),
+		},
+		{
+			Name: "data plane enabled without explicit dogstatsd config with dogstatsd routed to ADP by default",
+			DDA: testutils.NewDefaultDatadogAgentBuilder().
+				WithDataPlaneEnabled(true).
+				BuildWithDefaults(),
+			WantConfigure: true,
+			Agent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+					mgr := mgrInterface.(*fake.PodTemplateManagers)
+
+					// Verify DogStatsD config is applied to ADP container
+					adpEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.AgentDataPlaneContainerName]
+					assert.NotEmpty(t, adpEnvVars, "ADP container should have DogStatsD env vars when dogstatsd defaults to enabled")
+				},
+			),
+		},
+		{
+			Name: "data plane enabled via CRD with dogstatsd routed to ADP",
+			DDA: testutils.NewDefaultDatadogAgentBuilder().
+				WithDataPlaneEnabled(true).
+				WithDataPlaneDogstatsdEnabled(true).
+				BuildWithDefaults(),
+			WantConfigure: true,
+			Agent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+					mgr := mgrInterface.(*fake.PodTemplateManagers)
+
+					// Verify DogStatsD config is applied to ADP container
+					adpEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.AgentDataPlaneContainerName]
+					assert.NotEmpty(t, adpEnvVars, "ADP container should have DogStatsD env vars")
+				},
+			),
+		},
+		{
+			Name: "data plane enabled but dogstatsd subsection not enabled - DSD stays on Core Agent",
+			DDA: testutils.NewDefaultDatadogAgentBuilder().
+				WithDataPlaneEnabled(true).
+				WithDataPlaneDogstatsdEnabled(false).
+				BuildWithDefaults(),
+			WantConfigure: true,
+			Agent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+					mgr := mgrInterface.(*fake.PodTemplateManagers)
+
+					// Verify DogStatsD config is NOT applied to ADP container
+					adpEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.AgentDataPlaneContainerName]
+					assert.Empty(t, adpEnvVars, "ADP container should not have DogStatsD env vars when Data Plane DogStatsD is not enabled")
+				},
+			),
+		},
+		{
+			Name: "data plane dogstatsd enabled but data plane itself not enabled - DSD stays on Core Agent",
+			DDA: testutils.NewDefaultDatadogAgentBuilder().
+				WithDataPlaneEnabled(false).
+				WithDataPlaneDogstatsdEnabled(true).
+				BuildWithDefaults(),
+			WantConfigure: true,
+			Agent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+					mgr := mgrInterface.(*fake.PodTemplateManagers)
+
+					// Verify DogStatsD config is NOT applied to ADP container
+					adpEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.AgentDataPlaneContainerName]
+					assert.Empty(t, adpEnvVars, "ADP container should not have DogStatsD env vars when Data Plane is not enabled")
+				},
+			),
+		},
+		{
+			Name: "data plane + dogstatsd enabled on Agent >= 7.75 - no DD_USE_DOGSTATSD=false override",
+			DDA: testutils.NewDefaultDatadogAgentBuilder().
+				WithDataPlaneEnabled(true).
+				WithDataPlaneDogstatsdEnabled(true).
+				WithNodeAgentTag("7.75.0").
+				BuildWithDefaults(),
+			WantConfigure: true,
+			Agent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+					mgr := mgrInterface.(*fake.PodTemplateManagers)
+
 					dsdDisabledEnvVar := &corev1.EnvVar{
 						Name:  common.DDDogstatsdEnabled,
 						Value: "false",
 					}
-
-					mgr := mgrInterface.(*fake.PodTemplateManagers)
 					agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
-					assert.Contains(t, agentEnvVars, dsdDisabledEnvVar, "DD_USE_DOGSTATSD should be set to false")
+					assert.NotContains(t, agentEnvVars, dsdDisabledEnvVar, "DD_USE_DOGSTATSD should NOT be set on Agent >= 7.75 — it delegates via data_plane config")
+				},
+			),
+		},
+		{
+			Name: "data plane + dogstatsd enabled on Agent < 7.75 - DD_USE_DOGSTATSD=false set to prevent bind conflict",
+			DDA: testutils.NewDefaultDatadogAgentBuilder().
+				WithDataPlaneEnabled(true).
+				WithDataPlaneDogstatsdEnabled(true).
+				WithNodeAgentTag("7.74.0").
+				BuildWithDefaults(),
+			WantConfigure: true,
+			Agent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+					mgr := mgrInterface.(*fake.PodTemplateManagers)
+
+					dsdDisabledEnvVar := &corev1.EnvVar{
+						Name:  common.DDDogstatsdEnabled,
+						Value: "false",
+					}
+					agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
+					assert.Contains(t, agentEnvVars, dsdDisabledEnvVar, "DD_USE_DOGSTATSD=false must be set on Agent < 7.75 to prevent Core Agent DSD binding the same port as ADP")
 				},
 			),
 		},

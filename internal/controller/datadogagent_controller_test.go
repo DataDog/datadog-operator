@@ -13,12 +13,13 @@ import (
 	"fmt"
 	"time"
 
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/testutils"
 )
@@ -203,9 +204,9 @@ func checkAgentStatus(namespace string, ddaName string) {
 		Name:      ddaName,
 	}
 
-	agent := &v2alpha1.DatadogAgent{}
-	getObjectAndCheck(agent, key, func() bool {
-		return agent.Status.Agent != nil && agent.Status.ClusterAgent != nil
+	ddai := &v1alpha1.DatadogAgentInternal{}
+	getObjectAndCheck(ddai, key, func() bool {
+		return ddai.Status.Agent != nil && ddai.Status.ClusterAgent != nil
 	})
 }
 

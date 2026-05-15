@@ -10,6 +10,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/utils/ptr"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -94,7 +95,7 @@ func (o *otelCollectorFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Da
 			agentVersion = common.GetAgentVersionFromImage(*nodeAgent.Image)
 		}
 	}
-	supportedVersion := utils.IsAboveMinVersion(agentVersion, otelAgentMinVersion, apiutils.NewBoolPointer(true))
+	supportedVersion := utils.IsAboveMinVersion(agentVersion, otelAgentMinVersion, ptr.To(true))
 	if !supportedVersion && agentImageName == "" {
 		o.incompatibleImage = true
 		o.logger.Error(errIncompatibleImage,
@@ -153,7 +154,7 @@ func (o *otelCollectorFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Da
 	if apiutils.BoolValue(ddaSpec.Features.OtelCollector.Enabled) {
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
-				IsRequired: apiutils.NewBoolPointer(true),
+				IsRequired: ptr.To(true),
 				Containers: []apicommon.AgentContainerName{
 					apicommon.CoreAgentContainerName,
 					apicommon.OtelAgent,
@@ -343,11 +344,11 @@ func (o *otelCollectorFeature) ManageNodeAgent(managers feature.PodTemplateManag
 	// (todo: mackjmr): remove this once IPC port is enabled by default. Enabling this port is required to fetch the API key from
 	// core agent when secrets backend is used.
 	agentIpcPortEnvVar := &corev1.EnvVar{
-		Name:  DDAgentIpcPort,
+		Name:  common.DDAgentIpcPort,
 		Value: "5009",
 	}
 	agentIpcConfigRefreshIntervalEnvVar := &corev1.EnvVar{
-		Name:  DDAgentIpcConfigRefreshInterval,
+		Name:  common.DDAgentIpcConfigRefreshInterval,
 		Value: "60",
 	}
 	// don't set env var if it was already set by user.
@@ -397,6 +398,11 @@ func (o *otelCollectorFeature) ManageNodeAgent(managers feature.PodTemplateManag
 			Value: "health_check,zpages,pprof,ddflare",
 		})
 	}
+
+	managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.OtelAgent}, &corev1.EnvVar{
+		Name:  DDOtelCollectorInstallationMethod,
+		Value: "kubernetes",
+	})
 
 	return nil
 }

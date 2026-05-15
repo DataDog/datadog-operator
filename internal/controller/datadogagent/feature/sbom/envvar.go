@@ -13,4 +13,5 @@ const (
 	DDSBOMContainerOverlayFSDirectScan = "DD_SBOM_CONTAINER_IMAGE_OVERLAYFS_DIRECT_SCAN"
 	DDSBOMHostEnabled                  = "DD_SBOM_HOST_ENABLED"
 	DDSBOMHostAnalyzers                = "DD_SBOM_HOST_ANALYZERS"
+	DDSBOMEnrichmentUsageEnabled       = "DD_SBOM_ENRICHMENT_USAGE_ENABLED"
 )

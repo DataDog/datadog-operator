@@ -1,0 +1,17 @@
+apiVersion: datadoghq.com/v2alpha1
+kind: DatadogAgent
+metadata:
+  namespace: e2e-operator
+  labels:
+    agent.datadoghq.com/e2e-test: datadog-agent-dsd-uds
+spec:
+  global:
+    kubelet:
+      tlsVerify: false
+  features:
+    dogstatsd:
+      hostPortConfig:
+        enabled: false
+      unixDomainSocketConfig:
+        enabled: true
+        path: /var/run/datadog/dsd.socket

@@ -3,28 +3,70 @@
 # and another the rest of the directory.
 
 # All your base
-*                       @DataDog/container-ecosystems @DataDog/container-platform
+*                       @DataDog/container-platform
 
 # Documentation
-README.md               @DataDog/documentation @DataDog/container-ecosystems @DataDog/container-platform
-/docs/                  @DataDog/documentation @DataDog/container-ecosystems @DataDog/container-platform
-/docs/kubectl-plugin.md @DataDog/documentation @DataDog/container-ecosystems @DataDog/container-platform @DataDog/container-autoscaling
+README.md               @DataDog/documentation  @DataDog/container-platform
+/docs/                  @DataDog/documentation  @DataDog/container-platform
+/docs/kubectl-plugin.md @DataDog/documentation  @DataDog/container-platform @DataDog/container-autoscaling
 
 
 # Features owners
-/internal/controller/datadogagent/feature/kubernetesstatecore/*    @DataDog/container-integrations
-/internal/controller/datadogagent/feature/helmcheck/*              @DataDog/container-integrations
-/internal/controller/datadogagent/feature/autoscaling/*            @DataDog/container-autoscaling @DataDog/container-ecosystems @DataDog/container-platform
-/internal/controller/datadogagent/feature/privateactionrunner/*    @DataDog/action-platform
+/internal/controller/datadogagent/feature/admissioncontroller       @DataDog/container-platform     @DataDog/container-platform
+/internal/controller/datadogagent/feature/apm                       @DataDog/agent-apm              @DataDog/container-platform
+# TODO check team or add label
+/internal/controller/datadogagent/feature/appsec                    @DataDog/asm-go     @DataDog/container-platform
+/internal/controller/datadogagent/feature/asm                       @DataDog/asm-go     @DataDog/container-platform
+/internal/controller/datadogagent/feature/autoscaling               @DataDog/container-autoscaling  @DataDog/container-platform
+/internal/controller/datadogagent/feature/clusterchecks             @DataDog/container-platform
+/internal/controller/datadogagent/feature/controlplanemonitoring    @DataDog/container-integrations @DataDog/container-platform
+/internal/controller/datadogagent/feature/cspm                      @DataDog/agent-security         @DataDog/container-platform
+/internal/controller/datadogagent/feature/cws                       @DataDog/agent-security         @DataDog/container-platform
+/internal/controller/datadogagent/feature/dataplane                 @DataDog/agent-data-plane       @DataDog/container-platform
+/internal/controller/datadogagent/feature/dogstatsd                 @DataDog/agent-metric-pipelines @DataDog/container-platform
+/internal/controller/datadogagent/feature/dummy                     @DataDog/container-platform
+/internal/controller/datadogagent/feature/ebpfcheck                 @DataDog/ebpf-platform          @DataDog/container-platform
+/internal/controller/datadogagent/feature/enabledefault             @DataDog/container-platform
+/internal/controller/datadogagent/feature/eventcollection           @DataDog/container-integrations @DataDog/container-platform
+/internal/controller/datadogagent/feature/externalmetrics           @DataDog/container-autoscaling  @DataDog/container-platform
+/internal/controller/datadogagent/feature/fake                      @DataDog/container-platform
+/internal/controller/datadogagent/feature/gpu                       @DataDog/ebpf-platform          @DataDog/container-platform
+/internal/controller/datadogagent/feature/helmcheck                 @DataDog/container-integrations @DataDog/container-platform
+/internal/controller/datadogagent/feature/hostprofiler              @DataDog/profiling-full-host    @DataDog/container-platform
+/internal/controller/datadogagent/feature/kubernetesstatecore       @DataDog/container-integrations @DataDog/container-platform
+/internal/controller/datadogagent/feature/livecontainer             @DataDog/container-experiences  @DataDog/container-platform
+/internal/controller/datadogagent/feature/liveprocess               @DataDog/container-experiences  @DataDog/container-platform
+/internal/controller/datadogagent/feature/logcollection             @DataDog/agent-log-pipelines    @DataDog/container-platform
+/internal/controller/datadogagent/feature/npm                       @DataDog/cloud-network-monitoring @DataDog/container-platform
+/internal/controller/datadogagent/feature/oomkill                   @DataDog/ebpf-platform          @DataDog/container-platform
+/internal/controller/datadogagent/feature/orchestratorexplorer      @DataDog/kubernetes-experiences @DataDog/container-platform
+/internal/controller/datadogagent/feature/otelagentgateway          @DataDog/opentelemetry-agent    @DataDog/container-platform
+/internal/controller/datadogagent/feature/otelcollector             @DataDog/opentelemetry-agent    @DataDog/container-platform
+/internal/controller/datadogagent/feature/otlp                      @DataDog/opentelemetry-agent    @DataDog/container-platform
+/internal/controller/datadogagent/feature/privateactionrunner       @DataDog/action-platform        @DataDog/container-platform
+/internal/controller/datadogagent/feature/processdiscovery          @DataDog/container-experiences  @DataDog/container-platform
+/internal/controller/datadogagent/feature/prometheusscrape          @DataDog/container-platform
+/internal/controller/datadogagent/feature/remoteconfig              @DataDog/remote-config          @DataDog/container-platform
+/internal/controller/datadogagent/feature/sbom                      @DataDog/agent-security         @DataDog/container-platform
+/internal/controller/datadogagent/feature/servicediscovery          @DataDog/agent-discovery        @DataDog/container-platform
+/internal/controller/datadogagent/feature/tcpqueuelength            @DataDog/ebpf-platform                  @DataDog/agent-security @DataDog/container-platform
+/internal/controller/datadogagent/feature/test                      @DataDog/container-platform
+/internal/controller/datadogagent/feature/usm                       @DataDog/universal-service-monitoring   @DataDog/container-platform
 
-/api/**/datadogpodautoscaler*.go              @DataDog/container-autoscaling @DataDog/container-ecosystems @DataDog/container-platform
+# Component owners
+/internal/controller/datadogagent/component_otelagentgateway.go     @DataDog/opentelemetry-agent  @DataDog/container-platform
+
+/api/**/datadogpodautoscaler*.go              @DataDog/container-autoscaling  @DataDog/container-platform
 
 # kubectl plugin
-/cmd/kubectl-datadog/autoscaling/             @DataDog/container-autoscaling @DataDog/container-ecosystems @DataDog/container-platform
+/cmd/kubectl-datadog/autoscaling/             @DataDog/container-autoscaling  @DataDog/container-platform
 
 # autogenerated files
-/api/**/zz_generated.*.go            @DataDog/container-ecosystems @DataDog/container-platform @DataDog/container-autoscaling
-/config/**/*datadogpodautoscaler*    @DataDog/container-autoscaling @DataDog/container-ecosystems @DataDog/container-platform
+/api/**/zz_generated.*.go             @DataDog/container-platform @DataDog/container-autoscaling
+/config/**/*datadogpodautoscaler*   @DataDog/container-autoscaling  @DataDog/container-platform
 
 # e2e tests
-/test/e2e/tests/autoscaling_suite/ @DataDog/container-autoscaling @DataDog/container-ecosystems @DataDog/container-platform
+/test/e2e/tests/autoscaling_suite/ @DataDog/container-autoscaling  @DataDog/container-platform
+
+# fleet automation
+/pkg/fleet    @DataDog/fleet @DataDog/container-platform

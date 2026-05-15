@@ -8,6 +8,8 @@ package usm
 import (
 	"testing"
 
+	"k8s.io/utils/ptr"
+
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
@@ -28,19 +30,26 @@ func Test_usmFeature_Configure(t *testing.T) {
 		Spec: v2alpha1.DatadogAgentSpec{
 			Features: &v2alpha1.DatadogFeatures{
 				USM: &v2alpha1.USMFeatureConfig{
-					Enabled: apiutils.NewBoolPointer(false),
+					Enabled: ptr.To(false),
 				},
 			},
 		},
 	}
 	ddaUSMEnabled := ddaUSMDisabled.DeepCopy()
 	{
-		ddaUSMEnabled.Spec.Features.USM.Enabled = apiutils.NewBoolPointer(true)
+		ddaUSMEnabled.Spec.Features.USM.Enabled = ptr.To(true)
 	}
+
 	ddaUSMDirectSendEnabled := ddaUSMEnabled.DeepCopy()
-	{
-		ddaUSMDirectSendEnabled.Spec.Features.NPM = &v2alpha1.NPMFeatureConfig{DirectSend: apiutils.NewBoolPointer(true)}
+	ddaUSMDirectSendEnabled.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+		v2alpha1.NodeAgentComponentName: {
+			Image: &v2alpha1.AgentImageConfig{Tag: "7.77.0"},
+		},
 	}
+	ddaUSMDirectSendEnabled.Spec.Features.NPM = &v2alpha1.NPMFeatureConfig{DirectSend: ptr.To(true)}
+
+	ddaUSMDirectSendEnabledUnsupportedAgentVersionConfig := ddaUSMDirectSendEnabled.DeepCopy()
+	ddaUSMDirectSendEnabledUnsupportedAgentVersionConfig.Spec.Override[v2alpha1.NodeAgentComponentName].Image.Tag = "7.76.0"
 
 	usmAgentNodeWantFunc := func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 		mgr := mgrInterface.(*fake.PodTemplateManagers)
@@ -102,11 +111,6 @@ func Test_usmFeature_Configure(t *testing.T) {
 				Name:      common.CgroupsVolumeName,
 				MountPath: common.CgroupsMountPath,
 				ReadOnly:  true,
-			},
-			{
-				Name:      common.DebugfsVolumeName,
-				MountPath: common.DebugfsPath,
-				ReadOnly:  false,
 			},
 			{
 				Name:      common.SystemProbeSocketVolumeName,
@@ -228,6 +232,12 @@ func Test_usmFeature_Configure(t *testing.T) {
 			DDA:           ddaUSMDirectSendEnabled,
 			WantConfigure: true,
 			Agent:         test.NewDefaultComponentTest().WithWantFunc(usmDirectSendNodeWantFunc),
+		},
+		{
+			Name:          "USM enabled, Direct Send enabled on unsupported agent version",
+			DDA:           ddaUSMDirectSendEnabledUnsupportedAgentVersionConfig,
+			WantConfigure: true,
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(usmAgentNodeWantFunc),
 		},
 	}
 

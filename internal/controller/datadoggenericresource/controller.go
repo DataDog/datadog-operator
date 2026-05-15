@@ -6,21 +6,19 @@ import (
 	"strings"
 	"time"
 
-	"github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
-	"github.com/DataDog/datadog-api-client-go/v2/api/datadogV2"
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/internal/controller/finalizer"
 	"github.com/DataDog/datadog-operator/internal/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/config"
 	ctrutils "github.com/DataDog/datadog-operator/pkg/controller/utils"
@@ -38,92 +36,62 @@ const (
 )
 
 type Reconciler struct {
-	client                  client.Client
-	datadogSyntheticsClient *datadogV1.SyntheticsApi
-	datadogNotebooksClient  *datadogV1.NotebooksApi
-	datadogMonitorsClient   *datadogV1.MonitorsApi
-	datadogDowntimesClient  *datadogV2.DowntimesApi
-	datadogAuth             context.Context
-	scheme                  *runtime.Scheme
-	log                     logr.Logger
-	recorder                record.EventRecorder
+	client       client.Client
+	credsManager *config.CredentialManager
+	handlers     map[v1alpha1.SupportedResourcesType]ResourceHandler
+	scheme       *runtime.Scheme
+	log          logr.Logger
+	recorder     record.EventRecorder
 }
 
-func NewReconciler(client client.Client, creds config.Creds, scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder) (*Reconciler, error) {
-	ddClient, err := datadogclient.InitDatadogGenericClient(log, creds)
-	if err != nil {
-		return &Reconciler{}, err
-	}
-
+func NewReconciler(client client.Client, credsManager *config.CredentialManager, scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder) *Reconciler {
 	return &Reconciler{
-		client:                  client,
-		datadogSyntheticsClient: ddClient.SyntheticsClient,
-		datadogNotebooksClient:  ddClient.NotebooksClient,
-		datadogMonitorsClient:   ddClient.MonitorsClient,
-		datadogDowntimesClient:  ddClient.DowntimesClient,
-		datadogAuth:             ddClient.Auth,
-		scheme:                  scheme,
-		log:                     log,
-		recorder:                recorder,
-	}, nil
-}
-
-func (r *Reconciler) UpdateDatadogClient(newCreds config.Creds) error {
-	r.log.Info("Recreating Datadog client due to credential change", "reconciler", "DatadogGenericResource")
-	ddClient, err := datadogclient.InitDatadogGenericClient(r.log, newCreds)
-	if err != nil {
-		return fmt.Errorf("unable to create Datadog API Client in DatadogGenericResource: %w", err)
+		client:       client,
+		credsManager: credsManager,
+		handlers:     buildHandlers(datadogclient.InitGenericClients()),
+		scheme:       scheme,
+		log:          log,
+		recorder:     recorder,
 	}
-	r.datadogSyntheticsClient = ddClient.SyntheticsClient
-	r.datadogNotebooksClient = ddClient.NotebooksClient
-	r.datadogMonitorsClient = ddClient.MonitorsClient
-	r.datadogDowntimesClient = ddClient.DowntimesClient
-	r.datadogAuth = ddClient.Auth
-
-	r.log.Info("Successfully recreated datadog client due to credential change", "reconciler", "DatadogGenericResource")
-	return nil
 }
 
-func (r *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
-	return r.internalReconcile(ctx, request)
+func (r *Reconciler) getHandler(resourceType v1alpha1.SupportedResourcesType) ResourceHandler {
+	h, ok := r.handlers[resourceType]
+	if !ok {
+		panic(unsupportedInstanceType(resourceType))
+	}
+	return h
 }
 
-func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
-	logger := r.log.WithValues("datadoggenericresource", req.NamespacedName)
-	logger.Info("Reconciling Datadog Generic Resource")
+func (r *Reconciler) Reconcile(ctx context.Context, instance *v1alpha1.DatadogGenericResource) (reconcile.Result, error) {
+	logger := ctrl.LoggerFrom(ctx)
+	logger.Info("Reconciling DatadogGenericResource")
+
+	auth, credErr := r.credsManager.GetAuth()
+	if credErr != nil {
+		return ctrl.Result{RequeueAfter: defaultErrRequeuePeriod}, fmt.Errorf("unable to get credentials: %w", credErr)
+	}
+
 	now := metav1.NewTime(time.Now())
 
-	instance := &v1alpha1.DatadogGenericResource{}
 	var result ctrl.Result
 	var err error
 
-	if err = r.client.Get(ctx, types.NamespacedName{Namespace: req.Namespace, Name: req.Name}, instance); err != nil {
-		if apierrors.IsNotFound(err) {
-			return ctrl.Result{}, nil
-		}
+	handler := r.getHandler(instance.Spec.Type)
 
-		return ctrl.Result{}, err
-	}
-
-	if result, err = r.handleFinalizer(logger, instance); ctrutils.ShouldReturn(result, err) {
+	final := finalizer.NewFinalizer(logger, r.client, r.deleteResource(logger, auth, handler), defaultRequeuePeriod, defaultErrRequeuePeriod)
+	if result, err = final.HandleFinalizer(ctx, instance, instance.Status.Id, datadogGenericResourceFinalizer); ctrutils.ShouldReturn(result, err) {
 		return result, err
 	}
 
 	status := instance.Status.DeepCopy()
 	statusSpecHash := instance.Status.CurrentHash
-
-	if err = v1alpha1.IsValidDatadogGenericResource(&instance.Spec); err != nil {
-		logger.Error(err, "invalid DatadogGenericResource")
-		updateErrStatus(status, now, v1alpha1.DatadogSyncStatusValidateError, "ValidatingGenericResource", err)
-		return r.updateStatusIfNeeded(logger, instance, status, result)
-	}
-
 	instanceSpecHash, err := comparison.GenerateMD5ForSpec(&instance.Spec)
 
 	if err != nil {
 		logger.Error(err, "error generating hash")
 		updateErrStatus(status, now, v1alpha1.DatadogSyncStatusUpdateError, "GeneratingGenericResourceSpecHash", err)
-		return r.updateStatusIfNeeded(logger, instance, status, result)
+		return r.updateStatusIfNeeded(ctx, instance, status, result)
 	}
 
 	shouldCreate := false
@@ -138,7 +106,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 		} else if instance.Status.LastForceSyncTime == nil || ((defaultForceSyncPeriod - now.Sub(instance.Status.LastForceSyncTime.Time)) <= 0) {
 			// Periodically force a sync with the API to ensure parity
 			// Make sure it exists before trying any updates. If it doesn't, set shouldCreate
-			err = r.get(instance)
+			err = handler.getResource(auth, instance)
 			if err != nil {
 				logger.Error(err, "error getting custom resource", "custom resource Id", instance.Status.Id, "resource type", instance.Spec.Type)
 				updateErrStatus(status, now, v1alpha1.DatadogSyncStatusGetError, "GettingCustomResource", err)
@@ -155,9 +123,9 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 	if shouldCreate || shouldUpdate {
 
 		if shouldCreate {
-			err = r.create(logger, instance, status, now, instanceSpecHash)
+			err = r.create(ctx, auth, handler, instance, status, now, instanceSpecHash)
 		} else if shouldUpdate {
-			err = r.update(logger, instance, status, now, instanceSpecHash)
+			err = r.update(ctx, auth, handler, instance, status, now, instanceSpecHash)
 		}
 
 		if err != nil {
@@ -166,23 +134,27 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 	}
 
 	// If reconcile was successful and uneventful, requeue with period defaultRequeuePeriod
-	if !result.Requeue && result.RequeueAfter == 0 {
+	if result.IsZero() {
 		result.RequeueAfter = defaultRequeuePeriod
 	}
 
-	return r.updateStatusIfNeeded(logger, instance, status, result)
+	return r.updateStatusIfNeeded(ctx, instance, status, result)
 }
 
-func (r *Reconciler) get(instance *v1alpha1.DatadogGenericResource) error {
-	return apiGet(r, instance)
-}
-
-func (r *Reconciler) update(logger logr.Logger, instance *v1alpha1.DatadogGenericResource, status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time, hash string) error {
+func (r *Reconciler) update(ctx context.Context, auth context.Context, handler ResourceHandler, instance *v1alpha1.DatadogGenericResource, status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time, hash string) error {
+	logger := ctrl.LoggerFrom(ctx)
 	// Update hash to reflect the spec we're attempting to sync (whether it succeeds or fails)
 	status.CurrentHash = hash
 
-	err := apiUpdate(r, instance)
+	err := handler.updateResource(auth, instance)
 	if err != nil {
+		if strings.Contains(err.Error(), ctrutils.NotFoundString) {
+			// If the remote resource was deleted out-of-band after we stored its ID,
+			// treat an update-time 404 as drift from the Kubernetes source of truth
+			// and recreate it immediately instead of waiting for the next force sync.
+			logger.Info("generic resource missing in Datadog during update; recreating", "generic resource Id", instance.Status.Id)
+			return r.create(ctx, auth, handler, instance, status, now, hash)
+		}
 		logger.Error(err, "error updating generic resource", "generic resource Id", instance.Status.Id)
 		updateErrStatus(status, now, v1alpha1.DatadogSyncStatusUpdateError, "UpdatingGenericResource", err)
 		return err
@@ -198,17 +170,31 @@ func (r *Reconciler) update(logger logr.Logger, instance *v1alpha1.DatadogGeneri
 	status.SyncStatus = v1alpha1.DatadogSyncStatusOK
 	status.LastForceSyncTime = &now
 
-	logger.Info("Updated Datadog Generic Resource", "Generic Resource Id", instance.Status.Id)
+	logger.Info("Updated DatadogGenericResource", "Generic Resource Id", instance.Status.Id)
 	return nil
 }
 
-func (r *Reconciler) create(logger logr.Logger, instance *v1alpha1.DatadogGenericResource, status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time, hash string) error {
+func (r *Reconciler) create(ctx context.Context, auth context.Context, handler ResourceHandler, instance *v1alpha1.DatadogGenericResource, status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time, hash string) error {
+	logger := ctrl.LoggerFrom(ctx)
 	logger.V(1).Info("Generic resource Id is not set; creating resource in Datadog")
 
-	err := apiCreateAndUpdateStatus(r, logger, instance, status, now, hash)
+	result, err := handler.createResource(auth, instance)
 	if err != nil {
+		logger.Error(err, "error creating resource", "type", instance.Spec.Type)
+		updateErrStatus(status, now, v1alpha1.DatadogSyncStatusCreateError, "CreatingCustomResource", err)
 		return err
 	}
+	createdTime := result.CreatedTime
+	if createdTime == nil {
+		createdTime = &now
+	}
+	status.Id = result.ID
+	status.Created = createdTime
+	status.LastForceSyncTime = createdTime
+	status.Creator = result.Creator
+	status.SyncStatus = v1alpha1.DatadogSyncStatusOK
+	status.CurrentHash = hash
+
 	event := buildEventInfo(instance.Name, instance.Namespace, datadog.CreationEvent)
 	r.recordEvent(instance, event)
 
@@ -226,10 +212,11 @@ func updateErrStatus(status *v1alpha1.DatadogGenericResourceStatus, now metav1.T
 	status.SyncStatus = syncStatus
 }
 
-func (r *Reconciler) updateStatusIfNeeded(logger logr.Logger, instance *v1alpha1.DatadogGenericResource, status *v1alpha1.DatadogGenericResourceStatus, result ctrl.Result) (ctrl.Result, error) {
+func (r *Reconciler) updateStatusIfNeeded(ctx context.Context, instance *v1alpha1.DatadogGenericResource, status *v1alpha1.DatadogGenericResourceStatus, result ctrl.Result) (ctrl.Result, error) {
 	if !apiequality.Semantic.DeepEqual(&instance.Status, status) {
 		instance.Status = *status
-		if err := r.client.Status().Update(context.TODO(), instance); err != nil {
+		if err := r.client.Status().Update(ctx, instance); err != nil {
+			logger := ctrl.LoggerFrom(ctx)
 			if apierrors.IsConflict(err) {
 				logger.Error(err, "unable to update DatadogGenericResource status due to update conflict")
 				return ctrl.Result{Requeue: true, RequeueAfter: defaultErrRequeuePeriod}, nil

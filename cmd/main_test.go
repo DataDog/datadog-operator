@@ -53,7 +53,7 @@ func TestGoroutinesNumberHealthzCheck_ConcurrentCallsLogSingleFailure(t *testing
 	const callers = 25
 	var wg sync.WaitGroup
 	wg.Add(callers)
-	for i := 0; i < callers; i++ {
+	for range callers {
 		go func() {
 			defer wg.Done()
 			_ = check(nil)

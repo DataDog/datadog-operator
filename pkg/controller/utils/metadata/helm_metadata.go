@@ -13,6 +13,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"maps"
 	"regexp"
 	"strconv"
 	"strings"
@@ -21,6 +22,7 @@ import (
 
 	"github.com/go-logr/logr"
 	"gopkg.in/yaml.v2"
+	authorizationv1 "k8s.io/api/authorization/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -64,6 +66,14 @@ type HelmMetadataForwarder struct {
 	// Key: "namespace/releaseName"
 	// Value: *ReleaseEntry
 	releaseSnapshots sync.Map
+
+	// configMapAccessEnabled tracks whether the operator has permission to list/watch ConfigMaps.
+	// Set once in Start() and used to skip the ConfigMap path in processKey.
+	configMapAccessEnabled bool
+
+	// secretAccessEnabled tracks whether the operator has permission to list/watch Secrets.
+	// Set once in Start() and used to skip the Secret path in processKey.
+	secretAccessEnabled bool
 }
 
 // ReleaseEntry wraps a ReleaseSnapshot with a mutex for safe concurrent access
@@ -131,14 +141,14 @@ type HelmReleaseMinimal struct {
 	Info      struct {
 		Status string `json:"status"`
 	} `json:"info"`
-	Config map[string]interface{} `json:"config"` // User-provided values only
+	Config map[string]any `json:"config"` // User-provided values only
 	Chart  struct {
 		Metadata struct {
 			Name       string `json:"name"`
 			Version    string `json:"version"`
 			AppVersion string `json:"appVersion"`
 		} `json:"metadata"`
-		Values map[string]interface{} `json:"values"` // Defaults
+		Values map[string]any `json:"values"` // Defaults
 	} `json:"chart"`
 	Version int `json:"version"` // Revision number
 }
@@ -154,75 +164,106 @@ func NewHelmMetadataForwarderWithManager(logger logr.Logger, mgr manager.Manager
 	}
 }
 
+// canListWatch checks if the operator has permission to list and watch the given resource
+func (hmf *HelmMetadataForwarder) canListWatch(ctx context.Context, resource string) bool {
+	for _, verb := range []string{"list", "watch"} {
+		sar := &authorizationv1.SelfSubjectAccessReview{
+			Spec: authorizationv1.SelfSubjectAccessReviewSpec{
+				ResourceAttributes: &authorizationv1.ResourceAttributes{
+					Verb:     verb,
+					Resource: resource,
+				},
+			},
+		}
+		if err := hmf.mgr.GetClient().Create(ctx, sar); err != nil {
+			hmf.logger.V(1).Info("Failed to check RBAC permission", "resource", resource, "verb", verb, "error", err)
+			return false
+		}
+		if !sar.Status.Allowed {
+			return false
+		}
+	}
+	return true
+}
+
 // Start implements manager.Runnable interface
 // It is called by the manager after the cache is synced but we don't need to initialize resources at start.
 // Cache sends synthetic 'Add' events to the newly registered handler, see
 // https://github.com/kubernetes/client-go/blob/v0.35.0/tools/cache/shared_informer.go#L693-L697
 // Errors are logged but do not prevent the operator from starting
 func (hmf *HelmMetadataForwarder) Start(ctx context.Context) error {
-	cmInformer, err := hmf.mgr.GetCache().GetInformer(ctx, &corev1.ConfigMap{})
-	if err != nil {
-		hmf.logger.Info("Unable to get ConfigMap informer, Helm metadata collection will be disabled", "error", err)
-		return nil
+	hmf.configMapAccessEnabled = false
+	if hmf.canListWatch(ctx, "configmaps") {
+		cmInformer, err := hmf.mgr.GetCache().GetInformer(ctx, &corev1.ConfigMap{})
+		if err != nil {
+			hmf.logger.Info("Unable to get ConfigMap informer, Helm metadata collection from ConfigMaps will be disabled", "error", err)
+		} else {
+			_, err = cmInformer.AddEventHandler(toolscache.FilteringResourceEventHandler{
+				FilterFunc: func(obj any) bool {
+					cm, ok := obj.(*corev1.ConfigMap)
+					return ok &&
+						cm.Labels["owner"] == "helm" &&
+						strings.HasPrefix(cm.Name, releasePrefix)
+				},
+				Handler: toolscache.ResourceEventHandlerFuncs{
+					AddFunc: func(obj any) {
+						if key, keyErr := toolscache.MetaNamespaceKeyFunc(obj); keyErr == nil {
+							hmf.queue.Add(key)
+							hmf.logger.V(2).Info("Enqueued ConfigMap for processing", "key", key)
+						}
+					},
+					DeleteFunc: func(obj any) {
+						if key, keyErr := toolscache.DeletionHandlingMetaNamespaceKeyFunc(obj); keyErr == nil {
+							hmf.queue.Add(deletePrefix + key)
+							hmf.logger.V(2).Info("Enqueued ConfigMap deletion for processing", "key", key)
+						}
+					},
+				},
+			})
+			if err != nil {
+				hmf.logger.Info("Unable to add ConfigMap event handler, Helm metadata collection from ConfigMaps will be disabled", "error", err)
+			} else {
+				hmf.configMapAccessEnabled = true
+			}
+		}
+	} else {
+		hmf.logger.Info("No permission to list/watch ConfigMaps, Helm metadata collection from ConfigMaps will be disabled")
 	}
-	secretInformer, err := hmf.mgr.GetCache().GetInformer(ctx, &corev1.Secret{})
-	if err != nil {
-		hmf.logger.Info("Unable to get Secret informer, Helm metadata collection will be disabled", "error", err)
-		return nil
-	}
 
-	_, err = cmInformer.AddEventHandler(toolscache.FilteringResourceEventHandler{
-		FilterFunc: func(obj any) bool {
-			cm, ok := obj.(*corev1.ConfigMap)
-			return ok &&
-				cm.Labels["owner"] == "helm" &&
-				strings.HasPrefix(cm.Name, releasePrefix)
-		},
-		Handler: toolscache.ResourceEventHandlerFuncs{
-			AddFunc: func(obj any) {
-				if key, keyErr := toolscache.MetaNamespaceKeyFunc(obj); keyErr == nil {
-					hmf.queue.Add(key)
-					hmf.logger.V(1).Info("Enqueued ConfigMap for processing", "key", key)
-				}
-			},
-			DeleteFunc: func(obj any) {
-				if key, keyErr := toolscache.DeletionHandlingMetaNamespaceKeyFunc(obj); keyErr == nil {
-					hmf.queue.Add(deletePrefix + key)
-					hmf.logger.V(1).Info("Enqueued ConfigMap deletion for processing", "key", key)
-				}
-			},
-		},
-	})
-
-	if err != nil {
-		hmf.logger.Info("Unable to add ConfigMap event handler, Helm metadata collection will be disabled", "error", err)
-		return nil
-	}
-
-	_, err = secretInformer.AddEventHandler(toolscache.FilteringResourceEventHandler{
-		FilterFunc: func(obj any) bool {
-			secret, ok := obj.(*corev1.Secret)
-			return ok &&
-				secret.Labels["owner"] == "helm" &&
-				strings.HasPrefix(secret.Name, releasePrefix)
-		},
-		Handler: toolscache.ResourceEventHandlerFuncs{
-			AddFunc: func(obj any) {
-				if key, keyErr := toolscache.MetaNamespaceKeyFunc(obj); keyErr == nil {
-					hmf.queue.Add(key)
-				}
-			},
-			DeleteFunc: func(obj any) {
-				if key, keyErr := toolscache.DeletionHandlingMetaNamespaceKeyFunc(obj); keyErr == nil {
-					hmf.queue.Add(deletePrefix + key)
-				}
-			},
-		},
-	})
-
-	if err != nil {
-		hmf.logger.Info("Unable to add Secret event handler, Helm metadata collection will be disabled", "error", err)
-		return nil
+	hmf.secretAccessEnabled = false
+	if hmf.canListWatch(ctx, "secrets") {
+		secretInformer, secretErr := hmf.mgr.GetCache().GetInformer(ctx, &corev1.Secret{})
+		if secretErr != nil {
+			hmf.logger.Info("Unable to get Secret informer, Helm metadata collection from Secrets will be disabled", "error", secretErr)
+		} else {
+			_, secretErr = secretInformer.AddEventHandler(toolscache.FilteringResourceEventHandler{
+				FilterFunc: func(obj any) bool {
+					secret, ok := obj.(*corev1.Secret)
+					return ok &&
+						secret.Labels["owner"] == "helm" &&
+						strings.HasPrefix(secret.Name, releasePrefix)
+				},
+				Handler: toolscache.ResourceEventHandlerFuncs{
+					AddFunc: func(obj any) {
+						if key, keyErr := toolscache.MetaNamespaceKeyFunc(obj); keyErr == nil {
+							hmf.queue.Add(key)
+						}
+					},
+					DeleteFunc: func(obj any) {
+						if key, keyErr := toolscache.DeletionHandlingMetaNamespaceKeyFunc(obj); keyErr == nil {
+							hmf.queue.Add(deletePrefix + key)
+						}
+					},
+				},
+			})
+			if secretErr != nil {
+				hmf.logger.Info("Unable to add Secret event handler, Helm metadata collection from Secrets will be disabled", "error", secretErr)
+			} else {
+				hmf.secretAccessEnabled = true
+			}
+		}
+	} else {
+		hmf.logger.Info("No permission to list/watch Secrets, Helm metadata collection from Secrets will be disabled")
 	}
 
 	// Cache is already synced by the manager before Start() is called
@@ -249,7 +290,7 @@ func (hmf *HelmMetadataForwarder) runWorkers(ctx context.Context, numWorkers int
 		hmf.queue.ShutDown()
 	}()
 
-	for i := 0; i < numWorkers; i++ {
+	for i := range numWorkers {
 		go func(workerID int) {
 			// Recover from panics to prevent one worker crash from affecting others
 			defer utilruntime.HandleCrash()
@@ -268,8 +309,8 @@ func (hmf *HelmMetadataForwarder) runWorkers(ctx context.Context, numWorkers int
 					defer cancel()
 
 					var err error
-					if strings.HasPrefix(key, deletePrefix) {
-						hmf.handleDelete(strings.TrimPrefix(key, deletePrefix))
+					if after, ok := strings.CutPrefix(key, deletePrefix); ok {
+						hmf.handleDelete(after)
 					} else {
 						err = hmf.processKey(ctx, key)
 					}
@@ -292,28 +333,38 @@ func (hmf *HelmMetadataForwarder) processKey(ctx context.Context, key string) er
 		return fmt.Errorf("invalid key format: %w", err)
 	}
 
-	// Try to get as ConfigMap first
-	cm := &corev1.ConfigMap{}
-	err = hmf.k8sClient.Get(ctx, client.ObjectKey{Namespace: namespace, Name: name}, cm)
-	if err == nil && cm.Labels["owner"] == "helm" {
-		hmf.handleHelmResource(ctx, cm.Name, cm.Namespace, string(cm.UID), []byte(cm.Data["release"]))
-		return nil
+	var lastErr error
+
+	// Try to get as ConfigMap first (only if we have permission, to avoid lazily registering a ConfigMap informer)
+	if hmf.configMapAccessEnabled {
+		cm := &corev1.ConfigMap{}
+		lastErr = hmf.k8sClient.Get(ctx, client.ObjectKey{Namespace: namespace, Name: name}, cm)
+		if lastErr == nil && cm.Labels["owner"] == "helm" {
+			hmf.handleHelmResource(ctx, cm.Name, cm.Namespace, string(cm.UID), []byte(cm.Data["release"]))
+			return nil
+		}
 	}
 
-	// Try as Secret
-	secret := &corev1.Secret{}
-	err = hmf.k8sClient.Get(ctx, client.ObjectKey{Namespace: namespace, Name: name}, secret)
-	if err == nil && secret.Labels["owner"] == "helm" {
-		hmf.handleHelmResource(ctx, secret.Name, secret.Namespace, string(secret.UID), secret.Data["release"])
-		return nil
+	// Try as Secret (only if we have permission, to avoid lazily registering a Secret informer)
+	if hmf.secretAccessEnabled {
+		secret := &corev1.Secret{}
+		lastErr = hmf.k8sClient.Get(ctx, client.ObjectKey{Namespace: namespace, Name: name}, secret)
+		if lastErr == nil && secret.Labels["owner"] == "helm" {
+			hmf.handleHelmResource(ctx, secret.Name, secret.Namespace, string(secret.UID), secret.Data["release"])
+			return nil
+		}
 	}
 
 	// If not found, likely a race condition with deletion - ignore it
-	if errors.IsNotFound(err) {
+	if errors.IsNotFound(lastErr) {
 		return nil
 	}
 
-	return fmt.Errorf("failed to get resource: %w", err)
+	if lastErr != nil {
+		return fmt.Errorf("failed to get resource: %w", lastErr)
+	}
+
+	return nil
 }
 
 // handleDelete handles deletion of a Helm release
@@ -356,7 +407,7 @@ func (hmf *HelmMetadataForwarder) handleHelmResource(ctx context.Context, name, 
 
 	// Filter for allowed charts (after decoding)
 	if !allowedCharts[release.Chart.Metadata.Name] {
-		hmf.logger.V(1).Info("Skipping non-allowed chart",
+		hmf.logger.V(2).Info("Skipping non-allowed chart",
 			"chart", release.Chart.Metadata.Name,
 			"release", releaseName)
 		return
@@ -373,7 +424,7 @@ func (hmf *HelmMetadataForwarder) handleHelmResource(ctx context.Context, name, 
 
 	// Check if we should update (prevent old revisions)
 	if entry.snapshot != nil && entry.snapshot.Revision >= revision {
-		hmf.logger.V(1).Info("Skipping old/same revision",
+		hmf.logger.V(2).Info("Skipping old/same revision",
 			"key", key,
 			"existing", entry.snapshot.Revision,
 			"new", revision)
@@ -471,12 +522,10 @@ func (hmf *HelmMetadataForwarder) tickerLoop(ctx context.Context) {
 
 // sendAllSnapshots sends all release snapshots
 func (hmf *HelmMetadataForwarder) sendAllSnapshots() {
-	hmf.logger.V(1).Info("Ticker: sending all Helm release snapshots")
-
 	count := 0
 	errors := 0
 
-	hmf.releaseSnapshots.Range(func(key, value interface{}) bool {
+	hmf.releaseSnapshots.Range(func(key, value any) bool {
 		entry := value.(*ReleaseEntry)
 
 		entry.mu.Lock()
@@ -505,7 +554,7 @@ func (hmf *HelmMetadataForwarder) sendAllSnapshots() {
 	})
 
 	if count > 0 {
-		hmf.logger.V(1).Info("Ticker: sent Helm release snapshots",
+		hmf.logger.V(2).Info("Ticker: sent Helm release snapshots",
 			"sent", count,
 			"errors", errors)
 	}
@@ -640,17 +689,15 @@ func (hmf *HelmMetadataForwarder) decodeHelmReleaseFromBytes(data []byte) (*Helm
 
 // mergeValues merges chart default values with user-provided config
 // User config takes precedence over defaults (similar to Helm's merge logic)
-func (hmf *HelmMetadataForwarder) mergeValues(defaults, overrides map[string]interface{}) map[string]interface{} {
-	result := make(map[string]interface{})
+func (hmf *HelmMetadataForwarder) mergeValues(defaults, overrides map[string]any) map[string]any {
+	result := make(map[string]any)
 
-	for k, v := range defaults {
-		result[k] = v
-	}
+	maps.Copy(result, defaults)
 
 	for k, v := range overrides {
 		if existingVal, exists := result[k]; exists {
-			if existingMap, ok := existingVal.(map[string]interface{}); ok {
-				if overrideMap, ok := v.(map[string]interface{}); ok {
+			if existingMap, ok := existingVal.(map[string]any); ok {
+				if overrideMap, ok := v.(map[string]any); ok {
 					result[k] = hmf.mergeValues(existingMap, overrideMap)
 					continue
 				}

@@ -8,6 +8,8 @@ package npm
 import (
 	"testing"
 
+	"k8s.io/utils/ptr"
+
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
@@ -27,20 +29,28 @@ func Test_npmFeature_Configure(t *testing.T) {
 		Spec: v2alpha1.DatadogAgentSpec{
 			Features: &v2alpha1.DatadogFeatures{
 				NPM: &v2alpha1.NPMFeatureConfig{
-					Enabled: apiutils.NewBoolPointer(false),
+					Enabled: ptr.To(false),
 				},
 			},
 		},
 	}
 	ddaNPMEnabled := ddaNPMDisabled.DeepCopy()
-	ddaNPMEnabled.Spec.Features.NPM.Enabled = apiutils.NewBoolPointer(true)
+	ddaNPMEnabled.Spec.Features.NPM.Enabled = ptr.To(true)
 
 	ddaNPMEnabledConfig := ddaNPMEnabled.DeepCopy()
-	ddaNPMEnabledConfig.Spec.Features.NPM.CollectDNSStats = apiutils.NewBoolPointer(true)
-	ddaNPMEnabledConfig.Spec.Features.NPM.EnableConntrack = apiutils.NewBoolPointer(false)
+	ddaNPMEnabledConfig.Spec.Features.NPM.CollectDNSStats = ptr.To(true)
+	ddaNPMEnabledConfig.Spec.Features.NPM.EnableConntrack = ptr.To(false)
 
 	ddaCNMDirectSendEnabledConfig := ddaNPMEnabled.DeepCopy()
-	ddaCNMDirectSendEnabledConfig.Spec.Features.NPM.DirectSend = apiutils.NewBoolPointer(true)
+	ddaCNMDirectSendEnabledConfig.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+		v2alpha1.NodeAgentComponentName: {
+			Image: &v2alpha1.AgentImageConfig{Tag: "7.77.0"},
+		},
+	}
+	ddaCNMDirectSendEnabledConfig.Spec.Features.NPM.DirectSend = ptr.To(true)
+
+	ddaCNMDirectSendEnabledUnsupportedAgentVersionConfig := ddaCNMDirectSendEnabledConfig.DeepCopy()
+	ddaCNMDirectSendEnabledUnsupportedAgentVersionConfig.Spec.Override[v2alpha1.NodeAgentComponentName].Image.Tag = "7.76.0"
 
 	npmFeatureEnvVarWantFunc := func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 		mgr := mgrInterface.(*fake.PodTemplateManagers)
@@ -100,11 +110,6 @@ func Test_npmFeature_Configure(t *testing.T) {
 				MountPath: common.CgroupsMountPath,
 				ReadOnly:  true,
 			},
-			{
-				Name:      common.DebugfsVolumeName,
-				MountPath: common.DebugfsPath,
-				ReadOnly:  false,
-			},
 		}
 
 		wantProcessAgentVolMounts := append(wantVolumeMounts, corev1.VolumeMount{
@@ -114,6 +119,10 @@ func Test_npmFeature_Configure(t *testing.T) {
 		})
 
 		wantSystemProbeAgentVolMounts := append(wantVolumeMounts, corev1.VolumeMount{
+			Name:      common.DebugfsVolumeName,
+			MountPath: common.DebugfsPath,
+			ReadOnly:  false,
+		}, corev1.VolumeMount{
 			Name:      common.SystemProbeSocketVolumeName,
 			MountPath: common.SystemProbeSocketVolumePath,
 			ReadOnly:  false,
@@ -276,6 +285,12 @@ func Test_npmFeature_Configure(t *testing.T) {
 			DDA:           ddaCNMDirectSendEnabledConfig,
 			WantConfigure: true,
 			Agent:         test.NewDefaultComponentTest().WithWantFunc(cnmDirectSendWantFunc),
+		},
+		{
+			Name:          "CNM enabled, Direct Send enabled on unsupported agent version",
+			DDA:           ddaCNMDirectSendEnabledUnsupportedAgentVersionConfig,
+			WantConfigure: true,
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(npmAgentNodeWantFunc),
 		},
 	}
 

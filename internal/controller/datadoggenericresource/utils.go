@@ -7,69 +7,21 @@ import (
 	"strconv"
 
 	datadogapi "github.com/DataDog/datadog-api-client-go/v2/api/datadog"
-	"github.com/go-logr/logr"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/pkg/datadogclient"
 )
 
-// mockSubresource is used to mock the subresource in tests
-const mockSubresource = "mock_resource"
-
-type MockHandler struct{}
-
-func (h *MockHandler) createResourcefunc(r *Reconciler, logger logr.Logger, instance *v1alpha1.DatadogGenericResource, status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time, hash string) error {
-	status.Id = "mock-id"
-	status.Created = &now
-	status.LastForceSyncTime = &now
-	status.Creator = "mock-creator"
-	status.SyncStatus = v1alpha1.DatadogSyncStatusOK
-	status.CurrentHash = hash
-	return nil
-}
-
-func (h *MockHandler) getResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
-	return nil
-}
-func (h *MockHandler) updateResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
-	return nil
-}
-func (h *MockHandler) deleteResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
-	return nil
-}
-
-func apiDelete(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
-	return getHandler(instance.Spec.Type).deleteResourcefunc(r, instance)
-}
-
-func apiGet(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
-	return getHandler(instance.Spec.Type).getResourcefunc(r, instance)
-}
-
-func apiUpdate(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
-	return getHandler(instance.Spec.Type).updateResourcefunc(r, instance)
-}
-
-func apiCreateAndUpdateStatus(r *Reconciler, logger logr.Logger, instance *v1alpha1.DatadogGenericResource, status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time, hash string) error {
-	return getHandler(instance.Spec.Type).createResourcefunc(r, logger, instance, status, now, hash)
-}
-
-func getHandler(resourceType v1alpha1.SupportedResourcesType) ResourceHandler {
-	switch resourceType {
-	case v1alpha1.Downtime:
-		return &DowntimeHandler{}
-	case v1alpha1.Monitor:
-		return &MonitorHandler{}
-	case v1alpha1.Notebook:
-		return &NotebookHandler{}
-	case v1alpha1.SyntheticsAPITest:
-		return &SyntheticsAPITestHandler{}
-	case v1alpha1.SyntheticsBrowserTest:
-		return &SyntheticsBrowserTestHandler{}
-	case mockSubresource:
-		return &MockHandler{}
-	default:
-		panic(unsupportedInstanceType(resourceType))
+// buildHandlers creates a handler for each supported resource type, each holding
+// its own API client. Auth is passed per-call via the ResourceHandler methods.
+func buildHandlers(clients *datadogclient.GenericClients) map[v1alpha1.SupportedResourcesType]ResourceHandler {
+	return map[v1alpha1.SupportedResourcesType]ResourceHandler{
+		v1alpha1.Dashboard:             &DashboardHandler{client: clients.DashboardsClient},
+		v1alpha1.Downtime:              &DowntimeHandler{client: clients.DowntimesClient},
+		v1alpha1.Monitor:               &MonitorHandler{client: clients.MonitorsClient},
+		v1alpha1.Notebook:              &NotebookHandler{client: clients.NotebooksClient},
+		v1alpha1.SyntheticsAPITest:     &SyntheticsAPITestHandler{client: clients.SyntheticsClient},
+		v1alpha1.SyntheticsBrowserTest: &SyntheticsBrowserTestHandler{client: clients.SyntheticsClient},
 	}
 }
 
