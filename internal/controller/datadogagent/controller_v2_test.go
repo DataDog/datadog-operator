@@ -1248,6 +1248,9 @@ func Test_AutopilotOverrides(t *testing.T) {
 				ds := &appsv1.DaemonSet{}
 				err := c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: dsName}, ds)
 				assert.NoError(t, err, "Failed to get DaemonSet %s/%s", resourcesNamespace, dsName)
+				assertNoDanglingVolumeMounts(t, ds.Spec.Template.Spec)
+				assertNoEnvVarInPodSpec(t, ds.Spec.Template.Spec, common.DDAuthTokenFilePath)
+				assertSeccompSecurityMountReadOnly(t, ds.Spec.Template.Spec)
 
 				forbiddenVolumes := map[string]struct{}{
 					common.AuthVolumeName:            {},
@@ -1334,6 +1337,9 @@ func Test_AutopilotOverrides(t *testing.T) {
 				ds := &appsv1.DaemonSet{}
 				err := c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: dsName}, ds)
 				assert.NoError(t, err, "Failed to get DaemonSet %s/%s", resourcesNamespace, dsName)
+				assertNoDanglingVolumeMounts(t, ds.Spec.Template.Spec)
+				assertNoEnvVarInPodSpec(t, ds.Spec.Template.Spec, common.DDAuthTokenFilePath)
+				assertSeccompSecurityMountReadOnly(t, ds.Spec.Template.Spec)
 
 				traceAgentFound := false
 				for _, ctn := range ds.Spec.Template.Spec.Containers {
@@ -1387,6 +1393,59 @@ func verifyDaemonsetContainers(t *testing.T, c client.Client, resourcesNamespace
 	sort.Strings(dsContainers)
 	sort.Strings(expectedContainers)
 	assert.Equal(t, expectedContainers, dsContainers, "Container names don't match")
+}
+
+func assertNoDanglingVolumeMounts(t *testing.T, podSpec corev1.PodSpec) {
+	t.Helper()
+
+	volumes := map[string]struct{}{}
+	for _, volume := range podSpec.Volumes {
+		volumes[volume.Name] = struct{}{}
+	}
+
+	for _, container := range podSpec.InitContainers {
+		for _, mount := range container.VolumeMounts {
+			_, found := volumes[mount.Name]
+			assert.True(t, found, "init container %s has mount %s without a matching volume", container.Name, mount.Name)
+		}
+	}
+	for _, container := range podSpec.Containers {
+		for _, mount := range container.VolumeMounts {
+			_, found := volumes[mount.Name]
+			assert.True(t, found, "container %s has mount %s without a matching volume", container.Name, mount.Name)
+		}
+	}
+}
+
+func assertNoEnvVarInPodSpec(t *testing.T, podSpec corev1.PodSpec, name string) {
+	t.Helper()
+
+	for _, container := range podSpec.InitContainers {
+		for _, env := range container.Env {
+			assert.NotEqual(t, name, env.Name, "init container %s should not have env var %s", container.Name, name)
+		}
+	}
+	for _, container := range podSpec.Containers {
+		for _, env := range container.Env {
+			assert.NotEqual(t, name, env.Name, "container %s should not have env var %s", container.Name, name)
+		}
+	}
+}
+
+func assertSeccompSecurityMountReadOnly(t *testing.T, podSpec corev1.PodSpec) {
+	t.Helper()
+
+	for _, container := range podSpec.InitContainers {
+		if container.Name != string(apicommon.SeccompSetupContainerName) {
+			continue
+		}
+		for _, mount := range container.VolumeMounts {
+			if mount.Name == common.SeccompSecurityVolumeName {
+				assert.True(t, mount.ReadOnly, "init container %s should mount %s read-only", container.Name, mount.Name)
+				return
+			}
+		}
+	}
 }
 
 func verifyPDB(t *testing.T, c client.Client) {
