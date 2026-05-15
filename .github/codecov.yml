@@ -36,4 +36,11 @@ comment:
 
 ignore:
   - "test/**/*"  # ignore folders and all its contents
+  - "hack/**/*" # developer tooling
+  - "marketplaces/**/*" # marketplace packaging/release tooling
+  - "examples/**/*" # sample manifests
+  - "docs/**/*" # documentation and generated docs
+  - "config/**/*" # generated/deployment manifests
+  - "bundle/**/*" # generated OLM bundle manifests
+  - "api/datadoghq/**/*_types.go" # CRD schema type declarations
   - "**/zz_generated.*.go" # api generated files

@@ -1,6 +1,13 @@
 schema-version: v1
 ignore:
   - "test/"
+  - "hack/"
+  - "marketplaces/"
+  - "examples/"
+  - "docs/"
+  - "config/"
+  - "bundle/"
+  - "api/datadoghq/**/*_types.go"
   - "**/zz_generated.*.go"
 gates:
   - type: patch_coverage_percentage
