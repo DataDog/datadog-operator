@@ -22,12 +22,14 @@ type Config struct {
 	Mode            string
 	NamePrefix      string
 	FillConcurrency int
+	QPS             int
+	Burst           int
 }
 
 func parseFlags() Config {
 	cfg := Config{}
 	flag.StringVar(&cfg.Kubeconfig, "kubeconfig", os.Getenv("KUBECONFIG"), "path to kubeconfig (default: $KUBECONFIG or ~/.kube/config)")
-	flag.StringVar(&cfg.Namespace, "namespace", "ddgr-loadtest", "namespace for DDGRs")
+	flag.StringVar(&cfg.Namespace, "namespace", "system", "namespace for DDGRs (must match operator's WATCH_NAMESPACE)")
 	flag.IntVar(&cfg.Count, "count", 500, "steady-state monitor count")
 	flag.IntVar(&cfg.ChurnPercent, "churn-percent", 10, "percent of monitors mutated per churn tick")
 	flag.DurationVar(&cfg.ChurnInterval, "churn-interval", 2*time.Minute, "time between churn ticks")
@@ -35,7 +37,9 @@ func parseFlags() Config {
 	flag.Int64Var(&cfg.Seed, "seed", 1, "RNG seed (deterministic churn selection)")
 	flag.StringVar(&cfg.Mode, "mode", "run", "run | cleanup")
 	flag.StringVar(&cfg.NamePrefix, "name-prefix", "loadtest", "prefix for generated DDGR names")
-	flag.IntVar(&cfg.FillConcurrency, "fill-concurrency", 10, "bounded create concurrency for fill phase")
+	flag.IntVar(&cfg.FillConcurrency, "fill-concurrency", 50, "bounded create concurrency for fill phase")
+	flag.IntVar(&cfg.QPS, "qps", 500, "client-side QPS limit on Kubernetes API requests")
+	flag.IntVar(&cfg.Burst, "burst", 1000, "client-side burst on Kubernetes API requests")
 	flag.Parse()
 	return cfg
 }

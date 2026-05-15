@@ -6,6 +6,8 @@ metadata:
   namespace: system
 spec:
   global:
+    kubelet:
+      tlsVerify: false
     clusterName: ddgr-perf-test
     site: datadoghq.com # adjust if sandbox is on a different site (e.g. datadoghq.eu)
     credentials:
@@ -21,3 +23,10 @@ spec:
     logCollection:
       enabled: true
       containerCollectAll: true
+  override:
+    nodeAgent:
+      containers:
+        agent:
+          env:
+            - name: DD_CLUSTER_NAME
+              value: ddgr-test

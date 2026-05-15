@@ -47,6 +47,8 @@ func NewRunner(cfg Config) (*Runner, error) {
 	if err != nil {
 		return nil, fmt.Errorf("kubeconfig: %w", err)
 	}
+	rest.QPS = float32(cfg.QPS)
+	rest.Burst = cfg.Burst
 	cli, err := client.New(rest, client.Options{Scheme: scheme})
 	if err != nil {
 		return nil, fmt.Errorf("k8s client: %w", err)

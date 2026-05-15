@@ -40,12 +40,23 @@ spec:
         - --enable-leader-election
         - --pprof
         - --profiling-enabled
+        - --datadogGenericResourceEnabled
         image: controller:latest
         imagePullPolicy: IfNotPresent
         name: manager
         env:
         - name: DD_ENV
           value: "ddgr-perf-test"
+        - name: DD_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: sandbox-datadog-creds
+              key: api-key
+        - name: DD_APP_KEY
+          valueFrom:
+            secretKeyRef:
+              name: sandbox-datadog-creds
+              key: app-key
         - name: DD_HOSTNAME
           valueFrom:
             fieldRef:
