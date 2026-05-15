@@ -76,7 +76,7 @@ func (r *Reconciler) manageGlobalDependencies(ctx context.Context, ddai *datadog
 func (r *Reconciler) manageFeatureDependencies(features []feature.Feature, resourceManagers feature.ResourceManagers) error {
 	var errs []error
 	for _, feat := range features {
-		if err := feat.ManageDependencies(resourceManagers, ""); err != nil {
+		if err := feat.ManageDependencies(resourceManagers); err != nil {
 			errs = append(errs, err)
 		}
 	}

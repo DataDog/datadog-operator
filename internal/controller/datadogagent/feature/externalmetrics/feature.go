@@ -148,7 +148,7 @@ func (f *externalMetricsFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *externalMetricsFeature) ManageDependencies(managers feature.ResourceManagers, provider string) error {
+func (f *externalMetricsFeature) ManageDependencies(managers feature.ResourceManagers) error {
 	ns := f.owner.GetNamespace()
 	// service
 	emPorts := []corev1.ServicePort{
@@ -266,7 +266,7 @@ func (f *externalMetricsFeature) ManageDependencies(managers feature.ResourceMan
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *externalMetricsFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *externalMetricsFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
 	managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
 		Name:  DDExternalMetricsProviderEnabled,
 		Value: "true",
@@ -342,22 +342,22 @@ func (f *externalMetricsFeature) ManageClusterAgent(managers feature.PodTemplate
 // ManageSingleContainerNodeAgent allows a feature to configure the Agent container for the Node Agent's corev1.PodTemplateSpec
 // if SingleContainerStrategy is enabled and can be used with the configured feature set.
 // It should do nothing if the feature doesn't need to configure it.
-func (f *externalMetricsFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *externalMetricsFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers) error {
 	return nil
 }
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *externalMetricsFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *externalMetricsFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
 	return nil
 }
 
 // ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunner's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *externalMetricsFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
+func (f *externalMetricsFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
 	return nil
 }
 
-func (f *externalMetricsFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
+func (f *externalMetricsFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers) error {
 	return nil
 }

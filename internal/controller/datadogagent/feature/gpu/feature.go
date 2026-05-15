@@ -77,13 +77,13 @@ func (f *gpuFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.DatadogAgentSp
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *gpuFeature) ManageDependencies(managers feature.ResourceManagers, provider string) error {
+func (f *gpuFeature) ManageDependencies(managers feature.ResourceManagers) error {
 	return nil
 }
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *gpuFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *gpuFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
 	return nil
 }
 
@@ -199,7 +199,7 @@ func (f *gpuFeature) configureCgroupPermissions(managers feature.PodTemplateMana
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *gpuFeature) ManageNodeAgent(managers feature.PodTemplateManagers, _ string) error {
+func (f *gpuFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
 	// env var to enable the GPU core check
 	enableCoreCheckEnvVar := &corev1.EnvVar{
 		Name:  DDEnableGPUMonitoringCheckEnvVar,
@@ -271,16 +271,16 @@ func (f *gpuFeature) ManageNodeAgent(managers feature.PodTemplateManagers, _ str
 // ManageSingleContainerNodeAgent allows a feature to configure the Agent container for the Node Agent's corev1.PodTemplateSpec
 // if SingleContainerStrategy is enabled and can be used with the configured feature set.
 // It should do nothing if the feature doesn't need to configure it.
-func (f *gpuFeature) ManageSingleContainerNodeAgent(feature.PodTemplateManagers, string) error {
+func (f *gpuFeature) ManageSingleContainerNodeAgent(feature.PodTemplateManagers) error {
 	return nil
 }
 
 // ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunner's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *gpuFeature) ManageClusterChecksRunner(feature.PodTemplateManagers, string) error {
+func (f *gpuFeature) ManageClusterChecksRunner(feature.PodTemplateManagers) error {
 	return nil
 }
 
-func (f *gpuFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
+func (f *gpuFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers) error {
 	return nil
 }

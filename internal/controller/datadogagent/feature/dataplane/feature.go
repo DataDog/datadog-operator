@@ -70,26 +70,26 @@ func (f *dataPlaneFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Datado
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *dataPlaneFeature) ManageDependencies(managers feature.ResourceManagers, provider string) error {
+func (f *dataPlaneFeature) ManageDependencies(managers feature.ResourceManagers) error {
 	return nil
 }
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *dataPlaneFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *dataPlaneFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
 	return nil
 }
 
 // ManageSingleContainerNodeAgent allows a feature to configure the Agent container for the Node Agent's corev1.PodTemplateSpec
 // if SingleContainerStrategy is enabled and can be used with the configured feature set.
 // It should do nothing if the feature doesn't need to configure it.
-func (f *dataPlaneFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
-	return f.ManageNodeAgent(managers, provider)
+func (f *dataPlaneFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers) error {
+	return f.ManageNodeAgent(managers)
 }
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *dataPlaneFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *dataPlaneFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
 	// We set the relevant configuration on the Core Agent specifically, which trickles down to the Data Plane when it
 	// queries the Core Agent for its configuration.
 	//
@@ -125,10 +125,10 @@ func (f *dataPlaneFeature) ManageNodeAgent(managers feature.PodTemplateManagers,
 
 // ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunner's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *dataPlaneFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
+func (f *dataPlaneFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
 	return nil
 }
 
-func (f *dataPlaneFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
+func (f *dataPlaneFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers) error {
 	return nil
 }

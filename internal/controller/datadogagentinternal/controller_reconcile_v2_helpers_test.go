@@ -38,32 +38,32 @@ func (df *dummyFeature) Configure(ddai metav1.Object, ddaiSpec *v2alpha1.Datadog
 }
 
 // ManageDependencies returns a predefined error (or nil for success).
-func (df *dummyFeature) ManageDependencies(managers feature.ResourceManagers, provider string) error {
+func (df *dummyFeature) ManageDependencies(managers feature.ResourceManagers) error {
 	return df.ManageDependenciesError
 }
 
 // ManageClusterAgent returns a predefined error (or nil for success).
-func (df *dummyFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
+func (df *dummyFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
 	return df.ManageClusterAgentError
 }
 
 // ManageNodeAgent returns a predefined error (or nil for success).
-func (df *dummyFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+func (df *dummyFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
 	return df.ManageNodeAgentError
 }
 
 // ManageSingleContainerNodeAgent returns a predefined error (or nil for success).
-func (df *dummyFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+func (df *dummyFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers) error {
 	return df.ManageSingleContainerAgentError
 }
 
 // ManageClusterChecksRunner returns a predefined error (or nil for success).
-func (df *dummyFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
+func (df *dummyFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
 	return df.ManageClusterChecksRunnerError
 }
 
 // ManageOtelAgentGateway returns a predefined error (or nil for success).
-func (df *dummyFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
+func (df *dummyFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers) error {
 	return df.ManageOtelAgentGatewayError
 }
 

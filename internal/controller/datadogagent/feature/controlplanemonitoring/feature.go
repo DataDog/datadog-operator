@@ -51,6 +51,7 @@ func (f *controlPlaneMonitoringFeature) ID() feature.IDType {
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *controlPlaneMonitoringFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
 	f.owner = dda
+	f.provider = dda.GetAnnotations()[kubernetes.ProviderAnnotationKey]
 	f.defaultConfigMapName = defaultConfigMapName
 	f.openshiftConfigMapName = openshiftConfigMapName
 	f.eksConfigMapName = eksConfigMapName
@@ -67,13 +68,12 @@ func (f *controlPlaneMonitoringFeature) Configure(dda metav1.Object, ddaSpec *v2
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *controlPlaneMonitoringFeature) ManageDependencies(managers feature.ResourceManagers, provider string) error {
+func (f *controlPlaneMonitoringFeature) ManageDependencies(managers feature.ResourceManagers) error {
 	if !f.enabled {
 		return nil
 	}
-	f.provider = provider
 	// Create ConfigMaps for control plane monitoring
-	providerLabel, _ := kubernetes.GetProviderLabelKeyValue(provider)
+	providerLabel, _ := kubernetes.GetProviderLabelKeyValue(f.provider)
 	if providerLabel == kubernetes.OpenShiftProviderLabel {
 		// OpenShift ConfigMap
 		openshiftConfigMap, err2 := f.buildControlPlaneMonitoringConfigMap(kubernetes.OpenShiftProviderLabel, f.openshiftConfigMapName)
@@ -93,7 +93,7 @@ func (f *controlPlaneMonitoringFeature) ManageDependencies(managers feature.Reso
 		f.logger.Info("OpenShift control plane monitoring requires manual etcd secret copy",
 			"command", copyCommand,
 			"note", "Run this command if cluster-checks-runner and node-agent pods fail to start due to missing etcd-metric-cert secret")
-	} else if provider == kubernetes.EKSCloudProvider {
+	} else if f.provider == kubernetes.EKSCloudProvider {
 		// EKS ConfigMap
 		eksConfigMap, err2 := f.buildControlPlaneMonitoringConfigMap(kubernetes.EKSProviderLabel, f.eksConfigMapName)
 		if err2 != nil {
@@ -110,15 +110,14 @@ func (f *controlPlaneMonitoringFeature) ManageDependencies(managers feature.Reso
 }
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
-func (f *controlPlaneMonitoringFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
-	f.provider = provider
-	providerLabel, _ := kubernetes.GetProviderLabelKeyValue(provider)
+func (f *controlPlaneMonitoringFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
+	providerLabel, _ := kubernetes.GetProviderLabelKeyValue(f.provider)
 
 	// Select the appropriate configmap based on provider
 	var configMapName string
 	if providerLabel == kubernetes.OpenShiftProviderLabel {
 		configMapName = f.openshiftConfigMapName
-	} else if provider == kubernetes.EKSCloudProvider {
+	} else if f.provider == kubernetes.EKSCloudProvider {
 		configMapName = f.eksConfigMapName
 	} else {
 		return nil
@@ -233,13 +232,13 @@ func (f *controlPlaneMonitoringFeature) ManageClusterAgent(managers feature.PodT
 // ManageSingleContainerNodeAgent allows a feature to configure the Agent container for the Node Agent's corev1.PodTemplateSpec
 // if SingleContainerStrategy is enabled and can be used with the configured feature set.
 // It should do nothing if the feature doesn't need to configure it.
-func (f *controlPlaneMonitoringFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *controlPlaneMonitoringFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers) error {
 	return nil
 }
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *controlPlaneMonitoringFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *controlPlaneMonitoringFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
 	providerLabel, _ := kubernetes.GetProviderLabelKeyValue(f.provider)
 	if providerLabel == kubernetes.OpenShiftProviderLabel {
 		// Add etcd-certs volume (secret)
@@ -283,7 +282,7 @@ func (f *controlPlaneMonitoringFeature) ManageNodeAgent(managers feature.PodTemp
 }
 
 // ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunner's corev1.PodTemplateSpec
-func (f *controlPlaneMonitoringFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
+func (f *controlPlaneMonitoringFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
 	providerLabel, _ := kubernetes.GetProviderLabelKeyValue(f.provider)
 	if providerLabel == kubernetes.OpenShiftProviderLabel {
 		// Add etcd-certs volume (secret)
@@ -325,6 +324,6 @@ func (f *controlPlaneMonitoringFeature) ManageClusterChecksRunner(managers featu
 	return nil
 }
 
-func (f *controlPlaneMonitoringFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
+func (f *controlPlaneMonitoringFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers) error {
 	return nil
 }

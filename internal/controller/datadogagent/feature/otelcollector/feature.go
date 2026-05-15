@@ -195,7 +195,7 @@ func (o *otelCollectorFeature) buildOTelAgentCoreConfigMap() (*corev1.ConfigMap,
 	return nil, nil
 }
 
-func (o *otelCollectorFeature) ManageDependencies(managers feature.ResourceManagers, provider string) error {
+func (o *otelCollectorFeature) ManageDependencies(managers feature.ResourceManagers) error {
 	if o.incompatibleImage {
 		return errIncompatibleImage
 	}
@@ -272,11 +272,11 @@ func (o *otelCollectorFeature) ManageDependencies(managers feature.ResourceManag
 	return nil
 }
 
-func (o *otelCollectorFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
+func (o *otelCollectorFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
 	return nil
 }
 
-func (o *otelCollectorFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+func (o *otelCollectorFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
 	if o.incompatibleImage {
 		return errIncompatibleImage
 	}
@@ -407,14 +407,14 @@ func (o *otelCollectorFeature) ManageNodeAgent(managers feature.PodTemplateManag
 	return nil
 }
 
-func (o *otelCollectorFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+func (o *otelCollectorFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers) error {
 	return nil
 }
 
-func (o *otelCollectorFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
+func (o *otelCollectorFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
 	return nil
 }
 
-func (o *otelCollectorFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
+func (o *otelCollectorFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers) error {
 	return nil
 }

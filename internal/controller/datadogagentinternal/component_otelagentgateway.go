@@ -57,9 +57,9 @@ func (c *OtelAgentGatewayComponent) GetNewDeploymentFunc() func(ddai metav1.Obje
 	return componentotelagentgateway.NewDefaultOtelAgentGatewayDeployment
 }
 
-func (c *OtelAgentGatewayComponent) GetManageFeatureFunc() func(feat feature.Feature, managers feature.PodTemplateManagers, provider string) error {
-	return func(feat feature.Feature, managers feature.PodTemplateManagers, provider string) error {
-		return feat.ManageOtelAgentGateway(managers, provider)
+func (c *OtelAgentGatewayComponent) GetManageFeatureFunc() func(feat feature.Feature, managers feature.PodTemplateManagers) error {
+	return func(feat feature.Feature, managers feature.PodTemplateManagers) error {
+		return feat.ManageOtelAgentGateway(managers)
 	}
 }
 

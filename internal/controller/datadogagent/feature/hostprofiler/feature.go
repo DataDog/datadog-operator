@@ -63,18 +63,18 @@ func (o *hostProfilerFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Dat
 	return reqComp
 }
 
-func (o *hostProfilerFeature) ManageDependencies(managers feature.ResourceManagers, provider string) error {
+func (o *hostProfilerFeature) ManageDependencies(managers feature.ResourceManagers) error {
 	if o.hostPIDDisabledManually {
 		return errHostPIDDisabledManually
 	}
 	return nil
 }
 
-func (o *hostProfilerFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
+func (o *hostProfilerFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
 	return nil
 }
 
-func (o *hostProfilerFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+func (o *hostProfilerFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
 	if o.hostPIDDisabledManually {
 		return errHostPIDDisabledManually
 	}
@@ -118,14 +118,14 @@ func (o *hostProfilerFeature) ManageNodeAgent(managers feature.PodTemplateManage
 	return nil
 }
 
-func (o *hostProfilerFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+func (o *hostProfilerFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers) error {
 	return nil
 }
 
-func (o *hostProfilerFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
+func (o *hostProfilerFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
 	return nil
 }
 
-func (o *hostProfilerFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
+func (o *hostProfilerFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers) error {
 	return nil
 }

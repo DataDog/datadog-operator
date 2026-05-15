@@ -61,15 +61,15 @@ func (p *processDiscoveryFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.D
 	return reqComp
 }
 
-func (p *processDiscoveryFeature) ManageDependencies(managers feature.ResourceManagers, provider string) error {
+func (p *processDiscoveryFeature) ManageDependencies(managers feature.ResourceManagers) error {
 	return nil
 }
 
-func (p *processDiscoveryFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
+func (p *processDiscoveryFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
 	return nil
 }
 
-func (p *processDiscoveryFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+func (p *processDiscoveryFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
 	// Always add this envvar to Core and Process containers
 	runInCoreAgentEnvVar := &corev1.EnvVar{
 		Name:  common.DDProcessConfigRunInCoreAgent,
@@ -82,21 +82,21 @@ func (p *processDiscoveryFeature) ManageNodeAgent(managers feature.PodTemplateMa
 	if !p.runInCoreAgent {
 		containerName = apicommon.ProcessAgentContainerName
 	}
-	p.manageNodeAgent(containerName, managers, provider)
+	p.manageNodeAgent(containerName, managers)
 	return nil
 }
 
-func (p *processDiscoveryFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+func (p *processDiscoveryFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers) error {
 	runInCoreAgentEnvVar := &corev1.EnvVar{
 		Name:  common.DDProcessConfigRunInCoreAgent,
 		Value: apiutils.BoolToString(&p.runInCoreAgent),
 	}
 	managers.EnvVar().AddEnvVarToContainer(apicommon.UnprivilegedSingleAgentContainerName, runInCoreAgentEnvVar)
-	p.manageNodeAgent(apicommon.UnprivilegedSingleAgentContainerName, managers, provider)
+	p.manageNodeAgent(apicommon.UnprivilegedSingleAgentContainerName, managers)
 	return nil
 }
 
-func (p *processDiscoveryFeature) manageNodeAgent(agentContainerName apicommon.AgentContainerName, managers feature.PodTemplateManagers, provider string) error {
+func (p *processDiscoveryFeature) manageNodeAgent(agentContainerName apicommon.AgentContainerName, managers feature.PodTemplateManagers) error {
 	// passwd volume mount
 	passwdVol, passwdVolMount := volume.GetVolumes(common.PasswdVolumeName, common.PasswdHostPath, common.PasswdMountPath, true)
 	managers.VolumeMount().AddVolumeMountToContainer(&passwdVolMount, agentContainerName)
@@ -122,10 +122,10 @@ func (p *processDiscoveryFeature) manageNodeAgent(agentContainerName apicommon.A
 	return nil
 }
 
-func (p *processDiscoveryFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
+func (p *processDiscoveryFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
 	return nil
 }
 
-func (p *processDiscoveryFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
+func (p *processDiscoveryFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers) error {
 	return nil
 }

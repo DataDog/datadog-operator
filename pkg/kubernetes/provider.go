@@ -17,6 +17,9 @@ import (
 )
 
 const (
+	// DDA/DDAI annotation key for provider used in reconciler to apply provider-specific configs
+	ProviderAnnotationKey = "datadoghq.com/provider"
+
 	// LegacyProvider Legacy Provider (empty name)
 	LegacyProvider = ""
 	// DefaultProvider Default provider name
