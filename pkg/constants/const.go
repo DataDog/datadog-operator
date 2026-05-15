@@ -46,7 +46,7 @@ const (
 	// DefaultAgentHealthPort default agent health port
 	DefaultAgentHealthPort int32 = 5555
 
-	DefaultADPHealthPort = 5100
+	DefaultADPHealthPort = 5400
 
 	// DefaultApmPort default apm port
 	DefaultApmPort = 8126

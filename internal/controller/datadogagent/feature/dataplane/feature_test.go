@@ -6,6 +6,7 @@
 package dataplane
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -17,6 +18,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/testutils"
 )
 
@@ -28,6 +30,10 @@ func Test_dataPlaneFeature(t *testing.T) {
 	dataPlaneDogstatsdEnabledEnvVar := &corev1.EnvVar{
 		Name:  common.DDDataPlaneDogstatsdEnabled,
 		Value: "true",
+	}
+	dataPlaneAPIListenAddressEnvVar := &corev1.EnvVar{
+		Name:  common.DDDataPlaneAPIListenAddress,
+		Value: fmt.Sprintf("0.0.0.0:%d", constants.DefaultADPHealthPort),
 	}
 
 	tests := test.FeatureTestSuite{
@@ -88,6 +94,9 @@ func Test_dataPlaneFeature(t *testing.T) {
 					mgr := mgrInterface.(*fake.PodTemplateManagers)
 					agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
 					assert.Contains(t, agentEnvVars, dataPlaneEnabledEnvVar, "DD_DATA_PLANE_ENABLED should be set when Data Plane is enabled via CRD")
+
+					adpEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.AgentDataPlaneContainerName]
+					assert.Contains(t, adpEnvVars, dataPlaneAPIListenAddressEnvVar, "DD_DATA_PLANE_API_LISTEN_ADDRESS should be set on ADP container")
 				},
 			),
 		},

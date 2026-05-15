@@ -6,6 +6,8 @@
 package dataplane
 
 import (
+	"fmt"
+
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -15,6 +17,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 )
 
 func init() {
@@ -110,6 +113,13 @@ func (f *dataPlaneFeature) ManageNodeAgent(managers feature.PodTemplateManagers,
 		managers.EnvVar().AddEnvVarToContainer(apicommon.AgentDataPlaneContainerName, &corev1.EnvVar{
 			Name:  common.DDDataPlaneUseNewConfigStreamEndpoint,
 			Value: "true",
+		})
+
+		// Explicitly set the API listen address so the operator controls which port ADP
+		// listens on, keeping probes in sync regardless of ADP's compiled-in default.
+		managers.EnvVar().AddEnvVarToContainer(apicommon.AgentDataPlaneContainerName, &corev1.EnvVar{
+			Name:  common.DDDataPlaneAPIListenAddress,
+			Value: fmt.Sprintf("0.0.0.0:%d", constants.DefaultADPHealthPort),
 		})
 
 		if f.dogstatsdEnabled {

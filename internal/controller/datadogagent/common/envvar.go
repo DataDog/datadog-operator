@@ -32,6 +32,7 @@ const (
 	DDDataPlaneDogstatsdEnabled           = "DD_DATA_PLANE_DOGSTATSD_ENABLED"
 	DDDataPlaneOTLPEnabled                = "DD_DATA_PLANE_OTLP_ENABLED"
 	DDDataPlaneRemoteAgentEnabled         = "DD_DATA_PLANE_REMOTE_AGENT_ENABLED"
+	DDDataPlaneAPIListenAddress           = "DD_DATA_PLANE_API_LISTEN_ADDRESS"
 	DDDataPlaneUseNewConfigStreamEndpoint = "DD_DATA_PLANE_USE_NEW_CONFIG_STREAM_ENDPOINT"
 	DDKubernetesPodResourcesSocket        = "DD_KUBERNETES_KUBELET_PODRESOURCES_SOCKET"
 	DDKubernetesUseEndpointSlices         = "DD_KUBERNETES_USE_ENDPOINT_SLICES"
