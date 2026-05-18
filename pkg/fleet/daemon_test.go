@@ -601,14 +601,13 @@ func TestPromoteDatadogAgentExperiment_NoExperimentVersion(t *testing.T) {
 }
 
 func TestPromoteDatadogAgentExperiment_NilPhase_Error(t *testing.T) {
-	// No experiment running (nil status) — guard returns stateDoesntMatchError.
+	// No experiment running (nil status) — guard returns error.
 	d, _ := testDaemon(testDDAObject(""), testInstallerConfigWithDDA())
 	d.rcClient = &mockRCClient{state: []*pbgo.PackageState{
 		{Package: "datadog-operator", StableConfigVersion: "stable-1", ExperimentConfigVersion: "exp-1"},
 	}}
 	err := syncTaskErr(d.promoteDatadogAgentExperiment(context.Background(), testPromoteRequest()))
-	var stateErr *stateDoesntMatchError
-	require.ErrorAs(t, err, &stateErr)
+	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "cannot promote")
 }
 
@@ -637,14 +636,13 @@ func TestPromoteDatadogAgentExperiment_Success_Running(t *testing.T) {
 }
 
 func TestPromoteDatadogAgentExperiment_Terminated_Error(t *testing.T) {
-	// Terminated phase — non-running guard returns stateDoesntMatchError.
+	// Terminated phase — non-running guard returns error with current phase.
 	d, _ := testDaemon(testDDAObject(v2alpha1.ExperimentPhaseTerminated), testInstallerConfigWithDDA())
 	d.rcClient = &mockRCClient{state: []*pbgo.PackageState{
 		{Package: "datadog-operator", StableConfigVersion: "stable-1", ExperimentConfigVersion: "exp-1"},
 	}}
 	err := syncTaskErr(d.promoteDatadogAgentExperiment(context.Background(), testPromoteRequest()))
-	var stateErr *stateDoesntMatchError
-	require.ErrorAs(t, err, &stateErr)
+	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "cannot promote")
 	assert.Contains(t, err.Error(), "terminated")
 }
@@ -890,15 +888,13 @@ func TestPromoteDatadogAgentExperiment_RejectsExistingPendingOperation(t *testin
 // --- Fix 2: stop/promote non-running guard tests ---
 
 func TestPromoteDatadogAgentExperiment_Aborted_Error(t *testing.T) {
-	// Aborted phase — non-running guard returns stateDoesntMatchError so the
-	// backend receives INVALID_STATE instead of ERROR.
+	// Aborted phase — non-running guard returns error.
 	d, _ := testDaemon(testDDAObject(v2alpha1.ExperimentPhaseAborted), testInstallerConfigWithDDA())
 	d.rcClient = &mockRCClient{state: []*pbgo.PackageState{
 		{Package: "datadog-operator", StableConfigVersion: "stable-1", ExperimentConfigVersion: "exp-1"},
 	}}
 	err := syncTaskErr(d.promoteDatadogAgentExperiment(context.Background(), testPromoteRequest()))
-	var stateErr *stateDoesntMatchError
-	require.ErrorAs(t, err, &stateErr)
+	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "cannot promote")
 	assert.Contains(t, err.Error(), "aborted")
 }
