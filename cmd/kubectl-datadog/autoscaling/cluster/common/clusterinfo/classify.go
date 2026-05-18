@@ -41,6 +41,27 @@ const describeASGInstancesMaxIDs = 50
 // must therefore be classified by label before reaching this regex.
 var awsProviderIDRegexp = regexp.MustCompile(`^aws:///[^/]+/(i-[0-9a-f]+)$`)
 
+// LabelEKSNodegroup is the label EKS stamps on every node that belongs to a
+// managed node group. The label value is the node group name. Exposed as a
+// constant so consumers (classifier, evict-legacy-nodes) reference the same
+// string.
+const LabelEKSNodegroup = "eks.amazonaws.com/nodegroup"
+
+// ExtractEC2InstanceID returns the EC2 instance ID (i-...) from a Node's
+// providerID, or false when the providerID is not an EC2 instance (Fargate
+// uses `aws:///<az>/fargate-ip-...`, GCP/Azure use entirely different shapes,
+// etc.).
+func ExtractEC2InstanceID(node *corev1.Node) (string, bool) {
+	if node == nil {
+		return "", false
+	}
+	m := awsProviderIDRegexp.FindStringSubmatch(node.Spec.ProviderID)
+	if len(m) != 2 {
+		return "", false
+	}
+	return m[1], true
+}
+
 // nodePoolDatadogCreatedLabel is the label set by every Datadog autoscaling
 // product (kubectl-datadog AND the cluster agent) on the NodePools they
 // manage. Broader than the AND-pair `app.kubernetes.io/managed-by:
