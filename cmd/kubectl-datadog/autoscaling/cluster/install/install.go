@@ -1,48 +1,57 @@
-// Package install provides functionality to install and configure Karpenter
-// autoscaling on EKS clusters, including CloudFormation stack creation,
-// Helm chart deployment, and resource configuration.
+// Package install provides the cobra command that installs Karpenter on an
+// EKS cluster. The command is a thin wrapper around the convergence logic in
+// the apply package — install binds CLI flags, validates them, and delegates
+// the actual deployment work to apply.Run.
 package install
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"os/signal"
 	"slices"
+	"syscall"
 
 	"github.com/spf13/cobra"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 
+	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/apply"
+	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/clients"
 	"github.com/DataDog/datadog-operator/pkg/plugin/common"
 )
 
-var (
-	clusterName              string
-	karpenterNamespace       string
-	karpenterVersion         string
-	installMode              = InstallModeFargate
-	fargateSubnets           []string
-	createKarpenterResources = CreateKarpenterResourcesAll
-	inferenceMethod          = InferenceMethodNodeGroups
-	debug                    bool
-	installExample           = `
+var installExample = `
   # install autoscaling
   %[1]s install
 `
-)
 
 type options struct {
 	genericclioptions.IOStreams
 	common.Options
 	args []string
+
+	clusterName              string
+	karpenterNamespace       string
+	karpenterVersion         string
+	installMode              apply.InstallMode
+	fargateSubnets           []string
+	createKarpenterResources apply.CreateKarpenterResources
+	inferenceMethod          apply.InferenceMethod
+	debug                    bool
 }
 
 func newOptions(streams genericclioptions.IOStreams) *options {
 	o := &options{
-		IOStreams: streams,
+		IOStreams:                streams,
+		installMode:              apply.InstallModeFargate,
+		createKarpenterResources: apply.CreateKarpenterResourcesAll,
+		inferenceMethod:          apply.InferenceMethodNodeGroups,
 	}
 	o.SetConfigFlags()
 	return o
 }
 
+// New returns the cobra command for `kubectl datadog autoscaling cluster install`.
 func New(streams genericclioptions.IOStreams) *cobra.Command {
 	o := newOptions(streams)
 	cmd := &cobra.Command{
@@ -58,18 +67,18 @@ func New(streams genericclioptions.IOStreams) *cobra.Command {
 				return err
 			}
 
-			return o.run(c)
+			return o.run()
 		},
 	}
 
-	cmd.Flags().StringVar(&clusterName, "cluster-name", "", "Name of the EKS cluster")
-	cmd.Flags().StringVar(&karpenterNamespace, "karpenter-namespace", "dd-karpenter", "Name of the Kubernetes namespace to deploy Karpenter into")
-	cmd.Flags().StringVar(&karpenterVersion, "karpenter-version", "", "Version of Karpenter to install (default to latest)")
-	cmd.Flags().Var(&installMode, "install-mode", "How to run the Karpenter controller: fargate (on dedicated Fargate nodes, default) or existing-nodes (on existing cluster nodes)")
-	cmd.Flags().StringSliceVar(&fargateSubnets, "fargate-subnets", nil, "Override auto-discovery of private subnets for the Fargate profile (comma-separated subnet IDs). Only used when --install-mode=fargate.")
-	cmd.Flags().Var(&createKarpenterResources, "create-karpenter-resources", "Which Karpenter resources to create: none, ec2nodeclass, all (default: all)")
-	cmd.Flags().Var(&inferenceMethod, "inference-method", "Method to infer EC2NodeClass and NodePool properties: nodes, nodegroups")
-	cmd.Flags().BoolVar(&debug, "debug", false, "Enable debug logs")
+	cmd.Flags().StringVar(&o.clusterName, "cluster-name", "", "Name of the EKS cluster")
+	cmd.Flags().StringVar(&o.karpenterNamespace, "karpenter-namespace", "dd-karpenter", "Name of the Kubernetes namespace to deploy Karpenter into")
+	cmd.Flags().StringVar(&o.karpenterVersion, "karpenter-version", "", "Version of Karpenter to install (default to latest)")
+	cmd.Flags().Var(&o.installMode, "install-mode", "How to run the Karpenter controller: fargate (on dedicated Fargate nodes, default) or existing-nodes (on existing cluster nodes)")
+	cmd.Flags().StringSliceVar(&o.fargateSubnets, "fargate-subnets", nil, "Override auto-discovery of private subnets for the Fargate profile (comma-separated subnet IDs). Only used when --install-mode=fargate.")
+	cmd.Flags().Var(&o.createKarpenterResources, "create-karpenter-resources", "Which Karpenter resources to create: none, ec2nodeclass, all (default: all)")
+	cmd.Flags().Var(&o.inferenceMethod, "inference-method", "Method to infer EC2NodeClass and NodePool properties: nodes, nodegroups")
+	cmd.Flags().BoolVar(&o.debug, "debug", false, "Enable debug logs")
 
 	o.ConfigFlags.AddFlags(cmd.Flags())
 
@@ -88,21 +97,43 @@ func (o *options) validate() error {
 		return errors.New("no arguments are allowed")
 	}
 
-	if !slices.Contains([]InstallMode{InstallModeFargate, InstallModeExistingNodes}, installMode) {
+	if !slices.Contains([]apply.InstallMode{apply.InstallModeFargate, apply.InstallModeExistingNodes}, o.installMode) {
 		return errors.New("install-mode must be one of fargate or existing-nodes")
 	}
 
-	if len(fargateSubnets) > 0 && installMode != InstallModeFargate {
+	if len(o.fargateSubnets) > 0 && o.installMode != apply.InstallModeFargate {
 		return errors.New("--fargate-subnets can only be used with --install-mode=fargate")
 	}
 
-	if !slices.Contains([]CreateKarpenterResources{CreateKarpenterResourcesNone, CreateKarpenterResourcesEC2NodeClass, CreateKarpenterResourcesAll}, createKarpenterResources) {
+	if !slices.Contains([]apply.CreateKarpenterResources{apply.CreateKarpenterResourcesNone, apply.CreateKarpenterResourcesEC2NodeClass, apply.CreateKarpenterResourcesAll}, o.createKarpenterResources) {
 		return errors.New("create-karpenter-resources must be one of none, ec2nodeclass or all")
 	}
 
-	if !slices.Contains([]InferenceMethod{InferenceMethodNodes, InferenceMethodNodeGroups}, inferenceMethod) {
+	if !slices.Contains([]apply.InferenceMethod{apply.InferenceMethodNodes, apply.InferenceMethodNodeGroups}, o.inferenceMethod) {
 		return errors.New("inference-method must be one of nodes or nodegroups")
 	}
 
 	return nil
+}
+
+func (o *options) run() error {
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
+	clusterName, err := clients.ResolveClusterName(o.ConfigFlags, o.clusterName)
+	if err != nil {
+		return err
+	}
+
+	return apply.Run(ctx, o.IOStreams, o.ConfigFlags, o.Clientset, apply.RunOptions{
+		ClusterName:              clusterName,
+		KarpenterNamespace:       o.karpenterNamespace,
+		KarpenterVersion:         o.karpenterVersion,
+		InstallMode:              o.installMode,
+		FargateSubnets:           o.fargateSubnets,
+		CreateKarpenterResources: o.createKarpenterResources,
+		InferenceMethod:          o.inferenceMethod,
+		Debug:                    o.debug,
+		ActionLabel:              "Installing",
+	})
 }

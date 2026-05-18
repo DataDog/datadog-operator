@@ -49,6 +49,12 @@ spec:
       kind: DatadogDashboard
       name: datadogdashboards.datadoghq.com
       version: v1alpha1
+    - description: DatadogInstrumentation is the Schema for the datadoginstrumentations
+        API.
+      displayName: Datadog Instrumentation
+      kind: DatadogInstrumentation
+      name: datadoginstrumentations.datadoghq.com
+      version: v1alpha1
     - description: DatadogMetric allows autoscaling on arbitrary Datadog query
       displayName: Datadog Metric
       kind: DatadogMetric

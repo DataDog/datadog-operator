@@ -10,6 +10,7 @@ resources:
   - bases/v1/datadoghq.com_datadogslos.yaml
   - bases/v1/datadoghq.com_datadogagentprofiles.yaml
   - bases/v1/datadoghq.com_datadogpodautoscalers.yaml
+  - bases/v1/datadoghq.com_datadoginstrumentations.yaml
   - bases/v1/datadoghq.com_datadogpodautoscalerclusterprofiles.yaml
   - bases/v1/datadoghq.com_datadogdashboards.yaml
   - bases/v1/datadoghq.com_datadoggenericresources.yaml

@@ -92,6 +92,8 @@ import (
 //         requests:
 //           minAllowed:
 //           maxAllowed:
+//   options:
+//     burstable: true
 
 // DatadogPodAutoscalerSpec defines the desired state of DatadogPodAutoscaler
 type DatadogPodAutoscalerSpec struct {

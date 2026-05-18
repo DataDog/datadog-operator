@@ -255,10 +255,10 @@ func DefaultSyscallsForSystemProbe() []string {
 		"setresuid",
 		"setrlimit",
 		"setsid",
-		"setsidaccept4",
 		"setsockopt",
 		"setuid",
 		"setuid32",
+		"shutdown",
 		"sigaltstack",
 		"socket",
 		"socketcall",
@@ -282,6 +282,7 @@ func DefaultSyscallsForSystemProbe() []string {
 		"waitid",
 		"waitpid",
 		"write",
+		"writev",
 	}
 }
 
@@ -876,10 +877,10 @@ func volumeMountsForSystemProbe() []corev1.VolumeMount {
 		common.GetVolumeMountForLogs(),
 		common.GetVolumeMountForAuth(true),
 		common.GetVolumeMountForConfig(),
-		common.GetVolumeMountForDogstatsdSocket(false),
 		common.GetVolumeMountForProc(),
 		common.GetVolumeMountForRunPath(),
 		common.GetVolumeMountForTmp(),
+		common.GetVolumeMountForDogstatsdSocket(false),
 	}
 }
 

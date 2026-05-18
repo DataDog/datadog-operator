@@ -208,7 +208,8 @@
                     "description": "Specifies whether recommendations are made to Requests and Limits (RequestsAndLimits) or Requests only (RequestsOnly).\nThe default is \"RequestsAndLimits\".",
                     "enum": [
                       "RequestsAndLimits",
-                      "RequestsOnly"
+                      "RequestsOnly",
+                      "CPURequestsRemoveLimitsMemoryRequestsAndLimits"
                     ],
                     "type": "string"
                   },
@@ -1052,6 +1053,10 @@
           "additionalProperties": false,
           "description": "Options defines optional behavior modifications for the autoscaler.",
           "properties": {
+            "burstable": {
+              "description": "Burstable, if true, removes CPU limits from containers while keeping CPU request recommendations,\ngranting the pod a Burstable QoS class and allowing it to consume idle node CPU capacity beyond its requests.\nIf not set, the default value is determined by the Cluster Agent setting autoscaling.workload.options.burstable.",
+              "type": "boolean"
+            },
             "outOfMemory": {
               "additionalProperties": false,
               "description": "OutOfMemory configures behavior when OOM events are detected.",
@@ -1262,6 +1267,17 @@
                 "desiredReplicas"
               ],
               "type": "object"
+            }
+          },
+          "type": "object"
+        },
+        "options": {
+          "additionalProperties": false,
+          "description": "Options reflects the effective options applied by the autoscaler.",
+          "properties": {
+            "burstable": {
+              "description": "Burstable is the effective value of the burstable setting applied by the autoscaler.\nWhen not set in the spec, this reflects the default determined by the Cluster Agent\nsetting autoscaling.workload.options.burstable.",
+              "type": "boolean"
             }
           },
           "type": "object"

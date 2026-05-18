@@ -42,7 +42,7 @@ func skipRevisionBump(newStatus *v2alpha1.DatadogAgentStatus) bool {
 		return false
 	}
 	phase := newStatus.Experiment.Phase
-	return phase == v2alpha1.ExperimentPhaseRollback || phase == v2alpha1.ExperimentPhaseTimeout
+	return phase == v2alpha1.ExperimentPhaseTerminated
 }
 
 // manageRevision creates a ControllerRevision snapshot of the current spec and
@@ -228,10 +228,14 @@ func (r *Reconciler) recreateRevision(
 
 // datadogAnnotations returns a copy of annotations filtered to only those
 // with `.datadoghq.com/` in the key, which are used for preview features.
+// Experiment signal annotations (experiment.datadoghq.com/) are excluded
+// because they are transient signals, not part of the spec snapshot.
 func datadogAnnotations(all map[string]string) map[string]string {
 	filtered := make(map[string]string)
 	for k, v := range all {
-		if strings.Contains(k, ".datadoghq.com/") {
+		if strings.Contains(k, ".datadoghq.com/") &&
+			!strings.HasPrefix(k, "experiment.datadoghq.com/") &&
+			!strings.HasPrefix(k, "fleet.datadoghq.com/") {
 			filtered[k] = v
 		}
 	}

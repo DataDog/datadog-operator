@@ -126,7 +126,7 @@ func (r *Reconciler) reconcileProfiles(ctx context.Context, dsNSName types.Names
 func (r *Reconciler) reconcileProfile(ctx context.Context, profile *v1alpha1.DatadogAgentProfile, nodeList []corev1.Node, profilesByNode map[string]types.NamespacedName, csInfo map[types.NamespacedName]*agentprofile.CreateStrategyInfo, now metav1.Time) error {
 	r.log.Info("reconciling profile", "datadogagentprofile", profile.Name, "datadogagentprofile_namespace", profile.Namespace)
 	// validate profile name, spec, and selectors
-	requirements, err := agentprofile.ValidateProfileAndReturnRequirements(profile, r.options.DatadogAgentInternalEnabled)
+	requirements, err := agentprofile.ValidateProfileAndReturnRequirements(profile)
 	if err != nil {
 		metrics.DAPValid.With(prometheus.Labels{"datadogagentprofile": profile.Name}).Set(metrics.FalseValue)
 		profile.Status.Conditions = agentprofile.SetDatadogAgentProfileCondition(profile.Status.Conditions, agentprofile.NewDatadogAgentProfileCondition(agentprofile.ValidConditionType, metav1.ConditionFalse, now, agentprofile.InvalidConditionReason, err.Error()))

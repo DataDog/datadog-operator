@@ -37,7 +37,7 @@ README.md               @DataDog/documentation  @DataDog/container-platform
 /internal/controller/datadogagent/feature/livecontainer             @DataDog/container-experiences  @DataDog/container-platform
 /internal/controller/datadogagent/feature/liveprocess               @DataDog/container-experiences  @DataDog/container-platform
 /internal/controller/datadogagent/feature/logcollection             @DataDog/agent-log-pipelines    @DataDog/container-platform
-/internal/controller/datadogagent/feature/npm                       @DataDog/ndm-core               @DataDog/container-platform
+/internal/controller/datadogagent/feature/npm                       @DataDog/cloud-network-monitoring @DataDog/container-platform
 /internal/controller/datadogagent/feature/oomkill                   @DataDog/ebpf-platform          @DataDog/container-platform
 /internal/controller/datadogagent/feature/orchestratorexplorer      @DataDog/kubernetes-experiences @DataDog/container-platform
 /internal/controller/datadogagent/feature/otelagentgateway          @DataDog/opentelemetry-agent    @DataDog/container-platform

@@ -1012,9 +1012,7 @@ func Test_reconcileProfile(t *testing.T) {
 				log:      logger,
 				scheme:   sch,
 				recorder: recorder,
-				options: ReconcilerOptions{
-					DatadogAgentInternalEnabled: true,
-				},
+				options:  ReconcilerOptions{},
 			}
 
 			// Pre-populate with default profile for nodes without a profile (matching production code)
@@ -1210,9 +1208,7 @@ func Test_reconcileProfiles(t *testing.T) {
 				log:      logger,
 				scheme:   sch,
 				recorder: recorder,
-				options: ReconcilerOptions{
-					DatadogAgentInternalEnabled: true,
-				},
+				options:  ReconcilerOptions{},
 			}
 
 			dsNSName := types.NamespacedName{

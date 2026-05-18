@@ -96,7 +96,7 @@ func clusterAgentDefaultPodSpec(dda *datadoghqv2alpha1.DatadogAgent) corev1.PodS
 					{Name: "installinfo", ReadOnly: true, SubPath: "install_info", MountPath: "/etc/datadog-agent/install_info"},
 					{Name: "confd", ReadOnly: true, MountPath: "/conf.d"},
 					{Name: "logdatadog", ReadOnly: false, MountPath: "/var/log/datadog"},
-					{Name: "tmp", ReadOnly: false, MountPath: "/tmp"},
+					{Name: "tmpdir", ReadOnly: false, MountPath: "/tmp"},
 					{Name: "certificates", ReadOnly: false, MountPath: "/etc/datadog-agent/certificates"},
 					{Name: "datadog-agent-auth", MountPath: "/etc/datadog-agent/auth"},
 				},
@@ -131,7 +131,7 @@ func clusterAgentDefaultPodSpec(dda *datadoghqv2alpha1.DatadogAgent) corev1.PodS
 				},
 			},
 			{
-				Name: "tmp",
+				Name: "tmpdir",
 				VolumeSource: corev1.VolumeSource{
 					EmptyDir: &corev1.EmptyDirVolumeSource{},
 				},

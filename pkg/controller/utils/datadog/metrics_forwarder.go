@@ -122,54 +122,51 @@ type metricsForwarder struct {
 
 	EnabledFeatures map[string][]string
 
-	keysHash                    uint64
-	retryInterval               time.Duration
-	sendMetricsInterval         time.Duration
-	metricsPrefix               string
-	globalTags                  []string
-	tags                        []string
-	stopChan                    chan struct{}
-	errorChan                   chan error
-	eventChan                   chan Event
-	lastReconcileErr            error
-	namespacedName              types.NamespacedName
-	logger                      logr.Logger
-	delegator                   delegatedAPI
-	decryptor                   secrets.Decryptor
-	creds                       sync.Map
-	baseURL                     string
-	status                      *ConditionCommon
-	credsManager                *config.CredentialManager
-	datadogAgentInternalEnabled bool
+	keysHash            uint64
+	retryInterval       time.Duration
+	sendMetricsInterval time.Duration
+	metricsPrefix       string
+	globalTags          []string
+	tags                []string
+	stopChan            chan struct{}
+	errorChan           chan error
+	eventChan           chan Event
+	lastReconcileErr    error
+	namespacedName      types.NamespacedName
+	logger              logr.Logger
+	delegator           delegatedAPI
+	decryptor           secrets.Decryptor
+	creds               sync.Map
+	baseURL             string
+	status              *ConditionCommon
+	credsManager        *config.CredentialManager
 	sync.RWMutex
 }
 
 // newMetricsForwarder returns a new Datadog MetricsForwarder instance
-func newMetricsForwarder(k8sClient client.Client, decryptor secrets.Decryptor, obj client.Object, platforminfo *kubernetes.PlatformInfo, datadogAgentInternalEnabled bool, credsManager *config.CredentialManager) *metricsForwarder {
-
+func newMetricsForwarder(k8sClient client.Client, decryptor secrets.Decryptor, obj client.Object, platforminfo *kubernetes.PlatformInfo, credsManager *config.CredentialManager) *metricsForwarder {
 	objKind := getObjKind(obj)
 	logger := log.WithValues("kind", objKind, "namespace", obj.GetNamespace(), "name", obj.GetName())
 
 	return &metricsForwarder{
-		id:                          getObjID(obj),
-		monitoredObjectKind:         objKind,
-		k8sClient:                   k8sClient,
-		platformInfo:                platforminfo,
-		namespacedName:              GetNamespacedName(obj),
-		retryInterval:               defaultMetricsRetryInterval,
-		sendMetricsInterval:         defaultSendMetricsInterval,
-		metricsPrefix:               defaultMetricsNamespace,
-		stopChan:                    make(chan struct{}),
-		errorChan:                   make(chan error, 100),
-		eventChan:                   make(chan Event, 10),
-		lastReconcileErr:            errInitValue,
-		decryptor:                   decryptor,
-		creds:                       sync.Map{},
-		baseURL:                     defaultbaseURL,
-		logger:                      logger,
-		credsManager:                credsManager,
-		EnabledFeatures:             make(map[string][]string),
-		datadogAgentInternalEnabled: datadogAgentInternalEnabled,
+		id:                  getObjID(obj),
+		monitoredObjectKind: objKind,
+		k8sClient:           k8sClient,
+		platformInfo:        platforminfo,
+		namespacedName:      GetNamespacedName(obj),
+		retryInterval:       defaultMetricsRetryInterval,
+		sendMetricsInterval: defaultSendMetricsInterval,
+		metricsPrefix:       defaultMetricsNamespace,
+		stopChan:            make(chan struct{}),
+		errorChan:           make(chan error, 100),
+		eventChan:           make(chan Event, 10),
+		lastReconcileErr:    errInitValue,
+		decryptor:           decryptor,
+		creds:               sync.Map{},
+		baseURL:             defaultbaseURL,
+		logger:              logger,
+		credsManager:        credsManager,
+		EnabledFeatures:     make(map[string][]string),
 	}
 }
 
@@ -414,8 +411,9 @@ func (mf *metricsForwarder) forwardMetrics() error {
 	ctx := mf.generateDatadogContext()
 
 	// Send status-based metrics
-	if mf.monitoredObjectKind == datadogAgentKind && mf.datadogAgentInternalEnabled {
-		mf.logger.V(1).Info("DatadogAgentInternal is enabled, skipping status metrics for DatadogAgent")
+	// DatadogAgent status metrics are handled by the DDAI controller, so skip them here.
+	if mf.monitoredObjectKind == datadogAgentKind {
+		mf.logger.V(1).Info("DatadogAgentInternal handles status metrics for DatadogAgent, skipping")
 	} else {
 		if err = mf.sendStatusMetrics(ctx, mf.dsStatus, mf.dcaStatus, mf.ccrStatus, mf.agentStatus); err != nil {
 			mf.logger.Error(err, "cannot send status metrics to Datadog")
