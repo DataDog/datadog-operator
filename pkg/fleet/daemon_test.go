@@ -1577,6 +1577,7 @@ func TestRunPendingOperationWorker_StartWaitsForRollout_NilAgent(t *testing.T) {
 	rc := d.rcClient.(*mockRCClient)
 	require.NotNil(t, rc.state[0].Task)
 	assert.Equal(t, pbgo.TaskState_RUNNING, rc.state[0].Task.State)
+	assert.Nil(t, rc.state[0].Task.Error)
 }
 
 func TestRunPendingOperationWorker_StartWaitsForRollout_PartialUpdate(t *testing.T) {
@@ -1598,6 +1599,8 @@ func TestRunPendingOperationWorker_StartWaitsForRollout_PartialUpdate(t *testing
 	rc := d.rcClient.(*mockRCClient)
 	require.NotNil(t, rc.state[0].Task)
 	assert.Equal(t, pbgo.TaskState_RUNNING, rc.state[0].Task.State)
+	require.NotNil(t, rc.state[0].Task.Error)
+	assert.Equal(t, `{"targetVersion":"test-config","desired":3,"upToDate":1,"ready":1}`, rc.state[0].Task.Error.Message)
 }
 
 func TestRunPendingOperationWorker_StartDoneAfterRolloutComplete(t *testing.T) {
@@ -1619,6 +1622,7 @@ func TestRunPendingOperationWorker_StartDoneAfterRolloutComplete(t *testing.T) {
 	rc := d.rcClient.(*mockRCClient)
 	require.NotNil(t, rc.state[0].Task)
 	assert.Equal(t, pbgo.TaskState_DONE, rc.state[0].Task.State)
+	assert.Nil(t, rc.state[0].Task.Error)
 	assert.Equal(t, testExperimentID, rc.state[0].ExperimentConfigVersion)
 
 	got := &v2alpha1.DatadogAgent{}

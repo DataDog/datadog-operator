@@ -8,6 +8,7 @@ package fleet
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"maps"
 
@@ -99,7 +100,11 @@ func (t *operationTracker) onStatusUpdate(ctx context.Context, snapshot ddaStatu
 	done, resultErr := evaluatePendingTask(snapshot, op)
 	if !done {
 		t.daemon.taskMu.Lock()
-		t.daemon.setTaskState(op.packageName, op.taskID, pbgo.TaskState_RUNNING, nil)
+		var progressErr error
+		if progress := rolloutProgressJSON(snapshot.agent, op.experimentID); progress != "" {
+			progressErr = errors.New(progress)
+		}
+		t.daemon.setTaskState(op.packageName, op.taskID, pbgo.TaskState_RUNNING, progressErr)
 		t.daemon.taskMu.Unlock()
 		return
 	}
