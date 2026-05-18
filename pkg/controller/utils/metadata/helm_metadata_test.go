@@ -58,28 +58,13 @@ func createValidReleaseData() ([]byte, error) {
 func Test_workqueueInitialization(t *testing.T) {
 	hmf := createTestForwarder()
 
-	if hmf.queue == nil {
-		t.Fatal("Workqueue not initialized")
+	if hmf.runner == nil {
+		t.Fatal("runner not initialized")
 	}
 
-	hmf.queue.Add("test/key")
-	if hmf.queue.Len() != 1 {
-		t.Errorf("Queue length = %d, want 1", hmf.queue.Len())
-	}
-
-	key, shutdown := hmf.queue.Get()
-	if shutdown {
-		t.Error("Queue should not be shutting down")
-	}
-	if key != "test/key" {
-		t.Errorf("Got key %v, want test/key", key)
-	}
-
-	hmf.queue.Done(key)
-	hmf.queue.ShutDown()
-
-	if !hmf.queue.ShuttingDown() {
-		t.Error("Queue should be marked as shutting down")
+	hmf.runner.Enqueue("ConfigMap", "test", "key")
+	if got := hmf.runner.QueueLen(); got != 1 {
+		t.Errorf("QueueLen = %d, want 1", got)
 	}
 }
 
