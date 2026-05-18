@@ -206,6 +206,7 @@ func (r *RemoteConfigUpdater) Start(apiKey string, site string, clusterName stri
 		{
 			Package:             "datadog-operator",
 			StableVersion:       version.Version,
+			RunningVersion:      version.Version,
 			StableConfigVersion: "empty",
 		},
 	})
