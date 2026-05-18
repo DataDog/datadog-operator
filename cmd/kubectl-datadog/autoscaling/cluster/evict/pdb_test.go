@@ -17,6 +17,8 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/utils/ptr"
 	ctrlfake "sigs.k8s.io/controller-runtime/pkg/client/fake"
+
+	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/clusterinfo"
 )
 
 func newCtrlScheme(t *testing.T) *runtime.Scheme {
@@ -24,6 +26,34 @@ func newCtrlScheme(t *testing.T) *runtime.Scheme {
 	sch := runtime.NewScheme()
 	require.NoError(t, scheme.AddToScheme(sch))
 	return sch
+}
+
+func TestUniqueNodes_ExcludesEKSMNG(t *testing.T) {
+	// EKS MNG targets are excluded on purpose: EKS handles their drain
+	// asynchronously, so we don't create temp PDBs for pods on those nodes.
+	targets := []Target{
+		{Manager: clusterinfo.NodeManagerASG, Nodes: []string{"asg-1", "asg-2"}},
+		{Manager: clusterinfo.NodeManagerEKSManagedNodeGroup, Nodes: []string{"mng-1"}},
+		{Manager: clusterinfo.NodeManagerKarpenter, Nodes: []string{"kp-1"}},
+		{Manager: clusterinfo.NodeManagerStandalone, Nodes: []string{"standalone-1"}},
+	}
+	got := uniqueNodes(targets)
+	assert.Contains(t, got, "asg-1")
+	assert.Contains(t, got, "asg-2")
+	assert.Contains(t, got, "kp-1")
+	assert.Contains(t, got, "standalone-1")
+	assert.NotContains(t, got, "mng-1", "EKS MNG nodes must be excluded")
+	assert.Len(t, got, 4)
+}
+
+func TestUniqueNodes_Dedup(t *testing.T) {
+	targets := []Target{
+		{Manager: clusterinfo.NodeManagerASG, Nodes: []string{"shared", "asg-only"}},
+		{Manager: clusterinfo.NodeManagerStandalone, Nodes: []string{"shared", "standalone-only"}},
+	}
+	got := uniqueNodes(targets)
+	assert.Len(t, got, 3)
+	assert.Contains(t, got, "shared")
 }
 
 func TestTempPDBName(t *testing.T) {
