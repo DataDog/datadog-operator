@@ -112,4 +112,3 @@ func TestEvictStandalone_DrainFailure_NoTerminate(t *testing.T) {
 	require.Error(t, err)
 	assert.Empty(t, stub.terminated, "drain failure must prevent TerminateInstances on the affected node")
 }
-

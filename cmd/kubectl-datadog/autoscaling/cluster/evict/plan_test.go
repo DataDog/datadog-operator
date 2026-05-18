@@ -57,8 +57,8 @@ func TestBuildPlan_All(t *testing.T) {
 				"datadog-owned": {Nodes: []string{"ip-5"}, ManagedByDatadog: true},
 			},
 			clusterinfo.NodeManagerKarpenter: {
-				"user-np":       {Nodes: []string{"ip-6"}, ManagedByDatadog: false},
-				"dd-np":         {Nodes: []string{"ip-7"}, ManagedByDatadog: true},
+				"user-np": {Nodes: []string{"ip-6"}, ManagedByDatadog: false},
+				"dd-np":   {Nodes: []string{"ip-7"}, ManagedByDatadog: true},
 			},
 			clusterinfo.NodeManagerStandalone: {
 				"": {Nodes: []string{"ip-8"}, ManagedByDatadog: false},

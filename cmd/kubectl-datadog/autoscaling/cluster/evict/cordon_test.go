@@ -73,4 +73,3 @@ func TestCordonNode_DryRun(t *testing.T) {
 	require.NoError(t, err)
 	assert.False(t, got.Spec.Unschedulable, "dry-run must not mutate the node")
 }
-
