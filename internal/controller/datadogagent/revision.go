@@ -235,7 +235,8 @@ func datadogAnnotations(all map[string]string) map[string]string {
 	for k, v := range all {
 		if strings.Contains(k, ".datadoghq.com/") &&
 			!strings.HasPrefix(k, "experiment.datadoghq.com/") &&
-			!strings.HasPrefix(k, "fleet.datadoghq.com/") {
+			!strings.HasPrefix(k, "fleet.datadoghq.com/") &&
+			!strings.HasPrefix(k, "fleet.") {
 			filtered[k] = v
 		}
 	}

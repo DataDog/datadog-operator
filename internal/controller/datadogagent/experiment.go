@@ -41,6 +41,13 @@ const (
 // gets a fresh timestamp when the same spec is re-applied.
 const annotationExperimentRollback = "operator.datadoghq.com/experiment-rollback"
 
+// abortGracePeriod is the window after a new ControllerRevision is created
+// during which abortExperiment skips the spec-match check. The controller's
+// own spec settling (defaults, transient annotations) may not yet be reflected
+// in the newest revision on the immediately following reconcile, so we wait
+// for the system to stabilize before interpreting a mismatch as a user change.
+const abortGracePeriod = 10 * time.Second
+
 // annotationExperimentPromoted marks a ControllerRevision whose experiment was
 // promoted. The annotation tells handleRollback to skip the timeout check so
 // the stale CreationTimestamp doesn't cause a false timeout when a subsequent
@@ -111,7 +118,7 @@ func (r *Reconciler) manageExperiment(
 			r.annotateRevision(ctx, rev, annotationExperimentPromoted)
 		}
 	}
-	r.abortExperiment(ctx, instance, experiment, newStatus, revList)
+	r.abortExperiment(ctx, instance, experiment, newStatus, revList, now)
 
 	// Clear annotations only if the entire experiment management cycle did
 	// not mutate the experiment status. Clearing bumps the DDA's
@@ -366,6 +373,7 @@ func (r *Reconciler) abortExperiment(
 	experiment *v2alpha1.ExperimentStatus,
 	newStatus *v2alpha1.DatadogAgentStatus,
 	revisions []appsv1.ControllerRevision,
+	now metav1.Time,
 ) {
 	if experiment.Phase != v2alpha1.ExperimentPhaseRunning {
 		return
@@ -381,6 +389,15 @@ func (r *Reconciler) abortExperiment(
 	// when fewer than 2 revisions exist.
 	if len(revisions) < 2 {
 		return
+	}
+	// Skip the check immediately after a new revision is created. Transient
+	// annotation differences between the snapshot and the next reconcile's
+	// instance can cause a false positive on the very first reconcile after
+	// experiment start. Wait for the system to stabilize.
+	if rev := highestRevision(revisions); rev != nil {
+		if now.Sub(rev.CreationTimestamp.Time) < abortGracePeriod {
+			return
+		}
 	}
 	if findMostRecentMatchingRevision(revisions, instance) != nil {
 		// Spec matches a known revision — no manual change detected.

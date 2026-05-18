@@ -37,10 +37,11 @@ func TestManageExperiment_AbortsOnManualChange(t *testing.T) {
 		Phase: v2alpha1.ExperimentPhaseRunning,
 	}
 
-	// Set recent timestamps so the timeout path in handleRollback does not fire.
+	// Set timestamps outside the grace period but within timeout so neither
+	// path fires unexpectedly.
 	revList := mustListRevisions(t, r, instanceC)
 	for i := range revList {
-		revList[i].CreationTimestamp = metav1.Now()
+		revList[i].CreationTimestamp = metav1.NewTime(time.Now().Add(-20 * time.Second))
 	}
 
 	status := &v2alpha1.DatadogAgentStatus{
@@ -482,9 +483,9 @@ func TestAbortExperiment_ThreeRevisions_AnnotatesOnlyHighest(t *testing.T) {
 	revList := mustListRevisions(t, r, instanceA)
 	require.Len(t, revList, 3)
 
-	// Set recent timestamps so timeout doesn't fire first.
+	// Set OLD timestamps so revisions are outside the grace period.
 	for i := range revList {
-		revList[i].CreationTimestamp = metav1.Now()
+		revList[i].CreationTimestamp = metav1.NewTime(time.Now().Add(-time.Minute))
 	}
 
 	// Simulate manual spec change (specD) — doesn't match any revision.
@@ -494,7 +495,7 @@ func TestAbortExperiment_ThreeRevisions_AnnotatesOnlyHighest(t *testing.T) {
 	instanceD.Status.Experiment = &v2alpha1.ExperimentStatus{Phase: v2alpha1.ExperimentPhaseRunning}
 
 	newStatus := &v2alpha1.DatadogAgentStatus{Experiment: instanceD.Status.Experiment.DeepCopy()}
-	r.abortExperiment(context.Background(), instanceD, instanceD.Status.Experiment, newStatus, revList)
+	r.abortExperiment(context.Background(), instanceD, instanceD.Status.Experiment, newStatus, revList, metav1.Now())
 	assert.Equal(t, v2alpha1.ExperimentPhaseAborted, newStatus.Experiment.Phase)
 
 	// Verify: only rev3 (experiment, highest) is annotated.
@@ -509,6 +510,44 @@ func TestAbortExperiment_ThreeRevisions_AnnotatesOnlyHighest(t *testing.T) {
 			assert.False(t, hasAnnotation, "rev1 (old baseline) should NOT be annotated")
 		}
 	}
+}
+
+func TestAbortExperiment_GracePeriod_SkipsNewRevision(t *testing.T) {
+	r, _ := newRevisionTestReconciler(t)
+
+	instanceA := newRevisionTestOwner("test-dda", "default")
+	_, err := r.ensureRevision(context.Background(), instanceA, nil, false)
+	require.NoError(t, err)
+
+	instanceB := newRevisionTestOwner("test-dda", "default")
+	instanceB.Spec = v2alpha1.DatadogAgentSpec{Global: &v2alpha1.GlobalConfig{}}
+	_, err = r.ensureRevision(context.Background(), instanceB, mustListRevisions(t, r, instanceB), false)
+	require.NoError(t, err)
+
+	revList := mustListRevisions(t, r, instanceA)
+	require.Len(t, revList, 2)
+
+	// Highest revision was just created — within the grace period.
+	for i := range revList {
+		if revList[i].Revision == 2 {
+			revList[i].CreationTimestamp = metav1.Now()
+		} else {
+			revList[i].CreationTimestamp = metav1.NewTime(time.Now().Add(-time.Minute))
+		}
+	}
+
+	// instanceC has a spec that doesn't match any revision (simulates the
+	// transient annotation mismatch seen immediately after experiment start).
+	unknownSite := "transient-mismatch.example.com"
+	instanceC := newRevisionTestOwner("test-dda", "default")
+	instanceC.Spec = v2alpha1.DatadogAgentSpec{Global: &v2alpha1.GlobalConfig{Site: &unknownSite}}
+	instanceC.Status.Experiment = &v2alpha1.ExperimentStatus{Phase: v2alpha1.ExperimentPhaseRunning}
+
+	newStatus := &v2alpha1.DatadogAgentStatus{Experiment: instanceC.Status.Experiment.DeepCopy()}
+	r.abortExperiment(context.Background(), instanceC, instanceC.Status.Experiment, newStatus, revList, metav1.Now())
+
+	// Grace period active → abort must NOT fire.
+	assert.Equal(t, v2alpha1.ExperimentPhaseRunning, newStatus.Experiment.Phase)
 }
 
 func TestHandleRollback_Timeout(t *testing.T) {
