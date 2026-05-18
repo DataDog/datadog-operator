@@ -355,7 +355,7 @@ func (d *Daemon) planPromote(ctx context.Context, req remoteAPIRequest, op resol
 		if dda.Status.Experiment != nil {
 			currentPhase = string(dda.Status.Experiment.Phase)
 		}
-		return nil, nil, fmt.Errorf("promote DatadogAgent experiment: cannot promote, current phase is %q", currentPhase)
+		return nil, nil, &stateDoesntMatchError{msg: fmt.Sprintf("promote DatadogAgent experiment: cannot promote, current phase is %q", currentPhase)}
 	}
 	pending := d.newPendingOperation(pendingIntentPromote, req, op.NamespacedName, experimentID)
 	// Promote makes the current experiment config the stable config on success.
