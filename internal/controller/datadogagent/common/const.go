@@ -154,12 +154,6 @@ const (
 	SystemProbeAgentSecurityConfigMapSuffixName = "system-probe-seccomp"
 	SystemProbeSeccompProfileName               = "system-probe"
 
-	HostProfilerSecurityVolumeName               = "host-profiler-security"
-	HostProfilerSecurityVolumePath               = "/etc/config/host-profiler"
-	HostProfilerSeccompKey                       = "host-profiler-seccomp.json"
-	HostProfilerAgentSecurityConfigMapSuffixName = "host-profiler-seccomp"
-	HostProfilerSeccompProfileName               = "host-profiler"
-
 	HostRunVolumeName = "hostrun"
 	HostRunPath       = "/run"
 	HostRunMountPath  = "/host/run"
