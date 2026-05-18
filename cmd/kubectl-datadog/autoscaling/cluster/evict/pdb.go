@@ -20,7 +20,6 @@ import (
 	"k8s.io/client-go/tools/pager"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/clusterinfo"
 	commonk8s "github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/k8s"
 )
 
@@ -130,20 +129,15 @@ type controllerInfo struct {
 	Selector  *metav1.LabelSelector
 }
 
-// uniqueNodes returns the set (as a map) of node names across all targets
-// whose pods we drain locally. EKS managed node groups are excluded on
-// purpose: their drain is delegated to the EKS control plane via
-// UpdateNodegroupConfig, which respects whatever PDBs exist asynchronously.
-// We delete our temporary PDBs as soon as Run returns, so creating temp PDBs
-// for pods that only EKS will evict would either leave them unprotected (if
-// EKS drains after our cleanup) or require us to block on EKS, neither of
-// which is desirable.
+// uniqueNodes returns the set (as a map) of node names across all targets.
+// EKS managed node groups are included because the orchestrator now blocks
+// on `waitEKSNodegroupEmpty` before cleaning up the temporary PDBs, so EKS
+// observes the PDBs during its drain. Excluding them would let EKS disrupt
+// all replicas of an otherwise unprotected workload at once when every
+// replica happens to live on that node group.
 func uniqueNodes(targets []Target) map[string]struct{} {
 	out := make(map[string]struct{})
 	for _, t := range targets {
-		if t.Manager == clusterinfo.NodeManagerEKSManagedNodeGroup {
-			continue
-		}
 		for _, n := range t.Nodes {
 			out[n] = struct{}{}
 		}
@@ -171,7 +165,7 @@ func discoverControllers(ctx context.Context, clientset kubernetes.Interface, no
 		if _, onTarget := nodeSet[pod.Spec.NodeName]; !onTarget {
 			return nil
 		}
-		if shouldSkipPod(pod) {
+		if shouldSkipEviction(pod) {
 			return nil
 		}
 		info, err := resolveTopLevelController(ctx, clientset, pod, depCache, rsCache, stsCache)

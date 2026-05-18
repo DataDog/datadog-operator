@@ -45,7 +45,7 @@ func drainNode(ctx context.Context, clientset kubernetes.Interface, nodeName str
 		return fmt.Errorf("failed to list pods on node %s: %w", nodeName, err)
 	}
 	for _, p := range pods {
-		if shouldSkipPod(&p) {
+		if shouldSkipEviction(&p) {
 			continue
 		}
 		if err := evictPodWithRetry(ctx, clientset, &p, opts.EvictionTimeout, opts.PollInterval); err != nil {
@@ -109,9 +109,16 @@ func evictPodWithRetry(ctx context.Context, clientset kubernetes.Interface, p *c
 	}
 }
 
-// waitForNodeEmpty polls the node until no evictable pods remain. Pods that
-// shouldSkipPod returns true on (DaemonSet, mirror, terminating, completed)
-// don't count against emptiness.
+// waitForNodeEmpty polls the node until no pod still occupies it. A pod is
+// considered to still occupy the node until it is actually gone from the API
+// server — including pods that are merely terminating (DeletionTimestamp
+// set). This matters for callers that terminate the underlying EC2 instance
+// next: returning early while a pod is mid-grace-period would kill the
+// container before its preStop hook / graceful shutdown finishes.
+//
+// DaemonSet pods, mirror pods and completed pods are not counted: DS and
+// mirror pods are tied to the node's lifecycle and disappear with it,
+// completed pods are inert and GC'd promptly.
 func waitForNodeEmpty(ctx context.Context, clientset kubernetes.Interface, nodeName string, timeout, pollInterval time.Duration) error {
 	deadline := time.Now().Add(timeout)
 	for {
@@ -121,7 +128,7 @@ func waitForNodeEmpty(ctx context.Context, clientset kubernetes.Interface, nodeN
 		}
 		remaining := 0
 		for _, p := range pods {
-			if !shouldSkipPod(&p) {
+			if podOccupiesNode(&p) {
 				remaining++
 			}
 		}
@@ -139,7 +146,12 @@ func waitForNodeEmpty(ctx context.Context, clientset kubernetes.Interface, nodeN
 	}
 }
 
-func shouldSkipPod(p *corev1.Pod) bool {
+// shouldSkipEviction reports whether drainNode should leave a pod alone
+// rather than call the Eviction API on it. A pod already terminating is
+// skipped because issuing another eviction would 404 once the kubelet
+// finishes the deletion; DaemonSet/mirror/completed pods are skipped because
+// they cannot or need not be evicted.
+func shouldSkipEviction(p *corev1.Pod) bool {
 	if p.DeletionTimestamp != nil {
 		return true
 	}
@@ -153,6 +165,23 @@ func shouldSkipPod(p *corev1.Pod) bool {
 		return true
 	}
 	return false
+}
+
+// podOccupiesNode reports whether a pod still consumes the node from a drain
+// perspective. Terminating pods DO occupy the node until they are gone;
+// returning false for them prematurely would let the caller terminate the
+// instance before the container finished its grace period.
+func podOccupiesNode(p *corev1.Pod) bool {
+	if isMirrorPod(p) {
+		return false
+	}
+	if isDaemonSetPod(p) {
+		return false
+	}
+	if isCompleted(p) {
+		return false
+	}
+	return true
 }
 
 func isMirrorPod(p *corev1.Pod) bool {

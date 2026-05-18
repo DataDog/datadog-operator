@@ -28,9 +28,11 @@ func newCtrlScheme(t *testing.T) *runtime.Scheme {
 	return sch
 }
 
-func TestUniqueNodes_ExcludesEKSMNG(t *testing.T) {
-	// EKS MNG targets are excluded on purpose: EKS handles their drain
-	// asynchronously, so we don't create temp PDBs for pods on those nodes.
+func TestUniqueNodes_IncludesAllManagerTypes(t *testing.T) {
+	// All manager types are included now that the orchestrator blocks on
+	// waitEKSNodegroupEmpty before cleaning up temp PDBs — EKS MNG pods
+	// must be protected too, otherwise EKS could disrupt every replica of
+	// an unprotected workload at once when every replica lives on the MNG.
 	targets := []Target{
 		{Manager: clusterinfo.NodeManagerASG, Nodes: []string{"asg-1", "asg-2"}},
 		{Manager: clusterinfo.NodeManagerEKSManagedNodeGroup, Nodes: []string{"mng-1"}},
@@ -38,12 +40,10 @@ func TestUniqueNodes_ExcludesEKSMNG(t *testing.T) {
 		{Manager: clusterinfo.NodeManagerStandalone, Nodes: []string{"standalone-1"}},
 	}
 	got := uniqueNodes(targets)
-	assert.Contains(t, got, "asg-1")
-	assert.Contains(t, got, "asg-2")
-	assert.Contains(t, got, "kp-1")
-	assert.Contains(t, got, "standalone-1")
-	assert.NotContains(t, got, "mng-1", "EKS MNG nodes must be excluded")
-	assert.Len(t, got, 4)
+	for _, n := range []string{"asg-1", "asg-2", "mng-1", "kp-1", "standalone-1"} {
+		assert.Contains(t, got, n)
+	}
+	assert.Len(t, got, 5)
 }
 
 func TestUniqueNodes_Dedup(t *testing.T) {

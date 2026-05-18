@@ -33,7 +33,7 @@ func installPodEvictionReactor(client *fake.Clientset) {
 	})
 }
 
-func TestShouldSkipPod(t *testing.T) {
+func TestShouldSkipEviction(t *testing.T) {
 	now := metav1.Now()
 	tests := []struct {
 		name string
@@ -53,7 +53,37 @@ func TestShouldSkipPod(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			assert.Equal(t, tc.skip, shouldSkipPod(tc.pod))
+			assert.Equal(t, tc.skip, shouldSkipEviction(tc.pod))
+		})
+	}
+}
+
+// TestPodOccupiesNode locks in the asymmetry between "skip eviction" and
+// "keeps the node busy": terminating pods are skipped from eviction (the
+// kubelet is already deleting them) BUT still occupy the node for drain
+// purposes (otherwise we'd terminate the instance mid-grace-period and kill
+// the container before its preStop hook finishes).
+func TestPodOccupiesNode(t *testing.T) {
+	now := metav1.Now()
+	tests := []struct {
+		name     string
+		pod      *corev1.Pod
+		occupies bool
+	}{
+		{name: "regular pod", pod: &corev1.Pod{}, occupies: true},
+		{name: "terminating pod still occupies", pod: &corev1.Pod{ObjectMeta: metav1.ObjectMeta{DeletionTimestamp: &now}}, occupies: true},
+		{name: "mirror pod", pod: &corev1.Pod{ObjectMeta: metav1.ObjectMeta{
+			Annotations: map[string]string{corev1.MirrorPodAnnotationKey: "x"},
+		}}, occupies: false},
+		{name: "daemonset pod", pod: &corev1.Pod{ObjectMeta: metav1.ObjectMeta{
+			OwnerReferences: []metav1.OwnerReference{{Kind: "DaemonSet", Name: "ds"}},
+		}}, occupies: false},
+		{name: "succeeded job", pod: &corev1.Pod{Status: corev1.PodStatus{Phase: corev1.PodSucceeded}}, occupies: false},
+		{name: "failed job", pod: &corev1.Pod{Status: corev1.PodStatus{Phase: corev1.PodFailed}}, occupies: false},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.occupies, podOccupiesNode(tc.pod))
 		})
 	}
 }
