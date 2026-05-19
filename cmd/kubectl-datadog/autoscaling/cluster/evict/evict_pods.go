@@ -7,6 +7,7 @@ import (
 	"slices"
 	"time"
 
+	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
 	policyv1 "k8s.io/api/policy/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -127,12 +128,9 @@ func waitForNodeEmpty(ctx context.Context, clientset kubernetes.Interface, nodeN
 		if err != nil {
 			return fmt.Errorf("failed to list pods on node %s: %w", nodeName, err)
 		}
-		remaining := 0
-		for _, p := range pods {
-			if podOccupiesNode(&p) {
-				remaining++
-			}
-		}
+		remaining := lo.CountBy(pods, func(p corev1.Pod) bool {
+			return podOccupiesNode(&p)
+		})
 		if remaining == 0 {
 			return nil
 		}
