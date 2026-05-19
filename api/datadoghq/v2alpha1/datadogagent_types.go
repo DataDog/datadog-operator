@@ -46,6 +46,9 @@ type DatadogAgentSpec struct {
 type DatadogFeatures struct {
 	// Application-level features
 
+	// HostProfiler configuration.
+	// +optional
+	HostProfiler *HostProfilerFeatureConfig `json:"hostProfiler,omitempty"`
 	// OtelCollector configuration.
 	// +doc-gen:link=https://docs.datadoghq.com/opentelemetry/setup/ddot_collector/install/kubernetes_daemonset/?tab=datadogoperator#overview
 	OtelCollector *OtelCollectorFeatureConfig `json:"otelCollector,omitempty"`
@@ -1096,6 +1099,16 @@ type MetricStateSet struct {
 	// ValueFrom is the subpath to compare the list to.
 	// +optional
 	ValueFrom []string `json:"valueFrom,omitempty" yaml:"valueFrom,omitempty"`
+}
+
+
+// HostProfilerFeatureConfig contains the Host Profiler configuration.
+// +k8s:openapi-gen=true
+type HostProfilerFeatureConfig struct {
+	// Enables the Host Profiler.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
 }
 
 // OtelCollectorFeatureConfig contains the configuration for the otel-agent.

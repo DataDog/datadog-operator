@@ -416,6 +416,19 @@ func (builder *DatadogAgentBuilder) WithProcessDiscoveryEnabled(enabled bool) *D
 	return builder
 }
 
+// Host Profiler
+func (builder *DatadogAgentBuilder) initHostProfiler() {
+	if builder.datadogAgent.Spec.Features.HostProfiler == nil {
+		builder.datadogAgent.Spec.Features.HostProfiler = &v2alpha1.HostProfilerFeatureConfig{}
+	}
+}
+
+func (builder *DatadogAgentBuilder) WithHostProfilerEnabled(enabled bool) *DatadogAgentBuilder {
+	builder.initHostProfiler()
+	builder.datadogAgent.Spec.Features.HostProfiler.Enabled = ptr.To(enabled)
+	return builder
+}
+
 // OTel Agent
 func (builder *DatadogAgentBuilder) initOtelCollector() {
 	if builder.datadogAgent.Spec.Features.OtelCollector == nil {
