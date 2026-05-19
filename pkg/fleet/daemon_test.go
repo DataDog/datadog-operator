@@ -136,6 +136,10 @@ func testInstallerConfigWithDDA() map[string]installerConfig {
 	}
 }
 
+func testCompletedAgentStatus() *v2alpha1.DaemonSetStatus {
+	return &v2alpha1.DaemonSetStatus{Desired: 3, UpToDate: 3, Ready: 3}
+}
+
 func testStartRequest() remoteAPIRequest {
 	return remoteAPIRequest{
 		ID:      "exp-abc",
@@ -1048,6 +1052,26 @@ func TestSetTaskState_PreservesOtherPackages(t *testing.T) {
 	assert.Equal(t, pbgo.TaskState_DONE, rc.state[1].Task.State)
 }
 
+func TestSetTaskState_PreservesAllFields(t *testing.T) {
+	d, rc := testDaemonWithRC([]*pbgo.PackageState{
+		{
+			Package:                 "datadog-operator",
+			StableVersion:           "1.0.0",
+			ExperimentVersion:       "2.0.0",
+			StableConfigVersion:     "cfg-stable",
+			ExperimentConfigVersion: "cfg-exp",
+		},
+	})
+	d.setTaskState("datadog-operator", "task-1", pbgo.TaskState_DONE, nil)
+
+	require.Len(t, rc.state, 1)
+	pkg := rc.state[0]
+	assert.Equal(t, "1.0.0", pkg.StableVersion)
+	assert.Equal(t, "2.0.0", pkg.ExperimentVersion)
+	assert.Equal(t, "cfg-stable", pkg.StableConfigVersion)
+	assert.Equal(t, "cfg-exp", pkg.ExperimentConfigVersion)
+}
+
 func TestSetTaskState_NilClient(t *testing.T) {
 	d := &Daemon{}
 	// Must not panic when rcClient is nil.
@@ -1276,6 +1300,7 @@ func TestRunPendingOperationWorker_StartTerminalPhaseSetsError(t *testing.T) {
 
 func TestRunPendingOperationWorker_CompletesStatusUpdateForNonDefaultPackage(t *testing.T) {
 	dda := testDDAObject(v2alpha1.ExperimentPhaseRunning)
+	dda.Status.Agent = testCompletedAgentStatus()
 	dda.Annotations[v2alpha1.AnnotationPendingTaskID] = "task-1"
 	dda.Annotations[v2alpha1.AnnotationPendingAction] = string(pendingIntentStart)
 	dda.Annotations[v2alpha1.AnnotationPendingExperimentID] = testExperimentID
@@ -1445,6 +1470,7 @@ func TestStartDatadogAgentExperiment_OverwritesStalePendingResultVersion(t *test
 
 func TestRunPendingOperationWorker_RecoversPendingOperationFromAnnotations(t *testing.T) {
 	dda := testDDAObject(v2alpha1.ExperimentPhaseRunning)
+	dda.Status.Agent = testCompletedAgentStatus()
 	dda.Annotations[v2alpha1.AnnotationPendingTaskID] = "task-1"
 	dda.Annotations[v2alpha1.AnnotationPendingAction] = string(pendingIntentStart)
 	dda.Annotations[v2alpha1.AnnotationPendingExperimentID] = testExperimentID
@@ -1502,4 +1528,124 @@ func TestRunPendingOperationWorker_RecoversPromoteResultVersionFromAnnotations(t
 	got := &v2alpha1.DatadogAgent{}
 	require.NoError(t, c.Get(context.Background(), testDDANSN, got))
 	assert.Empty(t, got.Annotations[v2alpha1.AnnotationPendingResultVersion])
+}
+
+// --- isDaemonSetRolloutComplete tests ---
+
+func TestIsDaemonSetRolloutComplete(t *testing.T) {
+	tests := []struct {
+		name  string
+		agent *v2alpha1.DaemonSetStatus
+		want  bool
+	}{
+		{
+			name:  "nil agent — rollout not yet reported",
+			agent: nil,
+			want:  false,
+		},
+		{
+			name:  "zero desired — trivially complete (all nodes tainted/cordoned)",
+			agent: &v2alpha1.DaemonSetStatus{Desired: 0},
+			want:  true,
+		},
+		{
+			name:  "rolling out — some pods not yet updated",
+			agent: &v2alpha1.DaemonSetStatus{Desired: 3, UpToDate: 1, Ready: 1},
+			want:  false,
+		},
+		{
+			name:  "updated but none ready",
+			agent: &v2alpha1.DaemonSetStatus{Desired: 3, UpToDate: 3, Ready: 0},
+			want:  false,
+		},
+		{
+			name:  "updated but only partially ready",
+			agent: &v2alpha1.DaemonSetStatus{Desired: 3, UpToDate: 3, Ready: 2},
+			want:  false,
+		},
+		{
+			name:  "all updated and all ready",
+			agent: &v2alpha1.DaemonSetStatus{Desired: 3, UpToDate: 3, Ready: 3},
+			want:  true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, isDaemonSetRolloutComplete(tt.agent))
+		})
+	}
+}
+
+// --- Worker start gating tests ---
+
+func TestRunPendingOperationWorker_StartWaitsForRollout_NilAgent(t *testing.T) {
+	dda := testDDAObject(v2alpha1.ExperimentPhaseRunning)
+	// status.Agent deliberately left nil — rollout not yet reflected in status
+	dda.Annotations[v2alpha1.AnnotationPendingTaskID] = "task-1"
+	dda.Annotations[v2alpha1.AnnotationPendingAction] = string(pendingIntentStart)
+	dda.Annotations[v2alpha1.AnnotationPendingExperimentID] = testExperimentID
+	dda.Annotations[v2alpha1.AnnotationPendingPackage] = "datadog-operator"
+
+	d, _ := testDaemon(dda, testInstallerConfigWithDDA())
+	d.rcClient = &mockRCClient{state: []*pbgo.PackageState{
+		{Package: "datadog-operator", StableConfigVersion: "stable-1"},
+	}}
+
+	tracker := newOperationTracker(d)
+	tracker.onStatusUpdate(context.Background(), newDDAStatusSnapshot(dda))
+
+	rc := d.rcClient.(*mockRCClient)
+	require.NotNil(t, rc.state[0].Task)
+	assert.Equal(t, pbgo.TaskState_RUNNING, rc.state[0].Task.State)
+	assert.Nil(t, rc.state[0].Task.Error)
+}
+
+func TestRunPendingOperationWorker_StartWaitsForRollout_PartialUpdate(t *testing.T) {
+	dda := testDDAObject(v2alpha1.ExperimentPhaseRunning)
+	dda.Status.Agent = &v2alpha1.DaemonSetStatus{Desired: 3, UpToDate: 1, Ready: 1}
+	dda.Annotations[v2alpha1.AnnotationPendingTaskID] = "task-1"
+	dda.Annotations[v2alpha1.AnnotationPendingAction] = string(pendingIntentStart)
+	dda.Annotations[v2alpha1.AnnotationPendingExperimentID] = testExperimentID
+	dda.Annotations[v2alpha1.AnnotationPendingPackage] = "datadog-operator"
+
+	d, _ := testDaemon(dda, testInstallerConfigWithDDA())
+	d.rcClient = &mockRCClient{state: []*pbgo.PackageState{
+		{Package: "datadog-operator", StableConfigVersion: "stable-1"},
+	}}
+
+	tracker := newOperationTracker(d)
+	tracker.onStatusUpdate(context.Background(), newDDAStatusSnapshot(dda))
+
+	rc := d.rcClient.(*mockRCClient)
+	require.NotNil(t, rc.state[0].Task)
+	assert.Equal(t, pbgo.TaskState_RUNNING, rc.state[0].Task.State)
+	require.NotNil(t, rc.state[0].Task.Error)
+	assert.Equal(t, `{"targetVersion":"test-config","desired":3,"upToDate":1,"ready":1}`, rc.state[0].Task.Error.Message)
+}
+
+func TestRunPendingOperationWorker_StartDoneAfterRolloutComplete(t *testing.T) {
+	dda := testDDAObject(v2alpha1.ExperimentPhaseRunning)
+	dda.Status.Agent = testCompletedAgentStatus()
+	dda.Annotations[v2alpha1.AnnotationPendingTaskID] = "task-1"
+	dda.Annotations[v2alpha1.AnnotationPendingAction] = string(pendingIntentStart)
+	dda.Annotations[v2alpha1.AnnotationPendingExperimentID] = testExperimentID
+	dda.Annotations[v2alpha1.AnnotationPendingPackage] = "datadog-operator"
+
+	d, c := testDaemon(dda, testInstallerConfigWithDDA())
+	d.rcClient = &mockRCClient{state: []*pbgo.PackageState{
+		{Package: "datadog-operator", StableConfigVersion: "stable-1"},
+	}}
+
+	tracker := newOperationTracker(d)
+	tracker.onStatusUpdate(context.Background(), newDDAStatusSnapshot(dda))
+
+	rc := d.rcClient.(*mockRCClient)
+	require.NotNil(t, rc.state[0].Task)
+	assert.Equal(t, pbgo.TaskState_DONE, rc.state[0].Task.State)
+	assert.Nil(t, rc.state[0].Task.Error)
+	assert.Equal(t, testExperimentID, rc.state[0].ExperimentConfigVersion)
+
+	got := &v2alpha1.DatadogAgent{}
+	require.NoError(t, c.Get(context.Background(), testDDANSN, got))
+	assert.Empty(t, got.Annotations[v2alpha1.AnnotationPendingTaskID])
 }

@@ -7,6 +7,7 @@ package fleet
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"sync"
@@ -19,6 +20,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
+	v2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/pkg/remoteconfig"
 )
 
@@ -111,7 +113,8 @@ func (d *Daemon) handleTask(ctx context.Context, req remoteAPIRequest) error {
 	d.taskMu.Lock()
 	pending, err := d.handleRemoteAPIRequest(ctx, req)
 	if err != nil {
-		// Expected and current stable/experiment configs don't match.
+		// stateDoesntMatchError covers RC config state mismatches (verifyExpectedState)
+		// and annotation slot conflicts (guardPendingOperationSlot).
 		var stateErr *stateDoesntMatchError
 		if errors.As(err, &stateErr) {
 			d.setTaskState(req.Package, req.ID, pbgo.TaskState_INVALID_STATE, err)
@@ -227,20 +230,16 @@ func (d *Daemon) setTaskState(pkgName, taskID string, taskState pbgo.TaskState, 
 	found := false
 	for _, pkg := range current {
 		if pkg.GetPackage() == pkgName {
-			updated = append(updated, &pbgo.PackageState{
-				Package:                 pkg.GetPackage(),
-				StableVersion:           pkg.GetStableVersion(),
-				ExperimentVersion:       pkg.GetExperimentVersion(),
-				Task:                    task,
-				StableConfigVersion:     pkg.GetStableConfigVersion(),
-				ExperimentConfigVersion: pkg.GetExperimentConfigVersion(),
-			})
+			cloned := proto.Clone(pkg).(*pbgo.PackageState)
+			cloned.Task = task
+			updated = append(updated, cloned)
 			found = true
 		} else {
 			updated = append(updated, pkg)
 		}
 	}
 	if !found {
+		// Package not yet in state: no existing fields to preserve.
 		updated = append(updated, &pbgo.PackageState{
 			Package: pkgName,
 			Task:    task,
@@ -318,4 +317,26 @@ func (d *Daemon) logInstallerState(caller string) {
 			"taskState", taskState,
 		)
 	}
+}
+
+type rolloutProgress struct {
+	TargetVersion string `json:"targetVersion,omitempty"`
+	Desired       int32  `json:"desired,omitempty"`
+	UpToDate      int32  `json:"upToDate,omitempty"`
+	Ready         int32  `json:"ready,omitempty"`
+}
+
+// rolloutProgressJSON encodes DaemonSet rollout counters and the target config
+// version as a JSON string. Returns "" when agent is nil.
+func rolloutProgressJSON(agent *v2alpha1.DaemonSetStatus, targetVersion string) string {
+	if agent == nil {
+		return ""
+	}
+	b, _ := json.Marshal(rolloutProgress{
+		TargetVersion: targetVersion,
+		Desired:       agent.Desired,
+		UpToDate:      agent.UpToDate,
+		Ready:         agent.Ready,
+	})
+	return string(b)
 }

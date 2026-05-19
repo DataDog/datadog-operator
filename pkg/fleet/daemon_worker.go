@@ -8,6 +8,7 @@ package fleet
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"maps"
 
@@ -27,6 +28,7 @@ type ddaStatusSnapshot struct {
 	nsn         types.NamespacedName
 	annotations map[string]string
 	experiment  *v2alpha1.ExperimentStatus
+	agent       *v2alpha1.DaemonSetStatus
 }
 
 type pendingOperation struct {
@@ -98,7 +100,11 @@ func (t *operationTracker) onStatusUpdate(ctx context.Context, snapshot ddaStatu
 	done, resultErr := evaluatePendingTask(snapshot, op)
 	if !done {
 		t.daemon.taskMu.Lock()
-		t.daemon.setTaskState(op.packageName, op.taskID, pbgo.TaskState_RUNNING, nil)
+		var progressErr error
+		if progress := rolloutProgressJSON(snapshot.agent, op.experimentID); progress != "" {
+			progressErr = errors.New(progress)
+		}
+		t.daemon.setTaskState(op.packageName, op.taskID, pbgo.TaskState_RUNNING, progressErr)
 		t.daemon.taskMu.Unlock()
 		return
 	}
@@ -145,6 +151,9 @@ func newDDAStatusSnapshot(dda *v2alpha1.DatadogAgent) ddaStatusSnapshot {
 	if dda.Status.Experiment != nil {
 		snapshot.experiment = dda.Status.Experiment.DeepCopy()
 	}
+	if dda.Status.Agent != nil {
+		snapshot.agent = dda.Status.Agent.DeepCopy()
+	}
 	return snapshot
 }
 
@@ -160,7 +169,7 @@ func evaluatePendingTask(snapshot ddaStatusSnapshot, task pendingOperation) (boo
 	switch task.intent {
 	case pendingIntentStart:
 		if phase == v2alpha1.ExperimentPhaseRunning {
-			return true, nil
+			return isDaemonSetRolloutComplete(snapshot.agent), nil
 		}
 	case pendingIntentStop:
 		return isTerminalPhase(phase), nil
@@ -175,6 +184,18 @@ func evaluatePendingTask(snapshot ddaStatusSnapshot, task pendingOperation) (boo
 		return true, fmt.Errorf("expected %s to finish, got terminal phase %q", task.intent, phase)
 	}
 	return false, nil
+}
+
+func isDaemonSetRolloutComplete(agent *v2alpha1.DaemonSetStatus) bool {
+	if agent == nil {
+		return false
+	}
+	// Desired == 0 is trivially complete: all nodes are tainted/cordoned so
+	// there is nothing to roll out. This is safe because experiments update an
+	// existing DaemonSet rather than create a new one, so Desired never
+	// transiently passes through 0 mid-rollout — it stays at its current node
+	// count throughout the update.
+	return agent.UpToDate == agent.Desired && agent.Ready == agent.Desired
 }
 
 // finishPendingOperation writes the final RC state for a task.
