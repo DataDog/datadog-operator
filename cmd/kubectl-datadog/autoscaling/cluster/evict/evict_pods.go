@@ -153,19 +153,7 @@ func waitForNodeEmpty(ctx context.Context, clientset kubernetes.Interface, nodeN
 // finishes the deletion; DaemonSet/mirror/completed pods are skipped because
 // they cannot or need not be evicted.
 func shouldSkipEviction(p *corev1.Pod) bool {
-	if p.DeletionTimestamp != nil {
-		return true
-	}
-	if isMirrorPod(p) {
-		return true
-	}
-	if isDaemonSetPod(p) {
-		return true
-	}
-	if isCompleted(p) {
-		return true
-	}
-	return false
+	return p.DeletionTimestamp != nil || isMirrorPod(p) || isDaemonSetPod(p) || isCompleted(p)
 }
 
 // podOccupiesNode reports whether a pod still consumes the node from a drain
@@ -173,16 +161,7 @@ func shouldSkipEviction(p *corev1.Pod) bool {
 // returning false for them prematurely would let the caller terminate the
 // instance before the container finished its grace period.
 func podOccupiesNode(p *corev1.Pod) bool {
-	if isMirrorPod(p) {
-		return false
-	}
-	if isDaemonSetPod(p) {
-		return false
-	}
-	if isCompleted(p) {
-		return false
-	}
-	return true
+	return !isMirrorPod(p) && !isDaemonSetPod(p) && !isCompleted(p)
 }
 
 func isMirrorPod(p *corev1.Pod) bool {
