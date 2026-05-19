@@ -53,7 +53,7 @@ func evictEKSManagedNodeGroup(ctx context.Context, eksAPI EKSManagedNodeGroupAPI
 		log.Printf("[dry-run] would scale EKS node group %s/%s to min=max=desired=0 and wait for EKS to drain", clusterName, nodegroupName)
 		return nil
 	}
-	_, err := eksAPI.UpdateNodegroupConfig(ctx, &eks.UpdateNodegroupConfigInput{
+	if _, err := eksAPI.UpdateNodegroupConfig(ctx, &eks.UpdateNodegroupConfigInput{
 		ClusterName:   awssdk.String(clusterName),
 		NodegroupName: awssdk.String(nodegroupName),
 		ScalingConfig: &ekstypes.NodegroupScalingConfig{
@@ -61,8 +61,7 @@ func evictEKSManagedNodeGroup(ctx context.Context, eksAPI EKSManagedNodeGroupAPI
 			MaxSize:     awssdk.Int32(0),
 			DesiredSize: awssdk.Int32(0),
 		},
-	})
-	if err != nil {
+	}); err != nil {
 		return fmt.Errorf("UpdateNodegroupConfig: %w", err)
 	}
 	log.Printf("EKS node group %s/%s scaling config set to 0; waiting for EKS to drain its nodes…", clusterName, nodegroupName)

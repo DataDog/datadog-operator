@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"slices"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -190,12 +191,9 @@ func isMirrorPod(p *corev1.Pod) bool {
 }
 
 func isDaemonSetPod(p *corev1.Pod) bool {
-	for _, owner := range p.OwnerReferences {
-		if owner.Kind == "DaemonSet" {
-			return true
-		}
-	}
-	return false
+	return slices.ContainsFunc(p.OwnerReferences, func(owner metav1.OwnerReference) bool {
+		return owner.Kind == "DaemonSet"
+	})
 }
 
 func isCompleted(p *corev1.Pod) bool {

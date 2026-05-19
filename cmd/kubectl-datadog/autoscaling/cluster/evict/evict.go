@@ -119,12 +119,11 @@ func (o *options) validate() error {
 		errs   []error
 	)
 	for _, spec := range o.targetSpecs {
-		t, err := ParseTargetSpec(spec)
-		if err != nil {
+		if t, err := ParseTargetSpec(spec); err != nil {
 			errs = append(errs, err)
-			continue
+		} else {
+			parsed = append(parsed, t)
 		}
-		parsed = append(parsed, t)
 	}
 	if len(errs) > 0 {
 		return errors.Join(errs...)
