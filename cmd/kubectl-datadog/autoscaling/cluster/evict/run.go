@@ -126,6 +126,7 @@ func Run(ctx context.Context, streams genericclioptions.IOStreams, configFlags *
 		DryRun:          opts.DryRun,
 		EvictionTimeout: opts.EvictionTimeout,
 		NodeTimeout:     opts.NodeTimeout,
+		PollInterval:    2 * time.Second,
 	}
 	evictor := func(c context.Context, t Target, d nodeDrainOptions) error {
 		return evictTarget(c, clientset, cli, opts.ClusterName, t, d)

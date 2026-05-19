@@ -39,9 +39,6 @@ func drainNode(ctx context.Context, clientset kubernetes.Interface, nodeName str
 		log.Printf("[dry-run] would drain node %s", nodeName)
 		return nil
 	}
-	if opts.PollInterval == 0 {
-		opts.PollInterval = 2 * time.Second
-	}
 	pods, err := listPodsOnNode(ctx, clientset, nodeName)
 	if err != nil {
 		return fmt.Errorf("failed to list pods on node %s: %w", nodeName, err)

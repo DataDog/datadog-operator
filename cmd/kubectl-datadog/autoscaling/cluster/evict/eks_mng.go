@@ -74,9 +74,6 @@ func evictEKSManagedNodeGroup(ctx context.Context, eksAPI EKSManagedNodeGroupAPI
 // expires. The EKS drain is bounded by drainOpts.NodeTimeout — for large node
 // groups, callers should raise this above the default.
 func waitEKSNodegroupEmpty(ctx context.Context, clientset kubernetes.Interface, clusterName, nodegroupName string, timeout, pollInterval time.Duration) error {
-	if pollInterval <= 0 {
-		pollInterval = 10 * time.Second
-	}
 	selector := commonaws.LabelEKSNodegroup + "=" + nodegroupName
 	deadline := time.Now().Add(timeout)
 	for {
