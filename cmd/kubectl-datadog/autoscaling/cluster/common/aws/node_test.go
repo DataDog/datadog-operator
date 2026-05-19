@@ -8,7 +8,7 @@ import (
 )
 
 func TestExtractEC2InstanceID(t *testing.T) {
-	tests := []struct {
+	for _, tc := range []struct {
 		name     string
 		provider string
 		wantID   string
@@ -21,8 +21,7 @@ func TestExtractEC2InstanceID(t *testing.T) {
 		{name: "empty", provider: "", wantOK: false},
 		{name: "missing prefix", provider: "i-0123456789abcdef0", wantOK: false},
 		{name: "missing AZ", provider: "aws:////i-0123456789abcdef0", wantOK: false},
-	}
-	for _, tc := range tests {
+	} {
 		t.Run(tc.name, func(t *testing.T) {
 			node := &corev1.Node{Spec: corev1.NodeSpec{ProviderID: tc.provider}}
 			id, ok := ExtractEC2InstanceID(node)

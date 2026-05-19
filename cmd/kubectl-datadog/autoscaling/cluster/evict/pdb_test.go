@@ -57,7 +57,7 @@ func TestUniqueNodes_Dedup(t *testing.T) {
 }
 
 func TestTempPDBName(t *testing.T) {
-	tests := []struct {
+	for _, tc := range []struct {
 		kind   string
 		name   string
 		expect string
@@ -66,8 +66,7 @@ func TestTempPDBName(t *testing.T) {
 		{"StatefulSet", "db", "statefulset-db-evict-legacy"},
 		// Long name that must be truncated to fit 63 chars
 		{"Deployment", strings.Repeat("a", 80), "deployment-" + strings.Repeat("a", 63-len("deployment-")-len(pdbNameSuffix)) + pdbNameSuffix},
-	}
-	for _, tc := range tests {
+	} {
 		got := tempPDBName(tc.kind, tc.name)
 		assert.LessOrEqual(t, len(got), 63, "tempPDBName output exceeds 63 chars: %s", got)
 		assert.Equal(t, tc.expect, got)

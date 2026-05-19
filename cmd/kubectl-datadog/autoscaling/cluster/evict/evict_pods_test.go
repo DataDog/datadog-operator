@@ -35,7 +35,7 @@ func installPodEvictionReactor(client *fake.Clientset) {
 
 func TestShouldSkipEviction(t *testing.T) {
 	now := metav1.Now()
-	tests := []struct {
+	for _, tc := range []struct {
 		name string
 		pod  *corev1.Pod
 		skip bool
@@ -50,8 +50,7 @@ func TestShouldSkipEviction(t *testing.T) {
 		}}, skip: true},
 		{name: "succeeded job", pod: &corev1.Pod{Status: corev1.PodStatus{Phase: corev1.PodSucceeded}}, skip: true},
 		{name: "failed job", pod: &corev1.Pod{Status: corev1.PodStatus{Phase: corev1.PodFailed}}, skip: true},
-	}
-	for _, tc := range tests {
+	} {
 		t.Run(tc.name, func(t *testing.T) {
 			assert.Equal(t, tc.skip, shouldSkipEviction(tc.pod))
 		})
@@ -65,7 +64,7 @@ func TestShouldSkipEviction(t *testing.T) {
 // the container before its preStop hook finishes).
 func TestPodOccupiesNode(t *testing.T) {
 	now := metav1.Now()
-	tests := []struct {
+	for _, tc := range []struct {
 		name     string
 		pod      *corev1.Pod
 		occupies bool
@@ -80,8 +79,7 @@ func TestPodOccupiesNode(t *testing.T) {
 		}}, occupies: false},
 		{name: "succeeded job", pod: &corev1.Pod{Status: corev1.PodStatus{Phase: corev1.PodSucceeded}}, occupies: false},
 		{name: "failed job", pod: &corev1.Pod{Status: corev1.PodStatus{Phase: corev1.PodFailed}}, occupies: false},
-	}
-	for _, tc := range tests {
+	} {
 		t.Run(tc.name, func(t *testing.T) {
 			assert.Equal(t, tc.occupies, podOccupiesNode(tc.pod))
 		})

@@ -10,7 +10,7 @@ import (
 )
 
 func TestParseTargetSpec(t *testing.T) {
-	tests := []struct {
+	for _, tc := range []struct {
 		name      string
 		input     string
 		want      Target
@@ -30,8 +30,7 @@ func TestParseTargetSpec(t *testing.T) {
 		{name: "fargate-rejected", input: "fargate/profile", wantError: "not supported"},
 		{name: "unknown-rejected", input: "unknown/x", wantError: "not supported"},
 		{name: "garbage", input: "blob/x", wantError: "unknown manager"},
-	}
-	for _, tc := range tests {
+	} {
 		t.Run(tc.name, func(t *testing.T) {
 			got, err := ParseTargetSpec(tc.input)
 			if tc.wantError != "" {
