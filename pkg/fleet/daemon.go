@@ -111,8 +111,7 @@ func (d *Daemon) handleTask(ctx context.Context, req remoteAPIRequest) error {
 	d.taskMu.Lock()
 	pending, err := d.handleRemoteAPIRequest(ctx, req)
 	if err != nil {
-		// stateDoesntMatchError covers RC config state mismatches (verifyExpectedState)
-		// and annotation slot conflicts (guardPendingOperationSlot).
+		// Expected and current stable/experiment configs don't match.
 		var stateErr *stateDoesntMatchError
 		if errors.As(err, &stateErr) {
 			d.setTaskState(req.Package, req.ID, pbgo.TaskState_INVALID_STATE, err)
@@ -228,16 +227,20 @@ func (d *Daemon) setTaskState(pkgName, taskID string, taskState pbgo.TaskState, 
 	found := false
 	for _, pkg := range current {
 		if pkg.GetPackage() == pkgName {
-			cloned := proto.Clone(pkg).(*pbgo.PackageState)
-			cloned.Task = task
-			updated = append(updated, cloned)
+			updated = append(updated, &pbgo.PackageState{
+				Package:                 pkg.GetPackage(),
+				StableVersion:           pkg.GetStableVersion(),
+				ExperimentVersion:       pkg.GetExperimentVersion(),
+				Task:                    task,
+				StableConfigVersion:     pkg.GetStableConfigVersion(),
+				ExperimentConfigVersion: pkg.GetExperimentConfigVersion(),
+			})
 			found = true
 		} else {
 			updated = append(updated, pkg)
 		}
 	}
 	if !found {
-		// Package not yet in state: no existing fields to preserve.
 		updated = append(updated, &pbgo.PackageState{
 			Package: pkgName,
 			Task:    task,
