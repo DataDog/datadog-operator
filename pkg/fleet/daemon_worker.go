@@ -216,8 +216,10 @@ func (d *Daemon) finishPendingOperation(ctx context.Context, task pendingOperati
 		}
 	}
 	if resultErr != nil {
+		ctrl.Log.Info("Task finished with error", "taskID", task.taskID, "package", task.packageName, "intent", task.intent, "error", resultErr)
 		d.setTaskState(task.packageName, task.taskID, pbgo.TaskState_ERROR, resultErr)
 	} else {
+		ctrl.Log.Info("Task finished successfully", "taskID", task.taskID, "package", task.packageName, "intent", task.intent)
 		d.setTaskState(task.packageName, task.taskID, pbgo.TaskState_DONE, nil)
 	}
 	d.taskMu.Unlock()
