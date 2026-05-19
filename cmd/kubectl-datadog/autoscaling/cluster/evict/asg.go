@@ -84,13 +84,12 @@ func evictASG(ctx context.Context, clientset kubernetes.Interface, asg Autoscali
 }
 
 func scaleASGToZero(ctx context.Context, asg AutoscalingAPI, asgName string) error {
-	_, err := asg.UpdateAutoScalingGroup(ctx, &autoscaling.UpdateAutoScalingGroupInput{
+	if _, err := asg.UpdateAutoScalingGroup(ctx, &autoscaling.UpdateAutoScalingGroupInput{
 		AutoScalingGroupName: awssdk.String(asgName),
 		MinSize:              awssdk.Int32(0),
 		MaxSize:              awssdk.Int32(0),
 		DesiredCapacity:      awssdk.Int32(0),
-	})
-	if err != nil {
+	}); err != nil {
 		return err
 	}
 	log.Printf("Scaled ASG %s to min=max=desired=0.", asgName)
