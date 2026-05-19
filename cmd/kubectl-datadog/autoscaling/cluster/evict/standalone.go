@@ -11,7 +11,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/clusterinfo"
+	commonaws "github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/aws"
 )
 
 // EC2API is the subset of *ec2.Client used by evictStandalone. Defined as an
@@ -45,7 +45,7 @@ func evictStandalone(ctx context.Context, clientset kubernetes.Interface, ec2API
 			errs = append(errs, fmt.Errorf("node %s: %w", nodeName, err))
 			continue
 		}
-		id, hasInstanceID := clusterinfo.ExtractEC2InstanceID(node)
+		id, hasInstanceID := commonaws.ExtractEC2InstanceID(node)
 		if !hasInstanceID {
 			log.Printf("Warning: node %s has unexpected providerID %q; cannot terminate the underlying instance", nodeName, node.Spec.ProviderID)
 		}

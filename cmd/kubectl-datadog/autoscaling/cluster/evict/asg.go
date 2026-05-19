@@ -12,7 +12,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/clusterinfo"
+	commonaws "github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/aws"
 )
 
 // AutoscalingAPI is the subset of *autoscaling.Client used by evictASG.
@@ -56,7 +56,7 @@ func evictASG(ctx context.Context, clientset kubernetes.Interface, asg Autoscali
 			drainFailed = true
 			continue
 		}
-		if _, hasInstanceID := clusterinfo.ExtractEC2InstanceID(node); !hasInstanceID {
+		if _, hasInstanceID := commonaws.ExtractEC2InstanceID(node); !hasInstanceID {
 			log.Printf("Warning: node %s has unexpected providerID %q", nodeName, node.Spec.ProviderID)
 		}
 		if err := cordonNode(ctx, clientset, nodeName, drainOpts.DryRun); err != nil {

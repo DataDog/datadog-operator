@@ -13,7 +13,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/clusterinfo"
+	commonaws "github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/aws"
 )
 
 // errEKSDrainIncomplete is returned (wrapped) by waitEKSNodegroupEmpty when
@@ -78,7 +78,7 @@ func waitEKSNodegroupEmpty(ctx context.Context, clientset kubernetes.Interface, 
 	if pollInterval <= 0 {
 		pollInterval = 10 * time.Second
 	}
-	selector := clusterinfo.LabelEKSNodegroup + "=" + nodegroupName
+	selector := commonaws.LabelEKSNodegroup + "=" + nodegroupName
 	deadline := time.Now().Add(timeout)
 	for {
 		list, err := clientset.CoreV1().Nodes().List(ctx, metav1.ListOptions{LabelSelector: selector})
