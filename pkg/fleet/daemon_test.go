@@ -43,6 +43,7 @@ func testDaemon(dda *v2alpha1.DatadogAgent, configs map[string]installerConfig) 
 	c := b.Build()
 	return &Daemon{
 		client:           c,
+		apiReader:        c,
 		revisionsEnabled: true,
 		configs:          configs,
 		statusUpdates:    make(chan ddaStatusSnapshot, 32),
@@ -1502,4 +1503,75 @@ func TestRunPendingOperationWorker_RecoversPromoteResultVersionFromAnnotations(t
 	got := &v2alpha1.DatadogAgent{}
 	require.NoError(t, c.Get(context.Background(), testDDANSN, got))
 	assert.Empty(t, got.Annotations[v2alpha1.AnnotationPendingResultVersion])
+}
+
+// TestRehydrateInstallerState_RunningExperiment is the regression test for
+// the lost-installer-state bug. After scale-down/up the daemon's in-memory
+// installer state was reset to no-experiment, but the DDA's Status.Experiment
+// still showed Running. Fleet Automation read the daemon's empty state, decided
+// the experiment hadn't started, and re-sent the start task.
+//
+// rehydrateInstallerState seeds the daemon's installer state from the DDA at
+// startup so the daemon reports the correct in-progress experiment to FA.
+func TestRehydrateInstallerState_RunningExperiment(t *testing.T) {
+	dda := testDDAObject(v2alpha1.ExperimentPhaseRunning)
+	d, _ := testDaemon(dda, nil)
+	rc := &mockRCClient{state: []*pbgo.PackageState{{
+		Package:             packageDatadogOperator,
+		StableVersion:       "v1.27.0",
+		StableConfigVersion: "stable",
+	}}}
+	d.rcClient = rc
+
+	require.NoError(t, d.rehydrateInstallerState(context.Background()))
+
+	stable, experiment := d.getPackageConfigVersions(packageDatadogOperator)
+	assert.Equal(t, "stable", stable, "stable version preserved")
+	assert.Equal(t, testExperimentID, experiment, "experiment id rehydrated from DDA")
+}
+
+// TestRehydrateInstallerState_TerminalPhasesSkipped verifies that a DDA whose
+// experiment is in a terminal phase (terminated, promoted, aborted) does not
+// repopulate the installer state — those experiments are no longer in flight.
+func TestRehydrateInstallerState_TerminalPhasesSkipped(t *testing.T) {
+	terminals := []v2alpha1.ExperimentPhase{
+		v2alpha1.ExperimentPhaseTerminated,
+		v2alpha1.ExperimentPhasePromoted,
+		v2alpha1.ExperimentPhaseAborted,
+	}
+	for _, phase := range terminals {
+		t.Run(string(phase), func(t *testing.T) {
+			dda := testDDAObject(phase)
+			d, _ := testDaemon(dda, nil)
+			rc := &mockRCClient{state: []*pbgo.PackageState{{
+				Package:             packageDatadogOperator,
+				StableVersion:       "v1.27.0",
+				StableConfigVersion: "stable",
+			}}}
+			d.rcClient = rc
+
+			require.NoError(t, d.rehydrateInstallerState(context.Background()))
+
+			_, experiment := d.getPackageConfigVersions(packageDatadogOperator)
+			assert.Empty(t, experiment, "terminal-phase DDA must not seed installer state")
+		})
+	}
+}
+
+// TestRehydrateInstallerState_NoDDA is a no-op: no DDAs in the cluster means
+// nothing to rehydrate. The installer state is left as-is.
+func TestRehydrateInstallerState_NoDDA(t *testing.T) {
+	d, _ := testDaemon(nil, nil)
+	rc := &mockRCClient{state: []*pbgo.PackageState{{
+		Package:             packageDatadogOperator,
+		StableVersion:       "v1.27.0",
+		StableConfigVersion: "stable",
+	}}}
+	d.rcClient = rc
+
+	require.NoError(t, d.rehydrateInstallerState(context.Background()))
+
+	stable, experiment := d.getPackageConfigVersions(packageDatadogOperator)
+	assert.Equal(t, "stable", stable)
+	assert.Empty(t, experiment)
 }
