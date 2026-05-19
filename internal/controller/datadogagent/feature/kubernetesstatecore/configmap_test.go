@@ -12,6 +12,7 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/yaml"
@@ -255,29 +256,25 @@ func Test_ksmFeature_buildKSMCorePodsOnNodeConfigMap(t *testing.T) {
 	assert.Equal(t, "test-kube-state-metrics-core-pods-on-node-config", got.Name)
 
 	content, ok := got.Data[ksmCorePodsOnNodeCheckName]
-	if !ok {
-		t.Fatalf("expected key %q in ConfigMap data, got keys: %v", ksmCorePodsOnNodeCheckName, got.Data)
-	}
+	require.True(t, ok, "ConfigMap data missing key %q (keys: %v)", ksmCorePodsOnNodeCheckName, got.Data)
 
-	// Cluster-check field MUST NOT be set: this is a file-provider check meant
-	// to run locally on every node agent, not be dispatched as a cluster check.
-	assert.NotContains(t, content, "cluster_check")
+	// Deep equality on the parsed YAML so the test catches BOTH intentional
+	// removals of required fields (pod_collection_mode, collectors) AND
+	// accidental additions (an unwanted `cluster_check: true` would change
+	// how the check is scheduled; a stray `skip_leader_election: false`
+	// would not, but should still be acknowledged explicitly).
+	var parsed map[string]any
+	require.NoError(t, yaml.Unmarshal([]byte(content), &parsed),
+		"ConfigMap content must be valid YAML:\n%s", content)
 
-	// Validate the YAML shape — pods-only collector and node_kubelet mode.
-	var parsed struct {
-		Instances []map[string]any `yaml:"instances"`
+	expected := map[string]any{
+		"init_config": nil,
+		"instances": []any{
+			map[string]any{
+				"pod_collection_mode": "node_kubelet",
+				"collectors":          []any{"pods"},
+			},
+		},
 	}
-	if err := yaml.Unmarshal([]byte(content), &parsed); err != nil {
-		t.Fatalf("ConfigMap content must be valid YAML: %v\n---\n%s", err, content)
-	}
-	if len(parsed.Instances) != 1 {
-		t.Fatalf("expected exactly one instance, got %d", len(parsed.Instances))
-	}
-	inst := parsed.Instances[0]
-	assert.Equal(t, "node_kubelet", inst["pod_collection_mode"])
-	collectors, ok := inst["collectors"].([]any)
-	if !ok {
-		t.Fatalf("expected collectors to be a list, got %T", inst["collectors"])
-	}
-	assert.Equal(t, []any{"pods"}, collectors, "collectors must contain only `pods` so node_kubelet mode is preserved")
+	assert.Equal(t, expected, parsed)
 }
