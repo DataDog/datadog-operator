@@ -576,4 +576,3 @@ func TestClassify_KarpenterDeploymentListError(t *testing.T) {
 	_, err := Classify(t.Context(), classifyOpts(clientset, &fakeASG{}))
 	require.Error(t, err, "deployment list errors must propagate from Classify")
 }
-
