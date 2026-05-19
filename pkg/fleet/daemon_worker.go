@@ -214,6 +214,17 @@ func (d *Daemon) finishPendingOperation(ctx context.Context, task pendingOperati
 // reconcileTimedOutExperiment passively repairs RC experiment config state when
 // the controller later times out and terminates a running experiment on its
 // own, without a new Fleet task driving that transition.
+//
+// When Status.Experiment.StartTaskID is recorded (operator >= v1.27 with the
+// StartTaskID capture commit), the daemon also reports TaskState_ERROR for
+// the original start task so Fleet Automation receives an explicit terminal
+// failure tied to the task it sent. Without this, FA only observes
+// experimentConfigVersion going to empty, which is ambiguous between
+// "experiment finished cleanly" and "experiment never started" and tends to
+// trigger retries of the same experiment ID.
+//
+// Task-state reporting happens before the experimentConfigVersion clear so
+// the two changes ship in the same poll to FA.
 func (d *Daemon) reconcileTimedOutExperiment(ctx context.Context, snapshot ddaStatusSnapshot) {
 	if d.rcClient == nil || snapshot.experiment == nil {
 		return
@@ -231,6 +242,11 @@ func (d *Daemon) reconcileTimedOutExperiment(ctx context.Context, snapshot ddaSt
 	for _, pkg := range d.rcClient.GetInstallerState() {
 		if pkg.GetExperimentConfigVersion() != snapshot.experiment.ID {
 			continue
+		}
+		if startTaskID := snapshot.experiment.StartTaskID; startTaskID != "" {
+			d.setTaskState(pkg.GetPackage(), startTaskID, pbgo.TaskState_ERROR,
+				fmt.Errorf("experiment %s timed out", snapshot.experiment.ID))
+			logger.Info("Reported timed-out experiment to RC as ERROR on original start task", "package", pkg.GetPackage(), "startTaskID", startTaskID)
 		}
 		d.setPackageConfigVersions(pkg.GetPackage(), pkg.GetStableConfigVersion(), "")
 		logger.Info("Cleared timed out experiment config version from RC state", "package", pkg.GetPackage())

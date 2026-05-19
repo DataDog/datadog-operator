@@ -875,3 +875,30 @@ func TestHandleRollback_StartedAt_AnchorsTimeout(t *testing.T) {
 		"handleRollback must use StartedAt as the timeout anchor; using rev.CreationTimestamp would fire an immediate timeout here")
 }
 
+// TestProcessStartSignal_CapturesStartTaskID verifies that the daemon's
+// pending-task-id annotation is captured into Status.Experiment.StartTaskID
+// on the Running transition. Without this, the daemon cannot later report
+// TaskState_ERROR for the original start task on local timeout.
+func TestProcessStartSignal_CapturesStartTaskID(t *testing.T) {
+	r, _ := newRevisionTestReconciler(t)
+
+	const taskID = "task-uuid-abc-123"
+	const expID = "exp-new"
+	instance := newRevisionTestOwner("test-dda", "default")
+	instance.Annotations = map[string]string{
+		v2alpha1.AnnotationExperimentSignal: v2alpha1.ExperimentSignalStart,
+		v2alpha1.AnnotationExperimentID:     expID,
+		v2alpha1.AnnotationPendingTaskID:    taskID,
+		v2alpha1.AnnotationPendingAction:    "start",
+	}
+
+	newStatus := &v2alpha1.DatadogAgentStatus{}
+	_, processErr := r.processExperimentSignal(context.Background(), instance, newStatus, metav1.Now(), nil)
+	require.NoError(t, processErr)
+	require.NotNil(t, newStatus.Experiment)
+	assert.Equal(t, v2alpha1.ExperimentPhaseRunning, newStatus.Experiment.Phase)
+	assert.Equal(t, expID, newStatus.Experiment.ID)
+	assert.Equal(t, taskID, newStatus.Experiment.StartTaskID,
+		"start task ID must be captured from the pending annotation so it survives "+
+			"daemon restarts and is available to report timeout errors")
+}

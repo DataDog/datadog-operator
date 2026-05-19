@@ -853,22 +853,34 @@ func Test_Experiment_StateTransitions(t *testing.T) {
 			expect: v2alpha1.ExperimentPhasePromoted,
 		},
 		{
-			// timeout: age the new experiment's revision past the deadline
-			// so the reconciler triggers a real timeout.
+			// timeout: age both the new experiment's revision and its
+			// Status.Experiment.StartedAt past the deadline so the
+			// reconciler triggers a real timeout. After the
+			// StartedAt anchor change (commit 9d8492397), revision
+			// timestamps alone are no longer load-bearing — the
+			// reconciler measures elapsed against StartedAt.
 			name: "timeout",
 			action: func(t *testing.T, r *Reconciler, ns, name string, uid types.UID, nsName types.NamespacedName, dda *v2alpha1.DatadogAgent) {
 				t.Helper()
 				r.options.ExperimentTimeout = 50 * time.Millisecond
+				staleTime := metav1.NewTime(time.Now().Add(-time.Minute))
 				// Only age unannotated revisions (the new experiment's revision).
 				// Annotated revisions belong to the old experiment and must not
 				// be touched — they're already handled by the fallback skip.
-				staleTime := metav1.NewTime(time.Now().Add(-time.Minute))
 				for _, rev := range listOwnedRevisions(t, r.client, ns, uid) {
 					if rev.Annotations[annotationExperimentRollback] != "true" &&
 						rev.Annotations[annotationExperimentPromoted] != "true" {
 						rev.CreationTimestamp = staleTime
 						assert.NoError(t, r.client.Update(context.TODO(), &rev))
 					}
+				}
+				// Backdate StartedAt so handleRollback's primary anchor
+				// exceeds the timeout.
+				fresh := &v2alpha1.DatadogAgent{}
+				assert.NoError(t, r.client.Get(context.TODO(), nsName, fresh))
+				if fresh.Status.Experiment != nil {
+					fresh.Status.Experiment.StartedAt = &staleTime
+					assert.NoError(t, r.client.Status().Update(context.TODO(), fresh))
 				}
 				reconcileN(t, r, ns, name, 2)
 			},

@@ -2469,6 +2469,15 @@ type ExperimentStatus struct {
 	// timestamps (which can be stale for re-used revisions).
 	// +optional
 	StartedAt *metav1.Time `json:"startedAt,omitempty"`
+	// StartTaskID is the Fleet Automation task identifier that drove the
+	// transition into phase=Running. Captured from the daemon's pending
+	// annotations and preserved across daemon restarts. On local timeout
+	// the daemon uses it to report TaskState_ERROR for the original start
+	// task, so Fleet Automation gets an explicit terminal failure tied to
+	// the task it sent rather than inferring termination from a cleared
+	// experimentConfigVersion.
+	// +optional
+	StartTaskID string `json:"startTaskID,omitempty"`
 	// TerminationReason distinguishes why the experiment was terminated.
 	// Only set when Phase is "terminated".
 	// +optional

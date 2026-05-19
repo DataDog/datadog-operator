@@ -174,7 +174,12 @@ func (r *Reconciler) processExperimentSignal(
 
 	switch signal {
 	case v2alpha1.ExperimentSignalStart:
-		acted, err = r.processStartSignal(ctx, annotationID, currentPhase, currentID, newStatus, now)
+		// The daemon writes its task identity into fleet.datadoghq.com/pending-task-id
+		// alongside the start signal. Capture it here so we don't depend on the
+		// pending annotations being available later (the worker clears them when
+		// the start task completes).
+		pendingTaskID := annotations[v2alpha1.AnnotationPendingTaskID]
+		acted, err = r.processStartSignal(ctx, annotationID, currentPhase, currentID, newStatus, now, pendingTaskID)
 
 	case v2alpha1.ExperimentSignalRollback:
 		acted, err = r.processRollbackSignal(ctx, instance, annotationID, currentPhase, newStatus, revisions)
@@ -204,6 +209,12 @@ func (r *Reconciler) processExperimentSignal(
 // handleRollback as the timeout anchor, removing the dependency on
 // ControllerRevision creation timestamps that could be stale for
 // re-used revisions.
+//
+// The daemon's pending-task-id annotation is captured into
+// Status.Experiment.StartTaskID so the daemon can later report
+// TaskState_ERROR for the original task on local timeout. Persisting
+// it on Status keeps the value durable across daemon restarts (the
+// pending annotations get cleared once the start task completes).
 func (r *Reconciler) processStartSignal(
 	ctx context.Context,
 	annotationID string,
@@ -211,6 +222,7 @@ func (r *Reconciler) processStartSignal(
 	currentID string,
 	newStatus *v2alpha1.DatadogAgentStatus,
 	now metav1.Time,
+	pendingTaskID string,
 ) (bool, error) {
 	logger := ctrl.LoggerFrom(ctx)
 	// Already processed: same ID already in status.
@@ -227,9 +239,10 @@ func (r *Reconciler) processStartSignal(
 	logger.Info("Processing start signal")
 	startedAt := now
 	newStatus.Experiment = &v2alpha1.ExperimentStatus{
-		Phase:     v2alpha1.ExperimentPhaseRunning,
-		ID:        annotationID,
-		StartedAt: &startedAt,
+		Phase:       v2alpha1.ExperimentPhaseRunning,
+		ID:          annotationID,
+		StartedAt:   &startedAt,
+		StartTaskID: pendingTaskID,
 	}
 	return true, nil
 }

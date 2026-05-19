@@ -1575,3 +1575,49 @@ func TestRehydrateInstallerState_NoDDA(t *testing.T) {
 	assert.Equal(t, "stable", stable)
 	assert.Empty(t, experiment)
 }
+
+// TestReconcileTimedOutExperiment_ReportsErrorOnStartTaskID verifies that
+// when Status.Experiment.StartTaskID is set, reconcileTimedOutExperiment
+// reports the original start task as TaskState_ERROR in addition to
+// clearing the experiment config version. This gives Fleet Automation an
+// explicit terminal failure tied to the task it originally sent, so it
+// stops resending start signals for the same experiment ID.
+func TestReconcileTimedOutExperiment_ReportsErrorOnStartTaskID(t *testing.T) {
+	const startTaskID = "task-uuid-from-start"
+	d, rc := testDaemonWithRC([]*pbgo.PackageState{
+		{Package: "datadog-operator", StableConfigVersion: "stable-1", ExperimentConfigVersion: testExperimentID},
+	})
+	dda := testDDAObject(v2alpha1.ExperimentPhaseTerminated)
+	dda.Status.Experiment.TerminationReason = "timed_out"
+	dda.Status.Experiment.StartTaskID = startTaskID
+
+	d.reconcileTimedOutExperiment(context.Background(), newDDAStatusSnapshot(dda))
+
+	require.Len(t, rc.state, 1)
+	assert.Empty(t, rc.state[0].ExperimentConfigVersion, "experimentConfigVersion cleared after timeout")
+	require.NotNil(t, rc.state[0].Task, "task state populated for FA")
+	assert.Equal(t, startTaskID, rc.state[0].Task.Id, "task id matches original start task")
+	assert.Equal(t, pbgo.TaskState_ERROR, rc.state[0].Task.State, "task reported as ERROR")
+	require.NotNil(t, rc.state[0].Task.Error)
+	assert.Contains(t, rc.state[0].Task.Error.Message, testExperimentID, "error message references the timed-out experiment id")
+}
+
+// TestReconcileTimedOutExperiment_NoStartTaskID_LegacyFallback verifies
+// that pre-v1.27 DDAs (or in-flight experiments at upgrade time) without
+// Status.Experiment.StartTaskID still get their experimentConfigVersion
+// cleared. The task-state report is skipped silently — without the task
+// id there is nothing to report against.
+func TestReconcileTimedOutExperiment_NoStartTaskID_LegacyFallback(t *testing.T) {
+	d, rc := testDaemonWithRC([]*pbgo.PackageState{
+		{Package: "datadog-operator", StableConfigVersion: "stable-1", ExperimentConfigVersion: testExperimentID},
+	})
+	dda := testDDAObject(v2alpha1.ExperimentPhaseTerminated)
+	dda.Status.Experiment.TerminationReason = "timed_out"
+	// StartTaskID intentionally empty.
+
+	d.reconcileTimedOutExperiment(context.Background(), newDDAStatusSnapshot(dda))
+
+	require.Len(t, rc.state, 1)
+	assert.Empty(t, rc.state[0].ExperimentConfigVersion)
+	assert.Nil(t, rc.state[0].Task, "no start task id → no task state reported")
+}
