@@ -232,10 +232,10 @@ func Test_Experiment_AbortOnManualChange(t *testing.T) {
 	reconcileN(t, r, ns, name, 1)
 	assert.Equal(t, v2alpha1.ExperimentPhaseRunning, mustGetExperimentPhase(t, r, ns, name))
 
-	// Patch revision timestamps to a recent time so the timeout path in
-	// handleRollback is not accidentally triggered before the abort check runs.
+	// Patch revision timestamps outside the grace period but within timeout so
+	// neither path fires before the manual-change abort check runs.
 	for _, rev := range listOwnedRevisions(t, r.client, ns, uid) {
-		rev.CreationTimestamp = metav1.Now()
+		rev.CreationTimestamp = metav1.NewTime(time.Now().Add(-20 * time.Second))
 		assert.NoError(t, r.client.Update(context.TODO(), &rev))
 	}
 
@@ -472,18 +472,19 @@ func Test_Experiment_Abort_AnnotatesOnlyExperimentRevision(t *testing.T) {
 	// Daemon writes start annotations and reconcile processes them → running.
 	simulateDaemonStart(t, r.client, nsName, "exp-1")
 
-	// Patch timestamps so timeout doesn't fire before abort.
+	// Patch timestamps outside the grace period but within timeout so neither
+	// path fires before the manual-change abort check runs.
 	for _, rev := range listOwnedRevisions(t, r.client, ns, uid) {
-		rev.CreationTimestamp = metav1.Now()
+		rev.CreationTimestamp = metav1.NewTime(time.Now().Add(-20 * time.Second))
 		assert.NoError(t, r.client.Update(context.TODO(), &rev))
 	}
 
 	reconcileN(t, r, ns, name, 1)
 	assert.Equal(t, v2alpha1.ExperimentPhaseRunning, mustGetExperimentPhase(t, r, ns, name))
 
-	// Patch timestamps again after reconcile so timeout doesn't fire before abort.
+	// Patch timestamps again after reconcile so neither path fires before abort.
 	for _, rev := range listOwnedRevisions(t, r.client, ns, uid) {
-		rev.CreationTimestamp = metav1.Now()
+		rev.CreationTimestamp = metav1.NewTime(time.Now().Add(-20 * time.Second))
 		assert.NoError(t, r.client.Update(context.TODO(), &rev))
 	}
 

@@ -41,6 +41,13 @@ const (
 // gets a fresh timestamp when the same spec is re-applied.
 const annotationExperimentRollback = "operator.datadoghq.com/experiment-rollback"
 
+// abortGracePeriod is the window after a new ControllerRevision is created
+// during which abortExperiment skips the spec-match check. The controller's
+// own spec settling (defaults, transient annotations) may not yet be reflected
+// in the newest revision on the immediately following reconcile, so we wait
+// for the system to stabilize before interpreting a mismatch as a user change.
+const abortGracePeriod = 10 * time.Second
+
 // annotationExperimentPromoted marks a ControllerRevision whose experiment was
 // promoted. The annotation tells handleRollback to skip the timeout check so
 // the stale CreationTimestamp doesn't cause a false timeout when a subsequent
@@ -111,7 +118,7 @@ func (r *Reconciler) manageExperiment(
 			r.annotateRevision(ctx, rev, annotationExperimentPromoted)
 		}
 	}
-	r.abortExperiment(ctx, instance, experiment, newStatus, revList)
+	r.abortExperiment(ctx, instance, experiment, newStatus, revList, now)
 
 	// Clear annotations only if the entire experiment management cycle did
 	// not mutate the experiment status. Clearing bumps the DDA's
@@ -366,12 +373,19 @@ func (r *Reconciler) abortExperiment(
 	experiment *v2alpha1.ExperimentStatus,
 	newStatus *v2alpha1.DatadogAgentStatus,
 	revisions []appsv1.ControllerRevision,
+	now metav1.Time,
 ) {
+	// Guard 1: skip when the pre-reconcile experiment was not running.
+	// This prevents abort from firing on the first reconcile of a NEW experiment
+	// started after a terminal state (promoted/terminated): processExperimentSignal
+	// sets newStatus.Experiment.Phase = Running for the new experiment, but the old
+	// experiment (instance.Status.Experiment) is still in a terminal phase.
 	if experiment.Phase != v2alpha1.ExperimentPhaseRunning {
 		return
 	}
+	// Guard 2: skip when processExperimentSignal or handleRollback already set a
+	// terminal phase in this reconcile cycle — don't overwrite or log spuriously.
 	if newStatus.Experiment.Phase != v2alpha1.ExperimentPhaseRunning {
-		// handleRollback already determined a terminal phase (e.g. timeout); don't overwrite or log.
 		return
 	}
 	// On the first reconcile after experiment start, the new revision hasn't
@@ -381,6 +395,15 @@ func (r *Reconciler) abortExperiment(
 	// when fewer than 2 revisions exist.
 	if len(revisions) < 2 {
 		return
+	}
+	// Skip the check immediately after a new revision is created. Transient
+	// annotation differences between the snapshot and the next reconcile's
+	// instance can cause a false positive on the very first reconcile after
+	// experiment start. Wait for the system to stabilize.
+	if rev := highestRevision(revisions); rev != nil {
+		if now.Sub(rev.CreationTimestamp.Time) < abortGracePeriod {
+			return
+		}
 	}
 	if findMostRecentMatchingRevision(revisions, instance) != nil {
 		// Spec matches a known revision — no manual change detected.
@@ -445,6 +468,19 @@ func (r *Reconciler) handleRollback(
 		}
 	}
 	if rev != nil {
+		if len(revisions) < 2 {
+			// The experiment revision hasn't been created yet (manageRevision runs
+			// after manageExperiment). The only existing revision is the pre-experiment
+			// baseline whose timestamp can be arbitrarily old. Skip the timeout check
+			// to avoid an immediate rollback on the very first reconcile.
+			//
+			// Note: if manageRevision fails persistently, len stays at 1 and this
+			// guard keeps the experiment alive indefinitely. That is intentional:
+			// the timeout clock should not start until the experiment is recorded.
+			// Persistent manageRevision failures are observable via controller error
+			// events on the DDA.
+			return nil
+		}
 		elapsed := now.Sub(rev.CreationTimestamp.Time)
 		if elapsed >= getExperimentTimeout(r.options.ExperimentTimeout) {
 			logger.Info("Experiment timed out, rolling back", "elapsed", elapsed.String())
