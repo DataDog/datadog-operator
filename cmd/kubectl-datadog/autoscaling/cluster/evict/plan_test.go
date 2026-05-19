@@ -44,8 +44,8 @@ func TestParseTargetSpec(t *testing.T) {
 	}
 }
 
-func TestBuildPlan_All(t *testing.T) {
-	info := &clusterinfo.ClusterInfo{
+func TestBuildPlan(t *testing.T) {
+	mixedInfo := &clusterinfo.ClusterInfo{
 		NodeManagement: map[clusterinfo.NodeManager]map[string]clusterinfo.NodeManagerEntry{
 			clusterinfo.NodeManagerASG: {
 				"legacy-asg-a": {Nodes: []string{"ip-1", "ip-2"}, ManagedByDatadog: false},
@@ -70,43 +70,14 @@ func TestBuildPlan_All(t *testing.T) {
 			},
 		},
 	}
-	got, err := BuildPlan(info, true, nil)
-	require.NoError(t, err)
-
-	// Datadog-managed entries dropped; fargate + unknown skipped.
-	// Each non-DD entity present, with its nodes copied.
-	entities := make([]string, 0, len(got))
-	for _, t := range got {
-		entities = append(entities, string(t.Manager)+"/"+t.Entity)
-	}
-	assert.ElementsMatch(t, []string{
-		"karpenter/user-np",
-		"eksManagedNodeGroup/mng-1",
-		"asg/legacy-asg-a",
-		"asg/legacy-asg-b",
-		"standalone/",
-	}, entities)
-}
-
-func TestBuildPlan_TargetedHappyPath(t *testing.T) {
-	info := &clusterinfo.ClusterInfo{
+	asgOnlyInfo := &clusterinfo.ClusterInfo{
 		NodeManagement: map[clusterinfo.NodeManager]map[string]clusterinfo.NodeManagerEntry{
 			clusterinfo.NodeManagerASG: {
 				"my-asg": {Nodes: []string{"ip-1", "ip-2"}, ManagedByDatadog: false},
 			},
 		},
 	}
-	got, err := BuildPlan(info, false, []Target{
-		{Manager: clusterinfo.NodeManagerASG, Entity: "my-asg"},
-	})
-	require.NoError(t, err)
-	require.Len(t, got, 1)
-	assert.Equal(t, "my-asg", got[0].Entity)
-	assert.Equal(t, []string{"ip-1", "ip-2"}, got[0].Nodes)
-}
-
-func TestBuildPlan_TargetErrors(t *testing.T) {
-	info := &clusterinfo.ClusterInfo{
+	ddASGInfo := &clusterinfo.ClusterInfo{
 		NodeManagement: map[clusterinfo.NodeManager]map[string]clusterinfo.NodeManagerEntry{
 			clusterinfo.NodeManagerASG: {
 				"dd-asg": {Nodes: []string{"ip-1"}, ManagedByDatadog: true},
@@ -114,29 +85,101 @@ func TestBuildPlan_TargetErrors(t *testing.T) {
 		},
 	}
 
-	t.Run("missing entity", func(t *testing.T) {
-		_, err := BuildPlan(info, false, []Target{{Manager: clusterinfo.NodeManagerASG, Entity: "ghost"}})
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "not found")
-	})
+	for _, tc := range []struct {
+		name    string
+		info    *clusterinfo.ClusterInfo
+		all     bool
+		targets []Target
 
-	t.Run("datadog-managed entity", func(t *testing.T) {
-		_, err := BuildPlan(info, false, []Target{{Manager: clusterinfo.NodeManagerASG, Entity: "dd-asg"}})
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "managed by Datadog")
-	})
-
-	t.Run("missing manager bucket", func(t *testing.T) {
-		_, err := BuildPlan(info, false, []Target{{Manager: clusterinfo.NodeManagerKarpenter, Entity: "x"}})
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "no karpenter entities")
-	})
-
-	t.Run("no targets at all", func(t *testing.T) {
-		_, err := BuildPlan(info, false, nil)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "at least one --target")
-	})
+		wantErr         bool
+		wantErrContains string
+		// wantEntities, when non-nil, is the expected set of `<manager>/<entity>`
+		// strings in the returned plan. ElementsMatch is used (order
+		// irrelevant). nil disables the check.
+		wantEntities []string
+		// wantNodes maps entity name to its expected Nodes slice in the
+		// returned plan (only used in the targeted happy-path case).
+		wantNodes map[string][]string
+	}{
+		{
+			// --all: Datadog-managed entries dropped; fargate + unknown
+			// skipped entirely.
+			name: "--all returns every non-Datadog entity",
+			info: mixedInfo,
+			all:  true,
+			wantEntities: []string{
+				"karpenter/user-np",
+				"eksManagedNodeGroup/mng-1",
+				"asg/legacy-asg-a",
+				"asg/legacy-asg-b",
+				"standalone/",
+			},
+		},
+		{
+			name:         "targeted happy path",
+			info:         asgOnlyInfo,
+			targets:      []Target{{Manager: clusterinfo.NodeManagerASG, Entity: "my-asg"}},
+			wantEntities: []string{"asg/my-asg"},
+			wantNodes:    map[string][]string{"my-asg": {"ip-1", "ip-2"}},
+		},
+		{
+			name:            "missing entity errors",
+			info:            ddASGInfo,
+			targets:         []Target{{Manager: clusterinfo.NodeManagerASG, Entity: "ghost"}},
+			wantErr:         true,
+			wantErrContains: "not found",
+		},
+		{
+			name:            "datadog-managed entity is refused",
+			info:            ddASGInfo,
+			targets:         []Target{{Manager: clusterinfo.NodeManagerASG, Entity: "dd-asg"}},
+			wantErr:         true,
+			wantErrContains: "managed by Datadog",
+		},
+		{
+			name:            "missing manager bucket errors",
+			info:            ddASGInfo,
+			targets:         []Target{{Manager: clusterinfo.NodeManagerKarpenter, Entity: "x"}},
+			wantErr:         true,
+			wantErrContains: "no karpenter entities",
+		},
+		{
+			name:            "no targets and not --all errors",
+			info:            ddASGInfo,
+			wantErr:         true,
+			wantErrContains: "at least one --target",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := BuildPlan(tc.info, tc.all, tc.targets)
+			if tc.wantErr {
+				require.Error(t, err)
+				if tc.wantErrContains != "" {
+					assert.Contains(t, err.Error(), tc.wantErrContains)
+				}
+				return
+			}
+			require.NoError(t, err)
+			if tc.wantEntities != nil {
+				entities := make([]string, 0, len(got))
+				for _, g := range got {
+					entities = append(entities, string(g.Manager)+"/"+g.Entity)
+				}
+				assert.ElementsMatch(t, tc.wantEntities, entities)
+			}
+			for entity, wantNodes := range tc.wantNodes {
+				found := false
+				for _, g := range got {
+					if g.Entity == entity {
+						assert.Equal(t, wantNodes, g.Nodes)
+						found = true
+						break
+					}
+				}
+				assert.True(t, found, "expected entity %q in plan", entity)
+			}
+		})
+	}
 }
 
 func TestGroupByManager(t *testing.T) {
@@ -152,28 +195,37 @@ func TestGroupByManager(t *testing.T) {
 }
 
 func TestHasDatadogManagedNodePool(t *testing.T) {
-	t.Run("nil info", func(t *testing.T) {
-		assert.False(t, hasDatadogManagedNodePool(nil))
-	})
-	t.Run("no karpenter bucket", func(t *testing.T) {
-		info := &clusterinfo.ClusterInfo{NodeManagement: map[clusterinfo.NodeManager]map[string]clusterinfo.NodeManagerEntry{}}
-		assert.False(t, hasDatadogManagedNodePool(info))
-	})
-	t.Run("only user NodePools", func(t *testing.T) {
-		info := &clusterinfo.ClusterInfo{NodeManagement: map[clusterinfo.NodeManager]map[string]clusterinfo.NodeManagerEntry{
-			clusterinfo.NodeManagerKarpenter: {
-				"user-np": {ManagedByDatadog: false},
-			},
-		}}
-		assert.False(t, hasDatadogManagedNodePool(info))
-	})
-	t.Run("at least one Datadog NodePool", func(t *testing.T) {
-		info := &clusterinfo.ClusterInfo{NodeManagement: map[clusterinfo.NodeManager]map[string]clusterinfo.NodeManagerEntry{
-			clusterinfo.NodeManagerKarpenter: {
-				"user-np": {ManagedByDatadog: false},
-				"dd-np":   {ManagedByDatadog: true},
-			},
-		}}
-		assert.True(t, hasDatadogManagedNodePool(info))
-	})
+	for _, tc := range []struct {
+		name string
+		info *clusterinfo.ClusterInfo
+		want bool
+	}{
+		{name: "nil info", info: nil, want: false},
+		{
+			name: "no karpenter bucket",
+			info: &clusterinfo.ClusterInfo{NodeManagement: map[clusterinfo.NodeManager]map[string]clusterinfo.NodeManagerEntry{}},
+			want: false,
+		},
+		{
+			name: "only user NodePools",
+			info: &clusterinfo.ClusterInfo{NodeManagement: map[clusterinfo.NodeManager]map[string]clusterinfo.NodeManagerEntry{
+				clusterinfo.NodeManagerKarpenter: {"user-np": {ManagedByDatadog: false}},
+			}},
+			want: false,
+		},
+		{
+			name: "at least one Datadog NodePool",
+			info: &clusterinfo.ClusterInfo{NodeManagement: map[clusterinfo.NodeManager]map[string]clusterinfo.NodeManagerEntry{
+				clusterinfo.NodeManagerKarpenter: {
+					"user-np": {ManagedByDatadog: false},
+					"dd-np":   {ManagedByDatadog: true},
+				},
+			}},
+			want: true,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, hasDatadogManagedNodePool(tc.info))
+		})
+	}
 }

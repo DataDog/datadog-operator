@@ -82,77 +82,85 @@ func scaleReactor(t *testing.T, client *fake.Clientset, conflictFirstUpdate bool
 	return &updateCalls
 }
 
-func TestScaleDownClusterAutoscaler_NotPresent(t *testing.T) {
-	client := fake.NewClientset()
-	require.NoError(t, scaleDownClusterAutoscaler(context.Background(), client, clusterinfo.ClusterAutoscaler{Present: false}, false))
-}
-
-func TestScaleDownClusterAutoscaler_AlreadyZero_NoUpdate(t *testing.T) {
-	dep := &appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{Name: "cluster-autoscaler", Namespace: "kube-system"},
-		Spec:       appsv1.DeploymentSpec{Replicas: ptr.To(int32(0))},
+func TestScaleDownClusterAutoscaler(t *testing.T) {
+	caDep := func(replicas int32) *appsv1.Deployment {
+		return &appsv1.Deployment{
+			ObjectMeta: metav1.ObjectMeta{Name: "cluster-autoscaler", Namespace: "kube-system"},
+			Spec:       appsv1.DeploymentSpec{Replicas: ptr.To(replicas)},
+		}
 	}
-	client := fake.NewClientset(dep)
-	calls := scaleReactor(t, client, false)
+	caPresent := clusterinfo.ClusterAutoscaler{Present: true, Namespace: "kube-system", Name: "cluster-autoscaler"}
 
-	require.NoError(t, scaleDownClusterAutoscaler(context.Background(), client, clusterinfo.ClusterAutoscaler{
-		Present: true, Namespace: "kube-system", Name: "cluster-autoscaler",
-	}, false))
-	assert.Zero(t, *calls, "Update should not be called when replicas already 0")
-}
+	for _, tc := range []struct {
+		name string
+		// dep, when non-nil, is pre-loaded into the fake clientset.
+		dep *appsv1.Deployment
+		// ca is what Run would have passed in from clusterinfo.Classify.
+		ca clusterinfo.ClusterAutoscaler
+		// conflictFirstUpdate forces the scaleReactor to return Conflict on
+		// the first UpdateScale call so RetryOnConflict has to refetch.
+		conflictFirstUpdate bool
+		dryRun              bool
+		// wantUpdateCalls is the minimum number of UpdateScale invocations
+		// the test expects (>= because retries may happen).
+		wantUpdateCalls int
+		// wantReplicas, when non-nil, is the final value of the Deployment's
+		// Spec.Replicas after the call.
+		wantReplicas *int32
+	}{
+		{
+			name: "CA absent is a no-op",
+			ca:   clusterinfo.ClusterAutoscaler{Present: false},
+		},
+		{
+			name:            "replicas already 0 skips Update",
+			dep:             caDep(0),
+			ca:              caPresent,
+			wantUpdateCalls: 0,
+			wantReplicas:    ptr.To(int32(0)),
+		},
+		{
+			name:            "scales from 3 to 0",
+			dep:             caDep(3),
+			ca:              caPresent,
+			wantUpdateCalls: 1,
+			wantReplicas:    ptr.To(int32(0)),
+		},
+		{
+			name:                "retries on Conflict",
+			dep:                 caDep(2),
+			ca:                  caPresent,
+			conflictFirstUpdate: true,
+			wantUpdateCalls:     2,
+			wantReplicas:        ptr.To(int32(0)),
+		},
+		{
+			name:            "dry-run touches nothing",
+			dep:             caDep(3),
+			ca:              caPresent,
+			dryRun:          true,
+			wantUpdateCalls: 0,
+			wantReplicas:    ptr.To(int32(3)),
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var objs []runtime.Object
+			if tc.dep != nil {
+				objs = append(objs, tc.dep)
+			}
+			client := fake.NewClientset(objs...)
+			calls := scaleReactor(t, client, tc.conflictFirstUpdate)
 
-func TestScaleDownClusterAutoscaler_ScalesToZero(t *testing.T) {
-	dep := &appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{Name: "cluster-autoscaler", Namespace: "kube-system"},
-		Spec:       appsv1.DeploymentSpec{Replicas: ptr.To(int32(3))},
+			require.NoError(t, scaleDownClusterAutoscaler(context.Background(), client, tc.ca, tc.dryRun))
+
+			assert.GreaterOrEqual(t, *calls, tc.wantUpdateCalls, "minimum UpdateScale calls")
+			if tc.wantReplicas == nil {
+				return
+			}
+			got, err := client.AppsV1().Deployments(tc.ca.Namespace).Get(context.Background(), tc.ca.Name, metav1.GetOptions{})
+			require.NoError(t, err)
+			require.NotNil(t, got.Spec.Replicas)
+			assert.Equal(t, *tc.wantReplicas, *got.Spec.Replicas)
+		})
 	}
-	client := fake.NewClientset(dep)
-	scaleReactor(t, client, false)
-
-	require.NoError(t, scaleDownClusterAutoscaler(context.Background(), client, clusterinfo.ClusterAutoscaler{
-		Present: true, Namespace: "kube-system", Name: "cluster-autoscaler",
-	}, false))
-
-	got, err := client.AppsV1().Deployments("kube-system").Get(context.Background(), "cluster-autoscaler", metav1.GetOptions{})
-	require.NoError(t, err)
-	require.NotNil(t, got.Spec.Replicas)
-	assert.EqualValues(t, 0, *got.Spec.Replicas)
-}
-
-func TestScaleDownClusterAutoscaler_RetriesOnConflict(t *testing.T) {
-	dep := &appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{Name: "cluster-autoscaler", Namespace: "kube-system"},
-		Spec:       appsv1.DeploymentSpec{Replicas: ptr.To(int32(2))},
-	}
-	client := fake.NewClientset(dep)
-	calls := scaleReactor(t, client, true)
-
-	require.NoError(t, scaleDownClusterAutoscaler(context.Background(), client, clusterinfo.ClusterAutoscaler{
-		Present: true, Namespace: "kube-system", Name: "cluster-autoscaler",
-	}, false))
-
-	assert.GreaterOrEqual(t, *calls, 2, "UpdateScale should be retried after a Conflict")
-
-	got, err := client.AppsV1().Deployments("kube-system").Get(context.Background(), "cluster-autoscaler", metav1.GetOptions{})
-	require.NoError(t, err)
-	require.NotNil(t, got.Spec.Replicas)
-	assert.EqualValues(t, 0, *got.Spec.Replicas)
-}
-
-func TestScaleDownClusterAutoscaler_DryRun(t *testing.T) {
-	dep := &appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{Name: "cluster-autoscaler", Namespace: "kube-system"},
-		Spec:       appsv1.DeploymentSpec{Replicas: ptr.To(int32(3))},
-	}
-	client := fake.NewClientset(dep)
-	calls := scaleReactor(t, client, false)
-
-	require.NoError(t, scaleDownClusterAutoscaler(context.Background(), client, clusterinfo.ClusterAutoscaler{
-		Present: true, Namespace: "kube-system", Name: "cluster-autoscaler",
-	}, true))
-
-	assert.Zero(t, *calls, "dry-run must not call UpdateScale")
-	got, err := client.AppsV1().Deployments("kube-system").Get(context.Background(), "cluster-autoscaler", metav1.GetOptions{})
-	require.NoError(t, err)
-	assert.EqualValues(t, 3, *got.Spec.Replicas)
 }

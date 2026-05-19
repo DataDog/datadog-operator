@@ -11,24 +11,24 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 )
 
-func TestEvictKarpenterUserNodePool_CordonsAndDrains(t *testing.T) {
-	node := &corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "n1"}}
-	client := fake.NewClientset(node)
+func TestEvictKarpenterUserNodePool(t *testing.T) {
+	for _, tc := range []struct {
+		name              string
+		dryRun            bool
+		wantUnschedulable bool
+	}{
+		{name: "cordons and drains", dryRun: false, wantUnschedulable: true},
+		{name: "dry-run touches nothing", dryRun: true, wantUnschedulable: false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			node := &corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "n1"}}
+			client := fake.NewClientset(node)
 
-	require.NoError(t, evictKarpenterUserNodePool(context.Background(), client, "user-np", []string{"n1"}, newDrainOpts(false)))
+			require.NoError(t, evictKarpenterUserNodePool(context.Background(), client, "user-np", []string{"n1"}, newDrainOpts(tc.dryRun)))
 
-	got, err := client.CoreV1().Nodes().Get(context.Background(), "n1", metav1.GetOptions{})
-	require.NoError(t, err)
-	assert.True(t, got.Spec.Unschedulable, "node should be cordoned")
-}
-
-func TestEvictKarpenterUserNodePool_DryRun(t *testing.T) {
-	node := &corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "n1"}}
-	client := fake.NewClientset(node)
-
-	require.NoError(t, evictKarpenterUserNodePool(context.Background(), client, "user-np", []string{"n1"}, newDrainOpts(true)))
-
-	got, err := client.CoreV1().Nodes().Get(context.Background(), "n1", metav1.GetOptions{})
-	require.NoError(t, err)
-	assert.False(t, got.Spec.Unschedulable, "dry-run must not cordon")
+			got, err := client.CoreV1().Nodes().Get(context.Background(), "n1", metav1.GetOptions{})
+			require.NoError(t, err)
+			assert.Equal(t, tc.wantUnschedulable, got.Spec.Unschedulable)
+		})
+	}
 }

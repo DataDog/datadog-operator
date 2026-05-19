@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
 )
 
@@ -23,92 +24,108 @@ func (s *stubEC2) TerminateInstances(_ context.Context, in *ec2.TerminateInstanc
 	return &ec2.TerminateInstancesOutput{}, s.err
 }
 
-func TestEvictStandalone_HappyPath(t *testing.T) {
-	node1 := &corev1.Node{
-		ObjectMeta: metav1.ObjectMeta{Name: "ip-1"},
-		Spec:       corev1.NodeSpec{ProviderID: "aws:///eu-west-3a/i-aaa"},
+func TestEvictStandalone(t *testing.T) {
+	ec2Node := func(name, az, id string) *corev1.Node {
+		return &corev1.Node{
+			ObjectMeta: metav1.ObjectMeta{Name: name},
+			Spec:       corev1.NodeSpec{ProviderID: "aws:///" + az + "/" + id},
+		}
 	}
-	node2 := &corev1.Node{
-		ObjectMeta: metav1.ObjectMeta{Name: "ip-2"},
-		Spec:       corev1.NodeSpec{ProviderID: "aws:///eu-west-3b/i-bbb"},
+	stuckPod := func() *corev1.Pod {
+		return &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{Name: "blocker", Namespace: "default"},
+			Spec:       corev1.PodSpec{NodeName: "ip-stuck"},
+		}
 	}
-	client := fake.NewClientset(node1, node2)
-	stub := &stubEC2{}
-
-	require.NoError(t, evictStandalone(context.Background(), client, stub, []string{"ip-1", "ip-2"}, newDrainOpts(false)))
-
-	assert.ElementsMatch(t, []string{"i-aaa", "i-bbb"}, stub.terminated)
-
-	for _, name := range []string{"ip-1", "ip-2"} {
-		got, err := client.CoreV1().Nodes().Get(context.Background(), name, metav1.GetOptions{})
-		require.NoError(t, err)
-		assert.True(t, got.Spec.Unschedulable, "node %s should be cordoned", name)
-	}
-}
-
-func TestEvictStandalone_DryRun(t *testing.T) {
-	node := &corev1.Node{
-		ObjectMeta: metav1.ObjectMeta{Name: "ip-1"},
-		Spec:       corev1.NodeSpec{ProviderID: "aws:///eu-west-3a/i-aaa"},
-	}
-	client := fake.NewClientset(node)
-	stub := &stubEC2{}
-
-	require.NoError(t, evictStandalone(context.Background(), client, stub, []string{"ip-1"}, newDrainOpts(true)))
-
-	assert.Empty(t, stub.terminated, "dry-run must not call TerminateInstances")
-	got, err := client.CoreV1().Nodes().Get(context.Background(), "ip-1", metav1.GetOptions{})
-	require.NoError(t, err)
-	assert.False(t, got.Spec.Unschedulable, "dry-run must not cordon")
-}
-
-func TestEvictStandalone_NodeGone_SkipsTerminate(t *testing.T) {
-	client := fake.NewClientset() // no nodes
-	stub := &stubEC2{}
-
-	require.NoError(t, evictStandalone(context.Background(), client, stub, []string{"ip-1"}, newDrainOpts(false)))
-
-	assert.Empty(t, stub.terminated, "no instance id known → no terminate call")
-}
-
-func TestEvictStandalone_NonEC2ProviderID(t *testing.T) {
-	node := &corev1.Node{
+	gceNode := &corev1.Node{
 		ObjectMeta: metav1.ObjectMeta{Name: "ip-1"},
 		Spec:       corev1.NodeSpec{ProviderID: "gce:///zone/instance"},
 	}
-	client := fake.NewClientset(node)
-	stub := &stubEC2{}
-
-	require.NoError(t, evictStandalone(context.Background(), client, stub, []string{"ip-1"}, newDrainOpts(false)))
-
-	assert.Empty(t, stub.terminated, "non-EC2 providerID skips terminate")
-	got, err := client.CoreV1().Nodes().Get(context.Background(), "ip-1", metav1.GetOptions{})
-	require.NoError(t, err)
-	assert.True(t, got.Spec.Unschedulable, "non-EC2 node should still be cordoned")
-}
-
-// TestEvictStandalone_DrainFailure_NoTerminate is the safety regression for
-// standalone: a node whose drain fails must NOT have its instance terminated.
-// Single-node setup avoids the fake clientset's FieldSelector limitation.
-func TestEvictStandalone_DrainFailure_NoTerminate(t *testing.T) {
-	stuckNode := &corev1.Node{
-		ObjectMeta: metav1.ObjectMeta{Name: "ip-stuck"},
-		Spec:       corev1.NodeSpec{ProviderID: "aws:///eu-west-3a/i-aaaaaaaaaaaaaaaaa"},
-	}
-	stuckPod := &corev1.Pod{
-		ObjectMeta: metav1.ObjectMeta{Name: "blocker", Namespace: "default"},
-		Spec:       corev1.PodSpec{NodeName: "ip-stuck"},
-	}
-	client := fake.NewClientset(stuckNode, stuckPod)
-	installPodEvictionReactor(client)
-
-	stub := &stubEC2{}
-	opts := nodeDrainOptions{
+	fastDrain := nodeDrainOptions{
 		EvictionTimeout: 50 * time.Millisecond,
 		NodeTimeout:     100 * time.Millisecond,
 		PollInterval:    10 * time.Millisecond,
 	}
-	err := evictStandalone(context.Background(), client, stub, []string{"ip-stuck"}, opts)
-	require.Error(t, err)
-	assert.Empty(t, stub.terminated, "drain failure must prevent TerminateInstances on the affected node")
+
+	for _, tc := range []struct {
+		name                   string
+		objects                []runtime.Object
+		installEvictionReactor bool
+		nodes                  []string
+		opts                   nodeDrainOptions
+		wantErr                bool
+		// wantTerminated is the expected set of instance IDs in
+		// stubEC2.terminated. nil ⇒ TerminateInstances must not be called.
+		wantTerminated []string
+		// wantUnschedulable: per-node expected `Spec.Unschedulable`.
+		wantUnschedulable map[string]bool
+	}{
+		{
+			name:              "happy path terminates and cordons two nodes",
+			objects:           []runtime.Object{ec2Node("ip-1", "eu-west-3a", "i-aaa"), ec2Node("ip-2", "eu-west-3b", "i-bbb")},
+			nodes:             []string{"ip-1", "ip-2"},
+			opts:              newDrainOpts(false),
+			wantTerminated:    []string{"i-aaa", "i-bbb"},
+			wantUnschedulable: map[string]bool{"ip-1": true, "ip-2": true},
+		},
+		{
+			name:              "dry-run touches nothing",
+			objects:           []runtime.Object{ec2Node("ip-1", "eu-west-3a", "i-aaa")},
+			nodes:             []string{"ip-1"},
+			opts:              newDrainOpts(true),
+			wantUnschedulable: map[string]bool{"ip-1": false},
+		},
+		{
+			// Node already gone from K8s ⇒ no instance ID extracted ⇒
+			// no TerminateInstances call.
+			name:  "node already gone skips terminate",
+			nodes: []string{"ip-1"},
+			opts:  newDrainOpts(false),
+		},
+		{
+			// Non-EC2 providerID can't yield an instance ID, but the
+			// node is still cordoned and drained.
+			name:              "non-EC2 providerID skips terminate but still cordons",
+			objects:           []runtime.Object{gceNode},
+			nodes:             []string{"ip-1"},
+			opts:              newDrainOpts(false),
+			wantUnschedulable: map[string]bool{"ip-1": true},
+		},
+		{
+			// Safety regression: drain failure must prevent the
+			// instance from being terminated (otherwise the EC2 dies
+			// mid-grace-period).
+			name:                   "drain failure prevents terminate",
+			objects:                []runtime.Object{ec2Node("ip-stuck", "eu-west-3a", "i-aaaaaaaaaaaaaaaaa"), stuckPod()},
+			installEvictionReactor: true,
+			nodes:                  []string{"ip-stuck"},
+			opts:                   fastDrain,
+			wantErr:                true,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			client := fake.NewClientset(tc.objects...)
+			if tc.installEvictionReactor {
+				installPodEvictionReactor(client)
+			}
+			stub := &stubEC2{}
+
+			err := evictStandalone(context.Background(), client, stub, tc.nodes, tc.opts)
+			if tc.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+			if tc.wantTerminated == nil {
+				assert.Empty(t, stub.terminated)
+			} else {
+				assert.ElementsMatch(t, tc.wantTerminated, stub.terminated)
+			}
+			for nodeName, want := range tc.wantUnschedulable {
+				got, getErr := client.CoreV1().Nodes().Get(context.Background(), nodeName, metav1.GetOptions{})
+				require.NoError(t, getErr)
+				assert.Equal(t, want, got.Spec.Unschedulable, "Spec.Unschedulable for %s", nodeName)
+			}
+		})
+	}
 }

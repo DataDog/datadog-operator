@@ -34,103 +34,131 @@ func mngDrainOpts() nodeDrainOptions {
 	}
 }
 
-func TestEvictEKSManagedNodeGroup_DryRun(t *testing.T) {
-	stub := &stubEKS{}
-	client := fake.NewClientset()
-	opts := mngDrainOpts()
-	opts.DryRun = true
-	require.NoError(t, evictEKSManagedNodeGroup(context.Background(), stub, client, "my-cluster", "my-mng", opts))
-	assert.Empty(t, stub.gotInputs, "dry-run must not call UpdateNodegroupConfig")
-}
-
-func TestEvictEKSManagedNodeGroup_PropagatesError(t *testing.T) {
-	stub := &stubEKS{err: errors.New("api error")}
-	client := fake.NewClientset()
-	err := evictEKSManagedNodeGroup(context.Background(), stub, client, "my-cluster", "my-mng", mngDrainOpts())
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "UpdateNodegroupConfig")
-}
-
-func TestEvictEKSManagedNodeGroup_WaitsForNodesToDisappear(t *testing.T) {
-	stub := &stubEKS{}
-	node := &corev1.Node{
+func TestEvictEKSManagedNodeGroup(t *testing.T) {
+	mngNode := &corev1.Node{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   "ip-1",
 			Labels: map[string]string{"eks.amazonaws.com/nodegroup": "my-mng"},
 		},
 	}
-	client := fake.NewClientset(node)
-	opts := mngDrainOpts()
-	opts.NodeTimeout = 200 * time.Millisecond
-	opts.PollInterval = 10 * time.Millisecond
+	apiErr := errors.New("api error")
+	listErr := errors.New("apiserver unreachable")
 
-	// Simulate EKS finishing the drain between two polls: the first List
-	// observes the node, subsequent Lists return an empty set. Counter-based
-	// reactor avoids the time.Sleep + goroutine race the goroutine version
-	// had under loaded CI.
-	var listCalls int
-	client.PrependReactor("list", "nodes", func(_ clienttesting.Action) (bool, runtime.Object, error) {
-		listCalls++
-		if listCalls > 1 {
-			return true, &corev1.NodeList{}, nil
-		}
-		return false, nil, nil
-	})
+	for _, tc := range []struct {
+		name string
+		// updateErr is what stubEKS returns from UpdateNodegroupConfig. nil
+		// ⇒ success.
+		updateErr error
+		// nodes are pre-loaded into the fake clientset (i.e. nodes that EKS
+		// would be draining).
+		nodes []runtime.Object
+		// listResponder, when non-nil, overrides the default "list nodes"
+		// behaviour. Used to simulate the EKS-side drain finishing between
+		// polls, or a transient List error.
+		listResponder func(call int) (handle bool, resp runtime.Object, err error)
+		dryRun        bool
+		// shortTimeout uses a 100ms NodeTimeout to force the wait loop to
+		// give up; default keeps the longer mngDrainOpts() value.
+		shortTimeout bool
 
-	require.NoError(t, evictEKSManagedNodeGroup(context.Background(), stub, client, "my-cluster", "my-mng", opts))
-	require.Len(t, stub.gotInputs, 1)
-	in := stub.gotInputs[0]
-	assert.Equal(t, "my-cluster", awssdk.ToString(in.ClusterName))
-	assert.Equal(t, "my-mng", awssdk.ToString(in.NodegroupName))
-	require.NotNil(t, in.ScalingConfig)
-	assert.Equal(t, int32(0), awssdk.ToInt32(in.ScalingConfig.MinSize))
-	assert.Equal(t, int32(0), awssdk.ToInt32(in.ScalingConfig.MaxSize))
-	assert.Equal(t, int32(0), awssdk.ToInt32(in.ScalingConfig.DesiredSize))
-}
-
-func TestEvictEKSManagedNodeGroup_TimeoutWrapsSentinel(t *testing.T) {
-	stub := &stubEKS{}
-	node := &corev1.Node{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:   "ip-1",
-			Labels: map[string]string{"eks.amazonaws.com/nodegroup": "my-mng"},
+		wantUpdateCallCount int
+		wantErr             bool
+		// wantWrapsSentinel asserts errors.Is(err, errEKSDrainIncomplete).
+		wantWrapsSentinel bool
+		// wantNotWrapsSentinel asserts errors.Is(err, errEKSDrainIncomplete) is false.
+		wantNotWrapsSentinel bool
+		wantErrContains      string
+	}{
+		{
+			name:                "dry-run skips Update",
+			dryRun:              true,
+			wantUpdateCallCount: 0,
 		},
+		{
+			name:                "UpdateNodegroupConfig failure does not wrap sentinel",
+			updateErr:           apiErr,
+			wantUpdateCallCount: 1,
+			wantErr:             true,
+			wantErrContains:     "UpdateNodegroupConfig",
+			wantNotWrapsSentinel: true,
+		},
+		{
+			// EKS finishes draining between two polls: first List sees the
+			// node, second returns empty. Counter-based reactor avoids the
+			// time.Sleep + goroutine race the goroutine version had under
+			// loaded CI.
+			name:  "waits for nodes to disappear",
+			nodes: []runtime.Object{mngNode},
+			listResponder: func(call int) (bool, runtime.Object, error) {
+				if call > 1 {
+					return true, &corev1.NodeList{}, nil
+				}
+				return false, nil, nil
+			},
+			wantUpdateCallCount: 1,
+		},
+		{
+			// Wait timeout while nodes persist: orchestrator must keep
+			// temp PDBs in place ⇒ sentinel wrapped.
+			name:                "wait timeout wraps the sentinel",
+			nodes:               []runtime.Object{mngNode},
+			shortTimeout:        true,
+			wantUpdateCallCount: 1,
+			wantErr:             true,
+			wantErrContains:     "my-mng",
+			wantWrapsSentinel:   true,
+		},
+		{
+			// EKS scaling change succeeded, but a subsequent K8s Node list
+			// call errors out. EKS may still be draining ⇒ sentinel wrapped.
+			name:                "post-Update list failure wraps the sentinel",
+			listResponder:       func(_ int) (bool, runtime.Object, error) { return true, nil, listErr },
+			wantUpdateCallCount: 1,
+			wantErr:             true,
+			wantWrapsSentinel:   true,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			stub := &stubEKS{err: tc.updateErr}
+			client := fake.NewClientset(tc.nodes...)
+			if tc.listResponder != nil {
+				var listCalls int
+				client.PrependReactor("list", "nodes", func(_ clienttesting.Action) (bool, runtime.Object, error) {
+					listCalls++
+					return tc.listResponder(listCalls)
+				})
+			}
+			opts := mngDrainOpts()
+			opts.DryRun = tc.dryRun
+			if tc.shortTimeout {
+				opts.NodeTimeout = 100 * time.Millisecond
+				opts.PollInterval = 30 * time.Millisecond
+			}
+
+			err := evictEKSManagedNodeGroup(context.Background(), stub, client, "my-cluster", "my-mng", opts)
+			if tc.wantErr {
+				require.Error(t, err)
+				if tc.wantErrContains != "" {
+					assert.Contains(t, err.Error(), tc.wantErrContains)
+				}
+			} else {
+				require.NoError(t, err)
+			}
+			if tc.wantWrapsSentinel {
+				assert.ErrorIs(t, err, errEKSDrainIncomplete)
+			}
+			if tc.wantNotWrapsSentinel {
+				assert.NotErrorIs(t, err, errEKSDrainIncomplete)
+			}
+			require.Len(t, stub.gotInputs, tc.wantUpdateCallCount)
+			for _, in := range stub.gotInputs {
+				assert.Equal(t, "my-cluster", awssdk.ToString(in.ClusterName))
+				assert.Equal(t, "my-mng", awssdk.ToString(in.NodegroupName))
+				require.NotNil(t, in.ScalingConfig)
+				assert.Equal(t, int32(0), awssdk.ToInt32(in.ScalingConfig.MinSize))
+				assert.Equal(t, int32(0), awssdk.ToInt32(in.ScalingConfig.MaxSize))
+				assert.Equal(t, int32(0), awssdk.ToInt32(in.ScalingConfig.DesiredSize))
+			}
+		})
 	}
-	client := fake.NewClientset(node)
-	opts := mngDrainOpts()
-	opts.NodeTimeout = 100 * time.Millisecond
-	opts.PollInterval = 30 * time.Millisecond
-
-	err := evictEKSManagedNodeGroup(context.Background(), stub, client, "my-cluster", "my-mng", opts)
-	require.Error(t, err)
-	assert.ErrorIs(t, err, errEKSDrainIncomplete, "wait timeout must wrap errEKSDrainIncomplete so the orchestrator can keep temp PDBs in place")
-	assert.Contains(t, err.Error(), "my-mng")
-}
-
-// TestEvictEKSManagedNodeGroup_UpdateFailDoesNotWrapSentinel locks in the
-// classification: an UpdateNodegroupConfig failure (EKS never started
-// draining) must NOT look like a timeout, so the orchestrator can still run
-// the temp-PDB cleanup safely.
-func TestEvictEKSManagedNodeGroup_UpdateFailDoesNotWrapSentinel(t *testing.T) {
-	stub := &stubEKS{err: errors.New("invalid scaling config")}
-	client := fake.NewClientset()
-	err := evictEKSManagedNodeGroup(context.Background(), stub, client, "my-cluster", "my-mng", mngDrainOpts())
-	require.Error(t, err)
-	assert.NotErrorIs(t, err, errEKSDrainIncomplete)
-}
-
-// TestEvictEKSManagedNodeGroup_ListErrorWrapsSentinel covers the case where
-// the EKS scaling change succeeded but the subsequent K8s Node list call
-// errors out (transient apiserver issue). Because EKS may still be draining,
-// the orchestrator must keep temp PDBs in place — so the error must wrap the
-// sentinel.
-func TestEvictEKSManagedNodeGroup_ListErrorWrapsSentinel(t *testing.T) {
-	stub := &stubEKS{}
-	client := fake.NewClientset()
-	client.PrependReactor("list", "nodes", func(_ clienttesting.Action) (bool, runtime.Object, error) {
-		return true, nil, errors.New("apiserver unreachable")
-	})
-	err := evictEKSManagedNodeGroup(context.Background(), stub, client, "my-cluster", "my-mng", mngDrainOpts())
-	require.Error(t, err)
-	assert.ErrorIs(t, err, errEKSDrainIncomplete, "post-UpdateNodegroupConfig list failure must wrap errEKSDrainIncomplete so cleanup stays paused")
 }

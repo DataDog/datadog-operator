@@ -86,81 +86,130 @@ func TestPodOccupiesNode(t *testing.T) {
 	}
 }
 
-func TestEvictPodWithRetry_Success(t *testing.T) {
-	pod := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "p1", Namespace: "default"}}
-	client := fake.NewClientset(pod)
-	installPodEvictionReactor(client)
+func TestEvictPodWithRetry(t *testing.T) {
+	// evictionResponder shapes the test-side of the Eviction subresource
+	// reactor. `call` is the 1-based call counter.
+	type evictionResponder func(call int, eviction *policyv1.Eviction) (resp runtime.Object, err error)
 
-	err := evictPodWithRetry(context.Background(), client, pod, 5*time.Second, 10*time.Millisecond)
-	require.NoError(t, err)
-}
-
-func TestEvictPodWithRetry_RetriesOn429AndSucceeds(t *testing.T) {
-	pod := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "p1", Namespace: "default"}}
-	client := fake.NewClientset(pod)
-	var calls int
-	client.PrependReactor("create", "pods", func(action clienttesting.Action) (bool, runtime.Object, error) {
-		ca, ok := action.(clienttesting.CreateAction)
-		if !ok || ca.GetSubresource() != "eviction" {
-			return false, nil, nil
+	echoSuccess := evictionResponder(func(_ int, e *policyv1.Eviction) (runtime.Object, error) {
+		return e, nil
+	})
+	tooManyOnceThenSuccess := evictionResponder(func(call int, e *policyv1.Eviction) (runtime.Object, error) {
+		if call == 1 {
+			return nil, apierrors.NewTooManyRequests("PDB blocked", 1)
 		}
-		calls++
-		if calls == 1 {
-			return true, nil, apierrors.NewTooManyRequests("PDB blocked", 1)
-		}
-		return true, ca.GetObject(), nil
+		return e, nil
+	})
+	notFound := evictionResponder(func(_ int, e *policyv1.Eviction) (runtime.Object, error) {
+		return nil, apierrors.NewNotFound(schema.GroupResource{Resource: "pods"}, e.Name)
+	})
+	nonRetryable := evictionResponder(func(_ int, _ *policyv1.Eviction) (runtime.Object, error) {
+		return nil, errors.New("non-retryable")
 	})
 
-	require.NoError(t, evictPodWithRetry(context.Background(), client, pod, 10*time.Second, 10*time.Millisecond))
-	assert.GreaterOrEqual(t, calls, 2)
-}
+	for _, tc := range []struct {
+		name string
+		// pod is the object passed to evictPodWithRetry (and pre-loaded
+		// into the fake when seedPod is true).
+		pod     *corev1.Pod
+		seedPod bool
+		// responder controls what the Eviction reactor returns each call.
+		responder evictionResponder
+		timeout   time.Duration
 
-func TestEvictPodWithRetry_NotFoundIsSuccess(t *testing.T) {
-	pod := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "p1", Namespace: "default"}}
-	client := fake.NewClientset()
-	client.PrependReactor("create", "pods", func(action clienttesting.Action) (bool, runtime.Object, error) {
-		ca, ok := action.(clienttesting.CreateAction)
-		if !ok || ca.GetSubresource() != "eviction" {
-			return false, nil, nil
-		}
-		eviction := ca.GetObject().(*policyv1.Eviction)
-		return true, nil, apierrors.NewNotFound(
-			schema.GroupResource{Resource: "pods"}, eviction.Name,
-		)
-	})
-	require.NoError(t, evictPodWithRetry(context.Background(), client, pod, time.Second, 10*time.Millisecond))
-}
+		wantErr           bool
+		wantErrContains   string
+		wantMinCalls      int
+		wantCapturedName  string
+		wantCapturedNs    string
+	}{
+		{
+			name:         "success on first call",
+			pod:          &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "p1", Namespace: "default"}},
+			seedPod:      true,
+			responder:    echoSuccess,
+			timeout:      5 * time.Second,
+			wantMinCalls: 1,
+		},
+		{
+			name:         "retries on 429 then succeeds",
+			pod:          &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "p1", Namespace: "default"}},
+			seedPod:      true,
+			responder:    tooManyOnceThenSuccess,
+			timeout:      10 * time.Second,
+			wantMinCalls: 2,
+		},
+		{
+			// Pod already gone: 404 from the apiserver is treated as
+			// success — the eviction goal is met regardless.
+			name:         "404 from apiserver is success",
+			pod:          &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "p1", Namespace: "default"}},
+			seedPod:      false,
+			responder:    notFound,
+			timeout:      time.Second,
+			wantMinCalls: 1,
+		},
+		{
+			name:            "non-retryable error returned",
+			pod:             &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "p1", Namespace: "default"}},
+			seedPod:         true,
+			responder:       nonRetryable,
+			timeout:         5 * time.Second,
+			wantErr:         true,
+			wantErrContains: "eviction failed",
+			wantMinCalls:    1,
+		},
+		{
+			// Smoke check that the Eviction object carries the pod's
+			// Name/Namespace through to the apiserver.
+			name:             "eviction object name/namespace",
+			pod:              &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "p1", Namespace: "ns1"}},
+			seedPod:          true,
+			responder:        echoSuccess,
+			timeout:          time.Second,
+			wantMinCalls:     1,
+			wantCapturedName: "p1",
+			wantCapturedNs:   "ns1",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var seed []runtime.Object
+			if tc.seedPod {
+				seed = append(seed, tc.pod)
+			}
+			client := fake.NewClientset(seed...)
 
-func TestEvictPodWithRetry_NonRetryableError(t *testing.T) {
-	pod := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "p1", Namespace: "default"}}
-	client := fake.NewClientset(pod)
-	client.PrependReactor("create", "pods", func(action clienttesting.Action) (bool, runtime.Object, error) {
-		ca, ok := action.(clienttesting.CreateAction)
-		if !ok || ca.GetSubresource() != "eviction" {
-			return false, nil, nil
-		}
-		return true, nil, errors.New("non-retryable")
-	})
-	err := evictPodWithRetry(context.Background(), client, pod, 5*time.Second, 10*time.Millisecond)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "eviction failed")
-}
+			var (
+				calls    int
+				captured *policyv1.Eviction
+			)
+			client.PrependReactor("create", "pods", func(action clienttesting.Action) (bool, runtime.Object, error) {
+				ca, ok := action.(clienttesting.CreateAction)
+				if !ok || ca.GetSubresource() != "eviction" {
+					return false, nil, nil
+				}
+				calls++
+				eviction := ca.GetObject().(*policyv1.Eviction)
+				captured = eviction
+				resp, err := tc.responder(calls, eviction)
+				return true, resp, err
+			})
 
-// Smoke test that the eviction object's name/namespace are set correctly.
-func TestEvictPodWithRetry_EvictionObjectShape(t *testing.T) {
-	pod := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "p1", Namespace: "ns1"}}
-	client := fake.NewClientset(pod)
-	var captured *policyv1.Eviction
-	client.PrependReactor("create", "pods", func(action clienttesting.Action) (bool, runtime.Object, error) {
-		ca, ok := action.(clienttesting.CreateAction)
-		if !ok || ca.GetSubresource() != "eviction" {
-			return false, nil, nil
-		}
-		captured = ca.GetObject().(*policyv1.Eviction)
-		return true, captured, nil
-	})
-	require.NoError(t, evictPodWithRetry(context.Background(), client, pod, time.Second, 10*time.Millisecond))
-	require.NotNil(t, captured)
-	assert.Equal(t, "p1", captured.Name)
-	assert.Equal(t, "ns1", captured.Namespace)
+			err := evictPodWithRetry(context.Background(), client, tc.pod, tc.timeout, 10*time.Millisecond)
+			if tc.wantErr {
+				require.Error(t, err)
+				if tc.wantErrContains != "" {
+					assert.Contains(t, err.Error(), tc.wantErrContains)
+				}
+			} else {
+				require.NoError(t, err)
+			}
+			assert.GreaterOrEqual(t, calls, tc.wantMinCalls)
+			if tc.wantCapturedName != "" {
+				require.NotNil(t, captured)
+				assert.Equal(t, tc.wantCapturedName, captured.Name)
+				assert.Equal(t, tc.wantCapturedNs, captured.Namespace)
+			}
+		})
+	}
 }

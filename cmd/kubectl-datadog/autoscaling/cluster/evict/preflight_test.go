@@ -1,7 +1,6 @@
 package evict
 
 import (
-	"bytes"
 	"context"
 	"testing"
 
@@ -13,6 +12,7 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/utils/ptr"
+	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 	ctrlfake "sigs.k8s.io/controller-runtime/pkg/client/fake"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
@@ -40,88 +40,92 @@ func mkNodePool(name string, weight *int32, datadogManaged bool) *karpv1.NodePoo
 	}
 }
 
-func TestWarnKarpenterWeightConflicts_NoKarpenterTargets(t *testing.T) {
-	cli := ctrlfake.NewClientBuilder().WithScheme(newKarpenterScheme(t)).Build()
-	streams, _, _, errBuf := genericclioptions.NewTestIOStreams()
-	targets := []Target{
-		{Manager: clusterinfo.NodeManagerASG, Entity: "asg-1"},
-		{Manager: clusterinfo.NodeManagerStandalone, Entity: ""},
+func TestWarnKarpenterWeightConflicts(t *testing.T) {
+	for _, tc := range []struct {
+		name              string
+		nodePools         []ctrlclient.Object
+		targets           []Target
+		// wantContains lists substrings that MUST appear in the stderr output.
+		wantContains []string
+		// wantWarnEmpty asserts the stderr output is empty (no warning fired).
+		wantWarnEmpty bool
+	}{
+		{
+			// No Karpenter target ⇒ nothing to warn about.
+			name: "no karpenter targets ⇒ no warning",
+			targets: []Target{
+				{Manager: clusterinfo.NodeManagerASG, Entity: "asg-1"},
+				{Manager: clusterinfo.NodeManagerStandalone, Entity: ""},
+			},
+			wantWarnEmpty: true,
+		},
+		{
+			// User NP weight < Datadog NP weight ⇒ no conflict, no warning.
+			name: "user weight below Datadog weight",
+			nodePools: []ctrlclient.Object{
+				mkNodePool("dd-np", ptr.To(int32(100)), true),
+				mkNodePool("user-np", ptr.To(int32(50)), false),
+			},
+			targets:       []Target{{Manager: clusterinfo.NodeManagerKarpenter, Entity: "user-np"}},
+			wantWarnEmpty: true,
+		},
+		{
+			// User NP weight > Datadog NP weight ⇒ warns (`>=` check).
+			name: "user weight above Datadog weight warns",
+			nodePools: []ctrlclient.Object{
+				mkNodePool("dd-np", ptr.To(int32(10)), true),
+				mkNodePool("user-np", ptr.To(int32(50)), false),
+			},
+			targets:      []Target{{Manager: clusterinfo.NodeManagerKarpenter, Entity: "user-np"}},
+			wantContains: []string{"user-np", "weight=50"},
+		},
+		{
+			// Both nil ⇒ both default to 0 ⇒ equal-weight conflict warns.
+			name: "nil weights both default to 0 (equal-weight conflict)",
+			nodePools: []ctrlclient.Object{
+				mkNodePool("dd-np", nil, true),
+				mkNodePool("user-np", nil, false),
+			},
+			targets:      []Target{{Manager: clusterinfo.NodeManagerKarpenter, Entity: "user-np"}},
+			wantContains: []string{"user-np"},
+		},
+		{
+			// Target name doesn't match any NodePool in the cluster ⇒
+			// nothing to compare against, no panic.
+			name: "target not in cluster is ignored",
+			nodePools: []ctrlclient.Object{
+				mkNodePool("dd-np", ptr.To(int32(100)), true),
+			},
+			targets:       []Target{{Manager: clusterinfo.NodeManagerKarpenter, Entity: "ghost-np"}},
+			wantWarnEmpty: true,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			cli := ctrlfake.NewClientBuilder().
+				WithScheme(newKarpenterScheme(t)).
+				WithObjects(tc.nodePools...).
+				Build()
+			streams, _, _, errBuf := genericclioptions.NewTestIOStreams()
+
+			warnKarpenterWeightConflicts(context.Background(), streams, cli, tc.targets)
+
+			out := errBuf.String()
+			if tc.wantWarnEmpty {
+				assert.Empty(t, out)
+			}
+			for _, s := range tc.wantContains {
+				assert.Contains(t, out, s)
+			}
+		})
 	}
-	warnKarpenterWeightConflicts(context.Background(), streams, cli, targets)
-	assert.Empty(t, errBuf.String(), "no karpenter targets ⇒ no warning")
 }
 
-func TestWarnKarpenterWeightConflicts_NoConflict(t *testing.T) {
-	// Datadog NodePool has higher weight than the user one being evicted.
-	cli := ctrlfake.NewClientBuilder().
-		WithScheme(newKarpenterScheme(t)).
-		WithObjects(
-			mkNodePool("dd-np", ptr.To(int32(100)), true),
-			mkNodePool("user-np", ptr.To(int32(50)), false),
-		).
-		Build()
-	streams, _, _, errBuf := genericclioptions.NewTestIOStreams()
-	targets := []Target{{Manager: clusterinfo.NodeManagerKarpenter, Entity: "user-np"}}
-	warnKarpenterWeightConflicts(context.Background(), streams, cli, targets)
-	assert.NotContains(t, errBuf.String(), "user-np", "no warning when user weight < Datadog weight")
-}
-
-func TestWarnKarpenterWeightConflicts_WeightConflictWarns(t *testing.T) {
-	// User NodePool has equal weight ⇒ should warn (>= check).
-	cli := ctrlfake.NewClientBuilder().
-		WithScheme(newKarpenterScheme(t)).
-		WithObjects(
-			mkNodePool("dd-np", ptr.To(int32(10)), true),
-			mkNodePool("user-np", ptr.To(int32(50)), false),
-		).
-		Build()
-	streams, _, _, errBuf := genericclioptions.NewTestIOStreams()
-	targets := []Target{{Manager: clusterinfo.NodeManagerKarpenter, Entity: "user-np"}}
-	warnKarpenterWeightConflicts(context.Background(), streams, cli, targets)
-	out := errBuf.String()
-	assert.Contains(t, out, "user-np")
-	assert.Contains(t, out, "weight=50")
-}
-
-func TestWarnKarpenterWeightConflicts_NilUserWeightUsesZero(t *testing.T) {
-	// User NodePool without spec.weight defaults to 0; Datadog at 0 too →
-	// equal-weight conflict still warns.
-	cli := ctrlfake.NewClientBuilder().
-		WithScheme(newKarpenterScheme(t)).
-		WithObjects(
-			mkNodePool("dd-np", nil, true),
-			mkNodePool("user-np", nil, false),
-		).
-		Build()
-	streams, _, _, errBuf := genericclioptions.NewTestIOStreams()
-	targets := []Target{{Manager: clusterinfo.NodeManagerKarpenter, Entity: "user-np"}}
-	warnKarpenterWeightConflicts(context.Background(), streams, cli, targets)
-	assert.Contains(t, errBuf.String(), "user-np")
-}
-
-func TestWarnKarpenterWeightConflicts_TargetNotInClusterIsIgnored(t *testing.T) {
-	// The target Karpenter entity name doesn't match any NodePool — no panic.
-	cli := ctrlfake.NewClientBuilder().
-		WithScheme(newKarpenterScheme(t)).
-		WithObjects(mkNodePool("dd-np", ptr.To(int32(100)), true)).
-		Build()
-	streams, _, _, errBuf := genericclioptions.NewTestIOStreams()
-	targets := []Target{{Manager: clusterinfo.NodeManagerKarpenter, Entity: "ghost-np"}}
-	warnKarpenterWeightConflicts(context.Background(), streams, cli, targets)
-	assert.Empty(t, errBuf.String(), "unknown user NodePool name ⇒ no warning")
-}
-
-// Ensure runPreflightWarnings is exercised (it just calls
-// warnKarpenterWeightConflicts today, but the wrapper has its own coverage
-// regardless of what is added later).
-func newPreflightTestIO() (genericclioptions.IOStreams, *bytes.Buffer) {
-	streams, _, _, errBuf := genericclioptions.NewTestIOStreams()
-	return streams, errBuf
-}
-
+// TestRunPreflightWarnings_NoOp keeps the thin `runPreflightWarnings` wrapper
+// exercised separately so coverage doesn't regress as new pre-flight checks
+// are added.
 func TestRunPreflightWarnings_NoOp(t *testing.T) {
 	cli := ctrlfake.NewClientBuilder().WithScheme(newKarpenterScheme(t)).Build()
-	streams, errBuf := newPreflightTestIO()
+	streams, _, _, errBuf := genericclioptions.NewTestIOStreams()
 	runPreflightWarnings(context.Background(), streams, cli, nil)
 	assert.Empty(t, errBuf.String())
 }
