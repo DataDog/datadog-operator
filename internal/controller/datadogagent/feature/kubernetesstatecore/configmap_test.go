@@ -11,8 +11,10 @@ import (
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 
+	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/yaml"
 )
 
 func Test_ksmFeature_buildKSMCoreConfigMap(t *testing.T) {
@@ -102,7 +104,7 @@ instances:
 				runInClusterChecksRunner: true,
 				configConfigMapName:      defaultKubeStateMetricsCoreConf,
 			},
-			want: buildDefaultConfigMap(owner.GetNamespace(), defaultKubeStateMetricsCoreConf, ksmCheckConfig(true, defaultOptions)),
+			want: buildDefaultConfigMap(owner.GetNamespace(), defaultKubeStateMetricsCoreConf, ksmCheckConfig(true, false, defaultOptions)),
 		},
 		{
 			name: "override",
@@ -125,7 +127,7 @@ instances:
 				runInClusterChecksRunner: false,
 				configConfigMapName:      defaultKubeStateMetricsCoreConf,
 			},
-			want: buildDefaultConfigMap(owner.GetNamespace(), defaultKubeStateMetricsCoreConf, ksmCheckConfig(false, defaultOptions)),
+			want: buildDefaultConfigMap(owner.GetNamespace(), defaultKubeStateMetricsCoreConf, ksmCheckConfig(false, false, defaultOptions)),
 		},
 		{
 			name: "with vpa",
@@ -136,7 +138,7 @@ instances:
 				configConfigMapName:      defaultKubeStateMetricsCoreConf,
 				collectorOpts:            optionsWithVPA,
 			},
-			want: buildDefaultConfigMap(owner.GetNamespace(), defaultKubeStateMetricsCoreConf, ksmCheckConfig(true, optionsWithVPA)),
+			want: buildDefaultConfigMap(owner.GetNamespace(), defaultKubeStateMetricsCoreConf, ksmCheckConfig(true, false, optionsWithVPA)),
 		},
 		{
 			name: "with CRDs",
@@ -147,7 +149,7 @@ instances:
 				configConfigMapName:      defaultKubeStateMetricsCoreConf,
 				collectorOpts:            optionsWithCRD,
 			},
-			want: buildDefaultConfigMap(owner.GetNamespace(), defaultKubeStateMetricsCoreConf, ksmCheckConfig(true, optionsWithCRD)),
+			want: buildDefaultConfigMap(owner.GetNamespace(), defaultKubeStateMetricsCoreConf, ksmCheckConfig(true, false, optionsWithCRD)),
 		},
 		{
 			name: "with APIServices",
@@ -158,7 +160,7 @@ instances:
 				configConfigMapName:      defaultKubeStateMetricsCoreConf,
 				collectorOpts:            optionsWithAPIService,
 			},
-			want: buildDefaultConfigMap(owner.GetNamespace(), defaultKubeStateMetricsCoreConf, ksmCheckConfig(true, optionsWithAPIService)),
+			want: buildDefaultConfigMap(owner.GetNamespace(), defaultKubeStateMetricsCoreConf, ksmCheckConfig(true, false, optionsWithAPIService)),
 		},
 		{
 			name: "with ControllerRevisions",
@@ -169,7 +171,7 @@ instances:
 				configConfigMapName:      defaultKubeStateMetricsCoreConf,
 				collectorOpts:            optionsWithControllerRevisions,
 			},
-			want: buildDefaultConfigMap(owner.GetNamespace(), defaultKubeStateMetricsCoreConf, ksmCheckConfig(true, optionsWithControllerRevisions)),
+			want: buildDefaultConfigMap(owner.GetNamespace(), defaultKubeStateMetricsCoreConf, ksmCheckConfig(true, false, optionsWithControllerRevisions)),
 		},
 		{
 			name: "with custom resources",
@@ -180,7 +182,7 @@ instances:
 				configConfigMapName:      defaultKubeStateMetricsCoreConf,
 				collectorOpts:            optionsWithCustomResources,
 			},
-			want: buildDefaultConfigMap(owner.GetNamespace(), defaultKubeStateMetricsCoreConf, ksmCheckConfig(true, optionsWithCustomResources)),
+			want: buildDefaultConfigMap(owner.GetNamespace(), defaultKubeStateMetricsCoreConf, ksmCheckConfig(true, false, optionsWithCustomResources)),
 		},
 		{
 			name: "with multiple custom resources",
@@ -191,7 +193,7 @@ instances:
 				configConfigMapName:      defaultKubeStateMetricsCoreConf,
 				collectorOpts:            optionsWithMultipleCustomResources,
 			},
-			want: buildDefaultConfigMap(owner.GetNamespace(), defaultKubeStateMetricsCoreConf, ksmCheckConfig(true, optionsWithMultipleCustomResources)),
+			want: buildDefaultConfigMap(owner.GetNamespace(), defaultKubeStateMetricsCoreConf, ksmCheckConfig(true, false, optionsWithMultipleCustomResources)),
 		},
 		{
 			name: "with VPA and custom resources",
@@ -202,7 +204,7 @@ instances:
 				configConfigMapName:      defaultKubeStateMetricsCoreConf,
 				collectorOpts:            optionsWithVPAAndCustomResources,
 			},
-			want: buildDefaultConfigMap(owner.GetNamespace(), defaultKubeStateMetricsCoreConf, ksmCheckConfig(true, optionsWithVPAAndCustomResources)),
+			want: buildDefaultConfigMap(owner.GetNamespace(), defaultKubeStateMetricsCoreConf, ksmCheckConfig(true, false, optionsWithVPAAndCustomResources)),
 		},
 		{
 			name: "with custom resources and no cluster check",
@@ -213,7 +215,7 @@ instances:
 				configConfigMapName:      defaultKubeStateMetricsCoreConf,
 				collectorOpts:            optionsWithCustomResources,
 			},
-			want: buildDefaultConfigMap(owner.GetNamespace(), defaultKubeStateMetricsCoreConf, ksmCheckConfig(false, optionsWithCustomResources)),
+			want: buildDefaultConfigMap(owner.GetNamespace(), defaultKubeStateMetricsCoreConf, ksmCheckConfig(false, false, optionsWithCustomResources)),
 		},
 	}
 	for _, tt := range tests {
@@ -236,4 +238,46 @@ instances:
 			}
 		})
 	}
+}
+
+func Test_ksmFeature_buildKSMCorePodsOnNodeConfigMap(t *testing.T) {
+	owner := &metav1.ObjectMeta{
+		Name:      "test",
+		Namespace: "foo",
+	}
+	f := &ksmFeature{
+		owner:                  owner,
+		nodeAgentConfigMapName: "test-kube-state-metrics-core-pods-on-node-config",
+	}
+
+	got := f.buildKSMCorePodsOnNodeConfigMap()
+	assert.Equal(t, "foo", got.Namespace)
+	assert.Equal(t, "test-kube-state-metrics-core-pods-on-node-config", got.Name)
+
+	content, ok := got.Data[ksmCorePodsOnNodeCheckName]
+	if !ok {
+		t.Fatalf("expected key %q in ConfigMap data, got keys: %v", ksmCorePodsOnNodeCheckName, got.Data)
+	}
+
+	// Cluster-check field MUST NOT be set: this is a file-provider check meant
+	// to run locally on every node agent, not be dispatched as a cluster check.
+	assert.NotContains(t, content, "cluster_check")
+
+	// Validate the YAML shape — pods-only collector and node_kubelet mode.
+	var parsed struct {
+		Instances []map[string]any `yaml:"instances"`
+	}
+	if err := yaml.Unmarshal([]byte(content), &parsed); err != nil {
+		t.Fatalf("ConfigMap content must be valid YAML: %v\n---\n%s", err, content)
+	}
+	if len(parsed.Instances) != 1 {
+		t.Fatalf("expected exactly one instance, got %d", len(parsed.Instances))
+	}
+	inst := parsed.Instances[0]
+	assert.Equal(t, "node_kubelet", inst["pod_collection_mode"])
+	collectors, ok := inst["collectors"].([]any)
+	if !ok {
+		t.Fatalf("expected collectors to be a list, got %T", inst["collectors"])
+	}
+	assert.Equal(t, []any{"pods"}, collectors, "collectors must contain only `pods` so node_kubelet mode is preserved")
 }

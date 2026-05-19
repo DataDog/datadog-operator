@@ -1991,6 +1991,14 @@
                 "enabled": {
                   "description": "Enabled enables Kube State Metrics Core.\nDefault: true",
                   "type": "boolean"
+                },
+                "podCollectionMode": {
+                  "description": "PodCollectionMode controls where the KSM check collects pod metrics.\nWhen set to \"node_kubelet\" the operator switches the cluster-side instance to\n`pod_collection_mode: cluster_unassigned` (collects every other resource plus\nunscheduled pods) and deploys a dedicated pods-only check\n(`pod_collection_mode: node_kubelet`, `collectors: [pods]`) into every node\nagent, which reads pods locally from its Kubelet via workloadmeta.\n\nUseful in large clusters where a single KSM instance is a bottleneck.\nTrade-off: cluster-wide aggregation metrics (kubernetes_state.pod.count,\nkubernetes_state.container.cpu_requested.total, and 15 others) become sliced\nper host instead of cluster totals; query them with `sum by\n(kube_cluster_name)`. Requires Agent / Cluster Agent 7.60+.\n\nWhen `features.kubeStateMetricsCore.conf` is also set, the operator deploys\nthe node-side check but does NOT modify the user-supplied cluster-side\nconfig. To avoid double pod collection in that case, the user's cluster-side\ninstance must either omit `pods` from its `collectors` list OR set\n`pod_collection_mode: cluster_unassigned`. Omitting `collectors` entirely\nfalls back to upstream KSM defaults, which include `pods`.\n\nDefault behavior is unchanged when this field is unset.",
+                  "enum": [
+                    "default",
+                    "node_kubelet"
+                  ],
+                  "type": "string"
                 }
               },
               "type": "object"
@@ -10421,6 +10429,14 @@
                     "enabled": {
                       "description": "Enabled enables Kube State Metrics Core.\nDefault: true",
                       "type": "boolean"
+                    },
+                    "podCollectionMode": {
+                      "description": "PodCollectionMode controls where the KSM check collects pod metrics.\nWhen set to \"node_kubelet\" the operator switches the cluster-side instance to\n`pod_collection_mode: cluster_unassigned` (collects every other resource plus\nunscheduled pods) and deploys a dedicated pods-only check\n(`pod_collection_mode: node_kubelet`, `collectors: [pods]`) into every node\nagent, which reads pods locally from its Kubelet via workloadmeta.\n\nUseful in large clusters where a single KSM instance is a bottleneck.\nTrade-off: cluster-wide aggregation metrics (kubernetes_state.pod.count,\nkubernetes_state.container.cpu_requested.total, and 15 others) become sliced\nper host instead of cluster totals; query them with `sum by\n(kube_cluster_name)`. Requires Agent / Cluster Agent 7.60+.\n\nWhen `features.kubeStateMetricsCore.conf` is also set, the operator deploys\nthe node-side check but does NOT modify the user-supplied cluster-side\nconfig. To avoid double pod collection in that case, the user's cluster-side\ninstance must either omit `pods` from its `collectors` list OR set\n`pod_collection_mode: cluster_unassigned`. Omitting `collectors` entirely\nfalls back to upstream KSM defaults, which include `pods`.\n\nDefault behavior is unchanged when this field is unset.",
+                      "enum": [
+                        "default",
+                        "node_kubelet"
+                      ],
+                      "type": "string"
                     }
                   },
                   "type": "object"

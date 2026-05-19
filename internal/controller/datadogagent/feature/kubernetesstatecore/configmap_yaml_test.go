@@ -165,10 +165,36 @@ func TestKsmCheckConfigYAMLFormat(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			output := ksmCheckConfig(tc.clusterCheck, tc.collectorOpts)
+			output := ksmCheckConfig(tc.clusterCheck, false, tc.collectorOpts)
 			tc.validateFunc(t, output)
 		})
 	}
+}
+
+func TestKsmCheckConfigPodCollectionOnNode(t *testing.T) {
+	t.Run("emits cluster_unassigned when podCollectionOnNode is true", func(t *testing.T) {
+		output := ksmCheckConfig(true, true, collectorOptions{})
+		assert.Contains(t, output, "pod_collection_mode: cluster_unassigned",
+			"cluster-side instance should declare cluster_unassigned mode")
+
+		var config map[string]any
+		require.NoError(t, yaml.Unmarshal([]byte(output), &config), "YAML should be valid")
+		instances := config["instances"].([]any)
+		require.Len(t, instances, 1)
+		instance := instances[0].(map[string]any)
+		assert.Equal(t, "cluster_unassigned", instance["pod_collection_mode"])
+		// Full collector list still present — cluster_unassigned only filters pods.
+		collectors, ok := instance["collectors"].([]any)
+		require.True(t, ok, "collectors should be present alongside cluster_unassigned")
+		assert.Contains(t, collectors, "pods", "pods collector must remain so unscheduled pods are collected")
+		assert.Contains(t, collectors, "nodes", "other collectors must remain")
+	})
+
+	t.Run("does NOT emit cluster_unassigned when podCollectionOnNode is false", func(t *testing.T) {
+		output := ksmCheckConfig(true, false, collectorOptions{})
+		assert.NotContains(t, output, "pod_collection_mode",
+			"default cluster-side config must not mention pod_collection_mode")
+	})
 }
 
 func TestKsmCheckConfigCustomResourcesWithMetricNamePrefix(t *testing.T) {
@@ -186,7 +212,7 @@ func TestKsmCheckConfigCustomResourcesWithMetricNamePrefix(t *testing.T) {
 		},
 	}
 
-	output := ksmCheckConfig(true, opts)
+	output := ksmCheckConfig(true, false, opts)
 
 	// Parse YAML to verify structure
 	var config map[string]any

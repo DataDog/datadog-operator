@@ -671,6 +671,12 @@ func (builder *DatadogAgentBuilder) WithKSMCustomConf(customData string) *Datado
 	return builder
 }
 
+func (builder *DatadogAgentBuilder) WithKSMPodCollectionMode(mode v2alpha1.KSMPodCollectionMode) *DatadogAgentBuilder {
+	builder.initKSM()
+	builder.datadogAgent.Spec.Features.KubeStateMetricsCore.PodCollectionMode = &mode
+	return builder
+}
+
 // Orchestrator Explorer
 
 func (builder *DatadogAgentBuilder) initOE() {
@@ -1173,6 +1179,21 @@ func (builder *DatadogAgentBuilder) WithClusterAgentImage(image string) *Datadog
 	}
 
 	builder.datadogAgent.Spec.Override[v2alpha1.ClusterAgentComponentName].Image = &v2alpha1.AgentImageConfig{
+		Name: image,
+	}
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithNodeAgentImage(image string) *DatadogAgentBuilder {
+	if builder.datadogAgent.Spec.Override == nil {
+		builder.datadogAgent.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{}
+	}
+
+	if builder.datadogAgent.Spec.Override[v2alpha1.NodeAgentComponentName] == nil {
+		builder.datadogAgent.Spec.Override[v2alpha1.NodeAgentComponentName] = &v2alpha1.DatadogAgentComponentOverride{}
+	}
+
+	builder.datadogAgent.Spec.Override[v2alpha1.NodeAgentComponentName].Image = &v2alpha1.AgentImageConfig{
 		Name: image,
 	}
 	return builder

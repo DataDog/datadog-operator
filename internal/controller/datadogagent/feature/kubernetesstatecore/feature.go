@@ -53,6 +53,19 @@ type ksmFeature struct {
 	collectAPIServiceMetrics   bool
 	collectControllerRevisions bool
 
+	// podCollectionOnNode is true when PodCollectionMode=node_kubelet has
+	// been requested AND the agent version is compatible.
+	podCollectionOnNode bool
+	// podCollectionOnNodeUserConfig is true when the user supplied their
+	// own cluster-side config via .Conf alongside PodCollectionMode=node_kubelet.
+	// In that case the operator deploys the node-side check but does NOT
+	// mutate the user's cluster-side YAML; the user owns cluster_unassigned.
+	podCollectionOnNodeUserConfig bool
+	// nodeAgentConfigMapName is the name of the operator-managed ConfigMap
+	// holding the pods-only check for node agents (only populated when
+	// podCollectionOnNode is true).
+	nodeAgentConfigMapName string
+
 	rbacSuffix         string
 	serviceAccountName string
 
@@ -144,8 +157,76 @@ func (f *ksmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 			}
 		}
 
+		// Capture the user-supplied custom config (if any) so PodCollectionMode
+		// resolution below can decide whether to mutate the cluster-side YAML.
 		if ddaSpec.Features.KubeStateMetricsCore.Conf != nil {
 			f.customConfig = ddaSpec.Features.KubeStateMetricsCore.Conf
+		}
+
+		// Resolve PodCollectionMode. When node_kubelet is requested AND every
+		// component that loads the check is version-compatible, switch the
+		// cluster-side instance to pod_collection_mode: cluster_unassigned
+		// (only when the operator owns the cluster-side config) and deploy a
+		// pods-only check to every node agent. When the user supplies their
+		// own .Conf, the operator still deploys the node-side check but does
+		// not mutate the user's YAML; they are responsible for setting
+		// cluster_unassigned themselves.
+		if mode := ddaSpec.Features.KubeStateMetricsCore.PodCollectionMode; mode != nil &&
+			*mode == v2alpha1.KSMPodCollectionModeNodeKubelet {
+			f.podCollectionOnNode = true
+			// Version compatibility check on BOTH sides: the cluster-side
+			// component that runs the cluster_unassigned check (CCR if cluster-
+			// checks-runners are enabled, otherwise the cluster-agent) AND the
+			// node-agent that runs the node_kubelet check. If either image tag
+			// is parseable AND below the supported floor, skip the feature so
+			// the operator doesn't mount an unsupported file into a node-agent
+			// that would silently fall back to default mode and double-collect.
+			// Unparseable tags (`:dev`, custom registries, etc.) are assumed
+			// compatible — matches the existing pattern for the apiservices/CRD
+			// checks above.
+			componentsToCheck := []v2alpha1.ComponentName{v2alpha1.NodeAgentComponentName}
+			if f.runInClusterChecksRunner {
+				componentsToCheck = append(componentsToCheck, v2alpha1.ClusterChecksRunnerComponentName)
+			} else {
+				componentsToCheck = append(componentsToCheck, v2alpha1.ClusterAgentComponentName)
+			}
+			for _, comp := range componentsToCheck {
+				ovr, ok := ddaSpec.Override[comp]
+				if !ok || ovr == nil || ovr.Image == nil {
+					continue
+				}
+				agentVersion := common.GetAgentVersionFromImage(*ovr.Image)
+				fallback := true // assume compatible when unparseable
+				if !utils.IsAboveMinVersion(agentVersion, podCollectionOnNodeMinVersion, &fallback) {
+					f.logger.Info(
+						"PodCollectionMode=node_kubelet requires agent >= 7.60; falling back to default",
+						"component", string(comp),
+						"version", agentVersion,
+					)
+					f.podCollectionOnNode = false
+					break
+				}
+			}
+			if f.podCollectionOnNode {
+				f.podCollectionOnNodeUserConfig = f.customConfig != nil
+				f.nodeAgentConfigMapName = constants.GetConfName(dda, nil, defaultKSMPodsOnNodeConf)
+				if f.podCollectionOnNodeUserConfig {
+					f.logger.Info(
+						"PodCollectionMode=node_kubelet was set alongside features.kubeStateMetricsCore.conf; " +
+							"the operator will deploy the node-side check but will not modify the user-supplied " +
+							"cluster-side config. To avoid double pod collection ensure the cluster-side instance " +
+							"either omits `pods` from `collectors` OR sets `pod_collection_mode: cluster_unassigned`. " +
+							"Note that omitting `collectors` entirely falls back to upstream KSM defaults, which " +
+							"include `pods`.",
+					)
+				}
+			}
+		}
+
+		// Compute the checksum annotation. With f.podCollectionOnNode resolved
+		// above, toggling the field changes the input here, which propagates
+		// to the cluster-agent pod-template annotation and forces a rollout.
+		if f.customConfig != nil {
 			hash, err := comparison.GenerateMD5ForSpec(f.customConfig)
 			if err != nil {
 				f.logger.Error(err, "couldn't generate hash for ksm core custom config")
@@ -155,11 +236,14 @@ func (f *ksmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 			f.customConfigAnnotationValue = hash
 			f.customConfigAnnotationKey = object.GetChecksumAnnotationKey(feature.KubernetesStateCoreIDType)
 		} else {
-			// Generate dynamic checksum for default configuration (based on user provided collectCrMetrics field and whether or not APIServices/CRD metrics are collected)
+			// Dynamic checksum for the default configuration. Includes every
+			// input that affects the rendered cluster-side ConfigMap so that
+			// toggling any of them forces a rollout of the consumer.
 			defaultConfigData := map[string]any{
-				"collect_crds":        f.collectCRDMetrics,
-				"collect_apiservices": f.collectAPIServiceMetrics,
-				"collect_cr_metrics":  f.collectCrMetrics,
+				"collect_crds":           f.collectCRDMetrics,
+				"collect_apiservices":    f.collectAPIServiceMetrics,
+				"collect_cr_metrics":     f.collectCrMetrics,
+				"pod_collection_on_node": f.podCollectionOnNode,
 			}
 
 			hash, err := comparison.GenerateMD5ForSpec(defaultConfigData)
@@ -210,6 +294,16 @@ func (f *ksmFeature) ManageDependencies(managers feature.ResourceManagers, provi
 			configCM.SetAnnotations(annotations)
 		}
 		if err := managers.Store().AddOrUpdate(kubernetes.ConfigMapKind, configCM); err != nil {
+			return err
+		}
+	}
+
+	// When PodCollectionMode=node_kubelet, ship a separate pods-only check
+	// to every node agent regardless of whether the cluster-side config was
+	// user-supplied.
+	if f.podCollectionOnNode {
+		nodeCM := f.buildKSMCorePodsOnNodeConfigMap()
+		if err := managers.Store().AddOrUpdate(kubernetes.ConfigMapKind, nodeCM); err != nil {
 			return err
 		}
 	}
@@ -272,7 +366,12 @@ func (f *ksmFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplate
 		Value: "kubernetes_state",
 	}
 
-	return managers.EnvVar().AddEnvVarToContainerWithMergeFunc(apicommon.UnprivilegedSingleAgentContainerName, ignoreAutoConf, merger.AppendToValueEnvVarMergeFunction)
+	if err := managers.EnvVar().AddEnvVarToContainerWithMergeFunc(apicommon.UnprivilegedSingleAgentContainerName, ignoreAutoConf, merger.AppendToValueEnvVarMergeFunction); err != nil {
+		return err
+	}
+
+	f.mountPodsOnNodeCheck(managers, apicommon.UnprivilegedSingleAgentContainerName)
+	return nil
 }
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
@@ -284,7 +383,28 @@ func (f *ksmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provi
 		Value: "kubernetes_state",
 	}
 
-	return managers.EnvVar().AddEnvVarToContainerWithMergeFunc(apicommon.CoreAgentContainerName, ignoreAutoConf, merger.AppendToValueEnvVarMergeFunction)
+	if err := managers.EnvVar().AddEnvVarToContainerWithMergeFunc(apicommon.CoreAgentContainerName, ignoreAutoConf, merger.AppendToValueEnvVarMergeFunction); err != nil {
+		return err
+	}
+
+	f.mountPodsOnNodeCheck(managers, apicommon.CoreAgentContainerName)
+	return nil
+}
+
+// mountPodsOnNodeCheck mounts the node-side pods-only KSM check into the given
+// container when PodCollectionMode=node_kubelet is enabled.
+func (f *ksmFeature) mountPodsOnNodeCheck(managers feature.PodTemplateManagers, containerName apicommon.AgentContainerName) {
+	if !f.podCollectionOnNode {
+		return
+	}
+	vol := volume.GetBasicVolume(f.nodeAgentConfigMapName, ksmCorePodsOnNodeVolumeName)
+	volMount := corev1.VolumeMount{
+		Name:      ksmCorePodsOnNodeVolumeName,
+		MountPath: fmt.Sprintf("%s%s/%s", common.ConfigVolumePath, common.ConfdVolumePath, ksmCoreCheckFolderName),
+		ReadOnly:  true,
+	}
+	managers.VolumeMount().AddVolumeMountToContainer(&volMount, containerName)
+	managers.Volume().AddVolume(&vol)
 }
 
 // ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunnerAgent's corev1.PodTemplateSpec
