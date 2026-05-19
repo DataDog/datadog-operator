@@ -76,7 +76,7 @@ func (r *Reconciler) manageExperiment(
 
 	// Process annotation-based signals first — they take priority over
 	// automatic timeout since they represent explicit human/RC intent.
-	pendingClearID, err := r.processExperimentSignal(ctx, instance, newStatus, revList)
+	pendingClearID, err := r.processExperimentSignal(ctx, instance, newStatus, now, revList)
 	if err != nil {
 		return err
 	}
@@ -148,6 +148,7 @@ func (r *Reconciler) processExperimentSignal(
 	ctx context.Context,
 	instance *v2alpha1.DatadogAgent,
 	newStatus *v2alpha1.DatadogAgentStatus,
+	now metav1.Time,
 	revisions []appsv1.ControllerRevision,
 ) (pendingClearID string, err error) {
 	annotations := instance.GetAnnotations()
@@ -173,7 +174,7 @@ func (r *Reconciler) processExperimentSignal(
 
 	switch signal {
 	case v2alpha1.ExperimentSignalStart:
-		acted, err = r.processStartSignal(ctx, annotationID, currentPhase, currentID, newStatus)
+		acted, err = r.processStartSignal(ctx, annotationID, currentPhase, currentID, newStatus, now)
 
 	case v2alpha1.ExperimentSignalRollback:
 		acted, err = r.processRollbackSignal(ctx, instance, annotationID, currentPhase, newStatus, revisions)
@@ -198,12 +199,18 @@ func (r *Reconciler) processExperimentSignal(
 
 // processStartSignal handles the start annotation signal.
 // Returns (true, nil) if it acted (or is a no-op that should clear annotations).
+//
+// now is captured into Status.Experiment.StartedAt and used by
+// handleRollback as the timeout anchor, removing the dependency on
+// ControllerRevision creation timestamps that could be stale for
+// re-used revisions.
 func (r *Reconciler) processStartSignal(
 	ctx context.Context,
 	annotationID string,
 	currentPhase v2alpha1.ExperimentPhase,
 	currentID string,
 	newStatus *v2alpha1.DatadogAgentStatus,
+	now metav1.Time,
 ) (bool, error) {
 	logger := ctrl.LoggerFrom(ctx)
 	// Already processed: same ID already in status.
@@ -218,9 +225,11 @@ func (r *Reconciler) processStartSignal(
 	}
 
 	logger.Info("Processing start signal")
+	startedAt := now
 	newStatus.Experiment = &v2alpha1.ExperimentStatus{
-		Phase: v2alpha1.ExperimentPhaseRunning,
-		ID:    annotationID,
+		Phase:     v2alpha1.ExperimentPhaseRunning,
+		ID:        annotationID,
+		StartedAt: &startedAt,
 	}
 	return true, nil
 }
@@ -444,8 +453,13 @@ func (r *Reconciler) handleRollback(
 			return nil
 		}
 	}
-	if rev != nil {
-		elapsed := now.Sub(rev.CreationTimestamp.Time)
+	if rev != nil && instance.Status.Experiment.StartedAt != nil {
+		// status.experiment.startedAt is the timeout anchor. rev.CreationTimestamp
+		// is unsafe for revisions that pre-date the experiment (typically the
+		// baseline) — its timestamp can be hours/days older than the experiment
+		// and would trigger an immediate timeout on the first reconcile after
+		// Phase=Running.
+		elapsed := now.Sub(instance.Status.Experiment.StartedAt.Time)
 		if elapsed >= getExperimentTimeout(r.options.ExperimentTimeout) {
 			logger.Info("Experiment timed out, rolling back", "elapsed", elapsed.String())
 			return r.restorePreviousSpec(ctx, instance, newStatus, revisions, ExperimentTerminationReasonTimedOut)

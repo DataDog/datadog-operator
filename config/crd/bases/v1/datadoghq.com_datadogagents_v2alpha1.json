@@ -8469,6 +8469,11 @@
               ],
               "type": "string"
             },
+            "startedAt": {
+              "description": "StartedAt is the wall-clock time at which the experiment first\ntransitioned to phase=Running. Used as the anchor for the\nexperiment timeout. Decoupled from ControllerRevision metadata so\nthe timeout decision does not depend on revision creation\ntimestamps (which can be stale for re-used revisions).",
+              "format": "date-time",
+              "type": "string"
+            },
             "terminationReason": {
               "description": "TerminationReason distinguishes why the experiment was terminated.\nOnly set when Phase is \"terminated\".",
               "type": "string"

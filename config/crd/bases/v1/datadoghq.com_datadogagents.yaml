@@ -8777,6 +8777,15 @@ spec:
                         - promoted
                         - aborted
                       type: string
+                    startedAt:
+                      description: |-
+                        StartedAt is the wall-clock time at which the experiment first
+                        transitioned to phase=Running. Used as the anchor for the
+                        experiment timeout. Decoupled from ControllerRevision metadata so
+                        the timeout decision does not depend on revision creation
+                        timestamps (which can be stale for re-used revisions).
+                      format: date-time
+                      type: string
                     terminationReason:
                       description: |-
                         TerminationReason distinguishes why the experiment was terminated.

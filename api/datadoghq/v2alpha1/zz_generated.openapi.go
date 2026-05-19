@@ -1142,6 +1142,12 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_ExperimentStatus(ref common.
 							Format:      "",
 						},
 					},
+					"startedAt": {
+						SchemaProps: spec.SchemaProps{
+							Description: "StartedAt is the wall-clock time at which the experiment first transitioned to phase=Running. Used as the anchor for the experiment timeout. Decoupled from ControllerRevision metadata so the timeout decision does not depend on revision creation timestamps (which can be stale for re-used revisions).",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+						},
+					},
 					"terminationReason": {
 						SchemaProps: spec.SchemaProps{
 							Description: "TerminationReason distinguishes why the experiment was terminated. Only set when Phase is \"terminated\".",
@@ -1152,6 +1158,8 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_ExperimentStatus(ref common.
 				},
 			},
 		},
+		Dependencies: []string{
+			"k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
 	}
 }
 

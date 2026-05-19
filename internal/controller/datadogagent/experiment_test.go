@@ -57,10 +57,10 @@ func TestManageExperiment_AbortsOnManualChange(t *testing.T) {
 // when the user manually reverts the spec to the pre-experiment value during a
 // running experiment, the experiment terminates via timeout rather than abort.
 // The revision-based abort check sees the spec matching the baseline revision
-// and treats it as a known state. The timeout path fires because the baseline
-// revision's old timestamp exceeds the threshold. The rollback is a no-op
-// (spec already matches target), and the phase is set to "terminated" with
-// terminationReason "timed_out".
+// and treats it as a known state; the timeout path fires because the elapsed
+// time since Status.Experiment.StartedAt exceeds the threshold. The rollback
+// is a no-op (spec already matches target), and the phase is set to
+// "terminated" with terminationReason "timed_out".
 func TestManageExperiment_ManualRevertToBaselineTerminatesViaTimeout(t *testing.T) {
 	r, c := newRevisionTestReconciler(t)
 
@@ -75,22 +75,20 @@ func TestManageExperiment_ManualRevertToBaselineTerminatesViaTimeout(t *testing.
 	require.NoError(t, c.Create(context.Background(), instanceA))
 
 	// User manually reverts to specA. The spec matches rev1 (the baseline),
-	// so abortExperiment won't fire. Instead, handleRollback detects timeout
-	// from rev1's old CreationTimestamp.
+	// so abortExperiment won't fire. handleRollback detects timeout from a
+	// StartedAt past the timeout threshold.
+	startedAt := metav1.NewTime(time.Now().Add(-ExperimentDefaultTimeout - time.Minute))
 	instanceA.Status.Experiment = &v2alpha1.ExperimentStatus{
-		Phase: v2alpha1.ExperimentPhaseRunning,
+		Phase:     v2alpha1.ExperimentPhaseRunning,
+		StartedAt: &startedAt,
 	}
 
 	revList := mustListRevisions(t, r, instanceA)
-	// Ensure the baseline revision's timestamp is old enough to trigger timeout.
-	for i := range revList {
-		revList[i].CreationTimestamp = metav1.NewTime(time.Now().Add(-ExperimentDefaultTimeout - time.Minute))
-	}
 
 	newStatus := &v2alpha1.DatadogAgentStatus{Experiment: instanceA.Status.Experiment.DeepCopy()}
 	require.NoError(t, r.manageExperiment(context.Background(), instanceA, newStatus, metav1.Now(), revList))
 	// Abort does not fire — spec matches a known revision. Timeout fires instead
-	// because the matching revision's timestamp exceeds the threshold.
+	// because StartedAt exceeds the threshold.
 	assert.Equal(t, v2alpha1.ExperimentPhaseTerminated, newStatus.Experiment.Phase)
 	assert.Equal(t, ExperimentTerminationReasonTimedOut, newStatus.Experiment.TerminationReason)
 }
@@ -155,7 +153,7 @@ func TestProcessExperimentSignal_RollbackSignalRollsBack(t *testing.T) {
 
 	revList := mustListRevisions(t, r, instanceB)
 	newStatus := &v2alpha1.DatadogAgentStatus{Experiment: instanceB.Status.Experiment.DeepCopy()}
-	_, processErr := r.processExperimentSignal(context.Background(), instanceB, newStatus, revList)
+	_, processErr := r.processExperimentSignal(context.Background(), instanceB, newStatus, metav1.Now(), revList)
 	require.NoError(t, processErr)
 	require.NotNil(t, newStatus.Experiment)
 	assert.Equal(t, v2alpha1.ExperimentPhaseTerminated, newStatus.Experiment.Phase, "rollback signal should trigger terminated phase")
@@ -298,19 +296,16 @@ func TestHandleRollback_PostRollbackSetsTerminated(t *testing.T) {
 	require.NoError(t, r.manageRevision(context.Background(), instanceB, mustListRevisions(t, r, instanceB), nil))
 
 	// The DDA in the cluster already has the rolled-back spec (instanceA's spec),
-	// as if reconcile-1 restored it but its status write 409'd.
+	// as if reconcile-1 restored it but its status write 409'd. StartedAt sits
+	// past the timeout threshold so handleRollback fires the idempotent rollback.
+	startedAt := metav1.NewTime(time.Now().Add(-ExperimentDefaultTimeout - time.Hour))
 	instanceA.Status.Experiment = &v2alpha1.ExperimentStatus{
-		Phase: v2alpha1.ExperimentPhaseRunning,
+		Phase:     v2alpha1.ExperimentPhaseRunning,
+		StartedAt: &startedAt,
 	}
 	require.NoError(t, c.Create(context.Background(), instanceA))
 
-	// rev1 has an old timestamp — it was created well before the experiment started.
 	revList := mustListRevisions(t, r, instanceA)
-	for i := range revList {
-		if revList[i].Revision == 1 {
-			revList[i].CreationTimestamp = metav1.NewTime(time.Now().Add(-ExperimentDefaultTimeout - time.Hour))
-		}
-	}
 
 	newStatus := &v2alpha1.DatadogAgentStatus{Experiment: instanceA.Status.Experiment.DeepCopy()}
 	require.NoError(t, r.handleRollback(context.Background(), instanceA, newStatus, metav1.Now(), revList))
@@ -357,7 +352,7 @@ func TestReapplySameSpecAfterRollback_NoImmediateTimeout(t *testing.T) {
 	}
 	instanceB.Status.Experiment = &v2alpha1.ExperimentStatus{Phase: v2alpha1.ExperimentPhaseRunning, ID: "exp-1"}
 	rollbackStatus := &v2alpha1.DatadogAgentStatus{Experiment: instanceB.Status.Experiment.DeepCopy()}
-	_, processErr := r.processExperimentSignal(context.Background(), instanceB, rollbackStatus, revList)
+	_, processErr := r.processExperimentSignal(context.Background(), instanceB, rollbackStatus, metav1.Now(), revList)
 	require.NoError(t, processErr)
 	require.Equal(t, v2alpha1.ExperimentPhaseTerminated, rollbackStatus.Experiment.Phase)
 	require.Equal(t, ExperimentTerminationReasonStopped, rollbackStatus.Experiment.TerminationReason)
@@ -525,18 +520,14 @@ func TestHandleRollback_Timeout(t *testing.T) {
 	// rollback fetches the current DDA to compare specs; it must exist in the fake client.
 	require.NoError(t, c.Create(context.Background(), instanceB))
 
+	// StartedAt past the timeout threshold triggers the rollback path.
+	startedAt := metav1.NewTime(time.Now().Add(-ExperimentDefaultTimeout - time.Minute))
 	instanceB.Status.Experiment = &v2alpha1.ExperimentStatus{
-		Phase: v2alpha1.ExperimentPhaseRunning,
+		Phase:     v2alpha1.ExperimentPhaseRunning,
+		StartedAt: &startedAt,
 	}
 
-	// Simulate the most recent revision having a creation timestamp past the timeout threshold
-	// by modifying the in-memory revList before passing it to handleRollback.
 	revList := mustListRevisions(t, r, instanceB)
-	for i := range revList {
-		if revList[i].Revision == 2 {
-			revList[i].CreationTimestamp = metav1.NewTime(time.Now().Add(-ExperimentDefaultTimeout - time.Minute))
-		}
-	}
 
 	newStatus := &v2alpha1.DatadogAgentStatus{Experiment: instanceB.Status.Experiment.DeepCopy()}
 	require.NoError(t, r.handleRollback(context.Background(), instanceB, newStatus, metav1.Now(), revList))
@@ -556,7 +547,7 @@ func TestProcessExperimentSignal_StartNewExperiment(t *testing.T) {
 	}
 
 	newStatus := &v2alpha1.DatadogAgentStatus{}
-	_, processErr := r.processExperimentSignal(context.Background(), instance, newStatus, nil)
+	_, processErr := r.processExperimentSignal(context.Background(), instance, newStatus, metav1.Now(), nil)
 	require.NoError(t, processErr)
 	require.NotNil(t, newStatus.Experiment)
 	assert.Equal(t, v2alpha1.ExperimentPhaseRunning, newStatus.Experiment.Phase)
@@ -576,7 +567,7 @@ func TestProcessExperimentSignal_StartIdempotent(t *testing.T) {
 	}
 
 	newStatus := &v2alpha1.DatadogAgentStatus{Experiment: instance.Status.Experiment.DeepCopy()}
-	_, processErr := r.processExperimentSignal(context.Background(), instance, newStatus, nil)
+	_, processErr := r.processExperimentSignal(context.Background(), instance, newStatus, metav1.Now(), nil)
 	require.NoError(t, processErr)
 	// No change — already processed.
 	assert.Equal(t, v2alpha1.ExperimentPhaseRunning, newStatus.Experiment.Phase)
@@ -596,7 +587,7 @@ func TestProcessExperimentSignal_StartBlockedByRunningExperiment(t *testing.T) {
 	}
 
 	newStatus := &v2alpha1.DatadogAgentStatus{Experiment: instance.Status.Experiment.DeepCopy()}
-	_, processErr := r.processExperimentSignal(context.Background(), instance, newStatus, nil)
+	_, processErr := r.processExperimentSignal(context.Background(), instance, newStatus, metav1.Now(), nil)
 	require.NoError(t, processErr)
 	// Refused — existing experiment still running.
 	assert.Equal(t, v2alpha1.ExperimentPhaseRunning, newStatus.Experiment.Phase)
@@ -619,7 +610,7 @@ func TestProcessExperimentSignal_RollbackDifferentID(t *testing.T) {
 	}
 
 	newStatus := &v2alpha1.DatadogAgentStatus{Experiment: instance.Status.Experiment.DeepCopy()}
-	_, processErr := r.processExperimentSignal(context.Background(), instance, newStatus, nil)
+	_, processErr := r.processExperimentSignal(context.Background(), instance, newStatus, metav1.Now(), nil)
 	require.NoError(t, processErr)
 	// Rollback proceeds despite different annotation ID.
 	assert.Equal(t, v2alpha1.ExperimentPhaseTerminated, newStatus.Experiment.Phase)
@@ -638,7 +629,7 @@ func TestProcessExperimentSignal_RollbackTerminalPhaseNoOp(t *testing.T) {
 	}
 
 	newStatus := &v2alpha1.DatadogAgentStatus{Experiment: instance.Status.Experiment.DeepCopy()}
-	_, processErr := r.processExperimentSignal(context.Background(), instance, newStatus, nil)
+	_, processErr := r.processExperimentSignal(context.Background(), instance, newStatus, metav1.Now(), nil)
 	require.NoError(t, processErr)
 	// Already terminal — no-op.
 	assert.Equal(t, v2alpha1.ExperimentPhaseTerminated, newStatus.Experiment.Phase)
@@ -668,7 +659,7 @@ func TestProcessExperimentSignal_PromoteRunning(t *testing.T) {
 
 	revList := mustListRevisions(t, r, instance)
 	newStatus := &v2alpha1.DatadogAgentStatus{Experiment: instance.Status.Experiment.DeepCopy()}
-	_, processErr := r.processExperimentSignal(context.Background(), instance, newStatus, revList)
+	_, processErr := r.processExperimentSignal(context.Background(), instance, newStatus, metav1.Now(), revList)
 	require.NoError(t, processErr)
 	assert.Equal(t, v2alpha1.ExperimentPhasePromoted, newStatus.Experiment.Phase)
 }
@@ -716,7 +707,7 @@ func TestProcessExperimentSignal_NoAnnotations(t *testing.T) {
 	}
 
 	newStatus := &v2alpha1.DatadogAgentStatus{Experiment: instance.Status.Experiment.DeepCopy()}
-	_, processErr := r.processExperimentSignal(context.Background(), instance, newStatus, nil)
+	_, processErr := r.processExperimentSignal(context.Background(), instance, newStatus, metav1.Now(), nil)
 	require.NoError(t, processErr)
 	// No annotations — no change.
 	assert.Equal(t, v2alpha1.ExperimentPhaseRunning, newStatus.Experiment.Phase)
@@ -802,3 +793,85 @@ func TestManageExperiment_ClearsNoOpSignalWhenNoExperiment(t *testing.T) {
 	assert.Empty(t, got.Annotations[v2alpha1.AnnotationExperimentSignal], "no-op signal should be cleared")
 	assert.Empty(t, got.Annotations[v2alpha1.AnnotationExperimentID], "no-op signal ID should be cleared")
 }
+
+// TestAnnotateRevision_MutuallyExclusiveMarkers verifies that the
+// experiment-promoted and experiment-rollback annotations cannot
+// coexist on the same ControllerRevision. Setting one always clears
+// the other in the same patch.
+//
+// Regression: when the same config is flipped back-and-forth (promote
+// spec Y, then start an experiment that reverts to baseline X) the
+// revision that received experiment-promoted on the promote can be
+// re-annotated as the highest revision during a subsequent rollback
+// flow. Before this fix, annotateRevision was add-only and the
+// revision ended up carrying both annotations.
+func TestAnnotateRevision_MutuallyExclusiveMarkers(t *testing.T) {
+	r, _ := newRevisionTestReconciler(t)
+
+	instance := newRevisionTestOwner("test-dda", "default")
+	revName, err := r.ensureRevision(context.Background(), instance, nil, false)
+	require.NoError(t, err)
+	revList := mustListRevisions(t, r, instance)
+	require.Len(t, revList, 1)
+	rev := &revList[0]
+
+	// First annotate as promoted.
+	r.annotateRevision(context.Background(), rev, annotationExperimentPromoted)
+	updated := fetchRevisionByName(t, r.client, instance.Namespace, revName)
+	assert.Equal(t, "true", updated.Annotations[annotationExperimentPromoted], "promoted set on first call")
+	assert.NotEqual(t, "true", updated.Annotations[annotationExperimentRollback], "rollback not set yet")
+
+	// Re-fetch so the in-memory copy reflects the live state, then
+	// annotate as rolled-back. Both annotations on the same revision
+	// is the bug we are guarding against — the second call must
+	// clear the first.
+	r.annotateRevision(context.Background(), updated, annotationExperimentRollback)
+	updated = fetchRevisionByName(t, r.client, instance.Namespace, revName)
+	assert.Equal(t, "true", updated.Annotations[annotationExperimentRollback], "rollback set on second call")
+	assert.NotEqual(t, "true", updated.Annotations[annotationExperimentPromoted], "promoted must be cleared when rollback is set")
+
+	// Going back the other way must clear rollback again.
+	r.annotateRevision(context.Background(), updated, annotationExperimentPromoted)
+	updated = fetchRevisionByName(t, r.client, instance.Namespace, revName)
+	assert.Equal(t, "true", updated.Annotations[annotationExperimentPromoted], "promoted set on third call")
+	assert.NotEqual(t, "true", updated.Annotations[annotationExperimentRollback], "rollback must be cleared when promoted is set again")
+}
+
+// TestHandleRollback_StartedAt_AnchorsTimeout verifies that handleRollback
+// measures elapsed time against Status.Experiment.StartedAt and not against
+// rev.CreationTimestamp.
+//
+// Regression: when a new experiment's spec equals a pre-existing baseline
+// revision whose CreationTimestamp is far in the past, the old behaviour
+// fired an immediate timeout on the first reconcile after Phase=Running
+// because elapsed-against-rev-timestamp exceeded the threshold even
+// though the experiment had just started. Anchoring on StartedAt makes
+// the decision independent of revision metadata.
+func TestHandleRollback_StartedAt_AnchorsTimeout(t *testing.T) {
+	r, _ := newRevisionTestReconciler(t)
+
+	// Build a baseline revision with an ancient CreationTimestamp.
+	instance := newRevisionTestOwner("test-dda", "default")
+	_, err := r.ensureRevision(context.Background(), instance, nil, false)
+	require.NoError(t, err)
+	revList := mustListRevisions(t, r, instance)
+	require.Len(t, revList, 1)
+	revList[0].CreationTimestamp = metav1.NewTime(time.Now().Add(-24 * time.Hour))
+
+	// Experiment just started (StartedAt = now), Phase=Running, ID set.
+	startedAt := metav1.NewTime(time.Now().Add(-1 * time.Second))
+	instance.Status.Experiment = &v2alpha1.ExperimentStatus{
+		Phase:     v2alpha1.ExperimentPhaseRunning,
+		ID:        "exp-1",
+		StartedAt: &startedAt,
+	}
+
+	newStatus := &v2alpha1.DatadogAgentStatus{Experiment: instance.Status.Experiment.DeepCopy()}
+	require.NoError(t, r.handleRollback(context.Background(), instance, newStatus, metav1.Now(), revList))
+	// Phase must still be Running — the ancient baseline-revision timestamp
+	// must NOT be used as the timeout anchor.
+	require.NotNil(t, newStatus.Experiment)
+	assert.Equal(t, v2alpha1.ExperimentPhaseRunning, newStatus.Experiment.Phase,
+		"handleRollback must use StartedAt as the timeout anchor; using rev.CreationTimestamp would fire an immediate timeout here")
+}
+

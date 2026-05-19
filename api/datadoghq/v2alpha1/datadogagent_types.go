@@ -2462,6 +2462,13 @@ type ExperimentStatus struct {
 	// ID is the RC task ID that triggered this experiment state.
 	// +optional
 	ID string `json:"id,omitempty"`
+	// StartedAt is the wall-clock time at which the experiment first
+	// transitioned to phase=Running. Used as the anchor for the
+	// experiment timeout. Decoupled from ControllerRevision metadata so
+	// the timeout decision does not depend on revision creation
+	// timestamps (which can be stale for re-used revisions).
+	// +optional
+	StartedAt *metav1.Time `json:"startedAt,omitempty"`
 	// TerminationReason distinguishes why the experiment was terminated.
 	// Only set when Phase is "terminated".
 	// +optional
