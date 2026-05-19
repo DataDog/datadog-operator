@@ -362,7 +362,7 @@ func TestReapplySameSpecAfterRollback_NoImmediateTimeout(t *testing.T) {
 	require.Len(t, remaining, 2, "both revisions should be kept (no aggressive GC)")
 	var annotatedCount int
 	for _, rev := range remaining {
-		if rev.Annotations[annotationExperimentRollback] == "true" {
+		if revisionExperimentState(&rev) == experimentRevisionStateRolledBack {
 			annotatedCount++
 		}
 	}
@@ -382,8 +382,8 @@ func TestReapplySameSpecAfterRollback_NoImmediateTimeout(t *testing.T) {
 
 	finalRevs := mustListRevisions(t, r, instanceB2)
 	for _, rev := range finalRevs {
-		assert.Empty(t, rev.Annotations[annotationExperimentRollback],
-			"rollback annotation should be cleared after recreate")
+		assert.NotEqual(t, experimentRevisionStateRolledBack, revisionExperimentState(&rev),
+			"rolled-back state should be cleared after recreate")
 	}
 
 	// Fake client doesn't set CreationTimestamp on Create, so patch all
@@ -440,7 +440,7 @@ func TestRestorePreviousSpec_ThreeRevisions_AnnotatesOnlyHighest(t *testing.T) {
 	// Verify: only rev3 (experiment, highest) is annotated.
 	// Rev1 (old baseline) and rev2 (rollback target) must NOT be annotated.
 	for _, rev := range mustListRevisions(t, r, instanceA) {
-		hasAnnotation := rev.Annotations[annotationExperimentRollback] == "true"
+		hasAnnotation := revisionExperimentState(&rev) == experimentRevisionStateRolledBack
 		switch rev.Name {
 		case rev3Name:
 			assert.True(t, hasAnnotation, "rev3 (experiment, highest) should be annotated")
@@ -494,7 +494,7 @@ func TestAbortExperiment_ThreeRevisions_AnnotatesOnlyHighest(t *testing.T) {
 
 	// Verify: only rev3 (experiment, highest) is annotated.
 	for _, rev := range mustListRevisions(t, r, instanceA) {
-		hasAnnotation := rev.Annotations[annotationExperimentRollback] == "true"
+		hasAnnotation := revisionExperimentState(&rev) == experimentRevisionStateRolledBack
 		switch rev.Name {
 		case rev3Name:
 			assert.True(t, hasAnnotation, "rev3 (experiment, highest) should be annotated")
@@ -794,18 +794,12 @@ func TestManageExperiment_ClearsNoOpSignalWhenNoExperiment(t *testing.T) {
 	assert.Empty(t, got.Annotations[v2alpha1.AnnotationExperimentID], "no-op signal ID should be cleared")
 }
 
-// TestAnnotateRevision_MutuallyExclusiveMarkers verifies that the
-// experiment-promoted and experiment-rollback annotations cannot
-// coexist on the same ControllerRevision. Setting one always clears
-// the other in the same patch.
-//
-// Regression: when the same config is flipped back-and-forth (promote
-// spec Y, then start an experiment that reverts to baseline X) the
-// revision that received experiment-promoted on the promote can be
-// re-annotated as the highest revision during a subsequent rollback
-// flow. Before this fix, annotateRevision was add-only and the
-// revision ended up carrying both annotations.
-func TestAnnotateRevision_MutuallyExclusiveMarkers(t *testing.T) {
+// TestRevisionState_SingleAnnotation verifies that promote/rollback
+// terminal states are represented by a single annotation value rather
+// than two boolean flags. Flipping between states must overwrite, not
+// accumulate — a revision cannot simultaneously be both promoted and
+// rolled-back.
+func TestRevisionState_SingleAnnotation(t *testing.T) {
 	r, _ := newRevisionTestReconciler(t)
 
 	instance := newRevisionTestOwner("test-dda", "default")
@@ -815,26 +809,19 @@ func TestAnnotateRevision_MutuallyExclusiveMarkers(t *testing.T) {
 	require.Len(t, revList, 1)
 	rev := &revList[0]
 
-	// First annotate as promoted.
-	r.annotateRevision(context.Background(), rev, annotationExperimentPromoted)
+	r.markRevisionState(context.Background(), rev, experimentRevisionStatePromoted)
 	updated := fetchRevisionByName(t, r.client, instance.Namespace, revName)
-	assert.Equal(t, "true", updated.Annotations[annotationExperimentPromoted], "promoted set on first call")
-	assert.NotEqual(t, "true", updated.Annotations[annotationExperimentRollback], "rollback not set yet")
+	assert.Equal(t, experimentRevisionStatePromoted, revisionExperimentState(updated))
 
-	// Re-fetch so the in-memory copy reflects the live state, then
-	// annotate as rolled-back. Both annotations on the same revision
-	// is the bug we are guarding against — the second call must
-	// clear the first.
-	r.annotateRevision(context.Background(), updated, annotationExperimentRollback)
+	// Flip to rolled-back: modern annotation overwrites, no second key created.
+	r.markRevisionState(context.Background(), updated, experimentRevisionStateRolledBack)
 	updated = fetchRevisionByName(t, r.client, instance.Namespace, revName)
-	assert.Equal(t, "true", updated.Annotations[annotationExperimentRollback], "rollback set on second call")
-	assert.NotEqual(t, "true", updated.Annotations[annotationExperimentPromoted], "promoted must be cleared when rollback is set")
+	assert.Equal(t, experimentRevisionStateRolledBack, revisionExperimentState(updated))
 
-	// Going back the other way must clear rollback again.
-	r.annotateRevision(context.Background(), updated, annotationExperimentPromoted)
+	// And back to promoted.
+	r.markRevisionState(context.Background(), updated, experimentRevisionStatePromoted)
 	updated = fetchRevisionByName(t, r.client, instance.Namespace, revName)
-	assert.Equal(t, "true", updated.Annotations[annotationExperimentPromoted], "promoted set on third call")
-	assert.NotEqual(t, "true", updated.Annotations[annotationExperimentRollback], "rollback must be cleared when promoted is set again")
+	assert.Equal(t, experimentRevisionStatePromoted, revisionExperimentState(updated))
 }
 
 // TestHandleRollback_StartedAt_AnchorsTimeout verifies that handleRollback
