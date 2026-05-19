@@ -7,7 +7,6 @@ package fleet
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"sync"
@@ -20,7 +19,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
-	v2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/pkg/remoteconfig"
 )
 
@@ -317,26 +315,4 @@ func (d *Daemon) logInstallerState(caller string) {
 			"taskState", taskState,
 		)
 	}
-}
-
-type rolloutProgress struct {
-	TargetVersion string `json:"targetVersion,omitempty"`
-	Desired       int32  `json:"desired,omitempty"`
-	UpToDate      int32  `json:"upToDate,omitempty"`
-	Ready         int32  `json:"ready,omitempty"`
-}
-
-// rolloutProgressJSON encodes DaemonSet rollout counters and the target config
-// version as a JSON string. Returns "" when agent is nil.
-func rolloutProgressJSON(agent *v2alpha1.DaemonSetStatus, targetVersion string) string {
-	if agent == nil {
-		return ""
-	}
-	b, _ := json.Marshal(rolloutProgress{
-		TargetVersion: targetVersion,
-		Desired:       agent.Desired,
-		UpToDate:      agent.UpToDate,
-		Ready:         agent.Ready,
-	})
-	return string(b)
 }
