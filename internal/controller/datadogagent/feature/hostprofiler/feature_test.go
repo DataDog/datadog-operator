@@ -80,13 +80,14 @@ func testExpectedDependencies(t testing.TB, storeClient store.StoreClient) {
 func testExpectedAgent(agentContainerName apicommon.AgentContainerName, expectedVolumeMount []corev1.VolumeMount) *test.ComponentTest {
 	// Pre-populate both containers so ManageNodeAgent can find and mutate the host-profiler SecurityContext.
 	// This mirrors the real flow where default.go's hostProfilerContainer() runs before features.
+	hostProfilerImage := "gcr.io/datadoghq/agent:7.99.0-fips"
 	hostProfilerPTS := corev1.PodTemplateSpec{
 		Spec: corev1.PodSpec{
 			Containers: []corev1.Container{
 				{Name: string(apicommon.CoreAgentContainerName), Image: images.GetLatestAgentImage()},
 				{
 					Name:  string(apicommon.HostProfiler),
-					Image: images.GetLatestAgentImage(),
+					Image: hostProfilerImage,
 					SecurityContext: &corev1.SecurityContext{
 						ReadOnlyRootFilesystem: ptr.To(true),
 					},
@@ -171,6 +172,7 @@ func testExpectedAgent(agentContainerName apicommon.AgentContainerName, expected
 				}
 				assert.NotNil(t, setupContainer, "host-profiler-seccomp-setup init container should be present")
 				if setupContainer != nil {
+					assert.Equal(t, hostProfilerImage, setupContainer.Image)
 					expectedDst := common.SeccompRootVolumePath + "/" + seccompProfileName
 					assert.Contains(t, setupContainer.Command, expectedDst, "cp command should target the kubelet seccomp path")
 					mountNames := map[string]bool{}
