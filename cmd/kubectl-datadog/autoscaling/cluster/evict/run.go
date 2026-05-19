@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"sync"
 	"time"
 
 	"k8s.io/cli-runtime/pkg/genericclioptions"
@@ -131,7 +130,7 @@ func Run(ctx context.Context, streams genericclioptions.IOStreams, configFlags *
 	evictor := func(c context.Context, t Target, d nodeDrainOptions) error {
 		return evictTarget(c, clientset, cli, opts.ClusterName, t, d)
 	}
-	result := evictAllTargetsParallel(ctx, targets, drainOpts, evictor)
+	result := evictAllTargets(ctx, targets, drainOpts, evictor)
 	errs := result.Errors
 
 	// Step 4: cleanup temporary PDBs explicitly here — keeping it inline
@@ -183,8 +182,8 @@ func classify(ctx context.Context, clientset *kubernetes.Clientset, cli *clients
 	})
 }
 
-// evictResult is the structured outcome of evictAllTargetsParallel. Errors is
-// the aggregated per-target error list (empty when everything succeeded).
+// evictResult is the structured outcome of evictAllTargets. Errors is the
+// aggregated per-target error list (empty when everything succeeded).
 // EKSDrainIncomplete is true when at least one EKS managed node group target
 // returned an error WRAPPING errEKSDrainIncomplete — the EKS drain may still
 // be in progress, in which case the caller must NOT cleanup the temporary
@@ -194,65 +193,43 @@ type evictResult struct {
 	EKSDrainIncomplete bool
 }
 
-// targetEvictor is the closure injected into evictAllTargetsParallel by Run.
-// Pulling the dispatch out as an interface-like function makes the
-// orchestrator unit-testable without faking the entire clients.Clients struct.
+// targetEvictor is the closure injected into evictAllTargets by Run. Pulling
+// the dispatch out as an interface-like function makes the orchestrator
+// unit-testable without faking the entire clients.Clients struct.
 type targetEvictor func(ctx context.Context, t Target, drainOpts nodeDrainOptions) error
 
-// evictAllTargetsParallel fans out one goroutine per NodeManager type. Within
-// a type, entities are processed sequentially to bound the eviction pressure
-// per type. Errors are aggregated across goroutines; a failing target does not
-// abort the others.
-//
-// We intentionally use sync.WaitGroup rather than errgroup so the context is
-// not cancelled when one type fails — we want to do as much useful work as
-// possible and report everything at the end.
-func evictAllTargetsParallel(ctx context.Context, targets []Target, drainOpts nodeDrainOptions, evictor targetEvictor) evictResult {
-	byType := groupByManager(targets)
+// evictAllTargets processes targets sequentially, in the order BuildPlan
+// produced. Errors are accumulated; a failing target does not abort the
+// others — every issue surfaces at the end so a partial migration is fully
+// visible. Sequential execution keeps logs linear, bounds the eviction
+// pressure on the apiserver, and matches the synchronous per-target shape
+// (every evictor — including EKS MNG — already blocks until its drain
+// completes).
+func evictAllTargets(ctx context.Context, targets []Target, drainOpts nodeDrainOptions, evictor targetEvictor) evictResult {
 	var (
-		wg                 sync.WaitGroup
-		mu                 sync.Mutex
-		allErrs            []error
+		errs               []error
 		eksDrainIncomplete bool
 	)
-	appendErr := func(err error) {
+	for _, t := range targets {
+		err := evictor(ctx, t, drainOpts)
 		if err == nil {
-			return
+			continue
 		}
-		mu.Lock()
-		allErrs = append(allErrs, err)
-		mu.Unlock()
+		errs = append(errs, fmt.Errorf("%s/%s: %w", t.Manager, t.Entity, err))
+		// Only treat the drain as "still in progress" when EKS accepted the
+		// scaling change but observation of the drain failed or timed out.
+		// A failed UpdateNodegroupConfig means EKS never started draining,
+		// so cleanup is safe.
+		if errors.Is(err, errEKSDrainIncomplete) {
+			eksDrainIncomplete = true
+		}
 	}
-	flagEKSIncomplete := func() {
-		mu.Lock()
-		eksDrainIncomplete = true
-		mu.Unlock()
-	}
-	for _, entities := range byType {
-		// Order preserved from BuildPlan; no re-sort.
-		wg.Go(func() {
-			for _, t := range entities {
-				if err := evictor(ctx, t, drainOpts); err != nil {
-					appendErr(fmt.Errorf("%s/%s: %w", t.Manager, t.Entity, err))
-					// Only treat the drain as "still in progress" when
-					// EKS accepted the scaling change but observation
-					// of the drain failed or timed out. A failed
-					// UpdateNodegroupConfig means EKS never started
-					// draining, so cleanup is safe.
-					if errors.Is(err, errEKSDrainIncomplete) {
-						flagEKSIncomplete()
-					}
-				}
-			}
-		})
-	}
-	wg.Wait()
-	return evictResult{Errors: allErrs, EKSDrainIncomplete: eksDrainIncomplete}
+	return evictResult{Errors: errs, EKSDrainIncomplete: eksDrainIncomplete}
 }
 
 // evictTarget dispatches a single Target to the manager-specific evictor.
-// Wrapped into a closure inside Run so evictAllTargetsParallel can be
-// exercised with a fake evictor in tests.
+// Wrapped into a closure inside Run so evictAllTargets can be exercised with
+// a fake evictor in tests.
 func evictTarget(ctx context.Context, clientset kubernetes.Interface, cli *clients.Clients, clusterName string, t Target, drainOpts nodeDrainOptions) error {
 	switch t.Manager {
 	case clusterinfo.NodeManagerASG:

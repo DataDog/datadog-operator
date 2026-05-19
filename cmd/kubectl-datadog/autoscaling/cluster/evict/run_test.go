@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -13,23 +12,22 @@ import (
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/clusterinfo"
 )
 
-func TestEvictAllTargetsParallel(t *testing.T) {
+func TestEvictAllTargets(t *testing.T) {
 	asgTarget := Target{Manager: clusterinfo.NodeManagerASG, Entity: "asg-1"}
 	karpenterTarget := Target{Manager: clusterinfo.NodeManagerKarpenter, Entity: "np-1"}
 	eksTarget := Target{Manager: clusterinfo.NodeManagerEKSManagedNodeGroup, Entity: "mng-1"}
 	standaloneTarget := Target{Manager: clusterinfo.NodeManagerStandalone, Entity: ""}
 
 	for _, tc := range []struct {
-		name    string
-		targets []Target
-		// evictor is the fake dispatcher. Receives the per-call mutex-tracked
-		// invocation counter via the closure pattern below.
-		evictor              targetEvictor
-		wantErrors           int
-		wantEKSIncomplete    bool
-		wantErrIsSentinel    bool
+		name              string
+		targets           []Target
+		evictor           targetEvictor
+		wantErrors        int
+		wantEKSIncomplete bool
+		wantErrIsSentinel bool
 		// expectInvoked, when non-nil, lists managers that MUST have had
-		// their evictor called (verifies parallelism / independence).
+		// their evictor called (verifies that one failing target does not
+		// abort the others).
 		expectInvoked []clusterinfo.NodeManager
 	}{
 		{
@@ -41,7 +39,7 @@ func TestEvictAllTargetsParallel(t *testing.T) {
 			// Safety-critical signal: an EKS MNG target returning
 			// errEKSDrainIncomplete (wrapped) must flag the result so Run
 			// skips the temp-PDB cleanup.
-			name:    "EKS sentinel propagates through the goroutine + mutex",
+			name:    "EKS sentinel propagates",
 			targets: []Target{eksTarget, asgTarget},
 			evictor: func(_ context.Context, t Target, _ nodeDrainOptions) error {
 				if t.Manager == clusterinfo.NodeManagerEKSManagedNodeGroup {
@@ -75,11 +73,11 @@ func TestEvictAllTargetsParallel(t *testing.T) {
 			wantErrors: 1,
 		},
 		{
-			// One failing type must not abort the others — each manager
-			// type goroutine runs to completion regardless of siblings.
-			name:    "failing target type does not abort the others",
-			targets: []Target{asgTarget, karpenterTarget, standaloneTarget},
-			evictor: nil, // installed inline below to capture mu.
+			// One failing target must not abort the rest — the loop keeps
+			// going and every other manager is still invoked.
+			name:       "failing target does not abort the others",
+			targets:    []Target{asgTarget, karpenterTarget, standaloneTarget},
+			evictor:    nil, // installed inline below to capture invocations.
 			wantErrors: 1,
 			expectInvoked: []clusterinfo.NodeManager{
 				clusterinfo.NodeManagerASG,
@@ -89,13 +87,11 @@ func TestEvictAllTargetsParallel(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			invoked := &mapMu{m: map[clusterinfo.NodeManager]int{}}
+			invoked := map[clusterinfo.NodeManager]int{}
 			evictor := tc.evictor
 			if evictor == nil {
-				// Default evictor used by the "independence" case: tracks
-				// invocations and makes ASG fail.
 				evictor = func(_ context.Context, target Target, _ nodeDrainOptions) error {
-					invoked.inc(target.Manager)
+					invoked[target.Manager]++
 					if target.Manager == clusterinfo.NodeManagerASG {
 						return errors.New("boom")
 					}
@@ -103,34 +99,15 @@ func TestEvictAllTargetsParallel(t *testing.T) {
 				}
 			}
 
-			result := evictAllTargetsParallel(context.Background(), tc.targets, nodeDrainOptions{}, evictor)
+			result := evictAllTargets(context.Background(), tc.targets, nodeDrainOptions{}, evictor)
 			require.Len(t, result.Errors, tc.wantErrors)
 			assert.Equal(t, tc.wantEKSIncomplete, result.EKSDrainIncomplete)
 			if tc.wantErrIsSentinel {
 				assert.ErrorIs(t, result.Errors[0], errEKSDrainIncomplete)
 			}
 			for _, mgr := range tc.expectInvoked {
-				invoked.assertCalled(t, mgr)
+				assert.NotZero(t, invoked[mgr], "expected %s evictor to be invoked", mgr)
 			}
 		})
 	}
-}
-
-// mapMu serializes writes to a counter map shared across goroutines.
-type mapMu struct {
-	mu sync.Mutex
-	m  map[clusterinfo.NodeManager]int
-}
-
-func (mm *mapMu) inc(k clusterinfo.NodeManager) {
-	mm.mu.Lock()
-	defer mm.mu.Unlock()
-	mm.m[k]++
-}
-
-func (mm *mapMu) assertCalled(t *testing.T, k clusterinfo.NodeManager) {
-	t.Helper()
-	mm.mu.Lock()
-	defer mm.mu.Unlock()
-	assert.NotZero(t, mm.m[k], "expected %s evictor to be invoked", k)
 }
