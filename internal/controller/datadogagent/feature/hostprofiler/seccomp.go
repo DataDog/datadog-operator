@@ -12,7 +12,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
-	"github.com/DataDog/datadog-operator/pkg/images"
 )
 
 const (
@@ -180,10 +179,10 @@ func defaultSeccompConfigData() map[string]string {
 	}
 }
 
-func buildSeccompSetupInitContainer() corev1.Container {
+func buildSeccompSetupInitContainer(image string) corev1.Container {
 	return corev1.Container{
 		Name:  "host-profiler-seccomp-setup",
-		Image: images.GetLatestAgentImage(),
+		Image: image,
 		Command: []string{
 			"cp",
 			fmt.Sprintf("%s/%s", securityVolumePath, seccompKey),

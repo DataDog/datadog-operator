@@ -95,34 +95,31 @@ func (o *hostProfilerFeature) ManageNodeAgent(managers feature.PodTemplateManage
 	// Security context: drop all caps, add only what host-profiler needs, lock down privilege escalation,
 	// and apply a localhost seccomp profile. AllowPrivilegeEscalation must be explicitly false so that
 	// runc applies the seccomp filter before its own setuid/setgid/capset calls during container setup.
-	hpFound := false
+	var hostProfilerContainer *corev1.Container
 	for i := range managers.PodTemplateSpec().Spec.Containers {
-
-		if managers.PodTemplateSpec().Spec.Containers[i].Name != string(apicommon.HostProfiler) {
-			continue
+		if managers.PodTemplateSpec().Spec.Containers[i].Name == string(apicommon.HostProfiler) {
+			hostProfilerContainer = &managers.PodTemplateSpec().Spec.Containers[i]
+			break
 		}
-
-		hostProfilerContainer := &managers.PodTemplateSpec().Spec.Containers[i]
-		if hostProfilerContainer.SecurityContext == nil {
-			hostProfilerContainer.SecurityContext = &corev1.SecurityContext{}
-		}
-
-		sc := hostProfilerContainer.SecurityContext
-		sc.AllowPrivilegeEscalation = ptr.To(false)
-		sc.SeccompProfile = &corev1.SeccompProfile{
-			Type:             corev1.SeccompProfileTypeLocalhost,
-			LocalhostProfile: ptr.To(seccompProfileName),
-		}
-		sc.Capabilities = &corev1.Capabilities{
-			Drop: []corev1.Capability{"ALL"},
-			Add:  defaultCapabilities(),
-		}
-		hpFound = true
-		break
 	}
 
-	if !hpFound {
+	if hostProfilerContainer == nil {
 		return fmt.Errorf("host-profiler container not found in pod template spec")
+	}
+
+	if hostProfilerContainer.SecurityContext == nil {
+		hostProfilerContainer.SecurityContext = &corev1.SecurityContext{}
+	}
+
+	sc := hostProfilerContainer.SecurityContext
+	sc.AllowPrivilegeEscalation = ptr.To(false)
+	sc.SeccompProfile = &corev1.SeccompProfile{
+		Type:             corev1.SeccompProfileTypeLocalhost,
+		LocalhostProfile: ptr.To(seccompProfileName),
+	}
+	sc.Capabilities = &corev1.Capabilities{
+		Drop: []corev1.Capability{"ALL"},
+		Add:  defaultCapabilities(),
 	}
 
 	// AppArmor: unconfined so the default containerd profile doesn't block ptrace cross-profile,
@@ -148,7 +145,7 @@ func (o *hostProfilerFeature) ManageNodeAgent(managers feature.PodTemplateManage
 
 	// Init container: copy seccomp profile JSON to the kubelet seccomp directory on the host.
 	// Appended after the base init containers (init-volume, init-config) added by default.go.
-	initContainer := buildSeccompSetupInitContainer()
+	initContainer := buildSeccompSetupInitContainer(hostProfilerContainer.Image)
 	managers.PodTemplateSpec().Spec.InitContainers = append(managers.PodTemplateSpec().Spec.InitContainers, initContainer)
 
 	// Tracingfs volume
