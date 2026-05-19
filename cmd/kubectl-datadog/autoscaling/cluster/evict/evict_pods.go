@@ -60,18 +60,16 @@ func drainNode(ctx context.Context, clientset kubernetes.Interface, nodeName str
 // listPodsOnNode enumerates pods scheduled on the given node, server-side
 // filtered via the spec.nodeName field selector. Uses the client-go pager
 // defaults so very large nodes (250 pods+) don't trigger oversized list calls.
-func listPodsOnNode(ctx context.Context, clientset kubernetes.Interface, nodeName string) ([]corev1.Pod, error) {
-	var pods []corev1.Pod
+func listPodsOnNode(ctx context.Context, clientset kubernetes.Interface, nodeName string) (pods []corev1.Pod, err error) {
 	p := pager.New(func(ctx context.Context, opts metav1.ListOptions) (runtime.Object, error) {
 		return clientset.CoreV1().Pods(metav1.NamespaceAll).List(ctx, opts)
 	})
-	err := p.EachListItem(ctx, metav1.ListOptions{
+	if err = p.EachListItem(ctx, metav1.ListOptions{
 		FieldSelector: fields.OneTermEqualSelector("spec.nodeName", nodeName).String(),
 	}, func(obj runtime.Object) error {
 		pods = append(pods, *obj.(*corev1.Pod))
 		return nil
-	})
-	if err != nil {
+	}); err != nil {
 		return nil, err
 	}
 	return pods, nil
@@ -90,23 +88,22 @@ func evictPodWithRetry(ctx context.Context, clientset kubernetes.Interface, p *c
 	deadline := time.Now().Add(timeout)
 	for {
 		err := clientset.CoreV1().Pods(p.Namespace).EvictV1(ctx, eviction)
-		if err == nil {
+		switch {
+		case err == nil:
 			log.Printf("Evicted pod %s/%s.", p.Namespace, p.Name)
 			return nil
-		}
-		if apierrors.IsNotFound(err) {
+		case apierrors.IsNotFound(err):
 			return nil
-		}
-		if !apierrors.IsTooManyRequests(err) {
+		case !apierrors.IsTooManyRequests(err):
 			return fmt.Errorf("eviction failed: %w", err)
-		}
-		if time.Now().After(deadline) {
+		case time.Now().After(deadline):
 			return fmt.Errorf("eviction timed out (likely PDB-blocked): %w", err)
-		}
-		select {
-		case <-time.After(retryInterval):
-		case <-ctx.Done():
-			return ctx.Err()
+		default:
+			select {
+			case <-time.After(retryInterval):
+			case <-ctx.Done():
+				return ctx.Err()
+			}
 		}
 	}
 }
