@@ -28,15 +28,18 @@ var errEKSDrainIncomplete = errors.New("EKS managed node group drain did not com
 // evictEKSManagedNodeGroup. Defined as an interface so unit tests can stub the
 // AWS SDK out cheaply.
 type EKSManagedNodeGroupAPI interface {
+	DescribeNodegroup(ctx context.Context, in *eks.DescribeNodegroupInput, opts ...func(*eks.Options)) (*eks.DescribeNodegroupOutput, error)
 	UpdateNodegroupConfig(ctx context.Context, in *eks.UpdateNodegroupConfigInput, opts ...func(*eks.Options)) (*eks.UpdateNodegroupConfigOutput, error)
 }
 
 // evictEKSManagedNodeGroup delegates the drain to EKS by setting the node
-// group's scaling config to min=max=desired=0. The EKS control plane then
-// cordons and evicts pods from each node (respecting PodDisruptionBudgets)
-// before terminating the underlying EC2 instances. We do not cordon or evict
-// from kubectl-datadog because doing so concurrently with the EKS-managed
-// drain can produce confusing logs and double the load on the apiserver.
+// group's scaling config to min=desired=0 (max is preserved from the existing
+// scaling config because the EKS API rejects `maxSize < 1`). The EKS control
+// plane then cordons and evicts pods from each node (respecting
+// PodDisruptionBudgets) before terminating the underlying EC2 instances. We
+// do not cordon or evict from kubectl-datadog because doing so concurrently
+// with the EKS-managed drain can produce confusing logs and double the load
+// on the apiserver.
 //
 // UpdateNodegroupConfig returns immediately, but we then **wait** for the
 // drain to actually complete by polling the Kubernetes API for nodes carrying
@@ -50,21 +53,37 @@ type EKSManagedNodeGroupAPI interface {
 // and only the original owner should remove it.
 func evictEKSManagedNodeGroup(ctx context.Context, eksAPI EKSManagedNodeGroupAPI, clientset kubernetes.Interface, clusterName, nodegroupName string, drainOpts nodeDrainOptions) error {
 	if drainOpts.DryRun {
-		log.Printf("[dry-run] would scale EKS node group %s/%s to min=max=desired=0 and wait for EKS to drain", clusterName, nodegroupName)
+		log.Printf("[dry-run] would scale EKS node group %s/%s to min=desired=0 (max preserved) and wait for EKS to drain", clusterName, nodegroupName)
 		return nil
+	}
+	// EKS rejects maxSize < 1 (see NodegroupScalingConfig API reference), so
+	// preserve the existing maxSize when scaling to zero. min/desired both 0
+	// is enough to drain the group; keeping the original max means a later
+	// caller (e.g. Terraform) can scale back up to the previously configured
+	// ceiling without re-reading the desired max.
+	desc, err := eksAPI.DescribeNodegroup(ctx, &eks.DescribeNodegroupInput{
+		ClusterName:   awssdk.String(clusterName),
+		NodegroupName: awssdk.String(nodegroupName),
+	})
+	if err != nil {
+		return fmt.Errorf("DescribeNodegroup: %w", err)
+	}
+	maxSize := int32(1)
+	if desc.Nodegroup != nil && desc.Nodegroup.ScalingConfig != nil && desc.Nodegroup.ScalingConfig.MaxSize != nil && *desc.Nodegroup.ScalingConfig.MaxSize >= 1 {
+		maxSize = *desc.Nodegroup.ScalingConfig.MaxSize
 	}
 	if _, err := eksAPI.UpdateNodegroupConfig(ctx, &eks.UpdateNodegroupConfigInput{
 		ClusterName:   awssdk.String(clusterName),
 		NodegroupName: awssdk.String(nodegroupName),
 		ScalingConfig: &ekstypes.NodegroupScalingConfig{
 			MinSize:     awssdk.Int32(0),
-			MaxSize:     awssdk.Int32(0),
+			MaxSize:     awssdk.Int32(maxSize),
 			DesiredSize: awssdk.Int32(0),
 		},
 	}); err != nil {
 		return fmt.Errorf("UpdateNodegroupConfig: %w", err)
 	}
-	log.Printf("EKS node group %s/%s scaling config set to 0; waiting for EKS to drain its nodes…", clusterName, nodegroupName)
+	log.Printf("EKS node group %s/%s scaling config set to min=desired=0 (max=%d); waiting for EKS to drain its nodes…", clusterName, nodegroupName, maxSize)
 
 	return waitEKSNodegroupEmpty(ctx, clientset, clusterName, nodegroupName, drainOpts.NodeTimeout, drainOpts.PollInterval)
 }

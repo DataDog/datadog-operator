@@ -69,7 +69,11 @@ func Run(ctx context.Context, streams genericclioptions.IOStreams, configFlags *
 	if info.Autoscaling.EKSAutoMode.Enabled {
 		return errors.New("EKS auto-mode is enabled on this cluster; eviction is not applicable (auto-mode manages its own node lifecycle)")
 	}
-	if err = clusterinfo.Persist(ctx, cli.K8sClient, namespace, info); err != nil {
+	// Skip the ConfigMap write on dry-run: a preview must not mutate the
+	// cluster (and must not require write RBAC on the Karpenter namespace).
+	if opts.DryRun {
+		log.Printf("[dry-run] would persist cluster-info to ConfigMap %s/%s", namespace, clusterinfo.ConfigMapName)
+	} else if err = clusterinfo.Persist(ctx, cli.K8sClient, namespace, info); err != nil {
 		log.Printf("Warning: failed to persist updated cluster-info ConfigMap: %v", err)
 	}
 
@@ -153,8 +157,11 @@ func Run(ctx context.Context, streams genericclioptions.IOStreams, configFlags *
 		}
 	}
 
-	// Re-classify and persist to reflect the final state.
-	if final, classifyErr := classify(ctx, clientset, cli, opts.ClusterName); classifyErr == nil {
+	// Re-classify and persist to reflect the final state. Skipped on dry-run
+	// for the same reason as the pre-eviction Persist above.
+	if opts.DryRun {
+		log.Printf("[dry-run] would re-classify and persist post-eviction cluster-info to ConfigMap %s/%s", namespace, clusterinfo.ConfigMapName)
+	} else if final, classifyErr := classify(ctx, clientset, cli, opts.ClusterName); classifyErr == nil {
 		if err := clusterinfo.Persist(ctx, cli.K8sClient, namespace, final); err != nil {
 			log.Printf("Warning: failed to persist post-eviction cluster-info: %v", err)
 		}
