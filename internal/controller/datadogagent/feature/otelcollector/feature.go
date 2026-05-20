@@ -299,11 +299,12 @@ func (o *otelCollectorFeature) ManageNodeAgent(managers feature.PodTemplateManag
 	commands := []string{}
 	if o.customConfig != nil && o.customConfig.ConfigMap != nil && len(o.customConfig.ConfigMap.Items) > 0 {
 		for _, item := range o.customConfig.ConfigMap.Items {
-			commands = append(commands, common.ConfigVolumePath+"/otel/"+item.Path)
+			commands = append(commands, otelConfigPath+"/"+item.Path)
 		}
 		volMount := corev1.VolumeMount{
 			Name:      otelAgentVolumeName,
-			MountPath: common.ConfigVolumePath + "/otel/",
+			MountPath: otelConfigPath,
+			ReadOnly:  true,
 		}
 		managers.VolumeMount().AddVolumeMountToContainer(&volMount, apicommon.OtelAgent)
 
@@ -312,8 +313,12 @@ func (o *otelCollectorFeature) ManageNodeAgent(managers feature.PodTemplateManag
 		// - no conf.ConfigMap.Items provided, but conf.ConfigMap.Name provided. We assume only one item/ name otel-config.yaml
 		// - when configData is used
 		// - when no config is passed (we use DefaultOtelCollectorConfig)
-		commands = append(commands, common.ConfigVolumePath+"/"+otelConfigFileName)
-		volMount := volume.GetVolumeMountWithSubPath(otelAgentVolumeName, common.ConfigVolumePath+"/"+otelConfigFileName, otelConfigFileName)
+		commands = append(commands, otelConfigPath+"/"+otelConfigFileName)
+		volMount := corev1.VolumeMount{
+			Name:      otelAgentVolumeName,
+			MountPath: otelConfigPath,
+			ReadOnly:  true,
+		}
 		managers.VolumeMount().AddVolumeMountToContainer(&volMount, apicommon.OtelAgent)
 	}
 

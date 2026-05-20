@@ -48,7 +48,7 @@ var (
 		httpPort: 4318,
 		grpcPort: 4317,
 	}
-	defaultLocalObjectReferenceName = "-otel-agent-config"
+	defaultLocalObjectReferenceName = "-otel-config"
 	defaultExpectedEnvVars          = expectedEnvVars{
 		agent_ipc_port: expectedEnvVar{
 			present: true,
@@ -88,8 +88,7 @@ var (
 	defaultVolumeMounts = []corev1.VolumeMount{
 		{
 			Name:      otelAgentVolumeName,
-			MountPath: common.ConfigVolumePath + "/" + otelConfigFileName,
-			SubPath:   otelConfigFileName,
+			MountPath: otelConfigPath,
 			ReadOnly:  true,
 		},
 	}
@@ -161,7 +160,8 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 			Agent: testExpectedAgent(apicommon.OtelAgent, defaultExpectedPorts, defaultExpectedEnvVars, map[string]string{}, []corev1.VolumeMount{
 				{
 					Name:      otelAgentVolumeName,
-					MountPath: common.ConfigVolumePath + "/otel/",
+					MountPath: otelConfigPath,
+					ReadOnly:  true,
 				},
 			},
 				[]corev1.Volume{
@@ -489,12 +489,48 @@ func testExpectedAgent(
 	expectedAnnotations map[string]string,
 	expectedVolumeMount []corev1.VolumeMount,
 	expectedVolume []corev1.Volume) *test.ComponentTest {
-	return test.NewDefaultComponentTest().WithWantFunc(
+	return test.NewDefaultComponentTest().WithCreateFunc(
+		func(t testing.TB) (feature.PodTemplateManagers, string) {
+			newPTS := corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Name:    string(apicommon.CoreAgentContainerName),
+							Image:   images.GetLatestAgentImage(),
+							Command: []string{"agent", "run"},
+						},
+						{
+							Name:    string(apicommon.OtelAgent),
+							Image:   images.GetLatestAgentImage(),
+							Command: []string{"otel-agent"},
+						},
+					},
+				},
+			}
+			return fake.NewPodTemplateManagers(t, newPTS), kubernetes.DefaultProvider
+		},
+	).WithWantFunc(
 		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 			mgr := mgrInterface.(*fake.PodTemplateManagers)
 
 			agentMounts := mgr.VolumeMountMgr.VolumeMountsByC[agentContainerName]
 			assert.True(t, apiutils.IsEqualStruct(agentMounts, expectedVolumeMount), "%s volume mounts \ndiff = %s", agentContainerName, cmp.Diff(agentMounts, expectedVolumeMount))
+
+			expectedArgs := []string{"--config=" + otelConfigPath + "/" + otelConfigFileName}
+			if len(expectedVolume) > 0 && expectedVolume[0].ConfigMap != nil && len(expectedVolume[0].ConfigMap.Items) > 0 {
+				expectedArgs = nil
+				for _, item := range expectedVolume[0].ConfigMap.Items {
+					expectedArgs = append(expectedArgs, "--config="+otelConfigPath+"/"+item.Path)
+				}
+			}
+			foundContainer := false
+			for _, container := range mgr.PodTemplateSpec().Spec.Containers {
+				if container.Name == string(agentContainerName) {
+					foundContainer = true
+					assert.Equal(t, expectedArgs, container.Args)
+				}
+			}
+			assert.True(t, foundContainer, "expected container %s to be present", agentContainerName)
 
 			volumes := mgr.VolumeMgr.Volumes
 			assert.True(t, apiutils.IsEqualStruct(volumes, expectedVolume), "Volumes \ndiff = %s", cmp.Diff(volumes, expectedVolume))
@@ -606,17 +642,17 @@ func testExpectedDepsCreatedCM(t testing.TB, store store.StoreClient) {
 	// modifying WantDependenciesFunc definition.
 	if t.Name() == "Test_otelCollectorFeature_Configure/otel_agent_enabled_with_configMap" {
 		// configMap is provided by user, no need to create it.
-		_, found := store.Get(kubernetes.ConfigMapKind, "", "-otel-agent-config")
+		_, found := store.Get(kubernetes.ConfigMapKind, "", "-otel-config")
 		assert.False(t, found)
 		return
 	}
 	if t.Name() == "Test_otelCollectorFeature_Configure/otel_agent_enabled_with_configMap_multi_items" {
 		// configMap is provided by user, no need to create it.
-		_, found := store.Get(kubernetes.ConfigMapKind, "", "-otel-agent-config")
+		_, found := store.Get(kubernetes.ConfigMapKind, "", "-otel-config")
 		assert.False(t, found)
 		return
 	}
-	configMapObject, found := store.Get(kubernetes.ConfigMapKind, "", "-otel-agent-config")
+	configMapObject, found := store.Get(kubernetes.ConfigMapKind, "", "-otel-config")
 	assert.True(t, found)
 
 	configMap := configMapObject.(*corev1.ConfigMap)
