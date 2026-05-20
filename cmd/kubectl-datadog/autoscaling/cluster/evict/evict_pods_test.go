@@ -117,11 +117,11 @@ func TestEvictPodWithRetry(t *testing.T) {
 		responder evictionResponder
 		timeout   time.Duration
 
-		wantErr           bool
-		wantErrContains   string
-		wantMinCalls      int
-		wantCapturedName  string
-		wantCapturedNs    string
+		wantErr          bool
+		wantErrContains  string
+		wantMinCalls     int
+		wantCapturedName string
+		wantCapturedNs   string
 	}{
 		{
 			name:         "success on first call",

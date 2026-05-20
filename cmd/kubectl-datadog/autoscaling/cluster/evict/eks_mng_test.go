@@ -75,11 +75,11 @@ func TestEvictEKSManagedNodeGroup(t *testing.T) {
 			wantUpdateCallCount: 0,
 		},
 		{
-			name:                "UpdateNodegroupConfig failure does not wrap sentinel",
-			updateErr:           apiErr,
-			wantUpdateCallCount: 1,
-			wantErr:             true,
-			wantErrContains:     "UpdateNodegroupConfig",
+			name:                 "UpdateNodegroupConfig failure does not wrap sentinel",
+			updateErr:            apiErr,
+			wantUpdateCallCount:  1,
+			wantErr:              true,
+			wantErrContains:      "UpdateNodegroupConfig",
 			wantNotWrapsSentinel: true,
 		},
 		{

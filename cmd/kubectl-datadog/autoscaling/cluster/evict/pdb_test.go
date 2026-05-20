@@ -130,10 +130,10 @@ func TestHasUserPDB(t *testing.T) {
 	}
 
 	for _, tc := range []struct {
-		name              string
-		existing          []policyv1.PodDisruptionBudget
+		name               string
+		existing           []policyv1.PodDisruptionBudget
 		controllerSelector *metav1.LabelSelector
-		want              bool
+		want               bool
 	}{
 		{name: "matching user PDB", existing: []policyv1.PodDisruptionBudget{userPDB}, controllerSelector: matchingSelector, want: true},
 		{name: "temp PDB ignored", existing: []policyv1.PodDisruptionBudget{tempPDB}, controllerSelector: matchingSelector, want: false},
@@ -242,10 +242,10 @@ func TestCreateTempPDB(t *testing.T) {
 	// ownership describes the expected ownership of the surviving PDB.
 	type ownership int
 	const (
-		expectNoPDB    ownership = iota // 0 PDBs in cluster
-		expectOurs                      // 1 PDB, with our temp labels + MaxUnavailable=1
-		expectUserPDB                   // 1 PDB, NOT carrying our labels
-		expectAny                       // 1 PDB, ownership irrelevant (idempotent case)
+		expectNoPDB   ownership = iota // 0 PDBs in cluster
+		expectOurs                     // 1 PDB, with our temp labels + MaxUnavailable=1
+		expectUserPDB                  // 1 PDB, NOT carrying our labels
+		expectAny                      // 1 PDB, ownership irrelevant (idempotent case)
 	)
 
 	for _, tc := range []struct {

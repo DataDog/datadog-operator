@@ -104,9 +104,9 @@ func TestPrintPlan(t *testing.T) {
 
 func TestPromptConfirmation(t *testing.T) {
 	for _, tc := range []struct {
-		name      string
-		input     string
-		wantOK    bool
+		name              string
+		input             string
+		wantOK            bool
 		wantCancelMessage bool
 	}{
 		{name: "y", input: "y", wantOK: true},

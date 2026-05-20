@@ -42,9 +42,9 @@ func mkNodePool(name string, weight *int32, datadogManaged bool) *karpv1.NodePoo
 
 func TestWarnKarpenterWeightConflicts(t *testing.T) {
 	for _, tc := range []struct {
-		name              string
-		nodePools         []ctrlclient.Object
-		targets           []Target
+		name      string
+		nodePools []ctrlclient.Object
+		targets   []Target
 		// wantContains lists substrings that MUST appear in the stderr output.
 		wantContains []string
 		// wantWarnEmpty asserts the stderr output is empty (no warning fired).
