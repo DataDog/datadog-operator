@@ -179,18 +179,17 @@ func (f *dogstatsdFeature) ManageClusterAgent(managers feature.PodTemplateManage
 // It should do nothing if the feature doesn't need to configure it.
 func (f *dogstatsdFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
 	f.manageNodeAgent(apicommon.UnprivilegedSingleAgentContainerName, managers, provider)
-	if f.dataPlaneEnabled && f.dataPlaneDogstatsdEnabled && !f.agentSupportsADPDelegation {
-		managers.EnvVar().AddEnvVarToContainer(apicommon.UnprivilegedSingleAgentContainerName, &corev1.EnvVar{
-			Name:  common.DDDogstatsdEnabled,
-			Value: "false",
-		})
-	}
 	return nil
 }
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *dogstatsdFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+	f.manageNodeAgent(apicommon.CoreAgentContainerName, managers, provider)
+	return nil
+}
+
+func (f *dogstatsdFeature) manageNodeAgent(containerName apicommon.AgentContainerName, managers feature.PodTemplateManagers, provider string) error {
 	// When the Data Plane feature is enabled, and handling DogStatsD, we must ensure that the Core Agent does not also
 	// try to handle DogStatsD, as it would cause a bind conflict.
 	//
@@ -198,7 +197,7 @@ func (f *dogstatsdFeature) ManageNodeAgent(managers feature.PodTemplateManagers,
 	// the dataplane feature) and disables its own DSD server automatically. On older agents those flags are unknown, so
 	// we set `DD_USE_DOGSTATSD` to `false` explicitly to prevent a bind conflict between Core Agent DSD and ADP DSD.
 	if f.dataPlaneEnabled && f.dataPlaneDogstatsdEnabled && !f.agentSupportsADPDelegation {
-		managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
+		managers.EnvVar().AddEnvVarToContainer(containerName, &corev1.EnvVar{
 			Name:  common.DDDogstatsdEnabled,
 			Value: "false",
 		})
@@ -222,17 +221,17 @@ func (f *dogstatsdFeature) ManageNodeAgent(managers feature.PodTemplateManagers,
 				dsdPortEnvVarValue = int(f.hostPortHostPort)
 			}
 		}
-		managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
+		managers.EnvVar().AddEnvVarToContainer(containerName, &corev1.EnvVar{
 			// defaults to 8125 in datadog-agent code
 			Name:  DDDogstatsdPort,
 			Value: strconv.Itoa(dsdPortEnvVarValue),
 		})
 	}
-	managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
+	managers.EnvVar().AddEnvVarToContainer(containerName, &corev1.EnvVar{
 		Name:  DDDogstatsdNonLocalTraffic,
 		Value: strconv.FormatBool(f.nonLocalTraffic),
 	})
-	managers.Port().AddPortToContainer(apicommon.CoreAgentContainerName, dogstatsdPort)
+	managers.Port().AddPortToContainer(containerName, dogstatsdPort)
 
 	// uds
 	if f.udsEnabled {
@@ -242,7 +241,7 @@ func (f *dogstatsdFeature) ManageNodeAgent(managers feature.PodTemplateManagers,
 		volType := corev1.HostPathDirectoryOrCreate // We need to create the directory on the host if it does not exist.
 
 		socketVol.VolumeSource.HostPath.Type = &volType
-		managers.VolumeMount().AddVolumeMountToContainerWithMergeFunc(&socketVolMount, apicommon.CoreAgentContainerName, merger.OverrideCurrentVolumeMountMergeFunction)
+		managers.VolumeMount().AddVolumeMountToContainerWithMergeFunc(&socketVolMount, containerName, merger.OverrideCurrentVolumeMountMergeFunction)
 		managers.Volume().AddVolume(&socketVol)
 		managers.EnvVar().AddEnvVar(&corev1.EnvVar{
 			Name:  DDDogstatsdSocket,
@@ -251,11 +250,11 @@ func (f *dogstatsdFeature) ManageNodeAgent(managers feature.PodTemplateManagers,
 	}
 
 	if f.originDetectionEnabled {
-		managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
+		managers.EnvVar().AddEnvVarToContainer(containerName, &corev1.EnvVar{
 			Name:  DDDogstatsdOriginDetection,
 			Value: "true",
 		})
-		managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
+		managers.EnvVar().AddEnvVarToContainer(containerName, &corev1.EnvVar{
 			Name:  DDDogstatsdOriginDetectionClient,
 			Value: "true",
 		})
@@ -265,7 +264,7 @@ func (f *dogstatsdFeature) ManageNodeAgent(managers feature.PodTemplateManagers,
 		// Tag cardinality is only configured if origin detection is enabled.
 		// The value validation happens at the Agent level - if the lower(string) is not `low`, `orchestrator` or `high`, the Agent defaults to `low`.
 		if f.tagCardinality != "" {
-			managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
+			managers.EnvVar().AddEnvVarToContainer(containerName, &corev1.EnvVar{
 				Name:  DDDogstatsdTagCardinality,
 				Value: f.tagCardinality,
 			})
@@ -276,7 +275,7 @@ func (f *dogstatsdFeature) ManageNodeAgent(managers feature.PodTemplateManagers,
 	if f.mapperProfiles != nil {
 		// configdata
 		if f.mapperProfiles.ConfigData != nil {
-			managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
+			managers.EnvVar().AddEnvVarToContainer(containerName, &corev1.EnvVar{
 				Name:  DDDogstatsdMapperProfiles,
 				Value: apiutils.YAMLToJSONString(*f.mapperProfiles.ConfigData),
 			})
@@ -288,7 +287,7 @@ func (f *dogstatsdFeature) ManageNodeAgent(managers feature.PodTemplateManagers,
 			cmSelector := corev1.ConfigMapKeySelector{}
 			cmSelector.Name = f.mapperProfiles.ConfigMap.Name
 			cmSelector.Key = f.mapperProfiles.ConfigMap.Items[0].Key
-			managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
+			managers.EnvVar().AddEnvVarToContainer(containerName, &corev1.EnvVar{
 				Name:      DDDogstatsdMapperProfiles,
 				ValueFrom: &corev1.EnvVarSource{ConfigMapKeyRef: &cmSelector},
 			})
