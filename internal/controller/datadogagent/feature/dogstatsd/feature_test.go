@@ -392,9 +392,9 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					mgr := mgrInterface.(*fake.PodTemplateManagers)
 
-					// Verify DogStatsD config is applied to ADP container
-					adpEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.AgentDataPlaneContainerName]
-					assert.NotEmpty(t, adpEnvVars, "ADP container should have DogStatsD env vars")
+					// Verify DogStatsD config is applied to Core Agent container
+					adpEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
+					assert.NotEmpty(t, adpEnvVars, "Core Agent container should have DogStatsD env vars")
 				},
 			),
 		},
@@ -409,8 +409,8 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 					mgr := mgrInterface.(*fake.PodTemplateManagers)
 
 					// Verify DogStatsD config is applied to ADP container
-					adpEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.AgentDataPlaneContainerName]
-					assert.NotEmpty(t, adpEnvVars, "ADP container should have DogStatsD env vars when dogstatsd defaults to enabled")
+					adpEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
+					assert.NotEmpty(t, adpEnvVars, "Core Agent container should have DogStatsD env vars when dogstatsd defaults to enabled")
 				},
 			),
 		},
@@ -425,9 +425,9 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					mgr := mgrInterface.(*fake.PodTemplateManagers)
 
-					// Verify DogStatsD config is applied to ADP container
-					adpEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.AgentDataPlaneContainerName]
-					assert.NotEmpty(t, adpEnvVars, "ADP container should have DogStatsD env vars")
+					// Verify DogStatsD config is applied to Core Agent container
+					adpEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
+					assert.NotEmpty(t, adpEnvVars, "Core Agent container should have DogStatsD env vars")
 				},
 			),
 		},
