@@ -42,6 +42,10 @@ type pendingOperation struct {
 	experimentID string
 	// resultVersion is only used by promote. It becomes stable_config on success.
 	resultVersion string
+	// preExperimentHash is the agent DaemonSetStatus.CurrentHash captured when
+	// the start signal was written. The rollout gate requires the hash to change
+	// before declaring DONE, ensuring the DDAI controller has applied the new spec.
+	preExperimentHash string
 }
 
 type pendingIntent string
@@ -63,6 +67,14 @@ func (op pendingOperation) matches(other pendingOperation) bool {
 
 type operationTracker struct {
 	daemon *Daemon
+	// skipExperimentID is the experiment ID for which a single potential
+	// false-positive DONE on a start task has been consumed. DDAI can flip
+	// CurrentHash before the kube DaemonSet controller decrements
+	// UpdatedNumberScheduled, making isDaemonSetRolloutComplete return true
+	// against a stale UpToDate. Requiring a second confirming snapshot
+	// eliminates the race without new annotations. Single-goroutine field
+	// (only written/read from the run() loop) — no lock needed.
+	skipExperimentID string
 }
 
 func newOperationTracker(d *Daemon) *operationTracker {
@@ -98,6 +110,19 @@ func (t *operationTracker) onStatusUpdate(ctx context.Context, snapshot ddaStatu
 	}
 	done, resultErr := evaluatePendingTask(snapshot, op)
 	if !done {
+		t.daemon.taskMu.Lock()
+		t.daemon.setTaskState(op.packageName, op.taskID, pbgo.TaskState_RUNNING, nil)
+		t.daemon.taskMu.Unlock()
+		return
+	}
+
+	// Skip-once guard: only for successful start completions. DDAI sets
+	// CurrentHash before the kube DaemonSet controller updates UpToDate, so
+	// the first DONE observation may be against a stale rollout status.
+	// Requiring a second confirming snapshot eliminates the race. Errors and
+	// non-start intents bypass the guard and are reported immediately.
+	if op.intent == pendingIntentStart && resultErr == nil && t.skipExperimentID != op.experimentID {
+		t.skipExperimentID = op.experimentID
 		t.daemon.taskMu.Lock()
 		t.daemon.setTaskState(op.packageName, op.taskID, pbgo.TaskState_RUNNING, nil)
 		t.daemon.taskMu.Unlock()
@@ -164,6 +189,12 @@ func evaluatePendingTask(snapshot ddaStatusSnapshot, task pendingOperation) (boo
 	switch task.intent {
 	case pendingIntentStart:
 		if phase == v2alpha1.ExperimentPhaseRunning {
+			if task.preExperimentHash != "" && snapshot.agent != nil &&
+				snapshot.agent.CurrentHash == task.preExperimentHash {
+				// The DDAI controller has not yet applied the new spec: the agent
+				// status still carries the pre-experiment hash.
+				return false, nil
+			}
 			return isDaemonSetRolloutComplete(snapshot.agent), nil
 		}
 	case pendingIntentStop:
@@ -190,7 +221,7 @@ func isDaemonSetRolloutComplete(agent *v2alpha1.DaemonSetStatus) bool {
 	// existing DaemonSet rather than create a new one, so Desired never
 	// transiently passes through 0 mid-rollout — it stays at its current node
 	// count throughout the update.
-	return agent.UpToDate == agent.Desired && agent.Ready == agent.Desired
+	return agent.UpToDate == agent.Desired && agent.Available == agent.Desired
 }
 
 // finishPendingOperation writes the final RC state for a task.
@@ -259,12 +290,13 @@ func (d *Daemon) reconcileTimedOutExperiment(ctx context.Context, snapshot ddaSt
 // Missing fields or an unknown action mean there is no task to track.
 func pendingOperationFromAnnotations(nsn types.NamespacedName, annotations map[string]string) (pendingOperation, bool) {
 	op := pendingOperation{
-		intent:        pendingIntent(annotations[v2alpha1.AnnotationPendingAction]),
-		taskID:        annotations[v2alpha1.AnnotationPendingTaskID],
-		packageName:   annotations[v2alpha1.AnnotationPendingPackage],
-		nsn:           nsn,
-		experimentID:  annotations[v2alpha1.AnnotationPendingExperimentID],
-		resultVersion: annotations[v2alpha1.AnnotationPendingResultVersion],
+		intent:            pendingIntent(annotations[v2alpha1.AnnotationPendingAction]),
+		taskID:            annotations[v2alpha1.AnnotationPendingTaskID],
+		packageName:       annotations[v2alpha1.AnnotationPendingPackage],
+		nsn:               nsn,
+		experimentID:      annotations[v2alpha1.AnnotationPendingExperimentID],
+		resultVersion:     annotations[v2alpha1.AnnotationPendingResultVersion],
+		preExperimentHash: annotations[v2alpha1.AnnotationPendingPreExperimentHash],
 	}
 	if op.taskID == "" || op.intent == "" || op.experimentID == "" || op.packageName == "" {
 		return pendingOperation{}, false
@@ -293,11 +325,12 @@ func (d *Daemon) clearPendingAnnotationsIfCurrent(ctx context.Context, task pend
 	patch, err := json.Marshal(map[string]any{
 		"metadata": map[string]any{
 			"annotations": map[string]any{
-				v2alpha1.AnnotationPendingTaskID:        nil,
-				v2alpha1.AnnotationPendingAction:        nil,
-				v2alpha1.AnnotationPendingExperimentID:  nil,
-				v2alpha1.AnnotationPendingPackage:       nil,
-				v2alpha1.AnnotationPendingResultVersion: nil,
+				v2alpha1.AnnotationPendingTaskID:            nil,
+				v2alpha1.AnnotationPendingAction:            nil,
+				v2alpha1.AnnotationPendingExperimentID:      nil,
+				v2alpha1.AnnotationPendingPackage:           nil,
+				v2alpha1.AnnotationPendingResultVersion:     nil,
+				v2alpha1.AnnotationPendingPreExperimentHash: nil,
 			},
 		},
 	})

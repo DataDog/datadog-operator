@@ -137,7 +137,7 @@ func testInstallerConfigWithDDA() map[string]installerConfig {
 }
 
 func testCompletedAgentStatus() *v2alpha1.DaemonSetStatus {
-	return &v2alpha1.DaemonSetStatus{Desired: 3, UpToDate: 3, Ready: 3}
+	return &v2alpha1.DaemonSetStatus{Desired: 3, UpToDate: 3, Ready: 3, Available: 3}
 }
 
 func testStartRequest() remoteAPIRequest {
@@ -1314,10 +1314,14 @@ func TestRunPendingOperationWorker_CompletesStatusUpdateForNonDefaultPackage(t *
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	tracker := newOperationTracker(d)
-	tracker.onStatusUpdate(ctx, newDDAStatusSnapshot(dda))
+	snap := newDDAStatusSnapshot(dda)
 
+	tracker.onStatusUpdate(ctx, snap)
 	rc := d.rcClient.(*mockRCClient)
 	require.NotNil(t, rc.state[0].Task)
+	assert.Equal(t, pbgo.TaskState_RUNNING, rc.state[0].Task.State)
+
+	tracker.onStatusUpdate(ctx, snap)
 	assert.Equal(t, "task-1", rc.state[0].Task.Id)
 	assert.Equal(t, pbgo.TaskState_DONE, rc.state[0].Task.State)
 	assert.Equal(t, testExperimentID, rc.state[0].ExperimentConfigVersion)
@@ -1484,10 +1488,14 @@ func TestRunPendingOperationWorker_RecoversPendingOperationFromAnnotations(t *te
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	tracker := newOperationTracker(d)
-	tracker.onStatusUpdate(ctx, newDDAStatusSnapshot(dda))
+	snap := newDDAStatusSnapshot(dda)
 
+	tracker.onStatusUpdate(ctx, snap)
 	rc := d.rcClient.(*mockRCClient)
 	require.NotNil(t, rc.state[0].Task)
+	assert.Equal(t, pbgo.TaskState_RUNNING, rc.state[0].Task.State)
+
+	tracker.onStatusUpdate(ctx, snap)
 	assert.Equal(t, "task-1", rc.state[0].Task.Id)
 	assert.Equal(t, pbgo.TaskState_DONE, rc.state[0].Task.State)
 	assert.Equal(t, testExperimentID, rc.state[0].ExperimentConfigVersion)
@@ -1550,22 +1558,27 @@ func TestIsDaemonSetRolloutComplete(t *testing.T) {
 		},
 		{
 			name:  "rolling out — some pods not yet updated",
-			agent: &v2alpha1.DaemonSetStatus{Desired: 3, UpToDate: 1, Ready: 1},
+			agent: &v2alpha1.DaemonSetStatus{Desired: 3, UpToDate: 1, Ready: 1, Available: 1},
 			want:  false,
 		},
 		{
-			name:  "updated but none ready",
-			agent: &v2alpha1.DaemonSetStatus{Desired: 3, UpToDate: 3, Ready: 0},
+			name:  "updated but none available",
+			agent: &v2alpha1.DaemonSetStatus{Desired: 3, UpToDate: 3, Ready: 3, Available: 0},
 			want:  false,
 		},
 		{
-			name:  "updated but only partially ready",
-			agent: &v2alpha1.DaemonSetStatus{Desired: 3, UpToDate: 3, Ready: 2},
+			name:  "updated but only partially available",
+			agent: &v2alpha1.DaemonSetStatus{Desired: 3, UpToDate: 3, Ready: 3, Available: 2},
 			want:  false,
 		},
 		{
-			name:  "all updated and all ready",
-			agent: &v2alpha1.DaemonSetStatus{Desired: 3, UpToDate: 3, Ready: 3},
+			name:  "updated and ready but minReadySeconds not yet elapsed (Available < Ready)",
+			agent: &v2alpha1.DaemonSetStatus{Desired: 3, UpToDate: 3, Ready: 3, Available: 0},
+			want:  false,
+		},
+		{
+			name:  "all updated and all available",
+			agent: &v2alpha1.DaemonSetStatus{Desired: 3, UpToDate: 3, Ready: 3, Available: 3},
 			want:  true,
 		},
 	}
@@ -1636,10 +1649,14 @@ func TestRunPendingOperationWorker_StartDoneAfterRolloutComplete(t *testing.T) {
 	}}
 
 	tracker := newOperationTracker(d)
-	tracker.onStatusUpdate(context.Background(), newDDAStatusSnapshot(dda))
+	snap := newDDAStatusSnapshot(dda)
 
+	tracker.onStatusUpdate(context.Background(), snap)
 	rc := d.rcClient.(*mockRCClient)
 	require.NotNil(t, rc.state[0].Task)
+	assert.Equal(t, pbgo.TaskState_RUNNING, rc.state[0].Task.State)
+
+	tracker.onStatusUpdate(context.Background(), snap)
 	assert.Equal(t, pbgo.TaskState_DONE, rc.state[0].Task.State)
 	assert.Nil(t, rc.state[0].Task.Error)
 	assert.Equal(t, testExperimentID, rc.state[0].ExperimentConfigVersion)
@@ -1647,4 +1664,275 @@ func TestRunPendingOperationWorker_StartDoneAfterRolloutComplete(t *testing.T) {
 	got := &v2alpha1.DatadogAgent{}
 	require.NoError(t, c.Get(context.Background(), testDDANSN, got))
 	assert.Empty(t, got.Annotations[v2alpha1.AnnotationPendingTaskID])
+	assert.Empty(t, got.Annotations[v2alpha1.AnnotationPendingPreExperimentHash])
+}
+
+// --- Pre-experiment hash gate tests ---
+
+// TestRunPendingOperationWorker_StartBlockedByHashGate verifies that a start
+// task is NOT completed when the DaemonSet status still carries the
+// pre-experiment hash, even if counts look healthy. This is the race described
+// by Codex: the DDAI controller hasn't yet processed the new spec.
+func TestRunPendingOperationWorker_StartBlockedByHashGate(t *testing.T) {
+	dda := testDDAObject(v2alpha1.ExperimentPhaseRunning)
+	dda.Status.Agent = &v2alpha1.DaemonSetStatus{Desired: 3, UpToDate: 3, Ready: 3, Available: 3, CurrentHash: "hash-before"}
+	dda.Annotations[v2alpha1.AnnotationPendingTaskID] = "task-1"
+	dda.Annotations[v2alpha1.AnnotationPendingAction] = string(pendingIntentStart)
+	dda.Annotations[v2alpha1.AnnotationPendingExperimentID] = testExperimentID
+	dda.Annotations[v2alpha1.AnnotationPendingPackage] = "datadog-operator"
+	dda.Annotations[v2alpha1.AnnotationPendingPreExperimentHash] = "hash-before"
+
+	d, _ := testDaemon(dda, testInstallerConfigWithDDA())
+	d.rcClient = &mockRCClient{state: []*pbgo.PackageState{
+		{Package: "datadog-operator", StableConfigVersion: "stable-1"},
+	}}
+
+	tracker := newOperationTracker(d)
+	tracker.onStatusUpdate(context.Background(), newDDAStatusSnapshot(dda))
+
+	rc := d.rcClient.(*mockRCClient)
+	require.NotNil(t, rc.state[0].Task)
+	assert.Equal(t, pbgo.TaskState_RUNNING, rc.state[0].Task.State)
+	assert.Nil(t, rc.state[0].Task.Error)
+}
+
+// TestRunPendingOperationWorker_StartDoneAfterHashChanges verifies that a
+// start task completes once the DaemonSet hash has changed from the
+// pre-experiment value and the rollout counts are satisfied.
+func TestRunPendingOperationWorker_StartDoneAfterHashChanges(t *testing.T) {
+	dda := testDDAObject(v2alpha1.ExperimentPhaseRunning)
+	dda.Status.Agent = &v2alpha1.DaemonSetStatus{Desired: 3, UpToDate: 3, Ready: 3, Available: 3, CurrentHash: "hash-after"}
+	dda.Annotations[v2alpha1.AnnotationPendingTaskID] = "task-1"
+	dda.Annotations[v2alpha1.AnnotationPendingAction] = string(pendingIntentStart)
+	dda.Annotations[v2alpha1.AnnotationPendingExperimentID] = testExperimentID
+	dda.Annotations[v2alpha1.AnnotationPendingPackage] = "datadog-operator"
+	dda.Annotations[v2alpha1.AnnotationPendingPreExperimentHash] = "hash-before"
+
+	d, c := testDaemon(dda, testInstallerConfigWithDDA())
+	d.rcClient = &mockRCClient{state: []*pbgo.PackageState{
+		{Package: "datadog-operator", StableConfigVersion: "stable-1"},
+	}}
+
+	tracker := newOperationTracker(d)
+	snap := newDDAStatusSnapshot(dda)
+
+	tracker.onStatusUpdate(context.Background(), snap)
+	rc := d.rcClient.(*mockRCClient)
+	require.NotNil(t, rc.state[0].Task)
+	assert.Equal(t, pbgo.TaskState_RUNNING, rc.state[0].Task.State)
+
+	tracker.onStatusUpdate(context.Background(), snap)
+	assert.Equal(t, pbgo.TaskState_DONE, rc.state[0].Task.State)
+	assert.Nil(t, rc.state[0].Task.Error)
+
+	got := &v2alpha1.DatadogAgent{}
+	require.NoError(t, c.Get(context.Background(), testDDANSN, got))
+	assert.Empty(t, got.Annotations[v2alpha1.AnnotationPendingPreExperimentHash])
+}
+
+// --- Skip-once guard tests ---
+
+// TestRunPendingOperationWorker_StartSkipsFirstDoneOncePerExperiment verifies
+// that the first DONE observation for a start task is skipped (reported as
+// RUNNING) and the second observation reaches finishPendingOperation. This
+// mirrors the stale-UpToDate race: DDAI sets CurrentHash before the kube
+// DaemonSet controller has decremented UpdatedNumberScheduled.
+func TestRunPendingOperationWorker_StartSkipsFirstDoneOncePerExperiment(t *testing.T) {
+	dda := testDDAObject(v2alpha1.ExperimentPhaseRunning)
+	dda.Status.Agent = testCompletedAgentStatus()
+	dda.Annotations[v2alpha1.AnnotationPendingTaskID] = "task-1"
+	dda.Annotations[v2alpha1.AnnotationPendingAction] = string(pendingIntentStart)
+	dda.Annotations[v2alpha1.AnnotationPendingExperimentID] = testExperimentID
+	dda.Annotations[v2alpha1.AnnotationPendingPackage] = "datadog-operator"
+
+	d, c := testDaemon(dda, testInstallerConfigWithDDA())
+	d.rcClient = &mockRCClient{state: []*pbgo.PackageState{
+		{Package: "datadog-operator", StableConfigVersion: "stable-1"},
+	}}
+
+	tracker := newOperationTracker(d)
+	snap := newDDAStatusSnapshot(dda)
+
+	tracker.onStatusUpdate(context.Background(), snap)
+	rc := d.rcClient.(*mockRCClient)
+	require.NotNil(t, rc.state[0].Task)
+	assert.Equal(t, pbgo.TaskState_RUNNING, rc.state[0].Task.State, "first DONE must be skipped")
+
+	got := &v2alpha1.DatadogAgent{}
+	require.NoError(t, c.Get(context.Background(), testDDANSN, got))
+	assert.NotEmpty(t, got.Annotations[v2alpha1.AnnotationPendingTaskID], "annotations must not be cleared after first skip")
+
+	tracker.onStatusUpdate(context.Background(), snap)
+	assert.Equal(t, pbgo.TaskState_DONE, rc.state[0].Task.State, "second DONE must be reported")
+
+	require.NoError(t, c.Get(context.Background(), testDDANSN, got))
+	assert.Empty(t, got.Annotations[v2alpha1.AnnotationPendingTaskID], "annotations must be cleared after DONE")
+}
+
+// TestRunPendingOperationWorker_StartSkipOnceConsumedAcrossRunningSnapshots
+// verifies that not-done snapshots do not consume the skip; only the first
+// done=true snapshot does. Simulates the normal rollout: not-done → skip
+// consumed on first done → DONE on second done.
+func TestRunPendingOperationWorker_StartSkipOnceConsumedAcrossRunningSnapshots(t *testing.T) {
+	dda := testDDAObject(v2alpha1.ExperimentPhaseRunning)
+	dda.Annotations[v2alpha1.AnnotationPendingTaskID] = "task-1"
+	dda.Annotations[v2alpha1.AnnotationPendingAction] = string(pendingIntentStart)
+	dda.Annotations[v2alpha1.AnnotationPendingExperimentID] = testExperimentID
+	dda.Annotations[v2alpha1.AnnotationPendingPackage] = "datadog-operator"
+
+	d, _ := testDaemon(dda, testInstallerConfigWithDDA())
+	d.rcClient = &mockRCClient{state: []*pbgo.PackageState{
+		{Package: "datadog-operator", StableConfigVersion: "stable-1"},
+	}}
+
+	// Snapshot with rollout in progress (not done).
+	ddaInProgress := testDDAObject(v2alpha1.ExperimentPhaseRunning)
+	ddaInProgress.Status.Agent = &v2alpha1.DaemonSetStatus{Desired: 3, UpToDate: 1, Ready: 1}
+	ddaInProgress.Annotations = dda.Annotations
+
+	// Snapshot with rollout complete (done).
+	ddaComplete := testDDAObject(v2alpha1.ExperimentPhaseRunning)
+	ddaComplete.Status.Agent = testCompletedAgentStatus()
+	ddaComplete.Annotations = dda.Annotations
+
+	tracker := newOperationTracker(d)
+	rc := d.rcClient.(*mockRCClient)
+
+	tracker.onStatusUpdate(context.Background(), newDDAStatusSnapshot(ddaInProgress))
+	require.NotNil(t, rc.state[0].Task)
+	assert.Equal(t, pbgo.TaskState_RUNNING, rc.state[0].Task.State, "in-progress snapshot: RUNNING")
+
+	tracker.onStatusUpdate(context.Background(), newDDAStatusSnapshot(ddaComplete))
+	assert.Equal(t, pbgo.TaskState_RUNNING, rc.state[0].Task.State, "first done snapshot: skip consumed, still RUNNING")
+
+	tracker.onStatusUpdate(context.Background(), newDDAStatusSnapshot(ddaComplete))
+	assert.Equal(t, pbgo.TaskState_DONE, rc.state[0].Task.State, "second done snapshot: DONE")
+}
+
+// TestRunPendingOperationWorker_StartTerminalPhaseBypassesSkipOnce verifies
+// that a start task that reaches a terminal phase with an error (unexpected
+// state) is reported immediately without consuming the skip.
+func TestRunPendingOperationWorker_StartTerminalPhaseBypassesSkipOnce(t *testing.T) {
+	dda := testDDAObject(v2alpha1.ExperimentPhaseTerminated)
+	dda.Annotations[v2alpha1.AnnotationPendingTaskID] = "task-1"
+	dda.Annotations[v2alpha1.AnnotationPendingAction] = string(pendingIntentStart)
+	dda.Annotations[v2alpha1.AnnotationPendingExperimentID] = testExperimentID
+	dda.Annotations[v2alpha1.AnnotationPendingPackage] = "datadog-operator"
+
+	d, _ := testDaemon(dda, testInstallerConfigWithDDA())
+	d.rcClient = &mockRCClient{state: []*pbgo.PackageState{
+		{Package: "datadog-operator", StableConfigVersion: "stable-1"},
+	}}
+
+	tracker := newOperationTracker(d)
+	tracker.onStatusUpdate(context.Background(), newDDAStatusSnapshot(dda))
+
+	rc := d.rcClient.(*mockRCClient)
+	require.NotNil(t, rc.state[0].Task)
+	assert.Equal(t, pbgo.TaskState_ERROR, rc.state[0].Task.State, "terminal-phase error must not be skipped")
+}
+
+// TestRunPendingOperationWorker_StartSkipPerExperimentNotShared verifies that
+// each experiment ID has its own independent skip budget: the second experiment
+// also skips its first DONE and requires a second call.
+func TestRunPendingOperationWorker_StartSkipPerExperimentNotShared(t *testing.T) {
+	// Build a snapshot where both Status.Experiment.ID and the pending annotation
+	// use the same expID so evaluatePendingTask does not short-circuit.
+	makeSnap := func(expID string) ddaStatusSnapshot {
+		dda := testDDAObject(v2alpha1.ExperimentPhaseRunning)
+		dda.Status.Experiment = &v2alpha1.ExperimentStatus{Phase: v2alpha1.ExperimentPhaseRunning, ID: expID}
+		dda.Status.Agent = testCompletedAgentStatus()
+		dda.Annotations[v2alpha1.AnnotationPendingTaskID] = "task-" + expID
+		dda.Annotations[v2alpha1.AnnotationPendingAction] = string(pendingIntentStart)
+		dda.Annotations[v2alpha1.AnnotationPendingExperimentID] = expID
+		dda.Annotations[v2alpha1.AnnotationPendingPackage] = "datadog-operator"
+		return newDDAStatusSnapshot(dda)
+	}
+
+	dda := testDDAObject(v2alpha1.ExperimentPhaseRunning)
+	d, _ := testDaemon(dda, testInstallerConfigWithDDA())
+	d.rcClient = &mockRCClient{state: []*pbgo.PackageState{
+		{Package: "datadog-operator", StableConfigVersion: "stable-1"},
+	}}
+
+	tracker := newOperationTracker(d)
+	rc := d.rcClient.(*mockRCClient)
+
+	// First experiment: skip on first call, DONE on second.
+	snap1 := makeSnap("exp-1")
+	tracker.onStatusUpdate(context.Background(), snap1)
+	require.NotNil(t, rc.state[0].Task)
+	assert.Equal(t, pbgo.TaskState_RUNNING, rc.state[0].Task.State, "exp-1 first call: RUNNING")
+	tracker.onStatusUpdate(context.Background(), snap1)
+	assert.Equal(t, pbgo.TaskState_DONE, rc.state[0].Task.State, "exp-1 second call: DONE")
+
+	// Second experiment with a different ID — skip budget is fresh.
+	snap2 := makeSnap("exp-2")
+	tracker.onStatusUpdate(context.Background(), snap2)
+	assert.Equal(t, pbgo.TaskState_RUNNING, rc.state[0].Task.State, "exp-2 first call: RUNNING (new skip)")
+	tracker.onStatusUpdate(context.Background(), snap2)
+	assert.Equal(t, pbgo.TaskState_DONE, rc.state[0].Task.State, "exp-2 second call: DONE")
+}
+
+// TestRunPendingOperationWorker_StopAndPromoteNotAffectedBySkipOnce verifies
+// that stop and promote tasks reach DONE on a single onStatusUpdate call.
+func TestRunPendingOperationWorker_StopAndPromoteNotAffectedBySkipOnce(t *testing.T) {
+	t.Run("stop", func(t *testing.T) {
+		dda := testDDAObject(v2alpha1.ExperimentPhaseTerminated)
+		dda.Annotations[v2alpha1.AnnotationPendingTaskID] = "task-1"
+		dda.Annotations[v2alpha1.AnnotationPendingAction] = string(pendingIntentStop)
+		dda.Annotations[v2alpha1.AnnotationPendingExperimentID] = testExperimentID
+		dda.Annotations[v2alpha1.AnnotationPendingPackage] = "datadog-operator"
+
+		d, _ := testDaemon(dda, testInstallerConfigWithDDA())
+		d.rcClient = &mockRCClient{state: []*pbgo.PackageState{
+			{Package: "datadog-operator", StableConfigVersion: "stable-1", ExperimentConfigVersion: testExperimentID},
+		}}
+
+		tracker := newOperationTracker(d)
+		tracker.onStatusUpdate(context.Background(), newDDAStatusSnapshot(dda))
+
+		rc := d.rcClient.(*mockRCClient)
+		require.NotNil(t, rc.state[0].Task)
+		assert.Equal(t, pbgo.TaskState_DONE, rc.state[0].Task.State, "stop must reach DONE on first call")
+	})
+
+	t.Run("promote", func(t *testing.T) {
+		dda := testDDAObject(v2alpha1.ExperimentPhasePromoted)
+		dda.Annotations[v2alpha1.AnnotationPendingTaskID] = "task-1"
+		dda.Annotations[v2alpha1.AnnotationPendingAction] = string(pendingIntentPromote)
+		dda.Annotations[v2alpha1.AnnotationPendingExperimentID] = testExperimentID
+		dda.Annotations[v2alpha1.AnnotationPendingPackage] = "datadog-operator"
+		dda.Annotations[v2alpha1.AnnotationPendingResultVersion] = "exp-v1"
+
+		d, _ := testDaemon(dda, testInstallerConfigWithDDA())
+		d.rcClient = &mockRCClient{state: []*pbgo.PackageState{
+			{Package: "datadog-operator", StableConfigVersion: "stable-1", ExperimentConfigVersion: "exp-v1"},
+		}}
+
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		tracker := newOperationTracker(d)
+		tracker.onStatusUpdate(ctx, newDDAStatusSnapshot(dda))
+
+		rc := d.rcClient.(*mockRCClient)
+		require.NotNil(t, rc.state[0].Task)
+		assert.Equal(t, pbgo.TaskState_DONE, rc.state[0].Task.State, "promote must reach DONE on first call")
+	})
+}
+
+// TestStartDatadogAgentExperiment_WritesPreExperimentHash verifies that when
+// the DDA already has an agent status with a CurrentHash, the daemon records
+// that hash in the pending-pre-experiment-hash annotation so the rollout gate
+// can detect a stale status after restart.
+func TestStartDatadogAgentExperiment_WritesPreExperimentHash(t *testing.T) {
+	dda := testDDAObject("")
+	dda.Status.Agent = &v2alpha1.DaemonSetStatus{Desired: 3, UpToDate: 3, Ready: 3, CurrentHash: "hash-before"}
+	d, c := testDaemon(dda, testInstallerConfigWithDDA())
+	req := testStartRequest()
+	requireStartQueued(t, d, req)
+
+	got := &v2alpha1.DatadogAgent{}
+	require.NoError(t, c.Get(context.Background(), testDDANSN, got))
+	assert.Equal(t, "hash-before", got.Annotations[v2alpha1.AnnotationPendingPreExperimentHash])
 }
