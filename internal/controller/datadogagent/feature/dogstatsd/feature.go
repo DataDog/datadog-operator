@@ -231,7 +231,13 @@ func (f *dogstatsdFeature) manageNodeAgent(containerName apicommon.AgentContaine
 		Name:  DDDogstatsdNonLocalTraffic,
 		Value: strconv.FormatBool(f.nonLocalTraffic),
 	})
-	managers.Port().AddPortToContainer(containerName, dogstatsdPort)
+	// When ADP is handling DogStatsD, the UDP port binding must go to the ADP container so that
+	// ADP binds port 8125 (and owns the HostPort). The Core Agent must not bind it to avoid conflicts.
+	portContainerName := containerName
+	if f.dataPlaneEnabled && f.dataPlaneDogstatsdEnabled {
+		portContainerName = apicommon.AgentDataPlaneContainerName
+	}
+	managers.Port().AddPortToContainer(portContainerName, dogstatsdPort)
 
 	// uds
 	if f.udsEnabled {
