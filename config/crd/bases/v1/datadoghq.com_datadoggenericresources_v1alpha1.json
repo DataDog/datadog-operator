@@ -127,6 +127,20 @@
           "format": "date-time",
           "type": "string"
         },
+        "state": {
+          "description": "State is the live Datadog-side state of the underlying resource as last\nfetched from the Datadog API. Values are resource-type dependent — for\nMonitors: OK, Alert, Warn, No Data, Skipped, Ignored, Unknown. Only\npopulated for resource types that expose live state.",
+          "type": "string"
+        },
+        "stateLastTransitionTime": {
+          "description": "StateLastTransitionTime is the last time State changed value.",
+          "format": "date-time",
+          "type": "string"
+        },
+        "stateLastUpdateTime": {
+          "description": "StateLastUpdateTime is the last time State was successfully refreshed from Datadog.",
+          "format": "date-time",
+          "type": "string"
+        },
         "syncStatus": {
           "description": "SyncStatus shows the health of syncing the object state to Datadog.",
           "type": "string"

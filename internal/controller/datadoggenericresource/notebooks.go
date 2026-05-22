@@ -39,6 +39,10 @@ func (h *NotebookHandler) deleteResource(auth context.Context, instance *v1alpha
 	return deleteNotebook(auth, h.client, instance.Status.Id)
 }
 
+func (h *NotebookHandler) refreshState(_ context.Context, _ *v1alpha1.DatadogGenericResource) (*string, error) {
+	return nil, nil
+}
+
 func getNotebook(auth context.Context, client *datadogV1.NotebooksApi, notebookStringID string) (datadogV1.NotebookResponse, error) {
 	notebookID, err := resourceStringToInt64ID(notebookStringID)
 	if err != nil {
