@@ -157,9 +157,11 @@ func CacheOptions(logger logr.Logger, opts WatchOptions) cache.Options {
 					},
 				}
 
-				// Preserve conditions for the untaint controller (readiness check)
+				// The untaint controller needs Pod.Status.Conditions (readiness check)
+				// and Pod.Status.StartTime (readiness-timeout clock).
 				if opts.UntaintControllerEnabled {
 					newPod.Status.Conditions = pod.Status.Conditions
+					newPod.Status.StartTime = pod.Status.StartTime
 				}
 
 				return newPod, nil
@@ -186,9 +188,11 @@ func CacheOptions(logger logr.Logger, opts WatchOptions) cache.Options {
 					},
 				}
 
-				// Preserve taints for the untaint controller
+				// The untaint controller needs Spec.Taints (target taint check) and
+				// metadata.CreationTimestamp (scheduling-timeout clock).
 				if opts.UntaintControllerEnabled {
 					newNode.Spec.Taints = node.Spec.Taints
+					newNode.CreationTimestamp = node.CreationTimestamp
 				}
 
 				return newNode, nil

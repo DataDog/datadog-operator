@@ -10,6 +10,21 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
 )
 
+// Label values for TaintTimeoutsTotal.
+const (
+	// UntaintTimeoutReasonReadiness signals that a pod existed on the node but
+	// never became Ready within --untaintControllerTimeout.
+	UntaintTimeoutReasonReadiness = "readiness"
+	// UntaintTimeoutReasonScheduling signals that no agent pod was scheduled on
+	// the node within --untaintControllerSchedulingTimeout.
+	UntaintTimeoutReasonScheduling = "scheduling"
+
+	// UntaintTimeoutPolicyRemove untaints the node despite the agent not being ready.
+	UntaintTimeoutPolicyRemove = "remove"
+	// UntaintTimeoutPolicyKeep leaves the taint in place but emits observability signals.
+	UntaintTimeoutPolicyKeep = "keep"
+)
+
 var (
 	// TaintRemovalsTotal is the total number of taints removed from nodes.
 	TaintRemovalsTotal = prometheus.NewCounter(
@@ -29,9 +44,20 @@ var (
 			Buckets:   prometheus.DefBuckets,
 		},
 	)
+
+	// TaintTimeoutsTotal counts timeout decisions broken down by reason and policy.
+	TaintTimeoutsTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Subsystem: untaintSubsystem,
+			Name:      "taint_timeouts_total",
+			Help:      "Total number of untaint-controller timeout decisions, by reason and policy",
+		},
+		[]string{"reason", "policy"},
+	)
 )
 
 func init() {
 	metrics.Registry.MustRegister(TaintRemovalsTotal)
 	metrics.Registry.MustRegister(TaintRemovalLatency)
+	metrics.Registry.MustRegister(TaintTimeoutsTotal)
 }

@@ -10,9 +10,10 @@ package controller
 
 import (
 	"context"
+	"fmt"
 	"time"
 
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -22,78 +23,97 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/constants"
 )
 
+// Suite-level timeouts (see suite_v2_test.go):
+//   ReadinessTimeout  = 4s
+//   SchedulingTimeout = 4s
+// `untaintTimeout` must comfortably exceed both so that Eventually has room.
+
 const (
-	untaintTimeout  = 15 * time.Second
+	untaintTimeout  = 20 * time.Second
 	untaintInterval = 200 * time.Millisecond
 )
 
+// makeTaintedNode creates a Node carrying the agent-not-ready taint with the
+// given name. The returned function deletes the Node — call it in AfterEach
+// (or defer) to clean up.
+func makeTaintedNode(ctx context.Context, name string) func() {
+	node := &corev1.Node{
+		ObjectMeta: metav1.ObjectMeta{Name: name},
+		Spec: corev1.NodeSpec{Taints: []corev1.Taint{{
+			Key:    agentNotReadyTaintKey,
+			Value:  agentNotReadyTaintValue,
+			Effect: agentNotReadyTaintEffect,
+		}}},
+	}
+	Expect(k8sClient.Create(ctx, node)).Should(Succeed())
+	return func() { _ = k8sClient.Delete(ctx, node) }
+}
+
+func makeAgentPod(ctx context.Context, name, ns, nodeName string) *corev1.Pod {
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: ns,
+			Labels: map[string]string{
+				common.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
+			},
+		},
+		Spec: corev1.PodSpec{
+			NodeName:   nodeName,
+			Containers: []corev1.Container{{Name: "agent", Image: "fake"}},
+		},
+	}
+	Expect(k8sClient.Create(ctx, pod)).Should(Succeed())
+	return pod
+}
+
 var _ = Describe("Untaint Controller", func() {
 	ctx := context.Background()
-	nodeName := "tainted-node-1"
 
 	Context("When agent pod becomes Ready on a tainted node", func() {
-		agentPodName := "agent-pod-integration"
-		agentPodNamespace := "default"
+		// Each test creates a fresh node so it does not race with the
+		// controller's timeout paths (configured to seconds in the suite).
+		var (
+			nodeName string
+			cleanup  func()
+			podName  = "agent-pod-becomes-ready"
+			podNS    = "default"
+		)
+
+		BeforeEach(func() {
+			nodeName = fmt.Sprintf("ready-path-node-%d", time.Now().UnixNano())
+			cleanup = makeTaintedNode(ctx, nodeName)
+		})
 
 		AfterEach(func() {
-			// Clean up agent pod
 			pod := &corev1.Pod{}
-			if err := k8sClient.Get(ctx, types.NamespacedName{Namespace: agentPodNamespace, Name: agentPodName}, pod); err == nil {
+			if err := k8sClient.Get(ctx, types.NamespacedName{Namespace: podNS, Name: podName}, pod); err == nil {
 				_ = k8sClient.Delete(ctx, pod)
 			}
-			// Restore taint on node for next test
-			node := &corev1.Node{}
-			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: nodeName}, node)).Should(Succeed())
-			if !hasTaint(node) {
-				node.Spec.Taints = append(node.Spec.Taints, corev1.Taint{
-					Key:    agentNotReadyTaintKey,
-					Value:  agentNotReadyTaintValue,
-					Effect: agentNotReadyTaintEffect,
-				})
-				Expect(k8sClient.Update(ctx, node)).Should(Succeed())
-			}
+			cleanup()
 		})
 
 		It("Should remove the taint when an agent pod transitions to Ready", func() {
-			// 1. Create agent pod (not ready)
-			pod := &corev1.Pod{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      agentPodName,
-					Namespace: agentPodNamespace,
-					Labels: map[string]string{
-						common.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
-					},
-				},
-				Spec: corev1.PodSpec{
-					NodeName:   nodeName,
-					Containers: []corev1.Container{{Name: "agent", Image: "fake"}},
-				},
-			}
-			Expect(k8sClient.Create(ctx, pod)).Should(Succeed())
+			pod := makeAgentPod(ctx, podName, podNS, nodeName)
 
-			// Set pod status to not-ready
-			pod.Status.Conditions = []corev1.PodCondition{
-				{Type: corev1.PodReady, Status: corev1.ConditionFalse},
-			}
+			// Set pod NotReady WITH a Status.StartTime in the recent past so
+			// the controller stays on the readiness path and does not fire the
+			// readiness timeout before we make the pod Ready below.
+			Expect(k8sClient.Get(ctx, types.NamespacedName{Namespace: podNS, Name: podName}, pod)).Should(Succeed())
+			start := metav1.Now()
+			pod.Status.StartTime = &start
+			pod.Status.Conditions = []corev1.PodCondition{{Type: corev1.PodReady, Status: corev1.ConditionFalse}}
 			Expect(k8sClient.Status().Update(ctx, pod)).Should(Succeed())
 
-			// 2. Verify taint is still present
-			node := &corev1.Node{}
-			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: nodeName}, node)).Should(Succeed())
-			Expect(hasTaint(node)).To(BeTrue(), "taint should still be present before agent is ready")
-
-			// 3. Update pod to Ready
-			Expect(k8sClient.Get(ctx, types.NamespacedName{Namespace: agentPodNamespace, Name: agentPodName}, pod)).Should(Succeed())
-			pod.Status.Conditions = []corev1.PodCondition{
-				{
-					Type:               corev1.PodReady,
-					Status:             corev1.ConditionTrue,
-					LastTransitionTime: metav1.Now(),
-				},
-			}
+			// Transition to Ready.
+			Expect(k8sClient.Get(ctx, types.NamespacedName{Namespace: podNS, Name: podName}, pod)).Should(Succeed())
+			pod.Status.Conditions = []corev1.PodCondition{{
+				Type:               corev1.PodReady,
+				Status:             corev1.ConditionTrue,
+				LastTransitionTime: metav1.Now(),
+			}}
 			Expect(k8sClient.Status().Update(ctx, pod)).Should(Succeed())
 
-			// 4. Eventually: taint should be removed
 			Eventually(func() bool {
 				fresh := &corev1.Node{}
 				if err := k8sClient.Get(ctx, types.NamespacedName{Name: nodeName}, fresh); err != nil {
@@ -102,86 +122,40 @@ var _ = Describe("Untaint Controller", func() {
 				return !hasTaint(fresh)
 			}, untaintTimeout, untaintInterval).Should(BeTrue(), "taint should be removed after agent becomes ready")
 		})
-
-		It("Should not remove the taint while the agent pod is not Ready", func() {
-			// Create agent pod, never make it ready
-			pod := &corev1.Pod{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      agentPodName,
-					Namespace: agentPodNamespace,
-					Labels: map[string]string{
-						common.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
-					},
-				},
-				Spec: corev1.PodSpec{
-					NodeName:   nodeName,
-					Containers: []corev1.Container{{Name: "agent", Image: "fake"}},
-				},
-			}
-			Expect(k8sClient.Create(ctx, pod)).Should(Succeed())
-			pod.Status.Conditions = []corev1.PodCondition{
-				{Type: corev1.PodReady, Status: corev1.ConditionFalse},
-			}
-			Expect(k8sClient.Status().Update(ctx, pod)).Should(Succeed())
-
-			// Wait a moment; taint must remain
-			Consistently(func() bool {
-				fresh := &corev1.Node{}
-				if err := k8sClient.Get(ctx, types.NamespacedName{Name: nodeName}, fresh); err != nil {
-					return false
-				}
-				return hasTaint(fresh)
-			}, 3*time.Second, untaintInterval).Should(BeTrue(), "taint should remain while agent is not ready")
-		})
 	})
 
-	Context("When agent pod is already Ready at startup (startup catch-up)", func() {
-		agentPodName := "agent-pod-catchup"
-		agentPodNamespace := "default"
+	Context("Startup catch-up (Ready pod created on cache sync)", func() {
+		var (
+			nodeName string
+			cleanup  func()
+			podName  = "agent-pod-catchup"
+			podNS    = "default"
+		)
+
+		BeforeEach(func() {
+			nodeName = fmt.Sprintf("catchup-node-%d", time.Now().UnixNano())
+			cleanup = makeTaintedNode(ctx, nodeName)
+		})
 
 		AfterEach(func() {
 			pod := &corev1.Pod{}
-			if err := k8sClient.Get(ctx, types.NamespacedName{Namespace: agentPodNamespace, Name: agentPodName}, pod); err == nil {
+			if err := k8sClient.Get(ctx, types.NamespacedName{Namespace: podNS, Name: podName}, pod); err == nil {
 				_ = k8sClient.Delete(ctx, pod)
 			}
-			// Restore taint
-			node := &corev1.Node{}
-			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: nodeName}, node)).Should(Succeed())
-			if !hasTaint(node) {
-				node.Spec.Taints = append(node.Spec.Taints, corev1.Taint{
-					Key:    agentNotReadyTaintKey,
-					Value:  agentNotReadyTaintValue,
-					Effect: agentNotReadyTaintEffect,
-				})
-				Expect(k8sClient.Update(ctx, node)).Should(Succeed())
-			}
+			cleanup()
 		})
 
-		It("Should remove the taint when a Ready pod is created (cache sync)", func() {
-			pod := &corev1.Pod{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      agentPodName,
-					Namespace: agentPodNamespace,
-					Labels: map[string]string{
-						common.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
-					},
-				},
-				Spec: corev1.PodSpec{
-					NodeName:   nodeName,
-					Containers: []corev1.Container{{Name: "agent", Image: "fake"}},
-				},
-			}
-			Expect(k8sClient.Create(ctx, pod)).Should(Succeed())
+		It("Should remove the taint when a Ready pod is created", func() {
+			pod := makeAgentPod(ctx, podName, podNS, nodeName)
 
-			// Immediately set to Ready (simulates pod being ready on create)
-			Expect(k8sClient.Get(ctx, types.NamespacedName{Namespace: agentPodNamespace, Name: agentPodName}, pod)).Should(Succeed())
-			pod.Status.Conditions = []corev1.PodCondition{
-				{
-					Type:               corev1.PodReady,
-					Status:             corev1.ConditionTrue,
-					LastTransitionTime: metav1.Now(),
-				},
-			}
+			Expect(k8sClient.Get(ctx, types.NamespacedName{Namespace: podNS, Name: podName}, pod)).Should(Succeed())
+			start := metav1.Now()
+			pod.Status.StartTime = &start
+			pod.Status.Conditions = []corev1.PodCondition{{
+				Type:               corev1.PodReady,
+				Status:             corev1.ConditionTrue,
+				LastTransitionTime: metav1.Now(),
+			}}
 			Expect(k8sClient.Status().Update(ctx, pod)).Should(Succeed())
 
 			Eventually(func() bool {
@@ -191,6 +165,53 @@ var _ = Describe("Untaint Controller", func() {
 				}
 				return !hasTaint(fresh)
 			}, untaintTimeout, untaintInterval).Should(BeTrue())
+		})
+	})
+
+	Context("Scheduling timeout (no agent pod ever scheduled)", func() {
+		// Configured scheduling timeout in the suite is 4s; expect untaint
+		// within Eventually's window.
+		It("Should untaint a node that never gets an agent pod", func() {
+			nodeName := fmt.Sprintf("scheduling-timeout-node-%d", time.Now().UnixNano())
+			cleanup := makeTaintedNode(ctx, nodeName)
+			defer cleanup()
+
+			Eventually(func() bool {
+				fresh := &corev1.Node{}
+				if err := k8sClient.Get(ctx, types.NamespacedName{Name: nodeName}, fresh); err != nil {
+					return false
+				}
+				return !hasTaint(fresh)
+			}, untaintTimeout, untaintInterval).Should(BeTrue(), "scheduling timeout should untaint the node")
+		})
+	})
+
+	Context("Readiness timeout (agent pod exists but never becomes Ready)", func() {
+		It("Should untaint the node after the readiness timeout (policy=remove)", func() {
+			nodeName := fmt.Sprintf("readiness-timeout-node-%d", time.Now().UnixNano())
+			cleanup := makeTaintedNode(ctx, nodeName)
+			defer cleanup()
+
+			podName := "agent-pod-stuck-not-ready"
+			podNS := "default"
+			pod := makeAgentPod(ctx, podName, podNS, nodeName)
+			defer func() { _ = k8sClient.Delete(ctx, pod) }()
+
+			// Set Status.StartTime to a past moment so we are already over
+			// the suite-configured readiness window (4s).
+			Expect(k8sClient.Get(ctx, types.NamespacedName{Namespace: podNS, Name: podName}, pod)).Should(Succeed())
+			past := metav1.NewTime(time.Now().Add(-1 * time.Minute))
+			pod.Status.StartTime = &past
+			pod.Status.Conditions = []corev1.PodCondition{{Type: corev1.PodReady, Status: corev1.ConditionFalse}}
+			Expect(k8sClient.Status().Update(ctx, pod)).Should(Succeed())
+
+			Eventually(func() bool {
+				fresh := &corev1.Node{}
+				if err := k8sClient.Get(ctx, types.NamespacedName{Name: nodeName}, fresh); err != nil {
+					return false
+				}
+				return !hasTaint(fresh)
+			}, untaintTimeout, untaintInterval).Should(BeTrue(), "readiness timeout should untaint the node")
 		})
 	})
 })

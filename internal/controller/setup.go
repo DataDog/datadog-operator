@@ -6,6 +6,7 @@
 package controller
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -33,26 +34,25 @@ const (
 
 // SetupOptions defines options for setting up controllers to ease testing
 type SetupOptions struct {
-	SupportExtendedDaemonset       ExtendedDaemonsetOptions
-	SupportCilium                  bool
-	CredsManager                   *config.CredentialManager
-	Creds                          config.Creds
-	SecretRefreshInterval          time.Duration
-	DatadogAgentEnabled            bool
-	DatadogAgentInternalEnabled    bool
-	DatadogMonitorEnabled          bool
-	DatadogSLOEnabled              bool
-	OperatorMetricsEnabled         bool
-	V2APIEnabled                   bool
-	IntrospectionEnabled           bool
-	DatadogAgentProfileEnabled     bool
-	OtelAgentEnabled               bool
-	DatadogDashboardEnabled        bool
-	DatadogGenericResourceEnabled  bool
-	CreateControllerRevisions      bool
-	DatadogCSIDriverEnabled        bool
-	UntaintControllerEnabled       bool
-	UntaintControllerEventsEnabled bool
+	SupportExtendedDaemonset      ExtendedDaemonsetOptions
+	SupportCilium                 bool
+	CredsManager                  *config.CredentialManager
+	Creds                         config.Creds
+	SecretRefreshInterval         time.Duration
+	DatadogAgentEnabled           bool
+	DatadogAgentInternalEnabled   bool
+	DatadogMonitorEnabled         bool
+	DatadogSLOEnabled             bool
+	OperatorMetricsEnabled        bool
+	V2APIEnabled                  bool
+	IntrospectionEnabled          bool
+	DatadogAgentProfileEnabled    bool
+	OtelAgentEnabled              bool
+	DatadogDashboardEnabled       bool
+	DatadogGenericResourceEnabled bool
+	CreateControllerRevisions     bool
+	DatadogCSIDriverEnabled       bool
+	UntaintControllerEnabled      bool
 }
 
 // ExtendedDaemonsetOptions defines ExtendedDaemonset options
@@ -247,15 +247,15 @@ func startUntaint(logger logr.Logger, mgr manager.Manager, _ kubernetes.Platform
 		logger.Info("Feature disabled, not starting the controller", "controller", untaintControllerName)
 		return nil
 	}
-
-	logger.Info("untaint controller enabled", "controller", untaintControllerName, "eventsEnabled", options.UntaintControllerEventsEnabled)
-
-	return (&UntaintReconciler{
-		client:        mgr.GetClient(),
-		log:           ctrl.Log.WithName("controllers").WithName(untaintControllerName),
-		recorder:      mgr.GetEventRecorderFor(untaintControllerName),
-		eventsEnabled: options.UntaintControllerEventsEnabled,
-	}).SetupWithManager(mgr)
+	reconciler, err := NewUntaintReconciler(
+		mgr.GetClient(),
+		ctrl.Log.WithName("controllers").WithName(untaintControllerName),
+		mgr.GetEventRecorderFor(untaintControllerName),
+	)
+	if err != nil {
+		return fmt.Errorf("untaint controller setup: %w", err)
+	}
+	return reconciler.SetupWithManager(mgr)
 }
 
 func startDatadogAgentProfiles(logger logr.Logger, mgr manager.Manager, pInfo kubernetes.PlatformInfo, options SetupOptions, metricForwardersMgr datadog.MetricsForwardersManager) error {

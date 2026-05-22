@@ -88,6 +88,13 @@ var _ = BeforeSuite(func(ctx context.Context) {
 	node2 := testutils.NewNode("node2", nil)
 	Expect(k8sClient.Create(context.Background(), node2)).Should(Succeed())
 
+	// Configure the untaint controller via its env vars before
+	// SetupControllers is called (NewUntaintReconciler reads them on construction).
+	Expect(os.Setenv(EnvEventsEnabled, "true")).Should(Succeed())
+	Expect(os.Setenv(EnvReadinessTimeout, (4 * time.Second).String())).Should(Succeed())
+	Expect(os.Setenv(EnvSchedulingTimeout, (4 * time.Second).String())).Should(Succeed())
+	Expect(os.Setenv(EnvTimeoutPolicy, string(PolicyRemove))).Should(Succeed())
+
 	// Start controllers
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
 		Scheme: scheme.Scheme,
@@ -107,6 +114,10 @@ var _ = BeforeSuite(func(ctx context.Context) {
 		DatadogMonitorEnabled:      true,
 		DatadogAgentProfileEnabled: true,
 		V2APIEnabled:               true,
+		// Untaint controller is enabled for integration tests. Tuning knobs
+		// are set via env vars (see setUntaintEnv below) so timeout-path
+		// scenarios complete in seconds.
+		UntaintControllerEnabled: true,
 	}
 
 	dummyPlatformInfo := kubernetes.PlatformInfo{}

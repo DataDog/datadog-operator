@@ -9,6 +9,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -17,6 +18,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/utils/clock"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -30,6 +32,16 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/constants"
 )
 
+// Environment variables consumed by the untaint controller. Reading them here
+// (rather than in cmd/main.go) keeps the controller's configuration surface
+// self-contained so callers do not need to know about them.
+const (
+	EnvEventsEnabled     = "DD_UNTAINT_CONTROLLER_EVENTS_ENABLED"
+	EnvReadinessTimeout  = "DD_UNTAINT_CONTROLLER_TIMEOUT"
+	EnvSchedulingTimeout = "DD_UNTAINT_CONTROLLER_SCHEDULING_TIMEOUT"
+	EnvTimeoutPolicy     = "DD_UNTAINT_CONTROLLER_TIMEOUT_POLICY"
+)
+
 const (
 	untaintControllerName = "Untaint"
 
@@ -37,27 +49,142 @@ const (
 	agentNotReadyTaintKey    = "agent.datadoghq.com/not-ready"
 	agentNotReadyTaintValue  = "presence"
 	agentNotReadyTaintEffect = corev1.TaintEffectNoSchedule
+
+	// untaintPodNodeIndex is a controller-scoped field-indexer key for caching
+	// pods by their spec.nodeName. Using a namespaced key (rather than the
+	// bare "spec.nodeName") avoids collisions with any other controller that
+	// may register the same field on the shared manager indexer.
+	untaintPodNodeIndex = "untaint.spec.nodeName"
+
+	// conflictRequeueDelay is how long we wait before retrying after a benign
+	// optimistic-concurrency conflict on the taint patch. Matches the convention
+	// used elsewhere in this codebase for IsConflict on status updates.
+	conflictRequeueDelay = time.Second
+
+	// DefaultReadinessTimeout is applied when an agent pod exists on a tainted
+	// node but never reaches Ready. Clock: pod.Status.StartTime.
+	DefaultReadinessTimeout = 10 * time.Minute
+	// DefaultSchedulingTimeout is applied when no agent pod is ever scheduled
+	// on a tainted node. Clock: node.CreationTimestamp.
+	DefaultSchedulingTimeout = 5 * time.Minute
 )
 
-// UntaintReconciler watches agent pods and removes the taint
-// agent.datadoghq.com/not-ready=presence:NoSchedule from their nodes once Ready.
+// TimeoutPolicy controls what the controller does when a timeout fires.
+type TimeoutPolicy string
+
+const (
+	// PolicyRemove untaints the node despite the agent never becoming ready.
+	PolicyRemove TimeoutPolicy = metrics.UntaintTimeoutPolicyRemove
+	// PolicyKeep leaves the taint in place; the controller only emits
+	// observability signals (metric, event, log).
+	PolicyKeep TimeoutPolicy = metrics.UntaintTimeoutPolicyKeep
+)
+
+// ParseTimeoutPolicy returns PolicyRemove for the empty string or "remove",
+// PolicyKeep for "keep", and an error for any other value.
+func ParseTimeoutPolicy(s string) (TimeoutPolicy, error) {
+	switch s {
+	case "", string(PolicyRemove):
+		return PolicyRemove, nil
+	case string(PolicyKeep):
+		return PolicyKeep, nil
+	default:
+		return "", fmt.Errorf("invalid untaint timeout policy %q (want %q or %q)", s, PolicyRemove, PolicyKeep)
+	}
+}
+
+// UntaintReconciler watches agent pods and nodes and removes the taint
+// agent.datadoghq.com/not-ready=presence:NoSchedule once the agent pod is
+// Ready, or after a configurable timeout depending on the policy.
 type UntaintReconciler struct {
-	client        client.Client
-	log           logr.Logger
-	recorder      record.EventRecorder
-	eventsEnabled bool
+	client   client.Client
+	log      logr.Logger
+	recorder record.EventRecorder
+	clock    clock.PassiveClock
+
+	eventsEnabled     bool
+	readinessTimeout  time.Duration
+	schedulingTimeout time.Duration
+	timeoutPolicy     TimeoutPolicy
+}
+
+// NewUntaintReconciler builds an UntaintReconciler. All tuning knobs are
+// sourced from environment variables (DD_UNTAINT_CONTROLLER_*) with the
+// constants on this package as fallback defaults. Any invalid env value
+// (unparseable duration, unknown policy) returns an error and aborts
+// startup — we fail loud rather than silently substituting defaults so
+// operator misconfiguration is caught at boot, not discovered later when
+// timeouts fire at the wrong time.
+//
+// The effective configuration is logged once at INFO so the operator can
+// confirm what was actually applied.
+func NewUntaintReconciler(c client.Client, log logr.Logger, rec record.EventRecorder) (*UntaintReconciler, error) {
+	policy, err := ParseTimeoutPolicy(os.Getenv(EnvTimeoutPolicy))
+	if err != nil {
+		return nil, fmt.Errorf("invalid %s: %w", EnvTimeoutPolicy, err)
+	}
+	readiness, err := durationFromEnv(EnvReadinessTimeout, DefaultReadinessTimeout)
+	if err != nil {
+		return nil, err
+	}
+	scheduling, err := durationFromEnv(EnvSchedulingTimeout, DefaultSchedulingTimeout)
+	if err != nil {
+		return nil, err
+	}
+
+	r := &UntaintReconciler{
+		client:            c,
+		log:               log,
+		recorder:          rec,
+		clock:             clock.RealClock{},
+		eventsEnabled:     os.Getenv(EnvEventsEnabled) == "true",
+		readinessTimeout:  readiness,
+		schedulingTimeout: scheduling,
+		timeoutPolicy:     policy,
+	}
+
+	log.Info("untaint controller configured",
+		"eventsEnabled", r.eventsEnabled,
+		"readinessTimeout", r.readinessTimeout,
+		"schedulingTimeout", r.schedulingTimeout,
+		"timeoutPolicy", r.timeoutPolicy,
+	)
+	return r, nil
+}
+
+// durationFromEnv reads envVar as a Go duration. Returns def if unset or
+// empty. Returns an error (with envVar context) on any parse failure or
+// non-positive value — we refuse to start with bad config rather than
+// silently fall back to the default.
+func durationFromEnv(envVar string, def time.Duration) (time.Duration, error) {
+	raw, ok := os.LookupEnv(envVar)
+	if !ok || raw == "" {
+		return def, nil
+	}
+	d, err := time.ParseDuration(raw)
+	if err != nil {
+		return 0, fmt.Errorf("invalid %s=%q: %w", envVar, raw, err)
+	}
+	if d <= 0 {
+		return 0, fmt.Errorf("invalid %s=%q: must be positive", envVar, raw)
+	}
+	return d, nil
 }
 
 // +kubebuilder:rbac:groups="",resources=nodes,verbs=get;list;watch;patch
 // +kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch
 // +kubebuilder:rbac:groups="",resources=events,verbs=create;patch
 
-// Reconcile is called with the name of a Node and removes the agent-not-ready taint
-// if a Ready agent pod exists on that node.
+// Reconcile decides what to do with a tainted node:
+//   - if any agent pod on the node is Ready, untaint
+//   - if pods exist but none are Ready and the readiness timeout has elapsed,
+//     apply the timeout policy (remove or keep)
+//   - if no agent pod is scheduled and the scheduling timeout has elapsed,
+//     apply the timeout policy
+//   - otherwise, requeue after the remaining timeout window so we re-evaluate.
 func (r *UntaintReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := r.log.WithValues("node", req.Name)
 
-	// 1. Get the Node from cache
 	node := &corev1.Node{}
 	if err := r.client.Get(ctx, req.NamespacedName, node); err != nil {
 		if apierrors.IsNotFound(err) {
@@ -66,68 +193,164 @@ func (r *UntaintReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return ctrl.Result{}, fmt.Errorf("failed to get node %s: %w", req.Name, err)
 	}
 
-	// 2. Check if the taint we care about is present
 	if !hasTaint(node) {
 		return ctrl.Result{}, nil
 	}
 
-	// 3. List agent pods on this node
 	podList := &corev1.PodList{}
 	labelSelector := labels.SelectorFromSet(map[string]string{
 		common.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
 	})
 	if err := r.client.List(ctx, podList,
 		client.MatchingLabelsSelector{Selector: labelSelector},
-		client.MatchingFields{"spec.nodeName": req.Name},
+		client.MatchingFields{untaintPodNodeIndex: req.Name},
 	); err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to list pods on node %s: %w", req.Name, err)
 	}
 
-	// 4. Check if any agent pod is Ready; record its Ready transition time for the latency metric
-	var readyTransitionTime *time.Time
-	anyReady := false
+	// Happy path: any ready agent pod → untaint immediately and record latency.
+	var readyAt time.Time
+	var anyReady bool
 	for i := range podList.Items {
-		pod := &podList.Items[i]
-		for _, c := range pod.Status.Conditions {
-			if c.Type == corev1.PodReady && c.Status == corev1.ConditionTrue {
-				anyReady = true
-				if !c.LastTransitionTime.IsZero() {
-					t := c.LastTransitionTime.Time
-					readyTransitionTime = &t
-				}
-				break
-			}
-		}
-		if anyReady {
+		if ts, ok := podReadyTransition(&podList.Items[i]); ok {
+			readyAt, anyReady = ts, true
 			break
 		}
 	}
-
-	if !anyReady {
-		log.V(1).Info("No ready agent pod found, skipping taint removal")
+	if anyReady {
+		result, err := r.removeTaint(ctx, node)
+		if err != nil {
+			return result, err
+		}
+		if result.RequeueAfter > 0 {
+			return result, nil
+		}
+		log.Info("Removed agent-not-ready taint from node")
+		metrics.TaintRemovalsTotal.Inc()
+		if !readyAt.IsZero() {
+			metrics.TaintRemovalLatency.Observe(r.clock.Since(readyAt).Seconds())
+		}
+		if r.eventsEnabled {
+			r.recorder.Eventf(node, corev1.EventTypeNormal, "TaintRemoved",
+				"Removed taint %s from node %s after agent became ready", agentNotReadyTaintKey, node.Name)
+		}
 		return ctrl.Result{}, nil
 	}
 
-	// 5. Remove the taint via JSON patch (test-and-set for optimistic concurrency)
-	if err := r.removeTaint(ctx, node); err != nil {
-		return ctrl.Result{}, fmt.Errorf("failed to remove taint from node %s: %w", req.Name, err)
+	// Otherwise we're in a timeout-evaluation path. Two cases:
+	//   1. Any pod exists on the node → readiness timeout
+	//      (clock = max(pod.Status.StartTime), so a fresh restart resets it).
+	//      If pods exist but no StartTime is set yet (very early lifecycle —
+	//      kubelet hasn't transitioned through PodInitializing yet), requeue
+	//      after the readiness window so we re-check once StartTime appears.
+	//      We do NOT fall through to the scheduling clock here: a pod *is*
+	//      scheduled, so the "no agent pod ever scheduled" condition does not
+	//      hold and applying the scheduling timeout would be incorrect.
+	//   2. No pods exist → scheduling timeout (clock = node.CreationTimestamp).
+	now := r.clock.Now()
+
+	if len(podList.Items) > 0 {
+		latestStart, ok := latestPodStartTime(podList.Items)
+		if !ok {
+			// Pods scheduled but no StartTime yet. Re-check shortly.
+			return ctrl.Result{RequeueAfter: r.readinessTimeout}, nil
+		}
+		elapsed := now.Sub(latestStart)
+		if elapsed >= r.readinessTimeout {
+			return r.applyTimeoutPolicy(ctx, node, metrics.UntaintTimeoutReasonReadiness, elapsed)
+		}
+		return ctrl.Result{RequeueAfter: r.readinessTimeout - elapsed}, nil
 	}
 
-	log.Info("Removed agent-not-ready taint from node")
-
-	// 6. Record metrics
-	metrics.TaintRemovalsTotal.Inc()
-	if readyTransitionTime != nil {
-		metrics.TaintRemovalLatency.Observe(time.Since(*readyTransitionTime).Seconds())
+	created := node.CreationTimestamp.Time
+	if created.IsZero() {
+		// Defensive: without a CreationTimestamp we cannot compute scheduling
+		// elapsed. Requeue after the scheduling timeout so we re-evaluate once
+		// the cache catches up.
+		log.V(1).Info("Node has no CreationTimestamp; requeueing")
+		return ctrl.Result{RequeueAfter: r.schedulingTimeout}, nil
 	}
+	elapsed := now.Sub(created)
+	if elapsed >= r.schedulingTimeout {
+		return r.applyTimeoutPolicy(ctx, node, metrics.UntaintTimeoutReasonScheduling, elapsed)
+	}
+	return ctrl.Result{RequeueAfter: r.schedulingTimeout - elapsed}, nil
+}
 
-	// 7. Optionally emit Kubernetes event
+// applyTimeoutPolicy is invoked when a readiness or scheduling timeout has
+// elapsed. It records observability signals and, if policy=remove, removes the
+// taint.
+func (r *UntaintReconciler) applyTimeoutPolicy(ctx context.Context, node *corev1.Node, reason string, elapsed time.Duration) (ctrl.Result, error) {
+	policy := r.timeoutPolicy
+	log := r.log.WithValues("node", node.Name, "reason", reason, "policy", policy, "elapsed", elapsed)
+
+	metrics.TaintTimeoutsTotal.WithLabelValues(reason, string(policy)).Inc()
+	if policy == PolicyKeep {
+		// logr has no Warn level; the codebase convention is log.Error(nil, ...)
+		// to surface a warning-level event without an associated Go error.
+		log.Error(nil, "Untaint controller timeout fired; keeping taint per policy=keep — operator action may be required")
+	} else {
+		log.Info("Untaint controller timeout fired")
+	}
 	if r.eventsEnabled {
-		r.recorder.Eventf(node, corev1.EventTypeNormal, "TaintRemoved",
-			"Removed taint %s from node %s after agent became ready", agentNotReadyTaintKey, node.Name)
+		evType := corev1.EventTypeNormal
+		evReason := "UntaintTimeout"
+		if policy == PolicyKeep {
+			evType = corev1.EventTypeWarning
+		}
+		r.recorder.Eventf(node, evType, evReason,
+			"Untaint controller %s timeout reached after %s (policy=%s)", reason, elapsed.Round(time.Second), policy)
 	}
 
+	if policy == PolicyKeep {
+		// No requeue: nothing will change until a pod event or node-taint event
+		// fires; the watches handle that.
+		return ctrl.Result{}, nil
+	}
+
+	result, err := r.removeTaint(ctx, node)
+	if err != nil {
+		return result, err
+	}
+	if result.RequeueAfter > 0 {
+		return result, nil
+	}
+	log.Info("Removed agent-not-ready taint from node by timeout policy")
+	metrics.TaintRemovalsTotal.Inc()
 	return ctrl.Result{}, nil
+}
+
+// podReadyTransition returns the Ready condition's LastTransitionTime and
+// true if the pod is currently Ready, otherwise (zero, false).
+func podReadyTransition(pod *corev1.Pod) (time.Time, bool) {
+	for _, c := range pod.Status.Conditions {
+		if c.Type == corev1.PodReady && c.Status == corev1.ConditionTrue {
+			// This controller only gates the initial node join. Once an agent
+			// reached Ready on the node, a later terminating/restarting pod is
+			// still valid evidence that the bootstrap condition was satisfied.
+			return c.LastTransitionTime.Time, true
+		}
+	}
+	return time.Time{}, false
+}
+
+// latestPodStartTime returns the most recent non-nil Status.StartTime across
+// pods plus an ok flag. When a pod has just restarted, its StartTime resets,
+// so the readiness clock effectively restarts as well.
+func latestPodStartTime(pods []corev1.Pod) (time.Time, bool) {
+	var latest time.Time
+	found := false
+	for i := range pods {
+		st := pods[i].Status.StartTime
+		if st == nil {
+			continue
+		}
+		if !found || st.Time.After(latest) {
+			latest = st.Time
+			found = true
+		}
+	}
+	return latest, found
 }
 
 // hasTaint returns true if the node has the agent-not-ready taint.
@@ -141,52 +364,68 @@ func hasTaint(node *corev1.Node) bool {
 }
 
 type jsonPatchOp struct {
-	Op    string      `json:"op"`
-	Path  string      `json:"path"`
-	Value interface{} `json:"value"`
+	Op    string `json:"op"`
+	Path  string `json:"path"`
+	Value any    `json:"value"`
 }
 
-// removeTaint patches the node to remove the agent-not-ready taint using a JSON test-and-set patch.
-func (r *UntaintReconciler) removeTaint(ctx context.Context, node *corev1.Node) error {
-	newTaints := make([]corev1.Taint, 0, len(node.Spec.Taints))
-	for _, t := range node.Spec.Taints {
+// removeTaint patches the node to remove the agent-not-ready taint using a
+// JSON test-and-set patch. Returns RequeueAfter on a benign optimistic-
+// concurrency conflict so the caller does not trigger exponential backoff.
+func (r *UntaintReconciler) removeTaint(ctx context.Context, node *corev1.Node) (ctrl.Result, error) {
+	// Defensive: ensure we always marshal [] not null, even for a nil slice.
+	currentTaints := node.Spec.Taints
+	if currentTaints == nil {
+		currentTaints = []corev1.Taint{}
+	}
+	newTaints := make([]corev1.Taint, 0, len(currentTaints))
+	for _, t := range currentTaints {
 		if t.Key == agentNotReadyTaintKey && t.Value == agentNotReadyTaintValue && t.Effect == agentNotReadyTaintEffect {
 			continue
 		}
 		newTaints = append(newTaints, t)
 	}
-
-	if len(newTaints) == len(node.Spec.Taints) {
-		return nil // taint not present
+	if len(newTaints) == len(currentTaints) {
+		return ctrl.Result{}, nil // taint not present (defensive; caller already checked)
 	}
 
-	// Use JSON patch with test precondition for optimistic concurrency.
 	patch := []jsonPatchOp{
-		{Op: "test", Path: "/spec/taints", Value: node.Spec.Taints},
+		// test precondition catches concurrent modifications to the taints slice
+		{Op: "test", Path: "/spec/taints", Value: currentTaints},
 		{Op: "replace", Path: "/spec/taints", Value: newTaints},
 	}
-
 	patchBytes, err := json.Marshal(patch)
 	if err != nil {
-		return fmt.Errorf("failed to marshal patch: %w", err)
+		return ctrl.Result{}, fmt.Errorf("failed to marshal patch: %w", err)
 	}
 
-	// TODO: If this fails due to conflict with optimistic concurrency, we should requeue
-	// the reconciliation instead of returning an error.
-	return r.client.Patch(ctx, node, client.RawPatch(types.JSONPatchType, patchBytes))
+	if err := r.client.Patch(ctx, node, client.RawPatch(types.JSONPatchType, patchBytes)); err != nil {
+		// Both "resource conflict" (etcd CAS) and "test op failed" (different
+		// k8s versions surface as Conflict or Invalid/UnprocessableEntity) are
+		// benign races: another writer modified the node taints concurrently.
+		// Requeue with a short delay instead of returning the error, which
+		// would otherwise trigger exponential backoff.
+		if apierrors.IsConflict(err) || apierrors.IsInvalid(err) {
+			r.log.V(1).Info("Taint patch race; requeueing",
+				"node", node.Name, "err", err.Error())
+			return ctrl.Result{RequeueAfter: conflictRequeueDelay}, nil
+		}
+		return ctrl.Result{}, fmt.Errorf("failed to remove taint from node %s: %w", node.Name, err)
+	}
+	return ctrl.Result{}, nil
 }
 
-// SetupWithManager sets up the controller to watch agent pods and map them to their nodes.
+// SetupWithManager wires the Pod and Node watches and registers the cache
+// field index used to list pods by node name.
 func (r *UntaintReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	// Index pods by spec.nodeName so we can list pods on a specific node efficiently.
-	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &corev1.Pod{}, "spec.nodeName", func(obj client.Object) []string {
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &corev1.Pod{}, untaintPodNodeIndex, func(obj client.Object) []string {
 		pod, ok := obj.(*corev1.Pod)
 		if !ok || pod.Spec.NodeName == "" {
 			return nil
 		}
 		return []string{pod.Spec.NodeName}
 	}); err != nil {
-		return fmt.Errorf("failed to index pods by spec.nodeName: %w", err)
+		return fmt.Errorf("failed to index pods by %s: %w", untaintPodNodeIndex, err)
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
@@ -194,62 +433,83 @@ func (r *UntaintReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Watches(
 			&corev1.Pod{},
 			handler.EnqueueRequestsFromMapFunc(r.podToNodeRequest),
-			builder.WithPredicates(r.agentPodReadinessPredicate()),
+			builder.WithPredicates(agentPodPredicate()),
+		).
+		Watches(
+			&corev1.Node{},
+			handler.EnqueueRequestsFromMapFunc(nodeToRequest),
+			builder.WithPredicates(taintedNodePredicate()),
 		).
 		Complete(r)
 }
 
 // podToNodeRequest maps a Pod event to a reconcile.Request for the pod's node.
-func (r *UntaintReconciler) podToNodeRequest(ctx context.Context, obj client.Object) []reconcile.Request {
+func (r *UntaintReconciler) podToNodeRequest(_ context.Context, obj client.Object) []reconcile.Request {
 	pod, ok := obj.(*corev1.Pod)
 	if !ok || pod.Spec.NodeName == "" {
 		return nil
 	}
-	return []reconcile.Request{
-		{NamespacedName: types.NamespacedName{Name: pod.Spec.NodeName}},
+	return []reconcile.Request{{NamespacedName: types.NamespacedName{Name: pod.Spec.NodeName}}}
+}
+
+// nodeToRequest maps a Node event to a reconcile.Request for that node.
+func nodeToRequest(_ context.Context, obj client.Object) []reconcile.Request {
+	node, ok := obj.(*corev1.Node)
+	if !ok {
+		return nil
+	}
+	return []reconcile.Request{{NamespacedName: types.NamespacedName{Name: node.Name}}}
+}
+
+// agentPodPredicate enqueues an agent pod's node for any Create/Update/Delete
+// event on an agent pod. We deliberately do NOT filter to "ready transition"
+// here because:
+//   - a NotReady pod creation starts the readiness clock for that node, so the
+//     reconciler needs to schedule a RequeueAfter against pod.Status.StartTime
+//     (filtering out Create-as-NotReady would silently miss this clock until
+//     some other event fires);
+//   - a Delete must enqueue so a stuck-in-keep node can re-start its readiness
+//     clock for the replacement pod;
+//   - Reconcile itself is idempotent and quick (cache list + early-return on
+//     !hasTaint), and bounds re-evaluation via RequeueAfter, so the extra
+//     reconciles are cheap.
+func agentPodPredicate() predicate.Predicate {
+	isAgentPodEvent := func(o client.Object) bool {
+		p, ok := o.(*corev1.Pod)
+		return ok && isAgentPod(p)
+	}
+	return predicate.Funcs{
+		CreateFunc:  func(e event.CreateEvent) bool { return isAgentPodEvent(e.Object) },
+		UpdateFunc:  func(e event.UpdateEvent) bool { return isAgentPodEvent(e.ObjectNew) },
+		DeleteFunc:  func(e event.DeleteEvent) bool { return isAgentPodEvent(e.Object) },
+		GenericFunc: func(event.GenericEvent) bool { return false },
 	}
 }
 
-// agentPodReadinessPredicate returns a predicate that only processes agent pods
-// when they transition to Ready.
-func (r *UntaintReconciler) agentPodReadinessPredicate() predicate.Predicate {
+// taintedNodePredicate enqueues a node when it carries the target taint on
+// create, or when the target taint *appears* on update. The reconciler reruns
+// itself via RequeueAfter while a timeout window is pending, so we do not need
+// to fire on every unrelated node update.
+func taintedNodePredicate() predicate.Predicate {
 	return predicate.Funcs{
 		CreateFunc: func(e event.CreateEvent) bool {
-			return r.isAgentPod(e.Object) && isPodReady(e.Object)
+			node, ok := e.Object.(*corev1.Node)
+			return ok && hasTaint(node)
 		},
 		UpdateFunc: func(e event.UpdateEvent) bool {
-			if !r.isAgentPod(e.ObjectNew) {
+			oldNode, okOld := e.ObjectOld.(*corev1.Node)
+			newNode, okNew := e.ObjectNew.(*corev1.Node)
+			if !okOld || !okNew {
 				return false
 			}
-			wasReady := isPodReady(e.ObjectOld)
-			isReady := isPodReady(e.ObjectNew)
-			return !wasReady && isReady
+			return hasTaint(newNode) && !hasTaint(oldNode)
 		},
-		DeleteFunc: func(e event.DeleteEvent) bool {
-			return false
-		},
-		GenericFunc: func(e event.GenericEvent) bool {
-			return false
-		},
+		DeleteFunc:  func(event.DeleteEvent) bool { return false },
+		GenericFunc: func(event.GenericEvent) bool { return false },
 	}
 }
 
-// isAgentPod returns true if the object has the agent component label.
-func (r *UntaintReconciler) isAgentPod(obj client.Object) bool {
-	lbls := obj.GetLabels()
-	return lbls[common.AgentDeploymentComponentLabelKey] == constants.DefaultAgentResourceSuffix
-}
-
-// isPodReady returns true if the pod has the Ready condition set to True.
-func isPodReady(obj client.Object) bool {
-	pod, ok := obj.(*corev1.Pod)
-	if !ok {
-		return false
-	}
-	for _, c := range pod.Status.Conditions {
-		if c.Type == corev1.PodReady && c.Status == corev1.ConditionTrue {
-			return true
-		}
-	}
-	return false
+// isAgentPod returns true if the pod has the agent component label.
+func isAgentPod(pod *corev1.Pod) bool {
+	return pod.Labels[common.AgentDeploymentComponentLabelKey] == constants.DefaultAgentResourceSuffix
 }
