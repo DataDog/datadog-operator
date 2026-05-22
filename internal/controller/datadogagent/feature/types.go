@@ -76,7 +76,7 @@ func (rc *RequiredComponent) IsConfigured() bool {
 // IsPrivileged checks whether component requires privileged access.
 func (rc *RequiredComponent) IsPrivileged() bool {
 	for _, container := range rc.Containers {
-		if container == common.SecurityAgentContainerName || container == common.SystemProbeContainerName {
+		if container == common.SecurityAgentContainerName || container == common.SystemProbeContainerName || container == common.HostProfiler {
 			return true
 		}
 	}
