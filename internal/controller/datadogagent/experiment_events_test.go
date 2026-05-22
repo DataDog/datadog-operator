@@ -97,6 +97,46 @@ func TestEmitExperimentTransitionEvent_AllTransitions(t *testing.T) {
 			wantType:   "Normal",
 			wantInMsg:  "rolled back",
 		},
+		// Terminal → Running: starting a new experiment after a previous
+		// one ended. processStartSignal allows this when the new
+		// annotationID differs from the current ID.
+		{
+			name:       "Promoted to Running",
+			oldStatus:  &v2alpha1.ExperimentStatus{Phase: v2alpha1.ExperimentPhasePromoted, ID: "exp-old"},
+			newStatus:  &v2alpha1.ExperimentStatus{Phase: v2alpha1.ExperimentPhaseRunning, ID: "exp-new", StartTaskID: "task-N"},
+			wantReason: eventReasonExperimentStartProcessed,
+			wantType:   "Normal",
+			wantInMsg:  "exp-new",
+		},
+		{
+			name:       "Aborted to Running",
+			oldStatus:  &v2alpha1.ExperimentStatus{Phase: v2alpha1.ExperimentPhaseAborted, ID: "exp-old"},
+			newStatus:  &v2alpha1.ExperimentStatus{Phase: v2alpha1.ExperimentPhaseRunning, ID: "exp-new", StartTaskID: "task-N"},
+			wantReason: eventReasonExperimentStartProcessed,
+			wantType:   "Normal",
+			wantInMsg:  "exp-new",
+		},
+		{
+			name:       "Terminated to Running",
+			oldStatus:  &v2alpha1.ExperimentStatus{Phase: v2alpha1.ExperimentPhaseTerminated, ID: "exp-old", TerminationReason: ExperimentTerminationReasonTimedOut},
+			newStatus:  &v2alpha1.ExperimentStatus{Phase: v2alpha1.ExperimentPhaseRunning, ID: "exp-new", StartTaskID: "task-N"},
+			wantReason: eventReasonExperimentStartProcessed,
+			wantType:   "Normal",
+			wantInMsg:  "exp-new",
+		},
+		// "" → Terminated/stopped: the "transition 6" recovery path in
+		// processRollbackSignal — rollback signal arrives at nil phase
+		// with spec matching the experiment revision; restorePreviousSpec
+		// commits Phase=Terminated/stopped directly without ever going
+		// through Running.
+		{
+			name:       "nil to Terminated/stopped (transition 6 recovery)",
+			oldStatus:  nil,
+			newStatus:  &v2alpha1.ExperimentStatus{Phase: v2alpha1.ExperimentPhaseTerminated, ID: "exp-1", TerminationReason: ExperimentTerminationReasonStopped},
+			wantReason: eventReasonExperimentRolledBack,
+			wantType:   "Normal",
+			wantInMsg:  "rolled back",
+		},
 	}
 
 	for _, tc := range cases {

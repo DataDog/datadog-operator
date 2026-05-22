@@ -146,6 +146,15 @@ func (d *Daemon) handleTask(ctx context.Context, req remoteAPIRequest) error {
 		// Nothing is left for the worker to wait on.
 		d.setTaskState(req.Package, req.ID, pbgo.TaskState_DONE, nil)
 		d.taskMu.Unlock()
+		// Synthesize a pendingOperation for the event message so the
+		// timeline shows both ends of this idempotent task (received +
+		// completed). There is no in-flight op because the worker is
+		// never engaged on this path.
+		d.emitTaskCompletedEvent(ctx, pendingOperation{
+			taskID: req.ID,
+			intent: pendingIntent(methodLabel(req.Method)),
+			nsn:    req.Params.NamespacedName,
+		})
 		return nil
 	}
 	// The DDA annotations are already written. From the task handler's point

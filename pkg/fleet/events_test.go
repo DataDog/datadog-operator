@@ -9,6 +9,7 @@ import (
 	"context"
 	"testing"
 
+	pbgo "github.com/DataDog/datadog-agent/pkg/proto/pbgo/core"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/types"
@@ -151,4 +152,37 @@ func TestEmitDDAEvent_NoLookupWhenDisabled(t *testing.T) {
 		"Normal", "TestReason", "irrelevant")
 	_, got := drainOneDaemonEvent(t, rec)
 	assert.False(t, got, "no event when env var is unset; also no panic from nil client")
+}
+
+// TestHandleTask_IdempotentDONE_EmitsCompletedEvent verifies that the
+// immediate-DONE path in handleTask (pending == nil, err == nil) emits
+// both the incoming-edge RemoteTaskReceived event AND a terminal
+// RemoteTaskCompleted event. Without the latter, idempotent retries
+// of an already-running experiment would show as half-finished on the
+// kubectl-events timeline.
+func TestHandleTask_IdempotentDONE_EmitsCompletedEvent(t *testing.T) {
+	t.Setenv(envFleetManagementEventsEnabled, "true")
+
+	// DDA already in Running with the target experiment ID — so the
+	// next start task for the same ID is an idempotent no-op that goes
+	// straight to TaskState_DONE without engaging the worker.
+	dda := testDDAObject(v2alpha1.ExperimentPhaseRunning)
+	d, rec := fakeRecorderDaemon(t, dda)
+	d.rcClient = &mockRCClient{state: []*pbgo.PackageState{{Package: "datadog-operator"}}}
+	d.configs = testInstallerConfigWithDDA()
+
+	req := testStartRequest()
+	req.Params.Version = testExperimentID
+
+	require.NoError(t, d.handleTask(context.Background(), req))
+
+	// Expect two events, in order: RemoteTaskReceived then RemoteTaskCompleted.
+	ev1, got1 := drainOneDaemonEvent(t, rec)
+	require.True(t, got1, "RemoteTaskReceived should fire on handleTask entry")
+	assert.Contains(t, ev1, eventReasonRemoteTaskReceived)
+
+	ev2, got2 := drainOneDaemonEvent(t, rec)
+	require.True(t, got2, "RemoteTaskCompleted should fire on the immediate-DONE path")
+	assert.Contains(t, ev2, eventReasonRemoteTaskCompleted)
+	assert.Contains(t, ev2, req.ID, "completed event should reference the task ID")
 }

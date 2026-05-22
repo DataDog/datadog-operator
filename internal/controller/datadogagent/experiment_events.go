@@ -60,7 +60,11 @@ func (r *Reconciler) emitExperimentTransitionEvent(dda client.Object, oldStatus,
 		return
 	}
 	switch {
-	case oldPhase == "" && newStatus.Phase == v2alpha1.ExperimentPhaseRunning:
+	// nil → Running (fresh start) and terminal → Running (new experiment
+	// after a previous Promoted/Aborted/Terminated). processStartSignal
+	// allows the latter when the new annotationID differs from the
+	// current ID and the current phase is non-Running.
+	case newStatus.Phase == v2alpha1.ExperimentPhaseRunning && (oldPhase == "" || isTerminalPhase(oldPhase)):
 		r.recorder.Eventf(dda, corev1.EventTypeNormal, eventReasonExperimentStartProcessed,
 			"Experiment %q started (task %q)", newStatus.ID, newStatus.StartTaskID)
 	case oldPhase == v2alpha1.ExperimentPhaseRunning && newStatus.Phase == v2alpha1.ExperimentPhasePromoted:
@@ -69,7 +73,11 @@ func (r *Reconciler) emitExperimentTransitionEvent(dda client.Object, oldStatus,
 	case oldPhase == v2alpha1.ExperimentPhaseRunning && newStatus.Phase == v2alpha1.ExperimentPhaseAborted:
 		r.recorder.Eventf(dda, corev1.EventTypeWarning, eventReasonExperimentAborted,
 			"Experiment %q aborted: manual spec change detected", newStatus.ID)
-	case oldPhase == v2alpha1.ExperimentPhaseRunning && newStatus.Phase == v2alpha1.ExperimentPhaseTerminated:
+	// Running → Terminated and the "transition 6" recovery path (nil →
+	// Terminated/stopped) in processRollbackSignal — when a rollback
+	// signal arrives at nil phase with the spec matching the experiment
+	// revision, restorePreviousSpec commits Phase=Terminated directly.
+	case newStatus.Phase == v2alpha1.ExperimentPhaseTerminated && (oldPhase == v2alpha1.ExperimentPhaseRunning || oldPhase == ""):
 		switch newStatus.TerminationReason {
 		case ExperimentTerminationReasonTimedOut:
 			r.recorder.Eventf(dda, corev1.EventTypeWarning, eventReasonExperimentTimedOut,
