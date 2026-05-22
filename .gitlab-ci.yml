@@ -3,6 +3,7 @@ variables:
   NIGHTLY_BUILD_CONDUCTOR_NAME: "operator-nightly-build"
   PROJECTNAME: "datadog-operator"
   PROJECTNAME_CHECK: "datadog-operator-check"
+  IMAGE_VERSION: "tmpl-v3"
   BUILD_DOCKER_REGISTRY: "486234852809.dkr.ecr.us-east-1.amazonaws.com/ci"
   E2E_DOCKER_REGISTRY: "669783387624.dkr.ecr.us-east-1.amazonaws.com/operator"
   JOB_DOCKER_IMAGE: "registry.ddbuild.io/ci-containers-project:v68399443-88dc260-v1.22"
@@ -601,7 +602,6 @@ trigger_internal_operator_image:
     branch: tbavelier/update-operator-gbi-to-ubuntu-26
     strategy: depend
   variables:
-    IMAGE_VERSION: tmpl-v3
     IMAGE_NAME: $PROJECTNAME
     TMPL_SRC_IMAGE: v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
     RELEASE_TAG: ${CI_COMMIT_REF_SLUG}
@@ -612,7 +612,6 @@ trigger_internal_operator_image:
 trigger_internal_operator_image_fips:
   extends: trigger_internal_operator_image
   variables:
-    IMAGE_VERSION: tmpl-v3-fips
     TMPL_SRC_IMAGE: v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-fips
     RELEASE_TAG: ${CI_COMMIT_REF_SLUG}-fips
     BUILD_TAG: ${CI_COMMIT_REF_SLUG}-fips
@@ -645,7 +644,6 @@ trigger_internal_operator_image_rc_latest:
     branch: tbavelier/update-operator-gbi-to-ubuntu-26
     strategy: depend
   variables:
-    IMAGE_VERSION: tmpl-v3
     IMAGE_NAME: $PROJECTNAME
     TMPL_SRC_IMAGE: v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
     RELEASE_TAG: rc-latest
@@ -656,7 +654,6 @@ trigger_internal_operator_image_rc_latest:
 trigger_internal_operator_image_fips_rc_latest:
   extends: trigger_internal_operator_image_rc_latest
   variables:
-    IMAGE_VERSION: tmpl-v3-fips
     TMPL_SRC_IMAGE: v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-fips
     RELEASE_TAG: rc-latest-fips
     BUILD_TAG: rc-latest-fips
@@ -672,7 +669,6 @@ trigger_internal_operator_nightly_image:
     branch: tbavelier/update-operator-gbi-to-ubuntu-26
     strategy: depend
   variables:
-    IMAGE_VERSION: tmpl-v3
     IMAGE_NAME: $PROJECTNAME
     TMPL_SRC_IMAGE: v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
     # Trigger a nightly images build that sets the RELEASE_TAG and BUILD_TAG
@@ -710,7 +706,6 @@ trigger_custom_operator_image_staging:
     branch: tbavelier/update-operator-gbi-to-ubuntu-26
     strategy: depend
   variables:
-    IMAGE_VERSION: tmpl-v3
     IMAGE_NAME: $PROJECTNAME
     TMPL_SRC_IMAGE: v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
     RELEASE_TAG: ${CI_COMMIT_REF_SLUG}-${CI_COMMIT_SHORT_SHA}
@@ -729,9 +724,8 @@ trigger_custom_operator_image_fips_staging:
     branch: tbavelier/update-operator-gbi-to-ubuntu-26
     strategy: depend
   variables:
-    IMAGE_VERSION: tmpl-v3-fips
     IMAGE_NAME: $PROJECTNAME
-    TMPL_SRC_IMAGE: v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
+    TMPL_SRC_IMAGE: v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-fips
     RELEASE_TAG: ${CI_COMMIT_REF_SLUG}-${CI_COMMIT_SHORT_SHA}
     BUILD_TAG: ${CI_COMMIT_REF_SLUG}-${CI_COMMIT_SHORT_SHA}
     RELEASE_STAGING: "true"
