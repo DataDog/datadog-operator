@@ -147,7 +147,7 @@ func TestEmitDDAEvent_NoLookupWhenDisabled(t *testing.T) {
 	// env-var check before touching client.
 	rec := record.NewFakeRecorder(1)
 	d := &Daemon{recorder: rec}
-	d.emitDDAEvent(context.Background(), types.NamespacedName{Namespace: "ns", Name: "n"},
+	d.emitDDAEventf(context.Background(), types.NamespacedName{Namespace: "ns", Name: "n"},
 		"Normal", "TestReason", "irrelevant")
 	_, got := drainOneDaemonEvent(t, rec)
 	assert.False(t, got, "no event when env var is unset; also no panic from nil client")

@@ -37,13 +37,13 @@ const (
 	eventReasonInstallerStateRehydrated    = "InstallerStateRehydrated"
 )
 
-// emitDDAEvent looks up the DDA in the informer cache and records a
+// emitDDAEventf looks up the DDA in the informer cache and records a
 // Kubernetes event on it. Best-effort — if the env var is unset, the
 // recorder is nil (test setups that construct Daemon directly), or the
 // DDA is not in cache, the call is a no-op and does not propagate
 // errors. Returning an error from event emission would be worse than
 // missing an observability signal.
-func (d *Daemon) emitDDAEvent(ctx context.Context, nsn types.NamespacedName, eventType, reason, format string, args ...any) {
+func (d *Daemon) emitDDAEventf(ctx context.Context, nsn types.NamespacedName, eventType, reason, format string, args ...any) {
 	if !fleetManagementEventsEnabled() || d.recorder == nil || d.client == nil {
 		return
 	}
@@ -60,7 +60,7 @@ func (d *Daemon) emitDDAEvent(ctx context.Context, nsn types.NamespacedName, eve
 // receives a Fleet task. Fires at handleTask entry, before processing —
 // the only event that does not follow a successful commit.
 func (d *Daemon) emitTaskReceivedEvent(ctx context.Context, req remoteAPIRequest) {
-	d.emitDDAEvent(ctx, req.Params.NamespacedName,
+	d.emitDDAEventf(ctx, req.Params.NamespacedName,
 		corev1.EventTypeNormal, eventReasonRemoteTaskReceived,
 		"Received %s task %q for experiment %q", methodLabel(req.Method), req.ID, req.Params.Version)
 }
@@ -69,7 +69,7 @@ func (d *Daemon) emitTaskReceivedEvent(ctx context.Context, req remoteAPIRequest
 // the local state is impossible (INVALID_STATE) or processing failed
 // (ERROR). Fires after setTaskState commits the rejection.
 func (d *Daemon) emitTaskRejectedEvent(ctx context.Context, nsn types.NamespacedName, req remoteAPIRequest, reason string) {
-	d.emitDDAEvent(ctx, nsn,
+	d.emitDDAEventf(ctx, nsn,
 		corev1.EventTypeWarning, eventReasonRemoteTaskRejected,
 		"Rejected task %q (%s): %s", req.ID, methodLabel(req.Method), reason)
 }
@@ -77,7 +77,7 @@ func (d *Daemon) emitTaskRejectedEvent(ctx context.Context, nsn types.Namespaced
 // emitTaskCompletedEvent records that the daemon reported DONE for a
 // Fleet task to RC. Fires after setTaskState(DONE) commits.
 func (d *Daemon) emitTaskCompletedEvent(ctx context.Context, op pendingOperation) {
-	d.emitDDAEvent(ctx, op.nsn,
+	d.emitDDAEventf(ctx, op.nsn,
 		corev1.EventTypeNormal, eventReasonRemoteTaskCompleted,
 		"Task %q (%s) reported to Fleet Automation as DONE", op.taskID, op.intent)
 }
@@ -87,7 +87,7 @@ func (d *Daemon) emitTaskCompletedEvent(ctx context.Context, op pendingOperation
 // to RC — both task-state ERROR on StartTaskID and experimentConfigVersion
 // clear have shipped.
 func (d *Daemon) emitLocalTerminationPublishedEvent(ctx context.Context, nsn types.NamespacedName, experimentID, reason string) {
-	d.emitDDAEvent(ctx, nsn,
+	d.emitDDAEventf(ctx, nsn,
 		corev1.EventTypeNormal, eventReasonLocalTerminationPublishedRC,
 		"Published locally-terminated experiment %q (%s) to Fleet Automation", experimentID, reason)
 }
@@ -96,7 +96,7 @@ func (d *Daemon) emitLocalTerminationPublishedEvent(ctx context.Context, nsn typ
 // state was seeded from an existing DDA's Status.Experiment on startup
 // (recovery after a daemon restart mid-experiment).
 func (d *Daemon) emitInstallerStateRehydratedEvent(ctx context.Context, nsn types.NamespacedName, experimentID string, phase v2alpha1.ExperimentPhase) {
-	d.emitDDAEvent(ctx, nsn,
+	d.emitDDAEventf(ctx, nsn,
 		corev1.EventTypeNormal, eventReasonInstallerStateRehydrated,
 		"Rehydrated installer state from DatadogAgent: experiment %q (phase %s)", experimentID, phase)
 }

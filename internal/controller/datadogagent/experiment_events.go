@@ -48,35 +48,35 @@ const (
 //
 // No-op when fleetManagementEventsEnabled() is false or the recorder is
 // unset (unit tests construct Reconciler without one).
-func (r *Reconciler) emitExperimentTransitionEvent(dda client.Object, old, new *v2alpha1.ExperimentStatus) {
+func (r *Reconciler) emitExperimentTransitionEvent(dda client.Object, oldStatus, newStatus *v2alpha1.ExperimentStatus) {
 	if !fleetManagementEventsEnabled() || r.recorder == nil {
 		return
 	}
 	var oldPhase v2alpha1.ExperimentPhase
-	if old != nil {
-		oldPhase = old.Phase
+	if oldStatus != nil {
+		oldPhase = oldStatus.Phase
 	}
-	if new == nil || new.Phase == oldPhase {
+	if newStatus == nil || newStatus.Phase == oldPhase {
 		return
 	}
 	switch {
-	case oldPhase == "" && new.Phase == v2alpha1.ExperimentPhaseRunning:
+	case oldPhase == "" && newStatus.Phase == v2alpha1.ExperimentPhaseRunning:
 		r.recorder.Eventf(dda, corev1.EventTypeNormal, eventReasonExperimentStartProcessed,
-			"Experiment %q started (task %q)", new.ID, new.StartTaskID)
-	case oldPhase == v2alpha1.ExperimentPhaseRunning && new.Phase == v2alpha1.ExperimentPhasePromoted:
+			"Experiment %q started (task %q)", newStatus.ID, newStatus.StartTaskID)
+	case oldPhase == v2alpha1.ExperimentPhaseRunning && newStatus.Phase == v2alpha1.ExperimentPhasePromoted:
 		r.recorder.Eventf(dda, corev1.EventTypeNormal, eventReasonExperimentPromoted,
-			"Experiment %q promoted", new.ID)
-	case oldPhase == v2alpha1.ExperimentPhaseRunning && new.Phase == v2alpha1.ExperimentPhaseAborted:
+			"Experiment %q promoted", newStatus.ID)
+	case oldPhase == v2alpha1.ExperimentPhaseRunning && newStatus.Phase == v2alpha1.ExperimentPhaseAborted:
 		r.recorder.Eventf(dda, corev1.EventTypeWarning, eventReasonExperimentAborted,
-			"Experiment %q aborted: manual spec change detected", new.ID)
-	case oldPhase == v2alpha1.ExperimentPhaseRunning && new.Phase == v2alpha1.ExperimentPhaseTerminated:
-		switch new.TerminationReason {
+			"Experiment %q aborted: manual spec change detected", newStatus.ID)
+	case oldPhase == v2alpha1.ExperimentPhaseRunning && newStatus.Phase == v2alpha1.ExperimentPhaseTerminated:
+		switch newStatus.TerminationReason {
 		case ExperimentTerminationReasonTimedOut:
 			r.recorder.Eventf(dda, corev1.EventTypeWarning, eventReasonExperimentTimedOut,
-				"Experiment %q timed out", new.ID)
+				"Experiment %q timed out", newStatus.ID)
 		case ExperimentTerminationReasonStopped:
 			r.recorder.Eventf(dda, corev1.EventTypeNormal, eventReasonExperimentRolledBack,
-				"Experiment %q rolled back", new.ID)
+				"Experiment %q rolled back", newStatus.ID)
 		}
 	}
 }
