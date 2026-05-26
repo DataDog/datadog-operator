@@ -8,15 +8,14 @@ package defaults
 import (
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
+	assert "github.com/stretchr/testify/require"
 	"k8s.io/utils/ptr"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/pkg/images"
-
-	"github.com/google/go-cmp/cmp"
-	assert "github.com/stretchr/testify/require"
 )
 
 const (
@@ -1031,7 +1030,8 @@ func Test_defaultFeatures(t *testing.T) {
 			ddaSpec: &v2alpha1.DatadogAgentSpec{
 				Features: &v2alpha1.DatadogFeatures{
 					NPM: &v2alpha1.NPMFeatureConfig{
-						Enabled: ptr.To(valueTrue),
+						Enabled:    ptr.To(valueTrue),
+						DirectSend: ptr.To(valueTrue),
 					},
 				},
 			},
