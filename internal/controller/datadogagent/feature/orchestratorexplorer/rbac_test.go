@@ -240,17 +240,17 @@ func TestGetRBACPolicyRulesWithNetworkCRDs(t *testing.T) {
 	t.Run("network CRD rules are absent when disabled", func(t *testing.T) {
 		rules := getRBACPolicyRules(logger, nil, false)
 		networkAPIGroups := map[string]bool{
-			rbac.IstioNetworkingAPIGroup: true,
-			rbac.EnvoyGatewayAPIGroup:    true,
-			rbac.TraefikLegacyAPIGroup:   true,
-			rbac.LinkerdPolicyAPIGroup:   true,
-			rbac.ConsulAPIGroup:          true,
-			rbac.ConsulMeshAPIGroup:      true,
-			rbac.KumaAPIGroup:            true,
-			rbac.NginxAPIGroup:           true,
-			rbac.TraefikAPIGroup:         true,
-			rbac.KongAPIGroup:            true,
-			rbac.HAProxyCoreAPIGroup:     true,
+			rbac.IstioNetworkingAPIGroup:  true,
+			rbac.EnvoyGatewayAPIGroup:     true,
+			rbac.TraefikLegacyAPIGroup:    true,
+			rbac.LinkerdPolicyAPIGroup:    true,
+			rbac.ConsulAPIGroup:           true,
+			rbac.ConsulMeshAPIGroup:       true,
+			rbac.KumaAPIGroup:             true,
+			rbac.NginxAPIGroup:            true,
+			rbac.TraefikAPIGroup:          true,
+			rbac.KongAPIGroup:             true,
+			rbac.HAProxyCoreAPIGroup:      true,
 			rbac.HAProxyIngressV1APIGroup: true,
 		}
 		for _, rule := range rules {
