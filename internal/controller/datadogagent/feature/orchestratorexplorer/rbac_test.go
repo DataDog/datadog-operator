@@ -137,3 +137,145 @@ func TestGetRBACPolicyRules(t *testing.T) {
 		})
 	}
 }
+
+func TestGetRBACPolicyRulesWithNetworkCRDs(t *testing.T) {
+	logger := logr.Discard()
+	defaultVerbs := []string{rbac.ListVerb, rbac.WatchVerb}
+
+	expectedNetworkCRDRules := []rbacv1.PolicyRule{
+		// Gateway API
+		{
+			APIGroups: []string{rbac.GatewayAPIGroup},
+			Resources: []string{rbac.GatewaysResource, rbac.HTTPRoutesResource, rbac.GRPCRoutesResource, rbac.TLSRoutesResource, rbac.ListenerSetsResource},
+			Verbs:     defaultVerbs,
+		},
+		// Istio
+		{
+			APIGroups: []string{rbac.IstioNetworkingAPIGroup},
+			Resources: []string{rbac.VirtualServicesResource, rbac.GatewaysResource, rbac.DestinationRulesResource, rbac.ServiceEntriesResource, rbac.SidecarsResource},
+			Verbs:     defaultVerbs,
+		},
+		// Envoy Gateway
+		{
+			APIGroups: []string{rbac.EnvoyGatewayAPIGroup},
+			Resources: []string{rbac.Wildcard},
+			Verbs:     defaultVerbs,
+		},
+		// Traefik legacy
+		{
+			APIGroups: []string{rbac.TraefikLegacyAPIGroup},
+			Resources: []string{rbac.Wildcard},
+			Verbs:     defaultVerbs,
+		},
+		// Linkerd
+		{
+			APIGroups: []string{rbac.LinkerdPolicyAPIGroup},
+			Resources: []string{rbac.Wildcard},
+			Verbs:     defaultVerbs,
+		},
+		// Consul
+		{
+			APIGroups: []string{rbac.ConsulAPIGroup},
+			Resources: []string{rbac.Wildcard},
+			Verbs:     defaultVerbs,
+		},
+		{
+			APIGroups: []string{rbac.ConsulMeshAPIGroup},
+			Resources: []string{rbac.Wildcard},
+			Verbs:     defaultVerbs,
+		},
+		// Kuma
+		{
+			APIGroups: []string{rbac.KumaAPIGroup},
+			Resources: []string{rbac.Wildcard},
+			Verbs:     defaultVerbs,
+		},
+		// NGINX
+		{
+			APIGroups: []string{rbac.NginxAPIGroup},
+			Resources: []string{rbac.VirtualServersResource, rbac.VirtualServerRoutesResource},
+			Verbs:     defaultVerbs,
+		},
+		// Traefik
+		{
+			APIGroups: []string{rbac.TraefikAPIGroup},
+			Resources: []string{rbac.IngressRoutesResource},
+			Verbs:     defaultVerbs,
+		},
+		// Kong
+		{
+			APIGroups: []string{rbac.KongAPIGroup},
+			Resources: []string{rbac.Wildcard},
+			Verbs:     defaultVerbs,
+		},
+		// HAProxy
+		{
+			APIGroups: []string{rbac.HAProxyCoreAPIGroup},
+			Resources: []string{rbac.Wildcard},
+			Verbs:     defaultVerbs,
+		},
+		{
+			APIGroups: []string{rbac.HAProxyIngressV1APIGroup},
+			Resources: []string{rbac.Wildcard},
+			Verbs:     defaultVerbs,
+		},
+	}
+
+	t.Run("network CRD rules are present when enabled", func(t *testing.T) {
+		rules := getRBACPolicyRules(logger, nil, true)
+		for _, expectedRule := range expectedNetworkCRDRules {
+			found := false
+			for _, rule := range rules {
+				if slices.Equal(rule.APIGroups, expectedRule.APIGroups) &&
+					slices.Equal(rule.Resources, expectedRule.Resources) &&
+					slices.Equal(rule.Verbs, expectedRule.Verbs) {
+					found = true
+					break
+				}
+			}
+			assert.True(t, found, "Expected network CRD rule not found: %+v", expectedRule)
+		}
+	})
+
+	t.Run("network CRD rules are absent when disabled", func(t *testing.T) {
+		rules := getRBACPolicyRules(logger, nil, false)
+		networkAPIGroups := map[string]bool{
+			rbac.IstioNetworkingAPIGroup: true,
+			rbac.EnvoyGatewayAPIGroup:    true,
+			rbac.TraefikLegacyAPIGroup:   true,
+			rbac.LinkerdPolicyAPIGroup:   true,
+			rbac.ConsulAPIGroup:          true,
+			rbac.ConsulMeshAPIGroup:      true,
+			rbac.KumaAPIGroup:            true,
+			rbac.NginxAPIGroup:           true,
+			rbac.TraefikAPIGroup:         true,
+			rbac.KongAPIGroup:            true,
+			rbac.HAProxyCoreAPIGroup:     true,
+			rbac.HAProxyIngressV1APIGroup: true,
+		}
+		for _, rule := range rules {
+			if len(rule.APIGroups) > 0 && networkAPIGroups[rule.APIGroups[0]] {
+				t.Errorf("Unexpected network CRD rule found when disabled: %+v", rule)
+			}
+		}
+	})
+
+	t.Run("network CRD rules combined with custom resources", func(t *testing.T) {
+		rules := getRBACPolicyRules(logger, []string{"monitoring.coreos.com/v1/servicemonitors"}, true)
+
+		foundNetworkRule := false
+		foundCustomRule := false
+		for _, rule := range rules {
+			if len(rule.APIGroups) > 0 && rule.APIGroups[0] == rbac.GatewayAPIGroup &&
+				slices.Equal(rule.Resources, []string{rbac.GatewaysResource, rbac.HTTPRoutesResource, rbac.GRPCRoutesResource, rbac.TLSRoutesResource, rbac.ListenerSetsResource}) {
+				foundNetworkRule = true
+			}
+			if len(rule.APIGroups) > 0 && rule.APIGroups[0] == "monitoring.coreos.com" &&
+				slices.Equal(rule.Resources, []string{"servicemonitors"}) {
+				foundCustomRule = true
+			}
+		}
+		assert.True(t, foundNetworkRule, "Expected Gateway API network CRD rule not found")
+		assert.True(t, foundCustomRule, "Expected custom resource rule not found")
+	})
+}

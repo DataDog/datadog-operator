@@ -717,6 +717,14 @@ func (builder *DatadogAgentBuilder) WithOrchestratorExplorerCustomResources(cust
 	return builder
 }
 
+func (builder *DatadogAgentBuilder) WithOrchestratorExplorerNetworkCRDsEnabled(enabled bool) *DatadogAgentBuilder {
+	builder.initOE()
+	builder.datadogAgent.Spec.Features.OrchestratorExplorer.NetworkCRDs = &v2alpha1.NetworkCRDsConfig{
+		Enabled: ptr.To(enabled),
+	}
+	return builder
+}
+
 // Cluster Checks
 
 func (builder *DatadogAgentBuilder) initCC() {
