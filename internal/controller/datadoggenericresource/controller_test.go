@@ -245,6 +245,59 @@ func TestReconcileGenericResource_Reconcile(t *testing.T) {
 	}
 }
 
+func TestReconcileGenericResource_ForceSyncPeriodFromEnv(t *testing.T) {
+	resetMockHandlerState()
+	t.Setenv("DD_API_KEY", "DUMMY_API_KEY")
+	t.Setenv("DD_APP_KEY", "DUMMY_APP_KEY")
+	t.Setenv(DDGenericResourceForceSyncPeriodEnvVar, "0")
+
+	eventBroadcaster := record.NewBroadcaster()
+	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: "TestReconcileGenericResource_ForceSyncPeriodFromEnv"})
+
+	logf.SetLogger(zap.New(zap.UseDevMode(true)))
+	logger := logf.Log.WithName("force-sync-period-test")
+
+	s := scheme.Scheme
+	s.AddKnownTypes(datadoghqv1alpha1.GroupVersion, &datadoghqv1alpha1.DatadogGenericResource{})
+
+	r := &Reconciler{
+		client:       fake.NewClientBuilder().WithScheme(s).WithStatusSubresource(&datadoghqv1alpha1.DatadogGenericResource{}).Build(),
+		credsManager: config.NewCredentialManager(fake.NewClientBuilder().Build()),
+		handlers: map[datadoghqv1alpha1.SupportedResourcesType]ResourceHandler{
+			mockSubresource: &MockHandler{},
+		},
+		forceSyncPeriod: forceSyncPeriodFromEnv(logger),
+		scheme:          s,
+		recorder:        recorder,
+		log:             logger,
+	}
+
+	err := r.client.Create(context.TODO(), mockGenericResource())
+	assert.NoError(t, err)
+
+	req := newRequest(resourcesNamespace, resourcesName)
+
+	// Add finalizer, then create the Datadog resource.
+	result, err := reconcileRequest(r, context.TODO(), req)
+	assert.NoError(t, err)
+	assert.Equal(t, reconcile.Result{Requeue: true}, result)
+
+	result, err = reconcileRequest(r, context.TODO(), req)
+	assert.NoError(t, err)
+	assert.Equal(t, reconcile.Result{RequeueAfter: defaultRequeuePeriod}, result)
+	assert.Equal(t, 1, mockCreateCalls)
+	assert.Equal(t, 0, mockGetCalls)
+	assert.Equal(t, 0, mockUpdateCalls)
+
+	// With DD_GENERIC_RESOURCE_FORCE_SYNC_PERIOD=0, the next reconcile should
+	// force a remote get and update even though the spec hash is unchanged.
+	result, err = reconcileRequest(r, context.TODO(), req)
+	assert.NoError(t, err)
+	assert.Equal(t, reconcile.Result{RequeueAfter: defaultRequeuePeriod}, result)
+	assert.Equal(t, 1, mockGetCalls)
+	assert.Equal(t, 1, mockUpdateCalls)
+}
+
 func newRequest(ns, name string) reconcile.Request {
 	return reconcile.Request{
 		NamespacedName: types.NamespacedName{
