@@ -35,14 +35,14 @@ const (
 	defaultErrRequeuePeriod                = 5 * time.Second
 	defaultForceSyncPeriod                 = 60 * time.Minute
 	datadogGenericResourceKind             = "DatadogGenericResource"
-	DDGenericResourceForceSyncPeriodEnvVar = "DD_GENERIC_RESOURCE_FORCE_SYNC_PERIOD"
+	ddGenericResourceForceSyncPeriodEnvVar = "DD_GENERIC_RESOURCE_FORCE_SYNC_PERIOD"
 )
 
 type Reconciler struct {
 	client          client.Client
 	credsManager    *config.CredentialManager
 	handlers        map[v1alpha1.SupportedResourcesType]ResourceHandler
-	forceSyncPeriod *time.Duration
+	forceSyncPeriod time.Duration
 	scheme          *runtime.Scheme
 	log             logr.Logger
 	recorder        record.EventRecorder
@@ -60,27 +60,22 @@ func NewReconciler(client client.Client, credsManager *config.CredentialManager,
 	}
 }
 
-func forceSyncPeriodFromEnv(logger logr.Logger) *time.Duration {
+func forceSyncPeriodFromEnv(logger logr.Logger) time.Duration {
 	forceSyncPeriod := defaultForceSyncPeriod
 
-	if userForceSyncPeriod, ok := os.LookupEnv(DDGenericResourceForceSyncPeriodEnvVar); ok {
+	if userForceSyncPeriod, ok := os.LookupEnv(ddGenericResourceForceSyncPeriodEnvVar); ok {
 		forceSyncPeriodInt, err := strconv.Atoi(userForceSyncPeriod)
 		if err != nil {
 			logger.Error(err, "Invalid value for generic resource force sync period. Defaulting to 60 minutes.")
+		} else if forceSyncPeriodInt < 1 {
+			logger.Error(fmt.Errorf("force sync period must be at least 1 minute"), "Invalid value for generic resource force sync period. Defaulting to 60 minutes.")
 		} else {
 			forceSyncPeriod = time.Duration(forceSyncPeriodInt) * time.Minute
 		}
 	}
 
 	logger.Info("Setting generic resource force sync period", "minutes", int(forceSyncPeriod.Minutes()))
-	return &forceSyncPeriod
-}
-
-func (r *Reconciler) getForceSyncPeriod() time.Duration {
-	if r.forceSyncPeriod == nil {
-		return defaultForceSyncPeriod
-	}
-	return *r.forceSyncPeriod
+	return forceSyncPeriod
 }
 
 func (r *Reconciler) getHandler(resourceType v1alpha1.SupportedResourcesType) ResourceHandler {
@@ -101,7 +96,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, instance *v1alpha1.DatadogGe
 	}
 
 	now := metav1.NewTime(time.Now())
-	forceSyncPeriod := r.getForceSyncPeriod()
 
 	var result ctrl.Result
 	var err error
@@ -132,7 +126,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, instance *v1alpha1.DatadogGe
 		if instanceSpecHash != statusSpecHash {
 			logger.Info("DatadogGenericResource manifest has changed")
 			shouldUpdate = true
-		} else if instance.Status.LastForceSyncTime == nil || ((forceSyncPeriod - now.Sub(instance.Status.LastForceSyncTime.Time)) <= 0) {
+		} else if instance.Status.LastForceSyncTime == nil || ((r.forceSyncPeriod - now.Sub(instance.Status.LastForceSyncTime.Time)) <= 0) {
 			// Periodically force a sync with the API to ensure parity
 			// Make sure it exists before trying any updates. If it doesn't, set shouldCreate
 			err = handler.getResource(auth, instance)

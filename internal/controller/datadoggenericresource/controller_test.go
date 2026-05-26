@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"os"
 	"testing"
+	"time"
 
 	datadogapi "github.com/DataDog/datadog-api-client-go/v2/api/datadog"
 	"github.com/stretchr/testify/assert"
@@ -197,9 +198,10 @@ func TestReconcileGenericResource_Reconcile(t *testing.T) {
 				handlers: map[datadoghqv1alpha1.SupportedResourcesType]ResourceHandler{
 					mockSubresource: &MockHandler{},
 				},
-				scheme:   s,
-				recorder: recorder,
-				log:      logf.Log.WithName(tt.name),
+				forceSyncPeriod: defaultForceSyncPeriod,
+				scheme:          s,
+				recorder:        recorder,
+				log:             logf.Log.WithName(tt.name),
 			}
 
 			// First action
@@ -245,14 +247,54 @@ func TestReconcileGenericResource_Reconcile(t *testing.T) {
 	}
 }
 
-func TestReconcileGenericResource_ForceSyncPeriodFromEnv(t *testing.T) {
+func TestForceSyncPeriodFromEnv(t *testing.T) {
+	logf.SetLogger(zap.New(zap.UseDevMode(true)))
+	logger := logf.Log.WithName("force-sync-period-test")
+
+	tests := []struct {
+		name     string
+		envValue string
+		want     time.Duration
+	}{
+		{
+			name:     "valid value",
+			envValue: "1",
+			want:     time.Minute,
+		},
+		{
+			name:     "invalid string falls back to default",
+			envValue: "abc",
+			want:     defaultForceSyncPeriod,
+		},
+		{
+			name:     "zero falls back to default",
+			envValue: "0",
+			want:     defaultForceSyncPeriod,
+		},
+		{
+			name:     "negative value falls back to default",
+			envValue: "-1",
+			want:     defaultForceSyncPeriod,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv(ddGenericResourceForceSyncPeriodEnvVar, tt.envValue)
+
+			assert.Equal(t, tt.want, forceSyncPeriodFromEnv(logger))
+		})
+	}
+}
+
+func TestReconcileGenericResource_ForceSyncPeriodTriggersRemoteUpdate(t *testing.T) {
 	resetMockHandlerState()
 	t.Setenv("DD_API_KEY", "DUMMY_API_KEY")
 	t.Setenv("DD_APP_KEY", "DUMMY_APP_KEY")
-	t.Setenv(DDGenericResourceForceSyncPeriodEnvVar, "0")
+	forceSyncPeriod := time.Minute
 
 	eventBroadcaster := record.NewBroadcaster()
-	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: "TestReconcileGenericResource_ForceSyncPeriodFromEnv"})
+	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: "TestReconcileGenericResource_ForceSyncPeriodTriggersRemoteUpdate"})
 
 	logf.SetLogger(zap.New(zap.UseDevMode(true)))
 	logger := logf.Log.WithName("force-sync-period-test")
@@ -266,7 +308,7 @@ func TestReconcileGenericResource_ForceSyncPeriodFromEnv(t *testing.T) {
 		handlers: map[datadoghqv1alpha1.SupportedResourcesType]ResourceHandler{
 			mockSubresource: &MockHandler{},
 		},
-		forceSyncPeriod: forceSyncPeriodFromEnv(logger),
+		forceSyncPeriod: forceSyncPeriod,
 		scheme:          s,
 		recorder:        recorder,
 		log:             logger,
@@ -289,8 +331,16 @@ func TestReconcileGenericResource_ForceSyncPeriodFromEnv(t *testing.T) {
 	assert.Equal(t, 0, mockGetCalls)
 	assert.Equal(t, 0, mockUpdateCalls)
 
-	// With DD_GENERIC_RESOURCE_FORCE_SYNC_PERIOD=0, the next reconcile should
-	// force a remote get and update even though the spec hash is unchanged.
+	obj := &datadoghqv1alpha1.DatadogGenericResource{}
+	err = r.client.Get(context.TODO(), types.NamespacedName{Name: resourcesName, Namespace: resourcesNamespace}, obj)
+	assert.NoError(t, err)
+	lastForceSyncTime := metav1.NewTime(time.Now().Add(-2 * time.Minute))
+	obj.Status.LastForceSyncTime = &lastForceSyncTime
+	err = r.client.Status().Update(context.TODO(), obj)
+	assert.NoError(t, err)
+
+	// Once the configured force-sync period has elapsed, the next reconcile
+	// should force a remote get and update even though the spec hash is unchanged.
 	result, err = reconcileRequest(r, context.TODO(), req)
 	assert.NoError(t, err)
 	assert.Equal(t, reconcile.Result{RequeueAfter: defaultRequeuePeriod}, result)
