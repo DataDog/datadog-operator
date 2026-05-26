@@ -63,6 +63,7 @@ const (
 	defaultNPMEnabled         bool = false
 	defaultNPMEnableConntrack bool = true
 	defaultNPMCollectDNSStats bool = true
+	defaultNPMDirectSend      bool = true
 
 	defaultUSMEnabled bool = false
 
@@ -422,6 +423,7 @@ func defaultFeaturesConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
 	if *ddaSpec.Features.NPM.Enabled {
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.NPM.EnableConntrack, defaultNPMEnableConntrack)
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.NPM.CollectDNSStats, defaultNPMCollectDNSStats)
+		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.NPM.DirectSend, defaultNPMDirectSend)
 	}
 
 	// USM (Universal Service Monitoring) Feature
@@ -429,6 +431,10 @@ func defaultFeaturesConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
 		ddaSpec.Features.USM = &v2alpha1.USMFeatureConfig{}
 	}
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.USM.Enabled, defaultUSMEnabled)
+
+	if *ddaSpec.Features.USM.Enabled {
+		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.NPM.DirectSend, defaultNPMDirectSend)
+	}
 
 	// Dogstatsd Feature
 	if ddaSpec.Features.Dogstatsd == nil {
