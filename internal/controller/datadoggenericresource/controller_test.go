@@ -191,17 +191,16 @@ func TestReconcileGenericResource_Reconcile(t *testing.T) {
 			defer os.Unsetenv("DD_API_KEY")
 			defer os.Unsetenv("DD_APP_KEY")
 
-			// Set up — use mock handler builder so tests don't hit real APIs
-			r := &Reconciler{
-				client:       fake.NewClientBuilder().WithScheme(s).WithStatusSubresource(&datadoghqv1alpha1.DatadogGenericResource{}).Build(),
-				credsManager: config.NewCredentialManager(fake.NewClientBuilder().Build()),
-				handlers: map[datadoghqv1alpha1.SupportedResourcesType]ResourceHandler{
-					mockSubresource: &MockHandler{},
-				},
-				forceSyncPeriod: defaultForceSyncPeriod,
-				scheme:          s,
-				recorder:        recorder,
-				log:             logf.Log.WithName(tt.name),
+			// Use mock handlers so tests don't hit real APIs.
+			r := NewReconciler(
+				fake.NewClientBuilder().WithScheme(s).WithStatusSubresource(&datadoghqv1alpha1.DatadogGenericResource{}).Build(),
+				config.NewCredentialManager(fake.NewClientBuilder().Build()),
+				s,
+				logf.Log.WithName(tt.name),
+				recorder,
+			)
+			r.handlers = map[datadoghqv1alpha1.SupportedResourcesType]ResourceHandler{
+				mockSubresource: &MockHandler{},
 			}
 
 			// First action
@@ -291,7 +290,7 @@ func TestReconcileGenericResource_ForceSyncPeriodTriggersRemoteUpdate(t *testing
 	resetMockHandlerState()
 	t.Setenv("DD_API_KEY", "DUMMY_API_KEY")
 	t.Setenv("DD_APP_KEY", "DUMMY_APP_KEY")
-	forceSyncPeriod := time.Minute
+	t.Setenv(ddGenericResourceForceSyncPeriodEnvVar, "1")
 
 	eventBroadcaster := record.NewBroadcaster()
 	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: "TestReconcileGenericResource_ForceSyncPeriodTriggersRemoteUpdate"})
@@ -302,16 +301,15 @@ func TestReconcileGenericResource_ForceSyncPeriodTriggersRemoteUpdate(t *testing
 	s := scheme.Scheme
 	s.AddKnownTypes(datadoghqv1alpha1.GroupVersion, &datadoghqv1alpha1.DatadogGenericResource{})
 
-	r := &Reconciler{
-		client:       fake.NewClientBuilder().WithScheme(s).WithStatusSubresource(&datadoghqv1alpha1.DatadogGenericResource{}).Build(),
-		credsManager: config.NewCredentialManager(fake.NewClientBuilder().Build()),
-		handlers: map[datadoghqv1alpha1.SupportedResourcesType]ResourceHandler{
-			mockSubresource: &MockHandler{},
-		},
-		forceSyncPeriod: forceSyncPeriod,
-		scheme:          s,
-		recorder:        recorder,
-		log:             logger,
+	r := NewReconciler(
+		fake.NewClientBuilder().WithScheme(s).WithStatusSubresource(&datadoghqv1alpha1.DatadogGenericResource{}).Build(),
+		config.NewCredentialManager(fake.NewClientBuilder().Build()),
+		s,
+		logger,
+		recorder,
+	)
+	r.handlers = map[datadoghqv1alpha1.SupportedResourcesType]ResourceHandler{
+		mockSubresource: &MockHandler{},
 	}
 
 	err := r.client.Create(context.TODO(), mockGenericResource())
