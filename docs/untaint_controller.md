@@ -9,7 +9,7 @@ The Untaint controller watches Kubernetes Nodes carrying the taint
 Datadog Agent pod on that node is `Ready`. It is intended to run alongside a
 separate mechanism (cluster-autoscaler hook, CCM, admission webhook, etc.)
 that adds the taint to new nodes. The use case is keeping workloads off a
-node until the Datadog Agent is Ready, and recovering gracefully if the agent never
+node until the Datadog Agent is Ready, and recovering gracefully if the Agent never
 becomes Ready.
 
 Agent pods are matched by the label `agent.datadoghq.com/component=agent` in
