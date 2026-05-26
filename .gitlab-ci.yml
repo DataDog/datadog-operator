@@ -306,8 +306,9 @@ go_e2e_deps:
     allow_failure: true
   - if: $CI_COMMIT_TAG
     allow_failure: true
-  # Allow failure if we're explicitly pushing images to staging
+  # Make e2e optional when pushing custom builds to staging
   - if: $PUSH_IMAGES_TO_STAGING == 'true'
+    when: manual
     allow_failure: true
   # Disable on Conductor-triggered jobs (ex: nightly)
   - if: '$DDR == "true"'
@@ -328,8 +329,9 @@ go_e2e_deps:
     when: never
   - if: $CI_COMMIT_TAG
     allow_failure: true
-  # Allow failure if we're explicitly pushing images to staging
+  # Make e2e optional when pushing custom builds to staging
   - if: $PUSH_IMAGES_TO_STAGING == 'true'
+    when: manual
     allow_failure: true
   # Disable on Conductor-triggered jobs (ex: nightly)
   - if: '$DDR == "true"'
