@@ -70,7 +70,7 @@ Metrics, under the `untaint` Prometheus subsystem:
 
 - `untaint_taint_removals_total` — counter, every taint removal regardless of cause.
 - `untaint_taint_removal_latency_seconds` — histogram, time between pod Ready and taint removal.
-- `untaint_taint_timeouts_total{reason, policy}` — counter, timeout decisions. `reason` ∈ {`readiness`, `scheduling`}; `policy` ∈ {`remove`, `keep`}. Alert on `policy="keep"` to investigate stuck nodes.
+- `untaint_taint_timeouts_total{reason, policy}` — counter, timeout decisions. `reason` in {`readiness`, `scheduling`}; `policy` in {`remove`, `keep`}. Alert on `policy="keep"` to investigate stuck nodes.
 
 Kubernetes Events (gated by `DD_UNTAINT_CONTROLLER_EVENTS_ENABLED=true`):
 
