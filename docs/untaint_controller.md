@@ -16,30 +16,30 @@ Agent pods are matched by the label `agent.datadoghq.com/component=agent` in
 the operator's watched namespaces (`WATCH_NAMESPACE` /
 `DD_AGENT_WATCH_NAMESPACE`).
 
-If the agent pod never reaches Ready on a tainted node, a configurable timeout
+If the Agent pod never reaches Ready on a tainted node, a configurable timeout
 policy ensures the node is never permanently unschedulable. Two clocks cover
 the two failure modes:
 
-- **Readiness timeout** — the agent pod is on the node but not Ready. Clock:
+- **Readiness timeout** — the Agent pod is on the node but not Ready. Clock:
   `pod.Status.StartTime`. Pod recreation restarts the window; container
-  restarts inside the same Pod do not.
-- **Scheduling timeout** — no agent pod is on the node. Clock:
+  restarts inside the same pod do not.
+- **Scheduling timeout** — no Agent pod is on the node. Clock:
   `node.metadata.creationTimestamp`. The expected path when a DaemonSet never
   schedules a pod onto the node (taint not tolerated, missing labels, etc.).
 
-A Pod-recreation crash-loop faster than the readiness window can hold a node
+A pod-recreation crash-loop faster than the readiness window can hold a node
 tainted indefinitely; run with `policy=keep` and alert on
 `untaint_taint_timeouts_total{policy="keep"}` to catch this.
 
 The controller removes only this fixed taint and does not add it; both
-timeouts are global and cannot be tuned per Node (Group), DDA or DAP.
+timeouts are global and cannot be tuned per Node (Group), DDA, or DAP.
 
 ## Prerequisites
 
 - Operator v1.x+
-- Tested on Kubernetes versions >= `1.27.0`
+- Tested on Kubernetes 1.27.0+
 
-## Enabling the Untaint controller
+## Enable the Untaint controller
 
 The Untaint controller is disabled by default. Enable it on the operator
 manager:
@@ -52,7 +52,7 @@ args:
 ## Configuration
 
 All other tuning knobs are environment variables on the operator pod. Values
-use Go's `time.ParseDuration` format (`90s`, `5m`, `1h`, …). Invalid values
+use Go's `time.ParseDuration` format (`90s`, `5m`, `1h`, etc.). Invalid values
 fail the controller startup with an ERROR log; other controllers continue to
 start normally.
 
@@ -61,7 +61,7 @@ start normally.
 | ------------------------------------------ | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `DD_UNTAINT_CONTROLLER_TIMEOUT`            | `10m`    | Readiness timeout. Tune to the upper bound of legitimate agent startup on your nodes; 2–5m is often enough on clusters with cached images.                                                                                                                                                          |
 | `DD_UNTAINT_CONTROLLER_SCHEDULING_TIMEOUT` | `5m`     | Scheduling timeout. Set larger than your scheduler retry window; raise it on clusters with large pending queues or aggressive autoscaling.                                                                                                                                                          |
-| `DD_UNTAINT_CONTROLLER_TIMEOUT_POLICY`     | `remove` | Action when a timeout fires. `remove` untaints the node anyway (favors scheduling availability over telemetry — default, lowest operational risk). `keep` leaves the taint in place and emits a Warning event (favors telemetry; pair with an alert on the timeout counter to surface stuck nodes). |
+| `DD_UNTAINT_CONTROLLER_TIMEOUT_POLICY`     | `remove` | Action when a timeout fires. `remove` untaints the node anyway (favors scheduling availability over telemetry; lowest operational risk). `keep` leaves the taint in place and emits a Warning event (favors telemetry; pair with an alert on the timeout counter to surface stuck nodes). |
 | `DD_UNTAINT_CONTROLLER_EVENTS_ENABLED`     | `false`  | Emit Kubernetes Events on Nodes for taint removals and timeout decisions.                                                                                                                                                                                                                           |
 
 ## Observability
@@ -74,6 +74,6 @@ Metrics, under the `untaint` Prometheus subsystem:
 
 Kubernetes Events (gated by `DD_UNTAINT_CONTROLLER_EVENTS_ENABLED=true`):
 
-- `TaintRemoved` (Normal) — taint removed because the agent pod became Ready.
+- `TaintRemoved` (Normal) — taint removed because the Agent pod became Ready.
 - `UntaintTimeout` — a timeout fired. Normal under `remove`, Warning under `keep`. Message carries the reason, elapsed time, and policy.
 
