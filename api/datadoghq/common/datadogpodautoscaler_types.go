@@ -344,8 +344,11 @@ type DatadogPodAutoscalerObjectiveValue struct {
 // DatadogPodAutoscalerConstraints defines constraints that should always be respected.
 // +kubebuilder:object:generate=true
 type DatadogPodAutoscalerConstraints struct {
-	// MinReplicas is the lower limit for the number of pod replicas. Needs to be >= 1. Defaults to 1.
-	// +kubebuilder:validation:Minimum=1
+	// MinReplicas is the lower limit for the number of pod replicas. Needs to be >= 0. Defaults to 1.
+	// Setting MinReplicas to 0 enables scale-to-zero. Scaling back up from zero requires the
+	// recommendation source to be able to emit signals when no pods are running (e.g. queue-based
+	// metrics); CPU-based recommendations are not usable at 0 replicas.
+	// +kubebuilder:validation:Minimum=0
 	MinReplicas *int32 `json:"minReplicas,omitempty"`
 
 	// MaxReplicas is the upper limit for the number of POD replicas. Needs to be >= minReplicas.

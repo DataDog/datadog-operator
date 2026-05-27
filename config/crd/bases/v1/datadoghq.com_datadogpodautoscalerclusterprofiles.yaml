@@ -304,9 +304,13 @@ spec:
                           minimum: 1
                           type: integer
                         minReplicas:
-                          description: MinReplicas is the lower limit for the number of pod replicas. Needs to be >= 1. Defaults to 1.
+                          description: |-
+                            MinReplicas is the lower limit for the number of pod replicas. Needs to be >= 0. Defaults to 1.
+                            Setting MinReplicas to 0 enables scale-to-zero. Scaling back up from zero requires the
+                            recommendation source to be able to emit signals when no pods are running (e.g. queue-based
+                            metrics); CPU-based recommendations are not usable at 0 replicas.
                           format: int32
-                          minimum: 1
+                          minimum: 0
                           type: integer
                       type: object
                     fallback:
