@@ -72,6 +72,7 @@ const (
 	ExtendedDaemonSetReplicaSetResource               = "extendeddaemonsetreplicasets"
 	HorizontalPodAutoscalersRecource                  = "horizontalpodautoscalers"
 	IngressesResource                                 = "ingresses"
+	IngressClassesResource                            = "ingressclasses"
 	JobsResource                                      = "jobs"
 	LeasesResource                                    = "leases"
 	LimitRangesResource                               = "limitranges"

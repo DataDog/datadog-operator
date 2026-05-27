@@ -180,6 +180,8 @@ func (f *appsecFeature) ManageClusterAgent(managers feature.PodTemplateManagers,
 		DDAdmissionControllerAppsecSidecarResourcesLimitsCPU:      f.config.SidecarResourcesLimitsCPU,
 		DDAdmissionControllerAppsecSidecarResourcesLimitsMemory:   f.config.SidecarResourcesLimitsMemory,
 		DDAdmissionControllerAppsecSidecarBodyParsingSizeLimit:    f.config.SidecarBodyParsingSizeLimit,
+		DDAdmissionControllerAppsecNginxInitImage:                 f.config.NginxInitImage,
+		DDAdmissionControllerAppsecNginxModuleMountPath:           f.config.NginxModuleMountPath,
 	} {
 		if value != "" {
 			if err := addEnvVar(key, value); err != nil {

@@ -112,5 +112,35 @@ func getRBACPolicyRules() []rbacv1.PolicyRule {
 				rbac.UpdateVerb,
 			},
 		},
+		// AppSec proxy injection - ingress-nginx
+		{
+			APIGroups: []string{rbac.NetworkingAPIGroup},
+			Resources: []string{rbac.IngressClassesResource},
+			Verbs: []string{
+				rbac.GetVerb,
+				rbac.ListVerb,
+				rbac.WatchVerb,
+			},
+		},
+		// AppSec proxy injection - ingress-nginx ConfigMap management
+		// SECURITY NOTE: Cluster-wide and unscoped because ConfigMap names are
+		// derived dynamically from the controller's --configmap arg
+		// (e.g. datadog-appsec-<original-name>) and cannot be predicted at
+		// RBAC definition time. The reconciler/cleanup paths filter by labels:
+		//   appsec.datadoghq.com/watched-configmap=true
+		//   app.kubernetes.io/component=datadog-appsec-injector
+		// Consider namespace-scoped Roles if blast-radius reduction is needed.
+		{
+			APIGroups: []string{rbac.CoreAPIGroup},
+			Resources: []string{rbac.ConfigMapsResource},
+			Verbs: []string{
+				rbac.GetVerb,
+				rbac.ListVerb,
+				rbac.WatchVerb,
+				rbac.CreateVerb,
+				rbac.UpdateVerb,
+				rbac.DeleteVerb,
+			},
+		},
 	}
 }

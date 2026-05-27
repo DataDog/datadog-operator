@@ -110,6 +110,56 @@ func TestAppsecRBACPolicyRules(t *testing.T) {
 		}
 	}
 	assert.True(t, foundEnvoyRule, "Should have Envoy Gateway permissions")
+
+	// Test IngressClasses watch permissions (new - ingress-nginx)
+	var foundIngressClassesRule bool
+	for _, rule := range rules {
+		if len(rule.APIGroups) > 0 && rule.APIGroups[0] == rbac.NetworkingAPIGroup {
+			if len(rule.Resources) > 0 && rule.Resources[0] == rbac.IngressClassesResource {
+				assert.Contains(t, rule.Verbs, rbac.GetVerb)
+				assert.Contains(t, rule.Verbs, rbac.ListVerb)
+				assert.Contains(t, rule.Verbs, rbac.WatchVerb)
+				assert.NotContains(t, rule.Verbs, rbac.PatchVerb, "IngressClasses rule should not have patch permission")
+				foundIngressClassesRule = true
+			}
+		}
+	}
+	assert.True(t, foundIngressClassesRule, "Should have IngressClasses watch permissions for ingress-nginx")
+
+	// Test wider ConfigMap management permissions (new - ingress-nginx)
+	var foundWiderConfigMapsRule bool
+	for _, rule := range rules {
+		if len(rule.APIGroups) > 0 && rule.APIGroups[0] == rbac.CoreAPIGroup {
+			if len(rule.Resources) > 0 && rule.Resources[0] == rbac.ConfigMapsResource {
+				if len(rule.Verbs) > 2 { // The wider rule has 6 verbs; existing rule has 2
+					assert.Contains(t, rule.Verbs, rbac.GetVerb)
+					assert.Contains(t, rule.Verbs, rbac.ListVerb)
+					assert.Contains(t, rule.Verbs, rbac.WatchVerb)
+					assert.Contains(t, rule.Verbs, rbac.CreateVerb)
+					assert.Contains(t, rule.Verbs, rbac.UpdateVerb)
+					assert.Contains(t, rule.Verbs, rbac.DeleteVerb)
+					foundWiderConfigMapsRule = true
+				}
+			}
+		}
+	}
+	assert.True(t, foundWiderConfigMapsRule, "Should have wider ConfigMaps management permissions for ingress-nginx")
+
+	// Test that the existing [get, update] ConfigMaps rule is preserved
+	var foundExistingConfigMapsRule bool
+	for _, rule := range rules {
+		if len(rule.APIGroups) > 0 && rule.APIGroups[0] == rbac.CoreAPIGroup {
+			if len(rule.Resources) > 0 && rule.Resources[0] == rbac.ConfigMapsResource {
+				if len(rule.Verbs) == 2 {
+					assert.Contains(t, rule.Verbs, rbac.GetVerb)
+					assert.Contains(t, rule.Verbs, rbac.UpdateVerb)
+					assert.NotContains(t, rule.Verbs, rbac.DeleteVerb, "Existing configmaps rule should not have delete")
+					foundExistingConfigMapsRule = true
+				}
+			}
+		}
+	}
+	assert.True(t, foundExistingConfigMapsRule, "Existing [get, update] ConfigMaps rule must still be present (backwards compatibility)")
 }
 
 func TestGetAppsecRBACResourceName(t *testing.T) {

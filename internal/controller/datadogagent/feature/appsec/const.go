@@ -43,6 +43,10 @@ const (
 	AnnotationSidecarResourcesLimitsMemory = "agent.datadoghq.com/appsec.sidecar.resources.limits.memory"
 	// AnnotationSidecarBodyParsingSizeLimit is the sidecar body parsing size limit
 	AnnotationSidecarBodyParsingSizeLimit = "agent.datadoghq.com/appsec.sidecar.body_parsing_size_limit"
+	// AnnotationNginxInitImage is the init container image for nginx-datadog module injection
+	AnnotationNginxInitImage = "agent.datadoghq.com/appsec.nginx.init_image"
+	// AnnotationNginxModuleMountPath is the mount path for the nginx-datadog module inside the controller pod
+	AnnotationNginxModuleMountPath = "agent.datadoghq.com/appsec.nginx.module_mount_path"
 )
 
 const (
@@ -82,9 +86,13 @@ const (
 	DDAdmissionControllerAppsecSidecarResourcesLimitsMemory = "DD_ADMISSION_CONTROLLER_APPSEC_SIDECAR_RESOURCES_LIMITS_MEMORY"
 	// DDAdmissionControllerAppsecSidecarBodyParsingSizeLimit is the sidecar body parsing size limit
 	DDAdmissionControllerAppsecSidecarBodyParsingSizeLimit = "DD_ADMISSION_CONTROLLER_APPSEC_SIDECAR_BODY_PARSING_SIZE_LIMIT"
+	// DDAdmissionControllerAppsecNginxInitImage is the init container image for nginx-datadog module injection
+	DDAdmissionControllerAppsecNginxInitImage = "DD_ADMISSION_CONTROLLER_APPSEC_NGINX_INIT_IMAGE"
+	// DDAdmissionControllerAppsecNginxModuleMountPath is the mount path for the nginx-datadog module inside the controller pod
+	DDAdmissionControllerAppsecNginxModuleMountPath = "DD_ADMISSION_CONTROLLER_APPSEC_NGINX_MODULE_MOUNT_PATH"
 )
 
-var allowedProxyValues = []string{"envoy-gateway", "istio", "istio-gateway"}
+var allowedProxyValues = []string{"envoy-gateway", "istio", "istio-gateway", "ingress-nginx"}
 
 // AllowedProxyValues returns the proxy types that the current RBAC supports.
 // The returned slice must not be modified.
