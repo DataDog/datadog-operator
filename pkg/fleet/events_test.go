@@ -112,7 +112,8 @@ func TestEmitDaemonEvent_AllReasons(t *testing.T) {
 		{
 			name: "InstallerStateRehydrated",
 			emit: func(d *Daemon) {
-				d.emitInstallerStateRehydratedEvent(context.Background(), testDDANSN,
+				dda := testDDAObject(v2alpha1.ExperimentPhaseRunning)
+				d.emitInstallerStateRehydratedEvent(context.Background(), dda,
 					testExperimentID, v2alpha1.ExperimentPhaseRunning)
 			},
 			wantReason: eventReasonInstallerStateRehydrated,
@@ -185,4 +186,33 @@ func TestHandleTask_IdempotentDONE_EmitsCompletedEvent(t *testing.T) {
 	require.True(t, got2, "RemoteTaskCompleted should fire on the immediate-DONE path")
 	assert.Contains(t, ev2, eventReasonRemoteTaskCompleted)
 	assert.Contains(t, ev2, req.ID, "completed event should reference the task ID")
+}
+
+// TestRehydrate_EmitsEventDespiteEmptyCache is the regression test for
+// the cache-vs-apiReader bug. rehydrateInstallerState runs at daemon
+// startup before the informer cache is synced, but the original
+// emitDDAEventf did a cache-backed Get to look up the DDA for the
+// event's involvedObject reference. The Get returned NotFound on a
+// not-yet-synced cache and the event was silently dropped — exactly
+// at the moment it would have been most useful.
+//
+// The fix passes the apiReader-fetched DDA directly to the recorder,
+// bypassing the cache entirely.
+func TestRehydrate_EmitsEventDespiteEmptyCache(t *testing.T) {
+	t.Setenv(envFleetManagementEventsEnabled, "true")
+
+	// Recorder is wired; client is intentionally nil — we must NOT touch
+	// the cache during rehydrate event emission. If the implementation
+	// regresses to cache lookup, this nil dereference would panic.
+	rec := record.NewFakeRecorder(4)
+	d := &Daemon{recorder: rec}
+
+	dda := testDDAObject(v2alpha1.ExperimentPhaseRunning)
+	d.emitInstallerStateRehydratedEvent(context.Background(), dda,
+		testExperimentID, v2alpha1.ExperimentPhaseRunning)
+
+	ev, got := drainOneDaemonEvent(t, rec)
+	require.True(t, got, "rehydrate event must fire even when cache is empty")
+	assert.Contains(t, ev, eventReasonInstallerStateRehydrated)
+	assert.Contains(t, ev, testExperimentID)
 }

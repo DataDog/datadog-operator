@@ -37,12 +37,30 @@ const (
 	eventReasonInstallerStateRehydrated    = "InstallerStateRehydrated"
 )
 
+// recordDDAEvent records a Kubernetes event on a DDA the caller has
+// already fetched. Use this when the caller is reading from a source
+// other than the informer cache (e.g. apiReader during startup
+// rehydrate, where the cache is not yet synced).
+//
+// Best-effort: no-op when the env var is unset, the recorder is nil
+// (unit tests that construct Daemon directly), or the dda is nil.
+func (d *Daemon) recordDDAEvent(_ context.Context, dda *v2alpha1.DatadogAgent, eventType, reason, format string, args ...any) {
+	if !fleetManagementEventsEnabled() || d.recorder == nil || dda == nil {
+		return
+	}
+	d.recorder.Eventf(dda, eventType, reason, format, args...)
+}
+
 // emitDDAEventf looks up the DDA in the informer cache and records a
-// Kubernetes event on it. Best-effort — if the env var is unset, the
-// recorder is nil (test setups that construct Daemon directly), or the
-// DDA is not in cache, the call is a no-op and does not propagate
-// errors. Returning an error from event emission would be worse than
-// missing an observability signal.
+// Kubernetes event on it. Use this in code paths where the cache is
+// already synced (the steady-state reconcile and worker callbacks).
+// At startup (before cache sync) prefer recordDDAEvent with a DDA
+// fetched via apiReader.
+//
+// Best-effort — if the env var is unset, the recorder is nil, the
+// client is nil, or the DDA is not yet in cache, the call is a no-op
+// and does not propagate errors. Returning an error from event
+// emission would be worse than missing an observability signal.
 func (d *Daemon) emitDDAEventf(ctx context.Context, nsn types.NamespacedName, eventType, reason, format string, args ...any) {
 	if !fleetManagementEventsEnabled() || d.recorder == nil || d.client == nil {
 		return
@@ -53,7 +71,7 @@ func (d *Daemon) emitDDAEventf(ctx context.Context, nsn types.NamespacedName, ev
 			"namespace", nsn.Namespace, "name", nsn.Name, "reason", reason, "error", err.Error())
 		return
 	}
-	d.recorder.Eventf(dda, eventType, reason, format, args...)
+	d.recordDDAEvent(ctx, dda, eventType, reason, format, args...)
 }
 
 // emitTaskReceivedEvent records the incoming-edge event when the daemon
@@ -95,8 +113,15 @@ func (d *Daemon) emitLocalTerminationPublishedEvent(ctx context.Context, nsn typ
 // emitInstallerStateRehydratedEvent records that the daemon's installer
 // state was seeded from an existing DDA's Status.Experiment on startup
 // (recovery after a daemon restart mid-experiment).
-func (d *Daemon) emitInstallerStateRehydratedEvent(ctx context.Context, nsn types.NamespacedName, experimentID string, phase v2alpha1.ExperimentPhase) {
-	d.emitDDAEventf(ctx, nsn,
+//
+// Takes the DDA object directly rather than a NamespacedName because
+// rehydrate runs before the informer cache is synced; the cache-backed
+// lookup in emitDDAEventf would NotFound and the event would be silently
+// dropped. The dda passed here comes from apiReader.List in
+// rehydrateInstallerState, so the recorder receives a fully-populated
+// object reference.
+func (d *Daemon) emitInstallerStateRehydratedEvent(ctx context.Context, dda *v2alpha1.DatadogAgent, experimentID string, phase v2alpha1.ExperimentPhase) {
+	d.recordDDAEvent(ctx, dda,
 		corev1.EventTypeNormal, eventReasonInstallerStateRehydrated,
 		"Rehydrated installer state from DatadogAgent: experiment %q (phase %s)", experimentID, phase)
 }

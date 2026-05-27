@@ -14,7 +14,6 @@ import (
 	pbgo "github.com/DataDog/datadog-agent/pkg/proto/pbgo/core"
 	"github.com/DataDog/datadog-agent/pkg/remoteconfig/state"
 	"google.golang.org/protobuf/proto"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlcache "sigs.k8s.io/controller-runtime/pkg/cache"
@@ -314,9 +313,10 @@ func (d *Daemon) rehydrateInstallerState(ctx context.Context) error {
 			"experimentID", exp.ID,
 			"phase", exp.Phase,
 		)
-		d.emitInstallerStateRehydratedEvent(ctx,
-			types.NamespacedName{Namespace: dda.Namespace, Name: dda.Name},
-			exp.ID, exp.Phase)
+		// Pass dda directly — apiReader returned a fully-populated object,
+		// and the informer cache may not be synced yet at this point so
+		// a cache-backed lookup would silently drop this event.
+		d.emitInstallerStateRehydratedEvent(ctx, dda, exp.ID, exp.Phase)
 	}
 	return nil
 }
