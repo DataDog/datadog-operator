@@ -34,18 +34,23 @@ const (
 	ExperimentTerminationReasonTimedOut = "timed_out"
 )
 
-// annotationExperimentRollback marks a ControllerRevision whose experiment was
-// rejected (rollback, timeout, or abort). The annotation tells handleRollback
-// to skip the timeout check (the CreationTimestamp is stale from the previous
-// experiment) and tells ensureRevision to delete+recreate the revision so it
-// gets a fresh timestamp when the same spec is re-applied.
-const annotationExperimentRollback = "operator.datadoghq.com/experiment-rollback"
+// annotationExperimentState records the terminal outcome of an experiment
+// on a ControllerRevision. The value is one of experimentRevisionState.
+//
+// Used by handleRollback to skip the timeout check on revisions whose
+// CreationTimestamp is stale from a prior experiment, and by ensureRevision
+// to refresh a rolled-back revision's timestamp when the same spec is
+// re-applied. The annotation is single-valued so a revision cannot
+// simultaneously represent two terminal outcomes.
+const annotationExperimentState = "operator.datadoghq.com/experiment-state"
 
-// annotationExperimentPromoted marks a ControllerRevision whose experiment was
-// promoted. The annotation tells handleRollback to skip the timeout check so
-// the stale CreationTimestamp doesn't cause a false timeout when a subsequent
-// experiment starts before its own revision is created.
-const annotationExperimentPromoted = "operator.datadoghq.com/experiment-promoted"
+// experimentRevisionState is the value stored at annotationExperimentState.
+type experimentRevisionState string
+
+const (
+	experimentRevisionStatePromoted   experimentRevisionState = "promoted"
+	experimentRevisionStateRolledBack experimentRevisionState = "rolled-back"
+)
 
 // isTerminalPhase returns true if the phase is a terminal state (terminated, promoted, aborted).
 func isTerminalPhase(phase v2alpha1.ExperimentPhase) bool {
@@ -76,7 +81,7 @@ func (r *Reconciler) manageExperiment(
 
 	// Process annotation-based signals first — they take priority over
 	// automatic timeout since they represent explicit human/RC intent.
-	pendingClearID, err := r.processExperimentSignal(ctx, instance, newStatus, revList)
+	pendingClearID, err := r.processExperimentSignal(ctx, instance, newStatus, now, revList)
 	if err != nil {
 		return err
 	}
@@ -108,7 +113,7 @@ func (r *Reconciler) manageExperiment(
 	// creates a fresh revision.
 	if experiment.Phase == v2alpha1.ExperimentPhasePromoted {
 		if rev := highestRevision(revList); rev != nil {
-			r.annotateRevision(ctx, rev, annotationExperimentPromoted)
+			r.markRevisionState(ctx, rev, experimentRevisionStatePromoted)
 		}
 	}
 	r.abortExperiment(ctx, instance, experiment, newStatus, revList)
@@ -148,6 +153,7 @@ func (r *Reconciler) processExperimentSignal(
 	ctx context.Context,
 	instance *v2alpha1.DatadogAgent,
 	newStatus *v2alpha1.DatadogAgentStatus,
+	now metav1.Time,
 	revisions []appsv1.ControllerRevision,
 ) (pendingClearID string, err error) {
 	annotations := instance.GetAnnotations()
@@ -173,7 +179,12 @@ func (r *Reconciler) processExperimentSignal(
 
 	switch signal {
 	case v2alpha1.ExperimentSignalStart:
-		acted, err = r.processStartSignal(ctx, annotationID, currentPhase, currentID, newStatus)
+		// The daemon writes its task identity into fleet.datadoghq.com/pending-task-id
+		// alongside the start signal. Capture it here so we don't depend on the
+		// pending annotations being available later (the worker clears them when
+		// the start task completes).
+		pendingTaskID := annotations[v2alpha1.AnnotationPendingTaskID]
+		acted, err = r.processStartSignal(ctx, annotationID, currentPhase, currentID, newStatus, now, pendingTaskID)
 
 	case v2alpha1.ExperimentSignalRollback:
 		acted, err = r.processRollbackSignal(ctx, instance, annotationID, currentPhase, newStatus, revisions)
@@ -198,12 +209,25 @@ func (r *Reconciler) processExperimentSignal(
 
 // processStartSignal handles the start annotation signal.
 // Returns (true, nil) if it acted (or is a no-op that should clear annotations).
+//
+// now is captured into Status.Experiment.StartedAt and used by
+// handleRollback as the timeout anchor, removing the dependency on
+// ControllerRevision creation timestamps that could be stale for
+// re-used revisions.
+//
+// The daemon's pending-task-id annotation is captured into
+// Status.Experiment.StartTaskID so the daemon can later report
+// TaskState_ERROR for the original task on local timeout. Persisting
+// it on Status keeps the value durable across daemon restarts (the
+// pending annotations get cleared once the start task completes).
 func (r *Reconciler) processStartSignal(
 	ctx context.Context,
 	annotationID string,
 	currentPhase v2alpha1.ExperimentPhase,
 	currentID string,
 	newStatus *v2alpha1.DatadogAgentStatus,
+	now metav1.Time,
+	pendingTaskID string,
 ) (bool, error) {
 	logger := ctrl.LoggerFrom(ctx)
 	// Already processed: same ID already in status.
@@ -218,9 +242,12 @@ func (r *Reconciler) processStartSignal(
 	}
 
 	logger.Info("Processing start signal")
+	startedAt := now
 	newStatus.Experiment = &v2alpha1.ExperimentStatus{
-		Phase: v2alpha1.ExperimentPhaseRunning,
-		ID:    annotationID,
+		Phase:       v2alpha1.ExperimentPhaseRunning,
+		ID:          annotationID,
+		StartedAt:   &startedAt,
+		StartTaskID: pendingTaskID,
 	}
 	return true, nil
 }
@@ -249,7 +276,7 @@ func (r *Reconciler) processRollbackSignal(
 			logger.Info("Aborting experiment instead of rolling back: spec was manually changed")
 			newStatus.Experiment.Phase = v2alpha1.ExperimentPhaseAborted
 			if rev := highestRevision(revisions); rev != nil {
-				r.annotateRevision(ctx, rev, annotationExperimentRollback)
+				r.markRevisionState(ctx, rev, experimentRevisionStateRolledBack)
 			}
 			return true, nil
 		}
@@ -310,7 +337,7 @@ func (r *Reconciler) processPromoteSignal(
 		logger.Info("Aborting experiment instead of promoting: spec was manually changed")
 		newStatus.Experiment.Phase = v2alpha1.ExperimentPhaseAborted
 		if rev := highestRevision(revisions); rev != nil {
-			r.annotateRevision(ctx, rev, annotationExperimentRollback)
+			r.markRevisionState(ctx, rev, experimentRevisionStateRolledBack)
 		}
 		return true, nil
 	}
@@ -397,7 +424,7 @@ func (r *Reconciler) abortExperiment(
 	// Mark the experiment revision (highest-numbered) so its stale timestamp
 	// doesn't cause an immediate timeout if the same spec is re-applied.
 	if rev := highestRevision(revisions); rev != nil {
-		r.annotateRevision(ctx, rev, annotationExperimentRollback)
+		r.markRevisionState(ctx, rev, experimentRevisionStateRolledBack)
 	}
 }
 
@@ -435,7 +462,7 @@ func (r *Reconciler) handleRollback(
 		// Only check annotated fallback revisions to avoid false timeouts from
 		// stale timestamps of prior experiments.
 		rev = highestRevision(revisions)
-		if rev != nil && (rev.Annotations[annotationExperimentRollback] == "true" || rev.Annotations[annotationExperimentPromoted] == "true") {
+		if revisionExperimentState(rev) != "" {
 			return nil
 		}
 		// Spec doesn't match any revision and highest rev is unannotated:
@@ -444,8 +471,13 @@ func (r *Reconciler) handleRollback(
 			return nil
 		}
 	}
-	if rev != nil {
-		elapsed := now.Sub(rev.CreationTimestamp.Time)
+	if rev != nil && instance.Status.Experiment.StartedAt != nil {
+		// status.experiment.startedAt is the timeout anchor. rev.CreationTimestamp
+		// is unsafe for revisions that pre-date the experiment (typically the
+		// baseline) — its timestamp can be hours/days older than the experiment
+		// and would trigger an immediate timeout on the first reconcile after
+		// Phase=Running.
+		elapsed := now.Sub(instance.Status.Experiment.StartedAt.Time)
 		if elapsed >= getExperimentTimeout(r.options.ExperimentTimeout) {
 			logger.Info("Experiment timed out, rolling back", "elapsed", elapsed.String())
 			return r.restorePreviousSpec(ctx, instance, newStatus, revisions, ExperimentTerminationReasonTimedOut)
@@ -480,7 +512,7 @@ func (r *Reconciler) restorePreviousSpec(
 	// and annotating old baselines would cause needless delete+recreate in
 	// ensureRevision if those specs are ever re-applied.
 	if rev := highestRevision(revisions); rev != nil && rev.Name != rollbackTarget {
-		r.annotateRevision(ctx, rev, annotationExperimentRollback)
+		r.markRevisionState(ctx, rev, experimentRevisionStateRolledBack)
 	}
 	return nil
 }
@@ -606,24 +638,32 @@ func highestRevision(revisions []appsv1.ControllerRevision) *appsv1.ControllerRe
 	return result
 }
 
-// annotateRevision sets the given annotation on a ControllerRevision.
-// This is best-effort: if the patch fails, the stale timestamp remains
-// but is no worse than the existing behavior.
-func (r *Reconciler) annotateRevision(ctx context.Context, rev *appsv1.ControllerRevision, annotation string) {
-	if rev.Annotations[annotation] == "true" {
-		return // already annotated
+// revisionExperimentState returns the recorded experiment outcome on a
+// ControllerRevision, or "" if none is set.
+func revisionExperimentState(rev *appsv1.ControllerRevision) experimentRevisionState {
+	if rev == nil {
+		return ""
+	}
+	return experimentRevisionState(rev.Annotations[annotationExperimentState])
+}
+
+// markRevisionState records `state` on the ControllerRevision.
+// Best-effort: if the patch fails, the timeout fallback still applies.
+func (r *Reconciler) markRevisionState(ctx context.Context, rev *appsv1.ControllerRevision, state experimentRevisionState) {
+	if revisionExperimentState(rev) == state {
+		return
 	}
 	logger := ctrl.LoggerFrom(ctx).WithValues(
 		"object.kind", "ControllerRevision",
 		"object.namespace", rev.Namespace,
 		"object.name", rev.Name,
 	)
-	patch := []byte(`{"metadata":{"annotations":{"` + annotation + `":"true"}}}`)
+	patch := fmt.Appendf(nil, `{"metadata":{"annotations":{%q:%q}}}`, annotationExperimentState, string(state))
 	if err := r.client.Patch(ctx, rev, client.RawPatch(types.MergePatchType, patch)); err != nil {
-		logger.Error(err, "Failed to annotate experiment revision", "annotation", annotation)
+		logger.Error(err, "Failed to mark experiment revision state", "state", state)
 		return
 	}
-	logger.Info("Annotated experiment revision", "annotation", annotation)
+	logger.Info("Marked experiment revision state", "state", state)
 }
 
 func getExperimentTimeout(timeout time.Duration) time.Duration {
