@@ -90,7 +90,7 @@ func (t *operationTracker) run(ctx context.Context) {
 // start in the annotations, the old start is forgotten here. A later retry of
 // that old start is rejected by guardPendingOperationSlot.
 func (t *operationTracker) onStatusUpdate(ctx context.Context, snapshot ddaStatusSnapshot) {
-	t.daemon.reconcileTimedOutExperiment(ctx, snapshot)
+	t.daemon.reconcileLocallyTerminatedExperiment(ctx, snapshot)
 	op, ok := pendingOperationFromAnnotations(snapshot.nsn, snapshot.annotations)
 	if !ok {
 		return
@@ -211,19 +211,62 @@ func (d *Daemon) finishPendingOperation(ctx context.Context, task pendingOperati
 	}
 }
 
-// reconcileTimedOutExperiment passively repairs RC experiment config state when
-// the controller later times out and terminates a running experiment on its
-// own, without a new Fleet task driving that transition.
-func (d *Daemon) reconcileTimedOutExperiment(ctx context.Context, snapshot ddaStatusSnapshot) {
+// localTerminationReason returns the FA-facing error message for an
+// experiment that reached a terminal phase locally (not via a Fleet task),
+// or "" if the snapshot is not in such a state.
+//
+// "Local terminal" covers two cases the controller can reach without FA
+// driving the transition:
+//   - Phase=Terminated, terminationReason="timed_out": experiment exceeded
+//     the timeout while running.
+//   - Phase=Aborted: a manual spec change was detected while the experiment
+//     was running.
+//
+// Phase=Terminated/stopped and Phase=Promoted are excluded because those
+// transitions are driven by Fleet tasks (stop/promote), whose task lifecycle
+// is already reported via evaluatePendingTask + finishPendingOperation.
+func localTerminationReason(exp *v2alpha1.ExperimentStatus) string {
+	if exp == nil {
+		return ""
+	}
+	switch {
+	case exp.Phase == v2alpha1.ExperimentPhaseTerminated && exp.TerminationReason == "timed_out":
+		return fmt.Sprintf("experiment %s timed out", exp.ID)
+	case exp.Phase == v2alpha1.ExperimentPhaseAborted:
+		return fmt.Sprintf("experiment %s aborted (manual spec change)", exp.ID)
+	default:
+		return ""
+	}
+}
+
+// reconcileLocallyTerminatedExperiment passively repairs RC experiment
+// config state when the controller terminates a running experiment on its
+// own (timeout or abort), without a Fleet task driving that transition.
+//
+// When Status.Experiment.StartTaskID is recorded, the daemon also reports
+// TaskState_ERROR for the original start task so Fleet Automation receives
+// an explicit terminal failure tied to the task it sent. Without this, FA
+// only observes experimentConfigVersion going to empty, which is ambiguous
+// between "experiment finished cleanly" and "experiment never started" and
+// tends to trigger retries of the same experiment ID.
+//
+// Task-state reporting happens before the experimentConfigVersion clear so
+// the two changes ship in the same poll to FA.
+func (d *Daemon) reconcileLocallyTerminatedExperiment(ctx context.Context, snapshot ddaStatusSnapshot) {
 	if d.rcClient == nil || snapshot.experiment == nil {
 		return
 	}
-	if snapshot.experiment.Phase != v2alpha1.ExperimentPhaseTerminated ||
-		snapshot.experiment.TerminationReason != "timed_out" {
+	errMsg := localTerminationReason(snapshot.experiment)
+	if errMsg == "" {
 		return
 	}
 
-	logger := ctrl.LoggerFrom(ctx).WithValues("namespace", snapshot.nsn.Namespace, "name", snapshot.nsn.Name, "experimentID", snapshot.experiment.ID)
+	logger := ctrl.LoggerFrom(ctx).WithValues(
+		"namespace", snapshot.nsn.Namespace,
+		"name", snapshot.nsn.Name,
+		"experimentID", snapshot.experiment.ID,
+		"phase", snapshot.experiment.Phase,
+	)
 
 	d.taskMu.Lock()
 	defer d.taskMu.Unlock()
@@ -232,8 +275,16 @@ func (d *Daemon) reconcileTimedOutExperiment(ctx context.Context, snapshot ddaSt
 		if pkg.GetExperimentConfigVersion() != snapshot.experiment.ID {
 			continue
 		}
+		if startTaskID := snapshot.experiment.StartTaskID; startTaskID != "" {
+			d.setTaskState(pkg.GetPackage(), startTaskID, pbgo.TaskState_ERROR, fmt.Errorf("%s", errMsg))
+			logger.Info("Reported locally-terminated experiment to RC as ERROR on original start task",
+				"package", pkg.GetPackage(),
+				"startTaskID", startTaskID,
+				"reason", errMsg,
+			)
+		}
 		d.setPackageConfigVersions(pkg.GetPackage(), pkg.GetStableConfigVersion(), "")
-		logger.Info("Cleared timed out experiment config version from RC state", "package", pkg.GetPackage())
+		logger.Info("Cleared locally-terminated experiment config version from RC state", "package", pkg.GetPackage())
 	}
 }
 

@@ -501,10 +501,10 @@ func Test_Experiment_Abort_AnnotatesOnlyExperimentRevision(t *testing.T) {
 	revs := listOwnedRevisions(t, r.client, ns, uid)
 	for _, rev := range revs {
 		if rev.Name == experimentRevName {
-			assert.Equal(t, "true", rev.Annotations[annotationExperimentRollback],
+			assert.Equal(t, experimentRevisionStateRolledBack, revisionExperimentState(&rev),
 				"experiment revision %s should be annotated", rev.Name)
 		} else {
-			assert.NotEqual(t, "true", rev.Annotations[annotationExperimentRollback],
+			assert.NotEqual(t, experimentRevisionStateRolledBack, revisionExperimentState(&rev),
 				"non-experiment revision %s should NOT be annotated", rev.Name)
 		}
 	}
@@ -515,7 +515,7 @@ func Test_Experiment_Abort_AnnotatesOnlyExperimentRevision(t *testing.T) {
 	revs = listOwnedRevisions(t, r.client, ns, uid)
 	annotatedNames := []string{}
 	for _, rev := range revs {
-		if rev.Annotations[annotationExperimentRollback] == "true" {
+		if revisionExperimentState(&rev) == experimentRevisionStateRolledBack {
 			annotatedNames = append(annotatedNames, rev.Name)
 		}
 	}
@@ -558,7 +558,7 @@ func Test_Experiment_StopRollback_AnnotatesOnlyExperimentRevision(t *testing.T) 
 	assert.NotEmpty(t, experimentRevName, "should have an experiment revision")
 
 	// Add a pre-existing annotation to the experiment revision to verify the
-	// merge patch preserves it when annotateRevision adds its own annotation.
+	// merge patch preserves it when markRevisionState adds its own annotation.
 	for _, rev := range listOwnedRevisions(t, r.client, ns, uid) {
 		if rev.Name == experimentRevName {
 			rev := rev
@@ -586,12 +586,12 @@ func Test_Experiment_StopRollback_AnnotatesOnlyExperimentRevision(t *testing.T) 
 	// and pre-existing annotations are preserved by the merge patch.
 	for _, rev := range listOwnedRevisions(t, r.client, ns, uid) {
 		if rev.Name == experimentRevName {
-			assert.Equal(t, "true", rev.Annotations[annotationExperimentRollback],
+			assert.Equal(t, experimentRevisionStateRolledBack, revisionExperimentState(&rev),
 				"experiment revision %s should be annotated after rollback", rev.Name)
 			assert.Equal(t, "should-survive", rev.Annotations["custom-annotation"],
 				"pre-existing annotation on experiment revision %s should be preserved", rev.Name)
 		} else {
-			assert.NotEqual(t, "true", rev.Annotations[annotationExperimentRollback],
+			assert.NotEqual(t, experimentRevisionStateRolledBack, revisionExperimentState(&rev),
 				"baseline revision %s should NOT be annotated", rev.Name)
 		}
 	}
@@ -601,10 +601,10 @@ func Test_Experiment_StopRollback_AnnotatesOnlyExperimentRevision(t *testing.T) 
 
 	for _, rev := range listOwnedRevisions(t, r.client, ns, uid) {
 		if rev.Name == experimentRevName {
-			assert.Equal(t, "true", rev.Annotations[annotationExperimentRollback],
+			assert.Equal(t, experimentRevisionStateRolledBack, revisionExperimentState(&rev),
 				"experiment revision %s should still be annotated after extra reconciles", rev.Name)
 		} else {
-			assert.NotEqual(t, "true", rev.Annotations[annotationExperimentRollback],
+			assert.NotEqual(t, experimentRevisionStateRolledBack, revisionExperimentState(&rev),
 				"baseline revision %s should still NOT be annotated after extra reconciles", rev.Name)
 		}
 	}
@@ -713,9 +713,9 @@ func Test_Experiment_Promoted_DoesNotRecreateRevision(t *testing.T) {
 	revs := listOwnedRevisions(t, r.client, ns, uid)
 	for _, rev := range revs {
 		if rev.Name == experimentRevName {
-			assert.Equal(t, "true", rev.Annotations[annotationExperimentPromoted],
+			assert.Equal(t, experimentRevisionStatePromoted, revisionExperimentState(&rev),
 				"experiment revision should have promoted annotation")
-			assert.NotEqual(t, "true", rev.Annotations[annotationExperimentRollback],
+			assert.NotEqual(t, experimentRevisionStateRolledBack, revisionExperimentState(&rev),
 				"experiment revision should NOT have rollback annotation")
 		}
 	}
@@ -728,7 +728,7 @@ func Test_Experiment_Promoted_DoesNotRecreateRevision(t *testing.T) {
 	revs = listOwnedRevisions(t, r.client, ns, uid)
 	for _, rev := range revs {
 		if rev.Name == experimentRevName {
-			assert.Equal(t, "true", rev.Annotations[annotationExperimentPromoted],
+			assert.Equal(t, experimentRevisionStatePromoted, revisionExperimentState(&rev),
 				"promoted annotation should persist — revision must not be recreated")
 		}
 	}
@@ -853,22 +853,34 @@ func Test_Experiment_StateTransitions(t *testing.T) {
 			expect: v2alpha1.ExperimentPhasePromoted,
 		},
 		{
-			// timeout: age the new experiment's revision past the deadline
-			// so the reconciler triggers a real timeout.
+			// timeout: age both the new experiment's revision and its
+			// Status.Experiment.StartedAt past the deadline so the
+			// reconciler triggers a real timeout. After the
+			// StartedAt anchor change (commit 9d8492397), revision
+			// timestamps alone are no longer load-bearing — the
+			// reconciler measures elapsed against StartedAt.
 			name: "timeout",
 			action: func(t *testing.T, r *Reconciler, ns, name string, uid types.UID, nsName types.NamespacedName, dda *v2alpha1.DatadogAgent) {
 				t.Helper()
 				r.options.ExperimentTimeout = 50 * time.Millisecond
+				staleTime := metav1.NewTime(time.Now().Add(-time.Minute))
 				// Only age unannotated revisions (the new experiment's revision).
 				// Annotated revisions belong to the old experiment and must not
 				// be touched — they're already handled by the fallback skip.
-				staleTime := metav1.NewTime(time.Now().Add(-time.Minute))
 				for _, rev := range listOwnedRevisions(t, r.client, ns, uid) {
-					if rev.Annotations[annotationExperimentRollback] != "true" &&
-						rev.Annotations[annotationExperimentPromoted] != "true" {
+					if revisionExperimentState(&rev) != experimentRevisionStateRolledBack &&
+						revisionExperimentState(&rev) != experimentRevisionStatePromoted {
 						rev.CreationTimestamp = staleTime
 						assert.NoError(t, r.client.Update(context.TODO(), &rev))
 					}
+				}
+				// Backdate StartedAt so handleRollback's primary anchor
+				// exceeds the timeout.
+				fresh := &v2alpha1.DatadogAgent{}
+				assert.NoError(t, r.client.Get(context.TODO(), nsName, fresh))
+				if fresh.Status.Experiment != nil {
+					fresh.Status.Experiment.StartedAt = &staleTime
+					assert.NoError(t, r.client.Status().Update(context.TODO(), fresh))
 				}
 				reconcileN(t, r, ns, name, 2)
 			},
@@ -1006,7 +1018,7 @@ func Test_Experiment_ReapplySameSpec_NoImmediateTimeout(t *testing.T) {
 	revs := listOwnedRevisions(t, r.client, ns, uid)
 	var annotatedCount int
 	for _, rev := range revs {
-		if rev.Annotations[annotationExperimentRollback] == "true" {
+		if revisionExperimentState(&rev) == experimentRevisionStateRolledBack {
 			annotatedCount++
 		}
 	}

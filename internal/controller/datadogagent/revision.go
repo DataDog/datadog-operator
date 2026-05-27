@@ -133,7 +133,7 @@ func (r *Reconciler) ensureRevision(
 			"object.name", matchingRev.Name,
 		)
 
-		if matchingRev.Annotations[annotationExperimentRollback] == "true" && !skipBump {
+		if revisionExperimentState(matchingRev) == experimentRevisionStateRolledBack && !skipBump {
 			return r.recreateRevision(ctx, matchingRev, instance, gvks[0], labels, data, maxRevision)
 		}
 

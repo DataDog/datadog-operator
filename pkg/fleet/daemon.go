@@ -19,6 +19,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
+	v2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/pkg/remoteconfig"
 )
 
@@ -49,6 +50,7 @@ var _ manager.LeaderElectionRunnable = &Daemon{}
 type Daemon struct {
 	rcClient         remoteconfig.RCClient
 	client           client.Client
+	apiReader        client.Reader // bypasses the informer cache; used at startup before the cache is populated
 	cache            ctrlcache.Cache
 	revisionsEnabled bool
 	mu               sync.RWMutex
@@ -66,6 +68,7 @@ func NewDaemon(rcClient remoteconfig.RCClient, mgr manager.Manager, revisionsEna
 	return &Daemon{
 		rcClient:         rcClient,
 		client:           mgr.GetClient(),
+		apiReader:        mgr.GetAPIReader(),
 		cache:            mgr.GetCache(), // Informer cache
 		revisionsEnabled: revisionsEnabled,
 		configs:          make(map[string]installerConfig),
@@ -87,6 +90,14 @@ func (d *Daemon) Start(ctx context.Context) error {
 		return err
 	}
 	logger.Info("DDA status worker initialized")
+
+	if err := d.rehydrateInstallerState(ctx); err != nil {
+		// Best-effort: if List fails we continue with an empty installer
+		// state. The next reconcile-driven status update will retry the
+		// publication via reconcileTimedOutExperiment when the experiment
+		// reaches a terminal phase.
+		logger.Error(err, "Failed to rehydrate installer state from existing DatadogAgents")
+	}
 
 	d.rcClient.Subscribe(state.ProductInstallerConfig, handleInstallerConfigUpdate(ctx, func(configs map[string]installerConfig) error {
 		return d.handleConfigs(ctx, configs)
@@ -249,6 +260,49 @@ func (d *Daemon) setTaskState(pkgName, taskID string, taskState pbgo.TaskState, 
 	d.rcClient.SetInstallerState(updated)
 	d.logInstallerState("setTaskState")
 }
+
+// rehydrateInstallerState seeds the RC installer state from the
+// current DatadogAgent objects on disk. The rcClient's installer state
+// is in-memory only — after a daemon restart it would otherwise report
+// no in-progress experiment even when status.experiment.Phase is still
+// Running. That mismatch causes Fleet Automation to re-send the start
+// task and also makes reconcileTimedOutExperiment a no-op (its guard
+// `pkg.experimentConfigVersion == experiment.ID` never matches).
+//
+// Reads go through the API reader (not the cache) because the informer
+// cache may not be populated yet at the moment Start runs.
+func (d *Daemon) rehydrateInstallerState(ctx context.Context) error {
+	if d.rcClient == nil || d.apiReader == nil {
+		return nil
+	}
+	logger := ctrl.LoggerFrom(ctx)
+	ddas := &v2alpha1.DatadogAgentList{}
+	if err := d.apiReader.List(ctx, ddas); err != nil {
+		return fmt.Errorf("list DatadogAgents: %w", err)
+	}
+	for i := range ddas.Items {
+		dda := &ddas.Items[i]
+		exp := dda.Status.Experiment
+		if exp == nil || exp.ID == "" {
+			continue
+		}
+		if isTerminalPhase(exp.Phase) {
+			continue
+		}
+		stable, _ := d.getPackageConfigVersions(packageDatadogOperator)
+		d.setPackageConfigVersions(packageDatadogOperator, stable, exp.ID)
+		logger.Info("Rehydrated installer state from DatadogAgent",
+			"namespace", dda.Namespace,
+			"name", dda.Name,
+			"experimentID", exp.ID,
+			"phase", exp.Phase,
+		)
+	}
+	return nil
+}
+
+// packageDatadogOperator is the RC package name the daemon reports for itself.
+const packageDatadogOperator = "datadog-operator"
 
 // getPackageConfigVersions returns the current stable and experiment config versions
 // for the given package from the RC installer state.

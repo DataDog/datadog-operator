@@ -43,6 +43,7 @@ func testDaemon(dda *v2alpha1.DatadogAgent, configs map[string]installerConfig) 
 	c := b.Build()
 	return &Daemon{
 		client:           c,
+		apiReader:        c,
 		revisionsEnabled: true,
 		configs:          configs,
 		statusUpdates:    make(chan ddaStatusSnapshot, 32),
@@ -1133,28 +1134,28 @@ func TestHandleTask_InvalidState(t *testing.T) {
 	assert.Equal(t, pbgo.TaskState_INVALID_STATE, m.state[0].Task.State)
 }
 
-func TestReconcileTimedOutExperiment_ClearsExperimentConfigVersion(t *testing.T) {
+func TestReconcileLocallyTerminatedExperiment_ClearsExperimentConfigVersion(t *testing.T) {
 	d, rc := testDaemonWithRC([]*pbgo.PackageState{
 		{Package: "datadog-operator", StableConfigVersion: "stable-1", ExperimentConfigVersion: testExperimentID},
 	})
 	dda := testDDAObject(v2alpha1.ExperimentPhaseTerminated)
 	dda.Status.Experiment.TerminationReason = "timed_out"
 
-	d.reconcileTimedOutExperiment(context.Background(), newDDAStatusSnapshot(dda))
+	d.reconcileLocallyTerminatedExperiment(context.Background(), newDDAStatusSnapshot(dda))
 
 	require.Len(t, rc.state, 1)
 	assert.Equal(t, "stable-1", rc.state[0].StableConfigVersion)
 	assert.Empty(t, rc.state[0].ExperimentConfigVersion)
 }
 
-func TestReconcileTimedOutExperiment_IgnoresNonTimeoutTermination(t *testing.T) {
+func TestReconcileLocallyTerminatedExperiment_IgnoresNonTimeoutTermination(t *testing.T) {
 	d, rc := testDaemonWithRC([]*pbgo.PackageState{
 		{Package: "datadog-operator", StableConfigVersion: "stable-1", ExperimentConfigVersion: testExperimentID},
 	})
 	dda := testDDAObject(v2alpha1.ExperimentPhaseTerminated)
 	dda.Status.Experiment.TerminationReason = "stopped"
 
-	d.reconcileTimedOutExperiment(context.Background(), newDDAStatusSnapshot(dda))
+	d.reconcileLocallyTerminatedExperiment(context.Background(), newDDAStatusSnapshot(dda))
 
 	require.Len(t, rc.state, 1)
 	assert.Equal(t, "stable-1", rc.state[0].StableConfigVersion)
@@ -1502,4 +1503,173 @@ func TestRunPendingOperationWorker_RecoversPromoteResultVersionFromAnnotations(t
 	got := &v2alpha1.DatadogAgent{}
 	require.NoError(t, c.Get(context.Background(), testDDANSN, got))
 	assert.Empty(t, got.Annotations[v2alpha1.AnnotationPendingResultVersion])
+}
+
+// TestRehydrateInstallerState_RunningExperiment is the regression test for
+// the lost-installer-state bug. After scale-down/up the daemon's in-memory
+// installer state was reset to no-experiment, but the DDA's Status.Experiment
+// still showed Running. Fleet Automation read the daemon's empty state, decided
+// the experiment hadn't started, and re-sent the start task.
+//
+// rehydrateInstallerState seeds the daemon's installer state from the DDA at
+// startup so the daemon reports the correct in-progress experiment to FA.
+func TestRehydrateInstallerState_RunningExperiment(t *testing.T) {
+	dda := testDDAObject(v2alpha1.ExperimentPhaseRunning)
+	d, _ := testDaemon(dda, nil)
+	rc := &mockRCClient{state: []*pbgo.PackageState{{
+		Package:             packageDatadogOperator,
+		StableVersion:       "v1.27.0",
+		StableConfigVersion: "stable",
+	}}}
+	d.rcClient = rc
+
+	require.NoError(t, d.rehydrateInstallerState(context.Background()))
+
+	stable, experiment := d.getPackageConfigVersions(packageDatadogOperator)
+	assert.Equal(t, "stable", stable, "stable version preserved")
+	assert.Equal(t, testExperimentID, experiment, "experiment id rehydrated from DDA")
+}
+
+// TestRehydrateInstallerState_TerminalPhasesSkipped verifies that a DDA whose
+// experiment is in a terminal phase (terminated, promoted, aborted) does not
+// repopulate the installer state — those experiments are no longer in flight.
+func TestRehydrateInstallerState_TerminalPhasesSkipped(t *testing.T) {
+	terminals := []v2alpha1.ExperimentPhase{
+		v2alpha1.ExperimentPhaseTerminated,
+		v2alpha1.ExperimentPhasePromoted,
+		v2alpha1.ExperimentPhaseAborted,
+	}
+	for _, phase := range terminals {
+		t.Run(string(phase), func(t *testing.T) {
+			dda := testDDAObject(phase)
+			d, _ := testDaemon(dda, nil)
+			rc := &mockRCClient{state: []*pbgo.PackageState{{
+				Package:             packageDatadogOperator,
+				StableVersion:       "v1.27.0",
+				StableConfigVersion: "stable",
+			}}}
+			d.rcClient = rc
+
+			require.NoError(t, d.rehydrateInstallerState(context.Background()))
+
+			_, experiment := d.getPackageConfigVersions(packageDatadogOperator)
+			assert.Empty(t, experiment, "terminal-phase DDA must not seed installer state")
+		})
+	}
+}
+
+// TestRehydrateInstallerState_NoDDA is a no-op: no DDAs in the cluster means
+// nothing to rehydrate. The installer state is left as-is.
+func TestRehydrateInstallerState_NoDDA(t *testing.T) {
+	d, _ := testDaemon(nil, nil)
+	rc := &mockRCClient{state: []*pbgo.PackageState{{
+		Package:             packageDatadogOperator,
+		StableVersion:       "v1.27.0",
+		StableConfigVersion: "stable",
+	}}}
+	d.rcClient = rc
+
+	require.NoError(t, d.rehydrateInstallerState(context.Background()))
+
+	stable, experiment := d.getPackageConfigVersions(packageDatadogOperator)
+	assert.Equal(t, "stable", stable)
+	assert.Empty(t, experiment)
+}
+
+// TestReconcileLocallyTerminatedExperiment_ReportsErrorOnStartTaskID verifies that
+// when Status.Experiment.StartTaskID is set, reconcileLocallyTerminatedExperiment
+// reports the original start task as TaskState_ERROR in addition to
+// clearing the experiment config version. This gives Fleet Automation an
+// explicit terminal failure tied to the task it originally sent, so it
+// stops resending start signals for the same experiment ID.
+func TestReconcileLocallyTerminatedExperiment_ReportsErrorOnStartTaskID(t *testing.T) {
+	const startTaskID = "task-uuid-from-start"
+	d, rc := testDaemonWithRC([]*pbgo.PackageState{
+		{Package: "datadog-operator", StableConfigVersion: "stable-1", ExperimentConfigVersion: testExperimentID},
+	})
+	dda := testDDAObject(v2alpha1.ExperimentPhaseTerminated)
+	dda.Status.Experiment.TerminationReason = "timed_out"
+	dda.Status.Experiment.StartTaskID = startTaskID
+
+	d.reconcileLocallyTerminatedExperiment(context.Background(), newDDAStatusSnapshot(dda))
+
+	require.Len(t, rc.state, 1)
+	assert.Empty(t, rc.state[0].ExperimentConfigVersion, "experimentConfigVersion cleared after timeout")
+	require.NotNil(t, rc.state[0].Task, "task state populated for FA")
+	assert.Equal(t, startTaskID, rc.state[0].Task.Id, "task id matches original start task")
+	assert.Equal(t, pbgo.TaskState_ERROR, rc.state[0].Task.State, "task reported as ERROR")
+	require.NotNil(t, rc.state[0].Task.Error)
+	assert.Contains(t, rc.state[0].Task.Error.Message, testExperimentID, "error message references the timed-out experiment id")
+}
+
+// TestReconcileLocallyTerminatedExperiment_NoStartTaskID_LegacyFallback verifies
+// that pre-v1.27 DDAs (or in-flight experiments at upgrade time) without
+// Status.Experiment.StartTaskID still get their experimentConfigVersion
+// cleared. The task-state report is skipped silently — without the task
+// id there is nothing to report against.
+func TestReconcileLocallyTerminatedExperiment_NoStartTaskID_LegacyFallback(t *testing.T) {
+	d, rc := testDaemonWithRC([]*pbgo.PackageState{
+		{Package: "datadog-operator", StableConfigVersion: "stable-1", ExperimentConfigVersion: testExperimentID},
+	})
+	dda := testDDAObject(v2alpha1.ExperimentPhaseTerminated)
+	dda.Status.Experiment.TerminationReason = "timed_out"
+	// StartTaskID intentionally empty.
+
+	d.reconcileLocallyTerminatedExperiment(context.Background(), newDDAStatusSnapshot(dda))
+
+	require.Len(t, rc.state, 1)
+	assert.Empty(t, rc.state[0].ExperimentConfigVersion)
+	assert.Nil(t, rc.state[0].Task, "no start task id → no task state reported")
+}
+
+// TestReconcileLocallyTerminatedExperiment_AbortClearsAndReports verifies
+// that a manual-spec-change abort (Phase=Aborted) is published to RC the
+// same way a timeout is:
+//   - TaskState_ERROR against the original StartTaskID
+//   - experimentConfigVersion cleared
+//
+// Without this, FA continues to believe the experiment is running because
+// the daemon's last-published state still shows experimentConfigVersion
+// set and the original start task as DONE.
+func TestReconcileLocallyTerminatedExperiment_AbortClearsAndReports(t *testing.T) {
+	const startTaskID = "task-uuid-from-start"
+	d, rc := testDaemonWithRC([]*pbgo.PackageState{
+		{Package: "datadog-operator", StableConfigVersion: "stable-1", ExperimentConfigVersion: testExperimentID},
+	})
+	dda := testDDAObject(v2alpha1.ExperimentPhaseAborted)
+	dda.Status.Experiment.StartTaskID = startTaskID
+
+	d.reconcileLocallyTerminatedExperiment(context.Background(), newDDAStatusSnapshot(dda))
+
+	require.Len(t, rc.state, 1)
+	assert.Equal(t, "stable-1", rc.state[0].StableConfigVersion)
+	assert.Empty(t, rc.state[0].ExperimentConfigVersion, "experimentConfigVersion cleared after abort")
+	require.NotNil(t, rc.state[0].Task, "task state populated for FA")
+	assert.Equal(t, startTaskID, rc.state[0].Task.Id, "task id matches original start task")
+	assert.Equal(t, pbgo.TaskState_ERROR, rc.state[0].Task.State, "task reported as ERROR")
+	require.NotNil(t, rc.state[0].Task.Error)
+	assert.Contains(t, rc.state[0].Task.Error.Message, testExperimentID,
+		"error message references the aborted experiment id")
+	assert.Contains(t, rc.state[0].Task.Error.Message, "abort",
+		"error message indicates this was an abort, not a timeout")
+}
+
+// TestReconcileLocallyTerminatedExperiment_IgnoresPromoted verifies the
+// guard correctly excludes Phase=Promoted, which is a Fleet-driven
+// transition (promote task) whose lifecycle is handled by
+// evaluatePendingTask / finishPendingOperation. Publishing a duplicate
+// terminal state from here would clobber the promote task's DONE report.
+func TestReconcileLocallyTerminatedExperiment_IgnoresPromoted(t *testing.T) {
+	d, rc := testDaemonWithRC([]*pbgo.PackageState{
+		{Package: "datadog-operator", StableConfigVersion: "stable-1", ExperimentConfigVersion: testExperimentID},
+	})
+	dda := testDDAObject(v2alpha1.ExperimentPhasePromoted)
+	dda.Status.Experiment.StartTaskID = "task-promote-driven"
+
+	d.reconcileLocallyTerminatedExperiment(context.Background(), newDDAStatusSnapshot(dda))
+
+	require.Len(t, rc.state, 1)
+	assert.Equal(t, testExperimentID, rc.state[0].ExperimentConfigVersion,
+		"promoted is a Fleet-driven terminal phase; experimentConfigVersion must stay")
+	assert.Nil(t, rc.state[0].Task, "no task state report for promoted")
 }
