@@ -99,7 +99,7 @@ func TestEvictAllTargets(t *testing.T) {
 				}
 			}
 
-			result := evictAllTargets(context.Background(), tc.targets, nodeDrainOptions{}, evictor)
+			result := evictAllTargets(t.Context(), tc.targets, nodeDrainOptions{}, evictor)
 			require.Len(t, result.Errors, tc.wantErrors)
 			assert.Equal(t, tc.wantEKSIncomplete, result.EKSDrainIncomplete)
 			if tc.wantErrIsSentinel {

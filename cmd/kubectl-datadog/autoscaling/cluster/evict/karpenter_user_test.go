@@ -1,7 +1,6 @@
 package evict
 
 import (
-	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -24,9 +23,9 @@ func TestEvictKarpenterUserNodePool(t *testing.T) {
 			node := &corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "n1"}}
 			client := fake.NewClientset(node)
 
-			require.NoError(t, evictKarpenterUserNodePool(context.Background(), client, "user-np", []string{"n1"}, newDrainOpts(tc.dryRun)))
+			require.NoError(t, evictKarpenterUserNodePool(t.Context(), client, "user-np", []string{"n1"}, newDrainOpts(tc.dryRun)))
 
-			got, err := client.CoreV1().Nodes().Get(context.Background(), "n1", metav1.GetOptions{})
+			got, err := client.CoreV1().Nodes().Get(t.Context(), "n1", metav1.GetOptions{})
 			require.NoError(t, err)
 			assert.Equal(t, tc.wantUnschedulable, got.Spec.Unschedulable)
 		})

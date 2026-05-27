@@ -1,7 +1,6 @@
 package evict
 
 import (
-	"context"
 	"errors"
 	"testing"
 	"time"
@@ -195,7 +194,7 @@ func TestEvictPodWithRetry(t *testing.T) {
 				return true, resp, err
 			})
 
-			err := evictPodWithRetry(context.Background(), client, tc.pod, tc.timeout, 10*time.Millisecond)
+			err := evictPodWithRetry(t.Context(), client, tc.pod, tc.timeout, 10*time.Millisecond)
 			if tc.wantErr {
 				require.Error(t, err)
 				if tc.wantErrContains != "" {

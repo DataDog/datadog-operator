@@ -1,7 +1,6 @@
 package evict
 
 import (
-	"context"
 	"strings"
 	"testing"
 
@@ -198,10 +197,10 @@ func TestCleanupTempPDBs(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			cli := ctrlfake.NewClientBuilder().WithScheme(newCtrlScheme(t)).WithObjects(tc.existing...).Build()
 
-			require.NoError(t, cleanupTempPDBs(context.Background(), cli, tc.dryRun))
+			require.NoError(t, cleanupTempPDBs(t.Context(), cli, tc.dryRun))
 
 			list := &policyv1.PodDisruptionBudgetList{}
-			require.NoError(t, cli.List(context.Background(), list))
+			require.NoError(t, cli.List(t.Context(), list))
 			names := make([]string, 0, len(list.Items))
 			for _, p := range list.Items {
 				names = append(names, p.Namespace+"/"+p.Name)
@@ -289,10 +288,10 @@ func TestCreateTempPDB(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			cli := ctrlfake.NewClientBuilder().WithScheme(newCtrlScheme(t)).WithObjects(tc.existing...).Build()
 
-			require.NoError(t, createTempPDB(context.Background(), cli, appController, tc.dryRun))
+			require.NoError(t, createTempPDB(t.Context(), cli, appController, tc.dryRun))
 
 			list := &policyv1.PodDisruptionBudgetList{}
-			require.NoError(t, cli.List(context.Background(), list))
+			require.NoError(t, cli.List(t.Context(), list))
 			switch tc.expect {
 			case expectNoPDB:
 				assert.Empty(t, list.Items)
@@ -311,8 +310,8 @@ func TestCreateTempPDB(t *testing.T) {
 			}
 
 			if tc.runCleanupAfter {
-				require.NoError(t, cleanupTempPDBs(context.Background(), cli, false))
-				require.NoError(t, cli.List(context.Background(), list))
+				require.NoError(t, cleanupTempPDBs(t.Context(), cli, false))
+				require.NoError(t, cli.List(t.Context(), list))
 				assert.Empty(t, list.Items, "cleanup must remove pre-existing temp PDB even with no state from ensure")
 			}
 		})
@@ -363,7 +362,7 @@ func TestDiscoverControllers_FiltersByNodeSet(t *testing.T) {
 		mkPod("off-target-pod", "default", "other-node", "off-target-app-def"),
 	)
 
-	controllers, err := discoverControllers(context.Background(), client, map[string]struct{}{"target-node": {}})
+	controllers, err := discoverControllers(t.Context(), client, map[string]struct{}{"target-node": {}})
 	require.NoError(t, err)
 	require.Len(t, controllers, 1)
 	assert.Equal(t, "target-app", controllers[0].Name)

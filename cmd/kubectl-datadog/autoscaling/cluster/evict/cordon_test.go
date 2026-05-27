@@ -1,7 +1,6 @@
 package evict
 
 import (
-	"context"
 	"errors"
 	"testing"
 
@@ -73,10 +72,10 @@ func TestCordonNode(t *testing.T) {
 				return false, nil, nil
 			})
 
-			require.NoError(t, cordonNode(context.Background(), client, "n1", tc.dryRun))
+			require.NoError(t, cordonNode(t.Context(), client, "n1", tc.dryRun))
 
 			assert.GreaterOrEqual(t, updateCalls, tc.wantMinUpdateCalls, "minimum Update calls")
-			got, err := client.CoreV1().Nodes().Get(context.Background(), "n1", metav1.GetOptions{})
+			got, err := client.CoreV1().Nodes().Get(t.Context(), "n1", metav1.GetOptions{})
 			require.NoError(t, err)
 			assert.Equal(t, tc.wantUnschedulable, got.Spec.Unschedulable)
 		})

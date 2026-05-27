@@ -110,7 +110,7 @@ func TestEvictStandalone(t *testing.T) {
 			}
 			stub := &stubEC2{}
 
-			err := evictStandalone(context.Background(), client, stub, tc.nodes, tc.opts)
+			err := evictStandalone(t.Context(), client, stub, tc.nodes, tc.opts)
 			if tc.wantErr {
 				require.Error(t, err)
 			} else {
@@ -122,7 +122,7 @@ func TestEvictStandalone(t *testing.T) {
 				assert.ElementsMatch(t, tc.wantTerminated, stub.terminated)
 			}
 			for nodeName, want := range tc.wantUnschedulable {
-				got, getErr := client.CoreV1().Nodes().Get(context.Background(), nodeName, metav1.GetOptions{})
+				got, getErr := client.CoreV1().Nodes().Get(t.Context(), nodeName, metav1.GetOptions{})
 				require.NoError(t, getErr)
 				assert.Equal(t, want, got.Spec.Unschedulable, "Spec.Unschedulable for %s", nodeName)
 			}

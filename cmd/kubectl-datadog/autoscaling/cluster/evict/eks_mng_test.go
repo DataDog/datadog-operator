@@ -210,7 +210,7 @@ func TestEvictEKSManagedNodeGroup(t *testing.T) {
 				opts.PollInterval = 30 * time.Millisecond
 			}
 
-			err := evictEKSManagedNodeGroup(context.Background(), stub, client, "my-cluster", "my-mng", opts)
+			err := evictEKSManagedNodeGroup(t.Context(), stub, client, "my-cluster", "my-mng", opts)
 			if tc.wantErr {
 				require.Error(t, err)
 				if tc.wantErrContains != "" {

@@ -153,7 +153,7 @@ func TestEvictASG(t *testing.T) {
 			}
 			stub := &stubAutoscaling{}
 
-			err := evictASG(context.Background(), client, stub, "my-asg", tc.nodes, tc.opts)
+			err := evictASG(t.Context(), client, stub, "my-asg", tc.nodes, tc.opts)
 			if tc.wantErr {
 				require.Error(t, err)
 			} else {
@@ -170,7 +170,7 @@ func TestEvictASG(t *testing.T) {
 			}
 
 			for nodeName, want := range tc.wantUnschedulable {
-				got, getErr := client.CoreV1().Nodes().Get(context.Background(), nodeName, metav1.GetOptions{})
+				got, getErr := client.CoreV1().Nodes().Get(t.Context(), nodeName, metav1.GetOptions{})
 				require.NoError(t, getErr)
 				assert.Equal(t, want, got.Spec.Unschedulable, "Spec.Unschedulable for %s", nodeName)
 			}

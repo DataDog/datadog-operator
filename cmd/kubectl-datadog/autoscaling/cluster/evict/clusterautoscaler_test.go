@@ -1,7 +1,6 @@
 package evict
 
 import (
-	"context"
 	"errors"
 	"testing"
 
@@ -151,13 +150,13 @@ func TestScaleDownClusterAutoscaler(t *testing.T) {
 			client := fake.NewClientset(objs...)
 			calls := scaleReactor(t, client, tc.conflictFirstUpdate)
 
-			require.NoError(t, scaleDownClusterAutoscaler(context.Background(), client, tc.ca, tc.dryRun))
+			require.NoError(t, scaleDownClusterAutoscaler(t.Context(), client, tc.ca, tc.dryRun))
 
 			assert.GreaterOrEqual(t, *calls, tc.wantUpdateCalls, "minimum UpdateScale calls")
 			if tc.wantReplicas == nil {
 				return
 			}
-			got, err := client.AppsV1().Deployments(tc.ca.Namespace).Get(context.Background(), tc.ca.Name, metav1.GetOptions{})
+			got, err := client.AppsV1().Deployments(tc.ca.Namespace).Get(t.Context(), tc.ca.Name, metav1.GetOptions{})
 			require.NoError(t, err)
 			require.NotNil(t, got.Spec.Replicas)
 			assert.Equal(t, *tc.wantReplicas, *got.Spec.Replicas)

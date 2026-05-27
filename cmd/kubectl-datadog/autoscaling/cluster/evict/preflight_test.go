@@ -1,7 +1,6 @@
 package evict
 
 import (
-	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -107,7 +106,7 @@ func TestWarnKarpenterWeightConflicts(t *testing.T) {
 				Build()
 			streams, _, _, errBuf := genericclioptions.NewTestIOStreams()
 
-			warnKarpenterWeightConflicts(context.Background(), streams, cli, tc.targets)
+			warnKarpenterWeightConflicts(t.Context(), streams, cli, tc.targets)
 
 			out := errBuf.String()
 			if tc.wantWarnEmpty {
@@ -126,6 +125,6 @@ func TestWarnKarpenterWeightConflicts(t *testing.T) {
 func TestRunPreflightWarnings_NoOp(t *testing.T) {
 	cli := ctrlfake.NewClientBuilder().WithScheme(newKarpenterScheme(t)).Build()
 	streams, _, _, errBuf := genericclioptions.NewTestIOStreams()
-	runPreflightWarnings(context.Background(), streams, cli, nil)
+	runPreflightWarnings(t.Context(), streams, cli, nil)
 	assert.Empty(t, errBuf.String())
 }
