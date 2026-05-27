@@ -161,6 +161,10 @@ func (r *Reconciler) updateStatusIfNeededV2(logger logr.Logger, agentdeployment 
 			logger.Error(err, "unable to update DatadogAgent status")
 			return reconcile.Result{}, err
 		}
+		// Status write committed. Emit one Kubernetes event per detected
+		// experiment phase transition. Gated by DD_FLEET_MANAGEMENT_EVENTS_ENABLED
+		// — see experiment_events.go.
+		r.emitExperimentTransitionEvent(agentdeployment, agentdeployment.Status.Experiment, newStatus.Experiment)
 	}
 
 	return result, currentError
