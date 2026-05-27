@@ -206,8 +206,33 @@ func (d *Daemon) finishPendingOperation(ctx context.Context, task pendingOperati
 	}
 	d.taskMu.Unlock()
 
+	// Emit outgoing-edge events after the in-memory RC state is committed.
+	if resultErr != nil {
+		d.emitTaskRejectedEvent(ctx, task.nsn,
+			remoteAPIRequest{ID: task.taskID, Method: methodForIntent(task.intent)},
+			resultErr.Error())
+	} else {
+		d.emitTaskCompletedEvent(ctx, task)
+	}
+
 	if err := d.clearPendingAnnotationsIfCurrent(ctx, task); err != nil {
 		ctrl.LoggerFrom(ctx).Error(err, "Failed to clear pending operation annotations", "taskID", task.taskID, "package", task.packageName, "namespace", task.nsn.Namespace, "name", task.nsn.Name)
+	}
+}
+
+// methodForIntent maps a pendingIntent to its wire Fleet method name,
+// used when emitTaskRejectedEvent needs a synthetic remoteAPIRequest
+// for the event message label.
+func methodForIntent(intent pendingIntent) string {
+	switch intent {
+	case pendingIntentStart:
+		return methodStartDatadogAgentExperiment
+	case pendingIntentStop:
+		return methodStopDatadogAgentExperiment
+	case pendingIntentPromote:
+		return methodPromoteDatadogAgentExperiment
+	default:
+		return string(intent)
 	}
 }
 
@@ -285,6 +310,7 @@ func (d *Daemon) reconcileLocallyTerminatedExperiment(ctx context.Context, snaps
 		}
 		d.setPackageConfigVersions(pkg.GetPackage(), pkg.GetStableConfigVersion(), "")
 		logger.Info("Cleared locally-terminated experiment config version from RC state", "package", pkg.GetPackage())
+		d.emitLocalTerminationPublishedEvent(ctx, snapshot.nsn, snapshot.experiment.ID, errMsg)
 	}
 }
 
