@@ -27,6 +27,7 @@ type ddaStatusSnapshot struct {
 	nsn         types.NamespacedName
 	annotations map[string]string
 	experiment  *v2alpha1.ExperimentStatus
+	agent       *v2alpha1.DaemonSetStatus
 }
 
 type pendingOperation struct {
@@ -41,6 +42,10 @@ type pendingOperation struct {
 	experimentID string
 	// resultVersion is only used by promote. It becomes stable_config on success.
 	resultVersion string
+	// preExperimentHash is the agent DaemonSetStatus.CurrentHash captured when
+	// the start signal was written. The rollout gate requires the hash to change
+	// before declaring DONE, ensuring the DDAI controller has applied the new spec.
+	preExperimentHash string
 }
 
 type pendingIntent string
@@ -62,6 +67,14 @@ func (op pendingOperation) matches(other pendingOperation) bool {
 
 type operationTracker struct {
 	daemon *Daemon
+	// skipExperimentID is the experiment ID for which a single potential
+	// false-positive DONE on a start task has been consumed. DDAI can flip
+	// CurrentHash before the kube DaemonSet controller decrements
+	// UpdatedNumberScheduled, making isDaemonSetRolloutComplete return true
+	// against a stale UpToDate. Requiring a second confirming snapshot
+	// eliminates the race without new annotations. Single-goroutine field
+	// (only written/read from the run() loop) — no lock needed.
+	skipExperimentID string
 }
 
 func newOperationTracker(d *Daemon) *operationTracker {
@@ -97,6 +110,19 @@ func (t *operationTracker) onStatusUpdate(ctx context.Context, snapshot ddaStatu
 	}
 	done, resultErr := evaluatePendingTask(snapshot, op)
 	if !done {
+		t.daemon.taskMu.Lock()
+		t.daemon.setTaskState(op.packageName, op.taskID, pbgo.TaskState_RUNNING, nil)
+		t.daemon.taskMu.Unlock()
+		return
+	}
+
+	// Skip-once guard: only for successful start completions. DDAI sets
+	// CurrentHash before the kube DaemonSet controller updates UpToDate, so
+	// the first DONE observation may be against a stale rollout status.
+	// Requiring a second confirming snapshot eliminates the race. Errors and
+	// non-start intents bypass the guard and are reported immediately.
+	if op.intent == pendingIntentStart && resultErr == nil && t.skipExperimentID != op.experimentID {
+		t.skipExperimentID = op.experimentID
 		t.daemon.taskMu.Lock()
 		t.daemon.setTaskState(op.packageName, op.taskID, pbgo.TaskState_RUNNING, nil)
 		t.daemon.taskMu.Unlock()
@@ -145,6 +171,9 @@ func newDDAStatusSnapshot(dda *v2alpha1.DatadogAgent) ddaStatusSnapshot {
 	if dda.Status.Experiment != nil {
 		snapshot.experiment = dda.Status.Experiment.DeepCopy()
 	}
+	if dda.Status.Agent != nil {
+		snapshot.agent = dda.Status.Agent.DeepCopy()
+	}
 	return snapshot
 }
 
@@ -160,7 +189,13 @@ func evaluatePendingTask(snapshot ddaStatusSnapshot, task pendingOperation) (boo
 	switch task.intent {
 	case pendingIntentStart:
 		if phase == v2alpha1.ExperimentPhaseRunning {
-			return true, nil
+			if task.preExperimentHash != "" && snapshot.agent != nil &&
+				snapshot.agent.CurrentHash == task.preExperimentHash {
+				// The DDAI controller has not yet applied the new spec: the agent
+				// status still carries the pre-experiment hash.
+				return false, nil
+			}
+			return isDaemonSetRolloutComplete(snapshot.agent), nil
 		}
 	case pendingIntentStop:
 		return isTerminalPhase(phase), nil
@@ -175,6 +210,18 @@ func evaluatePendingTask(snapshot ddaStatusSnapshot, task pendingOperation) (boo
 		return true, fmt.Errorf("expected %s to finish, got terminal phase %q", task.intent, phase)
 	}
 	return false, nil
+}
+
+func isDaemonSetRolloutComplete(agent *v2alpha1.DaemonSetStatus) bool {
+	if agent == nil {
+		return false
+	}
+	// Desired == 0 is trivially complete: all nodes are tainted/cordoned so
+	// there is nothing to roll out. This is safe because experiments update an
+	// existing DaemonSet rather than create a new one, so Desired never
+	// transiently passes through 0 mid-rollout — it stays at its current node
+	// count throughout the update.
+	return agent.UpToDate == agent.Desired && agent.Available == agent.Desired
 }
 
 // finishPendingOperation writes the final RC state for a task.
@@ -200,8 +247,10 @@ func (d *Daemon) finishPendingOperation(ctx context.Context, task pendingOperati
 		}
 	}
 	if resultErr != nil {
+		ctrl.Log.Info("Task finished with error", "taskID", task.taskID, "package", task.packageName, "intent", task.intent, "error", resultErr)
 		d.setTaskState(task.packageName, task.taskID, pbgo.TaskState_ERROR, resultErr)
 	} else {
+		ctrl.Log.Info("Task finished successfully", "taskID", task.taskID, "package", task.packageName, "intent", task.intent)
 		d.setTaskState(task.packageName, task.taskID, pbgo.TaskState_DONE, nil)
 	}
 	d.taskMu.Unlock()
@@ -241,12 +290,13 @@ func (d *Daemon) reconcileTimedOutExperiment(ctx context.Context, snapshot ddaSt
 // Missing fields or an unknown action mean there is no task to track.
 func pendingOperationFromAnnotations(nsn types.NamespacedName, annotations map[string]string) (pendingOperation, bool) {
 	op := pendingOperation{
-		intent:        pendingIntent(annotations[v2alpha1.AnnotationPendingAction]),
-		taskID:        annotations[v2alpha1.AnnotationPendingTaskID],
-		packageName:   annotations[v2alpha1.AnnotationPendingPackage],
-		nsn:           nsn,
-		experimentID:  annotations[v2alpha1.AnnotationPendingExperimentID],
-		resultVersion: annotations[v2alpha1.AnnotationPendingResultVersion],
+		intent:            pendingIntent(annotations[v2alpha1.AnnotationPendingAction]),
+		taskID:            annotations[v2alpha1.AnnotationPendingTaskID],
+		packageName:       annotations[v2alpha1.AnnotationPendingPackage],
+		nsn:               nsn,
+		experimentID:      annotations[v2alpha1.AnnotationPendingExperimentID],
+		resultVersion:     annotations[v2alpha1.AnnotationPendingResultVersion],
+		preExperimentHash: annotations[v2alpha1.AnnotationPendingPreExperimentHash],
 	}
 	if op.taskID == "" || op.intent == "" || op.experimentID == "" || op.packageName == "" {
 		return pendingOperation{}, false
@@ -275,11 +325,12 @@ func (d *Daemon) clearPendingAnnotationsIfCurrent(ctx context.Context, task pend
 	patch, err := json.Marshal(map[string]any{
 		"metadata": map[string]any{
 			"annotations": map[string]any{
-				v2alpha1.AnnotationPendingTaskID:        nil,
-				v2alpha1.AnnotationPendingAction:        nil,
-				v2alpha1.AnnotationPendingExperimentID:  nil,
-				v2alpha1.AnnotationPendingPackage:       nil,
-				v2alpha1.AnnotationPendingResultVersion: nil,
+				v2alpha1.AnnotationPendingTaskID:            nil,
+				v2alpha1.AnnotationPendingAction:            nil,
+				v2alpha1.AnnotationPendingExperimentID:      nil,
+				v2alpha1.AnnotationPendingPackage:           nil,
+				v2alpha1.AnnotationPendingResultVersion:     nil,
+				v2alpha1.AnnotationPendingPreExperimentHash: nil,
 			},
 		},
 	})

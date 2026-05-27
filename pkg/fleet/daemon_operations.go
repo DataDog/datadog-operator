@@ -148,6 +148,11 @@ func (d *Daemon) applyOperation(ctx context.Context, nsn types.NamespacedName, s
 			// when they are omitted.
 			annotations[v2alpha1.AnnotationPendingResultVersion] = nil
 		}
+		if pending.preExperimentHash != "" {
+			annotations[v2alpha1.AnnotationPendingPreExperimentHash] = pending.preExperimentHash
+		} else {
+			annotations[v2alpha1.AnnotationPendingPreExperimentHash] = nil
+		}
 
 		var err error
 		patch, err = json.Marshal(patchMap)
@@ -237,6 +242,9 @@ func (d *Daemon) planStart(ctx context.Context, req remoteAPIRequest, op resolve
 	dda := &v2alpha1.DatadogAgent{}
 	if err := d.client.Get(ctx, op.NamespacedName, dda); err != nil {
 		return nil, nil, fmt.Errorf("start DatadogAgent experiment: failed to get DatadogAgent: %w", err)
+	}
+	if dda.Status.Agent != nil {
+		pending.preExperimentHash = dda.Status.Agent.CurrentHash
 	}
 	if experimentHasPhase(dda, experimentID, v2alpha1.ExperimentPhaseRunning) {
 		// The controller already started this experiment. Update RC now and let
