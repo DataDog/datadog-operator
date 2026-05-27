@@ -47,7 +47,6 @@ func NewDefaultClusterChecksRunnerDeployment(dda metav1.Object, ddaSpec *v2alpha
 	maps.Copy(podTemplate.Annotations, deployment.GetAnnotations())
 
 	deployment.Spec.Template = *podTemplate
-	deployment.Spec.Replicas = ptr.To(defaultClusterChecksRunnerReplicas)
 
 	return deployment
 }
