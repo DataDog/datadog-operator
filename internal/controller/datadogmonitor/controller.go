@@ -159,9 +159,20 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 	} else {
 		var m datadogV1.Monitor
 		if instanceSpecHash != statusSpecHash {
-			// Custom resource manifest has changed, need to update the API
+			// Custom resource manifest has changed; verify the monitor still
+			// exists before updating. If it was deleted out-of-band (e.g. from
+			// the Datadog UI), fall back to create so the CR can self-heal
+			// instead of looping on 404.
 			logger.V(1).Info("DatadogMonitor manifest has changed")
-			shouldUpdate = true
+			_, err = r.get(auth, instance, newStatus)
+			if err != nil {
+				logger.Error(err, "error getting monitor", "Monitor ID", instance.Status.ID)
+				if strings.Contains(err.Error(), ctrutils.NotFoundString) {
+					shouldCreate = true
+				}
+			} else {
+				shouldUpdate = true
+			}
 		} else if instance.Status.MonitorLastForceSyncTime == nil || (forceSyncPeriod-now.Sub(instance.Status.MonitorLastForceSyncTime.Time)) <= 0 {
 			// Periodically force a sync with the API monitor to ensure parity
 			// Get monitor to make sure it exists before trying any updates. If it doesn't, set shouldCreate
@@ -225,6 +236,13 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 		}
 		if err = r.update(auth, logger, instance, newStatus, now, instanceSpecHash); err != nil {
 			logger.Error(err, "error updating monitor", "Monitor ID", instance.Status.ID)
+			// If the monitor was deleted between our existence check and this
+			// update (TOCTOU), clear status.ID so the next reconcile takes the
+			// create path and recreates the monitor.
+			if strings.Contains(err.Error(), ctrutils.NotFoundString) {
+				newStatus.ID = 0
+				result.RequeueAfter = defaultErrRequeuePeriod
+			}
 		}
 	}
 
