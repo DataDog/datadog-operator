@@ -14,6 +14,7 @@ import (
 	pbgo "github.com/DataDog/datadog-agent/pkg/proto/pbgo/core"
 	"github.com/DataDog/datadog-agent/pkg/remoteconfig/state"
 	"google.golang.org/protobuf/proto"
+	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlcache "sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -52,6 +53,7 @@ type Daemon struct {
 	client           client.Client
 	apiReader        client.Reader // bypasses the informer cache; used at startup before the cache is populated
 	cache            ctrlcache.Cache
+	recorder         record.EventRecorder // Kubernetes-event recorder for fleet-daemon-source events (gated by env var)
 	revisionsEnabled bool
 	mu               sync.RWMutex
 	configs          map[string]installerConfig // keyed by config ID; replaced on each RC update
@@ -70,6 +72,7 @@ func NewDaemon(rcClient remoteconfig.RCClient, mgr manager.Manager, revisionsEna
 		client:           mgr.GetClient(),
 		apiReader:        mgr.GetAPIReader(),
 		cache:            mgr.GetCache(), // Informer cache
+		recorder:         mgr.GetEventRecorderFor("fleet-daemon"),
 		revisionsEnabled: revisionsEnabled,
 		configs:          make(map[string]installerConfig),
 		statusUpdates:    make(chan ddaStatusSnapshot, 128),
@@ -119,6 +122,9 @@ func (d *Daemon) NeedLeaderElection() bool {
 
 // handleTask serializes task dispatch bookkeeping and package task-state updates.
 func (d *Daemon) handleTask(ctx context.Context, req remoteAPIRequest) error {
+	// Incoming-edge event: emitted before processing so the timeline shows
+	// every task FA sent, including those that will be rejected below.
+	d.emitTaskReceivedEvent(ctx, req)
 	d.taskMu.Lock()
 	pending, err := d.handleRemoteAPIRequest(ctx, req)
 	if err != nil {
@@ -130,6 +136,7 @@ func (d *Daemon) handleTask(ctx context.Context, req remoteAPIRequest) error {
 			d.setTaskState(req.Package, req.ID, pbgo.TaskState_ERROR, err)
 		}
 		d.taskMu.Unlock()
+		d.emitTaskRejectedEvent(ctx, req.Params.NamespacedName, req, err.Error())
 		return err
 	}
 	// The request is not relevant (stop a terminated experiment) or the desired
@@ -138,6 +145,15 @@ func (d *Daemon) handleTask(ctx context.Context, req remoteAPIRequest) error {
 		// Nothing is left for the worker to wait on.
 		d.setTaskState(req.Package, req.ID, pbgo.TaskState_DONE, nil)
 		d.taskMu.Unlock()
+		// Synthesize a pendingOperation for the event message so the
+		// timeline shows both ends of this idempotent task (received +
+		// completed). There is no in-flight op because the worker is
+		// never engaged on this path.
+		d.emitTaskCompletedEvent(ctx, pendingOperation{
+			taskID: req.ID,
+			intent: pendingIntent(methodLabel(req.Method)),
+			nsn:    req.Params.NamespacedName,
+		})
 		return nil
 	}
 	// The DDA annotations are already written. From the task handler's point
@@ -297,6 +313,10 @@ func (d *Daemon) rehydrateInstallerState(ctx context.Context) error {
 			"experimentID", exp.ID,
 			"phase", exp.Phase,
 		)
+		// Pass dda directly — apiReader returned a fully-populated object,
+		// and the informer cache may not be synced yet at this point so
+		// a cache-backed lookup would silently drop this event.
+		d.emitInstallerStateRehydratedEvent(ctx, dda, exp.ID, exp.Phase)
 	}
 	return nil
 }
