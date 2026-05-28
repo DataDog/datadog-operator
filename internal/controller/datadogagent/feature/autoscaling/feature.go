@@ -39,9 +39,10 @@ func buildAutoscalingFeature(options *feature.Options) feature.Feature {
 }
 
 type autoscalingFeature struct {
-	workloadEnabled    bool
-	clusterEnabled     bool
-	clusterSpotEnabled bool
+	workloadEnabled                  bool
+	workloadInPlaceVerticalScalingEn bool
+	clusterEnabled                   bool
+	clusterSpotEnabled               bool
 
 	serviceAccountName           string
 	owner                        metav1.Object
@@ -73,6 +74,9 @@ func (f *autoscalingFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Data
 
 	if autoscaling.Workload != nil && apiutils.BoolValue(autoscaling.Workload.Enabled) {
 		f.workloadEnabled = true
+		if autoscaling.Workload.InPlaceVerticalScaling != nil {
+			f.workloadInPlaceVerticalScalingEn = apiutils.BoolValue(autoscaling.Workload.InPlaceVerticalScaling.Enabled)
+		}
 		f.admissionControllerActivated = apiutils.BoolValue(ddaSpec.Features.AdmissionController.Enabled)
 		f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda.GetName(), ddaSpec)
 	}
@@ -126,6 +130,13 @@ func (f *autoscalingFeature) ManageClusterAgent(managers feature.PodTemplateMana
 			Name:  DDAutoscalingFailoverEnabled,
 			Value: "true",
 		})
+
+		if f.workloadInPlaceVerticalScalingEn {
+			managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
+				Name:  DDAutoscalingWorkloadInPlaceVerticalScalingEn,
+				Value: "true",
+			})
+		}
 	}
 
 	if f.clusterEnabled {
