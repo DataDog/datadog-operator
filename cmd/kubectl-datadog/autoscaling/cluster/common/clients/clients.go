@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strings"
 
 	awssdk "github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/aws/arn"
@@ -54,6 +55,34 @@ func Build(ctx context.Context, configFlags *genericclioptions.ConfigFlags, k8sC
 	awsConfig, err := config.LoadDefaultConfig(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load AWS config: %w", err)
+	}
+
+	// Reconcile the AWS region with the target EKS cluster before building the
+	// service clients: derive it from the kubeconfig context when unset (so a
+	// missing AWS_REGION yields an actionable message instead of an opaque STS
+	// "Missing Region" failure), and reject a region pointing at a region other
+	// than the cluster's.
+	var kubeRegion, clusterName string
+	if parsed, ok, kubeErr := getClusterARNFromKubeconfig(configFlags); kubeErr != nil {
+		log.Printf("Warning: failed to read AWS region from kubeconfig: %v", kubeErr)
+	} else if ok {
+		kubeRegion = parsed.Region
+		clusterName = strings.TrimPrefix(parsed.Resource, "cluster/")
+	}
+	region, err := resolveRegion(awsConfig.Region, kubeRegion, clusterName)
+	if err != nil {
+		return nil, err
+	}
+	if region != awsConfig.Region {
+		// The region was derived from the kubeconfig because none was
+		// configured. Reload the config with it so credential providers built
+		// during config load (e.g. assume-role / web-identity STS clients) also
+		// use the right region, not just the service clients created below.
+		log.Printf("AWS region not set; using %q from the kubeconfig context.", region)
+		awsConfig, err = config.LoadDefaultConfig(ctx, config.WithRegion(region))
+		if err != nil {
+			return nil, fmt.Errorf("failed to load AWS config: %w", err)
+		}
 	}
 
 	sch := runtime.NewScheme()
@@ -158,31 +187,74 @@ func ResolveClusterName(configFlags *genericclioptions.ConfigFlags, explicit str
 	return name, nil
 }
 
-// getAccountIDFromKubeconfig attempts to extract the AWS account ID from the
-// kubeconfig context. Returns an empty string if the context is not an EKS ARN.
-func getAccountIDFromKubeconfig(configFlags *genericclioptions.ConfigFlags) (string, error) {
+// getClusterARNFromKubeconfig returns the EKS cluster ARN parsed from the
+// kubeconfig context. ok is false when the context is absent or its cluster
+// field is not an ARN (e.g. plain name, eksctl FQDN) — treated as a normal
+// fallback, not an error. The parsed ARN carries both the AWS account ID and
+// the region, which are independent of the AWS credentials and cannot be
+// fooled by same-named clusters in other accounts or regions.
+func getClusterARNFromKubeconfig(configFlags *genericclioptions.ConfigFlags) (arn.ARN, bool, error) {
 	kubeRawConfig, kubeContext, err := resolveKubeContext(configFlags)
 	if err != nil || kubeContext == "" {
-		return "", err
+		return arn.ARN{}, false, err
 	}
 
 	kubeCtx, exists := kubeRawConfig.Contexts[kubeContext]
 	if !exists {
-		return "", fmt.Errorf("kube context %q doesn’t exist", kubeContext)
+		return arn.ARN{}, false, fmt.Errorf("kube context %q doesn’t exist", kubeContext)
 	}
 
-	// The kubeconfig cluster field may not be an ARN (e.g. plain name,
-	// eksctl FQDN). Treat that as a normal fallback, not an error.
 	if !arn.IsARN(kubeCtx.Cluster) {
-		return "", nil
+		return arn.ARN{}, false, nil
 	}
 
 	parsed, err := arn.Parse(kubeCtx.Cluster)
 	if err != nil {
-		return "", fmt.Errorf("failed to parse EKS cluster ARN %q: %w", kubeCtx.Cluster, err)
+		return arn.ARN{}, false, fmt.Errorf("failed to parse EKS cluster ARN %q: %w", kubeCtx.Cluster, err)
 	}
 
+	// Only an EKS cluster ARN carries the account/region we rely on. Any other
+	// ARN that happens to sit in the cluster field is treated as a normal
+	// non-ARN fallback rather than a misleading source of identity.
+	if parsed.Service != "eks" || !strings.HasPrefix(parsed.Resource, "cluster/") {
+		return arn.ARN{}, false, nil
+	}
+
+	return parsed, true, nil
+}
+
+// getAccountIDFromKubeconfig attempts to extract the AWS account ID from the
+// kubeconfig context. Returns an empty string if the context is not an EKS ARN.
+func getAccountIDFromKubeconfig(configFlags *genericclioptions.ConfigFlags) (string, error) {
+	parsed, ok, err := getClusterARNFromKubeconfig(configFlags)
+	if err != nil || !ok {
+		return "", err
+	}
 	return parsed.AccountID, nil
+}
+
+// resolveRegion reconciles the AWS region from the default credential chain
+// (empty when unset) with the cluster's region derived from the kubeconfig
+// context ARN (empty when the context is not an ARN):
+//   - both empty: error — the region cannot be determined.
+//   - configured region empty: derive it from the kubeconfig.
+//   - both set but different: RegionMismatchError.
+//   - otherwise: keep the configured region.
+func resolveRegion(configRegion, kubeRegion, clusterName string) (string, error) {
+	switch {
+	case configRegion == "" && kubeRegion == "":
+		return "", errors.New("AWS region is not configured and could not be derived from the kubeconfig context; set the AWS_REGION environment variable or configure a region in your AWS profile")
+	case configRegion == "":
+		return kubeRegion, nil
+	case kubeRegion != "" && kubeRegion != configRegion:
+		return "", &RegionMismatchError{
+			ConfigRegion:  configRegion,
+			ClusterRegion: kubeRegion,
+			ClusterName:   clusterName,
+		}
+	default:
+		return configRegion, nil
+	}
 }
 
 // GetAWSAccountID returns the AWS account ID from the current credentials.
@@ -263,6 +335,23 @@ func (e *AccountMismatchError) Error() string {
 			"but EKS cluster %q belongs to account %s; "+
 			"ensure your AWS credentials and kubeconfig target the same AWS account",
 		e.CredentialsAccountID, e.ClusterName, e.ClusterAccountID,
+	)
+}
+
+// RegionMismatchError indicates that the configured AWS region and the EKS
+// cluster's region (derived from the kubeconfig context ARN) differ.
+type RegionMismatchError struct {
+	ConfigRegion  string
+	ClusterRegion string
+	ClusterName   string
+}
+
+func (e *RegionMismatchError) Error() string {
+	return fmt.Sprintf(
+		"AWS region mismatch: the configured AWS region is %s, "+
+			"but EKS cluster %q is in region %s; "+
+			"set AWS_REGION to %s (or select a kubeconfig context for a cluster in %s)",
+		e.ConfigRegion, e.ClusterName, e.ClusterRegion, e.ClusterRegion, e.ConfigRegion,
 	)
 }
 
