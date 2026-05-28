@@ -328,9 +328,21 @@ func TestAppsecFeature(t *testing.T) {
 			),
 		},
 		{
-			Name: "Appsec enabled with nginx module mount path",
+			Name: "Appsec enabled with nginx module mount path requires cluster-agent >= 7.79.0",
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithClusterAgentTag("7.76.0").
+				WithAnnotations(map[string]string{
+					AnnotationInjectorEnabled:      "true",
+					AnnotationInjectorAutoDetect:   "true",
+					AnnotationNginxModuleMountPath: "/modules_mount",
+				}).
+				Build(),
+			WantConfigure: false,
+		},
+		{
+			Name: "Appsec enabled with nginx module mount path on 7.79.0",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithClusterAgentTag("7.79.0").
 				WithAnnotations(map[string]string{
 					AnnotationInjectorEnabled:      "true",
 					AnnotationInjectorAutoDetect:   "true",
@@ -357,6 +369,18 @@ func TestAppsecFeature(t *testing.T) {
 			ClusterAgent: assertEnv(
 				envVar{name: DDAdmissionControllerAppsecNginxModuleMountPath, present: false},
 			),
+		},
+		{
+			Name: "Appsec enabled with ingress-nginx proxy on old cluster-agent is rejected",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithClusterAgentTag("7.76.0").
+				WithAnnotations(map[string]string{
+					AnnotationInjectorEnabled:    "true",
+					AnnotationInjectorAutoDetect: "true",
+					AnnotationInjectorProxies:    `["ingress-nginx"]`,
+				}).
+				Build(),
+			WantConfigure: false,
 		},
 		{
 			Name: "Appsec enabled with empty nginx annotations does not inject nginx env vars",

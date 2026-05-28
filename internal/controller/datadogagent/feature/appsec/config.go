@@ -101,6 +101,13 @@ func FromAnnotations(annotations map[string]string) (config Config, err error) {
 	return config, nil
 }
 
+func (c Config) requiresNginxSupport() bool {
+	if c.NginxModuleMountPath != "" {
+		return true
+	}
+	return slices.Contains(c.Proxies, "ingress-nginx")
+}
+
 func (c Config) isEnabled() bool {
 	if !c.Enabled {
 		return false

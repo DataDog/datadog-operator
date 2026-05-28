@@ -58,19 +58,20 @@ func (f *appsecFeature) ID() feature.IDType {
 	return feature.AppsecIDType
 }
 
-func isAboveMinVersion(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
-	// Agent version must >= 7.73.0 to run appsec feature
+func clusterAgentVersion(ddaSpec *v2alpha1.DatadogAgentSpec) string {
 	if ddaSpec == nil {
-		return utils.IsAboveMinVersion(images.AgentLatestVersion, ClusterAgentMinVersion, nil)
+		return images.AgentLatestVersion
 	}
-
-	image := images.AgentLatestVersion
 	if clusterAgent, ok := ddaSpec.Override[v2alpha1.ClusterAgentComponentName]; ok {
 		if clusterAgent.Image != nil {
-			image = common.GetAgentVersionFromImage(*clusterAgent.Image)
+			return common.GetAgentVersionFromImage(*clusterAgent.Image)
 		}
 	}
-	return utils.IsAboveMinVersion(image, ClusterAgentMinVersion, nil)
+	return images.AgentLatestVersion
+}
+
+func isAboveMinVersion(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
+	return utils.IsAboveMinVersion(clusterAgentVersion(ddaSpec), ClusterAgentMinVersion, nil)
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
@@ -89,6 +90,11 @@ func (f *appsecFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAg
 
 	if !f.config.isEnabled() {
 		f.logger.V(1).Info("feature is disabled")
+		return feature.RequiredComponents{}
+	}
+
+	if f.config.requiresNginxSupport() && !utils.IsAboveMinVersion(clusterAgentVersion(ddaSpec), ClusterAgentNginxMinVersion, nil) {
+		f.logger.Info("ingress-nginx injection requires cluster-agent >= " + ClusterAgentNginxMinVersion)
 		return feature.RequiredComponents{}
 	}
 

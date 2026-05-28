@@ -7,6 +7,9 @@ package appsec
 
 const ClusterAgentMinVersion = "7.76.0"
 
+// ClusterAgentNginxMinVersion is the minimum cluster-agent version for ingress-nginx injection (explicit config only)
+const ClusterAgentNginxMinVersion = "7.79.0"
+
 // Appsec proxy injection annotations (Preview feature)
 const (
 	// AnnotationInjectorEnabled enables AppSec proxy integration
