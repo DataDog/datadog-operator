@@ -34,9 +34,6 @@ type Config struct {
 	SidecarResourcesLimitsCPU      string
 	SidecarResourcesLimitsMemory   string
 	SidecarBodyParsingSizeLimit    string
-	// NginxInitImage overrides the init container image for nginx-datadog module injection.
-	// Maps to DD_ADMISSION_CONTROLLER_APPSEC_NGINX_INIT_IMAGE on the cluster-agent.
-	NginxInitImage string
 	// NginxModuleMountPath overrides the mount path for the nginx-datadog module inside the controller pod.
 	// Maps to DD_ADMISSION_CONTROLLER_APPSEC_NGINX_MODULE_MOUNT_PATH on the cluster-agent.
 	NginxModuleMountPath string
@@ -94,7 +91,6 @@ func FromAnnotations(annotations map[string]string) (config Config, err error) {
 	config.SidecarResourcesLimitsCPU = annotations[AnnotationSidecarResourcesLimitsCPU]
 	config.SidecarResourcesLimitsMemory = annotations[AnnotationSidecarResourcesLimitsMemory]
 	config.SidecarBodyParsingSizeLimit = annotations[AnnotationSidecarBodyParsingSizeLimit]
-	config.NginxInitImage = annotations[AnnotationNginxInitImage]
 	config.NginxModuleMountPath = annotations[AnnotationNginxModuleMountPath]
 
 	// Validate the configuration before returning

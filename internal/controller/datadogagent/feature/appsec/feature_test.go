@@ -324,17 +324,16 @@ func TestAppsecFeature(t *testing.T) {
 				envVar{name: DDAppsecProxyEnabled, value: "true", present: true},
 				envVar{name: DDClusterAgentAppsecInjectorEnabled, value: "true", present: true},
 				envVar{name: DDClusterAgentAppsecInjectorMode, value: "external", present: true},
-					envVar{name: DDClusterAgentAppsecInjectorProcessorServiceName, value: "appsec-processor", present: true},
-				),
+				envVar{name: DDClusterAgentAppsecInjectorProcessorServiceName, value: "appsec-processor", present: true},
+			),
 		},
 		{
-			Name: "Appsec enabled with nginx init image and mount path",
+			Name: "Appsec enabled with nginx module mount path",
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithClusterAgentTag("7.76.0").
 				WithAnnotations(map[string]string{
 					AnnotationInjectorEnabled:      "true",
 					AnnotationInjectorAutoDetect:   "true",
-					AnnotationNginxInitImage:       "datadog/ingress-nginx-injection:7.77.0",
 					AnnotationNginxModuleMountPath: "/modules_mount",
 				}).
 				Build(),
@@ -342,7 +341,6 @@ func TestAppsecFeature(t *testing.T) {
 			ClusterAgent: assertEnv(
 				envVar{name: DDAppsecProxyEnabled, value: "true", present: true},
 				envVar{name: DDClusterAgentAppsecInjectorEnabled, value: "true", present: true},
-				envVar{name: DDAdmissionControllerAppsecNginxInitImage, value: "datadog/ingress-nginx-injection:7.77.0", present: true},
 				envVar{name: DDAdmissionControllerAppsecNginxModuleMountPath, value: "/modules_mount", present: true},
 			),
 		},
@@ -357,7 +355,6 @@ func TestAppsecFeature(t *testing.T) {
 				Build(),
 			WantConfigure: true,
 			ClusterAgent: assertEnv(
-				envVar{name: DDAdmissionControllerAppsecNginxInitImage, present: false},
 				envVar{name: DDAdmissionControllerAppsecNginxModuleMountPath, present: false},
 			),
 		},
@@ -368,29 +365,11 @@ func TestAppsecFeature(t *testing.T) {
 				WithAnnotations(map[string]string{
 					AnnotationInjectorEnabled:      "true",
 					AnnotationInjectorAutoDetect:   "true",
-					AnnotationNginxInitImage:       "",
 					AnnotationNginxModuleMountPath: "",
 				}).
 				Build(),
 			WantConfigure: true,
 			ClusterAgent: assertEnv(
-				envVar{name: DDAdmissionControllerAppsecNginxInitImage, present: false},
-				envVar{name: DDAdmissionControllerAppsecNginxModuleMountPath, present: false},
-			),
-		},
-		{
-			Name: "Appsec enabled with only nginx init image annotation",
-			DDA: testutils.NewDatadogAgentBuilder().
-				WithClusterAgentTag("7.76.0").
-				WithAnnotations(map[string]string{
-					AnnotationInjectorEnabled:    "true",
-					AnnotationInjectorAutoDetect: "true",
-					AnnotationNginxInitImage:     "datadog/ingress-nginx-injection:latest",
-				}).
-				Build(),
-			WantConfigure: true,
-			ClusterAgent: assertEnv(
-				envVar{name: DDAdmissionControllerAppsecNginxInitImage, value: "datadog/ingress-nginx-injection:latest", present: true},
 				envVar{name: DDAdmissionControllerAppsecNginxModuleMountPath, present: false},
 			),
 		},
@@ -766,17 +745,15 @@ func TestFromAnnotations(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "nginx annotations parsed correctly",
+			name: "nginx module mount path parsed correctly",
 			annotations: map[string]string{
 				AnnotationInjectorEnabled:      "true",
 				AnnotationInjectorAutoDetect:   "true",
-				AnnotationNginxInitImage:       "datadog/ingress-nginx-injection:7.77.0",
 				AnnotationNginxModuleMountPath: "/custom/modules",
 			},
 			wantConfig: Config{
 				Enabled:              true,
 				AutoDetect:           ptr.To(true),
-				NginxInitImage:       "datadog/ingress-nginx-injection:7.77.0",
 				NginxModuleMountPath: "/custom/modules",
 			},
 			wantErr: false,
@@ -798,7 +775,6 @@ func TestFromAnnotations(t *testing.T) {
 			annotations: map[string]string{
 				AnnotationInjectorEnabled:      "true",
 				AnnotationInjectorAutoDetect:   "true",
-				AnnotationNginxInitImage:       "",
 				AnnotationNginxModuleMountPath: "",
 			},
 			wantConfig: Config{
@@ -824,7 +800,6 @@ func TestFromAnnotations(t *testing.T) {
 				assert.Equal(t, tt.wantConfig.ProcessorPort, config.ProcessorPort)
 				assert.Equal(t, tt.wantConfig.ProcessorServiceName, config.ProcessorServiceName)
 				assert.Equal(t, tt.wantConfig.ProcessorServiceNamespace, config.ProcessorServiceNamespace)
-				assert.Equal(t, tt.wantConfig.NginxInitImage, config.NginxInitImage)
 				assert.Equal(t, tt.wantConfig.NginxModuleMountPath, config.NginxModuleMountPath)
 			}
 		})
