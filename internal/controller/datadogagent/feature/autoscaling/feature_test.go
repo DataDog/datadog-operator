@@ -39,63 +39,78 @@ func TestAutoscalingFeature(t *testing.T) {
 	tests := test.FeatureTestSuite{
 		{
 			Name:          "autoscaling disabled",
-			DDA:           newAgent(false, false, true, false),
-			ClusterAgent:  testDCAResources(false, false, false),
+			DDA:           newAgent(false, false, true, false, false),
+			ClusterAgent:  testDCAResources(false, false, false, false),
 			Agent:         testAgentResources(false),
 			WantConfigure: false,
 		},
 		{
 			Name:                 "workload autoscaling enabled",
-			DDA:                  newAgent(true, false, true, false),
+			DDA:                  newAgent(true, false, true, false, false),
 			WantConfigure:        true,
-			ClusterAgent:         testDCAResources(true, false, false),
+			ClusterAgent:         testDCAResources(true, false, false, false),
 			Agent:                testAgentResources(true),
 			WantDependenciesFunc: testRBACResources,
 		},
 		{
-			Name:                 "cluster autoscaling enabled",
-			DDA:                  newAgent(false, true, false, false),
+			Name:                 "workload autoscaling + in-place vertical scaling enabled",
+			DDA:                  newAgent(true, false, true, false, true),
 			WantConfigure:        true,
-			ClusterAgent:         testDCAResources(false, true, false),
+			ClusterAgent:         testDCAResources(true, false, false, true),
+			Agent:                testAgentResources(true),
+			WantDependenciesFunc: testRBACResources,
+		},
+		{
+			Name:          "in-place vertical scaling set but workload disabled",
+			DDA:           newAgent(false, false, true, false, true),
+			ClusterAgent:  testDCAResources(false, false, false, false),
+			Agent:         testAgentResources(false),
+			WantConfigure: false,
+		},
+		{
+			Name:                 "cluster autoscaling enabled",
+			DDA:                  newAgent(false, true, false, false, false),
+			WantConfigure:        true,
+			ClusterAgent:         testDCAResources(false, true, false, false),
 			Agent:                testAgentResources(false),
 			WantDependenciesFunc: testRBACResources,
 		},
 		{
 			Name:                 "workload and cluster autoscaling enabled",
-			DDA:                  newAgent(true, true, true, false),
+			DDA:                  newAgent(true, true, true, false, false),
 			WantConfigure:        true,
-			ClusterAgent:         testDCAResources(true, true, false),
+			ClusterAgent:         testDCAResources(true, true, false, false),
 			Agent:                testAgentResources(true),
 			WantDependenciesFunc: testRBACResources,
 		},
 		{
 			Name:                      "autoscaling enabled but admission disabled",
-			DDA:                       newAgent(true, true, false, false),
-			ClusterAgent:              testDCAResources(true, true, false),
+			DDA:                       newAgent(true, true, false, false, false),
+			ClusterAgent:              testDCAResources(true, true, false, false),
 			Agent:                     testAgentResources(true),
 			WantConfigure:             true,
 			WantManageDependenciesErr: true,
 		},
 		{
 			Name:                 "cluster and spot autoscaling enabled",
-			DDA:                  newAgent(false, true, false, true),
+			DDA:                  newAgent(false, true, false, true, false),
 			WantConfigure:        true,
-			ClusterAgent:         testDCAResources(false, true, true),
+			ClusterAgent:         testDCAResources(false, true, true, false),
 			Agent:                testAgentResources(false),
 			WantDependenciesFunc: testRBACResources,
 		},
 		{
 			Name:                 "all autoscaling enabled",
-			DDA:                  newAgent(true, true, true, true),
+			DDA:                  newAgent(true, true, true, true, true),
 			WantConfigure:        true,
-			ClusterAgent:         testDCAResources(true, true, true),
+			ClusterAgent:         testDCAResources(true, true, true, true),
 			Agent:                testAgentResources(true),
 			WantDependenciesFunc: testRBACResources,
 		},
 		{
 			Name:          "cluster spot disabled without cluster",
-			DDA:           newAgent(false, false, false, true),
-			ClusterAgent:  testDCAResources(false, false, false),
+			DDA:           newAgent(false, false, false, true, false),
+			ClusterAgent:  testDCAResources(false, false, false, false),
 			Agent:         testAgentResources(false),
 			WantConfigure: false,
 		},
@@ -104,7 +119,7 @@ func TestAutoscalingFeature(t *testing.T) {
 	tests.Run(t, buildAutoscalingFeature)
 }
 
-func newAgent(workloadEnabled, clusterEnabled, admissionEnabled, clusterSpotEnabled bool) *v2alpha1.DatadogAgent {
+func newAgent(workloadEnabled, clusterEnabled, admissionEnabled, clusterSpotEnabled, workloadInPlaceVerticalScalingEnabled bool) *v2alpha1.DatadogAgent {
 	return &v2alpha1.DatadogAgent{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "foo",
@@ -115,6 +130,9 @@ func newAgent(workloadEnabled, clusterEnabled, admissionEnabled, clusterSpotEnab
 				Autoscaling: &v2alpha1.AutoscalingFeatureConfig{
 					Workload: &v2alpha1.WorkloadAutoscalingFeatureConfig{
 						Enabled: ptr.To(workloadEnabled),
+						InPlaceVerticalScaling: &v2alpha1.InPlaceVerticalScalingFeatureConfig{
+							Enabled: ptr.To(workloadInPlaceVerticalScalingEnabled),
+						},
 					},
 					Cluster: &v2alpha1.ClusterAutoscalingFeatureConfig{
 						Enabled: ptr.To(clusterEnabled),
@@ -209,7 +227,8 @@ func testRBACResources(t testing.TB, store store.StoreClient) {
 
 	var policyRules []rbacv1.PolicyRule
 	switch t.Name() {
-	case "TestAutoscalingFeature/workload_autoscaling_enabled":
+	case "TestAutoscalingFeature/workload_autoscaling_enabled",
+		"TestAutoscalingFeature/workload_autoscaling_+_in-place_vertical_scaling_enabled":
 		policyRules = slices.Concat(
 			eventsRule,
 			workloadSpecificRules,
@@ -274,7 +293,7 @@ func testRBACResources(t testing.TB, store store.StoreClient) {
 	}
 }
 
-func testDCAResources(workloadEnabled, clusterEnabled, clusterSpotEnabled bool) *test.ComponentTest {
+func testDCAResources(workloadEnabled, clusterEnabled, clusterSpotEnabled, workloadInPlaceVerticalScalingEnabled bool) *test.ComponentTest {
 	return test.NewDefaultComponentTest().WithWantFunc(
 		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 			mgr := mgrInterface.(*fake.PodTemplateManagers)
@@ -293,6 +312,14 @@ func testDCAResources(workloadEnabled, clusterEnabled, clusterSpotEnabled bool) 
 						Value: "true",
 					},
 				)
+				if workloadInPlaceVerticalScalingEnabled {
+					expectedClusterAgentEnvVars = append(expectedClusterAgentEnvVars,
+						&corev1.EnvVar{
+							Name:  DDAutoscalingWorkloadInPlaceVerticalScalingEn,
+							Value: "true",
+						},
+					)
+				}
 			}
 
 			if clusterEnabled {
