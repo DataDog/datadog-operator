@@ -58,31 +58,12 @@ func Build(ctx context.Context, configFlags *genericclioptions.ConfigFlags, k8sC
 	}
 
 	// Reconcile the AWS region with the target EKS cluster before building the
-	// service clients: derive it from the kubeconfig context when unset (so a
-	// missing AWS_REGION yields an actionable message instead of an opaque STS
-	// "Missing Region" failure), and reject a region pointing at a region other
-	// than the cluster's.
-	var kubeRegion, clusterName string
-	if parsed, ok, kubeErr := getClusterARNFromKubeconfig(configFlags); kubeErr != nil {
-		log.Printf("Warning: failed to read AWS region from kubeconfig: %v", kubeErr)
-	} else if ok {
-		kubeRegion = parsed.Region
-		clusterName = strings.TrimPrefix(parsed.Resource, "cluster/")
-	}
-	region, err := resolveRegion(awsConfig.Region, kubeRegion, clusterName)
+	// service clients (so a missing AWS_REGION is derived from the kubeconfig or
+	// reported clearly rather than as an opaque STS failure, and a region
+	// pointing elsewhere than the cluster is rejected).
+	awsConfig, err = reconcileRegion(ctx, awsConfig, configFlags)
 	if err != nil {
 		return nil, err
-	}
-	if region != awsConfig.Region {
-		// The region was derived from the kubeconfig because none was
-		// configured. Reload the config with it so credential providers built
-		// during config load (e.g. assume-role / web-identity STS clients) also
-		// use the right region, not just the service clients created below.
-		log.Printf("AWS region not set; using %q from the kubeconfig context.", region)
-		awsConfig, err = config.LoadDefaultConfig(ctx, config.WithRegion(region))
-		if err != nil {
-			return nil, fmt.Errorf("failed to load AWS config: %w", err)
-		}
 	}
 
 	sch := runtime.NewScheme()
@@ -255,6 +236,38 @@ func resolveRegion(configRegion, kubeRegion, clusterName string) (string, error)
 	default:
 		return configRegion, nil
 	}
+}
+
+// reconcileRegion ensures awsConfig targets the same AWS region as the EKS
+// cluster from the kubeconfig context. When no region is configured it is
+// derived from the kubeconfig and the config is reloaded with it, so credential
+// providers built during config load (e.g. assume-role / web-identity STS
+// clients) also use it rather than only the service clients created afterward.
+// A configured region that differs from the cluster's is rejected with a
+// RegionMismatchError.
+func reconcileRegion(ctx context.Context, awsConfig awssdk.Config, configFlags *genericclioptions.ConfigFlags) (awssdk.Config, error) {
+	var kubeRegion, clusterName string
+	if parsed, ok, err := getClusterARNFromKubeconfig(configFlags); err != nil {
+		log.Printf("Warning: failed to read AWS region from kubeconfig: %v", err)
+	} else if ok {
+		kubeRegion = parsed.Region
+		clusterName = strings.TrimPrefix(parsed.Resource, "cluster/")
+	}
+
+	region, err := resolveRegion(awsConfig.Region, kubeRegion, clusterName)
+	if err != nil {
+		return awssdk.Config{}, err
+	}
+	if region == awsConfig.Region {
+		return awsConfig, nil
+	}
+
+	log.Printf("AWS region not set; using %q from the kubeconfig context.", region)
+	awsConfig, err = config.LoadDefaultConfig(ctx, config.WithRegion(region))
+	if err != nil {
+		return awssdk.Config{}, fmt.Errorf("failed to load AWS config: %w", err)
+	}
+	return awsConfig, nil
 }
 
 // GetAWSAccountID returns the AWS account ID from the current credentials.

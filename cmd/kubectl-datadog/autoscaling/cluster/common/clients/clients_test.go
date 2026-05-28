@@ -1,11 +1,13 @@
 package clients
 
 import (
+	"context"
 	"errors"
 	"os"
 	"path/filepath"
 	"testing"
 
+	awssdk "github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
@@ -355,6 +357,133 @@ func TestResolveRegion(t *testing.T) {
 			} else {
 				assert.False(t, errors.As(err, &mismatch))
 			}
+		})
+	}
+}
+
+func TestReconcileRegion(t *testing.T) {
+	const eksARN = `
+apiVersion: v1
+kind: Config
+current-context: eks
+contexts:
+- name: eks
+  context:
+    cluster: arn:aws:eks:us-east-2:123456789012:cluster/my-cluster
+    user: u
+clusters:
+- name: arn:aws:eks:us-east-2:123456789012:cluster/my-cluster
+  cluster:
+    server: https://example.eks.amazonaws.com
+users:
+- name: u
+  user: {}
+`
+	const plainName = `
+apiVersion: v1
+kind: Config
+current-context: plain
+contexts:
+- name: plain
+  context:
+    cluster: my-cluster
+    user: u
+clusters:
+- name: my-cluster
+  cluster:
+    server: https://example.eks.amazonaws.com
+users:
+- name: u
+  user: {}
+`
+	// current-context references a context that is not defined, so reading the
+	// cluster ARN fails — exercising the best-effort warning path.
+	const danglingContext = `
+apiVersion: v1
+kind: Config
+current-context: missing
+contexts:
+- name: present
+  context:
+    cluster: my-cluster
+    user: u
+clusters:
+- name: my-cluster
+  cluster:
+    server: https://example.eks.amazonaws.com
+users:
+- name: u
+  user: {}
+`
+	for _, tt := range []struct {
+		name         string
+		kubeconfig   string
+		configRegion string
+		wantRegion   string
+		wantMismatch bool
+		wantErr      bool
+	}{
+		{
+			name:         "matches the cluster region",
+			kubeconfig:   eksARN,
+			configRegion: "us-east-2",
+			wantRegion:   "us-east-2",
+		},
+		{
+			name:         "derives the region from the kubeconfig when unset",
+			kubeconfig:   eksARN,
+			configRegion: "",
+			wantRegion:   "us-east-2",
+		},
+		{
+			name:         "rejects a region that differs from the cluster",
+			kubeconfig:   eksARN,
+			configRegion: "us-west-2",
+			wantMismatch: true,
+			wantErr:      true,
+		},
+		{
+			name:         "errors when the region cannot be determined",
+			kubeconfig:   plainName,
+			configRegion: "",
+			wantErr:      true,
+		},
+		{
+			name:         "keeps the configured region when the kubeconfig is unreadable",
+			kubeconfig:   danglingContext,
+			configRegion: "eu-west-3",
+			wantRegion:   "eu-west-3",
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			kubeconfigPath := filepath.Join(dir, "kubeconfig")
+			require.NoError(t, os.WriteFile(kubeconfigPath, []byte(tt.kubeconfig), 0600))
+
+			// Isolate the SDK's default config resolution (used by the reload on
+			// the derive path) from the host environment so the test is hermetic.
+			t.Setenv("AWS_CONFIG_FILE", filepath.Join(dir, "aws-config"))
+			t.Setenv("AWS_SHARED_CREDENTIALS_FILE", filepath.Join(dir, "aws-credentials"))
+			t.Setenv("AWS_PROFILE", "")
+			t.Setenv("AWS_REGION", "")
+			t.Setenv("AWS_DEFAULT_REGION", "")
+
+			flags := genericclioptions.NewConfigFlags(false)
+			flags.KubeConfig = &kubeconfigPath
+
+			got, err := reconcileRegion(context.Background(), awssdk.Config{Region: tt.configRegion}, flags)
+			if tt.wantErr {
+				require.Error(t, err)
+				if tt.wantMismatch {
+					var mismatch *RegionMismatchError
+					require.ErrorAs(t, err, &mismatch)
+					assert.Contains(t, mismatch.Error(), "AWS region mismatch")
+				}
+				return
+			}
+
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantRegion, got.Region)
 		})
 	}
 }
