@@ -23,6 +23,16 @@ const (
 	maxWaitDuration = 30 * time.Minute
 )
 
+// ManagedByTag and ManagedByTagValue identify CloudFormation stacks owned by
+// kubectl-datadog. The pair is also propagated from the stack to its
+// resources (e.g. AWS::EKS::FargateProfile) by CloudFormation's tag
+// inheritance, so downstream code reading those resource tags can rely on
+// the same constants.
+const (
+	ManagedByTag      = "managed-by"
+	ManagedByTagValue = "kubectl-datadog"
+)
+
 func CreateOrUpdateStack(ctx context.Context, client *cloudformation.Client, stackName string, templateBody string, params map[string]string, extraTags map[string]string) error {
 	existing, err := GetStack(ctx, client, stackName)
 	if err != nil {
@@ -54,7 +64,7 @@ func createOrUpdateStack(ctx context.Context, client *cloudformation.Client, sta
 // override any extra entry sharing the same key.
 func buildTags(extraTags map[string]string) []types.Tag {
 	base := map[string]string{
-		"managed-by": "kubectl-datadog",
+		ManagedByTag: ManagedByTagValue,
 		"version":    version.GetVersion(),
 	}
 	return lo.MapToSlice(lo.Assign(extraTags, base), func(k, v string) types.Tag {

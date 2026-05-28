@@ -77,6 +77,8 @@ To deploy a `DatadogGenericResource` with the Datadog Operator, follow the steps
       helm install datadog-operator datadog/datadog-operator -f values.yaml
       ```
 
+   By default, the Operator only watches its own namespace, so it will manage any `DatadogGenericResource` objects within its own namespace. To deploy `DatadogGenericResource` objects in other namespaces, configure the Operator [`watchNamespaces`][3] section with those namespaces. The DDGR controller can also be scoped independently with the `DD_GENERIC_RESOURCE_WATCH_NAMESPACE` environment variable, which takes a comma-separated list of namespaces and falls back to `WATCH_NAMESPACE` when unset.
+
 3. Create a file with the spec of your `DatadogGenericResource` configuration. An example configuration is:
     ```yaml
     apiVersion: datadoghq.com/v1alpha1
@@ -153,6 +155,8 @@ To deploy a `DatadogGenericResource` with the Datadog Operator, follow the steps
     ```
 
 Further example manifests are provided [in the supported resources table](#supported-resources).
+
+By default, the Operator ensures that the API resource definition stays in sync with the `DatadogGenericResource` every **60** minutes (per resource). This interval can be adjusted using the environment variable `DD_GENERIC_RESOURCE_FORCE_SYNC_PERIOD`, which specifies the number of minutes. For example, setting this variable to `"30"` changes the interval to 30 minutes.
 
 
 ## Comparison with existing CRDs

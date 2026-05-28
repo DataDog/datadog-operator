@@ -8456,19 +8456,30 @@
           "description": "Experiment tracks the state of an active or recent Fleet Automation experiment.",
           "properties": {
             "id": {
-              "description": "ID is the unique experiment ID sent by Fleet Automation.",
+              "description": "ID is the RC task ID that triggered this experiment state.",
               "type": "string"
             },
             "phase": {
               "description": "Phase is the current state of the experiment.",
               "enum": [
                 "running",
-                "stopped",
-                "rollback",
-                "timeout",
+                "terminated",
                 "promoted",
                 "aborted"
               ],
+              "type": "string"
+            },
+            "startTaskID": {
+              "description": "StartTaskID is the Fleet Automation task identifier that drove the\ntransition into phase=Running. Captured from the daemon's pending\nannotations and preserved across daemon restarts. On local timeout\nthe daemon uses it to report TaskState_ERROR for the original start\ntask, so Fleet Automation gets an explicit terminal failure tied to\nthe task it sent rather than inferring termination from a cleared\nexperimentConfigVersion.",
+              "type": "string"
+            },
+            "startedAt": {
+              "description": "StartedAt is the wall-clock time at which the experiment first\ntransitioned to phase=Running. Used as the anchor for the\nexperiment timeout. Decoupled from ControllerRevision metadata so\nthe timeout decision does not depend on revision creation\ntimestamps (which can be stale for re-used revisions).",
+              "format": "date-time",
+              "type": "string"
+            },
+            "terminationReason": {
+              "description": "TerminationReason distinguishes why the experiment was terminated.\nOnly set when Phase is \"terminated\".",
               "type": "string"
             }
           },

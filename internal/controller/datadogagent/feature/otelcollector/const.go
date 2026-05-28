@@ -6,8 +6,9 @@
 package otelcollector
 
 const (
-	otelAgentVolumeName = "otel-agent-config-volume"
+	otelAgentVolumeName = "otelconfig"
 	otelConfigFileName  = "otel-config.yaml"
+	otelConfigPath      = "/etc/otel-agent"
 	// DefaultOTelAgentConf default otel agent ConfigMap name
-	defaultOTelAgentConf string = "otel-agent-config"
+	defaultOTelAgentConf string = "otel-config"
 )
