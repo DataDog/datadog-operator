@@ -315,7 +315,7 @@ func testDCAResources(workloadEnabled, clusterEnabled, clusterSpotEnabled, workl
 				if workloadInPlaceVerticalScalingEnabled {
 					expectedClusterAgentEnvVars = append(expectedClusterAgentEnvVars,
 						&corev1.EnvVar{
-							Name:  DDAutoscalingWorkloadInPlaceVerticalScalingEn,
+							Name:  DDAutoscalingWorkloadInPlaceVerticalScalingEnabled,
 							Value: "true",
 						},
 					)
