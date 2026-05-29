@@ -6,12 +6,15 @@
 package utils
 
 import (
+	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubeClient "k8s.io/client-go/kubernetes"
 
@@ -29,9 +32,16 @@ func VerifyNumPodsForSelector(t *testing.T, c *assert.CollectT, namespace string
 		FieldSelector: "status.phase=Running",
 	})
 	require.NoError(c, err)
-	assert.NotNil(c, podsList)
+	require.NotNil(c, podsList)
 	assert.NotEmpty(c, podsList.Items)
-	assert.Len(c, podsList.Items, numPods)
+
+	readyPods := make([]corev1.Pod, 0, len(podsList.Items))
+	for _, pod := range podsList.Items {
+		if isPodReady(pod) {
+			readyPods = append(readyPods, pod)
+		}
+	}
+	assert.Lenf(c, readyPods, numPods, "expected %d ready running pod(s) for selector %q, found %d ready out of %d running pod(s): %s", numPods, selector, len(readyPods), len(podsList.Items), podReadinessSummary(podsList.Items))
 }
 
 func VerifyAgentPods(t *testing.T, c *assert.CollectT, namespace string, k8sClient kubeClient.Interface, selector string) {
@@ -46,47 +56,50 @@ func VerifyCheck(c *assert.CollectT, collectorOutput string, checkName string) {
 	var runningChecks map[string]any
 
 	checksJson := common.ParseCollectorJson(collectorOutput)
-	if checksJson != nil {
-		runnerStats, runnerStatsOk := checksJson["runnerStats"].(map[string]any)
-		if !runnerStatsOk {
-			assert.Fail(c, "runnerStats field is not a map or is nil")
-			return
-		}
+	if len(checksJson) == 0 {
+		assert.Failf(c, "agent collector status JSON not found", "raw output: %s", truncateStatusOutput(collectorOutput))
+		return
+	}
 
-		var checksOk bool
-		runningChecks, checksOk = runnerStats["Checks"].(map[string]any)
-		if !checksOk {
-			assert.Fail(c, "Checks field is not a map or is nil")
-			return
-		}
+	runnerStats, runnerStatsOk := checksJson["runnerStats"].(map[string]any)
+	if !runnerStatsOk {
+		assert.Failf(c, "runnerStats field is not a map or is nil", "top-level status keys: %s; raw output: %s", strings.Join(sortedMapKeys(checksJson), ", "), truncateStatusOutput(collectorOutput))
+		return
+	}
 
-		if check, found := runningChecks[checkName].(map[string]any); found {
-			for _, instance := range check {
-				instanceMap, instanceOk := instance.(map[string]any)
-				if !instanceOk {
-					continue
-				}
+	var checksOk bool
+	runningChecks, checksOk = runnerStats["Checks"].(map[string]any)
+	if !checksOk {
+		assert.Failf(c, "Checks field is not a map or is nil", "runnerStats keys: %s; raw output: %s", strings.Join(sortedMapKeys(runnerStats), ", "), truncateStatusOutput(collectorOutput))
+		return
+	}
 
-				checkNameVal, checkNameOk := instanceMap["CheckName"].(string)
-				if checkNameOk {
-					assert.Equal(c, checkName, checkNameVal)
-				}
-
-				lastError, exists := instanceMap["LastError"].(string)
-				assert.True(c, exists)
-				assert.Empty(c, lastError)
-
-				totalErrors, exists := instanceMap["TotalErrors"].(float64)
-				assert.True(c, exists)
-				assert.Zero(c, totalErrors)
-
-				totalMetricSamples, exists := instanceMap["TotalMetricSamples"].(float64)
-				assert.True(c, exists)
-				assert.Greater(c, totalMetricSamples, float64(0))
+	if check, found := runningChecks[checkName].(map[string]any); found {
+		for _, instance := range check {
+			instanceMap, instanceOk := instance.(map[string]any)
+			if !instanceOk {
+				continue
 			}
-		} else {
-			assert.Failf(c, "Check not found", "Check %s not found or not yet running", checkName)
+
+			checkNameVal, checkNameOk := instanceMap["CheckName"].(string)
+			if checkNameOk {
+				assert.Equal(c, checkName, checkNameVal)
+			}
+
+			lastError, exists := instanceMap["LastError"].(string)
+			assert.True(c, exists)
+			assert.Empty(c, lastError)
+
+			totalErrors, exists := instanceMap["TotalErrors"].(float64)
+			assert.True(c, exists)
+			assert.Zero(c, totalErrors)
+
+			totalMetricSamples, exists := instanceMap["TotalMetricSamples"].(float64)
+			assert.True(c, exists)
+			assert.Greater(c, totalMetricSamples, float64(0))
 		}
+	} else {
+		assert.Failf(c, "Check not found", "Check %s not found or not yet running; available checks: %s", checkName, strings.Join(sortedMapKeys(runningChecks), ", "))
 	}
 }
 
@@ -95,45 +108,106 @@ func VerifyAgentPodLogs(c *assert.CollectT, collectorOutput string) {
 	logsJson := common.ParseCollectorJson(collectorOutput)
 
 	tailedIntegrations := 0
-	if logsJson != nil {
-		var ok bool
-		logsStats, logsStatsOk := logsJson["logsStats"].(map[string]any)
-		if !logsStatsOk {
-			assert.Fail(c, "logsStats field is not a map or is nil")
-			return
+	if len(logsJson) == 0 {
+		assert.Failf(c, "agent logs status JSON not found", "raw output: %s", truncateStatusOutput(collectorOutput))
+		return
+	}
+
+	var ok bool
+	logsStats, logsStatsOk := logsJson["logsStats"].(map[string]any)
+	if !logsStatsOk {
+		assert.Failf(c, "logsStats field is not a map or is nil", "top-level status keys: %s; raw output: %s", strings.Join(sortedMapKeys(logsJson), ", "), truncateStatusOutput(collectorOutput))
+		return
+	}
+	agentLogs, ok = logsStats["integrations"].([]any)
+	assert.Truef(c, ok, "logsStats keys: %s; raw output: %s", strings.Join(sortedMapKeys(logsStats), ", "), truncateStatusOutput(collectorOutput))
+	assert.NotEmpty(c, agentLogs)
+	for _, log := range agentLogs {
+		logMap, logOk := log.(map[string]any)
+		if !logOk {
+			assert.Failf(c, "logs integration entry is not a map", "entry: %v; raw output: %s", log, truncateStatusOutput(collectorOutput))
+			continue
 		}
-		agentLogs, ok = logsStats["integrations"].([]any)
-		assert.True(c, ok)
-		assert.NotEmpty(c, agentLogs)
-		for _, log := range agentLogs {
-			sources, sourcesOk := log.(map[string]any)["sources"].([]any)
-			if !sourcesOk || len(sources) == 0 {
+
+		sources, sourcesOk := logMap["sources"].([]any)
+		if !sourcesOk || len(sources) == 0 {
+			continue
+		}
+
+		if integration, integrationOk := sources[0].(map[string]any); integrationOk {
+			messages, exists := integration["messages"].([]any)
+			assert.True(c, exists)
+			assert.NotEmpty(c, messages)
+
+			if len(messages) == 0 {
 				continue
 			}
 
-			if integration, integrationOk := sources[0].(map[string]any); integrationOk {
-				messages, exists := integration["messages"].([]any)
-				assert.True(c, exists)
-				assert.NotEmpty(c, messages)
-
-				if len(messages) == 0 {
-					continue
-				}
-
-				message, msgOk := messages[0].(string)
-				assert.True(c, msgOk)
-				assert.NotEmpty(c, message)
-				num, _ := strconv.Atoi(string(message[0]))
-				if num > 0 && strings.Contains(message, "files tailed") {
-					tailedIntegrations++
-				}
-			} else {
-				assert.True(c, integrationOk, "Failed to get sources from logs. Possible causes: missing 'sources' field, empty array, or incorrect data format.")
+			message, msgOk := messages[0].(string)
+			assert.True(c, msgOk)
+			assert.NotEmpty(c, message)
+			num, _ := strconv.Atoi(string(message[0]))
+			if num > 0 && strings.Contains(message, "files tailed") {
+				tailedIntegrations++
 			}
+		} else {
+			assert.True(c, integrationOk, "Failed to get sources from logs. Possible causes: missing 'sources' field, empty array, or incorrect data format.")
 		}
 	}
 	totalIntegrations := len(agentLogs)
 	assert.GreaterOrEqual(c, tailedIntegrations, totalIntegrations*80/100, "Expected at least 80%% of integrations to be tailed, got %d/%d", tailedIntegrations, totalIntegrations)
+}
+
+func isPodReady(pod corev1.Pod) bool {
+	if pod.Status.Phase != corev1.PodRunning {
+		return false
+	}
+	for _, condition := range pod.Status.Conditions {
+		if condition.Type == corev1.PodReady {
+			return condition.Status == corev1.ConditionTrue
+		}
+	}
+	return false
+}
+
+func podReadinessSummary(pods []corev1.Pod) string {
+	summaries := make([]string, 0, len(pods))
+	for _, pod := range pods {
+		readyStatus := "missing"
+		readyReason := ""
+		for _, condition := range pod.Status.Conditions {
+			if condition.Type == corev1.PodReady {
+				readyStatus = string(condition.Status)
+				readyReason = condition.Reason
+				break
+			}
+		}
+
+		containerSummaries := make([]string, 0, len(pod.Status.ContainerStatuses))
+		for _, container := range pod.Status.ContainerStatuses {
+			containerSummaries = append(containerSummaries, fmt.Sprintf("%s ready=%t restarts=%d", container.Name, container.Ready, container.RestartCount))
+		}
+		summaries = append(summaries, fmt.Sprintf("%s phase=%s ready=%s reason=%s containers=[%s]", pod.Name, pod.Status.Phase, readyStatus, readyReason, strings.Join(containerSummaries, "; ")))
+	}
+	return strings.Join(summaries, " | ")
+}
+
+func sortedMapKeys(values map[string]any) []string {
+	keys := make([]string, 0, len(values))
+	for key := range values {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	return keys
+}
+
+func truncateStatusOutput(output string) string {
+	const maxOutputLength = 2000
+	output = strings.TrimSpace(output)
+	if len(output) <= maxOutputLength {
+		return output
+	}
+	return output[:maxOutputLength] + "...<truncated>"
 }
 
 // isInternalTrafficPolicySupported checks if the internalTrafficPolicy field is supported in the current Kubernetes version.

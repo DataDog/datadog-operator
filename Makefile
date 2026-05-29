@@ -57,6 +57,7 @@ ENVTEST_K8S_VERSION = 1.30
 # instead of the CI job timing out with no actionable logs.)
 E2E_GO_TEST_TIMEOUT ?= 70m
 E2E_AUTOSCALING_GO_TEST_TIMEOUT ?= 140m
+E2E_GO_TEST_PACKAGE ?= ./tests/k8s_suite
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -215,10 +216,10 @@ integration-tests: $(ENVTEST) ## Run integration tests with reconciler
 .PHONY: e2e-tests
 e2e-tests: ## Run E2E tests and destroy environment stacks after tests complete. To run locally, complete pre-reqs (see docs/how-to-contribute.md) and prepend command with `aws-vault exec sso-agent-sandbox-account-admin --`. E.g. `aws-vault exec sso-agent-sandbox-account-admin -- make e2e-tests`.
 	@if [ -z "$(E2E_RUN_REGEX)" ]; then \
-		GOWORK=off KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" go test -C test/e2e/ ./... -count=1 --tags=e2e -v -run TestAWSKindSuite -timeout $(E2E_GO_TEST_TIMEOUT) -coverprofile cover_e2e.out; \
+		GOWORK=off KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" go test -C test/e2e/ $(E2E_GO_TEST_PACKAGE) -count=1 --tags=e2e -v -run TestAWSKindSuite -timeout $(E2E_GO_TEST_TIMEOUT) -coverprofile cover_e2e.out; \
 	else \
 	    echo "Running e2e test: $(E2E_RUN_REGEX)"; \
-		GOWORK=off KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" go test -C test/e2e/ ./... -count=1 --tags=e2e -v -run $(E2E_RUN_REGEX) -timeout $(E2E_GO_TEST_TIMEOUT) -coverprofile cover_e2e.out; \
+		GOWORK=off KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" go test -C test/e2e/ $(E2E_GO_TEST_PACKAGE) -count=1 --tags=e2e -v -run $(E2E_RUN_REGEX) -timeout $(E2E_GO_TEST_TIMEOUT) -coverprofile cover_e2e.out; \
 	fi
 
 .PHONY: e2e-autoscaling-tests
