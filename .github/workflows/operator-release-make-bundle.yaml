@@ -44,17 +44,27 @@ jobs:
       - name: Generate bundle
         run: make bundle VERSION=${{ inputs.version }} LATEST_VERSION=${{ inputs.latest_version }}
 
-      - name: Commit & push
+      - name: Check for changes
+        id: changes
         run: |
-          # Attribute the commit to the github-actions[bot] account so it links
-          # to the bot's profile in the GitHub UI. 41898282 is the bot's user ID
-          # and follows GitHub's standard noreply format: <id>+<user>@users.noreply.github.com.
-          git config user.name  "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          if git diff --cached --quiet; then
+          if [ -z "$(git status --porcelain)" ]; then
             echo "No bundle changes to commit"
-            exit 0
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
           fi
-          git commit -m "chore(bundle): regenerate for v${{ inputs.version }}"
-          git push origin HEAD:${{ inputs.branch }}
+
+      - name: Stage all bundle changes
+        if: steps.changes.outputs.has_changes == 'true'
+        run: git add -A
+
+      # Commits made via the GitHub API are automatically signed by GitHub
+      - name: Commit bundle (signed via GitHub API)
+        if: steps.changes.outputs.has_changes == 'true'
+        uses: planetscale/ghcommit-action@25309d8005ac7c3bcd61d3fe19b69e0fe47dbdde # v0.2.20
+        with:
+          commit_message: "chore(bundle): regenerate for v${{ inputs.version }}"
+          repo: ${{ github.repository }}
+          branch: ${{ inputs.branch }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
