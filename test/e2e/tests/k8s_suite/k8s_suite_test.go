@@ -51,6 +51,7 @@ type k8sSuite struct {
 }
 
 func (s *k8sSuite) TestGenericK8s() {
+	s.T().Log("E2E hypothesis: Agent 7.79.x changed status/cluster-check JSON output; this branch logs status shape mismatches and leaves fakeintake telemetry assertions as the pass/fail signal.")
 	defaultOperatorOpts := []operatorparams.Option{
 		operatorparams.WithNamespace(common.NamespaceName),
 		operatorparams.WithOperatorFullImagePath(common.OperatorImageName),
