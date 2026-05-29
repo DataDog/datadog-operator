@@ -47,16 +47,13 @@ jobs:
       - name: Check for changes
         id: changes
         run: |
-          if [ -z "$(git status --porcelain)" ]; then
-            echo "No bundle changes to commit"
+          git add -A
+          if git diff --cached --quiet; then
             echo "has_changes=false" >> "$GITHUB_OUTPUT"
+            echo "No bundle changes to commit"
           else
             echo "has_changes=true" >> "$GITHUB_OUTPUT"
           fi
-
-      - name: Stage all bundle changes
-        if: steps.changes.outputs.has_changes == 'true'
-        run: git add -A
 
       # Commits made via the GitHub API are automatically signed by GitHub
       - name: Commit bundle (signed via GitHub API)
