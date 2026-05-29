@@ -6,5 +6,8 @@ metadata:
     agent.datadoghq.com/e2e-test: datadog-agent-minimum
 spec:
   global:
+    env:
+    - name: DD_CONF_NODETREEMODEL
+      value: viper
     kubelet:
       tlsVerify: false

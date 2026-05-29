@@ -8,6 +8,9 @@ metadata:
 spec:
   global:
     clusterAgentToken: thisisa32characterstoken00000000
+    env:
+    - name: DD_CONF_NODETREEMODEL
+      value: viper
     kubelet:
       tlsVerify: false
   features:
