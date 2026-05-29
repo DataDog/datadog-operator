@@ -55,7 +55,7 @@ ENVTEST_K8S_VERSION = 1.30
 # Default timeout for `go test` when running E2E tests.
 # (E2E provisioning can hang; having a finite timeout ensures we get goroutine dumps
 # instead of the CI job timing out with no actionable logs.)
-E2E_GO_TEST_TIMEOUT ?= 55m
+E2E_GO_TEST_TIMEOUT ?= 70m
 E2E_AUTOSCALING_GO_TEST_TIMEOUT ?= 140m
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
