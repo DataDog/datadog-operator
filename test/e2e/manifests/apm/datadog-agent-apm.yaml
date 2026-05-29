@@ -8,6 +8,9 @@ spec:
   global:
     kubelet:
       tlsVerify: false
+    env:
+      - name: DD_CONF_NODETREEMODEL
+        value: viper
   features:
     apm:
       enabled: true

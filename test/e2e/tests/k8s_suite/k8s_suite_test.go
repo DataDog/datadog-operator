@@ -51,6 +51,7 @@ type k8sSuite struct {
 }
 
 func (s *k8sSuite) TestGenericK8s() {
+	s.T().Log("E2E hypothesis: Agent 7.79.x switched the config backend to NodeTree; this branch forces DD_CONF_NODETREEMODEL=viper to test whether config resolution changes are the culprit.")
 	defaultOperatorOpts := []operatorparams.Option{
 		operatorparams.WithNamespace(common.NamespaceName),
 		operatorparams.WithOperatorFullImagePath(common.OperatorImageName),
