@@ -8,3 +8,7 @@ spec:
   global:
     kubelet:
       tlsVerify: false
+  features:
+    admissionController:
+      probe:
+        enabled: false

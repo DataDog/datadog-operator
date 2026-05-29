@@ -9,6 +9,9 @@ spec:
     kubelet:
       tlsVerify: false
   features:
+    admissionController:
+      probe:
+        enabled: false
     dogstatsd:
       hostPortConfig:
         enabled: true

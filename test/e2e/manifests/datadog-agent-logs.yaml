@@ -10,6 +10,9 @@ spec:
     kubelet:
       tlsVerify: false
   features:
+    admissionController:
+      probe:
+        enabled: false
     clusterChecks:
       enabled: true
       useClusterChecksRunners: false

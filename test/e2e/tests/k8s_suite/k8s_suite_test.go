@@ -51,6 +51,7 @@ type k8sSuite struct {
 }
 
 func (s *k8sSuite) TestGenericK8s() {
+	s.T().Log("E2E hypothesis: DCA readiness changed in Agent 7.79.x; this branch disables features.admissionController.probe.enabled to test whether webhook readiness gates are slowing repeated rollouts.")
 	defaultOperatorOpts := []operatorparams.Option{
 		operatorparams.WithNamespace(common.NamespaceName),
 		operatorparams.WithOperatorFullImagePath(common.OperatorImageName),
