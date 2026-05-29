@@ -225,7 +225,7 @@ func (r *UntaintReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		if result.RequeueAfter > 0 {
 			return result, nil
 		}
-		log.Info("Removed agent-not-ready taint from node")
+		log.Info(fmt.Sprintf("Removed agent-not-ready taint from node %s", node.Name))
 		metrics.TaintRemovalsTotal.Inc()
 		if !readyAt.IsZero() {
 			metrics.TaintRemovalLatency.Observe(r.clock.Since(readyAt).Seconds())
@@ -288,9 +288,9 @@ func (r *UntaintReconciler) applyTimeoutPolicy(ctx context.Context, node *corev1
 	if policy == PolicyKeep {
 		// logr has no Warn level; the codebase convention is log.Error(nil, ...)
 		// to surface a warning-level event without an associated Go error.
-		log.Error(nil, "Untaint controller timeout fired; keeping taint per policy=keep — operator action may be required")
+		log.Error(nil, fmt.Sprintf("Untaint controller timeout fired on node %s; keeping taint per policy=keep — operator action may be required", node.Name))
 	} else {
-		log.Info("Untaint controller timeout fired")
+		log.Info(fmt.Sprintf("Untaint controller timeout fired on node %s", node.Name))
 	}
 	if r.eventsEnabled {
 		evType := corev1.EventTypeNormal
@@ -299,7 +299,7 @@ func (r *UntaintReconciler) applyTimeoutPolicy(ctx context.Context, node *corev1
 			evType = corev1.EventTypeWarning
 		}
 		r.recorder.Eventf(node, evType, evReason,
-			"Untaint controller %s timeout reached after %s (policy=%s)", reason, elapsed.Round(time.Second), policy)
+			"Untaint controller %s timeout reached on node %s after %s (policy=%s)", reason, node.Name, elapsed.Round(time.Second), policy)
 	}
 
 	if policy == PolicyKeep {
@@ -315,7 +315,7 @@ func (r *UntaintReconciler) applyTimeoutPolicy(ctx context.Context, node *corev1
 	if result.RequeueAfter > 0 {
 		return result, nil
 	}
-	log.Info("Removed agent-not-ready taint from node by timeout policy")
+	log.Info(fmt.Sprintf("Removed agent-not-ready taint from node %s by timeout policy", node.Name))
 	metrics.TaintRemovalsTotal.Inc()
 	return ctrl.Result{}, nil
 }
@@ -396,6 +396,7 @@ func (r *UntaintReconciler) removeTaint(ctx context.Context, node *corev1.Node) 
 	}
 	patchBytes, err := json.Marshal(patch)
 	if err != nil {
+		metrics.TaintRemovalErrorsTotal.Inc()
 		return ctrl.Result{}, fmt.Errorf("failed to marshal patch: %w", err)
 	}
 
@@ -410,6 +411,7 @@ func (r *UntaintReconciler) removeTaint(ctx context.Context, node *corev1.Node) 
 				"node", node.Name, "err", err.Error())
 			return ctrl.Result{RequeueAfter: conflictRequeueDelay}, nil
 		}
+		metrics.TaintRemovalErrorsTotal.Inc()
 		return ctrl.Result{}, fmt.Errorf("failed to remove taint from node %s: %w", node.Name, err)
 	}
 	return ctrl.Result{}, nil

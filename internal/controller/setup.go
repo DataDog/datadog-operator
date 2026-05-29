@@ -37,10 +37,7 @@ type SetupOptions struct {
 	SupportExtendedDaemonset      ExtendedDaemonsetOptions
 	SupportCilium                 bool
 	CredsManager                  *config.CredentialManager
-	Creds                         config.Creds
-	SecretRefreshInterval         time.Duration
 	DatadogAgentEnabled           bool
-	DatadogAgentInternalEnabled   bool
 	DatadogMonitorEnabled         bool
 	DatadogSLOEnabled             bool
 	OperatorMetricsEnabled        bool

@@ -54,10 +54,24 @@ var (
 		},
 		[]string{"reason", "policy"},
 	)
+
+	// TaintRemovalErrorsTotal counts hard errors encountered while attempting to
+	// remove the taint (apiserver Patch failures, JSON marshal failures, …).
+	// Benign optimistic-concurrency races (IsConflict/IsInvalid) are NOT counted
+	// here — they're handled by requeueing. Inspect the operator's ERROR-level
+	// logs for the specific failure cause.
+	TaintRemovalErrorsTotal = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Subsystem: untaintSubsystem,
+			Name:      "taint_removal_errors_total",
+			Help:      "Total number of errors encountered while attempting to remove the agent-not-ready taint from a node",
+		},
+	)
 )
 
 func init() {
 	metrics.Registry.MustRegister(TaintRemovalsTotal)
 	metrics.Registry.MustRegister(TaintRemovalLatency)
 	metrics.Registry.MustRegister(TaintTimeoutsTotal)
+	metrics.Registry.MustRegister(TaintRemovalErrorsTotal)
 }

@@ -114,10 +114,7 @@ var _ = BeforeSuite(func(ctx context.Context) {
 		DatadogMonitorEnabled:      true,
 		DatadogAgentProfileEnabled: true,
 		V2APIEnabled:               true,
-		// Untaint controller is enabled for integration tests. Tuning knobs
-		// are set via env vars (see setUntaintEnv below) so timeout-path
-		// scenarios complete in seconds.
-		UntaintControllerEnabled: true,
+		UntaintControllerEnabled:   true,
 	}
 
 	dummyPlatformInfo := kubernetes.PlatformInfo{}
