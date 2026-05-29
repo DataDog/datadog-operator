@@ -9,7 +9,12 @@ spec:
   global:
     kubelet:
       tlsVerify: false
+    env:
+      - name: DD_KUBELET_CORE_CHECK_ENABLED
+        value: "false"
   features:
+    serviceDiscovery:
+      enabled: false
     clusterChecks:
       enabled: true
       useClusterChecksRunners: false

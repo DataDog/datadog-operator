@@ -51,6 +51,7 @@ type k8sSuite struct {
 }
 
 func (s *k8sSuite) TestGenericK8s() {
+	s.T().Log("E2E hypothesis: Agent 7.79.x runtime defaults changed startup/check behavior; this branch disables auto service discovery/system-probe lite and forces the legacy kubelet check path.")
 	defaultOperatorOpts := []operatorparams.Option{
 		operatorparams.WithNamespace(common.NamespaceName),
 		operatorparams.WithOperatorFullImagePath(common.OperatorImageName),
