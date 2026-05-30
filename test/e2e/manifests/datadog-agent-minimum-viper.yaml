@@ -1,0 +1,13 @@
+apiVersion: datadoghq.com/v2alpha1
+kind: DatadogAgent
+metadata:
+  namespace: e2e-operator
+  labels:
+    agent.datadoghq.com/e2e-test: datadog-agent-minimum-viper
+spec:
+  global:
+    kubelet:
+      tlsVerify: false
+    env:
+      - name: DD_CONF_NODETREEMODEL
+        value: viper

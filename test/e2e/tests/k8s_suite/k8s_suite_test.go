@@ -18,6 +18,7 @@ import (
 
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -45,9 +46,141 @@ const (
 	dsdPort                = int32(8125)
 )
 
+const configBackendSnapshotCommand = `set +e
+echo "env.DD_CONF_NODETREEMODEL=$(printenv DD_CONF_NODETREEMODEL || true)"
+for key in conf_nodetreemodel kubelet_core_check_enabled kubelet_tls_verify cluster_checks.enabled logs_enabled logs_config.container_collect_all admission_controller.enabled admission_controller.probe.enabled service_discovery.enabled discovery.enabled; do
+  value="$(agent config get "$key" 2>&1 | tr '\n' ' ')"
+  echo "config.${key}=${value}"
+done
+`
+
 type k8sSuite struct {
 	e2e.BaseSuite[environments.Kubernetes]
 	local bool
+}
+
+func sortedStringKeys[T any](m map[string]T) []string {
+	keys := make([]string, 0, len(m))
+	for key := range m {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	return keys
+}
+
+func parseKeyValueSnapshot(output string) map[string]string {
+	snapshot := map[string]string{}
+	for _, line := range strings.Split(output, "\n") {
+		line = strings.TrimSpace(line)
+		key, value, ok := strings.Cut(line, "=")
+		if !ok || key == "" {
+			continue
+		}
+		snapshot[key] = strings.TrimSpace(value)
+	}
+	return snapshot
+}
+
+func snapshotSnippet(output string) string {
+	output = strings.TrimSpace(output)
+	if len(output) <= 3000 {
+		return output
+	}
+	return output[:3000] + "...(truncated)"
+}
+
+func mergeSnapshot(dst map[string]string, prefix string, src map[string]string) {
+	for key, value := range src {
+		dst[prefix+"."+key] = value
+	}
+}
+
+func formatSnapshot(title string, snapshot map[string]string) string {
+	var builder strings.Builder
+	builder.WriteString("\n========== " + title + " ==========\n")
+	for _, key := range sortedStringKeys(snapshot) {
+		builder.WriteString(fmt.Sprintf("%s=%s\n", key, snapshot[key]))
+	}
+	return builder.String()
+}
+
+func formatSnapshotDiff(title, leftLabel, rightLabel string, left, right map[string]string) string {
+	allKeys := map[string]struct{}{}
+	for key := range left {
+		allKeys[key] = struct{}{}
+	}
+	for key := range right {
+		allKeys[key] = struct{}{}
+	}
+
+	var builder strings.Builder
+	builder.WriteString("\n========== " + title + " ==========\n")
+	builder.WriteString("- " + leftLabel + "\n")
+	builder.WriteString("+ " + rightLabel + "\n")
+	changed := false
+	for _, key := range sortedStringKeys(allKeys) {
+		leftValue := left[key]
+		rightValue := right[key]
+		if leftValue == rightValue {
+			continue
+		}
+		changed = true
+		builder.WriteString(fmt.Sprintf("- %s=%s\n", key, leftValue))
+		builder.WriteString(fmt.Sprintf("+ %s=%s\n", key, rightValue))
+	}
+	if !changed {
+		builder.WriteString("(no differences)\n")
+	}
+	return builder.String()
+}
+
+func collectorStatusSnapshot(output string, checkNames ...string) map[string]string {
+	snapshot := map[string]string{
+		"raw_snippet": snapshotSnippet(output),
+	}
+	parsed := common.ParseCollectorJson(output)
+	snapshot["top_level_keys"] = strings.Join(sortedStringKeys(parsed), ",")
+
+	runnerStats, ok := parsed["runnerStats"].(map[string]any)
+	if !ok {
+		snapshot["runnerStats.present"] = "false"
+		return snapshot
+	}
+	snapshot["runnerStats.present"] = "true"
+	snapshot["runnerStats.keys"] = strings.Join(sortedStringKeys(runnerStats), ",")
+
+	runningChecks, ok := runnerStats["Checks"].(map[string]any)
+	if !ok {
+		snapshot["runnerStats.Checks.present"] = "false"
+		return snapshot
+	}
+	snapshot["runnerStats.Checks.present"] = "true"
+	snapshot["runnerStats.Checks.keys"] = strings.Join(sortedStringKeys(runningChecks), ",")
+
+	for _, checkName := range checkNames {
+		prefix := "check." + checkName
+		check, ok := runningChecks[checkName].(map[string]any)
+		if !ok {
+			snapshot[prefix+".present"] = "false"
+			continue
+		}
+		snapshot[prefix+".present"] = "true"
+		snapshot[prefix+".instance_count"] = fmt.Sprintf("%d", len(check))
+
+		instanceSummaries := make([]string, 0, len(check))
+		for instanceName, instance := range check {
+			instanceMap, ok := instance.(map[string]any)
+			if !ok {
+				instanceSummaries = append(instanceSummaries, instanceName+":not-a-map")
+				continue
+			}
+			instanceSummaries = append(instanceSummaries, fmt.Sprintf("%s:CheckName=%v LastError=%v TotalErrors=%v TotalMetricSamples=%v", instanceName, instanceMap["CheckName"], instanceMap["LastError"], instanceMap["TotalErrors"], instanceMap["TotalMetricSamples"]))
+		}
+		sort.Strings(instanceSummaries)
+		snapshot[prefix+".instances"] = strings.Join(instanceSummaries, " | ")
+	}
+
+	return snapshot
 }
 
 func (s *k8sSuite) TestGenericK8s() {
@@ -132,6 +265,152 @@ serviceAccount:
 			utils.VerifyOperator(s.T(), c, common.NamespaceName, s.Env().KubernetesCluster.Client())
 		}, 300*time.Second, 15*time.Second, "Could not validate operator pod in time")
 	})
+
+	collectConfigBackendSnapshot := func(label, ddaName, manifestPath, testName string) map[string]string {
+		snapshot := map[string]string{
+			"label":     label,
+			"dda_name":  ddaName,
+			"manifest":  manifestPath,
+			"test_name": testName,
+		}
+
+		ddaOpts := []agentwithoperatorparams.Option{
+			agentwithoperatorparams.WithDDAConfig(agentwithoperatorparams.DDAConfig{
+				Name:         ddaName,
+				YamlFilePath: manifestPath,
+			}),
+		}
+		ddaOpts = append(ddaOpts, defaultDDAOpts...)
+
+		provisionerOptions := []provisioners.KubernetesProvisionerOption{
+			provisioners.WithTestName(testName),
+			provisioners.WithK8sVersion(common.K8sVersion),
+			provisioners.WithOperatorOptions(defaultOperatorOpts...),
+			provisioners.WithDDAOptions(ddaOpts...),
+			provisioners.WithLocal(s.local),
+		}
+
+		applyDDA(testName, provisionerOptions)
+
+		err := s.Env().FakeIntake.Client().FlushServerAndResetAggregators()
+		snapshot["fakeintake.flush.error"] = fmt.Sprintf("%v", err)
+
+		nodeSelector := common.NodeAgentSelector + ",agent.datadoghq.com/name=" + ddaName
+		clusterSelector := common.ClusterAgentSelector + ",agent.datadoghq.com/name=" + ddaName
+		s.Assert().EventuallyWithT(func(c *assert.CollectT) {
+			utils.VerifyAgentPods(s.T(), c, common.NamespaceName, s.Env().KubernetesCluster.Client(), nodeSelector)
+			utils.VerifyNumPodsForSelector(s.T(), c, common.NamespaceName, s.Env().KubernetesCluster.Client(), 1, clusterSelector)
+		}, 5*time.Minute, 15*time.Second, "could not get comparison pods running for %s", label)
+
+		agentPods, err := s.Env().KubernetesCluster.Client().CoreV1().Pods(common.NamespaceName).List(context.TODO(), metav1.ListOptions{
+			LabelSelector: nodeSelector,
+			FieldSelector: "status.phase=Running",
+		})
+		if err != nil {
+			snapshot["node.list.error"] = err.Error()
+		} else if len(agentPods.Items) == 0 {
+			snapshot["node.pods.running"] = "0"
+		} else {
+			podName := agentPods.Items[0].Name
+			snapshot["node.pod"] = podName
+			output, stderr, err := s.Env().KubernetesCluster.KubernetesClient.PodExec(common.NamespaceName, podName, "agent", []string{"sh", "-c", configBackendSnapshotCommand})
+			snapshot["node.config.exec.error"] = fmt.Sprintf("%v", err)
+			snapshot["node.config.exec.stderr"] = strings.TrimSpace(stderr)
+			mergeSnapshot(snapshot, "node", parseKeyValueSnapshot(output))
+
+			output, stderr, err = s.Env().KubernetesCluster.KubernetesClient.PodExec(common.NamespaceName, podName, "agent", []string{"agent", "status", "collector", "-j"})
+			snapshot["node.collector.exec.error"] = fmt.Sprintf("%v", err)
+			snapshot["node.collector.exec.stderr"] = strings.TrimSpace(stderr)
+			mergeSnapshot(snapshot, "node.collector", collectorStatusSnapshot(output, "kubelet", "http_check"))
+		}
+
+		clusterAgentPods, err := s.Env().KubernetesCluster.Client().CoreV1().Pods(common.NamespaceName).List(context.TODO(), metav1.ListOptions{
+			LabelSelector: clusterSelector,
+			FieldSelector: "status.phase=Running",
+		})
+		if err != nil {
+			snapshot["cluster.list.error"] = err.Error()
+		} else if len(clusterAgentPods.Items) == 0 {
+			snapshot["cluster.pods.running"] = "0"
+		} else {
+			podName := clusterAgentPods.Items[0].Name
+			snapshot["cluster.pod"] = podName
+			output, stderr, err := s.Env().KubernetesCluster.KubernetesClient.PodExec(common.NamespaceName, podName, "agent", []string{"sh", "-c", configBackendSnapshotCommand})
+			snapshot["cluster.config.exec.error"] = fmt.Sprintf("%v", err)
+			snapshot["cluster.config.exec.stderr"] = strings.TrimSpace(stderr)
+			mergeSnapshot(snapshot, "cluster", parseKeyValueSnapshot(output))
+
+			output, stderr, err = s.Env().KubernetesCluster.KubernetesClient.PodExec(common.NamespaceName, podName, "agent", []string{"agent", "status", "collector", "-j"})
+			snapshot["cluster.collector.exec.error"] = fmt.Sprintf("%v", err)
+			snapshot["cluster.collector.exec.stderr"] = strings.TrimSpace(stderr)
+			mergeSnapshot(snapshot, "cluster.collector", collectorStatusSnapshot(output, "kubernetes_state_core"))
+		}
+
+		metricNamesToCompare := []string{"kubernetes.cpu.usage.total", "kubernetes_state.container.running", "network.http.can_connect"}
+		deadline := time.Now().Add(2 * time.Minute)
+		for {
+			metricNames, err := s.Env().FakeIntake.Client().GetMetricNames()
+			snapshot["fakeintake.metric_names.error"] = fmt.Sprintf("%v", err)
+			for _, metricName := range metricNamesToCompare {
+				present := "false"
+				for _, receivedMetricName := range metricNames {
+					if receivedMetricName == metricName {
+						present = "true"
+						break
+					}
+				}
+				snapshot["fakeintake.metric."+metricName+".present"] = present
+
+				metrics, err := s.Env().FakeIntake.Client().FilterMetrics(metricName, matchOpts...)
+				snapshot["fakeintake.metric."+metricName+".filter_error"] = fmt.Sprintf("%v", err)
+				snapshot["fakeintake.metric."+metricName+".series"] = fmt.Sprintf("%d", len(metrics))
+				points := 0
+				positivePoints := 0
+				for _, metric := range metrics {
+					for _, point := range metric.Points {
+						points++
+						if point.Value > 0 {
+							positivePoints++
+						}
+					}
+				}
+				snapshot["fakeintake.metric."+metricName+".points"] = fmt.Sprintf("%d", points)
+				snapshot["fakeintake.metric."+metricName+".positive_points"] = fmt.Sprintf("%d", positivePoints)
+			}
+
+			if snapshot["fakeintake.metric.kubernetes.cpu.usage.total.present"] == "true" &&
+				snapshot["fakeintake.metric.kubernetes_state.container.running.present"] == "true" {
+				break
+			}
+			if time.Now().After(deadline) {
+				break
+			}
+			time.Sleep(15 * time.Second)
+		}
+
+		return snapshot
+	}
+
+	s.T().Run("Config backend comparison", func(t *testing.T) {
+		defaultManifestPath, err := common.GetAbsPath(common.DdaMinimalPath)
+		assert.NoError(t, err)
+		viperManifestPath, err := common.GetAbsPath(filepath.Join(common.ManifestsPath, "datadog-agent-minimum-viper.yaml"))
+		assert.NoError(t, err)
+
+		defaultLabel := "ORIGINAL: Agent 7.79 default config backend (NodeTree, DD_CONF_NODETREEMODEL unset)"
+		viperLabel := "VIPER: Agent 7.79 with DD_CONF_NODETREEMODEL=viper (7.78-style config backend)"
+		t.Log("E2E CONFIG BACKEND COMPARISON: this branch intentionally runs only the comparison subtest, then skips the long suite.")
+		t.Log("LEFT/" + defaultLabel)
+		t.Log("RIGHT/" + viperLabel)
+
+		defaultSnapshot := collectConfigBackendSnapshot(defaultLabel, "dda-config-default", defaultManifestPath, "e2e-config-default")
+		viperSnapshot := collectConfigBackendSnapshot(viperLabel, "dda-config-viper", viperManifestPath, "e2e-config-viper")
+
+		t.Log(formatSnapshot("FULL SNAPSHOT: "+defaultLabel, defaultSnapshot))
+		t.Log(formatSnapshot("FULL SNAPSHOT: "+viperLabel, viperSnapshot))
+		t.Log(formatSnapshotDiff("DIFF: 7.79 DEFAULT NODETREE -> 7.79 VIPER BACKEND", defaultLabel, viperLabel, defaultSnapshot, viperSnapshot))
+	})
+	return
 
 	s.T().Run("Minimal DDA config", func(t *testing.T) {
 		ddaConfigPath, err := common.GetAbsPath(common.DdaMinimalPath)
