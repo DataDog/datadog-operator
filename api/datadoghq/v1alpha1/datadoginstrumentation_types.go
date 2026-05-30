@@ -7,7 +7,6 @@ package v1alpha1
 
 import (
 	autoscalingv2 "k8s.io/api/autoscaling/v2"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
@@ -27,27 +26,6 @@ type DatadogInstrumentationConfig struct {
 	// +optional
 	// +listType=atomic
 	Checks []DatadogInstrumentationCheckConfig `json:"checks,omitempty"`
-
-	// APM configures the APM product through Single Step Instrumentation for the target workload.
-	// +optional
-	APM *DatadogInstrumentationAPMConfig `json:"apm,omitempty"`
-}
-
-// DatadogInstrumentationAPMConfig defines workload-scoped APM configuration.
-type DatadogInstrumentationAPMConfig struct {
-	// Enabled turns on APM via Single Step Instrumentation to automatically install the Datadog SDKs for supported
-	// languages with no additional configuration required.
-	Enabled bool `json:"enabled,omitempty"`
-	// TracerVersions is a map of SDK versions to install for target workload. The key is the language name and the
-	// value is the version to use. If omitted, all default supported SDKs will be added to the application runtime.
-	// +optional
-	TracerVersions map[string]string `json:"ddTraceVersions,omitempty"`
-	// TracerConfigs is a list of configuration options to use for the installed SDKs. These options will be added
-	// as environment variables to the workload in addition to the configured SDKs.
-	// +optional
-	// +listType=map
-	// +listMapKey=name
-	TracerConfigs []corev1.EnvVar `json:"ddTraceConfigs,omitempty"`
 }
 
 // DatadogInstrumentationCheckConfig defines an Autodiscovery check configuration.

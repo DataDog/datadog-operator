@@ -30,8 +30,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
-
-	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/guess"
 )
 
 // Clients holds all AWS and Kubernetes client instances needed for
@@ -139,7 +137,7 @@ func GetClusterNameFromKubeconfig(configFlags *genericclioptions.ConfigFlags) (s
 		return "", err
 	}
 
-	return guess.GetClusterNameFromKubeconfig(kubeRawConfig, kubeContext), nil
+	return clusterNameFromKubeconfig(kubeRawConfig, kubeContext), nil
 }
 
 // ResolveClusterName returns explicit when non-empty, otherwise infers the
