@@ -6,6 +6,7 @@
 package utils
 
 import (
+	"sort"
 	"strconv"
 	"strings"
 	"testing"
@@ -42,51 +43,58 @@ func VerifyAgentPods(t *testing.T, c *assert.CollectT, namespace string, k8sClie
 	VerifyNumPodsForSelector(t, c, namespace, k8sClient, len(nodesList.Items), selector)
 }
 
+func sortedMapKeys(m map[string]any) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
+}
+
 func VerifyCheck(c *assert.CollectT, collectorOutput string, checkName string) {
-	var runningChecks map[string]any
-
 	checksJson := common.ParseCollectorJson(collectorOutput)
-	if checksJson != nil {
-		runnerStats, runnerStatsOk := checksJson["runnerStats"].(map[string]any)
-		if !runnerStatsOk {
-			assert.Fail(c, "runnerStats field is not a map or is nil")
-			return
+	if !assert.NotNilf(c, checksJson, "collector status output did not parse as JSON while looking for check %q; output snippet: %.500s", checkName, collectorOutput) {
+		return
+	}
+
+	runnerStats, runnerStatsOk := checksJson["runnerStats"].(map[string]any)
+	if !assert.Truef(c, runnerStatsOk, "runnerStats field missing in collector status while looking for check %q; top-level keys: %v", checkName, sortedMapKeys(checksJson)) {
+		return
+	}
+
+	runningChecks, checksOk := runnerStats["Checks"].(map[string]any)
+	if !assert.Truef(c, checksOk, "Checks field missing in runnerStats while looking for check %q", checkName) {
+		return
+	}
+
+	check, found := runningChecks[checkName].(map[string]any)
+	if !assert.Truef(c, found, "check %q not found or not yet running; running checks: %v", checkName, sortedMapKeys(runningChecks)) {
+		return
+	}
+
+	for _, instance := range check {
+		instanceMap, instanceOk := instance.(map[string]any)
+		if !instanceOk {
+			continue
 		}
 
-		var checksOk bool
-		runningChecks, checksOk = runnerStats["Checks"].(map[string]any)
-		if !checksOk {
-			assert.Fail(c, "Checks field is not a map or is nil")
-			return
+		checkNameVal, checkNameOk := instanceMap["CheckName"].(string)
+		if checkNameOk {
+			assert.Equal(c, checkName, checkNameVal)
 		}
 
-		if check, found := runningChecks[checkName].(map[string]any); found {
-			for _, instance := range check {
-				instanceMap, instanceOk := instance.(map[string]any)
-				if !instanceOk {
-					continue
-				}
+		lastError, exists := instanceMap["LastError"].(string)
+		assert.True(c, exists)
+		assert.Empty(c, lastError)
 
-				checkNameVal, checkNameOk := instanceMap["CheckName"].(string)
-				if checkNameOk {
-					assert.Equal(c, checkName, checkNameVal)
-				}
+		totalErrors, exists := instanceMap["TotalErrors"].(float64)
+		assert.True(c, exists)
+		assert.Zero(c, totalErrors)
 
-				lastError, exists := instanceMap["LastError"].(string)
-				assert.True(c, exists)
-				assert.Empty(c, lastError)
-
-				totalErrors, exists := instanceMap["TotalErrors"].(float64)
-				assert.True(c, exists)
-				assert.Zero(c, totalErrors)
-
-				totalMetricSamples, exists := instanceMap["TotalMetricSamples"].(float64)
-				assert.True(c, exists)
-				assert.Greater(c, totalMetricSamples, float64(0))
-			}
-		} else {
-			assert.Failf(c, "Check not found", "Check %s not found or not yet running", checkName)
-		}
+		totalMetricSamples, exists := instanceMap["TotalMetricSamples"].(float64)
+		assert.True(c, exists)
+		assert.Greater(c, totalMetricSamples, float64(0))
 	}
 }
 
