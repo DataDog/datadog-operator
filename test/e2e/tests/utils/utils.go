@@ -6,6 +6,7 @@
 package utils
 
 import (
+	"sort"
 	"strconv"
 	"strings"
 	"testing"
@@ -17,6 +18,8 @@ import (
 
 	"github.com/DataDog/datadog-operator/test/e2e/common"
 )
+
+const agentStatusOutputSnippetLimit = 4000
 
 func VerifyOperator(t *testing.T, c *assert.CollectT, namespace string, k8sClient kubeClient.Interface) {
 	VerifyNumPodsForSelector(t, c, namespace, k8sClient, 1, "app.kubernetes.io/name=datadog-operator")
@@ -45,91 +48,85 @@ func VerifyAgentPods(t *testing.T, c *assert.CollectT, namespace string, k8sClie
 func VerifyCheck(c *assert.CollectT, collectorOutput string, checkName string) {
 	var runningChecks map[string]any
 
-	checksJson := common.ParseCollectorJson(collectorOutput)
-	if checksJson != nil {
-		runnerStats, runnerStatsOk := checksJson["runnerStats"].(map[string]any)
-		if !runnerStatsOk {
-			assert.Fail(c, "runnerStats field is not a map or is nil")
-			return
-		}
+	runnerStats, ok := requireStatusSection(c, collectorOutput, "runnerStats")
+	if !ok {
+		return
+	}
 
-		var checksOk bool
-		runningChecks, checksOk = runnerStats["Checks"].(map[string]any)
-		if !checksOk {
-			assert.Fail(c, "Checks field is not a map or is nil")
-			return
-		}
+	var checksOk bool
+	runningChecks, checksOk = runnerStats["Checks"].(map[string]any)
+	if !checksOk {
+		assert.Failf(c, "Checks field is not a map or is nil", "runnerStats keys=%v; Checks type=%T\ncollector output:\n%s", sortedAnyKeys(runnerStats), runnerStats["Checks"], statusOutputSnippet(collectorOutput))
+		return
+	}
 
-		if check, found := runningChecks[checkName].(map[string]any); found {
-			for _, instance := range check {
-				instanceMap, instanceOk := instance.(map[string]any)
-				if !instanceOk {
-					continue
-				}
-
-				checkNameVal, checkNameOk := instanceMap["CheckName"].(string)
-				if checkNameOk {
-					assert.Equal(c, checkName, checkNameVal)
-				}
-
-				lastError, exists := instanceMap["LastError"].(string)
-				assert.True(c, exists)
-				assert.Empty(c, lastError)
-
-				totalErrors, exists := instanceMap["TotalErrors"].(float64)
-				assert.True(c, exists)
-				assert.Zero(c, totalErrors)
-
-				totalMetricSamples, exists := instanceMap["TotalMetricSamples"].(float64)
-				assert.True(c, exists)
-				assert.Greater(c, totalMetricSamples, float64(0))
+	if check, found := runningChecks[checkName].(map[string]any); found {
+		for _, instance := range check {
+			instanceMap, instanceOk := instance.(map[string]any)
+			if !instanceOk {
+				continue
 			}
-		} else {
-			assert.Failf(c, "Check not found", "Check %s not found or not yet running", checkName)
+
+			checkNameVal, checkNameOk := instanceMap["CheckName"].(string)
+			if checkNameOk {
+				assert.Equal(c, checkName, checkNameVal)
+			}
+
+			lastError, exists := instanceMap["LastError"].(string)
+			assert.True(c, exists)
+			assert.Empty(c, lastError)
+
+			totalErrors, exists := instanceMap["TotalErrors"].(float64)
+			assert.True(c, exists)
+			assert.Zero(c, totalErrors)
+
+			totalMetricSamples, exists := instanceMap["TotalMetricSamples"].(float64)
+			assert.True(c, exists)
+			assert.Greater(c, totalMetricSamples, float64(0))
 		}
+	} else {
+		assert.Failf(c, "Check not found", "Check %s not found or not yet running; available checks=%v\ncollector output:\n%s", checkName, sortedAnyKeys(runningChecks), statusOutputSnippet(collectorOutput))
 	}
 }
 
 func VerifyAgentPodLogs(c *assert.CollectT, collectorOutput string) {
 	var agentLogs []any
-	logsJson := common.ParseCollectorJson(collectorOutput)
+	logsStats, ok := requireStatusSection(c, collectorOutput, "logsStats")
+	if !ok {
+		return
+	}
 
 	tailedIntegrations := 0
-	if logsJson != nil {
-		var ok bool
-		logsStats, logsStatsOk := logsJson["logsStats"].(map[string]any)
-		if !logsStatsOk {
-			assert.Fail(c, "logsStats field is not a map or is nil")
-			return
+	agentLogs, ok = logsStats["integrations"].([]any)
+	if !ok {
+		assert.Failf(c, "logsStats.integrations field is not an array or is nil", "logsStats keys=%v; integrations type=%T\ncollector output:\n%s", sortedAnyKeys(logsStats), logsStats["integrations"], statusOutputSnippet(collectorOutput))
+		return
+	}
+	assert.NotEmpty(c, agentLogs)
+	for _, log := range agentLogs {
+		sources, sourcesOk := log.(map[string]any)["sources"].([]any)
+		if !sourcesOk || len(sources) == 0 {
+			continue
 		}
-		agentLogs, ok = logsStats["integrations"].([]any)
-		assert.True(c, ok)
-		assert.NotEmpty(c, agentLogs)
-		for _, log := range agentLogs {
-			sources, sourcesOk := log.(map[string]any)["sources"].([]any)
-			if !sourcesOk || len(sources) == 0 {
+
+		if integration, integrationOk := sources[0].(map[string]any); integrationOk {
+			messages, exists := integration["messages"].([]any)
+			assert.True(c, exists)
+			assert.NotEmpty(c, messages)
+
+			if len(messages) == 0 {
 				continue
 			}
 
-			if integration, integrationOk := sources[0].(map[string]any); integrationOk {
-				messages, exists := integration["messages"].([]any)
-				assert.True(c, exists)
-				assert.NotEmpty(c, messages)
-
-				if len(messages) == 0 {
-					continue
-				}
-
-				message, msgOk := messages[0].(string)
-				assert.True(c, msgOk)
-				assert.NotEmpty(c, message)
-				num, _ := strconv.Atoi(string(message[0]))
-				if num > 0 && strings.Contains(message, "files tailed") {
-					tailedIntegrations++
-				}
-			} else {
-				assert.True(c, integrationOk, "Failed to get sources from logs. Possible causes: missing 'sources' field, empty array, or incorrect data format.")
+			message, msgOk := messages[0].(string)
+			assert.True(c, msgOk)
+			assert.NotEmpty(c, message)
+			num, _ := strconv.Atoi(string(message[0]))
+			if num > 0 && strings.Contains(message, "files tailed") {
+				tailedIntegrations++
 			}
+		} else {
+			assert.True(c, integrationOk, "Failed to get sources from logs. Possible causes: missing 'sources' field, empty array, or incorrect data format.")
 		}
 	}
 	totalIntegrations := len(agentLogs)
@@ -153,7 +150,6 @@ func isInternalTrafficPolicySupported() bool {
 }
 
 func VerifyAgentTraces(c *assert.CollectT, collectorOutput string) {
-	apmAgentJson := common.ParseCollectorJson(collectorOutput)
 	// The order of services in the Agent JSON output is not guaranteed.
 	// We use a map to assert that we have received traces for all expected services.
 	expectedServices := map[string]bool{
@@ -167,40 +163,75 @@ func VerifyAgentTraces(c *assert.CollectT, collectorOutput string) {
 	// Track found services
 	foundServices := map[string]bool{}
 
-	if apmAgentJson != nil {
-		apmStatsMap, apmStatsOk := apmAgentJson["apmStats"].(map[string]any)
-		if !apmStatsOk {
-			assert.Fail(c, "apmStats field is not a map or is nil")
-			return
+	apmStatsMap, ok := requireStatusSection(c, collectorOutput, "apmStats")
+	if !ok {
+		return
+	}
+
+	receiver, receiverOk := apmStatsMap["receiver"].([]any)
+	if !receiverOk {
+		assert.Failf(c, "receiver field is not an array or is nil", "apmStats keys=%v; receiver type=%T\ncollector output:\n%s", sortedAnyKeys(apmStatsMap), apmStatsMap["receiver"], statusOutputSnippet(collectorOutput))
+		return
+	}
+
+	for _, service := range receiver {
+		serviceMap, serviceOk := service.(map[string]any)
+		if !serviceOk {
+			continue
 		}
 
-		receiver, receiverOk := apmStatsMap["receiver"].([]any)
-		if !receiverOk {
-			assert.Fail(c, "receiver field is not an array or is nil")
-			return
+		serviceName, serviceNameOk := serviceMap["Service"].(string)
+		if !serviceNameOk {
+			continue
 		}
 
-		for _, service := range receiver {
-			serviceMap, serviceOk := service.(map[string]any)
-			if !serviceOk {
-				continue
-			}
-
-			serviceName, serviceNameOk := serviceMap["Service"].(string)
-			if !serviceNameOk {
-				continue
-			}
-
-			tracesReceived, tracesOk := serviceMap["TracesReceived"].(float64)
-			if !tracesOk {
-				continue
-			}
-
-			// Ensure we received at least one trace for the service
-			assert.Greater(c, tracesReceived, float64(0), "Expected traces to be received for service %s", serviceName)
-			// Mark the service as found
-			foundServices[serviceName] = true
+		tracesReceived, tracesOk := serviceMap["TracesReceived"].(float64)
+		if !tracesOk {
+			continue
 		}
+
+		// Ensure we received at least one trace for the service
+		assert.Greater(c, tracesReceived, float64(0), "Expected traces to be received for service %s", serviceName)
+		// Mark the service as found
+		foundServices[serviceName] = true
 	}
 	assert.Equal(c, expectedServices, foundServices, "The found services do not match the expected services")
+}
+
+func requireStatusSection(c *assert.CollectT, collectorOutput string, sectionName string) (map[string]any, bool) {
+	statusJSON, diagnostics := common.ParseCollectorJsonWithDiagnostics(collectorOutput)
+	section, ok := statusJSON[sectionName].(map[string]any)
+	if ok {
+		return section, true
+	}
+
+	assert.Failf(
+		c,
+		"Agent status JSON missing expected section",
+		"expected top-level section %q to be a JSON object; parsed top-level keys=%v; actual type=%T; parser diagnostics: %s\ncollector output:\n%s",
+		sectionName,
+		sortedAnyKeys(statusJSON),
+		statusJSON[sectionName],
+		diagnostics,
+		statusOutputSnippet(collectorOutput),
+	)
+	return nil, false
+}
+
+func statusOutputSnippet(output string) string {
+	output = strings.TrimSpace(output)
+	if len(output) <= agentStatusOutputSnippetLimit {
+		return output
+	}
+
+	return output[:agentStatusOutputSnippetLimit] + "\n...(truncated)"
+}
+
+func sortedAnyKeys(jsonObject map[string]any) []string {
+	keys := make([]string, 0, len(jsonObject))
+	for key := range jsonObject {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	return keys
 }

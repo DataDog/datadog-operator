@@ -7,9 +7,12 @@ package common
 
 import (
 	"encoding/json"
+	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strings"
 )
 
@@ -56,24 +59,43 @@ func GetEnv(key, fallback string) string {
 }
 
 func ParseCollectorJson(collectorOutput string) map[string]any {
-	for _, line := range strings.Split(collectorOutput, "\n") {
+	jsonObject, _ := ParseCollectorJsonWithDiagnostics(collectorOutput)
+	return jsonObject
+}
+
+func ParseCollectorJsonWithDiagnostics(collectorOutput string) (map[string]any, string) {
+	candidateLines := []string{}
+	invalidJSON := []string{}
+	nonStatusJSON := []string{}
+
+	for lineNumber, line := range strings.Split(collectorOutput, "\n") {
 		line = strings.TrimSpace(line)
 		if !strings.HasPrefix(line, "{") {
 			continue
 		}
+		candidateLines = appendDiagnostic(candidateLines, fmt.Sprintf("%d", lineNumber+1))
 
 		var jsonObject map[string]any
 		decoder := json.NewDecoder(strings.NewReader(line))
 		if err := decoder.Decode(&jsonObject); err != nil {
+			invalidJSON = appendDiagnostic(invalidJSON, fmt.Sprintf("line %d: %v", lineNumber+1, err))
+			continue
+		}
+
+		var extra any
+		if err := decoder.Decode(&extra); err != io.EOF {
+			invalidJSON = appendDiagnostic(invalidJSON, fmt.Sprintf("line %d: extra data after JSON object", lineNumber+1))
 			continue
 		}
 
 		if isAgentStatusJSON(jsonObject) {
-			return jsonObject
+			return jsonObject, ""
 		}
+
+		nonStatusJSON = appendDiagnostic(nonStatusJSON, fmt.Sprintf("line %d keys=%v", lineNumber+1, sortedMapKeys(jsonObject)))
 	}
 
-	return map[string]any{}
+	return map[string]any{}, fmt.Sprintf("no Agent status JSON found; candidate_lines=%v invalid_json=%v non_status_json=%v", candidateLines, invalidJSON, nonStatusJSON)
 }
 
 func isAgentStatusJSON(jsonObject map[string]any) bool {
@@ -90,6 +112,26 @@ func isAgentStatusJSON(jsonObject map[string]any) bool {
 	}
 
 	return false
+}
+
+func appendDiagnostic(items []string, item string) []string {
+	const maxDiagnostics = 5
+	if len(items) < maxDiagnostics {
+		return append(items, item)
+	}
+	if len(items) == maxDiagnostics {
+		return append(items, "...")
+	}
+	return items
+}
+
+func sortedMapKeys(jsonObject map[string]any) []string {
+	keys := make([]string, 0, len(jsonObject))
+	for key := range jsonObject {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	return keys
 }
 
 func projectRoot() string {

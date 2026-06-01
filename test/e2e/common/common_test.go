@@ -5,7 +5,10 @@
 
 package common
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestParseCollectorJson(t *testing.T) {
 	tests := []struct {
@@ -49,8 +52,11 @@ func TestParseCollectorJson(t *testing.T) {
 }
 
 func TestParseCollectorJsonNoStatusJSON(t *testing.T) {
-	got := ParseCollectorJson(`2026-06-01 14:12:12 UTC | CORE | WARN | no status JSON here: []interface {}`)
+	got, diagnostics := ParseCollectorJsonWithDiagnostics(`2026-06-01 14:12:12 UTC | CORE | WARN | no status JSON here: []interface {}`)
 	if len(got) != 0 {
 		t.Fatalf("ParseCollectorJson() = %#v, want empty map", got)
+	}
+	if !strings.Contains(diagnostics, "no Agent status JSON found") {
+		t.Fatalf("ParseCollectorJsonWithDiagnostics() diagnostics = %q, want parse failure detail", diagnostics)
 	}
 }
