@@ -45,6 +45,11 @@ const (
 	dsdPort                = int32(8125)
 )
 
+func agentStatusCommand(args ...string) []string {
+	command := []string{"env", "DD_LOG_LEVEL=off", "agent", "status"}
+	return append(command, args...)
+}
+
 type k8sSuite struct {
 	e2e.BaseSuite[environments.Kubernetes]
 	local bool
@@ -167,7 +172,7 @@ serviceAccount:
 			assert.NoError(s.T(), err)
 
 			for _, pod := range agentPods.Items {
-				output, _, err := s.Env().KubernetesCluster.KubernetesClient.PodExec(common.NamespaceName, pod.Name, "agent", []string{"agent", "status", "collector", "-j"})
+				output, _, err := s.Env().KubernetesCluster.KubernetesClient.PodExec(common.NamespaceName, pod.Name, "agent", agentStatusCommand("collector", "-j"))
 				assert.NoError(c, err)
 				utils.VerifyCheck(c, output, "kubelet")
 			}
@@ -189,7 +194,7 @@ serviceAccount:
 			assert.NoError(s.T(), err)
 
 			for _, pod := range clusterAgentPods.Items {
-				output, _, err := s.Env().KubernetesCluster.KubernetesClient.PodExec(common.NamespaceName, pod.Name, "agent", []string{"agent", "status", "collector", "-j"})
+				output, _, err := s.Env().KubernetesCluster.KubernetesClient.PodExec(common.NamespaceName, pod.Name, "agent", agentStatusCommand("collector", "-j"))
 				assert.NoError(c, err)
 				utils.VerifyCheck(c, output, "kubernetes_state_core")
 			}
@@ -233,7 +238,7 @@ serviceAccount:
 			assert.NoError(s.T(), err)
 
 			for _, ccr := range ccrPods.Items {
-				output, _, err := s.Env().KubernetesCluster.KubernetesClient.PodExec(common.NamespaceName, ccr.Name, "agent", []string{"agent", "status", "collector", "-j"})
+				output, _, err := s.Env().KubernetesCluster.KubernetesClient.PodExec(common.NamespaceName, ccr.Name, "agent", agentStatusCommand("collector", "-j"))
 				assert.NoError(c, err)
 				utils.VerifyCheck(c, output, "kubernetes_state_core")
 			}
@@ -276,7 +281,7 @@ serviceAccount:
 			assert.NoError(c, err)
 
 			for _, pod := range agentPods.Items {
-				output, _, err := s.Env().KubernetesCluster.KubernetesClient.PodExec(common.NamespaceName, pod.Name, "agent", []string{"agent", "status", "collector", "-j"})
+				output, _, err := s.Env().KubernetesCluster.KubernetesClient.PodExec(common.NamespaceName, pod.Name, "agent", agentStatusCommand("collector", "-j"))
 				assert.NoError(c, err)
 
 				utils.VerifyCheck(c, output, "http_check")
@@ -319,7 +324,7 @@ serviceAccount:
 			assert.NoError(c, err)
 
 			for _, pod := range agentPods.Items {
-				output, _, err := s.Env().KubernetesCluster.KubernetesClient.PodExec(common.NamespaceName, pod.Name, "agent", []string{"agent", "status", "logs agent", "-j"})
+				output, _, err := s.Env().KubernetesCluster.KubernetesClient.PodExec(common.NamespaceName, pod.Name, "agent", agentStatusCommand("logs agent", "-j"))
 				assert.NoError(c, err)
 				utils.VerifyAgentPodLogs(c, output)
 			}
@@ -368,7 +373,7 @@ serviceAccount:
 			// This works because we have a single Agent pod (so located on same node as tracegen)
 			// Otherwise, we would need to deploy tracegen on the same node as the Agent pod / as a DaemonSet
 			for _, pod := range agentPods.Items {
-				output, _, err := s.Env().KubernetesCluster.KubernetesClient.PodExec(common.NamespaceName, pod.Name, "agent", []string{"agent", "status", "apm agent", "-j"})
+				output, _, err := s.Env().KubernetesCluster.KubernetesClient.PodExec(common.NamespaceName, pod.Name, "agent", agentStatusCommand("apm agent", "-j"))
 				assert.NoError(c, err)
 
 				utils.VerifyAgentTraces(c, output)
