@@ -177,8 +177,8 @@ func durationFromEnv(envVar string, def time.Duration) (time.Duration, error) {
 
 // Reconcile decides what to do with a tainted node:
 //   - if any agent pod on the node is Ready, untaint
-//   - if pods exist but none are Ready and the readiness timeout has elapsed,
-//     apply the timeout policy (remove or keep)
+//   - if an agent pod exists but is not Ready and the readiness timeout has
+//     elapsed, apply the timeout policy (remove or keep)
 //   - if no agent pod is scheduled and the scheduling timeout has elapsed,
 //     apply the timeout policy
 //   - otherwise, requeue after the remaining timeout window so we re-evaluate.
@@ -237,16 +237,12 @@ func (r *UntaintReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return ctrl.Result{}, nil
 	}
 
-	// Otherwise we're in a timeout-evaluation path. Two cases:
-	//   1. Any pod exists on the node → readiness timeout
-	//      (clock = max(pod.Status.StartTime), so a fresh restart resets it).
-	//      If pods exist but no StartTime is set yet (very early lifecycle —
-	//      kubelet hasn't transitioned through PodInitializing yet), requeue
-	//      after the readiness window so we re-check once StartTime appears.
-	//      We do NOT fall through to the scheduling clock here: a pod *is*
-	//      scheduled, so the "no agent pod ever scheduled" condition does not
-	//      hold and applying the scheduling timeout would be incorrect.
-	//   2. No pods exist → scheduling timeout (clock = node.CreationTimestamp).
+	// Timeout-evaluation path.
+	//   1. Agent pod present - readiness timeout. Clock: max(pod.Status.StartTime),
+	//      so a fresh restart resets the window. If StartTime is unset (very
+	//      early lifecycle), requeue without falling through to scheduling timeout check
+	//      since pod is scheduled.
+	//   2. Agent pod not present - scheduling timeout. Clock: node.CreationTimestamp.
 	now := r.clock.Now()
 
 	if len(podList.Items) > 0 {
