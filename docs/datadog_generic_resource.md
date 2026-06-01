@@ -67,12 +67,17 @@ To deploy a `DatadogGenericResource` with the Datadog Operator, follow the steps
     helm repo add datadog https://helm.datadoghq.com
     ```
 
-2. DDGR controller is disabled by default. It also requires an API and an application key. Choose one of the following options:
-    * Override the default values by providing your [API and application keys][2] and enabling the controller:
+2. The DDGR controller and its CRD are both disabled by default. The controller also requires an API and an application key. Choose one of the following options:
+    * Override the default values by providing your [API and application keys][2], installing the CRD, and enabling the controller:
       ```shell
-      helm install datadog-operator datadog/datadog-operator --set apiKey=<DATADOG_API_KEY> --set appKey=<DATADOG_APP_KEY> --set datadogGenericResource.enabled=true
+      helm install datadog-operator datadog/datadog-operator \
+        --set apiKey=<DATADOG_API_KEY> \
+        --set appKey=<DATADOG_APP_KEY> \
+        --set datadogCRDs.crds.datadogGenericResources=true \
+        --set datadogGenericResource.enabled=true
       ```
-    * Create an override [`values.yaml`][3] file with your [API and application keys][2] and the `DatadogGenericResource` controller. Then run the install command:
+      Both flags are required: `datadogCRDs.crds.datadogGenericResources=true` installs the `DatadogGenericResource` CRD, and `datadogGenericResource.enabled=true` starts the controller that reconciles it.
+    * Create an override [`values.yaml`][3] file with your [API and application keys][2], `datadogCRDs.crds.datadogGenericResources: true`, and `datadogGenericResource.enabled: true`. Then run the install command:
       ```shell
       helm install datadog-operator datadog/datadog-operator -f values.yaml
       ```
@@ -158,6 +163,28 @@ Further example manifests are provided [in the supported resources table](#suppo
 
 By default, the Operator ensures that the API resource definition stays in sync with the `DatadogGenericResource` every **60** minutes (per resource). This interval can be adjusted using the environment variable `DD_GENERIC_RESOURCE_FORCE_SYNC_PERIOD`, which specifies the number of minutes. For example, setting this variable to `"30"` changes the interval to 30 minutes.
 
+
+## Datadog-side status
+
+For resource types that expose a live state in the Datadog backend, the controller reflects that state into the `DatadogGenericResource` `.status` so it can be inspected directly from `kubectl` without leaving the cluster:
+
+| Field | Description |
+| --- | --- |
+| `.status.state` | Live state as reported by Datadog. Values are resource-type dependent. For Monitors: `OK`, `Alert`, `Warn`, `No Data`, `Skipped`, `Ignored`, `Unknown`. |
+| `.status.stateLastUpdateTime` | Last time `state` was successfully refreshed from the Datadog API. |
+| `.status.stateLastTransitionTime` | Last time `state` changed value. |
+| `.status.conditions[type=StateSynced]` | `True` after a successful state refresh; `False` with `reason=GetError` when the most recent refresh failed (last-known `state` is preserved). |
+
+Inspect quickly via:
+
+```shell
+kubectl get datadoggenericresource    # shows state and last state sync columns
+kubectl wait --for=condition=StateSynced datadoggenericresource/<name>
+```
+
+The controller refreshes `state` roughly every 60 seconds during reconciliation. Failures are visible only via the `StateSynced` condition — they do not break the reconcile loop and the last-known `state` is retained until a subsequent refresh succeeds.
+
+This information is currently surfaced for `monitor` resources. Resource types that do not expose live Datadog-side state (e.g., `dashboard`, `notebook`) leave these fields empty.
 
 ## Comparison with existing CRDs
 
