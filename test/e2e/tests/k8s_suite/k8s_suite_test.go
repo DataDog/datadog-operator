@@ -38,21 +38,27 @@ var (
 )
 
 const (
-	coreAgentContainerName = "agent"
-	adpContainerName       = "agent-data-plane"
-	dsdSocketVolumeName    = "dsdsocket"
-	dsdSocketMountPath     = "/var/run/datadog"
-	dsdSocketHostPath      = "/var/run/datadog"
-	dsdPort                = int32(8125)
+	coreAgentContainerName    = "agent"
+	clusterAgentContainerName = "cluster-agent"
+	adpContainerName          = "agent-data-plane"
+	dsdSocketVolumeName       = "dsdsocket"
+	dsdSocketMountPath        = "/var/run/datadog"
+	dsdSocketHostPath         = "/var/run/datadog"
+	dsdPort                   = int32(8125)
 )
 
 const configBackendSnapshotCommand = `set +e
+export DD_LOG_LEVEL=off
 echo "env.DD_CONF_NODETREEMODEL=$(printenv DD_CONF_NODETREEMODEL || true)"
 for key in conf_nodetreemodel kubelet_core_check_enabled kubelet_tls_verify cluster_checks.enabled logs_enabled logs_config.container_collect_all admission_controller.enabled admission_controller.probe.enabled service_discovery.enabled discovery.enabled; do
   value="$(agent config get "$key" 2>&1 | tr '\n' ' ')"
   echo "config.${key}=${value}"
 done
 `
+
+func agentStatusCommand(args ...string) []string {
+	return []string{"sh", "-c", "DD_LOG_LEVEL=off exec agent status " + strings.Join(args, " ")}
+}
 
 type k8sSuite struct {
 	e2e.BaseSuite[environments.Kubernetes]
@@ -313,12 +319,12 @@ serviceAccount:
 		} else {
 			podName := agentPods.Items[0].Name
 			snapshot["node.pod"] = podName
-			output, stderr, err := s.Env().KubernetesCluster.KubernetesClient.PodExec(common.NamespaceName, podName, "agent", []string{"sh", "-c", configBackendSnapshotCommand})
+			output, stderr, err := s.Env().KubernetesCluster.KubernetesClient.PodExec(common.NamespaceName, podName, coreAgentContainerName, []string{"sh", "-c", configBackendSnapshotCommand})
 			snapshot["node.config.exec.error"] = fmt.Sprintf("%v", err)
 			snapshot["node.config.exec.stderr"] = strings.TrimSpace(stderr)
 			mergeSnapshot(snapshot, "node", parseKeyValueSnapshot(output))
 
-			output, stderr, err = s.Env().KubernetesCluster.KubernetesClient.PodExec(common.NamespaceName, podName, "agent", []string{"agent", "status", "collector", "-j"})
+			output, stderr, err = s.Env().KubernetesCluster.KubernetesClient.PodExec(common.NamespaceName, podName, coreAgentContainerName, agentStatusCommand("collector", "-j"))
 			snapshot["node.collector.exec.error"] = fmt.Sprintf("%v", err)
 			snapshot["node.collector.exec.stderr"] = strings.TrimSpace(stderr)
 			mergeSnapshot(snapshot, "node.collector", collectorStatusSnapshot(output, "kubelet", "http_check"))
@@ -335,12 +341,12 @@ serviceAccount:
 		} else {
 			podName := clusterAgentPods.Items[0].Name
 			snapshot["cluster.pod"] = podName
-			output, stderr, err := s.Env().KubernetesCluster.KubernetesClient.PodExec(common.NamespaceName, podName, "agent", []string{"sh", "-c", configBackendSnapshotCommand})
+			output, stderr, err := s.Env().KubernetesCluster.KubernetesClient.PodExec(common.NamespaceName, podName, clusterAgentContainerName, []string{"sh", "-c", configBackendSnapshotCommand})
 			snapshot["cluster.config.exec.error"] = fmt.Sprintf("%v", err)
 			snapshot["cluster.config.exec.stderr"] = strings.TrimSpace(stderr)
 			mergeSnapshot(snapshot, "cluster", parseKeyValueSnapshot(output))
 
-			output, stderr, err = s.Env().KubernetesCluster.KubernetesClient.PodExec(common.NamespaceName, podName, "agent", []string{"agent", "status", "collector", "-j"})
+			output, stderr, err = s.Env().KubernetesCluster.KubernetesClient.PodExec(common.NamespaceName, podName, clusterAgentContainerName, agentStatusCommand("collector", "-j"))
 			snapshot["cluster.collector.exec.error"] = fmt.Sprintf("%v", err)
 			snapshot["cluster.collector.exec.stderr"] = strings.TrimSpace(stderr)
 			mergeSnapshot(snapshot, "cluster.collector", collectorStatusSnapshot(output, "kubernetes_state_core"))
@@ -446,7 +452,7 @@ serviceAccount:
 			assert.NoError(s.T(), err)
 
 			for _, pod := range agentPods.Items {
-				output, _, err := s.Env().KubernetesCluster.KubernetesClient.PodExec(common.NamespaceName, pod.Name, "agent", []string{"agent", "status", "collector", "-j"})
+				output, _, err := s.Env().KubernetesCluster.KubernetesClient.PodExec(common.NamespaceName, pod.Name, coreAgentContainerName, agentStatusCommand("collector", "-j"))
 				assert.NoError(c, err)
 				utils.VerifyCheck(c, output, "kubelet")
 			}
@@ -468,7 +474,7 @@ serviceAccount:
 			assert.NoError(s.T(), err)
 
 			for _, pod := range clusterAgentPods.Items {
-				output, _, err := s.Env().KubernetesCluster.KubernetesClient.PodExec(common.NamespaceName, pod.Name, "agent", []string{"agent", "status", "collector", "-j"})
+				output, _, err := s.Env().KubernetesCluster.KubernetesClient.PodExec(common.NamespaceName, pod.Name, clusterAgentContainerName, agentStatusCommand("collector", "-j"))
 				assert.NoError(c, err)
 				utils.VerifyCheck(c, output, "kubernetes_state_core")
 			}
@@ -512,7 +518,7 @@ serviceAccount:
 			assert.NoError(s.T(), err)
 
 			for _, ccr := range ccrPods.Items {
-				output, _, err := s.Env().KubernetesCluster.KubernetesClient.PodExec(common.NamespaceName, ccr.Name, "agent", []string{"agent", "status", "collector", "-j"})
+				output, _, err := s.Env().KubernetesCluster.KubernetesClient.PodExec(common.NamespaceName, ccr.Name, coreAgentContainerName, agentStatusCommand("collector", "-j"))
 				assert.NoError(c, err)
 				utils.VerifyCheck(c, output, "kubernetes_state_core")
 			}
@@ -555,7 +561,7 @@ serviceAccount:
 			assert.NoError(c, err)
 
 			for _, pod := range agentPods.Items {
-				output, _, err := s.Env().KubernetesCluster.KubernetesClient.PodExec(common.NamespaceName, pod.Name, "agent", []string{"agent", "status", "collector", "-j"})
+				output, _, err := s.Env().KubernetesCluster.KubernetesClient.PodExec(common.NamespaceName, pod.Name, coreAgentContainerName, agentStatusCommand("collector", "-j"))
 				assert.NoError(c, err)
 
 				utils.VerifyCheck(c, output, "http_check")
@@ -598,7 +604,7 @@ serviceAccount:
 			assert.NoError(c, err)
 
 			for _, pod := range agentPods.Items {
-				output, _, err := s.Env().KubernetesCluster.KubernetesClient.PodExec(common.NamespaceName, pod.Name, "agent", []string{"agent", "status", "logs agent", "-j"})
+				output, _, err := s.Env().KubernetesCluster.KubernetesClient.PodExec(common.NamespaceName, pod.Name, coreAgentContainerName, agentStatusCommand("logs", "agent", "-j"))
 				assert.NoError(c, err)
 				utils.VerifyAgentPodLogs(c, output)
 			}
@@ -647,7 +653,7 @@ serviceAccount:
 			// This works because we have a single Agent pod (so located on same node as tracegen)
 			// Otherwise, we would need to deploy tracegen on the same node as the Agent pod / as a DaemonSet
 			for _, pod := range agentPods.Items {
-				output, _, err := s.Env().KubernetesCluster.KubernetesClient.PodExec(common.NamespaceName, pod.Name, "agent", []string{"agent", "status", "apm agent", "-j"})
+				output, _, err := s.Env().KubernetesCluster.KubernetesClient.PodExec(common.NamespaceName, pod.Name, coreAgentContainerName, agentStatusCommand("apm", "agent", "-j"))
 				assert.NoError(c, err)
 
 				utils.VerifyAgentTraces(c, output)

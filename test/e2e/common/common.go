@@ -9,8 +9,8 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"regexp"
 	"runtime"
+	"strings"
 )
 
 var (
@@ -56,23 +56,40 @@ func GetEnv(key, fallback string) string {
 }
 
 func ParseCollectorJson(collectorOutput string) map[string]any {
-	var jsonString string
-	var jsonObject map[string]any
+	for _, line := range strings.Split(collectorOutput, "\n") {
+		line = strings.TrimSpace(line)
+		if !strings.HasPrefix(line, "{") {
+			continue
+		}
 
-	re := regexp.MustCompile(`(\{.*\})`)
-	match := re.FindStringSubmatch(collectorOutput)
-	if len(match) > 0 {
-		jsonString = match[0]
-	} else {
-		return map[string]any{}
+		var jsonObject map[string]any
+		decoder := json.NewDecoder(strings.NewReader(line))
+		if err := decoder.Decode(&jsonObject); err != nil {
+			continue
+		}
+
+		if isAgentStatusJSON(jsonObject) {
+			return jsonObject
+		}
 	}
 
-	// Parse collector JSON
-	err := json.Unmarshal([]byte(jsonString), &jsonObject)
-	if err != nil {
-		return map[string]any{}
+	return map[string]any{}
+}
+
+func isAgentStatusJSON(jsonObject map[string]any) bool {
+	for _, key := range []string{
+		"runnerStats",
+		"logsStats",
+		"apmStats",
+		"autoConfigStats",
+		"checkSchedulerStats",
+	} {
+		if _, ok := jsonObject[key]; ok {
+			return true
+		}
 	}
-	return jsonObject
+
+	return false
 }
 
 func projectRoot() string {
