@@ -52,6 +52,15 @@ type DatadogGenericResourceStatus struct {
 	CurrentHash string `json:"currentHash,omitempty"`
 	// LastForceSyncTime is the last time the API object was last force synced with the custom resource
 	LastForceSyncTime *metav1.Time `json:"lastForceSyncTime,omitempty"`
+	// State is the live Datadog-side state of the underlying resource as last
+	// fetched from the Datadog API. Values are resource-type dependent — for
+	// Monitors: OK, Alert, Warn, No Data, Skipped, Ignored, Unknown. Only
+	// populated for resource types that expose live state.
+	State string `json:"state,omitempty"`
+	// StateLastUpdateTime is the last time State was successfully refreshed from Datadog.
+	StateLastUpdateTime *metav1.Time `json:"stateLastUpdateTime,omitempty"`
+	// StateLastTransitionTime is the last time State changed value.
+	StateLastTransitionTime *metav1.Time `json:"stateLastTransitionTime,omitempty"`
 }
 
 type DatadogSyncStatus string
@@ -75,6 +84,8 @@ const (
 // +kubebuilder:resource:path=datadoggenericresources,scope=Namespaced,shortName=ddgr
 // +kubebuilder:printcolumn:name="id",type="string",JSONPath=".status.id"
 // +kubebuilder:printcolumn:name="sync status",type="string",JSONPath=".status.syncStatus"
+// +kubebuilder:printcolumn:name="state",type="string",JSONPath=".status.state"
+// +kubebuilder:printcolumn:name="last state sync",type="string",format="date",JSONPath=".status.stateLastUpdateTime"
 // +kubebuilder:printcolumn:name="age",type="date",JSONPath=".metadata.creationTimestamp"
 // +k8s:openapi-gen=true
 // +genclient

@@ -58,6 +58,10 @@ func (h *DowntimeHandler) deleteResource(auth context.Context, instance *v1alpha
 	return deleteDowntime(auth, h.client, instance.Status.Id)
 }
 
+func (h *DowntimeHandler) refreshState(_ context.Context, _ *v1alpha1.DatadogGenericResource) (*string, error) {
+	return nil, nil
+}
+
 func getDowntime(auth context.Context, client *datadogV2.DowntimesApi, downtimeID string) (datadogV2.DowntimeResponse, error) {
 	if downtimeID == "" {
 		return datadogV2.DowntimeResponse{}, fmt.Errorf("cannot get downtime: downtimeID is empty")

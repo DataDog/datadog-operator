@@ -157,6 +157,84 @@ func TestReconcileGenericResource_Reconcile(t *testing.T) {
 			},
 		},
 		{
+			name: "DatadogGenericResource exists, idle tick refreshes Datadog state",
+			args: args{
+				request: newRequest(resourcesNamespace, resourcesName),
+				firstAction: func(c client.Client) {
+					_ = c.Create(context.TODO(), mockGenericResource())
+					alert := "Alert"
+					mockRefreshStateResult = &alert
+				},
+				// reconcile 1: add finalizer; 2: create remote resource; 3: idle tick triggers refresh
+				firstReconcileCount: 3,
+			},
+			wantResult: reconcile.Result{RequeueAfter: defaultRequeuePeriod},
+			wantFunc: func(c client.Client) error {
+				obj := &datadoghqv1alpha1.DatadogGenericResource{}
+				if err := c.Get(context.TODO(), types.NamespacedName{Name: resourcesName, Namespace: resourcesNamespace}, obj); err != nil {
+					return err
+				}
+				assert.Equal(t, "Alert", obj.Status.State, "expected state to be refreshed to Alert")
+				assert.NotNil(t, obj.Status.StateLastUpdateTime, "expected StateLastUpdateTime to be set")
+				assert.NotNil(t, obj.Status.StateLastTransitionTime, "expected StateLastTransitionTime to be set on first refresh")
+				assert.GreaterOrEqual(t, mockRefreshStateCalls, 1, "expected refreshState to have been called")
+				// StateSynced condition should be True
+				var found bool
+				for _, cond := range obj.Status.Conditions {
+					if cond.Type == "StateSynced" {
+						found = true
+						assert.Equal(t, metav1.ConditionTrue, cond.Status, "expected StateSynced=True after a successful refresh")
+					}
+				}
+				assert.True(t, found, "expected a StateSynced condition")
+				return nil
+			},
+		},
+		{
+			name: "DatadogGenericResource exists, state refresh failure preserves last-known state",
+			args: args{
+				request: newRequest(resourcesNamespace, resourcesName),
+				firstAction: func(c client.Client) {
+					_ = c.Create(context.TODO(), mockGenericResource())
+					alert := "Alert"
+					mockRefreshStateResult = &alert
+				},
+				firstReconcileCount: 3,
+				secondAction: func(c client.Client) {
+					// Backdate StateLastUpdateTime so the next reconcile re-enters
+					// the refresh branch, and switch the mock to fail.
+					obj := &datadoghqv1alpha1.DatadogGenericResource{}
+					_ = c.Get(context.TODO(), types.NamespacedName{Name: resourcesName, Namespace: resourcesNamespace}, obj)
+					past := metav1.NewTime(time.Now().Add(-2 * defaultRequeuePeriod))
+					obj.Status.StateLastUpdateTime = &past
+					_ = c.Status().Update(context.TODO(), obj)
+					mockRefreshStateErr = fmt.Errorf("error getting mock resource: 503 Service Unavailable")
+					mockRefreshStateResult = nil
+				},
+				secondReconcileCount: 1,
+			},
+			wantResult: reconcile.Result{RequeueAfter: defaultRequeuePeriod},
+			wantFunc: func(c client.Client) error {
+				obj := &datadoghqv1alpha1.DatadogGenericResource{}
+				if err := c.Get(context.TODO(), types.NamespacedName{Name: resourcesName, Namespace: resourcesNamespace}, obj); err != nil {
+					return err
+				}
+				// Last-known state from first refresh should be preserved.
+				assert.Equal(t, "Alert", obj.Status.State, "expected last-known state to be preserved on refresh failure")
+				// StateSynced condition flips to False with Reason=GetError
+				var found bool
+				for _, cond := range obj.Status.Conditions {
+					if cond.Type == "StateSynced" {
+						found = true
+						assert.Equal(t, metav1.ConditionFalse, cond.Status, "expected StateSynced=False on refresh failure")
+						assert.Equal(t, "GetError", cond.Reason, "expected Reason=GetError on refresh failure")
+					}
+				}
+				assert.True(t, found, "expected a StateSynced condition after a failure")
+				return nil
+			},
+		},
+		{
 			name: "DatadogGenericResource exists, needs delete",
 			args: args{
 				request: newRequest(resourcesNamespace, resourcesName),
