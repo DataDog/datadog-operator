@@ -65,7 +65,7 @@ func (r *Reconciler) reconcileV2Agent(ctx context.Context, requiredComponents fe
 
 		// Apply features changes on the Deployment.Spec.Template
 		for _, feat := range features {
-			if errFeat := feat.ManageNodeAgent(podManagers, ""); errFeat != nil {
+			if errFeat := feat.ManageNodeAgent(podManagers); errFeat != nil {
 				return result, errFeat
 			}
 		}
@@ -118,11 +118,11 @@ func (r *Reconciler) reconcileV2Agent(ctx context.Context, requiredComponents fe
 	// Apply features changes on the Deployment.Spec.Template
 	for _, feat := range features {
 		if singleContainerStrategyEnabled {
-			if errFeat := feat.ManageSingleContainerNodeAgent(podManagers, ""); errFeat != nil {
+			if errFeat := feat.ManageSingleContainerNodeAgent(podManagers); errFeat != nil {
 				return result, errFeat
 			}
 		} else {
-			if errFeat := feat.ManageNodeAgent(podManagers, ""); errFeat != nil {
+			if errFeat := feat.ManageNodeAgent(podManagers); errFeat != nil {
 				return result, errFeat
 			}
 		}
