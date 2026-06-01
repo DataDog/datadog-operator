@@ -48,6 +48,12 @@ spec:
             spec:
               description: DatadogCSIDriverSpec defines the desired state of DatadogCSIDriver
               properties:
+                apmEnabled:
+                  description: |-
+                    APMEnabled toggles APM Single Step Instrumentation (SSI) library mount
+                    support in the Datadog CSI driver.
+                    Default: true
+                  type: boolean
                 apmSocketPath:
                   description: |-
                     APMSocketPath is the host path to the APM socket.

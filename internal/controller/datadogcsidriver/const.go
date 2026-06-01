@@ -54,6 +54,10 @@ const (
 	appLabelKey                     = "app"
 	admissionControllerEnabledLabel = "admission.datadoghq.com/enabled"
 
+	// apmEnabledAnnotationKey is set on the managed CSIDriver resource to expose
+	// the operator's APM/SSI intent.
+	apmEnabledAnnotationKey = "csi.datadoghq.com/apm-enabled"
+
 	// finalizerName is the finalizer for CSIDriver object cleanup
 	finalizerName = "finalizer.datadoghq.com/csi-driver"
 )

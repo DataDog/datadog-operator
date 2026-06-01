@@ -53,6 +53,7 @@ const (
 	ControllerRevisionsResource                       = "controllerrevisions"
 	ConfigMapsResource                                = "configmaps"
 	CronjobsResource                                  = "cronjobs"
+	CSIDriversResource                                = "csidrivers"
 	CustomResourceDefinitionsResource                 = "customresourcedefinitions"
 	DaemonsetsResource                                = "daemonsets"
 	DatadogAgentsResource                             = "datadogagents"

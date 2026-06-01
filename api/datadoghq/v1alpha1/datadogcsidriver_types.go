@@ -30,6 +30,12 @@ type DatadogCSIDriverSpec struct {
 	// +optional
 	RegistrarImage *v2alpha1.AgentImageConfig `json:"registrarImage,omitempty"`
 
+	// APMEnabled toggles APM Single Step Instrumentation (SSI) library mount
+	// support in the Datadog CSI driver.
+	// Default: true
+	// +optional
+	APMEnabled *bool `json:"apmEnabled,omitempty"`
+
 	// APMSocketPath is the host path to the APM socket.
 	// Default: /var/run/datadog/apm.socket
 	// +optional

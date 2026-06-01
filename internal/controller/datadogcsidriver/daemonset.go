@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"maps"
 	"path/filepath"
+	"strconv"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -131,7 +132,7 @@ func buildCSIDriverContainer(instance *datadoghqv1alpha1.DatadogCSIDriver, drive
 			},
 			{
 				Name:  constants.DDAPMEnabled,
-				Value: "true",
+				Value: strconv.FormatBool(isAPMEnabled(instance)),
 			},
 		},
 		Ports: []corev1.ContainerPort{

@@ -50,6 +50,18 @@ func (f *admissionControllerFeature) getRBACClusterPolicyRules() []rbacv1.Policy
 			},
 			Verbs: []string{rbac.GetVerb},
 		},
+		// CSIDrivers — required by the admission controller to auto-detect the
+		// Datadog CSI driver and route SSI library injection through CSI mode
+		// instead of init containers.
+		{
+			APIGroups: []string{rbac.StorageAPIGroup},
+			Resources: []string{rbac.CSIDriversResource},
+			Verbs: []string{
+				rbac.GetVerb,
+				rbac.ListVerb,
+				rbac.WatchVerb,
+			},
+		},
 		// Deployments, Replicasets, Statefulsets, Daemonsets
 		{
 			APIGroups: []string{rbac.AppsAPIGroup},

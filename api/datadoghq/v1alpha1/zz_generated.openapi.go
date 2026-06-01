@@ -732,6 +732,13 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogCSIDriverSpec(ref com
 							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.AgentImageConfig"),
 						},
 					},
+					"apmEnabled": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APMEnabled toggles APM Single Step Instrumentation (SSI) library mount support in the Datadog CSI driver. Default: true",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 					"apmSocketPath": {
 						SchemaProps: spec.SchemaProps{
 							Description: "APMSocketPath is the host path to the APM socket. Default: /var/run/datadog/apm.socket",

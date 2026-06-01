@@ -97,6 +97,8 @@ func TestReconcile_CreatesResources(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, csiDriverName, csiDriver.Name)
 	assert.Equal(t, "datadog-operator", csiDriver.Labels[kubernetes.AppKubernetesManageByLabelKey])
+	// APM/SSI annotation defaults to "true" when Spec.APMEnabled is unset.
+	assert.Equal(t, "true", csiDriver.Annotations[apmEnabledAnnotationKey])
 	assert.False(t, *csiDriver.Spec.AttachRequired)
 	assert.True(t, *csiDriver.Spec.PodInfoOnMount)
 	assert.Contains(t, csiDriver.Spec.VolumeLifecycleModes, storagev1.VolumeLifecyclePersistent)
@@ -487,11 +489,110 @@ func TestReconcile_CSIDriverSpecDriftIsReconciled(t *testing.T) {
 	assert.Contains(t, csiDriver.Spec.VolumeLifecycleModes, storagev1.VolumeLifecycleEphemeral)
 }
 
+func TestReconcile_APMEnabledDisabled(t *testing.T) {
+	instance := defaultCSIDriverCR()
+	instance.Spec.APMEnabled = ptr.To(false)
+
+	r, c := newTestReconciler(t, instance)
+	ctx := context.Background()
+
+	// Reconcile twice (finalizer + create)
+	_, err := r.Reconcile(ctx, instance)
+	require.NoError(t, err)
+	err = c.Get(ctx, types.NamespacedName{Name: testName, Namespace: testNamespace}, instance)
+	require.NoError(t, err)
+	_, err = r.Reconcile(ctx, instance)
+	require.NoError(t, err)
+
+	// Annotation reflects the disabled intent.
+	csiDriver := &storagev1.CSIDriver{}
+	err = c.Get(ctx, types.NamespacedName{Name: csiDriverName}, csiDriver)
+	require.NoError(t, err)
+	assert.Equal(t, "false", csiDriver.Annotations[apmEnabledAnnotationKey])
+
+	// DD_APM_ENABLED env var on the csi-node-driver container is flipped too.
+	ds := &appsv1.DaemonSet{}
+	err = c.Get(ctx, types.NamespacedName{Name: csiDsName, Namespace: testNamespace}, ds)
+	require.NoError(t, err)
+	csiContainer := ds.Spec.Template.Spec.Containers[0]
+	assert.Equal(t, v1alpha1.CSINodeDriverContainerName, csiContainer.Name)
+	apmEnv := findEnvVar(csiContainer.Env, "DD_APM_ENABLED")
+	require.NotNil(t, apmEnv, "DD_APM_ENABLED env var should be set")
+	assert.Equal(t, "false", apmEnv.Value)
+}
+
+func TestReconcile_APMEnabledDefaultsToTrue(t *testing.T) {
+	instance := defaultCSIDriverCR() // APMEnabled left unset
+
+	r, c := newTestReconciler(t, instance)
+	ctx := context.Background()
+
+	_, err := r.Reconcile(ctx, instance)
+	require.NoError(t, err)
+	err = c.Get(ctx, types.NamespacedName{Name: testName, Namespace: testNamespace}, instance)
+	require.NoError(t, err)
+	_, err = r.Reconcile(ctx, instance)
+	require.NoError(t, err)
+
+	ds := &appsv1.DaemonSet{}
+	err = c.Get(ctx, types.NamespacedName{Name: csiDsName, Namespace: testNamespace}, ds)
+	require.NoError(t, err)
+	csiContainer := ds.Spec.Template.Spec.Containers[0]
+	apmEnv := findEnvVar(csiContainer.Env, "DD_APM_ENABLED")
+	require.NotNil(t, apmEnv, "DD_APM_ENABLED env var should be set")
+	assert.Equal(t, "true", apmEnv.Value)
+}
+
+func TestReconcile_CSIDriverAnnotationDriftIsReconciled(t *testing.T) {
+	instance := defaultCSIDriverCR()
+	r, c := newTestReconciler(t, instance)
+	ctx := context.Background()
+
+	// Reconcile to create resources.
+	_, err := r.Reconcile(ctx, instance)
+	require.NoError(t, err)
+	err = c.Get(ctx, types.NamespacedName{Name: testName, Namespace: testNamespace}, instance)
+	require.NoError(t, err)
+	_, err = r.Reconcile(ctx, instance)
+	require.NoError(t, err)
+
+	// Drift: flip the annotation and add an unrelated one.
+	csiDriver := &storagev1.CSIDriver{}
+	err = c.Get(ctx, types.NamespacedName{Name: csiDriverName}, csiDriver)
+	require.NoError(t, err)
+	csiDriver.Annotations[apmEnabledAnnotationKey] = "false"
+	csiDriver.Annotations["foo.example.com/bar"] = "baz"
+	err = c.Update(ctx, csiDriver)
+	require.NoError(t, err)
+
+	// Reconcile again and verify drift is reverted (annotation map is replaced).
+	err = c.Get(ctx, types.NamespacedName{Name: testName, Namespace: testNamespace}, instance)
+	require.NoError(t, err)
+	_, err = r.Reconcile(ctx, instance)
+	require.NoError(t, err)
+
+	err = c.Get(ctx, types.NamespacedName{Name: csiDriverName}, csiDriver)
+	require.NoError(t, err)
+	assert.Equal(t, "true", csiDriver.Annotations[apmEnabledAnnotationKey])
+	_, hasForeign := csiDriver.Annotations["foo.example.com/bar"]
+	assert.False(t, hasForeign, "unmanaged annotation should be reverted")
+}
+
 // findCondition returns the condition with the given type, or nil.
 func findCondition(conditions []metav1.Condition, condType string) *metav1.Condition {
 	for i := range conditions {
 		if conditions[i].Type == condType {
 			return &conditions[i]
+		}
+	}
+	return nil
+}
+
+// findEnvVar returns the env var with the given name, or nil.
+func findEnvVar(envs []corev1.EnvVar, name string) *corev1.EnvVar {
+	for i := range envs {
+		if envs[i].Name == name {
+			return &envs[i]
 		}
 	}
 	return nil

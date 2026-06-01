@@ -182,13 +182,15 @@ func (r *Reconciler) reconcileCSIDriver(ctx context.Context, instance *v1alpha1.
 		return nil
 	}
 
-	// Full replacement of spec and labels ensures any external drift is reverted,
-	// including fields added manually (e.g. via kubectl edit).
+	// Full replacement of spec, labels and annotations ensures any external drift
+	// is reverted, including fields added manually (e.g. via kubectl edit).
 	if !apiequality.Semantic.DeepEqual(current.Spec, desired.Spec) ||
-		!apiequality.Semantic.DeepEqual(current.Labels, desired.Labels) {
+		!apiequality.Semantic.DeepEqual(current.Labels, desired.Labels) ||
+		!apiequality.Semantic.DeepEqual(current.Annotations, desired.Annotations) {
 		logger.Info("Updating CSIDriver to match desired state", "csidriver", desired.Name)
 		current.Spec = desired.Spec
 		current.Labels = desired.Labels
+		current.Annotations = desired.Annotations
 		if err := r.client.Update(ctx, current); err != nil {
 			return fmt.Errorf("updating CSIDriver: %w", err)
 		}

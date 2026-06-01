@@ -6,6 +6,8 @@
 package datadogcsidriver
 
 import (
+	"strconv"
+
 	storagev1 "k8s.io/api/storage/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
@@ -23,6 +25,9 @@ func buildCSIDriverObject(instance *datadoghqv1alpha1.DatadogCSIDriver) *storage
 				kubernetes.AppKubernetesManageByLabelKey: "datadog-operator",
 				kubernetes.AppKubernetesPartOfLabelKey:   object.NewPartOfLabelValue(instance).String(),
 			},
+			Annotations: map[string]string{
+				apmEnabledAnnotationKey: strconv.FormatBool(isAPMEnabled(instance)),
+			},
 		},
 		Spec: storagev1.CSIDriverSpec{
 			AttachRequired: ptr.To(false),
@@ -33,4 +38,10 @@ func buildCSIDriverObject(instance *datadoghqv1alpha1.DatadogCSIDriver) *storage
 			},
 		},
 	}
+}
+
+// isAPMEnabled returns the user-configured APM/SSI intent for the CSI driver.
+// Defaults to true when the field is unset, matching the helm chart behavior.
+func isAPMEnabled(instance *datadoghqv1alpha1.DatadogCSIDriver) bool {
+	return ptr.Deref(instance.Spec.APMEnabled, true)
 }
