@@ -35,7 +35,23 @@ const (
 	testName      = "datadog-csi"
 )
 
+// mockPlatformInfo implements PlatformInfo for testing
+type mockPlatformInfo struct {
+	supportedResources map[string]bool
+}
+
+func (m *mockPlatformInfo) IsResourceSupported(resource string) bool {
+	if m.supportedResources == nil {
+		return false
+	}
+	return m.supportedResources[resource]
+}
+
 func newTestReconciler(t *testing.T, objects ...client.Object) (*Reconciler, client.Client) {
+	return newTestReconcilerWithPlatformInfo(t, &mockPlatformInfo{}, objects...)
+}
+
+func newTestReconcilerWithPlatformInfo(t *testing.T, platformInfo PlatformInfo, objects ...client.Object) (*Reconciler, client.Client) {
 	t.Helper()
 	s := scheme.Scheme
 	s.AddKnownTypes(v1alpha1.GroupVersion,
@@ -52,7 +68,7 @@ func newTestReconciler(t *testing.T, objects ...client.Object) (*Reconciler, cli
 	// Set the default controller-runtime logger so ctrl.LoggerFrom(ctx) works in tests
 	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
 	recorder := record.NewFakeRecorder(10)
-	r := NewReconciler(c, s, recorder)
+	r := NewReconciler(c, s, recorder, platformInfo)
 
 	return r, c
 }
@@ -497,13 +513,16 @@ func findCondition(conditions []metav1.Condition, condType string) *metav1.Condi
 	return nil
 }
 
-func TestReconcile_GKEAutopilotEnabled(t *testing.T) {
+func TestReconcile_GKEAutopilotModern(t *testing.T) {
 	instance := defaultCSIDriverCR()
-	instance.Annotations = map[string]string{
-		GKEAutopilotAnnotation: "true",
+	// Mock modern Autopilot: WorkloadAllowlist CRD is available
+	platformInfo := &mockPlatformInfo{
+		supportedResources: map[string]bool{
+			"WorkloadAllowlist": true,
+		},
 	}
 
-	r, c := newTestReconciler(t, instance)
+	r, c := newTestReconcilerWithPlatformInfo(t, platformInfo, instance)
 	ctx := context.Background()
 
 	// Reconcile twice (finalizer + create)
@@ -551,12 +570,14 @@ func TestReconcile_GKEAutopilotEnabled(t *testing.T) {
 
 func TestReconcile_GKEAutopilotLegacy(t *testing.T) {
 	instance := defaultCSIDriverCR()
-	instance.Annotations = map[string]string{
-		GKEAutopilotAnnotation:       "true",
-		GKEAutopilotLegacyAnnotation: "true",
+	// Mock legacy Autopilot: only AllowlistedV2Workload CRD is available
+	platformInfo := &mockPlatformInfo{
+		supportedResources: map[string]bool{
+			"AllowlistedV2Workload": true,
+		},
 	}
 
-	r, c := newTestReconciler(t, instance)
+	r, c := newTestReconcilerWithPlatformInfo(t, platformInfo, instance)
 	ctx := context.Background()
 
 	// Reconcile twice (finalizer + create)
@@ -596,14 +617,14 @@ func TestReconcile_GKEAutopilotLegacy(t *testing.T) {
 	assert.NotContains(t, mountNames, storageDirVolumeName)
 }
 
-func TestReconcile_GKEAutopilotCustomVersion(t *testing.T) {
+func TestReconcile_NotGKEAutopilot(t *testing.T) {
 	instance := defaultCSIDriverCR()
-	instance.Annotations = map[string]string{
-		GKEAutopilotAnnotation:                 "true",
-		GKEAutopilotAllowlistVersionAnnotation: "v2.0.0",
+	// Mock non-Autopilot cluster: no Autopilot CRDs
+	platformInfo := &mockPlatformInfo{
+		supportedResources: map[string]bool{},
 	}
 
-	r, c := newTestReconciler(t, instance)
+	r, c := newTestReconcilerWithPlatformInfo(t, platformInfo, instance)
 	ctx := context.Background()
 
 	// Reconcile twice (finalizer + create)
@@ -618,7 +639,25 @@ func TestReconcile_GKEAutopilotCustomVersion(t *testing.T) {
 	err = c.Get(ctx, types.NamespacedName{Name: csiDsName, Namespace: testNamespace}, ds)
 	require.NoError(t, err)
 
-	// Verify the matching-allowlist label uses custom version
-	assert.Equal(t, "datadog-datadog-csi-driver-daemonset-exemption-v2.0.0",
-		ds.Spec.Template.Labels[GKEMatchingAllowlistLabelKey])
+	// Verify matching-allowlist label is NOT set (not Autopilot)
+	_, hasLabel := ds.Spec.Template.Labels[GKEMatchingAllowlistLabelKey]
+	assert.False(t, hasLabel, "matching-allowlist label should not be set for non-Autopilot clusters")
+
+	// Verify storage-dir volume exists (not Autopilot, full functionality)
+	volumeNames := make([]string, 0, len(ds.Spec.Template.Spec.Volumes))
+	for _, v := range ds.Spec.Template.Spec.Volumes {
+		volumeNames = append(volumeNames, v.Name)
+	}
+	assert.Contains(t, volumeNames, storageDirVolumeName)
+
+	// Verify DD_APM_ENABLED env var exists (not Autopilot, full functionality)
+	csiContainer := ds.Spec.Template.Spec.Containers[0]
+	found := false
+	for _, env := range csiContainer.Env {
+		if env.Name == "DD_APM_ENABLED" {
+			found = true
+			break
+		}
+	}
+	assert.True(t, found, "DD_APM_ENABLED should be set for non-Autopilot clusters")
 }

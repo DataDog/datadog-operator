@@ -6,99 +6,89 @@
 package datadogcsidriver
 
 import (
-	"strings"
-
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/pkg/allowlistsynchronizer"
 )
 
 const (
-	// GKEAutopilotAnnotation enables GKE Autopilot mode for the CSI driver.
-	// When set to "true", the controller creates an AllowlistSynchronizer and
-	// adds the cloud.google.com/matching-allowlist label to the DaemonSet.
-	GKEAutopilotAnnotation = "csi.datadoghq.com/gke-autopilot"
-
-	// GKEAutopilotAllowlistVersionAnnotation allows overriding the CSI driver
-	// WorkloadAllowlist version. If not set, defaults to v1.1.0.
-	GKEAutopilotAllowlistVersionAnnotation = "csi.datadoghq.com/gke-autopilot-allowlist-version"
-
-	// GKEAutopilotLegacyAnnotation indicates the cluster is running legacy Autopilot
-	// (only AllowlistedV2Workload CRD, not WorkloadAllowlist). When set to "true",
-	// the storage-dir volume and DD_APM_ENABLED env var are removed from the DaemonSet
-	// because no updated exemption exists for legacy Autopilot.
-	GKEAutopilotLegacyAnnotation = "csi.datadoghq.com/gke-autopilot-legacy"
-
 	// GKEMatchingAllowlistLabelKey is the label key used by GKE Autopilot to match
 	// workloads with WorkloadAllowlists.
 	GKEMatchingAllowlistLabelKey = "cloud.google.com/matching-allowlist"
+
+	// WorkloadAllowlist is the CRD Kind for modern GKE Autopilot (>= 1.32.1-gke.1729000)
+	workloadAllowlistKind = "WorkloadAllowlist"
+
+	// AllowlistedV2Workload is the CRD Kind for legacy GKE Autopilot
+	allowlistedV2WorkloadKind = "AllowlistedV2Workload"
 )
 
-// IsGKEAutopilotEnabled returns true if the CSI driver is configured for GKE Autopilot.
-func IsGKEAutopilotEnabled(instance *datadoghqv1alpha1.DatadogCSIDriver) bool {
-	if instance == nil {
-		return false
+// GKEAutopilotMode represents the detected GKE Autopilot mode
+type GKEAutopilotMode int
+
+const (
+	// GKEAutopilotModeNone means not running on GKE Autopilot
+	GKEAutopilotModeNone GKEAutopilotMode = iota
+	// GKEAutopilotModeModern means running on GKE Autopilot with WorkloadAllowlist support (>= 1.32.1-gke.1729000)
+	GKEAutopilotModeModern
+	// GKEAutopilotModeLegacy means running on legacy GKE Autopilot (only AllowlistedV2Workload)
+	GKEAutopilotModeLegacy
+)
+
+// DetectGKEAutopilotMode detects the GKE Autopilot mode based on available CRDs
+func DetectGKEAutopilotMode(platformInfo PlatformInfo) GKEAutopilotMode {
+	if platformInfo == nil {
+		return GKEAutopilotModeNone
 	}
-	ann := instance.GetAnnotations()
-	if ann == nil {
-		return false
+
+	// Modern Autopilot has WorkloadAllowlist CRD
+	if platformInfo.IsResourceSupported(workloadAllowlistKind) {
+		return GKEAutopilotModeModern
 	}
-	return strings.EqualFold(ann[GKEAutopilotAnnotation], "true")
+
+	// Legacy Autopilot only has AllowlistedV2Workload CRD
+	if platformInfo.IsResourceSupported(allowlistedV2WorkloadKind) {
+		return GKEAutopilotModeLegacy
+	}
+
+	return GKEAutopilotModeNone
 }
 
-// IsGKEAutopilotLegacy returns true if the cluster is running legacy Autopilot
-// (only AllowlistedV2Workload CRD, not the newer WorkloadAllowlist).
-func IsGKEAutopilotLegacy(instance *datadoghqv1alpha1.DatadogCSIDriver) bool {
-	if instance == nil {
-		return false
-	}
-	ann := instance.GetAnnotations()
-	if ann == nil {
-		return false
-	}
-	return strings.EqualFold(ann[GKEAutopilotLegacyAnnotation], "true")
+// IsGKEAutopilot returns true if running on any version of GKE Autopilot
+func IsGKEAutopilot(platformInfo PlatformInfo) bool {
+	return DetectGKEAutopilotMode(platformInfo) != GKEAutopilotModeNone
 }
 
-// GetGKEAutopilotAllowlistVersion returns the configured WorkloadAllowlist version
-// from annotations, or empty string to use the default.
-func GetGKEAutopilotAllowlistVersion(instance *datadoghqv1alpha1.DatadogCSIDriver) string {
-	if instance == nil {
-		return ""
-	}
-	ann := instance.GetAnnotations()
-	if ann == nil {
-		return ""
-	}
-	return ann[GKEAutopilotAllowlistVersionAnnotation]
+// IsGKEAutopilotModern returns true if running on modern GKE Autopilot with WorkloadAllowlist support
+func IsGKEAutopilotModern(platformInfo PlatformInfo) bool {
+	return DetectGKEAutopilotMode(platformInfo) == GKEAutopilotModeModern
+}
+
+// IsGKEAutopilotLegacy returns true if running on legacy GKE Autopilot
+func IsGKEAutopilotLegacy(platformInfo PlatformInfo) bool {
+	return DetectGKEAutopilotMode(platformInfo) == GKEAutopilotModeLegacy
 }
 
 // CreateCSIAllowlistSynchronizerIfNeeded creates the AllowlistSynchronizer for the
-// CSI driver if GKE Autopilot is enabled and not in legacy mode.
-func CreateCSIAllowlistSynchronizerIfNeeded(instance *datadoghqv1alpha1.DatadogCSIDriver) {
-	if !IsGKEAutopilotEnabled(instance) {
-		return
-	}
-	if IsGKEAutopilotLegacy(instance) {
+// CSI driver if running on modern GKE Autopilot (with WorkloadAllowlist support).
+func CreateCSIAllowlistSynchronizerIfNeeded(instance *datadoghqv1alpha1.DatadogCSIDriver, platformInfo PlatformInfo) {
+	if !IsGKEAutopilotModern(platformInfo) {
 		return
 	}
 
-	version := GetGKEAutopilotAllowlistVersion(instance)
 	partOfLabel := object.NewPartOfLabelValue(instance).String()
-	allowlistsynchronizer.CreateCSIAllowlistSynchronizer(version, partOfLabel)
+	// Use empty string to get the default version (v1.1.0)
+	allowlistsynchronizer.CreateCSIAllowlistSynchronizer("", partOfLabel)
 }
 
 // GetGKEAutopilotLabels returns the labels needed for the CSI driver DaemonSet
-// on GKE Autopilot. Returns nil if Autopilot is not enabled or is in legacy mode.
-func GetGKEAutopilotLabels(instance *datadoghqv1alpha1.DatadogCSIDriver) map[string]string {
-	if !IsGKEAutopilotEnabled(instance) {
-		return nil
-	}
-	if IsGKEAutopilotLegacy(instance) {
+// on GKE Autopilot. Returns nil if not on modern Autopilot.
+func GetGKEAutopilotLabels(platformInfo PlatformInfo) map[string]string {
+	if !IsGKEAutopilotModern(platformInfo) {
 		return nil
 	}
 
-	version := GetGKEAutopilotAllowlistVersion(instance)
 	return map[string]string{
-		GKEMatchingAllowlistLabelKey: allowlistsynchronizer.GetCSIMatchingAllowlistLabelValue(version),
+		GKEMatchingAllowlistLabelKey: allowlistsynchronizer.CSIMatchingAllowlistLabel,
 	}
 }

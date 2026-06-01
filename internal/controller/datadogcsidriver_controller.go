@@ -27,10 +27,11 @@ import (
 
 // DatadogCSIDriverReconciler reconciles a DatadogCSIDriver object.
 type DatadogCSIDriverReconciler struct {
-	Client   client.Client
-	Scheme   *runtime.Scheme
-	Recorder record.EventRecorder
-	internal *datadogcsidriver.Reconciler
+	Client       client.Client
+	Scheme       *runtime.Scheme
+	Recorder     record.EventRecorder
+	PlatformInfo *kubernetes.PlatformInfo
+	internal     *datadogcsidriver.Reconciler
 }
 
 // RBACs for DatadogCSIDriver objects
@@ -60,7 +61,7 @@ func (r *DatadogCSIDriverReconciler) Reconcile(ctx context.Context, instance *da
 
 // SetupWithManager creates a new DatadogCSIDriver controller.
 func (r *DatadogCSIDriverReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	r.internal = datadogcsidriver.NewReconciler(r.Client, r.Scheme, r.Recorder)
+	r.internal = datadogcsidriver.NewReconciler(r.Client, r.Scheme, r.Recorder, r.PlatformInfo)
 
 	or := reconcile.AsReconciler[*datadoghqv1alpha1.DatadogCSIDriver](r.Client, r)
 	return ctrl.NewControllerManagedBy(mgr).

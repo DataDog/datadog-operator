@@ -21,7 +21,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/images"
 )
 
-func buildDaemonSet(instance *datadoghqv1alpha1.DatadogCSIDriver) *appsv1.DaemonSet {
+func buildDaemonSet(instance *datadoghqv1alpha1.DatadogCSIDriver, platformInfo PlatformInfo) *appsv1.DaemonSet {
 	driverName := csiDriverName
 	apmSocketPath := getAPMSocketPath(instance)
 	dsdSocketPath := getDSDSocketPath(instance)
@@ -29,7 +29,7 @@ func buildDaemonSet(instance *datadoghqv1alpha1.DatadogCSIDriver) *appsv1.Daemon
 	dsdSocketDir := filepath.Dir(dsdSocketPath)
 
 	// Check if running on GKE Autopilot legacy mode (gate out storage-dir and DD_APM_ENABLED)
-	isLegacyAutopilot := IsGKEAutopilotLegacy(instance)
+	isLegacyAutopilot := IsGKEAutopilotLegacy(platformInfo)
 
 	labels := map[string]string{
 		appLabelKey: csiDsName,
@@ -39,10 +39,8 @@ func buildDaemonSet(instance *datadoghqv1alpha1.DatadogCSIDriver) *appsv1.Daemon
 		admissionControllerEnabledLabel: "false",
 	}
 
-	// Add GKE Autopilot matching-allowlist label if enabled (modern Autopilot only)
-	for k, v := range GetGKEAutopilotLabels(instance) {
-		podLabels[k] = v
-	}
+	// Add GKE Autopilot matching-allowlist label if on modern Autopilot
+	maps.Copy(podLabels, GetGKEAutopilotLabels(platformInfo))
 
 	volumes := buildVolumes(driverName, apmSocketDir, dsdSocketDir, isLegacyAutopilot)
 	csiDriverContainer := buildCSIDriverContainer(instance, driverName, apmSocketPath, dsdSocketPath, apmSocketDir, dsdSocketDir, isLegacyAutopilot)

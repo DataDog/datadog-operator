@@ -35,17 +35,24 @@ const (
 
 // Reconciler reconciles a DatadogCSIDriver object
 type Reconciler struct {
-	client   client.Client
-	scheme   *runtime.Scheme
-	recorder record.EventRecorder
+	client       client.Client
+	scheme       *runtime.Scheme
+	recorder     record.EventRecorder
+	platformInfo PlatformInfo
+}
+
+// PlatformInfo provides cluster capability detection
+type PlatformInfo interface {
+	IsResourceSupported(resource string) bool
 }
 
 // NewReconciler creates a new DatadogCSIDriver reconciler
-func NewReconciler(client client.Client, scheme *runtime.Scheme, recorder record.EventRecorder) *Reconciler {
+func NewReconciler(client client.Client, scheme *runtime.Scheme, recorder record.EventRecorder, platformInfo PlatformInfo) *Reconciler {
 	return &Reconciler{
-		client:   client,
-		scheme:   scheme,
-		recorder: recorder,
+		client:       client,
+		scheme:       scheme,
+		recorder:     recorder,
+		platformInfo: platformInfo,
 	}
 }
 
@@ -100,8 +107,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, instance *v1alpha1.DatadogCS
 	// from a previous controller version) would be carried forward.
 	instance.Status.Conditions = nil
 
-	// Create AllowlistSynchronizer for GKE Autopilot if enabled (non-blocking)
-	CreateCSIAllowlistSynchronizerIfNeeded(instance)
+	// Create AllowlistSynchronizer for GKE Autopilot if detected (non-blocking)
+	CreateCSIAllowlistSynchronizerIfNeeded(instance, r.platformInfo)
 
 	// Reconcile CSIDriver object (cluster-scoped)
 	if err := r.reconcileCSIDriver(ctx, instance); err != nil {
@@ -201,7 +208,7 @@ func (r *Reconciler) reconcileCSIDriver(ctx context.Context, instance *v1alpha1.
 }
 
 func (r *Reconciler) reconcileDaemonSet(ctx context.Context, instance *v1alpha1.DatadogCSIDriver) error {
-	desired := buildDaemonSet(instance)
+	desired := buildDaemonSet(instance, r.platformInfo)
 
 	if err := controllerutil.SetControllerReference(instance, desired, r.scheme); err != nil {
 		return fmt.Errorf("setting owner reference: %w", err)

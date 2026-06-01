@@ -9,71 +9,138 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/pkg/allowlistsynchronizer"
 )
 
-func TestIsGKEAutopilotEnabled(t *testing.T) {
+func TestDetectGKEAutopilotMode(t *testing.T) {
 	tests := []struct {
-		name        string
-		instance    *v1alpha1.DatadogCSIDriver
-		expected    bool
+		name         string
+		platformInfo PlatformInfo
+		expected     GKEAutopilotMode
 	}{
 		{
-			name:     "nil instance",
-			instance: nil,
-			expected: false,
+			name:         "nil platformInfo",
+			platformInfo: nil,
+			expected:     GKEAutopilotModeNone,
 		},
 		{
-			name: "no annotations",
-			instance: &v1alpha1.DatadogCSIDriver{
-				ObjectMeta: metav1.ObjectMeta{},
+			name: "no Autopilot CRDs",
+			platformInfo: &mockPlatformInfo{
+				supportedResources: map[string]bool{},
 			},
-			expected: false,
+			expected: GKEAutopilotModeNone,
 		},
 		{
-			name: "autopilot not set",
-			instance: &v1alpha1.DatadogCSIDriver{
-				ObjectMeta: metav1.ObjectMeta{
-					Annotations: map[string]string{
-						"other-annotation": "value",
-					},
+			name: "modern Autopilot (WorkloadAllowlist)",
+			platformInfo: &mockPlatformInfo{
+				supportedResources: map[string]bool{
+					"WorkloadAllowlist": true,
 				},
 			},
+			expected: GKEAutopilotModeModern,
+		},
+		{
+			name: "modern Autopilot with both CRDs",
+			platformInfo: &mockPlatformInfo{
+				supportedResources: map[string]bool{
+					"WorkloadAllowlist":     true,
+					"AllowlistedV2Workload": true,
+				},
+			},
+			expected: GKEAutopilotModeModern,
+		},
+		{
+			name: "legacy Autopilot (AllowlistedV2Workload only)",
+			platformInfo: &mockPlatformInfo{
+				supportedResources: map[string]bool{
+					"AllowlistedV2Workload": true,
+				},
+			},
+			expected: GKEAutopilotModeLegacy,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, DetectGKEAutopilotMode(tt.platformInfo))
+		})
+	}
+}
+
+func TestIsGKEAutopilot(t *testing.T) {
+	tests := []struct {
+		name         string
+		platformInfo PlatformInfo
+		expected     bool
+	}{
+		{
+			name:         "nil platformInfo",
+			platformInfo: nil,
+			expected:     false,
+		},
+		{
+			name: "no Autopilot CRDs",
+			platformInfo: &mockPlatformInfo{
+				supportedResources: map[string]bool{},
+			},
 			expected: false,
 		},
 		{
-			name: "autopilot enabled (lowercase)",
-			instance: &v1alpha1.DatadogCSIDriver{
-				ObjectMeta: metav1.ObjectMeta{
-					Annotations: map[string]string{
-						GKEAutopilotAnnotation: "true",
-					},
+			name: "modern Autopilot",
+			platformInfo: &mockPlatformInfo{
+				supportedResources: map[string]bool{
+					"WorkloadAllowlist": true,
 				},
 			},
 			expected: true,
 		},
 		{
-			name: "autopilot enabled (uppercase)",
-			instance: &v1alpha1.DatadogCSIDriver{
-				ObjectMeta: metav1.ObjectMeta{
-					Annotations: map[string]string{
-						GKEAutopilotAnnotation: "TRUE",
-					},
+			name: "legacy Autopilot",
+			platformInfo: &mockPlatformInfo{
+				supportedResources: map[string]bool{
+					"AllowlistedV2Workload": true,
+				},
+			},
+			expected: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, IsGKEAutopilot(tt.platformInfo))
+		})
+	}
+}
+
+func TestIsGKEAutopilotModern(t *testing.T) {
+	tests := []struct {
+		name         string
+		platformInfo PlatformInfo
+		expected     bool
+	}{
+		{
+			name: "modern Autopilot",
+			platformInfo: &mockPlatformInfo{
+				supportedResources: map[string]bool{
+					"WorkloadAllowlist": true,
 				},
 			},
 			expected: true,
 		},
 		{
-			name: "autopilot disabled",
-			instance: &v1alpha1.DatadogCSIDriver{
-				ObjectMeta: metav1.ObjectMeta{
-					Annotations: map[string]string{
-						GKEAutopilotAnnotation: "false",
-					},
+			name: "legacy Autopilot",
+			platformInfo: &mockPlatformInfo{
+				supportedResources: map[string]bool{
+					"AllowlistedV2Workload": true,
 				},
+			},
+			expected: false,
+		},
+		{
+			name: "not Autopilot",
+			platformInfo: &mockPlatformInfo{
+				supportedResources: map[string]bool{},
 			},
 			expected: false,
 		},
@@ -81,154 +148,89 @@ func TestIsGKEAutopilotEnabled(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.expected, IsGKEAutopilotEnabled(tt.instance))
+			assert.Equal(t, tt.expected, IsGKEAutopilotModern(tt.platformInfo))
 		})
 	}
 }
 
 func TestIsGKEAutopilotLegacy(t *testing.T) {
 	tests := []struct {
-		name     string
-		instance *v1alpha1.DatadogCSIDriver
-		expected bool
+		name         string
+		platformInfo PlatformInfo
+		expected     bool
 	}{
 		{
-			name:     "nil instance",
-			instance: nil,
-			expected: false,
-		},
-		{
-			name: "legacy not set",
-			instance: &v1alpha1.DatadogCSIDriver{
-				ObjectMeta: metav1.ObjectMeta{
-					Annotations: map[string]string{
-						GKEAutopilotAnnotation: "true",
-					},
+			name: "modern Autopilot",
+			platformInfo: &mockPlatformInfo{
+				supportedResources: map[string]bool{
+					"WorkloadAllowlist": true,
 				},
 			},
 			expected: false,
 		},
 		{
-			name: "legacy enabled",
-			instance: &v1alpha1.DatadogCSIDriver{
-				ObjectMeta: metav1.ObjectMeta{
-					Annotations: map[string]string{
-						GKEAutopilotAnnotation:       "true",
-						GKEAutopilotLegacyAnnotation: "true",
-					},
+			name: "legacy Autopilot",
+			platformInfo: &mockPlatformInfo{
+				supportedResources: map[string]bool{
+					"AllowlistedV2Workload": true,
 				},
 			},
 			expected: true,
 		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.expected, IsGKEAutopilotLegacy(tt.instance))
-		})
-	}
-}
-
-func TestGetGKEAutopilotAllowlistVersion(t *testing.T) {
-	tests := []struct {
-		name     string
-		instance *v1alpha1.DatadogCSIDriver
-		expected string
-	}{
 		{
-			name:     "nil instance",
-			instance: nil,
-			expected: "",
-		},
-		{
-			name: "version not set",
-			instance: &v1alpha1.DatadogCSIDriver{
-				ObjectMeta: metav1.ObjectMeta{
-					Annotations: map[string]string{
-						GKEAutopilotAnnotation: "true",
-					},
-				},
+			name: "not Autopilot",
+			platformInfo: &mockPlatformInfo{
+				supportedResources: map[string]bool{},
 			},
-			expected: "",
-		},
-		{
-			name: "custom version set",
-			instance: &v1alpha1.DatadogCSIDriver{
-				ObjectMeta: metav1.ObjectMeta{
-					Annotations: map[string]string{
-						GKEAutopilotAnnotation:                 "true",
-						GKEAutopilotAllowlistVersionAnnotation: "v2.0.0",
-					},
-				},
-			},
-			expected: "v2.0.0",
+			expected: false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.expected, GetGKEAutopilotAllowlistVersion(tt.instance))
+			assert.Equal(t, tt.expected, IsGKEAutopilotLegacy(tt.platformInfo))
 		})
 	}
 }
 
 func TestGetGKEAutopilotLabels(t *testing.T) {
 	tests := []struct {
-		name     string
-		instance *v1alpha1.DatadogCSIDriver
-		expected map[string]string
+		name         string
+		platformInfo PlatformInfo
+		expected     map[string]string
 	}{
 		{
-			name: "autopilot disabled returns nil",
-			instance: &v1alpha1.DatadogCSIDriver{
-				ObjectMeta: metav1.ObjectMeta{},
+			name: "not Autopilot returns nil",
+			platformInfo: &mockPlatformInfo{
+				supportedResources: map[string]bool{},
 			},
 			expected: nil,
 		},
 		{
-			name: "autopilot legacy returns nil",
-			instance: &v1alpha1.DatadogCSIDriver{
-				ObjectMeta: metav1.ObjectMeta{
-					Annotations: map[string]string{
-						GKEAutopilotAnnotation:       "true",
-						GKEAutopilotLegacyAnnotation: "true",
-					},
+			name: "legacy Autopilot returns nil",
+			platformInfo: &mockPlatformInfo{
+				supportedResources: map[string]bool{
+					"AllowlistedV2Workload": true,
 				},
 			},
 			expected: nil,
 		},
 		{
-			name: "autopilot enabled returns matching-allowlist label",
-			instance: &v1alpha1.DatadogCSIDriver{
-				ObjectMeta: metav1.ObjectMeta{
-					Annotations: map[string]string{
-						GKEAutopilotAnnotation: "true",
-					},
+			name: "modern Autopilot returns matching-allowlist label",
+			platformInfo: &mockPlatformInfo{
+				supportedResources: map[string]bool{
+					"WorkloadAllowlist": true,
 				},
 			},
 			expected: map[string]string{
 				GKEMatchingAllowlistLabelKey: allowlistsynchronizer.CSIMatchingAllowlistLabel,
 			},
 		},
-		{
-			name: "autopilot with custom version",
-			instance: &v1alpha1.DatadogCSIDriver{
-				ObjectMeta: metav1.ObjectMeta{
-					Annotations: map[string]string{
-						GKEAutopilotAnnotation:                 "true",
-						GKEAutopilotAllowlistVersionAnnotation: "v2.0.0",
-					},
-				},
-			},
-			expected: map[string]string{
-				GKEMatchingAllowlistLabelKey: "datadog-datadog-csi-driver-daemonset-exemption-v2.0.0",
-			},
-		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := GetGKEAutopilotLabels(tt.instance)
+			result := GetGKEAutopilotLabels(tt.platformInfo)
 			assert.Equal(t, tt.expected, result)
 		})
 	}
