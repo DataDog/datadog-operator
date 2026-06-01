@@ -9,7 +9,6 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
 	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/testutils"
@@ -50,31 +49,8 @@ func Test_hostProfilerFeature_Configure(t *testing.T) {
 			WantConfigure: true,
 			Agent:         testExpectedAgent(apicommon.HostProfiler, defaultVolumeMounts),
 		},
-		{
-			Name: "host profiler enabled - dependencies",
-			DDA: testutils.NewDatadogAgentBuilder().
-				WithName("foo").
-				WithAnnotations(map[string]string{"agent.datadoghq.com/host-profiler-enabled": "true"}).
-				Build(),
-			WantConfigure:        true,
-			WantDependenciesFunc: testExpectedDependencies,
-		},
 	}
 	tests.Run(t, buildHostProfilerFeature)
-}
-
-func testExpectedDependencies(t testing.TB, storeClient store.StoreClient) {
-	obj, found := storeClient.Get(kubernetes.ConfigMapKind, "", "foo-host-profiler-seccomp")
-	assert.True(t, found, "host-profiler-seccomp ConfigMap should be created")
-	if !found {
-		return
-	}
-	cm, ok := obj.(*corev1.ConfigMap)
-	assert.True(t, ok)
-	assert.Contains(t, cm.Data, seccompKey, "ConfigMap should contain the seccomp profile key")
-	assert.Contains(t, cm.Data[seccompKey], "SCMP_ACT_ERRNO", "seccomp profile should deny by default")
-	assert.Contains(t, cm.Data[seccompKey], `"bpf"`, "bpf syscall must be in the profile")
-	assert.Contains(t, cm.Data[seccompKey], `"perf_event_open"`, "perf_event_open must be in the profile")
 }
 
 func testExpectedAgent(agentContainerName apicommon.AgentContainerName, expectedVolumeMount []corev1.VolumeMount) *test.ComponentTest {
@@ -143,16 +119,6 @@ func testExpectedAgent(agentContainerName apicommon.AgentContainerName, expected
 				annotations := mgr.AnnotationMgr.Annotations
 				assert.True(t, apiutils.IsEqualStruct(annotations, expectedAnnotations), "Annotations \ndiff = %s", cmp.Diff(annotations, expectedAnnotations))
 
-				// host-profiler-security ConfigMap volume
-				secVolumeFound := false
-				for _, v := range mgr.VolumeMgr.Volumes {
-					if v.Name == securityVolumeName {
-						secVolumeFound = true
-						assert.NotNil(t, v.ConfigMap, "host-profiler-security volume should reference a ConfigMap")
-					}
-				}
-				assert.True(t, secVolumeFound, "host-profiler-security volume should be present")
-
 				// seccomp-root volume
 				seccompRootFound := false
 				for _, v := range mgr.VolumeMgr.Volumes {
@@ -162,7 +128,7 @@ func testExpectedAgent(agentContainerName apicommon.AgentContainerName, expected
 				}
 				assert.True(t, seccompRootFound, "seccomp-root volume should be present")
 
-				// Init container: host-profiler-seccomp-setup
+				// Init container: host-profiler-seccomp-setup copies from the image path
 				var setupContainer *corev1.Container
 				for i := range mgr.Tpl.Spec.InitContainers {
 					if mgr.Tpl.Spec.InitContainers[i].Name == "host-profiler-seccomp-setup" {
@@ -173,13 +139,14 @@ func testExpectedAgent(agentContainerName apicommon.AgentContainerName, expected
 				assert.NotNil(t, setupContainer, "host-profiler-seccomp-setup init container should be present")
 				if setupContainer != nil {
 					assert.Equal(t, hostProfilerImage, setupContainer.Image)
+					assert.Contains(t, setupContainer.Command, seccompSourcePath, "cp source should be the in-image seccomp path")
 					expectedDst := common.SeccompRootVolumePath + "/" + seccompProfileName
 					assert.Contains(t, setupContainer.Command, expectedDst, "cp command should target the kubelet seccomp path")
+					// Init container should only mount seccomp-root, not the ConfigMap volume
 					mountNames := map[string]bool{}
 					for _, m := range setupContainer.VolumeMounts {
 						mountNames[m.Name] = true
 					}
-					assert.True(t, mountNames[securityVolumeName], "init container should mount host-profiler-security")
 					assert.True(t, mountNames[common.SeccompRootVolumeName], "init container should mount seccomp-root")
 				}
 			},
@@ -199,32 +166,4 @@ func TestDefaultCapabilities(t *testing.T) {
 	assert.True(t, capSet["PERFMON"], "host-profiler requires PERFMON for perf_event_open")
 	assert.True(t, capSet["CHECKPOINT_RESTORE"], "host-profiler requires CHECKPOINT_RESTORE for /proc/<pid>/map_files access")
 	assert.True(t, capSet["SYS_PTRACE"], "host-profiler requires SYS_PTRACE for process tracing")
-}
-
-func TestDefaultSyscalls(t *testing.T) {
-	syscalls := defaultSyscalls()
-
-	syscallSet := make(map[string]bool)
-	for _, s := range syscalls {
-		syscallSet[s] = true
-	}
-
-	assert.NotEmpty(t, syscalls)
-	assert.True(t, syscallSet["bpf"], "host-profiler requires bpf syscall")
-	assert.True(t, syscallSet["perf_event_open"], "host-profiler requires perf_event_open")
-	assert.True(t, syscallSet["openat"], "host-profiler requires openat for /proc/<pid>/map_files access")
-	assert.True(t, syscallSet["read"], "host-profiler requires read")
-	assert.False(t, syscallSet["ptrace"], "host-profiler should not need ptrace syscall (uses /proc instead)")
-}
-
-func TestDefaultSeccompConfigData(t *testing.T) {
-	data := defaultSeccompConfigData()
-
-	assert.Contains(t, data, seccompKey, "seccomp configmap should have the host-profiler key")
-
-	profile := data[seccompKey]
-	assert.Contains(t, profile, "SCMP_ACT_ERRNO", "default action should be SCMP_ACT_ERRNO")
-	assert.Contains(t, profile, "SCMP_ACT_ALLOW", "syscalls should be allowed")
-	assert.Contains(t, profile, `"bpf"`, "bpf syscall must be in the profile")
-	assert.Contains(t, profile, `"perf_event_open"`, "perf_event_open syscall must be in the profile")
 }

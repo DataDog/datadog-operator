@@ -14,7 +14,6 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
-	"github.com/DataDog/datadog-operator/pkg/constants"
 )
 
 var errHostPIDDisabledManually = errors.New("Host PID is required for host profiler")
@@ -65,19 +64,11 @@ func (o *hostProfilerFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Dat
 	}
 }
 
-func (o *hostProfilerFeature) seccompConfigMapName() string {
-	return fmt.Sprintf("%s-%s", constants.GetDDAName(o.owner), agentSecurityConfigMapSuffixName)
-}
-
 func (o *hostProfilerFeature) ManageDependencies(managers feature.ResourceManagers) error {
 	if o.hostPIDDisabledManually {
 		return errHostPIDDisabledManually
 	}
-	return managers.ConfigMapManager().AddConfigMap(
-		o.seccompConfigMapName(),
-		o.owner.GetNamespace(),
-		defaultSeccompConfigData(),
-	)
+	return nil
 }
 
 func (o *hostProfilerFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
@@ -125,19 +116,6 @@ func (o *hostProfilerFeature) ManageNodeAgent(managers feature.PodTemplateManage
 	// AppArmor: unconfined so the default containerd profile doesn't block ptrace cross-profile,
 	// which host-profiler requires to read /proc/<pid>/map_files for process profiling.
 	managers.Annotation().AddAnnotation(common.AppArmorAnnotationKey+"/"+string(apicommon.HostProfiler), "unconfined")
-
-	// host-profiler-security ConfigMap volume (contains the seccomp profile JSON)
-	secVol := corev1.Volume{
-		Name: securityVolumeName,
-		VolumeSource: corev1.VolumeSource{
-			ConfigMap: &corev1.ConfigMapVolumeSource{
-				LocalObjectReference: corev1.LocalObjectReference{
-					Name: o.seccompConfigMapName(),
-				},
-			},
-		},
-	}
-	managers.Volume().AddVolume(&secVol)
 
 	// seccomp-root EmptyDir volume (shared with system-probe when both are enabled; VolumeManager deduplicates)
 	seccompRootVol := common.GetVolumeForSeccomp()
