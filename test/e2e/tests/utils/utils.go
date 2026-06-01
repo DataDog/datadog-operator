@@ -21,7 +21,9 @@ import (
 
 func parseAgentStatusJSON(c *assert.CollectT, output string) (map[string]any, bool) {
 	var status map[string]any
-	if !assert.NoError(c, json.Unmarshal([]byte(output), &status), "agent status output should be valid JSON") {
+	err := json.Unmarshal([]byte(output), &status)
+	require.NoError(c, err, "agent status output should be valid JSON")
+	if err != nil {
 		return nil, false
 	}
 	return status, assert.NotNil(c, status, "agent status output should be a JSON object")
