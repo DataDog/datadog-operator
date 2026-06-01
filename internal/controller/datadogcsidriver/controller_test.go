@@ -496,3 +496,129 @@ func findCondition(conditions []metav1.Condition, condType string) *metav1.Condi
 	}
 	return nil
 }
+
+func TestReconcile_GKEAutopilotEnabled(t *testing.T) {
+	instance := defaultCSIDriverCR()
+	instance.Annotations = map[string]string{
+		GKEAutopilotAnnotation: "true",
+	}
+
+	r, c := newTestReconciler(t, instance)
+	ctx := context.Background()
+
+	// Reconcile twice (finalizer + create)
+	_, err := r.Reconcile(ctx, instance)
+	require.NoError(t, err)
+	err = c.Get(ctx, types.NamespacedName{Name: testName, Namespace: testNamespace}, instance)
+	require.NoError(t, err)
+	_, err = r.Reconcile(ctx, instance)
+	require.NoError(t, err)
+
+	ds := &appsv1.DaemonSet{}
+	err = c.Get(ctx, types.NamespacedName{Name: csiDsName, Namespace: testNamespace}, ds)
+	require.NoError(t, err)
+
+	// Verify the matching-allowlist label is set
+	assert.Equal(t, "datadog-datadog-csi-driver-daemonset-exemption-v1.1.0",
+		ds.Spec.Template.Labels[GKEMatchingAllowlistLabelKey])
+
+	// Verify storage-dir volume exists (modern Autopilot)
+	volumeNames := make([]string, 0, len(ds.Spec.Template.Spec.Volumes))
+	for _, v := range ds.Spec.Template.Spec.Volumes {
+		volumeNames = append(volumeNames, v.Name)
+	}
+	assert.Contains(t, volumeNames, storageDirVolumeName)
+
+	// Verify DD_APM_ENABLED env var exists (modern Autopilot)
+	csiContainer := ds.Spec.Template.Spec.Containers[0]
+	found := false
+	for _, env := range csiContainer.Env {
+		if env.Name == "DD_APM_ENABLED" {
+			found = true
+			assert.Equal(t, "true", env.Value)
+			break
+		}
+	}
+	assert.True(t, found, "DD_APM_ENABLED should be set for modern Autopilot")
+
+	// Verify storage-dir mount exists
+	mountNames := make([]string, 0, len(csiContainer.VolumeMounts))
+	for _, m := range csiContainer.VolumeMounts {
+		mountNames = append(mountNames, m.Name)
+	}
+	assert.Contains(t, mountNames, storageDirVolumeName)
+}
+
+func TestReconcile_GKEAutopilotLegacy(t *testing.T) {
+	instance := defaultCSIDriverCR()
+	instance.Annotations = map[string]string{
+		GKEAutopilotAnnotation:       "true",
+		GKEAutopilotLegacyAnnotation: "true",
+	}
+
+	r, c := newTestReconciler(t, instance)
+	ctx := context.Background()
+
+	// Reconcile twice (finalizer + create)
+	_, err := r.Reconcile(ctx, instance)
+	require.NoError(t, err)
+	err = c.Get(ctx, types.NamespacedName{Name: testName, Namespace: testNamespace}, instance)
+	require.NoError(t, err)
+	_, err = r.Reconcile(ctx, instance)
+	require.NoError(t, err)
+
+	ds := &appsv1.DaemonSet{}
+	err = c.Get(ctx, types.NamespacedName{Name: csiDsName, Namespace: testNamespace}, ds)
+	require.NoError(t, err)
+
+	// Verify matching-allowlist label is NOT set (legacy mode)
+	_, hasLabel := ds.Spec.Template.Labels[GKEMatchingAllowlistLabelKey]
+	assert.False(t, hasLabel, "matching-allowlist label should not be set for legacy Autopilot")
+
+	// Verify storage-dir volume does NOT exist (legacy Autopilot)
+	volumeNames := make([]string, 0, len(ds.Spec.Template.Spec.Volumes))
+	for _, v := range ds.Spec.Template.Spec.Volumes {
+		volumeNames = append(volumeNames, v.Name)
+	}
+	assert.NotContains(t, volumeNames, storageDirVolumeName)
+
+	// Verify DD_APM_ENABLED env var does NOT exist (legacy Autopilot)
+	csiContainer := ds.Spec.Template.Spec.Containers[0]
+	for _, env := range csiContainer.Env {
+		assert.NotEqual(t, "DD_APM_ENABLED", env.Name, "DD_APM_ENABLED should not be set for legacy Autopilot")
+	}
+
+	// Verify storage-dir mount does NOT exist
+	mountNames := make([]string, 0, len(csiContainer.VolumeMounts))
+	for _, m := range csiContainer.VolumeMounts {
+		mountNames = append(mountNames, m.Name)
+	}
+	assert.NotContains(t, mountNames, storageDirVolumeName)
+}
+
+func TestReconcile_GKEAutopilotCustomVersion(t *testing.T) {
+	instance := defaultCSIDriverCR()
+	instance.Annotations = map[string]string{
+		GKEAutopilotAnnotation:                 "true",
+		GKEAutopilotAllowlistVersionAnnotation: "v2.0.0",
+	}
+
+	r, c := newTestReconciler(t, instance)
+	ctx := context.Background()
+
+	// Reconcile twice (finalizer + create)
+	_, err := r.Reconcile(ctx, instance)
+	require.NoError(t, err)
+	err = c.Get(ctx, types.NamespacedName{Name: testName, Namespace: testNamespace}, instance)
+	require.NoError(t, err)
+	_, err = r.Reconcile(ctx, instance)
+	require.NoError(t, err)
+
+	ds := &appsv1.DaemonSet{}
+	err = c.Get(ctx, types.NamespacedName{Name: csiDsName, Namespace: testNamespace}, ds)
+	require.NoError(t, err)
+
+	// Verify the matching-allowlist label uses custom version
+	assert.Equal(t, "datadog-datadog-csi-driver-daemonset-exemption-v2.0.0",
+		ds.Spec.Template.Labels[GKEMatchingAllowlistLabelKey])
+}

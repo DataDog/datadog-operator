@@ -21,6 +21,16 @@ import (
 // daemonset WorkloadAllowlist. v1.0.5 includes the system-probe / NPM
 // exemptions required by the NPM feature on GKE Autopilot.
 const DefaultWorkloadAllowlistVersion = "v1.0.5"
+
+// DefaultCSIWorkloadAllowlistVersion is the default version of the Datadog
+// CSI driver WorkloadAllowlist. v1.1.0 includes the storage-dir hostPath and
+// DD_APM_ENABLED env var exemptions required for SSI on GKE Autopilot >= 1.32.1-gke.1729000.
+const DefaultCSIWorkloadAllowlistVersion = "v1.1.0"
+
+// CSIMatchingAllowlistLabel is the label value for cloud.google.com/matching-allowlist
+// that must be set on the CSI driver DaemonSet to match the v1.1.0 WorkloadAllowlist.
+const CSIMatchingAllowlistLabel = "datadog-datadog-csi-driver-daemonset-exemption-v1.1.0"
+
 const allowlistSynchronizerFieldOwner = "datadog-operator-allowlist-synchronizer"
 
 var workloadAllowlistVersionRegexp = regexp.MustCompile(`^v\d+\.\d+\.\d+$`)
@@ -137,4 +147,99 @@ func CreateAllowlistSynchronizer(version, partOfLabel string) {
 	}
 
 	logger.V(1).Info("Successfully applied AllowlistSynchronizer", "version", resolvedVersion)
+}
+
+// resolveCSIWorkloadAllowlistVersion returns the requested CSI allowlist version if it
+// is non-empty and well-formed, otherwise it falls back to
+// DefaultCSIWorkloadAllowlistVersion (logging the malformed input).
+func resolveCSIWorkloadAllowlistVersion(version string) string {
+	if version == "" {
+		return DefaultCSIWorkloadAllowlistVersion
+	}
+	if !workloadAllowlistVersionRegexp.MatchString(version) {
+		logger.Info("Ignoring malformed CSI WorkloadAllowlist version override, falling back to default",
+			"requested", version, "default", DefaultCSIWorkloadAllowlistVersion)
+		return DefaultCSIWorkloadAllowlistVersion
+	}
+	return version
+}
+
+func applyCSIAllowlistSynchronizerResource(k8sClient client.Client, version, partOfLabel string) error {
+	obj := &AllowlistSynchronizer{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: SchemeGroupVersion.String(),
+			Kind:       "AllowlistSynchronizer",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "datadog-csi-synchronizer",
+			Labels: map[string]string{
+				"app.kubernetes.io/created-by":           "datadog-operator",
+				kubernetes.AppKubernetesManageByLabelKey: "datadog-operator",
+				kubernetes.AppKubernetesNameLabelKey:     "datadog-csi-allowlist-synchronizer",
+				kubernetes.AppKubernetesPartOfLabelKey:   partOfLabel,
+			},
+		},
+		Spec: AllowlistSynchronizerSpec{
+			AllowlistPaths: []string{
+				fmt.Sprintf("Datadog/datadog-csi-driver/datadog-datadog-csi-driver-daemonset-exemption-%s.yaml", version),
+			},
+		},
+	}
+
+	return k8sClient.Patch(
+		context.TODO(),
+		obj,
+		client.Apply,
+		client.FieldOwner(allowlistSynchronizerFieldOwner),
+		client.ForceOwnership,
+	)
+}
+
+// CreateCSIAllowlistSynchronizer creates a GKE AllowlistSynchronizer Custom Resource (auto.gke.io/v1)
+// for the Datadog CSI driver WorkloadAllowlist if it doesn't exist.
+// The AllowlistSynchronizer is needed so that GKE Autopilot can sync the Datadog CSI driver
+// WorkloadAllowlist to the cluster. See the CRD reference:
+// https://cloud.google.com/kubernetes-engine/docs/reference/crds/allowlistsynchronizer
+//
+// version selects the WorkloadAllowlist YAML to point at. Pass an empty string
+// to use DefaultCSIWorkloadAllowlistVersion. Malformed versions also fall back to
+// the default.
+func CreateCSIAllowlistSynchronizer(version, partOfLabel string) {
+	resolvedVersion := resolveCSIWorkloadAllowlistVersion(version)
+
+	cfg, configErr := config.GetConfig()
+	if configErr != nil {
+		logger.Error(configErr, "failed to load kubeconfig")
+		return
+	}
+
+	scheme := runtime.NewScheme()
+	if SchemeErr := SchemeBuilder.AddToScheme(scheme); SchemeErr != nil {
+		logger.Error(SchemeErr, "failed to register AllowlistSynchronizer scheme")
+		return
+	}
+
+	k8sClient, clientErr := client.New(cfg, client.Options{Scheme: scheme})
+	if clientErr != nil {
+		logger.Error(clientErr, "failed to create kubernetes client")
+		return
+	}
+
+	if err := applyCSIAllowlistSynchronizerResource(k8sClient, resolvedVersion, partOfLabel); err != nil {
+		logger.Error(err, "failed to apply CSI AllowlistSynchronizer resource")
+		return
+	}
+
+	logger.V(1).Info("Successfully applied CSI AllowlistSynchronizer", "version", resolvedVersion)
+}
+
+// GetCSIMatchingAllowlistLabelValue returns the value for the cloud.google.com/matching-allowlist
+// label that should be set on the CSI driver DaemonSet. If a custom version is provided and valid,
+// it computes the label value; otherwise it returns CSIMatchingAllowlistLabel (the default for v1.1.0).
+func GetCSIMatchingAllowlistLabelValue(version string) string {
+	resolvedVersion := resolveCSIWorkloadAllowlistVersion(version)
+	if resolvedVersion == DefaultCSIWorkloadAllowlistVersion {
+		return CSIMatchingAllowlistLabel
+	}
+	return fmt.Sprintf("datadog-datadog-csi-driver-daemonset-exemption-%s", resolvedVersion)
 }

@@ -28,6 +28,9 @@ func buildDaemonSet(instance *datadoghqv1alpha1.DatadogCSIDriver) *appsv1.Daemon
 	apmSocketDir := filepath.Dir(apmSocketPath)
 	dsdSocketDir := filepath.Dir(dsdSocketPath)
 
+	// Check if running on GKE Autopilot legacy mode (gate out storage-dir and DD_APM_ENABLED)
+	isLegacyAutopilot := IsGKEAutopilotLegacy(instance)
+
 	labels := map[string]string{
 		appLabelKey: csiDsName,
 	}
@@ -36,8 +39,13 @@ func buildDaemonSet(instance *datadoghqv1alpha1.DatadogCSIDriver) *appsv1.Daemon
 		admissionControllerEnabledLabel: "false",
 	}
 
-	volumes := buildVolumes(driverName, apmSocketDir, dsdSocketDir)
-	csiDriverContainer := buildCSIDriverContainer(instance, driverName, apmSocketPath, dsdSocketPath, apmSocketDir, dsdSocketDir)
+	// Add GKE Autopilot matching-allowlist label if enabled (modern Autopilot only)
+	for k, v := range GetGKEAutopilotLabels(instance) {
+		podLabels[k] = v
+	}
+
+	volumes := buildVolumes(driverName, apmSocketDir, dsdSocketDir, isLegacyAutopilot)
+	csiDriverContainer := buildCSIDriverContainer(instance, driverName, apmSocketPath, dsdSocketPath, apmSocketDir, dsdSocketDir, isLegacyAutopilot)
 	registrarContainer := buildRegistrarContainer(instance, driverName)
 
 	revisionHistoryLimit := int32(10)
@@ -79,7 +87,7 @@ func buildDaemonSet(instance *datadoghqv1alpha1.DatadogCSIDriver) *appsv1.Daemon
 	return ds
 }
 
-func buildCSIDriverContainer(instance *datadoghqv1alpha1.DatadogCSIDriver, driverName, apmSocketPath, dsdSocketPath, apmSocketDir, dsdSocketDir string) corev1.Container {
+func buildCSIDriverContainer(instance *datadoghqv1alpha1.DatadogCSIDriver, driverName, apmSocketPath, dsdSocketPath, apmSocketDir, dsdSocketDir string, isLegacyAutopilot bool) corev1.Container {
 	privileged := true
 	readOnlyRootFS := true
 	bidirectional := corev1.MountPropagationBidirectional
@@ -88,10 +96,6 @@ func buildCSIDriverContainer(instance *datadoghqv1alpha1.DatadogCSIDriver, drive
 		{
 			Name:      pluginDirVolumeName,
 			MountPath: pluginDirMountPath,
-		},
-		{
-			Name:      storageDirVolumeName,
-			MountPath: storageDirMountPath,
 		},
 		{
 			Name:      apmSocketVolumeName,
@@ -105,11 +109,40 @@ func buildCSIDriverContainer(instance *datadoghqv1alpha1.DatadogCSIDriver, drive
 		},
 	}
 
+	// storage-dir is required for SSI but not allowed on legacy GKE Autopilot
+	// (no WorkloadAllowlist exemption exists for it on clusters < 1.32.1-gke.1729000)
+	if !isLegacyAutopilot {
+		volumeMounts = append(volumeMounts, corev1.VolumeMount{
+			Name:      storageDirVolumeName,
+			MountPath: storageDirMountPath,
+		})
+	}
+
 	if dsdSocketDir != apmSocketDir {
 		volumeMounts = append(volumeMounts, corev1.VolumeMount{
 			Name:      dsdSocketVolumeName,
 			MountPath: dsdSocketDir,
 			ReadOnly:  true,
+		})
+	}
+
+	env := []corev1.EnvVar{
+		{
+			Name: envNodeID,
+			ValueFrom: &corev1.EnvVarSource{
+				FieldRef: &corev1.ObjectFieldSelector{
+					FieldPath: "spec.nodeName",
+				},
+			},
+		},
+	}
+
+	// DD_APM_ENABLED is required for SSI but not allowed on legacy GKE Autopilot
+	// (no WorkloadAllowlist exemption exists for it on clusters < 1.32.1-gke.1729000)
+	if !isLegacyAutopilot {
+		env = append(env, corev1.EnvVar{
+			Name:  constants.DDAPMEnabled,
+			Value: "true",
 		})
 	}
 
@@ -120,20 +153,7 @@ func buildCSIDriverContainer(instance *datadoghqv1alpha1.DatadogCSIDriver, drive
 			fmt.Sprintf("--apm-host-socket-path=%s", apmSocketPath),
 			fmt.Sprintf("--dsd-host-socket-path=%s", dsdSocketPath),
 		},
-		Env: []corev1.EnvVar{
-			{
-				Name: envNodeID,
-				ValueFrom: &corev1.EnvVarSource{
-					FieldRef: &corev1.ObjectFieldSelector{
-						FieldPath: "spec.nodeName",
-					},
-				},
-			},
-			{
-				Name:  constants.DDAPMEnabled,
-				Value: "true",
-			},
-		},
+		Env: env,
 		Ports: []corev1.ContainerPort{
 			{
 				ContainerPort: csiDriverPort,
@@ -180,7 +200,7 @@ func buildRegistrarContainer(instance *datadoghqv1alpha1.DatadogCSIDriver, drive
 	}
 }
 
-func buildVolumes(driverName, apmSocketDir, dsdSocketDir string) []corev1.Volume {
+func buildVolumes(driverName, apmSocketDir, dsdSocketDir string, isLegacyAutopilot bool) []corev1.Volume {
 	dirOrCreate := corev1.HostPathDirectoryOrCreate
 	dir := corev1.HostPathDirectory
 
@@ -190,15 +210,6 @@ func buildVolumes(driverName, apmSocketDir, dsdSocketDir string) []corev1.Volume
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
 					Path: fmt.Sprintf(kubeletPluginsDirFmt, driverName),
-					Type: &dirOrCreate,
-				},
-			},
-		},
-		{
-			Name: storageDirVolumeName,
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: fmt.Sprintf(kubeletStorageDirFmt, driverName),
 					Type: &dirOrCreate,
 				},
 			},
@@ -230,6 +241,20 @@ func buildVolumes(driverName, apmSocketDir, dsdSocketDir string) []corev1.Volume
 				},
 			},
 		},
+	}
+
+	// storage-dir is required for SSI but not allowed on legacy GKE Autopilot
+	// (no WorkloadAllowlist exemption exists for it on clusters < 1.32.1-gke.1729000)
+	if !isLegacyAutopilot {
+		volumes = append(volumes, corev1.Volume{
+			Name: storageDirVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: fmt.Sprintf(kubeletStorageDirFmt, driverName),
+					Type: &dirOrCreate,
+				},
+			},
+		})
 	}
 
 	if dsdSocketDir != apmSocketDir {

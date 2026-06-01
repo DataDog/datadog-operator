@@ -100,6 +100,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, instance *v1alpha1.DatadogCS
 	// from a previous controller version) would be carried forward.
 	instance.Status.Conditions = nil
 
+	// Create AllowlistSynchronizer for GKE Autopilot if enabled (non-blocking)
+	CreateCSIAllowlistSynchronizerIfNeeded(instance)
+
 	// Reconcile CSIDriver object (cluster-scoped)
 	if err := r.reconcileCSIDriver(ctx, instance); err != nil {
 		meta.SetStatusCondition(&instance.Status.Conditions, metav1.Condition{
