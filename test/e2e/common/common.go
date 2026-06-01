@@ -6,10 +6,8 @@
 package common
 
 import (
-	"encoding/json"
 	"os"
 	"path/filepath"
-	"regexp"
 	"runtime"
 )
 
@@ -53,26 +51,6 @@ func GetEnv(key, fallback string) string {
 		return value
 	}
 	return fallback
-}
-
-func ParseCollectorJson(collectorOutput string) map[string]any {
-	var jsonString string
-	var jsonObject map[string]any
-
-	re := regexp.MustCompile(`(\{.*\})`)
-	match := re.FindStringSubmatch(collectorOutput)
-	if len(match) > 0 {
-		jsonString = match[0]
-	} else {
-		return map[string]any{}
-	}
-
-	// Parse collector JSON
-	err := json.Unmarshal([]byte(jsonString), &jsonObject)
-	if err != nil {
-		return map[string]any{}
-	}
-	return jsonObject
 }
 
 func projectRoot() string {
