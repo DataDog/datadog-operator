@@ -112,6 +112,27 @@ func Test_deleteDashboard_idempotent(t *testing.T) {
 	}
 }
 
+func Test_deleteSLO_idempotent(t *testing.T) {
+	for _, tc := range defaultDeleteCases {
+		t.Run(tc.name, func(t *testing.T) {
+			server := newTestHTTPServer(tc.statusCode, tc.body)
+			defer server.Close()
+
+			cfg := datadogapi.NewConfiguration()
+			cfg.HTTPClient = server.Client()
+			client := datadogV1.NewServiceLevelObjectivesApi(datadogapi.NewAPIClient(cfg))
+			auth := setupTestAuth(server.URL)
+
+			err := deleteSLO(auth, client, "abc-def-123")
+			if tc.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
 func Test_deleteSyntheticTest_idempotent(t *testing.T) {
 	for _, tc := range defaultDeleteCases {
 		t.Run(tc.name, func(t *testing.T) {
