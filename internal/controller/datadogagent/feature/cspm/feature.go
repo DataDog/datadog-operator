@@ -145,7 +145,7 @@ func mergeConfigs(ddaSpec *v2alpha1.DatadogAgentSpec, ddaRCStatus *v2alpha1.Remo
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *cspmFeature) ManageDependencies(managers feature.ResourceManagers, provider string) error {
+func (f *cspmFeature) ManageDependencies(managers feature.ResourceManagers) error {
 	// Create configMap if one does not already exist and ConfigData is defined
 	if f.customConfig != nil && f.customConfig.ConfigMap == nil && f.customConfig.ConfigData != nil {
 		cm, err := configmap.BuildConfigMapConfigData(f.owner.GetNamespace(), f.customConfig.ConfigData, f.configMapName, cspmConfFileName)
@@ -174,7 +174,7 @@ func (f *cspmFeature) ManageDependencies(managers feature.ResourceManagers, prov
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *cspmFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *cspmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
 	if f.customConfig != nil {
 		var vol corev1.Volume
 		var volMount corev1.VolumeMount
@@ -235,13 +235,13 @@ func (f *cspmFeature) ManageClusterAgent(managers feature.PodTemplateManagers, p
 // ManageSingleContainerNodeAgent allows a feature to configure the Agent container for the Node Agent's corev1.PodTemplateSpec
 // if SingleContainerStrategy is enabled and can be used with the configured feature set.
 // It should do nothing if the feature doesn't need to configure it.
-func (f *cspmFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *cspmFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers) error {
 	return nil
 }
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *cspmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *cspmFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
 	// Determine which container to use based on runInSystemProbe
 	targetContainer := apicommon.SecurityAgentContainerName
 	if f.runInSystemProbe {
@@ -377,10 +377,10 @@ func (f *cspmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, prov
 
 // ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunner's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *cspmFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
+func (f *cspmFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
 	return nil
 }
 
-func (f *cspmFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
+func (f *cspmFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers) error {
 	return nil
 }

@@ -6,21 +6,30 @@ import (
 	"log"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+// CreateOrUpdate creates the object if missing, otherwise updates it. The
+// Update races against any controller actively reconciling the same resource
+// (Karpenter mutates its NodePool / EC2NodeClass when a NodeClaim status
+// changes), so an Update can fail with a Conflict whenever the controller has
+// bumped the resourceVersion since our Get. Re-fetch and retry on Conflict is
+// the standard k8s pattern.
 func CreateOrUpdate(ctx context.Context, cli client.Client, object client.Object) error {
-	resourceVersion, err := getResourceVersion(ctx, cli, object)
-	if err != nil {
-		return err
-	}
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		resourceVersion, err := getResourceVersion(ctx, cli, object)
+		if err != nil {
+			return err
+		}
 
-	if resourceVersion != "" {
-		object.SetResourceVersion(resourceVersion)
-		return update(ctx, cli, object)
-	} else {
-		return create(ctx, cli, object)
-	}
+		if resourceVersion != "" {
+			object.SetResourceVersion(resourceVersion)
+			return update(ctx, cli, object)
+		} else {
+			return create(ctx, cli, object)
+		}
+	})
 }
 
 func getResourceVersion(ctx context.Context, cli client.Client, object client.Object) (string, error) {

@@ -372,24 +372,24 @@ func Test_otelAgentGatewayFeature_ID(t *testing.T) {
 
 func Test_otelAgentGatewayFeature_ManageClusterAgent(t *testing.T) {
 	feat := &otelAgentGatewayFeature{}
-	err := feat.ManageClusterAgent(nil, "")
+	err := feat.ManageClusterAgent(nil)
 	assert.NoError(t, err)
 }
 
 func Test_otelAgentGatewayFeature_ManageSingleContainerNodeAgent(t *testing.T) {
 	feat := &otelAgentGatewayFeature{}
-	err := feat.ManageSingleContainerNodeAgent(nil, "")
+	err := feat.ManageSingleContainerNodeAgent(nil)
 	assert.NoError(t, err)
 }
 
 func Test_otelAgentGatewayFeature_ManageNodeAgent(t *testing.T) {
 	feat := &otelAgentGatewayFeature{}
-	err := feat.ManageNodeAgent(nil, "")
+	err := feat.ManageNodeAgent(nil)
 	assert.NoError(t, err)
 }
 
 func Test_otelAgentGatewayFeature_ManageClusterChecksRunner(t *testing.T) {
 	feat := &otelAgentGatewayFeature{}
-	err := feat.ManageClusterChecksRunner(nil, "")
+	err := feat.ManageClusterChecksRunner(nil)
 	assert.NoError(t, err)
 }

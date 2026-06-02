@@ -9,7 +9,7 @@ github_teams_restrictions:
   - injection-platform
   - container-apps-and-remediation
   - container-integrations
-  - container-tee
+  - containers-tee
   - Documentation
   - profiling-full-host
   - action-platform

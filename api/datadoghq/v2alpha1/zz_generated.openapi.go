@@ -1137,7 +1137,27 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_ExperimentStatus(ref common.
 					},
 					"id": {
 						SchemaProps: spec.SchemaProps{
-							Description: "ID is the unique experiment ID sent by Fleet Automation.",
+							Description: "ID is the RC task ID that triggered this experiment state.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"startedAt": {
+						SchemaProps: spec.SchemaProps{
+							Description: "StartedAt is the wall-clock time at which the experiment first transitioned to phase=Running. Used as the anchor for the experiment timeout. Decoupled from ControllerRevision metadata so the timeout decision does not depend on revision creation timestamps (which can be stale for re-used revisions).",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+						},
+					},
+					"startTaskID": {
+						SchemaProps: spec.SchemaProps{
+							Description: "StartTaskID is the Fleet Automation task identifier that drove the transition into phase=Running. Captured from the daemon's pending annotations and preserved across daemon restarts. On local timeout the daemon uses it to report TaskState_ERROR for the original start task, so Fleet Automation gets an explicit terminal failure tied to the task it sent rather than inferring termination from a cleared experimentConfigVersion.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"terminationReason": {
+						SchemaProps: spec.SchemaProps{
+							Description: "TerminationReason distinguishes why the experiment was terminated. Only set when Phase is \"terminated\".",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -1145,6 +1165,8 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_ExperimentStatus(ref common.
 				},
 			},
 		},
+		Dependencies: []string{
+			"k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
 	}
 }
 

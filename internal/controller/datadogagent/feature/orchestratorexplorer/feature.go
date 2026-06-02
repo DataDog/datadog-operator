@@ -185,7 +185,7 @@ func (f *orchestratorExplorerFeature) mergeConfigs(ddaSpec *v2alpha1.DatadogAgen
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *orchestratorExplorerFeature) ManageDependencies(managers feature.ResourceManagers, provider string) error {
+func (f *orchestratorExplorerFeature) ManageDependencies(managers feature.ResourceManagers) error {
 	// Create a configMap if CustomConfig.ConfigData is provided and CustomConfig.ConfigMap == nil,
 	// OR if the default configMap is needed.
 	configCM, err := f.buildOrchestratorExplorerConfigMap()
@@ -211,7 +211,7 @@ func (f *orchestratorExplorerFeature) ManageDependencies(managers feature.Resour
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *orchestratorExplorerFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *orchestratorExplorerFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
 	// Add the env var to explicitly disable this feature
 	// Otherwise, this feature is enabled by default in the Agent code
 	managers.EnvVar().AddEnvVar(f.getEnabledEnvVar())
@@ -258,7 +258,7 @@ func (f *orchestratorExplorerFeature) ManageClusterAgent(managers feature.PodTem
 // ManageSingleContainerNodeAgent allows a feature to configure the Agent container for the Node Agent's corev1.PodTemplateSpec
 // if SingleContainerStrategy is enabled and can be used with the configured feature set.
 // It should do nothing if the feature doesn't need to configure it.
-func (f *orchestratorExplorerFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *orchestratorExplorerFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers) error {
 	// Add the env var to explicitly disable this feature
 	// Otherwise, this feature is enabled by default in the Agent code
 	managers.EnvVar().AddEnvVar(f.getEnabledEnvVar())
@@ -275,7 +275,7 @@ func (f *orchestratorExplorerFeature) ManageSingleContainerNodeAgent(managers fe
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *orchestratorExplorerFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *orchestratorExplorerFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
 	containers := []apicommon.AgentContainerName{apicommon.CoreAgentContainerName}
 	if f.processAgentRequired {
 		containers = append(containers, apicommon.ProcessAgentContainerName)
@@ -297,7 +297,7 @@ func (f *orchestratorExplorerFeature) ManageNodeAgent(managers feature.PodTempla
 
 // ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunner's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *orchestratorExplorerFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
+func (f *orchestratorExplorerFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
 	if f.runInClusterChecksRunner {
 		// Add the env var to explicitly disable this feature
 		// Otherwise, this feature is enabled by default in the Agent code
@@ -314,6 +314,6 @@ func (f *orchestratorExplorerFeature) ManageClusterChecksRunner(managers feature
 	return nil
 }
 
-func (f *orchestratorExplorerFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
+func (f *orchestratorExplorerFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers) error {
 	return nil
 }

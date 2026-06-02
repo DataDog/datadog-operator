@@ -85,13 +85,13 @@ func (f *rcFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpe
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *rcFeature) ManageDependencies(managers feature.ResourceManagers, provider string) error {
+func (f *rcFeature) ManageDependencies(managers feature.ResourceManagers) error {
 	return nil
 }
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *rcFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *rcFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
 	enabledEnvVar := &corev1.EnvVar{
 		Name:  DDRemoteConfigurationEnabled,
 		Value: apiutils.BoolToString(&f.enabled),
@@ -111,14 +111,14 @@ func (f *rcFeature) ManageClusterAgent(managers feature.PodTemplateManagers, pro
 // ManageSingleContainerNodeAgent allows a feature to configure the Agent container for the Node Agent's corev1.PodTemplateSpec
 // if SingleContainerStrategy is enabled and can be used with the configured feature set.
 // It should do nothing if the feature doesn't need to configure it.
-func (f *rcFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
-	f.ManageNodeAgent(managers, provider)
+func (f *rcFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers) error {
+	f.ManageNodeAgent(managers)
 	return nil
 }
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *rcFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *rcFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
 	enabledEnvVar := &corev1.EnvVar{
 		Name:  DDRemoteConfigurationEnabled,
 		Value: apiutils.BoolToString(&f.enabled),
@@ -130,10 +130,10 @@ func (f *rcFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provid
 
 // ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunner's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *rcFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
+func (f *rcFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
 	return nil
 }
 
-func (f *rcFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
+func (f *rcFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers) error {
 	return nil
 }

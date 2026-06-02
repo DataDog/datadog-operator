@@ -1,0 +1,60 @@
+name: Operator Release - Make Bundle
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "Branch to check out, regenerate bundle on, and push back to"
+        required: true
+        type: string
+      version:
+        description: "New release version, (e.g. 1.27.0-rc.1)"
+        required: true
+        type: string
+      latest_version:
+        description: "Previous released version, (e.g. 1.26.0)"
+        required: true
+        type: string
+      correlation_id:
+        description: "Correlation ID, surfaced in run-name so the caller can find this run"
+        required: true
+        type: string
+
+run-name: "operator release - make bundle ${{ inputs.version }} [${{ inputs.correlation_id }}]"
+
+permissions:
+  contents: read
+
+jobs:
+  bundle:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ inputs.branch }}
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+        with:
+          go-version-file: go.mod
+
+      - name: Generate bundle
+        run: make bundle VERSION=${{ inputs.version }} LATEST_VERSION=${{ inputs.latest_version }}
+
+      - name: Commit & push
+        run: |
+          # Attribute the commit to the github-actions[bot] account so it links
+          # to the bot's profile in the GitHub UI. 41898282 is the bot's user ID
+          # and follows GitHub's standard noreply format: <id>+<user>@users.noreply.github.com.
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No bundle changes to commit"
+            exit 0
+          fi
+          git commit -m "chore(bundle): regenerate for v${{ inputs.version }}"
+          git push origin HEAD:${{ inputs.branch }}

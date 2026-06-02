@@ -34,12 +34,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
+	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/apply"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/aws"
+	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/awsauth"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/clients"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/display"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/helm"
 	commonk8s "github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/k8s"
-	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/install/guess"
 	"github.com/DataDog/datadog-operator/pkg/plugin/common"
 )
 
@@ -121,15 +122,11 @@ func (o *options) run(cmd *cobra.Command) error {
 	log.SetOutput(cmd.OutOrStderr())
 	ctrl.SetLogger(zap.New(zap.UseDevMode(false), zap.WriteTo(cmd.ErrOrStderr())))
 
-	if clusterName == "" {
-		if name, err := clients.GetClusterNameFromKubeconfig(o.ConfigFlags); err != nil {
-			return err
-		} else if name != "" {
-			clusterName = name
-		} else {
-			return errors.New("cluster name must be specified either via --cluster-name or in the current kubeconfig context")
-		}
+	resolved, err := clients.ResolveClusterName(o.ConfigFlags, clusterName)
+	if err != nil {
+		return err
 	}
+	clusterName = resolved
 
 	display.PrintBox(cmd.OutOrStdout(), "Uninstalling Karpenter from cluster "+clusterName+".")
 
@@ -490,7 +487,7 @@ func (o *options) uninstallHelmChart(ctx context.Context, karpenterNamespace str
 }
 
 func removeAwsAuthConfigMapRole(ctx context.Context, cli *clients.Clients, clusterName string) error {
-	awsAuthConfigMapPresent, err := guess.IsAwsAuthConfigMapPresent(ctx, cli.K8sClientset)
+	awsAuthConfigMapPresent, err := awsauth.IsConfigMapPresent(ctx, cli.K8sClientset)
 	if err != nil {
 		return fmt.Errorf("failed to check if aws-auth ConfigMap is present: %w", err)
 	}
@@ -507,7 +504,7 @@ func removeAwsAuthConfigMapRole(ctx context.Context, cli *clients.Clients, clust
 
 	roleArn := "arn:aws:iam::" + accountID + ":role/KarpenterNodeRole-" + clusterName
 
-	if err = aws.RemoveAwsAuthRole(ctx, cli.K8sClientset, roleArn); err != nil {
+	if err = awsauth.RemoveRole(ctx, cli.K8sClientset, roleArn); err != nil {
 		return fmt.Errorf("failed to remove aws-auth role: %w", err)
 	}
 
@@ -563,8 +560,8 @@ func deleteKarpenterInstanceProfiles(ctx context.Context, cli *clients.Clients, 
 
 func listCloudFormationStacks(ctx context.Context, cli *clients.Clients, clusterName string) ([]string, error) {
 	stackNames := []string{
-		"dd-karpenter-" + clusterName + "-karpenter",
-		"dd-karpenter-" + clusterName + "-dd-karpenter",
+		apply.KarpenterStackName(clusterName),
+		apply.DDKarpenterStackName(clusterName),
 	}
 
 	var existing []string
@@ -581,11 +578,11 @@ func listCloudFormationStacks(ctx context.Context, cli *clients.Clients, cluster
 }
 
 func deleteCloudFormationStacks(ctx context.Context, cli *clients.Clients, clusterName string) error {
-	if err := aws.DeleteStack(ctx, cli.CloudFormation, "dd-karpenter-"+clusterName+"-dd-karpenter"); err != nil {
+	if err := aws.DeleteStack(ctx, cli.CloudFormation, apply.DDKarpenterStackName(clusterName)); err != nil {
 		return fmt.Errorf("failed to delete dd-karpenter CloudFormation stack: %w", err)
 	}
 
-	if err := aws.DeleteStack(ctx, cli.CloudFormation, "dd-karpenter-"+clusterName+"-karpenter"); err != nil {
+	if err := aws.DeleteStack(ctx, cli.CloudFormation, apply.KarpenterStackName(clusterName)); err != nil {
 		return fmt.Errorf("failed to delete karpenter CloudFormation stack: %w", err)
 	}
 

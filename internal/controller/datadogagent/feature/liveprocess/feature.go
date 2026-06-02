@@ -75,32 +75,32 @@ func (f *liveProcessFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.Datado
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *liveProcessFeature) ManageDependencies(managers feature.ResourceManagers, provider string) error {
+func (f *liveProcessFeature) ManageDependencies(managers feature.ResourceManagers) error {
 	return nil
 }
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *liveProcessFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *liveProcessFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
 	return nil
 }
 
 // ManageSingleContainerNodeAgent allows a feature to configure the Agent container for the Node Agent's corev1.PodTemplateSpec
 // if SingleContainerStrategy is enabled and can be used with the configured feature set.
 // It should do nothing if the feature doesn't need to configure it.
-func (f *liveProcessFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *liveProcessFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers) error {
 	runInCoreAgentEnvVar := &corev1.EnvVar{
 		Name:  common.DDProcessConfigRunInCoreAgent,
 		Value: apiutils.BoolToString(&f.runInCoreAgent),
 	}
 	managers.EnvVar().AddEnvVarToContainer(apicommon.UnprivilegedSingleAgentContainerName, runInCoreAgentEnvVar)
-	f.manageNodeAgent(apicommon.UnprivilegedSingleAgentContainerName, managers, provider)
+	f.manageNodeAgent(apicommon.UnprivilegedSingleAgentContainerName, managers)
 	return nil
 }
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *liveProcessFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *liveProcessFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
 	// Always add this envvar to Core and Process containers
 	runInCoreAgentEnvVar := &corev1.EnvVar{
 		Name:  common.DDProcessConfigRunInCoreAgent,
@@ -113,11 +113,11 @@ func (f *liveProcessFeature) ManageNodeAgent(managers feature.PodTemplateManager
 	if !f.runInCoreAgent {
 		containerName = apicommon.ProcessAgentContainerName
 	}
-	f.manageNodeAgent(containerName, managers, provider)
+	f.manageNodeAgent(containerName, managers)
 	return nil
 }
 
-func (f *liveProcessFeature) manageNodeAgent(agentContainerName apicommon.AgentContainerName, managers feature.PodTemplateManagers, provider string) error {
+func (f *liveProcessFeature) manageNodeAgent(agentContainerName apicommon.AgentContainerName, managers feature.PodTemplateManagers) error {
 
 	// passwd volume mount
 	passwdVol, passwdVolMount := volume.GetVolumes(common.PasswdVolumeName, common.PasswdHostPath, common.PasswdMountPath, true)
@@ -162,10 +162,10 @@ func (f *liveProcessFeature) manageNodeAgent(agentContainerName apicommon.AgentC
 
 // ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunner's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *liveProcessFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
+func (f *liveProcessFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
 	return nil
 }
 
-func (f *liveProcessFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
+func (f *liveProcessFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers) error {
 	return nil
 }

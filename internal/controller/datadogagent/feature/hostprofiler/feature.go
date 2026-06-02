@@ -2,6 +2,7 @@ package hostprofiler
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
@@ -13,12 +14,13 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 )
 
 var errHostPIDDisabledManually = errors.New("Host PID is required for host profiler")
 
 type hostProfilerFeature struct {
-	hostProfilerEnabled     bool
+	owner                   metav1.Object
 	hostPIDDisabledManually bool
 
 	logger logr.Logger
@@ -46,41 +48,105 @@ func (o *hostProfilerFeature) ID() feature.IDType {
 }
 
 func (o *hostProfilerFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) feature.RequiredComponents {
-	o.hostProfilerEnabled = featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnableHostProfilerAnnotation)
+	o.owner = dda
 
-	var reqComp feature.RequiredComponents
-	if o.hostProfilerEnabled {
-		reqComp = feature.RequiredComponents{
-			Agent: feature.RequiredComponent{
-				IsRequired: ptr.To(true),
-				Containers: []apicommon.AgentContainerName{
-					apicommon.CoreAgentContainerName,
-					apicommon.HostProfiler,
-				},
-			},
-		}
+	if !featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnableHostProfilerAnnotation) {
+		return feature.RequiredComponents{}
 	}
-	return reqComp
+
+	return feature.RequiredComponents{
+		Agent: feature.RequiredComponent{
+			IsRequired: ptr.To(true),
+			Containers: []apicommon.AgentContainerName{
+				apicommon.CoreAgentContainerName,
+				apicommon.HostProfiler,
+			},
+		},
+	}
 }
 
-func (o *hostProfilerFeature) ManageDependencies(managers feature.ResourceManagers, provider string) error {
+func (o *hostProfilerFeature) seccompConfigMapName() string {
+	return fmt.Sprintf("%s-%s", constants.GetDDAName(o.owner), agentSecurityConfigMapSuffixName)
+}
+
+func (o *hostProfilerFeature) ManageDependencies(managers feature.ResourceManagers) error {
 	if o.hostPIDDisabledManually {
 		return errHostPIDDisabledManually
 	}
+	return managers.ConfigMapManager().AddConfigMap(
+		o.seccompConfigMapName(),
+		o.owner.GetNamespace(),
+		defaultSeccompConfigData(),
+	)
+}
+
+func (o *hostProfilerFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
 	return nil
 }
 
-func (o *hostProfilerFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
-	return nil
-}
-
-func (o *hostProfilerFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+func (o *hostProfilerFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
 	if o.hostPIDDisabledManually {
 		return errHostPIDDisabledManually
 	}
 
 	// Host PID
-	managers.PodTemplateSpec().Spec.HostPID = *ptr.To(true)
+	managers.PodTemplateSpec().Spec.HostPID = true
+
+	// Security context: drop all caps, add only what host-profiler needs, lock down privilege escalation,
+	// and apply a localhost seccomp profile. AllowPrivilegeEscalation must be explicitly false so that
+	// runc applies the seccomp filter before its own setuid/setgid/capset calls during container setup.
+	var hostProfilerContainer *corev1.Container
+	for i := range managers.PodTemplateSpec().Spec.Containers {
+		if managers.PodTemplateSpec().Spec.Containers[i].Name == string(apicommon.HostProfiler) {
+			hostProfilerContainer = &managers.PodTemplateSpec().Spec.Containers[i]
+			break
+		}
+	}
+
+	if hostProfilerContainer == nil {
+		return fmt.Errorf("host-profiler container not found in pod template spec")
+	}
+
+	if hostProfilerContainer.SecurityContext == nil {
+		hostProfilerContainer.SecurityContext = &corev1.SecurityContext{}
+	}
+
+	sc := hostProfilerContainer.SecurityContext
+	sc.AllowPrivilegeEscalation = ptr.To(false)
+	sc.SeccompProfile = &corev1.SeccompProfile{
+		Type:             corev1.SeccompProfileTypeLocalhost,
+		LocalhostProfile: ptr.To(seccompProfileName),
+	}
+	sc.Capabilities = &corev1.Capabilities{
+		Drop: []corev1.Capability{"ALL"},
+		Add:  defaultCapabilities(),
+	}
+
+	// AppArmor: unconfined so the default containerd profile doesn't block ptrace cross-profile,
+	// which host-profiler requires to read /proc/<pid>/map_files for process profiling.
+	managers.Annotation().AddAnnotation(common.AppArmorAnnotationKey+"/"+string(apicommon.HostProfiler), "unconfined")
+
+	// host-profiler-security ConfigMap volume (contains the seccomp profile JSON)
+	secVol := corev1.Volume{
+		Name: securityVolumeName,
+		VolumeSource: corev1.VolumeSource{
+			ConfigMap: &corev1.ConfigMapVolumeSource{
+				LocalObjectReference: corev1.LocalObjectReference{
+					Name: o.seccompConfigMapName(),
+				},
+			},
+		},
+	}
+	managers.Volume().AddVolume(&secVol)
+
+	// seccomp-root EmptyDir volume (shared with system-probe when both are enabled; VolumeManager deduplicates)
+	seccompRootVol := common.GetVolumeForSeccomp()
+	managers.Volume().AddVolume(&seccompRootVol)
+
+	// Init container: copy seccomp profile JSON to the kubelet seccomp directory on the host.
+	// Appended after the base init containers (init-volume, init-config) added by default.go.
+	initContainer := buildSeccompSetupInitContainer(hostProfilerContainer.Image)
+	managers.PodTemplateSpec().Spec.InitContainers = append(managers.PodTemplateSpec().Spec.InitContainers, initContainer)
 
 	// Tracingfs volume
 	volumeTracingfs := corev1.Volume{
@@ -118,14 +184,14 @@ func (o *hostProfilerFeature) ManageNodeAgent(managers feature.PodTemplateManage
 	return nil
 }
 
-func (o *hostProfilerFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+func (o *hostProfilerFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers) error {
 	return nil
 }
 
-func (o *hostProfilerFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
+func (o *hostProfilerFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
 	return nil
 }
 
-func (o *hostProfilerFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
+func (o *hostProfilerFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers) error {
 	return nil
 }

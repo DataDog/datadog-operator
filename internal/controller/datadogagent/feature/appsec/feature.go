@@ -108,14 +108,14 @@ func (f *appsecFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAg
 
 // ManageDependencies adds the RBAC necessary for the appsec feature to be enabled and is still required when disabled
 // to be able to do cleanup
-func (f *appsecFeature) ManageDependencies(managers feature.ResourceManagers, _ string) error {
+func (f *appsecFeature) ManageDependencies(managers feature.ResourceManagers) error {
 	rbacName := getAppsecRBACResourceName(f.owner, f.rbacSuffix)
 	return managers.RBACManager().AddClusterPolicyRules(f.owner.GetNamespace(), rbacName, f.serviceAccountName, getRBACPolicyRules())
 }
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *appsecFeature) ManageClusterAgent(managers feature.PodTemplateManagers, _ string) error {
+func (f *appsecFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
 	if !f.config.isEnabled() {
 		f.logger.V(2).Info("feature is disabled, adding no environment variables")
 		return nil
@@ -191,18 +191,18 @@ func (f *appsecFeature) ManageClusterAgent(managers feature.PodTemplateManagers,
 	return nil
 }
 
-func (f *appsecFeature) ManageSingleContainerNodeAgent(_ feature.PodTemplateManagers, _ string) error {
+func (f *appsecFeature) ManageSingleContainerNodeAgent(_ feature.PodTemplateManagers) error {
 	return nil
 }
 
-func (f *appsecFeature) ManageNodeAgent(_ feature.PodTemplateManagers, _ string) error {
+func (f *appsecFeature) ManageNodeAgent(_ feature.PodTemplateManagers) error {
 	return nil
 }
 
-func (f *appsecFeature) ManageClusterChecksRunner(_ feature.PodTemplateManagers, _ string) error {
+func (f *appsecFeature) ManageClusterChecksRunner(_ feature.PodTemplateManagers) error {
 	return nil
 }
 
-func (f *appsecFeature) ManageOtelAgentGateway(_ feature.PodTemplateManagers, _ string) error {
+func (f *appsecFeature) ManageOtelAgentGateway(_ feature.PodTemplateManagers) error {
 	return nil
 }

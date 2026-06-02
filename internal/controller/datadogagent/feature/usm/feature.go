@@ -17,6 +17,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
+	"github.com/DataDog/datadog-operator/pkg/utils"
 )
 
 func init() {
@@ -53,19 +54,23 @@ func (f *usmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 			apicommon.CoreAgentContainerName,
 			apicommon.SystemProbeContainerName,
 		}
-		if ddaSpec.Features.NPM == nil || !apiutils.BoolValue(ddaSpec.Features.NPM.DirectSend) {
+
+		directSendEnabled := ddaSpec.Features.NPM != nil && apiutils.BoolValue(ddaSpec.Features.NPM.DirectSend)
+		const directSendMinVersion = "7.77.0-0"
+		defaultIfVersionUnknown := false
+		if !utils.IsAboveMinVersion(common.GetComponentVersion(dda, v2alpha1.NodeAgentComponentName), directSendMinVersion, &defaultIfVersionUnknown) {
+			directSendEnabled = false
+		}
+		if !directSendEnabled {
 			containers = append(containers, apicommon.ProcessAgentContainerName)
 		}
+		f.directSend = directSendEnabled
 
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
 				IsRequired: ptr.To(true),
 				Containers: containers,
 			},
-		}
-
-		if ddaSpec.Features.NPM != nil {
-			f.directSend = apiutils.BoolValue(ddaSpec.Features.NPM.DirectSend)
 		}
 	}
 
@@ -92,26 +97,26 @@ func mergeConfigs(ddaSpec *v2alpha1.DatadogAgentSpec, ddaRCStatus *v2alpha1.Remo
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *usmFeature) ManageDependencies(managers feature.ResourceManagers, provider string) error {
+func (f *usmFeature) ManageDependencies(managers feature.ResourceManagers) error {
 	return nil
 }
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *usmFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *usmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
 	return nil
 }
 
 // ManageSingleContainerNodeAgent allows a feature to configure the Agent container for the Node Agent's corev1.PodTemplateSpec
 // if SingleContainerStrategy is enabled and can be used with the configured feature set.
 // It should do nothing if the feature doesn't need to configure it.
-func (f *usmFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *usmFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers) error {
 	return nil
 }
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *usmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *usmFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
 	// enable HostPID for system-probe
 	managers.PodTemplateSpec().Spec.HostPID = true
 
@@ -133,7 +138,7 @@ func (f *usmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provi
 
 	debugfsVol, debugfsVolMount := volume.GetVolumes(common.DebugfsVolumeName, common.DebugfsPath, common.DebugfsPath, false)
 	managers.Volume().AddVolume(&debugfsVol)
-	managers.VolumeMount().AddVolumeMountToContainers(&debugfsVolMount, []apicommon.AgentContainerName{apicommon.ProcessAgentContainerName, apicommon.SystemProbeContainerName})
+	managers.VolumeMount().AddVolumeMountToContainer(&debugfsVolMount, apicommon.SystemProbeContainerName)
 
 	// socket volume mount (needs write perms for the system probe container but not the others)
 	socketVol, socketVolMount := volume.GetVolumesEmptyDir(common.SystemProbeSocketVolumeName, common.SystemProbeSocketVolumePath, false)
@@ -193,10 +198,10 @@ func (f *usmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provi
 
 // ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunner's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *usmFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
+func (f *usmFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
 	return nil
 }
 
-func (f *usmFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
+func (f *usmFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers) error {
 	return nil
 }
