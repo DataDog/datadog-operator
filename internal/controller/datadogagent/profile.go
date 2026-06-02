@@ -8,6 +8,7 @@ package datadogagent
 import (
 	"context"
 	"fmt"
+	"maps"
 
 	"github.com/prometheus/client_golang/prometheus"
 	appsv1 "k8s.io/api/apps/v1"
@@ -21,6 +22,7 @@ import (
 	v1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	v2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/metrics"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/constants"
@@ -39,11 +41,16 @@ func sendProfileEnabledMetric(enabled bool) {
 // - returns a list of profiles that should be applied (including the default profile)
 // - configures node labels based on the profiles that are applied
 // - applies profile status updates in k8s
-func (r *Reconciler) reconcileProfiles(ctx context.Context, dsNSName types.NamespacedName, ddaEDSMaxUnavailable intstr.IntOrString) ([]*v1alpha1.DatadogAgentProfile, error) {
+func (r *Reconciler) reconcileProfiles(ctx context.Context, dsNSName types.NamespacedName, ddaEDSMaxUnavailable intstr.IntOrString, defaultDDAI *v1alpha1.DatadogAgentInternal) ([]*v1alpha1.DatadogAgentProfile, error) {
 	now := metav1.Now()
 	// start with the default profile so that on error, at minimum the default profile is applied
 	defaultProfile := agentprofile.DefaultProfile()
 	appliedProfiles := []*v1alpha1.DatadogAgentProfile{&defaultProfile}
+	// baseDefaultSpec is kept unchanged for overlays that need to compare
+	// against the original DDA. defaultSpec accumulates accepted profile
+	// contributions to shared components such as the Cluster Agent.
+	baseDefaultSpec := defaultDDAI.Spec.DeepCopy()
+	defaultSpec := defaultDDAI.Spec.DeepCopy()
 	// get and sort all profiles
 	profilesList := v1alpha1.DatadogAgentProfileList{}
 	if err := r.client.List(ctx, &profilesList); err != nil {
@@ -67,9 +74,21 @@ func (r *Reconciler) reconcileProfiles(ctx context.Context, dsNSName types.Names
 	csInfo := make(map[types.NamespacedName]*agentprofile.CreateStrategyInfo)
 	for _, profile := range sortedProfiles {
 		profileCopy := profile.DeepCopy() // deep copy to avoid modifying status of original profile
-		if err := r.reconcileProfile(ctx, profileCopy, nodeList, profilesByNode, csInfo, now); err != nil {
+		// Stage profile application so node assignment, create-strategy data,
+		// and shared default-DDAI config commit together. If any profile-level
+		// validation or overlay merge fails, the current reconcile state stays
+		// unchanged and the next profile is evaluated against the last accepted
+		// state.
+		nextProfilesByNode := maps.Clone(profilesByNode)
+		nextCSInfo := agentprofile.CloneCreateStrategyInfoMap(csInfo)
+		nextDefaultSpec := defaultSpec.DeepCopy()
+		if err := r.reconcileProfile(ctx, profileCopy, nodeList, nextProfilesByNode, nextCSInfo, nextDefaultSpec, baseDefaultSpec, now); err != nil {
 			// errors will be validation or conflict errors
 			r.log.Error(err, "unable to reconcile profile", "datadogagentprofile", profileCopy.Name, "datadogagentprofile_namespace", profileCopy.Namespace)
+		} else {
+			profilesByNode = nextProfilesByNode
+			csInfo = nextCSInfo
+			defaultSpec = nextDefaultSpec
 		}
 		agentprofile.GenerateProfileStatusFromConditions(r.log, profileCopy, now)
 		if !agentprofile.IsEqualStatus(&profile.Status, &profileCopy.Status) {
@@ -82,6 +101,9 @@ func (r *Reconciler) reconcileProfiles(ctx context.Context, dsNSName types.Names
 			appliedProfiles = append(appliedProfiles, profileCopy)
 		}
 	}
+	// Persist the accepted shared config back to the default DDAI used later to
+	// render the default-profile DDAI object.
+	defaultDDAI.Spec = *defaultSpec
 
 	// create strategy
 	if agentprofile.CreateStrategyEnabled() {
@@ -123,7 +145,7 @@ func (r *Reconciler) reconcileProfiles(ctx context.Context, dsNSName types.Names
 // - validates the profile
 // - checks for conflicts with existing profiles
 // - updates the profile status based on profile validation and application success
-func (r *Reconciler) reconcileProfile(ctx context.Context, profile *v1alpha1.DatadogAgentProfile, nodeList []corev1.Node, profilesByNode map[string]types.NamespacedName, csInfo map[types.NamespacedName]*agentprofile.CreateStrategyInfo, now metav1.Time) error {
+func (r *Reconciler) reconcileProfile(ctx context.Context, profile *v1alpha1.DatadogAgentProfile, nodeList []corev1.Node, profilesByNode map[string]types.NamespacedName, csInfo map[types.NamespacedName]*agentprofile.CreateStrategyInfo, defaultSpec, baseDefaultSpec *v2alpha1.DatadogAgentSpec, now metav1.Time) error {
 	r.log.Info("reconciling profile", "datadogagentprofile", profile.Name, "datadogagentprofile_namespace", profile.Namespace)
 	// validate profile name, spec, and selectors
 	requirements, err := agentprofile.ValidateProfileAndReturnRequirements(profile)
@@ -136,11 +158,20 @@ func (r *Reconciler) reconcileProfile(ctx context.Context, profile *v1alpha1.Dat
 	metrics.DAPValid.With(prometheus.Labels{"datadogagentprofile": profile.Name}).Set(metrics.TrueValue)
 	profile.Status.Conditions = agentprofile.SetDatadogAgentProfileCondition(profile.Status.Conditions, agentprofile.NewDatadogAgentProfileCondition(agentprofile.ValidConditionType, metav1.ConditionTrue, now, agentprofile.ValidConditionReason, "Valid manifest"))
 
-	// err can only be conflict
 	if err := agentprofile.ApplyProfileToNodes(profile.ObjectMeta, requirements, nodeList, profilesByNode, csInfo); err != nil {
 		profile.Status.Conditions = agentprofile.SetDatadogAgentProfileCondition(profile.Status.Conditions, agentprofile.NewDatadogAgentProfileCondition(agentprofile.AppliedConditionType, metav1.ConditionFalse, now, agentprofile.ConflictConditionReason, "Conflict with existing profile"))
 		return err
 	}
+
+	// Some profile config targets shared cluster components instead of the
+	// profile's node Agent. Apply those feature-owned overlays to the staged
+	// default spec after node assignment succeeds, so a rejected overlay also
+	// rejects the profile.
+	if err := feature.ApplyProfileSharedConfigOverlays(defaultSpec, baseDefaultSpec, profile.Spec.Config); err != nil {
+		profile.Status.Conditions = agentprofile.SetDatadogAgentProfileCondition(profile.Status.Conditions, agentprofile.NewDatadogAgentProfileCondition(agentprofile.AppliedConditionType, metav1.ConditionFalse, now, agentprofile.ConflictConditionReason, err.Error()))
+		return err
+	}
+
 	profile.Status.Conditions = agentprofile.SetDatadogAgentProfileCondition(profile.Status.Conditions, agentprofile.NewDatadogAgentProfileCondition(agentprofile.AppliedConditionType, metav1.ConditionTrue, now, agentprofile.AppliedConditionReason, "Profile applied"))
 
 	return nil
@@ -162,13 +193,20 @@ func (r *Reconciler) getProfileDaemonSet(ctx context.Context, profile *v1alpha1.
 	return nil, fmt.Errorf("no valid daemonset found")
 }
 
-func (r *Reconciler) applyProfilesToDDAISpec(ddai *v1alpha1.DatadogAgentInternal, profiles []*v1alpha1.DatadogAgentProfile) ([]*v1alpha1.DatadogAgentInternal, error) {
+func (r *Reconciler) applyProfilesToDDAISpec(baseDDAI, defaultDDAI *v1alpha1.DatadogAgentInternal, profiles []*v1alpha1.DatadogAgentProfile) ([]*v1alpha1.DatadogAgentInternal, error) {
 	ddais := []*v1alpha1.DatadogAgentInternal{}
 
 	// For all profiles, create DDAI objects
 	// Note: profiles includes the default profile to allow the default affinity to be set
 	for _, profile := range profiles {
-		mergedDDAI, err := r.computeProfileMerge(ddai, profile)
+		// User profiles are merged from the original base DDAI. The synthetic
+		// default profile is merged from defaultDDAI so it includes shared config
+		// accepted from profiles, for example APM SSI Cluster Agent config.
+		sourceDDAI := baseDDAI
+		if agentprofile.IsDefaultProfile(profile.Namespace, profile.Name) {
+			sourceDDAI = defaultDDAI
+		}
+		mergedDDAI, err := r.computeProfileMerge(sourceDDAI, profile)
 		if err != nil {
 			return nil, err
 		}
