@@ -358,7 +358,9 @@ rules:
 - apiGroups:
   - gateway.envoyproxy.io
   resources:
+  - backend
   - envoyextensionpolicies
+  - envoypatchpolicies
   verbs:
   - create
   - delete
@@ -417,6 +419,22 @@ rules:
   - create
   - delete
   - get
+- apiGroups:
+  - networking.istio.io
+  resources:
+  - gateways
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - networking.k8s.io
+  resources:
+  - ingressclasses
+  verbs:
+  - get
+  - list
+  - watch
 - apiGroups:
   - networking.k8s.io
   resources:
