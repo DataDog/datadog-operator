@@ -17,6 +17,7 @@ const (
 	Downtime              SupportedResourcesType = "downtime"
 	Monitor               SupportedResourcesType = "monitor"
 	Notebook              SupportedResourcesType = "notebook"
+	SLO                   SupportedResourcesType = "slo"
 	SyntheticsAPITest     SupportedResourcesType = "synthetics_api_test"
 	SyntheticsBrowserTest SupportedResourcesType = "synthetics_browser_test"
 )
@@ -25,7 +26,7 @@ const (
 // +k8s:openapi-gen=true
 type DatadogGenericResourceSpec struct {
 	// Type is the type of the API object
-	// +kubebuilder:validation:Enum=dashboard;downtime;monitor;notebook;synthetics_api_test;synthetics_browser_test
+	// +kubebuilder:validation:Enum=dashboard;downtime;monitor;notebook;slo;synthetics_api_test;synthetics_browser_test
 	Type SupportedResourcesType `json:"type"`
 	// JsonSpec is the specification of the API object
 	// +kubebuilder:validation:MinLength=1
@@ -54,8 +55,9 @@ type DatadogGenericResourceStatus struct {
 	LastForceSyncTime *metav1.Time `json:"lastForceSyncTime,omitempty"`
 	// State is the live Datadog-side state of the underlying resource as last
 	// fetched from the Datadog API. Values are resource-type dependent — for
-	// Monitors: OK, Alert, Warn, No Data, Skipped, Ignored, Unknown. Only
-	// populated for resource types that expose live state.
+	// Monitors: OK, Alert, Warn, No Data, Skipped, Ignored, Unknown. For SLOs:
+	// breached, warning, ok, no_data. Only populated for resource types that
+	// expose live state.
 	State string `json:"state,omitempty"`
 	// StateLastUpdateTime is the last time State was successfully refreshed from Datadog.
 	StateLastUpdateTime *metav1.Time `json:"stateLastUpdateTime,omitempty"`

@@ -43,14 +43,15 @@ A `DatadogGenericResource` object has two fields:
 
 ## Supported Resources
 
-| Type                      | Operator Version | Json template                                                           | Example manifest                                                                     |
-|---------------------------|:----------------:|------------------------------------------------------------------------ |:------------------------------------------------------------------------------------:|
-| `notebook`                | v1.12.0          | https://docs.datadoghq.com/api/latest/notebooks/#create-a-notebook      | [Notebook manifest](../examples/datadoggenericresource/notebook-sample.yaml)         |
-| `synthetics_api_test`     | v1.12.0          | https://docs.datadoghq.com/api/latest/synthetics/#create-an-api-test    | [API test manifest](../examples/datadoggenericresource/api-test-sample.yaml)         |
-| `synthetics_browser_test` | v1.12.0          | https://docs.datadoghq.com/api/latest/synthetics/#create-a-browser-test | [Browser test manifest](../examples/datadoggenericresource/browser-test-sample.yaml) |
-| `monitor`                 | v1.13.0          | https://docs.datadoghq.com/api/latest/monitors/#create-a-monitor        | [Monitor manifest](../examples/datadoggenericresource/monitor-sample.yaml)           |
-| `downtime`                | v1.22.0          | https://docs.datadoghq.com/api/latest/downtimes/#schedule-a-downtime    | [Downtime manifest](../examples/datadoggenericresource/downtime-sample.yaml)         |
-| `dashboard`               | v1.27.0          | https://docs.datadoghq.com/api/latest/dashboards/#create-a-dashboard    | [Dashboard manifest](../examples/datadoggenericresource/dashboard-sample.yaml)       |
+| Type                      | Operator Version | Json template                                                                         | Example manifest                                                                     |
+|---------------------------|:----------------:|---------------------------------------------------------------------------------------|:------------------------------------------------------------------------------------:|
+| `notebook`                | v1.12.0          | https://docs.datadoghq.com/api/latest/notebooks/#create-a-notebook                    | [Notebook manifest](../examples/datadoggenericresource/notebook-sample.yaml)         |
+| `synthetics_api_test`     | v1.12.0          | https://docs.datadoghq.com/api/latest/synthetics/#create-an-api-test                  | [API test manifest](../examples/datadoggenericresource/api-test-sample.yaml)         |
+| `synthetics_browser_test` | v1.12.0          | https://docs.datadoghq.com/api/latest/synthetics/#create-a-browser-test               | [Browser test manifest](../examples/datadoggenericresource/browser-test-sample.yaml) |
+| `monitor`                 | v1.13.0          | https://docs.datadoghq.com/api/latest/monitors/#create-a-monitor                      | [Monitor manifest](../examples/datadoggenericresource/monitor-sample.yaml)           |
+| `downtime`                | v1.22.0          | https://docs.datadoghq.com/api/latest/downtimes/#schedule-a-downtime                  | [Downtime manifest](../examples/datadoggenericresource/downtime-sample.yaml)         |
+| `dashboard`               | v1.27.0          | https://docs.datadoghq.com/api/latest/dashboards/#create-a-dashboard                  | [Dashboard manifest](../examples/datadoggenericresource/dashboard-sample.yaml)       |
+| `slo`                     | v1.28.0          | https://docs.datadoghq.com/api/latest/service-level-objectives/#create-an-slo-object  | [SLO manifest](../examples/datadoggenericresource/slo-sample.yaml)                   |
 
 ## Prerequisites
 
@@ -170,7 +171,7 @@ For resource types that expose a live state in the Datadog backend, the controll
 
 | Field | Description |
 | --- | --- |
-| `.status.state` | Live state as reported by Datadog. Values are resource-type dependent. For Monitors: `OK`, `Alert`, `Warn`, `No Data`, `Skipped`, `Ignored`, `Unknown`. |
+| `.status.state` | Live state as reported by Datadog. Values are resource-type dependent. For Monitors: `OK`, `Alert`, `Warn`, `No Data`, `Skipped`, `Ignored`, `Unknown`. For SLOs: `breached`, `warning`, `ok`, `no_data`. |
 | `.status.stateLastUpdateTime` | Last time `state` was successfully refreshed from the Datadog API. |
 | `.status.stateLastTransitionTime` | Last time `state` changed value. |
 | `.status.conditions[type=StateSynced]` | `True` after a successful state refresh; `False` with `reason=GetError` when the most recent refresh failed (last-known `state` is preserved). |
@@ -184,7 +185,7 @@ kubectl wait --for=condition=StateSynced datadoggenericresource/<name>
 
 The controller refreshes `state` roughly every 60 seconds during reconciliation. Failures are visible only via the `StateSynced` condition — they do not break the reconcile loop and the last-known `state` is retained until a subsequent refresh succeeds.
 
-This information is currently surfaced for `monitor` resources. Resource types that do not expose live Datadog-side state (e.g., `dashboard`, `notebook`) leave these fields empty.
+This information is currently surfaced for `monitor` and `slo` resources. Resource types that do not expose live Datadog-side state (e.g., `dashboard`, `notebook`) leave these fields empty.
 
 ## Comparison with existing CRDs
 

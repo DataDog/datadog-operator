@@ -14,11 +14,11 @@ The general steps to add a new type can be summarized to:
 1. In `api/datadoghq/v1alpha1/datadoggenericresource_types.go`:
     1. Add a new constant of type `SupportedResourcesType`.
     2. Append its value to the `kubebuilder:validation:Enum` marker on the `Type` field in `DatadogGenericResourceSpec`.
-2. Generate the updated CRD with `make generate`.
+2. Regenerate generated code and CRD manifests with `make generate && make manifests`.
 
-## Adding the API client to `DatadogGenericClient`
-1. Add the new client (from the [Datadog Go client](https://github.com/DataDog/datadog-api-client-go)) to the `DatadogGenericClient` struct inside `pkg/datadogclient/client.go`.
-2. Reference it in `InitDatadogGenericClient` function within the same file.
+## Adding the API client to `GenericClients`
+1. Add the new client (from the [Datadog Go client](https://github.com/DataDog/datadog-api-client-go)) to the `GenericClients` struct inside `pkg/datadogclient/client.go`.
+2. Reference it in `InitGenericClients` function within the same file.
 
 ## Adding the resource handler and CRUD operations
 
@@ -36,7 +36,7 @@ The general steps to add a new type can be summarized to:
         * `deleteResource(auth context.Context, instance *v1alpha1.DatadogGenericResource) error`: call the API Delete method using `instance.Status.Id`.
         * `refreshState(auth context.Context, instance *v1alpha1.DatadogGenericResource) (*string, error)`: fetch the live Datadog-side state of the resource and return it as a `*string`. **Return `(nil, nil)` for resource types that do not expose live state** — the controller will skip status mutation and leave the state fields and the `StateSynced` condition untouched. On error, return `(nil, err)` and the controller will preserve the last-known state and flip the `StateSynced` condition to False with `reason=GetError`. See `monitors.go` for a reference implementation and the other handlers (`dashboards.go`, `downtimes.go`, …) for the no-op pattern.
     3. Optionally define helper functions (`create<Resource>`, `get<Resource>`, etc.) for the raw API calls if it helps readability.
-2. `internal/controller/datadoggenericresource/utils.go`: Add your handler to the `buildHandlers` function, mapping the new `SupportedResourcesType` to a `<Resource>Handler` initialized with the appropriate client from `DatadogGenericClient`:
+2. `internal/controller/datadoggenericresource/utils.go`: Add your handler to the `buildHandlers` function, mapping the new `SupportedResourcesType` to a `<Resource>Handler` initialized with the appropriate client from `GenericClients`:
     ```go
     v1alpha1.<Resource>: &<Resource>Handler{client: clients.<Resource>Client},
     ```

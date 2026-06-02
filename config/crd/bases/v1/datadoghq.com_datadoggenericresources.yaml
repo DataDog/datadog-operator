@@ -69,6 +69,7 @@ spec:
                     - downtime
                     - monitor
                     - notebook
+                    - slo
                     - synthetics_api_test
                     - synthetics_browser_test
                   type: string
@@ -161,8 +162,9 @@ spec:
                   description: |-
                     State is the live Datadog-side state of the underlying resource as last
                     fetched from the Datadog API. Values are resource-type dependent — for
-                    Monitors: OK, Alert, Warn, No Data, Skipped, Ignored, Unknown. Only
-                    populated for resource types that expose live state.
+                    Monitors: OK, Alert, Warn, No Data, Skipped, Ignored, Unknown. For SLOs:
+                    breached, warning, ok, no_data. Only populated for resource types that
+                    expose live state.
                   type: string
                 stateLastTransitionTime:
                   description: StateLastTransitionTime is the last time State changed value.

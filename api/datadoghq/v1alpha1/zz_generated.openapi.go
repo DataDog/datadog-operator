@@ -1223,7 +1223,7 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogGenericResourceStatus
 					},
 					"state": {
 						SchemaProps: spec.SchemaProps{
-							Description: "State is the live Datadog-side state of the underlying resource as last fetched from the Datadog API. Values are resource-type dependent — for Monitors: OK, Alert, Warn, No Data, Skipped, Ignored, Unknown. Only populated for resource types that expose live state.",
+							Description: "State is the live Datadog-side state of the underlying resource as last fetched from the Datadog API. Values are resource-type dependent — for Monitors: OK, Alert, Warn, No Data, Skipped, Ignored, Unknown. For SLOs: breached, warning, ok, no_data. Only populated for resource types that expose live state.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
