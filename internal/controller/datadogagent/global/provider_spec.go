@@ -77,6 +77,7 @@ var NodeAgentProviderSpec = providercaps.NodeAgentProviderCapabilities{
 					apicommon.SecurityAgentContainerName,
 					apicommon.AgentDataPlaneContainerName,
 					apicommon.OtelAgent,
+					apicommon.UnprivilegedSingleAgentContainerName,
 				},
 			},
 		},
