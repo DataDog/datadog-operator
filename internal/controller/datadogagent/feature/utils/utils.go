@@ -25,6 +25,7 @@ const (
 	EnableHostProfilerAnnotation     = "agent.datadoghq.com/host-profiler-enabled"
 
 	EnableFlightRecorderAnnotation = "agent.datadoghq.com/flightrecorder-enabled"
+	EnableNetworkCRDsAnnotation    = "agent.datadoghq.com/network-crds-enabled"
 
 	EnablePrivateActionRunnerAnnotation     = "agent.datadoghq.com/private-action-runner-enabled"
 	PrivateActionRunnerConfigDataAnnotation = "agent.datadoghq.com/private-action-runner-configdata"

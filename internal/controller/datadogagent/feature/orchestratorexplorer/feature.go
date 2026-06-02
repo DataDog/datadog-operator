@@ -19,6 +19,7 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
 	"github.com/DataDog/datadog-operator/pkg/constants"
@@ -109,9 +110,7 @@ func (f *orchestratorExplorerFeature) Configure(dda metav1.Object, ddaSpec *v2al
 		}
 
 		f.customResources = ddaSpec.Features.OrchestratorExplorer.CustomResources
-		if orchestratorExplorer.NetworkCRDs != nil {
-			f.collectKubernetesNetworkResources = apiutils.BoolValue(orchestratorExplorer.NetworkCRDs.Enabled)
-		}
+		f.collectKubernetesNetworkResources = featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnableNetworkCRDsAnnotation)
 		f.configConfigMapName = constants.GetConfName(dda, f.customConfig, defaultOrchestratorExplorerConf)
 		f.scrubContainers = apiutils.BoolValue(orchestratorExplorer.ScrubContainers)
 		f.extraTags = orchestratorExplorer.ExtraTags

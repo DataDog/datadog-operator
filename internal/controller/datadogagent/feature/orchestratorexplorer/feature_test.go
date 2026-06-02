@@ -172,7 +172,7 @@ instances:
 			Name: "orchestrator explorer enabled with network CRDs",
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithOrchestratorExplorerEnabled(true).
-				WithOrchestratorExplorerNetworkCRDsEnabled(true).
+				WithAnnotations(map[string]string{"agent.datadoghq.com/network-crds-enabled": "true"}).
 				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{Image: &v2alpha1.AgentImageConfig{Tag: "7.51.0"}}).
 				Build(),
 			WantConfigure: true,
