@@ -159,9 +159,9 @@ func (f *ksmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 		} else {
 			// Generate dynamic checksum for default configuration (based on user provided collectCrMetrics field and whether or not APIServices/CRD metrics are collected)
 			defaultConfigData := map[string]any{
-				"collect_crds":         f.collectCRDMetrics,
-				"collect_apiservices":  f.collectAPIServiceMetrics,
-				"collect_cr_metrics":   f.collectCrMetrics,
+				"collect_crds":        f.collectCRDMetrics,
+				"collect_apiservices": f.collectAPIServiceMetrics,
+				"collect_cr_metrics":  f.collectCrMetrics,
 				"use_apiserver_cache": f.useApiServerCache,
 			}
 
