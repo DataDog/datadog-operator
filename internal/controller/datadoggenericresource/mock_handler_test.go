@@ -11,15 +11,18 @@ import (
 const mockSubresource v1alpha1.SupportedResourcesType = "mock_resource"
 
 var (
-	mockResourceID      = "mock-id"
-	mockResourceCreator = "mock-creator"
-	mockGetErr          error
-	mockUpdateErr       error
-	mockDeleteErr       error
-	mockCreateCalls     int
-	mockGetCalls        int
-	mockUpdateCalls     int
-	mockDeleteCalls     int
+	mockResourceID         = "mock-id"
+	mockResourceCreator    = "mock-creator"
+	mockGetErr             error
+	mockUpdateErr          error
+	mockDeleteErr          error
+	mockCreateCalls        int
+	mockGetCalls           int
+	mockUpdateCalls        int
+	mockDeleteCalls        int
+	mockRefreshStateCalls  int
+	mockRefreshStateErr    error
+	mockRefreshStateResult *string
 )
 
 // MockHandler is a test double for ResourceHandler.
@@ -50,6 +53,14 @@ func (h *MockHandler) deleteResource(context.Context, *v1alpha1.DatadogGenericRe
 	return mockDeleteErr
 }
 
+func (h *MockHandler) refreshState(context.Context, *v1alpha1.DatadogGenericResource) (*string, error) {
+	mockRefreshStateCalls++
+	if mockRefreshStateErr != nil {
+		return nil, mockRefreshStateErr
+	}
+	return mockRefreshStateResult, nil
+}
+
 func resetMockHandlerState() {
 	mockResourceID = "mock-id"
 	mockResourceCreator = "mock-creator"
@@ -60,4 +71,7 @@ func resetMockHandlerState() {
 	mockGetCalls = 0
 	mockUpdateCalls = 0
 	mockDeleteCalls = 0
+	mockRefreshStateCalls = 0
+	mockRefreshStateErr = nil
+	mockRefreshStateResult = nil
 }

@@ -119,6 +119,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, instance *v1alpha1.DatadogGe
 
 	shouldCreate := false
 	shouldUpdate := false
+	shouldRefreshStatus := false
 
 	if instance.Status.Id == "" {
 		shouldCreate = true
@@ -140,6 +141,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, instance *v1alpha1.DatadogGe
 				shouldUpdate = true
 			}
 			status.LastForceSyncTime = &now
+		} else if instance.Status.StateLastUpdateTime == nil || ((defaultRequeuePeriod - now.Sub(instance.Status.StateLastUpdateTime.Time)) <= 0) {
+			// Idle tick: refresh Datadog-side state for resource types that expose it.
+			// No-op for resource types without live state.
+			shouldRefreshStatus = true
 		}
 	}
 
@@ -154,6 +159,19 @@ func (r *Reconciler) Reconcile(ctx context.Context, instance *v1alpha1.DatadogGe
 		if err != nil {
 			result.RequeueAfter = defaultErrRequeuePeriod
 		}
+	} else if shouldRefreshStatus {
+		state, refreshErr := handler.refreshState(auth, instance)
+		if refreshErr != nil {
+			logger.V(1).Info("state refresh failed", "err", refreshErr, "custom resource Id", instance.Status.Id, "resource type", instance.Spec.Type)
+			// Preserve last-known state and surface the failure via the StateSynced condition.
+			// Do not fail reconcile.
+			condition.UpdateStatusConditions(&status.Conditions, now, condition.DatadogConditionTypeStateSynced, metav1.ConditionFalse, "GetError", refreshErr.Error())
+		} else if state != nil {
+			// Resource type exposes live state — merge it into status.
+			applyResourceState(*state, status, now)
+			condition.UpdateStatusConditions(&status.Conditions, now, condition.DatadogConditionTypeStateSynced, metav1.ConditionTrue, "Synced", "State refreshed from Datadog")
+		}
+		// state == nil && refreshErr == nil: resource type does not expose live state, no-op.
 	}
 
 	// If reconcile was successful and uneventful, requeue with period defaultRequeuePeriod
@@ -233,6 +251,18 @@ func (r *Reconciler) create(ctx context.Context, auth context.Context, handler R
 func updateErrStatus(status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time, syncStatus v1alpha1.DatadogSyncStatus, reason string, err error) {
 	condition.UpdateFailureStatusConditions(&status.Conditions, now, condition.DatadogConditionTypeError, reason, err)
 	status.SyncStatus = syncStatus
+}
+
+// applyResourceState merges a refreshed Datadog-side state into the CR status,
+// bumping StateLastTransitionTime only when the state value actually changes,
+// and always advancing StateLastUpdateTime to now.
+func applyResourceState(state string, status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time) {
+	oldState := status.State
+	status.State = state
+	if status.State != oldState {
+		status.StateLastTransitionTime = &now
+	}
+	status.StateLastUpdateTime = &now
 }
 
 func (r *Reconciler) updateStatusIfNeeded(ctx context.Context, instance *v1alpha1.DatadogGenericResource, status *v1alpha1.DatadogGenericResourceStatus, result ctrl.Result) (ctrl.Result, error) {
