@@ -79,13 +79,13 @@ func (f *prometheusScrapeFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.D
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *prometheusScrapeFeature) ManageDependencies(managers feature.ResourceManagers, provider string) error {
+func (f *prometheusScrapeFeature) ManageDependencies(managers feature.ResourceManagers) error {
 	return nil
 }
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *prometheusScrapeFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *prometheusScrapeFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
 	managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
 		Name:  DDPrometheusScrapeEnabled,
 		Value: "true",
@@ -113,19 +113,19 @@ func (f *prometheusScrapeFeature) ManageClusterAgent(managers feature.PodTemplat
 // ManageSingleContainerNodeAgent allows a feature to configure the Agent container for the Node Agent's corev1.PodTemplateSpec
 // if SingleContainerStrategy is enabled and can be used with the configured feature set.
 // It should do nothing if the feature doesn't need to configure it.
-func (f *prometheusScrapeFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
-	f.manageNodeAgent(apicommon.UnprivilegedSingleAgentContainerName, managers, provider)
+func (f *prometheusScrapeFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers) error {
+	f.manageNodeAgent(apicommon.UnprivilegedSingleAgentContainerName, managers)
 	return nil
 }
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *prometheusScrapeFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
-	f.manageNodeAgent(apicommon.CoreAgentContainerName, managers, provider)
+func (f *prometheusScrapeFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
+	f.manageNodeAgent(apicommon.CoreAgentContainerName, managers)
 	return nil
 }
 
-func (f *prometheusScrapeFeature) manageNodeAgent(agentContainerName apicommon.AgentContainerName, managers feature.PodTemplateManagers, provider string) error {
+func (f *prometheusScrapeFeature) manageNodeAgent(agentContainerName apicommon.AgentContainerName, managers feature.PodTemplateManagers) error {
 	managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
 		Name:  DDPrometheusScrapeEnabled,
 		Value: "true",
@@ -152,10 +152,10 @@ func (f *prometheusScrapeFeature) manageNodeAgent(agentContainerName apicommon.A
 
 // ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunner's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *prometheusScrapeFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
+func (f *prometheusScrapeFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
 	return nil
 }
 
-func (f *prometheusScrapeFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
+func (f *prometheusScrapeFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers) error {
 	return nil
 }

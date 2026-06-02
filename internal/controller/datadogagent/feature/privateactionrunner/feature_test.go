@@ -103,7 +103,7 @@ func Test_privateActionRunnerFeature_ManageNodeAgent(t *testing.T) {
 	managers := fake.NewPodTemplateManagers(t, podTmpl)
 
 	// Call ManageNodeAgent
-	err := f.ManageNodeAgent(managers, "")
+	err := f.ManageNodeAgent(managers)
 	assert.NoError(t, err)
 
 	// Verify volumes (1 configmap + 3 host volumes)
@@ -183,7 +183,7 @@ func Test_privateActionRunnerFeature_ProfileDDAI_ConfigMapNames(t *testing.T) {
 
 	storeOptions := &store.StoreOptions{Scheme: testScheme}
 	resourceManagers := feature.NewResourceManagers(store.NewStore(profileDDAI, storeOptions))
-	err := f.ManageDependencies(resourceManagers, "")
+	err := f.ManageDependencies(resourceManagers)
 	require.NoError(t, err)
 
 	// Node agent ConfigMap must use the DDA name so all DDAIs share the same ConfigMap.
@@ -273,7 +273,7 @@ func Test_privateActionRunnerFeature_ConfigMapContent(t *testing.T) {
 			}
 			resourceManagers := feature.NewResourceManagers(store.NewStore(dda, storeOptions))
 
-			err := f.ManageDependencies(resourceManagers, "")
+			err := f.ManageDependencies(resourceManagers)
 			require.NoError(t, err)
 
 			if !tt.expectConfigMap {
@@ -527,7 +527,7 @@ func Test_privateActionRunnerFeature_ManageClusterAgent_ConfigMap(t *testing.T) 
 			resourceManagers := feature.NewResourceManagers(store.NewStore(dda, storeOptions))
 
 			// Call ManageDependencies to create the ConfigMap
-			err := f.ManageDependencies(resourceManagers, "")
+			err := f.ManageDependencies(resourceManagers)
 			require.NoError(t, err)
 
 			// Verify ConfigMap was created with correct data
@@ -558,7 +558,7 @@ func Test_privateActionRunnerFeature_ManageClusterAgent_ConfigMap(t *testing.T) 
 			managers := fake.NewPodTemplateManagers(t, podTmpl)
 
 			// Call ManageClusterAgent
-			err = f.ManageClusterAgent(managers, "")
+			err = f.ManageClusterAgent(managers)
 			assert.NoError(t, err)
 
 			// Verify volume was added

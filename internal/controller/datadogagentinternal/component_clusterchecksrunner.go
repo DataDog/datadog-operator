@@ -59,9 +59,9 @@ func (c *ClusterChecksRunnerComponent) GetNewDeploymentFunc() func(ddai metav1.O
 	return componentccr.NewDefaultClusterChecksRunnerDeployment
 }
 
-func (c *ClusterChecksRunnerComponent) GetManageFeatureFunc() func(feat feature.Feature, managers feature.PodTemplateManagers, provider string) error {
-	return func(feat feature.Feature, managers feature.PodTemplateManagers, provider string) error {
-		return feat.ManageClusterChecksRunner(managers, provider)
+func (c *ClusterChecksRunnerComponent) GetManageFeatureFunc() func(feat feature.Feature, managers feature.PodTemplateManagers) error {
+	return func(feat feature.Feature, managers feature.PodTemplateManagers) error {
+		return feat.ManageClusterChecksRunner(managers)
 	}
 }
 

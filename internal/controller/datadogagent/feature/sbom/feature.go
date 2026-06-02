@@ -130,24 +130,24 @@ func mergeConfigs(ddaSpec *v2alpha1.DatadogAgentSpec, ddaRCStatus *v2alpha1.Remo
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *sbomFeature) ManageDependencies(managers feature.ResourceManagers, provider string) error {
+func (f *sbomFeature) ManageDependencies(managers feature.ResourceManagers) error {
 	return nil
 }
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *sbomFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *sbomFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
 	return nil
 }
 
-func (f *sbomFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
-	f.ManageNodeAgent(managers, provider)
+func (f *sbomFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers) error {
+	f.ManageNodeAgent(managers)
 	return nil
 }
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *sbomFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *sbomFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
 	managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
 		Name:  DDSBOMEnabled,
 		Value: apiutils.BoolToString(&f.enabled),
@@ -264,10 +264,10 @@ func (f *sbomFeature) ManageNodeAgent(managers feature.PodTemplateManagers, prov
 
 // ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunner's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *sbomFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
+func (f *sbomFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
 	return nil
 }
 
-func (f *sbomFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
+func (f *sbomFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers) error {
 	return nil
 }

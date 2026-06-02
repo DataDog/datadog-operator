@@ -1431,6 +1431,21 @@ type WorkloadAutoscalingFeatureConfig struct {
 	// Default: false
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
+
+	// InPlaceVerticalScaling contains the configuration for the in-place vertical scaling sub-feature.
+	// Requires workload autoscaling to be enabled.
+	// (Requires Cluster Agent 7.78.0+ and Kubernetes 1.33+)
+	// +optional
+	InPlaceVerticalScaling *InPlaceVerticalScalingFeatureConfig `json:"inPlaceVerticalScaling,omitempty"`
+}
+
+// InPlaceVerticalScalingFeatureConfig contains the configuration for in-place vertical scaling.
+type InPlaceVerticalScalingFeatureConfig struct {
+	// Enabled enables in-place vertical scaling for workload autoscaling.
+	// (Requires Cluster Agent 7.78.0+ and Kubernetes 1.33+)
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
 }
 
 // ClusterAutoscalingFeatureConfig contains the configuration for the cluster autoscaling product.
