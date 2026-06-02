@@ -23,6 +23,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusterchecksrunner"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/objects"
 	otelagentgateway "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/otelagentgateway"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/experimental"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
@@ -307,7 +308,12 @@ func nodeAgentDependencies(ddaMeta metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 	var errs []error
 	serviceAccountName := constants.GetAgentServiceAccount(ddaMeta.GetName(), ddaSpec)
 	rbacResourcesName := agent.GetAgentRoleName(ddaMeta)
-	useFineGrainedAuthorization := featureutils.HasFeatureEnableAnnotation(ddaMeta, featureutils.EnableFineGrainedKubeletAuthz)
+	autopilotEnabled := experimental.IsAutopilotEnabled(ddaMeta)
+	// Fine-grained kubelet authorization: explicit annotation OR Autopilot default.
+	useFineGrainedAuthorization := featureutils.HasFeatureEnableAnnotation(ddaMeta, featureutils.EnableFineGrainedKubeletAuthz) || autopilotEnabled
+	// Pods get/list on the API server are required when the kubelet endpoint is
+	// not reachable (e.g. GKE Autopilot), to support DD_KUBELET_USE_API_SERVER=true.
+	kubeletUseAPIServer := autopilotEnabled
 
 	// Service account
 	if err := manager.RBACManager().AddServiceAccountByComponent(ddaMeta.GetNamespace(), serviceAccountName, string(v2alpha1.NodeAgentComponentName)); err != nil {
@@ -315,7 +321,7 @@ func nodeAgentDependencies(ddaMeta metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 	}
 
 	// ClusterRole creation
-	if err := manager.RBACManager().AddClusterPolicyRulesByComponent(ddaMeta.GetNamespace(), rbacResourcesName, serviceAccountName, agent.GetDefaultAgentClusterRolePolicyRules(disableNonResourceRules(ddaSpec), useFineGrainedAuthorization), string(v2alpha1.NodeAgentComponentName)); err != nil {
+	if err := manager.RBACManager().AddClusterPolicyRulesByComponent(ddaMeta.GetNamespace(), rbacResourcesName, serviceAccountName, agent.GetDefaultAgentClusterRolePolicyRules(disableNonResourceRules(ddaSpec), useFineGrainedAuthorization, kubeletUseAPIServer), string(v2alpha1.NodeAgentComponentName)); err != nil {
 		errs = append(errs, err)
 	}
 

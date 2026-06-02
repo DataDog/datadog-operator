@@ -7,9 +7,9 @@ metadata:
   namespace: datadog-agent
   labels:
     app.kubernetes.io/name: datadog-operator
-    helm.sh/chart: datadog-operator-2.21.1
+    helm.sh/chart: datadog-operator-2.22.2
     app.kubernetes.io/instance: operator-eks-addon
-    app.kubernetes.io/version: "1.25.0"
+    app.kubernetes.io/version: "1.26.0"
     app.kubernetes.io/managed-by: eks-addon
 ---
 # Source: operator-eks-addon/charts/datadog-operator/charts/datadogCRDs/templates/datadoghq.com_datadogagentinternals_v1.yaml
@@ -20,7 +20,7 @@ metadata:
     controller-gen.kubebuilder.io/version: v0.17.3
   name: datadogagentinternals.datadoghq.com
   labels:
-    helm.sh/chart: 'datadogCRDs-2.18.1'
+    helm.sh/chart: 'datadogCRDs-2.20.0'
     app.kubernetes.io/managed-by: eks-addon
     app.kubernetes.io/name: 'datadogCRDs'
     app.kubernetes.io/instance: 'operator-eks-addon'
@@ -71,6 +71,13 @@ spec:
                           properties:
                             clusterAgentCommunicationEnabled:
                               type: boolean
+                            clusterAgentTlsVerification:
+                              properties:
+                                copyCaConfigMap:
+                                  type: boolean
+                                enabled:
+                                  type: boolean
+                              type: object
                             enabled:
                               type: boolean
                             image:
@@ -375,6 +382,17 @@ spec:
                           properties:
                             enabled:
                               type: boolean
+                          type: object
+                        probe:
+                          properties:
+                            enabled:
+                              type: boolean
+                            gracePeriod:
+                              format: int32
+                              type: integer
+                            interval:
+                              format: int32
+                              type: integer
                           type: object
                         registry:
                           type: string
@@ -1425,8 +1443,135 @@ spec:
                       type: string
                     csi:
                       properties:
+                        autoManage:
+                          type: boolean
                         enabled:
                           type: boolean
+                        nodeAffinity:
+                          properties:
+                            preferredDuringSchedulingIgnoredDuringExecution:
+                              items:
+                                properties:
+                                  preference:
+                                    properties:
+                                      matchExpressions:
+                                        items:
+                                          properties:
+                                            key:
+                                              type: string
+                                            operator:
+                                              type: string
+                                            values:
+                                              items:
+                                                type: string
+                                              type: array
+                                              x-kubernetes-list-type: atomic
+                                          required:
+                                            - key
+                                            - operator
+                                          type: object
+                                        type: array
+                                        x-kubernetes-list-type: atomic
+                                      matchFields:
+                                        items:
+                                          properties:
+                                            key:
+                                              type: string
+                                            operator:
+                                              type: string
+                                            values:
+                                              items:
+                                                type: string
+                                              type: array
+                                              x-kubernetes-list-type: atomic
+                                          required:
+                                            - key
+                                            - operator
+                                          type: object
+                                        type: array
+                                        x-kubernetes-list-type: atomic
+                                    type: object
+                                    x-kubernetes-map-type: atomic
+                                  weight:
+                                    format: int32
+                                    type: integer
+                                required:
+                                  - preference
+                                  - weight
+                                type: object
+                              type: array
+                              x-kubernetes-list-type: atomic
+                            requiredDuringSchedulingIgnoredDuringExecution:
+                              properties:
+                                nodeSelectorTerms:
+                                  items:
+                                    properties:
+                                      matchExpressions:
+                                        items:
+                                          properties:
+                                            key:
+                                              type: string
+                                            operator:
+                                              type: string
+                                            values:
+                                              items:
+                                                type: string
+                                              type: array
+                                              x-kubernetes-list-type: atomic
+                                          required:
+                                            - key
+                                            - operator
+                                          type: object
+                                        type: array
+                                        x-kubernetes-list-type: atomic
+                                      matchFields:
+                                        items:
+                                          properties:
+                                            key:
+                                              type: string
+                                            operator:
+                                              type: string
+                                            values:
+                                              items:
+                                                type: string
+                                              type: array
+                                              x-kubernetes-list-type: atomic
+                                          required:
+                                            - key
+                                            - operator
+                                          type: object
+                                        type: array
+                                        x-kubernetes-list-type: atomic
+                                    type: object
+                                    x-kubernetes-map-type: atomic
+                                  type: array
+                                  x-kubernetes-list-type: atomic
+                              required:
+                                - nodeSelectorTerms
+                              type: object
+                              x-kubernetes-map-type: atomic
+                          type: object
+                        nodeSelector:
+                          additionalProperties:
+                            type: string
+                          type: object
+                        tolerations:
+                          items:
+                            properties:
+                              effect:
+                                type: string
+                              key:
+                                type: string
+                              operator:
+                                type: string
+                              tolerationSeconds:
+                                format: int64
+                                type: integer
+                              value:
+                                type: string
+                            type: object
+                          type: array
+                          x-kubernetes-list-type: atomic
                       type: object
                     disableNonResourceRules:
                       type: boolean
@@ -1856,6 +2001,8 @@ spec:
                       type: array
                       x-kubernetes-list-type: set
                     useFIPSAgent:
+                      type: boolean
+                    useVSock:
                       type: boolean
                   type: object
                 override:
@@ -4324,6 +4471,13 @@ spec:
                               properties:
                                 clusterAgentCommunicationEnabled:
                                   type: boolean
+                                clusterAgentTlsVerification:
+                                  properties:
+                                    copyCaConfigMap:
+                                      type: boolean
+                                    enabled:
+                                      type: boolean
+                                  type: object
                                 enabled:
                                   type: boolean
                                 image:
@@ -4628,6 +4782,17 @@ spec:
                               properties:
                                 enabled:
                                   type: boolean
+                              type: object
+                            probe:
+                              properties:
+                                enabled:
+                                  type: boolean
+                                gracePeriod:
+                                  format: int32
+                                  type: integer
+                                interval:
+                                  format: int32
+                                  type: integer
                               type: object
                             registry:
                               type: string
@@ -5646,7 +5811,7 @@ metadata:
     controller-gen.kubebuilder.io/version: v0.17.3
   name: datadogagents.datadoghq.com
   labels:
-    helm.sh/chart: 'datadogCRDs-2.18.1'
+    helm.sh/chart: 'datadogCRDs-2.20.0'
     app.kubernetes.io/managed-by: eks-addon
     app.kubernetes.io/name: 'datadogCRDs'
     app.kubernetes.io/instance: 'operator-eks-addon'
@@ -5674,6 +5839,10 @@ spec:
         - jsonPath: .metadata.creationTimestamp
           name: age
           type: date
+        - jsonPath: .status.experiment.phase
+          name: experiment-phase
+          priority: 1
+          type: string
       name: v2alpha1
       schema:
         openAPIV3Schema:
@@ -5697,6 +5866,13 @@ spec:
                           properties:
                             clusterAgentCommunicationEnabled:
                               type: boolean
+                            clusterAgentTlsVerification:
+                              properties:
+                                copyCaConfigMap:
+                                  type: boolean
+                                enabled:
+                                  type: boolean
+                              type: object
                             enabled:
                               type: boolean
                             image:
@@ -6001,6 +6177,17 @@ spec:
                           properties:
                             enabled:
                               type: boolean
+                          type: object
+                        probe:
+                          properties:
+                            enabled:
+                              type: boolean
+                            gracePeriod:
+                              format: int32
+                              type: integer
+                            interval:
+                              format: int32
+                              type: integer
                           type: object
                         registry:
                           type: string
@@ -7051,8 +7238,135 @@ spec:
                       type: string
                     csi:
                       properties:
+                        autoManage:
+                          type: boolean
                         enabled:
                           type: boolean
+                        nodeAffinity:
+                          properties:
+                            preferredDuringSchedulingIgnoredDuringExecution:
+                              items:
+                                properties:
+                                  preference:
+                                    properties:
+                                      matchExpressions:
+                                        items:
+                                          properties:
+                                            key:
+                                              type: string
+                                            operator:
+                                              type: string
+                                            values:
+                                              items:
+                                                type: string
+                                              type: array
+                                              x-kubernetes-list-type: atomic
+                                          required:
+                                            - key
+                                            - operator
+                                          type: object
+                                        type: array
+                                        x-kubernetes-list-type: atomic
+                                      matchFields:
+                                        items:
+                                          properties:
+                                            key:
+                                              type: string
+                                            operator:
+                                              type: string
+                                            values:
+                                              items:
+                                                type: string
+                                              type: array
+                                              x-kubernetes-list-type: atomic
+                                          required:
+                                            - key
+                                            - operator
+                                          type: object
+                                        type: array
+                                        x-kubernetes-list-type: atomic
+                                    type: object
+                                    x-kubernetes-map-type: atomic
+                                  weight:
+                                    format: int32
+                                    type: integer
+                                required:
+                                  - preference
+                                  - weight
+                                type: object
+                              type: array
+                              x-kubernetes-list-type: atomic
+                            requiredDuringSchedulingIgnoredDuringExecution:
+                              properties:
+                                nodeSelectorTerms:
+                                  items:
+                                    properties:
+                                      matchExpressions:
+                                        items:
+                                          properties:
+                                            key:
+                                              type: string
+                                            operator:
+                                              type: string
+                                            values:
+                                              items:
+                                                type: string
+                                              type: array
+                                              x-kubernetes-list-type: atomic
+                                          required:
+                                            - key
+                                            - operator
+                                          type: object
+                                        type: array
+                                        x-kubernetes-list-type: atomic
+                                      matchFields:
+                                        items:
+                                          properties:
+                                            key:
+                                              type: string
+                                            operator:
+                                              type: string
+                                            values:
+                                              items:
+                                                type: string
+                                              type: array
+                                              x-kubernetes-list-type: atomic
+                                          required:
+                                            - key
+                                            - operator
+                                          type: object
+                                        type: array
+                                        x-kubernetes-list-type: atomic
+                                    type: object
+                                    x-kubernetes-map-type: atomic
+                                  type: array
+                                  x-kubernetes-list-type: atomic
+                              required:
+                                - nodeSelectorTerms
+                              type: object
+                              x-kubernetes-map-type: atomic
+                          type: object
+                        nodeSelector:
+                          additionalProperties:
+                            type: string
+                          type: object
+                        tolerations:
+                          items:
+                            properties:
+                              effect:
+                                type: string
+                              key:
+                                type: string
+                              operator:
+                                type: string
+                              tolerationSeconds:
+                                format: int64
+                                type: integer
+                              value:
+                                type: string
+                            type: object
+                          type: array
+                          x-kubernetes-list-type: atomic
                       type: object
                     disableNonResourceRules:
                       type: boolean
@@ -7482,6 +7796,8 @@ spec:
                       type: array
                       x-kubernetes-list-type: set
                     useFIPSAgent:
+                      type: boolean
+                    useVSock:
                       type: boolean
                   type: object
                 override:
@@ -9945,6 +10261,20 @@ spec:
                   x-kubernetes-list-map-keys:
                     - type
                   x-kubernetes-list-type: map
+                experiment:
+                  properties:
+                    id:
+                      type: string
+                    phase:
+                      enum:
+                        - running
+                        - stopped
+                        - rollback
+                        - timeout
+                        - promoted
+                        - aborted
+                      type: string
+                  type: object
                 otelAgentGateway:
                   properties:
                     availableReplicas:
@@ -9988,6 +10318,13 @@ spec:
                               properties:
                                 clusterAgentCommunicationEnabled:
                                   type: boolean
+                                clusterAgentTlsVerification:
+                                  properties:
+                                    copyCaConfigMap:
+                                      type: boolean
+                                    enabled:
+                                      type: boolean
+                                  type: object
                                 enabled:
                                   type: boolean
                                 image:
@@ -10292,6 +10629,17 @@ spec:
                               properties:
                                 enabled:
                                   type: boolean
+                              type: object
+                            probe:
+                              properties:
+                                enabled:
+                                  type: boolean
+                                gracePeriod:
+                                  format: int32
+                                  type: integer
+                                interval:
+                                  format: int32
+                                  type: integer
                               type: object
                             registry:
                               type: string
@@ -11310,7 +11658,7 @@ metadata:
     controller-gen.kubebuilder.io/version: v0.17.3
   name: datadogmetrics.datadoghq.com
   labels:
-    helm.sh/chart: 'datadogCRDs-2.18.1'
+    helm.sh/chart: 'datadogCRDs-2.20.0'
     app.kubernetes.io/managed-by: eks-addon
     app.kubernetes.io/name: 'datadogCRDs'
     app.kubernetes.io/instance: 'operator-eks-addon'
@@ -11438,7 +11786,7 @@ metadata:
     controller-gen.kubebuilder.io/version: v0.17.3
   name: datadogpodautoscalers.datadoghq.com
   labels:
-    helm.sh/chart: 'datadogCRDs-2.18.1'
+    helm.sh/chart: 'datadogCRDs-2.20.0'
     app.kubernetes.io/managed-by: eks-addon
     app.kubernetes.io/name: 'datadogCRDs'
     app.kubernetes.io/instance: 'operator-eks-addon'
@@ -11689,11 +12037,28 @@ spec:
                     update:
                       description: Update defines the policy to update target resource.
                       properties:
+                        resizePendingPeriod:
+                          description: |-
+                            Controls how long we wait before forcing an eviction when the kubelet reports a resize as pending.
+                            Must be greater than 0 less than or equal to 3600 (1 hour).
+                          format: int32
+                          maximum: 3600
+                          minimum: 1
+                          type: integer
+                        rolloutFallbackDelay:
+                          description: |-
+                            Controls how long we wait before falling back to a full rollout when evictions are blocked.
+                            Must be greater than 0 less than or equal to 3600 (1 hour).
+                          format: int32
+                          maximum: 3600
+                          minimum: 1
+                          type: integer
                         strategy:
                           description: Strategy defines the mode of the update policy.
                           enum:
                             - Auto
                             - Disabled
+                            - TriggerRollout
                           type: string
                       type: object
                     upscale:
@@ -12173,6 +12538,12 @@ spec:
                               - name
                             type: object
                           type: array
+                        evicted:
+                          description: |-
+                            Evicted is the number of pods evicted as an in-place resize fallback during the
+                            current recommendation cycle. Resets when the recommendation changes.
+                          format: int32
+                          type: integer
                         generatedAt:
                           description: GeneratedAt is the timestamp at which the recommendation was generated
                           format: date-time
@@ -12407,11 +12778,28 @@ spec:
                     update:
                       description: Update defines the policy for updating the target resource.
                       properties:
+                        resizePendingPeriod:
+                          description: |-
+                            Controls how long we wait before forcing an eviction when the kubelet reports a resize as pending.
+                            Must be greater than 0 less than or equal to 3600 (1 hour).
+                          format: int32
+                          maximum: 3600
+                          minimum: 1
+                          type: integer
+                        rolloutFallbackDelay:
+                          description: |-
+                            Controls how long we wait before falling back to a full rollout when evictions are blocked.
+                            Must be greater than 0 less than or equal to 3600 (1 hour).
+                          format: int32
+                          maximum: 3600
+                          minimum: 1
+                          type: integer
                         strategy:
                           description: Strategy defines the mode of the update policy.
                           enum:
                             - Auto
                             - Disabled
+                            - TriggerRollout
                           type: string
                       type: object
                   type: object
@@ -13220,6 +13608,12 @@ spec:
                               - name
                             type: object
                           type: array
+                        evicted:
+                          description: |-
+                            Evicted is the number of pods evicted as an in-place resize fallback during the
+                            current recommendation cycle. Resets when the recommendation changes.
+                          format: int32
+                          type: integer
                         generatedAt:
                           description: GeneratedAt is the timestamp at which the recommendation was generated
                           format: date-time
@@ -13270,9 +13664,9 @@ metadata:
   name: operator-eks-addon-datadog-operator
   labels:
     app.kubernetes.io/name: datadog-operator
-    helm.sh/chart: datadog-operator-2.21.1
+    helm.sh/chart: datadog-operator-2.22.2
     app.kubernetes.io/instance: operator-eks-addon
-    app.kubernetes.io/version: "1.25.0"
+    app.kubernetes.io/version: "1.26.0"
     app.kubernetes.io/managed-by: eks-addon
 rules:
 - nonResourceURLs:
@@ -13335,6 +13729,18 @@ rules:
   verbs:
   - get
 - apiGroups:
+  - ""
+  resources:
+  - pods/eviction
+  verbs:
+  - create
+- apiGroups:
+  - ""
+  resources:
+  - pods/resize
+  verbs:
+  - patch
+- apiGroups:
   - '*'
   resources:
   - '*/scale'
@@ -13367,7 +13773,11 @@ rules:
   resources:
   - controllerrevisions
   verbs:
+  - create
+  - delete
+  - get
   - list
+  - patch
   - watch
 - apiGroups:
   - apps
@@ -13387,10 +13797,18 @@ rules:
   - apps
   resources:
   - replicasets
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - apps
+  resources:
   - statefulsets
   verbs:
   - get
   - list
+  - patch
   - watch
 - apiGroups:
   - argoproj.io
@@ -13405,9 +13823,10 @@ rules:
   resources:
   - rollouts
   verbs:
+  - get
   - list
-  - watch
   - patch
+  - watch
 - apiGroups:
   - authentication.k8s.io
   resources:
@@ -13538,6 +13957,8 @@ rules:
 - apiGroups:
   - datadoghq.com
   resources:
+  - datadogpodautoscalerclusterprofiles
+  - datadogpodautoscalerclusterprofiles/status
   - datadogpodautoscalers
   - datadogpodautoscalers/status
   verbs:
@@ -13553,7 +13974,6 @@ rules:
   - watch
 - apiGroups:
   - datadoghq.com
-  - eks.amazonaws.com
   - karpenter.azure.com
   resources:
   - '*'
@@ -13579,33 +13999,33 @@ rules:
   - list
   - watch
 - apiGroups:
-    - gateway.envoyproxy.io
+  - gateway.envoyproxy.io
   resources:
-    - envoyextensionpolicies
+  - envoyextensionpolicies
   verbs:
-    - create
-    - delete
-    - get
+  - create
+  - delete
+  - get
 - apiGroups:
-    - gateway.networking.k8s.io
+  - gateway.networking.k8s.io
   resources:
-    - gatewayclasses
-    - gateways
-    - httproutes
+  - gatewayclasses
+  - gateways
+  - httproutes
   verbs:
-    - get
-    - list
-    - patch
-    - watch
+  - get
+  - list
+  - patch
+  - watch
 - apiGroups:
-    - gateway.networking.k8s.io
+  - gateway.networking.k8s.io
   resources:
-    - referencegrants
+  - referencegrants
   verbs:
-    - create
-    - delete
-    - get
-    - patch
+  - create
+  - delete
+  - get
+  - patch
 - apiGroups:
   - karpenter.sh
   resources:
@@ -13633,13 +14053,13 @@ rules:
   verbs:
   - get
 - apiGroups:
-    - networking.istio.io
+  - networking.istio.io
   resources:
-    - envoyfilters
+  - envoyfilters
   verbs:
-    - create
-    - delete
-    - get
+  - create
+  - delete
+  - get
 - apiGroups:
   - networking.k8s.io
   resources:
@@ -13736,13 +14156,6 @@ rules:
   - get
   - list
   - watch
-- apiGroups:  # EKS kube_scheduler and kube_controller_manager control plane metrics
-  - "metrics.eks.amazonaws.com"
-  resources:
-  - kcm/metrics
-  - ksh/metrics
-  verbs:
-  - get
 - apiGroups:
   - datadoghq.com
   resources:
@@ -13798,9 +14211,9 @@ metadata:
   namespace: datadog-agent
   labels:
     app.kubernetes.io/name: datadog-operator
-    helm.sh/chart: datadog-operator-2.21.1
+    helm.sh/chart: datadog-operator-2.22.2
     app.kubernetes.io/instance: operator-eks-addon
-    app.kubernetes.io/version: "1.25.0"
+    app.kubernetes.io/version: "1.26.0"
     app.kubernetes.io/managed-by: eks-addon
 spec:
   replicas: 1
@@ -13823,10 +14236,10 @@ spec:
             "metrics": ["*"]
           }]
     spec:
-      serviceAccountName: operator-eks-addon-datadog-operator
+      serviceAccountName: operator-eks-addon-datadog-operator 
       containers:
         - name: datadog-operator
-          image: "709825985650.dkr.ecr.us-east-1.amazonaws.com/datadog/operator:1.25.0"
+          image: "709825985650.dkr.ecr.us-east-1.amazonaws.com/datadog/operator:1.26.0"
           imagePullPolicy: IfNotPresent
           env:
             - name: WATCH_NAMESPACE
@@ -13868,6 +14281,7 @@ spec:
             - "-datadogGenericResourceEnabled=false"
             - "-remoteConfigEnabled=false"
             - "-datadogAgentInternalEnabled=true"
+            - "-datadogCSIDriverEnabled=false"
           ports:
             - name: metrics
               containerPort: 8383

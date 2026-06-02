@@ -6,6 +6,7 @@ metadata:
     agent.datadoghq.com/e2e-test: datadog-agent-dsd-udp
 spec:
   global:
+    registry: public.ecr.aws/datadog
     kubelet:
       tlsVerify: false
   features:

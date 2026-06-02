@@ -16,13 +16,13 @@ import (
 
 const (
 	// AgentLatestVersion corresponds to the latest stable agent release
-	AgentLatestVersion = "7.78.1"
+	AgentLatestVersion = "7.79.1"
 	// ClusterAgentLatestVersion corresponds to the latest stable cluster-agent release
-	ClusterAgentLatestVersion = "7.78.1"
+	ClusterAgentLatestVersion = "7.79.1"
 	// DdotCollectorLatestVersion corresponds to the latest stable ddot-collector release
-	DdotCollectorLatestVersion = "7.78.1"
+	DdotCollectorLatestVersion = "7.79.1"
 	// FIPSProxyLatestVersion corresponds to the latest stable fips-proxy release
-	FIPSProxyLatestVersion = "1.1.24"
+	FIPSProxyLatestVersion = "1.1.26"
 	// DDOTFIPSMinimumVersion is the minimum version at which ddot-collector publishes a -fips variant.
 	// Note: the regular agent -fips image predates this; this constant only applies to ddot-collector.
 	// Add "-0" so that pre-release versions are considered sufficient. https://github.com/Masterminds/semver#working-with-prerelease-versions

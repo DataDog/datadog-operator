@@ -38,6 +38,7 @@ type GenericClients struct {
 	SyntheticsClient *datadogV1.SyntheticsApi
 	NotebooksClient  *datadogV1.NotebooksApi
 	MonitorsClient   *datadogV1.MonitorsApi
+	SLOsClient       *datadogV1.ServiceLevelObjectivesApi
 	DowntimesClient  *datadogV2.DowntimesApi
 }
 
@@ -50,6 +51,7 @@ func InitGenericClients() *GenericClients {
 		SyntheticsClient: datadogV1.NewSyntheticsApi(apiClient),
 		NotebooksClient:  datadogV1.NewNotebooksApi(apiClient),
 		MonitorsClient:   datadogV1.NewMonitorsApi(apiClient),
+		SLOsClient:       datadogV1.NewServiceLevelObjectivesApi(apiClient),
 		DowntimesClient:  datadogV2.NewDowntimesApi(apiClient),
 	}
 }
