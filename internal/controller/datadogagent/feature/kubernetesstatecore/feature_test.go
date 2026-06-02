@@ -176,7 +176,7 @@ func ksmClusterAgentWantFunc(hasCustomConfig bool) *test.ComponentTest {
 					"collect_crds":        true,
 					"collect_apiservices": true,
 					"collect_cr_metrics":  nil,
-					"use_api_server_cache": false,
+					"use_apiserver_cache": false,
 				}
 				hash, err := comparison.GenerateMD5ForSpec(defaultConfigData)
 				assert.NoError(t, err)
