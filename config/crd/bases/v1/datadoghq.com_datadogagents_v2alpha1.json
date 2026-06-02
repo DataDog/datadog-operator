@@ -2002,6 +2002,10 @@
                 "enabled": {
                   "description": "Enabled enables Kube State Metrics Core.\nDefault: true",
                   "type": "boolean"
+                },
+                "useApiServerCache": {
+                  "description": "UseApiServerCache enables the KSM Core check to use the Kubernetes API server cache\nfor list and watch operations. Reduces load on etcd for large clusters.\nDefault: false",
+                  "type": "boolean"
                 }
               },
               "type": "object"
@@ -10541,6 +10545,10 @@
                     },
                     "enabled": {
                       "description": "Enabled enables Kube State Metrics Core.\nDefault: true",
+                      "type": "boolean"
+                    },
+                    "useApiServerCache": {
+                      "description": "UseApiServerCache enables the KSM Core check to use the Kubernetes API server cache\nfor list and watch operations. Reduces load on etcd for large clusters.\nDefault: false",
                       "type": "boolean"
                     }
                   },

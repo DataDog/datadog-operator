@@ -31,6 +31,7 @@ instances:
 	optionsWithCRD := collectorOptions{enableCRD: true}
 	optionsWithAPIService := collectorOptions{enableAPIService: true}
 	optionsWithControllerRevisions := collectorOptions{enableControllerRevisions: true}
+	optionsWithAPIServerCache := collectorOptions{useApiServerCache: true}
 
 	// Test custom resources
 	optionsWithCustomResources := collectorOptions{
@@ -170,6 +171,17 @@ instances:
 				collectorOpts:            optionsWithControllerRevisions,
 			},
 			want: buildDefaultConfigMap(owner.GetNamespace(), defaultKubeStateMetricsCoreConf, ksmCheckConfig(true, optionsWithControllerRevisions)),
+		},
+		{
+			name: "with API server cache",
+			fields: fields{
+				owner:                    owner,
+				enable:                   true,
+				runInClusterChecksRunner: true,
+				configConfigMapName:      defaultKubeStateMetricsCoreConf,
+				collectorOpts:            optionsWithAPIServerCache,
+			},
+			want: buildDefaultConfigMap(owner.GetNamespace(), defaultKubeStateMetricsCoreConf, ksmCheckConfig(true, optionsWithAPIServerCache)),
 		},
 		{
 			name: "with custom resources",

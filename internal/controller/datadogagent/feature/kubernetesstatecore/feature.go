@@ -52,6 +52,7 @@ type ksmFeature struct {
 	collectCrMetrics           []v2alpha1.Resource
 	collectAPIServiceMetrics   bool
 	collectControllerRevisions bool
+	useApiServerCache          bool
 
 	rbacSuffix         string
 	serviceAccountName string
@@ -93,6 +94,7 @@ func (f *ksmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 		f.collectAPIServiceMetrics = true
 		f.collectCRDMetrics = true
 		f.collectCrMetrics = ddaSpec.Features.KubeStateMetricsCore.CollectCrMetrics
+		f.useApiServerCache = apiutils.BoolValue(ddaSpec.Features.KubeStateMetricsCore.UseApiServerCache)
 		f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda.GetName(), ddaSpec)
 
 		// Determine CollectControllerRevisions setting
@@ -157,9 +159,10 @@ func (f *ksmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 		} else {
 			// Generate dynamic checksum for default configuration (based on user provided collectCrMetrics field and whether or not APIServices/CRD metrics are collected)
 			defaultConfigData := map[string]any{
-				"collect_crds":        f.collectCRDMetrics,
-				"collect_apiservices": f.collectAPIServiceMetrics,
-				"collect_cr_metrics":  f.collectCrMetrics,
+				"collect_crds":         f.collectCRDMetrics,
+				"collect_apiservices":  f.collectAPIServiceMetrics,
+				"collect_cr_metrics":   f.collectCrMetrics,
+				"use_api_server_cache": f.useApiServerCache,
 			}
 
 			hash, err := comparison.GenerateMD5ForSpec(defaultConfigData)
@@ -183,6 +186,7 @@ type collectorOptions struct {
 	enableAPIService          bool
 	enableCRD                 bool
 	enableControllerRevisions bool
+	useApiServerCache         bool
 	customResources           []v2alpha1.Resource
 }
 
@@ -197,6 +201,7 @@ func (f *ksmFeature) ManageDependencies(managers feature.ResourceManagers) error
 		enableAPIService:          f.collectAPIServiceMetrics,
 		enableCRD:                 f.collectCRDMetrics,
 		enableControllerRevisions: f.collectControllerRevisions,
+		useApiServerCache:         f.useApiServerCache,
 		customResources:           f.collectCrMetrics,
 	}
 	configCM, err := f.buildKSMCoreConfigMap(collectorOpts)

@@ -956,6 +956,12 @@ type KubeStateMetricsCoreFeatureConfig struct {
 	// +optional
 	// +listType=atomic
 	CollectCrMetrics []Resource `json:"collectCrMetrics,omitempty"`
+
+	// UseApiServerCache enables the KSM Core check to use the Kubernetes API server cache
+	// for list and watch operations. Reduces load on etcd for large clusters.
+	// Default: false
+	// +optional
+	UseApiServerCache *bool `json:"useApiServerCache,omitempty"`
 }
 
 // Resource configures a custom resource for metric generation.

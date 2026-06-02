@@ -252,6 +252,9 @@ spec:
 `features.kubeStateMetricsCore.enabled`
 : Enables Kube State Metrics Core. Default: true
 
+`features.kubeStateMetricsCore.useApiServerCache`
+: UseApiServerCache enables the KSM Core check to use the Kubernetes API server cache for list and watch operations. Reduces load on etcd for large clusters. Default: false
+
 `features.liveContainerCollection.enabled`
 : Enables container collection for the Live Container View. Default: true
 

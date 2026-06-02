@@ -57,6 +57,9 @@ init_config:
 instances:
   - skip_leader_election: `)
 	config.WriteString(stringVal)
+	if collectorOpts.useApiServerCache {
+		config.WriteString("\n    use_api_server_cache: true")
+	}
 	config.WriteString(`
     collectors:
     - pods

@@ -1935,6 +1935,12 @@ spec:
                             Enabled enables Kube State Metrics Core.
                             Default: true
                           type: boolean
+                        useApiServerCache:
+                          description: |-
+                            UseApiServerCache enables the KSM Core check to use the Kubernetes API server cache
+                            for list and watch operations. Reduces load on etcd for large clusters.
+                            Default: false
+                          type: boolean
                       type: object
                     liveContainerCollection:
                       description: LiveContainerCollection configuration.
@@ -10653,6 +10659,12 @@ spec:
                               description: |-
                                 Enabled enables Kube State Metrics Core.
                                 Default: true
+                              type: boolean
+                            useApiServerCache:
+                              description: |-
+                                UseApiServerCache enables the KSM Core check to use the Kubernetes API server cache
+                                for list and watch operations. Reduces load on etcd for large clusters.
+                                Default: false
                               type: boolean
                           type: object
                         liveContainerCollection:
