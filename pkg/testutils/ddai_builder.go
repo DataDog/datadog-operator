@@ -1070,4 +1070,3 @@ func (builder *DatadogAgentInternalBuilder) WithGPUMonitoringEnabled(enabled boo
 	builder.datadogAgentInternal.Spec.Features.GPU.Enabled = ptr.To(enabled)
 	return builder
 }
-

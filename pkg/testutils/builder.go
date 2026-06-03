@@ -1271,7 +1271,6 @@ func (builder *DatadogAgentBuilder) WithDataPlaneDogstatsdEnabled(enabled bool) 
 	return builder
 }
 
-
 func (builder *DatadogAgentBuilder) WithStatus(status v2alpha1.DatadogAgentStatus) *DatadogAgentBuilder {
 	builder.datadogAgent.Status = status
 	return builder
