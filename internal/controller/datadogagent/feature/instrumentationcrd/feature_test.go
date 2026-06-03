@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
@@ -31,9 +32,9 @@ const resourcesNamespace = "bar"
 func Test_instrumentationCRDFeature_Configure(t *testing.T) {
 	tests := test.FeatureTestSuite{
 		{
-			Name: "InstrumentationCRD disabled",
+			Name: "InstrumentationCRD disabled via annotation",
 			DDA: testutils.NewDatadogAgentBuilder().
-				WithInstrumentationCRDEnabled(false).
+				WithAnnotations(map[string]string{featureutils.EnableInstrumentationCRDAnnotation: "false"}).
 				Build(),
 			WantConfigure: false,
 		},
@@ -44,9 +45,9 @@ func Test_instrumentationCRDFeature_Configure(t *testing.T) {
 			WantConfigure: false,
 		},
 		{
-			Name: "InstrumentationCRD enabled with admission controller enabled",
+			Name: "InstrumentationCRD enabled via annotation",
 			DDA: testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
-				WithInstrumentationCRDEnabled(true).
+				WithAnnotations(map[string]string{featureutils.EnableInstrumentationCRDAnnotation: "true"}).
 				WithAdmissionControllerEnabled(true).
 				Build(),
 			WantConfigure:        true,
