@@ -71,7 +71,7 @@ endif
 all: build test ## Build test
 
 .PHONY: build
-build: manager kubectl-datadog ## Builds manager + kubectl plugin
+build: manager kubectl-datadog build-renderer ## Builds manager + kubectl plugin + operator-render
 
 .PHONY: fmt
 fmt: bin/$(PLATFORM)/golangci-lint ## Run formatters against code
@@ -122,6 +122,10 @@ manager: sync generate lint managergobuild ## Build manager binary
 .PHONY: managergobuild
 managergobuild: ## Build only manager go binary (no lint/generate)
 	go build -ldflags '${LDFLAGS}' -o bin/$(PLATFORM)/manager cmd/main.go
+
+.PHONY: build-renderer
+build-renderer: ## Build operator-render binary
+	go build -ldflags '${LDFLAGS}' -o bin/$(PLATFORM)/operator-render ./cmd/operator-render
 
 .PHONY: run
 run: generate lint manifests ## Run against the configured Kubernetes cluster in ~/.kube/config
