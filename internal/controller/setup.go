@@ -6,6 +6,7 @@
 package controller
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -48,6 +49,7 @@ type SetupOptions struct {
 	DatadogGenericResourceEnabled bool
 	CreateControllerRevisions     bool
 	DatadogCSIDriverEnabled       bool
+	UntaintControllerEnabled      bool
 }
 
 // ExtendedDaemonsetOptions defines ExtendedDaemonset options
@@ -77,6 +79,7 @@ var controllerStarters = map[string]starterFunc{
 	dashboardControllerName:       startDatadogDashboard,
 	genericResourceControllerName: startDatadogGenericResource,
 	csiDriverControllerName:       startDatadogCSIDriver,
+	untaintControllerName:         startUntaint,
 }
 
 // SetupControllers starts all controllers (also used by e2e tests)
@@ -234,6 +237,22 @@ func startDatadogSLO(logger logr.Logger, mgr manager.Manager, pInfo kubernetes.P
 	}
 
 	return sloReconciler.SetupWithManager(mgr)
+}
+
+func startUntaint(logger logr.Logger, mgr manager.Manager, _ kubernetes.PlatformInfo, options SetupOptions, _ datadog.MetricsForwardersManager) error {
+	if !options.UntaintControllerEnabled {
+		logger.Info("Feature disabled, not starting the controller", "controller", untaintControllerName)
+		return nil
+	}
+	reconciler, err := NewUntaintReconciler(
+		mgr.GetClient(),
+		ctrl.Log.WithName("controllers").WithName(untaintControllerName),
+		mgr.GetEventRecorderFor(untaintControllerName),
+	)
+	if err != nil {
+		return fmt.Errorf("untaint controller setup: %w", err)
+	}
+	return reconciler.SetupWithManager(mgr)
 }
 
 func startDatadogAgentProfiles(logger logr.Logger, mgr manager.Manager, pInfo kubernetes.PlatformInfo, options SetupOptions, metricForwardersMgr datadog.MetricsForwardersManager) error {
