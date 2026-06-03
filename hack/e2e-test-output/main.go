@@ -3,7 +3,7 @@ package main
 import (
 	"bufio"
 	"encoding/json"
-	"fmt"
+	"io"
 	"os"
 )
 
@@ -19,16 +19,17 @@ func main() {
 		var event testEvent
 		line := scanner.Bytes()
 		if err := json.Unmarshal(line, &event); err != nil {
-			fmt.Println(string(line))
+			_, _ = os.Stdout.Write(line)
+			_, _ = os.Stdout.Write([]byte("\n"))
 			continue
 		}
 		if event.Output != "" {
-			fmt.Print(event.Output)
+			_, _ = io.WriteString(os.Stdout, event.Output)
 		}
 	}
 
 	if err := scanner.Err(); err != nil {
-		fmt.Fprintf(os.Stderr, "reading go test output: %v\n", err)
+		_, _ = io.WriteString(os.Stderr, "reading go test output: "+err.Error()+"\n")
 		os.Exit(1)
 	}
 }

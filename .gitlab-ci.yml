@@ -264,6 +264,11 @@ go_e2e_deps:
   tags: ["arch:amd64"]
   variables:
     KUBERNETES_CPU_REQUEST: 16
+    KUBERNETES_CPU_LIMIT: 16
+    KUBERNETES_MEMORY_REQUEST: 16Gi
+    KUBERNETES_MEMORY_LIMIT: 16Gi
+    GOMEMLIMIT: 15GiB
+    GOMAXPROCS: 4
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
       variables:
@@ -282,7 +287,7 @@ go_e2e_deps:
       # Pre-warm Go module and build caches before the e2e matrix starts.
       pushd test/e2e
       GOWORK=off go mod download
-      GOWORK=off go test ./... -count=1 --tags=e2e -run '^$'
+      GOWORK=off go test -p 4 ./... -count=1 --tags=e2e -run '^$'
       popd
     - |
       if [ ! -f pulumi_plugins.tar.xz ]; then
