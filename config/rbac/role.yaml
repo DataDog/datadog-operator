@@ -234,6 +234,23 @@ rules:
   - update
   - watch
 - apiGroups:
+  - configuration.konghq.com
+  - consul.hashicorp.com
+  - core.haproxy.org
+  - datadoghq.com
+  - gateway.envoyproxy.io
+  - ingress.v1.haproxy.org
+  - karpenter.azure.com
+  - kuma.io
+  - mesh.consul.hashicorp.com
+  - policy.linkerd.io
+  - traefik.containo.us
+  resources:
+  - '*'
+  verbs:
+  - list
+  - watch
+- apiGroups:
   - coordination.k8s.io
   resources:
   - leases
@@ -331,14 +348,6 @@ rules:
   verbs:
   - '*'
 - apiGroups:
-  - datadoghq.com
-  - karpenter.azure.com
-  resources:
-  - '*'
-  verbs:
-  - list
-  - watch
-- apiGroups:
   - discovery.k8s.io
   resources:
   - endpointslices
@@ -378,12 +387,29 @@ rules:
 - apiGroups:
   - gateway.networking.k8s.io
   resources:
+  - grpcroutes
+  - listenersets
+  - tlsroutes
+  verbs:
+  - list
+  - watch
+- apiGroups:
+  - gateway.networking.k8s.io
+  resources:
   - referencegrants
   verbs:
   - create
   - delete
   - get
   - patch
+- apiGroups:
+  - k8s.nginx.org
+  resources:
+  - virtualserverroutes
+  - virtualservers
+  verbs:
+  - list
+  - watch
 - apiGroups:
   - karpenter.sh
   resources:
@@ -410,6 +436,17 @@ rules:
   - ksh/metrics
   verbs:
   - get
+- apiGroups:
+  - networking.istio.io
+  resources:
+  - destinationrules
+  - gateways
+  - serviceentries
+  - sidecars
+  - virtualservices
+  verbs:
+  - list
+  - watch
 - apiGroups:
   - networking.istio.io
   resources:
@@ -531,5 +568,12 @@ rules:
   - volumeattachments
   verbs:
   - get
+  - list
+  - watch
+- apiGroups:
+  - traefik.io
+  resources:
+  - ingressroutes
+  verbs:
   - list
   - watch

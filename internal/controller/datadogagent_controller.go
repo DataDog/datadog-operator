@@ -124,6 +124,21 @@ type DatadogAgentReconciler struct {
 // +kubebuilder:rbac:groups=gateway.envoyproxy.io,resources=envoyextensionpolicies,verbs=get;delete;create
 // +kubebuilder:rbac:groups=networking.istio.io,resources=envoyfilters,verbs=get;create;delete
 
+// Orchestrator Explorer — network CRD collection
+// +kubebuilder:rbac:groups=gateway.networking.k8s.io,resources=gateways;httproutes;grpcroutes;tlsroutes;listenersets,verbs=list;watch
+// +kubebuilder:rbac:groups=networking.istio.io,resources=virtualservices;gateways;destinationrules;serviceentries;sidecars,verbs=list;watch
+// +kubebuilder:rbac:groups=gateway.envoyproxy.io,resources=*,verbs=list;watch
+// +kubebuilder:rbac:groups=traefik.containo.us,resources=*,verbs=list;watch
+// +kubebuilder:rbac:groups=policy.linkerd.io,resources=*,verbs=list;watch
+// +kubebuilder:rbac:groups=consul.hashicorp.com,resources=*,verbs=list;watch
+// +kubebuilder:rbac:groups=mesh.consul.hashicorp.com,resources=*,verbs=list;watch
+// +kubebuilder:rbac:groups=kuma.io,resources=*,verbs=list;watch
+// +kubebuilder:rbac:groups=k8s.nginx.org,resources=virtualservers;virtualserverroutes,verbs=list;watch
+// +kubebuilder:rbac:groups=traefik.io,resources=ingressroutes,verbs=list;watch
+// +kubebuilder:rbac:groups=configuration.konghq.com,resources=*,verbs=list;watch
+// +kubebuilder:rbac:groups=core.haproxy.org,resources=*,verbs=list;watch
+// +kubebuilder:rbac:groups=ingress.v1.haproxy.org,resources=*,verbs=list;watch
+
 // Configure Private Action Runner k8s remediation
 // +kubebuilder:rbac:groups=apps,resources=deployments;daemonsets;statefulsets;replicasets,verbs=get;list;watch
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=patch

@@ -55,9 +55,9 @@ func getRBACPolicyRules() []rbacv1.PolicyRule {
 		{
 			APIGroups: []string{rbac.GatewayAPIGroup},
 			Resources: []string{
-				"gateways",
+				rbac.GatewaysResource,
 				"gatewayclasses",
-				"httproutes",
+				rbac.HTTPRoutesResource,
 			},
 			Verbs: []string{
 				rbac.GetVerb,
@@ -77,7 +77,7 @@ func getRBACPolicyRules() []rbacv1.PolicyRule {
 			},
 		},
 		{
-			APIGroups: []string{"gateway.envoyproxy.io"},
+			APIGroups: []string{rbac.EnvoyGatewayAPIGroup},
 			Resources: []string{"envoyextensionpolicies", "envoypatchpolicies", "backend"},
 			Verbs: []string{
 				rbac.GetVerb,
@@ -87,7 +87,7 @@ func getRBACPolicyRules() []rbacv1.PolicyRule {
 		},
 		// Istio resources
 		{
-			APIGroups: []string{"networking.istio.io"},
+			APIGroups: []string{rbac.IstioNetworkingAPIGroup},
 			Resources: []string{"envoyfilters"},
 			Verbs: []string{
 				rbac.GetVerb,
@@ -96,8 +96,8 @@ func getRBACPolicyRules() []rbacv1.PolicyRule {
 			},
 		},
 		{
-			APIGroups: []string{"networking.istio.io"},
-			Resources: []string{"gateways"},
+			APIGroups: []string{rbac.IstioNetworkingAPIGroup},
+			Resources: []string{rbac.GatewaysResource},
 			Verbs: []string{
 				rbac.GetVerb,
 				rbac.ListVerb,

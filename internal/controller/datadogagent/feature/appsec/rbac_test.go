@@ -56,9 +56,9 @@ func TestAppsecRBACPolicyRules(t *testing.T) {
 	for _, rule := range rules {
 		if len(rule.APIGroups) > 0 && rule.APIGroups[0] == rbac.GatewayAPIGroup {
 			if len(rule.Resources) > 2 { // The main gateway rule has gateways, gatewayclasses, httproutes
-				assert.Contains(t, rule.Resources, "gateways", "Should have gateways permission")
+				assert.Contains(t, rule.Resources, rbac.GatewaysResource, "Should have gateways permission")
 				assert.Contains(t, rule.Resources, "gatewayclasses", "Should have gatewayclasses permission")
-				assert.Contains(t, rule.Resources, "httproutes", "Should have httproutes permission")
+				assert.Contains(t, rule.Resources, rbac.HTTPRoutesResource, "Should have httproutes permission")
 				assert.Contains(t, rule.Verbs, rbac.GetVerb)
 				assert.Contains(t, rule.Verbs, rbac.ListVerb)
 				assert.Contains(t, rule.Verbs, rbac.WatchVerb)
@@ -72,7 +72,7 @@ func TestAppsecRBACPolicyRules(t *testing.T) {
 	// Test Istio EnvoyFilter permissions
 	var foundIstioRule bool
 	for _, rule := range rules {
-		if len(rule.APIGroups) > 0 && rule.APIGroups[0] == "networking.istio.io" {
+		if len(rule.APIGroups) > 0 && rule.APIGroups[0] == rbac.IstioNetworkingAPIGroup {
 			if len(rule.Resources) > 0 && rule.Resources[0] == "envoyfilters" {
 				assert.Contains(t, rule.Resources, "envoyfilters")
 				assert.Contains(t, rule.Verbs, rbac.GetVerb)
@@ -87,8 +87,8 @@ func TestAppsecRBACPolicyRules(t *testing.T) {
 	// Test Istio Gateway watching permissions
 	var foundIstioGatewayRule bool
 	for _, rule := range rules {
-		if len(rule.APIGroups) > 0 && rule.APIGroups[0] == "networking.istio.io" {
-			if len(rule.Resources) > 0 && rule.Resources[0] == "gateways" {
+		if len(rule.APIGroups) > 0 && rule.APIGroups[0] == rbac.IstioNetworkingAPIGroup {
+			if len(rule.Resources) > 0 && rule.Resources[0] == rbac.GatewaysResource {
 				assert.Contains(t, rule.Verbs, rbac.GetVerb)
 				assert.Contains(t, rule.Verbs, rbac.ListVerb)
 				assert.Contains(t, rule.Verbs, rbac.WatchVerb)
@@ -101,7 +101,7 @@ func TestAppsecRBACPolicyRules(t *testing.T) {
 	// Test Envoy Gateway permissions
 	var foundEnvoyRule bool
 	for _, rule := range rules {
-		if len(rule.APIGroups) > 0 && rule.APIGroups[0] == "gateway.envoyproxy.io" {
+		if len(rule.APIGroups) > 0 && rule.APIGroups[0] == rbac.EnvoyGatewayAPIGroup {
 			assert.Contains(t, rule.Resources, "envoyextensionpolicies")
 			assert.Contains(t, rule.Verbs, rbac.GetVerb)
 			assert.Contains(t, rule.Verbs, rbac.CreateVerb)

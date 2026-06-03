@@ -168,6 +168,17 @@ instances:
 			ClusterAgent:  orchestratorExplorerClusterAgentWantFuncV2(),
 			Agent:         test.NewDefaultComponentTest().WithWantFunc(orchestratorExplorerNodeAgentWantFunc),
 		},
+		{
+			Name: "orchestrator explorer enabled with network CRDs",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithOrchestratorExplorerEnabled(true).
+				WithAnnotations(map[string]string{"agent.datadoghq.com/network-crds-enabled": "true"}).
+				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{Image: &v2alpha1.AgentImageConfig{Tag: "7.51.0"}}).
+				Build(),
+			WantConfigure: true,
+			ClusterAgent:  orchestratorExplorerClusterAgentWithNetworkCRDsWantFunc(),
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(orchestratorExplorerNodeAgentWithNetworkCRDsWantFunc),
+		},
 	}
 
 	tests.Run(t, buildOrchestratorExplorerFeature)
@@ -193,6 +204,45 @@ func orchestratorExplorerClusterChecksRunnerWantFunc(t testing.TB, mgrInterface 
 	mgr := mgrInterface.(*fake.PodTemplateManagers)
 	runnerEnvs := append(mgr.EnvVarMgr.EnvVarsByC[apicommon.AllContainers], mgr.EnvVarMgr.EnvVarsByC[apicommon.ClusterChecksRunnersContainerName]...)
 	assert.True(t, apiutils.IsEqualStruct(runnerEnvs, expectedOrchestratorEnvsV2), "Cluster Checks Runner envvars \ndiff = %s", cmp.Diff(runnerEnvs, expectedOrchestratorEnvsV2))
+}
+
+var expectedOrchestratorNetworkCRDEnvsV2 = []*corev1.EnvVar{
+	{
+		Name:  DDOrchestratorExplorerEnabled,
+		Value: "true",
+	},
+	{
+		Name:  DDOrchestratorExplorerContainerScrubbingEnabled,
+		Value: "false",
+	},
+	{
+		Name:  DDOrchestratorExplorerOOTBGatewayAPI,
+		Value: "true",
+	},
+	{
+		Name:  DDOrchestratorExplorerOOTBServiceMesh,
+		Value: "true",
+	},
+	{
+		Name:  DDOrchestratorExplorerOOTBIngressControllers,
+		Value: "true",
+	},
+}
+
+func orchestratorExplorerNodeAgentWithNetworkCRDsWantFunc(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+	mgr := mgrInterface.(*fake.PodTemplateManagers)
+	agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
+	assert.True(t, apiutils.IsEqualStruct(agentEnvVars, expectedOrchestratorNetworkCRDEnvsV2), "Core agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, expectedOrchestratorNetworkCRDEnvsV2))
+}
+
+func orchestratorExplorerClusterAgentWithNetworkCRDsWantFunc() *test.ComponentTest {
+	return test.NewDefaultComponentTest().WithWantFunc(
+		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+			mgr := mgrInterface.(*fake.PodTemplateManagers)
+			dcaEnvVars := mgr.EnvVarMgr.EnvVarsByC[mergerfake.AllContainers]
+			assert.True(t, apiutils.IsEqualStruct(dcaEnvVars, expectedOrchestratorNetworkCRDEnvsV2), "DCA envvars \ndiff = %s", cmp.Diff(dcaEnvVars, expectedOrchestratorNetworkCRDEnvsV2))
+		},
+	)
 }
 
 func orchestratorExplorerClusterAgentWantFuncV2() *test.ComponentTest {

@@ -19,6 +19,7 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
 	"github.com/DataDog/datadog-operator/pkg/constants"
@@ -52,17 +53,18 @@ func buildOrchestratorExplorerFeature(options *feature.Options) feature.Feature 
 }
 
 type orchestratorExplorerFeature struct {
-	enabled                  bool
-	runInClusterChecksRunner bool
-	scrubContainers          bool
-	extraTags                []string
-	ddURL                    string
-	rbacSuffix               string
-	serviceAccountName       string
-	owner                    metav1.Object
-	customConfig             *v2alpha1.CustomConfig
-	customResources          []string
-	configConfigMapName      string
+	enabled                           bool
+	runInClusterChecksRunner          bool
+	scrubContainers                   bool
+	collectKubernetesNetworkResources bool
+	extraTags                         []string
+	ddURL                             string
+	rbacSuffix                        string
+	serviceAccountName                string
+	owner                             metav1.Object
+	customConfig                      *v2alpha1.CustomConfig
+	customResources                   []string
+	configConfigMapName               string
 
 	logger                      logr.Logger
 	customConfigAnnotationKey   string
@@ -108,6 +110,7 @@ func (f *orchestratorExplorerFeature) Configure(dda metav1.Object, ddaSpec *v2al
 		}
 
 		f.customResources = ddaSpec.Features.OrchestratorExplorer.CustomResources
+		f.collectKubernetesNetworkResources = featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnableNetworkCRDsAnnotation)
 		f.configConfigMapName = constants.GetConfName(dda, f.customConfig, defaultOrchestratorExplorerConf)
 		f.scrubContainers = apiutils.BoolValue(orchestratorExplorer.ScrubContainers)
 		f.extraTags = orchestratorExplorer.ExtraTags
@@ -206,7 +209,7 @@ func (f *orchestratorExplorerFeature) ManageDependencies(managers feature.Resour
 	// Manage RBAC permission
 	rbacName := GetOrchestratorExplorerRBACResourceName(f.owner, f.rbacSuffix)
 
-	return managers.RBACManager().AddClusterPolicyRules(f.owner.GetNamespace(), rbacName, f.serviceAccountName, getRBACPolicyRules(f.logger, f.customResources))
+	return managers.RBACManager().AddClusterPolicyRules(f.owner.GetNamespace(), rbacName, f.serviceAccountName, getRBACPolicyRules(f.logger, f.customResources, f.collectKubernetesNetworkResources))
 }
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
