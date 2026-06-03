@@ -1,6 +1,6 @@
 # Untaint Controller
 
-This feature was introduced in Datadog Operator v1.x and is currently in beta.
+This feature was introduced in Datadog Operator v1.28 and is currently in preview.
 
 ## Overview
 
