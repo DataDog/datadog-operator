@@ -1,0 +1,17 @@
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgentProfile
+metadata:
+  name: gpu-profile
+spec:
+  profileAffinity:
+    profileNodeAffinity:
+      - key: nvidia.com/gpu
+        operator: Exists
+  config:
+    override:
+      nodeAgent:
+        containers:
+          agent:
+            resources:
+              requests:
+                cpu: 512m
