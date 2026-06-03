@@ -107,6 +107,7 @@ spec:
                           enum:
                           - RequestsAndLimits
                           - RequestsOnly
+                          - CPURequestsRemoveLimitsMemoryRequestsAndLimits
                           type: string
                         enabled:
                           description: Enabled, if false, allows one to disable resource
@@ -766,6 +767,17 @@ spec:
                     - desiredReplicas
                     type: object
                 type: object
+              options:
+                description: Options reflects the effective options applied by the
+                  autoscaler.
+                properties:
+                  burstable:
+                    description: |-
+                      Burstable is the effective value of the burstable setting applied by the autoscaler.
+                      When not set in the spec, this reflects the default determined by the Cluster Agent
+                      setting autoscaling.workload.options.burstable.
+                    type: boolean
+                type: object
               vertical:
                 description: Vertical is the status of the vertical scaling, if activated.
                 properties:
@@ -1131,6 +1143,7 @@ spec:
                           enum:
                           - RequestsAndLimits
                           - RequestsOnly
+                          - CPURequestsRemoveLimitsMemoryRequestsAndLimits
                           type: string
                         enabled:
                           description: Enabled, if false, allows one to disable resource
@@ -1776,6 +1789,12 @@ spec:
                 description: Options defines optional behavior modifications for the
                   autoscaler.
                 properties:
+                  burstable:
+                    description: |-
+                      Burstable, if true, removes CPU limits from containers while keeping CPU request recommendations,
+                      granting the pod a Burstable QoS class and allowing it to consume idle node CPU capacity beyond its requests.
+                      If not set, the default value is determined by the Cluster Agent setting autoscaling.workload.options.burstable.
+                    type: boolean
                   outOfMemory:
                     description: OutOfMemory configures behavior when OOM events are
                       detected.
@@ -1953,6 +1972,17 @@ spec:
                     required:
                     - desiredReplicas
                     type: object
+                type: object
+              options:
+                description: Options reflects the effective options applied by the
+                  autoscaler.
+                properties:
+                  burstable:
+                    description: |-
+                      Burstable is the effective value of the burstable setting applied by the autoscaler.
+                      When not set in the spec, this reflects the default determined by the Cluster Agent
+                      setting autoscaling.workload.options.burstable.
+                    type: boolean
                 type: object
               vertical:
                 description: Vertical is the status of the vertical scaling, if activated.
