@@ -27,14 +27,6 @@ variables:
   GOMODCACHE: "$CI_PROJECT_DIR/.go/pkg/mod"
   GOCACHE: "$CI_PROJECT_DIR/.cache/go-build"
 
-cache: &global_cache
-  key: go-${CI_COMMIT_REF_SLUG}
-  fallback_keys:
-    - go-${CI_DEFAULT_BRANCH}
-  paths:
-    - .go/pkg/mod
-    - .cache/go-build
-
 .resource_variables: &resource_variables
   KUBERNETES_MEMORY_REQUEST: 16Gi
   KUBERNETES_MEMORY_LIMIT: 16Gi
