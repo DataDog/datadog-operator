@@ -7,6 +7,9 @@ package appsec
 
 const ClusterAgentMinVersion = "7.76.0"
 
+// ClusterAgentNginxMinVersion is the minimum cluster-agent version for ingress-nginx injection (explicit config only)
+const ClusterAgentNginxMinVersion = "7.79.0"
+
 // Appsec proxy injection annotations (Preview feature)
 const (
 	// AnnotationInjectorEnabled enables AppSec proxy integration
@@ -43,6 +46,8 @@ const (
 	AnnotationSidecarResourcesLimitsMemory = "agent.datadoghq.com/appsec.sidecar.resources.limits.memory"
 	// AnnotationSidecarBodyParsingSizeLimit is the sidecar body parsing size limit
 	AnnotationSidecarBodyParsingSizeLimit = "agent.datadoghq.com/appsec.sidecar.body_parsing_size_limit"
+	// AnnotationNginxModuleMountPath is the mount path for the nginx-datadog module inside the controller pod
+	AnnotationNginxModuleMountPath = "agent.datadoghq.com/appsec.nginx.module_mount_path"
 )
 
 const (
@@ -82,9 +87,11 @@ const (
 	DDAdmissionControllerAppsecSidecarResourcesLimitsMemory = "DD_ADMISSION_CONTROLLER_APPSEC_SIDECAR_RESOURCES_LIMITS_MEMORY"
 	// DDAdmissionControllerAppsecSidecarBodyParsingSizeLimit is the sidecar body parsing size limit
 	DDAdmissionControllerAppsecSidecarBodyParsingSizeLimit = "DD_ADMISSION_CONTROLLER_APPSEC_SIDECAR_BODY_PARSING_SIZE_LIMIT"
+	// DDAdmissionControllerAppsecNginxModuleMountPath is the mount path for the nginx-datadog module inside the controller pod
+	DDAdmissionControllerAppsecNginxModuleMountPath = "DD_ADMISSION_CONTROLLER_APPSEC_NGINX_MODULE_MOUNT_PATH"
 )
 
-var allowedProxyValues = []string{"envoy-gateway", "istio", "istio-gateway"}
+var allowedProxyValues = []string{"envoy-gateway", "istio", "istio-gateway", "ingress-nginx"}
 
 // AllowedProxyValues returns the proxy types that the current RBAC supports.
 // The returned slice must not be modified.
