@@ -442,7 +442,6 @@ rules:
   - networking.istio.io
   resources:
   - destinationrules
-  - gateways
   - serviceentries
   - sidecars
   - virtualservices
