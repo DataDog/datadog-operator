@@ -43,14 +43,15 @@ A `DatadogGenericResource` object has two fields:
 
 ## Supported Resources
 
-| Type                      | Operator Version | Json template                                                           | Example manifest                                                                     |
-|---------------------------|:----------------:|------------------------------------------------------------------------ |:------------------------------------------------------------------------------------:|
-| `notebook`                | v1.12.0          | https://docs.datadoghq.com/api/latest/notebooks/#create-a-notebook      | [Notebook manifest](../examples/datadoggenericresource/notebook-sample.yaml)         |
-| `synthetics_api_test`     | v1.12.0          | https://docs.datadoghq.com/api/latest/synthetics/#create-an-api-test    | [API test manifest](../examples/datadoggenericresource/api-test-sample.yaml)         |
-| `synthetics_browser_test` | v1.12.0          | https://docs.datadoghq.com/api/latest/synthetics/#create-a-browser-test | [Browser test manifest](../examples/datadoggenericresource/browser-test-sample.yaml) |
-| `monitor`                 | v1.13.0          | https://docs.datadoghq.com/api/latest/monitors/#create-a-monitor        | [Monitor manifest](../examples/datadoggenericresource/monitor-sample.yaml)           |
-| `downtime`                | v1.22.0          | https://docs.datadoghq.com/api/latest/downtimes/#schedule-a-downtime    | [Downtime manifest](../examples/datadoggenericresource/downtime-sample.yaml)         |
-| `dashboard`               | v1.27.0          | https://docs.datadoghq.com/api/latest/dashboards/#create-a-dashboard    | [Dashboard manifest](../examples/datadoggenericresource/dashboard-sample.yaml)       |
+| Type                      | Operator Version | Json template                                                                         | Example manifest                                                                     |
+|---------------------------|:----------------:|---------------------------------------------------------------------------------------|:------------------------------------------------------------------------------------:|
+| `notebook`                | v1.12.0          | https://docs.datadoghq.com/api/latest/notebooks/#create-a-notebook                    | [Notebook manifest](../examples/datadoggenericresource/notebook-sample.yaml)         |
+| `synthetics_api_test`     | v1.12.0          | https://docs.datadoghq.com/api/latest/synthetics/#create-an-api-test                  | [API test manifest](../examples/datadoggenericresource/api-test-sample.yaml)         |
+| `synthetics_browser_test` | v1.12.0          | https://docs.datadoghq.com/api/latest/synthetics/#create-a-browser-test               | [Browser test manifest](../examples/datadoggenericresource/browser-test-sample.yaml) |
+| `monitor`                 | v1.13.0          | https://docs.datadoghq.com/api/latest/monitors/#create-a-monitor                      | [Monitor manifest](../examples/datadoggenericresource/monitor-sample.yaml)           |
+| `downtime`                | v1.22.0          | https://docs.datadoghq.com/api/latest/downtimes/#schedule-a-downtime                  | [Downtime manifest](../examples/datadoggenericresource/downtime-sample.yaml)         |
+| `dashboard`               | v1.27.0          | https://docs.datadoghq.com/api/latest/dashboards/#create-a-dashboard                  | [Dashboard manifest](../examples/datadoggenericresource/dashboard-sample.yaml)       |
+| `slo`                     | v1.28.0          | https://docs.datadoghq.com/api/latest/service-level-objectives/#create-an-slo-object  | [SLO manifest](../examples/datadoggenericresource/slo-sample.yaml)                   |
 
 ## Prerequisites
 
@@ -67,15 +68,22 @@ To deploy a `DatadogGenericResource` with the Datadog Operator, follow the steps
     helm repo add datadog https://helm.datadoghq.com
     ```
 
-2. DDGR controller is disabled by default. It also requires an API and an application key. Choose one of the following options:
-    * Override the default values by providing your [API and application keys][2] and enabling the controller:
+2. The DDGR controller and its CRD are both disabled by default. The controller also requires an API and an application key. Choose one of the following options:
+    * Override the default values by providing your [API and application keys][2], installing the CRD, and enabling the controller:
       ```shell
-      helm install datadog-operator datadog/datadog-operator --set apiKey=<DATADOG_API_KEY> --set appKey=<DATADOG_APP_KEY> --set datadogGenericResource.enabled=true
+      helm install datadog-operator datadog/datadog-operator \
+        --set apiKey=<DATADOG_API_KEY> \
+        --set appKey=<DATADOG_APP_KEY> \
+        --set datadogCRDs.crds.datadogGenericResources=true \
+        --set datadogGenericResource.enabled=true
       ```
-    * Create an override [`values.yaml`][3] file with your [API and application keys][2] and the `DatadogGenericResource` controller. Then run the install command:
+      Both flags are required: `datadogCRDs.crds.datadogGenericResources=true` installs the `DatadogGenericResource` CRD, and `datadogGenericResource.enabled=true` starts the controller that reconciles it.
+    * Create an override [`values.yaml`][3] file with your [API and application keys][2], `datadogCRDs.crds.datadogGenericResources: true`, and `datadogGenericResource.enabled: true`. Then run the install command:
       ```shell
       helm install datadog-operator datadog/datadog-operator -f values.yaml
       ```
+
+   By default, the Operator only watches its own namespace, so it will manage any `DatadogGenericResource` objects within its own namespace. To deploy `DatadogGenericResource` objects in other namespaces, configure the Operator [`watchNamespaces`][3] section with those namespaces. The DDGR controller can also be scoped independently with the `DD_GENERIC_RESOURCE_WATCH_NAMESPACE` environment variable, which takes a comma-separated list of namespaces and falls back to `WATCH_NAMESPACE` when unset.
 
 3. Create a file with the spec of your `DatadogGenericResource` configuration. An example configuration is:
     ```yaml
@@ -154,6 +162,30 @@ To deploy a `DatadogGenericResource` with the Datadog Operator, follow the steps
 
 Further example manifests are provided [in the supported resources table](#supported-resources).
 
+By default, the Operator ensures that the API resource definition stays in sync with the `DatadogGenericResource` every **60** minutes (per resource). This interval can be adjusted using the environment variable `DD_GENERIC_RESOURCE_FORCE_SYNC_PERIOD`, which specifies the number of minutes. For example, setting this variable to `"30"` changes the interval to 30 minutes.
+
+
+## Datadog-side status
+
+For resource types that expose a live state in the Datadog backend, the controller reflects that state into the `DatadogGenericResource` `.status` so it can be inspected directly from `kubectl` without leaving the cluster:
+
+| Field | Description |
+| --- | --- |
+| `.status.state` | Live state as reported by Datadog. Values are resource-type dependent. For Monitors: `OK`, `Alert`, `Warn`, `No Data`, `Skipped`, `Ignored`, `Unknown`. For SLOs: `breached`, `warning`, `ok`, `no_data`. |
+| `.status.stateLastUpdateTime` | Last time `state` was successfully refreshed from the Datadog API. |
+| `.status.stateLastTransitionTime` | Last time `state` changed value. |
+| `.status.conditions[type=StateSynced]` | `True` after a successful state refresh; `False` with `reason=GetError` when the most recent refresh failed (last-known `state` is preserved). |
+
+Inspect quickly via:
+
+```shell
+kubectl get datadoggenericresource    # shows state and last state sync columns
+kubectl wait --for=condition=StateSynced datadoggenericresource/<name>
+```
+
+The controller refreshes `state` roughly every 60 seconds during reconciliation. Failures are visible only via the `StateSynced` condition — they do not break the reconcile loop and the last-known `state` is retained until a subsequent refresh succeeds.
+
+This information is currently surfaced for `monitor` and `slo` resources. Resource types that do not expose live Datadog-side state (e.g., `dashboard`, `notebook`) leave these fields empty.
 
 ## Comparison with existing CRDs
 

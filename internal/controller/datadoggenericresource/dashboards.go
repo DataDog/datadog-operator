@@ -46,6 +46,10 @@ func (h *DashboardHandler) deleteResource(auth context.Context, instance *v1alph
 	return deleteDashboard(auth, h.client, instance.Status.Id)
 }
 
+func (h *DashboardHandler) refreshState(_ context.Context, _ *v1alpha1.DatadogGenericResource) (*string, error) {
+	return nil, nil
+}
+
 func getDashboard(auth context.Context, client *datadogV1.DashboardsApi, dashboardID string) (datadogV1.Dashboard, error) {
 	dashboard, _, err := client.GetDashboard(auth, dashboardID)
 	if err != nil {

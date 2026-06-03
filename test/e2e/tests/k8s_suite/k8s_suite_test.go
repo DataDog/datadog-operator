@@ -45,6 +45,11 @@ const (
 	dsdPort                = int32(8125)
 )
 
+func agentStatusCommand(args ...string) []string {
+	command := []string{"env", "DD_LOG_LEVEL=off", "agent", "status"}
+	return append(command, args...)
+}
+
 type k8sSuite struct {
 	e2e.BaseSuite[environments.Kubernetes]
 	local bool
@@ -167,7 +172,7 @@ serviceAccount:
 			assert.NoError(s.T(), err)
 
 			for _, pod := range agentPods.Items {
-				output, _, err := s.Env().KubernetesCluster.KubernetesClient.PodExec(common.NamespaceName, pod.Name, "agent", []string{"agent", "status", "collector", "-j"})
+				output, _, err := s.Env().KubernetesCluster.KubernetesClient.PodExec(common.NamespaceName, pod.Name, "agent", agentStatusCommand("collector", "-j"))
 				assert.NoError(c, err)
 				utils.VerifyCheck(c, output, "kubelet")
 			}
@@ -189,7 +194,7 @@ serviceAccount:
 			assert.NoError(s.T(), err)
 
 			for _, pod := range clusterAgentPods.Items {
-				output, _, err := s.Env().KubernetesCluster.KubernetesClient.PodExec(common.NamespaceName, pod.Name, "agent", []string{"agent", "status", "collector", "-j"})
+				output, _, err := s.Env().KubernetesCluster.KubernetesClient.PodExec(common.NamespaceName, pod.Name, "agent", agentStatusCommand("collector", "-j"))
 				assert.NoError(c, err)
 				utils.VerifyCheck(c, output, "kubernetes_state_core")
 			}
@@ -233,7 +238,7 @@ serviceAccount:
 			assert.NoError(s.T(), err)
 
 			for _, ccr := range ccrPods.Items {
-				output, _, err := s.Env().KubernetesCluster.KubernetesClient.PodExec(common.NamespaceName, ccr.Name, "agent", []string{"agent", "status", "collector", "-j"})
+				output, _, err := s.Env().KubernetesCluster.KubernetesClient.PodExec(common.NamespaceName, ccr.Name, "agent", agentStatusCommand("collector", "-j"))
 				assert.NoError(c, err)
 				utils.VerifyCheck(c, output, "kubernetes_state_core")
 			}
@@ -276,7 +281,7 @@ serviceAccount:
 			assert.NoError(c, err)
 
 			for _, pod := range agentPods.Items {
-				output, _, err := s.Env().KubernetesCluster.KubernetesClient.PodExec(common.NamespaceName, pod.Name, "agent", []string{"agent", "status", "collector", "-j"})
+				output, _, err := s.Env().KubernetesCluster.KubernetesClient.PodExec(common.NamespaceName, pod.Name, "agent", agentStatusCommand("collector", "-j"))
 				assert.NoError(c, err)
 
 				utils.VerifyCheck(c, output, "http_check")
@@ -319,7 +324,7 @@ serviceAccount:
 			assert.NoError(c, err)
 
 			for _, pod := range agentPods.Items {
-				output, _, err := s.Env().KubernetesCluster.KubernetesClient.PodExec(common.NamespaceName, pod.Name, "agent", []string{"agent", "status", "logs agent", "-j"})
+				output, _, err := s.Env().KubernetesCluster.KubernetesClient.PodExec(common.NamespaceName, pod.Name, "agent", agentStatusCommand("logs agent", "-j"))
 				assert.NoError(c, err)
 				utils.VerifyAgentPodLogs(c, output)
 			}
@@ -368,7 +373,7 @@ serviceAccount:
 			// This works because we have a single Agent pod (so located on same node as tracegen)
 			// Otherwise, we would need to deploy tracegen on the same node as the Agent pod / as a DaemonSet
 			for _, pod := range agentPods.Items {
-				output, _, err := s.Env().KubernetesCluster.KubernetesClient.PodExec(common.NamespaceName, pod.Name, "agent", []string{"agent", "status", "apm agent", "-j"})
+				output, _, err := s.Env().KubernetesCluster.KubernetesClient.PodExec(common.NamespaceName, pod.Name, "agent", agentStatusCommand("apm agent", "-j"))
 				assert.NoError(c, err)
 
 				utils.VerifyAgentTraces(c, output)
@@ -385,6 +390,8 @@ serviceAccount:
 	s.T().Run("DSD UDP without ADP", func(t *testing.T) {
 		ddaConfigPath, err := common.GetAbsPath(filepath.Join(common.ManifestsPath, "dogstatsd", "datadog-agent-dsd-udp.yaml"))
 		assert.NoError(s.T(), err)
+		senderPath, err := common.GetAbsPath(filepath.Join(common.ManifestsPath, "dogstatsd", "dsd-udp-sender.yaml"))
+		assert.NoError(s.T(), err)
 
 		ddaOpts := append([]agentwithoperatorparams.Option{
 			agentwithoperatorparams.WithDDAConfig(agentwithoperatorparams.DDAConfig{
@@ -396,9 +403,13 @@ serviceAccount:
 		provisionerOpts := []provisioners.KubernetesProvisionerOption{
 			provisioners.WithTestName("e2e-operator-dsd-udp"),
 			provisioners.WithDDAOptions(ddaOpts...),
+			provisioners.WithYAMLWorkload(provisioners.YAMLWorkload{Name: "dsd-udp-sender", Path: senderPath}),
 		}
 		provisionerOpts = append(provisionerOpts, defaultProvisionerOpts...)
 		applyDDA("e2e-operator-dsd-udp", provisionerOpts)
+
+		err = s.Env().FakeIntake.Client().FlushServerAndResetAggregators()
+		s.Assert().NoError(err)
 
 		agentSelector := common.NodeAgentSelector + ",agent.datadoghq.com/name=dda-dsd-udp"
 
@@ -414,11 +425,17 @@ serviceAccount:
 				assertContainerHasUDPHostPort(c, pod, coreAgentContainerName, dsdPort)
 			}
 		}, 5*time.Minute, 15*time.Second, "DSD UDP without ADP: pod spec verification failed")
+
+		s.Assert().EventuallyWithTf(func(c *assert.CollectT) {
+			s.verifyDSDMetrics(c, "e2e.dsd.udp.counter")
+		}, 3*time.Minute, 10*time.Second, "DSD UDP without ADP: metrics not received by fakeintake")
 	})
 
 	// --- Subtest: DSD UDP, ADP enabled ---
 	s.T().Run("DSD UDP with ADP", func(t *testing.T) {
 		ddaConfigPath, err := common.GetAbsPath(filepath.Join(common.ManifestsPath, "dogstatsd", "datadog-agent-dsd-udp-adp.yaml"))
+		assert.NoError(s.T(), err)
+		senderPath, err := common.GetAbsPath(filepath.Join(common.ManifestsPath, "dogstatsd", "dsd-udp-sender.yaml"))
 		assert.NoError(s.T(), err)
 
 		ddaOpts := append([]agentwithoperatorparams.Option{
@@ -431,9 +448,13 @@ serviceAccount:
 		provisionerOpts := []provisioners.KubernetesProvisionerOption{
 			provisioners.WithTestName("e2e-operator-dsd-udp-adp"),
 			provisioners.WithDDAOptions(ddaOpts...),
+			provisioners.WithYAMLWorkload(provisioners.YAMLWorkload{Name: "dsd-udp-sender", Path: senderPath}),
 		}
 		provisionerOpts = append(provisionerOpts, defaultProvisionerOpts...)
 		applyDDA("e2e-operator-dsd-udp-adp", provisionerOpts)
+
+		err = s.Env().FakeIntake.Client().FlushServerAndResetAggregators()
+		s.Assert().NoError(err)
 
 		agentSelector := common.NodeAgentSelector + ",agent.datadoghq.com/name=dda-dsd-udp-adp"
 
@@ -450,11 +471,17 @@ serviceAccount:
 				assertContainerDoesNotHaveHostPort(c, pod, coreAgentContainerName, dsdPort)
 			}
 		}, 5*time.Minute, 15*time.Second, "DSD UDP with ADP: pod spec verification failed")
+
+		s.Assert().EventuallyWithTf(func(c *assert.CollectT) {
+			s.verifyDSDMetrics(c, "e2e.dsd.udp.counter")
+		}, 3*time.Minute, 10*time.Second, "DSD UDP with ADP: metrics not received by fakeintake")
 	})
 
 	// --- Subtest: DSD UDS, ADP disabled ---
 	s.T().Run("DSD UDS without ADP", func(t *testing.T) {
 		ddaConfigPath, err := common.GetAbsPath(filepath.Join(common.ManifestsPath, "dogstatsd", "datadog-agent-dsd-uds.yaml"))
+		assert.NoError(s.T(), err)
+		senderPath, err := common.GetAbsPath(filepath.Join(common.ManifestsPath, "dogstatsd", "dsd-uds-sender.yaml"))
 		assert.NoError(s.T(), err)
 
 		ddaOpts := append([]agentwithoperatorparams.Option{
@@ -467,9 +494,13 @@ serviceAccount:
 		provisionerOpts := []provisioners.KubernetesProvisionerOption{
 			provisioners.WithTestName("e2e-operator-dsd-uds"),
 			provisioners.WithDDAOptions(ddaOpts...),
+			provisioners.WithYAMLWorkload(provisioners.YAMLWorkload{Name: "dsd-uds-sender", Path: senderPath}),
 		}
 		provisionerOpts = append(provisionerOpts, defaultProvisionerOpts...)
 		applyDDA("e2e-operator-dsd-uds", provisionerOpts)
+
+		err = s.Env().FakeIntake.Client().FlushServerAndResetAggregators()
+		s.Assert().NoError(err)
 
 		agentSelector := common.NodeAgentSelector + ",agent.datadoghq.com/name=dda-dsd-uds"
 
@@ -486,11 +517,17 @@ serviceAccount:
 				assertPodHasHostPathVolume(c, pod, dsdSocketVolumeName, dsdSocketHostPath)
 			}
 		}, 5*time.Minute, 15*time.Second, "DSD UDS without ADP: pod spec verification failed")
+
+		s.Assert().EventuallyWithTf(func(c *assert.CollectT) {
+			s.verifyDSDMetrics(c, "e2e.dsd.uds.counter")
+		}, 3*time.Minute, 10*time.Second, "DSD UDS without ADP: metrics not received by fakeintake")
 	})
 
 	// --- Subtest: DSD UDS, ADP enabled ---
 	s.T().Run("DSD UDS with ADP", func(t *testing.T) {
 		ddaConfigPath, err := common.GetAbsPath(filepath.Join(common.ManifestsPath, "dogstatsd", "datadog-agent-dsd-uds-adp.yaml"))
+		assert.NoError(s.T(), err)
+		senderPath, err := common.GetAbsPath(filepath.Join(common.ManifestsPath, "dogstatsd", "dsd-uds-sender.yaml"))
 		assert.NoError(s.T(), err)
 
 		ddaOpts := append([]agentwithoperatorparams.Option{
@@ -503,9 +540,13 @@ serviceAccount:
 		provisionerOpts := []provisioners.KubernetesProvisionerOption{
 			provisioners.WithTestName("e2e-operator-dsd-uds-adp"),
 			provisioners.WithDDAOptions(ddaOpts...),
+			provisioners.WithYAMLWorkload(provisioners.YAMLWorkload{Name: "dsd-uds-sender", Path: senderPath}),
 		}
 		provisionerOpts = append(provisionerOpts, defaultProvisionerOpts...)
 		applyDDA("e2e-operator-dsd-uds-adp", provisionerOpts)
+
+		err = s.Env().FakeIntake.Client().FlushServerAndResetAggregators()
+		s.Assert().NoError(err)
 
 		agentSelector := common.NodeAgentSelector + ",agent.datadoghq.com/name=dda-dsd-uds-adp"
 
@@ -521,7 +562,21 @@ serviceAccount:
 				assertContainerHasVolumeMount(c, pod, adpContainerName, dsdSocketVolumeName, dsdSocketMountPath)
 			}
 		}, 5*time.Minute, 15*time.Second, "DSD UDS with ADP: pod spec verification failed")
+
+		s.Assert().EventuallyWithTf(func(c *assert.CollectT) {
+			s.verifyDSDMetrics(c, "e2e.dsd.uds.counter")
+		}, 3*time.Minute, 10*time.Second, "DSD UDS with ADP: metrics not received by fakeintake")
 	})
+}
+
+func (s *k8sSuite) verifyDSDMetrics(c *assert.CollectT, metricName string) {
+	metricNames, err := s.Env().FakeIntake.Client().GetMetricNames()
+	assert.NoError(c, err)
+	assert.Contains(c, metricNames, metricName)
+
+	metrics, err := s.Env().FakeIntake.Client().FilterMetrics(metricName)
+	assert.NoError(c, err)
+	assert.NotEmptyf(c, metrics, "expected metric series for %s to be non-empty", metricName)
 }
 
 func (s *k8sSuite) verifyAPILogs(t assert.TestingT) {

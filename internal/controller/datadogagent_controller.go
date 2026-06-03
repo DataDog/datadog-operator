@@ -61,7 +61,7 @@ type DatadogAgentReconciler struct {
 // +kubebuilder:rbac:groups="",resources=pods/exec,verbs=create
 // +kubebuilder:rbac:groups="",resources=pods/eviction,verbs=create
 // +kubebuilder:rbac:groups="",resources=pods/resize,verbs=patch
-// +kubebuilder:rbac:groups=auto.gke.io,resources=allowlistsynchronizers,verbs=get;list;watch;create
+// +kubebuilder:rbac:groups=auto.gke.io,resources=allowlistsynchronizers,verbs=get;list;watch;create;patch
 
 // Finalizer (cluster-scoped resources)
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles,verbs=deletecollection
@@ -118,11 +118,29 @@ type DatadogAgentReconciler struct {
 // Configure Appsec Gateway Integration
 // +kubebuilder:rbac:groups=apiextensions.k8s.io,resources=customresourcedefinitions,verbs=get
 // +kubebuilder:rbac:groups="",resources=events,verbs=create
+// +kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch;create;update;delete
 // +kubebuilder:rbac:groups=networking.k8s.io,resources=ingresses,verbs=get;list;watch;patch
+// +kubebuilder:rbac:groups=networking.k8s.io,resources=ingressclasses,verbs=get;list;watch
 // +kubebuilder:rbac:groups=gateway.networking.k8s.io,resources=gateways;gatewayclasses;httproutes,verbs=get;list;watch;patch
 // +kubebuilder:rbac:groups=gateway.networking.k8s.io,resources=referencegrants,verbs=get;delete;create;patch
-// +kubebuilder:rbac:groups=gateway.envoyproxy.io,resources=envoyextensionpolicies,verbs=get;delete;create
+// +kubebuilder:rbac:groups=gateway.envoyproxy.io,resources=envoyextensionpolicies;envoypatchpolicies;backend,verbs=get;delete;create
 // +kubebuilder:rbac:groups=networking.istio.io,resources=envoyfilters,verbs=get;create;delete
+// +kubebuilder:rbac:groups=networking.istio.io,resources=gateways,verbs=get;list;watch
+
+// Orchestrator Explorer — network CRD collection
+// +kubebuilder:rbac:groups=gateway.networking.k8s.io,resources=gateways;httproutes;grpcroutes;tlsroutes;listenersets,verbs=list;watch
+// +kubebuilder:rbac:groups=networking.istio.io,resources=virtualservices;gateways;destinationrules;serviceentries;sidecars,verbs=list;watch
+// +kubebuilder:rbac:groups=gateway.envoyproxy.io,resources=*,verbs=list;watch
+// +kubebuilder:rbac:groups=traefik.containo.us,resources=*,verbs=list;watch
+// +kubebuilder:rbac:groups=policy.linkerd.io,resources=*,verbs=list;watch
+// +kubebuilder:rbac:groups=consul.hashicorp.com,resources=*,verbs=list;watch
+// +kubebuilder:rbac:groups=mesh.consul.hashicorp.com,resources=*,verbs=list;watch
+// +kubebuilder:rbac:groups=kuma.io,resources=*,verbs=list;watch
+// +kubebuilder:rbac:groups=k8s.nginx.org,resources=virtualservers;virtualserverroutes,verbs=list;watch
+// +kubebuilder:rbac:groups=traefik.io,resources=ingressroutes,verbs=list;watch
+// +kubebuilder:rbac:groups=configuration.konghq.com,resources=*,verbs=list;watch
+// +kubebuilder:rbac:groups=core.haproxy.org,resources=*,verbs=list;watch
+// +kubebuilder:rbac:groups=ingress.v1.haproxy.org,resources=*,verbs=list;watch
 
 // Configure Private Action Runner k8s remediation
 // +kubebuilder:rbac:groups=apps,resources=deployments;daemonsets;statefulsets;replicasets,verbs=get;list;watch

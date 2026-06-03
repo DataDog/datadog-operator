@@ -327,6 +327,76 @@ func TestAppsecFeature(t *testing.T) {
 				envVar{name: DDClusterAgentAppsecInjectorProcessorServiceName, value: "appsec-processor", present: true},
 			),
 		},
+		{
+			Name: "Appsec enabled with nginx module mount path requires cluster-agent >= 7.79.0",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithClusterAgentTag("7.76.0").
+				WithAnnotations(map[string]string{
+					AnnotationInjectorEnabled:      "true",
+					AnnotationInjectorAutoDetect:   "true",
+					AnnotationNginxModuleMountPath: "/modules_mount",
+				}).
+				Build(),
+			WantConfigure: false,
+		},
+		{
+			Name: "Appsec enabled with nginx module mount path on 7.79.0",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithClusterAgentTag("7.79.0").
+				WithAnnotations(map[string]string{
+					AnnotationInjectorEnabled:      "true",
+					AnnotationInjectorAutoDetect:   "true",
+					AnnotationNginxModuleMountPath: "/modules_mount",
+				}).
+				Build(),
+			WantConfigure: true,
+			ClusterAgent: assertEnv(
+				envVar{name: DDAppsecProxyEnabled, value: "true", present: true},
+				envVar{name: DDClusterAgentAppsecInjectorEnabled, value: "true", present: true},
+				envVar{name: DDAdmissionControllerAppsecNginxModuleMountPath, value: "/modules_mount", present: true},
+			),
+		},
+		{
+			Name: "Appsec enabled without nginx annotations does not inject nginx env vars",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithClusterAgentTag("7.76.0").
+				WithAnnotations(map[string]string{
+					AnnotationInjectorEnabled:    "true",
+					AnnotationInjectorAutoDetect: "true",
+				}).
+				Build(),
+			WantConfigure: true,
+			ClusterAgent: assertEnv(
+				envVar{name: DDAdmissionControllerAppsecNginxModuleMountPath, present: false},
+			),
+		},
+		{
+			Name: "Appsec enabled with ingress-nginx proxy on old cluster-agent is rejected",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithClusterAgentTag("7.76.0").
+				WithAnnotations(map[string]string{
+					AnnotationInjectorEnabled:    "true",
+					AnnotationInjectorAutoDetect: "true",
+					AnnotationInjectorProxies:    `["ingress-nginx"]`,
+				}).
+				Build(),
+			WantConfigure: false,
+		},
+		{
+			Name: "Appsec enabled with empty nginx annotations does not inject nginx env vars",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithClusterAgentTag("7.76.0").
+				WithAnnotations(map[string]string{
+					AnnotationInjectorEnabled:      "true",
+					AnnotationInjectorAutoDetect:   "true",
+					AnnotationNginxModuleMountPath: "",
+				}).
+				Build(),
+			WantConfigure: true,
+			ClusterAgent: assertEnv(
+				envVar{name: DDAdmissionControllerAppsecNginxModuleMountPath, present: false},
+			),
+		},
 	}.Run(t, buildAppsecFeature)
 }
 
@@ -484,7 +554,7 @@ func TestAppsecFeatureManageClusterAgentDisabled(t *testing.T) {
 	f.Configure(dda, &dda.Spec, nil)
 
 	mgr := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{})
-	err := f.ManageClusterAgent(mgr, "")
+	err := f.ManageClusterAgent(mgr)
 
 	assert.NoError(t, err)
 	envVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.ClusterAgentContainerName]
@@ -506,7 +576,7 @@ func TestAppsecFeatureManageClusterAgentEnabled(t *testing.T) {
 	f.Configure(dda, &dda.Spec, nil)
 
 	mgr := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{})
-	err := f.ManageClusterAgent(mgr, "")
+	err := f.ManageClusterAgent(mgr)
 
 	assert.NoError(t, err)
 	envVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.ClusterAgentContainerName]
@@ -698,6 +768,45 @@ func TestFromAnnotations(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "nginx module mount path parsed correctly",
+			annotations: map[string]string{
+				AnnotationInjectorEnabled:      "true",
+				AnnotationInjectorAutoDetect:   "true",
+				AnnotationNginxModuleMountPath: "/custom/modules",
+			},
+			wantConfig: Config{
+				Enabled:              true,
+				AutoDetect:           ptr.To(true),
+				NginxModuleMountPath: "/custom/modules",
+			},
+			wantErr: false,
+		},
+		{
+			name: "nginx annotations unset results in empty fields",
+			annotations: map[string]string{
+				AnnotationInjectorEnabled:    "true",
+				AnnotationInjectorAutoDetect: "true",
+			},
+			wantConfig: Config{
+				Enabled:    true,
+				AutoDetect: ptr.To(true),
+			},
+			wantErr: false,
+		},
+		{
+			name: "nginx annotations empty string results in empty fields",
+			annotations: map[string]string{
+				AnnotationInjectorEnabled:      "true",
+				AnnotationInjectorAutoDetect:   "true",
+				AnnotationNginxModuleMountPath: "",
+			},
+			wantConfig: Config{
+				Enabled:    true,
+				AutoDetect: ptr.To(true),
+			},
+			wantErr: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -715,6 +824,7 @@ func TestFromAnnotations(t *testing.T) {
 				assert.Equal(t, tt.wantConfig.ProcessorPort, config.ProcessorPort)
 				assert.Equal(t, tt.wantConfig.ProcessorServiceName, config.ProcessorServiceName)
 				assert.Equal(t, tt.wantConfig.ProcessorServiceNamespace, config.ProcessorServiceNamespace)
+				assert.Equal(t, tt.wantConfig.NginxModuleMountPath, config.NginxModuleMountPath)
 			}
 		})
 	}
@@ -812,6 +922,14 @@ func TestConfigValidate(t *testing.T) {
 			config: Config{
 				Enabled: true,
 				Proxies: []string{"istio-gateway"},
+			},
+			wantErr: false,
+		},
+		{
+			name: "ingress-nginx is a valid proxy value",
+			config: Config{
+				Enabled: true,
+				Proxies: []string{"ingress-nginx"},
 			},
 			wantErr: false,
 		},

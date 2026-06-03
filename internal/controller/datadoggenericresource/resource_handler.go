@@ -23,4 +23,10 @@ type ResourceHandler interface {
 	getResource(auth context.Context, instance *v1alpha1.DatadogGenericResource) error
 	updateResource(auth context.Context, instance *v1alpha1.DatadogGenericResource) error
 	deleteResource(auth context.Context, instance *v1alpha1.DatadogGenericResource) error
+	// refreshState fetches the live Datadog-side state of the resource.
+	// Returns (nil, nil) for resource types that do not expose live state — the
+	// caller should leave .status.state untouched in that case. On error, the
+	// caller should preserve last-known state and surface the failure via the
+	// StateSynced condition.
+	refreshState(auth context.Context, instance *v1alpha1.DatadogGenericResource) (*string, error)
 }

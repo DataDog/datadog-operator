@@ -147,6 +147,7 @@ type options struct {
 	datadogDashboardEnabled                bool
 	datadogGenericResourceEnabled          bool
 	datadogCSIDriverEnabled                bool
+	untaintControllerEnabled               bool
 
 	// Secret Backend options
 	secretBackendCommand  string
@@ -186,6 +187,7 @@ func (opts *options) Parse() {
 	flag.BoolVar(&opts.datadogDashboardEnabled, "datadogDashboardEnabled", false, "Enable the DatadogDashboard controller")
 	flag.BoolVar(&opts.datadogGenericResourceEnabled, "datadogGenericResourceEnabled", false, "Enable the DatadogGenericResource controller")
 	flag.BoolVar(&opts.datadogCSIDriverEnabled, "datadogCSIDriverEnabled", false, "Enable the DatadogCSIDriver controller")
+	flag.BoolVar(&opts.untaintControllerEnabled, "untaintControllerEnabled", false, "Enable the Untaint controller")
 
 	// DatadogAgentInternal
 	flag.BoolVar(&opts.createControllerRevisions, "createControllerRevisions", false, "Enable creation of ControllerRevision snapshots on each DDA spec change")
@@ -293,6 +295,7 @@ func run(opts *options) error {
 			DatadogDashboardEnabled:       opts.datadogDashboardEnabled,
 			DatadogGenericResourceEnabled: opts.datadogGenericResourceEnabled,
 			DatadogCSIDriverEnabled:       opts.datadogCSIDriverEnabled,
+			UntaintControllerEnabled:      opts.untaintControllerEnabled,
 		}),
 		// UsePriorityQueue makes all controllers use the priority queue, which
 		// directly registers workqueue metrics into controller-runtime's metrics
@@ -376,6 +379,7 @@ func run(opts *options) error {
 		DatadogDashboardEnabled:       opts.datadogDashboardEnabled,
 		DatadogGenericResourceEnabled: opts.datadogGenericResourceEnabled,
 		DatadogCSIDriverEnabled:       opts.datadogCSIDriverEnabled,
+		UntaintControllerEnabled:      opts.untaintControllerEnabled,
 	}
 
 	versionInfo, platformInfo, err := getVersionAndPlatformInfo(rest.CopyConfig(mgr.GetConfig()))
@@ -401,12 +405,16 @@ func run(opts *options) error {
 		return setupErrorf(setupLog, err, "Unable to setup Helm metadata forwarder")
 	}
 
-	// Start ticker-based metadata forwarders after leader election
+	// Register CRD metadata forwarder as a manager Runnable
+	if err = setupAndStartCRDMetadataForwarder(metadataLog, mgr, versionInfo.String(), opts, options.CredsManager); err != nil {
+		return setupErrorf(setupLog, err, "Unable to setup CRD metadata forwarder")
+	}
+
+	// Operator metadata forwarder still uses a poll loop; start after leader election.
 	go func() {
 		<-mgr.Elected()
-		setupLog.Info("Starting metadata forwarders")
+		setupLog.Info("Starting operator metadata forwarder")
 		setupAndStartOperatorMetadataForwarder(metadataLog, mgr.GetClient(), versionInfo.String(), opts, options.CredsManager)
-		setupAndStartCRDMetadataForwarder(metadataLog, mgr.GetClient(), versionInfo.String(), opts, options.CredsManager)
 	}()
 
 	// +kubebuilder:scaffold:builder
@@ -627,10 +635,10 @@ func setupAndStartOperatorMetadataForwarder(logger logr.Logger, client client.Re
 	omf.Start()
 }
 
-func setupAndStartCRDMetadataForwarder(logger logr.Logger, client client.Reader, kubernetesVersion string, options *options, credsManager *config.CredentialManager) {
+func setupAndStartCRDMetadataForwarder(logger logr.Logger, mgr manager.Manager, kubernetesVersion string, options *options, credsManager *config.CredentialManager) error {
 	cmf := metadata.NewCRDMetadataForwarder(
 		logger,
-		client,
+		mgr,
 		kubernetesVersion,
 		version.GetVersion(),
 		credsManager,
@@ -641,7 +649,7 @@ func setupAndStartCRDMetadataForwarder(logger logr.Logger, client client.Reader,
 			DatadogAgentProfileEnabled:  options.datadogAgentProfileEnabled,
 		},
 	)
-	cmf.Start()
+	return mgr.Add(cmf)
 }
 
 func setupAndStartHelmMetadataForwarder(logger logr.Logger, mgr manager.Manager, client client.Reader, kubernetesVersion string, credsManager *config.CredentialManager) error {
@@ -651,6 +659,6 @@ func setupAndStartHelmMetadataForwarder(logger logr.Logger, mgr manager.Manager,
 }
 
 func setupFleetDaemon(logger logr.Logger, mgr manager.Manager, rcClient remoteconfig.RCClient, revisionsEnabled bool) error {
-	daemon := fleet.NewDaemon(rcClient, mgr.GetClient(), revisionsEnabled)
+	daemon := fleet.NewDaemon(rcClient, mgr, revisionsEnabled)
 	return mgr.Add(daemon)
 }

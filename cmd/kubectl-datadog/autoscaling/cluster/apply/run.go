@@ -21,17 +21,21 @@ import (
 	"github.com/pkg/browser"
 	"helm.sh/helm/v3/pkg/registry"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/aws"
+	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/awsauth"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/clients"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/clusterinfo"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/display"
+	commoneks "github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/eks"
+	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/eksautomode"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/helm"
-	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/guess"
-	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/k8s"
+	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/karpenter"
+	"github.com/DataDog/datadog-operator/pkg/plugin/common"
 	"github.com/DataDog/datadog-operator/pkg/version"
 
 	_ "embed"
@@ -106,13 +110,13 @@ func Run(ctx context.Context, streams genericclioptions.IOStreams, configFlags *
 	log.SetOutput(streams.ErrOut)
 	ctrl.SetLogger(zap.New(zap.UseDevMode(false), zap.WriteTo(streams.ErrOut)))
 
-	if autoModeEnabled, err := guess.IsEKSAutoModeEnabled(clientset.Discovery()); err != nil {
+	if autoModeEnabled, err := eksautomode.IsEnabled(clientset.Discovery()); err != nil {
 		return fmt.Errorf("failed to check for EKS auto-mode: %w", err)
 	} else if autoModeEnabled {
 		return displayEKSAutoModeMessage(streams, opts.ClusterName)
 	}
 
-	k, err := guess.FindKarpenterInstallation(ctx, clientset)
+	k, err := karpenter.FindInstallation(ctx, clientset)
 	if err != nil {
 		return fmt.Errorf("failed to check for an existing Karpenter installation: %w", err)
 	}
@@ -148,7 +152,7 @@ func Run(ctx context.Context, streams genericclioptions.IOStreams, configFlags *
 		return err
 	}
 
-	if err = recordClusterInfo(ctx, cli, opts.ClusterName, opts.KarpenterNamespace); err != nil {
+	if err = recordClusterInfo(ctx, cli, clientset.Discovery(), opts.ClusterName, opts.KarpenterNamespace); err != nil {
 		log.Printf("Warning: %v", err)
 	}
 
@@ -174,7 +178,7 @@ func createCloudFormationStacks(ctx context.Context, cli *clients.Clients, opts 
 		return "", fmt.Errorf("failed to describe cluster %s: %w", opts.ClusterName, err)
 	}
 	cluster := describeOut.Cluster
-	supportsAPIAuth := guess.SupportsAPIAuthenticationMode(cluster)
+	supportsAPIAuth := commoneks.SupportsAPIAuthenticationMode(cluster)
 
 	ddStackName := DDKarpenterStackName(opts.ClusterName)
 	ddStack, err := aws.GetStack(ctx, cli.CloudFormation, ddStackName)
@@ -188,7 +192,7 @@ func createCloudFormationStacks(ctx context.Context, cli *clients.Clients, opts 
 
 	switch opts.InstallMode {
 	case InstallModeExistingNodes:
-		isUnmanagedEKSPIAInstalled, err := guess.IsThereUnmanagedEKSPodIdentityAgentInstalled(ctx, cli.EKS, opts.ClusterName)
+		isUnmanagedEKSPIAInstalled, err := commoneks.IsThereUnmanagedEKSPodIdentityAgentInstalled(ctx, cli.EKS, opts.ClusterName)
 		if err != nil {
 			return "", fmt.Errorf("failed to check if EKS pod identity agent is installed: %w", err)
 		}
@@ -203,18 +207,18 @@ func createCloudFormationStacks(ctx context.Context, cli *clients.Clients, opts 
 		return "", nil
 
 	case InstallModeFargate:
-		issuerURL, err := guess.GetClusterOIDCIssuerURL(cluster)
+		issuerURL, err := commoneks.GetClusterOIDCIssuerURL(cluster)
 		if err != nil {
 			return "", fmt.Errorf("failed to get cluster OIDC issuer URL: %w", err)
 		}
-		oidcArn, err := guess.EnsureOIDCProvider(ctx, cli.IAM, issuerURL)
+		oidcArn, err := commoneks.EnsureOIDCProvider(ctx, cli.IAM, issuerURL)
 		if err != nil {
 			return "", fmt.Errorf("failed to ensure OIDC provider: %w", err)
 		}
 
 		subnets := opts.FargateSubnets
 		if len(subnets) == 0 {
-			subnets, err = guess.GetClusterPrivateSubnets(ctx, cli.EC2, cluster)
+			subnets, err = commoneks.GetClusterPrivateSubnets(ctx, cli.EC2, cluster)
 			if err != nil {
 				return "", fmt.Errorf("failed to discover private subnets: %w", err)
 			}
@@ -294,7 +298,7 @@ func checkFargateStackImmutability(stack *aws.Stack, namespace string, subnets [
 }
 
 func updateAwsAuthConfigMap(ctx context.Context, cli *clients.Clients, clusterName string) error {
-	awsAuthConfigMapPresent, err := guess.IsAwsAuthConfigMapPresent(ctx, cli.K8sClientset)
+	awsAuthConfigMapPresent, err := awsauth.IsConfigMapPresent(ctx, cli.K8sClientset)
 	if err != nil {
 		return fmt.Errorf("failed to check if aws-auth ConfigMap is present: %w", err)
 	}
@@ -310,7 +314,7 @@ func updateAwsAuthConfigMap(ctx context.Context, cli *clients.Clients, clusterNa
 	}
 
 	// Add role mapping in the `aws-auth` ConfigMap
-	if err = aws.EnsureAwsAuthRole(ctx, cli.K8sClientset, aws.RoleMapping{
+	if err = awsauth.EnsureRole(ctx, cli.K8sClientset, awsauth.RoleMapping{
 		RoleArn:  "arn:aws:iam::" + accountID + ":role/KarpenterNodeRole-" + clusterName,
 		Username: "system:node:{{EC2PrivateDNSName}}",
 		Groups:   []string{"system:bootstrappers", "system:nodes"},
@@ -350,21 +354,21 @@ func installHelmChart(ctx context.Context, configFlags *genericclioptions.Config
 // 1 vCPU / 2 GiB is the smallest valid Fargate combination for 1 vCPU and
 // matches the chart's documented example for existing-nodes.
 //
+// The Karpenter OpenMetrics check is wired differently per install mode:
+//   - existing-nodes: pod-level Autodiscovery annotation, picked up by the
+//     node agent colocated with the controller pod.
+//   - fargate: endpoint-check annotation on the Karpenter Service, paired
+//     with `ad.datadoghq.com/endpoints.resolve: ip`. The default `auto`
+//     resolution would attach the backing Pod's NodeName to each scheduled
+//     check and the cluster agent would dispatch them to the (non-existent)
+//     node agent on the Fargate node. The `ip` value tells the cluster agent
+//     to ignore what's behind each endpoint IP, leaving the check as a plain
+//     cluster check dispatched to the cluster check runner.
+//
 // In fargate mode, the service account is annotated with the IRSA role ARN so
 // the controller can assume the role via sts:AssumeRoleWithWebIdentity.
 func karpenterHelmValues(clusterName string, mode InstallMode, irsaRoleArn string) map[string]any {
-	values := map[string]any{
-		// See guess.InstalledByLabel for why these keys are Datadog-namespaced.
-		"additionalLabels": map[string]any{
-			guess.InstalledByLabel:      guess.InstalledByValue,
-			guess.InstallerVersionLabel: version.GetVersion(),
-		},
-		"settings": map[string]any{
-			"clusterName":       clusterName,
-			"interruptionQueue": clusterName,
-		},
-		"podAnnotations": map[string]any{
-			"ad.datadoghq.com/controller.checks": `{
+	const karpenterCheckConfig = `{
   "karpenter": {
     "init_config": {},
     "instances": [
@@ -373,7 +377,17 @@ func karpenterHelmValues(clusterName string, mode InstallMode, irsaRoleArn strin
       }
     ]
   }
-}`,
+}`
+
+	values := map[string]any{
+		// See karpenter.InstalledByLabel for why these keys are Datadog-namespaced.
+		"additionalLabels": map[string]any{
+			karpenter.InstalledByLabel:      karpenter.InstalledByValue,
+			karpenter.InstallerVersionLabel: version.GetVersion(),
+		},
+		"settings": map[string]any{
+			"clusterName":       clusterName,
+			"interruptionQueue": clusterName,
 		},
 		"controller": map[string]any{
 			"resources": map[string]any{
@@ -384,10 +398,20 @@ func karpenterHelmValues(clusterName string, mode InstallMode, irsaRoleArn strin
 	}
 
 	if mode == InstallModeFargate {
+		values["service"] = map[string]any{
+			"annotations": map[string]any{
+				common.ADPrefix + "endpoints.checks":  karpenterCheckConfig,
+				common.ADPrefix + "endpoints.resolve": "ip",
+			},
+		}
 		values["serviceAccount"] = map[string]any{
 			"annotations": map[string]any{
 				"eks.amazonaws.com/role-arn": irsaRoleArn,
 			},
+		}
+	} else {
+		values["podAnnotations"] = map[string]any{
+			common.ADPrefix + "controller.checks": karpenterCheckConfig,
 		}
 	}
 
@@ -399,18 +423,18 @@ func createNodePoolResources(ctx context.Context, streams genericclioptions.IOSt
 		return nil
 	}
 
-	var nodePoolsSet *guess.NodePoolsSet
+	var nodePoolsSet *karpenter.NodePoolsSet
 	var err error
 
 	switch opts.InferenceMethod {
 	case InferenceMethodNodes:
-		nodePoolsSet, err = guess.GetNodesProperties(ctx, cli.K8sClientset, cli.EC2)
+		nodePoolsSet, err = karpenter.GetNodesProperties(ctx, cli.K8sClientset, cli.EC2)
 		if err != nil {
 			return fmt.Errorf("failed to gather nodes properties: %w", err)
 		}
 
 	case InferenceMethodNodeGroups:
-		nodePoolsSet, err = guess.GetNodeGroupsProperties(ctx, cli.EKS, cli.EC2, opts.ClusterName)
+		nodePoolsSet, err = karpenter.GetNodeGroupsProperties(ctx, cli.EKS, cli.EC2, opts.ClusterName)
 		if err != nil {
 			return fmt.Errorf("failed to gather node groups properties: %w", err)
 		}
@@ -422,7 +446,7 @@ func createNodePoolResources(ctx context.Context, streams genericclioptions.IOSt
 
 	if opts.CreateKarpenterResources == CreateKarpenterResourcesEC2NodeClass || opts.CreateKarpenterResources == CreateKarpenterResourcesAll {
 		for _, nc := range nodePoolsSet.GetEC2NodeClasses() {
-			if err = k8s.CreateOrUpdateEC2NodeClass(ctx, cli.K8sClient, opts.ClusterName, nc); err != nil {
+			if err = karpenter.CreateOrUpdateEC2NodeClass(ctx, cli.K8sClient, opts.ClusterName, nc); err != nil {
 				return fmt.Errorf("failed to create or update EC2NodeClass %s: %w", nc.GetName(), err)
 			}
 		}
@@ -430,7 +454,7 @@ func createNodePoolResources(ctx context.Context, streams genericclioptions.IOSt
 
 	if opts.CreateKarpenterResources == CreateKarpenterResourcesAll {
 		for _, np := range nodePoolsSet.GetNodePools() {
-			if err = k8s.CreateOrUpdateNodePool(ctx, cli.K8sClient, np); err != nil {
+			if err = karpenter.CreateOrUpdateNodePool(ctx, cli.K8sClient, np); err != nil {
 				return fmt.Errorf("failed to create or update NodePool %s: %w", np.GetName(), err)
 			}
 		}
@@ -442,8 +466,15 @@ func createNodePoolResources(ctx context.Context, streams genericclioptions.IOSt
 // recordClusterInfo classifies every node by its current management method
 // and writes the snapshot to a ConfigMap. The information is consumed by the
 // follow-up migration step.
-func recordClusterInfo(ctx context.Context, cli *clients.Clients, clusterName, namespace string) error {
-	info, err := clusterinfo.Classify(ctx, cli.K8sClientset, cli.Autoscaling, clusterName)
+func recordClusterInfo(ctx context.Context, cli *clients.Clients, discoveryClient discovery.DiscoveryInterface, clusterName, namespace string) error {
+	info, err := clusterinfo.Classify(ctx, clusterinfo.ClassifyInput{
+		K8sClient:   cli.K8sClientset,
+		CtrlClient:  cli.K8sClient,
+		Autoscaling: cli.Autoscaling,
+		EKS:         cli.EKS,
+		Discovery:   discoveryClient,
+		ClusterName: clusterName,
+	})
 	if err != nil {
 		return fmt.Errorf("failed to classify cluster nodes: %w", err)
 	}
@@ -488,7 +519,7 @@ func displayEKSAutoModeMessage(streams genericclioptions.IOStreams, clusterName 
 	return nil
 }
 
-func displayForeignKarpenterMessage(streams genericclioptions.IOStreams, clusterName string, foreign *guess.KarpenterInstallation) error {
+func displayForeignKarpenterMessage(streams genericclioptions.IOStreams, clusterName string, foreign *karpenter.Installation) error {
 	coloredURL := openAutoscalingSettingsURL(streams, clusterName)
 
 	display.PrintBox(streams.Out,

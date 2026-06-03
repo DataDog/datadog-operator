@@ -536,12 +536,12 @@ func hostProfilerContainer(dda metav1.Object) corev1.Container {
 			"host-profiler",
 			"--core-config=" + agentCustomConfigVolumePath,
 		},
-		Env:          commonEnvVars(dda),
+		Env: commonEnvVars(dda),
+		// host-profiler needs the same base mounts as otel-agent (logs, config, auth, tmp);
+		// the hostprofiler feature adds tracingfs on top via ManageNodeAgent.
 		VolumeMounts: volumeMountsForOtelAgent(),
-		Ports:        []corev1.ContainerPort{},
 		SecurityContext: &corev1.SecurityContext{
 			ReadOnlyRootFilesystem: ptr.To(true),
-			Privileged:             ptr.To(true),
 		},
 	}
 }
@@ -880,6 +880,7 @@ func volumeMountsForSystemProbe() []corev1.VolumeMount {
 		common.GetVolumeMountForProc(),
 		common.GetVolumeMountForRunPath(),
 		common.GetVolumeMountForTmp(),
+		common.GetVolumeMountForDogstatsdSocket(false),
 	}
 }
 

@@ -132,7 +132,7 @@ func (f *dogstatsdFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Datado
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *dogstatsdFeature) ManageDependencies(managers feature.ResourceManagers, provider string) error {
+func (f *dogstatsdFeature) ManageDependencies(managers feature.ResourceManagers) error {
 	platformInfo := managers.Store().GetPlatformInfo()
 	// agent local service
 	if common.ShouldCreateAgentLocalService(platformInfo.GetVersionInfo(), f.forceEnableLocalService) {
@@ -160,7 +160,7 @@ func (f *dogstatsdFeature) ManageDependencies(managers feature.ResourceManagers,
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *dogstatsdFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *dogstatsdFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
 	if f.udsEnabled {
 		managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
 			Name:  DDDogstatsdHostSocketPath,
@@ -177,41 +177,32 @@ func (f *dogstatsdFeature) ManageClusterAgent(managers feature.PodTemplateManage
 // ManageSingleContainerNodeAgent allows a feature to configure the Agent container for the Node Agent's corev1.PodTemplateSpec
 // if SingleContainerStrategy is enabled and can be used with the configured feature set.
 // It should do nothing if the feature doesn't need to configure it.
-func (f *dogstatsdFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
-	f.manageNodeAgent(apicommon.UnprivilegedSingleAgentContainerName, managers, provider)
-	if f.dataPlaneEnabled && f.dataPlaneDogstatsdEnabled && !f.agentSupportsADPDelegation {
-		managers.EnvVar().AddEnvVarToContainer(apicommon.UnprivilegedSingleAgentContainerName, &corev1.EnvVar{
-			Name:  common.DDDogstatsdEnabled,
-			Value: "false",
-		})
-	}
+func (f *dogstatsdFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers) error {
+	f.manageNodeAgent(apicommon.UnprivilegedSingleAgentContainerName, managers)
 	return nil
 }
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *dogstatsdFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
-	// When the Data Plane feature is enabled, and handling DogStatsD, we apply the DSD configuration to the Data Plane
-	// container instead. On Agent >= 7.75, the Core Agent observes DD_DATA_PLANE_ENABLED and
-	// DD_DATA_PLANE_DOGSTATSD_ENABLED (set by the dataplane feature) and disables its own DSD server
-	// automatically. On older agents those flags are unknown, so we set DD_USE_DOGSTATSD=false
-	// explicitly to prevent a bind conflict between Core Agent DSD and ADP DSD.
-	if f.dataPlaneEnabled && f.dataPlaneDogstatsdEnabled {
-		f.manageNodeAgent(apicommon.AgentDataPlaneContainerName, managers, provider)
-		if !f.agentSupportsADPDelegation {
-			managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
-				Name:  common.DDDogstatsdEnabled,
-				Value: "false",
-			})
-		}
-	} else {
-		f.manageNodeAgent(apicommon.CoreAgentContainerName, managers, provider)
-	}
-
+func (f *dogstatsdFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
+	f.manageNodeAgent(apicommon.CoreAgentContainerName, managers)
 	return nil
 }
 
-func (f *dogstatsdFeature) manageNodeAgent(agentContainerName apicommon.AgentContainerName, managers feature.PodTemplateManagers, provider string) error {
+func (f *dogstatsdFeature) manageNodeAgent(containerName apicommon.AgentContainerName, managers feature.PodTemplateManagers) error {
+	// When the Data Plane feature is enabled, and handling DogStatsD, we must ensure that the Core Agent does not also
+	// try to handle DogStatsD, as it would cause a bind conflict.
+	//
+	// On Agent >= 7.75, the Core Agent observes `DD_DATA_PLANE_ENABLED` and `DD_DATA_PLANE_DOGSTATSD_ENABLED` (set by
+	// the dataplane feature) and disables its own DSD server automatically. On older agents those flags are unknown, so
+	// we set `DD_USE_DOGSTATSD` to `false` explicitly to prevent a bind conflict between Core Agent DSD and ADP DSD.
+	if f.dataPlaneEnabled && f.dataPlaneDogstatsdEnabled && !f.agentSupportsADPDelegation {
+		managers.EnvVar().AddEnvVarToContainer(containerName, &corev1.EnvVar{
+			Name:  common.DDDogstatsdEnabled,
+			Value: "false",
+		})
+	}
+
 	// udp
 	dogstatsdPort := &corev1.ContainerPort{
 		Name:          defaultDogstatsdPortName,
@@ -230,17 +221,23 @@ func (f *dogstatsdFeature) manageNodeAgent(agentContainerName apicommon.AgentCon
 				dsdPortEnvVarValue = int(f.hostPortHostPort)
 			}
 		}
-		managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
+		managers.EnvVar().AddEnvVarToContainer(containerName, &corev1.EnvVar{
 			// defaults to 8125 in datadog-agent code
 			Name:  DDDogstatsdPort,
 			Value: strconv.Itoa(dsdPortEnvVarValue),
 		})
 	}
-	managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
+	managers.EnvVar().AddEnvVarToContainer(containerName, &corev1.EnvVar{
 		Name:  DDDogstatsdNonLocalTraffic,
 		Value: strconv.FormatBool(f.nonLocalTraffic),
 	})
-	managers.Port().AddPortToContainer(agentContainerName, dogstatsdPort)
+	// When ADP is handling DogStatsD, the UDP port binding must go to the ADP container so that
+	// ADP binds port 8125 (and owns the HostPort). The Core Agent must not bind it to avoid conflicts.
+	portContainerName := containerName
+	if f.dataPlaneEnabled && f.dataPlaneDogstatsdEnabled {
+		portContainerName = apicommon.AgentDataPlaneContainerName
+	}
+	managers.Port().AddPortToContainer(portContainerName, dogstatsdPort)
 
 	// uds
 	if f.udsEnabled {
@@ -250,7 +247,7 @@ func (f *dogstatsdFeature) manageNodeAgent(agentContainerName apicommon.AgentCon
 		volType := corev1.HostPathDirectoryOrCreate // We need to create the directory on the host if it does not exist.
 
 		socketVol.VolumeSource.HostPath.Type = &volType
-		managers.VolumeMount().AddVolumeMountToContainerWithMergeFunc(&socketVolMount, agentContainerName, merger.OverrideCurrentVolumeMountMergeFunction)
+		managers.VolumeMount().AddVolumeMountToContainerWithMergeFunc(&socketVolMount, containerName, merger.OverrideCurrentVolumeMountMergeFunction)
 		managers.Volume().AddVolume(&socketVol)
 		managers.EnvVar().AddEnvVar(&corev1.EnvVar{
 			Name:  DDDogstatsdSocket,
@@ -259,11 +256,11 @@ func (f *dogstatsdFeature) manageNodeAgent(agentContainerName apicommon.AgentCon
 	}
 
 	if f.originDetectionEnabled {
-		managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
+		managers.EnvVar().AddEnvVarToContainer(containerName, &corev1.EnvVar{
 			Name:  DDDogstatsdOriginDetection,
 			Value: "true",
 		})
-		managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
+		managers.EnvVar().AddEnvVarToContainer(containerName, &corev1.EnvVar{
 			Name:  DDDogstatsdOriginDetectionClient,
 			Value: "true",
 		})
@@ -273,7 +270,7 @@ func (f *dogstatsdFeature) manageNodeAgent(agentContainerName apicommon.AgentCon
 		// Tag cardinality is only configured if origin detection is enabled.
 		// The value validation happens at the Agent level - if the lower(string) is not `low`, `orchestrator` or `high`, the Agent defaults to `low`.
 		if f.tagCardinality != "" {
-			managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
+			managers.EnvVar().AddEnvVarToContainer(containerName, &corev1.EnvVar{
 				Name:  DDDogstatsdTagCardinality,
 				Value: f.tagCardinality,
 			})
@@ -284,7 +281,7 @@ func (f *dogstatsdFeature) manageNodeAgent(agentContainerName apicommon.AgentCon
 	if f.mapperProfiles != nil {
 		// configdata
 		if f.mapperProfiles.ConfigData != nil {
-			managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
+			managers.EnvVar().AddEnvVarToContainer(containerName, &corev1.EnvVar{
 				Name:  DDDogstatsdMapperProfiles,
 				Value: apiutils.YAMLToJSONString(*f.mapperProfiles.ConfigData),
 			})
@@ -296,7 +293,7 @@ func (f *dogstatsdFeature) manageNodeAgent(agentContainerName apicommon.AgentCon
 			cmSelector := corev1.ConfigMapKeySelector{}
 			cmSelector.Name = f.mapperProfiles.ConfigMap.Name
 			cmSelector.Key = f.mapperProfiles.ConfigMap.Items[0].Key
-			managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
+			managers.EnvVar().AddEnvVarToContainer(containerName, &corev1.EnvVar{
 				Name:      DDDogstatsdMapperProfiles,
 				ValueFrom: &corev1.EnvVarSource{ConfigMapKeyRef: &cmSelector},
 			})
@@ -308,10 +305,10 @@ func (f *dogstatsdFeature) manageNodeAgent(agentContainerName apicommon.AgentCon
 
 // ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunner's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *dogstatsdFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
+func (f *dogstatsdFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
 	return nil
 }
 
-func (f *dogstatsdFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
+func (f *dogstatsdFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers) error {
 	return nil
 }

@@ -1197,6 +1197,19 @@ spec:
                                 Enabled enables the workload autoscaling product.
                                 Default: false
                               type: boolean
+                            inPlaceVerticalScaling:
+                              description: |-
+                                InPlaceVerticalScaling contains the configuration for the in-place vertical scaling sub-feature.
+                                Requires workload autoscaling to be enabled.
+                                (Requires Cluster Agent 7.78.0+ and Kubernetes 1.33+)
+                              properties:
+                                enabled:
+                                  description: |-
+                                    Enabled enables in-place vertical scaling for workload autoscaling.
+                                    (Requires Cluster Agent 7.78.0+ and Kubernetes 1.33+)
+                                    Default: false
+                                  type: boolean
+                              type: object
                           type: object
                       type: object
                     clusterChecks:
@@ -9914,6 +9927,19 @@ spec:
                                     Enabled enables the workload autoscaling product.
                                     Default: false
                                   type: boolean
+                                inPlaceVerticalScaling:
+                                  description: |-
+                                    InPlaceVerticalScaling contains the configuration for the in-place vertical scaling sub-feature.
+                                    Requires workload autoscaling to be enabled.
+                                    (Requires Cluster Agent 7.78.0+ and Kubernetes 1.33+)
+                                  properties:
+                                    enabled:
+                                      description: |-
+                                        Enabled enables in-place vertical scaling for workload autoscaling.
+                                        (Requires Cluster Agent 7.78.0+ and Kubernetes 1.33+)
+                                        Default: false
+                                      type: boolean
+                                  type: object
                               type: object
                           type: object
                         clusterChecks:

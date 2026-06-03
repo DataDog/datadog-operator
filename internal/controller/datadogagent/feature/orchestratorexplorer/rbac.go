@@ -18,7 +18,7 @@ import (
 )
 
 // getRBACRules generates the cluster role permissions required for the orchestrator explorer feature
-func getRBACPolicyRules(logger logr.Logger, crs []string) []rbacv1.PolicyRule {
+func getRBACPolicyRules(logger logr.Logger, crs []string, collectKubernetesNetworkResources bool) []rbacv1.PolicyRule {
 	rbacRules := []rbacv1.PolicyRule{
 		// To get the kube-system namespace UID and generate a cluster ID
 		{
@@ -142,6 +142,84 @@ func getRBACPolicyRules(logger logr.Logger, crs []string) []rbacv1.PolicyRule {
 			APIGroups: []string{rbac.EKSAPIGroup},
 			Resources: []string{rbac.Wildcard},
 		},
+	}
+
+	if collectKubernetesNetworkResources {
+		rbacRules = append(rbacRules,
+			// Gateway API — resource-specific
+			rbacv1.PolicyRule{
+				APIGroups: []string{rbac.GatewayAPIGroup},
+				Resources: []string{
+					rbac.GatewaysResource,
+					rbac.HTTPRoutesResource,
+					rbac.GRPCRoutesResource,
+					rbac.TLSRoutesResource,
+					rbac.ListenerSetsResource,
+				},
+			},
+			// Service Mesh — Istio: resource-specific
+			rbacv1.PolicyRule{
+				APIGroups: []string{rbac.IstioNetworkingAPIGroup},
+				Resources: []string{
+					rbac.VirtualServicesResource,
+					rbac.GatewaysResource,
+					rbac.DestinationRulesResource,
+					rbac.ServiceEntriesResource,
+					rbac.SidecarsResource,
+				},
+			},
+			// Service Mesh — Others: group-level
+			rbacv1.PolicyRule{
+				APIGroups: []string{rbac.EnvoyGatewayAPIGroup},
+				Resources: []string{rbac.Wildcard},
+			},
+			rbacv1.PolicyRule{
+				APIGroups: []string{rbac.TraefikLegacyAPIGroup},
+				Resources: []string{rbac.Wildcard},
+			},
+			rbacv1.PolicyRule{
+				APIGroups: []string{rbac.LinkerdPolicyAPIGroup},
+				Resources: []string{rbac.Wildcard},
+			},
+			rbacv1.PolicyRule{
+				APIGroups: []string{rbac.ConsulAPIGroup},
+				Resources: []string{rbac.Wildcard},
+			},
+			rbacv1.PolicyRule{
+				APIGroups: []string{rbac.ConsulMeshAPIGroup},
+				Resources: []string{rbac.Wildcard},
+			},
+			rbacv1.PolicyRule{
+				APIGroups: []string{rbac.KumaAPIGroup},
+				Resources: []string{rbac.Wildcard},
+			},
+			// Ingress Controllers — NGINX: resource-specific
+			rbacv1.PolicyRule{
+				APIGroups: []string{rbac.NginxAPIGroup},
+				Resources: []string{
+					rbac.VirtualServersResource,
+					rbac.VirtualServerRoutesResource,
+				},
+			},
+			// Ingress Controllers — Traefik: resource-specific
+			rbacv1.PolicyRule{
+				APIGroups: []string{rbac.TraefikAPIGroup},
+				Resources: []string{rbac.IngressRoutesResource},
+			},
+			// Ingress Controllers — Others: group-level
+			rbacv1.PolicyRule{
+				APIGroups: []string{rbac.KongAPIGroup},
+				Resources: []string{rbac.Wildcard},
+			},
+			rbacv1.PolicyRule{
+				APIGroups: []string{rbac.HAProxyCoreAPIGroup},
+				Resources: []string{rbac.Wildcard},
+			},
+			rbacv1.PolicyRule{
+				APIGroups: []string{rbac.HAProxyIngressV1APIGroup},
+				Resources: []string{rbac.Wildcard},
+			},
+		)
 	}
 
 	if len(crs) > 0 {

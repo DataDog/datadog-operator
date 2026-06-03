@@ -1221,6 +1221,25 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogGenericResourceStatus
 							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
 						},
 					},
+					"state": {
+						SchemaProps: spec.SchemaProps{
+							Description: "State is the live Datadog-side state of the underlying resource as last fetched from the Datadog API. Values are resource-type dependent — for Monitors: OK, Alert, Warn, No Data, Skipped, Ignored, Unknown. For SLOs: breached, warning, ok, no_data. Only populated for resource types that expose live state.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"stateLastUpdateTime": {
+						SchemaProps: spec.SchemaProps{
+							Description: "StateLastUpdateTime is the last time State was successfully refreshed from Datadog.",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+						},
+					},
+					"stateLastTransitionTime": {
+						SchemaProps: spec.SchemaProps{
+							Description: "StateLastTransitionTime is the last time State changed value.",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+						},
+					},
 				},
 			},
 		},

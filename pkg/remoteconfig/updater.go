@@ -31,6 +31,8 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/constants"
+	"github.com/DataDog/datadog-operator/pkg/controller/utils/metadata"
+	"github.com/DataDog/datadog-operator/pkg/version"
 )
 
 const (
@@ -160,7 +162,6 @@ func (r *RemoteConfigUpdater) Setup(creds config.Creds) error {
 }
 
 func (r *RemoteConfigUpdater) Start(apiKey string, site string, clusterName string, directorRoot string, configRoot string, endpoint string) error {
-
 	r.logger.Info("Starting Remote Configuration client and service")
 
 	err := r.configureService(apiKey, site, clusterName, directorRoot, configRoot, endpoint)
@@ -188,10 +189,7 @@ func (r *RemoteConfigUpdater) Start(apiKey string, site string, clusterName stri
 	}
 	r.rcService = rcService
 
-	updaterTags := []string{"updater_type:datadog-operator"}
-	if r.serviceConf.clusterName != "" {
-		updaterTags = append(updaterTags, "cluster_name:"+r.serviceConf.clusterName)
-	}
+	updaterTags := r.getUpdaterTags(context.Background())
 	rcClient, err := client.NewClient(
 		rcService,
 		client.WithUpdater(updaterTags...),
@@ -207,8 +205,8 @@ func (r *RemoteConfigUpdater) Start(apiKey string, site string, clusterName stri
 	rcClient.SetInstallerState([]*pbgo.PackageState{
 		{
 			Package:             "datadog-operator",
-			StableVersion:       "0.0.1",
-			StableConfigVersion: "0.0.1",
+			StableVersion:       version.Version,
+			StableConfigVersion: "empty",
 		},
 	})
 
@@ -223,6 +221,26 @@ func (r *RemoteConfigUpdater) Start(apiKey string, site string, clusterName stri
 	rcClient.Subscribe(string(state.ProductOrchestratorK8sCRDs), r.crdConfigUpdateCallback)
 
 	return nil
+}
+
+func (r *RemoteConfigUpdater) getUpdaterTags(ctx context.Context) []string {
+	updaterTags := []string{"updater_type:datadog-operator"}
+
+	if r.serviceConf.clusterName != "" {
+		updaterTags = append(updaterTags, "cluster_name:"+r.serviceConf.clusterName)
+	}
+
+	if r.kubeClient != nil {
+		sharedMetadata := metadata.NewSharedMetadata(r.logger, r.kubeClient, "", "", nil)
+		clusterUID, err := sharedMetadata.GetOrCreateClusterUID(ctx)
+		if err != nil {
+			r.logger.V(1).Info("Could not get cluster UID for Remote Configuration updater tags", "error", err)
+		} else if clusterUID != "" {
+			updaterTags = append(updaterTags, "cluster_id:"+clusterUID)
+		}
+	}
+
+	return updaterTags
 }
 
 // configureService fills the configuration needed to start the rc service

@@ -42,7 +42,15 @@ func Test_npmFeature_Configure(t *testing.T) {
 	ddaNPMEnabledConfig.Spec.Features.NPM.EnableConntrack = ptr.To(false)
 
 	ddaCNMDirectSendEnabledConfig := ddaNPMEnabled.DeepCopy()
+	ddaCNMDirectSendEnabledConfig.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+		v2alpha1.NodeAgentComponentName: {
+			Image: &v2alpha1.AgentImageConfig{Tag: "7.77.0"},
+		},
+	}
 	ddaCNMDirectSendEnabledConfig.Spec.Features.NPM.DirectSend = ptr.To(true)
+
+	ddaCNMDirectSendEnabledUnsupportedAgentVersionConfig := ddaCNMDirectSendEnabledConfig.DeepCopy()
+	ddaCNMDirectSendEnabledUnsupportedAgentVersionConfig.Spec.Override[v2alpha1.NodeAgentComponentName].Image.Tag = "7.76.0"
 
 	npmFeatureEnvVarWantFunc := func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 		mgr := mgrInterface.(*fake.PodTemplateManagers)
@@ -102,11 +110,6 @@ func Test_npmFeature_Configure(t *testing.T) {
 				MountPath: common.CgroupsMountPath,
 				ReadOnly:  true,
 			},
-			{
-				Name:      common.DebugfsVolumeName,
-				MountPath: common.DebugfsPath,
-				ReadOnly:  false,
-			},
 		}
 
 		wantProcessAgentVolMounts := append(wantVolumeMounts, corev1.VolumeMount{
@@ -116,6 +119,10 @@ func Test_npmFeature_Configure(t *testing.T) {
 		})
 
 		wantSystemProbeAgentVolMounts := append(wantVolumeMounts, corev1.VolumeMount{
+			Name:      common.DebugfsVolumeName,
+			MountPath: common.DebugfsPath,
+			ReadOnly:  false,
+		}, corev1.VolumeMount{
 			Name:      common.SystemProbeSocketVolumeName,
 			MountPath: common.SystemProbeSocketVolumePath,
 			ReadOnly:  false,
@@ -278,6 +285,12 @@ func Test_npmFeature_Configure(t *testing.T) {
 			DDA:           ddaCNMDirectSendEnabledConfig,
 			WantConfigure: true,
 			Agent:         test.NewDefaultComponentTest().WithWantFunc(cnmDirectSendWantFunc),
+		},
+		{
+			Name:          "CNM enabled, Direct Send enabled on unsupported agent version",
+			DDA:           ddaCNMDirectSendEnabledUnsupportedAgentVersionConfig,
+			WantConfigure: true,
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(npmAgentNodeWantFunc),
 		},
 	}
 

@@ -39,6 +39,21 @@ func (h *MonitorHandler) deleteResource(auth context.Context, instance *v1alpha1
 	return deleteMonitor(auth, h.client, instance.Status.Id)
 }
 
+// refreshState fetches the live Datadog-side state of the monitor.
+// The returned value mirrors the overall state reported by Datadog
+// (OK, Alert, Warn, No Data, Skipped, Ignored, Unknown). Per-group TriggeredState
+// is intentionally not surfaced in DDGR (see internal/controller/datadogmonitor/
+// controller.go::convertStateToStatus for the per-group detail available on the
+// dedicated DatadogMonitor CRD).
+func (h *MonitorHandler) refreshState(auth context.Context, instance *v1alpha1.DatadogGenericResource) (*string, error) {
+	m, err := getMonitor(auth, h.client, instance.Status.Id)
+	if err != nil {
+		return nil, err
+	}
+	state := string(m.GetOverallState())
+	return &state, nil
+}
+
 func getMonitor(auth context.Context, client *datadogV1.MonitorsApi, monitorStringID string) (datadogV1.Monitor, error) {
 	monitorID, err := resourceStringToInt64ID(monitorStringID)
 	if err != nil {

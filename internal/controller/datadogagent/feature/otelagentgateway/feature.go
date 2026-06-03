@@ -128,7 +128,7 @@ func (f *otelAgentGatewayFeature) buildOTelAgentCoreConfigMap() (*corev1.ConfigM
 	return nil, nil
 }
 
-func (f *otelAgentGatewayFeature) ManageDependencies(managers feature.ResourceManagers, provider string) error {
+func (f *otelAgentGatewayFeature) ManageDependencies(managers feature.ResourceManagers) error {
 	// check if an otel collector config was provided. If not, use default.
 	if f.customConfig == nil {
 		f.customConfig = &v2alpha1.CustomConfig{}
@@ -193,27 +193,27 @@ func (f *otelAgentGatewayFeature) ManageDependencies(managers feature.ResourceMa
 	return nil
 }
 
-func (f *otelAgentGatewayFeature) ManageClusterAgent(feature.PodTemplateManagers, string) error {
+func (f *otelAgentGatewayFeature) ManageClusterAgent(feature.PodTemplateManagers) error {
 	// OtelAgentGateway doesn't need to configure the Cluster Agent
 	return nil
 }
 
-func (f *otelAgentGatewayFeature) ManageSingleContainerNodeAgent(feature.PodTemplateManagers, string) error {
+func (f *otelAgentGatewayFeature) ManageSingleContainerNodeAgent(feature.PodTemplateManagers) error {
 	// OtelAgentGateway doesn't need to configure the Node Agent
 	return nil
 }
 
-func (f *otelAgentGatewayFeature) ManageNodeAgent(feature.PodTemplateManagers, string) error {
+func (f *otelAgentGatewayFeature) ManageNodeAgent(feature.PodTemplateManagers) error {
 	// OtelAgentGateway doesn't need to configure the Node Agent
 	return nil
 }
 
-func (f *otelAgentGatewayFeature) ManageClusterChecksRunner(feature.PodTemplateManagers, string) error {
+func (f *otelAgentGatewayFeature) ManageClusterChecksRunner(feature.PodTemplateManagers) error {
 	// OtelAgentGateway doesn't need to configure the Cluster Checks Runner
 	return nil
 }
 
-func (f *otelAgentGatewayFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
+func (f *otelAgentGatewayFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers) error {
 	var vol corev1.Volume
 	if f.customConfig != nil && f.customConfig.ConfigMap != nil {
 		// Custom config is referenced via ConfigMap

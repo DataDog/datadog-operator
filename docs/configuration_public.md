@@ -114,6 +114,9 @@ spec:
 `features.autoscaling.workload.enabled`
 : Enables the workload autoscaling product. Default: false
 
+`features.autoscaling.workload.inPlaceVerticalScaling.enabled`
+: Enables in-place vertical scaling for workload autoscaling. (Requires Cluster Agent 7.78.0+ and Kubernetes 1.33+) Default: false
+
 `features.clusterChecks.enabled`
 : Enables Cluster Checks scheduling in the Cluster Agent. Default: true
 

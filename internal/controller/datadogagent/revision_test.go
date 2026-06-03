@@ -426,7 +426,7 @@ func TestEnsureRevision_RecreatesRolledBackRevision(t *testing.T) {
 
 	// Annotate revB as rolled back (simulating what restorePreviousSpec does).
 	revB := fetchRevisionByName(t, c, "default", nameB)
-	revB.Annotations = map[string]string{annotationExperimentRollback: "true"}
+	revB.Annotations = map[string]string{annotationExperimentState: string(experimentRevisionStateRolledBack)}
 	require.NoError(t, c.Update(context.Background(), revB))
 
 	// Re-apply the same experiment spec (instanceB). ensureRevision should
@@ -439,7 +439,8 @@ func TestEnsureRevision_RecreatesRolledBackRevision(t *testing.T) {
 	assert.Equal(t, nameB, nameB2, "should reuse same name (same data hash)")
 
 	revB2 := fetchRevisionByName(t, c, "default", nameB2)
-	assert.Empty(t, revB2.Annotations[annotationExperimentRollback], "rollback annotation should be cleared")
+	assert.NotEqual(t, experimentRevisionStateRolledBack, revisionExperimentState(revB2),
+		"rolled-back state should be cleared after recreate")
 	assert.Equal(t, int64(3), revB2.Revision, "revision number should be max+1")
 }
 
@@ -459,7 +460,7 @@ func TestEnsureRevision_SkipsRecreateWhenSkipBump(t *testing.T) {
 
 	// Annotate revB as rolled back.
 	revB := fetchRevisionByName(t, c, "default", nameB)
-	revB.Annotations = map[string]string{annotationExperimentRollback: "true"}
+	revB.Annotations = map[string]string{annotationExperimentState: string(experimentRevisionStateRolledBack)}
 	require.NoError(t, c.Update(context.Background(), revB))
 
 	// With skipBump=true, the annotated revision should be returned as-is.
@@ -468,7 +469,8 @@ func TestEnsureRevision_SkipsRecreateWhenSkipBump(t *testing.T) {
 	assert.Equal(t, nameB, nameB2)
 
 	revB2 := fetchRevisionByName(t, c, "default", nameB2)
-	assert.Equal(t, "true", revB2.Annotations[annotationExperimentRollback], "annotation should still be present")
+	assert.Equal(t, experimentRevisionStateRolledBack, revisionExperimentState(revB2),
+		"rolled-back state should still be present")
 }
 
 // TestGCOldRevisions_AlwaysKeepsPrevious verifies that GC always keeps the

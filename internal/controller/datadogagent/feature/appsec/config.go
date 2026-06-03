@@ -34,6 +34,9 @@ type Config struct {
 	SidecarResourcesLimitsCPU      string
 	SidecarResourcesLimitsMemory   string
 	SidecarBodyParsingSizeLimit    string
+	// NginxModuleMountPath overrides the mount path for the nginx-datadog module inside the controller pod.
+	// Maps to DD_ADMISSION_CONTROLLER_APPSEC_NGINX_MODULE_MOUNT_PATH on the cluster-agent.
+	NginxModuleMountPath string
 }
 
 // FromAnnotations creates an appsec.Config from an annotation map and validates it.
@@ -88,6 +91,7 @@ func FromAnnotations(annotations map[string]string) (config Config, err error) {
 	config.SidecarResourcesLimitsCPU = annotations[AnnotationSidecarResourcesLimitsCPU]
 	config.SidecarResourcesLimitsMemory = annotations[AnnotationSidecarResourcesLimitsMemory]
 	config.SidecarBodyParsingSizeLimit = annotations[AnnotationSidecarBodyParsingSizeLimit]
+	config.NginxModuleMountPath = annotations[AnnotationNginxModuleMountPath]
 
 	// Validate the configuration before returning
 	if err = config.Validate(); err != nil {
@@ -95,6 +99,13 @@ func FromAnnotations(annotations map[string]string) (config Config, err error) {
 	}
 
 	return config, nil
+}
+
+func (c Config) requiresNginxSupport() bool {
+	if c.NginxModuleMountPath != "" {
+		return true
+	}
+	return slices.Contains(c.Proxies, "ingress-nginx")
 }
 
 func (c Config) isEnabled() bool {

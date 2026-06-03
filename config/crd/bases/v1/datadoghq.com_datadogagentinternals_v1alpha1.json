@@ -1167,6 +1167,17 @@
                     "enabled": {
                       "description": "Enabled enables the workload autoscaling product.\nDefault: false",
                       "type": "boolean"
+                    },
+                    "inPlaceVerticalScaling": {
+                      "additionalProperties": false,
+                      "description": "InPlaceVerticalScaling contains the configuration for the in-place vertical scaling sub-feature.\nRequires workload autoscaling to be enabled.\n(Requires Cluster Agent 7.78.0+ and Kubernetes 1.33+)",
+                      "properties": {
+                        "enabled": {
+                          "description": "Enabled enables in-place vertical scaling for workload autoscaling.\n(Requires Cluster Agent 7.78.0+ and Kubernetes 1.33+)\nDefault: false",
+                          "type": "boolean"
+                        }
+                      },
+                      "type": "object"
                     }
                   },
                   "type": "object"
@@ -9608,6 +9619,17 @@
                         "enabled": {
                           "description": "Enabled enables the workload autoscaling product.\nDefault: false",
                           "type": "boolean"
+                        },
+                        "inPlaceVerticalScaling": {
+                          "additionalProperties": false,
+                          "description": "InPlaceVerticalScaling contains the configuration for the in-place vertical scaling sub-feature.\nRequires workload autoscaling to be enabled.\n(Requires Cluster Agent 7.78.0+ and Kubernetes 1.33+)",
+                          "properties": {
+                            "enabled": {
+                              "description": "Enabled enables in-place vertical scaling for workload autoscaling.\n(Requires Cluster Agent 7.78.0+ and Kubernetes 1.33+)\nDefault: false",
+                              "type": "boolean"
+                            }
+                          },
+                          "type": "object"
                         }
                       },
                       "type": "object"

@@ -81,6 +81,7 @@ spec:
 | features.autoscaling.cluster.enabled | Enables the cluster autoscaling product. (Requires Cluster Agent 7.74.0+) Default: false |
 | features.autoscaling.cluster.spot.enabled | Enables the cluster spot scheduling product. (Requires Cluster Agent 7.79.0+) Default: false |
 | features.autoscaling.workload.enabled | Enables the workload autoscaling product. Default: false |
+| features.autoscaling.workload.inPlaceVerticalScaling.enabled | Enables in-place vertical scaling for workload autoscaling. (Requires Cluster Agent 7.78.0+ and Kubernetes 1.33+) Default: false |
 | features.clusterChecks.enabled | Enables Cluster Checks scheduling in the Cluster Agent. Default: true |
 | features.clusterChecks.useClusterChecksRunners | Enabled enables Cluster Checks Runners to run all Cluster Checks. Default: false |
 | features.controlPlaneMonitoring.enabled | Enables control plane monitoring checks in the cluster agent. Default: true |
