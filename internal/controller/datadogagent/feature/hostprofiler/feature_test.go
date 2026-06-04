@@ -106,7 +106,7 @@ func testExpectedAgent(agentContainerName apicommon.AgentContainerName, expected
 					assert.False(t, *sc.AllowPrivilegeEscalation, "AllowPrivilegeEscalation must be false")
 					assert.NotNil(t, sc.SeccompProfile)
 					assert.Equal(t, corev1.SeccompProfileTypeLocalhost, sc.SeccompProfile.Type)
-					assert.Equal(t, seccompProfileName, *sc.SeccompProfile.LocalhostProfile)
+					assert.Equal(t, seccompProfileName(hostProfilerImage), *sc.SeccompProfile.LocalhostProfile)
 					assert.NotNil(t, sc.Capabilities)
 					assert.Contains(t, sc.Capabilities.Drop, corev1.Capability("ALL"))
 					assert.True(t, apiutils.IsEqualStruct(sc.Capabilities.Add, defaultCapabilities()), "capabilities.Add \ndiff = %s", cmp.Diff(sc.Capabilities.Add, defaultCapabilities()))
@@ -140,7 +140,7 @@ func testExpectedAgent(agentContainerName apicommon.AgentContainerName, expected
 				if setupContainer != nil {
 					assert.Equal(t, hostProfilerImage, setupContainer.Image)
 					assert.Contains(t, setupContainer.Command, seccompSourcePath, "cp source should be the in-image seccomp path")
-					expectedDst := common.SeccompRootVolumePath + "/" + seccompProfileName
+					expectedDst := common.SeccompRootVolumePath + "/" + seccompProfileName(hostProfilerImage)
 					assert.Contains(t, setupContainer.Command, expectedDst, "cp command should target the kubelet seccomp path")
 					// Init container should only mount seccomp-root, not the ConfigMap volume
 					mountNames := map[string]bool{}

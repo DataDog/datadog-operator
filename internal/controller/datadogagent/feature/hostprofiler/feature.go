@@ -1,6 +1,7 @@
 package hostprofiler
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -21,6 +22,7 @@ var errHostPIDDisabledManually = errors.New("Host PID is required for host profi
 type hostProfilerFeature struct {
 	owner                   metav1.Object
 	hostPIDDisabledManually bool
+	hostProfilerImage       string
 
 	logger logr.Logger
 }
@@ -52,6 +54,11 @@ func (o *hostProfilerFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Dat
 	if !featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnableHostProfilerAnnotation) {
 		return feature.RequiredComponents{}
 	}
+
+	// Resolve the host-profiler image now, during Configure, so ManageNodeAgent can use
+	// the correct image for the seccomp init container and profile name. The experimental
+	// image override is applied after ManageNodeAgent runs, so we must read it here.
+	o.hostProfilerImage = resolveHostProfilerImage(dda)
 
 	return feature.RequiredComponents{
 		Agent: feature.RequiredComponent{
@@ -102,11 +109,19 @@ func (o *hostProfilerFeature) ManageNodeAgent(managers feature.PodTemplateManage
 		hostProfilerContainer.SecurityContext = &corev1.SecurityContext{}
 	}
 
+	// Use the pre-resolved image (set in Configure) so that experimental image overrides,
+	// which are applied after ManageNodeAgent, are correctly reflected in the seccomp profile
+	// name and the init container image.
+	hostProfilerImage := o.hostProfilerImage
+	if hostProfilerImage == "" {
+		hostProfilerImage = hostProfilerContainer.Image
+	}
+
 	sc := hostProfilerContainer.SecurityContext
 	sc.AllowPrivilegeEscalation = ptr.To(false)
 	sc.SeccompProfile = &corev1.SeccompProfile{
 		Type:             corev1.SeccompProfileTypeLocalhost,
-		LocalhostProfile: ptr.To(seccompProfileName),
+		LocalhostProfile: ptr.To(seccompProfileName(hostProfilerImage)),
 	}
 	sc.Capabilities = &corev1.Capabilities{
 		Drop: []corev1.Capability{"ALL"},
@@ -123,7 +138,7 @@ func (o *hostProfilerFeature) ManageNodeAgent(managers feature.PodTemplateManage
 
 	// Init container: copy seccomp profile JSON to the kubelet seccomp directory on the host.
 	// Appended after the base init containers (init-volume, init-config) added by default.go.
-	initContainer := buildSeccompSetupInitContainer(hostProfilerContainer.Image)
+	initContainer := buildSeccompSetupInitContainer(hostProfilerImage)
 	managers.PodTemplateSpec().Spec.InitContainers = append(managers.PodTemplateSpec().Spec.InitContainers, initContainer)
 
 	// Tracingfs volume
@@ -172,4 +187,30 @@ func (o *hostProfilerFeature) ManageClusterChecksRunner(managers feature.PodTemp
 
 func (o *hostProfilerFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers) error {
 	return nil
+}
+
+// resolveHostProfilerImage returns the host-profiler image from the experimental image override annotation,
+// if present. This is needed because experimental overrides run after ManageNodeAgent, so we read them early
+// here to use the correct image for the seccomp init container and profile name.
+func resolveHostProfilerImage(dda metav1.Object) string {
+	annotations := dda.GetAnnotations()
+	if annotations == nil {
+		return ""
+	}
+	raw, ok := annotations["experimental.agent.datadoghq.com/image-override-config"]
+	if !ok || raw == "" {
+		return ""
+	}
+	var overrides map[string]struct {
+		Name string `json:"name,omitempty"`
+		Tag  string `json:"tag,omitempty"`
+	}
+	if err := json.Unmarshal([]byte(raw), &overrides); err != nil {
+		return ""
+	}
+	override, ok := overrides[string(apicommon.HostProfiler)]
+	if !ok || override.Name == "" {
+		return ""
+	}
+	return override.Name
 }

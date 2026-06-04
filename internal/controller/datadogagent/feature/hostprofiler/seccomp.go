@@ -6,6 +6,7 @@
 package hostprofiler
 
 import (
+	"crypto/sha256"
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
@@ -15,9 +16,15 @@ import (
 
 const (
 	// seccompSourcePath is the path to the seccomp profile baked into the collector image.
-	seccompSourcePath  = "/etc/dd-host-profiler/seccomp.json"
-	seccompProfileName = "host-profiler"
+	seccompSourcePath = "/etc/dd-host-profiler/seccomp.json"
 )
+
+// seccompProfileName returns a profile name unique to the image, avoiding
+// races when multiple host-profiler versions coexist on the same node.
+func seccompProfileName(imageRef string) string {
+	h := sha256.Sum256([]byte(imageRef))
+	return fmt.Sprintf("host-profiler-%x", h[:4])
+}
 
 func defaultCapabilities() []corev1.Capability {
 	return []corev1.Capability{
@@ -38,7 +45,7 @@ func buildSeccompSetupInitContainer(image string) corev1.Container {
 		Command: []string{
 			"cp",
 			seccompSourcePath,
-			fmt.Sprintf("%s/%s", common.SeccompRootVolumePath, seccompProfileName),
+			fmt.Sprintf("%s/%s", common.SeccompRootVolumePath, seccompProfileName(image)),
 		},
 		VolumeMounts: []corev1.VolumeMount{
 			common.GetVolumeMountForSeccomp(),
