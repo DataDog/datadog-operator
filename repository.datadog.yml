@@ -5,7 +5,7 @@ enable: true
 merge_method: squash
 merge_freeze: false
 github_teams_restrictions:
-  - agent-all
+  - agent-community-eng
   - injection-platform
   - container-apps-and-remediation
   - container-integrations
