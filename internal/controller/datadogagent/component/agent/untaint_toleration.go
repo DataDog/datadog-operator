@@ -7,36 +7,27 @@ package agent
 
 import (
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/klog/v2"
 
 	"github.com/DataDog/datadog-operator/pkg/untaint"
 )
 
-// podToleratesAgentNotReadyStartup returns true if the pod already tolerates the
-// agent-not-ready NoSchedule taint (exact Equal match or broader Exists on the key).
+// podToleratesAgentNotReadyStartup reports whether tolerations tolerate the
+// agent-not-ready startup taint, using the same rules as the scheduler/kubelet
+// (corev1.Toleration.ToleratesTaint). Comparison-operator tolerations (Lt/Gt) are
+// ignored unless the cluster enables that feature (we pass false).
 func podToleratesAgentNotReadyStartup(tolerations []corev1.Toleration) bool {
-	want := untaint.AgentNotReadyEqualToleration()
-	for _, t := range tolerations {
-		op := t.Operator
-		if op == "" {
-			op = corev1.TolerationOpEqual
-		}
-		switch op {
-		case corev1.TolerationOpEqual:
-			if t.Key == want.Key && t.Value == want.Value &&
-				(t.Effect == want.Effect || t.Effect == "") {
-				return true
-			}
-		case corev1.TolerationOpExists:
-			if t.Key == want.Key && (t.Effect == want.Effect || t.Effect == "") {
-				return true
-			}
+	taint := untaint.AgentNotReadyTaint()
+	for i := range tolerations {
+		if tolerations[i].ToleratesTaint(klog.Background(), &taint, false) {
+			return true
 		}
 	}
 	return false
 }
 
 // EnsureAgentNotReadyStartupToleration appends the agent-not-ready Equal toleration
-// when not already present or covered by an equivalent Exists toleration.
+// when not already tolerated per Kubernetes toleration matching.
 func EnsureAgentNotReadyStartupToleration(spec *corev1.PodSpec) {
 	if spec == nil {
 		return

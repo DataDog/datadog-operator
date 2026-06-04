@@ -59,3 +59,15 @@ func TestEnsureAgentNotReadyStartupToleration_equalEmptyOperator(t *testing.T) {
 	EnsureAgentNotReadyStartupToleration(spec)
 	require.Len(t, spec.Tolerations, 1)
 }
+
+func TestEnsureAgentNotReadyStartupToleration_skipIfExistsAllKeys(t *testing.T) {
+	// Empty key + Exists matches every taint (corev1.Toleration.ToleratesTaint).
+	spec := &corev1.PodSpec{
+		Tolerations: []corev1.Toleration{
+			{Operator: corev1.TolerationOpExists},
+		},
+	}
+
+	EnsureAgentNotReadyStartupToleration(spec)
+	require.Len(t, spec.Tolerations, 1)
+}
