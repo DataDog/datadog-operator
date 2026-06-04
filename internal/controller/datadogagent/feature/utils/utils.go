@@ -23,6 +23,7 @@ const (
 	EnableADPAnnotation              = "agent.datadoghq.com/adp-enabled"
 	EnableFineGrainedKubeletAuthz    = "agent.datadoghq.com/fine-grained-kubelet-authorization-enabled"
 	EnableHostProfilerAnnotation     = "agent.datadoghq.com/host-profiler-enabled"
+	EnableKSMApiServerCacheAnnotation = "agent.datadoghq.com/ksm-use-apiserver-cache"
 
 	EnableFlightRecorderAnnotation = "agent.datadoghq.com/flightrecorder-enabled"
 

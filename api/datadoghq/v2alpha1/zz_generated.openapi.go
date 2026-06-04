@@ -1320,13 +1320,6 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_KubeStateMetricsCoreFeatureC
 							},
 						},
 					},
-					"useApiServerCache": {
-						SchemaProps: spec.SchemaProps{
-							Description: "UseApiServerCache enables the KSM Core check to use the Kubernetes API server cache for list and watch operations. Reduces load on etcd for large clusters. Default: false",
-							Type:        []string{"boolean"},
-							Format:      "",
-						},
-					},
 				},
 			},
 		},
