@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
@@ -158,12 +159,12 @@ func TestResolveHostProfilerImage(t *testing.T) {
 	tests := []struct {
 		name        string
 		annotations map[string]string
+		ddaSpec     *v2alpha1.DatadogAgentSpec
 		want        string
 	}{
 		{
-			name:        "no annotations",
-			annotations: nil,
-			want:        "",
+			name: "no annotations, no spec override",
+			want: "",
 		},
 		{
 			name:        "annotation absent",
@@ -171,45 +172,66 @@ func TestResolveHostProfilerImage(t *testing.T) {
 			want:        "",
 		},
 		{
-			name: "host-profiler override present",
+			name: "experimental annotation — full ref in name",
 			annotations: map[string]string{
 				"experimental.agent.datadoghq.com/image-override-config": `{"host-profiler":{"name":"gcr.io/x/host-profiler:v2"}}`,
 			},
 			want: "gcr.io/x/host-profiler:v2",
 		},
 		{
-			name: "override for different container",
-			annotations: map[string]string{
-				"experimental.agent.datadoghq.com/image-override-config": `{"agent":{"name":"gcr.io/x/agent:v2"}}`,
-			},
-			want: "",
-		},
-		{
-			name: "name without tag, tag field set",
+			name: "experimental annotation — name and tag fields",
 			annotations: map[string]string{
 				"experimental.agent.datadoghq.com/image-override-config": `{"host-profiler":{"name":"gcr.io/x/host-profiler","tag":"v2"}}`,
 			},
 			want: "gcr.io/x/host-profiler:v2",
 		},
 		{
-			name: "name with tag, tag field also set — name wins",
+			name: "experimental annotation — name with tag takes precedence over tag field",
 			annotations: map[string]string{
 				"experimental.agent.datadoghq.com/image-override-config": `{"host-profiler":{"name":"gcr.io/x/host-profiler:v1","tag":"v2"}}`,
 			},
 			want: "gcr.io/x/host-profiler:v1",
 		},
 		{
-			name: "malformed json",
+			name: "experimental annotation — different container, ignored",
+			annotations: map[string]string{
+				"experimental.agent.datadoghq.com/image-override-config": `{"agent":{"name":"gcr.io/x/agent:v2"}}`,
+			},
+			want: "",
+		},
+		{
+			name: "experimental annotation — malformed json",
 			annotations: map[string]string{
 				"experimental.agent.datadoghq.com/image-override-config": `not-json`,
 			},
 			want: "",
 		},
+		{
+			name: "spec.override.nodeAgent.image",
+			ddaSpec: &v2alpha1.DatadogAgentSpec{
+				Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+					v2alpha1.NodeAgentComponentName: {Image: &v2alpha1.AgentImageConfig{Name: "gcr.io/x/agent", Tag: "7.99.0"}},
+				},
+			},
+			want: "gcr.io/x/agent:7.99.0",
+		},
+		{
+			name: "experimental annotation takes precedence over spec.override.nodeAgent.image",
+			annotations: map[string]string{
+				"experimental.agent.datadoghq.com/image-override-config": `{"host-profiler":{"name":"gcr.io/x/host-profiler:v2"}}`,
+			},
+			ddaSpec: &v2alpha1.DatadogAgentSpec{
+				Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+					v2alpha1.NodeAgentComponentName: {Image: &v2alpha1.AgentImageConfig{Tag: "7.99.0"}},
+				},
+			},
+			want: "gcr.io/x/host-profiler:v2",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			dda := &metav1.ObjectMeta{Annotations: tt.annotations}
-			assert.Equal(t, tt.want, resolveHostProfilerImage(dda))
+			assert.Equal(t, tt.want, resolveHostProfilerImage(dda, tt.ddaSpec))
 		})
 	}
 }

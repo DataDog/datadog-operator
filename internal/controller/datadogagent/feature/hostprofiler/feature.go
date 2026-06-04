@@ -57,9 +57,10 @@ func (o *hostProfilerFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Dat
 	}
 
 	// Resolve the host-profiler image now, during Configure, so ManageNodeAgent can use
-	// the correct image for the seccomp init container and profile name. The experimental
-	// image override is applied after ManageNodeAgent runs, so we must read it here.
-	o.hostProfilerImage = resolveHostProfilerImage(dda)
+	// the correct image for the seccomp init container and profile name. Both the
+	// experimental annotation and spec.override.nodeAgent.image are applied after
+	// ManageNodeAgent runs, so we must read them here.
+	o.hostProfilerImage = resolveHostProfilerImage(dda, ddaSpec)
 
 	return feature.RequiredComponents{
 		Agent: feature.RequiredComponent{
@@ -190,31 +191,38 @@ func (o *hostProfilerFeature) ManageOtelAgentGateway(managers feature.PodTemplat
 	return nil
 }
 
-// resolveHostProfilerImage returns the host-profiler image from the experimental image override annotation,
-// if present. This is needed because experimental overrides run after ManageNodeAgent, so we read them early
-// here to use the correct image for the seccomp init container and profile name.
-func resolveHostProfilerImage(dda metav1.Object) string {
-	annotations := dda.GetAnnotations()
-	if annotations == nil {
-		return ""
+// resolveHostProfilerImage returns the host-profiler image to use for the seccomp init container
+// and profile name. Both override sources are applied after ManageNodeAgent runs, so we read them
+// during Configure instead. Priority: experimental annotation > spec.override.nodeAgent.image > "".
+func resolveHostProfilerImage(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec) string {
+	// 1. Experimental per-container image override annotation.
+	if annotations := dda.GetAnnotations(); annotations != nil {
+		if raw := annotations["experimental.agent.datadoghq.com/image-override-config"]; raw != "" {
+			var overrides map[string]struct {
+				Name string `json:"name,omitempty"`
+				Tag  string `json:"tag,omitempty"`
+			}
+			if err := json.Unmarshal([]byte(raw), &overrides); err == nil {
+				if o, ok := overrides[string(apicommon.HostProfiler)]; ok && o.Name != "" {
+					if o.Tag != "" && !strings.Contains(o.Name, ":") {
+						return o.Name + ":" + o.Tag
+					}
+					return o.Name
+				}
+			}
+		}
 	}
-	raw, ok := annotations["experimental.agent.datadoghq.com/image-override-config"]
-	if !ok || raw == "" {
-		return ""
+
+	// 2. spec.override.nodeAgent.image — applied to all agent containers including host-profiler.
+	if ddaSpec != nil {
+		if componentOverride, ok := ddaSpec.Override[v2alpha1.NodeAgentComponentName]; ok && componentOverride.Image != nil {
+			img := componentOverride.Image
+			if img.Name != "" && img.Tag != "" && !strings.Contains(img.Name, ":") {
+				return img.Name + ":" + img.Tag
+			}
+			return img.Name
+		}
 	}
-	var overrides map[string]struct {
-		Name string `json:"name,omitempty"`
-		Tag  string `json:"tag,omitempty"`
-	}
-	if err := json.Unmarshal([]byte(raw), &overrides); err != nil {
-		return ""
-	}
-	override, ok := overrides[string(apicommon.HostProfiler)]
-	if !ok || override.Name == "" {
-		return ""
-	}
-	if override.Tag != "" && !strings.Contains(override.Name, ":") {
-		return override.Name + ":" + override.Tag
-	}
-	return override.Name
+
+	return ""
 }
