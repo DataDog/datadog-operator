@@ -64,10 +64,10 @@ const (
 
 // ReconcilerOptions provides options read from command line
 type ReconcilerOptions struct {
-	ExtendedDaemonsetOptions   componentagent.ExtendedDaemonsetOptions
-	SupportCilium              bool
-	OperatorMetricsEnabled     bool
-	UntaintControllerEnabled   bool
+	ExtendedDaemonsetOptions componentagent.ExtendedDaemonsetOptions
+	SupportCilium            bool
+	OperatorMetricsEnabled   bool
+	UntaintControllerEnabled bool
 }
 
 // Reconciler is the internal reconciler for Datadog Agent

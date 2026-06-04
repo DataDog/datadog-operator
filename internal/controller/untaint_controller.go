@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"slices"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -347,12 +348,7 @@ func latestPodStartTime(pods []corev1.Pod) (time.Time, bool) {
 
 // hasTaint returns true if the node has the agent-not-ready taint.
 func hasTaint(node *corev1.Node) bool {
-	for _, t := range node.Spec.Taints {
-		if untaint.IsAgentNotReadyTaint(t) {
-			return true
-		}
-	}
-	return false
+	return slices.ContainsFunc(node.Spec.Taints, untaint.IsAgentNotReadyTaint)
 }
 
 type jsonPatchOp struct {
