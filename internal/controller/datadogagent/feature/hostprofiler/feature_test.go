@@ -16,6 +16,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 )
 
@@ -151,6 +152,66 @@ func testExpectedAgent(agentContainerName apicommon.AgentContainerName, expected
 				}
 			},
 		)
+}
+
+func TestResolveHostProfilerImage(t *testing.T) {
+	tests := []struct {
+		name        string
+		annotations map[string]string
+		want        string
+	}{
+		{
+			name:        "no annotations",
+			annotations: nil,
+			want:        "",
+		},
+		{
+			name:        "annotation absent",
+			annotations: map[string]string{"some.other/annotation": "value"},
+			want:        "",
+		},
+		{
+			name: "host-profiler override present",
+			annotations: map[string]string{
+				"experimental.agent.datadoghq.com/image-override-config": `{"host-profiler":{"name":"gcr.io/x/host-profiler:v2"}}`,
+			},
+			want: "gcr.io/x/host-profiler:v2",
+		},
+		{
+			name: "override for different container",
+			annotations: map[string]string{
+				"experimental.agent.datadoghq.com/image-override-config": `{"agent":{"name":"gcr.io/x/agent:v2"}}`,
+			},
+			want: "",
+		},
+		{
+			name: "name without tag, tag field set",
+			annotations: map[string]string{
+				"experimental.agent.datadoghq.com/image-override-config": `{"host-profiler":{"name":"gcr.io/x/host-profiler","tag":"v2"}}`,
+			},
+			want: "gcr.io/x/host-profiler:v2",
+		},
+		{
+			name: "name with tag, tag field also set — name wins",
+			annotations: map[string]string{
+				"experimental.agent.datadoghq.com/image-override-config": `{"host-profiler":{"name":"gcr.io/x/host-profiler:v1","tag":"v2"}}`,
+			},
+			want: "gcr.io/x/host-profiler:v1",
+		},
+		{
+			name: "malformed json",
+			annotations: map[string]string{
+				"experimental.agent.datadoghq.com/image-override-config": `not-json`,
+			},
+			want: "",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dda := &metav1.ObjectMeta{Annotations: tt.annotations}
+			assert.Equal(t, tt.want, resolveHostProfilerImage(dda))
+		})
+	}
 }
 
 func TestDefaultCapabilities(t *testing.T) {

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
@@ -211,6 +212,9 @@ func resolveHostProfilerImage(dda metav1.Object) string {
 	override, ok := overrides[string(apicommon.HostProfiler)]
 	if !ok || override.Name == "" {
 		return ""
+	}
+	if override.Tag != "" && !strings.Contains(override.Name, ":") {
+		return override.Name + ":" + override.Tag
 	}
 	return override.Name
 }
