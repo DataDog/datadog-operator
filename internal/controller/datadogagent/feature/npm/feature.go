@@ -16,6 +16,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
 	"github.com/DataDog/datadog-operator/pkg/utils"
 )
@@ -56,7 +57,7 @@ func (f *npmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 			apicommon.SystemProbeContainerName,
 		}
 
-		directSendEnabled := apiutils.BoolValue(ddaSpec.Features.NPM.DirectSend)
+		directSendEnabled := featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnableCNMDirectSendAnnotation)
 		const directSendMinVersion = "7.81.0-0"
 		defaultIfVersionUnknown := true
 		if !utils.IsAboveMinVersion(common.GetComponentVersion(dda, v2alpha1.NodeAgentComponentName), directSendMinVersion, &defaultIfVersionUnknown) {

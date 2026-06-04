@@ -40,14 +40,18 @@ func Test_npmFeature_Configure(t *testing.T) {
 	}
 	ddaNPMEnabled := ddaNPMDisabled.DeepCopy()
 	ddaNPMEnabled.Spec.Features.NPM.Enabled = ptr.To(true)
-	ddaNPMEnabled.Spec.Features.NPM.DirectSend = ptr.To(true)
+	ddaNPMEnabled.ObjectMeta.Annotations = map[string]string{
+		"agent.datadoghq.com/cnm-direct-send-enabled": "true",
+	}
 
 	ddaNPMEnabledConfig := ddaNPMEnabled.DeepCopy()
 	ddaNPMEnabledConfig.Spec.Features.NPM.CollectDNSStats = ptr.To(true)
 	ddaNPMEnabledConfig.Spec.Features.NPM.EnableConntrack = ptr.To(false)
 
 	ddaCNMDirectSendDisabledConfig := ddaNPMEnabled.DeepCopy()
-	ddaCNMDirectSendDisabledConfig.Spec.Features.NPM.DirectSend = ptr.To(false)
+	ddaCNMDirectSendDisabledConfig.ObjectMeta.Annotations = map[string]string{
+		"agent.datadoghq.com/cnm-direct-send-enabled": "false",
+	}
 
 	ddaCNMDirectSendEnabledUnsupportedAgentVersionConfig := ddaNPMEnabled.DeepCopy()
 	ddaCNMDirectSendEnabledUnsupportedAgentVersionConfig.Spec.Override[v2alpha1.NodeAgentComponentName].Image.Tag = "7.80.0"

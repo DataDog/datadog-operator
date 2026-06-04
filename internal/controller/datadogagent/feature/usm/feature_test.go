@@ -43,10 +43,14 @@ func Test_usmFeature_Configure(t *testing.T) {
 	}
 	ddaUSMEnabled := ddaUSMDisabled.DeepCopy()
 	ddaUSMEnabled.Spec.Features.USM.Enabled = ptr.To(true)
-	ddaUSMEnabled.Spec.Features.NPM.DirectSend = ptr.To(true)
+	ddaUSMEnabled.ObjectMeta.Annotations = map[string]string{
+		"agent.datadoghq.com/cnm-direct-send-enabled": "true",
+	}
 
 	ddaUSMDirectSendDisabled := ddaUSMEnabled.DeepCopy()
-	ddaUSMDirectSendDisabled.Spec.Features.NPM.DirectSend = ptr.To(false)
+	ddaUSMDirectSendDisabled.ObjectMeta.Annotations = map[string]string{
+		"agent.datadoghq.com/cnm-direct-send-enabled": "false",
+	}
 
 	ddaUSMDirectSendEnabledUnsupportedAgentVersionConfig := ddaUSMEnabled.DeepCopy()
 	ddaUSMDirectSendEnabledUnsupportedAgentVersionConfig.Spec.Override[v2alpha1.NodeAgentComponentName].Image.Tag = "7.80.0"
