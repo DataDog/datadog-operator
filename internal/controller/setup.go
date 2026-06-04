@@ -130,6 +130,7 @@ func startDatadogAgent(logger logr.Logger, mgr manager.Manager, pInfo kubernetes
 			OperatorMetricsEnabled:     options.OperatorMetricsEnabled,
 			IntrospectionEnabled:       options.IntrospectionEnabled,
 			DatadogAgentProfileEnabled: options.DatadogAgentProfileEnabled,
+			UntaintControllerEnabled:   options.UntaintControllerEnabled,
 			DatadogCSIDriverEnabled:    options.DatadogCSIDriverEnabled,
 			CreateControllerRevisions:  options.CreateControllerRevisions,
 		},
@@ -163,8 +164,9 @@ func startDatadogAgentInternal(logger logr.Logger, mgr manager.Manager, pInfo ku
 				CanaryAutoFailEnabled:               options.SupportExtendedDaemonset.CanaryAutoFailEnabled,
 				CanaryAutoFailMaxRestarts:           int32(options.SupportExtendedDaemonset.CanaryAutoFailMaxRestarts),
 			},
-			SupportCilium:          options.SupportCilium,
-			OperatorMetricsEnabled: options.OperatorMetricsEnabled,
+			SupportCilium:            options.SupportCilium,
+			OperatorMetricsEnabled:   options.OperatorMetricsEnabled,
+			UntaintControllerEnabled: options.UntaintControllerEnabled,
 		},
 	}).SetupWithManager(mgr, metricForwardersMgr)
 }

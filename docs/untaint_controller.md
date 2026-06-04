@@ -49,6 +49,13 @@ args:
   - --untaintControllerEnabled=true
 ```
 
+When this flag is enabled, the operator also injects a toleration for
+`agent.datadoghq.com/not-ready=presence:NoSchedule` into the node Agent
+DaemonSet (or ExtendedDaemonSet) pod template, unless an equivalent toleration
+is already present. That avoids a deadlock where the node stays tainted because
+the Agent pod cannot schedule without the toleration—especially when admission
+webhook auto-injection is not in use.
+
 ## Configuration
 
 All other tuning knobs are environment variables on the operator pod. Values
