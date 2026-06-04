@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"slices"
 	"sort"
 	"testing"
 	"time"
@@ -44,6 +45,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/testutils"
+	"github.com/DataDog/datadog-operator/pkg/untaint"
 	pkgutils "github.com/DataDog/datadog-operator/pkg/utils"
 )
 
@@ -59,6 +61,17 @@ type testCase struct {
 	profile              *v1alpha1.DatadogAgentProfile // For DDAI tests
 	profilesEnabled      bool                          // For DDAI tests
 	introspectionEnabled bool                          // For introspection tests
+}
+
+// ddaiReconcilerOptionsFromDDA mirrors setup.go wiring so DDAI tests behave like production
+// for flags shared with the DatadogAgent reconciler (e.g. UntaintControllerEnabled).
+func ddaiReconcilerOptionsFromDDA(opts ReconcilerOptions) datadogagentinternal.ReconcilerOptions {
+	return datadogagentinternal.ReconcilerOptions{
+		ExtendedDaemonsetOptions:   opts.ExtendedDaemonsetOptions,
+		SupportCilium:              opts.SupportCilium,
+		OperatorMetricsEnabled:     opts.OperatorMetricsEnabled,
+		UntaintControllerEnabled:   opts.UntaintControllerEnabled,
+	}
 }
 
 // runTestCases runs test cases
@@ -106,7 +119,7 @@ func runDDAReconcilerTest(t *testing.T, tt testCase, opts ReconcilerOptions) {
 	r.initializeComponentRegistry()
 
 	ri := datadogagentinternal.NewReconciler(
-		datadogagentinternal.ReconcilerOptions{},
+		ddaiReconcilerOptionsFromDDA(opts),
 		c,
 		kubernetes.PlatformInfo{},
 		s,
@@ -179,7 +192,7 @@ func runFullReconcilerTest(t *testing.T, tt testCase, opts ReconcilerOptions) {
 	r.initializeComponentRegistry()
 
 	ri := datadogagentinternal.NewReconciler(
-		datadogagentinternal.ReconcilerOptions{},
+		ddaiReconcilerOptionsFromDDA(opts),
 		c,
 		kubernetes.PlatformInfo{},
 		s,
@@ -246,6 +259,35 @@ func buildClient(t *testing.T, tt testCase, s *runtime.Scheme) client.Client {
 	builder = builder.WithObjects(crd).WithStatusSubresource(&v1alpha1.DatadogAgentInternal{})
 
 	return builder.Build()
+}
+
+func TestReconcileDDA_UntaintController_injectsAgentNotReadyToleration(t *testing.T) {
+	const resourcesName = "foo"
+	const resourcesNamespace = "bar"
+	const dsName = "foo-agent"
+	defaultRequeueDuration := 15 * time.Second
+
+	wantTol := untaint.AgentNotReadyEqualToleration()
+	tt := testCase{
+		name: "untaint controller enabled injects agent-not-ready toleration on node agent DS",
+		loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
+			dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+				Build()
+			_ = c.Create(context.TODO(), dda)
+			return dda
+		},
+		want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
+		wantErr: false,
+		wantFunc: func(t *testing.T, c client.Client) {
+			ds := &appsv1.DaemonSet{}
+			err := c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: dsName}, ds)
+			assert.NoError(t, err)
+			assert.True(t, slices.ContainsFunc(ds.Spec.Template.Spec.Tolerations, func(tol corev1.Toleration) bool {
+				return reflect.DeepEqual(tol, wantTol)
+			}), "expected injected toleration %+v in %+v", wantTol, ds.Spec.Template.Spec.Tolerations)
+		},
+	}
+	runDDAReconcilerTest(t, tt, ReconcilerOptions{UntaintControllerEnabled: true})
 }
 
 func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
