@@ -40,7 +40,7 @@ const (
 func makeTaintedNode(ctx context.Context, name string) func() {
 	node := &corev1.Node{
 		ObjectMeta: metav1.ObjectMeta{Name: name},
-		Spec: corev1.NodeSpec{Taints: []corev1.Taint{untaint.AgentNotReadyTaint()}},
+		Spec:       corev1.NodeSpec{Taints: []corev1.Taint{untaint.AgentNotReadyTaint()}},
 	}
 	Expect(k8sClient.Create(ctx, node)).Should(Succeed())
 	return func() { _ = k8sClient.Delete(ctx, node) }
