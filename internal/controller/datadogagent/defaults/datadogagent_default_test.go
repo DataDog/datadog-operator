@@ -1107,7 +1107,6 @@ func Test_defaultFeatures(t *testing.T) {
 						Enabled:         ptr.To(valueTrue),
 						EnableConntrack: ptr.To(defaultNPMEnableConntrack),
 						CollectDNSStats: ptr.To(defaultNPMCollectDNSStats),
-						DirectSend:      ptr.To(defaultNPMDirectSend),
 					},
 					USM: &v2alpha1.USMFeatureConfig{
 						Enabled: ptr.To(defaultUSMEnabled),
@@ -1261,8 +1260,7 @@ func Test_defaultFeatures(t *testing.T) {
 						Enabled: ptr.To(defaultCWSEnabled),
 					},
 					NPM: &v2alpha1.NPMFeatureConfig{
-						Enabled:    ptr.To(defaultNPMEnabled),
-						DirectSend: ptr.To(defaultNPMDirectSend),
+						Enabled: ptr.To(defaultNPMEnabled),
 					},
 					USM: &v2alpha1.USMFeatureConfig{
 						Enabled: ptr.To(valueTrue),
