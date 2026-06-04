@@ -67,10 +67,10 @@ type testCase struct {
 // for flags shared with the DatadogAgent reconciler (e.g. UntaintControllerEnabled).
 func ddaiReconcilerOptionsFromDDA(opts ReconcilerOptions) datadogagentinternal.ReconcilerOptions {
 	return datadogagentinternal.ReconcilerOptions{
-		ExtendedDaemonsetOptions:   opts.ExtendedDaemonsetOptions,
-		SupportCilium:              opts.SupportCilium,
-		OperatorMetricsEnabled:     opts.OperatorMetricsEnabled,
-		UntaintControllerEnabled:   opts.UntaintControllerEnabled,
+		ExtendedDaemonsetOptions: opts.ExtendedDaemonsetOptions,
+		SupportCilium:            opts.SupportCilium,
+		OperatorMetricsEnabled:   opts.OperatorMetricsEnabled,
+		UntaintControllerEnabled: opts.UntaintControllerEnabled,
 	}
 }
 
