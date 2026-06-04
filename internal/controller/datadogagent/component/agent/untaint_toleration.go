@@ -7,30 +7,14 @@ package agent
 
 import (
 	corev1 "k8s.io/api/core/v1"
-)
 
-// Toleration values must stay in sync with internal/controller/untaint_controller.go
-// (agent-not-ready startup taint).
-const (
-	agentNotReadyTaintKey    = "agent.datadoghq.com/not-ready"
-	agentNotReadyTaintValue = "presence"
+	"github.com/DataDog/datadog-operator/pkg/untaint"
 )
-
-// agentNotReadyStartupToleration is the toleration that allows the node Agent to
-// schedule on nodes carrying agent.datadoghq.com/not-ready=presence:NoSchedule.
-func agentNotReadyStartupToleration() corev1.Toleration {
-	return corev1.Toleration{
-		Key:      agentNotReadyTaintKey,
-		Operator: corev1.TolerationOpEqual,
-		Value:    agentNotReadyTaintValue,
-		Effect:   corev1.TaintEffectNoSchedule,
-	}
-}
 
 // podToleratesAgentNotReadyStartup returns true if the pod already tolerates the
 // agent-not-ready NoSchedule taint (exact Equal match or broader Exists on the key).
 func podToleratesAgentNotReadyStartup(tolerations []corev1.Toleration) bool {
-	want := agentNotReadyStartupToleration()
+	want := untaint.AgentNotReadyEqualToleration()
 	for _, t := range tolerations {
 		op := t.Operator
 		if op == "" {
@@ -60,5 +44,5 @@ func EnsureAgentNotReadyStartupToleration(spec *corev1.PodSpec) {
 	if podToleratesAgentNotReadyStartup(spec.Tolerations) {
 		return
 	}
-	spec.Tolerations = append(spec.Tolerations, agentNotReadyStartupToleration())
+	spec.Tolerations = append(spec.Tolerations, untaint.AgentNotReadyEqualToleration())
 }

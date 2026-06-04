@@ -30,6 +30,7 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/internal/controller/metrics"
 	"github.com/DataDog/datadog-operator/pkg/constants"
+	"github.com/DataDog/datadog-operator/pkg/untaint"
 )
 
 // Environment variables consumed by the untaint controller. Reading them here
@@ -44,11 +45,6 @@ const (
 
 const (
 	untaintControllerName = "Untaint"
-
-	// Fixed taint to remove
-	agentNotReadyTaintKey    = "agent.datadoghq.com/not-ready"
-	agentNotReadyTaintValue  = "presence"
-	agentNotReadyTaintEffect = corev1.TaintEffectNoSchedule
 
 	// untaintPodNodeIndex is a controller-scoped field-indexer key for caching
 	// pods by their spec.nodeName. Using a namespaced key (rather than the
@@ -232,7 +228,7 @@ func (r *UntaintReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		}
 		if r.eventsEnabled {
 			r.recorder.Eventf(node, corev1.EventTypeNormal, "TaintRemoved",
-				"Removed taint %s from node %s after agent became ready", agentNotReadyTaintKey, node.Name)
+				"Removed taint %s from node %s after agent became ready", untaint.AgentNotReadyTaintKey, node.Name)
 		}
 		return ctrl.Result{}, nil
 	}
@@ -352,7 +348,7 @@ func latestPodStartTime(pods []corev1.Pod) (time.Time, bool) {
 // hasTaint returns true if the node has the agent-not-ready taint.
 func hasTaint(node *corev1.Node) bool {
 	for _, t := range node.Spec.Taints {
-		if t.Key == agentNotReadyTaintKey && t.Value == agentNotReadyTaintValue && t.Effect == agentNotReadyTaintEffect {
+		if untaint.IsAgentNotReadyTaint(t) {
 			return true
 		}
 	}
@@ -376,7 +372,7 @@ func (r *UntaintReconciler) removeTaint(ctx context.Context, node *corev1.Node) 
 	}
 	newTaints := make([]corev1.Taint, 0, len(currentTaints))
 	for _, t := range currentTaints {
-		if t.Key == agentNotReadyTaintKey && t.Value == agentNotReadyTaintValue && t.Effect == agentNotReadyTaintEffect {
+		if untaint.IsAgentNotReadyTaint(t) {
 			continue
 		}
 		newTaints = append(newTaints, t)

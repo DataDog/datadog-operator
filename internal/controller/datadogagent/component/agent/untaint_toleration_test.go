@@ -10,6 +10,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
+
+	"github.com/DataDog/datadog-operator/pkg/untaint"
 )
 
 func TestEnsureAgentNotReadyStartupToleration_nilSpec(t *testing.T) {
@@ -18,7 +20,7 @@ func TestEnsureAgentNotReadyStartupToleration_nilSpec(t *testing.T) {
 
 func TestEnsureAgentNotReadyStartupToleration_idempotent(t *testing.T) {
 	spec := &corev1.PodSpec{}
-	want := agentNotReadyStartupToleration()
+	want := untaint.AgentNotReadyEqualToleration()
 
 	EnsureAgentNotReadyStartupToleration(spec)
 	require.Len(t, spec.Tolerations, 1)
@@ -29,7 +31,7 @@ func TestEnsureAgentNotReadyStartupToleration_idempotent(t *testing.T) {
 }
 
 func TestEnsureAgentNotReadyStartupToleration_skipIfUserEqual(t *testing.T) {
-	want := agentNotReadyStartupToleration()
+	want := untaint.AgentNotReadyEqualToleration()
 	spec := &corev1.PodSpec{Tolerations: []corev1.Toleration{want}}
 
 	EnsureAgentNotReadyStartupToleration(spec)
@@ -39,7 +41,7 @@ func TestEnsureAgentNotReadyStartupToleration_skipIfUserEqual(t *testing.T) {
 func TestEnsureAgentNotReadyStartupToleration_skipIfUserExists(t *testing.T) {
 	spec := &corev1.PodSpec{
 		Tolerations: []corev1.Toleration{
-			{Key: agentNotReadyTaintKey, Operator: corev1.TolerationOpExists, Effect: corev1.TaintEffectNoSchedule},
+			{Key: untaint.AgentNotReadyTaintKey, Operator: corev1.TolerationOpExists, Effect: corev1.TaintEffectNoSchedule},
 		},
 	}
 
@@ -50,7 +52,7 @@ func TestEnsureAgentNotReadyStartupToleration_skipIfUserExists(t *testing.T) {
 func TestEnsureAgentNotReadyStartupToleration_equalEmptyOperator(t *testing.T) {
 	spec := &corev1.PodSpec{
 		Tolerations: []corev1.Toleration{
-			{Key: agentNotReadyTaintKey, Operator: "", Value: agentNotReadyTaintValue, Effect: corev1.TaintEffectNoSchedule},
+			{Key: untaint.AgentNotReadyTaintKey, Operator: "", Value: untaint.AgentNotReadyTaintValue, Effect: corev1.TaintEffectNoSchedule},
 		},
 	}
 

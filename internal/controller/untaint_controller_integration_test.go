@@ -21,6 +21,7 @@ import (
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/pkg/constants"
+	"github.com/DataDog/datadog-operator/pkg/untaint"
 )
 
 // Suite-level timeouts (see suite_v2_test.go):
@@ -39,11 +40,7 @@ const (
 func makeTaintedNode(ctx context.Context, name string) func() {
 	node := &corev1.Node{
 		ObjectMeta: metav1.ObjectMeta{Name: name},
-		Spec: corev1.NodeSpec{Taints: []corev1.Taint{{
-			Key:    agentNotReadyTaintKey,
-			Value:  agentNotReadyTaintValue,
-			Effect: agentNotReadyTaintEffect,
-		}}},
+		Spec: corev1.NodeSpec{Taints: []corev1.Taint{untaint.AgentNotReadyTaint()}},
 	}
 	Expect(k8sClient.Create(ctx, node)).Should(Succeed())
 	return func() { _ = k8sClient.Delete(ctx, node) }
