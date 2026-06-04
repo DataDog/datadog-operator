@@ -23,11 +23,9 @@ variables:
     description: "Set PUSH_IMAGE_TO_STAGING to 'true' if you want to push the operator to internal staging registry."
   FIPS_ENABLED: false
   FF_TIMESTAMPS: true
-
-cache: &global_cache
-  key: ${CI_COMMIT_REF_SLUG}
-  paths:
-    - /go/pkg/mod
+  GOPATH: "$CI_PROJECT_DIR/.go"
+  GOMODCACHE: "$CI_PROJECT_DIR/.go/pkg/mod"
+  GOCACHE: "$CI_PROJECT_DIR/.cache/go-build"
 
 .resource_variables: &resource_variables
   KUBERNETES_MEMORY_REQUEST: 16Gi
@@ -258,6 +256,11 @@ go_e2e_deps:
   tags: ["arch:amd64"]
   variables:
     KUBERNETES_CPU_REQUEST: 16
+    KUBERNETES_CPU_LIMIT: 16
+    KUBERNETES_MEMORY_REQUEST: 16Gi
+    KUBERNETES_MEMORY_LIMIT: 16Gi
+    GOMEMLIMIT: 15GiB
+    GOMAXPROCS: 4
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
       variables:
@@ -273,6 +276,12 @@ go_e2e_deps:
     - export GITHUB_TOKEN=$(dd-octo-sts token --scope DataDog/datadog-operator --policy self.gitlab.deps-fetch)
   script:
     - |
+      # Pre-warm Go module and build caches before the e2e matrix starts.
+      pushd test/e2e
+      GOWORK=off go mod download
+      GOWORK=off go test -p 4 ./... -count=1 --tags=e2e -run '^$'
+      popd
+    - |
       if [ ! -f pulumi_plugins.tar.xz ]; then
         # Pre-download Pulumi plugins used by e2e scenarios and components
         pushd test/e2e
@@ -285,6 +294,13 @@ go_e2e_deps:
     paths:
       - $CI_PROJECT_DIR/pulumi_plugins.tar.xz
   cache:
+    - key: e2e-go-${CI_COMMIT_REF_SLUG}
+      fallback_keys:
+        - e2e-go-${CI_DEFAULT_BRANCH}
+      paths:
+        - .go/pkg/mod
+        - .cache/go-build
+      policy: pull-push
     - key:
         files:
           - ./test/e2e/go.mod
@@ -348,9 +364,15 @@ go_e2e_deps:
     E2E_AWS_PUBLIC_KEY_PATH: /tmp/agent-qa-ssh-key.pub
     E2E_AWS_PRIVATE_KEY_PATH: /tmp/agent-qa-ssh-key
     E2E_KEY_PAIR_NAME: ci.datadog-operator
-    # Temporary workaround from https://github.com/golang/go/issues/75031
-    GOTOOLCHAIN: go1.25.0+auto
   image: registry.ddbuild.io/ci/datadog-agent-buildimages/linux$CI_IMAGE_LINUX_SUFFIX:$CI_IMAGE_LINUX
+  cache:
+    - key: e2e-go-${CI_COMMIT_REF_SLUG}
+      fallback_keys:
+        - e2e-go-${CI_DEFAULT_BRANCH}
+      paths:
+        - .go/pkg/mod
+        - .cache/go-build
+      policy: pull
   before_script:
     # Extract cached Pulumi plugins
     - mkdir -p ~/.pulumi && tar xJf pulumi_plugins.tar.xz -C ~/.pulumi
