@@ -57,7 +57,10 @@ func (f *npmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 			apicommon.SystemProbeContainerName,
 		}
 
-		directSendEnabled := featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnableCNMDirectSendAnnotation)
+		directSendEnabled := true
+		if value, ok := featureutils.GetFeatureConfigAnnotation(dda, featureutils.EnableCNMDirectSendAnnotation); ok {
+			directSendEnabled = value == "true"
+		}
 		const directSendMinVersion = "7.81.0-0"
 		defaultIfVersionUnknown := true
 		if !utils.IsAboveMinVersion(common.GetComponentVersion(dda, v2alpha1.NodeAgentComponentName), directSendMinVersion, &defaultIfVersionUnknown) {
