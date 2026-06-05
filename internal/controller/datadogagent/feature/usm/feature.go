@@ -61,7 +61,7 @@ func (f *usmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 			directSendEnabled = value == "true"
 		}
 		const directSendMinVersion = "7.81.0-0"
-		defaultIfVersionUnknown := true
+		defaultIfVersionUnknown := false
 		if !utils.IsAboveMinVersion(common.GetComponentVersion(dda, v2alpha1.NodeAgentComponentName), directSendMinVersion, &defaultIfVersionUnknown) {
 			directSendEnabled = false
 		}
