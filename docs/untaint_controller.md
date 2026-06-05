@@ -41,20 +41,22 @@ timeouts are global and cannot be tuned per Node (Group), DDA, or DAP.
 
 ## Enable the Untaint controller
 
-The Untaint controller is disabled by default. Enable it on the operator
-manager:
+The Untaint controller is disabled by default. Enable it via CLI flag or
+environment variable:
 
+**CLI flag:**
 ```yaml
 args:
   - --untaintControllerEnabled=true
 ```
 
-When this flag is enabled, the operator also injects a toleration for
-`agent.datadoghq.com/not-ready=presence:NoSchedule` into the node Agent
-DaemonSet (or ExtendedDaemonSet) pod template, unless an equivalent toleration
-is already present. This avoids a deadlock where the node stays tainted because
-the Agent pod cannot schedule without the toleration, especially when admission
-webhook auto-injection is not in use.
+**Environment variable** (useful for OLM / GitOps deployments where container
+args cannot be set):
+```yaml
+env:
+  - name: DD_UNTAINT_CONTROLLER_ENABLED
+    value: "true"
+```
 
 ## Configuration
 

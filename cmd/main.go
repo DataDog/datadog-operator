@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	goruntime "runtime"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -205,8 +206,40 @@ func (opts *options) Parse() {
 	flag.IntVar(&opts.edsCanaryAutoFailMaxRestarts, "edsCanaryAutoFailMaxRestarts", defaultCanaryAutoFailMaxRestarts, "ExtendedDaemonset canary auto fail max restart count")
 	flag.DurationVar(&opts.edsCanaryAutoPauseMaxSlowStartDuration, "edsCanaryAutoPauseMaxSlowStartDuration", defaultCanaryAutoPauseMaxSlowStartDuration*time.Minute, "ExtendedDaemonset canary max slow start duration")
 
+	// Environment variable overrides applied before flag.Parse() so that
+	// explicit CLI flags take precedence (default < env < CLI).
+	boolFromEnv(&opts.datadogAgentEnabled, "DD_AGENT_CONTROLLER_ENABLED")
+	boolFromEnv(&opts.datadogMonitorEnabled, "DD_MONITOR_CONTROLLER_ENABLED")
+	boolFromEnv(&opts.datadogSLOEnabled, "DD_SLO_CONTROLLER_ENABLED")
+	boolFromEnv(&opts.datadogDashboardEnabled, "DD_DASHBOARD_CONTROLLER_ENABLED")
+	boolFromEnv(&opts.datadogGenericResourceEnabled, "DD_GENERIC_RESOURCE_CONTROLLER_ENABLED")
+	boolFromEnv(&opts.datadogCSIDriverEnabled, "DD_CSI_DRIVER_CONTROLLER_ENABLED")
+	boolFromEnv(&opts.datadogAgentProfileEnabled, "DD_AGENT_PROFILE_CONTROLLER_ENABLED")
+	boolFromEnv(&opts.introspectionEnabled, "DD_INTROSPECTION_ENABLED")
+	boolFromEnv(&opts.remoteConfigEnabled, "DD_REMOTE_CONFIG_ENABLED")
+	boolFromEnv(&opts.remoteUpdatesEnabled, "DD_REMOTE_UPDATES_ENABLED")
+	boolFromEnv(&opts.operatorMetricsEnabled, "DD_OPERATOR_METRICS_ENABLED")
+	boolFromEnv(&opts.untaintControllerEnabled, "DD_UNTAINT_CONTROLLER_ENABLED")
+
 	// Parsing flags
 	flag.Parse()
+}
+
+// boolFromEnv parses a boolean environment variable and writes the result into
+// dst. Accepted values follow strconv.ParseBool: 1/0, t/f, T/F, TRUE/FALSE,
+// true/false, True/False. "yes"/"no" are NOT accepted.
+// If the variable is unset, dst is left unchanged.
+func boolFromEnv(dst *bool, envVar string) {
+	val, found := os.LookupEnv(envVar)
+	if !found {
+		return
+	}
+	parsed, err := strconv.ParseBool(val)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "ignoring invalid boolean env var %s=%q: %v\n", envVar, val, err)
+		return
+	}
+	*dst = parsed
 }
 
 func main() {

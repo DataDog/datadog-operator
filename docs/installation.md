@@ -154,6 +154,54 @@ spec:
    ```
 
 
+### Enable optional controllers with OLM
+
+Each optional controller can be toggled via a CLI flag (highest precedence) or
+an environment variable (middle precedence). If neither is set, the compiled
+default applies.
+
+| Controller              | CLI flag                          | Env var                                  | Default |
+|-------------------------|-----------------------------------|------------------------------------------|---------|
+| DatadogAgent            | `--datadogAgentEnabled`           | `DD_AGENT_CONTROLLER_ENABLED`            | `true`  |
+| DatadogMonitor          | `--datadogMonitorEnabled`         | `DD_MONITOR_CONTROLLER_ENABLED`          | `false` |
+| DatadogSLO              | `--datadogSLOEnabled`             | `DD_SLO_CONTROLLER_ENABLED`              | `false` |
+| DatadogDashboard        | `--datadogDashboardEnabled`       | `DD_DASHBOARD_CONTROLLER_ENABLED`        | `false` |
+| DatadogGenericResource  | `--datadogGenericResourceEnabled` | `DD_GENERIC_RESOURCE_CONTROLLER_ENABLED` | `false` |
+| DatadogCSIDriver        | `--datadogCSIDriverEnabled`       | `DD_CSI_DRIVER_CONTROLLER_ENABLED`       | `false` |
+| DatadogAgentProfile     | `--datadogAgentProfileEnabled`    | `DD_AGENT_PROFILE_CONTROLLER_ENABLED`    | `false` |
+| Introspection           | `--introspectionEnabled`          | `DD_INTROSPECTION_ENABLED`               | `false` |
+| RemoteConfig            | `--remoteConfigEnabled`           | `DD_REMOTE_CONFIG_ENABLED`               | `false` |
+| RemoteUpdates           | `--remoteUpdatesEnabled`          | `DD_REMOTE_UPDATES_ENABLED`              | `false` |
+| OperatorMetrics         | `--operatorMetricsEnabled`        | `DD_OPERATOR_METRICS_ENABLED`            | `true`  |
+| UntaintController       | `--untaintControllerEnabled`      | `DD_UNTAINT_CONTROLLER_ENABLED`          | `false` |
+
+Other flags (leader election, profiling, TLS, EDS tuning) are only configurable
+via CLI flag.
+
+Boolean values follow Go's [`strconv.ParseBool`](https://pkg.go.dev/strconv#ParseBool):
+`true`, `True`, `TRUE`, `1` or `false`, `False`, `FALSE`, `0`. The strings
+`yes` and `no` are **not** accepted and will be logged as an error, leaving the
+default in effect.
+
+For example, to enable the DatadogMonitor controller in an OLM deployment:
+
+```yaml
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: my-datadog-operator
+  namespace: operators
+spec:
+  channel: stable
+  name: datadog-operator
+  source: operatorhubio-catalog
+  sourceNamespace: olm
+  config:
+    env:
+      - name: DD_MONITOR_CONTROLLER_ENABLED
+        value: "true"
+```
+
 ## Deploy the DatadogAgent custom resource managed by the Operator
 
 After deploying the Datadog Operator, create the `DatadogAgent` resource that triggers the deployment of the Datadog Agent, Cluster Agent, and Cluster Checks Runners (if used) in your Kubernetes cluster. The Datadog Agent is deployed as a DaemonSet, running a pod on every node of your cluster.

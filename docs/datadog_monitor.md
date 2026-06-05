@@ -13,6 +13,14 @@ This page describes the simplest and fastest way to deploy a [Datadog monitor](h
 
 To deploy a `DatadogMonitor` with the Datadog Operator, use the [`datadog-operator` Helm chart][3].
 
+    For **OLM deployments**, enable the controller via environment variable in the `Subscription`:
+    ```yaml
+    config:
+      env:
+        - name: DD_MONITOR_CONTROLLER_ENABLED
+          value: "true"
+    ```
+
 1. Install the [Datadog Operator][4]:
 
    First, add the Datadog Helm chart with
