@@ -50,6 +50,7 @@ type SetupOptions struct {
 	CreateControllerRevisions     bool
 	DatadogCSIDriverEnabled       bool
 	UntaintControllerEnabled      bool
+	ClusterProviderDetector       datadogagent.ProviderReader
 }
 
 // ExtendedDaemonsetOptions defines ExtendedDaemonset options
@@ -132,6 +133,7 @@ func startDatadogAgent(logger logr.Logger, mgr manager.Manager, pInfo kubernetes
 			DatadogAgentProfileEnabled: options.DatadogAgentProfileEnabled,
 			DatadogCSIDriverEnabled:    options.DatadogCSIDriverEnabled,
 			CreateControllerRevisions:  options.CreateControllerRevisions,
+			ClusterProviderDetector:    options.ClusterProviderDetector,
 		},
 	}).SetupWithManager(mgr, metricForwardersMgr)
 }

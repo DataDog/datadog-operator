@@ -62,8 +62,10 @@ var providerValueAllowlist = map[string]struct{}{
 	GKECosType: {},
 }
 
-// determineProvider creates a Provider based on a map of labels
-func determineProvider(labels map[string]string) string {
+// DetermineProvider returns a single provider derived from a map of node labels
+// (e.g. the operator's own node). It is the cluster-level detection entry point
+// used for control plane monitoring defaults.
+func DetermineProvider(labels map[string]string) string {
 	if len(labels) > 0 {
 		// GKE
 		if val, ok := labels[GKEProviderLabel]; ok {
@@ -259,11 +261,31 @@ func GetAgentNameWithProvider(overrideDSName, provider string) string {
 	return overrideDSName
 }
 
+// IsSpecificProvider reports whether p is a recognized cloud provider (i.e. not
+// empty and not the generic "default").
+func IsSpecificProvider(p string) bool {
+	return p != "" && p != DefaultProvider
+}
+
+// GetClusterProviderFromNodeList collapses a node list to a single cluster-level
+// provider, preferring a specific provider (eks/openshift-*/gke-cos) over the
+// default. Providers are sorted for deterministic selection when more than one
+// specific provider is present (mixed clusters).
+func GetClusterProviderFromNodeList(nodeList []corev1.Node, logger logr.Logger) string {
+	providerList := GetProviderListFromNodeList(nodeList, logger)
+	for _, provider := range sortProviders(providerList) {
+		if provider != DefaultProvider && provider != LegacyProvider {
+			return provider
+		}
+	}
+	return DefaultProvider
+}
+
 // GetProviderListFromNodeList generates a list of providers given a list of nodes
 func GetProviderListFromNodeList(nodeList []corev1.Node, logger logr.Logger) map[string]struct{} {
 	providerList := make(map[string]struct{})
 	for _, node := range nodeList {
-		provider := determineProvider(node.Labels)
+		provider := DetermineProvider(node.Labels)
 		if _, ok := providerList[provider]; !ok {
 			providerList[provider] = struct{}{}
 			logger.V(1).Info("New provider detected", "provider", provider)

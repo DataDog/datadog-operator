@@ -8717,6 +8717,12 @@ spec:
                       format: int32
                       type: integer
                   type: object
+                clusterProvider:
+                  description: |-
+                    ClusterProvider is the detected (or user-specified) cluster provider used to
+                    apply provider-specific configuration (e.g. control plane monitoring). Empty
+                    means no provider was detected or configured.
+                  type: string
                 conditions:
                   description: Conditions Represents the latest available observations of a DatadogAgent's current state.
                   items:

@@ -65,7 +65,25 @@ import (
 const (
 	defaultRequeuePeriod    = 15 * time.Second
 	defaultErrRequeuePeriod = 5 * time.Second
+
+	// clusterProviderGateTimeout bounds how long the reconcile waits for a
+	// cluster-provider detection signal (anchored to the detector's leader-start)
+	// before proceeding with no provider.
+	clusterProviderGateTimeout = 30 * time.Second
+	// clusterProviderGateRequeue is how often the reconcile re-checks while the
+	// provider gate is holding.
+	clusterProviderGateRequeue = 2 * time.Second
 )
+
+// ProviderReader exposes the cluster-provider detection result to the reconciler
+// with lock-free reads. It is implemented by *introspection.Detector.
+type ProviderReader interface {
+	// Provider returns the detected provider and whether detection has completed.
+	Provider() (string, bool)
+	// InGracePeriod reports whether the detector is still within its startup grace
+	// window (an absent signal should not yet be treated as final).
+	InGracePeriod(window time.Duration) bool
+}
 
 // ReconcilerOptions provides options read from command line
 type ReconcilerOptions struct {
@@ -78,6 +96,9 @@ type ReconcilerOptions struct {
 	CreateControllerRevisions  bool
 	// ExperimentTimeout overrides ExperimentDefaultTimeout. Zero means use the default.
 	ExperimentTimeout time.Duration
+	// ClusterProviderDetector supplies the detected cluster provider. Nil disables
+	// provider detection (reconcile behaves as before: empty provider).
+	ClusterProviderDetector ProviderReader
 }
 
 // Reconciler is the internal reconciler for Datadog Agent

@@ -7,6 +7,7 @@ package datadogagent
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -26,6 +27,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/condition"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	pkgutils "github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 func (r *Reconciler) internalReconcileV2(ctx context.Context, instance *datadoghqv2alpha1.DatadogAgent) (reconcile.Result, error) {
@@ -68,6 +70,16 @@ func (r *Reconciler) reconcileInstanceV3(ctx context.Context, logger logr.Logger
 	ddaStatusCopy := instance.Status.DeepCopy()
 	newDDAStatus := generateNewStatusFromDDA(ddaStatusCopy)
 
+	// Resolve the cluster provider before touching anything: while detection is
+	// still warming up, hold (requeue) rather than apply a provider we're about to
+	// change.
+	provider, providerSource, hold := r.resolveClusterProvider(instance)
+	if hold {
+		logger.V(1).Info("Cluster provider not yet detected; requeuing before touching resources")
+		return reconcile.Result{RequeueAfter: clusterProviderGateRequeue}, nil
+	}
+	setClusterProviderStatus(newDDAStatus, provider, providerSource, now)
+
 	if r.options.CreateControllerRevisions {
 		revList, err := r.listRevisions(ctx, instance)
 		if err != nil {
@@ -87,14 +99,13 @@ func (r *Reconciler) reconcileInstanceV3(ctx context.Context, logger logr.Logger
 	}
 
 	// Generate default DDAI object from DDA
-	ddai, err := r.generateDDAIFromDDA(instance)
+	ddai, err := r.generateDDAIFromDDA(instance, provider)
 	if err != nil {
 		return r.updateStatusIfNeededV2(logger, instance, ddaStatusCopy, result, err, now)
 	}
 	ddais = append(ddais, ddai)
 
 	// Profiles
-	// TODO: introspection
 	sendProfileEnabledMetric(r.options.DatadogAgentProfileEnabled)
 	if r.options.DatadogAgentProfileEnabled {
 		dsName := component.GetDaemonSetNameFromDatadogAgent(instance, &instance.Spec)
@@ -197,4 +208,75 @@ func (r *Reconciler) getNodeList(ctx context.Context) ([]corev1.Node, error) {
 	}
 
 	return nodeList.Items, nil
+}
+
+// Cluster provider status source labels.
+const (
+	clusterProviderSourceUser     = "UserSpecified"
+	clusterProviderSourceDetected = "Detected"
+	clusterProviderSourceNone     = "NoProviderDetected"
+	clusterProviderSourceDisabled = "Disabled"
+)
+
+// resolveClusterProvider resolves the cluster provider and reports whether the
+// reconcile should hold (requeue without touching resources) until detection is
+// ready. Precedence: user override > live detection > persisted status.
+func (r *Reconciler) resolveClusterProvider(instance *datadoghqv2alpha1.DatadogAgent) (provider, source string, hold bool) {
+	// 0. User override. The operator only writes the annotation on the DDAI, so its
+	// presence on the DDA is definitionally user-set.
+	if v, ok := instance.Annotations[kubernetes.ProviderAnnotationKey]; ok {
+		return v, clusterProviderSourceUser, false
+	}
+
+	detector := r.options.ClusterProviderDetector
+	if detector == nil { // detection disabled: empty provider, no status
+		return "", clusterProviderSourceDisabled, false
+	}
+
+	statusProvider := instance.Status.ClusterProvider
+
+	// 1. Live detection, but never auto-downgrade a persisted specific provider to
+	// default/empty (self-corrects on the next specific detection).
+	if live, ok := detector.Provider(); ok {
+		if kubernetes.IsSpecificProvider(statusProvider) && !kubernetes.IsSpecificProvider(live) {
+			return statusProvider, clusterProviderSourceDetected, false
+		}
+		return live, clusterProviderSourceDetected, false
+	}
+
+	// 2. Persisted fallback (survives restarts / leader changes / detection outages).
+	if statusProvider != "" {
+		return statusProvider, clusterProviderSourceDetected, false
+	}
+
+	// 3. Hold while detection is still warming up; once the gate elapses, proceed
+	// with no provider.
+	if detector.InGracePeriod(clusterProviderGateTimeout) {
+		return "", "", true
+	}
+	return "", clusterProviderSourceNone, false
+}
+
+// setClusterProviderStatus records the resolved cluster provider on the DDA
+// status (the durable value read back by resolveClusterProvider) and updates the
+// ClusterProviderDetected condition for visibility.
+func setClusterProviderStatus(status *datadoghqv2alpha1.DatadogAgentStatus, provider, source string, now metav1.Time) {
+	if source == clusterProviderSourceDisabled {
+		return
+	}
+	status.ClusterProvider = provider
+
+	var reason, message string
+	switch {
+	case source == clusterProviderSourceUser:
+		reason = clusterProviderSourceUser
+		message = fmt.Sprintf("Cluster provider set to %q by user annotation.", provider)
+	case kubernetes.IsSpecificProvider(provider):
+		reason = "ProviderDetected"
+		message = fmt.Sprintf("Cluster provider detected as %q.", provider)
+	default:
+		reason = clusterProviderSourceNone
+		message = "No cloud provider detected; provider-specific configuration not applied."
+	}
+	condition.UpdateDatadogAgentStatusConditions(status, now, common.ClusterProviderDetectedConditionType, metav1.ConditionTrue, reason, message, false)
 }

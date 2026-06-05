@@ -8402,6 +8402,10 @@
           },
           "type": "object"
         },
+        "clusterProvider": {
+          "description": "ClusterProvider is the detected (or user-specified) cluster provider used to\napply provider-specific configuration (e.g. control plane monitoring). Empty\nmeans no provider was detected or configured.",
+          "type": "string"
+        },
         "conditions": {
           "description": "Conditions Represents the latest available observations of a DatadogAgent's current state.",
           "items": {

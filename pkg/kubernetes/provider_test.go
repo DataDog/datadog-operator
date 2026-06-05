@@ -107,7 +107,7 @@ func Test_determineProvider(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := determineProvider(tt.labels)
+			p := DetermineProvider(tt.labels)
 			assert.Equal(t, tt.provider, p)
 		})
 	}
