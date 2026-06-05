@@ -22,7 +22,6 @@ import (
 )
 
 func buildDaemonSet(instance *datadoghqv1alpha1.DatadogCSIDriver) *appsv1.DaemonSet {
-	driverName := csiDriverName
 	apmSocketPath := getAPMSocketPath(instance)
 	dsdSocketPath := getDSDSocketPath(instance)
 	apmSocketDir := filepath.Dir(apmSocketPath)
@@ -36,9 +35,9 @@ func buildDaemonSet(instance *datadoghqv1alpha1.DatadogCSIDriver) *appsv1.Daemon
 		admissionControllerEnabledLabel: "false",
 	}
 
-	volumes := buildVolumes(driverName, apmSocketDir, dsdSocketDir)
-	csiDriverContainer := buildCSIDriverContainer(instance, driverName, apmSocketPath, dsdSocketPath, apmSocketDir, dsdSocketDir)
-	registrarContainer := buildRegistrarContainer(instance, driverName)
+	volumes := buildVolumes(apmSocketDir, dsdSocketDir)
+	csiDriverContainer := buildCSIDriverContainer(instance, apmSocketPath, dsdSocketPath, apmSocketDir, dsdSocketDir)
+	registrarContainer := buildRegistrarContainer(instance)
 
 	revisionHistoryLimit := int32(10)
 	ds := &appsv1.DaemonSet{
@@ -79,7 +78,7 @@ func buildDaemonSet(instance *datadoghqv1alpha1.DatadogCSIDriver) *appsv1.Daemon
 	return ds
 }
 
-func buildCSIDriverContainer(instance *datadoghqv1alpha1.DatadogCSIDriver, driverName, apmSocketPath, dsdSocketPath, apmSocketDir, dsdSocketDir string) corev1.Container {
+func buildCSIDriverContainer(instance *datadoghqv1alpha1.DatadogCSIDriver, apmSocketPath, dsdSocketPath, apmSocketDir, dsdSocketDir string) corev1.Container {
 	privileged := true
 	readOnlyRootFS := true
 	bidirectional := corev1.MountPropagationBidirectional
@@ -148,7 +147,7 @@ func buildCSIDriverContainer(instance *datadoghqv1alpha1.DatadogCSIDriver, drive
 	}
 }
 
-func buildRegistrarContainer(instance *datadoghqv1alpha1.DatadogCSIDriver, driverName string) corev1.Container {
+func buildRegistrarContainer(instance *datadoghqv1alpha1.DatadogCSIDriver) corev1.Container {
 	return corev1.Container{
 		Name:  datadoghqv1alpha1.CSINodeDriverRegistrarContainerName,
 		Image: resolveRegistrarImage(instance),
@@ -163,7 +162,7 @@ func buildRegistrarContainer(instance *datadoghqv1alpha1.DatadogCSIDriver, drive
 			},
 			{
 				Name:  envDriverRegSock,
-				Value: fmt.Sprintf(csiSocketPathFmt, driverName),
+				Value: csiSocketPath,
 			},
 		},
 		VolumeMounts: []corev1.VolumeMount{
@@ -180,7 +179,7 @@ func buildRegistrarContainer(instance *datadoghqv1alpha1.DatadogCSIDriver, drive
 	}
 }
 
-func buildVolumes(driverName, apmSocketDir, dsdSocketDir string) []corev1.Volume {
+func buildVolumes(apmSocketDir, dsdSocketDir string) []corev1.Volume {
 	dirOrCreate := corev1.HostPathDirectoryOrCreate
 	dir := corev1.HostPathDirectory
 
@@ -189,7 +188,7 @@ func buildVolumes(driverName, apmSocketDir, dsdSocketDir string) []corev1.Volume
 			Name: pluginDirVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
-					Path: fmt.Sprintf(kubeletPluginsDirFmt, driverName),
+					Path: kubeletPluginsDir,
 					Type: &dirOrCreate,
 				},
 			},
@@ -198,7 +197,7 @@ func buildVolumes(driverName, apmSocketDir, dsdSocketDir string) []corev1.Volume
 			Name: storageDirVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
-					Path: fmt.Sprintf(kubeletStorageDirFmt, driverName),
+					Path: kubeletStorageDir,
 					Type: &dirOrCreate,
 				},
 			},
@@ -500,10 +499,10 @@ func resolveRegistrarImage(instance *datadoghqv1alpha1.DatadogCSIDriver) string 
 		Tag:  images.DefaultRegistrarImageVersion,
 	}
 	if instance.Spec.RegistrarImage == nil {
-		return images.AssembleImage(defaultImage, images.SIGStorageRegistry)
+		return images.AssembleImage(defaultImage, defaultRegistrarImageRegistry)
 	}
 	return images.OverrideAgentImage(
-		images.AssembleImage(defaultImage, images.SIGStorageRegistry),
+		images.AssembleImage(defaultImage, defaultRegistrarImageRegistry),
 		instance.Spec.RegistrarImage,
 	)
 }
