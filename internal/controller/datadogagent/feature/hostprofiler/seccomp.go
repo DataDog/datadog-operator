@@ -35,6 +35,7 @@ func defaultCapabilities() []corev1.Capability {
 		"DAC_READ_SEARCH",
 		"SYSLOG",
 		"CHECKPOINT_RESTORE",
+		"IPC_LOCK",
 	}
 }
 
