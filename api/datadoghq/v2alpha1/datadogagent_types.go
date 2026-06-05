@@ -118,6 +118,19 @@ type DatadogFeatures struct {
 	HelmCheck *HelmCheckFeatureConfig `json:"helmCheck,omitempty"`
 	// ControlPlaneMonitoring configuration.
 	ControlPlaneMonitoring *ControlPlaneMonitoringFeatureConfig `json:"controlPlaneMonitoring,omitempty"`
+	// KubeActions configuration.
+	KubeActions *KubeActionsFeatureConfig `json:"kubeActions,omitempty"`
+}
+
+// KubeActionsFeatureConfig allows configuration of the Kubernetes Actions feature.
+// When enabled, the Cluster Agent is granted RBAC to perform remediation actions
+// (deleting pods, restarting deployments) driven by the Datadog Kubernetes Actions product.
+// +k8s:openapi-gen=true
+type KubeActionsFeatureConfig struct {
+	// Enabled enables the Kubernetes Actions feature on the Cluster Agent.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
 }
 
 // Configuration structs for each feature in DatadogFeatures. All parameters are optional and have default values when necessary.
