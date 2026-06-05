@@ -250,6 +250,7 @@ func startUntaint(logger logr.Logger, mgr manager.Manager, _ kubernetes.Platform
 		mgr.GetClient(),
 		ctrl.Log.WithName("controllers").WithName(untaintControllerName),
 		mgr.GetEventRecorderFor(untaintControllerName),
+		options.DatadogCSIDriverEnabled,
 	)
 	if err != nil {
 		return fmt.Errorf("untaint controller setup: %w", err)
@@ -278,8 +279,9 @@ func startDatadogCSIDriver(logger logr.Logger, mgr manager.Manager, pInfo kubern
 	}
 
 	return (&DatadogCSIDriverReconciler{
-		Client:   mgr.GetClient(),
-		Scheme:   mgr.GetScheme(),
-		Recorder: mgr.GetEventRecorderFor(csiDriverControllerName),
+		Client:                   mgr.GetClient(),
+		Scheme:                   mgr.GetScheme(),
+		Recorder:                 mgr.GetEventRecorderFor(csiDriverControllerName),
+		UntaintControllerEnabled: options.UntaintControllerEnabled,
 	}).SetupWithManager(mgr)
 }

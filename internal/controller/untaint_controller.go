@@ -29,6 +29,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogcsidriver"
 	"github.com/DataDog/datadog-operator/internal/controller/metrics"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/untaint"
@@ -91,18 +92,22 @@ func ParseTimeoutPolicy(s string) (TimeoutPolicy, error) {
 }
 
 // UntaintReconciler watches agent pods and nodes and removes the taint
-// agent.datadoghq.com/not-ready=presence:NoSchedule once the agent pod is
-// Ready, or after a configurable timeout depending on the policy.
+// agent.datadoghq.com/not-ready=presence:NoSchedule once readiness criteria
+// are met, or after a configurable timeout depending on the policy.
+// When datadogCSIDriverEnabled is true (same meaning as the manager's
+// --datadogCSIDriverEnabled), the node agent and CSI node-server pods must both
+// be Ready before untainting.
 type UntaintReconciler struct {
 	client   client.Client
 	log      logr.Logger
 	recorder record.EventRecorder
 	clock    clock.PassiveClock
 
-	eventsEnabled     bool
-	readinessTimeout  time.Duration
-	schedulingTimeout time.Duration
-	timeoutPolicy     TimeoutPolicy
+	datadogCSIDriverEnabled bool
+	eventsEnabled           bool
+	readinessTimeout        time.Duration
+	schedulingTimeout       time.Duration
+	timeoutPolicy           TimeoutPolicy
 }
 
 // NewUntaintReconciler builds an UntaintReconciler. All tuning knobs are
@@ -115,7 +120,10 @@ type UntaintReconciler struct {
 //
 // The effective configuration is logged once at INFO so the operator can
 // confirm what was actually applied.
-func NewUntaintReconciler(c client.Client, log logr.Logger, rec record.EventRecorder) (*UntaintReconciler, error) {
+//
+// datadogCSIDriverEnabled should match SetupOptions.DatadogCSIDriverEnabled.
+// It is only consulted when the untaint controller is running (--untaintControllerEnabled).
+func NewUntaintReconciler(c client.Client, log logr.Logger, rec record.EventRecorder, datadogCSIDriverEnabled bool) (*UntaintReconciler, error) {
 	policy, err := ParseTimeoutPolicy(os.Getenv(EnvTimeoutPolicy))
 	if err != nil {
 		return nil, fmt.Errorf("invalid %s: %w", EnvTimeoutPolicy, err)
@@ -130,17 +138,19 @@ func NewUntaintReconciler(c client.Client, log logr.Logger, rec record.EventReco
 	}
 
 	r := &UntaintReconciler{
-		client:            c,
-		log:               log,
-		recorder:          rec,
-		clock:             clock.RealClock{},
-		eventsEnabled:     os.Getenv(EnvEventsEnabled) == "true",
-		readinessTimeout:  readiness,
-		schedulingTimeout: scheduling,
-		timeoutPolicy:     policy,
+		client:                  c,
+		log:                     log,
+		recorder:                rec,
+		clock:                   clock.RealClock{},
+		datadogCSIDriverEnabled: datadogCSIDriverEnabled,
+		eventsEnabled:           os.Getenv(EnvEventsEnabled) == "true",
+		readinessTimeout:        readiness,
+		schedulingTimeout:       scheduling,
+		timeoutPolicy:           policy,
 	}
 
 	log.Info("untaint controller configured",
+		"datadogCSIDriverEnabled", r.datadogCSIDriverEnabled,
 		"eventsEnabled", r.eventsEnabled,
 		"readinessTimeout", r.readinessTimeout,
 		"schedulingTimeout", r.schedulingTimeout,
@@ -173,11 +183,14 @@ func durationFromEnv(envVar string, def time.Duration) (time.Duration, error) {
 // +kubebuilder:rbac:groups="",resources=events,verbs=create;patch
 
 // Reconcile decides what to do with a tainted node:
-//   - if any agent pod on the node is Ready, untaint
-//   - if an agent pod exists but is not Ready and the readiness timeout has
-//     elapsed, apply the timeout policy (remove or keep)
+//   - by default: if any agent pod on the node is Ready, untaint
+//   - with CSI driver controller also enabled: agent and CSI node-server pods
+//     must both be Ready before untaint
+//   - if pods exist but readiness criteria are not met and the readiness timeout
+//     has elapsed, apply the timeout policy (remove or keep)
 //   - if no agent pod is scheduled and the scheduling timeout has elapsed,
-//     apply the timeout policy
+//     apply the timeout policy; with CSI coordination, if the agent is Ready
+//     but no CSI pod is on the node yet, the scheduling timeout also applies
 //   - otherwise, requeue after the remaining timeout window so we re-evaluate.
 func (r *UntaintReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := r.log.WithValues("node", req.Name)
@@ -205,35 +218,126 @@ func (r *UntaintReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return ctrl.Result{}, fmt.Errorf("failed to list pods on node %s: %w", req.Name, err)
 	}
 
-	// Happy path: any ready agent pod → untaint immediately and record latency.
-	var readyAt time.Time
-	var anyReady bool
-	for i := range podList.Items {
-		if ts, ok := podReadyTransition(&podList.Items[i]); ok {
-			readyAt, anyReady = ts, true
-			break
+	if r.datadogCSIDriverEnabled {
+		csiPodList := &corev1.PodList{}
+		csiLabel := labels.SelectorFromSet(map[string]string{
+			datadogcsidriver.AppLabelKey: datadogcsidriver.NodeServerDaemonSetAppValue,
+		})
+		if err := r.client.List(ctx, csiPodList,
+			client.MatchingLabelsSelector{Selector: csiLabel},
+			client.MatchingFields{untaintPodNodeIndex: req.Name},
+		); err != nil {
+			return ctrl.Result{}, fmt.Errorf("failed to list CSI driver pods on node %s: %w", req.Name, err)
 		}
-	}
-	if anyReady {
-		result, err := r.removeTaint(ctx, node)
-		if err != nil {
-			return result, err
+
+		agentReady := slices.ContainsFunc(podList.Items, func(p corev1.Pod) bool {
+			_, ok := podReadyTransition(&p)
+			return ok
+		})
+		csiReady := len(csiPodList.Items) > 0 && slices.ContainsFunc(csiPodList.Items, func(p corev1.Pod) bool {
+			_, ok := podReadyTransition(&p)
+			return ok
+		})
+
+		// Both Ready → untaint. Otherwise keep the taint and evaluate timeouts
+		// (CSI-specific clocks apply only while the agent is already Ready but CSI is not).
+		if agentReady && csiReady {
+			combined := append(append([]corev1.Pod{}, podList.Items...), csiPodList.Items...)
+			readyAt, _ := maxReadyTransitionTime(combined)
+			result, err := r.removeTaint(ctx, node)
+			if err != nil {
+				return result, err
+			}
+			if result.RequeueAfter > 0 {
+				return result, nil
+			}
+			log.Info(fmt.Sprintf("Removed agent-not-ready taint from node %s after node agent and CSI driver pods became ready", node.Name))
+			metrics.TaintRemovalsTotal.Inc()
+			if !readyAt.IsZero() {
+				metrics.TaintRemovalLatency.Observe(r.clock.Since(readyAt).Seconds())
+			}
+			if r.eventsEnabled {
+				r.recorder.Eventf(node, corev1.EventTypeNormal, "TaintRemoved",
+					"Removed taint %s from node %s after node agent and CSI node-server pods became ready", untaint.AgentNotReadyTaintKey, node.Name)
+			}
+			return ctrl.Result{}, nil
 		}
-		if result.RequeueAfter > 0 {
-			return result, nil
+		if agentReady && !csiReady {
+			return r.reconcileAgentReadyWaitForCSI(ctx, node, csiPodList)
 		}
-		log.Info(fmt.Sprintf("Removed agent-not-ready taint from node %s", node.Name))
-		metrics.TaintRemovalsTotal.Inc()
-		if !readyAt.IsZero() {
-			metrics.TaintRemovalLatency.Observe(r.clock.Since(readyAt).Seconds())
+		return r.reconcileTaintedNodeAgentTimeouts(ctx, node, log, podList)
+	} else {
+		// Happy path: any ready agent pod → untaint immediately and record latency.
+		var readyAt time.Time
+		var anyReady bool
+		for i := range podList.Items {
+			if ts, ok := podReadyTransition(&podList.Items[i]); ok {
+				readyAt, anyReady = ts, true
+				break
+			}
 		}
-		if r.eventsEnabled {
-			r.recorder.Eventf(node, corev1.EventTypeNormal, "TaintRemoved",
-				"Removed taint %s from node %s after agent became ready", untaint.AgentNotReadyTaintKey, node.Name)
+		if anyReady {
+			result, err := r.removeTaint(ctx, node)
+			if err != nil {
+				return result, err
+			}
+			if result.RequeueAfter > 0 {
+				return result, nil
+			}
+			log.Info(fmt.Sprintf("Removed agent-not-ready taint from node %s", node.Name))
+			metrics.TaintRemovalsTotal.Inc()
+			if !readyAt.IsZero() {
+				metrics.TaintRemovalLatency.Observe(r.clock.Since(readyAt).Seconds())
+			}
+			if r.eventsEnabled {
+				r.recorder.Eventf(node, corev1.EventTypeNormal, "TaintRemoved",
+					"Removed taint %s from node %s after agent became ready", untaint.AgentNotReadyTaintKey, node.Name)
+			}
+			return ctrl.Result{}, nil
 		}
-		return ctrl.Result{}, nil
 	}
 
+	return r.reconcileTaintedNodeAgentTimeouts(ctx, node, log, podList)
+}
+
+// reconcileAgentReadyWaitForCSI applies timeouts while the node agent is Ready
+// but the CSI node-server requirement is not met (no pod on node yet, or pod
+// not Ready). RequeueAfter matches reconcileTaintedNodeAgentTimeouts: full
+// remaining scheduling or readiness window (watch-driven reconciles still apply).
+func (r *UntaintReconciler) reconcileAgentReadyWaitForCSI(ctx context.Context, node *corev1.Node, csiPodList *corev1.PodList) (ctrl.Result, error) {
+	now := r.clock.Now()
+	if len(csiPodList.Items) == 0 {
+		// Agent is Ready but CSI has not landed on the node yet. Do not use
+		// the agent pod's StartTime for readiness timeout (it can be much
+		// older than the wait-for-CSI phase). Use scheduling timeout from
+		// node creation until a CSI pod appears or the window elapses.
+		created := node.CreationTimestamp.Time
+		if created.IsZero() {
+			r.log.V(1).Info("Node has no CreationTimestamp; requeueing", "node", node.Name)
+			return ctrl.Result{RequeueAfter: r.schedulingTimeout}, nil
+		}
+		elapsed := now.Sub(created)
+		if elapsed >= r.schedulingTimeout {
+			return r.applyTimeoutPolicy(ctx, node, metrics.UntaintTimeoutReasonScheduling, elapsed)
+		}
+		return ctrl.Result{RequeueAfter: r.schedulingTimeout - elapsed}, nil
+	}
+	// CSI pod(s) on the node but not Ready: readiness clock from CSI pods only.
+	latestStart, ok := latestPodStartTime(csiPodList.Items)
+	if !ok {
+		return ctrl.Result{RequeueAfter: r.readinessTimeout}, nil
+	}
+	elapsed := now.Sub(latestStart)
+	if elapsed >= r.readinessTimeout {
+		return r.applyTimeoutPolicy(ctx, node, metrics.UntaintTimeoutReasonReadiness, elapsed)
+	}
+	return ctrl.Result{RequeueAfter: r.readinessTimeout - elapsed}, nil
+}
+
+// reconcileTaintedNodeAgentTimeouts is the readiness vs scheduling timeout path
+// driven by agent pods on the node (agent-only mode, or CSI mode while the
+// agent is not Ready yet).
+func (r *UntaintReconciler) reconcileTaintedNodeAgentTimeouts(ctx context.Context, node *corev1.Node, log logr.Logger, podList *corev1.PodList) (ctrl.Result, error) {
 	// Timeout-evaluation path.
 	//   1. Agent pod present - readiness timeout. Clock: max(pod.Status.StartTime),
 	//      so a fresh restart resets the window. If StartTime is unset (very
@@ -325,6 +429,22 @@ func podReadyTransition(pod *corev1.Pod) (time.Time, bool) {
 		}
 	}
 	return time.Time{}, false
+}
+
+// maxReadyTransitionTime returns the latest PodReady LastTransitionTime among
+// pods that are currently Ready (used for removal latency when multiple pods
+// must be ready).
+func maxReadyTransitionTime(pods []corev1.Pod) (time.Time, bool) {
+	var latest time.Time
+	found := false
+	for i := range pods {
+		if ts, ok := podReadyTransition(&pods[i]); ok {
+			if !found || ts.After(latest) {
+				latest, found = ts, true
+			}
+		}
+	}
+	return latest, found
 }
 
 // latestPodStartTime returns the most recent non-nil Status.StartTime across
@@ -423,7 +543,7 @@ func (r *UntaintReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Watches(
 			&corev1.Pod{},
 			handler.EnqueueRequestsFromMapFunc(r.podToNodeRequest),
-			builder.WithPredicates(agentPodPredicate()),
+			builder.WithPredicates(r.podWatchPredicate()),
 		).
 		Watches(
 			&corev1.Node{},
@@ -474,6 +594,30 @@ func agentPodPredicate() predicate.Predicate {
 		DeleteFunc:  func(e event.DeleteEvent) bool { return isAgentPodEvent(e.Object) },
 		GenericFunc: func(event.GenericEvent) bool { return false },
 	}
+}
+
+// podWatchPredicate selects pod events that should enqueue a node reconcile.
+// When datadogCSIDriverEnabled is set, CSI node-server pods are included in addition
+// to agent pods.
+func (r *UntaintReconciler) podWatchPredicate() predicate.Predicate {
+	if !r.datadogCSIDriverEnabled {
+		return agentPodPredicate()
+	}
+	isRelevant := func(o client.Object) bool {
+		p, ok := o.(*corev1.Pod)
+		return ok && (isAgentPod(p) || isCSINodeServerPod(p))
+	}
+	return predicate.Funcs{
+		CreateFunc:  func(e event.CreateEvent) bool { return isRelevant(e.Object) },
+		UpdateFunc:  func(e event.UpdateEvent) bool { return isRelevant(e.ObjectNew) },
+		DeleteFunc:  func(e event.DeleteEvent) bool { return isRelevant(e.Object) },
+		GenericFunc: func(event.GenericEvent) bool { return false },
+	}
+}
+
+// isCSINodeServerPod reports whether the pod is a Datadog CSI node-server workload.
+func isCSINodeServerPod(pod *corev1.Pod) bool {
+	return pod.Labels[datadogcsidriver.AppLabelKey] == datadogcsidriver.NodeServerDaemonSetAppValue
 }
 
 // taintedNodePredicate enqueues a node when it carries the target taint on

@@ -8,6 +8,7 @@ package datadogcsidriver
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -28,6 +29,7 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	"github.com/DataDog/datadog-operator/pkg/untaint"
 )
 
 const (
@@ -35,7 +37,7 @@ const (
 	testName      = "datadog-csi"
 )
 
-func newTestReconciler(t *testing.T, objects ...client.Object) (*Reconciler, client.Client) {
+func newTestReconciler(t *testing.T, untaintControllerEnabled bool, objects ...client.Object) (*Reconciler, client.Client) {
 	t.Helper()
 	s := scheme.Scheme
 	s.AddKnownTypes(v1alpha1.GroupVersion,
@@ -52,7 +54,7 @@ func newTestReconciler(t *testing.T, objects ...client.Object) (*Reconciler, cli
 	// Set the default controller-runtime logger so ctrl.LoggerFrom(ctx) works in tests
 	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
 	recorder := record.NewFakeRecorder(10)
-	r := NewReconciler(c, s, recorder)
+	r := NewReconciler(c, s, recorder, untaintControllerEnabled)
 
 	return r, c
 }
@@ -73,7 +75,7 @@ func defaultCSIDriverCR() *v1alpha1.DatadogCSIDriver {
 
 func TestReconcile_CreatesResources(t *testing.T) {
 	instance := defaultCSIDriverCR()
-	r, c := newTestReconciler(t, instance)
+	r, c := newTestReconciler(t, false, instance)
 	ctx := context.Background()
 
 	// First reconcile: adds finalizer
@@ -150,7 +152,7 @@ func TestReconcile_CustomSocketPaths(t *testing.T) {
 	instance.Spec.APMSocketPath = &customAPM
 	instance.Spec.DSDSocketPath = &customDSD
 
-	r, c := newTestReconciler(t, instance)
+	r, c := newTestReconciler(t, false, instance)
 	ctx := context.Background()
 
 	// Reconcile twice (finalizer + create)
@@ -181,7 +183,7 @@ func TestReconcile_CustomSocketPaths(t *testing.T) {
 
 func TestReconcile_Deletion(t *testing.T) {
 	instance := defaultCSIDriverCR()
-	r, c := newTestReconciler(t, instance)
+	r, c := newTestReconciler(t, false, instance)
 	ctx := context.Background()
 
 	// Reconcile to add finalizer + create resources
@@ -224,7 +226,7 @@ func TestReconcile_Deletion(t *testing.T) {
 
 func TestReconcile_UpdateDaemonSetOnSpecChange(t *testing.T) {
 	instance := defaultCSIDriverCR()
-	r, c := newTestReconciler(t, instance)
+	r, c := newTestReconciler(t, false, instance)
 	ctx := context.Background()
 
 	// Reconcile to create resources
@@ -266,7 +268,7 @@ func TestReconcile_UpdateDaemonSetOnSpecChange(t *testing.T) {
 
 func TestReconcile_IdempotentNoUpdate(t *testing.T) {
 	instance := defaultCSIDriverCR()
-	r, c := newTestReconciler(t, instance)
+	r, c := newTestReconciler(t, false, instance)
 	ctx := context.Background()
 
 	// Reconcile to create resources
@@ -316,7 +318,7 @@ func TestReconcile_CSIDriverLabelsAdoption(t *testing.T) {
 		},
 	}
 
-	r, c := newTestReconciler(t, instance, existingCSIDriver)
+	r, c := newTestReconciler(t, false, instance, existingCSIDriver)
 	ctx := context.Background()
 
 	// Reconcile: add finalizer
@@ -369,7 +371,7 @@ func TestReconcile_Overrides(t *testing.T) {
 		},
 	}
 
-	r, c := newTestReconciler(t, instance)
+	r, c := newTestReconciler(t, false, instance)
 	ctx := context.Background()
 
 	// Reconcile twice (finalizer + create)
@@ -388,7 +390,7 @@ func TestReconcile_Overrides(t *testing.T) {
 	// Labels merged into pod template
 	assert.Equal(t, "containers", ds.Spec.Template.Labels["team"])
 	// Default labels still present
-	assert.Equal(t, csiDsName, ds.Spec.Template.Labels[appLabelKey])
+	assert.Equal(t, csiDsName, ds.Spec.Template.Labels[AppLabelKey])
 
 	// Tolerations applied
 	require.Len(t, ds.Spec.Template.Spec.Tolerations, 1)
@@ -423,7 +425,7 @@ func TestReconcile_StatusConditionOnCSIDriverError(t *testing.T) {
 	// Instead, we test that when the reconcile succeeds, the condition is Ready=True,
 	// and verify the status structure.
 	instance := defaultCSIDriverCR()
-	r, c := newTestReconciler(t, instance)
+	r, c := newTestReconciler(t, false, instance)
 	ctx := context.Background()
 
 	// Reconcile to add finalizer
@@ -450,7 +452,7 @@ func TestReconcile_StatusConditionOnCSIDriverError(t *testing.T) {
 
 func TestReconcile_CSIDriverSpecDriftIsReconciled(t *testing.T) {
 	instance := defaultCSIDriverCR()
-	r, c := newTestReconciler(t, instance)
+	r, c := newTestReconciler(t, false, instance)
 	ctx := context.Background()
 
 	// Reconcile to create resources.
@@ -485,6 +487,49 @@ func TestReconcile_CSIDriverSpecDriftIsReconciled(t *testing.T) {
 	assert.True(t, *csiDriver.Spec.PodInfoOnMount)
 	assert.Contains(t, csiDriver.Spec.VolumeLifecycleModes, storagev1.VolumeLifecyclePersistent)
 	assert.Contains(t, csiDriver.Spec.VolumeLifecycleModes, storagev1.VolumeLifecycleEphemeral)
+}
+
+func TestReconcile_DaemonSetIncludesStartupTolerationWhenUntaintEnabled(t *testing.T) {
+	instance := defaultCSIDriverCR()
+	r, c := newTestReconciler(t, true, instance)
+	ctx := context.Background()
+
+	_, err := r.Reconcile(ctx, instance)
+	require.NoError(t, err)
+	require.NoError(t, c.Get(ctx, types.NamespacedName{Name: testName, Namespace: testNamespace}, instance))
+
+	_, err = r.Reconcile(ctx, instance)
+	require.NoError(t, err)
+
+	ds := &appsv1.DaemonSet{}
+	require.NoError(t, c.Get(ctx, types.NamespacedName{Name: csiDsName, Namespace: testNamespace}, ds))
+	want := untaint.AgentNotReadyEqualToleration()
+	assert.True(t, tolerationListContains(ds.Spec.Template.Spec.Tolerations, want),
+		"expected %+v in %+v", want, ds.Spec.Template.Spec.Tolerations)
+}
+
+func TestReconcile_DaemonSetOmitsStartupTolerationWhenUntaintDisabled(t *testing.T) {
+	instance := defaultCSIDriverCR()
+	r, c := newTestReconciler(t, false, instance)
+	ctx := context.Background()
+	_, err := r.Reconcile(ctx, instance)
+	require.NoError(t, err)
+	require.NoError(t, c.Get(ctx, types.NamespacedName{Name: testName, Namespace: testNamespace}, instance))
+	_, err = r.Reconcile(ctx, instance)
+	require.NoError(t, err)
+	ds := &appsv1.DaemonSet{}
+	require.NoError(t, c.Get(ctx, types.NamespacedName{Name: csiDsName, Namespace: testNamespace}, ds))
+	want := untaint.AgentNotReadyEqualToleration()
+	assert.False(t, tolerationListContains(ds.Spec.Template.Spec.Tolerations, want))
+}
+
+func tolerationListContains(tols []corev1.Toleration, want corev1.Toleration) bool {
+	for i := range tols {
+		if reflect.DeepEqual(tols[i], want) {
+			return true
+		}
+	}
+	return false
 }
 
 // findCondition returns the condition with the given type, or nil.

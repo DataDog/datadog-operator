@@ -29,10 +29,10 @@ func buildDaemonSet(instance *datadoghqv1alpha1.DatadogCSIDriver) *appsv1.Daemon
 	dsdSocketDir := filepath.Dir(dsdSocketPath)
 
 	labels := map[string]string{
-		appLabelKey: csiDsName,
+		AppLabelKey: csiDsName,
 	}
 	podLabels := map[string]string{
-		appLabelKey:                     csiDsName,
+		AppLabelKey:                     csiDsName,
 		admissionControllerEnabledLabel: "false",
 	}
 
@@ -50,7 +50,7 @@ func buildDaemonSet(instance *datadoghqv1alpha1.DatadogCSIDriver) *appsv1.Daemon
 		Spec: appsv1.DaemonSetSpec{
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{
-					appLabelKey: csiDsName,
+					AppLabelKey: csiDsName,
 				},
 			},
 			RevisionHistoryLimit: &revisionHistoryLimit,

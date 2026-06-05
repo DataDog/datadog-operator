@@ -133,14 +133,26 @@ func CacheOptions(logger logr.Logger, opts WatchOptions) cache.Options {
 		// For the profiles feature and untaint controller we need to list agent pods.
 		// The profiles feature needs node name and labels; the untaint controller also needs
 		// Status.Conditions to check readiness. Pods are watched in DatadogAgent namespace(s).
+		// When both untaint and DatadogCSIDriver are enabled, widen to merged agent+CSI
+		// namespaces and drop the pod informer label filter so CSI node-server pods
+		// (app=datadog-csi-driver-node-server) are cached for dual-readiness untaint.
 		agentNamespaces := GetWatchNamespacesFromEnv(logger, AgentWatchNamespaceEnvVar)
-		logger.Info("Pod cache enabled", "watching Pods in namespaces", slices.Collect(maps.Keys(agentNamespaces)))
-		byObject[podObj] = cache.ByObject{
-			Namespaces: agentNamespaces,
-
-			Label: labels.SelectorFromSet(map[string]string{
+		podNamespaces := agentNamespaces
+		var podLabel labels.Selector
+		if opts.UntaintControllerEnabled && opts.DatadogCSIDriverEnabled {
+			csiDriverNamespaces := GetWatchNamespacesFromEnv(logger, csiDriverWatchNamespaceEnvVar)
+			podNamespaces = maps.Clone(agentNamespaces)
+			maps.Copy(podNamespaces, csiDriverNamespaces)
+			logger.Info("Pod cache enabled for untaint with CSI driver",
+				"watching Pods in namespaces", slices.Collect(maps.Keys(podNamespaces)))
+		} else {
+			podLabel = labels.SelectorFromSet(map[string]string{
 				common.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
-			}),
+			})
+			logger.Info("Pod cache enabled", "watching Pods in namespaces", slices.Collect(maps.Keys(agentNamespaces)))
+		}
+		podByObject := cache.ByObject{
+			Namespaces: podNamespaces,
 
 			Transform: func(obj any) (any, error) {
 				pod := obj.(*corev1.Pod)
@@ -167,6 +179,10 @@ func CacheOptions(logger logr.Logger, opts WatchOptions) cache.Options {
 				return newPod, nil
 			},
 		}
+		if podLabel != nil {
+			podByObject.Label = podLabel
+		}
+		byObject[podObj] = podByObject
 	}
 
 	if opts.DatadogAgentProfileEnabled || opts.IntrospectionEnabled || opts.UntaintControllerEnabled {
