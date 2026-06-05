@@ -1723,6 +1723,17 @@
               },
               "type": "object"
             },
+            "kubeActions": {
+              "additionalProperties": false,
+              "description": "KubeActions configuration.",
+              "properties": {
+                "enabled": {
+                  "description": "Enabled enables the Kubernetes Actions feature on the Cluster Agent.\nDefault: false",
+                  "type": "boolean"
+                }
+              },
+              "type": "object"
+            },
             "kubeStateMetricsCore": {
               "additionalProperties": false,
               "description": "KubeStateMetricsCore check configuration.",
@@ -10145,6 +10156,17 @@
                       },
                       "description": "ValuesAsTags collects Helm values from a release and uses them as tags\n(Requires Agent and Cluster Agent 7.40.0+).\nDefault: {}",
                       "type": "object"
+                    }
+                  },
+                  "type": "object"
+                },
+                "kubeActions": {
+                  "additionalProperties": false,
+                  "description": "KubeActions configuration.",
+                  "properties": {
+                    "enabled": {
+                      "description": "Enabled enables the Kubernetes Actions feature on the Cluster Agent.\nDefault: false",
+                      "type": "boolean"
                     }
                   },
                   "type": "object"
