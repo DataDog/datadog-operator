@@ -61,3 +61,12 @@ func kubeActionsClusterAgentWantFunc(t testing.TB, mgrInterface feature.PodTempl
 	}
 	assert.True(t, apiutils.IsEqualStruct(dcaEnvVars, want), "DCA envvars \ndiff = %s", cmp.Diff(dcaEnvVars, want))
 }
+
+func Test_kubeActionsFeature_NoOpManagers(t *testing.T) {
+	f := buildKubeActionsFeature(nil)
+
+	assert.NoError(t, f.ManageSingleContainerNodeAgent(nil))
+	assert.NoError(t, f.ManageNodeAgent(nil))
+	assert.NoError(t, f.ManageClusterChecksRunner(nil))
+	assert.NoError(t, f.ManageOtelAgentGateway(nil))
+}
