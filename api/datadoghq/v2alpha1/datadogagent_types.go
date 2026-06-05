@@ -1801,13 +1801,14 @@ type GlobalConfig struct {
 	Endpoint *Endpoint `json:"endpoint,omitempty"`
 
 	// Registry is the image registry to use for all Agent images.
+	// Use 'registry.datadoghq.com' for Datadog Container Registry.
 	// Use 'public.ecr.aws/datadog' for AWS ECR.
 	// Use 'datadoghq.azurecr.io' for Azure Container Registry.
 	// Use 'gcr.io/datadoghq' for Google Container Registry.
 	// Use 'eu.gcr.io/datadoghq' for Google Container Registry in the EU region.
 	// Use 'asia.gcr.io/datadoghq' for Google Container Registry in the Asia region.
 	// Use 'docker.io/datadog' for DockerHub.
-	// Default: 'gcr.io/datadoghq'
+	// Default: 'registry.datadoghq.com'
 	// +optional
 	Registry *string `json:"registry,omitempty"`
 

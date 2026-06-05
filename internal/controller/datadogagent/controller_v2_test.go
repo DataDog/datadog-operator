@@ -1091,9 +1091,9 @@ func Test_otelImageTags(t *testing.T) {
 				verifyDaemonsetContainers(t, c, resourcesNamespace, dsName, expectedContainers)
 				agentContainer := getDsContainers(c, resourcesNamespace, dsName)
 
-				assert.Equal(t, fmt.Sprintf("gcr.io/datadoghq/agent:%s", images.AgentLatestVersion), agentContainer[apicommon.CoreAgentContainerName].Image)
-				assert.Equal(t, fmt.Sprintf("gcr.io/datadoghq/agent:%s", images.AgentLatestVersion), agentContainer[apicommon.TraceAgentContainerName].Image)
-				assert.Equal(t, fmt.Sprintf("gcr.io/datadoghq/ddot-collector:%s", images.AgentLatestVersion), agentContainer[apicommon.OtelAgent].Image)
+				assert.Equal(t, fmt.Sprintf("registry.datadoghq.com/agent:%s", images.AgentLatestVersion), agentContainer[apicommon.CoreAgentContainerName].Image)
+				assert.Equal(t, fmt.Sprintf("registry.datadoghq.com/agent:%s", images.AgentLatestVersion), agentContainer[apicommon.TraceAgentContainerName].Image)
+				assert.Equal(t, fmt.Sprintf("registry.datadoghq.com/ddot-collector:%s", images.AgentLatestVersion), agentContainer[apicommon.OtelAgent].Image)
 
 			},
 		},
@@ -1117,9 +1117,9 @@ func Test_otelImageTags(t *testing.T) {
 				verifyDaemonsetContainers(t, c, resourcesNamespace, dsName, expectedContainers)
 				agentContainer := getDsContainers(c, resourcesNamespace, dsName)
 
-				assert.Equal(t, "gcr.io/datadoghq/agent:7.71.0", agentContainer[apicommon.CoreAgentContainerName].Image)
-				assert.Equal(t, "gcr.io/datadoghq/agent:7.71.0", agentContainer[apicommon.TraceAgentContainerName].Image)
-				assert.Equal(t, "gcr.io/datadoghq/ddot-collector:7.71.0", agentContainer[apicommon.OtelAgent].Image)
+				assert.Equal(t, "registry.datadoghq.com/agent:7.71.0", agentContainer[apicommon.CoreAgentContainerName].Image)
+				assert.Equal(t, "registry.datadoghq.com/agent:7.71.0", agentContainer[apicommon.TraceAgentContainerName].Image)
+				assert.Equal(t, "registry.datadoghq.com/ddot-collector:7.71.0", agentContainer[apicommon.OtelAgent].Image)
 
 			},
 		},
@@ -1179,9 +1179,9 @@ func Test_otelImageTags(t *testing.T) {
 				verifyDaemonsetContainers(t, c, resourcesNamespace, dsName, expectedContainers)
 				agentContainer := getDsContainers(c, resourcesNamespace, dsName)
 
-				assert.Equal(t, "gcr.io/datadoghq/testagent:7.65.0-full", agentContainer[apicommon.CoreAgentContainerName].Image)
-				assert.Equal(t, "gcr.io/datadoghq/testagent:7.65.0-full", agentContainer[apicommon.TraceAgentContainerName].Image)
-				assert.Equal(t, "gcr.io/datadoghq/testagent:7.65.0-full", agentContainer[apicommon.OtelAgent].Image)
+				assert.Equal(t, "registry.datadoghq.com/testagent:7.65.0-full", agentContainer[apicommon.CoreAgentContainerName].Image)
+				assert.Equal(t, "registry.datadoghq.com/testagent:7.65.0-full", agentContainer[apicommon.TraceAgentContainerName].Image)
+				assert.Equal(t, "registry.datadoghq.com/testagent:7.65.0-full", agentContainer[apicommon.OtelAgent].Image)
 
 			},
 		},
@@ -1204,9 +1204,9 @@ func Test_otelImageTags(t *testing.T) {
 				verifyDaemonsetContainers(t, c, resourcesNamespace, dsName, expectedContainers)
 				agentContainer := getDsContainers(c, resourcesNamespace, dsName)
 
-				assert.Equal(t, "gcr.io/datadoghq/testagent:7.65.0-full", agentContainer[apicommon.CoreAgentContainerName].Image)
-				assert.Equal(t, "gcr.io/datadoghq/testagent:7.65.0-full", agentContainer[apicommon.TraceAgentContainerName].Image)
-				assert.Equal(t, "gcr.io/datadoghq/testagent:7.65.0-full", agentContainer[apicommon.OtelAgent].Image)
+				assert.Equal(t, "registry.datadoghq.com/testagent:7.65.0-full", agentContainer[apicommon.CoreAgentContainerName].Image)
+				assert.Equal(t, "registry.datadoghq.com/testagent:7.65.0-full", agentContainer[apicommon.TraceAgentContainerName].Image)
+				assert.Equal(t, "registry.datadoghq.com/testagent:7.65.0-full", agentContainer[apicommon.OtelAgent].Image)
 
 			},
 		},
