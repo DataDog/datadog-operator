@@ -290,6 +290,35 @@ func TestReconcileDDA_UntaintController_injectsAgentNotReadyToleration(t *testin
 	runDDAReconcilerTest(t, tt, ReconcilerOptions{UntaintControllerEnabled: true})
 }
 
+func TestReconcileDDA_UntaintController_disabledDoesNotInjectAgentNotReadyToleration(t *testing.T) {
+	const resourcesName = "foo"
+	const resourcesNamespace = "bar"
+	const dsName = "foo-agent"
+	defaultRequeueDuration := 15 * time.Second
+
+	wantTol := untaint.AgentNotReadyEqualToleration()
+	tt := testCase{
+		name: "untaint controller disabled does not inject agent-not-ready toleration on node agent DS",
+		loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
+			dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+				Build()
+			_ = c.Create(context.TODO(), dda)
+			return dda
+		},
+		want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
+		wantErr: false,
+		wantFunc: func(t *testing.T, c client.Client) {
+			ds := &appsv1.DaemonSet{}
+			err := c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: dsName}, ds)
+			assert.NoError(t, err)
+			assert.False(t, slices.ContainsFunc(ds.Spec.Template.Spec.Tolerations, func(tol corev1.Toleration) bool {
+				return reflect.DeepEqual(tol, wantTol)
+			}), "did not expect injected toleration %+v in %+v", wantTol, ds.Spec.Template.Spec.Tolerations)
+		},
+	}
+	runDDAReconcilerTest(t, tt, ReconcilerOptions{UntaintControllerEnabled: false})
+}
+
 func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 	const resourcesName = "foo"
 	const resourcesNamespace = "bar"

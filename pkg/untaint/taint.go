@@ -17,15 +17,12 @@ const (
 	AgentNotReadyTaintValue = "presence"
 )
 
-// AgentNotReadyTaintEffect is the effect for the agent-not-ready startup taint.
-const AgentNotReadyTaintEffect = corev1.TaintEffectNoSchedule
-
 // AgentNotReadyTaint returns the full taint definition.
 func AgentNotReadyTaint() corev1.Taint {
 	return corev1.Taint{
 		Key:    AgentNotReadyTaintKey,
 		Value:  AgentNotReadyTaintValue,
-		Effect: AgentNotReadyTaintEffect,
+		Effect: corev1.TaintEffectNoSchedule,
 	}
 }
 
@@ -35,11 +32,11 @@ func AgentNotReadyEqualToleration() corev1.Toleration {
 		Key:      AgentNotReadyTaintKey,
 		Operator: corev1.TolerationOpEqual,
 		Value:    AgentNotReadyTaintValue,
-		Effect:   AgentNotReadyTaintEffect,
+		Effect:   corev1.TaintEffectNoSchedule,
 	}
 }
 
 // IsAgentNotReadyTaint reports whether t is the agent-not-ready startup taint.
 func IsAgentNotReadyTaint(t corev1.Taint) bool {
-	return t.Key == AgentNotReadyTaintKey && t.Value == AgentNotReadyTaintValue && t.Effect == AgentNotReadyTaintEffect
+	return t.Key == AgentNotReadyTaintKey && t.Value == AgentNotReadyTaintValue && t.Effect == corev1.TaintEffectNoSchedule
 }

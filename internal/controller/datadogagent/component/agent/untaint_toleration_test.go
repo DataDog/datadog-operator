@@ -8,25 +8,23 @@ package agent
 import (
 	"testing"
 
+	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 
 	"github.com/DataDog/datadog-operator/pkg/untaint"
 )
 
-func TestEnsureAgentNotReadyStartupToleration_nilSpec(t *testing.T) {
-	EnsureAgentNotReadyStartupToleration(nil)
-}
-
 func TestEnsureAgentNotReadyStartupToleration_idempotent(t *testing.T) {
 	spec := &corev1.PodSpec{}
 	want := untaint.AgentNotReadyEqualToleration()
+	log := logr.Discard()
 
-	EnsureAgentNotReadyStartupToleration(spec)
+	EnsureAgentNotReadyStartupToleration(log, spec)
 	require.Len(t, spec.Tolerations, 1)
 	require.Equal(t, want, spec.Tolerations[0])
 
-	EnsureAgentNotReadyStartupToleration(spec)
+	EnsureAgentNotReadyStartupToleration(log, spec)
 	require.Len(t, spec.Tolerations, 1)
 }
 
@@ -34,7 +32,7 @@ func TestEnsureAgentNotReadyStartupToleration_skipIfUserEqual(t *testing.T) {
 	want := untaint.AgentNotReadyEqualToleration()
 	spec := &corev1.PodSpec{Tolerations: []corev1.Toleration{want}}
 
-	EnsureAgentNotReadyStartupToleration(spec)
+	EnsureAgentNotReadyStartupToleration(logr.Discard(), spec)
 	require.Len(t, spec.Tolerations, 1)
 }
 
@@ -45,7 +43,7 @@ func TestEnsureAgentNotReadyStartupToleration_skipIfUserExists(t *testing.T) {
 		},
 	}
 
-	EnsureAgentNotReadyStartupToleration(spec)
+	EnsureAgentNotReadyStartupToleration(logr.Discard(), spec)
 	require.Len(t, spec.Tolerations, 1)
 }
 
@@ -56,7 +54,7 @@ func TestEnsureAgentNotReadyStartupToleration_equalEmptyOperator(t *testing.T) {
 		},
 	}
 
-	EnsureAgentNotReadyStartupToleration(spec)
+	EnsureAgentNotReadyStartupToleration(logr.Discard(), spec)
 	require.Len(t, spec.Tolerations, 1)
 }
 
@@ -68,6 +66,6 @@ func TestEnsureAgentNotReadyStartupToleration_skipIfExistsAllKeys(t *testing.T) 
 		},
 	}
 
-	EnsureAgentNotReadyStartupToleration(spec)
+	EnsureAgentNotReadyStartupToleration(logr.Discard(), spec)
 	require.Len(t, spec.Tolerations, 1)
 }

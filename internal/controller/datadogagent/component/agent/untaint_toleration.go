@@ -6,8 +6,8 @@
 package agent
 
 import (
+	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/klog/v2"
 
 	"github.com/DataDog/datadog-operator/pkg/untaint"
 )
@@ -16,10 +16,10 @@ import (
 // agent-not-ready startup taint, using the same rules as the scheduler/kubelet
 // (corev1.Toleration.ToleratesTaint). Comparison-operator tolerations (Lt/Gt) are
 // ignored unless the cluster enables that feature (we pass false).
-func podToleratesAgentNotReadyStartup(tolerations []corev1.Toleration) bool {
+func podToleratesAgentNotReadyStartup(logger logr.Logger, tolerations []corev1.Toleration) bool {
 	taint := untaint.AgentNotReadyTaint()
 	for i := range tolerations {
-		if tolerations[i].ToleratesTaint(klog.Background(), &taint, false) {
+		if tolerations[i].ToleratesTaint(logger, &taint, false) {
 			return true
 		}
 	}
@@ -28,11 +28,8 @@ func podToleratesAgentNotReadyStartup(tolerations []corev1.Toleration) bool {
 
 // EnsureAgentNotReadyStartupToleration appends the agent-not-ready Equal toleration
 // when not already tolerated per Kubernetes toleration matching.
-func EnsureAgentNotReadyStartupToleration(spec *corev1.PodSpec) {
-	if spec == nil {
-		return
-	}
-	if podToleratesAgentNotReadyStartup(spec.Tolerations) {
+func EnsureAgentNotReadyStartupToleration(logger logr.Logger, spec *corev1.PodSpec) {
+	if podToleratesAgentNotReadyStartup(logger, spec.Tolerations) {
 		return
 	}
 	spec.Tolerations = append(spec.Tolerations, untaint.AgentNotReadyEqualToleration())

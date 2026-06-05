@@ -96,7 +96,7 @@ func (r *Reconciler) reconcileV2Agent(ctx context.Context, requiredComponents fe
 		experimental.ApplyExperimentalOverrides(objLogger, ddai, podManagers)
 
 		if r.options.UntaintControllerEnabled {
-			componentagent.EnsureAgentNotReadyStartupToleration(&podManagers.PodTemplateSpec().Spec)
+			componentagent.EnsureAgentNotReadyStartupToleration(objLogger, &podManagers.PodTemplateSpec().Spec)
 		}
 
 		if disabledByOverride {
@@ -167,7 +167,7 @@ func (r *Reconciler) reconcileV2Agent(ctx context.Context, requiredComponents fe
 	experimental.ApplyExperimentalOverrides(objLogger, ddai, podManagers)
 
 	if r.options.UntaintControllerEnabled {
-		componentagent.EnsureAgentNotReadyStartupToleration(&podManagers.PodTemplateSpec().Spec)
+		componentagent.EnsureAgentNotReadyStartupToleration(objLogger, &podManagers.PodTemplateSpec().Spec)
 	}
 
 	if disabledByOverride {

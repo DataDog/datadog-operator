@@ -14,8 +14,8 @@ import (
 
 func TestIsAgentNotReadyTaint(t *testing.T) {
 	assert.True(t, IsAgentNotReadyTaint(AgentNotReadyTaint()))
-	assert.False(t, IsAgentNotReadyTaint(corev1.Taint{Key: AgentNotReadyTaintKey, Value: "other", Effect: AgentNotReadyTaintEffect}))
-	assert.False(t, IsAgentNotReadyTaint(corev1.Taint{Key: "other", Value: AgentNotReadyTaintValue, Effect: AgentNotReadyTaintEffect}))
+	assert.False(t, IsAgentNotReadyTaint(corev1.Taint{Key: AgentNotReadyTaintKey, Value: "other", Effect: corev1.TaintEffectNoSchedule}))
+	assert.False(t, IsAgentNotReadyTaint(corev1.Taint{Key: "other", Value: AgentNotReadyTaintValue, Effect: corev1.TaintEffectNoSchedule}))
 }
 
 func TestAgentNotReadyEqualToleration_matchesTaint(t *testing.T) {
