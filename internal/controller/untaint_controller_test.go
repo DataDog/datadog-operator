@@ -33,6 +33,7 @@ import (
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/pkg/constants"
+	"github.com/DataDog/datadog-operator/pkg/untaint"
 )
 
 // -----------------------------------------------------------------------------
@@ -58,11 +59,7 @@ func taintedNode(name string, createdAgo time.Duration, now time.Time) *corev1.N
 			CreationTimestamp: metav1.NewTime(now.Add(-createdAgo)),
 		},
 		Spec: corev1.NodeSpec{
-			Taints: []corev1.Taint{{
-				Key:    agentNotReadyTaintKey,
-				Value:  agentNotReadyTaintValue,
-				Effect: agentNotReadyTaintEffect,
-			}},
+			Taints: []corev1.Taint{untaint.AgentNotReadyTaint()},
 		},
 	}
 }
@@ -145,9 +142,7 @@ func TestHasTaint(t *testing.T) {
 	assert.False(t, hasTaint(&corev1.Node{}))
 	assert.False(t, hasTaint(&corev1.Node{Spec: corev1.NodeSpec{Taints: nil}}))
 	assert.False(t, hasTaint(&corev1.Node{Spec: corev1.NodeSpec{Taints: []corev1.Taint{{Key: "other"}}}}))
-	assert.True(t, hasTaint(&corev1.Node{Spec: corev1.NodeSpec{Taints: []corev1.Taint{{
-		Key: agentNotReadyTaintKey, Value: agentNotReadyTaintValue, Effect: agentNotReadyTaintEffect,
-	}}}}))
+	assert.True(t, hasTaint(&corev1.Node{Spec: corev1.NodeSpec{Taints: []corev1.Taint{untaint.AgentNotReadyTaint()}}}))
 }
 
 func TestDurationFromEnv(t *testing.T) {
@@ -343,9 +338,9 @@ func TestRemoveTaint_PatchContents(t *testing.T) {
 	// Marshal-back the values to inspect them as JSON.
 	testJSON, _ := json.Marshal(ops[0].Value)
 	replJSON, _ := json.Marshal(ops[1].Value)
-	assert.Contains(t, string(testJSON), agentNotReadyTaintKey, "test op carries current taints")
+	assert.Contains(t, string(testJSON), untaint.AgentNotReadyTaintKey, "test op carries current taints")
 	assert.Contains(t, string(replJSON), "other", "replace op preserves unrelated taints")
-	assert.NotContains(t, string(replJSON), agentNotReadyTaintKey, "replace op drops the target taint")
+	assert.NotContains(t, string(replJSON), untaint.AgentNotReadyTaintKey, "replace op drops the target taint")
 }
 
 func TestRemoveTaint_NilTaintsDefensive(t *testing.T) {
