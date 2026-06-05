@@ -19,7 +19,7 @@ func buildCSIDriverObject(instance *datadoghqv1alpha1.DatadogCSIDriver) *storage
 		ObjectMeta: metav1.ObjectMeta{
 			Name: csiDriverName,
 			Annotations: map[string]string{
-				apmEnabledAnnotationKey: "true",
+				apmEnabledAnnotationKey: getAPMEnabledString(instance),
 			},
 			Labels: map[string]string{
 				kubernetes.AppKubernetesManageByLabelKey: "datadog-operator",

@@ -9,11 +9,13 @@ import (
 	"fmt"
 	"maps"
 	"path/filepath"
+	"strconv"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/utils/ptr"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -130,7 +132,7 @@ func buildCSIDriverContainer(instance *datadoghqv1alpha1.DatadogCSIDriver, apmSo
 			},
 			{
 				Name:  constants.DDAPMEnabled,
-				Value: "true",
+				Value: getAPMEnabledString(instance),
 			},
 		},
 		Ports: []corev1.ContainerPort{
@@ -521,4 +523,15 @@ func getDSDSocketPath(instance *datadoghqv1alpha1.DatadogCSIDriver) string {
 		return *instance.Spec.DSDSocketPath
 	}
 	return defaultDSDSocketPath
+}
+
+func getAPMEnabled(instance *datadoghqv1alpha1.DatadogCSIDriver) bool {
+	if instance.Spec.APM == nil {
+		return true
+	}
+	return ptr.Deref(instance.Spec.APM.Enabled, true)
+}
+
+func getAPMEnabledString(instance *datadoghqv1alpha1.DatadogCSIDriver) string {
+	return strconv.FormatBool(getAPMEnabled(instance))
 }

@@ -17,6 +17,17 @@
       "additionalProperties": false,
       "description": "DatadogCSIDriverSpec defines the desired state of DatadogCSIDriver",
       "properties": {
+        "apm": {
+          "additionalProperties": false,
+          "description": "APM configures APM/Single Step Instrumentation support for the CSI driver.",
+          "properties": {
+            "enabled": {
+              "description": "Enabled enables APM/Single Step Instrumentation support for the CSI driver.\nDefault: true",
+              "type": "boolean"
+            }
+          },
+          "type": "object"
+        },
         "apmSocketPath": {
           "description": "APMSocketPath is the host path to the APM socket.\nDefault: /var/run/datadog/apm.socket",
           "type": "string"
