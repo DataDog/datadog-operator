@@ -17,7 +17,21 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/pkg/constants"
+	"github.com/DataDog/datadog-operator/pkg/images"
+	"github.com/DataDog/datadog-operator/pkg/utils"
 )
+
+func clusterAgentVersion(ddaSpec *v2alpha1.DatadogAgentSpec) string {
+	if ddaSpec == nil {
+		return images.AgentLatestVersion
+	}
+	if clusterAgent, ok := ddaSpec.Override[v2alpha1.ClusterAgentComponentName]; ok {
+		if clusterAgent.Image != nil {
+			return common.GetAgentVersionFromImage(*clusterAgent.Image)
+		}
+	}
+	return images.AgentLatestVersion
+}
 
 func init() {
 	err := feature.Register(feature.KubeActionsIDType, buildKubeActionsFeature)
@@ -51,6 +65,11 @@ func (f *kubeActionsFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Data
 	f.owner = dda
 
 	if ddaSpec.Features == nil || ddaSpec.Features.KubeActions == nil || !apiutils.BoolValue(ddaSpec.Features.KubeActions.Enabled) {
+		return reqComp
+	}
+
+	if !utils.IsAboveMinVersion(clusterAgentVersion(ddaSpec), ClusterAgentMinVersion, nil) {
+		f.logger.V(1).Info("cluster agent version is too low for Kubernetes Actions", "min", ClusterAgentMinVersion)
 		return reqComp
 	}
 

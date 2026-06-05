@@ -36,6 +36,25 @@ func Test_kubeActionsFeature_Configure(t *testing.T) {
 			WantConfigure: false,
 		},
 		{
+			Name: "KubeActions enabled but cluster agent version too low",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithName("ddaDCA").
+				WithKubeActionsEnabled(true).
+				WithClusterAgentTag("7.78.0").
+				Build(),
+			WantConfigure: false,
+		},
+		{
+			Name: "KubeActions enabled at minimum cluster agent version",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithName("ddaDCA").
+				WithKubeActionsEnabled(true).
+				WithClusterAgentTag("7.79.0").
+				Build(),
+			WantConfigure: true,
+			ClusterAgent:  test.NewDefaultComponentTest().WithWantFunc(kubeActionsClusterAgentWantFunc),
+		},
+		{
 			Name: "KubeActions enabled",
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithName("ddaDCA").
@@ -60,4 +79,13 @@ func kubeActionsClusterAgentWantFunc(t testing.TB, mgrInterface feature.PodTempl
 		},
 	}
 	assert.True(t, apiutils.IsEqualStruct(dcaEnvVars, want), "DCA envvars \ndiff = %s", cmp.Diff(dcaEnvVars, want))
+}
+
+func Test_kubeActionsFeature_NoOpManagers(t *testing.T) {
+	f := buildKubeActionsFeature(nil)
+
+	assert.NoError(t, f.ManageSingleContainerNodeAgent(nil))
+	assert.NoError(t, f.ManageNodeAgent(nil))
+	assert.NoError(t, f.ManageClusterChecksRunner(nil))
+	assert.NoError(t, f.ManageOtelAgentGateway(nil))
 }

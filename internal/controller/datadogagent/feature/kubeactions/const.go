@@ -17,6 +17,10 @@ const (
 	// DDKubeActionsEnabled is the env var that turns on the Kubernetes Actions
 	// product in the Cluster Agent.
 	DDKubeActionsEnabled = "DD_KUBEACTIONS_ENABLED"
+
+	// ClusterAgentMinVersion is the minimum Cluster Agent version that supports
+	// the Kubernetes Actions product.
+	ClusterAgentMinVersion = "7.79.0"
 )
 
 func getRBACResourceName(owner metav1.Object, suffix string) string {
