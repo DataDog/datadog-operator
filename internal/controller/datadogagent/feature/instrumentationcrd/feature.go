@@ -18,6 +18,7 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 )
 
@@ -55,11 +56,9 @@ func (f *instrumentationCRDFeature) ID() feature.IDType {
 func (f *instrumentationCRDFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) feature.RequiredComponents {
 	f.owner = dda
 
-	if ddaSpec.Features.InstrumentationCRD != nil && apiutils.BoolValue(ddaSpec.Features.InstrumentationCRD.Enabled) {
+	if featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnableInstrumentationCRDAnnotation) {
 		f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda.GetName(), ddaSpec)
 
-		// Ensure admission controller is enabled since the instrumentation CRD controller
-		// requires it for the validation webhook.
 		if ddaSpec.Features.AdmissionController != nil {
 			f.admissionControllerEnabled = apiutils.BoolValue(ddaSpec.Features.AdmissionController.Enabled)
 		}
@@ -76,7 +75,7 @@ func (f *instrumentationCRDFeature) Configure(dda metav1.Object, ddaSpec *v2alph
 }
 
 // ManageDependencies allows a feature to manage its dependencies.
-func (f *instrumentationCRDFeature) ManageDependencies(managers feature.ResourceManagers, _ string) error {
+func (f *instrumentationCRDFeature) ManageDependencies(managers feature.ResourceManagers) error {
 	if !f.admissionControllerEnabled {
 		return errors.New("admission controller feature must be enabled to use the instrumentation CRD feature")
 	}
@@ -93,7 +92,7 @@ func (f *instrumentationCRDFeature) ManageDependencies(managers feature.Resource
 }
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
-func (f *instrumentationCRDFeature) ManageClusterAgent(managers feature.PodTemplateManagers, _ string) error {
+func (f *instrumentationCRDFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
 	managers.EnvVar().AddEnvVarToContainer(
 		apicommon.ClusterAgentContainerName,
 		&corev1.EnvVar{
@@ -106,7 +105,7 @@ func (f *instrumentationCRDFeature) ManageClusterAgent(managers feature.PodTempl
 
 // ManageSingleContainerNodeAgent allows a feature to configure the Agent container for the Node Agent's corev1.PodTemplateSpec
 // if SingleContainerStrategy is enabled and can be used with the configured feature set.
-func (f *instrumentationCRDFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, _ string) error {
+func (f *instrumentationCRDFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers) error {
 	managers.EnvVar().AddEnvVarToContainer(
 		apicommon.UnprivilegedSingleAgentContainerName,
 		&corev1.EnvVar{
@@ -118,7 +117,7 @@ func (f *instrumentationCRDFeature) ManageSingleContainerNodeAgent(managers feat
 }
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
-func (f *instrumentationCRDFeature) ManageNodeAgent(managers feature.PodTemplateManagers, _ string) error {
+func (f *instrumentationCRDFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
 	managers.EnvVar().AddEnvVarToContainer(
 		apicommon.CoreAgentContainerName,
 		&corev1.EnvVar{
@@ -130,11 +129,11 @@ func (f *instrumentationCRDFeature) ManageNodeAgent(managers feature.PodTemplate
 }
 
 // ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunnerAgent's corev1.PodTemplateSpec
-func (f *instrumentationCRDFeature) ManageClusterChecksRunner(feature.PodTemplateManagers, string) error {
+func (f *instrumentationCRDFeature) ManageClusterChecksRunner(feature.PodTemplateManagers) error {
 	return nil
 }
 
 // ManageOtelAgentGateway allows a feature to configure the OtelAgentGateway's corev1.PodTemplateSpec
-func (f *instrumentationCRDFeature) ManageOtelAgentGateway(feature.PodTemplateManagers, string) error {
+func (f *instrumentationCRDFeature) ManageOtelAgentGateway(feature.PodTemplateManagers) error {
 	return nil
 }

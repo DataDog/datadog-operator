@@ -1070,17 +1070,3 @@ func (builder *DatadogAgentInternalBuilder) WithGPUMonitoringEnabled(enabled boo
 	builder.datadogAgentInternal.Spec.Features.GPU.Enabled = ptr.To(enabled)
 	return builder
 }
-
-// InstrumentationCRD
-
-func (builder *DatadogAgentInternalBuilder) initInstrumentationCRD() {
-	if builder.datadogAgentInternal.Spec.Features.InstrumentationCRD == nil {
-		builder.datadogAgentInternal.Spec.Features.InstrumentationCRD = &v2alpha1.InstrumentationCRDFeatureConfig{}
-	}
-}
-
-func (builder *DatadogAgentInternalBuilder) WithInstrumentationCRDEnabled(enabled bool) *DatadogAgentInternalBuilder {
-	builder.initInstrumentationCRD()
-	builder.datadogAgentInternal.Spec.Features.InstrumentationCRD.Enabled = ptr.To(enabled)
-	return builder
-}
