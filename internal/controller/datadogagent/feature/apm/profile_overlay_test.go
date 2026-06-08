@@ -14,7 +14,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 
+	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	featurefake "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 )
 
 func TestAPMProfileSharedConfigOverlay(t *testing.T) {
@@ -470,6 +472,86 @@ func TestAPMProfileSharedConfigOverlay(t *testing.T) {
 			assert.Equal(t, tt.want, tt.dst.Features.APM.SingleStepInstrumentation)
 		})
 	}
+}
+
+// Profile SSI overlays should render the same Cluster Agent config as direct
+// base-DDA SSI config. Node Agent config is intentionally out of scope because
+// profile-owned APM config renders on the profile DDAI instead of the default
+// DDAI.
+func TestAPMProfileSharedConfigOverlayMatchesDirectDDAClusterAgentConfig(t *testing.T) {
+	tests := []struct {
+		name string
+		ssi  *v2alpha1.SingleStepInstrumentation
+	}{
+		{
+			name: "enabled namespaces",
+			ssi: &v2alpha1.SingleStepInstrumentation{
+				Enabled:           ptr.To(true),
+				EnabledNamespaces: []string{"payments", "checkout"},
+				LibVersions:       map[string]string{"java": "1.43.0", "python": "2.14.0"},
+				LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: ptr.To(true)},
+				Injector:          &v2alpha1.InjectorConfig{ImageTag: "7.66.0"},
+				InjectionMode:     v2alpha1.InjectionModeInitContainer,
+				Targets: []v2alpha1.SSITarget{
+					{
+						Name: "api",
+						PodSelector: &metav1.LabelSelector{
+							MatchLabels: map[string]string{"app": "api"},
+						},
+						TracerVersions: map[string]string{"java": "1.43.0"},
+						TracerConfigs: []corev1.EnvVar{
+							{Name: "DD_TRACE_DEBUG", Value: "true"},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "disabled namespaces",
+			ssi: &v2alpha1.SingleStepInstrumentation{
+				Enabled:            ptr.To(true),
+				DisabledNamespaces: []string{"kube-system", "datadog"},
+				LanguageDetection:  &v2alpha1.LanguageDetectionConfig{Enabled: ptr.To(false)},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			directDDA := testProfileOverlayBaseSpec(false)
+			directDDA.Features.APM.SingleStepInstrumentation = tt.ssi.DeepCopy()
+
+			overlayDDA := testProfileOverlayBaseSpec(false)
+			profile := testProfileOverlayProfileSpec(tt.ssi.DeepCopy())
+			require.NoError(t, applyAPMProfileSharedConfigOverlay(overlayDDA, overlayDDA.DeepCopy(), profile))
+
+			assert.Equal(
+				t,
+				renderAPMClusterAgentEnvVars(t, directDDA),
+				renderAPMClusterAgentEnvVars(t, overlayDDA),
+			)
+		})
+	}
+}
+
+func renderAPMClusterAgentEnvVars(t testing.TB, spec *v2alpha1.DatadogAgentSpec) []*corev1.EnvVar {
+	t.Helper()
+
+	dda := &v2alpha1.DatadogAgent{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "datadog",
+			Namespace: "default",
+		},
+		Spec: *spec.DeepCopy(),
+	}
+	feat := buildAPMFeature(nil).(*apmFeature)
+	reqComp := feat.Configure(dda, &dda.Spec, nil)
+	require.True(t, reqComp.ClusterAgent.IsEnabled())
+
+	mgr := featurefake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{})
+	require.NoError(t, feat.ManageClusterAgent(mgr))
+
+	return mgr.EnvVarMgr.EnvVarsByC[apicommon.ClusterAgentContainerName]
 }
 
 func testProfileOverlayBaseSpec(ssiEnabled bool) *v2alpha1.DatadogAgentSpec {
