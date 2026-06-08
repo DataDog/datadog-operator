@@ -642,6 +642,7 @@ spec:
 
 Use an integer value for `limits.cpu` so the runtime can read it directly. If your cluster has node shapes with widely varying core counts, apply different limits per shape with [DatadogAgentProfiles][10] rather than setting a single global value that may be too low for small nodes or too high for large ones.
 
+
 {{% collapse-content title="Parameters" level="h4" expanded=true id="override-options-list" %}}
 `[component].affinity`
 : If specified, the pod's scheduling constraints. See [link](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#affinity-and-anti-affinity) for more information.
