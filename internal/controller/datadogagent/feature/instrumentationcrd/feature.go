@@ -6,8 +6,6 @@
 package instrumentationcrd
 
 import (
-	"errors"
-
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -15,12 +13,16 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/pkg/constants"
+	"github.com/DataDog/datadog-operator/pkg/images"
+	"github.com/DataDog/datadog-operator/pkg/utils"
 )
+
+// clusterAgentMinVersion is the minimum Cluster Agent version that supports the instrumentation CRD controller.
+const clusterAgentMinVersion = "7.80.0-0"
 
 func init() {
 	err := feature.Register(feature.InstrumentationCRDIDType, buildInstrumentationCRDFeature)
@@ -40,11 +42,10 @@ func buildInstrumentationCRDFeature(options *feature.Options) feature.Feature {
 }
 
 type instrumentationCRDFeature struct {
-	owner                      metav1.Object
-	serviceAccountName         string
-	rbacSuffix                 string
-	logger                     logr.Logger
-	admissionControllerEnabled bool
+	owner              metav1.Object
+	serviceAccountName string
+	rbacSuffix         string
+	logger             logr.Logger
 }
 
 // ID returns the ID of the Feature
@@ -56,30 +57,32 @@ func (f *instrumentationCRDFeature) ID() feature.IDType {
 func (f *instrumentationCRDFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) feature.RequiredComponents {
 	f.owner = dda
 
-	if featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnableInstrumentationCRDAnnotation) {
-		f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda.GetName(), ddaSpec)
-
-		if ddaSpec.Features.AdmissionController != nil {
-			f.admissionControllerEnabled = apiutils.BoolValue(ddaSpec.Features.AdmissionController.Enabled)
-		}
-
-		return feature.RequiredComponents{
-			ClusterAgent: feature.RequiredComponent{
-				IsRequired: ptr.To(true),
-				Containers: []apicommon.AgentContainerName{apicommon.ClusterAgentContainerName},
-			},
-		}
+	if value, ok := dda.GetAnnotations()[featureutils.EnableInstrumentationCRDAnnotation]; ok && value == "false" {
+		return feature.RequiredComponents{}
 	}
 
-	return feature.RequiredComponents{}
+	// If the cluster agent version is explicitly set and below the minimum, skip enabling.
+	if clusterAgent, ok := ddaSpec.Override[v2alpha1.ClusterAgentComponentName]; ok && clusterAgent.Image != nil {
+		version := common.GetAgentVersionFromImage(*clusterAgent.Image)
+		if !utils.IsAboveMinVersion(version, clusterAgentMinVersion, nil) {
+			return feature.RequiredComponents{}
+		}
+	} else if !utils.IsAboveMinVersion(images.ClusterAgentLatestVersion, clusterAgentMinVersion, nil) {
+		return feature.RequiredComponents{}
+	}
+
+	f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda.GetName(), ddaSpec)
+
+	return feature.RequiredComponents{
+		ClusterAgent: feature.RequiredComponent{
+			IsRequired: ptr.To(true),
+			Containers: []apicommon.AgentContainerName{apicommon.ClusterAgentContainerName},
+		},
+	}
 }
 
 // ManageDependencies allows a feature to manage its dependencies.
 func (f *instrumentationCRDFeature) ManageDependencies(managers feature.ResourceManagers) error {
-	if !f.admissionControllerEnabled {
-		return errors.New("admission controller feature must be enabled to use the instrumentation CRD feature")
-	}
-
 	rbacName := GetInstrumentationCRDRBACResourceName(f.owner, f.rbacSuffix)
 
 	return managers.RBACManager().AddClusterPolicyRulesByComponent(

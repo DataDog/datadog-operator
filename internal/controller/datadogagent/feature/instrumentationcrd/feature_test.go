@@ -35,24 +35,35 @@ func Test_instrumentationCRDFeature_Configure(t *testing.T) {
 			Name: "InstrumentationCRD disabled via annotation",
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithAnnotations(map[string]string{featureutils.EnableInstrumentationCRDAnnotation: "false"}).
+				WithClusterAgentImage("cluster-agent:7.80.0").
 				Build(),
 			WantConfigure: false,
 		},
 		{
-			Name: "InstrumentationCRD not set",
-			DDA: testutils.NewDatadogAgentBuilder().
-				Build(),
-			WantConfigure: false,
-		},
-		{
-			Name: "InstrumentationCRD enabled via annotation",
+			Name: "InstrumentationCRD enabled by default when CA version meets minimum",
 			DDA: testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
-				WithAnnotations(map[string]string{featureutils.EnableInstrumentationCRDAnnotation: "true"}).
-				WithAdmissionControllerEnabled(true).
+				WithClusterAgentImage("cluster-agent:7.80.0").
 				Build(),
 			WantConfigure:        true,
 			WantDependenciesFunc: instrumentationCRDWantDepsFunc(),
 			ClusterAgent:         instrumentationCRDWantClusterAgentFunc(),
+		},
+		{
+			Name: "InstrumentationCRD enabled via annotation with CA version meets minimum",
+			DDA: testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+				WithAnnotations(map[string]string{featureutils.EnableInstrumentationCRDAnnotation: "true"}).
+				WithClusterAgentImage("cluster-agent:7.80.0").
+				Build(),
+			WantConfigure:        true,
+			WantDependenciesFunc: instrumentationCRDWantDepsFunc(),
+			ClusterAgent:         instrumentationCRDWantClusterAgentFunc(),
+		},
+		{
+			Name: "InstrumentationCRD disabled when version below minimum",
+			DDA: testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+				WithClusterAgentImage("cluster-agent:7.79.0").
+				Build(),
+			WantConfigure: false,
 		},
 	}
 
