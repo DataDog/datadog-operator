@@ -36,19 +36,19 @@ const (
 
 // Reconciler reconciles a DatadogCSIDriver object
 type Reconciler struct {
-	client                   client.Client
-	scheme                   *runtime.Scheme
-	recorder                 record.EventRecorder
-	untaintControllerEnabled bool
+	client                            client.Client
+	scheme                            *runtime.Scheme
+	recorder                          record.EventRecorder
+	untaintInjectCSIStartupToleration bool
 }
 
 // NewReconciler creates a new DatadogCSIDriver reconciler
-func NewReconciler(client client.Client, scheme *runtime.Scheme, recorder record.EventRecorder, untaintControllerEnabled bool) *Reconciler {
+func NewReconciler(client client.Client, scheme *runtime.Scheme, recorder record.EventRecorder, untaintInjectCSIStartupToleration bool) *Reconciler {
 	return &Reconciler{
-		client:                   client,
-		scheme:                   scheme,
-		recorder:                 recorder,
-		untaintControllerEnabled: untaintControllerEnabled,
+		client:                            client,
+		scheme:                            scheme,
+		recorder:                          recorder,
+		untaintInjectCSIStartupToleration: untaintInjectCSIStartupToleration,
 	}
 }
 
@@ -203,7 +203,7 @@ func (r *Reconciler) reconcileCSIDriver(ctx context.Context, instance *v1alpha1.
 func (r *Reconciler) reconcileDaemonSet(ctx context.Context, instance *v1alpha1.DatadogCSIDriver) error {
 	logger := ctrl.LoggerFrom(ctx)
 	desired := buildDaemonSet(instance)
-	if r.untaintControllerEnabled {
+	if r.untaintInjectCSIStartupToleration {
 		componentagent.EnsureAgentNotReadyStartupToleration(logger, &desired.Spec.Template.Spec)
 	}
 

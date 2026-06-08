@@ -237,11 +237,11 @@ func Test_CacheConfig(t *testing.T) {
 			},
 		},
 		{
-			name: "Untaint and CSI enabled; Pod cache merges agent and CSI namespaces and omits label selector",
+			name: "Untaint wait-for-CSI; Pod cache merges agent and CSI namespaces and omits label selector",
 
 			watchOptions: WatchOptions{
-				UntaintControllerEnabled: true,
-				DatadogCSIDriverEnabled:  true,
+				UntaintControllerEnabled:          true,
+				UntaintControllerWaitForCSIDriver: true,
 			},
 
 			envConfig: map[string]string{
@@ -254,7 +254,7 @@ func Test_CacheConfig(t *testing.T) {
 			wantObjectConfig: map[client.Object]objectConfig{
 				podObj:       {configured: true, namespaces: []string{"agentNs", "csiNs1", "csiNs2"}, noPodLabel: true},
 				nodeObj:      {configured: true, namespaces: nil},
-				csiDriverObj: {configured: true, namespaces: []string{"csiNs1", "csiNs2"}},
+				csiDriverObj: {configured: false},
 			},
 		},
 	}

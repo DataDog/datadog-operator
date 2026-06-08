@@ -34,22 +34,23 @@ const (
 
 // SetupOptions defines options for setting up controllers to ease testing
 type SetupOptions struct {
-	SupportExtendedDaemonset      ExtendedDaemonsetOptions
-	SupportCilium                 bool
-	CredsManager                  *config.CredentialManager
-	DatadogAgentEnabled           bool
-	DatadogMonitorEnabled         bool
-	DatadogSLOEnabled             bool
-	OperatorMetricsEnabled        bool
-	V2APIEnabled                  bool
-	IntrospectionEnabled          bool
-	DatadogAgentProfileEnabled    bool
-	OtelAgentEnabled              bool
-	DatadogDashboardEnabled       bool
-	DatadogGenericResourceEnabled bool
-	CreateControllerRevisions     bool
-	DatadogCSIDriverEnabled       bool
-	UntaintControllerEnabled      bool
+	SupportExtendedDaemonset          ExtendedDaemonsetOptions
+	SupportCilium                     bool
+	CredsManager                      *config.CredentialManager
+	DatadogAgentEnabled               bool
+	DatadogMonitorEnabled             bool
+	DatadogSLOEnabled                 bool
+	OperatorMetricsEnabled            bool
+	V2APIEnabled                      bool
+	IntrospectionEnabled              bool
+	DatadogAgentProfileEnabled        bool
+	OtelAgentEnabled                  bool
+	DatadogDashboardEnabled           bool
+	DatadogGenericResourceEnabled     bool
+	CreateControllerRevisions         bool
+	DatadogCSIDriverEnabled           bool
+	UntaintControllerEnabled          bool
+	UntaintControllerWaitForCSIDriver bool
 }
 
 // ExtendedDaemonsetOptions defines ExtendedDaemonset options
@@ -250,7 +251,7 @@ func startUntaint(logger logr.Logger, mgr manager.Manager, _ kubernetes.Platform
 		mgr.GetClient(),
 		ctrl.Log.WithName("controllers").WithName(untaintControllerName),
 		mgr.GetEventRecorderFor(untaintControllerName),
-		options.DatadogCSIDriverEnabled,
+		options.UntaintControllerWaitForCSIDriver,
 	)
 	if err != nil {
 		return fmt.Errorf("untaint controller setup: %w", err)
@@ -279,9 +280,10 @@ func startDatadogCSIDriver(logger logr.Logger, mgr manager.Manager, pInfo kubern
 	}
 
 	return (&DatadogCSIDriverReconciler{
-		Client:                   mgr.GetClient(),
-		Scheme:                   mgr.GetScheme(),
-		Recorder:                 mgr.GetEventRecorderFor(csiDriverControllerName),
-		UntaintControllerEnabled: options.UntaintControllerEnabled,
+		Client:   mgr.GetClient(),
+		Scheme:   mgr.GetScheme(),
+		Recorder: mgr.GetEventRecorderFor(csiDriverControllerName),
+		// Inject startup toleration on CSI node DaemonSet only when untaint coordinates with CSI.
+		UntaintInjectCSIStartupToleration: options.UntaintControllerEnabled && options.UntaintControllerWaitForCSIDriver,
 	}).SetupWithManager(mgr)
 }

@@ -10,13 +10,13 @@ readiness criteria are met (see below), or after a configurable timeout. It is
 intended to run alongside a separate mechanism (cluster-autoscaler hook, CCM,
 admission webhook, etc.) that adds the taint to new nodes.
 
-**With `--untaintControllerEnabled` only** (or with `--datadogCSIDriverEnabled=false`):
+**With `--untaintControllerEnabled=true` only** (and without `--untaintControllerWaitForCSIDriver`):
 the controller removes the taint once the **node Agent** pod
 (`agent.datadoghq.com/component=agent`) on that node is `Ready`. Agent pods are
 listed in the operator's agent watch namespaces (`WATCH_NAMESPACE` /
 `DD_AGENT_WATCH_NAMESPACE`).
 
-**With both `--untaintControllerEnabled=true` and `--datadogCSIDriverEnabled=true`:**
+**With `--untaintControllerEnabled=true` and `--untaintControllerWaitForCSIDriver=true`:**
 the controller waits until **both** the node Agent and **CSI
 node-server** pod (`app=datadog-csi-driver-node-server`) on the node are
 `Ready` before removing the taint. The taint stays until both are
@@ -25,19 +25,26 @@ satisfied or a timeout fires. The operator's Pod informer then watches the
 pods in those namespaces—keep namespaces tight). Ensure CSI namespaces are
 covered so the controller can list CSI pod status.
 
+**`--datadogCSIDriverEnabled`** only controls whether the **DatadogCSIDriver**
+controller runs; it does **not** by itself turn on dual-readiness untaint.
+Enable `--untaintControllerWaitForCSIDriver` only when you actually deploy CSI
+node-server pods on tainted nodes (for example via a `DatadogCSIDriver` CR with
+the operator's CSI controller enabled, or another install path that produces
+the same pod labels).
+
 If a required pod never reaches Ready on a tainted node, a configurable timeout
 policy ensures the node is never permanently unschedulable. Two clocks cover
 the main failure modes:
 
 - **Readiness timeout** — at least one Agent pod is on the node but the Agent
-  is not Ready yet, **or** (with CSI enabled) the Agent is Ready but a CSI
+  is not Ready yet, **or** (with `--untaintControllerWaitForCSIDriver`) the Agent is Ready but a CSI
   node-server pod exists on the node and is not Ready. Clock: latest
   `pod.Status.StartTime` among **Agent** pods in the first case, and among **CSI
   node-server** pods only in the second (the Agent’s age does not shorten the
   wait for CSI). Pod recreation restarts the window; container restarts inside the
   same pod do not.
-- **Scheduling timeout** — no Agent pod is on the node, **or** (with CSI
-  enabled) the Agent is Ready but **no** CSI node-server pod is on the node
+- **Scheduling timeout** — no Agent pod is on the node, **or** (with wait-for-CSI)
+  the Agent is Ready but **no** CSI node-server pod is on the node
   yet. Clock: `node.metadata.creationTimestamp`. Covers DaemonSets that never
   schedule onto the node (taint not tolerated, missing labels, CSI still pulling,
   etc.).
@@ -62,18 +69,23 @@ manager:
 ```yaml
 args:
   - --untaintControllerEnabled=true
+  # Optional: require CSI node-server Ready before untainting (see Overview).
+  - --untaintControllerWaitForCSIDriver=true
 ```
 
-| `--untaintControllerEnabled` | `--datadogCSIDriverEnabled` | Behavior |
-| ----------------------------- | --------------------------- | -------- |
-| `false` | any | Untaint controller off; no startup toleration injection for this feature on Agent or CSI. |
-| `true` | `false` | Agent-only readiness and Agent DaemonSet toleration (default historical behavior). |
-| `true` | `true` | Wait for Agent **and** CSI node-server Ready; widened Pod cache (agent + `DD_CSIDRIVER_WATCH_NAMESPACE` namespaces); toleration on Agent and CSI DaemonSets. |
+| `--untaintControllerEnabled` | `--untaintControllerWaitForCSIDriver` | Behavior |
+| ----------------------------- | ------------------------------------- | -------- |
+| `false` | any | Untaint controller off; no Agent startup toleration for this feature. |
+| `true` | `false` | Agent-only readiness; Agent DaemonSet startup toleration injected. |
+| `true` | `true` | Wait for Agent **and** CSI node-server Ready; widened Pod cache (agent + `DD_CSIDRIVER_WATCH_NAMESPACE` namespaces); startup toleration on Agent and, when the DatadogCSIDriver controller is enabled, on the CSI node DaemonSet. |
 
-When this flag is enabled, the operator injects a toleration for
+`--untaintControllerWaitForCSIDriver` requires `--untaintControllerEnabled=true` (the operator exits on invalid combinations).
+
+When `--untaintControllerEnabled` is enabled, the operator injects a toleration for
 `agent.datadoghq.com/not-ready=presence:NoSchedule` into the node Agent
 DaemonSet (or ExtendedDaemonSet) pod template, unless an equivalent toleration
-is already present. When **`--datadogCSIDriverEnabled`** is also true, the same
+is already present. When **`--untaintControllerWaitForCSIDriver`** is also true **and**
+the DatadogCSIDriver controller is running (`--datadogCSIDriverEnabled=true`), the same
 toleration is injected into the **Datadog CSI node-server** DaemonSet pod
 template so the CSI workload can schedule on tainted nodes before the taint is
 removed.
@@ -104,7 +116,7 @@ Metrics, under the `untaint` Prometheus subsystem:
 Kubernetes Events (gated by `DD_UNTAINT_CONTROLLER_EVENTS_ENABLED=true`):
 
 - `TaintRemoved` (Normal) — taint removed after the Agent became Ready, or (when
-  the Datadog CSI driver controller is also enabled) after both the Agent and
+  `--untaintControllerWaitForCSIDriver` is enabled) after both the Agent and
   CSI node-server pods became Ready.
 - `UntaintTimeout` — a timeout fired. Normal under `remove`, Warning under `keep`. Message carries the reason, elapsed time, and policy.
 

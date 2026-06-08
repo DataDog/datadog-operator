@@ -94,20 +94,19 @@ func ParseTimeoutPolicy(s string) (TimeoutPolicy, error) {
 // UntaintReconciler watches agent pods and nodes and removes the taint
 // agent.datadoghq.com/not-ready=presence:NoSchedule once readiness criteria
 // are met, or after a configurable timeout depending on the policy.
-// When datadogCSIDriverEnabled is true (same meaning as the manager's
-// --datadogCSIDriverEnabled), the node agent and CSI node-server pods must both
-// be Ready before untainting.
+// When waitForCSIDriver is true (--untaintControllerWaitForCSIDriver), the node
+// agent and CSI node-server pods must both be Ready before untainting.
 type UntaintReconciler struct {
 	client   client.Client
 	log      logr.Logger
 	recorder record.EventRecorder
 	clock    clock.PassiveClock
 
-	datadogCSIDriverEnabled bool
-	eventsEnabled           bool
-	readinessTimeout        time.Duration
-	schedulingTimeout       time.Duration
-	timeoutPolicy           TimeoutPolicy
+	waitForCSIDriver  bool
+	eventsEnabled     bool
+	readinessTimeout  time.Duration
+	schedulingTimeout time.Duration
+	timeoutPolicy     TimeoutPolicy
 }
 
 // NewUntaintReconciler builds an UntaintReconciler. All tuning knobs are
@@ -121,9 +120,9 @@ type UntaintReconciler struct {
 // The effective configuration is logged once at INFO so the operator can
 // confirm what was actually applied.
 //
-// datadogCSIDriverEnabled should match SetupOptions.DatadogCSIDriverEnabled.
+// waitForCSIDriver should match SetupOptions.UntaintControllerWaitForCSIDriver.
 // It is only consulted when the untaint controller is running (--untaintControllerEnabled).
-func NewUntaintReconciler(c client.Client, log logr.Logger, rec record.EventRecorder, datadogCSIDriverEnabled bool) (*UntaintReconciler, error) {
+func NewUntaintReconciler(c client.Client, log logr.Logger, rec record.EventRecorder, waitForCSIDriver bool) (*UntaintReconciler, error) {
 	policy, err := ParseTimeoutPolicy(os.Getenv(EnvTimeoutPolicy))
 	if err != nil {
 		return nil, fmt.Errorf("invalid %s: %w", EnvTimeoutPolicy, err)
@@ -138,19 +137,19 @@ func NewUntaintReconciler(c client.Client, log logr.Logger, rec record.EventReco
 	}
 
 	r := &UntaintReconciler{
-		client:                  c,
-		log:                     log,
-		recorder:                rec,
-		clock:                   clock.RealClock{},
-		datadogCSIDriverEnabled: datadogCSIDriverEnabled,
-		eventsEnabled:           os.Getenv(EnvEventsEnabled) == "true",
-		readinessTimeout:        readiness,
-		schedulingTimeout:       scheduling,
-		timeoutPolicy:           policy,
+		client:            c,
+		log:               log,
+		recorder:          rec,
+		clock:             clock.RealClock{},
+		waitForCSIDriver:  waitForCSIDriver,
+		eventsEnabled:     os.Getenv(EnvEventsEnabled) == "true",
+		readinessTimeout:  readiness,
+		schedulingTimeout: scheduling,
+		timeoutPolicy:     policy,
 	}
 
 	log.Info("untaint controller configured",
-		"datadogCSIDriverEnabled", r.datadogCSIDriverEnabled,
+		"waitForCSIDriver", r.waitForCSIDriver,
 		"eventsEnabled", r.eventsEnabled,
 		"readinessTimeout", r.readinessTimeout,
 		"schedulingTimeout", r.schedulingTimeout,
@@ -184,7 +183,7 @@ func durationFromEnv(envVar string, def time.Duration) (time.Duration, error) {
 
 // Reconcile decides what to do with a tainted node:
 //   - by default: if any agent pod on the node is Ready, untaint
-//   - with CSI driver controller also enabled: agent and CSI node-server pods
+//   - with --untaintControllerWaitForCSIDriver: agent and CSI node-server pods
 //     must both be Ready before untaint
 //   - if pods exist but readiness criteria are not met and the readiness timeout
 //     has elapsed, apply the timeout policy (remove or keep)
@@ -218,7 +217,7 @@ func (r *UntaintReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return ctrl.Result{}, fmt.Errorf("failed to list pods on node %s: %w", req.Name, err)
 	}
 
-	if r.datadogCSIDriverEnabled {
+	if r.waitForCSIDriver {
 		csiPodList := &corev1.PodList{}
 		csiLabel := labels.SelectorFromSet(map[string]string{
 			datadogcsidriver.AppLabelKey: datadogcsidriver.NodeServerDaemonSetAppValue,
@@ -597,10 +596,10 @@ func agentPodPredicate() predicate.Predicate {
 }
 
 // podWatchPredicate selects pod events that should enqueue a node reconcile.
-// When datadogCSIDriverEnabled is set, CSI node-server pods are included in addition
+// When waitForCSIDriver is set, CSI node-server pods are included in addition
 // to agent pods.
 func (r *UntaintReconciler) podWatchPredicate() predicate.Predicate {
-	if !r.datadogCSIDriverEnabled {
+	if !r.waitForCSIDriver {
 		return agentPodPredicate()
 	}
 	isRelevant := func(o client.Object) bool {

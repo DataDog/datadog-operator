@@ -37,7 +37,7 @@ const (
 	testName      = "datadog-csi"
 )
 
-func newTestReconciler(t *testing.T, untaintControllerEnabled bool, objects ...client.Object) (*Reconciler, client.Client) {
+func newTestReconciler(t *testing.T, injectCSIStartupToleration bool, objects ...client.Object) (*Reconciler, client.Client) {
 	t.Helper()
 	s := scheme.Scheme
 	s.AddKnownTypes(v1alpha1.GroupVersion,
@@ -54,7 +54,7 @@ func newTestReconciler(t *testing.T, untaintControllerEnabled bool, objects ...c
 	// Set the default controller-runtime logger so ctrl.LoggerFrom(ctx) works in tests
 	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
 	recorder := record.NewFakeRecorder(10)
-	r := NewReconciler(c, s, recorder, untaintControllerEnabled)
+	r := NewReconciler(c, s, recorder, injectCSIStartupToleration)
 
 	return r, c
 }
@@ -489,7 +489,7 @@ func TestReconcile_CSIDriverSpecDriftIsReconciled(t *testing.T) {
 	assert.Contains(t, csiDriver.Spec.VolumeLifecycleModes, storagev1.VolumeLifecycleEphemeral)
 }
 
-func TestReconcile_DaemonSetIncludesStartupTolerationWhenUntaintEnabled(t *testing.T) {
+func TestReconcile_DaemonSetIncludesStartupTolerationWhenUntaintWaitForCSI(t *testing.T) {
 	instance := defaultCSIDriverCR()
 	r, c := newTestReconciler(t, true, instance)
 	ctx := context.Background()
@@ -508,7 +508,7 @@ func TestReconcile_DaemonSetIncludesStartupTolerationWhenUntaintEnabled(t *testi
 		"expected %+v in %+v", want, ds.Spec.Template.Spec.Tolerations)
 }
 
-func TestReconcile_DaemonSetOmitsStartupTolerationWhenUntaintDisabled(t *testing.T) {
+func TestReconcile_DaemonSetOmitsStartupTolerationWhenUntaintCoordinationOff(t *testing.T) {
 	instance := defaultCSIDriverCR()
 	r, c := newTestReconciler(t, false, instance)
 	ctx := context.Background()

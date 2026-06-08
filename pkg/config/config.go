@@ -65,15 +65,16 @@ var (
 )
 
 type WatchOptions struct {
-	DatadogAgentEnabled           bool
-	DatadogMonitorEnabled         bool
-	DatadogSLOEnabled             bool
-	DatadogAgentProfileEnabled    bool
-	IntrospectionEnabled          bool
-	DatadogDashboardEnabled       bool
-	DatadogGenericResourceEnabled bool
-	DatadogCSIDriverEnabled       bool
-	UntaintControllerEnabled      bool
+	DatadogAgentEnabled               bool
+	DatadogMonitorEnabled             bool
+	DatadogSLOEnabled                 bool
+	DatadogAgentProfileEnabled        bool
+	IntrospectionEnabled              bool
+	DatadogDashboardEnabled           bool
+	DatadogGenericResourceEnabled     bool
+	DatadogCSIDriverEnabled           bool
+	UntaintControllerEnabled          bool
+	UntaintControllerWaitForCSIDriver bool
 }
 
 // CacheOptions function configures Controller Runtime cache options on a resource level (supported in v0.16+).
@@ -133,17 +134,17 @@ func CacheOptions(logger logr.Logger, opts WatchOptions) cache.Options {
 		// For the profiles feature and untaint controller we need to list agent pods.
 		// The profiles feature needs node name and labels; the untaint controller also needs
 		// Status.Conditions to check readiness. Pods are watched in DatadogAgent namespace(s).
-		// When both untaint and DatadogCSIDriver are enabled, widen to merged agent+CSI
+		// When untaint is configured to wait for CSI, widen to merged agent+CSI
 		// namespaces and drop the pod informer label filter so CSI node-server pods
 		// (app=datadog-csi-driver-node-server) are cached for dual-readiness untaint.
 		agentNamespaces := GetWatchNamespacesFromEnv(logger, AgentWatchNamespaceEnvVar)
 		podNamespaces := agentNamespaces
 		var podLabel labels.Selector
-		if opts.UntaintControllerEnabled && opts.DatadogCSIDriverEnabled {
+		if opts.UntaintControllerEnabled && opts.UntaintControllerWaitForCSIDriver {
 			csiDriverNamespaces := GetWatchNamespacesFromEnv(logger, csiDriverWatchNamespaceEnvVar)
 			podNamespaces = maps.Clone(agentNamespaces)
 			maps.Copy(podNamespaces, csiDriverNamespaces)
-			logger.Info("Pod cache enabled for untaint with CSI driver",
+			logger.Info("Pod cache enabled for untaint with wait-for-CSI",
 				"watching Pods in namespaces", slices.Collect(maps.Keys(podNamespaces)))
 		} else {
 			podLabel = labels.SelectorFromSet(map[string]string{

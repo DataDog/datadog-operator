@@ -145,19 +145,19 @@ func newFakeClient(t *testing.T, objs ...client.Object) client.WithWatch {
 		Build()
 }
 
-func newReconciler(t *testing.T, c client.Client, now time.Time, policy TimeoutPolicy, readiness, scheduling time.Duration, datadogCSIDriverEnabled bool) (*UntaintReconciler, *record.FakeRecorder) {
+func newReconciler(t *testing.T, c client.Client, now time.Time, policy TimeoutPolicy, readiness, scheduling time.Duration, waitForCSIDriver bool) (*UntaintReconciler, *record.FakeRecorder) {
 	t.Helper()
 	rec := record.NewFakeRecorder(16)
 	r := &UntaintReconciler{
-		client:                  c,
-		log:                     log.Log.WithName("test"),
-		recorder:                rec,
-		clock:                   clocktesting.NewFakePassiveClock(now),
-		datadogCSIDriverEnabled: datadogCSIDriverEnabled,
-		eventsEnabled:           true,
-		readinessTimeout:        readiness,
-		schedulingTimeout:       scheduling,
-		timeoutPolicy:           policy,
+		client:            c,
+		log:               log.Log.WithName("test"),
+		recorder:          rec,
+		clock:             clocktesting.NewFakePassiveClock(now),
+		waitForCSIDriver:  waitForCSIDriver,
+		eventsEnabled:     true,
+		readinessTimeout:  readiness,
+		schedulingTimeout: scheduling,
+		timeoutPolicy:     policy,
 	}
 	return r, rec
 }
