@@ -4,12 +4,12 @@ import (
 	"testing"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
 	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/testutils"
@@ -17,6 +17,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 )
 
@@ -50,31 +51,8 @@ func Test_hostProfilerFeature_Configure(t *testing.T) {
 			WantConfigure: true,
 			Agent:         testExpectedAgent(apicommon.HostProfiler, defaultVolumeMounts),
 		},
-		{
-			Name: "host profiler enabled - dependencies",
-			DDA: testutils.NewDatadogAgentBuilder().
-				WithName("foo").
-				WithAnnotations(map[string]string{"agent.datadoghq.com/host-profiler-enabled": "true"}).
-				Build(),
-			WantConfigure:        true,
-			WantDependenciesFunc: testExpectedDependencies,
-		},
 	}
 	tests.Run(t, buildHostProfilerFeature)
-}
-
-func testExpectedDependencies(t testing.TB, storeClient store.StoreClient) {
-	obj, found := storeClient.Get(kubernetes.ConfigMapKind, "", "foo-host-profiler-seccomp")
-	assert.True(t, found, "host-profiler-seccomp ConfigMap should be created")
-	if !found {
-		return
-	}
-	cm, ok := obj.(*corev1.ConfigMap)
-	assert.True(t, ok)
-	assert.Contains(t, cm.Data, seccompKey, "ConfigMap should contain the seccomp profile key")
-	assert.Contains(t, cm.Data[seccompKey], "SCMP_ACT_ERRNO", "seccomp profile should deny by default")
-	assert.Contains(t, cm.Data[seccompKey], `"bpf"`, "bpf syscall must be in the profile")
-	assert.Contains(t, cm.Data[seccompKey], `"perf_event_open"`, "perf_event_open must be in the profile")
 }
 
 func testExpectedAgent(agentContainerName apicommon.AgentContainerName, expectedVolumeMount []corev1.VolumeMount) *test.ComponentTest {
@@ -130,7 +108,7 @@ func testExpectedAgent(agentContainerName apicommon.AgentContainerName, expected
 					assert.False(t, *sc.AllowPrivilegeEscalation, "AllowPrivilegeEscalation must be false")
 					assert.NotNil(t, sc.SeccompProfile)
 					assert.Equal(t, corev1.SeccompProfileTypeLocalhost, sc.SeccompProfile.Type)
-					assert.Equal(t, seccompProfileName, *sc.SeccompProfile.LocalhostProfile)
+					assert.Equal(t, seccompProfileName(hostProfilerImage), *sc.SeccompProfile.LocalhostProfile)
 					assert.NotNil(t, sc.Capabilities)
 					assert.Contains(t, sc.Capabilities.Drop, corev1.Capability("ALL"))
 					assert.True(t, apiutils.IsEqualStruct(sc.Capabilities.Add, defaultCapabilities()), "capabilities.Add \ndiff = %s", cmp.Diff(sc.Capabilities.Add, defaultCapabilities()))
@@ -143,16 +121,6 @@ func testExpectedAgent(agentContainerName apicommon.AgentContainerName, expected
 				annotations := mgr.AnnotationMgr.Annotations
 				assert.True(t, apiutils.IsEqualStruct(annotations, expectedAnnotations), "Annotations \ndiff = %s", cmp.Diff(annotations, expectedAnnotations))
 
-				// host-profiler-security ConfigMap volume
-				secVolumeFound := false
-				for _, v := range mgr.VolumeMgr.Volumes {
-					if v.Name == securityVolumeName {
-						secVolumeFound = true
-						assert.NotNil(t, v.ConfigMap, "host-profiler-security volume should reference a ConfigMap")
-					}
-				}
-				assert.True(t, secVolumeFound, "host-profiler-security volume should be present")
-
 				// seccomp-root volume
 				seccompRootFound := false
 				for _, v := range mgr.VolumeMgr.Volumes {
@@ -162,7 +130,7 @@ func testExpectedAgent(agentContainerName apicommon.AgentContainerName, expected
 				}
 				assert.True(t, seccompRootFound, "seccomp-root volume should be present")
 
-				// Init container: host-profiler-seccomp-setup
+				// Init container: host-profiler-seccomp-setup copies from the image path
 				var setupContainer *corev1.Container
 				for i := range mgr.Tpl.Spec.InitContainers {
 					if mgr.Tpl.Spec.InitContainers[i].Name == "host-profiler-seccomp-setup" {
@@ -173,17 +141,99 @@ func testExpectedAgent(agentContainerName apicommon.AgentContainerName, expected
 				assert.NotNil(t, setupContainer, "host-profiler-seccomp-setup init container should be present")
 				if setupContainer != nil {
 					assert.Equal(t, hostProfilerImage, setupContainer.Image)
-					expectedDst := common.SeccompRootVolumePath + "/" + seccompProfileName
+					assert.Contains(t, setupContainer.Command, seccompSourcePath, "cp source should be the in-image seccomp path")
+					expectedDst := common.SeccompRootVolumePath + "/" + seccompProfileName(hostProfilerImage)
 					assert.Contains(t, setupContainer.Command, expectedDst, "cp command should target the kubelet seccomp path")
+					// Init container should only mount seccomp-root, not the ConfigMap volume
 					mountNames := map[string]bool{}
 					for _, m := range setupContainer.VolumeMounts {
 						mountNames[m.Name] = true
 					}
-					assert.True(t, mountNames[securityVolumeName], "init container should mount host-profiler-security")
 					assert.True(t, mountNames[common.SeccompRootVolumeName], "init container should mount seccomp-root")
 				}
 			},
 		)
+}
+
+func TestResolveHostProfilerImage(t *testing.T) {
+	tests := []struct {
+		name        string
+		annotations map[string]string
+		ddaSpec     *v2alpha1.DatadogAgentSpec
+		want        string
+	}{
+		{
+			name: "no annotations, no spec override",
+			want: "",
+		},
+		{
+			name:        "annotation absent",
+			annotations: map[string]string{"some.other/annotation": "value"},
+			want:        "",
+		},
+		{
+			name: "experimental annotation — full ref in name",
+			annotations: map[string]string{
+				"experimental.agent.datadoghq.com/image-override-config": `{"host-profiler":{"name":"gcr.io/x/host-profiler:v2"}}`,
+			},
+			want: "gcr.io/x/host-profiler:v2",
+		},
+		{
+			name: "experimental annotation — name and tag fields",
+			annotations: map[string]string{
+				"experimental.agent.datadoghq.com/image-override-config": `{"host-profiler":{"name":"gcr.io/x/host-profiler","tag":"v2"}}`,
+			},
+			want: "gcr.io/x/host-profiler:v2",
+		},
+		{
+			name: "experimental annotation — name with tag takes precedence over tag field",
+			annotations: map[string]string{
+				"experimental.agent.datadoghq.com/image-override-config": `{"host-profiler":{"name":"gcr.io/x/host-profiler:v1","tag":"v2"}}`,
+			},
+			want: "gcr.io/x/host-profiler:v1",
+		},
+		{
+			name: "experimental annotation — different container, ignored",
+			annotations: map[string]string{
+				"experimental.agent.datadoghq.com/image-override-config": `{"agent":{"name":"gcr.io/x/agent:v2"}}`,
+			},
+			want: "",
+		},
+		{
+			name: "experimental annotation — malformed json",
+			annotations: map[string]string{
+				"experimental.agent.datadoghq.com/image-override-config": `not-json`,
+			},
+			want: "",
+		},
+		{
+			name: "spec.override.nodeAgent.image",
+			ddaSpec: &v2alpha1.DatadogAgentSpec{
+				Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+					v2alpha1.NodeAgentComponentName: {Image: &v2alpha1.AgentImageConfig{Name: "gcr.io/x/agent", Tag: "7.99.0"}},
+				},
+			},
+			want: "gcr.io/x/agent:7.99.0",
+		},
+		{
+			name: "experimental annotation takes precedence over spec.override.nodeAgent.image",
+			annotations: map[string]string{
+				"experimental.agent.datadoghq.com/image-override-config": `{"host-profiler":{"name":"gcr.io/x/host-profiler:v2"}}`,
+			},
+			ddaSpec: &v2alpha1.DatadogAgentSpec{
+				Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+					v2alpha1.NodeAgentComponentName: {Image: &v2alpha1.AgentImageConfig{Tag: "7.99.0"}},
+				},
+			},
+			want: "gcr.io/x/host-profiler:v2",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dda := &metav1.ObjectMeta{Annotations: tt.annotations}
+			assert.Equal(t, tt.want, resolveHostProfilerImage(dda, tt.ddaSpec))
+		})
+	}
 }
 
 func TestDefaultCapabilities(t *testing.T) {
@@ -199,32 +249,4 @@ func TestDefaultCapabilities(t *testing.T) {
 	assert.True(t, capSet["PERFMON"], "host-profiler requires PERFMON for perf_event_open")
 	assert.True(t, capSet["CHECKPOINT_RESTORE"], "host-profiler requires CHECKPOINT_RESTORE for /proc/<pid>/map_files access")
 	assert.True(t, capSet["SYS_PTRACE"], "host-profiler requires SYS_PTRACE for process tracing")
-}
-
-func TestDefaultSyscalls(t *testing.T) {
-	syscalls := defaultSyscalls()
-
-	syscallSet := make(map[string]bool)
-	for _, s := range syscalls {
-		syscallSet[s] = true
-	}
-
-	assert.NotEmpty(t, syscalls)
-	assert.True(t, syscallSet["bpf"], "host-profiler requires bpf syscall")
-	assert.True(t, syscallSet["perf_event_open"], "host-profiler requires perf_event_open")
-	assert.True(t, syscallSet["openat"], "host-profiler requires openat for /proc/<pid>/map_files access")
-	assert.True(t, syscallSet["read"], "host-profiler requires read")
-	assert.False(t, syscallSet["ptrace"], "host-profiler should not need ptrace syscall (uses /proc instead)")
-}
-
-func TestDefaultSeccompConfigData(t *testing.T) {
-	data := defaultSeccompConfigData()
-
-	assert.Contains(t, data, seccompKey, "seccomp configmap should have the host-profiler key")
-
-	profile := data[seccompKey]
-	assert.Contains(t, profile, "SCMP_ACT_ERRNO", "default action should be SCMP_ACT_ERRNO")
-	assert.Contains(t, profile, "SCMP_ACT_ALLOW", "syscalls should be allowed")
-	assert.Contains(t, profile, `"bpf"`, "bpf syscall must be in the profile")
-	assert.Contains(t, profile, `"perf_event_open"`, "perf_event_open syscall must be in the profile")
 }

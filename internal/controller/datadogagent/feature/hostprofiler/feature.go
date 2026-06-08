@@ -1,8 +1,10 @@
 package hostprofiler
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
@@ -14,7 +16,6 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
-	"github.com/DataDog/datadog-operator/pkg/constants"
 )
 
 var errHostPIDDisabledManually = errors.New("Host PID is required for host profiler")
@@ -22,6 +23,7 @@ var errHostPIDDisabledManually = errors.New("Host PID is required for host profi
 type hostProfilerFeature struct {
 	owner                   metav1.Object
 	hostPIDDisabledManually bool
+	hostProfilerImage       string
 
 	logger logr.Logger
 }
@@ -54,6 +56,12 @@ func (o *hostProfilerFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Dat
 		return feature.RequiredComponents{}
 	}
 
+	// Resolve the host-profiler image now, during Configure, so ManageNodeAgent can use
+	// the correct image for the seccomp init container and profile name. Both the
+	// experimental annotation and spec.override.nodeAgent.image are applied after
+	// ManageNodeAgent runs, so we must read them here.
+	o.hostProfilerImage = resolveHostProfilerImage(dda, ddaSpec)
+
 	return feature.RequiredComponents{
 		Agent: feature.RequiredComponent{
 			IsRequired: ptr.To(true),
@@ -65,19 +73,11 @@ func (o *hostProfilerFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Dat
 	}
 }
 
-func (o *hostProfilerFeature) seccompConfigMapName() string {
-	return fmt.Sprintf("%s-%s", constants.GetDDAName(o.owner), agentSecurityConfigMapSuffixName)
-}
-
 func (o *hostProfilerFeature) ManageDependencies(managers feature.ResourceManagers) error {
 	if o.hostPIDDisabledManually {
 		return errHostPIDDisabledManually
 	}
-	return managers.ConfigMapManager().AddConfigMap(
-		o.seccompConfigMapName(),
-		o.owner.GetNamespace(),
-		defaultSeccompConfigData(),
-	)
+	return nil
 }
 
 func (o *hostProfilerFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
@@ -111,11 +111,19 @@ func (o *hostProfilerFeature) ManageNodeAgent(managers feature.PodTemplateManage
 		hostProfilerContainer.SecurityContext = &corev1.SecurityContext{}
 	}
 
+	// Use the pre-resolved image (set in Configure) so that experimental image overrides,
+	// which are applied after ManageNodeAgent, are correctly reflected in the seccomp profile
+	// name and the init container image.
+	hostProfilerImage := o.hostProfilerImage
+	if hostProfilerImage == "" {
+		hostProfilerImage = hostProfilerContainer.Image
+	}
+
 	sc := hostProfilerContainer.SecurityContext
 	sc.AllowPrivilegeEscalation = ptr.To(false)
 	sc.SeccompProfile = &corev1.SeccompProfile{
 		Type:             corev1.SeccompProfileTypeLocalhost,
-		LocalhostProfile: ptr.To(seccompProfileName),
+		LocalhostProfile: ptr.To(seccompProfileName(hostProfilerImage)),
 	}
 	sc.Capabilities = &corev1.Capabilities{
 		Drop: []corev1.Capability{"ALL"},
@@ -126,26 +134,13 @@ func (o *hostProfilerFeature) ManageNodeAgent(managers feature.PodTemplateManage
 	// which host-profiler requires to read /proc/<pid>/map_files for process profiling.
 	managers.Annotation().AddAnnotation(common.AppArmorAnnotationKey+"/"+string(apicommon.HostProfiler), "unconfined")
 
-	// host-profiler-security ConfigMap volume (contains the seccomp profile JSON)
-	secVol := corev1.Volume{
-		Name: securityVolumeName,
-		VolumeSource: corev1.VolumeSource{
-			ConfigMap: &corev1.ConfigMapVolumeSource{
-				LocalObjectReference: corev1.LocalObjectReference{
-					Name: o.seccompConfigMapName(),
-				},
-			},
-		},
-	}
-	managers.Volume().AddVolume(&secVol)
-
 	// seccomp-root EmptyDir volume (shared with system-probe when both are enabled; VolumeManager deduplicates)
 	seccompRootVol := common.GetVolumeForSeccomp()
 	managers.Volume().AddVolume(&seccompRootVol)
 
 	// Init container: copy seccomp profile JSON to the kubelet seccomp directory on the host.
 	// Appended after the base init containers (init-volume, init-config) added by default.go.
-	initContainer := buildSeccompSetupInitContainer(hostProfilerContainer.Image)
+	initContainer := buildSeccompSetupInitContainer(hostProfilerImage)
 	managers.PodTemplateSpec().Spec.InitContainers = append(managers.PodTemplateSpec().Spec.InitContainers, initContainer)
 
 	// Tracingfs volume
@@ -194,4 +189,40 @@ func (o *hostProfilerFeature) ManageClusterChecksRunner(managers feature.PodTemp
 
 func (o *hostProfilerFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers) error {
 	return nil
+}
+
+// resolveHostProfilerImage returns the host-profiler image to use for the seccomp init container
+// and profile name. Both override sources are applied after ManageNodeAgent runs, so we read them
+// during Configure instead. Priority: experimental annotation > spec.override.nodeAgent.image > "".
+func resolveHostProfilerImage(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec) string {
+	// 1. Experimental per-container image override annotation.
+	if annotations := dda.GetAnnotations(); annotations != nil {
+		if raw := annotations["experimental.agent.datadoghq.com/image-override-config"]; raw != "" {
+			var overrides map[string]struct {
+				Name string `json:"name,omitempty"`
+				Tag  string `json:"tag,omitempty"`
+			}
+			if err := json.Unmarshal([]byte(raw), &overrides); err == nil {
+				if o, ok := overrides[string(apicommon.HostProfiler)]; ok && o.Name != "" {
+					if o.Tag != "" && !strings.Contains(o.Name, ":") {
+						return o.Name + ":" + o.Tag
+					}
+					return o.Name
+				}
+			}
+		}
+	}
+
+	// 2. spec.override.nodeAgent.image — applied to all agent containers including host-profiler.
+	if ddaSpec != nil {
+		if componentOverride, ok := ddaSpec.Override[v2alpha1.NodeAgentComponentName]; ok && componentOverride.Image != nil {
+			img := componentOverride.Image
+			if img.Name != "" && img.Tag != "" && !strings.Contains(img.Name, ":") {
+				return img.Name + ":" + img.Tag
+			}
+			return img.Name
+		}
+	}
+
+	return ""
 }
