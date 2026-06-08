@@ -13,6 +13,7 @@ import (
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -216,6 +217,12 @@ const (
 	clusterProviderSourceDetected = "Detected"
 	clusterProviderSourceNone     = "NoProviderDetected"
 	clusterProviderSourceDisabled = "Disabled"
+
+	// clusterProviderReasonDetected is the ClusterProviderDetected condition reason
+	// used when a specific provider was auto-detected. It also tells
+	// resolveClusterProvider that the persisted value came from detection (not a
+	// user override), which scopes the no-downgrade guard.
+	clusterProviderReasonDetected = "ProviderDetected"
 )
 
 // resolveClusterProvider resolves the cluster provider and reports whether the
@@ -235,17 +242,23 @@ func (r *Reconciler) resolveClusterProvider(instance *datadoghqv2alpha1.DatadogA
 
 	statusProvider := instance.Status.ClusterProvider
 
-	// 1. Live detection, but never auto-downgrade a persisted specific provider to
-	// default/empty (self-corrects on the next specific detection).
+	// 1. Live detection. Anti-flap: keep a previously *detected* specific provider
+	// over a live default (a transient blip shouldn't tear down config). This guard
+	// applies only to detected values — a user override that was set and then
+	// removed is not pinned, so removing the annotation cleanly returns to detection.
 	if live, ok := detector.Provider(); ok {
-		if kubernetes.IsSpecificProvider(statusProvider) && !kubernetes.IsSpecificProvider(live) {
+		if wasProviderDetected(instance) && kubernetes.IsSpecificProvider(statusProvider) && !kubernetes.IsSpecificProvider(live) {
 			return statusProvider, clusterProviderSourceDetected, false
 		}
 		return live, clusterProviderSourceDetected, false
 	}
 
-	// 2. Persisted fallback (survives restarts / leader changes / detection outages).
-	if statusProvider != "" {
+	// 2. Persisted fallback: retain a previously *detected* provider across restarts
+	// / leader changes / detection outages so we don't churn during warm-up. A
+	// user-set value is not retained here — if the override was removed, warm-up
+	// falls through to the gate rather than re-serving the stale value (which would
+	// also poison the condition reason and re-pin it).
+	if statusProvider != "" && wasProviderDetected(instance) {
 		return statusProvider, clusterProviderSourceDetected, false
 	}
 
@@ -255,6 +268,15 @@ func (r *Reconciler) resolveClusterProvider(instance *datadoghqv2alpha1.DatadogA
 		return "", "", true
 	}
 	return "", clusterProviderSourceNone, false
+}
+
+// wasProviderDetected reports whether the persisted status.ClusterProvider was set
+// by auto-detection rather than a user override, read from the
+// ClusterProviderDetected condition reason. Only detected values are protected by
+// the no-downgrade guard.
+func wasProviderDetected(instance *datadoghqv2alpha1.DatadogAgent) bool {
+	cond := meta.FindStatusCondition(instance.Status.Conditions, common.ClusterProviderDetectedConditionType)
+	return cond != nil && cond.Reason == clusterProviderReasonDetected
 }
 
 // setClusterProviderStatus records the resolved cluster provider on the DDA
@@ -272,7 +294,7 @@ func setClusterProviderStatus(status *datadoghqv2alpha1.DatadogAgentStatus, prov
 		reason = clusterProviderSourceUser
 		message = fmt.Sprintf("Cluster provider set to %q by user annotation.", provider)
 	case kubernetes.IsSpecificProvider(provider):
-		reason = "ProviderDetected"
+		reason = clusterProviderReasonDetected
 		message = fmt.Sprintf("Cluster provider detected as %q.", provider)
 	default:
 		reason = clusterProviderSourceNone

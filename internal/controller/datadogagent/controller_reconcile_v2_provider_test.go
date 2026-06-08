@@ -10,9 +10,11 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
@@ -30,6 +32,17 @@ func ddaWith(annotations map[string]string, statusProvider string) *v2alpha1.Dat
 		ObjectMeta: metav1.ObjectMeta{Annotations: annotations},
 		Status:     v2alpha1.DatadogAgentStatus{ClusterProvider: statusProvider},
 	}
+}
+
+// withProviderConditionReason attaches a ClusterProviderDetected condition with the
+// given reason, recording how the persisted status.ClusterProvider was set.
+func withProviderConditionReason(dda *v2alpha1.DatadogAgent, reason string) *v2alpha1.DatadogAgent {
+	meta.SetStatusCondition(&dda.Status.Conditions, metav1.Condition{
+		Type:   common.ClusterProviderDetectedConditionType,
+		Status: metav1.ConditionTrue,
+		Reason: reason,
+	})
+	return dda
 }
 
 func TestResolveClusterProvider(t *testing.T) {
@@ -70,10 +83,29 @@ func TestResolveClusterProvider(t *testing.T) {
 			wantSource:   clusterProviderSourceDetected,
 		},
 		{
-			name:         "no-downgrade: live default does not replace persisted specific",
+			name:         "no-downgrade: live default does not replace a persisted detected specific",
 			detector:     fakeProviderReader{provider: kubernetes.DefaultProvider, detected: true},
-			instance:     ddaWith(nil, "eks"),
+			instance:     withProviderConditionReason(ddaWith(nil, "eks"), clusterProviderReasonDetected),
 			wantProvider: "eks",
+			wantSource:   clusterProviderSourceDetected,
+		},
+		{
+			// User set an override, we persisted it (reason UserSpecified), then the
+			// user removed the annotation. Detection now returns default: the override
+			// must not be pinned — it downgrades cleanly.
+			name:         "user override removed: live default downgrades despite persisted specific",
+			detector:     fakeProviderReader{provider: kubernetes.DefaultProvider, detected: true},
+			instance:     withProviderConditionReason(ddaWith(nil, "eks"), clusterProviderSourceUser),
+			wantProvider: kubernetes.DefaultProvider,
+			wantSource:   clusterProviderSourceDetected,
+		},
+		{
+			// Same as above but the real cluster is a specific provider: it self-corrects
+			// regardless of the guard.
+			name:         "user override removed: live specific replaces persisted",
+			detector:     fakeProviderReader{provider: "openshift-rhcos", detected: true},
+			instance:     withProviderConditionReason(ddaWith(nil, "eks"), clusterProviderSourceUser),
+			wantProvider: "openshift-rhcos",
 			wantSource:   clusterProviderSourceDetected,
 		},
 		{
@@ -84,11 +116,19 @@ func TestResolveClusterProvider(t *testing.T) {
 			wantSource:   clusterProviderSourceDetected,
 		},
 		{
-			name:         "persisted fallback when not yet detected",
+			name:         "persisted detected value retained during warm-up",
 			detector:     fakeProviderReader{detected: false, inGrace: true},
-			instance:     ddaWith(nil, "eks"),
+			instance:     withProviderConditionReason(ddaWith(nil, "eks"), clusterProviderReasonDetected),
 			wantProvider: "eks",
 			wantSource:   clusterProviderSourceDetected,
+		},
+		{
+			// Override removed, detector still warming up: do NOT serve the stale
+			// user value — hold until detection is ready (or the gate elapses).
+			name:     "warm-up after override removed holds instead of serving stale user value",
+			detector: fakeProviderReader{detected: false, inGrace: true},
+			instance: withProviderConditionReason(ddaWith(nil, "eks"), clusterProviderSourceUser),
+			wantHold: true,
 		},
 		{
 			name:     "hold within gate window with no signal and no status",
