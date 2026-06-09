@@ -7,6 +7,7 @@ package v2alpha1
 
 import (
 	corev1 "k8s.io/api/core/v1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/common"
@@ -1997,7 +1998,7 @@ type SecretBackendConfig struct {
 
 	// Additional configuration for the secret backend type.
 	// +optional
-	Config map[string]string `json:"config,omitempty"`
+	Config map[string]apiextensionsv1.JSON `json:"config,omitempty"`
 
 	// Roles for Datadog to read the specified secrets, replacing `enableGlobalPermissions`.
 	// They are defined as a list of namespace/secrets.

@@ -3763,7 +3763,7 @@
                 },
                 "config": {
                   "additionalProperties": {
-                    "type": "string"
+                    "x-kubernetes-preserve-unknown-fields": true
                   },
                   "description": "Additional configuration for the secret backend type.",
                   "type": "object"
