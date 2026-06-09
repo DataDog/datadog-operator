@@ -24,8 +24,34 @@ func (f *ksmFeature) buildKSMCoreConfigMap(collectorOpts collectorOptions) (*cor
 		return configmap.BuildConfigMapConfigData(f.owner.GetNamespace(), f.customConfig.ConfigData, f.configConfigMapName, ksmCoreCheckName)
 	}
 
-	configMap := buildDefaultConfigMap(f.owner.GetNamespace(), f.configConfigMapName, ksmCheckConfig(f.runInClusterChecksRunner, collectorOpts))
+	configMap := buildDefaultConfigMap(
+		f.owner.GetNamespace(),
+		f.configConfigMapName,
+		ksmCheckConfig(f.runInClusterChecksRunner, f.podCollectionOnNode, collectorOpts),
+	)
 	return configMap, nil
+}
+
+// buildKSMCorePodsOnNodeConfigMap builds the ConfigMap mounted into every node
+// agent when PodCollectionMode is set to node_kubelet. Each node agent then
+// runs a pods-only kubernetes_state_core check that reads pods locally from
+// the Kubelet via workloadmeta.
+func (f *ksmFeature) buildKSMCorePodsOnNodeConfigMap() *corev1.ConfigMap {
+	content := `init_config:
+instances:
+  - pod_collection_mode: node_kubelet
+    collectors:
+      - pods
+`
+	return &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      f.nodeAgentConfigMapName,
+			Namespace: f.owner.GetNamespace(),
+		},
+		Data: map[string]string{
+			ksmCorePodsOnNodeCheckName: content,
+		},
+	}
 }
 
 func buildDefaultConfigMap(namespace, cmName string, content string) *corev1.ConfigMap {
@@ -47,7 +73,7 @@ func buildDefaultConfigMap(namespace, cmName string, content string) *corev1.Con
 // cluster checks are enabled but without Cluster Check Runners, we don't want
 // to set this check as a cluster check, because then it would be scheduled in
 // the DaemonSet agent instead of the DCA.
-func ksmCheckConfig(clusterCheck bool, collectorOpts collectorOptions) string {
+func ksmCheckConfig(clusterCheck, podCollectionOnNode bool, collectorOpts collectorOptions) string {
 	stringVal := strconv.FormatBool(clusterCheck)
 	config := bytes.NewBufferString(`---
 cluster_check: `)
@@ -57,8 +83,13 @@ init_config:
 instances:
   - skip_leader_election: `)
 	config.WriteString(stringVal)
-	config.WriteString(`
-    collectors:
+	config.WriteString("\n")
+	if podCollectionOnNode {
+		// Cluster-side instance only collects pods that have not been
+		// scheduled to a node yet; node agents collect the rest locally.
+		config.WriteString("    pod_collection_mode: cluster_unassigned\n")
+	}
+	config.WriteString(`    collectors:
     - pods
     - replicationcontrollers
     - statefulsets

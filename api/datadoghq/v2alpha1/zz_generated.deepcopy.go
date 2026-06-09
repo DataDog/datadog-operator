@@ -2327,6 +2327,11 @@ func (in *KubeStateMetricsCoreFeatureConfig) DeepCopyInto(out *KubeStateMetricsC
 		*out = new(CustomConfig)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.PodCollectionMode != nil {
+		in, out := &in.PodCollectionMode, &out.PodCollectionMode
+		*out = new(KSMPodCollectionMode)
+		**out = **in
+	}
 	if in.CollectCrMetrics != nil {
 		in, out := &in.CollectCrMetrics, &out.CollectCrMetrics
 		*out = make([]Resource, len(*in))

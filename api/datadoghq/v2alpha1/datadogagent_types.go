@@ -942,6 +942,37 @@ type KubeStateMetricsCoreFeatureConfig struct {
 	// +optional
 	Conf *CustomConfig `json:"conf,omitempty"`
 
+	// PodCollectionMode controls where the KSM check collects pod metrics.
+	//
+	// When set to "node_kubelet" the operator splits the kubernetes_state_core
+	// check into two: the cluster-side instance keeps every collector except
+	// scheduled pods (only unscheduled pods are kept on that side), and a
+	// dedicated pods-only instance is deployed on every node agent to read pods
+	// locally from its Kubelet via workloadmeta. In the generated agent check
+	// YAML this corresponds to the snake_case check options
+	// `pod_collection_mode: cluster_unassigned` on the cluster side and
+	// `pod_collection_mode: node_kubelet` (with `collectors: [pods]`) on the
+	// node side; this CRD field itself is the camelCase `podCollectionMode`
+	// per Kubernetes API convention.
+	//
+	// Useful in large clusters where a single KSM instance is a bottleneck.
+	// Trade-off: cluster-wide aggregation metrics (kubernetes_state.pod.count,
+	// kubernetes_state.container.cpu_requested.total, and 15 others) become
+	// sliced per host instead of cluster totals; query them with
+	// `sum by (kube_cluster_name)`. Requires Agent / Cluster Agent 7.60+.
+	//
+	// When `features.kubeStateMetricsCore.conf` is also set, the operator
+	// deploys the node-side check but does NOT modify the user-supplied
+	// cluster-side config. To avoid double pod collection in that case, the
+	// user's cluster-side instance must either omit `pods` from its
+	// `collectors` list OR set the `pod_collection_mode: cluster_unassigned`
+	// check option themselves. Omitting `collectors` entirely falls back to
+	// upstream KSM defaults, which include `pods`.
+	//
+	// Default behavior is unchanged when this field is unset.
+	// +optional
+	PodCollectionMode *KSMPodCollectionMode `json:"podCollectionMode,omitempty"`
+
 	// `CollectCrMetrics` defines custom resources for the kube-state-metrics core check to collect.
 	//
 	// The datadog agent uses the same logic as upstream `kube-state-metrics`. So is its configuration.
@@ -952,6 +983,21 @@ type KubeStateMetricsCoreFeatureConfig struct {
 	// +listType=atomic
 	CollectCrMetrics []Resource `json:"collectCrMetrics,omitempty"`
 }
+
+// KSMPodCollectionMode controls where the kubernetes_state_core check collects pod metrics.
+// +kubebuilder:validation:Enum=default;node_kubelet
+type KSMPodCollectionMode string
+
+const (
+	// KSMPodCollectionModeDefault collects pod metrics centrally from the Kubernetes
+	// API server (today's behavior, equivalent to omitting the field).
+	KSMPodCollectionModeDefault KSMPodCollectionMode = "default"
+
+	// KSMPodCollectionModeNodeKubelet shifts pod metric collection to every node
+	// agent (reading pods locally from its Kubelet) while the cluster-side instance
+	// switches to `pod_collection_mode: cluster_unassigned`.
+	KSMPodCollectionModeNodeKubelet KSMPodCollectionMode = "node_kubelet"
+)
 
 // Resource configures a custom resource for metric generation.
 type Resource struct {

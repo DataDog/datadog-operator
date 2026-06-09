@@ -2002,6 +2002,14 @@
                 "enabled": {
                   "description": "Enabled enables Kube State Metrics Core.\nDefault: true",
                   "type": "boolean"
+                },
+                "podCollectionMode": {
+                  "description": "PodCollectionMode controls where the KSM check collects pod metrics.\n\nWhen set to \"node_kubelet\" the operator splits the kubernetes_state_core\ncheck into two: the cluster-side instance keeps every collector except\nscheduled pods (only unscheduled pods are kept on that side), and a\ndedicated pods-only instance is deployed on every node agent to read pods\nlocally from its Kubelet via workloadmeta. In the generated agent check\nYAML this corresponds to the snake_case check options\n`pod_collection_mode: cluster_unassigned` on the cluster side and\n`pod_collection_mode: node_kubelet` (with `collectors: [pods]`) on the\nnode side; this CRD field itself is the camelCase `podCollectionMode`\nper Kubernetes API convention.\n\nUseful in large clusters where a single KSM instance is a bottleneck.\nTrade-off: cluster-wide aggregation metrics (kubernetes_state.pod.count,\nkubernetes_state.container.cpu_requested.total, and 15 others) become\nsliced per host instead of cluster totals; query them with\n`sum by (kube_cluster_name)`. Requires Agent / Cluster Agent 7.60+.\n\nWhen `features.kubeStateMetricsCore.conf` is also set, the operator\ndeploys the node-side check but does NOT modify the user-supplied\ncluster-side config. To avoid double pod collection in that case, the\nuser's cluster-side instance must either omit `pods` from its\n`collectors` list OR set the `pod_collection_mode: cluster_unassigned`\ncheck option themselves. Omitting `collectors` entirely falls back to\nupstream KSM defaults, which include `pods`.\n\nDefault behavior is unchanged when this field is unset.",
+                  "enum": [
+                    "default",
+                    "node_kubelet"
+                  ],
+                  "type": "string"
                 }
               },
               "type": "object"
@@ -10439,6 +10447,14 @@
                     "enabled": {
                       "description": "Enabled enables Kube State Metrics Core.\nDefault: true",
                       "type": "boolean"
+                    },
+                    "podCollectionMode": {
+                      "description": "PodCollectionMode controls where the KSM check collects pod metrics.\n\nWhen set to \"node_kubelet\" the operator splits the kubernetes_state_core\ncheck into two: the cluster-side instance keeps every collector except\nscheduled pods (only unscheduled pods are kept on that side), and a\ndedicated pods-only instance is deployed on every node agent to read pods\nlocally from its Kubelet via workloadmeta. In the generated agent check\nYAML this corresponds to the snake_case check options\n`pod_collection_mode: cluster_unassigned` on the cluster side and\n`pod_collection_mode: node_kubelet` (with `collectors: [pods]`) on the\nnode side; this CRD field itself is the camelCase `podCollectionMode`\nper Kubernetes API convention.\n\nUseful in large clusters where a single KSM instance is a bottleneck.\nTrade-off: cluster-wide aggregation metrics (kubernetes_state.pod.count,\nkubernetes_state.container.cpu_requested.total, and 15 others) become\nsliced per host instead of cluster totals; query them with\n`sum by (kube_cluster_name)`. Requires Agent / Cluster Agent 7.60+.\n\nWhen `features.kubeStateMetricsCore.conf` is also set, the operator\ndeploys the node-side check but does NOT modify the user-supplied\ncluster-side config. To avoid double pod collection in that case, the\nuser's cluster-side instance must either omit `pods` from its\n`collectors` list OR set the `pod_collection_mode: cluster_unassigned`\ncheck option themselves. Omitting `collectors` entirely falls back to\nupstream KSM defaults, which include `pods`.\n\nDefault behavior is unchanged when this field is unset.",
+                      "enum": [
+                        "default",
+                        "node_kubelet"
+                      ],
+                      "type": "string"
                     }
                   },
                   "type": "object"

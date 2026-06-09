@@ -136,12 +136,90 @@ func Test_ksmFeature_Configure(t *testing.T) {
 			ClusterAgent:        test.NewDefaultComponentTest().WithWantFunc(func(t testing.TB, mgrInterface feature.PodTemplateManagers) {}),
 			ClusterChecksRunner: test.NewDefaultComponentTest().WithWantFunc(func(t testing.TB, mgrInterface feature.PodTemplateManagers) {}),
 		},
+		{
+			Name: "ksm-core enabled, podCollectionMode=default (explicit) preserves existing behavior",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithKSMEnabled(true).
+				WithKSMPodCollectionMode(v2alpha1.KSMPodCollectionModeDefault).
+				Build(),
+			WantConfigure: true,
+			ClusterAgent:  ksmClusterAgentWantFunc(false),
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(ksmAgentNodeWantFunc),
+		},
+		{
+			Name: "ksm-core enabled, podCollectionMode=node_kubelet, default conf",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithKSMEnabled(true).
+				WithKSMPodCollectionMode(v2alpha1.KSMPodCollectionModeNodeKubelet).
+				Build(),
+			WantConfigure: true,
+			ClusterAgent:  ksmClusterAgentWantFunc(false, withPodCollectionOnNode()),
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(ksmAgentNodeWantFuncWithPodsOnNode),
+		},
+		{
+			Name: "ksm-core enabled, podCollectionMode=node_kubelet, single agent container",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithKSMEnabled(true).
+				WithKSMPodCollectionMode(v2alpha1.KSMPodCollectionModeNodeKubelet).
+				WithSingleContainerStrategy(true).
+				Build(),
+			WantConfigure: true,
+			ClusterAgent:  ksmClusterAgentWantFunc(false, withPodCollectionOnNode()),
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(ksmAgentSingleAgentWantFuncWithPodsOnNode),
+		},
+		{
+			Name: "ksm-core enabled, podCollectionMode=node_kubelet + user-supplied conf still mounts node-side check",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithKSMEnabled(true).
+				WithKSMPodCollectionMode(v2alpha1.KSMPodCollectionModeNodeKubelet).
+				WithKSMCustomConf(customData).
+				Build(),
+			WantConfigure: true,
+			ClusterAgent:  ksmClusterAgentWantFunc(true),
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(ksmAgentNodeWantFuncWithPodsOnNode),
+		},
+		{
+			Name: "ksm-core enabled, podCollectionMode=node_kubelet but cluster-agent image < 7.60 -> fall back",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithKSMEnabled(true).
+				WithKSMPodCollectionMode(v2alpha1.KSMPodCollectionModeNodeKubelet).
+				WithClusterAgentImage("gcr.io/datadoghq/cluster-agent:7.59.0").
+				Build(),
+			WantConfigure: true,
+			ClusterAgent:  ksmClusterAgentWantFunc(false),
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(ksmAgentNodeWantFunc),
+		},
+		{
+			Name: "ksm-core enabled, podCollectionMode=node_kubelet but node-agent image < 7.60 -> fall back",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithKSMEnabled(true).
+				WithKSMPodCollectionMode(v2alpha1.KSMPodCollectionModeNodeKubelet).
+				WithNodeAgentImage("gcr.io/datadoghq/agent:7.59.0").
+				Build(),
+			WantConfigure: true,
+			ClusterAgent:  ksmClusterAgentWantFunc(false),
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(ksmAgentNodeWantFunc),
+		},
 	}
 
 	tests.Run(t, buildKSMFeature)
 }
 
-func ksmClusterAgentWantFunc(hasCustomConfig bool) *test.ComponentTest {
+type ksmClusterAgentWantConfig struct {
+	podCollectionOnNode bool
+}
+
+type ksmClusterAgentOption func(*ksmClusterAgentWantConfig)
+
+func withPodCollectionOnNode() ksmClusterAgentOption {
+	return func(c *ksmClusterAgentWantConfig) { c.podCollectionOnNode = true }
+}
+
+func ksmClusterAgentWantFunc(hasCustomConfig bool, opts ...ksmClusterAgentOption) *test.ComponentTest {
+	cfg := ksmClusterAgentWantConfig{}
+	for _, o := range opts {
+		o(&cfg)
+	}
 	return test.NewDefaultComponentTest().WithWantFunc(
 		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 			mgr := mgrInterface.(*fake.PodTemplateManagers)
@@ -173,9 +251,10 @@ func ksmClusterAgentWantFunc(hasCustomConfig bool) *test.ComponentTest {
 			} else {
 				// Verify default config annotation - CRDs and APIServices collected, no custom resource metrics
 				defaultConfigData := map[string]any{
-					"collect_crds":        true,
-					"collect_apiservices": true,
-					"collect_cr_metrics":  nil,
+					"collect_crds":           true,
+					"collect_apiservices":    true,
+					"collect_cr_metrics":     nil,
+					"pod_collection_on_node": cfg.podCollectionOnNode,
 				}
 				hash, err := comparison.GenerateMD5ForSpec(defaultConfigData)
 				assert.NoError(t, err)
@@ -190,14 +269,22 @@ func ksmClusterAgentWantFunc(hasCustomConfig bool) *test.ComponentTest {
 }
 
 func ksmAgentNodeWantFunc(t testing.TB, mgrInterface feature.PodTemplateManagers) {
-	ksmAgentWantFunc(t, mgrInterface, apicommon.CoreAgentContainerName)
+	ksmAgentWantFunc(t, mgrInterface, apicommon.CoreAgentContainerName, false)
 }
 
 func ksmAgentSingleAgentWantFunc(t testing.TB, mgrInterface feature.PodTemplateManagers) {
-	ksmAgentWantFunc(t, mgrInterface, apicommon.UnprivilegedSingleAgentContainerName)
+	ksmAgentWantFunc(t, mgrInterface, apicommon.UnprivilegedSingleAgentContainerName, false)
 }
 
-func ksmAgentWantFunc(t testing.TB, mgrInterface feature.PodTemplateManagers, agentContainerName apicommon.AgentContainerName) {
+func ksmAgentNodeWantFuncWithPodsOnNode(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+	ksmAgentWantFunc(t, mgrInterface, apicommon.CoreAgentContainerName, true)
+}
+
+func ksmAgentSingleAgentWantFuncWithPodsOnNode(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+	ksmAgentWantFunc(t, mgrInterface, apicommon.UnprivilegedSingleAgentContainerName, true)
+}
+
+func ksmAgentWantFunc(t testing.TB, mgrInterface feature.PodTemplateManagers, agentContainerName apicommon.AgentContainerName, wantPodsOnNodeMount bool) {
 	mgr := mgrInterface.(*fake.PodTemplateManagers)
 	agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[agentContainerName]
 
@@ -208,4 +295,39 @@ func ksmAgentWantFunc(t testing.TB, mgrInterface feature.PodTemplateManagers, ag
 		},
 	}
 	assert.True(t, apiutils.IsEqualStruct(agentEnvVars, want), "Agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, want))
+
+	// When PodCollectionMode=node_kubelet is active the operator must mount the
+	// node-side pods-only ConfigMap into this container. When it isn't active
+	// the container must NOT have that volume/mount.
+	gotMount := findVolumeMount(mgr.VolumeMountMgr.VolumeMountsByC[agentContainerName], ksmCorePodsOnNodeVolumeName)
+	gotVolume := findVolume(mgr.VolumeMgr.Volumes, ksmCorePodsOnNodeVolumeName)
+	if wantPodsOnNodeMount {
+		assert.NotNil(t, gotMount, "expected node-side KSM pods-on-node volume mount on container %s", agentContainerName)
+		assert.NotNil(t, gotVolume, "expected node-side KSM pods-on-node volume in pod spec")
+		if gotMount != nil {
+			assert.Equal(t, "/etc/datadog-agent/conf.d/kubernetes_state_core.d", gotMount.MountPath)
+			assert.True(t, gotMount.ReadOnly, "node-side KSM mount should be read-only")
+		}
+	} else {
+		assert.Nil(t, gotMount, "node-side KSM volume mount should NOT be present when podCollectionMode is unset/default")
+		assert.Nil(t, gotVolume, "node-side KSM volume should NOT be present when podCollectionMode is unset/default")
+	}
+}
+
+func findVolumeMount(mounts []*corev1.VolumeMount, name string) *corev1.VolumeMount {
+	for _, m := range mounts {
+		if m.Name == name {
+			return m
+		}
+	}
+	return nil
+}
+
+func findVolume(volumes []*corev1.Volume, name string) *corev1.Volume {
+	for _, v := range volumes {
+		if v.Name == name {
+			return v
+		}
+	}
+	return nil
 }
