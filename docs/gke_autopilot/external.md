@@ -26,7 +26,7 @@ helm install datadog-operator datadog/datadog-operator
 
 ## Create the Datadog credentials Secret
 
-Create a Secret in the namespace where you will create the `DatadogAgent`:
+Create a Secret in the namespace where you plan to create the `DatadogAgent`:
 
 ```shell
 kubectl create secret generic datadog-secret \
