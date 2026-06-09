@@ -79,7 +79,7 @@ The value must use the `vX.Y.Z` format. Malformed values are ignored and the def
 
 ## Customize resources
 
-Use the normal `spec.override.nodeAgent.containers` override to set container resources. For example, this sets resources on the core Agent container:
+Use the `spec.override.nodeAgent.containers` override to set container resources. For example, the following configuration sets resources on the core Agent container:
 
 ```yaml
 apiVersion: datadoghq.com/v2alpha1
