@@ -1,0 +1,24 @@
+# This file contains a mapping of DataDog Github teams to JIRA projects.
+# The DEFAULT_JIRA_PROJECT value is interpreted as "AGNTR".
+# Note that keys must be quoted because the '@' symbol is reserved in YAML.
+'@datadog/action-platform': ACTP
+'@datadog/agent-apm': APMSP
+'@datadog/agent-data-plane': DADP
+'@datadog/agent-discovery': DSCVR
+'@datadog/agent-log-pipelines': AGNTLOG
+'@datadog/agent-metric-pipelines': AGTMETRICS
+'@datadog/agent-security': CWS
+'@datadog/asm-go': APPSEC
+'@datadog/cloud-network-monitoring': CNM
+'@datadog/container-autoscaling': CASCL
+'@datadog/container-experiences': CXP
+'@datadog/container-integrations': CONTINT
+'@datadog/container-platform': CONTP
+'@datadog/documentation': DOCS
+'@datadog/ebpf-platform': EBPF
+'@datadog/fleet': FA
+'@datadog/kubernetes-experiences': CAP
+'@datadog/opentelemetry-agent': OTAGENT
+'@datadog/profiling-full-host': PROF
+'@datadog/remote-config': RC
+'@datadog/universal-service-monitoring': USMON
