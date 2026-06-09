@@ -17,6 +17,8 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/providercaps"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 func init() {
@@ -33,6 +35,17 @@ func buildOOMKillFeature(options *feature.Options) feature.Feature {
 }
 
 type oomKillFeature struct{}
+
+// NodeAgentProviderCapabilities returns provider-conditional pod-template
+// mutations for the node agent. On GKE COS, /usr/src does not exist on host
+// nodes; strip the src volume + mounts so the pod schedules successfully.
+func (f *oomKillFeature) NodeAgentProviderCapabilities() providercaps.NodeAgentProviderCapabilities {
+	return providercaps.NodeAgentProviderCapabilities{
+		kubernetes.GKECosProvider: {
+			RemoveVolumes: []string{common.SrcVolumeName},
+		},
+	}
+}
 
 // ID returns the ID of the Feature
 func (f *oomKillFeature) ID() feature.IDType {
@@ -81,7 +94,8 @@ func (f *oomKillFeature) ManageNodeAgent(managers feature.PodTemplateManagers) e
 	managers.VolumeMount().AddVolumeMountToContainer(&modulesVolMount, apicommon.SystemProbeContainerName)
 	managers.Volume().AddVolume(&modulesVol)
 
-	// src volume mount
+	// src volume mount — stripped on GKE COS by NodeAgentProviderCapabilities
+	// (host nodes have no /usr/src).
 	srcVol, srcVolMount := volume.GetVolumes(common.SrcVolumeName, common.SrcVolumePath, common.SrcVolumePath, true)
 	managers.VolumeMount().AddVolumeMountToContainer(&srcVolMount, apicommon.SystemProbeContainerName)
 	managers.Volume().AddVolume(&srcVol)

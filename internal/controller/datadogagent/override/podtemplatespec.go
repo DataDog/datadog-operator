@@ -104,7 +104,7 @@ func PodTemplateSpec(logger logr.Logger, manager feature.PodTemplateManagers, ov
 		manager.EnvFromVar().AddEnvFromVar(&e)
 	}
 
-	if override.CELWorkloadExclude != nil && len(override.CELWorkloadExclude) > 0 {
+	if len(override.CELWorkloadExclude) > 0 {
 		jsonConfig, err := json.Marshal(override.CELWorkloadExclude)
 		if err != nil {
 			logger.Error(err, "failed to convert to JSON")

@@ -8,8 +8,8 @@ SHELL = /usr/bin/env bash -o pipefail
 # Datadog custom variables
 #
 BUILDINFOPKG=github.com/DataDog/datadog-operator/pkg/version
-GIT_TAG?=$(shell git tag | tr - \~ | sort -V | tr \~ - | tail -1)
-TAG_HASH=$(shell git tag | tr - \~ | sort -V | tr \~ - | tail -1)_$(shell git rev-parse --short HEAD)
+GIT_TAG?=$(shell git describe --tags --exact-match --match 'v[0-9]*' 2>/dev/null)
+TAG_HASH=$(shell git rev-parse --short HEAD)
 IMG_VERSION?=$(if $(VERSION),$(VERSION),latest)
 VERSION?=$(if $(GIT_TAG),$(GIT_TAG),$(TAG_HASH))
 GIT_COMMIT?=$(shell git rev-parse HEAD)
@@ -57,6 +57,7 @@ ENVTEST_K8S_VERSION = 1.30
 # instead of the CI job timing out with no actionable logs.)
 E2E_GO_TEST_TIMEOUT ?= 55m
 E2E_AUTOSCALING_GO_TEST_TIMEOUT ?= 140m
+E2E_GO_TEST_OUTPUT ?= go run ./hack/e2e-test-output
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -219,15 +220,15 @@ integration-tests: $(ENVTEST) ## Run integration tests with reconciler
 .PHONY: e2e-tests
 e2e-tests: ## Run E2E tests and destroy environment stacks after tests complete. To run locally, complete pre-reqs (see docs/how-to-contribute.md) and prepend command with `aws-vault exec sso-agent-sandbox-account-admin --`. E.g. `aws-vault exec sso-agent-sandbox-account-admin -- make e2e-tests`.
 	@if [ -z "$(E2E_RUN_REGEX)" ]; then \
-		GOWORK=off KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" go test -C test/e2e/ ./... -count=1 --tags=e2e -v -run TestAWSKindSuite -timeout $(E2E_GO_TEST_TIMEOUT) -coverprofile cover_e2e.out; \
+		GOWORK=off KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" go test -C test/e2e/ ./... -count=1 --tags=e2e -json -run TestAWSKindSuite -timeout $(E2E_GO_TEST_TIMEOUT) -coverprofile cover_e2e.out | $(E2E_GO_TEST_OUTPUT); \
 	else \
 	    echo "Running e2e test: $(E2E_RUN_REGEX)"; \
-		GOWORK=off KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" go test -C test/e2e/ ./... -count=1 --tags=e2e -v -run $(E2E_RUN_REGEX) -timeout $(E2E_GO_TEST_TIMEOUT) -coverprofile cover_e2e.out; \
+		GOWORK=off KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" go test -C test/e2e/ ./... -count=1 --tags=e2e -json -run $(E2E_RUN_REGEX) -timeout $(E2E_GO_TEST_TIMEOUT) -coverprofile cover_e2e.out | $(E2E_GO_TEST_OUTPUT); \
 	fi
 
 .PHONY: e2e-autoscaling-tests
 e2e-autoscaling-tests: kubectl-datadog ## Run autoscaling E2E tests on EKS. To run locally, complete pre-reqs (see docs/how-to-contribute.md) and prepend command with `aws-vault exec sso-agent-sandbox-account-admin --`.
-	GOWORK=off KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" go test -C test/e2e/ ./tests/autoscaling_suite/... -count=1 --tags=e2e -v -timeout $(E2E_AUTOSCALING_GO_TEST_TIMEOUT) -coverprofile cover_e2e_autoscaling.out
+	GOWORK=off KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" go test -C test/e2e/ ./tests/autoscaling_suite/... -count=1 --tags=e2e -json -timeout $(E2E_AUTOSCALING_GO_TEST_TIMEOUT) -coverprofile cover_e2e_autoscaling.out | $(E2E_GO_TEST_OUTPUT)
 
 .PHONY: yaml-mapper-tests
 yaml-mapper-tests: fmt yaml-mapper-unit-tests

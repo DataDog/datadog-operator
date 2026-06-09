@@ -25,6 +25,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 func sendProfileEnabledMetric(enabled bool) {
@@ -262,6 +263,16 @@ func setProfileDDAIMeta(ddai *v1alpha1.DatadogAgentInternal, profile *v1alpha1.D
 			ddai.Labels = make(map[string]string)
 		}
 		ddai.Labels[constants.ProfileLabelKey] = profile.Name
+	}
+	// Propagate the provider annotation from the profile onto the DDAI so a
+	// DAP can declare a provider that differs from the DDA (e.g. a GKE COS
+	// node pool selected by the profile). The profile value overrides the
+	// DDA-inherited value when set.
+	if v, ok := profile.GetAnnotations()[kubernetes.ProviderAnnotationKey]; ok {
+		if ddai.Annotations == nil {
+			ddai.Annotations = make(map[string]string)
+		}
+		ddai.Annotations[kubernetes.ProviderAnnotationKey] = v
 	}
 	return nil
 }

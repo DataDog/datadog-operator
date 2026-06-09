@@ -92,6 +92,7 @@ type ReconcilerOptions struct {
 	OperatorMetricsEnabled     bool
 	IntrospectionEnabled       bool
 	DatadogAgentProfileEnabled bool
+	UntaintControllerEnabled   bool
 	DatadogCSIDriverEnabled    bool
 	CreateControllerRevisions  bool
 	// ExperimentTimeout overrides ExperimentDefaultTimeout. Zero means use the default.

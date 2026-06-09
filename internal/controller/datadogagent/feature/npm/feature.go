@@ -16,6 +16,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
 	"github.com/DataDog/datadog-operator/pkg/utils"
 )
@@ -56,8 +57,11 @@ func (f *npmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 			apicommon.SystemProbeContainerName,
 		}
 
-		directSendEnabled := apiutils.BoolValue(ddaSpec.Features.NPM.DirectSend)
-		const directSendMinVersion = "7.77.0-0"
+		directSendEnabled := true
+		if value, ok := featureutils.GetFeatureConfigAnnotation(dda, featureutils.EnableCNMDirectSendAnnotation); ok {
+			directSendEnabled = value == "true"
+		}
+		const directSendMinVersion = "7.81.0-0"
 		defaultIfVersionUnknown := false
 		if !utils.IsAboveMinVersion(common.GetComponentVersion(dda, v2alpha1.NodeAgentComponentName), directSendMinVersion, &defaultIfVersionUnknown) {
 			directSendEnabled = false
@@ -108,6 +112,9 @@ func (f *npmFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error
 
 	// annotations
 	managers.Annotation().AddAnnotation(common.SystemProbeAppArmorAnnotationKey, common.SystemProbeAppArmorAnnotationValue)
+	if !f.directSend {
+		managers.Annotation().AddAnnotation(common.AppArmorAnnotationKey+"/"+string(apicommon.ProcessAgentContainerName), "unconfined")
+	}
 
 	// security context capabilities
 	managers.SecurityContext().AddCapabilitiesToContainer(agent.DefaultCapabilitiesForSystemProbe(), apicommon.SystemProbeContainerName)
@@ -172,13 +179,19 @@ func (f *npmFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error
 		Name:  DDSystemProbeCollectDNSStatsEnabled,
 		Value: apiutils.BoolToString(&f.collectDNSStats),
 	}
-	managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.CoreAgentContainerName, apicommon.SystemProbeContainerName}, collectDNSStatsEnvVar)
+	managers.EnvVar().AddEnvVarToContainers(containersForEnvVars, collectDNSStatsEnvVar)
 
 	connTrackEnvVar := &corev1.EnvVar{
 		Name:  DDSystemProbeConntrackEnabled,
 		Value: apiutils.BoolToString(&f.enableConntrack),
 	}
-	managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.CoreAgentContainerName, apicommon.SystemProbeContainerName}, connTrackEnvVar)
+	managers.EnvVar().AddEnvVarToContainers(containersForEnvVars, connTrackEnvVar)
+
+	cnmDirectSendEnvVar := &corev1.EnvVar{
+		Name:  DDSystemProbeCNMDirectSend,
+		Value: apiutils.BoolToString(&f.directSend),
+	}
+	managers.EnvVar().AddEnvVarToContainers(containersForEnvVars, cnmDirectSendEnvVar)
 
 	// env vars for Process Agent only
 	sysProbeExternalEnvVar := &corev1.EnvVar{
@@ -186,13 +199,6 @@ func (f *npmFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error
 		Value: "true",
 	}
 	managers.EnvVar().AddEnvVarToContainer(apicommon.ProcessAgentContainerName, sysProbeExternalEnvVar)
-
-	// env vars for System Probe only
-	cnmDirectSendEnvVar := &corev1.EnvVar{
-		Name:  DDSystemProbeCNMDirectSend,
-		Value: apiutils.BoolToString(&f.directSend),
-	}
-	managers.EnvVar().AddEnvVarToContainer(apicommon.SystemProbeContainerName, cnmDirectSendEnvVar)
 
 	return nil
 }

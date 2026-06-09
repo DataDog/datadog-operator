@@ -667,11 +667,6 @@ type NPMFeatureConfig struct {
 	// Default: false
 	// +optional
 	CollectDNSStats *bool `json:"collectDNSStats,omitempty"`
-
-	// DirectSend enables CNM/USM to send data directly to the backend
-	// Default: false
-	// +optional
-	DirectSend *bool `json:"directSend,omitempty"`
 }
 
 // USMFeatureConfig contains USM (Universal Service Monitoring) feature configuration.

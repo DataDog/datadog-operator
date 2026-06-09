@@ -32,6 +32,11 @@ const (
 	// GKECloudProvider GKE CloudProvider name
 	GKECloudProvider = "gke"
 
+	// GKECosProvider is the full provider string for GKE on Container-Optimized OS
+	// nodes (matches the `{cloudProvider}-{value}` convention from
+	// generateValidProviderName). Used as a NodeAgentProviderCapabilities map key.
+	GKECosProvider = "gke-cos"
+
 	// GKEProviderLabel is the GKE node label used to determine the node's provider
 	GKEProviderLabel = "cloud.google.com/gke-os-distribution"
 

@@ -6,8 +6,8 @@
 package hostprofiler
 
 import (
+	"crypto/sha256"
 	"fmt"
-	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 
@@ -15,12 +15,16 @@ import (
 )
 
 const (
-	securityVolumeName               = "host-profiler-security"
-	securityVolumePath               = "/etc/config/host-profiler"
-	seccompKey                       = "host-profiler-seccomp.json"
-	agentSecurityConfigMapSuffixName = "host-profiler-seccomp"
-	seccompProfileName               = "host-profiler"
+	// seccompSourcePath is the path to the seccomp profile baked into the collector image.
+	seccompSourcePath = "/etc/dd-host-profiler/seccomp.json"
 )
+
+// seccompProfileName returns a profile name unique to the image, avoiding
+// races when multiple host-profiler versions coexist on the same node.
+func seccompProfileName(imageRef string) string {
+	h := sha256.Sum256([]byte(imageRef))
+	return fmt.Sprintf("host-profiler-%x", h[:4])
+}
 
 func defaultCapabilities() []corev1.Capability {
 	return []corev1.Capability{
@@ -31,129 +35,7 @@ func defaultCapabilities() []corev1.Capability {
 		"DAC_READ_SEARCH",
 		"SYSLOG",
 		"CHECKPOINT_RESTORE",
-	}
-}
-
-func defaultSyscalls() []string {
-	return []string{
-		"accept4",
-		"access",
-		"arch_prctl",
-		"bind",
-		"bpf",
-		"brk",
-		"chmod",
-		"clone",
-		"clone3",
-		"close",
-		"connect",
-		"dup3",
-		"epoll_create1",
-		"epoll_ctl",
-		"epoll_pwait",
-		"epoll_wait",
-		"eventfd2",
-		"execve",
-		"exit",
-		"exit_group",
-		"faccessat2",
-		"fcntl",
-		"fstat",
-		"fstatfs",
-		"futex",
-		"getcwd",
-		"getdents64",
-		"getpeername",
-		"getpid",
-		"getrandom",
-		"getsockname",
-		"getsockopt",
-		"gettid",
-		"getrlimit",
-		"ioctl",
-		"listen",
-		"lseek",
-		"madvise",
-		"mmap",
-		"mprotect",
-		"munmap",
-		"nanosleep",
-		"newfstatat",
-		"openat",
-		"openat2",
-		"perf_event_open",
-		"pidfd_open",
-		"pidfd_send_signal",
-		"pipe2",
-		"prctl",
-		"pread64",
-		"prlimit64",
-		"process_vm_readv",
-		"read",
-		"readlinkat",
-		"rename",
-		"renameat",
-		"renameat2",
-		"recvmsg",
-		"restart_syscall",
-		"rseq",
-		"rt_sigaction",
-		"rt_sigprocmask",
-		"rt_sigreturn",
-		"sched_getaffinity",
-		"sched_yield",
-		"sendto",
-		"set_robust_list",
-		"set_tid_address",
-		"setrlimit",
-		"setsockopt",
-		"sigaltstack",
-		"socket",
-		"statfs",
-		"statx",
-		"sysinfo",
-		"tgkill",
-		"umask",
-		"uname",
-		"unlinkat",
-		"wait4",
-		"waitid",
-		"write",
-	}
-}
-
-func defaultSeccompConfigData() map[string]string {
-	syscalls := fmt.Sprintf(`["%s"]`, strings.Join(defaultSyscalls(), `","`))
-
-	return map[string]string{
-		seccompKey: fmt.Sprintf(`{
-			"defaultAction": "SCMP_ACT_ERRNO",
-			"architectures": [
-				"SCMP_ARCH_X86_64",
-				"SCMP_ARCH_AARCH64"
-			],
-			"syscalls": [
-				{
-				"names": %s,
-				"action": "SCMP_ACT_ALLOW"
-				},
-				{
-				"names": [
-					"kill"
-				],
-				"action": "SCMP_ACT_ALLOW",
-				"args": [
-					{
-					"index": 1,
-					"value": 0,
-					"op": "SCMP_CMP_EQ"
-					}
-				],
-				"comment": "allow process liveness check via kill(pid, 0)"
-				}
-			]
-		}
-		`, syscalls),
+		"IPC_LOCK",
 	}
 }
 
@@ -163,14 +45,10 @@ func buildSeccompSetupInitContainer(image string) corev1.Container {
 		Image: image,
 		Command: []string{
 			"cp",
-			fmt.Sprintf("%s/%s", securityVolumePath, seccompKey),
-			fmt.Sprintf("%s/%s", common.SeccompRootVolumePath, seccompProfileName),
+			seccompSourcePath,
+			fmt.Sprintf("%s/%s", common.SeccompRootVolumePath, seccompProfileName(image)),
 		},
 		VolumeMounts: []corev1.VolumeMount{
-			{
-				Name:      securityVolumeName,
-				MountPath: securityVolumePath,
-			},
 			common.GetVolumeMountForSeccomp(),
 		},
 	}
