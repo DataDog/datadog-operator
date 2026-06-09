@@ -267,14 +267,33 @@ func IsSpecificProvider(p string) bool {
 	return p != "" && p != DefaultProvider
 }
 
-// GetClusterProviderFromNodeList collapses a node list to a single cluster-level
-// provider, preferring a specific provider (eks/openshift-*/gke-cos) over the
-// default. Providers are sorted for deterministic selection when more than one
-// specific provider is present (mixed clusters).
-func GetClusterProviderFromNodeList(nodeList []corev1.Node, logger logr.Logger) string {
-	providerList := GetProviderListFromNodeList(nodeList, logger)
-	for _, provider := range sortProviders(providerList) {
-		if provider != DefaultProvider && provider != LegacyProvider {
+// ClusterProviderFromNodeLabels maps a single node's labels to the cluster-level
+// provider (eks, openshift-<os>, or default). It is the node-label signal for the
+// cluster dimension.
+//
+// Node-OS distinctions such as gke-cos belong to the node
+// dimension (DetermineProvider / GetProviderListFromNodeList) and are intentionally
+// NOT returned here, so a node-OS variation doesn't appear as a cluster
+// provider. GKE therefore maps to default at cluster scope.
+func ClusterProviderFromNodeLabels(labels map[string]string) string {
+	if len(labels) > 0 {
+		// OpenShift keeps its os_id suffix: control plane monitoring resolves the
+		// provider label via GetProviderLabelKeyValue, which needs the openshift-<os> form.
+		if val, ok := labels[OpenShiftProviderLabel]; ok {
+			return generateValidProviderName(OpenshiftProvider, val)
+		}
+		if isEKSProvider(labels) {
+			return EKSCloudProvider
+		}
+	}
+	return DefaultProvider
+}
+
+// GetClusterProviderFromNodeList returns the cluster-level provider for a node
+// list, preferring a specific provider over the default (first match wins).
+func GetClusterProviderFromNodeList(nodeList []corev1.Node) string {
+	for i := range nodeList {
+		if provider := ClusterProviderFromNodeLabels(nodeList[i].Labels); provider != DefaultProvider {
 			return provider
 		}
 	}

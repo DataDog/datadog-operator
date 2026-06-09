@@ -293,10 +293,11 @@ func setClusterProviderStatus(status *datadoghqv2alpha1.DatadogAgentStatus, prov
 	case source == clusterProviderSourceUser:
 		reason = clusterProviderSourceUser
 		message = fmt.Sprintf("Cluster provider set to %q by user annotation.", provider)
-	case kubernetes.IsSpecificProvider(provider):
+	case source == clusterProviderSourceDetected && kubernetes.IsSpecificProvider(provider):
 		reason = clusterProviderReasonDetected
 		message = fmt.Sprintf("Cluster provider detected as %q.", provider)
 	default:
+		// Detected-but-default, or no provider resolved (gate elapsed).
 		reason = clusterProviderSourceNone
 		message = "No cloud provider detected; provider-specific configuration not applied."
 	}

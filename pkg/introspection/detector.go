@@ -172,7 +172,7 @@ func (d *Detector) detect(ctx context.Context) *detection {
 			d.logger.V(1).Info("operator-node provider read failed; trying cluster-node-list fallback", "node", d.nodeName, "error", err)
 		} else {
 			return &detection{
-				Provider:   kubernetes.DetermineProvider(node.Labels),
+				Provider:   kubernetes.ClusterProviderFromNodeLabels(node.Labels),
 				Source:     sourceOwnNode,
 				DetectedAt: time.Now(),
 			}
@@ -186,7 +186,7 @@ func (d *Detector) detect(ctx context.Context) *detection {
 			d.logger.V(1).Info("cluster-node-list provider detection failed", "error", err)
 		} else {
 			return &detection{
-				Provider:   kubernetes.GetClusterProviderFromNodeList(nodeList.Items, d.logger),
+				Provider:   kubernetes.GetClusterProviderFromNodeList(nodeList.Items),
 				Source:     sourceNodeList,
 				DetectedAt: time.Now(),
 			}

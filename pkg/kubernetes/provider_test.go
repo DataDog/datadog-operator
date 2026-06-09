@@ -681,3 +681,25 @@ func Test_GetAgentNameWithProvider(t *testing.T) {
 		})
 	}
 }
+
+func TestClusterProviderFromNodeLabels(t *testing.T) {
+	tests := []struct {
+		name   string
+		labels map[string]string
+		want   string
+	}{
+		{name: "eks", labels: map[string]string{EKSProviderLabel: "ami-x"}, want: EKSCloudProvider},
+		{name: "openshift keeps os suffix", labels: map[string]string{OpenShiftProviderLabel: "rhcos"}, want: "openshift-rhcos"},
+		{
+			name:   "gke node-OS does not leak to cluster scope",
+			labels: map[string]string{GKEProviderLabel: GKECosType},
+			want:   DefaultProvider,
+		},
+		{name: "unlabeled", labels: nil, want: DefaultProvider},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, ClusterProviderFromNodeLabels(tt.labels))
+		})
+	}
+}
