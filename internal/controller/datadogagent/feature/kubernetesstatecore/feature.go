@@ -18,6 +18,7 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/merger"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
@@ -52,6 +53,7 @@ type ksmFeature struct {
 	collectCrMetrics           []v2alpha1.Resource
 	collectAPIServiceMetrics   bool
 	collectControllerRevisions bool
+	useApiServerCache          bool
 
 	rbacSuffix         string
 	serviceAccountName string
@@ -93,6 +95,7 @@ func (f *ksmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 		f.collectAPIServiceMetrics = true
 		f.collectCRDMetrics = true
 		f.collectCrMetrics = ddaSpec.Features.KubeStateMetricsCore.CollectCrMetrics
+		f.useApiServerCache = featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnableKSMApiServerCacheAnnotation)
 		f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda.GetName(), ddaSpec)
 
 		// Determine CollectControllerRevisions setting
@@ -160,6 +163,7 @@ func (f *ksmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 				"collect_crds":        f.collectCRDMetrics,
 				"collect_apiservices": f.collectAPIServiceMetrics,
 				"collect_cr_metrics":  f.collectCrMetrics,
+				"use_apiserver_cache": f.useApiServerCache,
 			}
 
 			hash, err := comparison.GenerateMD5ForSpec(defaultConfigData)
@@ -183,6 +187,7 @@ type collectorOptions struct {
 	enableAPIService          bool
 	enableCRD                 bool
 	enableControllerRevisions bool
+	useApiServerCache         bool
 	customResources           []v2alpha1.Resource
 }
 
@@ -197,6 +202,7 @@ func (f *ksmFeature) ManageDependencies(managers feature.ResourceManagers) error
 		enableAPIService:          f.collectAPIServiceMetrics,
 		enableCRD:                 f.collectCRDMetrics,
 		enableControllerRevisions: f.collectControllerRevisions,
+		useApiServerCache:         f.useApiServerCache,
 		customResources:           f.collectCrMetrics,
 	}
 	configCM, err := f.buildKSMCoreConfigMap(collectorOpts)
