@@ -9,8 +9,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
-	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
@@ -18,9 +16,11 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
+	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/testutils"
@@ -35,14 +35,14 @@ func Test_instrumentationCRDFeature_Configure(t *testing.T) {
 			Name: "InstrumentationCRD disabled via annotation",
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithAnnotations(map[string]string{featureutils.EnableInstrumentationCRDAnnotation: "false"}).
-				WithClusterAgentImage("cluster-agent:7.80.0").
+				WithClusterAgentImage("cluster-agent:7.81.0").
 				Build(),
 			WantConfigure: false,
 		},
 		{
 			Name: "InstrumentationCRD enabled by default when CA version meets minimum",
 			DDA: testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
-				WithClusterAgentImage("cluster-agent:7.80.0").
+				WithClusterAgentImage("cluster-agent:7.81.0").
 				Build(),
 			WantConfigure:        true,
 			WantDependenciesFunc: instrumentationCRDWantDepsFunc(),
@@ -52,7 +52,7 @@ func Test_instrumentationCRDFeature_Configure(t *testing.T) {
 			Name: "InstrumentationCRD enabled via annotation with CA version meets minimum",
 			DDA: testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 				WithAnnotations(map[string]string{featureutils.EnableInstrumentationCRDAnnotation: "true"}).
-				WithClusterAgentImage("cluster-agent:7.80.0").
+				WithClusterAgentImage("cluster-agent:7.81.0").
 				Build(),
 			WantConfigure:        true,
 			WantDependenciesFunc: instrumentationCRDWantDepsFunc(),

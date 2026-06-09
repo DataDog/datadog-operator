@@ -22,7 +22,7 @@ import (
 )
 
 // clusterAgentMinVersion is the minimum Cluster Agent version that supports the instrumentation CRD controller.
-const clusterAgentMinVersion = "7.80.0-0"
+const clusterAgentMinVersion = "7.81.0-0"
 
 func init() {
 	err := feature.Register(feature.InstrumentationCRDIDType, buildInstrumentationCRDFeature)
