@@ -33,7 +33,7 @@ kubectl create secret generic datadog-secret \
   --from-literal api-key=<DATADOG_API_KEY>
 ```
 
-Add `app-key` as well if you enable features that require a Datadog application key.
+Add `app-key` if you enable features that require a Datadog application key.
 
 ## Enable Autopilot mode
 
