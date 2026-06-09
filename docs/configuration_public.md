@@ -617,7 +617,7 @@ In the table, `spec.override.nodeAgent.image.name` and `spec.override.nodeAgent.
 
 ### Resource limits on high-core-count nodes
 
-On nodes with a high logical CPU count (for example, large GPU or bare-metal hosts), the Agent's Go runtime sizes its scheduler to the host CPU count by default. This can drive memory usage proportionally and cause the Agent container to be OOM-killed even with otherwise modest workloads.
+On nodes with a high logical CPU count (for example, large GPU or bare-metal hosts), the Agent's Go runtime sizes its scheduler to the host CPU count by default. This scales memory usage proportionally with the CPU count and can cause the Agent container to be OOM-killed even with otherwise modest workloads.
 
 Setting an explicit CPU limit on the `agent` container constrains the runtime to that value:
 

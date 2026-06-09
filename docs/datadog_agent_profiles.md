@@ -50,7 +50,7 @@ datadogagentprofile-sample                                      1         1     
 
 Common scenarios:
 
-* **Heterogeneous clusters with varying CPU core counts.** A single global resource limit set on the `DatadogAgent` is either too low for small control-plane nodes or too high for large GPU/bare-metal nodes. Use one DAP per node shape (selected via `profileAffinity` on a label such as `node.kubernetes.io/instance-type` or a custom node-role label) to apply appropriate `resources.limits.cpu` and `resources.limits.memory` to each group. On nodes with a high logical CPU count, an explicit CPU limit also prevents the Agent's Go runtime from sizing its scheduler to the host CPU count, which can otherwise lead to OOM kills.
+* **Heterogeneous clusters with varying CPU core counts.** A single global resource limit set on the `DatadogAgent` is either too low for small control-plane nodes or too high for large GPU/bare-metal nodes. Use one DatadogAgentProfile (DAP) per node shape (selected via `profileAffinity` on a label such as `node.kubernetes.io/instance-type` or a custom node-role label) to apply appropriate `resources.limits.cpu` and `resources.limits.memory` to each group. On nodes with a high logical CPU count, an explicit CPU limit also prevents the Agent's Go runtime from sizing its scheduler to the host CPU count, which can otherwise lead to OOM kills.
 * **Targeting specific node roles.** Run a different Agent configuration (for example, additional checks or a higher log level) on nodes labeled for a particular workload.
 
 ## Prerequisites
