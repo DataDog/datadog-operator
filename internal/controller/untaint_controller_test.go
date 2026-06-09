@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -719,6 +720,139 @@ func TestReconcile_CSI_agentReadyNoCsiPodKeepsTaint(t *testing.T) {
 	fresh := &corev1.Node{}
 	require.NoError(t, c.Get(context.Background(), types.NamespacedName{Name: testNodeName}, fresh))
 	assert.True(t, hasTaint(fresh))
+}
+
+func TestReconcile_CSI_agentReadyNoCsiPod_zeroCreationTimestampRequeuesSchedulingTimeout(t *testing.T) {
+	now := testNow()
+	node := &corev1.Node{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:              testNodeName,
+			CreationTimestamp: metav1.Time{}, // zero — defensive branch in reconcileAgentReadyWaitForCSI
+		},
+		Spec: corev1.NodeSpec{Taints: []corev1.Taint{untaint.AgentNotReadyTaint()}},
+	}
+	agent := agentPod(testPodName, testPodNS, testNodeName, true, 1*time.Minute, now)
+	c := newFakeClient(t, node, agent)
+	const scheduling = 7 * time.Minute
+	r, _ := newReconciler(t, c, now, PolicyRemove, time.Minute, scheduling, true)
+
+	result, err := r.Reconcile(context.Background(), ctrl.Request{NamespacedName: types.NamespacedName{Name: testNodeName}})
+	require.NoError(t, err)
+	assert.Equal(t, scheduling, result.RequeueAfter)
+
+	fresh := &corev1.Node{}
+	require.NoError(t, c.Get(context.Background(), types.NamespacedName{Name: testNodeName}, fresh))
+	require.True(t, hasTaint(fresh))
+}
+
+func TestReconcile_CSI_agentReadyNoCsiPod_schedulingTimeoutRemovesTaint(t *testing.T) {
+	now := testNow()
+	const scheduling = 5 * time.Minute
+	node := taintedNode(testNodeName, scheduling+time.Minute, now)
+	agent := agentPod(testPodName, testPodNS, testNodeName, true, 1*time.Minute, now)
+	c := newFakeClient(t, node, agent)
+	r, _ := newReconciler(t, c, now, PolicyRemove, 10*time.Minute, scheduling, true)
+
+	result, err := r.Reconcile(context.Background(), ctrl.Request{NamespacedName: types.NamespacedName{Name: testNodeName}})
+	require.NoError(t, err)
+	assert.Equal(t, ctrl.Result{}, result)
+
+	fresh := &corev1.Node{}
+	require.NoError(t, c.Get(context.Background(), types.NamespacedName{Name: testNodeName}, fresh))
+	assert.False(t, hasTaint(fresh))
+}
+
+func TestReconcile_CSI_agentReadyCsiNotReady_noStartTimeRequeuesReadinessTimeout(t *testing.T) {
+	now := testNow()
+	node := taintedNode(testNodeName, 0, now)
+	agent := agentPod(testPodName, testPodNS, testNodeName, true, 1*time.Minute, now)
+	// not Ready, startedAgo 0 → no Status.StartTime → latestPodStartTime !ok branch
+	csi := csiNodeServerPod("csi-1", testPodNS, testNodeName, false, 0, now)
+	c := newFakeClient(t, node, agent, csi)
+	const readiness = 9 * time.Minute
+	r, _ := newReconciler(t, c, now, PolicyRemove, readiness, time.Minute, true)
+
+	result, err := r.Reconcile(context.Background(), ctrl.Request{NamespacedName: types.NamespacedName{Name: testNodeName}})
+	require.NoError(t, err)
+	assert.Equal(t, readiness, result.RequeueAfter)
+
+	fresh := &corev1.Node{}
+	require.NoError(t, c.Get(context.Background(), types.NamespacedName{Name: testNodeName}, fresh))
+	assert.True(t, hasTaint(fresh))
+}
+
+func TestReconcile_CSI_agentReadyCsiNotReady_readinessTimeoutRemovesTaint(t *testing.T) {
+	now := testNow()
+	node := taintedNode(testNodeName, 0, now)
+	agent := agentPod(testPodName, testPodNS, testNodeName, true, 1*time.Minute, now)
+	const readiness = time.Minute
+	csi := csiNodeServerPod("csi-1", testPodNS, testNodeName, false, 2*readiness, now)
+	c := newFakeClient(t, node, agent, csi)
+	r, _ := newReconciler(t, c, now, PolicyRemove, readiness, 5*time.Minute, true)
+
+	result, err := r.Reconcile(context.Background(), ctrl.Request{NamespacedName: types.NamespacedName{Name: testNodeName}})
+	require.NoError(t, err)
+	assert.Equal(t, ctrl.Result{}, result)
+
+	fresh := &corev1.Node{}
+	require.NoError(t, c.Get(context.Background(), types.NamespacedName{Name: testNodeName}, fresh))
+	assert.False(t, hasTaint(fresh))
+}
+
+func TestReconcile_CSI_listDriverPodsError(t *testing.T) {
+	now := testNow()
+	node := taintedNode(testNodeName, 0, now)
+	agent := agentPod(testPodName, testPodNS, testNodeName, true, 1*time.Minute, now)
+	base := newFakeClient(t, node, agent)
+	var listCalls atomic.Int32
+	c := interceptor.NewClient(base, interceptor.Funcs{
+		List: func(ctx context.Context, cl client.WithWatch, list client.ObjectList, opts ...client.ListOption) error {
+			if listCalls.Add(1) == 2 {
+				return errors.New("simulated CSI pod list failure")
+			}
+			return base.List(ctx, list, opts...)
+		},
+	})
+	r, _ := newReconciler(t, c, now, PolicyRemove, time.Minute, time.Minute, true)
+
+	_, err := r.Reconcile(context.Background(), ctrl.Request{NamespacedName: types.NamespacedName{Name: testNodeName}})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to list CSI driver pods")
+}
+
+func TestReconcile_CSI_bothReadyConflictReturnsRequeue(t *testing.T) {
+	now := testNow()
+	node := taintedNode(testNodeName, 0, now)
+	agent := agentPod(testPodName, testPodNS, testNodeName, true, 1*time.Minute, now)
+	csi := csiNodeServerPod("csi-1", testPodNS, testNodeName, true, 1*time.Minute, now)
+	base := newFakeClient(t, node, agent, csi)
+	c := interceptor.NewClient(base, interceptor.Funcs{
+		Patch: func(context.Context, client.WithWatch, client.Object, client.Patch, ...client.PatchOption) error {
+			return apierrors.NewConflict(schema.GroupResource{Resource: "nodes"}, testNodeName, errors.New("race"))
+		},
+	})
+	r, _ := newReconciler(t, c, now, PolicyRemove, time.Minute, time.Minute, true)
+
+	result, err := r.Reconcile(context.Background(), ctrl.Request{NamespacedName: types.NamespacedName{Name: testNodeName}})
+	require.NoError(t, err)
+	assert.Equal(t, conflictRequeueDelay, result.RequeueAfter)
+}
+
+func TestReconcile_CSI_bothReadyPatchErrorBubbles(t *testing.T) {
+	now := testNow()
+	node := taintedNode(testNodeName, 0, now)
+	agent := agentPod(testPodName, testPodNS, testNodeName, true, 1*time.Minute, now)
+	csi := csiNodeServerPod("csi-1", testPodNS, testNodeName, true, 1*time.Minute, now)
+	base := newFakeClient(t, node, agent, csi)
+	c := interceptor.NewClient(base, interceptor.Funcs{
+		Patch: func(context.Context, client.WithWatch, client.Object, client.Patch, ...client.PatchOption) error {
+			return errors.New("boom")
+		},
+	})
+	r, _ := newReconciler(t, c, now, PolicyRemove, time.Minute, time.Minute, true)
+
+	_, err := r.Reconcile(context.Background(), ctrl.Request{NamespacedName: types.NamespacedName{Name: testNodeName}})
+	require.Error(t, err)
 }
 
 func TestPodWatchPredicate_withCSI(t *testing.T) {
