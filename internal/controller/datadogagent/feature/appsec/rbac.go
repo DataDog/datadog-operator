@@ -78,7 +78,7 @@ func getRBACPolicyRules() []rbacv1.PolicyRule {
 		},
 		{
 			APIGroups: []string{rbac.EnvoyGatewayAPIGroup},
-			Resources: []string{"envoyextensionpolicies", "envoypatchpolicies", "backend"},
+			Resources: []string{"envoyextensionpolicies", "envoypatchpolicies", "backends"},
 			Verbs: []string{
 				rbac.GetVerb,
 				rbac.DeleteVerb,
