@@ -9,8 +9,7 @@ SHELL = /usr/bin/env bash -o pipefail
 #
 BUILDINFOPKG=github.com/DataDog/datadog-operator/pkg/version
 GIT_TAG?=$(shell git describe --tags --exact-match --match 'v[0-9]*' 2>/dev/null)
-LATEST_REACHABLE_TAG?=$(shell git describe --tags --abbrev=0 --match 'v[0-9]*' 2>/dev/null)
-TAG_HASH=$(if $(LATEST_REACHABLE_TAG),$(LATEST_REACHABLE_TAG)_$(shell git rev-parse --short HEAD),$(shell git rev-parse --short HEAD))
+TAG_HASH=$(shell git rev-parse --short HEAD)
 IMG_VERSION?=$(if $(VERSION),$(VERSION),latest)
 VERSION?=$(if $(GIT_TAG),$(GIT_TAG),$(TAG_HASH))
 GIT_COMMIT?=$(shell git rev-parse HEAD)
