@@ -17,7 +17,38 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	mergerfake "github.com/DataDog/datadog-operator/internal/controller/datadogagent/merger/fake"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
+
+func TestIsAutopilotEnabled(t *testing.T) {
+	tests := []struct {
+		name        string
+		annotations map[string]string
+		want        bool
+	}{
+		{name: "no annotations", annotations: nil, want: false},
+		{
+			name:        "detected GKE Autopilot provider",
+			annotations: map[string]string{kubernetes.ProviderAnnotationKey: kubernetes.GKEAutopilotProvider},
+			want:        true,
+		},
+		{
+			name:        "other detected provider",
+			annotations: map[string]string{kubernetes.ProviderAnnotationKey: kubernetes.EKSCloudProvider},
+			want:        false,
+		},
+		{
+			name:        "experimental opt-in annotation",
+			annotations: map[string]string{getExperimentalAnnotationKey(ExperimentalAutopilotSubkey): "true"},
+			want:        true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, IsAutopilotEnabled(&metav1.ObjectMeta{Annotations: tt.annotations}))
+		})
+	}
+}
 
 func findEnvVar(envs []*v1.EnvVar, name string) *v1.EnvVar {
 	for _, e := range envs {

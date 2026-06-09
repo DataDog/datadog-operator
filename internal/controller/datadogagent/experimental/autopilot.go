@@ -16,6 +16,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/pkg/allowlistsynchronizer"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 // DDKubeletUseAPIServer is the env var that toggles the Agent's use of the
@@ -104,6 +105,12 @@ func IsAutopilotEnabled(obj metav1.Object) bool {
 		return false
 	}
 
+	// Out-of-the-box: detected GKE Autopilot is surfaced as the cluster provider.
+	if ann[kubernetes.ProviderAnnotationKey] == kubernetes.GKEAutopilotProvider {
+		return true
+	}
+
+	// Opt-in via the experimental annotation.
 	return strings.EqualFold(ann[getExperimentalAnnotationKey(ExperimentalAutopilotSubkey)], "true")
 }
 

@@ -86,6 +86,16 @@ func (platformInfo *PlatformInfo) GetAgentResourcesKind(withCiliumResources bool
 	return getResourcesKind(withCiliumResources)
 }
 
+// gkeAutopilotAllowlistKind is the GKE-managed CRD kind (group auto.gke.io) that is
+// present only on GKE Autopilot clusters, used to detect Autopilot.
+const gkeAutopilotAllowlistKind = "AllowlistedV2Workload"
+
+// IsGKEAutopilot reports whether the cluster is GKE Autopilot, detected from the
+// presence of the GKE-managed workload-allowlist CRD in the discovered API surface.
+func (platformInfo *PlatformInfo) IsGKEAutopilot() bool {
+	return platformInfo.IsResourceSupported(gkeAutopilotAllowlistKind)
+}
+
 // IsResourceSupported returns true if a Kubernetes resource is supported by the server
 func (platformInfo *PlatformInfo) IsResourceSupported(resource string) bool {
 	if platformInfo == nil {
