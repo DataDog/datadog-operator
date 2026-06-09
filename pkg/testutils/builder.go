@@ -671,6 +671,18 @@ func (builder *DatadogAgentBuilder) WithKSMCustomConf(customData string) *Datado
 	return builder
 }
 
+func (builder *DatadogAgentBuilder) WithKSMCollectSecretMetrics(enabled bool) *DatadogAgentBuilder {
+	builder.initKSM()
+	builder.datadogAgent.Spec.Features.KubeStateMetricsCore.CollectSecretMetrics = ptr.To(enabled)
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithKSMCollectConfigMaps(enabled bool) *DatadogAgentBuilder {
+	builder.initKSM()
+	builder.datadogAgent.Spec.Features.KubeStateMetricsCore.CollectConfigMaps = ptr.To(enabled)
+	return builder
+}
+
 // Orchestrator Explorer
 
 func (builder *DatadogAgentBuilder) initOE() {

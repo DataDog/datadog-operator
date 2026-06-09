@@ -6,6 +6,7 @@
 package kubernetesstatecore
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/gobuffalo/flect"
@@ -17,24 +18,32 @@ import (
 // getRBACPolicyRules generates the cluster role required for the KSM informers to query
 // what is exposed as of the v2.0 https://github.com/kubernetes/kube-state-metrics/blob/release-2.0/examples/standard/cluster-role.yaml
 func getRBACPolicyRules(collectorOpts collectorOptions) []rbacv1.PolicyRule {
+	coreResources := []string{
+		rbac.ConfigMapsResource,
+		rbac.EndpointsResource,
+		rbac.EventsResource,
+		rbac.LimitRangesResource,
+		rbac.NamespaceResource,
+		rbac.NodesResource,
+		rbac.PersistentVolumeClaimsResource,
+		rbac.PersistentVolumesResource,
+		rbac.PodsResource,
+		rbac.ReplicationControllersResource,
+		rbac.ResourceQuotasResource,
+		rbac.SecretsResource,
+		rbac.ServicesResource,
+	}
+	if !collectorOpts.collectSecrets {
+		coreResources = slices.DeleteFunc(coreResources, func(s string) bool { return s == rbac.SecretsResource })
+	}
+	if !collectorOpts.collectConfigMaps {
+		coreResources = slices.DeleteFunc(coreResources, func(s string) bool { return s == rbac.ConfigMapsResource })
+	}
+
 	rbacRules := []rbacv1.PolicyRule{
 		{
 			APIGroups: []string{rbac.CoreAPIGroup},
-			Resources: []string{
-				rbac.ConfigMapsResource,
-				rbac.EndpointsResource,
-				rbac.EventsResource,
-				rbac.LimitRangesResource,
-				rbac.NamespaceResource,
-				rbac.NodesResource,
-				rbac.PersistentVolumeClaimsResource,
-				rbac.PersistentVolumesResource,
-				rbac.PodsResource,
-				rbac.ReplicationControllersResource,
-				rbac.ResourceQuotasResource,
-				rbac.SecretsResource,
-				rbac.ServicesResource,
-			},
+			Resources: coreResources,
 		},
 		{
 			APIGroups: []string{rbac.AppsAPIGroup},

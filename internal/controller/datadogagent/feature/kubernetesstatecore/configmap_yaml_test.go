@@ -161,6 +161,90 @@ func TestKsmCheckConfigYAMLFormat(t *testing.T) {
 				assert.NotContains(t, output, "custom_resource:", "should not contain custom_resource section when nil")
 			},
 		},
+		{
+			name:          "collectSecrets=true and collectConfigMaps=true include both collectors",
+			clusterCheck:  false,
+			collectorOpts: collectorOptions{collectSecrets: true, collectConfigMaps: true},
+			validateFunc: func(t *testing.T, output string) {
+				var config map[string]any
+				err := yaml.Unmarshal([]byte(output), &config)
+				require.NoError(t, err, "YAML should be valid")
+
+				instances := config["instances"].([]any)
+				instance := instances[0].(map[string]any)
+				collectors := instance["collectors"].([]any)
+
+				collectorStrs := make([]string, len(collectors))
+				for i, c := range collectors {
+					collectorStrs[i] = c.(string)
+				}
+				assert.Contains(t, collectorStrs, "secrets", "collectors should contain secrets")
+				assert.Contains(t, collectorStrs, "configmaps", "collectors should contain configmaps")
+			},
+		},
+		{
+			name:          "collectSecrets=false drops secrets collector",
+			clusterCheck:  false,
+			collectorOpts: collectorOptions{collectSecrets: false, collectConfigMaps: true},
+			validateFunc: func(t *testing.T, output string) {
+				var config map[string]any
+				err := yaml.Unmarshal([]byte(output), &config)
+				require.NoError(t, err, "YAML should be valid")
+
+				instances := config["instances"].([]any)
+				instance := instances[0].(map[string]any)
+				collectors := instance["collectors"].([]any)
+
+				collectorStrs := make([]string, len(collectors))
+				for i, c := range collectors {
+					collectorStrs[i] = c.(string)
+				}
+				assert.NotContains(t, collectorStrs, "secrets", "collectors should not contain secrets when collectSecrets=false")
+				assert.Contains(t, collectorStrs, "configmaps", "collectors should still contain configmaps")
+			},
+		},
+		{
+			name:          "collectConfigMaps=false drops configmaps collector",
+			clusterCheck:  false,
+			collectorOpts: collectorOptions{collectSecrets: true, collectConfigMaps: false},
+			validateFunc: func(t *testing.T, output string) {
+				var config map[string]any
+				err := yaml.Unmarshal([]byte(output), &config)
+				require.NoError(t, err, "YAML should be valid")
+
+				instances := config["instances"].([]any)
+				instance := instances[0].(map[string]any)
+				collectors := instance["collectors"].([]any)
+
+				collectorStrs := make([]string, len(collectors))
+				for i, c := range collectors {
+					collectorStrs[i] = c.(string)
+				}
+				assert.NotContains(t, collectorStrs, "configmaps", "collectors should not contain configmaps when collectConfigMaps=false")
+				assert.Contains(t, collectorStrs, "secrets", "collectors should still contain secrets")
+			},
+		},
+		{
+			name:          "both collectSecrets and collectConfigMaps false drops both collectors",
+			clusterCheck:  false,
+			collectorOpts: collectorOptions{collectSecrets: false, collectConfigMaps: false},
+			validateFunc: func(t *testing.T, output string) {
+				var config map[string]any
+				err := yaml.Unmarshal([]byte(output), &config)
+				require.NoError(t, err, "YAML should be valid")
+
+				instances := config["instances"].([]any)
+				instance := instances[0].(map[string]any)
+				collectors := instance["collectors"].([]any)
+
+				collectorStrs := make([]string, len(collectors))
+				for i, c := range collectors {
+					collectorStrs[i] = c.(string)
+				}
+				assert.NotContains(t, collectorStrs, "secrets", "collectors should not contain secrets")
+				assert.NotContains(t, collectorStrs, "configmaps", "collectors should not contain configmaps")
+			},
+		},
 	}
 
 	for _, tc := range testCases {
