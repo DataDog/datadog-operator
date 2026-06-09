@@ -368,7 +368,7 @@ rules:
 - apiGroups:
   - gateway.envoyproxy.io
   resources:
-  - backend
+  - backends
   - envoyextensionpolicies
   - envoypatchpolicies
   verbs:
