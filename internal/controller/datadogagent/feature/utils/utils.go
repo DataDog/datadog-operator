@@ -25,6 +25,8 @@ const (
 	EnableHostProfilerAnnotation      = "agent.datadoghq.com/host-profiler-enabled"
 	EnableKSMApiServerCacheAnnotation = "agent.datadoghq.com/ksm-use-apiserver-cache"
 
+	EnableInstrumentationCRDAnnotation = "agent.datadoghq.com/instrumentation-crd-enabled"
+
 	EnableFlightRecorderAnnotation = "agent.datadoghq.com/flightrecorder-enabled"
 	EnableNetworkCRDsAnnotation    = "agent.datadoghq.com/network-crds-enabled"
 
