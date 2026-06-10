@@ -273,7 +273,8 @@ func TestLatestPodStartTime(t *testing.T) {
 
 func TestAgentPodPredicate(t *testing.T) {
 	now := testNow()
-	p := agentPodPredicate()
+	r, _ := newReconciler(t, newFakeClient(t), now, PolicyRemove, time.Minute, time.Minute, false)
+	p := r.podWatchPredicate()
 
 	readyAgent := agentPod(testPodName, testPodNS, testNodeName, true, 1*time.Minute, now)
 	notReadyAgent := agentPod(testPodName, testPodNS, testNodeName, false, 1*time.Minute, now)
@@ -691,8 +692,8 @@ func TestReconcile_CSI_agentReadyCsiNotReadyKeepsTaint(t *testing.T) {
 	now := testNow()
 	node := taintedNode(testNodeName, 0, now)
 	agent := agentPod(testPodName, testPodNS, testNodeName, true, 1*time.Minute, now)
-	// CSI readiness clock follows CSI StartTime only; keep it inside readinessTimeout
-	// so we requeue instead of immediately applying timeout policy.
+	// Readiness clock uses the later of agent and CSI max(StartTime); CSI started
+	// 30s ago stays inside readinessTimeout so we requeue instead of timing out.
 	csi := csiNodeServerPod("csi-1", testPodNS, testNodeName, false, 30*time.Second, now)
 	c := newFakeClient(t, node, agent, csi)
 	r, _ := newReconciler(t, c, now, PolicyRemove, time.Minute, time.Minute, true)
@@ -700,6 +701,26 @@ func TestReconcile_CSI_agentReadyCsiNotReadyKeepsTaint(t *testing.T) {
 	result, err := r.Reconcile(context.Background(), ctrl.Request{NamespacedName: types.NamespacedName{Name: testNodeName}})
 	require.NoError(t, err)
 	assert.Greater(t, result.RequeueAfter, time.Duration(0))
+
+	fresh := &corev1.Node{}
+	require.NoError(t, c.Get(context.Background(), types.NamespacedName{Name: testNodeName}, fresh))
+	assert.True(t, hasTaint(fresh))
+}
+
+func TestReconcile_CSI_bothPodsNotReady_readinessUsesLaterStartTime(t *testing.T) {
+	now := testNow()
+	node := taintedNode(testNodeName, 0, now)
+	// Agent started more recently than CSI; readiness clock must use the later
+	// max(StartTime), not CSI-only.
+	agent := agentPod(testPodName, testPodNS, testNodeName, false, 10*time.Second, now)
+	csi := csiNodeServerPod("csi-1", testPodNS, testNodeName, false, 40*time.Second, now)
+	c := newFakeClient(t, node, agent, csi)
+	const readiness = time.Minute
+	r, _ := newReconciler(t, c, now, PolicyRemove, readiness, 5*time.Minute, true)
+
+	result, err := r.Reconcile(context.Background(), ctrl.Request{NamespacedName: types.NamespacedName{Name: testNodeName}})
+	require.NoError(t, err)
+	assert.Equal(t, 50*time.Second, result.RequeueAfter)
 
 	fresh := &corev1.Node{}
 	require.NoError(t, c.Get(context.Background(), types.NamespacedName{Name: testNodeName}, fresh))
@@ -727,7 +748,7 @@ func TestReconcile_CSI_agentReadyNoCsiPod_zeroCreationTimestampRequeuesSchedulin
 	node := &corev1.Node{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:              testNodeName,
-			CreationTimestamp: metav1.Time{}, // zero — defensive branch in reconcileAgentReadyWaitForCSI
+			CreationTimestamp: metav1.Time{}, // zero — defensive branch in schedulingTimeoutResult
 		},
 		Spec: corev1.NodeSpec{Taints: []corev1.Taint{untaint.AgentNotReadyTaint()}},
 	}
@@ -762,19 +783,21 @@ func TestReconcile_CSI_agentReadyNoCsiPod_schedulingTimeoutRemovesTaint(t *testi
 	assert.False(t, hasTaint(fresh))
 }
 
-func TestReconcile_CSI_agentReadyCsiNotReady_noStartTimeRequeuesReadinessTimeout(t *testing.T) {
+func TestReconcile_CSI_agentReadyCsiNotReady_noStartTimeUsesSchedulingRequeue(t *testing.T) {
 	now := testNow()
 	node := taintedNode(testNodeName, 0, now)
 	agent := agentPod(testPodName, testPodNS, testNodeName, true, 1*time.Minute, now)
-	// not Ready, startedAgo 0 → no Status.StartTime → latestPodStartTime !ok branch
+	// CSI not Ready, startedAgo 0 → no Status.StartTime → wait-for-CSI path uses
+	// scheduling timeout (one side lacks StartTime) until kubelet sets StartTime.
 	csi := csiNodeServerPod("csi-1", testPodNS, testNodeName, false, 0, now)
 	c := newFakeClient(t, node, agent, csi)
 	const readiness = 9 * time.Minute
-	r, _ := newReconciler(t, c, now, PolicyRemove, readiness, time.Minute, true)
+	const scheduling = time.Minute
+	r, _ := newReconciler(t, c, now, PolicyRemove, readiness, scheduling, true)
 
 	result, err := r.Reconcile(context.Background(), ctrl.Request{NamespacedName: types.NamespacedName{Name: testNodeName}})
 	require.NoError(t, err)
-	assert.Equal(t, readiness, result.RequeueAfter)
+	assert.Equal(t, scheduling, result.RequeueAfter)
 
 	fresh := &corev1.Node{}
 	require.NoError(t, c.Get(context.Background(), types.NamespacedName{Name: testNodeName}, fresh))

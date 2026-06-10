@@ -37,17 +37,19 @@ policy ensures the node is never permanently unschedulable. Two clocks cover
 the main failure modes:
 
 - **Readiness timeout** — at least one Agent pod is on the node but the Agent
-  is not Ready yet, **or** (with `--untaintControllerWaitForCSIDriver`) the Agent is Ready but a CSI
-  node-server pod exists on the node and is not Ready. Clock: latest
-  `pod.Status.StartTime` among **Agent** pods in the first case, and among **CSI
-  node-server** pods only in the second (the Agent’s age does not shorten the
-  wait for CSI). Pod recreation restarts the window; container restarts inside the
-  same pod do not.
+  is not Ready yet, **or** (with `--untaintControllerWaitForCSIDriver`) at least
+  one Agent and one CSI node-server pod are on the node, each has
+  `pod.Status.StartTime` set, and at least one of them is not Ready. Clock: the
+  **later** of the latest `StartTime` among Agent pods on the node and the latest
+  `StartTime` among CSI node-server pods on the node (so a recent restart on
+  either workload resets the window). Agent-only mode (no wait-for-CSI) still
+  uses only Agent `StartTime` for this clock.
 - **Scheduling timeout** — no Agent pod is on the node, **or** (with wait-for-CSI)
-  the Agent is Ready but **no** CSI node-server pod is on the node
-  yet. Clock: `node.metadata.creationTimestamp`. Covers DaemonSets that never
-  schedule onto the node (taint not tolerated, missing labels, CSI still pulling,
-  etc.).
+  no CSI node-server pod on the node yet, **or** (with wait-for-CSI) either side
+  is present but **any** required pod still lacks `StartTime`. Clock:
+  `node.metadata.creationTimestamp`. Covers DaemonSets that never schedule onto
+  the node (taint not tolerated, missing labels, CSI still pulling, kubelet has
+  not set `StartTime` yet, etc.).
 
 A pod-recreation crash-loop faster than the readiness window can hold a node
 tainted indefinitely; run with `policy=keep` and alert on

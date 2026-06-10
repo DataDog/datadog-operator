@@ -188,8 +188,11 @@ func durationFromEnv(envVar string, def time.Duration) (time.Duration, error) {
 //   - if pods exist but readiness criteria are not met and the readiness timeout
 //     has elapsed, apply the timeout policy (remove or keep)
 //   - if no agent pod is scheduled and the scheduling timeout has elapsed,
-//     apply the timeout policy; with CSI coordination, if the agent is Ready
-//     but no CSI pod is on the node yet, the scheduling timeout also applies
+//     apply the timeout policy
+//   - with --untaintControllerWaitForCSIDriver: readiness timeout uses the
+//     later of max(agent StartTime) and max(CSI StartTime) when both workloads
+//     have a pod on the node with Status.StartTime set; otherwise the
+//     scheduling timeout (node creation) applies until both have StartTimes
 //   - otherwise, requeue after the remaining timeout window so we re-evaluate.
 func (r *UntaintReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := r.log.WithValues("node", req.Name)
@@ -238,8 +241,7 @@ func (r *UntaintReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 			return ok
 		})
 
-		// Both Ready → untaint. Otherwise keep the taint and evaluate timeouts
-		// (CSI-specific clocks apply only while the agent is already Ready but CSI is not).
+		// Both Ready → untaint. Otherwise keep the taint and evaluate timeouts.
 		if agentReady && csiReady {
 			combined := append(append([]corev1.Pod{}, podList.Items...), csiPodList.Items...)
 			readyAt, _ := maxReadyTransitionTime(combined)
@@ -261,11 +263,10 @@ func (r *UntaintReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 			}
 			return ctrl.Result{}, nil
 		}
-		if agentReady && !csiReady {
-			return r.reconcileAgentReadyWaitForCSI(ctx, node, csiPodList)
-		}
-		return r.reconcileTaintedNodeAgentTimeouts(ctx, node, log, podList)
+		return r.reconcileTaintedNodeTimeouts(ctx, node, log, podList, csiPodList)
 	} else {
+		// No need to wait for CSI
+
 		// Happy path: any ready agent pod → untaint immediately and record latency.
 		var readyAt time.Time
 		var anyReady bool
@@ -296,74 +297,54 @@ func (r *UntaintReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		}
 	}
 
-	return r.reconcileTaintedNodeAgentTimeouts(ctx, node, log, podList)
+	return r.reconcileTaintedNodeTimeouts(ctx, node, log, podList, nil)
 }
 
-// reconcileAgentReadyWaitForCSI applies timeouts while the node agent is Ready
-// but the CSI node-server requirement is not met (no pod on node yet, or pod
-// not Ready). RequeueAfter matches reconcileTaintedNodeAgentTimeouts: full
-// remaining scheduling or readiness window (watch-driven reconciles still apply).
-func (r *UntaintReconciler) reconcileAgentReadyWaitForCSI(ctx context.Context, node *corev1.Node, csiPodList *corev1.PodList) (ctrl.Result, error) {
+// reconcileTaintedNodeTimeouts evaluates scheduling vs readiness timeouts.
+// When waitForCSIDriver is false, only agent pods are considered (csiPods is ignored).
+// When waitForCSIDriver is true, both the node agent and CSI node-server must
+// have at least one pod on the node with Status.StartTime before the readiness
+// clock runs; the clock is the later of the two sides' max(StartTime). If any
+// required pod is missing on the node or any side lacks StartTime, the
+// scheduling timeout anchored on node creation applies.
+func (r *UntaintReconciler) reconcileTaintedNodeTimeouts(ctx context.Context, node *corev1.Node, log logr.Logger, agentPods *corev1.PodList, csiPods *corev1.PodList) (ctrl.Result, error) {
 	now := r.clock.Now()
-	if len(csiPodList.Items) == 0 {
-		// Agent is Ready but CSI has not landed on the node yet. Do not use
-		// the agent pod's StartTime for readiness timeout (it can be much
-		// older than the wait-for-CSI phase). Use scheduling timeout from
-		// node creation until a CSI pod appears or the window elapses.
-		created := node.CreationTimestamp.Time
-		if created.IsZero() {
-			r.log.V(1).Info("Node has no CreationTimestamp; requeueing", "node", node.Name)
-			return ctrl.Result{RequeueAfter: r.schedulingTimeout}, nil
-		}
-		elapsed := now.Sub(created)
-		if elapsed >= r.schedulingTimeout {
-			return r.applyTimeoutPolicy(ctx, node, metrics.UntaintTimeoutReasonScheduling, elapsed)
-		}
-		return ctrl.Result{RequeueAfter: r.schedulingTimeout - elapsed}, nil
-	}
-	// CSI pod(s) on the node but not Ready: readiness clock from CSI pods only.
-	latestStart, ok := latestPodStartTime(csiPodList.Items)
-	if !ok {
-		return ctrl.Result{RequeueAfter: r.readinessTimeout}, nil
-	}
-	elapsed := now.Sub(latestStart)
-	if elapsed >= r.readinessTimeout {
-		return r.applyTimeoutPolicy(ctx, node, metrics.UntaintTimeoutReasonReadiness, elapsed)
-	}
-	return ctrl.Result{RequeueAfter: r.readinessTimeout - elapsed}, nil
-}
+	agents := agentPods.Items
 
-// reconcileTaintedNodeAgentTimeouts is the readiness vs scheduling timeout path
-// driven by agent pods on the node (agent-only mode, or CSI mode while the
-// agent is not Ready yet).
-func (r *UntaintReconciler) reconcileTaintedNodeAgentTimeouts(ctx context.Context, node *corev1.Node, log logr.Logger, podList *corev1.PodList) (ctrl.Result, error) {
-	// Timeout-evaluation path.
-	//   1. Agent pod present - readiness timeout. Clock: max(pod.Status.StartTime),
-	//      so a fresh restart resets the window. If StartTime is unset (very
-	//      early lifecycle), requeue without falling through to scheduling timeout check
-	//      since pod is scheduled.
-	//   2. Agent pod not present - scheduling timeout. Clock: node.CreationTimestamp.
-	now := r.clock.Now()
-
-	if len(podList.Items) > 0 {
-		latestStart, ok := latestPodStartTime(podList.Items)
+	if !r.waitForCSIDriver {
+		if len(agents) == 0 {
+			return r.schedulingTimeoutResult(ctx, node, log, now)
+		}
+		latestStart, ok := latestPodStartTime(agents)
 		if !ok {
-			// Pods scheduled but no StartTime yet. Re-check shortly.
 			return ctrl.Result{RequeueAfter: r.readinessTimeout}, nil
 		}
-		elapsed := now.Sub(latestStart)
-		if elapsed >= r.readinessTimeout {
-			return r.applyTimeoutPolicy(ctx, node, metrics.UntaintTimeoutReasonReadiness, elapsed)
-		}
-		return ctrl.Result{RequeueAfter: r.readinessTimeout - elapsed}, nil
+		return r.readinessTimeoutResult(ctx, node, now, latestStart)
 	}
 
+	csis := []corev1.Pod(nil)
+	if csiPods != nil {
+		csis = csiPods.Items
+	}
+	if len(agents) == 0 || len(csis) == 0 {
+		return r.schedulingTimeoutResult(ctx, node, log, now)
+	}
+	agentLatest, agentOK := latestPodStartTime(agents)
+	csiLatest, csiOK := latestPodStartTime(csis)
+	if !agentOK || !csiOK {
+		return r.schedulingTimeoutResult(ctx, node, log, now)
+	}
+	latestStart := agentLatest
+	if csiLatest.After(latestStart) {
+		latestStart = csiLatest
+	}
+	return r.readinessTimeoutResult(ctx, node, now, latestStart)
+}
+
+func (r *UntaintReconciler) schedulingTimeoutResult(ctx context.Context, node *corev1.Node, log logr.Logger, now time.Time) (ctrl.Result, error) {
 	created := node.CreationTimestamp.Time
 	if created.IsZero() {
-		// Defensive: without a CreationTimestamp we cannot compute scheduling
-		// elapsed. Requeue after the scheduling timeout so we re-evaluate once
-		// the cache catches up.
-		log.V(1).Info("Node has no CreationTimestamp; requeueing")
+		log.V(1).Info("Node has no CreationTimestamp; requeueing", "node", node.Name)
 		return ctrl.Result{RequeueAfter: r.schedulingTimeout}, nil
 	}
 	elapsed := now.Sub(created)
@@ -371,6 +352,14 @@ func (r *UntaintReconciler) reconcileTaintedNodeAgentTimeouts(ctx context.Contex
 		return r.applyTimeoutPolicy(ctx, node, metrics.UntaintTimeoutReasonScheduling, elapsed)
 	}
 	return ctrl.Result{RequeueAfter: r.schedulingTimeout - elapsed}, nil
+}
+
+func (r *UntaintReconciler) readinessTimeoutResult(ctx context.Context, node *corev1.Node, now, latestStart time.Time) (ctrl.Result, error) {
+	elapsed := now.Sub(latestStart)
+	if elapsed >= r.readinessTimeout {
+		return r.applyTimeoutPolicy(ctx, node, metrics.UntaintTimeoutReasonReadiness, elapsed)
+	}
+	return ctrl.Result{RequeueAfter: r.readinessTimeout - elapsed}, nil
 }
 
 // applyTimeoutPolicy is invoked when a readiness or scheduling timeout has
@@ -570,9 +559,9 @@ func nodeToRequest(_ context.Context, obj client.Object) []reconcile.Request {
 	return []reconcile.Request{{NamespacedName: types.NamespacedName{Name: node.Name}}}
 }
 
-// agentPodPredicate enqueues an agent pod's node for any Create/Update/Delete
-// event on an agent pod. We deliberately do NOT filter to "ready transition"
-// here because:
+// podWatchPredicate enqueues a node's reconcile for pod Create/Update/Delete
+// events on agent pods, and on CSI node-server pods when waitForCSIDriver is set.
+// We deliberately do NOT filter to "ready transition" here because:
 //   - a NotReady pod creation starts the readiness clock for that node, so the
 //     reconciler needs to schedule a RequeueAfter against pod.Status.StartTime
 //     (filtering out Create-as-NotReady would silently miss this clock until
@@ -582,29 +571,10 @@ func nodeToRequest(_ context.Context, obj client.Object) []reconcile.Request {
 //   - Reconcile itself is idempotent and quick (cache list + early-return on
 //     !hasTaint), and bounds re-evaluation via RequeueAfter, so the extra
 //     reconciles are cheap.
-func agentPodPredicate() predicate.Predicate {
-	isAgentPodEvent := func(o client.Object) bool {
-		p, ok := o.(*corev1.Pod)
-		return ok && isAgentPod(p)
-	}
-	return predicate.Funcs{
-		CreateFunc:  func(e event.CreateEvent) bool { return isAgentPodEvent(e.Object) },
-		UpdateFunc:  func(e event.UpdateEvent) bool { return isAgentPodEvent(e.ObjectNew) },
-		DeleteFunc:  func(e event.DeleteEvent) bool { return isAgentPodEvent(e.Object) },
-		GenericFunc: func(event.GenericEvent) bool { return false },
-	}
-}
-
-// podWatchPredicate selects pod events that should enqueue a node reconcile.
-// When waitForCSIDriver is set, CSI node-server pods are included in addition
-// to agent pods.
 func (r *UntaintReconciler) podWatchPredicate() predicate.Predicate {
-	if !r.waitForCSIDriver {
-		return agentPodPredicate()
-	}
 	isRelevant := func(o client.Object) bool {
 		p, ok := o.(*corev1.Pod)
-		return ok && (isAgentPod(p) || isCSINodeServerPod(p))
+		return ok && (isAgentPod(p) || (r.waitForCSIDriver && isCSINodeServerPod(p)))
 	}
 	return predicate.Funcs{
 		CreateFunc:  func(e event.CreateEvent) bool { return isRelevant(e.Object) },
