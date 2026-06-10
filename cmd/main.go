@@ -353,7 +353,20 @@ func run(opts *options) error {
 		}()
 	}
 
-	providerDetector, err := setupAndStartProviderDetector(setupLog, mgr,
+	versionInfo, platformInfo, err := getVersionAndPlatformInfo(rest.CopyConfig(mgr.GetConfig()))
+	if err != nil {
+		return err
+	}
+
+	if versionInfo != nil {
+		gitVersion := versionInfo.GitVersion
+		if !utils.IsAboveMinVersion(gitVersion, "1.16-0", nil) {
+			setupLog.Error(nil, "Detected Kubernetes version <1.16 which requires CRD version apiextensions.k8s.io/v1beta1. "+
+				"CRDs of this version were removed in v1.10.0.")
+		}
+	}
+
+	providerDetector, err := setupAndStartProviderDetector(setupLog, mgr, platformInfo,
 		opts.introspectionEnabled || opts.datadogAgentProfileEnabled || opts.untaintControllerEnabled)
 	if err != nil {
 		return setupErrorf(setupLog, err, "Unable to setup cluster provider detector")
@@ -390,18 +403,6 @@ func run(opts *options) error {
 		ClusterProviderDetector:       providerDetector,
 	}
 
-	versionInfo, platformInfo, err := getVersionAndPlatformInfo(rest.CopyConfig(mgr.GetConfig()))
-	if err != nil {
-		return err
-	}
-
-	if versionInfo != nil {
-		gitVersion := versionInfo.GitVersion
-		if !utils.IsAboveMinVersion(gitVersion, "1.16-0", nil) {
-			setupLog.Error(nil, "Detected Kubernetes version <1.16 which requires CRD version apiextensions.k8s.io/v1beta1. "+
-				"CRDs of this version were removed in v1.10.0.")
-		}
-	}
 	// START controllers setup
 	if err = controller.SetupControllers(setupLog, mgr, platformInfo, options); err != nil {
 		return setupErrorf(setupLog, err, "Unable to start controllers")
@@ -672,13 +673,9 @@ func setupFleetDaemon(logger logr.Logger, mgr manager.Manager, rcClient remoteco
 }
 
 // setupAndStartProviderDetector registers the cluster-provider detector as a
-// leader-only manager Runnable. It runs only on the elected leader, after cache
-// sync, and never blocks startup: Stage-1 operator-node detection uses the uncached
-// APIReader and is always available, while the Stage-2 cluster-node-list fallback uses the
-// cached client only when the node cache is populated (introspection / profiles /
-// untaint), signalled by nodeCacheEnabled.
-func setupAndStartProviderDetector(logger logr.Logger, mgr manager.Manager, nodeCacheEnabled bool) (*introspection.Detector, error) {
-	detector := introspection.NewDetector(mgr, os.Getenv("DD_HOSTNAME"), logger, nodeCacheEnabled)
+// leader-only manager Runnable
+func setupAndStartProviderDetector(logger logr.Logger, mgr manager.Manager, platformInfo kubernetes.PlatformInfo, nodeCacheEnabled bool) (*introspection.Detector, error) {
+	detector := introspection.NewDetector(mgr, platformInfo, os.Getenv("DD_HOSTNAME"), logger, nodeCacheEnabled)
 	if err := mgr.Add(detector); err != nil {
 		return nil, err
 	}

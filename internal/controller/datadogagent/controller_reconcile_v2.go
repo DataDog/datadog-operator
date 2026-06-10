@@ -227,20 +227,15 @@ const (
 
 // resolveClusterProvider resolves the cluster provider and reports whether the
 // reconcile should hold (requeue without touching resources) until detection is
-// ready. Precedence: user override > GKE Autopilot > live detection > persisted status.
+// ready. Precedence: user override > live detection > persisted status. The
+// detector is the single env-detection facade — it already folds in platform-API
+// classification (e.g. GKE Autopilot) alongside node-label detection, so the
+// reconciler never inspects platform specifics here.
 func (r *Reconciler) resolveClusterProvider(instance *datadoghqv2alpha1.DatadogAgent) (provider, source string, hold bool) {
 	// 0. User override. The operator only writes the annotation on the DDAI, so its
 	// presence on the DDA is definitionally user-set.
 	if v, ok := instance.Annotations[kubernetes.ProviderAnnotationKey]; ok {
 		return v, clusterProviderSourceUser, false
-	}
-
-	// 1. GKE Autopilot is the most specific cluster classification for a GKE cluster
-	// and is detected from the platform API (CRD presence), so it ranks above the
-	// node-label-derived cluster provider within the cluster dimension. It is known
-	// immediately (no detector warm-up), so it is resolved before the gate.
-	if r.platformInfo.IsGKEAutopilot() {
-		return kubernetes.GKEAutopilotProvider, clusterProviderSourceDetected, false
 	}
 
 	detector := r.options.ClusterProviderDetector
@@ -250,7 +245,7 @@ func (r *Reconciler) resolveClusterProvider(instance *datadoghqv2alpha1.DatadogA
 
 	statusProvider := instance.Status.ClusterProvider
 
-	// 2. Live detection. Anti-flap: keep a previously *detected* specific provider
+	// 1. Live detection. Anti-flap: keep a previously *detected* specific provider
 	// over a live default (a transient blip shouldn't tear down config). This guard
 	// applies only to detected values — a user override that was set and then
 	// removed is not pinned, so removing the annotation cleanly returns to detection.
@@ -261,7 +256,7 @@ func (r *Reconciler) resolveClusterProvider(instance *datadoghqv2alpha1.DatadogA
 		return live, clusterProviderSourceDetected, false
 	}
 
-	// 3. Persisted fallback: retain a previously *detected* provider across restarts
+	// 2. Persisted fallback: retain a previously *detected* provider across restarts
 	// / leader changes / detection outages so we don't churn during warm-up. A
 	// user-set value is not retained here — if the override was removed, warm-up
 	// falls through to the gate rather than re-serving the stale value (which would
@@ -270,7 +265,7 @@ func (r *Reconciler) resolveClusterProvider(instance *datadoghqv2alpha1.DatadogA
 		return statusProvider, clusterProviderSourceDetected, false
 	}
 
-	// 4. Hold while detection is still warming up; once the gate elapses, proceed
+	// 3. Hold while detection is still warming up; once the gate elapses, proceed
 	// with no provider.
 	if detector.InGracePeriod(clusterProviderGateTimeout) {
 		return "", "", true

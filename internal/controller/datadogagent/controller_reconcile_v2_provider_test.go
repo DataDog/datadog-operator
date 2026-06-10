@@ -159,32 +159,6 @@ func TestResolveClusterProvider(t *testing.T) {
 	}
 }
 
-func TestResolveClusterProvider_GKEAutopilot(t *testing.T) {
-	autopilotPlatform := kubernetes.NewPlatformInfoFromVersionMaps(nil, map[string]string{"AllowlistedV2Workload": "auto.gke.io/v1"}, nil)
-
-	t.Run("autopilot wins over node-label detection", func(t *testing.T) {
-		r := &Reconciler{
-			platformInfo: autopilotPlatform,
-			// node-label detection would say gke-cos; autopilot must take precedence.
-			options: ReconcilerOptions{ClusterProviderDetector: fakeProviderReader{provider: "gke-cos", detected: true}},
-		}
-		provider, source, hold := r.resolveClusterProvider(ddaWith(nil, ""))
-		assert.False(t, hold)
-		assert.Equal(t, kubernetes.GKEAutopilotProvider, provider)
-		assert.Equal(t, clusterProviderSourceDetected, source)
-	})
-
-	t.Run("user override still wins over autopilot", func(t *testing.T) {
-		r := &Reconciler{
-			platformInfo: autopilotPlatform,
-			options:      ReconcilerOptions{ClusterProviderDetector: fakeProviderReader{detected: false}},
-		}
-		provider, source, _ := r.resolveClusterProvider(ddaWith(map[string]string{kubernetes.ProviderAnnotationKey: "eks"}, ""))
-		assert.Equal(t, "eks", provider)
-		assert.Equal(t, clusterProviderSourceUser, source)
-	})
-}
-
 func TestSetClusterProviderStatus(t *testing.T) {
 	now := metav1.Now()
 

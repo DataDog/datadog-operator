@@ -39,8 +39,12 @@ func TestDetector_detect(t *testing.T) {
 	eksLabels := map[string]string{"eks.amazonaws.com/nodegroup-image": "ami-123"}
 	ocpLabels := map[string]string{kubernetes.OpenShiftProviderLabel: "rhcos"}
 
+	autopilotPlatform := kubernetes.NewPlatformInfoFromVersionMaps(nil, map[string]string{"AllowlistedV2Workload": "auto.gke.io/v1"}, nil)
+	autopilotPlatformV1 := kubernetes.NewPlatformInfoFromVersionMaps(nil, map[string]string{"AllowlistedWorkload": "auto.gke.io/v1"}, nil)
+
 	tests := []struct {
 		name         string
+		platformInfo kubernetes.PlatformInfo
 		nodeName     string
 		apiReader    client.Reader
 		nodeClient   client.Client
@@ -48,6 +52,24 @@ func TestDetector_detect(t *testing.T) {
 		wantSource   string
 		wantNil      bool
 	}{
+		{
+			// Stage 0: GKE Autopilot is platform-API detected and wins over node
+			// labels (nodes are COS, which the node stages would resolve to default).
+			name:         "stage 0 platform-API GKE Autopilot (v2 CRD) wins over node labels",
+			platformInfo: autopilotPlatform,
+			nodeName:     "self",
+			apiReader:    clientWith(node("self", map[string]string{kubernetes.GKEProviderLabel: kubernetes.GKECosType})),
+			wantProvider: kubernetes.GKEAutopilotProvider,
+			wantSource:   sourcePlatform,
+		},
+		{
+			name:         "stage 0 platform-API GKE Autopilot detected via v1 CRD",
+			platformInfo: autopilotPlatformV1,
+			nodeName:     "self",
+			apiReader:    clientWith(node("self", nil)),
+			wantProvider: kubernetes.GKEAutopilotProvider,
+			wantSource:   sourcePlatform,
+		},
 		{
 			name:         "stage 1 operator-node EKS is authoritative",
 			nodeName:     "self",
@@ -90,7 +112,7 @@ func TestDetector_detect(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			d := &Detector{apiReader: tt.apiReader, nodeClient: tt.nodeClient, nodeName: tt.nodeName, logger: logf.Log}
+			d := &Detector{platformInfo: tt.platformInfo, apiReader: tt.apiReader, nodeClient: tt.nodeClient, nodeName: tt.nodeName, logger: logf.Log}
 			got := d.detect(context.Background())
 			if tt.wantNil {
 				assert.Nil(t, got)

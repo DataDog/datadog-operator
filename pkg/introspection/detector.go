@@ -10,6 +10,7 @@ package introspection
 
 import (
 	"context"
+	"slices"
 	"sync/atomic"
 	"time"
 
@@ -37,9 +38,17 @@ const (
 
 // Detection sources.
 const (
+	sourcePlatform = "platform-api"
 	sourceOwnNode  = "operator-node"
 	sourceNodeList = "cluster-node-list"
 )
+
+// gkeAutopilotAllowlistKinds are the GKE-managed allowlist CRD kinds (group
+// auto.gke.io) present only on GKE Autopilot clusters. GKE exposes the v1
+// (AllowlistedWorkload) or v2 (AllowlistedV2Workload) kind depending on version;
+// the presence of any of them indicates Autopilot. The detector owns this mapping —
+// PlatformInfo only reports raw resource support, it does not know what Autopilot is.
+var gkeAutopilotAllowlistKinds = []string{"AllowlistedV2Workload", "AllowlistedWorkload"}
 
 // detection is a completed provider-detection result. A nil *detection (nothing
 // published) means detection has not run yet and must not be read as "no
@@ -50,13 +59,14 @@ type detection struct {
 	DetectedAt time.Time
 }
 
-// Detector detects the cluster provider on the elected leader and publishes the
-// result for lock-free reads.
+// Detector is the cluster environment-detection facade: it resolves a single
+// cluster provider for lock-free reads.
 type Detector struct {
-	apiReader  client.Reader // uncached; used for the Stage-1 keyed operator-node read
-	nodeClient client.Client // cached; Stage-2 fallback. nil when node cache disabled
-	nodeName   string        // operator's own node (from DD_HOSTNAME); may be empty
-	logger     logr.Logger
+	platformInfo kubernetes.PlatformInfo // platform-API classification
+	apiReader    client.Reader           // uncached; operator-node read
+	nodeClient   client.Client           // cached node lister; nil when node cache disabled
+	nodeName     string                  // operator's own node (from DD_HOSTNAME); may be empty
+	logger       logr.Logger
 
 	current   atomic.Pointer[detection] // nil until first successful detection
 	startedAt atomic.Int64              // unix-nanos of leader-start; 0 until Start runs
@@ -68,14 +78,16 @@ var (
 	_ manager.LeaderElectionRunnable = &Detector{}
 )
 
-// NewDetector builds a provider Detector from the manager. nodeName is the
-// operator's own node (DD_HOSTNAME); empty skips the Stage-1 read. The Stage-2
-// cluster-node-list fallback is wired only when nodeCacheEnabled is true.
-func NewDetector(mgr manager.Manager, nodeName string, logger logr.Logger, nodeCacheEnabled bool) *Detector {
+// NewDetector builds a provider Detector from the manager. platformInfo supplies
+// the Stage-0 platform-API classification. nodeName is the operator's own node
+// (DD_HOSTNAME); empty skips the Stage-1 read. The Stage-2 cluster-node-list
+// fallback is wired only when nodeCacheEnabled is true.
+func NewDetector(mgr manager.Manager, platformInfo kubernetes.PlatformInfo, nodeName string, logger logr.Logger, nodeCacheEnabled bool) *Detector {
 	d := &Detector{
-		apiReader: mgr.GetAPIReader(),
-		nodeName:  nodeName,
-		logger:    logger.WithName("provider-detector"),
+		platformInfo: platformInfo,
+		apiReader:    mgr.GetAPIReader(),
+		nodeName:     nodeName,
+		logger:       logger.WithName("provider-detector"),
 	}
 	if nodeCacheEnabled {
 		d.nodeClient = mgr.GetClient()
@@ -160,12 +172,27 @@ func (d *Detector) StartedAt() (time.Time, bool) {
 	return time.Unix(0, ns), true
 }
 
-// detect runs the stages in order, returning the first success or nil if all
-// failed this round (leaving any prior result intact). Stage 1 (operator-node read)
-// is authoritative on success, even for the default provider; Stage 2 (node
-// list) is the fallback when Stage 1 can't run or errors.
+// detect resolves the cluster provider from the most specific available source,
+// returning the first success or nil if all sources fail this round (leaving any
+// prior result intact). In order:
+//
+//	Stage 0 — platform API: most specific and always ready (e.g. GKE Autopilot,
+//	          detected from the CRD surface rather than node labels).
+//	Stage 1 — operator's own node labels: authoritative on success, even when it
+//	          resolves to the default provider.
+//	Stage 2 — node-list fallback: used only when Stage 1 can't run or errors and
+//	          the node cache is available.
 func (d *Detector) detect(ctx context.Context) *detection {
-	// Stage 1 — opportunistic keyed read of the operator's own node.
+	// Stage 0: platform API — a GKE allowlist CRD marks an Autopilot cluster.
+	if d.isGKEAutopilot() {
+		return &detection{
+			Provider:   kubernetes.GKEAutopilotProvider,
+			Source:     sourcePlatform,
+			DetectedAt: time.Now(),
+		}
+	}
+
+	// Stage 1: operator-node read.
 	if d.nodeName != "" {
 		node := &corev1.Node{}
 		if err := d.apiReader.Get(ctx, types.NamespacedName{Name: d.nodeName}, node); err != nil {
@@ -179,7 +206,7 @@ func (d *Detector) detect(ctx context.Context) *detection {
 		}
 	}
 
-	// Stage 2 — node list fallback (only when the node cache is available).
+	// Stage 2: node-list fallback.
 	if d.nodeClient != nil {
 		nodeList := &corev1.NodeList{}
 		if err := d.nodeClient.List(ctx, nodeList); err != nil {
@@ -193,6 +220,12 @@ func (d *Detector) detect(ctx context.Context) *detection {
 		}
 	}
 	return nil
+}
+
+// isGKEAutopilot reports whether the platform API surface exposes a GKE Autopilot
+// allowlist CRD (v1 or v2).
+func (d *Detector) isGKEAutopilot() bool {
+	return slices.ContainsFunc(gkeAutopilotAllowlistKinds, d.platformInfo.IsResourceSupported)
 }
 
 // publish stores the result and logs provider changes.

@@ -282,28 +282,3 @@ func newApiResourceListPointer(apiResourceList v1.APIResourceList) *v1.APIResour
 func containsObjectKind(list []ObjectKind, s ObjectKind) bool {
 	return slices.Contains(list, s)
 }
-
-func TestIsGKEAutopilot(t *testing.T) {
-	tests := []struct {
-		name      string
-		preferred map[string]string
-		want      bool
-	}{
-		{
-			name:      "autopilot allowlist CRD present",
-			preferred: map[string]string{gkeAutopilotAllowlistKind: "auto.gke.io/v1"},
-			want:      true,
-		},
-		{
-			name:      "non-autopilot cluster",
-			preferred: map[string]string{"Pod": "v1"},
-			want:      false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			platformInfo := NewPlatformInfoFromVersionMaps(nil, tt.preferred, nil)
-			assert.Equal(t, tt.want, platformInfo.IsGKEAutopilot())
-		})
-	}
-}

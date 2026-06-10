@@ -39,10 +39,10 @@ const (
 
 	// GKEAutopilotProvider is the GKE Autopilot cluster provider. It is a
 	// cluster-scope provider (one per cluster, drives cluster-level agent behavior)
-	// detected from the platform API surface (PlatformInfo.IsGKEAutopilot) rather
-	// than node labels. Cluster-scope providers (eks, openshift-*, gke-autopilot,
-	// default) are distinct from node-scope providers (gke-cos, bottlerocket, ...)
-	// resolved by DetermineProvider / GetProviderListFromNodeList for the node agent.
+	// detected from the platform API surface rather than node labels. Cluster-scope
+	// providers (eks, openshift-*, gke-autopilot, default) are distinct from
+	// node-scope providers (gke-cos, bottlerocket, ...) resolved by DetermineProvider
+	// / GetProviderListFromNodeList for the node agent.
 	GKEAutopilotProvider = "gke-autopilot"
 
 	// GKEProviderLabel is the GKE node label used to determine the node's provider
