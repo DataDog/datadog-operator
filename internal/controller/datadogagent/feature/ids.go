@@ -87,4 +87,6 @@ const (
 	DataPlaneIDType = "data_plane"
 	// FlightRecorderIDType Flight Recorder feature.
 	FlightRecorderIDType = "flightrecorder"
+	// KataContainersIDType Kata Containers monitoring feature.
+	KataContainersIDType IDType = "katacontainers"
 )
