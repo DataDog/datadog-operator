@@ -393,7 +393,6 @@ datadog.dd_url: spec.endpoint.url
 datadog.disableDefaultOsReleasePaths: ""
 datadog.disablePasswdMount: ""
 datadog.discovery.enabled: ""
-datadog.discovery.networkStats.enabled: ""
 datadog.dockerSocketPath: spec.global.dockerSocketPath
 datadog.dogstatsd.hostSocketPath: ""
 datadog.dogstatsd.nonLocalTraffic: ""

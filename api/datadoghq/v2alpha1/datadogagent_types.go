@@ -685,20 +685,6 @@ type ServiceDiscoveryFeatureConfig struct {
 	// If the image version cannot be determined, it is treated as latest.
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
-
-	// DEPRECATED: NetworkStats is no longer configurable and will be ignored. Scheduled for removal in v1.28.
-	// +deprecated
-	// +optional
-	NetworkStats *ServiceDiscoveryNetworkStatsConfig `json:"networkStats,omitempty"`
-}
-
-// ServiceDiscoveryNetworkStatsConfig is deprecated and has no effect.
-// +deprecated
-type ServiceDiscoveryNetworkStatsConfig struct {
-	// DEPRECATED: this field is ignored.
-	// +deprecated
-	// +optional
-	Enabled *bool `json:"enabled,omitempty"`
 }
 
 // GPUFeatureConfig contains the GPU monitoring configuration.
