@@ -42,7 +42,6 @@ const (
 	// detected from the platform API surface rather than node labels. Cluster-scope
 	// providers (eks, openshift-*, gke-autopilot, default) are distinct from
 	// node-scope providers (gke-cos, bottlerocket, ...) resolved by DetermineProvider
-	// / GetProviderListFromNodeList for the node agent.
 	GKEAutopilotProvider = "gke-autopilot"
 
 	// GKEProviderLabel is the GKE node label used to determine the node's provider
