@@ -12,6 +12,7 @@ package v2alpha1
 import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/common"
 	corev1 "k8s.io/api/core/v1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
@@ -3495,9 +3496,9 @@ func (in *SecretBackendConfig) DeepCopyInto(out *SecretBackendConfig) {
 	}
 	if in.Config != nil {
 		in, out := &in.Config, &out.Config
-		*out = make(map[string]string, len(*in))
+		*out = make(map[string]apiextensionsv1.JSON, len(*in))
 		for key, val := range *in {
-			(*out)[key] = val
+			(*out)[key] = *val.DeepCopy()
 		}
 	}
 	if in.Roles != nil {

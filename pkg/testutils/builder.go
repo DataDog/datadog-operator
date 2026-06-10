@@ -7,6 +7,7 @@ package testutils
 
 import (
 	corev1 "k8s.io/api/core/v1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
@@ -1126,7 +1127,7 @@ func (builder *DatadogAgentBuilder) WithGlobalSecretBackendGlobalPerms(command s
 	return builder
 }
 
-func (builder *DatadogAgentBuilder) WithGlobalSecretBackendType(backendType string, config map[string]string) *DatadogAgentBuilder {
+func (builder *DatadogAgentBuilder) WithGlobalSecretBackendType(backendType string, config map[string]apiextensionsv1.JSON) *DatadogAgentBuilder {
 	if builder.datadogAgent.Spec.Global.SecretBackend == nil {
 		builder.datadogAgent.Spec.Global.SecretBackend = &v2alpha1.SecretBackendConfig{}
 	}
