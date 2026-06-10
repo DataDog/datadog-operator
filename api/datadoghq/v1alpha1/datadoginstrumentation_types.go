@@ -14,6 +14,7 @@ import (
 // DatadogInstrumentationSpec defines the desired state of DatadogInstrumentation.
 type DatadogInstrumentationSpec struct {
 	// TargetRef is the reference to the workload resource to instrument.
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="targetRef is immutable"
 	TargetRef autoscalingv2.CrossVersionObjectReference `json:"targetRef"`
 
 	// Config defines the Datadog instrumentation configuration to apply to the target workload.

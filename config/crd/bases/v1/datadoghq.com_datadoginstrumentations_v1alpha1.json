@@ -177,7 +177,13 @@
             "kind",
             "name"
           ],
-          "type": "object"
+          "type": "object",
+          "x-kubernetes-validations": [
+            {
+              "message": "targetRef is immutable",
+              "rule": "self == oldSelf"
+            }
+          ]
         }
       },
       "required": [

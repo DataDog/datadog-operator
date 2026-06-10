@@ -176,6 +176,9 @@ spec:
                     - kind
                     - name
                   type: object
+                  x-kubernetes-validations:
+                    - message: targetRef is immutable
+                      rule: self == oldSelf
               required:
                 - config
                 - targetRef
