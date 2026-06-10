@@ -7,7 +7,7 @@ This document lists configuration options that are deprecated or will be depreca
 | Feature | Deprecation Notice | Deprecation Version | Removal Version |
 |---------|-------------------|-------------------|-------------------|
 | `global.runProcessChecksInCoreAgent` | The `runProcessChecksInCoreAgent` configuration is deprecated in 1.19, and will be removed in v1.21. | v1.19 | v1.21 |
-| `features.serviceDiscovery.networkStats` | The `networkStats` configuration is deprecated in v1.26 and will be removed in v1.28. | v1.26 | v1.28 |
+| `features.serviceDiscovery.networkStats` | The `networkStats` configuration is deprecated in v1.26 and removed in v1.28. | v1.26 | v1.28 |
 
 ## Migration Guidelines
 
@@ -25,7 +25,7 @@ If this field was set to `false`, use the environment variable override (`DD_PRO
 
 ### serviceDiscovery.networkStats
 
-The `networkStats` field in the ServiceDiscovery feature configuration is being deprecated. Network stats collection is no longer configurable through the operator.
+The `networkStats` field in the ServiceDiscovery feature configuration was removed in v1.28. Network stats collection is no longer configurable through the operator.
 
 #### Migration Path
 
