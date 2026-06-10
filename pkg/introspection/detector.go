@@ -171,6 +171,7 @@ func (d *Detector) detect(ctx context.Context) *detection {
 		if err := d.apiReader.Get(ctx, types.NamespacedName{Name: d.nodeName}, node); err != nil {
 			d.logger.V(1).Info("operator-node provider read failed; trying cluster-node-list fallback", "node", d.nodeName, "error", err)
 		} else {
+			d.logger.V(1).Info("operator-node provider read succeeded", "node", d.nodeName, "provider", kubernetes.ClusterProviderFromNodeLabels(node.Labels))
 			return &detection{
 				Provider:   kubernetes.ClusterProviderFromNodeLabels(node.Labels),
 				Source:     sourceOwnNode,
@@ -185,6 +186,7 @@ func (d *Detector) detect(ctx context.Context) *detection {
 		if err := d.nodeClient.List(ctx, nodeList); err != nil {
 			d.logger.V(1).Info("cluster-node-list provider detection failed", "error", err)
 		} else {
+			d.logger.V(1).Info("cluster-node-list provider detection succeeded", "provider", kubernetes.GetClusterProviderFromNodeList(nodeList.Items))
 			return &detection{
 				Provider:   kubernetes.GetClusterProviderFromNodeList(nodeList.Items),
 				Source:     sourceNodeList,
