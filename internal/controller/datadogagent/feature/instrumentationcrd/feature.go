@@ -57,7 +57,7 @@ func (f *instrumentationCRDFeature) ID() feature.IDType {
 func (f *instrumentationCRDFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) feature.RequiredComponents {
 	f.owner = dda
 
-	if value, ok := dda.GetAnnotations()[featureutils.EnableInstrumentationCRDAnnotation]; ok && value == "false" {
+	if featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnableInstrumentationCRDAnnotation) {
 		return feature.RequiredComponents{}
 	}
 
