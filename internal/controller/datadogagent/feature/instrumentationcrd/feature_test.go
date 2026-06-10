@@ -40,16 +40,14 @@ func Test_instrumentationCRDFeature_Configure(t *testing.T) {
 			WantConfigure: false,
 		},
 		{
-			Name: "InstrumentationCRD enabled by default when CA version meets minimum",
-			DDA: testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+			Name: "InstrumentationCRD disabled by default",
+			DDA: testutils.NewDatadogAgentBuilder().
 				WithClusterAgentImage("cluster-agent:7.81.0").
 				Build(),
-			WantConfigure:        true,
-			WantDependenciesFunc: instrumentationCRDWantDepsFunc(),
-			ClusterAgent:         instrumentationCRDWantClusterAgentFunc(),
+			WantConfigure: false,
 		},
 		{
-			Name: "InstrumentationCRD enabled via annotation with CA version meets minimum",
+			Name: "InstrumentationCRD enabled via annotation when CA version meets minimum",
 			DDA: testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 				WithAnnotations(map[string]string{featureutils.EnableInstrumentationCRDAnnotation: "true"}).
 				WithClusterAgentImage("cluster-agent:7.81.0").
@@ -61,6 +59,7 @@ func Test_instrumentationCRDFeature_Configure(t *testing.T) {
 		{
 			Name: "InstrumentationCRD disabled when version below minimum",
 			DDA: testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+				WithAnnotations(map[string]string{featureutils.EnableInstrumentationCRDAnnotation: "true"}).
 				WithClusterAgentImage("cluster-agent:7.79.0").
 				Build(),
 			WantConfigure: false,
