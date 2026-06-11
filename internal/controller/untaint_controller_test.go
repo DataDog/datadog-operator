@@ -783,12 +783,13 @@ func TestReconcile_CSI_agentReadyNoCsiPod_schedulingTimeoutRemovesTaint(t *testi
 	assert.False(t, hasTaint(fresh))
 }
 
-func TestReconcile_CSI_agentReadyCsiNotReady_noStartTimeUsesSchedulingRequeue(t *testing.T) {
+func TestReconcile_CSI_agentReadyCsiNotReady_noStartTimeCoarseReadinessRequeue(t *testing.T) {
 	now := testNow()
 	node := taintedNode(testNodeName, 0, now)
 	agent := agentPod(testPodName, testPodNS, testNodeName, true, 1*time.Minute, now)
-	// CSI not Ready, startedAgo 0 → no Status.StartTime → wait-for-CSI path uses
-	// scheduling timeout (one side lacks StartTime) until kubelet sets StartTime.
+	// CSI not Ready, startedAgo 0 → no Status.StartTime: both workloads are on
+	// the node, so use the same coarse readiness requeue as agent-only (not
+	// node-age scheduling), avoiding instant timeout on an old node.
 	csi := csiNodeServerPod("csi-1", testPodNS, testNodeName, false, 0, now)
 	c := newFakeClient(t, node, agent, csi)
 	const readiness = 9 * time.Minute
@@ -797,7 +798,7 @@ func TestReconcile_CSI_agentReadyCsiNotReady_noStartTimeUsesSchedulingRequeue(t 
 
 	result, err := r.Reconcile(context.Background(), ctrl.Request{NamespacedName: types.NamespacedName{Name: testNodeName}})
 	require.NoError(t, err)
-	assert.Equal(t, scheduling, result.RequeueAfter)
+	assert.Equal(t, readiness, result.RequeueAfter)
 
 	fresh := &corev1.Node{}
 	require.NoError(t, c.Get(context.Background(), types.NamespacedName{Name: testNodeName}, fresh))

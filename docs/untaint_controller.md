@@ -45,11 +45,15 @@ the main failure modes:
   either workload resets the window). Agent-only mode (no wait-for-CSI) still
   uses only Agent `StartTime` for this clock.
 - **Scheduling timeout** — no Agent pod is on the node, **or** (with wait-for-CSI)
-  no CSI node-server pod on the node yet, **or** (with wait-for-CSI) either side
-  is present but **any** required pod still lacks `StartTime`. Clock:
-  `node.metadata.creationTimestamp`. Covers DaemonSets that never schedule onto
-  the node (taint not tolerated, missing labels, CSI still pulling, kubelet has
-  not set `StartTime` yet, etc.).
+  no CSI node-server pod on the node yet. Clock: `node.metadata.creationTimestamp`.
+  Covers DaemonSets that never schedule onto the node (taint not tolerated,
+  missing labels, CSI still pulling, etc.).
+- **(Wait-for-CSI only)** If **both** an Agent pod and a CSI node-server pod are on
+  the node but **either** still lacks `StartTime`, the controller **requeues**
+  after the readiness-timeout duration (coarse poll, same idea as agent-only when
+  `StartTime` is not populated yet)—it does **not** use the scheduling clock here,
+  so an old node does not instantly hit a scheduling timeout while waiting for
+  `StartTime` to appear.
 
 A pod-recreation crash-loop faster than the readiness window can hold a node
 tainted indefinitely; run with `policy=keep` and alert on

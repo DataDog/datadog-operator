@@ -191,8 +191,10 @@ func durationFromEnv(envVar string, def time.Duration) (time.Duration, error) {
 //     apply the timeout policy
 //   - with --untaintControllerWaitForCSIDriver: readiness timeout uses the
 //     later of max(agent StartTime) and max(CSI StartTime) when both workloads
-//     have a pod on the node with Status.StartTime set; otherwise the
-//     scheduling timeout (node creation) applies until both have StartTimes
+//     have a pod on the node with Status.StartTime set; if either workload is
+//     missing on the node use the scheduling timeout (node creation); if both
+//     are on the node but either side still lacks StartTime, requeue with
+//     readinessTimeout (same coarse poll as agent-only) until StartTime appears
 //   - otherwise, requeue after the remaining timeout window so we re-evaluate.
 func (r *UntaintReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := r.log.WithValues("node", req.Name)
@@ -245,29 +247,14 @@ func (r *UntaintReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		if agentReady && csiReady {
 			combined := append(append([]corev1.Pod{}, podList.Items...), csiPodList.Items...)
 			readyAt, _ := maxReadyTransitionTime(combined)
-			result, err := r.removeTaint(ctx, node)
-			if err != nil {
-				return result, err
-			}
-			if result.RequeueAfter > 0 {
-				return result, nil
-			}
-			log.Info(fmt.Sprintf("Removed agent-not-ready taint from node %s after node agent and CSI driver pods became ready", node.Name))
-			metrics.TaintRemovalsTotal.Inc()
-			if !readyAt.IsZero() {
-				metrics.TaintRemovalLatency.Observe(r.clock.Since(readyAt).Seconds())
-			}
-			if r.eventsEnabled {
-				r.recorder.Eventf(node, corev1.EventTypeNormal, "TaintRemoved",
-					"Removed taint %s from node %s after node agent and CSI node-server pods became ready", untaint.AgentNotReadyTaintKey, node.Name)
-			}
-			return ctrl.Result{}, nil
+			return r.completeUntaintFromReadiness(ctx, node, log, readyAt,
+				fmt.Sprintf("Removed agent-not-ready taint from node %s after node agent and CSI driver pods became ready", node.Name),
+				"Removed taint %s from node %s after node agent and CSI node-server pods became ready",
+			)
 		}
 		return r.reconcileTaintedNodeTimeouts(ctx, node, log, podList, csiPodList)
 	} else {
-		// No need to wait for CSI
-
-		// Happy path: any ready agent pod → untaint immediately and record latency.
+		// Agent-only mode: untaint when any node-agent pod is Ready; otherwise timeouts below.
 		var readyAt time.Time
 		var anyReady bool
 		for i := range podList.Items {
@@ -277,36 +264,47 @@ func (r *UntaintReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 			}
 		}
 		if anyReady {
-			result, err := r.removeTaint(ctx, node)
-			if err != nil {
-				return result, err
-			}
-			if result.RequeueAfter > 0 {
-				return result, nil
-			}
-			log.Info(fmt.Sprintf("Removed agent-not-ready taint from node %s", node.Name))
-			metrics.TaintRemovalsTotal.Inc()
-			if !readyAt.IsZero() {
-				metrics.TaintRemovalLatency.Observe(r.clock.Since(readyAt).Seconds())
-			}
-			if r.eventsEnabled {
-				r.recorder.Eventf(node, corev1.EventTypeNormal, "TaintRemoved",
-					"Removed taint %s from node %s after agent became ready", untaint.AgentNotReadyTaintKey, node.Name)
-			}
-			return ctrl.Result{}, nil
+			return r.completeUntaintFromReadiness(ctx, node, log, readyAt,
+				fmt.Sprintf("Removed agent-not-ready taint from node %s", node.Name),
+				"Removed taint %s from node %s after agent became ready",
+			)
 		}
 	}
 
 	return r.reconcileTaintedNodeTimeouts(ctx, node, log, podList, nil)
 }
 
+// completeUntaintFromReadiness runs removeTaint after readiness gates passed, then
+// records removal metrics, optional Node event, and latency from readyAt.
+func (r *UntaintReconciler) completeUntaintFromReadiness(ctx context.Context, node *corev1.Node, log logr.Logger, readyAt time.Time, infoLog, eventFmt string) (ctrl.Result, error) {
+	result, err := r.removeTaint(ctx, node)
+	if err != nil {
+		return result, err
+	}
+	if result.RequeueAfter > 0 {
+		return result, nil
+	}
+	log.Info(infoLog)
+	metrics.TaintRemovalsTotal.Inc()
+	if !readyAt.IsZero() {
+		metrics.TaintRemovalLatency.Observe(r.clock.Since(readyAt).Seconds())
+	}
+	if r.eventsEnabled {
+		r.recorder.Eventf(node, corev1.EventTypeNormal, "TaintRemoved", eventFmt, untaint.AgentNotReadyTaintKey, node.Name)
+	}
+	return ctrl.Result{}, nil
+}
+
 // reconcileTaintedNodeTimeouts evaluates scheduling vs readiness timeouts.
 // When waitForCSIDriver is false, only agent pods are considered (csiPods is ignored).
 // When waitForCSIDriver is true, both the node agent and CSI node-server must
 // have at least one pod on the node with Status.StartTime before the readiness
-// clock runs; the clock is the later of the two sides' max(StartTime). If any
-// required pod is missing on the node or any side lacks StartTime, the
-// scheduling timeout anchored on node creation applies.
+// clock runs; the clock is the later of the two sides' max(StartTime). If a
+// required workload is missing on the node (no agent pod or no CSI pod), the
+// scheduling timeout anchored on node creation applies. If both workloads have
+// pods on the node but either side still lacks StartTime, requeue after
+// readinessTimeout (same coarse behavior as agent-only when StartTime is not set
+// yet) so an old node CreationTimestamp does not instantly trip scheduling.
 func (r *UntaintReconciler) reconcileTaintedNodeTimeouts(ctx context.Context, node *corev1.Node, log logr.Logger, agentPods *corev1.PodList, csiPods *corev1.PodList) (ctrl.Result, error) {
 	now := r.clock.Now()
 	agents := agentPods.Items
@@ -332,7 +330,9 @@ func (r *UntaintReconciler) reconcileTaintedNodeTimeouts(ctx context.Context, no
 	agentLatest, agentOK := latestPodStartTime(agents)
 	csiLatest, csiOK := latestPodStartTime(csis)
 	if !agentOK || !csiOK {
-		return r.schedulingTimeoutResult(ctx, node, log, now)
+		// Match agent-only: pods exist but StartTime not populated yet — coarse
+		// requeue, not node-age scheduling (avoids instant timeout on old nodes).
+		return ctrl.Result{RequeueAfter: r.readinessTimeout}, nil
 	}
 	latestStart := agentLatest
 	if csiLatest.After(latestStart) {
