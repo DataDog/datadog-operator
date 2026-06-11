@@ -17,8 +17,6 @@ import (
 	"k8s.io/utils/ptr"
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 	ctrlfake "sigs.k8s.io/controller-runtime/pkg/client/fake"
-
-	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/clusterinfo"
 )
 
 func newCtrlScheme(t *testing.T) *runtime.Scheme {
@@ -26,46 +24,6 @@ func newCtrlScheme(t *testing.T) *runtime.Scheme {
 	sch := runtime.NewScheme()
 	require.NoError(t, scheme.AddToScheme(sch))
 	return sch
-}
-
-func TestUniqueNodes(t *testing.T) {
-	for _, tc := range []struct {
-		name    string
-		targets []Target
-		// wantNodes is the expected key set (order irrelevant).
-		wantNodes []string
-	}{
-		{
-			// All manager types are included now that the orchestrator
-			// blocks on waitEKSNodegroupEmpty before cleaning up temp
-			// PDBs — EKS MNG pods must be protected too.
-			name: "all manager types included",
-			targets: []Target{
-				{Manager: clusterinfo.NodeManagerASG, Nodes: []string{"asg-1", "asg-2"}},
-				{Manager: clusterinfo.NodeManagerEKSManagedNodeGroup, Nodes: []string{"mng-1"}},
-				{Manager: clusterinfo.NodeManagerKarpenter, Nodes: []string{"kp-1"}},
-				{Manager: clusterinfo.NodeManagerStandalone, Nodes: []string{"standalone-1"}},
-			},
-			wantNodes: []string{"asg-1", "asg-2", "mng-1", "kp-1", "standalone-1"},
-		},
-		{
-			// Same node name across targets collapses to a single entry.
-			name: "duplicate node names dedup",
-			targets: []Target{
-				{Manager: clusterinfo.NodeManagerASG, Nodes: []string{"shared", "asg-only"}},
-				{Manager: clusterinfo.NodeManagerStandalone, Nodes: []string{"shared", "standalone-only"}},
-			},
-			wantNodes: []string{"shared", "asg-only", "standalone-only"},
-		},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			got := uniqueNodes(tc.targets)
-			assert.Len(t, got, len(tc.wantNodes))
-			for _, n := range tc.wantNodes {
-				assert.Contains(t, got, n)
-			}
-		})
-	}
 }
 
 func TestTempPDBName(t *testing.T) {
@@ -212,8 +170,8 @@ func TestCleanupTempPDBs(t *testing.T) {
 
 func TestCreateTempPDB(t *testing.T) {
 	appController := controllerInfo{
-		Namespace: "default", Kind: "Deployment", Name: "app",
-		Selector: &metav1.LabelSelector{MatchLabels: map[string]string{"app": "x"}},
+		controllerKey: controllerKey{Namespace: "default", Kind: "Deployment", Name: "app"},
+		Selector:      &metav1.LabelSelector{MatchLabels: map[string]string{"app": "x"}},
 	}
 	existingTempPDB := func() *policyv1.PodDisruptionBudget {
 		return &policyv1.PodDisruptionBudget{

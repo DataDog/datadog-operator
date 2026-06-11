@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"log"
 	"reflect"
+	"slices"
 	"strings"
 
+	"github.com/samber/lo"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	policyv1 "k8s.io/api/policy/v1"
@@ -47,7 +49,13 @@ const (
 // created them. ensureTempPDBs itself is idempotent: a PDB created by a
 // previous (possibly crashed) run is detected by its labels and left alone.
 func ensureTempPDBs(ctx context.Context, clientset kubernetes.Interface, ctrlClient client.Client, targets []Target, dryRun bool) error {
-	nodeSet := uniqueNodes(targets)
+	// Targets across all manager types are merged: the orchestrator blocks
+	// on waitEKSNodegroupEmpty before cleaning up the temporary PDBs, so EKS
+	// MNG nodes observe the PDBs during their drain too — without that, EKS
+	// could disrupt every replica of an otherwise unprotected workload at
+	// once when all replicas happen to live on the same node group.
+	allNodes := lo.FlatMap(targets, func(t Target, _ int) []string { return t.Nodes })
+	nodeSet := lo.SliceToMap(allNodes, func(n string) (string, struct{}) { return n, struct{}{} })
 	if len(nodeSet) == 0 {
 		return nil
 	}
@@ -103,11 +111,6 @@ func cleanupTempPDBs(ctx context.Context, ctrlClient client.Client, dryRun bool)
 	var errs []error
 	for i := range list.Items {
 		pdb := &list.Items[i]
-		// Defense in depth: re-check the labels client-side before deleting.
-		if pdb.Labels[pdbManagedByLabelKey] != pdbManagedByLabelValue ||
-			pdb.Labels[pdbTempLabelKey] != pdbTempLabelValue {
-			continue
-		}
 		if dryRun {
 			log.Printf("[dry-run] would delete PDB %s/%s", pdb.Namespace, pdb.Name)
 			continue
@@ -119,30 +122,20 @@ func cleanupTempPDBs(ctx context.Context, ctrlClient client.Client, dryRun bool)
 	return errors.Join(errs...)
 }
 
-// controllerInfo identifies a top-level controller that owns evictable pods on
-// our target nodes. Selector is the controller's pod selector — what a PDB
-// would match on.
-type controllerInfo struct {
+// controllerKey identifies a top-level controller that owns evictable pods on
+// our target nodes. It is the dedup key in the seen map and the identity half
+// of controllerInfo.
+type controllerKey struct {
 	Namespace string
 	Kind      string // "Deployment", "StatefulSet", "ReplicaSet"
 	Name      string
-	Selector  *metav1.LabelSelector
 }
 
-// uniqueNodes returns the set (as a map) of node names across all targets.
-// EKS managed node groups are included because the orchestrator now blocks
-// on `waitEKSNodegroupEmpty` before cleaning up the temporary PDBs, so EKS
-// observes the PDBs during its drain. Excluding them would let EKS disrupt
-// all replicas of an otherwise unprotected workload at once when every
-// replica happens to live on that node group.
-func uniqueNodes(targets []Target) map[string]struct{} {
-	out := make(map[string]struct{})
-	for _, t := range targets {
-		for _, n := range t.Nodes {
-			out[n] = struct{}{}
-		}
-	}
-	return out
+// controllerInfo is a controllerKey plus the controller's pod selector — what a
+// PDB would match on.
+type controllerInfo struct {
+	controllerKey
+	Selector *metav1.LabelSelector
 }
 
 // discoverControllers lists every Pod cluster-wide once (paginated) and, for
@@ -152,15 +145,15 @@ func uniqueNodes(targets []Target) map[string]struct{} {
 // dominate the command's wall-clock time. The resulting slice contains each
 // controller at most once.
 func discoverControllers(ctx context.Context, clientset kubernetes.Interface, nodeSet map[string]struct{}) ([]controllerInfo, error) {
-	seen := make(map[string]controllerInfo)
-	depCache := make(map[string]*appsv1.Deployment)
-	rsCache := make(map[string]*appsv1.ReplicaSet)
-	stsCache := make(map[string]*appsv1.StatefulSet)
+	seen := make(map[controllerKey]*metav1.LabelSelector)
+	depCache := make(map[client.ObjectKey]*appsv1.Deployment)
+	rsCache := make(map[client.ObjectKey]*appsv1.ReplicaSet)
+	stsCache := make(map[client.ObjectKey]*appsv1.StatefulSet)
 
 	p := pager.New(func(ctx context.Context, opts metav1.ListOptions) (runtime.Object, error) {
 		return clientset.CoreV1().Pods(metav1.NamespaceAll).List(ctx, opts)
 	})
-	err := p.EachListItem(ctx, metav1.ListOptions{}, func(obj runtime.Object) error {
+	if err := p.EachListItem(ctx, metav1.ListOptions{}, func(obj runtime.Object) error {
 		pod := obj.(*corev1.Pod)
 		if _, onTarget := nodeSet[pod.Spec.NodeName]; !onTarget {
 			return nil
@@ -176,21 +169,15 @@ func discoverControllers(ctx context.Context, clientset kubernetes.Interface, no
 		if info == nil {
 			return nil
 		}
-		key := info.Namespace + "/" + info.Kind + "/" + info.Name
-		if _, dup := seen[key]; !dup {
-			seen[key] = *info
-		}
+		seen[info.controllerKey] = info.Selector
 		return nil
-	})
-	if err != nil {
+	}); err != nil {
 		return nil, fmt.Errorf("list pods: %w", err)
 	}
 
-	out := make([]controllerInfo, 0, len(seen))
-	for _, c := range seen {
-		out = append(out, c)
-	}
-	return out, nil
+	return lo.MapToSlice(seen, func(key controllerKey, selector *metav1.LabelSelector) controllerInfo {
+		return controllerInfo{controllerKey: key, Selector: selector}
+	}), nil
 }
 
 // resolveTopLevelController walks a Pod's owner chain up to the workload
@@ -201,9 +188,9 @@ func resolveTopLevelController(
 	ctx context.Context,
 	clientset kubernetes.Interface,
 	pod *corev1.Pod,
-	depCache map[string]*appsv1.Deployment,
-	rsCache map[string]*appsv1.ReplicaSet,
-	stsCache map[string]*appsv1.StatefulSet,
+	depCache map[client.ObjectKey]*appsv1.Deployment,
+	rsCache map[client.ObjectKey]*appsv1.ReplicaSet,
+	stsCache map[client.ObjectKey]*appsv1.StatefulSet,
 ) (*controllerInfo, error) {
 	owner := metav1.GetControllerOf(pod)
 	if owner == nil {
@@ -211,30 +198,33 @@ func resolveTopLevelController(
 	}
 	switch owner.Kind {
 	case "ReplicaSet":
-		rs, err := getReplicaSet(ctx, clientset, pod.Namespace, owner.Name, rsCache)
+		rs, err := getCached(ctx, rsCache, pod.Namespace, owner.Name, clientset.AppsV1().ReplicaSets(pod.Namespace).Get)
 		if err != nil {
 			return nil, err
 		}
 		rsOwner := metav1.GetControllerOf(rs)
 		if rsOwner != nil && rsOwner.Kind == "Deployment" {
-			dep, err := getDeployment(ctx, clientset, pod.Namespace, rsOwner.Name, depCache)
+			dep, err := getCached(ctx, depCache, pod.Namespace, rsOwner.Name, clientset.AppsV1().Deployments(pod.Namespace).Get)
 			if err != nil {
 				return nil, err
 			}
 			return &controllerInfo{
-				Namespace: pod.Namespace, Kind: "Deployment", Name: dep.Name, Selector: dep.Spec.Selector,
+				controllerKey: controllerKey{Namespace: pod.Namespace, Kind: "Deployment", Name: dep.Name},
+				Selector:      dep.Spec.Selector,
 			}, nil
 		}
 		return &controllerInfo{
-			Namespace: pod.Namespace, Kind: "ReplicaSet", Name: rs.Name, Selector: rs.Spec.Selector,
+			controllerKey: controllerKey{Namespace: pod.Namespace, Kind: "ReplicaSet", Name: rs.Name},
+			Selector:      rs.Spec.Selector,
 		}, nil
 	case "StatefulSet":
-		sts, err := getStatefulSet(ctx, clientset, pod.Namespace, owner.Name, stsCache)
+		sts, err := getCached(ctx, stsCache, pod.Namespace, owner.Name, clientset.AppsV1().StatefulSets(pod.Namespace).Get)
 		if err != nil {
 			return nil, err
 		}
 		return &controllerInfo{
-			Namespace: pod.Namespace, Kind: "StatefulSet", Name: sts.Name, Selector: sts.Spec.Selector,
+			controllerKey: controllerKey{Namespace: pod.Namespace, Kind: "StatefulSet", Name: sts.Name},
+			Selector:      sts.Spec.Selector,
 		}, nil
 	default:
 		// DaemonSet (skipped before reaching here), Job (TTL), CronJob,
@@ -243,43 +233,27 @@ func resolveTopLevelController(
 	}
 }
 
-func getReplicaSet(ctx context.Context, clientset kubernetes.Interface, ns, name string, cache map[string]*appsv1.ReplicaSet) (*appsv1.ReplicaSet, error) {
-	key := ns + "/" + name
-	if rs, ok := cache[key]; ok {
-		return rs, nil
+// getCached returns the object identified by (ns, name) from cache, fetching it
+// via get — the namespace-bound typed clientset accessor, e.g.
+// clientset.AppsV1().ReplicaSets(ns).Get — and populating the cache on a miss.
+// T is inferred from the cache's value type, collapsing the per-kind getters
+// into a single generic lookup.
+func getCached[T any](
+	ctx context.Context,
+	cache map[client.ObjectKey]*T,
+	ns, name string,
+	get func(ctx context.Context, name string, opts metav1.GetOptions) (*T, error),
+) (*T, error) {
+	key := client.ObjectKey{Namespace: ns, Name: name}
+	if obj, ok := cache[key]; ok {
+		return obj, nil
 	}
-	rs, err := clientset.AppsV1().ReplicaSets(ns).Get(ctx, name, metav1.GetOptions{})
+	obj, err := get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
-	cache[key] = rs
-	return rs, nil
-}
-
-func getDeployment(ctx context.Context, clientset kubernetes.Interface, ns, name string, cache map[string]*appsv1.Deployment) (*appsv1.Deployment, error) {
-	key := ns + "/" + name
-	if d, ok := cache[key]; ok {
-		return d, nil
-	}
-	d, err := clientset.AppsV1().Deployments(ns).Get(ctx, name, metav1.GetOptions{})
-	if err != nil {
-		return nil, err
-	}
-	cache[key] = d
-	return d, nil
-}
-
-func getStatefulSet(ctx context.Context, clientset kubernetes.Interface, ns, name string, cache map[string]*appsv1.StatefulSet) (*appsv1.StatefulSet, error) {
-	key := ns + "/" + name
-	if s, ok := cache[key]; ok {
-		return s, nil
-	}
-	s, err := clientset.AppsV1().StatefulSets(ns).Get(ctx, name, metav1.GetOptions{})
-	if err != nil {
-		return nil, err
-	}
-	cache[key] = s
-	return s, nil
+	cache[key] = obj
+	return obj, nil
 }
 
 // listNamespacePDBs returns every PDB in the namespace. Used to detect
@@ -301,16 +275,9 @@ func hasUserPDB(existing []policyv1.PodDisruptionBudget, controllerSelector *met
 	if controllerSelector == nil {
 		return false
 	}
-	for i := range existing {
-		pdb := &existing[i]
-		if isTemporaryPDB(pdb) {
-			continue
-		}
-		if reflect.DeepEqual(pdb.Spec.Selector, controllerSelector) {
-			return true
-		}
-	}
-	return false
+	return slices.ContainsFunc(existing, func(pdb policyv1.PodDisruptionBudget) bool {
+		return !isTemporaryPDB(&pdb) && reflect.DeepEqual(pdb.Spec.Selector, controllerSelector)
+	})
 }
 
 func isTemporaryPDB(pdb *policyv1.PodDisruptionBudget) bool {
@@ -371,21 +338,18 @@ func createTempPDB(ctx context.Context, ctrlClient client.Client, c controllerIn
 // truncated so the final name (including the suffix) fits the 63-char limit.
 func tempPDBName(kind, controllerName string) string {
 	prefix := strings.ToLower(kind) + "-" + controllerName
-	suffix := pdbNameSuffix
-	maxLen := validation.DNS1123LabelMaxLength
-	if len(prefix)+len(suffix) > maxLen {
-		prefix = prefix[:maxLen-len(suffix)]
+	if len(prefix)+len(pdbNameSuffix) > validation.DNS1123LabelMaxLength {
+		prefix = prefix[:validation.DNS1123LabelMaxLength-len(pdbNameSuffix)]
 	}
-	return prefix + suffix
+	return prefix + pdbNameSuffix
 }
 
 func formatSelector(s *metav1.LabelSelector) string {
 	if s == nil {
 		return "<nil>"
 	}
-	parts := make([]string, 0, len(s.MatchLabels))
-	for k, v := range s.MatchLabels {
-		parts = append(parts, k+"="+v)
-	}
+	parts := lo.MapToSlice(s.MatchLabels, func(k, v string) string {
+		return k + "=" + v
+	})
 	return strings.Join(parts, ",")
 }
