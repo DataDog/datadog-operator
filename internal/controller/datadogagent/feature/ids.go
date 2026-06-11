@@ -73,6 +73,8 @@ const (
 	SBOMIDType = "sbom"
 	// HelmCheckIDType Helm Check feature.
 	HelmCheckIDType = "helm_check"
+	// InstrumentationCRDIDType Instrumentation CRD feature.
+	InstrumentationCRDIDType = "instrumentation_crd"
 	// DummyIDType Dummy feature.
 	DummyIDType = "dummy"
 	// ServiceDiscoveryType service discovery feature.

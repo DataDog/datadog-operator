@@ -24,6 +24,8 @@ const (
 	EnableFineGrainedKubeletAuthz    = "agent.datadoghq.com/fine-grained-kubelet-authorization-enabled"
 	EnableHostProfilerAnnotation     = "agent.datadoghq.com/host-profiler-enabled"
 
+	EnableInstrumentationCRDAnnotation = "agent.datadoghq.com/instrumentation-crd-enabled"
+
 	EnableFlightRecorderAnnotation = "agent.datadoghq.com/flightrecorder-enabled"
 	EnableNetworkCRDsAnnotation    = "agent.datadoghq.com/network-crds-enabled"
 
