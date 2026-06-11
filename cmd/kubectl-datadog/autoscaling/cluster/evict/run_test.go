@@ -10,7 +10,9 @@ import (
 	"github.com/stretchr/testify/require"
 	policyv1 "k8s.io/api/policy/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 	ctrlfake "sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/clusterinfo"
 )
@@ -56,6 +58,24 @@ func TestReclaimLeakedTempPDBs(t *testing.T) {
 			}
 		})
 	}
+
+	// A cleanup error must be swallowed (logged, not propagated): the no-op
+	// exit must still succeed even if reclaiming the leaked PDBs fails.
+	t.Run("cleanup error is swallowed", func(t *testing.T) {
+		cli := ctrlfake.NewClientBuilder().
+			WithScheme(newCtrlScheme(t)).
+			WithObjects(leakedTempPDB()).
+			WithInterceptorFuncs(interceptor.Funcs{
+				List: func(context.Context, ctrlclient.WithWatch, ctrlclient.ObjectList, ...ctrlclient.ListOption) error {
+					return errors.New("boom")
+				},
+			}).
+			Build()
+
+		assert.NotPanics(t, func() {
+			reclaimLeakedTempPDBs(t.Context(), cli, true, false)
+		})
+	})
 }
 
 func TestEvictAllTargets(t *testing.T) {
