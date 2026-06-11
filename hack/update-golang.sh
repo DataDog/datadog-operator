@@ -108,7 +108,6 @@ for file in $go_mod_files; do
     if [[ -f $file ]]; then
         echo "Processing $file..."
         go mod edit -go $GOVERSION $file
-        go mod edit -toolchain go$GOVERSION $file
     else
         echo "Warning: $file not found, skipping."
     fi
