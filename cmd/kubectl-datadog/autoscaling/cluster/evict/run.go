@@ -10,6 +10,7 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/clients"
@@ -91,6 +92,13 @@ func Run(ctx context.Context, streams genericclioptions.IOStreams, configFlags *
 		return err
 	}
 	if len(targets) == 0 {
+		// A previous run may have been interrupted (e.g. an EKS managed node
+		// group timed out, leaving its temporary PDBs in place for a later
+		// rerun). By the time that rerun finds nothing left to evict, those
+		// leaked PDBs would otherwise persist indefinitely with
+		// maxUnavailable: 1 and throttle future rollouts/disruptions, so
+		// reclaim anything left behind before the no-op exit.
+		reclaimLeakedTempPDBs(ctx, cli.K8sClient, opts.EnsurePDBs, opts.DryRun)
 		display.PrintBox(streams.Out, "Nothing to evict — the cluster is already on Datadog-managed Karpenter NodePools.")
 		return nil
 	}
@@ -174,6 +182,20 @@ func Run(ctx context.Context, streams genericclioptions.IOStreams, configFlags *
 	}
 	display.PrintBox(streams.Out, "✅ Legacy nodes drained from cluster "+opts.ClusterName+".")
 	return nil
+}
+
+// reclaimLeakedTempPDBs runs the idempotent, label-based temp-PDB cleanup when
+// PDB management is enabled. It is invoked on the no-target path so that
+// temporary PDBs left behind by a prior interrupted run (e.g. an EKS managed
+// node group that timed out) are reclaimed once the cluster has fully migrated
+// and there is nothing left to evict. A no-op when ensurePDBs is false.
+func reclaimLeakedTempPDBs(ctx context.Context, ctrlClient client.Client, ensurePDBs, dryRun bool) {
+	if !ensurePDBs {
+		return
+	}
+	if err := cleanupTempPDBs(ctx, ctrlClient, dryRun); err != nil {
+		log.Printf("Warning: failed to cleanup leftover temporary PDBs: %v", err)
+	}
 }
 
 // classify wraps clusterinfo.Classify with the call-site boilerplate shared by
