@@ -113,7 +113,7 @@ for file in $go_mod_files; do
     fi
 done
 
-# api/go.mod stays minor-only: it is a types-only CRD module imported by
+# api/go.mod stays at initial patch release for the minor Go version: it is a types-only CRD module imported by
 # external projects (Agent, EDS, dd-source autoscaling, ...). A stricter `go`
 # directive would force consumers off Go n-1 for no real benefit since the
 # module ships no runtime code that could trigger stdlib CVEs.
