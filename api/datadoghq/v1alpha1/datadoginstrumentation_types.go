@@ -12,9 +12,11 @@ import (
 )
 
 // DatadogInstrumentationSpec defines the desired state of DatadogInstrumentation.
+// +kubebuilder:validation:XValidation:rule="self.targetRef.kind == 'Service' || !has(self.config.checks) || self.config.checks.all(c, has(c.containerImage) && c.containerImage.size() > 0)",message="a container image is required for all checks"
 type DatadogInstrumentationSpec struct {
 	// TargetRef is the reference to the workload resource to instrument.
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="targetRef is immutable"
+	// +kubebuilder:validation:XValidation:rule="self.kind in ['Deployment', 'DaemonSet', 'StatefulSet', 'CronJob', 'Job', 'Service']",message="targetRef.kind must be one of Deployment, DaemonSet, StatefulSet, CronJob, Job, or Service"
 	TargetRef autoscalingv2.CrossVersionObjectReference `json:"targetRef"`
 
 	// Config defines the Datadog instrumentation configuration to apply to the target workload.
@@ -30,8 +32,11 @@ type DatadogInstrumentationConfig struct {
 }
 
 // DatadogInstrumentationCheckConfig defines an Autodiscovery check configuration.
+// +kubebuilder:validation:XValidation:rule="(has(self.instances) && self.instances.size() > 0) || (has(self.logs) && self.logs.size() > 0)",message="at least one instance or log config is required"
 type DatadogInstrumentationCheckConfig struct {
 	// Integration is the Datadog integration name, for example redisdb.
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:Pattern=`^\S.*`
 	Integration string `json:"integration"`
 
 	// ContainerImage identifies container image names this check applies to.

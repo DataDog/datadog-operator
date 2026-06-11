@@ -81,6 +81,8 @@ spec:
                             x-kubernetes-list-type: atomic
                           integration:
                             description: Integration is the Datadog integration name, for example redisdb.
+                            minLength: 1
+                            pattern: ^\S.*
                             type: string
                           logs:
                             description: Logs contains log collection configuration payloads for this integration.
@@ -157,6 +159,9 @@ spec:
                         required:
                           - integration
                         type: object
+                        x-kubernetes-validations:
+                          - message: at least one instance or log config is required
+                            rule: (has(self.instances) && self.instances.size() > 0) || (has(self.logs) && self.logs.size() > 0)
                       type: array
                       x-kubernetes-list-type: atomic
                   type: object
@@ -179,10 +184,15 @@ spec:
                   x-kubernetes-validations:
                     - message: targetRef is immutable
                       rule: self == oldSelf
+                    - message: targetRef.kind must be one of Deployment, DaemonSet, StatefulSet, CronJob, Job, or Service
+                      rule: self.kind in ['Deployment', 'DaemonSet', 'StatefulSet', 'CronJob', 'Job', 'Service']
               required:
                 - config
                 - targetRef
               type: object
+              x-kubernetes-validations:
+                - message: a container image is required for all checks
+                  rule: self.targetRef.kind == 'Service' || !has(self.config.checks) || self.config.checks.all(c, has(c.containerImage) && c.containerImage.size() > 0)
             status:
               description: DatadogInstrumentationStatus defines the observed state of DatadogInstrumentation.
               properties:

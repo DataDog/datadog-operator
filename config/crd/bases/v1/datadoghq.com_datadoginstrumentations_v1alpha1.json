@@ -51,6 +51,8 @@
                   },
                   "integration": {
                     "description": "Integration is the Datadog integration name, for example redisdb.",
+                    "minLength": 1,
+                    "pattern": "^\\S.*",
                     "type": "string"
                   },
                   "logs": {
@@ -148,7 +150,13 @@
                 "required": [
                   "integration"
                 ],
-                "type": "object"
+                "type": "object",
+                "x-kubernetes-validations": [
+                  {
+                    "message": "at least one instance or log config is required",
+                    "rule": "(has(self.instances) \u0026\u0026 self.instances.size() \u003e 0) || (has(self.logs) \u0026\u0026 self.logs.size() \u003e 0)"
+                  }
+                ]
               },
               "type": "array",
               "x-kubernetes-list-type": "atomic"
@@ -182,6 +190,10 @@
             {
               "message": "targetRef is immutable",
               "rule": "self == oldSelf"
+            },
+            {
+              "message": "targetRef.kind must be one of Deployment, DaemonSet, StatefulSet, CronJob, Job, or Service",
+              "rule": "self.kind in ['Deployment', 'DaemonSet', 'StatefulSet', 'CronJob', 'Job', 'Service']"
             }
           ]
         }
@@ -190,7 +202,13 @@
         "config",
         "targetRef"
       ],
-      "type": "object"
+      "type": "object",
+      "x-kubernetes-validations": [
+        {
+          "message": "a container image is required for all checks",
+          "rule": "self.targetRef.kind == 'Service' || !has(self.config.checks) || self.config.checks.all(c, has(c.containerImage) \u0026\u0026 c.containerImage.size() \u003e 0)"
+        }
+      ]
     },
     "status": {
       "additionalProperties": false,
