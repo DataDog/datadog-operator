@@ -1,8 +1,6 @@
 module github.com/DataDog/datadog-operator/test/e2e
 
-go 1.25.8
-
-toolchain go1.25.11
+go 1.25.11
 
 require (
 	github.com/DataDog/datadog-agent/test/e2e-framework v0.78.0-devel
