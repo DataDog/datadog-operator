@@ -120,7 +120,7 @@ done
 api_go_mod="$ROOT/api/go.mod"
 if [[ -f $api_go_mod ]]; then
     echo "Processing $api_go_mod..."
-    go mod edit -go $new_minor_version $api_go_mod
+    go mod edit -go ${new_minor_version}.0 $api_go_mod
     go mod edit -toolchain go$GOVERSION $api_go_mod
 else
     echo "Warning: $api_go_mod not found, skipping."
