@@ -2,10 +2,12 @@ package evict
 
 import (
 	"fmt"
-	"sort"
+	"maps"
+	"slices"
 	"strings"
 
 	"github.com/fatih/color"
+	"github.com/samber/lo"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/clusterinfo"
@@ -24,13 +26,9 @@ func printPlan(streams genericclioptions.IOStreams, info *clusterinfo.ClusterInf
 		fmt.Fprintln(streams.Out, "  • Create temporary PodDisruptionBudgets (maxUnavailable: 1) for workloads without one")
 	}
 
-	grouped := groupByManager(targets)
-	managers := make([]clusterinfo.NodeManager, 0, len(grouped))
-	for mgr := range grouped {
-		managers = append(managers, mgr)
-	}
-	sort.Slice(managers, func(i, j int) bool { return string(managers[i]) < string(managers[j]) })
-	for _, mgr := range managers {
+	grouped := lo.GroupBy(targets, func(t Target) clusterinfo.NodeManager { return t.Manager })
+	// Sort the manager keys for stable, deterministic output.
+	for _, mgr := range slices.Sorted(maps.Keys(grouped)) {
 		ts := grouped[mgr]
 		fmt.Fprintf(streams.Out, "  • Evict %s entities:\n", mgr)
 		for _, t := range ts {

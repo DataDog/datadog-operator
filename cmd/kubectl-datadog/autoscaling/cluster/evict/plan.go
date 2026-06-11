@@ -10,8 +10,11 @@ package evict
 import (
 	"errors"
 	"fmt"
-	"sort"
+	"maps"
+	"slices"
 	"strings"
+
+	"github.com/samber/lo"
 
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/clusterinfo"
 )
@@ -90,22 +93,17 @@ func buildAllPlan(info *clusterinfo.ClusterInfo) []Target {
 		if !ok {
 			continue
 		}
-		names := make([]string, 0, len(bucket))
-		for name := range bucket {
-			names = append(names, name)
-		}
-		sort.Strings(names)
-		for _, name := range names {
+		targets = append(targets, lo.FilterMap(slices.Sorted(maps.Keys(bucket)), func(name string, _ int) (Target, bool) {
 			entry := bucket[name]
 			if entry.ManagedByDatadog {
-				continue
+				return Target{}, false
 			}
-			targets = append(targets, Target{
+			return Target{
 				Manager: mgr,
 				Entity:  name,
 				Nodes:   append([]string(nil), entry.Nodes...),
-			})
-		}
+			}, true
+		})...)
 	}
 	return targets
 }
@@ -143,17 +141,6 @@ func buildTargetedPlan(info *clusterinfo.ClusterInfo, specs []Target) ([]Target,
 		return nil, errors.Join(errs...)
 	}
 	return targets, nil
-}
-
-// groupByManager bucketizes targets by their NodeManager. Used by the
-// orchestrator to fan out one goroutine per manager type. Stable iteration over
-// the result requires the caller to sort the keys.
-func groupByManager(targets []Target) map[clusterinfo.NodeManager][]Target {
-	out := make(map[clusterinfo.NodeManager][]Target)
-	for _, t := range targets {
-		out[t.Manager] = append(out[t.Manager], t)
-	}
-	return out
 }
 
 // hasDatadogManagedNodePool reports whether the snapshot lists at least one

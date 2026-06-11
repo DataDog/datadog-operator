@@ -182,18 +182,6 @@ func TestBuildPlan(t *testing.T) {
 	}
 }
 
-func TestGroupByManager(t *testing.T) {
-	targets := []Target{
-		{Manager: clusterinfo.NodeManagerASG, Entity: "a"},
-		{Manager: clusterinfo.NodeManagerASG, Entity: "b"},
-		{Manager: clusterinfo.NodeManagerKarpenter, Entity: "k"},
-	}
-	got := groupByManager(targets)
-	require.Len(t, got, 2)
-	assert.Len(t, got[clusterinfo.NodeManagerASG], 2)
-	assert.Len(t, got[clusterinfo.NodeManagerKarpenter], 1)
-}
-
 func TestHasDatadogManagedNodePool(t *testing.T) {
 	for _, tc := range []struct {
 		name string
