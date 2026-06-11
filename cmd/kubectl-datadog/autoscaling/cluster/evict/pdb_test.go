@@ -298,11 +298,29 @@ func TestDiscoverControllers_FiltersByNodeSet(t *testing.T) {
 			},
 		}
 	}
-	mkPod := func(name, ns, nodeName, owningRS string) *corev1.Pod {
+	// mkBareReplicaSet is a ReplicaSet with no owning Deployment — its pods
+	// resolve to the ReplicaSet itself as the top-level controller.
+	mkBareReplicaSet := func(name, ns, appLabel string) *appsv1.ReplicaSet {
+		return &appsv1.ReplicaSet{
+			ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: ns},
+			Spec: appsv1.ReplicaSetSpec{
+				Selector: &metav1.LabelSelector{MatchLabels: map[string]string{"app": appLabel}},
+			},
+		}
+	}
+	mkStatefulSet := func(name, ns, appLabel string) *appsv1.StatefulSet {
+		return &appsv1.StatefulSet{
+			ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: ns},
+			Spec: appsv1.StatefulSetSpec{
+				Selector: &metav1.LabelSelector{MatchLabels: map[string]string{"app": appLabel}},
+			},
+		}
+	}
+	mkPod := func(name, ns, nodeName, ownerKind, ownerName string) *corev1.Pod {
 		return &corev1.Pod{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: name, Namespace: ns,
-				OwnerReferences: []metav1.OwnerReference{{Kind: "ReplicaSet", Name: owningRS, Controller: ptr.To(true)}},
+				OwnerReferences: []metav1.OwnerReference{{Kind: ownerKind, Name: ownerName, Controller: ptr.To(true)}},
 			},
 			Spec: corev1.PodSpec{NodeName: nodeName},
 		}
@@ -312,17 +330,38 @@ func TestDiscoverControllers_FiltersByNodeSet(t *testing.T) {
 		mkDeployment("target-app", "default", "target"),
 		mkReplicaSet("target-app-abc", "default", "target-app"),
 		// two pods of the same Deployment, both on the target node — must dedup.
-		mkPod("target-pod-1", "default", "target-node", "target-app-abc"),
-		mkPod("target-pod-2", "default", "target-node", "target-app-abc"),
+		mkPod("target-pod-1", "default", "target-node", "ReplicaSet", "target-app-abc"),
+		mkPod("target-pod-2", "default", "target-node", "ReplicaSet", "target-app-abc"),
+		// StatefulSet pod on the target node — resolves to the StatefulSet.
+		mkStatefulSet("target-sts", "default", "target-sts"),
+		mkPod("target-sts-0", "default", "target-node", "StatefulSet", "target-sts"),
+		// bare ReplicaSet (no owning Deployment) on the target node — resolves
+		// to the ReplicaSet itself.
+		mkBareReplicaSet("target-bare-rs", "default", "target-bare"),
+		mkPod("target-bare-rs-xyz", "default", "target-node", "ReplicaSet", "target-bare-rs"),
+		// DaemonSet-owned pod on the target node — the default switch arm
+		// returns no controller (DaemonSets get no temporary PDB).
+		mkPod("target-ds-pod", "default", "target-node", "DaemonSet", "target-ds"),
+		// orphan pod (no controller owner) on the target node — ignored.
+		&corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{Name: "target-orphan", Namespace: "default"},
+			Spec:       corev1.PodSpec{NodeName: "target-node"},
+		},
 		// pod on a non-target node, must be ignored.
 		mkDeployment("off-target-app", "default", "off"),
 		mkReplicaSet("off-target-app-def", "default", "off-target-app"),
-		mkPod("off-target-pod", "default", "other-node", "off-target-app-def"),
+		mkPod("off-target-pod", "default", "other-node", "ReplicaSet", "off-target-app-def"),
 	)
 
 	controllers, err := discoverControllers(t.Context(), client, map[string]struct{}{"target-node": {}})
 	require.NoError(t, err)
-	require.Len(t, controllers, 1)
-	assert.Equal(t, "target-app", controllers[0].Name)
-	assert.Equal(t, "Deployment", controllers[0].Kind)
+	got := make(map[string]string, len(controllers)) // name -> kind
+	for _, c := range controllers {
+		got[c.Name] = c.Kind
+	}
+	assert.Equal(t, map[string]string{
+		"target-app":     "Deployment",
+		"target-sts":     "StatefulSet",
+		"target-bare-rs": "ReplicaSet",
+	}, got)
 }
