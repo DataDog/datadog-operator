@@ -188,7 +188,6 @@ func TestHasDatadogManagedNodePool(t *testing.T) {
 		info *clusterinfo.ClusterInfo
 		want bool
 	}{
-		{name: "nil info", info: nil, want: false},
 		{
 			name: "no karpenter bucket",
 			info: &clusterinfo.ClusterInfo{NodeManagement: map[clusterinfo.NodeManager]map[string]clusterinfo.NodeManagerEntry{}},

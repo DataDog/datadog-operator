@@ -101,7 +101,7 @@ func buildAllPlan(info *clusterinfo.ClusterInfo) []Target {
 			return Target{
 				Manager: mgr,
 				Entity:  name,
-				Nodes:   append([]string(nil), entry.Nodes...),
+				Nodes:   entry.Nodes,
 			}, true
 		})...)
 	}
@@ -134,7 +134,7 @@ func buildTargetedPlan(info *clusterinfo.ClusterInfo, specs []Target) ([]Target,
 		targets = append(targets, Target{
 			Manager: t.Manager,
 			Entity:  t.Entity,
-			Nodes:   append([]string(nil), entry.Nodes...),
+			Nodes:   entry.Nodes,
 		})
 	}
 	if len(errs) > 0 {
@@ -148,9 +148,6 @@ func buildTargetedPlan(info *clusterinfo.ClusterInfo, specs []Target) ([]Target,
 // a pre-flight guard: if no destination NodePool exists, scaling legacy
 // capacity to zero would leave the cluster with no working capacity.
 func hasDatadogManagedNodePool(info *clusterinfo.ClusterInfo) bool {
-	if info == nil {
-		return false
-	}
 	for _, entry := range info.NodeManagement[clusterinfo.NodeManagerKarpenter] {
 		if entry.ManagedByDatadog {
 			return true

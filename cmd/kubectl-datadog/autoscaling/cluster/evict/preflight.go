@@ -6,6 +6,7 @@ import (
 	"log"
 
 	"github.com/fatih/color"
+	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -33,12 +34,9 @@ func runPreflightWarnings(ctx context.Context, streams genericclioptions.IOStrea
 // max, freshly evicted pods may be re-scheduled onto a new node from the
 // same user NodePool, defeating the migration.
 func warnKarpenterWeightConflicts(ctx context.Context, streams genericclioptions.IOStreams, ctrlClient client.Client, targets []Target) {
-	var userNPNames []string
-	for _, t := range targets {
-		if t.Manager == clusterinfo.NodeManagerKarpenter {
-			userNPNames = append(userNPNames, t.Entity)
-		}
-	}
+	userNPNames := lo.FilterMap(targets, func(t Target, _ int) (string, bool) {
+		return t.Entity, t.Manager == clusterinfo.NodeManagerKarpenter
+	})
 	if len(userNPNames) == 0 {
 		return
 	}
