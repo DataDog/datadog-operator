@@ -20,21 +20,20 @@ type EC2API interface {
 	TerminateInstances(ctx context.Context, in *ec2.TerminateInstancesInput, opts ...func(*ec2.Options)) (*ec2.TerminateInstancesOutput, error)
 }
 
-// evictStandalone cordons, drains, then terminates every standalone EC2
-// instance (one whose Kubernetes Node has an `aws:///<az>/i-<hex>` providerID
-// but is not in any ASG, EKS managed node group, or Karpenter NodePool).
-// Terminating standalone instances directly is safe: by definition they have
-// no controller that would relaunch them.
+// evictStandalone cordons and drains every standalone EC2 instance (one whose
+// Kubernetes Node has an `aws:///<az>/i-<hex>` providerID but is not in any
+// ASG, EKS managed node group, or Karpenter NodePool), terminating each
+// instance as soon as its node has drained cleanly so the IaaS capacity is
+// freed without waiting for the rest of the group. Terminating standalone
+// instances directly is safe: by definition they have no controller that would
+// relaunch them.
 //
 // Safety rule: an EC2 instance is only terminated when its node was fully
 // drained. If draining failed (PDB-blocked, timeout, etc.), we leave the
 // underlying instance intact — terminating it would kill the still-running
 // pods. A re-run picks up where this one stopped.
 func evictStandalone(ctx context.Context, clientset kubernetes.Interface, ec2API EC2API, nodes []string, drainOpts nodeDrainOptions) error {
-	var (
-		errs               []error
-		drainedInstanceIDs []string
-	)
+	var errs []error
 
 	for _, nodeName := range nodes {
 		node, err := clientset.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{})
@@ -57,25 +56,21 @@ func evictStandalone(ctx context.Context, clientset kubernetes.Interface, ec2API
 			errs = append(errs, fmt.Errorf("drain node %s: %w", nodeName, err))
 			continue // do NOT terminate this instance: workloads are still on it
 		}
-		if hasInstanceID {
-			drainedInstanceIDs = append(drainedInstanceIDs, id)
+		// The node drained cleanly: terminate its instance right away so its
+		// capacity is freed without waiting for the rest of the group.
+		if !hasInstanceID {
+			continue
 		}
-	}
-
-	if drainOpts.DryRun {
-		for _, id := range drainedInstanceIDs {
+		if drainOpts.DryRun {
 			log.Printf("[dry-run] would terminate standalone instance %s", id)
+			continue
 		}
-		return errors.Join(errs...)
-	}
-
-	if len(drainedInstanceIDs) > 0 {
 		if _, err := ec2API.TerminateInstances(ctx, &ec2.TerminateInstancesInput{
-			InstanceIds: drainedInstanceIDs,
+			InstanceIds: []string{id},
 		}); err != nil {
-			errs = append(errs, fmt.Errorf("TerminateInstances: %w", err))
+			errs = append(errs, fmt.Errorf("terminate instance %s: %w", id, err))
 		} else {
-			log.Printf("Terminated %d standalone EC2 instance(s).", len(drainedInstanceIDs))
+			log.Printf("Terminated standalone EC2 instance %s.", id)
 		}
 	}
 	return errors.Join(errs...)

@@ -2,6 +2,7 @@ package evict
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -53,7 +54,9 @@ func TestEvictStandalone(t *testing.T) {
 		installEvictionReactor bool
 		nodes                  []string
 		opts                   nodeDrainOptions
-		wantErr                bool
+		// stubErr, when set, makes every TerminateInstances call fail.
+		stubErr error
+		wantErr bool
 		// wantTerminated is the expected set of instance IDs in
 		// stubEC2.terminated. nil ⇒ TerminateInstances must not be called.
 		wantTerminated []string
@@ -102,13 +105,25 @@ func TestEvictStandalone(t *testing.T) {
 			opts:                   fastDrain,
 			wantErr:                true,
 		},
+		{
+			// A TerminateInstances failure on one node must propagate as an
+			// error yet not stop the loop: every drained node's instance is
+			// still attempted.
+			name:           "terminate failure propagates but loop continues",
+			objects:        []runtime.Object{ec2Node("ip-1", "eu-west-3a", "i-aaa"), ec2Node("ip-2", "eu-west-3b", "i-bbb")},
+			nodes:          []string{"ip-1", "ip-2"},
+			opts:           newDrainOpts(false),
+			stubErr:        errors.New("terminate boom"),
+			wantErr:        true,
+			wantTerminated: []string{"i-aaa", "i-bbb"},
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			client := fake.NewClientset(tc.objects...)
 			if tc.installEvictionReactor {
 				installPodEvictionReactor(client)
 			}
-			stub := &stubEC2{}
+			stub := &stubEC2{err: tc.stubErr}
 
 			err := evictStandalone(t.Context(), client, stub, tc.nodes, tc.opts)
 			if tc.wantErr {
