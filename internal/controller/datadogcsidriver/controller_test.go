@@ -198,7 +198,7 @@ func TestReconcile_APMDisabled(t *testing.T) {
 		Enabled: &apmEnabled,
 	}
 
-	r, c := newTestReconciler(t, instance)
+	r, c := newTestReconciler(t, false, instance)
 	ctx := context.Background()
 
 	// Reconcile twice (finalizer + create)
