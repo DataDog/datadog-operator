@@ -26,6 +26,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogAgentProfile":                                            schema_datadog_operator_api_datadoghq_v1alpha1_DatadogAgentProfile(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogAgentProfileStatus":                                      schema_datadog_operator_api_datadoghq_v1alpha1_DatadogAgentProfileStatus(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogCSIDriver":                                               schema_datadog_operator_api_datadoghq_v1alpha1_DatadogCSIDriver(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogCSIDriverAPMConfig":                                      schema_datadog_operator_api_datadoghq_v1alpha1_DatadogCSIDriverAPMConfig(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogCSIDriverOverride":                                       schema_datadog_operator_api_datadoghq_v1alpha1_DatadogCSIDriverOverride(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogCSIDriverSpec":                                           schema_datadog_operator_api_datadoghq_v1alpha1_DatadogCSIDriverSpec(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogCSIDriverStatus":                                         schema_datadog_operator_api_datadoghq_v1alpha1_DatadogCSIDriverStatus(ref),
@@ -541,6 +542,26 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogCSIDriver(ref common.
 	}
 }
 
+func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogCSIDriverAPMConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "DatadogCSIDriverAPMConfig defines APM/Single Step Instrumentation settings for the CSI driver.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"enabled": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Enabled enables APM/Single Step Instrumentation support for the CSI driver. Default: true",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
 func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogCSIDriverOverride(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -746,6 +767,12 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogCSIDriverSpec(ref com
 							Format:      "",
 						},
 					},
+					"apm": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APM configures APM/Single Step Instrumentation support for the CSI driver.",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogCSIDriverAPMConfig"),
+						},
+					},
 					"override": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Override allows customization of the CSI driver DaemonSet pod template.",
@@ -756,7 +783,7 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogCSIDriverSpec(ref com
 			},
 		},
 		Dependencies: []string{
-			"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogCSIDriverOverride", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.AgentImageConfig"},
+			"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogCSIDriverAPMConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogCSIDriverOverride", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.AgentImageConfig"},
 	}
 }
 
