@@ -21,11 +21,13 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/experimental"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/global"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/override"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 func (r *Reconciler) generateDDAIFromDDA(dda *v2alpha1.DatadogAgent) (*v1alpha1.DatadogAgentInternal, error) {
@@ -52,6 +54,17 @@ func generateObjMetaFromDDA(dda *v2alpha1.DatadogAgent, ddai *v1alpha1.DatadogAg
 	// Moreover, the applied configuration is the one for DDA, not DDAI, so it doesn't make sense.
 	ddaiAnnotations := maps.Clone(dda.Annotations)
 	delete(ddaiAnnotations, "kubectl.kubernetes.io/last-applied-configuration")
+
+	// Resolve the provider from the DDA annotations and stamp it on the DDAI so the
+	// DDAI reconciler picks it up. GKE Autopilot is enabled via either the experimental
+	// opt-in annotation or the provider annotation; map both to the gke-autopilot
+	// provider string. The provider annotation is otherwise propagated as-is by the clone.
+	if experimental.IsAutopilotEnabled(dda) {
+		if ddaiAnnotations == nil {
+			ddaiAnnotations = map[string]string{}
+		}
+		ddaiAnnotations[kubernetes.ProviderAnnotationKey] = kubernetes.GKEAutopilotProvider
+	}
 
 	ddai.ObjectMeta = metav1.ObjectMeta{
 		Name:        dda.Name,

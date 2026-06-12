@@ -1167,7 +1167,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: 85b78c61fef3893de52f4c61e7da0ab9
+    agent.datadoghq.com/agentspechash: 62a808df4aca679a81bcd71d489c8865
   labels:
     agent.datadoghq.com/component: agent
     agent.datadoghq.com/name: datadog-agent
@@ -1232,8 +1232,6 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: status.hostIP
-        - name: DD_HOSTNAME_FILE
-          value: /var/lib/cloud/data/instance-id
         - name: DD_CLUSTER_NAME
           value: test-cluster
         - name: DD_SITE
@@ -1259,6 +1257,8 @@ spec:
           value: "false"
         - name: DD_CRI_SOCKET_PATH
           value: /host/var/run/containerd/containerd.sock
+        - name: DD_HOSTNAME_FILE
+          value: /var/lib/cloud/data/instance-id
         - name: DD_LANGUAGE_DETECTION_REPORTING_ENABLED
           value: "false"
         - name: DD_EXTRA_CONFIG_PROVIDERS
@@ -1418,8 +1418,6 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: status.hostIP
-        - name: DD_HOSTNAME_FILE
-          value: /var/lib/cloud/data/instance-id
         - name: DD_CLUSTER_NAME
           value: test-cluster
         - name: DD_SITE
@@ -1445,6 +1443,8 @@ spec:
           value: "false"
         - name: DD_CRI_SOCKET_PATH
           value: /host/var/run/containerd/containerd.sock
+        - name: DD_HOSTNAME_FILE
+          value: /var/lib/cloud/data/instance-id
         - name: DD_APM_ENABLED
           value: "true"
         - name: DD_APM_NON_LOCAL_TRAFFIC
@@ -1517,8 +1517,6 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: status.hostIP
-        - name: DD_HOSTNAME_FILE
-          value: /var/lib/cloud/data/instance-id
         - name: DD_CLUSTER_NAME
           value: test-cluster
         - name: DD_SITE
@@ -1544,6 +1542,8 @@ spec:
           value: "false"
         - name: DD_CRI_SOCKET_PATH
           value: /host/var/run/containerd/containerd.sock
+        - name: DD_HOSTNAME_FILE
+          value: /var/lib/cloud/data/instance-id
         - name: DD_DOGSTATSD_SOCKET
           value: /var/run/datadog/dsd.socket
         - name: DD_SYSTEM_PROBE_CONFIG_ENABLE_OOM_KILL

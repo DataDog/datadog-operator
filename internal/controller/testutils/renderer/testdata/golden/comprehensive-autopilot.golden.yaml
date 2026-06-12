@@ -1018,6 +1018,7 @@ kind: DatadogAgentInternal
 metadata:
   annotations:
     agent.datadoghq.com/ddaispechash: 948422f2156abec1b0120dc8b6b8454c
+    datadoghq.com/provider: gke-autopilot
     experimental.agent.datadoghq.com/autopilot: "true"
   finalizers:
   - finalizer.datadoghq.com/datadogagentinternal
@@ -1177,7 +1178,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: 5bbb58eba48600826a32f70892f63298
+    agent.datadoghq.com/agentspechash: 14e77a6066c335e47a1ab60ec68c6cbc
   labels:
     admission.datadoghq.com/enabled: "false"
     agent.datadoghq.com/component: agent
@@ -1267,6 +1268,10 @@ spec:
           value: "false"
         - name: DD_CRI_SOCKET_PATH
           value: /host/var/run/containerd/containerd.sock
+        - name: DD_KUBELET_USE_API_SERVER
+          value: "true"
+        - name: DD_CLOUD_PROVIDER_METADATA
+          value: '["gcp"]'
         - name: DD_LANGUAGE_DETECTION_REPORTING_ENABLED
           value: "false"
         - name: DD_EXTRA_CONFIG_PROVIDERS
@@ -1309,10 +1314,6 @@ spec:
           value: "true"
         - name: DD_SYSTEM_PROBE_CONFIG_ENABLE_TCP_QUEUE_LENGTH
           value: "true"
-        - name: DD_KUBELET_USE_API_SERVER
-          value: "true"
-        - name: DD_CLOUD_PROVIDER_METADATA
-          value: '["gcp"]'
         image: gcr.io/datadoghq/agent:7.79.2
         livenessProbe:
           failureThreshold: 6
@@ -1442,6 +1443,10 @@ spec:
           value: "false"
         - name: DD_CRI_SOCKET_PATH
           value: /host/var/run/containerd/containerd.sock
+        - name: DD_KUBELET_USE_API_SERVER
+          value: "true"
+        - name: DD_CLOUD_PROVIDER_METADATA
+          value: '["gcp"]'
         - name: DD_APM_ENABLED
           value: "true"
         - name: DD_APM_NON_LOCAL_TRAFFIC
@@ -1450,10 +1455,6 @@ spec:
           value: "8126"
         - name: DD_REMOTE_CONFIGURATION_ENABLED
           value: "true"
-        - name: DD_KUBELET_USE_API_SERVER
-          value: "true"
-        - name: DD_CLOUD_PROVIDER_METADATA
-          value: '["gcp"]'
         image: gcr.io/datadoghq/agent:7.79.2
         livenessProbe:
           initialDelaySeconds: 15
@@ -1520,6 +1521,10 @@ spec:
           value: "false"
         - name: DD_CRI_SOCKET_PATH
           value: /host/var/run/containerd/containerd.sock
+        - name: DD_KUBELET_USE_API_SERVER
+          value: "true"
+        - name: DD_CLOUD_PROVIDER_METADATA
+          value: '["gcp"]'
         - name: DD_SYSTEM_PROBE_CONFIG_ENABLE_OOM_KILL
           value: "true"
         - name: DD_SYSPROBE_SOCKET
@@ -1532,10 +1537,6 @@ spec:
           value: "true"
         - name: DD_SYSTEM_PROBE_CONFIG_ENABLE_TCP_QUEUE_LENGTH
           value: "true"
-        - name: DD_KUBELET_USE_API_SERVER
-          value: "true"
-        - name: DD_CLOUD_PROVIDER_METADATA
-          value: '["gcp"]'
         image: gcr.io/datadoghq/agent:7.79.2
         name: system-probe
         resources: {}

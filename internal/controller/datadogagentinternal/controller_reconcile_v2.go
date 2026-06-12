@@ -100,7 +100,9 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, instance *v1alpha1
 		}
 	}
 
-	// 2.b. Node Agent
+	// 2.b. Node Agent. The provider is resolved by the DDA controller and stamped on
+	// the DDAI's provider annotation (including gke-autopilot for both the OOTB and
+	// experimental opt-in paths), so it is read verbatim here.
 	provider := instance.GetAnnotations()[kubernetes.ProviderAnnotationKey]
 	result, err = r.reconcileV2Agent(ctx, requiredComponents, append(configuredFeatures, enabledFeatures...), instance, resourceManagers, newStatus, provider)
 	if utils.ShouldReturn(result, err) {

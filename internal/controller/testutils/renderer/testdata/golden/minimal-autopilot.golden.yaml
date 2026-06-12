@@ -1018,6 +1018,7 @@ kind: DatadogAgentInternal
 metadata:
   annotations:
     agent.datadoghq.com/ddaispechash: d32d3ca2ec26a993fed2b5efe7acb197
+    datadoghq.com/provider: gke-autopilot
     experimental.agent.datadoghq.com/autopilot: "true"
   finalizers:
   - finalizer.datadoghq.com/datadogagentinternal
@@ -1170,7 +1171,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: 611de39efc4c4362861b876939b9e52f
+    agent.datadoghq.com/agentspechash: 594c11e34f852b5e186cd2957bded908
   labels:
     admission.datadoghq.com/enabled: "false"
     agent.datadoghq.com/component: agent
@@ -1258,6 +1259,10 @@ spec:
               name: datadog-agent-token
         - name: DD_KUBELET_TLS_VERIFY
           value: "false"
+        - name: DD_KUBELET_USE_API_SERVER
+          value: "true"
+        - name: DD_CLOUD_PROVIDER_METADATA
+          value: '["gcp"]'
         - name: DD_LANGUAGE_DETECTION_REPORTING_ENABLED
           value: "false"
         - name: DD_EXTRA_CONFIG_PROVIDERS
@@ -1284,10 +1289,6 @@ spec:
           value: "true"
         - name: DD_SYSPROBE_SOCKET
           value: /var/run/sysprobe/sysprobe.sock
-        - name: DD_KUBELET_USE_API_SERVER
-          value: "true"
-        - name: DD_CLOUD_PROVIDER_METADATA
-          value: '["gcp"]'
         image: gcr.io/datadoghq/agent:7.79.2
         livenessProbe:
           failureThreshold: 6
@@ -1406,6 +1407,10 @@ spec:
               name: datadog-agent-token
         - name: DD_KUBELET_TLS_VERIFY
           value: "false"
+        - name: DD_KUBELET_USE_API_SERVER
+          value: "true"
+        - name: DD_CLOUD_PROVIDER_METADATA
+          value: '["gcp"]'
         - name: DD_APM_ENABLED
           value: "true"
         - name: DD_APM_NON_LOCAL_TRAFFIC
@@ -1414,10 +1419,6 @@ spec:
           value: "8126"
         - name: DD_REMOTE_CONFIGURATION_ENABLED
           value: "true"
-        - name: DD_KUBELET_USE_API_SERVER
-          value: "true"
-        - name: DD_CLOUD_PROVIDER_METADATA
-          value: '["gcp"]'
         image: gcr.io/datadoghq/agent:7.79.2
         livenessProbe:
           initialDelaySeconds: 15
@@ -1482,6 +1483,10 @@ spec:
               name: datadog-agent-token
         - name: DD_KUBELET_TLS_VERIFY
           value: "false"
+        - name: DD_KUBELET_USE_API_SERVER
+          value: "true"
+        - name: DD_CLOUD_PROVIDER_METADATA
+          value: '["gcp"]'
         - name: DD_REMOTE_CONFIGURATION_ENABLED
           value: "true"
         - name: DD_DISCOVERY_ENABLED
@@ -1490,10 +1495,6 @@ spec:
           value: "true"
         - name: DD_SYSPROBE_SOCKET
           value: /var/run/sysprobe/sysprobe.sock
-        - name: DD_KUBELET_USE_API_SERVER
-          value: "true"
-        - name: DD_CLOUD_PROVIDER_METADATA
-          value: '["gcp"]'
         image: gcr.io/datadoghq/agent:7.79.2
         name: system-probe
         resources: {}
