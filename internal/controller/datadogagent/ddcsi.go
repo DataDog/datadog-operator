@@ -24,6 +24,7 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/experimental"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 )
 
@@ -178,6 +179,8 @@ func (r *Reconciler) createOrUpdateDatadogCSIDriver(ctx context.Context, logger 
 			return nil
 		}
 
+		experimental.CreateDatadogCSIAllowlistSynchronizer(instance)
+
 		logger.Info("Creating DatadogCSIDriver", "name", desired.Name, "namespace", desired.Namespace)
 		if err := r.client.Create(ctx, desired); err != nil {
 			return fmt.Errorf("failed to create DatadogCSIDriver %s/%s: %w", desired.Namespace, desired.Name, err)
@@ -192,6 +195,8 @@ func (r *Reconciler) createOrUpdateDatadogCSIDriver(ctx context.Context, logger 
 		logger.V(1).Info("DatadogCSIDriver exists but is not owned by this DatadogAgent, skipping update", "name", existing.Name, "namespace", existing.Namespace)
 		return nil
 	}
+
+	experimental.CreateDatadogCSIAllowlistSynchronizer(instance)
 
 	// Update if the spec has drifted from the desired state.
 	//
