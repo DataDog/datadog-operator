@@ -344,6 +344,39 @@ func TestPodTemplateSpec(t *testing.T) {
 			},
 		},
 		{
+			name: "image override does not rewrite host-profiler-seccomp-setup init container",
+			existingManager: func() *fake.PodTemplateManagers {
+				manager := fake.NewPodTemplateManagers(t, v1.PodTemplateSpec{
+					Spec: v1.PodSpec{
+						Containers: []v1.Container{
+							{Name: string(apicommon.CoreAgentContainerName), Image: "agent:old"},
+							{Name: string(apicommon.HostProfiler), Image: "profiler:old"},
+						},
+						InitContainers: []v1.Container{
+							{Name: string(apicommon.InitVolumeContainerName), Image: "agent:old"},
+							{Name: string(apicommon.HostProfilerSeccompSetupContainerName), Image: "profiler:old"},
+						},
+					},
+				})
+				return manager
+			},
+			override: v2alpha1.DatadogAgentComponentOverride{
+				Image: &v2alpha1.AgentImageConfig{Name: "agent", Tag: "new"},
+			},
+			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
+				for _, c := range manager.PodTemplateSpec().Spec.Containers {
+					assert.NotEqual(t, "profiler:old", c.Image, "container %s image should have been overridden", c.Name)
+				}
+				for _, c := range manager.PodTemplateSpec().Spec.InitContainers {
+					if c.Name == string(apicommon.HostProfilerSeccompSetupContainerName) {
+						assert.Equal(t, "profiler:old", c.Image, "host-profiler-seccomp-setup image must not be overridden")
+					} else {
+						assert.NotEqual(t, "profiler:old", c.Image, "init container %s image should have been overridden", c.Name)
+					}
+				}
+			},
+		},
+		{
 			name: "add envs",
 			existingManager: func() *fake.PodTemplateManagers {
 				manager := fake.NewPodTemplateManagers(t, v1.PodTemplateSpec{})

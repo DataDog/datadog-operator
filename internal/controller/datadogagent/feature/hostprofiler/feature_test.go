@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
@@ -159,7 +158,6 @@ func TestResolveHostProfilerImage(t *testing.T) {
 	tests := []struct {
 		name        string
 		annotations map[string]string
-		ddaSpec     *v2alpha1.DatadogAgentSpec
 		want        string
 	}{
 		{
@@ -206,32 +204,11 @@ func TestResolveHostProfilerImage(t *testing.T) {
 			},
 			want: "",
 		},
-		{
-			name: "spec.override.nodeAgent.image",
-			ddaSpec: &v2alpha1.DatadogAgentSpec{
-				Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
-					v2alpha1.NodeAgentComponentName: {Image: &v2alpha1.AgentImageConfig{Name: "gcr.io/x/agent", Tag: "7.99.0"}},
-				},
-			},
-			want: "gcr.io/x/agent:7.99.0",
-		},
-		{
-			name: "experimental annotation takes precedence over spec.override.nodeAgent.image",
-			annotations: map[string]string{
-				"experimental.agent.datadoghq.com/image-override-config": `{"host-profiler":{"name":"gcr.io/x/host-profiler:v2"}}`,
-			},
-			ddaSpec: &v2alpha1.DatadogAgentSpec{
-				Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
-					v2alpha1.NodeAgentComponentName: {Image: &v2alpha1.AgentImageConfig{Tag: "7.99.0"}},
-				},
-			},
-			want: "gcr.io/x/host-profiler:v2",
-		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			dda := &metav1.ObjectMeta{Annotations: tt.annotations}
-			assert.Equal(t, tt.want, resolveHostProfilerImage(dda, tt.ddaSpec))
+			assert.Equal(t, tt.want, resolveHostProfilerImage(dda, nil))
 		})
 	}
 }

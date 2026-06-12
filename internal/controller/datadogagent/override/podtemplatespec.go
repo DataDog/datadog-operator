@@ -83,6 +83,11 @@ func PodTemplateSpec(logger logr.Logger, manager feature.PodTemplateManagers, ov
 		}
 
 		for i, initContainer := range manager.PodTemplateSpec().Spec.InitContainers {
+			// host-profiler-seccomp-setup copies a seccomp profile JSON baked into the profiler image, not the agent image
+			// until the profiler is bundled in the agent.
+			if apicommon.AgentContainerName(initContainer.Name) == apicommon.HostProfilerSeccompSetupContainerName {
+				continue
+			}
 			manager.PodTemplateSpec().Spec.InitContainers[i].Image = images.OverrideAgentImage(initContainer.Image, override.Image)
 			if override.Image.PullPolicy != nil {
 				manager.PodTemplateSpec().Spec.InitContainers[i].ImagePullPolicy = *override.Image.PullPolicy

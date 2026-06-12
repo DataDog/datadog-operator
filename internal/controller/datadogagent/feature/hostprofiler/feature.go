@@ -192,10 +192,11 @@ func (o *hostProfilerFeature) ManageOtelAgentGateway(managers feature.PodTemplat
 }
 
 // resolveHostProfilerImage returns the host-profiler image to use for the seccomp init container
-// and profile name. Both override sources are applied after ManageNodeAgent runs, so we read them
-// during Configure instead. Priority: experimental annotation > spec.override.nodeAgent.image > "".
-func resolveHostProfilerImage(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec) string {
-	// 1. Experimental per-container image override annotation.
+// and profile name when a host-profiler-specific image override is set via the experimental
+// per-container annotation. Returns "" otherwise, causing ManageNodeAgent to fall back to the
+// host-profiler container's own image (which is the correct until the host profiler's seccomp gets bundled in the
+// Agent image).
+func resolveHostProfilerImage(dda metav1.Object, _ *v2alpha1.DatadogAgentSpec) string {
 	if annotations := dda.GetAnnotations(); annotations != nil {
 		if raw := annotations["experimental.agent.datadoghq.com/image-override-config"]; raw != "" {
 			var overrides map[string]struct {
@@ -210,17 +211,6 @@ func resolveHostProfilerImage(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentS
 					return o.Name
 				}
 			}
-		}
-	}
-
-	// 2. spec.override.nodeAgent.image — applied to all agent containers including host-profiler.
-	if ddaSpec != nil {
-		if componentOverride, ok := ddaSpec.Override[v2alpha1.NodeAgentComponentName]; ok && componentOverride.Image != nil {
-			img := componentOverride.Image
-			if img.Name != "" && img.Tag != "" && !strings.Contains(img.Name, ":") {
-				return img.Name + ":" + img.Tag
-			}
-			return img.Name
 		}
 	}
 
