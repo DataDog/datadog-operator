@@ -21,7 +21,20 @@ import (
 // daemonset WorkloadAllowlist. v1.0.5 includes the system-probe / NPM
 // exemptions required by the NPM feature on GKE Autopilot.
 const DefaultWorkloadAllowlistVersion = "v1.0.5"
+
+// DefaultCSIWorkloadAllowlistVersion is the default version of the Datadog CSI
+// driver daemonset WorkloadAllowlist.
+const DefaultCSIWorkloadAllowlistVersion = "v1.1.0"
+
 const allowlistSynchronizerFieldOwner = "datadog-operator-allowlist-synchronizer"
+
+const (
+	agentAllowlistSynchronizerName = "datadog-synchronizer"
+	agentAllowlistAppNameLabel     = "datadog-allowlist-synchronizer"
+
+	csiAllowlistSynchronizerName = "datadog-csi-synchronizer"
+	csiAllowlistAppNameLabel     = "datadog-csi-allowlist-synchronizer"
+)
 
 var workloadAllowlistVersionRegexp = regexp.MustCompile(`^v\d+\.\d+\.\d+$`)
 
@@ -61,35 +74,63 @@ type AllowlistSynchronizerSpec struct {
 // is non-empty and well-formed, otherwise it falls back to
 // DefaultWorkloadAllowlistVersion (logging the malformed input).
 func resolveWorkloadAllowlistVersion(version string) string {
+	return resolveWorkloadAllowlistVersionWithDefault(version, DefaultWorkloadAllowlistVersion)
+}
+
+func resolveCSIWorkloadAllowlistVersion(version string) string {
+	return resolveWorkloadAllowlistVersionWithDefault(version, DefaultCSIWorkloadAllowlistVersion)
+}
+
+func resolveWorkloadAllowlistVersionWithDefault(version, defaultVersion string) string {
 	if version == "" {
-		return DefaultWorkloadAllowlistVersion
+		return defaultVersion
 	}
 	if !workloadAllowlistVersionRegexp.MatchString(version) {
 		logger.Info("Ignoring malformed WorkloadAllowlist version override, falling back to default",
-			"requested", version, "default", DefaultWorkloadAllowlistVersion)
-		return DefaultWorkloadAllowlistVersion
+			"requested", version, "default", defaultVersion)
+		return defaultVersion
 	}
 	return version
 }
 
 func applyAllowlistSynchronizerResource(k8sClient client.Client, version, partOfLabel string) error {
+	return applyAllowlistSynchronizerResourceForPath(
+		k8sClient,
+		agentAllowlistSynchronizerName,
+		agentAllowlistAppNameLabel,
+		fmt.Sprintf("Datadog/datadog/datadog-datadog-daemonset-exemption-%s.yaml", version),
+		partOfLabel,
+	)
+}
+
+func applyCSIAllowlistSynchronizerResource(k8sClient client.Client, version, partOfLabel string) error {
+	return applyAllowlistSynchronizerResourceForPath(
+		k8sClient,
+		csiAllowlistSynchronizerName,
+		csiAllowlistAppNameLabel,
+		fmt.Sprintf("Datadog/datadog-csi-driver/datadog-datadog-csi-driver-daemonset-exemption-%s.yaml", version),
+		partOfLabel,
+	)
+}
+
+func applyAllowlistSynchronizerResourceForPath(k8sClient client.Client, name, appNameLabel, allowlistPath, partOfLabel string) error {
 	obj := &AllowlistSynchronizer{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: SchemeGroupVersion.String(),
 			Kind:       "AllowlistSynchronizer",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "datadog-synchronizer",
+			Name: name,
 			Labels: map[string]string{
 				"app.kubernetes.io/created-by":           "datadog-operator",
 				kubernetes.AppKubernetesManageByLabelKey: "datadog-operator",
-				kubernetes.AppKubernetesNameLabelKey:     "datadog-allowlist-synchronizer",
+				kubernetes.AppKubernetesNameLabelKey:     appNameLabel,
 				kubernetes.AppKubernetesPartOfLabelKey:   partOfLabel,
 			},
 		},
 		Spec: AllowlistSynchronizerSpec{
 			AllowlistPaths: []string{
-				fmt.Sprintf("Datadog/datadog/datadog-datadog-daemonset-exemption-%s.yaml", version),
+				allowlistPath,
 			},
 		},
 	}
@@ -113,6 +154,22 @@ func applyAllowlistSynchronizerResource(k8sClient client.Client, version, partOf
 func CreateAllowlistSynchronizer(version, partOfLabel string) {
 	resolvedVersion := resolveWorkloadAllowlistVersion(version)
 
+	createAllowlistSynchronizer(resolvedVersion, partOfLabel, applyAllowlistSynchronizerResource)
+}
+
+// CreateCSIAllowlistSynchronizer creates a GKE AllowlistSynchronizer Custom Resource (auto.gke.io/v1)
+// for the Datadog CSI driver WorkloadAllowlist if it doesn't exist.
+//
+// version selects the Datadog CSI driver WorkloadAllowlist YAML to point at.
+// Pass an empty string to use DefaultCSIWorkloadAllowlistVersion. Malformed
+// versions also fall back to the default.
+func CreateCSIAllowlistSynchronizer(version, partOfLabel string) {
+	resolvedVersion := resolveCSIWorkloadAllowlistVersion(version)
+
+	createAllowlistSynchronizer(resolvedVersion, partOfLabel, applyCSIAllowlistSynchronizerResource)
+}
+
+func createAllowlistSynchronizer(version, partOfLabel string, applyFunc func(client.Client, string, string) error) {
 	cfg, configErr := config.GetConfig()
 	if configErr != nil {
 		logger.Error(configErr, "failed to load kubeconfig")
@@ -131,10 +188,10 @@ func CreateAllowlistSynchronizer(version, partOfLabel string) {
 		return
 	}
 
-	if err := applyAllowlistSynchronizerResource(k8sClient, resolvedVersion, partOfLabel); err != nil {
+	if err := applyFunc(k8sClient, version, partOfLabel); err != nil {
 		logger.Error(err, "failed to apply AllowlistSynchronizer resource")
 		return
 	}
 
-	logger.V(1).Info("Successfully applied AllowlistSynchronizer", "version", resolvedVersion)
+	logger.V(1).Info("Successfully applied AllowlistSynchronizer", "version", version)
 }

@@ -407,3 +407,26 @@ func TestGetAutopilotAllowlistVersionAnnotation(t *testing.T) {
 		})
 	}
 }
+
+func TestGetAutopilotCSIAllowlistVersionAnnotation(t *testing.T) {
+	tests := []struct {
+		name       string
+		annotation string
+		want       string
+	}{
+		{name: "no annotation", annotation: "", want: ""},
+		{name: "explicit override", annotation: "v1.2.3", want: "v1.2.3"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dda := &v2alpha1.DatadogAgent{
+				ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{}},
+			}
+			if tt.annotation != "" {
+				dda.Annotations[getExperimentalAnnotationKey(ExperimentalAutopilotCSIAllowlistVersionSubkey)] = tt.annotation
+			}
+			got := getExperimentalAnnotation(dda, ExperimentalAutopilotCSIAllowlistVersionSubkey)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
