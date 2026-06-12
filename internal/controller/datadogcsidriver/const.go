@@ -14,6 +14,8 @@ const (
 	defaultCSIDriverImageName = "csi-driver"
 	// defaultRegistrarImageName is the default CSI node driver registrar image name
 	defaultRegistrarImageName = "csi-node-driver-registrar"
+	// defaultRegistrarImageRegistry is the default CSI node driver registrar image registry
+	defaultRegistrarImageRegistry = "k8s.gcr.io/sig-storage"
 	// defaultAPMSocketPath is the default host path to the APM socket
 	defaultAPMSocketPath = "/var/run/datadog/apm.socket"
 	// defaultDSDSocketPath is the default host path to the DogStatsD socket
@@ -34,10 +36,10 @@ const (
 	registrationDirPath = "/var/lib/kubelet/plugins_registry"
 	registrarMountPath  = "/registration"
 
-	// Host path templates (used with fmt.Sprintf and the CSI driver name)
-	kubeletPluginsDirFmt = "/var/lib/kubelet/plugins/%s"
-	kubeletStorageDirFmt = "/var/lib/kubelet/plugins/%s/storage"
-	csiSocketPathFmt     = "/var/lib/kubelet/plugins/%s/csi.sock"
+	// Host paths
+	kubeletPluginsDir = "/var/lib/kubelet/plugins/datadog.csi/driver"
+	kubeletStorageDir = "/var/lib/kubelet/plugins/datadog.csi/storage"
+	csiSocketPath     = "/var/lib/kubelet/plugins/datadog.csi/driver/csi.sock"
 
 	// CSI socket path inside the container
 	csiSocketAddress = "/csi/csi.sock"
@@ -53,6 +55,9 @@ const (
 	// Pod labels
 	appLabelKey                     = "app"
 	admissionControllerEnabledLabel = "admission.datadoghq.com/enabled"
+
+	// CSIDriver annotations
+	apmEnabledAnnotationKey = "csi.datadoghq.com/apm-enabled"
 
 	// finalizerName is the finalizer for CSIDriver object cleanup
 	finalizerName = "finalizer.datadoghq.com/csi-driver"
