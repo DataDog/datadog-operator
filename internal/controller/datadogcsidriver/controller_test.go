@@ -26,6 +26,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
@@ -96,9 +97,10 @@ func TestReconcile_CreatesResources(t *testing.T) {
 	err = c.Get(ctx, types.NamespacedName{Name: csiDriverName}, csiDriver)
 	require.NoError(t, err)
 	assert.Equal(t, csiDriverName, csiDriver.Name)
+	assert.Equal(t, "true", csiDriver.Annotations[apmEnabledAnnotationKey])
 	assert.Equal(t, "datadog-operator", csiDriver.Labels[kubernetes.AppKubernetesManageByLabelKey])
-	assert.False(t, *csiDriver.Spec.AttachRequired)
-	assert.True(t, *csiDriver.Spec.PodInfoOnMount)
+	assert.Nil(t, csiDriver.Spec.AttachRequired)
+	assert.Nil(t, csiDriver.Spec.PodInfoOnMount)
 	assert.Contains(t, csiDriver.Spec.VolumeLifecycleModes, storagev1.VolumeLifecyclePersistent)
 	assert.Contains(t, csiDriver.Spec.VolumeLifecycleModes, storagev1.VolumeLifecycleEphemeral)
 
@@ -115,21 +117,31 @@ func TestReconcile_CreatesResources(t *testing.T) {
 	csiContainer := ds.Spec.Template.Spec.Containers[0]
 	assert.Equal(t, v1alpha1.CSINodeDriverContainerName, csiContainer.Name)
 	assert.Equal(t, fmt.Sprintf("%s/%s:%s", images.GCRContainerRegistry, defaultCSIDriverImageName, images.CSILatestImageVersion), csiContainer.Image)
+	assert.Contains(t, csiContainer.Env, corev1.EnvVar{
+		Name:  constants.DDAPMEnabled,
+		Value: "true",
+	})
 
 	registrarContainer := ds.Spec.Template.Spec.Containers[1]
 	assert.Equal(t, v1alpha1.CSINodeDriverRegistrarContainerName, registrarContainer.Name)
-	assert.Equal(t, fmt.Sprintf("%s/%s:%s", images.SIGStorageRegistry, defaultRegistrarImageName, images.DefaultRegistrarImageVersion), registrarContainer.Image)
+	assert.Equal(t, fmt.Sprintf("%s/%s:%s", defaultRegistrarImageRegistry, defaultRegistrarImageName, images.DefaultRegistrarImageVersion), registrarContainer.Image)
+	assert.Contains(t, registrarContainer.Env, corev1.EnvVar{
+		Name:  envDriverRegSock,
+		Value: csiSocketPath,
+	})
 
 	// Verify volumes exist
-	volumeNames := make([]string, 0, len(ds.Spec.Template.Spec.Volumes))
+	volumesByName := make(map[string]corev1.Volume, len(ds.Spec.Template.Spec.Volumes))
 	for _, v := range ds.Spec.Template.Spec.Volumes {
-		volumeNames = append(volumeNames, v.Name)
+		volumesByName[v.Name] = v
 	}
-	assert.Contains(t, volumeNames, pluginDirVolumeName)
-	assert.Contains(t, volumeNames, storageDirVolumeName)
-	assert.Contains(t, volumeNames, registrationDirVolumeName)
-	assert.Contains(t, volumeNames, mountpointDirVolumeName)
-	assert.Contains(t, volumeNames, apmSocketVolumeName)
+	assert.Contains(t, volumesByName, pluginDirVolumeName)
+	assert.Contains(t, volumesByName, storageDirVolumeName)
+	assert.Contains(t, volumesByName, registrationDirVolumeName)
+	assert.Contains(t, volumesByName, mountpointDirVolumeName)
+	assert.Contains(t, volumesByName, apmSocketVolumeName)
+	assert.Equal(t, kubeletPluginsDir, volumesByName[pluginDirVolumeName].HostPath.Path)
+	assert.Equal(t, kubeletStorageDir, volumesByName[storageDirVolumeName].HostPath.Path)
 
 	// Verify status was updated
 	err = c.Get(ctx, types.NamespacedName{Name: testName, Namespace: testNamespace}, instance)
@@ -177,6 +189,39 @@ func TestReconcile_CustomSocketPaths(t *testing.T) {
 		volumeNames = append(volumeNames, v.Name)
 	}
 	assert.Contains(t, volumeNames, dsdSocketVolumeName)
+}
+
+func TestReconcile_APMDisabled(t *testing.T) {
+	apmEnabled := false
+	instance := defaultCSIDriverCR()
+	instance.Spec.APM = &v1alpha1.DatadogCSIDriverAPMConfig{
+		Enabled: &apmEnabled,
+	}
+
+	r, c := newTestReconciler(t, instance)
+	ctx := context.Background()
+
+	// Reconcile twice (finalizer + create)
+	_, err := r.Reconcile(ctx, instance)
+	require.NoError(t, err)
+	err = c.Get(ctx, types.NamespacedName{Name: testName, Namespace: testNamespace}, instance)
+	require.NoError(t, err)
+	_, err = r.Reconcile(ctx, instance)
+	require.NoError(t, err)
+
+	csiDriver := &storagev1.CSIDriver{}
+	err = c.Get(ctx, types.NamespacedName{Name: csiDriverName}, csiDriver)
+	require.NoError(t, err)
+	assert.Equal(t, "false", csiDriver.Annotations[apmEnabledAnnotationKey])
+
+	ds := &appsv1.DaemonSet{}
+	err = c.Get(ctx, types.NamespacedName{Name: csiDsName, Namespace: testNamespace}, ds)
+	require.NoError(t, err)
+	require.Len(t, ds.Spec.Template.Spec.Containers, 2)
+	assert.Contains(t, ds.Spec.Template.Spec.Containers[0].Env, corev1.EnvVar{
+		Name:  constants.DDAPMEnabled,
+		Value: "false",
+	})
 }
 
 func TestReconcile_Deletion(t *testing.T) {
@@ -333,9 +378,10 @@ func TestReconcile_CSIDriverLabelsAdoption(t *testing.T) {
 	err = c.Get(ctx, types.NamespacedName{Name: csiDriverName}, csiDriver)
 	require.NoError(t, err)
 	assert.Equal(t, "datadog-operator", csiDriver.Labels[kubernetes.AppKubernetesManageByLabelKey])
+	assert.Equal(t, "true", csiDriver.Annotations[apmEnabledAnnotationKey])
 	assert.NotEmpty(t, csiDriver.Labels[kubernetes.AppKubernetesPartOfLabelKey])
-	assert.False(t, *csiDriver.Spec.AttachRequired)
-	assert.True(t, *csiDriver.Spec.PodInfoOnMount)
+	assert.Nil(t, csiDriver.Spec.AttachRequired)
+	assert.Nil(t, csiDriver.Spec.PodInfoOnMount)
 	assert.Contains(t, csiDriver.Spec.VolumeLifecycleModes, storagev1.VolumeLifecyclePersistent)
 	assert.Contains(t, csiDriver.Spec.VolumeLifecycleModes, storagev1.VolumeLifecycleEphemeral)
 }
@@ -470,6 +516,7 @@ func TestReconcile_CSIDriverSpecDriftIsReconciled(t *testing.T) {
 	csiDriver.Spec.AttachRequired = ptr.To(true)
 	csiDriver.Spec.PodInfoOnMount = ptr.To(false)
 	csiDriver.Spec.VolumeLifecycleModes = []storagev1.VolumeLifecycleMode{storagev1.VolumeLifecyclePersistent}
+	csiDriver.Annotations = nil
 	err = c.Update(ctx, csiDriver)
 	require.NoError(t, err)
 
@@ -481,10 +528,11 @@ func TestReconcile_CSIDriverSpecDriftIsReconciled(t *testing.T) {
 
 	err = c.Get(ctx, types.NamespacedName{Name: csiDriverName}, csiDriver)
 	require.NoError(t, err)
-	assert.False(t, *csiDriver.Spec.AttachRequired)
-	assert.True(t, *csiDriver.Spec.PodInfoOnMount)
+	assert.Nil(t, csiDriver.Spec.AttachRequired)
+	assert.Nil(t, csiDriver.Spec.PodInfoOnMount)
 	assert.Contains(t, csiDriver.Spec.VolumeLifecycleModes, storagev1.VolumeLifecyclePersistent)
 	assert.Contains(t, csiDriver.Spec.VolumeLifecycleModes, storagev1.VolumeLifecycleEphemeral)
+	assert.Equal(t, "true", csiDriver.Annotations[apmEnabledAnnotationKey])
 }
 
 // findCondition returns the condition with the given type, or nil.

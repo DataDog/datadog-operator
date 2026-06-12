@@ -81,6 +81,8 @@ type DatadogAgentReconciler struct {
 // +kubebuilder:rbac:groups=authorization.k8s.io,resources=subjectaccessreviews,verbs=get;create
 // +kubebuilder:rbac:groups=batch,resources=cronjobs,verbs=get
 // +kubebuilder:rbac:groups=batch,resources=jobs,verbs=get
+// +kubebuilder:rbac:groups=storage.k8s.io,resources=csidrivers,verbs=list;watch
+// +kubebuilder:rbac:groups=storage.k8s.io,resources=csidrivers,resourceNames=k8s.csi.datadoghq.com,verbs=get
 
 // Configure External Metrics server
 // +kubebuilder:rbac:groups=apiregistration.k8s.io,resources=apiservices,verbs=*
