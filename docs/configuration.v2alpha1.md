@@ -156,7 +156,6 @@ spec:
 | features.logCollection.podLogsPath | PodLogsPath allows log collection from a pod log path. Default: `/var/log/pods` |
 | features.logCollection.tempStoragePath | TempStoragePath (always mounted from the host) is used by the Agent to store information about processed log files. If the Agent is restarted, it starts tailing the log files immediately. Default: `/var/lib/datadog-agent/logs` |
 | features.npm.collectDNSStats | CollectDNSStats enables DNS stat collection. Default: false |
-| features.npm.directSend | DirectSend enables CNM/USM to send data directly to the backend Default: false |
 | features.npm.enableConntrack | EnableConntrack enables the system-probe agent to connect to the netlink/conntrack subsystem to add NAT information to connection data. See also: http://conntrack-tools.netfilter.org/ Default: false |
 | features.npm.enabled | Enables Network Performance Monitoring. Default: false |
 | features.oomKill.enabled | Enables the OOMKill eBPF-based check. Default: false |
@@ -205,7 +204,6 @@ spec:
 | features.sbom.host.analyzers | To use for SBOM collection. |
 | features.sbom.host.enabled | Enable this option to activate SBOM collection. Default: false |
 | features.serviceDiscovery.enabled | Enables the service discovery check. Default: true when omitted and the node Agent image is >= 7.78.0. Otherwise false. If the image version cannot be determined, it is treated as latest. |
-| features.serviceDiscovery.networkStats.enabled | DEPRECATED: this field is ignored. |
 | features.tcpQueueLength.enabled | Enables the TCP queue length eBPF-based check. Default: false |
 | features.usm.enabled | Enables Universal Service Monitoring. Default: false |
 | global.checksTagCardinality | ChecksTagCardinality configures tag cardinality for the metrics collected by integrations (`low`, `orchestrator` or `high`). See also: https://docs.datadoghq.com/getting_started/tagging/assigning_tags/?tab=containerizedenvironments#tags-cardinality. Not set by default to avoid overriding existing DD_CHECKS_TAG_CARDINALITY configurations, the default value in the Agent is low. Ref: https://github.com/DataDog/datadog-agent/blob/856cf4a66142ce91fd4f8a278149436eb971184a/pkg/config/setup/config.go#L625. |

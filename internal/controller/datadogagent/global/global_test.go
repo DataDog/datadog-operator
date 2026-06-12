@@ -30,8 +30,10 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/yaml"
 )
 
 const (
@@ -493,7 +495,7 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 				ddaName,
 				ddaNamespace,
 				testutils.NewDatadogAgentBuilder().
-					WithGlobalSecretBackendType("k8s.secrets", map[string]string{"token_path": "/custom/token"}).
+					WithGlobalSecretBackendType("k8s.secrets", map[string]apiextensionsv1.JSON{"token_path": {Raw: []byte(`"/custom/token"`)}}).
 					WithCredentials("apiKey", "appKey").
 					BuildWithDefaults(),
 			),
@@ -547,6 +549,74 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 				{
 					Name:  DDSecretBackendConfig,
 					Value: `{"token_path":"/custom/token"}`,
+				},
+			}...),
+			wantCoreAgentVolumeMounts: getExpectedVolumeMounts(),
+			wantVolumeMounts:          getExpectedVolumeMounts(),
+			wantVolumes:               getExpectedVolumes(),
+			want:                      assertAll,
+		},
+		{
+			name:                           "Secret backend - type-based config with nested object value",
+			singleContainerStrategyEnabled: false,
+			dda: addNameNamespaceToDDA(
+				ddaName,
+				ddaNamespace,
+				testutils.NewDatadogAgentBuilder().
+					WithGlobalSecretBackendType("gcp.secretmanager", map[string]apiextensionsv1.JSON{"gcp_session": {Raw: []byte(`{"project_id":"my-project"}`)}}).
+					WithCredentials("apiKey", "appKey").
+					BuildWithDefaults(),
+			),
+			wantCoreAgentEnvVars: nil,
+			wantEnvVars: getExpectedEnvVars([]*corev1.EnvVar{
+				{
+					Name: constants.DDAPIKey,
+					ValueFrom: &corev1.EnvVarSource{
+						SecretKeyRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: "datadog-secret",
+							},
+							Key: v2alpha1.DefaultAPIKeyKey,
+						},
+					},
+				},
+				{
+					Name: constants.DDAppKey,
+					ValueFrom: &corev1.EnvVarSource{
+						SecretKeyRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: "datadog-secret",
+							},
+							Key: v2alpha1.DefaultAPPKeyKey,
+						},
+					},
+				},
+				{
+					Name: DDClusterAgentAuthToken,
+					ValueFrom: &corev1.EnvVarSource{
+						SecretKeyRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: "datadog-token",
+							},
+							Key: common.DefaultTokenKey,
+						},
+					},
+				},
+				{
+					Name:  DDSecretBackendCommand,
+					Value: "",
+				},
+				{
+					Name:  DDSecretBackendArguments,
+					Value: "",
+				},
+				{
+					Name:  DDSecretBackendType,
+					Value: "gcp.secretmanager",
+				},
+				{
+					Name:  DDSecretBackendConfig,
+					Value: `{"gcp_session":{"project_id":"my-project"}}`,
 				},
 			}...),
 			wantCoreAgentVolumeMounts: getExpectedVolumeMounts(),
@@ -1392,4 +1462,34 @@ func Test_ValidateFIPSVersions(t *testing.T) {
 			assert.Len(t, errs, tt.wantErrors)
 		})
 	}
+}
+
+// TestSecretBackendConfigNestedDecode decodes secretBackend.config the way the API
+// server does. It is a regression test for the bug where the field was map[string]string
+// and could not represent the nested objects (e.g. gcp_session) the Agent requires.
+func TestSecretBackendConfigNestedDecode(t *testing.T) {
+	manifest := []byte(`
+type: gcp.secretmanager
+config:
+  gcp_session:
+    project_id: my-project
+  token_path: /custom/token
+`)
+
+	var cfg v2alpha1.SecretBackendConfig
+	if err := yaml.Unmarshal(manifest, &cfg); err != nil {
+		t.Fatalf("decoding nested secretBackend.config failed (the map[string]string regression): %v", err)
+	}
+
+	if assert.NotNil(t, cfg.Type) {
+		assert.Equal(t, "gcp.secretmanager", *cfg.Type)
+	}
+
+	gcpSession, ok := cfg.Config["gcp_session"]
+	assert.True(t, ok, "gcp_session key should be present")
+	assert.JSONEq(t, `{"project_id":"my-project"}`, string(gcpSession.Raw))
+
+	tokenPath, ok := cfg.Config["token_path"]
+	assert.True(t, ok, "token_path key should be present")
+	assert.JSONEq(t, `"/custom/token"`, string(tokenPath.Raw))
 }

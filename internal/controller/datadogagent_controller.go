@@ -81,6 +81,8 @@ type DatadogAgentReconciler struct {
 // +kubebuilder:rbac:groups=authorization.k8s.io,resources=subjectaccessreviews,verbs=get;create
 // +kubebuilder:rbac:groups=batch,resources=cronjobs,verbs=get
 // +kubebuilder:rbac:groups=batch,resources=jobs,verbs=get
+// +kubebuilder:rbac:groups=storage.k8s.io,resources=csidrivers,verbs=list;watch
+// +kubebuilder:rbac:groups=storage.k8s.io,resources=csidrivers,resourceNames=k8s.csi.datadoghq.com,verbs=get
 
 // Configure External Metrics server
 // +kubebuilder:rbac:groups=apiregistration.k8s.io,resources=apiservices,verbs=*
@@ -123,7 +125,7 @@ type DatadogAgentReconciler struct {
 // +kubebuilder:rbac:groups=networking.k8s.io,resources=ingressclasses,verbs=get;list;watch
 // +kubebuilder:rbac:groups=gateway.networking.k8s.io,resources=gateways;gatewayclasses;httproutes,verbs=get;list;watch;patch
 // +kubebuilder:rbac:groups=gateway.networking.k8s.io,resources=referencegrants,verbs=get;delete;create;patch
-// +kubebuilder:rbac:groups=gateway.envoyproxy.io,resources=envoyextensionpolicies;envoypatchpolicies;backend,verbs=get;delete;create
+// +kubebuilder:rbac:groups=gateway.envoyproxy.io,resources=envoyextensionpolicies;envoypatchpolicies;backends,verbs=get;delete;create
 // +kubebuilder:rbac:groups=networking.istio.io,resources=envoyfilters,verbs=get;create;delete
 // +kubebuilder:rbac:groups=networking.istio.io,resources=gateways,verbs=get;list;watch
 

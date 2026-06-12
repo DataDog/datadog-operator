@@ -19,16 +19,21 @@ const (
 	// ADPDogstatsdDelegationMinVersion is the minimum Agent version that natively disables Core Agent
 	// DogStatsD when data_plane.enabled and data_plane.dogstatsd.enabled are both true. Below this
 	// version the Operator must set DD_USE_DOGSTATSD=false explicitly to avoid a bind conflict.
-	ADPDogstatsdDelegationMinVersion = "7.75.0-0"
-	EnableADPAnnotation              = "agent.datadoghq.com/adp-enabled"
-	EnableFineGrainedKubeletAuthz    = "agent.datadoghq.com/fine-grained-kubelet-authorization-enabled"
-	EnableHostProfilerAnnotation     = "agent.datadoghq.com/host-profiler-enabled"
+	ADPDogstatsdDelegationMinVersion  = "7.75.0-0"
+	EnableADPAnnotation               = "agent.datadoghq.com/adp-enabled"
+	EnableFineGrainedKubeletAuthz     = "agent.datadoghq.com/fine-grained-kubelet-authorization-enabled"
+	EnableHostProfilerAnnotation      = "agent.datadoghq.com/host-profiler-enabled"
+	EnableKSMApiServerCacheAnnotation = "agent.datadoghq.com/ksm-use-apiserver-cache"
+
+	EnableInstrumentationCRDAnnotation = "agent.datadoghq.com/instrumentation-crd-enabled"
 
 	EnableFlightRecorderAnnotation = "agent.datadoghq.com/flightrecorder-enabled"
 	EnableNetworkCRDsAnnotation    = "agent.datadoghq.com/network-crds-enabled"
 
 	EnablePrivateActionRunnerAnnotation     = "agent.datadoghq.com/private-action-runner-enabled"
 	PrivateActionRunnerConfigDataAnnotation = "agent.datadoghq.com/private-action-runner-configdata"
+
+	EnableCNMDirectSendAnnotation = "agent.datadoghq.com/cnm-direct-send-enabled"
 
 	EnableClusterAgentPrivateActionRunnerAnnotation      = "cluster-agent.datadoghq.com/private-action-runner-enabled"
 	ClusterAgentPrivateActionRunnerConfigDataAnnotation  = "cluster-agent.datadoghq.com/private-action-runner-configdata"

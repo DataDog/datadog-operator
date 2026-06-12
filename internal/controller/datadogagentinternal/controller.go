@@ -67,6 +67,7 @@ type ReconcilerOptions struct {
 	ExtendedDaemonsetOptions componentagent.ExtendedDaemonsetOptions
 	SupportCilium            bool
 	OperatorMetricsEnabled   bool
+	UntaintControllerEnabled bool
 }
 
 // Reconciler is the internal reconciler for Datadog Agent

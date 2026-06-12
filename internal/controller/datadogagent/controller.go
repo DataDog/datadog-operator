@@ -42,6 +42,7 @@ import (
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/gpu"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/helmcheck"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/hostprofiler"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/instrumentationcrd"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/kubernetesstatecore"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/livecontainer"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/liveprocess"
@@ -74,6 +75,7 @@ type ReconcilerOptions struct {
 	OperatorMetricsEnabled     bool
 	IntrospectionEnabled       bool
 	DatadogAgentProfileEnabled bool
+	UntaintControllerEnabled   bool
 	DatadogCSIDriverEnabled    bool
 	CreateControllerRevisions  bool
 	// ExperimentTimeout overrides ExperimentDefaultTimeout. Zero means use the default.

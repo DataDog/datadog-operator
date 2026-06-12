@@ -2033,11 +2033,6 @@ spec:
                             CollectDNSStats enables DNS stat collection.
                             Default: false
                           type: boolean
-                        directSend:
-                          description: |-
-                            DirectSend enables CNM/USM to send data directly to the backend
-                            Default: false
-                          type: boolean
                         enableConntrack:
                           description: |-
                             EnableConntrack enables the system-probe agent to connect to the netlink/conntrack subsystem to add NAT information to connection data.
@@ -2548,13 +2543,6 @@ spec:
                             Default: true when omitted and the node Agent image is >= 7.78.0. Otherwise false.
                             If the image version cannot be determined, it is treated as latest.
                           type: boolean
-                        networkStats:
-                          description: 'DEPRECATED: NetworkStats is no longer configurable and will be ignored. Scheduled for removal in v1.28.'
-                          properties:
-                            enabled:
-                              description: 'DEPRECATED: this field is ignored.'
-                              type: boolean
-                          type: object
                       type: object
                     tcpQueueLength:
                       description: TCPQueueLength configuration.
@@ -3626,7 +3614,7 @@ spec:
                           type: string
                         config:
                           additionalProperties:
-                            type: string
+                            x-kubernetes-preserve-unknown-fields: true
                           description: Additional configuration for the secret backend type.
                           type: object
                         enableGlobalPermissions:
@@ -10841,11 +10829,6 @@ spec:
                                 CollectDNSStats enables DNS stat collection.
                                 Default: false
                               type: boolean
-                            directSend:
-                              description: |-
-                                DirectSend enables CNM/USM to send data directly to the backend
-                                Default: false
-                              type: boolean
                             enableConntrack:
                               description: |-
                                 EnableConntrack enables the system-probe agent to connect to the netlink/conntrack subsystem to add NAT information to connection data.
@@ -11356,13 +11339,6 @@ spec:
                                 Default: true when omitted and the node Agent image is >= 7.78.0. Otherwise false.
                                 If the image version cannot be determined, it is treated as latest.
                               type: boolean
-                            networkStats:
-                              description: 'DEPRECATED: NetworkStats is no longer configurable and will be ignored. Scheduled for removal in v1.28.'
-                              properties:
-                                enabled:
-                                  description: 'DEPRECATED: this field is ignored.'
-                                  type: boolean
-                              type: object
                           type: object
                         tcpQueueLength:
                           description: TCPQueueLength configuration.

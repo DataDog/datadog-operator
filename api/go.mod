@@ -9,6 +9,7 @@ require (
 	github.com/google/go-cmp v0.7.0
 	github.com/stretchr/testify v1.11.1
 	k8s.io/api v0.35.3
+	k8s.io/apiextensions-apiserver v0.35.1
 	k8s.io/apimachinery v0.35.3
 	k8s.io/kube-openapi v0.0.0-20251125145642-4e65d59e963e
 	k8s.io/utils v0.0.0-20251222233032-718f0e51e6d2
@@ -49,10 +50,9 @@ require (
 	github.com/x448/float16 v0.8.4 // indirect
 	go.yaml.in/yaml/v2 v2.4.3 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
-	golang.org/x/net v0.50.0 // indirect
+	golang.org/x/net v0.55.0 // indirect
 	golang.org/x/oauth2 v0.34.0 // indirect
-	golang.org/x/sys v0.42.0 // indirect
-	golang.org/x/text v0.35.0 // indirect
+	golang.org/x/text v0.37.0 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect

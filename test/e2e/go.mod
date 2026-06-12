@@ -1,8 +1,6 @@
 module github.com/DataDog/datadog-operator/test/e2e
 
-go 1.25.8
-
-toolchain go1.25.11
+go 1.25.11
 
 require (
 	github.com/DataDog/datadog-agent/test/e2e-framework v0.78.0-devel
@@ -24,6 +22,7 @@ require (
 
 require (
 	github.com/DataDog/datadog-operator v1.24.0
+	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/api v0.36.0-alpha.1
 	k8s.io/cli-runtime v0.35.3
 	k8s.io/utils v0.0.0-20260108192941-914a6e750570
@@ -80,7 +79,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/internal/s3shared v1.19.16 // indirect
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.93.1 // indirect
 	github.com/aws/aws-sdk-go-v2/service/signin v1.0.9 // indirect
-	github.com/aws/aws-sdk-go-v2/service/ssm v1.67.7 // indirect
+	github.com/aws/aws-sdk-go-v2/service/ssm v1.67.8 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sso v1.30.14 // indirect
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.35.18 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sts v1.41.10 // indirect
@@ -266,17 +265,17 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.3 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
-	golang.org/x/crypto v0.48.0 // indirect
+	golang.org/x/crypto v0.51.0 // indirect
 	golang.org/x/exp v0.0.0-20260209203927-2842357ff358 // indirect
-	golang.org/x/mod v0.33.0 // indirect
-	golang.org/x/net v0.51.0 // indirect
+	golang.org/x/mod v0.35.0 // indirect
+	golang.org/x/net v0.55.0 // indirect
 	golang.org/x/oauth2 v0.35.0 // indirect
 	golang.org/x/sync v0.20.0 // indirect
-	golang.org/x/sys v0.42.0 // indirect
-	golang.org/x/term v0.40.0 // indirect
-	golang.org/x/text v0.35.0 // indirect
+	golang.org/x/sys v0.45.0 // indirect
+	golang.org/x/term v0.43.0 // indirect
+	golang.org/x/text v0.37.0 // indirect
 	golang.org/x/time v0.14.0 // indirect
-	golang.org/x/tools v0.42.0 // indirect
+	golang.org/x/tools v0.44.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260226221140-a57be14db171 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260226221140-a57be14db171 // indirect
 	google.golang.org/grpc v1.79.3 // indirect
@@ -286,7 +285,6 @@ require (
 	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
 	gopkg.in/zorkian/go-datadog-api.v2 v2.30.0 // indirect
 	helm.sh/helm/v3 v3.20.2 // indirect
 	k8s.io/apiextensions-apiserver v0.35.1 // indirect

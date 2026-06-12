@@ -14,12 +14,16 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
 	"github.com/DataDog/datadog-operator/pkg/images"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
 	"github.com/DataDog/datadog-operator/pkg/testutils"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/utils/ptr"
 )
 
@@ -40,6 +44,7 @@ func Test_admissionControllerFeature_Configure(t *testing.T) {
 			WantConfigure: true,
 			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
 				admissionControllerWantFunc(false, false, "", "", false)),
+			WantDependenciesFunc: assertCSIDriverRBAC,
 		},
 		{
 			Name: "Admission Controller enabled with validation and mutation enabled",
@@ -244,6 +249,31 @@ func Test_admissionControllerFeature_Configure(t *testing.T) {
 	}
 
 	tests.Run(t, buildAdmissionControllerFeature)
+}
+
+func assertCSIDriverRBAC(t testing.TB, sc store.StoreClient) {
+	crObj, found := sc.Get(kubernetes.ClusterRolesKind, "", "-cluster-agent")
+	assert.True(t, found, "Cluster Agent ClusterRole should be created")
+
+	cr, ok := crObj.(*rbacv1.ClusterRole)
+	assert.True(t, ok, "Cluster Agent ClusterRole should have the expected type")
+
+	assert.Contains(t, cr.Rules, rbacv1.PolicyRule{
+		APIGroups: []string{rbac.StorageAPIGroup},
+		Resources: []string{rbac.CSIDriversResource},
+		Verbs: []string{
+			rbac.ListVerb,
+			rbac.WatchVerb,
+		},
+	})
+	assert.Contains(t, cr.Rules, rbacv1.PolicyRule{
+		APIGroups:     []string{rbac.StorageAPIGroup},
+		Resources:     []string{rbac.CSIDriversResource},
+		ResourceNames: []string{datadogCSIDriverName},
+		Verbs: []string{
+			rbac.GetVerb,
+		},
+	})
 }
 
 func testDCAResources(acm string, registry string, cwsInstrumentationEnabled bool) *test.ComponentTest {
