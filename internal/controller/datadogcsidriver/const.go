@@ -6,8 +6,14 @@
 package datadogcsidriver
 
 const (
+	// AppLabelKey is the Kubernetes label key on CSI node-server pods.
+	AppLabelKey = "app"
+	// NodeServerDaemonSetAppValue is the label value identifying CSI node-server pods
+	// (and the default DaemonSet name).
+	NodeServerDaemonSetAppValue = "datadog-csi-driver-node-server"
+
 	// csiDsName is the default name of the CSI driver DaemonSet
-	csiDsName = "datadog-csi-driver-node-server"
+	csiDsName = NodeServerDaemonSetAppValue
 	// csiDriverName is the default name of the CSIDriver Kubernetes object
 	csiDriverName = "k8s.csi.datadoghq.com"
 	// defaultCSIDriverImageName is the default CSI driver container image name
@@ -53,7 +59,6 @@ const (
 	csiDriverPort = int32(5000)
 
 	// Pod labels
-	appLabelKey                     = "app"
 	admissionControllerEnabledLabel = "admission.datadoghq.com/enabled"
 
 	// CSIDriver annotations

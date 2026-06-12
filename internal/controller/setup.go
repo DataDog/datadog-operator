@@ -10,7 +10,10 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent"
@@ -34,22 +37,23 @@ const (
 
 // SetupOptions defines options for setting up controllers to ease testing
 type SetupOptions struct {
-	SupportExtendedDaemonset      ExtendedDaemonsetOptions
-	SupportCilium                 bool
-	CredsManager                  *config.CredentialManager
-	DatadogAgentEnabled           bool
-	DatadogMonitorEnabled         bool
-	DatadogSLOEnabled             bool
-	OperatorMetricsEnabled        bool
-	V2APIEnabled                  bool
-	IntrospectionEnabled          bool
-	DatadogAgentProfileEnabled    bool
-	OtelAgentEnabled              bool
-	DatadogDashboardEnabled       bool
-	DatadogGenericResourceEnabled bool
-	CreateControllerRevisions     bool
-	DatadogCSIDriverEnabled       bool
-	UntaintControllerEnabled      bool
+	SupportExtendedDaemonset          ExtendedDaemonsetOptions
+	SupportCilium                     bool
+	CredsManager                      *config.CredentialManager
+	DatadogAgentEnabled               bool
+	DatadogMonitorEnabled             bool
+	DatadogSLOEnabled                 bool
+	OperatorMetricsEnabled            bool
+	V2APIEnabled                      bool
+	IntrospectionEnabled              bool
+	DatadogAgentProfileEnabled        bool
+	OtelAgentEnabled                  bool
+	DatadogDashboardEnabled           bool
+	DatadogGenericResourceEnabled     bool
+	CreateControllerRevisions         bool
+	DatadogCSIDriverEnabled           bool
+	UntaintControllerEnabled          bool
+	UntaintControllerWaitForCSIDriver bool
 }
 
 // ExtendedDaemonsetOptions defines ExtendedDaemonset options
@@ -250,6 +254,7 @@ func startUntaint(logger logr.Logger, mgr manager.Manager, _ kubernetes.Platform
 		mgr.GetClient(),
 		ctrl.Log.WithName("controllers").WithName(untaintControllerName),
 		mgr.GetEventRecorderFor(untaintControllerName),
+		options.UntaintControllerWaitForCSIDriver,
 	)
 	if err != nil {
 		return fmt.Errorf("untaint controller setup: %w", err)
@@ -271,15 +276,28 @@ func startDatadogAgentProfiles(logger logr.Logger, mgr manager.Manager, pInfo ku
 	}).SetupWithManager(mgr)
 }
 
+// csiDriverManagerDeps is the subset of manager.Manager required to construct DatadogCSIDriverReconciler.
+type csiDriverManagerDeps interface {
+	GetClient() client.Client
+	GetScheme() *runtime.Scheme
+	GetEventRecorderFor(name string) record.EventRecorder
+}
+
+func newDatadogCSIDriverReconciler(mgr csiDriverManagerDeps, options SetupOptions) *DatadogCSIDriverReconciler {
+	return &DatadogCSIDriverReconciler{
+		Client:   mgr.GetClient(),
+		Scheme:   mgr.GetScheme(),
+		Recorder: mgr.GetEventRecorderFor(csiDriverControllerName),
+		// Inject startup toleration on CSI node DaemonSet only when untaint coordinates with CSI.
+		UntaintInjectCSIStartupToleration: options.UntaintControllerEnabled && options.UntaintControllerWaitForCSIDriver,
+	}
+}
+
 func startDatadogCSIDriver(logger logr.Logger, mgr manager.Manager, pInfo kubernetes.PlatformInfo, options SetupOptions, metricForwardersMgr datadog.MetricsForwardersManager) error {
 	if !options.DatadogCSIDriverEnabled {
 		logger.Info("Feature disabled, not starting the controller", "controller", csiDriverControllerName)
 		return nil
 	}
 
-	return (&DatadogCSIDriverReconciler{
-		Client:   mgr.GetClient(),
-		Scheme:   mgr.GetScheme(),
-		Recorder: mgr.GetEventRecorderFor(csiDriverControllerName),
-	}).SetupWithManager(mgr)
+	return newDatadogCSIDriverReconciler(mgr, options).SetupWithManager(mgr)
 }
