@@ -227,6 +227,13 @@ func Test_AssembleImage(t *testing.T) {
 			},
 			want: "gcr.io/datadoghq/agent:latest-jmx",
 		},
+		{
+			name: "full path with digest passes through",
+			imageSpec: &v2alpha1.AgentImageConfig{
+				Name: "gcr.io/datadoghq/agent:7.64.0@sha256:e8370b31d516e2c878bc4af696d6d06484465e6311d506ecd2b5ebb42c1ec8a1",
+			},
+			want: "gcr.io/datadoghq/agent:7.64.0@sha256:e8370b31d516e2c878bc4af696d6d06484465e6311d506ecd2b5ebb42c1ec8a1",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -330,6 +337,36 @@ func Test_ToString(t *testing.T) {
 			},
 			want: "gcr.io/datadoghq/agent:7.64.0-fips-full",
 		},
+		{
+			name: "with digest",
+			image: &Image{
+				registry: "gcr.io/datadoghq",
+				name:     "cluster-agent",
+				tag:      "7.64.0",
+				digest:   "sha256:55504934ebb295875d09c551e9f4e9f0e8540d1c274cde643a04c26dcb3b1a8a",
+			},
+			want: "gcr.io/datadoghq/cluster-agent:7.64.0@sha256:55504934ebb295875d09c551e9f4e9f0e8540d1c274cde643a04c26dcb3b1a8a",
+		},
+		{
+			name: "with jmx and digest",
+			image: &Image{
+				registry: "gcr.io/datadoghq",
+				name:     "agent",
+				tag:      "7.64.0",
+				digest:   "sha256:e8370b31d516e2c878bc4af696d6d06484465e6311d506ecd2b5ebb42c1ec8a1",
+				isJMX:    true,
+			},
+			want: "gcr.io/datadoghq/agent:7.64.0-jmx@sha256:e8370b31d516e2c878bc4af696d6d06484465e6311d506ecd2b5ebb42c1ec8a1",
+		},
+		{
+			name: "with digest and no tag",
+			image: &Image{
+				registry: "gcr.io/datadoghq",
+				name:     "agent",
+				digest:   "sha256:e8370b31d516e2c878bc4af696d6d06484465e6311d506ecd2b5ebb42c1ec8a1",
+			},
+			want: "gcr.io/datadoghq/agent@sha256:e8370b31d516e2c878bc4af696d6d06484465e6311d506ecd2b5ebb42c1ec8a1",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -404,6 +441,36 @@ func Test_FromString(t *testing.T) {
 				tag:      "7.64.0",
 				isFIPS:   true,
 				isFull:   true,
+			},
+		},
+		{
+			name:        "with digest",
+			imageString: "gcr.io/datadoghq/cluster-agent:7.64.0@sha256:55504934ebb295875d09c551e9f4e9f0e8540d1c274cde643a04c26dcb3b1a8a",
+			want: &Image{
+				registry: "gcr.io/datadoghq",
+				name:     "cluster-agent",
+				tag:      "7.64.0",
+				digest:   "sha256:55504934ebb295875d09c551e9f4e9f0e8540d1c274cde643a04c26dcb3b1a8a",
+			},
+		},
+		{
+			name:        "with jmx and digest",
+			imageString: "gcr.io/datadoghq/agent:7.64.0-jmx@sha256:e8370b31d516e2c878bc4af696d6d06484465e6311d506ecd2b5ebb42c1ec8a1",
+			want: &Image{
+				registry: "gcr.io/datadoghq",
+				name:     "agent",
+				tag:      "7.64.0",
+				digest:   "sha256:e8370b31d516e2c878bc4af696d6d06484465e6311d506ecd2b5ebb42c1ec8a1",
+				isJMX:    true,
+			},
+		},
+		{
+			name:        "with digest and no tag",
+			imageString: "gcr.io/datadoghq/agent@sha256:e8370b31d516e2c878bc4af696d6d06484465e6311d506ecd2b5ebb42c1ec8a1",
+			want: &Image{
+				registry: "gcr.io/datadoghq",
+				name:     "agent",
+				digest:   "sha256:e8370b31d516e2c878bc4af696d6d06484465e6311d506ecd2b5ebb42c1ec8a1",
 			},
 		},
 	}
@@ -638,6 +705,38 @@ func Test_OverrideAgentImage(t *testing.T) {
 				Tag: "7.65.0-fips-full",
 			},
 			want: "gcr.io/datadoghq/agent:7.65.0-fips-full",
+		},
+		{
+			name:         "override image name is full name with digest",
+			currentImage: "gcr.io/datadoghq/cluster-agent:7.64.0",
+			overrideImageSpec: &v2alpha1.AgentImageConfig{
+				Name: "eu.gcr.io/datadoghq/cluster-agent:7.65.0@sha256:55504934ebb295875d09c551e9f4e9f0e8540d1c274cde643a04c26dcb3b1a8a",
+			},
+			want: "eu.gcr.io/datadoghq/cluster-agent:7.65.0@sha256:55504934ebb295875d09c551e9f4e9f0e8540d1c274cde643a04c26dcb3b1a8a",
+		},
+		{
+			name:         "override image name is full name with jmx tag suffix and digest",
+			currentImage: "gcr.io/datadoghq/agent:7.64.0",
+			overrideImageSpec: &v2alpha1.AgentImageConfig{
+				Name: "docker.io/datadog/agent:7.65.0-jmx@sha256:e8370b31d516e2c878bc4af696d6d06484465e6311d506ecd2b5ebb42c1ec8a1",
+			},
+			want: "docker.io/datadog/agent:7.65.0-jmx@sha256:e8370b31d516e2c878bc4af696d6d06484465e6311d506ecd2b5ebb42c1ec8a1",
+		},
+		{
+			name:         "override image name is full name with digest and no tag",
+			currentImage: "gcr.io/datadoghq/agent:7.64.0",
+			overrideImageSpec: &v2alpha1.AgentImageConfig{
+				Name: "eu.gcr.io/datadoghq/agent@sha256:e8370b31d516e2c878bc4af696d6d06484465e6311d506ecd2b5ebb42c1ec8a1",
+			},
+			want: "eu.gcr.io/datadoghq/agent:7.64.0@sha256:e8370b31d516e2c878bc4af696d6d06484465e6311d506ecd2b5ebb42c1ec8a1",
+		},
+		{
+			name:         "current image includes digest and override tag does not",
+			currentImage: "gcr.io/datadoghq/agent:7.64.0@sha256:e8370b31d516e2c878bc4af696d6d06484465e6311d506ecd2b5ebb42c1ec8a1",
+			overrideImageSpec: &v2alpha1.AgentImageConfig{
+				Tag: "7.65.0",
+			},
+			want: "gcr.io/datadoghq/agent:7.65.0",
 		},
 	}
 	for _, tt := range tests {
