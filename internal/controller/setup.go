@@ -169,6 +169,7 @@ func startDatadogAgentInternal(logger logr.Logger, mgr manager.Manager, pInfo ku
 			SupportCilium:            options.SupportCilium,
 			OperatorMetricsEnabled:   options.OperatorMetricsEnabled,
 			UntaintControllerEnabled: options.UntaintControllerEnabled,
+			APIReader:                mgr.GetAPIReader(),
 		},
 	}).SetupWithManager(mgr, metricForwardersMgr)
 }
