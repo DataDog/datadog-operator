@@ -15,8 +15,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	ctrlhandler "sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
@@ -211,6 +213,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, instance *v1alpha1.DatadogGe
 			result.RequeueAfter = defaultErrRequeuePeriod
 		}
 	} else if shouldRefreshStatus {
+		result.Priority = ptr.To(ctrlhandler.LowPriority)
 		state, refreshErr := handler.refreshState(auth, instance)
 		if refreshErr != nil {
 			logger.V(1).Info("state refresh failed", "err", refreshErr, "custom resource Id", instance.Status.Id, "resource type", instance.Spec.Type)
@@ -226,7 +229,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, instance *v1alpha1.DatadogGe
 	}
 
 	// If reconcile was successful and uneventful, requeue with the configured period.
-	if result.IsZero() {
+	if !result.Requeue && result.RequeueAfter == 0 {
 		result.RequeueAfter = r.requeuePeriod
 	}
 
@@ -323,10 +326,10 @@ func (r *Reconciler) updateStatusIfNeeded(ctx context.Context, instance *v1alpha
 			logger := ctrl.LoggerFrom(ctx)
 			if apierrors.IsConflict(err) {
 				logger.Error(err, "unable to update DatadogGenericResource status due to update conflict")
-				return ctrl.Result{Requeue: true, RequeueAfter: defaultErrRequeuePeriod}, nil
+				return ctrl.Result{Requeue: true, RequeueAfter: defaultErrRequeuePeriod, Priority: result.Priority}, nil
 			}
 			logger.Error(err, "unable to update DatadogGenericResource status")
-			return ctrl.Result{Requeue: true, RequeueAfter: r.requeuePeriod}, err
+			return ctrl.Result{Requeue: true, RequeueAfter: r.requeuePeriod, Priority: result.Priority}, err
 		}
 	}
 	return result, nil

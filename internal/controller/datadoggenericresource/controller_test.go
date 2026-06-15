@@ -16,9 +16,11 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/kubectl/pkg/scheme"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -63,6 +65,28 @@ func TestReconcileGenericResource_Reconcile(t *testing.T) {
 				request: newRequest(resourcesNamespace, resourcesName),
 			},
 			wantResult: reconcile.Result{},
+		},
+		{
+			name: "DatadogGenericResource create backend error keeps normal priority",
+			args: args{
+				request: newRequest(resourcesNamespace, resourcesName),
+				firstAction: func(c client.Client) {
+					_ = c.Create(context.TODO(), mockGenericResource())
+					mockCreateErr = fmt.Errorf("error creating mock resource: 429 Too Many Requests")
+				},
+				// reconcile 1: add finalizer; 2: create remote resource and fail
+				firstReconcileCount: 2,
+			},
+			wantResult: reconcile.Result{RequeueAfter: defaultErrRequeuePeriod},
+			wantFunc: func(c client.Client) error {
+				assert.Equal(t, 1, mockCreateCalls)
+				obj := &datadoghqv1alpha1.DatadogGenericResource{}
+				if err := c.Get(context.TODO(), types.NamespacedName{Name: resourcesName, Namespace: resourcesNamespace}, obj); err != nil {
+					return err
+				}
+				assert.Empty(t, obj.Status.Id)
+				return nil
+			},
 		},
 		{
 			name: "DatadogGenericResource created, add finalizer",
@@ -168,7 +192,7 @@ func TestReconcileGenericResource_Reconcile(t *testing.T) {
 				// reconcile 1: add finalizer; 2: create remote resource; 3: idle tick triggers refresh
 				firstReconcileCount: 3,
 			},
-			wantResult: reconcile.Result{RequeueAfter: defaultRequeuePeriod},
+			wantResult: reconcile.Result{RequeueAfter: defaultRequeuePeriod, Priority: ptr.To(handler.LowPriority)},
 			wantFunc: func(c client.Client) error {
 				obj := &datadoghqv1alpha1.DatadogGenericResource{}
 				if err := c.Get(context.TODO(), types.NamespacedName{Name: resourcesName, Namespace: resourcesNamespace}, obj); err != nil {
@@ -213,7 +237,7 @@ func TestReconcileGenericResource_Reconcile(t *testing.T) {
 				},
 				secondReconcileCount: 1,
 			},
-			wantResult: reconcile.Result{RequeueAfter: defaultRequeuePeriod},
+			wantResult: reconcile.Result{RequeueAfter: defaultRequeuePeriod, Priority: ptr.To(handler.LowPriority)},
 			wantFunc: func(c client.Client) error {
 				obj := &datadoghqv1alpha1.DatadogGenericResource{}
 				if err := c.Get(context.TODO(), types.NamespacedName{Name: resourcesName, Namespace: resourcesNamespace}, obj); err != nil {
