@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 	"maps"
+	"time"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
@@ -131,7 +132,9 @@ func (f *controlPlaneMonitoringFeature) copyOpenShiftEtcdSecret(managers feature
 		Namespace: etcdCertsSourceNamespace,
 		Name:      etcdCertsSecretName,
 	}
-	if err := f.client.Get(context.TODO(), sourceKey, source); err != nil {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := f.client.Get(ctx, sourceKey, source); err != nil {
 		f.logger.Info("Unable to copy OpenShift etcd metric client secret automatically", "namespace", sourceKey.Namespace, "name", sourceKey.Name, "error", err)
 		return false
 	}
