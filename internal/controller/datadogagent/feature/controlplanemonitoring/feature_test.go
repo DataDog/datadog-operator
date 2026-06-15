@@ -54,7 +54,7 @@ func Test_controlPlaneMonitoringFeature_Configure(t *testing.T) {
 				WithControlPlaneMonitoring(true).
 				Build(),
 			FeatureOptions: &feature.Options{
-				Client: fakeClientWithSecret(t, &corev1.Secret{
+				Client: fakeClientWithSecrets(t, &corev1.Secret{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      etcdCertsSecretName,
 						Namespace: etcdCertsSourceNamespace,
@@ -69,16 +69,42 @@ func Test_controlPlaneMonitoringFeature_Configure(t *testing.T) {
 			WantConfigure:        true,
 			WantDependenciesFunc: openShiftControlPlaneWantDepsFunc(),
 		},
+		{
+			Name: "Control Plane Monitoring enabled with OpenShift provider keeps existing target secret when source read fails",
+			DDA: testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+				WithAnnotations(map[string]string{kubernetes.ProviderAnnotationKey: "openshift-rhcos"}).
+				WithControlPlaneMonitoring(true).
+				Build(),
+			FeatureOptions: &feature.Options{
+				Client: fakeClientWithSecrets(t, &corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      etcdCertsSecretName,
+						Namespace: resourcesNamespace,
+					},
+					Type: corev1.SecretTypeTLS,
+					Data: map[string][]byte{
+						"tls.crt": []byte("existing-cert"),
+						"tls.key": []byte("existing-key"),
+					},
+				}),
+			},
+			WantConfigure:        true,
+			WantDependenciesFunc: openShiftControlPlaneWantExistingSecretDepsFunc(),
+		},
 	}
 
 	tests.Run(t, buildControlPlaneMonitoringFeature)
 }
 
-func fakeClientWithSecret(t testing.TB, secret *corev1.Secret) client.Client {
+func fakeClientWithSecrets(t testing.TB, secrets ...*corev1.Secret) client.Client {
 	t.Helper()
 	scheme := runtime.NewScheme()
 	assert.NoError(t, corev1.AddToScheme(scheme))
-	return ctrlfake.NewClientBuilder().WithScheme(scheme).WithObjects(secret).Build()
+	objs := make([]client.Object, 0, len(secrets))
+	for _, secret := range secrets {
+		objs = append(objs, secret)
+	}
+	return ctrlfake.NewClientBuilder().WithScheme(scheme).WithObjects(objs...).Build()
 }
 
 func controlPlaneWantDepsFunc() func(t testing.TB, store store.StoreClient) {
@@ -102,6 +128,19 @@ func openShiftControlPlaneWantDepsFunc() func(t testing.TB, store store.StoreCli
 		assert.Equal(t, corev1.SecretTypeTLS, secret.Type)
 		assert.Equal(t, []byte("cert"), secret.Data["tls.crt"])
 		assert.Equal(t, []byte("key"), secret.Data["tls.key"])
+	}
+}
+
+func openShiftControlPlaneWantExistingSecretDepsFunc() func(t testing.TB, store store.StoreClient) {
+	return func(t testing.TB, store store.StoreClient) {
+		obj, found := store.Get(kubernetes.SecretsKind, resourcesNamespace, etcdCertsSecretName)
+		assert.True(t, found, "Should have kept the existing OpenShift etcd metric client Secret")
+
+		secret, ok := obj.(*corev1.Secret)
+		assert.True(t, ok)
+		assert.Equal(t, corev1.SecretTypeTLS, secret.Type)
+		assert.Equal(t, []byte("existing-cert"), secret.Data["tls.crt"])
+		assert.Equal(t, []byte("existing-key"), secret.Data["tls.key"])
 	}
 }
 

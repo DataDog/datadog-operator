@@ -136,7 +136,7 @@ func (f *controlPlaneMonitoringFeature) copyOpenShiftEtcdSecret(managers feature
 	defer cancel()
 	if err := f.client.Get(ctx, sourceKey, source); err != nil {
 		f.logger.Info("Unable to copy OpenShift etcd metric client secret automatically", "namespace", sourceKey.Namespace, "name", sourceKey.Name, "error", err)
-		return false
+		return f.keepExistingOpenShiftEtcdSecret(managers)
 	}
 
 	target := &corev1.Secret{
@@ -153,6 +153,29 @@ func (f *controlPlaneMonitoringFeature) copyOpenShiftEtcdSecret(managers feature
 	}
 
 	f.logger.V(1).Info("Copied OpenShift etcd metric client secret", "sourceNamespace", sourceKey.Namespace, "targetNamespace", target.Namespace, "name", target.Name)
+	return true
+}
+
+func (f *controlPlaneMonitoringFeature) keepExistingOpenShiftEtcdSecret(managers feature.ResourceManagers) bool {
+	target := &corev1.Secret{}
+	targetKey := types.NamespacedName{
+		Namespace: f.owner.GetNamespace(),
+		Name:      etcdCertsSecretName,
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := f.client.Get(ctx, targetKey, target); err != nil {
+		f.logger.Info("Unable to keep existing OpenShift etcd metric client secret", "namespace", targetKey.Namespace, "name", targetKey.Name, "error", err)
+		return false
+	}
+
+	if err := managers.Store().AddOrUpdate(kubernetes.SecretsKind, target); err != nil {
+		f.logger.Info("Unable to add existing OpenShift etcd metric client secret to dependency store", "namespace", target.Namespace, "name", target.Name, "error", err)
+		return false
+	}
+
+	f.logger.V(1).Info("Keeping existing OpenShift etcd metric client secret after source read failure", "namespace", target.Namespace, "name", target.Name)
 	return true
 }
 
