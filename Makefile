@@ -211,7 +211,7 @@ ci-test: gotest integration-tests ## Run tests only (for CI, where build/generat
 
 .PHONY: gotest
 gotest:
-	go test ./... -coverprofile cover.out
+	go test ./... ./api/... -coverprofile cover.out
 
 .PHONY: integration-tests
 integration-tests: $(ENVTEST) ## Run integration tests with reconciler
