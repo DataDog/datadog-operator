@@ -244,7 +244,7 @@ metadata:
       ]
     capabilities: Full Lifecycle
     categories: Monitoring, Logging & Tracing
-    createdAt: "2026-06-05 13:52:40"
+    createdAt: "2026-06-15 14:06:09"
     description: |-
       Datadog provides a modern monitoring and analytics platform. Gather metrics, logs and traces for full observability of your Kubernetes cluster with Datadog Operator.
 
@@ -252,7 +252,7 @@ metadata:
     operators.operatorframework.io/builder: operator-sdk-v1.34.1
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v4
     repository: https://github.com/DataDog/datadog-operator
-    containerImage: gcr.io/datadoghq/operator:1.28.0-rc.1
+    containerImage: gcr.io/datadoghq/operator:1.28.0-rc.2
     support: Datadog, Inc.
     features.operators.openshift.io/disconnected: "true"
     features.operators.openshift.io/fips-compliant: "false"
@@ -261,12 +261,12 @@ metadata:
     features.operators.openshift.io/token-auth-aws: "false"
     features.operators.openshift.io/token-auth-azure: "false"
     features.operators.openshift.io/token-auth-gcp: "false"
-    olm.skipRange: '>=1.7.0 <1.28.0-rc.1'
+    olm.skipRange: '>=1.7.0 <1.28.0-rc.2'
   labels:
     operatorframework.io/arch.amd64: supported
     operatorframework.io/arch.arm64: supported
     operatorframework.io/os.linux: supported
-  name: datadog-operator.v1.28.0-rc.1
+  name: datadog-operator.v1.28.0-rc.2
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -707,7 +707,7 @@ spec:
             - apiGroups:
                 - gateway.envoyproxy.io
               resources:
-                - backend
+                - backends
                 - envoyextensionpolicies
                 - envoypatchpolicies
               verbs:
@@ -996,7 +996,7 @@ spec:
                             fieldPath: metadata.namespace
                       - name: DD_TOOL_VERSION
                         value: redhat-community-operators
-                    image: gcr.io/datadoghq/operator:1.28.0-rc.1
+                    image: gcr.io/datadoghq/operator:1.28.0-rc.2
                     imagePullPolicy: IfNotPresent
                     livenessProbe:
                       httpGet:
@@ -1094,5 +1094,5 @@ spec:
   minKubeVersion: 1.16.0
   provider:
     name: Datadog
-  version: 1.28.0-rc.1
-  replaces: datadog-operator.v1.27.0
+  version: 1.28.0-rc.2
+  replaces: datadog-operator.v1.27.1
