@@ -146,6 +146,8 @@ type options struct {
 	remoteUpdatesEnabled                   bool
 	datadogDashboardEnabled                bool
 	datadogGenericResourceEnabled          bool
+	datadogGenericResourceMaxWorkers       int
+	datadogGenericResourceRequeuePeriod    time.Duration
 	datadogCSIDriverEnabled                bool
 	untaintControllerEnabled               bool
 	untaintControllerWaitForCSIDriver      bool
@@ -187,6 +189,8 @@ func (opts *options) Parse() {
 	flag.BoolVar(&opts.remoteUpdatesEnabled, "remoteUpdatesEnabled", false, "Enable Remote Updates capabilities in the Operator (beta)")
 	flag.BoolVar(&opts.datadogDashboardEnabled, "datadogDashboardEnabled", false, "Enable the DatadogDashboard controller")
 	flag.BoolVar(&opts.datadogGenericResourceEnabled, "datadogGenericResourceEnabled", false, "Enable the DatadogGenericResource controller")
+	flag.IntVar(&opts.datadogGenericResourceMaxWorkers, "datadogGenericResourceMaxConcurrentReconciles", 1, "Maximum number of concurrent DatadogGenericResource reconciles")
+	flag.DurationVar(&opts.datadogGenericResourceRequeuePeriod, "datadogGenericResourceRequeuePeriod", 0, "DatadogGenericResource status polling requeue period, for example 5m. If unset, DD_GENERIC_RESOURCE_REQUEUE_PERIOD or 60s is used.")
 	flag.BoolVar(&opts.datadogCSIDriverEnabled, "datadogCSIDriverEnabled", false, "Enable the DatadogCSIDriver controller")
 	flag.BoolVar(&opts.untaintControllerEnabled, "untaintControllerEnabled", false, "Enable the Untaint controller")
 	flag.BoolVar(&opts.untaintControllerWaitForCSIDriver, "untaintControllerWaitForCSIDriver", false,
@@ -386,6 +390,8 @@ func run(opts *options) error {
 		DatadogAgentProfileEnabled:        opts.datadogAgentProfileEnabled,
 		DatadogDashboardEnabled:           opts.datadogDashboardEnabled,
 		DatadogGenericResourceEnabled:     opts.datadogGenericResourceEnabled,
+		DatadogGenericResourceMaxWorkers:  opts.datadogGenericResourceMaxWorkers,
+		DatadogGenericResourceRequeue:     opts.datadogGenericResourceRequeuePeriod,
 		DatadogCSIDriverEnabled:           opts.datadogCSIDriverEnabled,
 		UntaintControllerEnabled:          opts.untaintControllerEnabled,
 		UntaintControllerWaitForCSIDriver: opts.untaintControllerWaitForCSIDriver,

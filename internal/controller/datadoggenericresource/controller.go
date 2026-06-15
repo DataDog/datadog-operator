@@ -36,28 +36,79 @@ const (
 	defaultForceSyncPeriod                 = 60 * time.Minute
 	datadogGenericResourceKind             = "DatadogGenericResource"
 	ddGenericResourceForceSyncPeriodEnvVar = "DD_GENERIC_RESOURCE_FORCE_SYNC_PERIOD"
+	ddGenericResourceRequeuePeriodEnvVar   = "DD_GENERIC_RESOURCE_REQUEUE_PERIOD"
 )
 
 type Reconciler struct {
 	client          client.Client
 	credsManager    *config.CredentialManager
 	handlers        map[v1alpha1.SupportedResourcesType]ResourceHandler
+	requeuePeriod   time.Duration
 	forceSyncPeriod time.Duration
 	scheme          *runtime.Scheme
 	log             logr.Logger
 	recorder        record.EventRecorder
 }
 
-func NewReconciler(client client.Client, credsManager *config.CredentialManager, scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder) *Reconciler {
+type ReconcilerOptions struct {
+	RequeuePeriod time.Duration
+}
+
+func NewReconciler(client client.Client, credsManager *config.CredentialManager, scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder, opts ...ReconcilerOptions) *Reconciler {
+	options := ReconcilerOptions{}
+	if len(opts) > 0 {
+		options = opts[0]
+	}
+
 	return &Reconciler{
 		client:          client,
 		credsManager:    credsManager,
 		handlers:        buildHandlers(datadogclient.InitGenericClients()),
+		requeuePeriod:   requeuePeriod(log, options.RequeuePeriod),
 		forceSyncPeriod: forceSyncPeriodFromEnv(log),
 		scheme:          scheme,
 		log:             log,
 		recorder:        recorder,
 	}
+}
+
+func requeuePeriod(logger logr.Logger, configured time.Duration) time.Duration {
+	if configured > 0 {
+		logger.Info("Setting generic resource requeue period", "duration", configured.String())
+		return configured
+	}
+	return requeuePeriodFromEnv(logger)
+}
+
+func requeuePeriodFromEnv(logger logr.Logger) time.Duration {
+	requeuePeriod := defaultRequeuePeriod
+
+	if userRequeuePeriod, ok := os.LookupEnv(ddGenericResourceRequeuePeriodEnvVar); ok {
+		parsedRequeuePeriod, err := parseRequeuePeriod(userRequeuePeriod)
+		if err != nil {
+			logger.Error(err, "Invalid value for generic resource requeue period. Defaulting to 60 seconds.")
+		} else {
+			requeuePeriod = parsedRequeuePeriod
+		}
+	}
+
+	logger.Info("Setting generic resource requeue period", "duration", requeuePeriod.String())
+	return requeuePeriod
+}
+
+func parseRequeuePeriod(value string) (time.Duration, error) {
+	period, err := time.ParseDuration(value)
+	if err != nil {
+		seconds, parseIntErr := strconv.Atoi(value)
+		if parseIntErr != nil {
+			return 0, err
+		}
+		period = time.Duration(seconds) * time.Second
+	}
+	if period < time.Second {
+		return 0, fmt.Errorf("requeue period must be at least 1 second")
+	}
+	return period, nil
 }
 
 func forceSyncPeriodFromEnv(logger logr.Logger) time.Duration {
@@ -102,7 +153,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, instance *v1alpha1.DatadogGe
 
 	handler := r.getHandler(instance.Spec.Type)
 
-	final := finalizer.NewFinalizer(logger, r.client, r.deleteResource(logger, auth, handler), defaultRequeuePeriod, defaultErrRequeuePeriod)
+	final := finalizer.NewFinalizer(logger, r.client, r.deleteResource(logger, auth, handler), r.requeuePeriod, defaultErrRequeuePeriod)
 	if result, err = final.HandleFinalizer(ctx, instance, instance.Status.Id, datadogGenericResourceFinalizer); ctrutils.ShouldReturn(result, err) {
 		return result, err
 	}
@@ -141,7 +192,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, instance *v1alpha1.DatadogGe
 				shouldUpdate = true
 			}
 			status.LastForceSyncTime = &now
-		} else if instance.Status.StateLastUpdateTime == nil || ((defaultRequeuePeriod - now.Sub(instance.Status.StateLastUpdateTime.Time)) <= 0) {
+		} else if instance.Status.StateLastUpdateTime == nil || ((r.requeuePeriod - now.Sub(instance.Status.StateLastUpdateTime.Time)) <= 0) {
 			// Idle tick: refresh Datadog-side state for resource types that expose it.
 			// No-op for resource types without live state.
 			shouldRefreshStatus = true
@@ -174,9 +225,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, instance *v1alpha1.DatadogGe
 		// state == nil && refreshErr == nil: resource type does not expose live state, no-op.
 	}
 
-	// If reconcile was successful and uneventful, requeue with period defaultRequeuePeriod
+	// If reconcile was successful and uneventful, requeue with the configured period.
 	if result.IsZero() {
-		result.RequeueAfter = defaultRequeuePeriod
+		result.RequeueAfter = r.requeuePeriod
 	}
 
 	return r.updateStatusIfNeeded(ctx, instance, status, result)
@@ -275,7 +326,7 @@ func (r *Reconciler) updateStatusIfNeeded(ctx context.Context, instance *v1alpha
 				return ctrl.Result{Requeue: true, RequeueAfter: defaultErrRequeuePeriod}, nil
 			}
 			logger.Error(err, "unable to update DatadogGenericResource status")
-			return ctrl.Result{Requeue: true, RequeueAfter: defaultRequeuePeriod}, err
+			return ctrl.Result{Requeue: true, RequeueAfter: r.requeuePeriod}, err
 		}
 	}
 	return result, nil
