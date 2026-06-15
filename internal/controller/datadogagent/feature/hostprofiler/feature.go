@@ -1,10 +1,8 @@
 package hostprofiler
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
@@ -14,6 +12,7 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/experimental"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 )
@@ -23,7 +22,6 @@ var errHostPIDDisabledManually = errors.New("Host PID is required for host profi
 type hostProfilerFeature struct {
 	owner                   metav1.Object
 	hostPIDDisabledManually bool
-	hostProfilerImage       string
 
 	logger logr.Logger
 }
@@ -49,18 +47,12 @@ func (o *hostProfilerFeature) ID() feature.IDType {
 	return feature.HostProfilerIDType
 }
 
-func (o *hostProfilerFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) feature.RequiredComponents {
+func (o *hostProfilerFeature) Configure(dda metav1.Object, _ *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) feature.RequiredComponents {
 	o.owner = dda
 
 	if !featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnableHostProfilerAnnotation) {
 		return feature.RequiredComponents{}
 	}
-
-	// Resolve the host-profiler image now, during Configure, so ManageNodeAgent can use
-	// the correct image for the seccomp init container and profile name. Both the
-	// experimental annotation and spec.override.nodeAgent.image are applied after
-	// ManageNodeAgent runs, so we must read them here.
-	o.hostProfilerImage = resolveHostProfilerImage(dda, ddaSpec)
 
 	return feature.RequiredComponents{
 		Agent: feature.RequiredComponent{
@@ -111,13 +103,10 @@ func (o *hostProfilerFeature) ManageNodeAgent(managers feature.PodTemplateManage
 		hostProfilerContainer.SecurityContext = &corev1.SecurityContext{}
 	}
 
-	// Use the pre-resolved image (set in Configure) so that experimental image overrides,
-	// which are applied after ManageNodeAgent, are correctly reflected in the seccomp profile
-	// name and the init container image.
-	hostProfilerImage := o.hostProfilerImage
-	if hostProfilerImage == "" {
-		hostProfilerImage = hostProfilerContainer.Image
-	}
+	// Experimental image overrides are applied after ManageNodeAgent, so mirror their image
+	// resolution here to keep the seccomp profile and init container aligned with the final
+	// host-profiler container image.
+	hostProfilerImage := resolveHostProfilerImage(o.owner, hostProfilerContainer.Image)
 
 	sc := hostProfilerContainer.SecurityContext
 	sc.AllowPrivilegeEscalation = ptr.To(false)
@@ -192,26 +181,12 @@ func (o *hostProfilerFeature) ManageOtelAgentGateway(managers feature.PodTemplat
 }
 
 // resolveHostProfilerImage returns the host-profiler image to use for the seccomp init container
-// and profile name when a host-profiler-specific image override is set via the experimental
-// per-container annotation. Returns "" otherwise, causing ManageNodeAgent to fall back to the
-// host-profiler container's own image.
-func resolveHostProfilerImage(dda metav1.Object, _ *v2alpha1.DatadogAgentSpec) string {
-	if annotations := dda.GetAnnotations(); annotations != nil {
-		if raw := annotations["experimental.agent.datadoghq.com/image-override-config"]; raw != "" {
-			var overrides map[string]struct {
-				Name string `json:"name,omitempty"`
-				Tag  string `json:"tag,omitempty"`
-			}
-			if err := json.Unmarshal([]byte(raw), &overrides); err == nil {
-				if o, ok := overrides[string(apicommon.HostProfiler)]; ok && o.Name != "" {
-					if o.Tag != "" && !strings.Contains(o.Name, ":") {
-						return o.Name + ":" + o.Tag
-					}
-					return o.Name
-				}
-			}
-		}
+// and profile name. It uses the same experimental image override semantics as the final pod
+// mutation so the seccomp init image cannot drift from the host-profiler container image.
+func resolveHostProfilerImage(dda metav1.Object, baseImage string) string {
+	hostProfilerImage, err := experimental.ResolveImageOverride(dda, string(apicommon.HostProfiler), baseImage)
+	if err != nil {
+		return baseImage
 	}
-
-	return ""
+	return hostProfilerImage
 }
