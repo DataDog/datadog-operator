@@ -46,3 +46,47 @@ func TestGetMax(t *testing.T) {
 		})
 	}
 }
+
+func TestGetTagFromImageName(t *testing.T) {
+	testCases := []struct {
+		name      string
+		imageName string
+		want      string
+	}{
+		{
+			name:      "registry, name and tag",
+			imageName: "gcr.io/datadoghq/agent:7.64.0",
+			want:      "7.64.0",
+		},
+		{
+			name:      "name and tag",
+			imageName: "agent:7.64.0",
+			want:      "7.64.0",
+		},
+		{
+			name:      "no tag",
+			imageName: "gcr.io/datadoghq/agent",
+			want:      "latest",
+		},
+		{
+			name:      "registry with port and no tag",
+			imageName: "localhost:5000/agent",
+			want:      "latest",
+		},
+		{
+			name:      "tag and digest",
+			imageName: "gcr.io/datadoghq/agent:7.64.0@sha256:e8370b31d516e2c878bc4af696d6d06484465e6311d506ecd2b5ebb42c1ec8a1",
+			want:      "7.64.0",
+		},
+		{
+			name:      "digest only",
+			imageName: "gcr.io/datadoghq/agent@sha256:e8370b31d516e2c878bc4af696d6d06484465e6311d506ecd2b5ebb42c1ec8a1",
+			want:      "latest",
+		},
+	}
+	for _, test := range testCases {
+		t.Run(test.name, func(t *testing.T) {
+			assert.Equal(t, test.want, GetTagFromImageName(test.imageName))
+		})
+	}
+}

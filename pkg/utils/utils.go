@@ -18,6 +18,10 @@ func GetMax(val1, val2 int64) int64 {
 // GetTagFromImageName returns a tag from a full image name
 // it should cover most cases
 func GetTagFromImageName(imageName string) string {
+	// A digest suffix (e.g. "@sha256:...") contains a colon and would otherwise be
+	// mistaken for the tag, so strip it before splitting
+	imageName, _, _ = strings.Cut(imageName, "@")
+
 	parts := strings.Split(imageName, ":")
 	if len(parts) <= 1 {
 		return "latest"
