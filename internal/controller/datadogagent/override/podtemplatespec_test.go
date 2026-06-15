@@ -344,7 +344,7 @@ func TestPodTemplateSpec(t *testing.T) {
 			},
 		},
 		{
-			name: "image override does not rewrite host-profiler or host-profiler-seccomp-setup images",
+			name: "image override does not rewrite host-profiler images but applies pull policy",
 			existingManager: func() *fake.PodTemplateManagers {
 				manager := fake.NewPodTemplateManagers(t, v1.PodTemplateSpec{
 					Spec: v1.PodSpec{
@@ -370,15 +370,15 @@ func TestPodTemplateSpec(t *testing.T) {
 					} else {
 						assert.NotEqual(t, "profiler:old", c.Image, "container %s image should have been overridden", c.Name)
 					}
+					assert.Equal(t, v1.PullIfNotPresent, c.ImagePullPolicy, "container %s pull policy should have been overridden", c.Name)
 				}
 				for _, c := range manager.PodTemplateSpec().Spec.InitContainers {
 					if c.Name == string(apicommon.HostProfilerSeccompSetupContainerName) {
 						assert.Equal(t, "profiler:old", c.Image, "host-profiler-seccomp-setup image must not be overridden")
-						assert.Equal(t, v1.PullPolicy(""), c.ImagePullPolicy, "host-profiler-seccomp-setup pull policy must not be overridden")
 					} else {
 						assert.NotEqual(t, "profiler:old", c.Image, "init container %s image should have been overridden", c.Name)
-						assert.Equal(t, v1.PullIfNotPresent, c.ImagePullPolicy, "init container %s pull policy should have been overridden", c.Name)
 					}
+					assert.Equal(t, v1.PullIfNotPresent, c.ImagePullPolicy, "init container %s pull policy should have been overridden", c.Name)
 				}
 			},
 		},

@@ -13,7 +13,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
@@ -313,10 +312,6 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 func updateContainerImages(config *v2alpha1.GlobalConfig, podTemplateManager feature.PodTemplateManagers) {
 	image := &images.Image{}
 	for i, container := range podTemplateManager.PodTemplateSpec().Spec.Containers {
-		if apicommon.AgentContainerName(container.Name) == apicommon.HostProfiler {
-			// do not override host-profiler image
-			continue
-		}
 		image = images.FromString(container.Image).
 			WithRegistry(*config.Registry).
 			WithFIPS(*config.UseFIPSAgent)
@@ -325,10 +320,6 @@ func updateContainerImages(config *v2alpha1.GlobalConfig, podTemplateManager fea
 	}
 
 	for i, container := range podTemplateManager.PodTemplateSpec().Spec.InitContainers {
-		if apicommon.AgentContainerName(container.Name) == apicommon.HostProfilerSeccompSetupContainerName {
-			// do not override host-profiler-seccomp-setup initContainer image
-			continue
-		}
 		image = images.FromString(container.Image).
 			WithRegistry(*config.Registry).
 			WithFIPS(*config.UseFIPSAgent)

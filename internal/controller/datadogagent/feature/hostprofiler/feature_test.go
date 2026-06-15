@@ -4,15 +4,19 @@ import (
 	"testing"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/experimental"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/override"
 	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/testutils"
 
+	"github.com/go-logr/logr"
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
@@ -155,19 +159,20 @@ func testExpectedAgent(agentContainerName apicommon.AgentContainerName, expected
 }
 
 func TestResolveHostProfilerImage(t *testing.T) {
+	baseImage := "docker.io/datadog/agent:7.63.0"
 	tests := []struct {
 		name        string
 		annotations map[string]string
 		want        string
 	}{
 		{
-			name: "no annotations, no spec override",
-			want: "",
+			name: "no annotations",
+			want: baseImage,
 		},
 		{
 			name:        "annotation absent",
 			annotations: map[string]string{"some.other/annotation": "value"},
-			want:        "",
+			want:        baseImage,
 		},
 		{
 			name: "experimental annotation — full ref in name",
@@ -177,38 +182,142 @@ func TestResolveHostProfilerImage(t *testing.T) {
 			want: "gcr.io/x/host-profiler:v2",
 		},
 		{
-			name: "experimental annotation — name and tag fields",
+			name: "experimental annotation — tagged name preserves registry",
 			annotations: map[string]string{
-				"experimental.agent.datadoghq.com/image-override-config": `{"host-profiler":{"name":"gcr.io/x/host-profiler","tag":"v2"}}`,
+				"experimental.agent.datadoghq.com/image-override-config": `{"host-profiler":{"name":"host-profiler:v2"}}`,
 			},
-			want: "gcr.io/x/host-profiler:v2",
+			want: "docker.io/datadog/host-profiler:v2",
+		},
+		{
+			name: "experimental annotation — name and tag fields preserve registry",
+			annotations: map[string]string{
+				"experimental.agent.datadoghq.com/image-override-config": `{"host-profiler":{"name":"host-profiler","tag":"v2"}}`,
+			},
+			want: "docker.io/datadog/host-profiler:v2",
 		},
 		{
 			name: "experimental annotation — name with tag takes precedence over tag field",
 			annotations: map[string]string{
-				"experimental.agent.datadoghq.com/image-override-config": `{"host-profiler":{"name":"gcr.io/x/host-profiler:v1","tag":"v2"}}`,
+				"experimental.agent.datadoghq.com/image-override-config": `{"host-profiler":{"name":"host-profiler:v1","tag":"v2"}}`,
 			},
-			want: "gcr.io/x/host-profiler:v1",
+			want: "docker.io/datadog/host-profiler:v1",
 		},
 		{
 			name: "experimental annotation — different container, ignored",
 			annotations: map[string]string{
 				"experimental.agent.datadoghq.com/image-override-config": `{"agent":{"name":"gcr.io/x/agent:v2"}}`,
 			},
-			want: "",
+			want: baseImage,
 		},
 		{
 			name: "experimental annotation — malformed json",
 			annotations: map[string]string{
 				"experimental.agent.datadoghq.com/image-override-config": `not-json`,
 			},
-			want: "",
+			want: baseImage,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			dda := &metav1.ObjectMeta{Annotations: tt.annotations}
-			assert.Equal(t, tt.want, resolveHostProfilerImage(dda, nil))
+			assert.Equal(t, tt.want, resolveHostProfilerImage(dda, baseImage))
+		})
+	}
+}
+
+func TestHostProfilerSeccompImageStaysAlignedThroughOverrides(t *testing.T) {
+	ifNotPresent := corev1.PullIfNotPresent
+	tests := []struct {
+		name              string
+		annotations       map[string]string
+		baseImage         string
+		componentOverride *v2alpha1.DatadogAgentComponentOverride
+		wantImage         string
+	}{
+		{
+			name:      "node agent image override does not rewrite host-profiler seccomp image",
+			baseImage: "gcr.io/datadoghq/agent:7.80.1",
+			componentOverride: &v2alpha1.DatadogAgentComponentOverride{
+				Image: &v2alpha1.AgentImageConfig{Name: "agent", Tag: "nightly", PullPolicy: &ifNotPresent},
+			},
+			wantImage: "gcr.io/datadoghq/agent:7.80.1",
+		},
+		// Tag-only experimental overrides are intentionally omitted here: host-profiler must select
+		// an image name that contains the profiler, while tag-only would keep the agent image name.
+		{
+			name: "experimental name and tag preserves registry after node agent override",
+			annotations: map[string]string{
+				"experimental.agent.datadoghq.com/image-override-config": `{"host-profiler":{"name":"host-profiler","tag":"v2"}}`,
+			},
+			baseImage: "custom.registry/agent:7.80.1-fips",
+			componentOverride: &v2alpha1.DatadogAgentComponentOverride{
+				Image: &v2alpha1.AgentImageConfig{Name: "agent", Tag: "nightly", PullPolicy: &ifNotPresent},
+			},
+			wantImage: "custom.registry/host-profiler:v2",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			annotations := map[string]string{"agent.datadoghq.com/host-profiler-enabled": "true"}
+			for k, v := range tt.annotations {
+				annotations[k] = v
+			}
+			dda := testutils.NewDatadogAgentBuilder().
+				WithName("datadog-agent").
+				WithAnnotations(annotations).
+				Build()
+			dda.Spec.Override[v2alpha1.NodeAgentComponentName] = tt.componentOverride
+
+			manager := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{Name: string(apicommon.CoreAgentContainerName), Image: "gcr.io/datadoghq/agent:7.80.1"},
+						{
+							Name:  string(apicommon.HostProfiler),
+							Image: tt.baseImage,
+							SecurityContext: &corev1.SecurityContext{
+								ReadOnlyRootFilesystem: ptr.To(true),
+							},
+						},
+					},
+				},
+			})
+
+			hostProfilerFeat := buildHostProfilerFeature(nil).(*hostProfilerFeature)
+			hostProfilerFeat.Configure(dda, &dda.Spec, nil)
+			assert.NoError(t, hostProfilerFeat.ManageNodeAgent(manager))
+
+			override.PodTemplateSpec(logr.Discard(), manager, tt.componentOverride, v2alpha1.NodeAgentComponentName, dda.Name)
+			experimental.ApplyExperimentalOverrides(logr.Discard(), dda, manager)
+
+			var hostProfilerContainer *corev1.Container
+			for i := range manager.PodTemplateSpec().Spec.Containers {
+				if manager.PodTemplateSpec().Spec.Containers[i].Name == string(apicommon.HostProfiler) {
+					hostProfilerContainer = &manager.PodTemplateSpec().Spec.Containers[i]
+					break
+				}
+			}
+			assert.NotNil(t, hostProfilerContainer)
+			if hostProfilerContainer != nil {
+				assert.Equal(t, tt.wantImage, hostProfilerContainer.Image)
+				assert.Equal(t, ifNotPresent, hostProfilerContainer.ImagePullPolicy)
+				assert.Equal(t, seccompProfileName(tt.wantImage), *hostProfilerContainer.SecurityContext.SeccompProfile.LocalhostProfile)
+			}
+
+			var setupContainer *corev1.Container
+			for i := range manager.PodTemplateSpec().Spec.InitContainers {
+				if manager.PodTemplateSpec().Spec.InitContainers[i].Name == string(apicommon.HostProfilerSeccompSetupContainerName) {
+					setupContainer = &manager.PodTemplateSpec().Spec.InitContainers[i]
+					break
+				}
+			}
+			assert.NotNil(t, setupContainer)
+			if setupContainer != nil {
+				assert.Equal(t, tt.wantImage, setupContainer.Image)
+				assert.Equal(t, ifNotPresent, setupContainer.ImagePullPolicy)
+				assert.Contains(t, setupContainer.Command, common.SeccompRootVolumePath+"/"+seccompProfileName(tt.wantImage))
+			}
 		})
 	}
 }

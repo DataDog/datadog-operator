@@ -73,10 +73,7 @@ func PodTemplateSpec(logger logr.Logger, manager feature.PodTemplateManagers, ov
 						JMXEnabled: false,
 					}
 					manager.PodTemplateSpec().Spec.Containers[i].Image = images.OverrideAgentImage(container.Image, otelOverride)
-				} else if containerName == apicommon.HostProfiler {
-					// The Host Profiler only relies on its override annotation image
-					continue
-				} else {
+				} else if containerName != apicommon.HostProfiler {
 					manager.PodTemplateSpec().Spec.Containers[i].Image = images.OverrideAgentImage(container.Image, override.Image)
 				}
 				if override.Image.PullPolicy != nil {
@@ -87,10 +84,9 @@ func PodTemplateSpec(logger logr.Logger, manager feature.PodTemplateManagers, ov
 
 		for i, initContainer := range manager.PodTemplateSpec().Spec.InitContainers {
 			// host-profiler-seccomp-setup copies a seccomp profile JSON baked into the profiler image, not the agent image.
-			if apicommon.AgentContainerName(initContainer.Name) == apicommon.HostProfilerSeccompSetupContainerName {
-				continue
+			if apicommon.AgentContainerName(initContainer.Name) != apicommon.HostProfilerSeccompSetupContainerName {
+				manager.PodTemplateSpec().Spec.InitContainers[i].Image = images.OverrideAgentImage(initContainer.Image, override.Image)
 			}
-			manager.PodTemplateSpec().Spec.InitContainers[i].Image = images.OverrideAgentImage(initContainer.Image, override.Image)
 			if override.Image.PullPolicy != nil {
 				manager.PodTemplateSpec().Spec.InitContainers[i].ImagePullPolicy = *override.Image.PullPolicy
 			}
