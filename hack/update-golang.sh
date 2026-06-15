@@ -130,6 +130,13 @@ fi
 echo "Running go work sync..."
 go work sync
 
+# Keep every module's go.sum valid when tested outside the workspace.
+echo "Running go mod tidy for root module..."
+(cd "$ROOT" && GOWORK=off go mod tidy)
+
+echo "Running go mod tidy for api module..."
+(cd "$ROOT/api" && GOWORK=off go mod tidy)
+
 # test/e2e is not in go.work, so we need to run go mod tidy separately
 echo "Running go mod tidy for test/e2e module..."
 (cd "$ROOT/test/e2e" && GOWORK=off go mod tidy)
