@@ -12,6 +12,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -171,6 +172,10 @@ type ProviderAwareFeature interface {
 // Options option that can be pass to the Interface.Configure function
 type Options struct {
 	Logger logr.Logger
+	// Client is a read-only Kubernetes client for feature code that needs live
+	// cluster state while building dependencies. Callers should pass an uncached
+	// reader when the feature may read outside the controller cache scope.
+	Client client.Reader
 }
 
 // BuildFunc function type used by each Feature during its factory registration.

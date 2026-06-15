@@ -11,6 +11,10 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	ctrlfake "sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
@@ -43,9 +47,64 @@ func Test_controlPlaneMonitoringFeature_Configure(t *testing.T) {
 			WantDependenciesFunc: controlPlaneWantDepsFunc(),
 			ClusterAgent:         controlPlaneWantResourcesFunc(),
 		},
+		{
+			Name: "Control Plane Monitoring enabled with OpenShift provider copies etcd metric client secret",
+			DDA: testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+				WithAnnotations(map[string]string{kubernetes.ProviderAnnotationKey: "openshift-rhcos"}).
+				WithControlPlaneMonitoring(true).
+				Build(),
+			FeatureOptions: &feature.Options{
+				Client: fakeClientWithSecrets(t, &corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      etcdCertsSecretName,
+						Namespace: etcdCertsSourceNamespace,
+					},
+					Type: corev1.SecretTypeTLS,
+					Data: map[string][]byte{
+						"tls.crt": []byte("cert"),
+						"tls.key": []byte("key"),
+					},
+				}),
+			},
+			WantConfigure:        true,
+			WantDependenciesFunc: openShiftControlPlaneWantDepsFunc(),
+		},
+		{
+			Name: "Control Plane Monitoring enabled with OpenShift provider keeps existing target secret when source read fails",
+			DDA: testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+				WithAnnotations(map[string]string{kubernetes.ProviderAnnotationKey: "openshift-rhcos"}).
+				WithControlPlaneMonitoring(true).
+				Build(),
+			FeatureOptions: &feature.Options{
+				Client: fakeClientWithSecrets(t, &corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      etcdCertsSecretName,
+						Namespace: resourcesNamespace,
+					},
+					Type: corev1.SecretTypeTLS,
+					Data: map[string][]byte{
+						"tls.crt": []byte("existing-cert"),
+						"tls.key": []byte("existing-key"),
+					},
+				}),
+			},
+			WantConfigure:        true,
+			WantDependenciesFunc: openShiftControlPlaneWantExistingSecretDepsFunc(),
+		},
 	}
 
 	tests.Run(t, buildControlPlaneMonitoringFeature)
+}
+
+func fakeClientWithSecrets(t testing.TB, secrets ...*corev1.Secret) client.Client {
+	t.Helper()
+	scheme := runtime.NewScheme()
+	assert.NoError(t, corev1.AddToScheme(scheme))
+	objs := make([]client.Object, 0, len(secrets))
+	for _, secret := range secrets {
+		objs = append(objs, secret)
+	}
+	return ctrlfake.NewClientBuilder().WithScheme(scheme).WithObjects(objs...).Build()
 }
 
 func controlPlaneWantDepsFunc() func(t testing.TB, store store.StoreClient) {
@@ -56,6 +115,32 @@ func controlPlaneWantDepsFunc() func(t testing.TB, store store.StoreClient) {
 
 		_, found2 := store.Get(kubernetes.ConfigMapKind, resourcesNamespace, eksConfigMapName)
 		assert.False(t, found2, "Should not have created an EKS ConfigMap")
+	}
+}
+
+func openShiftControlPlaneWantDepsFunc() func(t testing.TB, store store.StoreClient) {
+	return func(t testing.TB, store store.StoreClient) {
+		obj, found := store.Get(kubernetes.SecretsKind, resourcesNamespace, etcdCertsSecretName)
+		assert.True(t, found, "Should have copied the OpenShift etcd metric client Secret")
+
+		secret, ok := obj.(*corev1.Secret)
+		assert.True(t, ok)
+		assert.Equal(t, corev1.SecretTypeTLS, secret.Type)
+		assert.Equal(t, []byte("cert"), secret.Data["tls.crt"])
+		assert.Equal(t, []byte("key"), secret.Data["tls.key"])
+	}
+}
+
+func openShiftControlPlaneWantExistingSecretDepsFunc() func(t testing.TB, store store.StoreClient) {
+	return func(t testing.TB, store store.StoreClient) {
+		obj, found := store.Get(kubernetes.SecretsKind, resourcesNamespace, etcdCertsSecretName)
+		assert.True(t, found, "Should have kept the existing OpenShift etcd metric client Secret")
+
+		secret, ok := obj.(*corev1.Secret)
+		assert.True(t, ok)
+		assert.Equal(t, corev1.SecretTypeTLS, secret.Type)
+		assert.Equal(t, []byte("existing-cert"), secret.Data["tls.crt"])
+		assert.Equal(t, []byte("existing-key"), secret.Data["tls.key"])
 	}
 }
 
