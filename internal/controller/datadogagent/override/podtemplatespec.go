@@ -73,6 +73,10 @@ func PodTemplateSpec(logger logr.Logger, manager feature.PodTemplateManagers, ov
 						JMXEnabled: false,
 					}
 					manager.PodTemplateSpec().Spec.Containers[i].Image = images.OverrideAgentImage(container.Image, otelOverride)
+				} else if containerName == apicommon.HostProfiler {
+					// The Host Profiler only relies on its override annotation image as it is in preview and not yet bundled in
+					// the agent
+					continue
 				} else {
 					manager.PodTemplateSpec().Spec.Containers[i].Image = images.OverrideAgentImage(container.Image, override.Image)
 				}
