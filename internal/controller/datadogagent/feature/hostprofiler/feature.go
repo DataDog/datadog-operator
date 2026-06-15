@@ -194,8 +194,7 @@ func (o *hostProfilerFeature) ManageOtelAgentGateway(managers feature.PodTemplat
 // resolveHostProfilerImage returns the host-profiler image to use for the seccomp init container
 // and profile name when a host-profiler-specific image override is set via the experimental
 // per-container annotation. Returns "" otherwise, causing ManageNodeAgent to fall back to the
-// host-profiler container's own image (which is the correct until the host profiler's seccomp gets bundled in the
-// Agent image).
+// host-profiler container's own image.
 func resolveHostProfilerImage(dda metav1.Object, _ *v2alpha1.DatadogAgentSpec) string {
 	if annotations := dda.GetAnnotations(); annotations != nil {
 		if raw := annotations["experimental.agent.datadoghq.com/image-override-config"]; raw != "" {

@@ -74,8 +74,7 @@ func PodTemplateSpec(logger logr.Logger, manager feature.PodTemplateManagers, ov
 					}
 					manager.PodTemplateSpec().Spec.Containers[i].Image = images.OverrideAgentImage(container.Image, otelOverride)
 				} else if containerName == apicommon.HostProfiler {
-					// The Host Profiler only relies on its override annotation image as it is in preview and not yet bundled in
-					// the agent
+					// The Host Profiler only relies on its override annotation image
 					continue
 				} else {
 					manager.PodTemplateSpec().Spec.Containers[i].Image = images.OverrideAgentImage(container.Image, override.Image)
@@ -87,8 +86,7 @@ func PodTemplateSpec(logger logr.Logger, manager feature.PodTemplateManagers, ov
 		}
 
 		for i, initContainer := range manager.PodTemplateSpec().Spec.InitContainers {
-			// host-profiler-seccomp-setup copies a seccomp profile JSON baked into the profiler image, not the agent image
-			// until the profiler is bundled in the agent.
+			// host-profiler-seccomp-setup copies a seccomp profile JSON baked into the profiler image, not the agent image.
 			if apicommon.AgentContainerName(initContainer.Name) == apicommon.HostProfilerSeccompSetupContainerName {
 				continue
 			}
