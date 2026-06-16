@@ -62,7 +62,7 @@ func (r *Reconciler) reconcileV2Agent(ctx context.Context, requiredComponents fe
 		podManagers = feature.NewPodTemplateManagers(&eds.Spec.Template)
 
 		// Apply provider-conditional global mutations to the pod template — pre-feature.
-		providercaps.ApplyNodeAgentProviderCapabilities(podManagers, provider, global.NodeAgentProviderSpec)
+		providercaps.ApplyProviderCapabilities(podManagers, provider, global.NodeAgentProviderSpec)
 
 		// Set Global setting on the default extendeddaemonset
 		global.ApplyGlobalSettingsNodeAgent(objLogger, podManagers, ddai.GetObjectMeta(), &ddai.Spec, resourcesManager, singleContainerStrategyEnabled, requiredComponents)
@@ -75,7 +75,7 @@ func (r *Reconciler) reconcileV2Agent(ctx context.Context, requiredComponents fe
 				return result, errFeat
 			}
 			if paf, ok := feat.(feature.ProviderAwareFeature); ok {
-				providercaps.ApplyNodeAgentProviderCapabilities(podManagers, provider, paf.NodeAgentProviderCapabilities())
+				providercaps.ApplyProviderCapabilities(podManagers, provider, paf.NodeAgentProviderCapabilities())
 			}
 		}
 
@@ -127,7 +127,7 @@ func (r *Reconciler) reconcileV2Agent(ctx context.Context, requiredComponents fe
 	podManagers = feature.NewPodTemplateManagers(&daemonset.Spec.Template)
 
 	// Apply provider-conditional global mutations to the pod template — pre-feature.
-	providercaps.ApplyNodeAgentProviderCapabilities(podManagers, provider, global.NodeAgentProviderSpec)
+	providercaps.ApplyProviderCapabilities(podManagers, provider, global.NodeAgentProviderSpec)
 
 	// Set Global setting on the default daemonset
 	global.ApplyGlobalSettingsNodeAgent(objLogger, podManagers, ddai.GetObjectMeta(), &ddai.Spec, resourcesManager, singleContainerStrategyEnabled, requiredComponents)
@@ -145,7 +145,7 @@ func (r *Reconciler) reconcileV2Agent(ctx context.Context, requiredComponents fe
 				return result, errFeat
 			}
 			if paf, ok := feat.(feature.ProviderAwareFeature); ok {
-				providercaps.ApplyNodeAgentProviderCapabilities(podManagers, provider, paf.NodeAgentProviderCapabilities())
+				providercaps.ApplyProviderCapabilities(podManagers, provider, paf.NodeAgentProviderCapabilities())
 			}
 		}
 	}

@@ -161,11 +161,11 @@ type Feature interface {
 // ProviderAwareFeature is an optional interface for features that vary behaviour
 // by provider. Features that have no provider-specific variation do not need
 // to implement it. The reconciler applies the returned capabilities by calling
-// providercaps.ApplyNodeAgentProviderCapabilities after the feature's
+// providercaps.ApplyProviderCapabilities after the feature's
 // ManageNodeAgent runs.
 type ProviderAwareFeature interface {
 	Feature
-	NodeAgentProviderCapabilities() providercaps.NodeAgentProviderCapabilities
+	NodeAgentProviderCapabilities() providercaps.ProviderCapabilityMap
 }
 
 // Options option that can be pass to the Interface.Configure function

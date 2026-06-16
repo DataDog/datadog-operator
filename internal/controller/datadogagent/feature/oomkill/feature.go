@@ -39,8 +39,8 @@ type oomKillFeature struct{}
 // NodeAgentProviderCapabilities returns provider-conditional pod-template
 // mutations for the node agent. On GKE COS, /usr/src does not exist on host
 // nodes; strip the src volume + mounts so the pod schedules successfully.
-func (f *oomKillFeature) NodeAgentProviderCapabilities() providercaps.NodeAgentProviderCapabilities {
-	return providercaps.NodeAgentProviderCapabilities{
+func (f *oomKillFeature) NodeAgentProviderCapabilities() providercaps.ProviderCapabilityMap {
+	return providercaps.ProviderCapabilityMap{
 		kubernetes.GKECosProvider: {
 			RemoveVolumes: []string{common.SrcVolumeName},
 		},
