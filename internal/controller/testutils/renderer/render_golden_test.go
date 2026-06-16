@@ -51,6 +51,22 @@ func TestRender_Golden(t *testing.T) {
 			golden:  "testdata/golden/comprehensive-baseline.golden.yaml",
 		},
 		{
+			// Guards the existing EKS-EC2 useHostnameFromFile provider spec
+			// (DD_HOSTNAME_FILE env + cloud-init volume).
+			name:     "comprehensive dda, eks-ec2 use-hostname-from-file",
+			ddaFile:  "testdata/comprehensive-dda.yaml",
+			provider: kubernetes.EKSEC2UseHostnameFromFileProvider,
+			golden:   "testdata/golden/comprehensive-eks-hostname-from-file.golden.yaml",
+		},
+		{
+			// AKS adds DD_ADMISSION_CONTROLLER_ADD_AKS_SELECTORS to the cluster-agent
+			// via the admission controller's ClusterAgentProviderCapabilities.
+			name:     "comprehensive dda, aks",
+			ddaFile:  "testdata/comprehensive-dda.yaml",
+			provider: kubernetes.AKSProvider,
+			golden:   "testdata/golden/comprehensive-aks.golden.yaml",
+		},
+		{
 			name:      "minimal dda, autopilot",
 			ddaFile:   "testdata/minimal-dda.yaml",
 			autopilot: true,
