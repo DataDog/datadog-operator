@@ -36,7 +36,7 @@ func printPlan(streams genericclioptions.IOStreams, info *clusterinfo.ClusterInf
 			if label == "" {
 				label = "(all)"
 			}
-			fmt.Fprintf(streams.Out, "      - %s (%d node(s))\n", label, len(t.Nodes))
+			fmt.Fprintf(streams.Out, "      ◦ %s (%d node(s))\n", label, len(t.Nodes))
 		}
 	}
 	if ensurePDBs {
