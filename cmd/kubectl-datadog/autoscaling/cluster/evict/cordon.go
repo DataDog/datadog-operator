@@ -45,17 +45,6 @@ func cordonNodes(ctx context.Context, clientset kubernetes.Interface, nodes []st
 // against kubelet, the scheduler, and any other controller that mutates Node
 // objects.
 func cordonNode(ctx context.Context, clientset kubernetes.Interface, name string, dryRun bool) (*corev1.Node, error) {
-	if dryRun {
-		node, err := clientset.CoreV1().Nodes().Get(ctx, name, metav1.GetOptions{})
-		if apierrors.IsNotFound(err) {
-			return nil, nil
-		}
-		if err != nil {
-			return nil, fmt.Errorf("failed to get node %s: %w", name, err)
-		}
-		log.Printf("[dry-run] would cordon node %s", name)
-		return node, nil
-	}
 	var cordoned *corev1.Node
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		node, err := clientset.CoreV1().Nodes().Get(ctx, name, metav1.GetOptions{})
@@ -65,7 +54,9 @@ func cordonNode(ctx context.Context, clientset kubernetes.Interface, name string
 			}
 			return fmt.Errorf("failed to get node %s: %w", name, err)
 		}
-		if !node.Spec.Unschedulable {
+		if dryRun {
+			log.Printf("[dry-run] would cordon node %s", name)
+		} else if !node.Spec.Unschedulable {
 			node.Spec.Unschedulable = true
 			node, err = clientset.CoreV1().Nodes().Update(ctx, node, metav1.UpdateOptions{})
 			if err != nil {
