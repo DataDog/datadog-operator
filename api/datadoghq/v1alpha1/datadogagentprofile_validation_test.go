@@ -231,6 +231,7 @@ func TestIsValidDatadogAgentProfile(t *testing.T) {
 
 func TestValidateDatadogAgentProfileFeaturesAllowlist(t *testing.T) {
 	allowedFeatureFields := map[string]struct{}{
+		"APM": {},
 		"GPU": {},
 	}
 
