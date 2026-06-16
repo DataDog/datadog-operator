@@ -59,6 +59,14 @@ func TestRender_Golden(t *testing.T) {
 			golden:   "testdata/golden/comprehensive-eks-hostname-from-file.golden.yaml",
 		},
 		{
+			// AKS adds DD_ADMISSION_CONTROLLER_ADD_AKS_SELECTORS to the cluster-agent
+			// via the admission controller's ClusterAgentProviderCapabilities.
+			name:     "comprehensive dda, aks",
+			ddaFile:  "testdata/comprehensive-dda.yaml",
+			provider: kubernetes.AKSProvider,
+			golden:   "testdata/golden/comprehensive-aks.golden.yaml",
+		},
+		{
 			name:      "minimal dda, autopilot",
 			ddaFile:   "testdata/minimal-dda.yaml",
 			autopilot: true,
