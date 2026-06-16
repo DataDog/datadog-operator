@@ -22,9 +22,11 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/objects"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/experimental"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/providercaps"
 	cilium "github.com/DataDog/datadog-operator/pkg/cilium/v1"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/images"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 func init() {
@@ -558,4 +560,22 @@ func (f *admissionControllerFeature) ManageClusterChecksRunner(managers feature.
 
 func (f *admissionControllerFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers) error {
 	return nil
+}
+
+func (f *admissionControllerFeature) ClusterAgentProviderCapabilities() providercaps.ProviderCapabilityMap {
+	return providercaps.ProviderCapabilityMap{
+		kubernetes.AKSProvider: {
+			EnvVars: []providercaps.EnvVarSet{
+				{
+					EnvVar: corev1.EnvVar{
+						Name:  DDAdmissionControllerAddAKSSelectors,
+						Value: "true",
+					},
+					Containers: []apicommon.AgentContainerName{
+						apicommon.ClusterAgentContainerName,
+					},
+				},
+			},
+		},
+	}
 }
