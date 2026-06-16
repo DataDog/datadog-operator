@@ -168,6 +168,9 @@ spec:
 `features.cws.securityProfiles.enabled`
 : Enables Security Profiles collection for Cloud Workload Security. Default: true
 
+`features.cws.securityProfiles.v2`
+: Enabled Activity Dump v2 Security Profiles collection for Cloud Workload Security. Default: true
+
 `features.cws.syscallMonitorEnabled`
 : SyscallMonitorEnabled enables Syscall Monitoring (recommended for troubleshooting only). Default: false
 

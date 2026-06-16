@@ -52,6 +52,7 @@ type cwsFeature struct {
 	directSendFromSystemProbe  bool
 	enforcementEnabled         bool
 	useVSock                   bool
+	activityDumpV2             bool
 
 	owner  metav1.Object
 	logger logr.Logger
@@ -104,6 +105,10 @@ func (f *cwsFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 		}
 		if cwsConfig.SecurityProfiles != nil {
 			f.activityDumpEnabled = apiutils.BoolValue(cwsConfig.SecurityProfiles.Enabled)
+		}
+
+		if ddaSpec.Features.CWS.SecurityProfiles.V2 != nil {
+			f.activityDumpV2 = apiutils.BoolValue(ddaSpec.Features.CWS.SecurityProfiles.V2)
 		}
 
 		if ddaSpec.Features != nil && ddaSpec.Features.RemoteConfiguration != nil {

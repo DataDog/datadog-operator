@@ -567,6 +567,11 @@ type CWSSecurityProfilesConfig struct {
 	// Default: true
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
+
+	// Enabled Activity Dump v2 Security Profiles collection for Cloud Workload Security.
+	// Default: true
+	// +optional
+	V2 *bool `json:"v2,omitempty"`
 }
 
 type CWSRemoteConfigurationConfig struct {
