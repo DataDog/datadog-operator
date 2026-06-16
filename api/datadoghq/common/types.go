@@ -44,6 +44,8 @@ const (
 	InitConfigContainerName AgentContainerName = "init-config"
 	// SeccompSetupContainerName is the name of the Seccomp Setup init container
 	SeccompSetupContainerName AgentContainerName = "seccomp-setup"
+	// HostProfilerSeccompSetupContainerName is the name of the host-profiler seccomp setup init container
+	HostProfilerSeccompSetupContainerName AgentContainerName = "host-profiler-seccomp-setup"
 
 	// UnprivilegedSingleAgentContainerName is the name of a container which may run
 	// any combination of Core, Trace and Process Agent processes in a single container.
