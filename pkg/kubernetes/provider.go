@@ -46,6 +46,9 @@ const (
 	// OpenShiftProviderLabel is the OpenShift node label used to determine the node's provider
 	OpenShiftProviderLabel = "node.openshift.io/os_id"
 
+	// AKSProvider is the Azure Kubernetes Service provider name (mirrors helm's providers.aks).
+	AKSProvider = "aks"
+
 	// EKSCloudProvider is the Amazon EKS CloudProvider name
 	EKSCloudProvider = "eks"
 

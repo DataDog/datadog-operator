@@ -20,6 +20,7 @@ import (
 	componentdca "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusteragent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/global"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/providercaps"
 	"github.com/DataDog/datadog-operator/pkg/condition"
 )
 
@@ -58,9 +59,15 @@ func (c *ClusterAgentComponent) GetNewDeploymentFunc() func(ddai metav1.Object, 
 	return componentdca.NewDefaultClusterAgentDeployment
 }
 
-func (c *ClusterAgentComponent) GetManageFeatureFunc() func(feat feature.Feature, managers feature.PodTemplateManagers) error {
+func (c *ClusterAgentComponent) GetManageFeatureFunc(provider string) func(feat feature.Feature, managers feature.PodTemplateManagers) error {
 	return func(feat feature.Feature, managers feature.PodTemplateManagers) error {
-		return feat.ManageClusterAgent(managers)
+		if err := feat.ManageClusterAgent(managers); err != nil {
+			return err
+		}
+		if paf, ok := feat.(feature.ClusterAgentProviderAwareFeature); ok {
+			providercaps.ApplyProviderCapabilities(managers, provider, paf.ClusterAgentProviderCapabilities())
+		}
+		return nil
 	}
 }
 

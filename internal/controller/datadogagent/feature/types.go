@@ -168,6 +168,15 @@ type ProviderAwareFeature interface {
 	NodeAgentProviderCapabilities() providercaps.ProviderCapabilityMap
 }
 
+// ClusterAgentProviderAwareFeature is an optional interface for features that vary
+// cluster agent behaviour by provider. The reconciler applies the returned
+// capabilities by calling providercaps.ApplyProviderCapabilities after
+// the feature's ManageClusterAgent runs.
+type ClusterAgentProviderAwareFeature interface {
+	Feature
+	ClusterAgentProviderCapabilities() providercaps.ProviderCapabilityMap
+}
+
 // Options option that can be pass to the Interface.Configure function
 type Options struct {
 	Logger logr.Logger
