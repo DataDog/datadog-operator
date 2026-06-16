@@ -78,6 +78,34 @@ func TestShouldEnableAPM(t *testing.T) {
 	}
 }
 
+func TestAPMConfigureSSIWithoutNodeAPM(t *testing.T) {
+	dda := &v2alpha1.DatadogAgent{
+		ObjectMeta: v1.ObjectMeta{
+			Name:      "datadog",
+			Namespace: "default",
+		},
+		Spec: v2alpha1.DatadogAgentSpec{
+			Features: &v2alpha1.DatadogFeatures{
+				AdmissionController: &v2alpha1.AdmissionControllerFeatureConfig{Enabled: ptr.To(true)},
+				APM: &v2alpha1.APMFeatureConfig{
+					Enabled: ptr.To(false),
+					SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
+						Enabled:           ptr.To(true),
+						LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: ptr.To(true)},
+					},
+				},
+			},
+		},
+	}
+
+	feat := buildAPMFeature(&feature.Options{}).(*apmFeature)
+	reqComp := feat.Configure(dda, &dda.Spec, nil)
+
+	assert.False(t, reqComp.Agent.IsEnabled())
+	assert.True(t, reqComp.ClusterAgent.IsEnabled())
+	assert.True(t, feat.shouldEnableLanguageDetection())
+}
+
 func TestAPMFeature(t *testing.T) {
 	tests := test.FeatureTestSuite{
 		{
@@ -323,7 +351,8 @@ func TestAPMFeature(t *testing.T) {
 				WithAPMSingleStepInstrumentationEnabled(true, nil, nil, nil, false, "", nil, "").
 				WithAdmissionControllerEnabled(true).
 				Build(),
-			WantConfigure: false,
+			WantConfigure: true,
+			ClusterAgent:  testAPMInstrumentationWithoutUDS(),
 		},
 		{
 			Name: "step instrumentation w/o AC",
@@ -756,6 +785,27 @@ func testAPMInstrumentation() *test.ComponentTest {
 					Name:  DDAPMReceiverSocket,
 					Value: apmSocketHostPath,
 				},
+				{
+					Name:  DDAPMInstrumentationEnabled,
+					Value: "true",
+				},
+			}
+			assert.True(
+				t,
+				apiutils.IsEqualStruct(agentEnvs, expectedAgentEnvs),
+				"Cluster Agent ENVs \ndiff = %s", cmp.Diff(agentEnvs, expectedAgentEnvs),
+			)
+		},
+	)
+}
+
+func testAPMInstrumentationWithoutUDS() *test.ComponentTest {
+	return test.NewDefaultComponentTest().WithWantFunc(
+		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+			mgr := mgrInterface.(*fake.PodTemplateManagers)
+
+			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommon.ClusterAgentContainerName]
+			expectedAgentEnvs := []*corev1.EnvVar{
 				{
 					Name:  DDAPMInstrumentationEnabled,
 					Value: "true",
