@@ -24,8 +24,12 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
+	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	"github.com/DataDog/datadog-operator/pkg/utils"
 )
+
+const ActivityDumpV2MinVersion = "7.81.0-0"
 
 func init() {
 	err := feature.Register(feature.CWSIDType, buildCWSFeature)
@@ -61,6 +65,19 @@ type cwsFeature struct {
 	configMapName               string
 	customConfigAnnotationKey   string
 	customConfigAnnotationValue string
+}
+
+// activityDumpV2Supported reports whether the configured Agent image is known to be >=
+// ActivityDumpV2MinVersion. The default value passed to IsAboveMinVersion is intentionally false:
+// Activity Dump v2 lacks guards against unbounded memory allocation on older Agents, so when the
+// version cannot be parsed (e.g. custom or digest-pinned tags) we must fail closed rather than risk
+// an OOM. Do not flip this to true without adding such guards.
+func activityDumpV2Supported(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
+	defaultValue := false
+	if nodeAgent, ok := ddaSpec.Override[v2alpha1.NodeAgentComponentName]; ok && nodeAgent.Image != nil {
+		return utils.IsAboveMinVersion(common.GetAgentVersionFromImage(*nodeAgent.Image), ActivityDumpV2MinVersion, &defaultValue)
+	}
+	return utils.IsAboveMinVersion(images.AgentLatestVersion, ActivityDumpV2MinVersion, &defaultValue)
 }
 
 // ID returns the ID of the Feature
@@ -105,10 +122,19 @@ func (f *cwsFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 		}
 		if cwsConfig.SecurityProfiles != nil {
 			f.activityDumpEnabled = apiutils.BoolValue(cwsConfig.SecurityProfiles.Enabled)
-		}
 
-		if ddaSpec.Features.CWS.SecurityProfiles.V2 != nil {
-			f.activityDumpV2 = apiutils.BoolValue(ddaSpec.Features.CWS.SecurityProfiles.V2)
+			if apiutils.BoolValue(cwsConfig.SecurityProfiles.V2) {
+				if activityDumpV2Supported(ddaSpec) {
+					f.activityDumpV2 = true
+				} else {
+					// Surface the silent gate: the user explicitly opted into v2 but we are disabling
+					// it because the Agent version can't be confirmed to support it. Logged at the
+					// default Info level so it is visible without raising log verbosity.
+					f.logger.Info("CWS Activity Dump v2 was requested but is disabled: the Agent image version could not be confirmed to be >= "+
+						ActivityDumpV2MinVersion+" (custom or digest-pinned tags parse as unknown). Enabling it on older Agents risks unbounded memory usage.",
+						"minVersion", ActivityDumpV2MinVersion)
+				}
+			}
 		}
 
 		if ddaSpec.Features != nil && ddaSpec.Features.RemoteConfiguration != nil {

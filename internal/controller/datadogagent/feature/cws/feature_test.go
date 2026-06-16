@@ -128,6 +128,127 @@ func Test_cwsFeature_Configure(t *testing.T) {
 	tests.Run(t, buildCWSFeature)
 }
 
+func Test_activityDumpV2Supported(t *testing.T) {
+	nodeAgentWithTag := func(tag string) map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride {
+		return map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+			v2alpha1.NodeAgentComponentName: {
+				Image: &v2alpha1.AgentImageConfig{Tag: tag},
+			},
+		}
+	}
+
+	tests := []struct {
+		name     string
+		override map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride
+		want     bool
+	}{
+		{
+			name:     "agent tag at minimum version",
+			override: nodeAgentWithTag("7.81.0"),
+			want:     true,
+		},
+		{
+			name:     "agent tag above minimum version",
+			override: nodeAgentWithTag("7.82.0"),
+			want:     true,
+		},
+		{
+			name:     "agent tag below minimum version",
+			override: nodeAgentWithTag("7.80.0"),
+			want:     false,
+		},
+		{
+			// Fails closed: an unparseable tag (custom build, digest-pinned, etc.) must not enable v2
+			// because older Agents have no guard against unbounded memory allocation.
+			name:     "unparseable custom tag fails closed",
+			override: nodeAgentWithTag("custom-internal-build"),
+			want:     false,
+		},
+		{
+			// No image override resolves to images.AgentLatestVersion, which is currently below the
+			// minimum, so v2 stays off until the operator default Agent version is bumped.
+			name:     "no image override uses latest default",
+			override: nil,
+			want:     false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ddaSpec := &v2alpha1.DatadogAgentSpec{Override: tt.override}
+			assert.Equal(t, tt.want, activityDumpV2Supported(ddaSpec))
+		})
+	}
+}
+
+func Test_cwsFeature_ConfigureActivityDumpV2(t *testing.T) {
+	newDDASpec := func(v2 *bool, tag string) *v2alpha1.DatadogAgentSpec {
+		spec := &v2alpha1.DatadogAgentSpec{
+			Features: &v2alpha1.DatadogFeatures{
+				CWS: &v2alpha1.CWSFeatureConfig{
+					Enabled: ptr.To(true),
+					SecurityProfiles: &v2alpha1.CWSSecurityProfilesConfig{
+						Enabled: ptr.To(true),
+						V2:      v2,
+					},
+				},
+			},
+		}
+		if tag != "" {
+			spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+				v2alpha1.NodeAgentComponentName: {Image: &v2alpha1.AgentImageConfig{Tag: tag}},
+			}
+		}
+		return spec
+	}
+
+	tests := []struct {
+		name string
+		v2   *bool
+		tag  string
+		want bool
+	}{
+		{
+			name: "v2 requested on supported agent is enabled",
+			v2:   ptr.To(true),
+			tag:  "7.81.0",
+			want: true,
+		},
+		{
+			name: "v2 requested on old agent is gated off",
+			v2:   ptr.To(true),
+			tag:  "7.80.0",
+			want: false,
+		},
+		{
+			name: "v2 requested on unparseable tag is gated off",
+			v2:   ptr.To(true),
+			tag:  "custom-internal-build",
+			want: false,
+		},
+		{
+			name: "v2 not requested stays off even on supported agent",
+			v2:   ptr.To(false),
+			tag:  "7.81.0",
+			want: false,
+		},
+		{
+			name: "v2 unset stays off",
+			v2:   nil,
+			tag:  "7.81.0",
+			want: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := &cwsFeature{}
+			f.Configure(&v2alpha1.DatadogAgent{}, newDDASpec(tt.v2, tt.tag), nil)
+			assert.Equal(t, tt.want, f.activityDumpV2)
+		})
+	}
+}
+
 func cwsAgentNodeWantFunc(withSubFeatures bool, directSendFromSysProbe bool, enforcementEnabled bool) *test.ComponentTest {
 	return test.NewDefaultComponentTest().WithWantFunc(
 		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {

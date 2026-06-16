@@ -568,7 +568,9 @@ type CWSSecurityProfilesConfig struct {
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 
-	// Enabled Activity Dump v2 Security Profiles collection for Cloud Workload Security.
+	// V2 enables Activity Dump v2 Security Profiles collection for Cloud Workload Security.
+	// Requires Agent version >= 7.81.0. On older or unidentifiable Agent images (e.g. digest-pinned
+	// or custom tags) this is disabled to avoid unbounded memory usage.
 	// Default: true
 	// +optional
 	V2 *bool `json:"v2,omitempty"`

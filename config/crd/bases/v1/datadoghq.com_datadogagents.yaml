@@ -1413,7 +1413,9 @@ spec:
                               type: boolean
                             v2:
                               description: |-
-                                Enabled Activity Dump v2 Security Profiles collection for Cloud Workload Security.
+                                V2 enables Activity Dump v2 Security Profiles collection for Cloud Workload Security.
+                                Requires Agent version >= 7.81.0. On older or unidentifiable Agent images (e.g. digest-pinned
+                                or custom tags) this is disabled to avoid unbounded memory usage.
                                 Default: true
                               type: boolean
                           type: object
@@ -10214,7 +10216,9 @@ spec:
                                   type: boolean
                                 v2:
                                   description: |-
-                                    Enabled Activity Dump v2 Security Profiles collection for Cloud Workload Security.
+                                    V2 enables Activity Dump v2 Security Profiles collection for Cloud Workload Security.
+                                    Requires Agent version >= 7.81.0. On older or unidentifiable Agent images (e.g. digest-pinned
+                                    or custom tags) this is disabled to avoid unbounded memory usage.
                                     Default: true
                                   type: boolean
                               type: object
