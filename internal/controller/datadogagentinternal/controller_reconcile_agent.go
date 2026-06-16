@@ -76,7 +76,7 @@ func (r *Reconciler) reconcileV2Agent(ctx context.Context, requiredComponents fe
 				return result, errFeat
 			}
 			if paf, ok := feat.(feature.ProviderAwareFeature); ok {
-				providercaps.ApplyNodeAgentProviderCapabilities(podManagers, provider, paf.NodeAgentProviderCapabilities())
+				providercaps.ApplyProviderCapabilities(podManagers, provider, paf.NodeAgentProviderCapabilities())
 			}
 		}
 
@@ -151,7 +151,7 @@ func (r *Reconciler) reconcileV2Agent(ctx context.Context, requiredComponents fe
 		// container strategy, so colocated provider mutations are not silently
 		// dropped in single-container mode.
 		if paf, ok := feat.(feature.ProviderAwareFeature); ok {
-			providercaps.ApplyNodeAgentProviderCapabilities(podManagers, provider, paf.NodeAgentProviderCapabilities())
+			providercaps.ApplyProviderCapabilities(podManagers, provider, paf.NodeAgentProviderCapabilities())
 		}
 	}
 

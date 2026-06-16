@@ -11,6 +11,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 
+	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 )
 
@@ -41,7 +42,7 @@ func defaultCapabilities() []corev1.Capability {
 
 func buildSeccompSetupInitContainer(image string) corev1.Container {
 	return corev1.Container{
-		Name:  "host-profiler-seccomp-setup",
+		Name:  string(apicommon.HostProfilerSeccompSetupContainerName),
 		Image: image,
 		Command: []string{
 			"cp",

@@ -25,7 +25,7 @@ import (
 // that removals (e.g. the CRI socket added from global.criSocketPath) see the
 // volumes they target.
 func ApplyGlobalNodeAgentSpec(mgr feature.PodTemplateManagers, provider string) {
-	providercaps.ApplyNodeAgentProviderCapabilities(mgr, provider, NodeAgentProviderSpec)
+	providercaps.ApplyProviderCapabilities(mgr, provider, NodeAgentProviderSpec)
 	applyProviderPodLabels(mgr, provider)
 	if provider == kubernetes.GKEAutopilotProvider {
 		applyAutopilotGlobalExtras(mgr)

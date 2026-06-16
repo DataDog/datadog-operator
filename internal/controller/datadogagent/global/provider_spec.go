@@ -47,7 +47,7 @@ const (
 // Mirrors the Helm chart's _provider-specific_ pod-template additions (see
 // charts/datadog/templates/_containers-common-env.yaml and
 // _container-cloudinit-volumemounts.yaml).
-var NodeAgentProviderSpec = providercaps.NodeAgentProviderCapabilities{
+var NodeAgentProviderSpec = providercaps.ProviderCapabilityMap{
 	kubernetes.EKSEC2UseHostnameFromFileProvider: {
 		// DD_HOSTNAME_FILE points the agent at the EC2 instance-id so it
 		// derives a stable hostname even when the kubelet hostname differs.

@@ -188,8 +188,8 @@ func (f *dogstatsdFeature) ManageSingleContainerNodeAgent(managers feature.PodTe
 // On GKE Autopilot the dogstatsd socket volume (added by the default node-agent builder)
 // is not in the WorkloadAllowlist, so it is removed (the feature forces hostPort there).
 // Colocated here because dogstatsd owns the socket volume's provider variation.
-func (f *dogstatsdFeature) NodeAgentProviderCapabilities() providercaps.NodeAgentProviderCapabilities {
-	return providercaps.NodeAgentProviderCapabilities{
+func (f *dogstatsdFeature) NodeAgentProviderCapabilities() providercaps.ProviderCapabilityMap {
+	return providercaps.ProviderCapabilityMap{
 		kubernetes.GKEAutopilotProvider: {
 			RemoveVolumes: []string{common.DogstatsdSocketVolumeName},
 		},

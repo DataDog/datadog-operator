@@ -1176,7 +1176,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: cebaf5a58dc364b6a4a19c6c90371021
+    agent.datadoghq.com/agentspechash: 7c61a900f559daa4ebd3d86f32137a26
   labels:
     agent.datadoghq.com/component: agent
     agent.datadoghq.com/name: datadog-agent
@@ -1290,7 +1290,7 @@ spec:
           value: "true"
         - name: DD_SYSPROBE_SOCKET
           value: /var/run/sysprobe/sysprobe.sock
-        image: gcr.io/datadoghq/agent:7.79.2
+        image: gcr.io/datadoghq/agent:7.80.1
         livenessProbe:
           failureThreshold: 6
           httpGet:
@@ -1427,7 +1427,7 @@ spec:
           value: /var/run/datadog/dsd.socket
         - name: DD_REMOTE_CONFIGURATION_ENABLED
           value: "true"
-        image: gcr.io/datadoghq/agent:7.79.2
+        image: gcr.io/datadoghq/agent:7.80.1
         livenessProbe:
           initialDelaySeconds: 15
           periodSeconds: 15
@@ -1516,7 +1516,7 @@ spec:
           value: "true"
         - name: DD_SYSPROBE_SOCKET
           value: /var/run/sysprobe/sysprobe.sock
-        image: gcr.io/datadoghq/agent:7.79.2
+        image: gcr.io/datadoghq/agent:7.80.1
         name: system-probe
         resources: {}
         securityContext:
@@ -1563,7 +1563,7 @@ spec:
         command:
         - bash
         - -c
-        image: gcr.io/datadoghq/agent:7.79.2
+        image: gcr.io/datadoghq/agent:7.80.1
         name: init-volume
         resources: {}
         volumeMounts:
@@ -1598,7 +1598,7 @@ spec:
               fieldPath: status.hostIP
         - name: DD_DISCOVERY_ENABLED
           value: "true"
-        image: gcr.io/datadoghq/agent:7.79.2
+        image: gcr.io/datadoghq/agent:7.80.1
         name: init-config
         resources: {}
         volumeMounts:
@@ -1624,7 +1624,7 @@ spec:
         - cp
         - /etc/config/system-probe-seccomp.json
         - /host/var/lib/kubelet/seccomp/system-probe
-        image: gcr.io/datadoghq/agent:7.79.2
+        image: gcr.io/datadoghq/agent:7.80.1
         name: seccomp-setup
         resources: {}
         volumeMounts:
@@ -1690,7 +1690,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: e5867a83d58b8d3d4020b33092a88fc8
+    agent.datadoghq.com/agentspechash: 50300b9daef6b0169bb4079dc10691cd
   labels:
     agent.datadoghq.com/component: cluster-agent
     agent.datadoghq.com/name: datadog-agent
@@ -1857,7 +1857,7 @@ spec:
           value: "true"
         - name: DD_REMOTE_CONFIGURATION_ENABLED
           value: "true"
-        image: gcr.io/datadoghq/cluster-agent:7.79.2
+        image: gcr.io/datadoghq/cluster-agent:7.80.1
         livenessProbe:
           failureThreshold: 6
           httpGet:

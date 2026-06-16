@@ -145,6 +145,20 @@ func TestIsValidDatadogAgentProfile(t *testing.T) {
 			},
 		},
 	}
+	validAPMFeature := &DatadogAgentProfileSpec{
+		ProfileAffinity: basicProfileAffinity,
+		Config: &v2alpha1.DatadogAgentSpec{
+			Features: &v2alpha1.DatadogFeatures{
+				APM: &v2alpha1.APMFeatureConfig{
+					Enabled: ptr.To(true),
+					SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
+						Enabled:           ptr.To(true),
+						EnabledNamespaces: []string{"gpu"},
+					},
+				},
+			},
+		},
+	}
 	invalidFeatures := &DatadogAgentProfileSpec{
 		ProfileAffinity: basicProfileAffinity,
 		Config: &v2alpha1.DatadogAgentSpec{
@@ -152,6 +166,14 @@ func TestIsValidDatadogAgentProfile(t *testing.T) {
 				NPM: &v2alpha1.NPMFeatureConfig{
 					Enabled: ptr.To(true),
 				},
+			},
+		},
+	}
+	invalidDataPlaneFeature := &DatadogAgentProfileSpec{
+		ProfileAffinity: basicProfileAffinity,
+		Config: &v2alpha1.DatadogAgentSpec{
+			Features: &v2alpha1.DatadogFeatures{
+				DataPlane: &v2alpha1.DataPlaneFeatureConfig{},
 			},
 		},
 	}
@@ -211,9 +233,18 @@ func TestIsValidDatadogAgentProfile(t *testing.T) {
 			spec: validFeaturesNoOverride,
 		},
 		{
+			name: "apm feature override",
+			spec: validAPMFeature,
+		},
+		{
 			name:    "dap with unsupported feature",
 			spec:    invalidFeatures,
 			wantErr: "npm override is not supported",
+		},
+		{
+			name:    "dap with unsupported data plane feature",
+			spec:    invalidDataPlaneFeature,
+			wantErr: "dataPlane override is not supported",
 		},
 	}
 	for _, test := range testCases {
