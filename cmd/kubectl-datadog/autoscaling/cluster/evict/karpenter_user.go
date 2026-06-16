@@ -23,18 +23,17 @@ import (
 // That case is surfaced by a pre-flight warning in the orchestrator; this
 // function makes no attempt to re-balance the weights.
 func evictKarpenterUserNodePool(ctx context.Context, clientset kubernetes.Interface, nodePoolName string, nodes []string, drainOpts nodeDrainOptions) error {
-	var errs []error
-	for _, nodeName := range nodes {
-		if err := cordonNode(ctx, clientset, nodeName, drainOpts.DryRun); err != nil {
-			errs = append(errs, fmt.Errorf("cordon node %s: %w", nodeName, err))
-			continue
-		}
-		if err := drainNode(ctx, clientset, nodeName, drainOpts); err != nil {
-			errs = append(errs, fmt.Errorf("drain node %s: %w", nodeName, err))
+	// Cordon every node up front so a pod evicted from one node is never
+	// rescheduled onto another node of the same NodePool that is itself about
+	// to be drained.
+	cordoned, errs := cordonNodes(ctx, clientset, nodes, drainOpts.DryRun)
+	for _, node := range cordoned {
+		if err := drainNode(ctx, clientset, node.Name, drainOpts); err != nil {
+			errs = append(errs, fmt.Errorf("drain node %s: %w", node.Name, err))
 		}
 	}
 	if !drainOpts.DryRun && len(errs) == 0 {
-		log.Printf("Drained %d node(s) from user NodePool %s; Karpenter will terminate their NodeClaims once empty.", len(nodes), nodePoolName)
+		log.Printf("Drained %d node(s) from user NodePool %s; Karpenter will terminate their NodeClaims once empty.", len(cordoned), nodePoolName)
 	}
 	return errors.Join(errs...)
 }

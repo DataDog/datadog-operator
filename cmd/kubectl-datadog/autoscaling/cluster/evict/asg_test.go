@@ -12,9 +12,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
+	clienttesting "k8s.io/client-go/testing"
 )
 
 // stubAutoscaling implements AutoscalingAPI by recording each call. Returning
@@ -273,6 +275,34 @@ var (
 	errTerminate = errors.New("terminate boom")
 	errLock      = errors.New("lock boom")
 )
+
+// TestEvictASGCordonFailure verifies that when a node cannot be cordoned, it is
+// left undrained and the ASG is NOT locked at MaxSize=0 — a re-run must be able
+// to finish the job. The up-front prep (AZRebalance suspend + MinSize=0) still
+// ran and is idempotent on the re-run.
+func TestEvictASGCordonFailure(t *testing.T) {
+	node := &corev1.Node{
+		ObjectMeta: metav1.ObjectMeta{Name: "ip-1"},
+		Spec:       corev1.NodeSpec{ProviderID: "aws:///eu-west-3a/i-0123456789abcdef0"},
+	}
+	client := fake.NewClientset(node)
+	// Every node Update fails with a non-conflict error so the cordon gives up.
+	client.PrependReactor("update", "nodes", func(clienttesting.Action) (bool, runtime.Object, error) {
+		return true, nil, apierrors.NewInternalError(errors.New("cordon boom"))
+	})
+	stub := &stubAutoscaling{}
+
+	err := evictASG(t.Context(), client, stub, "my-asg", []string{"ip-1"}, newDrainOpts(false))
+	require.Error(t, err)
+
+	// Prep precedes the cordon, so it ran...
+	assert.Equal(t, []string{"my-asg"}, stub.suspendedAZRebalance, "AZRebalance suspended up front")
+	assert.True(t, stub.minSizeZeroPrepped("my-asg"), "MinSize=0 prep update issued up front")
+	// ...but the un-cordoned node was never drained or terminated, and the ASG
+	// stays unlocked so a re-run can finish.
+	assert.Empty(t, stub.terminated, "no instance terminated when the node failed to cordon")
+	assert.False(t, stub.locked("my-asg"), "ASG must not be locked when a node failed to cordon")
+}
 
 // TestEvictASGPrepFailure covers the up-front prepareASGForTermination failure
 // branches: when either the AZRebalance suspend or the MinSize=0 update fails,

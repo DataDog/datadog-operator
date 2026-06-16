@@ -10,9 +10,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
+	policyv1 "k8s.io/api/policy/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
+	clienttesting "k8s.io/client-go/testing"
 )
 
 type stubEC2 struct {
@@ -143,4 +145,54 @@ func TestEvictStandalone(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestEvictStandaloneCordonsAllBeforeDraining locks in the cordon-all-up-front
+// behavior: every node of the group is cordoned before ANY node starts
+// draining, so a pod evicted off one node is never rescheduled onto a sibling
+// node that is itself about to be drained. It asserts that at the moment ip-1's
+// pod is evicted, the sibling ip-2 has already been cordoned.
+func TestEvictStandaloneCordonsAllBeforeDraining(t *testing.T) {
+	ec2Node := func(name, az, id string) *corev1.Node {
+		return &corev1.Node{
+			ObjectMeta: metav1.ObjectMeta{Name: name},
+			Spec:       corev1.NodeSpec{ProviderID: "aws:///" + az + "/" + id},
+		}
+	}
+	pod1 := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{Name: "p1", Namespace: "default"},
+		Spec:       corev1.PodSpec{NodeName: "ip-1"},
+	}
+	client := fake.NewClientset(ec2Node("ip-1", "eu-west-3a", "i-aaa"), ec2Node("ip-2", "eu-west-3b", "i-bbb"), pod1)
+
+	var (
+		recorded                     bool
+		node2CordonedAtFirstEviction bool
+	)
+	// On the first pod eviction (ip-1's drain), record whether ip-2 is already
+	// cordoned, then delete the evicted pod so the node becomes empty and the
+	// drain completes. Read/mutate via the tracker, not the typed client:
+	// Fake.Invokes holds a global lock for the whole reaction, so re-entering
+	// the typed client from inside a reactor would deadlock.
+	client.PrependReactor("create", "pods", func(action clienttesting.Action) (bool, runtime.Object, error) {
+		ca, ok := action.(clienttesting.CreateAction)
+		if !ok || ca.GetSubresource() != "eviction" {
+			return false, nil, nil
+		}
+		if !recorded {
+			recorded = true
+			if obj, err := client.Tracker().Get(corev1.SchemeGroupVersion.WithResource("nodes"), "", "ip-2"); err == nil {
+				node2CordonedAtFirstEviction = obj.(*corev1.Node).Spec.Unschedulable
+			}
+		}
+		evic := ca.GetObject().(*policyv1.Eviction)
+		_ = client.Tracker().Delete(corev1.SchemeGroupVersion.WithResource("pods"), evic.Namespace, evic.Name)
+		return true, ca.GetObject(), nil
+	})
+
+	stub := &stubEC2{}
+	err := evictStandalone(t.Context(), client, stub, []string{"ip-1", "ip-2"}, newDrainOpts(false))
+	require.NoError(t, err)
+	assert.True(t, node2CordonedAtFirstEviction, "ip-2 must be cordoned before ip-1 starts draining")
+	assert.ElementsMatch(t, []string{"i-aaa", "i-bbb"}, stub.terminated)
 }

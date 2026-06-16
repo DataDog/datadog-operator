@@ -8,8 +8,6 @@ import (
 
 	awssdk "github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/autoscaling"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
 	commonaws "github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/aws"
@@ -23,11 +21,14 @@ type AutoscalingAPI interface {
 	TerminateInstanceInAutoScalingGroup(ctx context.Context, in *autoscaling.TerminateInstanceInAutoScalingGroupInput, opts ...func(*autoscaling.Options)) (*autoscaling.TerminateInstanceInAutoScalingGroupOutput, error)
 }
 
-// evictASG cordons and drains every node in the ASG, terminating each node's
-// instance — and decrementing the ASG's desired capacity — as soon as that
-// node has drained cleanly, so its capacity is freed without waiting for the
-// rest of the group. Once every node has drained, the ASG is locked at
-// min=max=desired=0 so nothing is ever relaunched.
+// evictASG cordons every node in the ASG up front, then drains them,
+// terminating each node's instance — and decrementing the ASG's desired
+// capacity — as soon as that node has drained cleanly, so its capacity is
+// freed without waiting for the rest of the group. Cordoning the whole group
+// before any drain (as EKS does for a managed node group) keeps a pod evicted
+// from one node from landing on a sibling node that is itself about to be
+// drained. Once every node has drained, the ASG is locked at min=max=desired=0
+// so nothing is ever relaunched.
 //
 // Safety rules:
 //
@@ -61,33 +62,21 @@ func evictASG(ctx context.Context, clientset kubernetes.Interface, asg Autoscali
 		return fmt.Errorf("prepare ASG %s for termination: %w", asgName, err)
 	}
 
-	var (
-		errs        []error
-		drainFailed bool
-	)
+	// Cordon every node up front so a pod evicted from one node is never
+	// rescheduled onto another node of the same ASG that is itself about to be
+	// drained. A node that fails to cordon is left undrained; treat that as a
+	// drain failure so the ASG keeps its original MaxSize for a re-run instead
+	// of being locked away with workloads still on it.
+	cordoned, errs := cordonNodes(ctx, clientset, nodes, drainOpts.DryRun)
 
-	for _, nodeName := range nodes {
-		node, err := clientset.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{})
-		if err != nil {
-			if apierrors.IsNotFound(err) {
-				continue
-			}
-			errs = append(errs, fmt.Errorf("node %s: %w", nodeName, err))
-			drainFailed = true
-			continue
-		}
+	for _, node := range cordoned {
+		nodeName := node.Name
 		id, hasInstanceID := commonaws.ExtractEC2InstanceID(node)
 		if !hasInstanceID {
 			log.Printf("Warning: node %s has unexpected providerID %q; its instance will be terminated by the final scale-to-zero instead", nodeName, node.Spec.ProviderID)
 		}
-		if err := cordonNode(ctx, clientset, nodeName, drainOpts.DryRun); err != nil {
-			errs = append(errs, fmt.Errorf("cordon node %s: %w", nodeName, err))
-			drainFailed = true
-			continue
-		}
 		if err := drainNode(ctx, clientset, nodeName, drainOpts); err != nil {
 			errs = append(errs, fmt.Errorf("drain node %s: %w", nodeName, err))
-			drainFailed = true
 			continue // do NOT terminate this instance: workloads are still on it
 		}
 		// The node drained cleanly: terminate its instance now, decrementing
@@ -102,12 +91,11 @@ func evictASG(ctx context.Context, clientset kubernetes.Interface, asg Autoscali
 		}
 		if err := terminateASGInstance(ctx, asg, id); err != nil {
 			errs = append(errs, fmt.Errorf("terminate instance %s in ASG %s: %w", id, asgName, err))
-			drainFailed = true
 		}
 	}
 
-	if drainFailed {
-		log.Printf("ASG %s: at least one node failed to drain or terminate; leaving the ASG at MinSize=0 without locking MaxSize. Re-run after addressing the errors above.", asgName)
+	if len(errs) > 0 {
+		log.Printf("ASG %s: at least one node failed to cordon, drain, or terminate; leaving the ASG at MinSize=0 without locking MaxSize. Re-run after addressing the errors above.", asgName)
 		return errors.Join(errs...)
 	}
 

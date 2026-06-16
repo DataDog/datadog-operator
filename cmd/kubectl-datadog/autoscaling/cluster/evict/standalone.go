@@ -7,8 +7,6 @@ import (
 	"log"
 
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
 	commonaws "github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/aws"
@@ -22,8 +20,10 @@ type EC2API interface {
 
 // evictStandalone cordons and drains every standalone EC2 instance (one whose
 // Kubernetes Node has an `aws:///<az>/i-<hex>` providerID but is not in any
-// ASG, EKS managed node group, or Karpenter NodePool), terminating each
-// instance as soon as its node has drained cleanly so the IaaS capacity is
+// ASG, EKS managed node group, or Karpenter NodePool). Every node is cordoned
+// up front (so pods evicted from one node are never rescheduled onto another
+// node of the group that is itself about to be drained), then each instance is
+// terminated as soon as its node has drained cleanly so the IaaS capacity is
 // freed without waiting for the rest of the group. Terminating standalone
 // instances directly is safe: by definition they have no controller that would
 // relaunch them.
@@ -33,24 +33,13 @@ type EC2API interface {
 // underlying instance intact — terminating it would kill the still-running
 // pods. A re-run picks up where this one stopped.
 func evictStandalone(ctx context.Context, clientset kubernetes.Interface, ec2API EC2API, nodes []string, drainOpts nodeDrainOptions) error {
-	var errs []error
+	cordoned, errs := cordonNodes(ctx, clientset, nodes, drainOpts.DryRun)
 
-	for _, nodeName := range nodes {
-		node, err := clientset.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{})
-		if err != nil {
-			if apierrors.IsNotFound(err) {
-				continue
-			}
-			errs = append(errs, fmt.Errorf("node %s: %w", nodeName, err))
-			continue
-		}
+	for _, node := range cordoned {
+		nodeName := node.Name
 		id, hasInstanceID := commonaws.ExtractEC2InstanceID(node)
 		if !hasInstanceID {
 			log.Printf("Warning: node %s has unexpected providerID %q; cannot terminate the underlying instance", nodeName, node.Spec.ProviderID)
-		}
-		if err := cordonNode(ctx, clientset, nodeName, drainOpts.DryRun); err != nil {
-			errs = append(errs, fmt.Errorf("cordon node %s: %w", nodeName, err))
-			continue
 		}
 		if err := drainNode(ctx, clientset, nodeName, drainOpts); err != nil {
 			errs = append(errs, fmt.Errorf("drain node %s: %w", nodeName, err))
