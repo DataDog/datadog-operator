@@ -162,8 +162,19 @@ To deploy a `DatadogGenericResource` with the Datadog Operator, follow the steps
 
 Further example manifests are provided [in the supported resources table](#supported-resources).
 
-By default, the Operator ensures that the API resource definition stays in sync with the `DatadogGenericResource` every **60** minutes (per resource). This interval can be adjusted using the environment variable `DD_GENERIC_RESOURCE_FORCE_SYNC_PERIOD`, which specifies the number of minutes. For example, setting this variable to `"30"` changes the interval to 30 minutes.
+## Controller tuning
 
+The `DatadogGenericResource` controller exposes a few tuning options for large installations or load tests.
+
+| Option | Default | Description |
+| --- | --- | --- |
+| `DD_GENERIC_RESOURCE_FORCE_SYNC_PERIOD` | `60` minutes | Interval, in minutes, for checking that the Datadog API resource definition still matches the Kubernetes `DatadogGenericResource`. For example, `"30"` changes the interval to 30 minutes. |
+| `DD_GENERIC_RESOURCE_REQUEUE_PERIOD` | `60s` | Scheduled requeue interval for each `DatadogGenericResource` after a successful reconcile. On these idle requeues, the controller also polls Datadog-side live state for resource types that expose it, currently `monitor` and `slo`. Accepts Go duration strings such as `30s`, `5m`, or a plain integer interpreted as seconds. The minimum value is `1s`. This can also be set with the `--datadogGenericResourceRequeuePeriod` manager flag. |
+| `--datadogGenericResourceMaxConcurrentReconciles` | `1` | Maximum number of `DatadogGenericResource` objects the controller reconciles at the same time. |
+
+Increasing `--datadogGenericResourceMaxConcurrentReconciles` can improve throughput when creating, updating, deleting, or periodically syncing many resources. The tradeoff is higher Operator CPU usage and more concurrent requests to the Datadog API. Setting this too high can make Datadog API rate limits more likely, especially when many resources reconcile at once or when the requeue interval is short.
+
+Lowering `DD_GENERIC_RESOURCE_REQUEUE_PERIOD` makes all DDGR objects reconcile more often. For `monitor` and `slo` resources, it also makes `.status.state` fresher. The tradeoff is more Operator work and, for requeues that call the Datadog API, more API traffic. Raising it reduces polling overhead at the cost of slower periodic reconciliation and less frequent state updates.
 
 ## Datadog-side status
 
@@ -183,7 +194,9 @@ kubectl get datadoggenericresource    # shows state and last state sync columns
 kubectl wait --for=condition=StateSynced datadoggenericresource/<name>
 ```
 
-The controller refreshes `state` roughly every 60 seconds during reconciliation. Failures are visible only via the `StateSynced` condition — they do not break the reconcile loop and the last-known `state` is retained until a subsequent refresh succeeds.
+The controller requeues every `DatadogGenericResource` roughly every 60 seconds by default. This interval is controlled by `DD_GENERIC_RESOURCE_REQUEUE_PERIOD` or the `--datadogGenericResourceRequeuePeriod` manager flag. For `monitor` and `slo` resources, those idle requeues refresh `state`; for resource types without live state, the state fields remain empty. Status polling requeues are lower priority than normal create, update, and delete work, so Datadog-side state updates may be delayed when the controller queue is busy. This keeps management operations ahead of background state polling, but it means `.status.state` is eventually consistent rather than immediate.
+
+Failures are visible only via the `StateSynced` condition: they do not break the reconcile loop and the last-known `state` is retained until a subsequent refresh succeeds.
 
 This information is currently surfaced for `monitor` and `slo` resources. Resource types that do not expose live Datadog-side state (e.g., `dashboard`, `notebook`) leave these fields empty.
 
