@@ -34,4 +34,5 @@ const (
 	DDAdmissionControllerProbeEnabled                                           = "DD_ADMISSION_CONTROLLER_PROBE_ENABLED"
 	DDAdmissionControllerProbeInterval                                          = "DD_ADMISSION_CONTROLLER_PROBE_INTERVAL"
 	DDAdmissionControllerProbeGracePeriod                                       = "DD_ADMISSION_CONTROLLER_PROBE_GRACE_PERIOD"
+	DDAdmissionControllerAddAKSSelectors                                        = "DD_ADMISSION_CONTROLLER_ADD_AKS_SELECTORS"
 )

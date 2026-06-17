@@ -39,6 +39,12 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
+	// SSI is configured on the Cluster Agent, so profile SSI config needs a
+	// shared-component overlay in addition to the normal per-DDAI feature path.
+	err = feature.RegisterProfileSharedConfigOverlay(feature.APMIDType, applyAPMProfileSharedConfigOverlay)
+	if err != nil {
+		panic(err)
+	}
 }
 
 func buildAPMFeature(options *feature.Options) feature.Feature {
@@ -52,6 +58,10 @@ func buildAPMFeature(options *feature.Options) feature.Feature {
 }
 
 type apmFeature struct {
+	// nodeAPMEnabled tracks the node-agent side of APM separately from SSI.
+	// Profiles can contribute SSI Cluster Agent config without enabling trace
+	// agent configuration on the default DDAI.
+	nodeAPMEnabled   bool
 	hostPortEnabled  bool
 	hostPortHostPort int32
 	useHostNetwork   bool
@@ -123,15 +133,33 @@ func shouldEnableAPM(apmConf *v2alpha1.APMFeatureConfig) bool {
 	return false
 }
 
+func shouldConfigureSSI(apmConf *v2alpha1.APMFeatureConfig, ddaSpec *v2alpha1.DatadogAgentSpec) bool {
+	if apmConf == nil || apmConf.SingleStepInstrumentation == nil {
+		return false
+	}
+	// Configure only renders SSI when the shared components it needs can exist.
+	// Profile overlays use the same validation but return an error instead of
+	// silently skipping the profile contribution.
+	return validateSSISharedComponentPrerequisites(ddaSpec) == nil
+}
+
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *apmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
 	f.owner = dda
 	apm := ddaSpec.Features.APM
-	if shouldEnableAPM(apm) {
-		f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda.GetName(), ddaSpec)
+	if apm == nil {
+		return reqComp
+	}
+
+	f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda.GetName(), ddaSpec)
+	f.nodeAPMEnabled = shouldEnableAPM(apm)
+	f.processCheckRunsInCoreAgent = featutils.ShouldRunProcessChecksInCoreAgent(ddaSpec)
+
+	// Node APM controls trace-agent configuration and node-scoped dependencies.
+	if f.nodeAPMEnabled {
 		f.useHostNetwork = constants.IsHostNetworkEnabled(ddaSpec, v2alpha1.NodeAgentComponentName)
 
-		// Check if autopilot is enabled and override defaults accordingly
+		// Check if autopilot is enabled and override defaults accordingly.
 		if experimental.IsAutopilotEnabled(dda) {
 			f.hostPortEnabled = true
 			f.udsEnabled = false
@@ -157,47 +185,52 @@ func (f *apmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 		}
 		f.localServiceName = constants.GetLocalAgentServiceName(dda.GetName(), ddaSpec)
 
-		reqComp = feature.RequiredComponents{
-			Agent: feature.RequiredComponent{
-				IsRequired: ptr.To(true),
-				Containers: []apicommon.AgentContainerName{
-					apicommon.CoreAgentContainerName,
-					apicommon.TraceAgentContainerName,
-				},
+		reqComp.Agent = feature.RequiredComponent{
+			IsRequired: ptr.To(true),
+			Containers: []apicommon.AgentContainerName{
+				apicommon.CoreAgentContainerName,
+				apicommon.TraceAgentContainerName,
 			},
 		}
+	}
 
-		if apm.SingleStepInstrumentation != nil &&
-			(ddaSpec.Features.AdmissionController != nil && apiutils.BoolValue(ddaSpec.Features.AdmissionController.Enabled)) {
-			// TODO: add debug log in case Admission controller is disabled (it's a required feature).
-			f.singleStepInstrumentation = &instrumentationConfig{}
-			f.singleStepInstrumentation.enabled = apiutils.BoolValue(apm.SingleStepInstrumentation.Enabled)
-			f.singleStepInstrumentation.disabledNamespaces = apm.SingleStepInstrumentation.DisabledNamespaces
-			f.singleStepInstrumentation.enabledNamespaces = apm.SingleStepInstrumentation.EnabledNamespaces
-			f.singleStepInstrumentation.libVersions = apm.SingleStepInstrumentation.LibVersions
-			f.singleStepInstrumentation.languageDetection = &languageDetection{enabled: apiutils.BoolValue(ddaSpec.Features.APM.SingleStepInstrumentation.LanguageDetection.Enabled)}
+	// SSI controls Cluster Agent admission instrumentation config. It is kept
+	// separate from nodeAPMEnabled so a profile can enable SSI for a node group
+	// without turning on trace-agent config in the default DDAI.
+	if shouldConfigureSSI(apm, ddaSpec) {
+		f.singleStepInstrumentation = &instrumentationConfig{}
+		f.singleStepInstrumentation.enabled = apiutils.BoolValue(apm.SingleStepInstrumentation.Enabled)
+		f.singleStepInstrumentation.disabledNamespaces = apm.SingleStepInstrumentation.DisabledNamespaces
+		f.singleStepInstrumentation.enabledNamespaces = apm.SingleStepInstrumentation.EnabledNamespaces
+		f.singleStepInstrumentation.libVersions = apm.SingleStepInstrumentation.LibVersions
+		if apm.SingleStepInstrumentation.LanguageDetection != nil {
+			f.singleStepInstrumentation.languageDetection = &languageDetection{enabled: apiutils.BoolValue(apm.SingleStepInstrumentation.LanguageDetection.Enabled)}
+		}
+		if apm.SingleStepInstrumentation.Injector != nil {
 			f.singleStepInstrumentation.injector = &injector{imageTag: apm.SingleStepInstrumentation.Injector.ImageTag}
-			f.singleStepInstrumentation.injectionMode = string(apm.SingleStepInstrumentation.InjectionMode)
-			if len(apm.SingleStepInstrumentation.Targets) > 0 {
-				if supportsInstrumentationTargets(ddaSpec) {
-					f.singleStepInstrumentation.targets = apm.SingleStepInstrumentation.Targets
-				} else {
-					f.logger.Info("Cannot enable instrumentation targets. features.apm.instrumentation.targets requires agent version >= 7.64.0")
-				}
-			}
-			reqComp.ClusterAgent = feature.RequiredComponent{
-				IsRequired: ptr.To(true),
-				Containers: []apicommon.AgentContainerName{
-					apicommon.ClusterAgentContainerName,
-				},
+		}
+		f.singleStepInstrumentation.injectionMode = string(apm.SingleStepInstrumentation.InjectionMode)
+		if len(apm.SingleStepInstrumentation.Targets) > 0 {
+			if supportsInstrumentationTargets(ddaSpec) {
+				f.singleStepInstrumentation.targets = apm.SingleStepInstrumentation.Targets
+			} else {
+				f.logger.Info(fmt.Sprintf("Cannot enable instrumentation targets. features.apm.instrumentation.targets requires agent version >= %s", minInstrumentationTargetsVersion))
 			}
 		}
+		reqComp.ClusterAgent = feature.RequiredComponent{
+			IsRequired: ptr.To(true),
+			Containers: []apicommon.AgentContainerName{
+				apicommon.ClusterAgentContainerName,
+			},
+		}
+	}
 
-		f.processCheckRunsInCoreAgent = featutils.ShouldRunProcessChecksInCoreAgent(ddaSpec)
+	// Language detection still needs process-agent support on nodes when process
+	// checks are not running in the core agent.
+	if f.nodeAPMEnabled {
 		if f.shouldEnableLanguageDetection() && !f.processCheckRunsInCoreAgent {
 			reqComp.Agent.Containers = append(reqComp.Agent.Containers, apicommon.ProcessAgentContainerName)
 		}
-
 		if apm.ErrorTrackingStandalone != nil {
 			f.errorTrackingStandalone = apiutils.BoolValue(apm.ErrorTrackingStandalone.Enabled)
 		}
@@ -229,80 +262,82 @@ func (f *apmFeature) shouldEnableLanguageDetection() bool {
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
 func (f *apmFeature) ManageDependencies(managers feature.ResourceManagers) error {
-	platformInfo := managers.Store().GetPlatformInfo()
-	// agent local service
-	if common.ShouldCreateAgentLocalService(platformInfo.GetVersionInfo(), f.forceEnableLocalService) {
-		apmPort := &corev1.ServicePort{
-			Protocol:   corev1.ProtocolTCP,
-			TargetPort: intstr.FromInt(int(constants.DefaultApmPort)),
-			Port:       constants.DefaultApmPort,
-			Name:       constants.DefaultApmPortName,
-		}
-		if f.hostPortEnabled {
-			apmPort.Port = f.hostPortHostPort
-			apmPort.Name = apmHostPortName
-			if f.useHostNetwork {
-				apmPort.TargetPort = intstr.FromInt(int(f.hostPortHostPort))
+	if f.nodeAPMEnabled {
+		platformInfo := managers.Store().GetPlatformInfo()
+		// agent local service
+		if common.ShouldCreateAgentLocalService(platformInfo.GetVersionInfo(), f.forceEnableLocalService) {
+			apmPort := &corev1.ServicePort{
+				Protocol:   corev1.ProtocolTCP,
+				TargetPort: intstr.FromInt(int(constants.DefaultApmPort)),
+				Port:       constants.DefaultApmPort,
+				Name:       constants.DefaultApmPortName,
+			}
+			if f.hostPortEnabled {
+				apmPort.Port = f.hostPortHostPort
+				apmPort.Name = apmHostPortName
+				if f.useHostNetwork {
+					apmPort.TargetPort = intstr.FromInt(int(f.hostPortHostPort))
+				}
+			}
+
+			serviceInternalTrafficPolicy := corev1.ServiceInternalTrafficPolicyLocal
+			if err := managers.ServiceManager().AddService(f.localServiceName, f.owner.GetNamespace(), common.GetAgentLocalServiceSelector(f.owner), []corev1.ServicePort{*apmPort}, &serviceInternalTrafficPolicy); err != nil {
+				return err
 			}
 		}
 
-		serviceInternalTrafficPolicy := corev1.ServiceInternalTrafficPolicyLocal
-		if err := managers.ServiceManager().AddService(f.localServiceName, f.owner.GetNamespace(), common.GetAgentLocalServiceSelector(f.owner), []corev1.ServicePort{*apmPort}, &serviceInternalTrafficPolicy); err != nil {
-			return err
-		}
-	}
-
-	// network policies
-	if f.hostPortEnabled {
-		policyName, podSelector := objects.GetNetworkPolicyMetadata(f.owner, v2alpha1.NodeAgentComponentName)
-		if f.createKubernetesNetworkPolicy {
-			protocolTCP := corev1.ProtocolTCP
-			ingressRules := []netv1.NetworkPolicyIngressRule{
-				{
-					Ports: []netv1.NetworkPolicyPort{
-						{
-							Port: &intstr.IntOrString{
-								Type:   intstr.Int,
-								IntVal: f.hostPortHostPort,
+		// network policies
+		if f.hostPortEnabled {
+			policyName, podSelector := objects.GetNetworkPolicyMetadata(f.owner, v2alpha1.NodeAgentComponentName)
+			if f.createKubernetesNetworkPolicy {
+				protocolTCP := corev1.ProtocolTCP
+				ingressRules := []netv1.NetworkPolicyIngressRule{
+					{
+						Ports: []netv1.NetworkPolicyPort{
+							{
+								Port: &intstr.IntOrString{
+									Type:   intstr.Int,
+									IntVal: f.hostPortHostPort,
+								},
+								Protocol: &protocolTCP,
 							},
-							Protocol: &protocolTCP,
 						},
 					},
-				},
-			}
-			return managers.NetworkPolicyManager().AddKubernetesNetworkPolicy(
-				policyName,
-				f.owner.GetNamespace(),
-				podSelector,
-				nil,
-				ingressRules,
-				nil,
-			)
-		} else if f.createCiliumNetworkPolicy {
-			policySpecs := []cilium.NetworkPolicySpec{
-				{
-					Description:      "Ingress for APM trace",
-					EndpointSelector: podSelector,
-					Ingress: []cilium.IngressRule{
-						{
-							FromEndpoints: []metav1.LabelSelector{
-								{},
-							},
-							ToPorts: []cilium.PortRule{
-								{
-									Ports: []cilium.PortProtocol{
-										{
-											Port:     strconv.Itoa(int(f.hostPortHostPort)),
-											Protocol: cilium.ProtocolTCP,
+				}
+				return managers.NetworkPolicyManager().AddKubernetesNetworkPolicy(
+					policyName,
+					f.owner.GetNamespace(),
+					podSelector,
+					nil,
+					ingressRules,
+					nil,
+				)
+			} else if f.createCiliumNetworkPolicy {
+				policySpecs := []cilium.NetworkPolicySpec{
+					{
+						Description:      "Ingress for APM trace",
+						EndpointSelector: podSelector,
+						Ingress: []cilium.IngressRule{
+							{
+								FromEndpoints: []metav1.LabelSelector{
+									{},
+								},
+								ToPorts: []cilium.PortRule{
+									{
+										Ports: []cilium.PortProtocol{
+											{
+												Port:     strconv.Itoa(int(f.hostPortHostPort)),
+												Protocol: cilium.ProtocolTCP,
+											},
 										},
 									},
 								},
 							},
 						},
 					},
-				},
+				}
+				return managers.CiliumPolicyManager().AddCiliumPolicy(policyName, f.owner.GetNamespace(), policySpecs)
 			}
-			return managers.CiliumPolicyManager().AddCiliumPolicy(policyName, f.owner.GetNamespace(), policySpecs)
 		}
 	}
 
@@ -424,6 +459,9 @@ func supportsInstrumentationTargets(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
 // if SingleContainerStrategy is enabled and can be used with the configured feature set.
 // It should do nothing if the feature doesn't need to configure it.
 func (f *apmFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers) error {
+	if !f.nodeAPMEnabled {
+		return nil
+	}
 	f.manageNodeAgent(apicommon.UnprivilegedSingleAgentContainerName, managers)
 	return nil
 }
@@ -431,6 +469,9 @@ func (f *apmFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplate
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *apmFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
+	if !f.nodeAPMEnabled {
+		return nil
+	}
 	f.manageNodeAgent(apicommon.TraceAgentContainerName, managers)
 	return nil
 }

@@ -37,7 +37,7 @@ func TestNodeAgentProviderSpec_EKS(t *testing.T) {
 	}
 	mgr := feature.NewPodTemplateManagers(tmpl)
 
-	providercaps.ApplyNodeAgentProviderCapabilities(mgr, kubernetes.EKSEC2UseHostnameFromFileProvider, NodeAgentProviderSpec)
+	providercaps.ApplyProviderCapabilities(mgr, kubernetes.EKSEC2UseHostnameFromFileProvider, NodeAgentProviderSpec)
 
 	wantEnv := corev1.EnvVar{Name: "DD_HOSTNAME_FILE", Value: "/var/lib/cloud/data/instance-id"}
 	for _, c := range tmpl.Spec.Containers {
@@ -87,7 +87,7 @@ func TestNodeAgentProviderSpec_NoProvider(t *testing.T) {
 	}
 	mgr := feature.NewPodTemplateManagers(tmpl)
 
-	providercaps.ApplyNodeAgentProviderCapabilities(mgr, "", NodeAgentProviderSpec)
+	providercaps.ApplyProviderCapabilities(mgr, "", NodeAgentProviderSpec)
 
 	assert.Empty(t, tmpl.Spec.Containers[0].Env)
 	assert.Empty(t, tmpl.Spec.Containers[0].VolumeMounts)
