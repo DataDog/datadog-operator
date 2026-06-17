@@ -83,8 +83,10 @@ type ComponentReconciler interface {
 	// GetNewDeploymentFunc returns the function to create a new deployment for the component
 	GetNewDeploymentFunc() func(ddai metav1.Object, spec *datadoghqv2alpha1.DatadogAgentSpec) *appsv1.Deployment
 
-	// GetManageFeatureFunc returns the function to manage features for the component
-	GetManageFeatureFunc() func(feat feature.Feature, managers feature.PodTemplateManagers) error
+	// GetManageFeatureFunc returns the function to manage features for the component.
+	// provider is the current DDAI provider annotation value; components that apply
+	// provider-conditional mutations (e.g. ClusterAgent) use it in the returned closure.
+	GetManageFeatureFunc(provider string) func(feat feature.Feature, managers feature.PodTemplateManagers) error
 
 	// UpdateStatus updates the status of the component
 	UpdateStatus(deployment *appsv1.Deployment, newStatus *v1alpha1.DatadogAgentInternalStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string)
@@ -194,10 +196,12 @@ func (r *ComponentRegistry) reconcileComponent(ctx context.Context, params *Reco
 	// Set Global setting on the default deployment
 	component.GetGlobalSettingsFunc()(objLogger, podManagers, params.DDAI.GetObjectMeta(), &params.DDAI.Spec, params.ResourceManagers, params.RequiredComponents)
 
-	// Apply features changes on the Deployment.Spec.Template
+	// Apply features changes on the Deployment.Spec.Template.
+	// Each component's GetManageFeatureFunc owns any provider-conditional mutations it needs.
+	manageFeature := component.GetManageFeatureFunc(params.Provider)
 	var featErrors []error
 	for _, feat := range params.Features {
-		if errFeat := component.GetManageFeatureFunc()(feat, podManagers); errFeat != nil {
+		if errFeat := manageFeature(feat, podManagers); errFeat != nil {
 			featErrors = append(featErrors, errFeat)
 		}
 	}

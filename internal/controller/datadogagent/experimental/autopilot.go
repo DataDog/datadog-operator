@@ -327,3 +327,16 @@ func applyExperimentalAutopilotOverrides(dda metav1.Object, manager feature.PodT
 		}
 	}
 }
+
+// CreateDatadogCSIAllowlistSynchronizer creates the Datadog CSI driver
+// WorkloadAllowlist synchronizer when Autopilot support is enabled.
+func CreateDatadogCSIAllowlistSynchronizer(dda metav1.Object) {
+	if !IsAutopilotEnabled(dda) {
+		return
+	}
+
+	allowlistsynchronizer.CreateCSIAllowlistSynchronizer(
+		getExperimentalAnnotation(dda, ExperimentalAutopilotCSIAllowlistVersionSubkey),
+		object.NewPartOfLabelValue(dda).String(),
+	)
+}

@@ -8,10 +8,30 @@ package v1alpha1
 import (
 	"fmt"
 	"reflect"
+	"strings"
+	"unicode"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 )
+
+var datadogAgentProfileFeatureAllowlist = map[string]struct{}{
+	"gpu": {},
+	"apm": {},
+}
+
+var datadogAgentProfileComponentOverrideAllowlist = map[string]struct{}{
+	"containers":        {},
+	"priorityClassName": {},
+	"runtimeClassName":  {},
+	"updateStrategy":    {},
+	"labels":            {},
+}
+
+var datadogAgentProfileContainerOverrideAllowlist = map[string]struct{}{
+	"resources": {},
+	"env":       {},
+}
 
 // ValidateDatadogAgentProfileSpec is used to check if a DatadogAgentProfileSpec is valid
 func ValidateDatadogAgentProfileSpec(spec *DatadogAgentProfileSpec) error {
@@ -64,133 +84,24 @@ func validateFeatures(features *v2alpha1.DatadogFeatures) error {
 		return nil
 	}
 
-	// Only GPU feature is currently supported in DatadogAgentProfile context.
-	// Remove supported features from the `unsupportedFeatures` array.
-	unsupportedFeatures := []struct {
-		value any
-		name  string
-	}{
-		{features.OtelCollector, "otelCollector"},
-		{features.LogCollection, "logCollection"},
-		{features.LiveProcessCollection, "liveProcessCollection"},
-		{features.LiveContainerCollection, "liveContainerCollection"},
-		{features.ProcessDiscovery, "processDiscovery"},
-		{features.OOMKill, "oomKill"},
-		{features.TCPQueueLength, "tcpQueueLength"},
-		{features.EBPFCheck, "ebpfCheck"},
-		{features.APM, "apm"},
-		{features.ASM, "asm"},
-		{features.CSPM, "cspm"},
-		{features.CWS, "cws"},
-		{features.NPM, "npm"},
-		{features.USM, "usm"},
-		{features.Dogstatsd, "dogstatsd"},
-		{features.OTLP, "otlp"},
-		{features.RemoteConfiguration, "remoteConfiguration"},
-		{features.SBOM, "sbom"},
-		{features.ServiceDiscovery, "serviceDiscovery"},
-		{features.EventCollection, "eventCollection"},
-		{features.OrchestratorExplorer, "orchestratorExplorer"},
-		{features.KubeStateMetricsCore, "kubeStateMetricsCore"},
-		{features.AdmissionController, "admissionController"},
-		{features.ExternalMetricsServer, "externalMetricsServer"},
-		{features.Autoscaling, "autoscaling"},
-		{features.ClusterChecks, "clusterChecks"},
-		{features.PrometheusScrape, "prometheusScrape"},
-		{features.HelmCheck, "helmCheck"},
-		{features.ControlPlaneMonitoring, "controlPlaneMonitoring"},
-	}
-
-	for _, feature := range unsupportedFeatures {
-		// Use reflection to check if the underlying value is actually nil
-		// because any can hold a typed nil pointer
-		if feature.value != nil && !reflect.ValueOf(feature.value).IsNil() {
-			return unsupportedError(feature.name)
-		}
-	}
-
-	// GPU is allowed, no error returned
-	return nil
+	return validateAllowlistedFields(features, datadogAgentProfileFeatureAllowlist, jsonFieldName)
 }
 
 func validateOverride(component v2alpha1.ComponentName, override *v2alpha1.DatadogAgentComponentOverride) error {
 	if component != v2alpha1.NodeAgentComponentName {
 		return fmt.Errorf("only node agent componentoverrides are supported")
 	}
+	if override == nil {
+		return undefinedError("component override")
+	}
 
-	if override.Name != nil {
-		return unsupportedError("component name")
-	}
-	if override.Replicas != nil {
-		return unsupportedError("component replicas")
-	}
-	if override.CreatePodDisruptionBudget != nil {
-		return unsupportedError("component create pod disruption budget")
-	}
-	if override.CreateRbac != nil {
-		return unsupportedError("component create rbac")
-	}
-	if override.ServiceAccountName != nil {
-		return unsupportedError("component service account name")
-	}
-	if override.ServiceAccountAnnotations != nil {
-		return unsupportedError("component service account annotations")
-	}
-	if override.Image != nil {
-		return unsupportedError("component image")
-	}
-	if override.Env != nil {
-		return unsupportedError("component env")
-	}
-	if override.EnvFrom != nil {
-		return unsupportedError("component env from")
-	}
-	if override.CustomConfigurations != nil {
-		return unsupportedError("component custom configurations")
-	}
-	if override.ExtraConfd != nil {
-		return unsupportedError("component extra confd")
-	}
-	if override.ExtraChecksd != nil {
-		return unsupportedError("component extra checksd")
+	if err := validateAllowlistedFields(override, datadogAgentProfileComponentOverrideAllowlist, prefixedJSONFieldName("component")); err != nil {
+		return err
 	}
 	for name, override := range override.Containers {
 		if err := validateContainerOverride(name, override); err != nil {
 			return err
 		}
-	}
-	if override.Volumes != nil {
-		return unsupportedError("component volumes")
-	}
-	if override.SecurityContext != nil {
-		return unsupportedError("component security context")
-	}
-	if override.Affinity != nil {
-		return unsupportedError("component affinity")
-	}
-	if override.DNSPolicy != nil {
-		return unsupportedError("component dns policy")
-	}
-	if override.DNSConfig != nil {
-		return unsupportedError("component dns config")
-	}
-	if override.NodeSelector != nil {
-		return unsupportedError("component node selector")
-	}
-	if override.Tolerations != nil {
-		return unsupportedError("component tolerations")
-	}
-	if override.Annotations != nil {
-		return unsupportedError("component annotations")
-	}
-	if override.HostNetwork != nil {
-		return unsupportedError("component host network")
-	}
-	if override.HostPID != nil {
-		return unsupportedError("component host pid")
-	}
-	if override.Disabled != nil {
-		return unsupportedError("component disabled")
 	}
 
 	return nil
@@ -209,45 +120,79 @@ func validateContainerOverride(name common.AgentContainerName, override *v2alpha
 	if _, ok := supportedContainers[name]; !ok {
 		return unsupportedError(fmt.Sprintf("container %s", name))
 	}
+	if override == nil {
+		return undefinedError(fmt.Sprintf("container %s", name))
+	}
 
-	if override.Name != nil {
-		return unsupportedError("container name")
+	return validateAllowlistedFields(override, datadogAgentProfileContainerOverrideAllowlist, prefixedJSONFieldName("container"))
+}
+
+// For every set field in a struct/pointer, read the JSON name
+// (nodeSelector from json:"nodeSelector,omitempty") and check
+// the name is in the allowlist. If not in the list, error
+func validateAllowlistedFields(value any, allowlist map[string]struct{}, unsupportedFieldName func(reflect.StructField) string) error {
+	structValue := reflect.ValueOf(value)
+	if structValue.Kind() == reflect.Ptr {
+		if structValue.IsNil() {
+			return nil
+		}
+		structValue = structValue.Elem()
 	}
-	if override.LogLevel != nil {
-		return unsupportedError("container log level")
-	}
-	if override.VolumeMounts != nil {
-		return unsupportedError("container volume mounts")
-	}
-	if override.Command != nil {
-		return unsupportedError("container command")
-	}
-	if override.Args != nil {
-		return unsupportedError("container args")
-	}
-	if override.HealthPort != nil {
-		return unsupportedError("container health port")
-	}
-	if override.ReadinessProbe != nil {
-		return unsupportedError("container readiness probe")
-	}
-	if override.LivenessProbe != nil {
-		return unsupportedError("container liveness probe")
-	}
-	if override.StartupProbe != nil {
-		return unsupportedError("container startup probe")
-	}
-	if override.SecurityContext != nil {
-		return unsupportedError("container security context")
-	}
-	if override.SeccompConfig != nil {
-		return unsupportedError("container seccomp config")
-	}
-	if override.AppArmorProfileName != nil {
-		return unsupportedError("container app armor profile name")
+
+	structType := structValue.Type()
+	for i := 0; i < structValue.NumField(); i++ {
+		if isEmptyOverrideValue(structValue.Field(i)) {
+			continue
+		}
+
+		field := structType.Field(i)
+		if _, ok := allowlist[jsonFieldName(field)]; !ok {
+			return unsupportedError(unsupportedFieldName(field))
+		}
 	}
 
 	return nil
+}
+
+func isEmptyOverrideValue(value reflect.Value) bool {
+	switch value.Kind() {
+	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Ptr, reflect.Slice:
+		return value.IsNil()
+	default:
+		return value.IsZero()
+	}
+}
+
+func jsonFieldName(field reflect.StructField) string {
+	name, _, _ := strings.Cut(field.Tag.Get("json"), ",")
+	if name == "" || name == "-" {
+		return field.Name
+	}
+
+	return name
+}
+
+func prefixedJSONFieldName(prefix string) func(reflect.StructField) string {
+	return func(field reflect.StructField) string {
+		return fmt.Sprintf("%s %s", prefix, splitJSONFieldName(field))
+	}
+}
+
+func splitJSONFieldName(field reflect.StructField) string {
+	name := []rune(jsonFieldName(field))
+	var words []rune
+	for i, r := range name {
+		if i > 0 && unicode.IsUpper(r) {
+			previous := name[i-1]
+			hasNext := i+1 < len(name)
+			if unicode.IsLower(previous) || hasNext && unicode.IsLower(name[i+1]) {
+				words = append(words, ' ')
+			}
+		}
+		words = append(words, unicode.ToLower(r))
+	}
+
+	return string(words)
 }
 
 func unsupportedError(config string) error {

@@ -7,6 +7,7 @@ package v2alpha1
 
 import (
 	corev1 "k8s.io/api/core/v1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/common"
@@ -683,20 +684,6 @@ type ServiceDiscoveryFeatureConfig struct {
 	// Enables the service discovery check.
 	// Default: true when omitted and the node Agent image is >= 7.78.0. Otherwise false.
 	// If the image version cannot be determined, it is treated as latest.
-	// +optional
-	Enabled *bool `json:"enabled,omitempty"`
-
-	// DEPRECATED: NetworkStats is no longer configurable and will be ignored. Scheduled for removal in v1.28.
-	// +deprecated
-	// +optional
-	NetworkStats *ServiceDiscoveryNetworkStatsConfig `json:"networkStats,omitempty"`
-}
-
-// ServiceDiscoveryNetworkStatsConfig is deprecated and has no effect.
-// +deprecated
-type ServiceDiscoveryNetworkStatsConfig struct {
-	// DEPRECATED: this field is ignored.
-	// +deprecated
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 }
@@ -1997,7 +1984,7 @@ type SecretBackendConfig struct {
 
 	// Additional configuration for the secret backend type.
 	// +optional
-	Config map[string]string `json:"config,omitempty"`
+	Config map[string]apiextensionsv1.JSON `json:"config,omitempty"`
 
 	// Roles for Datadog to read the specified secrets, replacing `enableGlobalPermissions`.
 	// They are defined as a list of namespace/secrets.

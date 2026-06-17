@@ -38,9 +38,31 @@ func TestResolveWorkloadAllowlistVersion(t *testing.T) {
 	}
 }
 
+func TestResolveCSIWorkloadAllowlistVersion(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{name: "empty falls back to CSI default", input: "", expected: DefaultCSIWorkloadAllowlistVersion},
+		{name: "well-formed override is preserved", input: "v1.2.0", expected: "v1.2.0"},
+		{name: "malformed falls back to CSI default", input: "1.2.0", expected: DefaultCSIWorkloadAllowlistVersion},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, resolveCSIWorkloadAllowlistVersion(tt.input))
+		})
+	}
+}
+
 func TestDefaultWorkloadAllowlistVersion(t *testing.T) {
 	// Sanity check — locks the default to a known value so a silent bump is caught.
 	assert.Equal(t, "v1.0.5", DefaultWorkloadAllowlistVersion)
+}
+
+func TestDefaultCSIWorkloadAllowlistVersion(t *testing.T) {
+	// Sanity check — locks the default to a known value so a silent bump is caught.
+	assert.Equal(t, "v1.1.0", DefaultCSIWorkloadAllowlistVersion)
 }
 
 func TestApplyAllowlistSynchronizerResource_AllowlistPath(t *testing.T) {
@@ -82,6 +104,45 @@ func TestApplyAllowlistSynchronizerResource_AllowlistPath(t *testing.T) {
 	}
 }
 
+func TestApplyCSIAllowlistSynchronizerResource_AllowlistPath(t *testing.T) {
+	scheme := runtime.NewScheme()
+	require.NoError(t, SchemeBuilder.AddToScheme(scheme))
+
+	tests := []struct {
+		name       string
+		version    string
+		expectPath string
+	}{
+		{
+			name:       "default version",
+			version:    DefaultCSIWorkloadAllowlistVersion,
+			expectPath: "Datadog/datadog-csi-driver/datadog-datadog-csi-driver-daemonset-exemption-v1.1.0.yaml",
+		},
+		{
+			name:       "user override",
+			version:    "v1.2.0",
+			expectPath: "Datadog/datadog-csi-driver/datadog-datadog-csi-driver-daemonset-exemption-v1.2.0.yaml",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := fake.NewClientBuilder().WithScheme(scheme).Build()
+			require.NoError(t, applyCSIAllowlistSynchronizerResource(c, tt.version, "default-foo"))
+
+			got := &AllowlistSynchronizer{}
+			require.NoError(t, c.Get(context.TODO(), client.ObjectKey{Name: "datadog-csi-synchronizer"}, got))
+			require.Len(t, got.Spec.AllowlistPaths, 1)
+			assert.Equal(t, tt.expectPath, got.Spec.AllowlistPaths[0])
+			assert.Empty(t, got.Annotations)
+			assert.Equal(t, "datadog-operator", got.Labels["app.kubernetes.io/created-by"])
+			assert.Equal(t, "datadog-operator", got.Labels[kubernetes.AppKubernetesManageByLabelKey])
+			assert.Equal(t, "datadog-csi-allowlist-synchronizer", got.Labels[kubernetes.AppKubernetesNameLabelKey])
+			assert.Equal(t, "default-foo", got.Labels[kubernetes.AppKubernetesPartOfLabelKey])
+		})
+	}
+}
+
 func TestApplyAllowlistSynchronizerResource_UpdatesExistingResource(t *testing.T) {
 	scheme := runtime.NewScheme()
 	require.NoError(t, SchemeBuilder.AddToScheme(scheme))
@@ -114,4 +175,38 @@ func TestApplyAllowlistSynchronizerResource_UpdatesExistingResource(t *testing.T
 	assert.Equal(t, "default-foo", got.Labels[kubernetes.AppKubernetesPartOfLabelKey])
 	assert.Equal(t, "datadog-operator", got.Labels[kubernetes.AppKubernetesManageByLabelKey])
 	assert.Equal(t, "datadog-allowlist-synchronizer", got.Labels[kubernetes.AppKubernetesNameLabelKey])
+}
+
+func TestApplyCSIAllowlistSynchronizerResource_UpdatesExistingResource(t *testing.T) {
+	scheme := runtime.NewScheme()
+	require.NoError(t, SchemeBuilder.AddToScheme(scheme))
+
+	existing := &AllowlistSynchronizer{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: SchemeGroupVersion.String(),
+			Kind:       "AllowlistSynchronizer",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "datadog-csi-synchronizer",
+			Labels: map[string]string{
+				kubernetes.AppKubernetesPartOfLabelKey: "old-owner",
+			},
+		},
+		Spec: AllowlistSynchronizerSpec{
+			AllowlistPaths: []string{
+				"Datadog/datadog-csi-driver/datadog-datadog-csi-driver-daemonset-exemption-v1.0.0.yaml",
+			},
+		},
+	}
+	c := fake.NewClientBuilder().WithScheme(scheme).WithObjects(existing).Build()
+
+	require.NoError(t, applyCSIAllowlistSynchronizerResource(c, "v1.1.0", "default-foo"))
+
+	got := &AllowlistSynchronizer{}
+	require.NoError(t, c.Get(context.TODO(), client.ObjectKey{Name: "datadog-csi-synchronizer"}, got))
+	require.Len(t, got.Spec.AllowlistPaths, 1)
+	assert.Equal(t, "Datadog/datadog-csi-driver/datadog-datadog-csi-driver-daemonset-exemption-v1.1.0.yaml", got.Spec.AllowlistPaths[0])
+	assert.Equal(t, "default-foo", got.Labels[kubernetes.AppKubernetesPartOfLabelKey])
+	assert.Equal(t, "datadog-operator", got.Labels[kubernetes.AppKubernetesManageByLabelKey])
+	assert.Equal(t, "datadog-csi-allowlist-synchronizer", got.Labels[kubernetes.AppKubernetesNameLabelKey])
 }
