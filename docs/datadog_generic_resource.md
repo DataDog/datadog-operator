@@ -194,7 +194,7 @@ kubectl get datadoggenericresource    # shows state and last state sync columns
 kubectl wait --for=condition=StateSynced datadoggenericresource/<name>
 ```
 
-The controller requeues every `DatadogGenericResource` roughly every 60 seconds by default. This interval is controlled by `DD_GENERIC_RESOURCE_REQUEUE_PERIOD` or the `--datadogGenericResourceRequeuePeriod` manager flag. For `monitor` and `slo` resources, those idle requeues refresh `state`; for resource types without live state, the state fields remain empty. Status polling requeues are lower priority than normal create, update, and delete work, so Datadog-side state updates may be delayed when the controller queue is busy. This keeps management operations ahead of background state polling, but it means `.status.state` is eventually consistent rather than immediate.
+The controller requeues every `DatadogGenericResource` roughly every 60 seconds by default. This interval is controlled by `DD_GENERIC_RESOURCE_REQUEUE_PERIOD` or the `--datadogGenericResourceRequeuePeriod` manager flag. For `monitor` and `slo` resources, these idle requeues refresh `state`. For resource types without live state, the state fields remain empty. Status polling requeues have lower priority than normal create, update, and delete work, so Datadog-side state updates may be delayed when the controller queue is busy. This keeps management operations ahead of background state polling, but means `.status.state` is eventually consistent rather than immediate.
 
 Failures are visible only through the `StateSynced` condition. They do not break the reconcile loop and the last-known `state` is retained until a subsequent refresh succeeds.
 
