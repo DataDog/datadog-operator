@@ -1,5 +1,8 @@
 # Getting Started
 
+> [!WARNING]
+> Soft deprecation notice: for new monitor resources, prefer [`DatadogGenericResource`](./datadoggenericresource/datadog_generic_resource.md) with `type: monitor`. `DatadogMonitor` remains supported for existing users, but DDGR is the preferred path for new Datadog API capabilities. To move existing monitors, see the [DDGR migration guide](./datadoggenericresource/datadog_generic_resource_migration.md).
+
 This page describes the simplest and fastest way to deploy a [Datadog monitor](https://docs.datadoghq.com/monitors/) with the Datadog Operator.
 
 ## Prerequisites
@@ -168,8 +171,8 @@ Events:
   ----    ------                 ----  ----            -------
   Normal  Create DatadogMonitor  22m   DatadogMonitor  system/datadog-event-v2-alert-test
 ```
-Unlike dashboards and SLOs, monitor state is synced every minute to ensure that K8s contains up-to-date state changes. 
-This means that if a monitor's state transitions from OK to Warn, the CR's state gets updated to Warn in a minute. 
+Unlike dashboards and SLOs, monitor state is synced every minute to ensure that K8s contains up-to-date state changes.
+This means that if a monitor's state transitions from OK to Warn, the CR's state gets updated to Warn in a minute.
 It also means that a user deletes a dashboard in the Datadog UI, Datadog Operator restores it in under an hour.
 
 To investigate any issues, view the Operator logs (of the leader pod, if more than one):
