@@ -3,7 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-package kubeactions
+package kubernetesactions
 
 import (
 	"github.com/go-logr/logr"
@@ -34,14 +34,14 @@ func clusterAgentVersion(ddaSpec *v2alpha1.DatadogAgentSpec) string {
 }
 
 func init() {
-	err := feature.Register(feature.KubeActionsIDType, buildKubeActionsFeature)
+	err := feature.Register(feature.KubernetesActionsIDType, buildKubernetesActionsFeature)
 	if err != nil {
 		panic(err)
 	}
 }
 
-func buildKubeActionsFeature(options *feature.Options) feature.Feature {
-	f := &kubeActionsFeature{
+func buildKubernetesActionsFeature(options *feature.Options) feature.Feature {
+	f := &kubernetesActionsFeature{
 		rbacSuffix: common.ClusterAgentSuffix,
 	}
 	if options != nil {
@@ -50,21 +50,21 @@ func buildKubeActionsFeature(options *feature.Options) feature.Feature {
 	return f
 }
 
-type kubeActionsFeature struct {
+type kubernetesActionsFeature struct {
 	owner              metav1.Object
 	serviceAccountName string
 	rbacSuffix         string
 	logger             logr.Logger
 }
 
-func (f *kubeActionsFeature) ID() feature.IDType {
-	return feature.KubeActionsIDType
+func (f *kubernetesActionsFeature) ID() feature.IDType {
+	return feature.KubernetesActionsIDType
 }
 
-func (f *kubeActionsFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
+func (f *kubernetesActionsFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
 	f.owner = dda
 
-	if ddaSpec.Features == nil || ddaSpec.Features.KubeActions == nil || !apiutils.BoolValue(ddaSpec.Features.KubeActions.Enabled) {
+	if ddaSpec.Features == nil || ddaSpec.Features.KubernetesActions == nil || !apiutils.BoolValue(ddaSpec.Features.KubernetesActions.Enabled) {
 		return reqComp
 	}
 
@@ -84,12 +84,12 @@ func (f *kubeActionsFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Data
 	return reqComp
 }
 
-func (f *kubeActionsFeature) ManageDependencies(managers feature.ResourceManagers) error {
+func (f *kubernetesActionsFeature) ManageDependencies(managers feature.ResourceManagers) error {
 	rbacName := getRBACResourceName(f.owner, f.rbacSuffix)
-	return managers.RBACManager().AddClusterPolicyRules(f.owner.GetNamespace(), rbacName, f.serviceAccountName, kubeActionsRBACPolicyRules)
+	return managers.RBACManager().AddClusterPolicyRules(f.owner.GetNamespace(), rbacName, f.serviceAccountName, kubernetesActionsRBACPolicyRules)
 }
 
-func (f *kubeActionsFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
+func (f *kubernetesActionsFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
 	managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
 		Name:  DDKubeActionsEnabled,
 		Value: "true",
@@ -97,18 +97,18 @@ func (f *kubeActionsFeature) ManageClusterAgent(managers feature.PodTemplateMana
 	return nil
 }
 
-func (f *kubeActionsFeature) ManageSingleContainerNodeAgent(_ feature.PodTemplateManagers) error {
+func (f *kubernetesActionsFeature) ManageSingleContainerNodeAgent(_ feature.PodTemplateManagers) error {
 	return nil
 }
 
-func (f *kubeActionsFeature) ManageNodeAgent(_ feature.PodTemplateManagers) error {
+func (f *kubernetesActionsFeature) ManageNodeAgent(_ feature.PodTemplateManagers) error {
 	return nil
 }
 
-func (f *kubeActionsFeature) ManageClusterChecksRunner(_ feature.PodTemplateManagers) error {
+func (f *kubernetesActionsFeature) ManageClusterChecksRunner(_ feature.PodTemplateManagers) error {
 	return nil
 }
 
-func (f *kubeActionsFeature) ManageOtelAgentGateway(_ feature.PodTemplateManagers) error {
+func (f *kubernetesActionsFeature) ManageOtelAgentGateway(_ feature.PodTemplateManagers) error {
 	return nil
 }

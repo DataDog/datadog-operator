@@ -3,7 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-package kubeactions
+package kubernetesactions
 
 import (
 	"testing"
@@ -21,54 +21,54 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func Test_kubeActionsFeature_Configure(t *testing.T) {
+func Test_kubernetesActionsFeature_Configure(t *testing.T) {
 	tests := test.FeatureTestSuite{
 		{
-			Name:          "KubeActions not configured",
+			Name:          "KubernetesActions not configured",
 			DDA:           testutils.NewDatadogAgentBuilder().Build(),
 			WantConfigure: false,
 		},
 		{
-			Name: "KubeActions explicitly disabled",
+			Name: "KubernetesActions explicitly disabled",
 			DDA: testutils.NewDatadogAgentBuilder().
-				WithKubeActionsEnabled(false).
+				WithKubernetesActionsEnabled(false).
 				Build(),
 			WantConfigure: false,
 		},
 		{
-			Name: "KubeActions enabled but cluster agent version too low",
+			Name: "KubernetesActions enabled but cluster agent version too low",
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithName("ddaDCA").
-				WithKubeActionsEnabled(true).
+				WithKubernetesActionsEnabled(true).
 				WithClusterAgentTag("7.78.0").
 				Build(),
 			WantConfigure: false,
 		},
 		{
-			Name: "KubeActions enabled at minimum cluster agent version",
+			Name: "KubernetesActions enabled at minimum cluster agent version",
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithName("ddaDCA").
-				WithKubeActionsEnabled(true).
+				WithKubernetesActionsEnabled(true).
 				WithClusterAgentTag("7.79.0").
 				Build(),
 			WantConfigure: true,
-			ClusterAgent:  test.NewDefaultComponentTest().WithWantFunc(kubeActionsClusterAgentWantFunc),
+			ClusterAgent:  test.NewDefaultComponentTest().WithWantFunc(kubernetesActionsClusterAgentWantFunc),
 		},
 		{
-			Name: "KubeActions enabled",
+			Name: "KubernetesActions enabled",
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithName("ddaDCA").
-				WithKubeActionsEnabled(true).
+				WithKubernetesActionsEnabled(true).
 				Build(),
 			WantConfigure: true,
-			ClusterAgent:  test.NewDefaultComponentTest().WithWantFunc(kubeActionsClusterAgentWantFunc),
+			ClusterAgent:  test.NewDefaultComponentTest().WithWantFunc(kubernetesActionsClusterAgentWantFunc),
 		},
 	}
 
-	tests.Run(t, buildKubeActionsFeature)
+	tests.Run(t, buildKubernetesActionsFeature)
 }
 
-func kubeActionsClusterAgentWantFunc(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+func kubernetesActionsClusterAgentWantFunc(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 	mgr := mgrInterface.(*fake.PodTemplateManagers)
 	dcaEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.ClusterAgentContainerName]
 
@@ -81,8 +81,8 @@ func kubeActionsClusterAgentWantFunc(t testing.TB, mgrInterface feature.PodTempl
 	assert.True(t, apiutils.IsEqualStruct(dcaEnvVars, want), "DCA envvars \ndiff = %s", cmp.Diff(dcaEnvVars, want))
 }
 
-func Test_kubeActionsFeature_NoOpManagers(t *testing.T) {
-	f := buildKubeActionsFeature(nil)
+func Test_kubernetesActionsFeature_NoOpManagers(t *testing.T) {
+	f := buildKubernetesActionsFeature(nil)
 
 	assert.NoError(t, f.ManageSingleContainerNodeAgent(nil))
 	assert.NoError(t, f.ManageNodeAgent(nil))

@@ -1007,15 +1007,15 @@ func (builder *DatadogAgentBuilder) WithHelmCheckValuesAsTags(valuesAsTags map[s
 	return builder
 }
 
-func (builder *DatadogAgentBuilder) initKubeActions() {
-	if builder.datadogAgent.Spec.Features.KubeActions == nil {
-		builder.datadogAgent.Spec.Features.KubeActions = &v2alpha1.KubeActionsFeatureConfig{}
+func (builder *DatadogAgentBuilder) initKubernetesActions() {
+	if builder.datadogAgent.Spec.Features.KubernetesActions == nil {
+		builder.datadogAgent.Spec.Features.KubernetesActions = &v2alpha1.KubernetesActionsFeatureConfig{}
 	}
 }
 
-func (builder *DatadogAgentBuilder) WithKubeActionsEnabled(enabled bool) *DatadogAgentBuilder {
-	builder.initKubeActions()
-	builder.datadogAgent.Spec.Features.KubeActions.Enabled = ptr.To(enabled)
+func (builder *DatadogAgentBuilder) WithKubernetesActionsEnabled(enabled bool) *DatadogAgentBuilder {
+	builder.initKubernetesActions()
+	builder.datadogAgent.Spec.Features.KubernetesActions.Enabled = ptr.To(enabled)
 	return builder
 }
 

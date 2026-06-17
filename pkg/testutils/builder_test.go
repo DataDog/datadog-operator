@@ -12,20 +12,20 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestDatadogAgentBuilder_WithKubeActionsEnabled(t *testing.T) {
+func TestDatadogAgentBuilder_WithKubernetesActionsEnabled(t *testing.T) {
 	builder := NewDatadogAgentBuilder()
-	require.Nil(t, builder.datadogAgent.Spec.Features.KubeActions)
+	require.Nil(t, builder.datadogAgent.Spec.Features.KubernetesActions)
 
-	returnedBuilder := builder.WithKubeActionsEnabled(true)
+	returnedBuilder := builder.WithKubernetesActionsEnabled(true)
 	require.Same(t, builder, returnedBuilder)
-	require.NotNil(t, builder.datadogAgent.Spec.Features.KubeActions)
-	require.NotNil(t, builder.datadogAgent.Spec.Features.KubeActions.Enabled)
-	assert.True(t, *builder.datadogAgent.Spec.Features.KubeActions.Enabled)
+	require.NotNil(t, builder.datadogAgent.Spec.Features.KubernetesActions)
+	require.NotNil(t, builder.datadogAgent.Spec.Features.KubernetesActions.Enabled)
+	assert.True(t, *builder.datadogAgent.Spec.Features.KubernetesActions.Enabled)
 
-	initialKubeActionsConfig := builder.datadogAgent.Spec.Features.KubeActions
-	builder.WithKubeActionsEnabled(false)
+	initialKubernetesActionsConfig := builder.datadogAgent.Spec.Features.KubernetesActions
+	builder.WithKubernetesActionsEnabled(false)
 
-	assert.Same(t, initialKubeActionsConfig, builder.datadogAgent.Spec.Features.KubeActions)
-	require.NotNil(t, builder.datadogAgent.Spec.Features.KubeActions.Enabled)
-	assert.False(t, *builder.datadogAgent.Spec.Features.KubeActions.Enabled)
+	assert.Same(t, initialKubernetesActionsConfig, builder.datadogAgent.Spec.Features.KubernetesActions)
+	require.NotNil(t, builder.datadogAgent.Spec.Features.KubernetesActions.Enabled)
+	assert.False(t, *builder.datadogAgent.Spec.Features.KubernetesActions.Enabled)
 }

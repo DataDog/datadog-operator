@@ -3,7 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-package kubeactions
+package kubernetesactions
 
 import (
 	"fmt"
@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	kubeActionsRBACPrefix = "kube-actions"
+	kubernetesActionsRBACPrefix = "kubernetes-actions"
 
 	// DDKubeActionsEnabled is the env var that turns on the Kubernetes Actions
 	// product in the Cluster Agent.
@@ -24,5 +24,5 @@ const (
 )
 
 func getRBACResourceName(owner metav1.Object, suffix string) string {
-	return fmt.Sprintf("%s-%s-%s-%s", owner.GetNamespace(), owner.GetName(), kubeActionsRBACPrefix, suffix)
+	return fmt.Sprintf("%s-%s-%s-%s", owner.GetNamespace(), owner.GetName(), kubernetesActionsRBACPrefix, suffix)
 }

@@ -3,7 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-package kubeactions
+package kubernetesactions
 
 import (
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -11,9 +11,9 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
 )
 
-// kubeActionsRBACPolicyRules are the cluster-scoped rules the Cluster Agent
+// kubernetesActionsRBACPolicyRules are the cluster-scoped rules the Cluster Agent
 // needs to remediate workloads on behalf of the Kubernetes Actions product.
-var kubeActionsRBACPolicyRules = []rbacv1.PolicyRule{
+var kubernetesActionsRBACPolicyRules = []rbacv1.PolicyRule{
 	{
 		APIGroups: []string{rbac.CoreAPIGroup},
 		Resources: []string{rbac.PodsResource},

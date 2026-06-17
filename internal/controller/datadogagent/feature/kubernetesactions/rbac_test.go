@@ -3,7 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-package kubeactions
+package kubernetesactions
 
 import (
 	"testing"
@@ -13,8 +13,8 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
 )
 
-func TestKubeActionsRBACPolicyRules(t *testing.T) {
-	rules := kubeActionsRBACPolicyRules
+func TestKubernetesActionsRBACPolicyRules(t *testing.T) {
+	rules := kubernetesActionsRBACPolicyRules
 	assert.Len(t, rules, 3, "expected pods, deployments, deployments/status rules")
 
 	byResource := map[string]int{}
