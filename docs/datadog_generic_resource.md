@@ -164,7 +164,7 @@ Further example manifests are provided [in the supported resources table](#suppo
 
 ## Controller tuning
 
-The `DatadogGenericResource` controller exposes a few tuning options for large installations or load tests.
+The `DatadogGenericResource` controller exposes several tuning options for large installations or load tests.
 
 | Option | Default | Description |
 | --- | --- | --- |
