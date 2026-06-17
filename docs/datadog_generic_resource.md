@@ -1,10 +1,10 @@
 # Datadog GenericResource
 
-This feature was introduced in Datadog Operator v1.12.0 and is currently in Preview.
-
 ## Overview
 
-The `DatadogGenericResource` (DDGR) Custom Resource Definition allows users to create a variety of [Datadog resources](#supported-resources) using the Operator and manage them as Kubernetes resources. 
+The `DatadogGenericResource` (DDGR) Custom Resource Definition allows users to create a variety of [Datadog resources](#supported-resources) using the Operator and manage them as Kubernetes resources.
+
+DDGR is the preferred Custom Resource Definition for Datadog resources that are supported by both DDGR and older resource-specific CRDs, such as `DatadogMonitor`, `DatadogDashboard`, and `DatadogSLO`. Existing resource-specific CRDs remain supported, but new Datadog API features are expected to be easier to consume through DDGR because `jsonSpec` follows the Datadog API payload directly.
 
 Example:
 ```yaml
@@ -38,8 +38,10 @@ spec:
 ```
 
 A `DatadogGenericResource` object has two fields:
-* `type`: one of the [supported resources types](#supported-resources) (e.g. `synthetics_browser_test`)
+* `type`: one of the [supported resource types](#supported-resources) (e.g. `synthetics_browser_test`)
 * `jsonSpec`: JSON description of the resource you want to create.
+
+(Optional): To migrate existing `DatadogMonitor`, `DatadogDashboard`, or `DatadogSLO` resources to DDGR, see the [migration guide](./datadog_generic_resource_migration.md).
 
 ## Supported Resources
 
@@ -153,7 +155,7 @@ To deploy a `DatadogGenericResource` with the Datadog Operator, follow the steps
     ```shell
     kubectl apply -f /path/to/your/datadog-generic-resource.yaml
     ```
-    This creates a new notebook in Datadog: it is available on the [Notebooks](4) page.
+    This creates a new notebook in Datadog: it is available on the [Notebooks][4] page.
 
 5. (Cleanup) Delete the Kubernetes resource to remove the resource from your account:
     ```shell
@@ -192,12 +194,12 @@ This information is currently surfaced for `monitor` and `slo` resources. Resour
 The Datadog Operator continues to support specific-resource CRDs:
 * [`DatadogMonitor`](./datadog_monitor.md)
 * [`DatadogDashboard`](./datadog_dashboard.md)
-* `DatadogSLO`
+* [`DatadogSLO`](./datadog_slo.md)
 
-Some of these resources are (or will be) also supported by the `DatadogGenericResource` controller with the same possible operations: create, update and delete.
+All of these resources are also supported by the `DatadogGenericResource` controller with the same possible operations: create, update and delete.
 
 At the expense of more verbose manifests, this new controller provides:
-* Easier maintability: when Datadog APIs evolve to support additional features (e.g. a new type of monitor), the resource-specific controller requires a Custom Resource Definition update with the mapping of the new fields. On the other hand, the DDGR controller only requires a version of the [underlying Go client][5] that supports these new fields.
+* Easier maintainability: when Datadog APIs evolve to support additional features (e.g. a new type of monitor), the resource-specific controller requires a Custom Resource Definition update with the mapping of the new fields. On the other hand, the DDGR controller only requires a version of the [underlying Go client][5] that supports these new fields.
 * Expandability: adding support for a new type of resource requires little turnaround by following [the development steps](./datadog_generic_resource_dev.md).
 
 [1]: https://kubernetes.io/docs/tasks/tools/#kubectl
