@@ -8273,6 +8273,66 @@
           "type": "array",
           "x-kubernetes-list-type": "atomic"
         },
+        "agentWindows": {
+          "additionalProperties": false,
+          "description": "The actual state of the Windows Agent as a daemonset (when spec.override.windowsNodeAgent is set).",
+          "properties": {
+            "available": {
+              "description": "Number of available pods in the DaemonSet.",
+              "format": "int32",
+              "type": "integer"
+            },
+            "current": {
+              "description": "Number of current pods in the DaemonSet.",
+              "format": "int32",
+              "type": "integer"
+            },
+            "currentHash": {
+              "description": "CurrentHash is the stored hash of the DaemonSet.",
+              "type": "string"
+            },
+            "daemonsetName": {
+              "description": "DaemonsetName corresponds to the name of the created DaemonSet.",
+              "type": "string"
+            },
+            "desired": {
+              "description": "Number of desired pods in the DaemonSet.",
+              "format": "int32",
+              "type": "integer"
+            },
+            "lastUpdate": {
+              "description": "LastUpdate is the last time the status was updated.",
+              "format": "date-time",
+              "type": "string"
+            },
+            "ready": {
+              "description": "Number of ready pods in the DaemonSet.",
+              "format": "int32",
+              "type": "integer"
+            },
+            "state": {
+              "description": "State corresponds to the DaemonSet state.",
+              "type": "string"
+            },
+            "status": {
+              "description": "Status corresponds to the DaemonSet computed status.",
+              "type": "string"
+            },
+            "upToDate": {
+              "description": "Number of up to date pods in the DaemonSet.",
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "available",
+            "current",
+            "desired",
+            "ready",
+            "upToDate"
+          ],
+          "type": "object"
+        },
         "clusterAgent": {
           "additionalProperties": false,
           "description": "The actual state of the Cluster Agent as a deployment.",

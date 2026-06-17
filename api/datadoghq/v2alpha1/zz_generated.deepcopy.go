@@ -1401,6 +1401,11 @@ func (in *DatadogAgentStatus) DeepCopyInto(out *DatadogAgentStatus) {
 		*out = new(DaemonSetStatus)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.AgentWindows != nil {
+		in, out := &in.AgentWindows, &out.AgentWindows
+		*out = new(DaemonSetStatus)
+		(*in).DeepCopyInto(*out)
+	}
 	if in.ClusterAgent != nil {
 		in, out := &in.ClusterAgent, &out.ClusterAgent
 		*out = new(DeploymentStatus)

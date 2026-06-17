@@ -108,3 +108,16 @@ func Test_addDDAIStatusToDDAStatus(t *testing.T) {
 		})
 	}
 }
+
+func TestIsEqualStatus_DetectsAgentWindowsChange(t *testing.T) {
+	base := &v2alpha1.DatadogAgentStatus{
+		Agent: &v2alpha1.DaemonSetStatus{DaemonsetName: "dd-agent", Desired: 1, Ready: 1},
+	}
+	// Same Agent, but AgentWindows differs → must be detected as not-equal so the
+	// status update is persisted (regression guard for the IsEqualStatus omission).
+	withWin := base.DeepCopy()
+	withWin.AgentWindows = &v2alpha1.DaemonSetStatus{DaemonsetName: "dd-agent-windows", Desired: 1, Ready: 1}
+
+	assert.False(t, IsEqualStatus(base, withWin), "AgentWindows change must be detected")
+	assert.True(t, IsEqualStatus(base, base.DeepCopy()), "identical status must be equal")
+}

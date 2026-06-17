@@ -622,6 +622,12 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_DatadogAgentStatus(ref commo
 							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.DaemonSetStatus"),
 						},
 					},
+					"agentWindows": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The actual state of the Windows Agent as a daemonset (when spec.override.windowsNodeAgent is set).",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.DaemonSetStatus"),
+						},
+					},
 					"clusterAgent": {
 						SchemaProps: spec.SchemaProps{
 							Description: "The actual state of the Cluster Agent as a deployment.",

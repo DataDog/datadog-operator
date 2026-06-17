@@ -256,8 +256,10 @@ func (r *Reconciler) createOrUpdateDaemonset(ctx context.Context, ddai *v1alpha1
 		if !needUpdate {
 			// Even if the DaemonSet is still the same, its status might have
 			// changed (for example, the number of pods ready). This call is
-			// needed to keep the agent status updated.
-			newStatus.Agent = condition.UpdateDaemonSetStatusDDAI(currentDaemonset.Name, currentDaemonset, newStatus.Agent, &now)
+			// needed to keep the agent status updated. Use updateStatusFunc (not a
+			// hardcoded newStatus.Agent) so the correct status field is written —
+			// e.g. AgentWindows for the Windows DaemonSet rather than the Linux Agent.
+			updateStatusFunc(currentDaemonset.Name, currentDaemonset, newStatus, now, metav1.ConditionTrue, updateSucceeded, "Daemonset up to date")
 
 			// Stop reconcile loop since DaemonSet hasn't changed
 			return reconcile.Result{}, nil

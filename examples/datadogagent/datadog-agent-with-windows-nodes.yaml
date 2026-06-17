@@ -1,0 +1,43 @@
+apiVersion: datadoghq.com/v2alpha1
+kind: DatadogAgent
+metadata:
+  name: datadog
+spec:
+  global:
+    clusterName: my-example-cluster
+    credentials:
+      apiKey: <DATADOG_API_KEY>
+  # The presence of the windowsNodeAgent override key tells the Operator to create a
+  # second DaemonSet (datadog-agent-windows) targeting Windows nodes, alongside the
+  # default Linux DaemonSet. Each DaemonSet targets only its own OS via nodeSelector
+  # and the node.kubernetes.io/os=windows:NoSchedule toleration, so in a mixed cluster
+  # every node gets exactly one agent pod of the correct type.
+  #
+  # If this key is omitted, behavior is unchanged (Linux-only) — the feature is opt-in.
+  #
+  # Notes / current limitations:
+  #   - Windows runs the core agent + trace agent only (system-probe / security-agent
+  #     are Linux/eBPF only and are excluded automatically).
+  #   - Not supported with ExtendedDaemonSet or global.useFIPSAgent (the Operator
+  #     surfaces a WindowsAgentReconcile condition explaining why).
+  #   - systemProbe / securityAgent containers set in this override are ignored.
+  #   - LogCollection works on Windows: the operator mounts C:\var\log, C:\var\log\pods,
+  #     and C:\ProgramData so the agent can tail Windows pod logs.
+  #   - APM/DogStatsD: Windows has no Unix socket, so the agents listen on non-local
+  #     TCP (8126) / UDP (8125). The default component=agent local service does NOT route
+  #     to Windows pods, so to send traces/metrics from Windows workloads, enable hostPort
+  #     (features.apm.hostPortConfig / features.dogstatsd.hostPortConfig) so workloads can
+  #     reach the agent via the host IP. A Windows-specific local service is future work.
+  override:
+    windowsNodeAgent:
+      # Optional: override the Windows agent image. Defaults to the latest agent
+      # "-servercore" variant. Use a tag matching your Windows Server version
+      # (e.g. ltsc2022 nodes need a 2022-compatible servercore tag).
+      image:
+        name: agent
+        tag: 7.80.2-servercore
+      # All standard DatadogAgentComponentOverride fields work here (env, resources,
+      # tolerations, nodeSelector, ...).
+      env:
+        - name: DD_LOGS_ENABLED
+          value: "true"

@@ -29,6 +29,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/providercaps"
 	"github.com/DataDog/datadog-operator/pkg/condition"
 	"github.com/DataDog/datadog-operator/pkg/constants"
+	pkgutils "github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
@@ -56,6 +57,25 @@ func (r *Reconciler) reconcileV2Agent(ctx context.Context, requiredComponents fe
 	// This is to make deployments simpler. With multiple EDS there would be
 	// multiple canaries, etc.
 	if r.options.ExtendedDaemonsetOptions.Enabled && !isDDAILabeledWithProfile(ddai) {
+		// Windows DaemonSets are not supported when ExtendedDaemonSet is enabled.
+		// Always remove any previously-created Windows DaemonSet (the EDS path returns
+		// before reconcileV2WindowsAgent's absent-key cleanup would run, so a stale DS
+		// must be cleaned here regardless of the current override key). Only emit the
+		// unsupported condition when the user actually requested windowsNodeAgent.
+		if _, hasWindows := ddai.Spec.Override[datadoghqv2alpha1.WindowsNodeAgentComponentName]; hasWindows {
+			condition.UpdateDatadogAgentInternalStatusConditions(
+				newStatus,
+				metav1.NewTime(time.Now()),
+				"WindowsAgentReconcile",
+				metav1.ConditionFalse,
+				"EDSWindowsUnsupported",
+				"windowsNodeAgent is not supported when ExtendedDaemonSet is enabled",
+				true,
+			)
+		}
+		if err := r.ensureWindowsDaemonSetAbsent(ctx, ddai, newStatus); err != nil {
+			return result, err
+		}
 		// Start by creating the Default Agent extendeddaemonset
 		eds = componentagent.NewDefaultAgentExtendedDaemonset(ddai, &r.options.ExtendedDaemonsetOptions, requiredComponents.Agent)
 		objLogger := daemonsetLogger.WithValues("object.kind", "ExtendedDaemonSet", "object.namespace", eds.Namespace, "object.name", eds.Name)
@@ -187,10 +207,16 @@ func (r *Reconciler) reconcileV2Agent(ctx context.Context, requiredComponents fe
 			return reconcile.Result{}, err
 		}
 		deleteStatusWithAgent(newStatus)
-		return reconcile.Result{}, nil
+		// Still reconcile Windows even when Linux nodeAgent is disabled-by-override,
+		// so Linux-disabled / Windows-only clusters work correctly.
+		return r.reconcileV2WindowsAgent(ctx, requiredComponents, features, ddai, resourcesManager, newStatus)
 	}
 
-	return r.createOrUpdateDaemonset(ctx, ddai, daemonset, newStatus, updateDSStatusV2WithAgent)
+	if res, err := r.createOrUpdateDaemonset(ctx, ddai, daemonset, newStatus, updateDSStatusV2WithAgent); pkgutils.ShouldReturn(res, err) {
+		return res, err
+	}
+
+	return r.reconcileV2WindowsAgent(ctx, requiredComponents, features, ddai, resourcesManager, newStatus)
 }
 
 func updateDSStatusV2WithAgent(dsName string, ds *appsv1.DaemonSet, newStatus *datadoghqv1alpha1.DatadogAgentInternalStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string) {

@@ -123,11 +123,20 @@ func PodTemplateSpec(logger logr.Logger, manager feature.PodTemplateManagers, ov
 	// Override agent configurations such as datadog.yaml, system-probe.yaml, etc.
 	overrideCustomConfigVolumes(logger, manager, override.CustomConfigurations, componentName, ddaName)
 
+	// ExtraConfd / ExtraChecksd rely on init containers and /etc/datadog-agent mount paths
+	// that don't exist in the Windows DaemonSet, so they are not supported there. Skip with
+	// an explicit log rather than adding volumes that would be stripped as a silent no-op.
+	// All other overrides (image, env, resources, tolerations, nodeSelector, …) still apply.
+	skipExtraConfigForWindows := componentName == v2alpha1.WindowsNodeAgentComponentName
+	if skipExtraConfigForWindows && (override.ExtraConfd != nil || override.ExtraChecksd != nil) {
+		logger.V(1).Info("extraConfd/extraChecksd are ignored for windowsNodeAgent: unsupported on Windows")
+	}
+
 	// For ExtraConfd and ExtraChecksd, the ConfigMap contents to an init container. This allows use of
 	// the workaround to merge existing config and check files with custom ones. The VolumeMount is already
 	// defined in the init container; just overwrite the Volume to mount the ConfigMap instead of an EmptyDir.
 	// If both ConfigMap and ConfigData exist, ConfigMap has higher priority.
-	if override.ExtraConfd != nil {
+	if !skipExtraConfigForWindows && override.ExtraConfd != nil {
 		cmName := fmt.Sprintf(extraConfdConfigMapName, strings.ToLower((string(componentName))))
 		vol := volume.GetVolumeFromMultiCustomConfig(override.ExtraConfd, common.ConfdVolumeName, cmName)
 		manager.Volume().AddVolume(&vol)
@@ -144,7 +153,7 @@ func PodTemplateSpec(logger logr.Logger, manager feature.PodTemplateManagers, ov
 	}
 
 	// If both ConfigMap and ConfigData exist, ConfigMap has higher priority.
-	if override.ExtraChecksd != nil {
+	if !skipExtraConfigForWindows && override.ExtraChecksd != nil {
 		cmName := fmt.Sprintf(extraChecksdConfigMapName, strings.ToLower((string(componentName))))
 		vol := volume.GetVolumeFromMultiCustomConfig(override.ExtraChecksd, common.ChecksdVolumeName, cmName)
 		manager.Volume().AddVolume(&vol)
@@ -234,6 +243,12 @@ func overrideCustomConfigVolumes(logger logr.Logger, manager feature.PodTemplate
 		customConfig := customConfs[fileName]
 		defaultConfigMapName := fmt.Sprintf("%s-%s", getDefaultConfigMapName(ddaName, string(fileName)), strings.ToLower(string(componentName)))
 		switch componentName {
+		case v2alpha1.WindowsNodeAgentComponentName:
+			// CustomConfigurations for windowsNodeAgent are not applied: the volume mount
+			// path would be /etc/datadog-agent/ (a Linux path), which is incompatible with
+			// Windows containers. Windows-native custom config support is deferred.
+			logger.V(1).Info("customConfigurations ignored for windowsNodeAgent: Linux mount paths unsupported on Windows", "fileName", fileName)
+			continue
 		case v2alpha1.NodeAgentComponentName, v2alpha1.ClusterChecksRunnerComponentName:
 			// For the NodeAgent, there are a few possible config files and each need their own volume.
 			// Use a volumeName that matches the defaultConfigMapName.

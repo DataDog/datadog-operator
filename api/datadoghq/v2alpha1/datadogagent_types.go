@@ -25,6 +25,10 @@ const (
 	ClusterChecksRunnerComponentName ComponentName = "clusterChecksRunner"
 	// OtelAgentGatewayComponentName is the name of the OTel Agent Gateway
 	OtelAgentGatewayComponentName ComponentName = "otelAgentGateway"
+	// WindowsNodeAgentComponentName is the name of the Windows Node Agent DaemonSet.
+	// When present in spec.override, the operator creates a Windows-targeted DaemonSet
+	// alongside the Linux one (prototype: CONTP-1448).
+	WindowsNodeAgentComponentName ComponentName = "windowsNodeAgent"
 )
 
 // DatadogAgentSpec defines the desired state of DatadogAgent
@@ -2496,6 +2500,9 @@ type DatadogAgentStatus struct {
 	// The combined actual state of all Agents as daemonsets or extended daemonsets.
 	// +optional
 	Agent *DaemonSetStatus `json:"agent,omitempty"`
+	// The actual state of the Windows Agent as a daemonset (when spec.override.windowsNodeAgent is set).
+	// +optional
+	AgentWindows *DaemonSetStatus `json:"agentWindows,omitempty"`
 	// The actual state of the Cluster Agent as a deployment.
 	// +optional
 	ClusterAgent *DeploymentStatus `json:"clusterAgent,omitempty"`
@@ -2519,6 +2526,7 @@ type DatadogAgentStatus struct {
 // +kubebuilder:storageversion
 // +kubebuilder:resource:path=datadogagents,shortName=dd
 // +kubebuilder:printcolumn:name="agent",type="string",JSONPath=".status.agent.status"
+// +kubebuilder:printcolumn:name="agent-windows",type="string",JSONPath=".status.agentWindows.status",priority=1
 // +kubebuilder:printcolumn:name="cluster-agent",type="string",JSONPath=".status.clusterAgent.status"
 // +kubebuilder:printcolumn:name="cluster-checks-runner",type="string",JSONPath=".status.clusterChecksRunner.status"
 // +kubebuilder:printcolumn:name="age",type="date",JSONPath=".metadata.creationTimestamp"

@@ -22,6 +22,9 @@ type DatadogAgentInternalStatus struct {
 	// The actual state of the Agent as a daemonset or an extended daemonset.
 	// +optional
 	Agent *v2alpha1.DaemonSetStatus `json:"agent,omitempty"`
+	// The actual state of the Windows Agent as a daemonset (when spec.override.windowsNodeAgent is set).
+	// +optional
+	AgentWindows *v2alpha1.DaemonSetStatus `json:"agentWindows,omitempty"`
 	// The actual state of the Cluster Agent as a deployment.
 	// +optional
 	ClusterAgent *v2alpha1.DeploymentStatus `json:"clusterAgent,omitempty"`
@@ -42,6 +45,7 @@ type DatadogAgentInternalStatus struct {
 // +kubebuilder:subresource:status
 // +kubebuilder:storageversion
 // +kubebuilder:printcolumn:name="agent",type="string",JSONPath=".status.agent.status"
+// +kubebuilder:printcolumn:name="agent-windows",type="string",JSONPath=".status.agentWindows.status",priority=1
 // +kubebuilder:printcolumn:name="cluster-agent",type="string",JSONPath=".status.clusterAgent.status"
 // +kubebuilder:printcolumn:name="cluster-checks-runner",type="string",JSONPath=".status.clusterChecksRunner.status"
 // +kubebuilder:printcolumn:name="age",type="date",JSONPath=".metadata.creationTimestamp"

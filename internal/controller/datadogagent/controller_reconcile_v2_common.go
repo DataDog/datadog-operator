@@ -196,6 +196,7 @@ func (r *Reconciler) addDDAIStatusToDDAStatus(status *v2alpha1.DatadogAgentStatu
 	}
 
 	status.Agent = condition.CombineDaemonSetStatus(status.Agent, currentDDAI.Status.Agent)
+	status.AgentWindows = condition.CombineDaemonSetStatus(status.AgentWindows, currentDDAI.Status.AgentWindows)
 	status.ClusterAgent = condition.CombineDeploymentStatus(status.ClusterAgent, currentDDAI.Status.ClusterAgent)
 	status.ClusterChecksRunner = condition.CombineDeploymentStatus(status.ClusterChecksRunner, currentDDAI.Status.ClusterChecksRunner)
 
@@ -274,6 +275,7 @@ func IsEqualStatus(current *v2alpha1.DatadogAgentStatus, newStatus *v2alpha1.Dat
 	}
 
 	if !condition.IsEqualDaemonSetStatus(current.Agent, newStatus.Agent) ||
+		!condition.IsEqualDaemonSetStatus(current.AgentWindows, newStatus.AgentWindows) ||
 		!apiequality.Semantic.DeepEqual(current.RemoteConfigConfiguration, newStatus.RemoteConfigConfiguration) {
 		return false
 	}
