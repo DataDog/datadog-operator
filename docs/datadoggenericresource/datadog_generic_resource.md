@@ -47,13 +47,13 @@ A `DatadogGenericResource` object has two fields:
 
 | Type                      | Operator Version | Json template                                                                         | Example manifest                                                                     |
 |---------------------------|:----------------:|---------------------------------------------------------------------------------------|:------------------------------------------------------------------------------------:|
-| `notebook`                | v1.12.0          | https://docs.datadoghq.com/api/latest/notebooks/#create-a-notebook                    | [Notebook manifest](../examples/datadoggenericresource/notebook-sample.yaml)         |
-| `synthetics_api_test`     | v1.12.0          | https://docs.datadoghq.com/api/latest/synthetics/#create-an-api-test                  | [API test manifest](../examples/datadoggenericresource/api-test-sample.yaml)         |
-| `synthetics_browser_test` | v1.12.0          | https://docs.datadoghq.com/api/latest/synthetics/#create-a-browser-test               | [Browser test manifest](../examples/datadoggenericresource/browser-test-sample.yaml) |
-| `monitor`                 | v1.13.0          | https://docs.datadoghq.com/api/latest/monitors/#create-a-monitor                      | [Monitor manifest](../examples/datadoggenericresource/monitor-sample.yaml)           |
-| `downtime`                | v1.22.0          | https://docs.datadoghq.com/api/latest/downtimes/#schedule-a-downtime                  | [Downtime manifest](../examples/datadoggenericresource/downtime-sample.yaml)         |
-| `dashboard`               | v1.27.0          | https://docs.datadoghq.com/api/latest/dashboards/#create-a-dashboard                  | [Dashboard manifest](../examples/datadoggenericresource/dashboard-sample.yaml)       |
-| `slo`                     | v1.28.0          | https://docs.datadoghq.com/api/latest/service-level-objectives/#create-an-slo-object  | [SLO manifest](../examples/datadoggenericresource/slo-sample.yaml)                   |
+| `notebook`                | v1.12.0          | https://docs.datadoghq.com/api/latest/notebooks/#create-a-notebook                    | [Notebook manifest](../../examples/datadoggenericresource/notebook-sample.yaml)         |
+| `synthetics_api_test`     | v1.12.0          | https://docs.datadoghq.com/api/latest/synthetics/#create-an-api-test                  | [API test manifest](../../examples/datadoggenericresource/api-test-sample.yaml)         |
+| `synthetics_browser_test` | v1.12.0          | https://docs.datadoghq.com/api/latest/synthetics/#create-a-browser-test               | [Browser test manifest](../../examples/datadoggenericresource/browser-test-sample.yaml) |
+| `monitor`                 | v1.13.0          | https://docs.datadoghq.com/api/latest/monitors/#create-a-monitor                      | [Monitor manifest](../../examples/datadoggenericresource/monitor-sample.yaml)           |
+| `downtime`                | v1.22.0          | https://docs.datadoghq.com/api/latest/downtimes/#schedule-a-downtime                  | [Downtime manifest](../../examples/datadoggenericresource/downtime-sample.yaml)         |
+| `dashboard`               | v1.27.0          | https://docs.datadoghq.com/api/latest/dashboards/#create-a-dashboard                  | [Dashboard manifest](../../examples/datadoggenericresource/dashboard-sample.yaml)       |
+| `slo`                     | v1.28.0          | https://docs.datadoghq.com/api/latest/service-level-objectives/#create-an-slo-object  | [SLO manifest](../../examples/datadoggenericresource/slo-sample.yaml)                   |
 
 ## Prerequisites
 
@@ -192,9 +192,9 @@ This information is currently surfaced for `monitor` and `slo` resources. Resour
 ## Comparison with existing CRDs
 
 The Datadog Operator continues to support specific-resource CRDs:
-* [`DatadogMonitor`](./datadog_monitor.md)
-* [`DatadogDashboard`](./datadog_dashboard.md)
-* [`DatadogSLO`](./datadog_slo.md)
+* [`DatadogMonitor`](../datadog_monitor.md)
+* [`DatadogDashboard`](../datadog_dashboard.md)
+* [`DatadogSLO`](../datadog_slo.md)
 
 All of these resources are also supported by the `DatadogGenericResource` controller with the same possible operations: create, update and delete.
 

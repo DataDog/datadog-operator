@@ -87,7 +87,7 @@ spec:
     }
 ```
 
-Use `type: dashboard` for dashboards and `type: slo` for SLOs. Additional examples are available in [`examples/datadoggenericresource`](../examples/datadoggenericresource).
+Use `type: dashboard` for dashboards and `type: slo` for SLOs. Additional examples are available in [`examples/datadoggenericresource`](../../examples/datadoggenericresource).
 
 ## Apply and verify
 

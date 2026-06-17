@@ -1,7 +1,7 @@
 # Datadog SLOs
 
 > [!WARNING]
-> Soft deprecation notice: for new SLO resources, prefer [`DatadogGenericResource`](./datadog_generic_resource.md) with `type: slo`. `DatadogSLO` remains supported for existing users, but DDGR is the preferred path for new Datadog API capabilities. To move existing SLOs, see the [DDGR migration guide](./datadog_generic_resource_migration.md).
+> Soft deprecation notice: for new SLO resources, prefer [`DatadogGenericResource`](./datadoggenericresource/datadog_generic_resource.md) with `type: slo`. `DatadogSLO` remains supported for existing users, but DDGR is the preferred path for new Datadog API capabilities. To move existing SLOs, see the [DDGR migration guide](./datadoggenericresource/datadog_generic_resource_migration.md).
 
 ## Overview
 The `DatadogSLO` Custom Resource Definition (CRD) allows users to create [SLOs][1] using the Operator and manage them as Kubernetes resources.

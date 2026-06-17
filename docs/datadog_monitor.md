@@ -1,7 +1,7 @@
 # Getting Started
 
 > [!WARNING]
-> Soft deprecation notice: for new monitor resources, prefer [`DatadogGenericResource`](./datadog_generic_resource.md) with `type: monitor`. `DatadogMonitor` remains supported for existing users, but DDGR is the preferred path for new Datadog API capabilities. To move existing monitors, see the [DDGR migration guide](./datadog_generic_resource_migration.md).
+> Soft deprecation notice: for new monitor resources, prefer [`DatadogGenericResource`](./datadoggenericresource/datadog_generic_resource.md) with `type: monitor`. `DatadogMonitor` remains supported for existing users, but DDGR is the preferred path for new Datadog API capabilities. To move existing monitors, see the [DDGR migration guide](./datadoggenericresource/datadog_generic_resource_migration.md).
 
 This page describes the simplest and fastest way to deploy a [Datadog monitor](https://docs.datadoghq.com/monitors/) with the Datadog Operator.
 
