@@ -174,7 +174,7 @@ The `DatadogGenericResource` controller exposes several tuning options for large
 
 Increasing `--datadogGenericResourceMaxConcurrentReconciles` can improve throughput when creating, updating, deleting, or periodically syncing many resources. The tradeoff is higher Operator CPU usage and more concurrent requests to the Datadog API. Setting this value too high can increase the likelihood of Datadog API rate limits, especially when many resources reconcile at once or when the requeue interval is short.
 
-Lowering `DD_GENERIC_RESOURCE_REQUEUE_PERIOD` makes all DDGR objects reconcile more often. For `monitor` and `slo` resources, it also makes `.status.state` fresher. The tradeoff is more Operator work and, for requeues that call the Datadog API, more API traffic. Raising it reduces polling overhead at the cost of slower periodic reconciliation and less frequent state updates.
+Lowering `DD_GENERIC_RESOURCE_REQUEUE_PERIOD` makes all `DatadogGenericResource` objects reconcile more often. For `monitor` and `slo` resources, it also keeps `.status.state` fresher. The tradeoff is more Operator work and, for requeues that call the Datadog API, more API traffic. Raising the interval reduces polling overhead at the cost of slower periodic reconciliation and less frequent state updates.
 
 ## Datadog-side status
 
