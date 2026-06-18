@@ -1,0 +1,16 @@
+apiVersion: datadoghq.com/v2alpha1
+kind: DatadogAgent
+metadata:
+  name: datadog-agent-gke-autopilot
+  namespace: e2e-operator
+  labels:
+    agent.datadoghq.com/e2e-test: datadog-agent-gke-autopilot
+  annotations:
+    experimental.agent.datadoghq.com/autopilot: "true"
+spec:
+  features:
+    logCollection:
+      enabled: true
+      containerCollectAll: true
+    npm:
+      enabled: true
