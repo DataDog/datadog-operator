@@ -10,7 +10,11 @@ package evict
 import (
 	"errors"
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
+
+	"github.com/samber/lo"
 
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/clusterinfo"
 )
@@ -68,7 +72,75 @@ func ParseTargetSpec(raw string) (Target, error) {
 // In targeted mode, user input errors are collected and returned together so
 // the user can fix all mistakes in a single iteration.
 func BuildPlan(info *clusterinfo.ClusterInfo, all bool, specs []Target) ([]Target, error) {
-	panic("TODO: BuildPlan — implemented in PR #2")
+	if info == nil {
+		return nil, errors.New("cluster info is nil")
+	}
+	if all {
+		return buildAllPlan(info), nil
+	}
+	return buildTargetedPlan(info, specs)
+}
+
+func buildAllPlan(info *clusterinfo.ClusterInfo) []Target {
+	var targets []Target
+	for _, mgr := range []clusterinfo.NodeManager{
+		clusterinfo.NodeManagerKarpenter,
+		clusterinfo.NodeManagerEKSManagedNodeGroup,
+		clusterinfo.NodeManagerASG,
+		clusterinfo.NodeManagerStandalone,
+	} {
+		bucket, ok := info.NodeManagement[mgr]
+		if !ok {
+			continue
+		}
+		targets = append(targets, lo.FilterMap(slices.Sorted(maps.Keys(bucket)), func(name string, _ int) (Target, bool) {
+			entry := bucket[name]
+			if entry.ManagedByDatadog {
+				return Target{}, false
+			}
+			return Target{
+				Manager: mgr,
+				Entity:  name,
+				Nodes:   entry.Nodes,
+			}, true
+		})...)
+	}
+	return targets
+}
+
+func buildTargetedPlan(info *clusterinfo.ClusterInfo, specs []Target) ([]Target, error) {
+	if len(specs) == 0 {
+		return nil, errors.New("at least one --target must be provided, or --all")
+	}
+	var (
+		targets []Target
+		errs    []error
+	)
+	for _, t := range specs {
+		bucket, ok := info.NodeManagement[t.Manager]
+		if !ok {
+			errs = append(errs, fmt.Errorf("--target=%s/%s: no %s entities found in the cluster snapshot", t.Manager, t.Entity, t.Manager))
+			continue
+		}
+		entry, ok := bucket[t.Entity]
+		if !ok {
+			errs = append(errs, fmt.Errorf("--target=%s/%s: entity not found in the cluster snapshot", t.Manager, t.Entity))
+			continue
+		}
+		if entry.ManagedByDatadog {
+			errs = append(errs, fmt.Errorf("--target=%s/%s: this entity is managed by Datadog and cannot be evicted", t.Manager, t.Entity))
+			continue
+		}
+		targets = append(targets, Target{
+			Manager: t.Manager,
+			Entity:  t.Entity,
+			Nodes:   entry.Nodes,
+		})
+	}
+	if len(errs) > 0 {
+		return nil, errors.Join(errs...)
+	}
+	return targets, nil
 }
 
 // hasDatadogManagedNodePool reports whether the snapshot lists at least one
@@ -76,5 +148,10 @@ func BuildPlan(info *clusterinfo.ClusterInfo, all bool, specs []Target) ([]Targe
 // a pre-flight guard: if no destination NodePool exists, scaling legacy
 // capacity to zero would leave the cluster with no working capacity.
 func hasDatadogManagedNodePool(info *clusterinfo.ClusterInfo) bool {
-	panic("TODO: hasDatadogManagedNodePool — implemented in PR #2")
+	for _, entry := range info.NodeManagement[clusterinfo.NodeManagerKarpenter] {
+		if entry.ManagedByDatadog {
+			return true
+		}
+	}
+	return false
 }
