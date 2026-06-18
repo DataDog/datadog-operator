@@ -104,7 +104,7 @@ func Run(ctx context.Context, streams genericclioptions.IOStreams, configFlags *
 		return nil
 	}
 
-	runPreflightWarnings(ctx, streams, cli.K8sClient, targets)
+	warnKarpenterWeightConflicts(ctx, streams, cli.K8sClient, targets)
 	printPlan(streams, info, targets, !opts.SkipCA, opts.EnsurePDBs)
 
 	if !opts.Yes && !opts.DryRun {
