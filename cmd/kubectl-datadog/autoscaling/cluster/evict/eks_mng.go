@@ -3,9 +3,17 @@ package evict
 import (
 	"context"
 	"errors"
+	"fmt"
+	"log"
+	"time"
 
+	awssdk "github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/eks"
+	ekstypes "github.com/aws/aws-sdk-go-v2/service/eks/types"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+
+	commonaws "github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/aws"
 )
 
 // errEKSDrainIncomplete is returned (wrapped) by waitEKSNodegroupEmpty when
@@ -44,5 +52,72 @@ type EKSManagedNodeGroupAPI interface {
 // We never delete the node group: it may be Terraform-/CloudFormation-managed,
 // and only the original owner should remove it.
 func evictEKSManagedNodeGroup(ctx context.Context, eksAPI EKSManagedNodeGroupAPI, clientset kubernetes.Interface, clusterName, nodegroupName string, drainOpts nodeDrainOptions) error {
-	panic("TODO: evictEKSManagedNodeGroup — implemented in PR #9")
+	if drainOpts.DryRun {
+		log.Printf("[dry-run] would scale EKS node group %s/%s to min=desired=0 (max preserved) and wait for EKS to drain", clusterName, nodegroupName)
+		return nil
+	}
+	// EKS rejects maxSize < 1 (see NodegroupScalingConfig API reference), so
+	// preserve the existing maxSize when scaling to zero. min/desired both 0
+	// is enough to drain the group; keeping the original max means a later
+	// caller (e.g. Terraform) can scale back up to the previously configured
+	// ceiling without re-reading the desired max.
+	desc, err := eksAPI.DescribeNodegroup(ctx, &eks.DescribeNodegroupInput{
+		ClusterName:   awssdk.String(clusterName),
+		NodegroupName: awssdk.String(nodegroupName),
+	})
+	if err != nil {
+		return fmt.Errorf("DescribeNodegroup: %w", err)
+	}
+	maxSize := int32(1)
+	if desc.Nodegroup != nil && desc.Nodegroup.ScalingConfig != nil && desc.Nodegroup.ScalingConfig.MaxSize != nil && *desc.Nodegroup.ScalingConfig.MaxSize >= 1 {
+		maxSize = *desc.Nodegroup.ScalingConfig.MaxSize
+	}
+	if _, err := eksAPI.UpdateNodegroupConfig(ctx, &eks.UpdateNodegroupConfigInput{
+		ClusterName:   awssdk.String(clusterName),
+		NodegroupName: awssdk.String(nodegroupName),
+		ScalingConfig: &ekstypes.NodegroupScalingConfig{
+			MinSize:     awssdk.Int32(0),
+			MaxSize:     awssdk.Int32(maxSize),
+			DesiredSize: awssdk.Int32(0),
+		},
+	}); err != nil {
+		return fmt.Errorf("UpdateNodegroupConfig: %w", err)
+	}
+	log.Printf("EKS node group %s/%s scaling config set to min=desired=0 (max=%d); waiting for EKS to drain its nodes…", clusterName, nodegroupName, maxSize)
+
+	return waitEKSNodegroupEmpty(ctx, clientset, clusterName, nodegroupName, drainOpts.NodeTimeout, drainOpts.PollInterval)
+}
+
+// waitEKSNodegroupEmpty polls the Kubernetes API for nodes carrying the
+// `eks.amazonaws.com/nodegroup=<name>` label until none remain or the deadline
+// expires. The EKS drain is bounded by drainOpts.NodeTimeout — for large node
+// groups, callers should raise this above the default.
+func waitEKSNodegroupEmpty(ctx context.Context, clientset kubernetes.Interface, clusterName, nodegroupName string, timeout, pollInterval time.Duration) error {
+	selector := commonaws.LabelEKSNodegroup + "=" + nodegroupName
+	deadline := time.Now().Add(timeout)
+	for {
+		list, err := clientset.CoreV1().Nodes().List(ctx, metav1.ListOptions{LabelSelector: selector})
+		if err != nil {
+			// We already accepted the EKS scaling change, so EKS may still
+			// be draining. Wrap errEKSDrainIncomplete so the orchestrator
+			// keeps the temporary PDBs in place; a re-run will reach the
+			// poll loop again and cleanup once EKS converges.
+			return fmt.Errorf("list EKS managed node group %s/%s nodes: %w: %w", clusterName, nodegroupName, err, errEKSDrainIncomplete)
+		}
+		if len(list.Items) == 0 {
+			log.Printf("EKS node group %s/%s fully drained.", clusterName, nodegroupName)
+			return nil
+		}
+		if time.Now().After(deadline) {
+			return fmt.Errorf("EKS node group %s/%s: %d node(s) still present after %s: %w", clusterName, nodegroupName, len(list.Items), timeout, errEKSDrainIncomplete)
+		}
+		select {
+		case <-time.After(pollInterval):
+		case <-ctx.Done():
+			// Cancellation (SIGINT) — per design, temp PDBs may leak and
+			// a subsequent run reaps them via the label selector. Do NOT
+			// wrap errEKSDrainIncomplete here.
+			return ctx.Err()
+		}
+	}
 }
