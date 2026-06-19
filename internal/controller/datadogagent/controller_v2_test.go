@@ -1486,7 +1486,14 @@ func Test_Control_Plane_Monitoring(t *testing.T) {
 			name:            "Control Plane Monitoring for Openshift",
 			clusterProvider: "openshift-rhcos",
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
-				return createDatadogAgentWithClusterChecks(c, resourcesNamespace, resourcesName)
+				dda := createDatadogAgentWithClusterChecks(c, resourcesNamespace, resourcesName)
+				_ = c.Create(context.TODO(), &corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "etcd-metric-client",
+						Namespace: resourcesNamespace,
+					},
+				})
+				return dda
 			},
 			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
 			wantErr: false,

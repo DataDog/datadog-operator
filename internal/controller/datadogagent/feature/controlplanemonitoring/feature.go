@@ -13,7 +13,6 @@ import (
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
@@ -50,7 +49,6 @@ type controlPlaneMonitoringFeature struct {
 	eksConfigMapName       string
 	client                 client.Reader
 
-	etcdSecretChecked bool
 	etcdSecretPresent bool
 }
 
@@ -157,10 +155,16 @@ func (f *controlPlaneMonitoringFeature) copyOpenShiftEtcdSecret(managers feature
 	}
 
 	f.logger.V(1).Info("Copied OpenShift etcd metric client secret", "sourceNamespace", sourceKey.Namespace, "targetNamespace", target.Namespace, "name", target.Name)
+	f.etcdSecretPresent = true
 	return true
 }
 
 func (f *controlPlaneMonitoringFeature) keepExistingOpenShiftEtcdSecret(managers feature.ResourceManagers) bool {
+	if f.client == nil {
+		f.logger.V(1).Info("Skipping existing OpenShift etcd metric client secret lookup: Kubernetes reader is not configured")
+		return false
+	}
+
 	target := &corev1.Secret{}
 	targetKey := types.NamespacedName{
 		Namespace: f.owner.GetNamespace(),
@@ -180,6 +184,7 @@ func (f *controlPlaneMonitoringFeature) keepExistingOpenShiftEtcdSecret(managers
 	}
 
 	f.logger.V(1).Info("Keeping existing OpenShift etcd metric client secret after source read failure", "namespace", target.Namespace, "name", target.Name)
+	f.etcdSecretPresent = true
 	return true
 }
 
@@ -310,33 +315,12 @@ func (f *controlPlaneMonitoringFeature) ManageSingleContainerNodeAgent(managers 
 	return nil
 }
 
-// etcdCertsSecretAvailable reports whether the OpenShift etcd metric client secret
-// exists in the owner namespace. The etcd-certs volume reference is non-optional,
-// so mounting it when secret doesn't exist leads to pod getting stuck in ContainerCreating.
-// ManageNodeAgent/ManageClusterChecksRunner gate mounting the volume until
-// the secret is available allows the pod to start.
+// etcdCertsSecretAvailable reports whether ManageDependencies successfully added
+// the OpenShift etcd metric client secret to the dependency store for the owner
+// namespace. The etcd-certs volume reference is non-optional, so mounting it
+// when the secret will not be managed would wedge the pod in ContainerCreating.
 func (f *controlPlaneMonitoringFeature) etcdCertsSecretAvailable() bool {
-	if f.etcdSecretChecked {
-		return f.etcdSecretPresent
-	}
-	f.etcdSecretChecked = true
-
-	if f.client == nil {
-		return false
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	key := types.NamespacedName{Namespace: f.owner.GetNamespace(), Name: etcdCertsSecretName}
-	if err := f.client.Get(ctx, key, &corev1.Secret{}); err != nil {
-		if !apierrors.IsNotFound(err) {
-			f.logger.V(1).Info("Unable to verify OpenShift etcd metric client secret; skipping etcd cert mount", "namespace", key.Namespace, "name", key.Name, "error", err)
-		}
-		return false
-	}
-
-	f.etcdSecretPresent = true
-	return true
+	return f.etcdSecretPresent
 }
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
