@@ -18,6 +18,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/otelcollector/defaultconfig"
+	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/configmap"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
@@ -44,6 +45,10 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
+	err = feature.RegisterDDASharedDependencies(feature.OtelAgentIDType, applyOTelCollectorDDASharedDependencies)
+	if err != nil {
+		panic(err)
+	}
 }
 
 func buildOtelCollectorFeature(options *feature.Options) feature.Feature {
@@ -66,9 +71,6 @@ type otelCollectorFeature struct {
 	customConfigAnnotationKey   string
 	customConfigAnnotationValue string
 
-	forceEnableLocalService bool
-	localServiceName        string
-
 	incompatibleImage bool
 
 	otelGatewayEnabled bool
@@ -87,16 +89,8 @@ func (o *otelCollectorFeature) ID() feature.IDType {
 }
 
 func (o *otelCollectorFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) feature.RequiredComponents {
-	var agentImageName string
-	agentVersion := images.AgentLatestVersion
-	if nodeAgent, ok := ddaSpec.Override[v2alpha1.NodeAgentComponentName]; ok {
-		if nodeAgent.Image != nil {
-			agentImageName = nodeAgent.Image.Name
-			agentVersion = common.GetAgentVersionFromImage(*nodeAgent.Image)
-		}
-	}
-	supportedVersion := utils.IsAboveMinVersion(agentVersion, otelAgentMinVersion, ptr.To(true))
-	if !supportedVersion && agentImageName == "" {
+	agentImageName, agentVersion := otelCollectorAgentImage(ddaSpec)
+	if otelCollectorRequiresNewerAgent(agentImageName, agentVersion) {
 		o.incompatibleImage = true
 		o.logger.Error(errIncompatibleImage,
 			fmt.Sprintf("OTel Agent Standalone requires Agent version %s or higher. Either update the Agent version to %s+, or override the Agent image by setting %s to a fully qualified image name with the -full tag (e.g., %s)",
@@ -105,7 +99,7 @@ func (o *otelCollectorFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Da
 		return feature.RequiredComponents{}
 	}
 
-	if strings.HasSuffix(agentVersion, "-full") && agentImageName == "" {
+	if otelCollectorRejectsFullTag(agentImageName, agentVersion) {
 		o.incompatibleImage = true
 		o.logger.Error(errIncompatibleImage,
 			fmt.Sprintf("OTel Agent Standalone does not support the -full tag. Either remove the -full suffix from the Agent tag (e.g., use %s instead of %s), or override the Agent image by setting %s to a fully qualified image name (e.g., %s)",
@@ -119,11 +113,6 @@ func (o *otelCollectorFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Da
 		o.customConfig = ddaSpec.Features.OtelCollector.Conf
 	}
 	o.configMapName = constants.GetConfName(dda, o.customConfig, defaultOTelAgentConf)
-
-	if ddaSpec.Global.LocalService != nil {
-		o.forceEnableLocalService = apiutils.BoolValue(ddaSpec.Global.LocalService.ForceEnableLocalService)
-	}
-	o.localServiceName = constants.GetLocalAgentServiceName(dda.GetName(), ddaSpec)
 
 	if ddaSpec.Features.OtelCollector.CoreConfig != nil {
 		o.coreAgentConfig.enabled = ddaSpec.Features.OtelCollector.CoreConfig.Enabled
@@ -243,33 +232,83 @@ func (o *otelCollectorFeature) ManageDependencies(managers feature.ResourceManag
 		}
 	}
 
-	platformInfo := managers.Store().GetPlatformInfo()
-	internalTrafficPolicy := corev1.ServiceInternalTrafficPolicyLocal
-	if common.ShouldCreateAgentLocalService(platformInfo.GetVersionInfo(), o.forceEnableLocalService) {
-		otlpGrpcPort := &corev1.ServicePort{
+	return nil
+}
+
+func applyOTelCollectorDDASharedDependencies(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ metav1.Object, ddaiSpec *v2alpha1.DatadogAgentSpec, managers feature.ResourceManagers) error {
+	ports := otelCollectorLocalAgentServicePorts(ddaiSpec)
+	if len(ports) == 0 || !featureutils.ShouldCreateLocalAgentService(ddaSpec, managers) {
+		return nil
+	}
+
+	serviceInternalTrafficPolicy := corev1.ServiceInternalTrafficPolicyLocal
+	return managers.ServiceManager().AddService(
+		constants.GetLocalAgentServiceName(dda.GetName(), ddaSpec),
+		dda.GetNamespace(),
+		common.GetAgentLocalServiceSelector(dda),
+		ports,
+		&serviceInternalTrafficPolicy,
+	)
+}
+
+func otelCollectorLocalAgentServicePorts(ddaiSpec *v2alpha1.DatadogAgentSpec) []corev1.ServicePort {
+	if ddaiSpec == nil ||
+		ddaiSpec.Features == nil ||
+		ddaiSpec.Features.OtelCollector == nil ||
+		!apiutils.BoolValue(ddaiSpec.Features.OtelCollector.Enabled) ||
+		!otelCollectorSupportsAgentImage(ddaiSpec) {
+		return nil
+	}
+
+	grpcPort := 4317
+	httpPort := 4318
+	for _, port := range ddaiSpec.Features.OtelCollector.Ports {
+		if port.Name == "otel-grpc" {
+			grpcPort = int(port.ContainerPort)
+		}
+		if port.Name == "otel-http" {
+			httpPort = int(port.ContainerPort)
+		}
+	}
+
+	return []corev1.ServicePort{
+		{
 			Name:       "otlpgrpcport",
 			Port:       int32(grpcPort),
 			Protocol:   corev1.ProtocolTCP,
 			TargetPort: intstr.FromInt(grpcPort),
-		}
-		otlpHttpPort := &corev1.ServicePort{
+		},
+		{
 			Name:       "otlphttpport",
 			Port:       int32(httpPort),
 			Protocol:   corev1.ProtocolTCP,
 			TargetPort: intstr.FromInt(httpPort),
-		}
-		if err := managers.ServiceManager().AddService(
-			o.localServiceName,
-			o.owner.GetNamespace(),
-			common.GetAgentLocalServiceSelector(o.owner),
-			[]corev1.ServicePort{*otlpGrpcPort, *otlpHttpPort},
-			&internalTrafficPolicy,
-		); err != nil {
-			return err
-		}
+		},
 	}
+}
 
-	return nil
+func otelCollectorSupportsAgentImage(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
+	agentImageName, agentVersion := otelCollectorAgentImage(ddaSpec)
+	return !otelCollectorRequiresNewerAgent(agentImageName, agentVersion) &&
+		!otelCollectorRejectsFullTag(agentImageName, agentVersion)
+}
+
+func otelCollectorRequiresNewerAgent(agentImageName, agentVersion string) bool {
+	return !utils.IsAboveMinVersion(agentVersion, otelAgentMinVersion, ptr.To(true)) && agentImageName == ""
+}
+
+func otelCollectorRejectsFullTag(agentImageName, agentVersion string) bool {
+	return strings.HasSuffix(agentVersion, "-full") && agentImageName == ""
+}
+
+func otelCollectorAgentImage(ddaSpec *v2alpha1.DatadogAgentSpec) (string, string) {
+	var agentImageName string
+	agentVersion := images.AgentLatestVersion
+	if nodeAgent, ok := ddaSpec.Override[v2alpha1.NodeAgentComponentName]; ok && nodeAgent.Image != nil {
+		agentImageName = nodeAgent.Image.Name
+		agentVersion = common.GetAgentVersionFromImage(*nodeAgent.Image)
+	}
+	return agentImageName, agentVersion
 }
 
 func (o *otelCollectorFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {

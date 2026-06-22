@@ -4,6 +4,11 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/stretchr/testify/assert"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/version"
+
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
@@ -15,12 +20,6 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/testutils"
-
-	"github.com/google/go-cmp/cmp"
-	"github.com/stretchr/testify/assert"
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/apimachinery/pkg/version"
 )
 
 type expectedPorts struct {
@@ -701,43 +700,6 @@ func testExpectedDepsCreatedCM(t testing.TB, store store.StoreClient) {
 		"ConfigMap \ndiff = %s", cmp.Diff(configMap.Data, expectedCM),
 	)
 
-	serviceObject, found := store.Get(kubernetes.ServicesKind, "", "-agent")
-	switch t.Name() {
-	case "Test_otelCollectorFeature_Configure/otel_agent_enabled_with_service_ports_default":
-		assert.True(t, found)
-		service := serviceObject.(*corev1.Service)
-		assert.Equal(t, []corev1.ServicePort{
-			{
-				Name:       "otlpgrpcport",
-				Port:       4317,
-				Protocol:   corev1.ProtocolTCP,
-				TargetPort: intstr.FromInt(4317),
-			},
-			{
-				Name:       "otlphttpport",
-				Port:       4318,
-				Protocol:   corev1.ProtocolTCP,
-				TargetPort: intstr.FromInt(4318),
-			},
-		}, service.Spec.Ports)
-	case "Test_otelCollectorFeature_Configure/otel_agent_enabled_with_service_ports_override":
-		assert.True(t, found)
-		service := serviceObject.(*corev1.Service)
-		assert.Equal(t, []corev1.ServicePort{
-			{
-				Name:       "otlpgrpcport",
-				Port:       4444,
-				Protocol:   corev1.ProtocolTCP,
-				TargetPort: intstr.FromInt(4444),
-			},
-			{
-				Name:       "otlphttpport",
-				Port:       5555,
-				Protocol:   corev1.ProtocolTCP,
-				TargetPort: intstr.FromInt(5555),
-			},
-		}, service.Spec.Ports)
-	default:
-		assert.False(t, found)
-	}
+	_, found = store.Get(kubernetes.ServicesKind, "", "-agent")
+	assert.False(t, found)
 }

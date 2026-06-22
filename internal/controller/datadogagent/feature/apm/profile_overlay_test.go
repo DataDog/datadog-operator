@@ -458,7 +458,8 @@ func TestAPMProfileSharedConfigOverlay(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := applyAPMProfileSharedConfigOverlay(tt.dst, tt.dst.DeepCopy(), tt.profile)
+			dst := tt.dst.DeepCopy()
+			err := applyAPMProfileSharedConfigOverlay(dst, dst.DeepCopy(), tt.profile)
 			if tt.wantErr != "" {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.wantErr)
@@ -466,10 +467,10 @@ func TestAPMProfileSharedConfigOverlay(t *testing.T) {
 			}
 			require.NoError(t, err)
 			if tt.wantNoApply {
-				assert.False(t, *tt.dst.Features.APM.SingleStepInstrumentation.Enabled)
+				assert.False(t, *dst.Features.APM.SingleStepInstrumentation.Enabled)
 				return
 			}
-			assert.Equal(t, tt.want, tt.dst.Features.APM.SingleStepInstrumentation)
+			assert.Equal(t, tt.want, dst.Features.APM.SingleStepInstrumentation)
 		})
 	}
 }

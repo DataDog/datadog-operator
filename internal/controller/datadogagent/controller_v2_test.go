@@ -24,6 +24,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -37,6 +38,7 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/experimental"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
 	agenttestutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/testutils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal"
 	"github.com/DataDog/datadog-operator/pkg/condition"
@@ -62,6 +64,7 @@ type testCase struct {
 	profilesEnabled      bool                          // For DDAI tests
 	introspectionEnabled bool                          // For introspection tests
 	clusterProvider      string                        // For control plane monitoring tests: provider returned by the injected detector
+	platformInfo         *kubernetes.PlatformInfo
 }
 
 // ddaiReconcilerOptionsFromDDA mirrors setup.go wiring so DDAI tests behave like production
@@ -73,6 +76,13 @@ func ddaiReconcilerOptionsFromDDA(opts ReconcilerOptions) datadogagentinternal.R
 		OperatorMetricsEnabled:   opts.OperatorMetricsEnabled,
 		UntaintControllerEnabled: opts.UntaintControllerEnabled,
 	}
+}
+
+func platformInfoForTest(tt testCase) kubernetes.PlatformInfo {
+	if tt.platformInfo != nil {
+		return *tt.platformInfo
+	}
+	return kubernetes.PlatformInfo{}
 }
 
 // runTestCases runs test cases
@@ -111,12 +121,13 @@ func runDDAReconcilerTest(t *testing.T, tt testCase, opts ReconcilerOptions) {
 	forwarders := dummyManager{}
 
 	c := buildClient(t, tt, s)
+	platformInfo := platformInfoForTest(tt)
 
 	// Create reconciler
 	r := &Reconciler{
 		client:       c,
 		scheme:       s,
-		platformInfo: kubernetes.PlatformInfo{},
+		platformInfo: platformInfo,
 		recorder:     recorder,
 		log:          logf.Log.WithName(tt.name),
 		forwarders:   forwarders,
@@ -127,7 +138,7 @@ func runDDAReconcilerTest(t *testing.T, tt testCase, opts ReconcilerOptions) {
 	ri := datadogagentinternal.NewReconciler(
 		ddaiReconcilerOptionsFromDDA(opts),
 		c,
-		kubernetes.PlatformInfo{},
+		platformInfo,
 		s,
 		recorder,
 		forwarders)
@@ -184,12 +195,13 @@ func runFullReconcilerTest(t *testing.T, tt testCase, opts ReconcilerOptions) {
 	forwarders := dummyManager{}
 
 	c := buildClient(t, tt, s)
+	platformInfo := platformInfoForTest(tt)
 
 	// Create reconciler
 	r := &Reconciler{
 		client:       c,
 		scheme:       s,
-		platformInfo: kubernetes.PlatformInfo{},
+		platformInfo: platformInfo,
 		recorder:     recorder,
 		log:          logf.Log.WithName(tt.name),
 		forwarders:   forwarders,
@@ -200,7 +212,7 @@ func runFullReconcilerTest(t *testing.T, tt testCase, opts ReconcilerOptions) {
 	ri := datadogagentinternal.NewReconciler(
 		ddaiReconcilerOptionsFromDDA(opts),
 		c,
-		kubernetes.PlatformInfo{},
+		platformInfo,
 		s,
 		recorder,
 		forwarders)
@@ -1827,6 +1839,129 @@ func Test_COSProviderOverrides(t *testing.T) {
 				assertVolumes(t, c, resourcesNamespace, profileDsName, false)
 				// Default DDAI has no provider annotation → src present.
 				assertVolumes(t, c, resourcesNamespace, defaultDsName, true)
+			},
+		},
+	}
+
+	runTestCases(t, tests, runFullReconcilerTest)
+}
+
+func Test_ProfileAPMOverrideAddsDDAOwnedLocalAgentServicePort(t *testing.T) {
+	const resourcesName = "foo"
+	const resourcesNamespace = "bar"
+	const profileName = "apm-profile"
+	defaultRequeueDuration := 15 * time.Second
+
+	dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+		WithAPMEnabled(false).
+		BuildWithDefaults()
+	localAgentServiceName := constants.GetLocalAgentServiceName(resourcesName, &dda.Spec)
+	platformInfo := kubernetes.NewPlatformInfoFromVersionMaps(&version.Info{GitVersion: "1.32.0"}, nil, nil)
+
+	newAPMProfile := func(name string, apm *v2alpha1.APMFeatureConfig) *v1alpha1.DatadogAgentProfile {
+		return &v1alpha1.DatadogAgentProfile{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      name,
+				Namespace: resourcesNamespace,
+			},
+			Spec: v1alpha1.DatadogAgentProfileSpec{
+				ProfileAffinity: &v1alpha1.ProfileAffinity{
+					ProfileNodeAffinity: []corev1.NodeSelectorRequirement{
+						{
+							Key:      "profile",
+							Operator: corev1.NodeSelectorOpIn,
+							Values:   []string{name},
+						},
+					},
+				},
+				Config: &v2alpha1.DatadogAgentSpec{
+					Features: &v2alpha1.DatadogFeatures{
+						APM: apm,
+					},
+				},
+			},
+		}
+	}
+	profile := newAPMProfile(profileName, &v2alpha1.APMFeatureConfig{
+		Enabled: ptr.To(true),
+	})
+	conflictingProfileA := newAPMProfile("apm-profile-a", &v2alpha1.APMFeatureConfig{
+		Enabled: ptr.To(true),
+		HostPortConfig: &v2alpha1.HostPortConfig{
+			Enabled: ptr.To(true),
+			Port:    ptr.To[int32](8126),
+		},
+	})
+	conflictingProfileB := newAPMProfile("apm-profile-b", &v2alpha1.APMFeatureConfig{
+		Enabled: ptr.To(true),
+		HostPortConfig: &v2alpha1.HostPortConfig{
+			Enabled: ptr.To(true),
+			Port:    ptr.To[int32](9126),
+		},
+	})
+
+	tests := []testCase{
+		{
+			name: "profile APM override adds trace port to DDA-owned local Agent Service",
+			clientBuilder: fake.NewClientBuilder().
+				WithStatusSubresource(&v2alpha1.DatadogAgent{}, &v1alpha1.DatadogAgentProfile{}, &v1alpha1.DatadogAgentInternal{}).
+				WithObjects(profile),
+			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
+				ddaCopy := dda.DeepCopy()
+				_ = c.Create(context.TODO(), ddaCopy)
+				return ddaCopy
+			},
+			profilesEnabled: true,
+			platformInfo:    &platformInfo,
+			want:            reconcile.Result{RequeueAfter: defaultRequeueDuration},
+			wantErr:         false,
+			wantFunc: func(t *testing.T, c client.Client) {
+				service := &corev1.Service{}
+				err := c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: localAgentServiceName}, service)
+				assert.NoError(t, err)
+				assert.Equal(t, "true", service.Labels[store.ManagedByDDAControllerLabelKey])
+
+				apmPort := findServicePortByName(service.Spec.Ports, constants.DefaultApmPortName)
+				assert.NotNil(t, apmPort)
+				assert.Equal(t, corev1.ProtocolTCP, apmPort.Protocol)
+				assert.Equal(t, int32(constants.DefaultApmPort), apmPort.Port)
+				assert.Equal(t, intstr.FromInt(int(constants.DefaultApmPort)), apmPort.TargetPort)
+
+				defaultDDAI := &v1alpha1.DatadogAgentInternal{}
+				err = c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: resourcesName}, defaultDDAI)
+				assert.NoError(t, err)
+				assert.False(t, ptr.Deref(defaultDDAI.Spec.Features.APM.Enabled, true))
+
+				profileDDAI := &v1alpha1.DatadogAgentInternal{}
+				err = c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: profileName}, profileDDAI)
+				assert.NoError(t, err)
+				assert.True(t, ptr.Deref(profileDDAI.Spec.Features.APM.Enabled, false))
+			},
+		},
+		{
+			name: "conflicting profile APM override keeps first trace port",
+			clientBuilder: fake.NewClientBuilder().
+				WithStatusSubresource(&v2alpha1.DatadogAgent{}, &v1alpha1.DatadogAgentProfile{}, &v1alpha1.DatadogAgentInternal{}).
+				WithObjects(conflictingProfileA, conflictingProfileB),
+			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
+				ddaCopy := dda.DeepCopy()
+				_ = c.Create(context.TODO(), ddaCopy)
+				return ddaCopy
+			},
+			profilesEnabled: true,
+			platformInfo:    &platformInfo,
+			want:            reconcile.Result{RequeueAfter: defaultRequeueDuration},
+			wantErr:         false,
+			wantFunc: func(t *testing.T, c client.Client) {
+				service := &corev1.Service{}
+				err := c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: localAgentServiceName}, service)
+				assert.NoError(t, err)
+				assert.Equal(t, "true", service.Labels[store.ManagedByDDAControllerLabelKey])
+
+				apmPort := findServicePortByName(service.Spec.Ports, constants.DefaultApmPortName)
+				assert.NotNil(t, apmPort)
+				assert.Equal(t, int32(8126), apmPort.Port)
+				assert.Equal(t, intstr.FromInt(int(constants.DefaultApmPort)), apmPort.TargetPort)
 			},
 		},
 	}
