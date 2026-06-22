@@ -479,7 +479,7 @@ e2e:
 
 e2e_mq:
   extends: e2e
-  timeout: 40m
+  timeout: 60m
   retry: 0
   rules:
     # Skip if only .md files are changed
