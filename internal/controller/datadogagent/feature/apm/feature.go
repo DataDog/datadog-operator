@@ -45,6 +45,10 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
+	err = feature.RegisterDDASharedDependencies(feature.APMIDType, applyAPMDDASharedDependencies)
+	if err != nil {
+		panic(err)
+	}
 }
 
 func buildAPMFeature(options *feature.Options) feature.Feature {
@@ -72,9 +76,6 @@ type apmFeature struct {
 	udsHostFilepath string
 
 	owner metav1.Object
-
-	forceEnableLocalService bool
-	localServiceName        string
 
 	createKubernetesNetworkPolicy bool
 	createCiliumNetworkPolicy     bool
@@ -180,11 +181,6 @@ func (f *apmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 		}
 		f.udsHostFilepath = *apm.UnixDomainSocketConfig.Path
 
-		if ddaSpec.Global.LocalService != nil {
-			f.forceEnableLocalService = apiutils.BoolValue(ddaSpec.Global.LocalService.ForceEnableLocalService)
-		}
-		f.localServiceName = constants.GetLocalAgentServiceName(dda.GetName(), ddaSpec)
-
 		reqComp.Agent = feature.RequiredComponent{
 			IsRequired: ptr.To(true),
 			Containers: []apicommon.AgentContainerName{
@@ -262,82 +258,57 @@ func (f *apmFeature) shouldEnableLanguageDetection() bool {
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
 func (f *apmFeature) ManageDependencies(managers feature.ResourceManagers) error {
-	if f.nodeAPMEnabled {
-		platformInfo := managers.Store().GetPlatformInfo()
-		// agent local service
-		if common.ShouldCreateAgentLocalService(platformInfo.GetVersionInfo(), f.forceEnableLocalService) {
-			apmPort := &corev1.ServicePort{
-				Protocol:   corev1.ProtocolTCP,
-				TargetPort: intstr.FromInt(int(constants.DefaultApmPort)),
-				Port:       constants.DefaultApmPort,
-				Name:       constants.DefaultApmPortName,
-			}
-			if f.hostPortEnabled {
-				apmPort.Port = f.hostPortHostPort
-				apmPort.Name = apmHostPortName
-				if f.useHostNetwork {
-					apmPort.TargetPort = intstr.FromInt(int(f.hostPortHostPort))
-				}
-			}
-
-			serviceInternalTrafficPolicy := corev1.ServiceInternalTrafficPolicyLocal
-			if err := managers.ServiceManager().AddService(f.localServiceName, f.owner.GetNamespace(), common.GetAgentLocalServiceSelector(f.owner), []corev1.ServicePort{*apmPort}, &serviceInternalTrafficPolicy); err != nil {
-				return err
-			}
-		}
-
-		// network policies
-		if f.hostPortEnabled {
-			policyName, podSelector := objects.GetNetworkPolicyMetadata(f.owner, v2alpha1.NodeAgentComponentName)
-			if f.createKubernetesNetworkPolicy {
-				protocolTCP := corev1.ProtocolTCP
-				ingressRules := []netv1.NetworkPolicyIngressRule{
-					{
-						Ports: []netv1.NetworkPolicyPort{
-							{
-								Port: &intstr.IntOrString{
-									Type:   intstr.Int,
-									IntVal: f.hostPortHostPort,
-								},
-								Protocol: &protocolTCP,
+	// network policies
+	if f.nodeAPMEnabled && f.hostPortEnabled {
+		policyName, podSelector := objects.GetNetworkPolicyMetadata(f.owner, v2alpha1.NodeAgentComponentName)
+		if f.createKubernetesNetworkPolicy {
+			protocolTCP := corev1.ProtocolTCP
+			ingressRules := []netv1.NetworkPolicyIngressRule{
+				{
+					Ports: []netv1.NetworkPolicyPort{
+						{
+							Port: &intstr.IntOrString{
+								Type:   intstr.Int,
+								IntVal: f.hostPortHostPort,
 							},
+							Protocol: &protocolTCP,
 						},
 					},
-				}
-				return managers.NetworkPolicyManager().AddKubernetesNetworkPolicy(
-					policyName,
-					f.owner.GetNamespace(),
-					podSelector,
-					nil,
-					ingressRules,
-					nil,
-				)
-			} else if f.createCiliumNetworkPolicy {
-				policySpecs := []cilium.NetworkPolicySpec{
-					{
-						Description:      "Ingress for APM trace",
-						EndpointSelector: podSelector,
-						Ingress: []cilium.IngressRule{
-							{
-								FromEndpoints: []metav1.LabelSelector{
-									{},
-								},
-								ToPorts: []cilium.PortRule{
-									{
-										Ports: []cilium.PortProtocol{
-											{
-												Port:     strconv.Itoa(int(f.hostPortHostPort)),
-												Protocol: cilium.ProtocolTCP,
-											},
+				},
+			}
+			return managers.NetworkPolicyManager().AddKubernetesNetworkPolicy(
+				policyName,
+				f.owner.GetNamespace(),
+				podSelector,
+				nil,
+				ingressRules,
+				nil,
+			)
+		} else if f.createCiliumNetworkPolicy {
+			policySpecs := []cilium.NetworkPolicySpec{
+				{
+					Description:      "Ingress for APM trace",
+					EndpointSelector: podSelector,
+					Ingress: []cilium.IngressRule{
+						{
+							FromEndpoints: []metav1.LabelSelector{
+								{},
+							},
+							ToPorts: []cilium.PortRule{
+								{
+									Ports: []cilium.PortProtocol{
+										{
+											Port:     strconv.Itoa(int(f.hostPortHostPort)),
+											Protocol: cilium.ProtocolTCP,
 										},
 									},
 								},
 							},
 						},
 					},
-				}
-				return managers.CiliumPolicyManager().AddCiliumPolicy(policyName, f.owner.GetNamespace(), policySpecs)
+				},
 			}
+			return managers.CiliumPolicyManager().AddCiliumPolicy(policyName, f.owner.GetNamespace(), policySpecs)
 		}
 	}
 
@@ -348,6 +319,57 @@ func (f *apmFeature) ManageDependencies(managers feature.ResourceManagers) error
 	}
 
 	return nil
+}
+
+func applyAPMDDASharedDependencies(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, ddai metav1.Object, ddaiSpec *v2alpha1.DatadogAgentSpec, managers feature.ResourceManagers) error {
+	ports := apmLocalAgentServicePorts(ddai, ddaiSpec)
+	if len(ports) == 0 || !featutils.ShouldCreateLocalAgentService(ddaSpec, managers) {
+		return nil
+	}
+
+	serviceInternalTrafficPolicy := corev1.ServiceInternalTrafficPolicyLocal
+	return managers.ServiceManager().AddService(
+		constants.GetLocalAgentServiceName(dda.GetName(), ddaSpec),
+		dda.GetNamespace(),
+		common.GetAgentLocalServiceSelector(dda),
+		ports,
+		&serviceInternalTrafficPolicy,
+	)
+}
+
+func apmLocalAgentServicePorts(ddai metav1.Object, ddaiSpec *v2alpha1.DatadogAgentSpec) []corev1.ServicePort {
+	if ddaiSpec == nil || ddaiSpec.Features == nil || !shouldEnableAPM(ddaiSpec.Features.APM) {
+		return nil
+	}
+
+	apm := ddaiSpec.Features.APM
+	hostPortEnabled := false
+	hostPortHostPort := int32(constants.DefaultApmPort)
+	if apm.HostPortConfig != nil {
+		hostPortEnabled = apiutils.BoolValue(apm.HostPortConfig.Enabled)
+		if apm.HostPortConfig.Port != nil {
+			hostPortHostPort = *apm.HostPortConfig.Port
+		}
+	}
+	if experimental.IsAutopilotEnabled(ddai) {
+		hostPortEnabled = true
+	}
+
+	apmPort := corev1.ServicePort{
+		Protocol:   corev1.ProtocolTCP,
+		TargetPort: intstr.FromInt(int(constants.DefaultApmPort)),
+		Port:       constants.DefaultApmPort,
+		Name:       constants.DefaultApmPortName,
+	}
+	if hostPortEnabled {
+		apmPort.Port = hostPortHostPort
+		apmPort.Name = apmHostPortName
+		if constants.IsHostNetworkEnabled(ddaiSpec, v2alpha1.NodeAgentComponentName) {
+			apmPort.TargetPort = intstr.FromInt(int(hostPortHostPort))
+		}
+	}
+
+	return []corev1.ServicePort{apmPort}
 }
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
