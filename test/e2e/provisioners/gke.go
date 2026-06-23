@@ -58,7 +58,7 @@ func newGKEProvisionerParams() *GKEProvisionerParams {
 		testName:           "",
 		ddaOptions:         []agentwithoperatorparams.Option{},
 		operatorOptions:    []operatorparams.Option{},
-		k8sVersion:         common.K8sVersion,
+		k8sVersion:         "",
 		kustomizeResources: nil,
 		fakeintakeOptions:  []gcpfakeintake.Option{},
 		extraConfigParams:  runner.ConfigMap{},
@@ -191,11 +191,15 @@ func WithGKEAutopilot() GKEProvisionerOption {
 func newGKEExtraConfig(params *GKEProvisionerParams) runner.ConfigMap {
 	extraConfig := params.extraConfigParams
 	extraConfig.Merge(runner.ConfigMap{
-		"ddinfra:kubernetesVersion": auto.ConfigValue{Value: params.k8sVersion},
 		"ddagent:imagePullRegistry": auto.ConfigValue{Value: "669783387624.dkr.ecr.us-east-1.amazonaws.com"},
 		"ddagent:imagePullUsername": auto.ConfigValue{Value: "AWS"},
 		"ddagent:imagePullPassword": auto.ConfigValue{Value: common.ImgPullPassword, Secret: true},
 	})
+	if params.k8sVersion != "" {
+		extraConfig.Merge(runner.ConfigMap{
+			"ddinfra:kubernetesVersion": auto.ConfigValue{Value: params.k8sVersion},
+		})
+	}
 	return extraConfig
 }
 
