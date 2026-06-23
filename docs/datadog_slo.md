@@ -1,5 +1,7 @@
 # Datadog SLOs
-This feature is in Preview.
+
+> [!WARNING]
+> Soft deprecation notice: for new SLO resources, prefer [`DatadogGenericResource`](./datadoggenericresource/datadog_generic_resource.md) with `type: slo`. `DatadogSLO` remains supported for existing users, but DDGR is the preferred path for new Datadog API capabilities. To move existing SLOs, see the [DDGR migration guide](./datadoggenericresource/datadog_generic_resource_migration.md).
 
 ## Overview
 The `DatadogSLO` Custom Resource Definition (CRD) allows users to create [SLOs][1] using the Operator and manage them as Kubernetes resources.
@@ -43,7 +45,7 @@ To deploy a `DatadogSLO` with the Datadog Operator, use the [`datadog-operator` 
     kind: DatadogSLO
     metadata:
       name: example-slo
-      namespace: system 
+      namespace: system
     spec:
       name: example-slo
       description: "This is an example metric SLO from datadog-operator"
@@ -66,8 +68,7 @@ To deploy a `DatadogSLO` with the Datadog Operator, use the [`datadog-operator` 
     ```
 
     This automatically creates a new SLO in Datadog. You can find it on the [SLOs][8] page of your Datadog account.
-    Datadog Operator occasionally reconciles and keeps SLOs in line with the given configuration. There is also a force 
-    sync every hour, so if a user deletes an SLO in the Datadog UI, Datadog Operator restores it in under an hour.
+    Datadog Operator occasionally reconciles and keeps SLOs in line with the given configuration. There is also a force sync every hour, so if a user deletes an SLO in the Datadog UI, Datadog Operator restores it in under an hour.
 
 By default, the Operator ensures that the API SLO definition stays in sync with the DatadogSLO resource every **60** minutes (per SLO). This interval can be adjusted using the environment variable `DD_SLO_FORCE_SYNC_PERIOD`, which specifies the number of minutes. For example, setting this variable to `"30"` changes the interval to 30 minutes.
 

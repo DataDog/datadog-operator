@@ -50,6 +50,6 @@ The general steps to add a new type can be summarized to:
     2. Update the "Datadog-side status" table in [Overview of the DatadogGenericResource controller][2] so users know what `.status.state` values to expect for your resource type.
     3. Regenerate the CRD (`make generate && make manifests`) so the updated description propagates to the OpenAPI schema and the `config/crd/bases/` manifests.
 
-[1]: ./how-to-contribute.md
+[1]: ../how-to-contribute.md
 [2]: ./datadog_generic_resource.md
-[3]: ../examples/datadoggenericresource/
+[3]: ../../examples/datadoggenericresource/

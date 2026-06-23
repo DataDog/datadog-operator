@@ -282,7 +282,7 @@ func run(opts *options) error {
 	}
 
 	restConfig := ctrl.GetConfigOrDie()
-	restConfig.UserAgent = "datadog-operator"
+	restConfig.UserAgent = "datadog-operator/" + version.Version
 	mgr, err := ctrl.NewManager(restConfig, ctrl.Options{
 		Scheme:                     scheme,
 		Metrics:                    metricsServerOptions,
