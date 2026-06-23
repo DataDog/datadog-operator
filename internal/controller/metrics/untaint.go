@@ -30,6 +30,10 @@ const (
 	// UntaintRemovalReasonTimeout signals the taint was removed because a
 	// readiness or scheduling timeout fired under policy=remove.
 	UntaintRemovalReasonTimeout = "timeout"
+
+	// untaintNodeLabel is the label key carrying the node name on the
+	// node-scoped untaint metrics.
+	untaintNodeLabel = "node"
 )
 
 var (
@@ -41,7 +45,7 @@ var (
 			Name:      "taint_removals_total",
 			Help:      "Total number of taints removed from nodes, by node and reason",
 		},
-		[]string{"node", "reason"},
+		[]string{untaintNodeLabel, "reason"},
 	)
 
 	// TaintRemovalLatency is the time between agent pod becoming Ready and taint
@@ -53,7 +57,7 @@ var (
 			Help:      "Time between agent pod becoming Ready and taint removal from the node, by node",
 			Buckets:   prometheus.DefBuckets,
 		},
-		[]string{"node"},
+		[]string{untaintNodeLabel},
 	)
 
 	// TaintTimeoutsTotal counts timeout decisions broken down by reason and policy.
@@ -79,6 +83,18 @@ var (
 		},
 	)
 )
+
+// DeleteNodeSeries removes every child series labeled with the given node from
+// the node-scoped untaint metrics: TaintRemovalsTotal (across all reason values)
+// and TaintRemovalLatency (across all histogram buckets). It is a no-op when the
+// node has no series. Call it when a node is deleted to prevent unbounded growth
+// of per-node series for the operator's lifetime as clusters autoscale or
+// replace nodes.
+func DeleteNodeSeries(node string) {
+	match := prometheus.Labels{untaintNodeLabel: node}
+	TaintRemovalsTotal.DeletePartialMatch(match)
+	TaintRemovalLatency.DeletePartialMatch(match)
+}
 
 func init() {
 	metrics.Registry.MustRegister(TaintRemovalsTotal)
