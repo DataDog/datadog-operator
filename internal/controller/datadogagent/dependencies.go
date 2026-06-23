@@ -7,13 +7,11 @@ package datadogagent
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
-	ctrl "sigs.k8s.io/controller-runtime"
 
 	v1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -21,7 +19,6 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusteragent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/global"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/merger"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/secrets"
@@ -78,7 +75,7 @@ func (r *Reconciler) manageDDADependenciesWithDDAI(ctx context.Context, logger l
 
 	// Dependencies that can get configs from DDA and DDAI
 	// Example: agent local service for APM, DSD, and OTLP
-	if err := r.addDDASharedDependencies(ctx, instance, ddais, resourceManagers); err != nil {
+	if err := r.addDDASharedDependencies(instance, ddais, resourceManagers); err != nil {
 		return err
 	}
 
@@ -104,21 +101,11 @@ func (r *Reconciler) manageDDADependenciesWithDDAI(ctx context.Context, logger l
 	return nil
 }
 
-func (r *Reconciler) addDDASharedDependencies(ctx context.Context, dda *v2alpha1.DatadogAgent, ddais []*v1alpha1.DatadogAgentInternal, managers feature.ResourceManagers) error {
-	logger := ctrl.LoggerFrom(ctx)
+func (r *Reconciler) addDDASharedDependencies(dda *v2alpha1.DatadogAgent, ddais []*v1alpha1.DatadogAgentInternal, managers feature.ResourceManagers) error {
 	var errs []error
 
 	for _, ddai := range ddais {
 		if err := feature.ApplyDDASharedDependencies(dda, &dda.Spec, ddai, &ddai.Spec, managers); err != nil {
-			if errors.Is(err, merger.ErrServicePortConflict) {
-				logger.Info(
-					"Ignoring conflicting DDA shared Service port",
-					"datadogagentinternal_namespace", ddai.Namespace,
-					"datadogagentinternal_name", ddai.Name,
-					"reason", err.Error(),
-				)
-				continue
-			}
 			errs = append(errs, fmt.Errorf("%s/%s DDA shared dependencies failed: %w", ddai.Namespace, ddai.Name, err))
 		}
 	}
