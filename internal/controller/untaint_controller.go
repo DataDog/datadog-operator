@@ -285,9 +285,9 @@ func (r *UntaintReconciler) completeUntaintFromReadiness(ctx context.Context, no
 		return result, nil
 	}
 	log.Info(infoLog)
-	metrics.TaintRemovalsTotal.Inc()
+	metrics.TaintRemovalsTotal.WithLabelValues(node.Name, metrics.UntaintRemovalReasonAgentReady).Inc()
 	if !readyAt.IsZero() {
-		metrics.TaintRemovalLatency.Observe(r.clock.Since(readyAt).Seconds())
+		metrics.TaintRemovalLatency.WithLabelValues(node.Name).Observe(r.clock.Since(readyAt).Seconds())
 	}
 	if r.eventsEnabled {
 		r.recorder.Eventf(node, corev1.EventTypeNormal, "TaintRemoved", eventFmt, untaint.AgentNotReadyTaintKey, node.Name)
@@ -401,7 +401,7 @@ func (r *UntaintReconciler) applyTimeoutPolicy(ctx context.Context, node *corev1
 		return result, nil
 	}
 	log.Info(fmt.Sprintf("Removed agent-not-ready taint from node %s by timeout policy", node.Name))
-	metrics.TaintRemovalsTotal.Inc()
+	metrics.TaintRemovalsTotal.WithLabelValues(node.Name, metrics.UntaintRemovalReasonTimeout).Inc()
 	return ctrl.Result{}, nil
 }
 

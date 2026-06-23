@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -34,6 +35,7 @@ import (
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogcsidriver"
+	"github.com/DataDog/datadog-operator/internal/controller/metrics"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/untaint"
 )
@@ -889,4 +891,61 @@ func TestPodWatchPredicate_withCSI(t *testing.T) {
 	assert.True(t, p.Create(event.CreateEvent{Object: csi}))
 	assert.True(t, p.Create(event.CreateEvent{Object: readyAgent}))
 	assert.False(t, p.Create(event.CreateEvent{Object: other}))
+}
+
+// -----------------------------------------------------------------------------
+// metrics: labeled removal counter + latency histogram
+// -----------------------------------------------------------------------------
+
+// resetUntaintMetrics clears the package-level metric vectors so each test
+// observes only its own samples (the vectors are process-global singletons
+// registered in the metrics package init).
+func resetUntaintMetrics() {
+	metrics.TaintRemovalsTotal.Reset()
+	metrics.TaintRemovalLatency.Reset()
+}
+
+func TestReconcile_PodReady_RecordsLabeledMetrics(t *testing.T) {
+	resetUntaintMetrics()
+	now := testNow()
+	node := taintedNode(testNodeName, 0, now)
+	pod := agentPod(testPodName, testPodNS, testNodeName, true, 1*time.Minute, now)
+
+	c := newFakeClient(t, node, pod)
+	r, _ := newReconciler(t, c, now, PolicyRemove, time.Minute, time.Minute, false)
+
+	_, err := r.Reconcile(context.Background(), ctrl.Request{NamespacedName: types.NamespacedName{Name: testNodeName}})
+	require.NoError(t, err)
+
+	assert.Equal(t, 1.0, testutil.ToFloat64(
+		metrics.TaintRemovalsTotal.WithLabelValues(testNodeName, metrics.UntaintRemovalReasonAgentReady)),
+		"agent_ready removal counter for this node should be incremented")
+	assert.Equal(t, 0.0, testutil.ToFloat64(
+		metrics.TaintRemovalsTotal.WithLabelValues(testNodeName, metrics.UntaintRemovalReasonTimeout)),
+		"timeout reason must not be recorded for a readiness-driven removal")
+	assert.Equal(t, 1, testutil.CollectAndCount(metrics.TaintRemovalLatency),
+		"latency histogram should have one labeled series for this node")
+}
+
+func TestReconcile_Timeout_RecordsLabeledMetrics(t *testing.T) {
+	resetUntaintMetrics()
+	now := testNow()
+	// Pod never Ready, started past the readiness timeout → policy=remove untaints.
+	node := taintedNode(testNodeName, 30*time.Minute, now)
+	pod := agentPod(testPodName, testPodNS, testNodeName, false, 11*time.Minute, now)
+
+	c := newFakeClient(t, node, pod)
+	r, _ := newReconciler(t, c, now, PolicyRemove, 10*time.Minute, 5*time.Minute, false)
+
+	_, err := r.Reconcile(context.Background(), ctrl.Request{NamespacedName: types.NamespacedName{Name: testNodeName}})
+	require.NoError(t, err)
+
+	assert.Equal(t, 1.0, testutil.ToFloat64(
+		metrics.TaintRemovalsTotal.WithLabelValues(testNodeName, metrics.UntaintRemovalReasonTimeout)),
+		"timeout removal counter for this node should be incremented")
+	assert.Equal(t, 0.0, testutil.ToFloat64(
+		metrics.TaintRemovalsTotal.WithLabelValues(testNodeName, metrics.UntaintRemovalReasonAgentReady)),
+		"agent_ready reason must not be recorded for a timeout-driven removal")
+	assert.Equal(t, 0, testutil.CollectAndCount(metrics.TaintRemovalLatency),
+		"timeout-driven removal records no readiness latency")
 }
