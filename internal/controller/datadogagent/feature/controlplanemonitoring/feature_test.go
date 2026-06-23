@@ -68,6 +68,8 @@ func Test_controlPlaneMonitoringFeature_Configure(t *testing.T) {
 			},
 			WantConfigure:        true,
 			WantDependenciesFunc: openShiftControlPlaneWantDepsFunc(),
+			Agent:                etcdCertsMountWantFunc(apicommon.CoreAgentContainerName, true),
+			ClusterChecksRunner:  etcdCertsMountWantFunc(apicommon.ClusterChecksRunnersContainerName, true),
 		},
 		{
 			Name: "Control Plane Monitoring enabled with OpenShift provider keeps existing target secret when source read fails",
