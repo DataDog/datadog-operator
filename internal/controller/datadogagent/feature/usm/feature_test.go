@@ -175,6 +175,13 @@ func Test_usmFeature_Configure(t *testing.T) {
 	usmDirectSendDisabledNodeWantFunc := func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 		mgr := mgrInterface.(*fake.PodTemplateManagers)
 
+		// check annotations
+		wantAnnotations := map[string]string{
+			common.SystemProbeAppArmorAnnotationKey: common.SystemProbeAppArmorAnnotationValue,
+		}
+		annotations := mgr.AnnotationMgr.Annotations
+		assert.True(t, apiutils.IsEqualStruct(annotations, wantAnnotations), "Annotations \ndiff = %s", cmp.Diff(annotations, wantAnnotations))
+
 		processWantVolumeMounts := []corev1.VolumeMount{
 			{
 				Name:      common.ProcdirVolumeName,

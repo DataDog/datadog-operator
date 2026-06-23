@@ -217,6 +217,13 @@ func Test_npmFeature_Configure(t *testing.T) {
 	cnmDirectSendDisabledWantFunc := func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 		mgr := mgrInterface.(*fake.PodTemplateManagers)
 
+		// check annotations
+		wantAnnotations := map[string]string{
+			common.SystemProbeAppArmorAnnotationKey: common.SystemProbeAppArmorAnnotationValue,
+		}
+		annotations := mgr.AnnotationMgr.Annotations
+		assert.True(t, apiutils.IsEqualStruct(annotations, wantAnnotations), "Annotations \ndiff = %s", cmp.Diff(annotations, wantAnnotations))
+
 		// check volume mounts
 		wantVolumeMounts := []corev1.VolumeMount{
 			{
