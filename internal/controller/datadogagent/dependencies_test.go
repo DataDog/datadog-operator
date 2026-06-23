@@ -6,7 +6,6 @@
 package datadogagent
 
 import (
-	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -39,7 +38,7 @@ func TestAddDDASharedDependenciesIncludesProfileAPMPort(t *testing.T) {
 	depsStore := newDependencyTestStore(dda)
 	managers := feature.NewResourceManagers(depsStore)
 
-	err := (&Reconciler{}).addDDASharedDependencies(context.Background(), dda, []*v1alpha1.DatadogAgentInternal{baseDDAI, profileDDAI}, managers)
+	err := (&Reconciler{}).addDDASharedDependencies(dda, []*v1alpha1.DatadogAgentInternal{baseDDAI, profileDDAI}, managers)
 	require.NoError(t, err)
 
 	obj, found := depsStore.Get(kubernetes.ServicesKind, "default", "datadog-agent")
@@ -53,7 +52,7 @@ func TestAddDDASharedDependenciesIncludesProfileAPMPort(t *testing.T) {
 	assert.Equal(t, intstr.FromInt(int(constants.DefaultApmPort)), apmPort.TargetPort)
 }
 
-func TestAddDDASharedDependenciesKeepsFirstConflictingProfilePort(t *testing.T) {
+func TestAddDDASharedDependenciesRejectsConflictingProfilePorts(t *testing.T) {
 	dda := testutils.NewInitializedDatadogAgentBuilder("default", "datadog").WithAPMEnabled(false).BuildWithDefaults()
 
 	profileSpecA := dda.Spec.DeepCopy()
@@ -65,21 +64,15 @@ func TestAddDDASharedDependenciesKeepsFirstConflictingProfilePort(t *testing.T) 
 	depsStore := newDependencyTestStore(dda)
 	managers := feature.NewResourceManagers(depsStore)
 
-	err := (&Reconciler{}).addDDASharedDependencies(context.Background(), dda, []*v1alpha1.DatadogAgentInternal{
+	err := (&Reconciler{}).addDDASharedDependencies(dda, []*v1alpha1.DatadogAgentInternal{
 		testDDAIWithSpec("datadog-profile-a", dda.Namespace, profileSpecA),
 		testDDAIWithSpec("datadog-profile-b", dda.Namespace, profileSpecB),
 	}, managers)
 
-	require.NoError(t, err)
-
-	obj, found := depsStore.Get(kubernetes.ServicesKind, "default", "datadog-agent")
-	require.True(t, found)
-	service := obj.(*corev1.Service)
-
-	apmPort := findServicePortByName(service.Spec.Ports, constants.DefaultApmPortName)
-	require.NotNil(t, apmPort)
-	assert.Equal(t, int32(8126), apmPort.Port)
-	assert.Equal(t, intstr.FromInt(8126), apmPort.TargetPort)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "default/datadog-profile-b DDA shared dependencies failed")
+	assert.Contains(t, err.Error(), "port \"traceport\" conflicts")
+	assert.Contains(t, err.Error(), "service port conflict")
 }
 
 func TestAddDDASharedDependenciesDoesNotMutateDDAISpec(t *testing.T) {
@@ -92,7 +85,7 @@ func TestAddDDASharedDependenciesDoesNotMutateDDAISpec(t *testing.T) {
 	depsStore := newDependencyTestStore(dda)
 	managers := feature.NewResourceManagers(depsStore)
 
-	err := (&Reconciler{}).addDDASharedDependencies(context.Background(), dda, []*v1alpha1.DatadogAgentInternal{ddai}, managers)
+	err := (&Reconciler{}).addDDASharedDependencies(dda, []*v1alpha1.DatadogAgentInternal{ddai}, managers)
 	require.NoError(t, err)
 
 	assert.Nil(t, ddai.Spec.Features.ServiceDiscovery.Enabled)

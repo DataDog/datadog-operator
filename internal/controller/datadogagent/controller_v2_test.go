@@ -41,6 +41,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
 	agenttestutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/testutils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal"
+	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/condition"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
@@ -1939,7 +1940,7 @@ func Test_ProfileAPMOverrideAddsDDAOwnedLocalAgentServicePort(t *testing.T) {
 			},
 		},
 		{
-			name: "conflicting profile APM override keeps first trace port",
+			name: "conflicting profile APM override rejects conflicting profile and reconciles accepted profile",
 			clientBuilder: fake.NewClientBuilder().
 				WithStatusSubresource(&v2alpha1.DatadogAgent{}, &v1alpha1.DatadogAgentProfile{}, &v1alpha1.DatadogAgentInternal{}).
 				WithObjects(conflictingProfileA, conflictingProfileB),
@@ -1962,11 +1963,39 @@ func Test_ProfileAPMOverrideAddsDDAOwnedLocalAgentServicePort(t *testing.T) {
 				assert.NotNil(t, apmPort)
 				assert.Equal(t, int32(8126), apmPort.Port)
 				assert.Equal(t, intstr.FromInt(int(constants.DefaultApmPort)), apmPort.TargetPort)
+
+				appliedProfile := &v1alpha1.DatadogAgentProfile{}
+				err = c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: "apm-profile-a"}, appliedProfile)
+				assert.NoError(t, err)
+				assert.Equal(t, metav1.ConditionTrue, appliedProfile.Status.Applied)
+
+				conflictingProfile := &v1alpha1.DatadogAgentProfile{}
+				err = c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: "apm-profile-b"}, conflictingProfile)
+				assert.NoError(t, err)
+				assert.Equal(t, metav1.ConditionFalse, conflictingProfile.Status.Applied)
+				assert.Contains(t, profileConditionMessage(conflictingProfile.Status.Conditions, agentprofile.AppliedConditionType), "port \"traceport\" conflicts")
+
+				appliedDDAI := &v1alpha1.DatadogAgentInternal{}
+				err = c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: "apm-profile-a"}, appliedDDAI)
+				assert.NoError(t, err)
+
+				conflictingDDAI := &v1alpha1.DatadogAgentInternal{}
+				err = c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: "apm-profile-b"}, conflictingDDAI)
+				assert.True(t, apierrors.IsNotFound(err), "conflicting profile DDAI should not be rendered")
 			},
 		},
 	}
 
 	runTestCases(t, tests, runFullReconcilerTest)
+}
+
+func profileConditionMessage(conditions []metav1.Condition, conditionType string) string {
+	for _, condition := range conditions {
+		if condition.Type == conditionType {
+			return condition.Message
+		}
+	}
+	return ""
 }
 
 func verifyDaemonsetContainers(t *testing.T, c client.Client, resourcesNamespace, dsName string, expectedContainers []string) {

@@ -475,6 +475,20 @@ func TestAPMProfileSharedConfigOverlay(t *testing.T) {
 	}
 }
 
+func TestAPMProfileSharedConfigOverlayLocalAgentServicePortConflict(t *testing.T) {
+	base := testProfileOverlayBaseSpec(false)
+	dst := base.DeepCopy()
+
+	require.NoError(t, applyAPMProfileSharedConfigOverlay(dst, base, testProfileOverlayProfileAPMSpec(8126)))
+	assert.Equal(t, int32(8126), ptr.Deref(dst.Features.APM.HostPortConfig.Port, 0))
+
+	require.NoError(t, applyAPMProfileSharedConfigOverlay(dst, base, testProfileOverlayProfileAPMSpec(8126)))
+
+	err := applyAPMProfileSharedConfigOverlay(dst, base, testProfileOverlayProfileAPMSpec(9126))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `local Agent Service port "traceport" conflicts`)
+}
+
 // Profile SSI overlays should render the same Cluster Agent config as direct
 // base-DDA SSI config. Node Agent config is intentionally out of scope because
 // profile-owned APM config renders on the profile DDAI instead of the default
@@ -578,6 +592,16 @@ func testProfileOverlayProfileSpec(ssi *v2alpha1.SingleStepInstrumentation) *v2a
 				SingleStepInstrumentation: ssi,
 			},
 		},
+	}
+	return spec
+}
+
+func testProfileOverlayProfileAPMSpec(port int32) *v2alpha1.DatadogAgentSpec {
+	spec := testProfileOverlayProfileSpec(nil)
+	spec.Features.APM.Enabled = ptr.To(true)
+	spec.Features.APM.HostPortConfig = &v2alpha1.HostPortConfig{
+		Enabled: ptr.To(true),
+		Port:    ptr.To(port),
 	}
 	return spec
 }
