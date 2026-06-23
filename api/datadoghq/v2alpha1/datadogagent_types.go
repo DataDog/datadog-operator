@@ -2161,7 +2161,7 @@ type DatadogAgentComponentOverride struct {
 	EnvFrom []corev1.EnvFromSource `json:"envFrom,omitempty"`
 
 	// CustomConfigurations specifies custom contents for `datadog.yaml`, `datadog-cluster.yaml`, `security-agent.yaml`, and `system-probe.yaml`.
-	// Each provided file replaces the corresponding defaultfile from the Agent image without merging.
+	// Each provided file replaces the corresponding default file from the Agent image without merging.
 	// Agent settings provided through environment variables take precedence over these files.
 	// +doc-gen:truncate
 	// +optional
