@@ -68,6 +68,8 @@ func Test_controlPlaneMonitoringFeature_Configure(t *testing.T) {
 			},
 			WantConfigure:        true,
 			WantDependenciesFunc: openShiftControlPlaneWantDepsFunc(),
+			Agent:                etcdCertsMountWantFunc(apicommon.CoreAgentContainerName, true),
+			ClusterChecksRunner:  etcdCertsMountWantFunc(apicommon.ClusterChecksRunnersContainerName, true),
 		},
 		{
 			Name: "Control Plane Monitoring enabled with OpenShift provider keeps existing target secret when source read fails",
@@ -90,10 +92,65 @@ func Test_controlPlaneMonitoringFeature_Configure(t *testing.T) {
 			},
 			WantConfigure:        true,
 			WantDependenciesFunc: openShiftControlPlaneWantExistingSecretDepsFunc(),
+			// Secret is present in the owner namespace, so the etcd-certs volume is mounted.
+			Agent:               etcdCertsMountWantFunc(apicommon.CoreAgentContainerName, true),
+			ClusterChecksRunner: etcdCertsMountWantFunc(apicommon.ClusterChecksRunnersContainerName, true),
+		},
+		{
+			Name: "Control Plane Monitoring enabled with OpenShift provider skips etcd-certs mount when secret is absent",
+			DDA: testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+				WithAnnotations(map[string]string{kubernetes.ProviderAnnotationKey: "openshift-rhcos"}).
+				WithControlPlaneMonitoring(true).
+				Build(),
+			FeatureOptions: &feature.Options{
+				Client: fakeClientWithSecrets(t),
+			},
+			WantConfigure: true,
+			// Neither source nor target secret exists, so the non-optional etcd-certs
+			// volume must be skipped to avoid wedging the pod in ContainerCreating.
+			Agent:               etcdCertsMountWantFunc(apicommon.CoreAgentContainerName, false),
+			ClusterChecksRunner: etcdCertsMountWantFunc(apicommon.ClusterChecksRunnersContainerName, false),
 		},
 	}
 
 	tests.Run(t, buildControlPlaneMonitoringFeature)
+}
+
+// etcdCertsMountWantFunc asserts whether the OpenShift etcd-certs secret volume and
+// its mount on containerName are present, while verifying the disable-etcd-autoconf
+// emptyDir volume is always added for OpenShift regardless of the secret.
+func etcdCertsMountWantFunc(containerName apicommon.AgentContainerName, mounted bool) *test.ComponentTest {
+	return test.NewDefaultComponentTest().WithWantFunc(
+		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+			mgr := mgrInterface.(*fake.PodTemplateManagers)
+			vols := mgr.VolumeMgr.Volumes
+			mounts := mgr.VolumeMountMgr.VolumeMountsByC[containerName]
+
+			assert.Equal(t, mounted, hasVolumeNamed(vols, etcdCertsVolumeName),
+				"etcd-certs volume presence mismatch (want mounted=%v)", mounted)
+			assert.Equal(t, mounted, hasVolumeMountNamed(mounts, etcdCertsVolumeName),
+				"etcd-certs volume mount presence mismatch (want mounted=%v)", mounted)
+			assert.True(t, hasVolumeNamed(vols, disableEtcdAutoconfVolumeName),
+				"disable-etcd-autoconf volume should always be present for OpenShift")
+		})
+}
+
+func hasVolumeNamed(vols []*corev1.Volume, name string) bool {
+	for _, v := range vols {
+		if v.Name == name {
+			return true
+		}
+	}
+	return false
+}
+
+func hasVolumeMountNamed(mounts []*corev1.VolumeMount, name string) bool {
+	for _, m := range mounts {
+		if m.Name == name {
+			return true
+		}
+	}
+	return false
 }
 
 func fakeClientWithSecrets(t testing.TB, secrets ...*corev1.Secret) client.Client {
