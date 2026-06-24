@@ -10,6 +10,8 @@ import (
 	"strings"
 
 	k8svalidation "k8s.io/apimachinery/pkg/util/validation"
+
+	apiutils "github.com/DataDog/datadog-operator/api/utils"
 )
 
 // reservedExtraLabelPrefixes holds label-key prefixes that are owned by the
@@ -31,6 +33,10 @@ func ValidateDatadogAgent(dda *DatadogAgent) error {
 	}
 
 	if err := validateCommonLabels(dda.Spec.Global.CommonLabels); err != nil {
+		return err
+	}
+
+	if err := validateVSock(&dda.Spec); err != nil {
 		return err
 	}
 
@@ -66,5 +72,25 @@ func validateCommonLabels(commonLabels map[string]string) error {
 				value, key, strings.Join(errs, "; "))
 		}
 	}
+	return nil
+}
+
+// validateVSock ensures the VSock configuration is consistent with the features that rely on it.
+func validateVSock(spec *DatadogAgentSpec) error {
+	vsockEnabled, vsockMode := spec.Global.GetVSockConfig()
+	if !vsockEnabled || vsockMode != VSockModeSystemProbe {
+		return nil
+	}
+
+	// In SystemProbe mode the host system-probe hosts the runtime-security event server over
+	// VSock and no longer exposes the unix socket the security-agent connects to, so CWS must
+	// send payloads directly from the system-probe.
+	if spec.Features == nil || spec.Features.CWS == nil || !apiutils.BoolValue(spec.Features.CWS.Enabled) {
+		return nil
+	}
+	if !apiutils.BoolValue(spec.Features.CWS.DirectSendFromSystemProbe) {
+		return fmt.Errorf("global.vsock.mode %q requires features.cws.directSendFromSystemProbe to be enabled", VSockModeSystemProbe)
+	}
+
 	return nil
 }
