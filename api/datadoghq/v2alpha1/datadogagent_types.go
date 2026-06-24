@@ -2511,6 +2511,11 @@ type DatadogAgentStatus struct {
 	// Experiment tracks the state of an active or recent Fleet Automation experiment.
 	// +optional
 	Experiment *ExperimentStatus `json:"experiment,omitempty"`
+	// ClusterProvider is the detected (or user-specified) cluster provider used to
+	// apply provider-specific configuration (e.g. control plane monitoring). Empty
+	// means no provider was detected or configured.
+	// +optional
+	ClusterProvider string `json:"clusterProvider,omitempty"`
 }
 
 // DatadogAgent defines Agent configuration, see reference https://github.com/DataDog/datadog-operator/blob/main/docs/configuration.v2alpha1.md
