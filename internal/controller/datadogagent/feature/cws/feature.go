@@ -51,7 +51,8 @@ type cwsFeature struct {
 	remoteConfigurationEnabled bool
 	directSendFromSystemProbe  bool
 	enforcementEnabled         bool
-	useVSock                   bool
+	vsockEnabled               bool
+	vsockMode                  v2alpha1.VSockMode
 
 	owner  metav1.Object
 	logger logr.Logger
@@ -97,7 +98,7 @@ func (f *cwsFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 			f.enforcementEnabled = apiutils.BoolValue(cwsConfig.Enforcement.Enabled)
 		}
 		if ddaSpec.Global != nil {
-			f.useVSock = apiutils.BoolValue(ddaSpec.Global.UseVSock)
+			f.vsockEnabled, f.vsockMode = ddaSpec.Global.GetVSockConfig()
 		}
 		if cwsConfig.Network != nil {
 			f.networkEnabled = apiutils.BoolValue(cwsConfig.Network.Enabled)
@@ -222,21 +223,52 @@ func (f *cwsFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error
 	}
 	managers.EnvVar().AddEnvVarToContainers(containersForEnvVars, enabledEnvVar)
 
+	// The runtime-security socket (DD_RUNTIME_SECURITY_CONFIG_SOCKET) carries the address
+	// used to communicate runtime-security events, and the event gRPC server selector
+	// (DD_RUNTIME_SECURITY_CONFIG_EVENT_GRPC_SERVER) selects which process hosts the event
+	// server. VSock is wired differently depending on the mode.
 	socketPath := filepath.Join(common.SystemProbeSocketVolumePath, "runtime-security.sock")
-	if f.useVSock {
-		socketPath = "vsock:5020"
-
+	switch {
+	case f.vsockEnabled && f.vsockMode == v2alpha1.VSockModeFull:
+		// Full mode: all CWS containers communicate over VSock and the security-agent hosts
+		// the runtime-security event gRPC server.
 		managers.EnvVar().AddEnvVarToContainers(containersForEnvVars, &corev1.EnvVar{
 			Name:  DDRuntimeSecurityConfigEventGRPCServer,
 			Value: "security-agent",
 		})
-	}
+		managers.EnvVar().AddEnvVarToContainers(containersForEnvVars, &corev1.EnvVar{
+			Name:  DDRuntimeSecurityConfigSocket,
+			Value: "vsock:5020",
+		})
 
-	runtimeSocketEnvVar := &corev1.EnvVar{
-		Name:  DDRuntimeSecurityConfigSocket,
-		Value: socketPath,
+	case f.vsockEnabled && f.vsockMode == v2alpha1.VSockModeSystemProbe:
+		// SystemProbe mode: VSock is scoped to the host system-probe only. It hosts a remote
+		// event server over VSock so the system-probe running inside the micro VM can forward
+		// its events. The core and security agents keep the regular unix socket.
+		managers.EnvVar().AddEnvVarToContainer(apicommon.SystemProbeContainerName, &corev1.EnvVar{
+			Name:  DDRuntimeSecurityConfigEventGRPCServer,
+			Value: "system-probe",
+		})
+		managers.EnvVar().AddEnvVarToContainer(apicommon.SystemProbeContainerName, &corev1.EnvVar{
+			Name:  DDRuntimeSecurityConfigSocket,
+			Value: "vsock:5020",
+		})
+		for _, container := range containersForEnvVars {
+			if container == apicommon.SystemProbeContainerName {
+				continue
+			}
+			managers.EnvVar().AddEnvVarToContainer(container, &corev1.EnvVar{
+				Name:  DDRuntimeSecurityConfigSocket,
+				Value: socketPath,
+			})
+		}
+
+	default:
+		managers.EnvVar().AddEnvVarToContainers(containersForEnvVars, &corev1.EnvVar{
+			Name:  DDRuntimeSecurityConfigSocket,
+			Value: socketPath,
+		})
 	}
-	managers.EnvVar().AddEnvVarToContainers(containersForEnvVars, runtimeSocketEnvVar)
 
 	if f.syscallMonitorEnabled {
 		monitorEnvVar := &corev1.EnvVar{

@@ -3689,7 +3689,26 @@ spec:
                           description: |-
                             UseVSock allows the use of VSock communication between the Agent and containerized workloads.
                             Default: 'false'
+                            Deprecated: Use VSock.Enabled instead. When VSock is set, this field is ignored.
                           type: boolean
+                        vsock:
+                          description: VSock configures VSock communication for the Agent.
+                          properties:
+                            enabled:
+                              description: |-
+                                Enabled enables VSock communication.
+                                Default: 'false'
+                              type: boolean
+                            mode:
+                              description: |-
+                                Mode controls which Agent components communicate over VSock.
+                                "full" (default): all Agent components communicate over VSock.
+                                "system-probe": only the CWS system-probe <=> micro VM system-probe communication uses VSock.
+                              enum:
+                                - full
+                                - system-probe
+                              type: string
+                          type: object
                       type: object
                     override:
                       additionalProperties:

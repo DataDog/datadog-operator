@@ -135,7 +135,8 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 			want:                      assertAll,
 		},
 		{
-			name:                           "VSock enabled",
+			// Deprecated UseVSock maps to the "Full" VSock mode: all node agents use VSock.
+			name:                           "VSock enabled (deprecated useVSock)",
 			singleContainerStrategyEnabled: false,
 			dda: func() *v2alpha1.DatadogAgent {
 				dda := testutils.NewDatadogAgentBuilder().
@@ -145,52 +146,70 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 				return dda
 			}(),
 			wantCoreAgentEnvVars: nil,
-			wantEnvVars: getExpectedEnvVars([]*corev1.EnvVar{
-				{
-					Name: constants.DDAPIKey,
-					ValueFrom: &corev1.EnvVarSource{
-						SecretKeyRef: &corev1.SecretKeySelector{
-							LocalObjectReference: corev1.LocalObjectReference{
-								Name: "-secret",
-							},
-							Key: v2alpha1.DefaultAPIKeyKey,
-						},
-					},
-				},
-				{
-					Name: constants.DDAppKey,
-					ValueFrom: &corev1.EnvVarSource{
-						SecretKeyRef: &corev1.SecretKeySelector{
-							LocalObjectReference: corev1.LocalObjectReference{
-								Name: "-secret",
-							},
-							Key: v2alpha1.DefaultAPPKeyKey,
-						},
-					},
-				},
-				{
-					Name: DDClusterAgentAuthToken,
-					ValueFrom: &corev1.EnvVarSource{
-						SecretKeyRef: &corev1.SecretKeySelector{
-							LocalObjectReference: corev1.LocalObjectReference{
-								Name: "-token",
-							},
-							Key: common.DefaultTokenKey,
-						},
-					},
-				},
-				{
+			wantEnvVars: getExpectedEnvVars(append(credentialEnvVars(),
+				&corev1.EnvVar{
 					Name:  DDVSockAddr,
 					Value: "host",
 				},
-				{
+				&corev1.EnvVar{
 					Name:  DDRemoteAgentRegistryEnabled,
 					Value: "false",
 				},
-			}...),
+			)...),
 			wantCoreAgentVolumeMounts: nil,
 			wantVolumeMounts:          nil,
 			wantVolumes:               getExpectedVolumes(authVolume),
+			want:                      assertAll,
+		},
+		{
+			// vsock.enabled without an explicit mode defaults to "Full": all node agents use VSock.
+			name:                           "VSock enabled (vsock.enabled, Full mode default)",
+			singleContainerStrategyEnabled: false,
+			dda: func() *v2alpha1.DatadogAgent {
+				dda := testutils.NewDatadogAgentBuilder().
+					WithCredentials("apiKey", "appKey").
+					BuildWithDefaults()
+				dda.Spec.Global.VSock = &v2alpha1.VSockConfig{
+					Enabled: ptr.To(true),
+				}
+				return dda
+			}(),
+			wantCoreAgentEnvVars: nil,
+			wantEnvVars: getExpectedEnvVars(append(credentialEnvVars(),
+				&corev1.EnvVar{
+					Name:  DDVSockAddr,
+					Value: "host",
+				},
+				&corev1.EnvVar{
+					Name:  DDRemoteAgentRegistryEnabled,
+					Value: "false",
+				},
+			)...),
+			wantCoreAgentVolumeMounts: nil,
+			wantVolumeMounts:          nil,
+			wantVolumes:               getExpectedVolumes(authVolume),
+			want:                      assertAll,
+		},
+		{
+			// In "SystemProbe" mode, VSock is scoped to the CWS system-probe <=> micro VM
+			// communication only, so the node agent resources are not affected globally.
+			name:                           "VSock enabled (SystemProbe mode)",
+			singleContainerStrategyEnabled: false,
+			dda: func() *v2alpha1.DatadogAgent {
+				dda := testutils.NewDatadogAgentBuilder().
+					WithCredentials("apiKey", "appKey").
+					BuildWithDefaults()
+				dda.Spec.Global.VSock = &v2alpha1.VSockConfig{
+					Enabled: ptr.To(true),
+					Mode:    ptr.To(v2alpha1.VSockModeSystemProbe),
+				}
+				return dda
+			}(),
+			wantCoreAgentEnvVars:      nil,
+			wantEnvVars:               getExpectedEnvVars(credentialEnvVars()...),
+			wantCoreAgentVolumeMounts: nil,
+			wantVolumeMounts:          nil,
+			wantVolumes:               getExpectedVolumes(),
 			want:                      assertAll,
 		},
 		{
@@ -1071,6 +1090,44 @@ func assertAllAgentSingleContainer(t testing.TB, mgrInterface feature.PodTemplat
 
 	agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.AllContainers]
 	assert.True(t, apiutils.IsEqualStruct(agentEnvVars, expectedEnvVars), "Agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, expectedEnvVars))
+}
+
+func credentialEnvVars() []*corev1.EnvVar {
+	return []*corev1.EnvVar{
+		{
+			Name: constants.DDAPIKey,
+			ValueFrom: &corev1.EnvVarSource{
+				SecretKeyRef: &corev1.SecretKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: "-secret",
+					},
+					Key: v2alpha1.DefaultAPIKeyKey,
+				},
+			},
+		},
+		{
+			Name: constants.DDAppKey,
+			ValueFrom: &corev1.EnvVarSource{
+				SecretKeyRef: &corev1.SecretKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: "-secret",
+					},
+					Key: v2alpha1.DefaultAPPKeyKey,
+				},
+			},
+		},
+		{
+			Name: DDClusterAgentAuthToken,
+			ValueFrom: &corev1.EnvVarSource{
+				SecretKeyRef: &corev1.SecretKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: "-token",
+					},
+					Key: common.DefaultTokenKey,
+				},
+			},
+		},
+	}
 }
 
 func getExpectedEnvVars(addedEnvVars ...*corev1.EnvVar) []*corev1.EnvVar {

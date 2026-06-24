@@ -93,6 +93,24 @@ func Test_cwsFeature_Configure(t *testing.T) {
 		ddaCWSLiteEnforcementEnabled.Spec.Features.CWS.Enforcement.Enabled = ptr.To(true)
 	}
 
+	// Deprecated UseVSock maps to the "Full" VSock mode.
+	ddaCWSLiteVSockFull := ddaCWSLiteEnabled.DeepCopy()
+	{
+		ddaCWSLiteVSockFull.Spec.Global = &v2alpha1.GlobalConfig{
+			UseVSock: ptr.To(true),
+		}
+	}
+
+	ddaCWSLiteVSockSystemProbe := ddaCWSLiteEnabled.DeepCopy()
+	{
+		ddaCWSLiteVSockSystemProbe.Spec.Global = &v2alpha1.GlobalConfig{
+			VSock: &v2alpha1.VSockConfig{
+				Enabled: ptr.To(true),
+				Mode:    ptr.To(v2alpha1.VSockModeSystemProbe),
+			},
+		}
+	}
+
 	tests := test.FeatureTestSuite{
 		{
 			Name:          "v2alpha1 CWS not enabled",
@@ -103,32 +121,44 @@ func Test_cwsFeature_Configure(t *testing.T) {
 			Name:          "v2alpha1 CWS enabled",
 			DDA:           ddaCWSLiteEnabled,
 			WantConfigure: true,
-			Agent:         cwsAgentNodeWantFunc(false, false, false),
+			Agent:         cwsAgentNodeWantFunc(false, false, false, ""),
 		},
 		{
 			Name:          "v2alpha1 CWS enabled (with network, security profiles and remote configuration)",
 			DDA:           ddaCWSFullEnabled,
 			WantConfigure: true,
-			Agent:         cwsAgentNodeWantFunc(true, false, false),
+			Agent:         cwsAgentNodeWantFunc(true, false, false, ""),
 		},
 		{
 			Name:          "v2alpha1 CWS enabled in direct sender mode",
 			DDA:           ddaCWSLiteDirectSendEnabled,
 			WantConfigure: true,
-			Agent:         cwsAgentNodeWantFunc(false, true, false),
+			Agent:         cwsAgentNodeWantFunc(false, true, false, ""),
 		},
 		{
 			Name:          "v2alpha1 CWS enabled with enforcement",
 			DDA:           ddaCWSLiteEnforcementEnabled,
 			WantConfigure: true,
-			Agent:         cwsAgentNodeWantFunc(false, false, true),
+			Agent:         cwsAgentNodeWantFunc(false, false, true, ""),
+		},
+		{
+			Name:          "v2alpha1 CWS enabled with VSock (Full mode, deprecated useVSock)",
+			DDA:           ddaCWSLiteVSockFull,
+			WantConfigure: true,
+			Agent:         cwsAgentNodeWantFunc(false, false, false, v2alpha1.VSockModeFull),
+		},
+		{
+			Name:          "v2alpha1 CWS enabled with VSock (SystemProbe mode)",
+			DDA:           ddaCWSLiteVSockSystemProbe,
+			WantConfigure: true,
+			Agent:         cwsAgentNodeWantFunc(false, false, false, v2alpha1.VSockModeSystemProbe),
 		},
 	}
 
 	tests.Run(t, buildCWSFeature)
 }
 
-func cwsAgentNodeWantFunc(withSubFeatures bool, directSendFromSysProbe bool, enforcementEnabled bool) *test.ComponentTest {
+func cwsAgentNodeWantFunc(withSubFeatures bool, directSendFromSysProbe bool, enforcementEnabled bool, vsockMode v2alpha1.VSockMode) *test.ComponentTest {
 	return test.NewDefaultComponentTest().WithWantFunc(
 		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 			mgr := mgrInterface.(*fake.PodTemplateManagers)
@@ -142,34 +172,79 @@ func cwsAgentNodeWantFunc(withSubFeatures bool, directSendFromSysProbe bool, enf
 			}
 			assert.True(t, apiutils.IsEqualStruct(sysProbeCapabilities, capabilitiesWant), "System Probe security context capabilities \ndiff = %s", cmp.Diff(sysProbeCapabilities, capabilitiesWant))
 
+			// VSock changes the runtime-security socket and event gRPC server depending on the mode:
+			//   - Full: all CWS containers use vsock; security-agent hosts the event server.
+			//   - SystemProbe: only the system-probe uses vsock and hosts a remote event server
+			//     for the micro VM system-probe; the other containers keep the unix socket.
+			unixSocket := "/var/run/sysprobe/runtime-security.sock"
+
 			securityWant := []*corev1.EnvVar{
 				{
 					Name:  DDRuntimeSecurityConfigEnabled,
 					Value: "true",
 				},
-				{
+			}
+			if vsockMode == v2alpha1.VSockModeFull {
+				securityWant = append(securityWant, &corev1.EnvVar{
+					Name:  DDRuntimeSecurityConfigEventGRPCServer,
+					Value: "security-agent",
+				})
+			}
+			securitySocket := unixSocket
+			if vsockMode == v2alpha1.VSockModeFull {
+				securitySocket = "vsock:5020"
+			}
+			securityWant = append(securityWant,
+				&corev1.EnvVar{
 					Name:  DDRuntimeSecurityConfigSocket,
-					Value: "/var/run/sysprobe/runtime-security.sock",
+					Value: securitySocket,
 				},
-				{
+				&corev1.EnvVar{
 					Name:  DDRuntimeSecurityConfigSyscallMonitorEnabled,
 					Value: "true",
 				},
-			}
+			)
 			sysProbeWant := []*corev1.EnvVar{
 				{
 					Name:  DDRuntimeSecurityConfigEnabled,
 					Value: "true",
 				},
-				{
+			}
+			switch vsockMode {
+			case v2alpha1.VSockModeFull:
+				sysProbeWant = append(sysProbeWant,
+					&corev1.EnvVar{
+						Name:  DDRuntimeSecurityConfigEventGRPCServer,
+						Value: "security-agent",
+					},
+					&corev1.EnvVar{
+						Name:  DDRuntimeSecurityConfigSocket,
+						Value: "vsock:5020",
+					},
+				)
+			case v2alpha1.VSockModeSystemProbe:
+				sysProbeWant = append(sysProbeWant,
+					&corev1.EnvVar{
+						Name:  DDRuntimeSecurityConfigEventGRPCServer,
+						Value: "system-probe",
+					},
+					&corev1.EnvVar{
+						Name:  DDRuntimeSecurityConfigSocket,
+						Value: "vsock:5020",
+					},
+				)
+			default:
+				sysProbeWant = append(sysProbeWant, &corev1.EnvVar{
 					Name:  DDRuntimeSecurityConfigSocket,
-					Value: "/var/run/sysprobe/runtime-security.sock",
-				},
-				{
+					Value: unixSocket,
+				})
+			}
+			sysProbeWant = append(sysProbeWant,
+				&corev1.EnvVar{
 					Name:  DDRuntimeSecurityConfigSyscallMonitorEnabled,
 					Value: "true",
 				},
-			}
+			)
 			if withSubFeatures {
 				sysProbeWant = append(
 					sysProbeWant,
