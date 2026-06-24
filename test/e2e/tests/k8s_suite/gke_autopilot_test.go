@@ -107,13 +107,11 @@ func (s *gkeAutopilotSuite) TestAutopilotDDA() {
 
 			for _, pod := range agentPods {
 				assertContainerPresent(c, pod, systemProbeContainerName)
-
-				output, _, err := s.Env().KubernetesCluster.KubernetesClient.PodExec(common.NamespaceName, pod.Name, coreAgentContainerName, agentStatusCommand("logs agent", "-j"))
-				assert.NoError(c, err)
-				utils.VerifyAgentPodLogs(c, output)
 			}
 
+			s.verifyAPIMetrics(c)
 			s.verifyAPILogs(c)
+			s.verifyAPIConnections(c)
 		}, 15*time.Minute, 30*time.Second, "could not validate GKE Autopilot Agent in time")
 	})
 }
@@ -185,8 +183,40 @@ func (s *gkeAutopilotSuite) runningAgentPods() ([]corev1.Pod, error) {
 	return agentPods.Items, nil
 }
 
+func (s *gkeAutopilotSuite) verifyAPIMetrics(c *assert.CollectT) {
+	metricNames, err := s.Env().FakeIntake.Client().GetMetricNames()
+	assert.NoError(c, err)
+	assert.Contains(c, metricNames, "kubernetes.cpu.usage.total")
+
+	metrics, err := s.Env().FakeIntake.Client().FilterMetrics("kubernetes.cpu.usage.total")
+	assert.NoError(c, err)
+	assert.NotEmptyf(c, metrics, "expected fake intake-ingested kubernetes metrics to not be empty")
+}
+
 func (s *gkeAutopilotSuite) verifyAPILogs(t assert.TestingT) {
 	logs, err := s.Env().FakeIntake.Client().FilterLogs("agent")
 	assert.NoError(t, err)
 	assert.NotEmptyf(t, logs, "expected fake intake-ingested logs to not be empty")
+}
+
+func (s *gkeAutopilotSuite) verifyAPIConnections(c *assert.CollectT) {
+	names, err := s.Env().FakeIntake.Client().GetConnectionsNames()
+	assert.NoError(c, err, "GetConnectionsNames() errors")
+	if !assert.NotEmpty(c, names, "expected fake intake-ingested NPM connection payload names to not be empty") {
+		return
+	}
+
+	connections, err := s.Env().FakeIntake.Client().GetConnections()
+	assert.NoError(c, err, "GetConnections() errors")
+	if !assert.NotNil(c, connections, "GetConnections() returned nil ConnectionsAggregator") {
+		return
+	}
+
+	totalConnections := 0
+	for _, name := range names {
+		for _, payload := range connections.GetPayloadsByName(name) {
+			totalConnections += len(payload.Connections)
+		}
+	}
+	assert.Greater(c, totalConnections, 0, "expected fake intake-ingested NPM connections to not be empty")
 }
