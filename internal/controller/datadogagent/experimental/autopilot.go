@@ -16,6 +16,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/pkg/allowlistsynchronizer"
+	"github.com/DataDog/datadog-operator/pkg/images"
 )
 
 // DDKubeletUseAPIServer is the env var that toggles the Agent's use of the
@@ -130,6 +131,9 @@ func applyExperimentalAutopilotOverrides(dda metav1.Object, manager feature.PodT
 		}
 		// Prevent the agent DS from being mutated by the admission controller on Autopilot
 		manager.PodTemplateSpec().Labels["admission.datadoghq.com/enabled"] = "false"
+
+		useGCRImageRegistry(manager.PodTemplateSpec().Spec.InitContainers)
+		useGCRImageRegistry(manager.PodTemplateSpec().Spec.Containers)
 
 		// Change args of init-volume
 		for i := range manager.PodTemplateSpec().Spec.InitContainers {
@@ -326,6 +330,26 @@ func applyExperimentalAutopilotOverrides(dda metav1.Object, manager feature.PodT
 			}
 		}
 	}
+}
+
+func useGCRImageRegistry(containers []corev1.Container) {
+	for idx := range containers {
+		containers[idx].Image = withGCRImageRegistry(containers[idx].Image)
+	}
+}
+
+func withGCRImageRegistry(image string) string {
+	if image == "" {
+		return image
+	}
+
+	tagSeparator := strings.LastIndex(image, ":")
+	pathSeparator := strings.LastIndex(image, "/")
+	if tagSeparator <= pathSeparator {
+		return image
+	}
+
+	return images.FromString(image).WithRegistry(images.GCRContainerRegistry).ToString()
 }
 
 // CreateDatadogCSIAllowlistSynchronizer creates the Datadog CSI driver
