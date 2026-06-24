@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"maps"
-	"regexp"
 	"strings"
 	"time"
 
@@ -35,11 +34,6 @@ import (
 // autoscaling:DescribeAutoScalingInstances. Sending more triggers a
 // ValidationError at the API.
 const describeASGInstancesMaxIDs = 50
-
-// awsProviderIDRegexp matches the AWS provider ID for EC2-backed nodes.
-// Format: aws:///<az>/i-<hex>. Fargate nodes use a different shape and
-// must therefore be classified by label before reaching this regex.
-var awsProviderIDRegexp = regexp.MustCompile(`^aws:///[^/]+/(i-[0-9a-f]+)$`)
 
 // nodePoolDatadogCreatedLabel is the label set by every Datadog autoscaling
 // product (kubectl-datadog AND the cluster agent) on the NodePools they
@@ -173,10 +167,9 @@ func classifyByLabels(ctx context.Context, k8sClient kubernetes.Interface, farga
 			return nil
 		}
 
-		matches := awsProviderIDRegexp.FindStringSubmatch(node.Spec.ProviderID)
-		if len(matches) == 2 {
+		if id, ok := commonaws.ExtractEC2InstanceID(node); ok {
 			candidates = append(candidates, asgCandidate{
-				instanceID: matches[1],
+				instanceID: id,
 				nodeName:   node.Name,
 			})
 		} else {
