@@ -50,6 +50,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/controller/debug"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/metadata"
 	"github.com/DataDog/datadog-operator/pkg/fleet"
+	"github.com/DataDog/datadog-operator/pkg/introspection"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/remoteconfig"
 	"github.com/DataDog/datadog-operator/pkg/secrets"
@@ -282,7 +283,7 @@ func run(opts *options) error {
 	}
 
 	restConfig := ctrl.GetConfigOrDie()
-	restConfig.UserAgent = "datadog-operator"
+	restConfig.UserAgent = "datadog-operator/" + version.Version
 	mgr, err := ctrl.NewManager(restConfig, ctrl.Options{
 		Scheme:                     scheme,
 		Metrics:                    metricsServerOptions,
@@ -360,6 +361,12 @@ func run(opts *options) error {
 		}()
 	}
 
+	providerDetector, err := setupAndStartProviderDetector(setupLog, mgr,
+		opts.introspectionEnabled || opts.datadogAgentProfileEnabled || opts.untaintControllerEnabled)
+	if err != nil {
+		return setupErrorf(setupLog, err, "Unable to setup cluster provider detector")
+	}
+
 	options := controller.SetupOptions{
 		SupportExtendedDaemonset: controller.ExtendedDaemonsetOptions{
 			Enabled:                             opts.supportExtendedDaemonset,
@@ -389,6 +396,7 @@ func run(opts *options) error {
 		DatadogCSIDriverEnabled:           opts.datadogCSIDriverEnabled,
 		UntaintControllerEnabled:          opts.untaintControllerEnabled,
 		UntaintControllerWaitForCSIDriver: opts.untaintControllerWaitForCSIDriver,
+		ClusterProviderDetector:           providerDetector,
 	}
 
 	versionInfo, platformInfo, err := getVersionAndPlatformInfo(rest.CopyConfig(mgr.GetConfig()))
@@ -670,4 +678,18 @@ func setupAndStartHelmMetadataForwarder(logger logr.Logger, mgr manager.Manager,
 func setupFleetDaemon(logger logr.Logger, mgr manager.Manager, rcClient remoteconfig.RCClient, revisionsEnabled bool) error {
 	daemon := fleet.NewDaemon(rcClient, mgr, revisionsEnabled)
 	return mgr.Add(daemon)
+}
+
+// setupAndStartProviderDetector registers the cluster-provider detector as a
+// leader-only manager Runnable. It runs only on the elected leader, after cache
+// sync, and never blocks startup: Stage-1 operator-node detection uses the uncached
+// APIReader and is always available, while the Stage-2 cluster-node-list fallback uses the
+// cached client only when the node cache is populated (introspection / profiles /
+// untaint), signalled by nodeCacheEnabled.
+func setupAndStartProviderDetector(logger logr.Logger, mgr manager.Manager, nodeCacheEnabled bool) (*introspection.Detector, error) {
+	detector := introspection.NewDetector(mgr, os.Getenv("DD_HOSTNAME"), logger, nodeCacheEnabled)
+	if err := mgr.Add(detector); err != nil {
+		return nil, err
+	}
+	return detector, nil
 }

@@ -202,6 +202,10 @@ func (r *UntaintReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	node := &corev1.Node{}
 	if err := r.client.Get(ctx, req.NamespacedName, node); err != nil {
 		if apierrors.IsNotFound(err) {
+			// Node is gone (e.g. autoscaler scale-down). Drop its per-node
+			// metric series so node names don't accumulate in the exporter for
+			// the operator's lifetime. No-op if the node never had series.
+			metrics.DeleteNodeSeries(req.Name)
 			return ctrl.Result{}, nil
 		}
 		return ctrl.Result{}, fmt.Errorf("failed to get node %s: %w", req.Name, err)
@@ -285,9 +289,9 @@ func (r *UntaintReconciler) completeUntaintFromReadiness(ctx context.Context, no
 		return result, nil
 	}
 	log.Info(infoLog)
-	metrics.TaintRemovalsTotal.Inc()
+	metrics.TaintRemovalsTotal.WithLabelValues(node.Name, metrics.UntaintRemovalReasonAgentReady).Inc()
 	if !readyAt.IsZero() {
-		metrics.TaintRemovalLatency.Observe(r.clock.Since(readyAt).Seconds())
+		metrics.TaintRemovalLatency.WithLabelValues(node.Name).Observe(r.clock.Since(readyAt).Seconds())
 	}
 	if r.eventsEnabled {
 		r.recorder.Eventf(node, corev1.EventTypeNormal, "TaintRemoved", eventFmt, untaint.AgentNotReadyTaintKey, node.Name)
@@ -401,7 +405,7 @@ func (r *UntaintReconciler) applyTimeoutPolicy(ctx context.Context, node *corev1
 		return result, nil
 	}
 	log.Info(fmt.Sprintf("Removed agent-not-ready taint from node %s by timeout policy", node.Name))
-	metrics.TaintRemovalsTotal.Inc()
+	metrics.TaintRemovalsTotal.WithLabelValues(node.Name, metrics.UntaintRemovalReasonTimeout).Inc()
 	return ctrl.Result{}, nil
 }
 
@@ -593,6 +597,12 @@ func isCSINodeServerPod(pod *corev1.Pod) bool {
 // create, or when the target taint *appears* on update. The reconciler reruns
 // itself via RequeueAfter while a timeout window is pending, so we do not need
 // to fire on every unrelated node update.
+//
+// Node deletions enqueue unconditionally so Reconcile can drop the node's
+// per-node metric series (see DeleteNodeSeries). We deliberately do NOT gate
+// deletes on hasTaint: by the time a node is removed it has usually already had
+// the taint stripped (that is precisely the node whose series must be cleaned
+// up), so a hasTaint check would skip exactly the cases we care about.
 func taintedNodePredicate() predicate.Predicate {
 	return predicate.Funcs{
 		CreateFunc: func(e event.CreateEvent) bool {
@@ -607,7 +617,10 @@ func taintedNodePredicate() predicate.Predicate {
 			}
 			return hasTaint(newNode) && !hasTaint(oldNode)
 		},
-		DeleteFunc:  func(event.DeleteEvent) bool { return false },
+		DeleteFunc: func(e event.DeleteEvent) bool {
+			_, ok := e.Object.(*corev1.Node)
+			return ok
+		},
 		GenericFunc: func(event.GenericEvent) bool { return false },
 	}
 }

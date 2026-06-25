@@ -115,8 +115,8 @@ start normally.
 
 Metrics, under the `untaint` Prometheus subsystem:
 
-- `untaint_taint_removals_total` — counter, every taint removal regardless of cause.
-- `untaint_taint_removal_latency_seconds` — histogram, time between pod Ready and taint removal.
+- `untaint_taint_removals_total{node, reason}` — counter, every taint removal. `reason` in {`agent_ready`, `timeout`}, labeled by `node`.
+- `untaint_taint_removal_latency_seconds{node}` — histogram, time between pod Ready and taint removal, labeled by `node`.
 - `untaint_taint_timeouts_total{reason, policy}` — counter, timeout decisions. `reason` in {`readiness`, `scheduling`}; `policy` in {`remove`, `keep`}. Alert on `policy="keep"` to investigate stuck nodes.
 
 Kubernetes Events (gated by `DD_UNTAINT_CONTROLLER_EVENTS_ENABLED=true`):

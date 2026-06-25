@@ -68,16 +68,21 @@ type ReconcilerOptions struct {
 	SupportCilium            bool
 	OperatorMetricsEnabled   bool
 	UntaintControllerEnabled bool
+	APIReader                client.Reader
 }
 
 // Reconciler is the internal reconciler for Datadog Agent
 type Reconciler struct {
-	options           ReconcilerOptions
-	client            client.Client
-	platformInfo      kubernetes.PlatformInfo
-	scheme            *runtime.Scheme
-	recorder          record.EventRecorder
-	forwarders        datadog.MetricsForwardersManager
+	options      ReconcilerOptions
+	client       client.Client
+	platformInfo kubernetes.PlatformInfo
+	scheme       *runtime.Scheme
+	recorder     record.EventRecorder
+	forwarders   datadog.MetricsForwardersManager
+	// apiReader bypasses the controller cache for feature-owned reads outside
+	// the watched namespace set, for example OpenShift control-plane source
+	// secrets. Writes still go through the normal dependency store and client.
+	apiReader         client.Reader
 	componentRegistry *ComponentRegistry
 }
 
@@ -98,6 +103,10 @@ func NewReconciler(options ReconcilerOptions, client client.Client, platformInfo
 		scheme:       scheme,
 		recorder:     recorder,
 		forwarders:   metricForwardersMgr,
+		apiReader:    options.APIReader,
+	}
+	if r.apiReader == nil {
+		r.apiReader = client
 	}
 
 	// Initialize component registry
@@ -117,9 +126,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, ddai *v1alpha1.DatadogAgentI
 	return resp, err
 }
 
-func reconcilerOptionsToFeatureOptions(opts *ReconcilerOptions, ctx context.Context) *feature.Options {
+func reconcilerOptionsToFeatureOptions(ctx context.Context, reader client.Reader) *feature.Options {
 	return &feature.Options{
 		Logger: ctrl.LoggerFrom(ctx),
+		Client: reader,
 	}
 }
 
