@@ -77,5 +77,5 @@ DAP is disabled by default. To enable DAP using the [datadog-operator helm chart
 | override.[nodeAgent].labels | v1.8.0 |
 | override.[nodeAgent].updateStrategy | v1.9.0 |
 | override.[nodeAgent].runtimeClassName | v1.12.0 |
-| override.[nodeAgent].volumes | v1.28.0 |
-| override.[nodeAgent].containers.[\*].volumeMounts | v1.28.0 |
+| override.[nodeAgent].volumes | v1.29.0 |
+| override.[nodeAgent].containers.[\*].volumeMounts | v1.29.0 |
