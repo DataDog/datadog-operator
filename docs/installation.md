@@ -183,17 +183,16 @@ Other operator startup options can also be configured via environment variable:
 | Metrics address            | `--metrics-addr`                     | `DD_METRICS_ADDR`                     | `:8080` |
 | Secure metrics             | `--metrics-secure`                   | `DD_METRICS_SECURE`                   | `false` |
 | Profiling                  | `--profiling-enabled`                | `DD_PROFILING_ENABLED`                | `false` |
-| Pprof                      | `--pprof`                            | `DD_PPROF_ENABLED`                    | `false` |
-| Leader election            | `--enable-leader-election`           | `DD_LEADER_ELECTION_ENABLED`          | `true`  |
 | Leader election lease      | `--leader-election-lease-duration`   | `DD_LEADER_ELECTION_LEASE_DURATION`   | `60s`   |
 | Cilium network policies    | `--supportCilium`                    | `DD_SUPPORT_CILIUM`                   | `false` |
 | Maximum goroutines         | `--maximumGoroutines`                | `DD_MAXIMUM_GOROUTINES`               | `400`   |
 | Controller revisions       | `--createControllerRevisions`        | `DD_CREATE_CONTROLLER_REVISIONS`      | `false` |
 
 ExtendedDaemonset options (`--supportExtendedDaemonset` and `--eds*`),
+the leader election toggle (`--enable-leader-election`), pprof (`--pprof`),
 log options (`--loglevel`, `--logEncoder`), secret backend options
 (`--secretBackend*`, `--secretRefreshInterval`), and `--version` are only
-configurable using CLI flags.
+configurable using CLI flags in the shipped manifests.
 
 Boolean values follow Go's [`strconv.ParseBool`](https://pkg.go.dev/strconv#ParseBool):
 `true`, `True`, `TRUE`, `1` or `false`, `False`, `FALSE`, `0`. The strings
