@@ -1940,6 +1940,15 @@ spec:
                             Default: true
                           type: boolean
                       type: object
+                    kubernetesActions:
+                      description: KubernetesActions configuration.
+                      properties:
+                        enabled:
+                          description: |-
+                            Enabled enables the Kubernetes Actions feature on the Cluster Agent.
+                            Default: false
+                          type: boolean
+                      type: object
                     liveContainerCollection:
                       description: LiveContainerCollection configuration.
                       properties:
@@ -10740,6 +10749,15 @@ spec:
                               description: |-
                                 Enabled enables Kube State Metrics Core.
                                 Default: true
+                              type: boolean
+                          type: object
+                        kubernetesActions:
+                          description: KubernetesActions configuration.
+                          properties:
+                            enabled:
+                              description: |-
+                                Enabled enables the Kubernetes Actions feature on the Cluster Agent.
+                                Default: false
                               type: boolean
                           type: object
                         liveContainerCollection:

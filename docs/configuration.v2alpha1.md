@@ -142,6 +142,7 @@ spec:
 | features.kubeStateMetricsCore.conf.configMap.items | Maps a ConfigMap data `key` to a file `path` mount. |
 | features.kubeStateMetricsCore.conf.configMap.name | Is the name of the ConfigMap. |
 | features.kubeStateMetricsCore.enabled | Enables Kube State Metrics Core. Default: true |
+| features.kubernetesActions.enabled | Enables the Kubernetes Actions feature on the Cluster Agent. Default: false |
 | features.liveContainerCollection.enabled | Enables container collection for the Live Container View. Default: true |
 | features.liveProcessCollection.enabled | Enables Process monitoring. Default: false |
 | features.liveProcessCollection.scrubProcessArguments | ScrubProcessArguments enables scrubbing of sensitive data in process command-lines (passwords, tokens, etc. ). Default: true |

@@ -2010,6 +2010,17 @@
                   },
                   "type": "object"
                 },
+                "kubernetesActions": {
+                  "additionalProperties": false,
+                  "description": "KubernetesActions configuration.",
+                  "properties": {
+                    "enabled": {
+                      "description": "Enabled enables the Kubernetes Actions feature on the Cluster Agent.\nDefault: false",
+                      "type": "boolean"
+                    }
+                  },
+                  "type": "object"
+                },
                 "liveContainerCollection": {
                   "additionalProperties": false,
                   "description": "LiveContainerCollection configuration.",
