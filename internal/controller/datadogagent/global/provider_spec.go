@@ -108,6 +108,7 @@ var NodeAgentProviderSpec = providercaps.ProviderCapabilityMap{
 		EnvVars: []providercaps.EnvVarSet{
 			{EnvVar: corev1.EnvVar{Name: ddKubeletUseAPIServer, Value: "true"}},
 			{EnvVar: corev1.EnvVar{Name: ddCloudProviderMetadata, Value: `["gcp"]`}},
+			{EnvVar: corev1.EnvVar{Name: DDProviderKind, Value: kubernetes.GKEAutopilotProvider}},
 		},
 		// Volumes absent from the Autopilot WorkloadAllowlist. RemoveVolumes
 		// strips the volume and its mounts from every container/init container.
@@ -135,5 +136,7 @@ var nodeAgentProviderPodLabels = map[string]map[string]string{
 	kubernetes.GKEAutopilotProvider: {
 		// Prevent the agent DaemonSet from being mutated by the admission controller.
 		"admission.datadoghq.com/enabled": "false",
+		// Tag the pod with its cloud-provider identity, matching Helm's provider-labels.
+		"env.datadoghq.com/kind": kubernetes.GKEAutopilotProvider,
 	},
 }

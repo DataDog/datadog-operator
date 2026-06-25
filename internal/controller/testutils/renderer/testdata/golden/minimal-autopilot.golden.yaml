@@ -1210,7 +1210,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: 47747640f9b00340478cc049839c5be1
+    agent.datadoghq.com/agentspechash: a8d9de3b505291deee26cbc141872d09
   labels:
     admission.datadoghq.com/enabled: "false"
     agent.datadoghq.com/component: agent
@@ -1222,6 +1222,7 @@ metadata:
     app.kubernetes.io/name: datadog-agent-deployment
     app.kubernetes.io/part-of: -datadog--agent
     app.kubernetes.io/version: ""
+    env.datadoghq.com/kind: gke-autopilot
   name: datadog-agent-agent
   ownerReferences:
   - apiVersion: datadoghq.com/v1alpha1
@@ -1251,6 +1252,7 @@ spec:
         app.kubernetes.io/name: datadog-agent-deployment
         app.kubernetes.io/part-of: -datadog--agent
         app.kubernetes.io/version: ""
+        env.datadoghq.com/kind: gke-autopilot
     spec:
       containers:
       - command:
@@ -1302,6 +1304,8 @@ spec:
           value: "true"
         - name: DD_CLOUD_PROVIDER_METADATA
           value: '["gcp"]'
+        - name: DD_PROVIDER_KIND
+          value: gke-autopilot
         - name: DD_LANGUAGE_DETECTION_REPORTING_ENABLED
           value: "false"
         - name: DD_EXTRA_CONFIG_PROVIDERS
@@ -1450,6 +1454,8 @@ spec:
           value: "true"
         - name: DD_CLOUD_PROVIDER_METADATA
           value: '["gcp"]'
+        - name: DD_PROVIDER_KIND
+          value: gke-autopilot
         - name: DD_APM_ENABLED
           value: "true"
         - name: DD_APM_NON_LOCAL_TRAFFIC
@@ -1526,6 +1532,8 @@ spec:
           value: "true"
         - name: DD_CLOUD_PROVIDER_METADATA
           value: '["gcp"]'
+        - name: DD_PROVIDER_KIND
+          value: gke-autopilot
         - name: DD_REMOTE_CONFIGURATION_ENABLED
           value: "true"
         - name: DD_DISCOVERY_ENABLED
