@@ -1938,10 +1938,14 @@ spec:
                                 per Kubernetes API convention.
 
                                 Useful in large clusters where a single KSM instance is a bottleneck.
-                                Trade-off: cluster-wide aggregation metrics (kubernetes_state.pod.count,
-                                kubernetes_state.container.cpu_requested.total, and 15 others) become
-                                sliced per host instead of cluster totals; query them with
-                                `sum by (kube_cluster_name)`. Requires Agent / Cluster Agent 7.60+.
+                                Trade-off: the cluster-aggregate `.total` metrics
+                                (kubernetes_state.{container,initcontainer}.<resource>_{requested,limit}.total)
+                                are emitted with a reduced tag set that carries no host or node, so when
+                                every node agent emits them the series collide at ingestion and the cluster
+                                total under-reports; this is not recoverable at query time. Host-tagged
+                                metrics such as kubernetes_state.pod.count are unaffected and can be
+                                re-aggregated with `sum by (kube_cluster_name) without (host)` if needed.
+                                Requires Agent / Cluster Agent 7.60+.
 
                                 When `features.kubeStateMetricsCore.conf` is also set, the operator
                                 deploys the node-side check but does NOT modify the user-supplied
