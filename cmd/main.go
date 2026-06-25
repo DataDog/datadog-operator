@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	goruntime "runtime"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -209,8 +210,84 @@ func (opts *options) Parse() {
 	flag.IntVar(&opts.edsCanaryAutoFailMaxRestarts, "edsCanaryAutoFailMaxRestarts", defaultCanaryAutoFailMaxRestarts, "ExtendedDaemonset canary auto fail max restart count")
 	flag.DurationVar(&opts.edsCanaryAutoPauseMaxSlowStartDuration, "edsCanaryAutoPauseMaxSlowStartDuration", defaultCanaryAutoPauseMaxSlowStartDuration*time.Minute, "ExtendedDaemonset canary max slow start duration")
 
+	// Environment variable overrides applied before flag.Parse() so that
+	// explicit CLI flags take precedence (default < env < CLI).
+	applyEnvOptions([]envOption{
+		stringEnv(&opts.metricsAddr, "DD_METRICS_ADDR"),
+		boolEnv(&opts.secureMetrics, "DD_METRICS_SECURE"),
+		boolEnv(&opts.profilingEnabled, "DD_PROFILING_ENABLED"),
+		boolEnv(&opts.pprofActive, "DD_PPROF_ENABLED"),
+		boolEnv(&opts.enableLeaderElection, "DD_LEADER_ELECTION_ENABLED"),
+		durationEnv(&opts.leaderElectionLeaseDuration, "DD_LEADER_ELECTION_LEASE_DURATION"),
+		boolEnv(&opts.supportCilium, "DD_SUPPORT_CILIUM"),
+		boolEnv(&opts.datadogAgentEnabled, "DD_AGENT_CONTROLLER_ENABLED"),
+		boolEnv(&opts.datadogMonitorEnabled, "DD_MONITOR_CONTROLLER_ENABLED"),
+		boolEnv(&opts.datadogSLOEnabled, "DD_SLO_CONTROLLER_ENABLED"),
+		boolEnv(&opts.operatorMetricsEnabled, "DD_OPERATOR_METRICS_ENABLED"),
+		intEnv(&opts.maximumGoroutines, "DD_MAXIMUM_GOROUTINES"),
+		boolEnv(&opts.introspectionEnabled, "DD_INTROSPECTION_ENABLED"),
+		boolEnv(&opts.datadogAgentProfileEnabled, "DD_AGENT_PROFILE_CONTROLLER_ENABLED"),
+		boolEnv(&opts.remoteConfigEnabled, "DD_REMOTE_CONFIG_ENABLED"),
+		boolEnv(&opts.remoteUpdatesEnabled, "DD_REMOTE_UPDATES_ENABLED"),
+		boolEnv(&opts.datadogDashboardEnabled, "DD_DASHBOARD_CONTROLLER_ENABLED"),
+		boolEnv(&opts.datadogGenericResourceEnabled, "DD_GENERIC_RESOURCE_CONTROLLER_ENABLED"),
+		boolEnv(&opts.datadogCSIDriverEnabled, "DD_CSI_DRIVER_CONTROLLER_ENABLED"),
+		boolEnv(&opts.untaintControllerEnabled, "DD_UNTAINT_CONTROLLER_ENABLED"),
+		boolEnv(&opts.untaintControllerWaitForCSIDriver, "DD_UNTAINT_CONTROLLER_WAIT_FOR_CSI_DRIVER"),
+		boolEnv(&opts.createControllerRevisions, "DD_CREATE_CONTROLLER_REVISIONS"),
+	})
+
 	// Parsing flags
 	flag.Parse()
+}
+
+type envOption struct {
+	name  string
+	apply func(string) error
+}
+
+func applyEnvOptions(options []envOption) {
+	for _, opt := range options {
+		val, found := os.LookupEnv(opt.name)
+		if !found {
+			continue
+		}
+		if err := opt.apply(val); err != nil {
+			fmt.Fprintf(os.Stderr, "ignoring invalid env var %s=%q: %v\n", opt.name, val, err)
+		}
+	}
+}
+
+func envOptionFor[T any](dst *T, envVar string, parse func(string) (T, error)) envOption {
+	return envOption{
+		name: envVar,
+		apply: func(val string) error {
+			parsed, err := parse(val)
+			if err != nil {
+				return err
+			}
+			*dst = parsed
+			return nil
+		},
+	}
+}
+
+func boolEnv(dst *bool, envVar string) envOption {
+	return envOptionFor(dst, envVar, strconv.ParseBool)
+}
+
+func stringEnv(dst *string, envVar string) envOption {
+	return envOptionFor(dst, envVar, func(val string) (string, error) {
+		return val, nil
+	})
+}
+
+func intEnv(dst *int, envVar string) envOption {
+	return envOptionFor(dst, envVar, strconv.Atoi)
+}
+
+func durationEnv(dst *time.Duration, envVar string) envOption {
+	return envOptionFor(dst, envVar, time.ParseDuration)
 }
 
 func main() {
