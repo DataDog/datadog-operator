@@ -652,6 +652,13 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_DatadogAgentStatus(ref commo
 							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.ExperimentStatus"),
 						},
 					},
+					"clusterProvider": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ClusterProvider is the detected (or user-specified) cluster provider used to apply provider-specific configuration (e.g. control plane monitoring). Empty means no provider was detected or configured.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
 			},
 		},
