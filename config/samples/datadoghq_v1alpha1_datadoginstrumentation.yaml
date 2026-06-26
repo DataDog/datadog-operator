@@ -10,8 +10,7 @@ spec:
   config:
     checks:
       - integration: openmetrics
-        containerImage:
-          - sample-app
+        containerName: sample-app
         initConfig: {}
         instances:
           - openmetrics_endpoint: "http://%%host%%:8080/metrics"
