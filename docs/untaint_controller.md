@@ -69,14 +69,26 @@ timeouts are global and cannot be tuned per Node (Group), DDA, or DAP.
 
 ## Enable the Untaint controller
 
-The Untaint controller is disabled by default. Enable it on the operator
-manager:
+The Untaint controller is disabled by default. Enable it via CLI flag or
+environment variable:
 
+**CLI flag:**
 ```yaml
 args:
   - --untaintControllerEnabled=true
   # Optional: require CSI node-server Ready before untainting (see Overview).
   - --untaintControllerWaitForCSIDriver=true
+```
+
+**Environment variable** (useful for OLM / GitOps deployments where container
+args cannot be set):
+```yaml
+env:
+  - name: DD_UNTAINT_CONTROLLER_ENABLED
+    value: "true"
+  # Optional: require CSI node-server Ready before untainting (see Overview).
+  - name: DD_UNTAINT_CONTROLLER_WAIT_FOR_CSI_DRIVER
+    value: "true"
 ```
 
 | `--untaintControllerEnabled` | `--untaintControllerWaitForCSIDriver` | Behavior |
@@ -115,8 +127,8 @@ start normally.
 
 Metrics, under the `untaint` Prometheus subsystem:
 
-- `untaint_taint_removals_total` — counter, every taint removal regardless of cause.
-- `untaint_taint_removal_latency_seconds` — histogram, time between pod Ready and taint removal.
+- `untaint_taint_removals_total{node, reason}` — counter, every taint removal. `reason` in {`agent_ready`, `timeout`}, labeled by `node`.
+- `untaint_taint_removal_latency_seconds{node}` — histogram, time between pod Ready and taint removal, labeled by `node`.
 - `untaint_taint_timeouts_total{reason, policy}` — counter, timeout decisions. `reason` in {`readiness`, `scheduling`}; `policy` in {`remove`, `keep`}. Alert on `policy="keep"` to investigate stuck nodes.
 
 Kubernetes Events (gated by `DD_UNTAINT_CONTROLLER_EVENTS_ENABLED=true`):
@@ -125,4 +137,3 @@ Kubernetes Events (gated by `DD_UNTAINT_CONTROLLER_EVENTS_ENABLED=true`):
   `--untaintControllerWaitForCSIDriver` is enabled) after both the Agent and
   CSI node-server pods became Ready.
 - `UntaintTimeout` — a timeout fired. Normal under `remove`, Warning under `keep`. Message carries the reason, elapsed time, and policy.
-

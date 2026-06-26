@@ -112,9 +112,6 @@ func (f *npmFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error
 
 	// annotations
 	managers.Annotation().AddAnnotation(common.SystemProbeAppArmorAnnotationKey, common.SystemProbeAppArmorAnnotationValue)
-	if !f.directSend {
-		managers.Annotation().AddAnnotation(common.AppArmorAnnotationKey+"/"+string(apicommon.ProcessAgentContainerName), "unconfined")
-	}
 
 	// security context capabilities
 	managers.SecurityContext().AddCapabilitiesToContainer(agent.DefaultCapabilitiesForSystemProbe(), apicommon.SystemProbeContainerName)

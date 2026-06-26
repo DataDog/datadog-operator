@@ -70,6 +70,14 @@ To deploy a `DatadogGenericResource` with the Datadog Operator, follow the steps
     helm repo add datadog https://helm.datadoghq.com
     ```
 
+    For **OLM deployments**, enable the controller via environment variable in the `Subscription`:
+    ```yaml
+    config:
+      env:
+        - name: DD_GENERIC_RESOURCE_CONTROLLER_ENABLED
+          value: "true"
+    ```
+
 2. The DDGR controller and its CRD are both disabled by default. The controller also requires an API and an application key. Choose one of the following options:
     * Override the default values by providing your [API and application keys][2], installing the CRD, and enabling the controller:
       ```shell
