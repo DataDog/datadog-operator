@@ -20,11 +20,12 @@ spec:
             tags:
               - service:sample-app
               - env:dev
-        logs:
-          - type: file
-            path: /var/log/sample-app/*.log
-            source: sample-app
-            service: sample-app
-            tags:
-              - service:sample-app
-              - env:dev
+    logs:
+      - containerName: sample-app
+        type: file
+        path: /var/log/sample-app/*.log
+        source: sample-app
+        service: sample-app
+        tags:
+          - service:sample-app
+          - env:dev
