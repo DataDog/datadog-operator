@@ -58,6 +58,63 @@ func Test_hostProfilerFeature_Configure(t *testing.T) {
 	tests.Run(t, buildHostProfilerFeature)
 }
 
+func Test_hostProfilerFeature_SeccompDisabled(t *testing.T) {
+	hostProfilerImage := "gcr.io/datadoghq/agent:7.99.0-fips"
+	dda := testutils.NewDatadogAgentBuilder().
+		WithName("datadog-agent").
+		WithAnnotations(map[string]string{
+			"agent.datadoghq.com/host-profiler-enabled":         "true",
+			"agent.datadoghq.com/host-profiler-seccomp-enabled": "false",
+		}).
+		Build()
+
+	manager := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{
+				{Name: string(apicommon.CoreAgentContainerName), Image: images.GetLatestAgentImage()},
+				{
+					Name:            string(apicommon.HostProfiler),
+					Image:           hostProfilerImage,
+					SecurityContext: &corev1.SecurityContext{ReadOnlyRootFilesystem: ptr.To(true)},
+				},
+			},
+		},
+	})
+
+	hostProfilerFeat := buildHostProfilerFeature(nil).(*hostProfilerFeature)
+	reqComp := hostProfilerFeat.Configure(dda, &dda.Spec, nil)
+	assert.NotNil(t, reqComp.Agent.IsRequired)
+	assert.NoError(t, hostProfilerFeat.ManageNodeAgent(manager))
+
+	var hpContainer *corev1.Container
+	for i := range manager.Tpl.Spec.Containers {
+		if manager.Tpl.Spec.Containers[i].Name == string(apicommon.HostProfiler) {
+			hpContainer = &manager.Tpl.Spec.Containers[i]
+			break
+		}
+	}
+	assert.NotNil(t, hpContainer)
+	// Seccomp profile must NOT be set when disabled, but other hardening stays in place.
+	assert.Nil(t, hpContainer.SecurityContext.SeccompProfile, "SeccompProfile must be nil when seccomp is disabled")
+	assert.NotNil(t, hpContainer.SecurityContext.AllowPrivilegeEscalation)
+	assert.False(t, *hpContainer.SecurityContext.AllowPrivilegeEscalation)
+	assert.NotNil(t, hpContainer.SecurityContext.Capabilities)
+	assert.True(t, apiutils.IsEqualStruct(hpContainer.SecurityContext.Capabilities.Add, defaultCapabilities()))
+
+	// AppArmor annotation is independent of seccomp and must remain.
+	assert.Equal(t, "unconfined", manager.AnnotationMgr.Annotations[common.AppArmorAnnotationKey+"/"+string(apicommon.HostProfiler)])
+
+	// seccomp-root volume must be absent.
+	for _, v := range manager.VolumeMgr.Volumes {
+		assert.NotEqual(t, common.SeccompRootVolumeName, v.Name, "seccomp-root volume must be absent when seccomp is disabled")
+	}
+
+	// seccomp setup init container must be absent.
+	for _, c := range manager.Tpl.Spec.InitContainers {
+		assert.NotEqual(t, string(apicommon.HostProfilerSeccompSetupContainerName), c.Name, "seccomp setup init container must be absent when seccomp is disabled")
+	}
+}
+
 func testExpectedAgent(agentContainerName apicommon.AgentContainerName, expectedVolumeMount []corev1.VolumeMount) *test.ComponentTest {
 	// Pre-populate both containers so ManageNodeAgent can find and mutate the host-profiler SecurityContext.
 	// This mirrors the real flow where default.go's hostProfilerContainer() runs before features.

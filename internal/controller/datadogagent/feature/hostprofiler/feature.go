@@ -22,6 +22,7 @@ var errHostPIDDisabledManually = errors.New("Host PID is required for host profi
 type hostProfilerFeature struct {
 	owner                   metav1.Object
 	hostPIDDisabledManually bool
+	seccompEnabled          bool
 
 	logger logr.Logger
 }
@@ -52,6 +53,12 @@ func (o *hostProfilerFeature) Configure(dda metav1.Object, _ *v2alpha1.DatadogAg
 
 	if !featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnableHostProfilerAnnotation) {
 		return feature.RequiredComponents{}
+	}
+
+	// Seccomp profile is enabled by default; opt out via the seccomp annotation set to "false".
+	o.seccompEnabled = true
+	if value, ok := dda.GetAnnotations()[featureutils.EnableHostProfilerSeccompAnnotation]; ok {
+		o.seccompEnabled = value != "false"
 	}
 
 	return feature.RequiredComponents{
@@ -110,27 +117,33 @@ func (o *hostProfilerFeature) ManageNodeAgent(managers feature.PodTemplateManage
 
 	sc := hostProfilerContainer.SecurityContext
 	sc.AllowPrivilegeEscalation = ptr.To(false)
-	sc.SeccompProfile = &corev1.SeccompProfile{
-		Type:             corev1.SeccompProfileTypeLocalhost,
-		LocalhostProfile: ptr.To(seccompProfileName(hostProfilerImage)),
-	}
 	sc.Capabilities = &corev1.Capabilities{
 		Drop: []corev1.Capability{"ALL"},
 		Add:  defaultCapabilities(),
 	}
 
+	// Seccomp profile and its setup init container are gated on the seccomp annotation (default enabled).
+	// When disabled, the container runs without a localhost seccomp profile and the init container that
+	// installs it on the node is omitted.
+	if o.seccompEnabled {
+		sc.SeccompProfile = &corev1.SeccompProfile{
+			Type:             corev1.SeccompProfileTypeLocalhost,
+			LocalhostProfile: ptr.To(seccompProfileName(hostProfilerImage)),
+		}
+
+		// seccomp-root EmptyDir volume (shared with system-probe when both are enabled; VolumeManager deduplicates)
+		seccompRootVol := common.GetVolumeForSeccomp()
+		managers.Volume().AddVolume(&seccompRootVol)
+
+		// Init container: copy seccomp profile JSON to the kubelet seccomp directory on the host.
+		// Appended after the base init containers (init-volume, init-config) added by default.go.
+		initContainer := buildSeccompSetupInitContainer(hostProfilerImage)
+		managers.PodTemplateSpec().Spec.InitContainers = append(managers.PodTemplateSpec().Spec.InitContainers, initContainer)
+	}
+
 	// AppArmor: unconfined so the default containerd profile doesn't block ptrace cross-profile,
 	// which host-profiler requires to read /proc/<pid>/map_files for process profiling.
 	managers.Annotation().AddAnnotation(common.AppArmorAnnotationKey+"/"+string(apicommon.HostProfiler), "unconfined")
-
-	// seccomp-root EmptyDir volume (shared with system-probe when both are enabled; VolumeManager deduplicates)
-	seccompRootVol := common.GetVolumeForSeccomp()
-	managers.Volume().AddVolume(&seccompRootVol)
-
-	// Init container: copy seccomp profile JSON to the kubelet seccomp directory on the host.
-	// Appended after the base init containers (init-volume, init-config) added by default.go.
-	initContainer := buildSeccompSetupInitContainer(hostProfilerImage)
-	managers.PodTemplateSpec().Spec.InitContainers = append(managers.PodTemplateSpec().Spec.InitContainers, initContainer)
 
 	// Tracingfs volume
 	volumeTracingfs := corev1.Volume{
