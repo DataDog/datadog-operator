@@ -16,8 +16,9 @@ import (
 )
 
 var datadogAgentProfileFeatureAllowlist = map[string]struct{}{
-	"gpu": {},
-	"apm": {},
+	"gpu":                    {},
+	"apm":                    {},
+	"dynamicInstrumentation": {},
 }
 
 var datadogAgentProfileComponentOverrideAllowlist = map[string]struct{}{

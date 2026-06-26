@@ -24,6 +24,7 @@ import (
 	"github.com/cenkalti/backoff"
 	"github.com/go-logr/logr"
 	"github.com/google/uuid"
+	corev1 "k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	kubeclient "sigs.k8s.io/controller-runtime/pkg/client"
@@ -86,6 +87,10 @@ type DatadogAgentRemoteConfig struct {
 	CoreAgent     *CoreAgentFeaturesConfig     `json:"config,omitempty"`
 	SystemProbe   *SystemProbeFeaturesConfig   `json:"system_probe,omitempty"`
 	SecurityAgent *SecurityAgentFeaturesConfig `json:"security_agent,omitempty"`
+	// NodeSelector scopes this config to a subset of nodes. When set, the config
+	// is applied via a DatadogAgentProfile rather than the cluster-wide
+	// DatadogAgent status.
+	NodeSelector []corev1.NodeSelectorRequirement `json:"node_selector,omitempty"`
 }
 
 // GetID returns the ID of the configuration
@@ -110,8 +115,9 @@ type CoreAgentFeaturesConfig struct {
 }
 
 type SystemProbeFeaturesConfig struct {
-	CWS *FeatureEnabledConfig `json:"runtime_security_config"`
-	USM *FeatureEnabledConfig `json:"service_monitoring_config"`
+	CWS                    *FeatureEnabledConfig `json:"runtime_security_config"`
+	USM                    *FeatureEnabledConfig `json:"service_monitoring_config"`
+	DynamicInstrumentation *FeatureEnabledConfig `json:"dynamic_instrumentation"`
 }
 
 type SecurityAgentFeaturesConfig struct {
@@ -345,7 +351,7 @@ func (r *RemoteConfigUpdater) agentConfigUpdateCallback(updates map[string]state
 		configIDs = append(configIDs, id)
 	}
 
-	mergedUpdate, err := r.parseReceivedUpdates(updates, applyStatus)
+	mergedUpdate, nodeScopedUpdates, err := r.parseReceivedUpdates(updates, applyStatus)
 	if err != nil {
 		r.logger.Error(err, "Failed to merge updates")
 		return
@@ -364,6 +370,12 @@ func (r *RemoteConfigUpdater) agentConfigUpdateCallback(updates map[string]state
 		return
 	}
 
+	if err := r.reconcileNodeScopedProfiles(ctx, nodeScopedUpdates); err != nil {
+		r.logger.Error(err, "Failed to reconcile node-scoped profiles")
+		applyStatus(configIDs[len(configIDs)-1], state.ApplyStatus{State: state.ApplyStateError, Error: err.Error()})
+		return
+	}
+
 	// Acknowledge that configs were received
 	for _, id := range configIDs {
 		applyStatus(id, state.ApplyStatus{State: state.ApplyStateAcknowledged, Error: ""})
@@ -372,32 +384,39 @@ func (r *RemoteConfigUpdater) agentConfigUpdateCallback(updates map[string]state
 	r.logger.Info("Successfully applied configuration")
 }
 
-func (r *RemoteConfigUpdater) parseReceivedUpdates(updates map[string]state.RawConfig, applyStatus func(string, state.ApplyStatus)) (DatadogAgentRemoteConfig, error) {
+func (r *RemoteConfigUpdater) parseReceivedUpdates(updates map[string]state.RawConfig, applyStatus func(string, state.ApplyStatus)) (DatadogAgentRemoteConfig, []DatadogAgentRemoteConfig, error) {
 
 	// Unmarshal configs and config order
 	var order agentConfigOrder
 	configByID := make(map[string]DatadogAgentRemoteConfig)
+	var nodeScoped []DatadogAgentRemoteConfig
 	for configPath, c := range updates {
 		if c.Metadata.ID == "configuration_order" {
 			if err := json.Unmarshal(c.Config, &order); err != nil {
 				r.logger.Info("Error unmarshalling configuration_order:", "err", err)
 				applyStatus(configPath, state.ApplyStatus{State: state.ApplyStateError, Error: err.Error()})
-				return DatadogAgentRemoteConfig{}, fmt.Errorf("could not unmarshal configuration order")
+				return DatadogAgentRemoteConfig{}, nil, fmt.Errorf("could not unmarshal configuration order")
 			}
 		} else {
 			var configData DatadogAgentRemoteConfig
 			if err := json.Unmarshal(c.Config, &configData); err != nil {
 				applyStatus(configPath, state.ApplyStatus{State: state.ApplyStateError, Error: err.Error()})
 				r.logger.Info("Error unmarshalling JSON:", "err", err)
-				return DatadogAgentRemoteConfig{}, fmt.Errorf("could not unmarshal configuration %s", c.Metadata.ID)
+				return DatadogAgentRemoteConfig{}, nil, fmt.Errorf("could not unmarshal configuration %s", c.Metadata.ID)
+			}
+			configData.ID = c.Metadata.ID
+			// Configs carrying a node selector are applied per-node via
+			// DatadogAgentProfiles. They must not be merged into the cluster-wide
+			// config, whose single NodeSelector field would collapse them.
+			if len(configData.NodeSelector) > 0 {
+				nodeScoped = append(nodeScoped, configData)
 			} else {
-				configData.ID = c.Metadata.ID
 				configByID[configData.ID] = configData
 			}
 		}
 	}
 
-	// Merge configs
+	// Merge cluster-wide configs
 	var finalConfig DatadogAgentRemoteConfig
 
 	for _, id := range order.Order {
@@ -406,7 +425,7 @@ func (r *RemoteConfigUpdater) parseReceivedUpdates(updates map[string]state.RawC
 		}
 	}
 
-	return finalConfig, nil
+	return finalConfig, nodeScoped, nil
 }
 
 func mergeConfigs(dst, src *DatadogAgentRemoteConfig) {
@@ -470,6 +489,15 @@ func mergeConfigs(dst, src *DatadogAgentRemoteConfig) {
 			}
 			if src.SystemProbe.CWS.Enabled != nil {
 				dst.SystemProbe.CWS.Enabled = src.SystemProbe.CWS.Enabled
+			}
+		}
+		// Merging Dynamic Instrumentation
+		if src.SystemProbe.DynamicInstrumentation != nil {
+			if dst.SystemProbe.DynamicInstrumentation == nil {
+				dst.SystemProbe.DynamicInstrumentation = &FeatureEnabledConfig{}
+			}
+			if src.SystemProbe.DynamicInstrumentation.Enabled != nil {
+				dst.SystemProbe.DynamicInstrumentation.Enabled = src.SystemProbe.DynamicInstrumentation.Enabled
 			}
 		}
 
@@ -584,6 +612,19 @@ func (r *RemoteConfigUpdater) updateInstanceStatus(dda v2alpha1.DatadogAgent, co
 		newddaStatus.RemoteConfigConfiguration.Features.USM.Enabled = cfg.SystemProbe.USM.Enabled
 	} else {
 		newddaStatus.RemoteConfigConfiguration.Features.USM = nil
+	}
+
+	// Dynamic Instrumentation
+	if cfg.SystemProbe != nil && cfg.SystemProbe.DynamicInstrumentation != nil {
+		if newddaStatus.RemoteConfigConfiguration.Features.DynamicInstrumentation == nil {
+			newddaStatus.RemoteConfigConfiguration.Features.DynamicInstrumentation = &v2alpha1.DynamicInstrumentationFeatureConfig{}
+		}
+		if newddaStatus.RemoteConfigConfiguration.Features.DynamicInstrumentation.Enabled == nil {
+			newddaStatus.RemoteConfigConfiguration.Features.DynamicInstrumentation.Enabled = new(bool)
+		}
+		newddaStatus.RemoteConfigConfiguration.Features.DynamicInstrumentation.Enabled = cfg.SystemProbe.DynamicInstrumentation.Enabled
+	} else {
+		newddaStatus.RemoteConfigConfiguration.Features.DynamicInstrumentation = nil
 	}
 
 	if !apiequality.Semantic.DeepEqual(&dda.Status, newddaStatus) {
