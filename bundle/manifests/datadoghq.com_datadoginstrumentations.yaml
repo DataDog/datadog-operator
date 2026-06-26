@@ -66,13 +66,10 @@ spec:
                       description: DatadogInstrumentationCheckConfig defines an Autodiscovery
                         check configuration.
                       properties:
-                        containerImage:
-                          description: ContainerImage identifies container image names
+                        containerName:
+                          description: ContainerName identifies the container name
                             this check applies to.
-                          items:
-                            type: string
-                          type: array
-                          x-kubernetes-list-type: set
+                          type: string
                         initConfig:
                           description: InitConfig is the integration-specific Autodiscovery
                             init_config payload.

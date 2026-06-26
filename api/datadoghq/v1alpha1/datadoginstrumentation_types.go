@@ -33,10 +33,9 @@ type DatadogInstrumentationCheckConfig struct {
 	// Integration is the Datadog integration name, for example redisdb.
 	Integration string `json:"integration"`
 
-	// ContainerImage identifies container image names this check applies to.
+	// ContainerName identifies the container name this check applies to.
 	// +optional
-	// +listType=set
-	ContainerImage []string `json:"containerImage,omitempty"`
+	ContainerName string `json:"containerName,omitempty"`
 
 	// InitConfig is the integration-specific Autodiscovery init_config payload.
 	// +optional
