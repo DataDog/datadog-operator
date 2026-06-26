@@ -7,6 +7,7 @@ package v1alpha1
 
 import (
 	autoscalingv2 "k8s.io/api/autoscaling/v2"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
@@ -26,6 +27,29 @@ type DatadogInstrumentationConfig struct {
 	// +optional
 	// +listType=atomic
 	Checks []DatadogInstrumentationCheckConfig `json:"checks,omitempty"`
+
+	// NCCLProfiler enables the NCCL profiler injection for the target workload's GPU pods.
+	// +optional
+	NCCLProfiler *DatadogInstrumentationNCCLConfig `json:"ncclProfiler,omitempty"`
+}
+
+// DatadogInstrumentationNCCLConfig configures NCCL profiler injection for a target workload.
+// When enabled, the ncclprofiler admission webhook injects the profiler init container and the
+// NCCL_PROFILER_PLUGIN / NCCL_DD_SOCKET_PATH environment, replacing the per-pod opt-in label
+// admission.datadoghq.com/nccl-profiler.enabled.
+type DatadogInstrumentationNCCLConfig struct {
+	// Enabled toggles NCCL profiler injection for the target workload's pods.
+	Enabled bool `json:"enabled"`
+
+	// InjectorImage optionally overrides admission_controller.nccl_profiler.injector_image.
+	// +optional
+	InjectorImage string `json:"injectorImage,omitempty"`
+
+	// Env optionally overrides or adds NCCL environment variables on injected pods
+	// (for example the socket directory or dump interval).
+	// +optional
+	// +listType=atomic
+	Env []corev1.EnvVar `json:"env,omitempty"`
 }
 
 // DatadogInstrumentationCheckConfig defines an Autodiscovery check configuration.
