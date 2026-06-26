@@ -154,6 +154,7 @@ core,github.com/mitchellh/hashstructure/v2,MIT
 core,github.com/mitchellh/mapstructure,MIT
 core,github.com/mitchellh/reflectwalk,MIT
 core,github.com/moby/spdystream,Apache-2.0
+core,github.com/moby/spdystream/spdy,BSD-3-Clause
 core,github.com/moby/term,Apache-2.0
 core,github.com/modern-go/concurrent,Apache-2.0
 core,github.com/modern-go/reflect2,Apache-2.0
