@@ -98,7 +98,7 @@ func Test_generateObjMetaFromDDA(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ddai := &v1alpha1.DatadogAgentInternal{}
-			generateObjMetaFromDDA(tt.dda, ddai, agenttestutils.TestScheme())
+			generateObjMetaFromDDA(tt.dda, ddai, agenttestutils.TestScheme(), "")
 			assert.Equal(t, tt.want, ddai)
 		})
 	}

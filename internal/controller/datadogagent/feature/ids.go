@@ -89,4 +89,6 @@ const (
 	DataPlaneIDType = "data_plane"
 	// FlightRecorderIDType Flight Recorder feature.
 	FlightRecorderIDType = "flightrecorder"
+	// KubernetesActionsIDType Kubernetes Actions feature.
+	KubernetesActionsIDType = "kubernetes_actions"
 )

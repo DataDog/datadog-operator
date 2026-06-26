@@ -23,6 +23,14 @@ To deploy a `DatadogSLO` with the Datadog Operator, use the [`datadog-operator` 
     helm repo add datadog https://helm.datadoghq.com
     ```
 
+    For **OLM deployments**, enable the controller via environment variable in the `Subscription`:
+    ```yaml
+    config:
+      env:
+        - name: DD_SLO_CONTROLLER_ENABLED
+          value: "true"
+    ```
+
 1. Choose one of the following options:
 
     * Run the install command, substituting your [Datadog API and application keys][6]:
