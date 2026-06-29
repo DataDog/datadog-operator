@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"testing"
 
+	"k8s.io/utils/ptr"
+
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	agenttestutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/testutils"
@@ -17,7 +18,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
@@ -43,8 +43,8 @@ func Test_handleFinalizer(t *testing.T) {
 		Spec: datadoghqv2alpha1.DatadogAgentSpec{
 			Global: &datadoghqv2alpha1.GlobalConfig{
 				Credentials: &datadoghqv2alpha1.DatadogCredentials{
-					APIKey: apiutils.NewStringPointer("apiKey"),
-					AppKey: apiutils.NewStringPointer("appKey"),
+					APIKey: ptr.To("apiKey"),
+					AppKey: ptr.To("appKey"),
 				},
 			},
 		},
@@ -138,25 +138,19 @@ func Test_handleFinalizer(t *testing.T) {
 
 	reconciler := reconcilerForFinalizerTest(initialKubeObjects)
 
-	_, err := reconciler.handleFinalizer(logf.Log.WithName("Handle Finalizer V2 test"), dda, reconciler.finalizeDadV2)
+	err := reconciler.finalizeDadV2(logf.Log.WithName("Handle Finalizer V2 test"), dda)
 	assert.NoError(t, err)
 
-	// Check that the cluster roles associated with the Datadog Agent have been deleted
+	// With DDAI always enabled, the DDA finalizer no longer deletes cluster-level resources
+	// (the DDAI controller handles cleanup). Verify they still exist.
 	for _, clusterRole := range existingClusterRoles {
 		err = reconciler.client.Get(context.TODO(), types.NamespacedName{Name: clusterRole.Name}, &rbacv1.ClusterRole{})
-		assert.Error(t, err, fmt.Sprintf("ClusterRole %s not deleted", clusterRole.Name))
-		if err != nil {
-			assert.True(t, apierrors.IsNotFound(err), fmt.Sprintf("Unexpected error %s", err))
-		}
+		assert.NoError(t, err, fmt.Sprintf("ClusterRole %s should still exist (DDAI handles cleanup)", clusterRole.Name))
 	}
 
-	// Check that the cluster role bindings associated with the Datadog Agent have been deleted
 	for _, clusterRoleBinding := range existingClusterRoleBindings {
 		err = reconciler.client.Get(context.TODO(), types.NamespacedName{Name: clusterRoleBinding.Name}, &rbacv1.ClusterRoleBinding{})
-		assert.Error(t, err, fmt.Sprintf("ClusterRoleBinding %s not deleted", clusterRoleBinding.Name))
-		if err != nil {
-			assert.True(t, apierrors.IsNotFound(err), fmt.Sprintf("Unexpected error %s", err))
-		}
+		assert.NoError(t, err, fmt.Sprintf("ClusterRoleBinding %s should still exist (DDAI handles cleanup)", clusterRoleBinding.Name))
 	}
 
 	// Check that the nodes don't have the profile label anymore

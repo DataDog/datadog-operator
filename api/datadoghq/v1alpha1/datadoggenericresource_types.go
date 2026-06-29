@@ -13,9 +13,11 @@ type SupportedResourcesType string
 
 // When adding a new type, make sure to update the kubebuilder validation enum marker
 const (
+	Dashboard             SupportedResourcesType = "dashboard"
 	Downtime              SupportedResourcesType = "downtime"
 	Monitor               SupportedResourcesType = "monitor"
 	Notebook              SupportedResourcesType = "notebook"
+	SLO                   SupportedResourcesType = "slo"
 	SyntheticsAPITest     SupportedResourcesType = "synthetics_api_test"
 	SyntheticsBrowserTest SupportedResourcesType = "synthetics_browser_test"
 )
@@ -24,9 +26,10 @@ const (
 // +k8s:openapi-gen=true
 type DatadogGenericResourceSpec struct {
 	// Type is the type of the API object
-	// +kubebuilder:validation:Enum=downtime;monitor;notebook;synthetics_api_test;synthetics_browser_test
+	// +kubebuilder:validation:Enum=dashboard;downtime;monitor;notebook;slo;synthetics_api_test;synthetics_browser_test
 	Type SupportedResourcesType `json:"type"`
 	// JsonSpec is the specification of the API object
+	// +kubebuilder:validation:MinLength=1
 	JsonSpec string `json:"jsonSpec"`
 }
 
@@ -50,6 +53,16 @@ type DatadogGenericResourceStatus struct {
 	CurrentHash string `json:"currentHash,omitempty"`
 	// LastForceSyncTime is the last time the API object was last force synced with the custom resource
 	LastForceSyncTime *metav1.Time `json:"lastForceSyncTime,omitempty"`
+	// State is the live Datadog-side state of the underlying resource as last
+	// fetched from the Datadog API. Values are resource-type dependent — for
+	// Monitors: OK, Alert, Warn, No Data, Skipped, Ignored, Unknown. For SLOs:
+	// breached, warning, ok, no_data. Only populated for resource types that
+	// expose live state.
+	State string `json:"state,omitempty"`
+	// StateLastUpdateTime is the last time State was successfully refreshed from Datadog.
+	StateLastUpdateTime *metav1.Time `json:"stateLastUpdateTime,omitempty"`
+	// StateLastTransitionTime is the last time State changed value.
+	StateLastTransitionTime *metav1.Time `json:"stateLastTransitionTime,omitempty"`
 }
 
 type DatadogSyncStatus string
@@ -73,6 +86,8 @@ const (
 // +kubebuilder:resource:path=datadoggenericresources,scope=Namespaced,shortName=ddgr
 // +kubebuilder:printcolumn:name="id",type="string",JSONPath=".status.id"
 // +kubebuilder:printcolumn:name="sync status",type="string",JSONPath=".status.syncStatus"
+// +kubebuilder:printcolumn:name="state",type="string",JSONPath=".status.state"
+// +kubebuilder:printcolumn:name="last state sync",type="string",format="date",JSONPath=".status.stateLastUpdateTime"
 // +kubebuilder:printcolumn:name="age",type="date",JSONPath=".metadata.creationTimestamp"
 // +k8s:openapi-gen=true
 // +genclient

@@ -56,7 +56,7 @@ var (
 	}
 )
 
-var defaultAnnotations = map[string]string{"checksum/otel_agent_gateway-custom-config": "271b7a21b7215c549ce1d617f2064a3f"}
+var defaultAnnotations = map[string]string{"checksum/otel_agent_gateway-custom-config": "2fdb890243586329dc7af899ae02d5ca"}
 
 func Test_otelAgentGatewayFeature_Configure(t *testing.T) {
 	tests := test.FeatureTestSuite{
@@ -155,7 +155,7 @@ func Test_otelAgentGatewayFeature_Configure(t *testing.T) {
 				grpcPort: 4444,
 				httpPort: 5555,
 			},
-				map[string]string{"checksum/otel_agent_gateway-custom-config": "69dcc5c01755641076ba5748c90ba409"},
+				map[string]string{"checksum/otel_agent_gateway-custom-config": "a5f82f402ace53fe25e2680792fccb9f"},
 				defaultVolumeMounts,
 				defaultVolumes(defaultLocalObjectReferenceName),
 			),
@@ -372,24 +372,24 @@ func Test_otelAgentGatewayFeature_ID(t *testing.T) {
 
 func Test_otelAgentGatewayFeature_ManageClusterAgent(t *testing.T) {
 	feat := &otelAgentGatewayFeature{}
-	err := feat.ManageClusterAgent(nil, "")
+	err := feat.ManageClusterAgent(nil)
 	assert.NoError(t, err)
 }
 
 func Test_otelAgentGatewayFeature_ManageSingleContainerNodeAgent(t *testing.T) {
 	feat := &otelAgentGatewayFeature{}
-	err := feat.ManageSingleContainerNodeAgent(nil, "")
+	err := feat.ManageSingleContainerNodeAgent(nil)
 	assert.NoError(t, err)
 }
 
 func Test_otelAgentGatewayFeature_ManageNodeAgent(t *testing.T) {
 	feat := &otelAgentGatewayFeature{}
-	err := feat.ManageNodeAgent(nil, "")
+	err := feat.ManageNodeAgent(nil)
 	assert.NoError(t, err)
 }
 
 func Test_otelAgentGatewayFeature_ManageClusterChecksRunner(t *testing.T) {
 	feat := &otelAgentGatewayFeature{}
-	err := feat.ManageClusterChecksRunner(nil, "")
+	err := feat.ManageClusterChecksRunner(nil)
 	assert.NoError(t, err)
 }

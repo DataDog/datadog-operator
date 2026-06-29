@@ -17,6 +17,9 @@ import (
 )
 
 const (
+	// DDA/DDAI annotation key for provider used in reconciler to apply provider-specific configs
+	ProviderAnnotationKey = "datadoghq.com/provider"
+
 	// LegacyProvider Legacy Provider (empty name)
 	LegacyProvider = ""
 	// DefaultProvider Default provider name
@@ -29,6 +32,11 @@ const (
 	// GKECloudProvider GKE CloudProvider name
 	GKECloudProvider = "gke"
 
+	// GKECosProvider is the full provider string for GKE on Container-Optimized OS
+	// nodes (matches the `{cloudProvider}-{value}` convention from
+	// generateValidProviderName). Used as a ProviderCapabilityMap key.
+	GKECosProvider = "gke-cos"
+
 	// GKEProviderLabel is the GKE node label used to determine the node's provider
 	GKEProviderLabel = "cloud.google.com/gke-os-distribution"
 
@@ -38,8 +46,16 @@ const (
 	// OpenShiftProviderLabel is the OpenShift node label used to determine the node's provider
 	OpenShiftProviderLabel = "node.openshift.io/os_id"
 
+	// AKSProvider is the Azure Kubernetes Service provider name (mirrors helm's providers.aks).
+	AKSProvider = "aks"
+
 	// EKSCloudProvider is the Amazon EKS CloudProvider name
 	EKSCloudProvider = "eks"
+
+	// EKSEC2UseHostnameFromFileProvider is the EKS-EC2 provider variant where
+	// the agent reads its hostname from the cloud-init instance-id file mounted
+	// from the host (mirrors helm's providers.eks.ec2.useHostnameFromFile).
+	EKSEC2UseHostnameFromFileProvider = "eks-ec2-use-hostname-from-file"
 
 	// EKSProviderLabel is a common EKS node label containing the AMI ID
 	EKSProviderLabel = "eks.amazonaws.com/nodegroup-image"
@@ -54,8 +70,10 @@ var providerValueAllowlist = map[string]struct{}{
 	GKECosType: {},
 }
 
-// determineProvider creates a Provider based on a map of labels
-func determineProvider(labels map[string]string) string {
+// DetermineProvider returns a single provider derived from a map of node labels
+// (e.g. the operator's own node). It is the cluster-level detection entry point
+// used for control plane monitoring defaults.
+func DetermineProvider(labels map[string]string) string {
 	if len(labels) > 0 {
 		// GKE
 		if val, ok := labels[GKEProviderLabel]; ok {
@@ -251,11 +269,50 @@ func GetAgentNameWithProvider(overrideDSName, provider string) string {
 	return overrideDSName
 }
 
+// IsSpecificProvider reports whether p is a recognized cloud provider (i.e. not
+// empty and not the generic "default").
+func IsSpecificProvider(p string) bool {
+	return p != "" && p != DefaultProvider
+}
+
+// ClusterProviderFromNodeLabels maps a single node's labels to the cluster-level
+// provider (eks, openshift-<os>, or default). It is the node-label signal for the
+// cluster dimension.
+//
+// Node-OS distinctions such as gke-cos belong to the node
+// dimension (DetermineProvider / GetProviderListFromNodeList) and are intentionally
+// NOT returned here, so a node-OS variation doesn't appear as a cluster
+// provider. GKE therefore maps to default at cluster scope.
+func ClusterProviderFromNodeLabels(labels map[string]string) string {
+	if len(labels) > 0 {
+		// OpenShift keeps its os_id suffix: control plane monitoring resolves the
+		// provider label via GetProviderLabelKeyValue, which needs the openshift-<os> form.
+		if val, ok := labels[OpenShiftProviderLabel]; ok {
+			return generateValidProviderName(OpenshiftProvider, val)
+		}
+		if isEKSProvider(labels) {
+			return EKSCloudProvider
+		}
+	}
+	return DefaultProvider
+}
+
+// GetClusterProviderFromNodeList returns the cluster-level provider for a node
+// list, preferring a specific provider over the default (first match wins).
+func GetClusterProviderFromNodeList(nodeList []corev1.Node) string {
+	for i := range nodeList {
+		if provider := ClusterProviderFromNodeLabels(nodeList[i].Labels); provider != DefaultProvider {
+			return provider
+		}
+	}
+	return DefaultProvider
+}
+
 // GetProviderListFromNodeList generates a list of providers given a list of nodes
 func GetProviderListFromNodeList(nodeList []corev1.Node, logger logr.Logger) map[string]struct{} {
 	providerList := make(map[string]struct{})
 	for _, node := range nodeList {
-		provider := determineProvider(node.Labels)
+		provider := DetermineProvider(node.Labels)
 		if _, ok := providerList[provider]; !ok {
 			providerList[provider] = struct{}{}
 			logger.V(1).Info("New provider detected", "provider", provider)

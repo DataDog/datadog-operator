@@ -2,36 +2,25 @@ package hostprofiler
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/experimental"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/hostprofiler/defaultconfig"
 	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/configmap"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
-	"github.com/DataDog/datadog-operator/pkg/constants"
-	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
-	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 var errHostPIDDisabledManually = errors.New("Host PID is required for host profiler")
 
 type hostProfilerFeature struct {
-	owner                       metav1.Object
-	customConfig                *v2alpha1.CustomConfig
-	customConfigAnnotationKey   string
-	customConfigAnnotationValue string
-	configMapName               string
-	hostProfilerEnabled         bool
-
+	owner                   metav1.Object
 	hostPIDDisabledManually bool
 
 	logger logr.Logger
@@ -45,7 +34,6 @@ func init() {
 }
 
 func buildHostProfilerFeature(options *feature.Options) feature.Feature {
-
 	hostProfilerFeat := &hostProfilerFeature{}
 
 	if options != nil {
@@ -59,107 +47,90 @@ func (o *hostProfilerFeature) ID() feature.IDType {
 	return feature.HostProfilerIDType
 }
 
-func (o *hostProfilerFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) feature.RequiredComponents {
-	o.hostProfilerEnabled = featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnableHostProfilerAnnotation)
-
+func (o *hostProfilerFeature) Configure(dda metav1.Object, _ *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) feature.RequiredComponents {
 	o.owner = dda
-	if value, ok := featureutils.GetFeatureConfigAnnotation(dda, featureutils.HostProfilerConfigDataAnnotation); ok {
-		o.customConfig = &v2alpha1.CustomConfig{
-			ConfigData: apiutils.NewStringPointer(value),
-		}
 
+	if !featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnableHostProfilerAnnotation) {
+		return feature.RequiredComponents{}
 	}
 
-	if value, ok := featureutils.GetFeatureConfigAnnotation(dda, featureutils.HostProfilerConfigMapNameAnnotation); ok {
-		o.customConfig = &v2alpha1.CustomConfig{
-			ConfigMap: &v2alpha1.ConfigMapConfig{
-				Name: value,
+	return feature.RequiredComponents{
+		Agent: feature.RequiredComponent{
+			IsRequired: ptr.To(true),
+			Containers: []apicommon.AgentContainerName{
+				apicommon.CoreAgentContainerName,
+				apicommon.HostProfiler,
 			},
-		}
+		},
 	}
-	o.configMapName = constants.GetConfName(dda, o.customConfig, defaultHostProfilerConf)
-
-	var reqComp feature.RequiredComponents
-	if o.hostProfilerEnabled {
-		reqComp = feature.RequiredComponents{
-			Agent: feature.RequiredComponent{
-				IsRequired: apiutils.NewBoolPointer(true),
-				Containers: []apicommon.AgentContainerName{
-					apicommon.CoreAgentContainerName,
-					apicommon.HostProfiler,
-				},
-			},
-		}
-
-	}
-	return reqComp
 }
 
-func (o *hostProfilerFeature) buildHostProfilerCoreConfigMap() (*corev1.ConfigMap, error) {
-	if o.customConfig != nil && o.customConfig.ConfigData != nil {
-		cm, err := configmap.BuildConfigMapConfigData(o.owner.GetNamespace(), o.customConfig.ConfigData, o.configMapName, hostProfilerConfigFileName)
-		if err != nil {
-			return nil, err
-		}
-
-		// Add md5 hash annotation for configMap
-		o.customConfigAnnotationKey = object.GetChecksumAnnotationKey(feature.HostProfilerIDType)
-		o.customConfigAnnotationValue, err = comparison.GenerateMD5ForSpec(o.customConfig.ConfigData)
-		if err != nil {
-			return cm, err
-		}
-
-		if o.customConfigAnnotationKey != "" && o.customConfigAnnotationValue != "" {
-			annotations := object.MergeAnnotationsLabels(o.logger, cm.Annotations, map[string]string{o.customConfigAnnotationKey: o.customConfigAnnotationValue}, "*")
-			cm.SetAnnotations(annotations)
-		}
-
-		return cm, nil
-	}
-	return nil, nil
-}
-
-func (o *hostProfilerFeature) ManageDependencies(managers feature.ResourceManagers, provider string) error {
+func (o *hostProfilerFeature) ManageDependencies(managers feature.ResourceManagers) error {
 	if o.hostPIDDisabledManually {
 		return errHostPIDDisabledManually
 	}
-
-	// check if an otel collector config was provided. If not, use default.
-	if o.customConfig == nil {
-		o.customConfig = &v2alpha1.CustomConfig{}
-	}
-
-	if o.customConfig.ConfigData == nil && o.customConfig.ConfigMap == nil {
-		var defaultConfig = defaultconfig.DefaultHostProfilerConfig
-		o.customConfig.ConfigData = &defaultConfig
-	}
-
-	// create configMap if customConfig is provided
-	configMap, err := o.buildHostProfilerCoreConfigMap()
-	if err != nil {
-		return err
-	}
-
-	if configMap != nil {
-		if err := managers.Store().AddOrUpdate(kubernetes.ConfigMapKind, configMap); err != nil {
-			return err
-		}
-	}
-
 	return nil
 }
 
-func (o *hostProfilerFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
+func (o *hostProfilerFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
 	return nil
 }
 
-func (o *hostProfilerFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+func (o *hostProfilerFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
 	if o.hostPIDDisabledManually {
 		return errHostPIDDisabledManually
 	}
 
 	// Host PID
-	managers.PodTemplateSpec().Spec.HostPID = *apiutils.NewBoolPointer(true)
+	managers.PodTemplateSpec().Spec.HostPID = true
+
+	// Security context: drop all caps, add only what host-profiler needs, lock down privilege escalation,
+	// and apply a localhost seccomp profile. AllowPrivilegeEscalation must be explicitly false so that
+	// runc applies the seccomp filter before its own setuid/setgid/capset calls during container setup.
+	var hostProfilerContainer *corev1.Container
+	for i := range managers.PodTemplateSpec().Spec.Containers {
+		if managers.PodTemplateSpec().Spec.Containers[i].Name == string(apicommon.HostProfiler) {
+			hostProfilerContainer = &managers.PodTemplateSpec().Spec.Containers[i]
+			break
+		}
+	}
+
+	if hostProfilerContainer == nil {
+		return fmt.Errorf("host-profiler container not found in pod template spec")
+	}
+
+	if hostProfilerContainer.SecurityContext == nil {
+		hostProfilerContainer.SecurityContext = &corev1.SecurityContext{}
+	}
+
+	// Experimental image overrides are applied after ManageNodeAgent, so mirror their image
+	// resolution here to keep the seccomp profile and init container aligned with the final
+	// host-profiler container image.
+	hostProfilerImage := resolveHostProfilerImage(o.owner, hostProfilerContainer.Image)
+
+	sc := hostProfilerContainer.SecurityContext
+	sc.AllowPrivilegeEscalation = ptr.To(false)
+	sc.SeccompProfile = &corev1.SeccompProfile{
+		Type:             corev1.SeccompProfileTypeLocalhost,
+		LocalhostProfile: ptr.To(seccompProfileName(hostProfilerImage)),
+	}
+	sc.Capabilities = &corev1.Capabilities{
+		Drop: []corev1.Capability{"ALL"},
+		Add:  defaultCapabilities(),
+	}
+
+	// AppArmor: unconfined so the default containerd profile doesn't block ptrace cross-profile,
+	// which host-profiler requires to read /proc/<pid>/map_files for process profiling.
+	managers.Annotation().AddAnnotation(common.AppArmorAnnotationKey+"/"+string(apicommon.HostProfiler), "unconfined")
+
+	// seccomp-root EmptyDir volume (shared with system-probe when both are enabled; VolumeManager deduplicates)
+	seccompRootVol := common.GetVolumeForSeccomp()
+	managers.Volume().AddVolume(&seccompRootVol)
+
+	// Init container: copy seccomp profile JSON to the kubelet seccomp directory on the host.
+	// Appended after the base init containers (init-volume, init-config) added by default.go.
+	initContainer := buildSeccompSetupInitContainer(hostProfilerImage)
+	managers.PodTemplateSpec().Spec.InitContainers = append(managers.PodTemplateSpec().Spec.InitContainers, initContainer)
 
 	// Tracingfs volume
 	volumeTracingfs := corev1.Volume{
@@ -179,69 +150,43 @@ func (o *hostProfilerFeature) ManageNodeAgent(managers feature.PodTemplateManage
 	}
 	managers.VolumeMount().AddVolumeMountToContainer(&tracingfsMount, apicommon.HostProfiler)
 
-	// Config volume
-	var vol corev1.Volume
-	if o.customConfig != nil && o.customConfig.ConfigMap != nil {
-		// Custom config is referenced via ConfigMap
-		vol = volume.GetVolumeFromConfigMap(
-			o.customConfig.ConfigMap,
-			o.configMapName,
-			hostProfilerVolumeName,
-		)
-	} else {
-		// Otherwise, configMap was created in ManageDependencies (whether from CustomConfig.ConfigData or using defaults, so mount default volume)
-		vol = volume.GetBasicVolume(o.configMapName, hostProfilerVolumeName)
+	// (todo: mackjmr): remove this once IPC port is enabled by default. Enabling this port is required to fetch the API key from
+	// core agent when secrets backend is used.
+	agentIpcPortEnvVar := &corev1.EnvVar{
+		Name:  common.DDAgentIpcPort,
+		Value: "5009",
+	}
+	agentIpcConfigRefreshIntervalEnvVar := &corev1.EnvVar{
+		Name:  common.DDAgentIpcConfigRefreshInterval,
+		Value: "60",
+	}
+	for _, container := range []apicommon.AgentContainerName{apicommon.CoreAgentContainerName, apicommon.HostProfiler} {
+		managers.EnvVar().AddEnvVarToContainer(container, agentIpcPortEnvVar)
+		managers.EnvVar().AddEnvVarToContainer(container, agentIpcConfigRefreshIntervalEnvVar)
 	}
 
-	// create volume
-	managers.Volume().AddVolume(&vol)
-	commands := []string{}
-	if o.customConfig != nil && o.customConfig.ConfigMap != nil && len(o.customConfig.ConfigMap.Items) > 0 {
-		for _, item := range o.customConfig.ConfigMap.Items {
-			commands = append(commands, common.ConfigVolumePath+"/otel/"+item.Path)
-		}
-		volMount := corev1.VolumeMount{
-			Name:      hostProfilerVolumeName,
-			MountPath: common.ConfigVolumePath + "/otel/",
-		}
-		managers.VolumeMount().AddVolumeMountToContainer(&volMount, apicommon.HostProfiler)
-	} else {
-		// This part in used in three paths:
-		// - no conf.ConfigMap.Items provided, but conf.ConfigMap.Name provided. We assume only one item/ name host-profiler-config.yaml
-		// - when configData is used
-		// - when no config is passed (we use DefaultOtelCollectorConfig)
-		commands = append(commands, common.ConfigVolumePath+"/"+hostProfilerConfigFileName)
-		volMount := volume.GetVolumeMountWithSubPath(hostProfilerVolumeName, common.ConfigVolumePath+"/"+hostProfilerConfigFileName, hostProfilerConfigFileName)
-		managers.VolumeMount().AddVolumeMountToContainer(&volMount, apicommon.HostProfiler)
-	}
-
-	// Add config to host-profiler container command
-	for id, container := range managers.PodTemplateSpec().Spec.Containers {
-		if container.Name == "host-profiler" {
-			for _, command := range commands {
-				managers.PodTemplateSpec().Spec.Containers[id].Args = append(managers.PodTemplateSpec().Spec.Containers[id].Args,
-					"--config="+command,
-				)
-			}
-
-		}
-	}
-
-	// Add md5 hash annotation for configMap
-	if o.customConfigAnnotationKey != "" && o.customConfigAnnotationValue != "" {
-		managers.Annotation().AddAnnotation(o.customConfigAnnotationKey, o.customConfigAnnotationValue)
-	}
 	return nil
 }
 
-func (o *hostProfilerFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+func (o *hostProfilerFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers) error {
 	return nil
 }
 
-func (o *hostProfilerFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
+func (o *hostProfilerFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
 	return nil
 }
 
-func (o *hostProfilerFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
+func (o *hostProfilerFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers) error {
 	return nil
+}
+
+// resolveHostProfilerImage returns the host-profiler image to use for the seccomp init container
+// and profile name. It uses the same experimental image override semantics as the final pod
+// mutation so the seccomp init image cannot drift from the host-profiler container image.
+func resolveHostProfilerImage(dda metav1.Object, baseImage string) string {
+	hostProfilerImage, err := experimental.ResolveImageOverride(dda, string(apicommon.HostProfiler), baseImage)
+	if err != nil {
+		return baseImage
+	}
+	return hostProfilerImage
 }

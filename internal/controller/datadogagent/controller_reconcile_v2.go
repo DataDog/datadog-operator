@@ -7,11 +7,13 @@ package datadogagent
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -21,7 +23,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/defaults"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	"github.com/DataDog/datadog-operator/internal/controller/finalizer"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/condition"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
@@ -40,7 +42,8 @@ func (r *Reconciler) internalReconcileV2(ctx context.Context, instance *datadogh
 	}
 
 	// 2. Handle finalizer logic.
-	if result, err := r.handleFinalizer(reqLogger, instance, r.finalizeDadV2); utils.ShouldReturn(result, err) {
+	final := finalizer.NewFinalizer(reqLogger, r.client, r.deleteResource(reqLogger), defaultRequeuePeriod, defaultErrRequeuePeriod)
+	if result, err := final.HandleFinalizer(ctx, instance, "", datadogAgentFinalizer); utils.ShouldReturn(result, err) {
 		return result, err
 	}
 
@@ -49,10 +52,7 @@ func (r *Reconciler) internalReconcileV2(ctx context.Context, instance *datadogh
 	defaults.DefaultDatadogAgentSpec(&instanceCopy.Spec)
 
 	// 4. Delegate to the main reconcile function.
-	if r.options.DatadogAgentInternalEnabled {
-		return r.reconcileInstanceV3(ctx, reqLogger, instanceCopy)
-	}
-	return r.reconcileInstanceV2(ctx, reqLogger, instanceCopy)
+	return r.reconcileInstanceV3(ctx, reqLogger, instanceCopy)
 }
 
 func (r *Reconciler) reconcileInstanceV3(ctx context.Context, logger logr.Logger, instance *datadoghqv2alpha1.DatadogAgent) (reconcile.Result, error) {
@@ -71,20 +71,42 @@ func (r *Reconciler) reconcileInstanceV3(ctx context.Context, logger logr.Logger
 	ddaStatusCopy := instance.Status.DeepCopy()
 	newDDAStatus := generateNewStatusFromDDA(ddaStatusCopy)
 
+	// Resolve the cluster provider before touching anything: while detection is
+	// still warming up, hold (requeue) rather than apply a provider we're about to
+	// change.
+	provider, providerSource, hold := r.resolveClusterProvider(instance)
+	if hold {
+		logger.V(1).Info("Cluster provider not yet detected; requeuing before touching resources")
+		return reconcile.Result{RequeueAfter: clusterProviderGateRequeue}, nil
+	}
+	setClusterProviderStatus(newDDAStatus, provider, providerSource, now)
+
+	if r.options.CreateControllerRevisions {
+		revList, err := r.listRevisions(ctx, instance)
+		if err != nil {
+			return r.updateStatusIfNeededV2(logger, instance, ddaStatusCopy, result, err, now)
+		}
+		if err := r.manageExperiment(ctx, instance, newDDAStatus, now, revList); err != nil {
+			return r.updateStatusIfNeededV2(logger, instance, newDDAStatus, result, err, now)
+		}
+		if err := r.manageRevision(ctx, instance, revList, newDDAStatus); err != nil {
+			return r.updateStatusIfNeededV2(logger, instance, newDDAStatus, result, err, now)
+		}
+	}
+
 	// Manage dependencies
 	if err := r.manageDDADependenciesWithDDAI(ctx, logger, instance, newDDAStatus); err != nil {
 		return r.updateStatusIfNeededV2(logger, instance, ddaStatusCopy, result, err, now)
 	}
 
 	// Generate default DDAI object from DDA
-	ddai, err := r.generateDDAIFromDDA(instance)
+	ddai, err := r.generateDDAIFromDDA(instance, provider)
 	if err != nil {
 		return r.updateStatusIfNeededV2(logger, instance, ddaStatusCopy, result, err, now)
 	}
 	ddais = append(ddais, ddai)
 
 	// Profiles
-	// TODO: introspection
 	sendProfileEnabledMetric(r.options.DatadogAgentProfileEnabled)
 	if r.options.DatadogAgentProfileEnabled {
 		dsName := component.GetDaemonSetNameFromDatadogAgent(instance, &instance.Spec)
@@ -93,11 +115,16 @@ func (r *Reconciler) reconcileInstanceV3(ctx context.Context, logger logr.Logger
 			Name:      dsName,
 		}
 		maxUnavailable := agentprofile.GetMaxUnavailableFromSpecAndEDS(&instance.Spec, &r.options.ExtendedDaemonsetOptions, nil)
-		appliedProfiles, e := r.reconcileProfiles(ctx, dsNSName, maxUnavailable)
+
+		// Profiles normally render their own DDAIs from the base DDAI. Shared
+		// component config contributed by profiles is accumulated on the default
+		// DDAI, because there is only one Cluster Agent/CCR for the cluster.
+		defaultDDAI := ddai.DeepCopy()
+		appliedProfiles, e := r.reconcileProfiles(ctx, dsNSName, maxUnavailable, defaultDDAI)
 		if e != nil {
 			return r.updateStatusIfNeededV2(logger, instance, ddaStatusCopy, result, e, now)
 		}
-		profileDDAIs, e := r.applyProfilesToDDAISpec(ddai, appliedProfiles)
+		profileDDAIs, e := r.applyProfilesToDDAISpec(ddai, defaultDDAI, appliedProfiles)
 		if e != nil {
 			return r.updateStatusIfNeededV2(logger, instance, ddaStatusCopy, result, e, now)
 		}
@@ -131,109 +158,6 @@ func (r *Reconciler) reconcileInstanceV3(ctx context.Context, logger logr.Logger
 	return r.updateStatusIfNeededV2(logger, instance, newDDAStatus, result, err, now)
 }
 
-func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger, instance *datadoghqv2alpha1.DatadogAgent) (reconcile.Result, error) {
-	var result reconcile.Result
-	newStatus := instance.Status.DeepCopy()
-	now := metav1.Now()
-
-	configuredFeatures, enabledFeatures, requiredComponents := feature.BuildFeatures(instance, &instance.Spec, instance.Status.RemoteConfigConfiguration, reconcilerOptionsToFeatureOptions(&r.options, r.log))
-	// update list of enabled features for metrics forwarder
-	r.updateMetricsForwardersFeatures(instance, enabledFeatures)
-
-	// 1. Manage dependencies.
-	depsStore, resourceManagers := r.setupDependencies(instance, logger)
-
-	providerList := map[string]struct{}{kubernetes.LegacyProvider: {}}
-	k8sProvider := kubernetes.LegacyProvider
-	if r.options.IntrospectionEnabled {
-		nodeList, err := r.getNodeList(ctx)
-		if err != nil {
-			return reconcile.Result{}, err
-		}
-		providerList = kubernetes.GetProviderListFromNodeList(nodeList, logger)
-
-		k8sProvider = kubernetes.DefaultProvider
-		if len(providerList) == 1 {
-			for provider := range providerList {
-				k8sProvider = provider
-				break
-			}
-		} else if len(providerList) == 2 {
-			if _, ok := providerList[kubernetes.DefaultProvider]; ok {
-				for provider := range providerList {
-					if provider != kubernetes.DefaultProvider {
-						k8sProvider = provider
-						logger.Info("Multiple providers detected, using selected provider for cluster agent and dependencies", "provider", k8sProvider)
-						break
-					}
-				}
-			} else {
-				logger.Error(nil, "Multiple specialized providers detected, falling back to default provider for cluster agent and dependencies", "selected_provider", k8sProvider)
-			}
-		} else {
-			logger.Error(nil, "Multiple specialized providers detected, falling back to default provider for cluster agent and dependencies", "selected_provider", k8sProvider)
-		}
-	}
-
-	var err error
-	if err = r.manageGlobalDependencies(logger, instance, resourceManagers, requiredComponents); err != nil {
-		return r.updateStatusIfNeededV2(logger, instance, newStatus, reconcile.Result{}, err, now)
-	}
-	if err = r.manageFeatureDependencies(logger, enabledFeatures, resourceManagers, k8sProvider); err != nil {
-		return r.updateStatusIfNeededV2(logger, instance, newStatus, reconcile.Result{}, err, now)
-	}
-	if err = r.overrideDependencies(logger, resourceManagers, instance); err != nil {
-		return r.updateStatusIfNeededV2(logger, instance, newStatus, reconcile.Result{}, err, now)
-	}
-
-	// 1. Apply and cleanup dependencies before reconciling components to ensure deps exist at reconciliation time.
-	if err = r.applyAndCleanupDependencies(ctx, logger, depsStore); err != nil {
-		return r.updateStatusIfNeededV2(logger, instance, newStatus, reconcile.Result{}, err, now)
-	}
-
-	// 2. Reconcile each component using the component registry
-	params := &ReconcileComponentParams{
-		Logger:             logger,
-		DDA:                instance,
-		RequiredComponents: requiredComponents,
-		Features:           append(configuredFeatures, enabledFeatures...),
-		ResourceManagers:   resourceManagers,
-		Status:             newStatus,
-		Provider:           k8sProvider,
-		ProviderList:       providerList,
-	}
-
-	result, err = r.componentRegistry.ReconcileComponents(ctx, params)
-	if utils.ShouldReturn(result, err) {
-		return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err, now)
-	}
-
-	// 2.b. Node Agent and profiles
-	// TODO: ignore profiles and introspection for DDAI
-
-	if result, err = r.reconcileAgentProfiles(ctx, logger, instance, requiredComponents, append(configuredFeatures, enabledFeatures...), resourceManagers, newStatus, now); utils.ShouldReturn(result, err) {
-		return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err, now)
-	}
-
-	// TODO: this feels like it should be moved somewhere else
-	userSpecifiedClusterAgentToken := instance.Spec.Global.ClusterAgentToken != nil || instance.Spec.Global.ClusterAgentTokenSecret != nil
-	if !userSpecifiedClusterAgentToken {
-		ensureAutoGeneratedTokenInStatus(instance, newStatus, resourceManagers, logger)
-	}
-
-	// 3. Cleanup extraneous resources.
-	if err = r.cleanupExtraneousResources(ctx, logger, instance, newStatus, resourceManagers); err != nil {
-		logger.Error(err, "Error cleaning up extraneous resources")
-		return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err, now)
-	}
-
-	// Always requeue
-	if !result.Requeue && result.RequeueAfter == 0 {
-		result.RequeueAfter = defaultRequeuePeriod
-	}
-	return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err, now)
-}
-
 func (r *Reconciler) updateStatusIfNeededV2(logger logr.Logger, agentdeployment *datadoghqv2alpha1.DatadogAgent, newStatus *datadoghqv2alpha1.DatadogAgentStatus, result reconcile.Result, currentError error, now metav1.Time) (reconcile.Result, error) {
 	if currentError == nil {
 		condition.UpdateDatadogAgentStatusConditions(newStatus, now, common.DatadogAgentReconcileErrorConditionType, metav1.ConditionFalse, "DatadogAgent_reconcile_ok", "DatadogAgent reconcile ok", false)
@@ -254,32 +178,13 @@ func (r *Reconciler) updateStatusIfNeededV2(logger logr.Logger, agentdeployment 
 			logger.Error(err, "unable to update DatadogAgent status")
 			return reconcile.Result{}, err
 		}
+		// Status write committed. Emit one Kubernetes event per detected
+		// experiment phase transition. Gated by DD_FLEET_MANAGEMENT_EVENTS_ENABLED
+		// — see experiment_events.go.
+		r.emitExperimentTransitionEvent(agentdeployment, agentdeployment.Status.Experiment, newStatus.Experiment)
 	}
 
 	return result, currentError
-}
-
-func (r *Reconciler) updateDAPStatus(ctx context.Context, logger logr.Logger, profile *datadoghqv1alpha1.DatadogAgentProfile, oldStatus *datadoghqv1alpha1.DatadogAgentProfileStatus) (reconcile.Result, error) {
-	// update dap status for non-default profiles only
-	if !agentprofile.IsDefaultProfile(profile.Namespace, profile.Name) {
-		if !agentprofile.IsEqualStatus(oldStatus, &profile.Status) {
-			// Update a deep copy to avoid mutating the in-memory object used later
-			toUpdate := profile.DeepCopy()
-			if err := r.client.Status().Update(ctx, toUpdate); err != nil {
-				if apierrors.IsConflict(err) {
-					logger.V(1).Info("unable to update DatadogAgentProfile status due to update conflict")
-					return reconcile.Result{RequeueAfter: time.Second}, nil
-				}
-				if apierrors.IsNotFound(err) {
-					// Profile deleted between list and update; no action needed
-					return reconcile.Result{}, nil
-				}
-				logger.Error(err, "unable to update DatadogAgentProfile status")
-				return reconcile.Result{}, err
-			}
-		}
-	}
-	return reconcile.Result{}, nil
 }
 
 // setMetricsForwarderStatus sets the metrics forwarder status condition if enabled
@@ -301,59 +206,6 @@ func (r *Reconciler) setMetricsForwarderStatusV2(logger logr.Logger, agentdeploy
 	}
 }
 
-func (r *Reconciler) updateMetricsForwardersFeatures(dda *datadoghqv2alpha1.DatadogAgent, features []feature.Feature) {
-	if r.forwarders != nil {
-		featureIDs := make([]string, len(features))
-		for i, f := range features {
-			featureIDs[i] = string(f.ID())
-		}
-
-		r.forwarders.SetEnabledFeatures(dda, featureIDs)
-	}
-}
-
-// profilesToApply gets a list of profiles and returns the ones that should be
-// applied in the cluster.
-// - If there are no profiles, it returns the default profile.
-// - If there are no conflicting profiles, it returns all the profiles plus the default one.
-// - If there are conflicting profiles, it returns a subset that does not
-// conflict plus the default one. When there are conflicting profiles, the
-// oldest one is the one that takes precedence. When two profiles share an
-// identical creation timestamp, the profile whose name is alphabetically first
-// is considered to have priority.
-// This function also returns a map that maps each node name to the profile that
-// should be applied to it.
-func (r *Reconciler) profilesToApply(ctx context.Context, logger logr.Logger, nodeList []corev1.Node, now metav1.Time, ddaSpec *datadoghqv2alpha1.DatadogAgentSpec) ([]datadoghqv1alpha1.DatadogAgentProfile, map[string]types.NamespacedName, error) {
-	profilesList := datadoghqv1alpha1.DatadogAgentProfileList{}
-	err := r.client.List(ctx, &profilesList)
-	if err != nil {
-		logger.Info("unable to list DatadogAgentProfiles", "error", err)
-	}
-
-	profileAppliedByNode := make(map[string]types.NamespacedName, len(nodeList))
-	sortedProfiles := agentprofile.SortProfiles(profilesList.Items)
-	profileListToApply := make([]datadoghqv1alpha1.DatadogAgentProfile, 0, len(sortedProfiles))
-	for _, profile := range sortedProfiles {
-		maxUnavailable := agentprofile.GetMaxUnavailable(logger, ddaSpec, &profile, len(nodeList), &r.options.ExtendedDaemonsetOptions)
-		oldStatus := profile.Status
-		profileAppliedByNode, err = agentprofile.ApplyProfile(logger, &profile, nodeList, profileAppliedByNode, now, maxUnavailable, r.options.DatadogAgentInternalEnabled)
-		if result, e := r.updateDAPStatus(ctx, logger, &profile, &oldStatus); utils.ShouldReturn(result, e) {
-			logger.Info("unable to update DatadogAgentProfile status", "error", e, "requeue", result.Requeue, "requeueAfter", result.RequeueAfter)
-		}
-		if err != nil {
-			// profile is invalid or conflicts
-			logger.Error(err, "profile cannot be applied", "datadogagentprofile", profile.Name, "datadogagentprofile_namespace", profile.Namespace)
-			continue
-		}
-		profileListToApply = append(profileListToApply, profile)
-	}
-
-	// add default profile
-	profileListToApply = agentprofile.ApplyDefaultProfile(profileListToApply, profileAppliedByNode, nodeList)
-
-	return profileListToApply, profileAppliedByNode, nil
-}
-
 func (r *Reconciler) getNodeList(ctx context.Context) ([]corev1.Node, error) {
 	nodeList := corev1.NodeList{}
 	err := r.client.List(ctx, &nodeList)
@@ -362,4 +214,97 @@ func (r *Reconciler) getNodeList(ctx context.Context) ([]corev1.Node, error) {
 	}
 
 	return nodeList.Items, nil
+}
+
+// Cluster provider status source labels.
+const (
+	clusterProviderSourceUser     = "UserSpecified"
+	clusterProviderSourceDetected = "Detected"
+	clusterProviderSourceNone     = "NoProviderDetected"
+	clusterProviderSourceDisabled = "Disabled"
+
+	// clusterProviderReasonDetected is the ClusterProviderDetected condition reason
+	// used when a specific provider was auto-detected. It also tells
+	// resolveClusterProvider that the persisted value came from detection (not a
+	// user override), which scopes the no-downgrade guard.
+	clusterProviderReasonDetected = "ProviderDetected"
+)
+
+// resolveClusterProvider resolves the cluster provider and reports whether the
+// reconcile should hold (requeue without touching resources) until detection is
+// ready. Precedence: user override > live detection > persisted status.
+func (r *Reconciler) resolveClusterProvider(instance *datadoghqv2alpha1.DatadogAgent) (provider, source string, hold bool) {
+	// 0. User override. The operator only writes the annotation on the DDAI, so its
+	// presence on the DDA is definitionally user-set.
+	if v, ok := instance.Annotations[kubernetes.ProviderAnnotationKey]; ok {
+		return v, clusterProviderSourceUser, false
+	}
+
+	detector := r.options.ClusterProviderDetector
+	if detector == nil { // detection disabled: empty provider, no status
+		return "", clusterProviderSourceDisabled, false
+	}
+
+	statusProvider := instance.Status.ClusterProvider
+
+	// 1. Live detection. Anti-flap: keep a previously *detected* specific provider
+	// over a live default (a transient blip shouldn't tear down config). This guard
+	// applies only to detected values — a user override that was set and then
+	// removed is not pinned, so removing the annotation cleanly returns to detection.
+	if live, ok := detector.Provider(); ok {
+		if wasProviderDetected(instance) && kubernetes.IsSpecificProvider(statusProvider) && !kubernetes.IsSpecificProvider(live) {
+			return statusProvider, clusterProviderSourceDetected, false
+		}
+		return live, clusterProviderSourceDetected, false
+	}
+
+	// 2. Persisted fallback: retain a previously *detected* provider across restarts
+	// / leader changes / detection outages so we don't churn during warm-up. A
+	// user-set value is not retained here — if the override was removed, warm-up
+	// falls through to the gate rather than re-serving the stale value (which would
+	// also poison the condition reason and re-pin it).
+	if statusProvider != "" && wasProviderDetected(instance) {
+		return statusProvider, clusterProviderSourceDetected, false
+	}
+
+	// 3. Hold while detection is still warming up; once the gate elapses, proceed
+	// with no provider.
+	if detector.InGracePeriod(clusterProviderGateTimeout) {
+		return "", "", true
+	}
+	return "", clusterProviderSourceNone, false
+}
+
+// wasProviderDetected reports whether the persisted status.ClusterProvider was set
+// by auto-detection rather than a user override, read from the
+// ClusterProviderDetected condition reason. Only detected values are protected by
+// the no-downgrade guard.
+func wasProviderDetected(instance *datadoghqv2alpha1.DatadogAgent) bool {
+	cond := meta.FindStatusCondition(instance.Status.Conditions, common.ClusterProviderDetectedConditionType)
+	return cond != nil && cond.Reason == clusterProviderReasonDetected
+}
+
+// setClusterProviderStatus records the resolved cluster provider on the DDA
+// status (the durable value read back by resolveClusterProvider) and updates the
+// ClusterProviderDetected condition for visibility.
+func setClusterProviderStatus(status *datadoghqv2alpha1.DatadogAgentStatus, provider, source string, now metav1.Time) {
+	if source == clusterProviderSourceDisabled {
+		return
+	}
+	status.ClusterProvider = provider
+
+	var reason, message string
+	switch {
+	case source == clusterProviderSourceUser:
+		reason = clusterProviderSourceUser
+		message = fmt.Sprintf("Cluster provider set to %q by user annotation.", provider)
+	case source == clusterProviderSourceDetected && kubernetes.IsSpecificProvider(provider):
+		reason = clusterProviderReasonDetected
+		message = fmt.Sprintf("Cluster provider detected as %q.", provider)
+	default:
+		// Detected-but-default, or no provider resolved (gate elapsed).
+		reason = clusterProviderSourceNone
+		message = "No cloud provider detected; provider-specific configuration not applied."
+	}
+	condition.UpdateDatadogAgentStatusConditions(status, now, common.ClusterProviderDetectedConditionType, metav1.ConditionTrue, reason, message, false)
 }

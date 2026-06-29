@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/olekukonko/tablewriter"
+	"github.com/olekukonko/tablewriter/tw"
 	"github.com/spf13/cobra"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/util/duration"
@@ -134,11 +135,11 @@ func (o *options) run() error {
 				metric.UpdateTime = duration.HumanDuration(time.Since(item.Status.Conditions[i].LastUpdateTime.Time))
 			}
 		}
-		table.Append(metricDataToData(metric))
+		_ = table.Append(metricDataToData(metric))
 	}
 
 	// Send output
-	table.Render()
+	_ = table.Render()
 
 	return nil
 }
@@ -158,14 +159,17 @@ func metricDataToData(metric *metricData) []string {
 
 func newTable(out io.Writer) *tablewriter.Table {
 	table := tablewriter.NewWriter(out)
-	table.SetHeader([]string{"NAMESPACE", "NAME", "ACTIVE", "VALID", "VALUE", "REFERENCES", "UPDATE TIME"})
-	table.SetBorders(tablewriter.Border{Left: false, Top: false, Right: false, Bottom: false})
-	table.SetHeaderAlignment(tablewriter.ALIGN_LEFT)
-	table.SetRowLine(false)
-	table.SetCenterSeparator("")
-	table.SetColumnSeparator("")
-	table.SetRowSeparator("")
-	table.SetAlignment(tablewriter.ALIGN_LEFT)
-	table.SetHeaderLine(false)
+	table.Header("NAMESPACE", "NAME", "ACTIVE", "VALID", "VALUE", "REFERENCES", "UPDATE TIME")
+	table.Options(
+		tablewriter.WithHeaderAlignment(tw.AlignLeft),
+		tablewriter.WithRowAlignment(tw.AlignLeft),
+		tablewriter.WithRendition(tw.Rendition{
+			Borders: tw.Border{Left: tw.Off, Top: tw.Off, Right: tw.Off, Bottom: tw.Off},
+			Settings: tw.Settings{
+				Lines:      tw.Lines{ShowHeaderLine: tw.Off},
+				Separators: tw.Separators{BetweenRows: tw.Off},
+			},
+		}),
+	)
 	return table
 }

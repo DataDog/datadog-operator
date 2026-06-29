@@ -10,6 +10,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"k8s.io/utils/ptr"
 )
 
 func TestParsePrivateActionRunnerConfig(t *testing.T) {
@@ -79,7 +80,7 @@ func TestParsePrivateActionRunnerConfig(t *testing.T) {
 			expectedConfig: &PrivateActionRunnerConfig{
 				Enabled:              true,
 				SelfEnroll:           false,
-				IdentityUseK8sSecret: boolPtr(true),
+				IdentityUseK8sSecret: ptr.To(true),
 				IdentitySecretName:   "custom-secret",
 				IdentityFilePath:     "/path/to/identity",
 				URN:                  "urn:dd:apps:on-prem-runner:us1:1:runner-xyz",
@@ -88,11 +89,11 @@ func TestParsePrivateActionRunnerConfig(t *testing.T) {
 					"com.datadoghq.kubernetes.core.*",
 					"com.datadoghq.gitlab.*",
 				},
-				TaskConcurrency:       int32Ptr(10),
-				TaskTimeoutSeconds:    int32Ptr(120),
-				HTTPTimeoutSeconds:    int32Ptr(45),
+				TaskConcurrency:       ptr.To[int32](10),
+				TaskTimeoutSeconds:    ptr.To[int32](120),
+				HTTPTimeoutSeconds:    ptr.To[int32](45),
 				HTTPAllowlist:         []string{"*.datadoghq.com", "*.github.com"},
-				HTTPAllowIMDSEndpoint: boolPtr(true),
+				HTTPAllowIMDSEndpoint: ptr.To(true),
 				LogFile:               "/var/log/par.log",
 			},
 		},
@@ -270,8 +271,8 @@ func TestPrivateActionRunnerConfig_ToEnvVars(t *testing.T) {
 			config: &PrivateActionRunnerConfig{
 				Enabled:            true,
 				SelfEnroll:         true,
-				TaskConcurrency:    int32Ptr(10),
-				TaskTimeoutSeconds: int32Ptr(120),
+				TaskConcurrency:    ptr.To[int32](10),
+				TaskTimeoutSeconds: ptr.To[int32](120),
 			},
 			expectedEnvVars: map[string]string{
 				DDPAREnabled:              "true",
@@ -286,12 +287,12 @@ func TestPrivateActionRunnerConfig_ToEnvVars(t *testing.T) {
 			config: &PrivateActionRunnerConfig{
 				Enabled:            true,
 				SelfEnroll:         false,
-				HTTPTimeoutSeconds: int32Ptr(45),
+				HTTPTimeoutSeconds: ptr.To[int32](45),
 				HTTPAllowlist: []string{
 					"*.datadoghq.com",
 					"*.github.com",
 				},
-				HTTPAllowIMDSEndpoint: boolPtr(true),
+				HTTPAllowIMDSEndpoint: ptr.To(true),
 			},
 			expectedEnvVars: map[string]string{
 				DDPAREnabled:               "true",
@@ -307,7 +308,7 @@ func TestPrivateActionRunnerConfig_ToEnvVars(t *testing.T) {
 			config: &PrivateActionRunnerConfig{
 				Enabled:              true,
 				SelfEnroll:           false,
-				IdentityUseK8sSecret: boolPtr(false),
+				IdentityUseK8sSecret: ptr.To(false),
 				IdentityFilePath:     "/path/to/identity.json",
 			},
 			expectedEnvVars: map[string]string{
@@ -322,16 +323,16 @@ func TestPrivateActionRunnerConfig_ToEnvVars(t *testing.T) {
 			config: &PrivateActionRunnerConfig{
 				Enabled:               true,
 				SelfEnroll:            false,
-				IdentityUseK8sSecret:  boolPtr(true),
+				IdentityUseK8sSecret:  ptr.To(true),
 				IdentitySecretName:    "custom-secret",
 				URN:                   "urn:dd:apps:on-prem-runner:us1:1:runner-xyz",
 				PrivateKey:            "my-key",
 				ActionsAllowlist:      []string{"com.datadoghq.*"},
-				TaskConcurrency:       int32Ptr(15),
-				TaskTimeoutSeconds:    int32Ptr(180),
-				HTTPTimeoutSeconds:    int32Ptr(60),
+				TaskConcurrency:       ptr.To[int32](15),
+				TaskTimeoutSeconds:    ptr.To[int32](180),
+				HTTPTimeoutSeconds:    ptr.To[int32](60),
 				HTTPAllowlist:         []string{"*.example.com"},
-				HTTPAllowIMDSEndpoint: boolPtr(false),
+				HTTPAllowIMDSEndpoint: ptr.To(false),
 				LogFile:               "/var/log/par.log",
 			},
 			expectedEnvVars: map[string]string{
@@ -480,13 +481,4 @@ func TestEnsureEnabledInConfigData(t *testing.T) {
 			assert.Equal(t, tt.enabled, config.Enabled, "Parsed config should have correct enabled value")
 		})
 	}
-}
-
-// Helper functions for creating pointers
-func boolPtr(b bool) *bool {
-	return &b
-}
-
-func int32Ptr(i int32) *int32 {
-	return &i
 }

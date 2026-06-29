@@ -5,13 +5,15 @@
 
 package logcollection
 
+import "github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+
 const (
-	pointerVolumeName          = "pointerdir"
-	pointerVolumePath          = "/opt/datadog-agent/run"
+	pointerVolumeName          = common.RunPathVolumeName
+	pointerVolumePath          = common.RunPathVolumeMount
 	podLogVolumeName           = "logpodpath"
 	podLogVolumePath           = "/var/log/pods"
-	containerLogVolumeName     = "logcontainerpath"
+	containerLogVolumeName     = "logdockercontainerpath"
 	containerLogVolumePath     = "/var/lib/docker/containers"
-	symlinkContainerVolumeName = "symlinkcontainerpath"
+	symlinkContainerVolumeName = "logscontainerspath"
 	symlinkContainerVolumePath = "/var/log/containers"
 )

@@ -56,9 +56,9 @@ func (c *ClusterAgentComponent) GetNewDeploymentFunc() func(dda metav1.Object, s
 	return componentdca.NewDefaultClusterAgentDeployment
 }
 
-func (c *ClusterAgentComponent) GetManageFeatureFunc() func(feat feature.Feature, managers feature.PodTemplateManagers, provider string) error {
-	return func(feat feature.Feature, managers feature.PodTemplateManagers, provider string) error {
-		return feat.ManageClusterAgent(managers, provider)
+func (c *ClusterAgentComponent) GetManageFeatureFunc() func(feat feature.Feature, managers feature.PodTemplateManagers) error {
+	return func(feat feature.Feature, managers feature.PodTemplateManagers) error {
+		return feat.ManageClusterAgent(managers)
 	}
 }
 

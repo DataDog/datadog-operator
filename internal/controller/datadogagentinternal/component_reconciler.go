@@ -22,6 +22,7 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/global"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/override"
 	"github.com/DataDog/datadog-operator/pkg/condition"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
@@ -82,8 +83,10 @@ type ComponentReconciler interface {
 	// GetNewDeploymentFunc returns the function to create a new deployment for the component
 	GetNewDeploymentFunc() func(ddai metav1.Object, spec *datadoghqv2alpha1.DatadogAgentSpec) *appsv1.Deployment
 
-	// GetManageFeatureFunc returns the function to manage features for the component
-	GetManageFeatureFunc() func(feat feature.Feature, managers feature.PodTemplateManagers, provider string) error
+	// GetManageFeatureFunc returns the function to manage features for the component.
+	// provider is the current DDAI provider annotation value; components that apply
+	// provider-conditional mutations (e.g. ClusterAgent) use it in the returned closure.
+	GetManageFeatureFunc(provider string) func(feat feature.Feature, managers feature.PodTemplateManagers) error
 
 	// UpdateStatus updates the status of the component
 	UpdateStatus(deployment *appsv1.Deployment, newStatus *v1alpha1.DatadogAgentInternalStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string)
@@ -95,7 +98,7 @@ type ComponentReconciler interface {
 	ForceDeleteComponent(ddai *v1alpha1.DatadogAgentInternal, requiredComponents feature.RequiredComponents) bool
 
 	// CleanupDependencies deletes any dependencies associated with the component
-	CleanupDependencies(ctx context.Context, logger logr.Logger, ddai *v1alpha1.DatadogAgentInternal, resourcesManager feature.ResourceManagers) (reconcile.Result, error)
+	CleanupDependencies(ctx context.Context, ddai *v1alpha1.DatadogAgentInternal, resourcesManager feature.ResourceManagers) (reconcile.Result, error)
 }
 
 // ReconcileComponentParams bundles common parameters needed by all components
@@ -165,7 +168,7 @@ func (r *ComponentRegistry) ReconcileComponents(ctx context.Context, params *Rec
 		}
 
 		// Merge result (preserve requeue settings)
-		if res.Requeue || res.RequeueAfter > 0 {
+		if !res.IsZero() {
 			result = res
 		}
 	}
@@ -193,10 +196,12 @@ func (r *ComponentRegistry) reconcileComponent(ctx context.Context, params *Reco
 	// Set Global setting on the default deployment
 	component.GetGlobalSettingsFunc()(objLogger, podManagers, params.DDAI.GetObjectMeta(), &params.DDAI.Spec, params.ResourceManagers, params.RequiredComponents)
 
-	// Apply features changes on the Deployment.Spec.Template
+	// Apply features changes on the Deployment.Spec.Template.
+	// Each component's GetManageFeatureFunc owns any provider-conditional mutations it needs.
+	manageFeature := component.GetManageFeatureFunc(params.Provider)
 	var featErrors []error
 	for _, feat := range params.Features {
-		if errFeat := component.GetManageFeatureFunc()(feat, podManagers, params.Provider); errFeat != nil {
+		if errFeat := manageFeature(feat, podManagers); errFeat != nil {
 			featErrors = append(featErrors, errFeat)
 		}
 	}
@@ -217,7 +222,13 @@ func (r *ComponentRegistry) reconcileComponent(ctx context.Context, params *Reco
 		override.Deployment(deployment, componentOverride)
 	}
 
-	res, err := r.reconciler.createOrUpdateDeployment(objLogger, params.DDAI, deployment, params.Status, component.UpdateStatus)
+	if errs := global.ValidateFIPSVersions(podManagers); len(errs) > 0 {
+		err := utilerrors.NewAggregate(errs)
+		component.UpdateStatus(deployment, params.Status, now, metav1.ConditionFalse, fmt.Sprintf("%s FIPS version error", component.Name()), err.Error())
+		return result, err
+	}
+
+	res, err := r.reconciler.createOrUpdateDeployment(ctx, params.DDAI, deployment, params.Status, component.UpdateStatus)
 
 	if err == nil {
 		// Update condition to success since the deployment was created or updated successfully
@@ -244,15 +255,20 @@ func (r *ComponentRegistry) Cleanup(ctx context.Context, params *ReconcileCompon
 		override.Deployment(deployment, componentOverride)
 	}
 
-	objLogger := ctrl.LoggerFrom(ctx).WithValues("object.kind", "Deployment", "object.namespace", deployment.Namespace, "object.name", deployment.Name)
-	result, err := r.reconciler.deleteDeploymentWithEvent(ctx, objLogger, params.DDAI, deployment)
+	ctx = ctrl.LoggerInto(ctx, ctrl.LoggerFrom(ctx).WithValues(
+		"object.kind", "Deployment",
+		"object.namespace", deployment.Namespace,
+		"object.name", deployment.Name,
+	))
+
+	result, err := r.reconciler.deleteDeploymentWithEvent(ctx, params.DDAI, deployment)
 
 	if err != nil {
 		return result, err
 	}
 
 	// Do status and other resource cleanup if the deployment was deleted successfully
-	if result, err = component.CleanupDependencies(ctx, objLogger, params.DDAI, params.ResourceManagers); err != nil {
+	if result, err = component.CleanupDependencies(ctx, params.DDAI, params.ResourceManagers); err != nil {
 		return result, err
 	}
 	component.DeleteStatus(params.Status, component.GetConditionType())

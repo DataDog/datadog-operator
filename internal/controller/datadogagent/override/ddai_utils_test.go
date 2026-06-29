@@ -8,8 +8,9 @@ package override
 import (
 	"testing"
 
+	"k8s.io/utils/ptr"
+
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/global"
 	"github.com/DataDog/datadog-operator/pkg/constants"
@@ -28,7 +29,7 @@ func TestShouldAddDCATokenChecksumAnnotation(t *testing.T) {
 			dda: &v2alpha1.DatadogAgent{
 				Spec: v2alpha1.DatadogAgentSpec{
 					Global: &v2alpha1.GlobalConfig{
-						ClusterAgentToken: apiutils.NewStringPointer("token"),
+						ClusterAgentToken: ptr.To("token"),
 					},
 				},
 			},
@@ -50,7 +51,7 @@ func TestShouldAddDCATokenChecksumAnnotation(t *testing.T) {
 			dda: &v2alpha1.DatadogAgent{
 				Spec: v2alpha1.DatadogAgentSpec{
 					Global: &v2alpha1.GlobalConfig{
-						ClusterAgentToken: apiutils.NewStringPointer("token"),
+						ClusterAgentToken: ptr.To("token"),
 						ClusterAgentTokenSecret: &v2alpha1.SecretConfig{
 							SecretName: "secret",
 							KeyName:    "key",
@@ -94,22 +95,22 @@ func TestSetOverrideFromDDA(t *testing.T) {
 			dda: &v2alpha1.DatadogAgent{
 				Spec: v2alpha1.DatadogAgentSpec{
 					Global: &v2alpha1.GlobalConfig{
-						ClusterAgentToken: apiutils.NewStringPointer(tokenValue),
+						ClusterAgentToken: ptr.To(tokenValue),
 					},
 					Features: &v2alpha1.DatadogFeatures{
 						ClusterChecks: &v2alpha1.ClusterChecksFeatureConfig{
-							UseClusterChecksRunners: apiutils.NewBoolPointer(false),
+							UseClusterChecksRunners: ptr.To(false),
 						},
 					},
 				},
 			},
 			wantDDAISpec: &v2alpha1.DatadogAgentSpec{
 				Global: &v2alpha1.GlobalConfig{
-					ClusterAgentToken: apiutils.NewStringPointer(tokenValue),
+					ClusterAgentToken: ptr.To(tokenValue),
 				},
 				Features: &v2alpha1.DatadogFeatures{
 					ClusterChecks: &v2alpha1.ClusterChecksFeatureConfig{
-						UseClusterChecksRunners: apiutils.NewBoolPointer(false),
+						UseClusterChecksRunners: ptr.To(false),
 					},
 				},
 				Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
@@ -134,22 +135,22 @@ func TestSetOverrideFromDDA(t *testing.T) {
 			dda: &v2alpha1.DatadogAgent{
 				Spec: v2alpha1.DatadogAgentSpec{
 					Global: &v2alpha1.GlobalConfig{
-						ClusterAgentToken: apiutils.NewStringPointer(tokenValue),
+						ClusterAgentToken: ptr.To(tokenValue),
 					},
 					Features: &v2alpha1.DatadogFeatures{
 						ClusterChecks: &v2alpha1.ClusterChecksFeatureConfig{
-							UseClusterChecksRunners: apiutils.NewBoolPointer(true),
+							UseClusterChecksRunners: ptr.To(true),
 						},
 					},
 				},
 			},
 			wantDDAISpec: &v2alpha1.DatadogAgentSpec{
 				Global: &v2alpha1.GlobalConfig{
-					ClusterAgentToken: apiutils.NewStringPointer(tokenValue),
+					ClusterAgentToken: ptr.To(tokenValue),
 				},
 				Features: &v2alpha1.DatadogFeatures{
 					ClusterChecks: &v2alpha1.ClusterChecksFeatureConfig{
-						UseClusterChecksRunners: apiutils.NewBoolPointer(true),
+						UseClusterChecksRunners: ptr.To(true),
 					},
 				},
 				Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
@@ -205,11 +206,11 @@ func TestSetOverrideFromDDA(t *testing.T) {
 			dda: &v2alpha1.DatadogAgent{
 				Spec: v2alpha1.DatadogAgentSpec{
 					Global: &v2alpha1.GlobalConfig{
-						ClusterAgentToken: apiutils.NewStringPointer(tokenValue),
+						ClusterAgentToken: ptr.To(tokenValue),
 					},
 					Features: &v2alpha1.DatadogFeatures{
 						ClusterChecks: &v2alpha1.ClusterChecksFeatureConfig{
-							UseClusterChecksRunners: apiutils.NewBoolPointer(false),
+							UseClusterChecksRunners: ptr.To(false),
 						},
 					},
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
@@ -225,11 +226,11 @@ func TestSetOverrideFromDDA(t *testing.T) {
 			},
 			wantDDAISpec: &v2alpha1.DatadogAgentSpec{
 				Global: &v2alpha1.GlobalConfig{
-					ClusterAgentToken: apiutils.NewStringPointer(tokenValue),
+					ClusterAgentToken: ptr.To(tokenValue),
 				},
 				Features: &v2alpha1.DatadogFeatures{
 					ClusterChecks: &v2alpha1.ClusterChecksFeatureConfig{
-						UseClusterChecksRunners: apiutils.NewBoolPointer(false),
+						UseClusterChecksRunners: ptr.To(false),
 					},
 				},
 				Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
@@ -257,7 +258,7 @@ func TestSetOverrideFromDDA(t *testing.T) {
 			dda: &v2alpha1.DatadogAgent{
 				Spec: v2alpha1.DatadogAgentSpec{
 					Global: &v2alpha1.GlobalConfig{
-						ClusterAgentToken: apiutils.NewStringPointer(tokenValue),
+						ClusterAgentToken: ptr.To(tokenValue),
 						ClusterAgentTokenSecret: &v2alpha1.SecretConfig{
 							SecretName: tokenSecretName,
 							KeyName:    tokenSecretKey,
@@ -265,7 +266,7 @@ func TestSetOverrideFromDDA(t *testing.T) {
 					},
 					Features: &v2alpha1.DatadogFeatures{
 						ClusterChecks: &v2alpha1.ClusterChecksFeatureConfig{
-							UseClusterChecksRunners: apiutils.NewBoolPointer(false),
+							UseClusterChecksRunners: ptr.To(false),
 						},
 					},
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
@@ -277,7 +278,7 @@ func TestSetOverrideFromDDA(t *testing.T) {
 			},
 			wantDDAISpec: &v2alpha1.DatadogAgentSpec{
 				Global: &v2alpha1.GlobalConfig{
-					ClusterAgentToken: apiutils.NewStringPointer(tokenValue),
+					ClusterAgentToken: ptr.To(tokenValue),
 					ClusterAgentTokenSecret: &v2alpha1.SecretConfig{
 						SecretName: tokenSecretName,
 						KeyName:    tokenSecretKey,
@@ -285,7 +286,7 @@ func TestSetOverrideFromDDA(t *testing.T) {
 				},
 				Features: &v2alpha1.DatadogFeatures{
 					ClusterChecks: &v2alpha1.ClusterChecksFeatureConfig{
-						UseClusterChecksRunners: apiutils.NewBoolPointer(false),
+						UseClusterChecksRunners: ptr.To(false),
 					},
 				},
 				Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{

@@ -10,10 +10,10 @@ import (
 	"time"
 
 	edsv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
-	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
@@ -26,20 +26,22 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/global"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/override"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/providercaps"
 	"github.com/DataDog/datadog-operator/pkg/condition"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
-func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents feature.RequiredComponents, features []feature.Feature,
-	ddai *datadoghqv1alpha1.DatadogAgentInternal, resourcesManager feature.ResourceManagers, newStatus *datadoghqv1alpha1.DatadogAgentInternalStatus) (reconcile.Result, error) {
+func (r *Reconciler) reconcileV2Agent(ctx context.Context, requiredComponents feature.RequiredComponents, features []feature.Feature,
+	ddai *datadoghqv1alpha1.DatadogAgentInternal, resourcesManager feature.ResourceManagers, newStatus *datadoghqv1alpha1.DatadogAgentInternalStatus, provider string) (reconcile.Result, error) {
 	var result reconcile.Result
 	var eds *edsv1alpha1.ExtendedDaemonSet
 	var daemonset *appsv1.DaemonSet
 	var podManagers feature.PodTemplateManagers
 
-	daemonsetLogger := logger.WithValues("component", datadoghqv2alpha1.NodeAgentComponentName)
+	daemonsetLogger := ctrl.LoggerFrom(ctx).WithValues("component", datadoghqv2alpha1.NodeAgentComponentName)
+	ctx = ctrl.LoggerInto(ctx, daemonsetLogger)
 
 	// requiredComponents needs to be taken into account in case a feature(s) changes and
 	// a requiredComponent becomes disabled, in addition to taking into account override.Disabled
@@ -59,13 +61,21 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 		objLogger := daemonsetLogger.WithValues("object.kind", "ExtendedDaemonSet", "object.namespace", eds.Namespace, "object.name", eds.Name)
 		podManagers = feature.NewPodTemplateManagers(&eds.Spec.Template)
 
+		// Apply provider-conditional global mutations to the pod template — pre-feature.
+		providercaps.ApplyProviderCapabilities(podManagers, provider, global.NodeAgentProviderSpec)
+
 		// Set Global setting on the default extendeddaemonset
 		global.ApplyGlobalSettingsNodeAgent(objLogger, podManagers, ddai.GetObjectMeta(), &ddai.Spec, resourcesManager, singleContainerStrategyEnabled, requiredComponents)
 
-		// Apply features changes on the Deployment.Spec.Template
+		// Apply features changes on the Deployment.Spec.Template.
+		// Provider capabilities are applied immediately after each feature's ManageNodeAgent
+		// so that each feature owns its provider correctness independently.
 		for _, feat := range features {
-			if errFeat := feat.ManageNodeAgent(podManagers, ""); errFeat != nil {
+			if errFeat := feat.ManageNodeAgent(podManagers); errFeat != nil {
 				return result, errFeat
+			}
+			if paf, ok := feat.(feature.ProviderAwareFeature); ok {
+				providercaps.ApplyProviderCapabilities(podManagers, provider, paf.NodeAgentProviderCapabilities())
 			}
 		}
 
@@ -85,6 +95,10 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 
 		experimental.ApplyExperimentalOverrides(objLogger, ddai, podManagers)
 
+		if r.options.UntaintControllerEnabled {
+			componentagent.EnsureAgentNotReadyStartupToleration(objLogger, &podManagers.PodTemplateSpec().Spec)
+		}
+
 		if disabledByOverride {
 			if agentEnabled {
 				// The override supersedes what's set in requiredComponents; update status to reflect the conflict
@@ -98,31 +112,40 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 					true,
 				)
 			}
-			if err := r.deleteV2ExtendedDaemonSet(objLogger, ddai, eds, newStatus); err != nil {
+			if err := r.deleteV2ExtendedDaemonSet(ctx, ddai, eds, newStatus); err != nil {
 				return reconcile.Result{}, err
 			}
 			return reconcile.Result{}, nil
 		}
 
-		return r.createOrUpdateExtendedDaemonset(objLogger, ddai, eds, newStatus, updateEDSStatusV2WithAgent)
+		return r.createOrUpdateExtendedDaemonset(ctx, ddai, eds, newStatus, updateEDSStatusV2WithAgent)
 	}
 
 	// Start by creating the Default Agent daemonset
 	daemonset = componentagent.NewDefaultAgentDaemonset(ddai, &r.options.ExtendedDaemonsetOptions, requiredComponents.Agent, component.GetAgentName(ddai))
 	objLogger := daemonsetLogger.WithValues("object.kind", "DaemonSet", "object.namespace", daemonset.Namespace, "object.name", daemonset.Name)
 	podManagers = feature.NewPodTemplateManagers(&daemonset.Spec.Template)
+
+	// Apply provider-conditional global mutations to the pod template — pre-feature.
+	providercaps.ApplyProviderCapabilities(podManagers, provider, global.NodeAgentProviderSpec)
+
 	// Set Global setting on the default daemonset
 	global.ApplyGlobalSettingsNodeAgent(objLogger, podManagers, ddai.GetObjectMeta(), &ddai.Spec, resourcesManager, singleContainerStrategyEnabled, requiredComponents)
 
-	// Apply features changes on the Deployment.Spec.Template
+	// Apply features changes on the Deployment.Spec.Template.
+	// Provider capabilities are applied immediately after each feature's ManageNodeAgent
+	// so that each feature owns its provider correctness independently.
 	for _, feat := range features {
 		if singleContainerStrategyEnabled {
-			if errFeat := feat.ManageSingleContainerNodeAgent(podManagers, ""); errFeat != nil {
+			if errFeat := feat.ManageSingleContainerNodeAgent(podManagers); errFeat != nil {
 				return result, errFeat
 			}
 		} else {
-			if errFeat := feat.ManageNodeAgent(podManagers, ""); errFeat != nil {
+			if errFeat := feat.ManageNodeAgent(podManagers); errFeat != nil {
 				return result, errFeat
+			}
+			if paf, ok := feat.(feature.ProviderAwareFeature); ok {
+				providercaps.ApplyProviderCapabilities(podManagers, provider, paf.NodeAgentProviderCapabilities())
 			}
 		}
 	}
@@ -143,6 +166,10 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 
 	experimental.ApplyExperimentalOverrides(objLogger, ddai, podManagers)
 
+	if r.options.UntaintControllerEnabled {
+		componentagent.EnsureAgentNotReadyStartupToleration(objLogger, &podManagers.PodTemplateSpec().Spec)
+	}
+
 	if disabledByOverride {
 		if agentEnabled {
 			// The override supersedes what's set in requiredComponents; update status to reflect the conflict
@@ -156,14 +183,14 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 				true,
 			)
 		}
-		if err := r.deleteV2DaemonSet(objLogger, ddai, daemonset, newStatus); err != nil {
+		if err := r.deleteV2DaemonSet(ctx, ddai, daemonset, newStatus); err != nil {
 			return reconcile.Result{}, err
 		}
 		deleteStatusWithAgent(newStatus)
 		return reconcile.Result{}, nil
 	}
 
-	return r.createOrUpdateDaemonset(objLogger, ddai, daemonset, newStatus, updateDSStatusV2WithAgent)
+	return r.createOrUpdateDaemonset(ctx, ddai, daemonset, newStatus, updateDSStatusV2WithAgent)
 }
 
 func updateDSStatusV2WithAgent(dsName string, ds *appsv1.DaemonSet, newStatus *datadoghqv1alpha1.DatadogAgentInternalStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string) {
@@ -176,15 +203,15 @@ func updateEDSStatusV2WithAgent(eds *edsv1alpha1.ExtendedDaemonSet, newStatus *d
 	condition.UpdateDatadogAgentInternalStatusConditions(newStatus, updateTime, common.AgentReconcileConditionType, status, reason, message, true)
 }
 
-func (r *Reconciler) deleteV2DaemonSet(logger logr.Logger, ddai *datadoghqv1alpha1.DatadogAgentInternal, ds *appsv1.DaemonSet, newStatus *datadoghqv1alpha1.DatadogAgentInternalStatus) error {
-	err := r.client.Delete(context.TODO(), ds)
+func (r *Reconciler) deleteV2DaemonSet(ctx context.Context, ddai *datadoghqv1alpha1.DatadogAgentInternal, ds *appsv1.DaemonSet, newStatus *datadoghqv1alpha1.DatadogAgentInternalStatus) error {
+	err := r.client.Delete(ctx, ds)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return nil
 		}
 		return err
 	}
-	logger.Info("Delete DaemonSet", "daemonSet.Namespace", ds.Namespace, "daemonSet.Name", ds.Name)
+	ctrl.LoggerFrom(ctx).WithValues("object.kind", "DaemonSet", "object.namespace", ds.Namespace, "object.name", ds.Name).Info("Deleted DaemonSet")
 	event := buildEventInfo(ds.Name, ds.Namespace, kubernetes.DaemonSetKind, datadog.DeletionEvent)
 	r.recordEvent(ddai, event)
 	newStatus.Agent = nil
@@ -192,15 +219,15 @@ func (r *Reconciler) deleteV2DaemonSet(logger logr.Logger, ddai *datadoghqv1alph
 	return nil
 }
 
-func (r *Reconciler) deleteV2ExtendedDaemonSet(logger logr.Logger, ddai *datadoghqv1alpha1.DatadogAgentInternal, eds *edsv1alpha1.ExtendedDaemonSet, newStatus *datadoghqv1alpha1.DatadogAgentInternalStatus) error {
-	err := r.client.Delete(context.TODO(), eds)
+func (r *Reconciler) deleteV2ExtendedDaemonSet(ctx context.Context, ddai *datadoghqv1alpha1.DatadogAgentInternal, eds *edsv1alpha1.ExtendedDaemonSet, newStatus *datadoghqv1alpha1.DatadogAgentInternalStatus) error {
+	err := r.client.Delete(ctx, eds)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return nil
 		}
 		return err
 	}
-	logger.Info("Delete DaemonSet", "extendedDaemonSet.Namespace", eds.Namespace, "extendedDaemonSet.Name", eds.Name)
+	ctrl.LoggerFrom(ctx).WithValues("object.kind", "ExtendedDaemonSet", "object.namespace", eds.Namespace, "object.name", eds.Name).Info("Deleted ExtendedDaemonSet")
 	event := buildEventInfo(eds.Name, eds.Namespace, kubernetes.ExtendedDaemonSetKind, datadog.DeletionEvent)
 	r.recordEvent(ddai, event)
 	newStatus.Agent = nil

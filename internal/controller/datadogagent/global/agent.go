@@ -21,6 +21,22 @@ import (
 func applyNodeAgentResources(manager feature.PodTemplateManagers, ddaSpec *v2alpha1.DatadogAgentSpec, singleContainerStrategyEnabled bool) {
 	config := ddaSpec.Global
 
+	if apiutils.BoolValue(config.UseVSock) {
+		manager.EnvVar().AddEnvVar(&corev1.EnvVar{
+			Name:  DDVSockAddr,
+			Value: "host",
+		})
+
+		// Remote agent doesn't work with vsock yet.
+		manager.EnvVar().AddEnvVar(&corev1.EnvVar{
+			Name:  DDRemoteAgentRegistryEnabled,
+			Value: "false",
+		})
+
+		authVol := common.GetVolumeForAuth(true)
+		manager.Volume().AddVolume(&authVol)
+	}
+
 	// Kubelet contains the kubelet configuration parameters.
 	// The environment variable `DD_KUBERNETES_KUBELET_HOST` defaults to `status.hostIP` if not overriden.
 	if config.Kubelet != nil {
@@ -126,5 +142,4 @@ func applyNodeAgentResources(manager feature.PodTemplateManagers, ddaSpec *v2alp
 			manager.Volume().AddVolume(&runtimeVol)
 		}
 	}
-
 }

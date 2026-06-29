@@ -9,13 +9,14 @@ import (
 	"fmt"
 	"testing"
 
+	"k8s.io/utils/ptr"
+
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
 	"github.com/DataDog/datadog-operator/pkg/constants"
@@ -120,7 +121,7 @@ func TestDependencies(t *testing.T) {
 				Spec: v2alpha1.DatadogAgentSpec{
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 						v2alpha1.ClusterAgentComponentName: {
-							CreateRbac: apiutils.NewBoolPointer(false),
+							CreateRbac: ptr.To(false),
 						},
 					},
 				},
@@ -133,7 +134,7 @@ func TestDependencies(t *testing.T) {
 				Spec: v2alpha1.DatadogAgentSpec{
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 						v2alpha1.ClusterAgentComponentName: {
-							CreatePodDisruptionBudget: apiutils.NewBoolPointer(true),
+							CreatePodDisruptionBudget: ptr.To(true),
 						},
 					},
 				},
@@ -145,12 +146,12 @@ func TestDependencies(t *testing.T) {
 				Spec: v2alpha1.DatadogAgentSpec{
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 						v2alpha1.ClusterChecksRunnerComponentName: {
-							CreatePodDisruptionBudget: apiutils.NewBoolPointer(true),
+							CreatePodDisruptionBudget: ptr.To(true),
 						},
 					},
 					Features: &v2alpha1.DatadogFeatures{
 						ClusterChecks: &v2alpha1.ClusterChecksFeatureConfig{
-							UseClusterChecksRunners: apiutils.NewBoolPointer(true),
+							UseClusterChecksRunners: ptr.To(true),
 						},
 					},
 				},

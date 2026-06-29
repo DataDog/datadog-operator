@@ -316,7 +316,7 @@ func Test_ToString(t *testing.T) {
 				isFIPS:   true,
 				isFull:   true,
 			},
-			want: "gcr.io/datadoghq/agent:7.64.0-fips",
+			want: "gcr.io/datadoghq/agent:7.64.0-fips-full",
 		},
 		{
 			name: "with full, jmx and fips",
@@ -328,7 +328,7 @@ func Test_ToString(t *testing.T) {
 				isFIPS:   true,
 				isFull:   true,
 			},
-			want: "gcr.io/datadoghq/agent:7.64.0-fips-jmx",
+			want: "gcr.io/datadoghq/agent:7.64.0-fips-full",
 		},
 	}
 	for _, tt := range tests {
@@ -392,6 +392,17 @@ func Test_FromString(t *testing.T) {
 				registry: "gcr.io/datadoghq",
 				name:     "agent",
 				tag:      "7.64.0",
+				isFull:   true,
+			},
+		},
+		{
+			name:        "with fips and full",
+			imageString: "gcr.io/datadoghq/agent:7.64.0-fips-full",
+			want: &Image{
+				registry: "gcr.io/datadoghq",
+				name:     "agent",
+				tag:      "7.64.0",
+				isFIPS:   true,
 				isFull:   true,
 			},
 		},
@@ -604,10 +615,115 @@ func Test_OverrideAgentImage(t *testing.T) {
 			},
 			want: "gcr.io/datadoghq/agent:7.65.0-full",
 		},
+		{
+			name:         "current image includes fips-full suffix and override tag does not include suffix",
+			currentImage: "gcr.io/datadoghq/agent:7.64.0-fips-full",
+			overrideImageSpec: &v2alpha1.AgentImageConfig{
+				Tag: "7.65.0",
+			},
+			want: "gcr.io/datadoghq/agent:7.65.0",
+		},
+		{
+			name:         "current image is ddot-collector with fips and override tag does not preserve fips",
+			currentImage: "gcr.io/datadoghq/ddot-collector:7.64.0-fips",
+			overrideImageSpec: &v2alpha1.AgentImageConfig{
+				Tag: "7.75.0",
+			},
+			want: "gcr.io/datadoghq/ddot-collector:7.75.0",
+		},
+		{
+			name:         "current image includes fips suffix and override tag includes fips-full suffix",
+			currentImage: "gcr.io/datadoghq/agent:7.64.0-fips",
+			overrideImageSpec: &v2alpha1.AgentImageConfig{
+				Tag: "7.65.0-fips-full",
+			},
+			want: "gcr.io/datadoghq/agent:7.65.0-fips-full",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert.Equal(t, tt.want, OverrideAgentImage(tt.currentImage, tt.overrideImageSpec))
+		})
+	}
+}
+
+func Test_FIPSVersionError(t *testing.T) {
+	tests := []struct {
+		name      string
+		image     *Image
+		wantError bool
+	}{
+		// No error: FIPS not requested
+		{
+			name:      "ddot-collector, no fips",
+			image:     &Image{name: DefaultDdotCollectorImageName, tag: "7.77.0", isFIPS: false},
+			wantError: false,
+		},
+		{
+			name:      "agent-full, no fips",
+			image:     &Image{name: DefaultAgentImageName, tag: "7.77.0", isFull: true, isFIPS: false},
+			wantError: false,
+		},
+		// No error: regular agent -fips has existed before 7.78
+		{
+			name:      "agent, fips, old version",
+			image:     &Image{name: DefaultAgentImageName, tag: "7.77.0", isFIPS: true},
+			wantError: false,
+		},
+		// No error: version is sufficient
+		{
+			name:      "ddot-collector, fips, version 7.78.0",
+			image:     &Image{name: DefaultDdotCollectorImageName, tag: "7.78.0", isFIPS: true},
+			wantError: false,
+		},
+		{
+			name:      "ddot-collector, fips, version above 7.78",
+			image:     &Image{name: DefaultDdotCollectorImageName, tag: "7.80.0", isFIPS: true},
+			wantError: false,
+		},
+		{
+			name:      "agent-full, fips, version 7.78.0",
+			image:     &Image{name: DefaultAgentImageName, tag: "7.78.0", isFIPS: true, isFull: true},
+			wantError: false,
+		},
+		// No error: unparseable version is assumed sufficient (fallback = true)
+		{
+			name:      "ddot-collector, fips, unparseable version",
+			image:     &Image{name: DefaultDdotCollectorImageName, tag: "latest", isFIPS: true},
+			wantError: false,
+		},
+		// Error: ddot-collector -fips does not exist before 7.78
+		{
+			name:      "ddot-collector, fips, version below 7.78",
+			image:     &Image{name: DefaultDdotCollectorImageName, tag: "7.77.0", isFIPS: true},
+			wantError: true,
+		},
+		{
+			name:      "ddot-collector, fips, version 7.67.0",
+			image:     &Image{name: DefaultDdotCollectorImageName, tag: "7.67.0", isFIPS: true},
+			wantError: true,
+		},
+		// Error: agent -fips-full does not exist before 7.78
+		{
+			name:      "agent-full, fips, version below 7.78",
+			image:     &Image{name: DefaultAgentImageName, tag: "7.77.0", isFIPS: true, isFull: true},
+			wantError: true,
+		},
+		// No error: custom image with fips-full naming — not a known DD image, don't validate
+		{
+			name:      "custom image, fips-full naming, low version",
+			image:     &Image{name: "my-image", tag: "1.0.0", isFIPS: true, isFull: true},
+			wantError: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.image.FIPSVersionError()
+			if tt.wantError {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
 		})
 	}
 }

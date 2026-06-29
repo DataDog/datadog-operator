@@ -11,6 +11,7 @@ import (
 	netv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/utils/ptr"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -73,11 +74,11 @@ func (f *clusterChecksFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Da
 		f.useClusterCheckRunners = apiutils.BoolValue(ddaSpec.Features.ClusterChecks.UseClusterChecksRunners)
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
-				IsRequired: apiutils.NewBoolPointer(true),
+				IsRequired: ptr.To(true),
 				Containers: []apicommon.AgentContainerName{apicommon.CoreAgentContainerName},
 			},
 			ClusterAgent: feature.RequiredComponent{
-				IsRequired: apiutils.NewBoolPointer(true),
+				IsRequired: ptr.To(true),
 				Containers: []apicommon.AgentContainerName{apicommon.ClusterAgentContainerName},
 			},
 			ClusterChecksRunner: feature.RequiredComponent{
@@ -90,7 +91,7 @@ func (f *clusterChecksFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Da
 	return reqComp
 }
 
-func (f *clusterChecksFeature) ManageDependencies(managers feature.ResourceManagers, provider string) error {
+func (f *clusterChecksFeature) ManageDependencies(managers feature.ResourceManagers) error {
 	policyName, podSelector := objects.GetNetworkPolicyMetadata(f.owner, v2alpha1.ClusterAgentComponentName)
 	_, ccrPodSelector := objects.GetNetworkPolicyMetadata(f.owner, v2alpha1.ClusterChecksRunnerComponentName)
 	if f.createKubernetesNetworkPolicy {
@@ -147,7 +148,7 @@ func (f *clusterChecksFeature) ManageDependencies(managers feature.ResourceManag
 	return nil
 }
 
-func (f *clusterChecksFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *clusterChecksFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
 	managers.EnvVar().AddEnvVarToContainer(
 		apicommon.ClusterAgentContainerName,
 		&corev1.EnvVar{
@@ -182,17 +183,17 @@ func (f *clusterChecksFeature) ManageClusterAgent(managers feature.PodTemplateMa
 // ManageSingleContainerNodeAgent allows a feature to configure the Agent container for the Node Agent's corev1.PodTemplateSpec
 // if SingleContainerStrategy is enabled and can be used with the configured feature set.
 // It should do nothing if the feature doesn't need to configure it.
-func (f *clusterChecksFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
-	f.manageNodeAgent(apicommon.UnprivilegedSingleAgentContainerName, managers, provider)
+func (f *clusterChecksFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers) error {
+	f.manageNodeAgent(apicommon.UnprivilegedSingleAgentContainerName, managers)
 	return nil
 }
 
-func (f *clusterChecksFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
-	f.manageNodeAgent(apicommon.CoreAgentContainerName, managers, provider)
+func (f *clusterChecksFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
+	f.manageNodeAgent(apicommon.CoreAgentContainerName, managers)
 	return nil
 }
 
-func (f *clusterChecksFeature) manageNodeAgent(agentContainerName apicommon.AgentContainerName, managers feature.PodTemplateManagers, provider string) error {
+func (f *clusterChecksFeature) manageNodeAgent(agentContainerName apicommon.AgentContainerName, managers feature.PodTemplateManagers) error {
 	if f.useClusterCheckRunners {
 		managers.EnvVar().AddEnvVarToContainer(
 			agentContainerName,
@@ -214,7 +215,7 @@ func (f *clusterChecksFeature) manageNodeAgent(agentContainerName apicommon.Agen
 	return nil
 }
 
-func (f *clusterChecksFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
+func (f *clusterChecksFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
 	if f.useClusterCheckRunners {
 		managers.EnvVar().AddEnvVarToContainer(
 			apicommon.ClusterChecksRunnersContainerName,
@@ -236,7 +237,7 @@ func (f *clusterChecksFeature) ManageClusterChecksRunner(managers feature.PodTem
 	return nil
 }
 
-func (f *clusterChecksFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
+func (f *clusterChecksFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers) error {
 	return nil
 }
 

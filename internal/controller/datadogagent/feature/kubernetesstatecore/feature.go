@@ -11,12 +11,14 @@ import (
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/merger"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
@@ -51,6 +53,7 @@ type ksmFeature struct {
 	collectCrMetrics           []v2alpha1.Resource
 	collectAPIServiceMetrics   bool
 	collectControllerRevisions bool
+	useApiServerCache          bool
 
 	rbacSuffix         string
 	serviceAccountName string
@@ -84,14 +87,15 @@ func (f *ksmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 	var output feature.RequiredComponents
 
 	if ddaSpec.Features != nil && ddaSpec.Features.KubeStateMetricsCore != nil && apiutils.BoolValue(ddaSpec.Features.KubeStateMetricsCore.Enabled) {
-		output.ClusterAgent.IsRequired = apiutils.NewBoolPointer(true)
+		output.ClusterAgent.IsRequired = ptr.To(true)
 		output.ClusterAgent.Containers = []apicommon.AgentContainerName{apicommon.ClusterAgentContainerName}
-		output.Agent.IsRequired = apiutils.NewBoolPointer(true)
+		output.Agent.IsRequired = ptr.To(true)
 		output.Agent.Containers = []apicommon.AgentContainerName{apicommon.CoreAgentContainerName}
 
 		f.collectAPIServiceMetrics = true
 		f.collectCRDMetrics = true
 		f.collectCrMetrics = ddaSpec.Features.KubeStateMetricsCore.CollectCrMetrics
+		f.useApiServerCache = featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnableKSMApiServerCacheAnnotation)
 		f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda.GetName(), ddaSpec)
 
 		// Determine CollectControllerRevisions setting
@@ -103,7 +107,7 @@ func (f *ksmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 			f.runInClusterChecksRunner = true
 			f.rbacSuffix = common.ChecksRunnerSuffix
 			f.serviceAccountName = constants.GetClusterChecksRunnerServiceAccount(dda.GetName(), ddaSpec)
-			output.ClusterChecksRunner.IsRequired = apiutils.NewBoolPointer(true)
+			output.ClusterChecksRunner.IsRequired = ptr.To(true)
 			output.ClusterChecksRunner.Containers = []apicommon.AgentContainerName{apicommon.CoreAgentContainerName}
 
 			if ccrOverride, ok := ddaSpec.Override[v2alpha1.ClusterChecksRunnerComponentName]; ok {
@@ -159,6 +163,7 @@ func (f *ksmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 				"collect_crds":        f.collectCRDMetrics,
 				"collect_apiservices": f.collectAPIServiceMetrics,
 				"collect_cr_metrics":  f.collectCrMetrics,
+				"use_apiserver_cache": f.useApiServerCache,
 			}
 
 			hash, err := comparison.GenerateMD5ForSpec(defaultConfigData)
@@ -182,12 +187,13 @@ type collectorOptions struct {
 	enableAPIService          bool
 	enableCRD                 bool
 	enableControllerRevisions bool
+	useApiServerCache         bool
 	customResources           []v2alpha1.Resource
 }
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *ksmFeature) ManageDependencies(managers feature.ResourceManagers, provider string) error {
+func (f *ksmFeature) ManageDependencies(managers feature.ResourceManagers) error {
 	// Create a configMap if CustomConfig.ConfigData is provided and CustomConfig.ConfigMap == nil,
 	// OR if the default configMap is needed.
 	pInfo := managers.Store().GetPlatformInfo()
@@ -196,6 +202,7 @@ func (f *ksmFeature) ManageDependencies(managers feature.ResourceManagers, provi
 		enableAPIService:          f.collectAPIServiceMetrics,
 		enableCRD:                 f.collectCRDMetrics,
 		enableControllerRevisions: f.collectControllerRevisions,
+		useApiServerCache:         f.useApiServerCache,
 		customResources:           f.collectCrMetrics,
 	}
 	configCM, err := f.buildKSMCoreConfigMap(collectorOpts)
@@ -221,7 +228,7 @@ func (f *ksmFeature) ManageDependencies(managers feature.ResourceManagers, provi
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *ksmFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *ksmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
 	// Manage KSM config in configmap
 	var vol corev1.Volume
 	var volMount corev1.VolumeMount
@@ -264,7 +271,7 @@ func (f *ksmFeature) ManageClusterAgent(managers feature.PodTemplateManagers, pr
 // ManageSingleContainerNodeAgent allows a feature to configure the Agent container for the Node Agent's corev1.PodTemplateSpec
 // if SingleContainerStrategy is enabled and can be used with the configured feature set.
 // It should do nothing if the feature doesn't need to configure it.
-func (f *ksmFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *ksmFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers) error {
 	// Remove ksm v1 conf if the cluster checks are enabled and the ksm core is enabled
 	ignoreAutoConf := &corev1.EnvVar{
 		Name:  DDIgnoreAutoConf,
@@ -276,7 +283,7 @@ func (f *ksmFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplate
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *ksmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *ksmFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
 	// Remove ksm v1 conf if the cluster checks are enabled and the ksm core is enabled
 	ignoreAutoConf := &corev1.EnvVar{
 		Name:  DDIgnoreAutoConf,
@@ -288,10 +295,10 @@ func (f *ksmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provi
 
 // ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunnerAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *ksmFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
+func (f *ksmFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
 	return nil
 }
 
-func (f *ksmFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
+func (f *ksmFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers) error {
 	return nil
 }

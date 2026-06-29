@@ -18,7 +18,6 @@ import (
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/aws/aws-sdk-go-v2/service/iam"
 	iamtypes "github.com/aws/aws-sdk-go-v2/service/iam/types"
-	"github.com/aws/aws-sdk-go-v2/service/sts"
 	karpawsv1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/fatih/color"
 	"github.com/samber/lo"
@@ -26,19 +25,22 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/client-go/tools/pager"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
+	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/apply"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/aws"
+	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/awsauth"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/clients"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/display"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/helm"
 	commonk8s "github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/k8s"
-	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/install/guess"
 	"github.com/DataDog/datadog-operator/pkg/plugin/common"
 )
 
@@ -120,21 +122,26 @@ func (o *options) run(cmd *cobra.Command) error {
 	log.SetOutput(cmd.OutOrStderr())
 	ctrl.SetLogger(zap.New(zap.UseDevMode(false), zap.WriteTo(cmd.ErrOrStderr())))
 
-	if clusterName == "" {
-		if name, err := clients.GetClusterNameFromKubeconfig(ctx, o.ConfigFlags); err != nil {
-			return err
-		} else if name != "" {
-			clusterName = name
-		} else {
-			return errors.New("cluster name must be specified either via --cluster-name or in the current kubeconfig context")
-		}
+	resolved, err := clients.ResolveClusterName(o.ConfigFlags, clusterName)
+	if err != nil {
+		return err
 	}
+	clusterName = resolved
 
 	display.PrintBox(cmd.OutOrStdout(), "Uninstalling Karpenter from cluster "+clusterName+".")
 
 	cli, err := clients.Build(ctx, o.ConfigFlags, o.Clientset)
 	if err != nil {
 		return fmt.Errorf("failed to build clients: %w", err)
+	}
+
+	if err = clients.ValidateAWSAccountConsistency(ctx, cli, clusterName, o.ConfigFlags); err != nil {
+		var lookupUnavailable *clients.ClusterLookupUnavailableError
+		if !errors.As(err, &lookupUnavailable) {
+			return err
+		}
+		// The cluster may already be deleted; warn but proceed with cleanup.
+		log.Printf("Warning: AWS account consistency check skipped: %v", err)
 	}
 
 	nodePoolNames, nodes := displayResourceSummary(ctx, cmd, cli, clusterName)
@@ -199,57 +206,57 @@ func displayResourceSummary(ctx context.Context, cmd *cobra.Command, cli *client
 	cmd.Println("\nThis will delete:")
 
 	if n, err := listKarpenterNodePools(ctx, cli); err != nil {
-		cmd.Printf("  - NodePools: (unable to list: %v)\n", err)
+		cmd.Printf("  • NodePools: (unable to list: %v)\n", err)
 	} else if len(n) == 0 {
-		cmd.Println("  - NodePools: none found")
+		cmd.Println("  • NodePools: none found")
 	} else {
 		nodePools = n
-		cmd.Printf("  - %d NodePool(s):\n", len(nodePools))
+		cmd.Printf("  • %d NodePool(s):\n", len(nodePools))
 		for _, np := range nodePools {
-			cmd.Printf("      • %s\n", np)
+			cmd.Printf("      ◦ %s\n", np)
 		}
 	}
 
 	nodeClasses, err := listKarpenterEC2NodeClasses(ctx, cli)
 	if err != nil {
-		cmd.Printf("  - EC2NodeClasses: (unable to list: %v)\n", err)
+		cmd.Printf("  • EC2NodeClasses: (unable to list: %v)\n", err)
 	} else if len(nodeClasses) == 0 {
-		cmd.Println("  - EC2NodeClasses: none found")
+		cmd.Println("  • EC2NodeClasses: none found")
 	} else {
-		cmd.Printf("  - %d EC2NodeClass(es):\n", len(nodeClasses))
+		cmd.Printf("  • %d EC2NodeClass(es):\n", len(nodeClasses))
 		for _, nc := range nodeClasses {
-			cmd.Printf("      • %s\n", nc)
+			cmd.Printf("      ◦ %s\n", nc)
 		}
 	}
 
 	if err != nil {
-		cmd.Println("  - Karpenter nodes: (unable to list - depends on EC2NodeClasses)")
+		cmd.Println("  • Karpenter nodes: (unable to list - depends on EC2NodeClasses)")
 	} else if n, err := listKarpenterNodes(ctx, cli, nodeClasses); err != nil {
-		cmd.Printf("  - Karpenter nodes: (unable to list: %v)\n", err)
+		cmd.Printf("  • Karpenter nodes: (unable to list: %v)\n", err)
 	} else if len(n) == 0 {
-		cmd.Println("  - Karpenter nodes: none found")
+		cmd.Println("  • Karpenter nodes: none found")
 	} else {
 		nodes = n
-		cmd.Printf("  - %d Karpenter-managed node(s):\n", len(nodes))
+		cmd.Printf("  • %d Karpenter-managed node(s):\n", len(nodes))
 		for _, node := range nodes {
-			cmd.Printf("      • %s\n", node)
+			cmd.Printf("      ◦ %s\n", node)
 		}
 	}
 
-	cmd.Println("  - The Karpenter Helm release")
+	cmd.Println("  • The Karpenter Helm release")
 
 	if stacks, err := listCloudFormationStacks(ctx, cli, clusterName); err != nil {
-		cmd.Printf("  - CloudFormation stacks: (unable to list: %v)\n", err)
+		cmd.Printf("  • CloudFormation stacks: (unable to list: %v)\n", err)
 	} else if len(stacks) == 0 {
-		cmd.Println("  - CloudFormation stacks: none found")
+		cmd.Println("  • CloudFormation stacks: none found")
 	} else {
-		cmd.Printf("  - %d CloudFormation stack(s):\n", len(stacks))
+		cmd.Printf("  • %d CloudFormation stack(s):\n", len(stacks))
 		for _, stack := range stacks {
-			cmd.Printf("      • %s\n", stack)
+			cmd.Printf("      ◦ %s\n", stack)
 		}
 	}
 
-	cmd.Println("  - aws-auth ConfigMap role mappings (if applicable)")
+	cmd.Println("  • aws-auth ConfigMap role mappings (if applicable)")
 
 	if len(nodes) > 0 {
 		cmd.Println()
@@ -386,24 +393,24 @@ func listKarpenterNodes(ctx context.Context, cli *clients.Clients, ec2NodeClassN
 		return nil, nil // No EC2NodeClasses to match
 	}
 
-	// List all Karpenter-managed nodes
-	nodesList, err := cli.K8sClientset.CoreV1().Nodes().List(ctx, metav1.ListOptions{
-		LabelSelector: "karpenter.k8s.aws/ec2nodeclass",
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	// Filter nodes that belong to our EC2NodeClasses
 	nodeClassSet := lo.SliceToMap(ec2NodeClassNames, func(name string) (string, struct{}) {
 		return name, struct{}{}
 	})
 
-	return lo.FilterMap(nodesList.Items, func(node corev1.Node, _ int) (string, bool) {
-		nodeClass := node.Labels["karpenter.k8s.aws/ec2nodeclass"]
-		_, matches := nodeClassSet[nodeClass]
-		return node.Name, matches
-	}), nil
+	var names []string
+	p := pager.New(func(ctx context.Context, opts metav1.ListOptions) (runtime.Object, error) {
+		return cli.K8sClientset.CoreV1().Nodes().List(ctx, opts)
+	})
+	if err := p.EachListItem(ctx, metav1.ListOptions{LabelSelector: "karpenter.k8s.aws/ec2nodeclass"}, func(obj runtime.Object) error {
+		node := obj.(*corev1.Node)
+		if _, matches := nodeClassSet[node.Labels["karpenter.k8s.aws/ec2nodeclass"]]; matches {
+			names = append(names, node.Name)
+		}
+		return nil
+	}); err != nil {
+		return nil, fmt.Errorf("failed to list Karpenter nodes: %w", err)
+	}
+	return names, nil
 }
 
 func waitForKarpenterNodesToTerminate(ctx context.Context, cli *clients.Clients, clusterName string, nodePoolNames []string) error {
@@ -480,7 +487,7 @@ func (o *options) uninstallHelmChart(ctx context.Context, karpenterNamespace str
 }
 
 func removeAwsAuthConfigMapRole(ctx context.Context, cli *clients.Clients, clusterName string) error {
-	awsAuthConfigMapPresent, err := guess.IsAwsAuthConfigMapPresent(ctx, cli.K8sClientset)
+	awsAuthConfigMapPresent, err := awsauth.IsConfigMapPresent(ctx, cli.K8sClientset)
 	if err != nil {
 		return fmt.Errorf("failed to check if aws-auth ConfigMap is present: %w", err)
 	}
@@ -490,19 +497,14 @@ func removeAwsAuthConfigMapRole(ctx context.Context, cli *clients.Clients, clust
 		return nil
 	}
 
-	// Get AWS account ID
-	callerIdentity, err := cli.STS.GetCallerIdentity(ctx, &sts.GetCallerIdentityInput{})
+	accountID, err := clients.GetAWSAccountID(ctx, cli)
 	if err != nil {
-		return fmt.Errorf("failed to get identity caller: %w", err)
+		return err
 	}
-	if callerIdentity.Account == nil {
-		return errors.New("unable to determine AWS account ID from STS GetCallerIdentity")
-	}
-	accountID := *callerIdentity.Account
 
 	roleArn := "arn:aws:iam::" + accountID + ":role/KarpenterNodeRole-" + clusterName
 
-	if err = aws.RemoveAwsAuthRole(ctx, cli.K8sClientset, roleArn); err != nil {
+	if err = awsauth.RemoveRole(ctx, cli.K8sClientset, roleArn); err != nil {
 		return fmt.Errorf("failed to remove aws-auth role: %w", err)
 	}
 
@@ -558,8 +560,8 @@ func deleteKarpenterInstanceProfiles(ctx context.Context, cli *clients.Clients, 
 
 func listCloudFormationStacks(ctx context.Context, cli *clients.Clients, clusterName string) ([]string, error) {
 	stackNames := []string{
-		"dd-karpenter-" + clusterName + "-karpenter",
-		"dd-karpenter-" + clusterName + "-dd-karpenter",
+		apply.KarpenterStackName(clusterName),
+		apply.DDKarpenterStackName(clusterName),
 	}
 
 	var existing []string
@@ -576,11 +578,11 @@ func listCloudFormationStacks(ctx context.Context, cli *clients.Clients, cluster
 }
 
 func deleteCloudFormationStacks(ctx context.Context, cli *clients.Clients, clusterName string) error {
-	if err := aws.DeleteStack(ctx, cli.CloudFormation, "dd-karpenter-"+clusterName+"-dd-karpenter"); err != nil {
+	if err := aws.DeleteStack(ctx, cli.CloudFormation, apply.DDKarpenterStackName(clusterName)); err != nil {
 		return fmt.Errorf("failed to delete dd-karpenter CloudFormation stack: %w", err)
 	}
 
-	if err := aws.DeleteStack(ctx, cli.CloudFormation, "dd-karpenter-"+clusterName+"-karpenter"); err != nil {
+	if err := aws.DeleteStack(ctx, cli.CloudFormation, apply.KarpenterStackName(clusterName)); err != nil {
 		return fmt.Errorf("failed to delete karpenter CloudFormation stack: %w", err)
 	}
 

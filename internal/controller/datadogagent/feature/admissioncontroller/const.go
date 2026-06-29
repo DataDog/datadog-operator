@@ -9,6 +9,8 @@ const (
 	admissionControllerPortName                = "admissioncontrollerport"
 	admissionControllerSocketCommunicationMode = "socket"
 	admissionControllerHostipCommunicationMode = "hostip"
+	admissionControllerCSICommunicationMode    = "csi"
+	datadogCSIDriverName                       = "k8s.csi.datadoghq.com"
 
 	// DefaultAdmissionControllerServicePort default admission controller service port
 	defaultAdmissionControllerServicePort = 443
@@ -16,4 +18,8 @@ const (
 	defaultAdmissionControllerTargetPort = 8000
 	// DefaultAdmissionControllerWebhookName default admission controller webhook name
 	defaultAdmissionControllerWebhookName string = "datadog-webhook"
+
+	defaultProbeEnabled           = true
+	defaultProbeInterval    int32 = 60
+	defaultProbeGracePeriod int32 = 60
 )

@@ -8,6 +8,8 @@ package sbom
 import (
 	"testing"
 
+	"k8s.io/utils/ptr"
+
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
@@ -27,29 +29,36 @@ func Test_sbomFeature_Configure(t *testing.T) {
 		Spec: v2alpha1.DatadogAgentSpec{
 			Features: &v2alpha1.DatadogFeatures{
 				SBOM: &v2alpha1.SBOMFeatureConfig{
-					Enabled: apiutils.NewBoolPointer(false),
+					Enabled: ptr.To(false),
 				},
 			},
 		},
 	}
 	sbomEnabled := sbomDisabled.DeepCopy()
 	{
-		sbomEnabled.Spec.Features.SBOM.Enabled = apiutils.NewBoolPointer(true)
+		sbomEnabled.Spec.Features.SBOM.Enabled = ptr.To(true)
 	}
 
 	sbomEnabledContainerImageEnabled := sbomEnabled.DeepCopy()
 	{
-		sbomEnabledContainerImageEnabled.Spec.Features.SBOM.ContainerImage = &v2alpha1.SBOMContainerImageConfig{Enabled: apiutils.NewBoolPointer(true)}
+		sbomEnabledContainerImageEnabled.Spec.Features.SBOM.ContainerImage = &v2alpha1.SBOMContainerImageConfig{Enabled: ptr.To(true)}
 	}
 
 	sbomEnabledContainerImageOverlayFSEnabled := sbomEnabled.DeepCopy()
 	{
-		sbomEnabledContainerImageOverlayFSEnabled.Spec.Features.SBOM.ContainerImage = &v2alpha1.SBOMContainerImageConfig{Enabled: apiutils.NewBoolPointer(true), UncompressedLayersSupport: true, OverlayFSDirectScan: true}
+		sbomEnabledContainerImageOverlayFSEnabled.Spec.Features.SBOM.ContainerImage = &v2alpha1.SBOMContainerImageConfig{Enabled: ptr.To(true), UncompressedLayersSupport: true, OverlayFSDirectScan: true}
 	}
 
 	sbomEnabledHostEnabled := sbomEnabled.DeepCopy()
 	{
-		sbomEnabledHostEnabled.Spec.Features.SBOM.Host = &v2alpha1.SBOMHostConfig{Enabled: apiutils.NewBoolPointer(true)}
+		sbomEnabledHostEnabled.Spec.Features.SBOM.Host = &v2alpha1.SBOMHostConfig{Enabled: ptr.To(true)}
+	}
+
+	sbomEnabledEnrichmentUsageEnabled := sbomEnabled.DeepCopy()
+	{
+		sbomEnabledEnrichmentUsageEnabled.Spec.Features.SBOM.Enrichment = &v2alpha1.SBOMEnrichmentConfig{
+			Usage: &v2alpha1.SBOMEnrichmentUsageConfig{Enabled: ptr.To(true)},
+		}
 	}
 
 	sbomNodeAgentWantFunc := func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
@@ -174,6 +183,42 @@ func Test_sbomFeature_Configure(t *testing.T) {
 		assert.True(t, apiutils.IsEqualStruct(volumes, wantVolumes), "Volumes \ndiff = %s", cmp.Diff(volumes, wantVolumes))
 	}
 
+	sbomWithEnrichmentUsageWantFunc := func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+		mgr := mgrInterface.(*fake.PodTemplateManagers)
+
+		wantCoreAgentEnvVars := []*corev1.EnvVar{
+			{
+				Name:  DDSBOMEnabled,
+				Value: "true",
+			},
+			{
+				Name:  DDSBOMContainerImageEnabled,
+				Value: "false",
+			},
+			{
+				Name:  DDSBOMHostEnabled,
+				Value: "false",
+			},
+			{
+				Name:  DDSBOMEnrichmentUsageEnabled,
+				Value: "true",
+			},
+		}
+
+		nodeCoreAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
+		assert.True(t, apiutils.IsEqualStruct(nodeCoreAgentEnvVars, wantCoreAgentEnvVars), "Core agent envvars \ndiff = %s", cmp.Diff(nodeCoreAgentEnvVars, wantCoreAgentEnvVars))
+
+		wantSystemProbeEnvVars := []*corev1.EnvVar{
+			{
+				Name:  DDSBOMEnrichmentUsageEnabled,
+				Value: "true",
+			},
+		}
+
+		nodeSystemProbeEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.SystemProbeContainerName]
+		assert.True(t, apiutils.IsEqualStruct(nodeSystemProbeEnvVars, wantSystemProbeEnvVars), "System probe envvars \ndiff = %s", cmp.Diff(nodeSystemProbeEnvVars, wantSystemProbeEnvVars))
+	}
+
 	tests := test.FeatureTestSuite{
 		{
 			Name:          "SBOM not enabled",
@@ -203,6 +248,12 @@ func Test_sbomFeature_Configure(t *testing.T) {
 			DDA:           sbomEnabledHostEnabled,
 			WantConfigure: true,
 			Agent:         test.NewDefaultComponentTest().WithWantFunc(sbomWithHostWantFunc),
+		},
+		{
+			Name:          "SBOM enabled, Enrichment Usage enabled",
+			DDA:           sbomEnabledEnrichmentUsageEnabled,
+			WantConfigure: true,
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(sbomWithEnrichmentUsageWantFunc),
 		},
 	}
 

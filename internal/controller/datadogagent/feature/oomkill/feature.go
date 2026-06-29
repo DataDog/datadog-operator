@@ -8,6 +8,7 @@ package oomkill
 import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -16,6 +17,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/providercaps"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
@@ -34,6 +36,17 @@ func buildOOMKillFeature(options *feature.Options) feature.Feature {
 
 type oomKillFeature struct{}
 
+// NodeAgentProviderCapabilities returns provider-conditional pod-template
+// mutations for the node agent. On GKE COS, /usr/src does not exist on host
+// nodes; strip the src volume + mounts so the pod schedules successfully.
+func (f *oomKillFeature) NodeAgentProviderCapabilities() providercaps.ProviderCapabilityMap {
+	return providercaps.ProviderCapabilityMap{
+		kubernetes.GKECosProvider: {
+			RemoveVolumes: []string{common.SrcVolumeName},
+		},
+	}
+}
+
 // ID returns the ID of the Feature
 func (f *oomKillFeature) ID() feature.IDType {
 	return feature.OOMKillIDType
@@ -43,7 +56,7 @@ func (f *oomKillFeature) ID() feature.IDType {
 func (f *oomKillFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
 	if ddaSpec.Features != nil && ddaSpec.Features.OOMKill != nil && apiutils.BoolValue(ddaSpec.Features.OOMKill.Enabled) {
 		reqComp.Agent = feature.RequiredComponent{
-			IsRequired: apiutils.NewBoolPointer(true),
+			IsRequired: ptr.To(true),
 			Containers: []apicommon.AgentContainerName{apicommon.CoreAgentContainerName, apicommon.SystemProbeContainerName},
 		}
 	}
@@ -53,26 +66,26 @@ func (f *oomKillFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.DatadogAge
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *oomKillFeature) ManageDependencies(managers feature.ResourceManagers, provider string) error {
+func (f *oomKillFeature) ManageDependencies(managers feature.ResourceManagers) error {
 	return nil
 }
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *oomKillFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *oomKillFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
 	return nil
 }
 
 // ManageSingleContainerNodeAgent allows a feature to configure the Agent container for the Node Agent's corev1.PodTemplateSpec
 // if SingleContainerStrategy is enabled and can be used with the configured feature set.
 // It should do nothing if the feature doesn't need to configure it.
-func (f *oomKillFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *oomKillFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers) error {
 	return nil
 }
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *oomKillFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *oomKillFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
 	// security context capabilities
 	managers.SecurityContext().AddCapabilitiesToContainer(agent.DefaultCapabilitiesForSystemProbe(), apicommon.SystemProbeContainerName)
 
@@ -81,13 +94,11 @@ func (f *oomKillFeature) ManageNodeAgent(managers feature.PodTemplateManagers, p
 	managers.VolumeMount().AddVolumeMountToContainer(&modulesVolMount, apicommon.SystemProbeContainerName)
 	managers.Volume().AddVolume(&modulesVol)
 
-	// src volume mount
-	_, providerValue := kubernetes.GetProviderLabelKeyValue(provider)
-	if providerValue != kubernetes.GKECosType {
-		srcVol, srcVolMount := volume.GetVolumes(common.SrcVolumeName, common.SrcVolumePath, common.SrcVolumePath, true)
-		managers.VolumeMount().AddVolumeMountToContainer(&srcVolMount, apicommon.SystemProbeContainerName)
-		managers.Volume().AddVolume(&srcVol)
-	}
+	// src volume mount — stripped on GKE COS by NodeAgentProviderCapabilities
+	// (host nodes have no /usr/src).
+	srcVol, srcVolMount := volume.GetVolumes(common.SrcVolumeName, common.SrcVolumePath, common.SrcVolumePath, true)
+	managers.VolumeMount().AddVolumeMountToContainer(&srcVolMount, apicommon.SystemProbeContainerName)
+	managers.Volume().AddVolume(&srcVol)
 
 	// debugfs volume mount
 	debugfsVol, debugfsVolMount := volume.GetVolumes(common.DebugfsVolumeName, common.DebugfsPath, common.DebugfsPath, false)
@@ -121,10 +132,10 @@ func (f *oomKillFeature) ManageNodeAgent(managers feature.PodTemplateManagers, p
 
 // ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunner's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *oomKillFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
+func (f *oomKillFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
 	return nil
 }
 
-func (f *oomKillFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
+func (f *oomKillFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers) error {
 	return nil
 }

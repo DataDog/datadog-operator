@@ -11,6 +11,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/utils/ptr"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -27,20 +28,33 @@ func Test_npmFeature_Configure(t *testing.T) {
 		Spec: v2alpha1.DatadogAgentSpec{
 			Features: &v2alpha1.DatadogFeatures{
 				NPM: &v2alpha1.NPMFeatureConfig{
-					Enabled: apiutils.NewBoolPointer(false),
+					Enabled: ptr.To(false),
 				},
 			},
 		},
 	}
+	ddaNPMDisabled.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+		v2alpha1.NodeAgentComponentName: {
+			Image: &v2alpha1.AgentImageConfig{Tag: "7.81.0"},
+		},
+	}
 	ddaNPMEnabled := ddaNPMDisabled.DeepCopy()
-	ddaNPMEnabled.Spec.Features.NPM.Enabled = apiutils.NewBoolPointer(true)
+	ddaNPMEnabled.Spec.Features.NPM.Enabled = ptr.To(true)
+	ddaNPMEnabled.ObjectMeta.Annotations = map[string]string{
+		"agent.datadoghq.com/cnm-direct-send-enabled": "true",
+	}
 
 	ddaNPMEnabledConfig := ddaNPMEnabled.DeepCopy()
-	ddaNPMEnabledConfig.Spec.Features.NPM.CollectDNSStats = apiutils.NewBoolPointer(true)
-	ddaNPMEnabledConfig.Spec.Features.NPM.EnableConntrack = apiutils.NewBoolPointer(false)
+	ddaNPMEnabledConfig.Spec.Features.NPM.CollectDNSStats = ptr.To(true)
+	ddaNPMEnabledConfig.Spec.Features.NPM.EnableConntrack = ptr.To(false)
 
-	ddaCNMDirectSendEnabledConfig := ddaNPMEnabled.DeepCopy()
-	ddaCNMDirectSendEnabledConfig.Spec.Features.NPM.DirectSend = apiutils.NewBoolPointer(true)
+	ddaCNMDirectSendDisabledConfig := ddaNPMEnabled.DeepCopy()
+	ddaCNMDirectSendDisabledConfig.ObjectMeta.Annotations = map[string]string{
+		"agent.datadoghq.com/cnm-direct-send-enabled": "false",
+	}
+
+	ddaCNMDirectSendEnabledUnsupportedAgentVersionConfig := ddaNPMEnabled.DeepCopy()
+	ddaCNMDirectSendEnabledUnsupportedAgentVersionConfig.Spec.Override[v2alpha1.NodeAgentComponentName].Image.Tag = "7.80.0"
 
 	npmFeatureEnvVarWantFunc := func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 		mgr := mgrInterface.(*fake.PodTemplateManagers)
@@ -68,15 +82,20 @@ func Test_npmFeature_Configure(t *testing.T) {
 			},
 			{
 				Name:  DDSystemProbeCNMDirectSend,
-				Value: "false",
+				Value: "true",
 			},
 		}
 		systemProbeEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.SystemProbeContainerName]
 		assert.True(t, apiutils.IsEqualStruct(systemProbeEnvVars, sysProbeWantEnvVars), "4. System Probe envvars \ndiff = %s", cmp.Diff(systemProbeEnvVars, sysProbeWantEnvVars))
-
 	}
 	npmAgentNodeWantFunc := func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 		mgr := mgrInterface.(*fake.PodTemplateManagers)
+
+		for _, c := range mgr.Tpl.Spec.Containers {
+			if c.Name == string(apicommon.ProcessAgentContainerName) {
+				assert.Fail(t, "process-agent should not have a container")
+			}
+		}
 
 		// check annotations
 		wantAnnotations := make(map[string]string)
@@ -100,27 +119,17 @@ func Test_npmFeature_Configure(t *testing.T) {
 				MountPath: common.CgroupsMountPath,
 				ReadOnly:  true,
 			},
-			{
-				Name:      common.DebugfsVolumeName,
-				MountPath: common.DebugfsPath,
-				ReadOnly:  false,
-			},
 		}
 
-		wantProcessAgentVolMounts := append(wantVolumeMounts, corev1.VolumeMount{
-			Name:      common.SystemProbeSocketVolumeName,
-			MountPath: common.SystemProbeSocketVolumePath,
-			ReadOnly:  true,
-		})
-
 		wantSystemProbeAgentVolMounts := append(wantVolumeMounts, corev1.VolumeMount{
+			Name:      common.DebugfsVolumeName,
+			MountPath: common.DebugfsPath,
+			ReadOnly:  false,
+		}, corev1.VolumeMount{
 			Name:      common.SystemProbeSocketVolumeName,
 			MountPath: common.SystemProbeSocketVolumePath,
 			ReadOnly:  false,
 		})
-
-		processAgentMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommon.ProcessAgentContainerName]
-		assert.True(t, apiutils.IsEqualStruct(processAgentMounts, wantProcessAgentVolMounts), "Process Agent volume mounts \ndiff = %s", cmp.Diff(processAgentMounts, wantProcessAgentVolMounts))
 
 		sysProbeAgentMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommon.SystemProbeContainerName]
 		assert.True(t, apiutils.IsEqualStruct(sysProbeAgentMounts, wantSystemProbeAgentVolMounts), "System Probe volume mounts \ndiff = %s", cmp.Diff(sysProbeAgentMounts, wantSystemProbeAgentVolMounts))
@@ -198,29 +207,45 @@ func Test_npmFeature_Configure(t *testing.T) {
 			},
 			{
 				Name:  DDSystemProbeCNMDirectSend,
-				Value: "false",
+				Value: "true",
 			},
 		}
 		sysProbeWantEnvVarsNPM := append(sysProbeWantEnvVars, npmFeatureEnvVar...)
 		systemProbeEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.SystemProbeContainerName]
 		assert.True(t, apiutils.IsEqualStruct(sysProbeWantEnvVarsNPM, sysProbeWantEnvVarsNPM), "System Probe envvars \ndiff = %s", cmp.Diff(systemProbeEnvVars, sysProbeWantEnvVarsNPM))
-
-		processWantEnvVars := append(sysProbeWantEnvVars, &corev1.EnvVar{
-			Name:  common.DDSystemProbeExternal,
-			Value: "true",
-		})
-
-		processAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.ProcessAgentContainerName]
-		assert.True(t, apiutils.IsEqualStruct(processAgentEnvVars, processWantEnvVars), "Process Agent envvars \ndiff = %s", cmp.Diff(processAgentEnvVars, processWantEnvVars))
 	}
-	cnmDirectSendWantFunc := func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+	cnmDirectSendDisabledWantFunc := func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 		mgr := mgrInterface.(*fake.PodTemplateManagers)
 
-		for _, c := range mgr.Tpl.Spec.Containers {
-			if c.Name == string(apicommon.ProcessAgentContainerName) {
-				assert.Fail(t, "process-agent should not have a container")
-			}
+		// check annotations
+		wantAnnotations := map[string]string{
+			common.SystemProbeAppArmorAnnotationKey: common.SystemProbeAppArmorAnnotationValue,
 		}
+		annotations := mgr.AnnotationMgr.Annotations
+		assert.True(t, apiutils.IsEqualStruct(annotations, wantAnnotations), "Annotations \ndiff = %s", cmp.Diff(annotations, wantAnnotations))
+
+		// check volume mounts
+		wantVolumeMounts := []corev1.VolumeMount{
+			{
+				Name:      common.ProcdirVolumeName,
+				MountPath: common.ProcdirMountPath,
+				ReadOnly:  true,
+			},
+			{
+				Name:      common.CgroupsVolumeName,
+				MountPath: common.CgroupsMountPath,
+				ReadOnly:  true,
+			},
+		}
+
+		wantProcessAgentVolMounts := append(wantVolumeMounts, corev1.VolumeMount{
+			Name:      common.SystemProbeSocketVolumeName,
+			MountPath: common.SystemProbeSocketVolumePath,
+			ReadOnly:  true,
+		})
+
+		processAgentMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommon.ProcessAgentContainerName]
+		assert.True(t, apiutils.IsEqualStruct(processAgentMounts, wantProcessAgentVolMounts), "Process Agent volume mounts \ndiff = %s", cmp.Diff(processAgentMounts, wantProcessAgentVolMounts))
 
 		// check env vars
 		sysProbeWantEnvVars := []*corev1.EnvVar{
@@ -246,11 +271,19 @@ func Test_npmFeature_Configure(t *testing.T) {
 			},
 			{
 				Name:  DDSystemProbeCNMDirectSend,
-				Value: "true",
+				Value: "false",
 			},
 		}
 		systemProbeEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.SystemProbeContainerName]
 		assert.True(t, apiutils.IsEqualStruct(systemProbeEnvVars, sysProbeWantEnvVars), "4. System Probe envvars \ndiff = %s", cmp.Diff(systemProbeEnvVars, sysProbeWantEnvVars))
+
+		processWantEnvVars := append(sysProbeWantEnvVars, &corev1.EnvVar{
+			Name:  common.DDSystemProbeExternal,
+			Value: "true",
+		})
+
+		processAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.ProcessAgentContainerName]
+		assert.True(t, apiutils.IsEqualStruct(processAgentEnvVars, processWantEnvVars), "Process Agent envvars \ndiff = %s", cmp.Diff(processAgentEnvVars, processWantEnvVars))
 	}
 
 	tests := test.FeatureTestSuite{
@@ -272,10 +305,16 @@ func Test_npmFeature_Configure(t *testing.T) {
 			Agent:         test.NewDefaultComponentTest().WithWantFunc(npmFeatureEnvVarWantFunc),
 		},
 		{
-			Name:          "CNM enabled, Direct Send enabled",
-			DDA:           ddaCNMDirectSendEnabledConfig,
+			Name:          "CNM enabled, Direct Send disabled",
+			DDA:           ddaCNMDirectSendDisabledConfig,
 			WantConfigure: true,
-			Agent:         test.NewDefaultComponentTest().WithWantFunc(cnmDirectSendWantFunc),
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(cnmDirectSendDisabledWantFunc),
+		},
+		{
+			Name:          "CNM enabled, Direct Send enabled on unsupported agent version",
+			DDA:           ddaCNMDirectSendEnabledUnsupportedAgentVersionConfig,
+			WantConfigure: true,
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(cnmDirectSendDisabledWantFunc),
 		},
 	}
 

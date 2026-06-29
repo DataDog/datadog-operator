@@ -22,9 +22,9 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/secrets"
 )
 
-// setupDDADependenciesStore initializes a store specifically for DDA controller dependencies
-// when DatadogAgentInternalEnabled is true. The store is marked with IsDDAControllerStore
-// so that resources created by it are labeled and won't be cleaned up by the DDAI controller.
+// setupDDADependenciesStore initializes a store specifically for DDA controller dependencies.
+// The store is marked with IsDDAControllerStore so that resources created by it are labeled
+// and won't be cleaned up by the DDAI controller.
 func (r *Reconciler) setupDDADependenciesStore(instance *v2alpha1.DatadogAgent, logger logr.Logger) (*store.Store, feature.ResourceManagers) {
 	storeOptions := &store.StoreOptions{
 		SupportCilium:        r.options.SupportCilium,
@@ -81,6 +81,13 @@ func (r *Reconciler) manageDDADependenciesWithDDAI(ctx context.Context, logger l
 	// Note that we don't really need to clean these dependencies as they're all ownerRef'ed by the DDA, so they will be cleaned if the DDA is deleted.
 	if err := depsStore.Cleanup(ctx, r.client, false); err != nil {
 		return errors.NewAggregate(err)
+	}
+
+	// DatadogCSIDriver: create or delete based on spec.global.csi configuration.
+	// This is managed outside the store because the store only supports built-in Kubernetes
+	// resource types. See ddcsi.go for details.
+	if err := r.reconcileDatadogCSIDriver(ctx, logger, instance); err != nil {
+		return err
 	}
 
 	return nil

@@ -8,9 +8,10 @@ package clusteragent
 import (
 	"testing"
 
-	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
 	assert "github.com/stretchr/testify/require"
 	rbacv1 "k8s.io/api/rbac/v1"
+
+	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
 )
 
 func TestGetKubernetesResourceMetadataAsTagsPolicyRules(t *testing.T) {

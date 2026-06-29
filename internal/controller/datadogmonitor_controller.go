@@ -27,7 +27,7 @@ import (
 // DatadogMonitorReconciler reconciles a DatadogMonitor object.
 type DatadogMonitorReconciler struct {
 	Client                 client.Client
-	Creds                  config.Creds
+	CredsManager           *config.CredentialManager
 	Log                    logr.Logger
 	Scheme                 *runtime.Scheme
 	Recorder               record.EventRecorder
@@ -46,11 +46,7 @@ func (r *DatadogMonitorReconciler) Reconcile(ctx context.Context, instance *data
 
 // SetupWithManager creates a new DatadogMonitor controller.
 func (r *DatadogMonitorReconciler) SetupWithManager(mgr ctrl.Manager, metricForwardersMgr datadog.MetricsForwardersManager) error {
-	internal, err := datadogmonitor.NewReconciler(r.Client, r.Creds, r.Scheme, r.Log, r.Recorder, r.operatorMetricsEnabled, metricForwardersMgr)
-	if err != nil {
-		return err
-	}
-	r.internal = internal
+	r.internal = datadogmonitor.NewReconciler(r.Client, r.CredsManager, r.Scheme, r.Log, r.Recorder, r.operatorMetricsEnabled, metricForwardersMgr)
 
 	builder := ctrl.NewControllerManagedBy(mgr)
 
@@ -70,9 +66,4 @@ func (r *DatadogMonitorReconciler) SetupWithManager(mgr ctrl.Manager, metricForw
 	}
 
 	return nil
-}
-
-// Callback function for credential change from credential manager
-func (r *DatadogMonitorReconciler) onCredentialChange(newCreds config.Creds) error {
-	return r.internal.UpdateDatadogClient(newCreds)
 }

@@ -8,6 +8,8 @@ package ebpfcheck
 import (
 	"testing"
 
+	"k8s.io/utils/ptr"
+
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
@@ -27,14 +29,14 @@ func Test_ebpfCheckFeature_Configure(t *testing.T) {
 		Spec: v2alpha1.DatadogAgentSpec{
 			Features: &v2alpha1.DatadogFeatures{
 				EBPFCheck: &v2alpha1.EBPFCheckFeatureConfig{
-					Enabled: apiutils.NewBoolPointer(false),
+					Enabled: ptr.To(false),
 				},
 			},
 		},
 	}
 	ddaEBPFCheckEnabled := ddaEBPFCheckDisabled.DeepCopy()
 	{
-		ddaEBPFCheckEnabled.Spec.Features.EBPFCheck.Enabled = apiutils.NewBoolPointer(true)
+		ddaEBPFCheckEnabled.Spec.Features.EBPFCheck.Enabled = ptr.To(true)
 	}
 
 	ebpfCheckAgentNodeWantFunc := func(t testing.TB, mgrInterface feature.PodTemplateManagers) {

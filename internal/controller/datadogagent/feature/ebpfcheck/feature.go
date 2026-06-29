@@ -8,6 +8,7 @@ package ebpfcheck
 import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -42,7 +43,7 @@ func (f *ebpfCheckFeature) ID() feature.IDType {
 func (f *ebpfCheckFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
 	if ddaSpec.Features != nil && ddaSpec.Features.EBPFCheck != nil && apiutils.BoolValue(ddaSpec.Features.EBPFCheck.Enabled) {
 		reqComp.Agent = feature.RequiredComponent{
-			IsRequired: apiutils.NewBoolPointer(true),
+			IsRequired: ptr.To(true),
 			Containers: []apicommon.AgentContainerName{apicommon.CoreAgentContainerName, apicommon.SystemProbeContainerName},
 		}
 	}
@@ -52,19 +53,19 @@ func (f *ebpfCheckFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.DatadogA
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *ebpfCheckFeature) ManageDependencies(managers feature.ResourceManagers, provider string) error {
+func (f *ebpfCheckFeature) ManageDependencies(managers feature.ResourceManagers) error {
 	return nil
 }
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *ebpfCheckFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *ebpfCheckFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
 	return nil
 }
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *ebpfCheckFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *ebpfCheckFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
 	// security context capabilities
 	managers.SecurityContext().AddCapabilitiesToContainer(agent.DefaultCapabilitiesForSystemProbe(), apicommon.SystemProbeContainerName)
 
@@ -104,16 +105,16 @@ func (f *ebpfCheckFeature) ManageNodeAgent(managers feature.PodTemplateManagers,
 // ManageSingleContainerNodeAgent allows a feature to configure the Agent container for the Node Agent's corev1.PodTemplateSpec
 // if SingleContainerStrategy is enabled and can be used with the configured feature set.
 // It should do nothing if the feature doesn't need to configure it.
-func (f *ebpfCheckFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *ebpfCheckFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers) error {
 	return nil
 }
 
 // ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunner's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *ebpfCheckFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
+func (f *ebpfCheckFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
 	return nil
 }
 
-func (f *ebpfCheckFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
+func (f *ebpfCheckFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers) error {
 	return nil
 }

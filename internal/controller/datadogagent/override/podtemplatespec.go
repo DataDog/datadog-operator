@@ -37,6 +37,7 @@ func getAgentContainersMap() map[apicommon.AgentContainerName]string {
 		apicommon.OtelAgent:                            "",
 		apicommon.HostProfiler:                         "",
 		apicommon.AgentDataPlaneContainerName:          "",
+		apicommon.FlightRecorderContainerName:          "",
 		apicommon.ClusterAgentContainerName:            "",
 		// apicommon.ClusterChecksRunnersContainerName:    "", // Is the same value as CoreAgentContainerName
 	}
@@ -72,7 +73,7 @@ func PodTemplateSpec(logger logr.Logger, manager feature.PodTemplateManagers, ov
 						JMXEnabled: false,
 					}
 					manager.PodTemplateSpec().Spec.Containers[i].Image = images.OverrideAgentImage(container.Image, otelOverride)
-				} else {
+				} else if containerName != apicommon.HostProfiler {
 					manager.PodTemplateSpec().Spec.Containers[i].Image = images.OverrideAgentImage(container.Image, override.Image)
 				}
 				if override.Image.PullPolicy != nil {
@@ -82,7 +83,10 @@ func PodTemplateSpec(logger logr.Logger, manager feature.PodTemplateManagers, ov
 		}
 
 		for i, initContainer := range manager.PodTemplateSpec().Spec.InitContainers {
-			manager.PodTemplateSpec().Spec.InitContainers[i].Image = images.OverrideAgentImage(initContainer.Image, override.Image)
+			// host-profiler-seccomp-setup copies a seccomp profile JSON baked into the profiler image, not the agent image.
+			if apicommon.AgentContainerName(initContainer.Name) != apicommon.HostProfilerSeccompSetupContainerName {
+				manager.PodTemplateSpec().Spec.InitContainers[i].Image = images.OverrideAgentImage(initContainer.Image, override.Image)
+			}
 			if override.Image.PullPolicy != nil {
 				manager.PodTemplateSpec().Spec.InitContainers[i].ImagePullPolicy = *override.Image.PullPolicy
 			}
@@ -103,7 +107,7 @@ func PodTemplateSpec(logger logr.Logger, manager feature.PodTemplateManagers, ov
 		manager.EnvFromVar().AddEnvFromVar(&e)
 	}
 
-	if override.CELWorkloadExclude != nil && len(override.CELWorkloadExclude) > 0 {
+	if len(override.CELWorkloadExclude) > 0 {
 		jsonConfig, err := json.Marshal(override.CELWorkloadExclude)
 		if err != nil {
 			logger.Error(err, "failed to convert to JSON")
@@ -192,6 +196,14 @@ func PodTemplateSpec(logger logr.Logger, manager feature.PodTemplateManagers, ov
 	manager.PodTemplateSpec().Spec.Tolerations = append(manager.PodTemplateSpec().Spec.Tolerations, override.Tolerations...)
 
 	for annotationName, annotationVal := range override.Annotations {
+		// For AppArmor annotations, skip if the referenced container doesn't exist.
+		// This mirrors the check in overrideAppArmorProfile() and prevents invalid DaemonSet
+		// configurations when a container is absent (e.g. security-agent with directSendFromSystemProbe).
+		if containerName, ok := strings.CutPrefix(annotationName, common.AppArmorAnnotationKey+"/"); ok {
+			if !podSpecHasContainer(&manager.PodTemplateSpec().Spec, containerName) {
+				continue
+			}
+		}
 		manager.Annotation().AddAnnotation(annotationName, annotationVal)
 	}
 
@@ -259,6 +271,14 @@ func overrideCustomConfigVolumes(logger logr.Logger, manager feature.PodTemplate
 		annotationKey := object.GetChecksumAnnotationKey(string(fileName))
 		manager.Annotation().AddAnnotation(annotationKey, hash)
 	}
+}
+
+// podSpecHasContainer reports whether the pod spec contains a (init)container with the given name.
+func podSpecHasContainer(podSpec *corev1.PodSpec, name string) bool {
+	allContainers := append(podSpec.Containers, podSpec.InitContainers...)
+	return slices.ContainsFunc(allContainers, func(c corev1.Container) bool {
+		return c.Name == name
+	})
 }
 
 func sortKeys(keysMap map[v2alpha1.AgentConfigFileName]v2alpha1.CustomConfig) []v2alpha1.AgentConfigFileName {

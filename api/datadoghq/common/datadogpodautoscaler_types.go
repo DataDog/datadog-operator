@@ -24,7 +24,7 @@ const (
 )
 
 // DatadogPodAutoscalerUpdateStrategy defines the mode of the update policy.
-// +kubebuilder:validation:Enum:=Auto;Disabled
+// +kubebuilder:validation:Enum:=Auto;Disabled;TriggerRollout
 type DatadogPodAutoscalerUpdateStrategy string
 
 const (
@@ -33,6 +33,9 @@ const (
 
 	// DatadogPodAutoscalerDisabledUpdateStrategy will disable the update of the target workload.
 	DatadogPodAutoscalerDisabledUpdateStrategy DatadogPodAutoscalerUpdateStrategy = "Disabled"
+
+	// DatadogPodAutoscalerTriggerRolloutUpdateStrategy triggers a full pod rollout to apply vertical recommendations.
+	DatadogPodAutoscalerTriggerRolloutUpdateStrategy DatadogPodAutoscalerUpdateStrategy = "TriggerRollout"
 )
 
 // DatadogPodAutoscalerUpdatePolicy defines the policy to update the target workload.
@@ -40,6 +43,20 @@ const (
 type DatadogPodAutoscalerUpdatePolicy struct {
 	// Strategy defines the mode of the update policy.
 	Strategy DatadogPodAutoscalerUpdateStrategy `json:"strategy,omitempty"`
+
+	// Controls how long we wait before forcing an eviction when the kubelet reports a resize as pending.
+	// Must be greater than 0 and less than or equal to 3600 (1 hour).
+	// +optional
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=3600
+	ResizePendingPeriod int32 `json:"resizePendingPeriod,omitempty"`
+
+	// Controls how long we wait before falling back to a full rollout when evictions are blocked.
+	// Must be greater than 0 and less than or equal to 3600 (1 hour).
+	// +optional
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=3600
+	RolloutFallbackDelay int32 `json:"rolloutFallbackDelay,omitempty"`
 }
 
 //
@@ -342,12 +359,21 @@ type DatadogPodAutoscalerConstraints struct {
 }
 
 // DatadogPodAutoscalerContainerControlledValues specifies which resource values should be controlled.
-// +kubebuilder:validation:Enum:=RequestsAndLimits;RequestsOnly
+// +kubebuilder:validation:Enum:=RequestsAndLimits;RequestsOnly;CPURequestsRemoveLimitsMemoryRequestsAndLimits
 type DatadogPodAutoscalerContainerControlledValues string
 
 const (
+	// DatadogPodAutoscalerContainerControlledValuesRequestsAndLimits controls both requests and limits for all resources (CPU and Memory).
 	DatadogPodAutoscalerContainerControlledValuesRequestsAndLimits DatadogPodAutoscalerContainerControlledValues = "RequestsAndLimits"
-	DatadogPodAutoscalerContainerControlledValuesRequestsOnly      DatadogPodAutoscalerContainerControlledValues = "RequestsOnly"
+
+	// DatadogPodAutoscalerContainerControlledValuesRequestsOnly controls only requests for all resources (CPU and Memory).
+	// Existing limits are left unchanged.
+	DatadogPodAutoscalerContainerControlledValuesRequestsOnly DatadogPodAutoscalerContainerControlledValues = "RequestsOnly"
+
+	// DatadogPodAutoscalerContainerControlledValuesCPURequestsRemoveLimitsMemoryRequestsAndLimits applies different strategies per resource:
+	// - CPU: only requests are controlled and any existing CPU limit is removed, allowing the container to burst freely and avoid CPU throttling.
+	// - Memory: both requests and limits are controlled.
+	DatadogPodAutoscalerContainerControlledValuesCPURequestsRemoveLimitsMemoryRequestsAndLimits DatadogPodAutoscalerContainerControlledValues = "CPURequestsRemoveLimitsMemoryRequestsAndLimits"
 )
 
 // DatadogPodAutoscalerContainerConstraints defines constraints that should always be respected for a container.
@@ -402,6 +428,12 @@ type DatadogPodAutoscalerOptions struct {
 	// OutOfMemory configures behavior when OOM events are detected.
 	// +optional
 	OutOfMemory *DatadogPodAutoscalerOutOfMemoryOptions `json:"outOfMemory,omitempty"`
+
+	// Burstable, if true, removes CPU limits from containers while keeping CPU request recommendations,
+	// granting the pod a Burstable QoS class and allowing it to consume idle node CPU capacity beyond its requests.
+	// If not set, the default value is determined by the Cluster Agent setting autoscaling.workload.options.burstable.
+	// +optional
+	Burstable *bool `json:"burstable,omitempty"`
 }
 
 // DatadogPodAutoscalerOutOfMemoryOptions configures the behavior when out-of-memory events are detected.
@@ -412,6 +444,16 @@ type DatadogPodAutoscalerOutOfMemoryOptions struct {
 	// Represented as a resource.Quantity to avoid floating point in CRDs.
 	// +optional
 	BumpUpRatio *resource.Quantity `json:"bumpUpRatio,omitempty"`
+}
+
+// DatadogPodAutoscalerOptionsStatus reflects the effective options applied by the autoscaler.
+// +kubebuilder:object:generate=true
+type DatadogPodAutoscalerOptionsStatus struct {
+	// Burstable is the effective value of the burstable setting applied by the autoscaler.
+	// When not set in the spec, this reflects the default determined by the Cluster Agent
+	// setting autoscaling.workload.options.burstable.
+	// +optional
+	Burstable *bool `json:"burstable,omitempty"`
 }
 
 // DatadogPodAutoscalerStatus defines the observed state of DatadogPodAutoscaler
@@ -428,6 +470,10 @@ type DatadogPodAutoscalerStatus struct {
 	// CurrentReplicas is the current number of pods for the targetRef observed by the controller.
 	// +optional
 	CurrentReplicas *int32 `json:"currentReplicas,omitempty"`
+
+	// Options reflects the effective options applied by the autoscaler.
+	// +optional
+	Options *DatadogPodAutoscalerOptionsStatus `json:"options,omitempty"`
 
 	// Conditions describe the current state of the DatadogPodAutoscaler operations.
 	// +patchMergeKey=type
@@ -526,6 +572,10 @@ type DatadogPodAutoscalerVerticalTargetStatus struct {
 	// Scaled is the current number of pods having desired resources
 	Scaled *int32 `json:"scaled,omitempty"`
 
+	// Evicted is the number of pods evicted as an in-place resize fallback during the
+	// current recommendation cycle. Resets when the recommendation changes.
+	Evicted *int32 `json:"evicted,omitempty"`
+
 	// DesiredResources is the desired resources for containers
 	DesiredResources []DatadogPodAutoscalerContainerResources `json:"desiredResources"`
 
@@ -542,6 +592,10 @@ type DatadogPodAutoscalerVerticalActionType string
 const (
 	// DatadogPodAutoscalerRolloutTriggeredVerticalActionType is the action when the controller triggers a rollout of the targetRef
 	DatadogPodAutoscalerRolloutTriggeredVerticalActionType DatadogPodAutoscalerVerticalActionType = "RolloutTriggered"
+	// DatadogPodAutoscalerResizeTriggeredVerticalActionType is the action when the controller triggers a resize of the pod resources of the targetRef
+	DatadogPodAutoscalerResizeTriggeredVerticalActionType DatadogPodAutoscalerVerticalActionType = "ResizeTriggered"
+	// DatadogPodAutoscalerResizeCompletedVerticalActionType is the action when all pods have completed an in-place resize cycle
+	DatadogPodAutoscalerResizeCompletedVerticalActionType DatadogPodAutoscalerVerticalActionType = "ResizeCompleted"
 )
 
 // DatadogPodAutoscalerVerticalAction represents a vertical action done by the controller

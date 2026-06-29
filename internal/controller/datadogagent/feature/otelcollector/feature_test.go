@@ -29,12 +29,13 @@ type expectedPorts struct {
 }
 
 type expectedEnvVars struct {
-	agent_ipc_port     expectedEnvVar
-	agent_ipc_refresh  expectedEnvVar
-	enabled            expectedEnvVar
-	extension_timeout  expectedEnvVar
-	extension_url      expectedEnvVar
-	converter_features expectedEnvVar
+	agent_ipc_port      expectedEnvVar
+	agent_ipc_refresh   expectedEnvVar
+	enabled             expectedEnvVar
+	extension_timeout   expectedEnvVar
+	extension_url       expectedEnvVar
+	converter_features  expectedEnvVar
+	installation_method expectedEnvVar
 }
 
 type expectedEnvVar struct {
@@ -47,7 +48,7 @@ var (
 		httpPort: 4318,
 		grpcPort: 4317,
 	}
-	defaultLocalObjectReferenceName = "-otel-agent-config"
+	defaultLocalObjectReferenceName = "-otel-config"
 	defaultExpectedEnvVars          = expectedEnvVars{
 		agent_ipc_port: expectedEnvVar{
 			present: true,
@@ -64,6 +65,10 @@ var (
 		extension_timeout:  expectedEnvVar{},
 		extension_url:      expectedEnvVar{},
 		converter_features: expectedEnvVar{},
+		installation_method: expectedEnvVar{
+			present: true,
+			value:   "kubernetes",
+		},
 	}
 
 	onlyIpcEnvVars = expectedEnvVars{
@@ -75,12 +80,15 @@ var (
 			present: true,
 			value:   "60",
 		},
+		installation_method: expectedEnvVar{
+			present: true,
+			value:   "kubernetes",
+		},
 	}
 	defaultVolumeMounts = []corev1.VolumeMount{
 		{
 			Name:      otelAgentVolumeName,
-			MountPath: common.ConfigVolumePath + "/" + otelConfigFileName,
-			SubPath:   otelConfigFileName,
+			MountPath: otelConfigPath,
 			ReadOnly:  true,
 		},
 	}
@@ -152,7 +160,8 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 			Agent: testExpectedAgent(apicommon.OtelAgent, defaultExpectedPorts, defaultExpectedEnvVars, map[string]string{}, []corev1.VolumeMount{
 				{
 					Name:      otelAgentVolumeName,
-					MountPath: common.ConfigVolumePath + "/otel/",
+					MountPath: otelConfigPath,
+					ReadOnly:  true,
 				},
 			},
 				[]corev1.Volume{
@@ -234,6 +243,10 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 						present: true,
 						value:   "health_check,zpages,pprof,ddflare",
 					},
+					installation_method: expectedEnvVar{
+						present: true,
+						value:   "kubernetes",
+					},
 				},
 				map[string]string{"checksum/otel_agent-custom-config": "b4ea5ecc5c7901d3b48c58622379ecfb"},
 				defaultVolumeMounts,
@@ -271,6 +284,10 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 					converter_features: expectedEnvVar{
 						present: true,
 						value:   "health_check,zpages,pprof,ddflare",
+					},
+					installation_method: expectedEnvVar{
+						present: true,
+						value:   "kubernetes",
 					},
 				},
 				map[string]string{"checksum/otel_agent-custom-config": "d9c73c9017a4fcb811da0e51f5044b3c"},
@@ -321,6 +338,10 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 					present: true,
 					value:   "13",
 				},
+				installation_method: expectedEnvVar{
+					present: true,
+					value:   "kubernetes",
+				},
 			},
 				defaultAnnotations,
 				defaultVolumeMounts,
@@ -347,6 +368,10 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 				extension_url: expectedEnvVar{
 					present: true,
 					value:   "https://localhost:1234",
+				},
+				installation_method: expectedEnvVar{
+					present: true,
+					value:   "kubernetes",
 				},
 			},
 				defaultAnnotations,
@@ -383,6 +408,10 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 				enabled: expectedEnvVar{
 					present: true,
 					value:   "true",
+				},
+				installation_method: expectedEnvVar{
+					present: true,
+					value:   "kubernetes",
 				},
 			},
 				defaultAnnotations,
@@ -460,12 +489,48 @@ func testExpectedAgent(
 	expectedAnnotations map[string]string,
 	expectedVolumeMount []corev1.VolumeMount,
 	expectedVolume []corev1.Volume) *test.ComponentTest {
-	return test.NewDefaultComponentTest().WithWantFunc(
+	return test.NewDefaultComponentTest().WithCreateFunc(
+		func(t testing.TB) (feature.PodTemplateManagers, string) {
+			newPTS := corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Name:    string(apicommon.CoreAgentContainerName),
+							Image:   images.GetLatestAgentImage(),
+							Command: []string{"agent", "run"},
+						},
+						{
+							Name:    string(apicommon.OtelAgent),
+							Image:   images.GetLatestAgentImage(),
+							Command: []string{"otel-agent"},
+						},
+					},
+				},
+			}
+			return fake.NewPodTemplateManagers(t, newPTS), kubernetes.DefaultProvider
+		},
+	).WithWantFunc(
 		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 			mgr := mgrInterface.(*fake.PodTemplateManagers)
 
 			agentMounts := mgr.VolumeMountMgr.VolumeMountsByC[agentContainerName]
 			assert.True(t, apiutils.IsEqualStruct(agentMounts, expectedVolumeMount), "%s volume mounts \ndiff = %s", agentContainerName, cmp.Diff(agentMounts, expectedVolumeMount))
+
+			expectedArgs := []string{"--config=" + otelConfigPath + "/" + otelConfigFileName}
+			if len(expectedVolume) > 0 && expectedVolume[0].ConfigMap != nil && len(expectedVolume[0].ConfigMap.Items) > 0 {
+				expectedArgs = nil
+				for _, item := range expectedVolume[0].ConfigMap.Items {
+					expectedArgs = append(expectedArgs, "--config="+otelConfigPath+"/"+item.Path)
+				}
+			}
+			foundContainer := false
+			for _, container := range mgr.PodTemplateSpec().Spec.Containers {
+				if container.Name == string(agentContainerName) {
+					foundContainer = true
+					assert.Equal(t, expectedArgs, container.Args)
+				}
+			}
+			assert.True(t, foundContainer, "expected container %s to be present", agentContainerName)
 
 			volumes := mgr.VolumeMgr.Volumes
 			assert.True(t, apiutils.IsEqualStruct(volumes, expectedVolume), "Volumes \ndiff = %s", cmp.Diff(volumes, expectedVolume))
@@ -495,22 +560,22 @@ func testExpectedAgent(
 
 			if expectedEnvVars.agent_ipc_port.present {
 				wantEnvVars = append(wantEnvVars, &corev1.EnvVar{
-					Name:  DDAgentIpcPort,
+					Name:  common.DDAgentIpcPort,
 					Value: expectedEnvVars.agent_ipc_port.value,
 				})
 				wantEnvVarsOTel = append(wantEnvVarsOTel, &corev1.EnvVar{
-					Name:  DDAgentIpcPort,
+					Name:  common.DDAgentIpcPort,
 					Value: expectedEnvVars.agent_ipc_port.value,
 				})
 			}
 
 			if expectedEnvVars.agent_ipc_refresh.present {
 				wantEnvVars = append(wantEnvVars, &corev1.EnvVar{
-					Name:  DDAgentIpcConfigRefreshInterval,
+					Name:  common.DDAgentIpcConfigRefreshInterval,
 					Value: expectedEnvVars.agent_ipc_refresh.value,
 				})
 				wantEnvVarsOTel = append(wantEnvVarsOTel, &corev1.EnvVar{
-					Name:  DDAgentIpcConfigRefreshInterval,
+					Name:  common.DDAgentIpcConfigRefreshInterval,
 					Value: expectedEnvVars.agent_ipc_refresh.value,
 				})
 			}
@@ -547,6 +612,13 @@ func testExpectedAgent(
 				})
 			}
 
+			if expectedEnvVars.installation_method.present {
+				wantEnvVarsOTel = append(wantEnvVarsOTel, &corev1.EnvVar{
+					Name:  DDOtelCollectorInstallationMethod,
+					Value: expectedEnvVars.installation_method.value,
+				})
+			}
+
 			if len(wantEnvVars) == 0 {
 				wantEnvVars = nil
 			}
@@ -570,17 +642,17 @@ func testExpectedDepsCreatedCM(t testing.TB, store store.StoreClient) {
 	// modifying WantDependenciesFunc definition.
 	if t.Name() == "Test_otelCollectorFeature_Configure/otel_agent_enabled_with_configMap" {
 		// configMap is provided by user, no need to create it.
-		_, found := store.Get(kubernetes.ConfigMapKind, "", "-otel-agent-config")
+		_, found := store.Get(kubernetes.ConfigMapKind, "", "-otel-config")
 		assert.False(t, found)
 		return
 	}
 	if t.Name() == "Test_otelCollectorFeature_Configure/otel_agent_enabled_with_configMap_multi_items" {
 		// configMap is provided by user, no need to create it.
-		_, found := store.Get(kubernetes.ConfigMapKind, "", "-otel-agent-config")
+		_, found := store.Get(kubernetes.ConfigMapKind, "", "-otel-config")
 		assert.False(t, found)
 		return
 	}
-	configMapObject, found := store.Get(kubernetes.ConfigMapKind, "", "-otel-agent-config")
+	configMapObject, found := store.Get(kubernetes.ConfigMapKind, "", "-otel-config")
 	assert.True(t, found)
 
 	configMap := configMapObject.(*corev1.ConfigMap)

@@ -191,6 +191,10 @@ spec:
       appKey: ENC[k8s_secret@default/test-secret/app_key]
 ```
 
+#### With secret management solutions
+
+Datadog Agent also can be integrated with other secret management solutions, such as AWS Secrets Manager, HashiCorp Vault, GCP Secret Manager and more. Configurations depend on each backend type. Please see the [instructions][5] for more information.
+
 ## Additional notes
 
 ### ServiceAccount permissions
@@ -246,3 +250,4 @@ For versions prior to Operator 1.11, `spec.global.secretBackend` is unavailable.
 [2]: https://docs.datadoghq.com/agent/guide/secrets-management/?tab=linux#script-for-reading-from-multiple-secret-providers
 [3]: https://github.com/DataDog/datadog-operator/blob/2bbda7adace27de3d397b3d76d87fbd49fa304e3/docs/secret_management.md#how-to-deploy-the-agent-components-using-the-secret-backend-feature-with-datadogagent
 [4]: https://kubernetes.io/docs/concepts/configuration/secret/
+[5]: https://docs.datadoghq.com/agent/configuration/secrets-management

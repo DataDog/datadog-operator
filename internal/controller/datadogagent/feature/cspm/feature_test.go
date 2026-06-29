@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 
+	"k8s.io/utils/ptr"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -44,14 +46,14 @@ func Test_cspmFeature_Configure(t *testing.T) {
 		Spec: v2alpha1.DatadogAgentSpec{
 			Features: &v2alpha1.DatadogFeatures{
 				CSPM: &v2alpha1.CSPMFeatureConfig{
-					Enabled: apiutils.NewBoolPointer(false),
+					Enabled: ptr.To(false),
 				},
 			},
 		},
 	}
 	ddaCSPMEnabled := ddaCSPMDisabled.DeepCopy()
 	{
-		ddaCSPMEnabled.Spec.Features.CSPM.Enabled = apiutils.NewBoolPointer(true)
+		ddaCSPMEnabled.Spec.Features.CSPM.Enabled = ptr.To(true)
 		ddaCSPMEnabled.Spec.Features.CSPM.CustomBenchmarks = &v2alpha1.CustomConfig{
 			ConfigMap: &v2alpha1.ConfigMapConfig{
 				Name: "custom_test",
@@ -64,12 +66,12 @@ func Test_cspmFeature_Configure(t *testing.T) {
 			},
 		}
 		ddaCSPMEnabled.Spec.Features.CSPM.CheckInterval = &metav1.Duration{Duration: 20 * time.Minute}
-		ddaCSPMEnabled.Spec.Features.CSPM.HostBenchmarks = &v2alpha1.CSPMHostBenchmarksConfig{Enabled: apiutils.NewBoolPointer(true)}
+		ddaCSPMEnabled.Spec.Features.CSPM.HostBenchmarks = &v2alpha1.CSPMHostBenchmarksConfig{Enabled: ptr.To(true)}
 	}
 
 	ddaCSPMDirectSendEnabled := ddaCSPMDisabled.DeepCopy()
 	{
-		ddaCSPMDirectSendEnabled.Spec.Features.CSPM.Enabled = apiutils.NewBoolPointer(true)
+		ddaCSPMDirectSendEnabled.Spec.Features.CSPM.Enabled = ptr.To(true)
 		ddaCSPMDirectSendEnabled.Spec.Features.CSPM.CustomBenchmarks = &v2alpha1.CustomConfig{
 			ConfigMap: &v2alpha1.ConfigMapConfig{
 				Name: "custom_test",
@@ -82,8 +84,8 @@ func Test_cspmFeature_Configure(t *testing.T) {
 			},
 		}
 		ddaCSPMDirectSendEnabled.Spec.Features.CSPM.CheckInterval = &metav1.Duration{Duration: 20 * time.Minute}
-		ddaCSPMDirectSendEnabled.Spec.Features.CSPM.HostBenchmarks = &v2alpha1.CSPMHostBenchmarksConfig{Enabled: apiutils.NewBoolPointer(true)}
-		ddaCSPMDirectSendEnabled.Spec.Features.CSPM.RunInSystemProbe = apiutils.NewBoolPointer(true)
+		ddaCSPMDirectSendEnabled.Spec.Features.CSPM.HostBenchmarks = &v2alpha1.CSPMHostBenchmarksConfig{Enabled: ptr.To(true)}
+		ddaCSPMDirectSendEnabled.Spec.Features.CSPM.RunInSystemProbe = ptr.To(true)
 	}
 
 	tests := test.FeatureTestSuite{

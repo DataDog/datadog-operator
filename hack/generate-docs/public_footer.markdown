@@ -9,3 +9,4 @@ For a complete list of parameters, see the [Operator configuration spec][9].
 [7]: https://github.com/DataDog/datadog-operator/blob/main/examples/datadogagent/datadog-agent-with-tolerations.yaml
 [8]: https://github.com/DataDog/datadog-operator/blob/main/docs/configuration.v2alpha1.md#all-configuration-options
 [9]: https://github.com/DataDog/datadog-operator/blob/main/docs/configuration.v2alpha1.md#override
+[10]: https://github.com/DataDog/datadog-operator/blob/main/docs/datadog_agent_profiles.md

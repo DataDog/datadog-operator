@@ -1,0 +1,11 @@
+schema-version: v1
+ignore:
+  - "test/"
+  - "**/zz_generated.*.go"
+gates:
+  - type: patch_coverage_percentage
+    config:
+      threshold: 80
+flags:
+  unittests:
+    carryforward: false

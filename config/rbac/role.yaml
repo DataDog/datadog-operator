@@ -67,9 +67,16 @@ rules:
 - apiGroups:
   - ""
   resources:
+  - pods/eviction
   - pods/exec
   verbs:
   - create
+- apiGroups:
+  - ""
+  resources:
+  - pods/resize
+  verbs:
+  - patch
 - apiGroups:
   - '*'
   resources:
@@ -103,7 +110,11 @@ rules:
   resources:
   - controllerrevisions
   verbs:
+  - create
+  - delete
+  - get
   - list
+  - patch
   - watch
 - apiGroups:
   - apps
@@ -123,10 +134,18 @@ rules:
   - apps
   resources:
   - replicasets
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - apps
+  resources:
   - statefulsets
   verbs:
   - get
   - list
+  - patch
   - watch
 - apiGroups:
   - argoproj.io
@@ -141,6 +160,7 @@ rules:
   resources:
   - rollouts
   verbs:
+  - get
   - list
   - patch
   - watch
@@ -168,6 +188,7 @@ rules:
   - create
   - get
   - list
+  - patch
   - watch
 - apiGroups:
   - autoscaling
@@ -213,6 +234,23 @@ rules:
   - update
   - watch
 - apiGroups:
+  - configuration.konghq.com
+  - consul.hashicorp.com
+  - core.haproxy.org
+  - datadoghq.com
+  - gateway.envoyproxy.io
+  - ingress.v1.haproxy.org
+  - karpenter.azure.com
+  - kuma.io
+  - mesh.consul.hashicorp.com
+  - policy.linkerd.io
+  - traefik.containo.us
+  resources:
+  - '*'
+  verbs:
+  - list
+  - watch
+- apiGroups:
   - coordination.k8s.io
   resources:
   - leases
@@ -233,6 +271,8 @@ rules:
   - datadogagentprofiles/finalizers
   - datadogagents
   - datadogagents/finalizers
+  - datadogcsidrivers
+  - datadogcsidrivers/finalizers
   - datadogdashboards
   - datadoggenericresources
   - datadoggenericresources/finalizers
@@ -255,6 +295,7 @@ rules:
   - datadogagentinternals/status
   - datadogagentprofiles/status
   - datadogagents/status
+  - datadogcsidrivers/status
   - datadogdashboards/status
   - datadoggenericresources/status
   - datadogmonitors/status
@@ -273,6 +314,23 @@ rules:
 - apiGroups:
   - datadoghq.com
   resources:
+  - datadoginstrumentations
+  - extendeddaemonsetreplicasets
+  - watermarkpodautoscalers
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - datadoghq.com
+  resources:
+  - datadoginstrumentations/status
+  verbs:
+  - patch
+  - update
+- apiGroups:
+  - datadoghq.com
+  resources:
   - datadogmetrics
   verbs:
   - create
@@ -283,32 +341,18 @@ rules:
 - apiGroups:
   - datadoghq.com
   resources:
+  - datadogpodautoscalerclusterprofiles
+  - datadogpodautoscalerclusterprofiles/status
   - datadogpodautoscalers
   - datadogpodautoscalers/status
   verbs:
   - '*'
 - apiGroups:
-  - datadoghq.com
-  resources:
-  - extendeddaemonsetreplicasets
-  - watermarkpodautoscalers
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
-  - datadoghq.com
-  - karpenter.azure.com
-  resources:
-  - '*'
-  verbs:
-  - list
-  - watch
-- apiGroups:
   - discovery.k8s.io
   resources:
   - endpointslices
   verbs:
+  - get
   - list
   - watch
 - apiGroups:
@@ -324,7 +368,9 @@ rules:
 - apiGroups:
   - gateway.envoyproxy.io
   resources:
+  - backends
   - envoyextensionpolicies
+  - envoypatchpolicies
   verbs:
   - create
   - delete
@@ -343,12 +389,29 @@ rules:
 - apiGroups:
   - gateway.networking.k8s.io
   resources:
+  - grpcroutes
+  - listenersets
+  - tlsroutes
+  verbs:
+  - list
+  - watch
+- apiGroups:
+  - gateway.networking.k8s.io
+  resources:
   - referencegrants
   verbs:
   - create
   - delete
   - get
   - patch
+- apiGroups:
+  - k8s.nginx.org
+  resources:
+  - virtualserverroutes
+  - virtualservers
+  verbs:
+  - list
+  - watch
 - apiGroups:
   - karpenter.sh
   resources:
@@ -378,11 +441,37 @@ rules:
 - apiGroups:
   - networking.istio.io
   resources:
+  - destinationrules
+  - serviceentries
+  - sidecars
+  - virtualservices
+  verbs:
+  - list
+  - watch
+- apiGroups:
+  - networking.istio.io
+  resources:
   - envoyfilters
   verbs:
   - create
   - delete
   - get
+- apiGroups:
+  - networking.istio.io
+  resources:
+  - gateways
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - networking.k8s.io
+  resources:
+  - ingressclasses
+  verbs:
+  - get
+  - list
+  - watch
 - apiGroups:
   - networking.k8s.io
   resources:
@@ -473,9 +562,35 @@ rules:
 - apiGroups:
   - storage.k8s.io
   resources:
+  - csidrivers
+  verbs:
+  - create
+  - list
+  - watch
+- apiGroups:
+  - storage.k8s.io
+  resourceNames:
+  - k8s.csi.datadoghq.com
+  resources:
+  - csidrivers
+  verbs:
+  - delete
+  - get
+  - patch
+  - update
+- apiGroups:
+  - storage.k8s.io
+  resources:
   - storageclasses
   - volumeattachments
   verbs:
   - get
+  - list
+  - watch
+- apiGroups:
+  - traefik.io
+  resources:
+  - ingressroutes
+  verbs:
   - list
   - watch

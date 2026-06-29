@@ -55,9 +55,9 @@ func getRBACPolicyRules() []rbacv1.PolicyRule {
 		{
 			APIGroups: []string{rbac.GatewayAPIGroup},
 			Resources: []string{
-				"gateways",
+				rbac.GatewaysResource,
 				"gatewayclasses",
-				"httproutes",
+				rbac.HTTPRoutesResource,
 			},
 			Verbs: []string{
 				rbac.GetVerb,
@@ -77,8 +77,8 @@ func getRBACPolicyRules() []rbacv1.PolicyRule {
 			},
 		},
 		{
-			APIGroups: []string{"gateway.envoyproxy.io"},
-			Resources: []string{"envoyextensionpolicies"},
+			APIGroups: []string{rbac.EnvoyGatewayAPIGroup},
+			Resources: []string{"envoyextensionpolicies", "envoypatchpolicies", "backends"},
 			Verbs: []string{
 				rbac.GetVerb,
 				rbac.DeleteVerb,
@@ -87,11 +87,58 @@ func getRBACPolicyRules() []rbacv1.PolicyRule {
 		},
 		// Istio resources
 		{
-			APIGroups: []string{"networking.istio.io"},
+			APIGroups: []string{rbac.IstioNetworkingAPIGroup},
 			Resources: []string{"envoyfilters"},
 			Verbs: []string{
 				rbac.GetVerb,
 				rbac.CreateVerb,
+				rbac.DeleteVerb,
+			},
+		},
+		{
+			APIGroups: []string{rbac.IstioNetworkingAPIGroup},
+			Resources: []string{rbac.GatewaysResource},
+			Verbs: []string{
+				rbac.GetVerb,
+				rbac.ListVerb,
+				rbac.WatchVerb,
+			},
+		},
+		{
+			APIGroups: []string{rbac.CoreAPIGroup},
+			Resources: []string{rbac.ConfigMapsResource},
+			Verbs: []string{
+				rbac.GetVerb,
+				rbac.UpdateVerb,
+			},
+		},
+		// AppSec proxy injection - ingress-nginx
+		{
+			APIGroups: []string{rbac.NetworkingAPIGroup},
+			Resources: []string{rbac.IngressClassesResource},
+			Verbs: []string{
+				rbac.GetVerb,
+				rbac.ListVerb,
+				rbac.WatchVerb,
+			},
+		},
+		// AppSec proxy injection - ingress-nginx ConfigMap management
+		// SECURITY NOTE: Cluster-wide and unscoped because ConfigMap names are
+		// derived dynamically from the controller's --configmap arg
+		// (e.g. datadog-appsec-<original-name>) and cannot be predicted at
+		// RBAC definition time. The reconciler/cleanup paths filter by labels:
+		//   appsec.datadoghq.com/watched-configmap=true
+		//   app.kubernetes.io/component=datadog-appsec-injector
+		// Consider namespace-scoped Roles if blast-radius reduction is needed.
+		{
+			APIGroups: []string{rbac.CoreAPIGroup},
+			Resources: []string{rbac.ConfigMapsResource},
+			Verbs: []string{
+				rbac.GetVerb,
+				rbac.ListVerb,
+				rbac.WatchVerb,
+				rbac.CreateVerb,
+				rbac.UpdateVerb,
 				rbac.DeleteVerb,
 			},
 		},

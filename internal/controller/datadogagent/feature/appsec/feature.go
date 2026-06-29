@@ -13,6 +13,7 @@ import (
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -57,19 +58,20 @@ func (f *appsecFeature) ID() feature.IDType {
 	return feature.AppsecIDType
 }
 
-func isAboveMinVersion(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
-	// Agent version must >= 7.73.0 to run appsec feature
+func clusterAgentVersion(ddaSpec *v2alpha1.DatadogAgentSpec) string {
 	if ddaSpec == nil {
-		return utils.IsAboveMinVersion(images.AgentLatestVersion, ClusterAgentMinVersion, nil)
+		return images.AgentLatestVersion
 	}
-
-	image := images.AgentLatestVersion
 	if clusterAgent, ok := ddaSpec.Override[v2alpha1.ClusterAgentComponentName]; ok {
 		if clusterAgent.Image != nil {
-			image = common.GetAgentVersionFromImage(*clusterAgent.Image)
+			return common.GetAgentVersionFromImage(*clusterAgent.Image)
 		}
 	}
-	return utils.IsAboveMinVersion(image, ClusterAgentMinVersion, nil)
+	return images.AgentLatestVersion
+}
+
+func isAboveMinVersion(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
+	return utils.IsAboveMinVersion(clusterAgentVersion(ddaSpec), ClusterAgentMinVersion, nil)
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
@@ -91,13 +93,18 @@ func (f *appsecFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAg
 		return feature.RequiredComponents{}
 	}
 
+	if f.config.requiresNginxSupport() && !utils.IsAboveMinVersion(clusterAgentVersion(ddaSpec), ClusterAgentNginxMinVersion, nil) {
+		f.logger.Info("ingress-nginx injection requires cluster-agent >= " + ClusterAgentNginxMinVersion)
+		return feature.RequiredComponents{}
+	}
+
 	f.owner = dda
 	f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda.GetName(), ddaSpec)
 
 	// The cluster agent is required for the AppSec feature.
 	return feature.RequiredComponents{
 		ClusterAgent: feature.RequiredComponent{
-			IsRequired: apiutils.NewBoolPointer(true),
+			IsRequired: ptr.To(true),
 			Containers: []apicommon.AgentContainerName{
 				apicommon.ClusterAgentContainerName,
 			},
@@ -107,14 +114,14 @@ func (f *appsecFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAg
 
 // ManageDependencies adds the RBAC necessary for the appsec feature to be enabled and is still required when disabled
 // to be able to do cleanup
-func (f *appsecFeature) ManageDependencies(managers feature.ResourceManagers, _ string) error {
+func (f *appsecFeature) ManageDependencies(managers feature.ResourceManagers) error {
 	rbacName := getAppsecRBACResourceName(f.owner, f.rbacSuffix)
 	return managers.RBACManager().AddClusterPolicyRules(f.owner.GetNamespace(), rbacName, f.serviceAccountName, getRBACPolicyRules())
 }
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *appsecFeature) ManageClusterAgent(managers feature.PodTemplateManagers, _ string) error {
+func (f *appsecFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
 	if !f.config.isEnabled() {
 		f.logger.V(2).Info("feature is disabled, adding no environment variables")
 		return nil
@@ -157,49 +164,52 @@ func (f *appsecFeature) ManageClusterAgent(managers feature.PodTemplateManagers,
 		}
 	}
 
-	// Set processor port if specified
+	// Set processor port only when explicitly configured (zero means unset)
 	if f.config.ProcessorPort != 0 {
 		if err := addEnvVar(DDAppsecProxyProcessorPort, strconv.Itoa(f.config.ProcessorPort)); err != nil {
 			return err
 		}
 	}
 
-	// Set processor address if specified
-	if f.config.ProcessorAddress != "" {
-		if err := addEnvVar(DDAppsecProxyProcessorAddress, f.config.ProcessorAddress); err != nil {
-			return err
+	// Set optional string env vars (key → value, skipped when value is empty)
+	for key, value := range map[string]string{
+		DDAppsecProxyProcessorAddress:                             f.config.ProcessorAddress,
+		DDClusterAgentAppsecInjectorProcessorServiceName:          f.config.ProcessorServiceName,
+		DDClusterAgentAppsecInjectorProcessorServiceNamespace:     f.config.ProcessorServiceNamespace,
+		DDClusterAgentAppsecInjectorMode:                          f.config.Mode,
+		DDAdmissionControllerAppsecSidecarImage:                   f.config.SidecarImage,
+		DDAdmissionControllerAppsecSidecarImageTag:                f.config.SidecarImageTag,
+		DDAdmissionControllerAppsecSidecarPort:                    f.config.SidecarPort,
+		DDAdmissionControllerAppsecSidecarHealthPort:              f.config.SidecarHealthPort,
+		DDAdmissionControllerAppsecSidecarResourcesRequestsCPU:    f.config.SidecarResourcesRequestsCPU,
+		DDAdmissionControllerAppsecSidecarResourcesRequestsMemory: f.config.SidecarResourcesRequestsMemory,
+		DDAdmissionControllerAppsecSidecarResourcesLimitsCPU:      f.config.SidecarResourcesLimitsCPU,
+		DDAdmissionControllerAppsecSidecarResourcesLimitsMemory:   f.config.SidecarResourcesLimitsMemory,
+		DDAdmissionControllerAppsecSidecarBodyParsingSizeLimit:    f.config.SidecarBodyParsingSizeLimit,
+		DDAdmissionControllerAppsecNginxModuleMountPath:           f.config.NginxModuleMountPath,
+	} {
+		if value != "" {
+			if err := addEnvVar(key, value); err != nil {
+				return err
+			}
 		}
 	}
 
-	// Set processor service name if specified
-	if f.config.ProcessorServiceName != "" {
-		if err := addEnvVar(DDClusterAgentAppsecInjectorProcessorServiceName, f.config.ProcessorServiceName); err != nil {
-			return err
-		}
-	}
-
-	// Set processor service namespace if specified
-	if f.config.ProcessorServiceNamespace != "" {
-		if err := addEnvVar(DDClusterAgentAppsecInjectorProcessorServiceNamespace, f.config.ProcessorServiceNamespace); err != nil {
-			return err
-		}
-	}
-
 	return nil
 }
 
-func (f *appsecFeature) ManageSingleContainerNodeAgent(_ feature.PodTemplateManagers, _ string) error {
+func (f *appsecFeature) ManageSingleContainerNodeAgent(_ feature.PodTemplateManagers) error {
 	return nil
 }
 
-func (f *appsecFeature) ManageNodeAgent(_ feature.PodTemplateManagers, _ string) error {
+func (f *appsecFeature) ManageNodeAgent(_ feature.PodTemplateManagers) error {
 	return nil
 }
 
-func (f *appsecFeature) ManageClusterChecksRunner(_ feature.PodTemplateManagers, _ string) error {
+func (f *appsecFeature) ManageClusterChecksRunner(_ feature.PodTemplateManagers) error {
 	return nil
 }
 
-func (f *appsecFeature) ManageOtelAgentGateway(_ feature.PodTemplateManagers, _ string) error {
+func (f *appsecFeature) ManageOtelAgentGateway(_ feature.PodTemplateManagers) error {
 	return nil
 }

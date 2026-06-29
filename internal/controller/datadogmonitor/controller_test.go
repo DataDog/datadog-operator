@@ -10,10 +10,15 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 
+	datadogapi "github.com/DataDog/datadog-api-client-go/v2/api/datadog"
+	"github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
 	"github.com/stretchr/testify/assert"
-
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -26,13 +31,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	datadogapi "github.com/DataDog/datadog-api-client-go/v2/api/datadog"
-	datadogV1 "github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
-	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 )
 
 const (
@@ -76,7 +78,7 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 			args: args{
 				loadFunc: genericDatadogMonitor,
 			},
-			wantResult: reconcile.Result{RequeueAfter: defaultRequeuePeriod},
+			wantResult: reconcile.Result{Requeue: true},
 			wantFunc: func(c client.Client) error {
 				dm := &datadoghqv1alpha1.DatadogMonitor{}
 				if err := c.Get(context.TODO(), types.NamespacedName{Name: resourcesName, Namespace: resourcesNamespace}, dm); err != nil {
@@ -104,7 +106,7 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 			},
 		},
 		{
-			name: "DatadogMonitor exists, check required tags",
+			name: "DatadogMonitor exists, adds required tags before create",
 			args: args{
 				request:             newRequest(resourcesNamespace, resourcesName),
 				loadFunc:            genericDatadogMonitor,
@@ -117,6 +119,7 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 					return err
 				}
 				assert.Contains(t, dm.Spec.Tags, "generated:kubernetes")
+				assert.False(t, dm.Status.Primary)
 				return nil
 			},
 		},
@@ -369,6 +372,24 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 			},
 		},
 		{
+			name: "DatadogMonitor, error-tracking alert",
+			args: args{
+				request:             newRequest(resourcesNamespace, resourcesName),
+				loadFunc:            testErrorTrackingMonitor,
+				firstReconcileCount: 10,
+			},
+			wantResult: reconcile.Result{RequeueAfter: defaultRequeuePeriod},
+			wantErr:    false,
+			wantFunc: func(c client.Client) error {
+				dm := &datadoghqv1alpha1.DatadogMonitor{}
+				if err := c.Get(context.TODO(), types.NamespacedName{Name: resourcesName, Namespace: resourcesNamespace}, dm); err != nil {
+					return err
+				}
+				assert.NotContains(t, dm.Status.Conditions[0].Message, "error")
+				return nil
+			},
+		},
+		{
 			name: "DatadogMonitor of unsupported type (composite)",
 			args: args{
 				request: newRequest(resourcesNamespace, resourcesName),
@@ -422,14 +443,22 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 			testAuth := setupTestAuth(httpServer.URL)
 
 			// Set up
+			os.Setenv("DD_URL", httpServer.URL)
+			os.Setenv("DD_API_KEY", "DUMMY_API_KEY")
+			os.Setenv("DD_APP_KEY", "DUMMY_APP_KEY")
+			defer os.Unsetenv("DD_API_KEY")
+			defer os.Unsetenv("DD_APP_KEY")
+			defer os.Unsetenv("DD_URL")
+			testCredsManager := config.NewCredentialManager(fake.NewClientBuilder().Build())
 			r := &Reconciler{
 				client:        fake.NewClientBuilder().WithStatusSubresource(&datadoghqv1alpha1.DatadogMonitor{}).Build(),
 				datadogClient: client,
-				datadogAuth:   testAuth,
+				credsManager:  testCredsManager,
 				scheme:        s,
 				recorder:      recorder,
 				log:           logf.Log.WithName(tt.name),
 			}
+			_ = testAuth
 
 			// First monitor action
 			dm := tt.args.request
@@ -473,6 +502,82 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestReconcileDatadogMonitor_CredentialRefresh(t *testing.T) {
+	logf.SetLogger(zap.New(zap.UseDevMode(true)))
+
+	eventBroadcaster := record.NewBroadcaster()
+	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: "TestReconcileDatadogMonitor_Reconcile"})
+
+	s := scheme.Scheme
+	s.AddKnownTypes(datadoghqv1alpha1.GroupVersion, &datadoghqv1alpha1.DatadogMonitor{})
+
+	// Track the API key seen by the mock Datadog server on each request.
+	var lastSeenAPIKey string
+	var mu sync.Mutex
+
+	httpServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		lastSeenAPIKey = r.Header.Get("Dd-Api-Key")
+		mu.Unlock()
+		w.Header().Set("Content-Type", "application/json")
+	}))
+	defer httpServer.Close()
+
+	testConfig := datadogapi.NewConfiguration()
+	testConfig.HTTPClient = httpServer.Client()
+	apiClient := datadogapi.NewAPIClient(testConfig)
+	ddClient := datadogV1.NewMonitorsApi(apiClient)
+
+	t.Setenv("DD_URL", httpServer.URL)
+	t.Setenv("DD_API_KEY", "api-1")
+	t.Setenv("DD_APP_KEY", "app-1")
+
+	credsManager := config.NewCredentialManager(fake.NewClientBuilder().Build())
+
+	r := &Reconciler{
+		client:        fake.NewClientBuilder().WithStatusSubresource(&datadoghqv1alpha1.DatadogMonitor{}).Build(),
+		datadogClient: ddClient,
+		credsManager:  credsManager,
+		scheme:        s,
+		recorder:      recorder,
+		log:           logf.Log.WithName("credential-refresh-test"),
+	}
+
+	dm := genericDatadogMonitor(r.client)
+
+	// Reconcile 3 times: add finalizer → add required tags → create monitor
+	for i := 0; i < 3; i++ {
+		_, err := r.Reconcile(context.TODO(), dm)
+		assert.NoError(t, err)
+		// Re-fetch to pick up finalizer/tag updates
+		r.client.Get(context.TODO(), types.NamespacedName{Name: resourcesName, Namespace: resourcesNamespace}, dm)
+	}
+
+	// Assert the server saw the initial API key
+	mu.Lock()
+	assert.Equal(t, "api-1", lastSeenAPIKey, "server should have received initial API key")
+	mu.Unlock()
+
+	t.Setenv("DD_API_KEY", "api-2")
+	t.Setenv("DD_APP_KEY", "app-2")
+
+	err := credsManager.Refresh(logf.Log)
+	assert.NoError(t, err)
+
+	// Trigger another reconcile (force sync by zeroing the last sync time)
+	r.client.Get(context.TODO(), types.NamespacedName{Name: resourcesName, Namespace: resourcesNamespace}, dm)
+	dm.Status.MonitorLastForceSyncTime = nil
+	r.client.Status().Update(context.TODO(), dm)
+
+	_, err = r.Reconcile(context.TODO(), dm)
+	assert.NoError(t, err)
+
+	// Assert the server now sees the rotated API key
+	mu.Lock()
+	assert.Equal(t, "api-2", lastSeenAPIKey, "server should have received rotated API key after refresh")
+	mu.Unlock()
 }
 
 func newRequest(ns, name string) *v1alpha1.DatadogMonitor {
@@ -960,92 +1065,220 @@ func testAuditMonitor(c client.Client) *datadoghqv1alpha1.DatadogMonitor {
 	return dm
 }
 
-// TestReconciler_UpdateDatadogClient tests the UpdateDatadogClient method of the Reconciler
-func TestReconciler_UpdateDatadogClient(t *testing.T) {
-	testLogger := zap.New(zap.UseDevMode(true))
-	recorder := record.NewFakeRecorder(10)
-	scheme := scheme.Scheme
-	client := fake.NewClientBuilder().Build()
-	metricForwardersMgr := datadog.NewForwardersManager(client, nil, false, nil)
-
-	tests := []struct {
-		name     string
-		newCreds config.Creds
-		wantErr  bool
-	}{
-		{
-			name: "valid credentials update",
-			newCreds: config.Creds{
-				APIKey: "test-api-key",
-				AppKey: "test-app-key",
-			},
-			wantErr: false,
+func testErrorTrackingMonitor(c client.Client) *datadoghqv1alpha1.DatadogMonitor {
+	dm := &datadoghqv1alpha1.DatadogMonitor{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "DatadogMonitor",
+			APIVersion: fmt.Sprintf("%s/%s", datadoghqv1alpha1.GroupVersion.Group, datadoghqv1alpha1.GroupVersion.Version),
 		},
-		{
-			name: "empty API key",
-			newCreds: config.Creds{
-				APIKey: "",
-				AppKey: "test-app-key",
-			},
-			wantErr: true,
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: resourcesNamespace,
+			Name:      resourcesName,
 		},
-		{
-			name: "empty App key",
-			newCreds: config.Creds{
-				APIKey: "test-api-key",
-				AppKey: "",
-			},
-			wantErr: true,
-		},
-		{
-			name: "both keys empty",
-			newCreds: config.Creds{
-				APIKey: "",
-				AppKey: "",
-			},
-			wantErr: true,
+		Spec: datadoghqv1alpha1.DatadogMonitorSpec{
+			Query:   "error-tracking-query",
+			Type:    datadoghqv1alpha1.DatadogMonitorTypeErrorTracking,
+			Name:    "test error tracking monitor",
+			Message: "something is wrong",
 		},
 	}
+	_ = c.Create(context.TODO(), dm)
+	return dm
+}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Create reconciler with initial valid credentials
-			initialCreds := config.Creds{
-				APIKey: "initial-api-key",
-				AppKey: "initial-app-key",
+// TestReconcileDatadogMonitor_RecreatesOnOutOfBandDelete reproduces CONS-8333:
+// when a monitor is deleted out-of-band (e.g. from the Datadog UI) and the CR
+// spec then changes, the controller should detect the 404 and recreate the
+// monitor rather than looping on "Monitor not found".
+func TestReconcileDatadogMonitor_RecreatesOnOutOfBandDelete(t *testing.T) {
+	logf.SetLogger(zap.New(zap.UseDevMode(true)))
+
+	eventBroadcaster := record.NewBroadcaster()
+	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: "TestReconcileDatadogMonitor_RecreatesOnOutOfBandDelete"})
+
+	s := scheme.Scheme
+	s.AddKnownTypes(datadoghqv1alpha1.GroupVersion, &datadoghqv1alpha1.DatadogMonitor{})
+
+	var (
+		createCount atomic.Int32
+		nextID      atomic.Int64
+		monitorGone atomic.Bool
+		updateCount atomic.Int32
+	)
+	nextID.Store(1000)
+
+	httpServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		path := r.URL.Path
+
+		switch {
+		case r.Method == http.MethodPost && (path == "/api/v1/monitor/validate" || strings.HasSuffix(path, "/validate")):
+			// Validate always succeeds.
+			fmt.Fprint(w, `{}`)
+		case r.Method == http.MethodPost && path == "/api/v1/monitor":
+			// Create succeeds and returns a fresh monitor ID.
+			createCount.Add(1)
+			id := nextID.Add(1)
+			fmt.Fprintf(w, `{"id":%d,"name":"test monitor","query":"q","type":"metric alert"}`, id)
+		case r.Method == http.MethodGet && strings.HasPrefix(path, "/api/v1/monitor/"):
+			if monitorGone.Load() {
+				w.WriteHeader(http.StatusNotFound)
+				fmt.Fprint(w, `{"errors":["Monitor not found"]}`)
+				return
 			}
-			r, err := NewReconciler(client, initialCreds, scheme, testLogger, recorder, false, metricForwardersMgr)
-			assert.NoError(t, err)
-
-			// Store original client and auth references
-			originalClient := r.datadogClient
-			originalAuth := r.datadogAuth
-
-			// Call UpdateDatadogClient
-			err = r.UpdateDatadogClient(tt.newCreds)
-
-			if tt.wantErr {
-				assert.Error(t, err)
-				// Verify original client and auth are preserved on error
-				if originalClient != r.datadogClient {
-					t.Errorf("Expected clients to be the same, but they are different")
-				}
-				if originalAuth != r.datadogAuth {
-					t.Errorf("Expected client auth to be the same, but they are different")
-				}
-				assert.Equal(t, originalClient, r.datadogClient)
-				assert.Equal(t, originalAuth, r.datadogAuth)
-			} else {
-				assert.NoError(t, err)
-				// Verify client and auth are recreated
-				// r.datadogAuth
-				if originalClient == r.datadogClient {
-					t.Errorf("Expected clients to be different, but they are the same")
-				}
-				if originalAuth == r.datadogAuth {
-					t.Errorf("Expected auths to be different, but they are the same")
-				}
+			fmt.Fprint(w, `{"id":1001,"name":"test monitor","query":"q","type":"metric alert"}`)
+		case r.Method == http.MethodPut && strings.HasPrefix(path, "/api/v1/monitor/"):
+			updateCount.Add(1)
+			if monitorGone.Load() {
+				w.WriteHeader(http.StatusNotFound)
+				fmt.Fprint(w, `{"errors":["Monitor not found"]}`)
+				return
 			}
-		})
+			fmt.Fprint(w, `{"id":1001,"name":"test monitor","query":"q","type":"metric alert"}`)
+		default:
+			fmt.Fprint(w, `{}`)
+		}
+	}))
+	defer httpServer.Close()
+
+	testConfig := datadogapi.NewConfiguration()
+	testConfig.HTTPClient = httpServer.Client()
+	apiClient := datadogapi.NewAPIClient(testConfig)
+	ddClient := datadogV1.NewMonitorsApi(apiClient)
+
+	t.Setenv("DD_URL", httpServer.URL)
+	t.Setenv("DD_API_KEY", "DUMMY_API_KEY")
+	t.Setenv("DD_APP_KEY", "DUMMY_APP_KEY")
+
+	credsManager := config.NewCredentialManager(fake.NewClientBuilder().Build())
+	r := &Reconciler{
+		client:        fake.NewClientBuilder().WithStatusSubresource(&datadoghqv1alpha1.DatadogMonitor{}).Build(),
+		datadogClient: ddClient,
+		credsManager:  credsManager,
+		scheme:        s,
+		recorder:      recorder,
+		log:           logf.Log.WithName("recreate-on-404"),
 	}
+
+	dm := genericDatadogMonitor(r.client)
+
+	// Reconcile a few times: add finalizer → add required tags → create monitor.
+	for i := 0; i < 3; i++ {
+		_, err := r.Reconcile(context.TODO(), dm)
+		assert.NoError(t, err)
+		r.client.Get(context.TODO(), types.NamespacedName{Name: resourcesName, Namespace: resourcesNamespace}, dm)
+	}
+
+	assert.Equal(t, int32(1), createCount.Load(), "monitor should have been created once")
+	assert.NotZero(t, dm.Status.ID, "status.ID should be set after create")
+	initialID := dm.Status.ID
+
+	// Simulate out-of-band deletion: subsequent GET/PUT return 404.
+	monitorGone.Store(true)
+
+	// Mutate the CR spec so the controller takes the "manifest changed" path.
+	dm.Spec.Query = "avg(last_10m):avg:system.disk.in_use{*} by {host} > 0.42"
+	assert.NoError(t, r.client.Update(context.TODO(), dm))
+	r.client.Get(context.TODO(), types.NamespacedName{Name: resourcesName, Namespace: resourcesNamespace}, dm)
+
+	// Before the fix, the controller would issue a PUT and log a 404 forever.
+	// With the fix, the GET-before-update returns 404, so we go down the
+	// create path and recreate the monitor. The mock server's create handler
+	// is unaffected by monitorGone, so the recreate POST succeeds.
+	_, err := r.Reconcile(context.TODO(), dm)
+	assert.NoError(t, err)
+	r.client.Get(context.TODO(), types.NamespacedName{Name: resourcesName, Namespace: resourcesNamespace}, dm)
+
+	assert.Equal(t, int32(2), createCount.Load(), "controller should have recreated the monitor after 404")
+	assert.NotEqual(t, initialID, dm.Status.ID, "status.ID should be updated to the recreated monitor ID")
+	assert.Equal(t, int32(0), updateCount.Load(), "controller should not have issued any updates")
+}
+
+// TestReconcileDatadogMonitor_ClearsIDOnUpdate404 reproduces the TOCTOU race
+// in CONS-8333: the GET-before-update sees the monitor exists, but it is
+// deleted before the PUT lands. The controller should clear status.ID so the
+// next reconcile takes the create path instead of looping on 404.
+func TestReconcileDatadogMonitor_ClearsIDOnUpdate404(t *testing.T) {
+	logf.SetLogger(zap.New(zap.UseDevMode(true)))
+
+	eventBroadcaster := record.NewBroadcaster()
+	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: "TestReconcileDatadogMonitor_ClearsIDOnUpdate404"})
+
+	s := scheme.Scheme
+	s.AddKnownTypes(datadoghqv1alpha1.GroupVersion, &datadoghqv1alpha1.DatadogMonitor{})
+
+	var (
+		nextID         atomic.Int64
+		failNextUpdate atomic.Bool
+	)
+	nextID.Store(2000)
+
+	httpServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		path := r.URL.Path
+
+		switch {
+		case r.Method == http.MethodPost && (path == "/api/v1/monitor/validate" || strings.HasSuffix(path, "/validate")):
+			fmt.Fprint(w, `{}`)
+		case r.Method == http.MethodPost && path == "/api/v1/monitor":
+			id := nextID.Add(1)
+			fmt.Fprintf(w, `{"id":%d,"name":"test monitor","query":"q","type":"metric alert"}`, id)
+		case r.Method == http.MethodGet && strings.HasPrefix(path, "/api/v1/monitor/"):
+			fmt.Fprint(w, `{"id":2001,"name":"test monitor","query":"q","type":"metric alert"}`)
+		case r.Method == http.MethodPut && strings.HasPrefix(path, "/api/v1/monitor/"):
+			if failNextUpdate.Load() {
+				failNextUpdate.Store(false)
+				w.WriteHeader(http.StatusNotFound)
+				fmt.Fprint(w, `{"errors":["Monitor not found"]}`)
+				return
+			}
+			fmt.Fprint(w, `{"id":2001,"name":"test monitor","query":"q","type":"metric alert"}`)
+		default:
+			fmt.Fprint(w, `{}`)
+		}
+	}))
+	defer httpServer.Close()
+
+	testConfig := datadogapi.NewConfiguration()
+	testConfig.HTTPClient = httpServer.Client()
+	apiClient := datadogapi.NewAPIClient(testConfig)
+	ddClient := datadogV1.NewMonitorsApi(apiClient)
+
+	t.Setenv("DD_URL", httpServer.URL)
+	t.Setenv("DD_API_KEY", "DUMMY_API_KEY")
+	t.Setenv("DD_APP_KEY", "DUMMY_APP_KEY")
+
+	credsManager := config.NewCredentialManager(fake.NewClientBuilder().Build())
+	rec := &Reconciler{
+		client:        fake.NewClientBuilder().WithStatusSubresource(&datadoghqv1alpha1.DatadogMonitor{}).Build(),
+		datadogClient: ddClient,
+		credsManager:  credsManager,
+		scheme:        s,
+		recorder:      recorder,
+		log:           logf.Log.WithName("clears-id-on-update-404"),
+	}
+
+	dm := genericDatadogMonitor(rec.client)
+
+	// Get the CR through create.
+	for i := 0; i < 3; i++ {
+		_, err := rec.Reconcile(context.TODO(), dm)
+		assert.NoError(t, err)
+		rec.client.Get(context.TODO(), types.NamespacedName{Name: resourcesName, Namespace: resourcesNamespace}, dm)
+	}
+	assert.NotZero(t, dm.Status.ID, "status.ID should be set after create")
+
+	// Arm the server to fail the next PUT with 404 (GET still succeeds).
+	failNextUpdate.Store(true)
+
+	// Mutate the CR spec so the controller takes the update path.
+	dm.Spec.Query = "avg(last_10m):avg:system.disk.in_use{*} by {host} > 0.99"
+	assert.NoError(t, rec.client.Update(context.TODO(), dm))
+	rec.client.Get(context.TODO(), types.NamespacedName{Name: resourcesName, Namespace: resourcesNamespace}, dm)
+
+	_, err := rec.Reconcile(context.TODO(), dm)
+	assert.NoError(t, err)
+	rec.client.Get(context.TODO(), types.NamespacedName{Name: resourcesName, Namespace: resourcesNamespace}, dm)
+
+	assert.Equal(t, 0, dm.Status.ID, "status.ID should be cleared after update returns 404 so next reconcile recreates")
 }

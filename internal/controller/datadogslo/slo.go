@@ -40,6 +40,9 @@ func buildSLO(crdSLO *v1alpha1.DatadogSLO) (*datadogV1.ServiceLevelObjectiveRequ
 			sloReq.SetMonitorIds(crdSLO.Spec.MonitorIDs)
 			sloReq.SetGroups(crdSLO.Spec.Groups)
 		}
+		if crdSLO.Spec.Type == v1alpha1.DatadogSLOTypeTimeSlice {
+			sloReq.SetSliSpecification(buildSliSpecification(crdSLO.Spec.TimeSlice))
+		}
 	}
 
 	// Used for SLO updates
@@ -61,9 +64,42 @@ func buildSLO(crdSLO *v1alpha1.DatadogSLO) (*datadogV1.ServiceLevelObjectiveRequ
 			slo.SetMonitorIds(crdSLO.Spec.MonitorIDs)
 			slo.SetGroups(crdSLO.Spec.Groups)
 		}
+		if crdSLO.Spec.Type == v1alpha1.DatadogSLOTypeTimeSlice {
+			slo.SetSliSpecification(buildSliSpecification(crdSLO.Spec.TimeSlice))
+		}
 	}
 
 	return sloReq, slo
+}
+
+func buildSliSpecification(ts *v1alpha1.DatadogSLOTimeSlice) datadogV1.SLOSliSpec {
+	const queryName = "query1"
+
+	formulas := []datadogV1.SLOFormula{
+		*datadogV1.NewSLOFormula(queryName),
+	}
+
+	queries := []datadogV1.SLODataSourceQueryDefinition{
+		datadogV1.FormulaAndFunctionMetricQueryDefinitionAsSLODataSourceQueryDefinition(
+			datadogV1.NewFormulaAndFunctionMetricQueryDefinition(
+				datadogV1.FORMULAANDFUNCTIONMETRICDATASOURCE_METRICS,
+				queryName,
+				ts.Query,
+			),
+		),
+	}
+
+	threshold, _ := strconv.ParseFloat(ts.Threshold.AsDec().String(), 64)
+
+	condition := datadogV1.NewSLOTimeSliceCondition(
+		datadogV1.SLOTimeSliceComparator(ts.Comparator),
+		*datadogV1.NewSLOTimeSliceQuery(formulas, queries),
+		threshold,
+	)
+
+	return datadogV1.SLOTimeSliceSpecAsSLOSliSpec(
+		datadogV1.NewSLOTimeSliceSpec(*condition),
+	)
 }
 
 func buildThreshold(sloSpec v1alpha1.DatadogSLOSpec) []datadogV1.SLOThreshold {

@@ -15,6 +15,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
+// ResourceDeleteFunc performs controller-specific cleanup when a resource is being deleted.
+// If it returns an error, the finalizer is NOT removed — the object stays in a terminating
+// state and the controller retries on the next reconcile. If it returns nil, the finalizer
+// is removed and Kubernetes proceeds with deletion.
+//
+// An empty datadogID signals "no remote resource to delete" for controllers that call
+// the Datadog API.
 type ResourceDeleteFunc func(ctx context.Context, k8sObj client.Object, datadogID string) error
 
 type Finalizer struct {
@@ -22,6 +29,10 @@ type Finalizer struct {
 	client     client.Client
 	deleteFunc ResourceDeleteFunc
 
+	// defaultRequeuePeriod is how often to requeue while waiting for Kubernetes
+	// to garbage-collect the object after the finalizer has been removed.
+	// The add-finalizer path always uses an immediate requeue to avoid
+	// delaying the first real reconcile pass.
 	defaultRequeuePeriod    time.Duration
 	defaultErrRequeuePeriod time.Duration
 }
@@ -49,7 +60,7 @@ func (f *Finalizer) HandleFinalizer(ctx context.Context, clientObj client.Object
 		// The object is not being deleted. If it does not have a finalizer, add it and update the object.
 		if !controllerutil.ContainsFinalizer(clientObj, finalizerName) {
 			f.logger.Info("Object does not have a finalizer; adding finalizer",
-				"kind", clientObj.GetObjectKind(),
+				"kind", clientObj.GetObjectKind().GroupVersionKind().Kind,
 				"datadogID", datadogID,
 				"finalizername", finalizerName,
 			)
@@ -58,9 +69,13 @@ func (f *Finalizer) HandleFinalizer(ctx context.Context, clientObj client.Object
 			if err != nil {
 				return ctrl.Result{Requeue: true, RequeueAfter: f.defaultErrRequeuePeriod}, err
 			}
+			// Requeue immediately so the next reconcile works with the updated
+			// object from the API server. Using a delay here would block the
+			// first real reconcile pass and fail tight Eventually() timeouts.
+			return ctrl.Result{Requeue: true}, nil
 		}
 	} else {
-		f.logger.Info("Object being deleted", "kind", clientObj.GetObjectKind(), "finalizername", finalizerName)
+		f.logger.Info("Object being deleted", "kind", clientObj.GetObjectKind().GroupVersionKind().Kind, "finalizername", finalizerName)
 		// The object is being deleted
 		if controllerutil.ContainsFinalizer(clientObj, finalizerName) {
 			// Delete resource
@@ -74,6 +89,10 @@ func (f *Finalizer) HandleFinalizer(ctx context.Context, clientObj client.Object
 				return ctrl.Result{Requeue: true, RequeueAfter: f.defaultErrRequeuePeriod}, err
 			}
 		}
+		// Requeue on a slow cadence while waiting for Kubernetes to
+		// garbage-collect the object. Watch events will usually wake us up
+		// sooner; this is a safety net.
+		return ctrl.Result{RequeueAfter: f.defaultRequeuePeriod}, nil
 	}
 	return ctrl.Result{}, nil
 }

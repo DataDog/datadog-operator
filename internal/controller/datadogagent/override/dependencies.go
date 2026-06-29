@@ -86,7 +86,7 @@ func overrideRBAC(logger logr.Logger, manager feature.ResourceManagers, override
 	// Delete created RBACs if CreateRbac is set to false
 	if !createRBAC(override) {
 		rbacManager := manager.RBACManager()
-		logger.Info("Deleting RBACs for %s", component, nil)
+		logger.V(1).Info("Deleting RBACs", "component", string(component))
 		errs = append(errs, rbacManager.DeleteServiceAccountByComponent(string(component), namespace))
 		errs = append(errs, rbacManager.DeleteRoleByComponent(string(component), namespace))
 		errs = append(errs, rbacManager.DeleteClusterRoleByComponent(string(component)))

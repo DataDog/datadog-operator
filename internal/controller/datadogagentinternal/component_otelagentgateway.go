@@ -57,9 +57,9 @@ func (c *OtelAgentGatewayComponent) GetNewDeploymentFunc() func(ddai metav1.Obje
 	return componentotelagentgateway.NewDefaultOtelAgentGatewayDeployment
 }
 
-func (c *OtelAgentGatewayComponent) GetManageFeatureFunc() func(feat feature.Feature, managers feature.PodTemplateManagers, provider string) error {
-	return func(feat feature.Feature, managers feature.PodTemplateManagers, provider string) error {
-		return feat.ManageOtelAgentGateway(managers, provider)
+func (c *OtelAgentGatewayComponent) GetManageFeatureFunc(_ string) func(feat feature.Feature, managers feature.PodTemplateManagers) error {
+	return func(feat feature.Feature, managers feature.PodTemplateManagers) error {
+		return feat.ManageOtelAgentGateway(managers)
 	}
 }
 
@@ -77,6 +77,6 @@ func (c *OtelAgentGatewayComponent) ForceDeleteComponent(ddai *v1alpha1.DatadogA
 	return false
 }
 
-func (c *OtelAgentGatewayComponent) CleanupDependencies(ctx context.Context, logger logr.Logger, ddai *v1alpha1.DatadogAgentInternal, resourcesManager feature.ResourceManagers) (reconcile.Result, error) {
+func (c *OtelAgentGatewayComponent) CleanupDependencies(ctx context.Context, ddai *v1alpha1.DatadogAgentInternal, resourcesManager feature.ResourceManagers) (reconcile.Result, error) {
 	return reconcile.Result{}, nil
 }

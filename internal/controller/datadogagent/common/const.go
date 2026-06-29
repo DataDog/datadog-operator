@@ -55,6 +55,8 @@ const (
 	OverrideReconcileConflictConditionType = "OverrideReconcileConflict"
 	// DatadogAgentReconcileErrorConditionType ReconcileConditionType for DatadogAgent reconcile error
 	DatadogAgentReconcileErrorConditionType = "DatadogAgentReconcileError"
+	// ClusterProviderDetectedConditionType reports the detected (or user-specified) cluster provider
+	ClusterProviderDetectedConditionType = "ClusterProviderDetected"
 )
 
 const (
@@ -119,7 +121,7 @@ const (
 	LogDatadogVolumeName      = "logdatadog"
 	LogDatadogVolumePath      = "/var/log/datadog"
 	DefaultLogTempStoragePath = "/var/lib/datadog-agent/logs"
-	TmpVolumeName             = "tmp"
+	TmpVolumeName             = "tmpdir"
 	TmpVolumePath             = "/tmp"
 	CertificatesVolumeName    = "certificates"
 	CertificatesVolumePath    = "/etc/datadog-agent/certificates"
@@ -158,8 +160,13 @@ const (
 	HostRunPath       = "/run"
 	HostRunMountPath  = "/host/run"
 
-	RunPathVolumeName  = "pointerdir"
+	RunPathVolumeName  = "datadogrun"
 	RunPathVolumeMount = "/opt/datadog-agent/run"
+
+	FlightRecorderSocketVolumeName = "flightrecorder-socket"
+	FlightRecorderSocketPath       = "/var/run/datadog/flightrecorder"
+	FlightRecorderDataVolumeName   = "flightrecorder-data"
+	FlightRecorderDataPath         = "/data/signals"
 )
 
 // Field paths

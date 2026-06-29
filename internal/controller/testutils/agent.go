@@ -20,11 +20,11 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/utils/ptr"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 )
@@ -41,8 +41,8 @@ func NewDatadogAgentWithAdmissionController(namespace string, name string) v2alp
 		name,
 		&v2alpha1.DatadogFeatures{
 			AdmissionController: &v2alpha1.AdmissionControllerFeatureConfig{
-				Enabled:          apiutils.NewBoolPointer(true),
-				MutateUnlabelled: apiutils.NewBoolPointer(true),
+				Enabled:          ptr.To(true),
+				MutateUnlabelled: ptr.To(true),
 			},
 		},
 	)
@@ -55,10 +55,10 @@ func NewDatadogAgentWithCWSInstrumentation(namespace string, name string) v2alph
 		name,
 		&v2alpha1.DatadogFeatures{
 			AdmissionController: &v2alpha1.AdmissionControllerFeatureConfig{
-				Enabled:          apiutils.NewBoolPointer(true),
-				MutateUnlabelled: apiutils.NewBoolPointer(true),
+				Enabled:          ptr.To(true),
+				MutateUnlabelled: ptr.To(true),
 				CWSInstrumentation: &v2alpha1.CWSInstrumentationConfig{
-					Enabled: apiutils.NewBoolPointer(true),
+					Enabled: ptr.To(true),
 				},
 			},
 		},
@@ -72,9 +72,9 @@ func NewDatadogAgentWithAPM(namespace string, name string) v2alpha1.DatadogAgent
 		name,
 		&v2alpha1.DatadogFeatures{
 			APM: &v2alpha1.APMFeatureConfig{
-				Enabled: apiutils.NewBoolPointer(true),
+				Enabled: ptr.To(true),
 				HostPortConfig: &v2alpha1.HostPortConfig{
-					Enabled: apiutils.NewBoolPointer(true),
+					Enabled: ptr.To(true),
 				},
 			},
 		},
@@ -88,8 +88,8 @@ func NewDatadogAgentWithClusterChecks(namespace string, name string) v2alpha1.Da
 		name,
 		&v2alpha1.DatadogFeatures{
 			ClusterChecks: &v2alpha1.ClusterChecksFeatureConfig{
-				Enabled:                 apiutils.NewBoolPointer(true),
-				UseClusterChecksRunners: apiutils.NewBoolPointer(true),
+				Enabled:                 ptr.To(true),
+				UseClusterChecksRunners: ptr.To(true),
 			},
 		},
 	)
@@ -102,7 +102,7 @@ func NewDatadogAgentWithCSPM(namespace string, name string) v2alpha1.DatadogAgen
 		name,
 		&v2alpha1.DatadogFeatures{
 			CSPM: &v2alpha1.CSPMFeatureConfig{
-				Enabled: apiutils.NewBoolPointer(true),
+				Enabled: ptr.To(true),
 				CheckInterval: &metav1.Duration{
 					Duration: 1 * time.Second,
 				},
@@ -118,10 +118,10 @@ func NewDatadogAgentWithCWS(namespace string, name string) v2alpha1.DatadogAgent
 		name,
 		&v2alpha1.DatadogFeatures{
 			CWS: &v2alpha1.CWSFeatureConfig{
-				Enabled:               apiutils.NewBoolPointer(true),
-				SyscallMonitorEnabled: apiutils.NewBoolPointer(true),
+				Enabled:               ptr.To(true),
+				SyscallMonitorEnabled: ptr.To(true),
 				SecurityProfiles: &v2alpha1.CWSSecurityProfilesConfig{
-					Enabled: apiutils.NewBoolPointer(true),
+					Enabled: ptr.To(true),
 				},
 			},
 		},
@@ -136,8 +136,8 @@ func NewDatadogAgentWithDogstatsd(namespace string, name string) v2alpha1.Datado
 		&v2alpha1.DatadogFeatures{
 			Dogstatsd: &v2alpha1.DogstatsdFeatureConfig{
 				HostPortConfig: &v2alpha1.HostPortConfig{
-					Enabled: apiutils.NewBoolPointer(true),
-					Port:    apiutils.NewInt32Pointer(1234),
+					Enabled: ptr.To(true),
+					Port:    ptr.To[int32](1234),
 				},
 			},
 		},
@@ -151,7 +151,7 @@ func NewDatadogAgentWithEBPFCheck(namespace string, name string) v2alpha1.Datado
 		name,
 		&v2alpha1.DatadogFeatures{
 			EBPFCheck: &v2alpha1.EBPFCheckFeatureConfig{
-				Enabled: apiutils.NewBoolPointer(true),
+				Enabled: ptr.To(true),
 			},
 		},
 	)
@@ -164,7 +164,7 @@ func NewDatadogAgentWithServiceDiscovery(namespace, name string) v2alpha1.Datado
 		name,
 		&v2alpha1.DatadogFeatures{
 			ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
-				Enabled: apiutils.NewBoolPointer(true),
+				Enabled: ptr.To(true),
 			},
 		},
 	)
@@ -177,7 +177,7 @@ func NewDatadogAgentWithEventCollection(namespace string, name string) v2alpha1.
 		name,
 		&v2alpha1.DatadogFeatures{
 			EventCollection: &v2alpha1.EventCollectionFeatureConfig{
-				CollectKubernetesEvents: apiutils.NewBoolPointer(true),
+				CollectKubernetesEvents: ptr.To(true),
 			},
 		},
 	)
@@ -190,9 +190,9 @@ func NewDatadogAgentWithExternalMetrics(namespace string, name string) v2alpha1.
 		name,
 		&v2alpha1.DatadogFeatures{
 			ExternalMetricsServer: &v2alpha1.ExternalMetricsServerFeatureConfig{
-				Enabled:           apiutils.NewBoolPointer(true),
-				WPAController:     apiutils.NewBoolPointer(true),
-				UseDatadogMetrics: apiutils.NewBoolPointer(true),
+				Enabled:           ptr.To(true),
+				WPAController:     ptr.To(true),
+				UseDatadogMetrics: ptr.To(true),
 			},
 		},
 	)
@@ -205,7 +205,7 @@ func NewDatadogAgentWithKSM(namespace string, name string) v2alpha1.DatadogAgent
 		name,
 		&v2alpha1.DatadogFeatures{
 			KubeStateMetricsCore: &v2alpha1.KubeStateMetricsCoreFeatureConfig{
-				Enabled: apiutils.NewBoolPointer(true),
+				Enabled: ptr.To(true),
 			},
 		},
 	)
@@ -218,7 +218,7 @@ func NewDatadogAgentWithLiveContainerCollection(namespace string, name string) v
 		name,
 		&v2alpha1.DatadogFeatures{
 			LiveContainerCollection: &v2alpha1.LiveContainerCollectionFeatureConfig{
-				Enabled: apiutils.NewBoolPointer(true),
+				Enabled: ptr.To(true),
 			},
 		},
 	)
@@ -231,7 +231,7 @@ func NewDatadogAgentWithLiveProcessCollection(namespace string, name string) v2a
 		name,
 		&v2alpha1.DatadogFeatures{
 			LiveProcessCollection: &v2alpha1.LiveProcessCollectionFeatureConfig{
-				Enabled: apiutils.NewBoolPointer(true),
+				Enabled: ptr.To(true),
 			},
 		},
 	)
@@ -244,8 +244,8 @@ func NewDatadogAgentWithLogCollection(namespace string, name string) v2alpha1.Da
 		name,
 		&v2alpha1.DatadogFeatures{
 			LogCollection: &v2alpha1.LogCollectionFeatureConfig{
-				Enabled:             apiutils.NewBoolPointer(true),
-				ContainerCollectAll: apiutils.NewBoolPointer(true),
+				Enabled:             ptr.To(true),
+				ContainerCollectAll: ptr.To(true),
 			},
 		},
 	)
@@ -258,7 +258,7 @@ func NewDatadogAgentWithNPM(namespace string, name string) v2alpha1.DatadogAgent
 		name,
 		&v2alpha1.DatadogFeatures{
 			NPM: &v2alpha1.NPMFeatureConfig{
-				Enabled: apiutils.NewBoolPointer(true),
+				Enabled: ptr.To(true),
 			},
 		},
 	)
@@ -271,7 +271,7 @@ func NewDatadogAgentWithOOMKill(namespace string, name string) v2alpha1.DatadogA
 		name,
 		&v2alpha1.DatadogFeatures{
 			OOMKill: &v2alpha1.OOMKillFeatureConfig{
-				Enabled: apiutils.NewBoolPointer(true),
+				Enabled: ptr.To(true),
 			},
 		},
 	)
@@ -285,7 +285,7 @@ func NewDatadogAgentWithOrchestratorExplorer(namespace string, name string) v2al
 		name,
 		&v2alpha1.DatadogFeatures{
 			OrchestratorExplorer: &v2alpha1.OrchestratorExplorerFeatureConfig{
-				Enabled: apiutils.NewBoolPointer(true),
+				Enabled: ptr.To(true),
 			},
 		},
 	)
@@ -301,10 +301,10 @@ func NewDatadogAgentWithOTLP(namespace string, name string) v2alpha1.DatadogAgen
 				Receiver: v2alpha1.OTLPReceiverConfig{
 					Protocols: v2alpha1.OTLPProtocolsConfig{
 						GRPC: &v2alpha1.OTLPGRPCConfig{
-							Enabled: apiutils.NewBoolPointer(true),
+							Enabled: ptr.To(true),
 						},
 						HTTP: &v2alpha1.OTLPHTTPConfig{
-							Enabled: apiutils.NewBoolPointer(true),
+							Enabled: ptr.To(true),
 						},
 					},
 				},
@@ -320,7 +320,7 @@ func NewDatadogAgentWithPrometheusScrape(namespace string, name string) v2alpha1
 		name,
 		&v2alpha1.DatadogFeatures{
 			PrometheusScrape: &v2alpha1.PrometheusScrapeFeatureConfig{
-				Enabled: apiutils.NewBoolPointer(true),
+				Enabled: ptr.To(true),
 			},
 		},
 	)
@@ -333,7 +333,7 @@ func NewDatadogAgentWithTCPQueueLength(namespace string, name string) v2alpha1.D
 		name,
 		&v2alpha1.DatadogFeatures{
 			TCPQueueLength: &v2alpha1.TCPQueueLengthFeatureConfig{
-				Enabled: apiutils.NewBoolPointer(true),
+				Enabled: ptr.To(true),
 			},
 		},
 	)
@@ -346,7 +346,7 @@ func NewDatadogAgentWithUSM(namespace string, name string) v2alpha1.DatadogAgent
 		name,
 		&v2alpha1.DatadogFeatures{
 			USM: &v2alpha1.USMFeatureConfig{
-				Enabled: apiutils.NewBoolPointer(true),
+				Enabled: ptr.To(true),
 			},
 		},
 	)
@@ -359,7 +359,7 @@ func NewDatadogAgentWithGPUMonitoring(namespace string, name string) v2alpha1.Da
 		name,
 		&v2alpha1.DatadogFeatures{
 			GPU: &v2alpha1.GPUFeatureConfig{
-				Enabled: apiutils.NewBoolPointer(true),
+				Enabled: ptr.To(true),
 			},
 		},
 	)
@@ -374,22 +374,22 @@ func NewDatadogAgentWithGlobalConfigSettings(namespace string, name string) v2al
 	// to verify that the operator does not crash when parsing it and using it
 	// to configure some agent dependencies.
 	agent.Spec.Global = &v2alpha1.GlobalConfig{
-		ClusterAgentToken: apiutils.NewStringPointer("my-cluster-agent-token"),
-		ClusterName:       apiutils.NewStringPointer("my-cluster"),
-		Site:              apiutils.NewStringPointer("some-dd-site"),
+		ClusterAgentToken: ptr.To("my-cluster-agent-token"),
+		ClusterName:       ptr.To("my-cluster"),
+		Site:              ptr.To("some-dd-site"),
 		Credentials: &v2alpha1.DatadogCredentials{
-			APIKey: apiutils.NewStringPointer("my-api-key"),
-			AppKey: apiutils.NewStringPointer("my-app-key"),
+			APIKey: ptr.To("my-api-key"),
+			AppKey: ptr.To("my-app-key"),
 		},
 		Endpoint: &v2alpha1.Endpoint{
-			URL: apiutils.NewStringPointer("some-url"),
+			URL: ptr.To("some-url"),
 			Credentials: &v2alpha1.DatadogCredentials{
-				APIKey: apiutils.NewStringPointer("my-api-key"),
-				AppKey: apiutils.NewStringPointer("my-app-key"),
+				APIKey: ptr.To("my-api-key"),
+				AppKey: ptr.To("my-app-key"),
 			},
 		},
-		Registry: apiutils.NewStringPointer("my-custom-registry"),
-		LogLevel: apiutils.NewStringPointer("INFO"),
+		Registry: ptr.To("my-custom-registry"),
+		LogLevel: ptr.To("INFO"),
 		Tags:     []string{"tagA:valA", "tagB:valB"},
 		Env: []v1.EnvVar{
 			{
@@ -413,12 +413,12 @@ func NewDatadogAgentWithGlobalConfigSettings(namespace string, name string) v2al
 			"some-group.some-resource": {"some-annotation": "some-tag"},
 		},
 		NetworkPolicy: &v2alpha1.NetworkPolicyConfig{
-			Create: apiutils.NewBoolPointer(true),
+			Create: ptr.To(true),
 			Flavor: v2alpha1.NetworkPolicyFlavorKubernetes,
 		},
 		LocalService: &v2alpha1.LocalService{
-			NameOverride:            apiutils.NewStringPointer("my-local-service"),
-			ForceEnableLocalService: apiutils.NewBoolPointer(true),
+			NameOverride:            ptr.To("my-local-service"),
+			ForceEnableLocalService: ptr.To(true),
 		},
 		Kubelet: &v2alpha1.KubeletConfig{
 			Host: &v1.EnvVarSource{
@@ -426,11 +426,11 @@ func NewDatadogAgentWithGlobalConfigSettings(namespace string, name string) v2al
 					FieldPath: common.FieldPathSpecNodeName,
 				},
 			},
-			TLSVerify:  apiutils.NewBoolPointer(true),
+			TLSVerify:  ptr.To(true),
 			HostCAPath: "some/path",
 		},
-		DockerSocketPath: apiutils.NewStringPointer("/some/path"),
-		CriSocketPath:    apiutils.NewStringPointer("/another/path"),
+		DockerSocketPath: ptr.To("/some/path"),
+		CriSocketPath:    ptr.To("/another/path"),
 	}
 
 	return agent
@@ -448,8 +448,8 @@ func NewDatadogAgentWithOverrides(namespace string, name string) v2alpha1.Datado
 	agent.Spec.Override[v2alpha1.NodeAgentComponentName] = &v2alpha1.DatadogAgentComponentOverride{
 		Name:               nil, // Don't override because these tests assume that it's always the default
 		Replicas:           nil, // Does not apply for the node agent
-		CreateRbac:         apiutils.NewBoolPointer(true),
-		ServiceAccountName: apiutils.NewStringPointer("an-overridden-sa"),
+		CreateRbac:         ptr.To(true),
+		ServiceAccountName: ptr.To("an-overridden-sa"),
 		Image: &v2alpha1.AgentImageConfig{
 			Name:       "an-overridden-image-name",
 			Tag:        "7",
@@ -466,8 +466,8 @@ func NewDatadogAgentWithOverrides(namespace string, name string) v2alpha1.Datado
 		ExtraChecksd:         nil, // Also requires creating a configmap
 		Containers: map[apicommon.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
 			apicommon.CoreAgentContainerName: {
-				Name:     apiutils.NewStringPointer("my-container-name"),
-				LogLevel: apiutils.NewStringPointer("debug"),
+				Name:     ptr.To("my-container-name"),
+				LogLevel: ptr.To("debug"),
 				Env: []v1.EnvVar{
 					{
 						Name:  "DD_LOG_LEVEL",
@@ -485,7 +485,7 @@ func NewDatadogAgentWithOverrides(namespace string, name string) v2alpha1.Datado
 				},
 				Command:    []string{"test-agent", "start"},
 				Args:       []string{"arg1", "val1"},
-				HealthPort: apiutils.NewInt32Pointer(1234),
+				HealthPort: ptr.To[int32](1234),
 				ReadinessProbe: &v1.Probe{
 					ProbeHandler: v1.ProbeHandler{
 						HTTPGet: &v1.HTTPGetAction{
@@ -532,17 +532,17 @@ func NewDatadogAgentWithOverrides(namespace string, name string) v2alpha1.Datado
 					FailureThreshold:    6,
 				},
 				SecurityContext: &v1.SecurityContext{
-					RunAsUser: apiutils.NewInt64Pointer(12345),
+					RunAsUser: ptr.To[int64](12345),
 				},
 				SeccompConfig: &v2alpha1.SeccompConfig{
-					CustomRootPath: apiutils.NewStringPointer("/some/path"),
+					CustomRootPath: ptr.To("/some/path"),
 					CustomProfile: &v2alpha1.CustomConfig{
 						ConfigMap: &v2alpha1.ConfigMapConfig{
 							Name: "custom-seccomp-cm",
 						},
 					},
 				},
-				AppArmorProfileName: apiutils.NewStringPointer("runtime/default"),
+				AppArmorProfileName: ptr.To("runtime/default"),
 			},
 		},
 		Volumes: []v1.Volume{
@@ -554,9 +554,9 @@ func NewDatadogAgentWithOverrides(namespace string, name string) v2alpha1.Datado
 			},
 		},
 		SecurityContext: &v1.PodSecurityContext{
-			RunAsUser: apiutils.NewInt64Pointer(1234),
+			RunAsUser: ptr.To[int64](1234),
 		},
-		PriorityClassName: apiutils.NewStringPointer("a-priority-class"),
+		PriorityClassName: ptr.To("a-priority-class"),
 		Affinity: &v1.Affinity{
 			PodAntiAffinity: &v1.PodAntiAffinity{
 				PreferredDuringSchedulingIgnoredDuringExecution: []v1.WeightedPodAffinityTerm{
@@ -590,9 +590,9 @@ func NewDatadogAgentWithOverrides(namespace string, name string) v2alpha1.Datado
 		Labels: map[string]string{
 			"some-label": "456",
 		},
-		HostNetwork: apiutils.NewBoolPointer(false),
-		HostPID:     apiutils.NewBoolPointer(true),
-		Disabled:    apiutils.NewBoolPointer(false),
+		HostNetwork: ptr.To(false),
+		HostPID:     ptr.To(true),
+		Disabled:    ptr.To(false),
 	}
 
 	return agent

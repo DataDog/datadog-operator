@@ -18,7 +18,6 @@ import (
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	componentagent "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 
@@ -32,15 +31,19 @@ import (
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/controlplanemonitoring"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/cspm"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/cws"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/dataplane"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/dogstatsd"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/dummy"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/ebpfcheck"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/enabledefault"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/eventcollection"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/externalmetrics"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/flightrecorder"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/gpu"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/helmcheck"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/hostprofiler"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/instrumentationcrd"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/kubernetesactions"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/kubernetesstatecore"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/livecontainer"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/liveprocess"
@@ -62,17 +65,43 @@ import (
 )
 
 const (
-	defaultRequeuePeriod = 15 * time.Second
+	defaultRequeuePeriod    = 15 * time.Second
+	defaultErrRequeuePeriod = 5 * time.Second
+
+	// clusterProviderGateTimeout bounds how long the reconcile waits for a
+	// cluster-provider detection signal (anchored to the detector's leader-start)
+	// before proceeding with no provider.
+	clusterProviderGateTimeout = 30 * time.Second
+	// clusterProviderGateRequeue is how often the reconcile re-checks while the
+	// provider gate is holding.
+	clusterProviderGateRequeue = 2 * time.Second
 )
+
+// ProviderReader exposes the cluster-provider detection result to the reconciler
+// with lock-free reads. It is implemented by *introspection.Detector.
+type ProviderReader interface {
+	// Provider returns the detected provider and whether detection has completed.
+	Provider() (string, bool)
+	// InGracePeriod reports whether the detector is still within its startup grace
+	// window (an absent signal should not yet be treated as final).
+	InGracePeriod(window time.Duration) bool
+}
 
 // ReconcilerOptions provides options read from command line
 type ReconcilerOptions struct {
-	ExtendedDaemonsetOptions    componentagent.ExtendedDaemonsetOptions
-	SupportCilium               bool
-	OperatorMetricsEnabled      bool
-	IntrospectionEnabled        bool
-	DatadogAgentProfileEnabled  bool
-	DatadogAgentInternalEnabled bool
+	ExtendedDaemonsetOptions   componentagent.ExtendedDaemonsetOptions
+	SupportCilium              bool
+	OperatorMetricsEnabled     bool
+	IntrospectionEnabled       bool
+	DatadogAgentProfileEnabled bool
+	UntaintControllerEnabled   bool
+	DatadogCSIDriverEnabled    bool
+	CreateControllerRevisions  bool
+	// ExperimentTimeout overrides ExperimentDefaultTimeout. Zero means use the default.
+	ExperimentTimeout time.Duration
+	// ClusterProviderDetector supplies the detected cluster provider. Nil disables
+	// provider detection (reconcile behaves as before: empty provider).
+	ClusterProviderDetector ProviderReader
 }
 
 // Reconciler is the internal reconciler for Datadog Agent
@@ -125,12 +154,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, dda *v2alpha1.DatadogAgent) 
 
 	r.metricsForwarderProcessError(dda, err)
 	return resp, err
-}
-
-func reconcilerOptionsToFeatureOptions(opts *ReconcilerOptions, logger logr.Logger) *feature.Options {
-	return &feature.Options{
-		Logger: logger,
-	}
 }
 
 // metricsForwarderProcessError convert the reconciler errors into metrics if metrics forwarder is enabled

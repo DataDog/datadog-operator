@@ -7,6 +7,4 @@ package clusterchecksrunner
 
 const (
 	pdbMaxUnavailableInstances = 1
-	// DefaultClusterChecksRunnerReplicas default cluster checks runner deployment replicas
-	defaultClusterChecksRunnerReplicas = 1
 )

@@ -11,10 +11,11 @@ import (
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
@@ -47,6 +48,7 @@ type privateActionRunnerFeature struct {
 	clusterConfig             *PrivateActionRunnerConfig
 	clusterConfigData         string
 	clusterServiceAccountName string
+	k8sRemediationEnabled     bool
 }
 
 // ID returns the ID of the Feature
@@ -72,7 +74,7 @@ func (f *privateActionRunnerFeature) Configure(dda metav1.Object, ddaSpec *v2alp
 		}
 
 		reqComp.Agent = feature.RequiredComponent{
-			IsRequired: apiutils.NewBoolPointer(true),
+			IsRequired: ptr.To(true),
 			Containers: []apicommon.AgentContainerName{
 				apicommon.CoreAgentContainerName,
 				apicommon.PrivateActionRunnerContainerName,
@@ -105,10 +107,11 @@ func (f *privateActionRunnerFeature) Configure(dda metav1.Object, ddaSpec *v2alp
 			}
 		}
 		f.clusterConfig = clusterConfig
+		f.k8sRemediationEnabled = featureutils.HasFeatureEnableAnnotation(dda, featureutils.ClusterAgentPrivateActionRunnerK8sRemediationEnabled)
 		f.clusterServiceAccountName = constants.GetClusterAgentServiceAccount(dda.GetName(), ddaSpec)
 
 		reqComp.ClusterAgent = feature.RequiredComponent{
-			IsRequired: apiutils.NewBoolPointer(true),
+			IsRequired: ptr.To(true),
 			Containers: []apicommon.AgentContainerName{
 				apicommon.ClusterAgentContainerName,
 			},
@@ -119,7 +122,7 @@ func (f *privateActionRunnerFeature) Configure(dda metav1.Object, ddaSpec *v2alp
 }
 
 // ManageDependencies allows a feature to manage its dependencies.
-func (f *privateActionRunnerFeature) ManageDependencies(managers feature.ResourceManagers, provider string) error {
+func (f *privateActionRunnerFeature) ManageDependencies(managers feature.ResourceManagers) error {
 	// Handle Node Agent dependencies (ConfigMap for annotation-based config)
 	if f.nodeEnabled {
 		checksumKey, checksumValue, err := checksumAnnotation(f.nodeConfigData)
@@ -172,11 +175,27 @@ func (f *privateActionRunnerFeature) ManageDependencies(managers feature.Resourc
 		}
 
 		if f.clusterConfig.SelfEnroll {
-			err := managers.RBACManager().AddPolicyRules(
+			// This creates a Role (not ClusterRole) with permissions on the identity secret used during self enrollment
+			err := managers.RBACManager().AddPolicyRulesByComponent(
 				f.owner.GetNamespace(),
 				f.getRbacResourcesName(),
 				f.clusterServiceAccountName,
 				getClusterAgentRBACPolicyRules(f.clusterConfig.IdentitySecretName),
+				string(v2alpha1.ClusterAgentComponentName),
+			)
+			if err != nil {
+				return err
+			}
+		}
+
+		if f.k8sRemediationEnabled {
+			// This creates a ClusterRole with cluster-wide access to workload resources for k8s remediation.
+			err := managers.RBACManager().AddClusterPolicyRulesByComponent(
+				f.owner.GetNamespace(),
+				f.getRbacResourcesName(),
+				f.clusterServiceAccountName,
+				getK8sRemediationPolicyRules(),
+				string(v2alpha1.ClusterAgentComponentName),
 			)
 			if err != nil {
 				return err
@@ -188,11 +207,11 @@ func (f *privateActionRunnerFeature) ManageDependencies(managers feature.Resourc
 }
 
 func (f *privateActionRunnerFeature) getConfigMapName() string {
-	return fmt.Sprintf("%s-privateactionrunner", f.owner.GetName())
+	return fmt.Sprintf("%s-privateactionrunner", constants.GetDDAName(f.owner))
 }
 
 func (f *privateActionRunnerFeature) getClusterAgentConfigMapName() string {
-	return fmt.Sprintf("%s-clusteragent-privateactionrunner", f.owner.GetName())
+	return fmt.Sprintf("%s-clusteragent-privateactionrunner", constants.GetDDAName(f.owner))
 }
 
 func (f *privateActionRunnerFeature) getRbacResourcesName() string {
@@ -200,7 +219,7 @@ func (f *privateActionRunnerFeature) getRbacResourcesName() string {
 }
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
-func (f *privateActionRunnerFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *privateActionRunnerFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
 	if f.clusterConfig == nil || !f.clusterConfig.Enabled {
 		return nil
 	}
@@ -225,13 +244,13 @@ func (f *privateActionRunnerFeature) ManageClusterAgent(managers feature.PodTemp
 	podTemplate := managers.PodTemplateSpec()
 	for i, container := range podTemplate.Spec.Containers {
 		if container.Name == string(apicommon.ClusterAgentContainerName) {
-			// Set command if not already set (default is from Dockerfile)
-			// See https://github.com/DataDog/datadog-agent/blob/06ea6848b891e08d34753e452be7f3c9bacbf407/Dockerfiles/cluster-agent/Dockerfile#L123
-			if len(container.Command) == 0 {
-				podTemplate.Spec.Containers[i].Command = []string{"datadog-cluster-agent", "start"}
+			// Set args if not already set (default CMD is from Dockerfile, ENTRYPOINT is /entrypoint.sh)
+			// See https://github.com/DataDog/datadog-agent/blob/1ed74f0b3924390f1b40e82e83e50d530e1f8f3b/Dockerfiles/cluster-agent/Dockerfile
+			if len(container.Args) == 0 {
+				podTemplate.Spec.Containers[i].Args = []string{"datadog-cluster-agent", "start"}
 			}
-			// Add -E flag to command
-			podTemplate.Spec.Containers[i].Command = append(podTemplate.Spec.Containers[i].Command, fmt.Sprintf("-E=%s", PrivateActionRunnerConfigPath))
+			// Add -E flag to args
+			podTemplate.Spec.Containers[i].Args = append(podTemplate.Spec.Containers[i].Args, fmt.Sprintf("-E=%s", PrivateActionRunnerConfigPath))
 			break
 		}
 	}
@@ -247,7 +266,7 @@ func (f *privateActionRunnerFeature) ManageClusterAgent(managers feature.PodTemp
 }
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
-func (f *privateActionRunnerFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *privateActionRunnerFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
 	if !f.nodeEnabled {
 		return nil
 	}
@@ -275,23 +294,44 @@ func (f *privateActionRunnerFeature) ManageNodeAgent(managers feature.PodTemplat
 	}
 	managers.Annotation().AddAnnotation(checksumKey, checksumValue)
 
+	// procdir volume mount
+	procdirVol, procdirVolMount := volume.GetVolumes(common.ProcdirVolumeName, common.ProcdirHostPath, common.ProcdirMountPath, true)
+	managers.Volume().AddVolume(&procdirVol)
+	managers.VolumeMount().AddVolumeMountToContainer(&procdirVolMount, apicommon.PrivateActionRunnerContainerName)
+
+	// os-release volume mount
+	osReleaseVol, osReleaseVolMount := volume.GetVolumes(common.SystemProbeOSReleaseDirVolumeName, common.SystemProbeOSReleaseDirVolumePath, common.SystemProbeOSReleaseDirMountPath, true)
+	managers.Volume().AddVolume(&osReleaseVol)
+	managers.VolumeMount().AddVolumeMountToContainer(&osReleaseVolMount, apicommon.PrivateActionRunnerContainerName)
+
+	// host var log volume mount
+	varLogVol, varLogVolMount := volume.GetVolumes(hostVarLogVolumeName, hostVarLogHostPath, hostVarLogMountPath, true)
+	managers.Volume().AddVolume(&varLogVol)
+	managers.VolumeMount().AddVolumeMountToContainer(&varLogVolMount, apicommon.PrivateActionRunnerContainerName)
+
+	// Add NET_RAW capability for network operations
+	managers.SecurityContext().AddCapabilitiesToContainer(
+		[]corev1.Capability{"NET_RAW"},
+		apicommon.PrivateActionRunnerContainerName,
+	)
+
 	return nil
 }
 
 // ManageSingleContainerNodeAgent allows a feature to configure the Agent container for the Node Agent's corev1.PodTemplateSpec
-func (f *privateActionRunnerFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *privateActionRunnerFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers) error {
 	// Private Action Runner requires separate container, not compatible with single-container mode
 	return nil
 }
 
 // ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunnerAgent's corev1.PodTemplateSpec
-func (f *privateActionRunnerFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
+func (f *privateActionRunnerFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
 	// Private Action Runner doesn't run in cluster checks runner
 	return nil
 }
 
 // ManageOtelAgentGateway allows a feature to configure the OtelAgentGateway's corev1.PodTemplateSpec
-func (f *privateActionRunnerFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
+func (f *privateActionRunnerFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers) error {
 	// Private Action Runner doesn't run in OTel Agent Gateway
 	return nil
 }

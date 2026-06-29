@@ -8,6 +8,7 @@ package asm
 import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -63,7 +64,7 @@ func (f *asmFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.DatadogAgentSp
 	// The cluster agent and the admission controller are required for the ASM feature.
 	return feature.RequiredComponents{
 		ClusterAgent: feature.RequiredComponent{
-			IsRequired: apiutils.NewBoolPointer(true),
+			IsRequired: ptr.To(true),
 			Containers: []apicommon.AgentContainerName{
 				apicommon.ClusterAgentContainerName,
 			},
@@ -73,13 +74,13 @@ func (f *asmFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.DatadogAgentSp
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *asmFeature) ManageDependencies(managers feature.ResourceManagers, provider string) error {
+func (f *asmFeature) ManageDependencies(managers feature.ResourceManagers) error {
 	return nil
 }
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *asmFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *asmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
 	if f.threatsEnabled {
 		if err := managers.EnvVar().AddEnvVarToContainerWithMergeFunc(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
 			Name:  DDAdmissionControllerAppsecEnabled,
@@ -110,18 +111,18 @@ func (f *asmFeature) ManageClusterAgent(managers feature.PodTemplateManagers, pr
 	return nil
 }
 
-func (f *asmFeature) ManageSingleContainerNodeAgent(_ feature.PodTemplateManagers, _ string) error {
+func (f *asmFeature) ManageSingleContainerNodeAgent(_ feature.PodTemplateManagers) error {
 	return nil
 }
 
-func (f *asmFeature) ManageNodeAgent(_ feature.PodTemplateManagers, _ string) error {
+func (f *asmFeature) ManageNodeAgent(_ feature.PodTemplateManagers) error {
 	return nil
 }
 
-func (f *asmFeature) ManageClusterChecksRunner(_ feature.PodTemplateManagers, _ string) error {
+func (f *asmFeature) ManageClusterChecksRunner(_ feature.PodTemplateManagers) error {
 	return nil
 }
 
-func (f *asmFeature) ManageOtelAgentGateway(_ feature.PodTemplateManagers, _ string) error {
+func (f *asmFeature) ManageOtelAgentGateway(_ feature.PodTemplateManagers) error {
 	return nil
 }

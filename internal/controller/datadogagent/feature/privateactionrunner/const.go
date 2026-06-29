@@ -11,4 +11,8 @@ const (
 	privateActionRunnerVolumeNameSuffix = "privateactionrunner-config"
 	privateActionRunnerFileName         = "privateactionrunner.yaml"
 	privateActionRunnerSuffix           = "private-action-runner"
+
+	hostVarLogVolumeName = "host-varlog"
+	hostVarLogHostPath   = "/var/log"
+	hostVarLogMountPath  = "/host/var/log"
 )

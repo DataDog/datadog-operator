@@ -8,11 +8,12 @@ package admissioncontroller
 import (
 	rbacv1 "k8s.io/api/rbac/v1"
 
+	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/pkg/extendeddaemonset"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
 )
 
-func getRBACClusterPolicyRules(webhookName string, cwsInstrumentationEnabled bool, cwsInstrumentationMode string) []rbacv1.PolicyRule {
+func (f *admissionControllerFeature) getRBACClusterPolicyRules() []rbacv1.PolicyRule {
 	clusterPolicyRules := []rbacv1.PolicyRule{
 		// ValidatingWebhooksConfigs and MutatingWebhooksConfigs
 		{
@@ -25,7 +26,7 @@ func getRBACClusterPolicyRules(webhookName string, cwsInstrumentationEnabled boo
 		{
 			APIGroups:     []string{rbac.AdmissionAPIGroup},
 			Resources:     []string{rbac.ValidatingConfigResource, rbac.MutatingConfigResource},
-			ResourceNames: []string{webhookName},
+			ResourceNames: []string{f.webhookName},
 			Verbs: []string{
 				rbac.GetVerb,
 				rbac.ListVerb,
@@ -80,14 +81,43 @@ func getRBACClusterPolicyRules(webhookName string, cwsInstrumentationEnabled boo
 				rbac.GetVerb,
 			},
 		},
+		// CSIDrivers
+		{
+			APIGroups: []string{rbac.StorageAPIGroup},
+			Resources: []string{rbac.CSIDriversResource},
+			Verbs: []string{
+				rbac.ListVerb,
+				rbac.WatchVerb,
+			},
+		},
+		{
+			APIGroups:     []string{rbac.StorageAPIGroup},
+			Resources:     []string{rbac.CSIDriversResource},
+			ResourceNames: []string{datadogCSIDriverName},
+			Verbs: []string{
+				rbac.GetVerb,
+			},
+		},
 	}
 
-	if cwsInstrumentationEnabled && cwsInstrumentationMode == "remote_copy" {
+	if f.cwsInstrumentationEnabled && f.cwsInstrumentationMode == "remote_copy" {
 		clusterPolicyRules = append(clusterPolicyRules, rbacv1.PolicyRule{
 			APIGroups: []string{rbac.CoreAPIGroup},
 			Resources: []string{rbac.PodsExecResource},
 			Verbs: []string{
 				rbac.CreateVerb,
+			},
+		})
+	}
+
+	if f.agentSidecarConfig != nil && apiutils.BoolValue(f.agentSidecarConfig.tlsVerificationEnabled) && apiutils.BoolValue(f.agentSidecarConfig.tlsVerificationCopyCaConfigMap) {
+		clusterPolicyRules = append(clusterPolicyRules, rbacv1.PolicyRule{
+			APIGroups: []string{rbac.CoreAPIGroup},
+			Resources: []string{rbac.ConfigMapsResource},
+			Verbs: []string{
+				rbac.CreateVerb,
+				rbac.UpdateVerb,
+				rbac.GetVerb,
 			},
 		})
 	}

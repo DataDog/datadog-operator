@@ -3,16 +3,26 @@ package agent
 import (
 	"testing"
 
+	"k8s.io/utils/ptr"
+
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 )
+
+func findVolume(volumes []corev1.Volume, name string) *corev1.Volume {
+	for i := range volumes {
+		if volumes[i].Name == name {
+			return &volumes[i]
+		}
+	}
+	return nil
+}
 
 func TestVolumesForAgent(t *testing.T) {
 	tests := []struct {
@@ -66,29 +76,13 @@ func TestVolumesForAgent(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			volumes := volumesForAgent(tt.dda, tt.requiredContainers)
 
-			// Check install-info volume
-			var installInfoVolume *corev1.Volume
-			for i := range volumes {
-				if volumes[i].Name == common.InstallInfoVolumeName {
-					installInfoVolume = &volumes[i]
-					break
-				}
-			}
-			assert.NotNil(t, installInfoVolume, "install-info volume should exist")
-			assert.Equal(t, tt.expectedInstallName, installInfoVolume.ConfigMap.Name)
+			installVol := findVolume(volumes, common.InstallInfoVolumeName)
+			assert.NotNil(t, installVol, "install-info volume should exist")
+			assert.Equal(t, tt.expectedInstallName, installVol.ConfigMap.Name)
 
-			// Check seccomp volume if system probe is required
-			if len(tt.requiredContainers) > 0 {
-				var seccompVolume *corev1.Volume
-				for i := range volumes {
-					if volumes[i].Name == common.SeccompSecurityVolumeName {
-						seccompVolume = &volumes[i]
-						break
-					}
-				}
-				assert.NotNil(t, seccompVolume, "seccomp security volume should exist")
-				assert.Equal(t, tt.expectedSeccompName, seccompVolume.ConfigMap.Name)
-			}
+			seccompVol := findVolume(volumes, common.SeccompSecurityVolumeName)
+			assert.NotNil(t, seccompVol, "seccomp security volume should exist")
+			assert.Equal(t, tt.expectedSeccompName, seccompVol.ConfigMap.Name)
 		})
 	}
 }
@@ -166,7 +160,7 @@ func TestDefaultSyscallsForSystemProbe(t *testing.T) {
 			ddaSpec: &v2alpha1.DatadogAgentSpec{
 				Features: &v2alpha1.DatadogFeatures{
 					CWS: &v2alpha1.CWSFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(true),
+						Enabled: ptr.To(true),
 					},
 				},
 			},
@@ -177,9 +171,9 @@ func TestDefaultSyscallsForSystemProbe(t *testing.T) {
 			ddaSpec: &v2alpha1.DatadogAgentSpec{
 				Features: &v2alpha1.DatadogFeatures{
 					CWS: &v2alpha1.CWSFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(true),
+						Enabled: ptr.To(true),
 						Enforcement: &v2alpha1.CWSEnforcementConfig{
-							Enabled: apiutils.NewBoolPointer(true),
+							Enabled: ptr.To(true),
 						},
 					},
 				},
@@ -194,6 +188,25 @@ func TestDefaultSyscallsForSystemProbe(t *testing.T) {
 			assert.Equal(t, tt.expectedSyscalls, syscalls)
 		})
 	}
+}
+
+func TestHostProfilerContainer(t *testing.T) {
+	dda := &metav1.ObjectMeta{Name: "foo", Namespace: "default", Labels: map[string]string{}}
+
+	containers := agentOptimizedContainers(dda, []apicommon.AgentContainerName{
+		apicommon.CoreAgentContainerName,
+		apicommon.HostProfiler,
+	})
+	assert.Len(t, containers, 2)
+
+	c := containers[1]
+	assert.Equal(t, string(apicommon.HostProfiler), c.Name)
+	assert.NotNil(t, c.SecurityContext)
+	// The component layer only sets ReadOnlyRootFilesystem; the feature's ManageNodeAgent sets
+	// AllowPrivilegeEscalation, SeccompProfile, and Capabilities.
+	assert.Nil(t, c.SecurityContext.Privileged, "host-profiler should not run as privileged")
+	assert.NotNil(t, c.SecurityContext.ReadOnlyRootFilesystem)
+	assert.True(t, *c.SecurityContext.ReadOnlyRootFilesystem)
 }
 
 func TestPrivateActionRunnerContainer(t *testing.T) {

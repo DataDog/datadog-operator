@@ -6,9 +6,11 @@
 package autoscaling
 
 const (
-	DDAutoscalingWorkloadEnabled = "DD_AUTOSCALING_WORKLOAD_ENABLED"
-	DDAutoscalingFailoverEnabled = "DD_AUTOSCALING_FAILOVER_ENABLED"
-	DDAutoscalingFailoverMetrics = "DD_AUTOSCALING_FAILOVER_METRICS"
+	DDAutoscalingWorkloadEnabled                       = "DD_AUTOSCALING_WORKLOAD_ENABLED"
+	DDAutoscalingWorkloadInPlaceVerticalScalingEnabled = "DD_AUTOSCALING_WORKLOAD_IN_PLACE_VERTICAL_SCALING_ENABLED"
+	DDAutoscalingFailoverEnabled                       = "DD_AUTOSCALING_FAILOVER_ENABLED"
+	DDAutoscalingFailoverMetrics                       = "DD_AUTOSCALING_FAILOVER_METRICS"
 
-	DDAutoscalingClusterEnabled = "DD_AUTOSCALING_CLUSTER_ENABLED"
+	DDAutoscalingClusterEnabled     = "DD_AUTOSCALING_CLUSTER_ENABLED"
+	DDAutoscalingClusterSpotEnabled = "DD_AUTOSCALING_CLUSTER_SPOT_ENABLED"
 )

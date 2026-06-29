@@ -13,4 +13,5 @@ const (
 	DDDogstatsdTagCardinality        = "DD_DOGSTATSD_TAG_CARDINALITY"
 	DDDogstatsdPort                  = "DD_DOGSTATSD_PORT"
 	DDDogstatsdSocket                = "DD_DOGSTATSD_SOCKET"
+	DDDogstatsdHostSocketPath        = "DD_DOGSTATSD_HOST_SOCKET_PATH"
 )

@@ -11,6 +11,7 @@ import (
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -70,9 +71,9 @@ func (f *helmCheckFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Datado
 	helmCheck := ddaSpec.Features.HelmCheck
 
 	if helmCheck != nil && apiutils.BoolValue(helmCheck.Enabled) {
-		reqComp.ClusterAgent.IsRequired = apiutils.NewBoolPointer(true)
+		reqComp.ClusterAgent.IsRequired = ptr.To(true)
 		reqComp.ClusterAgent.Containers = []apicommon.AgentContainerName{apicommon.ClusterAgentContainerName}
-		reqComp.Agent.IsRequired = apiutils.NewBoolPointer(true)
+		reqComp.Agent.IsRequired = ptr.To(true)
 		reqComp.Agent.Containers = []apicommon.AgentContainerName{apicommon.CoreAgentContainerName}
 
 		f.configMapName = fmt.Sprintf("%s-%s", f.owner.GetName(), defaultHelmCheckConf)
@@ -84,7 +85,7 @@ func (f *helmCheckFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Datado
 			f.runInClusterChecksRunner = true
 			f.rbacSuffix = common.ChecksRunnerSuffix
 			f.serviceAccountName = constants.GetClusterChecksRunnerServiceAccount(dda.GetName(), ddaSpec)
-			reqComp.ClusterChecksRunner.IsRequired = apiutils.NewBoolPointer(true)
+			reqComp.ClusterChecksRunner.IsRequired = ptr.To(true)
 			reqComp.ClusterChecksRunner.Containers = []apicommon.AgentContainerName{apicommon.CoreAgentContainerName}
 		}
 
@@ -112,7 +113,7 @@ func (f *helmCheckFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Datado
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *helmCheckFeature) ManageDependencies(managers feature.ResourceManagers, provider string) error {
+func (f *helmCheckFeature) ManageDependencies(managers feature.ResourceManagers) error {
 	if f.config != nil {
 		// Add md5 hash annotation for configMap
 		if f.configAnnotationKey != "" && f.configAnnotationValue != "" {
@@ -132,7 +133,7 @@ func (f *helmCheckFeature) ManageDependencies(managers feature.ResourceManagers,
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *helmCheckFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *helmCheckFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
 	// Manage Helm check config in configMap
 	var vol corev1.Volume
 	var volMount corev1.VolumeMount
@@ -158,22 +159,22 @@ func (f *helmCheckFeature) ManageClusterAgent(managers feature.PodTemplateManage
 // ManageSingleContainerNodeAgent allows a feature to configure the Agent container for the Node Agent's corev1.PodTemplateSpec
 // if SingleContainerStrategy is enabled and can be used with the configured feature set.
 // It should do nothing if the feature doesn't need to configure it.
-func (f *helmCheckFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *helmCheckFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers) error {
 	return nil
 }
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *helmCheckFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *helmCheckFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
 	return nil
 }
 
 // ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunnerAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *helmCheckFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
+func (f *helmCheckFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
 	return nil
 }
 
-func (f *helmCheckFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
+func (f *helmCheckFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers) error {
 	return nil
 }

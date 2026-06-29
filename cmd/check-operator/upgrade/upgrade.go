@@ -162,7 +162,7 @@ func isReconcileError(conditions []metav1.Condition) error {
 // Run use to run the command.
 func (o *Options) Run() error {
 	o.printOutf("Start checking rolling-update status")
-	checkFunc := func() (bool, error) {
+	checkFunc := func(ctx context.Context) (bool, error) {
 		var agentDone, dcaDone, ccrDone, reconcileError bool
 		var status common.StatusWrapper
 		o.printOutf("v2alpha1 is available")
@@ -213,7 +213,7 @@ func (o *Options) Run() error {
 		return false, nil
 	}
 
-	return wait.Poll(o.checkPeriod, o.checkTimeout, checkFunc)
+	return wait.PollUntilContextTimeout(context.Background(), o.checkPeriod, o.checkTimeout, false, checkFunc)
 }
 
 func (o *Options) isAgentDone(status *v2alpha1.DaemonSetStatus) bool {
@@ -245,7 +245,8 @@ func (o *Options) isDeploymentDone(status *v2alpha1.DeploymentStatus, minUpToDat
 }
 
 func (o *Options) printOutf(format string, a ...any) {
-	args := []any{time.Now().UTC().Format("2006-01-02T15:04:05.999Z"), o.UserNamespace, o.datadogAgentName}
+	args := make([]any, 0, 3+len(a))
+	args = append(args, time.Now().UTC().Format("2006-01-02T15:04:05.999Z"), o.UserNamespace, o.datadogAgentName)
 	args = append(args, a...)
 	_, _ = fmt.Fprintf(o.Out, "[%s] DatadogAgent '%s/%s': "+format+"\n", args...)
 }

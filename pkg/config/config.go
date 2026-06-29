@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/go-logr/logr"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -45,6 +46,8 @@ const (
 	profileWatchNamespaceEnvVar = "DD_AGENT_PROFILE_WATCH_NAMESPACE"
 	// SLOWatchNamespaceEnvVar is a comma-separated list of namespaces watched by the DatadogSLO controller.
 	sloWatchNamespaceEnvVar = "DD_SLO_WATCH_NAMESPACE"
+	// CSIDriverWatchNamespaceEnvVar is a comma-separated list of namespaces watched by the DatadogCSIDriver controller.
+	csiDriverWatchNamespaceEnvVar = "DD_CSIDRIVER_WATCH_NAMESPACE"
 )
 
 var (
@@ -55,19 +58,23 @@ var (
 	sloObj             = &datadoghqv1alpha1.DatadogSLO{}
 	profileObj         = &datadoghqv1alpha1.DatadogAgentProfile{}
 	agentInternalObj   = &datadoghqv1alpha1.DatadogAgentInternal{}
+	csiDriverObj       = &datadoghqv1alpha1.DatadogCSIDriver{}
+	csiDaemonSetObj    = &appsv1.DaemonSet{}
 	podObj             = &corev1.Pod{}
 	nodeObj            = &corev1.Node{}
 )
 
 type WatchOptions struct {
-	DatadogAgentEnabled           bool
-	DatadogAgentInternalEnabled   bool
-	DatadogMonitorEnabled         bool
-	DatadogSLOEnabled             bool
-	DatadogAgentProfileEnabled    bool
-	IntrospectionEnabled          bool
-	DatadogDashboardEnabled       bool
-	DatadogGenericResourceEnabled bool
+	DatadogAgentEnabled               bool
+	DatadogMonitorEnabled             bool
+	DatadogSLOEnabled                 bool
+	DatadogAgentProfileEnabled        bool
+	IntrospectionEnabled              bool
+	DatadogDashboardEnabled           bool
+	DatadogGenericResourceEnabled     bool
+	DatadogCSIDriverEnabled           bool
+	UntaintControllerEnabled          bool
+	UntaintControllerWaitForCSIDriver bool
 }
 
 // CacheOptions function configures Controller Runtime cache options on a resource level (supported in v0.16+).
@@ -121,20 +128,32 @@ func CacheOptions(logger logr.Logger, opts WatchOptions) cache.Options {
 		byObject[profileObj] = cache.ByObject{
 			Namespaces: agentProfileNamespaces,
 		}
+	}
 
-		// It is very important to reduce memory usage when profiles are used.
-		// For the profiles feature we need to list the agent pods, but we're only
-		// interested in the node name and the labels. This function removes all the
-		// rest of fields to reduce memory usage.
-		// Pods are watched in DatadogAgent namespace(s) since that's where Agent pods are running.
+	if opts.DatadogAgentProfileEnabled || opts.UntaintControllerEnabled {
+		// For the profiles feature and untaint controller we need to list agent pods.
+		// The profiles feature needs node name and labels; the untaint controller also needs
+		// Status.Conditions to check readiness. Pods are watched in DatadogAgent namespace(s).
+		// When untaint is configured to wait for CSI, widen to merged agent+CSI
+		// namespaces and drop the pod informer label filter so CSI node-server pods
+		// (app=datadog-csi-driver-node-server) are cached for dual-readiness untaint.
 		agentNamespaces := GetWatchNamespacesFromEnv(logger, AgentWatchNamespaceEnvVar)
-		logger.Info("DatadogAgentProfile Enabled", "watching Pods in namespaces", slices.Collect(maps.Keys(agentNamespaces)))
-		byObject[podObj] = cache.ByObject{
-			Namespaces: agentNamespaces,
-
-			Label: labels.SelectorFromSet(map[string]string{
+		podNamespaces := agentNamespaces
+		var podLabel labels.Selector
+		if opts.UntaintControllerEnabled && opts.UntaintControllerWaitForCSIDriver {
+			csiDriverNamespaces := GetWatchNamespacesFromEnv(logger, csiDriverWatchNamespaceEnvVar)
+			podNamespaces = maps.Clone(agentNamespaces)
+			maps.Copy(podNamespaces, csiDriverNamespaces)
+			logger.Info("Pod cache enabled for untaint with wait-for-CSI",
+				"watching Pods in namespaces", slices.Collect(maps.Keys(podNamespaces)))
+		} else {
+			podLabel = labels.SelectorFromSet(map[string]string{
 				common.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
-			}),
+			})
+			logger.Info("Pod cache enabled", "watching Pods in namespaces", slices.Collect(maps.Keys(agentNamespaces)))
+		}
+		podByObject := cache.ByObject{
+			Namespaces: podNamespaces,
 
 			Transform: func(obj any) (any, error) {
 				pod := obj.(*corev1.Pod)
@@ -151,14 +170,25 @@ func CacheOptions(logger logr.Logger, opts WatchOptions) cache.Options {
 					},
 				}
 
+				// The untaint controller needs Pod.Status.Conditions (readiness check)
+				// and Pod.Status.StartTime (readiness-timeout clock).
+				if opts.UntaintControllerEnabled {
+					newPod.Status.Conditions = pod.Status.Conditions
+					newPod.Status.StartTime = pod.Status.StartTime
+				}
+
 				return newPod, nil
 			},
 		}
+		if podLabel != nil {
+			podByObject.Label = podLabel
+		}
+		byObject[podObj] = podByObject
 	}
 
-	if opts.DatadogAgentProfileEnabled || opts.IntrospectionEnabled {
-		// Also for the profiles feature, we need to list the nodes, but we're only
-		// interested in the node name and the labels.
+	if opts.DatadogAgentProfileEnabled || opts.IntrospectionEnabled || opts.UntaintControllerEnabled {
+		// Also for the profiles feature, introspection and untaint controller, we need to list the
+		// nodes. The untaint controller additionally needs Spec.Taints to check for the target taint.
 		// Note that if in the future we need to list or get pods or nodes and use other
 		// fields we'll need to modify this function.
 		//
@@ -175,16 +205,40 @@ func CacheOptions(logger logr.Logger, opts WatchOptions) cache.Options {
 					},
 				}
 
+				// The untaint controller needs Spec.Taints (target taint check) and
+				// metadata.CreationTimestamp (scheduling-timeout clock).
+				if opts.UntaintControllerEnabled {
+					newNode.Spec.Taints = node.Spec.Taints
+					newNode.CreationTimestamp = node.CreationTimestamp
+				}
+
 				return newNode, nil
 			},
 		}
 	}
 
-	if opts.DatadogAgentInternalEnabled {
+	// Since v1.27, DDAI is always tied to DDA — no separate flag. Kept as DDA guard since DDAI cache is only needed when DDA is enabled.
+	if opts.DatadogAgentEnabled {
 		agentInternalNamespaces := GetWatchNamespacesFromEnv(logger, AgentWatchNamespaceEnvVar)
 		logger.Info("DatadogAgentInternal Enabled", "watching namespaces", slices.Collect(maps.Keys(agentInternalNamespaces)))
 		byObject[agentInternalObj] = cache.ByObject{
 			Namespaces: agentInternalNamespaces,
+		}
+	}
+
+	if opts.DatadogCSIDriverEnabled {
+		csiDriverNamespaces := GetWatchNamespacesFromEnv(logger, csiDriverWatchNamespaceEnvVar)
+		logger.Info("DatadogCSIDriver Enabled", "watching namespaces", slices.Collect(maps.Keys(csiDriverNamespaces)))
+		byObject[csiDriverObj] = cache.ByObject{
+			Namespaces: csiDriverNamespaces,
+		}
+		// The DaemonSet owned by DatadogCSIDriver lives in the CSIDriver namespace, which may
+		// differ from the agent namespace covered by DefaultNamespaces. Explicitly add DaemonSet
+		// to ByObject merging both so neither controller loses its cache coverage.
+		daemonSetNamespaces := maps.Clone(GetWatchNamespacesFromEnv(logger, AgentWatchNamespaceEnvVar))
+		maps.Copy(daemonSetNamespaces, csiDriverNamespaces)
+		byObject[csiDaemonSetObj] = cache.ByObject{
+			Namespaces: daemonSetNamespaces,
 		}
 	}
 

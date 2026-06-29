@@ -100,21 +100,42 @@ else
     echo "Warning: $actions_directory not found, skipping."
 fi
 
-# Run go work sync
-echo "Running go work sync..."
-go work sync
-
-# Update go.mod files
-go_mod_files="$ROOT/go.mod $ROOT/test/e2e/go.mod $ROOT/api/go.mod"
+# Update non-api go.mod files with the full Go patch version so static SCA
+# scanners don't flag patch-level stdlib CVEs that are already cleared by the
+# toolchain directive.
+go_mod_files="$ROOT/go.mod $ROOT/test/e2e/go.mod"
 for file in $go_mod_files; do
     if [[ -f $file ]]; then
         echo "Processing $file..."
-        go mod edit -go $new_minor_version $file
-        go mod edit -toolchain go$GOVERSION $file
+        go mod edit -go $GOVERSION $file
     else
         echo "Warning: $file not found, skipping."
     fi
 done
+
+# api/go.mod stays at initial patch release for the minor Go version: it is a types-only CRD module imported by
+# external projects (Agent, EDS, dd-source autoscaling, ...). A stricter `go`
+# directive would force consumers off Go n-1 for no real benefit since the
+# module ships no runtime code that could trigger stdlib CVEs.
+api_go_mod="$ROOT/api/go.mod"
+if [[ -f $api_go_mod ]]; then
+    echo "Processing $api_go_mod..."
+    go mod edit -go ${new_minor_version}.0 $api_go_mod
+    go mod edit -toolchain go$GOVERSION $api_go_mod
+else
+    echo "Warning: $api_go_mod not found, skipping."
+fi
+
+# Run go work sync
+echo "Running go work sync..."
+go work sync
+
+# Keep every module's go.sum valid when tested outside the workspace.
+echo "Running go mod tidy for root module..."
+(cd "$ROOT" && GOWORK=off go mod tidy)
+
+echo "Running go mod tidy for api module..."
+(cd "$ROOT/api" && GOWORK=off go mod tidy)
 
 # test/e2e is not in go.work, so we need to run go mod tidy separately
 echo "Running go mod tidy for test/e2e module..."

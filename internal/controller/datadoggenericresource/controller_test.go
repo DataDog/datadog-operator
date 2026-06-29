@@ -3,15 +3,15 @@ package datadoggenericresource
 import (
 	"context"
 	"fmt"
-	"net/http"
-	"net/http/httptest"
 	"net/url"
+	"os"
 	"testing"
+	"time"
 
 	datadogapi "github.com/DataDog/datadog-api-client-go/v2/api/datadog"
-	"github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
@@ -121,6 +121,120 @@ func TestReconcileGenericResource_Reconcile(t *testing.T) {
 			},
 		},
 		{
+			name: "DatadogGenericResource recreates on update when remote resource is missing",
+			args: args{
+				request: newRequest(resourcesNamespace, resourcesName),
+				firstAction: func(c client.Client) {
+					_ = c.Create(context.TODO(), mockGenericResource())
+				},
+				firstReconcileCount: 2,
+				secondAction: func(c client.Client) {
+					mockResourceID = "mock-id-recreated"
+					mockUpdateErr = fmt.Errorf("error updating mock resource: 404 Not Found")
+					obj := &datadoghqv1alpha1.DatadogGenericResource{}
+					err := c.Get(context.TODO(), types.NamespacedName{Name: resourcesName, Namespace: resourcesNamespace}, obj)
+					assert.NoError(t, err)
+					obj.Spec.JsonSpec = "{\"bar\": \"baz\"}"
+					err = c.Update(context.TODO(), obj)
+					assert.NoError(t, err)
+				},
+				secondReconcileCount: 1,
+			},
+			wantResult: reconcile.Result{RequeueAfter: defaultRequeuePeriod},
+			wantFunc: func(c client.Client) error {
+				obj := &datadoghqv1alpha1.DatadogGenericResource{}
+				if err := c.Get(context.TODO(), types.NamespacedName{Name: resourcesName, Namespace: resourcesNamespace}, obj); err != nil {
+					return err
+				}
+				hash, _ := comparison.GenerateMD5ForSpec(obj.Spec)
+				// Recreating the Datadog resource yields a fresh remote ID, so we only
+				// assert that the stored ID changed from the original one.
+				assert.NotEqual(t, "mock-id", obj.Status.Id)
+				assert.NotEmpty(t, obj.Status.Id)
+				assert.Equal(t, hash, obj.Status.CurrentHash)
+				assert.Equal(t, 2, mockCreateCalls)
+				return nil
+			},
+		},
+		{
+			name: "DatadogGenericResource exists, idle tick refreshes Datadog state",
+			args: args{
+				request: newRequest(resourcesNamespace, resourcesName),
+				firstAction: func(c client.Client) {
+					_ = c.Create(context.TODO(), mockGenericResource())
+					alert := "Alert"
+					mockRefreshStateResult = &alert
+				},
+				// reconcile 1: add finalizer; 2: create remote resource; 3: idle tick triggers refresh
+				firstReconcileCount: 3,
+			},
+			wantResult: reconcile.Result{RequeueAfter: defaultRequeuePeriod},
+			wantFunc: func(c client.Client) error {
+				obj := &datadoghqv1alpha1.DatadogGenericResource{}
+				if err := c.Get(context.TODO(), types.NamespacedName{Name: resourcesName, Namespace: resourcesNamespace}, obj); err != nil {
+					return err
+				}
+				assert.Equal(t, "Alert", obj.Status.State, "expected state to be refreshed to Alert")
+				assert.NotNil(t, obj.Status.StateLastUpdateTime, "expected StateLastUpdateTime to be set")
+				assert.NotNil(t, obj.Status.StateLastTransitionTime, "expected StateLastTransitionTime to be set on first refresh")
+				assert.GreaterOrEqual(t, mockRefreshStateCalls, 1, "expected refreshState to have been called")
+				// StateSynced condition should be True
+				var found bool
+				for _, cond := range obj.Status.Conditions {
+					if cond.Type == "StateSynced" {
+						found = true
+						assert.Equal(t, metav1.ConditionTrue, cond.Status, "expected StateSynced=True after a successful refresh")
+					}
+				}
+				assert.True(t, found, "expected a StateSynced condition")
+				return nil
+			},
+		},
+		{
+			name: "DatadogGenericResource exists, state refresh failure preserves last-known state",
+			args: args{
+				request: newRequest(resourcesNamespace, resourcesName),
+				firstAction: func(c client.Client) {
+					_ = c.Create(context.TODO(), mockGenericResource())
+					alert := "Alert"
+					mockRefreshStateResult = &alert
+				},
+				firstReconcileCount: 3,
+				secondAction: func(c client.Client) {
+					// Backdate StateLastUpdateTime so the next reconcile re-enters
+					// the refresh branch, and switch the mock to fail.
+					obj := &datadoghqv1alpha1.DatadogGenericResource{}
+					_ = c.Get(context.TODO(), types.NamespacedName{Name: resourcesName, Namespace: resourcesNamespace}, obj)
+					past := metav1.NewTime(time.Now().Add(-2 * defaultRequeuePeriod))
+					obj.Status.StateLastUpdateTime = &past
+					_ = c.Status().Update(context.TODO(), obj)
+					mockRefreshStateErr = fmt.Errorf("error getting mock resource: 503 Service Unavailable")
+					mockRefreshStateResult = nil
+				},
+				secondReconcileCount: 1,
+			},
+			wantResult: reconcile.Result{RequeueAfter: defaultRequeuePeriod},
+			wantFunc: func(c client.Client) error {
+				obj := &datadoghqv1alpha1.DatadogGenericResource{}
+				if err := c.Get(context.TODO(), types.NamespacedName{Name: resourcesName, Namespace: resourcesNamespace}, obj); err != nil {
+					return err
+				}
+				// Last-known state from first refresh should be preserved.
+				assert.Equal(t, "Alert", obj.Status.State, "expected last-known state to be preserved on refresh failure")
+				// StateSynced condition flips to False with Reason=GetError
+				var found bool
+				for _, cond := range obj.Status.Conditions {
+					if cond.Type == "StateSynced" {
+						found = true
+						assert.Equal(t, metav1.ConditionFalse, cond.Status, "expected StateSynced=False on refresh failure")
+						assert.Equal(t, "GetError", cond.Reason, "expected Reason=GetError on refresh failure")
+					}
+				}
+				assert.True(t, found, "expected a StateSynced condition after a failure")
+				return nil
+			},
+		},
+		{
 			name: "DatadogGenericResource exists, needs delete",
 			args: args{
 				request: newRequest(resourcesNamespace, resourcesName),
@@ -148,28 +262,23 @@ func TestReconcileGenericResource_Reconcile(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			httpServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				w.Header().Set("Content-Type", "application/json")
-			}))
-			defer httpServer.Close()
+			resetMockHandlerState()
 
-			testConfig := datadogapi.NewConfiguration()
-			testConfig.HTTPClient = httpServer.Client()
-			apiClient := datadogapi.NewAPIClient(testConfig)
-			synthClient := datadogV1.NewSyntheticsApi(apiClient)
-			nbClient := datadogV1.NewNotebooksApi(apiClient)
+			os.Setenv("DD_API_KEY", "DUMMY_API_KEY")
+			os.Setenv("DD_APP_KEY", "DUMMY_APP_KEY")
+			defer os.Unsetenv("DD_API_KEY")
+			defer os.Unsetenv("DD_APP_KEY")
 
-			testAuth := setupTestAuth(httpServer.URL)
-
-			// Set up
-			r := &Reconciler{
-				client:                  fake.NewClientBuilder().WithScheme(s).WithStatusSubresource(&datadoghqv1alpha1.DatadogGenericResource{}).Build(),
-				datadogSyntheticsClient: synthClient,
-				datadogNotebooksClient:  nbClient,
-				datadogAuth:             testAuth,
-				scheme:                  s,
-				recorder:                recorder,
-				log:                     logf.Log.WithName(tt.name),
+			// Use mock handlers so tests don't hit real APIs.
+			r := NewReconciler(
+				fake.NewClientBuilder().WithScheme(s).WithStatusSubresource(&datadoghqv1alpha1.DatadogGenericResource{}).Build(),
+				config.NewCredentialManager(fake.NewClientBuilder().Build()),
+				s,
+				logf.Log.WithName(tt.name),
+				recorder,
+			)
+			r.handlers = map[datadoghqv1alpha1.SupportedResourcesType]ResourceHandler{
+				mockSubresource: &MockHandler{},
 			}
 
 			// First action
@@ -183,7 +292,7 @@ func TestReconcileGenericResource_Reconcile(t *testing.T) {
 			var result ctrl.Result
 			var err error
 			for i := 0; i < tt.args.firstReconcileCount; i++ {
-				result, err = r.Reconcile(context.TODO(), tt.args.request)
+				result, err = reconcileRequest(r, context.TODO(), tt.args.request)
 			}
 
 			assert.NoError(t, err, "unexpected error: %v", err)
@@ -198,7 +307,7 @@ func TestReconcileGenericResource_Reconcile(t *testing.T) {
 				}
 			}
 			for i := 0; i < tt.args.secondReconcileCount; i++ {
-				_, err := r.Reconcile(context.TODO(), tt.args.request)
+				_, err := reconcileRequest(r, context.TODO(), tt.args.request)
 				assert.NoError(t, err, "unexpected error: %v", err)
 			}
 
@@ -215,6 +324,106 @@ func TestReconcileGenericResource_Reconcile(t *testing.T) {
 	}
 }
 
+func TestForceSyncPeriodFromEnv(t *testing.T) {
+	logf.SetLogger(zap.New(zap.UseDevMode(true)))
+	logger := logf.Log.WithName("force-sync-period-test")
+
+	tests := []struct {
+		name     string
+		envValue string
+		want     time.Duration
+	}{
+		{
+			name:     "valid value",
+			envValue: "1",
+			want:     time.Minute,
+		},
+		{
+			name:     "invalid string falls back to default",
+			envValue: "abc",
+			want:     defaultForceSyncPeriod,
+		},
+		{
+			name:     "zero falls back to default",
+			envValue: "0",
+			want:     defaultForceSyncPeriod,
+		},
+		{
+			name:     "negative value falls back to default",
+			envValue: "-1",
+			want:     defaultForceSyncPeriod,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv(ddGenericResourceForceSyncPeriodEnvVar, tt.envValue)
+
+			assert.Equal(t, tt.want, forceSyncPeriodFromEnv(logger))
+		})
+	}
+}
+
+func TestReconcileGenericResource_ForceSyncPeriodTriggersRemoteUpdate(t *testing.T) {
+	resetMockHandlerState()
+	t.Setenv("DD_API_KEY", "DUMMY_API_KEY")
+	t.Setenv("DD_APP_KEY", "DUMMY_APP_KEY")
+	t.Setenv(ddGenericResourceForceSyncPeriodEnvVar, "1")
+
+	eventBroadcaster := record.NewBroadcaster()
+	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: "TestReconcileGenericResource_ForceSyncPeriodTriggersRemoteUpdate"})
+
+	logf.SetLogger(zap.New(zap.UseDevMode(true)))
+	logger := logf.Log.WithName("force-sync-period-test")
+
+	s := scheme.Scheme
+	s.AddKnownTypes(datadoghqv1alpha1.GroupVersion, &datadoghqv1alpha1.DatadogGenericResource{})
+
+	r := NewReconciler(
+		fake.NewClientBuilder().WithScheme(s).WithStatusSubresource(&datadoghqv1alpha1.DatadogGenericResource{}).Build(),
+		config.NewCredentialManager(fake.NewClientBuilder().Build()),
+		s,
+		logger,
+		recorder,
+	)
+	r.handlers = map[datadoghqv1alpha1.SupportedResourcesType]ResourceHandler{
+		mockSubresource: &MockHandler{},
+	}
+
+	err := r.client.Create(context.TODO(), mockGenericResource())
+	assert.NoError(t, err)
+
+	req := newRequest(resourcesNamespace, resourcesName)
+
+	// Add finalizer, then create the Datadog resource.
+	result, err := reconcileRequest(r, context.TODO(), req)
+	assert.NoError(t, err)
+	assert.Equal(t, reconcile.Result{Requeue: true}, result)
+
+	result, err = reconcileRequest(r, context.TODO(), req)
+	assert.NoError(t, err)
+	assert.Equal(t, reconcile.Result{RequeueAfter: defaultRequeuePeriod}, result)
+	assert.Equal(t, 1, mockCreateCalls)
+	assert.Equal(t, 0, mockGetCalls)
+	assert.Equal(t, 0, mockUpdateCalls)
+
+	obj := &datadoghqv1alpha1.DatadogGenericResource{}
+	err = r.client.Get(context.TODO(), types.NamespacedName{Name: resourcesName, Namespace: resourcesNamespace}, obj)
+	assert.NoError(t, err)
+	lastForceSyncTime := metav1.NewTime(time.Now().Add(-2 * time.Minute))
+	obj.Status.LastForceSyncTime = &lastForceSyncTime
+	err = r.client.Status().Update(context.TODO(), obj)
+	assert.NoError(t, err)
+
+	// Once the configured force-sync period has elapsed, the next reconcile
+	// should force a remote get and update even though the spec hash is unchanged.
+	result, err = reconcileRequest(r, context.TODO(), req)
+	assert.NoError(t, err)
+	assert.Equal(t, reconcile.Result{RequeueAfter: defaultRequeuePeriod}, result)
+	assert.Equal(t, 1, mockGetCalls)
+	assert.Equal(t, 1, mockUpdateCalls)
+}
+
 func newRequest(ns, name string) reconcile.Request {
 	return reconcile.Request{
 		NamespacedName: types.NamespacedName{
@@ -222,6 +431,19 @@ func newRequest(ns, name string) reconcile.Request {
 			Name:      name,
 		},
 	}
+}
+
+// reconcileRequest mirrors reconcile.AsReconciler: fetches the object then calls Reconcile.
+// If the object is not found, it returns a zero Result with no error (matching controller-runtime behaviour).
+func reconcileRequest(r *Reconciler, ctx context.Context, req reconcile.Request) (ctrl.Result, error) {
+	instance := &datadoghqv1alpha1.DatadogGenericResource{}
+	if err := r.client.Get(ctx, req.NamespacedName, instance); err != nil {
+		if apierrors.IsNotFound(err) {
+			return ctrl.Result{}, nil
+		}
+		return ctrl.Result{}, err
+	}
+	return r.Reconcile(ctx, instance)
 }
 
 func mockGenericResource() *datadoghqv1alpha1.DatadogGenericResource {
@@ -262,107 +484,4 @@ func setupTestAuth(apiURL string) context.Context {
 	})
 
 	return testAuth
-}
-
-// TestReconciler_UpdateDatadogClient tests the UpdateDatadogClient method of the Reconciler
-func TestReconciler_UpdateDatadogClient(t *testing.T) {
-	testLogger := zap.New(zap.UseDevMode(true))
-	recorder := record.NewFakeRecorder(10)
-	scheme := scheme.Scheme
-	client := fake.NewClientBuilder().Build()
-
-	initialCreds := config.Creds{
-		APIKey: "initial-api-key",
-		AppKey: "initial-app-key",
-	}
-
-	// Helper struct + function
-	type clientState struct {
-		syntheticsClient *datadogV1.SyntheticsApi
-		notebooksClient  *datadogV1.NotebooksApi
-		monitorsClient   *datadogV1.MonitorsApi
-		auth             context.Context
-	}
-
-	captureState := func(r *Reconciler) clientState {
-		return clientState{
-			syntheticsClient: r.datadogSyntheticsClient,
-			notebooksClient:  r.datadogNotebooksClient,
-			monitorsClient:   r.datadogMonitorsClient,
-			auth:             r.datadogAuth,
-		}
-	}
-
-	clientsEqual := func(a, b clientState) bool {
-		return a.syntheticsClient == b.syntheticsClient &&
-			a.notebooksClient == b.notebooksClient &&
-			a.monitorsClient == b.monitorsClient &&
-			a.auth == b.auth
-	}
-
-	tests := []struct {
-		name     string
-		newCreds config.Creds
-		wantErr  bool
-	}{
-		{
-			name: "valid credentials update",
-			newCreds: config.Creds{
-				APIKey: "test-api-key",
-				AppKey: "test-app-key",
-			},
-			wantErr: false,
-		},
-		{
-			name: "empty API key",
-			newCreds: config.Creds{
-				APIKey: "",
-				AppKey: "test-app-key",
-			},
-			wantErr: true,
-		},
-		{
-			name: "empty App key",
-			newCreds: config.Creds{
-				APIKey: "test-api-key",
-				AppKey: "",
-			},
-			wantErr: true,
-		},
-		{
-			name: "both keys empty",
-			newCreds: config.Creds{
-				APIKey: "",
-				AppKey: "",
-			},
-			wantErr: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Create reconciler with initial valid credentials
-			r, err := NewReconciler(client, initialCreds, scheme, testLogger, recorder)
-			assert.NoError(t, err)
-
-			// Capture original state
-			originalState := captureState(r)
-
-			// Call UpdateDatadogClient
-			err = r.UpdateDatadogClient(tt.newCreds)
-
-			// Capture new state
-			newState := captureState(r)
-
-			if tt.wantErr {
-				assert.Error(t, err)
-				// On error, all clients should remain unchanged
-				assert.True(t, clientsEqual(originalState, newState), "Expected all clients to remain the same on error")
-			} else {
-				assert.NoError(t, err)
-				// On success, all clients should be recreated (different instances)
-				assert.False(t, clientsEqual(originalState, newState), "Expected all clients to be recreated on success")
-			}
-		})
-	}
 }

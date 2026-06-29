@@ -8,6 +8,7 @@ package controller
 import (
 	"context"
 	"reflect"
+	"strings"
 
 	edsdatadoghqv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 	"github.com/go-logr/logr"
@@ -58,12 +59,17 @@ type DatadogAgentReconciler struct {
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=roles,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=rolebindings,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="",resources=pods/exec,verbs=create
-// +kubebuilder:rbac:groups=auto.gke.io,resources=allowlistsynchronizers,verbs=get;list;watch;create
+// +kubebuilder:rbac:groups="",resources=pods/eviction,verbs=create
+// +kubebuilder:rbac:groups="",resources=pods/resize,verbs=patch
+// +kubebuilder:rbac:groups=auto.gke.io,resources=allowlistsynchronizers,verbs=get;list;watch;create;patch
 
 // Finalizer (cluster-scoped resources)
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles,verbs=deletecollection
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterrolebindings,verbs=deletecollection
 // +kubebuilder:rbac:groups=apiregistration.k8s.io,resources=apiservices,verbs=deletecollection
+
+// ControllerRevision snapshots
+// +kubebuilder:rbac:groups=apps,resources=controllerrevisions,verbs=get;list;watch;create;patch;delete
 
 // Configure Admission Controller
 // +kubebuilder:rbac:groups=admissionregistration.k8s.io,resources=validatingwebhookconfigurations;mutatingwebhookconfigurations,verbs=*
@@ -75,6 +81,8 @@ type DatadogAgentReconciler struct {
 // +kubebuilder:rbac:groups=authorization.k8s.io,resources=subjectaccessreviews,verbs=get;create
 // +kubebuilder:rbac:groups=batch,resources=cronjobs,verbs=get
 // +kubebuilder:rbac:groups=batch,resources=jobs,verbs=get
+// +kubebuilder:rbac:groups=storage.k8s.io,resources=csidrivers,verbs=list;watch
+// +kubebuilder:rbac:groups=storage.k8s.io,resources=csidrivers,resourceNames=k8s.csi.datadoghq.com,verbs=get
 
 // Configure External Metrics server
 // +kubebuilder:rbac:groups=apiregistration.k8s.io,resources=apiservices,verbs=*
@@ -87,11 +95,20 @@ type DatadogAgentReconciler struct {
 // (RBACs for events and pods are present below)
 // +kubebuilder:rbac:groups=datadoghq.com,resources=datadogpodautoscalers,verbs=*
 // +kubebuilder:rbac:groups=datadoghq.com,resources=datadogpodautoscalers/status,verbs=*
+// +kubebuilder:rbac:groups=datadoghq.com,resources=datadogpodautoscalerclusterprofiles,verbs=*
+// +kubebuilder:rbac:groups=datadoghq.com,resources=datadogpodautoscalerclusterprofiles/status,verbs=*
 // +kubebuilder:rbac:groups=*,resources=*/scale,verbs=get;update
-// +kubebuilder:rbac:groups=apps,resources=deployments,verbs=patch
-// +kubebuilder:rbac:groups=argoproj.io,resources=rollouts,verbs=patch
-// +kubebuilder:rbac:groups=karpenter.sh,resources=*,verbs=get;list;watch;create;patch;delete
-// +kubebuilder:rbac:groups=karpenter.k8s.aws,resources=*,verbs=get;list
+// +kubebuilder:rbac:groups="",resources=namespaces,verbs=get;list;watch
+// +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;patch
+// +kubebuilder:rbac:groups=apps,resources=statefulsets,verbs=get;list;watch;patch
+// +kubebuilder:rbac:groups=argoproj.io,resources=rollouts,verbs=get;list;watch;patch
+// +kubebuilder:rbac:groups=karpenter.sh,resources=*,verbs=get;list;watch;create;patch;update;delete
+// +kubebuilder:rbac:groups=karpenter.k8s.aws,resources=*,verbs=get;list;watch
+// +kubebuilder:rbac:groups=eks.amazonaws.com,resources=*,verbs=get;list;watch
+
+// Configure Datadog Intrumentation
+// +kubebuilder:rbac:groups=datadoghq.com,resources=datadoginstrumentations,verbs=get;list;watch
+// +kubebuilder:rbac:groups=datadoghq.com,resources=datadoginstrumentations/status,verbs=patch;update
 
 // Use ExtendedDaemonSet
 // +kubebuilder:rbac:groups=datadoghq.com,resources=extendeddaemonsets,verbs=get;list;watch;create;update;patch;delete
@@ -103,11 +120,37 @@ type DatadogAgentReconciler struct {
 // Configure Appsec Gateway Integration
 // +kubebuilder:rbac:groups=apiextensions.k8s.io,resources=customresourcedefinitions,verbs=get
 // +kubebuilder:rbac:groups="",resources=events,verbs=create
+// +kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch;create;update;delete
 // +kubebuilder:rbac:groups=networking.k8s.io,resources=ingresses,verbs=get;list;watch;patch
+// +kubebuilder:rbac:groups=networking.k8s.io,resources=ingressclasses,verbs=get;list;watch
 // +kubebuilder:rbac:groups=gateway.networking.k8s.io,resources=gateways;gatewayclasses;httproutes,verbs=get;list;watch;patch
 // +kubebuilder:rbac:groups=gateway.networking.k8s.io,resources=referencegrants,verbs=get;delete;create;patch
-// +kubebuilder:rbac:groups=gateway.envoyproxy.io,resources=envoyextensionpolicies,verbs=get;delete;create
+// +kubebuilder:rbac:groups=gateway.envoyproxy.io,resources=envoyextensionpolicies;envoypatchpolicies;backends,verbs=get;delete;create
 // +kubebuilder:rbac:groups=networking.istio.io,resources=envoyfilters,verbs=get;create;delete
+// +kubebuilder:rbac:groups=networking.istio.io,resources=gateways,verbs=get;list;watch
+
+// Orchestrator Explorer — network CRD collection
+// +kubebuilder:rbac:groups=gateway.networking.k8s.io,resources=gateways;httproutes;grpcroutes;tlsroutes;listenersets,verbs=list;watch
+// +kubebuilder:rbac:groups=networking.istio.io,resources=virtualservices;gateways;destinationrules;serviceentries;sidecars,verbs=list;watch
+// +kubebuilder:rbac:groups=gateway.envoyproxy.io,resources=*,verbs=list;watch
+// +kubebuilder:rbac:groups=traefik.containo.us,resources=*,verbs=list;watch
+// +kubebuilder:rbac:groups=policy.linkerd.io,resources=*,verbs=list;watch
+// +kubebuilder:rbac:groups=consul.hashicorp.com,resources=*,verbs=list;watch
+// +kubebuilder:rbac:groups=mesh.consul.hashicorp.com,resources=*,verbs=list;watch
+// +kubebuilder:rbac:groups=kuma.io,resources=*,verbs=list;watch
+// +kubebuilder:rbac:groups=k8s.nginx.org,resources=virtualservers;virtualserverroutes,verbs=list;watch
+// +kubebuilder:rbac:groups=traefik.io,resources=ingressroutes,verbs=list;watch
+// +kubebuilder:rbac:groups=configuration.konghq.com,resources=*,verbs=list;watch
+// +kubebuilder:rbac:groups=core.haproxy.org,resources=*,verbs=list;watch
+// +kubebuilder:rbac:groups=ingress.v1.haproxy.org,resources=*,verbs=list;watch
+
+// Configure Private Action Runner k8s remediation
+// +kubebuilder:rbac:groups=apps,resources=deployments;daemonsets;statefulsets;replicasets,verbs=get;list;watch
+// +kubebuilder:rbac:groups=apps,resources=deployments,verbs=patch
+// +kubebuilder:rbac:groups="",resources=pods;events;configmaps,verbs=get;list;watch
+// +kubebuilder:rbac:groups="",resources=pods,verbs=patch
+// +kubebuilder:rbac:groups="",resources=configmaps,verbs=create;update;patch
+// +kubebuilder:rbac:groups="",resources=events,verbs=create;patch
 
 // OpenShift
 // +kubebuilder:rbac:groups=quota.openshift.io,resources=clusterresourcequotas,verbs=get;list
@@ -137,6 +180,7 @@ type DatadogAgentReconciler struct {
 // +kubebuilder:rbac:groups=policy,resources=poddisruptionbudgets,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=networking.k8s.io,resources=networkpolicies,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=coordination.k8s.io,resources=leases,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=discovery.k8s.io,resources=endpointslices,verbs=list;watch;get
 
 // EKS control plane metrics
 // +kubebuilder:rbac:groups="metrics.eks.amazonaws.com",resources=kcm/metrics,verbs=get
@@ -228,10 +272,11 @@ func (r *DatadogAgentReconciler) SetupWithManager(mgr ctrl.Manager, metricForwar
 		Owns(&corev1.ServiceAccount{}).
 		// We let PlatformInfo supply PDB object based on the current API version
 		Owns(r.PlatformInfo.CreatePDBObject()).
-		Owns(&networkingv1.NetworkPolicy{})
+		Owns(&networkingv1.NetworkPolicy{}).
+		Owns(&v1alpha1.DatadogAgentInternal{})
 
-	if r.Options.DatadogAgentInternalEnabled {
-		builder.Owns(&v1alpha1.DatadogAgentInternal{})
+	if r.Options.DatadogCSIDriverEnabled {
+		builder.Owns(&v1alpha1.DatadogCSIDriver{})
 	}
 
 	if r.Options.DatadogAgentProfileEnabled {
@@ -289,7 +334,7 @@ func (r *DatadogAgentReconciler) SetupWithManager(mgr ctrl.Manager, metricForwar
 	}
 
 	or := reconcile.AsReconciler[*v2alpha1.DatadogAgent](r.Client, r)
-	if err := builder.For(&v2alpha1.DatadogAgent{}, builderOptions...).WithEventFilter(predicate.GenerationChangedPredicate{}).Complete(or); err != nil {
+	if err := builder.For(&v2alpha1.DatadogAgent{}, builderOptions...).WithEventFilter(predicate.Or(predicate.GenerationChangedPredicate{}, datadogAnnotationChangedPredicate(), experimentPhaseChangedPredicate())).Complete(or); err != nil {
 		return err
 	}
 
@@ -300,6 +345,69 @@ func (r *DatadogAgentReconciler) SetupWithManager(mgr ctrl.Manager, metricForwar
 	r.internal = internal
 
 	return nil
+}
+
+// datadogAnnotationChangedPredicate returns a predicate that triggers reconciliation
+// only when annotations containing ".datadoghq.com/" change, ignoring unrelated annotation updates.
+func datadogAnnotationChangedPredicate() predicate.Predicate {
+	hasDDAnnotation := func(annotations map[string]string) bool {
+		for k := range annotations {
+			if strings.Contains(k, ".datadoghq.com/") {
+				return true
+			}
+		}
+		return false
+	}
+	return predicate.Funcs{
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			oldAnnotations := e.ObjectOld.GetAnnotations()
+			newAnnotations := e.ObjectNew.GetAnnotations()
+			for k, v := range newAnnotations {
+				if strings.Contains(k, ".datadoghq.com/") && oldAnnotations[k] != v {
+					return true
+				}
+			}
+			for k := range oldAnnotations {
+				if strings.Contains(k, ".datadoghq.com/") {
+					if _, exists := newAnnotations[k]; !exists {
+						return true
+					}
+				}
+			}
+			return false
+		},
+		CreateFunc:  func(e event.CreateEvent) bool { return hasDDAnnotation(e.Object.GetAnnotations()) },
+		DeleteFunc:  func(e event.DeleteEvent) bool { return true },
+		GenericFunc: func(e event.GenericEvent) bool { return hasDDAnnotation(e.Object.GetAnnotations()) },
+	}
+}
+
+// experimentPhaseChangedPredicate returns a predicate that triggers reconciliation
+// when the experiment phase in the DDA status changes. This allows the operator to
+// react to RC signals (e.g. phase=stopped) which are status-only changes that do not
+// bump metadata.generation.
+func experimentPhaseChangedPredicate() predicate.Predicate {
+	return predicate.Funcs{
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			oldDDA, ok1 := e.ObjectOld.(*v2alpha1.DatadogAgent)
+			newDDA, ok2 := e.ObjectNew.(*v2alpha1.DatadogAgent)
+			if !ok1 || !ok2 {
+				return false
+			}
+			oldPhase := ""
+			if oldDDA.Status.Experiment != nil {
+				oldPhase = string(oldDDA.Status.Experiment.Phase)
+			}
+			newPhase := ""
+			if newDDA.Status.Experiment != nil {
+				newPhase = string(newDDA.Status.Experiment.Phase)
+			}
+			return oldPhase != newPhase
+		},
+		CreateFunc:  func(e event.CreateEvent) bool { return false },
+		DeleteFunc:  func(e event.DeleteEvent) bool { return false },
+		GenericFunc: func(e event.GenericEvent) bool { return false },
+	}
 }
 
 func enqueueIfOwnedByDatadogAgent(ctx context.Context, obj client.Object) []reconcile.Request {

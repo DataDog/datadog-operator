@@ -11,6 +11,7 @@ import (
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -47,6 +48,7 @@ type sbomFeature struct {
 	containerImageOverlayFSDirectScan       bool
 	hostEnabled                             bool
 	hostAnalyzers                           []string
+	enrichmentUsageEnabled                  bool
 }
 
 // ID returns the ID of the Feature
@@ -74,12 +76,19 @@ func (f *sbomFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.DatadogAgentS
 			f.hostEnabled = true
 			f.hostAnalyzers = sbomConfig.Host.Analyzers
 		}
+		if sbomConfig.Enrichment != nil && sbomConfig.Enrichment.Usage != nil && apiutils.BoolValue(sbomConfig.Enrichment.Usage.Enabled) {
+			f.enrichmentUsageEnabled = true
+		}
+		containers := []apicommon.AgentContainerName{
+			apicommon.CoreAgentContainerName,
+		}
+		if f.enrichmentUsageEnabled {
+			containers = append(containers, apicommon.SystemProbeContainerName)
+		}
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
-				IsRequired: apiutils.NewBoolPointer(true),
-				Containers: []apicommon.AgentContainerName{
-					apicommon.CoreAgentContainerName,
-				},
+				IsRequired: ptr.To(true),
+				Containers: containers,
 			},
 		}
 	}
@@ -121,25 +130,24 @@ func mergeConfigs(ddaSpec *v2alpha1.DatadogAgentSpec, ddaRCStatus *v2alpha1.Remo
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *sbomFeature) ManageDependencies(managers feature.ResourceManagers, provider string) error {
+func (f *sbomFeature) ManageDependencies(managers feature.ResourceManagers) error {
 	return nil
 }
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *sbomFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *sbomFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
 	return nil
 }
 
-func (f *sbomFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
-	// This feature doesn't set env vars on specific containers, so no specific logic for the single agent
-	f.ManageNodeAgent(managers, provider)
+func (f *sbomFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers) error {
+	f.ManageNodeAgent(managers)
 	return nil
 }
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *sbomFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *sbomFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
 	managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
 		Name:  DDSBOMEnabled,
 		Value: apiutils.BoolToString(&f.enabled),
@@ -155,6 +163,32 @@ func (f *sbomFeature) ManageNodeAgent(managers feature.PodTemplateManagers, prov
 			Value: strings.Join(f.containerImageAnalyzers, " "),
 		})
 	}
+
+	if f.enrichmentUsageEnabled {
+		managers.PodTemplateSpec().Spec.HostPID = true
+
+		managers.SecurityContext().AddCapabilitiesToContainer(
+			[]corev1.Capability{
+				"SYS_ADMIN",
+				"SYS_PTRACE",
+			},
+			apicommon.SystemProbeContainerName,
+		)
+
+		volMountMgr := managers.VolumeMount()
+		volMgr := managers.Volume()
+
+		// debugfs volume mount
+		debugfsVol, debugfsVolMount := volume.GetVolumes(common.DebugfsVolumeName, common.DebugfsPath, common.DebugfsPath, false)
+		volMountMgr.AddVolumeMountToContainer(&debugfsVolMount, apicommon.SystemProbeContainerName)
+		volMgr.AddVolume(&debugfsVol)
+
+		// cgroup volume mount
+		cgroupsVol, cgroupsVolMount := volume.GetVolumes(common.CgroupsVolumeName, common.CgroupsHostPath, common.CgroupsMountPath, true)
+		volMountMgr.AddVolumeMountToContainer(&cgroupsVolMount, apicommon.SystemProbeContainerName)
+		volMgr.AddVolume(&cgroupsVol)
+	}
+
 	if f.containerImageUncompressedLayersSupport {
 		if f.containerImageOverlayFSDirectScan {
 			managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
@@ -212,15 +246,28 @@ func (f *sbomFeature) ManageNodeAgent(managers feature.PodTemplateManagers, prov
 		volMgr.AddVolume(&hostRootVol)
 	}
 
+	if f.enrichmentUsageEnabled {
+		managers.EnvVar().AddEnvVarToContainers(
+			[]apicommon.AgentContainerName{
+				apicommon.CoreAgentContainerName,
+				apicommon.SystemProbeContainerName,
+			},
+			&corev1.EnvVar{
+				Name:  DDSBOMEnrichmentUsageEnabled,
+				Value: "true",
+			},
+		)
+	}
+
 	return nil
 }
 
 // ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunner's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *sbomFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
+func (f *sbomFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
 	return nil
 }
 
-func (f *sbomFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
+func (f *sbomFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers) error {
 	return nil
 }

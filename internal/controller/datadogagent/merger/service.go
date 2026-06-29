@@ -16,7 +16,7 @@ import (
 
 // ServiceManager is used to manage service resources.
 type ServiceManager interface {
-	AddService(name, namespace string, selector map[string]string, ports []corev1.ServicePort, internalTrafficPolicy *corev1.ServiceInternalTrafficPolicyType) error
+	AddService(name, namespace string, selector map[string]string, ports []corev1.ServicePort, internalTrafficPolicy *corev1.ServiceInternalTrafficPolicy) error
 }
 
 // NewServiceManager returns a new ServiceManager instance
@@ -34,7 +34,7 @@ type serviceManagerImpl struct {
 
 // AddService creates or updates service
 // If configurable fields are added or deleted, update `isEqualServiceSpec` in `pkg/equality/equality.go`
-func (m *serviceManagerImpl) AddService(name, namespace string, selector map[string]string, ports []corev1.ServicePort, internalTrafficPolicy *corev1.ServiceInternalTrafficPolicyType) error {
+func (m *serviceManagerImpl) AddService(name, namespace string, selector map[string]string, ports []corev1.ServicePort, internalTrafficPolicy *corev1.ServiceInternalTrafficPolicy) error {
 	obj, _ := m.store.GetOrCreate(kubernetes.ServicesKind, namespace, name)
 	service, ok := obj.(*corev1.Service)
 	if !ok {

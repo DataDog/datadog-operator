@@ -9,15 +9,19 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
+	datadogapi "github.com/DataDog/datadog-api-client-go/v2/api/datadog"
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/util/retry"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -30,6 +34,8 @@ var (
 	ErrEmptyAPIKey = errors.New("empty api key")
 )
 
+const apiURLPrefix = "https://api."
+
 // Creds holds the api and app keys.
 type Creds struct {
 	APIKey string
@@ -38,31 +44,31 @@ type Creds struct {
 	URL    *string
 }
 
+// parsedAPIUrl holds the parsed API URL components used for constructing auth contexts.
+type parsedAPIUrl struct {
+	Host     string
+	Protocol string
+}
+
 // CredentialManager provides the credentials from the operator configuration.
 type CredentialManager struct {
-	client           client.Client
+	logger           logr.Logger
+	client           client.Reader
 	secretBackend    secrets.Decryptor
 	creds            Creds
 	credsMutex       sync.Mutex
 	decryptorBackoff wait.Backoff
-	callbacks        []CredentialChangeCallback
-	callbackMutex    sync.RWMutex
+
+	apiURL *parsedAPIUrl
 
 	ddaDecryptor secrets.Decryptor
 	ddaCredsMap  sync.Map
 }
 
-type CredentialChangeCallback func(newCreds Creds) error
-
-func (cm *CredentialManager) RegisterCallback(cb CredentialChangeCallback) {
-	cm.callbackMutex.Lock()
-	defer cm.callbackMutex.Unlock()
-	cm.callbacks = append(cm.callbacks, cb)
-}
-
 // NewCredentialManager returns a CredentialManager.
-func NewCredentialManagerWithDecryptor(client client.Client, decryptor secrets.Decryptor) *CredentialManager {
-	return &CredentialManager{
+func NewCredentialManagerWithDecryptor(client client.Reader, decryptor secrets.Decryptor) *CredentialManager {
+	cm := &CredentialManager{
+		logger:        ctrl.Log.WithName("credentials-manager"),
 		client:        client,
 		secretBackend: decryptor,
 		creds:         Creds{},
@@ -75,12 +81,18 @@ func NewCredentialManagerWithDecryptor(client client.Client, decryptor secrets.D
 		ddaDecryptor: decryptor,
 		ddaCredsMap:  sync.Map{},
 	}
+
+	if err := cm.parseAPIURL(); err != nil {
+		cm.logger.Error(err, "Failed to parse API URL")
+	}
+	return cm
 }
 
 // TODO deprecate in favor of NewCredentialManagerWithDecryptor
 // NewCredentialManager returns a CredentialManager.
-func NewCredentialManager(client client.Client) *CredentialManager {
-	return &CredentialManager{
+func NewCredentialManager(client client.Reader) *CredentialManager {
+	cm := &CredentialManager{
+		logger:        ctrl.Log.WithName("credentials-manager"),
 		client:        client,
 		secretBackend: secrets.NewSecretBackend(),
 		creds:         Creds{},
@@ -91,6 +103,75 @@ func NewCredentialManager(client client.Client) *CredentialManager {
 			Cap:      20 * time.Second,
 		},
 	}
+
+	if err := cm.parseAPIURL(); err != nil {
+		cm.logger.Error(err, "Failed to parse API URL")
+	}
+	return cm
+}
+
+// parseAPIURL parses the API URL from environment variables and stores it.
+// Returns nil if no custom API URL is configured. Returns an error if the
+// URL is set but invalid.
+func (cm *CredentialManager) parseAPIURL() error {
+	apiURL := ""
+	if os.Getenv(constants.DDddURL) != "" {
+		apiURL = os.Getenv(constants.DDddURL)
+	} else if os.Getenv(constants.DDURL) != "" {
+		apiURL = os.Getenv(constants.DDURL)
+	} else if site := os.Getenv(constants.DDSite); site != "" {
+		apiURL = apiURLPrefix + strings.TrimSpace(site)
+	}
+
+	if apiURL == "" {
+		return nil
+	}
+
+	parsedAPIURL, parseErr := url.Parse(apiURL)
+	if parseErr != nil {
+		return fmt.Errorf("invalid API URL %q: %w", apiURL, parseErr)
+	}
+	if parsedAPIURL.Host == "" || parsedAPIURL.Scheme == "" {
+		return fmt.Errorf("missing protocol or host in API URL: %s", apiURL)
+	}
+
+	cm.apiURL = &parsedAPIUrl{
+		Host:     parsedAPIURL.Host,
+		Protocol: parsedAPIURL.Scheme,
+	}
+	return nil
+}
+
+// GetAuth returns a fresh Datadog API authentication context using the latest
+// credentials and the parsed API URL. This should be called on every reconcile.
+func (cm *CredentialManager) GetAuth() (context.Context, error) {
+	creds, err := cm.GetCredentials()
+	if err != nil {
+		return nil, err
+	}
+
+	auth := context.WithValue(
+		context.Background(),
+		datadogapi.ContextAPIKeys,
+		map[string]datadogapi.APIKey{
+			"apiKeyAuth": {
+				Key: creds.APIKey,
+			},
+			"appKeyAuth": {
+				Key: creds.AppKey,
+			},
+		},
+	)
+
+	if cm.apiURL != nil {
+		auth = context.WithValue(auth, datadogapi.ContextServerIndex, 1)
+		auth = context.WithValue(auth, datadogapi.ContextServerVariables, map[string]string{
+			"name":     cm.apiURL.Host,
+			"protocol": cm.apiURL.Protocol,
+		})
+	}
+
+	return auth, nil
 }
 
 // GetCredentials returns the API and APP keys respectively from the operator configurations.
@@ -101,6 +182,16 @@ func (cm *CredentialManager) GetCredentials() (Creds, error) {
 		return creds, nil
 	}
 
+	creds, err := cm.fetchCredentials()
+	if err != nil {
+		return Creds{}, err
+	}
+	cm.cacheCreds(creds)
+	return creds, nil
+}
+
+// fetchCredentials reads credentials from env vars and decrypts them if needed.
+func (cm *CredentialManager) fetchCredentials() (Creds, error) {
 	apiKey := os.Getenv(constants.DDAPIKey)
 	appKey := os.Getenv(constants.DDAppKey)
 
@@ -137,10 +228,7 @@ func (cm *CredentialManager) GetCredentials() (Creds, error) {
 		}
 	}
 
-	creds := Creds{APIKey: apiKey, AppKey: appKey}
-	cm.cacheCreds(creds)
-
-	return creds, nil
+	return Creds{APIKey: apiKey, AppKey: appKey}, nil
 }
 
 // GetCredentialsForMetadata retrieves credentials for metadata endpoints.
@@ -309,45 +397,22 @@ func (cm *CredentialManager) getCredsFromCache() (Creds, bool) {
 	return Creds{}, false
 }
 
-func (cm *CredentialManager) refresh(logger logr.Logger) error {
-	cm.credsMutex.Lock()
-	oldCreds := cm.creds
-	cm.creds = Creds{}
-	cm.credsMutex.Unlock()
-
-	newCreds, err := cm.GetCredentials()
-
+// Refresh fetches fresh credentials from the secret backend and swaps them
+// into the cache atomically. If the fetch fails, the existing cached
+// credentials are preserved.
+func (cm *CredentialManager) Refresh(logger logr.Logger) error {
+	newCreds, err := cm.fetchCredentials()
 	if err != nil {
 		return err
 	}
 
+	cm.credsMutex.Lock()
+	oldCreds := cm.creds
+	cm.creds = newCreds
+	cm.credsMutex.Unlock()
+
 	if oldCreds != newCreds {
-		logger.Info("Credentials have changed, updating creds")
-		// callbacks
-		err = cm.notifyCallbacks(newCreds)
-
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// Recreate custom resource clients
-func (cm *CredentialManager) notifyCallbacks(newCreds Creds) error {
-	cm.callbackMutex.RLock()
-	defer cm.callbackMutex.RUnlock()
-
-	var errs []error
-	for _, cb := range cm.callbacks {
-		if err := cb(newCreds); err != nil {
-			errs = append(errs, err)
-		}
-	}
-
-	if len(errs) > 0 {
-		// combine multiple errors
-		return errors.Join(errs...)
+		logger.Info("Credentials have changed, cache updated")
 	}
 	return nil
 }
@@ -360,7 +425,7 @@ func (cm *CredentialManager) StartCredentialRefreshRoutine(interval time.Duratio
 
 	for {
 		<-ticker.C
-		if err := cm.refresh(logger); err != nil {
+		if err := cm.Refresh(logger); err != nil {
 			logger.Error(err, "Failed to refresh credentials")
 		}
 	}

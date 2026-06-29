@@ -4,6 +4,8 @@ import (
 	"path"
 	"testing"
 
+	"k8s.io/utils/ptr"
+
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
@@ -27,7 +29,7 @@ func Test_GPUMonitoringFeature_Configure(t *testing.T) {
 		Spec: v2alpha1.DatadogAgentSpec{
 			Features: &v2alpha1.DatadogFeatures{
 				GPU: &v2alpha1.GPUFeatureConfig{
-					Enabled: apiutils.NewBoolPointer(false),
+					Enabled: ptr.To(false),
 				},
 			},
 			Global: &v2alpha1.GlobalConfig{
@@ -38,25 +40,25 @@ func Test_GPUMonitoringFeature_Configure(t *testing.T) {
 		},
 	}
 	ddaGPUMonitoringEnabled := ddaGPUMonitoringDisabled.DeepCopy()
-	ddaGPUMonitoringEnabled.Spec.Features.GPU.Enabled = apiutils.NewBoolPointer(true)
-	ddaGPUMonitoringEnabled.Spec.Features.GPU.PrivilegedMode = apiutils.NewBoolPointer(true)
+	ddaGPUMonitoringEnabled.Spec.Features.GPU.Enabled = ptr.To(true)
+	ddaGPUMonitoringEnabled.Spec.Features.GPU.PrivilegedMode = ptr.To(true)
 
 	ddaGPUMonitoringEnabledAlternativeRuntimeClass := ddaGPUMonitoringEnabled.DeepCopy()
-	ddaGPUMonitoringEnabledAlternativeRuntimeClass.Spec.Features.GPU.PodRuntimeClassName = apiutils.NewStringPointer(alternativeRuntimeClass)
+	ddaGPUMonitoringEnabledAlternativeRuntimeClass.Spec.Features.GPU.PodRuntimeClassName = ptr.To(alternativeRuntimeClass)
 
 	ddaGPUMonitoringEnabledANoRuntimeClass := ddaGPUMonitoringEnabled.DeepCopy()
-	ddaGPUMonitoringEnabledANoRuntimeClass.Spec.Features.GPU.PodRuntimeClassName = apiutils.NewStringPointer("")
+	ddaGPUMonitoringEnabledANoRuntimeClass.Spec.Features.GPU.PodRuntimeClassName = ptr.To("")
 
 	ddaGPUCoreCheckOnly := ddaGPUMonitoringDisabled.DeepCopy()
-	ddaGPUCoreCheckOnly.Spec.Features.GPU.Enabled = apiutils.NewBoolPointer(true)
-	ddaGPUCoreCheckOnly.Spec.Features.GPU.PrivilegedMode = apiutils.NewBoolPointer(false)
+	ddaGPUCoreCheckOnly.Spec.Features.GPU.Enabled = ptr.To(true)
+	ddaGPUCoreCheckOnly.Spec.Features.GPU.PrivilegedMode = ptr.To(false)
 
 	ddaGPUInvalidConfig := ddaGPUMonitoringDisabled.DeepCopy()
-	ddaGPUInvalidConfig.Spec.Features.GPU.Enabled = apiutils.NewBoolPointer(false)
-	ddaGPUInvalidConfig.Spec.Features.GPU.PrivilegedMode = apiutils.NewBoolPointer(true)
+	ddaGPUInvalidConfig.Spec.Features.GPU.Enabled = ptr.To(false)
+	ddaGPUInvalidConfig.Spec.Features.GPU.PrivilegedMode = ptr.To(true)
 
 	ddaGPUCgroupPermissionsEnabled := ddaGPUMonitoringEnabled.DeepCopy()
-	ddaGPUCgroupPermissionsEnabled.Spec.Features.GPU.PatchCgroupPermissions = apiutils.NewBoolPointer(true)
+	ddaGPUCgroupPermissionsEnabled.Spec.Features.GPU.PatchCgroupPermissions = ptr.To(true)
 
 	GPUMonitoringAgentNodeWantFunc := func(t testing.TB, mgrInterface feature.PodTemplateManagers, expectedRuntimeClass string) {
 		mgr := mgrInterface.(*fake.PodTemplateManagers)
