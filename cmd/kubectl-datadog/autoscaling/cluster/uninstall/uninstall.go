@@ -206,57 +206,57 @@ func displayResourceSummary(ctx context.Context, cmd *cobra.Command, cli *client
 	cmd.Println("\nThis will delete:")
 
 	if n, err := listKarpenterNodePools(ctx, cli); err != nil {
-		cmd.Printf("  - NodePools: (unable to list: %v)\n", err)
+		cmd.Printf("  • NodePools: (unable to list: %v)\n", err)
 	} else if len(n) == 0 {
-		cmd.Println("  - NodePools: none found")
+		cmd.Println("  • NodePools: none found")
 	} else {
 		nodePools = n
-		cmd.Printf("  - %d NodePool(s):\n", len(nodePools))
+		cmd.Printf("  • %d NodePool(s):\n", len(nodePools))
 		for _, np := range nodePools {
-			cmd.Printf("      • %s\n", np)
+			cmd.Printf("      ◦ %s\n", np)
 		}
 	}
 
 	nodeClasses, err := listKarpenterEC2NodeClasses(ctx, cli)
 	if err != nil {
-		cmd.Printf("  - EC2NodeClasses: (unable to list: %v)\n", err)
+		cmd.Printf("  • EC2NodeClasses: (unable to list: %v)\n", err)
 	} else if len(nodeClasses) == 0 {
-		cmd.Println("  - EC2NodeClasses: none found")
+		cmd.Println("  • EC2NodeClasses: none found")
 	} else {
-		cmd.Printf("  - %d EC2NodeClass(es):\n", len(nodeClasses))
+		cmd.Printf("  • %d EC2NodeClass(es):\n", len(nodeClasses))
 		for _, nc := range nodeClasses {
-			cmd.Printf("      • %s\n", nc)
+			cmd.Printf("      ◦ %s\n", nc)
 		}
 	}
 
 	if err != nil {
-		cmd.Println("  - Karpenter nodes: (unable to list - depends on EC2NodeClasses)")
+		cmd.Println("  • Karpenter nodes: (unable to list - depends on EC2NodeClasses)")
 	} else if n, err := listKarpenterNodes(ctx, cli, nodeClasses); err != nil {
-		cmd.Printf("  - Karpenter nodes: (unable to list: %v)\n", err)
+		cmd.Printf("  • Karpenter nodes: (unable to list: %v)\n", err)
 	} else if len(n) == 0 {
-		cmd.Println("  - Karpenter nodes: none found")
+		cmd.Println("  • Karpenter nodes: none found")
 	} else {
 		nodes = n
-		cmd.Printf("  - %d Karpenter-managed node(s):\n", len(nodes))
+		cmd.Printf("  • %d Karpenter-managed node(s):\n", len(nodes))
 		for _, node := range nodes {
-			cmd.Printf("      • %s\n", node)
+			cmd.Printf("      ◦ %s\n", node)
 		}
 	}
 
-	cmd.Println("  - The Karpenter Helm release")
+	cmd.Println("  • The Karpenter Helm release")
 
 	if stacks, err := listCloudFormationStacks(ctx, cli, clusterName); err != nil {
-		cmd.Printf("  - CloudFormation stacks: (unable to list: %v)\n", err)
+		cmd.Printf("  • CloudFormation stacks: (unable to list: %v)\n", err)
 	} else if len(stacks) == 0 {
-		cmd.Println("  - CloudFormation stacks: none found")
+		cmd.Println("  • CloudFormation stacks: none found")
 	} else {
-		cmd.Printf("  - %d CloudFormation stack(s):\n", len(stacks))
+		cmd.Printf("  • %d CloudFormation stack(s):\n", len(stacks))
 		for _, stack := range stacks {
-			cmd.Printf("      • %s\n", stack)
+			cmd.Printf("      ◦ %s\n", stack)
 		}
 	}
 
-	cmd.Println("  - aws-auth ConfigMap role mappings (if applicable)")
+	cmd.Println("  • aws-auth ConfigMap role mappings (if applicable)")
 
 	if len(nodes) > 0 {
 		cmd.Println()

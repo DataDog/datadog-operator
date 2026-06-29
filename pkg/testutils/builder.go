@@ -1007,6 +1007,18 @@ func (builder *DatadogAgentBuilder) WithHelmCheckValuesAsTags(valuesAsTags map[s
 	return builder
 }
 
+func (builder *DatadogAgentBuilder) initKubernetesActions() {
+	if builder.datadogAgent.Spec.Features.KubernetesActions == nil {
+		builder.datadogAgent.Spec.Features.KubernetesActions = &v2alpha1.KubernetesActionsFeatureConfig{}
+	}
+}
+
+func (builder *DatadogAgentBuilder) WithKubernetesActionsEnabled(enabled bool) *DatadogAgentBuilder {
+	builder.initKubernetesActions()
+	builder.datadogAgent.Spec.Features.KubernetesActions.Enabled = ptr.To(enabled)
+	return builder
+}
+
 // Global Kubelet
 
 func (builder *DatadogAgentBuilder) WithGlobalKubeletConfig(hostCAPath, agentCAPath string, tlsVerify bool, podResourcesSocketDir string) *DatadogAgentBuilder {
