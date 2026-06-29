@@ -3,7 +3,7 @@ variables:
   NIGHTLY_BUILD_CONDUCTOR_NAME: "operator-nightly-build"
   PROJECTNAME: "datadog-operator"
   PROJECTNAME_CHECK: "datadog-operator-check"
-  IMAGE_VERSION: "tmpl-v3"
+  IMAGE_VERSION: "tmpl-v4"
   BUILD_DOCKER_REGISTRY: "486234852809.dkr.ecr.us-east-1.amazonaws.com/ci"
   E2E_DOCKER_REGISTRY: "669783387624.dkr.ecr.us-east-1.amazonaws.com/operator"
   JOB_DOCKER_IMAGE: "registry.ddbuild.io/ci-containers-project:v68399443-88dc260-v1.22"
@@ -623,7 +623,7 @@ trigger_internal_operator_image:
     - when: never
   trigger:
     project: DataDog/images
-    branch: master
+    branch: tbavelier/update-operator-gbi-to-public-rhel-base
     strategy: depend
   variables:
     IMAGE_NAME: $PROJECTNAME
@@ -647,7 +647,7 @@ trigger_internal_operator_check_image:
     - when: never
   trigger:
     project: DataDog/images
-    branch: master
+    branch: tbavelier/update-operator-gbi-to-public-rhel-base
     strategy: depend
   variables:
     IMAGE_VERSION: tmpl-v1
@@ -665,7 +665,7 @@ trigger_internal_operator_image_rc_latest:
     - when: never
   trigger:
     project: DataDog/images
-    branch: master
+    branch: tbavelier/update-operator-gbi-to-public-rhel-base
     strategy: depend
   variables:
     IMAGE_NAME: $PROJECTNAME
@@ -690,7 +690,7 @@ trigger_internal_operator_nightly_image:
     - when: never
   trigger:
     project: DataDog/images
-    branch: master
+    branch: tbavelier/update-operator-gbi-to-public-rhel-base
     strategy: depend
   variables:
     IMAGE_NAME: $PROJECTNAME
@@ -708,7 +708,7 @@ trigger_internal_operator_check_nightly_image:
     - when: never
   trigger:
     project: DataDog/images
-    branch: master
+    branch: tbavelier/update-operator-gbi-to-public-rhel-base
     strategy: depend
   variables:
     IMAGE_VERSION: tmpl-v1
@@ -727,7 +727,7 @@ trigger_custom_operator_image_staging:
     - when: never
   trigger:
     project: DataDog/images
-    branch: master
+    branch: tbavelier/update-operator-gbi-to-public-rhel-base
     strategy: depend
   variables:
     IMAGE_NAME: $PROJECTNAME
@@ -745,7 +745,7 @@ trigger_custom_operator_image_fips_staging:
     - when: never
   trigger:
     project: DataDog/images
-    branch: master
+    branch: tbavelier/update-operator-gbi-to-public-rhel-base
     strategy: depend
   variables:
     IMAGE_NAME: $PROJECTNAME
@@ -763,7 +763,7 @@ trigger_custom_operator_check_image_staging:
     - when: never
   trigger:
     project: DataDog/images
-    branch: master
+    branch: tbavelier/update-operator-gbi-to-public-rhel-base
     strategy: depend
   variables:
     IMAGE_VERSION: tmpl-v1
