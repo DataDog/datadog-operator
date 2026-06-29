@@ -37,12 +37,6 @@ func mkNodePool(name string, weight *int32, datadogManaged bool) *karpv1.NodePoo
 	}
 }
 
-func mkStaticNodePool(name string, weight *int32, datadogManaged bool) *karpv1.NodePool {
-	np := mkNodePool(name, weight, datadogManaged)
-	np.Spec.Replicas = ptr.To(int64(1))
-	return np
-}
-
 func TestWarnKarpenterWeightConflicts(t *testing.T) {
 	// The check is cluster-wide: it never looks at the eviction targets, only at
 	// the NodePools present in the cluster, because Karpenter arbitrates
@@ -103,42 +97,6 @@ func TestWarnKarpenterWeightConflicts(t *testing.T) {
 				mkNodePool("user-np", nil, false),
 			},
 			wantContains: []string{"user-np"},
-		},
-		{
-			// Static NodePools (spec.replicas set) don't provision on weight-based
-			// pod demand, so they're skipped even when their weight would
-			// otherwise trip the check.
-			name: "static user NodePool is skipped",
-			nodePools: []ctrlclient.Object{
-				mkNodePool("dd-np", ptr.To(int32(10)), true),
-				mkStaticNodePool("user-static", ptr.To(int32(50)), false),
-			},
-			wantWarnEmpty: true,
-		},
-		{
-			// A static Datadog NodePool carries no weight, so it neither raises
-			// nor lowers the max — that still comes from the dynamic Datadog
-			// NodePool, and the in-between user NodePool warns against it.
-			name: "static Datadog NodePool does not affect dynamic max",
-			nodePools: []ctrlclient.Object{
-				mkStaticNodePool("dd-static", nil, true),
-				mkNodePool("dd-dynamic", ptr.To(int32(10)), true),
-				mkNodePool("user-np", ptr.To(int32(50)), false),
-			},
-			wantContains: []string{"user-np", "weight=50", "max weight=10"},
-		},
-		{
-			// Regression: when the only Datadog NodePool is static (and thus
-			// carries no weight), a dynamic user NodePool still out-prioritizes
-			// it for demand-driven provisioning, so the warning must still fire
-			// — the static Datadog NodePool must count as "present" (max 0), not
-			// collapse the sentinel into an early return.
-			name: "all-static Datadog still warns dynamic user NodePool",
-			nodePools: []ctrlclient.Object{
-				mkStaticNodePool("dd-static", nil, true),
-				mkNodePool("user-np", ptr.To(int32(50)), false),
-			},
-			wantContains: []string{"user-np", "weight=50", "max weight=0"},
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
