@@ -22,6 +22,7 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component"
 	componentdca "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusteragent"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/images"
@@ -265,6 +266,13 @@ func defaultEnvVars(dda metav1.Object) []corev1.EnvVar {
 			Name:  common.DDAPMErrorTrackingStandaloneEnabled,
 			Value: "false",
 		},
+	}
+
+	if images.IsJMXImage(component.AgentImageConfigForComponent(dda, v2alpha1.ClusterChecksRunnerComponentName)) {
+		envVars = append(envVars, corev1.EnvVar{
+			Name:  common.DDJMXUseContainerSupport,
+			Value: "true",
+		})
 	}
 
 	return envVars

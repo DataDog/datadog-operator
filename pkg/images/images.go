@@ -255,6 +255,17 @@ func parseTagSuffixes(tag string) (baseTag string, isJMX, isFIPS, isFull bool) {
 	return tag, isJMX, isFIPS, isFull
 }
 
+// IsJMXImage reports whether the image config resolves to an Agent JMX image.
+func IsJMXImage(imageConfig *v2alpha1.AgentImageConfig) bool {
+	if imageConfig == nil {
+		return false
+	}
+
+	img := fromImageConfig(imageConfig)
+
+	return img.isJMX || img.isFull
+}
+
 // FromString translates a string Image in the format registry/name:tag to an Image object
 func FromString(stringImage string) *Image {
 	splitImg := strings.Split(stringImage, "/")
