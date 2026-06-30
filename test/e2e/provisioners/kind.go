@@ -56,6 +56,7 @@ type KubernetesProvisionerParams struct {
 	extraConfigParams runner.ConfigMap
 	yamlWorkloads     []YAMLWorkload
 	workloadAppFuncs  []func(e config.Env, kubeProvider *kubernetes.Provider) (*kubeComp.Workload, error)
+	workerNodes       []kubeComp.KindWorkerNode
 	local             bool
 }
 
@@ -71,6 +72,7 @@ func newKubernetesProvisionerParams() *KubernetesProvisionerParams {
 		extraConfigParams:  runner.ConfigMap{},
 		yamlWorkloads:      []YAMLWorkload{},
 		workloadAppFuncs:   []func(e config.Env, kubeProvider *kubernetes.Provider) (*kubeComp.Workload, error){},
+		workerNodes:        nil,
 		local:              false,
 	}
 }
@@ -82,6 +84,12 @@ func newKindVMRunOpts(params *KubernetesProvisionerParams) []kindvm.RunOption {
 	runOpts := []kindvm.RunOption{
 		kindvm.WithName(provisionerName),
 		kindvm.WithVMOptions(ec2.WithUserData(UserData), ec2.WithInstanceType("m5.xlarge")),
+	}
+
+	// Configure custom worker nodes (labels/taints) when requested. Used by the
+	// untaint suite to pre-taint a worker node at cluster-creation time.
+	if len(params.workerNodes) > 0 {
+		runOpts = append(runOpts, kindvm.WithKindWorkerNodes(params.workerNodes...))
 	}
 
 	// Add operator deployment if options are provided
@@ -219,6 +227,17 @@ func WithLocal(local bool) KubernetesProvisionerOption {
 	}
 }
 
+// WithKindWorkerNodes configures the kind cluster worker nodes with custom labels
+// and taints applied at cluster-creation time (via kubeadm). Use this to test
+// workloads that depend on node topology, e.g. nodes pre-tainted with the
+// agent-not-ready startup taint for the untaint controller.
+func WithKindWorkerNodes(nodes ...kubeComp.KindWorkerNode) KubernetesProvisionerOption {
+	return func(params *KubernetesProvisionerParams) error {
+		params.workerNodes = append(params.workerNodes, nodes...)
+		return nil
+	}
+}
+
 // YAMLWorkload defines the parameters for a Kubernetes resource's YAML file
 type YAMLWorkload struct {
 	Name string
@@ -284,7 +303,12 @@ func localKindRunFunc(ctx *pulumi.Context, env *environments.Kubernetes, params 
 		return err
 	}
 
-	kindCluster, err := kubeComp.NewLocalKindCluster(&localEnv, localEnv.CommonNamer().ResourceName("local-kind"), params.k8sVersion)
+	kindCluster, err := kubeComp.NewLocalKindClusterWithConfig(
+		&localEnv,
+		localEnv.CommonNamer().ResourceName("local-kind"),
+		params.k8sVersion,
+		kubeComp.KindConfigFlags{WorkerNodes: params.workerNodes},
+	)
 	if err != nil {
 		return err
 	}
