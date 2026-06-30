@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"maps"
-	"regexp"
 	"slices"
 	"strings"
 
@@ -17,11 +16,9 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/pager"
-)
 
-// awsProviderIDRegexp matches the AWS provider ID format for EC2 instances.
-// Format: aws:///ZONE/INSTANCE_ID (e.g., aws:///us-east-1a/i-0abc123def456789)
-var awsProviderIDRegexp = regexp.MustCompile(`^aws:///[^/]+/(i-[0-9a-f]+)$`)
+	commonaws "github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/aws"
+)
 
 // ec2DescribeBatchSize bounds the number of instance IDs we hand to a single
 // ec2:DescribeInstances / ec2:DescribeImages call. The K8s pager streams
@@ -62,12 +59,12 @@ func GetNodesProperties(ctx context.Context, clientset *kubernetes.Clientset, ec
 		if _, isKarpenter := node.Labels["karpenter.k8s.aws/ec2nodeclass"]; isKarpenter {
 			return nil
 		}
-		matches := awsProviderIDRegexp.FindStringSubmatch(node.Spec.ProviderID)
-		if len(matches) != 2 {
+		id, ok := commonaws.ExtractEC2InstanceID(node)
+		if !ok {
 			log.Printf("Skipping node %s with unexpected provider ID: %s", node.Name, node.Spec.ProviderID)
 			return nil
 		}
-		pending[matches[1]] = pendingNode{labels: node.Labels, taints: node.Spec.Taints}
+		pending[id] = pendingNode{labels: node.Labels, taints: node.Spec.Taints}
 		if len(pending) >= ec2DescribeBatchSize {
 			return flush()
 		}

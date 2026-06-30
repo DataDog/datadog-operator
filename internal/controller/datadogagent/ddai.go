@@ -30,10 +30,10 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
-func (r *Reconciler) generateDDAIFromDDA(dda *v2alpha1.DatadogAgent) (*v1alpha1.DatadogAgentInternal, error) {
+func (r *Reconciler) generateDDAIFromDDA(dda *v2alpha1.DatadogAgent, provider string) (*v1alpha1.DatadogAgentInternal, error) {
 	ddai := &v1alpha1.DatadogAgentInternal{}
 	// Object meta
-	if err := generateObjMetaFromDDA(dda, ddai, r.scheme); err != nil {
+	if err := generateObjMetaFromDDA(dda, ddai, r.scheme, provider); err != nil {
 		return nil, err
 	}
 	// Spec
@@ -49,21 +49,31 @@ func (r *Reconciler) generateDDAIFromDDA(dda *v2alpha1.DatadogAgent) (*v1alpha1.
 	return ddai, nil
 }
 
-func generateObjMetaFromDDA(dda *v2alpha1.DatadogAgent, ddai *v1alpha1.DatadogAgentInternal, scheme *runtime.Scheme) error {
+// generateObjMetaFromDDA builds the DDAI ObjectMeta from the DDA. A resolved
+// provider that is specific (non-empty and not "default") is stamped as the
+// provider annotation on the DDAI (never on the DDA); "default"/empty is left
+// unset since it carries no provider-specific config. See resolveClusterProvider
+// for precedence.
+func generateObjMetaFromDDA(dda *v2alpha1.DatadogAgent, ddai *v1alpha1.DatadogAgentInternal, scheme *runtime.Scheme, provider string) error {
 	// Copy ddaiAnnotations but strip kubectl last-applied-configuration to avoid confusing kind detection for metrics forwarder
 	// Moreover, the applied configuration is the one for DDA, not DDAI, so it doesn't make sense.
 	ddaiAnnotations := maps.Clone(dda.Annotations)
 	delete(ddaiAnnotations, "kubectl.kubernetes.io/last-applied-configuration")
 
 	// Resolve the provider from the DDA annotations and stamp it on the DDAI so the
-	// DDAI reconciler picks it up. GKE Autopilot is enabled via either the experimental
-	// opt-in annotation or the provider annotation; map both to the gke-autopilot
-	// provider string. The provider annotation is otherwise propagated as-is by the clone.
+	// DDAI reconciler picks it up. GKE Autopilot can be enabled via either the experimental
+	// or provider annotation and we need to check both.
 	if experimental.IsAutopilotEnabled(dda) {
 		if ddaiAnnotations == nil {
 			ddaiAnnotations = map[string]string{}
 		}
 		ddaiAnnotations[kubernetes.ProviderAnnotationKey] = kubernetes.GKEAutopilotProvider
+	}
+	if kubernetes.IsSpecificProvider(provider) {
+		if ddaiAnnotations == nil {
+			ddaiAnnotations = make(map[string]string)
+		}
+		ddaiAnnotations[kubernetes.ProviderAnnotationKey] = provider
 	}
 
 	ddai.ObjectMeta = metav1.ObjectMeta{

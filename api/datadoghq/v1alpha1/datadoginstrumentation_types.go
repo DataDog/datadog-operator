@@ -26,6 +26,11 @@ type DatadogInstrumentationConfig struct {
 	// +optional
 	// +listType=atomic
 	Checks []DatadogInstrumentationCheckConfig `json:"checks,omitempty"`
+
+	// Logs configures Datadog Agent log collection for the target workload.
+	// +optional
+	// +listType=atomic
+	Logs []DatadogInstrumentationLogConfig `json:"logs,omitempty"`
 }
 
 // DatadogInstrumentationCheckConfig defines an Autodiscovery check configuration.
@@ -33,10 +38,9 @@ type DatadogInstrumentationCheckConfig struct {
 	// Integration is the Datadog integration name, for example redisdb.
 	Integration string `json:"integration"`
 
-	// ContainerImage identifies container image names this check applies to.
+	// ContainerName identifies the container name this check applies to.
 	// +optional
-	// +listType=set
-	ContainerImage []string `json:"containerImage,omitempty"`
+	ContainerName string `json:"containerName,omitempty"`
 
 	// InitConfig is the integration-specific Autodiscovery init_config payload.
 	// +optional
@@ -47,16 +51,11 @@ type DatadogInstrumentationCheckConfig struct {
 	// +optional
 	// +listType=atomic
 	Instances []runtime.RawExtension `json:"instances,omitempty"`
-
-	// Logs contains log collection configuration payloads for this integration.
-	// +optional
-	// +listType=atomic
-	Logs []DatadogInstrumentationLogConfig `json:"logs,omitempty"`
 }
 
-// DatadogInstrumentationLogConfig defines Agent log collection configuration fields.
+// DatadogInstrumentationLogFields defines common Agent log collection configuration fields.
 // +kubebuilder:pruning:PreserveUnknownFields
-type DatadogInstrumentationLogConfig struct {
+type DatadogInstrumentationLogFields struct {
 	// Type is the type of log input source. Common values include tcp, udp, file, windows_event, docker, and journald.
 	// +optional
 	Type string `json:"type,omitempty"`
@@ -119,6 +118,15 @@ type DatadogInstrumentationLogConfig struct {
 	// +optional
 	// +listType=atomic
 	LogProcessingRules []runtime.RawExtension `json:"log_processing_rules,omitempty"`
+}
+
+// DatadogInstrumentationLogConfig defines Agent log collection configuration fields.
+// +kubebuilder:pruning:PreserveUnknownFields
+type DatadogInstrumentationLogConfig struct {
+	// ContainerName identifies the container name this log configuration applies to.
+	ContainerName string `json:"containerName"`
+
+	DatadogInstrumentationLogFields `json:",inline"`
 }
 
 // DatadogInstrumentationStatus defines the observed state of DatadogInstrumentation.
