@@ -73,6 +73,9 @@ core,github.com/cenkalti/backoff/v4,MIT
 core,github.com/cespare/xxhash/v2,MIT
 core,github.com/chai2010/gettext-go,BSD-3-Clause
 core,github.com/cihub/seelog,BSD-3-Clause
+core,github.com/clipperhouse/displaywidth,MIT
+core,github.com/clipperhouse/stringish,MIT
+core,github.com/clipperhouse/uax29/v2,MIT
 core,github.com/containerd/containerd,Apache-2.0
 core,github.com/containerd/errdefs,Apache-2.0
 core,github.com/containerd/log,Apache-2.0
@@ -163,6 +166,9 @@ core,github.com/monochromegane/go-gitignore,MIT
 core,github.com/munnerz/goautoneg,BSD-3-Clause
 core,github.com/mxk/go-flowrate/flowrate,BSD-3-Clause
 core,github.com/nwaples/rardecode,BSD-2-Clause
+core,github.com/olekukonko/cat,MIT
+core,github.com/olekukonko/errors,MIT
+core,github.com/olekukonko/ll,MIT
 core,github.com/olekukonko/tablewriter,MIT
 core,github.com/opencontainers/go-digest,Apache-2.0
 core,github.com/opencontainers/image-spec/specs-go,Apache-2.0
@@ -184,7 +190,6 @@ core,github.com/prometheus/procfs,Apache-2.0
 core,github.com/richardartoul/molecule,MIT
 core,github.com/richardartoul/molecule/src/codec,Apache-2.0
 core,github.com/richardartoul/molecule/src/protowire,BSD-3-Clause
-core,github.com/rivo/uniseg,MIT
 core,github.com/robfig/cron/v3,MIT
 core,github.com/rubenv/sql-migrate,MIT
 core,github.com/rubenv/sql-migrate/sqlparse,MIT
