@@ -1,0 +1,29 @@
+# Helm values for the operator in the untaint suite (wait-for-CSI mode).
+# Same as operator-values.yaml plus the flags that require BOTH the node Agent
+# and the CSI node-server to be Ready before the taint is removed.
+# ${NAMESPACE} is substituted with the operator/DDA namespace at load time.
+installCRDs: false
+rbac:
+  create: false
+serviceAccount:
+  create: false
+  name: datadog-operator-e2e-controller-manager
+env:
+  - name: DD_UNTAINT_CONTROLLER_ENABLED
+    value: "true"
+  - name: DD_UNTAINT_CONTROLLER_TIMEOUT_POLICY
+    value: "keep"
+  - name: DD_UNTAINT_CONTROLLER_TIMEOUT
+    value: "30m"
+  - name: DD_UNTAINT_CONTROLLER_SCHEDULING_TIMEOUT
+    value: "30m"
+  - name: DD_UNTAINT_CONTROLLER_EVENTS_ENABLED
+    value: "true"
+  - name: DD_AGENT_WATCH_NAMESPACE
+    value: "${NAMESPACE}"
+  - name: DD_UNTAINT_CONTROLLER_WAIT_FOR_CSI_DRIVER
+    value: "true"
+  - name: DD_CSI_DRIVER_CONTROLLER_ENABLED
+    value: "true"
+  - name: DD_CSIDRIVER_WATCH_NAMESPACE
+    value: "${NAMESPACE}"

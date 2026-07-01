@@ -14,7 +14,9 @@ package untaintsuite
 
 import (
 	"context"
+	_ "embed"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/DataDog/datadog-agent/test/e2e-framework/components/datadog/agentwithoperatorparams"
@@ -138,46 +140,23 @@ func workerNodes() []frameworkkube.KindWorkerNode {
 	}
 }
 
+// Operator Helm values live in testdata/*.yaml and are embedded at build time.
+// The ${NAMESPACE} placeholder is substituted with the operator/DDA namespace.
+//
+//go:embed testdata/operator-values.yaml
+var operatorValuesAgentOnly string
+
+//go:embed testdata/operator-values-waitforcsi.yaml
+var operatorValuesWaitForCSI string
+
 // operatorHelmValues returns the Helm values used to deploy the operator with the
-// untaint controller enabled. Flags are passed as operator-pod environment
-// variables (the chart-version-agnostic path documented for the untaint
-// controller), so this works regardless of whether the chart exposes dedicated
-// value keys. Timeouts are set high with policy=keep so that the ONLY way the
-// taint gets removed during the test is genuine Agent/CSI readiness (a timeout
-// firing would keep the taint and fail the test rather than mask a regression).
+// untaint controller enabled, selecting the agent-only or wait-for-CSI variant.
 func operatorHelmValues(waitForCSI bool) string {
-	values := fmt.Sprintf(`installCRDs: false
-rbac:
-  create: false
-serviceAccount:
-  create: false
-  name: datadog-operator-e2e-controller-manager
-env:
-  - name: DD_UNTAINT_CONTROLLER_ENABLED
-    value: "true"
-  - name: DD_UNTAINT_CONTROLLER_TIMEOUT_POLICY
-    value: "keep"
-  - name: DD_UNTAINT_CONTROLLER_TIMEOUT
-    value: "30m"
-  - name: DD_UNTAINT_CONTROLLER_SCHEDULING_TIMEOUT
-    value: "30m"
-  - name: DD_UNTAINT_CONTROLLER_EVENTS_ENABLED
-    value: "true"
-  - name: DD_AGENT_WATCH_NAMESPACE
-    value: "%s"
-`, common.NamespaceName)
-
+	values := operatorValuesAgentOnly
 	if waitForCSI {
-		values += fmt.Sprintf(`  - name: DD_UNTAINT_CONTROLLER_WAIT_FOR_CSI_DRIVER
-    value: "true"
-  - name: DD_CSI_DRIVER_CONTROLLER_ENABLED
-    value: "true"
-  - name: DD_CSIDRIVER_WATCH_NAMESPACE
-    value: "%s"
-`, common.NamespaceName)
+		values = operatorValuesWaitForCSI
 	}
-
-	return values
+	return strings.ReplaceAll(values, "${NAMESPACE}", common.NamespaceName)
 }
 
 // buildProvisionerOptions builds the provisioner options for the untaint suite.
