@@ -32,6 +32,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
 )
 
 // This file contains integration tests for Datadog Agent Profiles. They define
@@ -1091,6 +1092,68 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 
 		testProfilesFunc(testScenario)()
 	})
+
+	Context("with APM shared profile overlays", func() {
+		It("should merge accepted profile instrumentation into the default DDAI", func() {
+			agent := newAPMSharedOverlayAgent(namespace, randomKubernetesObjectName())
+			profiles := []*v1alpha1.DatadogAgentProfile{
+				newAPMSharedOverlayProfile(namespace, "a-"+randomKubernetesObjectName(), "a", &v2alpha1.APMFeatureConfig{
+					SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
+						Enabled:     ptr.To(true),
+						LibVersions: map[string]string{"java": "1.43.0"},
+					},
+				}),
+				newAPMSharedOverlayProfile(namespace, "b-"+randomKubernetesObjectName(), "b", &v2alpha1.APMFeatureConfig{
+					SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
+						Enabled:     ptr.To(true),
+						LibVersions: map[string]string{"python": "2.14.0"},
+					},
+				}),
+			}
+
+			createAPMSharedOverlayObjects(agent, profiles)
+			DeferCleanup(cleanupAPMSharedOverlayObjects, agent, profiles)
+
+			for _, profile := range profiles {
+				checkProfileAppliedStatus(profile.Namespace, profile.Name, metav1.ConditionTrue, "")
+			}
+			checkDefaultDDAIInstrumentation(agent.Namespace, agent.Name, func(ssi *v2alpha1.SingleStepInstrumentation) bool {
+				return ptr.Deref(ssi.Enabled, false) &&
+					len(ssi.LibVersions) == 2 &&
+					ssi.LibVersions["java"] == "1.43.0" &&
+					ssi.LibVersions["python"] == "2.14.0"
+			})
+		})
+
+		It("should reject conflicting profile instrumentation without mutating the accepted config", func() {
+			agent := newAPMSharedOverlayAgent(namespace, randomKubernetesObjectName())
+			profiles := []*v1alpha1.DatadogAgentProfile{
+				newAPMSharedOverlayProfile(namespace, "a-"+randomKubernetesObjectName(), "a", &v2alpha1.APMFeatureConfig{
+					SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
+						Enabled:     ptr.To(true),
+						LibVersions: map[string]string{"java": "1.43.0"},
+					},
+				}),
+				newAPMSharedOverlayProfile(namespace, "b-"+randomKubernetesObjectName(), "b", &v2alpha1.APMFeatureConfig{
+					SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
+						Enabled:     ptr.To(true),
+						LibVersions: map[string]string{"java": "1.44.0"},
+					},
+				}),
+			}
+
+			createAPMSharedOverlayObjects(agent, profiles)
+			DeferCleanup(cleanupAPMSharedOverlayObjects, agent, profiles)
+
+			checkProfileAppliedStatus(profiles[0].Namespace, profiles[0].Name, metav1.ConditionTrue, "")
+			checkProfileAppliedStatus(profiles[1].Namespace, profiles[1].Name, metav1.ConditionFalse, `libVersions["java"] has conflicting values`)
+			checkDefaultDDAIInstrumentation(agent.Namespace, agent.Name, func(ssi *v2alpha1.SingleStepInstrumentation) bool {
+				return ptr.Deref(ssi.Enabled, false) &&
+					len(ssi.LibVersions) == 1 &&
+					ssi.LibVersions["java"] == "1.43.0"
+			})
+		})
+	})
 })
 
 func testProfilesFunc(testScenario profilesTestScenario) func() {
@@ -1189,6 +1252,91 @@ func testProfilesFunc(testScenario profilesTestScenario) func() {
 
 func randomKubernetesObjectName() string {
 	return strings.ToLower(utils.GenerateRandomString(10))
+}
+
+func newAPMSharedOverlayAgent(namespace, name string) *v2alpha1.DatadogAgent {
+	agent := testutils.NewDatadogAgentWithoutFeatures(namespace, name)
+	agent.Spec.Features = &v2alpha1.DatadogFeatures{
+		AdmissionController: &v2alpha1.AdmissionControllerFeatureConfig{Enabled: ptr.To(true)},
+		APM: &v2alpha1.APMFeatureConfig{
+			Enabled: ptr.To(false),
+			SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
+				Enabled:           ptr.To(false),
+				LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: ptr.To(true)},
+				Injector:          &v2alpha1.InjectorConfig{},
+			},
+		},
+	}
+	return &agent
+}
+
+func newAPMSharedOverlayProfile(namespace, name, profileValue string, apm *v2alpha1.APMFeatureConfig) *v1alpha1.DatadogAgentProfile {
+	return &v1alpha1.DatadogAgentProfile{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Spec: v1alpha1.DatadogAgentProfileSpec{
+			ProfileAffinity: &v1alpha1.ProfileAffinity{
+				ProfileNodeAffinity: []v1.NodeSelectorRequirement{
+					{
+						Key:      "profile",
+						Operator: v1.NodeSelectorOpIn,
+						Values:   []string{profileValue},
+					},
+				},
+			},
+			Config: &v2alpha1.DatadogAgentSpec{
+				Features: &v2alpha1.DatadogFeatures{
+					APM: apm,
+				},
+			},
+		},
+	}
+}
+
+func createAPMSharedOverlayObjects(agent *v2alpha1.DatadogAgent, profiles []*v1alpha1.DatadogAgentProfile) {
+	for _, profile := range profiles {
+		createKubernetesObject(k8sClient, profile)
+	}
+	createKubernetesObject(k8sClient, agent)
+}
+
+func cleanupAPMSharedOverlayObjects(agent *v2alpha1.DatadogAgent, profiles []*v1alpha1.DatadogAgentProfile) {
+	for _, profile := range profiles {
+		deleteKubernetesObject(k8sClient, profile)
+	}
+	deleteKubernetesObject(k8sClient, agent)
+}
+
+func checkDefaultDDAIInstrumentation(namespace, ddaName string, check func(*v2alpha1.SingleStepInstrumentation) bool) {
+	ddai := &v1alpha1.DatadogAgentInternal{}
+	getObjectAndCheck(ddai, types.NamespacedName{Namespace: namespace, Name: ddaName}, func() bool {
+		if ddai.Spec.Features == nil ||
+			ddai.Spec.Features.APM == nil ||
+			ddai.Spec.Features.APM.SingleStepInstrumentation == nil {
+			return false
+		}
+		return check(ddai.Spec.Features.APM.SingleStepInstrumentation)
+	})
+}
+
+func checkProfileAppliedStatus(namespace, name string, status metav1.ConditionStatus, messageSubstring string) {
+	profile := &v1alpha1.DatadogAgentProfile{}
+	getObjectAndCheck(profile, types.NamespacedName{Namespace: namespace, Name: name}, func() bool {
+		if profile.Status.Applied != status {
+			return false
+		}
+		if messageSubstring == "" {
+			return true
+		}
+		for _, condition := range profile.Status.Conditions {
+			if condition.Type == agentprofile.AppliedConditionType {
+				return strings.Contains(condition.Message, messageSubstring)
+			}
+		}
+		return false
+	})
 }
 
 func defaultDaemonSetNamespacedName(namespace string, agent *v2alpha1.DatadogAgent) types.NamespacedName {

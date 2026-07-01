@@ -6,6 +6,7 @@
 package v1alpha1
 
 import (
+	"reflect"
 	"testing"
 
 	"k8s.io/utils/ptr"
@@ -145,6 +146,20 @@ func TestIsValidDatadogAgentProfile(t *testing.T) {
 			},
 		},
 	}
+	validAPMFeature := &DatadogAgentProfileSpec{
+		ProfileAffinity: basicProfileAffinity,
+		Config: &v2alpha1.DatadogAgentSpec{
+			Features: &v2alpha1.DatadogFeatures{
+				APM: &v2alpha1.APMFeatureConfig{
+					Enabled: ptr.To(true),
+					SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
+						Enabled:           ptr.To(true),
+						EnabledNamespaces: []string{"gpu"},
+					},
+				},
+			},
+		},
+	}
 	invalidFeatures := &DatadogAgentProfileSpec{
 		ProfileAffinity: basicProfileAffinity,
 		Config: &v2alpha1.DatadogAgentSpec{
@@ -152,6 +167,14 @@ func TestIsValidDatadogAgentProfile(t *testing.T) {
 				NPM: &v2alpha1.NPMFeatureConfig{
 					Enabled: ptr.To(true),
 				},
+			},
+		},
+	}
+	invalidDataPlaneFeature := &DatadogAgentProfileSpec{
+		ProfileAffinity: basicProfileAffinity,
+		Config: &v2alpha1.DatadogAgentSpec{
+			Features: &v2alpha1.DatadogFeatures{
+				DataPlane: &v2alpha1.DataPlaneFeatureConfig{},
 			},
 		},
 	}
@@ -211,9 +234,18 @@ func TestIsValidDatadogAgentProfile(t *testing.T) {
 			spec: validFeaturesNoOverride,
 		},
 		{
+			name: "apm feature override",
+			spec: validAPMFeature,
+		},
+		{
 			name:    "dap with unsupported feature",
 			spec:    invalidFeatures,
 			wantErr: "npm override is not supported",
+		},
+		{
+			name:    "dap with unsupported data plane feature",
+			spec:    invalidDataPlaneFeature,
+			wantErr: "dataPlane override is not supported",
 		},
 	}
 	for _, test := range testCases {
@@ -225,5 +257,143 @@ func TestIsValidDatadogAgentProfile(t *testing.T) {
 				assert.NoError(t, result)
 			}
 		})
+	}
+}
+
+func TestValidateDatadogAgentProfileFeaturesAllowlist(t *testing.T) {
+	allowedFeatureFields := map[string]struct{}{
+		"APM": {},
+		"GPU": {},
+	}
+
+	featuresType := reflect.TypeOf(v2alpha1.DatadogFeatures{})
+	for i := 0; i < featuresType.NumField(); i++ {
+		field := featuresType.Field(i)
+		t.Run(field.Name, func(t *testing.T) {
+			if !assert.Equal(t, reflect.Ptr, field.Type.Kind(), "DatadogFeatures fields should be pointer types") {
+				return
+			}
+
+			features := &v2alpha1.DatadogFeatures{}
+			reflect.ValueOf(features).Elem().FieldByName(field.Name).Set(reflect.New(field.Type.Elem()))
+
+			spec := &DatadogAgentProfileSpec{
+				ProfileAffinity: validProfileAffinity(),
+				Config: &v2alpha1.DatadogAgentSpec{
+					Features: features,
+				},
+			}
+
+			result := ValidateDatadogAgentProfileSpec(spec)
+			if _, ok := allowedFeatureFields[field.Name]; ok {
+				assert.NoError(t, result)
+			} else {
+				if assert.Error(t, result) {
+					assert.Contains(t, result.Error(), "override is not supported")
+				}
+			}
+		})
+	}
+}
+
+func TestValidateDatadogAgentProfileComponentOverrideAllowlist(t *testing.T) {
+	allowedComponentOverrideFields := map[string]struct{}{
+		"Containers":        {},
+		"PriorityClassName": {},
+		"RuntimeClassName":  {},
+		"UpdateStrategy":    {},
+		"Labels":            {},
+	}
+
+	overrideType := reflect.TypeOf(v2alpha1.DatadogAgentComponentOverride{})
+	for i := 0; i < overrideType.NumField(); i++ {
+		field := overrideType.Field(i)
+		t.Run(field.Name, func(t *testing.T) {
+			override := &v2alpha1.DatadogAgentComponentOverride{}
+			setConfiguredField(t, reflect.ValueOf(override).Elem().FieldByName(field.Name))
+
+			spec := &DatadogAgentProfileSpec{
+				ProfileAffinity: validProfileAffinity(),
+				Config: &v2alpha1.DatadogAgentSpec{
+					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+						v2alpha1.NodeAgentComponentName: override,
+					},
+				},
+			}
+
+			result := ValidateDatadogAgentProfileSpec(spec)
+			if _, ok := allowedComponentOverrideFields[field.Name]; ok {
+				assert.NoError(t, result)
+			} else {
+				if assert.Error(t, result) {
+					assert.Contains(t, result.Error(), "override is not supported")
+				}
+			}
+		})
+	}
+}
+
+func TestValidateDatadogAgentProfileContainerOverrideAllowlist(t *testing.T) {
+	allowedContainerOverrideFields := map[string]struct{}{
+		"Resources": {},
+		"Env":       {},
+	}
+
+	containerType := reflect.TypeOf(v2alpha1.DatadogAgentGenericContainer{})
+	for i := 0; i < containerType.NumField(); i++ {
+		field := containerType.Field(i)
+		t.Run(field.Name, func(t *testing.T) {
+			containerOverride := &v2alpha1.DatadogAgentGenericContainer{}
+			setConfiguredField(t, reflect.ValueOf(containerOverride).Elem().FieldByName(field.Name))
+
+			spec := &DatadogAgentProfileSpec{
+				ProfileAffinity: validProfileAffinity(),
+				Config: &v2alpha1.DatadogAgentSpec{
+					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+						v2alpha1.NodeAgentComponentName: {
+							Containers: map[common.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
+								common.CoreAgentContainerName: containerOverride,
+							},
+						},
+					},
+				},
+			}
+
+			result := ValidateDatadogAgentProfileSpec(spec)
+			if _, ok := allowedContainerOverrideFields[field.Name]; ok {
+				assert.NoError(t, result)
+			} else {
+				if assert.Error(t, result) {
+					assert.Contains(t, result.Error(), "override is not supported")
+				}
+			}
+		})
+	}
+}
+
+func validProfileAffinity() *ProfileAffinity {
+	return &ProfileAffinity{
+		ProfileNodeAffinity: []corev1.NodeSelectorRequirement{
+			{
+				Key:      "foo",
+				Operator: corev1.NodeSelectorOpIn,
+				Values:   []string{"bar"},
+			},
+		},
+	}
+}
+
+func setConfiguredField(t *testing.T, fieldValue reflect.Value) {
+	t.Helper()
+
+	switch fieldValue.Kind() {
+	case reflect.Map:
+		fieldValue.Set(reflect.MakeMap(fieldValue.Type()))
+	case reflect.Ptr:
+		fieldValue.Set(reflect.New(fieldValue.Type().Elem()))
+	case reflect.Slice:
+		fieldValue.Set(reflect.MakeSlice(fieldValue.Type(), 0, 0))
+	default:
+		t.Fatalf("unsupported field kind %q", fieldValue.Kind())
 	}
 }
