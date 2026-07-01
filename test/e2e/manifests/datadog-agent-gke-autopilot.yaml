@@ -14,7 +14,3 @@ spec:
       containerCollectAll: true
     npm:
       enabled: true
-  override:
-    nodeAgent:
-      labels:
-        cloud.google.com/matching-allowlist: datadog-datadog-daemonset-exemption-v1.0.5
