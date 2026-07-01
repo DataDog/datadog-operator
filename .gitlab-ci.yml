@@ -521,7 +521,9 @@ e2e_untaint:
           - "test/e2e/tests/untaint_suite/**/*"
           - "test/e2e/provisioners/kind.go"
       when: on_success
-    # Allow manual run otherwise (non-blocking / best-effort for release)
+    # On pipelines that don't touch untaint code, expose it as an optional manual
+    # button. allow_failure here only affects this fallback rule, so it keeps
+    # unrelated pipelines from being blocked without weakening the on_success gate.
     - when: manual
       allow_failure: true
   script:
