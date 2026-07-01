@@ -6,13 +6,20 @@
 package merger
 
 import (
+	"errors"
 	"fmt"
+	"reflect"
 
 	corev1 "k8s.io/api/core/v1"
 
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
+
+// ErrServicePortConflict reports a same-name Service port declared with a
+// different spec. Shared resources (e.g. the node Agent local service) are fed
+// by multiple port claims; identical claims share, differing ones conflict.
+var ErrServicePortConflict = errors.New("service port conflict")
 
 // ServiceManager is used to manage service resources.
 type ServiceManager interface {
@@ -42,7 +49,11 @@ func (m *serviceManagerImpl) AddService(name, namespace string, selector map[str
 	}
 
 	if len(ports) > 0 {
-		service.Spec.Ports = append(service.Spec.Ports, ports...)
+		mergedPorts, err := MergeServicePorts(service.Spec.Ports, ports)
+		if err != nil {
+			return fmt.Errorf("unable to add ports to Service %s: %w", name, err)
+		}
+		service.Spec.Ports = mergedPorts
 	}
 	if selector != nil {
 		service.Spec.Selector = selector
@@ -55,4 +66,36 @@ func (m *serviceManagerImpl) AddService(name, namespace string, selector map[str
 		service.Spec.InternalTrafficPolicy = internalTrafficPolicy
 	}
 	return m.store.AddOrUpdate(kubernetes.ServicesKind, service)
+}
+
+// MergeServicePorts unions newPorts into existingPorts keyed by port name.
+// Ports with the same name must have an identical spec, otherwise the union is
+// a conflict and ErrServicePortConflict is returned. Unnamed ports are appended
+// as-is (no identity to merge on). This is the dumb, feature-agnostic merge used
+// both for in-store accumulation and for merging shared-resource port claims.
+func MergeServicePorts(existingPorts, newPorts []corev1.ServicePort) ([]corev1.ServicePort, error) {
+	ports := append([]corev1.ServicePort{}, existingPorts...)
+	portsByName := map[string]int{}
+	for i, port := range ports {
+		if port.Name != "" {
+			portsByName[port.Name] = i
+		}
+	}
+
+	for _, port := range newPorts {
+		if port.Name == "" {
+			ports = append(ports, port)
+			continue
+		}
+		if existingIndex, found := portsByName[port.Name]; found {
+			if !reflect.DeepEqual(ports[existingIndex], port) {
+				return nil, fmt.Errorf("port %q conflicts with existing port: %w", port.Name, ErrServicePortConflict)
+			}
+			continue
+		}
+		portsByName[port.Name] = len(ports)
+		ports = append(ports, port)
+	}
+
+	return ports, nil
 }

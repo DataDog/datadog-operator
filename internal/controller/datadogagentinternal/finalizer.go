@@ -13,6 +13,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
 	"github.com/DataDog/datadog-operator/internal/controller/finalizer"
@@ -37,6 +38,16 @@ func (r *Reconciler) finalizeDDAI(ctx context.Context, obj client.Object) error 
 	// Cluster level resources must be deleted manually since they cannot have an owner reference.
 	if err := r.cleanUpClusterLevelResources(ctx, obj); err != nil {
 		return err
+	}
+
+	// Drop this DDAI's port claims from the shared local Agent Service so its
+	// ports stop being merged. The Service itself is garbage collected via the
+	// default DDAI owner reference, so only profile DDAIs need to clean up their
+	// claim here.
+	if ddai, ok := obj.(*datadoghqv1alpha1.DatadogAgentInternal); ok && isDDAILabeledWithProfile(ddai) {
+		if err := r.removeLocalServicePortClaim(ctx, ddai); err != nil {
+			return err
+		}
 	}
 
 	if err := r.profilesCleanup(ctx); err != nil {

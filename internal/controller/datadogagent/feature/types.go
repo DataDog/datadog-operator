@@ -169,6 +169,20 @@ type ProviderAwareFeature interface {
 	NodeAgentProviderCapabilities() providercaps.ProviderCapabilityMap
 }
 
+// LocalServicePortClaimer is an optional interface for features that contribute
+// ports to the shared node Agent local Service. Each DatadogAgentInternal that
+// enables such a feature publishes the returned ports as its own port claim on
+// the Service; the Service's single writer merges every claim. This keeps the
+// spec→ports logic on the feature/DDAI side while the Service writer only
+// performs a dumb, conflict-checked merge. Features with no local Service ports
+// do not implement it.
+type LocalServicePortClaimer interface {
+	Feature
+	// LocalServicePortClaim returns the ports this feature claims on the local
+	// Service for the current DatadogAgentInternal, or nil if none.
+	LocalServicePortClaim() []corev1.ServicePort
+}
+
 // ClusterAgentProviderAwareFeature is an optional interface for features that vary
 // cluster agent behaviour by provider. The reconciler applies the returned
 // capabilities by calling providercaps.ApplyProviderCapabilities after

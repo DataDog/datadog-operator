@@ -263,28 +263,11 @@ func (f *apmFeature) shouldEnableLanguageDetection() bool {
 // Feature's dependencies should be added in the store.
 func (f *apmFeature) ManageDependencies(managers feature.ResourceManagers) error {
 	if f.nodeAPMEnabled {
-		platformInfo := managers.Store().GetPlatformInfo()
-		// agent local service
-		if common.ShouldCreateAgentLocalService(platformInfo.GetVersionInfo(), f.forceEnableLocalService) {
-			apmPort := &corev1.ServicePort{
-				Protocol:   corev1.ProtocolTCP,
-				TargetPort: intstr.FromInt(int(constants.DefaultApmPort)),
-				Port:       constants.DefaultApmPort,
-				Name:       constants.DefaultApmPortName,
-			}
-			if f.hostPortEnabled {
-				apmPort.Port = f.hostPortHostPort
-				apmPort.Name = apmHostPortName
-				if f.useHostNetwork {
-					apmPort.TargetPort = intstr.FromInt(int(f.hostPortHostPort))
-				}
-			}
-
-			serviceInternalTrafficPolicy := corev1.ServiceInternalTrafficPolicyLocal
-			if err := managers.ServiceManager().AddService(f.localServiceName, f.owner.GetNamespace(), common.GetAgentLocalServiceSelector(f.owner), []corev1.ServicePort{*apmPort}, &serviceInternalTrafficPolicy); err != nil {
-				return err
-			}
-		}
+		// The node Agent local Service is no longer created here. APM claims its
+		// ports on that shared Service via LocalServicePortClaim; the
+		// DatadogAgentInternal controller collects every feature's claim and
+		// merges them onto the single Service. This keeps the Service free of
+		// cross-DDAI clobbering when profiles override APM.
 
 		// network policies
 		if f.hostPortEnabled {
@@ -348,6 +331,31 @@ func (f *apmFeature) ManageDependencies(managers feature.ResourceManagers) error
 	}
 
 	return nil
+}
+
+// LocalServicePortClaim implements feature.LocalServicePortClaimer. APM
+// contributes its trace port to the shared node Agent local Service. The ports
+// are published as this DatadogAgentInternal's port claim on the Service and
+// merged with the other features' claims by the DDAI controller.
+func (f *apmFeature) LocalServicePortClaim() []corev1.ServicePort {
+	if !f.nodeAPMEnabled {
+		return nil
+	}
+
+	apmPort := corev1.ServicePort{
+		Protocol:   corev1.ProtocolTCP,
+		TargetPort: intstr.FromInt(int(constants.DefaultApmPort)),
+		Port:       constants.DefaultApmPort,
+		Name:       constants.DefaultApmPortName,
+	}
+	if f.hostPortEnabled {
+		apmPort.Port = f.hostPortHostPort
+		apmPort.Name = apmHostPortName
+		if f.useHostNetwork {
+			apmPort.TargetPort = intstr.FromInt(int(f.hostPortHostPort))
+		}
+	}
+	return []corev1.ServicePort{apmPort}
 }
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec

@@ -73,11 +73,24 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, instance *v1alpha1
 		if err = r.manageFeatureDependencies(enabledFeatures, resourceManagers); err != nil {
 			return r.updateStatusIfNeededV2(ctx, instance, newStatus, reconcile.Result{}, err, now)
 		}
+		// The default DDAI owns and is the single writer of the shared local
+		// Agent Service: merge this DDAI's port claims with the profile DDAIs'
+		// claims into the store Service before it is applied.
+		if err = r.reconcileLocalAgentServiceStore(ctx, instance, enabledFeatures, resourceManagers, now); err != nil {
+			return r.updateStatusIfNeededV2(ctx, instance, newStatus, reconcile.Result{}, err, now)
+		}
 		if err = r.overrideDependencies(ctx, resourceManagers, instance); err != nil {
 			return r.updateStatusIfNeededV2(ctx, instance, newStatus, reconcile.Result{}, err, now)
 		}
 		// 1. Apply and cleanup dependencies before reconciling components to ensure deps exist at reconciliation time.
 		if err = r.applyAndCleanupDependencies(ctx, depsStore); err != nil {
+			return r.updateStatusIfNeededV2(ctx, instance, newStatus, reconcile.Result{}, err, now)
+		}
+	} else {
+		// Profile DDAIs skip dependency management, but still publish their own
+		// port claim onto the shared local Agent Service so the default DDAI can
+		// merge their feature ports.
+		if err = r.publishProfileLocalServicePortClaim(ctx, instance, enabledFeatures); err != nil {
 			return r.updateStatusIfNeededV2(ctx, instance, newStatus, reconcile.Result{}, err, now)
 		}
 	}

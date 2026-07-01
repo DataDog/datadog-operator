@@ -23,6 +23,15 @@ const (
 	ValidConditionType = "Valid"
 	// ValidConditionType is a type of condition for a DatadogAgentProfile
 	AppliedConditionType = "Applied"
+	// ServicePortConflictConditionType reports whether the profile's local
+	// Service port claim conflicts with another claim. It is managed separately
+	// from AppliedConditionType (owned by the DDA controller's profile
+	// reconciliation) so the two controllers do not contend for one condition.
+	ServicePortConflictConditionType = "ServicePortConflict"
+
+	// NoConflictConditionReason is for profiles whose local Service port claim
+	// merges cleanly.
+	NoConflictConditionReason = "NoConflict"
 
 	// ValidConditionReason is for DatadogAgentProfiles with a valid manifest
 	ValidConditionReason = "Valid"
