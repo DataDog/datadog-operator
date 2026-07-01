@@ -1,10 +1,10 @@
 module github.com/DataDog/datadog-operator/test/e2e
 
-go 1.26.0
+go 1.25.11
 
 require (
-	github.com/DataDog/datadog-agent/test/e2e-framework v0.82.0-devel.0.20260630093238-f98008fab0dd
-	github.com/DataDog/datadog-agent/test/fakeintake v0.82.0-devel.0.20260630093238-f98008fab0dd
+	github.com/DataDog/datadog-agent/test/e2e-framework v0.81.0-devel.0.20260604205353-3e3ae70e791b
+	github.com/DataDog/datadog-agent/test/fakeintake v0.81.0-devel.0.20260604205353-3e3ae70e791b
 	github.com/DataDog/datadog-api-client-go/v2 v2.61.0 // indirect
 	github.com/aws/aws-sdk-go-v2 v1.42.0
 	github.com/aws/aws-sdk-go-v2/config v1.32.25
@@ -29,7 +29,6 @@ require (
 )
 
 require (
-	al.essio.dev/pkg/shellescape v1.6.0 // indirect
 	dario.cat/mergo v1.0.2 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20250102033503-faa5f7b0171c // indirect
 	github.com/BurntSushi/toml v1.6.0 // indirect
@@ -57,6 +56,7 @@ require (
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/ProtonMail/go-crypto v1.4.1 // indirect
 	github.com/agext/levenshtein v1.2.3 // indirect
+	github.com/alessio/shellescape v1.4.2 // indirect
 	github.com/apparentlymart/go-textseg/v15 v15.0.0 // indirect
 	github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2 // indirect
 	github.com/atotto/clipboard v0.1.4 // indirect
@@ -87,7 +87,6 @@ require (
 	github.com/blang/semver/v4 v4.0.0 // indirect
 	github.com/cenkalti/backoff v2.2.1+incompatible // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
-	github.com/cenkalti/backoff/v6 v6.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/chai2010/gettext-go v1.0.2 // indirect
 	github.com/charmbracelet/bubbles v1.0.0 // indirect
@@ -221,7 +220,7 @@ require (
 	github.com/pulumi/pulumi-docker-build/sdk/go/dockerbuild v0.0.3 // indirect
 	github.com/pulumi/pulumi-docker/sdk/v4 v4.11.2 // indirect
 	github.com/pulumi/pulumi-eks/sdk/v4 v4.2.0 // indirect
-	github.com/pulumi/pulumi-gcp/sdk/v9 v9.27.0 // indirect
+	github.com/pulumi/pulumi-gcp/sdk/v7 v7.38.0 // indirect
 	github.com/pulumi/pulumi-random/sdk/v4 v4.21.0 // indirect
 	github.com/pulumi/pulumi-tls/sdk/v4 v4.11.4 // indirect
 	github.com/pulumiverse/pulumi-time/sdk v0.1.0 // indirect
