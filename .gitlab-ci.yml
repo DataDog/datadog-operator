@@ -504,6 +504,16 @@ e2e_untaint:
     K8S_VERSION: "1.30"
     TARGET_IMAGE: $E2E_DOCKER_REGISTRY:${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
   rules:
+    # Skip on docs-only changes. This mirrors the skip rule on
+    # trigger_e2e_operator_image (.on_run_e2e_base); without it the catch-all
+    # manual rule below would add this job on *.md-only pipelines while its
+    # required image job is skipped, which GitLab rejects as a missing need.
+    - if: $CI_COMMIT_BRANCH
+      changes:
+        paths:
+          - "*.md"
+        compare_to: "refs/heads/main"
+      when: never
     # Disable on Conductor-triggered jobs (ex: nightly) — must be first so it wins
     - if: '$DDR == "true"'
       when: never
