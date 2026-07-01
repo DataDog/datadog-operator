@@ -26,7 +26,6 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/condition"
-	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
@@ -206,7 +205,13 @@ func (r *Reconciler) createOrUpdateDaemonset(ctx context.Context, ddai *v1alpha1
 		}
 
 		if restartDaemonset(daemonset, currentDaemonset) {
-			if err = deleteObjectAndOrphanDependents(ctx, r.client, daemonset, constants.DefaultAgentResourceSuffix); err != nil {
+			// The DaemonSet selector changed (immutable): delete THIS DaemonSet, orphaning its
+			// pods, so it can be recreated with the new selector. Delete the specific object by
+			// name — NOT a {part-of, component}-label DeleteAllOf — because profile and Windows
+			// agent DaemonSets share the same part-of + component=agent labels as the default
+			// agent, so a label-scoped delete would also orphan-delete sibling DaemonSets.
+			orphan := metav1.DeletePropagationOrphan
+			if err = r.client.Delete(ctx, currentDaemonset, &client.DeleteOptions{PropagationPolicy: &orphan}); err != nil && !apierrors.IsNotFound(err) {
 				return result, err
 			}
 			return result, nil

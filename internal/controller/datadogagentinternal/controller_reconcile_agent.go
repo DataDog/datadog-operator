@@ -50,12 +50,22 @@ func (r *Reconciler) reconcileV2Agent(ctx context.Context, requiredComponents fe
 	agentEnabled := requiredComponents.Agent.IsEnabled()
 	singleContainerStrategyEnabled := requiredComponents.Agent.SingleContainerStrategyEnabled()
 
+	// Windows is enabled ONLY on a profile-labeled DDAI carrying provider=windows (generated from
+	// a DatadogAgentProfile that targets Windows nodes). A default DDAI must never be Windows-ified
+	// — that would turn the cluster-wide node agent Windows-only and strand Linux nodes — so a
+	// provider=windows annotation set directly on the DatadogAgent is intentionally ignored.
+	windowsProfile := provider == kubernetes.WindowsProvider && isDDAILabeledWithProfile(ddai)
+
 	// When EDS is enabled and there are profiles defined, we only create an
 	// EDS for the default profile, for the other profiles we create
 	// DaemonSets.
 	// This is to make deployments simpler. With multiple EDS there would be
 	// multiple canaries, etc.
 	if r.options.ExtendedDaemonsetOptions.Enabled && !isDDAILabeledWithProfile(ddai) {
+		// Note: Windows is only applied on profile-labeled DDAIs (see windowsProfile below), which
+		// never reach this branch. A default DDAI with a stray provider=windows annotation builds a
+		// normal Linux ExtendedDaemonSet here (the annotation is ignored) so Linux nodes keep their
+		// agent rather than being stranded.
 		// Start by creating the Default Agent extendeddaemonset
 		eds = componentagent.NewDefaultAgentExtendedDaemonset(ddai, &r.options.ExtendedDaemonsetOptions, requiredComponents.Agent)
 		objLogger := daemonsetLogger.WithValues("object.kind", "ExtendedDaemonSet", "object.namespace", eds.Namespace, "object.name", eds.Name)
@@ -138,6 +148,12 @@ func (r *Reconciler) reconcileV2Agent(ctx context.Context, requiredComponents fe
 	// Provider capabilities are applied immediately after each feature's ManageNodeAgent
 	// so that each feature owns its provider correctness independently.
 	for _, feat := range features {
+		// On the Windows provider path, only allowlisted features run their node-agent hooks;
+		// the rest (eBPF/system-probe, etc.) are gated out so they don't inject config the
+		// Windows agent can't use. The subsequent strip is the safety net for what slips through.
+		if windowsProfile && !windowsSupportedFeatures[feat.ID()] {
+			continue
+		}
 		if singleContainerStrategyEnabled {
 			if errFeat := feat.ManageSingleContainerNodeAgent(podManagers); errFeat != nil {
 				return result, errFeat
@@ -173,6 +189,62 @@ func (r *Reconciler) reconcileV2Agent(ctx context.Context, requiredComponents fe
 
 	if r.options.UntaintControllerEnabled {
 		componentagent.EnsureAgentNotReadyStartupToleration(objLogger, &podManagers.PodTemplateSpec().Spec)
+	}
+
+	// Windows profile (DatadogAgentProfile targeting Windows nodes): the DaemonSet was built,
+	// featured and overridden above like a Linux agent; now Windows-ify the pod contents.
+	if windowsProfile {
+		// FIPS + Windows is not supported: there is no -servercore-fips image, and the Linux
+		// fips-proxy sidecar/config is stripped on Windows. Both FIPS mechanisms must be caught —
+		// useFIPSAgent (FIPS agent flavor) AND fips.enabled (fips-proxy sidecar) — otherwise the
+		// Windows agent would silently run non-FIPS (a compliance risk). Surface a condition and
+		// remove the Windows DaemonSet instead of downgrading.
+		fipsEnabled := ddai.Spec.Global != nil &&
+			(apiutils.BoolValue(ddai.Spec.Global.UseFIPSAgent) ||
+				(ddai.Spec.Global.FIPS != nil && apiutils.BoolValue(ddai.Spec.Global.FIPS.Enabled)))
+		// Also catch FIPS requested via a -fips agent image tag override, which would otherwise be
+		// silently rewritten to a non-FIPS -servercore image.
+		if fipsEnabled || componentagent.HasFIPSAgentImage(&daemonset.Spec.Template.Spec) {
+			condition.UpdateDatadogAgentInternalStatusConditions(
+				newStatus,
+				metav1.NewTime(time.Now()),
+				"WindowsAgentReconcile",
+				metav1.ConditionFalse,
+				"WindowsFIPSUnsupported",
+				"the windows provider is not supported with FIPS (global.useFIPSAgent or global.fips.enabled): no -servercore-fips image",
+				true,
+			)
+			daemonsetLogger.Info("Removing Windows DaemonSet: FIPS (useFIPSAgent or fips.enabled) is enabled and FIPS is unsupported on Windows")
+			// Delete any existing Windows DaemonSet so a non-FIPS agent does not keep running
+			// under a FIPS-required configuration (compliance), rather than silently downgrading.
+			if err := r.deleteV2DaemonSet(ctx, ddai, daemonset, newStatus); err != nil {
+				return reconcile.Result{}, err
+			}
+			// Clear the Agent status unconditionally: deleteV2DaemonSet returns early (without
+			// clearing status) if the DaemonSet is already gone, which would otherwise leave a
+			// stale Agent status on the profile while FIPS blocks recreation.
+			newStatus.Agent = nil
+			return reconcile.Result{}, nil
+		}
+		// Windows is supported for this DDAI: clear any prior WindowsFIPSUnsupported condition
+		// (e.g. after FIPS is turned back off) so the status reflects the healthy state.
+		condition.UpdateDatadogAgentInternalStatusConditions(
+			newStatus,
+			metav1.NewTime(time.Now()),
+			"WindowsAgentReconcile",
+			metav1.ConditionTrue,
+			"WindowsAgentReconcile",
+			"windows agent reconciled",
+			false,
+		)
+		logCollectionEnabled := false
+		for _, feat := range features {
+			if feat.ID() == feature.LogCollectionIDType {
+				logCollectionEnabled = true
+				break
+			}
+		}
+		componentagent.ApplyWindowsPodTransformation(&daemonset.Spec.Template, ddai, logCollectionEnabled, windowsLogPaths(ddai))
 	}
 
 	if disabledByOverride {
