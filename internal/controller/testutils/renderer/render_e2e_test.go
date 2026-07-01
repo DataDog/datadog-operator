@@ -16,7 +16,9 @@ import (
 )
 
 // baseKindCounts is the expected resource inventory for a minimal DatadogAgent
-// with no extra features enabled.
+// with no extra features enabled. The three Services are the Cluster Agent,
+// the admission controller, and the node Agent local service (rendered because
+// the simulated Kubernetes version is >= 1.22).
 var baseKindCounts = map[string]int{
 	"ServiceAccount":       2,
 	"ClusterRole":          5,
@@ -25,7 +27,7 @@ var baseKindCounts = map[string]int{
 	"RoleBinding":          1,
 	"Secret":               1,
 	"ConfigMap":            5,
-	"Service":              2,
+	"Service":              3,
 	"DatadogAgentInternal": 1,
 	"DaemonSet":            1,
 	"Deployment":           1,
@@ -41,7 +43,7 @@ var baseKindSeq = []string{
 	"RoleBinding",
 	"Secret",
 	"ConfigMap", "ConfigMap", "ConfigMap", "ConfigMap", "ConfigMap",
-	"Service", "Service",
+	"Service", "Service", "Service",
 	"DatadogAgentInternal",
 	"DaemonSet",
 	"Deployment",
@@ -61,7 +63,7 @@ func TestRender_MinimalDDA(t *testing.T) {
 
 	assert.Equal(t, baseKindCounts, countKinds(objects, scheme))
 
-	out, err := Serialize(objects, scheme, "yaml")
+	out, err := Serialize(objects, scheme, "yaml", false)
 	require.NoError(t, err)
 	s := string(out)
 
@@ -97,13 +99,13 @@ func TestRender_WithDAP(t *testing.T) {
 		"RoleBinding":          1,
 		"Secret":               1,
 		"ConfigMap":            5,
-		"Service":              2,
+		"Service":              3,
 		"DatadogAgentInternal": 3,
 		"DaemonSet":            3,
 		"Deployment":           1,
 	}, countKinds(objects, scheme))
 
-	out, err := Serialize(objects, scheme, "yaml")
+	out, err := Serialize(objects, scheme, "yaml", false)
 	require.NoError(t, err)
 	assert.Equal(t, []string{
 		"ServiceAccount", "ServiceAccount",
@@ -113,7 +115,7 @@ func TestRender_WithDAP(t *testing.T) {
 		"RoleBinding",
 		"Secret",
 		"ConfigMap", "ConfigMap", "ConfigMap", "ConfigMap", "ConfigMap",
-		"Service", "Service",
+		"Service", "Service", "Service",
 		"DatadogAgentInternal", "DatadogAgentInternal", "DatadogAgentInternal",
 		"DaemonSet", "DaemonSet", "DaemonSet",
 		"Deployment",
