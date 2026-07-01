@@ -487,6 +487,48 @@ e2e_autoscaling:
     - make e2e-autoscaling-tests
   retry: 2
 
+e2e_untaint:
+  extends: .e2e_aws_base
+  stage: e2e
+  needs:
+    # Needs the operator image (unlike autoscaling, which exercises the CLI).
+    - "trigger_e2e_operator_image"
+    - "go_e2e_deps"
+  timeout: 100m
+  id_tokens:
+    DDOCTOSTS_ID_TOKEN:
+      aud: dd-octo-sts
+  variables:
+    # Untaint controller is supported on Kubernetes 1.27.0+; pin a single recent
+    # version rather than running the full e2e matrix.
+    K8S_VERSION: "1.30"
+    TARGET_IMAGE: $E2E_DOCKER_REGISTRY:${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
+  rules:
+    # Disable on Conductor-triggered jobs (ex: nightly) — must be first so it wins
+    - if: '$DDR == "true"'
+      when: never
+    # Disable on manual pipelines to test staging images
+    - if: $PUSH_IMAGES_TO_STAGING == 'true'
+      when: never
+    # Run automatically on changes to untaint controller / suite code
+    - if: $CI_COMMIT_BRANCH
+      changes:
+        paths:
+          - "internal/controller/untaint_controller.go"
+          - "internal/controller/datadogagent/component/agent/untaint_toleration.go"
+          - "internal/controller/datadogcsidriver/**/*"
+          - "pkg/untaint/**/*"
+          - "test/e2e/tests/untaint_suite/**/*"
+          - "test/e2e/provisioners/kind.go"
+      when: on_success
+    # Allow manual run otherwise (non-blocking / best-effort for release)
+    - when: manual
+      allow_failure: true
+  script:
+    - echo "Running untaint controller e2e tests with target image $TARGET_IMAGE"
+    - IMAGE_PULL_PASSWORD=$(aws ecr get-login-password) IMG=$TARGET_IMAGE make e2e-untaint-tests
+  retry: 2
+
 publish_public_main:
   stage: release
   rules:
