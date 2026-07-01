@@ -333,16 +333,19 @@ func (r *DatadogAgentReconciler) SetupWithManager(mgr ctrl.Manager, metricForwar
 		}))
 	}
 
-	or := reconcile.AsReconciler[*v2alpha1.DatadogAgent](r.Client, r)
-	if err := builder.For(&v2alpha1.DatadogAgent{}, builderOptions...).WithEventFilter(predicate.Or(predicate.GenerationChangedPredicate{}, datadogAnnotationChangedPredicate(), experimentPhaseChangedPredicate())).Complete(or); err != nil {
-		return err
-	}
-
 	internal, err := datadogagent.NewReconciler(r.Options, r.Client, r.PlatformInfo, r.Scheme, r.Log, r.Recorder, metricForwardersMgr)
 	if err != nil {
 		return err
 	}
 	r.internal = internal
+
+	or := reconcile.AsReconciler[*v2alpha1.DatadogAgent](r.Client, r)
+	if err := builder.For(&v2alpha1.DatadogAgent{}, builderOptions...).WithEventFilter(predicate.Or(predicate.GenerationChangedPredicate{}, datadogAnnotationChangedPredicate(), experimentPhaseChangedPredicate())).Complete(or); err != nil {
+		return err
+	}
+	if err := addDatadogAgentStartupReconcile(mgr, r); err != nil {
+		return err
+	}
 
 	return nil
 }

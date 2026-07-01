@@ -348,8 +348,8 @@ func TestReconcile_CSIDriverLabelsAdoption(t *testing.T) {
 	attachRequired := true
 	podInfoOnMount := false
 
-	// Pre-create a CSIDriver without ownership labels and with drifted spec
-	// to validate adoption plus reconciliation of manual edits.
+	// Pre-create a CSIDriver without ownership labels and with defaulted/older
+	// immutable spec fields to validate migration adoption.
 	existingCSIDriver := &storagev1.CSIDriver{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: csiDriverName,
@@ -382,10 +382,10 @@ func TestReconcile_CSIDriverLabelsAdoption(t *testing.T) {
 	assert.Equal(t, "datadog-operator", csiDriver.Labels[kubernetes.AppKubernetesManageByLabelKey])
 	assert.Equal(t, "true", csiDriver.Annotations[apmEnabledAnnotationKey])
 	assert.NotEmpty(t, csiDriver.Labels[kubernetes.AppKubernetesPartOfLabelKey])
-	assert.Nil(t, csiDriver.Spec.AttachRequired)
-	assert.Nil(t, csiDriver.Spec.PodInfoOnMount)
+	assert.Equal(t, attachRequired, *csiDriver.Spec.AttachRequired)
+	assert.Equal(t, podInfoOnMount, *csiDriver.Spec.PodInfoOnMount)
 	assert.Contains(t, csiDriver.Spec.VolumeLifecycleModes, storagev1.VolumeLifecyclePersistent)
-	assert.Contains(t, csiDriver.Spec.VolumeLifecycleModes, storagev1.VolumeLifecycleEphemeral)
+	assert.NotContains(t, csiDriver.Spec.VolumeLifecycleModes, storagev1.VolumeLifecycleEphemeral)
 }
 
 func TestReconcile_Overrides(t *testing.T) {
@@ -496,7 +496,7 @@ func TestReconcile_StatusConditionOnCSIDriverError(t *testing.T) {
 	assert.Equal(t, metav1.ConditionTrue, readyCond.Status)
 }
 
-func TestReconcile_CSIDriverSpecDriftIsReconciled(t *testing.T) {
+func TestReconcile_CSIDriverMetadataDriftIsReconciledWithoutChangingSpec(t *testing.T) {
 	instance := defaultCSIDriverCR()
 	r, c := newTestReconciler(t, false, instance)
 	ctx := context.Background()
@@ -509,12 +509,11 @@ func TestReconcile_CSIDriverSpecDriftIsReconciled(t *testing.T) {
 	_, err = r.Reconcile(ctx, instance)
 	require.NoError(t, err)
 
-	// Simulate manual drift on the managed CSIDriver.
+	// Simulate metadata drift and immutable/defaulted spec fields on the managed CSIDriver.
 	csiDriver := &storagev1.CSIDriver{}
 	err = c.Get(ctx, types.NamespacedName{Name: csiDriverName}, csiDriver)
 	require.NoError(t, err)
 
-	// These are opposite of the default
 	csiDriver.Spec.AttachRequired = ptr.To(true)
 	csiDriver.Spec.PodInfoOnMount = ptr.To(false)
 	csiDriver.Spec.VolumeLifecycleModes = []storagev1.VolumeLifecycleMode{storagev1.VolumeLifecyclePersistent}
@@ -522,7 +521,7 @@ func TestReconcile_CSIDriverSpecDriftIsReconciled(t *testing.T) {
 	err = c.Update(ctx, csiDriver)
 	require.NoError(t, err)
 
-	// Reconcile again and verify drift is reverted.
+	// Reconcile again and verify metadata drift is reverted without touching spec.
 	err = c.Get(ctx, types.NamespacedName{Name: testName, Namespace: testNamespace}, instance)
 	require.NoError(t, err)
 	_, err = r.Reconcile(ctx, instance)
@@ -530,10 +529,10 @@ func TestReconcile_CSIDriverSpecDriftIsReconciled(t *testing.T) {
 
 	err = c.Get(ctx, types.NamespacedName{Name: csiDriverName}, csiDriver)
 	require.NoError(t, err)
-	assert.Nil(t, csiDriver.Spec.AttachRequired)
-	assert.Nil(t, csiDriver.Spec.PodInfoOnMount)
+	assert.True(t, *csiDriver.Spec.AttachRequired)
+	assert.False(t, *csiDriver.Spec.PodInfoOnMount)
 	assert.Contains(t, csiDriver.Spec.VolumeLifecycleModes, storagev1.VolumeLifecyclePersistent)
-	assert.Contains(t, csiDriver.Spec.VolumeLifecycleModes, storagev1.VolumeLifecycleEphemeral)
+	assert.NotContains(t, csiDriver.Spec.VolumeLifecycleModes, storagev1.VolumeLifecycleEphemeral)
 	assert.Equal(t, "true", csiDriver.Annotations[apmEnabledAnnotationKey])
 }
 

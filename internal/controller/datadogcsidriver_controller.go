@@ -64,7 +64,7 @@ func (r *DatadogCSIDriverReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	r.internal = datadogcsidriver.NewReconciler(r.Client, r.Scheme, r.Recorder, r.UntaintInjectCSIStartupToleration)
 
 	or := reconcile.AsReconciler[*datadoghqv1alpha1.DatadogCSIDriver](r.Client, r)
-	return ctrl.NewControllerManagedBy(mgr).
+	if err := ctrl.NewControllerManagedBy(mgr).
 		// GenerationChangedPredicate on For() only — filters spec-only changes
 		// on the primary resource without suppressing status updates on owned resources.
 		For(&datadoghqv1alpha1.DatadogCSIDriver{}, ctrlbuilder.WithPredicates(predicate.GenerationChangedPredicate{})).
@@ -73,7 +73,10 @@ func (r *DatadogCSIDriverReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		// CSIDriver is cluster-scoped so we can't use Owns(). Watch with label-based enqueue
 		// to detect drift (manual edits, external deletions).
 		Watches(&storagev1.CSIDriver{}, handler.EnqueueRequestsFromMapFunc(enqueueIfOwnedCSIDriver)).
-		Complete(or)
+		Complete(or); err != nil {
+		return err
+	}
+	return addDatadogCSIDriverStartupReconcile(mgr, r)
 }
 
 // enqueueIfOwnedCSIDriver maps a CSIDriver change back to the owning DatadogCSIDriver CR

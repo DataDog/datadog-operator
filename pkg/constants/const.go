@@ -73,6 +73,8 @@ const (
 	MD5AgentDeploymentAnnotationKey = "agent.datadoghq.com/agentspechash"
 	// MD5DDAIDeploymentAnnotationKey annotation key is used on a DatadogAgentInternal resource to identify if changes have been made to the spec.
 	MD5DDAIDeploymentAnnotationKey = "agent.datadoghq.com/ddaispechash"
+	// DDAIRenderedByOperatorVersionAnnotationKey annotation key is used on a DatadogAgentInternal resource to identify which operator version rendered it.
+	DDAIRenderedByOperatorVersionAnnotationKey = "agent.datadoghq.com/ddai-rendered-by-operator-version"
 	// MD5ChecksumAnnotationKey annotation key is used to identify customConfig configurations
 	MD5ChecksumAnnotationKey = "checksum/%s-custom-config"
 )

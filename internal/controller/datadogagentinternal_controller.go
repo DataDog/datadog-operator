@@ -13,6 +13,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -102,14 +103,28 @@ func (r *DatadogAgentInternalReconciler) SetupWithManager(mgr ctrl.Manager, metr
 		}))
 	}
 
+	r.internal = datadogagentinternal.NewReconciler(r.Options, r.Client, r.PlatformInfo, r.Scheme, r.Recorder, metricForwardersMgr)
+
 	or := reconcile.AsReconciler[*v1alpha1.DatadogAgentInternal](r.Client, r)
-	if err := builder.For(&datadoghqv1alpha1.DatadogAgentInternal{}, builderOptions...).WithEventFilter(predicate.GenerationChangedPredicate{}).Complete(or); err != nil {
+	if err := builder.For(&datadoghqv1alpha1.DatadogAgentInternal{}, builderOptions...).WithEventFilter(datadogAgentInternalEventFilter()).Complete(or); err != nil {
+		return err
+	}
+	if err := addDatadogAgentInternalStartupReconcile(mgr, r); err != nil {
 		return err
 	}
 
-	r.internal = datadogagentinternal.NewReconciler(r.Options, r.Client, r.PlatformInfo, r.Scheme, r.Recorder, metricForwardersMgr)
-
 	return nil
+}
+
+func datadogAgentInternalEventFilter() predicate.Predicate {
+	return predicate.Or(
+		predicate.GenerationChangedPredicate{},
+		predicate.Funcs{
+			UpdateFunc: func(e event.UpdateEvent) bool {
+				return !apiequality.Semantic.DeepEqual(e.ObjectOld.GetAnnotations(), e.ObjectNew.GetAnnotations())
+			},
+		},
+	)
 }
 
 func enqueueIfOwnedByDatadogAgentInternal(ctx context.Context, obj client.Object) []reconcile.Request {

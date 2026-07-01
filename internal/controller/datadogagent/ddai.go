@@ -27,6 +27,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	"github.com/DataDog/datadog-operator/pkg/version"
 )
 
 func (r *Reconciler) generateDDAIFromDDA(dda *v2alpha1.DatadogAgent, provider string) (*v1alpha1.DatadogAgentInternal, error) {
@@ -65,6 +66,10 @@ func generateObjMetaFromDDA(dda *v2alpha1.DatadogAgent, ddai *v1alpha1.DatadogAg
 		}
 		ddaiAnnotations[kubernetes.ProviderAnnotationKey] = provider
 	}
+	if ddaiAnnotations == nil {
+		ddaiAnnotations = make(map[string]string)
+	}
+	ddaiAnnotations[constants.DDAIRenderedByOperatorVersionAnnotationKey] = version.GetVersion()
 
 	ddai.ObjectMeta = metav1.ObjectMeta{
 		Name:        dda.Name,

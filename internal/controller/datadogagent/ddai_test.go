@@ -41,6 +41,9 @@ func Test_generateObjMetaFromDDA(t *testing.T) {
 					Labels: map[string]string{
 						"agent.datadoghq.com/datadogagent": "foo",
 					},
+					Annotations: map[string]string{
+						constants.DDAIRenderedByOperatorVersionAnnotationKey: "0.0.0",
+					},
 					OwnerReferences: []metav1.OwnerReference{
 						{
 							APIVersion:         "datadoghq.com/v2alpha1",
@@ -79,6 +82,7 @@ func Test_generateObjMetaFromDDA(t *testing.T) {
 					},
 					Annotations: map[string]string{
 						"foo": "bar",
+						constants.DDAIRenderedByOperatorVersionAnnotationKey: "0.0.0",
 					},
 					OwnerReferences: []metav1.OwnerReference{
 						{

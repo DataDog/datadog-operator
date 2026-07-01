@@ -2394,6 +2394,10 @@ func getDefaultDDAI(dda *v2alpha1.DatadogAgent) v1alpha1.DatadogAgentInternal {
 func setDDAIHash(t *testing.T, ddai *v1alpha1.DatadogAgentInternal) {
 	t.Helper()
 
+	if ddai.Annotations == nil {
+		ddai.Annotations = make(map[string]string)
+	}
+	ddai.Annotations[constants.DDAIRenderedByOperatorVersionAnnotationKey] = "0.0.0"
 	_, err := comparison.SetMD5GenerationAnnotation(&ddai.ObjectMeta, ddai.Spec, constants.MD5DDAIDeploymentAnnotationKey)
 	assert.NoError(t, err, "failed to compute DDAI spec hash")
 }
