@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -34,6 +35,7 @@ import (
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogcsidriver"
+	"github.com/DataDog/datadog-operator/internal/controller/metrics"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/untaint"
 )
@@ -323,8 +325,11 @@ func TestTaintedNodePredicate(t *testing.T) {
 	assert.False(t, p.Update(event.UpdateEvent{ObjectOld: tainted, ObjectNew: untainted}), "disappearance")
 	assert.False(t, p.Update(event.UpdateEvent{ObjectOld: untainted, ObjectNew: untainted}), "still untainted")
 
-	// Delete / Generic
-	assert.False(t, p.Delete(event.DeleteEvent{Object: tainted}))
+	// Delete: any node deletion enqueues (regardless of taint) so Reconcile can
+	// clean up the node's per-node metric series.
+	assert.True(t, p.Delete(event.DeleteEvent{Object: tainted}))
+	assert.True(t, p.Delete(event.DeleteEvent{Object: untainted}))
+	// Generic
 	assert.False(t, p.Generic(event.GenericEvent{Object: tainted}))
 }
 
@@ -889,4 +894,94 @@ func TestPodWatchPredicate_withCSI(t *testing.T) {
 	assert.True(t, p.Create(event.CreateEvent{Object: csi}))
 	assert.True(t, p.Create(event.CreateEvent{Object: readyAgent}))
 	assert.False(t, p.Create(event.CreateEvent{Object: other}))
+}
+
+// -----------------------------------------------------------------------------
+// metrics: labeled removal counter + latency histogram
+// -----------------------------------------------------------------------------
+
+// resetUntaintMetrics clears the package-level metric vectors so each test
+// observes only its own samples (the vectors are process-global singletons
+// registered in the metrics package init).
+func resetUntaintMetrics() {
+	metrics.TaintRemovalsTotal.Reset()
+	metrics.TaintRemovalLatency.Reset()
+}
+
+func TestReconcile_PodReady_RecordsLabeledMetrics(t *testing.T) {
+	resetUntaintMetrics()
+	now := testNow()
+	node := taintedNode(testNodeName, 0, now)
+	pod := agentPod(testPodName, testPodNS, testNodeName, true, 1*time.Minute, now)
+
+	c := newFakeClient(t, node, pod)
+	r, _ := newReconciler(t, c, now, PolicyRemove, time.Minute, time.Minute, false)
+
+	_, err := r.Reconcile(context.Background(), ctrl.Request{NamespacedName: types.NamespacedName{Name: testNodeName}})
+	require.NoError(t, err)
+
+	assert.Equal(t, 1.0, testutil.ToFloat64(
+		metrics.TaintRemovalsTotal.WithLabelValues(testNodeName, metrics.UntaintRemovalReasonAgentReady)),
+		"agent_ready removal counter for this node should be incremented")
+	assert.Equal(t, 0.0, testutil.ToFloat64(
+		metrics.TaintRemovalsTotal.WithLabelValues(testNodeName, metrics.UntaintRemovalReasonTimeout)),
+		"timeout reason must not be recorded for a readiness-driven removal")
+	assert.Equal(t, 1, testutil.CollectAndCount(metrics.TaintRemovalLatency),
+		"latency histogram should have one labeled series for this node")
+}
+
+func TestReconcile_Timeout_RecordsLabeledMetrics(t *testing.T) {
+	resetUntaintMetrics()
+	now := testNow()
+	// Pod never Ready, started past the readiness timeout → policy=remove untaints.
+	node := taintedNode(testNodeName, 30*time.Minute, now)
+	pod := agentPod(testPodName, testPodNS, testNodeName, false, 11*time.Minute, now)
+
+	c := newFakeClient(t, node, pod)
+	r, _ := newReconciler(t, c, now, PolicyRemove, 10*time.Minute, 5*time.Minute, false)
+
+	_, err := r.Reconcile(context.Background(), ctrl.Request{NamespacedName: types.NamespacedName{Name: testNodeName}})
+	require.NoError(t, err)
+
+	assert.Equal(t, 1.0, testutil.ToFloat64(
+		metrics.TaintRemovalsTotal.WithLabelValues(testNodeName, metrics.UntaintRemovalReasonTimeout)),
+		"timeout removal counter for this node should be incremented")
+	assert.Equal(t, 0.0, testutil.ToFloat64(
+		metrics.TaintRemovalsTotal.WithLabelValues(testNodeName, metrics.UntaintRemovalReasonAgentReady)),
+		"agent_ready reason must not be recorded for a timeout-driven removal")
+	assert.Equal(t, 0, testutil.CollectAndCount(metrics.TaintRemovalLatency),
+		"timeout-driven removal records no readiness latency")
+}
+
+func TestReconcile_NodeDeleted_CleansUpPerNodeSeries(t *testing.T) {
+	resetUntaintMetrics()
+	const goneNode = "gone-node"
+	const liveNode = "live-node"
+
+	// Seed series for two nodes: one that will be deleted, one that survives.
+	metrics.TaintRemovalsTotal.WithLabelValues(goneNode, metrics.UntaintRemovalReasonAgentReady).Inc()
+	metrics.TaintRemovalsTotal.WithLabelValues(goneNode, metrics.UntaintRemovalReasonTimeout).Inc()
+	metrics.TaintRemovalLatency.WithLabelValues(goneNode).Observe(1.0)
+	metrics.TaintRemovalsTotal.WithLabelValues(liveNode, metrics.UntaintRemovalReasonAgentReady).Inc()
+	metrics.TaintRemovalLatency.WithLabelValues(liveNode).Observe(2.0)
+
+	require.Equal(t, 3, testutil.CollectAndCount(metrics.TaintRemovalsTotal))
+	require.Equal(t, 2, testutil.CollectAndCount(metrics.TaintRemovalLatency))
+
+	now := testNow()
+	// goneNode is absent from the client → Reconcile hits the NotFound branch.
+	r, _ := newReconciler(t, newFakeClient(t), now, PolicyRemove, time.Minute, time.Minute, false)
+	_, err := r.Reconcile(context.Background(), ctrl.Request{NamespacedName: types.NamespacedName{Name: goneNode}})
+	require.NoError(t, err)
+
+	// goneNode's series (both reasons + its histogram) are gone; only liveNode's
+	// single counter series and single histogram series remain. Assert counts
+	// first, before any WithLabelValues call lazily recreates a zero series.
+	assert.Equal(t, 1, testutil.CollectAndCount(metrics.TaintRemovalsTotal),
+		"only liveNode's counter series should remain")
+	assert.Equal(t, 1, testutil.CollectAndCount(metrics.TaintRemovalLatency),
+		"only liveNode's latency series should remain")
+	assert.Equal(t, 1.0, testutil.ToFloat64(
+		metrics.TaintRemovalsTotal.WithLabelValues(liveNode, metrics.UntaintRemovalReasonAgentReady)),
+		"liveNode's counter value must survive another node's deletion")
 }
