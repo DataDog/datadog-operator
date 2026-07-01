@@ -247,10 +247,11 @@ func (o *otelCollectorFeature) ManageDependencies(managers feature.ResourceManag
 	internalTrafficPolicy := corev1.ServiceInternalTrafficPolicyLocal
 	if common.ShouldCreateAgentLocalService(platformInfo.GetVersionInfo(), o.forceEnableLocalService) {
 		otlpGrpcPort := &corev1.ServicePort{
-			Name:       "otlpgrpcport",
-			Port:       int32(grpcPort),
-			Protocol:   corev1.ProtocolTCP,
-			TargetPort: intstr.FromInt(grpcPort),
+			Name:        "otlpgrpcport",
+			Port:        int32(grpcPort),
+			Protocol:    corev1.ProtocolTCP,
+			TargetPort:  intstr.FromInt(grpcPort),
+			AppProtocol: ptr.To(common.KubernetesAppProtocolH2C),
 		}
 		otlpHttpPort := &corev1.ServicePort{
 			Name:       "otlphttpport",

@@ -159,10 +159,11 @@ func (f *otlpFeature) ManageDependencies(managers feature.ResourceManagers) erro
 		if common.ShouldCreateAgentLocalService(versionInfo, f.forceEnableLocalService) {
 			servicePort := []corev1.ServicePort{
 				{
-					Protocol:   corev1.ProtocolTCP,
-					TargetPort: intstr.FromInt(int(port)),
-					Port:       port,
-					Name:       otlpGRPCPortName,
+					Protocol:    corev1.ProtocolTCP,
+					TargetPort:  intstr.FromInt(int(port)),
+					Port:        port,
+					Name:        otlpGRPCPortName,
+					AppProtocol: ptr.To(common.KubernetesAppProtocolH2C),
 				},
 			}
 			serviceInternalTrafficPolicy := corev1.ServiceInternalTrafficPolicyLocal
