@@ -12,9 +12,14 @@ import (
 	"k8s.io/utils/ptr"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 )
 
-func applyAPMProfileSharedConfigOverlay(dst, _ *v2alpha1.DatadogAgentSpec, profileSpec *v2alpha1.DatadogAgentSpec) error {
+func applyAPMProfileSharedConfigOverlay(dst, base *v2alpha1.DatadogAgentSpec, profileSpec *v2alpha1.DatadogAgentSpec) error {
+	if err := applyProfileLocalAgentServicePort(dst, base, profileSpec); err != nil {
+		return err
+	}
+
 	// Only profiles that explicitly enable SSI contribute shared Cluster Agent
 	// config. SSI enabled=false is treated as "no shared overlay".
 	profileSSI, ok := profileSSIOverlayConfig(profileSpec)
@@ -40,6 +45,47 @@ func applyAPMProfileSharedConfigOverlay(dst, _ *v2alpha1.DatadogAgentSpec, profi
 	defaultLanguageDetection(dstSSI)
 
 	return nil
+}
+
+func applyProfileLocalAgentServicePort(dst, base, profileSpec *v2alpha1.DatadogAgentSpec) error {
+	profilePort, ok := profileLocalAgentServicePort(profileSpec)
+	if !ok {
+		return nil
+	}
+
+	existingPort, ok := profileLocalAgentServicePort(base)
+	if !ok {
+		if dst != nil && dst.Features != nil && dst.Features.APM != nil {
+			hostPort := dst.Features.APM.HostPortConfig
+			if hostPort != nil && ptr.Deref(hostPort.Enabled, false) && hostPort.Port != nil {
+				existingPort = *hostPort.Port
+				ok = true
+			}
+		}
+	}
+	if ok && existingPort != profilePort {
+		return fmt.Errorf("local Agent Service port %q conflicts with existing port", constants.DefaultApmPortName)
+	}
+
+	if dst.Features == nil {
+		dst.Features = &v2alpha1.DatadogFeatures{}
+	}
+	if dst.Features.APM == nil {
+		dst.Features.APM = &v2alpha1.APMFeatureConfig{}
+	}
+	dst.Features.APM.HostPortConfig = &v2alpha1.HostPortConfig{
+		Enabled: ptr.To(true),
+		Port:    ptr.To(profilePort),
+	}
+	return nil
+}
+
+func profileLocalAgentServicePort(spec *v2alpha1.DatadogAgentSpec) (int32, bool) {
+	ports := apmLocalAgentServicePorts(nil, spec)
+	if len(ports) == 0 {
+		return 0, false
+	}
+	return ports[0].Port, true
 }
 
 // profileSSIOverlayConfig extracts the only APM profile config that affects a

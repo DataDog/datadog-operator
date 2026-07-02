@@ -9,7 +9,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/utils"
 )
@@ -107,4 +109,14 @@ func IsDataPlaneDogstatsdEnabled(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
 		return *ddaSpec.Features.DataPlane.Dogstatsd.Enabled
 	}
 	return true
+}
+
+func ShouldCreateLocalAgentService(ddaSpec *v2alpha1.DatadogAgentSpec, managers feature.ResourceManagers) bool {
+	forceEnableLocalService := false
+	if ddaSpec != nil && ddaSpec.Global != nil && ddaSpec.Global.LocalService != nil {
+		forceEnableLocalService = apiutils.BoolValue(ddaSpec.Global.LocalService.ForceEnableLocalService)
+	}
+
+	platformInfo := managers.Store().GetPlatformInfo()
+	return common.ShouldCreateAgentLocalService(platformInfo.GetVersionInfo(), forceEnableLocalService)
 }
