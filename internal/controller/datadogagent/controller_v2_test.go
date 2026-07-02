@@ -1686,7 +1686,7 @@ func verifyEtcdMountsOpenshift(t *testing.T, c client.Client, resourcesNamespace
 // Test_COSProviderOverrides verifies that the GKE COS provider strips the
 // `src` HostPath volume (and its system-probe mount) that oomkill and
 // tcpqueuelength would otherwise add — the host has no /usr/src on COS nodes.
-// The provider value flows from the DDA's `datadoghq.com/provider` annotation,
+// The provider value flows from the DDA's `agent.datadoghq.com/cluster-provider` annotation,
 // or from the DAP's annotation propagated onto the per-profile DDAI.
 func Test_COSProviderOverrides(t *testing.T) {
 	const resourcesName, resourcesNamespace = "foo", "bar"

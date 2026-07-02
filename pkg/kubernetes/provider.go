@@ -18,7 +18,7 @@ import (
 
 const (
 	// DDA/DDAI annotation key for provider used in reconciler to apply provider-specific configs
-	ProviderAnnotationKey = "datadoghq.com/provider"
+	ProviderAnnotationKey = "agent.datadoghq.com/cluster-provider"
 
 	// LegacyProvider Legacy Provider (empty name)
 	LegacyProvider = ""
