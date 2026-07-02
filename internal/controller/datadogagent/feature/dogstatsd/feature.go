@@ -109,6 +109,8 @@ func (f *dogstatsdFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Datado
 		f.mapperProfiles = dogstatsd.MapperProfiles
 	}
 
+	// DogStatsD keeps using the defaulted/user-set CRD value rather than deriving
+	// non-local traffic from hostPort/local-service exposure like APM.
 	f.nonLocalTraffic = apiutils.BoolValue(dogstatsd.NonLocalTraffic)
 
 	f.dataPlaneEnabled = featureutils.IsDataPlaneEnabled(dda, ddaSpec)
@@ -134,7 +136,7 @@ func (f *dogstatsdFeature) ManageDependencies(managers feature.ResourceManagers)
 
 func applyDogstatsdDDASharedDependencies(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, ddai metav1.Object, ddaiSpec *v2alpha1.DatadogAgentSpec, managers feature.ResourceManagers) error {
 	ports := dogstatsdLocalAgentServicePorts(ddai, ddaiSpec)
-	if len(ports) == 0 || !featureutils.ShouldCreateLocalAgentService(ddaSpec, managers) {
+	if len(ports) == 0 || !featureutils.ShouldCreateLocalAgentService(ddaSpec, managers.Store().GetPlatformInfo()) {
 		return nil
 	}
 

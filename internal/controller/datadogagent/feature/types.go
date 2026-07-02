@@ -20,6 +20,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/merger"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/providercaps"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 // RequiredComponents use to know which component need to be enabled for the feature
@@ -185,6 +186,9 @@ type Options struct {
 	// cluster state while building dependencies. Callers should pass an uncached
 	// reader when the feature may read outside the controller cache scope.
 	Client client.Reader
+	// PlatformInfo contains Kubernetes version and API discovery data for feature
+	// code that needs cluster capabilities while configuring pod templates.
+	PlatformInfo kubernetes.PlatformInfo
 }
 
 // BuildFunc function type used by each Feature during its factory registration.

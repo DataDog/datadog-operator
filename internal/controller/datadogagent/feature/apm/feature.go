@@ -31,6 +31,7 @@ import (
 	cilium "github.com/DataDog/datadog-operator/pkg/cilium/v1"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/images"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/utils"
 )
 
@@ -56,6 +57,7 @@ func buildAPMFeature(options *feature.Options) feature.Feature {
 
 	if options != nil {
 		apmFeat.logger = options.Logger
+		apmFeat.platformInfo = options.PlatformInfo
 	}
 
 	return apmFeat
@@ -65,10 +67,11 @@ type apmFeature struct {
 	// nodeAPMEnabled tracks the node-agent side of APM separately from SSI.
 	// Profiles can contribute SSI Cluster Agent config without enabling trace
 	// agent configuration on the default DDAI.
-	nodeAPMEnabled   bool
-	hostPortEnabled  bool
-	hostPortHostPort int32
-	useHostNetwork   bool
+	nodeAPMEnabled      bool
+	hostPortEnabled     bool
+	hostPortHostPort    int32
+	localServiceEnabled bool
+	useHostNetwork      bool
 
 	serviceAccountName string
 
@@ -86,7 +89,8 @@ type apmFeature struct {
 
 	errorTrackingStandalone bool
 
-	logger logr.Logger
+	logger       logr.Logger
+	platformInfo kubernetes.PlatformInfo
 }
 
 type instrumentationConfig struct {
@@ -168,6 +172,7 @@ func (f *apmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 			f.hostPortEnabled = apiutils.BoolValue(apm.HostPortConfig.Enabled)
 			f.udsEnabled = apiutils.BoolValue(apm.UnixDomainSocketConfig.Enabled)
 		}
+		f.localServiceEnabled = featutils.ShouldCreateLocalAgentService(ddaSpec, f.platformInfo)
 
 		f.hostPortHostPort = *apm.HostPortConfig.Port
 		if f.hostPortEnabled {
@@ -323,7 +328,7 @@ func (f *apmFeature) ManageDependencies(managers feature.ResourceManagers) error
 
 func applyAPMDDASharedDependencies(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, ddai metav1.Object, ddaiSpec *v2alpha1.DatadogAgentSpec, managers feature.ResourceManagers) error {
 	ports := apmLocalAgentServicePorts(ddai, ddaiSpec)
-	if len(ports) == 0 || !featutils.ShouldCreateLocalAgentService(ddaSpec, managers) {
+	if len(ports) == 0 || !featutils.ShouldCreateLocalAgentService(ddaSpec, managers.Store().GetPlatformInfo()) {
 		return nil
 	}
 
@@ -511,6 +516,14 @@ func (f *apmFeature) manageNodeAgent(agentContainerName apicommon.AgentContainer
 		ContainerPort: constants.DefaultApmPort,
 		Protocol:      corev1.ProtocolTCP,
 	}
+	// APM has no CRD non-local-traffic knob, so derive it from exposure modes.
+	// DogStatsD intentionally uses the defaulted/user-set CRD value instead.
+	if f.hostPortEnabled || f.localServiceEnabled {
+		managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
+			Name:  DDAPMNonLocalTraffic,
+			Value: "true",
+		})
+	}
 	if f.hostPortEnabled {
 		apmPort.HostPort = f.hostPortHostPort
 		receiverPortEnvVarValue := constants.DefaultApmPort
@@ -519,10 +532,6 @@ func (f *apmFeature) manageNodeAgent(agentContainerName apicommon.AgentContainer
 			apmPort.ContainerPort = f.hostPortHostPort
 			receiverPortEnvVarValue = int(f.hostPortHostPort)
 		}
-		managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
-			Name:  DDAPMNonLocalTraffic,
-			Value: "true",
-		})
 		managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
 			Name:  DDAPMReceiverPort,
 			Value: strconv.Itoa(receiverPortEnvVarValue),

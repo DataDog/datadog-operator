@@ -11,8 +11,8 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/pkg/images"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/utils"
 )
 
@@ -111,12 +111,11 @@ func IsDataPlaneDogstatsdEnabled(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
 	return true
 }
 
-func ShouldCreateLocalAgentService(ddaSpec *v2alpha1.DatadogAgentSpec, managers feature.ResourceManagers) bool {
+func ShouldCreateLocalAgentService(ddaSpec *v2alpha1.DatadogAgentSpec, platformInfo kubernetes.PlatformInfo) bool {
 	forceEnableLocalService := false
 	if ddaSpec != nil && ddaSpec.Global != nil && ddaSpec.Global.LocalService != nil {
 		forceEnableLocalService = apiutils.BoolValue(ddaSpec.Global.LocalService.ForceEnableLocalService)
 	}
 
-	platformInfo := managers.Store().GetPlatformInfo()
 	return common.ShouldCreateAgentLocalService(platformInfo.GetVersionInfo(), forceEnableLocalService)
 }

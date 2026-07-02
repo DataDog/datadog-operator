@@ -127,10 +127,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, ddai *v1alpha1.DatadogAgentI
 	return resp, err
 }
 
-func reconcilerOptionsToFeatureOptions(ctx context.Context, reader client.Reader) *feature.Options {
+func reconcilerOptionsToFeatureOptions(ctx context.Context, reader client.Reader, platformInfo kubernetes.PlatformInfo) *feature.Options {
 	return &feature.Options{
-		Logger: ctrl.LoggerFrom(ctx),
-		Client: reader,
+		Logger:       ctrl.LoggerFrom(ctx),
+		Client:       reader,
+		PlatformInfo: platformInfo,
 	}
 }
 
