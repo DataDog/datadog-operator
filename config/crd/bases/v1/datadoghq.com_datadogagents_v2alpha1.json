@@ -1534,6 +1534,17 @@
               },
               "type": "object"
             },
+            "dynamicInstrumentation": {
+              "additionalProperties": false,
+              "description": "DynamicInstrumentation configuration.",
+              "properties": {
+                "enabled": {
+                  "description": "Enabled enables the Dynamic Instrumentation system probe module.\nDefault: false",
+                  "type": "boolean"
+                }
+              },
+              "type": "object"
+            },
             "ebpfCheck": {
               "additionalProperties": false,
               "description": "EBPFCheck configuration.",
@@ -10070,6 +10081,17 @@
                         }
                       },
                       "type": "object"
+                    }
+                  },
+                  "type": "object"
+                },
+                "dynamicInstrumentation": {
+                  "additionalProperties": false,
+                  "description": "DynamicInstrumentation configuration.",
+                  "properties": {
+                    "enabled": {
+                      "description": "Enabled enables the Dynamic Instrumentation system probe module.\nDefault: false",
+                      "type": "boolean"
                     }
                   },
                   "type": "object"
