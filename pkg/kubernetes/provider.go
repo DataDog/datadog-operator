@@ -63,6 +63,13 @@ const (
 	// EKS label prefixes for provider detection
 	eksLabelPrefix    = "eks.amazonaws.com/"
 	eksctlLabelPrefix = "alpha.eksctl.io/"
+
+	// aksLabelPrefix is AKS's reserved node-label prefix (nodes outside AKS
+	// cannot set it: https://learn.microsoft.com/en-us/azure/aks/use-labels#reserved-prefixes).
+	// kubernetes.azure.com/cluster in particular is applied to every node in an
+	// AKS cluster, including virtual (ACI) nodes, so any label under this
+	// prefix is a reliable cluster-level AKS signal.
+	aksLabelPrefix = "kubernetes.azure.com/"
 )
 
 // ProviderValue allowlist
@@ -99,6 +106,18 @@ func isEKSProvider(labels map[string]string) bool {
 	// Check for any eks.amazonaws.com/* or eksctl labels
 	for key := range labels {
 		if strings.HasPrefix(key, eksLabelPrefix) || strings.HasPrefix(key, eksctlLabelPrefix) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// isAKSProvider checks if a node is an AKS node by looking for labels under
+// AKS's reserved kubernetes.azure.com/ prefix.
+func isAKSProvider(labels map[string]string) bool {
+	for key := range labels {
+		if strings.HasPrefix(key, aksLabelPrefix) {
 			return true
 		}
 	}
@@ -276,7 +295,7 @@ func IsSpecificProvider(p string) bool {
 }
 
 // ClusterProviderFromNodeLabels maps a single node's labels to the cluster-level
-// provider (eks, openshift-<os>, or default). It is the node-label signal for the
+// provider (eks, aks, openshift-<os>, or default). It is the node-label signal for the
 // cluster dimension.
 //
 // Node-OS distinctions such as gke-cos belong to the node
@@ -292,6 +311,9 @@ func ClusterProviderFromNodeLabels(labels map[string]string) string {
 		}
 		if isEKSProvider(labels) {
 			return EKSCloudProvider
+		}
+		if isAKSProvider(labels) {
+			return AKSProvider
 		}
 	}
 	return DefaultProvider
