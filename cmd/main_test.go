@@ -32,6 +32,8 @@ func TestOptionsParse_EnvOverridesDefaults(t *testing.T) {
 	t.Setenv("DD_SUPPORT_CILIUM", "true")
 	t.Setenv("DD_MONITOR_CONTROLLER_ENABLED", "true")
 	t.Setenv("DD_MAXIMUM_GOROUTINES", "123")
+	t.Setenv("DD_GENERIC_RESOURCE_MAX_CONCURRENT_RECONCILES", "7")
+	t.Setenv("DD_GENERIC_RESOURCE_REQUEUE_PERIOD", "5m")
 	t.Setenv("DD_UNTAINT_CONTROLLER_WAIT_FOR_CSI_DRIVER", "true")
 	t.Setenv("DD_CREATE_CONTROLLER_REVISIONS", "true")
 
@@ -47,6 +49,8 @@ func TestOptionsParse_EnvOverridesDefaults(t *testing.T) {
 	require.True(t, opts.supportCilium)
 	require.True(t, opts.datadogMonitorEnabled)
 	require.Equal(t, 123, opts.maximumGoroutines)
+	require.Equal(t, 7, opts.datadogGenericResourceMaxWorkers)
+	require.Equal(t, 5*time.Minute, opts.datadogGenericResourceRequeuePeriod)
 	require.True(t, opts.untaintControllerWaitForCSIDriver)
 	require.True(t, opts.createControllerRevisions)
 }
@@ -57,6 +61,8 @@ func TestOptionsParse_CLIOverridesEnv(t *testing.T) {
 		"-metrics-secure=false",
 		"-datadogMonitorEnabled=false",
 		"-maximumGoroutines=456",
+		"-datadogGenericResourceMaxConcurrentReconciles=9",
+		"-datadogGenericResourceRequeuePeriod=2m30s",
 		"-leader-election-lease-duration=2m",
 		"-untaintControllerWaitForCSIDriver=false",
 	)
@@ -64,6 +70,8 @@ func TestOptionsParse_CLIOverridesEnv(t *testing.T) {
 	t.Setenv("DD_METRICS_SECURE", "true")
 	t.Setenv("DD_MONITOR_CONTROLLER_ENABLED", "true")
 	t.Setenv("DD_MAXIMUM_GOROUTINES", "123")
+	t.Setenv("DD_GENERIC_RESOURCE_MAX_CONCURRENT_RECONCILES", "7")
+	t.Setenv("DD_GENERIC_RESOURCE_REQUEUE_PERIOD", "5m")
 	t.Setenv("DD_LEADER_ELECTION_LEASE_DURATION", "90s")
 	t.Setenv("DD_UNTAINT_CONTROLLER_WAIT_FOR_CSI_DRIVER", "true")
 
@@ -74,6 +82,8 @@ func TestOptionsParse_CLIOverridesEnv(t *testing.T) {
 	require.False(t, opts.secureMetrics)
 	require.False(t, opts.datadogMonitorEnabled)
 	require.Equal(t, 456, opts.maximumGoroutines)
+	require.Equal(t, 9, opts.datadogGenericResourceMaxWorkers)
+	require.Equal(t, 150*time.Second, opts.datadogGenericResourceRequeuePeriod)
 	require.Equal(t, 2*time.Minute, opts.leaderElectionLeaseDuration)
 	require.False(t, opts.untaintControllerWaitForCSIDriver)
 }
@@ -81,6 +91,8 @@ func TestOptionsParse_CLIOverridesEnv(t *testing.T) {
 func TestOptionsParse_InvalidEnvLeavesDefault(t *testing.T) {
 	resetCommandLine(t)
 	t.Setenv("DD_MAXIMUM_GOROUTINES", "not-an-int")
+	t.Setenv("DD_GENERIC_RESOURCE_MAX_CONCURRENT_RECONCILES", "not-an-int")
+	t.Setenv("DD_GENERIC_RESOURCE_REQUEUE_PERIOD", "120")
 	t.Setenv("DD_LEADER_ELECTION_LEASE_DURATION", "not-a-duration")
 	t.Setenv("DD_MONITOR_CONTROLLER_ENABLED", "not-a-boolean-meaning-string")
 
@@ -88,6 +100,8 @@ func TestOptionsParse_InvalidEnvLeavesDefault(t *testing.T) {
 	opts.Parse()
 
 	require.Equal(t, defaultMaximumGoroutines, opts.maximumGoroutines)
+	require.Equal(t, defaultDatadogGenericResourceMaxConcurrentReconciles, opts.datadogGenericResourceMaxWorkers)
+	require.Equal(t, defaultDatadogGenericResourceRequeuePeriod, opts.datadogGenericResourceRequeuePeriod)
 	require.Equal(t, 60*time.Second, opts.leaderElectionLeaseDuration)
 	require.False(t, opts.datadogMonitorEnabled)
 }

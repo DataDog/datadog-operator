@@ -38,7 +38,6 @@ const (
 	defaultForceSyncPeriod                 = 60 * time.Minute
 	datadogGenericResourceKind             = "DatadogGenericResource"
 	ddGenericResourceForceSyncPeriodEnvVar = "DD_GENERIC_RESOURCE_FORCE_SYNC_PERIOD"
-	ddGenericResourceRequeuePeriodEnvVar   = "DD_GENERIC_RESOURCE_REQUEUE_PERIOD"
 )
 
 type Reconciler struct {
@@ -75,42 +74,11 @@ func NewReconciler(client client.Client, credsManager *config.CredentialManager,
 }
 
 func requeuePeriod(logger logr.Logger, configured time.Duration) time.Duration {
-	if configured > 0 {
-		logger.Info("Setting generic resource requeue period", "duration", configured.String())
-		return configured
+	if configured <= 0 {
+		configured = defaultRequeuePeriod
 	}
-	return requeuePeriodFromEnv(logger)
-}
-
-func requeuePeriodFromEnv(logger logr.Logger) time.Duration {
-	requeuePeriod := defaultRequeuePeriod
-
-	if userRequeuePeriod, ok := os.LookupEnv(ddGenericResourceRequeuePeriodEnvVar); ok {
-		parsedRequeuePeriod, err := parseRequeuePeriod(userRequeuePeriod)
-		if err != nil {
-			logger.Error(err, "Invalid value for generic resource requeue period. Defaulting to 60 seconds.")
-		} else {
-			requeuePeriod = parsedRequeuePeriod
-		}
-	}
-
-	logger.Info("Setting generic resource requeue period", "duration", requeuePeriod.String())
-	return requeuePeriod
-}
-
-func parseRequeuePeriod(value string) (time.Duration, error) {
-	period, err := time.ParseDuration(value)
-	if err != nil {
-		seconds, parseIntErr := strconv.Atoi(value)
-		if parseIntErr != nil {
-			return 0, err
-		}
-		period = time.Duration(seconds) * time.Second
-	}
-	if period < time.Second {
-		return 0, fmt.Errorf("requeue period must be at least 1 second")
-	}
-	return period, nil
+	logger.Info("Setting generic resource requeue period", "duration", configured.String())
+	return configured
 }
 
 func forceSyncPeriodFromEnv(logger logr.Logger) time.Duration {

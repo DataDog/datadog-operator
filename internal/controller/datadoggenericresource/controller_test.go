@@ -388,60 +388,16 @@ func TestForceSyncPeriodFromEnv(t *testing.T) {
 	}
 }
 
-func TestRequeuePeriodFromEnv(t *testing.T) {
+func TestRequeuePeriodDefault(t *testing.T) {
 	logf.SetLogger(zap.New(zap.UseDevMode(true)))
 	logger := logf.Log.WithName("requeue-period-test")
 
-	tests := []struct {
-		name     string
-		envValue string
-		want     time.Duration
-	}{
-		{
-			name:     "valid duration value",
-			envValue: "5m",
-			want:     5 * time.Minute,
-		},
-		{
-			name:     "valid integer value is seconds",
-			envValue: "120",
-			want:     2 * time.Minute,
-		},
-		{
-			name:     "invalid string falls back to default",
-			envValue: "abc",
-			want:     defaultRequeuePeriod,
-		},
-		{
-			name:     "zero falls back to default",
-			envValue: "0",
-			want:     defaultRequeuePeriod,
-		},
-		{
-			name:     "subsecond value falls back to default",
-			envValue: "500ms",
-			want:     defaultRequeuePeriod,
-		},
-		{
-			name:     "negative value falls back to default",
-			envValue: "-1s",
-			want:     defaultRequeuePeriod,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Setenv(ddGenericResourceRequeuePeriodEnvVar, tt.envValue)
-
-			assert.Equal(t, tt.want, requeuePeriodFromEnv(logger))
-		})
-	}
+	assert.Equal(t, defaultRequeuePeriod, requeuePeriod(logger, 0))
 }
 
-func TestRequeuePeriodConfiguredOptionTakesPrecedence(t *testing.T) {
+func TestRequeuePeriodConfiguredOption(t *testing.T) {
 	logf.SetLogger(zap.New(zap.UseDevMode(true)))
 	logger := logf.Log.WithName("requeue-period-test")
-	t.Setenv(ddGenericResourceRequeuePeriodEnvVar, "5m")
 
 	assert.Equal(t, 2*time.Minute, requeuePeriod(logger, 2*time.Minute))
 }
