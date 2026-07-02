@@ -8,6 +8,13 @@ package otlp
 import (
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/stretchr/testify/assert"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/apimachinery/pkg/version"
+	"k8s.io/utils/ptr"
+
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
@@ -18,13 +25,6 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/testutils"
-
-	"github.com/google/go-cmp/cmp"
-	"github.com/stretchr/testify/assert"
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/apimachinery/pkg/version"
-	"k8s.io/utils/ptr"
 )
 
 func TestOTLPFeature(t *testing.T) {
@@ -43,32 +43,6 @@ func TestOTLPFeature(t *testing.T) {
 				APM:                 true,
 			})),
 			WantConfigure: true,
-			StoreOption: &store.StoreOptions{
-				PlatformInfo: kubernetes.NewPlatformInfo(
-					&version.Info{
-						Major:      "1",
-						Minor:      "32",
-						GitVersion: "1.32.0",
-					},
-					nil,
-					nil,
-				),
-			},
-			WantDependenciesFunc: testExpectedGRPCServicePorts([]corev1.ServicePort{
-				{
-					Protocol:    corev1.ProtocolTCP,
-					TargetPort:  intstr.FromInt(4317),
-					Port:        4317,
-					Name:        otlpGRPCPortName,
-					AppProtocol: ptr.To(common.KubernetesAppProtocolH2C),
-				},
-				{
-					Protocol:   corev1.ProtocolTCP,
-					TargetPort: intstr.FromInt(4318),
-					Port:       4318,
-					Name:       otlpHTTPPortName,
-				},
-			}),
 			Agent: testExpected(Expected{
 				EnvVars: []*corev1.EnvVar{
 					{
@@ -410,6 +384,54 @@ func TestOTLPFeature(t *testing.T) {
 	tests.Run(t, buildOTLPFeature)
 }
 
+func TestApplyOTLPDDASharedDependencies(t *testing.T) {
+	dda := withForcedLocalService(
+		testutils.NewInitializedDatadogAgentBuilder("default", "datadog").
+			WithOTLPGRPCSettings(true, true, 4317, "0.0.0.0:4317").
+			WithOTLPHTTPSettings(true, true, 4318, "0.0.0.0:4318").
+			Build(),
+	)
+	depsStore := store.NewStore(nil, &store.StoreOptions{
+		PlatformInfo: kubernetes.NewPlatformInfo(
+			&version.Info{
+				Major:      "1",
+				Minor:      "32",
+				GitVersion: "1.32.0",
+			},
+			nil,
+			nil,
+		),
+	})
+	managers := feature.NewResourceManagers(depsStore)
+
+	err := applyOTLPDDASharedDependencies(dda, &dda.Spec, dda, &dda.Spec, managers)
+	assert.NoError(t, err)
+
+	serviceObject, found := depsStore.Get(kubernetes.ServicesKind, "default", "datadog-agent")
+	if assert.True(t, found) {
+		service := serviceObject.(*corev1.Service)
+		assert.Equal(t, common.GetAgentLocalServiceSelector(dda), service.Spec.Selector)
+		if assert.NotNil(t, service.Spec.InternalTrafficPolicy) {
+			assert.Equal(t, corev1.ServiceInternalTrafficPolicyLocal, *service.Spec.InternalTrafficPolicy)
+		}
+		assert.Equal(t, []corev1.ServicePort{
+			{
+				Protocol:    corev1.ProtocolTCP,
+				TargetPort:  intstr.FromInt(4317),
+				Port:        4317,
+				Name:        otlpGRPCPortName,
+				AppProtocol: ptr.To(common.KubernetesAppProtocolH2C),
+			},
+			{
+				Protocol:   corev1.ProtocolTCP,
+				TargetPort: intstr.FromInt(4318),
+				Port:       4318,
+				Name:       otlpHTTPPortName,
+			},
+		}, service.Spec.Ports)
+	}
+}
+
 type Settings struct {
 	EnabledGRPC         bool
 	CustomGRPCHostPort  int32
@@ -482,15 +504,6 @@ func testExpected(exp Expected) *test.ComponentTest {
 			)
 		},
 	)
-}
-
-func testExpectedGRPCServicePorts(expectedPorts []corev1.ServicePort) func(testing.TB, store.StoreClient) {
-	return func(t testing.TB, store store.StoreClient) {
-		serviceObject, found := store.Get(kubernetes.ServicesKind, "", "-agent")
-		assert.True(t, found)
-		service := serviceObject.(*corev1.Service)
-		assert.Equal(t, expectedPorts, service.Spec.Ports)
-	}
 }
 
 func testExpectedSingleContainer(exp Expected) *test.ComponentTest {
