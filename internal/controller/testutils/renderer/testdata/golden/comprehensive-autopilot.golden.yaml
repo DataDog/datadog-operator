@@ -1053,7 +1053,7 @@ kind: DatadogAgentInternal
 metadata:
   annotations:
     agent.datadoghq.com/cluster-provider: gke-autopilot
-    agent.datadoghq.com/ddaispechash: a08ca9f2dd1d11f264479485ad5e2aba
+    agent.datadoghq.com/ddaispechash: ba719f51bc060ff4938a9941a91d830b
     experimental.agent.datadoghq.com/autopilot: "true"
   finalizers:
   - finalizer.datadoghq.com/datadogagentinternal
@@ -1123,6 +1123,8 @@ spec:
       unixDomainSocketConfig:
         enabled: true
         path: /var/run/datadog/dsd.socket
+    dynamicInstrumentation:
+      enabled: false
     ebpfCheck:
       enabled: false
     eventCollection:
