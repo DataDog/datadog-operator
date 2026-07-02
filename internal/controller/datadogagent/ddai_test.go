@@ -139,11 +139,7 @@ func Test_generateSpecFromDDA(t *testing.T) {
 						},
 					},
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
-						v2alpha1.NodeAgentComponentName: {
-							Labels: map[string]string{
-								constants.MD5AgentDeploymentProviderLabelKey: "",
-							},
-						},
+						v2alpha1.NodeAgentComponentName: {},
 					},
 				},
 			},
@@ -206,7 +202,6 @@ func Test_generateSpecFromDDA(t *testing.T) {
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 						v2alpha1.NodeAgentComponentName: {
 							Labels: map[string]string{
-								constants.MD5AgentDeploymentProviderLabelKey: "",
 								"foo": "bar",
 							},
 							PriorityClassName: ptr.To("foo-priority-class"),

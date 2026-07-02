@@ -24,11 +24,6 @@ func SetOverrideFromDDA(dda *v2alpha1.DatadogAgent, ddaiSpec *v2alpha1.DatadogAg
 	if _, ok := ddaiSpec.Override[v2alpha1.NodeAgentComponentName]; !ok {
 		ddaiSpec.Override[v2alpha1.NodeAgentComponentName] = &v2alpha1.DatadogAgentComponentOverride{}
 	}
-	if ddaiSpec.Override[v2alpha1.NodeAgentComponentName].Labels == nil {
-		ddaiSpec.Override[v2alpha1.NodeAgentComponentName].Labels = make(map[string]string)
-	}
-	// Set empty provider label
-	ddaiSpec.Override[v2alpha1.NodeAgentComponentName].Labels[constants.MD5AgentDeploymentProviderLabelKey] = ""
 
 	// Add checksum annotation to the components (nodeAgent, clusterAgent, clusterChecksRunner) pod templates if the cluster agent token is set in DDA spec
 	// This is used to trigger a redeployment of the components when the cluster agent token is changed

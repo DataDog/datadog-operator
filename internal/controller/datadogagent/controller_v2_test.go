@@ -2015,7 +2015,6 @@ func Test_DDAI_ReconcileV3(t *testing.T) {
 					v2alpha1.NodeAgentComponentName: {
 						Labels: map[string]string{
 							"custom-label": "custom-value",
-							constants.MD5AgentDeploymentProviderLabelKey: "",
 						},
 						Annotations: map[string]string{
 							"checksum/dca-token-custom-config": "0c85492446fadac292912bb6d5fc3efd",
@@ -2113,7 +2112,6 @@ func Test_DDAI_ReconcileV3(t *testing.T) {
 					v2alpha1.NodeAgentComponentName: {
 						Name: ptr.To("foo-profile-agent"),
 						Labels: map[string]string{
-							constants.MD5AgentDeploymentProviderLabelKey: "",
 							"foo":                     "bar",
 							constants.ProfileLabelKey: "foo-profile",
 						},
@@ -2320,11 +2318,7 @@ func getBaseDDAI(dda *v2alpha1.DatadogAgent) v1alpha1.DatadogAgentInternal {
 			Features: features,
 			Global:   globalConfig,
 			Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
-				v2alpha1.NodeAgentComponentName: {
-					Labels: map[string]string{
-						constants.MD5AgentDeploymentProviderLabelKey: "",
-					},
-				},
+				v2alpha1.NodeAgentComponentName: {},
 			},
 		},
 	}
@@ -2351,9 +2345,6 @@ func getDefaultDDAI(dda *v2alpha1.DatadogAgent) v1alpha1.DatadogAgentInternal {
 	expectedDDAI := getBaseDDAI(dda)
 	expectedDDAI.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 		v2alpha1.NodeAgentComponentName: {
-			Labels: map[string]string{
-				constants.MD5AgentDeploymentProviderLabelKey: "",
-			},
 			Affinity: &corev1.Affinity{
 				NodeAffinity: &corev1.NodeAffinity{
 					RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
