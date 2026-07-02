@@ -19,6 +19,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/utils/ptr"
 )
 
 type expectedPorts struct {
@@ -331,10 +332,11 @@ func testExpectedDepsCreatedCM(t testing.TB, store store.StoreClient) {
 		service := serviceObject.(*corev1.Service)
 		assert.Equal(t, []corev1.ServicePort{
 			{
-				Name:       "otlpgrpcport",
-				Port:       4317,
-				Protocol:   corev1.ProtocolTCP,
-				TargetPort: intstr.FromInt(4317),
+				Name:        "otlpgrpcport",
+				Port:        4317,
+				Protocol:    corev1.ProtocolTCP,
+				TargetPort:  intstr.FromInt(4317),
+				AppProtocol: ptr.To(common.KubernetesAppProtocolH2C),
 			},
 			{
 				Name:       "otlphttpport",
@@ -348,10 +350,11 @@ func testExpectedDepsCreatedCM(t testing.TB, store store.StoreClient) {
 		service := serviceObject.(*corev1.Service)
 		assert.Equal(t, []corev1.ServicePort{
 			{
-				Name:       "otlpgrpcport",
-				Port:       4444,
-				Protocol:   corev1.ProtocolTCP,
-				TargetPort: intstr.FromInt(4444),
+				Name:        "otlpgrpcport",
+				Port:        4444,
+				Protocol:    corev1.ProtocolTCP,
+				TargetPort:  intstr.FromInt(4444),
+				AppProtocol: ptr.To(common.KubernetesAppProtocolH2C),
 			},
 			{
 				Name:       "otlphttpport",
