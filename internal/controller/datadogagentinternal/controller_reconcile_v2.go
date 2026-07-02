@@ -56,7 +56,7 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, instance *v1alpha1
 	newStatus := instance.Status.DeepCopy()
 	now := metav1.NewTime(time.Now())
 
-	configuredFeatures, enabledFeatures, requiredComponents := feature.BuildFeatures(instance, &instance.Spec, instance.Status.RemoteConfigConfiguration, reconcilerOptionsToFeatureOptions(ctx, r.apiReader))
+	configuredFeatures, enabledFeatures, requiredComponents := feature.BuildFeatures(instance, &instance.Spec, instance.Status.RemoteConfigConfiguration, reconcilerOptionsToFeatureOptions(ctx, r.apiReader, r.platformInfo))
 	// update list of enabled features for metrics forwarder
 	r.updateMetricsForwardersFeatures(instance, enabledFeatures)
 
