@@ -230,6 +230,9 @@ func Test_GPUMonitoringFeature_Configure(t *testing.T) {
 		systemProbeEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.SystemProbeContainerName]
 		assert.ElementsMatch(t, systemProbeEnvVars, wantSystemProbeEnvVars)
 
+		// GPU monitoring requires the host PID namespace
+		assert.True(t, mgr.PodTemplateSpec().Spec.HostPID, "HostPID should be enabled for GPU monitoring")
+
 		// Check runtime class
 		if expectedRuntimeClass == "" {
 			assert.Nil(t, mgr.PodTemplateSpec().Spec.RuntimeClassName)
@@ -313,6 +316,9 @@ func Test_GPUMonitoringFeature_Configure(t *testing.T) {
 		// check that system probe has NO env vars for core-check only
 		systemProbeEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.SystemProbeContainerName]
 		assert.Empty(t, systemProbeEnvVars, "System Probe should not have env vars when privileged mode is disabled")
+
+		// GPU monitoring requires the host PID namespace, even in core-check only mode
+		assert.True(t, mgr.PodTemplateSpec().Spec.HostPID, "HostPID should be enabled for GPU monitoring")
 
 		// Check runtime class
 		if expectedRuntimeClass == "" {
