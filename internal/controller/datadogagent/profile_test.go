@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"k8s.io/utils/ptr"
-
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -17,6 +17,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
@@ -25,8 +26,6 @@ import (
 	agenttestutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/testutils"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/constants"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func Test_computeProfileMerge(t *testing.T) {
@@ -1366,6 +1365,21 @@ func Test_reconcileProfiles_APMSharedOverlayMatrix(t *testing.T) {
 				assert.Equal(t, "1.43.0", ssi.LibVersions["java"])
 				assert.True(t, ptr.Deref(ssi.LanguageDetection.Enabled, false))
 			},
+		},
+		{
+			name:        "base APM off DAP APM on applies without enabling default DDAI APM",
+			description: "Expect the DAP to apply while leaving the default DDAI node APM disabled.",
+			profiles: []*v1alpha1.DatadogAgentProfile{
+				testAPMMatrixProfile(namespace, "dap-case-apm-only", baseTime, noMatchProfileRequirement("dap-case-apm-only"), &v2alpha1.APMFeatureConfig{
+					Enabled: ptr.To(true),
+				}),
+			},
+			wantProfileApplied: map[string]metav1.ConditionStatus{"dap-case-apm-only": metav1.ConditionTrue},
+			assertAPM: func(t *testing.T, apm *v2alpha1.APMFeatureConfig) {
+				require.NotNil(t, apm)
+				assert.False(t, ptr.Deref(apm.Enabled, true))
+			},
+			assertSSI: assertSSIEnabled(false),
 		},
 		{
 			name:        "DAP apm enabled false with SSI enabled",

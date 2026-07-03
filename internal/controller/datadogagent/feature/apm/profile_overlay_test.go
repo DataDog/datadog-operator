@@ -458,7 +458,8 @@ func TestAPMProfileSharedConfigOverlay(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := applyAPMProfileSharedConfigOverlay(tt.dst, tt.dst.DeepCopy(), tt.profile)
+			dst := tt.dst.DeepCopy()
+			err := applyAPMProfileSharedConfigOverlay(dst, dst.DeepCopy(), tt.profile)
 			if tt.wantErr != "" {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.wantErr)
@@ -466,12 +467,26 @@ func TestAPMProfileSharedConfigOverlay(t *testing.T) {
 			}
 			require.NoError(t, err)
 			if tt.wantNoApply {
-				assert.False(t, *tt.dst.Features.APM.SingleStepInstrumentation.Enabled)
+				assert.False(t, *dst.Features.APM.SingleStepInstrumentation.Enabled)
 				return
 			}
-			assert.Equal(t, tt.want, tt.dst.Features.APM.SingleStepInstrumentation)
+			assert.Equal(t, tt.want, dst.Features.APM.SingleStepInstrumentation)
 		})
 	}
+}
+
+func TestAPMProfileSharedConfigOverlayLocalAgentServicePortConflict(t *testing.T) {
+	base := testProfileOverlayBaseSpec(false)
+	dst := base.DeepCopy()
+
+	require.NoError(t, applyAPMProfileSharedConfigOverlay(dst, base, testProfileOverlayProfileAPMSpec(8126)))
+	assert.Equal(t, int32(8126), ptr.Deref(dst.Features.APM.HostPortConfig.Port, 0))
+
+	require.NoError(t, applyAPMProfileSharedConfigOverlay(dst, base, testProfileOverlayProfileAPMSpec(8126)))
+
+	err := applyAPMProfileSharedConfigOverlay(dst, base, testProfileOverlayProfileAPMSpec(9126))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `local Agent Service port "traceport" conflicts`)
 }
 
 // Profile SSI overlays should render the same Cluster Agent config as direct
@@ -577,6 +592,16 @@ func testProfileOverlayProfileSpec(ssi *v2alpha1.SingleStepInstrumentation) *v2a
 				SingleStepInstrumentation: ssi,
 			},
 		},
+	}
+	return spec
+}
+
+func testProfileOverlayProfileAPMSpec(port int32) *v2alpha1.DatadogAgentSpec {
+	spec := testProfileOverlayProfileSpec(nil)
+	spec.Features.APM.Enabled = ptr.To(true)
+	spec.Features.APM.HostPortConfig = &v2alpha1.HostPortConfig{
+		Enabled: ptr.To(true),
+		Port:    ptr.To(port),
 	}
 	return spec
 }
