@@ -18,6 +18,8 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/providercaps"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 const alternativeRuntimeClass = "nvidia-like"
@@ -409,4 +411,81 @@ func Test_GPUMonitoringFeature_Configure(t *testing.T) {
 	}
 
 	tests.Run(t, buildFeature)
+}
+
+// Test_GPUFeature_NodeAgentProviderCapabilities verifies that the GKE COS
+// NVIDIA driver lib64 host mount is injected only on the gke-cos provider, and
+// only into system-probe when privileged mode is enabled.
+func Test_GPUFeature_NodeAgentProviderCapabilities(t *testing.T) {
+	wantVolume := corev1.Volume{
+		Name: gkeCOSNVIDIADriverLib64VolumeName,
+		VolumeSource: corev1.VolumeSource{
+			HostPath: &corev1.HostPathVolumeSource{
+				Path: gkeCOSNVIDIADriverLib64HostPath,
+				Type: ptr.To(corev1.HostPathDirectoryOrCreate),
+			},
+		},
+	}
+	wantMount := corev1.VolumeMount{
+		Name:      gkeCOSNVIDIADriverLib64VolumeName,
+		MountPath: gkeCOSNVIDIADriverLib64MountPath,
+		ReadOnly:  true,
+	}
+
+	newPodTemplate := func() *corev1.PodTemplateSpec {
+		return &corev1.PodTemplateSpec{
+			Spec: corev1.PodSpec{
+				Containers: []corev1.Container{
+					{Name: string(apicommon.CoreAgentContainerName)},
+					{Name: string(apicommon.SystemProbeContainerName)},
+				},
+			},
+		}
+	}
+
+	getContainer := func(tmpl *corev1.PodTemplateSpec, name apicommon.AgentContainerName) corev1.Container {
+		for _, c := range tmpl.Spec.Containers {
+			if c.Name == string(name) {
+				return c
+			}
+		}
+		t.Fatalf("container %q not found", name)
+		return corev1.Container{}
+	}
+
+	t.Run("gke-cos privileged mounts into core agent and system-probe", func(t *testing.T) {
+		f := &gpuFeature{isPrivilegedModeEnabled: true}
+		tmpl := newPodTemplate()
+		mgr := feature.NewPodTemplateManagers(tmpl)
+
+		providercaps.ApplyProviderCapabilities(mgr, kubernetes.GKECosProvider, f.NodeAgentProviderCapabilities())
+
+		assert.Contains(t, tmpl.Spec.Volumes, wantVolume)
+		assert.Contains(t, getContainer(tmpl, apicommon.CoreAgentContainerName).VolumeMounts, wantMount)
+		assert.Contains(t, getContainer(tmpl, apicommon.SystemProbeContainerName).VolumeMounts, wantMount)
+	})
+
+	t.Run("gke-cos non-privileged mounts into core agent only", func(t *testing.T) {
+		f := &gpuFeature{isPrivilegedModeEnabled: false}
+		tmpl := newPodTemplate()
+		mgr := feature.NewPodTemplateManagers(tmpl)
+
+		providercaps.ApplyProviderCapabilities(mgr, kubernetes.GKECosProvider, f.NodeAgentProviderCapabilities())
+
+		assert.Contains(t, tmpl.Spec.Volumes, wantVolume)
+		assert.Contains(t, getContainer(tmpl, apicommon.CoreAgentContainerName).VolumeMounts, wantMount)
+		assert.NotContains(t, getContainer(tmpl, apicommon.SystemProbeContainerName).VolumeMounts, wantMount)
+	})
+
+	t.Run("non-gke-cos provider adds nothing", func(t *testing.T) {
+		f := &gpuFeature{isPrivilegedModeEnabled: true}
+		tmpl := newPodTemplate()
+		mgr := feature.NewPodTemplateManagers(tmpl)
+
+		providercaps.ApplyProviderCapabilities(mgr, kubernetes.DefaultProvider, f.NodeAgentProviderCapabilities())
+
+		assert.Empty(t, tmpl.Spec.Volumes)
+		assert.Empty(t, getContainer(tmpl, apicommon.CoreAgentContainerName).VolumeMounts)
+		assert.Empty(t, getContainer(tmpl, apicommon.SystemProbeContainerName).VolumeMounts)
+	})
 }

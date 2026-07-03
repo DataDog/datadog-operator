@@ -15,6 +15,8 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/providercaps"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 func init() {
@@ -40,6 +42,33 @@ type gpuFeature struct {
 // ID returns the ID of the Feature
 func (f *gpuFeature) ID() feature.IDType {
 	return feature.GPUIDType
+}
+
+// NodeAgentProviderCapabilities returns provider-conditional pod-template
+// mutations for the node agent. On GKE COS, the NVIDIA driver libraries are not
+// available at the standard path used by the nvidia-container-runtime; mount
+// them from the host location (/home/kubernetes/bin/nvidia/lib64) so the agent
+// (and system-probe, when privileged) can load them.
+func (f *gpuFeature) NodeAgentProviderCapabilities() providercaps.ProviderCapabilityMap {
+	containers := []apicommon.AgentContainerName{apicommon.CoreAgentContainerName}
+	if f.isPrivilegedModeEnabled {
+		containers = append(containers, apicommon.SystemProbeContainerName)
+	}
+
+	vol, volMount := volume.GetVolumes(gkeCOSNVIDIADriverLib64VolumeName, gkeCOSNVIDIADriverLib64HostPath, gkeCOSNVIDIADriverLib64MountPath, true)
+	vol.VolumeSource.HostPath.Type = ptr.To(corev1.HostPathDirectoryOrCreate)
+
+	return providercaps.ProviderCapabilityMap{
+		kubernetes.GKECosProvider: {
+			Volumes: []providercaps.VolumeAndMount{
+				{
+					Volume:     vol,
+					Mount:      volMount,
+					Containers: containers,
+				},
+			},
+		},
+	}
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
