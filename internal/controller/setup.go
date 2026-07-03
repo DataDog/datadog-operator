@@ -50,6 +50,8 @@ type SetupOptions struct {
 	OtelAgentEnabled                  bool
 	DatadogDashboardEnabled           bool
 	DatadogGenericResourceEnabled     bool
+	DatadogGenericResourceMaxWorkers  int
+	DatadogGenericResourceRequeue     time.Duration
 	CreateControllerRevisions         bool
 	DatadogCSIDriverEnabled           bool
 	UntaintControllerEnabled          bool
@@ -226,6 +228,10 @@ func startDatadogGenericResource(logger logr.Logger, mgr manager.Manager, pInfo 
 		Log:          ctrl.Log.WithName("controllers").WithName(genericResourceControllerName),
 		Scheme:       mgr.GetScheme(),
 		Recorder:     mgr.GetEventRecorderFor(genericResourceControllerName),
+		Options: DatadogGenericResourceReconcilerOptions{
+			MaxConcurrentReconciles: options.DatadogGenericResourceMaxWorkers,
+			RequeuePeriod:           options.DatadogGenericResourceRequeue,
+		},
 	}
 
 	return genericResourceReconciler.SetupWithManager(mgr)

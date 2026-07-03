@@ -152,8 +152,9 @@ func (r *Reconciler) applyAndCleanupDependencies(ctx context.Context, depsStore 
 
 	// Cleanup unused dependencies, excluding resources managed by the DDA controller.
 	// The DDA controller manages certain dependencies (like credentials, DCA token,
-	// DCA service) and labels them with ManagedByDDAControllerLabelKey. We exclude
-	// these from cleanup to prevent the DDAI controller from deleting them.
+	// DCA service, and local Agent Service) and labels them with
+	// ManagedByDDAControllerLabelKey. We exclude these from cleanup to prevent the
+	// DDAI controller from deleting them.
 	if errs = depsStore.Cleanup(ctx, r.client, true); len(errs) > 0 {
 		logger.V(2).Info("Dependencies cleanup error", "errs", errs)
 		return errors.NewAggregate(errs)
