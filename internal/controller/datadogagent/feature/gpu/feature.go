@@ -229,6 +229,11 @@ func (f *gpuFeature) configureCgroupPermissions(managers feature.PodTemplateMana
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *gpuFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
+	// GPU monitoring watches host processes, so it needs the host PID namespace.
+	// It is also required when patchCgroupPermissions is enabled, as the cgroup
+	// permissions patch resolves the host pid 1 cgroup.
+	managers.PodTemplateSpec().Spec.HostPID = true
+
 	// env var to enable the GPU core check
 	enableCoreCheckEnvVar := &corev1.EnvVar{
 		Name:  DDEnableGPUMonitoringCheckEnvVar,
