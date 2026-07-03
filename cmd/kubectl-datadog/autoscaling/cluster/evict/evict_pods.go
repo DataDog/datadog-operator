@@ -28,17 +28,6 @@ type nodeDrainOptions struct {
 	PollInterval    time.Duration // interval between empty-checks; default 2s
 }
 
-// TODO(CASCL-1386): remove this block once the EKS managed node group eviction
-// (next PR in the stack) calls these primitives. They are introduced here as
-// shared building blocks; golangci-lint's `unused` runs with `tests = false`,
-// so the test coverage in this package does not count as use. Referencing the
-// two entry points keeps `unused` quiet until the first production caller lands
-// (drainNode/cordonNodes transitively reach every other helper below).
-var (
-	_ = drainNode
-	_ = cordonNodes
-)
-
 // drainNode evicts every evictable pod from the node and waits for the node to
 // become empty. Pods owned by a DaemonSet, mirror pods, terminating pods and
 // completed Job pods are skipped — the kubelet handles their cleanup when the
