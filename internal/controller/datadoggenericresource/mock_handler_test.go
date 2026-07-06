@@ -16,6 +16,7 @@ var (
 	mockGetErr             error
 	mockUpdateErr          error
 	mockDeleteErr          error
+	mockCreateErr          error
 	mockCreateCalls        int
 	mockGetCalls           int
 	mockUpdateCalls        int
@@ -30,6 +31,9 @@ type MockHandler struct{}
 
 func (h *MockHandler) createResource(context.Context, *v1alpha1.DatadogGenericResource) (CreateResult, error) {
 	mockCreateCalls++
+	if mockCreateErr != nil {
+		return CreateResult{}, mockCreateErr
+	}
 	now := metav1.Now()
 	return CreateResult{
 		ID:          mockResourceID,
@@ -67,6 +71,7 @@ func resetMockHandlerState() {
 	mockGetErr = nil
 	mockUpdateErr = nil
 	mockDeleteErr = nil
+	mockCreateErr = nil
 	mockCreateCalls = 0
 	mockGetCalls = 0
 	mockUpdateCalls = 0

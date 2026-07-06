@@ -64,6 +64,15 @@ DAP is disabled by default. To enable DAP using the [datadog-operator helm chart
 * `datadogAgentProfile.enabled=true`: this instructs the Operator deployment to start the `DatadogAgentProfile` controller.
 * `datadogCRDs.crds.datadogAgentProfiles=true`: this installs the `DatadogAgentProfile` CRD.
 
+For **OLM deployments** where container args cannot be set, enable the controller
+via environment variable in the `Subscription`:
+```yaml
+config:
+  env:
+    - name: DD_AGENT_PROFILE_CONTROLLER_ENABLED
+      value: "true"
+```
+
 > [!CAUTION]
 > Enabling DAP will increase the resource usage of the Operator. Please ensure the operator pod has enough resources allocated to it prior to enabling DAP.
 

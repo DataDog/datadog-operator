@@ -6,6 +6,7 @@ import (
 	"github.com/spf13/cobra"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 
+	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/evict"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/install"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/uninstall"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/update"
@@ -35,6 +36,7 @@ func New(streams genericclioptions.IOStreams) *cobra.Command {
 	cmd.AddCommand(install.New(streams))
 	cmd.AddCommand(uninstall.New(streams))
 	cmd.AddCommand(update.New(streams))
+	cmd.AddCommand(evict.New(streams))
 
 	o := newOptions(streams)
 	o.configFlags.AddFlags(cmd.Flags())

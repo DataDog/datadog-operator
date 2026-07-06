@@ -28,6 +28,15 @@ datadog-agent-gke-cos   2         2         2       2            2           <no
 
 Introspection is disabled by default. To enable introspection using the [datadog-operator helm chart](https://github.com/DataDog/helm-charts/tree/main/charts/datadog-operator), set `introspection.enabled=true` in your `values.yaml` file or as a flag in the command line arguments `--set introspection.enabled=true`.
 
+For **OLM deployments** where container args cannot be set, enable introspection
+via environment variable in the `Subscription`:
+```yaml
+config:
+  env:
+    - name: DD_INTROSPECTION_ENABLED
+      value: "true"
+```
+
 ## Migration from Operator Version < 1.4.0
 
 ### Operator v1.4.0 <= x < v1.6.0

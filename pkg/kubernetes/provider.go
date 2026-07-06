@@ -18,7 +18,7 @@ import (
 
 const (
 	// DDA/DDAI annotation key for provider used in reconciler to apply provider-specific configs
-	ProviderAnnotationKey = "datadoghq.com/provider"
+	ProviderAnnotationKey = "agent.datadoghq.com/cluster-provider"
 
 	// LegacyProvider Legacy Provider (empty name)
 	LegacyProvider = ""
@@ -36,6 +36,12 @@ const (
 	// nodes (matches the `{cloudProvider}-{value}` convention from
 	// generateValidProviderName). Used as a ProviderCapabilityMap key.
 	GKECosProvider = "gke-cos"
+
+	// GKEAutopilotProvider is the provider string for GKE Autopilot clusters. It is
+	// not node-label-derived; it is declared via the `datadoghq.com/provider`
+	// annotation (or mapped from the experimental autopilot opt-in annotation) and
+	// used as a NodeAgentProviderCapabilities map key.
+	GKEAutopilotProvider = "gke-autopilot"
 
 	// GKEProviderLabel is the GKE node label used to determine the node's provider
 	GKEProviderLabel = "cloud.google.com/gke-os-distribution"
@@ -63,6 +69,13 @@ const (
 	// EKS label prefixes for provider detection
 	eksLabelPrefix    = "eks.amazonaws.com/"
 	eksctlLabelPrefix = "alpha.eksctl.io/"
+
+	// aksLabelPrefix is AKS's reserved node-label prefix (nodes outside AKS
+	// cannot set it: https://learn.microsoft.com/en-us/azure/aks/use-labels#reserved-prefixes).
+	// kubernetes.azure.com/cluster in particular is applied to every node in an
+	// AKS cluster, including virtual (ACI) nodes, so any label under this
+	// prefix is a reliable cluster-level AKS signal.
+	aksLabelPrefix = "kubernetes.azure.com/"
 )
 
 // ProviderValue allowlist
@@ -99,6 +112,18 @@ func isEKSProvider(labels map[string]string) bool {
 	// Check for any eks.amazonaws.com/* or eksctl labels
 	for key := range labels {
 		if strings.HasPrefix(key, eksLabelPrefix) || strings.HasPrefix(key, eksctlLabelPrefix) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// isAKSProvider checks if a node is an AKS node by looking for labels under
+// AKS's reserved kubernetes.azure.com/ prefix.
+func isAKSProvider(labels map[string]string) bool {
+	for key := range labels {
+		if strings.HasPrefix(key, aksLabelPrefix) {
 			return true
 		}
 	}
@@ -276,7 +301,7 @@ func IsSpecificProvider(p string) bool {
 }
 
 // ClusterProviderFromNodeLabels maps a single node's labels to the cluster-level
-// provider (eks, openshift-<os>, or default). It is the node-label signal for the
+// provider (eks, aks, openshift-<os>, or default). It is the node-label signal for the
 // cluster dimension.
 //
 // Node-OS distinctions such as gke-cos belong to the node
@@ -292,6 +317,9 @@ func ClusterProviderFromNodeLabels(labels map[string]string) string {
 		}
 		if isEKSProvider(labels) {
 			return EKSCloudProvider
+		}
+		if isAKSProvider(labels) {
+			return AKSProvider
 		}
 	}
 	return DefaultProvider

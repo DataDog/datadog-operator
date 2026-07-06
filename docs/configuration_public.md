@@ -252,6 +252,9 @@ spec:
 `features.kubeStateMetricsCore.enabled`
 : Enables Kube State Metrics Core. Default: true
 
+`features.kubernetesActions.enabled`
+: Enables the Kubernetes Actions feature on the Cluster Agent. Default: false
+
 `features.liveContainerCollection.enabled`
 : Enables container collection for the Live Container View. Default: true
 

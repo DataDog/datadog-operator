@@ -146,10 +146,11 @@ func (f *otelAgentGatewayFeature) ManageDependencies(managers feature.ResourceMa
 	}
 
 	otlpGrpcPort := &corev1.ServicePort{
-		Name:       "otlpgrpcport",
-		Port:       int32(grpcPort),
-		Protocol:   corev1.ProtocolTCP,
-		TargetPort: intstr.FromInt(grpcPort),
+		Name:        "otlpgrpcport",
+		Port:        int32(grpcPort),
+		Protocol:    corev1.ProtocolTCP,
+		TargetPort:  intstr.FromInt(grpcPort),
+		AppProtocol: ptr.To(common.KubernetesAppProtocolH2C),
 	}
 	otlpHttpPort := &corev1.ServicePort{
 		Name:       "otlphttpport",

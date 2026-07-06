@@ -61,11 +61,12 @@ func (r *Reconciler) reconcileV2Agent(ctx context.Context, requiredComponents fe
 		objLogger := daemonsetLogger.WithValues("object.kind", "ExtendedDaemonSet", "object.namespace", eds.Namespace, "object.name", eds.Name)
 		podManagers = feature.NewPodTemplateManagers(&eds.Spec.Template)
 
-		// Apply provider-conditional global mutations to the pod template — pre-feature.
-		providercaps.ApplyProviderCapabilities(podManagers, provider, global.NodeAgentProviderSpec)
-
 		// Set Global setting on the default extendeddaemonset
 		global.ApplyGlobalSettingsNodeAgent(objLogger, podManagers, ddai.GetObjectMeta(), &ddai.Spec, resourcesManager, singleContainerStrategyEnabled, requiredComponents)
+
+		// Apply provider-conditional global (default-layer) mutations. Runs after
+		// global settings.
+		global.ApplyGlobalNodeAgentSpec(podManagers, provider)
 
 		// Apply features changes on the Deployment.Spec.Template.
 		// Provider capabilities are applied immediately after each feature's ManageNodeAgent
@@ -126,11 +127,12 @@ func (r *Reconciler) reconcileV2Agent(ctx context.Context, requiredComponents fe
 	objLogger := daemonsetLogger.WithValues("object.kind", "DaemonSet", "object.namespace", daemonset.Namespace, "object.name", daemonset.Name)
 	podManagers = feature.NewPodTemplateManagers(&daemonset.Spec.Template)
 
-	// Apply provider-conditional global mutations to the pod template — pre-feature.
-	providercaps.ApplyProviderCapabilities(podManagers, provider, global.NodeAgentProviderSpec)
-
 	// Set Global setting on the default daemonset
 	global.ApplyGlobalSettingsNodeAgent(objLogger, podManagers, ddai.GetObjectMeta(), &ddai.Spec, resourcesManager, singleContainerStrategyEnabled, requiredComponents)
+
+	// Apply provider-conditional global (default-layer) mutations. Runs after
+	// global settings.
+	global.ApplyGlobalNodeAgentSpec(podManagers, provider)
 
 	// Apply features changes on the Deployment.Spec.Template.
 	// Provider capabilities are applied immediately after each feature's ManageNodeAgent
@@ -144,9 +146,12 @@ func (r *Reconciler) reconcileV2Agent(ctx context.Context, requiredComponents fe
 			if errFeat := feat.ManageNodeAgent(podManagers); errFeat != nil {
 				return result, errFeat
 			}
-			if paf, ok := feat.(feature.ProviderAwareFeature); ok {
-				providercaps.ApplyProviderCapabilities(podManagers, provider, paf.NodeAgentProviderCapabilities())
-			}
+		}
+		// Apply provider capabilities after the feature's manage step regardless of
+		// container strategy, so colocated provider mutations are not silently
+		// dropped in single-container mode.
+		if paf, ok := feat.(feature.ProviderAwareFeature); ok {
+			providercaps.ApplyProviderCapabilities(podManagers, provider, paf.NodeAgentProviderCapabilities())
 		}
 	}
 
