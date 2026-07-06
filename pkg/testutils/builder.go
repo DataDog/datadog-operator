@@ -1198,6 +1198,21 @@ func (builder *DatadogAgentBuilder) WithClusterAgentDisabled(disabled bool) *Dat
 	return builder
 }
 
+func (builder *DatadogAgentBuilder) WithNodeAgentImage(image string) *DatadogAgentBuilder {
+	if builder.datadogAgent.Spec.Override == nil {
+		builder.datadogAgent.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{}
+	}
+
+	if builder.datadogAgent.Spec.Override[v2alpha1.NodeAgentComponentName] == nil {
+		builder.datadogAgent.Spec.Override[v2alpha1.NodeAgentComponentName] = &v2alpha1.DatadogAgentComponentOverride{}
+	}
+
+	builder.datadogAgent.Spec.Override[v2alpha1.NodeAgentComponentName].Image = &v2alpha1.AgentImageConfig{
+		Name: image,
+	}
+	return builder
+}
+
 func (builder *DatadogAgentBuilder) WithClusterChecksRunnerImage(image string) *DatadogAgentBuilder {
 	if builder.datadogAgent.Spec.Override == nil {
 		builder.datadogAgent.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{}

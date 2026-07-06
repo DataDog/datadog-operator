@@ -21,8 +21,8 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/utils"
 )
 
-// clusterAgentMinVersion is the minimum Cluster Agent version that supports the instrumentation CRD controller.
-const clusterAgentMinVersion = "7.81.0-0"
+// minVersion is the minimum agent version that supports the instrumentation CRD controller.
+const minVersion = "7.82.0-0"
 
 func init() {
 	err := feature.Register(feature.InstrumentationCRDIDType, buildInstrumentationCRDFeature)
@@ -60,10 +60,20 @@ func (f *instrumentationCRDFeature) Configure(dda metav1.Object, ddaSpec *v2alph
 	// If the cluster agent version is explicitly set and below the minimum, skip enabling.
 	if clusterAgent, ok := ddaSpec.Override[v2alpha1.ClusterAgentComponentName]; ok && clusterAgent.Image != nil {
 		version := common.GetAgentVersionFromImage(*clusterAgent.Image)
-		if !utils.IsAboveMinVersion(version, clusterAgentMinVersion, nil) {
+		if !utils.IsAboveMinVersion(version, minVersion, nil) {
 			return feature.RequiredComponents{}
 		}
-	} else if !utils.IsAboveMinVersion(images.ClusterAgentLatestVersion, clusterAgentMinVersion, nil) {
+	} else if !utils.IsAboveMinVersion(images.ClusterAgentLatestVersion, minVersion, nil) {
+		return feature.RequiredComponents{}
+	}
+
+	// If the node agent version is explicitly set and below the minimum, skip enabling.
+	if nodeAgent, ok := ddaSpec.Override[v2alpha1.NodeAgentComponentName]; ok && nodeAgent.Image != nil {
+		version := common.GetAgentVersionFromImage(*nodeAgent.Image)
+		if !utils.IsAboveMinVersion(version, minVersion, nil) {
+			return feature.RequiredComponents{}
+		}
+	} else if !utils.IsAboveMinVersion(images.AgentLatestVersion, minVersion, nil) {
 		return feature.RequiredComponents{}
 	}
 
@@ -77,6 +87,10 @@ func (f *instrumentationCRDFeature) Configure(dda metav1.Object, ddaSpec *v2alph
 		ClusterAgent: feature.RequiredComponent{
 			IsRequired: ptr.To(true),
 			Containers: []apicommon.AgentContainerName{apicommon.ClusterAgentContainerName},
+		},
+		Agent: feature.RequiredComponent{
+			IsRequired: ptr.To(true),
+			Containers: []apicommon.AgentContainerName{apicommon.CoreAgentContainerName},
 		},
 	}
 }
