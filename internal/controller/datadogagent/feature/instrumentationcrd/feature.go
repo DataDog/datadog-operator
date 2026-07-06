@@ -88,6 +88,10 @@ func (f *instrumentationCRDFeature) Configure(dda metav1.Object, ddaSpec *v2alph
 			IsRequired: ptr.To(true),
 			Containers: []apicommon.AgentContainerName{apicommon.ClusterAgentContainerName},
 		},
+		Agent: feature.RequiredComponent{
+			IsRequired: ptr.To(true),
+			Containers: []apicommon.AgentContainerName{apicommon.CoreAgentContainerName},
+		},
 	}
 }
 
