@@ -35,34 +35,56 @@ func Test_instrumentationCRDFeature_Configure(t *testing.T) {
 			Name: "InstrumentationCRD disabled via annotation",
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithAnnotations(map[string]string{featureutils.EnableInstrumentationCRDAnnotation: "false"}).
-				WithClusterAgentImage("cluster-agent:7.81.0").
+				WithClusterAgentImage("cluster-agent:7.82.0").
+				WithNodeAgentImage("agent:7.82.0").
 				Build(),
 			WantConfigure: false,
+			ClusterAgent:  instrumentationCRDClusterAgentFunc(false),
+			Agent:         instrumentationCRDAgentFunc(false),
 		},
 		{
 			Name: "InstrumentationCRD disabled by default",
 			DDA: testutils.NewDatadogAgentBuilder().
-				WithClusterAgentImage("cluster-agent:7.81.0").
+				WithClusterAgentImage("cluster-agent:7.82.0").
+				WithNodeAgentImage("agent:7.82.0").
 				Build(),
 			WantConfigure: false,
+			ClusterAgent:  instrumentationCRDClusterAgentFunc(false),
+			Agent:         instrumentationCRDAgentFunc(false),
 		},
 		{
-			Name: "InstrumentationCRD enabled via annotation when CA version meets minimum",
+			Name: "InstrumentationCRD enabled via annotation when both agent versions meet minimum",
 			DDA: testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 				WithAnnotations(map[string]string{featureutils.EnableInstrumentationCRDAnnotation: "true"}).
-				WithClusterAgentImage("cluster-agent:7.81.0").
+				WithClusterAgentImage("cluster-agent:7.82.0").
+				WithNodeAgentImage("agent:7.82.0").
 				Build(),
 			WantConfigure:        true,
 			WantDependenciesFunc: instrumentationCRDWantDepsFunc(),
-			ClusterAgent:         instrumentationCRDWantClusterAgentFunc(),
+			ClusterAgent:         instrumentationCRDClusterAgentFunc(true),
+			Agent:                instrumentationCRDAgentFunc(true),
 		},
 		{
-			Name: "InstrumentationCRD disabled when version below minimum",
+			Name: "InstrumentationCRD disabled when cluster agent version below minimum",
 			DDA: testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 				WithAnnotations(map[string]string{featureutils.EnableInstrumentationCRDAnnotation: "true"}).
 				WithClusterAgentImage("cluster-agent:7.79.0").
+				WithNodeAgentImage("agent:7.82.0").
 				Build(),
 			WantConfigure: false,
+			ClusterAgent:  instrumentationCRDClusterAgentFunc(false),
+			Agent:         instrumentationCRDAgentFunc(false),
+		},
+		{
+			Name: "InstrumentationCRD disabled when node agent version below minimum",
+			DDA: testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+				WithAnnotations(map[string]string{featureutils.EnableInstrumentationCRDAnnotation: "true"}).
+				WithClusterAgentImage("cluster-agent:7.82.0").
+				WithNodeAgentImage("agent:7.81.0").
+				Build(),
+			WantConfigure: false,
+			ClusterAgent:  instrumentationCRDClusterAgentFunc(false),
+			Agent:         instrumentationCRDAgentFunc(false),
 		},
 	}
 
@@ -108,25 +130,30 @@ func instrumentationCRDWantDepsFunc() func(t testing.TB, store store.StoreClient
 	}
 }
 
-func instrumentationCRDWantClusterAgentFunc() *test.ComponentTest {
+func instrumentationCRDClusterAgentFunc(wantEnvVars bool) *test.ComponentTest {
 	return test.NewDefaultComponentTest().WithWantFunc(
 		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 			mgr := mgrInterface.(*fake.PodTemplateManagers)
-
-			// validate env vars
-			clusterAgentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommon.ClusterAgentContainerName]
-
-			expectedEnvVars := []*corev1.EnvVar{
-				{
-					Name:  DDInstrumentationCRDControllerEnabled,
-					Value: "true",
-				},
-			}
-
-			assert.True(
-				t,
-				apiutils.IsEqualStruct(clusterAgentEnvs, expectedEnvVars),
-				"Cluster Agent EnvVars \ndiff = %s", cmp.Diff(clusterAgentEnvs, expectedEnvVars),
-			)
+			envVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.ClusterAgentContainerName]
+			assertContainsEnvVar(t, envVars, DDInstrumentationCRDControllerEnabled, "true", wantEnvVars)
 		})
+}
+
+func instrumentationCRDAgentFunc(wantEnvVars bool) *test.ComponentTest {
+	return test.NewDefaultComponentTest().WithWantFunc(
+		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+			mgr := mgrInterface.(*fake.PodTemplateManagers)
+			envVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
+			assertContainsEnvVar(t, envVars, DDInstrumentationCRDControllerEnabled, "true", wantEnvVars)
+		})
+}
+
+func assertContainsEnvVar(t testing.TB, envVars []*corev1.EnvVar, name, value string, want bool) {
+	t.Helper()
+	expected := &corev1.EnvVar{Name: name, Value: value}
+	if want {
+		assert.Contains(t, envVars, expected)
+	} else {
+		assert.NotContains(t, envVars, expected)
+	}
 }
