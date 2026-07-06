@@ -60,10 +60,10 @@ func (o *hostProfilerFeature) Configure(dda metav1.Object, _ *v2alpha1.DatadogAg
 	o.seccompEnabled = true
 	if str, ok := dda.GetAnnotations()[featureutils.EnableHostProfilerSeccompAnnotation]; ok {
 		value, err := strconv.ParseBool(str)
-		if err == nil {
-			o.seccompEnabled = value
-		} else {
+		if err != nil {
 			o.logger.Info("host profiler: invalid seccomp annotation value, defaulting to enabled", "value", str)
+		} else {
+			o.seccompEnabled = value
 		}
 	}
 
