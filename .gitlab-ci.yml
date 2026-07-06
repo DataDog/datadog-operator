@@ -3,7 +3,7 @@ variables:
   NIGHTLY_BUILD_CONDUCTOR_NAME: "operator-nightly-build"
   PROJECTNAME: "datadog-operator"
   PROJECTNAME_CHECK: "datadog-operator-check"
-  IMAGE_VERSION: "tmpl-v3"
+  IMAGE_VERSION: "tmpl-v4"
   BUILD_DOCKER_REGISTRY: "486234852809.dkr.ecr.us-east-1.amazonaws.com/ci"
   E2E_DOCKER_REGISTRY: "669783387624.dkr.ecr.us-east-1.amazonaws.com/operator"
   JOB_DOCKER_IMAGE: "registry.ddbuild.io/ci-containers-project:v68399443-88dc260-v1.22"
