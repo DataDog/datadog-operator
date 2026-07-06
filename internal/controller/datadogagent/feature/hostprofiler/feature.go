@@ -3,6 +3,7 @@ package hostprofiler
 import (
 	"errors"
 	"fmt"
+	"strconv"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
@@ -57,8 +58,13 @@ func (o *hostProfilerFeature) Configure(dda metav1.Object, _ *v2alpha1.DatadogAg
 
 	// Seccomp profile is enabled by default; opt out via the seccomp annotation set to "false".
 	o.seccompEnabled = true
-	if value, ok := dda.GetAnnotations()[featureutils.EnableHostProfilerSeccompAnnotation]; ok {
-		o.seccompEnabled = value != "false"
+	if str, ok := dda.GetAnnotations()[featureutils.EnableHostProfilerSeccompAnnotation]; ok {
+		value, err := strconv.ParseBool(str)
+		if err == nil {
+			o.seccompEnabled = value
+		} else {
+			o.logger.Info("host profiler: invalid seccomp annotation value, defaulting to enabled", "value", str)
+		}
 	}
 
 	return feature.RequiredComponents{

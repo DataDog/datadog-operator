@@ -58,6 +58,21 @@ func Test_hostProfilerFeature_Configure(t *testing.T) {
 	tests.Run(t, buildHostProfilerFeature)
 }
 
+func Test_hostProfilerFeature_InvalidSeccompAnnotation(t *testing.T) {
+	dda := testutils.NewDatadogAgentBuilder().
+		WithName("datadog-agent").
+		WithAnnotations(map[string]string{
+			"agent.datadoghq.com/host-profiler-enabled":         "true",
+			"agent.datadoghq.com/host-profiler-seccomp-enabled": "not-a-bool",
+		}).
+		Build()
+
+	hostProfilerFeat := buildHostProfilerFeature(nil).(*hostProfilerFeature)
+	hostProfilerFeat.Configure(dda, &dda.Spec, nil)
+
+	assert.True(t, hostProfilerFeat.seccompEnabled, "invalid seccomp annotation value should leave seccomp enabled (default)")
+}
+
 func Test_hostProfilerFeature_SeccompDisabled(t *testing.T) {
 	hostProfilerImage := "gcr.io/datadoghq/agent:7.99.0-fips"
 	dda := testutils.NewDatadogAgentBuilder().
