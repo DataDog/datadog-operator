@@ -246,6 +246,10 @@ bundle: bin/$(PLATFORM)/operator-sdk bin/$(PLATFORM)/yq $(KUSTOMIZE) manifests #
 	hack/patch-bundle.sh
 	bin/$(PLATFORM)/operator-sdk bundle validate ./bundle
 
+.PHONY: render-golden-tests-update
+render-golden-tests-update:
+	go test ./internal/controller/testutils/renderer/ -update
+
 # Require Skopeo installed
 # And to download token from https://console.redhat.com/openshift/downloads#tool-pull-secret saved to ~/.redhat/auths.json
 .PHONY: bundle-redhat

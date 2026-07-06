@@ -8,93 +8,18 @@ package experimental
 import (
 	"strings"
 
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/pkg/allowlistsynchronizer"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
-// DDKubeletUseAPIServer is the env var that toggles the Agent's use of the
-// Kubernetes API server (instead of the kubelet) to discover pods. It is
-// required on GKE Autopilot, where the kubelet endpoint is not reachable.
-const DDKubeletUseAPIServer = "DD_KUBELET_USE_API_SERVER"
-
-// DDCloudProviderMetadata restricts host alias collection to GCP metadata.
-const DDCloudProviderMetadata = "DD_CLOUD_PROVIDER_METADATA"
-
-const autopilotLogCollectionStoragePath = "/var/autopilot/addon/datadog/logs"
-
-var (
-	forbiddenAgentVolumes = map[string]struct{}{
-		common.AuthVolumeName:            {},
-		common.CriSocketVolumeName:       {},
-		common.DogstatsdSocketVolumeName: {},
-		common.APMSocketVolumeName:       {},
-	}
-
-	forbiddenInitMounts = map[string]struct{}{
-		common.AuthVolumeName:      {},
-		common.CriSocketVolumeName: {},
-	}
-
-	forbiddenCoreAgentMounts = map[string]struct{}{
-		common.AuthVolumeName:            {},
-		common.CriSocketVolumeName:       {},
-		common.DogstatsdSocketVolumeName: {},
-	}
-
-	forbiddenUnprivilegedSingleAgentMounts = map[string]struct{}{
-		common.AuthVolumeName:            {},
-		common.CriSocketVolumeName:       {},
-		common.DogstatsdSocketVolumeName: {},
-	}
-
-	forbiddenTraceAgentMounts = map[string]struct{}{
-		common.AuthVolumeName:            {},
-		common.CriSocketVolumeName:       {},
-		common.DogstatsdSocketVolumeName: {},
-		common.ProcdirVolumeName:         {},
-		common.CgroupsVolumeName:         {},
-		common.APMSocketVolumeName:       {},
-	}
-
-	forbiddenProcessAgentMounts = map[string]struct{}{
-		common.AuthVolumeName:            {},
-		common.CriSocketVolumeName:       {},
-		common.DogstatsdSocketVolumeName: {},
-	}
-
-	forbiddenSystemProbeMounts = map[string]struct{}{
-		common.AuthVolumeName:            {},
-		common.CriSocketVolumeName:       {},
-		common.DogstatsdSocketVolumeName: {},
-	}
-
-	forbiddenSecurityAgentMounts = map[string]struct{}{
-		common.AuthVolumeName: {},
-	}
-
-	forbiddenOtelAgentMounts = map[string]struct{}{
-		common.AuthVolumeName: {},
-	}
-
-	forbiddenHostProfilerMounts = map[string]struct{}{
-		common.AuthVolumeName: {},
-	}
-
-	forbiddenAgentDataPlaneMounts = map[string]struct{}{
-		common.AuthVolumeName: {},
-	}
-
-	forbiddenPrivateActionRunnerMounts = map[string]struct{}{
-		common.AuthVolumeName: {},
-	}
-)
-
+// IsAutopilotEnabled reports whether GKE Autopilot handling should apply, via
+// either the provider annotation (datadoghq.com/provider: gke-autopilot — the
+// value the DDA controller stamps onto the DDAI) or the experimental opt-in
+// annotation on the DDA.
 func IsAutopilotEnabled(obj metav1.Object) bool {
 	if obj == nil {
 		return false
@@ -104,227 +29,22 @@ func IsAutopilotEnabled(obj metav1.Object) bool {
 		return false
 	}
 
+	if ann[kubernetes.ProviderAnnotationKey] == kubernetes.GKEAutopilotProvider {
+		return true
+	}
+
 	return strings.EqualFold(ann[getExperimentalAnnotationKey(ExperimentalAutopilotSubkey)], "true")
 }
 
-func applyExperimentalAutopilotOverrides(dda metav1.Object, manager feature.PodTemplateManagers) {
+// applyExperimentalAutopilotOverrides creates the GKE Autopilot WorkloadAllowlist
+// synchronizer when Autopilot is enabled. Pod-template mutations are handled by
+// the provider-capabilities framework (see IsAutopilotEnabled doc).
+func applyExperimentalAutopilotOverrides(dda metav1.Object, _ feature.PodTemplateManagers) {
 	if IsAutopilotEnabled(dda) {
 		allowlistsynchronizer.CreateAllowlistSynchronizer(
 			getExperimentalAnnotation(dda, ExperimentalAutopilotAllowlistVersionSubkey),
 			object.NewPartOfLabelValue(dda).String(),
 		)
-
-		// On Autopilot the kubelet endpoint is not reachable, so the Agent must
-		// use the API server to discover pods.
-		manager.EnvVar().AddEnvVar(&corev1.EnvVar{
-			Name:  DDKubeletUseAPIServer,
-			Value: "true",
-		})
-		manager.EnvVar().AddEnvVar(&corev1.EnvVar{
-			Name:  DDCloudProviderMetadata,
-			Value: `["gcp"]`,
-		})
-
-		if manager.PodTemplateSpec().Labels == nil {
-			manager.PodTemplateSpec().Labels = map[string]string{}
-		}
-		// Prevent the agent DS from being mutated by the admission controller on Autopilot
-		manager.PodTemplateSpec().Labels["admission.datadoghq.com/enabled"] = "false"
-
-		// Change args of init-volume
-		for i := range manager.PodTemplateSpec().Spec.InitContainers {
-			if manager.PodTemplateSpec().Spec.InitContainers[i].Name == "init-volume" {
-				manager.PodTemplateSpec().Spec.InitContainers[i].Args = []string{"cp -r /etc/datadog-agent /opt"}
-			}
-		}
-
-		// Remove agent volumes
-		v := manager.PodTemplateSpec().Spec.Volumes[:0]
-		for _, vol := range manager.PodTemplateSpec().Spec.Volumes {
-			if _, found := forbiddenAgentVolumes[vol.Name]; !found {
-				// The GKE Autopilot WorkloadAllowlist only permits this hostPath for log tailing metadata.
-				if vol.Name == common.RunPathVolumeName && vol.HostPath != nil {
-					vol.HostPath.Path = autopilotLogCollectionStoragePath
-				}
-				v = append(v, vol)
-			}
-		}
-		manager.PodTemplateSpec().Spec.Volumes = v
-
-		// Remove auth token file path env var
-		for idx := range manager.PodTemplateSpec().Spec.InitContainers {
-			env := []corev1.EnvVar{}
-			for _, e := range manager.PodTemplateSpec().Spec.InitContainers[idx].Env {
-				if e.Name != common.DDAuthTokenFilePath {
-					env = append(env, e)
-				}
-			}
-			manager.PodTemplateSpec().Spec.InitContainers[idx].Env = env
-		}
-
-		for idx := range manager.PodTemplateSpec().Spec.Containers {
-			env := []corev1.EnvVar{}
-			for _, e := range manager.PodTemplateSpec().Spec.Containers[idx].Env {
-				if e.Name != common.DDAuthTokenFilePath {
-					env = append(env, e)
-				}
-			}
-			manager.PodTemplateSpec().Spec.Containers[idx].Env = env
-		}
-
-		// Remove init-container volume mounts
-		for idx := range manager.PodTemplateSpec().Spec.InitContainers {
-			vm := []corev1.VolumeMount{}
-			for _, m := range manager.PodTemplateSpec().Spec.InitContainers[idx].VolumeMounts {
-				if m.Name == common.SeccompSecurityVolumeName {
-					m.ReadOnly = true
-				}
-				if _, found := forbiddenInitMounts[m.Name]; !found {
-					vm = append(vm, m)
-				}
-			}
-			manager.PodTemplateSpec().Spec.InitContainers[idx].VolumeMounts = vm
-		}
-
-		// Remove core agent container volume mounts
-		for idx := range manager.PodTemplateSpec().Spec.Containers {
-			if manager.PodTemplateSpec().Spec.Containers[idx].Name == string(apicommon.CoreAgentContainerName) {
-				vm := []corev1.VolumeMount{}
-				for _, m := range manager.PodTemplateSpec().Spec.Containers[idx].VolumeMounts {
-					if _, found := forbiddenCoreAgentMounts[m.Name]; !found {
-						vm = append(vm, m)
-					}
-				}
-				manager.PodTemplateSpec().Spec.Containers[idx].VolumeMounts = vm
-			}
-		}
-
-		// Remove unprivileged single agent container volume mounts
-		for idx := range manager.PodTemplateSpec().Spec.Containers {
-			if manager.PodTemplateSpec().Spec.Containers[idx].Name == string(apicommon.UnprivilegedSingleAgentContainerName) {
-				vm := []corev1.VolumeMount{}
-				for _, m := range manager.PodTemplateSpec().Spec.Containers[idx].VolumeMounts {
-					if _, found := forbiddenUnprivilegedSingleAgentMounts[m.Name]; !found {
-						vm = append(vm, m)
-					}
-				}
-				manager.PodTemplateSpec().Spec.Containers[idx].VolumeMounts = vm
-			}
-		}
-
-		// Remove trace agent container volume mounts and change command
-		for idx := range manager.PodTemplateSpec().Spec.Containers {
-			if manager.PodTemplateSpec().Spec.Containers[idx].Name == string(apicommon.TraceAgentContainerName) {
-				vm := []corev1.VolumeMount{}
-				for _, m := range manager.PodTemplateSpec().Spec.Containers[idx].VolumeMounts {
-					if _, found := forbiddenTraceAgentMounts[m.Name]; !found {
-						vm = append(vm, m)
-					}
-				}
-				manager.PodTemplateSpec().Spec.Containers[idx].VolumeMounts = vm
-
-				manager.PodTemplateSpec().Spec.Containers[idx].Command = []string{
-					"trace-agent",
-					"-config=/etc/datadog-agent/datadog.yaml",
-				}
-			}
-		}
-
-		// Remove process agent container volume mounts and change command
-		for idx := range manager.PodTemplateSpec().Spec.Containers {
-			if manager.PodTemplateSpec().Spec.Containers[idx].Name == string(apicommon.ProcessAgentContainerName) {
-				vm := []corev1.VolumeMount{}
-				for _, m := range manager.PodTemplateSpec().Spec.Containers[idx].VolumeMounts {
-					if _, found := forbiddenProcessAgentMounts[m.Name]; !found {
-						vm = append(vm, m)
-					}
-				}
-				manager.PodTemplateSpec().Spec.Containers[idx].VolumeMounts = vm
-
-				manager.PodTemplateSpec().Spec.Containers[idx].Command = []string{
-					"process-agent",
-					"-config=/etc/datadog-agent/datadog.yaml",
-				}
-			}
-		}
-
-		// Remove system-probe container volume mounts
-		for idx := range manager.PodTemplateSpec().Spec.Containers {
-			if manager.PodTemplateSpec().Spec.Containers[idx].Name == string(apicommon.SystemProbeContainerName) {
-				vm := []corev1.VolumeMount{}
-				for _, m := range manager.PodTemplateSpec().Spec.Containers[idx].VolumeMounts {
-					if _, found := forbiddenSystemProbeMounts[m.Name]; !found {
-						vm = append(vm, m)
-					}
-				}
-				manager.PodTemplateSpec().Spec.Containers[idx].VolumeMounts = vm
-			}
-		}
-
-		// Remove security agent container volume mounts
-		for idx := range manager.PodTemplateSpec().Spec.Containers {
-			if manager.PodTemplateSpec().Spec.Containers[idx].Name == string(apicommon.SecurityAgentContainerName) {
-				vm := []corev1.VolumeMount{}
-				for _, m := range manager.PodTemplateSpec().Spec.Containers[idx].VolumeMounts {
-					if _, found := forbiddenSecurityAgentMounts[m.Name]; !found {
-						vm = append(vm, m)
-					}
-				}
-				manager.PodTemplateSpec().Spec.Containers[idx].VolumeMounts = vm
-			}
-		}
-
-		// Remove otel agent container volume mounts
-		for idx := range manager.PodTemplateSpec().Spec.Containers {
-			if manager.PodTemplateSpec().Spec.Containers[idx].Name == string(apicommon.OtelAgent) {
-				vm := []corev1.VolumeMount{}
-				for _, m := range manager.PodTemplateSpec().Spec.Containers[idx].VolumeMounts {
-					if _, found := forbiddenOtelAgentMounts[m.Name]; !found {
-						vm = append(vm, m)
-					}
-				}
-				manager.PodTemplateSpec().Spec.Containers[idx].VolumeMounts = vm
-			}
-		}
-
-		// Remove host profiler container volume mounts
-		for idx := range manager.PodTemplateSpec().Spec.Containers {
-			if manager.PodTemplateSpec().Spec.Containers[idx].Name == string(apicommon.HostProfiler) {
-				vm := []corev1.VolumeMount{}
-				for _, m := range manager.PodTemplateSpec().Spec.Containers[idx].VolumeMounts {
-					if _, found := forbiddenHostProfilerMounts[m.Name]; !found {
-						vm = append(vm, m)
-					}
-				}
-				manager.PodTemplateSpec().Spec.Containers[idx].VolumeMounts = vm
-			}
-		}
-
-		// Remove agent data plane container volume mounts
-		for idx := range manager.PodTemplateSpec().Spec.Containers {
-			if manager.PodTemplateSpec().Spec.Containers[idx].Name == string(apicommon.AgentDataPlaneContainerName) {
-				vm := []corev1.VolumeMount{}
-				for _, m := range manager.PodTemplateSpec().Spec.Containers[idx].VolumeMounts {
-					if _, found := forbiddenAgentDataPlaneMounts[m.Name]; !found {
-						vm = append(vm, m)
-					}
-				}
-				manager.PodTemplateSpec().Spec.Containers[idx].VolumeMounts = vm
-			}
-		}
-
-		// Remove private action runner container volume mounts
-		for idx := range manager.PodTemplateSpec().Spec.Containers {
-			if manager.PodTemplateSpec().Spec.Containers[idx].Name == string(apicommon.PrivateActionRunnerContainerName) {
-				vm := []corev1.VolumeMount{}
-				for _, m := range manager.PodTemplateSpec().Spec.Containers[idx].VolumeMounts {
-					if _, found := forbiddenPrivateActionRunnerMounts[m.Name]; !found {
-						vm = append(vm, m)
-					}
-				}
-				manager.PodTemplateSpec().Spec.Containers[idx].VolumeMounts = vm
-			}
-		}
 	}
 }
 

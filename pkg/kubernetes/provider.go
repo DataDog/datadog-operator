@@ -37,6 +37,12 @@ const (
 	// generateValidProviderName). Used as a ProviderCapabilityMap key.
 	GKECosProvider = "gke-cos"
 
+	// GKEAutopilotProvider is the provider string for GKE Autopilot clusters. It is
+	// not node-label-derived; it is declared via the `datadoghq.com/provider`
+	// annotation (or mapped from the experimental autopilot opt-in annotation) and
+	// used as a NodeAgentProviderCapabilities map key.
+	GKEAutopilotProvider = "gke-autopilot"
+
 	// GKEProviderLabel is the GKE node label used to determine the node's provider
 	GKEProviderLabel = "cloud.google.com/gke-os-distribution"
 

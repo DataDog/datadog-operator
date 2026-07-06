@@ -24,7 +24,9 @@ import (
 	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/merger"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/providercaps"
 	"github.com/DataDog/datadog-operator/pkg/constants"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 func init() {
@@ -205,6 +207,18 @@ func (f *dogstatsdFeature) ManageClusterAgent(managers feature.PodTemplateManage
 func (f *dogstatsdFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers) error {
 	f.manageNodeAgent(apicommon.UnprivilegedSingleAgentContainerName, managers)
 	return nil
+}
+
+// NodeAgentProviderCapabilities returns provider-conditional pod-template mutations.
+// On GKE Autopilot the dogstatsd socket volume (added by the default node-agent builder)
+// is not in the WorkloadAllowlist, so it is removed (the feature forces hostPort there).
+// Colocated here because dogstatsd owns the socket volume's provider variation.
+func (f *dogstatsdFeature) NodeAgentProviderCapabilities() providercaps.ProviderCapabilityMap {
+	return providercaps.ProviderCapabilityMap{
+		kubernetes.GKEAutopilotProvider: {
+			RemoveVolumes: []string{common.DogstatsdSocketVolumeName},
+		},
+	}
 }
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
