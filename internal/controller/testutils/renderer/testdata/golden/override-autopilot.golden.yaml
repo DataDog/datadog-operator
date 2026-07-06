@@ -1017,8 +1017,8 @@ apiVersion: datadoghq.com/v1alpha1
 kind: DatadogAgentInternal
 metadata:
   annotations:
+    agent.datadoghq.com/cluster-provider: gke-autopilot
     agent.datadoghq.com/ddaispechash: 01851726b1d9a6fb95bbbd3a451be02f
-    datadoghq.com/provider: gke-autopilot
     experimental.agent.datadoghq.com/autopilot: "true"
   finalizers:
   - finalizer.datadoghq.com/datadogagentinternal

@@ -1007,8 +1007,8 @@ apiVersion: datadoghq.com/v1alpha1
 kind: DatadogAgentInternal
 metadata:
   annotations:
+    agent.datadoghq.com/cluster-provider: aks
     agent.datadoghq.com/ddaispechash: 948422f2156abec1b0120dc8b6b8454c
-    datadoghq.com/provider: aks
   finalizers:
   - finalizer.datadoghq.com/datadogagentinternal
   labels:
