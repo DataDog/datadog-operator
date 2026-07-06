@@ -715,7 +715,7 @@ func commonEnvVars(dda metav1.Object) []corev1.EnvVar {
 
 func envVarsForCoreAgent(dda metav1.Object) []corev1.EnvVar {
 	commonEnvs := commonEnvVars(dda)
-	envs := make([]corev1.EnvVar, 0, 2+len(commonEnvs))
+	envs := make([]corev1.EnvVar, 0, 3+len(commonEnvs))
 	envs = append(envs, corev1.EnvVar{
 		Name:  common.DDHealthPort,
 		Value: strconv.Itoa(int(constants.DefaultAgentHealthPort)),
@@ -726,6 +726,13 @@ func envVarsForCoreAgent(dda metav1.Object) []corev1.EnvVar {
 		Name:  DDContainerImageEnabled,
 		Value: "true",
 	})
+
+	if images.IsJMXImage(component.AgentImageConfigForComponent(dda, v2alpha1.NodeAgentComponentName)) {
+		envs = append(envs, corev1.EnvVar{
+			Name:  common.DDJMXUseContainerSupport,
+			Value: "true",
+		})
+	}
 	return append(envs, commonEnvs...)
 }
 

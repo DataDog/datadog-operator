@@ -22,6 +22,7 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component"
 	componentdca "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusteragent"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/images"
@@ -41,7 +42,7 @@ func GetCCRRbacResourcesName(dda metav1.Object) string {
 func NewDefaultClusterChecksRunnerDeployment(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec) *appsv1.Deployment {
 	deployment := common.NewDeployment(dda, constants.DefaultClusterChecksRunnerResourceSuffix, GetClusterChecksRunnerName(dda), common.GetAgentVersion(dda), nil)
 
-	podTemplate := NewDefaultClusterChecksRunnerPodTemplateSpec(dda)
+	podTemplate := NewDefaultClusterChecksRunnerPodTemplateSpec(dda, ddaSpec)
 	maps.Copy(podTemplate.Labels, deployment.GetLabels())
 
 	maps.Copy(podTemplate.Annotations, deployment.GetAnnotations())
@@ -52,7 +53,7 @@ func NewDefaultClusterChecksRunnerDeployment(dda metav1.Object, ddaSpec *v2alpha
 }
 
 // NewDefaultClusterChecksRunnerPodTemplateSpec returns a default cluster-checks-runner for the cluster-agent deployment
-func NewDefaultClusterChecksRunnerPodTemplateSpec(dda metav1.Object) *corev1.PodTemplateSpec {
+func NewDefaultClusterChecksRunnerPodTemplateSpec(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec) *corev1.PodTemplateSpec {
 	volumes := []corev1.Volume{
 		common.GetVolumeInstallInfo(dda),
 		common.GetVolumeForConfig(),
@@ -85,7 +86,7 @@ func NewDefaultClusterChecksRunnerPodTemplateSpec(dda metav1.Object) *corev1.Pod
 			Labels:      make(map[string]string),
 			Annotations: make(map[string]string),
 		},
-		Spec: defaultPodSpec(dda, volumes, volumeMounts, defaultEnvVars(dda)),
+		Spec: defaultPodSpec(dda, volumes, volumeMounts, defaultEnvVars(dda, ddaSpec)),
 	}
 
 	return template
@@ -191,7 +192,7 @@ func defaultPodSpec(dda metav1.Object, volumes []corev1.Volume, volumeMounts []c
 	return podSpec
 }
 
-func defaultEnvVars(dda metav1.Object) []corev1.EnvVar {
+func defaultEnvVars(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec) []corev1.EnvVar {
 	envVars := []corev1.EnvVar{
 		{
 			Name:  common.DDClusterAgentKubeServiceName,
@@ -265,6 +266,13 @@ func defaultEnvVars(dda metav1.Object) []corev1.EnvVar {
 			Name:  common.DDAPMErrorTrackingStandaloneEnabled,
 			Value: "false",
 		},
+	}
+
+	if images.IsJMXImage(component.AgentImageConfigForComponentSpec(ddaSpec, v2alpha1.ClusterChecksRunnerComponentName)) {
+		envVars = append(envVars, corev1.EnvVar{
+			Name:  common.DDJMXUseContainerSupport,
+			Value: "true",
+		})
 	}
 
 	return envVars
