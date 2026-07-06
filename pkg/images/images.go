@@ -75,6 +75,7 @@ type Image struct {
 	registry string
 	name     string
 	tag      string
+	digest   string
 	isJMX    bool
 	isFIPS   bool
 	isFull   bool
@@ -114,6 +115,14 @@ func (i *Image) WithName(name string) *Image {
 		return i
 	}
 	i.name = name
+	return i
+}
+
+func (i *Image) WithDigest(digest string) *Image {
+	if digest == "" {
+		return i
+	}
+	i.digest = digest
 	return i
 }
 
@@ -206,6 +215,12 @@ func OverrideAgentImage(currentImage string, overrideImageSpec *v2alpha1.AgentIm
 			WithFull(overrideImage.isFull)
 	}
 
+	// A digest only pins the exact reference it was computed for, so any override of the
+	// image identity replaces the current digest rather than carrying it over
+	if overrideImage.name != "" || overrideImage.tag != "" || overrideImage.digest != "" {
+		image.digest = overrideImage.digest
+	}
+
 	return image.ToString()
 }
 
@@ -234,6 +249,13 @@ func (i *Image) ToString() string {
 		suffix = FullTagSuffix
 	}
 
+	if i.digest != "" {
+		if i.tag == "" && suffix == "" {
+			return fmt.Sprintf("%s/%s@%s", i.registry, i.name, i.digest)
+		}
+		return fmt.Sprintf("%s/%s:%s%s@%s", i.registry, i.name, i.tag, suffix, i.digest)
+	}
+
 	return fmt.Sprintf("%s/%s:%s%s", i.registry, i.name, i.tag, suffix)
 }
 
@@ -255,17 +277,26 @@ func parseTagSuffixes(tag string) (baseTag string, isJMX, isFIPS, isFull bool) {
 	return tag, isJMX, isFIPS, isFull
 }
 
-// FromString translates a string Image in the format registry/name:tag to an Image object
+// FromString translates a string Image in the format registry/name:tag, optionally pinned
+// by digest (registry/name:tag@sha256:digest or registry/name@sha256:digest), to an Image object
 func FromString(stringImage string) *Image {
-	splitImg := strings.Split(stringImage, "/")
+	// A digest contains ":" itself (e.g. "@sha256:abc..."), so it must be split off before
+	// the name is parsed for a tag
+	imageRef, digest, _ := strings.Cut(stringImage, "@")
+
+	splitImg := strings.Split(imageRef, "/")
 	registry := strings.Join(splitImg[:len(splitImg)-1], "/")
 
 	splitName := strings.Split(splitImg[len(splitImg)-1], ":")
 
 	name := splitName[0]
-	tag, isJMX, isFIPS, isFull := parseTagSuffixes(splitName[1])
+	var tag string
+	var isJMX, isFIPS, isFull bool
+	if len(splitName) > 1 {
+		tag, isJMX, isFIPS, isFull = parseTagSuffixes(splitName[1])
+	}
 
-	return newImage(registry, name, tag, isJMX, isFIPS, isFull)
+	return newImage(registry, name, tag, isJMX, isFIPS, isFull).WithDigest(digest)
 }
 
 // fromImageConfig creates an Image instance from the AgentImageConfig spec object
@@ -273,8 +304,9 @@ func FromString(stringImage string) *Image {
 // - name
 // - name:tag
 // - registry/name:tag
+// each optionally pinned by digest, e.g. registry/name:tag@sha256:digest or registry/name@sha256:digest
 // (Notably, we do not accept "registry/name".)
-// Note that if the name includes a tag, then we ignore imageConfig.tag and imageConfig.JMXEnabled
+// Note that if the name includes a tag or a digest, then we ignore imageConfig.tag and imageConfig.JMXEnabled
 func fromImageConfig(imageConfig *v2alpha1.AgentImageConfig) *Image {
 	if strings.Contains(imageConfig.Name, ":") {
 		return FromString(imageConfig.Name)
