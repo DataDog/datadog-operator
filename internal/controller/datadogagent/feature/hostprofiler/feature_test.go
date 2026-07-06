@@ -94,8 +94,10 @@ func Test_hostProfilerFeature_SeccompDisabled(t *testing.T) {
 		}
 	}
 	assert.NotNil(t, hpContainer)
-	// Seccomp profile must NOT be set when disabled, but other hardening stays in place.
-	assert.Nil(t, hpContainer.SecurityContext.SeccompProfile, "SeccompProfile must be nil when seccomp is disabled")
+	// Seccomp profile must be Unconfined when disabled, but other hardening stays in place.
+	assert.NotNil(t, hpContainer.SecurityContext.SeccompProfile, "SeccompProfile must be set when seccomp is disabled")
+	assert.Equal(t, corev1.SeccompProfileTypeUnconfined, hpContainer.SecurityContext.SeccompProfile.Type, "SeccompProfile must be Unconfined when seccomp is disabled")
+	assert.Nil(t, hpContainer.SecurityContext.SeccompProfile.LocalhostProfile, "Unconfined profile must not reference a localhost profile")
 	assert.NotNil(t, hpContainer.SecurityContext.AllowPrivilegeEscalation)
 	assert.False(t, *hpContainer.SecurityContext.AllowPrivilegeEscalation)
 	assert.NotNil(t, hpContainer.SecurityContext.Capabilities)

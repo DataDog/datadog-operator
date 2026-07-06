@@ -123,8 +123,8 @@ func (o *hostProfilerFeature) ManageNodeAgent(managers feature.PodTemplateManage
 	}
 
 	// Seccomp profile and its setup init container are gated on the seccomp annotation (default enabled).
-	// When disabled, the container runs without a localhost seccomp profile and the init container that
-	// installs it on the node is omitted.
+	// When disabled, the container runs Unconfined and the init container that installs the profile on
+	// the node is omitted.
 	if o.seccompEnabled {
 		sc.SeccompProfile = &corev1.SeccompProfile{
 			Type:             corev1.SeccompProfileTypeLocalhost,
@@ -139,6 +139,10 @@ func (o *hostProfilerFeature) ManageNodeAgent(managers feature.PodTemplateManage
 		// Appended after the base init containers (init-volume, init-config) added by default.go.
 		initContainer := buildSeccompSetupInitContainer(hostProfilerImage)
 		managers.PodTemplateSpec().Spec.InitContainers = append(managers.PodTemplateSpec().Spec.InitContainers, initContainer)
+	} else {
+		sc.SeccompProfile = &corev1.SeccompProfile{
+			Type: corev1.SeccompProfileTypeUnconfined,
+		}
 	}
 
 	// AppArmor: unconfined so the default containerd profile doesn't block ptrace cross-profile,
