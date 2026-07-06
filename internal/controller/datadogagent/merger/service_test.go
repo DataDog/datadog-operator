@@ -6,17 +6,18 @@
 package merger
 
 import (
+	"errors"
 	"testing"
-
-	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
-	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
+
+	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 func TestServiceManager_AddService(t *testing.T) {
@@ -44,6 +45,14 @@ func TestServiceManager_AddService(t *testing.T) {
 			TargetPort: intstr.FromInt(portNumber2),
 			Port:       int32(portNumber2),
 			Name:       name2,
+		},
+	}
+	conflictingPorts := []corev1.ServicePort{
+		{
+			Protocol:   corev1.ProtocolTCP,
+			TargetPort: intstr.FromInt(portNumber2),
+			Port:       int32(portNumber2),
+			Name:       name1,
 		},
 	}
 	existingService := corev1.Service{
@@ -77,11 +86,12 @@ func TestServiceManager_AddService(t *testing.T) {
 		itp       *corev1.ServiceInternalTrafficPolicy
 	}
 	tests := []struct {
-		name         string
-		store        *store.Store
-		args         args
-		wantErr      bool
-		validateFunc func(*testing.T, *store.Store)
+		name             string
+		store            *store.Store
+		args             args
+		wantErr          bool
+		wantPortConflict bool
+		validateFunc     func(*testing.T, *store.Store)
 	}{
 		{
 			name:  "empty store",
@@ -102,7 +112,7 @@ func TestServiceManager_AddService(t *testing.T) {
 		},
 		{
 			name:  "another Service already exists",
-			store: store.NewStore(owner, storeOptions).AddOrUpdateStore(kubernetes.ServicesKind, &existingService),
+			store: store.NewStore(owner, storeOptions).AddOrUpdateStore(kubernetes.ServicesKind, existingService.DeepCopy()),
 			args: args{
 				namespace: ns,
 				name:      name1,
@@ -118,8 +128,8 @@ func TestServiceManager_AddService(t *testing.T) {
 			},
 		},
 		{
-			name:  "update existing NetworkPolicy",
-			store: store.NewStore(owner, storeOptions).AddOrUpdateStore(kubernetes.ServicesKind, &existingService),
+			name:  "update existing Service",
+			store: store.NewStore(owner, storeOptions).AddOrUpdateStore(kubernetes.ServicesKind, existingService.DeepCopy()),
 			args: args{
 				namespace: ns,
 				name:      name2,
@@ -139,14 +149,55 @@ func TestServiceManager_AddService(t *testing.T) {
 				}
 			},
 		},
+		{
+			name:  "dedupe identical named port",
+			store: store.NewStore(owner, storeOptions).AddOrUpdateStore(kubernetes.ServicesKind, existingService.DeepCopy()),
+			args: args{
+				namespace: ns,
+				name:      name2,
+				selector:  selector,
+				ports:     ports1,
+				itp:       &serviceInternalTrafficPolicy,
+			},
+			wantErr: false,
+			validateFunc: func(t *testing.T, store *store.Store) {
+				obj, found := store.Get(kubernetes.ServicesKind, ns, name2)
+				if !found {
+					t.Errorf("missing Service %s/%s", ns, name2)
+				}
+				service, ok := obj.(*corev1.Service)
+				if !ok || len(service.Spec.Ports) != 1 {
+					t.Errorf("unexpected Ports in Service %s/%s", ns, name2)
+				}
+			},
+		},
+		{
+			name:  "reject conflicting named port",
+			store: store.NewStore(owner, storeOptions).AddOrUpdateStore(kubernetes.ServicesKind, existingService.DeepCopy()),
+			args: args{
+				namespace: ns,
+				name:      name2,
+				selector:  selector,
+				ports:     conflictingPorts,
+				itp:       &serviceInternalTrafficPolicy,
+			},
+			wantErr:          true,
+			wantPortConflict: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			m := &serviceManagerImpl{
 				store: tt.store,
 			}
-			if err := m.AddService(tt.args.name, tt.args.namespace, tt.args.selector, tt.args.ports, tt.args.itp); (err != nil) != tt.wantErr {
+			err := m.AddService(tt.args.name, tt.args.namespace, tt.args.selector, tt.args.ports, tt.args.itp)
+			if (err != nil) != tt.wantErr {
 				t.Errorf("ServiceManager.AddService() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if tt.wantPortConflict {
+				if !errors.Is(err, ErrServicePortConflict) {
+					t.Errorf("ServiceManager.AddService() error = %v, want ErrServicePortConflict", err)
+				}
 			}
 			if tt.validateFunc != nil {
 				tt.validateFunc(t, tt.store)

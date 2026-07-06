@@ -689,6 +689,7 @@ func TestClusterProviderFromNodeLabels(t *testing.T) {
 		want   string
 	}{
 		{name: "eks", labels: map[string]string{EKSProviderLabel: "ami-x"}, want: EKSCloudProvider},
+		{name: "aks", labels: map[string]string{"kubernetes.azure.com/cluster": "MC_rg_aks_westus2"}, want: AKSProvider},
 		{name: "openshift keeps os suffix", labels: map[string]string{OpenShiftProviderLabel: "rhcos"}, want: "openshift-rhcos"},
 		{
 			name:   "gke node-OS does not leak to cluster scope",

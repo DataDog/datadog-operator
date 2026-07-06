@@ -15,6 +15,8 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/providercaps"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 func init() {
@@ -40,6 +42,33 @@ type gpuFeature struct {
 // ID returns the ID of the Feature
 func (f *gpuFeature) ID() feature.IDType {
 	return feature.GPUIDType
+}
+
+// NodeAgentProviderCapabilities returns provider-conditional pod-template
+// mutations for the node agent. On GKE COS, the NVIDIA driver libraries are not
+// available at the standard path used by the nvidia-container-runtime; mount
+// them from the host location (/home/kubernetes/bin/nvidia/lib64) so the agent
+// (and system-probe, when privileged) can load them.
+func (f *gpuFeature) NodeAgentProviderCapabilities() providercaps.ProviderCapabilityMap {
+	containers := []apicommon.AgentContainerName{apicommon.CoreAgentContainerName}
+	if f.isPrivilegedModeEnabled {
+		containers = append(containers, apicommon.SystemProbeContainerName)
+	}
+
+	vol, volMount := volume.GetVolumes(gkeCOSNVIDIADriverLib64VolumeName, gkeCOSNVIDIADriverLib64HostPath, gkeCOSNVIDIADriverLib64MountPath, true)
+	vol.VolumeSource.HostPath.Type = ptr.To(corev1.HostPathDirectoryOrCreate)
+
+	return providercaps.ProviderCapabilityMap{
+		kubernetes.GKECosProvider: {
+			Volumes: []providercaps.VolumeAndMount{
+				{
+					Volume:     vol,
+					Mount:      volMount,
+					Containers: containers,
+				},
+			},
+		},
+	}
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
@@ -200,6 +229,11 @@ func (f *gpuFeature) configureCgroupPermissions(managers feature.PodTemplateMana
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *gpuFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
+	// GPU monitoring watches host processes, so it needs the host PID namespace.
+	// It is also required when patchCgroupPermissions is enabled, as the cgroup
+	// permissions patch resolves the host pid 1 cgroup.
+	managers.PodTemplateSpec().Spec.HostPID = true
+
 	// env var to enable the GPU core check
 	enableCoreCheckEnvVar := &corev1.EnvVar{
 		Name:  DDEnableGPUMonitoringCheckEnvVar,
