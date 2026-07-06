@@ -1078,6 +1078,29 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 				}
 			},
 		},
+		{
+			name: "CCR with JMX image override adds DD_JMX_USE_CONTAINER_SUPPORT env var",
+			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
+				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+					WithClusterChecksEnabled(true).
+					WithClusterChecksUseCLCEnabled(true).
+					WithComponentOverride(v2alpha1.ClusterChecksRunnerComponentName, v2alpha1.DatadogAgentComponentOverride{
+						Image: &v2alpha1.AgentImageConfig{JMXEnabled: true},
+					}).
+					Build()
+				_ = c.Create(context.TODO(), dda)
+				return dda
+			},
+			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
+			wantErr: false,
+			wantFunc: func(t *testing.T, c client.Client) {
+				ccrContainers := getDeploymentContainers(c, resourcesNamespace, fmt.Sprintf("%s-cluster-checks-runner", resourcesName))
+				ccrContainer, ok := ccrContainers[apicommon.ClusterChecksRunnersContainerName]
+				assert.True(t, ok, "cluster-checks-runner container not found in deployment")
+
+				assertContainerHasEnvVar(t, ccrContainer, common.DDJMXUseContainerSupport, "true")
+			},
+		},
 	}
 
 	runTestCases(t, tests, runDDAReconcilerTest)
