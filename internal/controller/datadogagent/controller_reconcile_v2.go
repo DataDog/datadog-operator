@@ -94,11 +94,6 @@ func (r *Reconciler) reconcileInstanceV3(ctx context.Context, logger logr.Logger
 		}
 	}
 
-	// Manage dependencies
-	if err := r.manageDDADependenciesWithDDAI(ctx, logger, instance, newDDAStatus); err != nil {
-		return r.updateStatusIfNeededV2(logger, instance, ddaStatusCopy, result, err, now)
-	}
-
 	// Generate default DDAI object from DDA
 	ddai, err := r.generateDDAIFromDDA(instance, provider)
 	if err != nil {
@@ -129,6 +124,12 @@ func (r *Reconciler) reconcileInstanceV3(ctx context.Context, logger logr.Logger
 			return r.updateStatusIfNeededV2(logger, instance, ddaStatusCopy, result, e, now)
 		}
 		ddais = profileDDAIs
+	}
+
+	// Manage dependencies after DDAIs are computed to include profile changes
+	err = r.manageDDADependenciesWithDDAI(ctx, logger, instance, newDDAStatus, ddais)
+	if err != nil {
+		return r.updateStatusIfNeededV2(logger, instance, ddaStatusCopy, result, err, now)
 	}
 
 	// Create or update the DDAI object in k8s
