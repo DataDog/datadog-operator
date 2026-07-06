@@ -38,7 +38,7 @@ func getK8sRemediationPolicyRules() []rbacv1.PolicyRule {
 		// Read to some workload types
 		{
 			APIGroups: []string{rbac.AppsAPIGroup},
-			Resources: []string{rbac.DeploymentsResource, rbac.DaemonsetsResource, rbac.StatefulsetsResource, rbac.ReplicasetsResource},
+			Resources: []string{rbac.DeploymentsResource, rbac.DaemonsetsResource, rbac.ReplicasetsResource, rbac.StatefulsetsResource},
 			Verbs:     []string{rbac.GetVerb, rbac.ListVerb, rbac.WatchVerb},
 		},
 		{
@@ -52,11 +52,17 @@ func getK8sRemediationPolicyRules() []rbacv1.PolicyRule {
 			Resources: []string{rbac.DeploymentsResource},
 			Verbs:     []string{rbac.PatchVerb},
 		},
-		// Patch pods
+		// StatefulSet write
+		{
+			APIGroups: []string{rbac.AppsAPIGroup},
+			Resources: []string{rbac.StatefulsetsResource},
+			Verbs:     []string{rbac.PatchVerb},
+		},
+		// Patch and delete pods
 		{
 			APIGroups: []string{rbac.CoreAPIGroup},
 			Resources: []string{rbac.PodsResource},
-			Verbs:     []string{rbac.PatchVerb},
+			Verbs:     []string{rbac.PatchVerb, rbac.DeleteVerb},
 		},
 		// Full write access to configmaps
 		{
