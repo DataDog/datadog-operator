@@ -65,7 +65,10 @@ func GetEKSControlPlaneMetricsPolicyRule() rbacv1.PolicyRule {
 }
 
 func AgentImageConfigForComponent(dda metav1.Object, componentName v2alpha1.ComponentName) *v2alpha1.AgentImageConfig {
-	spec := agentSpec(dda)
+	return AgentImageConfigForComponentSpec(agentSpec(dda), componentName)
+}
+
+func AgentImageConfigForComponentSpec(spec *v2alpha1.DatadogAgentSpec, componentName v2alpha1.ComponentName) *v2alpha1.AgentImageConfig {
 	if spec == nil {
 		return nil
 	}

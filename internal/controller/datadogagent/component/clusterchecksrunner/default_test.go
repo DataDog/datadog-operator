@@ -14,7 +14,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
-	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 )
@@ -46,18 +45,9 @@ func Test_getPodDisruptionBudget(t *testing.T) {
 func TestDefaultEnvVarsJMXUseContainerSupport(t *testing.T) {
 	tests := []struct {
 		name string
-		dda  metav1.Object
+		dda  *v2alpha1.DatadogAgent
 		want bool
 	}{
-		{
-			name: "metadata only does not add JMX env var",
-			dda: &metav1.ObjectMeta{
-				Name:      "foo",
-				Namespace: "default",
-				Labels:    map[string]string{},
-			},
-			want: false,
-		},
 		{
 			name: "DatadogAgent without override does not add JMX env var",
 			dda: &v2alpha1.DatadogAgent{
@@ -221,25 +211,12 @@ func TestDefaultEnvVarsJMXUseContainerSupport(t *testing.T) {
 			},
 			want: false,
 		},
-		{
-			name: "DatadogAgentInternal CCR JMX image flag adds env var",
-			dda: &v1alpha1.DatadogAgentInternal{
-				ObjectMeta: metav1.ObjectMeta{Name: "foo", Namespace: "default"},
-				Spec: v2alpha1.DatadogAgentSpec{
-					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
-						v2alpha1.ClusterChecksRunnerComponentName: {
-							Image: &v2alpha1.AgentImageConfig{JMXEnabled: true},
-						},
-					},
-				},
-			},
-			want: true,
-		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assertJMXUseContainerSupportEnv(t, defaultEnvVars(tt.dda), tt.want)
+			deployment := NewDefaultClusterChecksRunnerDeployment(tt.dda.GetObjectMeta(), &tt.dda.Spec)
+			assertJMXUseContainerSupportEnv(t, deployment.Spec.Template.Spec.Containers[0].Env, tt.want)
 		})
 	}
 }
