@@ -623,7 +623,7 @@ trigger_internal_operator_image:
     - when: never
   trigger:
     project: DataDog/images
-    branch: tbavelier/update-operator-gbi-to-public-rhel-base
+    branch: master
     strategy: depend
   variables:
     IMAGE_NAME: $PROJECTNAME
@@ -647,7 +647,7 @@ trigger_internal_operator_check_image:
     - when: never
   trigger:
     project: DataDog/images
-    branch: tbavelier/update-operator-gbi-to-public-rhel-base
+    branch: master
     strategy: depend
   variables:
     IMAGE_VERSION: tmpl-v1
@@ -665,7 +665,7 @@ trigger_internal_operator_image_rc_latest:
     - when: never
   trigger:
     project: DataDog/images
-    branch: tbavelier/update-operator-gbi-to-public-rhel-base
+    branch: master
     strategy: depend
   variables:
     IMAGE_NAME: $PROJECTNAME
@@ -690,7 +690,7 @@ trigger_internal_operator_nightly_image:
     - when: never
   trigger:
     project: DataDog/images
-    branch: tbavelier/update-operator-gbi-to-public-rhel-base
+    branch: master
     strategy: depend
   variables:
     IMAGE_NAME: $PROJECTNAME
@@ -708,7 +708,7 @@ trigger_internal_operator_check_nightly_image:
     - when: never
   trigger:
     project: DataDog/images
-    branch: tbavelier/update-operator-gbi-to-public-rhel-base
+    branch: master
     strategy: depend
   variables:
     IMAGE_VERSION: tmpl-v1
@@ -727,7 +727,7 @@ trigger_custom_operator_image_staging:
     - when: never
   trigger:
     project: DataDog/images
-    branch: tbavelier/update-operator-gbi-to-public-rhel-base
+    branch: master
     strategy: depend
   variables:
     IMAGE_NAME: $PROJECTNAME
@@ -745,7 +745,7 @@ trigger_custom_operator_image_fips_staging:
     - when: never
   trigger:
     project: DataDog/images
-    branch: tbavelier/update-operator-gbi-to-public-rhel-base
+    branch: master
     strategy: depend
   variables:
     IMAGE_NAME: $PROJECTNAME
@@ -763,7 +763,7 @@ trigger_custom_operator_check_image_staging:
     - when: never
   trigger:
     project: DataDog/images
-    branch: tbavelier/update-operator-gbi-to-public-rhel-base
+    branch: master
     strategy: depend
   variables:
     IMAGE_VERSION: tmpl-v1
