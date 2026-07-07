@@ -38,13 +38,6 @@ func printPlan(streams genericclioptions.IOStreams, info *clusterinfo.ClusterInf
 	}
 	if ensurePDBs {
 		fmt.Fprintln(streams.Out, "  • Remove the temporary PodDisruptionBudgets created above")
-		// Cleanup is deferred when an EKS managed node group drain times out
-		// (see run.go): EKS may still be evicting pods, so the temp PDBs are
-		// left in place and reclaimed on a later rerun. Only mention this when
-		// the plan actually targets an EKS managed node group.
-		if _, hasEKS := grouped[clusterinfo.NodeManagerEKSManagedNodeGroup]; hasEKS {
-			fmt.Fprintln(streams.Out, "      ◦ (deferred to a later rerun if an EKS managed node group drain times out)")
-		}
 	}
 	fmt.Fprintln(streams.Out, color.YellowString("\n⚠ This will drain workloads and terminate the underlying instances of non-Datadog node groups."))
 	fmt.Fprintln(streams.Out, color.YellowString("  Verify the Datadog Karpenter NodePool has enough capacity headroom for the migrated pods."))

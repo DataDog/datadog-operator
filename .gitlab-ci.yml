@@ -3,7 +3,7 @@ variables:
   NIGHTLY_BUILD_CONDUCTOR_NAME: "operator-nightly-build"
   PROJECTNAME: "datadog-operator"
   PROJECTNAME_CHECK: "datadog-operator-check"
-  IMAGE_VERSION: "tmpl-v3"
+  IMAGE_VERSION: "tmpl-v4"
   BUILD_DOCKER_REGISTRY: "486234852809.dkr.ecr.us-east-1.amazonaws.com/ci"
   E2E_DOCKER_REGISTRY: "669783387624.dkr.ecr.us-east-1.amazonaws.com/operator"
   JOB_DOCKER_IMAGE: "registry.ddbuild.io/ci-containers-project:v68399443-88dc260-v1.22"
@@ -681,6 +681,33 @@ trigger_internal_operator_image_fips_rc_latest:
     TMPL_SRC_IMAGE: v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-fips
     RELEASE_TAG: rc-latest-fips
     BUILD_TAG: rc-latest-fips
+
+trigger_internal_operator_image_latest:
+  stage: release-latest
+  rules:
+    # Skip latest jobs for vX.Y.Z-rc.W tags
+    - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+-rc\.[0-9]+$/'
+      when: never
+    - if: $CI_COMMIT_TAG
+    - when: never
+  trigger:
+    project: DataDog/images
+    branch: master
+    strategy: depend
+  variables:
+    IMAGE_NAME: $PROJECTNAME
+    TMPL_SRC_IMAGE: v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
+    RELEASE_TAG: latest
+    BUILD_TAG: latest
+    RELEASE_STAGING: "true"
+    RELEASE_PROD: "true"
+
+trigger_internal_operator_image_fips_latest:
+  extends: trigger_internal_operator_image_latest
+  variables:
+    TMPL_SRC_IMAGE: v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-fips
+    RELEASE_TAG: latest-fips
+    BUILD_TAG: latest-fips
 
 trigger_internal_operator_nightly_image:
   stage: release

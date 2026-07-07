@@ -15,6 +15,7 @@ import (
 	"k8s.io/utils/ptr"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/providercaps"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
@@ -26,6 +27,18 @@ const cloudInitInstanceIDPath = "/var/lib/cloud/data/instance-id"
 // cloudInitInstanceIDVolumeName is the pod-level volume name for the cloud-init
 // instance-id file.
 const cloudInitInstanceIDVolumeName = "cloudinit-instance-id-file"
+
+// GKE Autopilot node-agent constants. These mirror the values the (now removed)
+// experimental autopilot override applied imperatively.
+const (
+	// ddKubeletUseAPIServer makes the Agent discover pods via the API server
+	// instead of the kubelet, which is not reachable on Autopilot nodes.
+	ddKubeletUseAPIServer = "DD_KUBELET_USE_API_SERVER"
+	// ddCloudProviderMetadata restricts host-alias collection to GCP metadata.
+	ddCloudProviderMetadata = "DD_CLOUD_PROVIDER_METADATA"
+	// autopilotInitVolumeName is the init container whose args must be rewritten.
+	autopilotInitVolumeName = "init-volume"
+)
 
 // NodeAgentProviderSpec is the provider-keyed capabilities map for the node
 // agent pod template. The "" baseline applies to all providers; provider-keyed
@@ -81,5 +94,46 @@ var NodeAgentProviderSpec = providercaps.ProviderCapabilityMap{
 				},
 			},
 		},
+	},
+
+	// GKE Autopilot. The WorkloadAllowlist forbids most hostPath volumes and the
+	// kubelet endpoint, so the node agent must drop several default volumes/mounts
+	// and discover pods via the API server. On Autopilot the dogstatsd and APM
+	// features disable UDS (see their Configure), so the only sockets present are
+	// the default-builder ones removed here; nothing feature-specific is added.
+	// Mutations that the declarative model can't express (pod label, init-volume
+	// args, run-path hostPath remap, seccomp read-only, trace/process commands)
+	// live in applyAutopilotGlobalExtras in provider_apply.go.
+	kubernetes.GKEAutopilotProvider: {
+		EnvVars: []providercaps.EnvVarSet{
+			{EnvVar: corev1.EnvVar{Name: ddKubeletUseAPIServer, Value: "true"}},
+			{EnvVar: corev1.EnvVar{Name: ddCloudProviderMetadata, Value: `["gcp"]`}},
+		},
+		// Volumes absent from the Autopilot WorkloadAllowlist. RemoveVolumes
+		// strips the volume and its mounts from every container/init container.
+		// The dogstatsd socket is colocated in the dogstatsd feature (it owns that
+		// volume's provider variation); see dogstatsd.NodeAgentProviderCapabilities.
+		RemoveVolumes: []string{
+			common.AuthVolumeName,
+			common.CriSocketVolumeName,
+		},
+		// proc and cgroups volumes are kept (other containers need them) but their
+		// mounts are not permitted on the trace-agent.
+		RemoveMounts: []providercaps.ContainerMountRef{
+			{VolumeName: common.ProcdirVolumeName, Containers: []apicommon.AgentContainerName{apicommon.TraceAgentContainerName}},
+			{VolumeName: common.CgroupsVolumeName, Containers: []apicommon.AgentContainerName{apicommon.TraceAgentContainerName}},
+		},
+		// The auth token file path env var is meaningless once the auth volume is gone.
+		RemoveEnvVars: []string{common.DDAuthTokenFilePath},
+	},
+}
+
+// nodeAgentProviderPodLabels holds provider-conditional pod-template labels.
+// providercaps has no label support (labels are a pod-level, not per-container,
+// concern), so they are applied separately in applyAutopilotGlobalExtras.
+var nodeAgentProviderPodLabels = map[string]map[string]string{
+	kubernetes.GKEAutopilotProvider: {
+		// Prevent the agent DaemonSet from being mutated by the admission controller.
+		"admission.datadoghq.com/enabled": "false",
 	},
 }

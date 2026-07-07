@@ -64,7 +64,9 @@ import (
 )
 
 const (
-	defaultMaximumGoroutines = 400
+	defaultMaximumGoroutines                             = 400
+	defaultDatadogGenericResourceMaxConcurrentReconciles = 1
+	defaultDatadogGenericResourceRequeuePeriod           = 60 * time.Second
 )
 
 var (
@@ -148,6 +150,8 @@ type options struct {
 	remoteUpdatesEnabled                   bool
 	datadogDashboardEnabled                bool
 	datadogGenericResourceEnabled          bool
+	datadogGenericResourceMaxWorkers       int
+	datadogGenericResourceRequeuePeriod    time.Duration
 	datadogCSIDriverEnabled                bool
 	untaintControllerEnabled               bool
 	untaintControllerWaitForCSIDriver      bool
@@ -189,6 +193,8 @@ func (opts *options) Parse() {
 	flag.BoolVar(&opts.remoteUpdatesEnabled, "remoteUpdatesEnabled", false, "Enable Remote Updates capabilities in the Operator (beta)")
 	flag.BoolVar(&opts.datadogDashboardEnabled, "datadogDashboardEnabled", false, "Enable the DatadogDashboard controller")
 	flag.BoolVar(&opts.datadogGenericResourceEnabled, "datadogGenericResourceEnabled", false, "Enable the DatadogGenericResource controller")
+	flag.IntVar(&opts.datadogGenericResourceMaxWorkers, "datadogGenericResourceMaxConcurrentReconciles", defaultDatadogGenericResourceMaxConcurrentReconciles, "Maximum number of concurrent DatadogGenericResource reconciles")
+	flag.DurationVar(&opts.datadogGenericResourceRequeuePeriod, "datadogGenericResourceRequeuePeriod", defaultDatadogGenericResourceRequeuePeriod, "DatadogGenericResource status polling requeue period, for example 5m")
 	flag.BoolVar(&opts.datadogCSIDriverEnabled, "datadogCSIDriverEnabled", false, "Enable the DatadogCSIDriver controller")
 	flag.BoolVar(&opts.untaintControllerEnabled, "untaintControllerEnabled", false, "Enable the Untaint controller")
 	flag.BoolVar(&opts.untaintControllerWaitForCSIDriver, "untaintControllerWaitForCSIDriver", false,
@@ -231,6 +237,8 @@ func (opts *options) Parse() {
 		boolEnv(&opts.remoteUpdatesEnabled, "DD_REMOTE_UPDATES_ENABLED"),
 		boolEnv(&opts.datadogDashboardEnabled, "DD_DASHBOARD_CONTROLLER_ENABLED"),
 		boolEnv(&opts.datadogGenericResourceEnabled, "DD_GENERIC_RESOURCE_CONTROLLER_ENABLED"),
+		intEnv(&opts.datadogGenericResourceMaxWorkers, "DD_GENERIC_RESOURCE_MAX_CONCURRENT_RECONCILES"),
+		durationEnv(&opts.datadogGenericResourceRequeuePeriod, "DD_GENERIC_RESOURCE_REQUEUE_PERIOD"),
 		boolEnv(&opts.datadogCSIDriverEnabled, "DD_CSI_DRIVER_CONTROLLER_ENABLED"),
 		boolEnv(&opts.untaintControllerEnabled, "DD_UNTAINT_CONTROLLER_ENABLED"),
 		boolEnv(&opts.untaintControllerWaitForCSIDriver, "DD_UNTAINT_CONTROLLER_WAIT_FOR_CSI_DRIVER"),
@@ -470,6 +478,8 @@ func run(opts *options) error {
 		DatadogAgentProfileEnabled:        opts.datadogAgentProfileEnabled,
 		DatadogDashboardEnabled:           opts.datadogDashboardEnabled,
 		DatadogGenericResourceEnabled:     opts.datadogGenericResourceEnabled,
+		DatadogGenericResourceMaxWorkers:  opts.datadogGenericResourceMaxWorkers,
+		DatadogGenericResourceRequeue:     opts.datadogGenericResourceRequeuePeriod,
 		DatadogCSIDriverEnabled:           opts.datadogCSIDriverEnabled,
 		UntaintControllerEnabled:          opts.untaintControllerEnabled,
 		UntaintControllerWaitForCSIDriver: opts.untaintControllerWaitForCSIDriver,

@@ -414,6 +414,92 @@ func Test_FromString(t *testing.T) {
 	}
 }
 
+func Test_IsJMXImage(t *testing.T) {
+	tests := []struct {
+		name        string
+		imageConfig *v2alpha1.AgentImageConfig
+		want        bool
+	}{
+		{
+			name: "nil image config",
+			want: false,
+		},
+		{
+			name:        "JMX enabled",
+			imageConfig: &v2alpha1.AgentImageConfig{JMXEnabled: true},
+			want:        true,
+		},
+		{
+			name:        "JMX tag",
+			imageConfig: &v2alpha1.AgentImageConfig{Tag: "7.64.0-jmx"},
+			want:        true,
+		},
+		{
+			name:        "FIPS JMX tag",
+			imageConfig: &v2alpha1.AgentImageConfig{Tag: "7.64.0-fips-jmx"},
+			want:        true,
+		},
+		{
+			name:        "full tag",
+			imageConfig: &v2alpha1.AgentImageConfig{Tag: "7.64.0-full"},
+			want:        true,
+		},
+		{
+			name:        "FIPS full tag",
+			imageConfig: &v2alpha1.AgentImageConfig{Tag: "7.80.2-fips-full"},
+			want:        true,
+		},
+		{
+			name:        "JMX image string",
+			imageConfig: &v2alpha1.AgentImageConfig{Name: "gcr.io/datadoghq/agent:7.64.0-jmx"},
+			want:        true,
+		},
+		{
+			name:        "FIPS JMX image string",
+			imageConfig: &v2alpha1.AgentImageConfig{Name: "gcr.io/datadoghq/agent:7.64.0-fips-jmx"},
+			want:        true,
+		},
+		{
+			name:        "full image string",
+			imageConfig: &v2alpha1.AgentImageConfig{Name: "gcr.io/datadoghq/agent:7.80.2-full"},
+			want:        true,
+		},
+		{
+			name:        "FIPS full image string",
+			imageConfig: &v2alpha1.AgentImageConfig{Name: "gcr.io/datadoghq/agent:7.80.2-fips-full"},
+			want:        true,
+		},
+		{
+			name: "tagged image name ignores JMX enabled",
+			imageConfig: &v2alpha1.AgentImageConfig{
+				Name:       "gcr.io/datadoghq/agent:7.64.0",
+				JMXEnabled: true,
+			},
+			want: false,
+		},
+		{
+			name: "tagged image name ignores JMX tag and JMX enabled",
+			imageConfig: &v2alpha1.AgentImageConfig{
+				Name:       "gcr.io/datadoghq/agent:7.64.0",
+				Tag:        "7.64.0-jmx",
+				JMXEnabled: true,
+			},
+			want: false,
+		},
+		{
+			name:        "non JMX image config",
+			imageConfig: &v2alpha1.AgentImageConfig{Tag: "7.64.0"},
+			want:        false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, IsJMXImage(tt.imageConfig))
+		})
+	}
+}
+
 // Test OverrideAgentImage
 func Test_OverrideAgentImage(t *testing.T) {
 	tests := []struct {

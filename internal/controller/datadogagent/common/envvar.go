@@ -19,6 +19,7 @@ const (
 	DDDogstatsdEnabled                    = "DD_USE_DOGSTATSD"
 	DDHealthPort                          = "DD_HEALTH_PORT"
 	DDHostRootEnvVar                      = "HOST_ROOT"
+	DDJMXUseContainerSupport              = "DD_JMX_USE_CONTAINER_SUPPORT"
 	DDKubeletHost                         = "DD_KUBERNETES_KUBELET_HOST"
 	DDLeaderElection                      = "DD_LEADER_ELECTION"
 	DDLogsEnabled                         = "DD_LOGS_ENABLED"
