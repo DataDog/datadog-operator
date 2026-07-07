@@ -13,6 +13,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/experimental"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
@@ -20,6 +21,35 @@ import (
 // update regenerates the golden files instead of comparing against them.
 // Run: go test ./internal/controller/testutils/renderer/ -run TestRender_Golden -update
 var update = flag.Bool("update", false, "update golden files")
+
+// goldenImageTag pins the node Agent and Cluster Agent image tags used by
+// TestRender_Golden. Without this, the golden files embed whatever
+// pkg/images/images.go currently defaults to, so every default-version bump
+// would force a golden regen unrelated to the change being tested. Kept a
+// plausible current semver since some rendering paths gate behavior on it.
+const goldenImageTag = "7.80.0"
+
+// pinImageTags overrides image tags on the in-memory DDA before rendering,
+// rather than in the testdata fixtures, so the fixtures stay representative
+// of real user input. It merges into any existing per-component override
+// (e.g. testdata/override-dda.yaml already overrides nodeAgent.volumes)
+// instead of replacing it.
+func pinImageTags(dda *datadoghqv2alpha1.DatadogAgent) {
+	if dda.Spec.Override == nil {
+		dda.Spec.Override = map[datadoghqv2alpha1.ComponentName]*datadoghqv2alpha1.DatadogAgentComponentOverride{}
+	}
+	setImageTag(dda, datadoghqv2alpha1.NodeAgentComponentName)
+	setImageTag(dda, datadoghqv2alpha1.ClusterAgentComponentName)
+}
+
+func setImageTag(dda *datadoghqv2alpha1.DatadogAgent, component datadoghqv2alpha1.ComponentName) {
+	override, ok := dda.Spec.Override[component]
+	if !ok || override == nil {
+		override = &datadoghqv2alpha1.DatadogAgentComponentOverride{}
+		dda.Spec.Override[component] = override
+	}
+	override.Image = &datadoghqv2alpha1.AgentImageConfig{Tag: goldenImageTag}
+}
 
 // TestRender_Golden is the regression safety net for the GKE Autopilot refactor
 // (experimental imperative overrides → providercaps declarative framework).
@@ -107,11 +137,12 @@ func TestRender_Golden(t *testing.T) {
 			if tt.provider != "" {
 				dda.Annotations[kubernetes.ProviderAnnotationKey] = tt.provider
 			}
+			pinImageTags(dda)
 
 			objects, scheme, err := Render(Options{DDA: dda})
 			require.NoError(t, err)
 
-			out, err := Serialize(objects, scheme, "yaml")
+			out, err := Serialize(objects, scheme, "yaml", false)
 			require.NoError(t, err)
 
 			assertGolden(t, tt.golden, out)
