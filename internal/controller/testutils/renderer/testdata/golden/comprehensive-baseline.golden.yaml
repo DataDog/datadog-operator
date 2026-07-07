@@ -984,6 +984,41 @@ metadata:
     app.kubernetes.io/version: ""
     operator.datadoghq.com/managed-by-dda-controller: "true"
     operator.datadoghq.com/managed-by-store: "true"
+  name: datadog-agent-agent
+  ownerReferences:
+  - apiVersion: datadoghq.com/v2alpha1
+    blockOwnerDeletion: true
+    controller: true
+    kind: DatadogAgent
+    name: datadog-agent
+    uid: ""
+spec:
+  internalTrafficPolicy: Local
+  ports:
+  - name: traceport
+    port: 8126
+    protocol: TCP
+    targetPort: 8126
+  - name: dogstatsdport
+    port: 8125
+    protocol: UDP
+    targetPort: 8125
+  selector:
+    agent.datadoghq.com/component: agent
+    app.kubernetes.io/part-of: -datadog--agent
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/instance: datadog-agent
+    app.kubernetes.io/managed-by: datadog-operator
+    app.kubernetes.io/name: datadog-agent-deployment
+    app.kubernetes.io/part-of: -datadog--agent
+    app.kubernetes.io/version: ""
+    operator.datadoghq.com/managed-by-dda-controller: "true"
+    operator.datadoghq.com/managed-by-store: "true"
   name: datadog-agent-cluster-agent
   ownerReferences:
   - apiVersion: datadoghq.com/v2alpha1
@@ -1007,7 +1042,7 @@ apiVersion: datadoghq.com/v1alpha1
 kind: DatadogAgentInternal
 metadata:
   annotations:
-    agent.datadoghq.com/ddaispechash: 948422f2156abec1b0120dc8b6b8454c
+    agent.datadoghq.com/ddaispechash: a08ca9f2dd1d11f264479485ad5e2aba
   finalizers:
   - finalizer.datadoghq.com/datadogagentinternal
   labels:
@@ -1156,9 +1191,13 @@ spec:
     clusterAgent:
       annotations:
         checksum/dca-token-custom-config: 3f6998966e6de63b16d45512e01ccc84
+      image:
+        tag: 7.80.0
     nodeAgent:
       annotations:
         checksum/dca-token-custom-config: 3f6998966e6de63b16d45512e01ccc84
+      image:
+        tag: 7.80.0
       labels:
         agent.datadoghq.com/provider: ""
 ---
@@ -1166,7 +1205,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: 61f80f4651738fcc94baf0a097ba1fb2
+    agent.datadoghq.com/agentspechash: 04b9e2ecc15fd46b42d90d45376e6038
   labels:
     agent.datadoghq.com/component: agent
     agent.datadoghq.com/name: datadog-agent
@@ -1298,7 +1337,7 @@ spec:
           value: "true"
         - name: DD_SYSTEM_PROBE_CONFIG_ENABLE_TCP_QUEUE_LENGTH
           value: "true"
-        image: gcr.io/datadoghq/agent:7.80.2
+        image: gcr.io/datadoghq/agent:7.80.0
         livenessProbe:
           failureThreshold: 6
           httpGet:
@@ -1449,7 +1488,7 @@ spec:
           value: /var/run/datadog/dsd.socket
         - name: DD_REMOTE_CONFIGURATION_ENABLED
           value: "true"
-        image: gcr.io/datadoghq/agent:7.80.2
+        image: gcr.io/datadoghq/agent:7.80.0
         livenessProbe:
           initialDelaySeconds: 15
           periodSeconds: 15
@@ -1545,7 +1584,7 @@ spec:
           value: "true"
         - name: DD_SYSTEM_PROBE_CONFIG_ENABLE_TCP_QUEUE_LENGTH
           value: "true"
-        image: gcr.io/datadoghq/agent:7.80.2
+        image: gcr.io/datadoghq/agent:7.80.0
         name: system-probe
         resources: {}
         securityContext:
@@ -1601,7 +1640,7 @@ spec:
         command:
         - bash
         - -c
-        image: gcr.io/datadoghq/agent:7.80.2
+        image: gcr.io/datadoghq/agent:7.80.0
         name: init-volume
         resources: {}
         volumeMounts:
@@ -1640,7 +1679,7 @@ spec:
           value: "true"
         - name: DD_SYSTEM_PROBE_CONFIG_ENABLE_TCP_QUEUE_LENGTH
           value: "true"
-        image: gcr.io/datadoghq/agent:7.80.2
+        image: gcr.io/datadoghq/agent:7.80.0
         name: init-config
         resources: {}
         volumeMounts:
@@ -1666,7 +1705,7 @@ spec:
         - cp
         - /etc/config/system-probe-seccomp.json
         - /host/var/lib/kubelet/seccomp/system-probe
-        image: gcr.io/datadoghq/agent:7.80.2
+        image: gcr.io/datadoghq/agent:7.80.0
         name: seccomp-setup
         resources: {}
         volumeMounts:
@@ -1749,7 +1788,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: 62ecf434347c3887c98fabb994cb09ed
+    agent.datadoghq.com/agentspechash: 8ded1d0b8e452f396c68e4b0f93a71c1
   labels:
     agent.datadoghq.com/component: cluster-agent
     agent.datadoghq.com/name: datadog-agent
@@ -1916,7 +1955,7 @@ spec:
           value: "true"
         - name: DD_REMOTE_CONFIGURATION_ENABLED
           value: "true"
-        image: gcr.io/datadoghq/cluster-agent:7.80.2
+        image: gcr.io/datadoghq/cluster-agent:7.80.0
         livenessProbe:
           failureThreshold: 6
           httpGet:
