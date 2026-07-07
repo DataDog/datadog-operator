@@ -28,7 +28,7 @@ const (
 	// Add "-0" so that pre-release versions are considered sufficient. https://github.com/Masterminds/semver#working-with-prerelease-versions
 	DDOTFIPSMinimumVersion = "7.78.0-0"
 	// CSILatestImageVersion corresponds to the latest stable Datadog CSIDriver release
-	CSILatestImageVersion = "1.2.2"
+	CSILatestImageVersion = "1.3.0"
 	// DefaultRegistrarImageVersion corresponds to the default CSI registrar image used
 	DefaultRegistrarImageVersion = "v2.0.1"
 	// Datadog container registry
@@ -253,6 +253,17 @@ func parseTagSuffixes(tag string) (baseTag string, isJMX, isFIPS, isFull bool) {
 		tag = strings.TrimSuffix(tag, FIPSTagSuffix)
 	}
 	return tag, isJMX, isFIPS, isFull
+}
+
+// IsJMXImage reports whether the image config resolves to an Agent JMX image.
+func IsJMXImage(imageConfig *v2alpha1.AgentImageConfig) bool {
+	if imageConfig == nil {
+		return false
+	}
+
+	img := fromImageConfig(imageConfig)
+
+	return img.isJMX || img.isFull
 }
 
 // FromString translates a string Image in the format registry/name:tag to an Image object
