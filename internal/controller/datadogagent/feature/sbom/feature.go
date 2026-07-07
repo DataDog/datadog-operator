@@ -19,8 +19,6 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/providercaps"
-	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 func init() {
@@ -262,21 +260,6 @@ func (f *sbomFeature) ManageNodeAgent(managers feature.PodTemplateManagers) erro
 	}
 
 	return nil
-}
-
-// NodeAgentProviderCapabilities removes SBOM host-scan and uncompressed-layer volumes
-// that use hostPaths forbidden by the GKE Autopilot WorkloadAllowlist.
-func (f *sbomFeature) NodeAgentProviderCapabilities() providercaps.ProviderCapabilityMap {
-	return providercaps.ProviderCapabilityMap{
-		kubernetes.GKEAutopilotProvider: {
-			RemoveVolumes: []string{
-				common.HostRootVolumeName,
-				containerdDirVolumeName,
-				criDirVolumeName,
-			},
-			RemoveEnvVars: []string{common.DDHostRootEnvVar},
-		},
-	}
 }
 
 // ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunner's corev1.PodTemplateSpec

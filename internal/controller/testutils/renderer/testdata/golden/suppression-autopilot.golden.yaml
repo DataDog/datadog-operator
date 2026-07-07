@@ -1226,7 +1226,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: fe602b732f64e1fa26067fa6060a456e
+    agent.datadoghq.com/agentspechash: e4e530e6351b112cac785d08cec84ee1
     autopilot.gke.io/no-connect: "true"
   labels:
     admission.datadoghq.com/enabled: "false"
@@ -1336,6 +1336,8 @@ spec:
           value: "true"
         - name: DD_GPU_ENABLED
           value: "true"
+        - name: DD_KUBERNETES_KUBELET_PODRESOURCES_SOCKET
+          value: /var/lib/kubelet/pod-resources/kubelet.sock
         - name: NVIDIA_VISIBLE_DEVICES
           value: all
         - name: DD_IGNORE_AUTOCONF
@@ -1362,6 +1364,8 @@ spec:
           value: "true"
         - name: DD_SBOM_HOST_ANALYZERS
           value: os
+        - name: HOST_ROOT
+          value: /host/root
         - name: DD_DISCOVERY_ENABLED
           value: "true"
         - name: DD_SYSPROBE_SOCKET
@@ -1425,11 +1429,22 @@ spec:
           name: datadogrun
         - mountPath: /tmp
           name: tmpdir
+        - mountPath: /var/lib/kubelet/pod-resources
+          name: kubelet-pod-resources
         - mountPath: /var/run/nvidia-container-devices/all
           name: nvidia-devices
           readOnly: true
         - mountPath: /etc/passwd
           name: passwd
+          readOnly: true
+        - mountPath: /host/var/lib/containerd
+          name: host-containerd-dir
+          readOnly: true
+        - mountPath: /host/var/lib/containers
+          name: host-cri-dir
+          readOnly: true
+        - mountPath: /host/root
+          name: hostroot
           readOnly: true
         - mountPath: /var/run/sysprobe
           name: sysprobe-socket-dir
@@ -1723,11 +1738,23 @@ spec:
           path: /var/lib/kubelet/seccomp
         name: seccomp-root
       - hostPath:
+          path: /var/lib/kubelet/pod-resources
+        name: kubelet-pod-resources
+      - hostPath:
           path: /dev/null
         name: nvidia-devices
       - hostPath:
           path: /etc/passwd
         name: passwd
+      - hostPath:
+          path: /var/lib/containerd
+        name: host-containerd-dir
+      - hostPath:
+          path: /var/lib/containers
+        name: host-cri-dir
+      - hostPath:
+          path: /
+        name: hostroot
       - emptyDir: {}
         name: sysprobe-socket-dir
   updateStrategy: {}
