@@ -42,7 +42,18 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=${GOARCH} go build -a -ldflags "${LDFLAGS}" 
 
 FROM registry.access.redhat.com/ubi10/ubi-minimal:latest AS certs
 
-FROM registry.access.redhat.com/ubi10/ubi-micro:latest
+# secret-generic-connector (SGC) source image, pinned by digest
+ARG SGC_IMAGE=datadog/secret-generic-connector:7.81.0-rc.1@sha256:9bf1ecb5018deea4e7b6dd1522455a0cebfeea50a9aae481b91fbca00251bfb8
+FROM ${SGC_IMAGE} AS sgc
+
+# Non-FIPS runtime: embed SGC so the operator can resolve its own secrets via the connector.
+FROM registry.access.redhat.com/ubi10/ubi-micro:latest AS runtime-false
+COPY --from=sgc --chmod=550 /secret-generic-connector /opt/datadog-agent/bin/secret-generic-connector
+
+# FIPS runtime: omit SGC until a FIPS SGC image is published (no -fips tag exists yet).
+FROM registry.access.redhat.com/ubi10/ubi-micro:latest AS runtime-true
+
+FROM runtime-${FIPS_ENABLED}
 
 LABEL name="datadog/operator"
 LABEL vendor="Datadog Inc."
