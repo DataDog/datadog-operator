@@ -1690,7 +1690,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: 6a37283985d26c1e47f24f51efab2a5a
+    agent.datadoghq.com/agentspechash: 9043440171910cf2df3ebe993cf7d282
   labels:
     agent.datadoghq.com/component: cluster-agent
     agent.datadoghq.com/name: datadog-agent
@@ -1801,6 +1801,8 @@ spec:
             secretKeyRef:
               key: token
               name: datadog-agent-token
+        - name: DD_CLOUD_PROVIDER_METADATA
+          value: '["gcp"]'
         - name: DD_ADMISSION_CONTROLLER_ENABLED
           value: "true"
         - name: DD_ADMISSION_CONTROLLER_VALIDATION_ENABLED

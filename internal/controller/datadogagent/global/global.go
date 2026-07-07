@@ -45,6 +45,7 @@ func ApplyGlobalSettingsClusterAgent(logger logr.Logger, manager feature.PodTemp
 	resourcesManager feature.ResourceManagers, requiredComponents feature.RequiredComponents) {
 	applyGlobalSettings(logger, manager, ddaMeta, ddaSpec, resourcesManager, requiredComponents)
 	applyClusterAgentResources(manager, ddaSpec)
+	ApplyGlobalClusterAgentSpec(manager, ddaMeta.GetAnnotations()[kubernetes.ProviderAnnotationKey])
 }
 
 // ApplyGlobalSettingsClusterChecksRunner applies the global settings for the ClusterChecksRunner component.
@@ -52,6 +53,7 @@ func ApplyGlobalSettingsClusterChecksRunner(logger logr.Logger, manager feature.
 	resourcesManager feature.ResourceManagers, requiredComponents feature.RequiredComponents) {
 	applyGlobalSettings(logger, manager, ddaMeta, ddaSpec, resourcesManager, requiredComponents)
 	applyClusterChecksRunnerResources(manager, ddaSpec)
+	ApplyGlobalClusterChecksRunnerSpec(manager, ddaMeta.GetAnnotations()[kubernetes.ProviderAnnotationKey])
 }
 
 // ApplyGlobalSettingsNodeAgent applies the global settings for the NodeAgent component.

@@ -1893,7 +1893,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: 83c3295da36c262f773a2f796b5efd44
+    agent.datadoghq.com/agentspechash: db0adca8a42b3c8f026d678026996ccd
   labels:
     agent.datadoghq.com/component: cluster-agent
     agent.datadoghq.com/name: datadog-agent
@@ -2004,6 +2004,8 @@ spec:
             secretKeyRef:
               key: token
               name: datadog-agent-token
+        - name: DD_CLOUD_PROVIDER_METADATA
+          value: '["gcp"]'
         - name: DD_ADMISSION_CONTROLLER_ENABLED
           value: "true"
         - name: DD_ADMISSION_CONTROLLER_VALIDATION_ENABLED
@@ -2141,7 +2143,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: 165efdb691266b172a39b533849b9917
+    agent.datadoghq.com/agentspechash: 66cc1c62dd634691862edb1d0e03d23d
   labels:
     agent.datadoghq.com/component: cluster-checks-runner
     agent.datadoghq.com/name: datadog-agent
@@ -2252,6 +2254,10 @@ spec:
             secretKeyRef:
               key: token
               name: datadog-agent-token
+        - name: DD_CLOUD_PROVIDER_METADATA
+          value: '["gcp"]'
+        - name: DD_PROVIDER_KIND
+          value: gke-autopilot
         - name: DD_CLUSTER_CHECKS_ENABLED
           value: "true"
         - name: DD_EXTRA_CONFIG_PROVIDERS
