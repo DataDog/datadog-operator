@@ -1,16 +1,21 @@
 package evict
 
 import (
+	"context"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes/fake"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	ctrlfake "sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 )
 
@@ -70,5 +75,70 @@ func TestEvictKarpenterUserNodePool(t *testing.T) {
 
 		nc := &karpv1.NodeClaim{}
 		require.NoError(t, ctrlClient.Get(t.Context(), client.ObjectKey{Name: "nc-other"}, nc), "an unrelated NodeClaim must be left alone")
+	})
+
+	t.Run("NodeClaim list failure is surfaced; the node is still drained", func(t *testing.T) {
+		cs := fake.NewClientset(newNode())
+		ctrlClient := ctrlfake.NewClientBuilder().WithScheme(newKarpenterScheme(t)).
+			WithInterceptorFuncs(interceptor.Funcs{
+				List: func(context.Context, client.WithWatch, client.ObjectList, ...client.ListOption) error {
+					return errors.New("apiserver unreachable")
+				},
+			}).Build()
+
+		err := evictKarpenterUserNodePool(t.Context(), cs, ctrlClient, nodePool, []string{"n1"}, newDrainOpts(false))
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "list NodeClaims")
+
+		got, getErr := cs.CoreV1().Nodes().Get(t.Context(), "n1", metav1.GetOptions{})
+		require.NoError(t, getErr)
+		assert.True(t, got.Spec.Unschedulable, "the node must still be cordoned and drained")
+	})
+
+	t.Run("NodeClaim delete failure is surfaced", func(t *testing.T) {
+		cs := fake.NewClientset(newNode())
+		ctrlClient := ctrlfake.NewClientBuilder().WithScheme(newKarpenterScheme(t)).WithObjects(newNodeClaim()).
+			WithInterceptorFuncs(interceptor.Funcs{
+				Delete: func(context.Context, client.WithWatch, client.Object, ...client.DeleteOption) error {
+					return apierrors.NewInternalError(errors.New("boom"))
+				},
+			}).Build()
+
+		err := evictKarpenterUserNodePool(t.Context(), cs, ctrlClient, nodePool, []string{"n1"}, newDrainOpts(false))
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "delete NodeClaim")
+	})
+
+	t.Run("drain failure leaves the NodeClaim intact", func(t *testing.T) {
+		// A bare pod trips the --force gate, so the drain fails and the node's
+		// NodeClaim must NOT be deleted (its workloads are still on it).
+		bare := barePod("orphan")
+		bare.Spec.NodeName = "n1"
+		cs := fake.NewClientset(newNode(), &bare)
+		ctrlClient := ctrlfake.NewClientBuilder().WithScheme(newKarpenterScheme(t)).WithObjects(newNodeClaim()).Build()
+
+		err := evictKarpenterUserNodePool(t.Context(), cs, ctrlClient, nodePool, []string{"n1"}, newDrainOpts(false))
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "drain node n1")
+
+		nc := &karpv1.NodeClaim{}
+		require.NoError(t, ctrlClient.Get(t.Context(), client.ObjectKey{Name: "nc1"}, nc), "the NodeClaim must be left intact when the drain fails")
+	})
+
+	t.Run("missing NodeClaim CRD falls back to consolidation", func(t *testing.T) {
+		cs := fake.NewClientset(newNode())
+		ctrlClient := ctrlfake.NewClientBuilder().WithScheme(newKarpenterScheme(t)).
+			WithInterceptorFuncs(interceptor.Funcs{
+				List: func(context.Context, client.WithWatch, client.ObjectList, ...client.ListOption) error {
+					return &meta.NoKindMatchError{GroupKind: schema.GroupKind{Group: "karpenter.sh", Kind: "NodeClaim"}}
+				},
+			}).Build()
+
+		err := evictKarpenterUserNodePool(t.Context(), cs, ctrlClient, nodePool, []string{"n1"}, newDrainOpts(false))
+		require.NoError(t, err, "an absent NodeClaim CRD must not fail the eviction")
+
+		got, getErr := cs.CoreV1().Nodes().Get(t.Context(), "n1", metav1.GetOptions{})
+		require.NoError(t, getErr)
+		assert.True(t, got.Spec.Unschedulable, "the node is still cordoned and drained")
 	})
 }
