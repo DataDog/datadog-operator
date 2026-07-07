@@ -169,8 +169,14 @@ func TestNewSecretBackend_embeddedSGC(t *testing.T) {
 	// Backend type set without an explicit command -> use the embedded SGC binary.
 	secretBackendCommand = ""
 	secretBackendType = "hashicorp.vault"
-	if sb := NewSecretBackend(); sb.cmd != defaultSGCBinaryPath {
+	sb := NewSecretBackend()
+	if sb.cmd != defaultSGCBinaryPath {
 		t.Errorf("cmd = %q, want embedded SGC path %q", sb.cmd, defaultSGCBinaryPath)
+	}
+	// The timeout is sent to SGC as secret_backend_timeout, so it must not be shorter
+	// than SGC's own 30s default
+	if sb.cmdTimeout < 30*time.Second {
+		t.Errorf("cmdTimeout = %v, want >= 30s for SGC operations", sb.cmdTimeout)
 	}
 
 	// An explicit command always wins over the embedded default.

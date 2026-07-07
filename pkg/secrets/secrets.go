@@ -31,7 +31,7 @@ var (
 
 const (
 	defaultCmdOutputMaxSize = 1024 * 1024
-	defaultCmdTimeout       = 5 * time.Second
+	defaultCmdTimeout       = 30 * time.Second
 
 	// PayloadVersion represents the version of the SB API
 	PayloadVersion = "1.0"
