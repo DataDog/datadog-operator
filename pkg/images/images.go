@@ -28,7 +28,7 @@ const (
 	// Add "-0" so that pre-release versions are considered sufficient. https://github.com/Masterminds/semver#working-with-prerelease-versions
 	DDOTFIPSMinimumVersion = "7.78.0-0"
 	// CSILatestImageVersion corresponds to the latest stable Datadog CSIDriver release
-	CSILatestImageVersion = "1.2.2"
+	CSILatestImageVersion = "1.3.0"
 	// DefaultRegistrarImageVersion corresponds to the default CSI registrar image used
 	DefaultRegistrarImageVersion = "v2.0.1"
 	// Datadog container registry
