@@ -1218,6 +1218,7 @@ kind: DaemonSet
 metadata:
   annotations:
     agent.datadoghq.com/agentspechash: db910dee5931dbafe8c7b5caa50070c4
+    autopilot.gke.io/no-connect: "true"
   labels:
     admission.datadoghq.com/enabled: "false"
     agent.datadoghq.com/component: agent
