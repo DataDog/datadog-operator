@@ -64,9 +64,6 @@ func Test_computeProfileMerge(t *testing.T) {
 									Value: "value",
 								},
 							},
-							Labels: map[string]string{
-								constants.MD5AgentDeploymentProviderLabelKey: "",
-							},
 						},
 					},
 				},
@@ -81,7 +78,7 @@ func Test_computeProfileMerge(t *testing.T) {
 					Name:      "foo",
 					Namespace: "bar",
 					Annotations: map[string]string{
-						constants.MD5DDAIDeploymentAnnotationKey: "cf36f429dc3cdc72527e13ab7c602dec",
+						constants.MD5DDAIDeploymentAnnotationKey: "10394c6b4f1e5029544f602ecb5a557b",
 					},
 				},
 				Spec: v2alpha1.DatadogAgentSpec{
@@ -130,9 +127,6 @@ func Test_computeProfileMerge(t *testing.T) {
 									Value: "value",
 								},
 							},
-							Labels: map[string]string{
-								constants.MD5AgentDeploymentProviderLabelKey: "",
-							},
 						},
 					},
 				},
@@ -158,9 +152,6 @@ func Test_computeProfileMerge(t *testing.T) {
 									Name:  "EXISTING",
 									Value: "value",
 								},
-							},
-							Labels: map[string]string{
-								constants.MD5AgentDeploymentProviderLabelKey: "",
 							},
 						},
 					},
@@ -200,7 +191,7 @@ func Test_computeProfileMerge(t *testing.T) {
 					Name:      "foo-profile",
 					Namespace: "bar",
 					Annotations: map[string]string{
-						constants.MD5DDAIDeploymentAnnotationKey: "e160cdf078da13507876397e80bbe4e0",
+						constants.MD5DDAIDeploymentAnnotationKey: "a9033f6ffba89ddf862136d39a5db466",
 					},
 				},
 				Spec: v2alpha1.DatadogAgentSpec{
@@ -257,8 +248,7 @@ func Test_computeProfileMerge(t *testing.T) {
 								},
 							},
 							Labels: map[string]string{
-								constants.ProfileLabelKey:                    "foo-profile",
-								constants.MD5AgentDeploymentProviderLabelKey: "",
+								constants.ProfileLabelKey: "foo-profile",
 							},
 						},
 						v2alpha1.ClusterAgentComponentName: {
@@ -331,9 +321,6 @@ func Test_setProfileSpec(t *testing.T) {
 				Spec: v2alpha1.DatadogAgentSpec{
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 						v2alpha1.NodeAgentComponentName: {
-							Labels: map[string]string{
-								constants.MD5AgentDeploymentProviderLabelKey: "",
-							},
 							Affinity: &corev1.Affinity{
 								NodeAffinity: &corev1.NodeAffinity{
 									RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
@@ -405,9 +392,6 @@ func Test_setProfileSpec(t *testing.T) {
 									},
 								},
 							},
-							Labels: map[string]string{
-								constants.MD5AgentDeploymentProviderLabelKey: "",
-							},
 						},
 					},
 				},
@@ -420,15 +404,9 @@ func Test_setProfileSpec(t *testing.T) {
 					Name:      "foo",
 					Namespace: "bar",
 				},
-				// DDAI spec is overridden to create the profile DDAI
-				// Therefore, the provider label will not be in the final profile DDAI spec
-				// This config will be merged with a copy of the original DDAI
 				Spec: v2alpha1.DatadogAgentSpec{
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 						v2alpha1.NodeAgentComponentName: {
-							Labels: map[string]string{
-								constants.MD5AgentDeploymentProviderLabelKey: "",
-							},
 							Affinity: &corev1.Affinity{
 								NodeAffinity: &corev1.NodeAffinity{
 									RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
