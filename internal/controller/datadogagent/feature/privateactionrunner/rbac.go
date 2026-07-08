@@ -38,7 +38,7 @@ func getK8sRemediationPolicyRules() []rbacv1.PolicyRule {
 		// Read to some workload types
 		{
 			APIGroups: []string{rbac.AppsAPIGroup},
-			Resources: []string{rbac.DeploymentsResource, rbac.DaemonsetsResource, rbac.ReplicasetsResource, rbac.StatefulsetsResource},
+			Resources: []string{rbac.DeploymentsResource, rbac.DaemonsetsResource, rbac.StatefulsetsResource, rbac.ReplicasetsResource},
 			Verbs:     []string{rbac.GetVerb, rbac.ListVerb, rbac.WatchVerb},
 		},
 		{
@@ -46,13 +46,13 @@ func getK8sRemediationPolicyRules() []rbacv1.PolicyRule {
 			Resources: []string{rbac.PodsResource, rbac.EventsResource, rbac.ConfigMapsResource},
 			Verbs:     []string{rbac.GetVerb, rbac.ListVerb, rbac.WatchVerb},
 		},
-		// Write deployments (patch/restart)
+		// Deployment patch
 		{
 			APIGroups: []string{rbac.AppsAPIGroup},
 			Resources: []string{rbac.DeploymentsResource},
 			Verbs:     []string{rbac.PatchVerb},
 		},
-		// StatefulSet write
+		// StatefulSet patch
 		{
 			APIGroups: []string{rbac.AppsAPIGroup},
 			Resources: []string{rbac.StatefulsetsResource},
