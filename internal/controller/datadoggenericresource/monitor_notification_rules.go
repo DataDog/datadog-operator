@@ -133,6 +133,10 @@ func updateMonitorNotificationRule(auth context.Context, client *datadogV2.Monit
 		return datadogV2.MonitorNotificationRuleResponse{}, translateClientError(err, "error unmarshalling monitor notification rule spec")
 	}
 
+	if specData.Data.Attributes == nil {
+		return datadogV2.MonitorNotificationRuleResponse{}, errors.New("cannot update monitor notification rule: spec.jsonSpec.data.attributes is missing")
+	}
+
 	updateData := datadogV2.NewMonitorNotificationRuleUpdateRequestData(*specData.Data.Attributes, instance.Status.Id)
 	updateReq := datadogV2.NewMonitorNotificationRuleUpdateRequest(*updateData)
 
