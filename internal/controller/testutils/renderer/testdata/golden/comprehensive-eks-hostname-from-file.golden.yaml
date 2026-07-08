@@ -1043,7 +1043,7 @@ kind: DatadogAgentInternal
 metadata:
   annotations:
     agent.datadoghq.com/cluster-provider: eks-ec2-use-hostname-from-file
-    agent.datadoghq.com/ddaispechash: a08ca9f2dd1d11f264479485ad5e2aba
+    agent.datadoghq.com/ddaispechash: 5b895bd41359cb963e4277cbc8f4d2dd
   finalizers:
   - finalizer.datadoghq.com/datadogagentinternal
   labels:
@@ -1199,18 +1199,15 @@ spec:
         checksum/dca-token-custom-config: 3f6998966e6de63b16d45512e01ccc84
       image:
         tag: 7.80.0
-      labels:
-        agent.datadoghq.com/provider: ""
 ---
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: a87a772fcc13f03ab4a0110ac0cd800b
+    agent.datadoghq.com/agentspechash: 847e607fd99585cc3bd3758bbc5fbfba
   labels:
     agent.datadoghq.com/component: agent
     agent.datadoghq.com/name: datadog-agent
-    agent.datadoghq.com/provider: ""
     app.kubernetes.io/component: agent
     app.kubernetes.io/instance: datadog-agent-agent
     app.kubernetes.io/managed-by: datadog-operator
@@ -1238,7 +1235,6 @@ spec:
       labels:
         agent.datadoghq.com/component: agent
         agent.datadoghq.com/name: datadog-agent
-        agent.datadoghq.com/provider: ""
         app.kubernetes.io/component: agent
         app.kubernetes.io/instance: datadog-agent-agent
         app.kubernetes.io/managed-by: datadog-operator
