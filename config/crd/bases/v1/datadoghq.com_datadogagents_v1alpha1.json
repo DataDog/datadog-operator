@@ -11136,7 +11136,7 @@
           "type": "object"
         },
         "registry": {
-          "description": "Registry to use for all Agent images (default gcr.io/datadoghq). Use public.ecr.aws/datadog for AWS Use docker.io/datadog for DockerHub",
+          "description": "Registry to use for all Agent images (default registry.datadoghq.com). Use public.ecr.aws/datadog for AWS. Use gcr.io/datadoghq for Google Container Registry. Use docker.io/datadog for DockerHub.",
           "type": "string"
         },
         "site": {
