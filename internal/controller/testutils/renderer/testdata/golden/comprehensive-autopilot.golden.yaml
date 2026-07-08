@@ -1053,7 +1053,7 @@ kind: DatadogAgentInternal
 metadata:
   annotations:
     agent.datadoghq.com/cluster-provider: gke-autopilot
-    agent.datadoghq.com/ddaispechash: a08ca9f2dd1d11f264479485ad5e2aba
+    agent.datadoghq.com/ddaispechash: 5b895bd41359cb963e4277cbc8f4d2dd
     experimental.agent.datadoghq.com/autopilot: "true"
   finalizers:
   - finalizer.datadoghq.com/datadogagentinternal
@@ -1210,19 +1210,16 @@ spec:
         checksum/dca-token-custom-config: 3f6998966e6de63b16d45512e01ccc84
       image:
         tag: 7.80.0
-      labels:
-        agent.datadoghq.com/provider: ""
 ---
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: 9bb4ba649ebf493eb5fd3a4df8e49c15
+    agent.datadoghq.com/agentspechash: 0ee8a90fce17e3d92bd013516c6bcd9d
   labels:
     admission.datadoghq.com/enabled: "false"
     agent.datadoghq.com/component: agent
     agent.datadoghq.com/name: datadog-agent
-    agent.datadoghq.com/provider: ""
     app.kubernetes.io/component: agent
     app.kubernetes.io/instance: datadog-agent-agent
     app.kubernetes.io/managed-by: datadog-operator
@@ -1251,7 +1248,6 @@ spec:
         admission.datadoghq.com/enabled: "false"
         agent.datadoghq.com/component: agent
         agent.datadoghq.com/name: datadog-agent
-        agent.datadoghq.com/provider: ""
         app.kubernetes.io/component: agent
         app.kubernetes.io/instance: datadog-agent-agent
         app.kubernetes.io/managed-by: datadog-operator
