@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 	"maps"
+	"slices"
 	"time"
 
 	edsv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
@@ -16,6 +17,7 @@ import (
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -24,6 +26,7 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	agentcommon "github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/condition"
 	"github.com/DataDog/datadog-operator/pkg/constants"
@@ -33,9 +36,10 @@ import (
 )
 
 const (
-	updateSucceeded = "UpdateSucceeded"
-	createSucceeded = "CreateSucceeded"
-	patchSucceeded  = "PatchSucceeded"
+	updateSucceeded  = "UpdateSucceeded"
+	createSucceeded  = "CreateSucceeded"
+	patchSucceeded   = "PatchSucceeded"
+	datadogAgentKind = "DatadogAgent"
 )
 
 type updateDepStatusComponentFunc func(deployment *appsv1.Deployment, newStatus *v1alpha1.DatadogAgentInternalStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string)
@@ -287,6 +291,16 @@ func (r *Reconciler) createOrUpdateDaemonset(ctx context.Context, ddai *v1alpha1
 		updateStatusFunc(updateDaemonset.Name, updateDaemonset, newStatus, now, metav1.ConditionTrue, updateSucceeded, "Daemonset updated")
 
 	} else {
+		orphanedLegacyDS, e := r.orphanLegacyProviderDaemonSetsBeforeCreate(ctx, ddai, daemonset)
+		if e != nil {
+			now := metav1.Now()
+			updateStatusFunc(daemonset.Name, nil, newStatus, now, metav1.ConditionFalse, updateSucceeded, "Unable to orphan legacy GKE COS Daemonset")
+			return result, e
+		}
+		if orphanedLegacyDS {
+			return reconcile.Result{Requeue: true}, nil
+		}
+
 		// From here the PodTemplateSpec should be ready, we can generate the hash that will be added to this daemonset.
 		_, err = comparison.SetMD5DatadogAgentGenerationAnnotation(&daemonset.ObjectMeta, daemonset.Spec)
 		if err != nil {
@@ -307,6 +321,132 @@ func (r *Reconciler) createOrUpdateDaemonset(ctx context.Context, ddai *v1alpha1
 	}
 
 	return result, err
+}
+
+func (r *Reconciler) orphanLegacyProviderDaemonSetsBeforeCreate(ctx context.Context, ddai *v1alpha1.DatadogAgentInternal, desiredDS *appsv1.DaemonSet) (bool, error) {
+	logger := ctrl.LoggerFrom(ctx).WithValues("object.kind", "DaemonSet", "object.namespace", desiredDS.Namespace, "object.name", desiredDS.Name)
+	if isDDAILabeledWithProfile(ddai) || !daemonSetTemplateIsGKECOSMigrationSafe(desiredDS) {
+		return false, nil
+	}
+
+	legacyDaemonSets, err := r.legacyProviderDaemonSetsMatchingOrphanSelector(ctx, ddai, desiredDS)
+	if err != nil {
+		return false, err
+	}
+	if len(legacyDaemonSets) == 0 {
+		return false, nil
+	}
+
+	for _, legacyDS := range legacyDaemonSets {
+		if !daemonSetSelectorMatchesPodLabels(desiredDS.Spec.Selector, legacyDS.Spec.Template.Labels) {
+			logger.Info("Skipping legacy provider DaemonSet migration because the replacement selector does not match legacy pod labels", "legacyDaemonSet", legacyDS.Name)
+			return false, nil
+		}
+	}
+
+	legacyDaemonSetNames := daemonSetNames(legacyDaemonSets)
+	logger.Info("Orphaning legacy provider DaemonSets before creating replacement DaemonSet", "legacyDaemonSets", legacyDaemonSetNames)
+	if err = deleteObjectAndOrphanDependents(ctx, r.client, &legacyDaemonSets[0], constants.DefaultAgentResourceSuffix); err != nil {
+		return false, err
+	}
+
+	return true, nil
+}
+
+func (r *Reconciler) legacyProviderDaemonSetsMatchingOrphanSelector(ctx context.Context, ddai *v1alpha1.DatadogAgentInternal, desiredDS *appsv1.DaemonSet) ([]appsv1.DaemonSet, error) {
+	logger := ctrl.LoggerFrom(ctx).WithValues("object.kind", "DaemonSet", "object.namespace", desiredDS.Namespace, "object.name", desiredDS.Name)
+	partOf := desiredDS.Labels[kubernetes.AppKubernetesPartOfLabelKey]
+	if partOf == "" {
+		return nil, nil
+	}
+
+	daemonSetList := &appsv1.DaemonSetList{}
+	if err := r.client.List(ctx, daemonSetList,
+		client.InNamespace(desiredDS.Namespace),
+		client.MatchingLabels{
+			kubernetes.AppKubernetesPartOfLabelKey:     partOf,
+			apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
+		},
+	); err != nil {
+		return nil, err
+	}
+
+	legacyDaemonSets := make([]appsv1.DaemonSet, 0, len(daemonSetList.Items))
+	for _, ds := range daemonSetList.Items {
+		if !isLegacyProviderDaemonSetForDDA(ddai, desiredDS, &ds) {
+			logger.Info("Skipping legacy provider DaemonSet migration because the orphan selector matches non-legacy DaemonSets", "daemonSet", ds.Name)
+			return nil, nil
+		}
+		legacyDaemonSets = append(legacyDaemonSets, ds)
+	}
+
+	return legacyDaemonSets, nil
+}
+
+func isLegacyProviderDaemonSetForDDA(ddai *v1alpha1.DatadogAgentInternal, desiredDS, legacyDS *appsv1.DaemonSet) bool {
+	provider := legacyDS.Labels[constants.MD5AgentDeploymentProviderLabelKey]
+	if !isLegacyProviderDaemonSetProvider(provider) {
+		return false
+	}
+	if legacyDS.Name != kubernetes.GetAgentNameWithProvider(desiredDS.Name, provider) {
+		return false
+	}
+	if legacyDS.Name == desiredDS.Name {
+		return false
+	}
+	if legacyDS.Labels[apicommon.AgentDeploymentComponentLabelKey] != constants.DefaultAgentResourceSuffix {
+		return false
+	}
+	if legacyDS.Labels[kubernetes.AppKubernetesPartOfLabelKey] == "" ||
+		legacyDS.Labels[kubernetes.AppKubernetesPartOfLabelKey] != desiredDS.Labels[kubernetes.AppKubernetesPartOfLabelKey] {
+		return false
+	}
+
+	ddaiOwner := metav1.GetControllerOf(ddai)
+	legacyOwner := metav1.GetControllerOf(legacyDS)
+	if ddaiOwner == nil || legacyOwner == nil || ddaiOwner.UID == "" {
+		return false
+	}
+
+	return ddaiOwner.Kind == datadogAgentKind &&
+		legacyOwner.Kind == datadogAgentKind &&
+		legacyOwner.Name == ddaiOwner.Name &&
+		legacyOwner.UID == ddaiOwner.UID
+}
+
+func isLegacyProviderDaemonSetProvider(provider string) bool {
+	return provider == kubernetes.DefaultProvider || provider == kubernetes.GKECosProvider
+}
+
+func daemonSetNames(daemonSets []appsv1.DaemonSet) []string {
+	names := make([]string, 0, len(daemonSets))
+	for _, ds := range daemonSets {
+		names = append(names, ds.Name)
+	}
+	slices.Sort(names)
+	return names
+}
+
+func daemonSetSelectorMatchesPodLabels(selector *metav1.LabelSelector, podLabels map[string]string) bool {
+	if selector == nil {
+		return false
+	}
+
+	parsedSelector, err := metav1.LabelSelectorAsSelector(selector)
+	if err != nil || parsedSelector.Empty() {
+		return false
+	}
+
+	return parsedSelector.Matches(labels.Set(podLabels))
+}
+
+func daemonSetTemplateIsGKECOSMigrationSafe(ds *appsv1.DaemonSet) bool {
+	for _, volume := range ds.Spec.Template.Spec.Volumes {
+		if volume.Name == agentcommon.SrcVolumeName && volume.HostPath != nil && volume.HostPath.Path == agentcommon.SrcVolumePath {
+			return false
+		}
+	}
+	return true
 }
 
 func (r *Reconciler) createOrUpdateExtendedDaemonset(ctx context.Context, ddai *v1alpha1.DatadogAgentInternal, eds *edsv1alpha1.ExtendedDaemonSet, newStatus *v1alpha1.DatadogAgentInternalStatus, updateStatusFunc updateEDSStatusComponentFunc) (reconcile.Result, error) {
