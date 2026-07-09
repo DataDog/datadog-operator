@@ -47,6 +47,7 @@ func (f *gpuFeature) ID() feature.IDType {
 // NodeAgentProviderCapabilities returns provider-conditional pod-template mutations.
 // On GKE COS, the NVIDIA driver libraries are not available at the standard path used
 // by the nvidia-container-runtime; mount them from the host location.
+// On GKE Autopilot, the pod-resources hostPath is forbidden by the WorkloadAllowlist.
 func (f *gpuFeature) NodeAgentProviderCapabilities() providercaps.ProviderCapabilityMap {
 	containers := []apicommon.AgentContainerName{apicommon.CoreAgentContainerName}
 	if f.isPrivilegedModeEnabled {
@@ -65,6 +66,10 @@ func (f *gpuFeature) NodeAgentProviderCapabilities() providercaps.ProviderCapabi
 					Containers: containers,
 				},
 			},
+		},
+		kubernetes.GKEAutopilotProvider: {
+			RemoveVolumes: []string{common.KubeletPodResourcesVolumeName},
+			RemoveEnvVars: []string{common.DDKubernetesPodResourcesSocket},
 		},
 	}
 }
