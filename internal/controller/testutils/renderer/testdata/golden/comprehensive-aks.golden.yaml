@@ -1042,6 +1042,7 @@ apiVersion: datadoghq.com/v1alpha1
 kind: DatadogAgentInternal
 metadata:
   annotations:
+    agent.datadoghq.com/cluster-provider: aks
     agent.datadoghq.com/ddaispechash: deb06deacbda2a38f21576b15706e6c1
   finalizers:
   - finalizer.datadoghq.com/datadogagentinternal
@@ -1784,7 +1785,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: cb8ce58d52ddd7dbc0a4478ec21f890c
+    agent.datadoghq.com/agentspechash: 8f8cf7ba736604df3c10b23501ba00aa
   labels:
     agent.datadoghq.com/component: cluster-agent
     agent.datadoghq.com/name: datadog-agent
@@ -1919,6 +1920,8 @@ spec:
           value: datadog-agent-agent
         - name: DD_ADMISSION_CONTROLLER_WEBHOOK_NAME
           value: datadog-webhook
+        - name: DD_ADMISSION_CONTROLLER_ADD_AKS_SELECTORS
+          value: "true"
         - name: DD_TRACE_AGENT_HOST_SOCKET_PATH
           value: /var/run/datadog
         - name: DD_APM_RECEIVER_SOCKET

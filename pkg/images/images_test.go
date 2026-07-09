@@ -22,7 +22,7 @@ func TestGetLatestAgentImage(t *testing.T) {
 	}{
 		{
 			name: "default registry",
-			want: fmt.Sprintf("gcr.io/datadoghq/agent:%s", AgentLatestVersion),
+			want: fmt.Sprintf("%s/agent:%s", DatadogContainerRegistry, AgentLatestVersion),
 		},
 	}
 	for _, tt := range tests {
@@ -41,7 +41,7 @@ func TestGetLatestClusterAgentImage(t *testing.T) {
 	}{
 		{
 			name: "default registry",
-			want: fmt.Sprintf("gcr.io/datadoghq/cluster-agent:%s", ClusterAgentLatestVersion),
+			want: fmt.Sprintf("%s/cluster-agent:%s", DatadogContainerRegistry, ClusterAgentLatestVersion),
 		},
 	}
 	for _, tt := range tests {
@@ -169,6 +169,24 @@ func Test_imageNameContainsTag(t *testing.T) {
 	}
 }
 
+func Test_IsGCRRegistry(t *testing.T) {
+	cases := map[string]bool{
+		"gcr.io/datadoghq":          true,
+		"gcr.io/datadoghq/":         false,
+		"eu.gcr.io/datadoghq":       true,
+		"asia.gcr.io/datadoghq":     true,
+		"registry.datadoghq.com":    false,
+		"public.ecr.aws/datadog":    false,
+		"gcr.io/other":              false,
+		"notgcr.io/datadoghq":       false,
+		"custom/gcr.io/datadoghq":   false,
+		"eu.gcr.io/datadoghq/agent": false,
+	}
+	for registry, expected := range cases {
+		assert.Equal(t, expected, IsGCRRegistry(registry), registry)
+	}
+}
+
 func Test_AssembleImage(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -207,7 +225,7 @@ func Test_AssembleImage(t *testing.T) {
 				Name: "agent",
 				Tag:  "latest",
 			},
-			want: "gcr.io/datadoghq/agent:latest",
+			want: "registry.datadoghq.com/agent:latest",
 		},
 		{
 			name: "cluster-agent",
@@ -225,7 +243,7 @@ func Test_AssembleImage(t *testing.T) {
 				Tag:        "latest-jmx",
 				JMXEnabled: true,
 			},
-			want: "gcr.io/datadoghq/agent:latest-jmx",
+			want: "registry.datadoghq.com/agent:latest-jmx",
 		},
 	}
 	for _, tt := range tests {
@@ -410,6 +428,92 @@ func Test_FromString(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert.Equal(t, tt.want, FromString(tt.imageString))
+		})
+	}
+}
+
+func Test_IsJMXImage(t *testing.T) {
+	tests := []struct {
+		name        string
+		imageConfig *v2alpha1.AgentImageConfig
+		want        bool
+	}{
+		{
+			name: "nil image config",
+			want: false,
+		},
+		{
+			name:        "JMX enabled",
+			imageConfig: &v2alpha1.AgentImageConfig{JMXEnabled: true},
+			want:        true,
+		},
+		{
+			name:        "JMX tag",
+			imageConfig: &v2alpha1.AgentImageConfig{Tag: "7.64.0-jmx"},
+			want:        true,
+		},
+		{
+			name:        "FIPS JMX tag",
+			imageConfig: &v2alpha1.AgentImageConfig{Tag: "7.64.0-fips-jmx"},
+			want:        true,
+		},
+		{
+			name:        "full tag",
+			imageConfig: &v2alpha1.AgentImageConfig{Tag: "7.64.0-full"},
+			want:        true,
+		},
+		{
+			name:        "FIPS full tag",
+			imageConfig: &v2alpha1.AgentImageConfig{Tag: "7.80.2-fips-full"},
+			want:        true,
+		},
+		{
+			name:        "JMX image string",
+			imageConfig: &v2alpha1.AgentImageConfig{Name: "gcr.io/datadoghq/agent:7.64.0-jmx"},
+			want:        true,
+		},
+		{
+			name:        "FIPS JMX image string",
+			imageConfig: &v2alpha1.AgentImageConfig{Name: "gcr.io/datadoghq/agent:7.64.0-fips-jmx"},
+			want:        true,
+		},
+		{
+			name:        "full image string",
+			imageConfig: &v2alpha1.AgentImageConfig{Name: "gcr.io/datadoghq/agent:7.80.2-full"},
+			want:        true,
+		},
+		{
+			name:        "FIPS full image string",
+			imageConfig: &v2alpha1.AgentImageConfig{Name: "gcr.io/datadoghq/agent:7.80.2-fips-full"},
+			want:        true,
+		},
+		{
+			name: "tagged image name ignores JMX enabled",
+			imageConfig: &v2alpha1.AgentImageConfig{
+				Name:       "gcr.io/datadoghq/agent:7.64.0",
+				JMXEnabled: true,
+			},
+			want: false,
+		},
+		{
+			name: "tagged image name ignores JMX tag and JMX enabled",
+			imageConfig: &v2alpha1.AgentImageConfig{
+				Name:       "gcr.io/datadoghq/agent:7.64.0",
+				Tag:        "7.64.0-jmx",
+				JMXEnabled: true,
+			},
+			want: false,
+		},
+		{
+			name:        "non JMX image config",
+			imageConfig: &v2alpha1.AgentImageConfig{Tag: "7.64.0"},
+			want:        false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, IsJMXImage(tt.imageConfig))
 		})
 	}
 }

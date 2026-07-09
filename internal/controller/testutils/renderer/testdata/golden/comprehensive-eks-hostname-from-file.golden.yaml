@@ -1042,6 +1042,7 @@ apiVersion: datadoghq.com/v1alpha1
 kind: DatadogAgentInternal
 metadata:
   annotations:
+    agent.datadoghq.com/cluster-provider: eks-ec2-use-hostname-from-file
     agent.datadoghq.com/ddaispechash: deb06deacbda2a38f21576b15706e6c1
   finalizers:
   - finalizer.datadoghq.com/datadogagentinternal
@@ -1203,7 +1204,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: a17967cbbeb99583765b0f575fdd931f
+    agent.datadoghq.com/agentspechash: f055c9d39ebaf73f75ff2ee4670b0b7c
   labels:
     agent.datadoghq.com/component: agent
     agent.datadoghq.com/name: datadog-agent
@@ -1291,6 +1292,8 @@ spec:
           value: "false"
         - name: DD_CRI_SOCKET_PATH
           value: /host/var/run/containerd/containerd.sock
+        - name: DD_HOSTNAME_FILE
+          value: /var/lib/cloud/data/instance-id
         - name: DD_LANGUAGE_DETECTION_REPORTING_ENABLED
           value: "false"
         - name: DD_EXTRA_CONFIG_PROVIDERS
@@ -1395,6 +1398,9 @@ spec:
           name: datadogrun
         - mountPath: /tmp
           name: tmpdir
+        - mountPath: /var/lib/cloud/data/instance-id
+          name: cloudinit-instance-id-file
+          readOnly: true
         - mountPath: /etc/passwd
           name: passwd
           readOnly: true
@@ -1472,6 +1478,8 @@ spec:
           value: "false"
         - name: DD_CRI_SOCKET_PATH
           value: /host/var/run/containerd/containerd.sock
+        - name: DD_HOSTNAME_FILE
+          value: /var/lib/cloud/data/instance-id
         - name: DD_APM_ENABLED
           value: "true"
         - name: DD_APM_NON_LOCAL_TRAFFIC
@@ -1521,6 +1529,9 @@ spec:
           readOnly: true
         - mountPath: /tmp
           name: tmpdir
+        - mountPath: /var/lib/cloud/data/instance-id
+          name: cloudinit-instance-id-file
+          readOnly: true
       - command:
         - system-probe
         - --config=/etc/datadog-agent/system-probe.yaml
@@ -1566,6 +1577,8 @@ spec:
           value: "false"
         - name: DD_CRI_SOCKET_PATH
           value: /host/var/run/containerd/containerd.sock
+        - name: DD_HOSTNAME_FILE
+          value: /var/lib/cloud/data/instance-id
         - name: DD_DOGSTATSD_SOCKET
           value: /var/run/datadog/dsd.socket
         - name: DD_SYSTEM_PROBE_CONFIG_ENABLE_OOM_KILL
@@ -1616,6 +1629,9 @@ spec:
           name: tmpdir
         - mountPath: /var/run/datadog
           name: dsdsocket
+        - mountPath: /var/lib/cloud/data/instance-id
+          name: cloudinit-instance-id-file
+          readOnly: true
         - mountPath: /lib/modules
           name: modules
           readOnly: true
@@ -1669,6 +1685,8 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: status.hostIP
+        - name: DD_HOSTNAME_FILE
+          value: /var/lib/cloud/data/instance-id
         - name: DD_SYSTEM_PROBE_CONFIG_ENABLE_OOM_KILL
           value: "true"
         - name: DD_DISCOVERY_ENABLED
@@ -1751,6 +1769,10 @@ spec:
       - hostPath:
           path: /var/lib/kubelet/seccomp
         name: seccomp-root
+      - hostPath:
+          path: /var/lib/cloud/data/instance-id
+          type: File
+        name: cloudinit-instance-id-file
       - hostPath:
           path: /var/run/datadog
           type: DirectoryOrCreate

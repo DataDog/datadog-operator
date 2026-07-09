@@ -94,11 +94,7 @@ func Run(ctx context.Context, streams genericclioptions.IOStreams, configFlags *
 		// evict, those leaked PDBs would otherwise persist indefinitely with
 		// maxUnavailable: 1 and throttle future rollouts/disruptions, so
 		// reclaim anything left behind before the no-op exit.
-		if opts.EnsurePDBs {
-			if err := cleanupTempPDBs(ctx, cli.K8sClient, opts.DryRun); err != nil {
-				log.Printf("Warning: failed to cleanup leftover temporary PDBs: %v", err)
-			}
-		}
+		reclaimLeakedTempPDBs(ctx, cli.K8sClient, opts.EnsurePDBs, opts.DryRun)
 		display.PrintBox(streams.Out, "Nothing to evict — the cluster is already on Datadog-managed Karpenter NodePools.")
 		return nil
 	}
