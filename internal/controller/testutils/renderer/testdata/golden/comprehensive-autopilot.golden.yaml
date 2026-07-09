@@ -1180,7 +1180,7 @@ kind: DatadogAgentInternal
 metadata:
   annotations:
     agent.datadoghq.com/cluster-provider: gke-autopilot
-    agent.datadoghq.com/ddaispechash: 6f5c60c6167c173c2c82ccac0d0237d8
+    agent.datadoghq.com/ddaispechash: 5bdb8db2dce8394a4307cb8cf900ddac
     experimental.agent.datadoghq.com/autopilot: "true"
   finalizers:
   - finalizer.datadoghq.com/datadogagentinternal
@@ -1340,20 +1340,17 @@ spec:
         checksum/dca-token-custom-config: 3f6998966e6de63b16d45512e01ccc84
       image:
         tag: 7.80.0
-      labels:
-        agent.datadoghq.com/provider: ""
 ---
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: ef9f9eb9cd926746e51ef5147f4a997f
+    agent.datadoghq.com/agentspechash: 40f352e6a33aa574cad33bbbb260b69f
     autopilot.gke.io/no-connect: "true"
   labels:
     admission.datadoghq.com/enabled: "false"
     agent.datadoghq.com/component: agent
     agent.datadoghq.com/name: datadog-agent
-    agent.datadoghq.com/provider: ""
     app.kubernetes.io/component: agent
     app.kubernetes.io/instance: datadog-agent-agent
     app.kubernetes.io/managed-by: datadog-operator
@@ -1383,7 +1380,6 @@ spec:
         admission.datadoghq.com/enabled: "false"
         agent.datadoghq.com/component: agent
         agent.datadoghq.com/name: datadog-agent
-        agent.datadoghq.com/provider: ""
         app.kubernetes.io/component: agent
         app.kubernetes.io/instance: datadog-agent-agent
         app.kubernetes.io/managed-by: datadog-operator
@@ -2143,7 +2139,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: 66cc1c62dd634691862edb1d0e03d23d
+    agent.datadoghq.com/agentspechash: 396747e4e69c910aa70f8f5d5cc909e9
   labels:
     agent.datadoghq.com/component: cluster-checks-runner
     agent.datadoghq.com/name: datadog-agent
@@ -2266,7 +2262,7 @@ spec:
           value: "true"
         - name: DD_ORCHESTRATOR_EXPLORER_CONTAINER_SCRUBBING_ENABLED
           value: "true"
-        image: gcr.io/datadoghq/agent:7.80.2
+        image: gcr.io/datadoghq/agent:7.80.4
         livenessProbe:
           failureThreshold: 6
           httpGet:
@@ -2321,7 +2317,7 @@ spec:
         command:
         - bash
         - -c
-        image: gcr.io/datadoghq/agent:7.80.2
+        image: gcr.io/datadoghq/agent:7.80.4
         name: init-config
         resources: {}
         volumeMounts:

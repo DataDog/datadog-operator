@@ -1170,7 +1170,7 @@ kind: DatadogAgentInternal
 metadata:
   annotations:
     agent.datadoghq.com/cluster-provider: aks
-    agent.datadoghq.com/ddaispechash: 6f5c60c6167c173c2c82ccac0d0237d8
+    agent.datadoghq.com/ddaispechash: 5bdb8db2dce8394a4307cb8cf900ddac
   finalizers:
   - finalizer.datadoghq.com/datadogagentinternal
   labels:
@@ -1329,18 +1329,15 @@ spec:
         checksum/dca-token-custom-config: 3f6998966e6de63b16d45512e01ccc84
       image:
         tag: 7.80.0
-      labels:
-        agent.datadoghq.com/provider: ""
 ---
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: 040f1d22ddff0972a601e87d89cb80f8
+    agent.datadoghq.com/agentspechash: e4e320365b8a0ff80941ce80c301501e
   labels:
     agent.datadoghq.com/component: agent
     agent.datadoghq.com/name: datadog-agent
-    agent.datadoghq.com/provider: ""
     app.kubernetes.io/component: agent
     app.kubernetes.io/instance: datadog-agent-agent
     app.kubernetes.io/managed-by: datadog-operator
@@ -1368,7 +1365,6 @@ spec:
       labels:
         agent.datadoghq.com/component: agent
         agent.datadoghq.com/name: datadog-agent
-        agent.datadoghq.com/provider: ""
         app.kubernetes.io/component: agent
         app.kubernetes.io/instance: datadog-agent-agent
         app.kubernetes.io/managed-by: datadog-operator
@@ -2177,7 +2173,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: 165efdb691266b172a39b533849b9917
+    agent.datadoghq.com/agentspechash: c8b02e149720ebb0412d3f62fb6ffdaf
   labels:
     agent.datadoghq.com/component: cluster-checks-runner
     agent.datadoghq.com/name: datadog-agent
@@ -2296,7 +2292,7 @@ spec:
           value: "true"
         - name: DD_ORCHESTRATOR_EXPLORER_CONTAINER_SCRUBBING_ENABLED
           value: "true"
-        image: gcr.io/datadoghq/agent:7.80.2
+        image: gcr.io/datadoghq/agent:7.80.4
         livenessProbe:
           failureThreshold: 6
           httpGet:
@@ -2351,7 +2347,7 @@ spec:
         command:
         - bash
         - -c
-        image: gcr.io/datadoghq/agent:7.80.2
+        image: gcr.io/datadoghq/agent:7.80.4
         name: init-config
         resources: {}
         volumeMounts:

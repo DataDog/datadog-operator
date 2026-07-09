@@ -1042,7 +1042,7 @@ apiVersion: datadoghq.com/v1alpha1
 kind: DatadogAgentInternal
 metadata:
   annotations:
-    agent.datadoghq.com/ddaispechash: 4b699ddeb796030f85de9f2bc691e35d
+    agent.datadoghq.com/ddaispechash: 8bd819db9ae426a15412bb3537291fef
   finalizers:
   - finalizer.datadoghq.com/datadogagentinternal
   labels:
@@ -1200,8 +1200,6 @@ spec:
             name: user-extra
       image:
         tag: 7.80.0
-      labels:
-        agent.datadoghq.com/provider: ""
       volumes:
       - hostPath:
           path: /var/run
@@ -1215,11 +1213,10 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: 9dd108f003cac15f0829a82d4d6e25ad
+    agent.datadoghq.com/agentspechash: b17e4253d368249deabe8fda4311a2a0
   labels:
     agent.datadoghq.com/component: agent
     agent.datadoghq.com/name: datadog-agent
-    agent.datadoghq.com/provider: ""
     app.kubernetes.io/component: agent
     app.kubernetes.io/instance: datadog-agent-agent
     app.kubernetes.io/managed-by: datadog-operator
@@ -1247,7 +1244,6 @@ spec:
       labels:
         agent.datadoghq.com/component: agent
         agent.datadoghq.com/name: datadog-agent
-        agent.datadoghq.com/provider: ""
         app.kubernetes.io/component: agent
         app.kubernetes.io/instance: datadog-agent-agent
         app.kubernetes.io/managed-by: datadog-operator
