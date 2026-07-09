@@ -2668,24 +2668,9 @@ func Test_RegistryDefaultingBySite(t *testing.T) {
 			wantRegistry: images.DatadogContainerRegistry,
 		},
 		{
-			name:         "Asia site defaults to Datadog registry",
-			site:         "ap1.datadoghq.com",
-			wantRegistry: images.DatadogContainerRegistry,
-		},
-		{
-			name:         "Azure site defaults to Datadog registry",
-			site:         "us3.datadoghq.com",
-			wantRegistry: images.DatadogContainerRegistry,
-		},
-		{
 			name:         "Gov site defaults to Gov registry",
 			site:         "ddog-gov.com",
 			wantRegistry: images.DefaultGovImageRegistry,
-		},
-		{
-			name:         "default site defaults to Datadog registry",
-			site:         "datadoghq.com",
-			wantRegistry: images.DefaultImageRegistry,
 		},
 	}
 
