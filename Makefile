@@ -365,11 +365,11 @@ verify-licenses: bin/$(PLATFORM)/go-licenses ## Verify licenses
 	hack/verify-licenses.sh
 
 # Update the golang version across the repo.
-# Pass VERSION=x.y.z to also update go.work first.
-# Usage: make update-golang VERSION=1.25.12
+# Pass GOVERSION=x.y.z to also update go.work first.
+# Usage: make update-golang GOVERSION=1.25.12
 .PHONY: update-golang
 update-golang: bin/$(PLATFORM)/jq bin/$(PLATFORM)/yq ensure-gsed
-	hack/update-golang.sh $(VERSION)
+	hack/update-golang.sh $(GOVERSION)
 
 .PHONY: sync
 sync: ## Run go work sync
