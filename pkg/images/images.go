@@ -40,8 +40,8 @@ const (
 	// PublicECSContainerRegistry corresponds to the datadoghq PublicECSContainerRegistry registry
 	PublicECSContainerRegistry = "public.ecr.aws/datadog"
 	// DefaultImageRegistry corresponds to the datadoghq containers registry
-	DefaultImageRegistry = "gcr.io/datadoghq"
-	// Default Image Registries
+	DefaultImageRegistry = DatadogContainerRegistry
+	// Alternate image registries
 	DefaultAzureImageRegistry  string = "datadoghq.azurecr.io"
 	DefaultEuropeImageRegistry string = "eu.gcr.io/datadoghq"
 	DefaultAsiaImageRegistry   string = "asia.gcr.io/datadoghq"

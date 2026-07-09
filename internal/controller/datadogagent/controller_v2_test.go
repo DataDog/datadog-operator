@@ -1133,9 +1133,9 @@ func Test_otelImageTags(t *testing.T) {
 				verifyDaemonsetContainers(t, c, resourcesNamespace, dsName, expectedContainers)
 				agentContainer := getDsContainers(c, resourcesNamespace, dsName)
 
-				assert.Equal(t, fmt.Sprintf("gcr.io/datadoghq/agent:%s", images.AgentLatestVersion), agentContainer[apicommon.CoreAgentContainerName].Image)
-				assert.Equal(t, fmt.Sprintf("gcr.io/datadoghq/agent:%s", images.AgentLatestVersion), agentContainer[apicommon.TraceAgentContainerName].Image)
-				assert.Equal(t, fmt.Sprintf("gcr.io/datadoghq/ddot-collector:%s", images.AgentLatestVersion), agentContainer[apicommon.OtelAgent].Image)
+				assert.Equal(t, fmt.Sprintf("%s/agent:%s", images.DefaultImageRegistry, images.AgentLatestVersion), agentContainer[apicommon.CoreAgentContainerName].Image)
+				assert.Equal(t, fmt.Sprintf("%s/agent:%s", images.DefaultImageRegistry, images.AgentLatestVersion), agentContainer[apicommon.TraceAgentContainerName].Image)
+				assert.Equal(t, fmt.Sprintf("%s/ddot-collector:%s", images.DefaultImageRegistry, images.DdotCollectorLatestVersion), agentContainer[apicommon.OtelAgent].Image)
 
 			},
 		},
@@ -1159,9 +1159,9 @@ func Test_otelImageTags(t *testing.T) {
 				verifyDaemonsetContainers(t, c, resourcesNamespace, dsName, expectedContainers)
 				agentContainer := getDsContainers(c, resourcesNamespace, dsName)
 
-				assert.Equal(t, "gcr.io/datadoghq/agent:7.71.0", agentContainer[apicommon.CoreAgentContainerName].Image)
-				assert.Equal(t, "gcr.io/datadoghq/agent:7.71.0", agentContainer[apicommon.TraceAgentContainerName].Image)
-				assert.Equal(t, "gcr.io/datadoghq/ddot-collector:7.71.0", agentContainer[apicommon.OtelAgent].Image)
+				assert.Equal(t, fmt.Sprintf("%s/agent:7.71.0", images.DefaultImageRegistry), agentContainer[apicommon.CoreAgentContainerName].Image)
+				assert.Equal(t, fmt.Sprintf("%s/agent:7.71.0", images.DefaultImageRegistry), agentContainer[apicommon.TraceAgentContainerName].Image)
+				assert.Equal(t, fmt.Sprintf("%s/ddot-collector:7.71.0", images.DefaultImageRegistry), agentContainer[apicommon.OtelAgent].Image)
 
 			},
 		},
@@ -1221,9 +1221,9 @@ func Test_otelImageTags(t *testing.T) {
 				verifyDaemonsetContainers(t, c, resourcesNamespace, dsName, expectedContainers)
 				agentContainer := getDsContainers(c, resourcesNamespace, dsName)
 
-				assert.Equal(t, "gcr.io/datadoghq/testagent:7.65.0-full", agentContainer[apicommon.CoreAgentContainerName].Image)
-				assert.Equal(t, "gcr.io/datadoghq/testagent:7.65.0-full", agentContainer[apicommon.TraceAgentContainerName].Image)
-				assert.Equal(t, "gcr.io/datadoghq/testagent:7.65.0-full", agentContainer[apicommon.OtelAgent].Image)
+				assert.Equal(t, fmt.Sprintf("%s/testagent:7.65.0-full", images.DefaultImageRegistry), agentContainer[apicommon.CoreAgentContainerName].Image)
+				assert.Equal(t, fmt.Sprintf("%s/testagent:7.65.0-full", images.DefaultImageRegistry), agentContainer[apicommon.TraceAgentContainerName].Image)
+				assert.Equal(t, fmt.Sprintf("%s/testagent:7.65.0-full", images.DefaultImageRegistry), agentContainer[apicommon.OtelAgent].Image)
 
 			},
 		},
@@ -1246,9 +1246,9 @@ func Test_otelImageTags(t *testing.T) {
 				verifyDaemonsetContainers(t, c, resourcesNamespace, dsName, expectedContainers)
 				agentContainer := getDsContainers(c, resourcesNamespace, dsName)
 
-				assert.Equal(t, "gcr.io/datadoghq/testagent:7.65.0-full", agentContainer[apicommon.CoreAgentContainerName].Image)
-				assert.Equal(t, "gcr.io/datadoghq/testagent:7.65.0-full", agentContainer[apicommon.TraceAgentContainerName].Image)
-				assert.Equal(t, "gcr.io/datadoghq/testagent:7.65.0-full", agentContainer[apicommon.OtelAgent].Image)
+				assert.Equal(t, fmt.Sprintf("%s/testagent:7.65.0-full", images.DefaultImageRegistry), agentContainer[apicommon.CoreAgentContainerName].Image)
+				assert.Equal(t, fmt.Sprintf("%s/testagent:7.65.0-full", images.DefaultImageRegistry), agentContainer[apicommon.TraceAgentContainerName].Image)
+				assert.Equal(t, fmt.Sprintf("%s/testagent:7.65.0-full", images.DefaultImageRegistry), agentContainer[apicommon.OtelAgent].Image)
 
 			},
 		},
@@ -2658,42 +2658,23 @@ func Test_RegistryDefaultingBySite(t *testing.T) {
 	type registryTestCase struct {
 		name         string
 		site         string
-		envVars      map[string]string
 		wantRegistry string
 	}
 
 	tests := []registryTestCase{
 		{
-			name:         "Europe site defaults to EU registry",
+			name:         "Europe site defaults to Datadog registry",
 			site:         "datadoghq.eu",
-			wantRegistry: images.DefaultEuropeImageRegistry,
-		},
-		{
-			name:         "Europe site with DD_REGISTRY_OVERRIDE_EU=true uses Datadog registry",
-			site:         "datadoghq.eu",
-			envVars:      map[string]string{"DD_REGISTRY_OVERRIDE_EU": "true"},
 			wantRegistry: images.DatadogContainerRegistry,
 		},
 		{
-			name:         "Asia site defaults to Asia registry",
+			name:         "Asia site defaults to Datadog registry",
 			site:         "ap1.datadoghq.com",
-			wantRegistry: images.DefaultAsiaImageRegistry,
-		},
-		{
-			name:         "Asia site with DD_REGISTRY_OVERRIDE_ASIA=true uses Datadog registry",
-			site:         "ap1.datadoghq.com",
-			envVars:      map[string]string{"DD_REGISTRY_OVERRIDE_ASIA": "true"},
 			wantRegistry: images.DatadogContainerRegistry,
 		},
 		{
-			name:         "Azure site defaults to Azure registry",
+			name:         "Azure site defaults to Datadog registry",
 			site:         "us3.datadoghq.com",
-			wantRegistry: images.DefaultAzureImageRegistry,
-		},
-		{
-			name:         "Azure site with DD_REGISTRY_OVERRIDE_AZURE=true uses Datadog registry",
-			site:         "us3.datadoghq.com",
-			envVars:      map[string]string{"DD_REGISTRY_OVERRIDE_AZURE": "true"},
 			wantRegistry: images.DatadogContainerRegistry,
 		},
 		{
@@ -2702,46 +2683,14 @@ func Test_RegistryDefaultingBySite(t *testing.T) {
 			wantRegistry: images.DefaultGovImageRegistry,
 		},
 		{
-			name:         "default site without DD_REGISTRY_OVERRIDE_DEFAULT uses GCR registry",
+			name:         "default site defaults to Datadog registry",
 			site:         "datadoghq.com",
-			wantRegistry: images.DefaultImageRegistry,
-		},
-		{
-			name:         "default site with DD_REGISTRY_OVERRIDE_DEFAULT=true uses Datadog registry",
-			site:         "datadoghq.com",
-			envVars:      map[string]string{"DD_REGISTRY_OVERRIDE_DEFAULT": "true"},
-			wantRegistry: images.DatadogContainerRegistry,
-		},
-		// Verify that override env vars are site-scoped: setting overrides for other sites
-		// must not affect the current site's registry selection.
-		{
-			name: "EU site ignores non-EU override env vars",
-			site: "datadoghq.eu",
-			envVars: map[string]string{
-				"DD_REGISTRY_OVERRIDE_ASIA":    "true",
-				"DD_REGISTRY_OVERRIDE_AZURE":   "true",
-				"DD_REGISTRY_OVERRIDE_DEFAULT": "true",
-			},
-			wantRegistry: images.DefaultEuropeImageRegistry,
-		},
-		{
-			name: "default site ignores non-default override env vars",
-			site: "datadoghq.com",
-			envVars: map[string]string{
-				"DD_REGISTRY_OVERRIDE_EU":    "true",
-				"DD_REGISTRY_OVERRIDE_ASIA":  "true",
-				"DD_REGISTRY_OVERRIDE_AZURE": "true",
-			},
 			wantRegistry: images.DefaultImageRegistry,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			for k, v := range tt.envVars {
-				t.Setenv(k, v)
-			}
-
 			site := tt.site
 			wantRegistry := tt.wantRegistry
 

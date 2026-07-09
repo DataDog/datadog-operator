@@ -22,7 +22,7 @@ func TestGetLatestAgentImage(t *testing.T) {
 	}{
 		{
 			name: "default registry",
-			want: fmt.Sprintf("gcr.io/datadoghq/agent:%s", AgentLatestVersion),
+			want: fmt.Sprintf("%s/agent:%s", DatadogContainerRegistry, AgentLatestVersion),
 		},
 	}
 	for _, tt := range tests {
@@ -41,7 +41,7 @@ func TestGetLatestClusterAgentImage(t *testing.T) {
 	}{
 		{
 			name: "default registry",
-			want: fmt.Sprintf("gcr.io/datadoghq/cluster-agent:%s", ClusterAgentLatestVersion),
+			want: fmt.Sprintf("%s/cluster-agent:%s", DatadogContainerRegistry, ClusterAgentLatestVersion),
 		},
 	}
 	for _, tt := range tests {
@@ -207,7 +207,7 @@ func Test_AssembleImage(t *testing.T) {
 				Name: "agent",
 				Tag:  "latest",
 			},
-			want: "gcr.io/datadoghq/agent:latest",
+			want: "registry.datadoghq.com/agent:latest",
 		},
 		{
 			name: "cluster-agent",
@@ -225,7 +225,7 @@ func Test_AssembleImage(t *testing.T) {
 				Tag:        "latest-jmx",
 				JMXEnabled: true,
 			},
-			want: "gcr.io/datadoghq/agent:latest-jmx",
+			want: "registry.datadoghq.com/agent:latest-jmx",
 		},
 	}
 	for _, tt := range tests {
