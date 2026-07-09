@@ -1170,7 +1170,7 @@ kind: DatadogAgentInternal
 metadata:
   annotations:
     agent.datadoghq.com/cluster-provider: eks-ec2-use-hostname-from-file
-    agent.datadoghq.com/ddaispechash: 5bdb8db2dce8394a4307cb8cf900ddac
+    agent.datadoghq.com/ddaispechash: 80e68f588c1f1d00bf40df006b4bdfc8
   finalizers:
   - finalizer.datadoghq.com/datadogagentinternal
   labels:
@@ -1312,7 +1312,7 @@ spec:
       podResourcesSocketPath: /var/lib/kubelet/pod-resources/
       tlsVerify: false
     logLevel: info
-    registry: gcr.io/datadoghq
+    registry: registry.datadoghq.com
     site: datadoghq.com
     useFIPSAgent: false
   override:
@@ -1334,7 +1334,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: 9967d1c30d0f41232c4202589e9d590c
+    agent.datadoghq.com/agentspechash: c4dcfc54e3f9effd696cac3776787e94
   labels:
     agent.datadoghq.com/component: agent
     agent.datadoghq.com/name: datadog-agent
@@ -1466,7 +1466,7 @@ spec:
           value: "true"
         - name: DD_SYSTEM_PROBE_CONFIG_ENABLE_TCP_QUEUE_LENGTH
           value: "true"
-        image: gcr.io/datadoghq/agent:7.80.0
+        image: registry.datadoghq.com/agent:7.80.0
         livenessProbe:
           failureThreshold: 6
           httpGet:
@@ -1622,7 +1622,7 @@ spec:
           value: /var/run/datadog/dsd.socket
         - name: DD_REMOTE_CONFIGURATION_ENABLED
           value: "true"
-        image: gcr.io/datadoghq/agent:7.80.0
+        image: registry.datadoghq.com/agent:7.80.0
         livenessProbe:
           initialDelaySeconds: 15
           periodSeconds: 15
@@ -1723,7 +1723,7 @@ spec:
           value: "true"
         - name: DD_SYSTEM_PROBE_CONFIG_ENABLE_TCP_QUEUE_LENGTH
           value: "true"
-        image: gcr.io/datadoghq/agent:7.80.0
+        image: registry.datadoghq.com/agent:7.80.0
         name: system-probe
         resources: {}
         securityContext:
@@ -1782,7 +1782,7 @@ spec:
         command:
         - bash
         - -c
-        image: gcr.io/datadoghq/agent:7.80.0
+        image: registry.datadoghq.com/agent:7.80.0
         name: init-volume
         resources: {}
         volumeMounts:
@@ -1823,7 +1823,7 @@ spec:
           value: "true"
         - name: DD_SYSTEM_PROBE_CONFIG_ENABLE_TCP_QUEUE_LENGTH
           value: "true"
-        image: gcr.io/datadoghq/agent:7.80.0
+        image: registry.datadoghq.com/agent:7.80.0
         name: init-config
         resources: {}
         volumeMounts:
@@ -1849,7 +1849,7 @@ spec:
         - cp
         - /etc/config/system-probe-seccomp.json
         - /host/var/lib/kubelet/seccomp/system-probe
-        image: gcr.io/datadoghq/agent:7.80.0
+        image: registry.datadoghq.com/agent:7.80.0
         name: seccomp-setup
         resources: {}
         volumeMounts:
@@ -1936,7 +1936,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: 5f1ca58f67ac3f959410d8a1d186c45c
+    agent.datadoghq.com/agentspechash: 0f13eccae0579833f12952a73bb95477
   labels:
     agent.datadoghq.com/component: cluster-agent
     agent.datadoghq.com/name: datadog-agent
@@ -2056,7 +2056,7 @@ spec:
         - name: DD_ADMISSION_CONTROLLER_MUTATE_UNLABELLED
           value: "false"
         - name: DD_ADMISSION_CONTROLLER_CONTAINER_REGISTRY
-          value: gcr.io/datadoghq
+          value: registry.datadoghq.com
         - name: DD_ADMISSION_CONTROLLER_SERVICE_NAME
           value: datadog-admission-controller
         - name: DD_ADMISSION_CONTROLLER_PROBE_ENABLED
@@ -2103,7 +2103,7 @@ spec:
           value: "true"
         - name: DD_REMOTE_CONFIGURATION_ENABLED
           value: "true"
-        image: gcr.io/datadoghq/cluster-agent:7.80.0
+        image: registry.datadoghq.com/cluster-agent:7.80.0
         livenessProbe:
           failureThreshold: 6
           httpGet:
@@ -2192,7 +2192,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: c8b02e149720ebb0412d3f62fb6ffdaf
+    agent.datadoghq.com/agentspechash: 60baa72c89bba480e44da7d5c0a1fb6d
   labels:
     agent.datadoghq.com/component: cluster-checks-runner
     agent.datadoghq.com/name: datadog-agent
@@ -2311,7 +2311,7 @@ spec:
           value: "true"
         - name: DD_ORCHESTRATOR_EXPLORER_CONTAINER_SCRUBBING_ENABLED
           value: "true"
-        image: gcr.io/datadoghq/agent:7.80.4
+        image: registry.datadoghq.com/agent:7.80.4
         livenessProbe:
           failureThreshold: 6
           httpGet:
@@ -2366,7 +2366,7 @@ spec:
         command:
         - bash
         - -c
-        image: gcr.io/datadoghq/agent:7.80.4
+        image: registry.datadoghq.com/agent:7.80.4
         name: init-config
         resources: {}
         volumeMounts:

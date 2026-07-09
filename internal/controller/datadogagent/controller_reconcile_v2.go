@@ -16,6 +16,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
@@ -23,11 +24,13 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/defaults"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/experimental"
 	"github.com/DataDog/datadog-operator/internal/controller/finalizer"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/condition"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	pkgutils "github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
+	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
@@ -50,9 +53,32 @@ func (r *Reconciler) internalReconcileV2(ctx context.Context, instance *datadogh
 	// 3. Set default values for GlobalConfig and Features
 	instanceCopy := instance.DeepCopy()
 	defaults.DefaultDatadogAgentSpec(&instanceCopy.Spec)
+	if experimental.IsAutopilotEnabled(instanceCopy) {
+		ensureGCRAutopilotRegistry(instanceCopy)
+	}
 
 	// 4. Delegate to the main reconcile function.
 	return r.reconcileInstanceV3(ctx, reqLogger, instanceCopy)
+}
+
+// Force GCR registry if not set to avoid defaulting to Datadog registry
+// Required by GKE Autopilot workloadallowlist
+func ensureGCRAutopilotRegistry(instance *datadoghqv2alpha1.DatadogAgent) {
+	// Should never happen as credentials are configured under `spec.global`
+	if instance.Spec.Global == nil {
+		instance.Spec.Global = &datadoghqv2alpha1.GlobalConfig{}
+	}
+	// No registry set
+	if instance.Spec.Global.Registry == nil {
+		instance.Spec.Global.Registry = ptr.To(images.GCRContainerRegistry)
+		return
+	}
+	// Registry set to a GCR variation, allowed in workloadallowlist
+	if images.IsGCRRegistry(*instance.Spec.Global.Registry) {
+		return
+	}
+	// Registry set outside GCR, not allowed in workloadallowlist, force back GCR
+	instance.Spec.Global.Registry = ptr.To(images.GCRContainerRegistry)
 }
 
 func (r *Reconciler) reconcileInstanceV3(ctx context.Context, logger logr.Logger, instance *datadoghqv2alpha1.DatadogAgent) (reconcile.Result, error) {
