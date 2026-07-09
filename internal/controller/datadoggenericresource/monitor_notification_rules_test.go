@@ -22,11 +22,11 @@ import (
 
 func Test_createMonitorNotificationRule_marshalling(t *testing.T) {
 	tests := []struct {
-		name            string
-		jsonSpec        string
-		wantErr         bool
-		wantRuleName    string
-		wantRecipients  []string
+		name           string
+		jsonSpec       string
+		wantErr        bool
+		wantRuleName   string
+		wantRecipients []string
 	}{
 		{
 			name: "valid spec with recipients",
