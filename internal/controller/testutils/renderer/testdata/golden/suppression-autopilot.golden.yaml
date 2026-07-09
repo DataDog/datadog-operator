@@ -1053,7 +1053,7 @@ kind: DatadogAgentInternal
 metadata:
   annotations:
     agent.datadoghq.com/cluster-provider: gke-autopilot
-    agent.datadoghq.com/ddaispechash: 7f9c0d5764519b05ac4f531ef5029924
+    agent.datadoghq.com/ddaispechash: 6927abb9f346b95cafaba2297a4fe92d
     experimental.agent.datadoghq.com/autopilot: "true"
   finalizers:
   - finalizer.datadoghq.com/datadogagentinternal
@@ -1196,7 +1196,7 @@ spec:
       enabled: true
       image:
         name: fips-proxy
-        tag: 1.1.26
+        tag: 1.1.28
       localAddress: 127.0.0.1
       port: 9803
       portRange: 15
@@ -1219,20 +1219,17 @@ spec:
         checksum/dca-token-custom-config: 3f6998966e6de63b16d45512e01ccc84
       image:
         tag: 7.80.0
-      labels:
-        agent.datadoghq.com/provider: ""
 ---
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: e4e530e6351b112cac785d08cec84ee1
+    agent.datadoghq.com/agentspechash: 0ee2c361b43a0e9063c7ba8ad6acf62d
     autopilot.gke.io/no-connect: "true"
   labels:
     admission.datadoghq.com/enabled: "false"
     agent.datadoghq.com/component: agent
     agent.datadoghq.com/name: datadog-agent
-    agent.datadoghq.com/provider: ""
     app.kubernetes.io/component: agent
     app.kubernetes.io/instance: datadog-agent-agent
     app.kubernetes.io/managed-by: datadog-operator
@@ -1263,7 +1260,6 @@ spec:
         admission.datadoghq.com/enabled: "false"
         agent.datadoghq.com/component: agent
         agent.datadoghq.com/name: datadog-agent
-        agent.datadoghq.com/provider: ""
         app.kubernetes.io/component: agent
         app.kubernetes.io/instance: datadog-agent-agent
         app.kubernetes.io/managed-by: datadog-operator

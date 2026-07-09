@@ -1042,7 +1042,7 @@ apiVersion: datadoghq.com/v1alpha1
 kind: DatadogAgentInternal
 metadata:
   annotations:
-    agent.datadoghq.com/ddaispechash: 7f9c0d5764519b05ac4f531ef5029924
+    agent.datadoghq.com/ddaispechash: 6927abb9f346b95cafaba2297a4fe92d
   finalizers:
   - finalizer.datadoghq.com/datadogagentinternal
   labels:
@@ -1184,7 +1184,7 @@ spec:
       enabled: true
       image:
         name: fips-proxy
-        tag: 1.1.26
+        tag: 1.1.28
       localAddress: 127.0.0.1
       port: 9803
       portRange: 15
@@ -1207,18 +1207,15 @@ spec:
         checksum/dca-token-custom-config: 3f6998966e6de63b16d45512e01ccc84
       image:
         tag: 7.80.0
-      labels:
-        agent.datadoghq.com/provider: ""
 ---
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: 4db23d288bd00099b0d3194d99f8d861
+    agent.datadoghq.com/agentspechash: 062db9aca1b784f6ce795be8ac0ebecd
   labels:
     agent.datadoghq.com/component: agent
     agent.datadoghq.com/name: datadog-agent
-    agent.datadoghq.com/provider: ""
     app.kubernetes.io/component: agent
     app.kubernetes.io/instance: datadog-agent-agent
     app.kubernetes.io/managed-by: datadog-operator
@@ -1247,7 +1244,6 @@ spec:
       labels:
         agent.datadoghq.com/component: agent
         agent.datadoghq.com/name: datadog-agent
-        agent.datadoghq.com/provider: ""
         app.kubernetes.io/component: agent
         app.kubernetes.io/instance: datadog-agent-agent
         app.kubernetes.io/managed-by: datadog-operator
@@ -1651,7 +1647,7 @@ spec:
       - env:
         - name: DD_FIPS_LOCAL_ADDRESS
           value: 127.0.0.1
-        image: gcr.io/datadoghq/fips-proxy:1.1.26
+        image: gcr.io/datadoghq/fips-proxy:1.1.28
         imagePullPolicy: IfNotPresent
         name: fips-proxy
         ports:
@@ -1857,7 +1853,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: 28cf467e3054dd8298a6ddef9a76dc28
+    agent.datadoghq.com/agentspechash: 2d4e3997489478aead76647d3efed713
   labels:
     agent.datadoghq.com/component: cluster-agent
     agent.datadoghq.com/name: datadog-agent
@@ -2096,7 +2092,7 @@ spec:
       - env:
         - name: DD_FIPS_LOCAL_ADDRESS
           value: 127.0.0.1
-        image: gcr.io/datadoghq/fips-proxy:1.1.26
+        image: gcr.io/datadoghq/fips-proxy:1.1.28
         imagePullPolicy: IfNotPresent
         name: fips-proxy
         ports:
