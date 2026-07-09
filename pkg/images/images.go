@@ -60,6 +60,14 @@ const (
 	DefaultDdotCollectorImageName string = "ddot-collector"
 )
 
+// IsGCRRegistry reports whether registry points to a Datadog GCR registry,
+// including the known regional GCR registries.
+func IsGCRRegistry(registry string) bool {
+	return registry == GCRContainerRegistry ||
+		registry == DefaultEuropeImageRegistry ||
+		registry == DefaultAsiaImageRegistry
+}
+
 // imageHasTag identifies whether an image string contains a tag suffix
 // Ref: https://github.com/distribution/distribution/blob/v2.7.1/reference/reference.go
 var imageHasTag = regexp.MustCompile(`.+:[\w][\w.-]{0,127}$`)

@@ -169,6 +169,24 @@ func Test_imageNameContainsTag(t *testing.T) {
 	}
 }
 
+func Test_IsGCRRegistry(t *testing.T) {
+	cases := map[string]bool{
+		"gcr.io/datadoghq":          true,
+		"gcr.io/datadoghq/":         false,
+		"eu.gcr.io/datadoghq":       true,
+		"asia.gcr.io/datadoghq":     true,
+		"registry.datadoghq.com":    false,
+		"public.ecr.aws/datadog":    false,
+		"gcr.io/other":              false,
+		"notgcr.io/datadoghq":       false,
+		"custom/gcr.io/datadoghq":   false,
+		"eu.gcr.io/datadoghq/agent": false,
+	}
+	for registry, expected := range cases {
+		assert.Equal(t, expected, IsGCRRegistry(registry), registry)
+	}
+}
+
 func Test_AssembleImage(t *testing.T) {
 	tests := []struct {
 		name      string

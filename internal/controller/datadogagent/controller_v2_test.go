@@ -2733,3 +2733,91 @@ func Test_RegistryDefaultingBySite(t *testing.T) {
 		})
 	}
 }
+
+func Test_AutopilotRegistryDefaulting(t *testing.T) {
+	const resourcesName = "foo"
+	const resourcesNamespace = "bar"
+	const dsName = "foo-agent"
+	const dcaName = "foo-cluster-agent"
+	const ccrName = "foo-cluster-checks-runner"
+
+	defaultRequeueDuration := 15 * time.Second
+	autopilotKey := experimental.ExperimentalAnnotationPrefix + "/" + experimental.ExperimentalAutopilotSubkey
+
+	tests := []struct {
+		name         string
+		registry     *string
+		wantRegistry string
+	}{
+		{
+			name:         "autopilot uses GCR when registry is defaulted",
+			wantRegistry: images.GCRContainerRegistry,
+		},
+		{
+			name:         "autopilot uses GCR when registry is non-GCR",
+			registry:     ptr.To(images.PublicECSContainerRegistry),
+			wantRegistry: images.GCRContainerRegistry,
+		},
+		{
+			name:         "autopilot preserves default GCR",
+			registry:     ptr.To(images.GCRContainerRegistry),
+			wantRegistry: images.GCRContainerRegistry,
+		},
+		{
+			name:         "autopilot preserves EU GCR",
+			registry:     ptr.To(images.DefaultEuropeImageRegistry),
+			wantRegistry: images.DefaultEuropeImageRegistry,
+		},
+		{
+			name:         "autopilot preserves Asia GCR",
+			registry:     ptr.To(images.DefaultAsiaImageRegistry),
+			wantRegistry: images.DefaultAsiaImageRegistry,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			registry := tt.registry
+			wantRegistry := tt.wantRegistry
+
+			tc := testCase{
+				loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
+					builder := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+						WithClusterChecks(true, true).
+						WithAnnotations(map[string]string{
+							autopilotKey: "true",
+						})
+					if registry != nil {
+						builder = builder.WithRegistry(*registry)
+					}
+					dda := builder.Build()
+					_ = c.Create(context.TODO(), dda)
+					return dda
+				},
+				want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
+				wantErr: false,
+				wantFunc: func(t *testing.T, c client.Client) {
+					agentContainers := getDsContainers(c, resourcesNamespace, dsName)
+					assert.Equal(t,
+						fmt.Sprintf("%s/%s:%s", wantRegistry, images.DefaultAgentImageName, images.AgentLatestVersion),
+						agentContainers[apicommon.CoreAgentContainerName].Image,
+					)
+
+					dcaContainers := getDeploymentContainers(c, resourcesNamespace, dcaName)
+					assert.Equal(t,
+						fmt.Sprintf("%s/%s:%s", wantRegistry, images.DefaultClusterAgentImageName, images.ClusterAgentLatestVersion),
+						dcaContainers[apicommon.ClusterAgentContainerName].Image,
+					)
+
+					ccrContainers := getDeploymentContainers(c, resourcesNamespace, ccrName)
+					assert.Equal(t,
+						fmt.Sprintf("%s/%s:%s", wantRegistry, images.DefaultAgentImageName, images.AgentLatestVersion),
+						ccrContainers[apicommon.ClusterChecksRunnersContainerName].Image,
+					)
+				},
+			}
+
+			runDDAReconcilerTest(t, tc, ReconcilerOptions{})
+		})
+	}
+}
