@@ -23,6 +23,10 @@ func (s *untaintSuite) TestAgentOnlyUntaintFlow() {
 	}
 	ctx := s.T().Context()
 
+	// Delete DatadogAgent/DatadogAgentInternal CRs before the Pulumi stack
+	// destroy so CRD deletion doesn't deadlock on operator finalizers.
+	s.registerDatadogResourceCleanup()
+
 	// Deploy the workload at the parent-test level so its cleanup is scoped to the
 	// whole test method. If created inside an s.Run subtest, s.T() is the subtest's
 	// T and the cleanup (which deletes the workload) would fire when that subtest
@@ -62,6 +66,10 @@ func (s *untaintSuite) TestWaitForCSIUntaintFlow() {
 		s.T().Skip("suite configured for agent-only; skipping wait-for-CSI flow")
 	}
 	ctx := s.T().Context()
+
+	// Delete DatadogAgent/DatadogAgentInternal CRs before the Pulumi stack
+	// destroy so CRD deletion doesn't deadlock on operator finalizers.
+	s.registerDatadogResourceCleanup()
 
 	// Deploy the workload at the parent-test level (see note in TestAgentOnlyUntaintFlow):
 	// a subtest-scoped cleanup would delete it before later subtests observe it.

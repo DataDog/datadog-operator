@@ -28,6 +28,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/untaint"
 	"github.com/DataDog/datadog-operator/test/e2e/common"
 	"github.com/DataDog/datadog-operator/test/e2e/provisioners"
+	"github.com/DataDog/datadog-operator/test/e2e/tests/utils"
 
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
@@ -197,6 +198,32 @@ func buildProvisionerOptions(local, waitForCSI, withDDA bool) []provisioners.Kub
 func (s *untaintSuite) applyDDA() {
 	s.T().Log("Deploying DatadogAgent to bring up the node Agent...")
 	s.UpdateEnv(provisioners.KubernetesProvisioner(buildProvisionerOptions(s.local, s.waitForCSI, true)...))
+}
+
+// registerDatadogResourceCleanup deletes every DatadogAgent and
+// DatadogAgentInternal in the operator namespace at the end of the test, while
+// the operator is still running so it can clear their finalizers. Without this,
+// the operator (Helm release) is torn down first during the Pulumi stack destroy
+// and the operator-created DatadogAgentInternal is left with a dangling
+// finalizer; deleting the datadogagents/datadogagentinternals CRDs then blocks
+// forever on the customresourcecleanup finalizer and the destroy times out,
+// failing the job even though the test assertions passed.
+//
+// Must be called from within a suite test method so the cleanup is scoped to
+// that method's *testing.T and therefore runs before the framework's stack
+// teardown (mirrors the k8s_suite cleanup).
+func (s *untaintSuite) registerDatadogResourceCleanup() {
+	s.T().Cleanup(func() {
+		k8sConfig := s.Env().KubernetesCluster.KubernetesClient.K8sConfig
+		if k8sConfig == nil {
+			return
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+		defer cancel()
+		if err := utils.DeleteAllDatadogResources(ctx, k8sConfig, common.NamespaceName); err != nil {
+			s.T().Logf("Warning: failed to delete Datadog resources during cleanup: %v", err)
+		}
+	})
 }
 
 // identifyTaintedNode finds the worker node carrying the tainted-node label.
