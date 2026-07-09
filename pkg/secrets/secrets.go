@@ -25,14 +25,22 @@ import (
 var (
 	secretBackendCommand = ""
 	secretBackendArgs    = []string{}
+	secretBackendType    = ""
+	secretBackendConfig  = map[string]any{}
 )
 
 const (
 	defaultCmdOutputMaxSize = 1024 * 1024
-	defaultCmdTimeout       = 5 * time.Second
+	defaultCmdTimeout       = 30 * time.Second
 
 	// PayloadVersion represents the version of the SB API
 	PayloadVersion = "1.0"
+	// sgcPayloadVersion is the API version sent when resolving via the embedded secret-generic-connector,
+	// whose payload additionally carries the backend "type" and "config".
+	sgcPayloadVersion = "1.1"
+
+	// defaultSGCBinaryPath is the embedded secret-generic-connector binary shipped in the operator image.
+	defaultSGCBinaryPath = "/opt/datadog-agent/bin/secret-generic-connector"
 )
 
 // SetSecretBackendCommand set the secretBackendCommand var
@@ -45,11 +53,32 @@ func SetSecretBackendArgs(args []string) {
 	secretBackendArgs = args
 }
 
+// SetSecretBackendType sets the secret backend type used by the embedded
+// secret-generic-connector (e.g. "hashicorp.vault"). When set with an empty
+// secret backend command, secrets are resolved via the embedded SGC binary.
+func SetSecretBackendType(backendType string) {
+	secretBackendType = backendType
+}
+
+// SetSecretBackendConfig sets the secret backend config passed to the
+// secret-generic-connector in the resolution payload.
+func SetSecretBackendConfig(config map[string]any) {
+	secretBackendConfig = config
+}
+
 // NewSecretBackend returns a new SecretBackend instance
 func NewSecretBackend() *SecretBackend {
+	cmd := secretBackendCommand
+	// When a backend type is set without an explicit command, resolve secrets
+	// through the embedded secret-generic-connector binary.
+	if cmd == "" && secretBackendType != "" {
+		cmd = defaultSGCBinaryPath
+	}
 	return &SecretBackend{
-		cmd:              secretBackendCommand,
+		cmd:              cmd,
 		cmdArgs:          secretBackendArgs,
+		backendType:      secretBackendType,
+		backendConfig:    secretBackendConfig,
 		cmdOutputMaxSize: defaultCmdOutputMaxSize,
 		cmdTimeout:       defaultCmdTimeout,
 	}
@@ -64,6 +93,23 @@ func (sb *SecretBackend) Decrypt(encrypted []string) (map[string]string, error) 
 	return sb.fetchSecret(encrypted)
 }
 
+// buildPayload assembles the JSON payload sent to the secret backend binary.
+func (sb *SecretBackend) buildPayload(handles []string) map[string]any {
+	if sb.backendType != "" {
+		return map[string]any{
+			"version":                sgcPayloadVersion,
+			"secrets":                handles,
+			"type":                   sb.backendType,
+			"config":                 sb.backendConfig,
+			"secret_backend_timeout": sb.cmdTimeout.Seconds(),
+		}
+	}
+	return map[string]any{
+		"version": PayloadVersion,
+		"secrets": handles,
+	}
+}
+
 // fetchSecret tries to get secrets by executing the secret backend command
 func (sb *SecretBackend) fetchSecret(encrypted []string) (map[string]string, error) {
 	handles, err := extractHandles(encrypted)
@@ -71,12 +117,7 @@ func (sb *SecretBackend) fetchSecret(encrypted []string) (map[string]string, err
 		return nil, NewDecryptorError(err, false)
 	}
 
-	payload := map[string]any{
-		"version": PayloadVersion,
-		"secrets": handles,
-	}
-
-	jsonPayload, err := json.Marshal(payload)
+	jsonPayload, err := json.Marshal(sb.buildPayload(handles))
 	if err != nil {
 		return nil, NewDecryptorError(err, false)
 	}
