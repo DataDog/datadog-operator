@@ -12,7 +12,7 @@ permissions:
   # packages: read
 env:
   PROJECTNAME: "datadog-operator"
-  GO_VERSION: 1.25.11
+  GO_VERSION: 1.25.12
 jobs:
   yaml-mapper-test:
     runs-on: ubuntu-latest
