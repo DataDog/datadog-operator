@@ -6,9 +6,16 @@
 *                       @DataDog/container-platform
 
 # Documentation
-README.md               @DataDog/documentation  @DataDog/container-platform
-/docs/                  @DataDog/documentation  @DataDog/container-platform
-/docs/kubectl-plugin.md @DataDog/documentation  @DataDog/container-platform @DataDog/container-autoscaling
+README.md                                       @DataDog/container-platform
+/docs/                                          @DataDog/container-platform
+/docs/kubectl-plugin.md                         @DataDog/documentation  @DataDog/container-platform @DataDog/container-autoscaling
+/docs/docs/configuration_public.md              @DataDog/documentation  @DataDog/container-platform
+/docs/custom_check.md                           @DataDog/documentation  @DataDog/container-platform
+/docs/data_collected.md                         @DataDog/documentation  @DataDog/container-platform
+/docs/installation.md                           @DataDog/documentation  @DataDog/container-platform
+/docs/kubectl-plugin.md                         @DataDog/documentation  @DataDog/container-platform
+/docs/secret_management.md                      @DataDog/documentation  @DataDog/container-platform
+/docs/v2alpha1_migration.md                     @DataDog/documentation  @DataDog/container-platform
 
 
 # Features owners
