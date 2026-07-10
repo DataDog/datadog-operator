@@ -44,11 +44,9 @@ func (f *gpuFeature) ID() feature.IDType {
 	return feature.GPUIDType
 }
 
-// NodeAgentProviderCapabilities returns provider-conditional pod-template
-// mutations for the node agent. On GKE COS, the NVIDIA driver libraries are not
-// available at the standard path used by the nvidia-container-runtime; mount
-// them from the host location (/home/kubernetes/bin/nvidia/lib64) so the agent
-// (and system-probe, when privileged) can load them.
+// NodeAgentProviderCapabilities returns provider-conditional pod-template mutations.
+// On GKE COS, the NVIDIA driver libraries are not available at the standard path used
+// by the nvidia-container-runtime; mount them from the host location.
 func (f *gpuFeature) NodeAgentProviderCapabilities() providercaps.ProviderCapabilityMap {
 	containers := []apicommon.AgentContainerName{apicommon.CoreAgentContainerName}
 	if f.isPrivilegedModeEnabled {

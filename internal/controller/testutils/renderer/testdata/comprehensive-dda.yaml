@@ -42,3 +42,7 @@ spec:
     logCollection:
       enabled: true
       containerCollectAll: true
+    # cluster checks runner — exercises CCR provider env vars on autopilot
+    clusterChecks:
+      enabled: true
+      useClusterChecksRunners: true

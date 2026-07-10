@@ -83,3 +83,15 @@ func applyAutopilotGlobalExtras(mgr feature.PodTemplateManagers) {
 		}
 	}
 }
+
+// ApplyGlobalClusterAgentSpec applies provider-conditional global mutations to
+// the Cluster Agent pod template.
+func ApplyGlobalClusterAgentSpec(mgr feature.PodTemplateManagers, provider string) {
+	providercaps.ApplyProviderCapabilities(mgr, provider, ClusterAgentProviderSpec)
+}
+
+// ApplyGlobalClusterChecksRunnerSpec applies provider-conditional global mutations
+// to the Cluster Checks Runner pod template.
+func ApplyGlobalClusterChecksRunnerSpec(mgr feature.PodTemplateManagers, provider string) {
+	providercaps.ApplyProviderCapabilities(mgr, provider, ClusterChecksRunnerProviderSpec)
+}
