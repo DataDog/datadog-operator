@@ -275,6 +275,7 @@ func OverrideFromProfile(profile *v1alpha1.DatadogAgentProfile, useV3Metadata bo
 			profileComponentOverride.PriorityClassName = nodeAgentOverride.PriorityClassName
 			profileComponentOverride.RuntimeClassName = nodeAgentOverride.RuntimeClassName
 			profileComponentOverride.UpdateStrategy = nodeAgentOverride.UpdateStrategy
+			profileComponentOverride.Volumes = nodeAgentOverride.Volumes
 		}
 	}
 
@@ -413,8 +414,9 @@ func containersOverride(nodeAgentOverride *v2alpha1.DatadogAgentComponentOverrid
 	for _, containerName := range containersInNodeAgent {
 		if overrideForContainer, overrideIsDefined := nodeAgentOverride.Containers[containerName]; overrideIsDefined {
 			res[containerName] = &v2alpha1.DatadogAgentGenericContainer{
-				Resources: overrideForContainer.Resources,
-				Env:       overrideForContainer.Env,
+				Resources:    overrideForContainer.Resources,
+				Env:          overrideForContainer.Env,
+				VolumeMounts: overrideForContainer.VolumeMounts,
 			}
 		}
 	}

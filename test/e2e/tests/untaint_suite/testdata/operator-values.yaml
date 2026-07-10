@@ -1,0 +1,26 @@
+# Helm values for the operator in the untaint suite (agent-only mode).
+# RBAC/CRDs come from the e2e kustomize; the operator uses the shared SA.
+# Controller flags are passed as operator-pod env vars (the chart-version-agnostic
+# path documented for the untaint controller). Timeouts are high with policy=keep
+# so the ONLY way the taint gets removed during the test is genuine Agent readiness
+# (a timeout firing would keep the taint and fail the test rather than mask a bug).
+# ${NAMESPACE} is substituted with the operator/DDA namespace at load time.
+installCRDs: false
+rbac:
+  create: false
+serviceAccount:
+  create: false
+  name: datadog-operator-e2e-controller-manager
+env:
+  - name: DD_UNTAINT_CONTROLLER_ENABLED
+    value: "true"
+  - name: DD_UNTAINT_CONTROLLER_TIMEOUT_POLICY
+    value: "keep"
+  - name: DD_UNTAINT_CONTROLLER_TIMEOUT
+    value: "30m"
+  - name: DD_UNTAINT_CONTROLLER_SCHEDULING_TIMEOUT
+    value: "30m"
+  - name: DD_UNTAINT_CONTROLLER_EVENTS_ENABLED
+    value: "true"
+  - name: DD_AGENT_WATCH_NAMESPACE
+    value: "${NAMESPACE}"

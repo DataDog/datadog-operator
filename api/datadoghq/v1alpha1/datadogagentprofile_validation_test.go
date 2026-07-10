@@ -303,6 +303,7 @@ func TestValidateDatadogAgentProfileComponentOverrideAllowlist(t *testing.T) {
 		"RuntimeClassName":  {},
 		"UpdateStrategy":    {},
 		"Labels":            {},
+		"Volumes":           {},
 	}
 
 	overrideType := reflect.TypeOf(v2alpha1.DatadogAgentComponentOverride{})
@@ -335,8 +336,9 @@ func TestValidateDatadogAgentProfileComponentOverrideAllowlist(t *testing.T) {
 
 func TestValidateDatadogAgentProfileContainerOverrideAllowlist(t *testing.T) {
 	allowedContainerOverrideFields := map[string]struct{}{
-		"Resources": {},
-		"Env":       {},
+		"Resources":    {},
+		"Env":          {},
+		"VolumeMounts": {},
 	}
 
 	containerType := reflect.TypeOf(v2alpha1.DatadogAgentGenericContainer{})

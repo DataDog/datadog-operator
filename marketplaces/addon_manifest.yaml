@@ -7,9 +7,9 @@ metadata:
   namespace: datadog-agent
   labels:
     app.kubernetes.io/name: datadog-operator
-    helm.sh/chart: datadog-operator-2.23.2
+    helm.sh/chart: datadog-operator-2.24.0
     app.kubernetes.io/instance: operator-eks-addon
-    app.kubernetes.io/version: "1.27.1"
+    app.kubernetes.io/version: "1.28.0"
     app.kubernetes.io/managed-by: eks-addon
 ---
 # Source: operator-eks-addon/charts/datadog-operator/charts/datadogCRDs/templates/datadoghq.com_datadogagentinternals_v1.yaml
@@ -20,7 +20,7 @@ metadata:
     controller-gen.kubebuilder.io/version: v0.17.3
   name: datadogagentinternals.datadoghq.com
   labels:
-    helm.sh/chart: 'datadogCRDs-2.21.0'
+    helm.sh/chart: 'datadogCRDs-2.22.0'
     app.kubernetes.io/managed-by: eks-addon
     app.kubernetes.io/name: 'datadogCRDs'
     app.kubernetes.io/instance: 'operator-eks-addon'
@@ -652,6 +652,11 @@ spec:
                           properties:
                             enabled:
                               type: boolean
+                            inPlaceVerticalScaling:
+                              properties:
+                                enabled:
+                                  type: boolean
+                              type: object
                           type: object
                       type: object
                     clusterChecks:
@@ -1112,8 +1117,6 @@ spec:
                       properties:
                         collectDNSStats:
                           type: boolean
-                        directSend:
-                          type: boolean
                         enableConntrack:
                           type: boolean
                         enabled:
@@ -1391,11 +1394,6 @@ spec:
                       properties:
                         enabled:
                           type: boolean
-                        networkStats:
-                          properties:
-                            enabled:
-                              type: boolean
-                          type: object
                       type: object
                     tcpQueueLength:
                       properties:
@@ -5065,6 +5063,11 @@ spec:
                               properties:
                                 enabled:
                                   type: boolean
+                                inPlaceVerticalScaling:
+                                  properties:
+                                    enabled:
+                                      type: boolean
+                                  type: object
                               type: object
                           type: object
                         clusterChecks:
@@ -5525,8 +5528,6 @@ spec:
                           properties:
                             collectDNSStats:
                               type: boolean
-                            directSend:
-                              type: boolean
                             enableConntrack:
                               type: boolean
                             enabled:
@@ -5804,11 +5805,6 @@ spec:
                           properties:
                             enabled:
                               type: boolean
-                            networkStats:
-                              properties:
-                                enabled:
-                                  type: boolean
-                              type: object
                           type: object
                         tcpQueueLength:
                           properties:
@@ -5828,7 +5824,6 @@ spec:
       storage: true
       subresources:
         status: {}
-
 ---
 # Source: operator-eks-addon/charts/datadog-operator/charts/datadogCRDs/templates/datadoghq.com_datadogagents_v1.yaml
 apiVersion: apiextensions.k8s.io/v1
@@ -5838,7 +5833,7 @@ metadata:
     controller-gen.kubebuilder.io/version: v0.17.3
   name: datadogagents.datadoghq.com
   labels:
-    helm.sh/chart: 'datadogCRDs-2.21.0'
+    helm.sh/chart: 'datadogCRDs-2.22.0'
     app.kubernetes.io/managed-by: eks-addon
     app.kubernetes.io/name: 'datadogCRDs'
     app.kubernetes.io/instance: 'operator-eks-addon'
@@ -6474,6 +6469,11 @@ spec:
                           properties:
                             enabled:
                               type: boolean
+                            inPlaceVerticalScaling:
+                              properties:
+                                enabled:
+                                  type: boolean
+                              type: object
                           type: object
                       type: object
                     clusterChecks:
@@ -6934,8 +6934,6 @@ spec:
                       properties:
                         collectDNSStats:
                           type: boolean
-                        directSend:
-                          type: boolean
                         enableConntrack:
                           type: boolean
                         enabled:
@@ -7213,11 +7211,6 @@ spec:
                       properties:
                         enabled:
                           type: boolean
-                        networkStats:
-                          properties:
-                            enabled:
-                              type: boolean
-                          type: object
                       type: object
                     tcpQueueLength:
                       properties:
@@ -10944,6 +10937,11 @@ spec:
                               properties:
                                 enabled:
                                   type: boolean
+                                inPlaceVerticalScaling:
+                                  properties:
+                                    enabled:
+                                      type: boolean
+                                  type: object
                               type: object
                           type: object
                         clusterChecks:
@@ -11404,8 +11402,6 @@ spec:
                           properties:
                             collectDNSStats:
                               type: boolean
-                            directSend:
-                              type: boolean
                             enableConntrack:
                               type: boolean
                             enabled:
@@ -11683,11 +11679,6 @@ spec:
                           properties:
                             enabled:
                               type: boolean
-                            networkStats:
-                              properties:
-                                enabled:
-                                  type: boolean
-                              type: object
                           type: object
                         tcpQueueLength:
                           properties:
@@ -11707,7 +11698,6 @@ spec:
       storage: true
       subresources:
         status: {}
-
 ---
 # Source: operator-eks-addon/charts/datadog-operator/charts/datadogCRDs/templates/datadoghq.com_datadogcsidrivers_v1.yaml
 apiVersion: apiextensions.k8s.io/v1
@@ -11717,7 +11707,7 @@ metadata:
     controller-gen.kubebuilder.io/version: v0.17.3
   name: datadogcsidrivers.datadoghq.com
   labels:
-    helm.sh/chart: 'datadogCRDs-2.21.0'
+    helm.sh/chart: 'datadogCRDs-2.22.0'
     app.kubernetes.io/managed-by: eks-addon
     app.kubernetes.io/name: 'datadogCRDs'
     app.kubernetes.io/instance: 'operator-eks-addon'
@@ -11752,6 +11742,11 @@ spec:
               type: object
             spec:
               properties:
+                apm:
+                  properties:
+                    enabled:
+                      type: boolean
+                  type: object
                 apmSocketPath:
                   type: string
                 csiDriverImage:
@@ -13887,7 +13882,6 @@ spec:
       storage: true
       subresources:
         status: {}
-
 ---
 # Source: operator-eks-addon/charts/datadog-operator/charts/datadogCRDs/templates/datadoghq.com_datadoginstrumentations_v1.yaml
 apiVersion: apiextensions.k8s.io/v1
@@ -13897,7 +13891,7 @@ metadata:
     controller-gen.kubebuilder.io/version: v0.17.3
   name: datadoginstrumentations.datadoghq.com
   labels:
-    helm.sh/chart: 'datadogCRDs-2.21.0'
+    helm.sh/chart: 'datadogCRDs-2.22.0'
     app.kubernetes.io/managed-by: eks-addon
     app.kubernetes.io/name: 'datadogCRDs'
     app.kubernetes.io/instance: 'operator-eks-addon'
@@ -14144,7 +14138,6 @@ spec:
       storage: true
       subresources:
         status: {}
-
 ---
 # Source: operator-eks-addon/charts/datadog-operator/charts/datadogCRDs/templates/datadoghq.com_datadogmetrics_v1.yaml
 apiVersion: apiextensions.k8s.io/v1
@@ -14154,7 +14147,7 @@ metadata:
     controller-gen.kubebuilder.io/version: v0.17.3
   name: datadogmetrics.datadoghq.com
   labels:
-    helm.sh/chart: 'datadogCRDs-2.21.0'
+    helm.sh/chart: 'datadogCRDs-2.22.0'
     app.kubernetes.io/managed-by: eks-addon
     app.kubernetes.io/name: 'datadogCRDs'
     app.kubernetes.io/instance: 'operator-eks-addon'
@@ -14273,7 +14266,6 @@ spec:
       storage: true
       subresources:
         status: {}
-
 ---
 # Source: operator-eks-addon/charts/datadog-operator/charts/datadogCRDs/templates/datadoghq.com_datadogpodautoscalerclusterprofiles_v1.yaml
 apiVersion: apiextensions.k8s.io/v1
@@ -14283,7 +14275,7 @@ metadata:
     controller-gen.kubebuilder.io/version: v0.17.3
   name: datadogpodautoscalerclusterprofiles.datadoghq.com
   labels:
-    helm.sh/chart: 'datadogCRDs-2.21.0'
+    helm.sh/chart: 'datadogCRDs-2.22.0'
     app.kubernetes.io/managed-by: eks-addon
     app.kubernetes.io/name: 'datadogCRDs'
     app.kubernetes.io/instance: 'operator-eks-addon'
@@ -15197,7 +15189,6 @@ spec:
       storage: true
       subresources:
         status: {}
-
 ---
 # Source: operator-eks-addon/charts/datadog-operator/charts/datadogCRDs/templates/datadoghq.com_datadogpodautoscalers_v1.yaml
 apiVersion: apiextensions.k8s.io/v1
@@ -15207,7 +15198,7 @@ metadata:
     controller-gen.kubebuilder.io/version: v0.17.3
   name: datadogpodautoscalers.datadoghq.com
   labels:
-    helm.sh/chart: 'datadogCRDs-2.21.0'
+    helm.sh/chart: 'datadogCRDs-2.22.0'
     app.kubernetes.io/managed-by: eks-addon
     app.kubernetes.io/name: 'datadogCRDs'
     app.kubernetes.io/instance: 'operator-eks-addon'
@@ -17105,7 +17096,6 @@ spec:
       storage: true
       subresources:
         status: {}
-
 ---
 # Source: operator-eks-addon/charts/datadog-operator/templates/clusterrole.yaml
 apiVersion: rbac.authorization.k8s.io/v1
@@ -17114,9 +17104,9 @@ metadata:
   name: operator-eks-addon-datadog-operator
   labels:
     app.kubernetes.io/name: datadog-operator
-    helm.sh/chart: datadog-operator-2.23.2
+    helm.sh/chart: datadog-operator-2.24.0
     app.kubernetes.io/instance: operator-eks-addon
-    app.kubernetes.io/version: "1.27.1"
+    app.kubernetes.io/version: "1.28.0"
     app.kubernetes.io/managed-by: eks-addon
 rules:
 - nonResourceURLs:
@@ -17301,6 +17291,7 @@ rules:
   - create
   - get
   - list
+  - patch
   - watch
 - apiGroups:
   - autoscaling
@@ -17344,6 +17335,23 @@ rules:
   - list
   - patch
   - update
+  - watch
+- apiGroups:
+  - configuration.konghq.com
+  - consul.hashicorp.com
+  - core.haproxy.org
+  - datadoghq.com
+  - gateway.envoyproxy.io
+  - ingress.v1.haproxy.org
+  - karpenter.azure.com
+  - kuma.io
+  - mesh.consul.hashicorp.com
+  - policy.linkerd.io
+  - traefik.containo.us
+  resources:
+  - '*'
+  verbs:
+  - list
   - watch
 - apiGroups:
   - coordination.k8s.io
@@ -17431,14 +17439,6 @@ rules:
   verbs:
   - '*'
 - apiGroups:
-  - datadoghq.com
-  - karpenter.azure.com
-  resources:
-  - '*'
-  verbs:
-  - list
-  - watch
-- apiGroups:
   - discovery.k8s.io
   resources:
   - endpointslices
@@ -17459,7 +17459,9 @@ rules:
 - apiGroups:
   - gateway.envoyproxy.io
   resources:
+  - backends
   - envoyextensionpolicies
+  - envoypatchpolicies
   verbs:
   - create
   - delete
@@ -17478,12 +17480,29 @@ rules:
 - apiGroups:
   - gateway.networking.k8s.io
   resources:
+  - grpcroutes
+  - listenersets
+  - tlsroutes
+  verbs:
+  - list
+  - watch
+- apiGroups:
+  - gateway.networking.k8s.io
+  resources:
   - referencegrants
   verbs:
   - create
   - delete
   - get
   - patch
+- apiGroups:
+  - k8s.nginx.org
+  resources:
+  - virtualserverroutes
+  - virtualservers
+  verbs:
+  - list
+  - watch
 - apiGroups:
   - karpenter.sh
   resources:
@@ -17513,11 +17532,37 @@ rules:
 - apiGroups:
   - networking.istio.io
   resources:
+  - destinationrules
+  - serviceentries
+  - sidecars
+  - virtualservices
+  verbs:
+  - list
+  - watch
+- apiGroups:
+  - networking.istio.io
+  resources:
   - envoyfilters
   verbs:
   - create
   - delete
   - get
+- apiGroups:
+  - networking.istio.io
+  resources:
+  - gateways
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - networking.k8s.io
+  resources:
+  - ingressclasses
+  verbs:
+  - get
+  - list
+  - watch
 - apiGroups:
   - networking.k8s.io
   resources:
@@ -17615,6 +17660,13 @@ rules:
   - list
   - watch
 - apiGroups:
+  - traefik.io
+  resources:
+  - ingressroutes
+  verbs:
+  - list
+  - watch
+- apiGroups:
   - datadoghq.com
   resources:
   - datadogagentinternals
@@ -17709,9 +17761,9 @@ metadata:
   namespace: datadog-agent
   labels:
     app.kubernetes.io/name: datadog-operator
-    helm.sh/chart: datadog-operator-2.23.2
+    helm.sh/chart: datadog-operator-2.24.0
     app.kubernetes.io/instance: operator-eks-addon
-    app.kubernetes.io/version: "1.27.1"
+    app.kubernetes.io/version: "1.28.0"
     app.kubernetes.io/managed-by: eks-addon
 spec:
   replicas: 1
@@ -17737,7 +17789,7 @@ spec:
       serviceAccountName: operator-eks-addon-datadog-operator 
       containers:
         - name: datadog-operator
-          image: "709825985650.dkr.ecr.us-east-1.amazonaws.com/datadog/operator:1.27.1"
+          image: "709825985650.dkr.ecr.us-east-1.amazonaws.com/datadog/operator:1.28.0"
           imagePullPolicy: IfNotPresent
           env:
             - name: WATCH_NAMESPACE

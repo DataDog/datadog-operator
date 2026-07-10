@@ -174,3 +174,24 @@ func Test_deleteDowntime_idempotent(t *testing.T) {
 		})
 	}
 }
+
+func Test_deleteMonitorNotificationRule_idempotent(t *testing.T) {
+	for _, tc := range defaultDeleteCases {
+		t.Run(tc.name, func(t *testing.T) {
+			server := newTestHTTPServer(tc.statusCode, tc.body)
+			defer server.Close()
+
+			cfg := datadogapi.NewConfiguration()
+			cfg.HTTPClient = server.Client()
+			client := datadogV2.NewMonitorsApi(datadogapi.NewAPIClient(cfg))
+			auth := setupTestAuth(server.URL)
+
+			err := deleteMonitorNotificationRule(auth, client, "rule-123")
+			if tc.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}

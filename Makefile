@@ -57,6 +57,7 @@ ENVTEST_K8S_VERSION = 1.30
 # instead of the CI job timing out with no actionable logs.)
 E2E_GO_TEST_TIMEOUT ?= 55m
 E2E_AUTOSCALING_GO_TEST_TIMEOUT ?= 140m
+E2E_UNTAINT_GO_TEST_TIMEOUT ?= 90m
 E2E_GO_TEST_OUTPUT ?= go run ./hack/e2e-test-output
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
@@ -230,6 +231,10 @@ e2e-tests: ## Run E2E tests and destroy environment stacks after tests complete.
 e2e-autoscaling-tests: kubectl-datadog ## Run autoscaling E2E tests on EKS. To run locally, complete pre-reqs (see docs/how-to-contribute.md) and prepend command with `aws-vault exec sso-agent-sandbox-account-admin --`.
 	GOWORK=off KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" go test -C test/e2e/ ./tests/autoscaling_suite/... -count=1 --tags=e2e -json -timeout $(E2E_AUTOSCALING_GO_TEST_TIMEOUT) -coverprofile cover_e2e_autoscaling.out | $(E2E_GO_TEST_OUTPUT)
 
+.PHONY: e2e-untaint-tests
+e2e-untaint-tests: ## Run untaint controller E2E tests on kind (kind-on-VM). Requires IMG to point at the operator image. To run locally, complete pre-reqs (see docs/how-to-contribute.md) and prepend command with `aws-vault exec sso-agent-sandbox-account-admin --`.
+	GOWORK=off KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" go test -C test/e2e/ ./tests/untaint_suite/... -count=1 --tags=e2e -json -run 'TestUntaint.*AWSKind' -timeout $(E2E_UNTAINT_GO_TEST_TIMEOUT) -coverprofile cover_e2e_untaint.out | $(E2E_GO_TEST_OUTPUT)
+
 .PHONY: yaml-mapper-tests
 yaml-mapper-tests: fmt yaml-mapper-unit-tests
 # Run yaml-mapper tests
@@ -307,8 +312,15 @@ catalog-push: ## Push a catalog image.
 	$(MAKE) docker-push IMG=$(CATALOG_IMG)
 
 ##@ Datadog Custom part
+
+.PHONY: ensure-gsed
+ensure-gsed: ## Install GNU sed on macOS if not present (no-op on Linux)
+	@if [ "$$(uname -s)" = "Darwin" ]; then \
+		command -v gsed >/dev/null 2>&1 || brew install gnu-sed; \
+	fi
+
 .PHONY: install-tools
-install-tools: bin/$(PLATFORM)/golangci-lint bin/$(PLATFORM)/operator-sdk bin/$(PLATFORM)/yq bin/$(PLATFORM)/jq bin/$(PLATFORM)/kubebuilder bin/$(PLATFORM)/controller-tools bin/$(PLATFORM)/go-licenses bin/$(PLATFORM)/openapi-gen
+install-tools: bin/$(PLATFORM)/golangci-lint bin/$(PLATFORM)/operator-sdk bin/$(PLATFORM)/yq bin/$(PLATFORM)/jq bin/$(PLATFORM)/kubebuilder bin/$(PLATFORM)/controller-tools bin/$(PLATFORM)/go-licenses bin/$(PLATFORM)/openapi-gen ensure-gsed
 
 .PHONY: generate-openapi
 generate-openapi: bin/$(PLATFORM)/openapi-gen
@@ -352,10 +364,12 @@ licenses: bin/$(PLATFORM)/go-licenses
 verify-licenses: bin/$(PLATFORM)/go-licenses ## Verify licenses
 	hack/verify-licenses.sh
 
-# Update the golang version in different repository files from the version present in go.mod file
+# Update the golang version across the repo.
+# Pass GOVERSION=x.y.z to also update go.work first.
+# Usage: make update-golang GOVERSION=1.25.12
 .PHONY: update-golang
-update-golang:
-	hack/update-golang.sh
+update-golang: bin/$(PLATFORM)/jq bin/$(PLATFORM)/yq ensure-gsed
+	hack/update-golang.sh $(GOVERSION)
 
 .PHONY: sync
 sync: ## Run go work sync
