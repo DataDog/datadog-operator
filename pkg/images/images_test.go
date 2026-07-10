@@ -8,6 +8,7 @@ package images
 import (
 	"fmt"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -31,6 +32,26 @@ func TestGetLatestAgentImage(t *testing.T) {
 				t.Errorf("GetLatestAgentImage() = %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestGetLatestWindowsAgentImage(t *testing.T) {
+	got := GetLatestWindowsAgentImage()
+	// Must use the default registry (consistent with other sibling functions).
+	if !strings.HasPrefix(got, DefaultImageRegistry+"/") {
+		t.Errorf("GetLatestWindowsAgentImage() registry = %q, want prefix %q", got, DefaultImageRegistry+"/")
+	}
+	// Must carry the -servercore suffix.
+	if !strings.HasSuffix(got, WindowsServerCoreTagSuffix) {
+		t.Errorf("GetLatestWindowsAgentImage() = %q, want suffix %q", got, WindowsServerCoreTagSuffix)
+	}
+	// Must embed the current agent version.
+	if !strings.Contains(got, AgentLatestVersion) {
+		t.Errorf("GetLatestWindowsAgentImage() = %q, want version %q", got, AgentLatestVersion)
+	}
+	want := fmt.Sprintf("%s/agent:%s%s", DefaultImageRegistry, AgentLatestVersion, WindowsServerCoreTagSuffix)
+	if got != want {
+		t.Errorf("GetLatestWindowsAgentImage() = %q, want %q", got, want)
 	}
 }
 

@@ -54,6 +54,8 @@ const (
 	FIPSTagSuffix = "-fips"
 	// FullTagSuffix tag suffix for full agent images
 	FullTagSuffix = "-full"
+	// WindowsServerCoreTagSuffix tag suffix for Windows Server Core agent images
+	WindowsServerCoreTagSuffix = "-servercore"
 	// Default Image names
 	DefaultAgentImageName         string = "agent"
 	DefaultClusterAgentImageName  string = "cluster-agent"
@@ -161,6 +163,16 @@ func (i *Image) FIPSVersionError() error {
 // GetLatestAgentImage returns the latest stable agent release version
 func GetLatestAgentImage() string {
 	image := newImage(DefaultImageRegistry, DefaultAgentImageName, AgentLatestVersion, false, false, false)
+	return image.ToString()
+}
+
+// GetLatestWindowsAgentImage returns the Windows Server Core variant of the latest agent image.
+// Windows agent images use the "-servercore" tag suffix (e.g. 7.80.2-servercore).
+// Note: the registry is overwritten by updateContainerImages when GlobalConfig.Registry is set;
+// the tag suffix "-servercore" is also incompatible with FIPS (which would produce a non-existent
+// tag like "7.80.2-servercore-fips") — FIPS + Windows is not supported.
+func GetLatestWindowsAgentImage() string {
+	image := newImage(DefaultImageRegistry, DefaultAgentImageName, AgentLatestVersion+WindowsServerCoreTagSuffix, false, false, false)
 	return image.ToString()
 }
 

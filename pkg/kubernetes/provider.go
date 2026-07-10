@@ -46,6 +46,12 @@ const (
 	// GKEProviderLabel is the GKE node label used to determine the node's provider
 	GKEProviderLabel = "cloud.google.com/gke-os-distribution"
 
+	// WindowsProvider marks a DatadogAgent(Internal)/DatadogAgentProfile whose node agent
+	// targets Windows nodes. Set via the datadoghq.com/provider annotation on a
+	// DatadogAgentProfile that selects Windows nodes; the node-agent reconcile then builds a
+	// Windows-compatible DaemonSet (CONTP-1448).
+	WindowsProvider = "windows"
+
 	// OpenshiftProvider is the OpenShift Provider name
 	OpenshiftProvider = "openshift"
 
