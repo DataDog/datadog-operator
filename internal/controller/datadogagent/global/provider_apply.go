@@ -13,8 +13,6 @@ package global
 import (
 	"maps"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
@@ -96,20 +94,4 @@ func ApplyGlobalClusterAgentSpec(mgr feature.PodTemplateManagers, provider strin
 // to the Cluster Checks Runner pod template.
 func ApplyGlobalClusterChecksRunnerSpec(mgr feature.PodTemplateManagers, provider string) {
 	providercaps.ApplyProviderCapabilities(mgr, provider, ClusterChecksRunnerProviderSpec)
-}
-
-// ApplyProviderObjectAnnotations sets provider-conditional annotations on the
-// DaemonSet/ExtendedDaemonSet object itself (not the pod template). On GKE
-// Autopilot the no-connect annotation prevents the GKE node auto-provisioner
-// from treating the DaemonSet as managed, which would block scheduling.
-func ApplyProviderObjectAnnotations(obj metav1.Object, provider string) {
-	if provider != kubernetes.GKEAutopilotProvider {
-		return
-	}
-	ann := obj.GetAnnotations()
-	if ann == nil {
-		ann = map[string]string{}
-	}
-	ann["autopilot.gke.io/no-connect"] = "true"
-	obj.SetAnnotations(ann)
 }

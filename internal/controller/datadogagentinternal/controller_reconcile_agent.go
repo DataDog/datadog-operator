@@ -67,7 +67,6 @@ func (r *Reconciler) reconcileV2Agent(ctx context.Context, requiredComponents fe
 		// Apply provider-conditional global (default-layer) mutations. Runs after
 		// global settings.
 		global.ApplyGlobalNodeAgentSpec(podManagers, provider)
-		global.ApplyProviderObjectAnnotations(eds, provider)
 
 		// Apply features changes on the Deployment.Spec.Template.
 		// Provider capabilities are applied immediately after each feature's ManageNodeAgent
@@ -134,7 +133,6 @@ func (r *Reconciler) reconcileV2Agent(ctx context.Context, requiredComponents fe
 	// Apply provider-conditional global (default-layer) mutations. Runs after
 	// global settings.
 	global.ApplyGlobalNodeAgentSpec(podManagers, provider)
-	global.ApplyProviderObjectAnnotations(daemonset, provider)
 
 	// Apply features changes on the Deployment.Spec.Template.
 	// Provider capabilities are applied immediately after each feature's ManageNodeAgent
