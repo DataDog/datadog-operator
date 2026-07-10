@@ -3,17 +3,19 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-// Windows DaemonSet builder — prototype for CONTP-1448.
-// Creates a minimal Windows-compatible DaemonSet alongside the Linux one:
-//   - nodeSelector: kubernetes.io/os=windows
-//   - toleration for node.kubernetes.io/os=windows:NoSchedule
+// Windows node support — CONTP-1448.
+// ApplyWindowsPodTransformation turns an already-built Linux node-agent pod template into a
+// Windows-compatible one (used on the DatadogAgentProfile + provider=windows path):
+//   - nodeSelector: kubernetes.io/os=windows + toleration for node.kubernetes.io/os=windows:NoSchedule
 //   - Windows agent image (servercore variant)
-//   - PowerShell init container creates an empty datadog.yaml + auth/ dir in a shared vol
-//   - Core agent + trace agent share config vol at C:/ProgramData/Datadog
-//     so the auth_token written by core agent is visible to trace agent
-//   - Core agent + trace agent only (no system-probe/security-agent — Linux/eBPF only)
-//   - No Linux capabilities, no seccomp, no readOnlyRootFilesystem
-//   - Only emptyDir/configMap volumes (no Linux hostPath mounts)
+//   - Core agent + trace/process agent only (no system-probe/security-agent — Linux/eBPF only)
+//   - An init container copies the image's conf.d (default check configs) + a datadog.yaml into a
+//     shared emptyDir, which the agent containers then mount at C:/ProgramData/Datadog. This gives
+//     the agents a single writable config dir that keeps the image's default checks AND lets the
+//     core agent share its IPC auth token with the trace/process agents. (The copy is essential:
+//     the agents override the image entrypoint with `agent run`/`trace-agent run`, so nothing
+//     generates datadog.yaml at start, and the image ships conf.d but no datadog.yaml.)
+//   - No Linux capabilities/seccomp/securityContext; no Linux hostPath mounts
 //   - StripLinuxOnlySettings (allowlist) removes anything Linux-only that features inject
 
 package agent
@@ -31,32 +33,40 @@ import (
 )
 
 const (
-	// windowsInitContainerName is the name of the Windows config-bootstrap init container.
-	windowsInitContainerName = "init-config-windows"
-
-	// windowsConfigVolumeName is the emptyDir volume shared between the init container
-	// and the core/trace agent containers on Windows. The init container creates an empty
-	// datadog.yaml (and the auth/ dir) in this volume; both agent containers then mount it
-	// at windowsDatadogConfigPath so they share the same datadog.yaml and the auth_token
-	// the core agent writes is visible to the trace agent.
+	// windowsConfigVolumeName is the emptyDir shared across the agent containers on Windows,
+	// mounted at the whole config dir C:/ProgramData/Datadog. An init container seeds it with a
+	// copy of the image's conf.d (default check configs) + a datadog.yaml before the agents start
+	// (see windowsConfigInitContainer), so it serves three purposes at once: it carries the
+	// default checks, provides the datadog.yaml the trace/process agents require, and holds the
+	// core agent's IPC auth token (under auth/) for the other agents to read.
+	//
+	// It must be the WHOLE config dir, not just auth/: when log collection is enabled the host
+	// C:/ProgramData is mounted read-only (to follow pod-log symlinks), which would otherwise
+	// hide the image's C:/ProgramData/Datadog. This emptyDir is mounted one level deeper, at
+	// C:/ProgramData/Datadog, so it overlays that host mount and restores a writable config dir.
 	windowsConfigVolumeName = "win-datadog-config"
 
-	// windowsDatadogConfigPath is the Windows default config directory. Both the core
-	// agent and trace agent mount the shared config volume here.
+	// windowsDatadogConfigPath is the Windows Agent config directory. The shared emptyDir is
+	// mounted here on the agent containers (seeded by the init container with conf.d + datadog.yaml).
 	windowsDatadogConfigPath = "C:/ProgramData/Datadog"
 
-	// windowsAuthTokenFilePath is the auth token path for Windows containers.
-	// This overrides the Linux default (DD_AUTH_TOKEN_FILE_PATH=/etc/datadog-agent/auth/token)
-	// that commonEnvVars injects, since both containers mount the shared vol at
-	// windowsDatadogConfigPath and the core agent writes auth_token there.
+	// windowsConfigInitPath is where the init container stages the config into the shared emptyDir.
+	// It is deliberately NOT C:/ProgramData/Datadog: mounting the emptyDir there in the init
+	// container would hide the very image conf.d the init container needs to copy. Staging at a
+	// separate path lets the init read the image's C:/ProgramData/Datadog and write the emptyDir.
+	windowsConfigInitPath = "C:/config-init"
+
+	// windowsAuthTokenFilePath is the IPC auth token path, inside the shared config dir's auth
+	// subdir. It overrides the Linux default (DD_AUTH_TOKEN_FILE_PATH=/etc/datadog-agent/auth/token)
+	// that commonEnvVars injects, so the token the core agent writes is visible to the trace agent.
 	windowsAuthTokenFilePath = windowsDatadogConfigPath + "/auth/token"
 
-	// Windows log-collection host paths (mirrors the Helm chart's daemonset-volumes-windows).
-	// On Windows, pod log files under C:/var/log/pods are symlinks into C:/ProgramData
-	// (containerd/docker), so the agent needs C:/ProgramData mounted to follow them.
+	// Windows log-collection host paths. Pod logs are regular files under C:/var/log/pods on
+	// containerd, so only C:/var/log + C:/var/log/pods are mounted; C:/ProgramData is deliberately
+	// NOT mounted (it would overlap the config dir — see AddWindowsLogCollectionVolumes).
 	windowsVarLogPath      = "C:/var/log"      // pointer dir (RW: agent stores log tail offsets)
-	windowsPodLogsPath     = "C:/var/log/pods" // Kubernetes pod log files
-	windowsProgramDataPath = "C:/ProgramData"  // symlink targets for the pod log files
+	windowsPodLogsPath     = "C:/var/log/pods" // Kubernetes pod log files (regular files here)
+	windowsProgramDataPath = "C:/ProgramData"  // config-dir parent; referenced only by tests
 
 	windowsPointerVolumeName      = "win-pointerdir"
 	windowsPodLogsVolumeName      = "win-logpodpath"
@@ -67,32 +77,31 @@ const (
 // back to the Windows defaults. These come from features.logCollection.{tempStoragePath,
 // podLogsPath,containerLogsPath} so custom Windows log paths take effect.
 type WindowsLogPaths struct {
-	TempStoragePath   string // pointer dir (RW); default C:/var/log
-	PodLogsPath       string // pod logs (RO);   default C:/var/log/pods
-	ContainerLogsPath string // symlink targets (RO); default C:/ProgramData
+	TempStoragePath string // pointer dir (RW); default C:/var/log
+	PodLogsPath     string // pod logs (RO);    default C:/var/log/pods
+	// ContainerLogsPath is the container-runtime log store; only mounted when set to a
+	// non-overlapping Windows path. See AddWindowsLogCollectionVolumes.
+	ContainerLogsPath string
 }
 
-// AddWindowsLogCollectionVolumes adds the Windows host-log hostPath volumes + mounts to the
-// core agent so log collection actually works (the logcollection feature only injects the
-// Linux paths, which the strip removes). Mirrors the Helm chart's daemonset-volumes-windows,
-// but honors the configured logCollection paths (falling back to the Windows defaults):
-//   - tempStoragePath   (pointer dir, RW — agent persists tail offsets); default C:/var/log
-//   - podLogsPath       (RO — Kubernetes pod log files);                 default C:/var/log/pods
-//   - containerLogsPath (RO — symlink targets the pod logs point into);  default C:/ProgramData
+// AddWindowsLogCollectionVolumes adds the Windows host-log hostPath volumes + mounts to the core
+// agent (the logcollection feature only injects the Linux paths, which the strip removes). It
+// mounts tempStoragePath (default C:/var/log) and podLogsPath (default C:/var/log/pods).
 //
-// It is a no-op if there is no core agent container (e.g. it was stripped). Safe to call only
-// when log collection is enabled.
+// containerLogsPath (the container-runtime log store that pod logs may symlink into) has no
+// default and is mounted only when set to a Windows path that does NOT overlap the config dir. On
+// containerd (the supported Windows runtime) pod logs are regular files under C:/var/log/pods, so
+// it is normally unset; defaulting it to C:/ProgramData would overlap C:/ProgramData/Datadog and
+// rely on non-guaranteed Windows nested-mount overlay. Symlink-based runtimes set it to the
+// store's own subdirectory (a sibling of the config dir, e.g. C:/ProgramData/docker/containers). A
+// path that overlaps the config dir is skipped and returned (empty otherwise) so the caller can
+// surface a condition instead of silently failing log collection.
 //
-// Following the Linux logcollection feature model, the configured paths set the HOST path only;
-// the in-container mount path is always the Windows Agent's standard path (C:/var/log,
-// C:/var/log/pods, C:/ProgramData). The Agent reads logs from those fixed in-container paths, so
-// a custom host path (e.g. D:/logs/pods) is surfaced where the Agent expects it without extra
-// Agent config. Mounting a custom path at itself would instead leave the Agent reading an empty
-// default path and silently collecting nothing.
-func AddWindowsLogCollectionVolumes(spec *corev1.PodSpec, paths WindowsLogPaths) {
+// It is a no-op if there is no core agent container. Configured paths set the HOST path only; the
+// in-container mount path is the Agent's standard Windows path.
+func AddWindowsLogCollectionVolumes(spec *corev1.PodSpec, paths WindowsLogPaths) (skippedOverlappingContainerLogsPath string) {
 	pointerHostPath := windowsPathOrDefault(paths.TempStoragePath, windowsVarLogPath)
 	podLogsHostPath := windowsPathOrDefault(paths.PodLogsPath, windowsPodLogsPath)
-	containerLogsHostPath := windowsPathOrDefault(paths.ContainerLogsPath, windowsProgramDataPath)
 
 	// Mount on the core agent, or the consolidated single agent under single-container strategy.
 	idx := -1
@@ -103,7 +112,7 @@ func AddWindowsLogCollectionVolumes(spec *corev1.PodSpec, paths WindowsLogPaths)
 		}
 	}
 	if idx == -1 {
-		return
+		return ""
 	}
 
 	hostPathVol := func(name, path string) corev1.Volume {
@@ -116,20 +125,51 @@ func AddWindowsLogCollectionVolumes(spec *corev1.PodSpec, paths WindowsLogPaths)
 	spec.Volumes = append(spec.Volumes,
 		hostPathVol(windowsPointerVolumeName, pointerHostPath),
 		hostPathVol(windowsPodLogsVolumeName, podLogsHostPath),
-		hostPathVol(windowsContainerLogVolumeName, containerLogsHostPath),
 	)
 	// Mount paths are fixed to the Agent's standard Windows paths regardless of the host path.
 	spec.Containers[idx].VolumeMounts = append(spec.Containers[idx].VolumeMounts,
 		corev1.VolumeMount{Name: windowsPointerVolumeName, MountPath: windowsVarLogPath},
 		corev1.VolumeMount{Name: windowsPodLogsVolumeName, MountPath: windowsPodLogsPath, ReadOnly: true},
-		corev1.VolumeMount{Name: windowsContainerLogVolumeName, MountPath: windowsProgramDataPath, ReadOnly: true},
 	)
 
-	// Force file-based container log collection on Windows. The only Windows log source we
-	// mount is the file tree (C:/var/log/pods + C:/ProgramData); runtime/socket-based
-	// collection has no Windows container-runtime socket/pipe wired up, so if the user set
-	// containerCollectUsingFiles=false the agent would collect nothing. Override to file mode.
+	// Only mount the container-log store when the user explicitly configured a Windows path that
+	// does not overlap the config dir (see the function doc). Never default it to C:/ProgramData.
+	if isExplicitWindowsPath(paths.ContainerLogsPath) {
+		if windowsPathOverlapsConfigDir(paths.ContainerLogsPath) {
+			// Would re-shadow the seeded config; skip and report.
+			skippedOverlappingContainerLogsPath = paths.ContainerLogsPath
+		} else {
+			spec.Volumes = append(spec.Volumes, hostPathVol(windowsContainerLogVolumeName, paths.ContainerLogsPath))
+			spec.Containers[idx].VolumeMounts = append(spec.Containers[idx].VolumeMounts,
+				corev1.VolumeMount{Name: windowsContainerLogVolumeName, MountPath: paths.ContainerLogsPath, ReadOnly: true},
+			)
+		}
+	}
+
+	// Force file-based container log collection on Windows. The only Windows log source we mount
+	// is the file tree under C:/var/log/pods; runtime/socket-based collection has no Windows
+	// container-runtime socket/pipe wired up, so if the user set containerCollectUsingFiles=false
+	// the agent would collect nothing. Override to file mode.
 	spec.Containers[idx].Env = setEnvVar(spec.Containers[idx].Env, "DD_LOGS_CONFIG_K8S_CONTAINER_USE_FILE", "true")
+	return skippedOverlappingContainerLogsPath
+}
+
+// isExplicitWindowsPath reports whether v is a non-empty genuine Windows path (not a Linux
+// "/"-prefixed default). Used to gate optional mounts that have no safe Windows default.
+func isExplicitWindowsPath(v string) bool {
+	return v != "" && !strings.HasPrefix(v, "/")
+}
+
+// windowsPathOverlapsConfigDir reports whether a host mount at p would overlap the agent config
+// dir C:/ProgramData/Datadog — i.e. p is a parent of, equal to, or nested under it. Overlapping
+// parent/child mounts on Windows are not a guaranteed overlay, so such a container-log path is
+// skipped to avoid re-shadowing the seeded config.
+func windowsPathOverlapsConfigDir(p string) bool {
+	norm := func(s string) string {
+		return strings.ToLower(strings.TrimRight(strings.ReplaceAll(s, "\\", "/"), "/"))
+	}
+	a, b := norm(p), norm(windowsDatadogConfigPath)
+	return a == b || strings.HasPrefix(a+"/", b+"/") || strings.HasPrefix(b+"/", a+"/")
 }
 
 // windowsPathOrDefault returns the Windows default when the configured path is empty OR is a
@@ -234,38 +274,6 @@ func ensureServercoreTag(image string) string {
 	return base + tag
 }
 
-// windowsInitContainers returns a PowerShell init container that creates a minimal
-// datadog.yaml inside the shared win-datadog-config emptyDir volume, which is mounted
-// at windowsDatadogConfigPath. All meaningful configuration (API key, site, cluster-agent
-// token) is supplied via environment variables injected by global settings, so an empty
-// config file is sufficient to satisfy the agent's startup requirement.
-//
-// All three containers (init, core agent, trace agent) mount the same emptyDir at
-// C:/ProgramData/Datadog, so the auth_token written by the core agent is visible to
-// the trace agent without any additional path trickery.
-func windowsInitContainers(img string) []corev1.Container {
-	return []corev1.Container{
-		{
-			Name:    windowsInitContainerName,
-			Image:   img,
-			Command: []string{"powershell", "-command"},
-			// Create the auth/ subdirectory before datadog.yaml so the trace agent
-			// can read the token path (C:/ProgramData/Datadog/auth/token) immediately
-			// on startup without waiting for the core agent to create it.
-			Args: []string{
-				"New-Item -ItemType Directory -Force -Path C:/ProgramData/Datadog/auth; " +
-					"New-Item -ItemType File -Force -Path C:/ProgramData/Datadog/datadog.yaml",
-			},
-			VolumeMounts: []corev1.VolumeMount{
-				{
-					Name:      windowsConfigVolumeName,
-					MountPath: windowsDatadogConfigPath,
-				},
-			},
-		},
-	}
-}
-
 // overrideAuthTokenPath returns a copy of envs with DD_AUTH_TOKEN_FILE_PATH set to the
 // Windows auth token path. It builds a new slice to avoid mutating the caller's backing array.
 func overrideAuthTokenPath(envs []corev1.EnvVar) []corev1.EnvVar {
@@ -287,13 +295,11 @@ func overrideAuthTokenPath(envs []corev1.EnvVar) []corev1.EnvVar {
 
 // volumesForWindowsAgent returns the volumes for the Windows DaemonSet.
 // Only the shared config volume is declared; Linux-only volumes (/proc, /sys/fs/cgroup,
-// /etc/passwd, seccomp, Unix sockets) are omitted. Additional volumes (log collection
-// paths, named pipes for DogStatsD/APM) will be added as Windows feature support lands.
+// /etc/passwd, seccomp, Unix sockets) are omitted. Additional volumes (named pipes for
+// DogStatsD/APM) will be added as Windows feature support lands.
 func volumesForWindowsAgent(_ metav1.Object) []corev1.Volume {
 	return []corev1.Volume{
-		// Shared config volume: init-config-windows copies the image's C:/ProgramData/Datadog
-		// here; core agent and trace agent both mount it at windowsDatadogConfigPath so they
-		// share the same datadog.yaml and auth_token.
+		// Shared config emptyDir seeded by the init container; see windowsConfigVolumeName.
 		{
 			Name:         windowsConfigVolumeName,
 			VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}},
@@ -301,24 +307,48 @@ func volumesForWindowsAgent(_ metav1.Object) []corev1.Volume {
 	}
 }
 
-func volumeMountsForWindowsCoreAgent() []corev1.VolumeMount {
+// volumeMountsForWindowsAgent returns the shared config-dir mount applied to every surviving
+// agent container: the whole C:/ProgramData/Datadog (init-seeded conf.d + datadog.yaml + auth).
+func volumeMountsForWindowsAgent() []corev1.VolumeMount {
 	return []corev1.VolumeMount{
-		// Mount shared config vol so core agent reads from init-populated
-		// C:/ProgramData/Datadog and writes auth_token there for trace agent.
 		{Name: windowsConfigVolumeName, MountPath: windowsDatadogConfigPath},
 	}
 }
 
-func volumeMountsForWindowsTraceAgent() []corev1.VolumeMount {
-	return []corev1.VolumeMount{
-		// Mount same shared config vol so trace agent sees auth_token from core agent.
-		{Name: windowsConfigVolumeName, MountPath: windowsDatadogConfigPath},
-	}
-}
-
-func volumeMountsForWindowsProcessAgent() []corev1.VolumeMount {
-	return []corev1.VolumeMount{
-		{Name: windowsConfigVolumeName, MountPath: windowsDatadogConfigPath},
+// windowsConfigInitContainer returns the init container that seeds the shared config emptyDir.
+// It runs on the same (servercore) agent image so it has the image's C:/ProgramData/Datadog, and
+// copies conf.d + the *.yaml config files into the emptyDir staged at windowsConfigInitPath, then
+// ensures an auth/ dir and a datadog.yaml exist. The agent containers override the image entrypoint
+// with `agent run`/`trace-agent run`, so nothing would otherwise generate datadog.yaml; and the
+// image ships conf.d but no datadog.yaml. Config values still come from env vars (DD_*); the copied
+// conf.d supplies the default checks, and the empty datadog.yaml just satisfies the file the
+// trace/process agents load at startup.
+func windowsConfigInitContainer(image string, pullPolicy corev1.PullPolicy) corev1.Container {
+	// Mirror the image's whole config dir (C:/ProgramData/Datadog) into the shared emptyDir, then
+	// ensure the auth dir + a datadog.yaml exist. robocopy /E is used (not Copy-Item) because it is:
+	//   - idempotent: the emptyDir persists for the pod lifetime while the init container re-runs
+	//     when the pod sandbox is recreated (e.g. node reboot); robocopy mirrors without the
+	//     Copy-Item "copy dir into existing dir" nesting quirk (C:\...\conf.d\conf.d).
+	//   - tolerant: a missing/empty source conf.d (custom/minimal images) is not an error, and we
+	//     guard on the source dir existing so a truly minimal image still gets auth/ + datadog.yaml.
+	//   - complete: mirroring the WHOLE dir (not just conf.d + top-level *.yaml) carries checks.d
+	//     and any other image-provided config subdir, which the later full-dir mount would else hide.
+	// robocopy exit codes 0-7 are success; >=8 is a real failure, so map those to a nonzero exit.
+	script := "$ErrorActionPreference='Stop';" +
+		" if (Test-Path C:\\ProgramData\\Datadog) {" +
+		" robocopy C:\\ProgramData\\Datadog C:\\config-init /E /NFL /NDL /NJH /NJS /NP /R:2 /W:2 | Out-Null;" +
+		" if ($LASTEXITCODE -ge 8) { exit $LASTEXITCODE } };" +
+		" New-Item -ItemType Directory -Force -Path C:\\config-init\\auth | Out-Null;" +
+		" if (!(Test-Path C:\\config-init\\datadog.yaml)) { New-Item -ItemType File -Path C:\\config-init\\datadog.yaml | Out-Null };" +
+		" exit 0"
+	return corev1.Container{
+		Name:            "init-config-windows",
+		Image:           image,
+		ImagePullPolicy: pullPolicy,
+		Command:         []string{"powershell", "-Command", script},
+		VolumeMounts: []corev1.VolumeMount{
+			{Name: windowsConfigVolumeName, MountPath: windowsConfigInitPath},
+		},
 	}
 }
 
@@ -334,12 +364,12 @@ var windowsAllowedContainerNames = map[string]bool{
 	string(apicommon.UnprivilegedSingleAgentContainerName): true, // single-container strategy (behaves as core)
 }
 
-// windowsAllowedInitContainerNames is the allowlist of init containers on Windows.
-// Only the Windows config-bootstrap init container is kept; Linux init containers
-// (seccomp-setup, init-volume, init-config, …) are removed.
-var windowsAllowedInitContainerNames = map[string]bool{
-	windowsInitContainerName: true,
-}
+// windowsAllowedInitContainerNames is the allowlist of Linux init containers to KEEP on Windows.
+// It is empty: every Linux init container a feature injects (seccomp-setup, init-volume,
+// init-config, …) is stripped. The Windows config-seed init container is added afterwards, in
+// ApplyWindowsPodTransformation (see windowsConfigInitContainer), so it is not subject to this
+// allowlist.
+var windowsAllowedInitContainerNames = map[string]bool{}
 
 // StripLinuxOnlySettings removes Linux-incompatible mutations from a Windows PodSpec.
 // See stripLinuxOnlyFromSpec for the full description; prefer
@@ -380,6 +410,25 @@ func isWindowsMainAgentContainer(name string) bool {
 		name == string(apicommon.UnprivilegedSingleAgentContainerName)
 }
 
+// windowsAgentImageForInit returns the image + pull policy to use for the config-seed init
+// container so it carries the image's conf.d and pulls consistently with the agent. It prefers
+// the primary agent container (core or single), but falls back to any surviving agent container
+// (trace/process also run the agent image) so the shared config dir is still seeded — the
+// trace/process agents require the datadog.yaml the init creates even if the core agent was
+// dropped. Returns ok=false only when no agent container survives at all.
+func windowsAgentImageForInit(spec *corev1.PodSpec) (image string, pullPolicy corev1.PullPolicy, ok bool) {
+	for i := range spec.Containers {
+		if isWindowsMainAgentContainer(spec.Containers[i].Name) {
+			return spec.Containers[i].Image, spec.Containers[i].ImagePullPolicy, true
+		}
+	}
+	// No primary agent: fall back to the first surviving container (same agent image).
+	if len(spec.Containers) > 0 {
+		return spec.Containers[0].Image, spec.Containers[0].ImagePullPolicy, true
+	}
+	return "", "", false
+}
+
 // ApplyWindowsPodTransformation converts an already-built (Linux) node-agent pod template
 // into a Windows-compatible one, in place. It is used on the DatadogAgentProfile+provider
 // path: a profile targeting Windows nodes (annotation datadoghq.com/provider=windows) builds
@@ -390,8 +439,9 @@ func isWindowsMainAgentContainer(name string) bool {
 //     containers, "/"-path mounts/volumes, Unix-socket + Linux-only env, container and pod
 //     securityContext, hostPID/hostIPC, and all Linux init containers.
 //  2. Re-add the Windows config bootstrap: a shared emptyDir + PowerShell init container that
-//     seeds datadog.yaml and the auth dir, mounted at C:/ProgramData/Datadog on the surviving
-//     agent containers, plus the Windows container commands and the Windows auth-token path.
+//     seeds it with the image's conf.d + a datadog.yaml, mounted at C:/ProgramData/Datadog on the
+//     surviving agent containers, plus the Windows container commands and the Windows auth-token
+//     path.
 //  3. Coerce the default agent image to the -servercore variant.
 //  4. Add the Windows host-log hostPath mounts when log collection is enabled.
 //  5. Force non-local traffic so APM/DogStatsD are reachable without Unix sockets.
@@ -399,50 +449,36 @@ func isWindowsMainAgentContainer(name string) bool {
 //
 // logPaths carries the configured logCollection paths (Windows defaults are applied for the
 // Linux/empty values).
-func ApplyWindowsPodTransformation(tmpl *corev1.PodTemplateSpec, dda metav1.Object, logCollectionEnabled bool, logPaths WindowsLogPaths) {
+//
+// It returns a configured logCollection.containerLogsPath that was skipped for overlapping the
+// agent config dir (empty string otherwise), so the caller can surface a warning/condition.
+func ApplyWindowsPodTransformation(tmpl *corev1.PodTemplateSpec, dda metav1.Object, logCollectionEnabled bool, logPaths WindowsLogPaths) (skippedOverlappingContainerLogsPath string) {
 	StripLinuxOnlySettingsFromTemplate(tmpl)
 	spec := &tmpl.Spec
 
-	// Re-add the Windows config bootstrap (init container + shared volume + mounts/commands).
-	// The init container must use the SAME image + pull policy as the main agent container so
-	// that registry overrides / pinned tags applied to the agent (via global registry rewriting
-	// and the nodeAgent image override, both of which ran before this transformation) are also
-	// honored by the init container — otherwise it would pull the default gcr.io image and break
-	// private-registry / air-gapped installs. EnsureWindowsServercoreImage below coerces both to
-	// the -servercore variant consistently. Falls back to the default image if no agent container
-	// survives (should not happen).
-	initImage := images.GetLatestWindowsAgentImage()
-	var initPullPolicy corev1.PullPolicy
-	for i := range spec.Containers {
-		if isWindowsMainAgentContainer(spec.Containers[i].Name) {
-			initImage = spec.Containers[i].Image
-			initPullPolicy = spec.Containers[i].ImagePullPolicy
-			break
-		}
-	}
-	spec.InitContainers = windowsInitContainers(initImage)
-	if initPullPolicy != "" {
-		spec.InitContainers[0].ImagePullPolicy = initPullPolicy
-	}
+	// Re-add the shared config volume (mounted at C:/ProgramData/Datadog on the agent containers)
+	// so they share a single writable config dir carrying the default checks + auth token.
 	spec.Volumes = append(spec.Volumes, volumesForWindowsAgent(dda)...)
+	// Windows agent commands differ from Linux (default.go): no --config (agents use their default
+	// config dir C:/ProgramData/Datadog, seeded by the init container), and the trace/process
+	// agents use the "foreground" form so they run in the foreground rather than as a Windows
+	// service. `trace-agent run --foreground` is verified live (reaches "Trace agent running",
+	// :8126). process-agent only exists on older (<7.60) pinned agents; normally checks run in-core.
 	for i := range spec.Containers {
 		c := &spec.Containers[i]
 		switch c.Name {
 		case string(apicommon.CoreAgentContainerName):
 			c.Command = []string{"agent", "run"}
-			c.VolumeMounts = append(c.VolumeMounts, volumeMountsForWindowsCoreAgent()...)
 			c.Env = overrideAuthTokenPath(c.Env)
 			// DogStatsD has no Unix socket on Windows: accept UDP from other pods.
 			c.Env = setEnvVar(c.Env, "DD_DOGSTATSD_NON_LOCAL_TRAFFIC", "true")
 		case string(apicommon.TraceAgentContainerName):
 			c.Command = []string{"trace-agent", "run", "--foreground"}
-			c.VolumeMounts = append(c.VolumeMounts, volumeMountsForWindowsTraceAgent()...)
 			c.Env = overrideAuthTokenPath(c.Env)
 			// APM receiver must accept TCP from other pods (no Unix socket on Windows).
 			c.Env = setEnvVar(c.Env, "DD_APM_NON_LOCAL_TRAFFIC", "true")
 		case string(apicommon.ProcessAgentContainerName):
 			c.Command = []string{"process-agent", "--foreground"}
-			c.VolumeMounts = append(c.VolumeMounts, volumeMountsForWindowsProcessAgent()...)
 			c.Env = overrideAuthTokenPath(c.Env)
 		case string(apicommon.UnprivilegedSingleAgentContainerName):
 			// Single-container strategy: one consolidated agent process. Treat it as the core
@@ -450,17 +486,33 @@ func ApplyWindowsPodTransformation(tmpl *corev1.PodTemplateSpec, dda metav1.Obje
 			// for the in-process APM/DogStatsD). Without this it would be stripped, leaving a
 			// container-less (invalid) pod.
 			c.Command = []string{"agent", "run"}
-			c.VolumeMounts = append(c.VolumeMounts, volumeMountsForWindowsCoreAgent()...)
 			c.Env = overrideAuthTokenPath(c.Env)
 			c.Env = setEnvVar(c.Env, "DD_DOGSTATSD_NON_LOCAL_TRAFFIC", "true")
 			c.Env = setEnvVar(c.Env, "DD_APM_NON_LOCAL_TRAFFIC", "true")
 		}
 	}
 
+	// Seed the shared config dir before the agents start: an init container copies the image's
+	// conf.d + a datadog.yaml into the emptyDir (the agents override the entrypoint so nothing
+	// else creates datadog.yaml, and the image ships no datadog.yaml). Use the agent image so the
+	// init container has the image's conf.d + the same pull policy; EnsureWindowsServercoreImage
+	// then coerces it to the servercore variant along with the agent containers.
+	if img, pullPolicy, ok := windowsAgentImageForInit(spec); ok {
+		spec.InitContainers = append(spec.InitContainers, windowsConfigInitContainer(img, pullPolicy))
+	}
+
 	EnsureWindowsServercoreImage(spec)
 
 	if logCollectionEnabled {
-		AddWindowsLogCollectionVolumes(spec, logPaths)
+		skippedOverlappingContainerLogsPath = AddWindowsLogCollectionVolumes(spec, logPaths)
+	}
+
+	// Append the config mount after the log mounts (defensive parent-before-child ordering); no
+	// host mount overlaps the config dir by default. See AddWindowsLogCollectionVolumes.
+	for i := range spec.Containers {
+		if windowsAllowedContainerNames[spec.Containers[i].Name] {
+			spec.Containers[i].VolumeMounts = append(spec.Containers[i].VolumeMounts, volumeMountsForWindowsAgent()...)
+		}
 	}
 
 	// Node scheduling: target Windows nodes and tolerate the automatic Windows taint. The
@@ -479,6 +531,8 @@ func ApplyWindowsPodTransformation(tmpl *corev1.PodTemplateSpec, dda metav1.Obje
 	if !slices.Contains(spec.Tolerations, windowsToleration) {
 		spec.Tolerations = append(spec.Tolerations, windowsToleration)
 	}
+
+	return skippedOverlappingContainerLogsPath
 }
 
 func stripLinuxOnlyFromSpec(spec *corev1.PodSpec, annotations *map[string]string) {

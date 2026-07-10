@@ -82,12 +82,12 @@ func TestStripLinuxOnly_ContainerAllowlist(t *testing.T) {
 		"only core/trace/process agent should survive; fips-proxy/otel/system-probe/etc. removed")
 }
 
-// Init containers: only the Windows bootstrap survives.
+// Init containers: all are stripped on Windows (the allowlist is empty — the Windows agent
+// needs no init container).
 func TestStripLinuxOnly_InitContainerAllowlist(t *testing.T) {
 	tmpl := &corev1.PodTemplateSpec{
 		Spec: corev1.PodSpec{
 			InitContainers: []corev1.Container{
-				{Name: "init-config-windows"},
 				{Name: string(apicommon.SeccompSetupContainerName)},
 				{Name: string(apicommon.InitVolumeContainerName)},
 				{Name: string(apicommon.InitConfigContainerName)},
@@ -96,8 +96,7 @@ func TestStripLinuxOnly_InitContainerAllowlist(t *testing.T) {
 	}
 	StripLinuxOnlySettingsFromTemplate(tmpl)
 
-	require.Len(t, tmpl.Spec.InitContainers, 1)
-	assert.Equal(t, "init-config-windows", tmpl.Spec.InitContainers[0].Name)
+	assert.Empty(t, tmpl.Spec.InitContainers, "all Linux init containers must be stripped")
 }
 
 // Any mount with a Linux absolute path is stripped from surviving containers;
@@ -372,8 +371,8 @@ func TestEnsureWindowsServercoreImage(t *testing.T) {
 	}
 }
 
-// AddWindowsLogCollectionVolumes adds the three Windows host-log hostPath volumes + mounts
-// on the core agent (mirrors the Helm chart), and survives the strip because they use C:/ paths.
+// AddWindowsLogCollectionVolumes adds the two default Windows host-log hostPath volumes + mounts
+// on the core agent, which survive the strip because they use C:/ paths.
 func TestAddWindowsLogCollectionVolumes(t *testing.T) {
 	spec := &corev1.PodSpec{
 		Containers: []corev1.Container{
@@ -383,7 +382,9 @@ func TestAddWindowsLogCollectionVolumes(t *testing.T) {
 	}
 	AddWindowsLogCollectionVolumes(spec, WindowsLogPaths{}) // empty → Windows defaults
 
-	// 3 hostPath volumes with the expected default Windows paths.
+	// 2 hostPath volumes with the expected default Windows paths. The container-log store
+	// (C:/ProgramData) is NOT mounted by default — it would overlap the config dir and pod logs
+	// are regular files under C:/var/log/pods.
 	paths := map[string]string{}
 	for _, v := range spec.Volumes {
 		require.NotNil(t, v.HostPath, "volume %q must be hostPath", v.Name)
@@ -391,7 +392,8 @@ func TestAddWindowsLogCollectionVolumes(t *testing.T) {
 	}
 	assert.Equal(t, "C:/var/log", paths[windowsPointerVolumeName])
 	assert.Equal(t, "C:/var/log/pods", paths[windowsPodLogsVolumeName])
-	assert.Equal(t, "C:/ProgramData", paths[windowsContainerLogVolumeName])
+	_, hasContainerLog := paths[windowsContainerLogVolumeName]
+	assert.False(t, hasContainerLog, "container-log (C:/ProgramData) volume must NOT be mounted by default")
 
 	// Mounts land on the core agent only, at the same Windows paths.
 	var core, trace corev1.Container
@@ -403,10 +405,11 @@ func TestAddWindowsLogCollectionVolumes(t *testing.T) {
 			trace = c
 		}
 	}
-	assert.Len(t, core.VolumeMounts, 3, "core agent gets the 3 log mounts")
+	assert.Len(t, core.VolumeMounts, 2, "core agent gets the 2 default log mounts")
 	assert.Empty(t, trace.VolumeMounts, "trace agent gets no log mounts")
 	for _, m := range core.VolumeMounts {
 		assert.True(t, strings.HasPrefix(m.MountPath, "C:/"), "mount %q must be a Windows path", m.MountPath)
+		assert.NotEqual(t, windowsProgramDataPath, m.MountPath, "no C:/ProgramData mount (would overlap config dir)")
 	}
 
 	// And they survive the strip (Windows paths, not Linux).
@@ -414,11 +417,11 @@ func TestAddWindowsLogCollectionVolumes(t *testing.T) {
 	StripLinuxOnlySettingsFromTemplate(tmpl)
 	surviving := 0
 	for _, v := range tmpl.Spec.Volumes {
-		if v.Name == windowsPointerVolumeName || v.Name == windowsPodLogsVolumeName || v.Name == windowsContainerLogVolumeName {
+		if v.Name == windowsPointerVolumeName || v.Name == windowsPodLogsVolumeName {
 			surviving++
 		}
 	}
-	assert.Equal(t, 3, surviving, "Windows log volumes must survive the strip")
+	assert.Equal(t, 2, surviving, "Windows log volumes must survive the strip")
 }
 
 // Configured logCollection paths must override the Windows defaults.
@@ -439,17 +442,48 @@ func TestAddWindowsLogCollectionVolumes_CustomPaths(t *testing.T) {
 	// Custom paths set the HOST path...
 	assert.Equal(t, "D:/dd/run", paths[windowsPointerVolumeName])
 	assert.Equal(t, "D:/logs/pods", paths[windowsPodLogsVolumeName])
+	// An explicit, non-overlapping Windows container-log path IS mounted (D:/containerd).
 	assert.Equal(t, "D:/containerd", paths[windowsContainerLogVolumeName])
 
-	// ...but the in-container mount path is always the Agent's standard Windows path, so the
-	// Agent reads logs where it expects regardless of the host path (Linux model).
+	// The pointer + pod-log mounts use the Agent's standard Windows paths (Linux model), while the
+	// explicit container-log store is mounted at its own configured path (it has no standard path).
 	mountPaths := map[string]string{}
 	for _, m := range spec.Containers[0].VolumeMounts {
 		mountPaths[m.Name] = m.MountPath
 	}
 	assert.Equal(t, windowsVarLogPath, mountPaths[windowsPointerVolumeName])
 	assert.Equal(t, windowsPodLogsPath, mountPaths[windowsPodLogsVolumeName])
-	assert.Equal(t, windowsProgramDataPath, mountPaths[windowsContainerLogVolumeName])
+	assert.Equal(t, "D:/containerd", mountPaths[windowsContainerLogVolumeName])
+}
+
+// An explicit container-log path that OVERLAPS the config dir must be skipped (it would re-shadow
+// the seeded config via a non-guaranteed Windows nested mount) AND reported back to the caller.
+func TestAddWindowsLogCollectionVolumes_OverlappingContainerPathSkipped(t *testing.T) {
+	for _, overlap := range []string{"C:/ProgramData", "C:/ProgramData/Datadog", "C:/ProgramData/Datadog/conf.d", `C:\ProgramData`} {
+		spec := &corev1.PodSpec{Containers: []corev1.Container{{Name: string(apicommon.CoreAgentContainerName)}}}
+		skipped := AddWindowsLogCollectionVolumes(spec, WindowsLogPaths{ContainerLogsPath: overlap})
+		for _, v := range spec.Volumes {
+			assert.NotEqual(t, windowsContainerLogVolumeName, v.Name,
+				"overlapping container-log path %q must not be mounted", overlap)
+		}
+		assert.Equal(t, overlap, skipped, "overlapping container-log path must be reported so the caller can surface it")
+	}
+}
+
+// A non-overlapping (sibling) container-log path — the supported way to serve symlink-based pod
+// logs — IS mounted and NOT reported as skipped.
+func TestAddWindowsLogCollectionVolumes_SiblingContainerPathMounted(t *testing.T) {
+	spec := &corev1.PodSpec{Containers: []corev1.Container{{Name: string(apicommon.CoreAgentContainerName)}}}
+	skipped := AddWindowsLogCollectionVolumes(spec, WindowsLogPaths{ContainerLogsPath: "C:/ProgramData/docker/containers"})
+	assert.Empty(t, skipped, "a non-overlapping container-log path must not be reported as skipped")
+	mounted := false
+	for _, v := range spec.Volumes {
+		if v.Name == windowsContainerLogVolumeName {
+			mounted = true
+			assert.Equal(t, "C:/ProgramData/docker/containers", v.HostPath.Path)
+		}
+	}
+	assert.True(t, mounted, "a non-overlapping sibling container-log path must be mounted")
 }
 
 // Linux-absolute paths (the logCollection feature's defaults, e.g. /var/log/pods) must be
@@ -475,7 +509,9 @@ func TestAddWindowsLogCollectionVolumes_LinuxDefaultsTreatedAsUnset(t *testing.T
 	}
 	assert.Equal(t, "C:/var/log", paths[windowsPointerVolumeName])
 	assert.Equal(t, "C:/var/log/pods", paths[windowsPodLogsVolumeName])
-	assert.Equal(t, "C:/ProgramData", paths[windowsContainerLogVolumeName])
+	// A Linux container-log path is treated as unset → not mounted (no C:/ProgramData default).
+	_, hasContainerLog := paths[windowsContainerLogVolumeName]
+	assert.False(t, hasContainerLog, "Linux container-log path must be treated as unset, not mounted")
 }
 
 // --- ApplyWindowsPodTransformation ---
@@ -491,8 +527,9 @@ func TestApplyWindowsPodTransformation(t *testing.T) {
 			},
 			Containers: []corev1.Container{
 				{
-					Name:  string(apicommon.CoreAgentContainerName),
-					Image: "gcr.io/datadoghq/agent:7.80.2",
+					Name:            string(apicommon.CoreAgentContainerName),
+					Image:           "gcr.io/datadoghq/agent:7.80.2",
+					ImagePullPolicy: corev1.PullAlways,
 					VolumeMounts: []corev1.VolumeMount{
 						{Name: "logpodpath", MountPath: "/var/log/pods"},
 						{Name: "auth", MountPath: "/etc/datadog-agent/auth"},
@@ -517,13 +554,21 @@ func TestApplyWindowsPodTransformation(t *testing.T) {
 	assert.ElementsMatch(t, []string{"agent", "trace-agent"}, containerNames(spec.Containers))
 	assert.False(t, spec.HostPID)
 
-	// Windows bootstrap: only the Windows init container, servercore image everywhere.
-	require.Len(t, spec.InitContainers, 1)
+	// The config-seed init container is added (copies the image's conf.d + datadog.yaml into the
+	// shared emptyDir); servercore image on all containers, including the init container.
+	require.Len(t, spec.InitContainers, 1, "config-seed init container present")
 	assert.Equal(t, "init-config-windows", spec.InitContainers[0].Name)
+	assert.Contains(t, spec.InitContainers[0].Image, "-servercore", "init container image must be servercore")
+	initMount := spec.InitContainers[0].VolumeMounts[0]
+	assert.Equal(t, windowsConfigVolumeName, initMount.Name)
+	assert.Equal(t, windowsConfigInitPath, initMount.MountPath,
+		"init must stage into the emptyDir at a path other than the config dir, so it can read the image conf.d")
+	// Init container inherits the main agent container's pull policy (it uses the same image).
+	assert.Equal(t, corev1.PullAlways, spec.InitContainers[0].ImagePullPolicy,
+		"init container must inherit the agent's ImagePullPolicy")
 	for _, c := range spec.Containers {
 		assert.Contains(t, c.Image, "-servercore", "container %s image must be servercore", c.Name)
 	}
-	assert.Contains(t, spec.InitContainers[0].Image, "-servercore")
 
 	// No Linux hostPaths remain; the shared config + Windows log volumes are present.
 	for _, v := range spec.Volumes {
@@ -548,6 +593,24 @@ func TestApplyWindowsPodTransformation(t *testing.T) {
 	}
 	_, hasSocket := findEnvVar(core.Env, "DD_DOGSTATSD_SOCKET")
 	assert.False(t, hasSocket, "Unix-socket env stripped")
+
+	// The shared config volume mounts at the whole config dir C:/ProgramData/Datadog, seeded by the
+	// init container with conf.d + datadog.yaml.
+	var sharedMount string
+	for _, m := range core.VolumeMounts {
+		if m.Name == windowsConfigVolumeName {
+			sharedMount = m.MountPath
+		}
+	}
+	assert.Equal(t, windowsDatadogConfigPath, sharedMount, "shared config vol must mount at the whole config dir")
+	// CRITICAL anti-shadowing invariant: with log collection enabled, NO host mount may overlap the
+	// config dir. In particular C:/ProgramData (the config dir's parent, the old default container-
+	// log mount) must NOT be mounted — that overlap relied on non-guaranteed Windows nested-mount
+	// overlay and could re-shadow the seeded config (the original bug).
+	for _, m := range core.VolumeMounts {
+		assert.NotEqual(t, windowsProgramDataPath, m.MountPath,
+			"C:/ProgramData must not be mounted (would overlap config dir C:/ProgramData/Datadog)")
+	}
 
 	// nodeSelector + Windows taint toleration.
 	assert.Equal(t, "windows", spec.NodeSelector["kubernetes.io/os"])
@@ -635,26 +698,6 @@ func TestApplyWindowsPodTransformation_StripsFIPSEnv(t *testing.T) {
 	}
 	_, ok := findEnvVar(c.Env, "DD_API_KEY")
 	assert.True(t, ok, "non-FIPS env preserved")
-}
-
-// The Windows init container must inherit the (possibly overridden) registry/image of the main
-// agent container, not the hardcoded default image.
-func TestApplyWindowsPodTransformation_InitInheritsAgentImage(t *testing.T) {
-	tmpl := &corev1.PodTemplateSpec{
-		Spec: corev1.PodSpec{
-			Containers: []corev1.Container{{
-				Name:            string(apicommon.CoreAgentContainerName),
-				Image:           "myregistry.example.com/datadog/agent:7.99.9",
-				ImagePullPolicy: corev1.PullAlways,
-			}},
-		},
-	}
-	ApplyWindowsPodTransformation(tmpl, testDDA("dd"), false, WindowsLogPaths{})
-	require.Len(t, tmpl.Spec.InitContainers, 1)
-	init := tmpl.Spec.InitContainers[0]
-	assert.Equal(t, "myregistry.example.com/datadog/agent:7.99.9-servercore", init.Image,
-		"init image must inherit the agent's registry/tag + servercore")
-	assert.Equal(t, corev1.PullAlways, init.ImagePullPolicy, "init pull policy inherited from agent")
 }
 
 // Container-level Linux securityContext fields (runAsUser, privileged, …) set via override must

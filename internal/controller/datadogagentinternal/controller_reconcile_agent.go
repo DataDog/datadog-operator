@@ -7,6 +7,7 @@ package datadogagentinternal
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	edsv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
@@ -244,7 +245,28 @@ func (r *Reconciler) reconcileV2Agent(ctx context.Context, requiredComponents fe
 				break
 			}
 		}
-		componentagent.ApplyWindowsPodTransformation(&daemonset.Spec.Template, ddai, logCollectionEnabled, windowsLogPaths(ddai))
+		skippedContainerLogsPath := componentagent.ApplyWindowsPodTransformation(&daemonset.Spec.Template, ddai, logCollectionEnabled, windowsLogPaths(ddai))
+		// Surface a configured containerLogsPath that overlaps the agent config dir and was dropped
+		// (mounting it would re-shadow the seeded config); clear the condition otherwise so a fixed
+		// path doesn't leave a stale warning. See AddWindowsLogCollectionVolumes.
+		skipStatus := metav1.ConditionFalse
+		skipMsg := "no overlapping containerLogsPath"
+		if skippedContainerLogsPath != "" {
+			skipStatus = metav1.ConditionTrue
+			skipMsg = fmt.Sprintf("logCollection.containerLogsPath %q overlaps the Windows agent config dir C:/ProgramData/Datadog and was not mounted; set it to the container-runtime log-store subdirectory (a sibling of the config dir) instead", skippedContainerLogsPath)
+			daemonsetLogger.Info("Windows log collection: skipping overlapping containerLogsPath", "containerLogsPath", skippedContainerLogsPath)
+		}
+		condition.UpdateDatadogAgentInternalStatusConditions(
+			newStatus,
+			metav1.NewTime(time.Now()),
+			"WindowsLogCollectionPathSkipped",
+			skipStatus,
+			"OverlappingContainerLogsPath",
+			skipMsg,
+			// Only record True (a real skip) or clear an existing condition; don't create a
+			// permanent False on healthy clusters that never configured an overlapping path.
+			false,
+		)
 	}
 
 	if disabledByOverride {
