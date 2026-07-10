@@ -312,8 +312,15 @@ catalog-push: ## Push a catalog image.
 	$(MAKE) docker-push IMG=$(CATALOG_IMG)
 
 ##@ Datadog Custom part
+
+.PHONY: ensure-gsed
+ensure-gsed: ## Install GNU sed on macOS if not present (no-op on Linux)
+	@if [ "$$(uname -s)" = "Darwin" ]; then \
+		command -v gsed >/dev/null 2>&1 || brew install gnu-sed; \
+	fi
+
 .PHONY: install-tools
-install-tools: bin/$(PLATFORM)/golangci-lint bin/$(PLATFORM)/operator-sdk bin/$(PLATFORM)/yq bin/$(PLATFORM)/jq bin/$(PLATFORM)/kubebuilder bin/$(PLATFORM)/controller-tools bin/$(PLATFORM)/go-licenses bin/$(PLATFORM)/openapi-gen
+install-tools: bin/$(PLATFORM)/golangci-lint bin/$(PLATFORM)/operator-sdk bin/$(PLATFORM)/yq bin/$(PLATFORM)/jq bin/$(PLATFORM)/kubebuilder bin/$(PLATFORM)/controller-tools bin/$(PLATFORM)/go-licenses bin/$(PLATFORM)/openapi-gen ensure-gsed
 
 .PHONY: generate-openapi
 generate-openapi: bin/$(PLATFORM)/openapi-gen
@@ -357,10 +364,12 @@ licenses: bin/$(PLATFORM)/go-licenses
 verify-licenses: bin/$(PLATFORM)/go-licenses ## Verify licenses
 	hack/verify-licenses.sh
 
-# Update the golang version in different repository files from the version present in go.mod file
+# Update the golang version across the repo.
+# Pass GOVERSION=x.y.z to also update go.work first.
+# Usage: make update-golang GOVERSION=1.25.12
 .PHONY: update-golang
-update-golang:
-	hack/update-golang.sh
+update-golang: bin/$(PLATFORM)/jq bin/$(PLATFORM)/yq ensure-gsed
+	hack/update-golang.sh $(GOVERSION)
 
 .PHONY: sync
 sync: ## Run go work sync
