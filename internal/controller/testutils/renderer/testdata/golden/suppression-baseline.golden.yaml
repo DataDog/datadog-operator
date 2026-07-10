@@ -1042,7 +1042,7 @@ apiVersion: datadoghq.com/v1alpha1
 kind: DatadogAgentInternal
 metadata:
   annotations:
-    agent.datadoghq.com/ddaispechash: 43e596d060e21dc89890939d70adc199
+    agent.datadoghq.com/ddaispechash: 42c22cc68bc435428d38fbc91176741f
   finalizers:
   - finalizer.datadoghq.com/datadogagentinternal
   labels:
@@ -1111,6 +1111,8 @@ spec:
       unixDomainSocketConfig:
         enabled: true
         path: /var/run/datadog/dsd.socket
+    dynamicInstrumentation:
+      enabled: false
     ebpfCheck:
       enabled: false
     eventCollection:
