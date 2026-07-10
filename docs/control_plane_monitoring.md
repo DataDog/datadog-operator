@@ -2,7 +2,7 @@
 
 The Datadog Operator can automatically configure monitoring for Kubernetes control plane components including the API Server, etcd, Controller Manager, and Scheduler.
 
-This feature was introduced in Datadog Operator v1.18.0 for Openshift and Amazon EKS clusters and is currently in Preview. 
+This feature supports Red Hat OpenShift and Amazon EKS clusters and is currently in Preview. Since Datadog Operator v1.29.0 it is applied automatically based on the detected [provider](providers.md).
 
 ## What Gets Monitored
 
@@ -13,57 +13,38 @@ This feature was introduced in Datadog Operator v1.18.0 for Openshift and Amazon
 
 ## Supported Platforms
 
-| Platform | Operator Version | Notes |
-|----------|:----------------:|-------|
-| Amazon EKS | v1.18.0+ | |
-| Red Hat OpenShift 4 | v1.18.0+ | `etcd` not supported on versions 4.0-4.13, requires Agent v7.69+ |
+| Platform | Provider | Operator Version | Notes |
+|----------|----------|:----------------:|-------|
+| Amazon EKS | `eks` | v1.29.0+ | |
+| Red Hat OpenShift 4 | `openshift` | v1.29.0+ | `etcd` not supported on versions 4.0-4.13, requires Agent v7.69+ |
 
 ## Prerequisites
 
-- Datadog Operator v1.18.0+
+- Datadog Operator v1.29.0+ (for automatic provider detection)
 - For OpenShift: Datadog Agent v7.69+
 
 ## General Setup
 
-Control plane monitoring is enabled by default, but requires [introspection](introspection.md) to be enabled.
+Control plane monitoring is applied automatically for clusters whose
+[provider](providers.md) resolves to `eks` or `openshift`. Starting with Operator
+v1.29.0, the provider is [auto-detected](providers.md#automatic-detection) by
+default, so a minimal `DatadogAgent` spec is sufficient and no additional
+configuration is required.
 
-You can enable introspection using the [datadog-operator Helm chart](https://github.com/DataDog/helm-charts/tree/main/charts/datadog-operator):
-
-```yaml
-# values.yaml
-introspection:
-  enabled: true
-```
-
-Using the command line:
-```bash
-helm install datadog-operator datadog/datadog-operator --set introspection.enabled=true
-```
-
-Or, for **OpenShift users** who installed the operator using OperatorHub/Marketplace (the [recommended method](install-openshift.md), because it survives operator upgrades), set the environment variable in the `Subscription`:
+If the provider is not detected — for example, the Operator's node does not carry
+the expected labels — set it explicitly with the
+`agent.datadoghq.com/cluster-provider` annotation on the `DatadogAgent`:
 
 ```yaml
-apiVersion: operators.coreos.com/v1alpha1
-kind: Subscription
+apiVersion: datadoghq.com/v2alpha1
+kind: DatadogAgent
 metadata:
-  name: datadog-operator
-spec:
-  # ... channel, source, etc.
-  config:
-    env:
-      - name: DD_INTROSPECTION_ENABLED
-        value: "true"
+  name: datadog
+  annotations:
+    agent.datadoghq.com/cluster-provider: eks   # or "openshift"
 ```
 
-Alternatively, you can patch the CSV directly, which does not persist after operator upgrades:
-
-```bash
-oc patch csv <datadog-operator.VERSION> -n <datadog-operator-namespace> \
-  --type='json' \
-  -p='[{"op": "add", "path": "/spec/install/spec/deployments/0/spec/template/spec/containers/0/args/-", "value": "--introspectionEnabled=true"}]'
-```
-
-Since this feature is enabled by default, you can deploy a minimal DatadogAgent spec. 
+See the [providers documentation](providers.md) for how the provider is resolved.
 
 ### OpenShift-specific Setup
 Enable `features.ClusterChecks.clusterCheckRunners: true` to schedule checks there; otherwise, control plane checks will run on the Node Agent. 
