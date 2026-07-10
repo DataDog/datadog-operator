@@ -121,6 +121,21 @@ func TestRender_Golden(t *testing.T) {
 			ddaFile: "testdata/override-dda.yaml",
 			golden:  "testdata/golden/override-baseline.golden.yaml",
 		},
+		{
+			// GPU (pod-resources socket), SBOM (host + uncompressed-layers), and FIPS
+			// are all enabled. On baseline the volumes/sidecar appear; on autopilot
+			// NodeAgentProviderCapabilities strips the forbidden hostPath volumes and
+			// the FIPS gate suppresses the fips-proxy sidecar.
+			name:    "suppression dda, baseline (gpu+sbom+fips present)",
+			ddaFile: "testdata/suppression-dda.yaml",
+			golden:  "testdata/golden/suppression-baseline.golden.yaml",
+		},
+		{
+			name:      "suppression dda, autopilot (gpu+sbom+fips suppressed)",
+			ddaFile:   "testdata/suppression-dda.yaml",
+			autopilot: true,
+			golden:    "testdata/golden/suppression-autopilot.golden.yaml",
+		},
 	}
 
 	for _, tt := range tests {

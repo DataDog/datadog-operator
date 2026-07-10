@@ -108,6 +108,7 @@ var NodeAgentProviderSpec = providercaps.ProviderCapabilityMap{
 		EnvVars: []providercaps.EnvVarSet{
 			{EnvVar: corev1.EnvVar{Name: ddKubeletUseAPIServer, Value: "true"}},
 			{EnvVar: corev1.EnvVar{Name: ddCloudProviderMetadata, Value: `["gcp"]`}},
+			{EnvVar: corev1.EnvVar{Name: DDProviderKind, Value: kubernetes.GKEAutopilotProvider}},
 		},
 		// Volumes absent from the Autopilot WorkloadAllowlist. RemoveVolumes
 		// strips the volume and its mounts from every container/init container.
@@ -128,6 +129,30 @@ var NodeAgentProviderSpec = providercaps.ProviderCapabilityMap{
 	},
 }
 
+// ClusterAgentProviderSpec is the provider-keyed capabilities map for the Cluster
+// Agent pod template. Helm's _components-common-env.yaml emits DD_CLOUD_PROVIDER_METADATA
+// on all components that include that template; DCA includes it but does NOT include
+// the provider-env helper that emits DD_PROVIDER_KIND.
+var ClusterAgentProviderSpec = providercaps.ProviderCapabilityMap{
+	kubernetes.GKEAutopilotProvider: {
+		EnvVars: []providercaps.EnvVarSet{
+			{EnvVar: corev1.EnvVar{Name: ddCloudProviderMetadata, Value: `["gcp"]`}},
+		},
+	},
+}
+
+// ClusterChecksRunnerProviderSpec is the provider-keyed capabilities map for the
+// Cluster Checks Runner pod template. CCR includes both _components-common-env.yaml
+// (DD_CLOUD_PROVIDER_METADATA) and the provider-env helper (DD_PROVIDER_KIND).
+var ClusterChecksRunnerProviderSpec = providercaps.ProviderCapabilityMap{
+	kubernetes.GKEAutopilotProvider: {
+		EnvVars: []providercaps.EnvVarSet{
+			{EnvVar: corev1.EnvVar{Name: ddCloudProviderMetadata, Value: `["gcp"]`}},
+			{EnvVar: corev1.EnvVar{Name: DDProviderKind, Value: kubernetes.GKEAutopilotProvider}},
+		},
+	},
+}
+
 // nodeAgentProviderPodLabels holds provider-conditional pod-template labels.
 // providercaps has no label support (labels are a pod-level, not per-container,
 // concern), so they are applied separately in applyAutopilotGlobalExtras.
@@ -135,5 +160,7 @@ var nodeAgentProviderPodLabels = map[string]map[string]string{
 	kubernetes.GKEAutopilotProvider: {
 		// Prevent the agent DaemonSet from being mutated by the admission controller.
 		"admission.datadoghq.com/enabled": "false",
+		// Tag the pod with its cloud-provider identity, matching Helm's provider-labels.
+		"env.datadoghq.com/kind": kubernetes.GKEAutopilotProvider,
 	},
 }

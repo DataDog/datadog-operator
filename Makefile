@@ -213,6 +213,14 @@ ci-test: gotest integration-tests ## Run tests only (for CI, where build/generat
 gotest:
 	go test ./... ./api/... -coverprofile cover.out
 
+.PHONY: golden-test
+golden-test: ## Verify operator-render golden files match the current reconciler output
+	go test ./internal/controller/testutils/renderer/ -run TestRender_Golden -count=1
+
+.PHONY: golden-update
+golden-update: ## Regenerate operator-render golden files (review the diff before committing)
+	go test ./internal/controller/testutils/renderer/ -run TestRender_Golden -update -count=1
+
 .PHONY: integration-tests
 integration-tests: $(ENVTEST) ## Run integration tests with reconciler
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(ROOT)/bin/$(PLATFORM) -p path)" go test --tags=integration github.com/DataDog/datadog-operator/internal/controller -coverprofile cover_integration.out

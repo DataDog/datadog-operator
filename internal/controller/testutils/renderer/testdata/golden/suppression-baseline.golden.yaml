@@ -36,25 +36,6 @@ metadata:
     name: datadog-agent
     uid: ""
 ---
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  labels:
-    app.kubernetes.io/instance: datadog-agent
-    app.kubernetes.io/managed-by: datadog-operator
-    app.kubernetes.io/name: datadog-agent-deployment
-    app.kubernetes.io/part-of: -datadog--agent
-    app.kubernetes.io/version: ""
-    operator.datadoghq.com/managed-by-store: "true"
-  name: datadog-agent-cluster-checks-runner
-  ownerReferences:
-  - apiVersion: datadoghq.com/v1alpha1
-    blockOwnerDeletion: true
-    controller: true
-    kind: DatadogAgentInternal
-    name: datadog-agent
-    uid: ""
----
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
@@ -104,7 +85,7 @@ metadata:
     app.kubernetes.io/part-of: -datadog--agent
     app.kubernetes.io/version: ""
     operator.datadoghq.com/managed-by-store: "true"
-  name: -datadog-agent-ksm-core-ccr
+  name: -datadog-agent-ksm-core-dca
 rules:
 - apiGroups:
   - ""
@@ -228,7 +209,7 @@ metadata:
     app.kubernetes.io/part-of: -datadog--agent
     app.kubernetes.io/version: ""
     operator.datadoghq.com/managed-by-store: "true"
-  name: -datadog-agent-orch-exp-ccr
+  name: -datadog-agent-orch-exp-dca
 rules:
 - apiGroups:
   - ""
@@ -573,95 +554,6 @@ rules:
   - get
 ---
 apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  labels:
-    app.kubernetes.io/instance: datadog-agent
-    app.kubernetes.io/managed-by: datadog-operator
-    app.kubernetes.io/name: datadog-agent-deployment
-    app.kubernetes.io/part-of: -datadog--agent
-    app.kubernetes.io/version: ""
-    operator.datadoghq.com/managed-by-store: "true"
-  name: datadog-agent-cluster-checks-runner
-rules:
-- apiGroups:
-  - ""
-  resources:
-  - configmaps
-  verbs:
-  - create
-  - get
-  - list
-  - watch
-- apiGroups:
-  - ""
-  resourceNames:
-  - kube-system
-  resources:
-  - namespaces
-  verbs:
-  - get
-- apiGroups:
-  - ""
-  resources:
-  - componentstatuses
-  - endpoints
-  - events
-  - namespaces
-  - nodes
-  - pods
-  - services
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
-  - ""
-  resourceNames:
-  - datadog-agent-leader-election
-  resources:
-  - configmaps
-  verbs:
-  - get
-  - update
-- apiGroups:
-  - autoscaling
-  resources:
-  - horizontalpodautoscalers
-  verbs:
-  - list
-  - watch
-- apiGroups:
-  - coordination.k8s.io
-  resources:
-  - leases
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
-  - metrics.eks.amazonaws.com
-  resources:
-  - kcm/metrics
-  - ksh/metrics
-  verbs:
-  - get
-- apiGroups:
-  - quota.openshift.io
-  resources:
-  - clusterresourcequotas
-  verbs:
-  - get
-  - list
-- nonResourceURLs:
-  - /healthz
-  - /metrics
-  - /metrics/slis
-  - /version
-  verbs:
-  - get
----
-apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   labels:
@@ -690,14 +582,14 @@ metadata:
     app.kubernetes.io/part-of: -datadog--agent
     app.kubernetes.io/version: ""
     operator.datadoghq.com/managed-by-store: "true"
-  name: -datadog-agent-ksm-core-ccr
+  name: -datadog-agent-ksm-core-dca
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: -datadog-agent-ksm-core-ccr
+  name: -datadog-agent-ksm-core-dca
 subjects:
 - kind: ServiceAccount
-  name: datadog-agent-cluster-checks-runner
+  name: datadog-agent-cluster-agent
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -709,14 +601,14 @@ metadata:
     app.kubernetes.io/part-of: -datadog--agent
     app.kubernetes.io/version: ""
     operator.datadoghq.com/managed-by-store: "true"
-  name: -datadog-agent-orch-exp-ccr
+  name: -datadog-agent-orch-exp-dca
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: -datadog-agent-orch-exp-ccr
+  name: -datadog-agent-orch-exp-dca
 subjects:
 - kind: ServiceAccount
-  name: datadog-agent-cluster-checks-runner
+  name: datadog-agent-cluster-agent
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -755,25 +647,6 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: datadog-agent-cluster-agent
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  labels:
-    app.kubernetes.io/instance: datadog-agent
-    app.kubernetes.io/managed-by: datadog-operator
-    app.kubernetes.io/name: datadog-agent-deployment
-    app.kubernetes.io/part-of: -datadog--agent
-    app.kubernetes.io/version: ""
-    operator.datadoghq.com/managed-by-store: "true"
-  name: datadog-agent-cluster-checks-runner
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: datadog-agent-cluster-checks-runner
-subjects:
-- kind: ServiceAccount
-  name: datadog-agent-cluster-checks-runner
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
@@ -935,10 +808,10 @@ apiVersion: v1
 data:
   kubernetes_state_core.yaml.default: |
     ---
-    cluster_check: true
+    cluster_check: false
     init_config:
     instances:
-      - skip_leader_election: true
+      - skip_leader_election: false
         collectors:
         - pods
         - replicationcontrollers
@@ -990,13 +863,13 @@ apiVersion: v1
 data:
   orchestrator.yaml: |
     ---
-    cluster_check: true
+    cluster_check: false
     ad_identifiers:
       - _kube_orchestrator
     init_config:
 
     instances:
-      - skip_leader_election: true
+      - skip_leader_election: false
 kind: ConfigMap
 metadata:
   labels:
@@ -1169,7 +1042,7 @@ apiVersion: datadoghq.com/v1alpha1
 kind: DatadogAgentInternal
 metadata:
   annotations:
-    agent.datadoghq.com/ddaispechash: 5bdb8db2dce8394a4307cb8cf900ddac
+    agent.datadoghq.com/ddaispechash: 6927abb9f346b95cafaba2297a4fe92d
   finalizers:
   - finalizer.datadoghq.com/datadogagentinternal
   labels:
@@ -1201,7 +1074,7 @@ spec:
       errorTrackingStandalone:
         enabled: false
       hostPortConfig:
-        enabled: true
+        enabled: false
         hostPort: 8126
       instrumentation:
         enabled: false
@@ -1220,7 +1093,7 @@ spec:
         enabled: false
     clusterChecks:
       enabled: true
-      useClusterChecksRunners: true
+      useClusterChecksRunners: false
     controlPlaneMonitoring:
       enabled: true
     cspm:
@@ -1234,7 +1107,7 @@ spec:
       hostPortConfig:
         enabled: false
       nonLocalTraffic: true
-      originDetectionEnabled: true
+      originDetectionEnabled: false
       unixDomainSocketConfig:
         enabled: true
         path: /var/run/datadog/dsd.socket
@@ -1245,7 +1118,7 @@ spec:
     externalMetricsServer:
       enabled: false
     gpu:
-      enabled: false
+      enabled: true
     helmCheck:
       enabled: false
     kubeStateMetricsCore:
@@ -1253,19 +1126,13 @@ spec:
     liveContainerCollection:
       enabled: true
     liveProcessCollection:
-      enabled: true
+      enabled: false
     logCollection:
-      containerCollectAll: true
-      containerCollectUsingFiles: true
-      containerLogsPath: /var/lib/docker/containers
-      containerSymlinksPath: /var/log/containers
-      enabled: true
-      podLogsPath: /var/log/pods
-      tempStoragePath: /var/lib/datadog-agent/logs
+      enabled: false
     npm:
       enabled: false
     oomKill:
-      enabled: true
+      enabled: false
     orchestratorExplorer:
       enabled: true
       scrubContainers: true
@@ -1286,9 +1153,18 @@ spec:
       enabled: false
     remoteConfiguration:
       enabled: true
+    sbom:
+      containerImage:
+        enabled: true
+        uncompressedLayersSupport: true
+      enabled: true
+      host:
+        analyzers:
+        - os
+        enabled: true
     serviceDiscovery: {}
     tcpQueueLength:
-      enabled: true
+      enabled: false
     usm:
       enabled: false
   global:
@@ -1304,11 +1180,17 @@ spec:
       appSecret:
         keyName: app-key
         secretName: datadog-secret
-    criSocketPath: /var/run/containerd/containerd.sock
     fips:
-      enabled: false
+      enabled: true
+      image:
+        name: fips-proxy
+        tag: 1.1.28
+      localAddress: 127.0.0.1
+      port: 9803
+      portRange: 15
+      useHTTPS: false
     kubelet:
-      podResourcesSocketPath: /var/lib/kubelet/pod-resources/
+      podResourcesSocketPath: /var/lib/kubelet/pod-resources
       tlsVerify: false
     logLevel: info
     registry: gcr.io/datadoghq
@@ -1320,9 +1202,6 @@ spec:
         checksum/dca-token-custom-config: 3f6998966e6de63b16d45512e01ccc84
       image:
         tag: 7.80.0
-    clusterChecksRunner:
-      annotations:
-        checksum/dca-token-custom-config: 3f6998966e6de63b16d45512e01ccc84
     nodeAgent:
       annotations:
         checksum/dca-token-custom-config: 3f6998966e6de63b16d45512e01ccc84
@@ -1333,7 +1212,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: e4e320365b8a0ff80941ce80c301501e
+    agent.datadoghq.com/agentspechash: 062db9aca1b784f6ce795be8ac0ebecd
   labels:
     agent.datadoghq.com/component: agent
     agent.datadoghq.com/name: datadog-agent
@@ -1360,6 +1239,7 @@ spec:
     metadata:
       annotations:
         checksum/dca-token-custom-config: 3f6998966e6de63b16d45512e01ccc84
+        container.apparmor.security.beta.kubernetes.io/agent: unconfined
         container.apparmor.security.beta.kubernetes.io/system-probe: unconfined
       labels:
         agent.datadoghq.com/component: agent
@@ -1417,40 +1297,38 @@ spec:
             secretKeyRef:
               key: token
               name: datadog-agent-token
+        - name: DD_FIPS_ENABLED
+          value: "true"
+        - name: DD_FIPS_PORT_RANGE_START
+          value: "9803"
+        - name: DD_FIPS_HTTPS
+          value: "false"
+        - name: DD_FIPS_LOCAL_ADDRESS
+          value: 127.0.0.1
         - name: DD_KUBELET_TLS_VERIFY
           value: "false"
-        - name: DD_CRI_SOCKET_PATH
-          value: /host/var/run/containerd/containerd.sock
         - name: DD_LANGUAGE_DETECTION_REPORTING_ENABLED
           value: "false"
         - name: DD_EXTRA_CONFIG_PROVIDERS
-          value: endpointschecks
+          value: clusterchecks endpointschecks
         - name: DD_DOGSTATSD_NON_LOCAL_TRAFFIC
           value: "true"
         - name: DD_DOGSTATSD_SOCKET
           value: /var/run/datadog/dsd.socket
-        - name: DD_DOGSTATSD_ORIGIN_DETECTION
+        - name: DD_ENABLE_NVML_DETECTION
           value: "true"
-        - name: DD_DOGSTATSD_ORIGIN_DETECTION_CLIENT
+        - name: DD_GPU_ENABLED
           value: "true"
+        - name: DD_KUBERNETES_KUBELET_PODRESOURCES_SOCKET
+          value: /var/lib/kubelet/pod-resources/kubelet.sock
+        - name: NVIDIA_VISIBLE_DEVICES
+          value: all
         - name: DD_IGNORE_AUTOCONF
           value: kubernetes_state
         - name: DD_PROCESS_CONFIG_RUN_IN_CORE_AGENT_ENABLED
           value: "true"
         - name: DD_PROCESS_CONFIG_CONTAINER_COLLECTION_ENABLED
           value: "true"
-        - name: DD_PROCESS_CONFIG_PROCESS_COLLECTION_ENABLED
-          value: "true"
-        - name: DD_LOGS_ENABLED
-          value: "true"
-        - name: DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL
-          value: "true"
-        - name: DD_LOGS_CONFIG_K8S_CONTAINER_USE_FILE
-          value: "true"
-        - name: DD_SYSTEM_PROBE_CONFIG_ENABLE_OOM_KILL
-          value: "true"
-        - name: DD_SYSPROBE_SOCKET
-          value: /var/run/sysprobe/sysprobe.sock
         - name: DD_ORCHESTRATOR_EXPLORER_ENABLED
           value: "true"
         - name: DD_ORCHESTRATOR_EXPLORER_CONTAINER_SCRUBBING_ENABLED
@@ -1459,10 +1337,22 @@ spec:
           value: "true"
         - name: DD_REMOTE_CONFIGURATION_ENABLED
           value: "true"
+        - name: DD_SBOM_ENABLED
+          value: "true"
+        - name: DD_SBOM_CONTAINER_IMAGE_ENABLED
+          value: "true"
+        - name: DD_SBOM_CONTAINER_IMAGE_USE_MOUNT
+          value: "true"
+        - name: DD_SBOM_HOST_ENABLED
+          value: "true"
+        - name: DD_SBOM_HOST_ANALYZERS
+          value: os
+        - name: HOST_ROOT
+          value: /host/root
         - name: DD_DISCOVERY_ENABLED
           value: "true"
-        - name: DD_SYSTEM_PROBE_CONFIG_ENABLE_TCP_QUEUE_LENGTH
-          value: "true"
+        - name: DD_SYSPROBE_SOCKET
+          value: /var/run/sysprobe/sysprobe.sock
         image: gcr.io/datadoghq/agent:7.80.0
         livenessProbe:
           failureThreshold: 6
@@ -1489,6 +1379,9 @@ spec:
           timeoutSeconds: 5
         resources: {}
         securityContext:
+          capabilities:
+            add:
+            - SYS_ADMIN
           readOnlyRootFilesystem: true
         startupProbe:
           failureThreshold: 6
@@ -1518,24 +1411,29 @@ spec:
           readOnly: true
         - mountPath: /var/run/datadog
           name: dsdsocket
-        - mountPath: /host/var/run/containerd/containerd.sock
+        - mountPath: /host/var/run
           name: runtimesocketdir
           readOnly: true
         - mountPath: /opt/datadog-agent/run
           name: datadogrun
         - mountPath: /tmp
           name: tmpdir
+        - mountPath: /var/lib/kubelet/pod-resources
+          name: kubelet-pod-resources
+        - mountPath: /var/run/nvidia-container-devices/all
+          name: nvidia-devices
+          readOnly: true
         - mountPath: /etc/passwd
           name: passwd
           readOnly: true
-        - mountPath: /var/log/pods
-          name: logpodpath
+        - mountPath: /host/var/lib/containerd
+          name: host-containerd-dir
           readOnly: true
-        - mountPath: /var/lib/docker/containers
-          name: logdockercontainerpath
+        - mountPath: /host/var/lib/containers
+          name: host-cri-dir
           readOnly: true
-        - mountPath: /var/log/containers
-          name: logscontainerspath
+        - mountPath: /host/root
+          name: hostroot
           readOnly: true
         - mountPath: /var/run/sysprobe
           name: sysprobe-socket-dir
@@ -1598,16 +1496,18 @@ spec:
             secretKeyRef:
               key: token
               name: datadog-agent-token
+        - name: DD_FIPS_ENABLED
+          value: "true"
+        - name: DD_FIPS_PORT_RANGE_START
+          value: "9803"
+        - name: DD_FIPS_HTTPS
+          value: "false"
+        - name: DD_FIPS_LOCAL_ADDRESS
+          value: 127.0.0.1
         - name: DD_KUBELET_TLS_VERIFY
           value: "false"
-        - name: DD_CRI_SOCKET_PATH
-          value: /host/var/run/containerd/containerd.sock
         - name: DD_APM_ENABLED
           value: "true"
-        - name: DD_APM_NON_LOCAL_TRAFFIC
-          value: "true"
-        - name: DD_APM_RECEIVER_PORT
-          value: "8126"
         - name: DD_APM_RECEIVER_SOCKET
           value: /var/run/datadog/apm.socket
         - name: DD_DOGSTATSD_SOCKET
@@ -1624,7 +1524,6 @@ spec:
         name: trace-agent
         ports:
         - containerPort: 8126
-          hostPort: 8126
           name: traceport
           protocol: TCP
         resources: {}
@@ -1646,7 +1545,7 @@ spec:
           name: config
         - mountPath: /var/run/datadog
           name: apmsocket
-        - mountPath: /host/var/run/containerd/containerd.sock
+        - mountPath: /host/var/run
           name: runtimesocketdir
           readOnly: true
         - mountPath: /tmp
@@ -1694,22 +1593,16 @@ spec:
               name: datadog-agent-token
         - name: DD_KUBELET_TLS_VERIFY
           value: "false"
-        - name: DD_CRI_SOCKET_PATH
-          value: /host/var/run/containerd/containerd.sock
         - name: DD_DOGSTATSD_SOCKET
           value: /var/run/datadog/dsd.socket
-        - name: DD_SYSTEM_PROBE_CONFIG_ENABLE_OOM_KILL
-          value: "true"
-        - name: DD_SYSPROBE_SOCKET
-          value: /var/run/sysprobe/sysprobe.sock
         - name: DD_REMOTE_CONFIGURATION_ENABLED
           value: "true"
         - name: DD_DISCOVERY_ENABLED
           value: "true"
         - name: DD_DISCOVERY_USE_SYSTEM_PROBE_LITE
           value: "true"
-        - name: DD_SYSTEM_PROBE_CONFIG_ENABLE_TCP_QUEUE_LENGTH
-          value: "true"
+        - name: DD_SYSPROBE_SOCKET
+          value: /var/run/sysprobe/sysprobe.sock
         image: gcr.io/datadoghq/agent:7.80.0
         name: system-probe
         resources: {}
@@ -1746,19 +1639,64 @@ spec:
           name: tmpdir
         - mountPath: /var/run/datadog
           name: dsdsocket
-        - mountPath: /lib/modules
-          name: modules
-          readOnly: true
-        - mountPath: /usr/src
-          name: src
-          readOnly: true
-        - mountPath: /sys/kernel/debug
-          name: debugfs
-        - mountPath: /var/run/sysprobe
-          name: sysprobe-socket-dir
         - mountPath: /host/sys/fs/cgroup
           name: cgroups
           readOnly: true
+        - mountPath: /var/run/sysprobe
+          name: sysprobe-socket-dir
+      - env:
+        - name: DD_FIPS_LOCAL_ADDRESS
+          value: 127.0.0.1
+        image: gcr.io/datadoghq/fips-proxy:1.1.28
+        imagePullPolicy: IfNotPresent
+        name: fips-proxy
+        ports:
+        - containerPort: 9803
+          name: port-0
+          protocol: TCP
+        - containerPort: 9804
+          name: port-1
+          protocol: TCP
+        - containerPort: 9805
+          name: port-2
+          protocol: TCP
+        - containerPort: 9806
+          name: port-3
+          protocol: TCP
+        - containerPort: 9807
+          name: port-4
+          protocol: TCP
+        - containerPort: 9808
+          name: port-5
+          protocol: TCP
+        - containerPort: 9809
+          name: port-6
+          protocol: TCP
+        - containerPort: 9810
+          name: port-7
+          protocol: TCP
+        - containerPort: 9811
+          name: port-8
+          protocol: TCP
+        - containerPort: 9812
+          name: port-9
+          protocol: TCP
+        - containerPort: 9813
+          name: port-10
+          protocol: TCP
+        - containerPort: 9814
+          name: port-11
+          protocol: TCP
+        - containerPort: 9815
+          name: port-12
+          protocol: TCP
+        - containerPort: 9816
+          name: port-13
+          protocol: TCP
+        - containerPort: 9817
+          name: port-14
+          protocol: TCP
+        resources: {}
       hostPID: true
       initContainers:
       - args:
@@ -1799,11 +1737,9 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: status.hostIP
-        - name: DD_SYSTEM_PROBE_CONFIG_ENABLE_OOM_KILL
+        - name: DD_GPU_ENABLED
           value: "true"
         - name: DD_DISCOVERY_ENABLED
-          value: "true"
-        - name: DD_SYSTEM_PROBE_CONFIG_ENABLE_TCP_QUEUE_LENGTH
           value: "true"
         image: gcr.io/datadoghq/agent:7.80.0
         name: init-config
@@ -1840,6 +1776,7 @@ spec:
           readOnly: true
         - mountPath: /host/var/lib/kubelet/seccomp
           name: seccomp-root
+      runtimeClassName: nvidia
       securityContext:
         runAsUser: 0
       serviceAccountName: datadog-agent-agent
@@ -1868,10 +1805,9 @@ spec:
           type: DirectoryOrCreate
         name: dsdsocket
       - hostPath:
-          path: /var/run/containerd/containerd.sock
+          path: /var/run
         name: runtimesocketdir
-      - hostPath:
-          path: /var/lib/datadog-agent/logs
+      - emptyDir: {}
         name: datadogrun
       - emptyDir: {}
         name: tmpdir
@@ -1881,31 +1817,34 @@ spec:
       - hostPath:
           path: /var/lib/kubelet/seccomp
         name: seccomp-root
+      - configMap:
+          items:
+          - key: datadog-fips-proxy.cfg
+            path: datadog-fips-proxy.cfg
+          name: datadog-agent-fips-config
+        name: fips-proxy-cfg
       - hostPath:
           path: /var/run/datadog
           type: DirectoryOrCreate
         name: apmsocket
       - hostPath:
+          path: /var/lib/kubelet/pod-resources
+        name: kubelet-pod-resources
+      - hostPath:
+          path: /dev/null
+        name: nvidia-devices
+      - hostPath:
           path: /etc/passwd
         name: passwd
       - hostPath:
-          path: /var/log/pods
-        name: logpodpath
+          path: /var/lib/containerd
+        name: host-containerd-dir
       - hostPath:
-          path: /var/lib/docker/containers
-        name: logdockercontainerpath
+          path: /var/lib/containers
+        name: host-cri-dir
       - hostPath:
-          path: /var/log/containers
-        name: logscontainerspath
-      - hostPath:
-          path: /lib/modules
-        name: modules
-      - hostPath:
-          path: /usr/src
-        name: src
-      - hostPath:
-          path: /sys/kernel/debug
-        name: debugfs
+          path: /
+        name: hostroot
       - emptyDir: {}
         name: sysprobe-socket-dir
   updateStrategy: {}
@@ -1914,7 +1853,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: 5f1ca58f67ac3f959410d8a1d186c45c
+    agent.datadoghq.com/agentspechash: 2d4e3997489478aead76647d3efed713
   labels:
     agent.datadoghq.com/component: cluster-agent
     agent.datadoghq.com/name: datadog-agent
@@ -1942,7 +1881,7 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/cluster_checks-custom-config: dd67482b385a64075d38f42c9ae04554
+        checksum/cluster_checks-custom-config: f7dc31a1080204b2a0f72ea0cc314033
         checksum/dca-token-custom-config: 3f6998966e6de63b16d45512e01ccc84
         checksum/ksm-custom-config: 7078d4e77dfdf37ca618d148c6c7af2b
       labels:
@@ -2025,6 +1964,14 @@ spec:
             secretKeyRef:
               key: token
               name: datadog-agent-token
+        - name: DD_FIPS_ENABLED
+          value: "true"
+        - name: DD_FIPS_PORT_RANGE_START
+          value: "9803"
+        - name: DD_FIPS_HTTPS
+          value: "false"
+        - name: DD_FIPS_LOCAL_ADDRESS
+          value: 127.0.0.1
         - name: DD_ADMISSION_CONTROLLER_ENABLED
           value: "true"
         - name: DD_ADMISSION_CONTROLLER_VALIDATION_ENABLED
@@ -2142,6 +2089,59 @@ spec:
           readOnly: true
         - mountPath: /opt/datadog-agent/run/
           name: datadogrun
+      - env:
+        - name: DD_FIPS_LOCAL_ADDRESS
+          value: 127.0.0.1
+        image: gcr.io/datadoghq/fips-proxy:1.1.28
+        imagePullPolicy: IfNotPresent
+        name: fips-proxy
+        ports:
+        - containerPort: 9803
+          name: port-0
+          protocol: TCP
+        - containerPort: 9804
+          name: port-1
+          protocol: TCP
+        - containerPort: 9805
+          name: port-2
+          protocol: TCP
+        - containerPort: 9806
+          name: port-3
+          protocol: TCP
+        - containerPort: 9807
+          name: port-4
+          protocol: TCP
+        - containerPort: 9808
+          name: port-5
+          protocol: TCP
+        - containerPort: 9809
+          name: port-6
+          protocol: TCP
+        - containerPort: 9810
+          name: port-7
+          protocol: TCP
+        - containerPort: 9811
+          name: port-8
+          protocol: TCP
+        - containerPort: 9812
+          name: port-9
+          protocol: TCP
+        - containerPort: 9813
+          name: port-10
+          protocol: TCP
+        - containerPort: 9814
+          name: port-11
+          protocol: TCP
+        - containerPort: 9815
+          name: port-12
+          protocol: TCP
+        - containerPort: 9816
+          name: port-13
+          protocol: TCP
+        - containerPort: 9817
+          name: port-14
+          protocol: TCP
+        resources: {}
       serviceAccountName: datadog-agent-cluster-agent
       volumes:
       - configMap:
@@ -2158,6 +2158,12 @@ spec:
       - emptyDir: {}
         name: tmpdir
       - configMap:
+          items:
+          - key: datadog-fips-proxy.cfg
+            path: datadog-fips-proxy.cfg
+          name: datadog-agent-fips-config
+        name: fips-proxy-cfg
+      - configMap:
           name: datadog-agent-kube-state-metrics-core-config
         name: ksm-core-config
       - configMap:
@@ -2165,218 +2171,3 @@ spec:
         name: orchestrator-explorer-config
       - emptyDir: {}
         name: datadogrun
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  annotations:
-    agent.datadoghq.com/agentspechash: c8b02e149720ebb0412d3f62fb6ffdaf
-  labels:
-    agent.datadoghq.com/component: cluster-checks-runner
-    agent.datadoghq.com/name: datadog-agent
-    app.kubernetes.io/component: cluster-checks-runner
-    app.kubernetes.io/instance: datadog-agent-cluster-checks-runner
-    app.kubernetes.io/managed-by: datadog-operator
-    app.kubernetes.io/name: datadog-agent-deployment
-    app.kubernetes.io/part-of: -datadog--agent
-    app.kubernetes.io/version: ""
-  name: datadog-agent-cluster-checks-runner
-  ownerReferences:
-  - apiVersion: datadoghq.com/v1alpha1
-    blockOwnerDeletion: true
-    controller: true
-    kind: DatadogAgentInternal
-    name: datadog-agent
-    uid: ""
-spec:
-  selector:
-    matchLabels:
-      agent.datadoghq.com/component: cluster-checks-runner
-      app.kubernetes.io/instance: datadog-agent-cluster-checks-runner
-  strategy: {}
-  template:
-    metadata:
-      annotations:
-        checksum/dca-token-custom-config: 3f6998966e6de63b16d45512e01ccc84
-      labels:
-        agent.datadoghq.com/component: cluster-checks-runner
-        agent.datadoghq.com/name: datadog-agent
-        app.kubernetes.io/component: cluster-checks-runner
-        app.kubernetes.io/instance: datadog-agent-cluster-checks-runner
-        app.kubernetes.io/managed-by: datadog-operator
-        app.kubernetes.io/name: datadog-agent-deployment
-        app.kubernetes.io/part-of: -datadog--agent
-        app.kubernetes.io/version: ""
-    spec:
-      affinity:
-        podAntiAffinity:
-          preferredDuringSchedulingIgnoredDuringExecution:
-          - podAffinityTerm:
-              labelSelector:
-                matchLabels:
-                  agent.datadoghq.com/component: cluster-checks-runner
-              topologyKey: kubernetes.io/hostname
-            weight: 50
-      containers:
-      - args:
-        - agent run
-        command:
-        - bash
-        - -c
-        env:
-        - name: DD_CLUSTER_AGENT_KUBERNETES_SERVICE_NAME
-          value: datadog-agent-cluster-agent
-        - name: DD_CLUSTER_AGENT_ENABLED
-          value: "true"
-        - name: DD_HEALTH_PORT
-          value: "5555"
-        - name: KUBERNETES
-          value: "yes"
-        - name: DD_ENABLE_METADATA_COLLECTION
-          value: "false"
-        - name: DD_CLC_RUNNER_ENABLED
-          value: "true"
-        - name: DD_CLC_RUNNER_HOST
-          valueFrom:
-            fieldRef:
-              fieldPath: status.podIP
-        - name: DD_CLC_RUNNER_ID
-          valueFrom:
-            fieldRef:
-              fieldPath: metadata.name
-        - name: DD_USE_DOGSTATSD
-          value: "false"
-        - name: DD_PROCESS_CONFIG_PROCESS_COLLECTION_ENABLED
-          value: "false"
-        - name: DD_PROCESS_CONFIG_CONTAINER_COLLECTION_ENABLED
-          value: "true"
-        - name: DD_LOGS_ENABLED
-          value: "false"
-        - name: DD_APM_ENABLED
-          value: "false"
-        - name: DD_HOSTNAME
-          valueFrom:
-            fieldRef:
-              fieldPath: spec.nodeName
-        - name: DD_APM_ERROR_TRACKING_STANDALONE_ENABLED
-          value: "false"
-        - name: DD_CLUSTER_NAME
-          value: test-cluster
-        - name: DD_SITE
-          value: datadoghq.com
-        - name: DD_LOG_LEVEL
-          value: info
-        - name: DD_API_KEY
-          valueFrom:
-            secretKeyRef:
-              key: api-key
-              name: datadog-secret
-        - name: DD_APP_KEY
-          valueFrom:
-            secretKeyRef:
-              key: app-key
-              name: datadog-secret
-        - name: DD_CLUSTER_AGENT_AUTH_TOKEN
-          valueFrom:
-            secretKeyRef:
-              key: token
-              name: datadog-agent-token
-        - name: DD_CLUSTER_CHECKS_ENABLED
-          value: "true"
-        - name: DD_EXTRA_CONFIG_PROVIDERS
-          value: clusterchecks
-        - name: DD_ORCHESTRATOR_EXPLORER_ENABLED
-          value: "true"
-        - name: DD_ORCHESTRATOR_EXPLORER_CONTAINER_SCRUBBING_ENABLED
-          value: "true"
-        image: gcr.io/datadoghq/agent:7.80.4
-        livenessProbe:
-          failureThreshold: 6
-          httpGet:
-            path: /live
-            port: 5555
-          initialDelaySeconds: 15
-          periodSeconds: 15
-          successThreshold: 1
-          timeoutSeconds: 5
-        name: agent
-        readinessProbe:
-          failureThreshold: 6
-          httpGet:
-            path: /ready
-            port: 5555
-          initialDelaySeconds: 15
-          periodSeconds: 15
-          successThreshold: 1
-          timeoutSeconds: 5
-        resources: {}
-        securityContext:
-          allowPrivilegeEscalation: false
-          readOnlyRootFilesystem: true
-        startupProbe:
-          failureThreshold: 6
-          httpGet:
-            path: /startup
-            port: 5555
-          initialDelaySeconds: 15
-          periodSeconds: 15
-          successThreshold: 1
-          timeoutSeconds: 5
-        volumeMounts:
-        - mountPath: /etc/datadog-agent/install_info
-          name: installinfo
-          readOnly: true
-          subPath: install_info
-        - mountPath: /etc/datadog-agent
-          name: config
-        - mountPath: /var/log/datadog
-          name: logdatadog
-        - mountPath: /tmp
-          name: tmpdir
-        - mountPath: /etc/datadog-agent/conf.d
-          name: remove-corechecks
-        - mountPath: /opt/datadog-agent/run
-          name: datadogrun
-      initContainers:
-      - args:
-        - for script in $(find /etc/cont-init.d/ -type f -name '*.sh' | sort) ; do
-          bash $script ; done
-        command:
-        - bash
-        - -c
-        image: gcr.io/datadoghq/agent:7.80.4
-        name: init-config
-        resources: {}
-        volumeMounts:
-        - mountPath: /etc/datadog-agent/install_info
-          name: installinfo
-          readOnly: true
-          subPath: install_info
-        - mountPath: /etc/datadog-agent
-          name: config
-        - mountPath: /var/log/datadog
-          name: logdatadog
-        - mountPath: /tmp
-          name: tmpdir
-        - mountPath: /etc/datadog-agent/conf.d
-          name: remove-corechecks
-        - mountPath: /checks.d
-          name: checksd
-          readOnly: true
-      serviceAccountName: datadog-agent-cluster-checks-runner
-      volumes:
-      - configMap:
-          name: datadog-agent-install-info
-        name: installinfo
-      - emptyDir: {}
-        name: config
-      - emptyDir: {}
-        name: remove-corechecks
-      - emptyDir: {}
-        name: logdatadog
-      - emptyDir: {}
-        name: checksd
-      - emptyDir: {}
-        name: datadogrun
-      - emptyDir: {}
-        name: tmpdir
