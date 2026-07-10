@@ -16,13 +16,14 @@ import (
 // its own API client. Auth is passed per-call via the ResourceHandler methods.
 func buildHandlers(clients *datadogclient.GenericClients) map[v1alpha1.SupportedResourcesType]ResourceHandler {
 	return map[v1alpha1.SupportedResourcesType]ResourceHandler{
-		v1alpha1.Dashboard:             &DashboardHandler{client: clients.DashboardsClient},
-		v1alpha1.Downtime:              &DowntimeHandler{client: clients.DowntimesClient},
-		v1alpha1.Monitor:               &MonitorHandler{client: clients.MonitorsClient},
-		v1alpha1.Notebook:              &NotebookHandler{client: clients.NotebooksClient},
-		v1alpha1.SLO:                   &SLOHandler{client: clients.SLOsClient},
-		v1alpha1.SyntheticsAPITest:     &SyntheticsAPITestHandler{client: clients.SyntheticsClient},
-		v1alpha1.SyntheticsBrowserTest: &SyntheticsBrowserTestHandler{client: clients.SyntheticsClient},
+		v1alpha1.Dashboard:               &DashboardHandler{client: clients.DashboardsClient},
+		v1alpha1.Downtime:                &DowntimeHandler{client: clients.DowntimesClient},
+		v1alpha1.Monitor:                 &MonitorHandler{client: clients.MonitorsClient},
+		v1alpha1.MonitorNotificationRule: &MonitorNotificationRuleHandler{client: clients.MonitorNotificationRulesClient},
+		v1alpha1.Notebook:                &NotebookHandler{client: clients.NotebooksClient},
+		v1alpha1.SLO:                     &SLOHandler{client: clients.SLOsClient},
+		v1alpha1.SyntheticsAPITest:       &SyntheticsAPITestHandler{client: clients.SyntheticsClient},
+		v1alpha1.SyntheticsBrowserTest:   &SyntheticsBrowserTestHandler{client: clients.SyntheticsClient},
 	}
 }
 
