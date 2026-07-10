@@ -1227,7 +1227,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: ea227a0f48f4c4179ebbe9cb3af00195
+    agent.datadoghq.com/agentspechash: 472babab8fddeb061c4e62f705740ce5
   labels:
     admission.datadoghq.com/enabled: "false"
     agent.datadoghq.com/component: agent
@@ -1238,6 +1238,7 @@ metadata:
     app.kubernetes.io/name: datadog-agent-deployment
     app.kubernetes.io/part-of: -datadog--agent
     app.kubernetes.io/version: ""
+    env.datadoghq.com/kind: gke-autopilot
   name: datadog-agent-agent
   ownerReferences:
   - apiVersion: datadoghq.com/v1alpha1
@@ -1266,6 +1267,7 @@ spec:
         app.kubernetes.io/name: datadog-agent-deployment
         app.kubernetes.io/part-of: -datadog--agent
         app.kubernetes.io/version: ""
+        env.datadoghq.com/kind: gke-autopilot
     spec:
       containers:
       - command:
@@ -1317,6 +1319,8 @@ spec:
           value: "true"
         - name: DD_CLOUD_PROVIDER_METADATA
           value: '["gcp"]'
+        - name: DD_PROVIDER_KIND
+          value: gke-autopilot
         - name: DD_LANGUAGE_DETECTION_REPORTING_ENABLED
           value: "false"
         - name: DD_EXTRA_CONFIG_PROVIDERS
@@ -1471,6 +1475,8 @@ spec:
           value: "true"
         - name: DD_CLOUD_PROVIDER_METADATA
           value: '["gcp"]'
+        - name: DD_PROVIDER_KIND
+          value: gke-autopilot
         - name: DD_APM_ENABLED
           value: "true"
         - name: DD_APM_NON_LOCAL_TRAFFIC
@@ -1547,6 +1553,8 @@ spec:
           value: "true"
         - name: DD_CLOUD_PROVIDER_METADATA
           value: '["gcp"]'
+        - name: DD_PROVIDER_KIND
+          value: gke-autopilot
         - name: DD_REMOTE_CONFIGURATION_ENABLED
           value: "true"
         - name: DD_DISCOVERY_ENABLED
@@ -1709,7 +1717,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: 6a37283985d26c1e47f24f51efab2a5a
+    agent.datadoghq.com/agentspechash: 9043440171910cf2df3ebe993cf7d282
   labels:
     agent.datadoghq.com/component: cluster-agent
     agent.datadoghq.com/name: datadog-agent
@@ -1820,6 +1828,8 @@ spec:
             secretKeyRef:
               key: token
               name: datadog-agent-token
+        - name: DD_CLOUD_PROVIDER_METADATA
+          value: '["gcp"]'
         - name: DD_ADMISSION_CONTROLLER_ENABLED
           value: "true"
         - name: DD_ADMISSION_CONTROLLER_VALIDATION_ENABLED
