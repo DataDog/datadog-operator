@@ -64,6 +64,8 @@ const (
 
 	defaultUSMEnabled bool = false
 
+	defaultDynamicInstrumentationEnabled bool = false
+
 	defaultDogstatsdOriginDetectionEnabled bool   = false
 	defaultDogstatsdHostPortEnabled        bool   = false
 	defaultDogstatsdSocketEnabled          bool   = true
@@ -407,6 +409,12 @@ func defaultFeaturesConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
 		ddaSpec.Features.USM = &v2alpha1.USMFeatureConfig{}
 	}
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.USM.Enabled, defaultUSMEnabled)
+
+	// Dynamic Instrumentation Feature
+	if ddaSpec.Features.DynamicInstrumentation == nil {
+		ddaSpec.Features.DynamicInstrumentation = &v2alpha1.DynamicInstrumentationFeatureConfig{}
+	}
+	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.DynamicInstrumentation.Enabled, defaultDynamicInstrumentationEnabled)
 
 	// Dogstatsd Feature
 	if ddaSpec.Features.Dogstatsd == nil {
