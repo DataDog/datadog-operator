@@ -207,6 +207,9 @@ spec:
 `features.dogstatsd.unixDomainSocketConfig.path`
 : Defines the socket path used when enabled.
 
+`features.dynamicInstrumentation.enabled`
+: Enables the Dynamic Instrumentation system probe module. Default: false
+
 `features.ebpfCheck.enabled`
 : Enables the eBPF check. Default: false
 
