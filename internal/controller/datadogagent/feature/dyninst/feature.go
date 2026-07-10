@@ -112,6 +112,12 @@ func (f *dynInstFeature) ManageNodeAgent(managers feature.PodTemplateManagers) e
 	_, socketVolMountReadOnly := volume.GetVolumesEmptyDir(common.SystemProbeSocketVolumeName, common.SystemProbeSocketVolumePath, true)
 	managers.VolumeMount().AddVolumeMountToContainer(&socketVolMountReadOnly, apicommon.CoreAgentContainerName)
 
+	// writable state dir for the debugger-probes tombstone file and the SymDB upload cache;
+	// system-probe runs with a read-only root filesystem, so this needs its own mount
+	stateDirVol, stateDirVolMount := volume.GetVolumesEmptyDir(stateDirVolumeName, stateDirVolumePath, false)
+	managers.Volume().AddVolume(&stateDirVol)
+	managers.VolumeMount().AddVolumeMountToContainer(&stateDirVolMount, apicommon.SystemProbeContainerName)
+
 	// env vars for the Core Agent and System Probe
 	containers := []apicommon.AgentContainerName{
 		apicommon.CoreAgentContainerName,

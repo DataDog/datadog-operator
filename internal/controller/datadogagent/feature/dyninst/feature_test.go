@@ -76,6 +76,11 @@ func Test_dynInstFeature_Configure(t *testing.T) {
 				MountPath: common.SystemProbeSocketVolumePath,
 				ReadOnly:  false,
 			},
+			{
+				Name:      stateDirVolumeName,
+				MountPath: stateDirVolumePath,
+				ReadOnly:  false,
+			},
 		}
 		sysProbeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommon.SystemProbeContainerName]
 		assert.True(t, apiutils.IsEqualStruct(sysProbeMounts, sysProbeWantVolumeMounts), "System Probe volume mounts \ndiff = %s", cmp.Diff(sysProbeMounts, sysProbeWantVolumeMounts))
@@ -118,6 +123,12 @@ func Test_dynInstFeature_Configure(t *testing.T) {
 			},
 			{
 				Name: common.SystemProbeSocketVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					EmptyDir: &corev1.EmptyDirVolumeSource{},
+				},
+			},
+			{
+				Name: stateDirVolumeName,
 				VolumeSource: corev1.VolumeSource{
 					EmptyDir: &corev1.EmptyDirVolumeSource{},
 				},
