@@ -189,12 +189,14 @@ func (r *ComponentRegistry) reconcileComponent(ctx context.Context, params *Reco
 	now := metav1.NewTime(time.Now())
 
 	// Start by creating the Default deployment
-	deployment := component.GetNewDeploymentFunc()(params.DDAI.GetObjectMeta(), &params.DDAI.Spec)
+	// Pass params.DDAI directly (not GetObjectMeta()) so that getExtraLabels can
+	// type-assert to *v1alpha1.DatadogAgentInternal and read spec.global.extraLabels.
+	deployment := component.GetNewDeploymentFunc()(params.DDAI, &params.DDAI.Spec)
 	objLogger := ctrl.LoggerFrom(ctx).WithValues("object.kind", "Deployment", "object.namespace", deployment.Namespace, "object.name", deployment.Name)
 	podManagers := feature.NewPodTemplateManagers(&deployment.Spec.Template)
 
 	// Set Global setting on the default deployment
-	component.GetGlobalSettingsFunc()(objLogger, podManagers, params.DDAI.GetObjectMeta(), &params.DDAI.Spec, params.ResourceManagers, params.RequiredComponents)
+	component.GetGlobalSettingsFunc()(objLogger, podManagers, params.DDAI, &params.DDAI.Spec, params.ResourceManagers, params.RequiredComponents)
 
 	// Apply features changes on the Deployment.Spec.Template.
 	// Each component's GetManageFeatureFunc owns any provider-conditional mutations it needs.
@@ -248,7 +250,7 @@ func (r *ComponentRegistry) reconcileComponent(ctx context.Context, params *Reco
 
 // Cleanup removes the component deployment, associated resources and updates status
 func (r *ComponentRegistry) Cleanup(ctx context.Context, params *ReconcileComponentParams, component ComponentReconciler) (reconcile.Result, error) {
-	deployment := component.GetNewDeploymentFunc()(params.DDAI.GetObjectMeta(), &params.DDAI.Spec)
+	deployment := component.GetNewDeploymentFunc()(params.DDAI, &params.DDAI.Spec)
 
 	// Apply the name override so we delete the correct deployment
 	if componentOverride, ok := params.DDAI.Spec.Override[component.Name()]; ok {

@@ -180,11 +180,13 @@ func (r *ComponentRegistry) reconcileComponent(ctx context.Context, params *Reco
 	deploymentLogger := params.Logger.WithValues("component", component.Name())
 
 	// Start by creating the Default Cluster-Agent deployment
-	deployment := component.GetNewDeploymentFunc()(params.DDA.GetObjectMeta(), &params.DDA.Spec)
+	// Pass params.DDA directly (not GetObjectMeta()) so that getExtraLabels can
+	// type-assert to *v2alpha1.DatadogAgent and read spec.global.extraLabels.
+	deployment := component.GetNewDeploymentFunc()(params.DDA, &params.DDA.Spec)
 	podManagers := feature.NewPodTemplateManagers(&deployment.Spec.Template)
 
 	// Set Global setting on the default deployment
-	component.GetGlobalSettingsFunc()(deploymentLogger, podManagers, params.DDA.GetObjectMeta(), &params.DDA.Spec, params.ResourceManagers, params.RequiredComponents)
+	component.GetGlobalSettingsFunc()(deploymentLogger, podManagers, params.DDA, &params.DDA.Spec, params.ResourceManagers, params.RequiredComponents)
 
 	// Apply features changes on the Deployment.Spec.Template
 	var featErrors []error
@@ -244,7 +246,7 @@ func (r *ComponentRegistry) reconcileComponent(ctx context.Context, params *Reco
 
 // Cleanup removes the component deployment, associated resources and updates status
 func (r *ComponentRegistry) Cleanup(ctx context.Context, params *ReconcileComponentParams, component ComponentReconciler) (reconcile.Result, error) {
-	deployment := component.GetNewDeploymentFunc()(params.DDA.GetObjectMeta(), &params.DDA.Spec)
+	deployment := component.GetNewDeploymentFunc()(params.DDA, &params.DDA.Spec)
 
 	// Apply the name override so we delete the correct deployment
 	if componentOverride, ok := params.DDA.Spec.Override[component.Name()]; ok {
