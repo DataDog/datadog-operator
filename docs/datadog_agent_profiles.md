@@ -57,6 +57,7 @@ Common scenarios:
 
 * Operator v1.5.0+
 * Tests were performed on Kubernetes versions >= `1.27.0`
+* The cluster must allow the Operator to `patch` nodes. Environments that block node modifications, such as GKE Autopilot, cannot use DAPs.
 
 ## Enabling DatadogAgentProfiles
 

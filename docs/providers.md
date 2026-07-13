@@ -133,16 +133,14 @@ values are the value of the `agent.datadoghq.com/cluster-provider` annotation.
 
 | Provider | Scope | Resolution | Effect | Helm equivalent |
 | -------- | ----- | ---------- | ------ | --------------- |
-| `gke-cos` | Node (DAP) | Annotation only | Drops the `/usr/src` volume from the OOM Kill, TCP Queue Length, and GPU checks (node OS has no kernel sources) | `providers.gke.cos` |
-| `eks-ec2-use-hostname-from-file` | Node (DAP) | Annotation only | Adds `DD_HOSTNAME_FILE` and a host mount of the cloud-init instance-id file so the Agent derives a stable hostname | `providers.eks.ec2.useHostnameFromFile` |
+| `gke-cos` | Cluster (DDA) or Node (DAP) \* | Annotation only | Drops the `/usr/src` volume from the OOM Kill, TCP Queue Length, and GPU checks (node OS has no kernel sources) | `providers.gke.cos` |
+| `eks-ec2-use-hostname-from-file` | Cluster (DDA) or Node (DAP) \* | Annotation only | Adds `DD_HOSTNAME_FILE` and a host mount of the cloud-init instance-id file so the Agent derives a stable hostname | `providers.eks.ec2.useHostnameFromFile` |
 | `eks` | Cluster (DDA) | Detection or annotation | Enables [control plane monitoring](control_plane_monitoring.md): API Server, Controller Manager, Scheduler | `providers.eks.controlPlaneMonitoring` |
 | `openshift` (`openshift-<os>`) | Cluster (DDA) | Detection or annotation | Enables [control plane monitoring](control_plane_monitoring.md): API Server, Controller Manager, Scheduler, and etcd | `providers.openshift.controlPlaneMonitoring` |
 | `aks` | Cluster (DDA) | Detection or annotation | Sets the mandatory `DD_ADMISSION_CONTROLLER_ADD_AKS_SELECTORS=true` environment variable on the Cluster Agent | `providers.aks.enabled` |
 | `gke-autopilot` | Cluster (DDA) | Annotation only | Full GKE Autopilot workload adaptation (volume, env var, path, image, and PriorityClass changes). See [Datadog Operator on GKE Autopilot](gke_autopilot/external.md) | `providers.gke.autopilot` |
 
-`gke-autopilot` is supported only at cluster scope, on the `DatadogAgent`. It
-cannot be applied through a DAP: a DAP generates a per-node DaemonSet that
-requires node `patch` RBAC, which GKE Autopilot does not grant.
+\* Cluster scope applies the provider to every node, so use it only when all nodes match the provider (for example, a cluster where every node runs Container-Optimized OS). Otherwise, set the provider on a DAP that targets the matching nodes.
 
 ## Examples
 
