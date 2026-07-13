@@ -94,6 +94,88 @@ func Test_generateObjMetaFromDDA(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "dda with extraLabels in global spec",
+			dda: &v2alpha1.DatadogAgent{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "foo",
+					Namespace: "bar",
+				},
+				Spec: v2alpha1.DatadogAgentSpec{
+					Global: &v2alpha1.GlobalConfig{
+						ExtraLabels: map[string]string{
+							"team":        "platform",
+							"cost-center": "ops",
+						},
+					},
+				},
+			},
+			want: &v1alpha1.DatadogAgentInternal{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "foo",
+					Namespace: "bar",
+					Labels: map[string]string{
+						"agent.datadoghq.com/datadogagent": "foo",
+						"team":                             "platform",
+						"cost-center":                      "ops",
+					},
+					OwnerReferences: []metav1.OwnerReference{
+						{
+							APIVersion:         "datadoghq.com/v2alpha1",
+							Kind:               "DatadogAgent",
+							Name:               "foo",
+							UID:                "",
+							BlockOwnerDeletion: ptr.To(true),
+							Controller:         ptr.To(true),
+						},
+					},
+					Finalizers: []string{constants.DatadogAgentInternalFinalizer},
+				},
+			},
+		},
+		{
+			name: "extraLabels cannot override dda metadata labels",
+			dda: &v2alpha1.DatadogAgent{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "foo",
+					Namespace: "bar",
+					Labels: map[string]string{
+						"existing": "value",
+					},
+				},
+				Spec: v2alpha1.DatadogAgentSpec{
+					Global: &v2alpha1.GlobalConfig{
+						ExtraLabels: map[string]string{
+							// attempt to override a label already on the DDA metadata
+							"existing": "overridden",
+							"new-key":  "new-value",
+						},
+					},
+				},
+			},
+			want: &v1alpha1.DatadogAgentInternal{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "foo",
+					Namespace: "bar",
+					Labels: map[string]string{
+						"existing":                         "value",
+						"new-key":                          "new-value",
+						"agent.datadoghq.com/datadogagent": "foo",
+					},
+					OwnerReferences: []metav1.OwnerReference{
+						{
+							APIVersion:         "datadoghq.com/v2alpha1",
+							Kind:               "DatadogAgent",
+							Name:               "foo",
+							UID:                "",
+							BlockOwnerDeletion: ptr.To(true),
+							Controller:         ptr.To(true),
+						},
+					},
+					Finalizers: []string{constants.DatadogAgentInternalFinalizer},
+				},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
