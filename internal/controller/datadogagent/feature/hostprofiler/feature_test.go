@@ -1,6 +1,7 @@
 package hostprofiler
 
 import (
+	"strings"
 	"testing"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
@@ -230,6 +231,56 @@ func testExpectedAgent(agentContainerName apicommon.AgentContainerName, expected
 				}
 			},
 		)
+}
+
+func TestHostProfilerLoggingSeccompAnnotation(t *testing.T) {
+	tests := []struct {
+		name         string
+		annotation   string
+		wantContains string
+	}{
+		{name: "default seccomp profile", wantContains: "cp " + seccompSourcePath},
+		{name: "logging seccomp profile", annotation: "true", wantContains: "cp " + loggingSeccompSourcePath},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			annotations := map[string]string{"agent.datadoghq.com/host-profiler-enabled": "true"}
+			if tt.annotation != "" {
+				annotations["agent.datadoghq.com/host-profiler-logging-seccomp-enabled"] = tt.annotation
+			}
+			dda := testutils.NewDatadogAgentBuilder().WithAnnotations(annotations).Build()
+
+			manager := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{Name: string(apicommon.CoreAgentContainerName), Image: images.GetLatestAgentImage()},
+						{
+							Name:            string(apicommon.HostProfiler),
+							Image:           "gcr.io/datadoghq/agent:7.99.0",
+							SecurityContext: &corev1.SecurityContext{ReadOnlyRootFilesystem: ptr.To(true)},
+						},
+					},
+				},
+			})
+
+			feat := buildHostProfilerFeature(nil).(*hostProfilerFeature)
+			feat.Configure(dda, &dda.Spec, nil)
+			assert.NoError(t, feat.ManageNodeAgent(manager))
+
+			var setup *corev1.Container
+			for i := range manager.PodTemplateSpec().Spec.InitContainers {
+				if manager.PodTemplateSpec().Spec.InitContainers[i].Name == string(apicommon.HostProfilerSeccompSetupContainerName) {
+					setup = &manager.PodTemplateSpec().Spec.InitContainers[i]
+					break
+				}
+			}
+			assert.NotNil(t, setup)
+			if setup != nil {
+				assert.Contains(t, strings.Join(setup.Command, " "), tt.wantContains)
+			}
+		})
+	}
 }
 
 func TestResolveHostProfilerImage(t *testing.T) {

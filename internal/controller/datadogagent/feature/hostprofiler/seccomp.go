@@ -16,8 +16,10 @@ import (
 )
 
 const (
-	// seccompSourcePath is the path to the seccomp profile baked into the collector image.
+	// seccompSourcePath is the path to the default seccomp profile baked into the collector image.
 	seccompSourcePath = "/etc/dd-host-profiler/seccomp.json"
+	// loggingSeccompSourcePath is the path to the seccomp profile that also permits logging syscalls.
+	loggingSeccompSourcePath = "/etc/dd-host-profiler/logging-seccomp.json"
 )
 
 // seccompProfileName returns a profile name unique to the image, avoiding
@@ -40,15 +42,23 @@ func defaultCapabilities() []corev1.Capability {
 	}
 }
 
-func buildSeccompSetupInitContainer(image string) corev1.Container {
+func buildSeccompSetupInitContainer(image string, loggingSeccomp bool) corev1.Container {
+	dst := fmt.Sprintf("%s/%s", common.SeccompRootVolumePath, seccompProfileName(image))
+	var command []string
+	if loggingSeccomp {
+		// Prefer the logging profile, but fall back to the default if the image predates it
+		// so an older image degrades gracefully instead of crash-looping on a missing file.
+		command = []string{"sh", "-c", fmt.Sprintf(
+			"if [ -f %[1]s ]; then cp %[1]s %[3]s; else cp %[2]s %[3]s; fi",
+			loggingSeccompSourcePath, seccompSourcePath, dst,
+		)}
+	} else {
+		command = []string{"cp", seccompSourcePath, dst}
+	}
 	return corev1.Container{
-		Name:  string(apicommon.HostProfilerSeccompSetupContainerName),
-		Image: image,
-		Command: []string{
-			"cp",
-			seccompSourcePath,
-			fmt.Sprintf("%s/%s", common.SeccompRootVolumePath, seccompProfileName(image)),
-		},
+		Name:    string(apicommon.HostProfilerSeccompSetupContainerName),
+		Image:   image,
+		Command: command,
 		VolumeMounts: []corev1.VolumeMount{
 			common.GetVolumeMountForSeccomp(),
 		},
