@@ -9,11 +9,11 @@ The Agent configuration the Operator generates is determined by two inputs:
 
 ### Provider
 
-A *provider* is a named environment profile—a managed service, distribution,
-node OS, or an environment with specific restrictions—that the Operator maps to
-provider-specific configuration. The Operator detects the cluster provider
-automatically, or you can declare it with the `agent.datadoghq.com/cluster-provider`
-annotation (mirroring the Helm chart's `providers.*` configuration):
+A *provider* identifies an environment or platform that needs a specific set of
+customizations to the Agent configuration. The Operator detects the cluster
+provider automatically, or you can declare it with the
+`agent.datadoghq.com/cluster-provider` annotation (mirroring the Helm chart's
+`providers.*` configuration):
 
 ```yaml
 metadata:

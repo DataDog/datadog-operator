@@ -12,7 +12,7 @@ Setting a provider applies that set of customizations to the Agents it covers,
 whether across the whole cluster or only the nodes a
 [DatadogAgentProfile](datadog_agent_profiles.md) targets.
 
-> This page describes the current, supported provider model. It is distinct from
+> This page describes the supported provider model, which is distinct from
 > the legacy [introspection](introspection.md) feature (one DaemonSet per node
 > provider), which is deprecated and no longer active on the default
 > reconciliation path.
@@ -22,14 +22,12 @@ whether across the whole cluster or only the nodes a
 A provider applies at one of two scopes, both expressed through the single
 `agent.datadoghq.com/cluster-provider` annotation:
 
-- **Cluster scope**—set on (or detected for) the `DatadogAgent`. Applies to the
+- **Cluster scope**: set on (or detected for) the `DatadogAgent`. Applies to the
   whole cluster. Used for cluster-wide providers such as `eks`, `openshift`,
   `aks`, and `gke-autopilot` on an Autopilot cluster.
-- **Node scope**—set on a [DatadogAgentProfile](datadog_agent_profiles.md)
+- **Node scope**: set on a [DatadogAgentProfile](datadog_agent_profiles.md)
   (DAP). Applies only to the subset of nodes the profile targets. Used for node
-  variations such as `gke-cos`, or `gke-autopilot` on
-  [Autopilot-mode node pools](https://docs.cloud.google.com/kubernetes-engine/docs/concepts/about-autopilot-mode-standard-clusters)
-  in a Standard cluster.
+  variations such as `gke-cos`.
 
 The annotation key is the same in both cases; the scope is determined by the
 object it is set on.
@@ -88,7 +86,7 @@ is propagated to the DaemonSet the profile generates and applies only to the
 nodes the profile's `profileAffinity` selects.
 
 This is safe **only if `profileAffinity` correctly selects the nodes that match
-the declared provider**—the Operator does not verify that the selected nodes
+the declared provider**. The Operator does not verify that the selected nodes
 match the annotation.
 
 ```yaml
@@ -140,26 +138,24 @@ values are the value of the `agent.datadoghq.com/cluster-provider` annotation.
 | `eks` | Cluster (DDA) | Detection or annotation | Enables [control plane monitoring](control_plane_monitoring.md): API Server, Controller Manager, Scheduler | `providers.eks.controlPlaneMonitoring` |
 | `openshift` (`openshift-<os>`) | Cluster (DDA) | Detection or annotation | Enables [control plane monitoring](control_plane_monitoring.md): API Server, Controller Manager, Scheduler, and etcd | `providers.openshift.controlPlaneMonitoring` |
 | `aks` | Cluster (DDA) | Detection or annotation | Sets the mandatory `DD_ADMISSION_CONTROLLER_ADD_AKS_SELECTORS=true` environment variable on the Cluster Agent | `providers.aks.enabled` |
-| `gke-autopilot` | Cluster (DDA) or Node (DAP) \* | Annotation only | Full GKE Autopilot workload adaptation (volume, env var, path, image, and PriorityClass changes). See [Datadog Operator on GKE Autopilot](gke_autopilot/external.md) | `providers.gke.autopilot` |
+| `gke-autopilot` | Cluster (DDA) | Annotation only | Full GKE Autopilot workload adaptation (volume, env var, path, image, and PriorityClass changes). See [Datadog Operator on GKE Autopilot](gke_autopilot/external.md) | `providers.gke.autopilot` |
 
-\* `gke-autopilot` is cluster-scoped on an Autopilot cluster. Use node scope (a
-DAP) for [Autopilot-mode node pools](https://docs.cloud.google.com/kubernetes-engine/docs/concepts/about-autopilot-mode-standard-clusters)
-in a Standard cluster; this is expected to work through the same mechanism but has
-not been explicitly tested with DAPs.
+`gke-autopilot` is supported only at cluster scope, on the `DatadogAgent`. It
+cannot be applied through a DAP: a DAP generates a per-node DaemonSet that
+requires node `patch` RBAC, which GKE Autopilot does not grant.
 
 ## Examples
 
-- **Cluster-wide, auto-detected**—an EKS cluster gets `eks` from detection and
+- **Cluster-wide, auto-detected**: an EKS cluster gets `eks` from detection and
   enables [control plane monitoring](control_plane_monitoring.md) with no user
   configuration.
-- **Cluster-wide, declared**—set `agent.datadoghq.com/cluster-provider: aks` on
+- **Cluster-wide, declared**: set `agent.datadoghq.com/cluster-provider: aks` on
   the `DatadogAgent` to apply the required AKS admission controller selectors.
-- **Node OS variation**—set `agent.datadoghq.com/cluster-provider: gke-cos` on a
+- **Node OS variation**: set `agent.datadoghq.com/cluster-provider: gke-cos` on a
   DAP that targets the COS node pool.
-- **Granular behavior**—set
+- **Granular behavior**: set
   `agent.datadoghq.com/cluster-provider: eks-ec2-use-hostname-from-file` on a DAP
   targeting EC2 nodes that need file-based hostname resolution.
-- **Restricted managed environment**—set
+- **Restricted managed environment**: set
   `agent.datadoghq.com/cluster-provider: gke-autopilot` on the `DatadogAgent` for
-  an Autopilot cluster, or on a DAP targeting Autopilot-mode node pools in a
-  Standard cluster (see the [GKE Autopilot guide](gke_autopilot/external.md)).
+  an Autopilot cluster (see the [GKE Autopilot guide](gke_autopilot/external.md)).

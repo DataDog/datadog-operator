@@ -63,7 +63,7 @@ Apply the manifest:
 kubectl apply -f datadog-agent.yaml
 ```
 
-Unlike EKS, AKS, and OpenShift, GKE Autopilot is not auto-detected—it must be
+Unlike EKS, AKS, and OpenShift, GKE Autopilot is not auto-detected. It must be
 declared with this annotation.
 
 > [!NOTE]
