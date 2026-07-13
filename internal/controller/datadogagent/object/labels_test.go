@@ -136,3 +136,61 @@ func TestGetDefaultLabels_NonDDAObject(t *testing.T) {
 	labels := GetDefaultLabels(obj, "other", "1.0.0")
 	assert.Equal(t, "datadog-operator", labels[kubernetes.AppKubernetesManageByLabelKey])
 }
+
+func TestGetDefaultLabels_ExtraLabels_ReservedPrefixesAreDropped(t *testing.T) {
+	dda := &v2alpha1.DatadogAgent{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "datadog",
+			Namespace: "default",
+		},
+		Spec: v2alpha1.DatadogAgentSpec{
+			Global: &v2alpha1.GlobalConfig{
+				ExtraLabels: map[string]string{
+					// Reserved — must be dropped
+					"agent.datadoghq.com/datadogagentprofile": "my-profile",
+					"agent.datadoghq.com/name":                "foo",
+					"operator.datadoghq.com/managed-by-store": "true",
+					"datadoghq.com/custom":                    "value",
+					// Non-reserved — must pass through
+					"team":        "platform",
+					"cost-center": "ops",
+				},
+			},
+		},
+	}
+
+	labels := GetDefaultLabels(dda, "datadog", "7.0.0")
+
+	// Reserved keys must not appear
+	assert.NotContains(t, labels, "agent.datadoghq.com/datadogagentprofile")
+	assert.NotContains(t, labels, "agent.datadoghq.com/name")
+	assert.NotContains(t, labels, "operator.datadoghq.com/managed-by-store")
+	assert.NotContains(t, labels, "datadoghq.com/custom")
+	// Non-reserved keys must be present
+	assert.Equal(t, "platform", labels["team"])
+	assert.Equal(t, "ops", labels["cost-center"])
+}
+
+func TestIsReservedLabelKey(t *testing.T) {
+	reserved := []string{
+		"agent.datadoghq.com/datadogagentprofile",
+		"agent.datadoghq.com/name",
+		"operator.datadoghq.com/managed-by-store",
+		"operator.datadoghq.com/managed-by-dda-controller",
+		"datadoghq.com/foo",
+	}
+	for _, k := range reserved {
+		assert.True(t, isReservedLabelKey(k), "expected %q to be reserved", k)
+	}
+
+	notReserved := []string{
+		"team",
+		"app.kubernetes.io/name",
+		"cost-center",
+		"my.company.com/env",
+	}
+	for _, k := range notReserved {
+		assert.False(t, isReservedLabelKey(k), "expected %q to not be reserved", k)
+	}
+}
+

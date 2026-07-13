@@ -20,6 +20,27 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
+// reservedLabelPrefixes contains label key prefixes owned by the operator.
+// User-supplied extraLabels keys that match any of these prefixes are silently
+// dropped at merge time to prevent them from interfering with operator-internal
+// control-flow logic (e.g. profile routing, store ownership, DDAI identity).
+var reservedLabelPrefixes = []string{
+	"agent.datadoghq.com/",
+	"operator.datadoghq.com/",
+	"datadoghq.com/",
+}
+
+// isReservedLabelKey reports whether a label key starts with any
+// operator-reserved prefix.
+func isReservedLabelKey(key string) bool {
+	for _, prefix := range reservedLabelPrefixes {
+		if strings.HasPrefix(key, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
 // GetDefaultLabels return default labels attached to a DatadogAgent resource.
 func GetDefaultLabels(dda metav1.Object, instanceName, version string) map[string]string {
 	labels := make(map[string]string)
@@ -48,18 +69,30 @@ func GetDefaultLabels(dda metav1.Object, instanceName, version string) map[strin
 }
 
 // getExtraLabels extracts spec.global.extraLabels from a DatadogAgent or DatadogAgentInternal object.
+// Keys matching any reserved operator prefix are silently dropped to prevent
+// user labels from interfering with operator-internal control flow.
 func getExtraLabels(dda metav1.Object) map[string]string {
+	var raw map[string]string
 	switch d := dda.(type) {
 	case *v2alpha1.DatadogAgent:
 		if d.Spec.Global != nil {
-			return d.Spec.Global.ExtraLabels
+			raw = d.Spec.Global.ExtraLabels
 		}
 	case *v1alpha1.DatadogAgentInternal:
 		if d.Spec.Global != nil {
-			return d.Spec.Global.ExtraLabels
+			raw = d.Spec.Global.ExtraLabels
 		}
 	}
-	return nil
+	if len(raw) == 0 {
+		return nil
+	}
+	filtered := make(map[string]string, len(raw))
+	for k, v := range raw {
+		if !isReservedLabelKey(k) {
+			filtered[k] = v
+		}
+	}
+	return filtered
 }
 
 // GetDefaultAnnotations return default annotations attached to a DatadogAgent resource.
