@@ -394,6 +394,47 @@ go_e2e_deps:
     - echo "Logging in to Pulumi with S3 backend..."
     - pulumi login "s3://dd-pulumi-state?region=us-east-1&awssdk=v2&profile=$AWS_PROFILE"
 
+# Base configuration for E2E jobs provisioning GCP infrastructure.
+.e2e_gcp_base:
+  tags:
+    - "arch:amd64"
+  variables:
+    <<: *resource_variables
+    E2E_GCP_PUBLIC_KEY_PATH: /tmp/agent-qa-gcp-ssh-key.pub
+    E2E_GCP_PRIVATE_KEY_PATH: /tmp/agent-qa-gcp-ssh-key
+    E2E_KEY_PAIR_NAME: ci.datadog-operator
+  image: registry.ddbuild.io/ci/datadog-agent-buildimages/linux$CI_IMAGE_LINUX_SUFFIX:$CI_IMAGE_LINUX
+  cache:
+    - key: e2e-go-${CI_COMMIT_REF_SLUG}
+      fallback_keys:
+        - e2e-go-${CI_DEFAULT_BRANCH}
+      paths:
+        - .go/pkg/mod
+        - .cache/go-build
+      policy: pull
+  before_script:
+    # Extract cached Pulumi plugins
+    - mkdir -p ~/.pulumi && tar xJf pulumi_plugins.tar.xz -C ~/.pulumi
+    - rm -f pulumi_plugins.tar.xz
+    # Generate GitHub token to avoid rate limiting when downloading Pulumi plugins
+    - dd-octo-sts version
+    - dd-octo-sts debug --scope DataDog/datadog-operator --policy self.gitlab.e2e
+    - export GITHUB_TOKEN=$(dd-octo-sts token --scope DataDog/datadog-operator --policy self.gitlab.e2e)
+    # Configure and use the agent-qa AWS profile for SSM secrets, ECR, and the Pulumi S3 backend.
+    - echo "Starting setup for GCP E2E testing..."
+    - mkdir -p ~/.aws
+    - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.agent-qa-profile --with-decryption --query "Parameter.Value" --out text >> ~/.aws/config
+    - export AWS_PROFILE=agent-qa-ci
+    # Use S3 backend to store stack status
+    - echo "Logging in to Pulumi with S3 backend..."
+    - pulumi login "s3://dd-pulumi-state?region=us-east-1&awssdk=v2&profile=$AWS_PROFILE"
+    # SSH key retrieval for GCP fakeintake/VM resources
+    - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.ssh_public_key --with-decryption --query "Parameter.Value" --out text > $E2E_GCP_PUBLIC_KEY_PATH
+    - touch $E2E_GCP_PRIVATE_KEY_PATH && chmod 600 $E2E_GCP_PRIVATE_KEY_PATH && aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.ssh_private_key --with-decryption --query "Parameter.Value" --out text > $E2E_GCP_PRIVATE_KEY_PATH
+    # Setup GCP credentials. The service account should match the agent-e2e-tests account used by the shared e2e framework.
+    - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.e2e_tests_gcp_credentials --with-decryption --query "Parameter.Value" --out text > ~/gcp-credentials.json
+    - export GOOGLE_APPLICATION_CREDENTIALS=~/gcp-credentials.json
+
 trigger_e2e_operator_image:
   stage: e2e
   rules: !reference [.on_run_e2e_base]
@@ -464,7 +505,7 @@ e2e_autoscaling:
     DDOCTOSTS_ID_TOKEN:
       aud: dd-octo-sts
   rules:
-    # Disable on Conductor-triggered jobs (ex: nightly) — must be first so it wins
+    # Disable on Conductor-triggered jobs (ex: nightly) - must be first so it wins
     - if: '$DDR == "true"'
       when: never
     # Disable on manual pipelines to test staging images
@@ -485,6 +526,30 @@ e2e_autoscaling:
   script:
     - echo "Running autoscaling e2e tests"
     - make e2e-autoscaling-tests
+  retry: 2
+
+e2e_gke_autopilot:
+  extends: .e2e_gcp_base
+  stage: e2e
+  needs:
+    - "trigger_e2e_operator_image"
+    - "go_e2e_deps"
+  timeout: 120m
+  id_tokens:
+    DDOCTOSTS_ID_TOKEN:
+      aud: dd-octo-sts
+  rules:
+    # Disable on Conductor-triggered jobs (ex: nightly) - must be first so it wins
+    - if: '$DDR == "true"'
+      when: never
+    # Run manually for now. Release branch/tag automation can be added once the job is stable.
+    - when: manual
+      allow_failure: true
+  variables:
+    TARGET_IMAGE: $E2E_DOCKER_REGISTRY:${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
+  script:
+    - echo "Running GKE Autopilot e2e test with target image $TARGET_IMAGE"
+    - IMAGE_PULL_PASSWORD=$(aws ecr get-login-password) IMG=$TARGET_IMAGE make e2e-gke-autopilot-tests
   retry: 2
 
 e2e_untaint:
