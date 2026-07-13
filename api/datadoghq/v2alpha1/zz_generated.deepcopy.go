@@ -2085,6 +2085,13 @@ func (in *GlobalConfig) DeepCopyInto(out *GlobalConfig) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
+	if in.ExtraLabels != nil {
+		in, out := &in.ExtraLabels, &out.ExtraLabels
+		*out = make(map[string]string, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
+	}
 	if in.ChecksTagCardinality != nil {
 		in, out := &in.ChecksTagCardinality, &out.ChecksTagCardinality
 		*out = new(string)

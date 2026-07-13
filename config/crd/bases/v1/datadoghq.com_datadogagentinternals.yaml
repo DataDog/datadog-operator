@@ -3123,6 +3123,18 @@ spec:
                       x-kubernetes-list-map-keys:
                         - name
                       x-kubernetes-list-type: map
+                    extraLabels:
+                      additionalProperties:
+                        type: string
+                      description: |-
+                        ExtraLabels specified labels to be added to all operator-managed Kubernetes resources
+                        (DaemonSets, Deployments, ConfigMaps, Services, ServiceAccounts, etc.).
+                        This is useful when external policy tools such as Kyverno enforce the presence of
+                        specific labels on all cluster resources.
+                        Labels defined here are merged with the operator's own default labels; operator labels
+                        take precedence on any key conflict.
+                      type: object
+                      x-kubernetes-map-type: granular
                     fips:
                       description: FIPS contains configuration used to customize the FIPS proxy sidecar.
                       properties:

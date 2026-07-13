@@ -14,6 +14,8 @@ import (
 	"github.com/gobwas/glob"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
@@ -34,7 +36,30 @@ func GetDefaultLabels(dda metav1.Object, instanceName, version string) map[strin
 		}
 	}
 
+	// Merge ExtraLabels from the global spec. ExtraLabels are applied first so that
+	// the operator's own standard labels always take precedence on key conflicts.
+	for k, v := range getExtraLabels(dda) {
+		if _, exists := labels[k]; !exists {
+			labels[k] = v
+		}
+	}
+
 	return labels
+}
+
+// getExtraLabels extracts spec.global.extraLabels from a DatadogAgent or DatadogAgentInternal object.
+func getExtraLabels(dda metav1.Object) map[string]string {
+	switch d := dda.(type) {
+	case *v2alpha1.DatadogAgent:
+		if d.Spec.Global != nil {
+			return d.Spec.Global.ExtraLabels
+		}
+	case *v1alpha1.DatadogAgentInternal:
+		if d.Spec.Global != nil {
+			return d.Spec.Global.ExtraLabels
+		}
+	}
+	return nil
 }
 
 // GetDefaultAnnotations return default annotations attached to a DatadogAgent resource.

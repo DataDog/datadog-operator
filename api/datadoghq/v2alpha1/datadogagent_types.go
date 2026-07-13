@@ -1833,6 +1833,16 @@ type GlobalConfig struct {
 	// +listMapKey=name
 	Env []corev1.EnvVar `json:"env,omitempty"`
 
+	// ExtraLabels specified labels to be added to all operator-managed Kubernetes resources
+	// (DaemonSets, Deployments, ConfigMaps, Services, ServiceAccounts, etc.).
+	// This is useful when external policy tools such as Kyverno enforce the presence of
+	// specific labels on all cluster resources.
+	// Labels defined here are merged with the operator's own default labels; operator labels
+	// take precedence on any key conflict.
+	// +optional
+	//+mapType=granular
+	ExtraLabels map[string]string `json:"extraLabels,omitempty"`
+
 	// ChecksTagCardinality configures tag cardinality for the metrics collected by integrations (`low`, `orchestrator` or `high`).
 	// See also: https://docs.datadoghq.com/getting_started/tagging/assigning_tags/?tab=containerizedenvironments#tags-cardinality.
 	// Not set by default to avoid overriding existing DD_CHECKS_TAG_CARDINALITY configurations, the default value in the Agent is low.
