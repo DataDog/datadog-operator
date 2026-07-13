@@ -2,7 +2,7 @@
 
 The Datadog Operator can automatically configure monitoring for Kubernetes control plane components including the API Server, etcd, Controller Manager, and Scheduler.
 
-This feature supports Red Hat OpenShift and Amazon EKS clusters and is currently in Preview. Since Datadog Operator v1.29.0 it is applied automatically based on the detected [provider](providers.md).
+This feature supports Red Hat OpenShift and Amazon EKS clusters and is in Preview. Since Datadog Operator v1.29.0, it is applied automatically based on the detected [provider](providers.md).
 
 ## What Gets Monitored
 
@@ -28,8 +28,7 @@ This feature supports Red Hat OpenShift and Amazon EKS clusters and is currently
 Control plane monitoring is applied automatically for clusters whose
 [provider](providers.md) resolves to `eks` or `openshift`. Starting with Operator
 v1.29.0, the provider is [auto-detected](providers.md#automatic-detection) by
-default, so a minimal `DatadogAgent` spec is sufficient and no additional
-configuration is required.
+default, so a minimal `DatadogAgent` spec is sufficient.
 
 If the provider is not detected — for example, the Operator's node does not carry
 the expected labels — set it explicitly with the
