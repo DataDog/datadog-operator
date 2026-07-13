@@ -78,6 +78,8 @@ type DatadogFeatures struct {
 	NPM *NPMFeatureConfig `json:"npm,omitempty"`
 	// USM (Universal Service Monitoring) configuration.
 	USM *USMFeatureConfig `json:"usm,omitempty"`
+	// DynamicInstrumentation configuration.
+	DynamicInstrumentation *DynamicInstrumentationFeatureConfig `json:"dynamicInstrumentation,omitempty"`
 	// Dogstatsd configuration.
 	Dogstatsd *DogstatsdFeatureConfig `json:"dogstatsd,omitempty"`
 	// OTLP ingest configuration
@@ -687,6 +689,14 @@ type NPMFeatureConfig struct {
 // Universal Service Monitoring runs in the Process Agent and System Probe.
 type USMFeatureConfig struct {
 	// Enabled enables Universal Service Monitoring.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+}
+
+// DynamicInstrumentationFeatureConfig configures the Dynamic Instrumentation system probe module.
+type DynamicInstrumentationFeatureConfig struct {
+	// Enabled enables the Dynamic Instrumentation system probe module.
 	// Default: false
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`

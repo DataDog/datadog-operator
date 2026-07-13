@@ -1170,7 +1170,7 @@ kind: DatadogAgentInternal
 metadata:
   annotations:
     agent.datadoghq.com/cluster-provider: eks-ec2-use-hostname-from-file
-    agent.datadoghq.com/ddaispechash: 80e68f588c1f1d00bf40df006b4bdfc8
+    agent.datadoghq.com/ddaispechash: 4aa209cbf559d486dc4dfdf461eaba01
   finalizers:
   - finalizer.datadoghq.com/datadogagentinternal
   labels:
@@ -1239,6 +1239,8 @@ spec:
       unixDomainSocketConfig:
         enabled: true
         path: /var/run/datadog/dsd.socket
+    dynamicInstrumentation:
+      enabled: false
     ebpfCheck:
       enabled: false
     eventCollection:

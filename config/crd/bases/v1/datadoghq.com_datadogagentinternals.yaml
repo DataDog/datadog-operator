@@ -1538,6 +1538,15 @@ spec:
                               type: string
                           type: object
                       type: object
+                    dynamicInstrumentation:
+                      description: DynamicInstrumentation configuration.
+                      properties:
+                        enabled:
+                          description: |-
+                            Enabled enables the Dynamic Instrumentation system probe module.
+                            Default: false
+                          type: boolean
+                      type: object
                     ebpfCheck:
                       description: EBPFCheck configuration.
                       properties:
@@ -10253,6 +10262,15 @@ spec:
                                   description: Path defines the socket path used when enabled.
                                   type: string
                               type: object
+                          type: object
+                        dynamicInstrumentation:
+                          description: DynamicInstrumentation configuration.
+                          properties:
+                            enabled:
+                              description: |-
+                                Enabled enables the Dynamic Instrumentation system probe module.
+                                Default: false
+                              type: boolean
                           type: object
                         ebpfCheck:
                           description: EBPFCheck configuration.
