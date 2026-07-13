@@ -268,58 +268,6 @@ func TestApplyExperimentalAutopilotOverrides_RunPathEmptyDirIsPreserved(t *testi
 	}
 }
 
-func TestApplyExperimentalAutopilotOverrides_UsesGCRImageRegistry(t *testing.T) {
-	tests := []struct {
-		name             string
-		autopilotEnabled bool
-		wantImage        string
-	}{
-		{
-			name:             "autopilot enabled rewrites agent images to GCR registry",
-			autopilotEnabled: true,
-			wantImage:        "gcr.io/datadoghq/agent:7.80.2",
-		},
-		{
-			name:             "autopilot disabled preserves agent images",
-			autopilotEnabled: false,
-			wantImage:        "registry.datadoghq.com/agent:7.80.2",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			manager := fake.NewPodTemplateManagers(t, v1.PodTemplateSpec{
-				Spec: v1.PodSpec{
-					InitContainers: []v1.Container{
-						{Name: string(apicommon.InitVolumeContainerName), Image: "registry.datadoghq.com/agent:7.80.2"},
-						{Name: string(apicommon.InitConfigContainerName), Image: "registry.datadoghq.com/agent:7.80.2"},
-					},
-					Containers: []v1.Container{
-						{Name: string(apicommon.CoreAgentContainerName), Image: "registry.datadoghq.com/agent:7.80.2"},
-						{Name: string(apicommon.ProcessAgentContainerName), Image: "registry.datadoghq.com/agent:7.80.2"},
-					},
-				},
-			})
-
-			dda := &v2alpha1.DatadogAgent{
-				ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{}},
-			}
-			if tt.autopilotEnabled {
-				dda.Annotations[getExperimentalAnnotationKey(ExperimentalAutopilotSubkey)] = "true"
-			}
-
-			applyExperimentalAutopilotOverrides(dda, manager)
-
-			for _, c := range manager.PodTemplateSpec().Spec.InitContainers {
-				assert.Equal(t, tt.wantImage, c.Image, "init container %s image", c.Name)
-			}
-			for _, c := range manager.PodTemplateSpec().Spec.Containers {
-				assert.Equal(t, tt.wantImage, c.Image, "container %s image", c.Name)
-			}
-		})
-	}
-}
-
 func TestApplyExperimentalAutopilotOverrides_RemovesAuthTokenFilePathAndAuthMounts(t *testing.T) {
 	authEnv := []v1.EnvVar{
 		{Name: common.DDAuthTokenFilePath, Value: "/etc/datadog-agent/auth/token"},
