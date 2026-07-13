@@ -1812,7 +1812,7 @@ type GlobalConfig struct {
 	// Use 'eu.gcr.io/datadoghq' for Google Container Registry in the EU region.
 	// Use 'asia.gcr.io/datadoghq' for Google Container Registry in the Asia region.
 	// Use 'docker.io/datadog' for DockerHub.
-	// Default: 'gcr.io/datadoghq'
+	// Default: 'registry.datadoghq.com'
 	// +optional
 	Registry *string `json:"registry,omitempty"`
 

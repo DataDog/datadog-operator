@@ -52,37 +52,7 @@ func Test_defaultGlobal(t *testing.T) {
 			want: &v2alpha1.DatadogAgentSpec{
 				Global: &v2alpha1.GlobalConfig{
 					Site:     ptr.To(defaultEuropeSite),
-					Registry: ptr.To(images.DefaultEuropeImageRegistry),
-					LogLevel: ptr.To(defaultLogLevel),
-				},
-			},
-		},
-		{
-			name: "test registry defaulting based on site - Asia",
-			ddaSpec: &v2alpha1.DatadogAgentSpec{
-				Global: &v2alpha1.GlobalConfig{
-					Site: ptr.To(defaultAsiaSite),
-				},
-			},
-			want: &v2alpha1.DatadogAgentSpec{
-				Global: &v2alpha1.GlobalConfig{
-					Site:     ptr.To(defaultAsiaSite),
-					Registry: ptr.To(images.DefaultAsiaImageRegistry),
-					LogLevel: ptr.To(defaultLogLevel),
-				},
-			},
-		},
-		{
-			name: "test registry defaulting based on site - Azure",
-			ddaSpec: &v2alpha1.DatadogAgentSpec{
-				Global: &v2alpha1.GlobalConfig{
-					Site: ptr.To(defaultAzureSite),
-				},
-			},
-			want: &v2alpha1.DatadogAgentSpec{
-				Global: &v2alpha1.GlobalConfig{
-					Site:     ptr.To(defaultAzureSite),
-					Registry: ptr.To(images.DefaultAzureImageRegistry),
+					Registry: ptr.To(images.DatadogContainerRegistry),
 					LogLevel: ptr.To(defaultLogLevel),
 				},
 			},
