@@ -254,7 +254,39 @@ func setProfileSpec(ddai *v1alpha1.DatadogAgentInternal, profile *v1alpha1.Datad
 	// create affinity from ddai and profile prior to re-set after replacing the ddai spec
 	affinity := setProfileDDAIAffinity(ddai, profile)
 	if !agentprofile.IsDefaultProfile(profile.Namespace, profile.Name) {
+		// Capture spec.global.extraLabels from the base DDAI before replacing
+		// the spec with the profile config. The profile's Config is a user-defined
+		// DatadogAgentSpec that doesn't include the parent DDA's global settings,
+		// so extraLabels would be silently dropped. We restore them afterward so
+		// that label-enforcing admission policies (e.g. Kyverno) do not reject
+		// the profile DaemonSet even when the parent DDA sets spec.global.extraLabels.
+		var extraLabels map[string]string
+		if ddai.Spec.Global != nil && len(ddai.Spec.Global.ExtraLabels) > 0 {
+			extraLabels = make(map[string]string, len(ddai.Spec.Global.ExtraLabels))
+			for k, v := range ddai.Spec.Global.ExtraLabels {
+				extraLabels[k] = v
+			}
+		}
+
 		ddai.Spec = *profile.Spec.Config
+
+		// Restore extraLabels into the replaced spec.
+		if len(extraLabels) > 0 {
+			if ddai.Spec.Global == nil {
+				ddai.Spec.Global = &v2alpha1.GlobalConfig{}
+			}
+			// Profile config wins on any key conflict — only fill in keys
+			// not already set by the profile itself.
+			if ddai.Spec.Global.ExtraLabels == nil {
+				ddai.Spec.Global.ExtraLabels = make(map[string]string, len(extraLabels))
+			}
+			for k, v := range extraLabels {
+				if _, exists := ddai.Spec.Global.ExtraLabels[k]; !exists {
+					ddai.Spec.Global.ExtraLabels[k] = v
+				}
+			}
+		}
+
 		// DCA, CCR, and OtelAgentGateway are auto disabled for user created profiles
 		disableComponent(ddai, v2alpha1.ClusterAgentComponentName)
 		disableComponent(ddai, v2alpha1.ClusterChecksRunnerComponentName)
