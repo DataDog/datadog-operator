@@ -112,6 +112,18 @@ func (r *Reconciler) ensureRevision(
 	labels := map[string]string{
 		apicommon.DatadogAgentNameLabelKey: instance.GetName(),
 	}
+	// Merge extraLabels from spec.global so that ControllerRevision objects
+	// receive the same labels as all other operator-managed resources. Without
+	// this, a Kyverno-style required-labels policy rejects the revision create
+	// and stops reconciliation before any DDAI or workload resources are updated.
+	// Operator-owned keys already present in labels win on conflicts.
+	if instance.Spec.Global != nil {
+		for k, v := range instance.Spec.Global.ExtraLabels {
+			if _, exists := labels[k]; !exists {
+				labels[k] = v
+			}
+		}
+	}
 
 	// Find any existing revision with identical data, and track the max Revision.
 	var matchingRev *appsv1.ControllerRevision
