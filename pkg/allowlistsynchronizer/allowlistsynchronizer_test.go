@@ -89,7 +89,7 @@ func TestApplyAllowlistSynchronizerResource_AllowlistPath(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			c := fake.NewClientBuilder().WithScheme(scheme).Build()
-			require.NoError(t, applyAllowlistSynchronizerResource(c, tt.version, "default-foo"))
+			require.NoError(t, applyAllowlistSynchronizerResource(c, tt.version, "default-foo", nil))
 
 			got := &AllowlistSynchronizer{}
 			require.NoError(t, c.Get(context.TODO(), client.ObjectKey{Name: "datadog-synchronizer"}, got))
@@ -128,7 +128,7 @@ func TestApplyCSIAllowlistSynchronizerResource_AllowlistPath(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			c := fake.NewClientBuilder().WithScheme(scheme).Build()
-			require.NoError(t, applyCSIAllowlistSynchronizerResource(c, tt.version, "default-foo"))
+			require.NoError(t, applyCSIAllowlistSynchronizerResource(c, tt.version, "default-foo", nil))
 
 			got := &AllowlistSynchronizer{}
 			require.NoError(t, c.Get(context.TODO(), client.ObjectKey{Name: "datadog-csi-synchronizer"}, got))
@@ -166,7 +166,7 @@ func TestApplyAllowlistSynchronizerResource_UpdatesExistingResource(t *testing.T
 	}
 	c := fake.NewClientBuilder().WithScheme(scheme).WithObjects(existing).Build()
 
-	require.NoError(t, applyAllowlistSynchronizerResource(c, "v1.0.5", "default-foo"))
+	require.NoError(t, applyAllowlistSynchronizerResource(c, "v1.0.5", "default-foo", nil))
 
 	got := &AllowlistSynchronizer{}
 	require.NoError(t, c.Get(context.TODO(), client.ObjectKey{Name: "datadog-synchronizer"}, got))
@@ -200,7 +200,7 @@ func TestApplyCSIAllowlistSynchronizerResource_UpdatesExistingResource(t *testin
 	}
 	c := fake.NewClientBuilder().WithScheme(scheme).WithObjects(existing).Build()
 
-	require.NoError(t, applyCSIAllowlistSynchronizerResource(c, "v1.1.0", "default-foo"))
+	require.NoError(t, applyCSIAllowlistSynchronizerResource(c, "v1.1.0", "default-foo", nil))
 
 	got := &AllowlistSynchronizer{}
 	require.NoError(t, c.Get(context.TODO(), client.ObjectKey{Name: "datadog-csi-synchronizer"}, got))
@@ -209,4 +209,43 @@ func TestApplyCSIAllowlistSynchronizerResource_UpdatesExistingResource(t *testin
 	assert.Equal(t, "default-foo", got.Labels[kubernetes.AppKubernetesPartOfLabelKey])
 	assert.Equal(t, "datadog-operator", got.Labels[kubernetes.AppKubernetesManageByLabelKey])
 	assert.Equal(t, "datadog-csi-allowlist-synchronizer", got.Labels[kubernetes.AppKubernetesNameLabelKey])
+}
+
+func TestApplyAllowlistSynchronizerResource_ExtraLabels(t *testing.T) {
+	scheme := runtime.NewScheme()
+	require.NoError(t, SchemeBuilder.AddToScheme(scheme))
+	c := fake.NewClientBuilder().WithScheme(scheme).Build()
+
+	extraLabels := map[string]string{
+		"team":        "platform",
+		"cost-center": "ops",
+	}
+	require.NoError(t, applyAllowlistSynchronizerResource(c, "v1.0.5", "default-foo", extraLabels))
+
+	got := &AllowlistSynchronizer{}
+	require.NoError(t, c.Get(context.TODO(), client.ObjectKey{Name: agentAllowlistSynchronizerName}, got))
+
+	// Extra labels must be present
+	assert.Equal(t, "platform", got.Labels["team"])
+	assert.Equal(t, "ops", got.Labels["cost-center"])
+	// Operator-owned labels must not be overridden by extra labels
+	assert.Equal(t, "datadog-operator", got.Labels[kubernetes.AppKubernetesManageByLabelKey])
+}
+
+func TestApplyAllowlistSynchronizerResource_ExtraLabels_CannotOverrideOperatorKeys(t *testing.T) {
+	scheme := runtime.NewScheme()
+	require.NoError(t, SchemeBuilder.AddToScheme(scheme))
+	c := fake.NewClientBuilder().WithScheme(scheme).Build()
+
+	extraLabels := map[string]string{
+		kubernetes.AppKubernetesManageByLabelKey: "my-operator", // attempt override
+		"team": "platform",
+	}
+	require.NoError(t, applyAllowlistSynchronizerResource(c, "v1.0.5", "default-foo", extraLabels))
+
+	got := &AllowlistSynchronizer{}
+	require.NoError(t, c.Get(context.TODO(), client.ObjectKey{Name: agentAllowlistSynchronizerName}, got))
+
+	assert.Equal(t, "datadog-operator", got.Labels[kubernetes.AppKubernetesManageByLabelKey])
+	assert.Equal(t, "platform", got.Labels["team"])
 }
