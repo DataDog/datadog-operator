@@ -2,10 +2,9 @@
 
 ## Configuration inputs
 
-The Agent configuration the Operator generates is determined by two inputs:
-
-1. The `DatadogAgent` `spec`—the parameters documented on this page.
-2. A small set of metadata annotations on the `DatadogAgent`.
+The Agent configuration the Operator generates is determined by two inputs: the
+`DatadogAgent` `spec` (the parameters documented on this page) and a small set of
+metadata annotations on the `DatadogAgent`.
 
 ### Provider
 
