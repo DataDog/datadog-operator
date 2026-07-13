@@ -30,8 +30,8 @@ Control plane monitoring is applied automatically for clusters whose
 v1.29.0, the provider is [auto-detected](providers.md#automatic-detection) by
 default, so a minimal `DatadogAgent` spec is sufficient.
 
-If the provider is not detected — for example, the Operator's node does not carry
-the expected labels — set it explicitly with the
+If the provider is not detected—for example, the Operator's node does not carry
+the expected labels—set it explicitly with the
 `agent.datadoghq.com/cluster-provider` annotation on the `DatadogAgent`:
 
 ```yaml

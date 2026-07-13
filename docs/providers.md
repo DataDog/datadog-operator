@@ -1,18 +1,16 @@
 # Providers
 
-A *provider* is a named environment profile that the Operator maps to a set of
-environment-specific configuration changes. An environment needs a provider when
-it imposes requirements or restrictions the defaults do not satisfy — for example
-a managed Kubernetes service (`eks`, `aks`), a Kubernetes distribution
-(`openshift`), a node OS image without kernel sources (`gke-cos`), a managed
+A *provider* identifies an environment or platform that needs a specific set of
+customizations to the Agent configuration. A provider is warranted when the
+environment imposes requirements or restrictions the defaults do not satisfy: a
+managed Kubernetes service (`eks`, `aks`), a Kubernetes distribution
+(`openshift`), a node OS without kernel sources (`gke-cos`), a restricted managed
 environment with a workload allowlist and a fixed node OS (`gke-autopilot`), or a
 platform-specific Agent behavior (`eks-ec2-use-hostname-from-file`).
 
-What warrants a provider is the set of restrictions an environment imposes, not
-the label of a platform or mode. A managed mode that adds constraints (a workload
-allowlist, a locked-down node OS) may need its own provider, while another mode of
-the same service that runs on an unrestricted OS may not need one at all. As
-environments differentiate, a provider can split into more specific ones.
+Setting a provider applies that set of customizations to the Agents it covers,
+whether across the whole cluster or only the nodes a
+[DatadogAgentProfile](datadog_agent_profiles.md) targets.
 
 > This page describes the current, supported provider model. It is distinct from
 > the legacy [introspection](introspection.md) feature (one DaemonSet per node
@@ -24,10 +22,10 @@ environments differentiate, a provider can split into more specific ones.
 A provider applies at one of two scopes, both expressed through the single
 `agent.datadoghq.com/cluster-provider` annotation:
 
-- **Cluster scope** — set on (or detected for) the `DatadogAgent`. Applies to the
+- **Cluster scope**—set on (or detected for) the `DatadogAgent`. Applies to the
   whole cluster. Used for cluster-wide providers such as `eks`, `openshift`,
   `aks`, and `gke-autopilot` on an Autopilot cluster.
-- **Node scope** — set on a [DatadogAgentProfile](datadog_agent_profiles.md)
+- **Node scope**—set on a [DatadogAgentProfile](datadog_agent_profiles.md)
   (DAP). Applies only to the subset of nodes the profile targets. Used for node
   variations such as `gke-cos`, or `gke-autopilot` on
   [Autopilot-mode node pools](https://docs.cloud.google.com/kubernetes-engine/docs/concepts/about-autopilot-mode-standard-clusters)
@@ -90,7 +88,7 @@ is propagated to the DaemonSet the profile generates and applies only to the
 nodes the profile's `profileAffinity` selects.
 
 This is safe **only if `profileAffinity` correctly selects the nodes that match
-the declared provider** — the Operator does not verify that the selected nodes
+the declared provider**—the Operator does not verify that the selected nodes
 match the annotation.
 
 ```yaml
@@ -151,17 +149,17 @@ not been explicitly tested with DAPs.
 
 ## Examples
 
-- **Cluster-wide, auto-detected** — an EKS cluster gets `eks` from detection and
+- **Cluster-wide, auto-detected**—an EKS cluster gets `eks` from detection and
   enables [control plane monitoring](control_plane_monitoring.md) with no user
   configuration.
-- **Cluster-wide, declared** — set `agent.datadoghq.com/cluster-provider: aks` on
+- **Cluster-wide, declared**—set `agent.datadoghq.com/cluster-provider: aks` on
   the `DatadogAgent` to apply the required AKS admission controller selectors.
-- **Node OS variation** — set `agent.datadoghq.com/cluster-provider: gke-cos` on a
+- **Node OS variation**—set `agent.datadoghq.com/cluster-provider: gke-cos` on a
   DAP that targets the COS node pool.
-- **Granular behavior** — set
+- **Granular behavior**—set
   `agent.datadoghq.com/cluster-provider: eks-ec2-use-hostname-from-file` on a DAP
   targeting EC2 nodes that need file-based hostname resolution.
-- **Restricted managed environment** — set
+- **Restricted managed environment**—set
   `agent.datadoghq.com/cluster-provider: gke-autopilot` on the `DatadogAgent` for
   an Autopilot cluster, or on a DAP targeting Autopilot-mode node pools in a
   Standard cluster (see the [GKE Autopilot guide](gke_autopilot/external.md)).

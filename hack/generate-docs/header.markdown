@@ -4,13 +4,13 @@
 
 The Agent configuration the Operator generates is determined by two inputs:
 
-1. The `DatadogAgent` `spec` — the parameters documented on this page.
+1. The `DatadogAgent` `spec`—the parameters documented on this page.
 2. A small set of metadata annotations on the `DatadogAgent`.
 
 ### Provider
 
-A *provider* is a named environment profile — a managed service, distribution,
-node OS, or an environment with specific restrictions — that the Operator maps to
+A *provider* is a named environment profile—a managed service, distribution,
+node OS, or an environment with specific restrictions—that the Operator maps to
 provider-specific configuration. The Operator detects the cluster provider
 automatically, or you can declare it with the `agent.datadoghq.com/cluster-provider`
 annotation (mirroring the Helm chart's `providers.*` configuration):
@@ -29,7 +29,7 @@ Helm mappings, see the
 
 Some features are gated by *experimental* annotations under the
 `experimental.agent.datadoghq.com/` prefix rather than by the `spec` or a
-provider — for example, `experimental.agent.datadoghq.com/autopilot: "true"`
+provider—for example, `experimental.agent.datadoghq.com/autopilot: "true"`
 enables GKE Autopilot handling. Experimental annotations are unstable and may
 change or be removed; prefer the stable equivalent where one exists (for GKE
 Autopilot, the `agent.datadoghq.com/cluster-provider: gke-autopilot` provider).
