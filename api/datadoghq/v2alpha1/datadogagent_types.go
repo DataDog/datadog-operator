@@ -1774,6 +1774,7 @@ type DeploymentStatus struct {
 }
 
 // GlobalConfig is a set of parameters that are used to configure all the components of the Datadog Operator.
+// +k8s:openapi-gen=true
 type GlobalConfig struct {
 	// Credentials defines the Datadog credentials used to submit data to/query data from Datadog.
 	Credentials *DatadogCredentials `json:"credentials,omitempty"`
