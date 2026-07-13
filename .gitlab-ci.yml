@@ -1,9 +1,9 @@
-image: registry.ddbuild.io/images/mirror/library/golang:1.25.11
+image: registry.ddbuild.io/images/mirror/library/golang:1.25.12
 variables:
   NIGHTLY_BUILD_CONDUCTOR_NAME: "operator-nightly-build"
   PROJECTNAME: "datadog-operator"
   PROJECTNAME_CHECK: "datadog-operator-check"
-  IMAGE_VERSION: "tmpl-v3"
+  IMAGE_VERSION: "tmpl-v4"
   BUILD_DOCKER_REGISTRY: "486234852809.dkr.ecr.us-east-1.amazonaws.com/ci"
   E2E_DOCKER_REGISTRY: "669783387624.dkr.ecr.us-east-1.amazonaws.com/operator"
   JOB_DOCKER_IMAGE: "registry.ddbuild.io/ci-containers-project:v68399443-88dc260-v1.22"
@@ -552,6 +552,64 @@ e2e_gke_autopilot:
     - IMAGE_PULL_PASSWORD=$(aws ecr get-login-password) IMG=$TARGET_IMAGE make e2e-gke-autopilot-tests
   retry: 2
 
+e2e_untaint:
+  extends: .e2e_aws_base
+  stage: e2e
+  needs:
+    # Needs the operator image (unlike autoscaling, which exercises the CLI).
+    - "trigger_e2e_operator_image"
+    - "go_e2e_deps"
+  timeout: 100m
+  id_tokens:
+    DDOCTOSTS_ID_TOKEN:
+      aud: dd-octo-sts
+  variables:
+    # Untaint controller is supported on Kubernetes 1.27.0+; pin a single recent
+    # version rather than running the full e2e matrix.
+    K8S_VERSION: "1.30"
+    TARGET_IMAGE: $E2E_DOCKER_REGISTRY:${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
+  rules:
+    # Skip when a root *.md file changed (docs-only *or* docs mixed with code).
+    # This has to gate every rule below because the hard `needs` above
+    # (trigger_e2e_operator_image, via .on_run_e2e_base) itself skips on any
+    # root markdown change. Letting this job run on such a pipeline would leave
+    # it depending on a job that isn't there, which GitLab rejects as a missing
+    # need. So the mixed-changes "skip" is required for consistency, not a docs
+    # optimization we can simply drop like the other e2e suites.
+    - if: $CI_COMMIT_BRANCH
+      changes:
+        paths:
+          - "*.md"
+        compare_to: "refs/heads/main"
+      when: never
+    # Disable on Conductor-triggered jobs (ex: nightly)
+    - if: '$DDR == "true"'
+      when: never
+    # Disable on manual pipelines to test staging images
+    - if: $PUSH_IMAGES_TO_STAGING == 'true'
+      when: never
+    # Run automatically on changes to untaint controller / suite code.
+    - if: $CI_COMMIT_BRANCH
+      changes:
+        paths:
+          - "internal/controller/untaint_controller.go"
+          - "internal/controller/datadogagent/component/agent/untaint_toleration.go"
+          - "internal/controller/datadogcsidriver/**/*"
+          - "pkg/untaint/**/*"
+          - "test/e2e/tests/untaint_suite/**/*"
+          - "test/e2e/provisioners/kind.go"
+        compare_to: "refs/heads/main"
+      when: on_success
+    # On pipelines that don't touch untaint code, expose it as an optional manual
+    # button. allow_failure here only affects this fallback rule, so it keeps
+    # unrelated pipelines from being blocked without weakening the on_success gate.
+    - when: manual
+      allow_failure: true
+  script:
+    - echo "Running untaint controller e2e tests with target image $TARGET_IMAGE"
+    - IMAGE_PULL_PASSWORD=$(aws ecr get-login-password) IMG=$TARGET_IMAGE make e2e-untaint-tests
+  retry: 2
+
 publish_public_main:
   stage: release
   rules:
@@ -746,6 +804,33 @@ trigger_internal_operator_image_fips_rc_latest:
     TMPL_SRC_IMAGE: v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-fips
     RELEASE_TAG: rc-latest-fips
     BUILD_TAG: rc-latest-fips
+
+trigger_internal_operator_image_latest:
+  stage: release-latest
+  rules:
+    # Skip latest jobs for vX.Y.Z-rc.W tags
+    - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+-rc\.[0-9]+$/'
+      when: never
+    - if: $CI_COMMIT_TAG
+    - when: never
+  trigger:
+    project: DataDog/images
+    branch: master
+    strategy: depend
+  variables:
+    IMAGE_NAME: $PROJECTNAME
+    TMPL_SRC_IMAGE: v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
+    RELEASE_TAG: latest
+    BUILD_TAG: latest
+    RELEASE_STAGING: "true"
+    RELEASE_PROD: "true"
+
+trigger_internal_operator_image_fips_latest:
+  extends: trigger_internal_operator_image_latest
+  variables:
+    TMPL_SRC_IMAGE: v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-fips
+    RELEASE_TAG: latest-fips
+    BUILD_TAG: latest-fips
 
 trigger_internal_operator_nightly_image:
   stage: release

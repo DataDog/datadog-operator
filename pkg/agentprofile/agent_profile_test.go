@@ -336,6 +336,14 @@ func TestOverrideFromProfile(t *testing.T) {
 						},
 					},
 				},
+				Volumes: []corev1.Volume{
+					{
+						Name: "foo",
+						VolumeSource: corev1.VolumeSource{
+							EmptyDir: &corev1.EmptyDirVolumeSource{},
+						},
+					},
+				},
 				Containers: map[apicommon.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
 					apicommon.CoreAgentContainerName: {
 						Resources: cpuRequestResource("100m"),
@@ -343,6 +351,13 @@ func TestOverrideFromProfile(t *testing.T) {
 							{
 								Name:  "foo",
 								Value: "bar",
+							},
+						},
+						VolumeMounts: []corev1.VolumeMount{
+							{
+								Name:      "foo",
+								MountPath: "/etc/foo",
+								ReadOnly:  true,
 							},
 						},
 					},
@@ -811,12 +826,27 @@ func configWithAllOverrides(cpuRequest string) *v2alpha1.DatadogAgentSpec {
 				Labels: map[string]string{
 					"foo": "bar",
 				},
+				Volumes: []corev1.Volume{
+					{
+						Name: "foo",
+						VolumeSource: corev1.VolumeSource{
+							EmptyDir: &corev1.EmptyDirVolumeSource{},
+						},
+					},
+				},
 				Containers: map[apicommon.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
 					apicommon.CoreAgentContainerName: {
 						Env: []corev1.EnvVar{
 							{
 								Name:  "foo",
 								Value: "bar",
+							},
+						},
+						VolumeMounts: []corev1.VolumeMount{
+							{
+								Name:      "foo",
+								MountPath: "/etc/foo",
+								ReadOnly:  true,
 							},
 						},
 						Resources: cpuRequestResource(cpuRequest),

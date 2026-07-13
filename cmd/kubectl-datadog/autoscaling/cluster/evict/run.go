@@ -89,17 +89,12 @@ func Run(ctx context.Context, streams genericclioptions.IOStreams, configFlags *
 		return err
 	}
 	if len(targets) == 0 {
-		// A previous run may have been interrupted (e.g. an EKS managed node
-		// group timed out, leaving its temporary PDBs in place for a later
-		// rerun). By the time that rerun finds nothing left to evict, those
-		// leaked PDBs would otherwise persist indefinitely with
+		// A previous run may have been interrupted (e.g. SIGINT mid-flight),
+		// leaking temporary PDBs. By the time a rerun finds nothing left to
+		// evict, those leaked PDBs would otherwise persist indefinitely with
 		// maxUnavailable: 1 and throttle future rollouts/disruptions, so
 		// reclaim anything left behind before the no-op exit.
-		if opts.EnsurePDBs {
-			if err := cleanupTempPDBs(ctx, cli.K8sClient, opts.DryRun); err != nil {
-				log.Printf("Warning: failed to cleanup leftover temporary PDBs: %v", err)
-			}
-		}
+		reclaimLeakedTempPDBs(ctx, cli.K8sClient, opts.EnsurePDBs, opts.DryRun)
 		display.PrintBox(streams.Out, "Nothing to evict — the cluster is already on Datadog-managed Karpenter NodePools.")
 		return nil
 	}
@@ -143,24 +138,18 @@ func Run(ctx context.Context, streams genericclioptions.IOStreams, configFlags *
 	evictor := func(c context.Context, t Target, d nodeDrainOptions) error {
 		return evictTarget(c, clientset, cli, opts.ClusterName, t, d)
 	}
-	result := evictAllTargets(ctx, targets, drainOpts, evictor)
-	errs := result.Errors
+	errs := evictAllTargets(ctx, targets, drainOpts, evictor)
 
 	// Step 4: cleanup temporary PDBs explicitly here — keeping it inline
 	// (rather than deferred) means the "Deleted temporary PDB …" log lines
 	// appear BEFORE the final success/failure summary, so the user does not
 	// experience an apparent hang after seeing the "✅" box.
 	//
-	// When at least one EKS managed node group did not finish draining
-	// within the timeout, we skip the cleanup: EKS may still be evicting
-	// pods on those nodes, and dropping the temp PDBs now would leave
-	// cross-type workloads unprotected mid-drain. The label-based cleanup
-	// on a subsequent run picks the PDBs up once EKS converges.
-	switch {
-	case !opts.EnsurePDBs:
-	case result.EKSDrainIncomplete:
-		log.Printf("Note: at least one EKS managed node group did not finish draining within --node-timeout; temporary PDBs left in place so EKS can finish safely. Re-run the command once `aws eks describe-nodegroup` reports the group at 0 nodes — the next run will clean them up.")
-	default:
+	// Every evictor drains synchronously and PDB-aware (via the Eviction API)
+	// before terminating its instances, so once eviction returns there is no
+	// background process still disrupting PDB-protected workloads. The temporary
+	// PDBs have served their purpose and are always safe to reclaim here.
+	if opts.EnsurePDBs {
 		if err := cleanupTempPDBs(ctx, cli.K8sClient, opts.DryRun); err != nil {
 			log.Printf("Warning: failed to cleanup temporary PDBs: %v", err)
 		}
@@ -198,49 +187,25 @@ func classify(ctx context.Context, clientset *kubernetes.Clientset, cli *clients
 	})
 }
 
-// evictResult is the structured outcome of evictAllTargets. Errors is the
-// aggregated per-target error list (empty when everything succeeded).
-// EKSDrainIncomplete is true when at least one EKS managed node group target
-// returned an error WRAPPING errEKSDrainIncomplete — the EKS drain may still
-// be in progress, in which case the caller must NOT cleanup the temporary
-// PDBs (EKS would then over-disrupt the still-running workloads).
-type evictResult struct {
-	Errors             []error
-	EKSDrainIncomplete bool
-}
-
 // targetEvictor is the closure injected into evictAllTargets by Run. Pulling
 // the dispatch out as an interface-like function makes the orchestrator
 // unit-testable without faking the entire clients.Clients struct.
 type targetEvictor func(ctx context.Context, t Target, drainOpts nodeDrainOptions) error
 
 // evictAllTargets processes targets sequentially, in the order BuildPlan
-// produced. Errors are accumulated; a failing target does not abort the
-// others — every issue surfaces at the end so a partial migration is fully
-// visible. Sequential execution keeps logs linear, bounds the eviction
+// produced. Errors are accumulated and returned; a failing target does not
+// abort the others — every issue surfaces at the end so a partial migration is
+// fully visible. Sequential execution keeps logs linear, bounds the eviction
 // pressure on the apiserver, and matches the synchronous per-target shape
-// (every evictor — including EKS MNG — already blocks until its drain
-// completes).
-func evictAllTargets(ctx context.Context, targets []Target, drainOpts nodeDrainOptions, evictor targetEvictor) evictResult {
-	var (
-		errs               []error
-		eksDrainIncomplete bool
-	)
+// (every evictor blocks until its drain completes).
+func evictAllTargets(ctx context.Context, targets []Target, drainOpts nodeDrainOptions, evictor targetEvictor) []error {
+	var errs []error
 	for _, t := range targets {
-		err := evictor(ctx, t, drainOpts)
-		if err == nil {
-			continue
-		}
-		errs = append(errs, fmt.Errorf("%s/%s: %w", t.Manager, t.Entity, err))
-		// Only treat the drain as "still in progress" when EKS accepted the
-		// scaling change but observation of the drain failed or timed out.
-		// A failed UpdateNodegroupConfig means EKS never started draining,
-		// so cleanup is safe.
-		if errors.Is(err, errEKSDrainIncomplete) {
-			eksDrainIncomplete = true
+		if err := evictor(ctx, t, drainOpts); err != nil {
+			errs = append(errs, fmt.Errorf("%s/%s: %w", t.Manager, t.Entity, err))
 		}
 	}
-	return evictResult{Errors: errs, EKSDrainIncomplete: eksDrainIncomplete}
+	return errs
 }
 
 // evictTarget dispatches a single Target to the manager-specific evictor.
@@ -251,7 +216,7 @@ func evictTarget(ctx context.Context, clientset kubernetes.Interface, cli *clien
 	case clusterinfo.NodeManagerASG:
 		return evictASG(ctx, clientset, cli.Autoscaling, t.Entity, t.Nodes, drainOpts)
 	case clusterinfo.NodeManagerEKSManagedNodeGroup:
-		return evictEKSManagedNodeGroup(ctx, cli.EKS, clientset, clusterName, t.Entity, drainOpts)
+		return evictEKSManagedNodeGroup(ctx, cli.EKS, clientset, clusterName, t.Entity, t.Nodes, drainOpts)
 	case clusterinfo.NodeManagerKarpenter:
 		return evictKarpenterUserNodePool(ctx, clientset, t.Entity, t.Nodes, drainOpts)
 	case clusterinfo.NodeManagerStandalone:

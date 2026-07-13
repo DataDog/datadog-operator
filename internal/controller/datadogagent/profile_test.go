@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"k8s.io/utils/ptr"
-
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -17,6 +17,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
@@ -25,8 +26,6 @@ import (
 	agenttestutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/testutils"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/constants"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func Test_computeProfileMerge(t *testing.T) {
@@ -65,9 +64,6 @@ func Test_computeProfileMerge(t *testing.T) {
 									Value: "value",
 								},
 							},
-							Labels: map[string]string{
-								constants.MD5AgentDeploymentProviderLabelKey: "",
-							},
 						},
 					},
 				},
@@ -82,7 +78,7 @@ func Test_computeProfileMerge(t *testing.T) {
 					Name:      "foo",
 					Namespace: "bar",
 					Annotations: map[string]string{
-						constants.MD5DDAIDeploymentAnnotationKey: "cf36f429dc3cdc72527e13ab7c602dec",
+						constants.MD5DDAIDeploymentAnnotationKey: "10394c6b4f1e5029544f602ecb5a557b",
 					},
 				},
 				Spec: v2alpha1.DatadogAgentSpec{
@@ -131,9 +127,6 @@ func Test_computeProfileMerge(t *testing.T) {
 									Value: "value",
 								},
 							},
-							Labels: map[string]string{
-								constants.MD5AgentDeploymentProviderLabelKey: "",
-							},
 						},
 					},
 				},
@@ -159,9 +152,6 @@ func Test_computeProfileMerge(t *testing.T) {
 									Name:  "EXISTING",
 									Value: "value",
 								},
-							},
-							Labels: map[string]string{
-								constants.MD5AgentDeploymentProviderLabelKey: "",
 							},
 						},
 					},
@@ -201,7 +191,7 @@ func Test_computeProfileMerge(t *testing.T) {
 					Name:      "foo-profile",
 					Namespace: "bar",
 					Annotations: map[string]string{
-						constants.MD5DDAIDeploymentAnnotationKey: "e160cdf078da13507876397e80bbe4e0",
+						constants.MD5DDAIDeploymentAnnotationKey: "a9033f6ffba89ddf862136d39a5db466",
 					},
 				},
 				Spec: v2alpha1.DatadogAgentSpec{
@@ -258,8 +248,7 @@ func Test_computeProfileMerge(t *testing.T) {
 								},
 							},
 							Labels: map[string]string{
-								constants.ProfileLabelKey:                    "foo-profile",
-								constants.MD5AgentDeploymentProviderLabelKey: "",
+								constants.ProfileLabelKey: "foo-profile",
 							},
 						},
 						v2alpha1.ClusterAgentComponentName: {
@@ -332,9 +321,6 @@ func Test_setProfileSpec(t *testing.T) {
 				Spec: v2alpha1.DatadogAgentSpec{
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 						v2alpha1.NodeAgentComponentName: {
-							Labels: map[string]string{
-								constants.MD5AgentDeploymentProviderLabelKey: "",
-							},
 							Affinity: &corev1.Affinity{
 								NodeAffinity: &corev1.NodeAffinity{
 									RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
@@ -406,9 +392,6 @@ func Test_setProfileSpec(t *testing.T) {
 									},
 								},
 							},
-							Labels: map[string]string{
-								constants.MD5AgentDeploymentProviderLabelKey: "",
-							},
 						},
 					},
 				},
@@ -421,15 +404,9 @@ func Test_setProfileSpec(t *testing.T) {
 					Name:      "foo",
 					Namespace: "bar",
 				},
-				// DDAI spec is overridden to create the profile DDAI
-				// Therefore, the provider label will not be in the final profile DDAI spec
-				// This config will be merged with a copy of the original DDAI
 				Spec: v2alpha1.DatadogAgentSpec{
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 						v2alpha1.NodeAgentComponentName: {
-							Labels: map[string]string{
-								constants.MD5AgentDeploymentProviderLabelKey: "",
-							},
 							Affinity: &corev1.Affinity{
 								NodeAffinity: &corev1.NodeAffinity{
 									RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
@@ -1366,6 +1343,21 @@ func Test_reconcileProfiles_APMSharedOverlayMatrix(t *testing.T) {
 				assert.Equal(t, "1.43.0", ssi.LibVersions["java"])
 				assert.True(t, ptr.Deref(ssi.LanguageDetection.Enabled, false))
 			},
+		},
+		{
+			name:        "base APM off DAP APM on applies without enabling default DDAI APM",
+			description: "Expect the DAP to apply while leaving the default DDAI node APM disabled.",
+			profiles: []*v1alpha1.DatadogAgentProfile{
+				testAPMMatrixProfile(namespace, "dap-case-apm-only", baseTime, noMatchProfileRequirement("dap-case-apm-only"), &v2alpha1.APMFeatureConfig{
+					Enabled: ptr.To(true),
+				}),
+			},
+			wantProfileApplied: map[string]metav1.ConditionStatus{"dap-case-apm-only": metav1.ConditionTrue},
+			assertAPM: func(t *testing.T, apm *v2alpha1.APMFeatureConfig) {
+				require.NotNil(t, apm)
+				assert.False(t, ptr.Deref(apm.Enabled, true))
+			},
+			assertSSI: assertSSIEnabled(false),
 		},
 		{
 			name:        "DAP apm enabled false with SSI enabled",

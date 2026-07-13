@@ -16,19 +16,19 @@ import (
 
 const (
 	// AgentLatestVersion corresponds to the latest stable agent release
-	AgentLatestVersion = "7.80.2"
+	AgentLatestVersion = "7.80.4"
 	// ClusterAgentLatestVersion corresponds to the latest stable cluster-agent release
-	ClusterAgentLatestVersion = "7.80.2"
+	ClusterAgentLatestVersion = "7.80.4"
 	// DdotCollectorLatestVersion corresponds to the latest stable ddot-collector release
-	DdotCollectorLatestVersion = "7.80.2"
+	DdotCollectorLatestVersion = "7.80.4"
 	// FIPSProxyLatestVersion corresponds to the latest stable fips-proxy release
-	FIPSProxyLatestVersion = "1.1.26"
+	FIPSProxyLatestVersion = "1.1.28"
 	// DDOTFIPSMinimumVersion is the minimum version at which ddot-collector publishes a -fips variant.
 	// Note: the regular agent -fips image predates this; this constant only applies to ddot-collector.
 	// Add "-0" so that pre-release versions are considered sufficient. https://github.com/Masterminds/semver#working-with-prerelease-versions
 	DDOTFIPSMinimumVersion = "7.78.0-0"
 	// CSILatestImageVersion corresponds to the latest stable Datadog CSIDriver release
-	CSILatestImageVersion = "1.2.2"
+	CSILatestImageVersion = "1.3.0"
 	// DefaultRegistrarImageVersion corresponds to the default CSI registrar image used
 	DefaultRegistrarImageVersion = "v2.0.1"
 	// Datadog container registry
@@ -40,8 +40,8 @@ const (
 	// PublicECSContainerRegistry corresponds to the datadoghq PublicECSContainerRegistry registry
 	PublicECSContainerRegistry = "public.ecr.aws/datadog"
 	// DefaultImageRegistry corresponds to the datadoghq containers registry
-	DefaultImageRegistry = "gcr.io/datadoghq"
-	// Default Image Registries
+	DefaultImageRegistry = DatadogContainerRegistry
+	// Alternate image registries
 	DefaultAzureImageRegistry  string = "datadoghq.azurecr.io"
 	DefaultEuropeImageRegistry string = "eu.gcr.io/datadoghq"
 	DefaultAsiaImageRegistry   string = "asia.gcr.io/datadoghq"
@@ -54,11 +54,21 @@ const (
 	FIPSTagSuffix = "-fips"
 	// FullTagSuffix tag suffix for full agent images
 	FullTagSuffix = "-full"
+	// WindowsServerCoreTagSuffix tag suffix for Windows Server Core agent images
+	WindowsServerCoreTagSuffix = "-servercore"
 	// Default Image names
 	DefaultAgentImageName         string = "agent"
 	DefaultClusterAgentImageName  string = "cluster-agent"
 	DefaultDdotCollectorImageName string = "ddot-collector"
 )
+
+// IsGCRRegistry reports whether registry points to a Datadog GCR registry,
+// including the known regional GCR registries.
+func IsGCRRegistry(registry string) bool {
+	return registry == GCRContainerRegistry ||
+		registry == DefaultEuropeImageRegistry ||
+		registry == DefaultAsiaImageRegistry
+}
 
 // imageHasTag identifies whether an image string contains a tag suffix
 // Ref: https://github.com/distribution/distribution/blob/v2.7.1/reference/reference.go
@@ -153,6 +163,16 @@ func (i *Image) FIPSVersionError() error {
 // GetLatestAgentImage returns the latest stable agent release version
 func GetLatestAgentImage() string {
 	image := newImage(DefaultImageRegistry, DefaultAgentImageName, AgentLatestVersion, false, false, false)
+	return image.ToString()
+}
+
+// GetLatestWindowsAgentImage returns the Windows Server Core variant of the latest agent image.
+// Windows agent images use the "-servercore" tag suffix (e.g. 7.80.2-servercore).
+// Note: the registry is overwritten by updateContainerImages when GlobalConfig.Registry is set;
+// the tag suffix "-servercore" is also incompatible with FIPS (which would produce a non-existent
+// tag like "7.80.2-servercore-fips") — FIPS + Windows is not supported.
+func GetLatestWindowsAgentImage() string {
+	image := newImage(DefaultImageRegistry, DefaultAgentImageName, AgentLatestVersion+WindowsServerCoreTagSuffix, false, false, false)
 	return image.ToString()
 }
 
@@ -253,6 +273,17 @@ func parseTagSuffixes(tag string) (baseTag string, isJMX, isFIPS, isFull bool) {
 		tag = strings.TrimSuffix(tag, FIPSTagSuffix)
 	}
 	return tag, isJMX, isFIPS, isFull
+}
+
+// IsJMXImage reports whether the image config resolves to an Agent JMX image.
+func IsJMXImage(imageConfig *v2alpha1.AgentImageConfig) bool {
+	if imageConfig == nil {
+		return false
+	}
+
+	img := fromImageConfig(imageConfig)
+
+	return img.isJMX || img.isFull
 }
 
 // FromString translates a string Image in the format registry/name:tag to an Image object

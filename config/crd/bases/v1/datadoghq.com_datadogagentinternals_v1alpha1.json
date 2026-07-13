@@ -1534,6 +1534,17 @@
               },
               "type": "object"
             },
+            "dynamicInstrumentation": {
+              "additionalProperties": false,
+              "description": "DynamicInstrumentation configuration.",
+              "properties": {
+                "enabled": {
+                  "description": "Enabled enables the Dynamic Instrumentation system probe module.\nDefault: false",
+                  "type": "boolean"
+                }
+              },
+              "type": "object"
+            },
             "ebpfCheck": {
               "additionalProperties": false,
               "description": "EBPFCheck configuration.",
@@ -3746,7 +3757,7 @@
               "type": "object"
             },
             "registry": {
-              "description": "Registry is the image registry to use for all Agent images.\nUse 'public.ecr.aws/datadog' for AWS ECR.\nUse 'datadoghq.azurecr.io' for Azure Container Registry.\nUse 'gcr.io/datadoghq' for Google Container Registry.\nUse 'eu.gcr.io/datadoghq' for Google Container Registry in the EU region.\nUse 'asia.gcr.io/datadoghq' for Google Container Registry in the Asia region.\nUse 'docker.io/datadog' for DockerHub.\nDefault: 'gcr.io/datadoghq'",
+              "description": "Registry is the image registry to use for all Agent images.\nUse 'public.ecr.aws/datadog' for AWS ECR.\nUse 'datadoghq.azurecr.io' for Azure Container Registry.\nUse 'gcr.io/datadoghq' for Google Container Registry.\nUse 'eu.gcr.io/datadoghq' for Google Container Registry in the EU region.\nUse 'asia.gcr.io/datadoghq' for Google Container Registry in the Asia region.\nUse 'docker.io/datadog' for DockerHub.\nDefault: 'registry.datadoghq.com'",
               "type": "string"
             },
             "secretBackend": {
@@ -9967,6 +9978,17 @@
                         }
                       },
                       "type": "object"
+                    }
+                  },
+                  "type": "object"
+                },
+                "dynamicInstrumentation": {
+                  "additionalProperties": false,
+                  "description": "DynamicInstrumentation configuration.",
+                  "properties": {
+                    "enabled": {
+                      "description": "Enabled enables the Dynamic Instrumentation system probe module.\nDefault: false",
+                      "type": "boolean"
                     }
                   },
                   "type": "object"

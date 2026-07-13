@@ -102,7 +102,8 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, instance *v1alpha1
 		}
 	}
 
-	// 2.b. Node Agent
+	// 2.b. Node Agent. provider is read from the DDAI annotation above — the DDA
+	// controller stamps gke-autopilot there for both the OOTB and experimental opt-in paths.
 	result, err = r.reconcileV2Agent(ctx, requiredComponents, append(configuredFeatures, enabledFeatures...), instance, resourceManagers, newStatus, provider)
 	if utils.ShouldReturn(result, err) {
 		return r.updateStatusIfNeededV2(ctx, instance, newStatus, result, err, now)

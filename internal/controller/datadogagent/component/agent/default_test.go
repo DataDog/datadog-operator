@@ -3,13 +3,13 @@ package agent
 import (
 	"testing"
 
-	"k8s.io/utils/ptr"
-
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/pkg/constants"
@@ -139,6 +139,185 @@ func TestCommonEnvVars(t *testing.T) {
 			assert.Equal(t, tt.expectedServiceName, clusterAgentServiceName)
 			assert.Equal(t, tt.expectedSecretName, clusterAgentTokenName)
 		})
+	}
+}
+
+func TestEnvVarsForCoreAgentJMXUseContainerSupport(t *testing.T) {
+	tests := []struct {
+		name string
+		dda  metav1.Object
+		want bool
+	}{
+		{
+			name: "metadata only does not add JMX env var",
+			dda: &metav1.ObjectMeta{
+				Name:      "foo",
+				Namespace: "default",
+				Labels:    map[string]string{},
+			},
+			want: false,
+		},
+		{
+			name: "DatadogAgent without override does not add JMX env var",
+			dda: &v2alpha1.DatadogAgent{
+				ObjectMeta: metav1.ObjectMeta{Name: "foo", Namespace: "default"},
+			},
+			want: false,
+		},
+		{
+			name: "Node Agent override without image does not add JMX env var",
+			dda: &v2alpha1.DatadogAgent{
+				ObjectMeta: metav1.ObjectMeta{Name: "foo", Namespace: "default"},
+				Spec: v2alpha1.DatadogAgentSpec{
+					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+						v2alpha1.NodeAgentComponentName: {},
+					},
+				},
+			},
+			want: false,
+		},
+		{
+			name: "Cluster Agent JMX image does not add core Agent env var",
+			dda: &v2alpha1.DatadogAgent{
+				ObjectMeta: metav1.ObjectMeta{Name: "foo", Namespace: "default"},
+				Spec: v2alpha1.DatadogAgentSpec{
+					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+						v2alpha1.ClusterAgentComponentName: {
+							Image: &v2alpha1.AgentImageConfig{JMXEnabled: true},
+						},
+					},
+				},
+			},
+			want: false,
+		},
+		{
+			name: "DatadogAgent JMX image flag adds env var",
+			dda: &v2alpha1.DatadogAgent{
+				ObjectMeta: metav1.ObjectMeta{Name: "foo", Namespace: "default"},
+				Spec: v2alpha1.DatadogAgentSpec{
+					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+						v2alpha1.NodeAgentComponentName: {
+							Image: &v2alpha1.AgentImageConfig{JMXEnabled: true},
+						},
+					},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "DatadogAgent JMX image tag adds env var",
+			dda: &v2alpha1.DatadogAgent{
+				ObjectMeta: metav1.ObjectMeta{Name: "foo", Namespace: "default"},
+				Spec: v2alpha1.DatadogAgentSpec{
+					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+						v2alpha1.NodeAgentComponentName: {
+							Image: &v2alpha1.AgentImageConfig{Tag: "7.80.2-jmx"},
+						},
+					},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "Agent image name with JMX suffix adds env var",
+			dda: &v2alpha1.DatadogAgent{
+				ObjectMeta: metav1.ObjectMeta{Name: "foo", Namespace: "default"},
+				Spec: v2alpha1.DatadogAgentSpec{
+					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+						v2alpha1.NodeAgentComponentName: {
+							Image: &v2alpha1.AgentImageConfig{Name: "agent:7.80.2-jmx"},
+						},
+					},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "full image name adds env var",
+			dda: &v2alpha1.DatadogAgent{
+				ObjectMeta: metav1.ObjectMeta{Name: "foo", Namespace: "default"},
+				Spec: v2alpha1.DatadogAgentSpec{
+					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+						v2alpha1.NodeAgentComponentName: {
+							Image: &v2alpha1.AgentImageConfig{Name: "agent:7.80.2-full"},
+						},
+					},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "FIPS full image name adds env var",
+			dda: &v2alpha1.DatadogAgent{
+				ObjectMeta: metav1.ObjectMeta{Name: "foo", Namespace: "default"},
+				Spec: v2alpha1.DatadogAgentSpec{
+					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+						v2alpha1.NodeAgentComponentName: {
+							Image: &v2alpha1.AgentImageConfig{Name: "agent:7.80.2-fips-full"},
+						},
+					},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "tagged image name without JMX suffix ignores JMX fields",
+			dda: &v2alpha1.DatadogAgent{
+				ObjectMeta: metav1.ObjectMeta{Name: "foo", Namespace: "default"},
+				Spec: v2alpha1.DatadogAgentSpec{
+					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+						v2alpha1.NodeAgentComponentName: {
+							Image: &v2alpha1.AgentImageConfig{
+								Name:       "agent:7.80.2",
+								Tag:        "7.80.2-jmx",
+								JMXEnabled: true,
+							},
+						},
+					},
+				},
+			},
+			want: false,
+		},
+		{
+			name: "DatadogAgentInternal JMX image flag adds env var",
+			dda: &v1alpha1.DatadogAgentInternal{
+				ObjectMeta: metav1.ObjectMeta{Name: "foo", Namespace: "default"},
+				Spec: v2alpha1.DatadogAgentSpec{
+					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+						v2alpha1.NodeAgentComponentName: {
+							Image: &v2alpha1.AgentImageConfig{JMXEnabled: true},
+						},
+					},
+				},
+			},
+			want: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assertJMXUseContainerSupportEnv(t, envVarsForCoreAgent(tt.dda), tt.want)
+		})
+	}
+}
+
+func assertJMXUseContainerSupportEnv(t *testing.T, envVars []corev1.EnvVar, want bool) {
+	t.Helper()
+
+	count := 0
+	for _, envVar := range envVars {
+		if envVar.Name != common.DDJMXUseContainerSupport {
+			continue
+		}
+		count++
+		assert.Equal(t, "true", envVar.Value)
+		assert.Nil(t, envVar.ValueFrom)
+	}
+
+	if want {
+		assert.Equal(t, 1, count)
+	} else {
+		assert.Zero(t, count)
 	}
 }
 

@@ -21,6 +21,7 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/experimental"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/global"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/override"
@@ -59,6 +60,15 @@ func generateObjMetaFromDDA(dda *v2alpha1.DatadogAgent, ddai *v1alpha1.DatadogAg
 	ddaiAnnotations := maps.Clone(dda.Annotations)
 	delete(ddaiAnnotations, "kubectl.kubernetes.io/last-applied-configuration")
 
+	// Resolve the provider from the DDA annotations and stamp it on the DDAI so the
+	// DDAI reconciler picks it up. GKE Autopilot can be enabled via either the experimental
+	// or provider annotation and we need to check both.
+	if experimental.IsAutopilotEnabled(dda) {
+		if ddaiAnnotations == nil {
+			ddaiAnnotations = map[string]string{}
+		}
+		ddaiAnnotations[kubernetes.ProviderAnnotationKey] = kubernetes.GKEAutopilotProvider
+	}
 	if kubernetes.IsSpecificProvider(provider) {
 		if ddaiAnnotations == nil {
 			ddaiAnnotations = make(map[string]string)

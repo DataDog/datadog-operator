@@ -4,7 +4,15 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/stretchr/testify/assert"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/apimachinery/pkg/version"
+	"k8s.io/utils/ptr"
+
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
@@ -15,12 +23,6 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/testutils"
-
-	"github.com/google/go-cmp/cmp"
-	"github.com/stretchr/testify/assert"
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/apimachinery/pkg/version"
 )
 
 type expectedPorts struct {
@@ -424,18 +426,7 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 				WithOTelCollectorEnabled(true).
 				WithOTelCollectorConfig().
 				Build(),
-			WantConfigure: true,
-			StoreOption: &store.StoreOptions{
-				PlatformInfo: kubernetes.NewPlatformInfo(
-					&version.Info{
-						Major:      "1",
-						Minor:      "32",
-						GitVersion: "1.32.0",
-					},
-					nil,
-					nil,
-				),
-			},
+			WantConfigure:        true,
 			WantDependenciesFunc: testExpectedDepsCreatedCM,
 			Agent: testExpectedAgent(
 				apicommon.OtelAgent,
@@ -453,18 +444,7 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 				WithOTelCollectorPorts(4444, 5555).
 				WithOTelCollectorConfig().
 				Build(),
-			WantConfigure: true,
-			StoreOption: &store.StoreOptions{
-				PlatformInfo: kubernetes.NewPlatformInfo(
-					&version.Info{
-						Major:      "1",
-						Minor:      "32",
-						GitVersion: "1.32.0",
-					},
-					nil,
-					nil,
-				),
-			},
+			WantConfigure:        true,
 			WantDependenciesFunc: testExpectedDepsCreatedCM,
 			Agent: testExpectedAgent(
 				apicommon.OtelAgent,
@@ -480,6 +460,88 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 		},
 	}
 	tests.Run(t, buildOtelCollectorFeature)
+}
+
+func TestApplyOTelCollectorDDASharedDependencies(t *testing.T) {
+	tests := []struct {
+		name string
+		dda  *v2alpha1.DatadogAgent
+		want []corev1.ServicePort
+	}{
+		{
+			name: "default ports",
+			dda: testutils.NewInitializedDatadogAgentBuilder("default", "datadog").
+				WithOTelCollectorEnabled(true).
+				Build(),
+			want: []corev1.ServicePort{
+				{
+					Name:        "otlpgrpcport",
+					Port:        4317,
+					Protocol:    corev1.ProtocolTCP,
+					TargetPort:  intstr.FromInt(4317),
+					AppProtocol: ptr.To(common.KubernetesAppProtocolH2C),
+				},
+				{
+					Name:       "otlphttpport",
+					Port:       4318,
+					Protocol:   corev1.ProtocolTCP,
+					TargetPort: intstr.FromInt(4318),
+				},
+			},
+		},
+		{
+			name: "override ports",
+			dda: testutils.NewInitializedDatadogAgentBuilder("default", "datadog").
+				WithOTelCollectorEnabled(true).
+				WithOTelCollectorPorts(4444, 5555).
+				Build(),
+			want: []corev1.ServicePort{
+				{
+					Name:        "otlpgrpcport",
+					Port:        4444,
+					Protocol:    corev1.ProtocolTCP,
+					TargetPort:  intstr.FromInt(4444),
+					AppProtocol: ptr.To(common.KubernetesAppProtocolH2C),
+				},
+				{
+					Name:       "otlphttpport",
+					Port:       5555,
+					Protocol:   corev1.ProtocolTCP,
+					TargetPort: intstr.FromInt(5555),
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			depsStore := store.NewStore(nil, &store.StoreOptions{
+				PlatformInfo: kubernetes.NewPlatformInfo(
+					&version.Info{
+						Major:      "1",
+						Minor:      "32",
+						GitVersion: "1.32.0",
+					},
+					nil,
+					nil,
+				),
+			})
+			managers := feature.NewResourceManagers(depsStore)
+
+			err := applyOTelCollectorDDASharedDependencies(tt.dda, &tt.dda.Spec, tt.dda, &tt.dda.Spec, managers)
+			assert.NoError(t, err)
+
+			serviceObject, found := depsStore.Get(kubernetes.ServicesKind, "default", "datadog-agent")
+			if assert.True(t, found) {
+				service := serviceObject.(*corev1.Service)
+				assert.Equal(t, common.GetAgentLocalServiceSelector(tt.dda), service.Spec.Selector)
+				if assert.NotNil(t, service.Spec.InternalTrafficPolicy) {
+					assert.Equal(t, corev1.ServiceInternalTrafficPolicyLocal, *service.Spec.InternalTrafficPolicy)
+				}
+				assert.Equal(t, tt.want, service.Spec.Ports)
+			}
+		})
+	}
 }
 
 func testExpectedAgent(
@@ -701,43 +763,6 @@ func testExpectedDepsCreatedCM(t testing.TB, store store.StoreClient) {
 		"ConfigMap \ndiff = %s", cmp.Diff(configMap.Data, expectedCM),
 	)
 
-	serviceObject, found := store.Get(kubernetes.ServicesKind, "", "-agent")
-	switch t.Name() {
-	case "Test_otelCollectorFeature_Configure/otel_agent_enabled_with_service_ports_default":
-		assert.True(t, found)
-		service := serviceObject.(*corev1.Service)
-		assert.Equal(t, []corev1.ServicePort{
-			{
-				Name:       "otlpgrpcport",
-				Port:       4317,
-				Protocol:   corev1.ProtocolTCP,
-				TargetPort: intstr.FromInt(4317),
-			},
-			{
-				Name:       "otlphttpport",
-				Port:       4318,
-				Protocol:   corev1.ProtocolTCP,
-				TargetPort: intstr.FromInt(4318),
-			},
-		}, service.Spec.Ports)
-	case "Test_otelCollectorFeature_Configure/otel_agent_enabled_with_service_ports_override":
-		assert.True(t, found)
-		service := serviceObject.(*corev1.Service)
-		assert.Equal(t, []corev1.ServicePort{
-			{
-				Name:       "otlpgrpcport",
-				Port:       4444,
-				Protocol:   corev1.ProtocolTCP,
-				TargetPort: intstr.FromInt(4444),
-			},
-			{
-				Name:       "otlphttpport",
-				Port:       5555,
-				Protocol:   corev1.ProtocolTCP,
-				TargetPort: intstr.FromInt(5555),
-			},
-		}, service.Spec.Ports)
-	default:
-		assert.False(t, found)
-	}
+	_, found = store.Get(kubernetes.ServicesKind, "", "-agent")
+	assert.False(t, found)
 }

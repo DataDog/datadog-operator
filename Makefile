@@ -58,6 +58,7 @@ ENVTEST_K8S_VERSION = 1.30
 E2E_GO_TEST_TIMEOUT ?= 55m
 E2E_AUTOSCALING_GO_TEST_TIMEOUT ?= 140m
 E2E_GKE_AUTOPILOT_GO_TEST_TIMEOUT ?= 100m
+E2E_UNTAINT_GO_TEST_TIMEOUT ?= 90m
 E2E_GO_TEST_OUTPUT ?= go run ./hack/e2e-test-output
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
@@ -214,6 +215,14 @@ ci-test: gotest integration-tests ## Run tests only (for CI, where build/generat
 gotest:
 	go test ./... ./api/... -coverprofile cover.out
 
+.PHONY: golden-test
+golden-test: ## Verify operator-render golden files match the current reconciler output
+	go test ./internal/controller/testutils/renderer/ -run TestRender_Golden -count=1
+
+.PHONY: golden-update
+golden-update: ## Regenerate operator-render golden files (review the diff before committing)
+	go test ./internal/controller/testutils/renderer/ -run TestRender_Golden -update -count=1
+
 .PHONY: integration-tests
 integration-tests: $(ENVTEST) ## Run integration tests with reconciler
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(ROOT)/bin/$(PLATFORM) -p path)" go test --tags=integration github.com/DataDog/datadog-operator/internal/controller -coverprofile cover_integration.out
@@ -235,6 +244,10 @@ e2e-autoscaling-tests: kubectl-datadog ## Run autoscaling E2E tests on EKS. To r
 e2e-gke-autopilot-tests: ## Run GKE Autopilot E2E tests.
 	GOWORK=off KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" go test -C test/e2e/ ./tests/k8s_suite/... -count=1 --tags=e2e -json -run TestGKEAutopilotSuite -timeout $(E2E_GKE_AUTOPILOT_GO_TEST_TIMEOUT) -coverprofile cover_e2e_gke_autopilot.out | $(E2E_GO_TEST_OUTPUT)
 
+.PHONY: e2e-untaint-tests
+e2e-untaint-tests: ## Run untaint controller E2E tests on kind (kind-on-VM). Requires IMG to point at the operator image. To run locally, complete pre-reqs (see docs/how-to-contribute.md) and prepend command with `aws-vault exec sso-agent-sandbox-account-admin --`.
+	GOWORK=off KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" go test -C test/e2e/ ./tests/untaint_suite/... -count=1 --tags=e2e -json -run 'TestUntaint.*AWSKind' -timeout $(E2E_UNTAINT_GO_TEST_TIMEOUT) -coverprofile cover_e2e_untaint.out | $(E2E_GO_TEST_OUTPUT)
+
 .PHONY: yaml-mapper-tests
 yaml-mapper-tests: fmt yaml-mapper-unit-tests
 # Run yaml-mapper tests
@@ -250,6 +263,10 @@ bundle: bin/$(PLATFORM)/operator-sdk bin/$(PLATFORM)/yq $(KUSTOMIZE) manifests #
 	$(KUSTOMIZE) build config/manifests | bin/$(PLATFORM)/operator-sdk generate bundle -q --overwrite --version $(VERSION) $(BUNDLE_METADATA_OPTS)
 	hack/patch-bundle.sh
 	bin/$(PLATFORM)/operator-sdk bundle validate ./bundle
+
+.PHONY: render-golden-tests-update
+render-golden-tests-update:
+	go test ./internal/controller/testutils/renderer/ -update
 
 # Require Skopeo installed
 # And to download token from https://console.redhat.com/openshift/downloads#tool-pull-secret saved to ~/.redhat/auths.json
@@ -308,8 +325,15 @@ catalog-push: ## Push a catalog image.
 	$(MAKE) docker-push IMG=$(CATALOG_IMG)
 
 ##@ Datadog Custom part
+
+.PHONY: ensure-gsed
+ensure-gsed: ## Install GNU sed on macOS if not present (no-op on Linux)
+	@if [ "$$(uname -s)" = "Darwin" ]; then \
+		command -v gsed >/dev/null 2>&1 || brew install gnu-sed; \
+	fi
+
 .PHONY: install-tools
-install-tools: bin/$(PLATFORM)/golangci-lint bin/$(PLATFORM)/operator-sdk bin/$(PLATFORM)/yq bin/$(PLATFORM)/jq bin/$(PLATFORM)/kubebuilder bin/$(PLATFORM)/controller-tools bin/$(PLATFORM)/go-licenses bin/$(PLATFORM)/openapi-gen
+install-tools: bin/$(PLATFORM)/golangci-lint bin/$(PLATFORM)/operator-sdk bin/$(PLATFORM)/yq bin/$(PLATFORM)/jq bin/$(PLATFORM)/kubebuilder bin/$(PLATFORM)/controller-tools bin/$(PLATFORM)/go-licenses bin/$(PLATFORM)/openapi-gen ensure-gsed
 
 .PHONY: generate-openapi
 generate-openapi: bin/$(PLATFORM)/openapi-gen
@@ -353,10 +377,12 @@ licenses: bin/$(PLATFORM)/go-licenses
 verify-licenses: bin/$(PLATFORM)/go-licenses ## Verify licenses
 	hack/verify-licenses.sh
 
-# Update the golang version in different repository files from the version present in go.mod file
+# Update the golang version across the repo.
+# Pass GOVERSION=x.y.z to also update go.work first.
+# Usage: make update-golang GOVERSION=1.25.12
 .PHONY: update-golang
-update-golang:
-	hack/update-golang.sh
+update-golang: bin/$(PLATFORM)/jq bin/$(PLATFORM)/yq ensure-gsed
+	hack/update-golang.sh $(GOVERSION)
 
 .PHONY: sync
 sync: ## Run go work sync

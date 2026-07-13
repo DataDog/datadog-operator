@@ -24,6 +24,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -37,8 +38,10 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/experimental"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
 	agenttestutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/testutils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal"
+	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/condition"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
@@ -62,6 +65,7 @@ type testCase struct {
 	profilesEnabled      bool                          // For DDAI tests
 	introspectionEnabled bool                          // For introspection tests
 	clusterProvider      string                        // For control plane monitoring tests: provider returned by the injected detector
+	platformInfo         *kubernetes.PlatformInfo
 }
 
 // ddaiReconcilerOptionsFromDDA mirrors setup.go wiring so DDAI tests behave like production
@@ -73,6 +77,13 @@ func ddaiReconcilerOptionsFromDDA(opts ReconcilerOptions) datadogagentinternal.R
 		OperatorMetricsEnabled:   opts.OperatorMetricsEnabled,
 		UntaintControllerEnabled: opts.UntaintControllerEnabled,
 	}
+}
+
+func platformInfoForTest(tt testCase) kubernetes.PlatformInfo {
+	if tt.platformInfo != nil {
+		return *tt.platformInfo
+	}
+	return kubernetes.PlatformInfo{}
 }
 
 // runTestCases runs test cases
@@ -111,12 +122,13 @@ func runDDAReconcilerTest(t *testing.T, tt testCase, opts ReconcilerOptions) {
 	forwarders := dummyManager{}
 
 	c := buildClient(t, tt, s)
+	platformInfo := platformInfoForTest(tt)
 
 	// Create reconciler
 	r := &Reconciler{
 		client:       c,
 		scheme:       s,
-		platformInfo: kubernetes.PlatformInfo{},
+		platformInfo: platformInfo,
 		recorder:     recorder,
 		log:          logf.Log.WithName(tt.name),
 		forwarders:   forwarders,
@@ -127,7 +139,7 @@ func runDDAReconcilerTest(t *testing.T, tt testCase, opts ReconcilerOptions) {
 	ri := datadogagentinternal.NewReconciler(
 		ddaiReconcilerOptionsFromDDA(opts),
 		c,
-		kubernetes.PlatformInfo{},
+		platformInfo,
 		s,
 		recorder,
 		forwarders)
@@ -184,12 +196,13 @@ func runFullReconcilerTest(t *testing.T, tt testCase, opts ReconcilerOptions) {
 	forwarders := dummyManager{}
 
 	c := buildClient(t, tt, s)
+	platformInfo := platformInfoForTest(tt)
 
 	// Create reconciler
 	r := &Reconciler{
 		client:       c,
 		scheme:       s,
-		platformInfo: kubernetes.PlatformInfo{},
+		platformInfo: platformInfo,
 		recorder:     recorder,
 		log:          logf.Log.WithName(tt.name),
 		forwarders:   forwarders,
@@ -200,7 +213,7 @@ func runFullReconcilerTest(t *testing.T, tt testCase, opts ReconcilerOptions) {
 	ri := datadogagentinternal.NewReconciler(
 		ddaiReconcilerOptionsFromDDA(opts),
 		c,
-		kubernetes.PlatformInfo{},
+		platformInfo,
 		s,
 		recorder,
 		forwarders)
@@ -1065,6 +1078,29 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 				}
 			},
 		},
+		{
+			name: "CCR with JMX image override adds DD_JMX_USE_CONTAINER_SUPPORT env var",
+			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
+				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+					WithClusterChecksEnabled(true).
+					WithClusterChecksUseCLCEnabled(true).
+					WithComponentOverride(v2alpha1.ClusterChecksRunnerComponentName, v2alpha1.DatadogAgentComponentOverride{
+						Image: &v2alpha1.AgentImageConfig{JMXEnabled: true},
+					}).
+					Build()
+				_ = c.Create(context.TODO(), dda)
+				return dda
+			},
+			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
+			wantErr: false,
+			wantFunc: func(t *testing.T, c client.Client) {
+				ccrContainers := getDeploymentContainers(c, resourcesNamespace, fmt.Sprintf("%s-cluster-checks-runner", resourcesName))
+				ccrContainer, ok := ccrContainers[apicommon.ClusterChecksRunnersContainerName]
+				assert.True(t, ok, "cluster-checks-runner container not found in deployment")
+
+				assertContainerHasEnvVar(t, ccrContainer, common.DDJMXUseContainerSupport, "true")
+			},
+		},
 	}
 
 	runTestCases(t, tests, runDDAReconcilerTest)
@@ -1097,9 +1133,9 @@ func Test_otelImageTags(t *testing.T) {
 				verifyDaemonsetContainers(t, c, resourcesNamespace, dsName, expectedContainers)
 				agentContainer := getDsContainers(c, resourcesNamespace, dsName)
 
-				assert.Equal(t, fmt.Sprintf("gcr.io/datadoghq/agent:%s", images.AgentLatestVersion), agentContainer[apicommon.CoreAgentContainerName].Image)
-				assert.Equal(t, fmt.Sprintf("gcr.io/datadoghq/agent:%s", images.AgentLatestVersion), agentContainer[apicommon.TraceAgentContainerName].Image)
-				assert.Equal(t, fmt.Sprintf("gcr.io/datadoghq/ddot-collector:%s", images.AgentLatestVersion), agentContainer[apicommon.OtelAgent].Image)
+				assert.Equal(t, fmt.Sprintf("%s/agent:%s", images.DefaultImageRegistry, images.AgentLatestVersion), agentContainer[apicommon.CoreAgentContainerName].Image)
+				assert.Equal(t, fmt.Sprintf("%s/agent:%s", images.DefaultImageRegistry, images.AgentLatestVersion), agentContainer[apicommon.TraceAgentContainerName].Image)
+				assert.Equal(t, fmt.Sprintf("%s/ddot-collector:%s", images.DefaultImageRegistry, images.DdotCollectorLatestVersion), agentContainer[apicommon.OtelAgent].Image)
 
 			},
 		},
@@ -1123,9 +1159,9 @@ func Test_otelImageTags(t *testing.T) {
 				verifyDaemonsetContainers(t, c, resourcesNamespace, dsName, expectedContainers)
 				agentContainer := getDsContainers(c, resourcesNamespace, dsName)
 
-				assert.Equal(t, "gcr.io/datadoghq/agent:7.71.0", agentContainer[apicommon.CoreAgentContainerName].Image)
-				assert.Equal(t, "gcr.io/datadoghq/agent:7.71.0", agentContainer[apicommon.TraceAgentContainerName].Image)
-				assert.Equal(t, "gcr.io/datadoghq/ddot-collector:7.71.0", agentContainer[apicommon.OtelAgent].Image)
+				assert.Equal(t, fmt.Sprintf("%s/agent:7.71.0", images.DefaultImageRegistry), agentContainer[apicommon.CoreAgentContainerName].Image)
+				assert.Equal(t, fmt.Sprintf("%s/agent:7.71.0", images.DefaultImageRegistry), agentContainer[apicommon.TraceAgentContainerName].Image)
+				assert.Equal(t, fmt.Sprintf("%s/ddot-collector:7.71.0", images.DefaultImageRegistry), agentContainer[apicommon.OtelAgent].Image)
 
 			},
 		},
@@ -1185,9 +1221,9 @@ func Test_otelImageTags(t *testing.T) {
 				verifyDaemonsetContainers(t, c, resourcesNamespace, dsName, expectedContainers)
 				agentContainer := getDsContainers(c, resourcesNamespace, dsName)
 
-				assert.Equal(t, "gcr.io/datadoghq/testagent:7.65.0-full", agentContainer[apicommon.CoreAgentContainerName].Image)
-				assert.Equal(t, "gcr.io/datadoghq/testagent:7.65.0-full", agentContainer[apicommon.TraceAgentContainerName].Image)
-				assert.Equal(t, "gcr.io/datadoghq/testagent:7.65.0-full", agentContainer[apicommon.OtelAgent].Image)
+				assert.Equal(t, fmt.Sprintf("%s/testagent:7.65.0-full", images.DefaultImageRegistry), agentContainer[apicommon.CoreAgentContainerName].Image)
+				assert.Equal(t, fmt.Sprintf("%s/testagent:7.65.0-full", images.DefaultImageRegistry), agentContainer[apicommon.TraceAgentContainerName].Image)
+				assert.Equal(t, fmt.Sprintf("%s/testagent:7.65.0-full", images.DefaultImageRegistry), agentContainer[apicommon.OtelAgent].Image)
 
 			},
 		},
@@ -1210,9 +1246,9 @@ func Test_otelImageTags(t *testing.T) {
 				verifyDaemonsetContainers(t, c, resourcesNamespace, dsName, expectedContainers)
 				agentContainer := getDsContainers(c, resourcesNamespace, dsName)
 
-				assert.Equal(t, "gcr.io/datadoghq/testagent:7.65.0-full", agentContainer[apicommon.CoreAgentContainerName].Image)
-				assert.Equal(t, "gcr.io/datadoghq/testagent:7.65.0-full", agentContainer[apicommon.TraceAgentContainerName].Image)
-				assert.Equal(t, "gcr.io/datadoghq/testagent:7.65.0-full", agentContainer[apicommon.OtelAgent].Image)
+				assert.Equal(t, fmt.Sprintf("%s/testagent:7.65.0-full", images.DefaultImageRegistry), agentContainer[apicommon.CoreAgentContainerName].Image)
+				assert.Equal(t, fmt.Sprintf("%s/testagent:7.65.0-full", images.DefaultImageRegistry), agentContainer[apicommon.TraceAgentContainerName].Image)
+				assert.Equal(t, fmt.Sprintf("%s/testagent:7.65.0-full", images.DefaultImageRegistry), agentContainer[apicommon.OtelAgent].Image)
 
 			},
 		},
@@ -1686,7 +1722,7 @@ func verifyEtcdMountsOpenshift(t *testing.T, c client.Client, resourcesNamespace
 // Test_COSProviderOverrides verifies that the GKE COS provider strips the
 // `src` HostPath volume (and its system-probe mount) that oomkill and
 // tcpqueuelength would otherwise add — the host has no /usr/src on COS nodes.
-// The provider value flows from the DDA's `datadoghq.com/provider` annotation,
+// The provider value flows from the DDA's `agent.datadoghq.com/cluster-provider` annotation,
 // or from the DAP's annotation propagated onto the per-profile DDAI.
 func Test_COSProviderOverrides(t *testing.T) {
 	const resourcesName, resourcesNamespace = "foo", "bar"
@@ -1832,6 +1868,157 @@ func Test_COSProviderOverrides(t *testing.T) {
 	}
 
 	runTestCases(t, tests, runFullReconcilerTest)
+}
+
+func Test_ProfileAPMOverrideAddsDDAOwnedLocalAgentServicePort(t *testing.T) {
+	const resourcesName = "foo"
+	const resourcesNamespace = "bar"
+	const profileName = "apm-profile"
+	defaultRequeueDuration := 15 * time.Second
+
+	dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+		WithAPMEnabled(false).
+		BuildWithDefaults()
+	localAgentServiceName := constants.GetLocalAgentServiceName(resourcesName, &dda.Spec)
+	platformInfo := kubernetes.NewPlatformInfoFromVersionMaps(&version.Info{GitVersion: "1.32.0"}, nil, nil)
+
+	newAPMProfile := func(name string, apm *v2alpha1.APMFeatureConfig) *v1alpha1.DatadogAgentProfile {
+		return &v1alpha1.DatadogAgentProfile{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      name,
+				Namespace: resourcesNamespace,
+			},
+			Spec: v1alpha1.DatadogAgentProfileSpec{
+				ProfileAffinity: &v1alpha1.ProfileAffinity{
+					ProfileNodeAffinity: []corev1.NodeSelectorRequirement{
+						{
+							Key:      "profile",
+							Operator: corev1.NodeSelectorOpIn,
+							Values:   []string{name},
+						},
+					},
+				},
+				Config: &v2alpha1.DatadogAgentSpec{
+					Features: &v2alpha1.DatadogFeatures{
+						APM: apm,
+					},
+				},
+			},
+		}
+	}
+	profile := newAPMProfile(profileName, &v2alpha1.APMFeatureConfig{
+		Enabled: ptr.To(true),
+	})
+	conflictingProfileA := newAPMProfile("apm-profile-a", &v2alpha1.APMFeatureConfig{
+		Enabled: ptr.To(true),
+		HostPortConfig: &v2alpha1.HostPortConfig{
+			Enabled: ptr.To(true),
+			Port:    ptr.To[int32](8126),
+		},
+	})
+	conflictingProfileB := newAPMProfile("apm-profile-b", &v2alpha1.APMFeatureConfig{
+		Enabled: ptr.To(true),
+		HostPortConfig: &v2alpha1.HostPortConfig{
+			Enabled: ptr.To(true),
+			Port:    ptr.To[int32](9126),
+		},
+	})
+
+	tests := []testCase{
+		{
+			name: "profile APM override adds trace port to DDA-owned local Agent Service",
+			clientBuilder: fake.NewClientBuilder().
+				WithStatusSubresource(&v2alpha1.DatadogAgent{}, &v1alpha1.DatadogAgentProfile{}, &v1alpha1.DatadogAgentInternal{}).
+				WithObjects(profile),
+			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
+				ddaCopy := dda.DeepCopy()
+				_ = c.Create(context.TODO(), ddaCopy)
+				return ddaCopy
+			},
+			profilesEnabled: true,
+			platformInfo:    &platformInfo,
+			want:            reconcile.Result{RequeueAfter: defaultRequeueDuration},
+			wantErr:         false,
+			wantFunc: func(t *testing.T, c client.Client) {
+				service := &corev1.Service{}
+				err := c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: localAgentServiceName}, service)
+				assert.NoError(t, err)
+				assert.Equal(t, "true", service.Labels[store.ManagedByDDAControllerLabelKey])
+
+				apmPort := findServicePortByName(service.Spec.Ports, constants.DefaultApmPortName)
+				assert.NotNil(t, apmPort)
+				assert.Equal(t, corev1.ProtocolTCP, apmPort.Protocol)
+				assert.Equal(t, int32(constants.DefaultApmPort), apmPort.Port)
+				assert.Equal(t, intstr.FromInt(int(constants.DefaultApmPort)), apmPort.TargetPort)
+
+				defaultDDAI := &v1alpha1.DatadogAgentInternal{}
+				err = c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: resourcesName}, defaultDDAI)
+				assert.NoError(t, err)
+				assert.False(t, ptr.Deref(defaultDDAI.Spec.Features.APM.Enabled, true))
+
+				profileDDAI := &v1alpha1.DatadogAgentInternal{}
+				err = c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: profileName}, profileDDAI)
+				assert.NoError(t, err)
+				assert.True(t, ptr.Deref(profileDDAI.Spec.Features.APM.Enabled, false))
+			},
+		},
+		{
+			name: "conflicting profile APM override rejects conflicting profile and reconciles accepted profile",
+			clientBuilder: fake.NewClientBuilder().
+				WithStatusSubresource(&v2alpha1.DatadogAgent{}, &v1alpha1.DatadogAgentProfile{}, &v1alpha1.DatadogAgentInternal{}).
+				WithObjects(conflictingProfileA, conflictingProfileB),
+			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
+				ddaCopy := dda.DeepCopy()
+				_ = c.Create(context.TODO(), ddaCopy)
+				return ddaCopy
+			},
+			profilesEnabled: true,
+			platformInfo:    &platformInfo,
+			want:            reconcile.Result{RequeueAfter: defaultRequeueDuration},
+			wantErr:         false,
+			wantFunc: func(t *testing.T, c client.Client) {
+				service := &corev1.Service{}
+				err := c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: localAgentServiceName}, service)
+				assert.NoError(t, err)
+				assert.Equal(t, "true", service.Labels[store.ManagedByDDAControllerLabelKey])
+
+				apmPort := findServicePortByName(service.Spec.Ports, constants.DefaultApmPortName)
+				assert.NotNil(t, apmPort)
+				assert.Equal(t, int32(8126), apmPort.Port)
+				assert.Equal(t, intstr.FromInt(int(constants.DefaultApmPort)), apmPort.TargetPort)
+
+				appliedProfile := &v1alpha1.DatadogAgentProfile{}
+				err = c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: "apm-profile-a"}, appliedProfile)
+				assert.NoError(t, err)
+				assert.Equal(t, metav1.ConditionTrue, appliedProfile.Status.Applied)
+
+				conflictingProfile := &v1alpha1.DatadogAgentProfile{}
+				err = c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: "apm-profile-b"}, conflictingProfile)
+				assert.NoError(t, err)
+				assert.Equal(t, metav1.ConditionFalse, conflictingProfile.Status.Applied)
+				assert.Contains(t, profileConditionMessage(conflictingProfile.Status.Conditions, agentprofile.AppliedConditionType), "port \"traceport\" conflicts")
+
+				appliedDDAI := &v1alpha1.DatadogAgentInternal{}
+				err = c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: "apm-profile-a"}, appliedDDAI)
+				assert.NoError(t, err)
+
+				conflictingDDAI := &v1alpha1.DatadogAgentInternal{}
+				err = c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: "apm-profile-b"}, conflictingDDAI)
+				assert.True(t, apierrors.IsNotFound(err), "conflicting profile DDAI should not be rendered")
+			},
+		},
+	}
+
+	runTestCases(t, tests, runFullReconcilerTest)
+}
+
+func profileConditionMessage(conditions []metav1.Condition, conditionType string) string {
+	for _, condition := range conditions {
+		if condition.Type == conditionType {
+			return condition.Message
+		}
+	}
+	return ""
 }
 
 func verifyDaemonsetContainers(t *testing.T, c client.Client, resourcesNamespace, dsName string, expectedContainers []string) {
@@ -2015,7 +2202,6 @@ func Test_DDAI_ReconcileV3(t *testing.T) {
 					v2alpha1.NodeAgentComponentName: {
 						Labels: map[string]string{
 							"custom-label": "custom-value",
-							constants.MD5AgentDeploymentProviderLabelKey: "",
 						},
 						Annotations: map[string]string{
 							"checksum/dca-token-custom-config": "0c85492446fadac292912bb6d5fc3efd",
@@ -2113,7 +2299,6 @@ func Test_DDAI_ReconcileV3(t *testing.T) {
 					v2alpha1.NodeAgentComponentName: {
 						Name: ptr.To("foo-profile-agent"),
 						Labels: map[string]string{
-							constants.MD5AgentDeploymentProviderLabelKey: "",
 							"foo":                     "bar",
 							constants.ProfileLabelKey: "foo-profile",
 						},
@@ -2320,11 +2505,7 @@ func getBaseDDAI(dda *v2alpha1.DatadogAgent) v1alpha1.DatadogAgentInternal {
 			Features: features,
 			Global:   globalConfig,
 			Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
-				v2alpha1.NodeAgentComponentName: {
-					Labels: map[string]string{
-						constants.MD5AgentDeploymentProviderLabelKey: "",
-					},
-				},
+				v2alpha1.NodeAgentComponentName: {},
 			},
 		},
 	}
@@ -2351,9 +2532,6 @@ func getDefaultDDAI(dda *v2alpha1.DatadogAgent) v1alpha1.DatadogAgentInternal {
 	expectedDDAI := getBaseDDAI(dda)
 	expectedDDAI.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 		v2alpha1.NodeAgentComponentName: {
-			Labels: map[string]string{
-				constants.MD5AgentDeploymentProviderLabelKey: "",
-			},
 			Affinity: &corev1.Affinity{
 				NodeAffinity: &corev1.NodeAffinity{
 					RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
@@ -2480,42 +2658,13 @@ func Test_RegistryDefaultingBySite(t *testing.T) {
 	type registryTestCase struct {
 		name         string
 		site         string
-		envVars      map[string]string
 		wantRegistry string
 	}
 
 	tests := []registryTestCase{
 		{
-			name:         "Europe site defaults to EU registry",
+			name:         "Europe site defaults to Datadog registry",
 			site:         "datadoghq.eu",
-			wantRegistry: images.DefaultEuropeImageRegistry,
-		},
-		{
-			name:         "Europe site with DD_REGISTRY_OVERRIDE_EU=true uses Datadog registry",
-			site:         "datadoghq.eu",
-			envVars:      map[string]string{"DD_REGISTRY_OVERRIDE_EU": "true"},
-			wantRegistry: images.DatadogContainerRegistry,
-		},
-		{
-			name:         "Asia site defaults to Asia registry",
-			site:         "ap1.datadoghq.com",
-			wantRegistry: images.DefaultAsiaImageRegistry,
-		},
-		{
-			name:         "Asia site with DD_REGISTRY_OVERRIDE_ASIA=true uses Datadog registry",
-			site:         "ap1.datadoghq.com",
-			envVars:      map[string]string{"DD_REGISTRY_OVERRIDE_ASIA": "true"},
-			wantRegistry: images.DatadogContainerRegistry,
-		},
-		{
-			name:         "Azure site defaults to Azure registry",
-			site:         "us3.datadoghq.com",
-			wantRegistry: images.DefaultAzureImageRegistry,
-		},
-		{
-			name:         "Azure site with DD_REGISTRY_OVERRIDE_AZURE=true uses Datadog registry",
-			site:         "us3.datadoghq.com",
-			envVars:      map[string]string{"DD_REGISTRY_OVERRIDE_AZURE": "true"},
 			wantRegistry: images.DatadogContainerRegistry,
 		},
 		{
@@ -2523,47 +2672,10 @@ func Test_RegistryDefaultingBySite(t *testing.T) {
 			site:         "ddog-gov.com",
 			wantRegistry: images.DefaultGovImageRegistry,
 		},
-		{
-			name:         "default site without DD_REGISTRY_OVERRIDE_DEFAULT uses GCR registry",
-			site:         "datadoghq.com",
-			wantRegistry: images.DefaultImageRegistry,
-		},
-		{
-			name:         "default site with DD_REGISTRY_OVERRIDE_DEFAULT=true uses Datadog registry",
-			site:         "datadoghq.com",
-			envVars:      map[string]string{"DD_REGISTRY_OVERRIDE_DEFAULT": "true"},
-			wantRegistry: images.DatadogContainerRegistry,
-		},
-		// Verify that override env vars are site-scoped: setting overrides for other sites
-		// must not affect the current site's registry selection.
-		{
-			name: "EU site ignores non-EU override env vars",
-			site: "datadoghq.eu",
-			envVars: map[string]string{
-				"DD_REGISTRY_OVERRIDE_ASIA":    "true",
-				"DD_REGISTRY_OVERRIDE_AZURE":   "true",
-				"DD_REGISTRY_OVERRIDE_DEFAULT": "true",
-			},
-			wantRegistry: images.DefaultEuropeImageRegistry,
-		},
-		{
-			name: "default site ignores non-default override env vars",
-			site: "datadoghq.com",
-			envVars: map[string]string{
-				"DD_REGISTRY_OVERRIDE_EU":    "true",
-				"DD_REGISTRY_OVERRIDE_ASIA":  "true",
-				"DD_REGISTRY_OVERRIDE_AZURE": "true",
-			},
-			wantRegistry: images.DefaultImageRegistry,
-		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			for k, v := range tt.envVars {
-				t.Setenv(k, v)
-			}
-
 			site := tt.site
 			wantRegistry := tt.wantRegistry
 
@@ -2594,6 +2706,94 @@ func Test_RegistryDefaultingBySite(t *testing.T) {
 					)
 
 					// Cluster Checks Runner
+					ccrContainers := getDeploymentContainers(c, resourcesNamespace, ccrName)
+					assert.Equal(t,
+						fmt.Sprintf("%s/%s:%s", wantRegistry, images.DefaultAgentImageName, images.AgentLatestVersion),
+						ccrContainers[apicommon.ClusterChecksRunnersContainerName].Image,
+					)
+				},
+			}
+
+			runDDAReconcilerTest(t, tc, ReconcilerOptions{})
+		})
+	}
+}
+
+func Test_AutopilotRegistryDefaulting(t *testing.T) {
+	const resourcesName = "foo"
+	const resourcesNamespace = "bar"
+	const dsName = "foo-agent"
+	const dcaName = "foo-cluster-agent"
+	const ccrName = "foo-cluster-checks-runner"
+
+	defaultRequeueDuration := 15 * time.Second
+	autopilotKey := experimental.ExperimentalAnnotationPrefix + "/" + experimental.ExperimentalAutopilotSubkey
+
+	tests := []struct {
+		name         string
+		registry     *string
+		wantRegistry string
+	}{
+		{
+			name:         "autopilot uses GCR when registry is defaulted",
+			wantRegistry: images.GCRContainerRegistry,
+		},
+		{
+			name:         "autopilot uses GCR when registry is non-GCR",
+			registry:     ptr.To(images.PublicECSContainerRegistry),
+			wantRegistry: images.GCRContainerRegistry,
+		},
+		{
+			name:         "autopilot preserves default GCR",
+			registry:     ptr.To(images.GCRContainerRegistry),
+			wantRegistry: images.GCRContainerRegistry,
+		},
+		{
+			name:         "autopilot preserves EU GCR",
+			registry:     ptr.To(images.DefaultEuropeImageRegistry),
+			wantRegistry: images.DefaultEuropeImageRegistry,
+		},
+		{
+			name:         "autopilot preserves Asia GCR",
+			registry:     ptr.To(images.DefaultAsiaImageRegistry),
+			wantRegistry: images.DefaultAsiaImageRegistry,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			registry := tt.registry
+			wantRegistry := tt.wantRegistry
+
+			tc := testCase{
+				loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
+					builder := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+						WithClusterChecks(true, true).
+						WithAnnotations(map[string]string{
+							autopilotKey: "true",
+						})
+					if registry != nil {
+						builder = builder.WithRegistry(*registry)
+					}
+					dda := builder.Build()
+					_ = c.Create(context.TODO(), dda)
+					return dda
+				},
+				want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
+				wantErr: false,
+				wantFunc: func(t *testing.T, c client.Client) {
+					agentContainers := getDsContainers(c, resourcesNamespace, dsName)
+					assert.Equal(t,
+						fmt.Sprintf("%s/%s:%s", wantRegistry, images.DefaultAgentImageName, images.AgentLatestVersion),
+						agentContainers[apicommon.CoreAgentContainerName].Image,
+					)
+
+					dcaContainers := getDeploymentContainers(c, resourcesNamespace, dcaName)
+					assert.Equal(t,
+						fmt.Sprintf("%s/%s:%s", wantRegistry, images.DefaultClusterAgentImageName, images.ClusterAgentLatestVersion),
+						dcaContainers[apicommon.ClusterAgentContainerName].Image,
+					)
+
 					ccrContainers := getDeploymentContainers(c, resourcesNamespace, ccrName)
 					assert.Equal(t,
 						fmt.Sprintf("%s/%s:%s", wantRegistry, images.DefaultAgentImageName, images.AgentLatestVersion),

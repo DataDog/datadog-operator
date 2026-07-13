@@ -24,6 +24,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/apimachinery/pkg/version"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/record"
 	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
@@ -52,7 +53,22 @@ type Options struct {
 	ProfileEnabled bool
 	// SupportCilium emits CiliumNetworkPolicy resources alongside NetworkPolicy.
 	SupportCilium bool
+	// Logger is used for reconciler and controller-runtime output. Zero value
+	// (logr.Logger{}) silences all logging, equivalent to logr.Discard().
+	Logger logr.Logger
+	// IncludeInputStatuses re-fetches the DDA and DAPs from the fake client
+	// after reconciliation and appends them to the resource list so their
+	// reconciler-set status fields are visible in the serialized output.
+	IncludeInputStatuses bool
+	// KubernetesVersion is the simulated server GitVersion (e.g. "v1.28.0").
+	// It gates version-dependent resources such as the local agent service
+	// (k8s >= 1.22). Empty defaults to DefaultKubernetesVersion.
+	KubernetesVersion string
 }
+
+// DefaultKubernetesVersion is the simulated server version used when
+// Options.KubernetesVersion is empty (>= 1.22, matching a modern cluster).
+const DefaultKubernetesVersion = "v1.28.0"
 
 // noopForwarder satisfies datadog.MetricsForwardersManager with no-op methods.
 // All real methods are guarded by OperatorMetricsEnabled=false so they are never called.
@@ -128,10 +144,13 @@ func Render(opts Options) ([]client.Object, *runtime.Scheme, error) {
 		}
 	}
 
-	// Silence all controller-runtime logging
-	ctrl.SetLogger(logr.Discard())
+	log := opts.Logger
+	if log.GetSink() == nil {
+		log = logr.Discard()
+	}
+	ctrl.SetLogger(log)
+	ctx := logr.NewContext(context.Background(), log)
 
-	ctx := context.Background()
 	scheme := BuildScheme()
 
 	crd, err := loadDDAICRD(scheme)
@@ -152,11 +171,22 @@ func Render(opts Options) ([]client.Object, *runtime.Scheme, error) {
 		WithStatusSubresource(
 			&datadoghqv2alpha1.DatadogAgent{},
 			&datadoghqv1alpha1.DatadogAgentInternal{},
+			&datadoghqv1alpha1.DatadogAgentProfile{},
 		).
 		Build()
 
 	recorder := record.NewBroadcaster().NewRecorder(scheme, corev1.EventSource{Component: "operator-renderer"})
-	platformInfo := kubernetes.PlatformInfo{} // zero value → modern k8s: policy/v1 PDB, no Cilium unless opted in
+
+	// Populate the server version; a zero-value PlatformInfo reports none, which
+	// the operator treats as too old and silently skips version-gated resources.
+	k8sVersion := opts.KubernetesVersion
+	if k8sVersion == "" {
+		k8sVersion = DefaultKubernetesVersion
+	}
+	platformInfo := kubernetes.NewPlatformInfoFromVersionMaps(
+		&version.Info{GitVersion: k8sVersion},
+		nil, nil,
+	) // modern k8s: policy/v1 PDB, no Cilium unless opted in
 
 	// ── Stage 1: DDA reconciler ─────────────────────────────────────────────
 	// Two passes are needed: the first pass adds the finalizer and returns
@@ -165,7 +195,7 @@ func Render(opts Options) ([]client.Object, *runtime.Scheme, error) {
 		DatadogAgentProfileEnabled: opts.ProfileEnabled,
 		SupportCilium:              opts.SupportCilium,
 	}
-	ddaReconciler, err := datadogagent.NewReconciler(ddaOpts, fakeClient, platformInfo, scheme, logr.Discard(), recorder, noopForwarder{})
+	ddaReconciler, err := datadogagent.NewReconciler(ddaOpts, fakeClient, platformInfo, scheme, log, recorder, noopForwarder{})
 	if err != nil {
 		return nil, nil, fmt.Errorf("creating DDA reconciler: %w", err)
 	}
@@ -202,14 +232,47 @@ func Render(opts Options) ([]client.Object, *runtime.Scheme, error) {
 	}
 	ddaiReconciler := datadogagentinternal.NewReconciler(ddaiOpts, fakeClient, platformInfo, scheme, recorder, noopForwarder{})
 
-	for i := range ddaiList.Items {
-		ddai := &ddaiList.Items[i]
-		if _, err = ddaiReconciler.Reconcile(ctx, ddai); err != nil {
-			return nil, nil, fmt.Errorf("DDAI reconcile %s/%s: %w", ddai.Namespace, ddai.Name, err)
+	// Reconcile every DDAI until shared resources stabilize: some resources
+	// (the local Service) converge only after a profile DDAI publishes and the
+	// default DDAI merges. Reconcile errors (e.g. a port-claim conflict) persist
+	// by design and surface via object status, so they are logged, not fatal;
+	// the loop terminates on resource stability regardless.
+	const maxConvergenceIterations = 8
+	prevKey := ""
+	for iter := range maxConvergenceIterations {
+		iterList := &datadoghqv1alpha1.DatadogAgentInternalList{}
+		if err = fakeClient.List(ctx, iterList); err != nil {
+			return nil, nil, fmt.Errorf("listing DDAIs (convergence pass %d): %w", iter, err)
 		}
+		for i := range iterList.Items {
+			ddai := &iterList.Items[i]
+			if _, rErr := ddaiReconciler.Reconcile(ctx, ddai); rErr != nil {
+				log.V(1).Info("DDAI reconcile returned an error (will retry until convergence)", "ddai", ddai.Name, "error", rErr.Error())
+			}
+		}
+
+		key, kErr := serviceConvergenceKey(ctx, fakeClient)
+		if kErr != nil {
+			return nil, nil, kErr
+		}
+		if key == prevKey {
+			break
+		}
+		prevKey = key
 	}
 
 	// ── Stage 3: Collect ────────────────────────────────────────────────────
 	resources, err := collectResources(ctx, fakeClient, platformInfo, opts.SupportCilium)
-	return resources, scheme, err
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if opts.IncludeInputStatuses {
+		resources, err = appendInputStatuses(ctx, fakeClient, resources, opts)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+
+	return resources, scheme, nil
 }

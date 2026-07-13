@@ -16,4 +16,8 @@ const (
 	containerLogVolumePath     = "/var/lib/docker/containers"
 	symlinkContainerVolumeName = "logscontainerspath"
 	symlinkContainerVolumePath = "/var/log/containers"
+
+	// autopilotPointerHostPath is the only hostPath the GKE Autopilot
+	// WorkloadAllowlist permits for the run-path (log-collection pointer) volume.
+	autopilotPointerHostPath = "/var/autopilot/addon/datadog/logs"
 )

@@ -52,21 +52,6 @@ func TestPrintPlan(t *testing.T) {
 				// Standalone entry with empty name renders as "(all)".
 				"(all) (1 node(s))",
 			},
-			// No EKS managed node group in this plan ⇒ no deferred-cleanup note.
-			wantNotContains: []string{"deferred to a later rerun"},
-		},
-		{
-			// An EKS managed node group target surfaces the deferred-cleanup
-			// caveat next to the PDB removal bullet.
-			name:       "EKS managed node group adds deferred-cleanup note",
-			info:       &clusterinfo.ClusterInfo{Autoscaling: caAbsent},
-			targets:    []Target{{Manager: clusterinfo.NodeManagerEKSManagedNodeGroup, Entity: "mng-1", Nodes: []string{"ip-5"}}},
-			scaleCA:    false,
-			ensurePDBs: true,
-			wantContains: []string{
-				"Remove the temporary PodDisruptionBudgets",
-				"deferred to a later rerun if an EKS managed node group drain times out",
-			},
 		},
 		{
 			// scaleCA=false hides the CA bullet even when CA is Present;
