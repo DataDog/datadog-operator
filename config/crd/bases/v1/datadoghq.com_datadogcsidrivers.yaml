@@ -117,6 +117,17 @@ spec:
                     DSDSocketPath is the host path to the DogStatsD socket.
                     Default: /var/run/datadog/dsd.socket
                   type: string
+                extraLabels:
+                  additionalProperties:
+                    type: string
+                  description: |-
+                    ExtraLabels are propagated from spec.global.extraLabels on the parent
+                    DatadogAgent and are applied to all resources managed by the CSI
+                    controller (DaemonSet ObjectMeta, pod template, and cluster-scoped
+                    CSIDriver object). This field is managed by the operator; do not set it
+                    manually.
+                  type: object
+                  x-kubernetes-map-type: granular
                 override:
                   description: Override allows customization of the CSI driver DaemonSet pod template.
                   properties:

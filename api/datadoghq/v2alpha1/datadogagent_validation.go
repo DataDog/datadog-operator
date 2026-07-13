@@ -8,6 +8,8 @@ package v2alpha1
 import (
 	"fmt"
 	"strings"
+
+	k8svalidation "k8s.io/apimachinery/pkg/util/validation"
 )
 
 // reservedExtraLabelPrefixes holds label-key prefixes that are owned by the
@@ -36,9 +38,12 @@ func ValidateDatadogAgent(dda *DatadogAgent) error {
 }
 
 // validateExtraLabels returns an error if any key in extraLabels uses a
-// reserved operator-owned prefix.
+// reserved operator-owned prefix, or if any key or value is not a valid
+// Kubernetes label key/value (invalid entries would cause API server
+// rejection of generated resources rather than a clear DatadogAgent error).
 func validateExtraLabels(extraLabels map[string]string) error {
-	for key := range extraLabels {
+	for key, value := range extraLabels {
+		// Check reserved operator prefixes first.
 		for _, prefix := range reservedExtraLabelPrefixes {
 			if strings.HasPrefix(key, prefix) {
 				return fmt.Errorf(
@@ -47,6 +52,18 @@ func validateExtraLabels(extraLabels map[string]string) error {
 					key, prefix,
 				)
 			}
+		}
+
+		// Validate Kubernetes label key format.
+		if errs := k8svalidation.IsQualifiedName(key); len(errs) > 0 {
+			return fmt.Errorf("spec.global.extraLabels contains invalid label key %q: %s",
+				key, strings.Join(errs, "; "))
+		}
+
+		// Validate Kubernetes label value format.
+		if errs := k8svalidation.IsValidLabelValue(value); len(errs) > 0 {
+			return fmt.Errorf("spec.global.extraLabels contains invalid value %q for key %q: %s",
+				value, key, strings.Join(errs, "; "))
 		}
 	}
 	return nil

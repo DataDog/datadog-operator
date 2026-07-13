@@ -14,9 +14,10 @@ import (
 
 func TestValidateDatadogAgent_ExtraLabels_ReservedKeys(t *testing.T) {
 	tests := []struct {
-		name    string
-		labels  map[string]string
-		wantErr bool
+		name           string
+		labels         map[string]string
+		wantErr        bool
+		errMsgContains string
 	}{
 		{
 			name:    "no extra labels",
@@ -26,8 +27,8 @@ func TestValidateDatadogAgent_ExtraLabels_ReservedKeys(t *testing.T) {
 		{
 			name: "valid non-reserved labels",
 			labels: map[string]string{
-				"team":              "platform",
-				"cost-center":       "ops",
+				"team":               "platform",
+				"cost-center":        "ops",
 				"my.company.com/env": "prod",
 			},
 			wantErr: false,
@@ -37,29 +38,58 @@ func TestValidateDatadogAgent_ExtraLabels_ReservedKeys(t *testing.T) {
 			labels: map[string]string{
 				"agent.datadoghq.com/datadogagentprofile": "my-profile",
 			},
-			wantErr: true,
+			wantErr:        true,
+			errMsgContains: "reserved key",
 		},
 		{
 			name: "reserved operator.datadoghq.com prefix",
 			labels: map[string]string{
 				"operator.datadoghq.com/managed-by-store": "true",
 			},
-			wantErr: true,
+			wantErr:        true,
+			errMsgContains: "reserved key",
 		},
 		{
 			name: "reserved datadoghq.com prefix",
 			labels: map[string]string{
 				"datadoghq.com/custom": "value",
 			},
-			wantErr: true,
+			wantErr:        true,
+			errMsgContains: "reserved key",
 		},
 		{
 			name: "mix of valid and reserved keys",
 			labels: map[string]string{
-				"team":                        "platform",
-				"agent.datadoghq.com/name":    "foo",
+				"team":                     "platform",
+				"agent.datadoghq.com/name": "foo",
 			},
-			wantErr: true,
+			wantErr:        true,
+			errMsgContains: "reserved key",
+		},
+		{
+			name: "invalid label key with spaces",
+			labels: map[string]string{
+				"invalid key": "value",
+			},
+			wantErr:        true,
+			errMsgContains: "invalid label key",
+		},
+		{
+			name: "invalid label value with slash",
+			labels: map[string]string{
+				"valid-key": "invalid/value",
+			},
+			wantErr:        true,
+			errMsgContains: "invalid value",
+		},
+		{
+			name: "invalid label key too long",
+			labels: map[string]string{
+				// 64 chars — exceeds the 63-char limit for a simple name
+				"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa": "value",
+			},
+			wantErr:        true,
+			errMsgContains: "invalid label key",
 		},
 	}
 
@@ -78,7 +108,9 @@ func TestValidateDatadogAgent_ExtraLabels_ReservedKeys(t *testing.T) {
 			err := ValidateDatadogAgent(dda)
 			if tt.wantErr {
 				assert.Error(t, err)
-				assert.Contains(t, err.Error(), "reserved key")
+				if tt.errMsgContains != "" {
+					assert.Contains(t, err.Error(), tt.errMsgContains)
+				}
 			} else {
 				assert.NoError(t, err)
 			}

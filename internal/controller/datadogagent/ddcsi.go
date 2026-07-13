@@ -112,6 +112,15 @@ func (r *Reconciler) buildDesiredDatadogCSIDriver(instance *v2alpha1.DatadogAgen
 		},
 	}
 
+	// Propagate extraLabels so the CSI controller can apply them to the
+	// DaemonSet and cluster-scoped CSIDriver it manages directly.
+	if instance.Spec.Global != nil && len(instance.Spec.Global.ExtraLabels) > 0 {
+		ddcsi.Spec.ExtraLabels = make(map[string]string, len(instance.Spec.Global.ExtraLabels))
+		for k, v := range instance.Spec.Global.ExtraLabels {
+			ddcsi.Spec.ExtraLabels[k] = v
+		}
+	}
+
 	csiConfig := instance.Spec.Global.CSI
 	if csiConfig != nil {
 		override := &v1alpha1.DatadogCSIDriverOverride{}
