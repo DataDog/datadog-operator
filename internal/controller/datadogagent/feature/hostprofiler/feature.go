@@ -69,6 +69,9 @@ func (o *hostProfilerFeature) Configure(dda metav1.Object, _ *v2alpha1.DatadogAg
 	}
 
 	o.loggingSeccomp = featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnableHostProfilerLoggingSeccompAnnotation)
+	if o.loggingSeccomp && !o.seccompEnabled {
+		o.logger.Info("host profiler: logging-seccomp annotation has no effect when seccomp is disabled")
+	}
 
 	return feature.RequiredComponents{
 		Agent: feature.RequiredComponent{
