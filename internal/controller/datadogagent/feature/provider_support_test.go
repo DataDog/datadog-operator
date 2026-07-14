@@ -63,6 +63,24 @@ func TestFeatureSupportLevel(t *testing.T) {
 			id:       NPMIDType,
 			want:     Supported,
 		},
+		{
+			name:     "windows: allowlisted feature supported",
+			provider: kubernetes.WindowsProvider,
+			id:       APMIDType,
+			want:     Supported,
+		},
+		{
+			name:     "windows: base agent (default) supported",
+			provider: kubernetes.WindowsProvider,
+			id:       DefaultIDType,
+			want:     Supported,
+		},
+		{
+			name:     "windows: unlisted feature falls to Excluded default",
+			provider: kubernetes.WindowsProvider,
+			id:       NPMIDType,
+			want:     Excluded,
+		},
 	}
 
 	for _, tt := range tests {

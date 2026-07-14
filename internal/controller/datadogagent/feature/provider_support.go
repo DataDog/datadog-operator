@@ -10,7 +10,9 @@
 // the response differs by provider. GKE Autopilot is a whole-cluster provider, so
 // enabling an unsupported feature is an unambiguous misconfiguration that Helm
 // hard-fails — the operator rejects it (Rejected) or, for best-effort features
-// Helm only warns about, surfaces a warning (Degraded).
+// Helm only warns about, surfaces a warning (Degraded). Windows shares one spec
+// across node types (via profiles), so an unsupported feature must be dropped for
+// the Windows subset while still running on Linux (Excluded).
 
 package feature
 
@@ -31,6 +33,11 @@ const (
 	// Rejected blocks reconciliation: the feature cannot run on the provider
 	// (mirrors a Helm hard-fail).
 	Rejected
+	// Excluded builds the agent WITHOUT the feature (its ManageNodeAgent hook is
+	// skipped) while reconciliation continues. Used by providers that run a reduced
+	// feature set on a subset of nodes, e.g. Windows (a shared spec still runs the
+	// full set on Linux).
+	Excluded
 )
 
 // providerSupportPolicy is one provider's row in the matrix: a default level for
@@ -62,6 +69,33 @@ var providerSupport = map[string]providerSupportPolicy{
 			// Helm only warns (feature renders but is unsupported on Autopilot).
 			SBOMIDType: Degraded, // sbom.containerImage / sbom.host
 			GPUIDType:  Degraded, // gpuMonitoring
+		},
+	},
+
+	// Windows: default Excluded (allowlist semantics — new Linux-only features do not
+	// silently leak onto Windows); only the listed features run their ManageNodeAgent
+	// hook against a Windows DaemonSet.
+	//
+	// NOTE when marking a Windows feature Supported: the Windows strip removes env vars
+	// by NAME (Unix-socket names, known Linux-only globals — see
+	// stripWindowsIncompatibleEnvVars) and mounts by Linux path prefix, but does NOT
+	// inspect env-var VALUES. Verify the feature does not hand the agent a Linux
+	// path/transport VALUE under an innocuous (non-SOCKET) env-var name; if it does,
+	// extend the strip accordingly before marking it Supported.
+	kubernetes.WindowsProvider: {
+		defaultLevel: Excluded,
+		features: map[IDType]SupportLevel{
+			DefaultIDType:              Supported, // base agent config (required)
+			APMIDType:                  Supported, // trace-agent runs on Windows (TCP; see non-local-traffic)
+			LogCollectionIDType:        Supported, // log collection — Windows host-log mounts added post-strip
+			LiveContainerIDType:        Supported, // container collection
+			LiveProcessIDType:          Supported, // process collection (no eBPF on Windows)
+			ProcessDiscoveryIDType:     Supported,
+			DogstatsdIDType:            Supported, // dogstatsd (UDP non-local; named pipe future)
+			OrchestratorExplorerIDType: Supported, // node-side config is env-only
+			RemoteConfigurationIDType:  Supported,
+			PrometheusScrapeIDType:     Supported,
+			EventCollectionIDType:      Supported,
 		},
 	},
 }
