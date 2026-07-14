@@ -72,6 +72,12 @@ spec:
                     If set to 'fixed', the dashboard expects all widgets to have a layout, and if it's set to 'auto',
                     widgets should not have layouts.
                   type: string
+                tabs:
+                  description: |-
+                    Tabs is a JSON string representation of a list of Datadog API dashboard Tabs
+                    that organize widgets into named sections. Widget references may use the @N
+                    positional format (1-indexed), matching the Datadog dashboard JSON editor.
+                  type: string
                 tags:
                   description: Tags is a list of team names representing ownership of a dashboard.
                   items:

@@ -939,6 +939,13 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogDashboardSpec(ref com
 							Format:      "",
 						},
 					},
+					"tabs": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Tabs is a JSON string representation of a list of Datadog API dashboard Tabs that organize widgets into named sections. Widget references may use the @N positional format (1-indexed), matching the Datadog dashboard JSON editor.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 					"tags": {
 						VendorExtensible: spec.VendorExtensible{
 							Extensions: spec.Extensions{

@@ -29,6 +29,11 @@ type DatadogDashboardSpec struct {
 	// widgets should not have layouts.
 	// +optional
 	ReflowType *datadogV1.DashboardReflowType `json:"reflowType,omitempty"`
+	// Tabs is a JSON string representation of a list of Datadog API dashboard Tabs
+	// that organize widgets into named sections. Widget references may use the @N
+	// positional format (1-indexed), matching the Datadog dashboard JSON editor.
+	// +optional
+	Tabs string `json:"tabs,omitempty"`
 	// Tags is a list of team names representing ownership of a dashboard.
 	// +listType=set
 	// +optional

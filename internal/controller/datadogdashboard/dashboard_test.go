@@ -77,6 +77,41 @@ func TestBuildDashboard(t *testing.T) {
 	assert.Nil(t, dashboard.IsReadOnly, "discrepancy found in parameter: IsReadOnly")
 }
 
+func TestBuildDashboardTabs(t *testing.T) {
+	tabs := `[{"name":"Shared","widget_ids":["@1","@2"]},{"name":"Agents","widget_ids":["@3"]}]`
+	db := &v1alpha1.DatadogDashboard{
+		Spec: v1alpha1.DatadogDashboardSpec{
+			LayoutType: "ordered",
+			Title:      "test dashboard",
+			Widgets:    "",
+			Tabs:       tabs,
+		},
+	}
+
+	dashboard := buildDashboard(testLogger, db)
+	assert.Contains(t, dashboard.AdditionalProperties, "tabs", "tabs should be injected into AdditionalProperties")
+
+	marshaled, err := dashboard.MarshalJSON()
+	assert.NoError(t, err)
+	assert.Contains(t, string(marshaled), `"tabs"`, "marshaled dashboard should contain tabs")
+	assert.Contains(t, string(marshaled), `"@1"`, "positional @N widget references must be preserved")
+	assert.Contains(t, string(marshaled), `"Agents"`, "tab names must be preserved")
+}
+
+func TestBuildDashboardNoTabs(t *testing.T) {
+	db := &v1alpha1.DatadogDashboard{
+		Spec: v1alpha1.DatadogDashboardSpec{
+			LayoutType: "ordered",
+			Title:      "test dashboard",
+			Widgets:    "",
+		},
+	}
+
+	dashboard := buildDashboard(testLogger, db)
+	_, ok := dashboard.AdditionalProperties["tabs"]
+	assert.False(t, ok, "tabs must not be set when Spec.Tabs is empty")
+}
+
 func Test_getDashboard(t *testing.T) {
 	dbID := "test_id"
 	expectedDashboard := genericDashboard(dbID)

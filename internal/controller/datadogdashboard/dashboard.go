@@ -54,6 +54,18 @@ func buildDashboard(logger logr.Logger, ddb *v1alpha1.DatadogDashboard) *datadog
 		dashboard.SetTemplateVariables(convertTempVars(ddb.Spec.TemplateVariables))
 	}
 
+	if ddb.Spec.Tabs != "" {
+		tabs := []interface{}{}
+		if err := json.Unmarshal([]byte(ddb.Spec.Tabs), &tabs); err != nil {
+			logger.Error(err, "unable to unmarshal dashboard tabs")
+		} else {
+			if dashboard.AdditionalProperties == nil {
+				dashboard.AdditionalProperties = map[string]interface{}{}
+			}
+			dashboard.AdditionalProperties["tabs"] = tabs
+		}
+	}
+
 	return dashboard
 }
 
