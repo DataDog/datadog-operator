@@ -26,6 +26,8 @@ import (
 	agenttestutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/testutils"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/constants"
+	"github.com/DataDog/datadog-operator/pkg/images"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 func Test_computeProfileMerge(t *testing.T) {
@@ -300,6 +302,79 @@ func Test_computeProfileMerge(t *testing.T) {
 			assert.Equal(t, tt.want.Name, ddai.Name)
 			assert.Equal(t, tt.want.Annotations[constants.MD5DDAIDeploymentAnnotationKey], ddai.Annotations[constants.MD5DDAIDeploymentAnnotationKey])
 			assert.Equal(t, tt.want.Spec, ddai.Spec)
+		})
+	}
+}
+
+func Test_computeProfileMergeEnforcesAutopilotRegistry(t *testing.T) {
+	sch := k8sruntime.NewScheme()
+	require.NoError(t, scheme.AddToScheme(sch))
+	require.NoError(t, v1alpha1.AddToScheme(sch))
+	require.NoError(t, v2alpha1.AddToScheme(sch))
+	require.NoError(t, corev1.AddToScheme(sch))
+	require.NoError(t, apiextensionsv1.AddToScheme(sch))
+
+	tests := []struct {
+		name     string
+		registry string
+	}{
+		{
+			name:     "Datadog registry",
+			registry: images.DatadogContainerRegistry,
+		},
+		{
+			name:     "public ECR registry",
+			registry: images.PublicECSContainerRegistry,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ddai := &v1alpha1.DatadogAgentInternal{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "foo",
+					Namespace: "bar",
+					Annotations: map[string]string{
+						kubernetes.ProviderAnnotationKey: kubernetes.GKEAutopilotProvider,
+					},
+				},
+				Spec: v2alpha1.DatadogAgentSpec{
+					Global: &v2alpha1.GlobalConfig{
+						Registry: ptr.To(images.GCRContainerRegistry),
+					},
+				},
+			}
+			profile := &v1alpha1.DatadogAgentProfile{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "foo-profile",
+					Namespace: "bar",
+				},
+				Spec: v1alpha1.DatadogAgentProfileSpec{
+					Config: &v2alpha1.DatadogAgentSpec{
+						Global: &v2alpha1.GlobalConfig{
+							Registry: ptr.To(tt.registry),
+						},
+					},
+				},
+			}
+
+			crd, err := getDDAICRDFromConfig(sch)
+			require.NoError(t, err)
+			fakeClient := fake.NewClientBuilder().WithScheme(sch).WithObjects(ddai, crd).Build()
+			fieldManager, err := newFieldManager(fakeClient, sch, v1alpha1.GroupVersion.WithKind("DatadogAgentInternal"))
+			require.NoError(t, err)
+			r := &Reconciler{
+				client:       fakeClient,
+				scheme:       sch,
+				fieldManager: fieldManager,
+			}
+
+			mergedDDAI, err := r.computeProfileMerge(ddai, profile)
+			require.NoError(t, err)
+			require.NotNil(t, mergedDDAI.Spec.Global)
+			require.NotNil(t, mergedDDAI.Spec.Global.Registry)
+			assert.Equal(t, images.GCRContainerRegistry, *mergedDDAI.Spec.Global.Registry)
+			assert.NotEmpty(t, mergedDDAI.Annotations[constants.MD5DDAIDeploymentAnnotationKey])
 		})
 	}
 }

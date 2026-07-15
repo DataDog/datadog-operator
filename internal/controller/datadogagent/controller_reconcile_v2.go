@@ -54,7 +54,7 @@ func (r *Reconciler) internalReconcileV2(ctx context.Context, instance *datadogh
 	instanceCopy := instance.DeepCopy()
 	defaults.DefaultDatadogAgentSpec(&instanceCopy.Spec)
 	if experimental.IsAutopilotEnabled(instanceCopy) {
-		ensureGCRAutopilotRegistry(instanceCopy)
+		ensureGCRAutopilotRegistry(&instanceCopy.Spec)
 	}
 
 	// 4. Delegate to the main reconcile function.
@@ -63,22 +63,22 @@ func (r *Reconciler) internalReconcileV2(ctx context.Context, instance *datadogh
 
 // Force GCR registry if not set to avoid defaulting to Datadog registry
 // Required by GKE Autopilot workloadallowlist
-func ensureGCRAutopilotRegistry(instance *datadoghqv2alpha1.DatadogAgent) {
+func ensureGCRAutopilotRegistry(spec *datadoghqv2alpha1.DatadogAgentSpec) {
 	// Should never happen as credentials are configured under `spec.global`
-	if instance.Spec.Global == nil {
-		instance.Spec.Global = &datadoghqv2alpha1.GlobalConfig{}
+	if spec.Global == nil {
+		spec.Global = &datadoghqv2alpha1.GlobalConfig{}
 	}
 	// No registry set
-	if instance.Spec.Global.Registry == nil {
-		instance.Spec.Global.Registry = ptr.To(images.GCRContainerRegistry)
+	if spec.Global.Registry == nil {
+		spec.Global.Registry = ptr.To(images.GCRContainerRegistry)
 		return
 	}
 	// Registry set to a GCR variation, allowed in workloadallowlist
-	if images.IsGCRRegistry(*instance.Spec.Global.Registry) {
+	if images.IsGCRRegistry(*spec.Global.Registry) {
 		return
 	}
 	// Registry set outside GCR, not allowed in workloadallowlist, force back GCR
-	instance.Spec.Global.Registry = ptr.To(images.GCRContainerRegistry)
+	spec.Global.Registry = ptr.To(images.GCRContainerRegistry)
 }
 
 func (r *Reconciler) reconcileInstanceV3(ctx context.Context, logger logr.Logger, instance *datadoghqv2alpha1.DatadogAgent) (reconcile.Result, error) {
