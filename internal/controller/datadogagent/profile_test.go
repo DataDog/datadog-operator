@@ -12,9 +12,11 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1validation "k8s.io/apimachinery/pkg/apis/meta/v1/validation"
 	k8sruntime "k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/utils/ptr"
@@ -914,8 +916,8 @@ func Test_reconcileProfile(t *testing.T) {
 						Type:               agentprofile.AppliedConditionType,
 						Status:             metav1.ConditionUnknown,
 						LastTransitionTime: now,
-						Reason:             "",
-						Message:            "",
+						Reason:             agentprofile.InvalidConditionReason,
+						Message:            "Profile is invalid",
 					},
 				},
 			},
@@ -1084,9 +1086,17 @@ func Test_reconcileProfile(t *testing.T) {
 
 			assert.Equal(t, tt.wantErr, err)
 			assert.Equal(t, tt.wantStatus, profileCopy.Status)
+			assertProfileConditionsValid(t, profileCopy.Status.Conditions)
 			assert.Equal(t, tt.wantProfilesByNode, tt.profilesByNode)
 		})
 	}
+}
+
+func assertProfileConditionsValid(t *testing.T, conditions []metav1.Condition) {
+	t.Helper()
+
+	conditionErrs := metav1validation.ValidateConditions(conditions, field.NewPath("status").Child("conditions"))
+	require.Empty(t, conditionErrs)
 }
 
 func Test_reconcileProfile_SharedOverlayConflictDoesNotCommitNodeAssignment(t *testing.T) {
@@ -1343,7 +1353,11 @@ func Test_reconcileProfiles(t *testing.T) {
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			objects := append(tt.existingProfiles, tt.existingNodes...)
-			fakeClient := fake.NewClientBuilder().WithScheme(sch).WithRuntimeObjects(objects...).Build()
+			fakeClient := fake.NewClientBuilder().
+				WithScheme(sch).
+				WithRuntimeObjects(objects...).
+				WithStatusSubresource(&v1alpha1.DatadogAgentProfile{}).
+				Build()
 			logger := logf.Log.WithName("Test_reconcileProfiles")
 			eventBroadcaster := record.NewBroadcaster()
 			recorder := eventBroadcaster.NewRecorder(sch, corev1.EventSource{Component: "Test_reconcileProfiles"})
@@ -1366,6 +1380,15 @@ func Test_reconcileProfiles(t *testing.T) {
 
 			assert.Equal(t, tt.wantErr, err)
 			assert.Equal(t, tt.wantAppliedProfiles, len(appliedProfiles))
+			for _, existingProfile := range tt.existingProfiles {
+				profile, ok := existingProfile.(*v1alpha1.DatadogAgentProfile)
+				require.True(t, ok)
+
+				persistedProfile := &v1alpha1.DatadogAgentProfile{}
+				err := fakeClient.Get(ctx, types.NamespacedName{Namespace: profile.Namespace, Name: profile.Name}, persistedProfile)
+				require.NoError(t, err)
+				assertProfileConditionsValid(t, persistedProfile.Status.Conditions)
+			}
 		})
 	}
 }
