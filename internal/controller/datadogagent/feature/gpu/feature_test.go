@@ -432,15 +432,13 @@ func Test_GPUFeature_NodeAgentProviderCapabilities(t *testing.T) {
 			},
 		},
 	}
-	wantSystemProbeHostRootVolume := wantVolume
-	wantSystemProbeHostRootVolume.Name = gkeCOSNVIDIADriverLib64HostRootVolumeName
 	wantMount := corev1.VolumeMount{
 		Name:      gkeCOSNVIDIADriverLib64VolumeName,
 		MountPath: gkeCOSNVIDIADriverLib64MountPath,
 		ReadOnly:  true,
 	}
 	wantSystemProbeHostRootMount := corev1.VolumeMount{
-		Name:      gkeCOSNVIDIADriverLib64HostRootVolumeName,
+		Name:      gkeCOSNVIDIADriverLib64VolumeName,
 		MountPath: gkeCOSNVIDIADriverLib64HostRootMountPath,
 		ReadOnly:  true,
 	}
@@ -474,9 +472,8 @@ func Test_GPUFeature_NodeAgentProviderCapabilities(t *testing.T) {
 		providercaps.ApplyProviderCapabilities(mgr, kubernetes.GKECosProvider, f.NodeAgentProviderCapabilities())
 
 		assert.Contains(t, tmpl.Spec.Volumes, wantVolume)
-		assert.Contains(t, tmpl.Spec.Volumes, wantSystemProbeHostRootVolume)
 		assert.Contains(t, getContainer(tmpl, apicommon.CoreAgentContainerName).VolumeMounts, wantMount)
-		assert.Contains(t, getContainer(tmpl, apicommon.SystemProbeContainerName).VolumeMounts, wantMount)
+		assert.NotContains(t, getContainer(tmpl, apicommon.SystemProbeContainerName).VolumeMounts, wantMount)
 		assert.Contains(t, getContainer(tmpl, apicommon.SystemProbeContainerName).VolumeMounts, wantSystemProbeHostRootMount)
 	})
 
@@ -488,7 +485,6 @@ func Test_GPUFeature_NodeAgentProviderCapabilities(t *testing.T) {
 		providercaps.ApplyProviderCapabilities(mgr, kubernetes.GKECosProvider, f.NodeAgentProviderCapabilities())
 
 		assert.Contains(t, tmpl.Spec.Volumes, wantVolume)
-		assert.NotContains(t, tmpl.Spec.Volumes, wantSystemProbeHostRootVolume)
 		assert.Contains(t, getContainer(tmpl, apicommon.CoreAgentContainerName).VolumeMounts, wantMount)
 		assert.NotContains(t, getContainer(tmpl, apicommon.SystemProbeContainerName).VolumeMounts, wantMount)
 		assert.NotContains(t, getContainer(tmpl, apicommon.SystemProbeContainerName).VolumeMounts, wantSystemProbeHostRootMount)

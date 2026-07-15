@@ -48,11 +48,6 @@ func (f *gpuFeature) ID() feature.IDType {
 // On GKE COS, the NVIDIA driver libraries are not available at the standard path used
 // by the nvidia-container-runtime; mount them from the host location.
 func (f *gpuFeature) NodeAgentProviderCapabilities() providercaps.ProviderCapabilityMap {
-	containers := []apicommon.AgentContainerName{apicommon.CoreAgentContainerName}
-	if f.isPrivilegedModeEnabled {
-		containers = append(containers, apicommon.SystemProbeContainerName)
-	}
-
 	vol, volMount := volume.GetVolumes(gkeCOSNVIDIADriverLib64VolumeName, gkeCOSNVIDIADriverLib64HostPath, gkeCOSNVIDIADriverLib64MountPath, true)
 	vol.VolumeSource.HostPath.Type = ptr.To(corev1.HostPathDirectoryOrCreate)
 
@@ -60,17 +55,14 @@ func (f *gpuFeature) NodeAgentProviderCapabilities() providercaps.ProviderCapabi
 		{
 			Volume:     vol,
 			Mount:      volMount,
-			Containers: containers,
+			Containers: []apicommon.AgentContainerName{apicommon.CoreAgentContainerName},
 		},
 	}
 	if f.isPrivilegedModeEnabled {
-		systemProbeHostRootVol := vol
-		systemProbeHostRootVol.Name = gkeCOSNVIDIADriverLib64HostRootVolumeName
 		systemProbeHostRootMount := volMount
-		systemProbeHostRootMount.Name = gkeCOSNVIDIADriverLib64HostRootVolumeName
 		systemProbeHostRootMount.MountPath = gkeCOSNVIDIADriverLib64HostRootMountPath
 		volumeMounts = append(volumeMounts, providercaps.VolumeAndMount{
-			Volume:     systemProbeHostRootVol,
+			Volume:     vol,
 			Mount:      systemProbeHostRootMount,
 			Containers: []apicommon.AgentContainerName{apicommon.SystemProbeContainerName},
 		})
