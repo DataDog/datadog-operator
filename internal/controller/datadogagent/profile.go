@@ -22,6 +22,7 @@ import (
 	v1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	v2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/experimental"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/metrics"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
@@ -241,6 +242,12 @@ func (r *Reconciler) computeProfileMerge(ddai *v1alpha1.DatadogAgentInternal, pr
 	typedObj, ok := obj.(*v1alpha1.DatadogAgentInternal)
 	if !ok {
 		return nil, fmt.Errorf("unexpected type: %T", obj)
+	}
+	// Profile merging replaces the DDAI spec and can reintroduce a registry that
+	// is rejected by the GKE Autopilot workload allowlist. Enforce the registry
+	// constraint on the final merged object before computing its spec hash.
+	if experimental.IsAutopilotEnabled(typedObj) {
+		ensureGCRAutopilotRegistry(&typedObj.Spec)
 	}
 
 	// Set spec hash
