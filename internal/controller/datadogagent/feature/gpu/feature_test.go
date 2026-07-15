@@ -124,6 +124,11 @@ func Test_GPUMonitoringFeature_Configure(t *testing.T) {
 				MountPath: nvidiaDevicesMountPath,
 				ReadOnly:  true,
 			},
+			{
+				Name:      common.HostRootVolumeName,
+				MountPath: common.HostRootMountPath,
+				ReadOnly:  true,
+			},
 		}
 
 		coreAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommon.CoreAgentContainerName]
@@ -173,6 +178,14 @@ func Test_GPUMonitoringFeature_Configure(t *testing.T) {
 				},
 			},
 			{
+				Name: common.HostRootVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					HostPath: &corev1.HostPathVolumeSource{
+						Path: common.HostRootHostPath,
+					},
+				},
+			},
+			{
 				Name: common.KubeletPodResourcesVolumeName,
 				VolumeSource: corev1.VolumeSource{
 					HostPath: &corev1.HostPathVolumeSource{Path: podResourcesSocketPath},
@@ -196,6 +209,10 @@ func Test_GPUMonitoringFeature_Configure(t *testing.T) {
 			{
 				Name:  NVIDIAVisibleDevicesEnvVar,
 				Value: "all",
+			},
+			{
+				Name:  common.DDHostRootEnvVar,
+				Value: common.HostRootMountPath,
 			},
 		}
 

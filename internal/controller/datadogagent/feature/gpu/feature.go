@@ -158,6 +158,10 @@ func configureSystemProbe(managers feature.PodTemplateManagers) {
 
 	managers.VolumeMount().AddVolumeMountToContainer(nvidiaDevicesMount, apicommon.SystemProbeContainerName)
 
+	hostRootVol, hostRootMount := volume.GetVolumes(common.HostRootVolumeName, common.HostRootHostPath, common.HostRootMountPath, true)
+	managers.VolumeMount().AddVolumeMountToContainer(&hostRootMount, apicommon.SystemProbeContainerName)
+	managers.Volume().AddVolume(&hostRootVol)
+
 	// socket volume mount (needs write perms for the system probe container but not the others)
 	procdirVol, procdirMount := volume.GetVolumes(common.ProcdirVolumeName, common.ProcdirHostPath, common.ProcdirMountPath, true)
 	managers.VolumeMount().AddVolumeMountToContainer(&procdirMount, apicommon.SystemProbeContainerName)
@@ -185,6 +189,12 @@ func configureSystemProbe(managers feature.PodTemplateManagers) {
 
 	managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, socketEnvVar)
 	managers.EnvVar().AddEnvVarToContainer(apicommon.SystemProbeContainerName, socketEnvVar)
+
+	hostRootEnvVar := &corev1.EnvVar{
+		Name:  common.DDHostRootEnvVar,
+		Value: common.HostRootMountPath,
+	}
+	managers.EnvVar().AddEnvVarToContainer(apicommon.SystemProbeContainerName, hostRootEnvVar)
 
 	// Now we need to add the NVIDIA_VISIBLE_DEVICES env var to both agents again so
 	// that the nvidia runtime can expose the GPU devices in the container
