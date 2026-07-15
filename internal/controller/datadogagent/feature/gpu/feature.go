@@ -56,15 +56,29 @@ func (f *gpuFeature) NodeAgentProviderCapabilities() providercaps.ProviderCapabi
 	vol, volMount := volume.GetVolumes(gkeCOSNVIDIADriverLib64VolumeName, gkeCOSNVIDIADriverLib64HostPath, gkeCOSNVIDIADriverLib64MountPath, true)
 	vol.VolumeSource.HostPath.Type = ptr.To(corev1.HostPathDirectoryOrCreate)
 
+	volumeMounts := []providercaps.VolumeAndMount{
+		{
+			Volume:     vol,
+			Mount:      volMount,
+			Containers: containers,
+		},
+	}
+	if f.isPrivilegedModeEnabled {
+		systemProbeHostRootVol := vol
+		systemProbeHostRootVol.Name = gkeCOSNVIDIADriverLib64HostRootVolumeName
+		systemProbeHostRootMount := volMount
+		systemProbeHostRootMount.Name = gkeCOSNVIDIADriverLib64HostRootVolumeName
+		systemProbeHostRootMount.MountPath = gkeCOSNVIDIADriverLib64HostRootMountPath
+		volumeMounts = append(volumeMounts, providercaps.VolumeAndMount{
+			Volume:     systemProbeHostRootVol,
+			Mount:      systemProbeHostRootMount,
+			Containers: []apicommon.AgentContainerName{apicommon.SystemProbeContainerName},
+		})
+	}
+
 	return providercaps.ProviderCapabilityMap{
 		kubernetes.GKECosProvider: {
-			Volumes: []providercaps.VolumeAndMount{
-				{
-					Volume:     vol,
-					Mount:      volMount,
-					Containers: containers,
-				},
-			},
+			Volumes: volumeMounts,
 		},
 	}
 }
