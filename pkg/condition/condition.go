@@ -514,6 +514,7 @@ func IsEqualConditions(current []metav1.Condition, newCond []metav1.Condition) b
 func IsEqualCondition(current *metav1.Condition, newCond *metav1.Condition) bool {
 	if current.Type != newCond.Type ||
 		current.Status != newCond.Status ||
+		current.ObservedGeneration != newCond.ObservedGeneration ||
 		current.Reason != newCond.Reason ||
 		current.Message != newCond.Message {
 		return false

@@ -186,10 +186,21 @@ func (r *Reconciler) reconcileInstanceV3(ctx context.Context, logger logr.Logger
 }
 
 func (r *Reconciler) updateStatusIfNeededV2(logger logr.Logger, agentdeployment *datadoghqv2alpha1.DatadogAgent, newStatus *datadoghqv2alpha1.DatadogAgentStatus, result reconcile.Result, currentError error, now metav1.Time) (reconcile.Result, error) {
+	reconcileCondition := metav1.Condition{
+		Type:               common.DatadogAgentReconcileErrorConditionType,
+		Status:             metav1.ConditionFalse,
+		ObservedGeneration: agentdeployment.Generation,
+		LastTransitionTime: now,
+		Reason:             "DatadogAgent_reconcile_ok",
+		Message:            "DatadogAgent reconcile ok",
+	}
 	if currentError == nil {
-		condition.UpdateDatadogAgentStatusConditions(newStatus, now, common.DatadogAgentReconcileErrorConditionType, metav1.ConditionFalse, "DatadogAgent_reconcile_ok", "DatadogAgent reconcile ok", false)
+		meta.SetStatusCondition(&newStatus.Conditions, reconcileCondition)
 	} else {
-		condition.UpdateDatadogAgentStatusConditions(newStatus, now, common.DatadogAgentReconcileErrorConditionType, metav1.ConditionTrue, "DatadogAgent_reconcile_error", "DatadogAgent reconcile error", false)
+		reconcileCondition.Status = metav1.ConditionTrue
+		reconcileCondition.Reason = "DatadogAgent_reconcile_error"
+		reconcileCondition.Message = "DatadogAgent reconcile error"
+		meta.SetStatusCondition(&newStatus.Conditions, reconcileCondition)
 	}
 
 	r.setMetricsForwarderStatusV2(logger, agentdeployment, newStatus)

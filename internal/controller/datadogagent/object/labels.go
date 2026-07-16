@@ -18,6 +18,12 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
+const (
+	eksInstallationIDLabel = "eks.datadoghq.com/installation-id"
+	eksARNLabelIDLabel     = "eks.datadoghq.com/arn-id"
+	eksARNHashAnnotation   = "eks.datadoghq.com/arn-sha256"
+)
+
 // GetDefaultLabels return default labels attached to a DatadogAgent resource.
 func GetDefaultLabels(dda metav1.Object, instanceName, version string) map[string]string {
 	labels := make(map[string]string)
@@ -29,7 +35,7 @@ func GetDefaultLabels(dda metav1.Object, instanceName, version string) map[strin
 
 	// Copy Datadog labels from DDA Labels
 	for k, v := range dda.GetLabels() {
-		if strings.HasPrefix(k, DatadogTagPrefix) {
+		if strings.HasPrefix(k, DatadogTagPrefix) || k == eksInstallationIDLabel || k == eksARNLabelIDLabel {
 			labels[k] = v
 		}
 	}
@@ -39,8 +45,11 @@ func GetDefaultLabels(dda metav1.Object, instanceName, version string) map[strin
 
 // GetDefaultAnnotations return default annotations attached to a DatadogAgent resource.
 func GetDefaultAnnotations(dda metav1.Object) map[string]string {
-	// Currently we don't have any annotation to set by default
-	return map[string]string{}
+	annotations := map[string]string{}
+	if value := dda.GetAnnotations()[eksARNHashAnnotation]; value != "" {
+		annotations[eksARNHashAnnotation] = value
+	}
+	return annotations
 }
 
 // MergeAnnotationsLabels used to merge Annotations and Labels

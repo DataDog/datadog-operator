@@ -169,12 +169,14 @@ func ApplyProfile(logger logr.Logger, profile *v1alpha1.DatadogAgentProfile, nod
 		UpdateProfileStatus(logger, profile, profileStatus, now)
 		return profileAppliedByNode, err
 	}
+	metrics.DAPValid.With(prometheus.Labels{"datadogagentprofile": profile.Name}).Set(metrics.TrueValue)
+	profileStatus.Valid = metav1.ConditionTrue
+	profileStatus.Conditions = SetDatadogAgentProfileCondition(profileStatus.Conditions, NewDatadogAgentProfileCondition(ValidConditionType, metav1.ConditionTrue, now, ValidConditionReason, "Valid manifest"))
+	profileStatus.Applied = metav1.ConditionTrue
+	profileStatus.Conditions = SetDatadogAgentProfileCondition(profileStatus.Conditions, NewDatadogAgentProfileCondition(AppliedConditionType, metav1.ConditionTrue, now, AppliedConditionReason, "Profile applied"))
 
 	for _, node := range nodes {
 		matchesNode := profileMatchesNodeWithRequirements(profileRequirements, node.Labels)
-		metrics.DAPValid.With(prometheus.Labels{"datadogagentprofile": profile.Name}).Set(metrics.TrueValue)
-		profileStatus.Valid = metav1.ConditionTrue
-		profileStatus.Conditions = SetDatadogAgentProfileCondition(profileStatus.Conditions, NewDatadogAgentProfileCondition(ValidConditionType, metav1.ConditionTrue, now, ValidConditionReason, "Valid manifest"))
 
 		if matchesNode {
 			if existingProfile, found := profileAppliedByNode[node.Name]; found {
@@ -192,8 +194,6 @@ func ApplyProfile(logger logr.Logger, profile *v1alpha1.DatadogAgentProfile, nod
 					matchingNodes[node.Name] = false
 					toLabelNodeCount++
 				}
-				profileStatus.Conditions = SetDatadogAgentProfileCondition(profileStatus.Conditions, NewDatadogAgentProfileCondition(AppliedConditionType, metav1.ConditionTrue, now, AppliedConditionReason, "Profile applied"))
-				profileStatus.Applied = metav1.ConditionTrue
 			}
 		}
 	}
