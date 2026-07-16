@@ -38,10 +38,6 @@ func FinalizeAppArmorProfile(podTemplate *corev1.PodTemplateSpec, platformInfo k
 		setAppArmorProfile(podTemplate.Spec.InitContainers, containerName, value)
 		delete(podTemplate.Annotations, annotation)
 	}
-
-	if len(podTemplate.Annotations) == 0 {
-		podTemplate.Annotations = nil
-	}
 }
 
 func setAppArmorProfile(containers []corev1.Container, containerName, value string) {

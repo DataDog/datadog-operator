@@ -89,7 +89,8 @@ func TestFinalizeAppArmorProfile(t *testing.T) {
 		profile := requireAppArmorProfile(t, podTemplate.Spec.Containers[0])
 		assert.Equal(t, corev1.AppArmorProfileTypeRuntimeDefault, profile.Type)
 		assert.Nil(t, profile.LocalhostProfile)
-		assert.Nil(t, podTemplate.Annotations)
+		assert.NotNil(t, podTemplate.Annotations)
+		assert.Empty(t, podTemplate.Annotations)
 	})
 }
 
