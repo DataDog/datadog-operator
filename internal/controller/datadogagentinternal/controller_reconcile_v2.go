@@ -141,10 +141,11 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, instance *v1alpha1
 }
 
 // providerSupportBlocks acts on the provider-support verdict returned by BuildFeatures. Features
-// the provider Rejects block the whole reconcile (a ProviderUnsupported condition + warning event
-// are set, and true is returned). Degraded features emit a warning event but do not block. When
-// nothing is rejected, any prior ProviderUnsupported condition is cleared to False. Each event is
-// mirrored to the operator log (k8s events are namespace-scoped and easy to miss).
+// the provider Rejects block the whole reconcile (a FeatureNotSupportedOnProvider condition +
+// warning event are set, and true is returned). Degraded features emit a warning event but do not
+// block. When nothing is rejected, any prior FeatureNotSupportedOnProvider condition is cleared to
+// False. Each event is mirrored to the operator log (k8s events are namespace-scoped and easy to
+// miss).
 func (r *Reconciler) providerSupportBlocks(logger logr.Logger, instance *v1alpha1.DatadogAgentInternal, results []feature.ProviderSupportResult, newStatus *v1alpha1.DatadogAgentInternalStatus, now metav1.Time) bool {
 	provider := instance.GetAnnotations()[kubernetes.ProviderAnnotationKey]
 
@@ -161,19 +162,19 @@ func (r *Reconciler) providerSupportBlocks(logger logr.Logger, instance *v1alpha
 	for _, id := range degraded {
 		msg := fmt.Sprintf("Feature %q is not fully supported on provider %q; reconciling anyway", id, provider)
 		logger.Info(msg, "feature", id, "provider", provider, "supportLevel", "degraded")
-		r.recorder.Event(instance, corev1.EventTypeWarning, "ProviderDegraded", msg)
+		r.recorder.Event(instance, corev1.EventTypeWarning, "FeatureDegradedOnProvider", msg)
 	}
 
 	if len(rejected) > 0 {
 		msg := fmt.Sprintf("Features %v are not supported on provider %q; blocking reconcile", rejected, provider)
 		err := fmt.Errorf("provider %q does not support features %v", provider, rejected)
 		logger.Error(err, msg, "features", rejected, "provider", provider, "supportLevel", "rejected")
-		r.recorder.Event(instance, corev1.EventTypeWarning, "ProviderUnsupported", msg)
-		condition.UpdateDatadogAgentInternalStatusConditions(newStatus, now, common.ProviderUnsupportedConditionType, metav1.ConditionTrue, "ProviderUnsupported", msg, false)
+		r.recorder.Event(instance, corev1.EventTypeWarning, "FeatureNotSupportedOnProvider", msg)
+		condition.UpdateDatadogAgentInternalStatusConditions(newStatus, now, common.FeatureNotSupportedOnProviderConditionType, metav1.ConditionTrue, "FeatureNotSupportedOnProvider", msg, false)
 		return true
 	}
 
-	condition.UpdateDatadogAgentInternalStatusConditions(newStatus, now, common.ProviderUnsupportedConditionType, metav1.ConditionFalse, "ProviderSupportOK", "All enabled features are supported on the provider", false)
+	condition.UpdateDatadogAgentInternalStatusConditions(newStatus, now, common.FeatureNotSupportedOnProviderConditionType, metav1.ConditionFalse, "AllFeaturesSupportedOnProvider", "All enabled features are supported on the provider", false)
 	return false
 }
 

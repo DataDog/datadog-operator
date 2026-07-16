@@ -67,7 +67,7 @@ func TestProviderSupportBlocks(t *testing.T) {
 
 			if tt.seedCondition {
 				newStatus.Conditions = append(newStatus.Conditions, metav1.Condition{
-					Type:   common.ProviderUnsupportedConditionType,
+					Type:   common.FeatureNotSupportedOnProviderConditionType,
 					Status: metav1.ConditionTrue,
 				})
 			}
@@ -76,7 +76,7 @@ func TestProviderSupportBlocks(t *testing.T) {
 			if blocked != tt.wantBlocked {
 				t.Errorf("providerSupportBlocks() = %v, want %v", blocked, tt.wantBlocked)
 			}
-			if got := conditionStatus(newStatus, common.ProviderUnsupportedConditionType); got != tt.wantCondition {
+			if got := conditionStatus(newStatus, common.FeatureNotSupportedOnProviderConditionType); got != tt.wantCondition {
 				t.Errorf("condition = %q, want %q", got, tt.wantCondition)
 			}
 		})
