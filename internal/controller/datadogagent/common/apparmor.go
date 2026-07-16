@@ -62,7 +62,8 @@ func setAppArmorProfile(containers []corev1.Container, containerName, value stri
 
 func appArmorProfileFromAnnotation(value string) *corev1.AppArmorProfile {
 	switch value {
-	case "runtime/default":
+	case "", "runtime/default":
+		// Kubernetes treats an empty legacy AppArmor annotation as runtime/default.
 		return &corev1.AppArmorProfile{Type: corev1.AppArmorProfileTypeRuntimeDefault}
 	case "unconfined":
 		return &corev1.AppArmorProfile{Type: corev1.AppArmorProfileTypeUnconfined}

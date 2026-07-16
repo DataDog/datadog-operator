@@ -74,6 +74,23 @@ func TestFinalizeAppArmorProfile(t *testing.T) {
 		_, found := podTemplate.Annotations[AppArmorAnnotationKey+"/system-probe"]
 		assert.False(t, found)
 	})
+
+	t.Run("maps an empty annotation value to runtime default", func(t *testing.T) {
+		podTemplate := corev1.PodTemplateSpec{
+			ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{
+				AppArmorAnnotationKey + "/agent": "",
+			}},
+			Spec: corev1.PodSpec{Containers: []corev1.Container{{Name: "agent"}}},
+		}
+		platformInfo := kubernetes.NewPlatformInfoFromVersionMaps(&version.Info{GitVersion: "v1.30.0"}, nil, nil)
+
+		FinalizeAppArmorProfile(&podTemplate, platformInfo)
+
+		profile := requireAppArmorProfile(t, podTemplate.Spec.Containers[0])
+		assert.Equal(t, corev1.AppArmorProfileTypeRuntimeDefault, profile.Type)
+		assert.Nil(t, profile.LocalhostProfile)
+		assert.Nil(t, podTemplate.Annotations)
+	})
 }
 
 func appArmorPodTemplate() corev1.PodTemplateSpec {
