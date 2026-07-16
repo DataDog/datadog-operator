@@ -263,9 +263,7 @@ func setProfileSpec(ddai *v1alpha1.DatadogAgentInternal, profile *v1alpha1.Datad
 		var extraLabels map[string]string
 		if ddai.Spec.Global != nil && len(ddai.Spec.Global.ExtraLabels) > 0 {
 			extraLabels = make(map[string]string, len(ddai.Spec.Global.ExtraLabels))
-			for k, v := range ddai.Spec.Global.ExtraLabels {
-				extraLabels[k] = v
-			}
+			maps.Copy(extraLabels, ddai.Spec.Global.ExtraLabels)
 		}
 
 		ddai.Spec = *profile.Spec.Config
