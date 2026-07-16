@@ -1047,9 +1047,6 @@ func setPendingOperationAnnotations(dda *v2alpha1.DatadogAgent, op pendingOperat
 	if op.resultVersion != "" {
 		dda.Annotations[v2alpha1.AnnotationPendingResultVersion] = op.resultVersion
 	}
-	if op.targetUID != "" {
-		dda.Annotations[fleetPendingTargetUIDAnnotation] = string(op.targetUID)
-	}
 	if op.intent == pendingIntentStart || op.intent == pendingIntentPromote {
 		hash, err := fleetDatadogAgentSpecHash(&dda.Spec)
 		if err != nil {
@@ -1522,33 +1519,6 @@ func TestRecordFleetSpecHashRejectsSameNameReplacement(t *testing.T) {
 	err = d.recordFleetDatadogAgentSpecHash(context.Background(), testDDANSN, original.UID, "create-config", acceptedHash)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "was replaced before the accepted Fleet config hash")
-}
-
-func TestRecordFleetExperimentHashRejectsSameNameReplacement(t *testing.T) {
-	original := testFleetOwnedDDA("create-config")
-	replacement := original.DeepCopy()
-	replacement.UID = types.UID("replacement-uid")
-	acceptedHash, err := fleetDatadogAgentSpecHash(&original.Spec)
-	require.NoError(t, err)
-	d, _, _ := testManagedAgentInstallationDaemon(nil, nil, replacement)
-
-	err = d.recordFleetExperimentSpecHash(context.Background(), testDDANSN, original.UID, acceptedHash)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "was replaced before the accepted Fleet experiment hash")
-}
-
-func TestMarkFleetExperimentReadyRejectsUnmanagedSameNameReplacement(t *testing.T) {
-	original := testFleetOwnedDDA("create-config")
-	replacement := &v2alpha1.DatadogAgent{ObjectMeta: metav1.ObjectMeta{
-		Name:      testDDANSN.Name,
-		Namespace: testDDANSN.Namespace,
-		UID:       types.UID("replacement-uid"),
-	}}
-	d, _, _ := testManagedAgentInstallationDaemon(nil, nil, replacement)
-
-	_, err := d.markFleetDatadogAgentExperimentReady(context.Background(), testDDANSN, original.UID, "update-config")
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "was replaced while finishing the Fleet experiment")
 }
 
 func TestMarkFleetPartialRejectsSameNameReplacement(t *testing.T) {

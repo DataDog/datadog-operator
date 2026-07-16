@@ -467,11 +467,11 @@ func run(opts *options) error {
 			}
 			if managedAgentInstallationEnabled {
 				for {
-					err := fleet.ReconcileManagedAgentInstallationAcknowledgement(managerCtx, mgr.GetClient(), mgr.GetAPIReader(), enabledManagedAgentInstallationIdentity)
-					if err == nil {
+					reconcileErr := fleet.ReconcileManagedAgentInstallationAcknowledgement(managerCtx, mgr.GetClient(), mgr.GetAPIReader(), enabledManagedAgentInstallationIdentity)
+					if reconcileErr == nil {
 						break
 					}
-					setupLog.Error(err, "Unable to reconcile EKS managed Agent installation acknowledgement before Remote Configuration startup")
+					setupLog.Error(reconcileErr, "Unable to reconcile EKS managed Agent installation acknowledgement before Remote Configuration startup")
 					select {
 					case <-managerCtx.Done():
 						return
@@ -817,7 +817,7 @@ func setupFleetDaemon(logger logr.Logger, mgr manager.Manager, rcClient remoteco
 	return mgr.Add(daemon)
 }
 
-func (opts options) operatorManagedAgentInstallationEnabled(identity remoteconfig.ManagedAgentInstallationIdentity) bool {
+func (opts *options) operatorManagedAgentInstallationEnabled(identity remoteconfig.ManagedAgentInstallationIdentity) bool {
 	return identity.Configured() && opts.eksManagedAgentInstallationEnabled && opts.remoteConfigEnabled && opts.remoteUpdatesEnabled && opts.datadogAgentEnabled && opts.datadogAgentProfileEnabled
 }
 

@@ -36,15 +36,15 @@ func (d *Daemon) ensureManagedAgentInstallationResources(ctx context.Context, re
 	}
 	wanted := d.managedAgentInstallationWindowsProfile(dda)
 	current := &v1alpha1.DatadogAgentProfile{}
-	err := d.managedAgentInstallationReader().Get(ctx, managedAgentInstallationWindowsProfileKey, current)
-	if apierrors.IsNotFound(err) {
-		if err := d.client.Create(ctx, wanted, client.FieldOwner("fleet-daemon")); err != nil {
-			return fmt.Errorf("create Windows DatadogAgentProfile: %w", err)
+	getErr := d.managedAgentInstallationReader().Get(ctx, managedAgentInstallationWindowsProfileKey, current)
+	if apierrors.IsNotFound(getErr) {
+		if createErr := d.client.Create(ctx, wanted, client.FieldOwner("fleet-daemon")); createErr != nil {
+			return fmt.Errorf("create Windows DatadogAgentProfile: %w", createErr)
 		}
 		return nil
 	}
-	if err != nil {
-		return fmt.Errorf("read Windows DatadogAgentProfile: %w", err)
+	if getErr != nil {
+		return fmt.Errorf("read Windows DatadogAgentProfile: %w", getErr)
 	}
 	return d.validateManagedAgentInstallationWindowsProfile(current, dda)
 }
@@ -133,8 +133,9 @@ func (d *Daemon) waitForManagedAgentInstallationResourcesReady(ctx context.Conte
 			}
 			return false, err
 		}
-		if err := d.validateManagedAgentInstallationResourcesReady(ctx, dda); err != nil {
-			lastObservation = err.Error()
+		resourcesReady, observation := d.managedAgentInstallationResourcesReadiness(ctx, dda)
+		if !resourcesReady {
+			lastObservation = observation
 			return false, nil
 		}
 		return true, nil
@@ -143,6 +144,13 @@ func (d *Daemon) waitForManagedAgentInstallationResourcesReady(ctx context.Conte
 		return fmt.Errorf("waiting for add-on managed Agent installation resources for DatadogAgent %s/%s (%s): %w", nsn.Namespace, nsn.Name, lastObservation, err)
 	}
 	return nil
+}
+
+func (d *Daemon) managedAgentInstallationResourcesReadiness(ctx context.Context, dda *v2alpha1.DatadogAgent) (bool, string) {
+	if err := d.validateManagedAgentInstallationResourcesReady(ctx, dda); err != nil {
+		return false, err.Error()
+	}
+	return true, ""
 }
 
 func (d *Daemon) validateManagedAgentInstallationResourcesReady(ctx context.Context, dda *v2alpha1.DatadogAgent) error {
