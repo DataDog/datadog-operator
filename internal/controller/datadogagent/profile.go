@@ -22,6 +22,7 @@ import (
 	v1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	v2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/experimental"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/metrics"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
@@ -153,7 +154,7 @@ func (r *Reconciler) reconcileProfile(ctx context.Context, profile *v1alpha1.Dat
 	if err != nil {
 		metrics.DAPValid.With(prometheus.Labels{"datadogagentprofile": profile.Name}).Set(metrics.FalseValue)
 		profile.Status.Conditions = agentprofile.SetDatadogAgentProfileCondition(profile.Status.Conditions, agentprofile.NewDatadogAgentProfileCondition(agentprofile.ValidConditionType, metav1.ConditionFalse, now, agentprofile.InvalidConditionReason, err.Error()))
-		profile.Status.Conditions = agentprofile.SetDatadogAgentProfileCondition(profile.Status.Conditions, agentprofile.NewDatadogAgentProfileCondition(agentprofile.AppliedConditionType, metav1.ConditionUnknown, now, "", ""))
+		profile.Status.Conditions = agentprofile.SetDatadogAgentProfileCondition(profile.Status.Conditions, agentprofile.NewDatadogAgentProfileCondition(agentprofile.AppliedConditionType, metav1.ConditionUnknown, now, agentprofile.InvalidConditionReason, "Profile is invalid"))
 		return err
 	}
 	metrics.DAPValid.With(prometheus.Labels{"datadogagentprofile": profile.Name}).Set(metrics.TrueValue)
@@ -241,6 +242,12 @@ func (r *Reconciler) computeProfileMerge(ddai *v1alpha1.DatadogAgentInternal, pr
 	typedObj, ok := obj.(*v1alpha1.DatadogAgentInternal)
 	if !ok {
 		return nil, fmt.Errorf("unexpected type: %T", obj)
+	}
+	// Profile merging replaces the DDAI spec and can reintroduce a registry that
+	// is rejected by the GKE Autopilot workload allowlist. Enforce the registry
+	// constraint on the final merged object before computing its spec hash.
+	if experimental.IsAutopilotEnabled(typedObj) {
+		ensureGCRAutopilotRegistry(&typedObj.Spec)
 	}
 
 	// Set spec hash

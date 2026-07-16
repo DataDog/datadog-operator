@@ -284,3 +284,11 @@ jira_issue_type = "Task"
 jira_statuses = ["To Do", "In Progress", "Done"]
 github_team = "container-autoscaling"
 github_labels = ["team/container-autoscaling"]
+
+[teams."Live Debugger"]
+jira_project = "DEBUG"
+jira_issue_type = "Task"
+jira_statuses = ["To Do", "In Progress", "Done"]
+github_team = "debugger"
+github_labels = ["team/debugger"]
+exclude_members = [""]
