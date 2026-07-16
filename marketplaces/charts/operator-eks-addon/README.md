@@ -1,15 +1,15 @@
 # Operator EKS Add-on
 
-This is a wrapper chart for installing the EKS add-on. The Datadog Operator chart is included as a dependency, and the wrapper renders the lifecycle bridge resources when lifecycle values are present.
+This is a wrapper chart for installing the EKS add-on. The Datadog Operator chart is included as a dependency, and the wrapper renders the managed Agent installation bridge resources when managed Agent installation values are present.
 
-## Instrumenter lifecycle bridge
+## Instrumenter managed Agent installation bridge
 
-The optional `lifecycle` value renders the add-on-owned command ConfigMap consumed by an Operator started with `DD_EKS_ADDON_LIFECYCLE_ENABLED=true`. The caller must send the complete value on every EKS add-on update and reuse the operation ID for retries of the same transition.
+The optional `managedAgentInstallation` value renders the add-on-owned command ConfigMap consumed by an Operator started with `DD_EKS_MANAGED_AGENT_INSTALLATION_ENABLED=true`. The caller must send the complete value on every EKS add-on update and reuse the operation ID for retries of the same transition.
 
-Lifecycle configuration does not change the wrapper's defaults. The instrumenter's complete add-on configuration also enables the DatadogAgentProfile CRD/controller, Remote Configuration, Remote Updates, controller revisions, and `DD_CREATE_STRATEGY_ENABLED` for this installation.
+Managed Agent installation configuration does not change the wrapper's defaults. The instrumenter's complete add-on configuration also enables the DatadogAgentProfile CRD/controller, Remote Configuration, Remote Updates, controller revisions, and `DD_CREATE_STRATEGY_ENABLED` for this installation.
 
 ```yaml
-lifecycle:
+managedAgentInstallation:
   version: v1
   installationID: 123e4567-e89b-42d3-a456-426614174000
   eksARNSHA256: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
@@ -21,7 +21,7 @@ lifecycle:
     site: datadoghq.com
 ```
 
-The lifecycle specification does not accept credentials or cluster topology. Credential material is supplied separately through `datadog/datadog-secret[api-key]`. Retries reuse the complete request and operation ID; acknowledgement is the only permitted change to an install request.
+The managed Agent installation specification does not accept credentials or cluster topology. Credential material is supplied separately through `datadog/datadog-secret[api-key]`. Retries reuse the complete request and operation ID; acknowledgement is the only permitted change to an install request.
 
 ## Version Mapping
 | `operator-addon-chart` | `datadog-operator` | `datadog-crds` | Operator | Agent | Cluster Agent |

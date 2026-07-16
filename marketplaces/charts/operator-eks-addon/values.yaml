@@ -8,4 +8,4 @@ datadog-operator:
     tag: 1.28.0
   operatorMetricsEnabled: false
 
-lifecycle: null
+managedAgentInstallation: null
