@@ -26,6 +26,7 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	controllercommon "github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/pkg/condition"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
@@ -52,6 +53,8 @@ func (r *Reconciler) createOrUpdateDeployment(parentLogger logr.Logger, dda *v2a
 	if err = controllerutil.SetControllerReference(dda, deployment, r.scheme); err != nil {
 		return reconcile.Result{}, err
 	}
+	// Finalize Kubernetes-version-dependent Pod template compatibility after all mutations and before hashing.
+	controllercommon.FinalizeAppArmorProfile(&deployment.Spec.Template, r.platformInfo)
 
 	// From here the PodTemplateSpec should be ready, we can generate the hash that will be used to compare this deployment with the current one (if it exists).
 	var hash string
