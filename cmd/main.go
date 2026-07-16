@@ -6,6 +6,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"net/http"
@@ -67,6 +68,7 @@ const (
 	defaultMaximumGoroutines                             = 400
 	defaultDatadogGenericResourceMaxConcurrentReconciles = 1
 	defaultDatadogGenericResourceRequeuePeriod           = 60 * time.Second
+	addonLifecycleSetupRetryInterval                     = 5 * time.Second
 )
 
 var (
@@ -148,6 +150,7 @@ type options struct {
 	datadogAgentProfileEnabled             bool
 	remoteConfigEnabled                    bool
 	remoteUpdatesEnabled                   bool
+	eksAddonLifecycleEnabled               bool
 	datadogDashboardEnabled                bool
 	datadogGenericResourceEnabled          bool
 	datadogGenericResourceMaxWorkers       int
@@ -191,6 +194,7 @@ func (opts *options) Parse() {
 	flag.BoolVar(&opts.datadogAgentProfileEnabled, "datadogAgentProfileEnabled", false, "Enable DatadogAgentProfile controller")
 	flag.BoolVar(&opts.remoteConfigEnabled, "remoteConfigEnabled", false, "Enable RemoteConfig capabilities in the Operator (beta)")
 	flag.BoolVar(&opts.remoteUpdatesEnabled, "remoteUpdatesEnabled", false, "Enable Remote Updates capabilities in the Operator (beta)")
+	flag.BoolVar(&opts.eksAddonLifecycleEnabled, "eksAddonLifecycleEnabled", false, "Enable EKS add-on lifecycle intents")
 	flag.BoolVar(&opts.datadogDashboardEnabled, "datadogDashboardEnabled", false, "Enable the DatadogDashboard controller")
 	flag.BoolVar(&opts.datadogGenericResourceEnabled, "datadogGenericResourceEnabled", false, "Enable the DatadogGenericResource controller")
 	flag.IntVar(&opts.datadogGenericResourceMaxWorkers, "datadogGenericResourceMaxConcurrentReconciles", defaultDatadogGenericResourceMaxConcurrentReconciles, "Maximum number of concurrent DatadogGenericResource reconciles")
@@ -235,6 +239,7 @@ func (opts *options) Parse() {
 		boolEnv(&opts.datadogAgentProfileEnabled, "DD_AGENT_PROFILE_CONTROLLER_ENABLED"),
 		boolEnv(&opts.remoteConfigEnabled, "DD_REMOTE_CONFIG_ENABLED"),
 		boolEnv(&opts.remoteUpdatesEnabled, "DD_REMOTE_UPDATES_ENABLED"),
+		boolEnv(&opts.eksAddonLifecycleEnabled, "DD_EKS_ADDON_LIFECYCLE_ENABLED"),
 		boolEnv(&opts.datadogDashboardEnabled, "DD_DASHBOARD_CONTROLLER_ENABLED"),
 		boolEnv(&opts.datadogGenericResourceEnabled, "DD_GENERIC_RESOURCE_CONTROLLER_ENABLED"),
 		intEnv(&opts.datadogGenericResourceMaxWorkers, "DD_GENERIC_RESOURCE_MAX_CONCURRENT_RECONCILES"),
@@ -424,22 +429,63 @@ func run(opts *options) error {
 
 	// Custom setup
 	customSetupHealthChecks(setupLog, mgr, &opts.maximumGoroutines)
+	managerCtx, cancelManager := context.WithCancel(ctrl.SetupSignalHandler())
+	defer cancelManager()
 
 	if opts.remoteConfigEnabled {
-		rcUpdater := remoteconfig.NewRemoteConfigUpdater(mgr.GetClient(), ctrl.Log.WithName("remote_config"))
+		lifecycleIdentity, identityErr := remoteconfig.LifecycleIdentityFromEnvironment()
+		if identityErr != nil {
+			setupLog.Error(identityErr, "EKS lifecycle identity is invalid; lifecycle support is disabled")
+			lifecycleIdentity = remoteconfig.LifecycleIdentity{}
+		} else {
+			setupLog.Info("Configured EKS lifecycle identity", "enabled", lifecycleIdentity.Configured())
+		}
+		addonLifecycleEnabled := opts.operatorAddonLifecycleEnabled(lifecycleIdentity)
+		enabledLifecycleIdentity := lifecycleIdentity
+		if !addonLifecycleEnabled {
+			enabledLifecycleIdentity = remoteconfig.LifecycleIdentity{}
+			if lifecycleIdentity.Configured() {
+				setupLog.Info("EKS add-on lifecycle support is disabled because its feature flag or a required Operator controller is not enabled")
+			}
+		}
+		rcUpdater := remoteconfig.NewRemoteConfigUpdater(mgr.GetClient(), ctrl.Log.WithName("remote_config"), enabledLifecycleIdentity)
+		if addonLifecycleEnabled {
+			lifecycleClient, clientErr := client.New(restConfig, client.Options{Scheme: scheme})
+			if clientErr != nil {
+				return setupErrorf(setupLog, clientErr, "Unable to create EKS lifecycle bootstrap client")
+			}
+			if prepareErr := fleet.PrepareLifecycleAdmissionWebhook(managerCtx, lifecycleClient, os.Getenv("POD_NAMESPACE")); prepareErr != nil {
+				return setupErrorf(setupLog, prepareErr, "Unable to prepare EKS lifecycle admission webhook")
+			}
+			fleet.RegisterLifecycleAdmissionWebhook(mgr, enabledLifecycleIdentity)
+		}
 		go func() {
-			// Block until this controller manager is elected leader. We presume the
-			// entire process will terminate if we lose leadership, so we don't need
-			// to handle that.
-			<-mgr.Elected()
+			select {
+			case <-managerCtx.Done():
+				return
+			case <-mgr.Elected():
+			}
+			if addonLifecycleEnabled {
+				for {
+					err := fleet.ReconcileAddonLifecycleAcknowledgement(managerCtx, mgr.GetClient(), mgr.GetAPIReader(), enabledLifecycleIdentity)
+					if err == nil {
+						break
+					}
+					setupLog.Error(err, "Unable to reconcile EKS lifecycle acknowledgement before Remote Configuration startup")
+					select {
+					case <-managerCtx.Done():
+						return
+					case <-time.After(addonLifecycleSetupRetryInterval):
+					}
+				}
+			}
 
 			if rcErr := rcUpdater.Setup(creds); rcErr != nil {
 				setupErrorf(setupLog, rcErr, "Unable to set up Remote Config service")
 				return
 			}
-
 			if opts.remoteUpdatesEnabled {
-				if rcErr := setupFleetDaemon(setupLog, mgr, rcUpdater.Client(), opts.createControllerRevisions && opts.datadogAgentEnabled); rcErr != nil {
+				if rcErr := setupFleetDaemon(setupLog, mgr, rcUpdater.Client(), opts.createControllerRevisions && opts.datadogAgentEnabled, enabledLifecycleIdentity, addonLifecycleEnabled); rcErr != nil {
 					setupErrorf(setupLog, rcErr, "Unable to setup Fleet daemon")
 				}
 			}
@@ -524,7 +570,7 @@ func run(opts *options) error {
 	// +kubebuilder:scaffold:builder
 
 	setupLog.Info("starting manager")
-	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+	if err := mgr.Start(managerCtx); err != nil {
 		return setupErrorf(setupLog, err, "Problem running manager")
 	}
 
@@ -762,9 +808,17 @@ func setupAndStartHelmMetadataForwarder(logger logr.Logger, mgr manager.Manager,
 	return mgr.Add(hmf)
 }
 
-func setupFleetDaemon(logger logr.Logger, mgr manager.Manager, rcClient remoteconfig.RCClient, revisionsEnabled bool) error {
-	daemon := fleet.NewDaemon(rcClient, mgr, revisionsEnabled)
+func setupFleetDaemon(logger logr.Logger, mgr manager.Manager, rcClient remoteconfig.RCClient, revisionsEnabled bool, lifecycleIdentity remoteconfig.LifecycleIdentity, addonLifecycleEnabled bool) error {
+	var options []fleet.DaemonOption
+	if addonLifecycleEnabled {
+		options = append(options, fleet.WithAddonLifecycle())
+	}
+	daemon := fleet.NewDaemon(rcClient, mgr, revisionsEnabled, lifecycleIdentity, options...)
 	return mgr.Add(daemon)
+}
+
+func (opts options) operatorAddonLifecycleEnabled(identity remoteconfig.LifecycleIdentity) bool {
+	return identity.Configured() && opts.eksAddonLifecycleEnabled && opts.remoteConfigEnabled && opts.remoteUpdatesEnabled && opts.datadogAgentEnabled && opts.datadogAgentProfileEnabled
 }
 
 // setupAndStartProviderDetector registers the cluster-provider detector as a

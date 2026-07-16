@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -24,8 +25,10 @@ import (
 	"github.com/cenkalti/backoff"
 	"github.com/go-logr/logr"
 	"github.com/google/uuid"
+	corev1 "k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/types"
 	kubeclient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -39,15 +42,29 @@ const (
 	defaultSite           = "datadoghq.com"
 	pollInterval          = 10 * time.Second
 	remoteConfigUrlPrefix = "https://config."
+	// InstallerStateUnknownConfigVersion prevents Fleet from interpreting
+	// unverified startup state as an authoritative uninstalled state.
+	InstallerStateUnknownConfigVersion = "unknown"
 )
 
+var newRemoteConfigClient = client.NewClient
+
 type RemoteConfigUpdater struct {
-	kubeClient  kubeclient.Client
-	rcClient    *client.Client
-	rcService   *service.CoreAgentService
-	serviceConf RcServiceConfiguration
-	logger      logr.Logger
-	mu          sync.RWMutex
+	kubeClient        kubeclient.Client
+	rcClient          *client.Client
+	rcService         *service.CoreAgentService
+	serviceConf       RcServiceConfiguration
+	lifecycleIdentity LifecycleIdentity
+	logger            logr.Logger
+	mu                sync.RWMutex
+	clientMu          sync.RWMutex
+	updaterTags       []string
+	subscriptions     []remoteConfigSubscription
+}
+
+type remoteConfigSubscription struct {
+	product  string
+	callback func(map[string]state.RawConfig, func(string, state.ApplyStatus))
 }
 
 type RcServiceConfiguration struct {
@@ -66,11 +83,53 @@ type RCClient interface {
 	Subscribe(product string, fn func(update map[string]state.RawConfig, applyStateCallback func(string, state.ApplyStatus)))
 	GetInstallerState() []*pbgo.PackageState
 	SetInstallerState(packages []*pbgo.PackageState)
+	GetClientID() string
+	RefreshUpdaterTags(context.Context) error
 }
 
-// Client returns the underlying RC client.
+// Client returns a stable proxy for the underlying RC client.
 func (r *RemoteConfigUpdater) Client() RCClient {
-	return r.rcClient
+	r.clientMu.RLock()
+	defer r.clientMu.RUnlock()
+	if r.rcClient == nil {
+		return nil
+	}
+	return r
+}
+
+func (r *RemoteConfigUpdater) Subscribe(product string, callback func(map[string]state.RawConfig, func(string, state.ApplyStatus))) {
+	r.clientMu.Lock()
+	defer r.clientMu.Unlock()
+	r.subscriptions = append(r.subscriptions, remoteConfigSubscription{product: product, callback: callback})
+	if r.rcClient != nil {
+		r.rcClient.Subscribe(product, callback)
+	}
+}
+
+func (r *RemoteConfigUpdater) GetInstallerState() []*pbgo.PackageState {
+	r.clientMu.RLock()
+	defer r.clientMu.RUnlock()
+	if r.rcClient == nil {
+		return nil
+	}
+	return r.rcClient.GetInstallerState()
+}
+
+func (r *RemoteConfigUpdater) SetInstallerState(packages []*pbgo.PackageState) {
+	r.clientMu.RLock()
+	defer r.clientMu.RUnlock()
+	if r.rcClient != nil {
+		r.rcClient.SetInstallerState(packages)
+	}
+}
+
+func (r *RemoteConfigUpdater) GetClientID() string {
+	r.clientMu.RLock()
+	defer r.clientMu.RUnlock()
+	if r.rcClient == nil {
+		return ""
+	}
+	return r.rcClient.ID
 }
 
 // DatadogProductRemoteConfig  is an interface for Datadog product remote configuration
@@ -187,28 +246,30 @@ func (r *RemoteConfigUpdater) Start(apiKey string, site string, clusterName stri
 		r.logger.Error(err, "Failed to create Remote Configuration service")
 		return err
 	}
-	r.rcService = rcService
-
-	updaterTags := r.getUpdaterTags(context.Background())
-	rcClient, err := client.NewClient(
-		rcService,
-		client.WithUpdater(updaterTags...),
-		client.WithProducts(state.ProductAgentConfig, state.ProductOrchestratorK8sCRDs),
-		client.WithDirectorRootOverride(r.serviceConf.cfg.GetString("site"), r.serviceConf.cfg.GetString("remote_configuration.director_root")),
-		client.WithPollInterval(pollInterval),
-	)
+	updaterTags, tagsErr := r.getUpdaterTags(context.Background())
+	if tagsErr != nil {
+		r.logger.Error(tagsErr, "Could not establish EKS lifecycle readiness during Remote Configuration startup")
+	}
+	rcClient, err := r.newUpdaterClient(rcService, updaterTags)
 	if err != nil {
+		if stopErr := rcService.Stop(); stopErr != nil {
+			r.logger.Error(stopErr, "Failed to stop Remote Configuration service after client creation failed")
+		}
 		r.logger.Error(err, "Failed to create Remote Configuration client")
 		return err
 	}
-	r.rcClient = rcClient
 	rcClient.SetInstallerState([]*pbgo.PackageState{
 		{
 			Package:             "datadog-operator",
 			StableVersion:       version.Version,
-			StableConfigVersion: "empty",
+			StableConfigVersion: InstallerStateUnknownConfigVersion,
 		},
 	})
+	r.clientMu.Lock()
+	r.rcService = rcService
+	r.rcClient = rcClient
+	r.updaterTags = append([]string(nil), updaterTags...)
+	r.clientMu.Unlock()
 
 	rcService.Start()
 	r.logger.Info("Remote Configuration service started")
@@ -216,14 +277,56 @@ func (r *RemoteConfigUpdater) Start(apiKey string, site string, clusterName stri
 	rcClient.Start()
 	r.logger.Info("Remote Configuration client started")
 
-	rcClient.Subscribe(string(state.ProductAgentConfig), r.agentConfigUpdateCallback)
-
-	rcClient.Subscribe(string(state.ProductOrchestratorK8sCRDs), r.crdConfigUpdateCallback)
+	r.Subscribe(string(state.ProductAgentConfig), r.agentConfigUpdateCallback)
+	r.Subscribe(string(state.ProductOrchestratorK8sCRDs), r.crdConfigUpdateCallback)
 
 	return nil
 }
 
-func (r *RemoteConfigUpdater) getUpdaterTags(ctx context.Context) []string {
+func (r *RemoteConfigUpdater) newUpdaterClient(configFetcher client.ConfigFetcher, updaterTags []string) (*client.Client, error) {
+	return newRemoteConfigClient(
+		configFetcher,
+		client.WithUpdater(updaterTags...),
+		client.WithProducts(state.ProductAgentConfig, state.ProductOrchestratorK8sCRDs),
+		client.WithDirectorRootOverride(r.serviceConf.cfg.GetString("site"), r.serviceConf.cfg.GetString("remote_configuration.director_root")),
+		client.WithPollInterval(pollInterval),
+	)
+}
+
+func (r *RemoteConfigUpdater) RefreshUpdaterTags(ctx context.Context) error {
+	updaterTags, err := r.getUpdaterTags(ctx)
+	if err != nil {
+		return fmt.Errorf("resolve refreshed Remote Configuration updater tags: %w", err)
+	}
+
+	r.clientMu.Lock()
+	defer r.clientMu.Unlock()
+	if r.rcClient == nil || r.rcService == nil {
+		return errors.New("Remote Configuration client is not running")
+	}
+	if slices.Equal(r.updaterTags, updaterTags) {
+		return nil
+	}
+
+	replacement, err := r.newUpdaterClient(r.rcService, updaterTags)
+	if err != nil {
+		return fmt.Errorf("create Remote Configuration client with refreshed updater tags: %w", err)
+	}
+	replacement.ID = r.rcClient.ID
+	replacement.SetInstallerState(r.rcClient.GetInstallerState())
+	for _, subscription := range r.subscriptions {
+		replacement.Subscribe(subscription.product, subscription.callback)
+	}
+
+	r.rcClient.Close()
+	r.rcClient = replacement
+	r.updaterTags = append([]string(nil), updaterTags...)
+	replacement.Start()
+	r.logger.Info("Refreshed Remote Configuration updater tags")
+	return nil
+}
+
+func (r *RemoteConfigUpdater) getUpdaterTags(ctx context.Context) ([]string, error) {
 	updaterTags := []string{"updater_type:datadog-operator"}
 
 	if r.serviceConf.clusterName != "" {
@@ -239,8 +342,64 @@ func (r *RemoteConfigUpdater) getUpdaterTags(ctx context.Context) []string {
 			updaterTags = append(updaterTags, "cluster_id:"+clusterUID)
 		}
 	}
+	updaterTags = append(updaterTags, r.lifecycleIdentity.UpdaterTags()...)
+	readinessTags, err := r.lifecycleReadinessTags(ctx)
+	if err != nil {
+		return updaterTags, err
+	}
+	updaterTags = append(updaterTags, readinessTags...)
 
-	return updaterTags
+	return updaterTags, nil
+}
+
+func (r *RemoteConfigUpdater) lifecycleReadinessTags(ctx context.Context) ([]string, error) {
+	if r.kubeClient == nil || !r.lifecycleIdentity.Configured() {
+		return nil, nil
+	}
+	intentConfigMap := &corev1.ConfigMap{}
+	if err := r.kubeClient.Get(ctx, types.NamespacedName{Namespace: "datadog", Name: "datadog-agent-lifecycle-intent"}, intentConfigMap); err != nil {
+		return nil, fmt.Errorf("read EKS lifecycle intent for Remote Configuration updater tags: %w", err)
+	}
+	var intent struct {
+		InstallationID          string `json:"installationID"`
+		EKSARNHash              string `json:"eksARNSHA256"`
+		OperationID             string `json:"operationID"`
+		DesiredState            string `json:"desiredState"`
+		AcknowledgedOperationID string `json:"acknowledgedOperationID"`
+	}
+	if err := json.Unmarshal([]byte(intentConfigMap.Data["intent.json"]), &intent); err != nil {
+		return nil, fmt.Errorf("decode EKS lifecycle intent for Remote Configuration updater tags: %w", err)
+	}
+	acknowledgedOperationID := intent.AcknowledgedOperationID
+	if acknowledgedOperationID == "" {
+		return nil, nil
+	}
+	parsed, err := uuid.Parse(acknowledgedOperationID)
+	if err != nil || parsed == uuid.Nil || parsed.String() != acknowledgedOperationID {
+		return nil, nil
+	}
+	if intent.InstallationID != r.lifecycleIdentity.InstallationID ||
+		intent.EKSARNHash != r.lifecycleIdentity.EKSARNHash ||
+		intent.OperationID != acknowledgedOperationID ||
+		intent.DesiredState != "installed" {
+		return nil, nil
+	}
+	state := &corev1.ConfigMap{}
+	if err := r.kubeClient.Get(ctx, types.NamespacedName{Namespace: "datadog", Name: "datadog-agent-lifecycle-state"}, state); err != nil {
+		return nil, fmt.Errorf("read EKS lifecycle acknowledgement state for Remote Configuration updater tags: %w", err)
+	}
+	if state.Data["installation_id"] != r.lifecycleIdentity.InstallationID ||
+		state.Data["eks_arn_sha256"] != r.lifecycleIdentity.EKSARNHash ||
+		state.Data["operation_id"] != acknowledgedOperationID ||
+		state.Data["acknowledged_operation_id"] != acknowledgedOperationID ||
+		state.Data["desired_state"] != "installed" ||
+		state.Data["task_state"] != pbgo.TaskState_DONE.String() {
+		return nil, fmt.Errorf("EKS lifecycle acknowledgement state is not yet consistent with the acknowledged install intent")
+	}
+	return []string{
+		"operator_lifecycle_ack:" + acknowledgedOperationID,
+		"operator_config_updates:ready",
+	}, nil
 }
 
 // configureService fills the configuration needed to start the rc service
@@ -603,6 +762,8 @@ func (r *RemoteConfigUpdater) updateInstanceStatus(dda v2alpha1.DatadogAgent, co
 }
 
 func (r *RemoteConfigUpdater) Stop() error {
+	r.clientMu.Lock()
+	defer r.clientMu.Unlock()
 	if r.rcService != nil {
 		err := r.rcService.Stop()
 		if err != nil {
@@ -614,12 +775,18 @@ func (r *RemoteConfigUpdater) Stop() error {
 	}
 	r.rcService = nil
 	r.rcClient = nil
+	r.updaterTags = nil
 	return nil
 }
 
-func NewRemoteConfigUpdater(client kubeclient.Client, logger logr.Logger) *RemoteConfigUpdater {
+func NewRemoteConfigUpdater(client kubeclient.Client, logger logr.Logger, identity ...LifecycleIdentity) *RemoteConfigUpdater {
+	var lifecycleIdentity LifecycleIdentity
+	if len(identity) > 0 {
+		lifecycleIdentity = identity[0]
+	}
 	return &RemoteConfigUpdater{
-		kubeClient: client,
-		logger:     logger,
+		kubeClient:        client,
+		lifecycleIdentity: lifecycleIdentity,
+		logger:            logger,
 	}
 }
