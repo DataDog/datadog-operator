@@ -29,3 +29,5 @@ credentialsSecretSync:
 
   # credentialsSecretSync.appKeySecretId -- AWS Secrets Manager ARN or name for the Datadog application key
   appKeySecretId:
+
+lifecycle: null
