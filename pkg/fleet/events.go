@@ -130,6 +130,14 @@ func (d *Daemon) emitInstallerStateRehydratedEvent(ctx context.Context, dda *v2a
 // event message (start / stop / promote / <method>).
 func methodLabel(method string) string {
 	switch method {
+	case methodInstallDatadogAgent:
+		return "install"
+	case methodUninstallDatadogAgent:
+		return "uninstall"
+	case methodVerifyDatadogAgentUninstalled:
+		return "verify-uninstalled"
+	case methodClearDatadogAgentUninstallFence:
+		return "clear-uninstall-fence"
 	case methodStartDatadogAgentExperiment:
 		return "start"
 	case methodStopDatadogAgentExperiment:

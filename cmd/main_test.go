@@ -14,12 +14,51 @@ import (
 	"testing"
 	"time"
 
+	"github.com/DataDog/datadog-operator/pkg/remoteconfig"
 	"github.com/go-logr/zapr"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"go.uber.org/zap/zaptest/observer"
 )
+
+func TestOperatorAddonLifecycleEnabled(t *testing.T) {
+	identity := remoteconfig.LifecycleIdentity{
+		InstallationID: "123e4567-e89b-42d3-a456-426614174000",
+		EKSARNHash:     "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+	}
+	tests := []struct {
+		name                 string
+		identity             remoteconfig.LifecycleIdentity
+		remoteConfigEnabled  bool
+		remoteUpdatesEnabled bool
+		datadogAgentEnabled  bool
+		lifecycleFlagEnabled bool
+		profileEnabled       bool
+		want                 bool
+	}{
+		{name: "all requirements", identity: identity, lifecycleFlagEnabled: true, remoteConfigEnabled: true, remoteUpdatesEnabled: true, datadogAgentEnabled: true, profileEnabled: true, want: true},
+		{name: "missing identity", lifecycleFlagEnabled: true, remoteConfigEnabled: true, remoteUpdatesEnabled: true, datadogAgentEnabled: true, profileEnabled: true},
+		{name: "lifecycle flag disabled", identity: identity, remoteConfigEnabled: true, remoteUpdatesEnabled: true, datadogAgentEnabled: true, profileEnabled: true},
+		{name: "remote config disabled", identity: identity, lifecycleFlagEnabled: true, remoteUpdatesEnabled: true, datadogAgentEnabled: true, profileEnabled: true},
+		{name: "remote updates disabled", identity: identity, lifecycleFlagEnabled: true, remoteConfigEnabled: true, datadogAgentEnabled: true, profileEnabled: true},
+		{name: "DatadogAgent controller disabled", identity: identity, lifecycleFlagEnabled: true, remoteConfigEnabled: true, remoteUpdatesEnabled: true, profileEnabled: true},
+		{name: "profile controller disabled", identity: identity, lifecycleFlagEnabled: true, remoteConfigEnabled: true, remoteUpdatesEnabled: true, datadogAgentEnabled: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			opts := options{
+				eksAddonLifecycleEnabled:   tt.lifecycleFlagEnabled,
+				remoteConfigEnabled:        tt.remoteConfigEnabled,
+				remoteUpdatesEnabled:       tt.remoteUpdatesEnabled,
+				datadogAgentEnabled:        tt.datadogAgentEnabled,
+				datadogAgentProfileEnabled: tt.profileEnabled,
+			}
+			require.Equal(t, tt.want, opts.operatorAddonLifecycleEnabled(tt.identity))
+		})
+	}
+}
 
 func TestOptionsParse_EnvOverridesDefaults(t *testing.T) {
 	resetCommandLine(t)
@@ -36,6 +75,7 @@ func TestOptionsParse_EnvOverridesDefaults(t *testing.T) {
 	t.Setenv("DD_GENERIC_RESOURCE_REQUEUE_PERIOD", "5m")
 	t.Setenv("DD_UNTAINT_CONTROLLER_WAIT_FOR_CSI_DRIVER", "true")
 	t.Setenv("DD_CREATE_CONTROLLER_REVISIONS", "true")
+	t.Setenv("DD_EKS_ADDON_LIFECYCLE_ENABLED", "true")
 
 	var opts options
 	opts.Parse()
@@ -53,6 +93,7 @@ func TestOptionsParse_EnvOverridesDefaults(t *testing.T) {
 	require.Equal(t, 5*time.Minute, opts.datadogGenericResourceRequeuePeriod)
 	require.True(t, opts.untaintControllerWaitForCSIDriver)
 	require.True(t, opts.createControllerRevisions)
+	require.True(t, opts.eksAddonLifecycleEnabled)
 }
 
 func TestOptionsParse_CLIOverridesEnv(t *testing.T) {

@@ -41,6 +41,8 @@ type pendingOperation struct {
 	experimentID string
 	// resultVersion is only used by promote. It becomes stable_config on success.
 	resultVersion string
+	fleetOwned    bool
+	targetUID     types.UID
 }
 
 type pendingIntent string
@@ -95,6 +97,14 @@ func (t *operationTracker) onStatusUpdate(ctx context.Context, snapshot ddaStatu
 	if !ok {
 		return
 	}
+	t.daemon.transitionMu.Lock()
+	t.daemon.taskMu.Lock()
+	lifecycleReserved := t.daemon.lifecycleActive || t.daemon.lifecycleTaskReserved
+	t.daemon.taskMu.Unlock()
+	t.daemon.transitionMu.Unlock()
+	if lifecycleReserved {
+		return
+	}
 	done, resultErr := evaluatePendingTask(snapshot, op)
 	if !done {
 		t.daemon.taskMu.Lock()
@@ -118,7 +128,6 @@ func (d *Daemon) installDDAStatusForwarder(ctx context.Context) error {
 		AddFunc:    d.forwardDDAStatusUpdate,
 		UpdateFunc: func(_, newObj any) { d.forwardDDAStatusUpdate(newObj) },
 	})
-	go newOperationTracker(d).run(ctx)
 	return nil
 }
 

@@ -7,10 +7,20 @@ package remoteconfig
 
 import (
 	"context"
+	"errors"
+	"path/filepath"
 	"testing"
+	"time"
 
+	rcclient "github.com/DataDog/datadog-agent/pkg/config/remote/client"
+	rcservice "github.com/DataDog/datadog-agent/pkg/config/remote/service"
+	pbgo "github.com/DataDog/datadog-agent/pkg/proto/pbgo/core"
 	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"go.etcd.io/bbolt"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -19,15 +29,196 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
+func TestStartClosesServiceWhenClientCreationFails(t *testing.T) {
+	t.Setenv("TMPDIR", t.TempDir())
+
+	wantErr := errors.New("client creation failed")
+	originalNewRemoteConfigClient := newRemoteConfigClient
+	t.Cleanup(func() {
+		newRemoteConfigClient = originalNewRemoteConfigClient
+	})
+	newRemoteConfigClient = func(_ rcclient.ConfigFetcher, _ ...func(*rcclient.Options)) (*rcclient.Client, error) {
+		return nil, wantErr
+	}
+
+	updater := NewRemoteConfigUpdater(nil, logr.Discard())
+	err := updater.Start("api-key", "datadoghq.com", "", "", "", "https://config.datadoghq.com")
+	require.ErrorIs(t, err, wantErr)
+	assert.Nil(t, updater.rcService)
+	assert.Nil(t, updater.rcClient)
+
+	databaseFiles, err := filepath.Glob(filepath.Join(updater.serviceConf.rcDatabaseDir, "remote-config-*.db"))
+	require.NoError(t, err)
+	require.Len(t, databaseFiles, 1)
+
+	database, err := bbolt.Open(databaseFiles[0], 0600, &bbolt.Options{
+		ReadOnly: true,
+		Timeout:  100 * time.Millisecond,
+	})
+	require.NoError(t, err, "the failed setup attempt must release the database lock")
+	require.NoError(t, database.Close())
+}
+
+type stoppedConfigFetcher struct{}
+
+func (stoppedConfigFetcher) ClientGetConfigs(context.Context, *pbgo.ClientGetConfigsRequest) (*pbgo.ClientGetConfigsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "stopped test client")
+}
+
+func TestRefreshUpdaterTagsPreservesClientIdentityAndInstallerState(t *testing.T) {
+	acknowledgedOperationID := "123e4567-e89b-42d3-a456-426614174010"
+	kubeClient := newFakeClient(t,
+		&corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{Namespace: "datadog", Name: "datadog-agent-lifecycle-intent"},
+			Data:       map[string]string{"intent.json": `{"installationID":"` + validLifecycleIdentity.InstallationID + `","eksARNSHA256":"` + validLifecycleIdentity.EKSARNHash + `","operationID":"` + acknowledgedOperationID + `","desiredState":"installed","acknowledgedOperationID":"` + acknowledgedOperationID + `"}`},
+		},
+		&corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{Namespace: "datadog", Name: "datadog-agent-lifecycle-state"},
+			Data: map[string]string{
+				"installation_id":           validLifecycleIdentity.InstallationID,
+				"eks_arn_sha256":            validLifecycleIdentity.EKSARNHash,
+				"operation_id":              acknowledgedOperationID,
+				"acknowledged_operation_id": acknowledgedOperationID,
+				"desired_state":             "installed",
+				"task_state":                "DONE",
+			},
+		},
+	)
+
+	current, err := rcclient.NewClient(stoppedConfigFetcher{}, rcclient.WithoutTufVerification())
+	require.NoError(t, err)
+	current.ID = "stable-client-id"
+	installerState := []*pbgo.PackageState{{
+		Package:             "datadog-operator",
+		StableConfigVersion: acknowledgedOperationID,
+	}}
+	current.SetInstallerState(installerState)
+
+	updater := &RemoteConfigUpdater{
+		kubeClient:        kubeClient,
+		rcClient:          current,
+		rcService:         &rcservice.CoreAgentService{},
+		lifecycleIdentity: validLifecycleIdentity,
+		logger:            logr.Discard(),
+		updaterTags: append(
+			[]string{"updater_type:datadog-operator"},
+			validLifecycleIdentity.UpdaterTags()...,
+		),
+	}
+	require.NoError(t, updater.configureService("api-key", "datadoghq.com", "", "", "", "https://config.datadoghq.com"))
+
+	originalNewRemoteConfigClient := newRemoteConfigClient
+	t.Cleanup(func() {
+		newRemoteConfigClient = originalNewRemoteConfigClient
+		updater.rcClient.Close()
+	})
+	createdClients := 0
+	newRemoteConfigClient = func(_ rcclient.ConfigFetcher, options ...func(*rcclient.Options)) (*rcclient.Client, error) {
+		createdClients++
+		options = append(options, rcclient.WithoutTufVerification())
+		return rcclient.NewClient(stoppedConfigFetcher{}, options...)
+	}
+
+	require.NoError(t, updater.RefreshUpdaterTags(context.Background()))
+	assert.Equal(t, 1, createdClients)
+	assert.NotSame(t, current, updater.rcClient)
+	assert.Equal(t, "stable-client-id", updater.GetClientID())
+	assert.Equal(t, installerState, updater.GetInstallerState())
+	assert.Same(t, updater, updater.Client())
+
+	require.NoError(t, updater.RefreshUpdaterTags(context.Background()))
+	assert.Equal(t, 1, createdClients, "unchanged updater tags must not replace the client")
+}
+
 func TestGetUpdaterTags(t *testing.T) {
 	clusterUID := types.UID("test-cluster-uid")
+	acknowledgedOperationID := "123e4567-e89b-42d3-a456-426614174010"
 
 	tests := []struct {
 		name        string
 		clusterName string
+		identity    LifecycleIdentity
 		objects     []client.Object
 		want        []string
 	}{
+		{
+			name:        "with lifecycle identity",
+			clusterName: "test-cluster",
+			identity:    validLifecycleIdentity,
+			objects: []client.Object{
+				&corev1.ConfigMap{
+					ObjectMeta: metav1.ObjectMeta{Namespace: "datadog", Name: "datadog-agent-lifecycle-intent"},
+					Data:       map[string]string{"intent.json": `{"installationID":"` + validLifecycleIdentity.InstallationID + `","eksARNSHA256":"` + validLifecycleIdentity.EKSARNHash + `","operationID":"123e4567-e89b-42d3-a456-426614174010","desiredState":"installed"}`},
+				},
+			},
+			want: []string{
+				"updater_type:datadog-operator",
+				"cluster_name:test-cluster",
+				"eks_installation_id:" + validLifecycleIdentity.InstallationID,
+				"eks_arn_sha256:" + validLifecycleIdentity.EKSARNHash,
+				"operator_lifecycle:eks-addon-config-v1",
+			},
+		},
+		{
+			name:        "with acknowledged lifecycle install",
+			clusterName: "test-cluster",
+			identity:    validLifecycleIdentity,
+			objects: []client.Object{
+				&corev1.ConfigMap{
+					ObjectMeta: metav1.ObjectMeta{Namespace: "datadog", Name: "datadog-agent-lifecycle-intent"},
+					Data:       map[string]string{"intent.json": `{"installationID":"` + validLifecycleIdentity.InstallationID + `","eksARNSHA256":"` + validLifecycleIdentity.EKSARNHash + `","operationID":"` + acknowledgedOperationID + `","desiredState":"installed","acknowledgedOperationID":"` + acknowledgedOperationID + `"}`},
+				},
+				&corev1.ConfigMap{
+					ObjectMeta: metav1.ObjectMeta{Namespace: "datadog", Name: "datadog-agent-lifecycle-state"},
+					Data: map[string]string{
+						"installation_id":           validLifecycleIdentity.InstallationID,
+						"eks_arn_sha256":            validLifecycleIdentity.EKSARNHash,
+						"operation_id":              acknowledgedOperationID,
+						"acknowledged_operation_id": acknowledgedOperationID,
+						"desired_state":             "installed",
+						"task_state":                "DONE",
+					},
+				},
+			},
+			want: []string{
+				"updater_type:datadog-operator",
+				"cluster_name:test-cluster",
+				"eks_installation_id:" + validLifecycleIdentity.InstallationID,
+				"eks_arn_sha256:" + validLifecycleIdentity.EKSARNHash,
+				"operator_lifecycle:eks-addon-config-v1",
+				"operator_lifecycle_ack:" + acknowledgedOperationID,
+				"operator_config_updates:ready",
+			},
+		},
+		{
+			name:        "without ready tag after uninstall intent",
+			clusterName: "test-cluster",
+			identity:    validLifecycleIdentity,
+			objects: []client.Object{
+				&corev1.ConfigMap{
+					ObjectMeta: metav1.ObjectMeta{Namespace: "datadog", Name: "datadog-agent-lifecycle-intent"},
+					Data:       map[string]string{"intent.json": `{"installationID":"` + validLifecycleIdentity.InstallationID + `","eksARNSHA256":"` + validLifecycleIdentity.EKSARNHash + `","operationID":"123e4567-e89b-42d3-a456-426614174011","desiredState":"absent","acknowledgedOperationID":"` + acknowledgedOperationID + `"}`},
+				},
+				&corev1.ConfigMap{
+					ObjectMeta: metav1.ObjectMeta{Namespace: "datadog", Name: "datadog-agent-lifecycle-state"},
+					Data: map[string]string{
+						"installation_id":           validLifecycleIdentity.InstallationID,
+						"eks_arn_sha256":            validLifecycleIdentity.EKSARNHash,
+						"operation_id":              acknowledgedOperationID,
+						"acknowledged_operation_id": acknowledgedOperationID,
+						"desired_state":             "installed",
+						"task_state":                "DONE",
+					},
+				},
+			},
+			want: []string{
+				"updater_type:datadog-operator",
+				"cluster_name:test-cluster",
+				"eks_installation_id:" + validLifecycleIdentity.InstallationID,
+				"eks_arn_sha256:" + validLifecycleIdentity.EKSARNHash,
+				"operator_lifecycle:eks-addon-config-v1",
+			},
+		},
 		{
 			name:        "with cluster name and cluster uid",
 			clusterName: "test-cluster",
@@ -73,16 +264,48 @@ func TestGetUpdaterTags(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			updater := &RemoteConfigUpdater{
-				kubeClient: newFakeClient(t, tt.objects...),
-				logger:     logr.Discard(),
+				kubeClient:        newFakeClient(t, tt.objects...),
+				logger:            logr.Discard(),
+				lifecycleIdentity: tt.identity,
 				serviceConf: RcServiceConfiguration{
 					clusterName: tt.clusterName,
 				},
 			}
 
-			assert.Equal(t, tt.want, updater.getUpdaterTags(context.Background()))
+			got, err := updater.getUpdaterTags(context.Background())
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, got)
 		})
 	}
+}
+
+func TestRefreshUpdaterTagsPreservesCurrentClientWhenAcknowledgementEvidenceIsUnavailable(t *testing.T) {
+	acknowledgedOperationID := "123e4567-e89b-42d3-a456-426614174010"
+	kubeClient := newFakeClient(t, &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{Namespace: "datadog", Name: "datadog-agent-lifecycle-intent"},
+		Data:       map[string]string{"intent.json": `{"installationID":"` + validLifecycleIdentity.InstallationID + `","eksARNSHA256":"` + validLifecycleIdentity.EKSARNHash + `","operationID":"` + acknowledgedOperationID + `","desiredState":"installed","acknowledgedOperationID":"` + acknowledgedOperationID + `"}`},
+	})
+	current, err := rcclient.NewClient(stoppedConfigFetcher{}, rcclient.WithoutTufVerification())
+	require.NoError(t, err)
+	t.Cleanup(current.Close)
+
+	updater := &RemoteConfigUpdater{
+		kubeClient:        kubeClient,
+		rcClient:          current,
+		rcService:         &rcservice.CoreAgentService{},
+		lifecycleIdentity: validLifecycleIdentity,
+		logger:            logr.Discard(),
+		updaterTags: append(
+			[]string{"updater_type:datadog-operator"},
+			validLifecycleIdentity.UpdaterTags()...,
+		),
+	}
+	require.NoError(t, updater.configureService("api-key", "datadoghq.com", "", "", "", "https://config.datadoghq.com"))
+
+	err = updater.RefreshUpdaterTags(context.Background())
+
+	require.ErrorContains(t, err, "read EKS lifecycle acknowledgement state")
+	assert.Same(t, current, updater.rcClient)
 }
 
 func newFakeClient(t *testing.T, objects ...client.Object) client.Client {

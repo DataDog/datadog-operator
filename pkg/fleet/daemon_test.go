@@ -16,13 +16,18 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
+	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
+	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
+	v1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	v2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 )
 
@@ -30,6 +35,11 @@ import (
 
 func testFleetScheme() *runtime.Scheme {
 	s := runtime.NewScheme()
+	_ = corev1.AddToScheme(s)
+	_ = rbacv1.AddToScheme(s)
+	_ = admissionregistrationv1.AddToScheme(s)
+	_ = apiregistrationv1.AddToScheme(s)
+	_ = v1alpha1.AddToScheme(s)
 	_ = v2alpha1.AddToScheme(s)
 	return s
 }
@@ -142,7 +152,7 @@ func testStartRequest() remoteAPIRequest {
 		ID:      "exp-abc",
 		Package: "datadog-operator",
 		Method:  methodStartDatadogAgentExperiment,
-		Params: experimentParams{
+		Params: operatorTaskParams{
 			Version:          "test-config",
 			GroupVersionKind: testDDAGVK,
 			NamespacedName:   testDDANSN,
@@ -345,7 +355,7 @@ func TestStartDatadogAgentExperiment_VersionMatchesInstallerConfig(t *testing.T)
 	req := remoteAPIRequest{
 		ID:     "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
 		Method: methodStartDatadogAgentExperiment,
-		Params: experimentParams{
+		Params: operatorTaskParams{
 			Version:          "aaaa-bbbb-cccc",
 			GroupVersionKind: testDDAGVK,
 			NamespacedName:   testDDANSN,
@@ -388,7 +398,7 @@ func testStopRequest() remoteAPIRequest {
 		ID:      "exp-abc",
 		Package: "datadog-operator",
 		Method:  methodStopDatadogAgentExperiment,
-		Params: experimentParams{
+		Params: operatorTaskParams{
 			// Stop requests intentionally do not use params.version as the experiment
 			// identity. It should be empty.
 			Version:          "",
@@ -574,7 +584,7 @@ func testPromoteRequest() remoteAPIRequest {
 		ID:      "exp-abc",
 		Package: "datadog-operator",
 		Method:  methodPromoteDatadogAgentExperiment,
-		Params: experimentParams{
+		Params: operatorTaskParams{
 			// Promote requests intentionally do not use params.version as the experiment
 			// identity. It should be empty.
 			Version:          "",
@@ -729,7 +739,7 @@ func TestHandleRemoteAPIRequest_InvalidState(t *testing.T) {
 // --- validateParams tests ---
 
 func TestValidateParams_Valid(t *testing.T) {
-	p := experimentParams{
+	p := operatorTaskParams{
 		Version:          "test-config",
 		GroupVersionKind: testDDAGVK,
 		NamespacedName:   testDDANSN,
@@ -738,7 +748,7 @@ func TestValidateParams_Valid(t *testing.T) {
 }
 
 func TestValidateParams_EmptyName(t *testing.T) {
-	p := experimentParams{
+	p := operatorTaskParams{
 		GroupVersionKind: testDDAGVK,
 		NamespacedName:   types.NamespacedName{Namespace: "datadog", Name: ""},
 	}
@@ -746,7 +756,7 @@ func TestValidateParams_EmptyName(t *testing.T) {
 }
 
 func TestValidateParams_EmptyNamespace(t *testing.T) {
-	p := experimentParams{
+	p := operatorTaskParams{
 		GroupVersionKind: testDDAGVK,
 		NamespacedName:   types.NamespacedName{Namespace: "", Name: "datadog-agent"},
 	}
@@ -755,7 +765,7 @@ func TestValidateParams_EmptyNamespace(t *testing.T) {
 
 func TestValidateParams_EmptyGroup_Allowed(t *testing.T) {
 	// Group is auto-detected from the cluster; empty group is valid input.
-	p := experimentParams{
+	p := operatorTaskParams{
 		GroupVersionKind: schema.GroupVersionKind{Group: "", Version: "", Kind: "DatadogAgent"},
 		NamespacedName:   testDDANSN,
 	}
@@ -763,7 +773,7 @@ func TestValidateParams_EmptyGroup_Allowed(t *testing.T) {
 }
 
 func TestValidateParams_WrongKind(t *testing.T) {
-	p := experimentParams{
+	p := operatorTaskParams{
 		GroupVersionKind: schema.GroupVersionKind{Group: "datadoghq.com", Version: "v2alpha1", Kind: "DatadogMonitor"},
 		NamespacedName:   testDDANSN,
 	}
@@ -948,8 +958,12 @@ func TestPromoteDatadogAgentExperiment_ConfigVersionUpdatedAfterSuccess(t *testi
 
 // mockRCClient is a minimal RCClient used to test package state updates.
 type mockRCClient struct {
-	state       []*pbgo.PackageState
-	taskHistory []*pbgo.PackageStateTask
+	state           []*pbgo.PackageState
+	taskHistory     []*pbgo.PackageStateTask
+	clientID        string
+	refreshCalls    int
+	refreshErr      error
+	refreshFailures int
 }
 
 func (m *mockRCClient) Subscribe(_ string, _ func(map[string]state.RawConfig, func(string, state.ApplyStatus))) {
@@ -957,6 +971,19 @@ func (m *mockRCClient) Subscribe(_ string, _ func(map[string]state.RawConfig, fu
 
 func (m *mockRCClient) GetInstallerState() []*pbgo.PackageState {
 	return m.state
+}
+
+func (m *mockRCClient) GetClientID() string {
+	return m.clientID
+}
+
+func (m *mockRCClient) RefreshUpdaterTags(context.Context) error {
+	m.refreshCalls++
+	if m.refreshFailures > 0 {
+		m.refreshFailures--
+		return m.refreshErr
+	}
+	return nil
 }
 
 func (m *mockRCClient) SetInstallerState(packages []*pbgo.PackageState) {

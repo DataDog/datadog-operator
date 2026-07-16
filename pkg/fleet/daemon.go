@@ -10,10 +10,13 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"time"
 
 	pbgo "github.com/DataDog/datadog-agent/pkg/proto/pbgo/core"
 	"github.com/DataDog/datadog-agent/pkg/remoteconfig/state"
 	"google.golang.org/protobuf/proto"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlcache "sigs.k8s.io/controller-runtime/pkg/cache"
@@ -33,50 +36,90 @@ type stateDoesntMatchError struct {
 func (e *stateDoesntMatchError) Error() string { return e.msg }
 
 const (
-	methodStartDatadogAgentExperiment   = "operator/start_datadogagent_experiment"
-	methodStopDatadogAgentExperiment    = "operator/stop_datadogagent_experiment"
-	methodPromoteDatadogAgentExperiment = "operator/promote_datadogagent_experiment"
+	methodInstallDatadogAgent             = "operator/install_datadogagent"
+	methodUninstallDatadogAgent           = "operator/uninstall_datadogagent"
+	methodVerifyDatadogAgentUninstalled   = "operator/verify_datadogagent_uninstalled"
+	methodClearDatadogAgentUninstallFence = "operator/clear_datadogagent_uninstall_fence"
+	methodStartDatadogAgentExperiment     = "operator/start_datadogagent_experiment"
+	methodStopDatadogAgentExperiment      = "operator/stop_datadogagent_experiment"
+	methodPromoteDatadogAgentExperiment   = "operator/promote_datadogagent_experiment"
 )
 
 var _ manager.Runnable = &Daemon{}
 var _ manager.LeaderElectionRunnable = &Daemon{}
 
+var installerStateRehydrateRetryInterval = time.Second
+
 // Daemon subscribes to fleet-specific RC products (installer configs and tasks)
 // and runs after leader election as a controller-runtime Runnable.
 //
-// The daemon is a pure RC adapter: it translates RC tasks into DDA annotation
-// writes and observes phase transitions to report outcomes back to RC. It never
-// reads or writes status.experiment.phase — that is the reconciler's exclusive
-// responsibility.
+// The daemon translates RC tasks into DDA lifecycle operations or experiment
+// annotation writes and reports outcomes back to RC. It never writes
+// status.experiment.phase — that is the reconciler's exclusive responsibility.
 type Daemon struct {
-	rcClient         remoteconfig.RCClient
-	client           client.Client
-	apiReader        client.Reader // bypasses the informer cache; used at startup before the cache is populated
-	cache            ctrlcache.Cache
-	recorder         record.EventRecorder // Kubernetes-event recorder for fleet-daemon-source events (gated by env var)
-	revisionsEnabled bool
-	mu               sync.RWMutex
-	configs          map[string]installerConfig // keyed by config ID; replaced on each RC update
-	taskMu           sync.Mutex                 // serializes task dispatch and package task-state updates
+	rcClient              remoteconfig.RCClient
+	client                client.Client
+	apiReader             client.Reader // bypasses the informer cache; used at startup before the cache is populated
+	cache                 ctrlcache.Cache
+	recorder              record.EventRecorder // Kubernetes-event recorder for fleet-daemon-source events (gated by env var)
+	revisionsEnabled      bool
+	lifecycleIdentity     remoteconfig.LifecycleIdentity
+	fenceVerifier         func(context.Context, *corev1.ConfigMap) error
+	fenceModeManager      func(context.Context, bool) error
+	lifecycleTaskRunner   func(func())
+	addonLifecycle        bool
+	mu                    sync.RWMutex
+	configs               map[string]installerConfig // keyed by config ID; replaced on each RC update
+	addonConfigs          map[string]installerConfig
+	taskMu                sync.Mutex // serializes package task-state updates
+	transitionMu          sync.Mutex // serializes DDA lifecycle and experiment state transitions
+	lifecycleActive       bool       // reserves installer state while a lifecycle mutation is in progress
+	lifecycleOperationID  string
+	lifecycleCancel       context.CancelFunc
+	lifecycleDone         chan struct{}
+	lifecycleTaskReserved bool
 	// statusUpdates carries DDA informer events to the worker. The worker reads
 	// status.experiment and pending annotations to update RC task state.
-	statusUpdates chan ddaStatusSnapshot
+	statusUpdates         chan ddaStatusSnapshot
+	addonLifecycleUpdates chan addonLifecycleIntentSnapshot
+	addonLifecycleRetries chan struct{}
+}
+
+// DaemonOption configures optional Fleet daemon transports.
+type DaemonOption func(*Daemon)
+
+// WithAddonLifecycle enables lifecycle intents delivered by the EKS add-on.
+func WithAddonLifecycle() DaemonOption {
+	return func(daemon *Daemon) {
+		daemon.addonLifecycle = true
+	}
 }
 
 // NewDaemon creates a new Fleet Daemon. When revisionsEnabled is false, experiment
 // signals are rejected because the reconciler cannot process them without the
 // ControllerRevision machinery.
-func NewDaemon(rcClient remoteconfig.RCClient, mgr manager.Manager, revisionsEnabled bool) *Daemon {
-	return &Daemon{
-		rcClient:         rcClient,
-		client:           mgr.GetClient(),
-		apiReader:        mgr.GetAPIReader(),
-		cache:            mgr.GetCache(), // Informer cache
-		recorder:         mgr.GetEventRecorderFor("fleet-daemon"),
-		revisionsEnabled: revisionsEnabled,
-		configs:          make(map[string]installerConfig),
-		statusUpdates:    make(chan ddaStatusSnapshot, 128),
+func NewDaemon(rcClient remoteconfig.RCClient, mgr manager.Manager, revisionsEnabled bool, lifecycleIdentity remoteconfig.LifecycleIdentity, options ...DaemonOption) *Daemon {
+	daemon := &Daemon{
+		rcClient:          rcClient,
+		client:            mgr.GetClient(),
+		apiReader:         mgr.GetAPIReader(),
+		cache:             mgr.GetCache(), // Informer cache
+		recorder:          mgr.GetEventRecorderFor("fleet-daemon"),
+		revisionsEnabled:  revisionsEnabled,
+		lifecycleIdentity: lifecycleIdentity,
+		lifecycleTaskRunner: func(task func()) {
+			go task()
+		},
+		configs:               make(map[string]installerConfig),
+		addonConfigs:          make(map[string]installerConfig),
+		statusUpdates:         make(chan ddaStatusSnapshot, 128),
+		addonLifecycleUpdates: make(chan addonLifecycleIntentSnapshot),
+		addonLifecycleRetries: make(chan struct{}, 1),
 	}
+	for _, option := range options {
+		option(daemon)
+	}
+	return daemon
 }
 
 // Start implements manager.Runnable. It subscribes to fleet RC products and
@@ -89,17 +132,45 @@ func (d *Daemon) Start(ctx context.Context) error {
 	if d.cache == nil {
 		return fmt.Errorf("fleet daemon requires a controller cache")
 	}
+	rehydrate := func() bool {
+		for {
+			d.transitionMu.Lock()
+			err := d.rehydrateInstallerState(ctx)
+			d.transitionMu.Unlock()
+			if err == nil {
+				return true
+			}
+			logger.Error(err, "Failed to rehydrate installer state from existing DatadogAgents; lifecycle handling remains disabled")
+			select {
+			case <-ctx.Done():
+				logger.Info("Stopping Fleet daemon before installer state was rehydrated")
+				return false
+			case <-time.After(installerStateRehydrateRetryInterval):
+			}
+		}
+	}
+	if !rehydrate() {
+		return nil
+	}
 	if err := d.installDDAStatusForwarder(ctx); err != nil {
 		return err
 	}
+	logger.Info("DDA status forwarder initialized")
+	if !rehydrate() {
+		return nil
+	}
+	go newOperationTracker(d).run(ctx)
 	logger.Info("DDA status worker initialized")
-
-	if err := d.rehydrateInstallerState(ctx); err != nil {
-		// Best-effort: if List fails we continue with an empty installer
-		// state. The next reconcile-driven status update will retry the
-		// publication via reconcileTimedOutExperiment when the experiment
-		// reaches a terminal phase.
-		logger.Error(err, "Failed to rehydrate installer state from existing DatadogAgents")
+	if d.addonLifecycle {
+		if err := d.rehydrateAddonLifecycleState(ctx); err != nil {
+			return fmt.Errorf("rehydrate add-on lifecycle state: %w", err)
+		}
+		go d.runAddonLifecycleIntentWorker(ctx)
+		if err := d.installAddonLifecycleIntentForwarder(ctx); err != nil {
+			return err
+		}
+		go d.runAddonLifecycleFenceMonitor(ctx)
+		logger.Info("EKS add-on lifecycle intent worker initialized")
 	}
 
 	d.rcClient.Subscribe(state.ProductInstallerConfig, handleInstallerConfigUpdate(ctx, func(configs map[string]installerConfig) error {
@@ -125,7 +196,19 @@ func (d *Daemon) handleTask(ctx context.Context, req remoteAPIRequest) error {
 	// Incoming-edge event: emitted before processing so the timeline shows
 	// every task FA sent, including those that will be rejected below.
 	d.emitTaskReceivedEvent(ctx, req)
+	if isLifecycleMethod(req.Method) {
+		return d.handleLifecycleTask(ctx, req)
+	}
+	d.transitionMu.Lock()
+	defer d.transitionMu.Unlock()
 	d.taskMu.Lock()
+	if d.lifecycleActive || d.lifecycleTaskReserved {
+		err := &stateDoesntMatchError{msg: "a DatadogAgent lifecycle transition is already in progress"}
+		d.setTaskState(req.Package, req.ID, pbgo.TaskState_INVALID_STATE, err)
+		d.taskMu.Unlock()
+		d.emitTaskRejectedEvent(ctx, req.Params.NamespacedName, req, err.Error())
+		return err
+	}
 	pending, err := d.handleRemoteAPIRequest(ctx, req)
 	if err != nil {
 		// Expected and current stable/experiment configs don't match.
@@ -163,6 +246,153 @@ func (d *Daemon) handleTask(ctx context.Context, req remoteAPIRequest) error {
 	return nil
 }
 
+func (d *Daemon) handleLifecycleTask(ctx context.Context, req remoteAPIRequest) error {
+	d.transitionMu.Lock()
+	d.taskMu.Lock()
+	if d.lifecycleActive {
+		err := &stateDoesntMatchError{msg: "a DatadogAgent lifecycle transition is already in progress"}
+		d.taskMu.Unlock()
+		d.transitionMu.Unlock()
+		d.emitTaskRejectedEvent(ctx, req.Params.NamespacedName, req, err.Error())
+		return err
+	}
+	if err := d.validateLifecycleTask(req); err != nil {
+		d.taskMu.Unlock()
+		d.transitionMu.Unlock()
+		if persistErr := d.recordAddonLifecycleResult(ctx, req, pbgo.TaskState_INVALID_STATE, err); persistErr != nil {
+			d.requestAddonLifecycleRetry()
+			return errors.Join(err, persistErr)
+		}
+		d.taskMu.Lock()
+		d.setTaskState(req.Package, req.ID, pbgo.TaskState_INVALID_STATE, err)
+		d.taskMu.Unlock()
+		d.emitTaskRejectedEvent(ctx, req.Params.NamespacedName, req, err.Error())
+		return err
+	}
+	taskCtx, cancel := context.WithCancel(ctx)
+	d.lifecycleActive = true
+	d.lifecycleOperationID = req.Params.OperationID
+	d.lifecycleCancel = cancel
+	d.lifecycleDone = make(chan struct{})
+	d.setTaskState(req.Package, req.ID, pbgo.TaskState_RUNNING, nil)
+	d.taskMu.Unlock()
+	d.transitionMu.Unlock()
+
+	if req.Addon != nil {
+		if err := d.writeAddonLifecycleState(taskCtx, addonLifecycleStateFromRequest(req, pbgo.TaskState_RUNNING, nil)); err != nil {
+			d.finishLifecycleTask(req.Params.OperationID)
+			return fmt.Errorf("persist accepted EKS add-on lifecycle intent: %w", err)
+		}
+		d.taskMu.Lock()
+		d.lifecycleTaskReserved = true
+		d.taskMu.Unlock()
+	}
+	if d.lifecycleTaskRunner == nil {
+		return d.executeLifecycleTask(taskCtx, req)
+	}
+	d.lifecycleTaskRunner(func() {
+		_ = d.executeLifecycleTask(taskCtx, req)
+	})
+	return nil
+}
+
+func (d *Daemon) validateLifecycleTask(req remoteAPIRequest) error {
+	if d.addonLifecycle && req.Addon == nil {
+		return &stateDoesntMatchError{msg: "EKS add-on lifecycle tasks must originate from the local lifecycle intent adapter"}
+	}
+	if err := d.validateLifecycleRequestEnvelope(req); err != nil {
+		return err
+	}
+	if err := d.verifyExpectedState(req); err != nil {
+		return err
+	}
+	if req.ExpectedState.ExperimentConfig != "" {
+		return &stateDoesntMatchError{msg: "DatadogAgent lifecycle transitions require no active experiment config"}
+	}
+	return nil
+}
+
+func (d *Daemon) executeLifecycleTask(ctx context.Context, req remoteAPIRequest) error {
+	d.transitionMu.Lock()
+	defer d.transitionMu.Unlock()
+	defer d.finishLifecycleTask(req.Params.OperationID)
+
+	pending, err := d.dispatchRemoteAPIRequest(ctx, req)
+	if err != nil {
+		var stateErr *stateDoesntMatchError
+		resultState := pbgo.TaskState_ERROR
+		if errors.As(err, &stateErr) {
+			resultState = pbgo.TaskState_INVALID_STATE
+		}
+		if persistErr := d.recordAddonLifecycleResult(ctx, req, resultState, err); persistErr != nil {
+			d.requestAddonLifecycleRetry()
+			return errors.Join(err, persistErr)
+		}
+		d.taskMu.Lock()
+		d.setTaskState(req.Package, req.ID, resultState, err)
+		d.taskMu.Unlock()
+		d.emitTaskRejectedEvent(ctx, req.Params.NamespacedName, req, err.Error())
+		return err
+	}
+	if pending != nil {
+		err = fmt.Errorf("lifecycle method %s returned an asynchronous operation", req.Method)
+		if persistErr := d.recordAddonLifecycleResult(ctx, req, pbgo.TaskState_ERROR, err); persistErr != nil {
+			d.requestAddonLifecycleRetry()
+			return errors.Join(err, persistErr)
+		}
+		d.taskMu.Lock()
+		d.setTaskState(req.Package, req.ID, pbgo.TaskState_ERROR, err)
+		d.taskMu.Unlock()
+		d.emitTaskRejectedEvent(ctx, req.Params.NamespacedName, req, err.Error())
+		return err
+	}
+
+	if err := d.recordAddonLifecycleResult(ctx, req, pbgo.TaskState_DONE, nil); err != nil {
+		d.requestAddonLifecycleRetry()
+		return err
+	}
+	d.taskMu.Lock()
+	switch req.Method {
+	case methodInstallDatadogAgent:
+		d.setPackageConfigVersions(req.Package, req.Params.Version, "")
+	case methodUninstallDatadogAgent:
+		d.setPackageConfigVersions(req.Package, "", "")
+	}
+	d.setTaskState(req.Package, req.ID, pbgo.TaskState_DONE, nil)
+	d.taskMu.Unlock()
+	d.emitTaskCompletedEvent(ctx, pendingOperation{
+		taskID: req.ID,
+		intent: pendingIntent(methodLabel(req.Method)),
+		nsn:    req.Params.NamespacedName,
+	})
+	return nil
+}
+
+func (d *Daemon) finishLifecycleTask(operationID string) {
+	d.taskMu.Lock()
+	defer d.taskMu.Unlock()
+	if d.lifecycleOperationID != operationID {
+		return
+	}
+	d.lifecycleActive = false
+	d.lifecycleOperationID = ""
+	if d.lifecycleCancel != nil {
+		d.lifecycleCancel()
+		d.lifecycleCancel = nil
+	}
+	if d.lifecycleDone != nil {
+		close(d.lifecycleDone)
+		d.lifecycleDone = nil
+	}
+}
+
+func isLifecycleMethod(method string) bool {
+	return method == methodInstallDatadogAgent ||
+		method == methodUninstallDatadogAgent ||
+		method == methodVerifyDatadogAgentUninstalled ||
+		method == methodClearDatadogAgentUninstallFence
+}
+
 // handleConfigs replaces the stored installer configs with the latest RC update.
 // Configs are indexed by their ID so they can be retrieved by task handlers.
 func (d *Daemon) handleConfigs(ctx context.Context, configs map[string]installerConfig) error {
@@ -175,7 +405,7 @@ func (d *Daemon) handleConfigs(ctx context.Context, configs map[string]installer
 		newConfigs[cfg.ID] = cfg
 	}
 	d.configs = newConfigs
-	logger.V(2).Info("Updated installer configs", "configs", d.configs)
+	logger.V(2).Info("Updated installer configs", "count", len(d.configs))
 	return nil
 }
 
@@ -184,6 +414,9 @@ func (d *Daemon) getConfig(id string) (installerConfig, error) {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 	cfg, ok := d.configs[id]
+	if !ok {
+		cfg, ok = d.addonConfigs[id]
+	}
 	if !ok {
 		return installerConfig{}, fmt.Errorf("config %s not found", id)
 	}
@@ -213,21 +446,49 @@ func (d *Daemon) handleRemoteAPIRequest(ctx context.Context, req remoteAPIReques
 	logger := ctrl.LoggerFrom(ctx).WithValues("id", req.ID, "package", req.Package, "method", req.Method)
 	logger.Info("Received remote API request")
 
-	if !d.revisionsEnabled {
-		return nil, fmt.Errorf("experiment signals require the CreateControllerRevisions and DatadogAgentInternal feature gates")
-	}
-
 	if err := d.verifyExpectedState(req); err != nil {
 		logger.Error(err, "Expected state mismatch")
 		return nil, err
 	}
+	return d.dispatchRemoteAPIRequest(ctx, req)
+}
 
+func (d *Daemon) dispatchRemoteAPIRequest(ctx context.Context, req remoteAPIRequest) (*pendingOperation, error) {
 	switch req.Method {
+	case methodInstallDatadogAgent:
+		if err := d.ensureUninstallFenceInactive(ctx); err != nil {
+			return nil, err
+		}
+		return d.installDatadogAgent(ctx, req)
+	case methodUninstallDatadogAgent:
+		return d.uninstallDatadogAgent(ctx, req)
+	case methodVerifyDatadogAgentUninstalled:
+		return d.verifyDatadogAgentUninstalled(ctx, req)
+	case methodClearDatadogAgentUninstallFence:
+		return d.clearDatadogAgentUninstallFence(ctx, req)
 	case methodStartDatadogAgentExperiment:
+		if err := d.ensureUninstallFenceInactive(ctx); err != nil {
+			return nil, err
+		}
+		if !d.revisionsEnabled {
+			return nil, fmt.Errorf("experiment signals require the CreateControllerRevisions and DatadogAgentInternal feature gates")
+		}
 		return d.startDatadogAgentExperiment(ctx, req)
 	case methodStopDatadogAgentExperiment:
+		if err := d.ensureUninstallFenceInactive(ctx); err != nil {
+			return nil, err
+		}
+		if !d.revisionsEnabled {
+			return nil, fmt.Errorf("experiment signals require the CreateControllerRevisions and DatadogAgentInternal feature gates")
+		}
 		return d.stopDatadogAgentExperiment(ctx, req)
 	case methodPromoteDatadogAgentExperiment:
+		if err := d.ensureUninstallFenceInactive(ctx); err != nil {
+			return nil, err
+		}
+		if !d.revisionsEnabled {
+			return nil, fmt.Errorf("experiment signals require the CreateControllerRevisions and DatadogAgentInternal feature gates")
+		}
 		return d.promoteDatadogAgentExperiment(ctx, req)
 	default:
 		return nil, fmt.Errorf("unknown method: %s", req.Method)
@@ -246,7 +507,7 @@ func (d *Daemon) setTaskState(pkgName, taskID string, taskState pbgo.TaskState, 
 		State: taskState,
 	}
 	if taskErr != nil {
-		task.Error = &pbgo.TaskError{Message: taskErr.Error()}
+		task.Error = &pbgo.TaskError{Message: boundedTaskErrorMessage(taskErr)}
 	}
 
 	current := d.rcClient.GetInstallerState()
@@ -288,7 +549,217 @@ func (d *Daemon) setTaskState(pkgName, taskID string, taskState pbgo.TaskState, 
 // Reads go through the API reader (not the cache) because the informer
 // cache may not be populated yet at the moment Start runs.
 func (d *Daemon) rehydrateInstallerState(ctx context.Context) error {
-	if d.rcClient == nil || d.apiReader == nil {
+	if d.rcClient == nil {
+		return nil
+	}
+	if !d.lifecycleIdentity.Configured() {
+		return d.rehydrateLegacyInstallerState(ctx)
+	}
+	if d.apiReader == nil {
+		return fmt.Errorf("API reader is required to rehydrate installer state")
+	}
+	logger := ctrl.LoggerFrom(ctx)
+	recoveredFence, err := d.rehydrateUninstallFence(ctx)
+	if err != nil {
+		return fmt.Errorf("rehydrate DatadogAgent uninstall fence: %w", err)
+	}
+	ddas := &v2alpha1.DatadogAgentList{}
+	if err := d.apiReader.List(ctx, ddas); err != nil {
+		return fmt.Errorf("list DatadogAgents: %w", err)
+	}
+	if err := d.cleanupOrphanedFleetDatadogAgentInternals(ctx, ddas); err != nil {
+		return fmt.Errorf("finish orphaned Fleet DatadogAgentInternal cleanup: %w", err)
+	}
+	if recoveredFence != nil {
+		if err := d.revalidateRecoveredUninstallFence(ctx, recoveredFence); err != nil {
+			return fmt.Errorf("revalidate DatadogAgent uninstall fence during startup recovery: %w", err)
+		}
+		if len(ddas.Items) != 0 {
+			if len(ddas.Items) != 1 {
+				return &stateDoesntMatchError{msg: "multiple DatadogAgents found behind an active uninstall fence"}
+			}
+			dda := &ddas.Items[0]
+			if client.ObjectKeyFromObject(dda) != (types.NamespacedName{Namespace: fleetDatadogAgentNamespace, Name: fleetDatadogAgentName}) {
+				return &stateDoesntMatchError{msg: fmt.Sprintf("unexpected DatadogAgent %s/%s found behind an active uninstall fence", dda.Namespace, dda.Name)}
+			}
+			owned, err := classifyFleetDatadogAgentOwnership(dda)
+			if err != nil {
+				return err
+			}
+			if !owned {
+				return &stateDoesntMatchError{msg: fmt.Sprintf("DatadogAgent %s/%s behind the active uninstall fence is unmanaged", dda.Namespace, dda.Name)}
+			}
+			if err := d.validateFleetDatadogAgentInstallation(dda); err != nil {
+				return err
+			}
+			configID := dda.Labels[fleetConfigIDLabel]
+			d.setPackageConfigVersions(packageDatadogOperator, fleetPartialConfigVersionPrefix+configID, "")
+			logger.Info("Rehydrated partial installer state with an active DatadogAgent uninstall fence", "stableConfigVersion", configID)
+			return nil
+		}
+		if err := d.verifyDatadogAgentLifecycleResourcesAbsent(ctx, types.NamespacedName{Namespace: fleetDatadogAgentNamespace, Name: fleetDatadogAgentName}); err != nil {
+			return fmt.Errorf("verify fenced DatadogAgent removal during startup recovery: %w", err)
+		}
+		d.setPackageConfigVersions(packageDatadogOperator, "", "")
+		logger.Info("Rehydrated installer state with an active DatadogAgent uninstall fence")
+		return nil
+	}
+	var fleetOwned *types.NamespacedName
+	var unmanaged *types.NamespacedName
+	rehydrated := false
+	for i := range ddas.Items {
+		dda := &ddas.Items[i]
+		owned, err := classifyFleetDatadogAgentOwnershipForRehydration(dda)
+		if err != nil {
+			return err
+		}
+		if !owned {
+			if unmanaged == nil {
+				nsn := client.ObjectKeyFromObject(dda)
+				unmanaged = &nsn
+			}
+			continue
+		}
+		if err := d.validateFleetDatadogAgentInstallation(dda); err != nil {
+			return err
+		}
+		nsn := client.ObjectKeyFromObject(dda)
+		if fleetOwned != nil && *fleetOwned != nsn {
+			return fmt.Errorf(
+				"multiple Fleet-managed DatadogAgents found: %s/%s and %s/%s",
+				fleetOwned.Namespace,
+				fleetOwned.Name,
+				nsn.Namespace,
+				nsn.Name,
+			)
+		}
+		fleetOwned = &nsn
+	}
+	if fleetOwned != nil && unmanaged != nil {
+		return &stateDoesntMatchError{msg: fmt.Sprintf(
+			"Fleet-managed DatadogAgent %s/%s coexists with unmanaged DatadogAgent %s/%s",
+			fleetOwned.Namespace,
+			fleetOwned.Name,
+			unmanaged.Namespace,
+			unmanaged.Name,
+		)}
+	}
+	if fleetOwned == nil && unmanaged != nil {
+		d.setPackageConfigVersions(packageDatadogOperator, fleetUnmanagedConfigVersion, "")
+		logger.Info("Rehydrated installer state with unmanaged DatadogAgent",
+			"namespace", unmanaged.Namespace,
+			"name", unmanaged.Name,
+		)
+		return nil
+	}
+	if fleetOwned == nil {
+		var activeExperiment *types.NamespacedName
+		for i := range ddas.Items {
+			dda := &ddas.Items[i]
+			exp := dda.Status.Experiment
+			if exp == nil || exp.ID == "" || isTerminalPhase(exp.Phase) {
+				continue
+			}
+			nsn := client.ObjectKeyFromObject(dda)
+			if activeExperiment != nil && *activeExperiment != nsn {
+				return fmt.Errorf(
+					"multiple DatadogAgents with active Fleet experiments found: %s/%s and %s/%s",
+					activeExperiment.Namespace,
+					activeExperiment.Name,
+					nsn.Namespace,
+					nsn.Name,
+				)
+			}
+			activeExperiment = &nsn
+		}
+	}
+	for i := range ddas.Items {
+		dda := &ddas.Items[i]
+		if fleetOwned != nil && client.ObjectKeyFromObject(dda) != *fleetOwned {
+			continue
+		}
+		lifecycleConfigID := ""
+		if dda.Labels[fleetManagedByLabel] == fleetManagedByValue && dda.Labels[fleetConfigIDLabel] != "" {
+			lifecycleConfigID = dda.Labels[fleetConfigIDLabel]
+		}
+		stable := lifecycleConfigID
+		experiment := ""
+		experimentPhase := v2alpha1.ExperimentPhase("")
+		exp := dda.Status.Experiment
+		if lifecycleConfigID != "" {
+			if dda.Labels[fleetLifecycleStateLabel] != fleetLifecycleStateReady || dda.Annotations[fleetConfigHashAnnotation] == "" {
+				stable = fleetPartialConfigVersionPrefix + lifecycleConfigID
+			} else {
+				ready, observation, err := fleetDatadogAgentReadiness(dda, dda.UID)
+				if err != nil {
+					return fmt.Errorf("validate Fleet-managed DatadogAgent %s/%s readiness during rehydration: %w", dda.Namespace, dda.Name, err)
+				}
+				if !ready {
+					configID, markErr := d.markFleetDatadogAgentPartial(ctx, client.ObjectKeyFromObject(dda), dda.UID)
+					if markErr != nil {
+						return fmt.Errorf("mark Fleet-managed DatadogAgent %s/%s partial after readiness regression (%s): %w", dda.Namespace, dda.Name, observation, markErr)
+					}
+					stable = fleetPartialConfigVersionPrefix + configID
+				} else {
+					validateAcceptedSpec := validateFleetDatadogAgentAcceptedSpec
+					if exp != nil && (exp.Phase == v2alpha1.ExperimentPhaseRunning ||
+						(exp.Phase == v2alpha1.ExperimentPhasePromoted && lifecycleConfigID != exp.ID)) {
+						validateAcceptedSpec = validateFleetDatadogAgentAcceptedExperimentSpec
+					}
+					if err := validateAcceptedSpec(dda); err != nil {
+						if exp == nil || !isTerminalPhase(exp.Phase) {
+							return fmt.Errorf("validate Fleet-managed DatadogAgent %s/%s during rehydration: %w", dda.Namespace, dda.Name, err)
+						}
+						configID, markErr := d.markFleetDatadogAgentPartial(ctx, client.ObjectKeyFromObject(dda), dda.UID)
+						if markErr != nil {
+							return fmt.Errorf("mark Fleet-managed DatadogAgent %s/%s partial after terminal experiment drift: %w", dda.Namespace, dda.Name, markErr)
+						}
+						stable = fleetPartialConfigVersionPrefix + configID
+					}
+				}
+			}
+		}
+		if exp != nil && exp.ID != "" && !isTerminalPhase(exp.Phase) {
+			experiment = exp.ID
+			experimentPhase = exp.Phase
+		} else if exp != nil && exp.ID != "" && exp.Phase == v2alpha1.ExperimentPhasePromoted && lifecycleConfigID != "" && lifecycleConfigID != exp.ID {
+			experiment = exp.ID
+			experimentPhase = exp.Phase
+		}
+		if stable == "" && experiment == "" {
+			continue
+		}
+		if stable == "" {
+			stable, _ = d.getPackageConfigVersions(packageDatadogOperator)
+			if stable == "empty" || stable == remoteconfig.InstallerStateUnknownConfigVersion {
+				stable = ""
+			}
+		}
+		d.setPackageConfigVersions(packageDatadogOperator, stable, experiment)
+		rehydrated = true
+		logger.Info("Rehydrated installer state from DatadogAgent",
+			"namespace", dda.Namespace,
+			"name", dda.Name,
+			"stableConfigVersion", stable,
+			"experimentConfigVersion", experiment,
+		)
+		if experiment == "" {
+			continue
+		}
+		// Pass dda directly — apiReader returned a fully-populated object,
+		// and the informer cache may not be synced yet at this point so
+		// a cache-backed lookup would silently drop this event.
+		d.emitInstallerStateRehydratedEvent(ctx, dda, experiment, experimentPhase)
+	}
+	if !rehydrated {
+		d.setPackageConfigVersions(packageDatadogOperator, "", "")
+		logger.Info("Rehydrated installer state with no Fleet-managed DatadogAgent")
+	}
+	return nil
+}
+
+func (d *Daemon) rehydrateLegacyInstallerState(ctx context.Context) error {
+	if d.apiReader == nil {
 		return nil
 	}
 	logger := ctrl.LoggerFrom(ctx)
@@ -298,31 +769,27 @@ func (d *Daemon) rehydrateInstallerState(ctx context.Context) error {
 	}
 	for i := range ddas.Items {
 		dda := &ddas.Items[i]
-		exp := dda.Status.Experiment
-		if exp == nil || exp.ID == "" {
-			continue
-		}
-		if isTerminalPhase(exp.Phase) {
+		experiment := dda.Status.Experiment
+		if experiment == nil || experiment.ID == "" || isTerminalPhase(experiment.Phase) {
 			continue
 		}
 		stable, _ := d.getPackageConfigVersions(packageDatadogOperator)
-		d.setPackageConfigVersions(packageDatadogOperator, stable, exp.ID)
+		d.setPackageConfigVersions(packageDatadogOperator, stable, experiment.ID)
 		logger.Info("Rehydrated installer state from DatadogAgent",
 			"namespace", dda.Namespace,
 			"name", dda.Name,
-			"experimentID", exp.ID,
-			"phase", exp.Phase,
+			"experimentID", experiment.ID,
+			"phase", experiment.Phase,
 		)
-		// Pass dda directly — apiReader returned a fully-populated object,
-		// and the informer cache may not be synced yet at this point so
-		// a cache-backed lookup would silently drop this event.
-		d.emitInstallerStateRehydratedEvent(ctx, dda, exp.ID, exp.Phase)
+		d.emitInstallerStateRehydratedEvent(ctx, dda, experiment.ID, experiment.Phase)
 	}
 	return nil
 }
 
 // packageDatadogOperator is the RC package name the daemon reports for itself.
 const packageDatadogOperator = "datadog-operator"
+
+const fleetUnmanagedConfigVersion = "unmanaged"
 
 // getPackageConfigVersions returns the current stable and experiment config versions
 // for the given package from the RC installer state.
