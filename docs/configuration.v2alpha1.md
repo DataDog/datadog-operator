@@ -213,6 +213,7 @@ spec:
 | global.clusterAgentTokenSecret.keyName | KeyName is the key of the secret to use. |
 | global.clusterAgentTokenSecret.secretName | SecretName is the name of the secret. |
 | global.clusterName | ClusterName sets a unique cluster name for the deployment to easily scope monitoring data in the Datadog app. |
+| global.commonLabels | CommonLabels specified labels to be added to all operator-managed Kubernetes resources (DaemonSets, Deployments, ConfigMaps, Services, ServiceAccounts, etc.). This is useful when external policy tools such as Kyverno enforce the presence of specific labels on all cluster resources. Labels defined here are merged with the operator's own default labels; operator labels take precedence on any key conflict. |
 | global.containerStrategy | ContainerStrategy determines whether agents run in a single or multiple containers. Default: 'optimized' |
 | global.credentials.apiKey | APIKey configures your Datadog API key. See also: https://app.datadoghq.com/account/settings#agent/kubernetes |
 | global.credentials.apiSecret.keyName | KeyName is the key of the secret to use. |

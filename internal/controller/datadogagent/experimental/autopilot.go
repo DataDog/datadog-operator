@@ -10,6 +10,8 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/pkg/allowlistsynchronizer"
@@ -44,6 +46,7 @@ func applyExperimentalAutopilotOverrides(dda metav1.Object, _ feature.PodTemplat
 		allowlistsynchronizer.CreateAllowlistSynchronizer(
 			getExperimentalAnnotation(dda, ExperimentalAutopilotAllowlistVersionSubkey),
 			object.NewPartOfLabelValue(dda).String(),
+			commonLabelsFromObject(dda),
 		)
 	}
 }
@@ -58,5 +61,22 @@ func CreateDatadogCSIAllowlistSynchronizer(dda metav1.Object) {
 	allowlistsynchronizer.CreateCSIAllowlistSynchronizer(
 		getExperimentalAnnotation(dda, ExperimentalAutopilotCSIAllowlistVersionSubkey),
 		object.NewPartOfLabelValue(dda).String(),
+		commonLabelsFromObject(dda),
 	)
+}
+
+// commonLabelsFromObject extracts spec.global.commonLabels from a DatadogAgent
+// or DatadogAgentInternal object, returning nil for any other type.
+func commonLabelsFromObject(obj metav1.Object) map[string]string {
+	switch d := obj.(type) {
+	case *v2alpha1.DatadogAgent:
+		if d.Spec.Global != nil {
+			return d.Spec.Global.CommonLabels
+		}
+	case *v1alpha1.DatadogAgentInternal:
+		if d.Spec.Global != nil {
+			return d.Spec.Global.CommonLabels
+		}
+	}
+	return nil
 }

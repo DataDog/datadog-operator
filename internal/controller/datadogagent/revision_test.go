@@ -530,3 +530,43 @@ func TestListRevisions_ExcludesForeignOwner(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, revList, "foreign revision should be excluded by UID filter")
 }
+
+func TestEnsureRevision_CommonLabelsApplied(t *testing.T) {
+	r, c := newRevisionTestReconciler(t)
+	instance := newRevisionTestOwner("datadog", "default")
+	instance.Spec.Global = &v2alpha1.GlobalConfig{
+		CommonLabels: map[string]string{
+			"team":        "platform",
+			"cost-center": "ops",
+		},
+	}
+
+	name, err := r.ensureRevision(context.Background(), instance, mustListRevisions(t, r, instance), false)
+	require.NoError(t, err)
+
+	rev := fetchRevisionByName(t, c, "default", name)
+	assert.Equal(t, "platform", rev.Labels["team"], "extraLabel team must be on ControllerRevision")
+	assert.Equal(t, "ops", rev.Labels["cost-center"], "extraLabel cost-center must be on ControllerRevision")
+	// Operator-owned label must still be present and not overridden
+	assert.Equal(t, "datadog", rev.Labels["agent.datadoghq.com/datadogagent"])
+}
+
+func TestEnsureRevision_CommonLabels_CannotOverrideOperatorKey(t *testing.T) {
+	r, c := newRevisionTestReconciler(t)
+	instance := newRevisionTestOwner("datadog", "default")
+	instance.Spec.Global = &v2alpha1.GlobalConfig{
+		CommonLabels: map[string]string{
+			"agent.datadoghq.com/datadogagent": "override-attempt",
+			"team":                             "platform",
+		},
+	}
+
+	name, err := r.ensureRevision(context.Background(), instance, mustListRevisions(t, r, instance), false)
+	require.NoError(t, err)
+
+	rev := fetchRevisionByName(t, c, "default", name)
+	// Operator key must not be overridden
+	assert.Equal(t, "datadog", rev.Labels["agent.datadoghq.com/datadogagent"])
+	// Non-conflicting key still applied
+	assert.Equal(t, "platform", rev.Labels["team"])
+}
