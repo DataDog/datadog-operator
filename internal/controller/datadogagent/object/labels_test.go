@@ -193,4 +193,3 @@ func TestIsReservedLabelKey(t *testing.T) {
 		assert.False(t, isReservedLabelKey(k), "expected %q to not be reserved", k)
 	}
 }
-

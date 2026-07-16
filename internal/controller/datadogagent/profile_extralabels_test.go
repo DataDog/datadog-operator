@@ -34,9 +34,9 @@ func TestSetProfileSpec_CommonLabels(t *testing.T) {
 	}
 
 	tests := []struct {
-		name            string
+		name             string
 		baseCommonLabels map[string]string
-		profileConfig   *v2alpha1.DatadogAgentSpec
+		profileConfig    *v2alpha1.DatadogAgentSpec
 		wantCommonLabels map[string]string
 	}{
 		{
@@ -82,9 +82,9 @@ func TestSetProfileSpec_CommonLabels(t *testing.T) {
 			},
 		},
 		{
-			name:            "no commonLabels in base and profile — nothing set",
+			name:             "no commonLabels in base and profile — nothing set",
 			baseCommonLabels: nil,
-			profileConfig:   &v2alpha1.DatadogAgentSpec{},
+			profileConfig:    &v2alpha1.DatadogAgentSpec{},
 			wantCommonLabels: nil,
 		},
 	}

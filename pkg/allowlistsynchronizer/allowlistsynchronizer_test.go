@@ -239,7 +239,7 @@ func TestApplyAllowlistSynchronizerResource_CommonLabels_CannotOverrideOperatorK
 
 	commonLabels := map[string]string{
 		kubernetes.AppKubernetesManageByLabelKey: "my-operator", // attempt override
-		"team": "platform",
+		"team":                                   "platform",
 	}
 	require.NoError(t, applyAllowlistSynchronizerResource(c, "v1.0.5", "default-foo", commonLabels))
 
