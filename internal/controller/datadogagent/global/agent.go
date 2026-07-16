@@ -21,7 +21,11 @@ import (
 func applyNodeAgentResources(manager feature.PodTemplateManagers, ddaSpec *v2alpha1.DatadogAgentSpec, singleContainerStrategyEnabled bool) {
 	config := ddaSpec.Global
 
-	if apiutils.BoolValue(config.UseVSock) {
+	// In "full" mode, VSock communication is enabled for all Agent components. In
+	// "system-probe" mode, VSock is scoped to the CWS system-probe <=> micro VM
+	// communication only (handled by the CWS feature) and the node agent keeps using
+	// the regular TCP/unix socket transport.
+	if vsockEnabled, vsockMode := config.GetVSockConfig(); vsockEnabled && vsockMode == v2alpha1.VSockModeFull {
 		manager.EnvVar().AddEnvVar(&corev1.EnvVar{
 			Name:  DDVSockAddr,
 			Value: "host",

@@ -3845,8 +3845,27 @@
               "type": "boolean"
             },
             "useVSock": {
-              "description": "UseVSock allows the use of VSock communication between the Agent and containerized workloads.\nDefault: 'false'",
+              "description": "UseVSock allows the use of VSock communication between the Agent and containerized workloads.\nDefault: 'false'\nDeprecated: Use VSock.Enabled instead. When VSock is set, this field is ignored.",
               "type": "boolean"
+            },
+            "vsock": {
+              "additionalProperties": false,
+              "description": "VSock configures VSock communication for the Agent.",
+              "properties": {
+                "enabled": {
+                  "description": "Enabled enables VSock communication.\nDefault: 'false'",
+                  "type": "boolean"
+                },
+                "mode": {
+                  "description": "Mode controls which Agent components communicate over VSock.\n\"full\" (default): all Agent components communicate over VSock.\n\"system-probe\": only the CWS system-probe \u003c=\u003e micro VM system-probe communication uses VSock.",
+                  "enum": [
+                    "full",
+                    "system-probe"
+                  ],
+                  "type": "string"
+                }
+              },
+              "type": "object"
             }
           },
           "type": "object"

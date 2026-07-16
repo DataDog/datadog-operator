@@ -583,7 +583,13 @@ spec:
 : UseFIPSAgent enables the FIPS flavor of the Agent. If 'true', the FIPS proxy will always be disabled. Default: 'false'
 
 `global.useVSock`
-: UseVSock allows the use of VSock communication between the Agent and containerized workloads. Default: 'false'
+: UseVSock allows the use of VSock communication between the Agent and containerized workloads. Default: 'false' Deprecated: Use VSock.Enabled instead. When VSock is set, this field is ignored.
+
+`global.vsock.enabled`
+: Enables VSock communication. Default: 'false'
+
+`global.vsock.mode`
+: Controls which Agent components communicate over VSock. "full" (default): all Agent components communicate over VSock. "system-probe": only the CWS system-probe <=> micro VM system-probe communication uses VSock.
 
 `override`
 : The default configurations of the agents

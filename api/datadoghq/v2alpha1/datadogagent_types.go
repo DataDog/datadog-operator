@@ -1932,8 +1932,43 @@ type GlobalConfig struct {
 
 	// UseVSock allows the use of VSock communication between the Agent and containerized workloads.
 	// Default: 'false'
+	// Deprecated: Use VSock.Enabled instead. When VSock is set, this field is ignored.
 	// +optional
 	UseVSock *bool `json:"useVSock,omitempty"`
+
+	// VSock configures VSock communication for the Agent.
+	// +optional
+	VSock *VSockConfig `json:"vsock,omitempty"`
+}
+
+// VSockMode controls which Agent components communicate over VSock.
+// +kubebuilder:validation:Enum=full;system-probe
+type VSockMode string
+
+const (
+	// VSockModeFull enables VSock communication between the Agent and containerized workloads
+	// for all Agent components. This is the default and matches the legacy UseVSock behavior.
+	VSockModeFull VSockMode = "full"
+	// VSockModeSystemProbe scopes VSock communication to the CWS runtime-security event gRPC
+	// server only, allowing the system-probe running inside a micro VM to forward events to the
+	// host system-probe over VSock. All other Agent communications use the regular TCP/unix
+	// socket transport. This mode requires features.cws.directSendFromSystemProbe to be enabled,
+	// since the host system-probe no longer exposes the unix socket the security-agent connects to.
+	VSockModeSystemProbe VSockMode = "system-probe"
+)
+
+// VSockConfig configures VSock communication for the Agent.
+type VSockConfig struct {
+	// Enabled enables VSock communication.
+	// Default: 'false'
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// Mode controls which Agent components communicate over VSock.
+	// "full" (default): all Agent components communicate over VSock.
+	// "system-probe": only the CWS system-probe <=> micro VM system-probe communication uses VSock.
+	// +optional
+	Mode *VSockMode `json:"mode,omitempty"`
 }
 
 // DatadogCredentials is a generic structure that holds credentials to access Datadog.
