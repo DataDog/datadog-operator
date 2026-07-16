@@ -41,8 +41,6 @@ type pendingOperation struct {
 	experimentID string
 	// resultVersion is only used by promote. It becomes stable_config on success.
 	resultVersion string
-	fleetOwned    bool
-	targetUID     types.UID
 }
 
 type pendingIntent string

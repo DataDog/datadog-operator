@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"slices"
 
 	admissionv1 "k8s.io/api/admission/v1"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
@@ -242,12 +243,12 @@ func (d *Daemon) readUninstallFenceWebhookConfiguration(ctx context.Context) (*a
 }
 
 func (d *Daemon) pinUninstallFenceWebhookRevision(ctx context.Context, req *remoteAPIRequest, allowRevisionUpdate bool) (*corev1.ConfigMap, error) {
-	configuration, err := d.readUninstallFenceWebhookConfiguration(ctx)
-	if err != nil {
-		return nil, err
+	configuration, readErr := d.readUninstallFenceWebhookConfiguration(ctx)
+	if readErr != nil {
+		return nil, readErr
 	}
 	var pinned *corev1.ConfigMap
-	err = k8sretry.RetryOnConflict(k8sretry.DefaultBackoff, func() error {
+	retryErr := k8sretry.RetryOnConflict(k8sretry.DefaultBackoff, func() error {
 		fence := &corev1.ConfigMap{}
 		if err := d.managedAgentInstallationReader().Get(ctx, uninstallFenceKey, fence); err != nil {
 			return err
@@ -279,8 +280,8 @@ func (d *Daemon) pinUninstallFenceWebhookRevision(ctx context.Context, req *remo
 		pinned = fence
 		return nil
 	})
-	if err != nil {
-		return nil, err
+	if retryErr != nil {
+		return nil, retryErr
 	}
 	return pinned, nil
 }
@@ -491,9 +492,9 @@ func (d *Daemon) verifyDatadogAgentManagedAgentInstallationResourcesAbsent(ctx c
 }
 
 func (d *Daemon) clearDatadogAgentUninstallFence(ctx context.Context, req remoteAPIRequest) (*pendingOperation, error) {
-	_, err := d.resolveManagedAgentInstallationOperation(req, OperationDelete)
-	if err != nil {
-		return nil, err
+	_, resolveErr := d.resolveManagedAgentInstallationOperation(req, OperationDelete)
+	if resolveErr != nil {
+		return nil, resolveErr
 	}
 	fence := &corev1.ConfigMap{}
 	if err := d.managedAgentInstallationReader().Get(ctx, uninstallFenceKey, fence); err != nil {
@@ -509,7 +510,7 @@ func (d *Daemon) clearDatadogAgentUninstallFence(ctx context.Context, req remote
 		return nil, err
 	}
 
-	err = k8sretry.RetryOnConflict(k8sretry.DefaultBackoff, func() error {
+	retryErr := k8sretry.RetryOnConflict(k8sretry.DefaultBackoff, func() error {
 		fence := &corev1.ConfigMap{}
 		if err := d.managedAgentInstallationReader().Get(ctx, uninstallFenceKey, fence); err != nil {
 			return err
@@ -530,8 +531,8 @@ func (d *Daemon) clearDatadogAgentUninstallFence(ctx context.Context, req remote
 		}
 		return d.client.Patch(ctx, fence, client.MergeFromWithOptions(base, client.MergeFromWithOptimisticLock{}), client.FieldOwner("fleet-daemon"))
 	})
-	if err != nil {
-		return nil, err
+	if retryErr != nil {
+		return nil, retryErr
 	}
 	if err := d.setUninstallFenceWebhookMode(ctx, false); err != nil {
 		return nil, fmt.Errorf("disable uninstall fence webhook mode: %w", err)
@@ -568,10 +569,5 @@ func validateActiveUninstallFenceIdentity(fence *corev1.ConfigMap, identity remo
 }
 
 func containsOperation(values []admissionregistrationv1.OperationType, expected admissionregistrationv1.OperationType) bool {
-	for _, value := range values {
-		if value == expected {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(values, expected)
 }

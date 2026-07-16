@@ -120,8 +120,8 @@ func controllerOwnerReference(apiVersion, kind, name string, uid types.UID) meta
 func ensureUninstallFenceConfigMap(ctx context.Context, kubeClient client.Client, intent *corev1.ConfigMap) (*corev1.ConfigMap, error) {
 	wantOwner := controllerOwnerReference(corev1.SchemeGroupVersion.String(), "ConfigMap", intent.Name, intent.UID)
 	fence := &corev1.ConfigMap{}
-	err := kubeClient.Get(ctx, uninstallFenceKey, fence)
-	if apierrors.IsNotFound(err) {
+	getErr := kubeClient.Get(ctx, uninstallFenceKey, fence)
+	if apierrors.IsNotFound(getErr) {
 		fence = &corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
 				Namespace:       uninstallFenceKey.Namespace,
@@ -131,13 +131,13 @@ func ensureUninstallFenceConfigMap(ctx context.Context, kubeClient client.Client
 			},
 			Data: map[string]string{uninstallFenceStateKey: uninstallFenceStateInactive},
 		}
-		if err := kubeClient.Create(ctx, fence, client.FieldOwner("fleet-daemon")); err != nil {
-			return nil, fmt.Errorf("create uninstall fence ConfigMap: %w", err)
+		if createErr := kubeClient.Create(ctx, fence, client.FieldOwner("fleet-daemon")); createErr != nil {
+			return nil, fmt.Errorf("create uninstall fence ConfigMap: %w", createErr)
 		}
 		return fence, nil
 	}
-	if err != nil {
-		return nil, fmt.Errorf("read uninstall fence ConfigMap: %w", err)
+	if getErr != nil {
+		return nil, fmt.Errorf("read uninstall fence ConfigMap: %w", getErr)
 	}
 	if err := requireManagedAgentInstallationResourceOwner(fence.OwnerReferences, wantOwner); err != nil {
 		return nil, fmt.Errorf("validate uninstall fence ConfigMap ownership: %w", err)
@@ -148,9 +148,9 @@ func ensureUninstallFenceConfigMap(ctx context.Context, kubeClient client.Client
 func ensureUninstallFenceWebhookCertificate(ctx context.Context, kubeClient client.Client, namespace string, anchor *corev1.ConfigMap, now time.Time) (*uninstallFenceWebhookCertificate, error) {
 	wantOwner := controllerOwnerReference(corev1.SchemeGroupVersion.String(), "ConfigMap", anchor.Name, anchor.UID)
 	secret := &corev1.Secret{}
-	err := kubeClient.Get(ctx, types.NamespacedName{Namespace: namespace, Name: uninstallFenceWebhookTLSSecretName}, secret)
-	secretExists := err == nil
-	if err == nil {
+	getErr := kubeClient.Get(ctx, types.NamespacedName{Namespace: namespace, Name: uninstallFenceWebhookTLSSecretName}, secret)
+	secretExists := getErr == nil
+	if getErr == nil {
 		if err := requireManagedAgentInstallationResourceOwner(secret.OwnerReferences, wantOwner); err != nil {
 			return nil, fmt.Errorf("validate managed Agent installation webhook TLS Secret ownership: %w", err)
 		}
@@ -159,13 +159,13 @@ func ensureUninstallFenceWebhookCertificate(ctx context.Context, kubeClient clie
 			return certificate, nil
 		}
 	}
-	if err != nil && !apierrors.IsNotFound(err) {
-		return nil, fmt.Errorf("read managed Agent installation webhook TLS Secret: %w", err)
+	if getErr != nil && !apierrors.IsNotFound(getErr) {
+		return nil, fmt.Errorf("read managed Agent installation webhook TLS Secret: %w", getErr)
 	}
 
-	certificate, err := generateUninstallFenceWebhookCertificate(namespace, now)
-	if err != nil {
-		return nil, err
+	certificate, certificateErr := generateUninstallFenceWebhookCertificate(namespace, now)
+	if certificateErr != nil {
+		return nil, certificateErr
 	}
 	if !secretExists {
 		secret = &corev1.Secret{

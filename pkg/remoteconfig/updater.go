@@ -374,8 +374,7 @@ func (r *RemoteConfigUpdater) managedAgentInstallationReadinessTags(ctx context.
 	if acknowledgedOperationID == "" {
 		return nil, nil
 	}
-	parsed, err := uuid.Parse(acknowledgedOperationID)
-	if err != nil || parsed == uuid.Nil || parsed.String() != acknowledgedOperationID {
+	if !isCanonicalNonZeroUUID(acknowledgedOperationID) {
 		return nil, nil
 	}
 	if intent.InstallationID != r.managedAgentInstallationIdentity.InstallationID ||
@@ -400,6 +399,11 @@ func (r *RemoteConfigUpdater) managedAgentInstallationReadinessTags(ctx context.
 		"managed_agent_installation_ack:" + acknowledgedOperationID,
 		"operator_config_updates:ready",
 	}, nil
+}
+
+func isCanonicalNonZeroUUID(value string) bool {
+	parsed, err := uuid.Parse(value)
+	return err == nil && parsed != uuid.Nil && parsed.String() == value
 }
 
 // configureService fills the configuration needed to start the rc service

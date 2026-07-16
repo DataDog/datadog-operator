@@ -189,7 +189,7 @@ func (d *Daemon) runManagedAgentInstallationIntentWorker(ctx context.Context) {
 	for {
 		if pending == nil {
 			if reload {
-				snapshot, err := d.readCurrentManagedAgentInstallationIntent(ctx)
+				currentSnapshot, err := d.readCurrentManagedAgentInstallationIntent(ctx)
 				if err != nil {
 					logger.Error(err, "Failed to reload EKS add-on managed Agent installation intent")
 					timer := time.NewTimer(managedAgentInstallationRetryInterval)
@@ -197,15 +197,15 @@ func (d *Daemon) runManagedAgentInstallationIntentWorker(ctx context.Context) {
 					case <-ctx.Done():
 						timer.Stop()
 						return
-					case snapshot := <-d.managedAgentInstallationUpdates:
+					case updatedSnapshot := <-d.managedAgentInstallationUpdates:
 						timer.Stop()
-						pending = &snapshot
+						pending = &updatedSnapshot
 						reload = false
 					case <-timer.C:
 					}
 					continue
 				}
-				pending = &snapshot
+				pending = &currentSnapshot
 				reload = false
 			} else {
 				select {
@@ -268,18 +268,18 @@ func (d *Daemon) requestManagedAgentInstallationRetry() {
 }
 
 func (d *Daemon) handleManagedAgentInstallationIntent(ctx context.Context, snapshot managedAgentInstallationIntentSnapshot) error {
-	intent, config, digest, err := decodeManagedAgentInstallationIntent(snapshot.raw, d.managedAgentInstallationIdentity)
-	if err != nil {
-		return err
+	intent, config, digest, decodeErr := decodeManagedAgentInstallationIntent(snapshot.raw, d.managedAgentInstallationIdentity)
+	if decodeErr != nil {
+		return decodeErr
 	}
 	if err := d.refreshManagedAgentInstallationUpdaterTags(ctx); err != nil {
 		return err
 	}
 	configID := intent.OperationID
 
-	current, err := d.readManagedAgentInstallationState(ctx)
-	if err != nil {
-		return err
+	current, stateErr := d.readManagedAgentInstallationState(ctx)
+	if stateErr != nil {
+		return stateErr
 	}
 	if err := validateManagedAgentInstallationProgress(current, intent, digest); err != nil {
 		d.taskMu.Lock()
@@ -299,9 +299,9 @@ func (d *Daemon) handleManagedAgentInstallationIntent(ctx context.Context, snaps
 	if err := d.waitForManagedAgentInstallationSlot(ctx, intent); err != nil {
 		return err
 	}
-	current, err = d.readManagedAgentInstallationState(ctx)
-	if err != nil {
-		return err
+	current, stateErr = d.readManagedAgentInstallationState(ctx)
+	if stateErr != nil {
+		return stateErr
 	}
 	if err := validateManagedAgentInstallationProgress(current, intent, digest); err != nil {
 		return err
@@ -630,8 +630,8 @@ func (d *Daemon) writeManagedAgentInstallationResult(ctx context.Context, state 
 func (d *Daemon) writeManagedAgentInstallationStateForOperation(ctx context.Context, state managedAgentInstallationPersistedState, expectedOperationID string) error {
 	return k8sretry.RetryOnConflict(k8sretry.DefaultBackoff, func() error {
 		current := &corev1.ConfigMap{}
-		err := d.client.Get(ctx, managedAgentInstallationStateKey, current)
-		if apierrors.IsNotFound(err) {
+		getErr := d.client.Get(ctx, managedAgentInstallationStateKey, current)
+		if apierrors.IsNotFound(getErr) {
 			if expectedOperationID != "" {
 				return fmt.Errorf("EKS add-on managed Agent installation state is missing for operation %s", expectedOperationID)
 			}
@@ -653,8 +653,8 @@ func (d *Daemon) writeManagedAgentInstallationStateForOperation(ctx context.Cont
 				Data: managedAgentInstallationStateData(state),
 			}, client.FieldOwner("fleet-daemon"))
 		}
-		if err != nil {
-			return err
+		if getErr != nil {
+			return getErr
 		}
 		if err := d.validateManagedAgentInstallationStateOwner(ctx, current); err != nil {
 			return err
