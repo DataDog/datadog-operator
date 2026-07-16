@@ -149,10 +149,10 @@ func (r *Reconciler) reconcileV2Agent(ctx context.Context, requiredComponents fe
 	// Provider capabilities are applied immediately after each feature's ManageNodeAgent
 	// so that each feature owns its provider correctness independently.
 	for _, feat := range features {
-		// On the Windows provider path, only allowlisted features run their node-agent hooks;
-		// the rest (eBPF/system-probe, etc.) are gated out so they don't inject config the
-		// Windows agent can't use. The subsequent strip is the safety net for what slips through.
-		if windowsProfile && !windowsSupportedFeatures[feat.ID()] {
+		// On the Windows provider path, features the support matrix marks Excluded do not run
+		// their node-agent hooks; they'd inject config the Windows agent can't use
+		// (eBPF/system-probe, etc.). The subsequent strip is the safety net for what slips through.
+		if windowsProfile && feature.FeatureSupportLevel(provider, feat.ID()) == feature.Excluded {
 			continue
 		}
 		if singleContainerStrategyEnabled {

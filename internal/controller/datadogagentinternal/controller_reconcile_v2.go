@@ -7,8 +7,11 @@ package datadogagentinternal
 
 import (
 	"context"
+	"fmt"
 	"time"
 
+	"github.com/go-logr/logr"
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -56,9 +59,16 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, instance *v1alpha1
 	newStatus := instance.Status.DeepCopy()
 	now := metav1.NewTime(time.Now())
 
-	configuredFeatures, enabledFeatures, requiredComponents := feature.BuildFeatures(instance, &instance.Spec, instance.Status.RemoteConfigConfiguration, reconcilerOptionsToFeatureOptions(ctx, r.apiReader))
+	configuredFeatures, enabledFeatures, requiredComponents, unsupportedFeatures := feature.BuildFeatures(instance, &instance.Spec, instance.Status.RemoteConfigConfiguration, reconcilerOptionsToFeatureOptions(ctx, r.apiReader))
 	// update list of enabled features for metrics forwarder
 	r.updateMetricsForwardersFeatures(instance, enabledFeatures)
+
+	// Provider-support gate. An enabled feature the provider rejects blocks the whole reconcile
+	// (mirrors Helm's install-time fail) before any dependency/resource is created; a degraded
+	// feature only warns. Evaluated on the verdict BuildFeatures returned.
+	if r.providerSupportBlocks(logger, instance, unsupportedFeatures, newStatus, now) {
+		return r.updateStatusIfNeededV2(ctx, instance, newStatus, reconcile.Result{}, nil, now)
+	}
 
 	// 1. Manage dependencies.
 	// set the original DDAI as the owner of dependencies
@@ -128,6 +138,44 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, instance *v1alpha1
 		result.RequeueAfter = defaultRequeuePeriod
 	}
 	return r.updateStatusIfNeededV2(ctx, instance, newStatus, result, err, now)
+}
+
+// providerSupportBlocks acts on the provider-support verdict returned by BuildFeatures. Features
+// the provider Rejects block the whole reconcile (a FeatureNotSupportedOnProvider condition +
+// warning event are set, and true is returned). Degraded features emit a warning event but do not
+// block. When nothing is rejected, any prior FeatureNotSupportedOnProvider condition is cleared to
+// False. Each event is mirrored to the operator log (k8s events are namespace-scoped and easy to
+// miss).
+func (r *Reconciler) providerSupportBlocks(logger logr.Logger, instance *v1alpha1.DatadogAgentInternal, results []feature.ProviderSupportResult, newStatus *v1alpha1.DatadogAgentInternalStatus, now metav1.Time) bool {
+	provider := instance.GetAnnotations()[kubernetes.ProviderAnnotationKey]
+
+	var rejected, degraded []string
+	for _, res := range results {
+		switch res.Level {
+		case feature.Rejected:
+			rejected = append(rejected, string(res.ID))
+		case feature.Degraded:
+			degraded = append(degraded, string(res.ID))
+		}
+	}
+
+	for _, id := range degraded {
+		msg := fmt.Sprintf("Feature %q is not fully supported on provider %q; reconciling anyway", id, provider)
+		logger.Info(msg, "feature", id, "provider", provider, "supportLevel", "degraded")
+		r.recorder.Event(instance, corev1.EventTypeWarning, "FeatureDegradedOnProvider", msg)
+	}
+
+	if len(rejected) > 0 {
+		msg := fmt.Sprintf("Features %v are not supported on provider %q; blocking reconcile", rejected, provider)
+		err := fmt.Errorf("provider %q does not support features %v", provider, rejected)
+		logger.Error(err, msg, "features", rejected, "provider", provider, "supportLevel", "rejected")
+		r.recorder.Event(instance, corev1.EventTypeWarning, "FeatureNotSupportedOnProvider", msg)
+		condition.UpdateDatadogAgentInternalStatusConditions(newStatus, now, common.FeatureNotSupportedOnProviderConditionType, metav1.ConditionTrue, "FeatureNotSupportedOnProvider", msg, false)
+		return true
+	}
+
+	condition.UpdateDatadogAgentInternalStatusConditions(newStatus, now, common.FeatureNotSupportedOnProviderConditionType, metav1.ConditionFalse, "AllFeaturesSupportedOnProvider", "All enabled features are supported on the provider", false)
+	return false
 }
 
 func (r *Reconciler) updateStatusIfNeededV2(ctx context.Context, agentdeployment *v1alpha1.DatadogAgentInternal, newStatus *v1alpha1.DatadogAgentInternalStatus, result reconcile.Result, currentError error, now metav1.Time) (reconcile.Result, error) {
