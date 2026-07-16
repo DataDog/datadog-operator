@@ -93,40 +93,50 @@ func resolveWorkloadAllowlistVersionWithDefault(version, defaultVersion string) 
 	return version
 }
 
-func applyAllowlistSynchronizerResource(k8sClient client.Client, version, partOfLabel string) error {
+func applyAllowlistSynchronizerResource(k8sClient client.Client, version, partOfLabel string, commonLabels map[string]string) error {
 	return applyAllowlistSynchronizerResourceForPath(
 		k8sClient,
 		agentAllowlistSynchronizerName,
 		agentAllowlistAppNameLabel,
 		fmt.Sprintf("Datadog/datadog/datadog-datadog-daemonset-exemption-%s.yaml", version),
 		partOfLabel,
+		commonLabels,
 	)
 }
 
-func applyCSIAllowlistSynchronizerResource(k8sClient client.Client, version, partOfLabel string) error {
+func applyCSIAllowlistSynchronizerResource(k8sClient client.Client, version, partOfLabel string, commonLabels map[string]string) error {
 	return applyAllowlistSynchronizerResourceForPath(
 		k8sClient,
 		csiAllowlistSynchronizerName,
 		csiAllowlistAppNameLabel,
 		fmt.Sprintf("Datadog/datadog-csi-driver/datadog-datadog-csi-driver-daemonset-exemption-%s.yaml", version),
 		partOfLabel,
+		commonLabels,
 	)
 }
 
-func applyAllowlistSynchronizerResourceForPath(k8sClient client.Client, name, appNameLabel, allowlistPath, partOfLabel string) error {
+func applyAllowlistSynchronizerResourceForPath(k8sClient client.Client, name, appNameLabel, allowlistPath, partOfLabel string, commonLabels map[string]string) error {
+	labels := map[string]string{
+		"app.kubernetes.io/created-by":           "datadog-operator",
+		kubernetes.AppKubernetesManageByLabelKey: "datadog-operator",
+		kubernetes.AppKubernetesNameLabelKey:     appNameLabel,
+		kubernetes.AppKubernetesPartOfLabelKey:   partOfLabel,
+	}
+	// Merge commonLabels from spec.global.commonLabels. Operator-owned keys
+	// already present in labels win on conflicts.
+	for k, v := range commonLabels {
+		if _, exists := labels[k]; !exists {
+			labels[k] = v
+		}
+	}
 	obj := &AllowlistSynchronizer{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: SchemeGroupVersion.String(),
 			Kind:       "AllowlistSynchronizer",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: name,
-			Labels: map[string]string{
-				"app.kubernetes.io/created-by":           "datadog-operator",
-				kubernetes.AppKubernetesManageByLabelKey: "datadog-operator",
-				kubernetes.AppKubernetesNameLabelKey:     appNameLabel,
-				kubernetes.AppKubernetesPartOfLabelKey:   partOfLabel,
-			},
+			Name:   name,
+			Labels: labels,
 		},
 		Spec: AllowlistSynchronizerSpec{
 			AllowlistPaths: []string{
@@ -151,10 +161,14 @@ func applyAllowlistSynchronizerResourceForPath(k8sClient client.Client, name, ap
 // version selects the WorkloadAllowlist YAML to point at. Pass an empty string
 // to use DefaultWorkloadAllowlistVersion. Malformed versions also fall back to
 // the default.
-func CreateAllowlistSynchronizer(version, partOfLabel string) {
+//
+// commonLabels are merged into the AllowlistSynchronizer ObjectMeta labels so
+// that required-label admission policies (e.g. Kyverno) do not reject the
+// create/patch. Operator-owned keys take precedence on conflicts.
+func CreateAllowlistSynchronizer(version, partOfLabel string, commonLabels map[string]string) {
 	resolvedVersion := resolveWorkloadAllowlistVersion(version)
 
-	createAllowlistSynchronizer(resolvedVersion, partOfLabel, applyAllowlistSynchronizerResource)
+	createAllowlistSynchronizer(resolvedVersion, partOfLabel, commonLabels, applyAllowlistSynchronizerResource)
 }
 
 // CreateCSIAllowlistSynchronizer creates a GKE AllowlistSynchronizer Custom Resource (auto.gke.io/v1)
@@ -163,13 +177,17 @@ func CreateAllowlistSynchronizer(version, partOfLabel string) {
 // version selects the Datadog CSI driver WorkloadAllowlist YAML to point at.
 // Pass an empty string to use DefaultCSIWorkloadAllowlistVersion. Malformed
 // versions also fall back to the default.
-func CreateCSIAllowlistSynchronizer(version, partOfLabel string) {
+//
+// commonLabels are merged into the AllowlistSynchronizer ObjectMeta labels so
+// that required-label admission policies (e.g. Kyverno) do not reject the
+// create/patch. Operator-owned keys take precedence on conflicts.
+func CreateCSIAllowlistSynchronizer(version, partOfLabel string, commonLabels map[string]string) {
 	resolvedVersion := resolveCSIWorkloadAllowlistVersion(version)
 
-	createAllowlistSynchronizer(resolvedVersion, partOfLabel, applyCSIAllowlistSynchronizerResource)
+	createAllowlistSynchronizer(resolvedVersion, partOfLabel, commonLabels, applyCSIAllowlistSynchronizerResource)
 }
 
-func createAllowlistSynchronizer(version, partOfLabel string, applyFunc func(client.Client, string, string) error) {
+func createAllowlistSynchronizer(version, partOfLabel string, commonLabels map[string]string, applyFunc func(client.Client, string, string, map[string]string) error) {
 	cfg, configErr := config.GetConfig()
 	if configErr != nil {
 		logger.Error(configErr, "failed to load kubeconfig")
@@ -188,7 +206,7 @@ func createAllowlistSynchronizer(version, partOfLabel string, applyFunc func(cli
 		return
 	}
 
-	if err := applyFunc(k8sClient, version, partOfLabel); err != nil {
+	if err := applyFunc(k8sClient, version, partOfLabel, commonLabels); err != nil {
 		logger.Error(err, "failed to apply AllowlistSynchronizer resource")
 		return
 	}
