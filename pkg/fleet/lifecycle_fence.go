@@ -559,7 +559,7 @@ func validateActiveUninstallFenceIdentity(fence *corev1.ConfigMap, identity remo
 	}
 	if !identity.Configured() || identity.Validate() != nil ||
 		fence.Data[uninstallFenceInstallationIDKey] != identity.InstallationID {
-		return &stateDoesntMatchError{msg: "active DatadogAgent uninstall fence belongs to a different EKS installation"}
+		return &stateDoesntMatchError{msg: "active DatadogAgent uninstall fence belongs to a different managed installation"}
 	}
 	if fence.Data[uninstallFenceOperationIDKey] == "" || fence.Data[uninstallFenceConfigIDKey] == "" || fence.Data[uninstallFenceTaskIDKey] == "" {
 		return &stateDoesntMatchError{msg: "active DatadogAgent uninstall fence is missing operation identity"}

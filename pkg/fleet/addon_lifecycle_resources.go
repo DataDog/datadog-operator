@@ -59,12 +59,11 @@ func (d *Daemon) addonLifecycleWindowsProfile(dda *v2alpha1.DatadogAgent) *v1alp
 			Namespace: addonLifecycleWindowsProfileKey.Namespace,
 			Name:      addonLifecycleWindowsProfileKey.Name,
 			Labels: map[string]string{
-				fleetManagedByLabel:         fleetManagedByValue,
-				fleetEKSInstallationIDLabel: d.lifecycleIdentity.InstallationID,
-				fleetEKSARNLabelIDLabel:     d.lifecycleIdentity.ARNLabelID(),
+				fleetManagedByLabel:      fleetManagedByValue,
+				fleetInstallationIDLabel: d.lifecycleIdentity.InstallationID,
+				fleetTargetIDLabel:       d.lifecycleIdentity.TargetID(),
 			},
 			Annotations: map[string]string{
-				fleetEKSARNHashAnnotation:        d.lifecycleIdentity.EKSARNHash,
 				kubernetes.ProviderAnnotationKey: kubernetes.WindowsProvider,
 			},
 			OwnerReferences: []metav1.OwnerReference{controllerOwnerReference(
@@ -89,9 +88,8 @@ func (d *Daemon) validateAddonLifecycleWindowsProfile(profile *v1alpha1.DatadogA
 		return &stateDoesntMatchError{msg: fmt.Sprintf("Windows DatadogAgentProfile %s/%s is terminating", profile.Namespace, profile.Name)}
 	}
 	if profile.Labels[fleetManagedByLabel] != fleetManagedByValue ||
-		profile.Labels[fleetEKSInstallationIDLabel] != d.lifecycleIdentity.InstallationID ||
-		profile.Labels[fleetEKSARNLabelIDLabel] != d.lifecycleIdentity.ARNLabelID() ||
-		profile.Annotations[fleetEKSARNHashAnnotation] != d.lifecycleIdentity.EKSARNHash {
+		profile.Labels[fleetInstallationIDLabel] != d.lifecycleIdentity.InstallationID ||
+		profile.Labels[fleetTargetIDLabel] != d.lifecycleIdentity.TargetID() {
 		return &stateDoesntMatchError{msg: fmt.Sprintf("Windows DatadogAgentProfile %s/%s has invalid lifecycle ownership", profile.Namespace, profile.Name)}
 	}
 	if err := requireAddonLifecycleWindowsProfileOwner(profile.OwnerReferences, wanted.OwnerReferences[0], dda.UID != ""); err != nil {

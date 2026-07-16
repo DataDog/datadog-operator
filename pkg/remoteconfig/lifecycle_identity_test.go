@@ -15,7 +15,7 @@ import (
 
 var validLifecycleIdentity = LifecycleIdentity{
 	InstallationID: "123e4567-e89b-42d3-a456-426614174000",
-	EKSARNHash:     "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+	TargetHash:     "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
 }
 
 func TestLifecycleIdentityFromEnvironment(t *testing.T) {
@@ -25,7 +25,7 @@ func TestLifecycleIdentityFromEnvironment(t *testing.T) {
 	require.NoError(t, err)
 	assert.False(t, identity.Configured())
 
-	t.Setenv(lifecycleEKSARNHashEnv, validLifecycleIdentity.EKSARNHash)
+	t.Setenv(lifecycleEKSARNHashEnv, validLifecycleIdentity.TargetHash)
 	_, err = LifecycleIdentityFromEnvironment()
 	require.Error(t, err)
 	require.NoError(t, os.Unsetenv(lifecycleEKSARNHashEnv))
@@ -34,7 +34,7 @@ func TestLifecycleIdentityFromEnvironment(t *testing.T) {
 	_, err = LifecycleIdentityFromEnvironment()
 	require.Error(t, err)
 
-	t.Setenv(lifecycleEKSARNHashEnv, validLifecycleIdentity.EKSARNHash)
+	t.Setenv(lifecycleEKSARNHashEnv, validLifecycleIdentity.TargetHash)
 	identity, err = LifecycleIdentityFromEnvironment()
 	require.NoError(t, err)
 	assert.Equal(t, validLifecycleIdentity, identity)
@@ -57,15 +57,15 @@ func TestLifecycleIdentityUpdaterTags(t *testing.T) {
 	assert.Nil(t, (LifecycleIdentity{}).UpdaterTags())
 	assert.Equal(t, []string{
 		"eks_installation_id:" + validLifecycleIdentity.InstallationID,
-		"eks_arn_sha256:" + validLifecycleIdentity.EKSARNHash,
+		"eks_arn_sha256:" + validLifecycleIdentity.TargetHash,
 		lifecycleCapabilityTag,
 	}, validLifecycleIdentity.UpdaterTags())
 }
 
-func TestLifecycleIdentityARNLabelID(t *testing.T) {
-	assert.Equal(t, "aerukz4jvpg66ajdivtytk6n54asgrlhrgv433ybencwpcnlzxxq", validLifecycleIdentity.ARNLabelID())
-	assert.Len(t, validLifecycleIdentity.ARNLabelID(), 52)
-	assert.Empty(t, (LifecycleIdentity{EKSARNHash: "invalid"}).ARNLabelID())
+func TestLifecycleIdentityTargetID(t *testing.T) {
+	assert.Equal(t, "aerukz4jvpg66ajdivtytk6n54asgrlhrgv433ybencwpcnlzxxq", validLifecycleIdentity.TargetID())
+	assert.Len(t, validLifecycleIdentity.TargetID(), 52)
+	assert.Empty(t, (LifecycleIdentity{TargetHash: "invalid"}).TargetID())
 }
 
 func clearLifecycleIdentityEnvironment(t *testing.T) {

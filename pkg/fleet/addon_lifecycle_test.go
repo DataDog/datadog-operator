@@ -65,7 +65,7 @@ func TestDecodeAddonLifecycleIntent(t *testing.T) {
 }
 
 func TestDecodeAddonLifecycleIntentRejectsUnsafeInput(t *testing.T) {
-	valid := fmt.Sprintf(`{"version":"v1","installationID":"%s","eksARNSHA256":"%s","operationID":"%s","desiredState":"installed","bootstrap":{"clusterName":"test-cluster","site":"datadoghq.com"}}`, testLifecycleIdentity.InstallationID, testLifecycleIdentity.EKSARNHash, testAddonInstallOperationID)
+	valid := fmt.Sprintf(`{"version":"v1","installationID":"%s","eksARNSHA256":"%s","operationID":"%s","desiredState":"installed","bootstrap":{"clusterName":"test-cluster","site":"datadoghq.com"}}`, testLifecycleIdentity.InstallationID, testLifecycleIdentity.TargetHash, testAddonInstallOperationID)
 	tests := []struct {
 		name string
 		raw  []byte
@@ -84,7 +84,7 @@ func TestDecodeAddonLifecycleIntentRejectsUnsafeInput(t *testing.T) {
 		},
 		{
 			name: "mismatched EKS ARN",
-			raw:  []byte(strings.Replace(valid, testLifecycleIdentity.EKSARNHash, strings.Repeat("f", 64), 1)),
+			raw:  []byte(strings.Replace(valid, testLifecycleIdentity.TargetHash, strings.Repeat("f", 64), 1)),
 		},
 		{
 			name: "topology input",
@@ -124,13 +124,15 @@ func TestAddonLifecycleIntentInstallAndUninstall(t *testing.T) {
 	dda := &v2alpha1.DatadogAgent{}
 	require.NoError(t, kubeClient.Get(ctx, testDDANSN, dda))
 	assert.Equal(t, testAddonInstallOperationID, dda.Labels[fleetConfigIDLabel])
-	assert.Equal(t, testLifecycleIdentity.ARNLabelID(), dda.Labels[fleetEKSARNLabelIDLabel])
-	assert.Equal(t, testLifecycleIdentity.EKSARNHash, dda.Annotations[fleetEKSARNHashAnnotation])
+	assert.Equal(t, testLifecycleIdentity.InstallationID, dda.Labels[fleetInstallationIDLabel])
+	assert.Equal(t, testLifecycleIdentity.TargetID(), dda.Labels[fleetTargetIDLabel])
 	assert.Equal(t, testAddonInstallOperationID, rcClient.state[0].GetTask().GetId())
 	assert.Equal(t, pbgo.TaskState_DONE, rcClient.state[0].GetTask().GetState())
 	assert.Equal(t, testAddonInstallOperationID, rcClient.state[0].GetStableConfigVersion())
 	profile := &v1alpha1.DatadogAgentProfile{}
 	require.NoError(t, kubeClient.Get(ctx, addonLifecycleWindowsProfileKey, profile))
+	assert.Equal(t, testLifecycleIdentity.InstallationID, profile.Labels[fleetInstallationIDLabel])
+	assert.Equal(t, testLifecycleIdentity.TargetID(), profile.Labels[fleetTargetIDLabel])
 
 	acknowledge := addonLifecycleIntentSnapshot{raw: testAddonLifecycleIntent(
 		t,
@@ -296,7 +298,7 @@ func TestAddonLifecycleResultCannotOverwriteNewerOperation(t *testing.T) {
 	putAddonLifecycleIntentConfigMap(t, kubeClient, uninstallRaw)
 	require.NoError(t, daemon.writeAddonLifecycleState(ctx, addonLifecyclePersistedState{
 		InstallationID: testLifecycleIdentity.InstallationID,
-		EKSARNHash:     testLifecycleIdentity.EKSARNHash,
+		TargetHash:     testLifecycleIdentity.TargetHash,
 		OperationID:    testAddonUninstallOperationID,
 		Digest:         strings.Repeat("b", 64),
 		DesiredState:   addonLifecycleDesiredStateAbsent,
@@ -308,7 +310,7 @@ func TestAddonLifecycleResultCannotOverwriteNewerOperation(t *testing.T) {
 	oldRequest := daemon.newAddonLifecycleRequest(addonLifecycleIntent{
 		Version:        addonLifecycleVersion,
 		InstallationID: testLifecycleIdentity.InstallationID,
-		EKSARNHash:     testLifecycleIdentity.EKSARNHash,
+		TargetHash:     testLifecycleIdentity.TargetHash,
 		OperationID:    testAddonInstallOperationID,
 		DesiredState:   addonLifecycleDesiredStateInstalled,
 		Bootstrap:      addonLifecycleBootstrap{ClusterName: "test-cluster", Site: "datadoghq.com"},
@@ -326,13 +328,13 @@ func TestValidateAddonLifecycleProgress(t *testing.T) {
 	install := addonLifecycleIntent{
 		Version:        addonLifecycleVersion,
 		InstallationID: testLifecycleIdentity.InstallationID,
-		EKSARNHash:     testLifecycleIdentity.EKSARNHash,
+		TargetHash:     testLifecycleIdentity.TargetHash,
 		OperationID:    testAddonInstallOperationID,
 		DesiredState:   addonLifecycleDesiredStateInstalled,
 	}
 	current := &addonLifecyclePersistedState{
 		InstallationID: testLifecycleIdentity.InstallationID,
-		EKSARNHash:     testLifecycleIdentity.EKSARNHash,
+		TargetHash:     testLifecycleIdentity.TargetHash,
 		OperationID:    testAddonInstallOperationID,
 		Digest:         "install-digest",
 		DesiredState:   addonLifecycleDesiredStateInstalled,
@@ -352,7 +354,7 @@ func TestValidateAddonLifecycleProgress(t *testing.T) {
 	uninstall := addonLifecycleIntent{
 		Version:                 addonLifecycleVersion,
 		InstallationID:          testLifecycleIdentity.InstallationID,
-		EKSARNHash:              testLifecycleIdentity.EKSARNHash,
+		TargetHash:              testLifecycleIdentity.TargetHash,
 		OperationID:             testAddonUninstallOperationID,
 		DesiredState:            addonLifecycleDesiredStateAbsent,
 		AcknowledgedOperationID: testAddonInstallOperationID,
@@ -425,7 +427,7 @@ func TestReadAddonLifecycleStateRejectsForeignOwnership(t *testing.T) {
 	}}
 	state := addonLifecycleStateData(addonLifecyclePersistedState{
 		InstallationID: testLifecycleIdentity.InstallationID,
-		EKSARNHash:     testLifecycleIdentity.EKSARNHash,
+		TargetHash:     testLifecycleIdentity.TargetHash,
 		OperationID:    testAddonInstallOperationID,
 		Digest:         strings.Repeat("a", 64),
 		DesiredState:   addonLifecycleDesiredStateInstalled,
@@ -459,7 +461,7 @@ func TestRehydrateAddonLifecycleStateRestoresAcknowledgedTask(t *testing.T) {
 	))
 	require.NoError(t, d.writeAddonLifecycleState(context.Background(), addonLifecyclePersistedState{
 		InstallationID:          testLifecycleIdentity.InstallationID,
-		EKSARNHash:              testLifecycleIdentity.EKSARNHash,
+		TargetHash:              testLifecycleIdentity.TargetHash,
 		OperationID:             testAddonInstallOperationID,
 		Digest:                  strings.Repeat("a", 64),
 		DesiredState:            addonLifecycleDesiredStateInstalled,
@@ -483,7 +485,7 @@ func testAddonLifecycleIntent(t *testing.T, operationID string, desiredState add
 	payload := addonLifecycleIntent{
 		Version:        addonLifecycleVersion,
 		InstallationID: testLifecycleIdentity.InstallationID,
-		EKSARNHash:     testLifecycleIdentity.EKSARNHash,
+		TargetHash:     testLifecycleIdentity.TargetHash,
 		OperationID:    operationID,
 		DesiredState:   desiredState,
 		Bootstrap: addonLifecycleBootstrap{

@@ -78,7 +78,7 @@ type addonLifecycleBootstrap struct {
 type addonLifecycleIntent struct {
 	Version                 string                     `json:"version"`
 	InstallationID          string                     `json:"installationID"`
-	EKSARNHash              string                     `json:"eksARNSHA256"`
+	TargetHash              string                     `json:"eksARNSHA256"`
 	OperationID             string                     `json:"operationID"`
 	DesiredState            addonLifecycleDesiredState `json:"desiredState"`
 	AcknowledgedOperationID string                     `json:"acknowledgedOperationID,omitempty"`
@@ -88,7 +88,7 @@ type addonLifecycleIntent struct {
 type normalizedAddonLifecycleIntent struct {
 	Version        string                     `json:"version"`
 	InstallationID string                     `json:"installationID"`
-	EKSARNHash     string                     `json:"eksARNSHA256"`
+	TargetHash     string                     `json:"eksARNSHA256"`
 	OperationID    string                     `json:"operationID"`
 	DesiredState   addonLifecycleDesiredState `json:"desiredState"`
 	Bootstrap      addonLifecycleBootstrap    `json:"bootstrap"`
@@ -103,14 +103,14 @@ type addonLifecycleRequestMetadata struct {
 	Digest                  string
 	DesiredState            addonLifecycleDesiredState
 	ConfigID                string
-	EKSARNHash              string
+	TargetHash              string
 	Bootstrap               addonLifecycleBootstrap
 	AcknowledgedOperationID string
 }
 
 type addonLifecyclePersistedState struct {
 	InstallationID          string
-	EKSARNHash              string
+	TargetHash              string
 	OperationID             string
 	Digest                  string
 	DesiredState            addonLifecycleDesiredState
@@ -408,7 +408,7 @@ func decodeAddonLifecycleIntent(raw []byte, identity remoteconfig.LifecycleIdent
 	if intent.InstallationID != identity.InstallationID {
 		return addonLifecycleIntent{}, nil, "", fmt.Errorf("EKS add-on lifecycle installation ID does not match the local installation")
 	}
-	if intent.EKSARNHash != identity.EKSARNHash {
+	if intent.TargetHash != identity.TargetHash {
 		return addonLifecycleIntent{}, nil, "", fmt.Errorf("EKS add-on lifecycle ARN hash does not match the local installation")
 	}
 	if err := validateCanonicalUUID("operation_id", intent.OperationID); err != nil {
@@ -443,7 +443,7 @@ func decodeAddonLifecycleIntent(raw []byte, identity remoteconfig.LifecycleIdent
 	normalized := normalizedAddonLifecycleIntent{
 		Version:        intent.Version,
 		InstallationID: intent.InstallationID,
-		EKSARNHash:     intent.EKSARNHash,
+		TargetHash:     intent.TargetHash,
 		OperationID:    intent.OperationID,
 		DesiredState:   intent.DesiredState,
 		Bootstrap:      intent.Bootstrap,
@@ -502,7 +502,7 @@ func validateAddonLifecycleProgress(current *addonLifecyclePersistedState, inten
 		}
 		return nil
 	}
-	if current.InstallationID != intent.InstallationID || current.EKSARNHash != intent.EKSARNHash {
+	if current.InstallationID != intent.InstallationID || current.TargetHash != intent.TargetHash {
 		return fmt.Errorf("persisted EKS add-on lifecycle state belongs to a different installation")
 	}
 	if intent.OperationID == current.OperationID {
@@ -566,7 +566,7 @@ func (d *Daemon) newAddonLifecycleRequest(intent addonLifecycleIntent, configID,
 			Digest:                  digest,
 			DesiredState:            intent.DesiredState,
 			ConfigID:                configID,
-			EKSARNHash:              intent.EKSARNHash,
+			TargetHash:              intent.TargetHash,
 			Bootstrap:               intent.Bootstrap,
 			AcknowledgedOperationID: intent.AcknowledgedOperationID,
 		},
@@ -594,7 +594,7 @@ func (d *Daemon) registerAddonLifecycleConfig(configID string, config json.RawMe
 func addonLifecycleStateFromRequest(req remoteAPIRequest, taskState pbgo.TaskState, taskErr error) addonLifecyclePersistedState {
 	state := addonLifecyclePersistedState{
 		InstallationID:          req.Params.InstallationID,
-		EKSARNHash:              req.Addon.EKSARNHash,
+		TargetHash:              req.Addon.TargetHash,
 		OperationID:             req.Params.OperationID,
 		Digest:                  req.Addon.Digest,
 		DesiredState:            req.Addon.DesiredState,
@@ -672,7 +672,7 @@ func addonLifecycleStateData(state addonLifecyclePersistedState) map[string]stri
 	bootstrap, _ := json.Marshal(state.Bootstrap)
 	return map[string]string{
 		addonLifecycleStateInstallationIDKey: state.InstallationID,
-		addonLifecycleStateEKSARNHashKey:     state.EKSARNHash,
+		addonLifecycleStateEKSARNHashKey:     state.TargetHash,
 		addonLifecycleStateOperationIDKey:    state.OperationID,
 		addonLifecycleStateDigestKey:         state.Digest,
 		addonLifecycleStateDesiredStateKey:   string(state.DesiredState),
@@ -705,7 +705,7 @@ func (d *Daemon) readAddonLifecycleState(ctx context.Context) (*addonLifecyclePe
 	}
 	state := &addonLifecyclePersistedState{
 		InstallationID:          configMap.Data[addonLifecycleStateInstallationIDKey],
-		EKSARNHash:              configMap.Data[addonLifecycleStateEKSARNHashKey],
+		TargetHash:              configMap.Data[addonLifecycleStateEKSARNHashKey],
 		OperationID:             configMap.Data[addonLifecycleStateOperationIDKey],
 		Digest:                  configMap.Data[addonLifecycleStateDigestKey],
 		DesiredState:            addonLifecycleDesiredState(configMap.Data[addonLifecycleStateDesiredStateKey]),
@@ -715,7 +715,7 @@ func (d *Daemon) readAddonLifecycleState(ctx context.Context) (*addonLifecyclePe
 		TaskState:               taskState,
 		Error:                   configMap.Data[addonLifecycleStateErrorKey],
 	}
-	if state.InstallationID == "" || state.EKSARNHash == "" || state.OperationID == "" || state.Digest == "" || state.ConfigID == "" {
+	if state.InstallationID == "" || state.TargetHash == "" || state.OperationID == "" || state.Digest == "" || state.ConfigID == "" {
 		return nil, fmt.Errorf("EKS add-on lifecycle state is incomplete")
 	}
 	if err := validateAddonLifecycleBootstrap(state.Bootstrap); err != nil {
@@ -759,7 +759,7 @@ func (d *Daemon) rehydrateAddonLifecycleState(ctx context.Context) error {
 	if err != nil || state == nil {
 		return err
 	}
-	if state.InstallationID != d.lifecycleIdentity.InstallationID || state.EKSARNHash != d.lifecycleIdentity.EKSARNHash {
+	if state.InstallationID != d.lifecycleIdentity.InstallationID || state.TargetHash != d.lifecycleIdentity.TargetHash {
 		return fmt.Errorf("persisted EKS add-on lifecycle state belongs to a different installation")
 	}
 	var taskErr error
@@ -799,7 +799,7 @@ func (d *Daemon) revalidateCompletedAddonUninstall(ctx context.Context) {
 	intent := addonLifecycleIntent{
 		Version:                 addonLifecycleVersion,
 		InstallationID:          state.InstallationID,
-		EKSARNHash:              state.EKSARNHash,
+		TargetHash:              state.TargetHash,
 		OperationID:             state.OperationID,
 		DesiredState:            state.DesiredState,
 		AcknowledgedOperationID: state.AcknowledgedOperationID,

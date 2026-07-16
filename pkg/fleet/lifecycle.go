@@ -37,9 +37,8 @@ const (
 	fleetManagedByLabel             = "fleet.datadoghq.com/managed-by"
 	fleetConfigIDLabel              = "fleet.datadoghq.com/config-id"
 	fleetLifecycleStateLabel        = "fleet.datadoghq.com/lifecycle-state"
-	fleetEKSInstallationIDLabel     = "eks.datadoghq.com/installation-id"
-	fleetEKSARNLabelIDLabel         = "eks.datadoghq.com/arn-id"
-	fleetEKSARNHashAnnotation       = "eks.datadoghq.com/arn-sha256"
+	fleetInstallationIDLabel        = "fleet.datadoghq.com/installation-id"
+	fleetTargetIDLabel              = "fleet.datadoghq.com/target-id"
 	fleetConfigHashAnnotation       = "fleet.datadoghq.com/config-hash"
 	fleetExperimentHashAnnotation   = "fleet.datadoghq.com/experiment-config-hash"
 	fleetPendingTargetUIDAnnotation = "fleet.datadoghq.com/pending-target-uid"
@@ -254,16 +253,15 @@ func (d *Daemon) installDatadogAgent(ctx context.Context, req remoteAPIRequest) 
 			Name:      op.NamespacedName.Name,
 			Namespace: op.NamespacedName.Namespace,
 			Labels: map[string]string{
-				fleetManagedByLabel:         fleetManagedByValue,
-				fleetConfigIDLabel:          req.Params.Version,
-				fleetLifecycleStateLabel:    fleetLifecycleStatePartial,
-				fleetEKSInstallationIDLabel: req.Params.InstallationID,
-				fleetEKSARNLabelIDLabel:     d.lifecycleIdentity.ARNLabelID(),
+				fleetManagedByLabel:      fleetManagedByValue,
+				fleetConfigIDLabel:       req.Params.Version,
+				fleetLifecycleStateLabel: fleetLifecycleStatePartial,
+				fleetInstallationIDLabel: req.Params.InstallationID,
+				fleetTargetIDLabel:       d.lifecycleIdentity.TargetID(),
 			},
 			Annotations: map[string]string{
 				fleetConfigHashAnnotation:   configHash,
 				fleetCreateTaskIDAnnotation: req.ID,
-				fleetEKSARNHashAnnotation:   d.lifecycleIdentity.EKSARNHash,
 			},
 		},
 		Spec: *spec,
@@ -1547,13 +1545,12 @@ func classifyFleetDatadogAgentOwnership(dda *v2alpha1.DatadogAgent) (bool, error
 	managedBy, hasManagedBy := dda.Labels[fleetManagedByLabel]
 	configID, hasConfigID := dda.Labels[fleetConfigIDLabel]
 	lifecycleState, hasLifecycleState := dda.Labels[fleetLifecycleStateLabel]
-	_, hasInstallationID := dda.Labels[fleetEKSInstallationIDLabel]
-	_, hasEKSARNLabelID := dda.Labels[fleetEKSARNLabelIDLabel]
-	_, hasEKSARNHash := dda.Annotations[fleetEKSARNHashAnnotation]
+	_, hasInstallationID := dda.Labels[fleetInstallationIDLabel]
+	_, hasTargetID := dda.Labels[fleetTargetIDLabel]
 	_, hasConfigHash := dda.Annotations[fleetConfigHashAnnotation]
 	_, hasExperimentHash := dda.Annotations[fleetExperimentHashAnnotation]
 	_, hasCreateTaskID := dda.Annotations[fleetCreateTaskIDAnnotation]
-	if !hasManagedBy && !hasConfigID && !hasLifecycleState && !hasInstallationID && !hasEKSARNLabelID && !hasEKSARNHash && !hasConfigHash && !hasExperimentHash && !hasCreateTaskID {
+	if !hasManagedBy && !hasConfigID && !hasLifecycleState && !hasInstallationID && !hasTargetID && !hasConfigHash && !hasExperimentHash && !hasCreateTaskID {
 		return false, nil
 	}
 	if managedBy != fleetManagedByValue || configID == "" || !hasConfigHash ||
@@ -1567,13 +1564,12 @@ func classifyFleetDatadogAgentOwnershipForRehydration(dda *v2alpha1.DatadogAgent
 	managedBy, hasManagedBy := dda.Labels[fleetManagedByLabel]
 	configID, hasConfigID := dda.Labels[fleetConfigIDLabel]
 	_, hasLifecycleState := dda.Labels[fleetLifecycleStateLabel]
-	_, hasInstallationID := dda.Labels[fleetEKSInstallationIDLabel]
-	_, hasEKSARNLabelID := dda.Labels[fleetEKSARNLabelIDLabel]
-	_, hasEKSARNHash := dda.Annotations[fleetEKSARNHashAnnotation]
+	_, hasInstallationID := dda.Labels[fleetInstallationIDLabel]
+	_, hasTargetID := dda.Labels[fleetTargetIDLabel]
 	_, hasConfigHash := dda.Annotations[fleetConfigHashAnnotation]
 	_, hasExperimentHash := dda.Annotations[fleetExperimentHashAnnotation]
 	_, hasCreateTaskID := dda.Annotations[fleetCreateTaskIDAnnotation]
-	if !hasManagedBy && !hasConfigID && !hasLifecycleState && !hasInstallationID && !hasEKSARNLabelID && !hasEKSARNHash && !hasConfigHash && !hasExperimentHash && !hasCreateTaskID {
+	if !hasManagedBy && !hasConfigID && !hasLifecycleState && !hasInstallationID && !hasTargetID && !hasConfigHash && !hasExperimentHash && !hasCreateTaskID {
 		return false, nil
 	}
 	if managedBy != fleetManagedByValue || configID == "" {
@@ -1599,45 +1595,37 @@ func validateFleetOwnedDatadogAgent(dda *v2alpha1.DatadogAgent, expectedConfigID
 }
 
 func (d *Daemon) validateFleetDatadogAgentInstallation(dda *v2alpha1.DatadogAgent) error {
-	installationID := dda.Labels[fleetEKSInstallationIDLabel]
-	eksARNLabelID := dda.Labels[fleetEKSARNLabelIDLabel]
-	eksARNHash := dda.Annotations[fleetEKSARNHashAnnotation]
+	installationID := dda.Labels[fleetInstallationIDLabel]
+	targetID := dda.Labels[fleetTargetIDLabel]
 	if !d.lifecycleIdentity.Configured() {
-		if installationID != "" || eksARNLabelID != "" || eksARNHash != "" {
-			return &stateDoesntMatchError{msg: fmt.Sprintf("DatadogAgent %s/%s has EKS lifecycle identity metadata but the local lifecycle identity is not configured", dda.Namespace, dda.Name)}
+		if installationID != "" || targetID != "" {
+			return &stateDoesntMatchError{msg: fmt.Sprintf("DatadogAgent %s/%s has managed lifecycle identity metadata but the local lifecycle identity is not configured", dda.Namespace, dda.Name)}
 		}
 		return nil
 	}
 	if installationID != d.lifecycleIdentity.InstallationID {
-		return &stateDoesntMatchError{msg: fmt.Sprintf("DatadogAgent %s/%s belongs to a different EKS installation", dda.Namespace, dda.Name)}
+		return &stateDoesntMatchError{msg: fmt.Sprintf("DatadogAgent %s/%s belongs to a different managed installation", dda.Namespace, dda.Name)}
 	}
-	if eksARNLabelID != d.lifecycleIdentity.ARNLabelID() {
-		return &stateDoesntMatchError{msg: fmt.Sprintf("DatadogAgent %s/%s has an invalid EKS cluster label", dda.Namespace, dda.Name)}
-	}
-	if eksARNHash != d.lifecycleIdentity.EKSARNHash {
-		return &stateDoesntMatchError{msg: fmt.Sprintf("DatadogAgent %s/%s belongs to a different EKS cluster", dda.Namespace, dda.Name)}
+	if targetID != d.lifecycleIdentity.TargetID() {
+		return &stateDoesntMatchError{msg: fmt.Sprintf("DatadogAgent %s/%s belongs to a different managed target", dda.Namespace, dda.Name)}
 	}
 	return nil
 }
 
 func (d *Daemon) validateFleetDatadogAgentInternalInstallation(ddai *v1alpha1.DatadogAgentInternal) error {
-	installationID := ddai.Labels[fleetEKSInstallationIDLabel]
-	eksARNLabelID := ddai.Labels[fleetEKSARNLabelIDLabel]
-	eksARNHash := ddai.Annotations[fleetEKSARNHashAnnotation]
+	installationID := ddai.Labels[fleetInstallationIDLabel]
+	targetID := ddai.Labels[fleetTargetIDLabel]
 	if !d.lifecycleIdentity.Configured() {
-		if installationID != "" || eksARNLabelID != "" || eksARNHash != "" {
-			return &stateDoesntMatchError{msg: fmt.Sprintf("DatadogAgentInternal %s/%s has EKS lifecycle identity metadata but the local lifecycle identity is not configured", ddai.Namespace, ddai.Name)}
+		if installationID != "" || targetID != "" {
+			return &stateDoesntMatchError{msg: fmt.Sprintf("DatadogAgentInternal %s/%s has managed lifecycle identity metadata but the local lifecycle identity is not configured", ddai.Namespace, ddai.Name)}
 		}
 		return nil
 	}
 	if installationID != d.lifecycleIdentity.InstallationID {
-		return &stateDoesntMatchError{msg: fmt.Sprintf("DatadogAgentInternal %s/%s belongs to a different EKS installation", ddai.Namespace, ddai.Name)}
+		return &stateDoesntMatchError{msg: fmt.Sprintf("DatadogAgentInternal %s/%s belongs to a different managed installation", ddai.Namespace, ddai.Name)}
 	}
-	if eksARNLabelID != d.lifecycleIdentity.ARNLabelID() {
-		return &stateDoesntMatchError{msg: fmt.Sprintf("DatadogAgentInternal %s/%s has an invalid EKS cluster label", ddai.Namespace, ddai.Name)}
-	}
-	if eksARNHash != d.lifecycleIdentity.EKSARNHash {
-		return &stateDoesntMatchError{msg: fmt.Sprintf("DatadogAgentInternal %s/%s belongs to a different EKS cluster", ddai.Namespace, ddai.Name)}
+	if targetID != d.lifecycleIdentity.TargetID() {
+		return &stateDoesntMatchError{msg: fmt.Sprintf("DatadogAgentInternal %s/%s belongs to a different managed target", ddai.Namespace, ddai.Name)}
 	}
 	return nil
 }
