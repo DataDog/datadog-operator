@@ -1,0 +1,39 @@
+{{- with .Values.lifecycle }}
+{{- $intent := dict
+  "version" .version
+  "installationID" .installationID
+  "eksARNSHA256" .eksARNSHA256
+  "operationID" .operationID
+  "desiredState" .desiredState
+  "bootstrap" .bootstrap
+-}}
+{{- with .acknowledgedOperationID }}
+{{- $_ := set $intent "acknowledgedOperationID" . -}}
+{{- end }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: datadog-agent-lifecycle-intent
+  namespace: datadog
+  labels:
+    app.kubernetes.io/managed-by: eks-addon
+data:
+  intent.json: |-
+    {{ $intent | toJson }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: datadog-agent-lifecycle-runtime
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    app.kubernetes.io/managed-by: eks-addon
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: datadog-agent-lifecycle-runtime
+  labels:
+    app.kubernetes.io/managed-by: eks-addon
+rules: []
+{{- end }}
