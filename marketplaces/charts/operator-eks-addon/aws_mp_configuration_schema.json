@@ -208,7 +208,7 @@
       },
       "additionalProperties": false
     },
-    "lifecycle": {
+    "managedAgentInstallation": {
       "type": [
         "object",
         "null"
