@@ -25,7 +25,7 @@ import (
 func TestOperatorAddonLifecycleEnabled(t *testing.T) {
 	identity := remoteconfig.LifecycleIdentity{
 		InstallationID: "123e4567-e89b-42d3-a456-426614174000",
-		EKSARNHash:     "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+		TargetHash:     "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
 	}
 	tests := []struct {
 		name                 string

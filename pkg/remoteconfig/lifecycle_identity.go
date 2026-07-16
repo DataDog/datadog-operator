@@ -22,11 +22,11 @@ const (
 	lifecycleCapabilityTag     = "operator_lifecycle:eks-addon-config-v1"
 )
 
-var lifecycleEKSARNHashPattern = regexp.MustCompile(`^[0-9a-f]{64}$`)
+var lifecycleTargetHashPattern = regexp.MustCompile(`^[0-9a-f]{64}$`)
 
 type LifecycleIdentity struct {
 	InstallationID string
-	EKSARNHash     string
+	TargetHash     string
 }
 
 func LifecycleIdentityFromEnvironment() (LifecycleIdentity, error) {
@@ -41,7 +41,7 @@ func LifecycleIdentityFromEnvironment() (LifecycleIdentity, error) {
 
 	identity := LifecycleIdentity{
 		InstallationID: installationID,
-		EKSARNHash:     eksARNHash,
+		TargetHash:     eksARNHash,
 	}
 	if err := identity.Validate(); err != nil {
 		return LifecycleIdentity{}, err
@@ -50,7 +50,7 @@ func LifecycleIdentityFromEnvironment() (LifecycleIdentity, error) {
 }
 
 func (i LifecycleIdentity) Configured() bool {
-	return i.InstallationID != "" || i.EKSARNHash != ""
+	return i.InstallationID != "" || i.TargetHash != ""
 }
 
 func (i LifecycleIdentity) Validate() error {
@@ -64,8 +64,8 @@ func (i LifecycleIdentity) Validate() error {
 	if err != nil || parsedInstallationID == uuid.Nil || parsedInstallationID.String() != i.InstallationID {
 		return fmt.Errorf("EKS installation ID must be a canonical non-zero UUID")
 	}
-	if !lifecycleEKSARNHashPattern.MatchString(i.EKSARNHash) {
-		return fmt.Errorf("EKS ARN hash must be a lowercase SHA-256 digest")
+	if !lifecycleTargetHashPattern.MatchString(i.TargetHash) {
+		return fmt.Errorf("lifecycle target hash must be a lowercase SHA-256 digest")
 	}
 	return nil
 }
@@ -76,13 +76,13 @@ func (i LifecycleIdentity) UpdaterTags() []string {
 	}
 	return []string{
 		"eks_installation_id:" + i.InstallationID,
-		"eks_arn_sha256:" + i.EKSARNHash,
+		"eks_arn_sha256:" + i.TargetHash,
 		lifecycleCapabilityTag,
 	}
 }
 
-func (i LifecycleIdentity) ARNLabelID() string {
-	digest, err := hex.DecodeString(i.EKSARNHash)
+func (i LifecycleIdentity) TargetID() string {
+	digest, err := hex.DecodeString(i.TargetHash)
 	if err != nil || len(digest) != 32 {
 		return ""
 	}

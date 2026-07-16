@@ -362,7 +362,7 @@ func (r *RemoteConfigUpdater) lifecycleReadinessTags(ctx context.Context) ([]str
 	}
 	var intent struct {
 		InstallationID          string `json:"installationID"`
-		EKSARNHash              string `json:"eksARNSHA256"`
+		TargetHash              string `json:"eksARNSHA256"`
 		OperationID             string `json:"operationID"`
 		DesiredState            string `json:"desiredState"`
 		AcknowledgedOperationID string `json:"acknowledgedOperationID"`
@@ -379,7 +379,7 @@ func (r *RemoteConfigUpdater) lifecycleReadinessTags(ctx context.Context) ([]str
 		return nil, nil
 	}
 	if intent.InstallationID != r.lifecycleIdentity.InstallationID ||
-		intent.EKSARNHash != r.lifecycleIdentity.EKSARNHash ||
+		intent.TargetHash != r.lifecycleIdentity.TargetHash ||
 		intent.OperationID != acknowledgedOperationID ||
 		intent.DesiredState != "installed" {
 		return nil, nil
@@ -389,7 +389,7 @@ func (r *RemoteConfigUpdater) lifecycleReadinessTags(ctx context.Context) ([]str
 		return nil, fmt.Errorf("read EKS lifecycle acknowledgement state for Remote Configuration updater tags: %w", err)
 	}
 	if state.Data["installation_id"] != r.lifecycleIdentity.InstallationID ||
-		state.Data["eks_arn_sha256"] != r.lifecycleIdentity.EKSARNHash ||
+		state.Data["eks_arn_sha256"] != r.lifecycleIdentity.TargetHash ||
 		state.Data["operation_id"] != acknowledgedOperationID ||
 		state.Data["acknowledged_operation_id"] != acknowledgedOperationID ||
 		state.Data["desired_state"] != "installed" ||

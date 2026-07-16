@@ -184,7 +184,7 @@ func TestRehydrateInstallerStateValidatesActiveFence(t *testing.T) {
 	require.NoError(t, c.Update(context.Background(), fence))
 	err = d.rehydrateInstallerState(context.Background())
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "different EKS installation")
+	assert.Contains(t, err.Error(), "different managed installation")
 }
 
 func TestRehydrateInstallerStateMarksDatadogAgentBehindActiveFencePartial(t *testing.T) {

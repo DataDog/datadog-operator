@@ -70,13 +70,13 @@ func TestRefreshUpdaterTagsPreservesClientIdentityAndInstallerState(t *testing.T
 	kubeClient := newFakeClient(t,
 		&corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{Namespace: "datadog", Name: "datadog-agent-lifecycle-intent"},
-			Data:       map[string]string{"intent.json": `{"installationID":"` + validLifecycleIdentity.InstallationID + `","eksARNSHA256":"` + validLifecycleIdentity.EKSARNHash + `","operationID":"` + acknowledgedOperationID + `","desiredState":"installed","acknowledgedOperationID":"` + acknowledgedOperationID + `"}`},
+			Data:       map[string]string{"intent.json": `{"installationID":"` + validLifecycleIdentity.InstallationID + `","eksARNSHA256":"` + validLifecycleIdentity.TargetHash + `","operationID":"` + acknowledgedOperationID + `","desiredState":"installed","acknowledgedOperationID":"` + acknowledgedOperationID + `"}`},
 		},
 		&corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{Namespace: "datadog", Name: "datadog-agent-lifecycle-state"},
 			Data: map[string]string{
 				"installation_id":           validLifecycleIdentity.InstallationID,
-				"eks_arn_sha256":            validLifecycleIdentity.EKSARNHash,
+				"eks_arn_sha256":            validLifecycleIdentity.TargetHash,
 				"operation_id":              acknowledgedOperationID,
 				"acknowledged_operation_id": acknowledgedOperationID,
 				"desired_state":             "installed",
@@ -148,14 +148,14 @@ func TestGetUpdaterTags(t *testing.T) {
 			objects: []client.Object{
 				&corev1.ConfigMap{
 					ObjectMeta: metav1.ObjectMeta{Namespace: "datadog", Name: "datadog-agent-lifecycle-intent"},
-					Data:       map[string]string{"intent.json": `{"installationID":"` + validLifecycleIdentity.InstallationID + `","eksARNSHA256":"` + validLifecycleIdentity.EKSARNHash + `","operationID":"123e4567-e89b-42d3-a456-426614174010","desiredState":"installed"}`},
+					Data:       map[string]string{"intent.json": `{"installationID":"` + validLifecycleIdentity.InstallationID + `","eksARNSHA256":"` + validLifecycleIdentity.TargetHash + `","operationID":"123e4567-e89b-42d3-a456-426614174010","desiredState":"installed"}`},
 				},
 			},
 			want: []string{
 				"updater_type:datadog-operator",
 				"cluster_name:test-cluster",
 				"eks_installation_id:" + validLifecycleIdentity.InstallationID,
-				"eks_arn_sha256:" + validLifecycleIdentity.EKSARNHash,
+				"eks_arn_sha256:" + validLifecycleIdentity.TargetHash,
 				"operator_lifecycle:eks-addon-config-v1",
 			},
 		},
@@ -166,13 +166,13 @@ func TestGetUpdaterTags(t *testing.T) {
 			objects: []client.Object{
 				&corev1.ConfigMap{
 					ObjectMeta: metav1.ObjectMeta{Namespace: "datadog", Name: "datadog-agent-lifecycle-intent"},
-					Data:       map[string]string{"intent.json": `{"installationID":"` + validLifecycleIdentity.InstallationID + `","eksARNSHA256":"` + validLifecycleIdentity.EKSARNHash + `","operationID":"` + acknowledgedOperationID + `","desiredState":"installed","acknowledgedOperationID":"` + acknowledgedOperationID + `"}`},
+					Data:       map[string]string{"intent.json": `{"installationID":"` + validLifecycleIdentity.InstallationID + `","eksARNSHA256":"` + validLifecycleIdentity.TargetHash + `","operationID":"` + acknowledgedOperationID + `","desiredState":"installed","acknowledgedOperationID":"` + acknowledgedOperationID + `"}`},
 				},
 				&corev1.ConfigMap{
 					ObjectMeta: metav1.ObjectMeta{Namespace: "datadog", Name: "datadog-agent-lifecycle-state"},
 					Data: map[string]string{
 						"installation_id":           validLifecycleIdentity.InstallationID,
-						"eks_arn_sha256":            validLifecycleIdentity.EKSARNHash,
+						"eks_arn_sha256":            validLifecycleIdentity.TargetHash,
 						"operation_id":              acknowledgedOperationID,
 						"acknowledged_operation_id": acknowledgedOperationID,
 						"desired_state":             "installed",
@@ -184,7 +184,7 @@ func TestGetUpdaterTags(t *testing.T) {
 				"updater_type:datadog-operator",
 				"cluster_name:test-cluster",
 				"eks_installation_id:" + validLifecycleIdentity.InstallationID,
-				"eks_arn_sha256:" + validLifecycleIdentity.EKSARNHash,
+				"eks_arn_sha256:" + validLifecycleIdentity.TargetHash,
 				"operator_lifecycle:eks-addon-config-v1",
 				"operator_lifecycle_ack:" + acknowledgedOperationID,
 				"operator_config_updates:ready",
@@ -197,13 +197,13 @@ func TestGetUpdaterTags(t *testing.T) {
 			objects: []client.Object{
 				&corev1.ConfigMap{
 					ObjectMeta: metav1.ObjectMeta{Namespace: "datadog", Name: "datadog-agent-lifecycle-intent"},
-					Data:       map[string]string{"intent.json": `{"installationID":"` + validLifecycleIdentity.InstallationID + `","eksARNSHA256":"` + validLifecycleIdentity.EKSARNHash + `","operationID":"123e4567-e89b-42d3-a456-426614174011","desiredState":"absent","acknowledgedOperationID":"` + acknowledgedOperationID + `"}`},
+					Data:       map[string]string{"intent.json": `{"installationID":"` + validLifecycleIdentity.InstallationID + `","eksARNSHA256":"` + validLifecycleIdentity.TargetHash + `","operationID":"123e4567-e89b-42d3-a456-426614174011","desiredState":"absent","acknowledgedOperationID":"` + acknowledgedOperationID + `"}`},
 				},
 				&corev1.ConfigMap{
 					ObjectMeta: metav1.ObjectMeta{Namespace: "datadog", Name: "datadog-agent-lifecycle-state"},
 					Data: map[string]string{
 						"installation_id":           validLifecycleIdentity.InstallationID,
-						"eks_arn_sha256":            validLifecycleIdentity.EKSARNHash,
+						"eks_arn_sha256":            validLifecycleIdentity.TargetHash,
 						"operation_id":              acknowledgedOperationID,
 						"acknowledged_operation_id": acknowledgedOperationID,
 						"desired_state":             "installed",
@@ -215,7 +215,7 @@ func TestGetUpdaterTags(t *testing.T) {
 				"updater_type:datadog-operator",
 				"cluster_name:test-cluster",
 				"eks_installation_id:" + validLifecycleIdentity.InstallationID,
-				"eks_arn_sha256:" + validLifecycleIdentity.EKSARNHash,
+				"eks_arn_sha256:" + validLifecycleIdentity.TargetHash,
 				"operator_lifecycle:eks-addon-config-v1",
 			},
 		},
@@ -283,7 +283,7 @@ func TestRefreshUpdaterTagsPreservesCurrentClientWhenAcknowledgementEvidenceIsUn
 	acknowledgedOperationID := "123e4567-e89b-42d3-a456-426614174010"
 	kubeClient := newFakeClient(t, &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{Namespace: "datadog", Name: "datadog-agent-lifecycle-intent"},
-		Data:       map[string]string{"intent.json": `{"installationID":"` + validLifecycleIdentity.InstallationID + `","eksARNSHA256":"` + validLifecycleIdentity.EKSARNHash + `","operationID":"` + acknowledgedOperationID + `","desiredState":"installed","acknowledgedOperationID":"` + acknowledgedOperationID + `"}`},
+		Data:       map[string]string{"intent.json": `{"installationID":"` + validLifecycleIdentity.InstallationID + `","eksARNSHA256":"` + validLifecycleIdentity.TargetHash + `","operationID":"` + acknowledgedOperationID + `","desiredState":"installed","acknowledgedOperationID":"` + acknowledgedOperationID + `"}`},
 	})
 	current, err := rcclient.NewClient(stoppedConfigFetcher{}, rcclient.WithoutTufVerification())
 	require.NoError(t, err)

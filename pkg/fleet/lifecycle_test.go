@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -35,7 +36,7 @@ import (
 
 var testLifecycleIdentity = operatorremoteconfig.LifecycleIdentity{
 	InstallationID: "123e4567-e89b-42d3-a456-426614174000",
-	EKSARNHash:     "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+	TargetHash:     "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
 }
 
 const testRCClientID = "operator-client-id"
@@ -856,12 +857,8 @@ func testLifecycleDaemon(configs map[string]installerConfig, rcState []*pbgo.Pac
 		if ddai.Labels == nil {
 			ddai.Labels = make(map[string]string)
 		}
-		ddai.Labels[fleetEKSInstallationIDLabel] = testLifecycleIdentity.InstallationID
-		ddai.Labels[fleetEKSARNLabelIDLabel] = testLifecycleIdentity.ARNLabelID()
-		if ddai.Annotations == nil {
-			ddai.Annotations = make(map[string]string)
-		}
-		ddai.Annotations[fleetEKSARNHashAnnotation] = testLifecycleIdentity.EKSARNHash
+		ddai.Labels[fleetInstallationIDLabel] = testLifecycleIdentity.InstallationID
+		ddai.Labels[fleetTargetIDLabel] = testLifecycleIdentity.TargetID()
 	}
 	objects = append(objects, testUninstallFenceWebhookConfiguration())
 	scheme := testFleetScheme()
@@ -916,11 +913,11 @@ func testFleetOwnedDDA(configID string) *v2alpha1.DatadogAgent {
 			Namespace: testDDANSN.Namespace,
 			UID:       types.UID("fleet-dda-uid"),
 			Labels: map[string]string{
-				fleetManagedByLabel:         fleetManagedByValue,
-				fleetConfigIDLabel:          configID,
-				fleetLifecycleStateLabel:    fleetLifecycleStateReady,
-				fleetEKSInstallationIDLabel: testLifecycleIdentity.InstallationID,
-				fleetEKSARNLabelIDLabel:     testLifecycleIdentity.ARNLabelID(),
+				fleetManagedByLabel:      fleetManagedByValue,
+				fleetConfigIDLabel:       configID,
+				fleetLifecycleStateLabel: fleetLifecycleStateReady,
+				fleetInstallationIDLabel: testLifecycleIdentity.InstallationID,
+				fleetTargetIDLabel:       testLifecycleIdentity.TargetID(),
 			},
 		},
 		Spec: v2alpha1.DatadogAgentSpec{
@@ -948,7 +945,6 @@ func testFleetOwnedDDA(configID string) *v2alpha1.DatadogAgent {
 	}
 	dda.Annotations = map[string]string{
 		fleetConfigHashAnnotation: hash,
-		fleetEKSARNHashAnnotation: testLifecycleIdentity.EKSARNHash,
 	}
 	return dda
 }
@@ -1075,7 +1071,7 @@ func TestInstallDatadogAgentCreatesFleetOwnedResource(t *testing.T) {
 	require.NoError(t, c.Get(context.Background(), testDDANSN, dda))
 	assert.Equal(t, fleetManagedByValue, dda.Labels[fleetManagedByLabel])
 	assert.Equal(t, configID, dda.Labels[fleetConfigIDLabel])
-	assert.Equal(t, testLifecycleIdentity.InstallationID, dda.Labels[fleetEKSInstallationIDLabel])
+	assert.Equal(t, testLifecycleIdentity.InstallationID, dda.Labels[fleetInstallationIDLabel])
 	require.NotNil(t, dda.Spec.Global)
 	require.NotNil(t, dda.Spec.Global.Site)
 	assert.Equal(t, "ap2.datadoghq.com", *dda.Spec.Global.Site)
@@ -1212,15 +1208,29 @@ func TestInstallDatadogAgentIsIdempotentForSameConfig(t *testing.T) {
 func TestInstallDatadogAgentRejectsDifferentLifecycleInstallation(t *testing.T) {
 	const configID = "create-config"
 	existing := testFleetOwnedDDA(configID)
-	existing.Labels[fleetEKSInstallationIDLabel] = "223e4567-e89b-42d3-a456-426614174000"
+	existing.Labels[fleetInstallationIDLabel] = "223e4567-e89b-42d3-a456-426614174000"
 	d, c, _ := testLifecycleDaemon(testLifecycleInstallerConfig(configID, OperationCreate, `{"spec":{}}`), nil, existing, testFleetCredentialSecret())
 
 	_, err := d.installDatadogAgent(context.Background(), testLifecycleRequest(methodInstallDatadogAgent, configID))
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "different EKS installation")
+	assert.Contains(t, err.Error(), "different managed installation")
 	current := &v2alpha1.DatadogAgent{}
 	require.NoError(t, c.Get(context.Background(), testDDANSN, current))
-	assert.Equal(t, existing.Labels[fleetEKSInstallationIDLabel], current.Labels[fleetEKSInstallationIDLabel])
+	assert.Equal(t, existing.Labels[fleetInstallationIDLabel], current.Labels[fleetInstallationIDLabel])
+}
+
+func TestInstallDatadogAgentRejectsDifferentLifecycleTarget(t *testing.T) {
+	const configID = "create-config"
+	existing := testFleetOwnedDDA(configID)
+	existing.Labels[fleetTargetIDLabel] = strings.Repeat("a", 52)
+	d, c, _ := testLifecycleDaemon(testLifecycleInstallerConfig(configID, OperationCreate, `{"spec":{}}`), nil, existing, testFleetCredentialSecret())
+
+	_, err := d.installDatadogAgent(context.Background(), testLifecycleRequest(methodInstallDatadogAgent, configID))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "different managed target")
+	current := &v2alpha1.DatadogAgent{}
+	require.NoError(t, c.Get(context.Background(), testDDANSN, current))
+	assert.Equal(t, existing.Labels[fleetTargetIDLabel], current.Labels[fleetTargetIDLabel])
 }
 
 func TestLifecycleLabeledDatadogAgentRequiresLocalInstallationIdentity(t *testing.T) {
@@ -1235,7 +1245,7 @@ func TestLifecycleLabeledDatadogAgentRequiresLocalInstallationIdentity(t *testin
 
 func TestExperimentUpdateRejectsDifferentLifecycleInstallation(t *testing.T) {
 	dda := testFleetOwnedDDA("create-config")
-	dda.Labels[fleetEKSInstallationIDLabel] = "223e4567-e89b-42d3-a456-426614174000"
+	dda.Labels[fleetInstallationIDLabel] = "223e4567-e89b-42d3-a456-426614174000"
 	d, c, _ := testLifecycleDaemon(testInstallerConfigWithDDA(), []*pbgo.PackageState{{
 		Package:             packageDatadogOperator,
 		StableConfigVersion: "create-config",
@@ -1243,7 +1253,7 @@ func TestExperimentUpdateRejectsDifferentLifecycleInstallation(t *testing.T) {
 
 	_, err := d.startDatadogAgentExperiment(context.Background(), testStartRequest())
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "different EKS installation")
+	assert.Contains(t, err.Error(), "different managed installation")
 	current := &v2alpha1.DatadogAgent{}
 	require.NoError(t, c.Get(context.Background(), testDDANSN, current))
 	assert.Empty(t, current.Annotations[v2alpha1.AnnotationExperimentSignal])
@@ -1986,11 +1996,10 @@ func TestUninstallDatadogAgentCleansUpLateDatadogAgentInternal(t *testing.T) {
 		Namespace: testDDANSN.Namespace,
 		UID:       types.UID("late-ddai-uid"),
 		Labels: map[string]string{
-			fleetManagedByLabel:         fleetManagedByValue,
-			fleetEKSInstallationIDLabel: testLifecycleIdentity.InstallationID,
-			fleetEKSARNLabelIDLabel:     testLifecycleIdentity.ARNLabelID(),
+			fleetManagedByLabel:      fleetManagedByValue,
+			fleetInstallationIDLabel: testLifecycleIdentity.InstallationID,
+			fleetTargetIDLabel:       testLifecycleIdentity.TargetID(),
 		},
-		Annotations: map[string]string{fleetEKSARNHashAnnotation: testLifecycleIdentity.EKSARNHash},
 		OwnerReferences: []metav1.OwnerReference{{
 			APIVersion:         v2alpha1.GroupVersion.String(),
 			Kind:               "DatadogAgent",
@@ -2176,12 +2185,12 @@ func TestUninstallDatadogAgentRejectsUnmanagedResource(t *testing.T) {
 func TestUninstallDatadogAgentRejectsDifferentLifecycleInstallation(t *testing.T) {
 	const deleteConfigID = "delete-config"
 	existing := testFleetOwnedDDA("create-config")
-	existing.Labels[fleetEKSInstallationIDLabel] = "223e4567-e89b-42d3-a456-426614174000"
+	existing.Labels[fleetInstallationIDLabel] = "223e4567-e89b-42d3-a456-426614174000"
 	d, c, _ := testLifecycleDaemon(testLifecycleInstallerConfig(deleteConfigID, OperationDelete, ""), nil, existing)
 
 	_, err := d.uninstallDatadogAgent(context.Background(), testLifecycleRequest(methodUninstallDatadogAgent, deleteConfigID))
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "different EKS installation")
+	assert.Contains(t, err.Error(), "different managed installation")
 	assert.NoError(t, c.Get(context.Background(), testDDANSN, &v2alpha1.DatadogAgent{}))
 }
 
