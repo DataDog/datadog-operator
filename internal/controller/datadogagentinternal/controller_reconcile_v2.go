@@ -166,7 +166,8 @@ func (r *Reconciler) providerSupportBlocks(logger logr.Logger, instance *v1alpha
 
 	if len(rejected) > 0 {
 		msg := fmt.Sprintf("Features %v are not supported on provider %q; blocking reconcile", rejected, provider)
-		logger.Info(msg, "features", rejected, "provider", provider, "supportLevel", "rejected")
+		err := fmt.Errorf("provider %q does not support features %v", provider, rejected)
+		logger.Error(err, msg, "features", rejected, "provider", provider, "supportLevel", "rejected")
 		r.recorder.Event(instance, corev1.EventTypeWarning, "ProviderUnsupported", msg)
 		condition.UpdateDatadogAgentInternalStatusConditions(newStatus, now, common.ProviderUnsupportedConditionType, metav1.ConditionTrue, "ProviderUnsupported", msg, false)
 		return true

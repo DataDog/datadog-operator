@@ -58,7 +58,7 @@ const (
 	// ClusterProviderDetectedConditionType reports the detected (or user-specified) cluster provider
 	ClusterProviderDetectedConditionType = "ClusterProviderDetected"
 	// ProviderUnsupportedConditionType reports that an enabled feature is not supported on the detected provider
-	ProviderUnsupportedConditionType = "ProviderUnsupported"
+	ProviderUnsupportedConditionType = "FeatureNotSupportedOnProvider"
 )
 
 const (
