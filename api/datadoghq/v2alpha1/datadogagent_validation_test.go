@@ -12,7 +12,7 @@ import (
 	"k8s.io/utils/ptr"
 )
 
-func TestValidateDatadogAgent_ExtraLabels_ReservedKeys(t *testing.T) {
+func TestValidateDatadogAgent_CommonLabels_ReservedKeys(t *testing.T) {
 	tests := []struct {
 		name           string
 		labels         map[string]string
@@ -101,7 +101,7 @@ func TestValidateDatadogAgent_ExtraLabels_ReservedKeys(t *testing.T) {
 						Credentials: &DatadogCredentials{
 							APIKey: ptr.To("key"),
 						},
-						ExtraLabels: tt.labels,
+						CommonLabels: tt.labels,
 					},
 				},
 			}

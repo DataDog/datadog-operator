@@ -99,14 +99,14 @@ func generateSpecFromDDA(dda *v2alpha1.DatadogAgent, ddai *v1alpha1.DatadogAgent
 // getDDAILabels adds the following labels to the DDAI:
 //   - all DDA labels
 //   - agent.datadoghq.com/datadogagent: <dda-name>
-//   - spec.global.extraLabels (if set), so that policy enforcement tools acting
+//   - spec.global.commonLabels (if set), so that policy enforcement tools acting
 //     on the DDAI object itself see the same extra labels as all other resources.
 func getDDAILabels(dda *v2alpha1.DatadogAgent) map[string]string {
 	labels := make(map[string]string)
 	maps.Copy(labels, dda.GetLabels())
 	labels[apicommon.DatadogAgentNameLabelKey] = dda.GetName()
 	if dda.Spec.Global != nil {
-		for k, v := range dda.Spec.Global.ExtraLabels {
+		for k, v := range dda.Spec.Global.CommonLabels {
 			if _, exists := labels[k]; !exists {
 				labels[k] = v
 			}

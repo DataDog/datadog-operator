@@ -17,12 +17,12 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 )
 
-// TestSetProfileSpec_ExtraLabels verifies that spec.global.extraLabels from the
+// TestSetProfileSpec_CommonLabels verifies that spec.global.commonLabels from the
 // base DDAI are preserved when setProfileSpec replaces the DDAI spec with a
 // non-default profile's Config. Without this, label-enforcing admission policies
 // (e.g. Kyverno) would reject the profile DaemonSet even when the parent DDA
-// sets spec.global.extraLabels.
-func TestSetProfileSpec_ExtraLabels(t *testing.T) {
+// sets spec.global.commonLabels.
+func TestSetProfileSpec_CommonLabels(t *testing.T) {
 	profileAffinity := &v1alpha1.ProfileAffinity{
 		ProfileNodeAffinity: []corev1.NodeSelectorRequirement{
 			{
@@ -35,57 +35,57 @@ func TestSetProfileSpec_ExtraLabels(t *testing.T) {
 
 	tests := []struct {
 		name            string
-		baseExtraLabels map[string]string
+		baseCommonLabels map[string]string
 		profileConfig   *v2alpha1.DatadogAgentSpec
-		wantExtraLabels map[string]string
+		wantCommonLabels map[string]string
 	}{
 		{
-			name: "base extraLabels are preserved when profile config has no Global",
-			baseExtraLabels: map[string]string{
+			name: "base commonLabels are preserved when profile config has no Global",
+			baseCommonLabels: map[string]string{
 				"team":        "platform",
 				"cost-center": "ops",
 			},
 			profileConfig: &v2alpha1.DatadogAgentSpec{},
-			wantExtraLabels: map[string]string{
+			wantCommonLabels: map[string]string{
 				"team":        "platform",
 				"cost-center": "ops",
 			},
 		},
 		{
-			name: "base extraLabels are preserved when profile config has empty Global",
-			baseExtraLabels: map[string]string{
+			name: "base commonLabels are preserved when profile config has empty Global",
+			baseCommonLabels: map[string]string{
 				"team": "platform",
 			},
 			profileConfig: &v2alpha1.DatadogAgentSpec{
 				Global: &v2alpha1.GlobalConfig{},
 			},
-			wantExtraLabels: map[string]string{
+			wantCommonLabels: map[string]string{
 				"team": "platform",
 			},
 		},
 		{
-			name: "profile config extraLabels win on key conflict; base fills missing keys",
-			baseExtraLabels: map[string]string{
+			name: "profile config commonLabels win on key conflict; base fills missing keys",
+			baseCommonLabels: map[string]string{
 				"team": "base-team",
 				"env":  "prod",
 			},
 			profileConfig: &v2alpha1.DatadogAgentSpec{
 				Global: &v2alpha1.GlobalConfig{
-					ExtraLabels: map[string]string{
+					CommonLabels: map[string]string{
 						"team": "profile-team", // conflicts — profile wins
 					},
 				},
 			},
-			wantExtraLabels: map[string]string{
+			wantCommonLabels: map[string]string{
 				"team": "profile-team", // profile wins
 				"env":  "prod",         // base fills missing key
 			},
 		},
 		{
-			name:            "no extraLabels in base and profile — nothing set",
-			baseExtraLabels: nil,
+			name:            "no commonLabels in base and profile — nothing set",
+			baseCommonLabels: nil,
 			profileConfig:   &v2alpha1.DatadogAgentSpec{},
-			wantExtraLabels: nil,
+			wantCommonLabels: nil,
 		},
 	}
 
@@ -98,7 +98,7 @@ func TestSetProfileSpec_ExtraLabels(t *testing.T) {
 				},
 				Spec: v2alpha1.DatadogAgentSpec{
 					Global: &v2alpha1.GlobalConfig{
-						ExtraLabels: tt.baseExtraLabels,
+						CommonLabels: tt.baseCommonLabels,
 					},
 				},
 			}
@@ -116,13 +116,13 @@ func TestSetProfileSpec_ExtraLabels(t *testing.T) {
 
 			setProfileSpec(&ddai, &profile)
 
-			if tt.wantExtraLabels == nil {
+			if tt.wantCommonLabels == nil {
 				if ddai.Spec.Global != nil {
-					assert.Nil(t, ddai.Spec.Global.ExtraLabels)
+					assert.Nil(t, ddai.Spec.Global.CommonLabels)
 				}
 			} else {
 				assert.NotNil(t, ddai.Spec.Global)
-				assert.Equal(t, tt.wantExtraLabels, ddai.Spec.Global.ExtraLabels)
+				assert.Equal(t, tt.wantCommonLabels, ddai.Spec.Global.CommonLabels)
 			}
 
 			// Sanity: profile label must still be set on the node agent override.

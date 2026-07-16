@@ -211,16 +211,16 @@ func TestApplyCSIAllowlistSynchronizerResource_UpdatesExistingResource(t *testin
 	assert.Equal(t, "datadog-csi-allowlist-synchronizer", got.Labels[kubernetes.AppKubernetesNameLabelKey])
 }
 
-func TestApplyAllowlistSynchronizerResource_ExtraLabels(t *testing.T) {
+func TestApplyAllowlistSynchronizerResource_CommonLabels(t *testing.T) {
 	scheme := runtime.NewScheme()
 	require.NoError(t, SchemeBuilder.AddToScheme(scheme))
 	c := fake.NewClientBuilder().WithScheme(scheme).Build()
 
-	extraLabels := map[string]string{
+	commonLabels := map[string]string{
 		"team":        "platform",
 		"cost-center": "ops",
 	}
-	require.NoError(t, applyAllowlistSynchronizerResource(c, "v1.0.5", "default-foo", extraLabels))
+	require.NoError(t, applyAllowlistSynchronizerResource(c, "v1.0.5", "default-foo", commonLabels))
 
 	got := &AllowlistSynchronizer{}
 	require.NoError(t, c.Get(context.TODO(), client.ObjectKey{Name: agentAllowlistSynchronizerName}, got))
@@ -232,16 +232,16 @@ func TestApplyAllowlistSynchronizerResource_ExtraLabels(t *testing.T) {
 	assert.Equal(t, "datadog-operator", got.Labels[kubernetes.AppKubernetesManageByLabelKey])
 }
 
-func TestApplyAllowlistSynchronizerResource_ExtraLabels_CannotOverrideOperatorKeys(t *testing.T) {
+func TestApplyAllowlistSynchronizerResource_CommonLabels_CannotOverrideOperatorKeys(t *testing.T) {
 	scheme := runtime.NewScheme()
 	require.NoError(t, SchemeBuilder.AddToScheme(scheme))
 	c := fake.NewClientBuilder().WithScheme(scheme).Build()
 
-	extraLabels := map[string]string{
+	commonLabels := map[string]string{
 		kubernetes.AppKubernetesManageByLabelKey: "my-operator", // attempt override
 		"team": "platform",
 	}
-	require.NoError(t, applyAllowlistSynchronizerResource(c, "v1.0.5", "default-foo", extraLabels))
+	require.NoError(t, applyAllowlistSynchronizerResource(c, "v1.0.5", "default-foo", commonLabels))
 
 	got := &AllowlistSynchronizer{}
 	require.NoError(t, c.Get(context.TODO(), client.ObjectKey{Name: agentAllowlistSynchronizerName}, got))

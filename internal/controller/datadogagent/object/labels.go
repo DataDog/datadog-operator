@@ -21,7 +21,7 @@ import (
 )
 
 // reservedLabelPrefixes contains label key prefixes owned by the operator.
-// User-supplied extraLabels keys that match any of these prefixes are silently
+// User-supplied commonLabels keys that match any of these prefixes are silently
 // dropped at merge time to prevent them from interfering with operator-internal
 // control-flow logic (e.g. profile routing, store ownership, DDAI identity).
 var reservedLabelPrefixes = []string{
@@ -57,9 +57,9 @@ func GetDefaultLabels(dda metav1.Object, instanceName, version string) map[strin
 		}
 	}
 
-	// Merge ExtraLabels from the global spec. ExtraLabels are applied first so that
+	// Merge CommonLabels from the global spec. CommonLabels are applied first so that
 	// the operator's own standard labels always take precedence on key conflicts.
-	for k, v := range getExtraLabels(dda) {
+	for k, v := range getCommonLabels(dda) {
 		if _, exists := labels[k]; !exists {
 			labels[k] = v
 		}
@@ -68,19 +68,19 @@ func GetDefaultLabels(dda metav1.Object, instanceName, version string) map[strin
 	return labels
 }
 
-// getExtraLabels extracts spec.global.extraLabels from a DatadogAgent or DatadogAgentInternal object.
+// getCommonLabels extracts spec.global.commonLabels from a DatadogAgent or DatadogAgentInternal object.
 // Keys matching any reserved operator prefix are silently dropped to prevent
 // user labels from interfering with operator-internal control flow.
-func getExtraLabels(dda metav1.Object) map[string]string {
+func getCommonLabels(dda metav1.Object) map[string]string {
 	var raw map[string]string
 	switch d := dda.(type) {
 	case *v2alpha1.DatadogAgent:
 		if d.Spec.Global != nil {
-			raw = d.Spec.Global.ExtraLabels
+			raw = d.Spec.Global.CommonLabels
 		}
 	case *v1alpha1.DatadogAgentInternal:
 		if d.Spec.Global != nil {
-			raw = d.Spec.Global.ExtraLabels
+			raw = d.Spec.Global.CommonLabels
 		}
 	}
 	if len(raw) == 0 {

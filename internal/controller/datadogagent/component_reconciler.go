@@ -180,8 +180,8 @@ func (r *ComponentRegistry) reconcileComponent(ctx context.Context, params *Reco
 	deploymentLogger := params.Logger.WithValues("component", component.Name())
 
 	// Start by creating the Default Cluster-Agent deployment
-	// Pass params.DDA directly (not GetObjectMeta()) so that getExtraLabels can
-	// type-assert to *v2alpha1.DatadogAgent and read spec.global.extraLabels.
+	// Pass params.DDA directly (not GetObjectMeta()) so that getCommonLabels can
+	// type-assert to *v2alpha1.DatadogAgent and read spec.global.commonLabels.
 	deployment := component.GetNewDeploymentFunc()(params.DDA, &params.DDA.Spec)
 	podManagers := feature.NewPodTemplateManagers(&deployment.Spec.Template)
 

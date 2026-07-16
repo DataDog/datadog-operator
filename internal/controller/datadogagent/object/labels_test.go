@@ -16,7 +16,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
-func TestGetDefaultLabels_NoExtraLabels(t *testing.T) {
+func TestGetDefaultLabels_NoCommonLabels(t *testing.T) {
 	dda := &v2alpha1.DatadogAgent{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "datadog",
@@ -34,7 +34,7 @@ func TestGetDefaultLabels_NoExtraLabels(t *testing.T) {
 	assert.NotContains(t, labels, "custom-label")
 }
 
-func TestGetDefaultLabels_WithExtraLabels_DDA(t *testing.T) {
+func TestGetDefaultLabels_WithCommonLabels_DDA(t *testing.T) {
 	dda := &v2alpha1.DatadogAgent{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "datadog",
@@ -42,7 +42,7 @@ func TestGetDefaultLabels_WithExtraLabels_DDA(t *testing.T) {
 		},
 		Spec: v2alpha1.DatadogAgentSpec{
 			Global: &v2alpha1.GlobalConfig{
-				ExtraLabels: map[string]string{
+				CommonLabels: map[string]string{
 					"team":           "platform",
 					"cost-center":    "ops",
 					"app.custom/env": "prod",
@@ -61,7 +61,7 @@ func TestGetDefaultLabels_WithExtraLabels_DDA(t *testing.T) {
 	assert.Equal(t, "datadog-operator", labels[kubernetes.AppKubernetesManageByLabelKey])
 }
 
-func TestGetDefaultLabels_ExtraLabels_CannotOverrideOperatorLabels(t *testing.T) {
+func TestGetDefaultLabels_CommonLabels_CannotOverrideOperatorLabels(t *testing.T) {
 	dda := &v2alpha1.DatadogAgent{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "datadog",
@@ -69,7 +69,7 @@ func TestGetDefaultLabels_ExtraLabels_CannotOverrideOperatorLabels(t *testing.T)
 		},
 		Spec: v2alpha1.DatadogAgentSpec{
 			Global: &v2alpha1.GlobalConfig{
-				ExtraLabels: map[string]string{
+				CommonLabels: map[string]string{
 					// Attempt to override operator-managed labels
 					kubernetes.AppKubernetesManageByLabelKey: "my-operator",
 					kubernetes.AppKubernetesNameLabelKey:     "my-name",
@@ -89,7 +89,7 @@ func TestGetDefaultLabels_ExtraLabels_CannotOverrideOperatorLabels(t *testing.T)
 	assert.Equal(t, "platform", labels["team"])
 }
 
-func TestGetDefaultLabels_WithExtraLabels_DDAI(t *testing.T) {
+func TestGetDefaultLabels_WithCommonLabels_DDAI(t *testing.T) {
 	ddai := &v1alpha1.DatadogAgentInternal{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "datadog",
@@ -97,7 +97,7 @@ func TestGetDefaultLabels_WithExtraLabels_DDAI(t *testing.T) {
 		},
 		Spec: v2alpha1.DatadogAgentSpec{
 			Global: &v2alpha1.GlobalConfig{
-				ExtraLabels: map[string]string{
+				CommonLabels: map[string]string{
 					"environment": "staging",
 				},
 			},
@@ -137,7 +137,7 @@ func TestGetDefaultLabels_NonDDAObject(t *testing.T) {
 	assert.Equal(t, "datadog-operator", labels[kubernetes.AppKubernetesManageByLabelKey])
 }
 
-func TestGetDefaultLabels_ExtraLabels_ReservedPrefixesAreDropped(t *testing.T) {
+func TestGetDefaultLabels_CommonLabels_ReservedPrefixesAreDropped(t *testing.T) {
 	dda := &v2alpha1.DatadogAgent{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "datadog",
@@ -145,7 +145,7 @@ func TestGetDefaultLabels_ExtraLabels_ReservedPrefixesAreDropped(t *testing.T) {
 		},
 		Spec: v2alpha1.DatadogAgentSpec{
 			Global: &v2alpha1.GlobalConfig{
-				ExtraLabels: map[string]string{
+				CommonLabels: map[string]string{
 					// Reserved — must be dropped
 					"agent.datadoghq.com/datadogagentprofile": "my-profile",
 					"agent.datadoghq.com/name":                "foo",

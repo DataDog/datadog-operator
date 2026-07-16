@@ -37,9 +37,9 @@ func buildDaemonSet(instance *datadoghqv1alpha1.DatadogCSIDriver) *appsv1.Daemon
 		admissionControllerEnabledLabel: "false",
 	}
 
-	// Merge extraLabels propagated from spec.global.extraLabels on the parent
+	// Merge commonLabels propagated from spec.global.commonLabels on the parent
 	// DatadogAgent. Operator-owned keys already present in labels/podLabels win.
-	for k, v := range instance.Spec.ExtraLabels {
+	for k, v := range instance.Spec.CommonLabels {
 		if _, exists := labels[k]; !exists {
 			labels[k] = v
 		}

@@ -531,11 +531,11 @@ func TestListRevisions_ExcludesForeignOwner(t *testing.T) {
 	assert.Empty(t, revList, "foreign revision should be excluded by UID filter")
 }
 
-func TestEnsureRevision_ExtraLabelsApplied(t *testing.T) {
+func TestEnsureRevision_CommonLabelsApplied(t *testing.T) {
 	r, c := newRevisionTestReconciler(t)
 	instance := newRevisionTestOwner("datadog", "default")
 	instance.Spec.Global = &v2alpha1.GlobalConfig{
-		ExtraLabels: map[string]string{
+		CommonLabels: map[string]string{
 			"team":        "platform",
 			"cost-center": "ops",
 		},
@@ -551,11 +551,11 @@ func TestEnsureRevision_ExtraLabelsApplied(t *testing.T) {
 	assert.Equal(t, "datadog", rev.Labels["agent.datadoghq.com/datadogagent"])
 }
 
-func TestEnsureRevision_ExtraLabels_CannotOverrideOperatorKey(t *testing.T) {
+func TestEnsureRevision_CommonLabels_CannotOverrideOperatorKey(t *testing.T) {
 	r, c := newRevisionTestReconciler(t)
 	instance := newRevisionTestOwner("datadog", "default")
 	instance.Spec.Global = &v2alpha1.GlobalConfig{
-		ExtraLabels: map[string]string{
+		CommonLabels: map[string]string{
 			"agent.datadoghq.com/datadogagent": "override-attempt",
 			"team":                             "platform",
 		},

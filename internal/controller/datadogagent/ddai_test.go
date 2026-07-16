@@ -95,7 +95,7 @@ func Test_generateObjMetaFromDDA(t *testing.T) {
 			},
 		},
 		{
-			name: "dda with extraLabels in global spec",
+			name: "dda with commonLabels in global spec",
 			dda: &v2alpha1.DatadogAgent{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "foo",
@@ -103,7 +103,7 @@ func Test_generateObjMetaFromDDA(t *testing.T) {
 				},
 				Spec: v2alpha1.DatadogAgentSpec{
 					Global: &v2alpha1.GlobalConfig{
-						ExtraLabels: map[string]string{
+						CommonLabels: map[string]string{
 							"team":        "platform",
 							"cost-center": "ops",
 						},
@@ -134,7 +134,7 @@ func Test_generateObjMetaFromDDA(t *testing.T) {
 			},
 		},
 		{
-			name: "extraLabels cannot override dda metadata labels",
+			name: "commonLabels cannot override dda metadata labels",
 			dda: &v2alpha1.DatadogAgent{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "foo",
@@ -145,7 +145,7 @@ func Test_generateObjMetaFromDDA(t *testing.T) {
 				},
 				Spec: v2alpha1.DatadogAgentSpec{
 					Global: &v2alpha1.GlobalConfig{
-						ExtraLabels: map[string]string{
+						CommonLabels: map[string]string{
 							// attempt to override a label already on the DDA metadata
 							"existing": "overridden",
 							"new-key":  "new-value",

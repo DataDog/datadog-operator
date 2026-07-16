@@ -46,7 +46,7 @@ func applyExperimentalAutopilotOverrides(dda metav1.Object, _ feature.PodTemplat
 		allowlistsynchronizer.CreateAllowlistSynchronizer(
 			getExperimentalAnnotation(dda, ExperimentalAutopilotAllowlistVersionSubkey),
 			object.NewPartOfLabelValue(dda).String(),
-			extraLabelsFromObject(dda),
+			commonLabelsFromObject(dda),
 		)
 	}
 }
@@ -61,21 +61,21 @@ func CreateDatadogCSIAllowlistSynchronizer(dda metav1.Object) {
 	allowlistsynchronizer.CreateCSIAllowlistSynchronizer(
 		getExperimentalAnnotation(dda, ExperimentalAutopilotCSIAllowlistVersionSubkey),
 		object.NewPartOfLabelValue(dda).String(),
-		extraLabelsFromObject(dda),
+		commonLabelsFromObject(dda),
 	)
 }
 
-// extraLabelsFromObject extracts spec.global.extraLabels from a DatadogAgent
+// commonLabelsFromObject extracts spec.global.commonLabels from a DatadogAgent
 // or DatadogAgentInternal object, returning nil for any other type.
-func extraLabelsFromObject(obj metav1.Object) map[string]string {
+func commonLabelsFromObject(obj metav1.Object) map[string]string {
 	switch d := obj.(type) {
 	case *v2alpha1.DatadogAgent:
 		if d.Spec.Global != nil {
-			return d.Spec.Global.ExtraLabels
+			return d.Spec.Global.CommonLabels
 		}
 	case *v1alpha1.DatadogAgentInternal:
 		if d.Spec.Global != nil {
-			return d.Spec.Global.ExtraLabels
+			return d.Spec.Global.CommonLabels
 		}
 	}
 	return nil

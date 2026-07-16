@@ -189,8 +189,8 @@ func (r *ComponentRegistry) reconcileComponent(ctx context.Context, params *Reco
 	now := metav1.NewTime(time.Now())
 
 	// Start by creating the Default deployment
-	// Pass params.DDAI directly (not GetObjectMeta()) so that getExtraLabels can
-	// type-assert to *v1alpha1.DatadogAgentInternal and read spec.global.extraLabels.
+	// Pass params.DDAI directly (not GetObjectMeta()) so that getCommonLabels can
+	// type-assert to *v1alpha1.DatadogAgentInternal and read spec.global.commonLabels.
 	deployment := component.GetNewDeploymentFunc()(params.DDAI, &params.DDAI.Spec)
 	objLogger := ctrl.LoggerFrom(ctx).WithValues("object.kind", "Deployment", "object.namespace", deployment.Namespace, "object.name", deployment.Name)
 	podManagers := feature.NewPodTemplateManagers(&deployment.Spec.Template)

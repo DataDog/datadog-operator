@@ -554,8 +554,8 @@ func (in *DatadogCSIDriverSpec) DeepCopyInto(out *DatadogCSIDriverSpec) {
 		*out = new(DatadogCSIDriverOverride)
 		(*in).DeepCopyInto(*out)
 	}
-	if in.ExtraLabels != nil {
-		in, out := &in.ExtraLabels, &out.ExtraLabels
+	if in.CommonLabels != nil {
+		in, out := &in.CommonLabels, &out.CommonLabels
 		*out = make(map[string]string, len(*in))
 		for key, val := range *in {
 			(*out)[key] = val

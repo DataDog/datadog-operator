@@ -213,6 +213,7 @@ spec:
 | global.clusterAgentTokenSecret.keyName | KeyName is the key of the secret to use. |
 | global.clusterAgentTokenSecret.secretName | SecretName is the name of the secret. |
 | global.clusterName | ClusterName sets a unique cluster name for the deployment to easily scope monitoring data in the Datadog app. |
+| global.commonLabels | CommonLabels specified labels to be added to all operator-managed Kubernetes resources (DaemonSets, Deployments, ConfigMaps, Services, ServiceAccounts, etc.). This is useful when external policy tools such as Kyverno enforce the presence of specific labels on all cluster resources. Labels defined here are merged with the operator's own default labels; operator labels take precedence on any key conflict. |
 | global.containerStrategy | ContainerStrategy determines whether agents run in a single or multiple containers. Default: 'optimized' |
 | global.credentials.apiKey | APIKey configures your Datadog API key. See also: https://app.datadoghq.com/account/settings#agent/kubernetes |
 | global.credentials.apiSecret.keyName | KeyName is the key of the secret to use. |
@@ -237,7 +238,6 @@ spec:
 | global.endpoint.credentials.appSecret.secretName | SecretName is the name of the secret. |
 | global.endpoint.url | URL defines the endpoint URL. |
 | global.env | Contains a list of environment variables that are set for all Agents. |
-| global.extraLabels | ExtraLabels specified labels to be added to all operator-managed Kubernetes resources (DaemonSets, Deployments, ConfigMaps, Services, ServiceAccounts, etc.). This is useful when external policy tools such as Kyverno enforce the presence of specific labels on all cluster resources. Labels defined here are merged with the operator's own default labels; operator labels take precedence on any key conflict. |
 | global.fips.customFIPSConfig.configData | ConfigData corresponds to the configuration file content. |
 | global.fips.customFIPSConfig.configMap.items | Maps a ConfigMap data `key` to a file `path` mount. |
 | global.fips.customFIPSConfig.configMap.name | Is the name of the ConfigMap. |

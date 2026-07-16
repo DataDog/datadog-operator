@@ -14,19 +14,19 @@ import (
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 )
 
-func newTestCSIInstance(extraLabels map[string]string) *datadoghqv1alpha1.DatadogCSIDriver {
+func newTestCSIInstance(commonLabels map[string]string) *datadoghqv1alpha1.DatadogCSIDriver {
 	return &datadoghqv1alpha1.DatadogCSIDriver{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "datadog",
 			Namespace: "default",
 		},
 		Spec: datadoghqv1alpha1.DatadogCSIDriverSpec{
-			ExtraLabels: extraLabels,
+			CommonLabels: commonLabels,
 		},
 	}
 }
 
-func TestBuildDaemonSet_ExtraLabels(t *testing.T) {
+func TestBuildDaemonSet_CommonLabels(t *testing.T) {
 	instance := newTestCSIInstance(map[string]string{
 		"team":        "platform",
 		"cost-center": "ops",
@@ -45,7 +45,7 @@ func TestBuildDaemonSet_ExtraLabels(t *testing.T) {
 	assert.Equal(t, csiDsName, ds.Spec.Template.Labels[AppLabelKey])
 }
 
-func TestBuildDaemonSet_ExtraLabels_CannotOverrideOperatorKeys(t *testing.T) {
+func TestBuildDaemonSet_CommonLabels_CannotOverrideOperatorKeys(t *testing.T) {
 	instance := newTestCSIInstance(map[string]string{
 		AppLabelKey: "my-override", // attempt to override reserved CSI key
 		"team":      "platform",
@@ -60,13 +60,13 @@ func TestBuildDaemonSet_ExtraLabels_CannotOverrideOperatorKeys(t *testing.T) {
 	assert.Equal(t, "platform", ds.Labels["team"])
 }
 
-func TestBuildDaemonSet_NoExtraLabels(t *testing.T) {
+func TestBuildDaemonSet_NoCommonLabels(t *testing.T) {
 	instance := newTestCSIInstance(nil)
 	ds := buildDaemonSet(instance)
 	assert.Equal(t, csiDsName, ds.Labels[AppLabelKey])
 }
 
-func TestBuildCSIDriverObject_ExtraLabels(t *testing.T) {
+func TestBuildCSIDriverObject_CommonLabels(t *testing.T) {
 	instance := newTestCSIInstance(map[string]string{
 		"team":        "platform",
 		"cost-center": "ops",
@@ -80,7 +80,7 @@ func TestBuildCSIDriverObject_ExtraLabels(t *testing.T) {
 	assert.Equal(t, "datadog-operator", csiDriver.Labels["app.kubernetes.io/managed-by"])
 }
 
-func TestBuildCSIDriverObject_ExtraLabels_CannotOverrideOperatorKeys(t *testing.T) {
+func TestBuildCSIDriverObject_CommonLabels_CannotOverrideOperatorKeys(t *testing.T) {
 	instance := newTestCSIInstance(map[string]string{
 		"app.kubernetes.io/managed-by": "my-operator",
 		"team":                         "platform",
