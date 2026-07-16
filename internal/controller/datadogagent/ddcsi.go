@@ -8,6 +8,7 @@ package datadogagent
 import (
 	"context"
 	"fmt"
+	"maps"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
@@ -110,6 +111,13 @@ func (r *Reconciler) buildDesiredDatadogCSIDriver(instance *v2alpha1.DatadogAgen
 			APMSocketPath: apmSocketPathFromDDA(instance),
 			DSDSocketPath: dsdSocketPathFromDDA(instance),
 		},
+	}
+
+	// Propagate commonLabels so the CSI controller can apply them to the
+	// DaemonSet and cluster-scoped CSIDriver it manages directly.
+	if instance.Spec.Global != nil && len(instance.Spec.Global.CommonLabels) > 0 {
+		ddcsi.Spec.CommonLabels = make(map[string]string, len(instance.Spec.Global.CommonLabels))
+		maps.Copy(ddcsi.Spec.CommonLabels, instance.Spec.Global.CommonLabels)
 	}
 
 	csiConfig := instance.Spec.Global.CSI
