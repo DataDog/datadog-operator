@@ -34,7 +34,7 @@ import (
 	operatorremoteconfig "github.com/DataDog/datadog-operator/pkg/remoteconfig"
 )
 
-var testLifecycleIdentity = operatorremoteconfig.LifecycleIdentity{
+var testManagedAgentInstallationIdentity = operatorremoteconfig.ManagedAgentInstallationIdentity{
 	InstallationID: "123e4567-e89b-42d3-a456-426614174000",
 	TargetHash:     "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
 }
@@ -103,22 +103,22 @@ type transientGetReader struct {
 	failures int
 }
 
-type autoReadyLifecycleClient struct {
+type autoReadyManagedAgentInstallationClient struct {
 	client.Client
 }
 
-type assignUIDLifecycleClient struct {
+type assignUIDManagedAgentInstallationClient struct {
 	client.Client
 }
 
-func (c *assignUIDLifecycleClient) Create(ctx context.Context, obj client.Object, opts ...client.CreateOption) error {
+func (c *assignUIDManagedAgentInstallationClient) Create(ctx context.Context, obj client.Object, opts ...client.CreateOption) error {
 	if dda, ok := obj.(*v2alpha1.DatadogAgent); ok && dda.UID == "" {
 		dda.UID = types.UID("created-dda-uid")
 	}
 	return c.Client.Create(ctx, obj, opts...)
 }
 
-func (c *autoReadyLifecycleClient) Create(ctx context.Context, obj client.Object, opts ...client.CreateOption) error {
+func (c *autoReadyManagedAgentInstallationClient) Create(ctx context.Context, obj client.Object, opts ...client.CreateOption) error {
 	if dda, ok := obj.(*v2alpha1.DatadogAgent); ok && dda.UID == "" {
 		dda.UID = types.UID("created-dda-uid")
 	}
@@ -162,7 +162,7 @@ func setTestDatadogAgentReady(dda *v2alpha1.DatadogAgent, includeWindows bool) {
 	dda.Status.Agent = base.DeepCopy()
 	dda.Status.AgentList = []*v2alpha1.DaemonSetStatus{base}
 	if includeWindows {
-		dda.Status.AgentList = append(dda.Status.AgentList, &v2alpha1.DaemonSetStatus{DaemonsetName: addonLifecycleWindowsProfileName + "-agent"})
+		dda.Status.AgentList = append(dda.Status.AgentList, &v2alpha1.DaemonSetStatus{DaemonsetName: managedAgentInstallationWindowsProfileName + "-agent"})
 	}
 	dda.Status.ClusterAgent = &v2alpha1.DeploymentStatus{Replicas: 1, UpdatedReplicas: 1, ReadyReplicas: 1, AvailableReplicas: 1}
 }
@@ -299,7 +299,7 @@ func (c *driftDatadogAgentAfterReadyGetClient) Get(ctx context.Context, key clie
 		return err
 	}
 	dda, ok := obj.(*v2alpha1.DatadogAgent)
-	if !ok || c.mutated || dda.Labels[fleetLifecycleStateLabel] != fleetLifecycleStateReady {
+	if !ok || c.mutated || dda.Labels[fleetManagedAgentInstallationStateLabel] != fleetManagedAgentInstallationStateReady {
 		return nil
 	}
 	if _, pending := pendingOperationFromAnnotations(client.ObjectKeyFromObject(dda), dda.Annotations); !pending {
@@ -522,24 +522,24 @@ type transientPendingCleanupPatchClient struct {
 	failures int
 }
 
-type failPartialLifecyclePatchClient struct {
+type failPartialManagedAgentInstallationPatchClient struct {
 	client.Client
 	failures int
 }
 
-type failReadyLifecyclePatchClient struct {
+type failReadyManagedAgentInstallationPatchClient struct {
 	client.Client
 	failures int
 }
 
-type rehydrateOnPartialLifecyclePatchClient struct {
+type rehydrateOnPartialManagedAgentInstallationPatchClient struct {
 	client.Client
 	rehydrate    func() error
 	rehydrateErr error
 	called       bool
 }
 
-func (c *rehydrateOnPartialLifecyclePatchClient) Patch(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
+func (c *rehydrateOnPartialManagedAgentInstallationPatchClient) Patch(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
 	data, err := patch.Data(obj)
 	if err != nil {
 		return err
@@ -547,33 +547,33 @@ func (c *rehydrateOnPartialLifecyclePatchClient) Patch(ctx context.Context, obj 
 	if err := c.Client.Patch(ctx, obj, patch, opts...); err != nil {
 		return err
 	}
-	if !c.called && bytes.Contains(data, []byte(fleetLifecycleStateLabel)) && bytes.Contains(data, []byte(fleetLifecycleStatePartial)) {
+	if !c.called && bytes.Contains(data, []byte(fleetManagedAgentInstallationStateLabel)) && bytes.Contains(data, []byte(fleetManagedAgentInstallationStatePartial)) {
 		c.called = true
 		c.rehydrateErr = c.rehydrate()
 	}
 	return nil
 }
 
-func (c *failReadyLifecyclePatchClient) Patch(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
+func (c *failReadyManagedAgentInstallationPatchClient) Patch(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
 	data, err := patch.Data(obj)
 	if err != nil {
 		return err
 	}
-	if c.failures > 0 && bytes.Contains(data, []byte(fleetLifecycleStateLabel)) && bytes.Contains(data, []byte(fleetLifecycleStateReady)) {
+	if c.failures > 0 && bytes.Contains(data, []byte(fleetManagedAgentInstallationStateLabel)) && bytes.Contains(data, []byte(fleetManagedAgentInstallationStateReady)) {
 		c.failures--
-		return fmt.Errorf("connection reset before ready lifecycle patch committed")
+		return fmt.Errorf("connection reset before ready managed Agent installation patch committed")
 	}
 	return c.Client.Patch(ctx, obj, patch, opts...)
 }
 
-func (c *failPartialLifecyclePatchClient) Patch(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
+func (c *failPartialManagedAgentInstallationPatchClient) Patch(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
 	data, err := patch.Data(obj)
 	if err != nil {
 		return err
 	}
-	if c.failures > 0 && bytes.Contains(data, []byte(fleetLifecycleStateLabel)) && bytes.Contains(data, []byte(fleetLifecycleStatePartial)) {
+	if c.failures > 0 && bytes.Contains(data, []byte(fleetManagedAgentInstallationStateLabel)) && bytes.Contains(data, []byte(fleetManagedAgentInstallationStatePartial)) {
 		c.failures--
-		return fmt.Errorf("connection reset before partial lifecycle patch committed")
+		return fmt.Errorf("connection reset before partial managed Agent installation patch committed")
 	}
 	return c.Client.Patch(ctx, obj, patch, opts...)
 }
@@ -695,7 +695,7 @@ func (c *unmanagedDatadogAgentOnReadyPatchClient) Patch(ctx context.Context, obj
 		return err
 	}
 	dda, ok := obj.(*v2alpha1.DatadogAgent)
-	if !ok || c.created || dda.Labels[fleetLifecycleStateLabel] != fleetLifecycleStateReady {
+	if !ok || c.created || dda.Labels[fleetManagedAgentInstallationStateLabel] != fleetManagedAgentInstallationStateReady {
 		return nil
 	}
 	c.created = true
@@ -707,7 +707,7 @@ func (c *replaceDatadogAgentOnReadyPatchClient) Patch(ctx context.Context, obj c
 		return err
 	}
 	dda, ok := obj.(*v2alpha1.DatadogAgent)
-	if !ok || c.replaced || dda.Labels[fleetLifecycleStateLabel] != fleetLifecycleStateReady {
+	if !ok || c.replaced || dda.Labels[fleetManagedAgentInstallationStateLabel] != fleetManagedAgentInstallationStateReady {
 		return nil
 	}
 	c.replaced = true
@@ -722,7 +722,7 @@ func (c *invalidateReadinessOnReadyPatchClient) Patch(ctx context.Context, obj c
 		return err
 	}
 	dda, ok := obj.(*v2alpha1.DatadogAgent)
-	if !ok || c.changed || dda.Labels[fleetLifecycleStateLabel] != fleetLifecycleStateReady {
+	if !ok || c.changed || dda.Labels[fleetManagedAgentInstallationStateLabel] != fleetManagedAgentInstallationStateReady {
 		return nil
 	}
 	current := &v2alpha1.DatadogAgent{}
@@ -838,7 +838,7 @@ func (r *transientGetReader) Get(ctx context.Context, key client.ObjectKey, obj 
 	return r.Reader.Get(ctx, key, obj, opts...)
 }
 
-func testLifecycleDaemon(configs map[string]installerConfig, rcState []*pbgo.PackageState, objects ...client.Object) (*Daemon, client.Client, *mockRCClient) {
+func testManagedAgentInstallationDaemon(configs map[string]installerConfig, rcState []*pbgo.PackageState, objects ...client.Object) (*Daemon, client.Client, *mockRCClient) {
 	hasFence := false
 	for _, object := range objects {
 		if client.ObjectKeyFromObject(object) == uninstallFenceKey {
@@ -857,8 +857,8 @@ func testLifecycleDaemon(configs map[string]installerConfig, rcState []*pbgo.Pac
 		if ddai.Labels == nil {
 			ddai.Labels = make(map[string]string)
 		}
-		ddai.Labels[fleetInstallationIDLabel] = testLifecycleIdentity.InstallationID
-		ddai.Labels[fleetTargetIDLabel] = testLifecycleIdentity.TargetID()
+		ddai.Labels[fleetInstallationIDLabel] = testManagedAgentInstallationIdentity.InstallationID
+		ddai.Labels[fleetTargetIDLabel] = testManagedAgentInstallationIdentity.TargetID()
 	}
 	objects = append(objects, testUninstallFenceWebhookConfiguration())
 	scheme := testFleetScheme()
@@ -872,23 +872,23 @@ func testLifecycleDaemon(configs map[string]installerConfig, rcState []*pbgo.Pac
 		WithStatusSubresource(&v2alpha1.DatadogAgent{}).
 		WithObjects(objects...).
 		Build()
-	c := &autoReadyLifecycleClient{Client: baseClient}
+	c := &autoReadyManagedAgentInstallationClient{Client: baseClient}
 	rc := &mockRCClient{state: rcState, clientID: testRCClientID}
 	d := &Daemon{
-		rcClient:          rc,
-		client:            c,
-		apiReader:         c,
-		revisionsEnabled:  false,
-		lifecycleIdentity: testLifecycleIdentity,
-		fenceVerifier:     func(context.Context, *corev1.ConfigMap) error { return nil },
-		fenceModeManager:  func(context.Context, bool) error { return nil },
-		configs:           configs,
-		statusUpdates:     make(chan ddaStatusSnapshot, 32),
+		rcClient:                         rc,
+		client:                           c,
+		apiReader:                        c,
+		revisionsEnabled:                 false,
+		managedAgentInstallationIdentity: testManagedAgentInstallationIdentity,
+		fenceVerifier:                    func(context.Context, *corev1.ConfigMap) error { return nil },
+		fenceModeManager:                 func(context.Context, bool) error { return nil },
+		configs:                          configs,
+		statusUpdates:                    make(chan ddaStatusSnapshot, 32),
 	}
 	return d, c, rc
 }
 
-func testLifecycleInstallerConfig(id string, operation Operation, config string) map[string]installerConfig {
+func testManagedAgentInstallationInstallerConfig(id string, operation Operation, config string) map[string]installerConfig {
 	return map[string]installerConfig{
 		id: {
 			ID: id,
@@ -913,11 +913,11 @@ func testFleetOwnedDDA(configID string) *v2alpha1.DatadogAgent {
 			Namespace: testDDANSN.Namespace,
 			UID:       types.UID("fleet-dda-uid"),
 			Labels: map[string]string{
-				fleetManagedByLabel:      fleetManagedByValue,
-				fleetConfigIDLabel:       configID,
-				fleetLifecycleStateLabel: fleetLifecycleStateReady,
-				fleetInstallationIDLabel: testLifecycleIdentity.InstallationID,
-				fleetTargetIDLabel:       testLifecycleIdentity.TargetID(),
+				fleetManagedByLabel:                     fleetManagedByValue,
+				fleetConfigIDLabel:                      configID,
+				fleetManagedAgentInstallationStateLabel: fleetManagedAgentInstallationStateReady,
+				fleetInstallationIDLabel:                testManagedAgentInstallationIdentity.InstallationID,
+				fleetTargetIDLabel:                      testManagedAgentInstallationIdentity.TargetID(),
 			},
 		},
 		Spec: v2alpha1.DatadogAgentSpec{
@@ -949,7 +949,7 @@ func testFleetOwnedDDA(configID string) *v2alpha1.DatadogAgent {
 	return dda
 }
 
-func testLifecycleRequest(method, version string) remoteAPIRequest {
+func testManagedAgentInstallationRequest(method, version string) remoteAPIRequest {
 	return remoteAPIRequest{
 		ID:      "task-123",
 		Package: packageDatadogOperator,
@@ -959,29 +959,29 @@ func testLifecycleRequest(method, version string) remoteAPIRequest {
 			GroupVersionKind: testDDAGVK,
 			NamespacedName:   testDDANSN,
 			OperationID:      "123e4567-e89b-42d3-a456-426614174001",
-			InstallationID:   testLifecycleIdentity.InstallationID,
+			InstallationID:   testManagedAgentInstallationIdentity.InstallationID,
 		},
 		ExpectedState: expectedState{ClientID: testRCClientID},
 	}
 }
 
-func testSignedLifecycleRequest(d *Daemon, method, version string) remoteAPIRequest {
-	req := testLifecycleRequest(method, version)
+func testSignedManagedAgentInstallationRequest(d *Daemon, method, version string) remoteAPIRequest {
+	req := testManagedAgentInstallationRequest(method, version)
 	if _, err := d.getConfig(version); err != nil {
 		panic(err)
 	}
 	return req
 }
 
-func TestLifecycleRequestEnvelopeValidation(t *testing.T) {
+func TestManagedAgentInstallationRequestEnvelopeValidation(t *testing.T) {
 	const configID = "create-config"
 	newDaemonAndRequest := func() (*Daemon, *mockRCClient, remoteAPIRequest) {
-		d, _, rc := testLifecycleDaemon(testLifecycleInstallerConfig(configID, OperationCreate, `{"spec":{}}`), nil, testFleetCredentialSecret())
-		return d, rc, testSignedLifecycleRequest(d, methodInstallDatadogAgent, configID)
+		d, _, rc := testManagedAgentInstallationDaemon(testManagedAgentInstallationInstallerConfig(configID, OperationCreate, `{"spec":{}}`), nil, testFleetCredentialSecret())
+		return d, rc, testSignedManagedAgentInstallationRequest(d, methodInstallDatadogAgent, configID)
 	}
 
 	d, _, req := newDaemonAndRequest()
-	require.NoError(t, d.validateLifecycleRequestEnvelope(req))
+	require.NoError(t, d.validateManagedAgentInstallationRequestEnvelope(req))
 
 	tests := []struct {
 		name    string
@@ -991,7 +991,7 @@ func TestLifecycleRequestEnvelopeValidation(t *testing.T) {
 		{name: "missing task ID", mutate: func(_ *Daemon, _ *mockRCClient, req *remoteAPIRequest) { req.ID = "" }, wantErr: "task ID is required"},
 		{name: "missing operation ID", mutate: func(_ *Daemon, _ *mockRCClient, req *remoteAPIRequest) { req.Params.OperationID = "" }, wantErr: "operation ID is required"},
 		{name: "identity unavailable", mutate: func(d *Daemon, _ *mockRCClient, _ *remoteAPIRequest) {
-			d.lifecycleIdentity = operatorremoteconfig.LifecycleIdentity{}
+			d.managedAgentInstallationIdentity = operatorremoteconfig.ManagedAgentInstallationIdentity{}
 		}, wantErr: "identity is not configured"},
 		{name: "local client unavailable", mutate: func(_ *Daemon, rc *mockRCClient, _ *remoteAPIRequest) { rc.clientID = "" }, wantErr: "local RC client ID is unavailable"},
 		{name: "expected client missing", mutate: func(_ *Daemon, _ *mockRCClient, req *remoteAPIRequest) { req.ExpectedState.ClientID = "" }, wantErr: "expected RC client ID is required"},
@@ -1000,7 +1000,7 @@ func TestLifecycleRequestEnvelopeValidation(t *testing.T) {
 			req.Params.InstallationID = "223e4567-e89b-42d3-a456-426614174000"
 		}, wantErr: "installation ID does not match"},
 		{name: "installer config operation changed", mutate: func(d *Daemon, _ *mockRCClient, _ *remoteAPIRequest) {
-			d.configs[configID] = testLifecycleInstallerConfig(configID, OperationUpdate, `{"spec":{}}`)[configID]
+			d.configs[configID] = testManagedAgentInstallationInstallerConfig(configID, OperationUpdate, `{"spec":{}}`)[configID]
 		}, wantErr: "invalid operation: update"},
 	}
 
@@ -1008,25 +1008,25 @@ func TestLifecycleRequestEnvelopeValidation(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			d, rc, req := newDaemonAndRequest()
 			tt.mutate(d, rc, &req)
-			err := d.validateLifecycleRequestEnvelope(req)
+			err := d.validateManagedAgentInstallationRequestEnvelope(req)
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), tt.wantErr)
 		})
 	}
 }
 
-func TestLifecycleTaskRunnerReturnsAfterAcceptance(t *testing.T) {
+func TestManagedAgentInstallationTaskRunnerReturnsAfterAcceptance(t *testing.T) {
 	const configID = "delete-config"
-	d, _, rc := testLifecycleDaemon(
-		testLifecycleInstallerConfig(configID, OperationDelete, ""),
+	d, _, rc := testManagedAgentInstallationDaemon(
+		testManagedAgentInstallationInstallerConfig(configID, OperationDelete, ""),
 		[]*pbgo.PackageState{{Package: packageDatadogOperator}},
 	)
 	var acceptedTask func()
-	d.lifecycleTaskRunner = func(task func()) {
+	d.managedAgentInstallationTaskRunner = func(task func()) {
 		acceptedTask = task
 	}
 
-	req := testSignedLifecycleRequest(d, methodUninstallDatadogAgent, configID)
+	req := testSignedManagedAgentInstallationRequest(d, methodUninstallDatadogAgent, configID)
 	require.NoError(t, d.handleTask(context.Background(), req))
 	require.NotNil(t, acceptedTask)
 	require.Len(t, rc.state, 1)
@@ -1061,9 +1061,9 @@ func setPendingOperationAnnotations(dda *v2alpha1.DatadogAgent, op pendingOperat
 
 func TestInstallDatadogAgentCreatesFleetOwnedResource(t *testing.T) {
 	const configID = "create-config"
-	configs := testLifecycleInstallerConfig(configID, OperationCreate, `{"spec":{"global":{"site":"ap2.datadoghq.com"}}}`)
-	d, c, rc := testLifecycleDaemon(configs, []*pbgo.PackageState{{Package: packageDatadogOperator}}, testFleetCredentialSecret())
-	req := testSignedLifecycleRequest(d, methodInstallDatadogAgent, configID)
+	configs := testManagedAgentInstallationInstallerConfig(configID, OperationCreate, `{"spec":{"global":{"site":"ap2.datadoghq.com"}}}`)
+	d, c, rc := testManagedAgentInstallationDaemon(configs, []*pbgo.PackageState{{Package: packageDatadogOperator}}, testFleetCredentialSecret())
+	req := testSignedManagedAgentInstallationRequest(d, methodInstallDatadogAgent, configID)
 
 	require.NoError(t, d.handleTask(context.Background(), req))
 
@@ -1071,7 +1071,7 @@ func TestInstallDatadogAgentCreatesFleetOwnedResource(t *testing.T) {
 	require.NoError(t, c.Get(context.Background(), testDDANSN, dda))
 	assert.Equal(t, fleetManagedByValue, dda.Labels[fleetManagedByLabel])
 	assert.Equal(t, configID, dda.Labels[fleetConfigIDLabel])
-	assert.Equal(t, testLifecycleIdentity.InstallationID, dda.Labels[fleetInstallationIDLabel])
+	assert.Equal(t, testManagedAgentInstallationIdentity.InstallationID, dda.Labels[fleetInstallationIDLabel])
 	require.NotNil(t, dda.Spec.Global)
 	require.NotNil(t, dda.Spec.Global.Site)
 	assert.Equal(t, "ap2.datadoghq.com", *dda.Spec.Global.Site)
@@ -1090,67 +1090,67 @@ func TestInstallDatadogAgentCreatesFleetOwnedResource(t *testing.T) {
 
 func TestInstallDatadogAgentLeavesAmbiguousCreatePartial(t *testing.T) {
 	const configID = "create-config"
-	configs := testLifecycleInstallerConfig(configID, OperationCreate, `{"spec":{}}`)
-	d, c, rc := testLifecycleDaemon(configs, []*pbgo.PackageState{{Package: packageDatadogOperator}}, testFleetCredentialSecret())
+	configs := testManagedAgentInstallationInstallerConfig(configID, OperationCreate, `{"spec":{}}`)
+	d, c, rc := testManagedAgentInstallationDaemon(configs, []*pbgo.PackageState{{Package: packageDatadogOperator}}, testFleetCredentialSecret())
 	d.client = &persistThenErrorCreateClient{Client: c}
 
-	_, err := d.installDatadogAgent(context.Background(), testLifecycleRequest(methodInstallDatadogAgent, configID))
+	_, err := d.installDatadogAgent(context.Background(), testManagedAgentInstallationRequest(methodInstallDatadogAgent, configID))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "remains partial")
 	dda := &v2alpha1.DatadogAgent{}
 	require.NoError(t, c.Get(context.Background(), testDDANSN, dda))
-	assert.Equal(t, fleetLifecycleStatePartial, dda.Labels[fleetLifecycleStateLabel])
+	assert.Equal(t, fleetManagedAgentInstallationStatePartial, dda.Labels[fleetManagedAgentInstallationStateLabel])
 	assert.Equal(t, fleetPartialConfigVersionPrefix+configID, rc.state[0].StableConfigVersion)
 }
 
 func TestInstallDatadogAgentPublishesPartialAfterAmbiguousDefaultedCreate(t *testing.T) {
 	const configID = "create-config"
-	configs := testLifecycleInstallerConfig(configID, OperationCreate, `{"spec":{}}`)
-	d, c, rc := testLifecycleDaemon(configs, []*pbgo.PackageState{{Package: packageDatadogOperator}}, testFleetCredentialSecret())
+	configs := testManagedAgentInstallationInstallerConfig(configID, OperationCreate, `{"spec":{}}`)
+	d, c, rc := testManagedAgentInstallationDaemon(configs, []*pbgo.PackageState{{Package: packageDatadogOperator}}, testFleetCredentialSecret())
 	d.client = &persistThenErrorCreateClient{Client: c, defaultSpec: true}
 
-	_, err := d.installDatadogAgent(context.Background(), testLifecycleRequest(methodInstallDatadogAgent, configID))
+	_, err := d.installDatadogAgent(context.Background(), testManagedAgentInstallationRequest(methodInstallDatadogAgent, configID))
 	require.Error(t, err)
 	assert.Equal(t, fleetPartialConfigVersionPrefix+configID, rc.state[0].StableConfigVersion)
 	dda := &v2alpha1.DatadogAgent{}
 	require.NoError(t, c.Get(context.Background(), testDDANSN, dda))
-	assert.Equal(t, fleetLifecycleStatePartial, dda.Labels[fleetLifecycleStateLabel])
+	assert.Equal(t, fleetManagedAgentInstallationStatePartial, dda.Labels[fleetManagedAgentInstallationStateLabel])
 }
 
 func TestInstallDatadogAgentPreservesAmbiguousCreateOnCoexistenceConflict(t *testing.T) {
 	const configID = "create-config"
-	configs := testLifecycleInstallerConfig(configID, OperationCreate, `{"spec":{}}`)
+	configs := testManagedAgentInstallationInstallerConfig(configID, OperationCreate, `{"spec":{}}`)
 	unmanaged := &v2alpha1.DatadogAgent{ObjectMeta: metav1.ObjectMeta{Name: "customer-agent", Namespace: "monitoring", UID: types.UID("customer-uid")}}
-	d, c, rc := testLifecycleDaemon(configs, []*pbgo.PackageState{{Package: packageDatadogOperator}}, testFleetCredentialSecret())
+	d, c, rc := testManagedAgentInstallationDaemon(configs, []*pbgo.PackageState{{Package: packageDatadogOperator}}, testFleetCredentialSecret())
 	ambiguous := &persistThenErrorCreateClient{Client: c, unmanaged: unmanaged}
 	d.client = ambiguous
 	d.apiReader = ambiguous
-	previousInterval := lifecycleDeletePollInterval
-	lifecycleDeletePollInterval = time.Millisecond
-	t.Cleanup(func() { lifecycleDeletePollInterval = previousInterval })
+	previousInterval := managedAgentInstallationDeletePollInterval
+	managedAgentInstallationDeletePollInterval = time.Millisecond
+	t.Cleanup(func() { managedAgentInstallationDeletePollInterval = previousInterval })
 
-	_, err := d.installDatadogAgent(context.Background(), testLifecycleRequest(methodInstallDatadogAgent, configID))
+	_, err := d.installDatadogAgent(context.Background(), testManagedAgentInstallationRequest(methodInstallDatadogAgent, configID))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "cannot safely roll back")
 	current := &v2alpha1.DatadogAgent{}
 	require.NoError(t, c.Get(context.Background(), testDDANSN, current))
-	assert.Equal(t, fleetLifecycleStatePartial, current.Labels[fleetLifecycleStateLabel])
+	assert.Equal(t, fleetManagedAgentInstallationStatePartial, current.Labels[fleetManagedAgentInstallationStateLabel])
 	assert.NoError(t, c.Get(context.Background(), client.ObjectKeyFromObject(unmanaged), &v2alpha1.DatadogAgent{}))
 	assert.Equal(t, fleetPartialConfigVersionPrefix+configID, rc.state[0].StableConfigVersion)
 }
 
 func TestInstallDatadogAgentPreservesUnprovenAmbiguousCreateOnCoexistenceConflict(t *testing.T) {
 	const configID = "create-config"
-	configs := testLifecycleInstallerConfig(configID, OperationCreate, `{"spec":{}}`)
+	configs := testManagedAgentInstallationInstallerConfig(configID, OperationCreate, `{"spec":{}}`)
 	recovered := testFleetOwnedDDA(configID)
 	delete(recovered.Annotations, fleetCreateTaskIDAnnotation)
 	unmanaged := &v2alpha1.DatadogAgent{ObjectMeta: metav1.ObjectMeta{Name: "customer-agent", Namespace: "monitoring", UID: types.UID("customer-uid")}}
-	d, c, rc := testLifecycleDaemon(configs, []*pbgo.PackageState{{Package: packageDatadogOperator}}, testFleetCredentialSecret())
+	d, c, rc := testManagedAgentInstallationDaemon(configs, []*pbgo.PackageState{{Package: packageDatadogOperator}}, testFleetCredentialSecret())
 	ambiguous := &recoverForeignCreateClient{Client: c, recovered: recovered, unmanaged: unmanaged}
 	d.client = ambiguous
 	d.apiReader = ambiguous
 
-	_, err := d.installDatadogAgent(context.Background(), testLifecycleRequest(methodInstallDatadogAgent, configID))
+	_, err := d.installDatadogAgent(context.Background(), testManagedAgentInstallationRequest(methodInstallDatadogAgent, configID))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "cannot safely roll back")
 	current := &v2alpha1.DatadogAgent{}
@@ -1162,7 +1162,7 @@ func TestInstallDatadogAgentPreservesUnprovenAmbiguousCreateOnCoexistenceConflic
 func TestCreateRollbackRevalidatesTaskProvenance(t *testing.T) {
 	dda := testFleetOwnedDDA("create-config")
 	dda.Annotations[fleetCreateTaskIDAnnotation] = "replacement-task"
-	d, c, _ := testLifecycleDaemon(nil, nil, dda)
+	d, c, _ := testManagedAgentInstallationDaemon(nil, nil, dda)
 	current := &v2alpha1.DatadogAgent{}
 	require.NoError(t, c.Get(context.Background(), testDDANSN, current))
 
@@ -1174,19 +1174,19 @@ func TestCreateRollbackRevalidatesTaskProvenance(t *testing.T) {
 
 func TestInstallDatadogAgentWaitsForReconcileReadiness(t *testing.T) {
 	const configID = "create-config"
-	configs := testLifecycleInstallerConfig(configID, OperationCreate, `{"spec":{}}`)
-	d, c, rc := testLifecycleDaemon(configs, nil, testFleetCredentialSecret())
-	baseClient := c.(*autoReadyLifecycleClient).Client
-	uidClient := &assignUIDLifecycleClient{Client: baseClient}
+	configs := testManagedAgentInstallationInstallerConfig(configID, OperationCreate, `{"spec":{}}`)
+	d, c, rc := testManagedAgentInstallationDaemon(configs, nil, testFleetCredentialSecret())
+	baseClient := c.(*autoReadyManagedAgentInstallationClient).Client
+	uidClient := &assignUIDManagedAgentInstallationClient{Client: baseClient}
 	d.client = uidClient
 	d.apiReader = uidClient
-	previousInterval := lifecycleReadinessPollInterval
-	lifecycleReadinessPollInterval = time.Millisecond
-	t.Cleanup(func() { lifecycleReadinessPollInterval = previousInterval })
+	previousInterval := managedAgentInstallationReadinessPollInterval
+	managedAgentInstallationReadinessPollInterval = time.Millisecond
+	t.Cleanup(func() { managedAgentInstallationReadinessPollInterval = previousInterval })
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
 	defer cancel()
 
-	_, err := d.installDatadogAgent(ctx, testLifecycleRequest(methodInstallDatadogAgent, configID))
+	_, err := d.installDatadogAgent(ctx, testManagedAgentInstallationRequest(methodInstallDatadogAgent, configID))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "has not been reconciled")
 	assert.NoError(t, baseClient.Get(context.Background(), testDDANSN, &v2alpha1.DatadogAgent{}))
@@ -1196,22 +1196,22 @@ func TestInstallDatadogAgentWaitsForReconcileReadiness(t *testing.T) {
 
 func TestInstallDatadogAgentIsIdempotentForSameConfig(t *testing.T) {
 	const configID = "create-config"
-	configs := testLifecycleInstallerConfig(configID, OperationCreate, `{"spec":{}}`)
+	configs := testManagedAgentInstallationInstallerConfig(configID, OperationCreate, `{"spec":{}}`)
 	existing := testFleetOwnedDDA(configID)
-	d, _, rc := testLifecycleDaemon(configs, []*pbgo.PackageState{{Package: packageDatadogOperator}}, existing, testFleetCredentialSecret())
+	d, _, rc := testManagedAgentInstallationDaemon(configs, []*pbgo.PackageState{{Package: packageDatadogOperator}}, existing, testFleetCredentialSecret())
 
-	require.NoError(t, d.handleTask(context.Background(), testSignedLifecycleRequest(d, methodInstallDatadogAgent, configID)))
+	require.NoError(t, d.handleTask(context.Background(), testSignedManagedAgentInstallationRequest(d, methodInstallDatadogAgent, configID)))
 	assert.Equal(t, configID, rc.state[0].StableConfigVersion)
 	assert.Equal(t, pbgo.TaskState_DONE, rc.state[0].Task.State)
 }
 
-func TestInstallDatadogAgentRejectsDifferentLifecycleInstallation(t *testing.T) {
+func TestInstallDatadogAgentRejectsDifferentManagedAgentInstallationID(t *testing.T) {
 	const configID = "create-config"
 	existing := testFleetOwnedDDA(configID)
 	existing.Labels[fleetInstallationIDLabel] = "223e4567-e89b-42d3-a456-426614174000"
-	d, c, _ := testLifecycleDaemon(testLifecycleInstallerConfig(configID, OperationCreate, `{"spec":{}}`), nil, existing, testFleetCredentialSecret())
+	d, c, _ := testManagedAgentInstallationDaemon(testManagedAgentInstallationInstallerConfig(configID, OperationCreate, `{"spec":{}}`), nil, existing, testFleetCredentialSecret())
 
-	_, err := d.installDatadogAgent(context.Background(), testLifecycleRequest(methodInstallDatadogAgent, configID))
+	_, err := d.installDatadogAgent(context.Background(), testManagedAgentInstallationRequest(methodInstallDatadogAgent, configID))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "different managed installation")
 	current := &v2alpha1.DatadogAgent{}
@@ -1219,13 +1219,13 @@ func TestInstallDatadogAgentRejectsDifferentLifecycleInstallation(t *testing.T) 
 	assert.Equal(t, existing.Labels[fleetInstallationIDLabel], current.Labels[fleetInstallationIDLabel])
 }
 
-func TestInstallDatadogAgentRejectsDifferentLifecycleTarget(t *testing.T) {
+func TestInstallDatadogAgentRejectsDifferentManagedAgentInstallationTarget(t *testing.T) {
 	const configID = "create-config"
 	existing := testFleetOwnedDDA(configID)
 	existing.Labels[fleetTargetIDLabel] = strings.Repeat("a", 52)
-	d, c, _ := testLifecycleDaemon(testLifecycleInstallerConfig(configID, OperationCreate, `{"spec":{}}`), nil, existing, testFleetCredentialSecret())
+	d, c, _ := testManagedAgentInstallationDaemon(testManagedAgentInstallationInstallerConfig(configID, OperationCreate, `{"spec":{}}`), nil, existing, testFleetCredentialSecret())
 
-	_, err := d.installDatadogAgent(context.Background(), testLifecycleRequest(methodInstallDatadogAgent, configID))
+	_, err := d.installDatadogAgent(context.Background(), testManagedAgentInstallationRequest(methodInstallDatadogAgent, configID))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "different managed target")
 	current := &v2alpha1.DatadogAgent{}
@@ -1233,20 +1233,20 @@ func TestInstallDatadogAgentRejectsDifferentLifecycleTarget(t *testing.T) {
 	assert.Equal(t, existing.Labels[fleetTargetIDLabel], current.Labels[fleetTargetIDLabel])
 }
 
-func TestLifecycleLabeledDatadogAgentRequiresLocalInstallationIdentity(t *testing.T) {
+func TestManagedAgentInstallationLabeledDatadogAgentRequiresLocalInstallationIdentity(t *testing.T) {
 	dda := testFleetOwnedDDA("create-config")
-	d, _, _ := testLifecycleDaemon(nil, nil)
-	d.lifecycleIdentity = operatorremoteconfig.LifecycleIdentity{}
+	d, _, _ := testManagedAgentInstallationDaemon(nil, nil)
+	d.managedAgentInstallationIdentity = operatorremoteconfig.ManagedAgentInstallationIdentity{}
 
 	err := d.validateFleetDatadogAgentInstallation(dda)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "local lifecycle identity is not configured")
+	assert.Contains(t, err.Error(), "local managed Agent installation identity is not configured")
 }
 
-func TestExperimentUpdateRejectsDifferentLifecycleInstallation(t *testing.T) {
+func TestExperimentUpdateRejectsDifferentManagedAgentInstallationID(t *testing.T) {
 	dda := testFleetOwnedDDA("create-config")
 	dda.Labels[fleetInstallationIDLabel] = "223e4567-e89b-42d3-a456-426614174000"
-	d, c, _ := testLifecycleDaemon(testInstallerConfigWithDDA(), []*pbgo.PackageState{{
+	d, c, _ := testManagedAgentInstallationDaemon(testInstallerConfigWithDDA(), []*pbgo.PackageState{{
 		Package:             packageDatadogOperator,
 		StableConfigVersion: "create-config",
 	}}, dda)
@@ -1260,13 +1260,13 @@ func TestExperimentUpdateRejectsDifferentLifecycleInstallation(t *testing.T) {
 }
 
 func TestInstallDatadogAgentReadyReplayRetainsPartialAfterReadinessRegression(t *testing.T) {
-	previousInterval := lifecycleReadinessPollInterval
-	previousTimeout := lifecycleOperationTimeout
-	lifecycleReadinessPollInterval = time.Millisecond
-	lifecycleOperationTimeout = 20 * time.Millisecond
+	previousInterval := managedAgentInstallationReadinessPollInterval
+	previousTimeout := managedAgentInstallationOperationTimeout
+	managedAgentInstallationReadinessPollInterval = time.Millisecond
+	managedAgentInstallationOperationTimeout = 20 * time.Millisecond
 	t.Cleanup(func() {
-		lifecycleReadinessPollInterval = previousInterval
-		lifecycleOperationTimeout = previousTimeout
+		managedAgentInstallationReadinessPollInterval = previousInterval
+		managedAgentInstallationOperationTimeout = previousTimeout
 	})
 
 	tests := []struct {
@@ -1275,26 +1275,26 @@ func TestInstallDatadogAgentReadyReplayRetainsPartialAfterReadinessRegression(t 
 		wantErr          string
 	}{
 		{name: "demotion persisted", wantErr: "reconcile condition is True"},
-		{name: "demotion persistence failed", failPartialPatch: true, wantErr: "mark lifecycle partial before readiness revalidation"},
+		{name: "demotion persistence failed", failPartialPatch: true, wantErr: "mark managed Agent installation partial before readiness revalidation"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			const configID = "create-config"
-			configs := testLifecycleInstallerConfig(configID, OperationCreate, `{"spec":{}}`)
+			configs := testManagedAgentInstallationInstallerConfig(configID, OperationCreate, `{"spec":{}}`)
 			existing := testFleetOwnedDDA(configID)
 			existing.Status.Conditions[0].Status = metav1.ConditionTrue
 			existing.Status.Conditions[0].Message = "reconcile failed after the prior install completed"
-			d, c, rc := testLifecycleDaemon(configs, []*pbgo.PackageState{{
+			d, c, rc := testManagedAgentInstallationDaemon(configs, []*pbgo.PackageState{{
 				Package:             packageDatadogOperator,
 				StableConfigVersion: configID,
 			}}, existing, testFleetCredentialSecret())
 			if tt.failPartialPatch {
-				failing := &failPartialLifecyclePatchClient{Client: c, failures: 1}
+				failing := &failPartialManagedAgentInstallationPatchClient{Client: c, failures: 1}
 				d.client = failing
 				d.apiReader = failing
 			}
-			req := testSignedLifecycleRequest(d, methodInstallDatadogAgent, configID)
+			req := testSignedManagedAgentInstallationRequest(d, methodInstallDatadogAgent, configID)
 			req.ExpectedState.StableConfig = configID
 
 			err := d.handleTask(context.Background(), req)
@@ -1307,39 +1307,39 @@ func TestInstallDatadogAgentReadyReplayRetainsPartialAfterReadinessRegression(t 
 			current := &v2alpha1.DatadogAgent{}
 			require.NoError(t, c.Get(context.Background(), testDDANSN, current))
 			if tt.failPartialPatch {
-				assert.Equal(t, fleetLifecycleStateReady, current.Labels[fleetLifecycleStateLabel])
+				assert.Equal(t, fleetManagedAgentInstallationStateReady, current.Labels[fleetManagedAgentInstallationStateLabel])
 				restartedRC := &mockRCClient{state: []*pbgo.PackageState{{
 					Package:             packageDatadogOperator,
 					StableConfigVersion: configID,
 				}}, clientID: testRCClientID}
-				restarted := &Daemon{client: c, apiReader: c, rcClient: restartedRC, lifecycleIdentity: testLifecycleIdentity}
+				restarted := &Daemon{client: c, apiReader: c, rcClient: restartedRC, managedAgentInstallationIdentity: testManagedAgentInstallationIdentity}
 				require.NoError(t, restarted.rehydrateInstallerState(context.Background()))
 				assert.Equal(t, fleetPartialConfigVersionPrefix+configID, restartedRC.state[0].StableConfigVersion)
 				require.NoError(t, c.Get(context.Background(), testDDANSN, current))
-				assert.Equal(t, fleetLifecycleStatePartial, current.Labels[fleetLifecycleStateLabel])
+				assert.Equal(t, fleetManagedAgentInstallationStatePartial, current.Labels[fleetManagedAgentInstallationStateLabel])
 			} else {
-				assert.Equal(t, fleetLifecycleStatePartial, current.Labels[fleetLifecycleStateLabel])
+				assert.Equal(t, fleetManagedAgentInstallationStatePartial, current.Labels[fleetManagedAgentInstallationStateLabel])
 			}
 		})
 	}
 }
 
 func TestInstallDatadogAgentReadyReplayRehydratesAsPartialDuringRevalidation(t *testing.T) {
-	previousInterval := lifecycleReadinessPollInterval
-	previousTimeout := lifecycleOperationTimeout
-	lifecycleReadinessPollInterval = time.Millisecond
-	lifecycleOperationTimeout = 20 * time.Millisecond
+	previousInterval := managedAgentInstallationReadinessPollInterval
+	previousTimeout := managedAgentInstallationOperationTimeout
+	managedAgentInstallationReadinessPollInterval = time.Millisecond
+	managedAgentInstallationOperationTimeout = 20 * time.Millisecond
 	t.Cleanup(func() {
-		lifecycleReadinessPollInterval = previousInterval
-		lifecycleOperationTimeout = previousTimeout
+		managedAgentInstallationReadinessPollInterval = previousInterval
+		managedAgentInstallationOperationTimeout = previousTimeout
 	})
 
 	const configID = "create-config"
-	configs := testLifecycleInstallerConfig(configID, OperationCreate, `{"spec":{}}`)
+	configs := testManagedAgentInstallationInstallerConfig(configID, OperationCreate, `{"spec":{}}`)
 	existing := testFleetOwnedDDA(configID)
 	existing.Status.Conditions[0].Status = metav1.ConditionTrue
 	existing.Status.Conditions[0].Message = "reconcile failed after the prior install completed"
-	d, c, _ := testLifecycleDaemon(configs, []*pbgo.PackageState{{
+	d, c, _ := testManagedAgentInstallationDaemon(configs, []*pbgo.PackageState{{
 		Package:             packageDatadogOperator,
 		StableConfigVersion: configID,
 	}}, existing, testFleetCredentialSecret())
@@ -1347,14 +1347,14 @@ func TestInstallDatadogAgentReadyReplayRehydratesAsPartialDuringRevalidation(t *
 		Package:             packageDatadogOperator,
 		StableConfigVersion: configID,
 	}}, clientID: testRCClientID}
-	restarted := &Daemon{client: c, apiReader: c, rcClient: restartedRC, lifecycleIdentity: testLifecycleIdentity}
-	rehydrating := &rehydrateOnPartialLifecyclePatchClient{
+	restarted := &Daemon{client: c, apiReader: c, rcClient: restartedRC, managedAgentInstallationIdentity: testManagedAgentInstallationIdentity}
+	rehydrating := &rehydrateOnPartialManagedAgentInstallationPatchClient{
 		Client:    c,
 		rehydrate: func() error { return restarted.rehydrateInstallerState(context.Background()) },
 	}
 	d.client = rehydrating
 	d.apiReader = rehydrating
-	req := testSignedLifecycleRequest(d, methodInstallDatadogAgent, configID)
+	req := testSignedManagedAgentInstallationRequest(d, methodInstallDatadogAgent, configID)
 	req.ExpectedState.StableConfig = configID
 
 	err := d.handleTask(context.Background(), req)
@@ -1365,15 +1365,15 @@ func TestInstallDatadogAgentReadyReplayRehydratesAsPartialDuringRevalidation(t *
 
 	current := &v2alpha1.DatadogAgent{}
 	require.NoError(t, c.Get(context.Background(), testDDANSN, current))
-	assert.Equal(t, fleetLifecycleStatePartial, current.Labels[fleetLifecycleStateLabel])
+	assert.Equal(t, fleetManagedAgentInstallationStatePartial, current.Labels[fleetManagedAgentInstallationStateLabel])
 }
 
 func TestInstallDatadogAgentRejectsDifferentFleetConfig(t *testing.T) {
 	const configID = "create-config"
-	configs := testLifecycleInstallerConfig(configID, OperationCreate, `{"spec":{}}`)
-	d, _, _ := testLifecycleDaemon(configs, nil, testFleetOwnedDDA("older-config"), testFleetCredentialSecret())
+	configs := testManagedAgentInstallationInstallerConfig(configID, OperationCreate, `{"spec":{}}`)
+	d, _, _ := testManagedAgentInstallationDaemon(configs, nil, testFleetOwnedDDA("older-config"), testFleetCredentialSecret())
 
-	_, err := d.installDatadogAgent(context.Background(), testLifecycleRequest(methodInstallDatadogAgent, configID))
+	_, err := d.installDatadogAgent(context.Background(), testManagedAgentInstallationRequest(methodInstallDatadogAgent, configID))
 	require.Error(t, err)
 	var stateErr *stateDoesntMatchError
 	assert.True(t, errors.As(err, &stateErr))
@@ -1381,11 +1381,11 @@ func TestInstallDatadogAgentRejectsDifferentFleetConfig(t *testing.T) {
 
 func TestInstallDatadogAgentRejectsUnmanagedResource(t *testing.T) {
 	const configID = "create-config"
-	configs := testLifecycleInstallerConfig(configID, OperationCreate, `{"spec":{}}`)
+	configs := testManagedAgentInstallationInstallerConfig(configID, OperationCreate, `{"spec":{}}`)
 	unmanaged := &v2alpha1.DatadogAgent{ObjectMeta: metav1.ObjectMeta{Name: testDDANSN.Name, Namespace: testDDANSN.Namespace}}
-	d, _, _ := testLifecycleDaemon(configs, nil, unmanaged, testFleetCredentialSecret())
+	d, _, _ := testManagedAgentInstallationDaemon(configs, nil, unmanaged, testFleetCredentialSecret())
 
-	_, err := d.installDatadogAgent(context.Background(), testLifecycleRequest(methodInstallDatadogAgent, configID))
+	_, err := d.installDatadogAgent(context.Background(), testManagedAgentInstallationRequest(methodInstallDatadogAgent, configID))
 	require.Error(t, err)
 	var stateErr *stateDoesntMatchError
 	assert.True(t, errors.As(err, &stateErr))
@@ -1393,15 +1393,15 @@ func TestInstallDatadogAgentRejectsUnmanagedResource(t *testing.T) {
 
 func TestInstallDatadogAgentRejectsCredentialsFromRemoteConfig(t *testing.T) {
 	const configID = "create-config"
-	configs := testLifecycleInstallerConfig(configID, OperationCreate, `{"spec":{"global":{"credentials":{"apiKey":"not-allowed"}}}}`)
-	d, _, _ := testLifecycleDaemon(configs, nil, testFleetCredentialSecret())
+	configs := testManagedAgentInstallationInstallerConfig(configID, OperationCreate, `{"spec":{"global":{"credentials":{"apiKey":"not-allowed"}}}}`)
+	d, _, _ := testManagedAgentInstallationDaemon(configs, nil, testFleetCredentialSecret())
 
-	_, err := d.installDatadogAgent(context.Background(), testLifecycleRequest(methodInstallDatadogAgent, configID))
+	_, err := d.installDatadogAgent(context.Background(), testManagedAgentInstallationRequest(methodInstallDatadogAgent, configID))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "credentials is not allowed")
 }
 
-func TestLifecycleConfigRejectsCredentialExecutionAndEgressSurfaces(t *testing.T) {
+func TestManagedAgentInstallationConfigRejectsCredentialExecutionAndEgressSurfaces(t *testing.T) {
 	tests := []struct {
 		name   string
 		config string
@@ -1430,48 +1430,48 @@ func TestLifecycleConfigRejectsCredentialExecutionAndEgressSurfaces(t *testing.T
 
 func TestInstallDatadogAgentRequiresCredentialSecret(t *testing.T) {
 	const configID = "create-config"
-	configs := testLifecycleInstallerConfig(configID, OperationCreate, `{"spec":{}}`)
-	d, _, _ := testLifecycleDaemon(configs, nil)
+	configs := testManagedAgentInstallationInstallerConfig(configID, OperationCreate, `{"spec":{}}`)
+	d, _, _ := testManagedAgentInstallationDaemon(configs, nil)
 
-	_, err := d.installDatadogAgent(context.Background(), testLifecycleRequest(methodInstallDatadogAgent, configID))
+	_, err := d.installDatadogAgent(context.Background(), testManagedAgentInstallationRequest(methodInstallDatadogAgent, configID))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "credential Secret datadog/datadog-secret is not ready")
 }
 
 func TestInstallDatadogAgentRequiresNonEmptyAPIKey(t *testing.T) {
 	const configID = "create-config"
-	configs := testLifecycleInstallerConfig(configID, OperationCreate, `{"spec":{}}`)
+	configs := testManagedAgentInstallationInstallerConfig(configID, OperationCreate, `{"spec":{}}`)
 	secret := testFleetCredentialSecret()
 	secret.Data[fleetCredentialAPIKey] = nil
-	d, _, _ := testLifecycleDaemon(configs, nil, secret)
+	d, _, _ := testManagedAgentInstallationDaemon(configs, nil, secret)
 
-	_, err := d.installDatadogAgent(context.Background(), testLifecycleRequest(methodInstallDatadogAgent, configID))
+	_, err := d.installDatadogAgent(context.Background(), testManagedAgentInstallationRequest(methodInstallDatadogAgent, configID))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "missing non-empty key")
 }
 
 func TestInstallDatadogAgentRejectsTerminatingResource(t *testing.T) {
 	const configID = "create-config"
-	configs := testLifecycleInstallerConfig(configID, OperationCreate, `{"spec":{}}`)
+	configs := testManagedAgentInstallationInstallerConfig(configID, OperationCreate, `{"spec":{}}`)
 	existing := testFleetOwnedDDA(configID)
 	existing.Finalizers = []string{"test.datadoghq.com/hold-deletion"}
 	now := metav1.Now()
 	existing.DeletionTimestamp = &now
-	d, _, _ := testLifecycleDaemon(configs, nil, existing, testFleetCredentialSecret())
+	d, _, _ := testManagedAgentInstallationDaemon(configs, nil, existing, testFleetCredentialSecret())
 
-	_, err := d.installDatadogAgent(context.Background(), testLifecycleRequest(methodInstallDatadogAgent, configID))
+	_, err := d.installDatadogAgent(context.Background(), testManagedAgentInstallationRequest(methodInstallDatadogAgent, configID))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "is terminating")
 }
 
 func TestInstallDatadogAgentRejectsCredentialReferenceDrift(t *testing.T) {
 	const configID = "create-config"
-	configs := testLifecycleInstallerConfig(configID, OperationCreate, `{"spec":{}}`)
+	configs := testManagedAgentInstallationInstallerConfig(configID, OperationCreate, `{"spec":{}}`)
 	existing := testFleetOwnedDDA(configID)
 	existing.Spec.Global.Credentials.APISecret.SecretName = "other-secret"
-	d, _, _ := testLifecycleDaemon(configs, nil, existing, testFleetCredentialSecret())
+	d, _, _ := testManagedAgentInstallationDaemon(configs, nil, existing, testFleetCredentialSecret())
 
-	_, err := d.installDatadogAgent(context.Background(), testLifecycleRequest(methodInstallDatadogAgent, configID))
+	_, err := d.installDatadogAgent(context.Background(), testManagedAgentInstallationRequest(methodInstallDatadogAgent, configID))
 	require.Error(t, err)
 	var stateErr *stateDoesntMatchError
 	assert.True(t, errors.As(err, &stateErr))
@@ -1479,7 +1479,7 @@ func TestInstallDatadogAgentRejectsCredentialReferenceDrift(t *testing.T) {
 
 func TestInstallDatadogAgentRejectsSpecDrift(t *testing.T) {
 	const configID = "create-config"
-	configs := testLifecycleInstallerConfig(configID, OperationCreate, `{"spec":{"global":{"site":"datadoghq.eu"}}}`)
+	configs := testManagedAgentInstallationInstallerConfig(configID, OperationCreate, `{"spec":{"global":{"site":"datadoghq.eu"}}}`)
 	existing := testFleetOwnedDDA(configID)
 	desired, err := buildFleetDatadogAgentSpec(json.RawMessage(`{"spec":{"global":{"site":"datadoghq.eu"}}}`))
 	require.NoError(t, err)
@@ -1489,9 +1489,9 @@ func TestInstallDatadogAgentRejectsSpecDrift(t *testing.T) {
 	existing.Annotations[fleetConfigHashAnnotation] = desiredHash
 	site := "datadoghq.com"
 	existing.Spec.Global.Site = &site
-	d, _, _ := testLifecycleDaemon(configs, nil, existing, testFleetCredentialSecret())
+	d, _, _ := testManagedAgentInstallationDaemon(configs, nil, existing, testFleetCredentialSecret())
 
-	_, err = d.installDatadogAgent(context.Background(), testLifecycleRequest(methodInstallDatadogAgent, configID))
+	_, err = d.installDatadogAgent(context.Background(), testManagedAgentInstallationRequest(methodInstallDatadogAgent, configID))
 	require.Error(t, err)
 	var stateErr *stateDoesntMatchError
 	assert.True(t, errors.As(err, &stateErr))
@@ -1502,7 +1502,7 @@ func TestRecordFleetSpecHashDoesNotBlessConcurrentDrift(t *testing.T) {
 	acceptedHash := dda.Annotations[fleetConfigHashAnnotation]
 	site := "datadoghq.eu"
 	dda.Spec.Global.Site = &site
-	d, _, _ := testLifecycleDaemon(nil, nil, dda)
+	d, _, _ := testManagedAgentInstallationDaemon(nil, nil, dda)
 
 	err := d.recordFleetDatadogAgentSpecHash(context.Background(), testDDANSN, dda.UID, "create-config", acceptedHash)
 	require.Error(t, err)
@@ -1517,7 +1517,7 @@ func TestRecordFleetSpecHashRejectsSameNameReplacement(t *testing.T) {
 	delete(replacement.Annotations, fleetConfigHashAnnotation)
 	acceptedHash, err := fleetDatadogAgentSpecHash(&original.Spec)
 	require.NoError(t, err)
-	d, _, _ := testLifecycleDaemon(nil, nil, replacement)
+	d, _, _ := testManagedAgentInstallationDaemon(nil, nil, replacement)
 
 	err = d.recordFleetDatadogAgentSpecHash(context.Background(), testDDANSN, original.UID, "create-config", acceptedHash)
 	require.Error(t, err)
@@ -1530,7 +1530,7 @@ func TestRecordFleetExperimentHashRejectsSameNameReplacement(t *testing.T) {
 	replacement.UID = types.UID("replacement-uid")
 	acceptedHash, err := fleetDatadogAgentSpecHash(&original.Spec)
 	require.NoError(t, err)
-	d, _, _ := testLifecycleDaemon(nil, nil, replacement)
+	d, _, _ := testManagedAgentInstallationDaemon(nil, nil, replacement)
 
 	err = d.recordFleetExperimentSpecHash(context.Background(), testDDANSN, original.UID, acceptedHash)
 	require.Error(t, err)
@@ -1544,7 +1544,7 @@ func TestMarkFleetExperimentReadyRejectsUnmanagedSameNameReplacement(t *testing.
 		Namespace: testDDANSN.Namespace,
 		UID:       types.UID("replacement-uid"),
 	}}
-	d, _, _ := testLifecycleDaemon(nil, nil, replacement)
+	d, _, _ := testManagedAgentInstallationDaemon(nil, nil, replacement)
 
 	_, err := d.markFleetDatadogAgentExperimentReady(context.Background(), testDDANSN, original.UID, "update-config")
 	require.Error(t, err)
@@ -1555,24 +1555,24 @@ func TestMarkFleetPartialRejectsSameNameReplacement(t *testing.T) {
 	original := testFleetOwnedDDA("create-config")
 	replacement := original.DeepCopy()
 	replacement.UID = types.UID("replacement-uid")
-	d, c, _ := testLifecycleDaemon(nil, nil, replacement)
+	d, c, _ := testManagedAgentInstallationDaemon(nil, nil, replacement)
 
 	_, err := d.markFleetDatadogAgentPartial(context.Background(), testDDANSN, original.UID)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "was replaced before its lifecycle state could be marked partial")
+	assert.Contains(t, err.Error(), "was replaced before its managed Agent installation state could be marked partial")
 	current := &v2alpha1.DatadogAgent{}
 	require.NoError(t, c.Get(context.Background(), testDDANSN, current))
-	assert.Equal(t, fleetLifecycleStateReady, current.Labels[fleetLifecycleStateLabel])
+	assert.Equal(t, fleetManagedAgentInstallationStateReady, current.Labels[fleetManagedAgentInstallationStateLabel])
 }
 
 func TestInstallDatadogAgentRejectsMissingConfigHash(t *testing.T) {
 	const configID = "create-config"
-	configs := testLifecycleInstallerConfig(configID, OperationCreate, `{"spec":{}}`)
+	configs := testManagedAgentInstallationInstallerConfig(configID, OperationCreate, `{"spec":{}}`)
 	existing := testFleetOwnedDDA(configID)
 	delete(existing.Annotations, fleetConfigHashAnnotation)
-	d, _, _ := testLifecycleDaemon(configs, nil, existing, testFleetCredentialSecret())
+	d, _, _ := testManagedAgentInstallationDaemon(configs, nil, existing, testFleetCredentialSecret())
 
-	_, err := d.installDatadogAgent(context.Background(), testLifecycleRequest(methodInstallDatadogAgent, configID))
+	_, err := d.installDatadogAgent(context.Background(), testManagedAgentInstallationRequest(methodInstallDatadogAgent, configID))
 	require.Error(t, err)
 	var stateErr *stateDoesntMatchError
 	assert.True(t, errors.As(err, &stateErr))
@@ -1581,7 +1581,7 @@ func TestInstallDatadogAgentRejectsMissingConfigHash(t *testing.T) {
 func TestInstallDatadogAgentToleratesAPIServerDefaults(t *testing.T) {
 	const configID = "create-config"
 	raw := json.RawMessage(`{"spec":{"features":{"otelCollector":{"ports":[{"name":"custom","containerPort":4317}]}}}}`)
-	configs := testLifecycleInstallerConfig(configID, OperationCreate, string(raw))
+	configs := testManagedAgentInstallationInstallerConfig(configID, OperationCreate, string(raw))
 	desired, err := buildFleetDatadogAgentSpec(raw)
 	require.NoError(t, err)
 	existing := testFleetOwnedDDA(configID)
@@ -1590,23 +1590,23 @@ func TestInstallDatadogAgentToleratesAPIServerDefaults(t *testing.T) {
 	hash, err := fleetDatadogAgentSpecHash(&existing.Spec)
 	require.NoError(t, err)
 	existing.Annotations[fleetConfigHashAnnotation] = hash
-	d, _, _ := testLifecycleDaemon(configs, nil, existing, testFleetCredentialSecret())
+	d, _, _ := testManagedAgentInstallationDaemon(configs, nil, existing, testFleetCredentialSecret())
 
-	_, err = d.installDatadogAgent(context.Background(), testLifecycleRequest(methodInstallDatadogAgent, configID))
+	_, err = d.installDatadogAgent(context.Background(), testManagedAgentInstallationRequest(methodInstallDatadogAgent, configID))
 	require.NoError(t, err)
 }
 
 func TestInstallDatadogAgentRejectsExtraLiveSpecFields(t *testing.T) {
 	const configID = "create-config"
-	configs := testLifecycleInstallerConfig(configID, OperationCreate, `{"spec":{}}`)
+	configs := testManagedAgentInstallationInstallerConfig(configID, OperationCreate, `{"spec":{}}`)
 	existing := testFleetOwnedDDA(configID)
 	enabled := true
 	existing.Spec.Features = &v2alpha1.DatadogFeatures{
 		APM: &v2alpha1.APMFeatureConfig{Enabled: &enabled},
 	}
-	d, _, _ := testLifecycleDaemon(configs, nil, existing, testFleetCredentialSecret())
+	d, _, _ := testManagedAgentInstallationDaemon(configs, nil, existing, testFleetCredentialSecret())
 
-	_, err := d.installDatadogAgent(context.Background(), testLifecycleRequest(methodInstallDatadogAgent, configID))
+	_, err := d.installDatadogAgent(context.Background(), testManagedAgentInstallationRequest(methodInstallDatadogAgent, configID))
 	require.Error(t, err)
 	var stateErr *stateDoesntMatchError
 	assert.True(t, errors.As(err, &stateErr))
@@ -1615,12 +1615,12 @@ func TestInstallDatadogAgentRejectsExtraLiveSpecFields(t *testing.T) {
 
 func TestInstallDatadogAgentRejectsAnotherFleetOwnedResource(t *testing.T) {
 	const configID = "create-config"
-	configs := testLifecycleInstallerConfig(configID, OperationCreate, `{"spec":{}}`)
+	configs := testManagedAgentInstallationInstallerConfig(configID, OperationCreate, `{"spec":{}}`)
 	other := testFleetOwnedDDA("other-config")
 	other.Name = "other-datadog-agent"
-	d, _, _ := testLifecycleDaemon(configs, nil, other, testFleetCredentialSecret())
+	d, _, _ := testManagedAgentInstallationDaemon(configs, nil, other, testFleetCredentialSecret())
 
-	_, err := d.installDatadogAgent(context.Background(), testLifecycleRequest(methodInstallDatadogAgent, configID))
+	_, err := d.installDatadogAgent(context.Background(), testManagedAgentInstallationRequest(methodInstallDatadogAgent, configID))
 	require.Error(t, err)
 	var stateErr *stateDoesntMatchError
 	assert.True(t, errors.As(err, &stateErr))
@@ -1628,11 +1628,11 @@ func TestInstallDatadogAgentRejectsAnotherFleetOwnedResource(t *testing.T) {
 
 func TestInstallDatadogAgentRejectsDifferentlyNamedUnmanagedResource(t *testing.T) {
 	const configID = "create-config"
-	configs := testLifecycleInstallerConfig(configID, OperationCreate, `{"spec":{}}`)
+	configs := testManagedAgentInstallationInstallerConfig(configID, OperationCreate, `{"spec":{}}`)
 	unmanaged := &v2alpha1.DatadogAgent{ObjectMeta: metav1.ObjectMeta{Name: "customer-agent", Namespace: "monitoring"}}
-	d, c, _ := testLifecycleDaemon(configs, nil, unmanaged, testFleetCredentialSecret())
+	d, c, _ := testManagedAgentInstallationDaemon(configs, nil, unmanaged, testFleetCredentialSecret())
 
-	_, err := d.installDatadogAgent(context.Background(), testLifecycleRequest(methodInstallDatadogAgent, configID))
+	_, err := d.installDatadogAgent(context.Background(), testManagedAgentInstallationRequest(methodInstallDatadogAgent, configID))
 	require.Error(t, err)
 	var stateErr *stateDoesntMatchError
 	assert.True(t, errors.As(err, &stateErr))
@@ -1643,17 +1643,17 @@ func TestInstallDatadogAgentRejectsDifferentlyNamedUnmanagedResource(t *testing.
 
 func TestInstallDatadogAgentRollsBackWhenUnmanagedResourceAppearsDuringCreate(t *testing.T) {
 	const configID = "create-config"
-	configs := testLifecycleInstallerConfig(configID, OperationCreate, `{"spec":{}}`)
+	configs := testManagedAgentInstallationInstallerConfig(configID, OperationCreate, `{"spec":{}}`)
 	unmanaged := &v2alpha1.DatadogAgent{ObjectMeta: metav1.ObjectMeta{Name: "customer-agent", Namespace: "monitoring", UID: types.UID("customer-uid")}}
-	d, c, _ := testLifecycleDaemon(configs, nil, testFleetCredentialSecret())
+	d, c, _ := testManagedAgentInstallationDaemon(configs, nil, testFleetCredentialSecret())
 	concurrentClient := &concurrentUnmanagedDatadogAgentClient{Client: c, unmanaged: unmanaged}
 	d.client = concurrentClient
 	d.apiReader = concurrentClient
-	previousInterval := lifecycleDeletePollInterval
-	lifecycleDeletePollInterval = time.Millisecond
-	t.Cleanup(func() { lifecycleDeletePollInterval = previousInterval })
+	previousInterval := managedAgentInstallationDeletePollInterval
+	managedAgentInstallationDeletePollInterval = time.Millisecond
+	t.Cleanup(func() { managedAgentInstallationDeletePollInterval = previousInterval })
 
-	_, err := d.installDatadogAgent(context.Background(), testLifecycleRequest(methodInstallDatadogAgent, configID))
+	_, err := d.installDatadogAgent(context.Background(), testManagedAgentInstallationRequest(methodInstallDatadogAgent, configID))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unmanaged DatadogAgent monitoring/customer-agent")
 	assert.True(t, apierrors.IsNotFound(c.Get(context.Background(), testDDANSN, &v2alpha1.DatadogAgent{})))
@@ -1662,55 +1662,55 @@ func TestInstallDatadogAgentRollsBackWhenUnmanagedResourceAppearsDuringCreate(t 
 
 func TestInstallDatadogAgentDoesNotRollBackAfterPostCreateListFailure(t *testing.T) {
 	const configID = "create-config"
-	configs := testLifecycleInstallerConfig(configID, OperationCreate, `{"spec":{}}`)
-	d, c, rc := testLifecycleDaemon(configs, []*pbgo.PackageState{{Package: packageDatadogOperator}}, testFleetCredentialSecret())
+	configs := testManagedAgentInstallationInstallerConfig(configID, OperationCreate, `{"spec":{}}`)
+	d, c, rc := testManagedAgentInstallationDaemon(configs, []*pbgo.PackageState{{Package: packageDatadogOperator}}, testFleetCredentialSecret())
 	failing := &failDatadogAgentListClient{Client: c, failOn: 2}
 	d.client = failing
 	d.apiReader = failing
 
-	_, err := d.installDatadogAgent(context.Background(), testLifecycleRequest(methodInstallDatadogAgent, configID))
+	_, err := d.installDatadogAgent(context.Background(), testManagedAgentInstallationRequest(methodInstallDatadogAgent, configID))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "DatadogAgent list failed")
 	current := &v2alpha1.DatadogAgent{}
 	require.NoError(t, c.Get(context.Background(), testDDANSN, current))
-	assert.Equal(t, fleetLifecycleStatePartial, current.Labels[fleetLifecycleStateLabel])
+	assert.Equal(t, fleetManagedAgentInstallationStatePartial, current.Labels[fleetManagedAgentInstallationStateLabel])
 	assert.Equal(t, fleetPartialConfigVersionPrefix+configID, rc.state[0].StableConfigVersion)
 }
 
 func TestInstallDatadogAgentDoesNotRollBackAfterTargetChangesSinceConflictObservation(t *testing.T) {
 	const configID = "create-config"
-	configs := testLifecycleInstallerConfig(configID, OperationCreate, `{"spec":{}}`)
+	configs := testManagedAgentInstallationInstallerConfig(configID, OperationCreate, `{"spec":{}}`)
 	unmanaged := &v2alpha1.DatadogAgent{ObjectMeta: metav1.ObjectMeta{Name: "customer-agent", Namespace: "monitoring", UID: types.UID("customer-uid")}}
-	d, c, rc := testLifecycleDaemon(configs, []*pbgo.PackageState{{Package: packageDatadogOperator}}, testFleetCredentialSecret())
+	d, c, rc := testManagedAgentInstallationDaemon(configs, []*pbgo.PackageState{{Package: packageDatadogOperator}}, testFleetCredentialSecret())
 	concurrent := &concurrentUnmanagedDatadogAgentClient{Client: c, unmanaged: unmanaged}
 	mutating := &mutateDatadogAgentAfterConflictListClient{Client: concurrent}
 	d.client = mutating
 	d.apiReader = mutating
 
-	_, err := d.installDatadogAgent(context.Background(), testLifecycleRequest(methodInstallDatadogAgent, configID))
+	_, err := d.installDatadogAgent(context.Background(), testManagedAgentInstallationRequest(methodInstallDatadogAgent, configID))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "changed after the concurrent-install conflict was observed")
 	current := &v2alpha1.DatadogAgent{}
 	require.NoError(t, c.Get(context.Background(), testDDANSN, current))
 	assert.Equal(t, "true", current.Annotations["test.datadoghq.com/concurrent-change"])
-	assert.Equal(t, fleetLifecycleStatePartial, current.Labels[fleetLifecycleStateLabel])
+	assert.Equal(t, fleetManagedAgentInstallationStatePartial, current.Labels[fleetManagedAgentInstallationStateLabel])
 	assert.NoError(t, c.Get(context.Background(), client.ObjectKeyFromObject(unmanaged), &v2alpha1.DatadogAgent{}))
 	assert.Equal(t, fleetPartialConfigVersionPrefix+configID, rc.state[0].StableConfigVersion)
 }
 
 func TestInstallDatadogAgentRollsBackWhenUnmanagedResourceAppearsAtReadyBoundary(t *testing.T) {
 	const configID = "create-config"
-	configs := testLifecycleInstallerConfig(configID, OperationCreate, `{"spec":{}}`)
+	configs := testManagedAgentInstallationInstallerConfig(configID, OperationCreate, `{"spec":{}}`)
 	unmanaged := &v2alpha1.DatadogAgent{ObjectMeta: metav1.ObjectMeta{Name: "customer-agent", Namespace: "monitoring", UID: types.UID("customer-uid")}}
-	d, c, rc := testLifecycleDaemon(configs, []*pbgo.PackageState{{Package: packageDatadogOperator}}, testFleetCredentialSecret())
+	d, c, rc := testManagedAgentInstallationDaemon(configs, []*pbgo.PackageState{{Package: packageDatadogOperator}}, testFleetCredentialSecret())
 	lateClient := &unmanagedDatadogAgentOnReadyPatchClient{Client: c, unmanaged: unmanaged}
 	d.client = lateClient
 	d.apiReader = lateClient
-	previousInterval := lifecycleDeletePollInterval
-	lifecycleDeletePollInterval = time.Millisecond
-	t.Cleanup(func() { lifecycleDeletePollInterval = previousInterval })
+	previousInterval := managedAgentInstallationDeletePollInterval
+	managedAgentInstallationDeletePollInterval = time.Millisecond
+	t.Cleanup(func() { managedAgentInstallationDeletePollInterval = previousInterval })
 
-	_, err := d.installDatadogAgent(context.Background(), testLifecycleRequest(methodInstallDatadogAgent, configID))
+	_, err := d.installDatadogAgent(context.Background(), testManagedAgentInstallationRequest(methodInstallDatadogAgent, configID))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unmanaged DatadogAgent monitoring/customer-agent")
 	assert.True(t, apierrors.IsNotFound(c.Get(context.Background(), testDDANSN, &v2alpha1.DatadogAgent{})))
@@ -1720,18 +1720,18 @@ func TestInstallDatadogAgentRollsBackWhenUnmanagedResourceAppearsAtReadyBoundary
 
 func TestInstallDatadogAgentRejectsTargetReplacementAtReadyBoundary(t *testing.T) {
 	const configID = "create-config"
-	configs := testLifecycleInstallerConfig(configID, OperationCreate, `{"spec":{}}`)
+	configs := testManagedAgentInstallationInstallerConfig(configID, OperationCreate, `{"spec":{}}`)
 	replacement := &v2alpha1.DatadogAgent{ObjectMeta: metav1.ObjectMeta{
 		Name:      testDDANSN.Name,
 		Namespace: testDDANSN.Namespace,
 		UID:       types.UID("customer-replacement-uid"),
 	}}
-	d, c, rc := testLifecycleDaemon(configs, []*pbgo.PackageState{{Package: packageDatadogOperator}}, testFleetCredentialSecret())
+	d, c, rc := testManagedAgentInstallationDaemon(configs, []*pbgo.PackageState{{Package: packageDatadogOperator}}, testFleetCredentialSecret())
 	replacing := &replaceDatadogAgentOnReadyPatchClient{Client: c, replacement: replacement}
 	d.client = replacing
 	d.apiReader = replacing
 
-	_, err := d.installDatadogAgent(context.Background(), testLifecycleRequest(methodInstallDatadogAgent, configID))
+	_, err := d.installDatadogAgent(context.Background(), testManagedAgentInstallationRequest(methodInstallDatadogAgent, configID))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "was replaced before install completion")
 	current := &v2alpha1.DatadogAgent{}
@@ -1743,18 +1743,18 @@ func TestInstallDatadogAgentRejectsTargetReplacementAtReadyBoundary(t *testing.T
 
 func TestInstallDatadogAgentRejectsReadinessRegressionAtFinalCheck(t *testing.T) {
 	const configID = "create-config"
-	configs := testLifecycleInstallerConfig(configID, OperationCreate, `{"spec":{}}`)
-	d, c, rc := testLifecycleDaemon(configs, []*pbgo.PackageState{{Package: packageDatadogOperator}}, testFleetCredentialSecret())
+	configs := testManagedAgentInstallationInstallerConfig(configID, OperationCreate, `{"spec":{}}`)
+	d, c, rc := testManagedAgentInstallationDaemon(configs, []*pbgo.PackageState{{Package: packageDatadogOperator}}, testFleetCredentialSecret())
 	invalidating := &invalidateReadinessOnReadyPatchClient{Client: c}
 	d.client = invalidating
 	d.apiReader = invalidating
 
-	_, err := d.installDatadogAgent(context.Background(), testLifecycleRequest(methodInstallDatadogAgent, configID))
+	_, err := d.installDatadogAgent(context.Background(), testManagedAgentInstallationRequest(methodInstallDatadogAgent, configID))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "not ready at install completion")
 	current := &v2alpha1.DatadogAgent{}
 	require.NoError(t, c.Get(context.Background(), testDDANSN, current))
-	assert.Equal(t, fleetLifecycleStatePartial, current.Labels[fleetLifecycleStateLabel])
+	assert.Equal(t, fleetManagedAgentInstallationStatePartial, current.Labels[fleetManagedAgentInstallationStateLabel])
 	condition := meta.FindStatusCondition(current.Status.Conditions, datadogAgentReconcileErrorCondition)
 	require.NotNil(t, condition)
 	assert.Equal(t, metav1.ConditionTrue, condition.Status)
@@ -1763,29 +1763,29 @@ func TestInstallDatadogAgentRejectsReadinessRegressionAtFinalCheck(t *testing.T)
 
 func TestInstallDatadogAgentPreservesReplayedResourceWhenUnmanagedResourceAppearsAtReadyBoundary(t *testing.T) {
 	const configID = "create-config"
-	configs := testLifecycleInstallerConfig(configID, OperationCreate, `{"spec":{}}`)
+	configs := testManagedAgentInstallationInstallerConfig(configID, OperationCreate, `{"spec":{}}`)
 	existing := testFleetOwnedDDA(configID)
-	existing.Labels[fleetLifecycleStateLabel] = fleetLifecycleStatePartial
+	existing.Labels[fleetManagedAgentInstallationStateLabel] = fleetManagedAgentInstallationStatePartial
 	existing.Annotations[fleetCreateTaskIDAnnotation] = "task-123"
 	unmanaged := &v2alpha1.DatadogAgent{ObjectMeta: metav1.ObjectMeta{Name: "customer-agent", Namespace: "monitoring", UID: types.UID("customer-uid")}}
-	d, c, rc := testLifecycleDaemon(configs, []*pbgo.PackageState{{Package: packageDatadogOperator}}, existing, testFleetCredentialSecret())
+	d, c, rc := testManagedAgentInstallationDaemon(configs, []*pbgo.PackageState{{Package: packageDatadogOperator}}, existing, testFleetCredentialSecret())
 	lateClient := &unmanagedDatadogAgentOnReadyPatchClient{Client: c, unmanaged: unmanaged}
 	d.client = lateClient
 	d.apiReader = lateClient
 
-	_, err := d.installDatadogAgent(context.Background(), testLifecycleRequest(methodInstallDatadogAgent, configID))
+	_, err := d.installDatadogAgent(context.Background(), testManagedAgentInstallationRequest(methodInstallDatadogAgent, configID))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "cannot safely roll back")
 	current := &v2alpha1.DatadogAgent{}
 	require.NoError(t, c.Get(context.Background(), testDDANSN, current))
 	assert.Equal(t, existing.UID, current.UID)
-	assert.Equal(t, fleetLifecycleStatePartial, current.Labels[fleetLifecycleStateLabel])
+	assert.Equal(t, fleetManagedAgentInstallationStatePartial, current.Labels[fleetManagedAgentInstallationStateLabel])
 	assert.NoError(t, c.Get(context.Background(), client.ObjectKeyFromObject(unmanaged), &v2alpha1.DatadogAgent{}))
 	assert.Equal(t, fleetPartialConfigVersionPrefix+configID, rc.state[0].StableConfigVersion)
 }
 
-func TestResolveLifecycleOperationValidation(t *testing.T) {
-	validConfig := testLifecycleInstallerConfig("config", OperationCreate, `{"spec":{}}`)
+func TestResolveManagedAgentInstallationOperationValidation(t *testing.T) {
+	validConfig := testManagedAgentInstallationInstallerConfig("config", OperationCreate, `{"spec":{}}`)
 	tests := []struct {
 		name    string
 		configs map[string]installerConfig
@@ -1802,7 +1802,7 @@ func TestResolveLifecycleOperationValidation(t *testing.T) {
 		},
 		{
 			name:    "wrong operation",
-			configs: testLifecycleInstallerConfig("config", OperationUpdate, `{"spec":{}}`),
+			configs: testManagedAgentInstallationInstallerConfig("config", OperationUpdate, `{"spec":{}}`),
 		},
 		{
 			name: "multiple operations",
@@ -1828,12 +1828,12 @@ func TestResolveLifecycleOperationValidation(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			d, _, _ := testLifecycleDaemon(tc.configs, nil)
-			req := testLifecycleRequest(methodInstallDatadogAgent, "config")
+			d, _, _ := testManagedAgentInstallationDaemon(tc.configs, nil)
+			req := testManagedAgentInstallationRequest(methodInstallDatadogAgent, "config")
 			if tc.mutate != nil {
 				tc.mutate(&req)
 			}
-			_, err := d.resolveLifecycleOperation(req, OperationCreate)
+			_, err := d.resolveManagedAgentInstallationOperation(req, OperationCreate)
 			assert.Error(t, err)
 		})
 	}
@@ -1940,7 +1940,7 @@ func TestStartExperimentRejectsCredentialAndIdentitySelectors(t *testing.T) {
 			config := configs["test-config"]
 			config.Operations[0].Config = json.RawMessage(tc.config)
 			configs["test-config"] = config
-			d, _, _ := testLifecycleDaemon(configs, []*pbgo.PackageState{{
+			d, _, _ := testManagedAgentInstallationDaemon(configs, []*pbgo.PackageState{{
 				Package:             packageDatadogOperator,
 				StableConfigVersion: "create-config",
 			}}, testFleetOwnedDDA("create-config"))
@@ -1969,10 +1969,10 @@ func TestBuildFleetDatadogAgentSpecRejectsIndirectCredentialSources(t *testing.T
 
 func TestUninstallDatadogAgentDeletesOwnedResourceBeforeDone(t *testing.T) {
 	const deleteConfigID = "delete-config"
-	configs := testLifecycleInstallerConfig(deleteConfigID, OperationDelete, "")
+	configs := testManagedAgentInstallationInstallerConfig(deleteConfigID, OperationDelete, "")
 	rcState := []*pbgo.PackageState{{Package: packageDatadogOperator, StableConfigVersion: "create-config"}}
-	d, c, rc := testLifecycleDaemon(configs, rcState, testFleetOwnedDDA("create-config"))
-	req := testSignedLifecycleRequest(d, methodUninstallDatadogAgent, deleteConfigID)
+	d, c, rc := testManagedAgentInstallationDaemon(configs, rcState, testFleetOwnedDDA("create-config"))
+	req := testSignedManagedAgentInstallationRequest(d, methodUninstallDatadogAgent, deleteConfigID)
 	req.ExpectedState.StableConfig = "create-config"
 
 	require.NoError(t, d.handleTask(context.Background(), req))
@@ -1997,8 +1997,8 @@ func TestUninstallDatadogAgentCleansUpLateDatadogAgentInternal(t *testing.T) {
 		UID:       types.UID("late-ddai-uid"),
 		Labels: map[string]string{
 			fleetManagedByLabel:      fleetManagedByValue,
-			fleetInstallationIDLabel: testLifecycleIdentity.InstallationID,
-			fleetTargetIDLabel:       testLifecycleIdentity.TargetID(),
+			fleetInstallationIDLabel: testManagedAgentInstallationIdentity.InstallationID,
+			fleetTargetIDLabel:       testManagedAgentInstallationIdentity.TargetID(),
 		},
 		OwnerReferences: []metav1.OwnerReference{{
 			APIVersion:         v2alpha1.GroupVersion.String(),
@@ -2009,26 +2009,26 @@ func TestUninstallDatadogAgentCleansUpLateDatadogAgentInternal(t *testing.T) {
 			BlockOwnerDeletion: &blockOwnerDeletion,
 		}},
 	}}
-	configs := testLifecycleInstallerConfig(deleteConfigID, OperationDelete, "")
-	d, c, _ := testLifecycleDaemon(configs, nil, dda)
+	configs := testManagedAgentInstallationInstallerConfig(deleteConfigID, OperationDelete, "")
+	d, c, _ := testManagedAgentInstallationDaemon(configs, nil, dda)
 	lateClient := &lateDDAICreateOnDDADeleteClient{Client: c, late: late}
 	d.client = lateClient
 	d.apiReader = lateClient
-	previousInterval := lifecycleDeletePollInterval
-	lifecycleDeletePollInterval = time.Millisecond
-	t.Cleanup(func() { lifecycleDeletePollInterval = previousInterval })
+	previousInterval := managedAgentInstallationDeletePollInterval
+	managedAgentInstallationDeletePollInterval = time.Millisecond
+	t.Cleanup(func() { managedAgentInstallationDeletePollInterval = previousInterval })
 
-	_, err := d.uninstallDatadogAgent(context.Background(), testLifecycleRequest(methodUninstallDatadogAgent, deleteConfigID))
+	_, err := d.uninstallDatadogAgent(context.Background(), testManagedAgentInstallationRequest(methodUninstallDatadogAgent, deleteConfigID))
 	require.NoError(t, err)
 	assert.True(t, apierrors.IsNotFound(c.Get(context.Background(), client.ObjectKeyFromObject(late), &v1alpha1.DatadogAgentInternal{})))
 }
 
 func TestUninstallDatadogAgentIsIdempotentWhenMissing(t *testing.T) {
 	const deleteConfigID = "delete-config"
-	configs := testLifecycleInstallerConfig(deleteConfigID, OperationDelete, "")
+	configs := testManagedAgentInstallationInstallerConfig(deleteConfigID, OperationDelete, "")
 	rcState := []*pbgo.PackageState{{Package: packageDatadogOperator, StableConfigVersion: "create-config"}}
-	d, _, rc := testLifecycleDaemon(configs, rcState)
-	req := testSignedLifecycleRequest(d, methodUninstallDatadogAgent, deleteConfigID)
+	d, _, rc := testManagedAgentInstallationDaemon(configs, rcState)
+	req := testSignedManagedAgentInstallationRequest(d, methodUninstallDatadogAgent, deleteConfigID)
 	req.ExpectedState.StableConfig = "create-config"
 
 	require.NoError(t, d.handleTask(context.Background(), req))
@@ -2052,16 +2052,16 @@ func TestUninstallDatadogAgentRetriesDatadogAgentInternalVersionConflict(t *test
 			Controller: &controller,
 		}},
 	}}
-	configs := testLifecycleInstallerConfig(deleteConfigID, OperationDelete, "")
-	d, c, _ := testLifecycleDaemon(configs, nil, ddai)
+	configs := testManagedAgentInstallationInstallerConfig(deleteConfigID, OperationDelete, "")
+	d, c, _ := testManagedAgentInstallationDaemon(configs, nil, ddai)
 	changingClient := &datadogAgentInternalVersionChangingDeleteClient{Client: c}
 	d.client = changingClient
 	d.apiReader = changingClient
-	previousInterval := lifecycleDeletePollInterval
-	lifecycleDeletePollInterval = time.Millisecond
-	t.Cleanup(func() { lifecycleDeletePollInterval = previousInterval })
+	previousInterval := managedAgentInstallationDeletePollInterval
+	managedAgentInstallationDeletePollInterval = time.Millisecond
+	t.Cleanup(func() { managedAgentInstallationDeletePollInterval = previousInterval })
 
-	_, err := d.uninstallDatadogAgent(context.Background(), testLifecycleRequest(methodUninstallDatadogAgent, deleteConfigID))
+	_, err := d.uninstallDatadogAgent(context.Background(), testManagedAgentInstallationRequest(methodUninstallDatadogAgent, deleteConfigID))
 	require.NoError(t, err)
 	assert.True(t, changingClient.changed)
 	assert.True(t, apierrors.IsNotFound(c.Get(context.Background(), client.ObjectKeyFromObject(ddai), &v1alpha1.DatadogAgentInternal{})))
@@ -2089,19 +2089,19 @@ func TestUninstallDatadogAgentWaitsForOrphanedInternalCleanup(t *testing.T) {
 		Name: "fleet-ddai-role",
 		Labels: map[string]string{
 			operatorStoreLabelKey: "true",
-			appPartOfLabelKey:     lifecyclePartOfLabelValue(testDDANSN),
+			appPartOfLabelKey:     managedAgentInstallationPartOfLabelValue(testDDANSN),
 			appManagedByLabelKey:  "datadog-operator",
 		},
 	}}
-	configs := testLifecycleInstallerConfig(deleteConfigID, OperationDelete, "")
-	d, c, _ := testLifecycleDaemon(configs, nil, ddai, clusterRole)
-	previousInterval := lifecycleDeletePollInterval
-	lifecycleDeletePollInterval = time.Millisecond
-	t.Cleanup(func() { lifecycleDeletePollInterval = previousInterval })
+	configs := testManagedAgentInstallationInstallerConfig(deleteConfigID, OperationDelete, "")
+	d, c, _ := testManagedAgentInstallationDaemon(configs, nil, ddai, clusterRole)
+	previousInterval := managedAgentInstallationDeletePollInterval
+	managedAgentInstallationDeletePollInterval = time.Millisecond
+	t.Cleanup(func() { managedAgentInstallationDeletePollInterval = previousInterval })
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
 	defer cancel()
 
-	_, err := d.uninstallDatadogAgent(ctx, testLifecycleRequest(methodUninstallDatadogAgent, deleteConfigID))
+	_, err := d.uninstallDatadogAgent(ctx, testManagedAgentInstallationRequest(methodUninstallDatadogAgent, deleteConfigID))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "waiting for remaining resource removal")
 	assert.NoError(t, c.Get(context.Background(), client.ObjectKeyFromObject(clusterRole), &rbacv1.ClusterRole{}))
@@ -2113,19 +2113,19 @@ func TestUninstallDatadogAgentWaitsForOrphanedClusterResourceWithoutInternal(t *
 		Name: "orphaned-fleet-ddai-role",
 		Labels: map[string]string{
 			operatorStoreLabelKey: "true",
-			appPartOfLabelKey:     lifecyclePartOfLabelValue(testDDANSN),
+			appPartOfLabelKey:     managedAgentInstallationPartOfLabelValue(testDDANSN),
 			appManagedByLabelKey:  "datadog-operator",
 		},
 	}}
-	configs := testLifecycleInstallerConfig(deleteConfigID, OperationDelete, "")
-	d, c, _ := testLifecycleDaemon(configs, nil, clusterRole)
-	previousInterval := lifecycleDeletePollInterval
-	lifecycleDeletePollInterval = time.Millisecond
-	t.Cleanup(func() { lifecycleDeletePollInterval = previousInterval })
+	configs := testManagedAgentInstallationInstallerConfig(deleteConfigID, OperationDelete, "")
+	d, c, _ := testManagedAgentInstallationDaemon(configs, nil, clusterRole)
+	previousInterval := managedAgentInstallationDeletePollInterval
+	managedAgentInstallationDeletePollInterval = time.Millisecond
+	t.Cleanup(func() { managedAgentInstallationDeletePollInterval = previousInterval })
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
 	defer cancel()
 
-	_, err := d.uninstallDatadogAgent(ctx, testLifecycleRequest(methodUninstallDatadogAgent, deleteConfigID))
+	_, err := d.uninstallDatadogAgent(ctx, testManagedAgentInstallationRequest(methodUninstallDatadogAgent, deleteConfigID))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "waiting for remaining resource removal")
 	assert.NoError(t, c.Get(context.Background(), client.ObjectKeyFromObject(clusterRole), &rbacv1.ClusterRole{}))
@@ -2137,16 +2137,16 @@ func TestUninstallDatadogAgentRejectsTargetRecreatedAfterCleanupPoll(t *testing.
 	replacement := testFleetOwnedDDA("create-config")
 	replacement.UID = types.UID("replacement-uid")
 	replacement.ResourceVersion = ""
-	configs := testLifecycleInstallerConfig(deleteConfigID, OperationDelete, "")
-	d, c, _ := testLifecycleDaemon(configs, nil, dda)
+	configs := testManagedAgentInstallationInstallerConfig(deleteConfigID, OperationDelete, "")
+	d, c, _ := testManagedAgentInstallationDaemon(configs, nil, dda)
 	recreating := &recreateFleetDatadogAgentOnFinalListClient{Client: c, replacement: replacement}
 	d.client = recreating
 	d.apiReader = recreating
-	previousInterval := lifecycleDeletePollInterval
-	lifecycleDeletePollInterval = time.Millisecond
-	t.Cleanup(func() { lifecycleDeletePollInterval = previousInterval })
+	previousInterval := managedAgentInstallationDeletePollInterval
+	managedAgentInstallationDeletePollInterval = time.Millisecond
+	t.Cleanup(func() { managedAgentInstallationDeletePollInterval = previousInterval })
 
-	_, err := d.uninstallDatadogAgent(context.Background(), testLifecycleRequest(methodUninstallDatadogAgent, deleteConfigID))
+	_, err := d.uninstallDatadogAgent(context.Background(), testManagedAgentInstallationRequest(methodUninstallDatadogAgent, deleteConfigID))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "was recreated while uninstalling")
 	current := &v2alpha1.DatadogAgent{}
@@ -2156,10 +2156,10 @@ func TestUninstallDatadogAgentRejectsTargetRecreatedAfterCleanupPoll(t *testing.
 
 func TestUninstallDatadogAgentRejectsWrongTargetWhenFleetOwnedResourceExists(t *testing.T) {
 	const deleteConfigID = "delete-config"
-	configs := testLifecycleInstallerConfig(deleteConfigID, OperationDelete, "")
+	configs := testManagedAgentInstallationInstallerConfig(deleteConfigID, OperationDelete, "")
 	rcState := []*pbgo.PackageState{{Package: packageDatadogOperator, StableConfigVersion: "create-config"}}
-	d, _, rc := testLifecycleDaemon(configs, rcState, testFleetOwnedDDA("create-config"))
-	req := testSignedLifecycleRequest(d, methodUninstallDatadogAgent, deleteConfigID)
+	d, _, rc := testManagedAgentInstallationDaemon(configs, rcState, testFleetOwnedDDA("create-config"))
+	req := testSignedManagedAgentInstallationRequest(d, methodUninstallDatadogAgent, deleteConfigID)
 	req.Params.NamespacedName.Name = "wrong-target"
 	req.ExpectedState.StableConfig = "create-config"
 
@@ -2171,24 +2171,24 @@ func TestUninstallDatadogAgentRejectsWrongTargetWhenFleetOwnedResourceExists(t *
 
 func TestUninstallDatadogAgentRejectsUnmanagedResource(t *testing.T) {
 	const deleteConfigID = "delete-config"
-	configs := testLifecycleInstallerConfig(deleteConfigID, OperationDelete, "")
+	configs := testManagedAgentInstallationInstallerConfig(deleteConfigID, OperationDelete, "")
 	unmanaged := &v2alpha1.DatadogAgent{ObjectMeta: metav1.ObjectMeta{Name: testDDANSN.Name, Namespace: testDDANSN.Namespace}}
-	d, c, _ := testLifecycleDaemon(configs, nil, unmanaged)
+	d, c, _ := testManagedAgentInstallationDaemon(configs, nil, unmanaged)
 
-	_, err := d.uninstallDatadogAgent(context.Background(), testLifecycleRequest(methodUninstallDatadogAgent, deleteConfigID))
+	_, err := d.uninstallDatadogAgent(context.Background(), testManagedAgentInstallationRequest(methodUninstallDatadogAgent, deleteConfigID))
 	require.Error(t, err)
 	var stateErr *stateDoesntMatchError
 	assert.True(t, errors.As(err, &stateErr))
 	assert.NoError(t, c.Get(context.Background(), testDDANSN, &v2alpha1.DatadogAgent{}))
 }
 
-func TestUninstallDatadogAgentRejectsDifferentLifecycleInstallation(t *testing.T) {
+func TestUninstallDatadogAgentRejectsDifferentManagedAgentInstallationID(t *testing.T) {
 	const deleteConfigID = "delete-config"
 	existing := testFleetOwnedDDA("create-config")
 	existing.Labels[fleetInstallationIDLabel] = "223e4567-e89b-42d3-a456-426614174000"
-	d, c, _ := testLifecycleDaemon(testLifecycleInstallerConfig(deleteConfigID, OperationDelete, ""), nil, existing)
+	d, c, _ := testManagedAgentInstallationDaemon(testManagedAgentInstallationInstallerConfig(deleteConfigID, OperationDelete, ""), nil, existing)
 
-	_, err := d.uninstallDatadogAgent(context.Background(), testLifecycleRequest(methodUninstallDatadogAgent, deleteConfigID))
+	_, err := d.uninstallDatadogAgent(context.Background(), testManagedAgentInstallationRequest(methodUninstallDatadogAgent, deleteConfigID))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "different managed installation")
 	assert.NoError(t, c.Get(context.Background(), testDDANSN, &v2alpha1.DatadogAgent{}))
@@ -2196,12 +2196,12 @@ func TestUninstallDatadogAgentRejectsDifferentLifecycleInstallation(t *testing.T
 
 func TestUninstallDatadogAgentRejectsUnmanagedResourceBesideFleetTarget(t *testing.T) {
 	const deleteConfigID = "delete-config"
-	configs := testLifecycleInstallerConfig(deleteConfigID, OperationDelete, "")
+	configs := testManagedAgentInstallationInstallerConfig(deleteConfigID, OperationDelete, "")
 	fleetOwned := testFleetOwnedDDA("create-config")
 	unmanaged := &v2alpha1.DatadogAgent{ObjectMeta: metav1.ObjectMeta{Name: "customer-agent", Namespace: "monitoring"}}
-	d, c, _ := testLifecycleDaemon(configs, nil, fleetOwned, unmanaged)
+	d, c, _ := testManagedAgentInstallationDaemon(configs, nil, fleetOwned, unmanaged)
 
-	_, err := d.uninstallDatadogAgent(context.Background(), testLifecycleRequest(methodUninstallDatadogAgent, deleteConfigID))
+	_, err := d.uninstallDatadogAgent(context.Background(), testManagedAgentInstallationRequest(methodUninstallDatadogAgent, deleteConfigID))
 	require.Error(t, err)
 	var stateErr *stateDoesntMatchError
 	assert.True(t, errors.As(err, &stateErr))
@@ -2211,16 +2211,16 @@ func TestUninstallDatadogAgentRejectsUnmanagedResourceBesideFleetTarget(t *testi
 
 func TestUninstallDatadogAgentRejectsUnmanagedResourceCreatedDuringDeletion(t *testing.T) {
 	const deleteConfigID = "delete-config"
-	configs := testLifecycleInstallerConfig(deleteConfigID, OperationDelete, "")
+	configs := testManagedAgentInstallationInstallerConfig(deleteConfigID, OperationDelete, "")
 	unmanaged := &v2alpha1.DatadogAgent{ObjectMeta: metav1.ObjectMeta{Name: "customer-agent", Namespace: "monitoring"}}
-	d, c, rc := testLifecycleDaemon(configs, []*pbgo.PackageState{{
+	d, c, rc := testManagedAgentInstallationDaemon(configs, []*pbgo.PackageState{{
 		Package:             packageDatadogOperator,
 		StableConfigVersion: "create-config",
 	}}, testFleetOwnedDDA("create-config"))
 	lateClient := &unmanagedDatadogAgentOnDDADeleteClient{Client: c, unmanaged: unmanaged}
 	d.client = lateClient
 	d.apiReader = lateClient
-	req := testSignedLifecycleRequest(d, methodUninstallDatadogAgent, deleteConfigID)
+	req := testSignedManagedAgentInstallationRequest(d, methodUninstallDatadogAgent, deleteConfigID)
 	req.ExpectedState.StableConfig = "create-config"
 
 	err := d.handleTask(context.Background(), req)
@@ -2234,12 +2234,12 @@ func TestUninstallDatadogAgentRejectsUnmanagedResourceCreatedDuringDeletion(t *t
 
 func TestUninstallDatadogAgentRejectsIncompleteFleetOwnership(t *testing.T) {
 	const deleteConfigID = "delete-config"
-	configs := testLifecycleInstallerConfig(deleteConfigID, OperationDelete, "")
+	configs := testManagedAgentInstallationInstallerConfig(deleteConfigID, OperationDelete, "")
 	dda := testFleetOwnedDDA("create-config")
 	delete(dda.Annotations, fleetConfigHashAnnotation)
-	d, c, _ := testLifecycleDaemon(configs, nil, dda)
+	d, c, _ := testManagedAgentInstallationDaemon(configs, nil, dda)
 
-	_, err := d.uninstallDatadogAgent(context.Background(), testLifecycleRequest(methodUninstallDatadogAgent, deleteConfigID))
+	_, err := d.uninstallDatadogAgent(context.Background(), testManagedAgentInstallationRequest(methodUninstallDatadogAgent, deleteConfigID))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "incomplete or conflicting Fleet ownership metadata")
 	assert.NoError(t, c.Get(context.Background(), testDDANSN, &v2alpha1.DatadogAgent{}))
@@ -2247,14 +2247,14 @@ func TestUninstallDatadogAgentRejectsIncompleteFleetOwnership(t *testing.T) {
 
 func TestUninstallDatadogAgentDoesNotDeleteAfterOwnershipChanges(t *testing.T) {
 	const deleteConfigID = "delete-config"
-	configs := testLifecycleInstallerConfig(deleteConfigID, OperationDelete, "")
+	configs := testManagedAgentInstallationInstallerConfig(deleteConfigID, OperationDelete, "")
 	dda := testFleetOwnedDDA("create-config")
-	d, c, _ := testLifecycleDaemon(configs, nil, dda)
+	d, c, _ := testManagedAgentInstallationDaemon(configs, nil, dda)
 	changingClient := &ownershipChangingDeleteClient{Client: c}
 	d.client = changingClient
 	d.apiReader = changingClient
 
-	_, err := d.uninstallDatadogAgent(context.Background(), testLifecycleRequest(methodUninstallDatadogAgent, deleteConfigID))
+	_, err := d.uninstallDatadogAgent(context.Background(), testManagedAgentInstallationRequest(methodUninstallDatadogAgent, deleteConfigID))
 	require.Error(t, err)
 	current := &v2alpha1.DatadogAgent{}
 	require.NoError(t, c.Get(context.Background(), testDDANSN, current))
@@ -2263,30 +2263,30 @@ func TestUninstallDatadogAgentDoesNotDeleteAfterOwnershipChanges(t *testing.T) {
 
 func TestUninstallDatadogAgentRejectsPendingExperiment(t *testing.T) {
 	const deleteConfigID = "delete-config"
-	configs := testLifecycleInstallerConfig(deleteConfigID, OperationDelete, "")
+	configs := testManagedAgentInstallationInstallerConfig(deleteConfigID, OperationDelete, "")
 	dda := testFleetOwnedDDA("create-config")
 	dda.Annotations[v2alpha1.AnnotationPendingTaskID] = "experiment-task"
 	dda.Annotations[v2alpha1.AnnotationPendingAction] = string(pendingIntentStart)
 	dda.Annotations[v2alpha1.AnnotationPendingExperimentID] = "update-config"
 	dda.Annotations[v2alpha1.AnnotationPendingPackage] = packageDatadogOperator
-	d, c, _ := testLifecycleDaemon(configs, nil, dda)
+	d, c, _ := testManagedAgentInstallationDaemon(configs, nil, dda)
 
-	_, err := d.uninstallDatadogAgent(context.Background(), testLifecycleRequest(methodUninstallDatadogAgent, deleteConfigID))
+	_, err := d.uninstallDatadogAgent(context.Background(), testManagedAgentInstallationRequest(methodUninstallDatadogAgent, deleteConfigID))
 	require.Error(t, err)
 	var stateErr *stateDoesntMatchError
 	assert.True(t, errors.As(err, &stateErr))
 	assert.NoError(t, c.Get(context.Background(), testDDANSN, &v2alpha1.DatadogAgent{}))
 }
 
-func TestLifecycleTaskRejectsActiveExperimentConfig(t *testing.T) {
+func TestManagedAgentInstallationTaskRejectsActiveExperimentConfig(t *testing.T) {
 	const deleteConfigID = "delete-config"
-	configs := testLifecycleInstallerConfig(deleteConfigID, OperationDelete, "")
-	d, c, rc := testLifecycleDaemon(configs, []*pbgo.PackageState{{
+	configs := testManagedAgentInstallationInstallerConfig(deleteConfigID, OperationDelete, "")
+	d, c, rc := testManagedAgentInstallationDaemon(configs, []*pbgo.PackageState{{
 		Package:                 packageDatadogOperator,
 		StableConfigVersion:     "create-config",
 		ExperimentConfigVersion: "update-config",
 	}}, testFleetOwnedDDA("create-config"))
-	req := testSignedLifecycleRequest(d, methodUninstallDatadogAgent, deleteConfigID)
+	req := testSignedManagedAgentInstallationRequest(d, methodUninstallDatadogAgent, deleteConfigID)
 	req.ExpectedState.StableConfig = "create-config"
 	req.ExpectedState.ExperimentConfig = "update-config"
 
@@ -2296,15 +2296,15 @@ func TestLifecycleTaskRejectsActiveExperimentConfig(t *testing.T) {
 	assert.NoError(t, c.Get(context.Background(), testDDANSN, &v2alpha1.DatadogAgent{}))
 }
 
-func TestPendingExperimentDoesNotOverwriteLifecycleReservation(t *testing.T) {
-	d, _, rc := testLifecycleDaemon(nil, []*pbgo.PackageState{{
+func TestPendingExperimentDoesNotOverwriteManagedAgentInstallationReservation(t *testing.T) {
+	d, _, rc := testManagedAgentInstallationDaemon(nil, []*pbgo.PackageState{{
 		Package: packageDatadogOperator,
 		Task: &pbgo.PackageStateTask{
-			Id:    "lifecycle-task",
+			Id:    "managed-agent-installation-task",
 			State: pbgo.TaskState_RUNNING,
 		},
 	}})
-	d.lifecycleActive = true
+	d.managedAgentInstallationActive = true
 	snapshot := ddaStatusSnapshot{
 		nsn: testDDANSN,
 		annotations: map[string]string{
@@ -2318,21 +2318,21 @@ func TestPendingExperimentDoesNotOverwriteLifecycleReservation(t *testing.T) {
 
 	newOperationTracker(d).onStatusUpdate(context.Background(), snapshot)
 
-	assert.Equal(t, "lifecycle-task", rc.state[0].Task.Id)
+	assert.Equal(t, "managed-agent-installation-task", rc.state[0].Task.Id)
 	assert.Equal(t, pbgo.TaskState_RUNNING, rc.state[0].Task.State)
 }
 
 func TestUninstallDatadogAgentDoesNotClearStateBeforeDeletion(t *testing.T) {
 	const deleteConfigID = "delete-config"
-	configs := testLifecycleInstallerConfig(deleteConfigID, OperationDelete, "")
+	configs := testManagedAgentInstallationInstallerConfig(deleteConfigID, OperationDelete, "")
 	dda := testFleetOwnedDDA("create-config")
 	dda.Finalizers = []string{"test.datadoghq.com/hold-deletion"}
 	rcState := []*pbgo.PackageState{{Package: packageDatadogOperator, StableConfigVersion: "create-config"}}
-	d, c, rc := testLifecycleDaemon(configs, rcState, dda)
+	d, c, rc := testManagedAgentInstallationDaemon(configs, rcState, dda)
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
 	defer cancel()
 
-	_, err := d.uninstallDatadogAgent(ctx, testLifecycleRequest(methodUninstallDatadogAgent, deleteConfigID))
+	_, err := d.uninstallDatadogAgent(ctx, testManagedAgentInstallationRequest(methodUninstallDatadogAgent, deleteConfigID))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "waiting for resource removal")
 	assert.Equal(t, "create-config", rc.state[0].StableConfigVersion)
@@ -2344,7 +2344,7 @@ func TestUninstallDatadogAgentDoesNotClearStateBeforeDeletion(t *testing.T) {
 
 func TestRehydrateInstallerStateFromFleetOwnedDatadogAgent(t *testing.T) {
 	dda := testFleetOwnedDDA("create-config")
-	d, _, rc := testLifecycleDaemon(nil, []*pbgo.PackageState{{
+	d, _, rc := testManagedAgentInstallationDaemon(nil, []*pbgo.PackageState{{
 		Package:             packageDatadogOperator,
 		StableConfigVersion: "empty",
 	}}, dda)
@@ -2357,10 +2357,10 @@ func TestRehydrateInstallerStateFromFleetOwnedDatadogAgent(t *testing.T) {
 
 func TestRehydrateInstallerStatePreservesPartialInstall(t *testing.T) {
 	dda := testFleetOwnedDDA("create-config")
-	dda.Labels[fleetLifecycleStateLabel] = fleetLifecycleStatePartial
+	dda.Labels[fleetManagedAgentInstallationStateLabel] = fleetManagedAgentInstallationStatePartial
 	site := "datadoghq.eu"
 	dda.Spec.Global.Site = &site
-	d, _, rc := testLifecycleDaemon(nil, []*pbgo.PackageState{{
+	d, _, rc := testManagedAgentInstallationDaemon(nil, []*pbgo.PackageState{{
 		Package:             packageDatadogOperator,
 		StableConfigVersion: operatorremoteconfig.InstallerStateUnknownConfigVersion,
 	}}, dda)
@@ -2369,10 +2369,10 @@ func TestRehydrateInstallerStatePreservesPartialInstall(t *testing.T) {
 	assert.Equal(t, fleetPartialConfigVersionPrefix+"create-config", rc.state[0].StableConfigVersion)
 }
 
-func TestRehydrateInstallerStateTreatsMissingLifecycleStateAsPartial(t *testing.T) {
+func TestRehydrateInstallerStateTreatsMissingManagedAgentInstallationStateAsPartial(t *testing.T) {
 	dda := testFleetOwnedDDA("create-config")
-	delete(dda.Labels, fleetLifecycleStateLabel)
-	d, _, rc := testLifecycleDaemon(nil, []*pbgo.PackageState{{
+	delete(dda.Labels, fleetManagedAgentInstallationStateLabel)
+	d, _, rc := testManagedAgentInstallationDaemon(nil, []*pbgo.PackageState{{
 		Package:             packageDatadogOperator,
 		StableConfigVersion: operatorremoteconfig.InstallerStateUnknownConfigVersion,
 	}}, dda)
@@ -2384,7 +2384,7 @@ func TestRehydrateInstallerStateTreatsMissingLifecycleStateAsPartial(t *testing.
 func TestRehydrateInstallerStateTreatsMissingConfigHashAsPartial(t *testing.T) {
 	dda := testFleetOwnedDDA("create-config")
 	delete(dda.Annotations, fleetConfigHashAnnotation)
-	d, _, rc := testLifecycleDaemon(nil, []*pbgo.PackageState{{
+	d, _, rc := testManagedAgentInstallationDaemon(nil, []*pbgo.PackageState{{
 		Package:             packageDatadogOperator,
 		StableConfigVersion: operatorremoteconfig.InstallerStateUnknownConfigVersion,
 	}}, dda)
@@ -2393,12 +2393,12 @@ func TestRehydrateInstallerStateTreatsMissingConfigHashAsPartial(t *testing.T) {
 	assert.Equal(t, fleetPartialConfigVersionPrefix+"create-config", rc.state[0].StableConfigVersion)
 }
 
-func TestPublishLifecycleStateTreatsMissingLabelAsPartial(t *testing.T) {
+func TestPublishManagedAgentInstallationStateTreatsMissingLabelAsPartial(t *testing.T) {
 	dda := testFleetOwnedDDA("create-config")
-	delete(dda.Labels, fleetLifecycleStateLabel)
-	d, _, rc := testLifecycleDaemon(nil, []*pbgo.PackageState{{Package: packageDatadogOperator}}, dda)
+	delete(dda.Labels, fleetManagedAgentInstallationStateLabel)
+	d, _, rc := testManagedAgentInstallationDaemon(nil, []*pbgo.PackageState{{Package: packageDatadogOperator}}, dda)
 
-	d.publishFleetDatadogAgentLifecycleState(packageDatadogOperator, dda, "create-config")
+	d.publishFleetDatadogAgentManagedAgentInstallationState(packageDatadogOperator, dda, "create-config")
 
 	assert.Equal(t, fleetPartialConfigVersionPrefix+"create-config", rc.state[0].StableConfigVersion)
 }
@@ -2408,7 +2408,7 @@ func TestRehydrateInstallerStateRejectsMultipleFleetOwnedDatadogAgents(t *testin
 	second := testFleetOwnedDDA("second-config")
 	second.Name = "second-datadog-agent"
 	second.UID = types.UID("second-fleet-dda-uid")
-	d, _, rc := testLifecycleDaemon(nil, []*pbgo.PackageState{
+	d, _, rc := testManagedAgentInstallationDaemon(nil, []*pbgo.PackageState{
 		{Package: packageDatadogOperator, StableConfigVersion: operatorremoteconfig.InstallerStateUnknownConfigVersion},
 	}, first, second)
 
@@ -2421,7 +2421,7 @@ func TestRehydrateInstallerStateRejectsMultipleFleetOwnedDatadogAgents(t *testin
 func TestRehydrateInstallerStateRejectsIncompleteFleetOwnership(t *testing.T) {
 	dda := testFleetOwnedDDA("create-config")
 	delete(dda.Labels, fleetConfigIDLabel)
-	d, _, rc := testLifecycleDaemon(nil, []*pbgo.PackageState{{
+	d, _, rc := testManagedAgentInstallationDaemon(nil, []*pbgo.PackageState{{
 		Package:             packageDatadogOperator,
 		StableConfigVersion: operatorremoteconfig.InstallerStateUnknownConfigVersion,
 	}}, dda)
@@ -2436,7 +2436,7 @@ func TestRehydrateInstallerStateRejectsResidualFleetMarkers(t *testing.T) {
 	dda := testFleetOwnedDDA("create-config")
 	delete(dda.Labels, fleetManagedByLabel)
 	delete(dda.Labels, fleetConfigIDLabel)
-	d, _, rc := testLifecycleDaemon(nil, []*pbgo.PackageState{{
+	d, _, rc := testManagedAgentInstallationDaemon(nil, []*pbgo.PackageState{{
 		Package:             packageDatadogOperator,
 		StableConfigVersion: operatorremoteconfig.InstallerStateUnknownConfigVersion,
 	}}, dda)
@@ -2455,7 +2455,7 @@ func TestRehydrateInstallerStateRejectsResidualCreateTaskMarker(t *testing.T) {
 			fleetCreateTaskIDAnnotation: "create-task",
 		},
 	}}
-	d, _, rc := testLifecycleDaemon(nil, []*pbgo.PackageState{{
+	d, _, rc := testManagedAgentInstallationDaemon(nil, []*pbgo.PackageState{{
 		Package:             packageDatadogOperator,
 		StableConfigVersion: operatorremoteconfig.InstallerStateUnknownConfigVersion,
 	}}, dda)
@@ -2470,7 +2470,7 @@ func TestRehydrateInstallerStateRejectsFleetSpecDrift(t *testing.T) {
 	dda := testFleetOwnedDDA("create-config")
 	site := "datadoghq.eu"
 	dda.Spec.Global.Site = &site
-	d, _, rc := testLifecycleDaemon(nil, []*pbgo.PackageState{{
+	d, _, rc := testManagedAgentInstallationDaemon(nil, []*pbgo.PackageState{{
 		Package:             packageDatadogOperator,
 		StableConfigVersion: operatorremoteconfig.InstallerStateUnknownConfigVersion,
 	}}, dda)
@@ -2481,24 +2481,24 @@ func TestRehydrateInstallerStateRejectsFleetSpecDrift(t *testing.T) {
 	assert.Equal(t, operatorremoteconfig.InstallerStateUnknownConfigVersion, rc.state[0].StableConfigVersion)
 }
 
-func TestLifecycleMethodsDoNotRequireControllerRevisions(t *testing.T) {
+func TestManagedAgentInstallationMethodsDoNotRequireControllerRevisions(t *testing.T) {
 	const configID = "create-config"
-	configs := testLifecycleInstallerConfig(configID, OperationCreate, `{"spec":{}}`)
-	d, _, _ := testLifecycleDaemon(configs, nil, testFleetCredentialSecret())
+	configs := testManagedAgentInstallationInstallerConfig(configID, OperationCreate, `{"spec":{}}`)
+	d, _, _ := testManagedAgentInstallationDaemon(configs, nil, testFleetCredentialSecret())
 
-	_, err := d.handleRemoteAPIRequest(context.Background(), testLifecycleRequest(methodInstallDatadogAgent, configID))
+	_, err := d.handleRemoteAPIRequest(context.Background(), testManagedAgentInstallationRequest(methodInstallDatadogAgent, configID))
 	assert.NoError(t, err)
 }
 
 func TestExperimentMethodsStillRequireControllerRevisions(t *testing.T) {
-	d, _, _ := testLifecycleDaemon(testInstallerConfigWithDDA(), nil, testDDAObject(""))
+	d, _, _ := testManagedAgentInstallationDaemon(testInstallerConfigWithDDA(), nil, testDDAObject(""))
 
 	_, err := d.handleRemoteAPIRequest(context.Background(), testStartRequest())
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "experiment signals require")
 }
 
-func TestLifecycleMethodLabels(t *testing.T) {
+func TestManagedAgentInstallationMethodLabels(t *testing.T) {
 	assert.Equal(t, "install", methodLabel(methodInstallDatadogAgent))
 	assert.Equal(t, "uninstall", methodLabel(methodUninstallDatadogAgent))
 }

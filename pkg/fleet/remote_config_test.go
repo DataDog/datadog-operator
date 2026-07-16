@@ -190,7 +190,7 @@ func TestRemoteAPIRequestParsesParamsVersion(t *testing.T) {
 	}))
 }
 
-func TestRemoteAPIRequestParsesLifecycleContract(t *testing.T) {
+func TestRemoteAPIRequestParsesManagedAgentInstallationContract(t *testing.T) {
 	cb := &callbackMock{}
 	handler := handleUpdaterTaskUpdate(context.Background(), cb.handleRemoteAPIRequest)
 

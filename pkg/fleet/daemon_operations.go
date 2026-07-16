@@ -234,7 +234,7 @@ func (d *Daemon) promoteDatadogAgentExperiment(ctx context.Context, req remoteAP
 func (d *Daemon) planStart(ctx context.Context, req remoteAPIRequest, op resolvedOperation) (*pendingOperation, []byte, error) {
 	experimentID := req.Params.Version
 	pending := d.newPendingOperation(pendingIntentStart, req, op.NamespacedName, experimentID)
-	if d.lifecycleIdentity.Configured() {
+	if d.managedAgentInstallationIdentity.Configured() {
 		if _, err := decodeRemoteDatadogAgentConfig(op.Config, false); err != nil {
 			return nil, nil, fmt.Errorf("start DatadogAgent experiment: %w", err)
 		}
@@ -385,11 +385,11 @@ func (d *Daemon) planPromote(ctx context.Context, req remoteAPIRequest, op resol
 }
 
 func (d *Daemon) validateBridgeExperimentTarget(dda *v2alpha1.DatadogAgent) error {
-	if !d.lifecycleIdentity.Configured() {
+	if !d.managedAgentInstallationIdentity.Configured() {
 		return nil
 	}
 	if err := d.validateFleetDatadogAgentInstallation(dda); err != nil {
 		return err
 	}
-	return validateFleetDatadogAgentLifecycleReady(dda)
+	return validateFleetDatadogAgentManagedAgentInstallationReady(dda)
 }
