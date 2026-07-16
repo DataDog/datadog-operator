@@ -34,19 +34,19 @@ import (
 )
 
 const (
-	fleetManagedByLabel             = "fleet.datadoghq.com/managed-by"
-	fleetConfigIDLabel              = "fleet.datadoghq.com/config-id"
-	fleetLifecycleStateLabel        = "fleet.datadoghq.com/lifecycle-state"
-	fleetInstallationIDLabel        = "fleet.datadoghq.com/installation-id"
-	fleetTargetIDLabel              = "fleet.datadoghq.com/target-id"
-	fleetConfigHashAnnotation       = "fleet.datadoghq.com/config-hash"
-	fleetExperimentHashAnnotation   = "fleet.datadoghq.com/experiment-config-hash"
-	fleetPendingTargetUIDAnnotation = "fleet.datadoghq.com/pending-target-uid"
-	fleetCreateTaskIDAnnotation     = "fleet.datadoghq.com/create-task-id"
-	fleetManagedByValue             = "fleet-automation"
-	fleetLifecycleStatePartial      = "partial"
-	fleetLifecycleStateReady        = "ready"
-	fleetPartialConfigVersionPrefix = "partial:"
+	fleetManagedByLabel                       = "fleet.datadoghq.com/managed-by"
+	fleetConfigIDLabel                        = "fleet.datadoghq.com/config-id"
+	fleetManagedAgentInstallationStateLabel   = "fleet.datadoghq.com/managed-agent-installation-state"
+	fleetInstallationIDLabel                  = "fleet.datadoghq.com/installation-id"
+	fleetTargetIDLabel                        = "fleet.datadoghq.com/target-id"
+	fleetConfigHashAnnotation                 = "fleet.datadoghq.com/config-hash"
+	fleetExperimentHashAnnotation             = "fleet.datadoghq.com/experiment-config-hash"
+	fleetPendingTargetUIDAnnotation           = "fleet.datadoghq.com/pending-target-uid"
+	fleetCreateTaskIDAnnotation               = "fleet.datadoghq.com/create-task-id"
+	fleetManagedByValue                       = "fleet-automation"
+	fleetManagedAgentInstallationStatePartial = "partial"
+	fleetManagedAgentInstallationStateReady   = "ready"
+	fleetPartialConfigVersionPrefix           = "partial:"
 
 	fleetDatadogAgentNamespace = "datadog"
 	fleetDatadogAgentName      = "datadog-agent"
@@ -60,11 +60,11 @@ const (
 	datadogAgentNameLabelKey            = "agent.datadoghq.com/datadogagent"
 )
 
-var lifecycleDeletePollInterval = time.Second
-var lifecycleReadinessPollInterval = time.Second
-var lifecycleOperationTimeout = 3 * time.Minute
+var managedAgentInstallationDeletePollInterval = time.Second
+var managedAgentInstallationReadinessPollInterval = time.Second
+var managedAgentInstallationOperationTimeout = 3 * time.Minute
 
-var forbiddenLifecycleConfigFields = map[string]struct{}{
+var forbiddenManagedAgentInstallationConfigFields = map[string]struct{}{
 	"apikey":                     {},
 	"apisecret":                  {},
 	"additionalconfigs":          {},
@@ -117,7 +117,7 @@ var forbiddenLifecycleConfigFields = map[string]struct{}{
 	"args":                       {},
 }
 
-var allowedLifecycleSites = map[string]struct{}{
+var allowedManagedAgentInstallationSites = map[string]struct{}{
 	"datadoghq.com":     {},
 	"datadoghq.eu":      {},
 	"us3.datadoghq.com": {},
@@ -127,16 +127,16 @@ var allowedLifecycleSites = map[string]struct{}{
 	"ap2.datadoghq.com": {},
 }
 
-type datadogAgentLifecycleConfig struct {
+type datadogAgentManagedAgentInstallationConfig struct {
 	Spec *v2alpha1.DatadogAgentSpec `json:"spec"`
 }
 
-func (d *Daemon) resolveLifecycleOperation(req remoteAPIRequest, expected Operation) (resolvedOperation, error) {
+func (d *Daemon) resolveManagedAgentInstallationOperation(req remoteAPIRequest, expected Operation) (resolvedOperation, error) {
 	operationName := fmt.Sprintf("%s DatadogAgent", expected)
 	if req.Package != packageDatadogOperator {
 		return resolvedOperation{}, fmt.Errorf("%s: package must be %q, got %q", operationName, packageDatadogOperator, req.Package)
 	}
-	if err := validateLifecycleParams(req.Params); err != nil {
+	if err := validateManagedAgentInstallationParams(req.Params); err != nil {
 		return resolvedOperation{}, fmt.Errorf("%s: invalid params: %w", operationName, err)
 	}
 	if req.Params.NamespacedName.Namespace != fleetDatadogAgentNamespace {
@@ -166,7 +166,7 @@ func (d *Daemon) resolveLifecycleOperation(req remoteAPIRequest, expected Operat
 	}, nil
 }
 
-func validateLifecycleParams(params operatorTaskParams) error {
+func validateManagedAgentInstallationParams(params operatorTaskParams) error {
 	if err := validateParams(params); err != nil {
 		return err
 	}
@@ -178,7 +178,7 @@ func validateLifecycleParams(params operatorTaskParams) error {
 }
 
 func (d *Daemon) installDatadogAgent(ctx context.Context, req remoteAPIRequest) (*pendingOperation, error) {
-	op, err := d.resolveLifecycleOperation(req, OperationCreate)
+	op, err := d.resolveManagedAgentInstallationOperation(req, OperationCreate)
 	if err != nil {
 		return nil, err
 	}
@@ -199,7 +199,7 @@ func (d *Daemon) installDatadogAgent(ctx context.Context, req remoteAPIRequest) 
 	}
 
 	existing := &v2alpha1.DatadogAgent{}
-	err = d.lifecycleReader().Get(ctx, op.NamespacedName, existing)
+	err = d.managedAgentInstallationReader().Get(ctx, op.NamespacedName, existing)
 	if err == nil {
 		if err := d.validateFleetDatadogAgentInstallation(existing); err != nil {
 			return nil, err
@@ -209,16 +209,16 @@ func (d *Daemon) installDatadogAgent(ctx context.Context, req remoteAPIRequest) 
 		}
 		d.setPackageConfigVersions(req.Package, fleetPartialConfigVersionPrefix+req.Params.Version, "")
 		if _, err := d.markFleetDatadogAgentPartial(ctx, op.NamespacedName, existing.UID); err != nil {
-			return nil, fmt.Errorf("create DatadogAgent: mark lifecycle partial before readiness revalidation: %w", err)
+			return nil, fmt.Errorf("create DatadogAgent: mark managed Agent installation partial before readiness revalidation: %w", err)
 		}
-		if err := d.ensureAddonLifecycleResources(ctx, req, existing); err != nil {
+		if err := d.ensureManagedAgentInstallationResources(ctx, req, existing); err != nil {
 			return nil, d.retainFleetDatadogAgentPartial(ctx, req, existing.UID, err)
 		}
-		if err := d.waitForAddonLifecycleResourcesReady(ctx, req, op.NamespacedName, existing.UID); err != nil {
+		if err := d.waitForManagedAgentInstallationResourcesReady(ctx, req, op.NamespacedName, existing.UID); err != nil {
 			return nil, d.retainFleetDatadogAgentPartial(ctx, req, existing.UID, fmt.Errorf("create DatadogAgent: %w", err))
 		}
 		if err := d.markFleetDatadogAgentReady(ctx, op.NamespacedName, existing.UID, req.Params.Version); err != nil {
-			return nil, d.retainFleetDatadogAgentPartial(ctx, req, existing.UID, fmt.Errorf("create DatadogAgent: mark lifecycle ready: %w", err))
+			return nil, d.retainFleetDatadogAgentPartial(ctx, req, existing.UID, fmt.Errorf("create DatadogAgent: mark managed Agent installation ready: %w", err))
 		}
 		observed, conflictErr := d.validateDatadogAgentInstallTarget(ctx, op.NamespacedName)
 		if conflictErr != nil {
@@ -231,7 +231,7 @@ func (d *Daemon) installDatadogAgent(ctx context.Context, req remoteAPIRequest) 
 			return nil, err
 		}
 		if req.Addon != nil {
-			if err := d.validateAddonLifecycleResourcesReady(ctx, observed); err != nil {
+			if err := d.validateManagedAgentInstallationResourcesReady(ctx, observed); err != nil {
 				return nil, d.retainFleetDatadogAgentPartial(ctx, req, existing.UID, err)
 			}
 		}
@@ -253,11 +253,11 @@ func (d *Daemon) installDatadogAgent(ctx context.Context, req remoteAPIRequest) 
 			Name:      op.NamespacedName.Name,
 			Namespace: op.NamespacedName.Namespace,
 			Labels: map[string]string{
-				fleetManagedByLabel:      fleetManagedByValue,
-				fleetConfigIDLabel:       req.Params.Version,
-				fleetLifecycleStateLabel: fleetLifecycleStatePartial,
-				fleetInstallationIDLabel: req.Params.InstallationID,
-				fleetTargetIDLabel:       d.lifecycleIdentity.TargetID(),
+				fleetManagedByLabel:                     fleetManagedByValue,
+				fleetConfigIDLabel:                      req.Params.Version,
+				fleetManagedAgentInstallationStateLabel: fleetManagedAgentInstallationStatePartial,
+				fleetInstallationIDLabel:                req.Params.InstallationID,
+				fleetTargetIDLabel:                      d.managedAgentInstallationIdentity.TargetID(),
 			},
 			Annotations: map[string]string{
 				fleetConfigHashAnnotation:   configHash,
@@ -274,7 +274,7 @@ func (d *Daemon) installDatadogAgent(ctx context.Context, req remoteAPIRequest) 
 		if getErr := k8sretry.OnError(k8sretry.DefaultBackoff, func(getErr error) bool {
 			return apierrors.IsNotFound(getErr) || isRetryable(getErr)
 		}, func() error {
-			return d.lifecycleReader().Get(ctx, op.NamespacedName, current)
+			return d.managedAgentInstallationReader().Get(ctx, op.NamespacedName, current)
 		}); getErr != nil {
 			return nil, fmt.Errorf("create DatadogAgent: create returned %v and the resource could not be recovered: %w", err, getErr)
 		}
@@ -294,7 +294,7 @@ func (d *Daemon) installDatadogAgent(ctx context.Context, req remoteAPIRequest) 
 		}
 		return nil, fmt.Errorf("create DatadogAgent: create returned %v; recovered Fleet-owned resource remains partial for retry or explicit uninstall", err)
 	}
-	d.publishFleetDatadogAgentLifecycleState(req.Package, dda, req.Params.Version)
+	d.publishFleetDatadogAgentManagedAgentInstallationState(req.Package, dda, req.Params.Version)
 	observed, conflictErr := d.validateDatadogAgentInstallTarget(ctx, op.NamespacedName)
 	if conflictErr != nil {
 		return nil, d.handleDatadogAgentInstallCoexistenceConflict(ctx, req, dda, observed, conflictErr, true)
@@ -306,14 +306,14 @@ func (d *Daemon) installDatadogAgent(ctx context.Context, req remoteAPIRequest) 
 	if err := d.recordFleetDatadogAgentSpecHash(ctx, op.NamespacedName, dda.UID, req.Params.Version, acceptedHash); err != nil {
 		return nil, fmt.Errorf("create DatadogAgent: record accepted spec: %w", err)
 	}
-	if err := d.ensureAddonLifecycleResources(ctx, req, dda); err != nil {
+	if err := d.ensureManagedAgentInstallationResources(ctx, req, dda); err != nil {
 		return nil, d.retainFleetDatadogAgentPartial(ctx, req, dda.UID, err)
 	}
-	if err := d.waitForAddonLifecycleResourcesReady(ctx, req, op.NamespacedName, dda.UID); err != nil {
+	if err := d.waitForManagedAgentInstallationResourcesReady(ctx, req, op.NamespacedName, dda.UID); err != nil {
 		return nil, fmt.Errorf("create DatadogAgent: %w", err)
 	}
 	if err := d.markFleetDatadogAgentReady(ctx, op.NamespacedName, dda.UID, req.Params.Version); err != nil {
-		return nil, fmt.Errorf("create DatadogAgent: mark lifecycle ready: %w", err)
+		return nil, fmt.Errorf("create DatadogAgent: mark managed Agent installation ready: %w", err)
 	}
 	observed, conflictErr = d.validateDatadogAgentInstallTarget(ctx, op.NamespacedName)
 	if conflictErr != nil {
@@ -326,7 +326,7 @@ func (d *Daemon) installDatadogAgent(ctx context.Context, req remoteAPIRequest) 
 		return nil, err
 	}
 	if req.Addon != nil {
-		if err := d.validateAddonLifecycleResourcesReady(ctx, observed); err != nil {
+		if err := d.validateManagedAgentInstallationResourcesReady(ctx, observed); err != nil {
 			return nil, d.retainFleetDatadogAgentPartial(ctx, req, dda.UID, err)
 		}
 	}
@@ -368,7 +368,7 @@ func (d *Daemon) retainFleetDatadogAgentPartial(ctx context.Context, req remoteA
 
 func (d *Daemon) rollbackFleetDatadogAgentCreation(ctx context.Context, nsn types.NamespacedName, uid types.UID, resourceVersion, configID, createTaskID string) error {
 	current := &v2alpha1.DatadogAgent{}
-	if err := d.lifecycleReader().Get(ctx, nsn, current); err != nil {
+	if err := d.managedAgentInstallationReader().Get(ctx, nsn, current); err != nil {
 		if apierrors.IsNotFound(err) {
 			cleanupTargets, listErr := d.fleetDatadogAgentInternalCleanupTargets(ctx, nsn, uid)
 			if listErr != nil {
@@ -401,7 +401,7 @@ func (d *Daemon) rollbackFleetDatadogAgentCreation(ctx context.Context, nsn type
 	if err != nil {
 		return err
 	}
-	preconditions := lifecycleDeletePreconditions(current.UID, current.ResourceVersion)
+	preconditions := managedAgentInstallationDeletePreconditions(current.UID, current.ResourceVersion)
 	if err := d.client.Delete(ctx, current, client.Preconditions(preconditions), client.PropagationPolicy(metav1.DeletePropagationForeground)); err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
@@ -409,7 +409,7 @@ func (d *Daemon) rollbackFleetDatadogAgentCreation(ctx context.Context, nsn type
 }
 
 func (d *Daemon) uninstallDatadogAgent(ctx context.Context, req remoteAPIRequest) (*pendingOperation, error) {
-	op, err := d.resolveLifecycleOperation(req, OperationDelete)
+	op, err := d.resolveManagedAgentInstallationOperation(req, OperationDelete)
 	if err != nil {
 		return nil, err
 	}
@@ -418,7 +418,7 @@ func (d *Daemon) uninstallDatadogAgent(ctx context.Context, req remoteAPIRequest
 	}
 
 	dda := &v2alpha1.DatadogAgent{}
-	err = d.lifecycleReader().Get(ctx, op.NamespacedName, dda)
+	err = d.managedAgentInstallationReader().Get(ctx, op.NamespacedName, dda)
 	if apierrors.IsNotFound(err) {
 		activatedFence, fenceErr := d.activateUninstallFence(ctx, req)
 		if fenceErr != nil {
@@ -426,7 +426,7 @@ func (d *Daemon) uninstallDatadogAgent(ctx context.Context, req remoteAPIRequest
 		}
 		if req.Addon != nil {
 			absentDDA := &v2alpha1.DatadogAgent{ObjectMeta: metav1.ObjectMeta{Namespace: op.NamespacedName.Namespace, Name: op.NamespacedName.Name}}
-			if err := d.deleteAddonLifecycleWindowsProfile(ctx, absentDDA); err != nil {
+			if err := d.deleteManagedAgentInstallationWindowsProfile(ctx, absentDDA); err != nil {
 				return nil, err
 			}
 		}
@@ -445,14 +445,14 @@ func (d *Daemon) uninstallDatadogAgent(ctx context.Context, req remoteAPIRequest
 			return nil, fmt.Errorf("delete DatadogAgent: waiting for remaining resource removal: %w", waitErr)
 		}
 		if req.Addon != nil {
-			if err := d.waitForAddonLifecycleWindowsProfileAbsent(ctx); err != nil {
+			if err := d.waitForManagedAgentInstallationWindowsProfileAbsent(ctx); err != nil {
 				return nil, fmt.Errorf("delete DatadogAgent: waiting for Windows profile removal: %w", err)
 			}
 		}
 		if err := d.validateFleetDatadogAgentTargetAbsent(ctx, op.NamespacedName); err != nil {
 			return nil, err
 		}
-		if err := d.verifyDatadogAgentLifecycleResourcesAbsent(ctx, op.NamespacedName); err != nil {
+		if err := d.verifyDatadogAgentManagedAgentInstallationResourcesAbsent(ctx, op.NamespacedName); err != nil {
 			return nil, err
 		}
 		if err := d.verifyUnchangedActiveUninstallFence(ctx, req, activatedFence); err != nil {
@@ -481,7 +481,7 @@ func (d *Daemon) uninstallDatadogAgent(ctx context.Context, req remoteAPIRequest
 		return nil, fmt.Errorf("delete DatadogAgent: activate uninstall fence: %w", err)
 	}
 	if req.Addon != nil {
-		if err := d.deleteAddonLifecycleWindowsProfile(ctx, dda); err != nil {
+		if err := d.deleteManagedAgentInstallationWindowsProfile(ctx, dda); err != nil {
 			return nil, err
 		}
 	}
@@ -493,7 +493,7 @@ func (d *Daemon) uninstallDatadogAgent(ctx context.Context, req remoteAPIRequest
 		return nil, err
 	}
 
-	preconditions := lifecycleDeletePreconditions(dda.UID, dda.ResourceVersion)
+	preconditions := managedAgentInstallationDeletePreconditions(dda.UID, dda.ResourceVersion)
 	if err := d.client.Delete(ctx, dda, client.Preconditions(preconditions), client.PropagationPolicy(metav1.DeletePropagationForeground)); err != nil && !apierrors.IsNotFound(err) {
 		return nil, fmt.Errorf("delete DatadogAgent: %w", err)
 	}
@@ -501,14 +501,14 @@ func (d *Daemon) uninstallDatadogAgent(ctx context.Context, req remoteAPIRequest
 		return nil, fmt.Errorf("delete DatadogAgent: waiting for resource removal: %w", err)
 	}
 	if req.Addon != nil {
-		if err := d.waitForAddonLifecycleWindowsProfileAbsent(ctx); err != nil {
+		if err := d.waitForManagedAgentInstallationWindowsProfileAbsent(ctx); err != nil {
 			return nil, fmt.Errorf("delete DatadogAgent: waiting for Windows profile removal: %w", err)
 		}
 	}
 	if err := d.validateFleetDatadogAgentTargetAbsent(ctx, op.NamespacedName); err != nil {
 		return nil, err
 	}
-	if err := d.verifyDatadogAgentLifecycleResourcesAbsent(ctx, op.NamespacedName); err != nil {
+	if err := d.verifyDatadogAgentManagedAgentInstallationResourcesAbsent(ctx, op.NamespacedName); err != nil {
 		return nil, err
 	}
 	if err := d.verifyUnchangedActiveUninstallFence(ctx, req, activatedFence); err != nil {
@@ -536,14 +536,14 @@ func buildFleetDatadogAgentSpec(raw json.RawMessage) (*v2alpha1.DatadogAgentSpec
 	return config.Spec, nil
 }
 
-func decodeRemoteDatadogAgentConfig(raw json.RawMessage, requireSpec bool) (*datadogAgentLifecycleConfig, error) {
+func decodeRemoteDatadogAgentConfig(raw json.RawMessage, requireSpec bool) (*datadogAgentManagedAgentInstallationConfig, error) {
 	if err := rejectRemoteCredentialSelectors(raw); err != nil {
 		return nil, err
 	}
-	if err := rejectDestructiveLifecycleNulls(raw); err != nil {
+	if err := rejectDestructiveManagedAgentInstallationNulls(raw); err != nil {
 		return nil, err
 	}
-	var config datadogAgentLifecycleConfig
+	var config datadogAgentManagedAgentInstallationConfig
 	decoder := json.NewDecoder(bytes.NewReader(raw))
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(&config); err != nil {
@@ -558,13 +558,13 @@ func decodeRemoteDatadogAgentConfig(raw json.RawMessage, requireSpec bool) (*dat
 		}
 		return &config, nil
 	}
-	if err := validateRemoteLifecycleSpec(config.Spec); err != nil {
+	if err := validateRemoteManagedAgentInstallationSpec(config.Spec); err != nil {
 		return nil, err
 	}
 	return &config, nil
 }
 
-func rejectDestructiveLifecycleNulls(raw json.RawMessage) error {
+func rejectDestructiveManagedAgentInstallationNulls(raw json.RawMessage) error {
 	var config map[string]json.RawMessage
 	if err := json.Unmarshal(raw, &config); err != nil {
 		return fmt.Errorf("invalid config: %w", err)
@@ -645,7 +645,7 @@ func validateFleetDatadogAgentSpecHash(dda *v2alpha1.DatadogAgent, annotation, s
 func (d *Daemon) recordFleetDatadogAgentSpecHash(ctx context.Context, nsn types.NamespacedName, uid types.UID, configID, acceptedHash string) error {
 	return k8sretry.RetryOnConflict(k8sretry.DefaultBackoff, func() error {
 		dda := &v2alpha1.DatadogAgent{}
-		if err := d.lifecycleReader().Get(ctx, nsn, dda); err != nil {
+		if err := d.managedAgentInstallationReader().Get(ctx, nsn, dda); err != nil {
 			return err
 		}
 		if uid == "" || dda.UID != uid {
@@ -681,9 +681,9 @@ func (d *Daemon) recordFleetDatadogAgentSpecHash(ctx context.Context, nsn types.
 	})
 }
 
-func (d *Daemon) publishFleetDatadogAgentLifecycleState(packageName string, dda *v2alpha1.DatadogAgent, configID string) {
+func (d *Daemon) publishFleetDatadogAgentManagedAgentInstallationState(packageName string, dda *v2alpha1.DatadogAgent, configID string) {
 	reportedConfigID := configID
-	if dda.Labels[fleetLifecycleStateLabel] != fleetLifecycleStateReady {
+	if dda.Labels[fleetManagedAgentInstallationStateLabel] != fleetManagedAgentInstallationStateReady {
 		reportedConfigID = fleetPartialConfigVersionPrefix + configID
 	}
 	d.setPackageConfigVersions(packageName, reportedConfigID, "")
@@ -709,11 +709,11 @@ func (d *Daemon) markFleetDatadogAgentReadyAfterExperiment(ctx context.Context, 
 func (d *Daemon) markFleetDatadogAgentReadyWithValidation(ctx context.Context, nsn types.NamespacedName, uid types.UID, configID string, validate func(*v2alpha1.DatadogAgent) error) error {
 	return k8sretry.RetryOnConflict(k8sretry.DefaultBackoff, func() error {
 		dda := &v2alpha1.DatadogAgent{}
-		if err := d.lifecycleReader().Get(ctx, nsn, dda); err != nil {
+		if err := d.managedAgentInstallationReader().Get(ctx, nsn, dda); err != nil {
 			return err
 		}
 		if uid == "" || dda.UID != uid {
-			return &stateDoesntMatchError{msg: fmt.Sprintf("DatadogAgent %s/%s was replaced before its lifecycle state could be marked ready", dda.Namespace, dda.Name)}
+			return &stateDoesntMatchError{msg: fmt.Sprintf("DatadogAgent %s/%s was replaced before its managed Agent installation state could be marked ready", dda.Namespace, dda.Name)}
 		}
 		if validate != nil {
 			if err := validate(dda); err != nil {
@@ -736,14 +736,14 @@ func (d *Daemon) markFleetDatadogAgentReadyWithValidation(ctx context.Context, n
 		if !ready {
 			return &stateDoesntMatchError{msg: fmt.Sprintf("DatadogAgent %s/%s is no longer ready: %s", dda.Namespace, dda.Name, observation)}
 		}
-		if dda.Labels[fleetLifecycleStateLabel] == fleetLifecycleStateReady {
+		if dda.Labels[fleetManagedAgentInstallationStateLabel] == fleetManagedAgentInstallationStateReady {
 			return nil
 		}
 		base := dda.DeepCopy()
 		if dda.Labels == nil {
 			dda.Labels = make(map[string]string)
 		}
-		dda.Labels[fleetLifecycleStateLabel] = fleetLifecycleStateReady
+		dda.Labels[fleetManagedAgentInstallationStateLabel] = fleetManagedAgentInstallationStateReady
 		return d.client.Patch(
 			ctx,
 			dda,
@@ -757,11 +757,11 @@ func (d *Daemon) markFleetDatadogAgentPartial(ctx context.Context, nsn types.Nam
 	var configID string
 	err := k8sretry.RetryOnConflict(k8sretry.DefaultBackoff, func() error {
 		dda := &v2alpha1.DatadogAgent{}
-		if err := d.lifecycleReader().Get(ctx, nsn, dda); err != nil {
+		if err := d.managedAgentInstallationReader().Get(ctx, nsn, dda); err != nil {
 			return err
 		}
 		if uid == "" || dda.UID != uid {
-			return &stateDoesntMatchError{msg: fmt.Sprintf("DatadogAgent %s/%s was replaced before its lifecycle state could be marked partial", dda.Namespace, dda.Name)}
+			return &stateDoesntMatchError{msg: fmt.Sprintf("DatadogAgent %s/%s was replaced before its managed Agent installation state could be marked partial", dda.Namespace, dda.Name)}
 		}
 		if dda.Labels[fleetManagedByLabel] != fleetManagedByValue || dda.Labels[fleetConfigIDLabel] == "" {
 			return &stateDoesntMatchError{msg: fmt.Sprintf("DatadogAgent %s/%s has incomplete or conflicting Fleet ownership metadata", dda.Namespace, dda.Name)}
@@ -770,11 +770,11 @@ func (d *Daemon) markFleetDatadogAgentPartial(ctx context.Context, nsn types.Nam
 			return err
 		}
 		configID = dda.Labels[fleetConfigIDLabel]
-		if dda.Labels[fleetLifecycleStateLabel] == fleetLifecycleStatePartial {
+		if dda.Labels[fleetManagedAgentInstallationStateLabel] == fleetManagedAgentInstallationStatePartial {
 			return nil
 		}
 		base := dda.DeepCopy()
-		dda.Labels[fleetLifecycleStateLabel] = fleetLifecycleStatePartial
+		dda.Labels[fleetManagedAgentInstallationStateLabel] = fleetManagedAgentInstallationStatePartial
 		return d.client.Patch(
 			ctx,
 			dda,
@@ -789,7 +789,7 @@ func (d *Daemon) markFleetDatadogAgentExperimentReady(ctx context.Context, nsn t
 	var configID string
 	err := k8sretry.RetryOnConflict(k8sretry.DefaultBackoff, func() error {
 		dda := &v2alpha1.DatadogAgent{}
-		if err := d.lifecycleReader().Get(ctx, nsn, dda); err != nil {
+		if err := d.managedAgentInstallationReader().Get(ctx, nsn, dda); err != nil {
 			return err
 		}
 		if uid == "" || dda.UID != uid {
@@ -812,11 +812,11 @@ func (d *Daemon) markFleetDatadogAgentExperimentReady(ctx context.Context, nsn t
 			return err
 		}
 		configID = dda.Labels[fleetConfigIDLabel]
-		if dda.Labels[fleetLifecycleStateLabel] == fleetLifecycleStateReady {
+		if dda.Labels[fleetManagedAgentInstallationStateLabel] == fleetManagedAgentInstallationStateReady {
 			return nil
 		}
 		base := dda.DeepCopy()
-		dda.Labels[fleetLifecycleStateLabel] = fleetLifecycleStateReady
+		dda.Labels[fleetManagedAgentInstallationStateLabel] = fleetManagedAgentInstallationStateReady
 		return d.client.Patch(
 			ctx,
 			dda,
@@ -830,7 +830,7 @@ func (d *Daemon) markFleetDatadogAgentExperimentReady(ctx context.Context, nsn t
 func (d *Daemon) recordFleetExperimentSpecHash(ctx context.Context, nsn types.NamespacedName, uid types.UID, acceptedHash string) error {
 	return k8sretry.RetryOnConflict(k8sretry.DefaultBackoff, func() error {
 		dda := &v2alpha1.DatadogAgent{}
-		if err := d.lifecycleReader().Get(ctx, nsn, dda); err != nil {
+		if err := d.managedAgentInstallationReader().Get(ctx, nsn, dda); err != nil {
 			return err
 		}
 		if uid == "" || dda.UID != uid {
@@ -875,9 +875,9 @@ func (d *Daemon) recordFleetExperimentSpecHash(ctx context.Context, nsn types.Na
 
 func (d *Daemon) waitForFleetDatadogAgentReady(ctx context.Context, nsn types.NamespacedName, uid types.UID) error {
 	lastObservation := "waiting for the DatadogAgent reconciler"
-	err := wait.PollUntilContextTimeout(ctx, lifecycleReadinessPollInterval, lifecycleOperationTimeout, true, func(ctx context.Context) (bool, error) {
+	err := wait.PollUntilContextTimeout(ctx, managedAgentInstallationReadinessPollInterval, managedAgentInstallationOperationTimeout, true, func(ctx context.Context) (bool, error) {
 		dda := &v2alpha1.DatadogAgent{}
-		if err := d.lifecycleReader().Get(ctx, nsn, dda); err != nil {
+		if err := d.managedAgentInstallationReader().Get(ctx, nsn, dda); err != nil {
 			return false, err
 		}
 		if err := d.validateFleetDatadogAgentInstallation(dda); err != nil {
@@ -962,7 +962,7 @@ type fleetDatadogAgentInternalCleanupTarget struct {
 
 func (d *Daemon) fleetDatadogAgentInternalCleanupTargets(ctx context.Context, ddaKey types.NamespacedName, ddaUID types.UID) ([]fleetDatadogAgentInternalCleanupTarget, error) {
 	ddais := &v1alpha1.DatadogAgentInternalList{}
-	if err := d.lifecycleReader().List(ctx, ddais, client.MatchingLabels{fleetManagedByLabel: fleetManagedByValue}); err != nil {
+	if err := d.managedAgentInstallationReader().List(ctx, ddais, client.MatchingLabels{fleetManagedByLabel: fleetManagedByValue}); err != nil {
 		return nil, err
 	}
 	targets := make([]fleetDatadogAgentInternalCleanupTarget, 0, len(ddais.Items))
@@ -984,7 +984,7 @@ func (d *Daemon) fleetDatadogAgentInternalCleanupTargets(ctx context.Context, dd
 				ResourceVersion:  ddai.ResourceVersion,
 				OwnerKey:         ddaKey,
 				OwnerUID:         owner.UID,
-				PartOfLabelValue: lifecycleDatadogAgentInternalPartOfLabelValue(ddai),
+				PartOfLabelValue: managedAgentInstallationDatadogAgentInternalPartOfLabelValue(ddai),
 			})
 			break
 		}
@@ -995,7 +995,7 @@ func (d *Daemon) fleetDatadogAgentInternalCleanupTargets(ctx context.Context, dd
 func (d *Daemon) deleteFleetDatadogAgentInternal(ctx context.Context, target fleetDatadogAgentInternalCleanupTarget) (fleetDatadogAgentInternalCleanupTarget, error) {
 	err := k8sretry.RetryOnConflict(k8sretry.DefaultBackoff, func() error {
 		current := &v1alpha1.DatadogAgentInternal{}
-		if err := d.lifecycleReader().Get(ctx, target.NamespacedName, current); err != nil {
+		if err := d.managedAgentInstallationReader().Get(ctx, target.NamespacedName, current); err != nil {
 			if apierrors.IsNotFound(err) {
 				return nil
 			}
@@ -1021,8 +1021,8 @@ func (d *Daemon) deleteFleetDatadogAgentInternal(ctx context.Context, target fle
 			return &stateDoesntMatchError{msg: fmt.Sprintf("DatadogAgentInternal %s/%s owner changed while uninstalling", current.Namespace, current.Name)}
 		}
 		target.ResourceVersion = current.ResourceVersion
-		target.PartOfLabelValue = lifecycleDatadogAgentInternalPartOfLabelValue(current)
-		preconditions := lifecycleDeletePreconditions(current.UID, current.ResourceVersion)
+		target.PartOfLabelValue = managedAgentInstallationDatadogAgentInternalPartOfLabelValue(current)
+		preconditions := managedAgentInstallationDeletePreconditions(current.UID, current.ResourceVersion)
 		return d.client.Delete(ctx, current, client.Preconditions(preconditions), client.PropagationPolicy(metav1.DeletePropagationForeground))
 	})
 	if apierrors.IsNotFound(err) {
@@ -1041,7 +1041,7 @@ func (d *Daemon) cleanupOrphanedFleetDatadogAgentInternals(ctx context.Context, 
 		liveKeys[key] = dda.UID
 	}
 	ddais := &v1alpha1.DatadogAgentInternalList{}
-	if err := d.lifecycleReader().List(ctx, ddais, client.MatchingLabels{fleetManagedByLabel: fleetManagedByValue}); err != nil {
+	if err := d.managedAgentInstallationReader().List(ctx, ddais, client.MatchingLabels{fleetManagedByLabel: fleetManagedByValue}); err != nil {
 		return err
 	}
 	for i := range ddais.Items {
@@ -1072,7 +1072,7 @@ func (d *Daemon) cleanupOrphanedFleetDatadogAgentInternals(ctx context.Context, 
 			ResourceVersion:  ddai.ResourceVersion,
 			OwnerKey:         ownerKey,
 			OwnerUID:         owner.UID,
-			PartOfLabelValue: lifecycleDatadogAgentInternalPartOfLabelValue(ddai),
+			PartOfLabelValue: managedAgentInstallationDatadogAgentInternalPartOfLabelValue(ddai),
 		}
 		target, err := d.deleteFleetDatadogAgentInternal(ctx, target)
 		if err != nil {
@@ -1091,9 +1091,9 @@ func (d *Daemon) waitForFleetDatadogAgentCleanup(ctx context.Context, ddaKey typ
 		tracked[fleetDatadogAgentInternalCleanupTargetKey(target)] = target
 	}
 	emptyObservations := 0
-	return wait.PollUntilContextTimeout(ctx, lifecycleDeletePollInterval, lifecycleOperationTimeout, true, func(ctx context.Context) (bool, error) {
+	return wait.PollUntilContextTimeout(ctx, managedAgentInstallationDeletePollInterval, managedAgentInstallationOperationTimeout, true, func(ctx context.Context) (bool, error) {
 		dda := &v2alpha1.DatadogAgent{}
-		err := d.lifecycleReader().Get(ctx, ddaKey, dda)
+		err := d.managedAgentInstallationReader().Get(ctx, ddaKey, dda)
 		if err == nil {
 			if ddaUID == "" || dda.UID != ddaUID {
 				return false, &stateDoesntMatchError{msg: fmt.Sprintf("DatadogAgent %s/%s was replaced while uninstalling", dda.Namespace, dda.Name)}
@@ -1122,7 +1122,7 @@ func (d *Daemon) waitForFleetDatadogAgentCleanup(ctx context.Context, ddaKey typ
 
 		for _, target := range tracked {
 			ddai := &v1alpha1.DatadogAgentInternal{}
-			err := d.lifecycleReader().Get(ctx, target.NamespacedName, ddai)
+			err := d.managedAgentInstallationReader().Get(ctx, target.NamespacedName, ddai)
 			if err == nil {
 				if ddai.UID != target.UID {
 					return false, &stateDoesntMatchError{msg: fmt.Sprintf("DatadogAgentInternal %s/%s was replaced while uninstalling", ddai.Namespace, ddai.Name)}
@@ -1137,7 +1137,7 @@ func (d *Daemon) waitForFleetDatadogAgentCleanup(ctx context.Context, ddaKey typ
 				return false, err
 			}
 		}
-		removed, err := d.datadogAgentInternalClusterResourcesRemoved(ctx, lifecyclePartOfLabelValue(ddaKey))
+		removed, err := d.datadogAgentInternalClusterResourcesRemoved(ctx, managedAgentInstallationPartOfLabelValue(ddaKey))
 		if err != nil || !removed {
 			return false, err
 		}
@@ -1162,7 +1162,7 @@ func (d *Daemon) datadogAgentInternalClusterResourcesRemoved(ctx context.Context
 		&apiregistrationv1.APIServiceList{},
 	}
 	for _, list := range lists {
-		if err := d.lifecycleReader().List(ctx, list, matchingLabels); err != nil {
+		if err := d.managedAgentInstallationReader().List(ctx, list, matchingLabels); err != nil {
 			return false, err
 		}
 		if meta.LenList(list) != 0 {
@@ -1172,12 +1172,12 @@ func (d *Daemon) datadogAgentInternalClusterResourcesRemoved(ctx context.Context
 	return true, nil
 }
 
-func lifecyclePartOfLabelValue(key types.NamespacedName) string {
+func managedAgentInstallationPartOfLabelValue(key types.NamespacedName) string {
 	escape := func(value string) string { return strings.ReplaceAll(value, "-", "--") }
 	return escape(key.Namespace) + "-" + escape(key.Name)
 }
 
-func lifecycleDeletePreconditions(uid types.UID, resourceVersion string) metav1.Preconditions {
+func managedAgentInstallationDeletePreconditions(uid types.UID, resourceVersion string) metav1.Preconditions {
 	preconditions := metav1.Preconditions{}
 	if uid != "" {
 		preconditions.UID = &uid
@@ -1188,12 +1188,12 @@ func lifecycleDeletePreconditions(uid types.UID, resourceVersion string) metav1.
 	return preconditions
 }
 
-func lifecycleDatadogAgentInternalPartOfLabelValue(ddai *v1alpha1.DatadogAgentInternal) string {
+func managedAgentInstallationDatadogAgentInternalPartOfLabelValue(ddai *v1alpha1.DatadogAgentInternal) string {
 	ddaName := ddai.Labels[datadogAgentNameLabelKey]
 	if ddaName == "" {
 		ddaName = ddai.Name
 	}
-	return lifecyclePartOfLabelValue(types.NamespacedName{Namespace: ddai.Namespace, Name: ddaName})
+	return managedAgentInstallationPartOfLabelValue(types.NamespacedName{Namespace: ddai.Namespace, Name: ddaName})
 }
 
 func rejectRemoteCredentialSelectors(raw json.RawMessage) error {
@@ -1209,8 +1209,8 @@ func walkRemoteConfig(value any, path string) error {
 	case map[string]any:
 		for key, nested := range typed {
 			lowerKey := strings.ToLower(key)
-			if _, forbidden := forbiddenLifecycleConfigFields[lowerKey]; forbidden {
-				return fmt.Errorf("%s.%s is not allowed in a Fleet lifecycle config", path, key)
+			if _, forbidden := forbiddenManagedAgentInstallationConfigFields[lowerKey]; forbidden {
+				return fmt.Errorf("%s.%s is not allowed in a Fleet managed Agent installation config", path, key)
 			}
 			if err := walkRemoteConfig(nested, path+"."+key); err != nil {
 				return err
@@ -1226,7 +1226,7 @@ func walkRemoteConfig(value any, path string) error {
 	return nil
 }
 
-func validateRemoteLifecycleSpec(spec *v2alpha1.DatadogAgentSpec) error {
+func validateRemoteManagedAgentInstallationSpec(spec *v2alpha1.DatadogAgentSpec) error {
 	for component, override := range spec.Override {
 		if override == nil {
 			continue
@@ -1279,7 +1279,7 @@ func validateRemoteLifecycleSpec(spec *v2alpha1.DatadogAgentSpec) error {
 		return fmt.Errorf("config must not contain endpoint, secret backend, or environment credential sources")
 	}
 	if spec.Global.Site != nil {
-		if _, ok := allowedLifecycleSites[*spec.Global.Site]; !ok {
+		if _, ok := allowedManagedAgentInstallationSites[*spec.Global.Site]; !ok {
 			return fmt.Errorf("config contains unsupported Datadog site %q", *spec.Global.Site)
 		}
 	}
@@ -1289,7 +1289,7 @@ func validateRemoteLifecycleSpec(spec *v2alpha1.DatadogAgentSpec) error {
 func (d *Daemon) validateFleetCredentialSecret(ctx context.Context) error {
 	secret := &corev1.Secret{}
 	nsn := types.NamespacedName{Namespace: fleetDatadogAgentNamespace, Name: fleetCredentialSecretName}
-	if err := d.lifecycleReader().Get(ctx, nsn, secret); err != nil {
+	if err := d.managedAgentInstallationReader().Get(ctx, nsn, secret); err != nil {
 		return fmt.Errorf("credential Secret %s/%s is not ready: %w", nsn.Namespace, nsn.Name, err)
 	}
 	if len(secret.Data[fleetCredentialAPIKey]) == 0 {
@@ -1298,7 +1298,7 @@ func (d *Daemon) validateFleetCredentialSecret(ctx context.Context) error {
 	return nil
 }
 
-func (d *Daemon) lifecycleReader() client.Reader {
+func (d *Daemon) managedAgentInstallationReader() client.Reader {
 	if d.apiReader != nil {
 		return d.apiReader
 	}
@@ -1319,7 +1319,7 @@ func (e *datadogAgentCoexistenceError) Unwrap() error {
 
 func (d *Daemon) validateDatadogAgentInstallTarget(ctx context.Context, target types.NamespacedName) (*v2alpha1.DatadogAgent, error) {
 	ddas := &v2alpha1.DatadogAgentList{}
-	if err := d.lifecycleReader().List(ctx, ddas); err != nil {
+	if err := d.managedAgentInstallationReader().List(ctx, ddas); err != nil {
 		return nil, fmt.Errorf("list DatadogAgents before Fleet install: %w", err)
 	}
 	var observed *v2alpha1.DatadogAgent
@@ -1373,7 +1373,7 @@ func validateFleetDatadogAgentInstallCompletion(dda *v2alpha1.DatadogAgent, uid 
 	if !ready {
 		return &stateDoesntMatchError{msg: fmt.Sprintf("DatadogAgent %s/%s is not ready at install completion: %s", dda.Namespace, dda.Name, observation)}
 	}
-	if dda.Labels[fleetLifecycleStateLabel] != fleetLifecycleStateReady {
+	if dda.Labels[fleetManagedAgentInstallationStateLabel] != fleetManagedAgentInstallationStateReady {
 		return &stateDoesntMatchError{msg: fmt.Sprintf("DatadogAgent %s/%s is not ready at install completion", dda.Namespace, dda.Name)}
 	}
 	return nil
@@ -1381,7 +1381,7 @@ func validateFleetDatadogAgentInstallCompletion(dda *v2alpha1.DatadogAgent, uid 
 
 func (d *Daemon) validateFleetDatadogAgentTarget(ctx context.Context, target types.NamespacedName) error {
 	ddas := &v2alpha1.DatadogAgentList{}
-	if err := d.lifecycleReader().List(ctx, ddas); err != nil {
+	if err := d.managedAgentInstallationReader().List(ctx, ddas); err != nil {
 		return fmt.Errorf("list Fleet-managed DatadogAgents: %w", err)
 	}
 	for i := range ddas.Items {
@@ -1407,7 +1407,7 @@ func (d *Daemon) validateFleetDatadogAgentTarget(ctx context.Context, target typ
 
 func (d *Daemon) validateFleetDatadogAgentTargetAbsent(ctx context.Context, target types.NamespacedName) error {
 	ddas := &v2alpha1.DatadogAgentList{}
-	if err := d.lifecycleReader().List(ctx, ddas); err != nil {
+	if err := d.managedAgentInstallationReader().List(ctx, ddas); err != nil {
 		return fmt.Errorf("list DatadogAgents after Fleet uninstall: %w", err)
 	}
 	for i := range ddas.Items {
@@ -1438,7 +1438,7 @@ func (d *Daemon) validateFleetDatadogAgentTargetAbsent(ctx context.Context, targ
 func (d *Daemon) updateFleetConfigIDLabel(ctx context.Context, nsn types.NamespacedName, uid types.UID, configID, experimentID string) error {
 	return k8sretry.RetryOnConflict(k8sretry.DefaultBackoff, func() error {
 		dda := &v2alpha1.DatadogAgent{}
-		if err := d.lifecycleReader().Get(ctx, nsn, dda); err != nil {
+		if err := d.managedAgentInstallationReader().Get(ctx, nsn, dda); err != nil {
 			return err
 		}
 		if uid == "" || dda.UID != uid {
@@ -1503,7 +1503,7 @@ func validateFleetDatadogAgentCredentials(dda *v2alpha1.DatadogAgent) error {
 	return nil
 }
 
-func validateFleetDatadogAgentLifecycleReady(dda *v2alpha1.DatadogAgent) error {
+func validateFleetDatadogAgentManagedAgentInstallationReady(dda *v2alpha1.DatadogAgent) error {
 	return validateFleetDatadogAgentExperimentOperationState(dda, pendingIntentStart)
 }
 
@@ -1515,11 +1515,11 @@ func validateFleetDatadogAgentExperimentOperationState(dda *v2alpha1.DatadogAgen
 	if !owned {
 		return &stateDoesntMatchError{msg: fmt.Sprintf("DatadogAgent %s/%s is not managed by Fleet Automation", dda.Namespace, dda.Name)}
 	}
-	state := dda.Labels[fleetLifecycleStateLabel]
-	if state == fleetLifecycleStateReady {
+	state := dda.Labels[fleetManagedAgentInstallationStateLabel]
+	if state == fleetManagedAgentInstallationStateReady {
 		return nil
 	}
-	if intent == pendingIntentStop && state == fleetLifecycleStatePartial {
+	if intent == pendingIntentStop && state == fleetManagedAgentInstallationStatePartial {
 		exp := dda.Status.Experiment
 		current, pending := pendingOperationFromAnnotations(client.ObjectKeyFromObject(dda), dda.Annotations)
 		if (exp != nil && exp.ID != "" && !isTerminalPhase(exp.Phase)) ||
@@ -1528,14 +1528,14 @@ func validateFleetDatadogAgentExperimentOperationState(dda *v2alpha1.DatadogAgen
 			return nil
 		}
 	}
-	if intent == pendingIntentPromote && state == fleetLifecycleStatePartial {
+	if intent == pendingIntentPromote && state == fleetManagedAgentInstallationStatePartial {
 		current, pending := pendingOperationFromAnnotations(client.ObjectKeyFromObject(dda), dda.Annotations)
 		if pending && current.intent == pendingIntentPromote &&
 			experimentHasPhase(dda, current.experimentID, v2alpha1.ExperimentPhasePromoted) {
 			return nil
 		}
 	}
-	if state != fleetLifecycleStateReady {
+	if state != fleetManagedAgentInstallationStateReady {
 		return &stateDoesntMatchError{msg: fmt.Sprintf("Fleet-managed DatadogAgent %s/%s has not completed its install gate", dda.Namespace, dda.Name)}
 	}
 	return nil
@@ -1544,17 +1544,17 @@ func validateFleetDatadogAgentExperimentOperationState(dda *v2alpha1.DatadogAgen
 func classifyFleetDatadogAgentOwnership(dda *v2alpha1.DatadogAgent) (bool, error) {
 	managedBy, hasManagedBy := dda.Labels[fleetManagedByLabel]
 	configID, hasConfigID := dda.Labels[fleetConfigIDLabel]
-	lifecycleState, hasLifecycleState := dda.Labels[fleetLifecycleStateLabel]
+	managedAgentInstallationState, hasManagedAgentInstallationState := dda.Labels[fleetManagedAgentInstallationStateLabel]
 	_, hasInstallationID := dda.Labels[fleetInstallationIDLabel]
 	_, hasTargetID := dda.Labels[fleetTargetIDLabel]
 	_, hasConfigHash := dda.Annotations[fleetConfigHashAnnotation]
 	_, hasExperimentHash := dda.Annotations[fleetExperimentHashAnnotation]
 	_, hasCreateTaskID := dda.Annotations[fleetCreateTaskIDAnnotation]
-	if !hasManagedBy && !hasConfigID && !hasLifecycleState && !hasInstallationID && !hasTargetID && !hasConfigHash && !hasExperimentHash && !hasCreateTaskID {
+	if !hasManagedBy && !hasConfigID && !hasManagedAgentInstallationState && !hasInstallationID && !hasTargetID && !hasConfigHash && !hasExperimentHash && !hasCreateTaskID {
 		return false, nil
 	}
 	if managedBy != fleetManagedByValue || configID == "" || !hasConfigHash ||
-		(lifecycleState != fleetLifecycleStatePartial && lifecycleState != fleetLifecycleStateReady) {
+		(managedAgentInstallationState != fleetManagedAgentInstallationStatePartial && managedAgentInstallationState != fleetManagedAgentInstallationStateReady) {
 		return false, &stateDoesntMatchError{msg: fmt.Sprintf("DatadogAgent %s/%s has incomplete or conflicting Fleet ownership metadata", dda.Namespace, dda.Name)}
 	}
 	return true, nil
@@ -1563,13 +1563,13 @@ func classifyFleetDatadogAgentOwnership(dda *v2alpha1.DatadogAgent) (bool, error
 func classifyFleetDatadogAgentOwnershipForRehydration(dda *v2alpha1.DatadogAgent) (bool, error) {
 	managedBy, hasManagedBy := dda.Labels[fleetManagedByLabel]
 	configID, hasConfigID := dda.Labels[fleetConfigIDLabel]
-	_, hasLifecycleState := dda.Labels[fleetLifecycleStateLabel]
+	_, hasManagedAgentInstallationState := dda.Labels[fleetManagedAgentInstallationStateLabel]
 	_, hasInstallationID := dda.Labels[fleetInstallationIDLabel]
 	_, hasTargetID := dda.Labels[fleetTargetIDLabel]
 	_, hasConfigHash := dda.Annotations[fleetConfigHashAnnotation]
 	_, hasExperimentHash := dda.Annotations[fleetExperimentHashAnnotation]
 	_, hasCreateTaskID := dda.Annotations[fleetCreateTaskIDAnnotation]
-	if !hasManagedBy && !hasConfigID && !hasLifecycleState && !hasInstallationID && !hasTargetID && !hasConfigHash && !hasExperimentHash && !hasCreateTaskID {
+	if !hasManagedBy && !hasConfigID && !hasManagedAgentInstallationState && !hasInstallationID && !hasTargetID && !hasConfigHash && !hasExperimentHash && !hasCreateTaskID {
 		return false, nil
 	}
 	if managedBy != fleetManagedByValue || configID == "" {
@@ -1597,16 +1597,16 @@ func validateFleetOwnedDatadogAgent(dda *v2alpha1.DatadogAgent, expectedConfigID
 func (d *Daemon) validateFleetDatadogAgentInstallation(dda *v2alpha1.DatadogAgent) error {
 	installationID := dda.Labels[fleetInstallationIDLabel]
 	targetID := dda.Labels[fleetTargetIDLabel]
-	if !d.lifecycleIdentity.Configured() {
+	if !d.managedAgentInstallationIdentity.Configured() {
 		if installationID != "" || targetID != "" {
-			return &stateDoesntMatchError{msg: fmt.Sprintf("DatadogAgent %s/%s has managed lifecycle identity metadata but the local lifecycle identity is not configured", dda.Namespace, dda.Name)}
+			return &stateDoesntMatchError{msg: fmt.Sprintf("DatadogAgent %s/%s has managed Agent installation identity metadata but the local managed Agent installation identity is not configured", dda.Namespace, dda.Name)}
 		}
 		return nil
 	}
-	if installationID != d.lifecycleIdentity.InstallationID {
+	if installationID != d.managedAgentInstallationIdentity.InstallationID {
 		return &stateDoesntMatchError{msg: fmt.Sprintf("DatadogAgent %s/%s belongs to a different managed installation", dda.Namespace, dda.Name)}
 	}
-	if targetID != d.lifecycleIdentity.TargetID() {
+	if targetID != d.managedAgentInstallationIdentity.TargetID() {
 		return &stateDoesntMatchError{msg: fmt.Sprintf("DatadogAgent %s/%s belongs to a different managed target", dda.Namespace, dda.Name)}
 	}
 	return nil
@@ -1615,16 +1615,16 @@ func (d *Daemon) validateFleetDatadogAgentInstallation(dda *v2alpha1.DatadogAgen
 func (d *Daemon) validateFleetDatadogAgentInternalInstallation(ddai *v1alpha1.DatadogAgentInternal) error {
 	installationID := ddai.Labels[fleetInstallationIDLabel]
 	targetID := ddai.Labels[fleetTargetIDLabel]
-	if !d.lifecycleIdentity.Configured() {
+	if !d.managedAgentInstallationIdentity.Configured() {
 		if installationID != "" || targetID != "" {
-			return &stateDoesntMatchError{msg: fmt.Sprintf("DatadogAgentInternal %s/%s has managed lifecycle identity metadata but the local lifecycle identity is not configured", ddai.Namespace, ddai.Name)}
+			return &stateDoesntMatchError{msg: fmt.Sprintf("DatadogAgentInternal %s/%s has managed Agent installation identity metadata but the local managed Agent installation identity is not configured", ddai.Namespace, ddai.Name)}
 		}
 		return nil
 	}
-	if installationID != d.lifecycleIdentity.InstallationID {
+	if installationID != d.managedAgentInstallationIdentity.InstallationID {
 		return &stateDoesntMatchError{msg: fmt.Sprintf("DatadogAgentInternal %s/%s belongs to a different managed installation", ddai.Namespace, ddai.Name)}
 	}
-	if targetID != d.lifecycleIdentity.TargetID() {
+	if targetID != d.managedAgentInstallationIdentity.TargetID() {
 		return &stateDoesntMatchError{msg: fmt.Sprintf("DatadogAgentInternal %s/%s belongs to a different managed target", ddai.Namespace, ddai.Name)}
 	}
 	return nil

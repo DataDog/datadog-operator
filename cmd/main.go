@@ -68,7 +68,7 @@ const (
 	defaultMaximumGoroutines                             = 400
 	defaultDatadogGenericResourceMaxConcurrentReconciles = 1
 	defaultDatadogGenericResourceRequeuePeriod           = 60 * time.Second
-	addonLifecycleSetupRetryInterval                     = 5 * time.Second
+	managedAgentInstallationSetupRetryInterval           = 5 * time.Second
 )
 
 var (
@@ -150,7 +150,7 @@ type options struct {
 	datadogAgentProfileEnabled             bool
 	remoteConfigEnabled                    bool
 	remoteUpdatesEnabled                   bool
-	eksAddonLifecycleEnabled               bool
+	eksManagedAgentInstallationEnabled     bool
 	datadogDashboardEnabled                bool
 	datadogGenericResourceEnabled          bool
 	datadogGenericResourceMaxWorkers       int
@@ -194,7 +194,7 @@ func (opts *options) Parse() {
 	flag.BoolVar(&opts.datadogAgentProfileEnabled, "datadogAgentProfileEnabled", false, "Enable DatadogAgentProfile controller")
 	flag.BoolVar(&opts.remoteConfigEnabled, "remoteConfigEnabled", false, "Enable RemoteConfig capabilities in the Operator (beta)")
 	flag.BoolVar(&opts.remoteUpdatesEnabled, "remoteUpdatesEnabled", false, "Enable Remote Updates capabilities in the Operator (beta)")
-	flag.BoolVar(&opts.eksAddonLifecycleEnabled, "eksAddonLifecycleEnabled", false, "Enable EKS add-on lifecycle intents")
+	flag.BoolVar(&opts.eksManagedAgentInstallationEnabled, "eksManagedAgentInstallationEnabled", false, "Enable EKS add-on managed Agent installation intents")
 	flag.BoolVar(&opts.datadogDashboardEnabled, "datadogDashboardEnabled", false, "Enable the DatadogDashboard controller")
 	flag.BoolVar(&opts.datadogGenericResourceEnabled, "datadogGenericResourceEnabled", false, "Enable the DatadogGenericResource controller")
 	flag.IntVar(&opts.datadogGenericResourceMaxWorkers, "datadogGenericResourceMaxConcurrentReconciles", defaultDatadogGenericResourceMaxConcurrentReconciles, "Maximum number of concurrent DatadogGenericResource reconciles")
@@ -239,7 +239,7 @@ func (opts *options) Parse() {
 		boolEnv(&opts.datadogAgentProfileEnabled, "DD_AGENT_PROFILE_CONTROLLER_ENABLED"),
 		boolEnv(&opts.remoteConfigEnabled, "DD_REMOTE_CONFIG_ENABLED"),
 		boolEnv(&opts.remoteUpdatesEnabled, "DD_REMOTE_UPDATES_ENABLED"),
-		boolEnv(&opts.eksAddonLifecycleEnabled, "DD_EKS_ADDON_LIFECYCLE_ENABLED"),
+		boolEnv(&opts.eksManagedAgentInstallationEnabled, "DD_EKS_MANAGED_AGENT_INSTALLATION_ENABLED"),
 		boolEnv(&opts.datadogDashboardEnabled, "DD_DASHBOARD_CONTROLLER_ENABLED"),
 		boolEnv(&opts.datadogGenericResourceEnabled, "DD_GENERIC_RESOURCE_CONTROLLER_ENABLED"),
 		intEnv(&opts.datadogGenericResourceMaxWorkers, "DD_GENERIC_RESOURCE_MAX_CONCURRENT_RECONCILES"),
@@ -433,31 +433,31 @@ func run(opts *options) error {
 	defer cancelManager()
 
 	if opts.remoteConfigEnabled {
-		lifecycleIdentity, identityErr := remoteconfig.LifecycleIdentityFromEnvironment()
+		managedAgentInstallationIdentity, identityErr := remoteconfig.ManagedAgentInstallationIdentityFromEnvironment()
 		if identityErr != nil {
-			setupLog.Error(identityErr, "EKS lifecycle identity is invalid; lifecycle support is disabled")
-			lifecycleIdentity = remoteconfig.LifecycleIdentity{}
+			setupLog.Error(identityErr, "EKS managed Agent installation identity is invalid; managed Agent installation support is disabled")
+			managedAgentInstallationIdentity = remoteconfig.ManagedAgentInstallationIdentity{}
 		} else {
-			setupLog.Info("Configured EKS lifecycle identity", "enabled", lifecycleIdentity.Configured())
+			setupLog.Info("Configured EKS managed Agent installation identity", "enabled", managedAgentInstallationIdentity.Configured())
 		}
-		addonLifecycleEnabled := opts.operatorAddonLifecycleEnabled(lifecycleIdentity)
-		enabledLifecycleIdentity := lifecycleIdentity
-		if !addonLifecycleEnabled {
-			enabledLifecycleIdentity = remoteconfig.LifecycleIdentity{}
-			if lifecycleIdentity.Configured() {
-				setupLog.Info("EKS add-on lifecycle support is disabled because its feature flag or a required Operator controller is not enabled")
+		managedAgentInstallationEnabled := opts.operatorManagedAgentInstallationEnabled(managedAgentInstallationIdentity)
+		enabledManagedAgentInstallationIdentity := managedAgentInstallationIdentity
+		if !managedAgentInstallationEnabled {
+			enabledManagedAgentInstallationIdentity = remoteconfig.ManagedAgentInstallationIdentity{}
+			if managedAgentInstallationIdentity.Configured() {
+				setupLog.Info("EKS add-on managed Agent installation support is disabled because its feature flag or a required Operator controller is not enabled")
 			}
 		}
-		rcUpdater := remoteconfig.NewRemoteConfigUpdater(mgr.GetClient(), ctrl.Log.WithName("remote_config"), enabledLifecycleIdentity)
-		if addonLifecycleEnabled {
-			lifecycleClient, clientErr := client.New(restConfig, client.Options{Scheme: scheme})
+		rcUpdater := remoteconfig.NewRemoteConfigUpdater(mgr.GetClient(), ctrl.Log.WithName("remote_config"), enabledManagedAgentInstallationIdentity)
+		if managedAgentInstallationEnabled {
+			managedAgentInstallationClient, clientErr := client.New(restConfig, client.Options{Scheme: scheme})
 			if clientErr != nil {
-				return setupErrorf(setupLog, clientErr, "Unable to create EKS lifecycle bootstrap client")
+				return setupErrorf(setupLog, clientErr, "Unable to create EKS managed Agent installation bootstrap client")
 			}
-			if prepareErr := fleet.PrepareLifecycleAdmissionWebhook(managerCtx, lifecycleClient, os.Getenv("POD_NAMESPACE")); prepareErr != nil {
-				return setupErrorf(setupLog, prepareErr, "Unable to prepare EKS lifecycle admission webhook")
+			if prepareErr := fleet.PrepareUninstallFenceWebhook(managerCtx, managedAgentInstallationClient, os.Getenv("POD_NAMESPACE")); prepareErr != nil {
+				return setupErrorf(setupLog, prepareErr, "Unable to prepare EKS managed Agent installation admission webhook")
 			}
-			fleet.RegisterLifecycleAdmissionWebhook(mgr, enabledLifecycleIdentity)
+			fleet.RegisterUninstallFenceWebhook(mgr, enabledManagedAgentInstallationIdentity)
 		}
 		go func() {
 			select {
@@ -465,17 +465,17 @@ func run(opts *options) error {
 				return
 			case <-mgr.Elected():
 			}
-			if addonLifecycleEnabled {
+			if managedAgentInstallationEnabled {
 				for {
-					err := fleet.ReconcileAddonLifecycleAcknowledgement(managerCtx, mgr.GetClient(), mgr.GetAPIReader(), enabledLifecycleIdentity)
+					err := fleet.ReconcileManagedAgentInstallationAcknowledgement(managerCtx, mgr.GetClient(), mgr.GetAPIReader(), enabledManagedAgentInstallationIdentity)
 					if err == nil {
 						break
 					}
-					setupLog.Error(err, "Unable to reconcile EKS lifecycle acknowledgement before Remote Configuration startup")
+					setupLog.Error(err, "Unable to reconcile EKS managed Agent installation acknowledgement before Remote Configuration startup")
 					select {
 					case <-managerCtx.Done():
 						return
-					case <-time.After(addonLifecycleSetupRetryInterval):
+					case <-time.After(managedAgentInstallationSetupRetryInterval):
 					}
 				}
 			}
@@ -485,7 +485,7 @@ func run(opts *options) error {
 				return
 			}
 			if opts.remoteUpdatesEnabled {
-				if rcErr := setupFleetDaemon(setupLog, mgr, rcUpdater.Client(), opts.createControllerRevisions && opts.datadogAgentEnabled, enabledLifecycleIdentity, addonLifecycleEnabled); rcErr != nil {
+				if rcErr := setupFleetDaemon(setupLog, mgr, rcUpdater.Client(), opts.createControllerRevisions && opts.datadogAgentEnabled, enabledManagedAgentInstallationIdentity, managedAgentInstallationEnabled); rcErr != nil {
 					setupErrorf(setupLog, rcErr, "Unable to setup Fleet daemon")
 				}
 			}
@@ -808,17 +808,17 @@ func setupAndStartHelmMetadataForwarder(logger logr.Logger, mgr manager.Manager,
 	return mgr.Add(hmf)
 }
 
-func setupFleetDaemon(logger logr.Logger, mgr manager.Manager, rcClient remoteconfig.RCClient, revisionsEnabled bool, lifecycleIdentity remoteconfig.LifecycleIdentity, addonLifecycleEnabled bool) error {
+func setupFleetDaemon(logger logr.Logger, mgr manager.Manager, rcClient remoteconfig.RCClient, revisionsEnabled bool, managedAgentInstallationIdentity remoteconfig.ManagedAgentInstallationIdentity, managedAgentInstallationEnabled bool) error {
 	var options []fleet.DaemonOption
-	if addonLifecycleEnabled {
-		options = append(options, fleet.WithAddonLifecycle())
+	if managedAgentInstallationEnabled {
+		options = append(options, fleet.WithManagedAgentInstallation())
 	}
-	daemon := fleet.NewDaemon(rcClient, mgr, revisionsEnabled, lifecycleIdentity, options...)
+	daemon := fleet.NewDaemon(rcClient, mgr, revisionsEnabled, managedAgentInstallationIdentity, options...)
 	return mgr.Add(daemon)
 }
 
-func (opts options) operatorAddonLifecycleEnabled(identity remoteconfig.LifecycleIdentity) bool {
-	return identity.Configured() && opts.eksAddonLifecycleEnabled && opts.remoteConfigEnabled && opts.remoteUpdatesEnabled && opts.datadogAgentEnabled && opts.datadogAgentProfileEnabled
+func (opts options) operatorManagedAgentInstallationEnabled(identity remoteconfig.ManagedAgentInstallationIdentity) bool {
+	return identity.Configured() && opts.eksManagedAgentInstallationEnabled && opts.remoteConfigEnabled && opts.remoteUpdatesEnabled && opts.datadogAgentEnabled && opts.datadogAgentProfileEnabled
 }
 
 // setupAndStartProviderDetector registers the cluster-provider detector as a

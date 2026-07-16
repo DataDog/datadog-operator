@@ -99,10 +99,10 @@ func (t *operationTracker) onStatusUpdate(ctx context.Context, snapshot ddaStatu
 	}
 	t.daemon.transitionMu.Lock()
 	t.daemon.taskMu.Lock()
-	lifecycleReserved := t.daemon.lifecycleActive || t.daemon.lifecycleTaskReserved
+	managedAgentInstallationReserved := t.daemon.managedAgentInstallationActive || t.daemon.managedAgentInstallationTaskReserved
 	t.daemon.taskMu.Unlock()
 	t.daemon.transitionMu.Unlock()
-	if lifecycleReserved {
+	if managedAgentInstallationReserved {
 		return
 	}
 	done, resultErr := evaluatePendingTask(snapshot, op)

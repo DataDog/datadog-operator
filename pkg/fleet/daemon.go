@@ -53,68 +53,68 @@ var installerStateRehydrateRetryInterval = time.Second
 // Daemon subscribes to fleet-specific RC products (installer configs and tasks)
 // and runs after leader election as a controller-runtime Runnable.
 //
-// The daemon translates RC tasks into DDA lifecycle operations or experiment
+// The daemon translates RC tasks into DDA managed Agent installation operations or experiment
 // annotation writes and reports outcomes back to RC. It never writes
 // status.experiment.phase — that is the reconciler's exclusive responsibility.
 type Daemon struct {
-	rcClient              remoteconfig.RCClient
-	client                client.Client
-	apiReader             client.Reader // bypasses the informer cache; used at startup before the cache is populated
-	cache                 ctrlcache.Cache
-	recorder              record.EventRecorder // Kubernetes-event recorder for fleet-daemon-source events (gated by env var)
-	revisionsEnabled      bool
-	lifecycleIdentity     remoteconfig.LifecycleIdentity
-	fenceVerifier         func(context.Context, *corev1.ConfigMap) error
-	fenceModeManager      func(context.Context, bool) error
-	lifecycleTaskRunner   func(func())
-	addonLifecycle        bool
-	mu                    sync.RWMutex
-	configs               map[string]installerConfig // keyed by config ID; replaced on each RC update
-	addonConfigs          map[string]installerConfig
-	taskMu                sync.Mutex // serializes package task-state updates
-	transitionMu          sync.Mutex // serializes DDA lifecycle and experiment state transitions
-	lifecycleActive       bool       // reserves installer state while a lifecycle mutation is in progress
-	lifecycleOperationID  string
-	lifecycleCancel       context.CancelFunc
-	lifecycleDone         chan struct{}
-	lifecycleTaskReserved bool
+	rcClient                             remoteconfig.RCClient
+	client                               client.Client
+	apiReader                            client.Reader // bypasses the informer cache; used at startup before the cache is populated
+	cache                                ctrlcache.Cache
+	recorder                             record.EventRecorder // Kubernetes-event recorder for fleet-daemon-source events (gated by env var)
+	revisionsEnabled                     bool
+	managedAgentInstallationIdentity     remoteconfig.ManagedAgentInstallationIdentity
+	fenceVerifier                        func(context.Context, *corev1.ConfigMap) error
+	fenceModeManager                     func(context.Context, bool) error
+	managedAgentInstallationTaskRunner   func(func())
+	managedAgentInstallationEnabled      bool
+	mu                                   sync.RWMutex
+	configs                              map[string]installerConfig // keyed by config ID; replaced on each RC update
+	addonConfigs                         map[string]installerConfig
+	taskMu                               sync.Mutex // serializes package task-state updates
+	transitionMu                         sync.Mutex // serializes DDA managed Agent installation and experiment state transitions
+	managedAgentInstallationActive       bool       // reserves installer state while a managed Agent installation mutation is in progress
+	managedAgentInstallationOperationID  string
+	managedAgentInstallationCancel       context.CancelFunc
+	managedAgentInstallationDone         chan struct{}
+	managedAgentInstallationTaskReserved bool
 	// statusUpdates carries DDA informer events to the worker. The worker reads
 	// status.experiment and pending annotations to update RC task state.
-	statusUpdates         chan ddaStatusSnapshot
-	addonLifecycleUpdates chan addonLifecycleIntentSnapshot
-	addonLifecycleRetries chan struct{}
+	statusUpdates                   chan ddaStatusSnapshot
+	managedAgentInstallationUpdates chan managedAgentInstallationIntentSnapshot
+	managedAgentInstallationRetries chan struct{}
 }
 
 // DaemonOption configures optional Fleet daemon transports.
 type DaemonOption func(*Daemon)
 
-// WithAddonLifecycle enables lifecycle intents delivered by the EKS add-on.
-func WithAddonLifecycle() DaemonOption {
+// WithManagedAgentInstallation enables managed Agent installation intents delivered by the EKS add-on.
+func WithManagedAgentInstallation() DaemonOption {
 	return func(daemon *Daemon) {
-		daemon.addonLifecycle = true
+		daemon.managedAgentInstallationEnabled = true
 	}
 }
 
 // NewDaemon creates a new Fleet Daemon. When revisionsEnabled is false, experiment
 // signals are rejected because the reconciler cannot process them without the
 // ControllerRevision machinery.
-func NewDaemon(rcClient remoteconfig.RCClient, mgr manager.Manager, revisionsEnabled bool, lifecycleIdentity remoteconfig.LifecycleIdentity, options ...DaemonOption) *Daemon {
+func NewDaemon(rcClient remoteconfig.RCClient, mgr manager.Manager, revisionsEnabled bool, managedAgentInstallationIdentity remoteconfig.ManagedAgentInstallationIdentity, options ...DaemonOption) *Daemon {
 	daemon := &Daemon{
-		rcClient:          rcClient,
-		client:            mgr.GetClient(),
-		apiReader:         mgr.GetAPIReader(),
-		cache:             mgr.GetCache(), // Informer cache
-		recorder:          mgr.GetEventRecorderFor("fleet-daemon"),
-		revisionsEnabled:  revisionsEnabled,
-		lifecycleIdentity: lifecycleIdentity,
-		lifecycleTaskRunner: func(task func()) {
+		rcClient:                         rcClient,
+		client:                           mgr.GetClient(),
+		apiReader:                        mgr.GetAPIReader(),
+		cache:                            mgr.GetCache(), // Informer cache
+		recorder:                         mgr.GetEventRecorderFor("fleet-daemon"),
+		revisionsEnabled:                 revisionsEnabled,
+		managedAgentInstallationIdentity: managedAgentInstallationIdentity,
+		managedAgentInstallationTaskRunner: func(task func()) {
 			go task()
 		},
-		configs:               make(map[string]installerConfig),
-		addonConfigs:          make(map[string]installerConfig),
-		statusUpdates:         make(chan ddaStatusSnapshot, 128),
-		addonLifecycleUpdates: make(chan addonLifecycleIntentSnapshot),
-		addonLifecycleRetries: make(chan struct{}, 1),
+		configs:                         make(map[string]installerConfig),
+		addonConfigs:                    make(map[string]installerConfig),
+		statusUpdates:                   make(chan ddaStatusSnapshot, 128),
+		managedAgentInstallationUpdates: make(chan managedAgentInstallationIntentSnapshot),
+		managedAgentInstallationRetries: make(chan struct{}, 1),
 	}
 	for _, option := range options {
 		option(daemon)
@@ -140,7 +140,7 @@ func (d *Daemon) Start(ctx context.Context) error {
 			if err == nil {
 				return true
 			}
-			logger.Error(err, "Failed to rehydrate installer state from existing DatadogAgents; lifecycle handling remains disabled")
+			logger.Error(err, "Failed to rehydrate installer state from existing DatadogAgents; managed Agent installation handling remains disabled")
 			select {
 			case <-ctx.Done():
 				logger.Info("Stopping Fleet daemon before installer state was rehydrated")
@@ -161,16 +161,16 @@ func (d *Daemon) Start(ctx context.Context) error {
 	}
 	go newOperationTracker(d).run(ctx)
 	logger.Info("DDA status worker initialized")
-	if d.addonLifecycle {
-		if err := d.rehydrateAddonLifecycleState(ctx); err != nil {
-			return fmt.Errorf("rehydrate add-on lifecycle state: %w", err)
+	if d.managedAgentInstallationEnabled {
+		if err := d.rehydrateManagedAgentInstallationState(ctx); err != nil {
+			return fmt.Errorf("rehydrate add-on managed Agent installation state: %w", err)
 		}
-		go d.runAddonLifecycleIntentWorker(ctx)
-		if err := d.installAddonLifecycleIntentForwarder(ctx); err != nil {
+		go d.runManagedAgentInstallationIntentWorker(ctx)
+		if err := d.installManagedAgentInstallationIntentForwarder(ctx); err != nil {
 			return err
 		}
-		go d.runAddonLifecycleFenceMonitor(ctx)
-		logger.Info("EKS add-on lifecycle intent worker initialized")
+		go d.runManagedAgentInstallationFenceMonitor(ctx)
+		logger.Info("EKS add-on managed Agent installation intent worker initialized")
 	}
 
 	d.rcClient.Subscribe(state.ProductInstallerConfig, handleInstallerConfigUpdate(ctx, func(configs map[string]installerConfig) error {
@@ -196,14 +196,14 @@ func (d *Daemon) handleTask(ctx context.Context, req remoteAPIRequest) error {
 	// Incoming-edge event: emitted before processing so the timeline shows
 	// every task FA sent, including those that will be rejected below.
 	d.emitTaskReceivedEvent(ctx, req)
-	if isLifecycleMethod(req.Method) {
-		return d.handleLifecycleTask(ctx, req)
+	if isManagedAgentInstallationMethod(req.Method) {
+		return d.handleManagedAgentInstallationTask(ctx, req)
 	}
 	d.transitionMu.Lock()
 	defer d.transitionMu.Unlock()
 	d.taskMu.Lock()
-	if d.lifecycleActive || d.lifecycleTaskReserved {
-		err := &stateDoesntMatchError{msg: "a DatadogAgent lifecycle transition is already in progress"}
+	if d.managedAgentInstallationActive || d.managedAgentInstallationTaskReserved {
+		err := &stateDoesntMatchError{msg: "a DatadogAgent managed Agent installation transition is already in progress"}
 		d.setTaskState(req.Package, req.ID, pbgo.TaskState_INVALID_STATE, err)
 		d.taskMu.Unlock()
 		d.emitTaskRejectedEvent(ctx, req.Params.NamespacedName, req, err.Error())
@@ -246,21 +246,21 @@ func (d *Daemon) handleTask(ctx context.Context, req remoteAPIRequest) error {
 	return nil
 }
 
-func (d *Daemon) handleLifecycleTask(ctx context.Context, req remoteAPIRequest) error {
+func (d *Daemon) handleManagedAgentInstallationTask(ctx context.Context, req remoteAPIRequest) error {
 	d.transitionMu.Lock()
 	d.taskMu.Lock()
-	if d.lifecycleActive {
-		err := &stateDoesntMatchError{msg: "a DatadogAgent lifecycle transition is already in progress"}
+	if d.managedAgentInstallationActive {
+		err := &stateDoesntMatchError{msg: "a DatadogAgent managed Agent installation transition is already in progress"}
 		d.taskMu.Unlock()
 		d.transitionMu.Unlock()
 		d.emitTaskRejectedEvent(ctx, req.Params.NamespacedName, req, err.Error())
 		return err
 	}
-	if err := d.validateLifecycleTask(req); err != nil {
+	if err := d.validateManagedAgentInstallationTask(req); err != nil {
 		d.taskMu.Unlock()
 		d.transitionMu.Unlock()
-		if persistErr := d.recordAddonLifecycleResult(ctx, req, pbgo.TaskState_INVALID_STATE, err); persistErr != nil {
-			d.requestAddonLifecycleRetry()
+		if persistErr := d.recordManagedAgentInstallationResult(ctx, req, pbgo.TaskState_INVALID_STATE, err); persistErr != nil {
+			d.requestManagedAgentInstallationRetry()
 			return errors.Join(err, persistErr)
 		}
 		d.taskMu.Lock()
@@ -270,52 +270,52 @@ func (d *Daemon) handleLifecycleTask(ctx context.Context, req remoteAPIRequest) 
 		return err
 	}
 	taskCtx, cancel := context.WithCancel(ctx)
-	d.lifecycleActive = true
-	d.lifecycleOperationID = req.Params.OperationID
-	d.lifecycleCancel = cancel
-	d.lifecycleDone = make(chan struct{})
+	d.managedAgentInstallationActive = true
+	d.managedAgentInstallationOperationID = req.Params.OperationID
+	d.managedAgentInstallationCancel = cancel
+	d.managedAgentInstallationDone = make(chan struct{})
 	d.setTaskState(req.Package, req.ID, pbgo.TaskState_RUNNING, nil)
 	d.taskMu.Unlock()
 	d.transitionMu.Unlock()
 
 	if req.Addon != nil {
-		if err := d.writeAddonLifecycleState(taskCtx, addonLifecycleStateFromRequest(req, pbgo.TaskState_RUNNING, nil)); err != nil {
-			d.finishLifecycleTask(req.Params.OperationID)
-			return fmt.Errorf("persist accepted EKS add-on lifecycle intent: %w", err)
+		if err := d.writeManagedAgentInstallationState(taskCtx, managedAgentInstallationStateFromRequest(req, pbgo.TaskState_RUNNING, nil)); err != nil {
+			d.finishManagedAgentInstallationTask(req.Params.OperationID)
+			return fmt.Errorf("persist accepted EKS add-on managed Agent installation intent: %w", err)
 		}
 		d.taskMu.Lock()
-		d.lifecycleTaskReserved = true
+		d.managedAgentInstallationTaskReserved = true
 		d.taskMu.Unlock()
 	}
-	if d.lifecycleTaskRunner == nil {
-		return d.executeLifecycleTask(taskCtx, req)
+	if d.managedAgentInstallationTaskRunner == nil {
+		return d.executeManagedAgentInstallationTask(taskCtx, req)
 	}
-	d.lifecycleTaskRunner(func() {
-		_ = d.executeLifecycleTask(taskCtx, req)
+	d.managedAgentInstallationTaskRunner(func() {
+		_ = d.executeManagedAgentInstallationTask(taskCtx, req)
 	})
 	return nil
 }
 
-func (d *Daemon) validateLifecycleTask(req remoteAPIRequest) error {
-	if d.addonLifecycle && req.Addon == nil {
-		return &stateDoesntMatchError{msg: "EKS add-on lifecycle tasks must originate from the local lifecycle intent adapter"}
+func (d *Daemon) validateManagedAgentInstallationTask(req remoteAPIRequest) error {
+	if d.managedAgentInstallationEnabled && req.Addon == nil {
+		return &stateDoesntMatchError{msg: "EKS add-on managed Agent installation tasks must originate from the local managed Agent installation intent adapter"}
 	}
-	if err := d.validateLifecycleRequestEnvelope(req); err != nil {
+	if err := d.validateManagedAgentInstallationRequestEnvelope(req); err != nil {
 		return err
 	}
 	if err := d.verifyExpectedState(req); err != nil {
 		return err
 	}
 	if req.ExpectedState.ExperimentConfig != "" {
-		return &stateDoesntMatchError{msg: "DatadogAgent lifecycle transitions require no active experiment config"}
+		return &stateDoesntMatchError{msg: "DatadogAgent managed Agent installation transitions require no active experiment config"}
 	}
 	return nil
 }
 
-func (d *Daemon) executeLifecycleTask(ctx context.Context, req remoteAPIRequest) error {
+func (d *Daemon) executeManagedAgentInstallationTask(ctx context.Context, req remoteAPIRequest) error {
 	d.transitionMu.Lock()
 	defer d.transitionMu.Unlock()
-	defer d.finishLifecycleTask(req.Params.OperationID)
+	defer d.finishManagedAgentInstallationTask(req.Params.OperationID)
 
 	pending, err := d.dispatchRemoteAPIRequest(ctx, req)
 	if err != nil {
@@ -324,8 +324,8 @@ func (d *Daemon) executeLifecycleTask(ctx context.Context, req remoteAPIRequest)
 		if errors.As(err, &stateErr) {
 			resultState = pbgo.TaskState_INVALID_STATE
 		}
-		if persistErr := d.recordAddonLifecycleResult(ctx, req, resultState, err); persistErr != nil {
-			d.requestAddonLifecycleRetry()
+		if persistErr := d.recordManagedAgentInstallationResult(ctx, req, resultState, err); persistErr != nil {
+			d.requestManagedAgentInstallationRetry()
 			return errors.Join(err, persistErr)
 		}
 		d.taskMu.Lock()
@@ -335,9 +335,9 @@ func (d *Daemon) executeLifecycleTask(ctx context.Context, req remoteAPIRequest)
 		return err
 	}
 	if pending != nil {
-		err = fmt.Errorf("lifecycle method %s returned an asynchronous operation", req.Method)
-		if persistErr := d.recordAddonLifecycleResult(ctx, req, pbgo.TaskState_ERROR, err); persistErr != nil {
-			d.requestAddonLifecycleRetry()
+		err = fmt.Errorf("managed Agent installation method %s returned an asynchronous operation", req.Method)
+		if persistErr := d.recordManagedAgentInstallationResult(ctx, req, pbgo.TaskState_ERROR, err); persistErr != nil {
+			d.requestManagedAgentInstallationRetry()
 			return errors.Join(err, persistErr)
 		}
 		d.taskMu.Lock()
@@ -347,8 +347,8 @@ func (d *Daemon) executeLifecycleTask(ctx context.Context, req remoteAPIRequest)
 		return err
 	}
 
-	if err := d.recordAddonLifecycleResult(ctx, req, pbgo.TaskState_DONE, nil); err != nil {
-		d.requestAddonLifecycleRetry()
+	if err := d.recordManagedAgentInstallationResult(ctx, req, pbgo.TaskState_DONE, nil); err != nil {
+		d.requestManagedAgentInstallationRetry()
 		return err
 	}
 	d.taskMu.Lock()
@@ -368,25 +368,25 @@ func (d *Daemon) executeLifecycleTask(ctx context.Context, req remoteAPIRequest)
 	return nil
 }
 
-func (d *Daemon) finishLifecycleTask(operationID string) {
+func (d *Daemon) finishManagedAgentInstallationTask(operationID string) {
 	d.taskMu.Lock()
 	defer d.taskMu.Unlock()
-	if d.lifecycleOperationID != operationID {
+	if d.managedAgentInstallationOperationID != operationID {
 		return
 	}
-	d.lifecycleActive = false
-	d.lifecycleOperationID = ""
-	if d.lifecycleCancel != nil {
-		d.lifecycleCancel()
-		d.lifecycleCancel = nil
+	d.managedAgentInstallationActive = false
+	d.managedAgentInstallationOperationID = ""
+	if d.managedAgentInstallationCancel != nil {
+		d.managedAgentInstallationCancel()
+		d.managedAgentInstallationCancel = nil
 	}
-	if d.lifecycleDone != nil {
-		close(d.lifecycleDone)
-		d.lifecycleDone = nil
+	if d.managedAgentInstallationDone != nil {
+		close(d.managedAgentInstallationDone)
+		d.managedAgentInstallationDone = nil
 	}
 }
 
-func isLifecycleMethod(method string) bool {
+func isManagedAgentInstallationMethod(method string) bool {
 	return method == methodInstallDatadogAgent ||
 		method == methodUninstallDatadogAgent ||
 		method == methodVerifyDatadogAgentUninstalled ||
@@ -552,7 +552,7 @@ func (d *Daemon) rehydrateInstallerState(ctx context.Context) error {
 	if d.rcClient == nil {
 		return nil
 	}
-	if !d.lifecycleIdentity.Configured() {
+	if !d.managedAgentInstallationIdentity.Configured() {
 		return d.rehydrateLegacyInstallerState(ctx)
 	}
 	if d.apiReader == nil {
@@ -597,7 +597,7 @@ func (d *Daemon) rehydrateInstallerState(ctx context.Context) error {
 			logger.Info("Rehydrated partial installer state with an active DatadogAgent uninstall fence", "stableConfigVersion", configID)
 			return nil
 		}
-		if err := d.verifyDatadogAgentLifecycleResourcesAbsent(ctx, types.NamespacedName{Namespace: fleetDatadogAgentNamespace, Name: fleetDatadogAgentName}); err != nil {
+		if err := d.verifyDatadogAgentManagedAgentInstallationResourcesAbsent(ctx, types.NamespacedName{Namespace: fleetDatadogAgentNamespace, Name: fleetDatadogAgentName}); err != nil {
 			return fmt.Errorf("verify fenced DatadogAgent removal during startup recovery: %w", err)
 		}
 		d.setPackageConfigVersions(packageDatadogOperator, "", "")
@@ -678,17 +678,17 @@ func (d *Daemon) rehydrateInstallerState(ctx context.Context) error {
 		if fleetOwned != nil && client.ObjectKeyFromObject(dda) != *fleetOwned {
 			continue
 		}
-		lifecycleConfigID := ""
+		managedAgentInstallationConfigID := ""
 		if dda.Labels[fleetManagedByLabel] == fleetManagedByValue && dda.Labels[fleetConfigIDLabel] != "" {
-			lifecycleConfigID = dda.Labels[fleetConfigIDLabel]
+			managedAgentInstallationConfigID = dda.Labels[fleetConfigIDLabel]
 		}
-		stable := lifecycleConfigID
+		stable := managedAgentInstallationConfigID
 		experiment := ""
 		experimentPhase := v2alpha1.ExperimentPhase("")
 		exp := dda.Status.Experiment
-		if lifecycleConfigID != "" {
-			if dda.Labels[fleetLifecycleStateLabel] != fleetLifecycleStateReady || dda.Annotations[fleetConfigHashAnnotation] == "" {
-				stable = fleetPartialConfigVersionPrefix + lifecycleConfigID
+		if managedAgentInstallationConfigID != "" {
+			if dda.Labels[fleetManagedAgentInstallationStateLabel] != fleetManagedAgentInstallationStateReady || dda.Annotations[fleetConfigHashAnnotation] == "" {
+				stable = fleetPartialConfigVersionPrefix + managedAgentInstallationConfigID
 			} else {
 				ready, observation, err := fleetDatadogAgentReadiness(dda, dda.UID)
 				if err != nil {
@@ -703,7 +703,7 @@ func (d *Daemon) rehydrateInstallerState(ctx context.Context) error {
 				} else {
 					validateAcceptedSpec := validateFleetDatadogAgentAcceptedSpec
 					if exp != nil && (exp.Phase == v2alpha1.ExperimentPhaseRunning ||
-						(exp.Phase == v2alpha1.ExperimentPhasePromoted && lifecycleConfigID != exp.ID)) {
+						(exp.Phase == v2alpha1.ExperimentPhasePromoted && managedAgentInstallationConfigID != exp.ID)) {
 						validateAcceptedSpec = validateFleetDatadogAgentAcceptedExperimentSpec
 					}
 					if err := validateAcceptedSpec(dda); err != nil {
@@ -722,7 +722,7 @@ func (d *Daemon) rehydrateInstallerState(ctx context.Context) error {
 		if exp != nil && exp.ID != "" && !isTerminalPhase(exp.Phase) {
 			experiment = exp.ID
 			experimentPhase = exp.Phase
-		} else if exp != nil && exp.ID != "" && exp.Phase == v2alpha1.ExperimentPhasePromoted && lifecycleConfigID != "" && lifecycleConfigID != exp.ID {
+		} else if exp != nil && exp.ID != "" && exp.Phase == v2alpha1.ExperimentPhasePromoted && managedAgentInstallationConfigID != "" && managedAgentInstallationConfigID != exp.ID {
 			experiment = exp.ID
 			experimentPhase = exp.Phase
 		}

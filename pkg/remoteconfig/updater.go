@@ -50,16 +50,16 @@ const (
 var newRemoteConfigClient = client.NewClient
 
 type RemoteConfigUpdater struct {
-	kubeClient        kubeclient.Client
-	rcClient          *client.Client
-	rcService         *service.CoreAgentService
-	serviceConf       RcServiceConfiguration
-	lifecycleIdentity LifecycleIdentity
-	logger            logr.Logger
-	mu                sync.RWMutex
-	clientMu          sync.RWMutex
-	updaterTags       []string
-	subscriptions     []remoteConfigSubscription
+	kubeClient                       kubeclient.Client
+	rcClient                         *client.Client
+	rcService                        *service.CoreAgentService
+	serviceConf                      RcServiceConfiguration
+	managedAgentInstallationIdentity ManagedAgentInstallationIdentity
+	logger                           logr.Logger
+	mu                               sync.RWMutex
+	clientMu                         sync.RWMutex
+	updaterTags                      []string
+	subscriptions                    []remoteConfigSubscription
 }
 
 type remoteConfigSubscription struct {
@@ -248,7 +248,7 @@ func (r *RemoteConfigUpdater) Start(apiKey string, site string, clusterName stri
 	}
 	updaterTags, tagsErr := r.getUpdaterTags(context.Background())
 	if tagsErr != nil {
-		r.logger.Error(tagsErr, "Could not establish EKS lifecycle readiness during Remote Configuration startup")
+		r.logger.Error(tagsErr, "Could not establish EKS managed Agent installation readiness during Remote Configuration startup")
 	}
 	rcClient, err := r.newUpdaterClient(rcService, updaterTags)
 	if err != nil {
@@ -342,8 +342,8 @@ func (r *RemoteConfigUpdater) getUpdaterTags(ctx context.Context) ([]string, err
 			updaterTags = append(updaterTags, "cluster_id:"+clusterUID)
 		}
 	}
-	updaterTags = append(updaterTags, r.lifecycleIdentity.UpdaterTags()...)
-	readinessTags, err := r.lifecycleReadinessTags(ctx)
+	updaterTags = append(updaterTags, r.managedAgentInstallationIdentity.UpdaterTags()...)
+	readinessTags, err := r.managedAgentInstallationReadinessTags(ctx)
 	if err != nil {
 		return updaterTags, err
 	}
@@ -352,13 +352,13 @@ func (r *RemoteConfigUpdater) getUpdaterTags(ctx context.Context) ([]string, err
 	return updaterTags, nil
 }
 
-func (r *RemoteConfigUpdater) lifecycleReadinessTags(ctx context.Context) ([]string, error) {
-	if r.kubeClient == nil || !r.lifecycleIdentity.Configured() {
+func (r *RemoteConfigUpdater) managedAgentInstallationReadinessTags(ctx context.Context) ([]string, error) {
+	if r.kubeClient == nil || !r.managedAgentInstallationIdentity.Configured() {
 		return nil, nil
 	}
 	intentConfigMap := &corev1.ConfigMap{}
-	if err := r.kubeClient.Get(ctx, types.NamespacedName{Namespace: "datadog", Name: "datadog-agent-lifecycle-intent"}, intentConfigMap); err != nil {
-		return nil, fmt.Errorf("read EKS lifecycle intent for Remote Configuration updater tags: %w", err)
+	if err := r.kubeClient.Get(ctx, types.NamespacedName{Namespace: "datadog", Name: "datadog-agent-managed-installation-intent"}, intentConfigMap); err != nil {
+		return nil, fmt.Errorf("read EKS managed Agent installation intent for Remote Configuration updater tags: %w", err)
 	}
 	var intent struct {
 		InstallationID          string `json:"installationID"`
@@ -368,7 +368,7 @@ func (r *RemoteConfigUpdater) lifecycleReadinessTags(ctx context.Context) ([]str
 		AcknowledgedOperationID string `json:"acknowledgedOperationID"`
 	}
 	if err := json.Unmarshal([]byte(intentConfigMap.Data["intent.json"]), &intent); err != nil {
-		return nil, fmt.Errorf("decode EKS lifecycle intent for Remote Configuration updater tags: %w", err)
+		return nil, fmt.Errorf("decode EKS managed Agent installation intent for Remote Configuration updater tags: %w", err)
 	}
 	acknowledgedOperationID := intent.AcknowledgedOperationID
 	if acknowledgedOperationID == "" {
@@ -378,26 +378,26 @@ func (r *RemoteConfigUpdater) lifecycleReadinessTags(ctx context.Context) ([]str
 	if err != nil || parsed == uuid.Nil || parsed.String() != acknowledgedOperationID {
 		return nil, nil
 	}
-	if intent.InstallationID != r.lifecycleIdentity.InstallationID ||
-		intent.TargetHash != r.lifecycleIdentity.TargetHash ||
+	if intent.InstallationID != r.managedAgentInstallationIdentity.InstallationID ||
+		intent.TargetHash != r.managedAgentInstallationIdentity.TargetHash ||
 		intent.OperationID != acknowledgedOperationID ||
 		intent.DesiredState != "installed" {
 		return nil, nil
 	}
 	state := &corev1.ConfigMap{}
-	if err := r.kubeClient.Get(ctx, types.NamespacedName{Namespace: "datadog", Name: "datadog-agent-lifecycle-state"}, state); err != nil {
-		return nil, fmt.Errorf("read EKS lifecycle acknowledgement state for Remote Configuration updater tags: %w", err)
+	if err := r.kubeClient.Get(ctx, types.NamespacedName{Namespace: "datadog", Name: "datadog-agent-managed-installation-state"}, state); err != nil {
+		return nil, fmt.Errorf("read EKS managed Agent installation acknowledgement state for Remote Configuration updater tags: %w", err)
 	}
-	if state.Data["installation_id"] != r.lifecycleIdentity.InstallationID ||
-		state.Data["eks_arn_sha256"] != r.lifecycleIdentity.TargetHash ||
+	if state.Data["installation_id"] != r.managedAgentInstallationIdentity.InstallationID ||
+		state.Data["eks_arn_sha256"] != r.managedAgentInstallationIdentity.TargetHash ||
 		state.Data["operation_id"] != acknowledgedOperationID ||
 		state.Data["acknowledged_operation_id"] != acknowledgedOperationID ||
 		state.Data["desired_state"] != "installed" ||
 		state.Data["task_state"] != pbgo.TaskState_DONE.String() {
-		return nil, fmt.Errorf("EKS lifecycle acknowledgement state is not yet consistent with the acknowledged install intent")
+		return nil, fmt.Errorf("EKS managed Agent installation acknowledgement state is not yet consistent with the acknowledged install intent")
 	}
 	return []string{
-		"operator_lifecycle_ack:" + acknowledgedOperationID,
+		"managed_agent_installation_ack:" + acknowledgedOperationID,
 		"operator_config_updates:ready",
 	}, nil
 }
@@ -779,14 +779,14 @@ func (r *RemoteConfigUpdater) Stop() error {
 	return nil
 }
 
-func NewRemoteConfigUpdater(client kubeclient.Client, logger logr.Logger, identity ...LifecycleIdentity) *RemoteConfigUpdater {
-	var lifecycleIdentity LifecycleIdentity
+func NewRemoteConfigUpdater(client kubeclient.Client, logger logr.Logger, identity ...ManagedAgentInstallationIdentity) *RemoteConfigUpdater {
+	var managedAgentInstallationIdentity ManagedAgentInstallationIdentity
 	if len(identity) > 0 {
-		lifecycleIdentity = identity[0]
+		managedAgentInstallationIdentity = identity[0]
 	}
 	return &RemoteConfigUpdater{
-		kubeClient:        client,
-		lifecycleIdentity: lifecycleIdentity,
-		logger:            logger,
+		kubeClient:                       client,
+		managedAgentInstallationIdentity: managedAgentInstallationIdentity,
+		logger:                           logger,
 	}
 }
