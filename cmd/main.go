@@ -432,17 +432,17 @@ func run(opts *options) error {
 	defer cancelManager()
 
 	if opts.remoteConfigEnabled {
-		managedAgentInstallationIdentity, identityErr := remoteconfig.ManagedAgentInstallationIdentityFromEnvironment()
+		managedAgentInstallationIdentity, identityErr := fleet.ManagedAgentInstallationIdentityFromEnvironment()
 		if identityErr != nil {
 			setupLog.Error(identityErr, "Managed Agent installation identity is invalid; managed Agent installation support is disabled")
-			managedAgentInstallationIdentity = remoteconfig.ManagedAgentInstallationIdentity{}
+			managedAgentInstallationIdentity = fleet.ManagedAgentInstallationIdentity{}
 		} else {
 			setupLog.Info("Configured managed Agent installation identity", "provider", managedAgentInstallationIdentity.Provider(), "enabled", managedAgentInstallationIdentity.Configured())
 		}
 		managedAgentInstallationEnabled := opts.operatorManagedAgentInstallationEnabled(managedAgentInstallationIdentity)
 		enabledManagedAgentInstallationIdentity := managedAgentInstallationIdentity
 		if !managedAgentInstallationEnabled {
-			enabledManagedAgentInstallationIdentity = remoteconfig.ManagedAgentInstallationIdentity{}
+			enabledManagedAgentInstallationIdentity = fleet.ManagedAgentInstallationIdentity{}
 			if managedAgentInstallationIdentity.Configured() {
 				setupLog.Info("Managed Agent installation support is disabled because its feature flag or a required Operator controller is not enabled", "provider", managedAgentInstallationIdentity.Provider())
 			}
@@ -455,7 +455,17 @@ func run(opts *options) error {
 		}
 		var rcUpdaterOptions []remoteconfig.RemoteConfigUpdaterOption
 		if enabledManagedAgentInstallationIdentity.Configured() {
-			rcUpdaterOptions = append(rcUpdaterOptions, remoteconfig.WithManagedAgentInstallation(enabledManagedAgentInstallationIdentity, managedAgentInstallationReadinessTags))
+			identityTags, tagsErr := enabledManagedAgentInstallationIdentity.UpdaterTags()
+			if tagsErr != nil {
+				setupLog.Error(tagsErr, "Managed Agent installation updater identity is invalid; managed Agent installation support is disabled")
+				enabledManagedAgentInstallationIdentity = fleet.ManagedAgentInstallationIdentity{}
+			} else {
+				rcUpdaterOptions = append(rcUpdaterOptions,
+					remoteconfig.WithAdditionalUpdaterTags(identityTags...),
+					remoteconfig.WithDynamicUpdaterTags(managedAgentInstallationReadinessTags),
+					remoteconfig.WithInitialInstallerConfigVersion(remoteconfig.InstallerStateUnknownConfigVersion),
+				)
+			}
 		}
 		rcUpdater := remoteconfig.NewRemoteConfigUpdater(mgr.GetClient(), ctrl.Log.WithName("remote_config"), rcUpdaterOptions...)
 		go func() {
@@ -792,7 +802,7 @@ func setupAndStartHelmMetadataForwarder(logger logr.Logger, mgr manager.Manager,
 	return mgr.Add(hmf)
 }
 
-func setupFleetDaemon(logger logr.Logger, mgr manager.Manager, rcClient remoteconfig.RCClient, revisionsEnabled bool, managedAgentInstallationIdentity remoteconfig.ManagedAgentInstallationIdentity) error {
+func setupFleetDaemon(logger logr.Logger, mgr manager.Manager, rcClient remoteconfig.RCClient, revisionsEnabled bool, managedAgentInstallationIdentity fleet.ManagedAgentInstallationIdentity) error {
 	var options []fleet.DaemonOption
 	if managedAgentInstallationIdentity.Configured() {
 		options = append(options, fleet.WithManagedAgentInstallation(managedAgentInstallationIdentity))
@@ -801,7 +811,7 @@ func setupFleetDaemon(logger logr.Logger, mgr manager.Manager, rcClient remoteco
 	return mgr.Add(daemon)
 }
 
-func (opts *options) operatorManagedAgentInstallationEnabled(identity remoteconfig.ManagedAgentInstallationIdentity) bool {
+func (opts *options) operatorManagedAgentInstallationEnabled(identity fleet.ManagedAgentInstallationIdentity) bool {
 	return identity.Configured() && identity.Validate() == nil && opts.managedAgentInstallationEnabled && opts.remoteConfigEnabled && opts.remoteUpdatesEnabled && opts.datadogAgentEnabled && opts.datadogAgentProfileEnabled && opts.createControllerRevisions
 }
 

@@ -24,12 +24,11 @@ import (
 
 	v1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	v2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	operatorremoteconfig "github.com/DataDog/datadog-operator/pkg/remoteconfig"
 )
 
 const testManagedAgentInstallationTargetHash = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 
-var testManagedAgentInstallationIdentity = operatorremoteconfig.NewEKSManagedAgentInstallationIdentity(
+var testManagedAgentInstallationIdentity = NewEKSManagedAgentInstallationIdentity(
 	"123e4567-e89b-42d3-a456-426614174000",
 	testManagedAgentInstallationTargetHash,
 )

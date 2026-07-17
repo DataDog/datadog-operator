@@ -14,7 +14,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/DataDog/datadog-operator/pkg/remoteconfig"
+	"github.com/DataDog/datadog-operator/pkg/fleet"
 	"github.com/go-logr/zapr"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
@@ -23,14 +23,14 @@ import (
 )
 
 func TestOperatorManagedAgentInstallationEnabled(t *testing.T) {
-	identity := remoteconfig.NewEKSManagedAgentInstallationIdentity(
+	identity := fleet.NewEKSManagedAgentInstallationIdentity(
 		"123e4567-e89b-42d3-a456-426614174000",
 		"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
 	)
-	identityMissingTargetHash := remoteconfig.NewEKSManagedAgentInstallationIdentity(identity.InstallationID(), "")
+	identityMissingTargetHash := fleet.NewEKSManagedAgentInstallationIdentity(identity.InstallationID(), "")
 	tests := []struct {
 		name                                string
-		identity                            remoteconfig.ManagedAgentInstallationIdentity
+		identity                            fleet.ManagedAgentInstallationIdentity
 		remoteConfigEnabled                 bool
 		remoteUpdatesEnabled                bool
 		datadogAgentEnabled                 bool

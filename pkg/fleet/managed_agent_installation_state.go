@@ -18,8 +18,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	k8sretry "k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	"github.com/DataDog/datadog-operator/pkg/remoteconfig"
 )
 
 const (
@@ -45,7 +43,7 @@ var (
 )
 
 type managedAgentInstallationPersistedState struct {
-	Provider                remoteconfig.ManagedAgentInstallationProvider
+	Provider                ManagedAgentInstallationProvider
 	InstallationID          string
 	TargetID                string
 	OperationID             string
@@ -56,7 +54,7 @@ type managedAgentInstallationPersistedState struct {
 	Error                   string
 }
 
-func ManagedAgentInstallationReadinessTags(ctx context.Context, reader client.Reader, identity remoteconfig.ManagedAgentInstallationIdentity) ([]string, error) {
+func ManagedAgentInstallationReadinessTags(ctx context.Context, reader client.Reader, identity ManagedAgentInstallationIdentity) ([]string, error) {
 	if reader == nil || !identity.Configured() {
 		return nil, nil
 	}
@@ -220,7 +218,7 @@ func (d *Daemon) readManagedAgentInstallationState(ctx context.Context) (*manage
 		return nil, err
 	}
 	state := &managedAgentInstallationPersistedState{
-		Provider:                remoteconfig.ManagedAgentInstallationProvider(configMap.Data[managedAgentInstallationStateProviderKey]),
+		Provider:                ManagedAgentInstallationProvider(configMap.Data[managedAgentInstallationStateProviderKey]),
 		InstallationID:          configMap.Data[managedAgentInstallationStateInstallationIDKey],
 		TargetID:                configMap.Data[managedAgentInstallationStateTargetIDKey],
 		OperationID:             configMap.Data[managedAgentInstallationStateOperationIDKey],

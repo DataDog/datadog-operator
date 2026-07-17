@@ -30,6 +30,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
+var testAdditionalUpdaterTags = []string{
+	"eks_installation_id:123e4567-e89b-42d3-a456-426614174000",
+	"eks_arn_sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+	"managed_agent_installation:eks-addon-config-v1",
+}
+
 func TestStartClosesServiceWhenClientCreationFails(t *testing.T) {
 	t.Setenv("TMPDIR", t.TempDir())
 
@@ -63,16 +69,16 @@ func TestStartClosesServiceWhenClientCreationFails(t *testing.T) {
 func TestInitialInstallerConfigVersion(t *testing.T) {
 	tests := []struct {
 		name     string
-		identity ManagedAgentInstallationIdentity
+		override string
 		want     string
 	}{
 		{name: "standard Remote Config client", want: "empty"},
-		{name: "managed Agent installation", identity: validManagedAgentInstallationIdentity, want: InstallerStateUnknownConfigVersion},
+		{name: "overridden initial version", override: InstallerStateUnknownConfigVersion, want: InstallerStateUnknownConfigVersion},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			updater := &RemoteConfigUpdater{managedAgentInstallationIdentity: test.identity}
+			updater := &RemoteConfigUpdater{initialInstallerConfigVersionOverride: test.override}
 			assert.Equal(t, test.want, updater.initialInstallerConfigVersion())
 		})
 	}
@@ -97,10 +103,10 @@ func TestRefreshUpdaterTagsPreservesClientIdentityAndInstallerState(t *testing.T
 	current.SetInstallerState(installerState)
 
 	updater := &RemoteConfigUpdater{
-		rcClient:                         current,
-		rcService:                        &rcservice.CoreAgentService{},
-		managedAgentInstallationIdentity: validManagedAgentInstallationIdentity,
-		managedAgentInstallationReadinessTags: func(context.Context) ([]string, error) {
+		rcClient:              current,
+		rcService:             &rcservice.CoreAgentService{},
+		additionalUpdaterTags: testAdditionalUpdaterTags,
+		dynamicUpdaterTags: func(context.Context) ([]string, error) {
 			return []string{
 				"managed_agent_installation_ack:" + acknowledgedOperationID,
 				"operator_config_updates:ready",
@@ -109,7 +115,7 @@ func TestRefreshUpdaterTagsPreservesClientIdentityAndInstallerState(t *testing.T
 		logger: logr.Discard(),
 		updaterTags: append(
 			[]string{"updater_type:datadog-operator"},
-			managedAgentInstallationIdentityUpdaterTags(t)...,
+			testAdditionalUpdaterTags...,
 		),
 	}
 	require.NoError(t, updater.configureService("api-key", "datadoghq.com", "", "", "", "https://config.datadoghq.com"))
@@ -142,16 +148,16 @@ func TestRefreshUpdaterTagsWaitsForPreviousClientCallbacks(t *testing.T) {
 	require.NoError(t, err)
 
 	updater := &RemoteConfigUpdater{
-		rcClient:                         current,
-		rcService:                        &rcservice.CoreAgentService{},
-		managedAgentInstallationIdentity: validManagedAgentInstallationIdentity,
-		managedAgentInstallationReadinessTags: func(context.Context) ([]string, error) {
+		rcClient:              current,
+		rcService:             &rcservice.CoreAgentService{},
+		additionalUpdaterTags: testAdditionalUpdaterTags,
+		dynamicUpdaterTags: func(context.Context) ([]string, error) {
 			return []string{"operator_config_updates:ready"}, nil
 		},
 		logger: logr.Discard(),
 		updaterTags: append(
 			[]string{"updater_type:datadog-operator"},
-			managedAgentInstallationIdentityUpdaterTags(t)...,
+			testAdditionalUpdaterTags...,
 		),
 	}
 	require.NoError(t, updater.configureService("api-key", "datadoghq.com", "", "", "", "https://config.datadoghq.com"))
@@ -197,52 +203,52 @@ func TestGetUpdaterTags(t *testing.T) {
 	acknowledgedOperationID := "123e4567-e89b-42d3-a456-426614174010"
 
 	tests := []struct {
-		name          string
-		clusterName   string
-		identity      ManagedAgentInstallationIdentity
-		objects       []client.Object
-		readinessTags []string
-		want          []string
+		name           string
+		clusterName    string
+		additionalTags []string
+		objects        []client.Object
+		dynamicTags    []string
+		want           []string
 	}{
 		{
-			name:        "with managed Agent installation identity",
-			clusterName: "test-cluster",
-			identity:    validManagedAgentInstallationIdentity,
+			name:           "with additional updater tags",
+			clusterName:    "test-cluster",
+			additionalTags: testAdditionalUpdaterTags,
 			want: []string{
 				"updater_type:datadog-operator",
 				"cluster_name:test-cluster",
-				"eks_installation_id:" + validManagedAgentInstallationIdentity.InstallationID(),
-				"eks_arn_sha256:" + validManagedAgentInstallationTargetHash,
+				"eks_installation_id:123e4567-e89b-42d3-a456-426614174000",
+				"eks_arn_sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
 				"managed_agent_installation:eks-addon-config-v1",
 			},
 		},
 		{
-			name:        "with acknowledged managed Agent installation install",
-			clusterName: "test-cluster",
-			identity:    validManagedAgentInstallationIdentity,
-			readinessTags: []string{
+			name:           "with dynamic updater tags",
+			clusterName:    "test-cluster",
+			additionalTags: testAdditionalUpdaterTags,
+			dynamicTags: []string{
 				"managed_agent_installation_ack:" + acknowledgedOperationID,
 				"operator_config_updates:ready",
 			},
 			want: []string{
 				"updater_type:datadog-operator",
 				"cluster_name:test-cluster",
-				"eks_installation_id:" + validManagedAgentInstallationIdentity.InstallationID(),
-				"eks_arn_sha256:" + validManagedAgentInstallationTargetHash,
+				"eks_installation_id:123e4567-e89b-42d3-a456-426614174000",
+				"eks_arn_sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
 				"managed_agent_installation:eks-addon-config-v1",
 				"managed_agent_installation_ack:" + acknowledgedOperationID,
 				"operator_config_updates:ready",
 			},
 		},
 		{
-			name:        "without ready tag after uninstall intent",
-			clusterName: "test-cluster",
-			identity:    validManagedAgentInstallationIdentity,
+			name:           "without dynamic updater tags",
+			clusterName:    "test-cluster",
+			additionalTags: testAdditionalUpdaterTags,
 			want: []string{
 				"updater_type:datadog-operator",
 				"cluster_name:test-cluster",
-				"eks_installation_id:" + validManagedAgentInstallationIdentity.InstallationID(),
-				"eks_arn_sha256:" + validManagedAgentInstallationTargetHash,
+				"eks_installation_id:123e4567-e89b-42d3-a456-426614174000",
+				"eks_arn_sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
 				"managed_agent_installation:eks-addon-config-v1",
 			},
 		},
@@ -291,11 +297,11 @@ func TestGetUpdaterTags(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			updater := &RemoteConfigUpdater{
-				kubeClient:                       newFakeClient(t, tt.objects...),
-				logger:                           logr.Discard(),
-				managedAgentInstallationIdentity: tt.identity,
-				managedAgentInstallationReadinessTags: func(context.Context) ([]string, error) {
-					return tt.readinessTags, nil
+				kubeClient:            newFakeClient(t, tt.objects...),
+				logger:                logr.Discard(),
+				additionalUpdaterTags: tt.additionalTags,
+				dynamicUpdaterTags: func(context.Context) ([]string, error) {
+					return tt.dynamicTags, nil
 				},
 				serviceConf: RcServiceConfiguration{
 					clusterName: tt.clusterName,
@@ -309,13 +315,13 @@ func TestGetUpdaterTags(t *testing.T) {
 	}
 }
 
-func TestInitialUpdaterTagsExcludeManagedAgentInstallationReadiness(t *testing.T) {
-	readinessCalls := 0
+func TestInitialUpdaterTagsExcludeDynamicTags(t *testing.T) {
+	dynamicCalls := 0
 	updater := &RemoteConfigUpdater{
-		kubeClient:                       newFakeClient(t),
-		managedAgentInstallationIdentity: validManagedAgentInstallationIdentity,
-		managedAgentInstallationReadinessTags: func(context.Context) ([]string, error) {
-			readinessCalls++
+		kubeClient:            newFakeClient(t),
+		additionalUpdaterTags: testAdditionalUpdaterTags,
+		dynamicUpdaterTags: func(context.Context) ([]string, error) {
+			dynamicCalls++
 			return []string{"operator_config_updates:ready"}, nil
 		},
 	}
@@ -323,41 +329,34 @@ func TestInitialUpdaterTagsExcludeManagedAgentInstallationReadiness(t *testing.T
 	tags, err := updater.getUpdaterTags(context.Background(), false)
 
 	require.NoError(t, err)
-	assert.Zero(t, readinessCalls)
+	assert.Zero(t, dynamicCalls)
 	assert.NotContains(t, tags, "operator_config_updates:ready")
 }
 
-func TestRefreshUpdaterTagsPreservesCurrentClientWhenAcknowledgementEvidenceIsUnavailable(t *testing.T) {
+func TestRefreshUpdaterTagsPreservesCurrentClientWhenDynamicTagsAreUnavailable(t *testing.T) {
 	current, err := rcclient.NewClient(stoppedConfigFetcher{}, rcclient.WithoutTufVerification())
 	require.NoError(t, err)
 	t.Cleanup(current.Close)
 
 	updater := &RemoteConfigUpdater{
-		rcClient:                         current,
-		rcService:                        &rcservice.CoreAgentService{},
-		managedAgentInstallationIdentity: validManagedAgentInstallationIdentity,
-		managedAgentInstallationReadinessTags: func(context.Context) ([]string, error) {
-			return nil, errors.New("managed Agent installation acknowledgement state unavailable")
+		rcClient:              current,
+		rcService:             &rcservice.CoreAgentService{},
+		additionalUpdaterTags: testAdditionalUpdaterTags,
+		dynamicUpdaterTags: func(context.Context) ([]string, error) {
+			return nil, errors.New("dynamic updater tags unavailable")
 		},
 		logger: logr.Discard(),
 		updaterTags: append(
 			[]string{"updater_type:datadog-operator"},
-			managedAgentInstallationIdentityUpdaterTags(t)...,
+			testAdditionalUpdaterTags...,
 		),
 	}
 	require.NoError(t, updater.configureService("api-key", "datadoghq.com", "", "", "", "https://config.datadoghq.com"))
 
 	err = updater.RefreshUpdaterTags(context.Background())
 
-	require.ErrorContains(t, err, "acknowledgement state unavailable")
+	require.ErrorContains(t, err, "dynamic updater tags unavailable")
 	assert.Same(t, current, updater.rcClient)
-}
-
-func managedAgentInstallationIdentityUpdaterTags(t *testing.T) []string {
-	t.Helper()
-	tags, err := validManagedAgentInstallationIdentity.UpdaterTags()
-	require.NoError(t, err)
-	return tags
 }
 
 func newFakeClient(t *testing.T, objects ...client.Object) client.Client {

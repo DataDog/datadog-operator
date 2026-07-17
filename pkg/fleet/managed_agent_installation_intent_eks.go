@@ -12,8 +12,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-
-	"github.com/DataDog/datadog-operator/pkg/remoteconfig"
 )
 
 type eksManagedAgentInstallationIntent struct {
@@ -26,7 +24,7 @@ type eksManagedAgentInstallationIntent struct {
 	Bootstrap               managedAgentInstallationBootstrap    `json:"bootstrap"`
 }
 
-func decodeEKSManagedAgentInstallationIntent(raw []byte, identity remoteconfig.ManagedAgentInstallationIdentity) (managedAgentInstallationIntent, json.RawMessage, string, error) {
+func decodeEKSManagedAgentInstallationIntent(raw []byte, identity ManagedAgentInstallationIdentity) (managedAgentInstallationIntent, json.RawMessage, string, error) {
 	if len(raw) == 0 {
 		return managedAgentInstallationIntent{}, nil, "", fmt.Errorf("EKS managed Agent installation intent is missing %q", managedAgentInstallationIntentDataKey)
 	}
@@ -46,7 +44,7 @@ func decodeEKSManagedAgentInstallationIntent(raw []byte, identity remoteconfig.M
 	if eksIntent.Version != managedAgentInstallationVersion {
 		return managedAgentInstallationIntent{}, nil, "", fmt.Errorf("unsupported EKS managed Agent installation version %q", eksIntent.Version)
 	}
-	intentIdentity := remoteconfig.NewEKSManagedAgentInstallationIdentity(eksIntent.InstallationID, eksIntent.EKSARNSHA256)
+	intentIdentity := NewEKSManagedAgentInstallationIdentity(eksIntent.InstallationID, eksIntent.EKSARNSHA256)
 	if err := intentIdentity.Validate(); err != nil {
 		return managedAgentInstallationIntent{}, nil, "", fmt.Errorf("invalid EKS managed Agent installation identity: %w", err)
 	}
@@ -88,7 +86,7 @@ func decodeEKSManagedAgentInstallationIntent(raw []byte, identity remoteconfig.M
 
 	intent := managedAgentInstallationIntent{
 		Version:                 eksIntent.Version,
-		Provider:                remoteconfig.ManagedAgentInstallationProviderEKS,
+		Provider:                ManagedAgentInstallationProviderEKS,
 		InstallationID:          eksIntent.InstallationID,
 		TargetID:                targetID,
 		OperationID:             eksIntent.OperationID,
