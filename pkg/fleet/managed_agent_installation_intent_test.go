@@ -449,6 +449,36 @@ func TestManagedAgentInstallationDefersToFleetTask(t *testing.T) {
 	require.True(t, apierrors.IsNotFound(kubeClient.Get(ctx, managedAgentInstallationTarget, &v2alpha1.DatadogAgent{})))
 }
 
+func TestManagedAgentInstallationUninstallDefersToDispatchingFleetTask(t *testing.T) {
+	ctx := context.Background()
+	dda := testDDAObject(v2alpha1.ExperimentPhaseRunning)
+	dda.Annotations[v2alpha1.AnnotationPendingTaskID] = "fleet-task"
+	dda.Annotations[v2alpha1.AnnotationPendingAction] = string(pendingIntentStart)
+	dda.Annotations[v2alpha1.AnnotationPendingExperimentID] = testExperimentID
+	dda.Annotations[v2alpha1.AnnotationPendingPackage] = packageDatadogOperator
+	daemon, kubeClient, _ := testManagedAgentInstallationDaemon(
+		[]*pbgo.PackageState{{
+			Package:                 packageDatadogOperator,
+			StableConfigVersion:     testAddonInstallOperationID,
+			ExperimentConfigVersion: testExperimentID,
+		}},
+		dda,
+	)
+	raw := testManagedAgentInstallationIntent(
+		t,
+		testAddonUninstallOperationID,
+		managedAgentInstallationDesiredStateAbsent,
+		testAddonInstallOperationID,
+	)
+	intent, config, digest, err := decodeManagedAgentInstallationIntent(raw, testManagedAgentInstallationIdentity)
+	require.NoError(t, err)
+
+	require.NoError(t, daemon.handleManagedAgentInstallationCommand(ctx, newManagedAgentInstallationCommand(intent, config, digest)))
+
+	assert.False(t, daemon.managedAgentInstallationActive)
+	require.NoError(t, kubeClient.Get(ctx, managedAgentInstallationTarget, &v2alpha1.DatadogAgent{}))
+}
+
 func TestManagedAgentInstallationRetriesAfterUncertainCreate(t *testing.T) {
 	ctx := context.Background()
 	daemon, kubeClient, rcClient := testManagedAgentInstallationDaemon(
