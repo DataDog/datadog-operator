@@ -136,6 +136,39 @@ datadog:
 	}
 }
 
+// TestMapValuedKeyNoSpuriousErrors verifies that mapping a map-valued Helm key (whose value is
+// an arbitrary user map, e.g. podLabelsAsTags) does not report its nested leaves as unmapped.
+func TestMapValuedKeyNoSpuriousErrors(t *testing.T) {
+	tempDir := t.TempDir()
+	valuesPath := filepath.Join(tempDir, "values.yaml")
+	ddaPath := filepath.Join(tempDir, "dda.yaml")
+
+	writeTestFile(t, valuesPath, `datadog:
+  site: "datadoghq.com"
+  podLabelsAsTags:
+    app: kube_app
+    team: kube_team
+  kubernetesResourcesLabelsAsTags:
+    pods:
+      app: application
+`)
+
+	mapper := NewMapper(MapConfig{
+		MappingPath: "mapping_datadog_helm_to_datadogagent_crd.yaml",
+		SourcePath:  valuesPath,
+		DestPath:    ddaPath,
+	})
+	require.NoError(t, mapper.Run(), "mapping a map-valued key should not error")
+
+	dda, err := chartutil.ReadValuesFile(ddaPath)
+	require.NoError(t, err)
+	assertValues(t, dda, map[string]any{
+		"spec.global.podLabelsAsTags.app":                      "kube_app",
+		"spec.global.podLabelsAsTags.team":                     "kube_team",
+		"spec.global.kubernetesResourcesLabelsAsTags.pods.app": "application",
+	})
+}
+
 func writeTestFile(t *testing.T, path, content string) {
 	t.Helper()
 	require.NoError(t, os.WriteFile(path, []byte(content), 0644))

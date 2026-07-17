@@ -201,7 +201,11 @@ func (m *Mapper) mapValues(sourceValues chartutil.Values, mappingValues chartuti
 		if pathVal == nil {
 			if mapVal, ok := utils.GetPathMap(sourceValues[sourceKey]); ok && mapVal != nil {
 				pathVal = mapVal
-			} else if tableVal, err := sourceValues.Table(sourceKey); err == nil && len(tableVal) == 1 {
+			} else if tableVal, err := sourceValues.Table(sourceKey); err == nil && len(tableVal) > 0 && !hasMappedDescendant(mappingValues, sourceKey) {
+				// The source key holds a subtree and no more-specific mapping key targets
+				// its descendants, so map the whole subtree (e.g. an arbitrary user map like
+				// podLabelsAsTags). Keys that DO have mapped descendants (structured plumbing
+				// such as resources/probes/securityContext) are left to their per-leaf mappings.
 				pathVal = tableVal
 			} else {
 				continue
@@ -209,6 +213,11 @@ func (m *Mapper) mapValues(sourceValues chartutil.Values, mappingValues chartuti
 		}
 
 		utils.MergeOrSet(sourceKeysRef, sourceKey, map[string]any{"visited": true})
+		// Mapping a key covers its whole subtree, so mark any flattened descendant
+		// source leaves visited too. Without this, mapping a map-valued key (e.g.
+		// podLabelsAsTags: {app: kube_app}) leaves its leaves (podLabelsAsTags.app)
+		// flagged as unmapped, producing spurious errors.
+		markDescendantsVisited(sourceKeysRef, sourceKey)
 
 		destKey, _ := mappingValues[sourceKey]
 		if (destKey == "" || destKey == nil) && !shouldSkipMappingKey(sourceKey) {
@@ -395,6 +404,31 @@ func flattenValues(sourceValues chartutil.Values, valuesMap map[string]any, pref
 		}
 	}
 	return valuesMap
+}
+
+// hasMappedDescendant reports whether any mapping key is nested under parentKey (parentKey + ".")
+// and has a non-empty destination. Such keys handle their own subtree, so the parent should not
+// be mapped as a whole table.
+func hasMappedDescendant(mappingValues chartutil.Values, parentKey string) bool {
+	prefix := parentKey + "."
+	for k, v := range mappingValues {
+		if strings.HasPrefix(k, prefix) && v != nil && v != "" {
+			return true
+		}
+	}
+	return false
+}
+
+// markDescendantsVisited marks every flattened source key nested under parentKey as visited.
+// sourceKeysRef is keyed by flat dotted paths (e.g. "datadog.podLabelsAsTags.app"), so mapping
+// a parent key must flag its descendant leaves visited to avoid spurious "not found" errors.
+func markDescendantsVisited(sourceKeysRef map[string]any, parentKey string) {
+	prefix := parentKey + "."
+	for k := range sourceKeysRef {
+		if strings.HasPrefix(k, prefix) {
+			utils.MergeOrSet(sourceKeysRef, k, map[string]any{"visited": true})
+		}
+	}
 }
 
 // shouldSkipMappingKey Returns true if the key should be skipped during mapping. Supports regex matching.
