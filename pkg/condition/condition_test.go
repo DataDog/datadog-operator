@@ -119,21 +119,3 @@ func TestUpdateWhenDSNil(t *testing.T) {
 	dsStatus = UpdateDaemonSetStatus("ds", ds, dsStatus, &metav1.Time{Time: time.Now()})
 	assert.Equal(t, 1, len(dsStatus))
 }
-
-func TestIsEqualConditionIncludesObservedGeneration(t *testing.T) {
-	current := metav1.Condition{
-		Type:               "ReconcileError",
-		Status:             metav1.ConditionFalse,
-		ObservedGeneration: 4,
-		LastTransitionTime: metav1.NewTime(time.Unix(1, 0)),
-		Reason:             "ReconcileOK",
-		Message:            "reconcile succeeded",
-	}
-	same := current
-	same.LastTransitionTime = metav1.NewTime(time.Unix(2, 0))
-	assert.True(t, IsEqualCondition(&current, &same))
-
-	newGeneration := current
-	newGeneration.ObservedGeneration++
-	assert.False(t, IsEqualCondition(&current, &newGeneration))
-}

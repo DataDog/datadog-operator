@@ -21,9 +21,9 @@ import (
 	v2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 )
 
-// validateParams checks that operatorTaskParams has the fields required to locate
+// validateParams checks that experimentParams has the fields required to locate
 // and act on a DatadogAgent resource.
-func validateParams(p operatorTaskParams) error {
+func validateParams(p experimentParams) error {
 	if p.NamespacedName.Name == "" {
 		return fmt.Errorf("params namespaced_name must have a non-empty name")
 	}
