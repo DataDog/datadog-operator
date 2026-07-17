@@ -24,7 +24,6 @@ import (
 
 	v1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	v2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	operatorremoteconfig "github.com/DataDog/datadog-operator/pkg/remoteconfig"
 )
 
@@ -35,44 +34,18 @@ var testManagedAgentInstallationIdentity = operatorremoteconfig.NewEKSManagedAge
 	testManagedAgentInstallationTargetHash,
 )
 
-type autoReadyManagedAgentInstallationClient struct {
+type managedAgentInstallationTestClient struct {
 	client.Client
 }
 
-func (c *autoReadyManagedAgentInstallationClient) Create(ctx context.Context, obj client.Object, opts ...client.CreateOption) error {
+func (c *managedAgentInstallationTestClient) Create(ctx context.Context, obj client.Object, opts ...client.CreateOption) error {
 	if dda, ok := obj.(*v2alpha1.DatadogAgent); ok && dda.UID == "" {
 		dda.UID = types.UID("created-dda-uid")
 	}
-	if profile, ok := obj.(*v1alpha1.DatadogAgentProfile); ok {
-		profile.Status.Valid = metav1.ConditionTrue
-		profile.Status.Applied = metav1.ConditionTrue
-		profile.Status.CreateStrategy = &v1alpha1.CreateStrategy{Status: v1alpha1.CompletedStatus}
-	}
-	if err := c.Client.Create(ctx, obj, opts...); err != nil {
-		return err
-	}
-
-	switch created := obj.(type) {
-	case *v2alpha1.DatadogAgent:
-		current := &v2alpha1.DatadogAgent{}
-		if err := c.Client.Get(ctx, client.ObjectKeyFromObject(created), current); err != nil {
-			return err
-		}
-		setTestDatadogAgentReady(current, false)
-		return c.Client.Status().Update(ctx, current)
-	case *v1alpha1.DatadogAgentProfile:
-		current := &v2alpha1.DatadogAgent{}
-		if err := c.Client.Get(ctx, managedAgentInstallationTarget, current); err != nil {
-			return err
-		}
-		setTestDatadogAgentReady(current, true)
-		return c.Client.Status().Update(ctx, current)
-	default:
-		return nil
-	}
+	return c.Client.Create(ctx, obj, opts...)
 }
 
-func (c *autoReadyManagedAgentInstallationClient) Delete(ctx context.Context, obj client.Object, opts ...client.DeleteOption) error {
+func (c *managedAgentInstallationTestClient) Delete(ctx context.Context, obj client.Object, opts ...client.DeleteOption) error {
 	if _, ok := obj.(*v2alpha1.DatadogAgent); ok {
 		profile := &v1alpha1.DatadogAgentProfile{}
 		if err := c.Client.Get(ctx, managedAgentInstallationWindowsProfileKey, profile); err == nil {
@@ -84,147 +57,6 @@ func (c *autoReadyManagedAgentInstallationClient) Delete(ctx context.Context, ob
 		}
 	}
 	return c.Client.Delete(ctx, obj, opts...)
-}
-
-func setTestDatadogAgentReady(dda *v2alpha1.DatadogAgent, includeWindows bool) {
-	dda.Status.Conditions = []metav1.Condition{{
-		Type:               datadogAgentReconcileErrorCondition,
-		Status:             metav1.ConditionFalse,
-		ObservedGeneration: dda.Generation,
-		Reason:             "DatadogAgent_reconcile_ok",
-		LastTransitionTime: metav1.Now(),
-	}}
-	linux := &v2alpha1.DaemonSetStatus{
-		Desired: 1, Current: 1, Ready: 1, Available: 1, UpToDate: 1, DaemonsetName: fleetDatadogAgentName,
-	}
-	dda.Status.Agent = linux.DeepCopy()
-	dda.Status.AgentList = []*v2alpha1.DaemonSetStatus{linux}
-	if includeWindows {
-		dda.Status.AgentList = append(dda.Status.AgentList, &v2alpha1.DaemonSetStatus{
-			DaemonsetName: managedAgentInstallationWindowsProfileName + "-agent",
-		})
-	}
-	dda.Status.ClusterAgent = &v2alpha1.DeploymentStatus{
-		Replicas: 1, UpdatedReplicas: 1, ReadyReplicas: 1, AvailableReplicas: 1,
-	}
-}
-
-func TestFleetDatadogAgentReadinessWithWindowsAgent(t *testing.T) {
-	tests := []struct {
-		name        string
-		windows     *v2alpha1.DaemonSetStatus
-		wantReady   bool
-		observation string
-	}{
-		{
-			name:      "zero desired Windows agents",
-			windows:   &v2alpha1.DaemonSetStatus{},
-			wantReady: true,
-		},
-		{
-			name:      "ready Windows agents",
-			windows:   &v2alpha1.DaemonSetStatus{Desired: 2, Current: 2, Ready: 2, Available: 2, UpToDate: 2},
-			wantReady: true,
-		},
-		{
-			name:        "unready Windows agents",
-			windows:     &v2alpha1.DaemonSetStatus{Desired: 2, Current: 2, Ready: 1, Available: 1, UpToDate: 2},
-			observation: `Agent DaemonSet "windows-agent" is not ready`,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			uid := types.UID("dda-uid")
-			dda := &v2alpha1.DatadogAgent{ObjectMeta: metav1.ObjectMeta{UID: uid, Generation: 3}}
-			setTestDatadogAgentReady(dda, false)
-			tt.windows.DaemonsetName = "windows-agent"
-			dda.Status.AgentList = append(dda.Status.AgentList, tt.windows)
-
-			ready, observation, err := fleetDatadogAgentReadiness(dda, uid)
-
-			require.NoError(t, err)
-			assert.Equal(t, tt.wantReady, ready)
-			assert.Equal(t, tt.observation, observation)
-		})
-	}
-}
-
-func TestValidateManagedAgentInstallationWindowsProfileReady(t *testing.T) {
-	tests := []struct {
-		name           string
-		nodesLabeled   int32
-		podsReady      int32
-		daemonSet      *v2alpha1.DaemonSetStatus
-		wantErrContain string
-	}{
-		{
-			name:      "zero Windows nodes",
-			daemonSet: &v2alpha1.DaemonSetStatus{},
-		},
-		{
-			name:         "ready Windows nodes",
-			nodesLabeled: 2,
-			podsReady:    2,
-			daemonSet: &v2alpha1.DaemonSetStatus{
-				Desired: 2, Current: 2, Ready: 2, Available: 2, UpToDate: 2,
-			},
-		},
-		{
-			name:           "profile pods not ready",
-			nodesLabeled:   2,
-			podsReady:      1,
-			daemonSet:      &v2alpha1.DaemonSetStatus{Desired: 2, Current: 2, Ready: 2, Available: 2, UpToDate: 2},
-			wantErrContain: "1 ready pods for 2 labeled nodes",
-		},
-		{
-			name:           "DaemonSet desired count differs from profile",
-			nodesLabeled:   2,
-			podsReady:      2,
-			daemonSet:      &v2alpha1.DaemonSetStatus{Desired: 1, Current: 1, Ready: 1, Available: 1, UpToDate: 1},
-			wantErrContain: "desires 1 pods for 2 labeled nodes",
-		},
-		{
-			name:           "DaemonSet is not ready",
-			nodesLabeled:   2,
-			podsReady:      2,
-			daemonSet:      &v2alpha1.DaemonSetStatus{Desired: 2, Current: 2, Ready: 1, Available: 1, UpToDate: 2},
-			wantErrContain: "DaemonSet is not ready",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			ctx := context.Background()
-			daemon, kubeClient, _ := testManagedAgentInstallationDaemon(nil)
-			dda := &v2alpha1.DatadogAgent{ObjectMeta: metav1.ObjectMeta{
-				Namespace: managedAgentInstallationTarget.Namespace,
-				Name:      managedAgentInstallationTarget.Name,
-				UID:       types.UID("managed-dda-uid"),
-			}}
-			setTestDatadogAgentReady(dda, false)
-			tt.daemonSet.DaemonsetName = agentprofile.DaemonSetName(managedAgentInstallationWindowsProfileKey, true)
-			dda.Status.AgentList = append(dda.Status.AgentList, tt.daemonSet)
-
-			profile := daemon.managedAgentInstallationWindowsProfile(dda)
-			profile.Status.Valid = metav1.ConditionTrue
-			profile.Status.Applied = metav1.ConditionTrue
-			profile.Status.CreateStrategy = &v1alpha1.CreateStrategy{
-				Status:       v1alpha1.CompletedStatus,
-				NodesLabeled: tt.nodesLabeled,
-				PodsReady:    tt.podsReady,
-			}
-			baseClient := kubeClient.(*autoReadyManagedAgentInstallationClient).Client
-			require.NoError(t, baseClient.Create(ctx, profile))
-
-			err := daemon.validateManagedAgentInstallationWindowsProfileReady(ctx, dda)
-			if tt.wantErrContain == "" {
-				require.NoError(t, err)
-				return
-			}
-			require.ErrorContains(t, err, tt.wantErrContain)
-		})
-	}
 }
 
 func TestManagedAgentInstallationConfigRejectsCredentials(t *testing.T) {
@@ -314,7 +146,7 @@ func testManagedAgentInstallationDaemon(rcState []*pbgo.PackageState, objects ..
 		WithStatusSubresource(&v2alpha1.DatadogAgent{}).
 		WithObjects(objects...).
 		Build()
-	kubeClient := &autoReadyManagedAgentInstallationClient{Client: baseClient}
+	kubeClient := &managedAgentInstallationTestClient{Client: baseClient}
 	rcClient := &mockRCClient{state: rcState}
 	daemon := &Daemon{
 		rcClient:                             rcClient,

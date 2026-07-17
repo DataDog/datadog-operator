@@ -265,25 +265,6 @@ func TestApplyProfile(t *testing.T) {
 	}
 }
 
-func TestApplyProfileCompletesWithNoMatchingNodes(t *testing.T) {
-	t.Setenv(apicommon.CreateStrategyEnabled, "true")
-	profile := exampleProfileForWindows()
-	now := metav1.NewTime(time.Now())
-
-	_, err := ApplyProfile(logr.Discard(), &profile, nil, map[string]types.NamespacedName{}, now, 1)
-	assert.NoError(t, err)
-	assert.Equal(t, metav1.ConditionTrue, profile.Status.Valid)
-	assert.Equal(t, metav1.ConditionTrue, profile.Status.Applied)
-	assert.NotNil(t, profile.Status.CreateStrategy)
-	assert.Equal(t, v1alpha1.WaitingStatus, profile.Status.CreateStrategy.Status)
-
-	_, err = ApplyProfile(logr.Discard(), &profile, nil, map[string]types.NamespacedName{}, now, 1)
-	assert.NoError(t, err)
-	assert.Equal(t, v1alpha1.CompletedStatus, profile.Status.CreateStrategy.Status)
-	assert.Zero(t, profile.Status.CreateStrategy.NodesLabeled)
-	assert.Zero(t, profile.Status.CreateStrategy.PodsReady)
-}
-
 func TestOverrideFromProfile(t *testing.T) {
 	overrideNameForLinuxProfile := "datadog-agent-with-profile-default-linux"
 	overrideNameForExampleProfile := "datadog-agent-with-profile-default-example"

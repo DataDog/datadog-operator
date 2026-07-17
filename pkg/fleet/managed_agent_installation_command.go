@@ -12,7 +12,11 @@ import (
 	"fmt"
 
 	pbgo "github.com/DataDog/datadog-agent/pkg/proto/pbgo/core"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	v2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 )
 
 type managedAgentInstallationCommand struct {
@@ -47,17 +51,23 @@ func (d *Daemon) validateManagedAgentInstallationCommand(command managedAgentIns
 		command.Intent.DesiredState != managedAgentInstallationDesiredStateAbsent {
 		return &stateDoesntMatchError{msg: "local managed Agent installation intent requested an unsupported desired state"}
 	}
-	if command.Intent.DesiredState == managedAgentInstallationDesiredStateInstalled {
-		_, experimentConfig := d.getPackageConfigVersions(packageDatadogOperator)
-		if experimentConfig != "" {
-			return &stateDoesntMatchError{msg: "DatadogAgent managed Agent installation requires no active experiment config"}
-		}
-	}
 	return nil
 }
 
 func (d *Daemon) handleManagedAgentInstallationCommand(ctx context.Context, command managedAgentInstallationCommand) error {
 	d.transitionMu.Lock()
+	if command.Intent.DesiredState == managedAgentInstallationDesiredStateInstalled {
+		fleetTaskInProgress, err := d.managedAgentInstallationFleetTaskInProgress(ctx)
+		if err != nil {
+			d.transitionMu.Unlock()
+			return err
+		}
+		if fleetTaskInProgress {
+			d.transitionMu.Unlock()
+			d.requestManagedAgentInstallationRetryAfter()
+			return nil
+		}
+	}
 	d.taskMu.Lock()
 	if d.managedAgentInstallationActive {
 		err := &stateDoesntMatchError{msg: "a DatadogAgent managed Agent installation transition is already in progress"}
@@ -75,6 +85,7 @@ func (d *Daemon) handleManagedAgentInstallationCommand(ctx context.Context, comm
 		}
 		d.taskMu.Lock()
 		d.setTaskState(packageDatadogOperator, command.Intent.OperationID, pbgo.TaskState_INVALID_STATE, err)
+		d.managedAgentInstallationTaskReserved = false
 		d.taskMu.Unlock()
 		d.emitManagedAgentInstallationRejectedEvent(ctx, command, err.Error())
 		return err
@@ -107,6 +118,17 @@ func (d *Daemon) executeManagedAgentInstallationCommand(ctx context.Context, com
 
 	pending, err := d.dispatchManagedAgentInstallationCommand(ctx, command)
 	if err != nil {
+		var credentialErr *managedAgentInstallationCredentialNotReadyError
+		if errors.As(err, &credentialErr) && ctx.Err() == nil {
+			if persistErr := d.recordManagedAgentInstallationResult(ctx, command, pbgo.TaskState_RUNNING, err); persistErr != nil {
+				d.requestManagedAgentInstallationRetryAfter()
+				return errors.Join(err, persistErr)
+			}
+			if !d.scheduleManagedAgentInstallationCredentialRetry() {
+				ctrl.LoggerFrom(ctx).Info("Managed Agent installation is waiting for its credential Secret", "operationID", command.Intent.OperationID)
+			}
+			return err
+		}
 		var stateErr *stateDoesntMatchError
 		if !errors.As(err, &stateErr) && ctx.Err() == nil && isRetryable(err) {
 			if persistErr := d.recordManagedAgentInstallationResult(ctx, command, pbgo.TaskState_RUNNING, err); persistErr != nil {
@@ -126,6 +148,7 @@ func (d *Daemon) executeManagedAgentInstallationCommand(ctx context.Context, com
 		}
 		d.taskMu.Lock()
 		d.setTaskState(packageDatadogOperator, command.Intent.OperationID, resultState, err)
+		d.managedAgentInstallationTaskReserved = false
 		d.taskMu.Unlock()
 		d.emitManagedAgentInstallationRejectedEvent(ctx, command, err.Error())
 		return err
@@ -138,6 +161,7 @@ func (d *Daemon) executeManagedAgentInstallationCommand(ctx context.Context, com
 		}
 		d.taskMu.Lock()
 		d.setTaskState(packageDatadogOperator, command.Intent.OperationID, pbgo.TaskState_ERROR, err)
+		d.managedAgentInstallationTaskReserved = false
 		d.taskMu.Unlock()
 		d.emitManagedAgentInstallationRejectedEvent(ctx, command, err.Error())
 		return err
@@ -158,6 +182,25 @@ func (d *Daemon) executeManagedAgentInstallationCommand(ctx context.Context, com
 	d.taskMu.Unlock()
 	d.emitManagedAgentInstallationCompletedEvent(ctx, command)
 	return nil
+}
+
+func (d *Daemon) managedAgentInstallationFleetTaskInProgress(ctx context.Context) (bool, error) {
+	_, experimentConfig := d.getPackageConfigVersions(packageDatadogOperator)
+	if experimentConfig != "" {
+		return true, nil
+	}
+
+	dda := &v2alpha1.DatadogAgent{}
+	if err := d.managedAgentInstallationReader().Get(ctx, managedAgentInstallationTarget, dda); err != nil {
+		if apierrors.IsNotFound(err) {
+			return false, nil
+		}
+		return false, fmt.Errorf("check managed Agent installation target for a Fleet task: %w", err)
+	}
+	if _, pending := pendingOperationFromAnnotations(client.ObjectKeyFromObject(dda), dda.Annotations); pending {
+		return true, nil
+	}
+	return dda.Status.Experiment != nil && !isTerminalPhase(dda.Status.Experiment.Phase), nil
 }
 
 func (d *Daemon) finishManagedAgentInstallationTask(operationID string) {

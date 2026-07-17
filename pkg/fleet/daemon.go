@@ -49,24 +49,25 @@ var _ manager.LeaderElectionRunnable = &Daemon{}
 // RC tasks into experiment annotation writes. It reports both outcomes through RC
 // and never writes status.experiment.phase, which belongs to the reconciler.
 type Daemon struct {
-	rcClient                             remoteconfig.RCClient
-	client                               client.Client
-	apiReader                            client.Reader // bypasses the informer cache; used at startup before the cache is populated
-	cache                                ctrlcache.Cache
-	recorder                             record.EventRecorder // Kubernetes-event recorder for fleet-daemon-source events (gated by env var)
-	revisionsEnabled                     bool
-	managedAgentInstallationIdentity     remoteconfig.ManagedAgentInstallationIdentity
-	managedAgentInstallationTaskRunner   func(func())
-	mu                                   sync.RWMutex
-	configs                              map[string]installerConfig // keyed by config ID; replaced on each RC update
-	taskMu                               sync.Mutex                 // serializes package task-state updates
-	installerStateMu                     sync.Mutex                 // serializes RC installer-state read/modify/write operations
-	transitionMu                         sync.Mutex                 // serializes DDA managed Agent installation and experiment state transitions
-	managedAgentInstallationActive       bool                       // reserves installer state while a managed Agent installation mutation is in progress
-	managedAgentInstallationOperationID  string
-	managedAgentInstallationCancel       context.CancelFunc
-	managedAgentInstallationDone         chan struct{}
-	managedAgentInstallationTaskReserved bool
+	rcClient                                     remoteconfig.RCClient
+	client                                       client.Client
+	apiReader                                    client.Reader // bypasses the informer cache; used at startup before the cache is populated
+	cache                                        ctrlcache.Cache
+	recorder                                     record.EventRecorder // Kubernetes-event recorder for fleet-daemon-source events (gated by env var)
+	revisionsEnabled                             bool
+	managedAgentInstallationIdentity             remoteconfig.ManagedAgentInstallationIdentity
+	managedAgentInstallationTaskRunner           func(func())
+	mu                                           sync.RWMutex
+	configs                                      map[string]installerConfig // keyed by config ID; replaced on each RC update
+	taskMu                                       sync.Mutex                 // serializes package task-state updates
+	installerStateMu                             sync.Mutex                 // serializes RC installer-state read/modify/write operations
+	transitionMu                                 sync.Mutex                 // serializes DDA managed Agent installation and experiment state transitions
+	managedAgentInstallationActive               bool                       // reserves installer state while a managed Agent installation mutation is in progress
+	managedAgentInstallationOperationID          string
+	managedAgentInstallationCancel               context.CancelFunc
+	managedAgentInstallationDone                 chan struct{}
+	managedAgentInstallationTaskReserved         bool
+	managedAgentInstallationCredentialRetryIndex int
 	// statusUpdates carries DDA informer events to the worker. The worker reads
 	// status.experiment and pending annotations to update RC task state.
 	statusUpdates                   chan ddaStatusSnapshot
@@ -135,6 +136,9 @@ func (d *Daemon) Start(ctx context.Context) error {
 	if d.managedAgentInstallationIdentity.Configured() {
 		go d.runManagedAgentInstallationIntentWorker(ctx)
 		if err := d.installManagedAgentInstallationIntentForwarder(ctx); err != nil {
+			return err
+		}
+		if err := d.installManagedAgentInstallationCredentialForwarder(ctx); err != nil {
 			return err
 		}
 		d.requestManagedAgentInstallationRetry()
@@ -456,34 +460,6 @@ func (d *Daemon) rehydrateInstallerState(ctx context.Context) error {
 		if managedAgentInstallationConfigID != "" {
 			if dda.Labels[fleetManagedAgentInstallationStateLabel] != fleetManagedAgentInstallationStateReady || dda.Annotations[fleetConfigHashAnnotation] == "" {
 				stable = fleetPartialConfigVersionPrefix + managedAgentInstallationConfigID
-			} else {
-				ready, observation, err := fleetDatadogAgentReadiness(dda, dda.UID)
-				if err != nil {
-					return fmt.Errorf("validate Fleet-managed DatadogAgent %s/%s readiness during rehydration: %w", dda.Namespace, dda.Name, err)
-				}
-				if !ready {
-					configID, markErr := d.markFleetDatadogAgentPartial(ctx, client.ObjectKeyFromObject(dda), dda.UID)
-					if markErr != nil {
-						return fmt.Errorf("mark Fleet-managed DatadogAgent %s/%s partial after readiness regression (%s): %w", dda.Namespace, dda.Name, observation, markErr)
-					}
-					stable = fleetPartialConfigVersionPrefix + configID
-				} else {
-					validateAcceptedSpec := validateFleetDatadogAgentAcceptedSpec
-					if exp != nil && (exp.Phase == v2alpha1.ExperimentPhaseRunning ||
-						(exp.Phase == v2alpha1.ExperimentPhasePromoted && managedAgentInstallationConfigID != exp.ID)) {
-						validateAcceptedSpec = validateFleetDatadogAgentAcceptedExperimentSpec
-					}
-					if err := validateAcceptedSpec(dda); err != nil {
-						if exp == nil || !isTerminalPhase(exp.Phase) {
-							return fmt.Errorf("validate Fleet-managed DatadogAgent %s/%s during rehydration: %w", dda.Namespace, dda.Name, err)
-						}
-						configID, markErr := d.markFleetDatadogAgentPartial(ctx, client.ObjectKeyFromObject(dda), dda.UID)
-						if markErr != nil {
-							return fmt.Errorf("mark Fleet-managed DatadogAgent %s/%s partial after terminal experiment drift: %w", dda.Namespace, dda.Name, markErr)
-						}
-						stable = fleetPartialConfigVersionPrefix + configID
-					}
-				}
 			}
 		}
 		if exp != nil && exp.ID != "" && !isTerminalPhase(exp.Phase) {
