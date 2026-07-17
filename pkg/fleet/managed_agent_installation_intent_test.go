@@ -892,6 +892,48 @@ func TestManagedAgentInstallationReadinessTagsRequireDurableAcknowledgement(t *t
 	require.Error(t, err)
 }
 
+func TestManagedAgentInstallationReadinessTagsPreserveAcknowledgementDuringUninstall(t *testing.T) {
+	ctx := context.Background()
+	daemon, kubeClient, _ := testManagedAgentInstallationDaemon(
+		[]*pbgo.PackageState{{Package: packageDatadogOperator}},
+		testFleetCredentialSecret(),
+	)
+	installIntent := testManagedAgentInstallationIntent(
+		t,
+		testAddonInstallOperationID,
+		managedAgentInstallationDesiredStateInstalled,
+	)
+	putManagedAgentInstallationIntentConfigMap(t, kubeClient, installIntent)
+	require.NoError(t, daemon.handleManagedAgentInstallationIntent(ctx, managedAgentInstallationIntentSnapshot{raw: installIntent}))
+
+	acknowledgedIntent := testManagedAgentInstallationIntent(
+		t,
+		testAddonInstallOperationID,
+		managedAgentInstallationDesiredStateInstalled,
+		testAddonInstallOperationID,
+	)
+	putManagedAgentInstallationIntentConfigMap(t, kubeClient, acknowledgedIntent)
+	require.NoError(t, daemon.handleManagedAgentInstallationIntent(ctx, managedAgentInstallationIntentSnapshot{raw: acknowledgedIntent}))
+
+	uninstallIntent := testManagedAgentInstallationIntent(
+		t,
+		testAddonUninstallOperationID,
+		managedAgentInstallationDesiredStateAbsent,
+		testAddonInstallOperationID,
+	)
+	putManagedAgentInstallationIntentConfigMap(t, kubeClient, uninstallIntent)
+	wantTags := []string{"managed_agent_installation_ack:" + testAddonInstallOperationID}
+
+	tags, err := ManagedAgentInstallationReadinessTags(ctx, kubeClient, testManagedAgentInstallationIdentity)
+	require.NoError(t, err)
+	require.Equal(t, wantTags, tags)
+
+	require.NoError(t, daemon.handleManagedAgentInstallationIntent(ctx, managedAgentInstallationIntentSnapshot{raw: uninstallIntent}))
+	tags, err = ManagedAgentInstallationReadinessTags(ctx, kubeClient, testManagedAgentInstallationIdentity)
+	require.NoError(t, err)
+	require.Equal(t, wantTags, tags)
+}
+
 func testManagedAgentInstallationIntent(t *testing.T, operationID string, desiredState managedAgentInstallationDesiredState, acknowledgedOperationID ...string) []byte {
 	t.Helper()
 	payload := eksManagedAgentInstallationIntent{

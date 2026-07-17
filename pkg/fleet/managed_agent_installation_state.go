@@ -64,11 +64,11 @@ func ManagedAgentInstallationReadinessTags(ctx context.Context, reader client.Re
 	if err := reader.Get(ctx, managedAgentInstallationIntentKey, intentConfigMap); err != nil {
 		return nil, fmt.Errorf("read managed Agent installation intent for Remote Configuration updater tags: %w", err)
 	}
-	intent, _, _, err := decodeManagedAgentInstallationIntent([]byte(intentConfigMap.Data[managedAgentInstallationIntentDataKey]), identity)
+	intent, _, digest, err := decodeManagedAgentInstallationIntent([]byte(intentConfigMap.Data[managedAgentInstallationIntentDataKey]), identity)
 	if err != nil {
 		return nil, err
 	}
-	if intent.DesiredState != managedAgentInstallationDesiredStateInstalled || intent.AcknowledgedOperationID == "" || intent.OperationID != intent.AcknowledgedOperationID {
+	if intent.AcknowledgedOperationID == "" {
 		return nil, nil
 	}
 
@@ -84,19 +84,37 @@ func ManagedAgentInstallationReadinessTags(ctx context.Context, reader client.Re
 		state.Provider != intent.Provider ||
 		state.InstallationID != intent.InstallationID ||
 		state.TargetID != intent.TargetID ||
-		state.OperationID != intent.AcknowledgedOperationID ||
-		state.AcknowledgedOperationID != intent.AcknowledgedOperationID ||
-		state.DesiredState != managedAgentInstallationDesiredStateInstalled ||
-		state.TaskState != pbgo.TaskState_DONE {
-		return nil, fmt.Errorf("managed Agent installation acknowledgement state is not yet consistent with the acknowledged install intent")
+		state.AcknowledgedOperationID != intent.AcknowledgedOperationID {
+		return nil, fmt.Errorf("managed Agent installation acknowledgement state is not consistent with the current intent")
 	}
-	if _, err := daemon.validateAcknowledgedManagedAgentInstallation(ctx); err != nil {
-		return nil, fmt.Errorf("validate managed Agent installation acknowledgement for Remote Configuration updater tags: %w", err)
+
+	tags := []string{managedAgentInstallationAckTagPrefix + intent.AcknowledgedOperationID}
+	switch intent.DesiredState {
+	case managedAgentInstallationDesiredStateInstalled:
+		if intent.OperationID != intent.AcknowledgedOperationID ||
+			state.OperationID != intent.AcknowledgedOperationID ||
+			state.DesiredState != managedAgentInstallationDesiredStateInstalled ||
+			state.TaskState != pbgo.TaskState_DONE {
+			return nil, fmt.Errorf("managed Agent installation acknowledgement state is not yet consistent with the acknowledged install intent")
+		}
+		if _, err := daemon.validateAcknowledgedManagedAgentInstallation(ctx); err != nil {
+			return nil, fmt.Errorf("validate managed Agent installation acknowledgement for Remote Configuration updater tags: %w", err)
+		}
+		return append(tags, "operator_config_updates:ready"), nil
+	case managedAgentInstallationDesiredStateAbsent:
+		acknowledgedInstall := state.DesiredState == managedAgentInstallationDesiredStateInstalled &&
+			state.OperationID == intent.AcknowledgedOperationID &&
+			state.TaskState == pbgo.TaskState_DONE
+		currentUninstall := state.DesiredState == managedAgentInstallationDesiredStateAbsent &&
+			state.OperationID == intent.OperationID &&
+			state.Digest == digest
+		if !acknowledgedInstall && !currentUninstall {
+			return nil, fmt.Errorf("managed Agent installation acknowledgement state is not consistent with the uninstall intent")
+		}
+		return tags, nil
+	default:
+		return nil, nil
 	}
-	return []string{
-		managedAgentInstallationAckTagPrefix + intent.AcknowledgedOperationID,
-		"operator_config_updates:ready",
-	}, nil
 }
 
 func managedAgentInstallationStateFromCommand(command managedAgentInstallationCommand, taskState pbgo.TaskState, taskErr error) managedAgentInstallationPersistedState {
