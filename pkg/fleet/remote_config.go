@@ -41,13 +41,13 @@ type fleetManagementOperation struct {
 
 // remoteAPIRequest is a task sent to the fleet daemon via RC.
 type remoteAPIRequest struct {
-	ID            string             `json:"id"`
-	Package       string             `json:"package_name"`
-	TraceID       string             `json:"trace_id"`
-	ParentSpanID  string             `json:"parent_span_id"`
-	ExpectedState expectedState      `json:"expected_state"`
-	Method        string             `json:"method"`
-	Params        operatorTaskParams `json:"params"`
+	ID            string           `json:"id"`
+	Package       string           `json:"package_name"`
+	TraceID       string           `json:"trace_id"`
+	ParentSpanID  string           `json:"parent_span_id"`
+	ExpectedState expectedState    `json:"expected_state"`
+	Method        string           `json:"method"`
+	Params        experimentParams `json:"params"`
 }
 
 // expectedState describes the package state expected before executing the request.
@@ -60,8 +60,8 @@ type expectedState struct {
 	ClientID         string `json:"client_id"`
 }
 
-// operatorTaskParams identifies the DatadogAgent and installer config targeted by an Operator task.
-type operatorTaskParams struct {
+// experimentParams holds the parsed params for experiment methods.
+type experimentParams struct {
 	Version          string                  `json:"version"`
 	GroupVersionKind schema.GroupVersionKind `json:"group_version_kind"`
 	NamespacedName   types.NamespacedName    `json:"namespaced_name"`

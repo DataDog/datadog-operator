@@ -33,7 +33,7 @@ var testInstallerConfig = installerConfig{
 var testRemoteAPIRequest = remoteAPIRequest{
 	ID:     "test",
 	Method: "some_method",
-	Params: operatorTaskParams{},
+	Params: experimentParams{},
 }
 
 // callbackMock records calls made by the RC handler callbacks.

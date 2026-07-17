@@ -154,7 +154,7 @@ func testStartRequest() remoteAPIRequest {
 		ID:      "exp-abc",
 		Package: "datadog-operator",
 		Method:  methodStartDatadogAgentExperiment,
-		Params: operatorTaskParams{
+		Params: experimentParams{
 			Version:          "test-config",
 			GroupVersionKind: testDDAGVK,
 			NamespacedName:   testDDANSN,
@@ -357,7 +357,7 @@ func TestStartDatadogAgentExperiment_VersionMatchesInstallerConfig(t *testing.T)
 	req := remoteAPIRequest{
 		ID:     "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
 		Method: methodStartDatadogAgentExperiment,
-		Params: operatorTaskParams{
+		Params: experimentParams{
 			Version:          "aaaa-bbbb-cccc",
 			GroupVersionKind: testDDAGVK,
 			NamespacedName:   testDDANSN,
@@ -400,7 +400,7 @@ func testStopRequest() remoteAPIRequest {
 		ID:      "exp-abc",
 		Package: "datadog-operator",
 		Method:  methodStopDatadogAgentExperiment,
-		Params: operatorTaskParams{
+		Params: experimentParams{
 			// Stop requests intentionally do not use params.version as the experiment
 			// identity. It should be empty.
 			Version:          "",
@@ -586,7 +586,7 @@ func testPromoteRequest() remoteAPIRequest {
 		ID:      "exp-abc",
 		Package: "datadog-operator",
 		Method:  methodPromoteDatadogAgentExperiment,
-		Params: operatorTaskParams{
+		Params: experimentParams{
 			// Promote requests intentionally do not use params.version as the experiment
 			// identity. It should be empty.
 			Version:          "",
@@ -741,7 +741,7 @@ func TestHandleRemoteAPIRequest_InvalidState(t *testing.T) {
 // --- validateParams tests ---
 
 func TestValidateParams_Valid(t *testing.T) {
-	p := operatorTaskParams{
+	p := experimentParams{
 		Version:          "test-config",
 		GroupVersionKind: testDDAGVK,
 		NamespacedName:   testDDANSN,
@@ -750,7 +750,7 @@ func TestValidateParams_Valid(t *testing.T) {
 }
 
 func TestValidateParams_EmptyName(t *testing.T) {
-	p := operatorTaskParams{
+	p := experimentParams{
 		GroupVersionKind: testDDAGVK,
 		NamespacedName:   types.NamespacedName{Namespace: "datadog", Name: ""},
 	}
@@ -758,7 +758,7 @@ func TestValidateParams_EmptyName(t *testing.T) {
 }
 
 func TestValidateParams_EmptyNamespace(t *testing.T) {
-	p := operatorTaskParams{
+	p := experimentParams{
 		GroupVersionKind: testDDAGVK,
 		NamespacedName:   types.NamespacedName{Namespace: "", Name: "datadog-agent"},
 	}
@@ -767,7 +767,7 @@ func TestValidateParams_EmptyNamespace(t *testing.T) {
 
 func TestValidateParams_EmptyGroup_Allowed(t *testing.T) {
 	// Group is auto-detected from the cluster; empty group is valid input.
-	p := operatorTaskParams{
+	p := experimentParams{
 		GroupVersionKind: schema.GroupVersionKind{Group: "", Version: "", Kind: "DatadogAgent"},
 		NamespacedName:   testDDANSN,
 	}
@@ -775,7 +775,7 @@ func TestValidateParams_EmptyGroup_Allowed(t *testing.T) {
 }
 
 func TestValidateParams_WrongKind(t *testing.T) {
-	p := operatorTaskParams{
+	p := experimentParams{
 		GroupVersionKind: schema.GroupVersionKind{Group: "datadoghq.com", Version: "v2alpha1", Kind: "DatadogMonitor"},
 		NamespacedName:   testDDANSN,
 	}
