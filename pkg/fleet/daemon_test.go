@@ -1228,6 +1228,24 @@ func TestHandleTask_InvalidState(t *testing.T) {
 	assert.Equal(t, pbgo.TaskState_INVALID_STATE, m.state[0].Task.State)
 }
 
+func TestHandleTask_ManagedAgentInstallationBusyPreservesTaskState(t *testing.T) {
+	managedTask := &pbgo.PackageStateTask{Id: "managed-install", State: pbgo.TaskState_RUNNING}
+	rc := []*pbgo.PackageState{{
+		Package:             packageDatadogOperator,
+		StableConfigVersion: "managed-install",
+		Task:                managedTask,
+	}}
+	d, _, state := testDaemonFull(testDDAObject(""), testInstallerConfigWithDDA(), rc)
+	d.managedAgentInstallationTaskReserved = true
+
+	err := d.handleTask(context.Background(), testStartRequest())
+
+	require.ErrorContains(t, err, "managed Agent installation transition is already in progress")
+	require.NotNil(t, state.state[0].Task)
+	assert.Equal(t, managedTask.Id, state.state[0].Task.Id)
+	assert.Equal(t, managedTask.State, state.state[0].Task.State)
+}
+
 func TestReconcileLocallyTerminatedExperiment_ClearsExperimentConfigVersion(t *testing.T) {
 	d, rc := testDaemonWithRC([]*pbgo.PackageState{
 		{Package: "datadog-operator", StableConfigVersion: "stable-1", ExperimentConfigVersion: testExperimentID},
@@ -1538,7 +1556,7 @@ func TestStartDatadogAgentExperiment_OverwritesStalePendingResultVersion(t *test
 	assert.Empty(t, got.Annotations[v2alpha1.AnnotationPendingResultVersion])
 }
 
-func TestRunPendingOperationWorker_RecoversPendingOperationFromAnnotations(t *testing.T) {
+func TestRunPendingOperationWorker_RecoversPendingOperationWhileManagedInstallationReserved(t *testing.T) {
 	dda := testDDAObject(v2alpha1.ExperimentPhaseRunning)
 	dda.Annotations[v2alpha1.AnnotationPendingTaskID] = "task-1"
 	dda.Annotations[v2alpha1.AnnotationPendingAction] = string(pendingIntentStart)
@@ -1549,6 +1567,7 @@ func TestRunPendingOperationWorker_RecoversPendingOperationFromAnnotations(t *te
 	d.rcClient = &mockRCClient{state: []*pbgo.PackageState{
 		{Package: "datadog-operator", StableConfigVersion: "stable-1"},
 	}}
+	d.managedAgentInstallationTaskReserved = true
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

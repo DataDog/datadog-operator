@@ -56,17 +56,15 @@ func (d *Daemon) validateManagedAgentInstallationCommand(command managedAgentIns
 
 func (d *Daemon) handleManagedAgentInstallationCommand(ctx context.Context, command managedAgentInstallationCommand) error {
 	d.transitionMu.Lock()
-	if command.Intent.DesiredState == managedAgentInstallationDesiredStateInstalled {
-		fleetTaskInProgress, err := d.managedAgentInstallationFleetTaskInProgress(ctx)
-		if err != nil {
-			d.transitionMu.Unlock()
-			return err
-		}
-		if fleetTaskInProgress {
-			d.transitionMu.Unlock()
-			d.requestManagedAgentInstallationRetryAfter()
-			return nil
-		}
+	waitForFleet, err := d.managedAgentInstallationShouldWaitForFleet(ctx, command.Intent.DesiredState)
+	if err != nil {
+		d.transitionMu.Unlock()
+		return err
+	}
+	if waitForFleet {
+		d.transitionMu.Unlock()
+		d.requestManagedAgentInstallationRetryAfter()
+		return nil
 	}
 	d.taskMu.Lock()
 	if d.managedAgentInstallationActive {
@@ -184,10 +182,12 @@ func (d *Daemon) executeManagedAgentInstallationCommand(ctx context.Context, com
 	return nil
 }
 
-func (d *Daemon) managedAgentInstallationFleetTaskInProgress(ctx context.Context) (bool, error) {
-	_, experimentConfig := d.getPackageConfigVersions(packageDatadogOperator)
-	if experimentConfig != "" {
-		return true, nil
+func (d *Daemon) managedAgentInstallationShouldWaitForFleet(ctx context.Context, desiredState managedAgentInstallationDesiredState) (bool, error) {
+	if desiredState == managedAgentInstallationDesiredStateInstalled {
+		_, experimentConfig := d.getPackageConfigVersions(packageDatadogOperator)
+		if experimentConfig != "" {
+			return true, nil
+		}
 	}
 
 	dda := &v2alpha1.DatadogAgent{}
@@ -199,6 +199,11 @@ func (d *Daemon) managedAgentInstallationFleetTaskInProgress(ctx context.Context
 	}
 	if _, pending := pendingOperationFromAnnotations(client.ObjectKeyFromObject(dda), dda.Annotations); pending {
 		return true, nil
+	}
+	// Uninstall may supersede an established experiment, but not a Fleet task
+	// that is still dispatching it.
+	if desiredState == managedAgentInstallationDesiredStateAbsent {
+		return false, nil
 	}
 	return dda.Status.Experiment != nil && !isTerminalPhase(dda.Status.Experiment.Phase), nil
 }

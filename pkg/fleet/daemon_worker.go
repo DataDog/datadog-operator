@@ -93,9 +93,9 @@ func (t *operationTracker) onStatusUpdate(ctx context.Context, snapshot ddaStatu
 	t.daemon.transitionMu.Lock()
 	defer t.daemon.transitionMu.Unlock()
 	t.daemon.taskMu.Lock()
-	managedAgentInstallationReserved := t.daemon.managedAgentInstallationActive || t.daemon.managedAgentInstallationTaskReserved
+	managedAgentInstallationActive := t.daemon.managedAgentInstallationActive
 	t.daemon.taskMu.Unlock()
-	if managedAgentInstallationReserved {
+	if managedAgentInstallationActive {
 		return
 	}
 	t.daemon.reconcileLocallyTerminatedExperiment(ctx, snapshot)

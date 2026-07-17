@@ -85,9 +85,7 @@ func (d *Daemon) emitTaskReceivedEvent(ctx context.Context, req remoteAPIRequest
 		"Received %s task %q for experiment %q", methodLabel(req.Method), req.ID, req.Params.Version)
 }
 
-// emitTaskRejectedEvent records that handleTask refused a task because
-// the local state is impossible (INVALID_STATE) or processing failed
-// (ERROR). Fires after setTaskState commits the rejection.
+// emitTaskRejectedEvent records that handleTask refused a task.
 func (d *Daemon) emitTaskRejectedEvent(ctx context.Context, nsn types.NamespacedName, req remoteAPIRequest, reason string) {
 	d.emitDDAEventf(ctx, nsn,
 		corev1.EventTypeWarning, eventReasonRemoteTaskRejected,

@@ -173,7 +173,6 @@ func (d *Daemon) handleTask(ctx context.Context, req remoteAPIRequest) error {
 	d.taskMu.Lock()
 	if d.managedAgentInstallationActive || d.managedAgentInstallationTaskReserved {
 		err := &stateDoesntMatchError{msg: "a DatadogAgent managed Agent installation transition is already in progress"}
-		d.setTaskState(req.Package, req.ID, pbgo.TaskState_INVALID_STATE, err)
 		d.taskMu.Unlock()
 		d.emitTaskRejectedEvent(ctx, req.Params.NamespacedName, req, err.Error())
 		return err
