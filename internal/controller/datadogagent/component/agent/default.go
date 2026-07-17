@@ -914,6 +914,7 @@ func volumeMountsForOtelAgent() []corev1.VolumeMount {
 		common.GetVolumeMountForConfig(),
 		common.GetVolumeMountForAuth(true),
 		common.GetVolumeMountForTmp(),
+		common.GetVolumeMountForRunPath(),
 	}
 }
 
