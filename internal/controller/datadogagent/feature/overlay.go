@@ -66,6 +66,10 @@ func RegisterDDASharedDependencies(id IDType, dependency DDASharedDependenciesFu
 // overlays to dst. The base spec is the original default DDAI spec before any
 // profile overlays were applied; profile is the DatadogAgentProfile config.
 func ApplyProfileSharedConfigOverlays(dst, base, profile *v2alpha1.DatadogAgentSpec) error {
+	if dst == nil {
+		return fmt.Errorf("profile shared config overlay target spec is nil")
+	}
+
 	// Registration happens from feature package init functions, so sort IDs to
 	// keep profile overlay behavior deterministic regardless of init order.
 	sortedKeys := make([]IDType, 0, len(profileSharedConfigOverlays))
