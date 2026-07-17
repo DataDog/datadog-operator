@@ -25,10 +25,8 @@ import (
 	"github.com/cenkalti/backoff"
 	"github.com/go-logr/logr"
 	"github.com/google/uuid"
-	corev1 "k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/types"
 	kubeclient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -50,16 +48,17 @@ const (
 var newRemoteConfigClient = client.NewClient
 
 type RemoteConfigUpdater struct {
-	kubeClient                       kubeclient.Client
-	rcClient                         *client.Client
-	rcService                        *service.CoreAgentService
-	serviceConf                      RcServiceConfiguration
-	managedAgentInstallationIdentity ManagedAgentInstallationIdentity
-	logger                           logr.Logger
-	mu                               sync.RWMutex
-	clientMu                         sync.RWMutex
-	updaterTags                      []string
-	subscriptions                    []remoteConfigSubscription
+	kubeClient                            kubeclient.Client
+	rcClient                              *client.Client
+	rcService                             *service.CoreAgentService
+	serviceConf                           RcServiceConfiguration
+	managedAgentInstallationIdentity      ManagedAgentInstallationIdentity
+	managedAgentInstallationReadinessTags func(context.Context) ([]string, error)
+	logger                                logr.Logger
+	mu                                    sync.RWMutex
+	clientMu                              sync.RWMutex
+	updaterTags                           []string
+	subscriptions                         []remoteConfigSubscription
 }
 
 type remoteConfigSubscription struct {
@@ -248,7 +247,7 @@ func (r *RemoteConfigUpdater) Start(apiKey string, site string, clusterName stri
 	}
 	updaterTags, tagsErr := r.getUpdaterTags(context.Background())
 	if tagsErr != nil {
-		r.logger.Error(tagsErr, "Could not establish EKS managed Agent installation readiness during Remote Configuration startup")
+		r.logger.Error(tagsErr, "Could not establish managed Agent installation readiness during Remote Configuration startup")
 	}
 	rcClient, err := r.newUpdaterClient(rcService, updaterTags)
 	if err != nil {
@@ -342,68 +341,20 @@ func (r *RemoteConfigUpdater) getUpdaterTags(ctx context.Context) ([]string, err
 			updaterTags = append(updaterTags, "cluster_id:"+clusterUID)
 		}
 	}
-	updaterTags = append(updaterTags, r.managedAgentInstallationIdentity.UpdaterTags()...)
-	readinessTags, err := r.managedAgentInstallationReadinessTags(ctx)
+	identityTags, err := r.managedAgentInstallationIdentity.UpdaterTags()
 	if err != nil {
 		return updaterTags, err
 	}
-	updaterTags = append(updaterTags, readinessTags...)
+	updaterTags = append(updaterTags, identityTags...)
+	if r.managedAgentInstallationReadinessTags != nil {
+		readinessTags, err := r.managedAgentInstallationReadinessTags(ctx)
+		if err != nil {
+			return updaterTags, err
+		}
+		updaterTags = append(updaterTags, readinessTags...)
+	}
 
 	return updaterTags, nil
-}
-
-func (r *RemoteConfigUpdater) managedAgentInstallationReadinessTags(ctx context.Context) ([]string, error) {
-	if r.kubeClient == nil || !r.managedAgentInstallationIdentity.Configured() {
-		return nil, nil
-	}
-	intentConfigMap := &corev1.ConfigMap{}
-	if err := r.kubeClient.Get(ctx, types.NamespacedName{Namespace: "datadog", Name: "datadog-agent-managed-installation-intent"}, intentConfigMap); err != nil {
-		return nil, fmt.Errorf("read EKS managed Agent installation intent for Remote Configuration updater tags: %w", err)
-	}
-	var intent struct {
-		InstallationID          string `json:"installationID"`
-		TargetHash              string `json:"eksARNSHA256"`
-		OperationID             string `json:"operationID"`
-		DesiredState            string `json:"desiredState"`
-		AcknowledgedOperationID string `json:"acknowledgedOperationID"`
-	}
-	if err := json.Unmarshal([]byte(intentConfigMap.Data["intent.json"]), &intent); err != nil {
-		return nil, fmt.Errorf("decode EKS managed Agent installation intent for Remote Configuration updater tags: %w", err)
-	}
-	acknowledgedOperationID := intent.AcknowledgedOperationID
-	if acknowledgedOperationID == "" {
-		return nil, nil
-	}
-	if !isCanonicalNonZeroUUID(acknowledgedOperationID) {
-		return nil, nil
-	}
-	if intent.InstallationID != r.managedAgentInstallationIdentity.InstallationID ||
-		intent.TargetHash != r.managedAgentInstallationIdentity.TargetHash ||
-		intent.OperationID != acknowledgedOperationID ||
-		intent.DesiredState != "installed" {
-		return nil, nil
-	}
-	state := &corev1.ConfigMap{}
-	if err := r.kubeClient.Get(ctx, types.NamespacedName{Namespace: "datadog", Name: "datadog-agent-managed-installation-state"}, state); err != nil {
-		return nil, fmt.Errorf("read EKS managed Agent installation acknowledgement state for Remote Configuration updater tags: %w", err)
-	}
-	if state.Data["installation_id"] != r.managedAgentInstallationIdentity.InstallationID ||
-		state.Data["eks_arn_sha256"] != r.managedAgentInstallationIdentity.TargetHash ||
-		state.Data["operation_id"] != acknowledgedOperationID ||
-		state.Data["acknowledged_operation_id"] != acknowledgedOperationID ||
-		state.Data["desired_state"] != "installed" ||
-		state.Data["task_state"] != pbgo.TaskState_DONE.String() {
-		return nil, fmt.Errorf("EKS managed Agent installation acknowledgement state is not yet consistent with the acknowledged install intent")
-	}
-	return []string{
-		"managed_agent_installation_ack:" + acknowledgedOperationID,
-		"operator_config_updates:ready",
-	}, nil
-}
-
-func isCanonicalNonZeroUUID(value string) bool {
-	parsed, err := uuid.Parse(value)
-	return err == nil && parsed != uuid.Nil && parsed.String() == value
 }
 
 // configureService fills the configuration needed to start the rc service
@@ -783,14 +734,11 @@ func (r *RemoteConfigUpdater) Stop() error {
 	return nil
 }
 
-func NewRemoteConfigUpdater(client kubeclient.Client, logger logr.Logger, identity ...ManagedAgentInstallationIdentity) *RemoteConfigUpdater {
-	var managedAgentInstallationIdentity ManagedAgentInstallationIdentity
-	if len(identity) > 0 {
-		managedAgentInstallationIdentity = identity[0]
-	}
+func NewRemoteConfigUpdater(client kubeclient.Client, logger logr.Logger, identity ManagedAgentInstallationIdentity, readinessTags func(context.Context) ([]string, error)) *RemoteConfigUpdater {
 	return &RemoteConfigUpdater{
-		kubeClient:                       client,
-		managedAgentInstallationIdentity: managedAgentInstallationIdentity,
-		logger:                           logger,
+		kubeClient:                            client,
+		managedAgentInstallationIdentity:      identity,
+		managedAgentInstallationReadinessTags: readinessTags,
+		logger:                                logger,
 	}
 }

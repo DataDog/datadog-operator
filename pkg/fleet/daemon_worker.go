@@ -90,17 +90,17 @@ func (t *operationTracker) run(ctx context.Context) {
 // start in the annotations, the old start is forgotten here. A later retry of
 // that old start is rejected by guardPendingOperationSlot.
 func (t *operationTracker) onStatusUpdate(ctx context.Context, snapshot ddaStatusSnapshot) {
-	t.daemon.reconcileLocallyTerminatedExperiment(ctx, snapshot)
-	op, ok := pendingOperationFromAnnotations(snapshot.nsn, snapshot.annotations)
-	if !ok {
-		return
-	}
 	t.daemon.transitionMu.Lock()
+	defer t.daemon.transitionMu.Unlock()
 	t.daemon.taskMu.Lock()
 	managedAgentInstallationReserved := t.daemon.managedAgentInstallationActive || t.daemon.managedAgentInstallationTaskReserved
 	t.daemon.taskMu.Unlock()
-	t.daemon.transitionMu.Unlock()
 	if managedAgentInstallationReserved {
+		return
+	}
+	t.daemon.reconcileLocallyTerminatedExperiment(ctx, snapshot)
+	op, ok := pendingOperationFromAnnotations(snapshot.nsn, snapshot.annotations)
+	if !ok {
 		return
 	}
 	done, resultErr := evaluatePendingTask(snapshot, op)

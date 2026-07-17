@@ -30,8 +30,8 @@ var managedAgentInstallationWindowsProfileKey = types.NamespacedName{
 	Name:      managedAgentInstallationWindowsProfileName,
 }
 
-func (d *Daemon) ensureManagedAgentInstallationResources(ctx context.Context, req remoteAPIRequest, dda *v2alpha1.DatadogAgent) error {
-	if req.Addon == nil {
+func (d *Daemon) ensureManagedAgentInstallationWindowsProfile(ctx context.Context, command managedAgentInstallationCommand, dda *v2alpha1.DatadogAgent) error {
+	if !command.instrumenterManaged() {
 		return nil
 	}
 	wanted := d.managedAgentInstallationWindowsProfile(dda)
@@ -59,9 +59,10 @@ func (d *Daemon) managedAgentInstallationWindowsProfile(dda *v2alpha1.DatadogAge
 			Namespace: managedAgentInstallationWindowsProfileKey.Namespace,
 			Name:      managedAgentInstallationWindowsProfileKey.Name,
 			Labels: map[string]string{
-				fleetManagedByLabel:      fleetManagedByValue,
-				fleetInstallationIDLabel: d.managedAgentInstallationIdentity.InstallationID,
-				fleetTargetIDLabel:       d.managedAgentInstallationIdentity.TargetID(),
+				fleetManagedByLabel:                        fleetManagedByValue,
+				fleetManagedAgentInstallationProviderLabel: string(d.managedAgentInstallationIdentity.Provider()),
+				fleetInstallationIDLabel:                   d.managedAgentInstallationIdentity.InstallationID(),
+				fleetTargetIDLabel:                         d.managedAgentInstallationIdentity.TargetID(),
 			},
 			Annotations: map[string]string{
 				kubernetes.ProviderAnnotationKey: kubernetes.WindowsProvider,
@@ -88,7 +89,8 @@ func (d *Daemon) validateManagedAgentInstallationWindowsProfile(profile *v1alpha
 		return &stateDoesntMatchError{msg: fmt.Sprintf("Windows DatadogAgentProfile %s/%s is terminating", profile.Namespace, profile.Name)}
 	}
 	if profile.Labels[fleetManagedByLabel] != fleetManagedByValue ||
-		profile.Labels[fleetInstallationIDLabel] != d.managedAgentInstallationIdentity.InstallationID ||
+		profile.Labels[fleetManagedAgentInstallationProviderLabel] != string(d.managedAgentInstallationIdentity.Provider()) ||
+		profile.Labels[fleetInstallationIDLabel] != d.managedAgentInstallationIdentity.InstallationID() ||
 		profile.Labels[fleetTargetIDLabel] != d.managedAgentInstallationIdentity.TargetID() {
 		return &stateDoesntMatchError{msg: fmt.Sprintf("Windows DatadogAgentProfile %s/%s has invalid managed Agent installation ownership", profile.Namespace, profile.Name)}
 	}
@@ -116,8 +118,8 @@ func requireManagedAgentInstallationWindowsProfileOwner(owners []metav1.OwnerRef
 	return fmt.Errorf("required controller owner reference is missing")
 }
 
-func (d *Daemon) waitForManagedAgentInstallationResourcesReady(ctx context.Context, req remoteAPIRequest, nsn types.NamespacedName, uid types.UID) error {
-	if req.Addon == nil {
+func (d *Daemon) waitForManagedAgentInstallationReady(ctx context.Context, command managedAgentInstallationCommand, nsn types.NamespacedName, uid types.UID) error {
+	if !command.instrumenterManaged() {
 		return d.waitForFleetDatadogAgentReady(ctx, nsn, uid)
 	}
 	lastObservation := "waiting for the DatadogAgent and Windows profile controllers"
@@ -133,7 +135,7 @@ func (d *Daemon) waitForManagedAgentInstallationResourcesReady(ctx context.Conte
 			}
 			return false, err
 		}
-		resourcesReady, observation := d.managedAgentInstallationResourcesReadiness(ctx, dda)
+		resourcesReady, observation := d.managedAgentInstallationWindowsProfileReadiness(ctx, dda)
 		if !resourcesReady {
 			lastObservation = observation
 			return false, nil
@@ -141,19 +143,19 @@ func (d *Daemon) waitForManagedAgentInstallationResourcesReady(ctx context.Conte
 		return true, nil
 	})
 	if err != nil {
-		return fmt.Errorf("waiting for add-on managed Agent installation resources for DatadogAgent %s/%s (%s): %w", nsn.Namespace, nsn.Name, lastObservation, err)
+		return fmt.Errorf("waiting for managed Agent installation resources for DatadogAgent %s/%s (%s): %w", nsn.Namespace, nsn.Name, lastObservation, err)
 	}
 	return nil
 }
 
-func (d *Daemon) managedAgentInstallationResourcesReadiness(ctx context.Context, dda *v2alpha1.DatadogAgent) (bool, string) {
-	if err := d.validateManagedAgentInstallationResourcesReady(ctx, dda); err != nil {
+func (d *Daemon) managedAgentInstallationWindowsProfileReadiness(ctx context.Context, dda *v2alpha1.DatadogAgent) (bool, string) {
+	if err := d.validateManagedAgentInstallationWindowsProfileReady(ctx, dda); err != nil {
 		return false, err.Error()
 	}
 	return true, ""
 }
 
-func (d *Daemon) validateManagedAgentInstallationResourcesReady(ctx context.Context, dda *v2alpha1.DatadogAgent) error {
+func (d *Daemon) validateManagedAgentInstallationWindowsProfileReady(ctx context.Context, dda *v2alpha1.DatadogAgent) error {
 	profile := &v1alpha1.DatadogAgentProfile{}
 	if err := d.managedAgentInstallationReader().Get(ctx, managedAgentInstallationWindowsProfileKey, profile); err != nil {
 		return fmt.Errorf("read Windows DatadogAgentProfile readiness: %w", err)

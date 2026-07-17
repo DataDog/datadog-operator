@@ -34,10 +34,12 @@ import (
 	operatorremoteconfig "github.com/DataDog/datadog-operator/pkg/remoteconfig"
 )
 
-var testManagedAgentInstallationIdentity = operatorremoteconfig.ManagedAgentInstallationIdentity{
-	InstallationID: "123e4567-e89b-42d3-a456-426614174000",
-	TargetHash:     "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-}
+const testManagedAgentInstallationTargetHash = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+
+var testManagedAgentInstallationIdentity = operatorremoteconfig.NewEKSManagedAgentInstallationIdentity(
+	"123e4567-e89b-42d3-a456-426614174000",
+	testManagedAgentInstallationTargetHash,
+)
 
 const testRCClientID = "operator-client-id"
 
@@ -857,7 +859,8 @@ func testManagedAgentInstallationDaemon(configs map[string]installerConfig, rcSt
 		if ddai.Labels == nil {
 			ddai.Labels = make(map[string]string)
 		}
-		ddai.Labels[fleetInstallationIDLabel] = testManagedAgentInstallationIdentity.InstallationID
+		ddai.Labels[fleetManagedAgentInstallationProviderLabel] = string(testManagedAgentInstallationIdentity.Provider())
+		ddai.Labels[fleetInstallationIDLabel] = testManagedAgentInstallationIdentity.InstallationID()
 		ddai.Labels[fleetTargetIDLabel] = testManagedAgentInstallationIdentity.TargetID()
 	}
 	objects = append(objects, testUninstallFenceWebhookConfiguration())
@@ -913,11 +916,12 @@ func testFleetOwnedDDA(configID string) *v2alpha1.DatadogAgent {
 			Namespace: testDDANSN.Namespace,
 			UID:       types.UID("fleet-dda-uid"),
 			Labels: map[string]string{
-				fleetManagedByLabel:                     fleetManagedByValue,
-				fleetConfigIDLabel:                      configID,
-				fleetManagedAgentInstallationStateLabel: fleetManagedAgentInstallationStateReady,
-				fleetInstallationIDLabel:                testManagedAgentInstallationIdentity.InstallationID,
-				fleetTargetIDLabel:                      testManagedAgentInstallationIdentity.TargetID(),
+				fleetManagedByLabel:                        fleetManagedByValue,
+				fleetConfigIDLabel:                         configID,
+				fleetManagedAgentInstallationStateLabel:    fleetManagedAgentInstallationStateReady,
+				fleetManagedAgentInstallationProviderLabel: string(testManagedAgentInstallationIdentity.Provider()),
+				fleetInstallationIDLabel:                   testManagedAgentInstallationIdentity.InstallationID(),
+				fleetTargetIDLabel:                         testManagedAgentInstallationIdentity.TargetID(),
 			},
 		},
 		Spec: v2alpha1.DatadogAgentSpec{
@@ -949,7 +953,7 @@ func testFleetOwnedDDA(configID string) *v2alpha1.DatadogAgent {
 	return dda
 }
 
-func testManagedAgentInstallationRequest(method, version string) remoteAPIRequest {
+func testRemoteManagedAgentInstallationRequest(method, version string) remoteAPIRequest {
 	return remoteAPIRequest{
 		ID:      "task-123",
 		Package: packageDatadogOperator,
@@ -959,21 +963,35 @@ func testManagedAgentInstallationRequest(method, version string) remoteAPIReques
 			GroupVersionKind: testDDAGVK,
 			NamespacedName:   testDDANSN,
 			OperationID:      "123e4567-e89b-42d3-a456-426614174001",
-			InstallationID:   testManagedAgentInstallationIdentity.InstallationID,
+			InstallationID:   testManagedAgentInstallationIdentity.InstallationID(),
 		},
 		ExpectedState: expectedState{ClientID: testRCClientID},
 	}
 }
 
 func testSignedManagedAgentInstallationRequest(d *Daemon, method, version string) remoteAPIRequest {
-	req := testManagedAgentInstallationRequest(method, version)
+	req := testRemoteManagedAgentInstallationRequest(method, version)
 	if _, err := d.getConfig(version); err != nil {
 		panic(err)
 	}
 	return req
 }
 
-func TestManagedAgentInstallationRequestEnvelopeValidation(t *testing.T) {
+func testManagedAgentInstallationCommand(method, version string) managedAgentInstallationCommand {
+	action, err := managedAgentInstallationActionFromMethod(method)
+	if err != nil {
+		panic(err)
+	}
+	return managedAgentInstallationCommand{
+		TaskID:         "task-1",
+		OperationID:    "operation-1",
+		InstallationID: testManagedAgentInstallationIdentity.InstallationID(),
+		ConfigID:       version,
+		Action:         action,
+	}
+}
+
+func TestRemoteManagedAgentInstallationRequestValidation(t *testing.T) {
 	const configID = "create-config"
 	newDaemonAndRequest := func() (*Daemon, *mockRCClient, remoteAPIRequest) {
 		d, _, rc := testManagedAgentInstallationDaemon(testManagedAgentInstallationInstallerConfig(configID, OperationCreate, `{"spec":{}}`), nil, testFleetCredentialSecret())
@@ -981,7 +999,8 @@ func TestManagedAgentInstallationRequestEnvelopeValidation(t *testing.T) {
 	}
 
 	d, _, req := newDaemonAndRequest()
-	require.NoError(t, d.validateManagedAgentInstallationRequestEnvelope(req))
+	_, err := d.managedAgentInstallationCommandFromRemoteRequest(req)
+	require.NoError(t, err)
 
 	tests := []struct {
 		name    string
@@ -1008,7 +1027,7 @@ func TestManagedAgentInstallationRequestEnvelopeValidation(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			d, rc, req := newDaemonAndRequest()
 			tt.mutate(d, rc, &req)
-			err := d.validateManagedAgentInstallationRequestEnvelope(req)
+			_, err := d.managedAgentInstallationCommandFromRemoteRequest(req)
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), tt.wantErr)
 		})
@@ -1068,7 +1087,7 @@ func TestInstallDatadogAgentCreatesFleetOwnedResource(t *testing.T) {
 	require.NoError(t, c.Get(context.Background(), testDDANSN, dda))
 	assert.Equal(t, fleetManagedByValue, dda.Labels[fleetManagedByLabel])
 	assert.Equal(t, configID, dda.Labels[fleetConfigIDLabel])
-	assert.Equal(t, testManagedAgentInstallationIdentity.InstallationID, dda.Labels[fleetInstallationIDLabel])
+	assert.Equal(t, testManagedAgentInstallationIdentity.InstallationID(), dda.Labels[fleetInstallationIDLabel])
 	require.NotNil(t, dda.Spec.Global)
 	require.NotNil(t, dda.Spec.Global.Site)
 	assert.Equal(t, "ap2.datadoghq.com", *dda.Spec.Global.Site)
@@ -1091,7 +1110,7 @@ func TestInstallDatadogAgentLeavesAmbiguousCreatePartial(t *testing.T) {
 	d, c, rc := testManagedAgentInstallationDaemon(configs, []*pbgo.PackageState{{Package: packageDatadogOperator}}, testFleetCredentialSecret())
 	d.client = &persistThenErrorCreateClient{Client: c}
 
-	_, err := d.installDatadogAgent(context.Background(), testManagedAgentInstallationRequest(methodInstallDatadogAgent, configID))
+	_, err := d.installDatadogAgent(context.Background(), testManagedAgentInstallationCommand(methodInstallDatadogAgent, configID))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "remains partial")
 	dda := &v2alpha1.DatadogAgent{}
@@ -1106,7 +1125,7 @@ func TestInstallDatadogAgentPublishesPartialAfterAmbiguousDefaultedCreate(t *tes
 	d, c, rc := testManagedAgentInstallationDaemon(configs, []*pbgo.PackageState{{Package: packageDatadogOperator}}, testFleetCredentialSecret())
 	d.client = &persistThenErrorCreateClient{Client: c, defaultSpec: true}
 
-	_, err := d.installDatadogAgent(context.Background(), testManagedAgentInstallationRequest(methodInstallDatadogAgent, configID))
+	_, err := d.installDatadogAgent(context.Background(), testManagedAgentInstallationCommand(methodInstallDatadogAgent, configID))
 	require.Error(t, err)
 	assert.Equal(t, fleetPartialConfigVersionPrefix+configID, rc.state[0].StableConfigVersion)
 	dda := &v2alpha1.DatadogAgent{}
@@ -1126,7 +1145,7 @@ func TestInstallDatadogAgentPreservesAmbiguousCreateOnCoexistenceConflict(t *tes
 	managedAgentInstallationDeletePollInterval = time.Millisecond
 	t.Cleanup(func() { managedAgentInstallationDeletePollInterval = previousInterval })
 
-	_, err := d.installDatadogAgent(context.Background(), testManagedAgentInstallationRequest(methodInstallDatadogAgent, configID))
+	_, err := d.installDatadogAgent(context.Background(), testManagedAgentInstallationCommand(methodInstallDatadogAgent, configID))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "cannot safely roll back")
 	current := &v2alpha1.DatadogAgent{}
@@ -1147,7 +1166,7 @@ func TestInstallDatadogAgentPreservesUnprovenAmbiguousCreateOnCoexistenceConflic
 	d.client = ambiguous
 	d.apiReader = ambiguous
 
-	_, err := d.installDatadogAgent(context.Background(), testManagedAgentInstallationRequest(methodInstallDatadogAgent, configID))
+	_, err := d.installDatadogAgent(context.Background(), testManagedAgentInstallationCommand(methodInstallDatadogAgent, configID))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "cannot safely roll back")
 	current := &v2alpha1.DatadogAgent{}
@@ -1183,7 +1202,7 @@ func TestInstallDatadogAgentWaitsForReconcileReadiness(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
 	defer cancel()
 
-	_, err := d.installDatadogAgent(ctx, testManagedAgentInstallationRequest(methodInstallDatadogAgent, configID))
+	_, err := d.installDatadogAgent(ctx, testManagedAgentInstallationCommand(methodInstallDatadogAgent, configID))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "has not been reconciled")
 	assert.NoError(t, baseClient.Get(context.Background(), testDDANSN, &v2alpha1.DatadogAgent{}))
@@ -1208,7 +1227,7 @@ func TestInstallDatadogAgentRejectsDifferentManagedAgentInstallationID(t *testin
 	existing.Labels[fleetInstallationIDLabel] = "223e4567-e89b-42d3-a456-426614174000"
 	d, c, _ := testManagedAgentInstallationDaemon(testManagedAgentInstallationInstallerConfig(configID, OperationCreate, `{"spec":{}}`), nil, existing, testFleetCredentialSecret())
 
-	_, err := d.installDatadogAgent(context.Background(), testManagedAgentInstallationRequest(methodInstallDatadogAgent, configID))
+	_, err := d.installDatadogAgent(context.Background(), testManagedAgentInstallationCommand(methodInstallDatadogAgent, configID))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "different managed installation")
 	current := &v2alpha1.DatadogAgent{}
@@ -1222,7 +1241,7 @@ func TestInstallDatadogAgentRejectsDifferentManagedAgentInstallationTarget(t *te
 	existing.Labels[fleetTargetIDLabel] = strings.Repeat("a", 52)
 	d, c, _ := testManagedAgentInstallationDaemon(testManagedAgentInstallationInstallerConfig(configID, OperationCreate, `{"spec":{}}`), nil, existing, testFleetCredentialSecret())
 
-	_, err := d.installDatadogAgent(context.Background(), testManagedAgentInstallationRequest(methodInstallDatadogAgent, configID))
+	_, err := d.installDatadogAgent(context.Background(), testManagedAgentInstallationCommand(methodInstallDatadogAgent, configID))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "different managed target")
 	current := &v2alpha1.DatadogAgent{}
@@ -1370,7 +1389,7 @@ func TestInstallDatadogAgentRejectsDifferentFleetConfig(t *testing.T) {
 	configs := testManagedAgentInstallationInstallerConfig(configID, OperationCreate, `{"spec":{}}`)
 	d, _, _ := testManagedAgentInstallationDaemon(configs, nil, testFleetOwnedDDA("older-config"), testFleetCredentialSecret())
 
-	_, err := d.installDatadogAgent(context.Background(), testManagedAgentInstallationRequest(methodInstallDatadogAgent, configID))
+	_, err := d.installDatadogAgent(context.Background(), testManagedAgentInstallationCommand(methodInstallDatadogAgent, configID))
 	require.Error(t, err)
 	var stateErr *stateDoesntMatchError
 	assert.True(t, errors.As(err, &stateErr))
@@ -1382,7 +1401,7 @@ func TestInstallDatadogAgentRejectsUnmanagedResource(t *testing.T) {
 	unmanaged := &v2alpha1.DatadogAgent{ObjectMeta: metav1.ObjectMeta{Name: testDDANSN.Name, Namespace: testDDANSN.Namespace}}
 	d, _, _ := testManagedAgentInstallationDaemon(configs, nil, unmanaged, testFleetCredentialSecret())
 
-	_, err := d.installDatadogAgent(context.Background(), testManagedAgentInstallationRequest(methodInstallDatadogAgent, configID))
+	_, err := d.installDatadogAgent(context.Background(), testManagedAgentInstallationCommand(methodInstallDatadogAgent, configID))
 	require.Error(t, err)
 	var stateErr *stateDoesntMatchError
 	assert.True(t, errors.As(err, &stateErr))
@@ -1393,7 +1412,7 @@ func TestInstallDatadogAgentRejectsCredentialsFromRemoteConfig(t *testing.T) {
 	configs := testManagedAgentInstallationInstallerConfig(configID, OperationCreate, `{"spec":{"global":{"credentials":{"apiKey":"not-allowed"}}}}`)
 	d, _, _ := testManagedAgentInstallationDaemon(configs, nil, testFleetCredentialSecret())
 
-	_, err := d.installDatadogAgent(context.Background(), testManagedAgentInstallationRequest(methodInstallDatadogAgent, configID))
+	_, err := d.installDatadogAgent(context.Background(), testManagedAgentInstallationCommand(methodInstallDatadogAgent, configID))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "credentials is not allowed")
 }
@@ -1430,7 +1449,7 @@ func TestInstallDatadogAgentRequiresCredentialSecret(t *testing.T) {
 	configs := testManagedAgentInstallationInstallerConfig(configID, OperationCreate, `{"spec":{}}`)
 	d, _, _ := testManagedAgentInstallationDaemon(configs, nil)
 
-	_, err := d.installDatadogAgent(context.Background(), testManagedAgentInstallationRequest(methodInstallDatadogAgent, configID))
+	_, err := d.installDatadogAgent(context.Background(), testManagedAgentInstallationCommand(methodInstallDatadogAgent, configID))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "credential Secret datadog/datadog-secret is not ready")
 }
@@ -1442,7 +1461,7 @@ func TestInstallDatadogAgentRequiresNonEmptyAPIKey(t *testing.T) {
 	secret.Data[fleetCredentialAPIKey] = nil
 	d, _, _ := testManagedAgentInstallationDaemon(configs, nil, secret)
 
-	_, err := d.installDatadogAgent(context.Background(), testManagedAgentInstallationRequest(methodInstallDatadogAgent, configID))
+	_, err := d.installDatadogAgent(context.Background(), testManagedAgentInstallationCommand(methodInstallDatadogAgent, configID))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "missing non-empty key")
 }
@@ -1456,7 +1475,7 @@ func TestInstallDatadogAgentRejectsTerminatingResource(t *testing.T) {
 	existing.DeletionTimestamp = &now
 	d, _, _ := testManagedAgentInstallationDaemon(configs, nil, existing, testFleetCredentialSecret())
 
-	_, err := d.installDatadogAgent(context.Background(), testManagedAgentInstallationRequest(methodInstallDatadogAgent, configID))
+	_, err := d.installDatadogAgent(context.Background(), testManagedAgentInstallationCommand(methodInstallDatadogAgent, configID))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "is terminating")
 }
@@ -1468,7 +1487,7 @@ func TestInstallDatadogAgentRejectsCredentialReferenceDrift(t *testing.T) {
 	existing.Spec.Global.Credentials.APISecret.SecretName = "other-secret"
 	d, _, _ := testManagedAgentInstallationDaemon(configs, nil, existing, testFleetCredentialSecret())
 
-	_, err := d.installDatadogAgent(context.Background(), testManagedAgentInstallationRequest(methodInstallDatadogAgent, configID))
+	_, err := d.installDatadogAgent(context.Background(), testManagedAgentInstallationCommand(methodInstallDatadogAgent, configID))
 	require.Error(t, err)
 	var stateErr *stateDoesntMatchError
 	assert.True(t, errors.As(err, &stateErr))
@@ -1488,7 +1507,7 @@ func TestInstallDatadogAgentRejectsSpecDrift(t *testing.T) {
 	existing.Spec.Global.Site = &site
 	d, _, _ := testManagedAgentInstallationDaemon(configs, nil, existing, testFleetCredentialSecret())
 
-	_, err = d.installDatadogAgent(context.Background(), testManagedAgentInstallationRequest(methodInstallDatadogAgent, configID))
+	_, err = d.installDatadogAgent(context.Background(), testManagedAgentInstallationCommand(methodInstallDatadogAgent, configID))
 	require.Error(t, err)
 	var stateErr *stateDoesntMatchError
 	assert.True(t, errors.As(err, &stateErr))
@@ -1542,7 +1561,7 @@ func TestInstallDatadogAgentRejectsMissingConfigHash(t *testing.T) {
 	delete(existing.Annotations, fleetConfigHashAnnotation)
 	d, _, _ := testManagedAgentInstallationDaemon(configs, nil, existing, testFleetCredentialSecret())
 
-	_, err := d.installDatadogAgent(context.Background(), testManagedAgentInstallationRequest(methodInstallDatadogAgent, configID))
+	_, err := d.installDatadogAgent(context.Background(), testManagedAgentInstallationCommand(methodInstallDatadogAgent, configID))
 	require.Error(t, err)
 	var stateErr *stateDoesntMatchError
 	assert.True(t, errors.As(err, &stateErr))
@@ -1562,7 +1581,7 @@ func TestInstallDatadogAgentToleratesAPIServerDefaults(t *testing.T) {
 	existing.Annotations[fleetConfigHashAnnotation] = hash
 	d, _, _ := testManagedAgentInstallationDaemon(configs, nil, existing, testFleetCredentialSecret())
 
-	_, err = d.installDatadogAgent(context.Background(), testManagedAgentInstallationRequest(methodInstallDatadogAgent, configID))
+	_, err = d.installDatadogAgent(context.Background(), testManagedAgentInstallationCommand(methodInstallDatadogAgent, configID))
 	require.NoError(t, err)
 }
 
@@ -1576,7 +1595,7 @@ func TestInstallDatadogAgentRejectsExtraLiveSpecFields(t *testing.T) {
 	}
 	d, _, _ := testManagedAgentInstallationDaemon(configs, nil, existing, testFleetCredentialSecret())
 
-	_, err := d.installDatadogAgent(context.Background(), testManagedAgentInstallationRequest(methodInstallDatadogAgent, configID))
+	_, err := d.installDatadogAgent(context.Background(), testManagedAgentInstallationCommand(methodInstallDatadogAgent, configID))
 	require.Error(t, err)
 	var stateErr *stateDoesntMatchError
 	assert.True(t, errors.As(err, &stateErr))
@@ -1590,7 +1609,7 @@ func TestInstallDatadogAgentRejectsAnotherFleetOwnedResource(t *testing.T) {
 	other.Name = "other-datadog-agent"
 	d, _, _ := testManagedAgentInstallationDaemon(configs, nil, other, testFleetCredentialSecret())
 
-	_, err := d.installDatadogAgent(context.Background(), testManagedAgentInstallationRequest(methodInstallDatadogAgent, configID))
+	_, err := d.installDatadogAgent(context.Background(), testManagedAgentInstallationCommand(methodInstallDatadogAgent, configID))
 	require.Error(t, err)
 	var stateErr *stateDoesntMatchError
 	assert.True(t, errors.As(err, &stateErr))
@@ -1602,7 +1621,7 @@ func TestInstallDatadogAgentRejectsDifferentlyNamedUnmanagedResource(t *testing.
 	unmanaged := &v2alpha1.DatadogAgent{ObjectMeta: metav1.ObjectMeta{Name: "customer-agent", Namespace: "monitoring"}}
 	d, c, _ := testManagedAgentInstallationDaemon(configs, nil, unmanaged, testFleetCredentialSecret())
 
-	_, err := d.installDatadogAgent(context.Background(), testManagedAgentInstallationRequest(methodInstallDatadogAgent, configID))
+	_, err := d.installDatadogAgent(context.Background(), testManagedAgentInstallationCommand(methodInstallDatadogAgent, configID))
 	require.Error(t, err)
 	var stateErr *stateDoesntMatchError
 	assert.True(t, errors.As(err, &stateErr))
@@ -1623,7 +1642,7 @@ func TestInstallDatadogAgentRollsBackWhenUnmanagedResourceAppearsDuringCreate(t 
 	managedAgentInstallationDeletePollInterval = time.Millisecond
 	t.Cleanup(func() { managedAgentInstallationDeletePollInterval = previousInterval })
 
-	_, err := d.installDatadogAgent(context.Background(), testManagedAgentInstallationRequest(methodInstallDatadogAgent, configID))
+	_, err := d.installDatadogAgent(context.Background(), testManagedAgentInstallationCommand(methodInstallDatadogAgent, configID))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unmanaged DatadogAgent monitoring/customer-agent")
 	assert.True(t, apierrors.IsNotFound(c.Get(context.Background(), testDDANSN, &v2alpha1.DatadogAgent{})))
@@ -1638,7 +1657,7 @@ func TestInstallDatadogAgentDoesNotRollBackAfterPostCreateListFailure(t *testing
 	d.client = failing
 	d.apiReader = failing
 
-	_, err := d.installDatadogAgent(context.Background(), testManagedAgentInstallationRequest(methodInstallDatadogAgent, configID))
+	_, err := d.installDatadogAgent(context.Background(), testManagedAgentInstallationCommand(methodInstallDatadogAgent, configID))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "DatadogAgent list failed")
 	current := &v2alpha1.DatadogAgent{}
@@ -1657,7 +1676,7 @@ func TestInstallDatadogAgentDoesNotRollBackAfterTargetChangesSinceConflictObserv
 	d.client = mutating
 	d.apiReader = mutating
 
-	_, err := d.installDatadogAgent(context.Background(), testManagedAgentInstallationRequest(methodInstallDatadogAgent, configID))
+	_, err := d.installDatadogAgent(context.Background(), testManagedAgentInstallationCommand(methodInstallDatadogAgent, configID))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "changed after the concurrent-install conflict was observed")
 	current := &v2alpha1.DatadogAgent{}
@@ -1680,7 +1699,7 @@ func TestInstallDatadogAgentRollsBackWhenUnmanagedResourceAppearsAtReadyBoundary
 	managedAgentInstallationDeletePollInterval = time.Millisecond
 	t.Cleanup(func() { managedAgentInstallationDeletePollInterval = previousInterval })
 
-	_, err := d.installDatadogAgent(context.Background(), testManagedAgentInstallationRequest(methodInstallDatadogAgent, configID))
+	_, err := d.installDatadogAgent(context.Background(), testManagedAgentInstallationCommand(methodInstallDatadogAgent, configID))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unmanaged DatadogAgent monitoring/customer-agent")
 	assert.True(t, apierrors.IsNotFound(c.Get(context.Background(), testDDANSN, &v2alpha1.DatadogAgent{})))
@@ -1701,7 +1720,7 @@ func TestInstallDatadogAgentRejectsTargetReplacementAtReadyBoundary(t *testing.T
 	d.client = replacing
 	d.apiReader = replacing
 
-	_, err := d.installDatadogAgent(context.Background(), testManagedAgentInstallationRequest(methodInstallDatadogAgent, configID))
+	_, err := d.installDatadogAgent(context.Background(), testManagedAgentInstallationCommand(methodInstallDatadogAgent, configID))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "was replaced before install completion")
 	current := &v2alpha1.DatadogAgent{}
@@ -1719,7 +1738,7 @@ func TestInstallDatadogAgentRejectsReadinessRegressionAtFinalCheck(t *testing.T)
 	d.client = invalidating
 	d.apiReader = invalidating
 
-	_, err := d.installDatadogAgent(context.Background(), testManagedAgentInstallationRequest(methodInstallDatadogAgent, configID))
+	_, err := d.installDatadogAgent(context.Background(), testManagedAgentInstallationCommand(methodInstallDatadogAgent, configID))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "not ready at install completion")
 	current := &v2alpha1.DatadogAgent{}
@@ -1743,7 +1762,7 @@ func TestInstallDatadogAgentPreservesReplayedResourceWhenUnmanagedResourceAppear
 	d.client = lateClient
 	d.apiReader = lateClient
 
-	_, err := d.installDatadogAgent(context.Background(), testManagedAgentInstallationRequest(methodInstallDatadogAgent, configID))
+	_, err := d.installDatadogAgent(context.Background(), testManagedAgentInstallationCommand(methodInstallDatadogAgent, configID))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "cannot safely roll back")
 	current := &v2alpha1.DatadogAgent{}
@@ -1799,11 +1818,11 @@ func TestResolveManagedAgentInstallationOperationValidation(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			d, _, _ := testManagedAgentInstallationDaemon(tc.configs, nil)
-			req := testManagedAgentInstallationRequest(methodInstallDatadogAgent, "config")
+			req := testRemoteManagedAgentInstallationRequest(methodInstallDatadogAgent, "config")
 			if tc.mutate != nil {
 				tc.mutate(&req)
 			}
-			_, err := d.resolveManagedAgentInstallationOperation(req, OperationCreate)
+			_, err := d.resolveRemoteManagedAgentInstallationOperation(req, OperationCreate)
 			assert.Error(t, err)
 		})
 	}
@@ -1966,9 +1985,10 @@ func TestUninstallDatadogAgentCleansUpLateDatadogAgentInternal(t *testing.T) {
 		Namespace: testDDANSN.Namespace,
 		UID:       types.UID("late-ddai-uid"),
 		Labels: map[string]string{
-			fleetManagedByLabel:      fleetManagedByValue,
-			fleetInstallationIDLabel: testManagedAgentInstallationIdentity.InstallationID,
-			fleetTargetIDLabel:       testManagedAgentInstallationIdentity.TargetID(),
+			fleetManagedByLabel:                        fleetManagedByValue,
+			fleetManagedAgentInstallationProviderLabel: string(testManagedAgentInstallationIdentity.Provider()),
+			fleetInstallationIDLabel:                   testManagedAgentInstallationIdentity.InstallationID(),
+			fleetTargetIDLabel:                         testManagedAgentInstallationIdentity.TargetID(),
 		},
 		OwnerReferences: []metav1.OwnerReference{{
 			APIVersion:         v2alpha1.GroupVersion.String(),
@@ -1988,7 +2008,7 @@ func TestUninstallDatadogAgentCleansUpLateDatadogAgentInternal(t *testing.T) {
 	managedAgentInstallationDeletePollInterval = time.Millisecond
 	t.Cleanup(func() { managedAgentInstallationDeletePollInterval = previousInterval })
 
-	_, err := d.uninstallDatadogAgent(context.Background(), testManagedAgentInstallationRequest(methodUninstallDatadogAgent, deleteConfigID))
+	_, err := d.uninstallDatadogAgent(context.Background(), testManagedAgentInstallationCommand(methodUninstallDatadogAgent, deleteConfigID))
 	require.NoError(t, err)
 	assert.True(t, apierrors.IsNotFound(c.Get(context.Background(), client.ObjectKeyFromObject(late), &v1alpha1.DatadogAgentInternal{})))
 }
@@ -2031,7 +2051,7 @@ func TestUninstallDatadogAgentRetriesDatadogAgentInternalVersionConflict(t *test
 	managedAgentInstallationDeletePollInterval = time.Millisecond
 	t.Cleanup(func() { managedAgentInstallationDeletePollInterval = previousInterval })
 
-	_, err := d.uninstallDatadogAgent(context.Background(), testManagedAgentInstallationRequest(methodUninstallDatadogAgent, deleteConfigID))
+	_, err := d.uninstallDatadogAgent(context.Background(), testManagedAgentInstallationCommand(methodUninstallDatadogAgent, deleteConfigID))
 	require.NoError(t, err)
 	assert.True(t, changingClient.changed)
 	assert.True(t, apierrors.IsNotFound(c.Get(context.Background(), client.ObjectKeyFromObject(ddai), &v1alpha1.DatadogAgentInternal{})))
@@ -2071,7 +2091,7 @@ func TestUninstallDatadogAgentWaitsForOrphanedInternalCleanup(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
 	defer cancel()
 
-	_, err := d.uninstallDatadogAgent(ctx, testManagedAgentInstallationRequest(methodUninstallDatadogAgent, deleteConfigID))
+	_, err := d.uninstallDatadogAgent(ctx, testManagedAgentInstallationCommand(methodUninstallDatadogAgent, deleteConfigID))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "waiting for remaining resource removal")
 	assert.NoError(t, c.Get(context.Background(), client.ObjectKeyFromObject(clusterRole), &rbacv1.ClusterRole{}))
@@ -2095,7 +2115,7 @@ func TestUninstallDatadogAgentWaitsForOrphanedClusterResourceWithoutInternal(t *
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
 	defer cancel()
 
-	_, err := d.uninstallDatadogAgent(ctx, testManagedAgentInstallationRequest(methodUninstallDatadogAgent, deleteConfigID))
+	_, err := d.uninstallDatadogAgent(ctx, testManagedAgentInstallationCommand(methodUninstallDatadogAgent, deleteConfigID))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "waiting for remaining resource removal")
 	assert.NoError(t, c.Get(context.Background(), client.ObjectKeyFromObject(clusterRole), &rbacv1.ClusterRole{}))
@@ -2116,7 +2136,7 @@ func TestUninstallDatadogAgentRejectsTargetRecreatedAfterCleanupPoll(t *testing.
 	managedAgentInstallationDeletePollInterval = time.Millisecond
 	t.Cleanup(func() { managedAgentInstallationDeletePollInterval = previousInterval })
 
-	_, err := d.uninstallDatadogAgent(context.Background(), testManagedAgentInstallationRequest(methodUninstallDatadogAgent, deleteConfigID))
+	_, err := d.uninstallDatadogAgent(context.Background(), testManagedAgentInstallationCommand(methodUninstallDatadogAgent, deleteConfigID))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "was recreated while uninstalling")
 	current := &v2alpha1.DatadogAgent{}
@@ -2145,7 +2165,7 @@ func TestUninstallDatadogAgentRejectsUnmanagedResource(t *testing.T) {
 	unmanaged := &v2alpha1.DatadogAgent{ObjectMeta: metav1.ObjectMeta{Name: testDDANSN.Name, Namespace: testDDANSN.Namespace}}
 	d, c, _ := testManagedAgentInstallationDaemon(configs, nil, unmanaged)
 
-	_, err := d.uninstallDatadogAgent(context.Background(), testManagedAgentInstallationRequest(methodUninstallDatadogAgent, deleteConfigID))
+	_, err := d.uninstallDatadogAgent(context.Background(), testManagedAgentInstallationCommand(methodUninstallDatadogAgent, deleteConfigID))
 	require.Error(t, err)
 	var stateErr *stateDoesntMatchError
 	assert.True(t, errors.As(err, &stateErr))
@@ -2158,7 +2178,7 @@ func TestUninstallDatadogAgentRejectsDifferentManagedAgentInstallationID(t *test
 	existing.Labels[fleetInstallationIDLabel] = "223e4567-e89b-42d3-a456-426614174000"
 	d, c, _ := testManagedAgentInstallationDaemon(testManagedAgentInstallationInstallerConfig(deleteConfigID, OperationDelete, ""), nil, existing)
 
-	_, err := d.uninstallDatadogAgent(context.Background(), testManagedAgentInstallationRequest(methodUninstallDatadogAgent, deleteConfigID))
+	_, err := d.uninstallDatadogAgent(context.Background(), testManagedAgentInstallationCommand(methodUninstallDatadogAgent, deleteConfigID))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "different managed installation")
 	assert.NoError(t, c.Get(context.Background(), testDDANSN, &v2alpha1.DatadogAgent{}))
@@ -2171,7 +2191,7 @@ func TestUninstallDatadogAgentRejectsUnmanagedResourceBesideFleetTarget(t *testi
 	unmanaged := &v2alpha1.DatadogAgent{ObjectMeta: metav1.ObjectMeta{Name: "customer-agent", Namespace: "monitoring"}}
 	d, c, _ := testManagedAgentInstallationDaemon(configs, nil, fleetOwned, unmanaged)
 
-	_, err := d.uninstallDatadogAgent(context.Background(), testManagedAgentInstallationRequest(methodUninstallDatadogAgent, deleteConfigID))
+	_, err := d.uninstallDatadogAgent(context.Background(), testManagedAgentInstallationCommand(methodUninstallDatadogAgent, deleteConfigID))
 	require.Error(t, err)
 	var stateErr *stateDoesntMatchError
 	assert.True(t, errors.As(err, &stateErr))
@@ -2209,7 +2229,7 @@ func TestUninstallDatadogAgentRejectsIncompleteFleetOwnership(t *testing.T) {
 	delete(dda.Annotations, fleetConfigHashAnnotation)
 	d, c, _ := testManagedAgentInstallationDaemon(configs, nil, dda)
 
-	_, err := d.uninstallDatadogAgent(context.Background(), testManagedAgentInstallationRequest(methodUninstallDatadogAgent, deleteConfigID))
+	_, err := d.uninstallDatadogAgent(context.Background(), testManagedAgentInstallationCommand(methodUninstallDatadogAgent, deleteConfigID))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "incomplete or conflicting Fleet ownership metadata")
 	assert.NoError(t, c.Get(context.Background(), testDDANSN, &v2alpha1.DatadogAgent{}))
@@ -2224,7 +2244,7 @@ func TestUninstallDatadogAgentDoesNotDeleteAfterOwnershipChanges(t *testing.T) {
 	d.client = changingClient
 	d.apiReader = changingClient
 
-	_, err := d.uninstallDatadogAgent(context.Background(), testManagedAgentInstallationRequest(methodUninstallDatadogAgent, deleteConfigID))
+	_, err := d.uninstallDatadogAgent(context.Background(), testManagedAgentInstallationCommand(methodUninstallDatadogAgent, deleteConfigID))
 	require.Error(t, err)
 	current := &v2alpha1.DatadogAgent{}
 	require.NoError(t, c.Get(context.Background(), testDDANSN, current))
@@ -2241,7 +2261,7 @@ func TestUninstallDatadogAgentRejectsPendingExperiment(t *testing.T) {
 	dda.Annotations[v2alpha1.AnnotationPendingPackage] = packageDatadogOperator
 	d, c, _ := testManagedAgentInstallationDaemon(configs, nil, dda)
 
-	_, err := d.uninstallDatadogAgent(context.Background(), testManagedAgentInstallationRequest(methodUninstallDatadogAgent, deleteConfigID))
+	_, err := d.uninstallDatadogAgent(context.Background(), testManagedAgentInstallationCommand(methodUninstallDatadogAgent, deleteConfigID))
 	require.Error(t, err)
 	var stateErr *stateDoesntMatchError
 	assert.True(t, errors.As(err, &stateErr))
@@ -2302,7 +2322,7 @@ func TestUninstallDatadogAgentDoesNotClearStateBeforeDeletion(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
 	defer cancel()
 
-	_, err := d.uninstallDatadogAgent(ctx, testManagedAgentInstallationRequest(methodUninstallDatadogAgent, deleteConfigID))
+	_, err := d.uninstallDatadogAgent(ctx, testManagedAgentInstallationCommand(methodUninstallDatadogAgent, deleteConfigID))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "waiting for resource removal")
 	assert.Equal(t, "create-config", rc.state[0].StableConfigVersion)
@@ -2456,7 +2476,7 @@ func TestManagedAgentInstallationMethodsDoNotRequireControllerRevisions(t *testi
 	configs := testManagedAgentInstallationInstallerConfig(configID, OperationCreate, `{"spec":{}}`)
 	d, _, _ := testManagedAgentInstallationDaemon(configs, nil, testFleetCredentialSecret())
 
-	_, err := d.handleRemoteAPIRequest(context.Background(), testManagedAgentInstallationRequest(methodInstallDatadogAgent, configID))
+	_, err := d.handleRemoteAPIRequest(context.Background(), testRemoteManagedAgentInstallationRequest(methodInstallDatadogAgent, configID))
 	assert.NoError(t, err)
 }
 

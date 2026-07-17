@@ -37,12 +37,14 @@ const (
 	uninstallFenceWebhookServiceName        = "datadog-operator-webhook-service"
 	uninstallFenceWebhookDefaultNamespace   = "datadog"
 	uninstallFenceAdmissionPath             = "/validate-datadoghq-com-v2alpha1-datadogagent-uninstall-fence"
-	uninstallFenceDenialMessage             = "DatadogAgent writes are blocked while the Datadog Operator add-on is being removed"
+	uninstallFenceDenialMessage             = "DatadogAgent writes are blocked while the managed Agent installation is being removed"
 	uninstallFenceDenialCauseField          = "datadoghq.com/uninstall-fence"
 	uninstallFenceStateKey                  = "state"
 	uninstallFenceStateActive               = "active"
 	uninstallFenceStateInactive             = "inactive"
+	uninstallFenceProviderKey               = "provider"
 	uninstallFenceInstallationIDKey         = "installation_id"
+	uninstallFenceTargetIDKey               = "target_id"
 	uninstallFenceOperationIDKey            = "operation_id"
 	uninstallFenceConfigIDKey               = "config_id"
 	uninstallFenceTaskIDKey                 = "task_id"
@@ -130,7 +132,7 @@ func isUninstallFenceDenial(err error) bool {
 	return false
 }
 
-func (d *Daemon) activateUninstallFence(ctx context.Context, req remoteAPIRequest) (*corev1.ConfigMap, error) {
+func (d *Daemon) activateUninstallFence(ctx context.Context, command managedAgentInstallationCommand) (*corev1.ConfigMap, error) {
 	err := k8sretry.RetryOnConflict(k8sretry.DefaultBackoff, func() error {
 		current := &corev1.ConfigMap{}
 		if err := d.managedAgentInstallationReader().Get(ctx, uninstallFenceKey, current); err != nil {
@@ -138,7 +140,7 @@ func (d *Daemon) activateUninstallFence(ctx context.Context, req remoteAPIReques
 		}
 		switch current.Data[uninstallFenceStateKey] {
 		case uninstallFenceStateActive:
-			if err := validateActiveUninstallFenceRequest(current, d.managedAgentInstallationIdentity, req); err != nil {
+			if err := validateActiveUninstallFenceCommand(current, d.managedAgentInstallationIdentity, command); err != nil {
 				return err
 			}
 			return nil
@@ -152,10 +154,12 @@ func (d *Daemon) activateUninstallFence(ctx context.Context, req remoteAPIReques
 			current.Data = make(map[string]string)
 		}
 		current.Data[uninstallFenceStateKey] = uninstallFenceStateActive
-		current.Data[uninstallFenceInstallationIDKey] = req.Params.InstallationID
-		current.Data[uninstallFenceOperationIDKey] = req.Params.OperationID
-		current.Data[uninstallFenceConfigIDKey] = req.Params.Version
-		current.Data[uninstallFenceTaskIDKey] = req.ID
+		current.Data[uninstallFenceProviderKey] = string(d.managedAgentInstallationIdentity.Provider())
+		current.Data[uninstallFenceInstallationIDKey] = command.InstallationID
+		current.Data[uninstallFenceTargetIDKey] = d.managedAgentInstallationIdentity.TargetID()
+		current.Data[uninstallFenceOperationIDKey] = command.OperationID
+		current.Data[uninstallFenceConfigIDKey] = command.ConfigID
+		current.Data[uninstallFenceTaskIDKey] = command.TaskID
 		delete(current.Data, uninstallFenceWebhookResourceVersionKey)
 		if err := d.client.Patch(ctx, current, client.MergeFromWithOptions(base, client.MergeFromWithOptimisticLock{}), client.FieldOwner("fleet-daemon")); err != nil {
 			return err
@@ -168,18 +172,18 @@ func (d *Daemon) activateUninstallFence(ctx context.Context, req remoteAPIReques
 	if err := d.setUninstallFenceWebhookMode(ctx, true); err != nil {
 		return nil, fmt.Errorf("enable uninstall fence webhook mode: %w", err)
 	}
-	if _, err := d.pinUninstallFenceWebhookRevision(ctx, &req, false); err != nil {
+	if _, err := d.pinUninstallFenceWebhookRevision(ctx, &command, false); err != nil {
 		return nil, fmt.Errorf("pin uninstall fence webhook revision: %w", err)
 	}
-	return d.verifyActiveUninstallFence(ctx, req)
+	return d.verifyActiveUninstallFence(ctx, command)
 }
 
-func (d *Daemon) verifyActiveUninstallFence(ctx context.Context, req remoteAPIRequest) (*corev1.ConfigMap, error) {
+func (d *Daemon) verifyActiveUninstallFence(ctx context.Context, command managedAgentInstallationCommand) (*corev1.ConfigMap, error) {
 	fence := &corev1.ConfigMap{}
 	if err := d.managedAgentInstallationReader().Get(ctx, uninstallFenceKey, fence); err != nil {
 		return nil, fmt.Errorf("read active uninstall fence ConfigMap %s/%s: %w", uninstallFenceKey.Namespace, uninstallFenceKey.Name, err)
 	}
-	if err := validateActiveUninstallFenceRequest(fence, d.managedAgentInstallationIdentity, req); err != nil {
+	if err := validateActiveUninstallFenceCommand(fence, d.managedAgentInstallationIdentity, command); err != nil {
 		return nil, err
 	}
 	if err := d.verifyUninstallFence(ctx, fence); err != nil {
@@ -188,8 +192,8 @@ func (d *Daemon) verifyActiveUninstallFence(ctx context.Context, req remoteAPIRe
 	return fence, nil
 }
 
-func (d *Daemon) verifyUnchangedActiveUninstallFence(ctx context.Context, req remoteAPIRequest, expected *corev1.ConfigMap) error {
-	current, err := d.verifyActiveUninstallFence(ctx, req)
+func (d *Daemon) verifyUnchangedActiveUninstallFence(ctx context.Context, command managedAgentInstallationCommand, expected *corev1.ConfigMap) error {
+	current, err := d.verifyActiveUninstallFence(ctx, command)
 	if err != nil {
 		return err
 	}
@@ -242,7 +246,7 @@ func (d *Daemon) readUninstallFenceWebhookConfiguration(ctx context.Context) (*a
 	return nil, fmt.Errorf("uninstall fence webhook %q is missing", uninstallFenceWebhookName)
 }
 
-func (d *Daemon) pinUninstallFenceWebhookRevision(ctx context.Context, req *remoteAPIRequest, allowRevisionUpdate bool) (*corev1.ConfigMap, error) {
+func (d *Daemon) pinUninstallFenceWebhookRevision(ctx context.Context, command *managedAgentInstallationCommand, allowRevisionUpdate bool) (*corev1.ConfigMap, error) {
 	configuration, readErr := d.readUninstallFenceWebhookConfiguration(ctx)
 	if readErr != nil {
 		return nil, readErr
@@ -256,8 +260,8 @@ func (d *Daemon) pinUninstallFenceWebhookRevision(ctx context.Context, req *remo
 		if err := validateActiveUninstallFenceIdentity(fence, d.managedAgentInstallationIdentity); err != nil {
 			return err
 		}
-		if req != nil {
-			if err := validateActiveUninstallFenceRequest(fence, d.managedAgentInstallationIdentity, *req); err != nil {
+		if command != nil {
+			if err := validateActiveUninstallFenceCommand(fence, d.managedAgentInstallationIdentity, *command); err != nil {
 				return err
 			}
 		}
@@ -394,7 +398,7 @@ func (d *Daemon) ensureUninstallFenceInactive(ctx context.Context) error {
 	case "", uninstallFenceStateInactive:
 		return nil
 	case uninstallFenceStateActive:
-		return &stateDoesntMatchError{msg: "DatadogAgent writes are blocked by an active add-on uninstall fence"}
+		return &stateDoesntMatchError{msg: "DatadogAgent writes are blocked by an active managed installation uninstall fence"}
 	default:
 		return &stateDoesntMatchError{msg: fmt.Sprintf("DatadogAgent uninstall fence has unknown state %q", fence.Data[uninstallFenceStateKey])}
 	}
@@ -449,19 +453,19 @@ func (d *Daemon) revalidateRecoveredUninstallFence(ctx context.Context, recovere
 	return d.verifyUninstallFence(ctx, current)
 }
 
-func (d *Daemon) verifyDatadogAgentUninstalled(ctx context.Context, req remoteAPIRequest) (*pendingOperation, error) {
-	op, err := d.resolveManagedAgentInstallationOperation(req, OperationDelete)
+func (d *Daemon) verifyDatadogAgentUninstalled(ctx context.Context, command managedAgentInstallationCommand) (*pendingOperation, error) {
+	op, err := d.resolveManagedAgentInstallationCommand(command, OperationDelete)
 	if err != nil {
 		return nil, err
 	}
-	fence, err := d.verifyActiveUninstallFence(ctx, req)
+	fence, err := d.verifyActiveUninstallFence(ctx, command)
 	if err != nil {
 		return nil, err
 	}
 	if err := d.verifyDatadogAgentManagedAgentInstallationResourcesAbsent(ctx, op.NamespacedName); err != nil {
 		return nil, err
 	}
-	if err := d.verifyUnchangedActiveUninstallFence(ctx, req, fence); err != nil {
+	if err := d.verifyUnchangedActiveUninstallFence(ctx, command, fence); err != nil {
 		return nil, err
 	}
 	return nil, nil
@@ -491,8 +495,8 @@ func (d *Daemon) verifyDatadogAgentManagedAgentInstallationResourcesAbsent(ctx c
 	return nil
 }
 
-func (d *Daemon) clearDatadogAgentUninstallFence(ctx context.Context, req remoteAPIRequest) (*pendingOperation, error) {
-	_, resolveErr := d.resolveManagedAgentInstallationOperation(req, OperationDelete)
+func (d *Daemon) clearDatadogAgentUninstallFence(ctx context.Context, command managedAgentInstallationCommand) (*pendingOperation, error) {
+	_, resolveErr := d.resolveManagedAgentInstallationCommand(command, OperationDelete)
 	if resolveErr != nil {
 		return nil, resolveErr
 	}
@@ -500,7 +504,7 @@ func (d *Daemon) clearDatadogAgentUninstallFence(ctx context.Context, req remote
 	if err := d.managedAgentInstallationReader().Get(ctx, uninstallFenceKey, fence); err != nil {
 		return nil, err
 	}
-	if err := validateActiveUninstallFenceRequest(fence, d.managedAgentInstallationIdentity, req); err != nil {
+	if err := validateActiveUninstallFenceCommand(fence, d.managedAgentInstallationIdentity, command); err != nil {
 		return nil, err
 	}
 	if err := d.setUninstallFenceWebhookMode(ctx, true); err != nil {
@@ -515,13 +519,15 @@ func (d *Daemon) clearDatadogAgentUninstallFence(ctx context.Context, req remote
 		if err := d.managedAgentInstallationReader().Get(ctx, uninstallFenceKey, fence); err != nil {
 			return err
 		}
-		if err := validateActiveUninstallFenceRequest(fence, d.managedAgentInstallationIdentity, req); err != nil {
+		if err := validateActiveUninstallFenceCommand(fence, d.managedAgentInstallationIdentity, command); err != nil {
 			return err
 		}
 		base := fence.DeepCopy()
 		fence.Data[uninstallFenceStateKey] = uninstallFenceStateInactive
 		for _, key := range []string{
 			uninstallFenceInstallationIDKey,
+			uninstallFenceProviderKey,
+			uninstallFenceTargetIDKey,
 			uninstallFenceOperationIDKey,
 			uninstallFenceConfigIDKey,
 			uninstallFenceTaskIDKey,
@@ -543,12 +549,12 @@ func (d *Daemon) clearDatadogAgentUninstallFence(ctx context.Context, req remote
 	return nil, nil
 }
 
-func validateActiveUninstallFenceRequest(fence *corev1.ConfigMap, identity remoteconfig.ManagedAgentInstallationIdentity, req remoteAPIRequest) error {
+func validateActiveUninstallFenceCommand(fence *corev1.ConfigMap, identity remoteconfig.ManagedAgentInstallationIdentity, command managedAgentInstallationCommand) error {
 	if err := validateActiveUninstallFenceIdentity(fence, identity); err != nil {
 		return err
 	}
-	if fence.Data[uninstallFenceOperationIDKey] != req.Params.OperationID ||
-		fence.Data[uninstallFenceConfigIDKey] != req.Params.Version {
+	if fence.Data[uninstallFenceOperationIDKey] != command.OperationID ||
+		fence.Data[uninstallFenceConfigIDKey] != command.ConfigID {
 		return &stateDoesntMatchError{msg: "active DatadogAgent uninstall fence belongs to a different managed Agent installation operation"}
 	}
 	return nil
@@ -559,7 +565,9 @@ func validateActiveUninstallFenceIdentity(fence *corev1.ConfigMap, identity remo
 		return &stateDoesntMatchError{msg: "DatadogAgent uninstall fence is not active"}
 	}
 	if !identity.Configured() || identity.Validate() != nil ||
-		fence.Data[uninstallFenceInstallationIDKey] != identity.InstallationID {
+		fence.Data[uninstallFenceProviderKey] != string(identity.Provider()) ||
+		fence.Data[uninstallFenceInstallationIDKey] != identity.InstallationID() ||
+		fence.Data[uninstallFenceTargetIDKey] != identity.TargetID() {
 		return &stateDoesntMatchError{msg: "active DatadogAgent uninstall fence belongs to a different managed installation"}
 	}
 	if fence.Data[uninstallFenceOperationIDKey] == "" || fence.Data[uninstallFenceConfigIDKey] == "" || fence.Data[uninstallFenceTaskIDKey] == "" {

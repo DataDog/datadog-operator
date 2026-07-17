@@ -23,10 +23,11 @@ import (
 )
 
 func TestOperatorManagedAgentInstallationEnabled(t *testing.T) {
-	identity := remoteconfig.ManagedAgentInstallationIdentity{
-		InstallationID: "123e4567-e89b-42d3-a456-426614174000",
-		TargetHash:     "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-	}
+	identity := remoteconfig.NewEKSManagedAgentInstallationIdentity(
+		"123e4567-e89b-42d3-a456-426614174000",
+		"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+	)
+	identityMissingTargetHash := remoteconfig.NewEKSManagedAgentInstallationIdentity(identity.InstallationID(), "")
 	tests := []struct {
 		name                                string
 		identity                            remoteconfig.ManagedAgentInstallationIdentity
@@ -35,25 +36,29 @@ func TestOperatorManagedAgentInstallationEnabled(t *testing.T) {
 		datadogAgentEnabled                 bool
 		managedAgentInstallationFlagEnabled bool
 		profileEnabled                      bool
+		controllerRevisionsEnabled          bool
 		want                                bool
 	}{
-		{name: "all requirements", identity: identity, managedAgentInstallationFlagEnabled: true, remoteConfigEnabled: true, remoteUpdatesEnabled: true, datadogAgentEnabled: true, profileEnabled: true, want: true},
-		{name: "missing identity", managedAgentInstallationFlagEnabled: true, remoteConfigEnabled: true, remoteUpdatesEnabled: true, datadogAgentEnabled: true, profileEnabled: true},
-		{name: "managed Agent installation flag disabled", identity: identity, remoteConfigEnabled: true, remoteUpdatesEnabled: true, datadogAgentEnabled: true, profileEnabled: true},
-		{name: "remote config disabled", identity: identity, managedAgentInstallationFlagEnabled: true, remoteUpdatesEnabled: true, datadogAgentEnabled: true, profileEnabled: true},
-		{name: "remote updates disabled", identity: identity, managedAgentInstallationFlagEnabled: true, remoteConfigEnabled: true, datadogAgentEnabled: true, profileEnabled: true},
-		{name: "DatadogAgent controller disabled", identity: identity, managedAgentInstallationFlagEnabled: true, remoteConfigEnabled: true, remoteUpdatesEnabled: true, profileEnabled: true},
-		{name: "profile controller disabled", identity: identity, managedAgentInstallationFlagEnabled: true, remoteConfigEnabled: true, remoteUpdatesEnabled: true, datadogAgentEnabled: true},
+		{name: "all requirements", identity: identity, managedAgentInstallationFlagEnabled: true, remoteConfigEnabled: true, remoteUpdatesEnabled: true, datadogAgentEnabled: true, profileEnabled: true, controllerRevisionsEnabled: true, want: true},
+		{name: "missing identity", managedAgentInstallationFlagEnabled: true, remoteConfigEnabled: true, remoteUpdatesEnabled: true, datadogAgentEnabled: true, profileEnabled: true, controllerRevisionsEnabled: true},
+		{name: "incomplete identity", identity: identityMissingTargetHash, managedAgentInstallationFlagEnabled: true, remoteConfigEnabled: true, remoteUpdatesEnabled: true, datadogAgentEnabled: true, profileEnabled: true, controllerRevisionsEnabled: true},
+		{name: "managed Agent installation flag disabled", identity: identity, remoteConfigEnabled: true, remoteUpdatesEnabled: true, datadogAgentEnabled: true, profileEnabled: true, controllerRevisionsEnabled: true},
+		{name: "remote config disabled", identity: identity, managedAgentInstallationFlagEnabled: true, remoteUpdatesEnabled: true, datadogAgentEnabled: true, profileEnabled: true, controllerRevisionsEnabled: true},
+		{name: "remote updates disabled", identity: identity, managedAgentInstallationFlagEnabled: true, remoteConfigEnabled: true, datadogAgentEnabled: true, profileEnabled: true, controllerRevisionsEnabled: true},
+		{name: "DatadogAgent controller disabled", identity: identity, managedAgentInstallationFlagEnabled: true, remoteConfigEnabled: true, remoteUpdatesEnabled: true, profileEnabled: true, controllerRevisionsEnabled: true},
+		{name: "profile controller disabled", identity: identity, managedAgentInstallationFlagEnabled: true, remoteConfigEnabled: true, remoteUpdatesEnabled: true, datadogAgentEnabled: true, controllerRevisionsEnabled: true},
+		{name: "controller revisions disabled", identity: identity, managedAgentInstallationFlagEnabled: true, remoteConfigEnabled: true, remoteUpdatesEnabled: true, datadogAgentEnabled: true, profileEnabled: true},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			opts := options{
-				eksManagedAgentInstallationEnabled: tt.managedAgentInstallationFlagEnabled,
-				remoteConfigEnabled:                tt.remoteConfigEnabled,
-				remoteUpdatesEnabled:               tt.remoteUpdatesEnabled,
-				datadogAgentEnabled:                tt.datadogAgentEnabled,
-				datadogAgentProfileEnabled:         tt.profileEnabled,
+				managedAgentInstallationEnabled: tt.managedAgentInstallationFlagEnabled,
+				remoteConfigEnabled:             tt.remoteConfigEnabled,
+				remoteUpdatesEnabled:            tt.remoteUpdatesEnabled,
+				datadogAgentEnabled:             tt.datadogAgentEnabled,
+				datadogAgentProfileEnabled:      tt.profileEnabled,
+				createControllerRevisions:       tt.controllerRevisionsEnabled,
 			}
 			require.Equal(t, tt.want, opts.operatorManagedAgentInstallationEnabled(tt.identity))
 		})
@@ -75,7 +80,7 @@ func TestOptionsParse_EnvOverridesDefaults(t *testing.T) {
 	t.Setenv("DD_GENERIC_RESOURCE_REQUEUE_PERIOD", "5m")
 	t.Setenv("DD_UNTAINT_CONTROLLER_WAIT_FOR_CSI_DRIVER", "true")
 	t.Setenv("DD_CREATE_CONTROLLER_REVISIONS", "true")
-	t.Setenv("DD_EKS_MANAGED_AGENT_INSTALLATION_ENABLED", "true")
+	t.Setenv("DD_MANAGED_AGENT_INSTALLATION_ENABLED", "true")
 
 	var opts options
 	opts.Parse()
@@ -93,7 +98,7 @@ func TestOptionsParse_EnvOverridesDefaults(t *testing.T) {
 	require.Equal(t, 5*time.Minute, opts.datadogGenericResourceRequeuePeriod)
 	require.True(t, opts.untaintControllerWaitForCSIDriver)
 	require.True(t, opts.createControllerRevisions)
-	require.True(t, opts.eksManagedAgentInstallationEnabled)
+	require.True(t, opts.managedAgentInstallationEnabled)
 }
 
 func TestOptionsParse_CLIOverridesEnv(t *testing.T) {

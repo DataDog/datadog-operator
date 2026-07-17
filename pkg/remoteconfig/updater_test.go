@@ -41,7 +41,7 @@ func TestStartClosesServiceWhenClientCreationFails(t *testing.T) {
 		return nil, wantErr
 	}
 
-	updater := NewRemoteConfigUpdater(nil, logr.Discard())
+	updater := NewRemoteConfigUpdater(nil, logr.Discard(), ManagedAgentInstallationIdentity{}, nil)
 	err := updater.Start("api-key", "datadoghq.com", "", "", "", "https://config.datadoghq.com")
 	require.ErrorIs(t, err, wantErr)
 	assert.Nil(t, updater.rcService)
@@ -67,23 +67,6 @@ func (stoppedConfigFetcher) ClientGetConfigs(context.Context, *pbgo.ClientGetCon
 
 func TestRefreshUpdaterTagsPreservesClientIdentityAndInstallerState(t *testing.T) {
 	acknowledgedOperationID := "123e4567-e89b-42d3-a456-426614174010"
-	kubeClient := newFakeClient(t,
-		&corev1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{Namespace: "datadog", Name: "datadog-agent-managed-installation-intent"},
-			Data:       map[string]string{"intent.json": `{"installationID":"` + validManagedAgentInstallationIdentity.InstallationID + `","eksARNSHA256":"` + validManagedAgentInstallationIdentity.TargetHash + `","operationID":"` + acknowledgedOperationID + `","desiredState":"installed","acknowledgedOperationID":"` + acknowledgedOperationID + `"}`},
-		},
-		&corev1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{Namespace: "datadog", Name: "datadog-agent-managed-installation-state"},
-			Data: map[string]string{
-				"installation_id":           validManagedAgentInstallationIdentity.InstallationID,
-				"eks_arn_sha256":            validManagedAgentInstallationIdentity.TargetHash,
-				"operation_id":              acknowledgedOperationID,
-				"acknowledged_operation_id": acknowledgedOperationID,
-				"desired_state":             "installed",
-				"task_state":                "DONE",
-			},
-		},
-	)
 
 	current, err := rcclient.NewClient(stoppedConfigFetcher{}, rcclient.WithoutTufVerification())
 	require.NoError(t, err)
@@ -95,14 +78,19 @@ func TestRefreshUpdaterTagsPreservesClientIdentityAndInstallerState(t *testing.T
 	current.SetInstallerState(installerState)
 
 	updater := &RemoteConfigUpdater{
-		kubeClient:                       kubeClient,
 		rcClient:                         current,
 		rcService:                        &rcservice.CoreAgentService{},
 		managedAgentInstallationIdentity: validManagedAgentInstallationIdentity,
-		logger:                           logr.Discard(),
+		managedAgentInstallationReadinessTags: func(context.Context) ([]string, error) {
+			return []string{
+				"managed_agent_installation_ack:" + acknowledgedOperationID,
+				"operator_config_updates:ready",
+			}, nil
+		},
+		logger: logr.Discard(),
 		updaterTags: append(
 			[]string{"updater_type:datadog-operator"},
-			validManagedAgentInstallationIdentity.UpdaterTags()...,
+			managedAgentInstallationIdentityUpdaterTags(t)...,
 		),
 	}
 	require.NoError(t, updater.configureService("api-key", "datadoghq.com", "", "", "", "https://config.datadoghq.com"))
@@ -135,27 +123,22 @@ func TestGetUpdaterTags(t *testing.T) {
 	acknowledgedOperationID := "123e4567-e89b-42d3-a456-426614174010"
 
 	tests := []struct {
-		name        string
-		clusterName string
-		identity    ManagedAgentInstallationIdentity
-		objects     []client.Object
-		want        []string
+		name          string
+		clusterName   string
+		identity      ManagedAgentInstallationIdentity
+		objects       []client.Object
+		readinessTags []string
+		want          []string
 	}{
 		{
 			name:        "with managed Agent installation identity",
 			clusterName: "test-cluster",
 			identity:    validManagedAgentInstallationIdentity,
-			objects: []client.Object{
-				&corev1.ConfigMap{
-					ObjectMeta: metav1.ObjectMeta{Namespace: "datadog", Name: "datadog-agent-managed-installation-intent"},
-					Data:       map[string]string{"intent.json": `{"installationID":"` + validManagedAgentInstallationIdentity.InstallationID + `","eksARNSHA256":"` + validManagedAgentInstallationIdentity.TargetHash + `","operationID":"123e4567-e89b-42d3-a456-426614174010","desiredState":"installed"}`},
-				},
-			},
 			want: []string{
 				"updater_type:datadog-operator",
 				"cluster_name:test-cluster",
-				"eks_installation_id:" + validManagedAgentInstallationIdentity.InstallationID,
-				"eks_arn_sha256:" + validManagedAgentInstallationIdentity.TargetHash,
+				"eks_installation_id:" + validManagedAgentInstallationIdentity.InstallationID(),
+				"eks_arn_sha256:" + validManagedAgentInstallationTargetHash,
 				"managed_agent_installation:eks-addon-config-v1",
 			},
 		},
@@ -163,28 +146,15 @@ func TestGetUpdaterTags(t *testing.T) {
 			name:        "with acknowledged managed Agent installation install",
 			clusterName: "test-cluster",
 			identity:    validManagedAgentInstallationIdentity,
-			objects: []client.Object{
-				&corev1.ConfigMap{
-					ObjectMeta: metav1.ObjectMeta{Namespace: "datadog", Name: "datadog-agent-managed-installation-intent"},
-					Data:       map[string]string{"intent.json": `{"installationID":"` + validManagedAgentInstallationIdentity.InstallationID + `","eksARNSHA256":"` + validManagedAgentInstallationIdentity.TargetHash + `","operationID":"` + acknowledgedOperationID + `","desiredState":"installed","acknowledgedOperationID":"` + acknowledgedOperationID + `"}`},
-				},
-				&corev1.ConfigMap{
-					ObjectMeta: metav1.ObjectMeta{Namespace: "datadog", Name: "datadog-agent-managed-installation-state"},
-					Data: map[string]string{
-						"installation_id":           validManagedAgentInstallationIdentity.InstallationID,
-						"eks_arn_sha256":            validManagedAgentInstallationIdentity.TargetHash,
-						"operation_id":              acknowledgedOperationID,
-						"acknowledged_operation_id": acknowledgedOperationID,
-						"desired_state":             "installed",
-						"task_state":                "DONE",
-					},
-				},
+			readinessTags: []string{
+				"managed_agent_installation_ack:" + acknowledgedOperationID,
+				"operator_config_updates:ready",
 			},
 			want: []string{
 				"updater_type:datadog-operator",
 				"cluster_name:test-cluster",
-				"eks_installation_id:" + validManagedAgentInstallationIdentity.InstallationID,
-				"eks_arn_sha256:" + validManagedAgentInstallationIdentity.TargetHash,
+				"eks_installation_id:" + validManagedAgentInstallationIdentity.InstallationID(),
+				"eks_arn_sha256:" + validManagedAgentInstallationTargetHash,
 				"managed_agent_installation:eks-addon-config-v1",
 				"managed_agent_installation_ack:" + acknowledgedOperationID,
 				"operator_config_updates:ready",
@@ -194,28 +164,11 @@ func TestGetUpdaterTags(t *testing.T) {
 			name:        "without ready tag after uninstall intent",
 			clusterName: "test-cluster",
 			identity:    validManagedAgentInstallationIdentity,
-			objects: []client.Object{
-				&corev1.ConfigMap{
-					ObjectMeta: metav1.ObjectMeta{Namespace: "datadog", Name: "datadog-agent-managed-installation-intent"},
-					Data:       map[string]string{"intent.json": `{"installationID":"` + validManagedAgentInstallationIdentity.InstallationID + `","eksARNSHA256":"` + validManagedAgentInstallationIdentity.TargetHash + `","operationID":"123e4567-e89b-42d3-a456-426614174011","desiredState":"absent","acknowledgedOperationID":"` + acknowledgedOperationID + `"}`},
-				},
-				&corev1.ConfigMap{
-					ObjectMeta: metav1.ObjectMeta{Namespace: "datadog", Name: "datadog-agent-managed-installation-state"},
-					Data: map[string]string{
-						"installation_id":           validManagedAgentInstallationIdentity.InstallationID,
-						"eks_arn_sha256":            validManagedAgentInstallationIdentity.TargetHash,
-						"operation_id":              acknowledgedOperationID,
-						"acknowledged_operation_id": acknowledgedOperationID,
-						"desired_state":             "installed",
-						"task_state":                "DONE",
-					},
-				},
-			},
 			want: []string{
 				"updater_type:datadog-operator",
 				"cluster_name:test-cluster",
-				"eks_installation_id:" + validManagedAgentInstallationIdentity.InstallationID,
-				"eks_arn_sha256:" + validManagedAgentInstallationIdentity.TargetHash,
+				"eks_installation_id:" + validManagedAgentInstallationIdentity.InstallationID(),
+				"eks_arn_sha256:" + validManagedAgentInstallationTargetHash,
 				"managed_agent_installation:eks-addon-config-v1",
 			},
 		},
@@ -267,6 +220,9 @@ func TestGetUpdaterTags(t *testing.T) {
 				kubeClient:                       newFakeClient(t, tt.objects...),
 				logger:                           logr.Discard(),
 				managedAgentInstallationIdentity: tt.identity,
+				managedAgentInstallationReadinessTags: func(context.Context) ([]string, error) {
+					return tt.readinessTags, nil
+				},
 				serviceConf: RcServiceConfiguration{
 					clusterName: tt.clusterName,
 				},
@@ -280,32 +236,36 @@ func TestGetUpdaterTags(t *testing.T) {
 }
 
 func TestRefreshUpdaterTagsPreservesCurrentClientWhenAcknowledgementEvidenceIsUnavailable(t *testing.T) {
-	acknowledgedOperationID := "123e4567-e89b-42d3-a456-426614174010"
-	kubeClient := newFakeClient(t, &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{Namespace: "datadog", Name: "datadog-agent-managed-installation-intent"},
-		Data:       map[string]string{"intent.json": `{"installationID":"` + validManagedAgentInstallationIdentity.InstallationID + `","eksARNSHA256":"` + validManagedAgentInstallationIdentity.TargetHash + `","operationID":"` + acknowledgedOperationID + `","desiredState":"installed","acknowledgedOperationID":"` + acknowledgedOperationID + `"}`},
-	})
 	current, err := rcclient.NewClient(stoppedConfigFetcher{}, rcclient.WithoutTufVerification())
 	require.NoError(t, err)
 	t.Cleanup(current.Close)
 
 	updater := &RemoteConfigUpdater{
-		kubeClient:                       kubeClient,
 		rcClient:                         current,
 		rcService:                        &rcservice.CoreAgentService{},
 		managedAgentInstallationIdentity: validManagedAgentInstallationIdentity,
-		logger:                           logr.Discard(),
+		managedAgentInstallationReadinessTags: func(context.Context) ([]string, error) {
+			return nil, errors.New("managed Agent installation acknowledgement state unavailable")
+		},
+		logger: logr.Discard(),
 		updaterTags: append(
 			[]string{"updater_type:datadog-operator"},
-			validManagedAgentInstallationIdentity.UpdaterTags()...,
+			managedAgentInstallationIdentityUpdaterTags(t)...,
 		),
 	}
 	require.NoError(t, updater.configureService("api-key", "datadoghq.com", "", "", "", "https://config.datadoghq.com"))
 
 	err = updater.RefreshUpdaterTags(context.Background())
 
-	require.ErrorContains(t, err, "read EKS managed Agent installation acknowledgement state")
+	require.ErrorContains(t, err, "acknowledgement state unavailable")
 	assert.Same(t, current, updater.rcClient)
+}
+
+func managedAgentInstallationIdentityUpdaterTags(t *testing.T) []string {
+	t.Helper()
+	tags, err := validManagedAgentInstallationIdentity.UpdaterTags()
+	require.NoError(t, err)
+	return tags
 }
 
 func newFakeClient(t *testing.T, objects ...client.Object) client.Client {
