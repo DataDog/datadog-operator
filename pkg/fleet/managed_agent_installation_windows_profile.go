@@ -18,7 +18,6 @@ import (
 
 	v1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	v2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
@@ -114,43 +113,10 @@ func requireManagedAgentInstallationWindowsProfileOwner(owners []metav1.OwnerRef
 	return fmt.Errorf("required controller owner reference is missing")
 }
 
-func (d *Daemon) managedAgentInstallationWindowsProfileReadiness(ctx context.Context, dda *v2alpha1.DatadogAgent) (bool, string) {
-	if err := d.validateManagedAgentInstallationWindowsProfileReady(ctx, dda); err != nil {
-		return false, err.Error()
-	}
-	return true, ""
-}
-
-func (d *Daemon) validateManagedAgentInstallationWindowsProfileReady(ctx context.Context, dda *v2alpha1.DatadogAgent) error {
+func (d *Daemon) validateManagedAgentInstallationWindowsProfileExists(ctx context.Context, dda *v2alpha1.DatadogAgent) error {
 	profile := &v1alpha1.DatadogAgentProfile{}
 	if err := d.managedAgentInstallationReader().Get(ctx, managedAgentInstallationWindowsProfileKey, profile); err != nil {
-		return fmt.Errorf("read Windows DatadogAgentProfile readiness: %w", err)
+		return fmt.Errorf("read Windows DatadogAgentProfile: %w", err)
 	}
-	if err := d.validateManagedAgentInstallationWindowsProfile(profile, dda); err != nil {
-		return err
-	}
-	if profile.Status.Valid != metav1.ConditionTrue || profile.Status.Applied != metav1.ConditionTrue {
-		return fmt.Errorf("Windows DatadogAgentProfile has not been validated and applied")
-	}
-	if profile.Status.CreateStrategy == nil || profile.Status.CreateStrategy.Status != v1alpha1.CompletedStatus {
-		return fmt.Errorf("Windows DatadogAgentProfile create strategy is not complete")
-	}
-	if profile.Status.CreateStrategy.PodsReady != profile.Status.CreateStrategy.NodesLabeled {
-		return fmt.Errorf("Windows DatadogAgentProfile has %d ready pods for %d labeled nodes", profile.Status.CreateStrategy.PodsReady, profile.Status.CreateStrategy.NodesLabeled)
-	}
-
-	windowsDaemonSetName := agentprofile.DaemonSetName(managedAgentInstallationWindowsProfileKey, true)
-	for _, status := range dda.Status.AgentList {
-		if status == nil || status.DaemonsetName != windowsDaemonSetName {
-			continue
-		}
-		if status.Desired != profile.Status.CreateStrategy.NodesLabeled {
-			return fmt.Errorf("Windows Agent DaemonSet desires %d pods for %d labeled nodes", status.Desired, profile.Status.CreateStrategy.NodesLabeled)
-		}
-		if !daemonSetStatusReady(status) {
-			return fmt.Errorf("Windows Agent DaemonSet is not ready")
-		}
-		return nil
-	}
-	return fmt.Errorf("Windows Agent DaemonSet status is missing")
+	return d.validateManagedAgentInstallationWindowsProfile(profile, dda)
 }

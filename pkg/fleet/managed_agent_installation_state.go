@@ -90,6 +90,9 @@ func ManagedAgentInstallationReadinessTags(ctx context.Context, reader client.Re
 		state.TaskState != pbgo.TaskState_DONE {
 		return nil, fmt.Errorf("managed Agent installation acknowledgement state is not yet consistent with the acknowledged install intent")
 	}
+	if _, err := daemon.validateAcknowledgedManagedAgentInstallation(ctx); err != nil {
+		return nil, fmt.Errorf("validate managed Agent installation acknowledgement for Remote Configuration updater tags: %w", err)
+	}
 	return []string{
 		managedAgentInstallationAckTagPrefix + intent.AcknowledgedOperationID,
 		"operator_config_updates:ready",
@@ -140,13 +143,13 @@ func (d *Daemon) writeManagedAgentInstallationStateForOperation(ctx context.Cont
 			if err := d.managedAgentInstallationReader().Get(ctx, managedAgentInstallationIntentKey, intent); err != nil {
 				return fmt.Errorf("read managed Agent installation intent owner: %w", err)
 			}
+			owner := controllerOwnerReference(corev1.SchemeGroupVersion.String(), "ConfigMap", intent.Name, intent.UID)
+			owner.BlockOwnerDeletion = nil
 			return d.client.Create(ctx, &corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
-					Namespace: managedAgentInstallationStateKey.Namespace,
-					Name:      managedAgentInstallationStateKey.Name,
-					OwnerReferences: []metav1.OwnerReference{controllerOwnerReference(
-						corev1.SchemeGroupVersion.String(), "ConfigMap", intent.Name, intent.UID,
-					)},
+					Namespace:       managedAgentInstallationStateKey.Namespace,
+					Name:            managedAgentInstallationStateKey.Name,
+					OwnerReferences: []metav1.OwnerReference{owner},
 					Labels: map[string]string{
 						"app.kubernetes.io/managed-by": "datadog-operator",
 					},
@@ -252,6 +255,9 @@ func (d *Daemon) rehydrateManagedAgentInstallationState(ctx context.Context) err
 	}
 	if state.Provider != d.managedAgentInstallationIdentity.Provider() || state.InstallationID != d.managedAgentInstallationIdentity.InstallationID() || state.TargetID != d.managedAgentInstallationIdentity.TargetID() {
 		return fmt.Errorf("persisted managed Agent installation state belongs to a different installation")
+	}
+	if state.TaskState == pbgo.TaskState_DONE {
+		return nil
 	}
 	var taskErr error
 	if state.Error != "" {

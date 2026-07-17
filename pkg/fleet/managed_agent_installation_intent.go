@@ -37,7 +37,13 @@ var (
 		Namespace: fleetDatadogAgentNamespace,
 		Name:      managedAgentInstallationIntentConfigMapName,
 	}
-	managedAgentInstallationRetryInterval = time.Second
+	managedAgentInstallationRetryInterval         = time.Second
+	managedAgentInstallationCredentialRetryDelays = []time.Duration{
+		time.Second,
+		2 * time.Second,
+		4 * time.Second,
+		8 * time.Second,
+	}
 )
 
 type managedAgentInstallationDesiredState string
@@ -94,11 +100,40 @@ func (d *Daemon) installManagedAgentInstallationIntentForwarder(ctx context.Cont
 	return nil
 }
 
+func (d *Daemon) installManagedAgentInstallationCredentialForwarder(ctx context.Context) error {
+	informer, err := d.cache.GetInformer(ctx, &corev1.Secret{})
+	if err != nil {
+		return fmt.Errorf("get Secret informer for managed Agent installation credentials: %w", err)
+	}
+	informer.AddEventHandler(toolscache.ResourceEventHandlerFuncs{
+		AddFunc: d.forwardManagedAgentInstallationCredential,
+		UpdateFunc: func(oldObj, newObj any) {
+			oldSecret, oldOK := oldObj.(*corev1.Secret)
+			newSecret, newOK := newObj.(*corev1.Secret)
+			if !oldOK || !newOK || len(oldSecret.Data[fleetCredentialAPIKey]) != 0 {
+				return
+			}
+			d.forwardManagedAgentInstallationCredential(newSecret)
+		},
+	})
+	return nil
+}
+
 func (d *Daemon) forwardManagedAgentInstallationIntent(obj any) {
 	configMap, ok := obj.(*corev1.ConfigMap)
 	if !ok || client.ObjectKeyFromObject(configMap) != managedAgentInstallationIntentKey {
 		return
 	}
+	d.resetManagedAgentInstallationCredentialRetries()
+	d.requestManagedAgentInstallationRetry()
+}
+
+func (d *Daemon) forwardManagedAgentInstallationCredential(obj any) {
+	secret, ok := obj.(*corev1.Secret)
+	if !ok || client.ObjectKeyFromObject(secret) != managedAgentInstallationCredentialKey || len(secret.Data[fleetCredentialAPIKey]) == 0 {
+		return
+	}
+	d.resetManagedAgentInstallationCredentialRetries()
 	d.requestManagedAgentInstallationRetry()
 }
 
@@ -159,10 +194,35 @@ func (d *Daemon) requestManagedAgentInstallationRetry() {
 }
 
 func (d *Daemon) requestManagedAgentInstallationRetryAfter() {
+	d.requestManagedAgentInstallationRetryAfterDelay(managedAgentInstallationRetryInterval)
+}
+
+func (d *Daemon) requestManagedAgentInstallationRetryAfterDelay(delay time.Duration) {
 	if d.managedAgentInstallationUpdates == nil {
 		return
 	}
-	time.AfterFunc(managedAgentInstallationRetryInterval, d.requestManagedAgentInstallationRetry)
+	time.AfterFunc(delay, d.requestManagedAgentInstallationRetry)
+}
+
+func (d *Daemon) resetManagedAgentInstallationCredentialRetries() {
+	d.taskMu.Lock()
+	d.managedAgentInstallationCredentialRetryIndex = 0
+	d.taskMu.Unlock()
+}
+
+func (d *Daemon) scheduleManagedAgentInstallationCredentialRetry() bool {
+	d.taskMu.Lock()
+	d.managedAgentInstallationTaskReserved = false
+	if d.managedAgentInstallationCredentialRetryIndex >= len(managedAgentInstallationCredentialRetryDelays) {
+		d.taskMu.Unlock()
+		return false
+	}
+	delay := managedAgentInstallationCredentialRetryDelays[d.managedAgentInstallationCredentialRetryIndex]
+	d.managedAgentInstallationCredentialRetryIndex++
+	d.taskMu.Unlock()
+
+	d.requestManagedAgentInstallationRetryAfterDelay(delay)
+	return true
 }
 
 func (d *Daemon) handleManagedAgentInstallationIntent(ctx context.Context, snapshot managedAgentInstallationIntentSnapshot) error {
@@ -262,7 +322,7 @@ func (d *Daemon) acknowledgeManagedAgentInstallationInstall(ctx context.Context,
 	if err := validateFleetDatadogAgentInstallCompletion(dda, dda.UID, current.OperationID); err != nil {
 		return err
 	}
-	if err := d.validateManagedAgentInstallationWindowsProfileReady(ctx, dda); err != nil {
+	if err := d.validateManagedAgentInstallationWindowsProfileExists(ctx, dda); err != nil {
 		return err
 	}
 	current.AcknowledgedOperationID = intent.OperationID
@@ -285,12 +345,9 @@ func (d *Daemon) reconcileAcknowledgedManagedAgentInstallation(ctx context.Conte
 		}
 	}
 
-	dda, err := d.validateManagedAgentInstallationTarget(ctx, managedAgentInstallationTarget)
+	dda, err := d.validateAcknowledgedManagedAgentInstallation(ctx)
 	if err != nil {
 		return err
-	}
-	if dda == nil {
-		return fmt.Errorf("managed Agent installation target is absent after install acknowledgement")
 	}
 	configID := dda.Labels[fleetConfigIDLabel]
 	if configID == "" {
@@ -320,6 +377,23 @@ func (d *Daemon) reconcileAcknowledgedManagedAgentInstallation(ctx context.Conte
 		}
 	}
 	return d.refreshManagedAgentInstallationUpdaterTags(ctx)
+}
+
+func (d *Daemon) validateAcknowledgedManagedAgentInstallation(ctx context.Context) (*v2alpha1.DatadogAgent, error) {
+	dda, err := d.validateManagedAgentInstallationTarget(ctx, managedAgentInstallationTarget)
+	if err != nil {
+		return nil, err
+	}
+	if dda == nil {
+		return nil, fmt.Errorf("managed Agent installation target is absent after install acknowledgement")
+	}
+	if readyErr := validateFleetDatadogAgentManagedAgentInstallationReady(dda); readyErr != nil {
+		return nil, readyErr
+	}
+	if err := d.validateManagedAgentInstallationWindowsProfileExists(ctx, dda); err != nil {
+		return nil, err
+	}
+	return dda, nil
 }
 
 func (d *Daemon) reconcileTerminalManagedAgentInstallation(
