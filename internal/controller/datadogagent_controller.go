@@ -152,6 +152,12 @@ type DatadogAgentReconciler struct {
 // +kubebuilder:rbac:groups="",resources=configmaps,verbs=create;update;patch
 // +kubebuilder:rbac:groups="",resources=events,verbs=create;patch
 
+// Configure Kubernetes Actions remediation (grants the Cluster Agent these permissions,
+// so the operator must hold them itself to create the ClusterRole)
+// +kubebuilder:rbac:groups="",resources=pods,verbs=get;list;delete
+// +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;patch;update
+// +kubebuilder:rbac:groups=apps,resources=deployments/status,verbs=get
+
 // OpenShift
 // +kubebuilder:rbac:groups=quota.openshift.io,resources=clusterresourcequotas,verbs=get;list
 // +kubebuilder:rbac:groups=security.openshift.io,resources=securitycontextconstraints,resourceNames=restricted,verbs=use
