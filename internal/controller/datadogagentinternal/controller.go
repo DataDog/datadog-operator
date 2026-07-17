@@ -70,6 +70,7 @@ type ReconcilerOptions struct {
 	SupportCilium            bool
 	OperatorMetricsEnabled   bool
 	UntaintControllerEnabled bool
+	DatadogCSIDriverEnabled  bool
 	APIReader                client.Reader
 }
 
@@ -128,10 +129,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, ddai *v1alpha1.DatadogAgentI
 	return resp, err
 }
 
-func reconcilerOptionsToFeatureOptions(ctx context.Context, reader client.Reader) *feature.Options {
+func (r *Reconciler) reconcilerOptionsToFeatureOptions(ctx context.Context) *feature.Options {
 	return &feature.Options{
-		Logger: ctrl.LoggerFrom(ctx),
-		Client: reader,
+		Logger:                  ctrl.LoggerFrom(ctx),
+		Client:                  r.apiReader,
+		DatadogCSIDriverEnabled: r.options.DatadogCSIDriverEnabled,
 	}
 }
 
