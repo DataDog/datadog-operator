@@ -5,86 +5,64 @@
 
 package remoteconfig
 
-import (
-	"encoding/base32"
-	"encoding/hex"
-	"fmt"
-	"os"
-	"regexp"
-	"strings"
+import "fmt"
 
-	"github.com/google/uuid"
-)
+type ManagedAgentInstallationProvider string
 
-const (
-	managedAgentInstallationIDEnv         = "DD_EKS_INSTALLATION_ID"
-	managedAgentInstallationEKSARNHashEnv = "DD_EKS_ARN_SHA256"
-	managedAgentInstallationCapabilityTag = "managed_agent_installation:eks-addon-config-v1"
-)
-
-var managedAgentInstallationTargetHashPattern = regexp.MustCompile(`^[0-9a-f]{64}$`)
-
-type ManagedAgentInstallationIdentity struct {
-	InstallationID string
-	TargetHash     string
+type managedAgentInstallationProviderIdentity interface {
+	Provider() ManagedAgentInstallationProvider
+	InstallationID() string
+	TargetID() string
+	Validate() error
+	UpdaterTags() []string
 }
 
-func ManagedAgentInstallationIdentityFromEnvironment() (ManagedAgentInstallationIdentity, error) {
-	installationID, installationIDConfigured := os.LookupEnv(managedAgentInstallationIDEnv)
-	eksARNHash, eksARNHashConfigured := os.LookupEnv(managedAgentInstallationEKSARNHashEnv)
-	if !installationIDConfigured && !eksARNHashConfigured {
-		return ManagedAgentInstallationIdentity{}, nil
-	}
-	if !installationIDConfigured || !eksARNHashConfigured {
-		return ManagedAgentInstallationIdentity{}, fmt.Errorf("EKS managed Agent installation identity requires both installation ID and ARN hash")
-	}
+type ManagedAgentInstallationIdentity struct {
+	identity managedAgentInstallationProviderIdentity
+}
 
-	identity := ManagedAgentInstallationIdentity{
-		InstallationID: installationID,
-		TargetHash:     eksARNHash,
-	}
-	if err := identity.Validate(); err != nil {
-		return ManagedAgentInstallationIdentity{}, err
-	}
-	return identity, nil
+func newManagedAgentInstallationIdentity(identity managedAgentInstallationProviderIdentity) ManagedAgentInstallationIdentity {
+	return ManagedAgentInstallationIdentity{identity: identity}
 }
 
 func (i ManagedAgentInstallationIdentity) Configured() bool {
-	return i.InstallationID != "" || i.TargetHash != ""
+	return i.identity != nil
+}
+
+func (i ManagedAgentInstallationIdentity) Provider() ManagedAgentInstallationProvider {
+	if !i.Configured() {
+		return ""
+	}
+	return i.identity.Provider()
+}
+
+func (i ManagedAgentInstallationIdentity) InstallationID() string {
+	if !i.Configured() {
+		return ""
+	}
+	return i.identity.InstallationID()
 }
 
 func (i ManagedAgentInstallationIdentity) Validate() error {
 	if !i.Configured() {
 		return nil
 	}
-	if strings.TrimSpace(i.InstallationID) != i.InstallationID {
-		return fmt.Errorf("EKS installation ID contains surrounding whitespace")
-	}
-	parsedInstallationID, err := uuid.Parse(i.InstallationID)
-	if err != nil || parsedInstallationID == uuid.Nil || parsedInstallationID.String() != i.InstallationID {
-		return fmt.Errorf("EKS installation ID must be a canonical non-zero UUID")
-	}
-	if !managedAgentInstallationTargetHashPattern.MatchString(i.TargetHash) {
-		return fmt.Errorf("managed Agent installation target hash must be a lowercase SHA-256 digest")
-	}
-	return nil
+	return i.identity.Validate()
 }
 
-func (i ManagedAgentInstallationIdentity) UpdaterTags() []string {
-	if !i.Configured() || i.Validate() != nil {
-		return nil
+func (i ManagedAgentInstallationIdentity) UpdaterTags() ([]string, error) {
+	if !i.Configured() {
+		return nil, nil
 	}
-	return []string{
-		"eks_installation_id:" + i.InstallationID,
-		"eks_arn_sha256:" + i.TargetHash,
-		managedAgentInstallationCapabilityTag,
+	if err := i.Validate(); err != nil {
+		return nil, fmt.Errorf("validate %q managed Agent installation identity: %w", i.Provider(), err)
 	}
+	return i.identity.UpdaterTags(), nil
 }
 
 func (i ManagedAgentInstallationIdentity) TargetID() string {
-	digest, err := hex.DecodeString(i.TargetHash)
-	if err != nil || len(digest) != 32 {
+	if !i.Configured() {
 		return ""
 	}
-	return strings.ToLower(base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(digest))
+	return i.identity.TargetID()
 }

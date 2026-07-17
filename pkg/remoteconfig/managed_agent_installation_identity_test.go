@@ -6,6 +6,7 @@
 package remoteconfig
 
 import (
+	"errors"
 	"os"
 	"testing"
 
@@ -13,9 +14,35 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var validManagedAgentInstallationIdentity = ManagedAgentInstallationIdentity{
-	InstallationID: "123e4567-e89b-42d3-a456-426614174000",
-	TargetHash:     "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+const validManagedAgentInstallationTargetHash = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+
+var validManagedAgentInstallationIdentity = NewEKSManagedAgentInstallationIdentity(
+	"123e4567-e89b-42d3-a456-426614174000",
+	validManagedAgentInstallationTargetHash,
+)
+
+type testManagedAgentInstallationProviderIdentity struct {
+	validationErr error
+}
+
+func (testManagedAgentInstallationProviderIdentity) Provider() ManagedAgentInstallationProvider {
+	return "test"
+}
+
+func (testManagedAgentInstallationProviderIdentity) InstallationID() string {
+	return "test-installation"
+}
+
+func (testManagedAgentInstallationProviderIdentity) TargetID() string {
+	return "test-target"
+}
+
+func (i testManagedAgentInstallationProviderIdentity) Validate() error {
+	return i.validationErr
+}
+
+func (testManagedAgentInstallationProviderIdentity) UpdaterTags() []string {
+	return []string{"test-provider:enabled"}
 }
 
 func TestManagedAgentInstallationIdentityFromEnvironment(t *testing.T) {
@@ -25,16 +52,16 @@ func TestManagedAgentInstallationIdentityFromEnvironment(t *testing.T) {
 	require.NoError(t, err)
 	assert.False(t, identity.Configured())
 
-	t.Setenv(managedAgentInstallationEKSARNHashEnv, validManagedAgentInstallationIdentity.TargetHash)
+	t.Setenv(eksManagedAgentInstallationARNHashEnv, validManagedAgentInstallationTargetHash)
 	_, err = ManagedAgentInstallationIdentityFromEnvironment()
 	require.Error(t, err)
-	require.NoError(t, os.Unsetenv(managedAgentInstallationEKSARNHashEnv))
+	require.NoError(t, os.Unsetenv(eksManagedAgentInstallationARNHashEnv))
 
-	t.Setenv(managedAgentInstallationIDEnv, validManagedAgentInstallationIdentity.InstallationID)
+	t.Setenv(eksManagedAgentInstallationIDEnv, validManagedAgentInstallationIdentity.InstallationID())
 	_, err = ManagedAgentInstallationIdentityFromEnvironment()
 	require.Error(t, err)
 
-	t.Setenv(managedAgentInstallationEKSARNHashEnv, validManagedAgentInstallationIdentity.TargetHash)
+	t.Setenv(eksManagedAgentInstallationARNHashEnv, validManagedAgentInstallationTargetHash)
 	identity, err = ManagedAgentInstallationIdentityFromEnvironment()
 	require.NoError(t, err)
 	assert.Equal(t, validManagedAgentInstallationIdentity, identity)
@@ -42,35 +69,72 @@ func TestManagedAgentInstallationIdentityFromEnvironment(t *testing.T) {
 
 func TestManagedAgentInstallationIdentityValidation(t *testing.T) {
 	tests := []ManagedAgentInstallationIdentity{
-		{InstallationID: "123E4567-E89B-42D3-A456-426614174000"},
-		{InstallationID: "00000000-0000-0000-0000-000000000000"},
-		{InstallationID: " " + validManagedAgentInstallationIdentity.InstallationID},
+		NewEKSManagedAgentInstallationIdentity("123E4567-E89B-42D3-A456-426614174000", validManagedAgentInstallationTargetHash),
+		NewEKSManagedAgentInstallationIdentity("00000000-0000-0000-0000-000000000000", validManagedAgentInstallationTargetHash),
+		NewEKSManagedAgentInstallationIdentity(" "+validManagedAgentInstallationIdentity.InstallationID(), validManagedAgentInstallationTargetHash),
+		NewEKSManagedAgentInstallationIdentity(validManagedAgentInstallationIdentity.InstallationID(), "invalid"),
 	}
 
 	require.NoError(t, validManagedAgentInstallationIdentity.Validate())
+	assert.Equal(t, ManagedAgentInstallationProviderEKS, validManagedAgentInstallationIdentity.Provider())
 	for _, identity := range tests {
 		require.Error(t, identity.Validate())
 	}
 }
 
 func TestManagedAgentInstallationIdentityUpdaterTags(t *testing.T) {
-	assert.Nil(t, (ManagedAgentInstallationIdentity{}).UpdaterTags())
+	tags, err := (ManagedAgentInstallationIdentity{}).UpdaterTags()
+	require.NoError(t, err)
+	assert.Nil(t, tags)
+	tags, err = validManagedAgentInstallationIdentity.UpdaterTags()
+	require.NoError(t, err)
 	assert.Equal(t, []string{
-		"eks_installation_id:" + validManagedAgentInstallationIdentity.InstallationID,
-		"eks_arn_sha256:" + validManagedAgentInstallationIdentity.TargetHash,
-		managedAgentInstallationCapabilityTag,
-	}, validManagedAgentInstallationIdentity.UpdaterTags())
+		"eks_installation_id:" + validManagedAgentInstallationIdentity.InstallationID(),
+		"eks_arn_sha256:" + validManagedAgentInstallationTargetHash,
+		eksManagedAgentInstallationCapabilityTag,
+	}, tags)
+
+	invalid := newManagedAgentInstallationIdentity(testManagedAgentInstallationProviderIdentity{validationErr: errors.New("invalid identity")})
+	_, err = invalid.UpdaterTags()
+	require.ErrorContains(t, err, "invalid identity")
 }
 
 func TestManagedAgentInstallationIdentityTargetID(t *testing.T) {
 	assert.Equal(t, "aerukz4jvpg66ajdivtytk6n54asgrlhrgv433ybencwpcnlzxxq", validManagedAgentInstallationIdentity.TargetID())
 	assert.Len(t, validManagedAgentInstallationIdentity.TargetID(), 52)
-	assert.Empty(t, (ManagedAgentInstallationIdentity{TargetHash: "invalid"}).TargetID())
+	assert.Empty(t, NewEKSManagedAgentInstallationIdentity(validManagedAgentInstallationIdentity.InstallationID(), "invalid").TargetID())
+}
+
+func TestManagedAgentInstallationIdentityProviderDelegation(t *testing.T) {
+	identity := newManagedAgentInstallationIdentity(testManagedAgentInstallationProviderIdentity{})
+
+	require.True(t, identity.Configured())
+	assert.Equal(t, ManagedAgentInstallationProvider("test"), identity.Provider())
+	assert.Equal(t, "test-installation", identity.InstallationID())
+	assert.Equal(t, "test-target", identity.TargetID())
+	require.NoError(t, identity.Validate())
+}
+
+func TestManagedAgentInstallationIdentityFromLoaders(t *testing.T) {
+	identity := newManagedAgentInstallationIdentity(testManagedAgentInstallationProviderIdentity{})
+
+	loaded, err := managedAgentInstallationIdentityFromLoaders([]managedAgentInstallationIdentityLoader{
+		func() (ManagedAgentInstallationIdentity, error) { return ManagedAgentInstallationIdentity{}, nil },
+		func() (ManagedAgentInstallationIdentity, error) { return identity, nil },
+	})
+	require.NoError(t, err)
+	assert.Equal(t, identity, loaded)
+
+	_, err = managedAgentInstallationIdentityFromLoaders([]managedAgentInstallationIdentityLoader{
+		func() (ManagedAgentInstallationIdentity, error) { return identity, nil },
+		func() (ManagedAgentInstallationIdentity, error) { return validManagedAgentInstallationIdentity, nil },
+	})
+	require.ErrorContains(t, err, "multiple managed Agent installation providers")
 }
 
 func clearManagedAgentInstallationIdentityEnvironment(t *testing.T) {
 	t.Helper()
-	for _, name := range []string{managedAgentInstallationIDEnv, managedAgentInstallationEKSARNHashEnv} {
+	for _, name := range []string{eksManagedAgentInstallationIDEnv, eksManagedAgentInstallationARNHashEnv} {
 		value, exists := os.LookupEnv(name)
 		require.NoError(t, os.Unsetenv(name))
 		t.Cleanup(func() {

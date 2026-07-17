@@ -92,6 +92,12 @@ func (d *Daemon) emitTaskRejectedEvent(ctx context.Context, nsn types.Namespaced
 		"Rejected task %q (%s): %s", req.ID, methodLabel(req.Method), reason)
 }
 
+func (d *Daemon) emitManagedAgentInstallationTaskRejectedEvent(ctx context.Context, command managedAgentInstallationCommand, reason string) {
+	d.emitDDAEventf(ctx, managedAgentInstallationTarget,
+		corev1.EventTypeWarning, eventReasonRemoteTaskRejected,
+		"Rejected task %q (%s): %s", command.TaskID, command.Action, reason)
+}
+
 // emitTaskCompletedEvent records that the daemon reported DONE for a
 // Fleet task to RC. Fires after setTaskState(DONE) commits.
 func (d *Daemon) emitTaskCompletedEvent(ctx context.Context, op pendingOperation) {

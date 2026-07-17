@@ -150,7 +150,7 @@ type options struct {
 	datadogAgentProfileEnabled             bool
 	remoteConfigEnabled                    bool
 	remoteUpdatesEnabled                   bool
-	eksManagedAgentInstallationEnabled     bool
+	managedAgentInstallationEnabled        bool
 	datadogDashboardEnabled                bool
 	datadogGenericResourceEnabled          bool
 	datadogGenericResourceMaxWorkers       int
@@ -194,7 +194,7 @@ func (opts *options) Parse() {
 	flag.BoolVar(&opts.datadogAgentProfileEnabled, "datadogAgentProfileEnabled", false, "Enable DatadogAgentProfile controller")
 	flag.BoolVar(&opts.remoteConfigEnabled, "remoteConfigEnabled", false, "Enable RemoteConfig capabilities in the Operator (beta)")
 	flag.BoolVar(&opts.remoteUpdatesEnabled, "remoteUpdatesEnabled", false, "Enable Remote Updates capabilities in the Operator (beta)")
-	flag.BoolVar(&opts.eksManagedAgentInstallationEnabled, "eksManagedAgentInstallationEnabled", false, "Enable EKS add-on managed Agent installation intents")
+	flag.BoolVar(&opts.managedAgentInstallationEnabled, "managedAgentInstallationEnabled", false, "Enable managed Agent installation intents")
 	flag.BoolVar(&opts.datadogDashboardEnabled, "datadogDashboardEnabled", false, "Enable the DatadogDashboard controller")
 	flag.BoolVar(&opts.datadogGenericResourceEnabled, "datadogGenericResourceEnabled", false, "Enable the DatadogGenericResource controller")
 	flag.IntVar(&opts.datadogGenericResourceMaxWorkers, "datadogGenericResourceMaxConcurrentReconciles", defaultDatadogGenericResourceMaxConcurrentReconciles, "Maximum number of concurrent DatadogGenericResource reconciles")
@@ -239,7 +239,7 @@ func (opts *options) Parse() {
 		boolEnv(&opts.datadogAgentProfileEnabled, "DD_AGENT_PROFILE_CONTROLLER_ENABLED"),
 		boolEnv(&opts.remoteConfigEnabled, "DD_REMOTE_CONFIG_ENABLED"),
 		boolEnv(&opts.remoteUpdatesEnabled, "DD_REMOTE_UPDATES_ENABLED"),
-		boolEnv(&opts.eksManagedAgentInstallationEnabled, "DD_EKS_MANAGED_AGENT_INSTALLATION_ENABLED"),
+		boolEnv(&opts.managedAgentInstallationEnabled, "DD_MANAGED_AGENT_INSTALLATION_ENABLED"),
 		boolEnv(&opts.datadogDashboardEnabled, "DD_DASHBOARD_CONTROLLER_ENABLED"),
 		boolEnv(&opts.datadogGenericResourceEnabled, "DD_GENERIC_RESOURCE_CONTROLLER_ENABLED"),
 		intEnv(&opts.datadogGenericResourceMaxWorkers, "DD_GENERIC_RESOURCE_MAX_CONCURRENT_RECONCILES"),
@@ -435,27 +435,33 @@ func run(opts *options) error {
 	if opts.remoteConfigEnabled {
 		managedAgentInstallationIdentity, identityErr := remoteconfig.ManagedAgentInstallationIdentityFromEnvironment()
 		if identityErr != nil {
-			setupLog.Error(identityErr, "EKS managed Agent installation identity is invalid; managed Agent installation support is disabled")
+			setupLog.Error(identityErr, "Managed Agent installation identity is invalid; managed Agent installation support is disabled")
 			managedAgentInstallationIdentity = remoteconfig.ManagedAgentInstallationIdentity{}
 		} else {
-			setupLog.Info("Configured EKS managed Agent installation identity", "enabled", managedAgentInstallationIdentity.Configured())
+			setupLog.Info("Configured managed Agent installation identity", "provider", managedAgentInstallationIdentity.Provider(), "enabled", managedAgentInstallationIdentity.Configured())
 		}
 		managedAgentInstallationEnabled := opts.operatorManagedAgentInstallationEnabled(managedAgentInstallationIdentity)
 		enabledManagedAgentInstallationIdentity := managedAgentInstallationIdentity
 		if !managedAgentInstallationEnabled {
 			enabledManagedAgentInstallationIdentity = remoteconfig.ManagedAgentInstallationIdentity{}
 			if managedAgentInstallationIdentity.Configured() {
-				setupLog.Info("EKS add-on managed Agent installation support is disabled because its feature flag or a required Operator controller is not enabled")
+				setupLog.Info("Managed Agent installation support is disabled because its feature flag or a required Operator controller is not enabled", "provider", managedAgentInstallationIdentity.Provider())
 			}
 		}
-		rcUpdater := remoteconfig.NewRemoteConfigUpdater(mgr.GetClient(), ctrl.Log.WithName("remote_config"), enabledManagedAgentInstallationIdentity)
+		var managedAgentInstallationReadinessTags func(context.Context) ([]string, error)
+		if managedAgentInstallationEnabled {
+			managedAgentInstallationReadinessTags = func(ctx context.Context) ([]string, error) {
+				return fleet.ManagedAgentInstallationReadinessTags(ctx, mgr.GetAPIReader(), enabledManagedAgentInstallationIdentity)
+			}
+		}
+		rcUpdater := remoteconfig.NewRemoteConfigUpdater(mgr.GetClient(), ctrl.Log.WithName("remote_config"), enabledManagedAgentInstallationIdentity, managedAgentInstallationReadinessTags)
 		if managedAgentInstallationEnabled {
 			managedAgentInstallationClient, clientErr := client.New(restConfig, client.Options{Scheme: scheme})
 			if clientErr != nil {
-				return setupErrorf(setupLog, clientErr, "Unable to create EKS managed Agent installation bootstrap client")
+				return setupErrorf(setupLog, clientErr, "Unable to create managed Agent installation bootstrap client")
 			}
 			if prepareErr := fleet.PrepareUninstallFenceWebhook(managerCtx, managedAgentInstallationClient, os.Getenv("POD_NAMESPACE")); prepareErr != nil {
-				return setupErrorf(setupLog, prepareErr, "Unable to prepare EKS managed Agent installation admission webhook")
+				return setupErrorf(setupLog, prepareErr, "Unable to prepare managed Agent installation admission webhook")
 			}
 			fleet.RegisterUninstallFenceWebhook(mgr, enabledManagedAgentInstallationIdentity)
 		}
@@ -471,7 +477,7 @@ func run(opts *options) error {
 					if reconcileErr == nil {
 						break
 					}
-					setupLog.Error(reconcileErr, "Unable to reconcile EKS managed Agent installation acknowledgement before Remote Configuration startup")
+					setupLog.Error(reconcileErr, "Unable to reconcile managed Agent installation acknowledgement before Remote Configuration startup", "provider", enabledManagedAgentInstallationIdentity.Provider())
 					select {
 					case <-managerCtx.Done():
 						return
@@ -811,14 +817,14 @@ func setupAndStartHelmMetadataForwarder(logger logr.Logger, mgr manager.Manager,
 func setupFleetDaemon(logger logr.Logger, mgr manager.Manager, rcClient remoteconfig.RCClient, revisionsEnabled bool, managedAgentInstallationIdentity remoteconfig.ManagedAgentInstallationIdentity, managedAgentInstallationEnabled bool) error {
 	var options []fleet.DaemonOption
 	if managedAgentInstallationEnabled {
-		options = append(options, fleet.WithManagedAgentInstallation())
+		options = append(options, fleet.WithManagedAgentInstallation(managedAgentInstallationIdentity))
 	}
-	daemon := fleet.NewDaemon(rcClient, mgr, revisionsEnabled, managedAgentInstallationIdentity, options...)
+	daemon := fleet.NewDaemon(rcClient, mgr, revisionsEnabled, options...)
 	return mgr.Add(daemon)
 }
 
 func (opts *options) operatorManagedAgentInstallationEnabled(identity remoteconfig.ManagedAgentInstallationIdentity) bool {
-	return identity.Configured() && opts.eksManagedAgentInstallationEnabled && opts.remoteConfigEnabled && opts.remoteUpdatesEnabled && opts.datadogAgentEnabled && opts.datadogAgentProfileEnabled
+	return identity.Configured() && identity.Validate() == nil && opts.managedAgentInstallationEnabled && opts.remoteConfigEnabled && opts.remoteUpdatesEnabled && opts.datadogAgentEnabled && opts.datadogAgentProfileEnabled && opts.createControllerRevisions
 }
 
 // setupAndStartProviderDetector registers the cluster-provider detector as a

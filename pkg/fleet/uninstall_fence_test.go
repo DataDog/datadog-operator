@@ -57,7 +57,7 @@ func (c *mutateFenceOnDatadogAgentDeleteClient) Delete(ctx context.Context, obje
 func TestUninstallDatadogAgentActivatesFence(t *testing.T) {
 	const deleteConfigID = "delete-config"
 	d, c, _ := testManagedAgentInstallationDaemon(testManagedAgentInstallationInstallerConfig(deleteConfigID, OperationDelete, ""), nil, testFleetOwnedDDA("create-config"))
-	req := testSignedManagedAgentInstallationRequest(d, methodUninstallDatadogAgent, deleteConfigID)
+	req := testManagedAgentInstallationCommand(methodUninstallDatadogAgent, deleteConfigID)
 
 	_, err := d.uninstallDatadogAgent(context.Background(), req)
 	require.NoError(t, err)
@@ -65,10 +65,12 @@ func TestUninstallDatadogAgentActivatesFence(t *testing.T) {
 	fence := &corev1.ConfigMap{}
 	require.NoError(t, c.Get(context.Background(), uninstallFenceKey, fence))
 	assert.Equal(t, uninstallFenceStateActive, fence.Data[uninstallFenceStateKey])
-	assert.Equal(t, req.Params.InstallationID, fence.Data[uninstallFenceInstallationIDKey])
-	assert.Equal(t, req.Params.OperationID, fence.Data[uninstallFenceOperationIDKey])
-	assert.Equal(t, req.Params.Version, fence.Data[uninstallFenceConfigIDKey])
-	assert.Equal(t, req.ID, fence.Data[uninstallFenceTaskIDKey])
+	assert.Equal(t, string(testManagedAgentInstallationIdentity.Provider()), fence.Data[uninstallFenceProviderKey])
+	assert.Equal(t, req.InstallationID, fence.Data[uninstallFenceInstallationIDKey])
+	assert.Equal(t, testManagedAgentInstallationIdentity.TargetID(), fence.Data[uninstallFenceTargetIDKey])
+	assert.Equal(t, req.OperationID, fence.Data[uninstallFenceOperationIDKey])
+	assert.Equal(t, req.ConfigID, fence.Data[uninstallFenceConfigIDKey])
+	assert.Equal(t, req.TaskID, fence.Data[uninstallFenceTaskIDKey])
 	assert.NotEmpty(t, fence.Data[uninstallFenceWebhookResourceVersionKey])
 }
 
@@ -78,7 +80,7 @@ func TestUninstallDatadogAgentRejectsFenceDrift(t *testing.T) {
 	mutating := &mutateFenceOnDatadogAgentDeleteClient{Client: c}
 	d.client = mutating
 	d.apiReader = mutating
-	req := testSignedManagedAgentInstallationRequest(d, methodUninstallDatadogAgent, deleteConfigID)
+	req := testManagedAgentInstallationCommand(methodUninstallDatadogAgent, deleteConfigID)
 
 	_, err := d.uninstallDatadogAgent(context.Background(), req)
 	require.Error(t, err)
@@ -89,7 +91,7 @@ func TestUninstallDatadogAgentRejectsFenceDrift(t *testing.T) {
 func TestVerifyDatadogAgentUninstalledRejectsWebhookDrift(t *testing.T) {
 	const deleteConfigID = "delete-config"
 	d, c, _ := testManagedAgentInstallationDaemon(testManagedAgentInstallationInstallerConfig(deleteConfigID, OperationDelete, ""), nil)
-	uninstall := testSignedManagedAgentInstallationRequest(d, methodUninstallDatadogAgent, deleteConfigID)
+	uninstall := testManagedAgentInstallationCommand(methodUninstallDatadogAgent, deleteConfigID)
 	_, err := d.uninstallDatadogAgent(context.Background(), uninstall)
 	require.NoError(t, err)
 
@@ -98,8 +100,8 @@ func TestVerifyDatadogAgentUninstalledRejectsWebhookDrift(t *testing.T) {
 	configuration.Annotations = map[string]string{"test.datadoghq.com/drift": "true"}
 	require.NoError(t, c.Update(context.Background(), configuration))
 
-	verify := testSignedManagedAgentInstallationRequest(d, methodVerifyDatadogAgentUninstalled, deleteConfigID)
-	verify.ID = "verify-task"
+	verify := testManagedAgentInstallationCommand(methodVerifyDatadogAgentUninstalled, deleteConfigID)
+	verify.TaskID = "verify-task"
 	_, err = d.verifyDatadogAgentUninstalled(context.Background(), verify)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "webhook changed after activation")
@@ -109,26 +111,26 @@ func TestActiveUninstallFenceBlocksManagedAgentInstallationWrites(t *testing.T) 
 	configs := testManagedAgentInstallationInstallerConfig("delete-config", OperationDelete, "")
 	configs["create-config"] = testManagedAgentInstallationInstallerConfig("create-config", OperationCreate, `{"spec":{}}`)["create-config"]
 	d, c, _ := testManagedAgentInstallationDaemon(configs, nil, testFleetCredentialSecret())
-	uninstall := testSignedManagedAgentInstallationRequest(d, methodUninstallDatadogAgent, "delete-config")
+	uninstall := testManagedAgentInstallationCommand(methodUninstallDatadogAgent, "delete-config")
 	_, err := d.activateUninstallFence(context.Background(), uninstall)
 	require.NoError(t, err)
 
-	install := testSignedManagedAgentInstallationRequest(d, methodInstallDatadogAgent, "create-config")
-	_, err = d.dispatchRemoteAPIRequest(context.Background(), install)
+	install := testManagedAgentInstallationCommand(methodInstallDatadogAgent, "create-config")
+	_, err = d.dispatchManagedAgentInstallationCommand(context.Background(), install)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "active add-on uninstall fence")
+	assert.Contains(t, err.Error(), "active managed installation uninstall fence")
 	assert.Error(t, c.Get(context.Background(), testDDANSN, &v2alpha1.DatadogAgent{}))
 }
 
 func TestVerifyDatadogAgentUninstalledReadsLiveState(t *testing.T) {
 	const deleteConfigID = "delete-config"
 	d, c, _ := testManagedAgentInstallationDaemon(testManagedAgentInstallationInstallerConfig(deleteConfigID, OperationDelete, ""), nil)
-	uninstall := testSignedManagedAgentInstallationRequest(d, methodUninstallDatadogAgent, deleteConfigID)
+	uninstall := testManagedAgentInstallationCommand(methodUninstallDatadogAgent, deleteConfigID)
 	_, err := d.uninstallDatadogAgent(context.Background(), uninstall)
 	require.NoError(t, err)
 
-	verify := testSignedManagedAgentInstallationRequest(d, methodVerifyDatadogAgentUninstalled, deleteConfigID)
-	verify.ID = "verify-task"
+	verify := testManagedAgentInstallationCommand(methodVerifyDatadogAgentUninstalled, deleteConfigID)
+	verify.TaskID = "verify-task"
 	_, err = d.verifyDatadogAgentUninstalled(context.Background(), verify)
 	require.NoError(t, err)
 
@@ -143,12 +145,12 @@ func TestVerifyDatadogAgentUninstalledReadsLiveState(t *testing.T) {
 func TestClearDatadogAgentUninstallFence(t *testing.T) {
 	const deleteConfigID = "delete-config"
 	d, c, _ := testManagedAgentInstallationDaemon(testManagedAgentInstallationInstallerConfig(deleteConfigID, OperationDelete, ""), nil)
-	uninstall := testSignedManagedAgentInstallationRequest(d, methodUninstallDatadogAgent, deleteConfigID)
+	uninstall := testManagedAgentInstallationCommand(methodUninstallDatadogAgent, deleteConfigID)
 	_, err := d.activateUninstallFence(context.Background(), uninstall)
 	require.NoError(t, err)
 
-	clear := testSignedManagedAgentInstallationRequest(d, methodClearDatadogAgentUninstallFence, deleteConfigID)
-	clear.ID = "clear-task"
+	clear := testManagedAgentInstallationCommand(methodClearDatadogAgentUninstallFence, deleteConfigID)
+	clear.TaskID = "clear-task"
 	_, err = d.clearDatadogAgentUninstallFence(context.Background(), clear)
 	require.NoError(t, err)
 
@@ -165,7 +167,7 @@ func TestRehydrateInstallerStateValidatesActiveFence(t *testing.T) {
 		Package:             packageDatadogOperator,
 		StableConfigVersion: "unknown",
 	}})
-	req := testSignedManagedAgentInstallationRequest(d, methodUninstallDatadogAgent, deleteConfigID)
+	req := testManagedAgentInstallationCommand(methodUninstallDatadogAgent, deleteConfigID)
 	_, err := d.activateUninstallFence(context.Background(), req)
 	require.NoError(t, err)
 	configuration := &admissionregistrationv1.ValidatingWebhookConfiguration{}
@@ -194,14 +196,16 @@ func TestRehydrateInstallerStateMarksDatadogAgentBehindActiveFencePartial(t *tes
 		[]*pbgo.PackageState{{Package: packageDatadogOperator, StableConfigVersion: "create-config"}},
 		testFleetOwnedDDA("create-config"),
 	)
-	req := testSignedManagedAgentInstallationRequest(d, methodUninstallDatadogAgent, deleteConfigID)
+	req := testManagedAgentInstallationCommand(methodUninstallDatadogAgent, deleteConfigID)
+	req.OperationID = "123e4567-e89b-42d3-a456-426614174001"
 	_, err := d.activateUninstallFence(context.Background(), req)
 	require.NoError(t, err)
 
 	require.NoError(t, d.rehydrateInstallerState(context.Background()))
 	assert.Equal(t, fleetPartialConfigVersionPrefix+"create-config", rc.state[0].StableConfigVersion)
-	req.ExpectedState.StableConfig = fleetPartialConfigVersionPrefix + "create-config"
-	require.NoError(t, d.handleTask(context.Background(), req))
+	remoteReq := testSignedManagedAgentInstallationRequest(d, methodUninstallDatadogAgent, deleteConfigID)
+	remoteReq.ExpectedState.StableConfig = fleetPartialConfigVersionPrefix + "create-config"
+	require.NoError(t, d.handleTask(context.Background(), remoteReq))
 	assert.Empty(t, rc.state[0].StableConfigVersion)
 	assert.Error(t, c.Get(context.Background(), testDDANSN, &v2alpha1.DatadogAgent{}))
 }
@@ -223,7 +227,7 @@ func TestManagedAgentInstallationAdmissionHandler(t *testing.T) {
 	assert.True(t, handler.Handle(context.Background(), request).Allowed)
 
 	d.configs = testManagedAgentInstallationInstallerConfig("delete-config", OperationDelete, "")
-	uninstall := testSignedManagedAgentInstallationRequest(d, methodUninstallDatadogAgent, "delete-config")
+	uninstall := testManagedAgentInstallationCommand(methodUninstallDatadogAgent, "delete-config")
 	_, err := d.activateUninstallFence(context.Background(), uninstall)
 	require.NoError(t, err)
 	response := handler.Handle(context.Background(), request)

@@ -70,10 +70,9 @@ type Daemon struct {
 	managedAgentInstallationEnabled      bool
 	mu                                   sync.RWMutex
 	configs                              map[string]installerConfig // keyed by config ID; replaced on each RC update
-	addonConfigs                         map[string]installerConfig
-	taskMu                               sync.Mutex // serializes package task-state updates
-	transitionMu                         sync.Mutex // serializes DDA managed Agent installation and experiment state transitions
-	managedAgentInstallationActive       bool       // reserves installer state while a managed Agent installation mutation is in progress
+	taskMu                               sync.Mutex                 // serializes package task-state updates
+	transitionMu                         sync.Mutex                 // serializes DDA managed Agent installation and experiment state transitions
+	managedAgentInstallationActive       bool                       // reserves installer state while a managed Agent installation mutation is in progress
 	managedAgentInstallationOperationID  string
 	managedAgentInstallationCancel       context.CancelFunc
 	managedAgentInstallationDone         chan struct{}
@@ -88,9 +87,10 @@ type Daemon struct {
 // DaemonOption configures optional Fleet daemon transports.
 type DaemonOption func(*Daemon)
 
-// WithManagedAgentInstallation enables managed Agent installation intents delivered by the EKS add-on.
-func WithManagedAgentInstallation() DaemonOption {
+// WithManagedAgentInstallation enables managed Agent installation intents for identity.
+func WithManagedAgentInstallation(identity remoteconfig.ManagedAgentInstallationIdentity) DaemonOption {
 	return func(daemon *Daemon) {
+		daemon.managedAgentInstallationIdentity = identity
 		daemon.managedAgentInstallationEnabled = true
 	}
 }
@@ -98,22 +98,20 @@ func WithManagedAgentInstallation() DaemonOption {
 // NewDaemon creates a new Fleet Daemon. When revisionsEnabled is false, experiment
 // signals are rejected because the reconciler cannot process them without the
 // ControllerRevision machinery.
-func NewDaemon(rcClient remoteconfig.RCClient, mgr manager.Manager, revisionsEnabled bool, managedAgentInstallationIdentity remoteconfig.ManagedAgentInstallationIdentity, options ...DaemonOption) *Daemon {
+func NewDaemon(rcClient remoteconfig.RCClient, mgr manager.Manager, revisionsEnabled bool, options ...DaemonOption) *Daemon {
 	daemon := &Daemon{
-		rcClient:                         rcClient,
-		client:                           mgr.GetClient(),
-		apiReader:                        mgr.GetAPIReader(),
-		cache:                            mgr.GetCache(), // Informer cache
-		recorder:                         mgr.GetEventRecorderFor("fleet-daemon"),
-		revisionsEnabled:                 revisionsEnabled,
-		managedAgentInstallationIdentity: managedAgentInstallationIdentity,
+		rcClient:         rcClient,
+		client:           mgr.GetClient(),
+		apiReader:        mgr.GetAPIReader(),
+		cache:            mgr.GetCache(), // Informer cache
+		recorder:         mgr.GetEventRecorderFor("fleet-daemon"),
+		revisionsEnabled: revisionsEnabled,
 		managedAgentInstallationTaskRunner: func(task func()) {
 			go task()
 		},
 		configs:                         make(map[string]installerConfig),
-		addonConfigs:                    make(map[string]installerConfig),
 		statusUpdates:                   make(chan ddaStatusSnapshot, 128),
-		managedAgentInstallationUpdates: make(chan managedAgentInstallationIntentSnapshot),
+		managedAgentInstallationUpdates: make(chan managedAgentInstallationIntentSnapshot, 1),
 		managedAgentInstallationRetries: make(chan struct{}, 1),
 	}
 	for _, option := range options {
@@ -159,18 +157,20 @@ func (d *Daemon) Start(ctx context.Context) error {
 	if !rehydrate() {
 		return nil
 	}
+	if d.managedAgentInstallationEnabled {
+		if err := d.rehydrateManagedAgentInstallationState(ctx); err != nil {
+			return fmt.Errorf("rehydrate managed Agent installation state: %w", err)
+		}
+	}
 	go newOperationTracker(d).run(ctx)
 	logger.Info("DDA status worker initialized")
 	if d.managedAgentInstallationEnabled {
-		if err := d.rehydrateManagedAgentInstallationState(ctx); err != nil {
-			return fmt.Errorf("rehydrate add-on managed Agent installation state: %w", err)
-		}
 		go d.runManagedAgentInstallationIntentWorker(ctx)
 		if err := d.installManagedAgentInstallationIntentForwarder(ctx); err != nil {
 			return err
 		}
 		go d.runManagedAgentInstallationFenceMonitor(ctx)
-		logger.Info("EKS add-on managed Agent installation intent worker initialized")
+		logger.Info("Managed Agent installation intent worker initialized", "provider", d.managedAgentInstallationIdentity.Provider())
 	}
 
 	d.rcClient.Subscribe(state.ProductInstallerConfig, handleInstallerConfigUpdate(ctx, func(configs map[string]installerConfig) error {
@@ -197,7 +197,7 @@ func (d *Daemon) handleTask(ctx context.Context, req remoteAPIRequest) error {
 	// every task FA sent, including those that will be rejected below.
 	d.emitTaskReceivedEvent(ctx, req)
 	if isManagedAgentInstallationMethod(req.Method) {
-		return d.handleManagedAgentInstallationTask(ctx, req)
+		return d.handleRemoteManagedAgentInstallationTask(ctx, req)
 	}
 	d.transitionMu.Lock()
 	defer d.transitionMu.Unlock()
@@ -246,153 +246,6 @@ func (d *Daemon) handleTask(ctx context.Context, req remoteAPIRequest) error {
 	return nil
 }
 
-func (d *Daemon) handleManagedAgentInstallationTask(ctx context.Context, req remoteAPIRequest) error {
-	d.transitionMu.Lock()
-	d.taskMu.Lock()
-	if d.managedAgentInstallationActive {
-		err := &stateDoesntMatchError{msg: "a DatadogAgent managed Agent installation transition is already in progress"}
-		d.taskMu.Unlock()
-		d.transitionMu.Unlock()
-		d.emitTaskRejectedEvent(ctx, req.Params.NamespacedName, req, err.Error())
-		return err
-	}
-	if err := d.validateManagedAgentInstallationTask(req); err != nil {
-		d.taskMu.Unlock()
-		d.transitionMu.Unlock()
-		if persistErr := d.recordManagedAgentInstallationResult(ctx, req, pbgo.TaskState_INVALID_STATE, err); persistErr != nil {
-			d.requestManagedAgentInstallationRetry()
-			return errors.Join(err, persistErr)
-		}
-		d.taskMu.Lock()
-		d.setTaskState(req.Package, req.ID, pbgo.TaskState_INVALID_STATE, err)
-		d.taskMu.Unlock()
-		d.emitTaskRejectedEvent(ctx, req.Params.NamespacedName, req, err.Error())
-		return err
-	}
-	taskCtx, cancel := context.WithCancel(ctx)
-	d.managedAgentInstallationActive = true
-	d.managedAgentInstallationOperationID = req.Params.OperationID
-	d.managedAgentInstallationCancel = cancel
-	d.managedAgentInstallationDone = make(chan struct{})
-	d.setTaskState(req.Package, req.ID, pbgo.TaskState_RUNNING, nil)
-	d.taskMu.Unlock()
-	d.transitionMu.Unlock()
-
-	if req.Addon != nil {
-		if err := d.writeManagedAgentInstallationState(taskCtx, managedAgentInstallationStateFromRequest(req, pbgo.TaskState_RUNNING, nil)); err != nil {
-			d.finishManagedAgentInstallationTask(req.Params.OperationID)
-			return fmt.Errorf("persist accepted EKS add-on managed Agent installation intent: %w", err)
-		}
-		d.taskMu.Lock()
-		d.managedAgentInstallationTaskReserved = true
-		d.taskMu.Unlock()
-	}
-	if d.managedAgentInstallationTaskRunner == nil {
-		return d.executeManagedAgentInstallationTask(taskCtx, req)
-	}
-	d.managedAgentInstallationTaskRunner(func() {
-		_ = d.executeManagedAgentInstallationTask(taskCtx, req)
-	})
-	return nil
-}
-
-func (d *Daemon) validateManagedAgentInstallationTask(req remoteAPIRequest) error {
-	if d.managedAgentInstallationEnabled && req.Addon == nil {
-		return &stateDoesntMatchError{msg: "EKS add-on managed Agent installation tasks must originate from the local managed Agent installation intent adapter"}
-	}
-	if err := d.validateManagedAgentInstallationRequestEnvelope(req); err != nil {
-		return err
-	}
-	if err := d.verifyExpectedState(req); err != nil {
-		return err
-	}
-	if req.ExpectedState.ExperimentConfig != "" {
-		return &stateDoesntMatchError{msg: "DatadogAgent managed Agent installation transitions require no active experiment config"}
-	}
-	return nil
-}
-
-func (d *Daemon) executeManagedAgentInstallationTask(ctx context.Context, req remoteAPIRequest) error {
-	d.transitionMu.Lock()
-	defer d.transitionMu.Unlock()
-	defer d.finishManagedAgentInstallationTask(req.Params.OperationID)
-
-	pending, err := d.dispatchRemoteAPIRequest(ctx, req)
-	if err != nil {
-		var stateErr *stateDoesntMatchError
-		resultState := pbgo.TaskState_ERROR
-		if errors.As(err, &stateErr) {
-			resultState = pbgo.TaskState_INVALID_STATE
-		}
-		if persistErr := d.recordManagedAgentInstallationResult(ctx, req, resultState, err); persistErr != nil {
-			d.requestManagedAgentInstallationRetry()
-			return errors.Join(err, persistErr)
-		}
-		d.taskMu.Lock()
-		d.setTaskState(req.Package, req.ID, resultState, err)
-		d.taskMu.Unlock()
-		d.emitTaskRejectedEvent(ctx, req.Params.NamespacedName, req, err.Error())
-		return err
-	}
-	if pending != nil {
-		err = fmt.Errorf("managed Agent installation method %s returned an asynchronous operation", req.Method)
-		if persistErr := d.recordManagedAgentInstallationResult(ctx, req, pbgo.TaskState_ERROR, err); persistErr != nil {
-			d.requestManagedAgentInstallationRetry()
-			return errors.Join(err, persistErr)
-		}
-		d.taskMu.Lock()
-		d.setTaskState(req.Package, req.ID, pbgo.TaskState_ERROR, err)
-		d.taskMu.Unlock()
-		d.emitTaskRejectedEvent(ctx, req.Params.NamespacedName, req, err.Error())
-		return err
-	}
-
-	if err := d.recordManagedAgentInstallationResult(ctx, req, pbgo.TaskState_DONE, nil); err != nil {
-		d.requestManagedAgentInstallationRetry()
-		return err
-	}
-	d.taskMu.Lock()
-	switch req.Method {
-	case methodInstallDatadogAgent:
-		d.setPackageConfigVersions(req.Package, req.Params.Version, "")
-	case methodUninstallDatadogAgent:
-		d.setPackageConfigVersions(req.Package, "", "")
-	}
-	d.setTaskState(req.Package, req.ID, pbgo.TaskState_DONE, nil)
-	d.taskMu.Unlock()
-	d.emitTaskCompletedEvent(ctx, pendingOperation{
-		taskID: req.ID,
-		intent: pendingIntent(methodLabel(req.Method)),
-		nsn:    req.Params.NamespacedName,
-	})
-	return nil
-}
-
-func (d *Daemon) finishManagedAgentInstallationTask(operationID string) {
-	d.taskMu.Lock()
-	defer d.taskMu.Unlock()
-	if d.managedAgentInstallationOperationID != operationID {
-		return
-	}
-	d.managedAgentInstallationActive = false
-	d.managedAgentInstallationOperationID = ""
-	if d.managedAgentInstallationCancel != nil {
-		d.managedAgentInstallationCancel()
-		d.managedAgentInstallationCancel = nil
-	}
-	if d.managedAgentInstallationDone != nil {
-		close(d.managedAgentInstallationDone)
-		d.managedAgentInstallationDone = nil
-	}
-}
-
-func isManagedAgentInstallationMethod(method string) bool {
-	return method == methodInstallDatadogAgent ||
-		method == methodUninstallDatadogAgent ||
-		method == methodVerifyDatadogAgentUninstalled ||
-		method == methodClearDatadogAgentUninstallFence
-}
-
 // handleConfigs replaces the stored installer configs with the latest RC update.
 // Configs are indexed by their ID so they can be retrieved by task handlers.
 func (d *Daemon) handleConfigs(ctx context.Context, configs map[string]installerConfig) error {
@@ -414,9 +267,6 @@ func (d *Daemon) getConfig(id string) (installerConfig, error) {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 	cfg, ok := d.configs[id]
-	if !ok {
-		cfg, ok = d.addonConfigs[id]
-	}
 	if !ok {
 		return installerConfig{}, fmt.Errorf("config %s not found", id)
 	}
@@ -455,17 +305,12 @@ func (d *Daemon) handleRemoteAPIRequest(ctx context.Context, req remoteAPIReques
 
 func (d *Daemon) dispatchRemoteAPIRequest(ctx context.Context, req remoteAPIRequest) (*pendingOperation, error) {
 	switch req.Method {
-	case methodInstallDatadogAgent:
-		if err := d.ensureUninstallFenceInactive(ctx); err != nil {
+	case methodInstallDatadogAgent, methodUninstallDatadogAgent, methodVerifyDatadogAgentUninstalled, methodClearDatadogAgentUninstallFence:
+		command, err := d.managedAgentInstallationCommandFromRemoteRequest(req)
+		if err != nil {
 			return nil, err
 		}
-		return d.installDatadogAgent(ctx, req)
-	case methodUninstallDatadogAgent:
-		return d.uninstallDatadogAgent(ctx, req)
-	case methodVerifyDatadogAgentUninstalled:
-		return d.verifyDatadogAgentUninstalled(ctx, req)
-	case methodClearDatadogAgentUninstallFence:
-		return d.clearDatadogAgentUninstallFence(ctx, req)
+		return d.dispatchManagedAgentInstallationCommand(ctx, command)
 	case methodStartDatadogAgentExperiment:
 		if err := d.ensureUninstallFenceInactive(ctx); err != nil {
 			return nil, err

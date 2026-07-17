@@ -34,19 +34,20 @@ import (
 )
 
 const (
-	fleetManagedByLabel                       = "fleet.datadoghq.com/managed-by"
-	fleetConfigIDLabel                        = "fleet.datadoghq.com/config-id"
-	fleetManagedAgentInstallationStateLabel   = "fleet.datadoghq.com/managed-agent-installation-state"
-	fleetInstallationIDLabel                  = "fleet.datadoghq.com/installation-id"
-	fleetTargetIDLabel                        = "fleet.datadoghq.com/target-id"
-	fleetConfigHashAnnotation                 = "fleet.datadoghq.com/config-hash"
-	fleetExperimentHashAnnotation             = "fleet.datadoghq.com/experiment-config-hash"
-	fleetPendingTargetUIDAnnotation           = "fleet.datadoghq.com/pending-target-uid"
-	fleetCreateTaskIDAnnotation               = "fleet.datadoghq.com/create-task-id"
-	fleetManagedByValue                       = "fleet-automation"
-	fleetManagedAgentInstallationStatePartial = "partial"
-	fleetManagedAgentInstallationStateReady   = "ready"
-	fleetPartialConfigVersionPrefix           = "partial:"
+	fleetManagedByLabel                        = "fleet.datadoghq.com/managed-by"
+	fleetConfigIDLabel                         = "fleet.datadoghq.com/config-id"
+	fleetManagedAgentInstallationStateLabel    = "fleet.datadoghq.com/managed-agent-installation-state"
+	fleetManagedAgentInstallationProviderLabel = "fleet.datadoghq.com/managed-agent-installation-provider"
+	fleetInstallationIDLabel                   = "fleet.datadoghq.com/installation-id"
+	fleetTargetIDLabel                         = "fleet.datadoghq.com/target-id"
+	fleetConfigHashAnnotation                  = "fleet.datadoghq.com/config-hash"
+	fleetExperimentHashAnnotation              = "fleet.datadoghq.com/experiment-config-hash"
+	fleetPendingTargetUIDAnnotation            = "fleet.datadoghq.com/pending-target-uid"
+	fleetCreateTaskIDAnnotation                = "fleet.datadoghq.com/create-task-id"
+	fleetManagedByValue                        = "fleet-automation"
+	fleetManagedAgentInstallationStatePartial  = "partial"
+	fleetManagedAgentInstallationStateReady    = "ready"
+	fleetPartialConfigVersionPrefix            = "partial:"
 
 	fleetDatadogAgentNamespace = "datadog"
 	fleetDatadogAgentName      = "datadog-agent"
@@ -131,7 +132,7 @@ type datadogAgentManagedAgentInstallationConfig struct {
 	Spec *v2alpha1.DatadogAgentSpec `json:"spec"`
 }
 
-func (d *Daemon) resolveManagedAgentInstallationOperation(req remoteAPIRequest, expected Operation) (resolvedOperation, error) {
+func (d *Daemon) resolveRemoteManagedAgentInstallationOperation(req remoteAPIRequest, expected Operation) (resolvedOperation, error) {
 	operationName := fmt.Sprintf("%s DatadogAgent", expected)
 	if req.Package != packageDatadogOperator {
 		return resolvedOperation{}, fmt.Errorf("%s: package must be %q, got %q", operationName, packageDatadogOperator, req.Package)
@@ -166,6 +167,38 @@ func (d *Daemon) resolveManagedAgentInstallationOperation(req remoteAPIRequest, 
 	}, nil
 }
 
+func (d *Daemon) resolveManagedAgentInstallationCommand(command managedAgentInstallationCommand, expected Operation) (resolvedOperation, error) {
+	operationName := fmt.Sprintf("%s DatadogAgent", expected)
+	operation, err := command.operation()
+	if err != nil {
+		return resolvedOperation{}, err
+	}
+	if operation != expected {
+		return resolvedOperation{}, fmt.Errorf("%s: invalid operation: %s", operationName, operation)
+	}
+	if command.ConfigID == "" {
+		return resolvedOperation{}, fmt.Errorf("%s: config ID is required", operationName)
+	}
+	config := command.Config
+	if config == nil {
+		cfg, err := d.getConfig(command.ConfigID)
+		if err != nil {
+			return resolvedOperation{}, fmt.Errorf("%s: %w", operationName, err)
+		}
+		if len(cfg.Operations) != 1 {
+			return resolvedOperation{}, fmt.Errorf("%s: config %s must have exactly 1 operation, got %d", operationName, cfg.ID, len(cfg.Operations))
+		}
+		if cfg.Operations[0].Operation != expected {
+			return resolvedOperation{}, fmt.Errorf("%s: invalid operation: %s", operationName, cfg.Operations[0].Operation)
+		}
+		config = cfg.Operations[0].Config
+	}
+	return resolvedOperation{
+		NamespacedName: managedAgentInstallationTarget,
+		Config:         config,
+	}, nil
+}
+
 func validateManagedAgentInstallationParams(params operatorTaskParams) error {
 	if err := validateParams(params); err != nil {
 		return err
@@ -177,8 +210,8 @@ func validateManagedAgentInstallationParams(params operatorTaskParams) error {
 	return nil
 }
 
-func (d *Daemon) installDatadogAgent(ctx context.Context, req remoteAPIRequest) (*pendingOperation, error) {
-	op, resolveErr := d.resolveManagedAgentInstallationOperation(req, OperationCreate)
+func (d *Daemon) installDatadogAgent(ctx context.Context, command managedAgentInstallationCommand) (*pendingOperation, error) {
+	op, resolveErr := d.resolveManagedAgentInstallationCommand(command, OperationCreate)
 	if resolveErr != nil {
 		return nil, resolveErr
 	}
@@ -204,39 +237,39 @@ func (d *Daemon) installDatadogAgent(ctx context.Context, req remoteAPIRequest) 
 		if err := d.validateFleetDatadogAgentInstallation(existing); err != nil {
 			return nil, err
 		}
-		if err := validateFleetDatadogAgentInstallReplay(existing, req.Params.Version, spec); err != nil {
+		if err := validateFleetDatadogAgentInstallReplay(existing, command.ConfigID, spec); err != nil {
 			return nil, err
 		}
-		d.setPackageConfigVersions(req.Package, fleetPartialConfigVersionPrefix+req.Params.Version, "")
+		d.setPackageConfigVersions(packageDatadogOperator, fleetPartialConfigVersionPrefix+command.ConfigID, "")
 		if _, err := d.markFleetDatadogAgentPartial(ctx, op.NamespacedName, existing.UID); err != nil {
 			return nil, fmt.Errorf("create DatadogAgent: mark managed Agent installation partial before readiness revalidation: %w", err)
 		}
-		if err := d.ensureManagedAgentInstallationResources(ctx, req, existing); err != nil {
-			return nil, d.retainFleetDatadogAgentPartial(ctx, req, existing.UID, err)
+		if err := d.ensureManagedAgentInstallationWindowsProfile(ctx, command, existing); err != nil {
+			return nil, d.retainFleetDatadogAgentPartial(ctx, command, existing.UID, err)
 		}
-		if err := d.waitForManagedAgentInstallationResourcesReady(ctx, req, op.NamespacedName, existing.UID); err != nil {
-			return nil, d.retainFleetDatadogAgentPartial(ctx, req, existing.UID, fmt.Errorf("create DatadogAgent: %w", err))
+		if err := d.waitForManagedAgentInstallationReady(ctx, command, op.NamespacedName, existing.UID); err != nil {
+			return nil, d.retainFleetDatadogAgentPartial(ctx, command, existing.UID, fmt.Errorf("create DatadogAgent: %w", err))
 		}
-		if err := d.markFleetDatadogAgentReady(ctx, op.NamespacedName, existing.UID, req.Params.Version); err != nil {
-			return nil, d.retainFleetDatadogAgentPartial(ctx, req, existing.UID, fmt.Errorf("create DatadogAgent: mark managed Agent installation ready: %w", err))
+		if err := d.markFleetDatadogAgentReady(ctx, op.NamespacedName, existing.UID, command.ConfigID); err != nil {
+			return nil, d.retainFleetDatadogAgentPartial(ctx, command, existing.UID, fmt.Errorf("create DatadogAgent: mark managed Agent installation ready: %w", err))
 		}
 		observed, conflictErr := d.validateDatadogAgentInstallTarget(ctx, op.NamespacedName)
 		if conflictErr != nil {
-			return nil, d.handleDatadogAgentInstallCoexistenceConflict(ctx, req, existing, observed, conflictErr, false)
+			return nil, d.handleDatadogAgentInstallCoexistenceConflict(ctx, command, existing, observed, conflictErr, false)
 		}
-		if err := validateFleetDatadogAgentInstallCompletion(observed, existing.UID, req.Params.Version); err != nil {
-			return nil, d.retainFleetDatadogAgentPartial(ctx, req, existing.UID, err)
+		if err := validateFleetDatadogAgentInstallCompletion(observed, existing.UID, command.ConfigID); err != nil {
+			return nil, d.retainFleetDatadogAgentPartial(ctx, command, existing.UID, err)
 		}
 		if err := d.validateFleetDatadogAgentInstallation(observed); err != nil {
 			return nil, err
 		}
-		if req.Addon != nil {
-			if err := d.validateManagedAgentInstallationResourcesReady(ctx, observed); err != nil {
-				return nil, d.retainFleetDatadogAgentPartial(ctx, req, existing.UID, err)
+		if command.instrumenterManaged() {
+			if err := d.validateManagedAgentInstallationWindowsProfileReady(ctx, observed); err != nil {
+				return nil, d.retainFleetDatadogAgentPartial(ctx, command, existing.UID, err)
 			}
 		}
-		if req.Addon == nil {
-			d.setPackageConfigVersions(req.Package, req.Params.Version, "")
+		if !command.instrumenterManaged() {
+			d.setPackageConfigVersions(packageDatadogOperator, command.ConfigID, "")
 		}
 		return nil, nil
 	}
@@ -253,15 +286,16 @@ func (d *Daemon) installDatadogAgent(ctx context.Context, req remoteAPIRequest) 
 			Name:      op.NamespacedName.Name,
 			Namespace: op.NamespacedName.Namespace,
 			Labels: map[string]string{
-				fleetManagedByLabel:                     fleetManagedByValue,
-				fleetConfigIDLabel:                      req.Params.Version,
-				fleetManagedAgentInstallationStateLabel: fleetManagedAgentInstallationStatePartial,
-				fleetInstallationIDLabel:                req.Params.InstallationID,
-				fleetTargetIDLabel:                      d.managedAgentInstallationIdentity.TargetID(),
+				fleetManagedByLabel:                        fleetManagedByValue,
+				fleetConfigIDLabel:                         command.ConfigID,
+				fleetManagedAgentInstallationStateLabel:    fleetManagedAgentInstallationStatePartial,
+				fleetManagedAgentInstallationProviderLabel: string(d.managedAgentInstallationIdentity.Provider()),
+				fleetInstallationIDLabel:                   command.InstallationID,
+				fleetTargetIDLabel:                         d.managedAgentInstallationIdentity.TargetID(),
 			},
 			Annotations: map[string]string{
 				fleetConfigHashAnnotation:   configHash,
-				fleetCreateTaskIDAnnotation: req.ID,
+				fleetCreateTaskIDAnnotation: command.TaskID,
 			},
 		},
 		Spec: *spec,
@@ -278,90 +312,90 @@ func (d *Daemon) installDatadogAgent(ctx context.Context, req remoteAPIRequest) 
 		}); getErr != nil {
 			return nil, fmt.Errorf("create DatadogAgent: create returned %w and the resource could not be recovered: %w", createErr, getErr)
 		}
-		if ownershipErr := validateFleetOwnedDatadogAgent(current, req.Params.Version); ownershipErr != nil {
+		if ownershipErr := validateFleetOwnedDatadogAgent(current, command.ConfigID); ownershipErr != nil {
 			return nil, ownershipErr
 		}
 		if ownershipErr := d.validateFleetDatadogAgentInstallation(current); ownershipErr != nil {
 			return nil, ownershipErr
 		}
-		d.setPackageConfigVersions(req.Package, fleetPartialConfigVersionPrefix+req.Params.Version, "")
-		if validateErr := validateFleetDatadogAgentInstallReplay(current, req.Params.Version, spec); validateErr != nil {
+		d.setPackageConfigVersions(packageDatadogOperator, fleetPartialConfigVersionPrefix+command.ConfigID, "")
+		if validateErr := validateFleetDatadogAgentInstallReplay(current, command.ConfigID, spec); validateErr != nil {
 			return nil, validateErr
 		}
 		observed, conflictErr := d.validateDatadogAgentInstallTarget(ctx, op.NamespacedName)
 		if conflictErr != nil {
-			return nil, d.handleDatadogAgentInstallCoexistenceConflict(ctx, req, current, observed, conflictErr, false)
+			return nil, d.handleDatadogAgentInstallCoexistenceConflict(ctx, command, current, observed, conflictErr, false)
 		}
 		return nil, fmt.Errorf("create DatadogAgent: create returned %w; recovered Fleet-owned resource remains partial for retry or explicit uninstall", createErr)
 	}
-	d.publishFleetDatadogAgentManagedAgentInstallationState(req.Package, dda, req.Params.Version)
+	d.publishFleetDatadogAgentManagedAgentInstallationState(packageDatadogOperator, dda, command.ConfigID)
 	observed, conflictErr := d.validateDatadogAgentInstallTarget(ctx, op.NamespacedName)
 	if conflictErr != nil {
-		return nil, d.handleDatadogAgentInstallCoexistenceConflict(ctx, req, dda, observed, conflictErr, true)
+		return nil, d.handleDatadogAgentInstallCoexistenceConflict(ctx, command, dda, observed, conflictErr, true)
 	}
 	acceptedHash, acceptedHashErr := fleetDatadogAgentSpecHash(&dda.Spec)
 	if acceptedHashErr != nil {
 		return nil, fmt.Errorf("create DatadogAgent: hash accepted spec: %w", acceptedHashErr)
 	}
-	if err := d.recordFleetDatadogAgentSpecHash(ctx, op.NamespacedName, dda.UID, req.Params.Version, acceptedHash); err != nil {
+	if err := d.recordFleetDatadogAgentSpecHash(ctx, op.NamespacedName, dda.UID, command.ConfigID, acceptedHash); err != nil {
 		return nil, fmt.Errorf("create DatadogAgent: record accepted spec: %w", err)
 	}
-	if err := d.ensureManagedAgentInstallationResources(ctx, req, dda); err != nil {
-		return nil, d.retainFleetDatadogAgentPartial(ctx, req, dda.UID, err)
+	if err := d.ensureManagedAgentInstallationWindowsProfile(ctx, command, dda); err != nil {
+		return nil, d.retainFleetDatadogAgentPartial(ctx, command, dda.UID, err)
 	}
-	if err := d.waitForManagedAgentInstallationResourcesReady(ctx, req, op.NamespacedName, dda.UID); err != nil {
+	if err := d.waitForManagedAgentInstallationReady(ctx, command, op.NamespacedName, dda.UID); err != nil {
 		return nil, fmt.Errorf("create DatadogAgent: %w", err)
 	}
-	if err := d.markFleetDatadogAgentReady(ctx, op.NamespacedName, dda.UID, req.Params.Version); err != nil {
+	if err := d.markFleetDatadogAgentReady(ctx, op.NamespacedName, dda.UID, command.ConfigID); err != nil {
 		return nil, fmt.Errorf("create DatadogAgent: mark managed Agent installation ready: %w", err)
 	}
 	observed, conflictErr = d.validateDatadogAgentInstallTarget(ctx, op.NamespacedName)
 	if conflictErr != nil {
-		return nil, d.handleDatadogAgentInstallCoexistenceConflict(ctx, req, dda, observed, conflictErr, true)
+		return nil, d.handleDatadogAgentInstallCoexistenceConflict(ctx, command, dda, observed, conflictErr, true)
 	}
-	if err := validateFleetDatadogAgentInstallCompletion(observed, dda.UID, req.Params.Version); err != nil {
-		return nil, d.retainFleetDatadogAgentPartial(ctx, req, dda.UID, err)
+	if err := validateFleetDatadogAgentInstallCompletion(observed, dda.UID, command.ConfigID); err != nil {
+		return nil, d.retainFleetDatadogAgentPartial(ctx, command, dda.UID, err)
 	}
 	if err := d.validateFleetDatadogAgentInstallation(observed); err != nil {
 		return nil, err
 	}
-	if req.Addon != nil {
-		if err := d.validateManagedAgentInstallationResourcesReady(ctx, observed); err != nil {
-			return nil, d.retainFleetDatadogAgentPartial(ctx, req, dda.UID, err)
+	if command.instrumenterManaged() {
+		if err := d.validateManagedAgentInstallationWindowsProfileReady(ctx, observed); err != nil {
+			return nil, d.retainFleetDatadogAgentPartial(ctx, command, dda.UID, err)
 		}
 	}
-	if req.Addon == nil {
-		d.setPackageConfigVersions(req.Package, req.Params.Version, "")
+	if !command.instrumenterManaged() {
+		d.setPackageConfigVersions(packageDatadogOperator, command.ConfigID, "")
 	}
 
-	ctrl.LoggerFrom(ctx).Info("Created Fleet-managed DatadogAgent", "namespace", dda.Namespace, "name", dda.Name, "config", req.Params.Version)
+	ctrl.LoggerFrom(ctx).Info("Created Fleet-managed DatadogAgent", "namespace", dda.Namespace, "name", dda.Name, "config", command.ConfigID)
 	return nil, nil
 }
 
-func (d *Daemon) handleDatadogAgentInstallCoexistenceConflict(ctx context.Context, req remoteAPIRequest, created, observed *v2alpha1.DatadogAgent, conflictErr error, createdByThisInvocation bool) error {
+func (d *Daemon) handleDatadogAgentInstallCoexistenceConflict(ctx context.Context, command managedAgentInstallationCommand, created, observed *v2alpha1.DatadogAgent, conflictErr error, createdByThisInvocation bool) error {
 	var coexistenceErr *datadogAgentCoexistenceError
 	canRollback := errors.As(conflictErr, &coexistenceErr) &&
 		createdByThisInvocation &&
 		observed != nil &&
 		observed.UID == created.UID &&
-		observed.Annotations[fleetCreateTaskIDAnnotation] == req.ID
+		observed.Annotations[fleetCreateTaskIDAnnotation] == command.TaskID
 	if !canRollback {
-		return d.retainFleetDatadogAgentPartial(ctx, req, created.UID, fmt.Errorf("%w; this invocation cannot safely roll back the DatadogAgent, leaving it for explicit uninstall", conflictErr))
+		return d.retainFleetDatadogAgentPartial(ctx, command, created.UID, fmt.Errorf("%w; this invocation cannot safely roll back the DatadogAgent, leaving it for explicit uninstall", conflictErr))
 	}
-	if rollbackErr := d.rollbackFleetDatadogAgentCreation(ctx, client.ObjectKeyFromObject(observed), observed.UID, observed.ResourceVersion, req.Params.Version, req.ID); rollbackErr != nil {
-		return d.retainFleetDatadogAgentPartial(ctx, req, created.UID, fmt.Errorf("%w; failed to roll back concurrently conflicting Fleet DatadogAgent: %w", conflictErr, rollbackErr))
+	if rollbackErr := d.rollbackFleetDatadogAgentCreation(ctx, client.ObjectKeyFromObject(observed), observed.UID, observed.ResourceVersion, command.ConfigID, command.TaskID); rollbackErr != nil {
+		return d.retainFleetDatadogAgentPartial(ctx, command, created.UID, fmt.Errorf("%w; failed to roll back concurrently conflicting Fleet DatadogAgent: %w", conflictErr, rollbackErr))
 	}
-	d.setPackageConfigVersions(req.Package, "", "")
+	d.setPackageConfigVersions(packageDatadogOperator, "", "")
 	return conflictErr
 }
 
-func (d *Daemon) retainFleetDatadogAgentPartial(ctx context.Context, req remoteAPIRequest, uid types.UID, cause error) error {
-	d.setPackageConfigVersions(req.Package, fleetPartialConfigVersionPrefix+req.Params.Version, "")
-	configID, err := d.markFleetDatadogAgentPartial(ctx, req.Params.NamespacedName, uid)
+func (d *Daemon) retainFleetDatadogAgentPartial(ctx context.Context, command managedAgentInstallationCommand, uid types.UID, cause error) error {
+	d.setPackageConfigVersions(packageDatadogOperator, fleetPartialConfigVersionPrefix+command.ConfigID, "")
+	configID, err := d.markFleetDatadogAgentPartial(ctx, managedAgentInstallationTarget, uid)
 	if err != nil {
 		return fmt.Errorf("%w; failed to retain the Fleet-managed DatadogAgent as partial: %w", cause, err)
 	}
-	d.setPackageConfigVersions(req.Package, fleetPartialConfigVersionPrefix+configID, "")
+	d.setPackageConfigVersions(packageDatadogOperator, fleetPartialConfigVersionPrefix+configID, "")
 	return cause
 
 }
@@ -408,8 +442,8 @@ func (d *Daemon) rollbackFleetDatadogAgentCreation(ctx context.Context, nsn type
 	return d.waitForFleetDatadogAgentCleanup(ctx, nsn, uid, cleanupTargets)
 }
 
-func (d *Daemon) uninstallDatadogAgent(ctx context.Context, req remoteAPIRequest) (*pendingOperation, error) {
-	op, resolveErr := d.resolveManagedAgentInstallationOperation(req, OperationDelete)
+func (d *Daemon) uninstallDatadogAgent(ctx context.Context, command managedAgentInstallationCommand) (*pendingOperation, error) {
+	op, resolveErr := d.resolveManagedAgentInstallationCommand(command, OperationDelete)
 	if resolveErr != nil {
 		return nil, resolveErr
 	}
@@ -420,11 +454,11 @@ func (d *Daemon) uninstallDatadogAgent(ctx context.Context, req remoteAPIRequest
 	dda := &v2alpha1.DatadogAgent{}
 	getErr := d.managedAgentInstallationReader().Get(ctx, op.NamespacedName, dda)
 	if apierrors.IsNotFound(getErr) {
-		activatedFence, fenceErr := d.activateUninstallFence(ctx, req)
+		activatedFence, fenceErr := d.activateUninstallFence(ctx, command)
 		if fenceErr != nil {
 			return nil, fmt.Errorf("delete DatadogAgent: activate uninstall fence: %w", fenceErr)
 		}
-		if req.Addon != nil {
+		if command.instrumenterManaged() {
 			absentDDA := &v2alpha1.DatadogAgent{ObjectMeta: metav1.ObjectMeta{Namespace: op.NamespacedName.Namespace, Name: op.NamespacedName.Name}}
 			if err := d.deleteManagedAgentInstallationWindowsProfile(ctx, absentDDA); err != nil {
 				return nil, err
@@ -444,7 +478,7 @@ func (d *Daemon) uninstallDatadogAgent(ctx context.Context, req remoteAPIRequest
 		if waitErr := d.waitForFleetDatadogAgentCleanup(ctx, op.NamespacedName, "", cleanupTargets); waitErr != nil {
 			return nil, fmt.Errorf("delete DatadogAgent: waiting for remaining resource removal: %w", waitErr)
 		}
-		if req.Addon != nil {
+		if command.instrumenterManaged() {
 			if err := d.waitForManagedAgentInstallationWindowsProfileAbsent(ctx); err != nil {
 				return nil, fmt.Errorf("delete DatadogAgent: waiting for Windows profile removal: %w", err)
 			}
@@ -455,7 +489,7 @@ func (d *Daemon) uninstallDatadogAgent(ctx context.Context, req remoteAPIRequest
 		if err := d.verifyDatadogAgentManagedAgentInstallationResourcesAbsent(ctx, op.NamespacedName); err != nil {
 			return nil, err
 		}
-		if err := d.verifyUnchangedActiveUninstallFence(ctx, req, activatedFence); err != nil {
+		if err := d.verifyUnchangedActiveUninstallFence(ctx, command, activatedFence); err != nil {
 			return nil, fmt.Errorf("delete DatadogAgent: revalidate uninstall fence: %w", err)
 		}
 		return nil, nil
@@ -476,11 +510,11 @@ func (d *Daemon) uninstallDatadogAgent(ctx context.Context, req remoteAPIRequest
 	if err := validateNoActiveFleetExperiment(dda); err != nil {
 		return nil, err
 	}
-	activatedFence, fenceErr := d.activateUninstallFence(ctx, req)
+	activatedFence, fenceErr := d.activateUninstallFence(ctx, command)
 	if fenceErr != nil {
 		return nil, fmt.Errorf("delete DatadogAgent: activate uninstall fence: %w", fenceErr)
 	}
-	if req.Addon != nil {
+	if command.instrumenterManaged() {
 		if err := d.deleteManagedAgentInstallationWindowsProfile(ctx, dda); err != nil {
 			return nil, err
 		}
@@ -500,7 +534,7 @@ func (d *Daemon) uninstallDatadogAgent(ctx context.Context, req remoteAPIRequest
 	if err := d.waitForFleetDatadogAgentCleanup(ctx, op.NamespacedName, dda.UID, cleanupTargets); err != nil {
 		return nil, fmt.Errorf("delete DatadogAgent: waiting for resource removal: %w", err)
 	}
-	if req.Addon != nil {
+	if command.instrumenterManaged() {
 		if err := d.waitForManagedAgentInstallationWindowsProfileAbsent(ctx); err != nil {
 			return nil, fmt.Errorf("delete DatadogAgent: waiting for Windows profile removal: %w", err)
 		}
@@ -511,7 +545,7 @@ func (d *Daemon) uninstallDatadogAgent(ctx context.Context, req remoteAPIRequest
 	if err := d.verifyDatadogAgentManagedAgentInstallationResourcesAbsent(ctx, op.NamespacedName); err != nil {
 		return nil, err
 	}
-	if err := d.verifyUnchangedActiveUninstallFence(ctx, req, activatedFence); err != nil {
+	if err := d.verifyUnchangedActiveUninstallFence(ctx, command, activatedFence); err != nil {
 		return nil, fmt.Errorf("delete DatadogAgent: revalidate uninstall fence: %w", err)
 	}
 
@@ -1389,12 +1423,13 @@ func classifyFleetDatadogAgentOwnership(dda *v2alpha1.DatadogAgent) (bool, error
 	managedBy, hasManagedBy := dda.Labels[fleetManagedByLabel]
 	configID, hasConfigID := dda.Labels[fleetConfigIDLabel]
 	managedAgentInstallationState, hasManagedAgentInstallationState := dda.Labels[fleetManagedAgentInstallationStateLabel]
+	_, hasProvider := dda.Labels[fleetManagedAgentInstallationProviderLabel]
 	_, hasInstallationID := dda.Labels[fleetInstallationIDLabel]
 	_, hasTargetID := dda.Labels[fleetTargetIDLabel]
 	_, hasConfigHash := dda.Annotations[fleetConfigHashAnnotation]
 	_, hasExperimentHash := dda.Annotations[fleetExperimentHashAnnotation]
 	_, hasCreateTaskID := dda.Annotations[fleetCreateTaskIDAnnotation]
-	if !hasManagedBy && !hasConfigID && !hasManagedAgentInstallationState && !hasInstallationID && !hasTargetID && !hasConfigHash && !hasExperimentHash && !hasCreateTaskID {
+	if !hasManagedBy && !hasConfigID && !hasManagedAgentInstallationState && !hasProvider && !hasInstallationID && !hasTargetID && !hasConfigHash && !hasExperimentHash && !hasCreateTaskID {
 		return false, nil
 	}
 	if managedBy != fleetManagedByValue || configID == "" || !hasConfigHash ||
@@ -1408,12 +1443,13 @@ func classifyFleetDatadogAgentOwnershipForRehydration(dda *v2alpha1.DatadogAgent
 	managedBy, hasManagedBy := dda.Labels[fleetManagedByLabel]
 	configID, hasConfigID := dda.Labels[fleetConfigIDLabel]
 	_, hasManagedAgentInstallationState := dda.Labels[fleetManagedAgentInstallationStateLabel]
+	_, hasProvider := dda.Labels[fleetManagedAgentInstallationProviderLabel]
 	_, hasInstallationID := dda.Labels[fleetInstallationIDLabel]
 	_, hasTargetID := dda.Labels[fleetTargetIDLabel]
 	_, hasConfigHash := dda.Annotations[fleetConfigHashAnnotation]
 	_, hasExperimentHash := dda.Annotations[fleetExperimentHashAnnotation]
 	_, hasCreateTaskID := dda.Annotations[fleetCreateTaskIDAnnotation]
-	if !hasManagedBy && !hasConfigID && !hasManagedAgentInstallationState && !hasInstallationID && !hasTargetID && !hasConfigHash && !hasExperimentHash && !hasCreateTaskID {
+	if !hasManagedBy && !hasConfigID && !hasManagedAgentInstallationState && !hasProvider && !hasInstallationID && !hasTargetID && !hasConfigHash && !hasExperimentHash && !hasCreateTaskID {
 		return false, nil
 	}
 	if managedBy != fleetManagedByValue || configID == "" {
@@ -1439,15 +1475,19 @@ func validateFleetOwnedDatadogAgent(dda *v2alpha1.DatadogAgent, expectedConfigID
 }
 
 func (d *Daemon) validateFleetDatadogAgentInstallation(dda *v2alpha1.DatadogAgent) error {
+	provider := dda.Labels[fleetManagedAgentInstallationProviderLabel]
 	installationID := dda.Labels[fleetInstallationIDLabel]
 	targetID := dda.Labels[fleetTargetIDLabel]
 	if !d.managedAgentInstallationIdentity.Configured() {
-		if installationID != "" || targetID != "" {
+		if provider != "" || installationID != "" || targetID != "" {
 			return &stateDoesntMatchError{msg: fmt.Sprintf("DatadogAgent %s/%s has managed Agent installation identity metadata but the local managed Agent installation identity is not configured", dda.Namespace, dda.Name)}
 		}
 		return nil
 	}
-	if installationID != d.managedAgentInstallationIdentity.InstallationID {
+	if provider != string(d.managedAgentInstallationIdentity.Provider()) {
+		return &stateDoesntMatchError{msg: fmt.Sprintf("DatadogAgent %s/%s belongs to a different managed installation provider", dda.Namespace, dda.Name)}
+	}
+	if installationID != d.managedAgentInstallationIdentity.InstallationID() {
 		return &stateDoesntMatchError{msg: fmt.Sprintf("DatadogAgent %s/%s belongs to a different managed installation", dda.Namespace, dda.Name)}
 	}
 	if targetID != d.managedAgentInstallationIdentity.TargetID() {
@@ -1457,15 +1497,19 @@ func (d *Daemon) validateFleetDatadogAgentInstallation(dda *v2alpha1.DatadogAgen
 }
 
 func (d *Daemon) validateFleetDatadogAgentInternalInstallation(ddai *v1alpha1.DatadogAgentInternal) error {
+	provider := ddai.Labels[fleetManagedAgentInstallationProviderLabel]
 	installationID := ddai.Labels[fleetInstallationIDLabel]
 	targetID := ddai.Labels[fleetTargetIDLabel]
 	if !d.managedAgentInstallationIdentity.Configured() {
-		if installationID != "" || targetID != "" {
+		if provider != "" || installationID != "" || targetID != "" {
 			return &stateDoesntMatchError{msg: fmt.Sprintf("DatadogAgentInternal %s/%s has managed Agent installation identity metadata but the local managed Agent installation identity is not configured", ddai.Namespace, ddai.Name)}
 		}
 		return nil
 	}
-	if installationID != d.managedAgentInstallationIdentity.InstallationID {
+	if provider != string(d.managedAgentInstallationIdentity.Provider()) {
+		return &stateDoesntMatchError{msg: fmt.Sprintf("DatadogAgentInternal %s/%s belongs to a different managed installation provider", ddai.Namespace, ddai.Name)}
+	}
+	if installationID != d.managedAgentInstallationIdentity.InstallationID() {
 		return &stateDoesntMatchError{msg: fmt.Sprintf("DatadogAgentInternal %s/%s belongs to a different managed installation", ddai.Namespace, ddai.Name)}
 	}
 	if targetID != d.managedAgentInstallationIdentity.TargetID() {

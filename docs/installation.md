@@ -172,7 +172,6 @@ default applies.
 | Introspection           | `--introspectionEnabled`          | `DD_INTROSPECTION_ENABLED`               | `false` |
 | RemoteConfig            | `--remoteConfigEnabled`           | `DD_REMOTE_CONFIG_ENABLED`               | `false` |
 | RemoteUpdates           | `--remoteUpdatesEnabled`          | `DD_REMOTE_UPDATES_ENABLED`              | `false` |
-| EKSAddOnManagedAgentInstallation       | `--eksManagedAgentInstallationEnabled`      | `DD_EKS_MANAGED_AGENT_INSTALLATION_ENABLED`         | `false` |
 | OperatorMetrics         | `--operatorMetricsEnabled`        | `DD_OPERATOR_METRICS_ENABLED`            | `true`  |
 | UntaintController       | `--untaintControllerEnabled`      | `DD_UNTAINT_CONTROLLER_ENABLED`          | `false` |
 | UntaintWaitForCSIDriver | `--untaintControllerWaitForCSIDriver` | `DD_UNTAINT_CONTROLLER_WAIT_FOR_CSI_DRIVER` | `false` |

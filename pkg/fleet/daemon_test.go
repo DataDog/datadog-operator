@@ -964,6 +964,7 @@ type mockRCClient struct {
 	refreshCalls    int
 	refreshErr      error
 	refreshFailures int
+	refreshResults  []error
 }
 
 func (m *mockRCClient) Subscribe(_ string, _ func(map[string]state.RawConfig, func(string, state.ApplyStatus))) {
@@ -979,6 +980,11 @@ func (m *mockRCClient) GetClientID() string {
 
 func (m *mockRCClient) RefreshUpdaterTags(context.Context) error {
 	m.refreshCalls++
+	if len(m.refreshResults) > 0 {
+		result := m.refreshResults[0]
+		m.refreshResults = m.refreshResults[1:]
+		return result
+	}
 	if m.refreshFailures > 0 {
 		m.refreshFailures--
 		return m.refreshErr
