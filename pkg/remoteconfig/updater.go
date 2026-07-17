@@ -52,8 +52,9 @@ type RemoteConfigUpdater struct {
 	rcClient                              *client.Client
 	rcService                             *service.CoreAgentService
 	serviceConf                           RcServiceConfiguration
-	managedAgentInstallationIdentity      ManagedAgentInstallationIdentity
-	managedAgentInstallationReadinessTags func(context.Context) ([]string, error)
+	additionalUpdaterTags                 []string
+	dynamicUpdaterTags                    func(context.Context) ([]string, error)
+	initialInstallerConfigVersionOverride string
 	logger                                logr.Logger
 	mu                                    sync.RWMutex
 	callbackMu                            sync.RWMutex
@@ -242,7 +243,7 @@ func (r *RemoteConfigUpdater) Start(apiKey string, site string, clusterName stri
 	}
 	updaterTags, tagsErr := r.getUpdaterTags(context.Background(), false)
 	if tagsErr != nil {
-		r.logger.Error(tagsErr, "Could not establish managed Agent installation readiness during Remote Configuration startup")
+		r.logger.Error(tagsErr, "Could not resolve Remote Configuration updater tags during startup")
 	}
 	rcClient, err := r.newUpdaterClient(rcService, updaterTags)
 	if err != nil {
@@ -278,8 +279,8 @@ func (r *RemoteConfigUpdater) Start(apiKey string, site string, clusterName stri
 }
 
 func (r *RemoteConfigUpdater) initialInstallerConfigVersion() string {
-	if r.managedAgentInstallationIdentity.Configured() {
-		return InstallerStateUnknownConfigVersion
+	if r.initialInstallerConfigVersionOverride != "" {
+		return r.initialInstallerConfigVersionOverride
 	}
 	return "empty"
 }
@@ -345,17 +346,13 @@ func (r *RemoteConfigUpdater) getUpdaterTags(ctx context.Context, includeReadine
 			updaterTags = append(updaterTags, "cluster_id:"+clusterUID)
 		}
 	}
-	identityTags, err := r.managedAgentInstallationIdentity.UpdaterTags()
-	if err != nil {
-		return updaterTags, err
-	}
-	updaterTags = append(updaterTags, identityTags...)
-	if includeReadiness && r.managedAgentInstallationReadinessTags != nil {
-		readinessTags, err := r.managedAgentInstallationReadinessTags(ctx)
+	updaterTags = append(updaterTags, r.additionalUpdaterTags...)
+	if includeReadiness && r.dynamicUpdaterTags != nil {
+		dynamicTags, err := r.dynamicUpdaterTags(ctx)
 		if err != nil {
 			return updaterTags, err
 		}
-		updaterTags = append(updaterTags, readinessTags...)
+		updaterTags = append(updaterTags, dynamicTags...)
 	}
 
 	return updaterTags, nil
@@ -741,11 +738,24 @@ func (r *RemoteConfigUpdater) Stop() error {
 // RemoteConfigUpdaterOption configures a RemoteConfigUpdater.
 type RemoteConfigUpdaterOption func(*RemoteConfigUpdater)
 
-// WithManagedAgentInstallation configures the identity and readiness tags for a managed Agent installation.
-func WithManagedAgentInstallation(identity ManagedAgentInstallationIdentity, readinessTags func(context.Context) ([]string, error)) RemoteConfigUpdaterOption {
+// WithAdditionalUpdaterTags adds static tags to the Remote Configuration updater identity.
+func WithAdditionalUpdaterTags(tags ...string) RemoteConfigUpdaterOption {
 	return func(updater *RemoteConfigUpdater) {
-		updater.managedAgentInstallationIdentity = identity
-		updater.managedAgentInstallationReadinessTags = readinessTags
+		updater.additionalUpdaterTags = append(updater.additionalUpdaterTags, tags...)
+	}
+}
+
+// WithDynamicUpdaterTags configures tags that can be refreshed while the updater is running.
+func WithDynamicUpdaterTags(tags func(context.Context) ([]string, error)) RemoteConfigUpdaterOption {
+	return func(updater *RemoteConfigUpdater) {
+		updater.dynamicUpdaterTags = tags
+	}
+}
+
+// WithInitialInstallerConfigVersion overrides the updater's initial installer config version.
+func WithInitialInstallerConfigVersion(version string) RemoteConfigUpdaterOption {
+	return func(updater *RemoteConfigUpdater) {
+		updater.initialInstallerConfigVersionOverride = version
 	}
 }
 

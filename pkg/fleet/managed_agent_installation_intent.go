@@ -60,7 +60,7 @@ type managedAgentInstallationBootstrap struct {
 
 type managedAgentInstallationIntent struct {
 	Version                 string
-	Provider                remoteconfig.ManagedAgentInstallationProvider
+	Provider                ManagedAgentInstallationProvider
 	InstallationID          string
 	TargetID                string
 	OperationID             string
@@ -70,13 +70,13 @@ type managedAgentInstallationIntent struct {
 }
 
 type normalizedManagedAgentInstallationIntent struct {
-	Version        string                                        `json:"version"`
-	Provider       remoteconfig.ManagedAgentInstallationProvider `json:"provider"`
-	InstallationID string                                        `json:"installationID"`
-	TargetID       string                                        `json:"targetID"`
-	OperationID    string                                        `json:"operationID"`
-	DesiredState   managedAgentInstallationDesiredState          `json:"desiredState"`
-	Bootstrap      managedAgentInstallationBootstrap             `json:"bootstrap"`
+	Version        string                               `json:"version"`
+	Provider       ManagedAgentInstallationProvider     `json:"provider"`
+	InstallationID string                               `json:"installationID"`
+	TargetID       string                               `json:"targetID"`
+	OperationID    string                               `json:"operationID"`
+	DesiredState   managedAgentInstallationDesiredState `json:"desiredState"`
+	Bootstrap      managedAgentInstallationBootstrap    `json:"bootstrap"`
 }
 
 type managedAgentInstallationIntentSnapshot struct {
@@ -436,9 +436,9 @@ func (d *Daemon) refreshManagedAgentInstallationUpdaterTags(ctx context.Context)
 	return nil
 }
 
-func decodeManagedAgentInstallationIntent(raw []byte, identity remoteconfig.ManagedAgentInstallationIdentity) (managedAgentInstallationIntent, json.RawMessage, string, error) {
+func decodeManagedAgentInstallationIntent(raw []byte, identity ManagedAgentInstallationIdentity) (managedAgentInstallationIntent, json.RawMessage, string, error) {
 	switch identity.Provider() {
-	case remoteconfig.ManagedAgentInstallationProviderEKS:
+	case ManagedAgentInstallationProviderEKS:
 		return decodeEKSManagedAgentInstallationIntent(raw, identity)
 	default:
 		return managedAgentInstallationIntent{}, nil, "", fmt.Errorf("unsupported managed Agent installation provider %q", identity.Provider())

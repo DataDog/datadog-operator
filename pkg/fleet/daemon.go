@@ -55,7 +55,7 @@ type Daemon struct {
 	cache                                        ctrlcache.Cache
 	recorder                                     record.EventRecorder // Kubernetes-event recorder for fleet-daemon-source events (gated by env var)
 	revisionsEnabled                             bool
-	managedAgentInstallationIdentity             remoteconfig.ManagedAgentInstallationIdentity
+	managedAgentInstallationIdentity             ManagedAgentInstallationIdentity
 	managedAgentInstallationTaskRunner           func(func())
 	mu                                           sync.RWMutex
 	configs                                      map[string]installerConfig // keyed by config ID; replaced on each RC update
@@ -78,7 +78,7 @@ type Daemon struct {
 type DaemonOption func(*Daemon)
 
 // WithManagedAgentInstallation enables managed Agent installation intents for identity.
-func WithManagedAgentInstallation(identity remoteconfig.ManagedAgentInstallationIdentity) DaemonOption {
+func WithManagedAgentInstallation(identity ManagedAgentInstallationIdentity) DaemonOption {
 	return func(daemon *Daemon) {
 		daemon.managedAgentInstallationIdentity = identity
 		daemon.managedAgentInstallationTaskReserved = true
