@@ -9,7 +9,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"sync"
 	"testing"
+	"time"
 
 	pbgo "github.com/DataDog/datadog-agent/pkg/proto/pbgo/core"
 	"github.com/DataDog/datadog-agent/pkg/remoteconfig/state"
@@ -960,11 +962,11 @@ func TestPromoteDatadogAgentExperiment_ConfigVersionUpdatedAfterSuccess(t *testi
 type mockRCClient struct {
 	state           []*pbgo.PackageState
 	taskHistory     []*pbgo.PackageStateTask
-	clientID        string
 	refreshCalls    int
 	refreshErr      error
 	refreshFailures int
 	refreshResults  []error
+	refreshHook     func()
 }
 
 func (m *mockRCClient) Subscribe(_ string, _ func(map[string]state.RawConfig, func(string, state.ApplyStatus))) {
@@ -974,11 +976,10 @@ func (m *mockRCClient) GetInstallerState() []*pbgo.PackageState {
 	return m.state
 }
 
-func (m *mockRCClient) GetClientID() string {
-	return m.clientID
-}
-
 func (m *mockRCClient) RefreshUpdaterTags(context.Context) error {
+	if m.refreshHook != nil {
+		m.refreshHook()
+	}
 	m.refreshCalls++
 	if len(m.refreshResults) > 0 {
 		result := m.refreshResults[0]
@@ -990,6 +991,40 @@ func (m *mockRCClient) RefreshUpdaterTags(context.Context) error {
 		return m.refreshErr
 	}
 	return nil
+}
+
+type slowInstallerStateRCClient struct {
+	mu    sync.Mutex
+	state []*pbgo.PackageState
+}
+
+func (m *slowInstallerStateRCClient) Subscribe(_ string, _ func(map[string]state.RawConfig, func(string, state.ApplyStatus))) {
+}
+
+func (m *slowInstallerStateRCClient) RefreshUpdaterTags(context.Context) error {
+	return nil
+}
+
+func (m *slowInstallerStateRCClient) GetInstallerState() []*pbgo.PackageState {
+	m.mu.Lock()
+	state := clonePackageStates(m.state)
+	m.mu.Unlock()
+	time.Sleep(10 * time.Millisecond)
+	return state
+}
+
+func (m *slowInstallerStateRCClient) SetInstallerState(packages []*pbgo.PackageState) {
+	m.mu.Lock()
+	m.state = clonePackageStates(packages)
+	m.mu.Unlock()
+}
+
+func clonePackageStates(packages []*pbgo.PackageState) []*pbgo.PackageState {
+	cloned := make([]*pbgo.PackageState, 0, len(packages))
+	for _, pkg := range packages {
+		cloned = append(cloned, proto.Clone(pkg).(*pbgo.PackageState))
+	}
+	return cloned
 }
 
 func (m *mockRCClient) SetInstallerState(packages []*pbgo.PackageState) {
@@ -1116,6 +1151,32 @@ func TestSetPackageConfigVersions_PreservesOtherPackageState(t *testing.T) {
 	require.NotNil(t, rc.state[1].Task)
 	assert.Equal(t, "task-1", rc.state[1].Task.Id)
 	assert.Equal(t, pbgo.TaskState_RUNNING, rc.state[1].Task.State)
+}
+
+func TestInstallerStateUpdatesAreSerialized(t *testing.T) {
+	rcClient := &slowInstallerStateRCClient{state: []*pbgo.PackageState{{Package: packageDatadogOperator}}}
+	daemon := &Daemon{rcClient: rcClient}
+	start := make(chan struct{})
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		<-start
+		daemon.setTaskState(packageDatadogOperator, "task-id", pbgo.TaskState_RUNNING, nil)
+	}()
+	go func() {
+		defer wg.Done()
+		<-start
+		daemon.setPackageConfigVersions(packageDatadogOperator, "stable-id", "")
+	}()
+	close(start)
+	wg.Wait()
+
+	state := rcClient.GetInstallerState()
+	require.Len(t, state, 1)
+	require.NotNil(t, state[0].GetTask())
+	assert.Equal(t, "task-id", state[0].GetTask().GetId())
+	assert.Equal(t, "stable-id", state[0].GetStableConfigVersion())
 }
 
 func TestDaemonStartRequiresCache(t *testing.T) {

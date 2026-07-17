@@ -56,6 +56,7 @@ type RemoteConfigUpdater struct {
 	managedAgentInstallationReadinessTags func(context.Context) ([]string, error)
 	logger                                logr.Logger
 	mu                                    sync.RWMutex
+	callbackMu                            sync.RWMutex
 	clientMu                              sync.RWMutex
 	updaterTags                           []string
 	subscriptions                         []remoteConfigSubscription
@@ -82,8 +83,6 @@ type RCClient interface {
 	Subscribe(product string, fn func(update map[string]state.RawConfig, applyStateCallback func(string, state.ApplyStatus)))
 	GetInstallerState() []*pbgo.PackageState
 	SetInstallerState(packages []*pbgo.PackageState)
-	GetClientID() string
-	RefreshUpdaterTags(context.Context) error
 }
 
 // Client returns a stable proxy for the underlying RC client.
@@ -97,11 +96,16 @@ func (r *RemoteConfigUpdater) Client() RCClient {
 }
 
 func (r *RemoteConfigUpdater) Subscribe(product string, callback func(map[string]state.RawConfig, func(string, state.ApplyStatus))) {
+	wrapped := func(updates map[string]state.RawConfig, applyStatus func(string, state.ApplyStatus)) {
+		r.callbackMu.RLock()
+		defer r.callbackMu.RUnlock()
+		callback(updates, applyStatus)
+	}
 	r.clientMu.Lock()
 	defer r.clientMu.Unlock()
-	r.subscriptions = append(r.subscriptions, remoteConfigSubscription{product: product, callback: callback})
+	r.subscriptions = append(r.subscriptions, remoteConfigSubscription{product: product, callback: wrapped})
 	if r.rcClient != nil {
-		r.rcClient.Subscribe(product, callback)
+		r.rcClient.Subscribe(product, wrapped)
 	}
 }
 
@@ -120,15 +124,6 @@ func (r *RemoteConfigUpdater) SetInstallerState(packages []*pbgo.PackageState) {
 	if r.rcClient != nil {
 		r.rcClient.SetInstallerState(packages)
 	}
-}
-
-func (r *RemoteConfigUpdater) GetClientID() string {
-	r.clientMu.RLock()
-	defer r.clientMu.RUnlock()
-	if r.rcClient == nil {
-		return ""
-	}
-	return r.rcClient.ID
 }
 
 // DatadogProductRemoteConfig  is an interface for Datadog product remote configuration
@@ -245,7 +240,7 @@ func (r *RemoteConfigUpdater) Start(apiKey string, site string, clusterName stri
 		r.logger.Error(err, "Failed to create Remote Configuration service")
 		return err
 	}
-	updaterTags, tagsErr := r.getUpdaterTags(context.Background())
+	updaterTags, tagsErr := r.getUpdaterTags(context.Background(), false)
 	if tagsErr != nil {
 		r.logger.Error(tagsErr, "Could not establish managed Agent installation readiness during Remote Configuration startup")
 	}
@@ -261,7 +256,7 @@ func (r *RemoteConfigUpdater) Start(apiKey string, site string, clusterName stri
 		{
 			Package:             "datadog-operator",
 			StableVersion:       version.Version,
-			StableConfigVersion: InstallerStateUnknownConfigVersion,
+			StableConfigVersion: r.initialInstallerConfigVersion(),
 		},
 	})
 	r.clientMu.Lock()
@@ -282,6 +277,13 @@ func (r *RemoteConfigUpdater) Start(apiKey string, site string, clusterName stri
 	return nil
 }
 
+func (r *RemoteConfigUpdater) initialInstallerConfigVersion() string {
+	if r.managedAgentInstallationIdentity.Configured() {
+		return InstallerStateUnknownConfigVersion
+	}
+	return "empty"
+}
+
 func (r *RemoteConfigUpdater) newUpdaterClient(configFetcher client.ConfigFetcher, updaterTags []string) (*client.Client, error) {
 	return newRemoteConfigClient(
 		configFetcher,
@@ -293,11 +295,13 @@ func (r *RemoteConfigUpdater) newUpdaterClient(configFetcher client.ConfigFetche
 }
 
 func (r *RemoteConfigUpdater) RefreshUpdaterTags(ctx context.Context) error {
-	updaterTags, err := r.getUpdaterTags(ctx)
+	updaterTags, err := r.getUpdaterTags(ctx, true)
 	if err != nil {
 		return fmt.Errorf("resolve refreshed Remote Configuration updater tags: %w", err)
 	}
 
+	r.callbackMu.Lock()
+	defer r.callbackMu.Unlock()
 	r.clientMu.Lock()
 	defer r.clientMu.Unlock()
 	if r.rcClient == nil || r.rcService == nil {
@@ -325,7 +329,7 @@ func (r *RemoteConfigUpdater) RefreshUpdaterTags(ctx context.Context) error {
 	return nil
 }
 
-func (r *RemoteConfigUpdater) getUpdaterTags(ctx context.Context) ([]string, error) {
+func (r *RemoteConfigUpdater) getUpdaterTags(ctx context.Context, includeReadiness bool) ([]string, error) {
 	updaterTags := []string{"updater_type:datadog-operator"}
 
 	if r.serviceConf.clusterName != "" {
@@ -346,7 +350,7 @@ func (r *RemoteConfigUpdater) getUpdaterTags(ctx context.Context) ([]string, err
 		return updaterTags, err
 	}
 	updaterTags = append(updaterTags, identityTags...)
-	if r.managedAgentInstallationReadinessTags != nil {
+	if includeReadiness && r.managedAgentInstallationReadinessTags != nil {
 		readinessTags, err := r.managedAgentInstallationReadinessTags(ctx)
 		if err != nil {
 			return updaterTags, err
@@ -734,11 +738,25 @@ func (r *RemoteConfigUpdater) Stop() error {
 	return nil
 }
 
-func NewRemoteConfigUpdater(client kubeclient.Client, logger logr.Logger, identity ManagedAgentInstallationIdentity, readinessTags func(context.Context) ([]string, error)) *RemoteConfigUpdater {
-	return &RemoteConfigUpdater{
-		kubeClient:                            client,
-		managedAgentInstallationIdentity:      identity,
-		managedAgentInstallationReadinessTags: readinessTags,
-		logger:                                logger,
+// RemoteConfigUpdaterOption configures a RemoteConfigUpdater.
+type RemoteConfigUpdaterOption func(*RemoteConfigUpdater)
+
+// WithManagedAgentInstallation configures the identity and readiness tags for a managed Agent installation.
+func WithManagedAgentInstallation(identity ManagedAgentInstallationIdentity, readinessTags func(context.Context) ([]string, error)) RemoteConfigUpdaterOption {
+	return func(updater *RemoteConfigUpdater) {
+		updater.managedAgentInstallationIdentity = identity
+		updater.managedAgentInstallationReadinessTags = readinessTags
 	}
+}
+
+// NewRemoteConfigUpdater creates a RemoteConfigUpdater.
+func NewRemoteConfigUpdater(client kubeclient.Client, logger logr.Logger, options ...RemoteConfigUpdaterOption) *RemoteConfigUpdater {
+	updater := &RemoteConfigUpdater{
+		kubeClient: client,
+		logger:     logger,
+	}
+	for _, option := range options {
+		option(updater)
+	}
+	return updater
 }

@@ -7,9 +7,9 @@ package fleet
 
 import (
 	"context"
-	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"sync"
 
 	"github.com/DataDog/datadog-agent/pkg/remoteconfig/state"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -65,13 +65,6 @@ type operatorTaskParams struct {
 	Version          string                  `json:"version"`
 	GroupVersionKind schema.GroupVersionKind `json:"group_version_kind"`
 	NamespacedName   types.NamespacedName    `json:"namespaced_name"`
-	OperationID      string                  `json:"operation_id"`
-	InstallationID   string                  `json:"installation_id"`
-}
-
-type observedUpdaterTask struct {
-	digest   [sha256.Size]byte
-	accepted bool
 }
 
 // handleInstallerConfigUpdate returns an RC subscription callback that parses
@@ -108,8 +101,12 @@ func handleInstallerConfigUpdate(ctx context.Context, h func(map[string]installe
 // UPDATER_TASK payload and forwards it as a remoteAPIRequest to h.
 // Requests that have already been accepted (tracked by seen IDs) are ignored.
 func handleUpdaterTaskUpdate(ctx context.Context, h func(remoteAPIRequest) error) func(map[string]state.RawConfig, func(string, state.ApplyStatus)) {
-	seen := make(map[string]observedUpdaterTask)
+	seen := make(map[string]struct{})
+	var mu sync.Mutex
 	return func(updates map[string]state.RawConfig, applyStatus func(string, state.ApplyStatus)) {
+		mu.Lock()
+		defer mu.Unlock()
+
 		logger := ctrl.LoggerFrom(ctx)
 		for cfgPath, raw := range updates {
 			logger.V(1).Info("Received UPDATER_TASK payload", "cfgPath", cfgPath)
@@ -121,21 +118,10 @@ func handleUpdaterTaskUpdate(ctx context.Context, h func(remoteAPIRequest) error
 				continue
 			}
 
-			requestDigest := sha256.Sum256(raw.Config)
-			if previous, ok := seen[req.ID]; ok {
-				if previous.digest != requestDigest {
-					err := fmt.Errorf("remote API request ID %q was already observed with different content", req.ID)
-					logger.Error(err, "Rejected conflicting remote API request")
-					applyStatus(cfgPath, state.ApplyStatus{State: state.ApplyStateError, Error: err.Error()})
-					continue
-				}
-				if previous.accepted {
-					logger.Info("Remote API request already accepted", "id", req.ID)
-					applyStatus(cfgPath, state.ApplyStatus{State: state.ApplyStateAcknowledged})
-					continue
-				}
-			} else {
-				seen[req.ID] = observedUpdaterTask{digest: requestDigest}
+			if _, ok := seen[req.ID]; ok {
+				logger.Info("Remote API request already accepted", "id", req.ID)
+				applyStatus(cfgPath, state.ApplyStatus{State: state.ApplyStateAcknowledged})
+				continue
 			}
 
 			// Signal received and parsed; notify the backend before applying.
@@ -146,7 +132,7 @@ func handleUpdaterTaskUpdate(ctx context.Context, h func(remoteAPIRequest) error
 				applyStatus(cfgPath, state.ApplyStatus{State: state.ApplyStateError, Error: err.Error()})
 				continue
 			}
-			seen[req.ID] = observedUpdaterTask{digest: requestDigest, accepted: true}
+			seen[req.ID] = struct{}{}
 			applyStatus(cfgPath, state.ApplyStatus{State: state.ApplyStateAcknowledged})
 		}
 	}

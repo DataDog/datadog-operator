@@ -68,7 +68,6 @@ const (
 	defaultMaximumGoroutines                             = 400
 	defaultDatadogGenericResourceMaxConcurrentReconciles = 1
 	defaultDatadogGenericResourceRequeuePeriod           = 60 * time.Second
-	managedAgentInstallationSetupRetryInterval           = 5 * time.Second
 )
 
 var (
@@ -454,44 +453,23 @@ func run(opts *options) error {
 				return fleet.ManagedAgentInstallationReadinessTags(ctx, mgr.GetAPIReader(), enabledManagedAgentInstallationIdentity)
 			}
 		}
-		rcUpdater := remoteconfig.NewRemoteConfigUpdater(mgr.GetClient(), ctrl.Log.WithName("remote_config"), enabledManagedAgentInstallationIdentity, managedAgentInstallationReadinessTags)
-		if managedAgentInstallationEnabled {
-			managedAgentInstallationClient, clientErr := client.New(restConfig, client.Options{Scheme: scheme})
-			if clientErr != nil {
-				return setupErrorf(setupLog, clientErr, "Unable to create managed Agent installation bootstrap client")
-			}
-			if prepareErr := fleet.PrepareUninstallFenceWebhook(managerCtx, managedAgentInstallationClient, os.Getenv("POD_NAMESPACE")); prepareErr != nil {
-				return setupErrorf(setupLog, prepareErr, "Unable to prepare managed Agent installation admission webhook")
-			}
-			fleet.RegisterUninstallFenceWebhook(mgr, enabledManagedAgentInstallationIdentity)
+		var rcUpdaterOptions []remoteconfig.RemoteConfigUpdaterOption
+		if enabledManagedAgentInstallationIdentity.Configured() {
+			rcUpdaterOptions = append(rcUpdaterOptions, remoteconfig.WithManagedAgentInstallation(enabledManagedAgentInstallationIdentity, managedAgentInstallationReadinessTags))
 		}
+		rcUpdater := remoteconfig.NewRemoteConfigUpdater(mgr.GetClient(), ctrl.Log.WithName("remote_config"), rcUpdaterOptions...)
 		go func() {
 			select {
 			case <-managerCtx.Done():
 				return
 			case <-mgr.Elected():
 			}
-			if managedAgentInstallationEnabled {
-				for {
-					reconcileErr := fleet.ReconcileManagedAgentInstallationAcknowledgement(managerCtx, mgr.GetClient(), mgr.GetAPIReader(), enabledManagedAgentInstallationIdentity)
-					if reconcileErr == nil {
-						break
-					}
-					setupLog.Error(reconcileErr, "Unable to reconcile managed Agent installation acknowledgement before Remote Configuration startup", "provider", enabledManagedAgentInstallationIdentity.Provider())
-					select {
-					case <-managerCtx.Done():
-						return
-					case <-time.After(managedAgentInstallationSetupRetryInterval):
-					}
-				}
-			}
-
 			if rcErr := rcUpdater.Setup(creds); rcErr != nil {
 				setupErrorf(setupLog, rcErr, "Unable to set up Remote Config service")
 				return
 			}
 			if opts.remoteUpdatesEnabled {
-				if rcErr := setupFleetDaemon(setupLog, mgr, rcUpdater.Client(), opts.createControllerRevisions && opts.datadogAgentEnabled, enabledManagedAgentInstallationIdentity, managedAgentInstallationEnabled); rcErr != nil {
+				if rcErr := setupFleetDaemon(setupLog, mgr, rcUpdater.Client(), opts.createControllerRevisions && opts.datadogAgentEnabled, enabledManagedAgentInstallationIdentity); rcErr != nil {
 					setupErrorf(setupLog, rcErr, "Unable to setup Fleet daemon")
 				}
 			}
@@ -814,9 +792,9 @@ func setupAndStartHelmMetadataForwarder(logger logr.Logger, mgr manager.Manager,
 	return mgr.Add(hmf)
 }
 
-func setupFleetDaemon(logger logr.Logger, mgr manager.Manager, rcClient remoteconfig.RCClient, revisionsEnabled bool, managedAgentInstallationIdentity remoteconfig.ManagedAgentInstallationIdentity, managedAgentInstallationEnabled bool) error {
+func setupFleetDaemon(logger logr.Logger, mgr manager.Manager, rcClient remoteconfig.RCClient, revisionsEnabled bool, managedAgentInstallationIdentity remoteconfig.ManagedAgentInstallationIdentity) error {
 	var options []fleet.DaemonOption
-	if managedAgentInstallationEnabled {
+	if managedAgentInstallationIdentity.Configured() {
 		options = append(options, fleet.WithManagedAgentInstallation(managedAgentInstallationIdentity))
 	}
 	daemon := fleet.NewDaemon(rcClient, mgr, revisionsEnabled, options...)

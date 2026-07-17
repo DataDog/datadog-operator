@@ -7,10 +7,9 @@ package fleet
 
 import (
 	"context"
-	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
-	"time"
 
 	pbgo "github.com/DataDog/datadog-agent/pkg/proto/pbgo/core"
 	corev1 "k8s.io/api/core/v1"
@@ -18,7 +17,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	k8sretry "k8s.io/client-go/util/retry"
-	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/DataDog/datadog-operator/pkg/remoteconfig"
@@ -33,11 +31,10 @@ const (
 	managedAgentInstallationStateOperationIDKey    = "operation_id"
 	managedAgentInstallationStateDigestKey         = "intent_digest"
 	managedAgentInstallationStateDesiredStateKey   = "desired_state"
-	managedAgentInstallationStateBootstrapKey      = "bootstrap"
 	managedAgentInstallationStateAcknowledgedKey   = "acknowledged_operation_id"
-	managedAgentInstallationStateConfigIDKey       = "config_id"
 	managedAgentInstallationStateTaskStateKey      = "task_state"
 	managedAgentInstallationStateErrorKey          = "error"
+	managedAgentInstallationAckTagPrefix           = "managed_agent_installation_ack:"
 )
 
 var (
@@ -45,7 +42,6 @@ var (
 		Namespace: fleetDatadogAgentNamespace,
 		Name:      managedAgentInstallationStateConfigMapName,
 	}
-	managedAgentInstallationFenceMonitorInterval = 10 * time.Second
 )
 
 type managedAgentInstallationPersistedState struct {
@@ -55,9 +51,7 @@ type managedAgentInstallationPersistedState struct {
 	OperationID             string
 	Digest                  string
 	DesiredState            managedAgentInstallationDesiredState
-	Bootstrap               managedAgentInstallationBootstrap
 	AcknowledgedOperationID string
-	ConfigID                string
 	TaskState               pbgo.TaskState
 	Error                   string
 }
@@ -97,23 +91,20 @@ func ManagedAgentInstallationReadinessTags(ctx context.Context, reader client.Re
 		return nil, fmt.Errorf("managed Agent installation acknowledgement state is not yet consistent with the acknowledged install intent")
 	}
 	return []string{
-		"managed_agent_installation_ack:" + intent.AcknowledgedOperationID,
+		managedAgentInstallationAckTagPrefix + intent.AcknowledgedOperationID,
 		"operator_config_updates:ready",
 	}, nil
 }
 
 func managedAgentInstallationStateFromCommand(command managedAgentInstallationCommand, taskState pbgo.TaskState, taskErr error) managedAgentInstallationPersistedState {
-	desiredState, _ := command.desiredState()
 	state := managedAgentInstallationPersistedState{
-		Provider:                command.Metadata.Provider,
-		InstallationID:          command.InstallationID,
-		TargetID:                command.Metadata.TargetID,
-		OperationID:             command.OperationID,
-		Digest:                  command.Metadata.Digest,
-		DesiredState:            desiredState,
-		Bootstrap:               command.Metadata.Bootstrap,
-		AcknowledgedOperationID: command.Metadata.AcknowledgedOperationID,
-		ConfigID:                command.ConfigID,
+		Provider:                command.Intent.Provider,
+		InstallationID:          command.Intent.InstallationID,
+		TargetID:                command.Intent.TargetID,
+		OperationID:             command.Intent.OperationID,
+		Digest:                  command.Digest,
+		DesiredState:            command.Intent.DesiredState,
+		AcknowledgedOperationID: command.Intent.AcknowledgedOperationID,
 		TaskState:               taskState,
 	}
 	if taskErr != nil {
@@ -123,11 +114,8 @@ func managedAgentInstallationStateFromCommand(command managedAgentInstallationCo
 }
 
 func (d *Daemon) recordManagedAgentInstallationResult(ctx context.Context, command managedAgentInstallationCommand, taskState pbgo.TaskState, taskErr error) error {
-	if !command.instrumenterManaged() {
-		return nil
-	}
 	if err := d.writeManagedAgentInstallationResult(ctx, managedAgentInstallationStateFromCommand(command, taskState, taskErr)); err != nil {
-		return fmt.Errorf("persist managed Agent installation result for operation %s: %w", command.OperationID, err)
+		return fmt.Errorf("persist managed Agent installation result for operation %s: %w", command.Intent.OperationID, err)
 	}
 	return nil
 }
@@ -182,7 +170,6 @@ func (d *Daemon) writeManagedAgentInstallationStateForOperation(ctx context.Cont
 }
 
 func managedAgentInstallationStateData(state managedAgentInstallationPersistedState) map[string]string {
-	bootstrap, _ := json.Marshal(state.Bootstrap)
 	return map[string]string{
 		managedAgentInstallationStateProviderKey:       string(state.Provider),
 		managedAgentInstallationStateInstallationIDKey: state.InstallationID,
@@ -190,9 +177,7 @@ func managedAgentInstallationStateData(state managedAgentInstallationPersistedSt
 		managedAgentInstallationStateOperationIDKey:    state.OperationID,
 		managedAgentInstallationStateDigestKey:         state.Digest,
 		managedAgentInstallationStateDesiredStateKey:   string(state.DesiredState),
-		managedAgentInstallationStateBootstrapKey:      string(bootstrap),
 		managedAgentInstallationStateAcknowledgedKey:   state.AcknowledgedOperationID,
-		managedAgentInstallationStateConfigIDKey:       state.ConfigID,
 		managedAgentInstallationStateTaskStateKey:      state.TaskState.String(),
 		managedAgentInstallationStateErrorKey:          state.Error,
 	}
@@ -213,10 +198,6 @@ func (d *Daemon) readManagedAgentInstallationState(ctx context.Context) (*manage
 	if err != nil {
 		return nil, err
 	}
-	var bootstrap managedAgentInstallationBootstrap
-	if err := json.Unmarshal([]byte(configMap.Data[managedAgentInstallationStateBootstrapKey]), &bootstrap); err != nil {
-		return nil, fmt.Errorf("managed Agent installation state has invalid bootstrap: %w", err)
-	}
 	state := &managedAgentInstallationPersistedState{
 		Provider:                remoteconfig.ManagedAgentInstallationProvider(configMap.Data[managedAgentInstallationStateProviderKey]),
 		InstallationID:          configMap.Data[managedAgentInstallationStateInstallationIDKey],
@@ -224,17 +205,12 @@ func (d *Daemon) readManagedAgentInstallationState(ctx context.Context) (*manage
 		OperationID:             configMap.Data[managedAgentInstallationStateOperationIDKey],
 		Digest:                  configMap.Data[managedAgentInstallationStateDigestKey],
 		DesiredState:            managedAgentInstallationDesiredState(configMap.Data[managedAgentInstallationStateDesiredStateKey]),
-		Bootstrap:               bootstrap,
 		AcknowledgedOperationID: configMap.Data[managedAgentInstallationStateAcknowledgedKey],
-		ConfigID:                configMap.Data[managedAgentInstallationStateConfigIDKey],
 		TaskState:               taskState,
 		Error:                   configMap.Data[managedAgentInstallationStateErrorKey],
 	}
-	if state.Provider == "" || state.InstallationID == "" || state.TargetID == "" || state.OperationID == "" || state.Digest == "" || state.ConfigID == "" {
+	if state.Provider == "" || state.InstallationID == "" || state.TargetID == "" || state.OperationID == "" || state.Digest == "" {
 		return nil, fmt.Errorf("managed Agent installation state is incomplete")
-	}
-	if err := validateManagedAgentInstallationBootstrap(state.Bootstrap); err != nil {
-		return nil, err
 	}
 	if state.DesiredState != managedAgentInstallationDesiredStateInstalled && state.DesiredState != managedAgentInstallationDesiredStateAbsent {
 		return nil, fmt.Errorf("managed Agent installation state has unsupported desired state %q", state.DesiredState)
@@ -279,65 +255,12 @@ func (d *Daemon) rehydrateManagedAgentInstallationState(ctx context.Context) err
 	}
 	var taskErr error
 	if state.Error != "" {
-		taskErr = fmt.Errorf("%s", state.Error)
+		taskErr = errors.New(state.Error)
 	}
 	d.taskMu.Lock()
-	d.managedAgentInstallationTaskReserved = !(state.AcknowledgedOperationID == state.OperationID && state.DesiredState == managedAgentInstallationDesiredStateInstalled)
 	d.setTaskState(packageDatadogOperator, state.OperationID, state.TaskState, taskErr)
 	d.taskMu.Unlock()
 	return nil
-}
-
-func (d *Daemon) runManagedAgentInstallationFenceMonitor(ctx context.Context) {
-	ticker := time.NewTicker(managedAgentInstallationFenceMonitorInterval)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			d.revalidateCompletedManagedAgentUninstall(ctx)
-		}
-	}
-}
-
-func (d *Daemon) revalidateCompletedManagedAgentUninstall(ctx context.Context) {
-	state, err := d.readManagedAgentInstallationState(ctx)
-	if err != nil {
-		ctrl.LoggerFrom(ctx).Error(err, "Failed to read managed Agent installation state during fence revalidation")
-		return
-	}
-	if state == nil || state.DesiredState != managedAgentInstallationDesiredStateAbsent || state.TaskState != pbgo.TaskState_DONE {
-		return
-	}
-
-	intent := managedAgentInstallationIntent{
-		Version:                 managedAgentInstallationVersion,
-		Provider:                state.Provider,
-		InstallationID:          state.InstallationID,
-		TargetID:                state.TargetID,
-		OperationID:             state.OperationID,
-		DesiredState:            state.DesiredState,
-		AcknowledgedOperationID: state.AcknowledgedOperationID,
-		Bootstrap:               state.Bootstrap,
-	}
-	command := newManagedAgentInstallationCommand(intent, json.RawMessage(`{}`), state.Digest)
-	command.ConfigID = state.ConfigID
-
-	d.transitionMu.Lock()
-	_, verifyErr := d.verifyDatadogAgentUninstalled(ctx, command)
-	d.transitionMu.Unlock()
-	if verifyErr == nil {
-		return
-	}
-	d.taskMu.Lock()
-	d.setTaskState(packageDatadogOperator, state.OperationID, pbgo.TaskState_ERROR, verifyErr)
-	d.taskMu.Unlock()
-	state.TaskState = pbgo.TaskState_ERROR
-	state.Error = boundedTaskErrorMessage(verifyErr)
-	if err := d.writeManagedAgentInstallationState(ctx, *state); err != nil {
-		ctrl.LoggerFrom(ctx).Error(err, "Failed to persist managed Agent installation uninstall fence drift", "operationID", state.OperationID)
-	}
 }
 
 func boundedTaskErrorMessage(err error) string {
