@@ -15,6 +15,7 @@ import (
 	rcclient "github.com/DataDog/datadog-agent/pkg/config/remote/client"
 	rcservice "github.com/DataDog/datadog-agent/pkg/config/remote/service"
 	pbgo "github.com/DataDog/datadog-agent/pkg/proto/pbgo/core"
+	"github.com/DataDog/datadog-agent/pkg/remoteconfig/state"
 	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -41,7 +42,7 @@ func TestStartClosesServiceWhenClientCreationFails(t *testing.T) {
 		return nil, wantErr
 	}
 
-	updater := NewRemoteConfigUpdater(nil, logr.Discard(), ManagedAgentInstallationIdentity{}, nil)
+	updater := NewRemoteConfigUpdater(nil, logr.Discard())
 	err := updater.Start("api-key", "datadoghq.com", "", "", "", "https://config.datadoghq.com")
 	require.ErrorIs(t, err, wantErr)
 	assert.Nil(t, updater.rcService)
@@ -57,6 +58,24 @@ func TestStartClosesServiceWhenClientCreationFails(t *testing.T) {
 	})
 	require.NoError(t, err, "the failed setup attempt must release the database lock")
 	require.NoError(t, database.Close())
+}
+
+func TestInitialInstallerConfigVersion(t *testing.T) {
+	tests := []struct {
+		name     string
+		identity ManagedAgentInstallationIdentity
+		want     string
+	}{
+		{name: "standard Remote Config client", want: "empty"},
+		{name: "managed Agent installation", identity: validManagedAgentInstallationIdentity, want: InstallerStateUnknownConfigVersion},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			updater := &RemoteConfigUpdater{managedAgentInstallationIdentity: test.identity}
+			assert.Equal(t, test.want, updater.initialInstallerConfigVersion())
+		})
+	}
 }
 
 type stoppedConfigFetcher struct{}
@@ -110,12 +129,67 @@ func TestRefreshUpdaterTagsPreservesClientIdentityAndInstallerState(t *testing.T
 	require.NoError(t, updater.RefreshUpdaterTags(context.Background()))
 	assert.Equal(t, 1, createdClients)
 	assert.NotSame(t, current, updater.rcClient)
-	assert.Equal(t, "stable-client-id", updater.GetClientID())
+	assert.Equal(t, "stable-client-id", updater.rcClient.ID)
 	assert.Equal(t, installerState, updater.GetInstallerState())
 	assert.Same(t, updater, updater.Client())
 
 	require.NoError(t, updater.RefreshUpdaterTags(context.Background()))
 	assert.Equal(t, 1, createdClients, "unchanged updater tags must not replace the client")
+}
+
+func TestRefreshUpdaterTagsWaitsForPreviousClientCallbacks(t *testing.T) {
+	current, err := rcclient.NewClient(stoppedConfigFetcher{}, rcclient.WithoutTufVerification())
+	require.NoError(t, err)
+
+	updater := &RemoteConfigUpdater{
+		rcClient:                         current,
+		rcService:                        &rcservice.CoreAgentService{},
+		managedAgentInstallationIdentity: validManagedAgentInstallationIdentity,
+		managedAgentInstallationReadinessTags: func(context.Context) ([]string, error) {
+			return []string{"operator_config_updates:ready"}, nil
+		},
+		logger: logr.Discard(),
+		updaterTags: append(
+			[]string{"updater_type:datadog-operator"},
+			managedAgentInstallationIdentityUpdaterTags(t)...,
+		),
+	}
+	require.NoError(t, updater.configureService("api-key", "datadoghq.com", "", "", "", "https://config.datadoghq.com"))
+
+	originalNewRemoteConfigClient := newRemoteConfigClient
+	t.Cleanup(func() {
+		newRemoteConfigClient = originalNewRemoteConfigClient
+		if updater.rcClient != nil {
+			updater.rcClient.Close()
+		}
+	})
+	newRemoteConfigClient = func(_ rcclient.ConfigFetcher, options ...func(*rcclient.Options)) (*rcclient.Client, error) {
+		options = append(options, rcclient.WithoutTufVerification())
+		return rcclient.NewClient(stoppedConfigFetcher{}, options...)
+	}
+
+	callbackEntered := make(chan struct{})
+	releaseCallback := make(chan struct{})
+	updater.Subscribe("TEST_PRODUCT", func(map[string]state.RawConfig, func(string, state.ApplyStatus)) {
+		close(callbackEntered)
+		<-releaseCallback
+	})
+	go updater.subscriptions[0].callback(nil, func(string, state.ApplyStatus) {})
+	<-callbackEntered
+
+	refreshResult := make(chan error, 1)
+	go func() {
+		refreshResult <- updater.RefreshUpdaterTags(context.Background())
+	}()
+	select {
+	case err := <-refreshResult:
+		close(releaseCallback)
+		require.Failf(t, "tag refresh returned before the previous callback completed", "error: %v", err)
+	case <-time.After(50 * time.Millisecond):
+	}
+
+	close(releaseCallback)
+	require.NoError(t, <-refreshResult)
 }
 
 func TestGetUpdaterTags(t *testing.T) {
@@ -228,11 +302,29 @@ func TestGetUpdaterTags(t *testing.T) {
 				},
 			}
 
-			got, err := updater.getUpdaterTags(context.Background())
+			got, err := updater.getUpdaterTags(context.Background(), true)
 			require.NoError(t, err)
 			assert.Equal(t, tt.want, got)
 		})
 	}
+}
+
+func TestInitialUpdaterTagsExcludeManagedAgentInstallationReadiness(t *testing.T) {
+	readinessCalls := 0
+	updater := &RemoteConfigUpdater{
+		kubeClient:                       newFakeClient(t),
+		managedAgentInstallationIdentity: validManagedAgentInstallationIdentity,
+		managedAgentInstallationReadinessTags: func(context.Context) ([]string, error) {
+			readinessCalls++
+			return []string{"operator_config_updates:ready"}, nil
+		},
+	}
+
+	tags, err := updater.getUpdaterTags(context.Background(), false)
+
+	require.NoError(t, err)
+	assert.Zero(t, readinessCalls)
+	assert.NotContains(t, tags, "operator_config_updates:ready")
 }
 
 func TestRefreshUpdaterTagsPreservesCurrentClientWhenAcknowledgementEvidenceIsUnavailable(t *testing.T) {

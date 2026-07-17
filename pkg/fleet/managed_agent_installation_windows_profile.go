@@ -14,7 +14,6 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	v1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
@@ -30,10 +29,7 @@ var managedAgentInstallationWindowsProfileKey = types.NamespacedName{
 	Name:      managedAgentInstallationWindowsProfileName,
 }
 
-func (d *Daemon) ensureManagedAgentInstallationWindowsProfile(ctx context.Context, command managedAgentInstallationCommand, dda *v2alpha1.DatadogAgent) error {
-	if !command.instrumenterManaged() {
-		return nil
-	}
+func (d *Daemon) ensureManagedAgentInstallationWindowsProfile(ctx context.Context, dda *v2alpha1.DatadogAgent) error {
 	wanted := d.managedAgentInstallationWindowsProfile(dda)
 	current := &v1alpha1.DatadogAgentProfile{}
 	getErr := d.managedAgentInstallationReader().Get(ctx, managedAgentInstallationWindowsProfileKey, current)
@@ -118,36 +114,6 @@ func requireManagedAgentInstallationWindowsProfileOwner(owners []metav1.OwnerRef
 	return fmt.Errorf("required controller owner reference is missing")
 }
 
-func (d *Daemon) waitForManagedAgentInstallationReady(ctx context.Context, command managedAgentInstallationCommand, nsn types.NamespacedName, uid types.UID) error {
-	if !command.instrumenterManaged() {
-		return d.waitForFleetDatadogAgentReady(ctx, nsn, uid)
-	}
-	lastObservation := "waiting for the DatadogAgent and Windows profile controllers"
-	err := wait.PollUntilContextTimeout(ctx, managedAgentInstallationReadinessPollInterval, managedAgentInstallationOperationTimeout, true, func(ctx context.Context) (bool, error) {
-		dda := &v2alpha1.DatadogAgent{}
-		if err := d.managedAgentInstallationReader().Get(ctx, nsn, dda); err != nil {
-			return false, err
-		}
-		ready, observation, err := fleetDatadogAgentReadiness(dda, uid)
-		if err != nil || !ready {
-			if observation != "" {
-				lastObservation = observation
-			}
-			return false, err
-		}
-		resourcesReady, observation := d.managedAgentInstallationWindowsProfileReadiness(ctx, dda)
-		if !resourcesReady {
-			lastObservation = observation
-			return false, nil
-		}
-		return true, nil
-	})
-	if err != nil {
-		return fmt.Errorf("waiting for managed Agent installation resources for DatadogAgent %s/%s (%s): %w", nsn.Namespace, nsn.Name, lastObservation, err)
-	}
-	return nil
-}
-
 func (d *Daemon) managedAgentInstallationWindowsProfileReadiness(ctx context.Context, dda *v2alpha1.DatadogAgent) (bool, string) {
 	if err := d.validateManagedAgentInstallationWindowsProfileReady(ctx, dda); err != nil {
 		return false, err.Error()
@@ -187,47 +153,4 @@ func (d *Daemon) validateManagedAgentInstallationWindowsProfileReady(ctx context
 		return nil
 	}
 	return fmt.Errorf("Windows Agent DaemonSet status is missing")
-}
-
-func (d *Daemon) deleteManagedAgentInstallationWindowsProfile(ctx context.Context, dda *v2alpha1.DatadogAgent) error {
-	profile := &v1alpha1.DatadogAgentProfile{}
-	if err := d.managedAgentInstallationReader().Get(ctx, managedAgentInstallationWindowsProfileKey, profile); err != nil {
-		if apierrors.IsNotFound(err) {
-			return nil
-		}
-		return fmt.Errorf("read Windows DatadogAgentProfile before deletion: %w", err)
-	}
-	if err := d.validateManagedAgentInstallationWindowsProfile(profile, dda); err != nil {
-		return err
-	}
-	preconditions := managedAgentInstallationDeletePreconditions(profile.UID, profile.ResourceVersion)
-	if err := d.client.Delete(ctx, profile, client.Preconditions(preconditions), client.PropagationPolicy(metav1.DeletePropagationForeground)); err != nil && !apierrors.IsNotFound(err) {
-		return fmt.Errorf("delete Windows DatadogAgentProfile: %w", err)
-	}
-	return nil
-}
-
-func (d *Daemon) verifyManagedAgentInstallationWindowsProfileAbsent(ctx context.Context) error {
-	profile := &v1alpha1.DatadogAgentProfile{}
-	if err := d.managedAgentInstallationReader().Get(ctx, managedAgentInstallationWindowsProfileKey, profile); err != nil {
-		if apierrors.IsNotFound(err) {
-			return nil
-		}
-		return fmt.Errorf("read Windows DatadogAgentProfile after deletion: %w", err)
-	}
-	return &stateDoesntMatchError{msg: fmt.Sprintf("Windows DatadogAgentProfile %s/%s remains after uninstall", profile.Namespace, profile.Name)}
-}
-
-func (d *Daemon) waitForManagedAgentInstallationWindowsProfileAbsent(ctx context.Context) error {
-	return wait.PollUntilContextTimeout(ctx, managedAgentInstallationDeletePollInterval, managedAgentInstallationOperationTimeout, true, func(ctx context.Context) (bool, error) {
-		profile := &v1alpha1.DatadogAgentProfile{}
-		err := d.managedAgentInstallationReader().Get(ctx, managedAgentInstallationWindowsProfileKey, profile)
-		if apierrors.IsNotFound(err) {
-			return true, nil
-		}
-		if err != nil {
-			return false, err
-		}
-		return false, nil
-	})
 }

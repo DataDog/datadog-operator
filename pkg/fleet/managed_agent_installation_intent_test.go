@@ -20,6 +20,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	v1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
@@ -35,12 +36,66 @@ type rejectManagedAgentInstallationTerminalStateClient struct {
 	client.Client
 }
 
+type blockManagedAgentInstallationStateCreateClient struct {
+	client.Client
+	started chan struct{}
+	release chan struct{}
+}
+
+type rejectManagedAgentInstallationStateCreateClient struct {
+	client.Client
+}
+
+type rejectManagedAgentInstallationRunningResultClient struct {
+	client.Client
+}
+
+type failManagedAgentInstallationTargetReadClient struct {
+	client.Reader
+}
+
 func (c *rejectManagedAgentInstallationTerminalStateClient) Patch(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
 	configMap, ok := obj.(*corev1.ConfigMap)
 	if ok && client.ObjectKeyFromObject(configMap) == managedAgentInstallationStateKey && configMap.Data[managedAgentInstallationStateTaskStateKey] != pbgo.TaskState_RUNNING.String() {
 		return fmt.Errorf("transient managed Agent installation state write failure")
 	}
 	return c.Client.Patch(ctx, obj, patch, opts...)
+}
+
+func (c *blockManagedAgentInstallationStateCreateClient) Create(ctx context.Context, obj client.Object, opts ...client.CreateOption) error {
+	if client.ObjectKeyFromObject(obj) == managedAgentInstallationStateKey {
+		close(c.started)
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-c.release:
+		}
+	}
+	return c.Client.Create(ctx, obj, opts...)
+}
+
+func (c *rejectManagedAgentInstallationStateCreateClient) Create(ctx context.Context, obj client.Object, opts ...client.CreateOption) error {
+	if client.ObjectKeyFromObject(obj) == managedAgentInstallationStateKey {
+		return fmt.Errorf("transient managed Agent installation state create failure")
+	}
+	return c.Client.Create(ctx, obj, opts...)
+}
+
+func (c *rejectManagedAgentInstallationRunningResultClient) Patch(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
+	configMap, ok := obj.(*corev1.ConfigMap)
+	if ok && client.ObjectKeyFromObject(configMap) == managedAgentInstallationStateKey &&
+		configMap.Data[managedAgentInstallationStateTaskStateKey] == pbgo.TaskState_RUNNING.String() &&
+		configMap.Data[managedAgentInstallationStateErrorKey] != "" {
+		return fmt.Errorf("transient managed Agent installation running-state write failure")
+	}
+	return c.Client.Patch(ctx, obj, patch, opts...)
+}
+
+func (c *failManagedAgentInstallationTargetReadClient) Get(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+	if key == managedAgentInstallationTarget {
+		return fmt.Errorf("transient managed Agent installation target read failure")
+	}
+	return c.Reader.Get(ctx, key, obj, opts...)
 }
 
 func TestDecodeManagedAgentInstallationIntent(t *testing.T) {
@@ -106,10 +161,15 @@ func TestDecodeManagedAgentInstallationIntentRejectsUnsafeInput(t *testing.T) {
 
 func TestManagedAgentInstallationIntentInstallAndUninstall(t *testing.T) {
 	ctx := context.Background()
+	unrelated := &v2alpha1.DatadogAgent{ObjectMeta: metav1.ObjectMeta{
+		Namespace: "monitoring",
+		Name:      "customer-agent",
+		UID:       types.UID("customer-agent-uid"),
+	}}
 	daemon, kubeClient, rcClient := testManagedAgentInstallationDaemon(
-		nil,
 		[]*pbgo.PackageState{{Package: packageDatadogOperator}},
 		testFleetCredentialSecret(),
+		unrelated,
 	)
 
 	install := managedAgentInstallationIntentSnapshot{raw: testManagedAgentInstallationIntent(
@@ -143,8 +203,29 @@ func TestManagedAgentInstallationIntentInstallAndUninstall(t *testing.T) {
 	)}
 	putManagedAgentInstallationIntentConfigMap(t, kubeClient, acknowledge.raw)
 	refreshCallsBeforeAcknowledgement := rcClient.refreshCalls
+	releasedDuringAcknowledgementRefresh := false
+	rcClient.refreshHook = func() {
+		daemon.taskMu.Lock()
+		releasedDuringAcknowledgementRefresh = !daemon.managedAgentInstallationTaskReserved
+		daemon.taskMu.Unlock()
+	}
 	require.NoError(t, daemon.handleManagedAgentInstallationIntent(ctx, acknowledge))
-	assert.Equal(t, refreshCallsBeforeAcknowledgement+2, rcClient.refreshCalls)
+	assert.Equal(t, refreshCallsBeforeAcknowledgement+1, rcClient.refreshCalls)
+	assert.True(t, releasedDuringAcknowledgementRefresh)
+	assert.False(t, daemon.managedAgentInstallationTaskReserved)
+
+	dda.Status.Experiment = &v2alpha1.ExperimentStatus{
+		ID:    "fleet-experiment",
+		Phase: v2alpha1.ExperimentPhaseRunning,
+	}
+	require.NoError(t, kubeClient.Status().Update(ctx, dda))
+	rcClient.state[0].ExperimentConfigVersion = "fleet-experiment"
+	reservedDuringUninstallRefresh := false
+	rcClient.refreshHook = func() {
+		daemon.taskMu.Lock()
+		reservedDuringUninstallRefresh = daemon.managedAgentInstallationTaskReserved
+		daemon.taskMu.Unlock()
+	}
 
 	uninstall := managedAgentInstallationIntentSnapshot{raw: testManagedAgentInstallationIntent(
 		t,
@@ -154,12 +235,15 @@ func TestManagedAgentInstallationIntentInstallAndUninstall(t *testing.T) {
 	)}
 	putManagedAgentInstallationIntentConfigMap(t, kubeClient, uninstall.raw)
 	require.NoError(t, daemon.handleManagedAgentInstallationIntent(ctx, uninstall))
+	assert.True(t, reservedDuringUninstallRefresh)
 
 	err := kubeClient.Get(ctx, testDDANSN, &v2alpha1.DatadogAgent{})
 	require.True(t, apierrors.IsNotFound(err))
+	require.NoError(t, kubeClient.Get(ctx, client.ObjectKeyFromObject(unrelated), &v2alpha1.DatadogAgent{}))
 	assert.Equal(t, testAddonUninstallOperationID, rcClient.state[0].GetTask().GetId())
 	assert.Equal(t, pbgo.TaskState_DONE, rcClient.state[0].GetTask().GetState())
 	assert.Empty(t, rcClient.state[0].GetStableConfigVersion())
+	assert.Empty(t, rcClient.state[0].GetExperimentConfigVersion())
 
 	persisted, err := daemon.readManagedAgentInstallationState(ctx)
 	require.NoError(t, err)
@@ -169,43 +253,82 @@ func TestManagedAgentInstallationIntentInstallAndUninstall(t *testing.T) {
 	assert.Equal(t, pbgo.TaskState_DONE, persisted.TaskState)
 }
 
-func TestManagedAgentInstallationIntentWorkerRetriesTransientFailure(t *testing.T) {
-	originalRetryInterval := managedAgentInstallationRetryInterval
-	managedAgentInstallationRetryInterval = time.Millisecond
-	t.Cleanup(func() { managedAgentInstallationRetryInterval = originalRetryInterval })
-
-	daemon, kubeClient, rcClient := testManagedAgentInstallationDaemon(
-		nil,
+func TestManagedAgentInstallationIntentWorkerReadsCurrentIntent(t *testing.T) {
+	daemon, kubeClient, _ := testManagedAgentInstallationDaemon(
 		[]*pbgo.PackageState{{Package: packageDatadogOperator}},
 		testFleetCredentialSecret(),
 	)
-	daemon.managedAgentInstallationUpdates = make(chan managedAgentInstallationIntentSnapshot)
-	daemon.managedAgentInstallationRetries = make(chan struct{}, 1)
-	rcClient.refreshErr = fmt.Errorf("transient updater tag refresh")
-	rcClient.refreshFailures = 1
+	daemon.managedAgentInstallationUpdates = make(chan struct{}, 1)
 	raw := testManagedAgentInstallationIntent(t, testAddonInstallOperationID, managedAgentInstallationDesiredStateInstalled)
 	putManagedAgentInstallationIntentConfigMap(t, kubeClient, raw)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 	go daemon.runManagedAgentInstallationIntentWorker(ctx)
-	daemon.managedAgentInstallationUpdates <- managedAgentInstallationIntentSnapshot{raw: raw, resourceVersion: "1"}
+	daemon.requestManagedAgentInstallationRetry()
 
 	require.Eventually(t, func() bool {
 		persisted, err := daemon.readManagedAgentInstallationState(context.Background())
 		return err == nil && persisted != nil && persisted.TaskState == pbgo.TaskState_DONE
 	}, time.Second, time.Millisecond)
-	assert.GreaterOrEqual(t, rcClient.refreshCalls, 2)
+}
+
+func TestManagedAgentInstallationResumesPersistedRunningInstall(t *testing.T) {
+	ctx := context.Background()
+	_, kubeClient, _ := testManagedAgentInstallationDaemon(
+		[]*pbgo.PackageState{{Package: packageDatadogOperator}},
+		testFleetCredentialSecret(),
+	)
+	raw := testManagedAgentInstallationIntent(t, testAddonInstallOperationID, managedAgentInstallationDesiredStateInstalled)
+	putManagedAgentInstallationIntentConfigMap(t, kubeClient, raw)
+	intent, config, digest, err := decodeManagedAgentInstallationIntent(raw, testManagedAgentInstallationIdentity)
+	require.NoError(t, err)
+
+	restarted := testRestartedManagedAgentInstallationDaemon(kubeClient)
+	command := newManagedAgentInstallationCommand(intent, config, digest)
+	require.NoError(t, restarted.writeManagedAgentInstallationState(ctx, managedAgentInstallationStateFromCommand(command, pbgo.TaskState_RUNNING, nil)))
+
+	require.NoError(t, restarted.handleManagedAgentInstallationIntent(ctx, managedAgentInstallationIntentSnapshot{raw: raw}))
+	persisted, err := restarted.readManagedAgentInstallationState(ctx)
+	require.NoError(t, err)
+	require.NotNil(t, persisted)
+	assert.Equal(t, pbgo.TaskState_DONE, persisted.TaskState)
+	require.NoError(t, kubeClient.Get(ctx, managedAgentInstallationTarget, &v2alpha1.DatadogAgent{}))
+}
+
+func TestManagedAgentInstallationResumesPersistedRunningUninstall(t *testing.T) {
+	ctx := context.Background()
+	daemon, kubeClient, _ := testManagedAgentInstallationDaemon(
+		[]*pbgo.PackageState{{Package: packageDatadogOperator}},
+		testFleetCredentialSecret(),
+	)
+	installRaw := testManagedAgentInstallationIntent(t, testAddonInstallOperationID, managedAgentInstallationDesiredStateInstalled)
+	putManagedAgentInstallationIntentConfigMap(t, kubeClient, installRaw)
+	require.NoError(t, daemon.handleManagedAgentInstallationIntent(ctx, managedAgentInstallationIntentSnapshot{raw: installRaw}))
+
+	uninstallRaw := testManagedAgentInstallationIntent(t, testAddonUninstallOperationID, managedAgentInstallationDesiredStateAbsent)
+	putManagedAgentInstallationIntentConfigMap(t, kubeClient, uninstallRaw)
+	intent, config, digest, err := decodeManagedAgentInstallationIntent(uninstallRaw, testManagedAgentInstallationIdentity)
+	require.NoError(t, err)
+	restarted := testRestartedManagedAgentInstallationDaemon(kubeClient)
+	command := newManagedAgentInstallationCommand(intent, config, digest)
+	require.NoError(t, restarted.writeManagedAgentInstallationState(ctx, managedAgentInstallationStateFromCommand(command, pbgo.TaskState_RUNNING, nil)))
+
+	require.NoError(t, restarted.handleManagedAgentInstallationIntent(ctx, managedAgentInstallationIntentSnapshot{raw: uninstallRaw}))
+	persisted, err := restarted.readManagedAgentInstallationState(ctx)
+	require.NoError(t, err)
+	require.NotNil(t, persisted)
+	assert.Equal(t, pbgo.TaskState_DONE, persisted.TaskState)
+	assert.True(t, apierrors.IsNotFound(kubeClient.Get(ctx, managedAgentInstallationTarget, &v2alpha1.DatadogAgent{})))
 }
 
 func TestManagedAgentInstallationIntentForwarderCoalescesWhenWorkerIsBusy(t *testing.T) {
 	daemon := &Daemon{
-		managedAgentInstallationUpdates: make(chan managedAgentInstallationIntentSnapshot, 1),
-		managedAgentInstallationRetries: make(chan struct{}, 1),
+		managedAgentInstallationUpdates: make(chan struct{}, 1),
 	}
-	daemon.managedAgentInstallationUpdates <- managedAgentInstallationIntentSnapshot{resourceVersion: "1"}
+	daemon.managedAgentInstallationUpdates <- struct{}{}
 
-	daemon.forwardManagedAgentInstallationIntent(context.Background(), &corev1.ConfigMap{
+	daemon.forwardManagedAgentInstallationIntent(&corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace:       managedAgentInstallationIntentKey.Namespace,
 			Name:            managedAgentInstallationIntentKey.Name,
@@ -215,17 +338,15 @@ func TestManagedAgentInstallationIntentForwarderCoalescesWhenWorkerIsBusy(t *tes
 	})
 
 	require.Len(t, daemon.managedAgentInstallationUpdates, 1)
-	require.Len(t, daemon.managedAgentInstallationRetries, 1)
 }
 
 func TestManagedAgentInstallationTerminalStateIsDurableBeforeRemoteConfigCompletion(t *testing.T) {
 	ctx := context.Background()
 	daemon, kubeClient, rcClient := testManagedAgentInstallationDaemon(
-		nil,
 		[]*pbgo.PackageState{{Package: packageDatadogOperator}},
 		testFleetCredentialSecret(),
 	)
-	daemon.managedAgentInstallationRetries = make(chan struct{}, 1)
+	daemon.managedAgentInstallationUpdates = make(chan struct{}, 1)
 	daemon.client = &rejectManagedAgentInstallationTerminalStateClient{Client: daemon.client}
 	raw := testManagedAgentInstallationIntent(t, testAddonInstallOperationID, managedAgentInstallationDesiredStateInstalled)
 	putManagedAgentInstallationIntentConfigMap(t, kubeClient, raw)
@@ -241,13 +362,135 @@ func TestManagedAgentInstallationTerminalStateIsDurableBeforeRemoteConfigComplet
 	require.NoError(t, readErr)
 	require.NotNil(t, persisted)
 	assert.Equal(t, pbgo.TaskState_RUNNING, persisted.TaskState)
-	assert.Len(t, daemon.managedAgentInstallationRetries, 1)
+	require.Eventually(t, func() bool {
+		return len(daemon.managedAgentInstallationUpdates) == 1
+	}, 2*time.Second, 10*time.Millisecond)
+}
+
+func TestManagedAgentInstallationTerminalDoneReconcilesPackageState(t *testing.T) {
+	ctx := context.Background()
+	daemon, kubeClient, rcClient := testManagedAgentInstallationDaemon(
+		[]*pbgo.PackageState{{Package: packageDatadogOperator}},
+		testFleetCredentialSecret(),
+	)
+	raw := testManagedAgentInstallationIntent(t, testAddonInstallOperationID, managedAgentInstallationDesiredStateInstalled)
+	putManagedAgentInstallationIntentConfigMap(t, kubeClient, raw)
+	intent, config, digest, err := decodeManagedAgentInstallationIntent(raw, testManagedAgentInstallationIdentity)
+	require.NoError(t, err)
+	require.NoError(t, daemon.writeManagedAgentInstallationState(ctx, managedAgentInstallationStateFromCommand(
+		newManagedAgentInstallationCommand(intent, config, digest),
+		pbgo.TaskState_DONE,
+		nil,
+	)))
+
+	require.NoError(t, daemon.handleManagedAgentInstallationIntent(ctx, managedAgentInstallationIntentSnapshot{raw: raw}))
+
+	require.NoError(t, kubeClient.Get(ctx, managedAgentInstallationTarget, &v2alpha1.DatadogAgent{}))
+	require.Len(t, rcClient.state, 1)
+	assert.Equal(t, testAddonInstallOperationID, rcClient.state[0].GetStableConfigVersion())
+	require.NotNil(t, rcClient.state[0].GetTask())
+	assert.Equal(t, testAddonInstallOperationID, rcClient.state[0].GetTask().GetId())
+	assert.Equal(t, pbgo.TaskState_DONE, rcClient.state[0].GetTask().GetState())
+}
+
+func TestManagedAgentInstallationTerminalErrorReconcilesTaskState(t *testing.T) {
+	ctx := context.Background()
+	daemon, kubeClient, rcClient := testManagedAgentInstallationDaemon(
+		[]*pbgo.PackageState{{Package: packageDatadogOperator}},
+	)
+	raw := testManagedAgentInstallationIntent(t, testAddonInstallOperationID, managedAgentInstallationDesiredStateInstalled)
+	putManagedAgentInstallationIntentConfigMap(t, kubeClient, raw)
+	intent, config, digest, err := decodeManagedAgentInstallationIntent(raw, testManagedAgentInstallationIdentity)
+	require.NoError(t, err)
+	terminalErr := fmt.Errorf("installation failed")
+	require.NoError(t, daemon.writeManagedAgentInstallationState(ctx, managedAgentInstallationStateFromCommand(
+		newManagedAgentInstallationCommand(intent, config, digest),
+		pbgo.TaskState_ERROR,
+		terminalErr,
+	)))
+
+	require.NoError(t, daemon.handleManagedAgentInstallationIntent(ctx, managedAgentInstallationIntentSnapshot{raw: raw}))
+
+	require.Len(t, rcClient.state, 1)
+	require.NotNil(t, rcClient.state[0].GetTask())
+	assert.Equal(t, testAddonInstallOperationID, rcClient.state[0].GetTask().GetId())
+	assert.Equal(t, pbgo.TaskState_ERROR, rcClient.state[0].GetTask().GetState())
+	assert.Equal(t, terminalErr.Error(), rcClient.state[0].GetTask().GetError().GetMessage())
+}
+
+func TestManagedAgentInstallationReservesFleetTaskSlotBeforeDurableAcceptance(t *testing.T) {
+	ctx := context.Background()
+	daemon, kubeClient, _ := testManagedAgentInstallationDaemon(
+		[]*pbgo.PackageState{{Package: packageDatadogOperator}},
+		testFleetCredentialSecret(),
+	)
+	blockingClient := &blockManagedAgentInstallationStateCreateClient{
+		Client:  daemon.client,
+		started: make(chan struct{}),
+		release: make(chan struct{}),
+	}
+	daemon.client = blockingClient
+	raw := testManagedAgentInstallationIntent(t, testAddonInstallOperationID, managedAgentInstallationDesiredStateInstalled)
+	putManagedAgentInstallationIntentConfigMap(t, kubeClient, raw)
+	result := make(chan error, 1)
+	go func() {
+		result <- daemon.handleManagedAgentInstallationIntent(ctx, managedAgentInstallationIntentSnapshot{raw: raw})
+	}()
+
+	<-blockingClient.started
+	daemon.taskMu.Lock()
+	reserved := daemon.managedAgentInstallationTaskReserved
+	daemon.taskMu.Unlock()
+	assert.True(t, reserved)
+	close(blockingClient.release)
+	require.NoError(t, <-result)
+}
+
+func TestManagedAgentInstallationRetainsFleetTaskReservationWhenDurableAcceptanceFails(t *testing.T) {
+	ctx := context.Background()
+	daemon, kubeClient, _ := testManagedAgentInstallationDaemon(
+		[]*pbgo.PackageState{{Package: packageDatadogOperator}},
+		testFleetCredentialSecret(),
+	)
+	raw := testManagedAgentInstallationIntent(t, testAddonInstallOperationID, managedAgentInstallationDesiredStateInstalled)
+	putManagedAgentInstallationIntentConfigMap(t, kubeClient, raw)
+	daemon.managedAgentInstallationTaskReserved = false
+	daemon.client = &rejectManagedAgentInstallationStateCreateClient{Client: daemon.client}
+
+	err := daemon.handleManagedAgentInstallationIntent(ctx, managedAgentInstallationIntentSnapshot{raw: raw})
+
+	require.ErrorContains(t, err, "transient managed Agent installation state create failure")
+	assert.True(t, daemon.managedAgentInstallationTaskReserved)
+	assert.False(t, daemon.managedAgentInstallationActive)
+}
+
+func TestManagedAgentInstallationRetriesWhenRunningStatePersistenceFails(t *testing.T) {
+	ctx := context.Background()
+	daemon, kubeClient, _ := testManagedAgentInstallationDaemon(
+		[]*pbgo.PackageState{{Package: packageDatadogOperator}},
+		testFleetCredentialSecret(),
+	)
+	daemon.managedAgentInstallationUpdates = make(chan struct{}, 1)
+	raw := testManagedAgentInstallationIntent(t, testAddonInstallOperationID, managedAgentInstallationDesiredStateInstalled)
+	putManagedAgentInstallationIntentConfigMap(t, kubeClient, raw)
+	intent, config, digest, err := decodeManagedAgentInstallationIntent(raw, testManagedAgentInstallationIdentity)
+	require.NoError(t, err)
+	command := newManagedAgentInstallationCommand(intent, config, digest)
+	require.NoError(t, daemon.writeManagedAgentInstallationState(ctx, managedAgentInstallationStateFromCommand(command, pbgo.TaskState_RUNNING, nil)))
+	daemon.apiReader = &failManagedAgentInstallationTargetReadClient{Reader: kubeClient}
+	daemon.client = &rejectManagedAgentInstallationRunningResultClient{Client: daemon.client}
+
+	err = daemon.executeManagedAgentInstallationCommand(ctx, command)
+
+	require.ErrorContains(t, err, "transient managed Agent installation running-state write failure")
+	require.Eventually(t, func() bool {
+		return len(daemon.managedAgentInstallationUpdates) == 1
+	}, 2*time.Second, 10*time.Millisecond)
 }
 
 func TestManagedAgentInstallationUninstallWaitsForAndSupersedesActiveInstall(t *testing.T) {
 	ctx := context.Background()
 	daemon, kubeClient, _ := testManagedAgentInstallationDaemon(
-		nil,
 		[]*pbgo.PackageState{{Package: packageDatadogOperator}},
 		testFleetCredentialSecret(),
 	)
@@ -311,7 +554,7 @@ func TestManagedAgentInstallationUninstallWaitsForAndSupersedesActiveInstall(t *
 
 func TestManagedAgentInstallationResultCannotOverwriteNewerOperation(t *testing.T) {
 	ctx := context.Background()
-	daemon, kubeClient, _ := testManagedAgentInstallationDaemon(nil, []*pbgo.PackageState{{Package: packageDatadogOperator}})
+	daemon, kubeClient, _ := testManagedAgentInstallationDaemon([]*pbgo.PackageState{{Package: packageDatadogOperator}})
 	uninstallRaw := testManagedAgentInstallationIntent(t, testAddonUninstallOperationID, managedAgentInstallationDesiredStateAbsent)
 	putManagedAgentInstallationIntentConfigMap(t, kubeClient, uninstallRaw)
 	require.NoError(t, daemon.writeManagedAgentInstallationState(ctx, managedAgentInstallationPersistedState{
@@ -321,8 +564,6 @@ func TestManagedAgentInstallationResultCannotOverwriteNewerOperation(t *testing.
 		OperationID:    testAddonUninstallOperationID,
 		Digest:         strings.Repeat("b", 64),
 		DesiredState:   managedAgentInstallationDesiredStateAbsent,
-		Bootstrap:      managedAgentInstallationBootstrap{ClusterName: "test-cluster", Site: "datadoghq.com"},
-		ConfigID:       testAddonUninstallOperationID,
 		TaskState:      pbgo.TaskState_RUNNING,
 	}))
 
@@ -398,7 +639,6 @@ func TestValidateManagedAgentInstallationProgress(t *testing.T) {
 func TestManagedAgentInstallationIntentRejectsInstallOperationReplacement(t *testing.T) {
 	ctx := context.Background()
 	daemon, _, rcClient := testManagedAgentInstallationDaemon(
-		nil,
 		[]*pbgo.PackageState{{Package: packageDatadogOperator}},
 		testFleetCredentialSecret(),
 	)
@@ -427,20 +667,6 @@ func TestManagedAgentInstallationIntentRejectsInstallOperationReplacement(t *tes
 	assert.Equal(t, testAddonInstallOperationID, persisted.OperationID)
 }
 
-func TestManagedAgentInstallationRejectsRemoteManagedAgentInstallationTask(t *testing.T) {
-	configID := "remote-managed-agent-installation-config"
-	d, _, _ := testManagedAgentInstallationDaemon(
-		testManagedAgentInstallationInstallerConfig(configID, OperationCreate, `{"spec":{}}`),
-		[]*pbgo.PackageState{{Package: packageDatadogOperator}},
-		testFleetCredentialSecret(),
-	)
-	d.managedAgentInstallationEnabled = true
-	req := testRemoteManagedAgentInstallationRequest(methodInstallDatadogAgent, configID)
-
-	_, err := d.managedAgentInstallationCommandFromRemoteRequest(req)
-	require.ErrorContains(t, err, "local managed Agent installation intent adapter")
-}
-
 func TestReadManagedAgentInstallationStateRejectsForeignOwnership(t *testing.T) {
 	intent := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{
 		Namespace: managedAgentInstallationIntentKey.Namespace,
@@ -454,50 +680,45 @@ func TestReadManagedAgentInstallationStateRejectsForeignOwnership(t *testing.T) 
 		OperationID:    testAddonInstallOperationID,
 		Digest:         strings.Repeat("a", 64),
 		DesiredState:   managedAgentInstallationDesiredStateInstalled,
-		Bootstrap: managedAgentInstallationBootstrap{
-			ClusterName: "test-cluster",
-			Site:        "datadoghq.com",
-		},
-		ConfigID:  testAddonInstallOperationID,
-		TaskState: pbgo.TaskState_DONE,
+		TaskState:      pbgo.TaskState_DONE,
 	})
 	foreign := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{Namespace: managedAgentInstallationStateKey.Namespace, Name: managedAgentInstallationStateKey.Name},
 		Data:       state,
 	}
-	d, _, _ := testManagedAgentInstallationDaemon(nil, nil, intent, foreign)
+	d, _, _ := testManagedAgentInstallationDaemon(nil, intent, foreign)
 
 	_, err := d.readManagedAgentInstallationState(context.Background())
 	require.ErrorContains(t, err, "managed Agent installation state ownership")
 }
 
-func TestRehydrateManagedAgentInstallationStateRestoresAcknowledgedTask(t *testing.T) {
+func TestRehydrateManagedAgentInstallationStateKeepsTaskReserved(t *testing.T) {
 	d, kubeClient, rcClient := testManagedAgentInstallationDaemon(
-		nil,
 		[]*pbgo.PackageState{{Package: packageDatadogOperator, StableConfigVersion: testAddonInstallOperationID}},
 	)
-	putManagedAgentInstallationIntentConfigMap(t, kubeClient, testManagedAgentInstallationIntent(
+	acknowledgedIntent := testManagedAgentInstallationIntent(
 		t,
 		testAddonInstallOperationID,
 		managedAgentInstallationDesiredStateInstalled,
 		testAddonInstallOperationID,
-	))
+	)
+	putManagedAgentInstallationIntentConfigMap(t, kubeClient, acknowledgedIntent)
+	_, _, digest, err := decodeManagedAgentInstallationIntent(acknowledgedIntent, testManagedAgentInstallationIdentity)
+	require.NoError(t, err)
 	require.NoError(t, d.writeManagedAgentInstallationState(context.Background(), managedAgentInstallationPersistedState{
 		Provider:                testManagedAgentInstallationIdentity.Provider(),
 		InstallationID:          testManagedAgentInstallationIdentity.InstallationID(),
 		TargetID:                testManagedAgentInstallationIdentity.TargetID(),
 		OperationID:             testAddonInstallOperationID,
-		Digest:                  strings.Repeat("a", 64),
+		Digest:                  digest,
 		DesiredState:            managedAgentInstallationDesiredStateInstalled,
-		Bootstrap:               managedAgentInstallationBootstrap{ClusterName: "test-cluster", Site: "datadoghq.com"},
 		AcknowledgedOperationID: testAddonInstallOperationID,
-		ConfigID:                testAddonInstallOperationID,
 		TaskState:               pbgo.TaskState_DONE,
 	}))
 
 	require.NoError(t, d.rehydrateManagedAgentInstallationState(context.Background()))
 
-	require.False(t, d.managedAgentInstallationTaskReserved)
+	require.True(t, d.managedAgentInstallationTaskReserved)
 	require.Len(t, rcClient.state, 1)
 	require.Equal(t, testAddonInstallOperationID, rcClient.state[0].GetStableConfigVersion())
 	require.Equal(t, testAddonInstallOperationID, rcClient.state[0].GetTask().GetId())
@@ -507,7 +728,6 @@ func TestRehydrateManagedAgentInstallationStateRestoresAcknowledgedTask(t *testi
 func TestManagedAgentInstallationAcknowledgementRetryReleasesReservation(t *testing.T) {
 	ctx := context.Background()
 	daemon, kubeClient, rcClient := testManagedAgentInstallationDaemon(
-		nil,
 		[]*pbgo.PackageState{{Package: packageDatadogOperator}},
 		testFleetCredentialSecret(),
 	)
@@ -527,9 +747,9 @@ func TestManagedAgentInstallationAcknowledgementRetryReleasesReservation(t *test
 		testAddonInstallOperationID,
 	)}
 	putManagedAgentInstallationIntentConfigMap(t, kubeClient, acknowledge.raw)
-	rcClient.refreshResults = []error{nil, fmt.Errorf("transient updater tag refresh")}
+	rcClient.refreshResults = []error{fmt.Errorf("transient updater tag refresh")}
 	require.ErrorContains(t, daemon.handleManagedAgentInstallationIntent(ctx, acknowledge), "transient updater tag refresh")
-	require.True(t, daemon.managedAgentInstallationTaskReserved)
+	require.False(t, daemon.managedAgentInstallationTaskReserved)
 
 	require.NoError(t, daemon.handleManagedAgentInstallationIntent(ctx, acknowledge))
 	require.False(t, daemon.managedAgentInstallationTaskReserved)
@@ -537,7 +757,7 @@ func TestManagedAgentInstallationAcknowledgementRetryReleasesReservation(t *test
 
 func TestManagedAgentInstallationReadinessTagsRequireDurableAcknowledgement(t *testing.T) {
 	ctx := context.Background()
-	daemon, kubeClient, _ := testManagedAgentInstallationDaemon(nil, nil)
+	daemon, kubeClient, _ := testManagedAgentInstallationDaemon(nil)
 	acknowledgedIntent := testManagedAgentInstallationIntent(
 		t,
 		testAddonInstallOperationID,
@@ -552,9 +772,7 @@ func TestManagedAgentInstallationReadinessTagsRequireDurableAcknowledgement(t *t
 		OperationID:             testAddonInstallOperationID,
 		Digest:                  strings.Repeat("a", 64),
 		DesiredState:            managedAgentInstallationDesiredStateInstalled,
-		Bootstrap:               managedAgentInstallationBootstrap{ClusterName: "test-cluster", Site: "datadoghq.com"},
 		AcknowledgedOperationID: testAddonInstallOperationID,
-		ConfigID:                testAddonInstallOperationID,
 		TaskState:               pbgo.TaskState_DONE,
 	}))
 
@@ -607,4 +825,16 @@ func putManagedAgentInstallationIntentConfigMap(t *testing.T, kubeClient client.
 	require.NoError(t, err)
 	configMap.Data[managedAgentInstallationIntentDataKey] = string(raw)
 	require.NoError(t, kubeClient.Update(ctx, configMap))
+}
+
+func testRestartedManagedAgentInstallationDaemon(kubeClient client.Client) *Daemon {
+	return &Daemon{
+		rcClient:                             &mockRCClient{state: []*pbgo.PackageState{{Package: packageDatadogOperator}}},
+		client:                               kubeClient,
+		apiReader:                            kubeClient,
+		managedAgentInstallationIdentity:     testManagedAgentInstallationIdentity,
+		managedAgentInstallationTaskReserved: true,
+		configs:                              make(map[string]installerConfig),
+		statusUpdates:                        make(chan ddaStatusSnapshot, 32),
+	}
 }

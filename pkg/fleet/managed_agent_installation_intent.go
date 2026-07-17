@@ -8,6 +8,7 @@ package fleet
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -77,36 +78,6 @@ type managedAgentInstallationIntentSnapshot struct {
 	resourceVersion string
 }
 
-func ReconcileManagedAgentInstallationAcknowledgement(ctx context.Context, kubeClient client.Client, reader client.Reader, identity remoteconfig.ManagedAgentInstallationIdentity) error {
-	intentConfigMap := &corev1.ConfigMap{}
-	if err := reader.Get(ctx, managedAgentInstallationIntentKey, intentConfigMap); err != nil {
-		return fmt.Errorf("read managed Agent installation intent before Remote Configuration startup: %w", err)
-	}
-	intent, _, digest, err := decodeManagedAgentInstallationIntent([]byte(intentConfigMap.Data[managedAgentInstallationIntentDataKey]), identity)
-	if err != nil {
-		return err
-	}
-	if intent.AcknowledgedOperationID == "" {
-		return nil
-	}
-	daemon := &Daemon{
-		client:                           kubeClient,
-		apiReader:                        reader,
-		managedAgentInstallationIdentity: identity,
-	}
-	current, err := daemon.readManagedAgentInstallationState(ctx)
-	if err != nil {
-		return err
-	}
-	if err := validateManagedAgentInstallationProgress(current, intent, digest); err != nil {
-		return err
-	}
-	if current != nil && current.AcknowledgedOperationID == intent.AcknowledgedOperationID {
-		return nil
-	}
-	return daemon.acknowledgeManagedAgentInstallationInstall(ctx, current, intent)
-}
-
 func (d *Daemon) installManagedAgentInstallationIntentForwarder(ctx context.Context) error {
 	informer, err := d.cache.GetInformer(ctx, &corev1.ConfigMap{})
 	if err != nil {
@@ -114,92 +85,54 @@ func (d *Daemon) installManagedAgentInstallationIntentForwarder(ctx context.Cont
 	}
 	informer.AddEventHandler(toolscache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj any) {
-			d.forwardManagedAgentInstallationIntent(ctx, obj)
+			d.forwardManagedAgentInstallationIntent(obj)
 		},
 		UpdateFunc: func(_, newObj any) {
-			d.forwardManagedAgentInstallationIntent(ctx, newObj)
+			d.forwardManagedAgentInstallationIntent(newObj)
 		},
 	})
 	return nil
 }
 
-func (d *Daemon) forwardManagedAgentInstallationIntent(ctx context.Context, obj any) {
+func (d *Daemon) forwardManagedAgentInstallationIntent(obj any) {
 	configMap, ok := obj.(*corev1.ConfigMap)
 	if !ok || client.ObjectKeyFromObject(configMap) != managedAgentInstallationIntentKey {
 		return
 	}
-	snapshot := managedAgentInstallationIntentSnapshot{
-		raw:             []byte(configMap.Data[managedAgentInstallationIntentDataKey]),
-		resourceVersion: configMap.ResourceVersion,
-	}
-	select {
-	case d.managedAgentInstallationUpdates <- snapshot:
-	case <-ctx.Done():
-	default:
-		d.requestManagedAgentInstallationRetry()
-	}
+	d.requestManagedAgentInstallationRetry()
 }
 
 func (d *Daemon) runManagedAgentInstallationIntentWorker(ctx context.Context) {
 	logger := ctrl.LoggerFrom(ctx).WithName("managed-agent-installation").WithValues("provider", d.managedAgentInstallationIdentity.Provider())
-	var pending *managedAgentInstallationIntentSnapshot
-	reload := false
 	for {
-		if pending == nil {
-			if reload {
-				currentSnapshot, err := d.readCurrentManagedAgentInstallationIntent(ctx)
-				if err != nil {
-					logger.Error(err, "Failed to reload managed Agent installation intent")
-					timer := time.NewTimer(managedAgentInstallationRetryInterval)
-					select {
-					case <-ctx.Done():
-						timer.Stop()
-						return
-					case updatedSnapshot := <-d.managedAgentInstallationUpdates:
-						timer.Stop()
-						pending = &updatedSnapshot
-						reload = false
-					case <-timer.C:
-					}
-					continue
-				}
-				pending = &currentSnapshot
-				reload = false
-			} else {
-				select {
-				case <-ctx.Done():
-					return
-				case snapshot := <-d.managedAgentInstallationUpdates:
-					pending = &snapshot
-				case <-d.managedAgentInstallationRetries:
-					reload = true
-				}
-			}
-		}
-
-		if pending == nil {
-			continue
-		}
-		if err := d.handleManagedAgentInstallationIntent(ctx, *pending); err == nil {
-			pending = nil
-			continue
-		} else {
-			logger.Error(err, "Failed to reconcile managed Agent installation intent", "resourceVersion", pending.resourceVersion)
-		}
-
-		timer := time.NewTimer(managedAgentInstallationRetryInterval)
 		select {
 		case <-ctx.Done():
-			timer.Stop()
 			return
-		case snapshot := <-d.managedAgentInstallationUpdates:
-			timer.Stop()
-			pending = &snapshot
-		case <-d.managedAgentInstallationRetries:
-			timer.Stop()
-			pending = nil
-			reload = true
-		case <-timer.C:
+		case <-d.managedAgentInstallationUpdates:
+		}
+
+		for {
+			snapshot, err := d.readCurrentManagedAgentInstallationIntent(ctx)
+			if err == nil {
+				err = d.handleManagedAgentInstallationIntent(ctx, snapshot)
+			}
+			if err == nil {
+				break
+			}
+			logger.Error(err, "Failed to reconcile managed Agent installation intent", "resourceVersion", snapshot.resourceVersion)
+			var stateErr *stateDoesntMatchError
+			if errors.As(err, &stateErr) {
+				break
+			}
+			timer := time.NewTimer(managedAgentInstallationRetryInterval)
+			select {
+			case <-ctx.Done():
+				timer.Stop()
+				return
+			case <-d.managedAgentInstallationUpdates:
+				timer.Stop()
+			case <-timer.C:
+			}
 		}
 	}
 }
@@ -216,22 +149,26 @@ func (d *Daemon) readCurrentManagedAgentInstallationIntent(ctx context.Context) 
 }
 
 func (d *Daemon) requestManagedAgentInstallationRetry() {
-	if d.managedAgentInstallationRetries == nil {
+	if d.managedAgentInstallationUpdates == nil {
 		return
 	}
 	select {
-	case d.managedAgentInstallationRetries <- struct{}{}:
+	case d.managedAgentInstallationUpdates <- struct{}{}:
 	default:
 	}
+}
+
+func (d *Daemon) requestManagedAgentInstallationRetryAfter() {
+	if d.managedAgentInstallationUpdates == nil {
+		return
+	}
+	time.AfterFunc(managedAgentInstallationRetryInterval, d.requestManagedAgentInstallationRetry)
 }
 
 func (d *Daemon) handleManagedAgentInstallationIntent(ctx context.Context, snapshot managedAgentInstallationIntentSnapshot) error {
 	intent, config, digest, decodeErr := decodeManagedAgentInstallationIntent(snapshot.raw, d.managedAgentInstallationIdentity)
 	if decodeErr != nil {
-		return decodeErr
-	}
-	if err := d.refreshManagedAgentInstallationUpdaterTags(ctx); err != nil {
-		return err
+		return &stateDoesntMatchError{msg: decodeErr.Error()}
 	}
 	current, stateErr := d.readManagedAgentInstallationState(ctx)
 	if stateErr != nil {
@@ -241,19 +178,22 @@ func (d *Daemon) handleManagedAgentInstallationIntent(ctx context.Context, snaps
 		d.taskMu.Lock()
 		d.setTaskState(packageDatadogOperator, intent.OperationID, pbgo.TaskState_INVALID_STATE, err)
 		d.taskMu.Unlock()
-		return err
+		return &stateDoesntMatchError{msg: err.Error()}
 	}
 	if intent.DesiredState == managedAgentInstallationDesiredStateInstalled && intent.AcknowledgedOperationID != "" {
 		if current != nil && current.AcknowledgedOperationID == intent.AcknowledgedOperationID {
-			d.taskMu.Lock()
-			d.managedAgentInstallationTaskReserved = false
-			d.taskMu.Unlock()
-			return nil
+			return d.reconcileAcknowledgedManagedAgentInstallation(ctx, current)
 		}
 		return d.acknowledgeManagedAgentInstallationInstall(ctx, current, intent)
 	}
+	if intent.DesiredState == managedAgentInstallationDesiredStateAbsent {
+		d.reserveManagedAgentInstallationTaskSlot()
+		if err := d.refreshManagedAgentInstallationUpdaterTags(ctx); err != nil {
+			return err
+		}
+	}
 	if current != nil && current.OperationID == intent.OperationID && current.TaskState != pbgo.TaskState_RUNNING {
-		return nil
+		return d.reconcileTerminalManagedAgentInstallation(ctx, current, intent, config, digest)
 	}
 	if err := d.waitForManagedAgentInstallationSlot(ctx, intent); err != nil {
 		return err
@@ -263,16 +203,24 @@ func (d *Daemon) handleManagedAgentInstallationIntent(ctx context.Context, snaps
 		return stateErr
 	}
 	if err := validateManagedAgentInstallationProgress(current, intent, digest); err != nil {
-		return err
+		return &stateDoesntMatchError{msg: err.Error()}
 	}
 	if current != nil && current.OperationID == intent.OperationID && current.TaskState != pbgo.TaskState_RUNNING {
-		return nil
+		return d.reconcileTerminalManagedAgentInstallation(ctx, current, intent, config, digest)
 	}
 	command := newManagedAgentInstallationCommand(intent, config, digest)
 	if err := d.handleManagedAgentInstallationCommand(ctx, command); err != nil {
 		return err
 	}
 	return nil
+}
+
+func (d *Daemon) reserveManagedAgentInstallationTaskSlot() {
+	d.transitionMu.Lock()
+	d.taskMu.Lock()
+	d.managedAgentInstallationTaskReserved = true
+	d.taskMu.Unlock()
+	d.transitionMu.Unlock()
 }
 
 func (d *Daemon) waitForManagedAgentInstallationSlot(ctx context.Context, intent managedAgentInstallationIntent) error {
@@ -311,7 +259,7 @@ func (d *Daemon) acknowledgeManagedAgentInstallationInstall(ctx context.Context,
 	if err := d.managedAgentInstallationReader().Get(ctx, types.NamespacedName{Namespace: fleetDatadogAgentNamespace, Name: fleetDatadogAgentName}, dda); err != nil {
 		return fmt.Errorf("read DatadogAgent before bootstrap acknowledgement: %w", err)
 	}
-	if err := validateFleetDatadogAgentInstallCompletion(dda, dda.UID, current.ConfigID); err != nil {
+	if err := validateFleetDatadogAgentInstallCompletion(dda, dda.UID, current.OperationID); err != nil {
 		return err
 	}
 	if err := d.validateManagedAgentInstallationWindowsProfileReady(ctx, dda); err != nil {
@@ -321,20 +269,94 @@ func (d *Daemon) acknowledgeManagedAgentInstallationInstall(ctx context.Context,
 	if err := d.writeManagedAgentInstallationState(ctx, *current); err != nil {
 		return fmt.Errorf("persist managed Agent installation acknowledgement: %w", err)
 	}
-	if err := d.refreshManagedAgentInstallationUpdaterTags(ctx); err != nil {
+	return d.reconcileAcknowledgedManagedAgentInstallation(ctx, current)
+}
+
+func (d *Daemon) reconcileAcknowledgedManagedAgentInstallation(ctx context.Context, current *managedAgentInstallationPersistedState) error {
+	if current == nil || current.DesiredState != managedAgentInstallationDesiredStateInstalled ||
+		current.TaskState != pbgo.TaskState_DONE || current.AcknowledgedOperationID != current.OperationID {
+		return fmt.Errorf("managed Agent installation acknowledgement state is incomplete")
+	}
+
+	stable, _ := d.getPackageConfigVersions(packageDatadogOperator)
+	if stable == remoteconfig.InstallerStateUnknownConfigVersion {
+		if err := d.rehydrateInstallerState(ctx); err != nil {
+			return fmt.Errorf("rehydrate installer state before managed Agent installation handoff: %w", err)
+		}
+	}
+
+	dda, err := d.validateManagedAgentInstallationTarget(ctx, managedAgentInstallationTarget)
+	if err != nil {
 		return err
 	}
+	if dda == nil {
+		return fmt.Errorf("managed Agent installation target is absent after install acknowledgement")
+	}
+	configID := dda.Labels[fleetConfigIDLabel]
+	if configID == "" {
+		return fmt.Errorf("managed Agent installation target has no stable config ID")
+	}
+	stable, experiment := d.getPackageConfigVersions(packageDatadogOperator)
+	if stable != configID {
+		d.setPackageConfigVersions(packageDatadogOperator, configID, experiment)
+	}
+
 	d.taskMu.Lock()
+	wasReserved := d.managedAgentInstallationTaskReserved
+	if wasReserved {
+		var taskErr error
+		if current.Error != "" {
+			taskErr = errors.New(current.Error)
+		}
+		d.setTaskState(packageDatadogOperator, current.OperationID, current.TaskState, taskErr)
+	}
 	d.managedAgentInstallationTaskReserved = false
 	d.taskMu.Unlock()
-	return nil
+
+	if wasReserved && d.statusUpdates != nil {
+		select {
+		case d.statusUpdates <- newDDAStatusSnapshot(dda):
+		default:
+		}
+	}
+	return d.refreshManagedAgentInstallationUpdaterTags(ctx)
+}
+
+func (d *Daemon) reconcileTerminalManagedAgentInstallation(
+	ctx context.Context,
+	current *managedAgentInstallationPersistedState,
+	intent managedAgentInstallationIntent,
+	config json.RawMessage,
+	digest string,
+) error {
+	switch current.TaskState {
+	case pbgo.TaskState_DONE:
+		return d.handleManagedAgentInstallationCommand(ctx, newManagedAgentInstallationCommand(intent, config, digest))
+	case pbgo.TaskState_ERROR, pbgo.TaskState_INVALID_STATE:
+		var taskErr error
+		if current.Error != "" {
+			taskErr = errors.New(current.Error)
+		}
+		d.taskMu.Lock()
+		d.setTaskState(packageDatadogOperator, current.OperationID, current.TaskState, taskErr)
+		d.taskMu.Unlock()
+		return nil
+	default:
+		return fmt.Errorf("managed Agent installation operation %s has unsupported terminal state %s", current.OperationID, current.TaskState)
+	}
 }
 
 func (d *Daemon) refreshManagedAgentInstallationUpdaterTags(ctx context.Context) error {
 	if d.rcClient == nil {
 		return nil
 	}
-	if err := d.rcClient.RefreshUpdaterTags(ctx); err != nil {
+	refresher, ok := d.rcClient.(interface {
+		RefreshUpdaterTags(context.Context) error
+	})
+	if !ok {
+		return fmt.Errorf("Remote Configuration client does not support updater tag refresh")
+	}
+	if err := refresher.RefreshUpdaterTags(ctx); err != nil {
 		return fmt.Errorf("refresh Remote Configuration updater tags for managed Agent installation: %w", err)
 	}
 	return nil

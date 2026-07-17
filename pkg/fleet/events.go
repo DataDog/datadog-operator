@@ -33,6 +33,8 @@ const (
 	eventReasonRemoteTaskReceived          = "RemoteTaskReceived"
 	eventReasonRemoteTaskRejected          = "RemoteTaskRejected"
 	eventReasonRemoteTaskCompleted         = "RemoteTaskCompleted"
+	eventReasonManagedInstallationRejected = "ManagedAgentInstallationRejected"
+	eventReasonManagedInstallationComplete = "ManagedAgentInstallationCompleted"
 	eventReasonLocalTerminationPublishedRC = "LocalTerminationPublishedToRC"
 	eventReasonInstallerStateRehydrated    = "InstallerStateRehydrated"
 )
@@ -92,10 +94,16 @@ func (d *Daemon) emitTaskRejectedEvent(ctx context.Context, nsn types.Namespaced
 		"Rejected task %q (%s): %s", req.ID, methodLabel(req.Method), reason)
 }
 
-func (d *Daemon) emitManagedAgentInstallationTaskRejectedEvent(ctx context.Context, command managedAgentInstallationCommand, reason string) {
+func (d *Daemon) emitManagedAgentInstallationRejectedEvent(ctx context.Context, command managedAgentInstallationCommand, reason string) {
 	d.emitDDAEventf(ctx, managedAgentInstallationTarget,
-		corev1.EventTypeWarning, eventReasonRemoteTaskRejected,
-		"Rejected task %q (%s): %s", command.TaskID, command.Action, reason)
+		corev1.EventTypeWarning, eventReasonManagedInstallationRejected,
+		"Rejected managed Agent installation operation %q (%s): %s", command.Intent.OperationID, command.Intent.DesiredState, reason)
+}
+
+func (d *Daemon) emitManagedAgentInstallationCompletedEvent(ctx context.Context, command managedAgentInstallationCommand) {
+	d.emitDDAEventf(ctx, managedAgentInstallationTarget,
+		corev1.EventTypeNormal, eventReasonManagedInstallationComplete,
+		"Managed Agent installation operation %q (%s) completed", command.Intent.OperationID, command.Intent.DesiredState)
 }
 
 // emitTaskCompletedEvent records that the daemon reported DONE for a
@@ -136,14 +144,6 @@ func (d *Daemon) emitInstallerStateRehydratedEvent(ctx context.Context, dda *v2a
 // event message (start / stop / promote / <method>).
 func methodLabel(method string) string {
 	switch method {
-	case methodInstallDatadogAgent:
-		return "install"
-	case methodUninstallDatadogAgent:
-		return "uninstall"
-	case methodVerifyDatadogAgentUninstalled:
-		return "verify-uninstalled"
-	case methodClearDatadogAgentUninstallFence:
-		return "clear-uninstall-fence"
 	case methodStartDatadogAgentExperiment:
 		return "start"
 	case methodStopDatadogAgentExperiment:

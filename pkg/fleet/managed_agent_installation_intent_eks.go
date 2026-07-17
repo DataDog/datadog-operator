@@ -8,12 +8,10 @@ package fleet
 import (
 	"bytes"
 	"crypto/sha256"
-	"encoding/base32"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
-	"strings"
 
 	"github.com/DataDog/datadog-operator/pkg/remoteconfig"
 )
@@ -48,16 +46,14 @@ func decodeEKSManagedAgentInstallationIntent(raw []byte, identity remoteconfig.M
 	if eksIntent.Version != managedAgentInstallationVersion {
 		return managedAgentInstallationIntent{}, nil, "", fmt.Errorf("unsupported EKS managed Agent installation version %q", eksIntent.Version)
 	}
-	if err := validateCanonicalUUID("installation_id", eksIntent.InstallationID); err != nil {
-		return managedAgentInstallationIntent{}, nil, "", err
+	intentIdentity := remoteconfig.NewEKSManagedAgentInstallationIdentity(eksIntent.InstallationID, eksIntent.EKSARNSHA256)
+	if err := intentIdentity.Validate(); err != nil {
+		return managedAgentInstallationIntent{}, nil, "", fmt.Errorf("invalid EKS managed Agent installation identity: %w", err)
 	}
-	if eksIntent.InstallationID != identity.InstallationID() {
+	if intentIdentity.InstallationID() != identity.InstallationID() {
 		return managedAgentInstallationIntent{}, nil, "", fmt.Errorf("EKS managed Agent installation ID does not match the local installation")
 	}
-	targetID, targetIDErr := eksManagedAgentInstallationTargetID(eksIntent.EKSARNSHA256)
-	if targetIDErr != nil {
-		return managedAgentInstallationIntent{}, nil, "", targetIDErr
-	}
+	targetID := intentIdentity.TargetID()
 	if targetID != identity.TargetID() {
 		return managedAgentInstallationIntent{}, nil, "", fmt.Errorf("EKS managed Agent installation ARN hash does not match the local installation")
 	}
@@ -115,12 +111,4 @@ func decodeEKSManagedAgentInstallationIntent(raw []byte, identity remoteconfig.M
 	}
 	digest := sha256.Sum256(encoded)
 	return intent, normalizedConfig, hex.EncodeToString(digest[:]), nil
-}
-
-func eksManagedAgentInstallationTargetID(targetHash string) (string, error) {
-	digest, err := hex.DecodeString(targetHash)
-	if err != nil || len(digest) != sha256.Size || targetHash != strings.ToLower(targetHash) {
-		return "", fmt.Errorf("EKS managed Agent installation ARN hash must be a lowercase SHA-256 digest")
-	}
-	return strings.ToLower(base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(digest)), nil
 }
