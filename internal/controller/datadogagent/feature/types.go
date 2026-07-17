@@ -185,6 +185,10 @@ type Options struct {
 	// cluster state while building dependencies. Callers should pass an uncached
 	// reader when the feature may read outside the controller cache scope.
 	Client client.Reader
+	// DatadogCSIDriverEnabled mirrors the operator's --datadogCSIDriverEnabled flag.
+	// The operator's own ClusterRole only holds csidrivers permissions when this is
+	// true, so features must not grant permissions to other components unless it is set.
+	DatadogCSIDriverEnabled bool
 }
 
 // BuildFunc function type used by each Feature during its factory registration.

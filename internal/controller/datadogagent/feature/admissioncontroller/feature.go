@@ -57,6 +57,8 @@ type admissionControllerFeature struct {
 	kubernetesAdmissionEvents *KubernetesAdmissionEventConfig
 
 	probeConfig *ProbeConfig
+
+	csiDriverEnabled bool
 }
 
 type ValidationConfig struct {
@@ -91,7 +93,9 @@ type ProbeConfig struct {
 }
 
 func buildAdmissionControllerFeature(options *feature.Options) feature.Feature {
-	return &admissionControllerFeature{}
+	return &admissionControllerFeature{
+		csiDriverEnabled: options.DatadogCSIDriverEnabled,
+	}
 }
 
 // ID returns the ID of the Feature
