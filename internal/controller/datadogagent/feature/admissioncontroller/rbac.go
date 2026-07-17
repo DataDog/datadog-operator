@@ -81,23 +81,27 @@ func (f *admissionControllerFeature) getRBACClusterPolicyRules() []rbacv1.Policy
 				rbac.GetVerb,
 			},
 		},
-		// CSIDrivers
-		{
-			APIGroups: []string{rbac.StorageAPIGroup},
-			Resources: []string{rbac.CSIDriversResource},
-			Verbs: []string{
-				rbac.ListVerb,
-				rbac.WatchVerb,
+	}
+
+	if f.csiDriverEnabled {
+		clusterPolicyRules = append(clusterPolicyRules,
+			rbacv1.PolicyRule{
+				APIGroups: []string{rbac.StorageAPIGroup},
+				Resources: []string{rbac.CSIDriversResource},
+				Verbs: []string{
+					rbac.ListVerb,
+					rbac.WatchVerb,
+				},
 			},
-		},
-		{
-			APIGroups:     []string{rbac.StorageAPIGroup},
-			Resources:     []string{rbac.CSIDriversResource},
-			ResourceNames: []string{datadogCSIDriverName},
-			Verbs: []string{
-				rbac.GetVerb,
+			rbacv1.PolicyRule{
+				APIGroups:     []string{rbac.StorageAPIGroup},
+				Resources:     []string{rbac.CSIDriversResource},
+				ResourceNames: []string{datadogCSIDriverName},
+				Verbs: []string{
+					rbac.GetVerb,
+				},
 			},
-		},
+		)
 	}
 
 	if f.cwsInstrumentationEnabled && f.cwsInstrumentationMode == "remote_copy" {
