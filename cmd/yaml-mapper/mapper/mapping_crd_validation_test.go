@@ -72,9 +72,37 @@ func mappingTargets(raw any) []string {
 		}
 		return out
 	case map[string]any:
+		// Collect newPath plus any spec.* target embedded in args (e.g. parentPath, keyNamePath).
+		var out []string
 		if np, ok := v["newPath"].(string); ok && np != "" {
-			return []string{np}
+			out = append(out, np)
 		}
+		out = append(out, specTargetsFromArgs(v["args"])...)
+		return out
+	}
+	return nil
+}
+
+// specTargetsFromArgs recursively collects any string starting with "spec." from a mapFunc's args,
+// so arg-embedded destination paths (parentPath, keyNamePath, …) are validated against the CRD too.
+func specTargetsFromArgs(v any) []string {
+	switch t := v.(type) {
+	case string:
+		if strings.HasPrefix(t, "spec.") {
+			return []string{t}
+		}
+	case []any:
+		var out []string
+		for _, e := range t {
+			out = append(out, specTargetsFromArgs(e)...)
+		}
+		return out
+	case map[string]any:
+		var out []string
+		for _, e := range t {
+			out = append(out, specTargetsFromArgs(e)...)
+		}
+		return out
 	}
 	return nil
 }

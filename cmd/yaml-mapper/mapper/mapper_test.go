@@ -1116,7 +1116,7 @@ func TestApplyDeprecationRules(t *testing.T) {
 func TestMappingProcessors(t *testing.T) {
 	// Test that all mapping processors are properly registered
 	t.Run("mapFuncRegistry_dict", func(t *testing.T) {
-		expectedFuncs := []string{"mapSecretKeyName", "mapSeccompProfile", "mapSystemProbeAppArmor", "mapLocalServiceName", "mapAppendEnvVar", "mapMergeEnvs", "mapOverrideType"}
+		expectedFuncs := []string{"mapSecretKeyName", "mapSeccompProfile", "mapSystemProbeAppArmor", "mapLocalServiceName", "mapAppendEnvVar", "mapMergeEnvs", "mapOverrideType", "mapEnableParent"}
 		mapFuncs := mapFuncRegistry()
 
 		for _, funcName := range expectedFuncs {
@@ -1752,6 +1752,50 @@ func TestMappingProcessors(t *testing.T) {
 			pathVal: "8080",
 			expectedMap: map[string]any{
 				"spec.features.foo.bar": 8080,
+			},
+		},
+		// mapEnableParent tests
+		{
+			name:     "mapEnableParent_true_enables_parent",
+			funcName: "mapEnableParent",
+			interim:  map[string]any{},
+			newPath:  "spec.features.sbom.containerImage.enabled",
+			pathVal:  true,
+			mapFuncArgs: []any{
+				map[string]any{"parentPath": "spec.features.sbom.enabled"},
+			},
+			expectedMap: map[string]any{
+				"spec.features.sbom.containerImage.enabled": true,
+				"spec.features.sbom.enabled":                true,
+			},
+		},
+		{
+			name:     "mapEnableParent_false_does_not_enable_parent",
+			funcName: "mapEnableParent",
+			interim:  map[string]any{},
+			newPath:  "spec.features.sbom.host.enabled",
+			pathVal:  false,
+			mapFuncArgs: []any{
+				map[string]any{"parentPath": "spec.features.sbom.enabled"},
+			},
+			expectedMap: map[string]any{
+				"spec.features.sbom.host.enabled": false,
+			},
+		},
+		{
+			name:     "mapEnableParent_false_preserves_parent_enabled_by_sibling",
+			funcName: "mapEnableParent",
+			interim: map[string]any{
+				"spec.features.sbom.enabled": true,
+			},
+			newPath: "spec.features.sbom.host.enabled",
+			pathVal: false,
+			mapFuncArgs: []any{
+				map[string]any{"parentPath": "spec.features.sbom.enabled"},
+			},
+			expectedMap: map[string]any{
+				"spec.features.sbom.host.enabled": false,
+				"spec.features.sbom.enabled":      true,
 			},
 		},
 	}

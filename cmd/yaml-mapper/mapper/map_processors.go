@@ -34,6 +34,7 @@ func mapFuncRegistry() map[string]MappingRunFunc {
 		mapAppendEnvVar,
 		mapMergeEnvs,
 		mapOverrideType,
+		mapEnableParent,
 	} {
 		registry[p.name] = p.runFunc
 	}
@@ -293,6 +294,31 @@ var mapOverrideType = MappingProcessor{
 				}
 			}
 		}
+	},
+}
+
+// mapEnableParent maps a boolean Helm value to newPath and, when the value is true, also enables a
+// parent feature toggle. Some Helm sub-toggles (e.g. sbom.containerImage.enabled, sbom.host.enabled)
+// implicitly enable a feature that the operator gates behind an explicit parent field
+// (spec.features.sbom.enabled). Because it only ever sets the parent to true, several sub-toggles can
+// OR into the same parent regardless of processing order.
+//
+//	args:
+//	  - parentPath: spec.features.sbom.enabled
+var mapEnableParent = MappingProcessor{
+	name: "mapEnableParent",
+	runFunc: func(interim map[string]any, newPath string, pathVal any, args []any) {
+		utils.MergeOrSet(interim, newPath, pathVal)
+
+		enabled, ok := pathVal.(bool)
+		if !ok || !enabled || len(args) != 1 {
+			return
+		}
+		parentPath, ok := utils.GetPathString(args[0], "parentPath")
+		if !ok || parentPath == "" {
+			return
+		}
+		utils.MergeOrSet(interim, parentPath, true)
 	},
 }
 
