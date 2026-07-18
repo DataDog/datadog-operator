@@ -1116,7 +1116,7 @@ func TestApplyDeprecationRules(t *testing.T) {
 func TestMappingProcessors(t *testing.T) {
 	// Test that all mapping processors are properly registered
 	t.Run("mapFuncRegistry_dict", func(t *testing.T) {
-		expectedFuncs := []string{"mapSecretKeyName", "mapSeccompProfile", "mapSystemProbeAppArmor", "mapLocalServiceName", "mapAppendEnvVar", "mapMergeEnvs", "mapOverrideType", "mapEnableParent"}
+		expectedFuncs := []string{"mapSecretKeyName", "mapSeccompProfile", "mapSystemProbeAppArmor", "mapLocalServiceName", "mapAppendEnvVar", "mapMergeEnvs", "mapOverrideType", "mapEnableParent", "mapProviderAnnotation"}
 		mapFuncs := mapFuncRegistry()
 
 		for _, funcName := range expectedFuncs {
@@ -1797,6 +1797,31 @@ func TestMappingProcessors(t *testing.T) {
 				"spec.features.sbom.host.enabled": false,
 				"spec.features.sbom.enabled":      true,
 			},
+		},
+		// mapProviderAnnotation tests
+		{
+			name:     "mapProviderAnnotation_true_sets_annotation",
+			funcName: "mapProviderAnnotation",
+			interim:  map[string]any{},
+			pathVal:  true,
+			mapFuncArgs: []any{
+				map[string]any{"provider": "gke-cos"},
+			},
+			expectedMap: map[string]any{
+				"metadata.annotations": map[string]any{
+					"agent.datadoghq.com/cluster-provider": "gke-cos",
+				},
+			},
+		},
+		{
+			name:     "mapProviderAnnotation_false_noop",
+			funcName: "mapProviderAnnotation",
+			interim:  map[string]any{},
+			pathVal:  false,
+			mapFuncArgs: []any{
+				map[string]any{"provider": "gke-cos"},
+			},
+			expectedMap: map[string]any{},
 		},
 	}
 

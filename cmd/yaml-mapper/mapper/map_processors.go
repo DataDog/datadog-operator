@@ -35,6 +35,7 @@ func mapFuncRegistry() map[string]MappingRunFunc {
 		mapMergeEnvs,
 		mapOverrideType,
 		mapEnableParent,
+		mapProviderAnnotation,
 	} {
 		registry[p.name] = p.runFunc
 	}
@@ -319,6 +320,38 @@ var mapEnableParent = MappingProcessor{
 			return
 		}
 		utils.MergeOrSet(interim, parentPath, true)
+	},
+}
+
+// providerAnnotationKey is the DDA annotation the operator reads to apply provider-specific config.
+// Mirrors pkg/kubernetes.ProviderAnnotationKey (kept as a literal to avoid importing operator packages).
+const providerAnnotationKey = "agent.datadoghq.com/cluster-provider"
+
+// mapProviderAnnotation maps a Helm providers.* boolean toggle to the operator's cluster-provider
+// annotation. Helm implements cloud providers via chart logic; the operator instead reads a single
+// annotation (see pkg/kubernetes/provider.go) and applies provider-specific node affinity/config.
+// When the toggle is true, it sets metadata.annotations[agent.datadoghq.com/cluster-provider] to the
+// provider name from args.
+//
+//	args:
+//	  - provider: gke-cos
+var mapProviderAnnotation = MappingProcessor{
+	name: "mapProviderAnnotation",
+	runFunc: func(interim map[string]any, newPath string, pathVal any, args []any) {
+		enabled, ok := pathVal.(bool)
+		if !ok || !enabled || len(args) != 1 {
+			return
+		}
+		provider, ok := utils.GetPathString(args[0], "provider")
+		if !ok || provider == "" {
+			return
+		}
+		annotations, _ := interim["metadata.annotations"].(map[string]any)
+		if annotations == nil {
+			annotations = map[string]any{}
+		}
+		annotations[providerAnnotationKey] = provider
+		interim["metadata.annotations"] = annotations
 	},
 }
 
