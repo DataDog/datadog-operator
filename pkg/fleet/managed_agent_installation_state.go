@@ -35,12 +35,10 @@ const (
 	managedAgentInstallationAckTagPrefix           = "managed_agent_installation_ack:"
 )
 
-var (
-	managedAgentInstallationStateKey = types.NamespacedName{
-		Namespace: fleetDatadogAgentNamespace,
-		Name:      managedAgentInstallationStateConfigMapName,
-	}
-)
+var managedAgentInstallationStateKey = types.NamespacedName{
+	Namespace: fleetDatadogAgentNamespace,
+	Name:      managedAgentInstallationStateConfigMapName,
+}
 
 type managedAgentInstallationPersistedState struct {
 	Provider                ManagedAgentInstallationProvider

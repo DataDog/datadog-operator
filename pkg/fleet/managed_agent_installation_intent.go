@@ -282,11 +282,7 @@ func (d *Daemon) handleManagedAgentInstallationIntent(ctx context.Context, snaps
 	if current != nil && current.OperationID == intent.OperationID && current.TaskState != pbgo.TaskState_RUNNING {
 		return d.reconcileTerminalManagedAgentInstallation(ctx, current, intent, config, digest)
 	}
-	command := newManagedAgentInstallationCommand(intent, config, digest)
-	if err := d.handleManagedAgentInstallationCommand(ctx, command); err != nil {
-		return err
-	}
-	return nil
+	return d.handleManagedAgentInstallationCommand(ctx, newManagedAgentInstallationCommand(intent, config, digest))
 }
 
 func (d *Daemon) reserveManagedAgentInstallationTaskSlot() {
@@ -330,7 +326,7 @@ func (d *Daemon) acknowledgeManagedAgentInstallationInstall(ctx context.Context,
 		return fmt.Errorf("managed Agent installation install is already acknowledged by a different operation")
 	}
 	dda := &v2alpha1.DatadogAgent{}
-	if err := d.managedAgentInstallationReader().Get(ctx, types.NamespacedName{Namespace: fleetDatadogAgentNamespace, Name: fleetDatadogAgentName}, dda); err != nil {
+	if err := d.managedAgentInstallationReader().Get(ctx, managedAgentInstallationTarget, dda); err != nil {
 		return fmt.Errorf("read DatadogAgent before bootstrap acknowledgement: %w", err)
 	}
 	if err := validateFleetDatadogAgentInstallCompletion(dda, dda.UID, current.OperationID); err != nil {
