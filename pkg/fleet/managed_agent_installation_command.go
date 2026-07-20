@@ -117,8 +117,7 @@ func (d *Daemon) handleManagedAgentInstallationCommand(ctx context.Context, comm
 func (d *Daemon) executeManagedAgentInstallationCommand(ctx context.Context, command managedAgentInstallationCommand) error {
 	defer d.finishManagedAgentInstallationTask(command.Intent.OperationID)
 
-	err := d.dispatchManagedAgentInstallationCommand(ctx, command)
-	if err != nil {
+	if err := d.dispatchManagedAgentInstallationCommand(ctx, command); err != nil {
 		var credentialErr *managedAgentInstallationCredentialNotReadyError
 		if errors.As(err, &credentialErr) && ctx.Err() == nil {
 			if persistErr := d.recordManagedAgentInstallationResult(ctx, command, pbgo.TaskState_RUNNING, err); persistErr != nil {

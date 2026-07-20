@@ -347,11 +347,10 @@ func rejectRemoteManagedAgentInstallationCredentialFields(raw json.RawMessage) e
 	if _, ok := global["credentials"]; ok {
 		return fmt.Errorf("config must not contain spec.global.credentials")
 	}
-	if _, ok := global["clusterAgentToken"]; ok {
-		return fmt.Errorf("config must not contain cluster Agent credentials")
-	}
-	if _, ok := global["clusterAgentTokenSecret"]; ok {
-		return fmt.Errorf("config must not contain cluster Agent credentials")
+	for _, field := range []string{"clusterAgentToken", "clusterAgentTokenSecret"} {
+		if _, ok := global[field]; ok {
+			return fmt.Errorf("config must not contain cluster Agent credentials")
+		}
 	}
 	return nil
 }
@@ -768,10 +767,7 @@ func validateFleetDatadogAgentExperimentOperationState(dda *v2alpha1.DatadogAgen
 			return nil
 		}
 	}
-	if state != fleetManagedAgentInstallationStateReady {
-		return &stateDoesntMatchError{msg: fmt.Sprintf("Fleet-managed DatadogAgent %s/%s has not completed its install gate", dda.Namespace, dda.Name)}
-	}
-	return nil
+	return &stateDoesntMatchError{msg: fmt.Sprintf("Fleet-managed DatadogAgent %s/%s has not completed its install gate", dda.Namespace, dda.Name)}
 }
 
 func classifyFleetDatadogAgentOwnership(dda *v2alpha1.DatadogAgent) (bool, error) {

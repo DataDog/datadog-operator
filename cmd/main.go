@@ -447,12 +447,6 @@ func run(opts *options) error {
 				setupLog.Info("Managed Agent installation support is disabled because its feature flag or a required Operator controller is not enabled", "provider", managedAgentInstallationIdentity.Provider())
 			}
 		}
-		var managedAgentInstallationReadinessTags func(context.Context) ([]string, error)
-		if managedAgentInstallationEnabled {
-			managedAgentInstallationReadinessTags = func(ctx context.Context) ([]string, error) {
-				return fleet.ManagedAgentInstallationReadinessTags(ctx, mgr.GetAPIReader(), enabledManagedAgentInstallationIdentity)
-			}
-		}
 		var rcUpdaterOptions []remoteconfig.RemoteConfigUpdaterOption
 		if enabledManagedAgentInstallationIdentity.Configured() {
 			identityTags, tagsErr := enabledManagedAgentInstallationIdentity.UpdaterTags()
@@ -463,7 +457,9 @@ func run(opts *options) error {
 			} else {
 				rcUpdaterOptions = append(rcUpdaterOptions,
 					remoteconfig.WithAdditionalUpdaterTags(identityTags...),
-					remoteconfig.WithDynamicUpdaterTags(managedAgentInstallationReadinessTags),
+					remoteconfig.WithDynamicUpdaterTags(func(ctx context.Context) ([]string, error) {
+						return fleet.ManagedAgentInstallationReadinessTags(ctx, mgr.GetAPIReader(), enabledManagedAgentInstallationIdentity)
+					}),
 					remoteconfig.WithInitialInstallerConfigVersion(remoteconfig.InstallerStateUnknownConfigVersion),
 				)
 			}
