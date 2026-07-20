@@ -1632,6 +1632,15 @@ spec:
                             type: string
                         type: object
                     type: object
+                  dynamicInstrumentation:
+                    description: DynamicInstrumentation configuration.
+                    properties:
+                      enabled:
+                        description: |-
+                          Enabled enables the Dynamic Instrumentation system probe module.
+                          Default: false
+                        type: boolean
+                    type: object
                   ebpfCheck:
                     description: EBPFCheck configuration.
                     properties:
@@ -2764,6 +2773,18 @@ spec:
                     description: ClusterName sets a unique cluster name for the deployment
                       to easily scope monitoring data in the Datadog app.
                     type: string
+                  commonLabels:
+                    additionalProperties:
+                      type: string
+                    description: |-
+                      CommonLabels specified labels to be added to all operator-managed Kubernetes resources
+                      (DaemonSets, Deployments, ConfigMaps, Services, ServiceAccounts, etc.).
+                      This is useful when external policy tools such as Kyverno enforce the presence of
+                      specific labels on all cluster resources.
+                      Labels defined here are merged with the operator's own default labels; operator labels
+                      take precedence on any key conflict.
+                    type: object
+                    x-kubernetes-map-type: granular
                   containerStrategy:
                     description: |-
                       ContainerStrategy determines whether agents run in a single or multiple containers.
@@ -3823,7 +3844,7 @@ spec:
                       Use 'eu.gcr.io/datadoghq' for Google Container Registry in the EU region.
                       Use 'asia.gcr.io/datadoghq' for Google Container Registry in the Asia region.
                       Use 'docker.io/datadog' for DockerHub.
-                      Default: 'gcr.io/datadoghq'
+                      Default: 'registry.datadoghq.com'
                     type: string
                   secretBackend:
                     description: |-
@@ -10848,6 +10869,15 @@ spec:
                                   enabled.
                                 type: string
                             type: object
+                        type: object
+                      dynamicInstrumentation:
+                        description: DynamicInstrumentation configuration.
+                        properties:
+                          enabled:
+                            description: |-
+                              Enabled enables the Dynamic Instrumentation system probe module.
+                              Default: false
+                            type: boolean
                         type: object
                       ebpfCheck:
                         description: EBPFCheck configuration.
