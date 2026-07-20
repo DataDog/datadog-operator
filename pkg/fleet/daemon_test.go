@@ -1634,6 +1634,17 @@ func TestManagedAgentInstallationIntentsDisabledPreservesFleetUpdates(t *testing
 	require.Nil(t, rc.state[0].GetTask())
 }
 
+func TestManagedAgentInstallationDisabledPreservesUnmanagedFleetUpdates(t *testing.T) {
+	d, kubeClient := testDaemon(testDDAObject(""), testInstallerConfigWithDDA())
+	WithManagedAgentInstallation(ManagedAgentInstallationIdentity{}, false)(d)
+
+	requireStartQueued(t, d, testStartRequest())
+
+	got := &v2alpha1.DatadogAgent{}
+	require.NoError(t, kubeClient.Get(context.Background(), testDDANSN, got))
+	assert.Equal(t, testExperimentID, got.Annotations[v2alpha1.AnnotationPendingExperimentID])
+}
+
 func TestReconcileLocallyTerminatedExperiment_ClearsExperimentConfigVersion(t *testing.T) {
 	d, rc := testDaemonWithRC([]*pbgo.PackageState{
 		{Package: "datadog-operator", StableConfigVersion: "stable-1", ExperimentConfigVersion: testExperimentID},
