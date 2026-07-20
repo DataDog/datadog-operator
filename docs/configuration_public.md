@@ -702,6 +702,9 @@ Use an integer value for `limits.cpu` so the runtime can read it directly. If yo
 `[component].containers.[container].resources`
 : Specify the Request and Limits of the pods To get guaranteed QoS class, specify requests and limits equal. See also: http://kubernetes.io/docs/user-guide/compute-resources/ See [link](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/) for more information.
 
+`[component].containers.[container].seLinuxOptions`
+: SELinuxOptions specifies the SELinux context for the container. See [link](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#assign-selinux-labels-to-a-container) for more information.
+
 `[component].containers.[container].seccompConfig`
 : Seccomp configurations to override Operator actions. For all other Seccomp Profile manipulation, use SecurityContext. See [link](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#seccomp) for more information.
 

@@ -383,6 +383,10 @@ In the table, `spec.override.nodeAgent.image.name` and `spec.override.nodeAgent.
 | [key].containers.[key].resources.claims | Claims lists the names of resources, defined in spec.resourceClaims, that are used by this container.  This field depends on the DynamicResourceAllocation feature gate.  This field is immutable. It can only be set for containers. |
 | [key].containers.[key].resources.limits | Limits describes the maximum amount of compute resources allowed. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/ |
 | [key].containers.[key].resources.requests | Requests describes the minimum amount of compute resources required. If Requests is omitted for a container, it defaults to Limits if that is explicitly specified, otherwise to an implementation-defined value. Requests cannot exceed Limits. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/ |
+| [key].containers.[key].seLinuxOptions.level | Level is SELinux level label that applies to the container. |
+| [key].containers.[key].seLinuxOptions.role | Role is a SELinux role label that applies to the container. |
+| [key].containers.[key].seLinuxOptions.type | Type is a SELinux type label that applies to the container. |
+| [key].containers.[key].seLinuxOptions.user | User is a SELinux user label that applies to the container. |
 | [key].containers.[key].seccompConfig.customProfile.configData | ConfigData corresponds to the configuration file content. |
 | [key].containers.[key].seccompConfig.customProfile.configMap.items | Items maps a ConfigMap data `key` to a file `path` mount. |
 | [key].containers.[key].seccompConfig.customProfile.configMap.name | Name is the name of the ConfigMap. |
