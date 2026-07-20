@@ -2276,7 +2276,7 @@ spec:
           value: "true"
         - name: DD_ORCHESTRATOR_EXPLORER_CONTAINER_SCRUBBING_ENABLED
           value: "true"
-        image: registry.datadoghq.com/agent:7.80.4
+        image: registry.datadoghq.com/agent:7.81.1
         livenessProbe:
           failureThreshold: 6
           httpGet:
@@ -2331,7 +2331,7 @@ spec:
         command:
         - bash
         - -c
-        image: registry.datadoghq.com/agent:7.80.4
+        image: registry.datadoghq.com/agent:7.81.1
         name: init-config
         resources: {}
         volumeMounts:
