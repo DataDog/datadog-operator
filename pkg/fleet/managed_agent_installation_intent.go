@@ -16,13 +16,13 @@ import (
 	pbgo "github.com/DataDog/datadog-agent/pkg/proto/pbgo/core"
 	"github.com/google/uuid"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	toolscache "k8s.io/client-go/tools/cache"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	v2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	"github.com/DataDog/datadog-operator/pkg/remoteconfig"
 )
 
 const (
@@ -154,6 +154,9 @@ func (d *Daemon) runManagedAgentInstallationIntentWorker(ctx context.Context) {
 			if err == nil {
 				break
 			}
+			if apierrors.IsNotFound(err) {
+				break
+			}
 			logger.Error(err, "Failed to reconcile managed Agent installation intent", "resourceVersion", snapshot.resourceVersion)
 			var stateErr *stateDoesntMatchError
 			if errors.As(err, &stateErr) {
@@ -190,6 +193,17 @@ func (d *Daemon) requestManagedAgentInstallationRetry() {
 	select {
 	case d.managedAgentInstallationUpdates <- struct{}{}:
 	default:
+	}
+}
+
+func (d *Daemon) requestManagedAgentInstallationRetryIfWaiting() {
+	d.taskMu.Lock()
+	waiting := d.managedAgentInstallationIntentsEnabled &&
+		d.managedAgentInstallationWaitingForFleet &&
+		!d.managedAgentInstallationActive
+	d.taskMu.Unlock()
+	if waiting {
+		d.requestManagedAgentInstallationRetry()
 	}
 }
 
@@ -338,35 +352,13 @@ func (d *Daemon) reconcileAcknowledgedManagedAgentInstallation(ctx context.Conte
 		return fmt.Errorf("managed Agent installation acknowledgement state is incomplete")
 	}
 
-	stable, _ := d.getPackageConfigVersions(packageDatadogOperator)
-	if stable == remoteconfig.InstallerStateUnknownConfigVersion {
-		if err := d.rehydrateInstallerState(ctx); err != nil {
-			return fmt.Errorf("rehydrate installer state before managed Agent installation handoff: %w", err)
-		}
-	}
-
 	dda, err := d.validateAcknowledgedManagedAgentInstallation(ctx)
 	if err != nil {
 		return err
 	}
-	configID := dda.Labels[fleetConfigIDLabel]
-	if configID == "" {
-		return fmt.Errorf("managed Agent installation target has no stable config ID")
-	}
-	stable, experiment := d.getPackageConfigVersions(packageDatadogOperator)
-	if stable != configID {
-		d.setPackageConfigVersions(packageDatadogOperator, configID, experiment)
-	}
 
 	d.taskMu.Lock()
 	wasReserved := d.managedAgentInstallationTaskReserved
-	if wasReserved {
-		var taskErr error
-		if current.Error != "" {
-			taskErr = errors.New(current.Error)
-		}
-		d.setTaskState(packageDatadogOperator, current.OperationID, current.TaskState, taskErr)
-	}
 	d.managedAgentInstallationTaskReserved = false
 	d.taskMu.Unlock()
 

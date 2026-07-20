@@ -62,11 +62,14 @@ func (d *Daemon) handleManagedAgentInstallationCommand(ctx context.Context, comm
 		return err
 	}
 	if waitForFleet {
+		d.taskMu.Lock()
+		d.managedAgentInstallationWaitingForFleet = true
+		d.taskMu.Unlock()
 		d.transitionMu.Unlock()
-		d.requestManagedAgentInstallationRetryAfter()
 		return nil
 	}
 	d.taskMu.Lock()
+	d.managedAgentInstallationWaitingForFleet = false
 	if d.managedAgentInstallationActive {
 		err := &stateDoesntMatchError{msg: "a DatadogAgent managed Agent installation transition is already in progress"}
 		d.taskMu.Unlock()

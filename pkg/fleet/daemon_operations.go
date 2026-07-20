@@ -359,8 +359,10 @@ func (d *Daemon) planPromote(ctx context.Context, req remoteAPIRequest, op resol
 	}
 
 	if experimentHasPhase(dda, experimentID, v2alpha1.ExperimentPhasePromoted) {
-		// Promotion already happened. Update RC now and let handleTask mark the
-		// task done.
+		if err := d.persistManagedAgentInstallationStableConfig(ctx, op.NamespacedName, experimentID, experiment); err != nil {
+			return nil, nil, fmt.Errorf("promote DatadogAgent experiment: persist promoted config: %w", err)
+		}
+		// Promotion already happened. Update RC now and let handleTask mark the task done.
 		d.setPackageConfigVersions(req.Package, experiment, "")
 		return nil, nil, nil
 	}
