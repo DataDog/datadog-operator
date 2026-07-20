@@ -117,7 +117,7 @@ func (d *Daemon) handleManagedAgentInstallationCommand(ctx context.Context, comm
 func (d *Daemon) executeManagedAgentInstallationCommand(ctx context.Context, command managedAgentInstallationCommand) error {
 	defer d.finishManagedAgentInstallationTask(command.Intent.OperationID)
 
-	pending, err := d.dispatchManagedAgentInstallationCommand(ctx, command)
+	err := d.dispatchManagedAgentInstallationCommand(ctx, command)
 	if err != nil {
 		var credentialErr *managedAgentInstallationCredentialNotReadyError
 		if errors.As(err, &credentialErr) && ctx.Err() == nil {
@@ -154,20 +154,6 @@ func (d *Daemon) executeManagedAgentInstallationCommand(ctx context.Context, com
 		d.emitManagedAgentInstallationRejectedEvent(ctx, command, err.Error())
 		return err
 	}
-	if pending != nil {
-		err = fmt.Errorf("managed Agent installation desired state %s returned an asynchronous operation", command.Intent.DesiredState)
-		if persistErr := d.recordManagedAgentInstallationResult(ctx, command, pbgo.TaskState_ERROR, err); persistErr != nil {
-			d.requestManagedAgentInstallationRetryAfter()
-			return errors.Join(err, persistErr)
-		}
-		d.taskMu.Lock()
-		d.setTaskState(packageDatadogOperator, command.Intent.OperationID, pbgo.TaskState_ERROR, err)
-		d.managedAgentInstallationTaskReserved = false
-		d.taskMu.Unlock()
-		d.emitManagedAgentInstallationRejectedEvent(ctx, command, err.Error())
-		return err
-	}
-
 	if err := d.recordManagedAgentInstallationResult(ctx, command, pbgo.TaskState_DONE, nil); err != nil {
 		d.requestManagedAgentInstallationRetryAfter()
 		return err
@@ -229,14 +215,14 @@ func (d *Daemon) finishManagedAgentInstallationTask(operationID string) {
 	}
 }
 
-func (d *Daemon) dispatchManagedAgentInstallationCommand(ctx context.Context, command managedAgentInstallationCommand) (*pendingOperation, error) {
+func (d *Daemon) dispatchManagedAgentInstallationCommand(ctx context.Context, command managedAgentInstallationCommand) error {
 	switch command.Intent.DesiredState {
 	case managedAgentInstallationDesiredStateInstalled:
 		return d.installDatadogAgent(ctx, command)
 	case managedAgentInstallationDesiredStateAbsent:
 		return d.uninstallDatadogAgent(ctx)
 	default:
-		return nil, fmt.Errorf("unknown managed Agent installation desired state %q", command.Intent.DesiredState)
+		return fmt.Errorf("unknown managed Agent installation desired state %q", command.Intent.DesiredState)
 	}
 }
 

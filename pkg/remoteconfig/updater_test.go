@@ -66,6 +66,38 @@ func TestStartClosesServiceWhenClientCreationFails(t *testing.T) {
 	require.NoError(t, database.Close())
 }
 
+func TestStartInitializesStableClient(t *testing.T) {
+	t.Setenv("TMPDIR", t.TempDir())
+	originalNewRemoteConfigClient := newRemoteConfigClient
+	t.Cleanup(func() {
+		newRemoteConfigClient = originalNewRemoteConfigClient
+	})
+	newRemoteConfigClient = func(_ rcclient.ConfigFetcher, options ...func(*rcclient.Options)) (*rcclient.Client, error) {
+		options = append(options, rcclient.WithoutTufVerification())
+		return rcclient.NewClient(stoppedConfigFetcher{}, options...)
+	}
+
+	updater := NewRemoteConfigUpdater(
+		nil,
+		logr.Discard(),
+		WithInitialInstallerConfigVersion(InstallerStateUnknownConfigVersion),
+	)
+	require.NoError(t, updater.Start("api-key", "datadoghq.com", "test-cluster", "", "", "https://config.datadoghq.com"))
+	require.Same(t, updater, updater.Client())
+	require.Len(t, updater.GetInstallerState(), 1)
+	assert.Equal(t, InstallerStateUnknownConfigVersion, updater.GetInstallerState()[0].GetStableConfigVersion())
+
+	wantState := []*pbgo.PackageState{{Package: "datadog-operator", StableConfigVersion: "stable"}}
+	updater.SetInstallerState(wantState)
+	assert.Equal(t, wantState, updater.GetInstallerState())
+	updater.Subscribe("TEST_PRODUCT", func(map[string]state.RawConfig, func(string, state.ApplyStatus)) {})
+	require.Len(t, updater.subscriptions, 3)
+
+	require.NoError(t, updater.Stop())
+	assert.Nil(t, updater.Client())
+	assert.Nil(t, updater.GetInstallerState())
+}
+
 func TestInitialInstallerConfigVersion(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -382,6 +414,45 @@ func TestRefreshUpdaterTagsPreservesCurrentClientWhenDynamicTagsAreUnavailable(t
 	err = updater.RefreshUpdaterTags(context.Background())
 
 	require.ErrorContains(t, err, "dynamic updater tags unavailable")
+	assert.Same(t, current, updater.rcClient)
+}
+
+func TestRefreshUpdaterTagsRequiresRunningClient(t *testing.T) {
+	updater := &RemoteConfigUpdater{
+		dynamicUpdaterTags: func(context.Context) ([]string, error) {
+			return []string{"operator_config_updates:ready"}, nil
+		},
+	}
+
+	require.ErrorContains(t, updater.RefreshUpdaterTags(context.Background()), "client is not running")
+}
+
+func TestRefreshUpdaterTagsReturnsReplacementCreationFailure(t *testing.T) {
+	current, err := rcclient.NewClient(stoppedConfigFetcher{}, rcclient.WithoutTufVerification())
+	require.NoError(t, err)
+	t.Cleanup(current.Close)
+
+	updater := &RemoteConfigUpdater{
+		rcClient:  current,
+		rcService: &rcservice.CoreAgentService{},
+		dynamicUpdaterTags: func(context.Context) ([]string, error) {
+			return []string{"operator_config_updates:ready"}, nil
+		},
+		logger: logr.Discard(),
+	}
+	require.NoError(t, updater.configureService("api-key", "datadoghq.com", "", "", "", "https://config.datadoghq.com"))
+
+	wantErr := errors.New("replacement client creation failed")
+	originalNewRemoteConfigClient := newRemoteConfigClient
+	t.Cleanup(func() {
+		newRemoteConfigClient = originalNewRemoteConfigClient
+	})
+	newRemoteConfigClient = func(_ rcclient.ConfigFetcher, _ ...func(*rcclient.Options)) (*rcclient.Client, error) {
+		return nil, wantErr
+	}
+
+	err = updater.RefreshUpdaterTags(context.Background())
+	require.ErrorIs(t, err, wantErr)
 	assert.Same(t, current, updater.rcClient)
 }
 

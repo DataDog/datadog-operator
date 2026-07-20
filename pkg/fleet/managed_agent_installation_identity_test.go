@@ -115,6 +115,16 @@ func TestManagedAgentInstallationIdentityProviderDelegation(t *testing.T) {
 	require.NoError(t, identity.Validate())
 }
 
+func TestUnconfiguredManagedAgentInstallationIdentity(t *testing.T) {
+	identity := ManagedAgentInstallationIdentity{}
+
+	assert.False(t, identity.Configured())
+	assert.Empty(t, identity.Provider())
+	assert.Empty(t, identity.InstallationID())
+	assert.Empty(t, identity.TargetID())
+	require.NoError(t, identity.Validate())
+}
+
 func TestManagedAgentInstallationIdentityFromLoaders(t *testing.T) {
 	identity := newManagedAgentInstallationIdentity(testManagedAgentInstallationProviderIdentity{})
 

@@ -339,8 +339,7 @@ func TestManagedAgentInstallationIntentInstallAndUninstall(t *testing.T) {
 	assert.Equal(t, pbgo.TaskState_DONE, rcClient.state[0].GetTask().GetState())
 	assert.Empty(t, rcClient.state[0].GetStableConfigVersion())
 	assert.Empty(t, rcClient.state[0].GetExperimentConfigVersion())
-	pending, err := daemon.uninstallDatadogAgent(ctx)
-	requireSyncNoError(t, pending, err)
+	require.NoError(t, daemon.uninstallDatadogAgent(ctx))
 
 	persisted, err := daemon.readManagedAgentInstallationState(ctx)
 	require.NoError(t, err)
@@ -664,6 +663,53 @@ func TestManagedAgentInstallationCommandReturnsTargetReadFailure(t *testing.T) {
 	err := daemon.handleManagedAgentInstallationCommand(context.Background(), command)
 
 	require.ErrorContains(t, err, "transient managed Agent installation target read failure")
+}
+
+func TestManagedAgentInstallationInvalidCommandRetriesWhenResultCannotPersist(t *testing.T) {
+	daemon, _, _ := testManagedAgentInstallationDaemon([]*pbgo.PackageState{{Package: packageDatadogOperator}})
+	daemon.managedAgentInstallationUpdates = make(chan struct{}, 1)
+	command := testManagedAgentInstallationCommand(t, testAddonInstallOperationID, managedAgentInstallationDesiredStateInstalled)
+	command.Intent.Provider = "other"
+
+	err := daemon.handleManagedAgentInstallationCommand(context.Background(), command)
+
+	require.ErrorContains(t, err, "different provider target")
+	require.ErrorContains(t, err, "state is missing")
+	require.Eventually(t, func() bool {
+		return len(daemon.managedAgentInstallationUpdates) == 1
+	}, 2*time.Second, 10*time.Millisecond)
+}
+
+func TestManagedAgentInstallationTerminalErrorRetriesWhenResultCannotPersist(t *testing.T) {
+	ctx := context.Background()
+	daemon, kubeClient, _ := testManagedAgentInstallationDaemon(
+		[]*pbgo.PackageState{{Package: packageDatadogOperator}},
+		testFleetCredentialSecret(),
+		testDDAObject(""),
+	)
+	daemon.managedAgentInstallationUpdates = make(chan struct{}, 1)
+	daemon.client = &rejectManagedAgentInstallationTerminalStateClient{Client: daemon.client}
+	raw := testManagedAgentInstallationIntent(t, testAddonInstallOperationID, managedAgentInstallationDesiredStateInstalled)
+	putManagedAgentInstallationIntentConfigMap(t, kubeClient, raw)
+	command := testManagedAgentInstallationCommand(t, testAddonInstallOperationID, managedAgentInstallationDesiredStateInstalled)
+
+	err := daemon.handleManagedAgentInstallationCommand(ctx, command)
+
+	require.ErrorContains(t, err, "is not owned by Fleet Automation")
+	require.ErrorContains(t, err, "transient managed Agent installation state write failure")
+	require.Eventually(t, func() bool {
+		return len(daemon.managedAgentInstallationUpdates) == 1
+	}, 2*time.Second, 10*time.Millisecond)
+}
+
+func TestDispatchManagedAgentInstallationCommandRejectsUnknownState(t *testing.T) {
+	daemon, _, _ := testManagedAgentInstallationDaemon(nil)
+	command := testManagedAgentInstallationCommand(t, testAddonInstallOperationID, managedAgentInstallationDesiredStateInstalled)
+	command.Intent.DesiredState = "unknown"
+
+	err := daemon.dispatchManagedAgentInstallationCommand(context.Background(), command)
+
+	require.ErrorContains(t, err, "unknown managed Agent installation desired state")
 }
 
 func TestManagedAgentInstallationTerminalDoneReconcilesPackageState(t *testing.T) {
@@ -1398,6 +1444,240 @@ func TestManagedAgentInstallationReadinessTagsRejectsIncompleteState(t *testing.
 	require.NoError(t, kubeClient.Delete(ctx, dda))
 	_, err = ManagedAgentInstallationReadinessTags(ctx, kubeClient, testManagedAgentInstallationIdentity)
 	require.ErrorContains(t, err, "target is absent")
+}
+
+func TestManagedAgentInstallationPersistedStateFailures(t *testing.T) {
+	ctx := context.Background()
+	newDaemonWithIntent := func(t *testing.T) (*Daemon, client.Client, managedAgentInstallationPersistedState) {
+		t.Helper()
+		daemon, kubeClient, _ := testManagedAgentInstallationDaemon(nil)
+		raw := testManagedAgentInstallationIntent(t, testAddonInstallOperationID, managedAgentInstallationDesiredStateInstalled)
+		putManagedAgentInstallationIntentConfigMap(t, kubeClient, raw)
+		command := testManagedAgentInstallationCommand(t, testAddonInstallOperationID, managedAgentInstallationDesiredStateInstalled)
+		return daemon, kubeClient, managedAgentInstallationStateFromCommand(command, pbgo.TaskState_DONE, nil)
+	}
+
+	t.Run("result requires existing operation", func(t *testing.T) {
+		daemon, _, state := newDaemonWithIntent(t)
+		require.ErrorContains(t, daemon.writeManagedAgentInstallationResult(ctx, state), "state is missing")
+	})
+
+	t.Run("new state requires intent owner", func(t *testing.T) {
+		daemon, _, _ := testManagedAgentInstallationDaemon(nil)
+		command := testManagedAgentInstallationCommand(t, testAddonInstallOperationID, managedAgentInstallationDesiredStateInstalled)
+		state := managedAgentInstallationStateFromCommand(command, pbgo.TaskState_RUNNING, nil)
+		require.ErrorContains(t, daemon.writeManagedAgentInstallationState(ctx, state), "intent owner")
+	})
+
+	t.Run("state read failure", func(t *testing.T) {
+		daemon, kubeClient, state := newDaemonWithIntent(t)
+		require.NoError(t, daemon.writeManagedAgentInstallationState(ctx, state))
+		daemon.apiReader = &managedAgentInstallationFaultClient{
+			Client: kubeClient,
+			getError: func(key client.ObjectKey, _ client.Object) error {
+				if key == managedAgentInstallationStateKey {
+					return errors.New("state read failed")
+				}
+				return nil
+			},
+		}
+		_, err := daemon.readManagedAgentInstallationState(ctx)
+		require.ErrorContains(t, err, "state read failed")
+	})
+
+	t.Run("state write read failure", func(t *testing.T) {
+		daemon, kubeClient, state := newDaemonWithIntent(t)
+		require.NoError(t, daemon.writeManagedAgentInstallationState(ctx, state))
+		daemon.client = &managedAgentInstallationFaultClient{
+			Client: kubeClient,
+			getError: func(key client.ObjectKey, _ client.Object) error {
+				if key == managedAgentInstallationStateKey {
+					return errors.New("state write read failed")
+				}
+				return nil
+			},
+		}
+		require.ErrorContains(t, daemon.writeManagedAgentInstallationState(ctx, state), "state write read failed")
+	})
+
+	t.Run("state owner read failure", func(t *testing.T) {
+		daemon, kubeClient, state := newDaemonWithIntent(t)
+		require.NoError(t, daemon.writeManagedAgentInstallationState(ctx, state))
+		daemon.apiReader = &managedAgentInstallationFaultClient{
+			Client: kubeClient,
+			getError: func(key client.ObjectKey, _ client.Object) error {
+				if key == managedAgentInstallationIntentKey {
+					return errors.New("intent owner read failed")
+				}
+				return nil
+			},
+		}
+		_, err := daemon.readManagedAgentInstallationState(ctx)
+		require.ErrorContains(t, err, "intent owner read failed")
+	})
+
+	for _, test := range []struct {
+		name      string
+		mutate    func(map[string]string)
+		wantError string
+	}{
+		{
+			name: "invalid task state",
+			mutate: func(data map[string]string) {
+				data[managedAgentInstallationStateTaskStateKey] = "UNKNOWN"
+			},
+			wantError: "unsupported task state",
+		},
+		{
+			name: "incomplete state",
+			mutate: func(data map[string]string) {
+				delete(data, managedAgentInstallationStateDigestKey)
+			},
+			wantError: "state is incomplete",
+		},
+		{
+			name: "unsupported desired state",
+			mutate: func(data map[string]string) {
+				data[managedAgentInstallationStateDesiredStateKey] = "unknown"
+			},
+			wantError: "unsupported desired state",
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			daemon, kubeClient, state := newDaemonWithIntent(t)
+			require.NoError(t, daemon.writeManagedAgentInstallationState(ctx, state))
+			configMap := &corev1.ConfigMap{}
+			require.NoError(t, kubeClient.Get(ctx, managedAgentInstallationStateKey, configMap))
+			test.mutate(configMap.Data)
+			require.NoError(t, kubeClient.Update(ctx, configMap))
+			_, err := daemon.readManagedAgentInstallationState(ctx)
+			require.ErrorContains(t, err, test.wantError)
+		})
+	}
+}
+
+func TestManagedAgentInstallationReadinessTagsRejectStateFailures(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("state read failure", func(t *testing.T) {
+		_, kubeClient, _ := testManagedAgentInstallationDaemon(nil)
+		acknowledged := testManagedAgentInstallationIntent(
+			t,
+			testAddonInstallOperationID,
+			managedAgentInstallationDesiredStateInstalled,
+			testAddonInstallOperationID,
+		)
+		putManagedAgentInstallationIntentConfigMap(t, kubeClient, acknowledged)
+		reader := &managedAgentInstallationFaultClient{
+			Client: kubeClient,
+			getError: func(key client.ObjectKey, _ client.Object) error {
+				if key == managedAgentInstallationStateKey {
+					return errors.New("state read failed")
+				}
+				return nil
+			},
+		}
+
+		_, err := ManagedAgentInstallationReadinessTags(ctx, reader, testManagedAgentInstallationIdentity)
+		require.ErrorContains(t, err, "state read failed")
+	})
+
+	t.Run("inconsistent uninstall", func(t *testing.T) {
+		daemon, kubeClient, _ := testManagedAgentInstallationDaemon(nil)
+		uninstall := testManagedAgentInstallationIntent(
+			t,
+			testAddonUninstallOperationID,
+			managedAgentInstallationDesiredStateAbsent,
+			testAddonInstallOperationID,
+		)
+		putManagedAgentInstallationIntentConfigMap(t, kubeClient, uninstall)
+		command := testManagedAgentInstallationCommand(t, testAddonUninstallOperationID, managedAgentInstallationDesiredStateAbsent)
+		command.Intent.AcknowledgedOperationID = testAddonInstallOperationID
+		state := managedAgentInstallationStateFromCommand(command, pbgo.TaskState_DONE, nil)
+		state.OperationID = "other-operation"
+		state.Digest = strings.Repeat("f", 64)
+		require.NoError(t, daemon.writeManagedAgentInstallationState(ctx, state))
+
+		_, err := ManagedAgentInstallationReadinessTags(ctx, kubeClient, testManagedAgentInstallationIdentity)
+		require.ErrorContains(t, err, "not consistent with the uninstall intent")
+	})
+}
+
+func TestManagedAgentInstallationIntentWorkerStopsOnReadFailure(t *testing.T) {
+	for _, test := range []struct {
+		name string
+		err  error
+	}{
+		{
+			name: "missing intent",
+			err:  apierrors.NewNotFound(corev1.Resource("configmaps"), managedAgentInstallationIntentKey.Name),
+		},
+		{name: "transient error", err: errors.New("intent read failed")},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			daemon, kubeClient, _ := testManagedAgentInstallationDaemon(nil)
+			daemon.managedAgentInstallationUpdates = make(chan struct{}, 1)
+			read := make(chan struct{}, 1)
+			daemon.apiReader = &managedAgentInstallationFaultClient{
+				Client: kubeClient,
+				getError: func(key client.ObjectKey, _ client.Object) error {
+					if key != managedAgentInstallationIntentKey {
+						return nil
+					}
+					select {
+					case read <- struct{}{}:
+					default:
+					}
+					return test.err
+				},
+			}
+			ctx, cancel := context.WithCancel(context.Background())
+			done := make(chan struct{})
+			go func() {
+				daemon.runManagedAgentInstallationIntentWorker(ctx)
+				close(done)
+			}()
+			daemon.requestManagedAgentInstallationRetry()
+			select {
+			case <-read:
+			case <-time.After(time.Second):
+				require.Fail(t, "worker did not read the intent")
+			}
+			cancel()
+			select {
+			case <-done:
+			case <-time.After(time.Second):
+				require.Fail(t, "worker did not stop")
+			}
+		})
+	}
+}
+
+func TestManagedAgentInstallationForwardersIgnoreUnrelatedObjects(t *testing.T) {
+	daemon := &Daemon{managedAgentInstallationUpdates: make(chan struct{}, 1)}
+
+	daemon.forwardManagedAgentInstallationIntent(&corev1.Secret{})
+	daemon.forwardManagedAgentInstallationIntent(&corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "other", Namespace: fleetDatadogAgentNamespace}})
+	assert.Empty(t, daemon.managedAgentInstallationUpdates)
+	daemon.forwardManagedAgentInstallationIntent(&corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: managedAgentInstallationIntentKey.Name, Namespace: managedAgentInstallationIntentKey.Namespace}})
+	require.Len(t, daemon.managedAgentInstallationUpdates, 1)
+	<-daemon.managedAgentInstallationUpdates
+
+	daemon.forwardManagedAgentInstallationCredential(&corev1.ConfigMap{})
+	daemon.forwardManagedAgentInstallationCredential(&corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "other", Namespace: fleetDatadogAgentNamespace}})
+	daemon.forwardManagedAgentInstallationCredential(&corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: managedAgentInstallationCredentialKey.Name, Namespace: managedAgentInstallationCredentialKey.Namespace}})
+	assert.Empty(t, daemon.managedAgentInstallationUpdates)
+	daemon.forwardManagedAgentInstallationCredential(testFleetCredentialSecret())
+	require.Len(t, daemon.managedAgentInstallationUpdates, 1)
+
+	(&Daemon{}).requestManagedAgentInstallationRetry()
+}
+
+func TestBoundedTaskErrorMessage(t *testing.T) {
+	assert.Empty(t, boundedTaskErrorMessage(nil))
+	assert.Equal(t, "short error", boundedTaskErrorMessage(errors.New("short error")))
+	assert.Equal(t, strings.Repeat("x", 1024), boundedTaskErrorMessage(errors.New(strings.Repeat("x", 1025))))
+	assert.Equal(t, "?", boundedTaskErrorMessage(errors.New(string([]byte{0xff}))))
 }
 
 func TestDecodeManagedAgentInstallationIntentRejectsUnsupportedProvider(t *testing.T) {
