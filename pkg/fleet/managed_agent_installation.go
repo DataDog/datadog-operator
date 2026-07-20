@@ -43,7 +43,6 @@ const (
 	fleetInstallationIDLabel                   = "fleet.datadoghq.com/installation-id"
 	fleetTargetIDLabel                         = "fleet.datadoghq.com/target-id"
 	fleetConfigHashAnnotation                  = "fleet.datadoghq.com/config-hash"
-	fleetPendingTargetUIDAnnotation            = "fleet.datadoghq.com/pending-target-uid"
 	fleetCreateTaskIDAnnotation                = "fleet.datadoghq.com/create-task-id"
 	fleetManagedByValue                        = "fleet-automation"
 	fleetManagedAgentInstallationStatePartial  = "partial"
@@ -438,6 +437,52 @@ func (d *Daemon) recordFleetDatadogAgentSpecHash(ctx context.Context, nsn types.
 		if dda.Annotations == nil {
 			dda.Annotations = make(map[string]string)
 		}
+		dda.Annotations[fleetConfigHashAnnotation] = liveHash
+		return d.client.Patch(
+			ctx,
+			dda,
+			client.MergeFromWithOptions(base, client.MergeFromWithOptimisticLock{}),
+			client.FieldOwner("fleet-daemon"),
+		)
+	})
+}
+
+func (d *Daemon) persistManagedAgentInstallationStableConfig(ctx context.Context, nsn types.NamespacedName, experimentID, configID string) error {
+	if !d.managedAgentInstallationIdentity.Configured() {
+		return nil
+	}
+	if experimentID == "" || configID == "" {
+		return fmt.Errorf("promoted managed Agent installation config is incomplete")
+	}
+	return k8sretry.RetryOnConflict(k8sretry.DefaultBackoff, func() error {
+		dda := &v2alpha1.DatadogAgent{}
+		if err := d.managedAgentInstallationReader().Get(ctx, nsn, dda); err != nil {
+			return err
+		}
+		if err := d.validateFleetDatadogAgentInstallation(dda); err != nil {
+			return err
+		}
+		if err := validateFleetDatadogAgentExperimentOperationState(dda, pendingIntentPromote); err != nil {
+			return err
+		}
+		if !experimentHasPhase(dda, experimentID, v2alpha1.ExperimentPhasePromoted) {
+			return &stateDoesntMatchError{msg: fmt.Sprintf("DatadogAgent %s/%s has not promoted experiment %q", dda.Namespace, dda.Name, experimentID)}
+		}
+		liveHash, err := fleetDatadogAgentSpecHash(&dda.Spec)
+		if err != nil {
+			return err
+		}
+		if dda.Labels[fleetConfigIDLabel] == configID && dda.Annotations[fleetConfigHashAnnotation] == liveHash {
+			return nil
+		}
+		base := dda.DeepCopy()
+		if dda.Labels == nil {
+			dda.Labels = make(map[string]string)
+		}
+		if dda.Annotations == nil {
+			dda.Annotations = make(map[string]string)
+		}
+		dda.Labels[fleetConfigIDLabel] = configID
 		dda.Annotations[fleetConfigHashAnnotation] = liveHash
 		return d.client.Patch(
 			ctx,

@@ -84,6 +84,32 @@ func TestInitialInstallerConfigVersion(t *testing.T) {
 	}
 }
 
+func TestRemoteConfigUpdaterOptions(t *testing.T) {
+	dynamicTags := func(context.Context) ([]string, error) {
+		return []string{"operator_config_updates:ready"}, nil
+	}
+	updater := NewRemoteConfigUpdater(
+		newFakeClient(t),
+		logr.Discard(),
+		WithAdditionalUpdaterTags("provider:eks", "installation:test"),
+		WithDynamicUpdaterTags(dynamicTags),
+		WithInitialInstallerConfigVersion(InstallerStateUnknownConfigVersion),
+	)
+
+	assert.Equal(t, []string{"provider:eks", "installation:test"}, updater.additionalUpdaterTags)
+	require.NotNil(t, updater.dynamicUpdaterTags)
+	tags, err := updater.dynamicUpdaterTags(context.Background())
+	require.NoError(t, err)
+	assert.Equal(t, []string{"operator_config_updates:ready"}, tags)
+	assert.Equal(t, InstallerStateUnknownConfigVersion, updater.initialInstallerConfigVersion())
+	assert.Nil(t, updater.Client())
+	assert.NotPanics(t, func() {
+		updater.SetInstallerState(nil)
+		updater.Subscribe("TEST_PRODUCT", func(map[string]state.RawConfig, func(string, state.ApplyStatus)) {})
+	})
+	require.Len(t, updater.subscriptions, 1)
+}
+
 type stoppedConfigFetcher struct{}
 
 func (stoppedConfigFetcher) ClientGetConfigs(context.Context, *pbgo.ClientGetConfigsRequest) (*pbgo.ClientGetConfigsResponse, error) {

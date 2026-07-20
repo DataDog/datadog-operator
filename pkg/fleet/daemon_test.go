@@ -25,12 +25,17 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	toolscache "k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/tools/record"
 	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
+	ctrlcache "sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	v1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	v2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/pkg/remoteconfig"
 )
 
 // --- Test helpers ---
@@ -60,6 +65,49 @@ func testDaemon(dda *v2alpha1.DatadogAgent, configs map[string]installerConfig) 
 		configs:          configs,
 		statusUpdates:    make(chan ddaStatusSnapshot, 32),
 	}, c
+}
+
+type recordingInformer struct {
+	ctrlcache.Informer
+	handlers []toolscache.ResourceEventHandler
+}
+
+func (i *recordingInformer) AddEventHandler(handler toolscache.ResourceEventHandler) (toolscache.ResourceEventHandlerRegistration, error) {
+	i.handlers = append(i.handlers, handler)
+	return nil, nil
+}
+
+type recordingCache struct {
+	ctrlcache.Cache
+	informer *recordingInformer
+}
+
+type recordingManager struct {
+	manager.Manager
+	client   client.Client
+	reader   client.Reader
+	cache    ctrlcache.Cache
+	recorder record.EventRecorder
+}
+
+func (m *recordingManager) GetClient() client.Client {
+	return m.client
+}
+
+func (m *recordingManager) GetAPIReader() client.Reader {
+	return m.reader
+}
+
+func (m *recordingManager) GetCache() ctrlcache.Cache {
+	return m.cache
+}
+
+func (m *recordingManager) GetEventRecorderFor(string) record.EventRecorder {
+	return m.recorder
+}
+
+func (c *recordingCache) GetInformer(context.Context, client.Object, ...ctrlcache.InformerGetOption) (ctrlcache.Informer, error) {
+	return c.informer, nil
 }
 
 var testDDAGVK = schema.GroupVersionKind{
@@ -670,6 +718,111 @@ func TestPromoteDatadogAgentExperiment_Success_Promoted(t *testing.T) {
 	assert.Empty(t, rc.state[0].ExperimentConfigVersion, "experiment config version should be cleared")
 }
 
+func TestManagedAgentInstallationFleetExperimentOperations(t *testing.T) {
+	for _, test := range []struct {
+		name       string
+		phase      v2alpha1.ExperimentPhase
+		experiment string
+		run        func(*Daemon) (*pendingOperation, error)
+	}{
+		{
+			name: "start",
+			run: func(d *Daemon) (*pendingOperation, error) {
+				return d.startDatadogAgentExperiment(context.Background(), testStartRequest())
+			},
+		},
+		{
+			name:       "stop",
+			phase:      v2alpha1.ExperimentPhaseRunning,
+			experiment: testExperimentID,
+			run: func(d *Daemon) (*pendingOperation, error) {
+				return d.stopDatadogAgentExperiment(context.Background(), testStopRequest())
+			},
+		},
+		{
+			name:       "promote",
+			phase:      v2alpha1.ExperimentPhaseRunning,
+			experiment: testExperimentID,
+			run: func(d *Daemon) (*pendingOperation, error) {
+				return d.promoteDatadogAgentExperiment(context.Background(), testPromoteRequest())
+			},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			dda := testFleetManagedDatadogAgent(t, test.phase, testAddonInstallOperationID)
+			d, _, rc := testManagedAgentInstallationDaemon([]*pbgo.PackageState{{
+				Package:                 packageDatadogOperator,
+				StableConfigVersion:     testAddonInstallOperationID,
+				ExperimentConfigVersion: test.experiment,
+			}}, dda)
+			d.configs = testInstallerConfigWithDDA()
+
+			op, err := test.run(d)
+
+			require.NoError(t, err)
+			require.NotNil(t, op)
+			require.Nil(t, rc.state[0].GetTask())
+		})
+	}
+}
+
+func TestManagedAgentInstallationPromotionPersistsStableConfig(t *testing.T) {
+	dda := testFleetManagedDatadogAgent(t, v2alpha1.ExperimentPhasePromoted, testAddonInstallOperationID)
+	dda.Annotations[fleetConfigHashAnnotation] = "bootstrap-hash"
+	dda.Annotations[v2alpha1.AnnotationPendingTaskID] = "promote-task"
+	dda.Annotations[v2alpha1.AnnotationPendingAction] = string(pendingIntentPromote)
+	dda.Annotations[v2alpha1.AnnotationPendingExperimentID] = testExperimentID
+	dda.Annotations[v2alpha1.AnnotationPendingPackage] = packageDatadogOperator
+	dda.Annotations[v2alpha1.AnnotationPendingResultVersion] = testExperimentID
+	d, kubeClient, rc := testManagedAgentInstallationDaemon([]*pbgo.PackageState{{
+		Package:                 packageDatadogOperator,
+		StableConfigVersion:     testAddonInstallOperationID,
+		ExperimentConfigVersion: testExperimentID,
+	}}, dda)
+
+	newOperationTracker(d).onStatusUpdate(context.Background(), newDDAStatusSnapshot(dda))
+
+	got := &v2alpha1.DatadogAgent{}
+	require.NoError(t, kubeClient.Get(context.Background(), testDDANSN, got))
+	wantHash, err := fleetDatadogAgentSpecHash(&got.Spec)
+	require.NoError(t, err)
+	assert.Equal(t, testExperimentID, got.Labels[fleetConfigIDLabel])
+	assert.Equal(t, wantHash, got.Annotations[fleetConfigHashAnnotation])
+	assert.Equal(t, testExperimentID, rc.state[0].GetStableConfigVersion())
+	assert.Empty(t, rc.state[0].GetExperimentConfigVersion())
+	require.NotNil(t, rc.state[0].GetTask())
+	assert.Equal(t, "promote-task", rc.state[0].GetTask().GetId())
+	assert.Equal(t, pbgo.TaskState_DONE, rc.state[0].GetTask().GetState())
+
+	restarted := testRestartedManagedAgentInstallationDaemon(kubeClient)
+	require.NoError(t, restarted.rehydrateInstallerState(context.Background()))
+	stable, experiment := restarted.getPackageConfigVersions(packageDatadogOperator)
+	assert.Equal(t, testExperimentID, stable)
+	assert.Empty(t, experiment)
+}
+
+func TestManagedAgentInstallationAlreadyPromotedPersistsStableConfig(t *testing.T) {
+	dda := testFleetManagedDatadogAgent(t, v2alpha1.ExperimentPhasePromoted, testAddonInstallOperationID)
+	dda.Annotations[fleetConfigHashAnnotation] = "bootstrap-hash"
+	d, kubeClient, rc := testManagedAgentInstallationDaemon([]*pbgo.PackageState{{
+		Package:                 packageDatadogOperator,
+		StableConfigVersion:     testAddonInstallOperationID,
+		ExperimentConfigVersion: testExperimentID,
+	}}, dda)
+
+	op, err := d.promoteDatadogAgentExperiment(context.Background(), testPromoteRequest())
+
+	requireSyncNoError(t, op, err)
+	got := &v2alpha1.DatadogAgent{}
+	require.NoError(t, kubeClient.Get(context.Background(), testDDANSN, got))
+	wantHash, hashErr := fleetDatadogAgentSpecHash(&got.Spec)
+	require.NoError(t, hashErr)
+	assert.Equal(t, testExperimentID, got.Labels[fleetConfigIDLabel])
+	assert.Equal(t, wantHash, got.Annotations[fleetConfigHashAnnotation])
+	assert.Equal(t, testExperimentID, rc.state[0].GetStableConfigVersion())
+	assert.Empty(t, rc.state[0].GetExperimentConfigVersion())
+}
+
 // --- verifyExpectedState tests ---
 
 func TestVerifyExpectedState_Match(t *testing.T) {
@@ -1186,6 +1339,108 @@ func TestDaemonStartRequiresCache(t *testing.T) {
 	assert.Contains(t, err.Error(), "controller cache")
 }
 
+func TestNewDaemonAppliesManagedInstallationOption(t *testing.T) {
+	_, kubeClient, rcClient := testManagedAgentInstallationDaemon([]*pbgo.PackageState{{Package: packageDatadogOperator}})
+	informer := &recordingInformer{}
+	cache := &recordingCache{informer: informer}
+	recorder := record.NewFakeRecorder(1)
+	mgr := &recordingManager{client: kubeClient, reader: kubeClient, cache: cache, recorder: recorder}
+
+	d := NewDaemon(rcClient, mgr, true, WithManagedAgentInstallation(testManagedAgentInstallationIdentity, true))
+
+	assert.Same(t, kubeClient, d.client)
+	assert.Same(t, kubeClient, d.apiReader)
+	assert.Same(t, cache, d.cache)
+	assert.Same(t, recorder, d.recorder)
+	assert.True(t, d.revisionsEnabled)
+	assert.True(t, d.managedAgentInstallationIntentsEnabled)
+	assert.True(t, d.managedAgentInstallationTaskReserved)
+	assert.Equal(t, testManagedAgentInstallationIdentity, d.managedAgentInstallationIdentity)
+	assert.NotNil(t, d.managedAgentInstallationTaskRunner)
+	assert.NotNil(t, d.configs)
+	assert.NotNil(t, d.statusUpdates)
+	assert.NotNil(t, d.managedAgentInstallationUpdates)
+	assert.True(t, d.NeedLeaderElection())
+	runnerCalled := make(chan struct{})
+	d.managedAgentInstallationTaskRunner(func() { close(runnerCalled) })
+	select {
+	case <-runnerCalled:
+	case <-time.After(time.Second):
+		require.Fail(t, "managed installation task runner did not run")
+	}
+}
+
+func TestDaemonStartRegistersManagedInstallationForwarders(t *testing.T) {
+	d, _, _ := testManagedAgentInstallationDaemon(
+		[]*pbgo.PackageState{{Package: packageDatadogOperator}},
+		testFleetCredentialSecret(),
+	)
+	informer := &recordingInformer{}
+	d.cache = &recordingCache{informer: informer}
+	d.managedAgentInstallationIntentsEnabled = true
+	d.managedAgentInstallationUpdates = make(chan struct{}, 1)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	require.NoError(t, d.Start(ctx))
+	require.Len(t, informer.handlers, 3)
+}
+
+func TestDispatchRemoteAPIRequestRequiresRevisionsForExperiments(t *testing.T) {
+	d, _ := testDaemon(nil, testInstallerConfigWithDDA())
+	d.revisionsEnabled = false
+	for _, method := range []string{
+		methodStartDatadogAgentExperiment,
+		methodStopDatadogAgentExperiment,
+		methodPromoteDatadogAgentExperiment,
+	} {
+		t.Run(method, func(t *testing.T) {
+			_, err := d.dispatchRemoteAPIRequest(context.Background(), remoteAPIRequest{Method: method})
+			require.ErrorContains(t, err, "experiment signals require")
+		})
+	}
+}
+
+func TestHandleConfigsReplacesSnapshot(t *testing.T) {
+	d := &Daemon{configs: map[string]installerConfig{"stale": {ID: "stale"}}}
+	configs := map[string]installerConfig{
+		"path/to/config": {ID: "current"},
+	}
+
+	require.NoError(t, d.handleConfigs(context.Background(), configs))
+
+	_, err := d.getConfig("stale")
+	require.ErrorContains(t, err, "not found")
+	current, err := d.getConfig("current")
+	require.NoError(t, err)
+	assert.Equal(t, "current", current.ID)
+}
+
+func TestRehydrateInstallerStateManagedInstallationPrerequisites(t *testing.T) {
+	t.Run("no Remote Configuration client", func(t *testing.T) {
+		d, _, _ := testManagedAgentInstallationDaemon(nil)
+		d.rcClient = nil
+		require.NoError(t, d.rehydrateInstallerState(context.Background()))
+	})
+
+	t.Run("missing API reader", func(t *testing.T) {
+		d, _, _ := testManagedAgentInstallationDaemon([]*pbgo.PackageState{{Package: packageDatadogOperator}})
+		d.apiReader = nil
+		require.ErrorContains(t, d.rehydrateInstallerState(context.Background()), "API reader is required")
+	})
+
+	t.Run("promoted Fleet update is retained for completion", func(t *testing.T) {
+		dda := testFleetManagedDatadogAgent(t, v2alpha1.ExperimentPhasePromoted, testAddonInstallOperationID)
+		d, _, _ := testManagedAgentInstallationDaemon([]*pbgo.PackageState{{Package: packageDatadogOperator}}, dda)
+
+		require.NoError(t, d.rehydrateInstallerState(context.Background()))
+
+		stable, experiment := d.getPackageConfigVersions(packageDatadogOperator)
+		assert.Equal(t, testAddonInstallOperationID, stable)
+		assert.Equal(t, testExperimentID, experiment)
+	})
+}
+
 // --- handleTask state-transition tests ---
 
 func testDaemonFull(dda *v2alpha1.DatadogAgent, configs map[string]installerConfig, rcState []*pbgo.PackageState) (*Daemon, client.Client, *mockRCClient) {
@@ -1244,6 +1499,34 @@ func TestHandleTask_ManagedAgentInstallationBusyPreservesTaskState(t *testing.T)
 	require.NotNil(t, state.state[0].Task)
 	assert.Equal(t, managedTask.Id, state.state[0].Task.Id)
 	assert.Equal(t, managedTask.State, state.state[0].Task.State)
+}
+
+func TestManagedAgentInstallationIntentsDisabledPreservesFleetUpdates(t *testing.T) {
+	dda := testFleetManagedDatadogAgent(t, "", testAddonInstallOperationID)
+	d, kubeClient, rc := testManagedAgentInstallationDaemon([]*pbgo.PackageState{{
+		Package:             packageDatadogOperator,
+		StableConfigVersion: remoteconfig.InstallerStateUnknownConfigVersion,
+	}}, dda)
+	d.configs = testInstallerConfigWithDDA()
+	WithManagedAgentInstallation(testManagedAgentInstallationIdentity, false)(d)
+	d.revisionsEnabled = true
+
+	require.NoError(t, d.rehydrateInstallerState(context.Background()))
+	stable, experiment := d.getPackageConfigVersions(packageDatadogOperator)
+	assert.Equal(t, testAddonInstallOperationID, stable)
+	assert.Empty(t, experiment)
+	assert.False(t, d.managedAgentInstallationIntentsEnabled)
+	assert.False(t, d.managedAgentInstallationTaskReserved)
+
+	req := testStartRequest()
+	req.ExpectedState = expectedState{StableConfig: testAddonInstallOperationID}
+	require.NoError(t, d.handleTask(context.Background(), req))
+
+	got := &v2alpha1.DatadogAgent{}
+	require.NoError(t, kubeClient.Get(context.Background(), testDDANSN, got))
+	assert.Equal(t, req.ID, got.Annotations[v2alpha1.AnnotationPendingTaskID])
+	assert.Equal(t, testExperimentID, got.Annotations[v2alpha1.AnnotationPendingExperimentID])
+	require.Nil(t, rc.state[0].GetTask())
 }
 
 func TestReconcileLocallyTerminatedExperiment_ClearsExperimentConfigVersion(t *testing.T) {
@@ -1686,6 +1969,45 @@ func TestRehydrateInstallerState_NoDDA(t *testing.T) {
 
 	stable, experiment := d.getPackageConfigVersions(packageDatadogOperator)
 	assert.Equal(t, "stable", stable)
+	assert.Empty(t, experiment)
+}
+
+func TestRehydrateInstallerState_ManagedInstallationStates(t *testing.T) {
+	for _, test := range []struct {
+		name       string
+		state      string
+		wantStable string
+	}{
+		{name: "ready", state: fleetManagedAgentInstallationStateReady, wantStable: testAddonInstallOperationID},
+		{name: "partial", state: fleetManagedAgentInstallationStatePartial, wantStable: fleetPartialConfigVersionPrefix + testAddonInstallOperationID},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			dda := testFleetManagedDatadogAgent(t, "", testAddonInstallOperationID)
+			dda.Labels[fleetManagedAgentInstallationStateLabel] = test.state
+			d, _, _ := testManagedAgentInstallationDaemon([]*pbgo.PackageState{{
+				Package:             packageDatadogOperator,
+				StableConfigVersion: remoteconfig.InstallerStateUnknownConfigVersion,
+			}}, dda)
+
+			require.NoError(t, d.rehydrateInstallerState(context.Background()))
+
+			stable, experiment := d.getPackageConfigVersions(packageDatadogOperator)
+			assert.Equal(t, test.wantStable, stable)
+			assert.Empty(t, experiment)
+		})
+	}
+}
+
+func TestRehydrateInstallerState_ManagedInstallationRecognizesUnmanagedTarget(t *testing.T) {
+	d, _, _ := testManagedAgentInstallationDaemon([]*pbgo.PackageState{{
+		Package:             packageDatadogOperator,
+		StableConfigVersion: remoteconfig.InstallerStateUnknownConfigVersion,
+	}}, testDDAObject(""))
+
+	require.NoError(t, d.rehydrateInstallerState(context.Background()))
+
+	stable, experiment := d.getPackageConfigVersions(packageDatadogOperator)
+	assert.Equal(t, fleetUnmanagedConfigVersion, stable)
 	assert.Empty(t, experiment)
 }
 

@@ -56,6 +56,7 @@ type Daemon struct {
 	recorder                                     record.EventRecorder // Kubernetes-event recorder for fleet-daemon-source events (gated by env var)
 	revisionsEnabled                             bool
 	managedAgentInstallationIdentity             ManagedAgentInstallationIdentity
+	managedAgentInstallationIntentsEnabled       bool
 	managedAgentInstallationTaskRunner           func(func())
 	mu                                           sync.RWMutex
 	configs                                      map[string]installerConfig // keyed by config ID; replaced on each RC update
@@ -67,6 +68,7 @@ type Daemon struct {
 	managedAgentInstallationCancel               context.CancelFunc
 	managedAgentInstallationDone                 chan struct{}
 	managedAgentInstallationTaskReserved         bool
+	managedAgentInstallationWaitingForFleet      bool
 	managedAgentInstallationCredentialRetryIndex int
 	// statusUpdates carries DDA informer events to the worker. The worker reads
 	// status.experiment and pending annotations to update RC task state.
@@ -77,11 +79,13 @@ type Daemon struct {
 // DaemonOption configures optional Fleet daemon transports.
 type DaemonOption func(*Daemon)
 
-// WithManagedAgentInstallation enables managed Agent installation intents for identity.
-func WithManagedAgentInstallation(identity ManagedAgentInstallationIdentity) DaemonOption {
+// WithManagedAgentInstallation configures the identity used by managed DDAs and
+// optionally enables local install and uninstall intent processing.
+func WithManagedAgentInstallation(identity ManagedAgentInstallationIdentity, intentsEnabled bool) DaemonOption {
 	return func(daemon *Daemon) {
 		daemon.managedAgentInstallationIdentity = identity
-		daemon.managedAgentInstallationTaskReserved = true
+		daemon.managedAgentInstallationIntentsEnabled = intentsEnabled
+		daemon.managedAgentInstallationTaskReserved = intentsEnabled
 	}
 }
 
@@ -126,14 +130,14 @@ func (d *Daemon) Start(ctx context.Context) error {
 	if err := d.rehydrateInstallerState(ctx); err != nil {
 		logger.Error(err, "Failed to rehydrate installer state from existing DatadogAgents")
 	}
-	if d.managedAgentInstallationIdentity.Configured() {
+	if d.managedAgentInstallationIntentsEnabled {
 		if err := d.rehydrateManagedAgentInstallationState(ctx); err != nil {
 			logger.Error(err, "Failed to rehydrate managed Agent installation state")
 		}
 	}
 	go newOperationTracker(d).run(ctx)
 	logger.Info("DDA status worker initialized")
-	if d.managedAgentInstallationIdentity.Configured() {
+	if d.managedAgentInstallationIntentsEnabled {
 		go d.runManagedAgentInstallationIntentWorker(ctx)
 		if err := d.installManagedAgentInstallationIntentForwarder(ctx); err != nil {
 			return err

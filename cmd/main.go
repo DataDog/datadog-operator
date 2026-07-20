@@ -459,6 +459,7 @@ func run(opts *options) error {
 			if tagsErr != nil {
 				setupLog.Error(tagsErr, "Managed Agent installation updater identity is invalid; managed Agent installation support is disabled")
 				enabledManagedAgentInstallationIdentity = fleet.ManagedAgentInstallationIdentity{}
+				managedAgentInstallationEnabled = false
 			} else {
 				rcUpdaterOptions = append(rcUpdaterOptions,
 					remoteconfig.WithAdditionalUpdaterTags(identityTags...),
@@ -479,7 +480,7 @@ func run(opts *options) error {
 				return
 			}
 			if opts.remoteUpdatesEnabled {
-				if rcErr := setupFleetDaemon(setupLog, mgr, rcUpdater.Client(), opts.createControllerRevisions && opts.datadogAgentEnabled, enabledManagedAgentInstallationIdentity); rcErr != nil {
+				if rcErr := setupFleetDaemon(setupLog, mgr, rcUpdater.Client(), opts.createControllerRevisions && opts.datadogAgentEnabled, managedAgentInstallationIdentity, managedAgentInstallationEnabled); rcErr != nil {
 					setupErrorf(setupLog, rcErr, "Unable to setup Fleet daemon")
 				}
 			}
@@ -802,10 +803,10 @@ func setupAndStartHelmMetadataForwarder(logger logr.Logger, mgr manager.Manager,
 	return mgr.Add(hmf)
 }
 
-func setupFleetDaemon(logger logr.Logger, mgr manager.Manager, rcClient remoteconfig.RCClient, revisionsEnabled bool, managedAgentInstallationIdentity fleet.ManagedAgentInstallationIdentity) error {
+func setupFleetDaemon(logger logr.Logger, mgr manager.Manager, rcClient remoteconfig.RCClient, revisionsEnabled bool, managedAgentInstallationIdentity fleet.ManagedAgentInstallationIdentity, managedAgentInstallationIntentsEnabled bool) error {
 	var options []fleet.DaemonOption
 	if managedAgentInstallationIdentity.Configured() {
-		options = append(options, fleet.WithManagedAgentInstallation(managedAgentInstallationIdentity))
+		options = append(options, fleet.WithManagedAgentInstallation(managedAgentInstallationIdentity, managedAgentInstallationIntentsEnabled))
 	}
 	daemon := fleet.NewDaemon(rcClient, mgr, revisionsEnabled, options...)
 	return mgr.Add(daemon)

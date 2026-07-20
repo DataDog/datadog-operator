@@ -136,6 +136,9 @@ func (d *Daemon) installDDAStatusForwarder(ctx context.Context) error {
 func (d *Daemon) forwardDDAStatusUpdate(obj any) {
 	if dda, ok := obj.(*v2alpha1.DatadogAgent); ok {
 		d.statusUpdates <- newDDAStatusSnapshot(dda)
+		if client.ObjectKeyFromObject(dda) == managedAgentInstallationTarget {
+			d.requestManagedAgentInstallationRetryIfWaiting()
+		}
 	}
 }
 
@@ -190,6 +193,12 @@ func evaluatePendingTask(snapshot ddaStatusSnapshot, task pendingOperation) (boo
 // between, the annotations may be cleaned up later, but the task result is not
 // lost.
 func (d *Daemon) finishPendingOperation(ctx context.Context, task pendingOperation, resultErr error) {
+	if resultErr == nil && task.intent == pendingIntentPromote {
+		if err := d.persistManagedAgentInstallationStableConfig(ctx, task.nsn, task.experimentID, task.resultVersion); err != nil {
+			resultErr = fmt.Errorf("persist promoted managed Agent installation config: %w", err)
+		}
+	}
+
 	d.taskMu.Lock()
 
 	if resultErr == nil {
@@ -225,6 +234,7 @@ func (d *Daemon) finishPendingOperation(ctx context.Context, task pendingOperati
 	if err := d.clearPendingAnnotationsIfCurrent(ctx, task); err != nil {
 		ctrl.LoggerFrom(ctx).Error(err, "Failed to clear pending operation annotations", "taskID", task.taskID, "package", task.packageName, "namespace", task.nsn.Namespace, "name", task.nsn.Name)
 	}
+	d.requestManagedAgentInstallationRetryIfWaiting()
 }
 
 // methodForIntent maps a pendingIntent to its wire Fleet method name,
