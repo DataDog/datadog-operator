@@ -2160,7 +2160,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: 60baa72c89bba480e44da7d5c0a1fb6d
+    agent.datadoghq.com/agentspechash: 796858400c16bcf92c5b81a3a03388e0
   labels:
     agent.datadoghq.com/component: cluster-checks-runner
     agent.datadoghq.com/name: datadog-agent
