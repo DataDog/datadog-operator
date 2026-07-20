@@ -74,6 +74,7 @@ func (d *Daemon) managedAgentInstallationWindowsProfile(dda *v2alpha1.DatadogAge
 					Values:   []string{string(corev1.Windows)},
 				}},
 			},
+			Config: &v2alpha1.DatadogAgentSpec{},
 		},
 	}
 }

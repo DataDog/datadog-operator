@@ -861,6 +861,7 @@ func TestManagedAgentInstallationWindowsProfileValidation(t *testing.T) {
 	dda := testFleetManagedDatadogAgent(t, "", testAddonInstallOperationID)
 	daemon, _, _ := testManagedAgentInstallationDaemon(nil)
 	valid := daemon.managedAgentInstallationWindowsProfile(dda)
+	require.NoError(t, v1alpha1.ValidateDatadogAgentProfileSpec(&valid.Spec))
 	require.NoError(t, daemon.validateManagedAgentInstallationWindowsProfile(valid, dda))
 
 	for _, test := range []struct {
