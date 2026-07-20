@@ -2401,6 +2401,11 @@ type DatadogAgentGenericContainer struct {
 	// AppArmorProfileName specifies an apparmor profile.
 	// +optional
 	AppArmorProfileName *string `json:"appArmorProfileName,omitempty"`
+
+	// SELinuxOptions specifies the SELinux context for the container.
+	// +doc-gen:link=https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#assign-selinux-labels-to-a-container
+	// +optional
+	SELinuxOptions *corev1.SELinuxOptions `json:"seLinuxOptions,omitempty"`
 }
 
 type ContainerStrategyType string

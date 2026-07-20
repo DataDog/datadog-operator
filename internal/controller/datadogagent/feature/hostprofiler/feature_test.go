@@ -121,6 +121,10 @@ func Test_hostProfilerFeature_SeccompDisabled(t *testing.T) {
 	// AppArmor annotation is independent of seccomp and must remain.
 	assert.Equal(t, "unconfined", manager.AnnotationMgr.Annotations[common.AppArmorAnnotationKey+"/"+string(apicommon.HostProfiler)])
 
+	// SELinux options are independent of seccomp and must remain.
+	assert.NotNil(t, hpContainer.SecurityContext.SELinuxOptions, "SELinuxOptions must be set when seccomp is disabled")
+	assert.Equal(t, "spc_t", hpContainer.SecurityContext.SELinuxOptions.Type)
+
 	// seccomp-root volume must be absent.
 	for _, v := range manager.VolumeMgr.Volumes {
 		assert.NotEqual(t, common.SeccompRootVolumeName, v.Name, "seccomp-root volume must be absent when seccomp is disabled")

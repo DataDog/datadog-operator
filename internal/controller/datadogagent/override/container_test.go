@@ -877,6 +877,104 @@ func TestContainer(t *testing.T) {
 			},
 		},
 		{
+			name:          "override seLinuxOptions sets SELinuxOptions without clobbering the rest of the security context",
+			containerName: apicommon.CoreAgentContainerName,
+			existingManager: func() *fake.PodTemplateManagers {
+				c := agentContainer.DeepCopy()
+				c.SecurityContext = &corev1.SecurityContext{
+					AllowPrivilegeEscalation: ptr.To(false),
+					SELinuxOptions:           &corev1.SELinuxOptions{Type: "spc_t"},
+				}
+				return fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{*c},
+					},
+				})
+			},
+			override: v2alpha1.DatadogAgentGenericContainer{
+				SELinuxOptions: &corev1.SELinuxOptions{
+					Type:  "custom_t",
+					Level: "s0:c1,c2",
+				},
+			},
+			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers, containerName string) {
+				assertContainerMatch(t, manager.PodTemplateSpec().Spec.Containers, containerName, func(container corev1.Container) bool {
+					// The dedicated seLinuxOptions override replaces SELinuxOptions but leaves the
+					// rest of the (feature-set) security context intact.
+					return reflect.DeepEqual(
+						&corev1.SecurityContext{
+							AllowPrivilegeEscalation: ptr.To(false),
+							SELinuxOptions: &corev1.SELinuxOptions{
+								Type:  "custom_t",
+								Level: "s0:c1,c2",
+							},
+						},
+						container.SecurityContext)
+				})
+			},
+		},
+		{
+			name:          "override SecurityContext takes precedence over seLinuxOptions",
+			containerName: apicommon.CoreAgentContainerName,
+			existingManager: func() *fake.PodTemplateManagers {
+				c := agentContainer.DeepCopy()
+				// Feature-set default SELinux type.
+				c.SecurityContext = &corev1.SecurityContext{
+					SELinuxOptions: &corev1.SELinuxOptions{Type: "spc_t"},
+				}
+				return fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{*c},
+					},
+				})
+			},
+			override: v2alpha1.DatadogAgentGenericContainer{
+				// Both are set: the dedicated field is lower precedence than a full SecurityContext,
+				// so SecurityContext wins and the seLinuxOptions field is discarded.
+				SELinuxOptions: &corev1.SELinuxOptions{Type: "from_selinux_field"},
+				SecurityContext: &corev1.SecurityContext{
+					RunAsUser:      ptr.To[int64](12345),
+					SELinuxOptions: &corev1.SELinuxOptions{Type: "from_security_context"},
+				},
+			},
+			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers, containerName string) {
+				assertContainerMatch(t, manager.PodTemplateSpec().Spec.Containers, containerName, func(container corev1.Container) bool {
+					return reflect.DeepEqual(
+						&corev1.SecurityContext{
+							RunAsUser:              ptr.To[int64](12345),
+							ReadOnlyRootFilesystem: ptr.To(true),
+							SELinuxOptions:         &corev1.SELinuxOptions{Type: "from_security_context"},
+						},
+						container.SecurityContext)
+				})
+			},
+		},
+		{
+			name:          "override seLinuxOptions creates security context when absent",
+			containerName: apicommon.CoreAgentContainerName,
+			existingManager: func() *fake.PodTemplateManagers {
+				c := agentContainer.DeepCopy()
+				c.SecurityContext = nil
+				return fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{*c},
+					},
+				})
+			},
+			override: v2alpha1.DatadogAgentGenericContainer{
+				SELinuxOptions: &corev1.SELinuxOptions{Type: "custom_t"},
+			},
+			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers, containerName string) {
+				assertContainerMatch(t, manager.PodTemplateSpec().Spec.Containers, containerName, func(container corev1.Container) bool {
+					return reflect.DeepEqual(
+						&corev1.SecurityContext{
+							SELinuxOptions: &corev1.SELinuxOptions{Type: "custom_t"},
+						},
+						container.SecurityContext)
+				})
+			},
+		},
+		{
 			name:          "override seccomp root path",
 			containerName: apicommon.SystemProbeContainerName,
 			existingManager: func() *fake.PodTemplateManagers {

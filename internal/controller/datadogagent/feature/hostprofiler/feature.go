@@ -155,6 +155,11 @@ func (o *hostProfilerFeature) ManageNodeAgent(managers feature.PodTemplateManage
 	// which host-profiler requires to read /proc/<pid>/map_files for process profiling.
 	managers.Annotation().AddAnnotation(common.AppArmorAnnotationKey+"/"+string(apicommon.HostProfiler), "unconfined")
 
+	// SELinux: run as the super-privileged container type (spc_t)
+	sc.SELinuxOptions = &corev1.SELinuxOptions{
+		Type: "spc_t",
+	}
+
 	// Tracingfs volume
 	volumeTracingfs := corev1.Volume{
 		Name: "tracingfs",

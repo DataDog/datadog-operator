@@ -158,9 +158,25 @@ func overrideContainer(container *corev1.Container, override *v2alpha1.DatadogAg
 		container.StartupProbe = overrideStartupProbe(override.StartupProbe)
 	}
 
+	// override SELinuxOptions without overriding SecurityContext entirely.
+	// Least precedence over override.SecurityContext
+	overrideSELinuxOptions(container, override)
+
 	if override.SecurityContext != nil {
 		container.SecurityContext = overrideSecurityContext(override.SecurityContext)
 	}
+}
+
+func overrideSELinuxOptions(container *corev1.Container, override *v2alpha1.DatadogAgentGenericContainer) {
+	if override.SELinuxOptions == nil {
+		return
+	}
+
+	if container.SecurityContext == nil {
+		container.SecurityContext = &corev1.SecurityContext{}
+	}
+
+	container.SecurityContext.SELinuxOptions = override.SELinuxOptions
 }
 
 func overrideInitContainer(initContainer *corev1.Container, override *v2alpha1.DatadogAgentGenericContainer) {
