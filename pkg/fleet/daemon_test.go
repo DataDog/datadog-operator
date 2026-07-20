@@ -79,7 +79,8 @@ func (i *recordingInformer) AddEventHandler(handler toolscache.ResourceEventHand
 
 type recordingCache struct {
 	ctrlcache.Cache
-	informer *recordingInformer
+	informer    *recordingInformer
+	informerFor func(client.Object) (ctrlcache.Informer, error)
 }
 
 type recordingManager struct {
@@ -106,7 +107,10 @@ func (m *recordingManager) GetEventRecorderFor(string) record.EventRecorder {
 	return m.recorder
 }
 
-func (c *recordingCache) GetInformer(context.Context, client.Object, ...ctrlcache.InformerGetOption) (ctrlcache.Informer, error) {
+func (c *recordingCache) GetInformer(_ context.Context, obj client.Object, _ ...ctrlcache.InformerGetOption) (ctrlcache.Informer, error) {
+	if c.informerFor != nil {
+		return c.informerFor(obj)
+	}
 	return c.informer, nil
 }
 
@@ -1386,6 +1390,63 @@ func TestDaemonStartRegistersManagedInstallationForwarders(t *testing.T) {
 	require.Len(t, informer.handlers, 3)
 }
 
+func TestDaemonStartReturnsManagedInstallationForwarderErrors(t *testing.T) {
+	for _, test := range []struct {
+		name     string
+		failType any
+	}{
+		{name: "intent ConfigMap", failType: &corev1.ConfigMap{}},
+		{name: "credential Secret", failType: &corev1.Secret{}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			daemon, _, _ := testManagedAgentInstallationDaemon([]*pbgo.PackageState{{Package: packageDatadogOperator}})
+			informer := &recordingInformer{}
+			daemon.cache = &recordingCache{
+				informer: informer,
+				informerFor: func(obj client.Object) (ctrlcache.Informer, error) {
+					switch test.failType.(type) {
+					case *corev1.ConfigMap:
+						if _, ok := obj.(*corev1.ConfigMap); ok {
+							return nil, errors.New("ConfigMap informer failed")
+						}
+					case *corev1.Secret:
+						if _, ok := obj.(*corev1.Secret); ok {
+							return nil, errors.New("Secret informer failed")
+						}
+					}
+					return informer, nil
+				},
+			}
+			daemon.managedAgentInstallationIntentsEnabled = true
+			daemon.managedAgentInstallationUpdates = make(chan struct{}, 1)
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
+			err := daemon.Start(ctx)
+
+			require.ErrorContains(t, err, "informer failed")
+		})
+	}
+}
+
+func TestDaemonStartContinuesAfterManagedInstallationRehydrationFailure(t *testing.T) {
+	stateConfigMap := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{
+		Namespace: managedAgentInstallationStateKey.Namespace,
+		Name:      managedAgentInstallationStateKey.Name,
+	}}
+	daemon, _, _ := testManagedAgentInstallationDaemon(
+		[]*pbgo.PackageState{{Package: packageDatadogOperator}},
+		stateConfigMap,
+	)
+	daemon.cache = &recordingCache{informer: &recordingInformer{}}
+	daemon.managedAgentInstallationIntentsEnabled = true
+	daemon.managedAgentInstallationUpdates = make(chan struct{}, 1)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	require.NoError(t, daemon.Start(ctx))
+}
+
 func TestDispatchRemoteAPIRequestRequiresRevisionsForExperiments(t *testing.T) {
 	d, _ := testDaemon(nil, testInstallerConfigWithDDA())
 	d.revisionsEnabled = false
@@ -1438,6 +1499,50 @@ func TestRehydrateInstallerStateManagedInstallationPrerequisites(t *testing.T) {
 		stable, experiment := d.getPackageConfigVersions(packageDatadogOperator)
 		assert.Equal(t, testAddonInstallOperationID, stable)
 		assert.Equal(t, testExperimentID, experiment)
+	})
+}
+
+func TestRehydrateInstallerStateManagedInstallationValidation(t *testing.T) {
+	t.Run("incomplete ownership", func(t *testing.T) {
+		dda := testFleetManagedDatadogAgent(t, "", testAddonInstallOperationID)
+		delete(dda.Labels, fleetManagedByLabel)
+		daemon, _, _ := testManagedAgentInstallationDaemon([]*pbgo.PackageState{{Package: packageDatadogOperator}}, dda)
+
+		require.ErrorContains(t, daemon.rehydrateInstallerState(context.Background()), "incomplete or conflicting")
+	})
+
+	t.Run("different installation identity", func(t *testing.T) {
+		dda := testFleetManagedDatadogAgent(t, "", testAddonInstallOperationID)
+		dda.Labels[fleetTargetIDLabel] = "other-target"
+		daemon, _, _ := testManagedAgentInstallationDaemon([]*pbgo.PackageState{{Package: packageDatadogOperator}}, dda)
+
+		require.ErrorContains(t, daemon.rehydrateInstallerState(context.Background()), "different managed target")
+	})
+
+	t.Run("running experiment", func(t *testing.T) {
+		dda := testFleetManagedDatadogAgent(t, v2alpha1.ExperimentPhaseRunning, testAddonInstallOperationID)
+		daemon, _, _ := testManagedAgentInstallationDaemon([]*pbgo.PackageState{{Package: packageDatadogOperator}}, dda)
+
+		require.NoError(t, daemon.rehydrateInstallerState(context.Background()))
+		stable, experiment := daemon.getPackageConfigVersions(packageDatadogOperator)
+		assert.Equal(t, testAddonInstallOperationID, stable)
+		assert.Equal(t, testExperimentID, experiment)
+	})
+
+	t.Run("legacy list failure", func(t *testing.T) {
+		daemon, kubeClient := testDaemon(nil, nil)
+		daemon.rcClient = &mockRCClient{state: []*pbgo.PackageState{{Package: packageDatadogOperator}}}
+		daemon.apiReader = &managedAgentInstallationFaultClient{
+			Client: kubeClient,
+			listError: func(list client.ObjectList) error {
+				if _, ok := list.(*v2alpha1.DatadogAgentList); ok {
+					return errors.New("DatadogAgent list failed")
+				}
+				return nil
+			},
+		}
+
+		require.ErrorContains(t, daemon.rehydrateInstallerState(context.Background()), "DatadogAgent list failed")
 	})
 }
 
