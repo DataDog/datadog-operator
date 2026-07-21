@@ -15,6 +15,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/util/retry"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -289,8 +290,37 @@ func applyResourceState(state string, status *v1alpha1.DatadogGenericResourceSta
 
 func (r *Reconciler) updateStatusIfNeeded(ctx context.Context, instance *v1alpha1.DatadogGenericResource, status *v1alpha1.DatadogGenericResourceStatus, result ctrl.Result) (ctrl.Result, error) {
 	if !apiequality.Semantic.DeepEqual(&instance.Status, status) {
-		instance.Status = *status
-		if err := r.client.Status().Update(ctx, instance); err != nil {
+		desiredStatus := status.DeepCopy()
+		instance.Status = *desiredStatus.DeepCopy()
+		err := r.client.Status().Update(ctx, instance)
+		if apierrors.IsConflict(err) {
+			// The Datadog API operation may already have succeeded, so preserve
+			// the resulting status (most importantly the remote resource ID) and
+			// retry only the Kubernetes status write against the latest object.
+			key := client.ObjectKeyFromObject(instance)
+			err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
+				latest := &v1alpha1.DatadogGenericResource{}
+				if getErr := r.client.Get(ctx, key, latest); getErr != nil {
+					return getErr
+				}
+
+				if apiequality.Semantic.DeepEqual(&latest.Status, desiredStatus) {
+					instance.ResourceVersion = latest.ResourceVersion
+					instance.Status = latest.Status
+					return nil
+				}
+
+				latest.Status = *desiredStatus.DeepCopy()
+				if updateErr := r.client.Status().Update(ctx, latest); updateErr != nil {
+					return updateErr
+				}
+
+				instance.ResourceVersion = latest.ResourceVersion
+				instance.Status = latest.Status
+				return nil
+			})
+		}
+		if err != nil {
 			logger := ctrl.LoggerFrom(ctx)
 			if apierrors.IsConflict(err) {
 				logger.Error(err, "unable to update DatadogGenericResource status due to update conflict")

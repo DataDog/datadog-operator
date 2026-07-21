@@ -35,6 +35,92 @@ const (
 	resourcesNamespace = "bar"
 )
 
+type conflictOnceClient struct {
+	client.Client
+	remainingConflicts int
+}
+
+func (c *conflictOnceClient) Status() client.SubResourceWriter {
+	return &conflictOnceStatusWriter{
+		SubResourceWriter: c.Client.Status(),
+		client:            c,
+	}
+}
+
+type conflictOnceStatusWriter struct {
+	client.SubResourceWriter
+	client *conflictOnceClient
+}
+
+func (w *conflictOnceStatusWriter) Update(ctx context.Context, obj client.Object, opts ...client.SubResourceUpdateOption) error {
+	if w.client.remainingConflicts > 0 {
+		w.client.remainingConflicts--
+
+		latest := &datadoghqv1alpha1.DatadogGenericResource{}
+		if err := w.client.Client.Get(ctx, client.ObjectKeyFromObject(obj), latest); err != nil {
+			return err
+		}
+		if latest.Annotations == nil {
+			latest.Annotations = map[string]string{}
+		}
+		latest.Annotations["issue-3272-conflict"] = "true"
+		if err := w.client.Client.Update(ctx, latest); err != nil {
+			return err
+		}
+
+		return apierrors.NewConflict(
+			datadoghqv1alpha1.GroupVersion.WithResource("datadoggenericresources").GroupResource(),
+			obj.GetName(),
+			fmt.Errorf("injected status update conflict"),
+		)
+	}
+	return w.SubResourceWriter.Update(ctx, obj, opts...)
+}
+
+func TestReconcileGenericResource_RetriesCreatedStatusAfterConflict(t *testing.T) {
+	resetMockHandlerState()
+	t.Setenv("DD_API_KEY", "DUMMY_API_KEY")
+	t.Setenv("DD_APP_KEY", "DUMMY_APP_KEY")
+
+	logf.SetLogger(zap.New(zap.UseDevMode(true)))
+	s := scheme.Scheme
+	s.AddKnownTypes(datadoghqv1alpha1.GroupVersion, &datadoghqv1alpha1.DatadogGenericResource{})
+
+	eventBroadcaster := record.NewBroadcaster()
+	recorder := eventBroadcaster.NewRecorder(s, corev1.EventSource{Component: "TestReconcileGenericResource_RetriesCreatedStatusAfterConflict"})
+
+	baseClient := fake.NewClientBuilder().WithScheme(s).WithStatusSubresource(&datadoghqv1alpha1.DatadogGenericResource{}).Build()
+	conflictingClient := &conflictOnceClient{Client: baseClient}
+	r := NewReconciler(
+		conflictingClient,
+		config.NewCredentialManager(fake.NewClientBuilder().Build()),
+		s,
+		logf.Log.WithName("created-status-conflict"),
+		recorder,
+	)
+	r.handlers = map[datadoghqv1alpha1.SupportedResourcesType]ResourceHandler{
+		mockSubresource: &MockHandler{},
+	}
+
+	instance := mockGenericResource()
+	instance.Finalizers = []string{datadogGenericResourceFinalizer}
+	assert.NoError(t, r.client.Create(context.TODO(), instance))
+
+	conflictingClient.remainingConflicts = 1
+	result, err := reconcileRequest(r, context.TODO(), newRequest(resourcesNamespace, resourcesName))
+	assert.NoError(t, err)
+	assert.Equal(t, ctrl.Result{RequeueAfter: defaultRequeuePeriod}, result)
+	assert.Equal(t, 0, conflictingClient.remainingConflicts, "the injected status conflict should be consumed")
+
+	assert.NoError(t, r.client.Get(context.TODO(), client.ObjectKeyFromObject(instance), instance))
+	assert.Equal(t, mockResourceID, instance.Status.Id, "the ID returned by the successful create must be persisted")
+	assert.Equal(t, "true", instance.Annotations["issue-3272-conflict"], "the concurrent metadata update must be preserved")
+
+	_, err = reconcileRequest(r, context.TODO(), newRequest(resourcesNamespace, resourcesName))
+	assert.NoError(t, err)
+	assert.Equal(t, 1, mockCreateCalls, "a status conflict must not cause a second Datadog create")
+}
+
 func TestReconcileGenericResource_Reconcile(t *testing.T) {
 	eventBroadcaster := record.NewBroadcaster()
 	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: "TestReconcileGenericResource_Reconcile"})
