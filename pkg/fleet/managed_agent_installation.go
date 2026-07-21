@@ -111,7 +111,7 @@ func (d *Daemon) installDatadogAgent(ctx context.Context, command managedAgentIn
 		if err := d.validateFleetDatadogAgentInstallation(existing); err != nil {
 			return err
 		}
-		if err := validateFleetDatadogAgentInstallReplay(existing, configID, spec); err != nil {
+		if err := d.validateAndRecoverFleetDatadogAgentInstallReplay(ctx, existing, configID, spec); err != nil {
 			return err
 		}
 		d.setPackageConfigVersions(packageDatadogOperator, fleetPartialConfigVersionPrefix+configID, "")
@@ -185,7 +185,7 @@ func (d *Daemon) installDatadogAgent(ctx context.Context, command managedAgentIn
 			return ownershipErr
 		}
 		d.setPackageConfigVersions(packageDatadogOperator, fleetPartialConfigVersionPrefix+configID, "")
-		if validateErr := validateFleetDatadogAgentInstallReplay(current, configID, spec); validateErr != nil {
+		if validateErr := d.validateAndRecoverFleetDatadogAgentInstallReplay(ctx, current, configID, spec); validateErr != nil {
 			return validateErr
 		}
 		_, conflictErr := d.validateManagedAgentInstallationTarget(ctx, target)
@@ -302,9 +302,6 @@ func buildFleetDatadogAgentSpec(raw json.RawMessage) (*v2alpha1.DatadogAgentSpec
 }
 
 func decodeRemoteDatadogAgentConfig(raw json.RawMessage, requireSpec bool) (*datadogAgentManagedAgentInstallationConfig, error) {
-	if err := rejectRemoteManagedAgentInstallationCredentialFields(raw); err != nil {
-		return nil, err
-	}
 	var config datadogAgentManagedAgentInstallationConfig
 	decoder := json.NewDecoder(bytes.NewReader(raw))
 	decoder.DisallowUnknownFields()
@@ -313,6 +310,9 @@ func decodeRemoteDatadogAgentConfig(raw json.RawMessage, requireSpec bool) (*dat
 	}
 	if err := decoder.Decode(&struct{}{}); err != io.EOF {
 		return nil, fmt.Errorf("invalid config: trailing JSON content")
+	}
+	if err := rejectRemoteManagedAgentInstallationCredentialFields(&config); err != nil {
+		return nil, err
 	}
 	if config.Spec == nil {
 		if requireSpec {
@@ -323,34 +323,16 @@ func decodeRemoteDatadogAgentConfig(raw json.RawMessage, requireSpec bool) (*dat
 	return &config, nil
 }
 
-func rejectRemoteManagedAgentInstallationCredentialFields(raw json.RawMessage) error {
-	var config map[string]json.RawMessage
-	if err := json.Unmarshal(raw, &config); err != nil {
-		return fmt.Errorf("invalid config: %w", err)
-	}
-	rawSpec, ok := config["spec"]
-	if !ok {
+func rejectRemoteManagedAgentInstallationCredentialFields(config *datadogAgentManagedAgentInstallationConfig) error {
+	if config.Spec == nil || config.Spec.Global == nil {
 		return nil
 	}
-	var spec map[string]json.RawMessage
-	if err := json.Unmarshal(rawSpec, &spec); err != nil {
-		return fmt.Errorf("invalid config.spec: %w", err)
-	}
-	rawGlobal, ok := spec["global"]
-	if !ok {
-		return nil
-	}
-	var global map[string]json.RawMessage
-	if err := json.Unmarshal(rawGlobal, &global); err != nil {
-		return fmt.Errorf("invalid config.spec.global: %w", err)
-	}
-	if _, ok := global["credentials"]; ok {
+	global := config.Spec.Global
+	if global.Credentials != nil {
 		return fmt.Errorf("config must not contain spec.global.credentials")
 	}
-	for _, field := range []string{"clusterAgentToken", "clusterAgentTokenSecret"} {
-		if _, ok := global[field]; ok {
-			return fmt.Errorf("config must not contain cluster Agent credentials")
-		}
+	if global.ClusterAgentToken != nil || global.ClusterAgentTokenSecret != nil {
+		return fmt.Errorf("config must not contain cluster Agent credentials")
 	}
 	return nil
 }
@@ -363,30 +345,51 @@ func fleetDatadogAgentSpecHash(spec *v2alpha1.DatadogAgentSpec) (string, error) 
 	return fmt.Sprintf("%x", sha256.Sum256(encoded)), nil
 }
 
-func validateFleetDatadogAgentInstallReplay(dda *v2alpha1.DatadogAgent, configID string, desired *v2alpha1.DatadogAgentSpec) error {
-	if err := validateFleetOwnedDatadogAgent(dda, configID); err != nil {
+func (d *Daemon) validateAndRecoverFleetDatadogAgentInstallReplay(ctx context.Context, dda *v2alpha1.DatadogAgent, configID string, desired *v2alpha1.DatadogAgentSpec) error {
+	acceptedHash, needsRecording, err := validateFleetDatadogAgentInstallReplay(dda, configID, desired)
+	if err != nil || !needsRecording {
 		return err
+	}
+	if err := d.recordFleetDatadogAgentSpecHash(ctx, client.ObjectKeyFromObject(dda), dda.UID, configID, acceptedHash); err != nil {
+		return fmt.Errorf("record accepted spec after interrupted create: %w", err)
+	}
+	dda.Annotations[fleetConfigHashAnnotation] = acceptedHash
+	return nil
+}
+
+func validateFleetDatadogAgentInstallReplay(dda *v2alpha1.DatadogAgent, configID string, desired *v2alpha1.DatadogAgentSpec) (string, bool, error) {
+	if err := validateFleetOwnedDatadogAgent(dda, configID); err != nil {
+		return "", false, err
 	}
 	if err := validateNoActiveFleetExperiment(dda); err != nil {
-		return err
+		return "", false, err
 	}
 	if !dda.DeletionTimestamp.IsZero() {
-		return fmt.Errorf("create DatadogAgent: %s/%s is terminating", dda.Namespace, dda.Name)
+		return "", false, fmt.Errorf("create DatadogAgent: %s/%s is terminating", dda.Namespace, dda.Name)
 	}
 	if err := validateFleetDatadogAgentCredentials(dda); err != nil {
-		return err
+		return "", false, err
 	}
 	if !apiequality.Semantic.DeepDerivative(*desired, dda.Spec) {
-		return &stateDoesntMatchError{msg: fmt.Sprintf("DatadogAgent %s/%s spec does not match Fleet config %q", dda.Namespace, dda.Name, configID)}
+		return "", false, &stateDoesntMatchError{msg: fmt.Sprintf("DatadogAgent %s/%s spec does not match Fleet config %q", dda.Namespace, dda.Name, configID)}
 	}
 	liveHash, err := fleetDatadogAgentSpecHash(&dda.Spec)
 	if err != nil {
-		return fmt.Errorf("hash live DatadogAgent spec: %w", err)
+		return "", false, fmt.Errorf("hash live DatadogAgent spec: %w", err)
 	}
-	if dda.Annotations[fleetConfigHashAnnotation] != liveHash {
-		return &stateDoesntMatchError{msg: fmt.Sprintf("DatadogAgent %s/%s spec changed after Fleet config %q was accepted", dda.Namespace, dda.Name, configID)}
+	if dda.Annotations[fleetConfigHashAnnotation] == liveHash {
+		return "", false, nil
 	}
-	return nil
+	desiredHash, err := fleetDatadogAgentSpecHash(desired)
+	if err != nil {
+		return "", false, fmt.Errorf("hash desired DatadogAgent spec: %w", err)
+	}
+	if dda.Labels[fleetManagedAgentInstallationStateLabel] == fleetManagedAgentInstallationStatePartial &&
+		dda.Annotations[fleetCreateTaskIDAnnotation] == configID &&
+		dda.Annotations[fleetConfigHashAnnotation] == desiredHash {
+		return liveHash, true, nil
+	}
+	return "", false, &stateDoesntMatchError{msg: fmt.Sprintf("DatadogAgent %s/%s spec changed after Fleet config %q was accepted", dda.Namespace, dda.Name, configID)}
 }
 
 func validateFleetDatadogAgentAcceptedSpec(dda *v2alpha1.DatadogAgent) error {

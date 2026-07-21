@@ -14,7 +14,6 @@ import (
 	pbgo "github.com/DataDog/datadog-agent/pkg/proto/pbgo/core"
 	"github.com/DataDog/datadog-agent/pkg/remoteconfig/state"
 	"google.golang.org/protobuf/proto"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlcache "sigs.k8s.io/controller-runtime/pkg/cache"
@@ -369,137 +368,76 @@ func (d *Daemon) rehydrateInstallerState(ctx context.Context) error {
 		return fmt.Errorf("list DatadogAgents: %w", err)
 	}
 	target := managedAgentInstallationTarget
+	var dda *v2alpha1.DatadogAgent
 	for i := range ddas.Items {
 		if client.ObjectKeyFromObject(&ddas.Items[i]) == target {
-			ddas.Items = []v2alpha1.DatadogAgent{ddas.Items[i]}
+			dda = &ddas.Items[i]
 			break
 		}
 	}
-	if len(ddas.Items) != 1 || client.ObjectKeyFromObject(&ddas.Items[0]) != target {
-		ddas.Items = nil
+	if dda == nil {
+		d.setPackageConfigVersions(packageDatadogOperator, "", "")
+		logger.Info("Rehydrated installer state with no Fleet-managed DatadogAgent")
+		return nil
 	}
-	var fleetOwned *types.NamespacedName
-	var unmanaged *types.NamespacedName
-	rehydrated := false
-	for i := range ddas.Items {
-		dda := &ddas.Items[i]
-		owned, err := classifyFleetDatadogAgentOwnershipForRehydration(dda)
-		if err != nil {
-			return err
-		}
-		if !owned {
-			if unmanaged == nil {
-				nsn := client.ObjectKeyFromObject(dda)
-				unmanaged = &nsn
-			}
-			continue
-		}
-		if err := d.validateFleetDatadogAgentInstallation(dda); err != nil {
-			return err
-		}
-		nsn := client.ObjectKeyFromObject(dda)
-		if fleetOwned != nil && *fleetOwned != nsn {
-			return fmt.Errorf(
-				"multiple Fleet-managed DatadogAgents found: %s/%s and %s/%s",
-				fleetOwned.Namespace,
-				fleetOwned.Name,
-				nsn.Namespace,
-				nsn.Name,
-			)
-		}
-		fleetOwned = &nsn
+	owned, err := classifyFleetDatadogAgentOwnershipForRehydration(dda)
+	if err != nil {
+		return err
 	}
-	if fleetOwned != nil && unmanaged != nil {
-		return &stateDoesntMatchError{msg: fmt.Sprintf(
-			"Fleet-managed DatadogAgent %s/%s coexists with unmanaged DatadogAgent %s/%s",
-			fleetOwned.Namespace,
-			fleetOwned.Name,
-			unmanaged.Namespace,
-			unmanaged.Name,
-		)}
-	}
-	if fleetOwned == nil && unmanaged != nil {
+	if !owned {
 		d.setPackageConfigVersions(packageDatadogOperator, fleetUnmanagedConfigVersion, "")
 		logger.Info("Rehydrated installer state with unmanaged DatadogAgent",
-			"namespace", unmanaged.Namespace,
-			"name", unmanaged.Name,
+			"namespace", dda.Namespace,
+			"name", dda.Name,
 		)
 		return nil
 	}
-	if fleetOwned == nil {
-		var activeExperiment *types.NamespacedName
-		for i := range ddas.Items {
-			dda := &ddas.Items[i]
-			exp := dda.Status.Experiment
-			if exp == nil || exp.ID == "" || isTerminalPhase(exp.Phase) {
-				continue
-			}
-			nsn := client.ObjectKeyFromObject(dda)
-			if activeExperiment != nil && *activeExperiment != nsn {
-				return fmt.Errorf(
-					"multiple DatadogAgents with active Fleet experiments found: %s/%s and %s/%s",
-					activeExperiment.Namespace,
-					activeExperiment.Name,
-					nsn.Namespace,
-					nsn.Name,
-				)
-			}
-			activeExperiment = &nsn
+	if err := d.validateFleetDatadogAgentInstallation(dda); err != nil {
+		return err
+	}
+	managedAgentInstallationConfigID := ""
+	if dda.Labels[fleetManagedByLabel] == fleetManagedByValue && dda.Labels[fleetConfigIDLabel] != "" {
+		managedAgentInstallationConfigID = dda.Labels[fleetConfigIDLabel]
+	}
+	stable := managedAgentInstallationConfigID
+	experiment := ""
+	experimentPhase := v2alpha1.ExperimentPhase("")
+	exp := dda.Status.Experiment
+	if managedAgentInstallationConfigID != "" {
+		if dda.Labels[fleetManagedAgentInstallationStateLabel] != fleetManagedAgentInstallationStateReady || dda.Annotations[fleetConfigHashAnnotation] == "" {
+			stable = fleetPartialConfigVersionPrefix + managedAgentInstallationConfigID
 		}
 	}
-	for i := range ddas.Items {
-		dda := &ddas.Items[i]
-		if fleetOwned != nil && client.ObjectKeyFromObject(dda) != *fleetOwned {
-			continue
+	if exp != nil && exp.ID != "" && !isTerminalPhase(exp.Phase) {
+		experiment = exp.ID
+		experimentPhase = exp.Phase
+	} else if exp != nil && exp.ID != "" && exp.Phase == v2alpha1.ExperimentPhasePromoted && managedAgentInstallationConfigID != "" && managedAgentInstallationConfigID != exp.ID {
+		experiment = exp.ID
+		experimentPhase = exp.Phase
+	}
+	if stable == "" && experiment == "" {
+		d.setPackageConfigVersions(packageDatadogOperator, "", "")
+		logger.Info("Rehydrated installer state with no Fleet-managed DatadogAgent")
+		return nil
+	}
+	if stable == "" {
+		stable, _ = d.getPackageConfigVersions(packageDatadogOperator)
+		if stable == "empty" || stable == remoteconfig.InstallerStateUnknownConfigVersion {
+			stable = ""
 		}
-		managedAgentInstallationConfigID := ""
-		if dda.Labels[fleetManagedByLabel] == fleetManagedByValue && dda.Labels[fleetConfigIDLabel] != "" {
-			managedAgentInstallationConfigID = dda.Labels[fleetConfigIDLabel]
-		}
-		stable := managedAgentInstallationConfigID
-		experiment := ""
-		experimentPhase := v2alpha1.ExperimentPhase("")
-		exp := dda.Status.Experiment
-		if managedAgentInstallationConfigID != "" {
-			if dda.Labels[fleetManagedAgentInstallationStateLabel] != fleetManagedAgentInstallationStateReady || dda.Annotations[fleetConfigHashAnnotation] == "" {
-				stable = fleetPartialConfigVersionPrefix + managedAgentInstallationConfigID
-			}
-		}
-		if exp != nil && exp.ID != "" && !isTerminalPhase(exp.Phase) {
-			experiment = exp.ID
-			experimentPhase = exp.Phase
-		} else if exp != nil && exp.ID != "" && exp.Phase == v2alpha1.ExperimentPhasePromoted && managedAgentInstallationConfigID != "" && managedAgentInstallationConfigID != exp.ID {
-			experiment = exp.ID
-			experimentPhase = exp.Phase
-		}
-		if stable == "" && experiment == "" {
-			continue
-		}
-		if stable == "" {
-			stable, _ = d.getPackageConfigVersions(packageDatadogOperator)
-			if stable == "empty" || stable == remoteconfig.InstallerStateUnknownConfigVersion {
-				stable = ""
-			}
-		}
-		d.setPackageConfigVersions(packageDatadogOperator, stable, experiment)
-		rehydrated = true
-		logger.Info("Rehydrated installer state from DatadogAgent",
-			"namespace", dda.Namespace,
-			"name", dda.Name,
-			"stableConfigVersion", stable,
-			"experimentConfigVersion", experiment,
-		)
-		if experiment == "" {
-			continue
-		}
+	}
+	d.setPackageConfigVersions(packageDatadogOperator, stable, experiment)
+	logger.Info("Rehydrated installer state from DatadogAgent",
+		"namespace", dda.Namespace,
+		"name", dda.Name,
+		"stableConfigVersion", stable,
+		"experimentConfigVersion", experiment,
+	)
+	if experiment != "" {
 		// Pass dda directly — apiReader returned a fully-populated object,
 		// and the informer cache may not be synced yet at this point so
 		// a cache-backed lookup would silently drop this event.
 		d.emitInstallerStateRehydratedEvent(ctx, dda, experiment, experimentPhase)
-	}
-	if !rehydrated {
-		d.setPackageConfigVersions(packageDatadogOperator, "", "")
-		logger.Info("Rehydrated installer state with no Fleet-managed DatadogAgent")
 	}
 	return nil
 }

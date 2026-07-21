@@ -827,6 +827,50 @@ func TestManagedAgentInstallationAlreadyPromotedPersistsStableConfig(t *testing.
 	assert.Empty(t, rc.state[0].GetExperimentConfigVersion())
 }
 
+func TestManagedAgentInstallationAlreadyPromotedRetriesStableConfigPersistence(t *testing.T) {
+	dda := testFleetManagedDatadogAgent(t, v2alpha1.ExperimentPhasePromoted, testAddonInstallOperationID)
+	dda.Annotations[fleetConfigHashAnnotation] = "bootstrap-hash"
+	d, kubeClient, rc := testManagedAgentInstallationDaemon([]*pbgo.PackageState{{
+		Package:                 packageDatadogOperator,
+		StableConfigVersion:     testAddonInstallOperationID,
+		ExperimentConfigVersion: testExperimentID,
+	}}, dda)
+	d.managedAgentInstallationTaskReserved = false
+	d.revisionsEnabled = true
+	patchFailed := false
+	d.client = &managedAgentInstallationFaultClient{
+		Client: kubeClient,
+		patchError: func(client.Object) error {
+			if patchFailed {
+				return nil
+			}
+			patchFailed = true
+			return errors.New("promoted config patch failed")
+		},
+	}
+	req := testPromoteRequest()
+	req.ExpectedState = expectedState{
+		StableConfig:     testAddonInstallOperationID,
+		ExperimentConfig: testExperimentID,
+	}
+
+	require.ErrorContains(t, d.handleTask(context.Background(), req), "promoted config patch failed")
+	assert.Equal(t, pbgo.TaskState_ERROR, rc.state[0].GetTask().GetState())
+	assert.Equal(t, testAddonInstallOperationID, rc.state[0].GetStableConfigVersion())
+	assert.Equal(t, testExperimentID, rc.state[0].GetExperimentConfigVersion())
+
+	require.NoError(t, d.handleTask(context.Background(), req))
+	assert.Equal(t, pbgo.TaskState_DONE, rc.state[0].GetTask().GetState())
+	assert.Equal(t, testExperimentID, rc.state[0].GetStableConfigVersion())
+	assert.Empty(t, rc.state[0].GetExperimentConfigVersion())
+	got := &v2alpha1.DatadogAgent{}
+	require.NoError(t, kubeClient.Get(context.Background(), testDDANSN, got))
+	wantHash, err := fleetDatadogAgentSpecHash(&got.Spec)
+	require.NoError(t, err)
+	assert.Equal(t, testExperimentID, got.Labels[fleetConfigIDLabel])
+	assert.Equal(t, wantHash, got.Annotations[fleetConfigHashAnnotation])
+}
+
 // --- verifyExpectedState tests ---
 
 func TestVerifyExpectedState_Match(t *testing.T) {
