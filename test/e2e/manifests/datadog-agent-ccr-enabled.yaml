@@ -35,3 +35,16 @@ spec:
                 type: gauge
               help: Number of up-to-date agents
               name: uptodateagents
+  override:
+    nodeAgent:
+      envFrom:
+        - configMapRef:
+            name: datadog-operator-e2e-agent-metrics-v2-env
+    clusterAgent:
+      envFrom:
+        - configMapRef:
+            name: datadog-operator-e2e-agent-metrics-v2-env
+    clusterChecksRunner:
+      envFrom:
+        - configMapRef:
+            name: datadog-operator-e2e-agent-metrics-v2-env

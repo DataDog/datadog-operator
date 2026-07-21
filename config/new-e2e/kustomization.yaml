@@ -5,3 +5,4 @@ namespace: e2e-operator
 resources:
 - ../crd
 - ../rbac
+- agent-metrics-v2-env.yaml
