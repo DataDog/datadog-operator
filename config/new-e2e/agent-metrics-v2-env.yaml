@@ -1,7 +1,0 @@
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: agent-metrics-v2-env
-data:
-  # TODO: Remove once the e2e fakeintake client supports metrics v3.
-  DD_USE_V3_API_SERIES_ENABLED: "false"
