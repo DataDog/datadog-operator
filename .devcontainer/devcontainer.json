@@ -1,14 +1,16 @@
 {
-    "image": "mcr.microsoft.com/devcontainers/go:dev-1.25",
+    "image": "golang:1.25.9",
     "features": {
         "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {
             "moby": false
         },
         "ghcr.io/devcontainers/features/kubectl-helm-minikube:1": {},
         "ghcr.io/devcontainers-extra/features/kind:1": {},
-        "ghcr.io/devcontainers/features/node:1": {},
-        "ghcr.io/anthropics/devcontainer-features/claude-code:1.0": {}
+        "ghcr.io/devcontainers/features/github-cli:1": {},
+        "ghcr.io/devcontainer-community/devcontainer-features/yq:1": {},
+        "ghcr.io/clamoriniere/claude-devcontainer-features/claude-code:1.0.6": {}
     },
+    "remoteUser": "vscode",
     "mounts": [
         "source=${localWorkspaceFolder}/.devcontainer/claude-data/,target=/home/vscode/.claude,type=bind"
     ],
@@ -36,5 +38,8 @@
                 "golang.Go"
             ]
         }
+    },
+    "containerEnv": {
+        "CLAUDE_CONFIG_DIR": "/home/vscode/.claude"
     }
 }
