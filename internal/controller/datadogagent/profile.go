@@ -17,7 +17,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/utils/ptr"
 
 	v1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	v2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -313,7 +312,7 @@ func ensureOverrideExists(ddai *v1alpha1.DatadogAgentInternal, componentName v2a
 
 func disableComponent(ddai *v1alpha1.DatadogAgentInternal, componentName v2alpha1.ComponentName) {
 	ensureOverrideExists(ddai, componentName)
-	ddai.Spec.Override[componentName].Disabled = ptr.To(true)
+	ddai.Spec.Override[componentName].Disabled = new(true)
 }
 
 func setProfileDDAIAffinity(ddai *v1alpha1.DatadogAgentInternal, profile *v1alpha1.DatadogAgentProfile) *corev1.Affinity {

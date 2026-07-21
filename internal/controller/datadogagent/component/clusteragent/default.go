@@ -14,7 +14,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -66,7 +65,7 @@ func NewDefaultClusterAgentDeployment(ddaMeta metav1.Object, ddaSpec *v2alpha1.D
 
 	maps.Copy(podTemplate.Annotations, deployment.GetAnnotations())
 	deployment.Spec.Template = *podTemplate
-	deployment.Spec.Replicas = ptr.To(defaultClusterAgentReplicas)
+	deployment.Spec.Replicas = new(defaultClusterAgentReplicas)
 
 	return deployment
 }
@@ -132,8 +131,8 @@ func defaultPodSpec(ddaMeta metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, v
 				Command:        nil,
 				Args:           nil,
 				SecurityContext: &corev1.SecurityContext{
-					ReadOnlyRootFilesystem:   ptr.To(true),
-					AllowPrivilegeEscalation: ptr.To(false),
+					ReadOnlyRootFilesystem:   new(true),
+					AllowPrivilegeEscalation: new(false),
 				},
 			},
 		},

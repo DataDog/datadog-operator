@@ -107,18 +107,18 @@ func defaultEDSSpec(options *ExtendedDaemonsetOptions) edsv1alpha1.ExtendedDaemo
 		spec.Strategy.Canary.Replicas = apiutils.NewIntOrStringPointer(options.CanaryReplicas)
 	}
 
-	spec.Strategy.Canary.AutoFail.Enabled = edsv1alpha1.NewBool(options.CanaryAutoFailEnabled)
+	spec.Strategy.Canary.AutoFail.Enabled = new(options.CanaryAutoFailEnabled)
 	if options.CanaryAutoFailMaxRestarts > 0 {
-		spec.Strategy.Canary.AutoFail.MaxRestarts = edsv1alpha1.NewInt32(options.CanaryAutoFailMaxRestarts)
+		spec.Strategy.Canary.AutoFail.MaxRestarts = new(options.CanaryAutoFailMaxRestarts)
 	}
 
 	if options.CanaryAutoPauseMaxSlowStartDuration != 0 {
 		spec.Strategy.Canary.AutoPause.MaxSlowStartDuration = &metav1.Duration{Duration: options.CanaryAutoPauseMaxSlowStartDuration}
 	}
 
-	spec.Strategy.Canary.AutoPause.Enabled = edsv1alpha1.NewBool(options.CanaryAutoPauseEnabled)
+	spec.Strategy.Canary.AutoPause.Enabled = new(options.CanaryAutoPauseEnabled)
 	if options.CanaryAutoPauseMaxRestarts > 0 {
-		spec.Strategy.Canary.AutoPause.MaxRestarts = edsv1alpha1.NewInt32(options.CanaryAutoPauseMaxRestarts)
+		spec.Strategy.Canary.AutoPause.MaxRestarts = new(options.CanaryAutoPauseMaxRestarts)
 	}
 	return spec
 }

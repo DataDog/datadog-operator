@@ -834,11 +834,11 @@ func (mf *metricsForwarder) forwardEvent(event Event) error {
 // delegatedSendEvent is separated from forwardEvent to facilitate mocking the Datadog API
 func (mf *metricsForwarder) delegatedSendEvent(eventTitle string, eventType EventType) error {
 	eventRequest := datadogV1.EventCreateRequest{
-		DateHappened:   datadogapi.PtrInt64(time.Now().Unix()),
+		DateHappened:   new(time.Now().Unix()),
 		Title:          eventTitle,
 		Text:           "",
 		Tags:           append(mf.globalTags, mf.tags...),
-		SourceTypeName: datadogapi.PtrString(datadogOperatorSourceType),
+		SourceTypeName: new(datadogOperatorSourceType),
 	}
 
 	ctx := mf.generateDatadogContext()
@@ -934,8 +934,8 @@ func (mf *metricsForwarder) sendMetric(ctx context.Context, metricName string, m
 				Metric: metricName,
 				Points: []datadogV2.MetricPoint{
 					{
-						Timestamp: datadogapi.PtrInt64(time.Now().Unix()),
-						Value:     datadogapi.PtrFloat64(value),
+						Timestamp: new(time.Now().Unix()),
+						Value:     new(value),
 					},
 				},
 				Type: metricType.Ptr(),

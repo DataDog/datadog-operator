@@ -41,7 +41,7 @@ func applyAPMProfileSharedConfigOverlay(dst, base *v2alpha1.DatadogAgentSpec, pr
 	if err := mergeSSI(dstSSI, profileSSI); err != nil {
 		return err
 	}
-	dstSSI.Enabled = ptr.To(true)
+	dstSSI.Enabled = new(true)
 	defaultLanguageDetection(dstSSI)
 
 	return nil
@@ -74,8 +74,8 @@ func applyProfileLocalAgentServicePort(dst, base, profileSpec *v2alpha1.DatadogA
 		dst.Features.APM = &v2alpha1.APMFeatureConfig{}
 	}
 	dst.Features.APM.HostPortConfig = &v2alpha1.HostPortConfig{
-		Enabled: ptr.To(true),
-		Port:    ptr.To(profilePort),
+		Enabled: new(true),
+		Port:    new(profilePort),
 	}
 	return nil
 }
@@ -230,7 +230,7 @@ func defaultLanguageDetection(dst *v2alpha1.SingleStepInstrumentation) {
 		dst.LanguageDetection = &v2alpha1.LanguageDetectionConfig{}
 	}
 	if dst.LanguageDetection.Enabled == nil {
-		dst.LanguageDetection.Enabled = ptr.To(true)
+		dst.LanguageDetection.Enabled = new(true)
 	}
 }
 
@@ -255,7 +255,7 @@ func mergeBoolPtr(dst **bool, src *bool, field string) error {
 	if *dst != nil && ptr.Deref(*dst, false) != srcValue {
 		return fmt.Errorf("%s has conflicting values", field)
 	}
-	*dst = ptr.To(srcValue)
+	*dst = new(srcValue)
 	return nil
 }
 

@@ -51,7 +51,7 @@ func CreateOrUpdateEC2NodeClass(ctx context.Context, client client.Client, clust
 		},
 		Spec: karpawsv1.EC2NodeClassSpec{
 			Role:             "KarpenterNodeRole-" + clusterName,
-			AMIFamily:        lo.ToPtr(nc.GetAMIFamily()),
+			AMIFamily:        new(nc.GetAMIFamily()),
 			AMISelectorTerms: amiSelectorTerms,
 			SubnetSelectorTerms: lo.Map(nc.GetSubnetIDs(), func(subnetID string, _ int) karpawsv1.SubnetSelectorTerm {
 				return karpawsv1.SubnetSelectorTerm{

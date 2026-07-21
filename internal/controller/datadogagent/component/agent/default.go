@@ -396,7 +396,7 @@ func agentSingleContainer(dda metav1.Object) []corev1.Container {
 		ReadinessProbe: constants.GetDefaultReadinessProbe(),
 		StartupProbe:   constants.GetDefaultStartupProbe(),
 		SecurityContext: &corev1.SecurityContext{
-			ReadOnlyRootFilesystem: ptr.To(true),
+			ReadOnlyRootFilesystem: new(true),
 		},
 	}
 
@@ -448,7 +448,7 @@ func coreAgentContainer(dda metav1.Object) corev1.Container {
 		ReadinessProbe: constants.GetDefaultReadinessProbe(),
 		StartupProbe:   constants.GetDefaultStartupProbe(),
 		SecurityContext: &corev1.SecurityContext{
-			ReadOnlyRootFilesystem: ptr.To(true),
+			ReadOnlyRootFilesystem: new(true),
 		},
 	}
 }
@@ -472,7 +472,7 @@ func traceAgentContainer(dda metav1.Object) corev1.Container {
 		VolumeMounts:  volumeMountsForTraceAgent(),
 		LivenessProbe: constants.GetDefaultTraceAgentProbe(),
 		SecurityContext: &corev1.SecurityContext{
-			ReadOnlyRootFilesystem: ptr.To(true),
+			ReadOnlyRootFilesystem: new(true),
 		},
 	}
 }
@@ -488,7 +488,7 @@ func processAgentContainer(dda metav1.Object) corev1.Container {
 		Env:          commonEnvVars(dda),
 		VolumeMounts: volumeMountsForProcessAgent(),
 		SecurityContext: &corev1.SecurityContext{
-			ReadOnlyRootFilesystem: ptr.To(true),
+			ReadOnlyRootFilesystem: new(true),
 		},
 	}
 }
@@ -522,7 +522,7 @@ func otelAgentContainer(dda metav1.Object) corev1.Container {
 			},
 		},
 		SecurityContext: &corev1.SecurityContext{
-			ReadOnlyRootFilesystem: ptr.To(true),
+			ReadOnlyRootFilesystem: new(true),
 		},
 	}
 }
@@ -541,7 +541,7 @@ func hostProfilerContainer(dda metav1.Object) corev1.Container {
 		// the hostprofiler feature adds tracingfs on top via ManageNodeAgent.
 		VolumeMounts: volumeMountsForOtelAgent(),
 		SecurityContext: &corev1.SecurityContext{
-			ReadOnlyRootFilesystem: ptr.To(true),
+			ReadOnlyRootFilesystem: new(true),
 		},
 	}
 }
@@ -557,7 +557,7 @@ func securityAgentContainer(dda metav1.Object) corev1.Container {
 		Env:          envVarsForSecurityAgent(dda),
 		VolumeMounts: volumeMountsForSecurityAgent(),
 		SecurityContext: &corev1.SecurityContext{
-			ReadOnlyRootFilesystem: ptr.To(true),
+			ReadOnlyRootFilesystem: new(true),
 		},
 	}
 }
@@ -573,7 +573,7 @@ func systemProbeContainer(dda metav1.Object) corev1.Container {
 		Env:          commonEnvVars(dda),
 		VolumeMounts: volumeMountsForSystemProbe(),
 		SecurityContext: &corev1.SecurityContext{
-			ReadOnlyRootFilesystem: ptr.To(true),
+			ReadOnlyRootFilesystem: new(true),
 			SeccompProfile: &corev1.SeccompProfile{
 				Type:             corev1.SeccompProfileTypeLocalhost,
 				LocalhostProfile: ptr.To(common.SystemProbeSeccompProfileName),
@@ -595,7 +595,7 @@ func privateActionRunnerContainer(dda metav1.Object) corev1.Container {
 		Env:          commonEnvVars(dda),
 		VolumeMounts: volumeMountsForPrivateActionRunner(),
 		SecurityContext: &corev1.SecurityContext{
-			ReadOnlyRootFilesystem: ptr.To(true),
+			ReadOnlyRootFilesystem: new(true),
 		},
 	}
 }
@@ -615,7 +615,7 @@ func agentDataPlaneContainer(dda metav1.Object) corev1.Container {
 		LivenessProbe:  constants.GetDefaultAgentDataPlaneLivenessProbe(),
 		ReadinessProbe: constants.GetDefaultAgentDataPlaneReadinessProbe(),
 		SecurityContext: &corev1.SecurityContext{
-			ReadOnlyRootFilesystem: ptr.To(true),
+			ReadOnlyRootFilesystem: new(true),
 		},
 	}
 }
@@ -630,7 +630,7 @@ func flightRecorderContainer(dda metav1.Object) corev1.Container {
 		Env:          commonEnvVars(dda),
 		VolumeMounts: volumeMountsForFlightRecorder(),
 		SecurityContext: &corev1.SecurityContext{
-			ReadOnlyRootFilesystem: ptr.To(true),
+			ReadOnlyRootFilesystem: new(true),
 		},
 	}
 }

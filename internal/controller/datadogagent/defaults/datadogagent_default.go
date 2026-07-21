@@ -156,7 +156,7 @@ func defaultGlobalConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
 	}
 
 	if ddaSpec.Global.Site == nil {
-		ddaSpec.Global.Site = ptr.To(defaultSite)
+		ddaSpec.Global.Site = new(defaultSite)
 	}
 
 	if ddaSpec.Global.Registry == nil {
@@ -171,7 +171,7 @@ func defaultGlobalConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
 	}
 
 	if ddaSpec.Global.LogLevel == nil {
-		ddaSpec.Global.LogLevel = ptr.To(defaultLogLevel)
+		ddaSpec.Global.LogLevel = new(defaultLogLevel)
 	}
 
 	if ddaSpec.Global.ContainerStrategy == nil {
@@ -424,7 +424,7 @@ func defaultFeaturesConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
 
 	if ddaSpec.Features.Dogstatsd.HostPortConfig == nil {
 		ddaSpec.Features.Dogstatsd.HostPortConfig = &v2alpha1.HostPortConfig{
-			Enabled: ptr.To(defaultDogstatsdHostPortEnabled),
+			Enabled: new(defaultDogstatsdHostPortEnabled),
 		}
 	}
 
