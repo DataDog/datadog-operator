@@ -148,9 +148,11 @@ func (c *managedAgentInstallationTestClient) Delete(ctx context.Context, obj cli
 func TestManagedAgentInstallationConfigRejectsCredentials(t *testing.T) {
 	for _, raw := range []json.RawMessage{
 		json.RawMessage(`{"spec":{"global":{"credentials":{"apiKey":"api-key"}}}}`),
-		json.RawMessage(`{"spec":{"global":{"credentials":null}}}`),
 		json.RawMessage(`{"spec":{"global":{"clusterAgentToken":"token"}}}`),
 		json.RawMessage(`{"spec":{"global":{"clusterAgentTokenSecret":{"secretName":"other"}}}}`),
+		json.RawMessage(`{"Spec":{"Global":{"Credentials":{"APIKey":"api-key"}}}}`),
+		json.RawMessage(`{"Spec":{"Global":{"ClusterAgentToken":"token"}}}`),
+		json.RawMessage(`{"Spec":{"Global":{"ClusterAgentTokenSecret":{"SecretName":"other"}}}}`),
 	} {
 		_, err := buildFleetDatadogAgentSpec(raw)
 		assert.Error(t, err)
@@ -197,6 +199,34 @@ func TestManagedAgentInstallationRevalidatesExistingResources(t *testing.T) {
 	profile := &v1alpha1.DatadogAgentProfile{}
 	require.NoError(t, kubeClient.Get(ctx, managedAgentInstallationWindowsProfileKey, profile))
 	require.NoError(t, daemon.validateManagedAgentInstallationWindowsProfile(profile, dda))
+}
+
+func TestManagedAgentInstallationRecoversPostAdmissionSpecHash(t *testing.T) {
+	ctx := context.Background()
+	command := testManagedAgentInstallationCommand(t, testAddonInstallOperationID, managedAgentInstallationDesiredStateInstalled)
+	desired, err := buildFleetDatadogAgentSpec(command.Config)
+	require.NoError(t, err)
+	desiredHash, err := fleetDatadogAgentSpecHash(desired)
+	require.NoError(t, err)
+
+	dda := testFleetManagedDatadogAgent(t, "", testAddonInstallOperationID)
+	dda.Labels[fleetManagedAgentInstallationStateLabel] = fleetManagedAgentInstallationStatePartial
+	dda.Spec = *desired.DeepCopy()
+	dda.Annotations[fleetConfigHashAnnotation] = desiredHash
+	dda.Annotations[fleetCreateTaskIDAnnotation] = testAddonInstallOperationID
+	defaultRegistry := "registry.example"
+	dda.Spec.Global.Registry = &defaultRegistry
+	liveHash, err := fleetDatadogAgentSpecHash(&dda.Spec)
+	require.NoError(t, err)
+	require.NotEqual(t, desiredHash, liveHash)
+
+	daemon, kubeClient, _ := testManagedAgentInstallationDaemon(nil, testFleetCredentialSecret(), dda)
+	require.NoError(t, daemon.installDatadogAgent(ctx, command))
+
+	updated := &v2alpha1.DatadogAgent{}
+	require.NoError(t, kubeClient.Get(ctx, managedAgentInstallationTarget, updated))
+	assert.Equal(t, fleetManagedAgentInstallationStateReady, updated.Labels[fleetManagedAgentInstallationStateLabel])
+	assert.Equal(t, liveHash, updated.Annotations[fleetConfigHashAnnotation])
 }
 
 func TestManagedAgentInstallationInstallFailureModes(t *testing.T) {
@@ -504,7 +534,10 @@ func TestValidateFleetDatadogAgentInstallReplay(t *testing.T) {
 	hash, err := fleetDatadogAgentSpecHash(&valid.Spec)
 	require.NoError(t, err)
 	valid.Annotations[fleetConfigHashAnnotation] = hash
-	require.NoError(t, validateFleetDatadogAgentInstallReplay(valid, testAddonInstallOperationID, desired))
+	acceptedHash, needsRecording, err := validateFleetDatadogAgentInstallReplay(valid, testAddonInstallOperationID, desired)
+	require.NoError(t, err)
+	assert.Empty(t, acceptedHash)
+	assert.False(t, needsRecording)
 
 	for _, test := range []struct {
 		name      string
@@ -555,11 +588,21 @@ func TestValidateFleetDatadogAgentInstallReplay(t *testing.T) {
 			},
 			wantError: "spec changed after Fleet config",
 		},
+		{
+			name: "unrecognized partial hash",
+			mutate: func(dda *v2alpha1.DatadogAgent) {
+				dda.Labels[fleetManagedAgentInstallationStateLabel] = fleetManagedAgentInstallationStatePartial
+				dda.Annotations[fleetCreateTaskIDAnnotation] = testAddonInstallOperationID
+				dda.Annotations[fleetConfigHashAnnotation] = "stale"
+			},
+			wantError: "spec changed after Fleet config",
+		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			dda := valid.DeepCopy()
 			test.mutate(dda)
-			require.ErrorContains(t, validateFleetDatadogAgentInstallReplay(dda, testAddonInstallOperationID, desired), test.wantError)
+			_, _, err := validateFleetDatadogAgentInstallReplay(dda, testAddonInstallOperationID, desired)
+			require.ErrorContains(t, err, test.wantError)
 		})
 	}
 }
