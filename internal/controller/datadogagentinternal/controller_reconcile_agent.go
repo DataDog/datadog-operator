@@ -130,6 +130,12 @@ func (r *Reconciler) reconcileV2Agent(ctx context.Context, requiredComponents fe
 			return reconcile.Result{}, nil
 		}
 
+		if r.options.RolloutOnConfigMapChangeEnabled {
+			if err := r.annotateWithReferencedConfigMapsChecksum(ctx, ddai.Namespace, &eds.Spec.Template); err != nil {
+				return result, err
+			}
+		}
+
 		return r.createOrUpdateExtendedDaemonset(ctx, ddai, eds, newStatus, updateEDSStatusV2WithAgent)
 	}
 
@@ -287,6 +293,12 @@ func (r *Reconciler) reconcileV2Agent(ctx context.Context, requiredComponents fe
 		}
 		deleteStatusWithAgent(newStatus)
 		return reconcile.Result{}, nil
+	}
+
+	if r.options.RolloutOnConfigMapChangeEnabled {
+		if err := r.annotateWithReferencedConfigMapsChecksum(ctx, ddai.Namespace, &daemonset.Spec.Template); err != nil {
+			return result, err
+		}
 	}
 
 	return r.createOrUpdateDaemonset(ctx, ddai, daemonset, newStatus, updateDSStatusV2WithAgent)

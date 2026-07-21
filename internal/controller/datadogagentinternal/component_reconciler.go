@@ -228,6 +228,13 @@ func (r *ComponentRegistry) reconcileComponent(ctx context.Context, params *Reco
 		return result, err
 	}
 
+	if r.reconciler.options.RolloutOnConfigMapChangeEnabled {
+		if err := r.reconciler.annotateWithReferencedConfigMapsChecksum(ctx, deployment.Namespace, &deployment.Spec.Template); err != nil {
+			component.UpdateStatus(deployment, params.Status, now, metav1.ConditionFalse, fmt.Sprintf("%s configmap checksum error", component.Name()), err.Error())
+			return result, err
+		}
+	}
+
 	res, err := r.reconciler.createOrUpdateDeployment(ctx, params.DDAI, deployment, params.Status, component.UpdateStatus)
 
 	if err == nil {
