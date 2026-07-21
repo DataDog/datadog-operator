@@ -49,7 +49,7 @@ const (
 	fleetManagedAgentInstallationStateReady    = "ready"
 	fleetPartialConfigVersionPrefix            = "partial:"
 
-	fleetDatadogAgentNamespace = "datadog"
+	fleetDatadogAgentNamespace = "datadog-agent"
 	fleetDatadogAgentName      = "datadog-agent"
 	fleetCredentialSecretName  = "datadog-secret"
 	fleetCredentialAPIKey      = "api-key"

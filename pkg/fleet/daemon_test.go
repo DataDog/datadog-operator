@@ -120,7 +120,7 @@ var testDDAGVK = schema.GroupVersionKind{
 	Kind:    "DatadogAgent",
 }
 
-var testDDANSN = types.NamespacedName{Namespace: "datadog", Name: "datadog-agent"}
+var testDDANSN = types.NamespacedName{Namespace: "datadog-agent", Name: "datadog-agent"}
 
 const testExperimentID = "test-config"
 
