@@ -9,3 +9,4 @@ datadog-operator:
   operatorMetricsEnabled: false
 
 managedAgentInstallation: null
+managedAgentInstallationCredentials: null

@@ -142,23 +142,20 @@
             }
           }
         },
-        "remoteUpdates": {
-          "type": "object",
-          "properties": {
-            "enabled": {
-              "type": "boolean"
-            }
-          }
-        },
-        "createControllerRevisions": {
-          "type": "boolean"
-        },
         "watchNamespaces": {
           "type": "array",
           "items": {}
         },
         "containerSecurityContext": {
           "type": "object"
+        },
+        "volumes": {
+          "type": "array",
+          "items": {}
+        },
+        "volumeMounts": {
+          "type": "array",
+          "items": {}
         }
       }
     },
@@ -232,6 +229,23 @@
         "operationID",
         "desiredState",
         "bootstrap"
+      ],
+      "additionalProperties": false
+    },
+    "managedAgentInstallationCredentials": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "secretsManagerSecretID": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2048
+        }
+      },
+      "required": [
+        "secretsManagerSecretID"
       ],
       "additionalProperties": false
     }
