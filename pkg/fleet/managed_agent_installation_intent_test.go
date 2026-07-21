@@ -478,7 +478,7 @@ func TestManagedAgentInstallationParksUntilCredentialSecretExists(t *testing.T) 
 	snapshot := managedAgentInstallationIntentSnapshot{raw: raw}
 
 	for range len(managedAgentInstallationCredentialRetryDelays) + 1 {
-		require.ErrorContains(t, daemon.handleManagedAgentInstallationIntent(ctx, snapshot), "credential Secret datadog/datadog-secret is not ready")
+		require.ErrorContains(t, daemon.handleManagedAgentInstallationIntent(ctx, snapshot), "credential Secret datadog-agent/datadog-secret is not ready")
 		assert.False(t, daemon.managedAgentInstallationActive)
 		assert.False(t, daemon.managedAgentInstallationTaskReserved)
 	}
