@@ -56,6 +56,7 @@ type SetupOptions struct {
 	DatadogCSIDriverEnabled           bool
 	UntaintControllerEnabled          bool
 	UntaintControllerWaitForCSIDriver bool
+	RolloutOnConfigMapChangeEnabled   bool
 	ClusterProviderDetector           datadogagent.ProviderReader
 }
 
@@ -172,11 +173,12 @@ func startDatadogAgentInternal(logger logr.Logger, mgr manager.Manager, pInfo ku
 				CanaryAutoFailEnabled:               options.SupportExtendedDaemonset.CanaryAutoFailEnabled,
 				CanaryAutoFailMaxRestarts:           int32(options.SupportExtendedDaemonset.CanaryAutoFailMaxRestarts),
 			},
-			SupportCilium:            options.SupportCilium,
-			OperatorMetricsEnabled:   options.OperatorMetricsEnabled,
-			UntaintControllerEnabled: options.UntaintControllerEnabled,
-			DatadogCSIDriverEnabled:  options.DatadogCSIDriverEnabled,
-			APIReader:                mgr.GetAPIReader(),
+			SupportCilium:                   options.SupportCilium,
+			OperatorMetricsEnabled:          options.OperatorMetricsEnabled,
+			UntaintControllerEnabled:        options.UntaintControllerEnabled,
+			DatadogCSIDriverEnabled:         options.DatadogCSIDriverEnabled,
+			RolloutOnConfigMapChangeEnabled: options.RolloutOnConfigMapChangeEnabled,
+			APIReader:                       mgr.GetAPIReader(),
 		},
 	}).SetupWithManager(mgr, metricForwardersMgr)
 }
