@@ -6,8 +6,6 @@
 package defaults
 
 import (
-	"os"
-
 	"k8s.io/utils/ptr"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -65,6 +63,8 @@ const (
 	defaultNPMCollectDNSStats bool = true
 
 	defaultUSMEnabled bool = false
+
+	defaultDynamicInstrumentationEnabled bool = false
 
 	defaultDogstatsdOriginDetectionEnabled bool   = false
 	defaultDogstatsdHostPortEnabled        bool   = false
@@ -160,33 +160,13 @@ func defaultGlobalConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
 	}
 
 	if ddaSpec.Global.Registry == nil {
-		switch *ddaSpec.Global.Site {
-		case defaultEuropeSite:
-			if os.Getenv("DD_REGISTRY_OVERRIDE_EU") == "true" {
-				ddaSpec.Global.Registry = ptr.To(images.DatadogContainerRegistry)
-			} else {
-				ddaSpec.Global.Registry = ptr.To(images.DefaultEuropeImageRegistry)
-			}
-		case defaultAsiaSite:
-			if os.Getenv("DD_REGISTRY_OVERRIDE_ASIA") == "true" {
-				ddaSpec.Global.Registry = ptr.To(images.DatadogContainerRegistry)
-			} else {
-				ddaSpec.Global.Registry = ptr.To(images.DefaultAsiaImageRegistry)
-			}
-		case defaultAzureSite:
-			if os.Getenv("DD_REGISTRY_OVERRIDE_AZURE") == "true" {
-				ddaSpec.Global.Registry = ptr.To(images.DatadogContainerRegistry)
-			} else {
-				ddaSpec.Global.Registry = ptr.To(images.DefaultAzureImageRegistry)
-			}
-		case defaultGovSite:
+		// Keep registry selection simple while no explicit registry is provided.
+		// Later, cluster introspection can make this smarter based on the cluster's
+		// reachable registries.
+		if *ddaSpec.Global.Site == defaultGovSite {
 			ddaSpec.Global.Registry = ptr.To(images.DefaultGovImageRegistry)
-		default:
-			if os.Getenv("DD_REGISTRY_OVERRIDE_DEFAULT") == "true" {
-				ddaSpec.Global.Registry = ptr.To(images.DatadogContainerRegistry)
-			} else {
-				ddaSpec.Global.Registry = ptr.To(images.DefaultImageRegistry)
-			}
+		} else {
+			ddaSpec.Global.Registry = ptr.To(images.DefaultImageRegistry)
 		}
 	}
 
@@ -429,6 +409,12 @@ func defaultFeaturesConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
 		ddaSpec.Features.USM = &v2alpha1.USMFeatureConfig{}
 	}
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.USM.Enabled, defaultUSMEnabled)
+
+	// Dynamic Instrumentation Feature
+	if ddaSpec.Features.DynamicInstrumentation == nil {
+		ddaSpec.Features.DynamicInstrumentation = &v2alpha1.DynamicInstrumentationFeatureConfig{}
+	}
+	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.DynamicInstrumentation.Enabled, defaultDynamicInstrumentationEnabled)
 
 	// Dogstatsd Feature
 	if ddaSpec.Features.Dogstatsd == nil {

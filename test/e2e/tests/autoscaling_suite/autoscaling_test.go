@@ -10,6 +10,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
+	"strings"
 	"time"
 
 	"github.com/DataDog/datadog-agent/test/e2e-framework/testing/e2e"
@@ -22,6 +24,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/cloudformation"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v3"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -229,6 +232,10 @@ func (s *autoscalingSuite) TestAutoscalingDefault() {
 	s.Run("Install with defaults", func() {
 		s.testInstall()
 		s.waitForAllPodsRunning(ctx)
+	})
+
+	s.Run("Verify dd-cluster-info ConfigMap", func() {
+		s.verifyDDClusterInfoConfigMap(ctx)
 	})
 
 	s.Run("Install is idempotent", func() {
@@ -484,6 +491,149 @@ func (s *autoscalingSuite) verifyKarpenterInstalled(ctx context.Context) {
 	s.Assert().Truef(exists, "Karpenter Helm release not found")
 
 	t.Log("Karpenter installation verified successfully")
+}
+
+// ddClusterInfo mirrors the wire format of the dd-cluster-info ConfigMap
+// payload. It is duplicated rather than imported from
+// cmd/kubectl-datadog/autoscaling/cluster/common/clusterinfo to avoid
+// pulling controller-runtime, karpenter, and the AWS autoscaling SDK
+// into the e2e test binary. Keep the YAML tags in sync with that
+// package's types.go.
+type ddClusterInfo struct {
+	APIVersion     string                                  `yaml:"apiVersion"`
+	ClusterName    string                                  `yaml:"clusterName"`
+	ClusterARN     string                                  `yaml:"clusterArn"`
+	Region         string                                  `yaml:"region"`
+	GeneratedAt    time.Time                               `yaml:"generatedAt"`
+	NodeManagement map[string]map[string]ddNodeManagerInfo `yaml:"nodeManagement"`
+	Autoscaling    struct {
+		ClusterAutoscaler struct {
+			Present bool `yaml:"present"`
+		} `yaml:"clusterAutoscaler"`
+		Karpenter struct {
+			Present          bool   `yaml:"present"`
+			Namespace        string `yaml:"namespace"`
+			Name             string `yaml:"name"`
+			Version          string `yaml:"version"`
+			ManagedByDatadog bool   `yaml:"managedByDatadog"`
+			InstallerVersion string `yaml:"installerVersion"`
+		} `yaml:"karpenter"`
+		EKSAutoMode struct {
+			Enabled bool `yaml:"enabled"`
+		} `yaml:"eksAutoMode"`
+	} `yaml:"autoscaling"`
+}
+
+type ddNodeManagerInfo struct {
+	Nodes            []string `yaml:"nodes"`
+	ManagedByDatadog bool     `yaml:"managedByDatadog"`
+}
+
+// verifyDDClusterInfoConfigMap asserts that the dd-cluster-info ConfigMap
+// was written by `install` with the expected shape: ConfigMap metadata,
+// schema version, cluster identity, the two EKS managed node groups
+// provisioned by the e2e harness, the two Fargate profiles (the harness'
+// own and the install-time `dd-karpenter-<cluster>` profile), the two
+// Karpenter NodePools created by `--inference-method=nodegroups`, and an
+// Autoscaling block reporting our Karpenter as the only autoscaler. The
+// full YAML payload is logged unconditionally so any assertion failure
+// can be debugged from CI logs alone.
+func (s *autoscalingSuite) verifyDDClusterInfoConfigMap(ctx context.Context) {
+	const (
+		configMapName    = "dd-cluster-info"
+		configMapDataKey = "cluster-info"
+		apiVersion       = "v1"
+		// Node names follow the kubelet default for AWS: "ip-<addr>.internal"
+		// suffixed by either ".ec2" (us-east-1) or ".<region>.compute" (other
+		// regions). Nodes scheduled on Fargate carry the extra "fargate-"
+		// prefix.
+		eksNodeNameRe     = `^ip-[0-9-]+\..+\.internal$`
+		fargateNodeNameRe = `^fargate-ip-[0-9-]+\..+\.internal$`
+	)
+
+	t := s.T()
+	t.Log("Verifying dd-cluster-info ConfigMap...")
+
+	client := s.Env().KubernetesCluster.Client()
+
+	cm, err := client.CoreV1().ConfigMaps(karpenterNamespace).Get(ctx, configMapName, metav1.GetOptions{})
+	require.NoErrorf(t, err, "fetching ConfigMap %s/%s after install", karpenterNamespace, configMapName)
+
+	payload := cm.Data[configMapDataKey]
+	t.Logf("dd-cluster-info ConfigMap payload:\n%s", payload)
+
+	assert.Equal(t, "kubectl-datadog", cm.Labels["app.kubernetes.io/managed-by"], "managed-by label")
+	require.NotEmpty(t, payload, "ConfigMap data key %q is empty", configMapDataKey)
+
+	var info ddClusterInfo
+	require.NoError(t, yaml.Unmarshal([]byte(payload), &info), "failed to unmarshal cluster-info payload")
+
+	assert.Equal(t, apiVersion, info.APIVersion, "APIVersion")
+	assert.Equal(t, s.clusterName, info.ClusterName, "ClusterName")
+	assert.Regexp(t, `^arn:aws:eks:[^:]+:\d+:cluster/`+regexp.QuoteMeta(s.clusterName)+`$`, info.ClusterARN, "ClusterARN")
+	assert.Equal(t, s.awsCfg.Region, info.Region, "Region")
+	assert.WithinDuration(t, time.Now(), info.GeneratedAt, 30*time.Minute, "GeneratedAt should be recent")
+
+	// The e2e harness provisions one x86_64 and one ARM64 EKS managed
+	// node group, each with DesiredSize=1. We don't pin the generated
+	// node group names because Pulumi's DisplayName truncates them in a
+	// non-deterministic way once the cluster name approaches the 37-char
+	// prefix budget.
+	ngBucket := info.NodeManagement["eksManagedNodeGroup"]
+	if assert.Len(t, ngBucket, 2, "expected 2 EKS managed node groups (one per architecture)") {
+		for name, entry := range ngBucket {
+			assert.Falsef(t, entry.ManagedByDatadog, "EKS managed node group %q should not be ManagedByDatadog", name)
+			if assert.Lenf(t, entry.Nodes, 1, "EKS managed node group %q should have exactly 1 node (DesiredSize=1)", name) {
+				assert.Regexpf(t, eksNodeNameRe, entry.Nodes[0], "node %q in EKS managed node group %q", entry.Nodes[0], name)
+			}
+		}
+	}
+
+	// The Fargate bucket holds two profiles: the e2e harness' own
+	// (covering kube-system + the `agent.datadoghq.com/sidecar=fargate`
+	// label) and the install-time `dd-karpenter-<cluster>` profile
+	// hosting the Karpenter controller pods. Only the latter carries
+	// the kubectl-datadog ownership tag.
+	fargateBucket := info.NodeManagement["fargate"]
+	ddKarpenterProfile := "dd-karpenter-" + s.clusterName
+	if assert.Len(t, fargateBucket, 2, "expected 2 Fargate profiles (harness + install-time)") {
+		for name, entry := range fargateBucket {
+			assert.NotEmptyf(t, entry.Nodes, "Fargate profile %q should have at least one node", name)
+			for _, node := range entry.Nodes {
+				assert.Regexpf(t, fargateNodeNameRe, node, "node %q in Fargate profile %q", node, name)
+			}
+			if name == ddKarpenterProfile {
+				assert.Truef(t, entry.ManagedByDatadog, "install-time Fargate profile %q should be ManagedByDatadog", name)
+			} else {
+				assert.Falsef(t, entry.ManagedByDatadog, "non-install Fargate profile %q should not be ManagedByDatadog", name)
+			}
+		}
+		assert.Contains(t, fargateBucket, ddKarpenterProfile, "Fargate bucket should contain the install-time profile")
+	}
+
+	// `--inference-method=nodegroups` (the default) introspects the two
+	// EKS managed node groups and emits one Karpenter NodePool per
+	// distinct hardware shape. The snapshot is written at install time,
+	// before Karpenter has provisioned any node, so the Nodes lists are
+	// empty here — the NodePools are still surfaced (with
+	// ManagedByDatadog=true) so the migration tool sees the destination.
+	karpenterBucket := info.NodeManagement["karpenter"]
+	if assert.Len(t, karpenterBucket, 2, "expected 2 Karpenter NodePools (one per node group architecture)") {
+		for name, entry := range karpenterBucket {
+			assert.Truef(t, strings.HasPrefix(name, "dd-karpenter-"), "NodePool %q should have the kubectl-datadog name prefix", name)
+			assert.Truef(t, entry.ManagedByDatadog, "NodePool %q should be ManagedByDatadog", name)
+			assert.Emptyf(t, entry.Nodes, "NodePool %q should have no nodes at install time; got %v", name, entry.Nodes)
+		}
+	}
+
+	assert.False(t, info.Autoscaling.ClusterAutoscaler.Present, "ClusterAutoscaler should not be present")
+	assert.True(t, info.Autoscaling.Karpenter.Present, "Karpenter should be present")
+	assert.Equal(t, karpenterNamespace, info.Autoscaling.Karpenter.Namespace, "Karpenter namespace")
+	assert.Equal(t, "karpenter", info.Autoscaling.Karpenter.Name, "Karpenter Helm release name")
+	assert.True(t, info.Autoscaling.Karpenter.ManagedByDatadog, "Karpenter should be ManagedByDatadog")
+	assert.NotEmpty(t, info.Autoscaling.Karpenter.InstallerVersion, "Karpenter InstallerVersion")
+	assert.Regexp(t, `^v?\d+\.\d+\.\d+`, info.Autoscaling.Karpenter.Version, "Karpenter Version")
+	assert.False(t, info.Autoscaling.EKSAutoMode.Enabled, "EKS auto-mode should be disabled")
 }
 
 // verifyKarpenterPodsComputeType asserts that all Karpenter controller pods

@@ -1,0 +1,29 @@
+apiVersion: datadoghq.com/v2alpha1
+kind: DatadogAgent
+metadata:
+  name: datadog-agent-gke-autopilot
+  namespace: e2e-operator
+  labels:
+    agent.datadoghq.com/e2e-test: datadog-agent-gke-autopilot
+  annotations:
+    experimental.agent.datadoghq.com/autopilot: "true"
+spec:
+  features:
+    logCollection:
+      enabled: true
+      containerCollectAll: true
+    npm:
+      enabled: true
+  override:
+    nodeAgent:
+      envFrom:
+        - configMapRef:
+            name: datadog-operator-e2e-agent-metrics-v2-env
+    clusterAgent:
+      envFrom:
+        - configMapRef:
+            name: datadog-operator-e2e-agent-metrics-v2-env
+    clusterChecksRunner:
+      envFrom:
+        - configMapRef:
+            name: datadog-operator-e2e-agent-metrics-v2-env

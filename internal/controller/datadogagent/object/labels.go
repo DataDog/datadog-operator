@@ -14,9 +14,32 @@ import (
 	"github.com/gobwas/glob"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
+
+// reservedLabelPrefixes contains label key prefixes owned by the operator.
+// User-supplied commonLabels keys that match any of these prefixes are silently
+// dropped at merge time to prevent them from interfering with operator-internal
+// control-flow logic (e.g. profile routing, store ownership, DDAI identity).
+var reservedLabelPrefixes = []string{
+	"agent.datadoghq.com/",
+	"operator.datadoghq.com/",
+	"datadoghq.com/",
+}
+
+// isReservedLabelKey reports whether a label key starts with any
+// operator-reserved prefix.
+func isReservedLabelKey(key string) bool {
+	for _, prefix := range reservedLabelPrefixes {
+		if strings.HasPrefix(key, prefix) {
+			return true
+		}
+	}
+	return false
+}
 
 // GetDefaultLabels return default labels attached to a DatadogAgent resource.
 func GetDefaultLabels(dda metav1.Object, instanceName, version string) map[string]string {
@@ -34,7 +57,42 @@ func GetDefaultLabels(dda metav1.Object, instanceName, version string) map[strin
 		}
 	}
 
+	// Merge CommonLabels from the global spec. CommonLabels are applied first so that
+	// the operator's own standard labels always take precedence on key conflicts.
+	for k, v := range getCommonLabels(dda) {
+		if _, exists := labels[k]; !exists {
+			labels[k] = v
+		}
+	}
+
 	return labels
+}
+
+// getCommonLabels extracts spec.global.commonLabels from a DatadogAgent or DatadogAgentInternal object.
+// Keys matching any reserved operator prefix are silently dropped to prevent
+// user labels from interfering with operator-internal control flow.
+func getCommonLabels(dda metav1.Object) map[string]string {
+	var raw map[string]string
+	switch d := dda.(type) {
+	case *v2alpha1.DatadogAgent:
+		if d.Spec.Global != nil {
+			raw = d.Spec.Global.CommonLabels
+		}
+	case *v1alpha1.DatadogAgentInternal:
+		if d.Spec.Global != nil {
+			raw = d.Spec.Global.CommonLabels
+		}
+	}
+	if len(raw) == 0 {
+		return nil
+	}
+	filtered := make(map[string]string, len(raw))
+	for k, v := range raw {
+		if !isReservedLabelKey(k) {
+			filtered[k] = v
+		}
+	}
+	return filtered
 }
 
 // GetDefaultAnnotations return default annotations attached to a DatadogAgent resource.

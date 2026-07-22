@@ -8,6 +8,7 @@ package datadogcsidriver
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -26,8 +27,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	"github.com/DataDog/datadog-operator/pkg/untaint"
 )
 
 const (
@@ -35,7 +38,7 @@ const (
 	testName      = "datadog-csi"
 )
 
-func newTestReconciler(t *testing.T, objects ...client.Object) (*Reconciler, client.Client) {
+func newTestReconciler(t *testing.T, injectCSIStartupToleration bool, objects ...client.Object) (*Reconciler, client.Client) {
 	t.Helper()
 	s := scheme.Scheme
 	s.AddKnownTypes(v1alpha1.GroupVersion,
@@ -52,7 +55,7 @@ func newTestReconciler(t *testing.T, objects ...client.Object) (*Reconciler, cli
 	// Set the default controller-runtime logger so ctrl.LoggerFrom(ctx) works in tests
 	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
 	recorder := record.NewFakeRecorder(10)
-	r := NewReconciler(c, s, recorder)
+	r := NewReconciler(c, s, recorder, injectCSIStartupToleration)
 
 	return r, c
 }
@@ -73,7 +76,7 @@ func defaultCSIDriverCR() *v1alpha1.DatadogCSIDriver {
 
 func TestReconcile_CreatesResources(t *testing.T) {
 	instance := defaultCSIDriverCR()
-	r, c := newTestReconciler(t, instance)
+	r, c := newTestReconciler(t, false, instance)
 	ctx := context.Background()
 
 	// First reconcile: adds finalizer
@@ -96,9 +99,10 @@ func TestReconcile_CreatesResources(t *testing.T) {
 	err = c.Get(ctx, types.NamespacedName{Name: csiDriverName}, csiDriver)
 	require.NoError(t, err)
 	assert.Equal(t, csiDriverName, csiDriver.Name)
+	assert.Equal(t, "true", csiDriver.Annotations[apmEnabledAnnotationKey])
 	assert.Equal(t, "datadog-operator", csiDriver.Labels[kubernetes.AppKubernetesManageByLabelKey])
-	assert.False(t, *csiDriver.Spec.AttachRequired)
-	assert.True(t, *csiDriver.Spec.PodInfoOnMount)
+	assert.Nil(t, csiDriver.Spec.AttachRequired)
+	assert.Nil(t, csiDriver.Spec.PodInfoOnMount)
 	assert.Contains(t, csiDriver.Spec.VolumeLifecycleModes, storagev1.VolumeLifecyclePersistent)
 	assert.Contains(t, csiDriver.Spec.VolumeLifecycleModes, storagev1.VolumeLifecycleEphemeral)
 
@@ -115,21 +119,31 @@ func TestReconcile_CreatesResources(t *testing.T) {
 	csiContainer := ds.Spec.Template.Spec.Containers[0]
 	assert.Equal(t, v1alpha1.CSINodeDriverContainerName, csiContainer.Name)
 	assert.Equal(t, fmt.Sprintf("%s/%s:%s", images.GCRContainerRegistry, defaultCSIDriverImageName, images.CSILatestImageVersion), csiContainer.Image)
+	assert.Contains(t, csiContainer.Env, corev1.EnvVar{
+		Name:  constants.DDAPMEnabled,
+		Value: "true",
+	})
 
 	registrarContainer := ds.Spec.Template.Spec.Containers[1]
 	assert.Equal(t, v1alpha1.CSINodeDriverRegistrarContainerName, registrarContainer.Name)
-	assert.Equal(t, fmt.Sprintf("%s/%s:%s", images.SIGStorageRegistry, defaultRegistrarImageName, images.DefaultRegistrarImageVersion), registrarContainer.Image)
+	assert.Equal(t, "registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.0.1", registrarContainer.Image)
+	assert.Contains(t, registrarContainer.Env, corev1.EnvVar{
+		Name:  envDriverRegSock,
+		Value: csiSocketPath,
+	})
 
 	// Verify volumes exist
-	volumeNames := make([]string, 0, len(ds.Spec.Template.Spec.Volumes))
+	volumesByName := make(map[string]corev1.Volume, len(ds.Spec.Template.Spec.Volumes))
 	for _, v := range ds.Spec.Template.Spec.Volumes {
-		volumeNames = append(volumeNames, v.Name)
+		volumesByName[v.Name] = v
 	}
-	assert.Contains(t, volumeNames, pluginDirVolumeName)
-	assert.Contains(t, volumeNames, storageDirVolumeName)
-	assert.Contains(t, volumeNames, registrationDirVolumeName)
-	assert.Contains(t, volumeNames, mountpointDirVolumeName)
-	assert.Contains(t, volumeNames, apmSocketVolumeName)
+	assert.Contains(t, volumesByName, pluginDirVolumeName)
+	assert.Contains(t, volumesByName, storageDirVolumeName)
+	assert.Contains(t, volumesByName, registrationDirVolumeName)
+	assert.Contains(t, volumesByName, mountpointDirVolumeName)
+	assert.Contains(t, volumesByName, apmSocketVolumeName)
+	assert.Equal(t, kubeletPluginsDir, volumesByName[pluginDirVolumeName].HostPath.Path)
+	assert.Equal(t, kubeletStorageDir, volumesByName[storageDirVolumeName].HostPath.Path)
 
 	// Verify status was updated
 	err = c.Get(ctx, types.NamespacedName{Name: testName, Namespace: testNamespace}, instance)
@@ -150,7 +164,7 @@ func TestReconcile_CustomSocketPaths(t *testing.T) {
 	instance.Spec.APMSocketPath = &customAPM
 	instance.Spec.DSDSocketPath = &customDSD
 
-	r, c := newTestReconciler(t, instance)
+	r, c := newTestReconciler(t, false, instance)
 	ctx := context.Background()
 
 	// Reconcile twice (finalizer + create)
@@ -179,9 +193,42 @@ func TestReconcile_CustomSocketPaths(t *testing.T) {
 	assert.Contains(t, volumeNames, dsdSocketVolumeName)
 }
 
+func TestReconcile_APMDisabled(t *testing.T) {
+	apmEnabled := false
+	instance := defaultCSIDriverCR()
+	instance.Spec.APM = &v1alpha1.DatadogCSIDriverAPMConfig{
+		Enabled: &apmEnabled,
+	}
+
+	r, c := newTestReconciler(t, false, instance)
+	ctx := context.Background()
+
+	// Reconcile twice (finalizer + create)
+	_, err := r.Reconcile(ctx, instance)
+	require.NoError(t, err)
+	err = c.Get(ctx, types.NamespacedName{Name: testName, Namespace: testNamespace}, instance)
+	require.NoError(t, err)
+	_, err = r.Reconcile(ctx, instance)
+	require.NoError(t, err)
+
+	csiDriver := &storagev1.CSIDriver{}
+	err = c.Get(ctx, types.NamespacedName{Name: csiDriverName}, csiDriver)
+	require.NoError(t, err)
+	assert.Equal(t, "false", csiDriver.Annotations[apmEnabledAnnotationKey])
+
+	ds := &appsv1.DaemonSet{}
+	err = c.Get(ctx, types.NamespacedName{Name: csiDsName, Namespace: testNamespace}, ds)
+	require.NoError(t, err)
+	require.Len(t, ds.Spec.Template.Spec.Containers, 2)
+	assert.Contains(t, ds.Spec.Template.Spec.Containers[0].Env, corev1.EnvVar{
+		Name:  constants.DDAPMEnabled,
+		Value: "false",
+	})
+}
+
 func TestReconcile_Deletion(t *testing.T) {
 	instance := defaultCSIDriverCR()
-	r, c := newTestReconciler(t, instance)
+	r, c := newTestReconciler(t, false, instance)
 	ctx := context.Background()
 
 	// Reconcile to add finalizer + create resources
@@ -224,7 +271,7 @@ func TestReconcile_Deletion(t *testing.T) {
 
 func TestReconcile_UpdateDaemonSetOnSpecChange(t *testing.T) {
 	instance := defaultCSIDriverCR()
-	r, c := newTestReconciler(t, instance)
+	r, c := newTestReconciler(t, false, instance)
 	ctx := context.Background()
 
 	// Reconcile to create resources
@@ -266,7 +313,7 @@ func TestReconcile_UpdateDaemonSetOnSpecChange(t *testing.T) {
 
 func TestReconcile_IdempotentNoUpdate(t *testing.T) {
 	instance := defaultCSIDriverCR()
-	r, c := newTestReconciler(t, instance)
+	r, c := newTestReconciler(t, false, instance)
 	ctx := context.Background()
 
 	// Reconcile to create resources
@@ -316,7 +363,7 @@ func TestReconcile_CSIDriverLabelsAdoption(t *testing.T) {
 		},
 	}
 
-	r, c := newTestReconciler(t, instance, existingCSIDriver)
+	r, c := newTestReconciler(t, false, instance, existingCSIDriver)
 	ctx := context.Background()
 
 	// Reconcile: add finalizer
@@ -333,9 +380,10 @@ func TestReconcile_CSIDriverLabelsAdoption(t *testing.T) {
 	err = c.Get(ctx, types.NamespacedName{Name: csiDriverName}, csiDriver)
 	require.NoError(t, err)
 	assert.Equal(t, "datadog-operator", csiDriver.Labels[kubernetes.AppKubernetesManageByLabelKey])
+	assert.Equal(t, "true", csiDriver.Annotations[apmEnabledAnnotationKey])
 	assert.NotEmpty(t, csiDriver.Labels[kubernetes.AppKubernetesPartOfLabelKey])
-	assert.False(t, *csiDriver.Spec.AttachRequired)
-	assert.True(t, *csiDriver.Spec.PodInfoOnMount)
+	assert.Nil(t, csiDriver.Spec.AttachRequired)
+	assert.Nil(t, csiDriver.Spec.PodInfoOnMount)
 	assert.Contains(t, csiDriver.Spec.VolumeLifecycleModes, storagev1.VolumeLifecyclePersistent)
 	assert.Contains(t, csiDriver.Spec.VolumeLifecycleModes, storagev1.VolumeLifecycleEphemeral)
 }
@@ -369,7 +417,7 @@ func TestReconcile_Overrides(t *testing.T) {
 		},
 	}
 
-	r, c := newTestReconciler(t, instance)
+	r, c := newTestReconciler(t, false, instance)
 	ctx := context.Background()
 
 	// Reconcile twice (finalizer + create)
@@ -388,7 +436,7 @@ func TestReconcile_Overrides(t *testing.T) {
 	// Labels merged into pod template
 	assert.Equal(t, "containers", ds.Spec.Template.Labels["team"])
 	// Default labels still present
-	assert.Equal(t, csiDsName, ds.Spec.Template.Labels[appLabelKey])
+	assert.Equal(t, csiDsName, ds.Spec.Template.Labels[AppLabelKey])
 
 	// Tolerations applied
 	require.Len(t, ds.Spec.Template.Spec.Tolerations, 1)
@@ -423,7 +471,7 @@ func TestReconcile_StatusConditionOnCSIDriverError(t *testing.T) {
 	// Instead, we test that when the reconcile succeeds, the condition is Ready=True,
 	// and verify the status structure.
 	instance := defaultCSIDriverCR()
-	r, c := newTestReconciler(t, instance)
+	r, c := newTestReconciler(t, false, instance)
 	ctx := context.Background()
 
 	// Reconcile to add finalizer
@@ -450,7 +498,7 @@ func TestReconcile_StatusConditionOnCSIDriverError(t *testing.T) {
 
 func TestReconcile_CSIDriverSpecDriftIsReconciled(t *testing.T) {
 	instance := defaultCSIDriverCR()
-	r, c := newTestReconciler(t, instance)
+	r, c := newTestReconciler(t, false, instance)
 	ctx := context.Background()
 
 	// Reconcile to create resources.
@@ -470,6 +518,7 @@ func TestReconcile_CSIDriverSpecDriftIsReconciled(t *testing.T) {
 	csiDriver.Spec.AttachRequired = ptr.To(true)
 	csiDriver.Spec.PodInfoOnMount = ptr.To(false)
 	csiDriver.Spec.VolumeLifecycleModes = []storagev1.VolumeLifecycleMode{storagev1.VolumeLifecyclePersistent}
+	csiDriver.Annotations = nil
 	err = c.Update(ctx, csiDriver)
 	require.NoError(t, err)
 
@@ -481,10 +530,54 @@ func TestReconcile_CSIDriverSpecDriftIsReconciled(t *testing.T) {
 
 	err = c.Get(ctx, types.NamespacedName{Name: csiDriverName}, csiDriver)
 	require.NoError(t, err)
-	assert.False(t, *csiDriver.Spec.AttachRequired)
-	assert.True(t, *csiDriver.Spec.PodInfoOnMount)
+	assert.Nil(t, csiDriver.Spec.AttachRequired)
+	assert.Nil(t, csiDriver.Spec.PodInfoOnMount)
 	assert.Contains(t, csiDriver.Spec.VolumeLifecycleModes, storagev1.VolumeLifecyclePersistent)
 	assert.Contains(t, csiDriver.Spec.VolumeLifecycleModes, storagev1.VolumeLifecycleEphemeral)
+	assert.Equal(t, "true", csiDriver.Annotations[apmEnabledAnnotationKey])
+}
+
+func TestReconcile_DaemonSetIncludesStartupTolerationWhenUntaintWaitForCSI(t *testing.T) {
+	instance := defaultCSIDriverCR()
+	r, c := newTestReconciler(t, true, instance)
+	ctx := context.Background()
+
+	_, err := r.Reconcile(ctx, instance)
+	require.NoError(t, err)
+	require.NoError(t, c.Get(ctx, types.NamespacedName{Name: testName, Namespace: testNamespace}, instance))
+
+	_, err = r.Reconcile(ctx, instance)
+	require.NoError(t, err)
+
+	ds := &appsv1.DaemonSet{}
+	require.NoError(t, c.Get(ctx, types.NamespacedName{Name: csiDsName, Namespace: testNamespace}, ds))
+	want := untaint.AgentNotReadyEqualToleration()
+	assert.True(t, tolerationListContains(ds.Spec.Template.Spec.Tolerations, want),
+		"expected %+v in %+v", want, ds.Spec.Template.Spec.Tolerations)
+}
+
+func TestReconcile_DaemonSetOmitsStartupTolerationWhenUntaintCoordinationOff(t *testing.T) {
+	instance := defaultCSIDriverCR()
+	r, c := newTestReconciler(t, false, instance)
+	ctx := context.Background()
+	_, err := r.Reconcile(ctx, instance)
+	require.NoError(t, err)
+	require.NoError(t, c.Get(ctx, types.NamespacedName{Name: testName, Namespace: testNamespace}, instance))
+	_, err = r.Reconcile(ctx, instance)
+	require.NoError(t, err)
+	ds := &appsv1.DaemonSet{}
+	require.NoError(t, c.Get(ctx, types.NamespacedName{Name: csiDsName, Namespace: testNamespace}, ds))
+	want := untaint.AgentNotReadyEqualToleration()
+	assert.False(t, tolerationListContains(ds.Spec.Template.Spec.Tolerations, want))
+}
+
+func tolerationListContains(tols []corev1.Toleration, want corev1.Toleration) bool {
+	for i := range tols {
+		if reflect.DeepEqual(tols[i], want) {
+			return true
+		}
+	}
+	return false
 }
 
 // findCondition returns the condition with the given type, or nil.

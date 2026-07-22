@@ -23,6 +23,7 @@ const (
 	etcdCertsVolumeName      = "etcd-client-certs"
 	etcdCertsVolumeMountPath = "/etc/etcd-certs"
 	etcdCertsSecretName      = "etcd-metric-client"
+	etcdCertsSourceNamespace = "openshift-etcd-operator"
 
 	disableEtcdAutoconfVolumeName      = "disable-etcd-autoconf"
 	disableEtcdAutoconfVolumeMountPath = "/etc/datadog-agent/conf.d/etcd.d"

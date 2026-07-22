@@ -7,6 +7,7 @@ package testutils
 
 import (
 	corev1 "k8s.io/api/core/v1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
@@ -1006,6 +1007,18 @@ func (builder *DatadogAgentBuilder) WithHelmCheckValuesAsTags(valuesAsTags map[s
 	return builder
 }
 
+func (builder *DatadogAgentBuilder) initKubernetesActions() {
+	if builder.datadogAgent.Spec.Features.KubernetesActions == nil {
+		builder.datadogAgent.Spec.Features.KubernetesActions = &v2alpha1.KubernetesActionsFeatureConfig{}
+	}
+}
+
+func (builder *DatadogAgentBuilder) WithKubernetesActionsEnabled(enabled bool) *DatadogAgentBuilder {
+	builder.initKubernetesActions()
+	builder.datadogAgent.Spec.Features.KubernetesActions.Enabled = ptr.To(enabled)
+	return builder
+}
+
 // Global Kubelet
 
 func (builder *DatadogAgentBuilder) WithGlobalKubeletConfig(hostCAPath, agentCAPath string, tlsVerify bool, podResourcesSocketDir string) *DatadogAgentBuilder {
@@ -1126,7 +1139,7 @@ func (builder *DatadogAgentBuilder) WithGlobalSecretBackendGlobalPerms(command s
 	return builder
 }
 
-func (builder *DatadogAgentBuilder) WithGlobalSecretBackendType(backendType string, config map[string]string) *DatadogAgentBuilder {
+func (builder *DatadogAgentBuilder) WithGlobalSecretBackendType(backendType string, config map[string]apiextensionsv1.JSON) *DatadogAgentBuilder {
 	if builder.datadogAgent.Spec.Global.SecretBackend == nil {
 		builder.datadogAgent.Spec.Global.SecretBackend = &v2alpha1.SecretBackendConfig{}
 	}
@@ -1182,6 +1195,21 @@ func (builder *DatadogAgentBuilder) WithClusterAgentDisabled(disabled bool) *Dat
 	builder.WithComponentOverride(v2alpha1.ClusterAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
 		Disabled: ptr.To(disabled),
 	})
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithNodeAgentImage(image string) *DatadogAgentBuilder {
+	if builder.datadogAgent.Spec.Override == nil {
+		builder.datadogAgent.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{}
+	}
+
+	if builder.datadogAgent.Spec.Override[v2alpha1.NodeAgentComponentName] == nil {
+		builder.datadogAgent.Spec.Override[v2alpha1.NodeAgentComponentName] = &v2alpha1.DatadogAgentComponentOverride{}
+	}
+
+	builder.datadogAgent.Spec.Override[v2alpha1.NodeAgentComponentName].Image = &v2alpha1.AgentImageConfig{
+		Name: image,
+	}
 	return builder
 }
 

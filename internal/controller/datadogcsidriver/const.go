@@ -6,14 +6,22 @@
 package datadogcsidriver
 
 const (
+	// AppLabelKey is the Kubernetes label key on CSI node-server pods.
+	AppLabelKey = "app"
+	// NodeServerDaemonSetAppValue is the label value identifying CSI node-server pods
+	// (and the default DaemonSet name).
+	NodeServerDaemonSetAppValue = "datadog-csi-driver-node-server"
+
 	// csiDsName is the default name of the CSI driver DaemonSet
-	csiDsName = "datadog-csi-driver-node-server"
+	csiDsName = NodeServerDaemonSetAppValue
 	// csiDriverName is the default name of the CSIDriver Kubernetes object
 	csiDriverName = "k8s.csi.datadoghq.com"
 	// defaultCSIDriverImageName is the default CSI driver container image name
 	defaultCSIDriverImageName = "csi-driver"
 	// defaultRegistrarImageName is the default CSI node driver registrar image name
 	defaultRegistrarImageName = "csi-node-driver-registrar"
+	// defaultRegistrarImageRegistry is the default CSI node driver registrar image registry
+	defaultRegistrarImageRegistry = "registry.k8s.io/sig-storage"
 	// defaultAPMSocketPath is the default host path to the APM socket
 	defaultAPMSocketPath = "/var/run/datadog/apm.socket"
 	// defaultDSDSocketPath is the default host path to the DogStatsD socket
@@ -34,10 +42,10 @@ const (
 	registrationDirPath = "/var/lib/kubelet/plugins_registry"
 	registrarMountPath  = "/registration"
 
-	// Host path templates (used with fmt.Sprintf and the CSI driver name)
-	kubeletPluginsDirFmt = "/var/lib/kubelet/plugins/%s"
-	kubeletStorageDirFmt = "/var/lib/kubelet/plugins/%s/storage"
-	csiSocketPathFmt     = "/var/lib/kubelet/plugins/%s/csi.sock"
+	// Host paths
+	kubeletPluginsDir = "/var/lib/kubelet/plugins/datadog.csi/driver"
+	kubeletStorageDir = "/var/lib/kubelet/plugins/datadog.csi/storage"
+	csiSocketPath     = "/var/lib/kubelet/plugins/datadog.csi/driver/csi.sock"
 
 	// CSI socket path inside the container
 	csiSocketAddress = "/csi/csi.sock"
@@ -51,8 +59,10 @@ const (
 	csiDriverPort = int32(5000)
 
 	// Pod labels
-	appLabelKey                     = "app"
 	admissionControllerEnabledLabel = "admission.datadoghq.com/enabled"
+
+	// CSIDriver annotations
+	apmEnabledAnnotationKey = "csi.datadoghq.com/apm-enabled"
 
 	// finalizerName is the finalizer for CSIDriver object cleanup
 	finalizerName = "finalizer.datadoghq.com/csi-driver"

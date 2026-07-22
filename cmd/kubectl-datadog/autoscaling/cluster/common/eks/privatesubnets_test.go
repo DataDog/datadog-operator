@@ -60,7 +60,7 @@ func TestGetClusterPrivateSubnets(t *testing.T) {
 		ec2Err          error
 		expectedPrivate []string
 		expectError     bool
-		errorContains   string
+		errorContains   []string
 	}{
 		{
 			name:           "mix of public and private with explicit associations",
@@ -173,8 +173,13 @@ func TestGetClusterPrivateSubnets(t *testing.T) {
 					Routes:       []ec2types.Route{igwRoute()},
 				},
 			},
-			expectError:   true,
-			errorContains: "no private subnet found",
+			expectError: true,
+			errorContains: []string{
+				"no private subnet found",
+				"requires a private subnet in the cluster VPC",
+				"--fargate-subnets",
+				"--install-mode=existing-nodes",
+			},
 		},
 		{
 			name:           "transit gateway route does not mark subnet public",
@@ -195,14 +200,14 @@ func TestGetClusterPrivateSubnets(t *testing.T) {
 			name:          "cluster without VPC configuration",
 			cluster:       &ekstypes.Cluster{},
 			expectError:   true,
-			errorContains: "no VPC configuration",
+			errorContains: []string{"no VPC configuration"},
 		},
 		{
 			name:           "DescribeRouteTables error propagates",
 			clusterSubnets: []string{"subnet-a"},
 			ec2Err:         errors.New("boom"),
 			expectError:    true,
-			errorContains:  "failed to describe route tables",
+			errorContains:  []string{"failed to describe route tables"},
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -222,8 +227,8 @@ func TestGetClusterPrivateSubnets(t *testing.T) {
 
 			if tc.expectError {
 				require.Error(t, err)
-				if tc.errorContains != "" {
-					assert.Contains(t, err.Error(), tc.errorContains)
+				for _, want := range tc.errorContains {
+					assert.Contains(t, err.Error(), want)
 				}
 				return
 			}

@@ -5,8 +5,13 @@ import (
 	policyv1beta1 "k8s.io/api/policy/v1beta1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/version"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/DataDog/datadog-operator/pkg/utils"
 )
+
+const appArmorProfileMinimumVersion = "1.30.0-0"
 
 type PlatformInfo struct {
 	versionInfo          *version.Info
@@ -108,4 +113,15 @@ func (platformInfo *PlatformInfo) GetApiVersions(name string) (preferred string,
 
 func (platformInfo *PlatformInfo) GetVersionInfo() *version.Info {
 	return platformInfo.versionInfo
+}
+
+// SupportsAppArmorProfile returns whether the Kubernetes API server supports
+// the appArmorProfile security context field. The field is available starting
+// with Kubernetes 1.30.
+func (platformInfo *PlatformInfo) SupportsAppArmorProfile() bool {
+	if platformInfo == nil || platformInfo.versionInfo == nil || platformInfo.versionInfo.GitVersion == "" {
+		return false
+	}
+
+	return utils.IsAboveMinVersion(platformInfo.versionInfo.GitVersion, appArmorProfileMinimumVersion, ptr.To(false))
 }

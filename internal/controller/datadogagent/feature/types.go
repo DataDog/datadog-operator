@@ -12,6 +12,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -161,16 +162,33 @@ type Feature interface {
 // ProviderAwareFeature is an optional interface for features that vary behaviour
 // by provider. Features that have no provider-specific variation do not need
 // to implement it. The reconciler applies the returned capabilities by calling
-// providercaps.ApplyNodeAgentProviderCapabilities after the feature's
+// providercaps.ApplyProviderCapabilities after the feature's
 // ManageNodeAgent runs.
 type ProviderAwareFeature interface {
 	Feature
-	NodeAgentProviderCapabilities() providercaps.NodeAgentProviderCapabilities
+	NodeAgentProviderCapabilities() providercaps.ProviderCapabilityMap
+}
+
+// ClusterAgentProviderAwareFeature is an optional interface for features that vary
+// cluster agent behaviour by provider. The reconciler applies the returned
+// capabilities by calling providercaps.ApplyProviderCapabilities after
+// the feature's ManageClusterAgent runs.
+type ClusterAgentProviderAwareFeature interface {
+	Feature
+	ClusterAgentProviderCapabilities() providercaps.ProviderCapabilityMap
 }
 
 // Options option that can be pass to the Interface.Configure function
 type Options struct {
 	Logger logr.Logger
+	// Client is a read-only Kubernetes client for feature code that needs live
+	// cluster state while building dependencies. Callers should pass an uncached
+	// reader when the feature may read outside the controller cache scope.
+	Client client.Reader
+	// DatadogCSIDriverEnabled mirrors the operator's --datadogCSIDriverEnabled flag.
+	// The operator's own ClusterRole only holds csidrivers permissions when this is
+	// true, so features must not grant permissions to other components unless it is set.
+	DatadogCSIDriverEnabled bool
 }
 
 // BuildFunc function type used by each Feature during its factory registration.

@@ -5,9 +5,8 @@
 
 // Package providercaps holds the provider-conditional pod-template mutation
 // framework. Both per-feature (feature.ProviderAwareFeature) and global
-// (global.ApplyGlobalNodeAgentSpec) consumers declare their mutations as a
-// NodeAgentProviderCapabilities map and apply them via
-// ApplyNodeAgentProviderCapabilities.
+// (global.NodeAgentProviderSpec) consumers declare their mutations as a
+// ProviderCapabilityMap and apply them via ApplyProviderCapabilities.
 package providercaps
 
 import (
@@ -17,8 +16,8 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/merger"
 )
 
-// PodTemplateManager is the minimal interface ApplyNodeAgentProviderCapabilities
-// needs from a pod-template manager. feature.PodTemplateManagers satisfies it
+// PodTemplateManager is the minimal interface ApplyProviderCapabilities needs
+// from a pod-template manager. feature.PodTemplateManagers satisfies it
 // structurally, so callers pass their existing manager unchanged.
 type PodTemplateManager interface {
 	PodTemplateSpec() *corev1.PodTemplateSpec
@@ -53,7 +52,7 @@ type ContainerMountRef struct {
 }
 
 // ProviderCapabilities holds the volumes, env vars, and removals for a
-// specific provider entry in a NodeAgentProviderCapabilities map.
+// specific provider entry in a ProviderCapabilityMap.
 type ProviderCapabilities struct {
 	Volumes []VolumeAndMount
 	EnvVars []EnvVarSet
@@ -65,16 +64,16 @@ type ProviderCapabilities struct {
 	RemoveEnvVars []string
 }
 
-// NodeAgentProviderCapabilities maps a provider string to its capabilities.
+// ProviderCapabilityMap maps a provider string to its capabilities.
 // The empty string key "" is the baseline applied to all providers first.
 // Provider-specific entries are then applied on top: removals first, additions second.
-type NodeAgentProviderCapabilities = map[string]ProviderCapabilities
+type ProviderCapabilityMap = map[string]ProviderCapabilities
 
-// ApplyNodeAgentProviderCapabilities applies all provider-conditional mutations.
+// ApplyProviderCapabilities applies all provider-conditional mutations.
 // The baseline ("") entry is applied first. The provider-specific entry is then
 // applied: removals run before additions so a provider can replace a baseline item
 // by removing it and re-adding a modified version.
-func ApplyNodeAgentProviderCapabilities(mgr PodTemplateManager, provider string, caps NodeAgentProviderCapabilities) {
+func ApplyProviderCapabilities(mgr PodTemplateManager, provider string, caps ProviderCapabilityMap) {
 	if len(caps) == 0 {
 		return
 	}

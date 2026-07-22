@@ -78,7 +78,7 @@ func GetClusterPrivateSubnets(ctx context.Context, ec2Client DescribeRouteTables
 	}
 
 	if len(privateSubnets) == 0 {
-		return nil, fmt.Errorf("no private subnet found for cluster %s; pass --fargate-subnets to override auto-detection", aws.ToString(cluster.Name))
+		return nil, fmt.Errorf("no private subnet found for cluster %s; fargate mode requires a private subnet in the cluster VPC — add one or pass --fargate-subnets to specify them explicitly, or use --install-mode=existing-nodes to deploy on existing nodes instead of Fargate", aws.ToString(cluster.Name))
 	}
 
 	return privateSubnets, nil

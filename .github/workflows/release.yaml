@@ -11,7 +11,7 @@ permissions:
   contents: read
   # packages: read
 env:
-  GO_VERSION: 1.25.11
+  GO_VERSION: 1.25.12
 jobs:
   build-linux-binary:
     if: startsWith(github.ref, 'refs/tags/v')
@@ -151,7 +151,7 @@ jobs:
       # Required for getting the OIDC token from GitHub
       id-token: write
     steps:
-      - uses: DataDog/dd-octo-sts-action@acaa02eee7e3bb0839e4272dacb37b8f3b58ba80 # v1.0.3
+      - uses: DataDog/dd-octo-sts-action@96a25462dbcb10ebf0bfd6e2ccc917d2ab235b9a # v1.0.4
         id: octo-sts
         with:
           scope: DataDog/datadog-operator

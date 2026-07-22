@@ -1,9 +1,9 @@
-image: registry.ddbuild.io/images/mirror/library/golang:1.25.11
+image: registry.ddbuild.io/images/mirror/library/golang:1.25.12
 variables:
   NIGHTLY_BUILD_CONDUCTOR_NAME: "operator-nightly-build"
   PROJECTNAME: "datadog-operator"
   PROJECTNAME_CHECK: "datadog-operator-check"
-  IMAGE_VERSION: "tmpl-v3"
+  IMAGE_VERSION: "tmpl-v4"
   BUILD_DOCKER_REGISTRY: "486234852809.dkr.ecr.us-east-1.amazonaws.com/ci"
   E2E_DOCKER_REGISTRY: "669783387624.dkr.ecr.us-east-1.amazonaws.com/operator"
   JOB_DOCKER_IMAGE: "registry.ddbuild.io/ci-containers-project:v68399443-88dc260-v1.22"
@@ -394,6 +394,47 @@ go_e2e_deps:
     - echo "Logging in to Pulumi with S3 backend..."
     - pulumi login "s3://dd-pulumi-state?region=us-east-1&awssdk=v2&profile=$AWS_PROFILE"
 
+# Base configuration for E2E jobs provisioning GCP infrastructure.
+.e2e_gcp_base:
+  tags:
+    - "arch:amd64"
+  variables:
+    <<: *resource_variables
+    E2E_GCP_PUBLIC_KEY_PATH: /tmp/agent-qa-gcp-ssh-key.pub
+    E2E_GCP_PRIVATE_KEY_PATH: /tmp/agent-qa-gcp-ssh-key
+    E2E_KEY_PAIR_NAME: ci.datadog-operator
+  image: registry.ddbuild.io/ci/datadog-agent-buildimages/linux$CI_IMAGE_LINUX_SUFFIX:$CI_IMAGE_LINUX
+  cache:
+    - key: e2e-go-${CI_COMMIT_REF_SLUG}
+      fallback_keys:
+        - e2e-go-${CI_DEFAULT_BRANCH}
+      paths:
+        - .go/pkg/mod
+        - .cache/go-build
+      policy: pull
+  before_script:
+    # Extract cached Pulumi plugins
+    - mkdir -p ~/.pulumi && tar xJf pulumi_plugins.tar.xz -C ~/.pulumi
+    - rm -f pulumi_plugins.tar.xz
+    # Generate GitHub token to avoid rate limiting when downloading Pulumi plugins
+    - dd-octo-sts version
+    - dd-octo-sts debug --scope DataDog/datadog-operator --policy self.gitlab.e2e
+    - export GITHUB_TOKEN=$(dd-octo-sts token --scope DataDog/datadog-operator --policy self.gitlab.e2e)
+    # Configure and use the agent-qa AWS profile for SSM secrets, ECR, and the Pulumi S3 backend.
+    - echo "Starting setup for GCP E2E testing..."
+    - mkdir -p ~/.aws
+    - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.agent-qa-profile --with-decryption --query "Parameter.Value" --out text >> ~/.aws/config
+    - export AWS_PROFILE=agent-qa-ci
+    # Use S3 backend to store stack status
+    - echo "Logging in to Pulumi with S3 backend..."
+    - pulumi login "s3://dd-pulumi-state?region=us-east-1&awssdk=v2&profile=$AWS_PROFILE"
+    # SSH key retrieval for GCP fakeintake/VM resources
+    - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.ssh_public_key --with-decryption --query "Parameter.Value" --out text > $E2E_GCP_PUBLIC_KEY_PATH
+    - touch $E2E_GCP_PRIVATE_KEY_PATH && chmod 600 $E2E_GCP_PRIVATE_KEY_PATH && aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.ssh_private_key --with-decryption --query "Parameter.Value" --out text > $E2E_GCP_PRIVATE_KEY_PATH
+    # Setup GCP credentials. The service account should match the agent-e2e-tests account used by the shared e2e framework.
+    - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.e2e_tests_gcp_credentials --with-decryption --query "Parameter.Value" --out text > ~/gcp-credentials.json
+    - export GOOGLE_APPLICATION_CREDENTIALS=~/gcp-credentials.json
+
 trigger_e2e_operator_image:
   stage: e2e
   rules: !reference [.on_run_e2e_base]
@@ -438,7 +479,7 @@ e2e:
 
 e2e_mq:
   extends: e2e
-  timeout: 40m
+  timeout: 60m
   retry: 0
   rules:
     # Skip if only .md files are changed
@@ -464,7 +505,7 @@ e2e_autoscaling:
     DDOCTOSTS_ID_TOKEN:
       aud: dd-octo-sts
   rules:
-    # Disable on Conductor-triggered jobs (ex: nightly) — must be first so it wins
+    # Disable on Conductor-triggered jobs (ex: nightly) - must be first so it wins
     - if: '$DDR == "true"'
       when: never
     # Disable on manual pipelines to test staging images
@@ -485,6 +526,88 @@ e2e_autoscaling:
   script:
     - echo "Running autoscaling e2e tests"
     - make e2e-autoscaling-tests
+  retry: 2
+
+e2e_gke_autopilot:
+  extends: .e2e_gcp_base
+  stage: e2e
+  needs:
+    - "trigger_e2e_operator_image"
+    - "go_e2e_deps"
+  timeout: 120m
+  id_tokens:
+    DDOCTOSTS_ID_TOKEN:
+      aud: dd-octo-sts
+  rules:
+    # Disable on Conductor-triggered jobs (ex: nightly) - must be first so it wins
+    - if: '$DDR == "true"'
+      when: never
+    # Run manually for now. Release branch/tag automation can be added once the job is stable.
+    - when: manual
+      allow_failure: true
+  variables:
+    TARGET_IMAGE: $E2E_DOCKER_REGISTRY:${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
+  script:
+    - echo "Running GKE Autopilot e2e test with target image $TARGET_IMAGE"
+    - IMAGE_PULL_PASSWORD=$(aws ecr get-login-password) IMG=$TARGET_IMAGE make e2e-gke-autopilot-tests
+  retry: 2
+
+e2e_untaint:
+  extends: .e2e_aws_base
+  stage: e2e
+  needs:
+    # Needs the operator image (unlike autoscaling, which exercises the CLI).
+    - "trigger_e2e_operator_image"
+    - "go_e2e_deps"
+  timeout: 100m
+  id_tokens:
+    DDOCTOSTS_ID_TOKEN:
+      aud: dd-octo-sts
+  variables:
+    # Untaint controller is supported on Kubernetes 1.27.0+; pin a single recent
+    # version rather than running the full e2e matrix.
+    K8S_VERSION: "1.30"
+    TARGET_IMAGE: $E2E_DOCKER_REGISTRY:${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
+  rules:
+    # Skip when a root *.md file changed (docs-only *or* docs mixed with code).
+    # This has to gate every rule below because the hard `needs` above
+    # (trigger_e2e_operator_image, via .on_run_e2e_base) itself skips on any
+    # root markdown change. Letting this job run on such a pipeline would leave
+    # it depending on a job that isn't there, which GitLab rejects as a missing
+    # need. So the mixed-changes "skip" is required for consistency, not a docs
+    # optimization we can simply drop like the other e2e suites.
+    - if: $CI_COMMIT_BRANCH
+      changes:
+        paths:
+          - "*.md"
+        compare_to: "refs/heads/main"
+      when: never
+    # Disable on Conductor-triggered jobs (ex: nightly)
+    - if: '$DDR == "true"'
+      when: never
+    # Disable on manual pipelines to test staging images
+    - if: $PUSH_IMAGES_TO_STAGING == 'true'
+      when: never
+    # Run automatically on changes to untaint controller / suite code.
+    - if: $CI_COMMIT_BRANCH
+      changes:
+        paths:
+          - "internal/controller/untaint_controller.go"
+          - "internal/controller/datadogagent/component/agent/untaint_toleration.go"
+          - "internal/controller/datadogcsidriver/**/*"
+          - "pkg/untaint/**/*"
+          - "test/e2e/tests/untaint_suite/**/*"
+          - "test/e2e/provisioners/kind.go"
+        compare_to: "refs/heads/main"
+      when: on_success
+    # On pipelines that don't touch untaint code, expose it as an optional manual
+    # button. allow_failure here only affects this fallback rule, so it keeps
+    # unrelated pipelines from being blocked without weakening the on_success gate.
+    - when: manual
+      allow_failure: true
+  script:
+    - echo "Running untaint controller e2e tests with target image $TARGET_IMAGE"
+    - IMAGE_PULL_PASSWORD=$(aws ecr get-login-password) IMG=$TARGET_IMAGE make e2e-untaint-tests
   retry: 2
 
 publish_public_main:
@@ -554,10 +677,16 @@ publish_redhat_public_tag:
 
 publish_public_latest:
   stage: release-latest
+  needs:
+    - publish_public_tag
   rules:
     # Skip latest jobs for vX.Y.Z-rc.W tags
     - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+-rc\.[0-9]+$/'
       when: never
+    # Auto-promote to latest only for proper vX.Y.Z stable release tags
+    - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
+      when: on_success
+    # Any other tag shape: require manual confirmation instead of auto-publishing latest
     - if: $CI_COMMIT_TAG
       when: manual
     - when: never
@@ -573,15 +702,19 @@ publish_public_latest:
 
 publish_public_latest_fips:
   extends: publish_public_latest
+  needs:
+    - publish_public_tag_fips
   variables:
     IMG_SOURCES: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-fips-amd64,$BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-fips-arm64
     IMG_DESTINATIONS: operator:latest-fips
 
 publish_public_rc_latest:
   stage: release-latest
+  needs:
+    - publish_public_tag
   rules:
     - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+-rc\.[0-9]+$/'
-      when: manual
+      when: on_success
     - when: never
   trigger:
     project: DataDog/public-images
@@ -595,13 +728,24 @@ publish_public_rc_latest:
 
 publish_public_rc_latest_fips:
   extends: publish_public_rc_latest
+  needs:
+    - publish_public_tag_fips
   variables:
     IMG_SOURCES: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-fips-amd64,$BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-fips-arm64
     IMG_DESTINATIONS: operator:rc-latest-fips
 
 publish_redhat_public_latest:
   stage: release-latest
+  needs:
+    - publish_redhat_public_tag
   rules:
+    # Skip latest jobs for vX.Y.Z-rc.W tags
+    - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+-rc\.[0-9]+$/'
+      when: never
+    # Auto-promote to latest only for proper vX.Y.Z stable release tags
+    - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
+      when: on_success
+    # Any other tag shape: require manual confirmation instead of auto-publishing latest
     - if: $CI_COMMIT_TAG
       when: manual
     - when: never
@@ -681,6 +825,33 @@ trigger_internal_operator_image_fips_rc_latest:
     TMPL_SRC_IMAGE: v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-fips
     RELEASE_TAG: rc-latest-fips
     BUILD_TAG: rc-latest-fips
+
+trigger_internal_operator_image_latest:
+  stage: release-latest
+  rules:
+    # Skip latest jobs for vX.Y.Z-rc.W tags
+    - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+-rc\.[0-9]+$/'
+      when: never
+    - if: $CI_COMMIT_TAG
+    - when: never
+  trigger:
+    project: DataDog/images
+    branch: master
+    strategy: depend
+  variables:
+    IMAGE_NAME: $PROJECTNAME
+    TMPL_SRC_IMAGE: v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
+    RELEASE_TAG: latest
+    BUILD_TAG: latest
+    RELEASE_STAGING: "true"
+    RELEASE_PROD: "true"
+
+trigger_internal_operator_image_fips_latest:
+  extends: trigger_internal_operator_image_latest
+  variables:
+    TMPL_SRC_IMAGE: v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-fips
+    RELEASE_TAG: latest-fips
+    BUILD_TAG: latest-fips
 
 trigger_internal_operator_nightly_image:
   stage: release

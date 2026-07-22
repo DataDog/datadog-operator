@@ -2,12 +2,12 @@ name: validation
 on: [push, pull_request]
 # Permission forced by repo-level setting; only elevate on job-level
 permissions:
-  id-token: write # needed for codecov, allows the action to get a JWT signed by GitHub
+  id-token: write # needed for dd-sts-action, allows the action to get a JWT signed by GitHub
   contents: read
   # packages: read
 env:
   PROJECTNAME: "datadog-operator"
-  GO_VERSION: 1.25.11
+  GO_VERSION: 1.25.12
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -32,11 +32,6 @@ jobs:
       - name: run unit tests and E2E tests (fake cluster)
         run: |
           make test
-      - uses: codecov/codecov-action@1af58845a975a7985b0beb0cbe6fbbb71a41dbad # v5.5.3
-        with:
-          use_oidc: true
-          files: cover.out,cover_integration.out
-          flags: unittests
       - name: Get Datadog credentials
         id: dd-sts
         continue-on-error: true

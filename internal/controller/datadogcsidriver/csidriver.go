@@ -8,7 +8,6 @@ package datadogcsidriver
 import (
 	storagev1 "k8s.io/api/storage/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
@@ -16,17 +15,26 @@ import (
 )
 
 func buildCSIDriverObject(instance *datadoghqv1alpha1.DatadogCSIDriver) *storagev1.CSIDriver {
+	labels := map[string]string{
+		kubernetes.AppKubernetesManageByLabelKey: "datadog-operator",
+		kubernetes.AppKubernetesPartOfLabelKey:   object.NewPartOfLabelValue(instance).String(),
+	}
+	// Merge commonLabels propagated from spec.global.commonLabels on the parent
+	// DatadogAgent. Operator-owned keys already present in labels win.
+	for k, v := range instance.Spec.CommonLabels {
+		if _, exists := labels[k]; !exists {
+			labels[k] = v
+		}
+	}
 	return &storagev1.CSIDriver{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: csiDriverName,
-			Labels: map[string]string{
-				kubernetes.AppKubernetesManageByLabelKey: "datadog-operator",
-				kubernetes.AppKubernetesPartOfLabelKey:   object.NewPartOfLabelValue(instance).String(),
+			Annotations: map[string]string{
+				apmEnabledAnnotationKey: getAPMEnabledString(instance),
 			},
+			Labels: labels,
 		},
 		Spec: storagev1.CSIDriverSpec{
-			AttachRequired: ptr.To(false),
-			PodInfoOnMount: ptr.To(true),
 			VolumeLifecycleModes: []storagev1.VolumeLifecycleMode{
 				storagev1.VolumeLifecyclePersistent,
 				storagev1.VolumeLifecycleEphemeral,

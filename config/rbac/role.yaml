@@ -133,6 +133,12 @@ rules:
 - apiGroups:
   - apps
   resources:
+  - deployments/status
+  verbs:
+  - get
+- apiGroups:
+  - apps
+  resources:
   - replicasets
   verbs:
   - get
@@ -368,7 +374,7 @@ rules:
 - apiGroups:
   - gateway.envoyproxy.io
   resources:
-  - backend
+  - backends
   - envoyextensionpolicies
   - envoypatchpolicies
   verbs:

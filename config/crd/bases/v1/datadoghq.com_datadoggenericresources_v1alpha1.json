@@ -28,6 +28,7 @@
             "dashboard",
             "downtime",
             "monitor",
+            "monitor_notification_rule",
             "notebook",
             "slo",
             "synthetics_api_test",

@@ -8,15 +8,14 @@ package defaults
 import (
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
+	assert "github.com/stretchr/testify/require"
 	"k8s.io/utils/ptr"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/pkg/images"
-
-	"github.com/google/go-cmp/cmp"
-	assert "github.com/stretchr/testify/require"
 )
 
 const (
@@ -53,37 +52,7 @@ func Test_defaultGlobal(t *testing.T) {
 			want: &v2alpha1.DatadogAgentSpec{
 				Global: &v2alpha1.GlobalConfig{
 					Site:     ptr.To(defaultEuropeSite),
-					Registry: ptr.To(images.DefaultEuropeImageRegistry),
-					LogLevel: ptr.To(defaultLogLevel),
-				},
-			},
-		},
-		{
-			name: "test registry defaulting based on site - Asia",
-			ddaSpec: &v2alpha1.DatadogAgentSpec{
-				Global: &v2alpha1.GlobalConfig{
-					Site: ptr.To(defaultAsiaSite),
-				},
-			},
-			want: &v2alpha1.DatadogAgentSpec{
-				Global: &v2alpha1.GlobalConfig{
-					Site:     ptr.To(defaultAsiaSite),
-					Registry: ptr.To(images.DefaultAsiaImageRegistry),
-					LogLevel: ptr.To(defaultLogLevel),
-				},
-			},
-		},
-		{
-			name: "test registry defaulting based on site - Azure",
-			ddaSpec: &v2alpha1.DatadogAgentSpec{
-				Global: &v2alpha1.GlobalConfig{
-					Site: ptr.To(defaultAzureSite),
-				},
-			},
-			want: &v2alpha1.DatadogAgentSpec{
-				Global: &v2alpha1.GlobalConfig{
-					Site:     ptr.To(defaultAzureSite),
-					Registry: ptr.To(images.DefaultAzureImageRegistry),
+					Registry: ptr.To(images.DatadogContainerRegistry),
 					LogLevel: ptr.To(defaultLogLevel),
 				},
 			},
@@ -264,6 +233,9 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					USM: &v2alpha1.USMFeatureConfig{
 						Enabled: ptr.To(defaultUSMEnabled),
+					},
+					DynamicInstrumentation: &v2alpha1.DynamicInstrumentationFeatureConfig{
+						Enabled: ptr.To(defaultDynamicInstrumentationEnabled),
 					},
 					Dogstatsd: &v2alpha1.DogstatsdFeatureConfig{
 						OriginDetectionEnabled: ptr.To(defaultDogstatsdOriginDetectionEnabled),
@@ -493,6 +465,9 @@ func Test_defaultFeatures(t *testing.T) {
 					USM: &v2alpha1.USMFeatureConfig{
 						Enabled: ptr.To(valueFalse),
 					},
+					DynamicInstrumentation: &v2alpha1.DynamicInstrumentationFeatureConfig{
+						Enabled: ptr.To(defaultDynamicInstrumentationEnabled),
+					},
 					Dogstatsd: &v2alpha1.DogstatsdFeatureConfig{
 						OriginDetectionEnabled: ptr.To(defaultDogstatsdOriginDetectionEnabled),
 						HostPortConfig:         &v2alpha1.HostPortConfig{Enabled: ptr.To(defaultDogstatsdHostPortEnabled)},
@@ -642,6 +617,9 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					USM: &v2alpha1.USMFeatureConfig{
 						Enabled: ptr.To(defaultUSMEnabled),
+					},
+					DynamicInstrumentation: &v2alpha1.DynamicInstrumentationFeatureConfig{
+						Enabled: ptr.To(defaultDynamicInstrumentationEnabled),
 					},
 					Dogstatsd: &v2alpha1.DogstatsdFeatureConfig{
 						OriginDetectionEnabled: ptr.To(defaultDogstatsdOriginDetectionEnabled),
@@ -802,6 +780,9 @@ func Test_defaultFeatures(t *testing.T) {
 					USM: &v2alpha1.USMFeatureConfig{
 						Enabled: ptr.To(defaultUSMEnabled),
 					},
+					DynamicInstrumentation: &v2alpha1.DynamicInstrumentationFeatureConfig{
+						Enabled: ptr.To(defaultDynamicInstrumentationEnabled),
+					},
 					Dogstatsd: &v2alpha1.DogstatsdFeatureConfig{
 						OriginDetectionEnabled: ptr.To(defaultDogstatsdOriginDetectionEnabled),
 						HostPortConfig:         &v2alpha1.HostPortConfig{Enabled: ptr.To(defaultDogstatsdHostPortEnabled)},
@@ -955,6 +936,9 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					USM: &v2alpha1.USMFeatureConfig{
 						Enabled: ptr.To(defaultUSMEnabled),
+					},
+					DynamicInstrumentation: &v2alpha1.DynamicInstrumentationFeatureConfig{
+						Enabled: ptr.To(defaultDynamicInstrumentationEnabled),
 					},
 					Dogstatsd: &v2alpha1.DogstatsdFeatureConfig{
 						OriginDetectionEnabled: ptr.To(defaultDogstatsdOriginDetectionEnabled),
@@ -1111,6 +1095,166 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					USM: &v2alpha1.USMFeatureConfig{
 						Enabled: ptr.To(defaultUSMEnabled),
+					},
+					DynamicInstrumentation: &v2alpha1.DynamicInstrumentationFeatureConfig{
+						Enabled: ptr.To(defaultDynamicInstrumentationEnabled),
+					},
+					Dogstatsd: &v2alpha1.DogstatsdFeatureConfig{
+						OriginDetectionEnabled: ptr.To(defaultDogstatsdOriginDetectionEnabled),
+						HostPortConfig:         &v2alpha1.HostPortConfig{Enabled: ptr.To(defaultDogstatsdHostPortEnabled)},
+						UnixDomainSocketConfig: &v2alpha1.UnixDomainSocketConfig{
+							Enabled: ptr.To(defaultDogstatsdSocketEnabled),
+							Path:    ptr.To(defaultDogstatsdHostSocketPath),
+						},
+						NonLocalTraffic: ptr.To(defaultDogstatsdNonLocalTraffic),
+					},
+					OTLP: &v2alpha1.OTLPFeatureConfig{Receiver: v2alpha1.OTLPReceiverConfig{Protocols: v2alpha1.OTLPProtocolsConfig{
+						GRPC: &v2alpha1.OTLPGRPCConfig{
+							Enabled:        ptr.To(defaultOTLPGRPCEnabled),
+							HostPortConfig: nil,
+							Endpoint:       ptr.To(defaultOTLPGRPCEndpoint),
+						},
+						HTTP: &v2alpha1.OTLPHTTPConfig{
+							Enabled:        ptr.To(defaultOTLPHTTPEnabled),
+							HostPortConfig: nil,
+							Endpoint:       ptr.To(defaultOTLPHTTPEndpoint),
+						},
+					}}},
+					RemoteConfiguration: &v2alpha1.RemoteConfigurationFeatureConfig{
+						Enabled: ptr.To(defaultRemoteConfigurationEnabled),
+					},
+					EventCollection: &v2alpha1.EventCollectionFeatureConfig{
+						CollectKubernetesEvents: ptr.To(defaultCollectKubernetesEvents),
+					},
+					OrchestratorExplorer: &v2alpha1.OrchestratorExplorerFeatureConfig{
+						Enabled:         ptr.To(defaultOrchestratorExplorerEnabled),
+						ScrubContainers: ptr.To(defaultOrchestratorExplorerScrubContainers),
+					},
+					ExternalMetricsServer: &v2alpha1.ExternalMetricsServerFeatureConfig{
+						Enabled: ptr.To(defaultExternalMetricsServerEnabled),
+					},
+					KubeStateMetricsCore: &v2alpha1.KubeStateMetricsCoreFeatureConfig{
+						Enabled: ptr.To(defaultKubeStateMetricsCoreEnabled),
+					},
+					ClusterChecks: &v2alpha1.ClusterChecksFeatureConfig{
+						Enabled:                 ptr.To(defaultClusterChecksEnabled),
+						UseClusterChecksRunners: ptr.To(defaultUseClusterChecksRunners),
+					},
+					AdmissionController: &v2alpha1.AdmissionControllerFeatureConfig{
+						Enabled: ptr.To(defaultAdmissionControllerEnabled),
+						Validation: &v2alpha1.AdmissionControllerValidationConfig{
+							Enabled: ptr.To(defaultAdmissionControllerValidationEnabled),
+						},
+						Mutation: &v2alpha1.AdmissionControllerMutationConfig{
+							Enabled: ptr.To(defaultAdmissionControllerMutationEnabled),
+						},
+						MutateUnlabelled: ptr.To(defaultAdmissionControllerMutateUnlabelled),
+						ServiceName:      ptr.To(defaultAdmissionServiceName),
+						CWSInstrumentation: &v2alpha1.CWSInstrumentationConfig{
+							Enabled: ptr.To(DefaultAdmissionControllerCWSInstrumentationEnabled),
+						},
+						KubernetesAdmissionEvents: &v2alpha1.KubernetesAdmissionEventsConfig{
+							Enabled: ptr.To(defaultAdmissionControllerKubernetesAdmissionEventsEnabled),
+						},
+					},
+					PrometheusScrape: &v2alpha1.PrometheusScrapeFeatureConfig{
+						Enabled: ptr.To(defaultPrometheusScrapeEnabled),
+					},
+					HelmCheck: &v2alpha1.HelmCheckFeatureConfig{
+						Enabled: ptr.To(defaultHelmCheckEnabled),
+					},
+					ControlPlaneMonitoring: &v2alpha1.ControlPlaneMonitoringFeatureConfig{
+						Enabled: ptr.To(defaultControlPlaneMonitoringEnabled),
+					},
+				},
+			},
+		},
+		{
+			name: "USM is enabled",
+			ddaSpec: &v2alpha1.DatadogAgentSpec{
+				Features: &v2alpha1.DatadogFeatures{
+					USM: &v2alpha1.USMFeatureConfig{
+						Enabled: ptr.To(valueTrue),
+					},
+				},
+			},
+			want: &v2alpha1.DatadogAgentSpec{
+				Features: &v2alpha1.DatadogFeatures{
+					LogCollection: &v2alpha1.LogCollectionFeatureConfig{
+						Enabled: ptr.To(defaultLogCollectionEnabled),
+					},
+					LiveProcessCollection: &v2alpha1.LiveProcessCollectionFeatureConfig{
+						Enabled: ptr.To(defaultLiveProcessCollectionEnabled),
+					},
+					LiveContainerCollection: &v2alpha1.LiveContainerCollectionFeatureConfig{
+						Enabled: ptr.To(defaultLiveContainerCollectionEnabled),
+					},
+					ProcessDiscovery: &v2alpha1.ProcessDiscoveryFeatureConfig{
+						Enabled: ptr.To(defaultProcessDiscoveryEnabled),
+					},
+					OOMKill: &v2alpha1.OOMKillFeatureConfig{
+						Enabled: ptr.To(defaultOOMKillEnabled),
+					},
+					TCPQueueLength: &v2alpha1.TCPQueueLengthFeatureConfig{
+						Enabled: ptr.To(defaultTCPQueueLengthEnabled),
+					},
+					EBPFCheck: &v2alpha1.EBPFCheckFeatureConfig{
+						Enabled: ptr.To(defaultEBPFCheckEnabled),
+					},
+					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{},
+					GPU: &v2alpha1.GPUFeatureConfig{
+						Enabled: ptr.To(defaultGPUMonitoringEnabled),
+					},
+					DataPlane: &v2alpha1.DataPlaneFeatureConfig{
+						Dogstatsd: &v2alpha1.DataPlaneDogstatsdConfig{Enabled: ptr.To(defaultDataPlaneDogstatsdEnabled)},
+					},
+					APM: &v2alpha1.APMFeatureConfig{
+						Enabled: ptr.To(defaultAPMEnabled),
+						HostPortConfig: &v2alpha1.HostPortConfig{
+							Port:    ptr.To(defaultAPMHostPort),
+							Enabled: ptr.To(defaultAPMHostPortEnabled),
+						},
+						UnixDomainSocketConfig: &v2alpha1.UnixDomainSocketConfig{
+							Enabled: ptr.To(defaultAPMSocketEnabled),
+							Path:    ptr.To(defaultAPMSocketHostPath),
+						},
+						SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
+							Enabled:           ptr.To(defaultAPMSingleStepInstrEnabled),
+							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: ptr.To(defaultLanguageDetectionEnabled)},
+							Injector:          &v2alpha1.InjectorConfig{},
+						},
+						ErrorTrackingStandalone: &v2alpha1.ErrorTrackingStandalone{
+							Enabled: ptr.To(defaultAPMErrorTrackingStandalone),
+						},
+					},
+					OtelCollector: &v2alpha1.OtelCollectorFeatureConfig{
+						Enabled: ptr.To(defaultOtelCollectorEnabled),
+					},
+					ASM: &v2alpha1.ASMFeatureConfig{
+						Threats: &v2alpha1.ASMThreatsConfig{
+							Enabled: ptr.To(defaultAdmissionASMThreatsEnabled),
+						},
+						SCA: &v2alpha1.ASMSCAConfig{
+							Enabled: ptr.To(defaultAdmissionASMSCAEnabled),
+						},
+						IAST: &v2alpha1.ASMIASTConfig{
+							Enabled: ptr.To(defaultAdmissionASMIASTEnabled),
+						},
+					},
+					CSPM: &v2alpha1.CSPMFeatureConfig{
+						Enabled: ptr.To(defaultCSPMEnabled),
+					},
+					CWS: &v2alpha1.CWSFeatureConfig{
+						Enabled: ptr.To(defaultCWSEnabled),
+					},
+					NPM: &v2alpha1.NPMFeatureConfig{
+						Enabled: ptr.To(defaultNPMEnabled),
+					},
+					USM: &v2alpha1.USMFeatureConfig{
+						Enabled: ptr.To(valueTrue),
+					},
+					DynamicInstrumentation: &v2alpha1.DynamicInstrumentationFeatureConfig{
+						Enabled: ptr.To(defaultDynamicInstrumentationEnabled),
 					},
 					Dogstatsd: &v2alpha1.DogstatsdFeatureConfig{
 						OriginDetectionEnabled: ptr.To(defaultDogstatsdOriginDetectionEnabled),
@@ -1273,6 +1417,9 @@ func Test_defaultFeatures(t *testing.T) {
 					USM: &v2alpha1.USMFeatureConfig{
 						Enabled: ptr.To(defaultUSMEnabled),
 					},
+					DynamicInstrumentation: &v2alpha1.DynamicInstrumentationFeatureConfig{
+						Enabled: ptr.To(defaultDynamicInstrumentationEnabled),
+					},
 					Dogstatsd: &v2alpha1.DogstatsdFeatureConfig{
 						OriginDetectionEnabled: ptr.To(defaultDogstatsdOriginDetectionEnabled),
 						HostPortConfig:         &v2alpha1.HostPortConfig{Enabled: ptr.To(defaultDogstatsdHostPortEnabled)},
@@ -1426,6 +1573,9 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					USM: &v2alpha1.USMFeatureConfig{
 						Enabled: ptr.To(defaultUSMEnabled),
+					},
+					DynamicInstrumentation: &v2alpha1.DynamicInstrumentationFeatureConfig{
+						Enabled: ptr.To(defaultDynamicInstrumentationEnabled),
 					},
 					Dogstatsd: &v2alpha1.DogstatsdFeatureConfig{
 						OriginDetectionEnabled: ptr.To(defaultDogstatsdOriginDetectionEnabled),
@@ -1583,6 +1733,9 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					USM: &v2alpha1.USMFeatureConfig{
 						Enabled: ptr.To(defaultUSMEnabled),
+					},
+					DynamicInstrumentation: &v2alpha1.DynamicInstrumentationFeatureConfig{
+						Enabled: ptr.To(defaultDynamicInstrumentationEnabled),
 					},
 					Dogstatsd: &v2alpha1.DogstatsdFeatureConfig{
 						OriginDetectionEnabled: ptr.To(defaultDogstatsdOriginDetectionEnabled),
@@ -1751,6 +1904,9 @@ func Test_defaultFeatures(t *testing.T) {
 					USM: &v2alpha1.USMFeatureConfig{
 						Enabled: ptr.To(defaultUSMEnabled),
 					},
+					DynamicInstrumentation: &v2alpha1.DynamicInstrumentationFeatureConfig{
+						Enabled: ptr.To(defaultDynamicInstrumentationEnabled),
+					},
 					Dogstatsd: &v2alpha1.DogstatsdFeatureConfig{
 						OriginDetectionEnabled: ptr.To(defaultDogstatsdOriginDetectionEnabled),
 						HostPortConfig:         &v2alpha1.HostPortConfig{Enabled: ptr.To(defaultDogstatsdHostPortEnabled)},
@@ -1907,6 +2063,9 @@ func Test_defaultFeatures(t *testing.T) {
 					USM: &v2alpha1.USMFeatureConfig{
 						Enabled: ptr.To(defaultUSMEnabled),
 					},
+					DynamicInstrumentation: &v2alpha1.DynamicInstrumentationFeatureConfig{
+						Enabled: ptr.To(defaultDynamicInstrumentationEnabled),
+					},
 					Dogstatsd: &v2alpha1.DogstatsdFeatureConfig{
 						OriginDetectionEnabled: ptr.To(defaultDogstatsdOriginDetectionEnabled),
 						HostPortConfig:         &v2alpha1.HostPortConfig{Enabled: ptr.To(defaultDogstatsdHostPortEnabled)},
@@ -2061,6 +2220,9 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					USM: &v2alpha1.USMFeatureConfig{
 						Enabled: ptr.To(defaultUSMEnabled),
+					},
+					DynamicInstrumentation: &v2alpha1.DynamicInstrumentationFeatureConfig{
+						Enabled: ptr.To(defaultDynamicInstrumentationEnabled),
 					},
 					Dogstatsd: &v2alpha1.DogstatsdFeatureConfig{
 						OriginDetectionEnabled: ptr.To(defaultDogstatsdOriginDetectionEnabled),
@@ -2240,6 +2402,9 @@ func Test_defaultFeatures(t *testing.T) {
 					USM: &v2alpha1.USMFeatureConfig{
 						Enabled: ptr.To(defaultUSMEnabled),
 					},
+					DynamicInstrumentation: &v2alpha1.DynamicInstrumentationFeatureConfig{
+						Enabled: ptr.To(defaultDynamicInstrumentationEnabled),
+					},
 					Dogstatsd: &v2alpha1.DogstatsdFeatureConfig{
 						OriginDetectionEnabled: ptr.To(defaultDogstatsdOriginDetectionEnabled),
 						HostPortConfig:         &v2alpha1.HostPortConfig{Enabled: ptr.To(defaultDogstatsdHostPortEnabled)},
@@ -2411,6 +2576,9 @@ func Test_defaultFeatures(t *testing.T) {
 					USM: &v2alpha1.USMFeatureConfig{
 						Enabled: ptr.To(defaultUSMEnabled),
 					},
+					DynamicInstrumentation: &v2alpha1.DynamicInstrumentationFeatureConfig{
+						Enabled: ptr.To(defaultDynamicInstrumentationEnabled),
+					},
 					Dogstatsd: &v2alpha1.DogstatsdFeatureConfig{
 						OriginDetectionEnabled: ptr.To(defaultDogstatsdOriginDetectionEnabled),
 						HostPortConfig:         &v2alpha1.HostPortConfig{Enabled: ptr.To(defaultDogstatsdHostPortEnabled)},
@@ -2568,6 +2736,9 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					USM: &v2alpha1.USMFeatureConfig{
 						Enabled: ptr.To(defaultUSMEnabled),
+					},
+					DynamicInstrumentation: &v2alpha1.DynamicInstrumentationFeatureConfig{
+						Enabled: ptr.To(defaultDynamicInstrumentationEnabled),
 					},
 					Dogstatsd: &v2alpha1.DogstatsdFeatureConfig{
 						OriginDetectionEnabled: ptr.To(defaultDogstatsdOriginDetectionEnabled),

@@ -26,6 +26,7 @@ import (
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	componentagent "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 )
 
 const (
@@ -35,17 +36,19 @@ const (
 
 // Reconciler reconciles a DatadogCSIDriver object
 type Reconciler struct {
-	client   client.Client
-	scheme   *runtime.Scheme
-	recorder record.EventRecorder
+	client                            client.Client
+	scheme                            *runtime.Scheme
+	recorder                          record.EventRecorder
+	untaintInjectCSIStartupToleration bool
 }
 
 // NewReconciler creates a new DatadogCSIDriver reconciler
-func NewReconciler(client client.Client, scheme *runtime.Scheme, recorder record.EventRecorder) *Reconciler {
+func NewReconciler(client client.Client, scheme *runtime.Scheme, recorder record.EventRecorder, untaintInjectCSIStartupToleration bool) *Reconciler {
 	return &Reconciler{
-		client:   client,
-		scheme:   scheme,
-		recorder: recorder,
+		client:                            client,
+		scheme:                            scheme,
+		recorder:                          recorder,
+		untaintInjectCSIStartupToleration: untaintInjectCSIStartupToleration,
 	}
 }
 
@@ -182,13 +185,15 @@ func (r *Reconciler) reconcileCSIDriver(ctx context.Context, instance *v1alpha1.
 		return nil
 	}
 
-	// Full replacement of spec and labels ensures any external drift is reverted,
+	// Full replacement of spec, labels, and annotations ensures any external drift is reverted,
 	// including fields added manually (e.g. via kubectl edit).
 	if !apiequality.Semantic.DeepEqual(current.Spec, desired.Spec) ||
-		!apiequality.Semantic.DeepEqual(current.Labels, desired.Labels) {
+		!apiequality.Semantic.DeepEqual(current.Labels, desired.Labels) ||
+		!apiequality.Semantic.DeepEqual(current.Annotations, desired.Annotations) {
 		logger.Info("Updating CSIDriver to match desired state", "csidriver", desired.Name)
 		current.Spec = desired.Spec
 		current.Labels = desired.Labels
+		current.Annotations = desired.Annotations
 		if err := r.client.Update(ctx, current); err != nil {
 			return fmt.Errorf("updating CSIDriver: %w", err)
 		}
@@ -198,13 +203,16 @@ func (r *Reconciler) reconcileCSIDriver(ctx context.Context, instance *v1alpha1.
 }
 
 func (r *Reconciler) reconcileDaemonSet(ctx context.Context, instance *v1alpha1.DatadogCSIDriver) error {
+	logger := ctrl.LoggerFrom(ctx)
 	desired := buildDaemonSet(instance)
+	if r.untaintInjectCSIStartupToleration {
+		componentagent.EnsureAgentNotReadyStartupToleration(logger, &desired.Spec.Template.Spec)
+	}
 
 	if err := controllerutil.SetControllerReference(instance, desired, r.scheme); err != nil {
 		return fmt.Errorf("setting owner reference: %w", err)
 	}
 
-	logger := ctrl.LoggerFrom(ctx)
 	nsName := types.NamespacedName{Name: desired.Name, Namespace: desired.Namespace}
 	current := &appsv1.DaemonSet{}
 	err := r.client.Get(ctx, nsName, current)

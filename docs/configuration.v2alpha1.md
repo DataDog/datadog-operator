@@ -114,6 +114,7 @@ spec:
 | features.dogstatsd.tagCardinality | TagCardinality configures tag cardinality for the metrics collected using origin detection (`low`, `orchestrator` or `high`). This setting only applies when OriginDetectionEnabled is true. See also: https://docs.datadoghq.com/getting_started/tagging/assigning_tags/?tab=containerizedenvironments#environment-variables Cardinality default: low |
 | features.dogstatsd.unixDomainSocketConfig.enabled | Enables Unix Domain Socket. Default: true |
 | features.dogstatsd.unixDomainSocketConfig.path | Defines the socket path used when enabled. |
+| features.dynamicInstrumentation.enabled | Enables the Dynamic Instrumentation system probe module. Default: false |
 | features.ebpfCheck.enabled | Enables the eBPF check. Default: false |
 | features.eventCollection.collectKubernetesEvents | CollectKubernetesEvents enables Kubernetes event collection. Default: true |
 | features.eventCollection.collectedEventTypes | CollectedEventTypes defines the list of events to collect when UnbundleEvents is enabled. Default: [ {"kind":"Pod","reasons":["Failed","BackOff","Unhealthy","FailedScheduling","FailedMount","FailedAttachVolume"]}, {"kind":"Node","reasons":["TerminatingEvictedPod","NodeNotReady","Rebooted","HostPortConflict"]}, {"kind":"CronJob","reasons":["SawCompletedJob"]} ] |
@@ -142,6 +143,7 @@ spec:
 | features.kubeStateMetricsCore.conf.configMap.items | Maps a ConfigMap data `key` to a file `path` mount. |
 | features.kubeStateMetricsCore.conf.configMap.name | Is the name of the ConfigMap. |
 | features.kubeStateMetricsCore.enabled | Enables Kube State Metrics Core. Default: true |
+| features.kubernetesActions.enabled | Enables the Kubernetes Actions feature on the Cluster Agent. Default: false |
 | features.liveContainerCollection.enabled | Enables container collection for the Live Container View. Default: true |
 | features.liveProcessCollection.enabled | Enables Process monitoring. Default: false |
 | features.liveProcessCollection.scrubProcessArguments | ScrubProcessArguments enables scrubbing of sensitive data in process command-lines (passwords, tokens, etc. ). Default: true |
@@ -156,7 +158,6 @@ spec:
 | features.logCollection.podLogsPath | PodLogsPath allows log collection from a pod log path. Default: `/var/log/pods` |
 | features.logCollection.tempStoragePath | TempStoragePath (always mounted from the host) is used by the Agent to store information about processed log files. If the Agent is restarted, it starts tailing the log files immediately. Default: `/var/lib/datadog-agent/logs` |
 | features.npm.collectDNSStats | CollectDNSStats enables DNS stat collection. Default: false |
-| features.npm.directSend | DirectSend enables CNM/USM to send data directly to the backend Default: false |
 | features.npm.enableConntrack | EnableConntrack enables the system-probe agent to connect to the netlink/conntrack subsystem to add NAT information to connection data. See also: http://conntrack-tools.netfilter.org/ Default: false |
 | features.npm.enabled | Enables Network Performance Monitoring. Default: false |
 | features.oomKill.enabled | Enables the OOMKill eBPF-based check. Default: false |
@@ -205,7 +206,6 @@ spec:
 | features.sbom.host.analyzers | To use for SBOM collection. |
 | features.sbom.host.enabled | Enable this option to activate SBOM collection. Default: false |
 | features.serviceDiscovery.enabled | Enables the service discovery check. Default: true when omitted and the node Agent image is >= 7.78.0. Otherwise false. If the image version cannot be determined, it is treated as latest. |
-| features.serviceDiscovery.networkStats.enabled | DEPRECATED: this field is ignored. |
 | features.tcpQueueLength.enabled | Enables the TCP queue length eBPF-based check. Default: false |
 | features.usm.enabled | Enables Universal Service Monitoring. Default: false |
 | global.checksTagCardinality | ChecksTagCardinality configures tag cardinality for the metrics collected by integrations (`low`, `orchestrator` or `high`). See also: https://docs.datadoghq.com/getting_started/tagging/assigning_tags/?tab=containerizedenvironments#tags-cardinality. Not set by default to avoid overriding existing DD_CHECKS_TAG_CARDINALITY configurations, the default value in the Agent is low. Ref: https://github.com/DataDog/datadog-agent/blob/856cf4a66142ce91fd4f8a278149436eb971184a/pkg/config/setup/config.go#L625. |
@@ -213,6 +213,7 @@ spec:
 | global.clusterAgentTokenSecret.keyName | KeyName is the key of the secret to use. |
 | global.clusterAgentTokenSecret.secretName | SecretName is the name of the secret. |
 | global.clusterName | ClusterName sets a unique cluster name for the deployment to easily scope monitoring data in the Datadog app. |
+| global.commonLabels | CommonLabels specified labels to be added to all operator-managed Kubernetes resources (DaemonSets, Deployments, ConfigMaps, Services, ServiceAccounts, etc.). This is useful when external policy tools such as Kyverno enforce the presence of specific labels on all cluster resources. Labels defined here are merged with the operator's own default labels; operator labels take precedence on any key conflict. |
 | global.containerStrategy | ContainerStrategy determines whether agents run in a single or multiple containers. Default: 'optimized' |
 | global.credentials.apiKey | APIKey configures your Datadog API key. See also: https://app.datadoghq.com/account/settings#agent/kubernetes |
 | global.credentials.apiSecret.keyName | KeyName is the key of the secret to use. |
@@ -286,7 +287,7 @@ spec:
 | global.originDetectionUnified.enabled | Enables unified mechanism for origin detection. Default: false |
 | global.podAnnotationsAsTags | Provide a mapping of Kubernetes Annotations to Datadog Tags. <KUBERNETES_ANNOTATIONS>: <DATADOG_TAG_KEY> |
 | global.podLabelsAsTags | Provide a mapping of Kubernetes Labels to Datadog Tags. <KUBERNETES_LABEL>: <DATADOG_TAG_KEY> |
-| global.registry | Is the image registry to use for all Agent images. Use 'public.ecr.aws/datadog' for AWS ECR. Use 'datadoghq.azurecr.io' for Azure Container Registry. Use 'gcr.io/datadoghq' for Google Container Registry. Use 'eu.gcr.io/datadoghq' for Google Container Registry in the EU region. Use 'asia.gcr.io/datadoghq' for Google Container Registry in the Asia region. Use 'docker.io/datadog' for DockerHub. Default: 'gcr.io/datadoghq' |
+| global.registry | Is the image registry to use for all Agent images. Use 'public.ecr.aws/datadog' for AWS ECR. Use 'datadoghq.azurecr.io' for Azure Container Registry. Use 'gcr.io/datadoghq' for Google Container Registry. Use 'eu.gcr.io/datadoghq' for Google Container Registry in the EU region. Use 'asia.gcr.io/datadoghq' for Google Container Registry in the Asia region. Use 'docker.io/datadog' for DockerHub. Default: 'registry.datadoghq.com' |
 | global.secretBackend.args | List of arguments to pass to the command (space-separated strings). |
 | global.secretBackend.command | The secret backend command to use. Datadog provides a pre-defined binary `/readsecret_multiple_providers.sh`. Read more about `/readsecret_multiple_providers.sh` at https://docs.datadoghq.com/agent/configuration/secrets-management/?tab=linux#script-for-reading-from-multiple-secret-providers. |
 | global.secretBackend.config | Additional configuration for the secret backend type. |
@@ -426,7 +427,7 @@ In the table, `spec.override.nodeAgent.image.name` and `spec.override.nodeAgent.
 | [key].containers.[key].volumeMounts `[]object` | Specify additional volume mounts in the container. |
 | [key].createPodDisruptionBudget | Set CreatePodDisruptionBudget to true to create a PodDisruptionBudget for this component. Not applicable for the Node Agent. A Cluster Agent PDB is set with 1 minimum available pod, and a Cluster Checks Runner PDB is set with 1 maximum unavailable pod. |
 | [key].createRbac | Set CreateRbac to false to prevent automatic creation of Role/ClusterRole for this component |
-| [key].customConfigurations `map[string]object` | CustomConfiguration allows to specify custom configuration files for `datadog.yaml`, `datadog-cluster.yaml`, `security-agent.yaml`, and `system-probe.yaml`. The content is merged with configuration generated by the Datadog Operator, with priority given to custom configuration. WARNING: It is possible to override values set in the `DatadogAgent`. |
+| [key].customConfigurations `map[string]object` | CustomConfigurations specifies custom contents for `datadog.yaml`, `datadog-cluster.yaml`, `security-agent.yaml`, and `system-probe.yaml`. Each provided file replaces the corresponding default file from the Agent image without merging. Agent settings provided through environment variables take precedence over these files. |
 | [key].customConfigurations.[key].configData | ConfigData corresponds to the configuration file content. |
 | [key].customConfigurations.[key].configMap.items | Items maps a ConfigMap data `key` to a file `path` mount. |
 | [key].customConfigurations.[key].configMap.name | Name is the name of the ConfigMap. |

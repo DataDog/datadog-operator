@@ -16,9 +16,11 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/kubectl/pkg/scheme"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -32,6 +34,92 @@ const (
 	resourcesName      = "foo"
 	resourcesNamespace = "bar"
 )
+
+type conflictOnceClient struct {
+	client.Client
+	remainingConflicts int
+}
+
+func (c *conflictOnceClient) Status() client.SubResourceWriter {
+	return &conflictOnceStatusWriter{
+		SubResourceWriter: c.Client.Status(),
+		client:            c,
+	}
+}
+
+type conflictOnceStatusWriter struct {
+	client.SubResourceWriter
+	client *conflictOnceClient
+}
+
+func (w *conflictOnceStatusWriter) Update(ctx context.Context, obj client.Object, opts ...client.SubResourceUpdateOption) error {
+	if w.client.remainingConflicts > 0 {
+		w.client.remainingConflicts--
+
+		latest := &datadoghqv1alpha1.DatadogGenericResource{}
+		if err := w.client.Client.Get(ctx, client.ObjectKeyFromObject(obj), latest); err != nil {
+			return err
+		}
+		if latest.Annotations == nil {
+			latest.Annotations = map[string]string{}
+		}
+		latest.Annotations["issue-3272-conflict"] = "true"
+		if err := w.client.Client.Update(ctx, latest); err != nil {
+			return err
+		}
+
+		return apierrors.NewConflict(
+			datadoghqv1alpha1.GroupVersion.WithResource("datadoggenericresources").GroupResource(),
+			obj.GetName(),
+			fmt.Errorf("injected status update conflict"),
+		)
+	}
+	return w.SubResourceWriter.Update(ctx, obj, opts...)
+}
+
+func TestReconcileGenericResource_RetriesCreatedStatusAfterConflict(t *testing.T) {
+	resetMockHandlerState()
+	t.Setenv("DD_API_KEY", "DUMMY_API_KEY")
+	t.Setenv("DD_APP_KEY", "DUMMY_APP_KEY")
+
+	logf.SetLogger(zap.New(zap.UseDevMode(true)))
+	s := scheme.Scheme
+	s.AddKnownTypes(datadoghqv1alpha1.GroupVersion, &datadoghqv1alpha1.DatadogGenericResource{})
+
+	eventBroadcaster := record.NewBroadcaster()
+	recorder := eventBroadcaster.NewRecorder(s, corev1.EventSource{Component: "TestReconcileGenericResource_RetriesCreatedStatusAfterConflict"})
+
+	baseClient := fake.NewClientBuilder().WithScheme(s).WithStatusSubresource(&datadoghqv1alpha1.DatadogGenericResource{}).Build()
+	conflictingClient := &conflictOnceClient{Client: baseClient}
+	r := NewReconciler(
+		conflictingClient,
+		config.NewCredentialManager(fake.NewClientBuilder().Build()),
+		s,
+		logf.Log.WithName("created-status-conflict"),
+		recorder,
+	)
+	r.handlers = map[datadoghqv1alpha1.SupportedResourcesType]ResourceHandler{
+		mockSubresource: &MockHandler{},
+	}
+
+	instance := mockGenericResource()
+	instance.Finalizers = []string{datadogGenericResourceFinalizer}
+	assert.NoError(t, r.client.Create(context.TODO(), instance))
+
+	conflictingClient.remainingConflicts = 1
+	result, err := reconcileRequest(r, context.TODO(), newRequest(resourcesNamespace, resourcesName))
+	assert.NoError(t, err)
+	assert.Equal(t, ctrl.Result{RequeueAfter: defaultRequeuePeriod}, result)
+	assert.Equal(t, 0, conflictingClient.remainingConflicts, "the injected status conflict should be consumed")
+
+	assert.NoError(t, r.client.Get(context.TODO(), client.ObjectKeyFromObject(instance), instance))
+	assert.Equal(t, mockResourceID, instance.Status.Id, "the ID returned by the successful create must be persisted")
+	assert.Equal(t, "true", instance.Annotations["issue-3272-conflict"], "the concurrent metadata update must be preserved")
+
+	_, err = reconcileRequest(r, context.TODO(), newRequest(resourcesNamespace, resourcesName))
+	assert.NoError(t, err)
+	assert.Equal(t, 1, mockCreateCalls, "a status conflict must not cause a second Datadog create")
+}
 
 func TestReconcileGenericResource_Reconcile(t *testing.T) {
 	eventBroadcaster := record.NewBroadcaster()
@@ -63,6 +151,28 @@ func TestReconcileGenericResource_Reconcile(t *testing.T) {
 				request: newRequest(resourcesNamespace, resourcesName),
 			},
 			wantResult: reconcile.Result{},
+		},
+		{
+			name: "DatadogGenericResource create backend error keeps normal priority",
+			args: args{
+				request: newRequest(resourcesNamespace, resourcesName),
+				firstAction: func(c client.Client) {
+					_ = c.Create(context.TODO(), mockGenericResource())
+					mockCreateErr = fmt.Errorf("error creating mock resource: 429 Too Many Requests")
+				},
+				// reconcile 1: add finalizer; 2: create remote resource and fail
+				firstReconcileCount: 2,
+			},
+			wantResult: reconcile.Result{RequeueAfter: defaultErrRequeuePeriod},
+			wantFunc: func(c client.Client) error {
+				assert.Equal(t, 1, mockCreateCalls)
+				obj := &datadoghqv1alpha1.DatadogGenericResource{}
+				if err := c.Get(context.TODO(), types.NamespacedName{Name: resourcesName, Namespace: resourcesNamespace}, obj); err != nil {
+					return err
+				}
+				assert.Empty(t, obj.Status.Id)
+				return nil
+			},
 		},
 		{
 			name: "DatadogGenericResource created, add finalizer",
@@ -168,7 +278,7 @@ func TestReconcileGenericResource_Reconcile(t *testing.T) {
 				// reconcile 1: add finalizer; 2: create remote resource; 3: idle tick triggers refresh
 				firstReconcileCount: 3,
 			},
-			wantResult: reconcile.Result{RequeueAfter: defaultRequeuePeriod},
+			wantResult: reconcile.Result{RequeueAfter: defaultRequeuePeriod, Priority: ptr.To(handler.LowPriority)},
 			wantFunc: func(c client.Client) error {
 				obj := &datadoghqv1alpha1.DatadogGenericResource{}
 				if err := c.Get(context.TODO(), types.NamespacedName{Name: resourcesName, Namespace: resourcesNamespace}, obj); err != nil {
@@ -213,7 +323,7 @@ func TestReconcileGenericResource_Reconcile(t *testing.T) {
 				},
 				secondReconcileCount: 1,
 			},
-			wantResult: reconcile.Result{RequeueAfter: defaultRequeuePeriod},
+			wantResult: reconcile.Result{RequeueAfter: defaultRequeuePeriod, Priority: ptr.To(handler.LowPriority)},
 			wantFunc: func(c client.Client) error {
 				obj := &datadoghqv1alpha1.DatadogGenericResource{}
 				if err := c.Get(context.TODO(), types.NamespacedName{Name: resourcesName, Namespace: resourcesNamespace}, obj); err != nil {
@@ -362,6 +472,20 @@ func TestForceSyncPeriodFromEnv(t *testing.T) {
 			assert.Equal(t, tt.want, forceSyncPeriodFromEnv(logger))
 		})
 	}
+}
+
+func TestRequeuePeriodDefault(t *testing.T) {
+	logf.SetLogger(zap.New(zap.UseDevMode(true)))
+	logger := logf.Log.WithName("requeue-period-test")
+
+	assert.Equal(t, defaultRequeuePeriod, requeuePeriod(logger, 0))
+}
+
+func TestRequeuePeriodConfiguredOption(t *testing.T) {
+	logf.SetLogger(zap.New(zap.UseDevMode(true)))
+	logger := logf.Log.WithName("requeue-period-test")
+
+	assert.Equal(t, 2*time.Minute, requeuePeriod(logger, 2*time.Minute))
 }
 
 func TestReconcileGenericResource_ForceSyncPeriodTriggersRemoteUpdate(t *testing.T) {

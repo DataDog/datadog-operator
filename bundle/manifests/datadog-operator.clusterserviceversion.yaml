@@ -244,7 +244,7 @@ metadata:
       ]
     capabilities: Full Lifecycle
     categories: Monitoring, Logging & Tracing
-    createdAt: "2026-06-03 18:55:28"
+    createdAt: "2026-07-01 18:50:06"
     description: |-
       Datadog provides a modern monitoring and analytics platform. Gather metrics, logs and traces for full observability of your Kubernetes cluster with Datadog Operator.
 
@@ -252,7 +252,7 @@ metadata:
     operators.operatorframework.io/builder: operator-sdk-v1.34.1
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v4
     repository: https://github.com/DataDog/datadog-operator
-    containerImage: gcr.io/datadoghq/operator:1.27.0
+    containerImage: gcr.io/datadoghq/operator:1.28.0
     support: Datadog, Inc.
     features.operators.openshift.io/disconnected: "true"
     features.operators.openshift.io/fips-compliant: "false"
@@ -261,12 +261,12 @@ metadata:
     features.operators.openshift.io/token-auth-aws: "false"
     features.operators.openshift.io/token-auth-azure: "false"
     features.operators.openshift.io/token-auth-gcp: "false"
-    olm.skipRange: '>=1.7.0 <1.27.0'
+    olm.skipRange: '>=1.7.0 <1.28.0'
   labels:
     operatorframework.io/arch.amd64: supported
     operatorframework.io/arch.arm64: supported
     operatorframework.io/os.linux: supported
-  name: datadog-operator.v1.27.0
+  name: datadog-operator.v1.28.0
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -527,6 +527,7 @@ spec:
                 - create
                 - get
                 - list
+                - patch
                 - watch
             - apiGroups:
                 - autoscaling
@@ -570,6 +571,23 @@ spec:
                 - list
                 - patch
                 - update
+                - watch
+            - apiGroups:
+                - configuration.konghq.com
+                - consul.hashicorp.com
+                - core.haproxy.org
+                - datadoghq.com
+                - gateway.envoyproxy.io
+                - ingress.v1.haproxy.org
+                - karpenter.azure.com
+                - kuma.io
+                - mesh.consul.hashicorp.com
+                - policy.linkerd.io
+                - traefik.containo.us
+              resources:
+                - '*'
+              verbs:
+                - list
                 - watch
             - apiGroups:
                 - coordination.k8s.io
@@ -669,14 +687,6 @@ spec:
               verbs:
                 - '*'
             - apiGroups:
-                - datadoghq.com
-                - karpenter.azure.com
-              resources:
-                - '*'
-              verbs:
-                - list
-                - watch
-            - apiGroups:
                 - discovery.k8s.io
               resources:
                 - endpointslices
@@ -697,7 +707,9 @@ spec:
             - apiGroups:
                 - gateway.envoyproxy.io
               resources:
+                - backends
                 - envoyextensionpolicies
+                - envoypatchpolicies
               verbs:
                 - create
                 - delete
@@ -716,12 +728,29 @@ spec:
             - apiGroups:
                 - gateway.networking.k8s.io
               resources:
+                - grpcroutes
+                - listenersets
+                - tlsroutes
+              verbs:
+                - list
+                - watch
+            - apiGroups:
+                - gateway.networking.k8s.io
+              resources:
                 - referencegrants
               verbs:
                 - create
                 - delete
                 - get
                 - patch
+            - apiGroups:
+                - k8s.nginx.org
+              resources:
+                - virtualserverroutes
+                - virtualservers
+              verbs:
+                - list
+                - watch
             - apiGroups:
                 - karpenter.sh
               resources:
@@ -751,11 +780,37 @@ spec:
             - apiGroups:
                 - networking.istio.io
               resources:
+                - destinationrules
+                - serviceentries
+                - sidecars
+                - virtualservices
+              verbs:
+                - list
+                - watch
+            - apiGroups:
+                - networking.istio.io
+              resources:
                 - envoyfilters
               verbs:
                 - create
                 - delete
                 - get
+            - apiGroups:
+                - networking.istio.io
+              resources:
+                - gateways
+              verbs:
+                - get
+                - list
+                - watch
+            - apiGroups:
+                - networking.k8s.io
+              resources:
+                - ingressclasses
+              verbs:
+                - get
+                - list
+                - watch
             - apiGroups:
                 - networking.k8s.io
               resources:
@@ -871,6 +926,13 @@ spec:
                 - get
                 - list
                 - watch
+            - apiGroups:
+                - traefik.io
+              resources:
+                - ingressroutes
+              verbs:
+                - list
+                - watch
           serviceAccountName: datadog-operator-controller-manager
         - rules:
             - apiGroups:
@@ -934,7 +996,7 @@ spec:
                             fieldPath: metadata.namespace
                       - name: DD_TOOL_VERSION
                         value: redhat-community-operators
-                    image: gcr.io/datadoghq/operator:1.27.0
+                    image: gcr.io/datadoghq/operator:1.28.0
                     imagePullPolicy: IfNotPresent
                     livenessProbe:
                       httpGet:
@@ -1032,5 +1094,5 @@ spec:
   minKubeVersion: 1.16.0
   provider:
     name: Datadog
-  version: 1.27.0
-  replaces: datadog-operator.v1.26.0
+  version: 1.28.0
+  replaces: datadog-operator.v1.27.1

@@ -55,6 +55,10 @@ const (
 	OverrideReconcileConflictConditionType = "OverrideReconcileConflict"
 	// DatadogAgentReconcileErrorConditionType ReconcileConditionType for DatadogAgent reconcile error
 	DatadogAgentReconcileErrorConditionType = "DatadogAgentReconcileError"
+	// ClusterProviderDetectedConditionType reports the detected (or user-specified) cluster provider
+	ClusterProviderDetectedConditionType = "ClusterProviderDetected"
+	// FeatureNotSupportedOnProviderConditionType reports that an enabled feature is not supported on the detected provider
+	FeatureNotSupportedOnProviderConditionType = "FeatureNotSupportedOnProvider"
 )
 
 const (

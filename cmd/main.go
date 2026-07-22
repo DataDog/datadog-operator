@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	goruntime "runtime"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -50,6 +51,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/controller/debug"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/metadata"
 	"github.com/DataDog/datadog-operator/pkg/fleet"
+	"github.com/DataDog/datadog-operator/pkg/introspection"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/remoteconfig"
 	"github.com/DataDog/datadog-operator/pkg/secrets"
@@ -62,7 +64,9 @@ import (
 )
 
 const (
-	defaultMaximumGoroutines = 400
+	defaultMaximumGoroutines                             = 400
+	defaultDatadogGenericResourceMaxConcurrentReconciles = 1
+	defaultDatadogGenericResourceRequeuePeriod           = 60 * time.Second
 )
 
 var (
@@ -146,8 +150,11 @@ type options struct {
 	remoteUpdatesEnabled                   bool
 	datadogDashboardEnabled                bool
 	datadogGenericResourceEnabled          bool
+	datadogGenericResourceMaxWorkers       int
+	datadogGenericResourceRequeuePeriod    time.Duration
 	datadogCSIDriverEnabled                bool
 	untaintControllerEnabled               bool
+	untaintControllerWaitForCSIDriver      bool
 
 	// Secret Backend options
 	secretBackendCommand  string
@@ -186,8 +193,12 @@ func (opts *options) Parse() {
 	flag.BoolVar(&opts.remoteUpdatesEnabled, "remoteUpdatesEnabled", false, "Enable Remote Updates capabilities in the Operator (beta)")
 	flag.BoolVar(&opts.datadogDashboardEnabled, "datadogDashboardEnabled", false, "Enable the DatadogDashboard controller")
 	flag.BoolVar(&opts.datadogGenericResourceEnabled, "datadogGenericResourceEnabled", false, "Enable the DatadogGenericResource controller")
+	flag.IntVar(&opts.datadogGenericResourceMaxWorkers, "datadogGenericResourceMaxConcurrentReconciles", defaultDatadogGenericResourceMaxConcurrentReconciles, "Maximum number of concurrent DatadogGenericResource reconciles")
+	flag.DurationVar(&opts.datadogGenericResourceRequeuePeriod, "datadogGenericResourceRequeuePeriod", defaultDatadogGenericResourceRequeuePeriod, "DatadogGenericResource status polling requeue period, for example 5m")
 	flag.BoolVar(&opts.datadogCSIDriverEnabled, "datadogCSIDriverEnabled", false, "Enable the DatadogCSIDriver controller")
 	flag.BoolVar(&opts.untaintControllerEnabled, "untaintControllerEnabled", false, "Enable the Untaint controller")
+	flag.BoolVar(&opts.untaintControllerWaitForCSIDriver, "untaintControllerWaitForCSIDriver", false,
+		"When true (requires --untaintControllerEnabled), the Untaint controller removes the startup taint only after both the node Agent and Datadog CSI node-server pods are Ready. Requires Pod watch coverage of CSI namespaces (DD_CSIDRIVER_WATCH_NAMESPACE).")
 
 	// DatadogAgentInternal
 	flag.BoolVar(&opts.createControllerRevisions, "createControllerRevisions", false, "Enable creation of ControllerRevision snapshots on each DDA spec change")
@@ -205,8 +216,86 @@ func (opts *options) Parse() {
 	flag.IntVar(&opts.edsCanaryAutoFailMaxRestarts, "edsCanaryAutoFailMaxRestarts", defaultCanaryAutoFailMaxRestarts, "ExtendedDaemonset canary auto fail max restart count")
 	flag.DurationVar(&opts.edsCanaryAutoPauseMaxSlowStartDuration, "edsCanaryAutoPauseMaxSlowStartDuration", defaultCanaryAutoPauseMaxSlowStartDuration*time.Minute, "ExtendedDaemonset canary max slow start duration")
 
+	// Environment variable overrides applied before flag.Parse() so that
+	// explicit CLI flags take precedence (default < env < CLI).
+	applyEnvOptions([]envOption{
+		stringEnv(&opts.metricsAddr, "DD_METRICS_ADDR"),
+		boolEnv(&opts.secureMetrics, "DD_METRICS_SECURE"),
+		boolEnv(&opts.profilingEnabled, "DD_PROFILING_ENABLED"),
+		boolEnv(&opts.pprofActive, "DD_PPROF_ENABLED"),
+		boolEnv(&opts.enableLeaderElection, "DD_LEADER_ELECTION_ENABLED"),
+		durationEnv(&opts.leaderElectionLeaseDuration, "DD_LEADER_ELECTION_LEASE_DURATION"),
+		boolEnv(&opts.supportCilium, "DD_SUPPORT_CILIUM"),
+		boolEnv(&opts.datadogAgentEnabled, "DD_AGENT_CONTROLLER_ENABLED"),
+		boolEnv(&opts.datadogMonitorEnabled, "DD_MONITOR_CONTROLLER_ENABLED"),
+		boolEnv(&opts.datadogSLOEnabled, "DD_SLO_CONTROLLER_ENABLED"),
+		boolEnv(&opts.operatorMetricsEnabled, "DD_OPERATOR_METRICS_ENABLED"),
+		intEnv(&opts.maximumGoroutines, "DD_MAXIMUM_GOROUTINES"),
+		boolEnv(&opts.introspectionEnabled, "DD_INTROSPECTION_ENABLED"),
+		boolEnv(&opts.datadogAgentProfileEnabled, "DD_AGENT_PROFILE_CONTROLLER_ENABLED"),
+		boolEnv(&opts.remoteConfigEnabled, "DD_REMOTE_CONFIG_ENABLED"),
+		boolEnv(&opts.remoteUpdatesEnabled, "DD_REMOTE_UPDATES_ENABLED"),
+		boolEnv(&opts.datadogDashboardEnabled, "DD_DASHBOARD_CONTROLLER_ENABLED"),
+		boolEnv(&opts.datadogGenericResourceEnabled, "DD_GENERIC_RESOURCE_CONTROLLER_ENABLED"),
+		intEnv(&opts.datadogGenericResourceMaxWorkers, "DD_GENERIC_RESOURCE_MAX_CONCURRENT_RECONCILES"),
+		durationEnv(&opts.datadogGenericResourceRequeuePeriod, "DD_GENERIC_RESOURCE_REQUEUE_PERIOD"),
+		boolEnv(&opts.datadogCSIDriverEnabled, "DD_CSI_DRIVER_CONTROLLER_ENABLED"),
+		boolEnv(&opts.untaintControllerEnabled, "DD_UNTAINT_CONTROLLER_ENABLED"),
+		boolEnv(&opts.untaintControllerWaitForCSIDriver, "DD_UNTAINT_CONTROLLER_WAIT_FOR_CSI_DRIVER"),
+		boolEnv(&opts.createControllerRevisions, "DD_CREATE_CONTROLLER_REVISIONS"),
+	})
+
 	// Parsing flags
 	flag.Parse()
+}
+
+type envOption struct {
+	name  string
+	apply func(string) error
+}
+
+func applyEnvOptions(options []envOption) {
+	for _, opt := range options {
+		val, found := os.LookupEnv(opt.name)
+		if !found {
+			continue
+		}
+		if err := opt.apply(val); err != nil {
+			fmt.Fprintf(os.Stderr, "ignoring invalid env var %s=%q: %v\n", opt.name, val, err)
+		}
+	}
+}
+
+func envOptionFor[T any](dst *T, envVar string, parse func(string) (T, error)) envOption {
+	return envOption{
+		name: envVar,
+		apply: func(val string) error {
+			parsed, err := parse(val)
+			if err != nil {
+				return err
+			}
+			*dst = parsed
+			return nil
+		},
+	}
+}
+
+func boolEnv(dst *bool, envVar string) envOption {
+	return envOptionFor(dst, envVar, strconv.ParseBool)
+}
+
+func stringEnv(dst *string, envVar string) envOption {
+	return envOptionFor(dst, envVar, func(val string) (string, error) {
+		return val, nil
+	})
+}
+
+func intEnv(dst *int, envVar string) envOption {
+	return envOptionFor(dst, envVar, strconv.Atoi)
+}
+
+func durationEnv(dst *time.Duration, envVar string) envOption {
+	return envOptionFor(dst, envVar, time.ParseDuration)
 }
 
 func main() {
@@ -234,6 +323,10 @@ func run(opts *options) error {
 		return nil
 	}
 	version.PrintVersionLogs(setupLog)
+
+	if opts.untaintControllerWaitForCSIDriver && !opts.untaintControllerEnabled {
+		return setupErrorf(setupLog, fmt.Errorf("invalid flags"), "--untaintControllerWaitForCSIDriver requires --untaintControllerEnabled=true")
+	}
 
 	// submits the maximum go routine setting as a metric
 	metrics.MaxGoroutines.Set(float64(opts.maximumGoroutines))
@@ -275,7 +368,7 @@ func run(opts *options) error {
 	}
 
 	restConfig := ctrl.GetConfigOrDie()
-	restConfig.UserAgent = "datadog-operator"
+	restConfig.UserAgent = "datadog-operator/" + version.Version
 	mgr, err := ctrl.NewManager(restConfig, ctrl.Options{
 		Scheme:                     scheme,
 		Metrics:                    metricsServerOptions,
@@ -287,15 +380,16 @@ func run(opts *options) error {
 		RenewDeadline:              &renewDeadline,
 		RetryPeriod:                &retryPeriod,
 		Cache: config.CacheOptions(setupLog, config.WatchOptions{
-			DatadogAgentEnabled:           opts.datadogAgentEnabled,
-			DatadogMonitorEnabled:         opts.datadogMonitorEnabled,
-			DatadogSLOEnabled:             opts.datadogSLOEnabled,
-			DatadogAgentProfileEnabled:    opts.datadogAgentProfileEnabled,
-			IntrospectionEnabled:          opts.introspectionEnabled,
-			DatadogDashboardEnabled:       opts.datadogDashboardEnabled,
-			DatadogGenericResourceEnabled: opts.datadogGenericResourceEnabled,
-			DatadogCSIDriverEnabled:       opts.datadogCSIDriverEnabled,
-			UntaintControllerEnabled:      opts.untaintControllerEnabled,
+			DatadogAgentEnabled:               opts.datadogAgentEnabled,
+			DatadogMonitorEnabled:             opts.datadogMonitorEnabled,
+			DatadogSLOEnabled:                 opts.datadogSLOEnabled,
+			DatadogAgentProfileEnabled:        opts.datadogAgentProfileEnabled,
+			IntrospectionEnabled:              opts.introspectionEnabled,
+			DatadogDashboardEnabled:           opts.datadogDashboardEnabled,
+			DatadogGenericResourceEnabled:     opts.datadogGenericResourceEnabled,
+			DatadogCSIDriverEnabled:           opts.datadogCSIDriverEnabled,
+			UntaintControllerEnabled:          opts.untaintControllerEnabled,
+			UntaintControllerWaitForCSIDriver: opts.untaintControllerWaitForCSIDriver,
 		}),
 		// UsePriorityQueue makes all controllers use the priority queue, which
 		// directly registers workqueue metrics into controller-runtime's metrics
@@ -352,6 +446,12 @@ func run(opts *options) error {
 		}()
 	}
 
+	providerDetector, err := setupAndStartProviderDetector(setupLog, mgr,
+		opts.introspectionEnabled || opts.datadogAgentProfileEnabled || opts.untaintControllerEnabled)
+	if err != nil {
+		return setupErrorf(setupLog, err, "Unable to setup cluster provider detector")
+	}
+
 	options := controller.SetupOptions{
 		SupportExtendedDaemonset: controller.ExtendedDaemonsetOptions{
 			Enabled:                             opts.supportExtendedDaemonset,
@@ -366,20 +466,24 @@ func run(opts *options) error {
 			CanaryAutoPauseMaxSlowStartDuration: opts.edsCanaryAutoPauseMaxSlowStartDuration,
 			MaxPodSchedulerFailure:              opts.edsMaxPodSchedulerFailure,
 		},
-		SupportCilium:                 opts.supportCilium,
-		CredsManager:                  credsManager,
-		DatadogAgentEnabled:           opts.datadogAgentEnabled,
-		CreateControllerRevisions:     opts.createControllerRevisions && opts.datadogAgentEnabled,
-		DatadogMonitorEnabled:         opts.datadogMonitorEnabled,
-		DatadogSLOEnabled:             opts.datadogSLOEnabled,
-		OperatorMetricsEnabled:        opts.operatorMetricsEnabled,
-		V2APIEnabled:                  true,
-		IntrospectionEnabled:          opts.introspectionEnabled,
-		DatadogAgentProfileEnabled:    opts.datadogAgentProfileEnabled,
-		DatadogDashboardEnabled:       opts.datadogDashboardEnabled,
-		DatadogGenericResourceEnabled: opts.datadogGenericResourceEnabled,
-		DatadogCSIDriverEnabled:       opts.datadogCSIDriverEnabled,
-		UntaintControllerEnabled:      opts.untaintControllerEnabled,
+		SupportCilium:                     opts.supportCilium,
+		CredsManager:                      credsManager,
+		DatadogAgentEnabled:               opts.datadogAgentEnabled,
+		CreateControllerRevisions:         opts.createControllerRevisions && opts.datadogAgentEnabled,
+		DatadogMonitorEnabled:             opts.datadogMonitorEnabled,
+		DatadogSLOEnabled:                 opts.datadogSLOEnabled,
+		OperatorMetricsEnabled:            opts.operatorMetricsEnabled,
+		V2APIEnabled:                      true,
+		IntrospectionEnabled:              opts.introspectionEnabled,
+		DatadogAgentProfileEnabled:        opts.datadogAgentProfileEnabled,
+		DatadogDashboardEnabled:           opts.datadogDashboardEnabled,
+		DatadogGenericResourceEnabled:     opts.datadogGenericResourceEnabled,
+		DatadogGenericResourceMaxWorkers:  opts.datadogGenericResourceMaxWorkers,
+		DatadogGenericResourceRequeue:     opts.datadogGenericResourceRequeuePeriod,
+		DatadogCSIDriverEnabled:           opts.datadogCSIDriverEnabled,
+		UntaintControllerEnabled:          opts.untaintControllerEnabled,
+		UntaintControllerWaitForCSIDriver: opts.untaintControllerWaitForCSIDriver,
+		ClusterProviderDetector:           providerDetector,
 	}
 
 	versionInfo, platformInfo, err := getVersionAndPlatformInfo(rest.CopyConfig(mgr.GetConfig()))
@@ -661,4 +765,18 @@ func setupAndStartHelmMetadataForwarder(logger logr.Logger, mgr manager.Manager,
 func setupFleetDaemon(logger logr.Logger, mgr manager.Manager, rcClient remoteconfig.RCClient, revisionsEnabled bool) error {
 	daemon := fleet.NewDaemon(rcClient, mgr, revisionsEnabled)
 	return mgr.Add(daemon)
+}
+
+// setupAndStartProviderDetector registers the cluster-provider detector as a
+// leader-only manager Runnable. It runs only on the elected leader, after cache
+// sync, and never blocks startup: Stage-1 operator-node detection uses the uncached
+// APIReader and is always available, while the Stage-2 cluster-node-list fallback uses the
+// cached client only when the node cache is populated (introspection / profiles /
+// untaint), signalled by nodeCacheEnabled.
+func setupAndStartProviderDetector(logger logr.Logger, mgr manager.Manager, nodeCacheEnabled bool) (*introspection.Detector, error) {
+	detector := introspection.NewDetector(mgr, os.Getenv("DD_HOSTNAME"), logger, nodeCacheEnabled)
+	if err := mgr.Add(detector); err != nil {
+		return nil, err
+	}
+	return detector, nil
 }

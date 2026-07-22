@@ -17,9 +17,28 @@
       "additionalProperties": false,
       "description": "DatadogCSIDriverSpec defines the desired state of DatadogCSIDriver",
       "properties": {
+        "apm": {
+          "additionalProperties": false,
+          "description": "APM configures APM/Single Step Instrumentation support for the CSI driver.",
+          "properties": {
+            "enabled": {
+              "description": "Enabled enables APM/Single Step Instrumentation support for the CSI driver.\nDefault: true",
+              "type": "boolean"
+            }
+          },
+          "type": "object"
+        },
         "apmSocketPath": {
           "description": "APMSocketPath is the host path to the APM socket.\nDefault: /var/run/datadog/apm.socket",
           "type": "string"
+        },
+        "commonLabels": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "CommonLabels are propagated from spec.global.commonLabels on the parent\nDatadogAgent and are applied to all resources managed by the CSI\ncontroller (DaemonSet ObjectMeta, pod template, and cluster-scoped\nCSIDriver object). This field is managed by the operator; do not set it\nmanually.",
+          "type": "object",
+          "x-kubernetes-map-type": "granular"
         },
         "csiDriverImage": {
           "additionalProperties": false,

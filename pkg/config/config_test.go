@@ -16,6 +16,8 @@ import (
 type objectConfig struct {
 	configured bool
 	namespaces []string
+	// noPodLabel, when true, asserts Pod ByObject has no label selector (widened informer).
+	noPodLabel bool
 }
 
 func Test_CacheConfig(t *testing.T) {
@@ -235,6 +237,27 @@ func Test_CacheConfig(t *testing.T) {
 				csiDriverObj:       {configured: false},
 			},
 		},
+		{
+			name: "Untaint wait-for-CSI; Pod cache merges agent and CSI namespaces and omits label selector",
+
+			watchOptions: WatchOptions{
+				UntaintControllerEnabled:          true,
+				UntaintControllerWaitForCSIDriver: true,
+			},
+
+			envConfig: map[string]string{
+				WatchNamespaceEnvVar:          "commonNs",
+				AgentWatchNamespaceEnvVar:     "agentNs",
+				csiDriverWatchNamespaceEnvVar: "csiNs1,csiNs2",
+			},
+
+			wantDefaultNamepsace: objectConfig{configured: true, namespaces: []string{"agentNs"}},
+			wantObjectConfig: map[client.Object]objectConfig{
+				podObj:       {configured: true, namespaces: []string{"agentNs", "csiNs1", "csiNs2"}, noPodLabel: true},
+				nodeObj:      {configured: true, namespaces: nil},
+				csiDriverObj: {configured: false},
+			},
+		},
 	}
 
 	logger := logf.Log.WithName(t.Name())
@@ -263,6 +286,9 @@ func verifyResourceNamespace(t *testing.T, resource client.Object, wantConfig ob
 			assert.Nil(t, byObjectOptions.Namespaces, "Namespaces should be nil for", reflect.TypeOf(resource).Elem())
 		} else {
 			assert.ElementsMatch(t, wantConfig.namespaces, maps.Keys(byObjectOptions.Namespaces), "Namespaces don't match for", reflect.TypeOf(resource).Elem())
+		}
+		if wantConfig.noPodLabel {
+			assert.Nil(t, byObjectOptions.Label)
 		}
 	}
 }

@@ -1534,6 +1534,17 @@
               },
               "type": "object"
             },
+            "dynamicInstrumentation": {
+              "additionalProperties": false,
+              "description": "DynamicInstrumentation configuration.",
+              "properties": {
+                "enabled": {
+                  "description": "Enabled enables the Dynamic Instrumentation system probe module.\nDefault: false",
+                  "type": "boolean"
+                }
+              },
+              "type": "object"
+            },
             "ebpfCheck": {
               "additionalProperties": false,
               "description": "EBPFCheck configuration.",
@@ -2006,6 +2017,17 @@
               },
               "type": "object"
             },
+            "kubernetesActions": {
+              "additionalProperties": false,
+              "description": "KubernetesActions configuration.",
+              "properties": {
+                "enabled": {
+                  "description": "Enabled enables the Kubernetes Actions feature on the Cluster Agent.\nDefault: false",
+                  "type": "boolean"
+                }
+              },
+              "type": "object"
+            },
             "liveContainerCollection": {
               "additionalProperties": false,
               "description": "LiveContainerCollection configuration.",
@@ -2086,10 +2108,6 @@
               "properties": {
                 "collectDNSStats": {
                   "description": "CollectDNSStats enables DNS stat collection.\nDefault: false",
-                  "type": "boolean"
-                },
-                "directSend": {
-                  "description": "DirectSend enables CNM/USM to send data directly to the backend\nDefault: false",
                   "type": "boolean"
                 },
                 "enableConntrack": {
@@ -2642,17 +2660,6 @@
                 "enabled": {
                   "description": "Enables the service discovery check.\nDefault: true when omitted and the node Agent image is \u003e= 7.78.0. Otherwise false.\nIf the image version cannot be determined, it is treated as latest.",
                   "type": "boolean"
-                },
-                "networkStats": {
-                  "additionalProperties": false,
-                  "description": "DEPRECATED: NetworkStats is no longer configurable and will be ignored. Scheduled for removal in v1.28.",
-                  "properties": {
-                    "enabled": {
-                      "description": "DEPRECATED: this field is ignored.",
-                      "type": "boolean"
-                    }
-                  },
-                  "type": "object"
                 }
               },
               "type": "object"
@@ -2715,6 +2722,14 @@
             "clusterName": {
               "description": "ClusterName sets a unique cluster name for the deployment to easily scope monitoring data in the Datadog app.",
               "type": "string"
+            },
+            "commonLabels": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "description": "CommonLabels specified labels to be added to all operator-managed Kubernetes resources\n(DaemonSets, Deployments, ConfigMaps, Services, ServiceAccounts, etc.).\nThis is useful when external policy tools such as Kyverno enforce the presence of\nspecific labels on all cluster resources.\nLabels defined here are merged with the operator's own default labels; operator labels\ntake precedence on any key conflict.",
+              "type": "object",
+              "x-kubernetes-map-type": "granular"
             },
             "containerStrategy": {
               "description": "ContainerStrategy determines whether agents run in a single or multiple containers.\nDefault: 'optimized'",
@@ -3750,7 +3765,7 @@
               "type": "object"
             },
             "registry": {
-              "description": "Registry is the image registry to use for all Agent images.\nUse 'public.ecr.aws/datadog' for AWS ECR.\nUse 'datadoghq.azurecr.io' for Azure Container Registry.\nUse 'gcr.io/datadoghq' for Google Container Registry.\nUse 'eu.gcr.io/datadoghq' for Google Container Registry in the EU region.\nUse 'asia.gcr.io/datadoghq' for Google Container Registry in the Asia region.\nUse 'docker.io/datadog' for DockerHub.\nDefault: 'gcr.io/datadoghq'",
+              "description": "Registry is the image registry to use for all Agent images.\nUse 'public.ecr.aws/datadog' for AWS ECR.\nUse 'datadoghq.azurecr.io' for Azure Container Registry.\nUse 'gcr.io/datadoghq' for Google Container Registry.\nUse 'eu.gcr.io/datadoghq' for Google Container Registry in the EU region.\nUse 'asia.gcr.io/datadoghq' for Google Container Registry in the Asia region.\nUse 'docker.io/datadog' for DockerHub.\nDefault: 'registry.datadoghq.com'",
               "type": "string"
             },
             "secretBackend": {
@@ -3767,7 +3782,7 @@
                 },
                 "config": {
                   "additionalProperties": {
-                    "type": "string"
+                    "x-kubernetes-preserve-unknown-fields": true
                   },
                   "description": "Additional configuration for the secret backend type.",
                   "type": "object"
@@ -5811,7 +5826,7 @@
                   },
                   "type": "object"
                 },
-                "description": "CustomConfiguration allows to specify custom configuration files for `datadog.yaml`, `datadog-cluster.yaml`, `security-agent.yaml`, and `system-probe.yaml`.\nThe content is merged with configuration generated by the Datadog Operator, with priority given to custom configuration.\nWARNING: It is possible to override values set in the `DatadogAgent`.",
+                "description": "CustomConfigurations specifies custom contents for `datadog.yaml`, `datadog-cluster.yaml`, `security-agent.yaml`, and `system-probe.yaml`.\nEach provided file replaces the corresponding default file from the Agent image without merging.\nAgent settings provided through environment variables take precedence over these files.",
                 "type": "object"
               },
               "disabled": {
@@ -9975,6 +9990,17 @@
                   },
                   "type": "object"
                 },
+                "dynamicInstrumentation": {
+                  "additionalProperties": false,
+                  "description": "DynamicInstrumentation configuration.",
+                  "properties": {
+                    "enabled": {
+                      "description": "Enabled enables the Dynamic Instrumentation system probe module.\nDefault: false",
+                      "type": "boolean"
+                    }
+                  },
+                  "type": "object"
+                },
                 "ebpfCheck": {
                   "additionalProperties": false,
                   "description": "EBPFCheck configuration.",
@@ -10447,6 +10473,17 @@
                   },
                   "type": "object"
                 },
+                "kubernetesActions": {
+                  "additionalProperties": false,
+                  "description": "KubernetesActions configuration.",
+                  "properties": {
+                    "enabled": {
+                      "description": "Enabled enables the Kubernetes Actions feature on the Cluster Agent.\nDefault: false",
+                      "type": "boolean"
+                    }
+                  },
+                  "type": "object"
+                },
                 "liveContainerCollection": {
                   "additionalProperties": false,
                   "description": "LiveContainerCollection configuration.",
@@ -10527,10 +10564,6 @@
                   "properties": {
                     "collectDNSStats": {
                       "description": "CollectDNSStats enables DNS stat collection.\nDefault: false",
-                      "type": "boolean"
-                    },
-                    "directSend": {
-                      "description": "DirectSend enables CNM/USM to send data directly to the backend\nDefault: false",
                       "type": "boolean"
                     },
                     "enableConntrack": {
@@ -11083,17 +11116,6 @@
                     "enabled": {
                       "description": "Enables the service discovery check.\nDefault: true when omitted and the node Agent image is \u003e= 7.78.0. Otherwise false.\nIf the image version cannot be determined, it is treated as latest.",
                       "type": "boolean"
-                    },
-                    "networkStats": {
-                      "additionalProperties": false,
-                      "description": "DEPRECATED: NetworkStats is no longer configurable and will be ignored. Scheduled for removal in v1.28.",
-                      "properties": {
-                        "enabled": {
-                          "description": "DEPRECATED: this field is ignored.",
-                          "type": "boolean"
-                        }
-                      },
-                      "type": "object"
                     }
                   },
                   "type": "object"

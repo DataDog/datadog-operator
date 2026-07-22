@@ -73,6 +73,8 @@ const (
 	SBOMIDType = "sbom"
 	// HelmCheckIDType Helm Check feature.
 	HelmCheckIDType = "helm_check"
+	// InstrumentationCRDIDType Instrumentation CRD feature.
+	InstrumentationCRDIDType = "instrumentation_crd"
 	// DummyIDType Dummy feature.
 	DummyIDType = "dummy"
 	// ServiceDiscoveryType service discovery feature.
@@ -87,4 +89,8 @@ const (
 	DataPlaneIDType = "data_plane"
 	// FlightRecorderIDType Flight Recorder feature.
 	FlightRecorderIDType = "flightrecorder"
+	// KubernetesActionsIDType Kubernetes Actions feature.
+	KubernetesActionsIDType = "kubernetes_actions"
+	// DynamicInstrumentationIDType Dynamic Instrumentation feature.
+	DynamicInstrumentationIDType = "dynamic_instrumentation"
 )

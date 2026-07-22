@@ -6,12 +6,17 @@
 package controlplanemonitoring
 
 import (
+	"context"
 	"fmt"
+	"maps"
+	"time"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -29,6 +34,7 @@ func init() {
 func buildControlPlaneMonitoringFeature(options *feature.Options) feature.Feature {
 	controlplaneFeat := &controlPlaneMonitoringFeature{
 		logger: options.Logger,
+		client: options.Client,
 	}
 	return controlplaneFeat
 }
@@ -41,6 +47,9 @@ type controlPlaneMonitoringFeature struct {
 	defaultConfigMapName   string
 	openshiftConfigMapName string
 	eksConfigMapName       string
+	client                 client.Reader
+
+	etcdSecretPresent bool
 }
 
 // ID returns the ID of the Feature
@@ -86,13 +95,14 @@ func (f *controlPlaneMonitoringFeature) ManageDependencies(managers feature.Reso
 			return fmt.Errorf("failed to add openshift configmap to store: %w", err)
 		}
 
-		// For OpenShift, etcd monitoring requires manual secret copying
-		targetNamespace := f.owner.GetNamespace()
-		copyCommand := fmt.Sprintf("oc get secret etcd-metric-client -n openshift-etcd-operator -o yaml | sed 's/namespace: openshift-etcd-operator/namespace: %s/' | oc apply -f -", targetNamespace)
+		if copied := f.copyOpenShiftEtcdSecret(managers); !copied {
+			targetNamespace := f.owner.GetNamespace()
+			copyCommand := fmt.Sprintf("oc get secret %s -n %s -o yaml | sed 's/namespace: %s/namespace: %s/' | oc apply -f -", etcdCertsSecretName, etcdCertsSourceNamespace, etcdCertsSourceNamespace, targetNamespace)
 
-		f.logger.Info("OpenShift control plane monitoring requires manual etcd secret copy",
-			"command", copyCommand,
-			"note", "Run this command if cluster-checks-runner and node-agent pods fail to start due to missing etcd-metric-cert secret")
+			f.logger.Info("OpenShift control plane monitoring requires manual etcd secret copy",
+				"command", copyCommand,
+				"note", "Run this command if cluster-checks-runner and node-agent pods fail to start due to missing etcd-metric-cert secret")
+		}
 	} else if f.provider == kubernetes.EKSCloudProvider {
 		// EKS ConfigMap
 		eksConfigMap, err2 := f.buildControlPlaneMonitoringConfigMap(kubernetes.EKSProviderLabel, f.eksConfigMapName)
@@ -107,6 +117,75 @@ func (f *controlPlaneMonitoringFeature) ManageDependencies(managers feature.Reso
 	}
 
 	return nil
+}
+
+func (f *controlPlaneMonitoringFeature) copyOpenShiftEtcdSecret(managers feature.ResourceManagers) bool {
+	if f.client == nil {
+		f.logger.V(1).Info("Skipping OpenShift etcd metric client secret copy: Kubernetes reader is not configured")
+		return false
+	}
+
+	// Read the source Secret directly from the API server instead of relying on
+	// the controller cache: default operator installs do not watch the
+	// openshift-etcd-operator namespace, and broadening the cache would keep
+	// sensitive platform Secrets in memory just for this one copy.
+	source := &corev1.Secret{}
+	sourceKey := types.NamespacedName{
+		Namespace: etcdCertsSourceNamespace,
+		Name:      etcdCertsSecretName,
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := f.client.Get(ctx, sourceKey, source); err != nil {
+		f.logger.Info("Unable to copy OpenShift etcd metric client secret automatically", "namespace", sourceKey.Namespace, "name", sourceKey.Name, "error", err)
+		return f.keepExistingOpenShiftEtcdSecret(managers)
+	}
+
+	target := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      etcdCertsSecretName,
+			Namespace: f.owner.GetNamespace(),
+		},
+		Type: source.Type,
+		Data: maps.Clone(source.Data),
+	}
+	if err := managers.Store().AddOrUpdate(kubernetes.SecretsKind, target); err != nil {
+		f.logger.Info("Unable to add copied OpenShift etcd metric client secret to dependency store", "namespace", target.Namespace, "name", target.Name, "error", err)
+		return false
+	}
+
+	f.logger.V(1).Info("Copied OpenShift etcd metric client secret", "sourceNamespace", sourceKey.Namespace, "targetNamespace", target.Namespace, "name", target.Name)
+	f.etcdSecretPresent = true
+	return true
+}
+
+func (f *controlPlaneMonitoringFeature) keepExistingOpenShiftEtcdSecret(managers feature.ResourceManagers) bool {
+	if f.client == nil {
+		f.logger.V(1).Info("Skipping existing OpenShift etcd metric client secret lookup: Kubernetes reader is not configured")
+		return false
+	}
+
+	target := &corev1.Secret{}
+	targetKey := types.NamespacedName{
+		Namespace: f.owner.GetNamespace(),
+		Name:      etcdCertsSecretName,
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := f.client.Get(ctx, targetKey, target); err != nil {
+		f.logger.Info("Unable to keep existing OpenShift etcd metric client secret", "namespace", targetKey.Namespace, "name", targetKey.Name, "error", err)
+		return false
+	}
+
+	if err := managers.Store().AddOrUpdate(kubernetes.SecretsKind, target); err != nil {
+		f.logger.Info("Unable to add existing OpenShift etcd metric client secret to dependency store", "namespace", target.Namespace, "name", target.Name, "error", err)
+		return false
+	}
+
+	f.logger.V(1).Info("Keeping existing OpenShift etcd metric client secret after source read failure", "namespace", target.Namespace, "name", target.Name)
+	f.etcdSecretPresent = true
+	return true
 }
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
@@ -236,30 +315,42 @@ func (f *controlPlaneMonitoringFeature) ManageSingleContainerNodeAgent(managers 
 	return nil
 }
 
+// etcdCertsSecretAvailable reports whether ManageDependencies successfully added
+// the OpenShift etcd metric client secret to the dependency store for the owner
+// namespace. The etcd-certs volume reference is non-optional, so mounting it
+// when the secret will not be managed would wedge the pod in ContainerCreating.
+func (f *controlPlaneMonitoringFeature) etcdCertsSecretAvailable() bool {
+	return f.etcdSecretPresent
+}
+
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *controlPlaneMonitoringFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
 	providerLabel, _ := kubernetes.GetProviderLabelKeyValue(f.provider)
 	if providerLabel == kubernetes.OpenShiftProviderLabel {
-		// Add etcd-certs volume (secret)
-		etcdCertsVolume := &corev1.Volume{
-			Name: etcdCertsVolumeName,
-			VolumeSource: corev1.VolumeSource{
-				Secret: &corev1.SecretVolumeSource{
-					SecretName:  etcdCertsSecretName,
-					DefaultMode: ptr.To[int32](420),
+		// Only mount the etcd-certs secret when it is present; the volume is
+		// non-optional and would otherwise wedge the pod in ContainerCreating.
+		if f.etcdCertsSecretAvailable() {
+			// Add etcd-certs volume (secret)
+			etcdCertsVolume := &corev1.Volume{
+				Name: etcdCertsVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					Secret: &corev1.SecretVolumeSource{
+						SecretName:  etcdCertsSecretName,
+						DefaultMode: ptr.To[int32](420),
+					},
 				},
-			},
-		}
-		managers.Volume().AddVolume(etcdCertsVolume)
+			}
+			managers.Volume().AddVolume(etcdCertsVolume)
 
-		// Add etcd-certs volume mount
-		etcdCertsVolumeMount := corev1.VolumeMount{
-			Name:      etcdCertsVolumeName,
-			MountPath: etcdCertsVolumeMountPath,
-			ReadOnly:  true,
+			// Add etcd-certs volume mount
+			etcdCertsVolumeMount := corev1.VolumeMount{
+				Name:      etcdCertsVolumeName,
+				MountPath: etcdCertsVolumeMountPath,
+				ReadOnly:  true,
+			}
+			managers.VolumeMount().AddVolumeMountToContainer(&etcdCertsVolumeMount, apicommon.CoreAgentContainerName)
 		}
-		managers.VolumeMount().AddVolumeMountToContainer(&etcdCertsVolumeMount, apicommon.CoreAgentContainerName)
 
 		// Add disable-etcd-autoconf volume (emptyDir)
 		disableEtcdAutoconfVolume := &corev1.Volume{
@@ -285,24 +376,28 @@ func (f *controlPlaneMonitoringFeature) ManageNodeAgent(managers feature.PodTemp
 func (f *controlPlaneMonitoringFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
 	providerLabel, _ := kubernetes.GetProviderLabelKeyValue(f.provider)
 	if providerLabel == kubernetes.OpenShiftProviderLabel {
-		// Add etcd-certs volume (secret)
-		etcdCertsVolume := &corev1.Volume{
-			Name: etcdCertsVolumeName,
-			VolumeSource: corev1.VolumeSource{
-				Secret: &corev1.SecretVolumeSource{
-					SecretName: etcdCertsSecretName,
+		// Only mount the etcd-certs secret when it is present; the volume is
+		// non-optional and would otherwise wedge the pod in ContainerCreating.
+		if f.etcdCertsSecretAvailable() {
+			// Add etcd-certs volume (secret)
+			etcdCertsVolume := &corev1.Volume{
+				Name: etcdCertsVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					Secret: &corev1.SecretVolumeSource{
+						SecretName: etcdCertsSecretName,
+					},
 				},
-			},
-		}
-		managers.Volume().AddVolume(etcdCertsVolume)
+			}
+			managers.Volume().AddVolume(etcdCertsVolume)
 
-		// Add etcd-certs volume mount
-		etcdCertsVolumeMount := corev1.VolumeMount{
-			Name:      etcdCertsVolumeName,
-			MountPath: etcdCertsVolumeMountPath,
-			ReadOnly:  true,
+			// Add etcd-certs volume mount
+			etcdCertsVolumeMount := corev1.VolumeMount{
+				Name:      etcdCertsVolumeName,
+				MountPath: etcdCertsVolumeMountPath,
+				ReadOnly:  true,
+			}
+			managers.VolumeMount().AddVolumeMountToContainer(&etcdCertsVolumeMount, apicommon.ClusterChecksRunnersContainerName)
 		}
-		managers.VolumeMount().AddVolumeMountToContainer(&etcdCertsVolumeMount, apicommon.ClusterChecksRunnersContainerName)
 
 		// Add disable-etcd-autoconf volume (emptyDir)
 		disableEtcdAutoconfVolume := &corev1.Volume{

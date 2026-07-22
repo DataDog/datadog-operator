@@ -49,6 +49,24 @@ type CreateStrategyInfo struct {
 	nodesAlreadyLabeled int32    // number of nodes with the correct label
 }
 
+// CloneCreateStrategyInfoMap returns a deep copy of create strategy state.
+// The map stores pointers containing slices, so maps.Clone would still share
+// mutable CreateStrategyInfo values between the committed and staged state.
+func CloneCreateStrategyInfoMap(src map[types.NamespacedName]*CreateStrategyInfo) map[types.NamespacedName]*CreateStrategyInfo {
+	dst := make(map[types.NamespacedName]*CreateStrategyInfo, len(src))
+	for profile, info := range src {
+		if info == nil {
+			dst[profile] = nil
+			continue
+		}
+		dst[profile] = &CreateStrategyInfo{
+			nodesNeedingLabel:   slices.Clone(info.nodesNeedingLabel),
+			nodesAlreadyLabeled: info.nodesAlreadyLabeled,
+		}
+	}
+	return dst
+}
+
 // ApplyProfileToNodes applies a profile to nodes based on its label requirements
 // If there is a conflict with an existing profile, it returns an error
 func ApplyProfileToNodes(profile metav1.ObjectMeta, profileRequirements []*labels.Requirement, nodes []v1.Node, profileAppliedByNode map[string]types.NamespacedName, csInfo map[types.NamespacedName]*CreateStrategyInfo) error {
@@ -257,6 +275,7 @@ func OverrideFromProfile(profile *v1alpha1.DatadogAgentProfile, useV3Metadata bo
 			profileComponentOverride.PriorityClassName = nodeAgentOverride.PriorityClassName
 			profileComponentOverride.RuntimeClassName = nodeAgentOverride.RuntimeClassName
 			profileComponentOverride.UpdateStrategy = nodeAgentOverride.UpdateStrategy
+			profileComponentOverride.Volumes = nodeAgentOverride.Volumes
 		}
 	}
 
@@ -395,8 +414,9 @@ func containersOverride(nodeAgentOverride *v2alpha1.DatadogAgentComponentOverrid
 	for _, containerName := range containersInNodeAgent {
 		if overrideForContainer, overrideIsDefined := nodeAgentOverride.Containers[containerName]; overrideIsDefined {
 			res[containerName] = &v2alpha1.DatadogAgentGenericContainer{
-				Resources: overrideForContainer.Resources,
-				Env:       overrideForContainer.Env,
+				Resources:    overrideForContainer.Resources,
+				Env:          overrideForContainer.Env,
+				VolumeMounts: overrideForContainer.VolumeMounts,
 			}
 		}
 	}

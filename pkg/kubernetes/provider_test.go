@@ -107,7 +107,7 @@ func Test_determineProvider(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := determineProvider(tt.labels)
+			p := DetermineProvider(tt.labels)
 			assert.Equal(t, tt.provider, p)
 		})
 	}
@@ -678,6 +678,29 @@ func Test_GetAgentNameWithProvider(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			name := GetAgentNameWithProvider(tt.overrideName, tt.provider)
 			assert.Equal(t, tt.want, name)
+		})
+	}
+}
+
+func TestClusterProviderFromNodeLabels(t *testing.T) {
+	tests := []struct {
+		name   string
+		labels map[string]string
+		want   string
+	}{
+		{name: "eks", labels: map[string]string{EKSProviderLabel: "ami-x"}, want: EKSCloudProvider},
+		{name: "aks", labels: map[string]string{"kubernetes.azure.com/cluster": "MC_rg_aks_westus2"}, want: AKSProvider},
+		{name: "openshift keeps os suffix", labels: map[string]string{OpenShiftProviderLabel: "rhcos"}, want: "openshift-rhcos"},
+		{
+			name:   "gke node-OS does not leak to cluster scope",
+			labels: map[string]string{GKEProviderLabel: GKECosType},
+			want:   DefaultProvider,
+		},
+		{name: "unlabeled", labels: nil, want: DefaultProvider},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, ClusterProviderFromNodeLabels(tt.labels))
 		})
 	}
 }

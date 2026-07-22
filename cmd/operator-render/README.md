@@ -10,7 +10,7 @@ The tool reuses the operator's own reconciler code via `controller-runtime`'s fa
 
 1. **Builds a fake Kubernetes client** pre-populated with the provided DDA, DAPs, and the `DatadogAgentInternal` CRD loaded from `config/crd/bases/v1/`.
 2. **Runs the DDA reconciler twice**: the first pass adds the finalizer (as it would in a real cluster); the second pass does the actual work and creates `DatadogAgentInternal` (DDAI) objects.
-3. **Runs the DDAI reconciler** once for each DDAI, which generates all workload and dependency resources (DaemonSets, Deployments, RBAC, Services, Secrets, ConfigMaps, etc.).
+3. **Runs the DDAI reconciler** for each DDAI, repeating until the rendered resources stabilize. Shared resources such as the local Agent Service are assembled from contributions across multiple DDAIs over successive reconciles, so a single pass is not enough. This generates all workload and dependency resources (DaemonSets, Deployments, RBAC, Services, Secrets, ConfigMaps, etc.).
 4. **Collects and serializes** all resources written to the fake client, strips non-deterministic metadata fields (UID, resourceVersion, etc.), sorts by kind and name, and writes YAML or JSON.
 
 Because it runs the real reconciler code, output changes whenever the operator logic changes — making it a reliable building block for golden-file regression tests.
@@ -33,12 +33,22 @@ Usage:
   operator-render --dda <file> [flags]
 
 Flags:
-  --dda <file>          Path to DatadogAgent YAML file (required)
-  --dap <file>          Path to DatadogAgentProfile YAML file (repeatable)
-  --profiles-enabled    Enable DatadogAgentProfile reconciliation (independent of --dap inputs)
-  --output <file>       Write output to file instead of stdout
-  --format yaml|json    Output format (default: yaml)
-  --support-cilium      Emit CiliumNetworkPolicy resources in addition to NetworkPolicy
+  --dda <file>            Path to DatadogAgent YAML file (required)
+  --dap <file>            Path to DatadogAgentProfile YAML file (repeatable)
+  --profiles-enabled      Enable DatadogAgentProfile reconciliation (independent of --dap inputs)
+  --output <file>         Write output to file instead of stdout
+  --format yaml|json      Output format (default: yaml)
+  --support-cilium        Emit CiliumNetworkPolicy resources in addition to NetworkPolicy
+  --kubernetes-version    Simulated Kubernetes server version (GitVersion, default: v1.28.0).
+                          Affects version-gated resources such as the node Agent
+                          local service, which is only created on k8s >= 1.22.
+  --log-level none|info|debug
+                          Reconciler log verbosity (default: none).
+                          none  — no logging (default)
+                          info  — reconciler Info messages → stderr
+                          debug — reconciler Debug+Info messages → stderr;
+                                  also keeps reconciler-set .status on the
+                                  DDA/DAP/DDAI resources in the output
 ```
 
 ## Example usage
@@ -81,6 +91,26 @@ operator-render --dda my-dda.yaml --support-cilium
 ```
 
 Adds `CiliumNetworkPolicy` resources alongside the standard `NetworkPolicy` objects.
+
+### Debug: logs + statuses
+
+```bash
+# Reconciler debug logs → stderr; DDA/DAP/DDAI .status kept in stdout
+operator-render --dda my-dda.yaml --log-level debug
+
+# Same, saving to a file
+operator-render --dda my-dda.yaml --log-level debug --output full.yaml
+
+# Info logs only (statuses stripped)
+operator-render --dda my-dda.yaml --log-level info
+```
+
+At `debug` level the reconciler-set `.status` field is preserved inline on the
+`datadoghq.com` resources — the DDA, any DAPs, and the DDAIs — which appear in
+the normal sorted output (the DDA and DAPs are re-fetched and appended so their
+status is visible). At other levels `.status` is stripped, as it is zero-value
+noise on the fake client. Reconciler logs always go to stderr so they don't
+interfere with piping the render output.
 
 ### Golden-file regression test
 

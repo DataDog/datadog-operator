@@ -15,8 +15,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/util/retry"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	ctrlhandler "sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
@@ -42,22 +45,41 @@ type Reconciler struct {
 	client          client.Client
 	credsManager    *config.CredentialManager
 	handlers        map[v1alpha1.SupportedResourcesType]ResourceHandler
+	requeuePeriod   time.Duration
 	forceSyncPeriod time.Duration
 	scheme          *runtime.Scheme
 	log             logr.Logger
 	recorder        record.EventRecorder
 }
 
-func NewReconciler(client client.Client, credsManager *config.CredentialManager, scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder) *Reconciler {
+type ReconcilerOptions struct {
+	RequeuePeriod time.Duration
+}
+
+func NewReconciler(client client.Client, credsManager *config.CredentialManager, scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder, opts ...ReconcilerOptions) *Reconciler {
+	options := ReconcilerOptions{}
+	if len(opts) > 0 {
+		options = opts[0]
+	}
+
 	return &Reconciler{
 		client:          client,
 		credsManager:    credsManager,
 		handlers:        buildHandlers(datadogclient.InitGenericClients()),
+		requeuePeriod:   requeuePeriod(log, options.RequeuePeriod),
 		forceSyncPeriod: forceSyncPeriodFromEnv(log),
 		scheme:          scheme,
 		log:             log,
 		recorder:        recorder,
 	}
+}
+
+func requeuePeriod(logger logr.Logger, configured time.Duration) time.Duration {
+	if configured <= 0 {
+		configured = defaultRequeuePeriod
+	}
+	logger.Info("Setting generic resource requeue period", "duration", configured.String())
+	return configured
 }
 
 func forceSyncPeriodFromEnv(logger logr.Logger) time.Duration {
@@ -102,7 +124,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, instance *v1alpha1.DatadogGe
 
 	handler := r.getHandler(instance.Spec.Type)
 
-	final := finalizer.NewFinalizer(logger, r.client, r.deleteResource(logger, auth, handler), defaultRequeuePeriod, defaultErrRequeuePeriod)
+	final := finalizer.NewFinalizer(logger, r.client, r.deleteResource(logger, auth, handler), r.requeuePeriod, defaultErrRequeuePeriod)
 	if result, err = final.HandleFinalizer(ctx, instance, instance.Status.Id, datadogGenericResourceFinalizer); ctrutils.ShouldReturn(result, err) {
 		return result, err
 	}
@@ -141,7 +163,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, instance *v1alpha1.DatadogGe
 				shouldUpdate = true
 			}
 			status.LastForceSyncTime = &now
-		} else if instance.Status.StateLastUpdateTime == nil || ((defaultRequeuePeriod - now.Sub(instance.Status.StateLastUpdateTime.Time)) <= 0) {
+		} else if instance.Status.StateLastUpdateTime == nil || ((r.requeuePeriod - now.Sub(instance.Status.StateLastUpdateTime.Time)) <= 0) {
 			// Idle tick: refresh Datadog-side state for resource types that expose it.
 			// No-op for resource types without live state.
 			shouldRefreshStatus = true
@@ -160,6 +182,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, instance *v1alpha1.DatadogGe
 			result.RequeueAfter = defaultErrRequeuePeriod
 		}
 	} else if shouldRefreshStatus {
+		result.Priority = ptr.To(ctrlhandler.LowPriority)
 		state, refreshErr := handler.refreshState(auth, instance)
 		if refreshErr != nil {
 			logger.V(1).Info("state refresh failed", "err", refreshErr, "custom resource Id", instance.Status.Id, "resource type", instance.Spec.Type)
@@ -174,9 +197,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, instance *v1alpha1.DatadogGe
 		// state == nil && refreshErr == nil: resource type does not expose live state, no-op.
 	}
 
-	// If reconcile was successful and uneventful, requeue with period defaultRequeuePeriod
-	if result.IsZero() {
-		result.RequeueAfter = defaultRequeuePeriod
+	// If reconcile was successful and uneventful, requeue with the configured period.
+	if !result.Requeue && result.RequeueAfter == 0 {
+		result.RequeueAfter = r.requeuePeriod
 	}
 
 	return r.updateStatusIfNeeded(ctx, instance, status, result)
@@ -267,15 +290,44 @@ func applyResourceState(state string, status *v1alpha1.DatadogGenericResourceSta
 
 func (r *Reconciler) updateStatusIfNeeded(ctx context.Context, instance *v1alpha1.DatadogGenericResource, status *v1alpha1.DatadogGenericResourceStatus, result ctrl.Result) (ctrl.Result, error) {
 	if !apiequality.Semantic.DeepEqual(&instance.Status, status) {
-		instance.Status = *status
-		if err := r.client.Status().Update(ctx, instance); err != nil {
+		desiredStatus := status.DeepCopy()
+		instance.Status = *desiredStatus.DeepCopy()
+		err := r.client.Status().Update(ctx, instance)
+		if apierrors.IsConflict(err) {
+			// The Datadog API operation may already have succeeded, so preserve
+			// the resulting status (most importantly the remote resource ID) and
+			// retry only the Kubernetes status write against the latest object.
+			key := client.ObjectKeyFromObject(instance)
+			err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
+				latest := &v1alpha1.DatadogGenericResource{}
+				if getErr := r.client.Get(ctx, key, latest); getErr != nil {
+					return getErr
+				}
+
+				if apiequality.Semantic.DeepEqual(&latest.Status, desiredStatus) {
+					instance.ResourceVersion = latest.ResourceVersion
+					instance.Status = latest.Status
+					return nil
+				}
+
+				latest.Status = *desiredStatus.DeepCopy()
+				if updateErr := r.client.Status().Update(ctx, latest); updateErr != nil {
+					return updateErr
+				}
+
+				instance.ResourceVersion = latest.ResourceVersion
+				instance.Status = latest.Status
+				return nil
+			})
+		}
+		if err != nil {
 			logger := ctrl.LoggerFrom(ctx)
 			if apierrors.IsConflict(err) {
 				logger.Error(err, "unable to update DatadogGenericResource status due to update conflict")
-				return ctrl.Result{Requeue: true, RequeueAfter: defaultErrRequeuePeriod}, nil
+				return ctrl.Result{Requeue: true, RequeueAfter: defaultErrRequeuePeriod, Priority: result.Priority}, nil
 			}
 			logger.Error(err, "unable to update DatadogGenericResource status")
-			return ctrl.Result{Requeue: true, RequeueAfter: defaultRequeuePeriod}, err
+			return ctrl.Result{Requeue: true, RequeueAfter: r.requeuePeriod, Priority: result.Priority}, err
 		}
 	}
 	return result, nil

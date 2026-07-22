@@ -119,7 +119,9 @@ func (r *DatadogAgentInternalReconciler) SetupWithManager(mgr ctrl.Manager, metr
 		return err
 	}
 
-	r.internal = datadogagentinternal.NewReconciler(r.Options, r.Client, mgr.GetAPIReader(), r.PlatformInfo, r.Scheme, r.Recorder, metricForwardersMgr)
+	internalOptions := r.Options
+	internalOptions.APIReader = mgr.GetAPIReader()
+	r.internal = datadogagentinternal.NewReconciler(internalOptions, r.Client, r.PlatformInfo, r.Scheme, r.Recorder, metricForwardersMgr)
 
 	return nil
 }

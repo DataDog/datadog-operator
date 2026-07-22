@@ -40,9 +40,31 @@ type DatadogCSIDriverSpec struct {
 	// +optional
 	DSDSocketPath *string `json:"dsdSocketPath,omitempty"`
 
+	// APM configures APM/Single Step Instrumentation support for the CSI driver.
+	// +optional
+	APM *DatadogCSIDriverAPMConfig `json:"apm,omitempty"`
+
 	// Override allows customization of the CSI driver DaemonSet pod template.
 	// +optional
 	Override *DatadogCSIDriverOverride `json:"override,omitempty"`
+
+	// CommonLabels are propagated from spec.global.commonLabels on the parent
+	// DatadogAgent and are applied to all resources managed by the CSI
+	// controller (DaemonSet ObjectMeta, pod template, and cluster-scoped
+	// CSIDriver object). This field is managed by the operator; do not set it
+	// manually.
+	// +optional
+	//+mapType=granular
+	CommonLabels map[string]string `json:"commonLabels,omitempty"`
+}
+
+// DatadogCSIDriverAPMConfig defines APM/Single Step Instrumentation settings for the CSI driver.
+// +k8s:openapi-gen=true
+type DatadogCSIDriverAPMConfig struct {
+	// Enabled enables APM/Single Step Instrumentation support for the CSI driver.
+	// Default: true
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
 }
 
 // DatadogCSIDriverOverride provides override capabilities for the CSI driver DaemonSet.

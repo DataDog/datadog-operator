@@ -7,12 +7,14 @@ package controller
 
 import (
 	"context"
+	"time"
 
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	ctrlcontroller "sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
@@ -28,7 +30,13 @@ type DatadogGenericResourceReconciler struct {
 	Log          logr.Logger
 	Scheme       *runtime.Scheme
 	Recorder     record.EventRecorder
+	Options      DatadogGenericResourceReconcilerOptions
 	internal     *ddgr.Reconciler
+}
+
+type DatadogGenericResourceReconcilerOptions struct {
+	MaxConcurrentReconciles int
+	RequeuePeriod           time.Duration
 }
 
 // +kubebuilder:rbac:groups=datadoghq.com,resources=datadoggenericresources,verbs=get;list;watch;create;update;patch;delete
@@ -41,12 +49,17 @@ func (r *DatadogGenericResourceReconciler) Reconcile(ctx context.Context, instan
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *DatadogGenericResourceReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	r.internal = ddgr.NewReconciler(r.Client, r.CredsManager, r.Scheme, r.Log, r.Recorder)
+	r.internal = ddgr.NewReconciler(r.Client, r.CredsManager, r.Scheme, r.Log, r.Recorder, ddgr.ReconcilerOptions{
+		RequeuePeriod: r.Options.RequeuePeriod,
+	})
 
 	or := reconcile.AsReconciler[*v1alpha1.DatadogGenericResource](r.Client, r)
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.DatadogGenericResource{}).
 		WithEventFilter(predicate.GenerationChangedPredicate{}).
+		WithOptions(ctrlcontroller.Options{
+			MaxConcurrentReconciles: r.Options.MaxConcurrentReconciles,
+		}).
 		// WithLogConstructor replaces the default log constructor. The default one adds
 		// both a nested "DatadogGenericResource":{name, namespace} object AND flat
 		// "namespace"/"name" fields, causing duplication. This constructor emits only

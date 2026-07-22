@@ -9,6 +9,8 @@ const (
 	admissionControllerPortName                = "admissioncontrollerport"
 	admissionControllerSocketCommunicationMode = "socket"
 	admissionControllerHostipCommunicationMode = "hostip"
+	admissionControllerCSICommunicationMode    = "csi"
+	datadogCSIDriverName                       = "k8s.csi.datadoghq.com"
 
 	// DefaultAdmissionControllerServicePort default admission controller service port
 	defaultAdmissionControllerServicePort = 443

@@ -24,11 +24,17 @@ import (
 	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/merger"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/providercaps"
 	"github.com/DataDog/datadog-operator/pkg/constants"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 func init() {
 	err := feature.Register(feature.DogstatsdIDType, buildDogstatsdFeature)
+	if err != nil {
+		panic(err)
+	}
+	err = feature.RegisterDDASharedDependencies(feature.DogstatsdIDType, applyDogstatsdDDASharedDependencies)
 	if err != nil {
 		panic(err)
 	}
@@ -55,9 +61,6 @@ type dogstatsdFeature struct {
 	originDetectionEnabled bool
 	tagCardinality         string
 	mapperProfiles         *v2alpha1.CustomConfig
-
-	forceEnableLocalService bool
-	localServiceName        string
 
 	dataPlaneEnabled           bool
 	dataPlaneDogstatsdEnabled  bool
@@ -108,11 +111,6 @@ func (f *dogstatsdFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Datado
 		f.mapperProfiles = dogstatsd.MapperProfiles
 	}
 
-	if ddaSpec.Global.LocalService != nil {
-		f.forceEnableLocalService = apiutils.BoolValue(ddaSpec.Global.LocalService.ForceEnableLocalService)
-	}
-	f.localServiceName = constants.GetLocalAgentServiceName(dda.GetName(), ddaSpec)
-
 	f.nonLocalTraffic = apiutils.BoolValue(dogstatsd.NonLocalTraffic)
 
 	f.dataPlaneEnabled = featureutils.IsDataPlaneEnabled(dda, ddaSpec)
@@ -133,29 +131,58 @@ func (f *dogstatsdFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Datado
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
 func (f *dogstatsdFeature) ManageDependencies(managers feature.ResourceManagers) error {
-	platformInfo := managers.Store().GetPlatformInfo()
-	// agent local service
-	if common.ShouldCreateAgentLocalService(platformInfo.GetVersionInfo(), f.forceEnableLocalService) {
-		dsdPort := &corev1.ServicePort{
-			Protocol:   corev1.ProtocolUDP,
-			TargetPort: intstr.FromInt(int(common.DefaultDogstatsdPort)),
-			Port:       common.DefaultDogstatsdPort,
-			Name:       defaultDogstatsdPortName,
+	return nil
+}
+
+func applyDogstatsdDDASharedDependencies(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, ddai metav1.Object, ddaiSpec *v2alpha1.DatadogAgentSpec, managers feature.ResourceManagers) error {
+	ports := dogstatsdLocalAgentServicePorts(ddai, ddaiSpec)
+	if len(ports) == 0 || !featureutils.ShouldCreateLocalAgentService(ddaSpec, managers) {
+		return nil
+	}
+
+	serviceInternalTrafficPolicy := corev1.ServiceInternalTrafficPolicyLocal
+	return managers.ServiceManager().AddService(
+		constants.GetLocalAgentServiceName(dda.GetName(), ddaSpec),
+		dda.GetNamespace(),
+		common.GetAgentLocalServiceSelector(dda),
+		ports,
+		&serviceInternalTrafficPolicy,
+	)
+}
+
+func dogstatsdLocalAgentServicePorts(ddai metav1.Object, ddaiSpec *v2alpha1.DatadogAgentSpec) []corev1.ServicePort {
+	if ddaiSpec == nil || ddaiSpec.Features == nil || ddaiSpec.Features.Dogstatsd == nil {
+		return nil
+	}
+
+	dogstatsd := ddaiSpec.Features.Dogstatsd
+	hostPortEnabled := false
+	hostPortHostPort := int32(common.DefaultDogstatsdPort)
+	if dogstatsd.HostPortConfig != nil {
+		hostPortEnabled = apiutils.BoolValue(dogstatsd.HostPortConfig.Enabled)
+		if dogstatsd.HostPortConfig.Port != nil {
+			hostPortHostPort = *dogstatsd.HostPortConfig.Port
 		}
-		if f.hostPortEnabled {
-			dsdPort.Port = f.hostPortHostPort
-			dsdPort.Name = dogstatsdHostPortName
-			if f.useHostNetwork {
-				dsdPort.TargetPort = intstr.FromInt(int(f.hostPortHostPort))
-			}
-		}
-		serviceInternalTrafficPolicy := corev1.ServiceInternalTrafficPolicyLocal
-		if err := managers.ServiceManager().AddService(f.localServiceName, f.owner.GetNamespace(), common.GetAgentLocalServiceSelector(f.owner), []corev1.ServicePort{*dsdPort}, &serviceInternalTrafficPolicy); err != nil {
-			return err
+	}
+	if experimental.IsAutopilotEnabled(ddai) {
+		hostPortEnabled = true
+	}
+
+	dsdPort := corev1.ServicePort{
+		Protocol:   corev1.ProtocolUDP,
+		TargetPort: intstr.FromInt(int(common.DefaultDogstatsdPort)),
+		Port:       common.DefaultDogstatsdPort,
+		Name:       defaultDogstatsdPortName,
+	}
+	if hostPortEnabled {
+		dsdPort.Port = hostPortHostPort
+		dsdPort.Name = dogstatsdHostPortName
+		if constants.IsHostNetworkEnabled(ddaiSpec, v2alpha1.NodeAgentComponentName) {
+			dsdPort.TargetPort = intstr.FromInt(int(hostPortHostPort))
 		}
 	}
 
-	return nil
+	return []corev1.ServicePort{dsdPort}
 }
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
@@ -180,6 +207,18 @@ func (f *dogstatsdFeature) ManageClusterAgent(managers feature.PodTemplateManage
 func (f *dogstatsdFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers) error {
 	f.manageNodeAgent(apicommon.UnprivilegedSingleAgentContainerName, managers)
 	return nil
+}
+
+// NodeAgentProviderCapabilities returns provider-conditional pod-template mutations.
+// On GKE Autopilot the dogstatsd socket volume (added by the default node-agent builder)
+// is not in the WorkloadAllowlist, so it is removed (the feature forces hostPort there).
+// Colocated here because dogstatsd owns the socket volume's provider variation.
+func (f *dogstatsdFeature) NodeAgentProviderCapabilities() providercaps.ProviderCapabilityMap {
+	return providercaps.ProviderCapabilityMap{
+		kubernetes.GKEAutopilotProvider: {
+			RemoveVolumes: []string{common.DogstatsdSocketVolumeName},
+		},
+	}
 }
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec

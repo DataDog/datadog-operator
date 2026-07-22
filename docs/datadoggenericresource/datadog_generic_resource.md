@@ -1,10 +1,10 @@
 # Datadog GenericResource
 
-This feature was introduced in Datadog Operator v1.12.0 and is currently in Preview.
-
 ## Overview
 
-The `DatadogGenericResource` (DDGR) Custom Resource Definition allows users to create a variety of [Datadog resources](#supported-resources) using the Operator and manage them as Kubernetes resources. 
+The `DatadogGenericResource` (DDGR) Custom Resource Definition allows users to create a variety of [Datadog resources](#supported-resources) using the Operator and manage them as Kubernetes resources.
+
+DDGR is the preferred Custom Resource Definition for Datadog resources that are supported by both DDGR and older resource-specific CRDs, such as `DatadogMonitor`, `DatadogDashboard`, and `DatadogSLO`. Existing resource-specific CRDs remain supported, but new Datadog API features are expected to be easier to consume through DDGR because `jsonSpec` follows the Datadog API payload directly.
 
 Example:
 ```yaml
@@ -38,20 +38,23 @@ spec:
 ```
 
 A `DatadogGenericResource` object has two fields:
-* `type`: one of the [supported resources types](#supported-resources) (e.g. `synthetics_browser_test`)
+* `type`: one of the [supported resource types](#supported-resources) (e.g. `synthetics_browser_test`)
 * `jsonSpec`: JSON description of the resource you want to create.
+
+(Optional): To migrate existing `DatadogMonitor`, `DatadogDashboard`, or `DatadogSLO` resources to DDGR, see the [migration guide](./datadog_generic_resource_migration.md).
 
 ## Supported Resources
 
 | Type                      | Operator Version | Json template                                                                         | Example manifest                                                                     |
 |---------------------------|:----------------:|---------------------------------------------------------------------------------------|:------------------------------------------------------------------------------------:|
-| `notebook`                | v1.12.0          | https://docs.datadoghq.com/api/latest/notebooks/#create-a-notebook                    | [Notebook manifest](../examples/datadoggenericresource/notebook-sample.yaml)         |
-| `synthetics_api_test`     | v1.12.0          | https://docs.datadoghq.com/api/latest/synthetics/#create-an-api-test                  | [API test manifest](../examples/datadoggenericresource/api-test-sample.yaml)         |
-| `synthetics_browser_test` | v1.12.0          | https://docs.datadoghq.com/api/latest/synthetics/#create-a-browser-test               | [Browser test manifest](../examples/datadoggenericresource/browser-test-sample.yaml) |
-| `monitor`                 | v1.13.0          | https://docs.datadoghq.com/api/latest/monitors/#create-a-monitor                      | [Monitor manifest](../examples/datadoggenericresource/monitor-sample.yaml)           |
-| `downtime`                | v1.22.0          | https://docs.datadoghq.com/api/latest/downtimes/#schedule-a-downtime                  | [Downtime manifest](../examples/datadoggenericresource/downtime-sample.yaml)         |
-| `dashboard`               | v1.27.0          | https://docs.datadoghq.com/api/latest/dashboards/#create-a-dashboard                  | [Dashboard manifest](../examples/datadoggenericresource/dashboard-sample.yaml)       |
-| `slo`                     | v1.28.0          | https://docs.datadoghq.com/api/latest/service-level-objectives/#create-an-slo-object  | [SLO manifest](../examples/datadoggenericresource/slo-sample.yaml)                   |
+| `notebook`                | v1.12.0          | https://docs.datadoghq.com/api/latest/notebooks/#create-a-notebook                    | [Notebook manifest](../../examples/datadoggenericresource/notebook-sample.yaml)         |
+| `synthetics_api_test`     | v1.12.0          | https://docs.datadoghq.com/api/latest/synthetics/#create-an-api-test                  | [API test manifest](../../examples/datadoggenericresource/api-test-sample.yaml)         |
+| `synthetics_browser_test` | v1.12.0          | https://docs.datadoghq.com/api/latest/synthetics/#create-a-browser-test               | [Browser test manifest](../../examples/datadoggenericresource/browser-test-sample.yaml) |
+| `monitor`                 | v1.13.0          | https://docs.datadoghq.com/api/latest/monitors/#create-a-monitor                      | [Monitor manifest](../../examples/datadoggenericresource/monitor-sample.yaml)           |
+| `downtime`                | v1.22.0          | https://docs.datadoghq.com/api/latest/downtimes/#schedule-a-downtime                  | [Downtime manifest](../../examples/datadoggenericresource/downtime-sample.yaml)         |
+| `dashboard`               | v1.27.0          | https://docs.datadoghq.com/api/latest/dashboards/#create-a-dashboard                  | [Dashboard manifest](../../examples/datadoggenericresource/dashboard-sample.yaml)       |
+| `slo`                     | v1.28.0          | https://docs.datadoghq.com/api/latest/service-level-objectives/#create-an-slo-object  | [SLO manifest](../../examples/datadoggenericresource/slo-sample.yaml)                   |
+| `monitor_notification_rule` | v1.30.0        | https://docs.datadoghq.com/api/latest/monitors/create-a-monitor-notification-rule/    | [Notification rule manifest](../../examples/datadoggenericresource/notification-rule-sample.yaml) |
 
 ## Prerequisites
 
@@ -66,6 +69,14 @@ To deploy a `DatadogGenericResource` with the Datadog Operator, follow the steps
 1. Add the Datadog Helm chart repository using:
     ```shell
     helm repo add datadog https://helm.datadoghq.com
+    ```
+
+    For **OLM deployments**, enable the controller via environment variable in the `Subscription`:
+    ```yaml
+    config:
+      env:
+        - name: DD_GENERIC_RESOURCE_CONTROLLER_ENABLED
+          value: "true"
     ```
 
 2. The DDGR controller and its CRD are both disabled by default. The controller also requires an API and an application key. Choose one of the following options:
@@ -153,7 +164,7 @@ To deploy a `DatadogGenericResource` with the Datadog Operator, follow the steps
     ```shell
     kubectl apply -f /path/to/your/datadog-generic-resource.yaml
     ```
-    This creates a new notebook in Datadog: it is available on the [Notebooks](4) page.
+    This creates a new notebook in Datadog: it is available on the [Notebooks][4] page.
 
 5. (Cleanup) Delete the Kubernetes resource to remove the resource from your account:
     ```shell
@@ -162,8 +173,19 @@ To deploy a `DatadogGenericResource` with the Datadog Operator, follow the steps
 
 Further example manifests are provided [in the supported resources table](#supported-resources).
 
-By default, the Operator ensures that the API resource definition stays in sync with the `DatadogGenericResource` every **60** minutes (per resource). This interval can be adjusted using the environment variable `DD_GENERIC_RESOURCE_FORCE_SYNC_PERIOD`, which specifies the number of minutes. For example, setting this variable to `"30"` changes the interval to 30 minutes.
+## Controller tuning
 
+The `DatadogGenericResource` controller exposes several tuning options for large installations or load tests.
+
+| Option | Default | Description |
+| --- | --- | --- |
+| `DD_GENERIC_RESOURCE_FORCE_SYNC_PERIOD` | `60` minutes | Interval, in minutes, for checking that the Datadog API resource definition still matches the Kubernetes `DatadogGenericResource`. For example, `"30"` changes the interval to 30 minutes. |
+| `--datadogGenericResourceRequeuePeriod` / `DD_GENERIC_RESOURCE_REQUEUE_PERIOD` | `60s` | Scheduled requeue interval for each `DatadogGenericResource` after a successful reconcile. On idle requeues, the controller also polls Datadog-side live state for resource types that expose it, currently `monitor` and `slo`. Accepts Go duration strings such as `30s` or `5m`. |
+| `--datadogGenericResourceMaxConcurrentReconciles` / `DD_GENERIC_RESOURCE_MAX_CONCURRENT_RECONCILES` | `1` | Maximum number of `DatadogGenericResource` objects that the controller reconciles at the same time. |
+
+Increasing `--datadogGenericResourceMaxConcurrentReconciles` can improve throughput when creating, updating, deleting, or periodically syncing many resources. The tradeoff is higher Operator CPU usage and more concurrent requests to the Datadog API. Setting this value too high can increase the likelihood of Datadog API rate limits, especially when many resources reconcile at once or when the requeue interval is short.
+
+Lowering `DD_GENERIC_RESOURCE_REQUEUE_PERIOD` or `--datadogGenericResourceRequeuePeriod` makes all `DatadogGenericResource` objects reconcile more often. For `monitor` and `slo` resources, it also keeps `.status.state` fresher. The tradeoff is more Operator work and, for requeues that call the Datadog API, more API traffic. Raising the interval reduces polling overhead at the cost of slower periodic reconciliation and less frequent state updates.
 
 ## Datadog-side status
 
@@ -183,21 +205,23 @@ kubectl get datadoggenericresource    # shows state and last state sync columns
 kubectl wait --for=condition=StateSynced datadoggenericresource/<name>
 ```
 
-The controller refreshes `state` roughly every 60 seconds during reconciliation. Failures are visible only via the `StateSynced` condition — they do not break the reconcile loop and the last-known `state` is retained until a subsequent refresh succeeds.
+The controller requeues every `DatadogGenericResource` roughly every 60 seconds by default. This interval is controlled by `DD_GENERIC_RESOURCE_REQUEUE_PERIOD` or the `--datadogGenericResourceRequeuePeriod` manager flag, with the CLI flag taking precedence when both are set. For `monitor` and `slo` resources, these idle requeues refresh `state`. For resource types without live state, the state fields remain empty. Status polling requeues have lower priority than normal create, update, and delete work, so Datadog-side state updates may be delayed when the controller queue is busy. This keeps management operations ahead of background state polling, but means `.status.state` is eventually consistent rather than immediate.
+
+Failures are visible only through the `StateSynced` condition. They do not break the reconcile loop and the last-known `state` is retained until a subsequent refresh succeeds.
 
 This information is currently surfaced for `monitor` and `slo` resources. Resource types that do not expose live Datadog-side state (e.g., `dashboard`, `notebook`) leave these fields empty.
 
 ## Comparison with existing CRDs
 
 The Datadog Operator continues to support specific-resource CRDs:
-* [`DatadogMonitor`](./datadog_monitor.md)
-* [`DatadogDashboard`](./datadog_dashboard.md)
-* `DatadogSLO`
+* [`DatadogMonitor`](../datadog_monitor.md)
+* [`DatadogDashboard`](../datadog_dashboard.md)
+* [`DatadogSLO`](../datadog_slo.md)
 
-Some of these resources are (or will be) also supported by the `DatadogGenericResource` controller with the same possible operations: create, update and delete.
+All of these resources are also supported by the `DatadogGenericResource` controller with the same possible operations: create, update and delete.
 
 At the expense of more verbose manifests, this new controller provides:
-* Easier maintability: when Datadog APIs evolve to support additional features (e.g. a new type of monitor), the resource-specific controller requires a Custom Resource Definition update with the mapping of the new fields. On the other hand, the DDGR controller only requires a version of the [underlying Go client][5] that supports these new fields.
+* Easier maintainability: when Datadog APIs evolve to support additional features (e.g. a new type of monitor), the resource-specific controller requires a Custom Resource Definition update with the mapping of the new fields. On the other hand, the DDGR controller only requires a version of the [underlying Go client][5] that supports these new fields.
 * Expandability: adding support for a new type of resource requires little turnaround by following [the development steps](./datadog_generic_resource_dev.md).
 
 [1]: https://kubernetes.io/docs/tasks/tools/#kubectl

@@ -207,6 +207,9 @@ spec:
 `features.dogstatsd.unixDomainSocketConfig.path`
 : Defines the socket path used when enabled.
 
+`features.dynamicInstrumentation.enabled`
+: Enables the Dynamic Instrumentation system probe module. Default: false
+
 `features.ebpfCheck.enabled`
 : Enables the eBPF check. Default: false
 
@@ -252,6 +255,9 @@ spec:
 `features.kubeStateMetricsCore.enabled`
 : Enables Kube State Metrics Core. Default: true
 
+`features.kubernetesActions.enabled`
+: Enables the Kubernetes Actions feature on the Cluster Agent. Default: false
+
 `features.liveContainerCollection.enabled`
 : Enables container collection for the Live Container View. Default: true
 
@@ -293,9 +299,6 @@ spec:
 
 `features.npm.collectDNSStats`
 : CollectDNSStats enables DNS stat collection. Default: false
-
-`features.npm.directSend`
-: DirectSend enables CNM/USM to send data directly to the backend Default: false
 
 `features.npm.enableConntrack`
 : EnableConntrack enables the system-probe agent to connect to the netlink/conntrack subsystem to add NAT information to connection data. See also: http://conntrack-tools.netfilter.org/ Default: false
@@ -393,9 +396,6 @@ spec:
 `features.serviceDiscovery.enabled`
 : Enables the service discovery check. Default: true when omitted and the node Agent image is >= 7.78.0. Otherwise false. If the image version cannot be determined, it is treated as latest.
 
-`features.serviceDiscovery.networkStats.enabled`
-: DEPRECATED: this field is ignored.
-
 `features.tcpQueueLength.enabled`
 : Enables the TCP queue length eBPF-based check. Default: false
 
@@ -416,6 +416,9 @@ spec:
 
 `global.clusterName`
 : ClusterName sets a unique cluster name for the deployment to easily scope monitoring data in the Datadog app.
+
+`global.commonLabels`
+: CommonLabels specified labels to be added to all operator-managed Kubernetes resources (DaemonSets, Deployments, ConfigMaps, Services, ServiceAccounts, etc.). This is useful when external policy tools such as Kyverno enforce the presence of specific labels on all cluster resources. Labels defined here are merged with the operator's own default labels; operator labels take precedence on any key conflict.
 
 `global.containerStrategy`
 : ContainerStrategy determines whether agents run in a single or multiple containers. Default: 'optimized'
@@ -547,7 +550,7 @@ spec:
 : Provide a mapping of Kubernetes Labels to Datadog Tags. <KUBERNETES_LABEL>: <DATADOG_TAG_KEY>
 
 `global.registry`
-: Is the image registry to use for all Agent images. Use 'public.ecr.aws/datadog' for AWS ECR. Use 'datadoghq.azurecr.io' for Azure Container Registry. Use 'gcr.io/datadoghq' for Google Container Registry. Use 'eu.gcr.io/datadoghq' for Google Container Registry in the EU region. Use 'asia.gcr.io/datadoghq' for Google Container Registry in the Asia region. Use 'docker.io/datadog' for DockerHub. Default: 'gcr.io/datadoghq'
+: Is the image registry to use for all Agent images. Use 'public.ecr.aws/datadog' for AWS ECR. Use 'datadoghq.azurecr.io' for Azure Container Registry. Use 'gcr.io/datadoghq' for Google Container Registry. Use 'eu.gcr.io/datadoghq' for Google Container Registry in the EU region. Use 'asia.gcr.io/datadoghq' for Google Container Registry in the Asia region. Use 'docker.io/datadog' for DockerHub. Default: 'registry.datadoghq.com'
 
 `global.secretBackend.args`
 : List of arguments to pass to the command (space-separated strings).
@@ -617,6 +620,33 @@ spec:
               memory: 1Gi
 {{< /highlight >}}
 In the table, `spec.override.nodeAgent.image.name` and `spec.override.nodeAgent.containers.system-probe.resources.limits` appear as `[component].image.name` and `[component].containers.[container].resources.limits`, respectively.
+
+### Resource limits on high-core-count nodes
+
+On nodes with a high logical CPU count (for example, large GPU or bare-metal hosts), the Agent's Go runtime sizes its scheduler to the host CPU count by default. This scales memory usage proportionally with the CPU count and can cause the Agent container to be OOM-killed even with otherwise modest workloads.
+
+Setting an explicit CPU limit on the `agent` container constrains the runtime to that value:
+
+{{< highlight yaml "hl_lines=6-14" >}}
+apiVersion: datadoghq.com/v2alpha1
+kind: DatadogAgent
+metadata:
+  name: datadog
+spec:
+  override:
+    nodeAgent:
+      containers:
+        agent:
+          resources:
+            requests:
+              cpu: "2"
+              memory: 512Mi
+            limits:
+              cpu: "2"
+              memory: 1Gi
+{{< /highlight >}}
+
+Use an integer value for `limits.cpu` so the runtime can read it directly. If your cluster has node shapes with widely varying core counts, apply different limits per shape with [DatadogAgentProfiles][10] rather than setting a single global value that may be too low for small nodes or too high for large ones.
 
 
 {{% collapse-content title="Parameters" level="h4" expanded=true id="override-options-list" %}}
@@ -693,7 +723,7 @@ In the table, `spec.override.nodeAgent.image.name` and `spec.override.nodeAgent.
 
 `[component].customConfigurations`
 : _type_: `map[string]object`
-<br /> CustomConfiguration allows to specify custom configuration files for `datadog.yaml`, `datadog-cluster.yaml`, `security-agent.yaml`, and `system-probe.yaml`. The content is merged with configuration generated by the Datadog Operator, with priority given to custom configuration. WARNING: It is possible to override values set in the `DatadogAgent`.
+<br /> CustomConfigurations specifies custom contents for `datadog.yaml`, `datadog-cluster.yaml`, `security-agent.yaml`, and `system-probe.yaml`. Each provided file replaces the corresponding default file from the Agent image without merging. Agent settings provided through environment variables take precedence over these files.
 
 `[component].customConfigurations.[container].configData`
 : ConfigData corresponds to the configuration file content.
@@ -807,3 +837,4 @@ For a complete list of parameters, see the [Operator configuration spec][9].
 [7]: https://github.com/DataDog/datadog-operator/blob/main/examples/datadogagent/datadog-agent-with-tolerations.yaml
 [8]: https://github.com/DataDog/datadog-operator/blob/main/docs/configuration.v2alpha1.md#all-configuration-options
 [9]: https://github.com/DataDog/datadog-operator/blob/main/docs/configuration.v2alpha1.md#override
+[10]: https://github.com/DataDog/datadog-operator/blob/main/docs/datadog_agent_profiles.md

@@ -7,6 +7,7 @@ package v2alpha1
 
 import (
 	corev1 "k8s.io/api/core/v1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/common"
@@ -77,6 +78,8 @@ type DatadogFeatures struct {
 	NPM *NPMFeatureConfig `json:"npm,omitempty"`
 	// USM (Universal Service Monitoring) configuration.
 	USM *USMFeatureConfig `json:"usm,omitempty"`
+	// DynamicInstrumentation configuration.
+	DynamicInstrumentation *DynamicInstrumentationFeatureConfig `json:"dynamicInstrumentation,omitempty"`
 	// Dogstatsd configuration.
 	Dogstatsd *DogstatsdFeatureConfig `json:"dogstatsd,omitempty"`
 	// OTLP ingest configuration
@@ -118,6 +121,19 @@ type DatadogFeatures struct {
 	HelmCheck *HelmCheckFeatureConfig `json:"helmCheck,omitempty"`
 	// ControlPlaneMonitoring configuration.
 	ControlPlaneMonitoring *ControlPlaneMonitoringFeatureConfig `json:"controlPlaneMonitoring,omitempty"`
+	// KubernetesActions configuration.
+	KubernetesActions *KubernetesActionsFeatureConfig `json:"kubernetesActions,omitempty"`
+}
+
+// KubernetesActionsFeatureConfig allows configuration of the Kubernetes Actions feature.
+// When enabled, the Cluster Agent is granted RBAC to perform remediation actions
+// (deleting pods, restarting deployments) driven by the Datadog Kubernetes Actions product.
+// +k8s:openapi-gen=true
+type KubernetesActionsFeatureConfig struct {
+	// Enabled enables the Kubernetes Actions feature on the Cluster Agent.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
 }
 
 // Configuration structs for each feature in DatadogFeatures. All parameters are optional and have default values when necessary.
@@ -667,11 +683,6 @@ type NPMFeatureConfig struct {
 	// Default: false
 	// +optional
 	CollectDNSStats *bool `json:"collectDNSStats,omitempty"`
-
-	// DirectSend enables CNM/USM to send data directly to the backend
-	// Default: false
-	// +optional
-	DirectSend *bool `json:"directSend,omitempty"`
 }
 
 // USMFeatureConfig contains USM (Universal Service Monitoring) feature configuration.
@@ -683,25 +694,19 @@ type USMFeatureConfig struct {
 	Enabled *bool `json:"enabled,omitempty"`
 }
 
+// DynamicInstrumentationFeatureConfig configures the Dynamic Instrumentation system probe module.
+type DynamicInstrumentationFeatureConfig struct {
+	// Enabled enables the Dynamic Instrumentation system probe module.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+}
+
 // ServiceDiscoveryFeatureConfig configures the service discovery check feature.
 type ServiceDiscoveryFeatureConfig struct {
 	// Enables the service discovery check.
 	// Default: true when omitted and the node Agent image is >= 7.78.0. Otherwise false.
 	// If the image version cannot be determined, it is treated as latest.
-	// +optional
-	Enabled *bool `json:"enabled,omitempty"`
-
-	// DEPRECATED: NetworkStats is no longer configurable and will be ignored. Scheduled for removal in v1.28.
-	// +deprecated
-	// +optional
-	NetworkStats *ServiceDiscoveryNetworkStatsConfig `json:"networkStats,omitempty"`
-}
-
-// ServiceDiscoveryNetworkStatsConfig is deprecated and has no effect.
-// +deprecated
-type ServiceDiscoveryNetworkStatsConfig struct {
-	// DEPRECATED: this field is ignored.
-	// +deprecated
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 }
@@ -1769,6 +1774,7 @@ type DeploymentStatus struct {
 }
 
 // GlobalConfig is a set of parameters that are used to configure all the components of the Datadog Operator.
+// +k8s:openapi-gen=true
 type GlobalConfig struct {
 	// Credentials defines the Datadog credentials used to submit data to/query data from Datadog.
 	Credentials *DatadogCredentials `json:"credentials,omitempty"`
@@ -1807,7 +1813,7 @@ type GlobalConfig struct {
 	// Use 'eu.gcr.io/datadoghq' for Google Container Registry in the EU region.
 	// Use 'asia.gcr.io/datadoghq' for Google Container Registry in the Asia region.
 	// Use 'docker.io/datadog' for DockerHub.
-	// Default: 'gcr.io/datadoghq'
+	// Default: 'registry.datadoghq.com'
 	// +optional
 	Registry *string `json:"registry,omitempty"`
 
@@ -1827,6 +1833,16 @@ type GlobalConfig struct {
 	// +listType=map
 	// +listMapKey=name
 	Env []corev1.EnvVar `json:"env,omitempty"`
+
+	// CommonLabels specified labels to be added to all operator-managed Kubernetes resources
+	// (DaemonSets, Deployments, ConfigMaps, Services, ServiceAccounts, etc.).
+	// This is useful when external policy tools such as Kyverno enforce the presence of
+	// specific labels on all cluster resources.
+	// Labels defined here are merged with the operator's own default labels; operator labels
+	// take precedence on any key conflict.
+	// +optional
+	//+mapType=granular
+	CommonLabels map[string]string `json:"commonLabels,omitempty"`
 
 	// ChecksTagCardinality configures tag cardinality for the metrics collected by integrations (`low`, `orchestrator` or `high`).
 	// See also: https://docs.datadoghq.com/getting_started/tagging/assigning_tags/?tab=containerizedenvironments#tags-cardinality.
@@ -2002,7 +2018,7 @@ type SecretBackendConfig struct {
 
 	// Additional configuration for the secret backend type.
 	// +optional
-	Config map[string]string `json:"config,omitempty"`
+	Config map[string]apiextensionsv1.JSON `json:"config,omitempty"`
 
 	// Roles for Datadog to read the specified secrets, replacing `enableGlobalPermissions`.
 	// They are defined as a list of namespace/secrets.
@@ -2178,9 +2194,9 @@ type DatadogAgentComponentOverride struct {
 	// +optional
 	EnvFrom []corev1.EnvFromSource `json:"envFrom,omitempty"`
 
-	// CustomConfiguration allows to specify custom configuration files for `datadog.yaml`, `datadog-cluster.yaml`, `security-agent.yaml`, and `system-probe.yaml`.
-	// The content is merged with configuration generated by the Datadog Operator, with priority given to custom configuration.
-	// WARNING: It is possible to override values set in the `DatadogAgent`.
+	// CustomConfigurations specifies custom contents for `datadog.yaml`, `datadog-cluster.yaml`, `security-agent.yaml`, and `system-probe.yaml`.
+	// Each provided file replaces the corresponding default file from the Agent image without merging.
+	// Agent settings provided through environment variables take precedence over these files.
 	// +doc-gen:truncate
 	// +optional
 	CustomConfigurations map[AgentConfigFileName]CustomConfig `json:"customConfigurations,omitempty"`
@@ -2529,6 +2545,11 @@ type DatadogAgentStatus struct {
 	// Experiment tracks the state of an active or recent Fleet Automation experiment.
 	// +optional
 	Experiment *ExperimentStatus `json:"experiment,omitempty"`
+	// ClusterProvider is the detected (or user-specified) cluster provider used to
+	// apply provider-specific configuration (e.g. control plane monitoring). Empty
+	// means no provider was detected or configured.
+	// +optional
+	ClusterProvider string `json:"clusterProvider,omitempty"`
 }
 
 // DatadogAgent defines Agent configuration, see reference https://github.com/DataDog/datadog-operator/blob/main/docs/configuration.v2alpha1.md

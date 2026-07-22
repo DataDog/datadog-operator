@@ -19,6 +19,8 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/merger"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/providercaps"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 func init() {
@@ -110,6 +112,29 @@ func (f *logCollectionFeature) ManageSingleContainerNodeAgent(managers feature.P
 func (f *logCollectionFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
 	f.manageNodeAgent(apicommon.CoreAgentContainerName, managers)
 	return nil
+}
+
+// NodeAgentProviderCapabilities returns provider-conditional pod-template mutations.
+// On GKE Autopilot the run-path (pointer) volume this feature adds in manageNodeAgent
+// must use the only hostPath the WorkloadAllowlist permits; override it in place.
+// Colocated here because this feature owns the pointer volume.
+func (f *logCollectionFeature) NodeAgentProviderCapabilities() providercaps.ProviderCapabilityMap {
+	// Empty when log collection is disabled (no pointer volume was added).
+	if f.tempStoragePath == "" {
+		return providercaps.ProviderCapabilityMap{}
+	}
+	pointerVol, pointerVolMount := volume.GetVolumes(pointerVolumeName, autopilotPointerHostPath, pointerVolumePath, false)
+	return providercaps.ProviderCapabilityMap{
+		kubernetes.GKEAutopilotProvider: {
+			Volumes: []providercaps.VolumeAndMount{
+				{
+					Volume:     pointerVol,
+					Mount:      pointerVolMount,
+					Containers: []apicommon.AgentContainerName{apicommon.CoreAgentContainerName},
+				},
+			},
+		},
+	}
 }
 
 func (f *logCollectionFeature) manageNodeAgent(agentContainerName apicommon.AgentContainerName, managers feature.PodTemplateManagers) error {

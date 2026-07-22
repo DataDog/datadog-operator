@@ -83,8 +83,10 @@ type ComponentReconciler interface {
 	// GetNewDeploymentFunc returns the function to create a new deployment for the component
 	GetNewDeploymentFunc() func(ddai metav1.Object, spec *datadoghqv2alpha1.DatadogAgentSpec) *appsv1.Deployment
 
-	// GetManageFeatureFunc returns the function to manage features for the component
-	GetManageFeatureFunc() func(feat feature.Feature, managers feature.PodTemplateManagers) error
+	// GetManageFeatureFunc returns the function to manage features for the component.
+	// provider is the current DDAI provider annotation value; components that apply
+	// provider-conditional mutations (e.g. ClusterAgent) use it in the returned closure.
+	GetManageFeatureFunc(provider string) func(feat feature.Feature, managers feature.PodTemplateManagers) error
 
 	// UpdateStatus updates the status of the component
 	UpdateStatus(deployment *appsv1.Deployment, newStatus *v1alpha1.DatadogAgentInternalStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string)
@@ -187,17 +189,21 @@ func (r *ComponentRegistry) reconcileComponent(ctx context.Context, params *Reco
 	now := metav1.NewTime(time.Now())
 
 	// Start by creating the Default deployment
-	deployment := component.GetNewDeploymentFunc()(params.DDAI.GetObjectMeta(), &params.DDAI.Spec)
+	// Pass params.DDAI directly (not GetObjectMeta()) so that getCommonLabels can
+	// type-assert to *v1alpha1.DatadogAgentInternal and read spec.global.commonLabels.
+	deployment := component.GetNewDeploymentFunc()(params.DDAI, &params.DDAI.Spec)
 	objLogger := ctrl.LoggerFrom(ctx).WithValues("object.kind", "Deployment", "object.namespace", deployment.Namespace, "object.name", deployment.Name)
 	podManagers := feature.NewPodTemplateManagers(&deployment.Spec.Template)
 
 	// Set Global setting on the default deployment
-	component.GetGlobalSettingsFunc()(objLogger, podManagers, params.DDAI.GetObjectMeta(), &params.DDAI.Spec, params.ResourceManagers, params.RequiredComponents)
+	component.GetGlobalSettingsFunc()(objLogger, podManagers, params.DDAI, &params.DDAI.Spec, params.ResourceManagers, params.RequiredComponents)
 
-	// Apply features changes on the Deployment.Spec.Template
+	// Apply features changes on the Deployment.Spec.Template.
+	// Each component's GetManageFeatureFunc owns any provider-conditional mutations it needs.
+	manageFeature := component.GetManageFeatureFunc(params.Provider)
 	var featErrors []error
 	for _, feat := range params.Features {
-		if errFeat := component.GetManageFeatureFunc()(feat, podManagers); errFeat != nil {
+		if errFeat := manageFeature(feat, podManagers); errFeat != nil {
 			featErrors = append(featErrors, errFeat)
 		}
 	}
@@ -244,7 +250,7 @@ func (r *ComponentRegistry) reconcileComponent(ctx context.Context, params *Reco
 
 // Cleanup removes the component deployment, associated resources and updates status
 func (r *ComponentRegistry) Cleanup(ctx context.Context, params *ReconcileComponentParams, component ComponentReconciler) (reconcile.Result, error) {
-	deployment := component.GetNewDeploymentFunc()(params.DDAI.GetObjectMeta(), &params.DDAI.Spec)
+	deployment := component.GetNewDeploymentFunc()(params.DDAI, &params.DDAI.Spec)
 
 	// Apply the name override so we delete the correct deployment
 	if componentOverride, ok := params.DDAI.Spec.Override[component.Name()]; ok {

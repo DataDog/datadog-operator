@@ -6,9 +6,15 @@
 *                       @DataDog/container-platform
 
 # Documentation
-README.md               @DataDog/documentation  @DataDog/container-platform
-/docs/                  @DataDog/documentation  @DataDog/container-platform
-/docs/kubectl-plugin.md @DataDog/documentation  @DataDog/container-platform @DataDog/container-autoscaling
+README.md                                       @DataDog/container-platform
+/docs/                                          @DataDog/container-platform
+/docs/kubectl-plugin.md                         @DataDog/documentation  @DataDog/container-platform @DataDog/container-autoscaling
+/docs/configuration_public.md              @DataDog/documentation  @DataDog/container-platform
+/docs/custom_check.md                           @DataDog/documentation  @DataDog/container-platform
+/docs/data_collected.md                         @DataDog/documentation  @DataDog/container-platform
+/docs/installation.md                           @DataDog/documentation  @DataDog/container-platform
+/docs/secret_management.md                      @DataDog/documentation  @DataDog/container-platform
+/docs/v2alpha1_migration.md                     @DataDog/documentation  @DataDog/container-platform
 
 
 # Features owners
@@ -25,6 +31,7 @@ README.md               @DataDog/documentation  @DataDog/container-platform
 /internal/controller/datadogagent/feature/dataplane                 @DataDog/agent-data-plane       @DataDog/container-platform
 /internal/controller/datadogagent/feature/dogstatsd                 @DataDog/agent-metric-pipelines @DataDog/container-platform
 /internal/controller/datadogagent/feature/dummy                     @DataDog/container-platform
+/internal/controller/datadogagent/feature/dyninst                   @DataDog/debugger               @DataDog/container-platform
 /internal/controller/datadogagent/feature/ebpfcheck                 @DataDog/ebpf-platform          @DataDog/container-platform
 /internal/controller/datadogagent/feature/enabledefault             @DataDog/container-platform
 /internal/controller/datadogagent/feature/eventcollection           @DataDog/container-integrations @DataDog/container-platform

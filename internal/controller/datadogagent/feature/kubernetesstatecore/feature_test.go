@@ -17,6 +17,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
+	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	mergerfake "github.com/DataDog/datadog-operator/internal/controller/datadogagent/merger/fake"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
@@ -136,6 +137,18 @@ func Test_ksmFeature_Configure(t *testing.T) {
 			ClusterAgent:        test.NewDefaultComponentTest().WithWantFunc(func(t testing.TB, mgrInterface feature.PodTemplateManagers) {}),
 			ClusterChecksRunner: test.NewDefaultComponentTest().WithWantFunc(func(t testing.TB, mgrInterface feature.PodTemplateManagers) {}),
 		},
+		{
+			Name: "ksm-core enabled, useApiServerCache annotation set",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithKSMEnabled(true).
+				WithAnnotations(map[string]string{
+					featureutils.EnableKSMApiServerCacheAnnotation: "true",
+				}).
+				Build(),
+			WantConfigure: true,
+			ClusterAgent:  ksmClusterAgentApiServerCacheWantFunc(),
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(ksmAgentNodeWantFunc),
+		},
 	}
 
 	tests.Run(t, buildKSMFeature)
@@ -176,6 +189,7 @@ func ksmClusterAgentWantFunc(hasCustomConfig bool) *test.ComponentTest {
 					"collect_crds":        true,
 					"collect_apiservices": true,
 					"collect_cr_metrics":  nil,
+					"use_apiserver_cache": false,
 				}
 				hash, err := comparison.GenerateMD5ForSpec(defaultConfigData)
 				assert.NoError(t, err)
@@ -185,6 +199,27 @@ func ksmClusterAgentWantFunc(hasCustomConfig bool) *test.ComponentTest {
 				annotations := mgr.AnnotationMgr.Annotations
 				assert.True(t, apiutils.IsEqualStruct(annotations, wantAnnotations), "Default config annotations \ndiff = %s", cmp.Diff(annotations, wantAnnotations))
 			}
+		},
+	)
+}
+
+func ksmClusterAgentApiServerCacheWantFunc() *test.ComponentTest {
+	return test.NewDefaultComponentTest().WithWantFunc(
+		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+			mgr := mgrInterface.(*fake.PodTemplateManagers)
+			defaultConfigData := map[string]any{
+				"collect_crds":        true,
+				"collect_apiservices": true,
+				"collect_cr_metrics":  nil,
+				"use_apiserver_cache": true,
+			}
+			hash, err := comparison.GenerateMD5ForSpec(defaultConfigData)
+			assert.NoError(t, err)
+			wantAnnotations := map[string]string{
+				fmt.Sprintf(constants.MD5ChecksumAnnotationKey, feature.KubernetesStateCoreIDType): hash,
+			}
+			annotations := mgr.AnnotationMgr.Annotations
+			assert.True(t, apiutils.IsEqualStruct(annotations, wantAnnotations), "Annotations \ndiff = %s", cmp.Diff(annotations, wantAnnotations))
 		},
 	)
 }
