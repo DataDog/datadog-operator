@@ -7,6 +7,7 @@ package datadogagentinternal
 import (
 	"context"
 	"encoding/json"
+	"maps"
 	"testing"
 	"time"
 
@@ -15,6 +16,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -22,7 +24,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
+	datadoghqcommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -130,6 +134,154 @@ func TestTargetNodeFromDaemonSetAffinity(t *testing.T) {
 	assert.False(t, ok)
 }
 
+func TestResourceFallbackSchedulingShapeAllowsOnlyProfileSurgeAntiAffinity(t *testing.T) {
+	namedLabels := map[string]string{
+		datadoghqcommon.AgentDeploymentNameLabelKey: "datadog-agent",
+		constants.ProfileLabelKey:                   "linux",
+	}
+	namedAntiAffinity, ok := profileSurgePodAntiAffinity(namedLabels)
+	require.True(t, ok)
+	named := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Labels: namedLabels}, Spec: corev1.PodSpec{
+		Affinity:   &corev1.Affinity{PodAntiAffinity: namedAntiAffinity},
+		Containers: []corev1.Container{{Name: "agent"}},
+	}}
+	assert.True(t, resourceFallbackSchedulingShapeSafe(named))
+
+	defaultProfile := named.DeepCopy()
+	defaultProfile.Labels = map[string]string{datadoghqcommon.AgentDeploymentNameLabelKey: "datadog-agent"}
+	defaultProfile.Spec.Affinity.PodAntiAffinity, ok = profileSurgePodAntiAffinity(defaultProfile.Labels)
+	require.True(t, ok)
+	assert.True(t, resourceFallbackSchedulingShapeSafe(defaultProfile))
+
+	wrongProfile := named.DeepCopy()
+	wrongProfile.Spec.Affinity.PodAntiAffinity, ok = profileSurgePodAntiAffinity(map[string]string{
+		datadoghqcommon.AgentDeploymentNameLabelKey: "datadog-agent",
+		constants.ProfileLabelKey:                   "gpu",
+	})
+	require.True(t, ok)
+	assert.False(t, resourceFallbackSchedulingShapeSafe(wrongProfile))
+
+	custom := named.DeepCopy()
+	custom.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution[0].TopologyKey = "topology.kubernetes.io/zone"
+	assert.False(t, resourceFallbackSchedulingShapeSafe(custom))
+}
+
+func TestProfileSurgePodAntiAffinityIdentity(t *testing.T) {
+	incomingLabels := map[string]string{
+		datadoghqcommon.AgentDeploymentNameLabelKey: "datadog-agent",
+		constants.ProfileLabelKey:                   "linux",
+	}
+	antiAffinity, ok := profileSurgePodAntiAffinity(incomingLabels)
+	require.True(t, ok)
+
+	conflicts := func(existingLabels map[string]string) bool {
+		for _, term := range antiAffinity.RequiredDuringSchedulingIgnoredDuringExecution {
+			selector, err := metav1.LabelSelectorAsSelector(term.LabelSelector)
+			require.NoError(t, err)
+			if selector.Matches(labels.Set(existingLabels)) {
+				return true
+			}
+		}
+		return false
+	}
+
+	assert.False(t, conflicts(map[string]string{
+		datadoghqcommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
+		datadoghqcommon.AgentDeploymentNameLabelKey:      "datadog-agent",
+		constants.ProfileLabelKey:                        "linux",
+	}), "old and new revisions of the same DDA profile may overlap")
+	assert.True(t, conflicts(map[string]string{
+		datadoghqcommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
+		datadoghqcommon.AgentDeploymentNameLabelKey:      "datadog-agent",
+		constants.ProfileLabelKey:                        "gpu",
+	}), "another profile of the same DDA must remain excluded")
+	assert.True(t, conflicts(map[string]string{
+		datadoghqcommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
+		datadoghqcommon.AgentDeploymentNameLabelKey:      "other-datadog-agent",
+		constants.ProfileLabelKey:                        "linux",
+	}), "the same profile name from another DDA must remain excluded")
+}
+
+func TestProfileSurgePodAntiAffinitySatisfiedOnTargetNode(t *testing.T) {
+	pendingLabels := map[string]string{
+		datadoghqcommon.AgentDeploymentNameLabelKey:      "datadog-agent",
+		datadoghqcommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
+		constants.ProfileLabelKey:                        "linux",
+	}
+	antiAffinity, ok := profileSurgePodAntiAffinity(pendingLabels)
+	require.True(t, ok)
+	pending := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Namespace: "datadog", Labels: pendingLabels}, Spec: corev1.PodSpec{
+		Affinity: &corev1.Affinity{PodAntiAffinity: antiAffinity},
+	}}
+	sameProfile := corev1.Pod{ObjectMeta: metav1.ObjectMeta{Namespace: "datadog", Labels: maps.Clone(pendingLabels)}}
+
+	satisfied, err := profileSurgePodAntiAffinitySatisfied(pending, []corev1.Pod{sameProfile})
+	require.NoError(t, err)
+	assert.True(t, satisfied)
+
+	otherProfile := sameProfile.DeepCopy()
+	otherProfile.Labels[constants.ProfileLabelKey] = "gpu"
+	satisfied, err = profileSurgePodAntiAffinitySatisfied(pending, []corev1.Pod{sameProfile, *otherProfile})
+	require.NoError(t, err)
+	assert.False(t, satisfied, "a masked different-profile blocker must prevent old Pod deletion")
+
+	otherProfile.Namespace = "another-namespace"
+	satisfied, err = profileSurgePodAntiAffinitySatisfied(pending, []corev1.Pod{sameProfile, *otherProfile})
+	require.NoError(t, err)
+	assert.True(t, satisfied, "Pod anti-affinity without explicit namespaces is namespace-scoped")
+}
+
+func TestExistingPodRequiredAntiAffinityCanRejectReplacement(t *testing.T) {
+	pending := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Namespace: "datadog", Labels: map[string]string{
+		datadoghqcommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
+		"rollout": "new",
+	}}}
+	existing := corev1.Pod{ObjectMeta: metav1.ObjectMeta{Namespace: "datadog", Name: "peer", Labels: map[string]string{"rollout": "old"}}, Spec: corev1.PodSpec{
+		NodeName: "node-a",
+		Affinity: &corev1.Affinity{PodAntiAffinity: &corev1.PodAntiAffinity{RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{{
+			LabelSelector: &metav1.LabelSelector{MatchLabels: map[string]string{
+				datadoghqcommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
+			}},
+			TopologyKey: corev1.LabelHostname,
+		}}}},
+	}}
+
+	allowed, err := existingPodsAllowPendingByRequiredAntiAffinity(pending, []corev1.Pod{existing}, "node-a")
+	require.NoError(t, err)
+	assert.False(t, allowed, "an existing Pod's required anti-affinity must block fallback deletion")
+
+	existing.Namespace = "another-namespace"
+	allowed, err = existingPodsAllowPendingByRequiredAntiAffinity(pending, []corev1.Pod{existing}, "node-a")
+	require.NoError(t, err)
+	assert.True(t, allowed)
+
+	emptyNamespaceSelector := &metav1.LabelSelector{}
+	existing.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution[0].NamespaceSelector = emptyNamespaceSelector
+	allowed, err = existingPodsAllowPendingByRequiredAntiAffinity(pending, []corev1.Pod{existing}, "node-a")
+	require.NoError(t, err)
+	assert.False(t, allowed, "namespace selectors fail closed because namespace labels are not cached")
+
+	existing.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution[0].LabelSelector = &metav1.LabelSelector{MatchLabels: map[string]string{"rollout": "old"}}
+	existing.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution[0].NamespaceSelector = nil
+	existing.Namespace = "datadog"
+	allowed, err = existingPodsAllowPendingByRequiredAntiAffinity(pending, []corev1.Pod{existing}, "node-a")
+	require.NoError(t, err)
+	assert.True(t, allowed, "non-matching selectors do not block the replacement")
+
+	existing.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution[0].LabelSelector = &metav1.LabelSelector{MatchLabels: map[string]string{
+		datadoghqcommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
+	}}
+	existing.Spec.NodeName = "node-b"
+	allowed, err = existingPodsAllowPendingByRequiredAntiAffinity(pending, []corev1.Pod{existing}, "node-a")
+	require.NoError(t, err)
+	assert.True(t, allowed, "hostname anti-affinity on another node does not block")
+
+	existing.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution[0].TopologyKey = "topology.kubernetes.io/zone"
+	allowed, err = existingPodsAllowPendingByRequiredAntiAffinity(pending, []corev1.Pod{existing}, "node-a")
+	require.NoError(t, err)
+	assert.False(t, allowed, "wider topology terms fail closed without loading every Node's topology labels")
+}
+
 func TestResourceFitAfterOldPodRemoval(t *testing.T) {
 	node := &corev1.Node{Status: corev1.NodeStatus{Allocatable: corev1.ResourceList{
 		corev1.ResourceCPU:    resource.MustParse("1500m"),
@@ -223,6 +375,12 @@ func TestReconcileResourceFallbackKeepsOldPodForHiddenSchedulerConstraints(t *te
 			},
 		},
 		{
+			name: "unrecognized pod anti affinity",
+			mutate: func(pod *corev1.Pod) {
+				pod.Spec.Affinity.PodAntiAffinity = &corev1.PodAntiAffinity{RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{{TopologyKey: "topology.kubernetes.io/zone"}}}
+			},
+		},
+		{
 			name: "declared host port",
 			mutate: func(pod *corev1.Pod) {
 				pod.Spec.Containers[0].Ports = []corev1.ContainerPort{{ContainerPort: 8126, HostPort: 8126}}
@@ -289,6 +447,23 @@ func TestReconcileResourceFallbackRejectsForeignDaemonSet(t *testing.T) {
 	_, err := fixture.reconciler.reconcileResourceFallback(context.Background(), fixture.ddai, fixture.ds, intstr.FromInt(1))
 	require.NoError(t, err)
 	require.NoError(t, fixture.client.Get(context.Background(), client.ObjectKeyFromObject(fixture.old), &corev1.Pod{}), "foreign DaemonSet Pods must never be deleted")
+}
+
+func TestToleratesBlockingNodeTaints(t *testing.T) {
+	taints := []corev1.Taint{
+		{Key: "dedicated", Value: "agents", Effect: corev1.TaintEffectNoSchedule},
+		{Key: "draining", Effect: corev1.TaintEffectNoExecute},
+		{Key: "soft", Effect: corev1.TaintEffectPreferNoSchedule},
+	}
+	assert.False(t, toleratesBlockingNodeTaints(nil, taints))
+	assert.False(t, toleratesBlockingNodeTaints([]corev1.Toleration{
+		{Key: "dedicated", Value: "agents", Operator: corev1.TolerationOpEqual, Effect: corev1.TaintEffectNoSchedule},
+	}, taints))
+	assert.True(t, toleratesBlockingNodeTaints([]corev1.Toleration{
+		{Key: "dedicated", Value: "agents", Operator: corev1.TolerationOpEqual, Effect: corev1.TaintEffectNoSchedule},
+		{Key: "draining", Operator: corev1.TolerationOpExists, Effect: corev1.TaintEffectNoExecute},
+	}, taints))
+	assert.True(t, toleratesBlockingNodeTaints([]corev1.Toleration{{Operator: corev1.TolerationOpExists}}, taints))
 }
 
 type fallbackTestFixture struct {

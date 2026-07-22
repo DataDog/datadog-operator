@@ -172,6 +172,9 @@ func CacheOptions(logger logr.Logger, opts WatchOptions) cache.Options {
 					},
 				}
 				newPod.Status.Conditions = pod.Status.Conditions
+				newPod.Status.Phase = pod.Status.Phase
+				newPod.Status.InitContainerStatuses = pod.Status.InitContainerStatuses
+				newPod.Status.ContainerStatuses = pod.Status.ContainerStatuses
 
 				// The untaint controller also needs Pod.Status.StartTime for its
 				// readiness-timeout clock.

@@ -12,6 +12,7 @@ import (
 
 	edsv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -125,8 +126,8 @@ func (r *Reconciler) reconcileV2Agent(ctx context.Context, requiredComponents fe
 					true,
 				)
 			}
-			if err := r.deleteV2ExtendedDaemonSet(ctx, ddai, eds, newStatus); err != nil {
-				return reconcile.Result{}, err
+			if deleteErr := r.deleteV2ExtendedDaemonSet(ctx, ddai, eds, newStatus); deleteErr != nil {
+				return reconcile.Result{}, deleteErr
 			}
 			return reconcile.Result{}, nil
 		}
@@ -219,8 +220,8 @@ func (r *Reconciler) reconcileV2Agent(ctx context.Context, requiredComponents fe
 			daemonsetLogger.Info("Removing Windows DaemonSet: FIPS (useFIPSAgent or fips.enabled) is enabled and FIPS is unsupported on Windows")
 			// Delete any existing Windows DaemonSet so a non-FIPS agent does not keep running
 			// under a FIPS-required configuration (compliance), rather than silently downgrading.
-			if err := r.deleteV2DaemonSet(ctx, ddai, daemonset, newStatus); err != nil {
-				return reconcile.Result{}, err
+			if deleteErr := r.deleteV2DaemonSet(ctx, ddai, daemonset, newStatus); deleteErr != nil {
+				return reconcile.Result{}, deleteErr
 			}
 			// Clear the Agent status unconditionally: deleteV2DaemonSet returns early (without
 			// clearing status) if the DaemonSet is already gone, which would otherwise leave a
@@ -283,25 +284,43 @@ func (r *Reconciler) reconcileV2Agent(ctx context.Context, requiredComponents fe
 				true,
 			)
 		}
-		if err := r.deleteV2DaemonSet(ctx, ddai, daemonset, newStatus); err != nil {
-			return reconcile.Result{}, err
+		if deleteErr := r.deleteV2DaemonSet(ctx, ddai, daemonset, newStatus); deleteErr != nil {
+			return reconcile.Result{}, deleteErr
 		}
 		deleteStatusWithAgent(newStatus)
 		return reconcile.Result{}, nil
 	}
 
-	fallbackBudget := resourceFallbackBudget(ddai, &r.options.ExtendedDaemonsetOptions)
-	fallbackEnabled := configureResourceFallback(daemonset, fallbackBudget)
+	rolloutBudget := resourceFallbackBudget(ddai, &r.options.ExtendedDaemonsetOptions)
+	preparedPhase, prepareErr := r.configurePreparedRollout(ctx, ddai, daemonset, rolloutBudget)
+	if prepareErr != nil {
+		objLogger.Error(prepareErr, "Prepared Agent rollout request is incompatible with the rendered Pod template")
+		if r.recorder != nil {
+			r.recorder.Eventf(ddai, corev1.EventTypeWarning, "AgentPreparedRolloutRejected", "Prepared Agent rollout is disabled for this template: %v", prepareErr)
+		}
+		return reconcile.Result{}, prepareErr
+	}
 	result, err = r.createOrUpdateDaemonset(ctx, ddai, daemonset, newStatus, updateDSStatusV2WithAgent)
-	if err != nil || !fallbackEnabled {
+	if err != nil || preparedPhase == "" {
 		return result, err
 	}
-	fallbackResult, err := r.reconcileResourceFallback(ctx, ddai, daemonset, fallbackBudget)
-	if err != nil {
-		return reconcile.Result{}, err
+	if preparedPhase == preparedRolloutPhaseStandby {
+		handoffResult, handoffErr := r.reconcilePreparedHandoff(ctx, ddai, daemonset, rolloutBudget)
+		if handoffErr != nil {
+			return reconcile.Result{}, handoffErr
+		}
+		if handoffResult.RequeueAfter > 0 && (result.RequeueAfter == 0 || handoffResult.RequeueAfter < result.RequeueAfter) {
+			result.RequeueAfter = handoffResult.RequeueAfter
+		}
 	}
-	if fallbackResult.RequeueAfter > 0 && (result.RequeueAfter == 0 || fallbackResult.RequeueAfter < result.RequeueAfter) {
-		result.RequeueAfter = fallbackResult.RequeueAfter
+	if resourceFallbackEnabled(ddai) {
+		fallbackResult, fallbackErr := r.reconcileResourceFallback(ctx, ddai, daemonset, rolloutBudget)
+		if fallbackErr != nil {
+			return reconcile.Result{}, fallbackErr
+		}
+		if fallbackResult.RequeueAfter > 0 && (result.RequeueAfter == 0 || fallbackResult.RequeueAfter < result.RequeueAfter) {
+			result.RequeueAfter = fallbackResult.RequeueAfter
+		}
 	}
 	return result, nil
 }

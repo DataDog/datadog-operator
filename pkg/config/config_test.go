@@ -6,8 +6,11 @@ import (
 	"testing"
 
 	"golang.org/x/exp/maps"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
@@ -291,4 +294,36 @@ func verifyResourceNamespace(t *testing.T, resource client.Object, wantConfig ob
 			assert.Nil(t, byObjectOptions.Label)
 		}
 	}
+}
+
+func TestAgentPodCacheTransformPreservesPreparedRolloutStatus(t *testing.T) {
+	t.Setenv(AgentWatchNamespaceEnvVar, "datadog-agent")
+	options := CacheOptions(logf.Log.WithName(t.Name()), WatchOptions{DatadogAgentEnabled: true})
+	podConfig, found := options.ByObject[podObj]
+	require.True(t, found)
+	require.NotNil(t, podConfig.Transform)
+
+	started := true
+	input := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{Name: "agent", Namespace: "datadog-agent"},
+		Status: corev1.PodStatus{
+			Phase: corev1.PodRunning,
+			InitContainerStatuses: []corev1.ContainerStatus{{
+				Name:  "init-config",
+				State: corev1.ContainerState{Terminated: &corev1.ContainerStateTerminated{ExitCode: 0}},
+			}},
+			ContainerStatuses: []corev1.ContainerStatus{{
+				Name:    "agent",
+				Started: &started,
+				State:   corev1.ContainerState{Running: &corev1.ContainerStateRunning{}},
+			}},
+		},
+	}
+	transformedObject, err := podConfig.Transform(input)
+	require.NoError(t, err)
+	transformed := transformedObject.(*corev1.Pod)
+	assert.Equal(t, corev1.PodRunning, transformed.Status.Phase)
+	require.Len(t, transformed.Status.InitContainerStatuses, 1)
+	require.Len(t, transformed.Status.ContainerStatuses, 1)
+	assert.True(t, *transformed.Status.ContainerStatuses[0].Started)
 }

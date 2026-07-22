@@ -8,6 +8,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -18,6 +19,8 @@ import (
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	resourcehelper "k8s.io/component-helpers/resource"
@@ -26,9 +29,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	datadoghqcommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	componentagent "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 )
 
 const (
@@ -63,6 +68,73 @@ func configureResourceFallback(ds *appsv1.DaemonSet, budget intstr.IntOrString) 
 		return true
 	}
 	return false
+}
+
+// prepareProfileAntiAffinityForSurge narrows the standard DAP anti-affinity so
+// only old and new revisions of the same profile and DDA may overlap. Unknown
+// or user-supplied anti-affinity fails closed.
+func prepareProfileAntiAffinityForSurge(template *corev1.PodTemplateSpec) bool {
+	if template.Spec.Affinity == nil || template.Spec.Affinity.PodAntiAffinity == nil {
+		return true
+	}
+	if !apiequality.Semantic.DeepEqual(template.Spec.Affinity.PodAntiAffinity, broadAgentPodAntiAffinity()) {
+		return false
+	}
+	narrowed, ok := profileSurgePodAntiAffinity(template.Labels)
+	if !ok {
+		return false
+	}
+	template.Spec.Affinity.PodAntiAffinity = narrowed
+	return true
+}
+
+func broadAgentPodAntiAffinity() *corev1.PodAntiAffinity {
+	return &corev1.PodAntiAffinity{RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{{
+		LabelSelector: &metav1.LabelSelector{MatchExpressions: []metav1.LabelSelectorRequirement{{
+			Key:      datadoghqcommon.AgentDeploymentComponentLabelKey,
+			Operator: metav1.LabelSelectorOpIn,
+			Values:   []string{constants.DefaultAgentResourceSuffix},
+		}}},
+		TopologyKey: corev1.LabelHostname,
+	}}}
+}
+
+func profileSurgePodAntiAffinity(podLabels map[string]string) (*corev1.PodAntiAffinity, bool) {
+	ddaName := podLabels[datadoghqcommon.AgentDeploymentNameLabelKey]
+	if ddaName == "" {
+		return nil, false
+	}
+
+	profileRequirement := metav1.LabelSelectorRequirement{Key: constants.ProfileLabelKey}
+	if profileName := podLabels[constants.ProfileLabelKey]; profileName != "" {
+		profileRequirement.Operator = metav1.LabelSelectorOpNotIn
+		profileRequirement.Values = []string{profileName}
+	} else {
+		profileRequirement.Operator = metav1.LabelSelectorOpExists
+	}
+	componentRequirement := metav1.LabelSelectorRequirement{
+		Key:      datadoghqcommon.AgentDeploymentComponentLabelKey,
+		Operator: metav1.LabelSelectorOpIn,
+		Values:   []string{constants.DefaultAgentResourceSuffix},
+	}
+
+	return &corev1.PodAntiAffinity{RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
+		{
+			LabelSelector: &metav1.LabelSelector{MatchExpressions: []metav1.LabelSelectorRequirement{
+				componentRequirement,
+				{Key: datadoghqcommon.AgentDeploymentNameLabelKey, Operator: metav1.LabelSelectorOpIn, Values: []string{ddaName}},
+				profileRequirement,
+			}},
+			TopologyKey: corev1.LabelHostname,
+		},
+		{
+			LabelSelector: &metav1.LabelSelector{MatchExpressions: []metav1.LabelSelectorRequirement{
+				componentRequirement,
+				{Key: datadoghqcommon.AgentDeploymentNameLabelKey, Operator: metav1.LabelSelectorOpNotIn, Values: []string{ddaName}},
+			}},
+			TopologyKey: corev1.LabelHostname,
+		},
+	}}, true
 }
 
 func positiveIntOrPercent(value *intstr.IntOrString) bool {
@@ -116,7 +188,10 @@ func (r *Reconciler) reconcileResourceFallback(ctx context.Context, ddai *datado
 
 	desired := int(ds.Status.DesiredNumberScheduled)
 	budget, err := intstr.GetScaledValueFromIntOrPercent(&budgetValue, desired, true)
-	if err != nil || budget <= 0 {
+	if err != nil {
+		return reconcile.Result{}, fmt.Errorf("resolve Agent resource fallback budget: %w", err)
+	}
+	if budget <= 0 {
 		return reconcile.Result{}, nil
 	}
 
@@ -356,7 +431,7 @@ func resourceOnlyUnschedulable(pod *corev1.Pod) (resourceShortage, bool) {
 	}
 
 	var shortage resourceShortage
-	for _, reason := range strings.Split(primary, ", ") {
+	for reason := range strings.SplitSeq(primary, ", ") {
 		fields := strings.Fields(strings.ToLower(strings.TrimSpace(reason)))
 		if len(fields) < 2 {
 			return resourceShortage{}, false
@@ -428,8 +503,13 @@ func resourceFallbackSchedulingShapeSafe(pod *corev1.Pod) bool {
 	if pod.Spec.RuntimeClassName != nil || len(pod.Spec.TopologySpreadConstraints) > 0 {
 		return false
 	}
-	if pod.Spec.Affinity != nil && (pod.Spec.Affinity.PodAffinity != nil || pod.Spec.Affinity.PodAntiAffinity != nil) {
-		return false
+	if pod.Spec.Affinity != nil {
+		if pod.Spec.Affinity.PodAffinity != nil {
+			return false
+		}
+		if pod.Spec.Affinity.PodAntiAffinity != nil && !profileSurgePodAntiAffinitySafe(pod) {
+			return false
+		}
 	}
 	for _, container := range append(append([]corev1.Container{}, pod.Spec.InitContainers...), pod.Spec.Containers...) {
 		for _, port := range container.Ports {
@@ -445,6 +525,110 @@ func resourceFallbackSchedulingShapeSafe(pod *corev1.Pod) bool {
 		}
 	}
 	return true
+}
+
+// profileSurgePodAntiAffinitySafe recognizes the exact anti-affinity emitted
+// for DatadogAgentProfiles. It excludes only other profiles, so deleting the
+// old Pod of the same profile cannot reveal a hidden anti-affinity blocker.
+func profileSurgePodAntiAffinitySafe(pod *corev1.Pod) bool {
+	expected, ok := profileSurgePodAntiAffinity(pod.Labels)
+	if !ok {
+		return false
+	}
+	return apiequality.Semantic.DeepEqual(pod.Spec.Affinity.PodAntiAffinity, expected)
+}
+
+func profileSurgePodAntiAffinitySatisfied(pending *corev1.Pod, nodePods []corev1.Pod) (bool, error) {
+	if pending.Spec.Affinity != nil && pending.Spec.Affinity.PodAntiAffinity != nil {
+		if !profileSurgePodAntiAffinitySafe(pending) {
+			return false, nil
+		}
+		for _, term := range pending.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution {
+			selector, err := metav1.LabelSelectorAsSelector(term.LabelSelector)
+			if err != nil {
+				return false, fmt.Errorf("parse prepared Agent Pod anti-affinity: %w", err)
+			}
+			for i := range nodePods {
+				pod := &nodePods[i]
+				if pod.Namespace == pending.Namespace && selector.Matches(labels.Set(pod.Labels)) {
+					return false, nil
+				}
+			}
+		}
+	}
+	return true, nil
+}
+
+// existingPodsAllowPendingByRequiredAntiAffinity checks the symmetric half of
+// inter-pod anti-affinity: an already scheduled Pod can reject the pending
+// replacement even when the replacement's own terms allow it.
+func existingPodsAllowPendingByRequiredAntiAffinity(pending *corev1.Pod, existingPods []corev1.Pod, targetNodeName string) (bool, error) {
+	for i := range existingPods {
+		existing := &existingPods[i]
+		if existing.Spec.NodeName == "" {
+			continue
+		}
+		if existing.Spec.Affinity == nil || existing.Spec.Affinity.PodAntiAffinity == nil {
+			continue
+		}
+		for _, term := range existing.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution {
+			selector, err := podAffinityTermSelector(&term, existing.Labels)
+			if err != nil {
+				return false, fmt.Errorf("parse existing Pod %s/%s anti-affinity: %w", existing.Namespace, existing.Name, err)
+			}
+			if !selector.Matches(labels.Set(pending.Labels)) {
+				continue
+			}
+			if !affinityTermMaySelectNamespace(&term, existing.Namespace, pending.Namespace) {
+				continue
+			}
+			// Pods on the target node cover hostname topology. For wider
+			// topologies, conservatively reject because this lightweight check
+			// does not fetch every Node's topology labels.
+			if term.TopologyKey != corev1.LabelHostname || existing.Spec.NodeName == targetNodeName {
+				return false, nil
+			}
+		}
+	}
+	return true, nil
+}
+
+func podAffinityTermSelector(term *corev1.PodAffinityTerm, sourceLabels map[string]string) (labels.Selector, error) {
+	selector, err := metav1.LabelSelectorAsSelector(term.LabelSelector)
+	if err != nil {
+		return nil, err
+	}
+	for _, key := range term.MatchLabelKeys {
+		if value, ok := sourceLabels[key]; ok {
+			requirement, err := labels.NewRequirement(key, selection.In, []string{value})
+			if err != nil {
+				return nil, err
+			}
+			selector = selector.Add(*requirement)
+		}
+	}
+	for _, key := range term.MismatchLabelKeys {
+		if value, ok := sourceLabels[key]; ok {
+			requirement, err := labels.NewRequirement(key, selection.NotIn, []string{value})
+			if err != nil {
+				return nil, err
+			}
+			selector = selector.Add(*requirement)
+		}
+	}
+	return selector, nil
+}
+
+func affinityTermMaySelectNamespace(term *corev1.PodAffinityTerm, sourceNamespace, targetNamespace string) bool {
+	if slices.Contains(term.Namespaces, targetNamespace) {
+		return true
+	}
+	// Namespace labels are intentionally not part of the fallback cache. Fail
+	// closed when a namespace selector could include the pending Pod.
+	if term.NamespaceSelector != nil {
+		return true
+	}
+	return len(term.Namespaces) == 0 && sourceNamespace == targetNamespace
 }
 
 func consumedFallbackBudget(ds *appsv1.DaemonSet, pods []corev1.Pod, currentRevision string, now time.Time) int {
@@ -525,12 +709,12 @@ func (r *Reconciler) revalidateFallbackCandidate(ctx context.Context, reader cli
 	}
 
 	pending := &corev1.Pod{}
-	if err := reader.Get(ctx, client.ObjectKeyFromObject(candidate.pending), pending); err != nil {
-		return nil, client.IgnoreNotFound(err)
+	if getErr := reader.Get(ctx, client.ObjectKeyFromObject(candidate.pending), pending); getErr != nil {
+		return nil, client.IgnoreNotFound(getErr)
 	}
 	old := &corev1.Pod{}
-	if err := reader.Get(ctx, client.ObjectKeyFromObject(candidate.old), old); err != nil {
-		return nil, client.IgnoreNotFound(err)
+	if getErr := reader.Get(ctx, client.ObjectKeyFromObject(candidate.old), old); getErr != nil {
+		return nil, client.IgnoreNotFound(getErr)
 	}
 	if !controlledByUID(pending, liveDS.UID) || !controlledByUID(old, liveDS.UID) || pending.UID != candidate.pending.UID || old.UID != candidate.old.UID {
 		return nil, nil
@@ -546,10 +730,13 @@ func (r *Reconciler) revalidateFallbackCandidate(ctx context.Context, reader cli
 	}
 
 	node := &corev1.Node{}
-	if err := reader.Get(ctx, client.ObjectKey{Name: nodeName}, node); err != nil {
-		return nil, client.IgnoreNotFound(err)
+	if getErr := reader.Get(ctx, client.ObjectKey{Name: nodeName}, node); getErr != nil {
+		return nil, client.IgnoreNotFound(getErr)
 	}
 	if !nodeReadyForResourceFallback(node) {
+		return nil, nil
+	}
+	if !toleratesBlockingNodeTaints(pending.Spec.Tolerations, node.Spec.Taints) {
 		return nil, nil
 	}
 	matches, err := nodeaffinity.GetRequiredNodeAffinity(pending).Match(node)
@@ -557,14 +744,65 @@ func (r *Reconciler) revalidateFallbackCandidate(ctx context.Context, reader cli
 		return nil, err
 	}
 	nodePods := &corev1.PodList{}
-	if err := reader.List(ctx, nodePods, client.MatchingFields{apiPodNodeNameField: nodeName}); err != nil {
-		return nil, fmt.Errorf("list Pods on node %s for Agent resource fallback: %w", nodeName, err)
+	if listErr := reader.List(ctx, nodePods, client.MatchingFields{apiPodNodeNameField: nodeName}); listErr != nil {
+		return nil, fmt.Errorf("list Pods on node %s for Agent resource fallback: %w", nodeName, listErr)
+	}
+	affinitySatisfied, err := profileSurgePodAntiAffinitySatisfied(pending, nodePods.Items)
+	if err != nil {
+		return nil, err
+	}
+	if !affinitySatisfied {
+		return nil, nil
+	}
+	clusterPods := &corev1.PodList{}
+	if listErr := reader.List(ctx, clusterPods); listErr != nil {
+		return nil, fmt.Errorf("list cluster Pods for Agent anti-affinity fallback safety: %w", listErr)
+	}
+	existingAffinitySatisfied, err := existingPodsAllowPendingByRequiredAntiAffinity(pending, clusterPods.Items, nodeName)
+	if err != nil {
+		return nil, err
+	}
+	if !existingAffinitySatisfied {
+		return nil, nil
 	}
 	if !resourceFitAfterOldPodRemoval(node, nodePods.Items, pending, old, shortage) {
 		return nil, nil
 	}
 
 	return &fallbackCandidate{pending: pending, old: old, nodeName: nodeName, shortage: shortage, reserved: reservation != ""}, nil
+}
+
+func toleratesBlockingNodeTaints(tolerations []corev1.Toleration, taints []corev1.Taint) bool {
+	for i := range taints {
+		taint := &taints[i]
+		if taint.Effect != corev1.TaintEffectNoSchedule && taint.Effect != corev1.TaintEffectNoExecute {
+			continue
+		}
+		tolerated := false
+		for j := range tolerations {
+			toleration := &tolerations[j]
+			if toleration.Effect != "" && toleration.Effect != taint.Effect {
+				continue
+			}
+			operator := toleration.Operator
+			if operator == "" {
+				operator = corev1.TolerationOpEqual
+			}
+			switch operator {
+			case corev1.TolerationOpExists:
+				tolerated = toleration.Key == "" || toleration.Key == taint.Key
+			case corev1.TolerationOpEqual:
+				tolerated = toleration.Key == taint.Key && toleration.Value == taint.Value
+			}
+			if tolerated {
+				break
+			}
+		}
+		if !tolerated {
+			return false
+		}
+	}
+	return true
 }
 
 func nodeReadyForResourceFallback(node *corev1.Node) bool {

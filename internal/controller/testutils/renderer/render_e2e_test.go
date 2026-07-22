@@ -9,6 +9,12 @@ import (
 	"strings"
 	"testing"
 
+	appsv1 "k8s.io/api/apps/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/utils/ptr"
+
+	common "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -156,6 +162,125 @@ func TestRender_AppArmorProfileVersionGate(t *testing.T) {
 			assert.Equal(t, tt.wantAnnotation, strings.Contains(rendered, "container.apparmor.security.beta.kubernetes.io/system-probe: unconfined"))
 			assert.Equal(t, tt.wantProfileField, strings.Contains(rendered, "appArmorProfile:\n            type: Unconfined"))
 		})
+	}
+}
+
+func TestRender_PreparedRolloutArmsBeforeSurge(t *testing.T) {
+	renderAgentDaemonSet := func(t *testing.T, prepared bool) *appsv1.DaemonSet {
+		t.Helper()
+		dda, err := LoadDDA("testdata/minimal-dda.yaml")
+		require.NoError(t, err)
+		dda.Spec.Features = preparedRolloutTestFeatures()
+
+		override := &datadoghqv2alpha1.DatadogAgentComponentOverride{HostNetwork: ptr.To(true)}
+		override.UpdateStrategy = &common.UpdateStrategy{
+			Type: string(appsv1.RollingUpdateDaemonSetStrategyType),
+			RollingUpdate: &common.RollingUpdate{
+				MaxUnavailable: ptr.To(intstr.FromInt(1)),
+				MaxSurge:       ptr.To(intstr.FromInt(1)),
+			},
+		}
+		if prepared {
+			dda.Annotations = map[string]string{"experimental.agent.datadoghq.com/host-network-surge-prepared": "true"}
+		}
+		dda.Spec.Override = map[datadoghqv2alpha1.ComponentName]*datadoghqv2alpha1.DatadogAgentComponentOverride{
+			datadoghqv2alpha1.NodeAgentComponentName: override,
+		}
+
+		objects, _, err := Render(Options{DDA: dda})
+		require.NoError(t, err)
+		for _, object := range objects {
+			if ds, ok := object.(*appsv1.DaemonSet); ok {
+				return ds
+			}
+		}
+		t.Fatal("render produced no Agent DaemonSet")
+		return nil
+	}
+
+	baseline := renderAgentDaemonSet(t, false)
+	require.True(t, baseline.Spec.Template.Spec.HostNetwork)
+	require.NotNil(t, baseline.Spec.UpdateStrategy.RollingUpdate)
+	assert.Equal(t, intstr.FromInt(1), *baseline.Spec.UpdateStrategy.RollingUpdate.MaxSurge)
+	assert.Equal(t, intstr.FromInt(1), *baseline.Spec.UpdateStrategy.RollingUpdate.MaxUnavailable,
+		"ordinary native surge must remain unchanged when prepared rollout is disabled")
+	baselinePortCount := 0
+	for _, container := range baseline.Spec.Template.Spec.Containers {
+		baselinePortCount += len(container.Ports)
+	}
+	require.Positive(t, baselinePortCount, "the host-network baseline must exercise Kubernetes's implicit hostPort defaulting")
+
+	armed := renderAgentDaemonSet(t, true)
+	require.True(t, armed.Spec.Template.Spec.HostNetwork)
+	require.NotNil(t, armed.Spec.UpdateStrategy.RollingUpdate)
+	assert.Equal(t, intstr.FromInt(0), *armed.Spec.UpdateStrategy.RollingUpdate.MaxSurge)
+	assert.Equal(t, intstr.FromInt(1), *armed.Spec.UpdateStrategy.RollingUpdate.MaxUnavailable)
+	assert.Equal(t, "arm", armed.Spec.Template.Annotations["experimental.agent.datadoghq.com/prepared-rollout-phase"])
+	armedPortCount := 0
+	for _, container := range armed.Spec.Template.Spec.Containers {
+		armedPortCount += len(container.Ports)
+		require.NotNil(t, container.StartupProbe)
+		require.NotNil(t, container.StartupProbe.Exec)
+		require.NotNil(t, container.ReadinessProbe)
+		require.NotNil(t, container.ReadinessProbe.Exec)
+		if container.Name == "trace-agent" {
+			assert.Equal(t, "trace-agent", container.Command[0], "prepared mode must bypass trace-loader")
+		}
+	}
+	assert.Equal(t, baselinePortCount, armedPortCount, "arming is a conventional rollout and keeps port declarations")
+}
+
+func TestRender_PreparedHostNetworkSurgeWithProfiles(t *testing.T) {
+	dda, err := LoadDDA("testdata/minimal-dda.yaml")
+	require.NoError(t, err)
+	dda.Spec.Features = preparedRolloutTestFeatures()
+	dda.Annotations = map[string]string{"experimental.agent.datadoghq.com/host-network-surge-prepared": "true"}
+
+	surgeOverride := func() *datadoghqv2alpha1.DatadogAgentComponentOverride {
+		return &datadoghqv2alpha1.DatadogAgentComponentOverride{
+			HostNetwork: ptr.To(true),
+			UpdateStrategy: &common.UpdateStrategy{
+				Type: string(appsv1.RollingUpdateDaemonSetStrategyType),
+				RollingUpdate: &common.RollingUpdate{
+					MaxUnavailable: ptr.To(intstr.FromInt(1)),
+					MaxSurge:       ptr.To(intstr.FromInt(1)),
+				},
+			},
+		}
+	}
+	dda.Spec.Override = map[datadoghqv2alpha1.ComponentName]*datadoghqv2alpha1.DatadogAgentComponentOverride{
+		datadoghqv2alpha1.NodeAgentComponentName: surgeOverride(),
+	}
+
+	daps, err := LoadDAPs([]string{"testdata/linux-profile.yaml", "testdata/gpu-profile.yaml"})
+	require.NoError(t, err)
+
+	objects, _, err := Render(Options{DDA: dda, DAPs: daps, ProfileEnabled: true})
+	require.NoError(t, err)
+	daemonSets := 0
+	for _, object := range objects {
+		ds, ok := object.(*appsv1.DaemonSet)
+		if !ok {
+			continue
+		}
+		daemonSets++
+		require.True(t, ds.Spec.Template.Spec.HostNetwork)
+		assert.Equal(t, "arm", ds.Spec.Template.Annotations["experimental.agent.datadoghq.com/prepared-rollout-phase"])
+		require.NotNil(t, ds.Spec.Template.Spec.Affinity)
+		require.NotNil(t, ds.Spec.Template.Spec.Affinity.PodAntiAffinity)
+		assert.Len(t, ds.Spec.Template.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution, 2,
+			"DaemonSet %s must scope overlap to the same DDA and profile", ds.Name)
+	}
+	assert.Equal(t, 3, daemonSets)
+}
+
+func preparedRolloutTestFeatures() *datadoghqv2alpha1.DatadogFeatures {
+	return &datadoghqv2alpha1.DatadogFeatures{
+		APM:                     &datadoghqv2alpha1.APMFeatureConfig{Enabled: ptr.To(true)},
+		LiveProcessCollection:   &datadoghqv2alpha1.LiveProcessCollectionFeatureConfig{Enabled: ptr.To(false)},
+		LiveContainerCollection: &datadoghqv2alpha1.LiveContainerCollectionFeatureConfig{Enabled: ptr.To(false)},
+		ProcessDiscovery:        &datadoghqv2alpha1.ProcessDiscoveryFeatureConfig{Enabled: ptr.To(false)},
+		ServiceDiscovery:        &datadoghqv2alpha1.ServiceDiscoveryFeatureConfig{Enabled: ptr.To(false)},
 	}
 }
 

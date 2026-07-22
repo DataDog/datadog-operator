@@ -1,0 +1,43 @@
+apiVersion: apps.kruise.io/v1beta1
+kind: DaemonSet
+metadata:
+  name: automatic-predownload-demo
+  namespace: openkruise-prepull-lab
+spec:
+  selector:
+    matchLabels:
+      app: automatic-predownload-demo
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      rollingUpdateType: InPlaceIfPossible
+      maxUnavailable: 1
+  template:
+    metadata:
+      labels:
+        app: automatic-predownload-demo
+    spec:
+      terminationGracePeriodSeconds: 1
+      containers:
+        - name: server
+          image: python:3.12-alpine
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -c
+            - |
+              mkdir -p /www
+              printf 'ok\n' >/www/index.html
+              exec python -m http.server 8080 --directory /www
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            periodSeconds: 1
+            timeoutSeconds: 1
+          resources:
+            requests:
+              cpu: 10m
+              memory: 8Mi
+            limits:
+              memory: 32Mi

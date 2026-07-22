@@ -13,6 +13,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -160,11 +161,33 @@ func resourceFallbackPodPredicate() predicate.Predicate {
 			if !oldOK || !newOK {
 				return false
 			}
-			return resourceFallbackConditionChanged(oldPod, newPod, corev1.PodScheduled) || resourceFallbackConditionChanged(oldPod, newPod, corev1.PodReady)
+			return resourceFallbackConditionChanged(oldPod, newPod, corev1.PodScheduled) ||
+				resourceFallbackConditionChanged(oldPod, newPod, corev1.PodReady) ||
+				containerRolloutStatusChanged(oldPod.Status.InitContainerStatuses, newPod.Status.InitContainerStatuses) ||
+				containerRolloutStatusChanged(oldPod.Status.ContainerStatuses, newPod.Status.ContainerStatuses)
 		},
 		DeleteFunc:  func(event.DeleteEvent) bool { return true },
 		GenericFunc: func(event.GenericEvent) bool { return false },
 	}
+}
+
+func containerRolloutStatusChanged(oldStatuses, newStatuses []corev1.ContainerStatus) bool {
+	if len(oldStatuses) != len(newStatuses) {
+		return true
+	}
+	oldByName := make(map[string]corev1.ContainerStatus, len(oldStatuses))
+	for i := range oldStatuses {
+		oldByName[oldStatuses[i].Name] = oldStatuses[i]
+	}
+	for i := range newStatuses {
+		old, found := oldByName[newStatuses[i].Name]
+		if !found || !apiequality.Semantic.DeepEqual(old.Started, newStatuses[i].Started) || old.RestartCount != newStatuses[i].RestartCount ||
+			(old.State.Running == nil) != (newStatuses[i].State.Running == nil) ||
+			(old.State.Terminated == nil) != (newStatuses[i].State.Terminated == nil) {
+			return true
+		}
+	}
+	return false
 }
 
 func resourceFallbackConditionChanged(oldPod, newPod *corev1.Pod, conditionType corev1.PodConditionType) bool {

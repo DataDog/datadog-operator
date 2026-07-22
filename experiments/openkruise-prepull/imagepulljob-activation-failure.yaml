@@ -1,0 +1,18 @@
+apiVersion: apps.kruise.io/v1alpha1
+kind: ImagePullJob
+metadata:
+  name: alpine-3-22
+  namespace: openkruise-prepull-lab
+spec:
+  image: alpine:3.22
+  imagePullPolicy: IfNotPresent
+  selector:
+    matchLabels:
+      kubernetes.io/hostname: zero-gap-agent-rollout-worker
+  parallelism: 1
+  pullPolicy:
+    timeoutSeconds: 300
+    backoffLimit: 1
+  completionPolicy:
+    type: Always
+    activeDeadlineSeconds: 360

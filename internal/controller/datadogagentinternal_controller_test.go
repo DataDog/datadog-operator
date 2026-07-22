@@ -34,6 +34,12 @@ func TestResourceFallbackPodPredicate(t *testing.T) {
 	readyPod := newPod.DeepCopy()
 	readyPod.Status.Conditions = append(readyPod.Status.Conditions, corev1.PodCondition{Type: corev1.PodReady, Status: corev1.ConditionTrue})
 	assert.True(t, predicate.Update(event.UpdateEvent{ObjectOld: newPod, ObjectNew: readyPod}), "PodReady transitions must release fallback reservations promptly")
+
+	waiting := readyPod.DeepCopy()
+	waiting.Status.ContainerStatuses = []corev1.ContainerStatus{{Name: "agent", Started: ptr.To(false), State: corev1.ContainerState{Running: &corev1.ContainerStateRunning{}}}}
+	prepared := waiting.DeepCopy()
+	prepared.Status.ContainerStatuses[0].Started = ptr.To(true)
+	assert.True(t, predicate.Update(event.UpdateEvent{ObjectOld: waiting, ObjectNew: prepared}), "startup-probe Prepared transitions must enqueue the handoff controller")
 }
 
 func TestEnqueueDatadogAgentInternalForPodFollowsDaemonSetOwner(t *testing.T) {
