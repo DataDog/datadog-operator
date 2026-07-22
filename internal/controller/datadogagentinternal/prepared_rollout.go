@@ -6,6 +6,8 @@ package datadogagentinternal
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
@@ -13,7 +15,6 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -25,11 +26,12 @@ import (
 )
 
 const (
-	preparedRolloutAnnotation      = "experimental.agent.datadoghq.com/host-network-surge-prepared"
-	preparedRolloutPhaseAnnotation = "experimental.agent.datadoghq.com/prepared-rollout-phase"
-	resourceFallbackAnnotation     = "experimental.agent.datadoghq.com/resource-fallback"
-	preparedRolloutPhaseArm        = "arm"
-	preparedRolloutPhaseStandby    = "standby"
+	preparedRolloutAnnotation        = "experimental.agent.datadoghq.com/host-network-surge-prepared"
+	preparedRolloutPhaseAnnotation   = "experimental.agent.datadoghq.com/prepared-rollout-phase"
+	preparedRolloutArmHashAnnotation = "experimental.agent.datadoghq.com/prepared-rollout-arm-hash"
+	resourceFallbackAnnotation       = "experimental.agent.datadoghq.com/resource-fallback"
+	preparedRolloutPhaseArm          = "arm"
+	preparedRolloutPhaseStandby      = "standby"
 
 	preparedRolloutLockVolume  = "agent-rollout-locks"
 	preparedRolloutStateVolume = "agent-rollout-state"
@@ -72,10 +74,14 @@ func (r *Reconciler) configurePreparedRollout(ctx context.Context, ddai *datadog
 	if err := prepareAgentTemplate(armed, preparedRolloutPhaseArm); err != nil {
 		return "", err
 	}
+	armHash, err := stampPreparedArmHash(&armed.Spec.Template)
+	if err != nil {
+		return "", err
+	}
 	configureArmStrategy(armed, budget)
 
 	live := &appsv1.DaemonSet{}
-	err := r.apiReader.Get(ctx, client.ObjectKeyFromObject(desired), live)
+	err = r.apiReader.Get(ctx, client.ObjectKeyFromObject(desired), live)
 	if err != nil && !apierrors.IsNotFound(err) {
 		return "", fmt.Errorf("get live Agent DaemonSet for prepared rollout: %w", err)
 	}
@@ -88,7 +94,7 @@ func (r *Reconciler) configurePreparedRollout(ctx context.Context, ddai *datadog
 			// Never oscillate back to arm during a mixed or failed surged rollout.
 			phase = preparedRolloutPhaseStandby
 		case preparedRolloutPhaseArm:
-			if apiequality.Semantic.DeepEqual(live.Spec.Template, armed.Spec.Template) && daemonSetArmComplete(live) {
+			if live.Spec.Template.Annotations[preparedRolloutArmHashAnnotation] == armHash && daemonSetArmComplete(live) {
 				phase = preparedRolloutPhaseStandby
 			}
 		}
@@ -103,11 +109,27 @@ func (r *Reconciler) configurePreparedRollout(ctx context.Context, ddai *datadog
 	if err := prepareAgentTemplate(standby, preparedRolloutPhaseStandby); err != nil {
 		return "", err
 	}
+	standby.Spec.Template.Annotations[preparedRolloutArmHashAnnotation] = armHash
 	if !configureResourceFallback(standby, budget) {
 		return "", fmt.Errorf("prepared Agent rollout requires a positive, valid maxUnavailable budget")
 	}
 	*desired = *standby
 	return phase, nil
+}
+
+func stampPreparedArmHash(template *corev1.PodTemplateSpec) (string, error) {
+	templateCopy := template.DeepCopy()
+	delete(templateCopy.Annotations, preparedRolloutArmHashAnnotation)
+	serialized, err := json.Marshal(templateCopy)
+	if err != nil {
+		return "", fmt.Errorf("hash prepared Agent arm template: %w", err)
+	}
+	hash := fmt.Sprintf("%x", sha256.Sum256(serialized))
+	if template.Annotations == nil {
+		template.Annotations = map[string]string{}
+	}
+	template.Annotations[preparedRolloutArmHashAnnotation] = hash
+	return hash, nil
 }
 
 func daemonSetArmComplete(ds *appsv1.DaemonSet) bool {

@@ -68,6 +68,9 @@ func TestConfigurePreparedRolloutArmsThenStaysInStandby(t *testing.T) {
 	assert.Equal(t, intstr.FromInt(0), *desired.Spec.UpdateStrategy.RollingUpdate.MaxSurge)
 
 	live := desired.DeepCopy()
+	// The API server defaults Pod fields on the live DaemonSet. Phase progress
+	// must use the controller-owned desired-template hash, not raw equality.
+	live.Spec.Template.Spec.DNSPolicy = corev1.DNSClusterFirst
 	live.UID = types.UID("daemonset-uid")
 	live.Generation = 2
 	live.Status = appsv1.DaemonSetStatus{
