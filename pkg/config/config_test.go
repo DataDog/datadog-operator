@@ -118,6 +118,7 @@ func Test_CacheConfig(t *testing.T) {
 
 			wantObjectConfig: map[client.Object]objectConfig{
 				agentObj:        {configured: true, namespaces: []string{"system"}},
+				podObj:          {configured: true, namespaces: []string{"system"}},
 				csiDriverObj:    {configured: true, namespaces: []string{"default"}},
 				csiDaemonSetObj: {configured: true, namespaces: []string{"system", "default"}},
 			},
@@ -178,7 +179,7 @@ func Test_CacheConfig(t *testing.T) {
 			},
 		},
 		{
-			name: "Only Agent enabled; Monitor enabled without namespace config. Other CRDs, Pods, Nodes not configured",
+			name: "Only Agent enabled; Monitor enabled without namespace config. Agent Pods are configured; other CRDs and Nodes are not",
 
 			watchOptions: WatchOptions{
 				DatadogAgentEnabled:   true,
@@ -200,13 +201,13 @@ func Test_CacheConfig(t *testing.T) {
 				monitorObj:         {configured: true, namespaces: []string{"datadog"}},
 				sloObj:             {configured: false},
 				profileObj:         {configured: false},
-				podObj:             {configured: false},
+				podObj:             {configured: true, namespaces: []string{"agentNs1", "agentNs2"}},
 				nodeObj:            {configured: false},
 				csiDriverObj:       {configured: false},
 			},
 		},
 		{
-			name: "DAP disabled, Introspection enabled; Node uses nil namespace; Pods, Profiles are not configured",
+			name: "DAP disabled, Introspection enabled; Node uses nil namespace; Agent Pods are configured, Profiles are not",
 
 			watchOptions: WatchOptions{
 				DatadogAgentEnabled:        true,
@@ -229,7 +230,7 @@ func Test_CacheConfig(t *testing.T) {
 				monitorObj:         {configured: false},
 				sloObj:             {configured: false},
 				profileObj:         {configured: false},
-				podObj:             {configured: false},
+				podObj:             {configured: true, namespaces: []string{"agentNs1", "agentNs2"}},
 				nodeObj:            {configured: true, namespaces: nil},
 				csiDriverObj:       {configured: false},
 			},

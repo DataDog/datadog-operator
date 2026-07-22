@@ -31,6 +31,7 @@ require (
 	k8s.io/apimachinery v0.35.3
 	k8s.io/cli-runtime v0.35.3
 	k8s.io/client-go v0.35.3
+	k8s.io/component-helpers v0.35.3
 	k8s.io/klog/v2 v2.140.0
 	k8s.io/kube-aggregator v0.35.3
 	k8s.io/kube-openapi v0.0.0-20251125145642-4e65d59e963e
@@ -287,7 +288,6 @@ require (
 	k8s.io/apiserver v0.35.3 // indirect
 	k8s.io/cloud-provider v0.35.0 // indirect
 	k8s.io/component-base v0.35.3 // indirect
-	k8s.io/component-helpers v0.35.3 // indirect
 	k8s.io/csi-translation-lib v0.35.0 // indirect
 	k8s.io/gengo/v2 v2.0.0-20250922181213-ec3ebc5fd46b // indirect
 	modernc.org/sqlite v1.34.1 // indirect

@@ -121,6 +121,7 @@ func runDDAReconcilerTest(t *testing.T, tt testCase, opts ReconcilerOptions) {
 	ri := datadogagentinternal.NewReconciler(
 		ddaiReconcilerOptionsFromDDA(opts),
 		c,
+		c,
 		kubernetes.PlatformInfo{},
 		s,
 		recorder,
@@ -193,6 +194,7 @@ func runFullReconcilerTest(t *testing.T, tt testCase, opts ReconcilerOptions) {
 
 	ri := datadogagentinternal.NewReconciler(
 		ddaiReconcilerOptionsFromDDA(opts),
+		c,
 		c,
 		kubernetes.PlatformInfo{},
 		s,

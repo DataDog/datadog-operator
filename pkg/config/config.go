@@ -129,10 +129,11 @@ func CacheOptions(logger logr.Logger, opts WatchOptions) cache.Options {
 		}
 	}
 
-	if opts.DatadogAgentProfileEnabled || opts.UntaintControllerEnabled {
-		// For the profiles feature and untaint controller we need to list agent pods.
-		// The profiles feature needs node name and labels; the untaint controller also needs
-		// Status.Conditions to check readiness. Pods are watched in DatadogAgent namespace(s).
+	if opts.DatadogAgentEnabled || opts.DatadogAgentProfileEnabled || opts.UntaintControllerEnabled {
+		// The Agent, profiles, and untaint controllers need to watch Agent Pods.
+		// The profiles feature needs node name and labels. The untaint and Agent
+		// resource-fallback controllers need Status.Conditions for prompt readiness
+		// and scheduling reconciliation. Pods are watched in DatadogAgent namespace(s).
 		agentNamespaces := GetWatchNamespacesFromEnv(logger, AgentWatchNamespaceEnvVar)
 		logger.Info("Pod cache enabled", "watching Pods in namespaces", slices.Collect(maps.Keys(agentNamespaces)))
 		byObject[podObj] = cache.ByObject{
@@ -148,19 +149,21 @@ func CacheOptions(logger logr.Logger, opts WatchOptions) cache.Options {
 				newPod := &corev1.Pod{
 					TypeMeta: pod.TypeMeta,
 					ObjectMeta: v1.ObjectMeta{
-						Namespace: pod.Namespace,
-						Name:      pod.Name,
-						Labels:    pod.Labels,
+						Namespace:       pod.Namespace,
+						Name:            pod.Name,
+						UID:             pod.UID,
+						Labels:          pod.Labels,
+						OwnerReferences: pod.OwnerReferences,
 					},
 					Spec: corev1.PodSpec{
 						NodeName: pod.Spec.NodeName,
 					},
 				}
+				newPod.Status.Conditions = pod.Status.Conditions
 
-				// The untaint controller needs Pod.Status.Conditions (readiness check)
-				// and Pod.Status.StartTime (readiness-timeout clock).
+				// The untaint controller also needs Pod.Status.StartTime for its
+				// readiness-timeout clock.
 				if opts.UntaintControllerEnabled {
-					newPod.Status.Conditions = pod.Status.Conditions
 					newPod.Status.StartTime = pod.Status.StartTime
 				}
 

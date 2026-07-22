@@ -200,7 +200,7 @@ func Render(opts Options) ([]client.Object, *runtime.Scheme, error) {
 	ddaiOpts := datadogagentinternal.ReconcilerOptions{
 		SupportCilium: opts.SupportCilium,
 	}
-	ddaiReconciler := datadogagentinternal.NewReconciler(ddaiOpts, fakeClient, platformInfo, scheme, recorder, noopForwarder{})
+	ddaiReconciler := datadogagentinternal.NewReconciler(ddaiOpts, fakeClient, fakeClient, platformInfo, scheme, recorder, noopForwarder{})
 
 	for i := range ddaiList.Items {
 		ddai := &ddaiList.Items[i]

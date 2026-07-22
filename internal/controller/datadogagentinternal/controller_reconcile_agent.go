@@ -36,6 +36,7 @@ import (
 func (r *Reconciler) reconcileV2Agent(ctx context.Context, requiredComponents feature.RequiredComponents, features []feature.Feature,
 	ddai *datadoghqv1alpha1.DatadogAgentInternal, resourcesManager feature.ResourceManagers, newStatus *datadoghqv1alpha1.DatadogAgentInternalStatus, provider string) (reconcile.Result, error) {
 	var result reconcile.Result
+	var err error
 	var eds *edsv1alpha1.ExtendedDaemonSet
 	var daemonset *appsv1.DaemonSet
 	var podManagers feature.PodTemplateManagers
@@ -190,7 +191,20 @@ func (r *Reconciler) reconcileV2Agent(ctx context.Context, requiredComponents fe
 		return reconcile.Result{}, nil
 	}
 
-	return r.createOrUpdateDaemonset(ctx, ddai, daemonset, newStatus, updateDSStatusV2WithAgent)
+	fallbackBudget := resourceFallbackBudget(ddai, &r.options.ExtendedDaemonsetOptions)
+	fallbackEnabled := configureResourceFallback(daemonset, fallbackBudget)
+	result, err = r.createOrUpdateDaemonset(ctx, ddai, daemonset, newStatus, updateDSStatusV2WithAgent)
+	if err != nil || !fallbackEnabled {
+		return result, err
+	}
+	fallbackResult, err := r.reconcileResourceFallback(ctx, ddai, daemonset, fallbackBudget)
+	if err != nil {
+		return reconcile.Result{}, err
+	}
+	if fallbackResult.RequeueAfter > 0 && (result.RequeueAfter == 0 || fallbackResult.RequeueAfter < result.RequeueAfter) {
+		result.RequeueAfter = fallbackResult.RequeueAfter
+	}
+	return result, nil
 }
 
 func updateDSStatusV2WithAgent(dsName string, ds *appsv1.DaemonSet, newStatus *datadoghqv1alpha1.DatadogAgentInternalStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string) {
