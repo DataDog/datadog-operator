@@ -46,7 +46,7 @@ func applyOtelAgentGatewayResources(manager feature.PodTemplateManagers, ddaSpec
 		Value: "true",
 	})
 
-	// Disable standalone mode
+	// Explicitly set bundled mode (DD_OTEL_STANDALONE=false)
 	manager.EnvVar().AddEnvVarToContainer(apicommon.OtelAgent, &corev1.EnvVar{
 		Name:  "DD_OTEL_STANDALONE",
 		Value: "false",
