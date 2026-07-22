@@ -46,6 +46,12 @@ func applyOtelAgentGatewayResources(manager feature.PodTemplateManagers, ddaSpec
 		Value: "true",
 	})
 
+	// Disable standalone mode
+	manager.EnvVar().AddEnvVarToContainer(apicommon.OtelAgent, &corev1.EnvVar{
+		Name:  "DD_OTEL_STANDALONE",
+		Value: "false",
+	})
+
 	// Set hostname from spec.nodeName
 	manager.EnvVar().AddEnvVarToContainer(apicommon.OtelAgent, &corev1.EnvVar{
 		Name: "DD_HOSTNAME",
