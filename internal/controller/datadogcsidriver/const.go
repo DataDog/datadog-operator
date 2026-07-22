@@ -21,7 +21,7 @@ const (
 	// defaultRegistrarImageName is the default CSI node driver registrar image name
 	defaultRegistrarImageName = "csi-node-driver-registrar"
 	// defaultRegistrarImageRegistry is the default CSI node driver registrar image registry
-	defaultRegistrarImageRegistry = "k8s.gcr.io/sig-storage"
+	defaultRegistrarImageRegistry = "registry.k8s.io/sig-storage"
 	// defaultAPMSocketPath is the default host path to the APM socket
 	defaultAPMSocketPath = "/var/run/datadog/apm.socket"
 	// defaultDSDSocketPath is the default host path to the DogStatsD socket
