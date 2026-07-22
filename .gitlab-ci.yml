@@ -677,10 +677,16 @@ publish_redhat_public_tag:
 
 publish_public_latest:
   stage: release-latest
+  needs:
+    - publish_public_tag
   rules:
     # Skip latest jobs for vX.Y.Z-rc.W tags
     - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+-rc\.[0-9]+$/'
       when: never
+    # Auto-promote to latest only for proper vX.Y.Z stable release tags
+    - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
+      when: on_success
+    # Any other tag shape: require manual confirmation instead of auto-publishing latest
     - if: $CI_COMMIT_TAG
       when: manual
     - when: never
@@ -696,15 +702,19 @@ publish_public_latest:
 
 publish_public_latest_fips:
   extends: publish_public_latest
+  needs:
+    - publish_public_tag_fips
   variables:
     IMG_SOURCES: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-fips-amd64,$BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-fips-arm64
     IMG_DESTINATIONS: operator:latest-fips
 
 publish_public_rc_latest:
   stage: release-latest
+  needs:
+    - publish_public_tag
   rules:
     - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+-rc\.[0-9]+$/'
-      when: manual
+      when: on_success
     - when: never
   trigger:
     project: DataDog/public-images
@@ -718,13 +728,24 @@ publish_public_rc_latest:
 
 publish_public_rc_latest_fips:
   extends: publish_public_rc_latest
+  needs:
+    - publish_public_tag_fips
   variables:
     IMG_SOURCES: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-fips-amd64,$BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-fips-arm64
     IMG_DESTINATIONS: operator:rc-latest-fips
 
 publish_redhat_public_latest:
   stage: release-latest
+  needs:
+    - publish_redhat_public_tag
   rules:
+    # Skip latest jobs for vX.Y.Z-rc.W tags
+    - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+-rc\.[0-9]+$/'
+      when: never
+    # Auto-promote to latest only for proper vX.Y.Z stable release tags
+    - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
+      when: on_success
+    # Any other tag shape: require manual confirmation instead of auto-publishing latest
     - if: $CI_COMMIT_TAG
       when: manual
     - when: never
