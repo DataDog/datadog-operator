@@ -264,6 +264,11 @@ func addPreparedRolloutVolumes(spec *corev1.PodSpec) error {
 func configurePreparedContainer(container *corev1.Container) {
 	lockPath := preparedRolloutLockDir + "/" + container.Name + ".lock"
 	statePath := preparedRolloutStateDir + "/" + container.Name + ".state"
+	originalLiveness := container.LivenessProbe.DeepCopy()
+	originalReadiness := container.ReadinessProbe.DeepCopy()
+	if originalReadiness == nil {
+		originalReadiness = originalLiveness
+	}
 	setContainerEnv(container, rolloutEnabledEnv, "true")
 	setContainerEnv(container, rolloutLockPathEnv, lockPath)
 	setContainerEnv(container, rolloutStatePathEnv, statePath)
@@ -272,8 +277,8 @@ func configurePreparedContainer(container *corev1.Container) {
 		corev1.VolumeMount{Name: preparedRolloutStateVolume, MountPath: preparedRolloutStateDir},
 	)
 	container.StartupProbe = rolloutStateProbe(statePath, "prepared|activating|active", 1, 300)
-	container.LivenessProbe = rolloutStateProbe(statePath, "prepared|activating|active", 10, 3)
-	container.ReadinessProbe = rolloutStateProbe(statePath, "active", 1, 3)
+	container.LivenessProbe = rolloutHealthProbe(container.Name, statePath, true, originalLiveness)
+	container.ReadinessProbe = rolloutHealthProbe(container.Name, statePath, false, originalReadiness)
 }
 
 func setContainerEnv(container *corev1.Container, name, value string) {
@@ -294,6 +299,34 @@ func rolloutStateProbe(path, accepted string, period, failures int32) *corev1.Pr
 		TimeoutSeconds:   1,
 		FailureThreshold: failures,
 	}
+}
+
+// rolloutHealthProbe accepts a sleeping Prepared process for liveness, but
+// delegates to the component's real health mechanism after activation. This
+// avoids both overlap false positives and permanently replacing Agent health
+// with a state marker.
+func rolloutHealthProbe(containerName, statePath string, allowWaiting bool, base *corev1.Probe) *corev1.Probe {
+	var activeHealth string
+	switch containerName {
+	case string(apicommon.CoreAgentContainerName):
+		activeHealth = "exec /opt/datadog-agent/bin/agent/agent health"
+	case string(apicommon.TraceAgentContainerName):
+		activeHealth = "exec 3<>/dev/tcp/127.0.0.1/8126; exec 3>&-; exec 3<&-"
+	default:
+		activeHealth = "exit 1"
+	}
+	waiting := ""
+	if allowWaiting {
+		waiting = "prepared|activating) exit 0;; "
+	}
+	command := fmt.Sprintf(`state="$(cat %s 2>/dev/null)" || exit 1; case "$state" in %sactive) %s;; *) exit 1;; esac`, statePath, waiting, activeHealth)
+
+	probe := &corev1.Probe{PeriodSeconds: 10, TimeoutSeconds: 1, FailureThreshold: 3}
+	if base != nil {
+		probe = base.DeepCopy()
+	}
+	probe.ProbeHandler = corev1.ProbeHandler{Exec: &corev1.ExecAction{Command: []string{"bash", "-c", command}}}
+	return probe
 }
 
 type preparedHandoffCandidate struct {

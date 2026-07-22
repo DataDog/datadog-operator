@@ -6,6 +6,7 @@ package datadogagentinternal
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -40,6 +41,10 @@ func TestPrepareAgentTemplate(t *testing.T) {
 		assert.Contains(t, envValue(container.Env, rolloutStatePathEnv), container.Name+".state")
 	}
 	assert.Equal(t, "trace-agent", arm.Spec.Template.Spec.Containers[1].Command[0])
+	assert.Contains(t, strings.Join(arm.Spec.Template.Spec.Containers[0].LivenessProbe.Exec.Command, " "), "agent health")
+	assert.Contains(t, strings.Join(arm.Spec.Template.Spec.Containers[1].LivenessProbe.Exec.Command, " "), "/dev/tcp/127.0.0.1/8126")
+	assert.NotContains(t, strings.Join(arm.Spec.Template.Spec.Containers[0].StartupProbe.Exec.Command, " "), "agent health",
+		"the sleeping replacement startup probe must not contact the old host-network listener")
 
 	standby := preparedRolloutDaemonSet()
 	require.NoError(t, prepareAgentTemplate(standby, preparedRolloutPhaseStandby))

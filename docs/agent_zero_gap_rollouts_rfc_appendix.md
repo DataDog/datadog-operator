@@ -353,9 +353,11 @@ parsing, and safe initialization costs before the old process exits.
 Every supported regular container gets a startup exec probe that accepts
 `prepared`, `activating`, or `active`. Kubelet then records
 `ContainerStatus.Started=true` for that exact container; a restart resets it.
-Liveness accepts the same states so waiting is indefinite. Readiness accepts
-only `active`, so a standby replacement is never a Service endpoint and never
-looks healthy merely because the old host-network listener answers.
+Liveness accepts the waiting states so waiting is indefinite. Once `active`,
+core probes delegate to `agent health` and trace probes connect to the
+container-local APM listener. Readiness requires Active and the same real
+health check, so a standby replacement is never a Service endpoint, cannot hit
+the old host-network listener, and cannot remain healthy on a stale state file.
 
 The Operator maintains a handoff budget derived from the user's existing
 `maxUnavailable` policy. When all expected containers are Running+Started, all

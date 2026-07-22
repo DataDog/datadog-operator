@@ -56,8 +56,9 @@ itself is not the UDS conflict—the bind/unlink behavior is.
    from the user's existing `maxUnavailable` budget.
 3. A replacement constructs the real process graph, writes `prepared` to its
    Pod-private state file, then waits on a per-component advisory `flock` in a
-   stable node hostPath. Startup and liveness exec probes accept Prepared;
-   readiness accepts only Active.
+   stable node hostPath. Startup accepts Prepared. While waiting, liveness
+   accepts Prepared; after activation, liveness and readiness delegate to the
+   component's real health mechanism so the state marker cannot mask a failure.
 4. When every supported replacement container is Running and
    `ContainerStatus.Started=true`, the Operator persists a token on that Pod and
    UID-precondition deletes the old Pod. The old processes release their locks

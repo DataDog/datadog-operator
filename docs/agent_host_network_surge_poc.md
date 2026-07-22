@@ -47,8 +47,9 @@ The first pilot fails closed unless the rendered Pod has exactly:
 
 The Operator injects per-component node lock paths and Pod-private state paths,
 bypasses `trace-loader`, and replaces network probes with state-file exec
-probes. Startup/liveness accept Prepared or Active; readiness accepts only
-Active. Once both containers have `Started=true`, the Operator annotates the
+probes. Startup accepts Prepared, waiting liveness accepts Prepared, and
+post-activation liveness/readiness delegate to `agent health` or the local APM
+listener. Once both containers have `Started=true`, the Operator annotates the
 replacement with the old Pod UID and deletes that exact UID within the
 `maxUnavailable` budget. The node locks keep the new processes asleep until the
 old processes finish stopping.
