@@ -683,8 +683,12 @@ publish_public_latest:
     # Skip latest jobs for vX.Y.Z-rc.W tags
     - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+-rc\.[0-9]+$/'
       when: never
-    - if: $CI_COMMIT_TAG
+    # Auto-promote to latest only for proper vX.Y.Z stable release tags
+    - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
       when: on_success
+    # Any other tag shape: require manual confirmation instead of auto-publishing latest
+    - if: $CI_COMMIT_TAG
+      when: manual
     - when: never
   trigger:
     project: DataDog/public-images
@@ -735,8 +739,15 @@ publish_redhat_public_latest:
   needs:
     - publish_redhat_public_tag
   rules:
-    - if: $CI_COMMIT_TAG
+    # Skip latest jobs for vX.Y.Z-rc.W tags
+    - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+-rc\.[0-9]+$/'
+      when: never
+    # Auto-promote to latest only for proper vX.Y.Z stable release tags
+    - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
       when: on_success
+    # Any other tag shape: require manual confirmation instead of auto-publishing latest
+    - if: $CI_COMMIT_TAG
+      when: manual
     - when: never
   trigger:
     project: DataDog/public-images
