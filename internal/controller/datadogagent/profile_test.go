@@ -25,6 +25,8 @@ import (
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/experimental"
+	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	agenttestutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/testutils"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/constants"
@@ -735,6 +737,45 @@ func Test_setProfileDDAIMeta(t *testing.T) {
 					Namespace: "bar",
 					Labels: map[string]string{
 						constants.ProfileLabelKey: "foo",
+					},
+				},
+			},
+		},
+		{
+			name: "user created profile with host profiler annotations",
+			ddai: v1alpha1.DatadogAgentInternal{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "foo",
+					Namespace: "bar",
+					ManagedFields: []metav1.ManagedFieldsEntry{
+						{
+							Manager: "datadog-operator",
+						},
+					},
+				},
+			},
+			profile: v1alpha1.DatadogAgentProfile{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "foo",
+					Namespace: "bar",
+					Annotations: map[string]string{
+						featureutils.EnableHostProfilerAnnotation:        "true",
+						featureutils.EnableHostProfilerSeccompAnnotation: "false",
+						experimental.ExperimentalAnnotationPrefix + "/" + experimental.ExperimentalImageOverrideConfigSubkey: `{"host-profiler":{"name":"datadog/ddot-ebpf-dev:nightly-main"}}`,
+					},
+				},
+			},
+			want: v1alpha1.DatadogAgentInternal{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "foo",
+					Namespace: "bar",
+					Labels: map[string]string{
+						constants.ProfileLabelKey: "foo",
+					},
+					Annotations: map[string]string{
+						featureutils.EnableHostProfilerAnnotation:        "true",
+						featureutils.EnableHostProfilerSeccompAnnotation: "false",
+						experimental.ExperimentalAnnotationPrefix + "/" + experimental.ExperimentalImageOverrideConfigSubkey: `{"host-profiler":{"name":"datadog/ddot-ebpf-dev:nightly-main"}}`,
 					},
 				},
 			},
