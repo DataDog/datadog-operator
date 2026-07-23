@@ -127,6 +127,13 @@ func configureSystemProbe(managers feature.PodTemplateManagers) {
 	// add the env var to the core agent as well, to prevent config mismatches in runtime
 	managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, enableSPEnvVar)
 
+	// In privileged mode the eBPF probes are disabled, as GPU monitoring relies on
+	// the privileged host access rather than the eBPF probes.
+	managers.EnvVar().AddEnvVarToContainer(apicommon.SystemProbeContainerName, &corev1.EnvVar{
+		Name:  DDEnableEBPFProbesEnvVar,
+		Value: "false",
+	})
+
 	// annotations
 	managers.Annotation().AddAnnotation(common.SystemProbeAppArmorAnnotationKey, common.SystemProbeAppArmorAnnotationValue)
 
