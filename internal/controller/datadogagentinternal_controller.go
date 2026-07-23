@@ -66,23 +66,23 @@ func (r *DatadogAgentInternalReconciler) Reconcile(ctx context.Context, ddai *v1
 func (r *DatadogAgentInternalReconciler) SetupWithManager(mgr ctrl.Manager, metricForwardersMgr datadog.MetricsForwardersManager) error {
 	generationChanged := ctrlbuilder.WithPredicates(predicate.GenerationChangedPredicate{})
 	builder := ctrl.NewControllerManagedBy(mgr).
-		Owns(&corev1.Secret{}, generationChanged).
-		Owns(&corev1.ConfigMap{}, generationChanged).
+		Owns(&corev1.Secret{}).
+		Owns(&corev1.ConfigMap{}).
 		Owns(&appsv1.DaemonSet{}, generationChanged).
-		Owns(&appsv1.Deployment{}, generationChanged).
-		Owns(&rbacv1.Role{}, generationChanged).
-		Owns(&rbacv1.RoleBinding{}, generationChanged).
-		Owns(&corev1.ServiceAccount{}, generationChanged).
+		Owns(&appsv1.Deployment{}).
+		Owns(&rbacv1.Role{}).
+		Owns(&rbacv1.RoleBinding{}).
+		Owns(&corev1.ServiceAccount{}).
 		// We let PlatformInfo supply PDB object based on the current API version
-		Owns(r.PlatformInfo.CreatePDBObject(), generationChanged).
-		Owns(&networkingv1.NetworkPolicy{}, generationChanged)
+		Owns(r.PlatformInfo.CreatePDBObject()).
+		Owns(&networkingv1.NetworkPolicy{})
 
 	// DatadogAgent is namespaced whereas ClusterRole and ClusterRoleBinding are
 	// cluster-scoped. That means that DatadogAgent cannot be their owner, and
 	// we cannot use .Owns().
 	handlerEnqueue := handler.EnqueueRequestsFromMapFunc(enqueueIfOwnedByDatadogAgentInternal)
-	builder.Watches(&rbacv1.ClusterRole{}, handlerEnqueue, generationChanged)
-	builder.Watches(&rbacv1.ClusterRoleBinding{}, handlerEnqueue, generationChanged)
+	builder.Watches(&rbacv1.ClusterRole{}, handlerEnqueue)
+	builder.Watches(&rbacv1.ClusterRoleBinding{}, handlerEnqueue)
 	builder.Watches(
 		&corev1.Pod{},
 		handler.EnqueueRequestsFromMapFunc(enqueueDatadogAgentInternalForPod(mgr.GetAPIReader())),
@@ -90,7 +90,7 @@ func (r *DatadogAgentInternalReconciler) SetupWithManager(mgr ctrl.Manager, metr
 	)
 
 	if r.Options.ExtendedDaemonsetOptions.Enabled {
-		builder = builder.Owns(&edsdatadoghqv1alpha1.ExtendedDaemonSet{}, generationChanged)
+		builder = builder.Owns(&edsdatadoghqv1alpha1.ExtendedDaemonSet{})
 	}
 
 	if r.Options.SupportCilium {
@@ -100,7 +100,7 @@ func (r *DatadogAgentInternalReconciler) SetupWithManager(mgr ctrl.Manager, metr
 			Version: "v2",
 			Kind:    "CiliumNetworkPolicy",
 		})
-		builder = builder.Owns(policy, generationChanged)
+		builder = builder.Owns(policy)
 	}
 
 	var builderOptions []ctrlbuilder.ForOption
@@ -113,7 +113,7 @@ func (r *DatadogAgentInternalReconciler) SetupWithManager(mgr ctrl.Manager, metr
 			},
 		}))
 	}
-	builderOptions = append(builderOptions, ctrlbuilder.WithPredicates(predicate.GenerationChangedPredicate{}))
+	builderOptions = append(builderOptions, ctrlbuilder.WithPredicates(datadogAgentInternalEventPredicate()))
 
 	or := reconcile.AsReconciler[*v1alpha1.DatadogAgentInternal](r.Client, r)
 	if err := builder.For(&datadoghqv1alpha1.DatadogAgentInternal{}, builderOptions...).Complete(or); err != nil {
@@ -125,6 +125,13 @@ func (r *DatadogAgentInternalReconciler) SetupWithManager(mgr ctrl.Manager, metr
 	r.internal = datadogagentinternal.NewReconciler(internalOptions, r.Client, r.PlatformInfo, r.Scheme, r.Recorder, metricForwardersMgr)
 
 	return nil
+}
+
+func datadogAgentInternalEventPredicate() predicate.Predicate {
+	return predicate.Or(
+		predicate.GenerationChangedPredicate{},
+		datadogAnnotationChangedPredicate(),
+	)
 }
 
 func enqueueDatadogAgentInternalForPod(reader client.Reader) handler.MapFunc {

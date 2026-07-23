@@ -22,6 +22,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -115,6 +116,40 @@ func TestConfigurePreparedRolloutRejectsUnsupportedContainerWithoutMutation(t *t
 	assert.Equal(t, original, desired)
 }
 
+func TestConfigurePreparedRolloutRejectsInvalidGates(t *testing.T) {
+	scheme := runtime.NewScheme()
+	reconciler := &Reconciler{apiReader: fake.NewClientBuilder().WithScheme(scheme).Build()}
+	enabled := &datadoghqv1alpha1.DatadogAgentInternal{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{preparedRolloutAnnotation: "true"}}}
+
+	disabled := &datadoghqv1alpha1.DatadogAgentInternal{}
+	desired := preparedRolloutDaemonSet()
+	original := desired.DeepCopy()
+	phase, err := reconciler.configurePreparedRollout(context.Background(), disabled, desired, intstr.FromInt(1))
+	require.NoError(t, err)
+	assert.Empty(t, phase)
+	assert.Equal(t, original, desired)
+
+	_, err = reconciler.configurePreparedRollout(context.Background(), enabled, preparedRolloutDaemonSet(), intstr.FromInt(0))
+	require.ErrorContains(t, err, "positive, valid maxUnavailable")
+
+	onDelete := preparedRolloutDaemonSet()
+	onDelete.Spec.UpdateStrategy.Type = appsv1.OnDeleteDaemonSetStrategyType
+	_, err = reconciler.configurePreparedRollout(context.Background(), enabled, onDelete, intstr.FromInt(1))
+	require.ErrorContains(t, err, "RollingUpdate strategy")
+}
+
+func TestConfigureArmStrategyInitializesRollingUpdate(t *testing.T) {
+	ds := &appsv1.DaemonSet{}
+	configureArmStrategy(ds, intstr.FromString("25%"))
+	require.NotNil(t, ds.Spec.UpdateStrategy.RollingUpdate)
+	assert.Equal(t, intstr.FromInt(0), *ds.Spec.UpdateStrategy.RollingUpdate.MaxSurge)
+	assert.Equal(t, intstr.FromString("25%"), *ds.Spec.UpdateStrategy.RollingUpdate.MaxUnavailable)
+
+	previous := ds.Spec.UpdateStrategy.RollingUpdate.MaxUnavailable
+	configureArmStrategy(ds, intstr.FromInt(0))
+	assert.Equal(t, previous, ds.Spec.UpdateStrategy.RollingUpdate.MaxUnavailable)
+}
+
 func TestPrepareAgentTemplateRejectsUnsafeTemplates(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -122,11 +157,53 @@ func TestPrepareAgentTemplateRejectsUnsafeTemplates(t *testing.T) {
 		wantErr string
 	}{
 		{
+			name: "host network disabled",
+			mutate: func(ds *appsv1.DaemonSet) {
+				ds.Spec.Template.Spec.HostNetwork = false
+			},
+			wantErr: "hostNetwork=true",
+		},
+		{
+			name: "windows pod os",
+			mutate: func(ds *appsv1.DaemonSet) {
+				ds.Spec.Template.Spec.OS = &corev1.PodOS{Name: corev1.Windows}
+			},
+			wantErr: "Linux-only",
+		},
+		{
 			name: "windows node selector",
 			mutate: func(ds *appsv1.DaemonSet) {
 				ds.Spec.Template.Spec.NodeSelector = map[string]string{corev1.LabelOSStable: "windows"}
 			},
 			wantErr: "Linux-only",
+		},
+		{
+			name: "legacy windows node selector",
+			mutate: func(ds *appsv1.DaemonSet) {
+				ds.Spec.Template.Spec.NodeSelector = map[string]string{"beta.kubernetes.io/os": "windows"}
+			},
+			wantErr: "Linux-only",
+		},
+		{
+			name: "missing trace container",
+			mutate: func(ds *appsv1.DaemonSet) {
+				ds.Spec.Template.Spec.Containers = ds.Spec.Template.Spec.Containers[:1]
+			},
+			wantErr: "exactly agent and trace-agent",
+		},
+		{
+			name: "unsupported container",
+			mutate: func(ds *appsv1.DaemonSet) {
+				ds.Spec.Template.Spec.Containers[1].Name = "security-agent"
+			},
+			wantErr: "does not support container",
+		},
+		{
+			name: "duplicate container",
+			mutate: func(ds *appsv1.DaemonSet) {
+				ds.Spec.Template.Spec.Containers[1].Name = string(apicommon.CoreAgentContainerName)
+			},
+			wantErr: "duplicate container",
 		},
 		{
 			name: "container lifecycle hook",
@@ -157,6 +234,13 @@ func TestPrepareAgentTemplateRejectsUnsafeTemplates(t *testing.T) {
 			wantErr: "reserved name or path",
 		},
 		{
+			name: "reserved mount name",
+			mutate: func(ds *appsv1.DaemonSet) {
+				ds.Spec.Template.Spec.Containers[0].VolumeMounts = []corev1.VolumeMount{{Name: preparedRolloutLockVolume, MountPath: "/custom"}}
+			},
+			wantErr: "reserved name or path",
+		},
+		{
 			name: "unknown trace loader",
 			mutate: func(ds *appsv1.DaemonSet) {
 				ds.Spec.Template.Spec.Containers[1].Command = []string{"custom-loader"}
@@ -169,6 +253,27 @@ func TestPrepareAgentTemplateRejectsUnsafeTemplates(t *testing.T) {
 				ds.Spec.Template.Spec.InitContainers[1].Name = "custom-init"
 			},
 			wantErr: "does not support init container",
+		},
+		{
+			name: "missing init container",
+			mutate: func(ds *appsv1.DaemonSet) {
+				ds.Spec.Template.Spec.InitContainers = ds.Spec.Template.Spec.InitContainers[:1]
+			},
+			wantErr: "only init-volume and init-config",
+		},
+		{
+			name: "duplicate init container",
+			mutate: func(ds *appsv1.DaemonSet) {
+				ds.Spec.Template.Spec.InitContainers[1].Name = string(apicommon.InitVolumeContainerName)
+			},
+			wantErr: "requires init-volume and init-config",
+		},
+		{
+			name: "init container lifecycle hook",
+			mutate: func(ds *appsv1.DaemonSet) {
+				ds.Spec.Template.Spec.InitContainers[0].Lifecycle = &corev1.Lifecycle{}
+			},
+			wantErr: "ports or lifecycle hooks",
 		},
 		{
 			name: "init container port",
@@ -253,6 +358,29 @@ func TestPodPreparedForHandoff(t *testing.T) {
 	pod.Status.ContainerStatuses[1].Started = ptr.To(true)
 	pod.Status.ContainerStatuses[1].RestartCount = 1
 	assert.False(t, podPreparedForHandoff(pod))
+
+	tests := []struct {
+		name   string
+		mutate func(*corev1.Pod)
+	}{
+		{name: "deleting", mutate: func(p *corev1.Pod) { now := metav1.Now(); p.DeletionTimestamp = &now }},
+		{name: "not running", mutate: func(p *corev1.Pod) { p.Status.Phase = corev1.PodPending }},
+		{name: "missing init status", mutate: func(p *corev1.Pod) { p.Status.InitContainerStatuses = p.Status.InitContainerStatuses[:1] }},
+		{name: "missing container status", mutate: func(p *corev1.Pod) { p.Status.ContainerStatuses = p.Status.ContainerStatuses[:1] }},
+		{name: "failed init", mutate: func(p *corev1.Pod) { p.Status.InitContainerStatuses[0].State.Terminated.ExitCode = 1 }},
+		{name: "running init", mutate: func(p *corev1.Pod) { p.Status.InitContainerStatuses[0].State.Terminated = nil }},
+		{name: "unknown container", mutate: func(p *corev1.Pod) { p.Status.ContainerStatuses[0].Name = "security-agent" }},
+		{name: "container stopped", mutate: func(p *corev1.Pod) { p.Status.ContainerStatuses[0].State.Running = nil }},
+		{name: "started unknown", mutate: func(p *corev1.Pod) { p.Status.ContainerStatuses[0].Started = nil }},
+		{name: "duplicate agent", mutate: func(p *corev1.Pod) { p.Status.ContainerStatuses[1].Name = "agent" }},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			candidate := preparedReplacementPod()
+			test.mutate(candidate)
+			assert.False(t, podPreparedForHandoff(candidate))
+		})
+	}
 }
 
 func TestReconcilePreparedHandoffReservesThenDeletesOldPod(t *testing.T) {
