@@ -129,10 +129,18 @@ func configureSystemProbe(managers feature.PodTemplateManagers) {
 
 	// In privileged mode the eBPF probes are disabled, as GPU monitoring relies on
 	// the privileged host access rather than the eBPF probes.
-	managers.EnvVar().AddEnvVarToContainer(apicommon.SystemProbeContainerName, &corev1.EnvVar{
+	disableEBPFProbesEnvVar := &corev1.EnvVar{
 		Name:  DDEnableEBPFProbesEnvVar,
 		Value: "false",
-	})
+	}
+
+	// disable the eBPF probes in system-probe
+	managers.EnvVar().AddEnvVarToContainer(apicommon.SystemProbeContainerName, disableEBPFProbesEnvVar)
+
+	// add the env var to the core agent as well, so both containers agree that the
+	// eBPF probes are disabled and the core GPU check does not poll a system-probe
+	// module that has the probes turned off
+	managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, disableEBPFProbesEnvVar)
 
 	// annotations
 	managers.Annotation().AddAnnotation(common.SystemProbeAppArmorAnnotationKey, common.SystemProbeAppArmorAnnotationValue)
