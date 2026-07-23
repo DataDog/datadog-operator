@@ -8,22 +8,88 @@ import (
 	"context"
 	"testing"
 
+	edsdatadoghqv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/rest"
 	"k8s.io/utils/ptr"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	ctrlconfig "sigs.k8s.io/controller-runtime/pkg/config"
 	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	componentagent "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal"
 	"github.com/DataDog/datadog-operator/pkg/constants"
+	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+type noopMetricsForwardersManager struct{}
+
+func (noopMetricsForwardersManager) Register(client.Object)                     {}
+func (noopMetricsForwardersManager) Unregister(client.Object)                   {}
+func (noopMetricsForwardersManager) ProcessError(client.Object, error)          {}
+func (noopMetricsForwardersManager) ProcessEvent(client.Object, datadog.Event)  {}
+func (noopMetricsForwardersManager) SetEnabledFeatures(client.Object, []string) {}
+func (noopMetricsForwardersManager) MetricsForwarderStatusForObj(client.Object) *datadog.ConditionCommon {
+	return nil
+}
+
+func TestDatadogAgentInternalSetupWithManager(t *testing.T) {
+	tests := []struct {
+		name    string
+		options datadogagentinternal.ReconcilerOptions
+	}{
+		{name: "default"},
+		{
+			name: "optional watches and metrics",
+			options: datadogagentinternal.ReconcilerOptions{
+				ExtendedDaemonsetOptions: componentagent.ExtendedDaemonsetOptions{Enabled: true},
+				SupportCilium:            true,
+				OperatorMetricsEnabled:   true,
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			scheme := runtime.NewScheme()
+			require.NoError(t, clientgoscheme.AddToScheme(scheme))
+			require.NoError(t, datadoghqv1alpha1.AddToScheme(scheme))
+			require.NoError(t, edsdatadoghqv1alpha1.AddToScheme(scheme))
+
+			mgr, err := ctrl.NewManager(&rest.Config{}, manager.Options{
+				Scheme:         scheme,
+				LeaderElection: false,
+				Controller: ctrlconfig.Controller{
+					SkipNameValidation: ptr.To(true),
+				},
+			})
+			require.NoError(t, err)
+
+			reconciler := &DatadogAgentInternalReconciler{
+				Client:       mgr.GetClient(),
+				PlatformInfo: kubernetes.PlatformInfo{},
+				Scheme:       scheme,
+				Recorder:     mgr.GetEventRecorderFor("datadogagentinternal-test"),
+				Options:      test.options,
+			}
+			require.NoError(t, reconciler.SetupWithManager(mgr, noopMetricsForwardersManager{}))
+			require.NotNil(t, reconciler.internal)
+		})
+	}
+}
 
 func TestResourceFallbackPodPredicate(t *testing.T) {
 	predicate := resourceFallbackPodPredicate()

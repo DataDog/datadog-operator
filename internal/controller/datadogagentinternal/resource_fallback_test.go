@@ -139,18 +139,87 @@ func TestResourceOnlyUnschedulable(t *testing.T) {
 }
 
 func TestTargetNodeFromDaemonSetAffinity(t *testing.T) {
-	pod := pendingPodForNode("node-a")
-	got, ok := targetNodeFromDaemonSetAffinity(pod)
-	require.True(t, ok)
-	assert.Equal(t, "node-a", got)
+	requirement := func(operator corev1.NodeSelectorOperator, values ...string) corev1.NodeSelectorRequirement {
+		return corev1.NodeSelectorRequirement{Key: metav1.ObjectNameField, Operator: operator, Values: values}
+	}
+	podWithTerms := func(terms ...corev1.NodeSelectorTerm) *corev1.Pod {
+		return &corev1.Pod{Spec: corev1.PodSpec{Affinity: &corev1.Affinity{NodeAffinity: &corev1.NodeAffinity{
+			RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{NodeSelectorTerms: terms},
+		}}}}
+	}
 
-	ambiguous := pendingPodForNode("node-a")
-	ambiguous.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms = append(
-		ambiguous.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms,
-		corev1.NodeSelectorTerm{MatchFields: []corev1.NodeSelectorRequirement{{Key: metav1.ObjectNameField, Operator: corev1.NodeSelectorOpIn, Values: []string{"node-b"}}}},
-	)
-	_, ok = targetNodeFromDaemonSetAffinity(ambiguous)
-	assert.False(t, ok)
+	tests := []struct {
+		name string
+		pod  *corev1.Pod
+		want string
+		ok   bool
+	}{
+		{name: "daemonset target", pod: pendingPodForNode("node-a"), want: "node-a", ok: true},
+		{name: "no affinity", pod: &corev1.Pod{}},
+		{name: "no node affinity", pod: &corev1.Pod{Spec: corev1.PodSpec{Affinity: &corev1.Affinity{}}}},
+		{name: "no required node affinity", pod: &corev1.Pod{Spec: corev1.PodSpec{Affinity: &corev1.Affinity{NodeAffinity: &corev1.NodeAffinity{}}}}},
+		{name: "empty terms", pod: podWithTerms()},
+		{name: "term without target field", pod: podWithTerms(corev1.NodeSelectorTerm{MatchFields: []corev1.NodeSelectorRequirement{{Key: "metadata.namespace", Operator: corev1.NodeSelectorOpIn, Values: []string{"datadog"}}}})},
+		{name: "wrong operator", pod: podWithTerms(corev1.NodeSelectorTerm{MatchFields: []corev1.NodeSelectorRequirement{requirement(corev1.NodeSelectorOpNotIn, "node-a")}})},
+		{name: "multiple values", pod: podWithTerms(corev1.NodeSelectorTerm{MatchFields: []corev1.NodeSelectorRequirement{requirement(corev1.NodeSelectorOpIn, "node-a", "node-b")}})},
+		{name: "duplicate target field", pod: podWithTerms(corev1.NodeSelectorTerm{MatchFields: []corev1.NodeSelectorRequirement{requirement(corev1.NodeSelectorOpIn, "node-a"), requirement(corev1.NodeSelectorOpIn, "node-a")}})},
+		{name: "consistent terms", pod: podWithTerms(
+			corev1.NodeSelectorTerm{MatchFields: []corev1.NodeSelectorRequirement{requirement(corev1.NodeSelectorOpIn, "node-a")}},
+			corev1.NodeSelectorTerm{MatchFields: []corev1.NodeSelectorRequirement{requirement(corev1.NodeSelectorOpIn, "node-a")}},
+		), want: "node-a", ok: true},
+		{name: "conflicting terms", pod: podWithTerms(
+			corev1.NodeSelectorTerm{MatchFields: []corev1.NodeSelectorRequirement{requirement(corev1.NodeSelectorOpIn, "node-a")}},
+			corev1.NodeSelectorTerm{MatchFields: []corev1.NodeSelectorRequirement{requirement(corev1.NodeSelectorOpIn, "node-b")}},
+		)},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, ok := targetNodeFromDaemonSetAffinity(tt.pod)
+			assert.Equal(t, tt.ok, ok)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestPrepareProfileAntiAffinityForSurge(t *testing.T) {
+	labels := map[string]string{
+		datadoghqcommon.AgentDeploymentNameLabelKey: "datadog-agent",
+		constants.ProfileLabelKey:                   "linux",
+	}
+
+	t.Run("no anti-affinity", func(t *testing.T) {
+		for _, template := range []*corev1.PodTemplateSpec{
+			{},
+			{Spec: corev1.PodSpec{Affinity: &corev1.Affinity{}}},
+		} {
+			assert.True(t, prepareProfileAntiAffinityForSurge(template))
+		}
+	})
+
+	t.Run("custom anti-affinity is rejected without mutation", func(t *testing.T) {
+		template := &corev1.PodTemplateSpec{Spec: corev1.PodSpec{Affinity: &corev1.Affinity{PodAntiAffinity: &corev1.PodAntiAffinity{
+			RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{{TopologyKey: "topology.kubernetes.io/zone"}},
+		}}}}
+		original := template.DeepCopy()
+		assert.False(t, prepareProfileAntiAffinityForSurge(template))
+		assert.Equal(t, original, template)
+	})
+
+	t.Run("missing deployment identity is rejected", func(t *testing.T) {
+		template := &corev1.PodTemplateSpec{Spec: corev1.PodSpec{Affinity: &corev1.Affinity{PodAntiAffinity: broadAgentPodAntiAffinity()}}}
+		assert.False(t, prepareProfileAntiAffinityForSurge(template))
+	})
+
+	t.Run("standard affinity is narrowed", func(t *testing.T) {
+		template := &corev1.PodTemplateSpec{ObjectMeta: metav1.ObjectMeta{Labels: labels}, Spec: corev1.PodSpec{
+			Affinity: &corev1.Affinity{PodAntiAffinity: broadAgentPodAntiAffinity()},
+		}}
+		expected, ok := profileSurgePodAntiAffinity(labels)
+		require.True(t, ok)
+		require.True(t, prepareProfileAntiAffinityForSurge(template))
+		assert.Equal(t, expected, template.Spec.Affinity.PodAntiAffinity)
+	})
 }
 
 func TestResourceFallbackSchedulingShapeAllowsOnlyProfileSurgeAntiAffinity(t *testing.T) {
@@ -299,6 +368,40 @@ func TestExistingPodRequiredAntiAffinityCanRejectReplacement(t *testing.T) {
 	allowed, err = existingPodsAllowPendingByRequiredAntiAffinity(pending, []corev1.Pod{existing}, "node-a")
 	require.NoError(t, err)
 	assert.False(t, allowed, "wider topology terms fail closed without loading every Node's topology labels")
+}
+
+func TestPodAffinityTermSelector(t *testing.T) {
+	term := &corev1.PodAffinityTerm{
+		LabelSelector:     &metav1.LabelSelector{MatchLabels: map[string]string{"app": "agent"}},
+		MatchLabelKeys:    []string{"rollout"},
+		MismatchLabelKeys: []string{"profile"},
+	}
+	selector, err := podAffinityTermSelector(term, map[string]string{"rollout": "new", "profile": "linux"})
+	require.NoError(t, err)
+	assert.True(t, selector.Matches(labels.Set{"app": "agent", "rollout": "new", "profile": "gpu"}))
+	assert.False(t, selector.Matches(labels.Set{"app": "agent", "rollout": "old", "profile": "gpu"}))
+	assert.False(t, selector.Matches(labels.Set{"app": "agent", "rollout": "new", "profile": "linux"}))
+
+	selector, err = podAffinityTermSelector(term, nil)
+	require.NoError(t, err)
+	assert.True(t, selector.Matches(labels.Set{"app": "agent"}), "keys missing from the source Pod must not add selector requirements")
+
+	_, err = podAffinityTermSelector(&corev1.PodAffinityTerm{LabelSelector: &metav1.LabelSelector{MatchExpressions: []metav1.LabelSelectorRequirement{{
+		Key: "app", Operator: metav1.LabelSelectorOperator("Invalid"), Values: []string{"agent"},
+	}}}}, nil)
+	require.Error(t, err)
+
+	_, err = podAffinityTermSelector(&corev1.PodAffinityTerm{
+		LabelSelector:  &metav1.LabelSelector{},
+		MatchLabelKeys: []string{"bad key"},
+	}, map[string]string{"bad key": "value"})
+	require.Error(t, err)
+
+	_, err = podAffinityTermSelector(&corev1.PodAffinityTerm{
+		LabelSelector:     &metav1.LabelSelector{},
+		MismatchLabelKeys: []string{"bad key"},
+	}, map[string]string{"bad key": "value"})
+	require.Error(t, err)
 }
 
 func TestResourceFitAfterOldPodRemoval(t *testing.T) {
