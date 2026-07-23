@@ -26,6 +26,8 @@ import (
 
 	datadoghqcommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	componentagent "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -89,6 +91,23 @@ func TestConfigureResourceFallback(t *testing.T) {
 			assert.Equal(t, tt.wantUnavailable, ds.Spec.UpdateStrategy.RollingUpdate.MaxUnavailable)
 		})
 	}
+}
+
+func TestResourceFallbackBudgetPrecedence(t *testing.T) {
+	overrideBudget := intstr.FromString("25%")
+	ddai := &datadoghqv1alpha1.DatadogAgentInternal{Spec: datadoghqv2alpha1.DatadogAgentSpec{
+		Override: map[datadoghqv2alpha1.ComponentName]*datadoghqv2alpha1.DatadogAgentComponentOverride{
+			datadoghqv2alpha1.NodeAgentComponentName: {
+				UpdateStrategy: &datadoghqcommon.UpdateStrategy{RollingUpdate: &datadoghqcommon.RollingUpdate{MaxUnavailable: &overrideBudget}},
+			},
+		},
+	}}
+	options := &componentagent.ExtendedDaemonsetOptions{MaxPodUnavailable: "2"}
+
+	assert.Equal(t, overrideBudget, resourceFallbackBudget(ddai, options), "the DatadogAgent override is the requested rollout budget")
+	ddai.Spec.Override = nil
+	assert.Equal(t, intstr.FromInt(2), resourceFallbackBudget(ddai, options), "the Operator option is the compatibility fallback")
+	assert.Equal(t, intstr.FromInt(defaultFallbackMaxUnavailable), resourceFallbackBudget(ddai, nil), "the fallback remains bounded when neither source is configured")
 }
 
 func TestResourceOnlyUnschedulable(t *testing.T) {

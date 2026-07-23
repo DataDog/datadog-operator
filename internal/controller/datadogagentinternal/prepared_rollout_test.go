@@ -115,6 +115,116 @@ func TestConfigurePreparedRolloutRejectsUnsupportedContainerWithoutMutation(t *t
 	assert.Equal(t, original, desired)
 }
 
+func TestPrepareAgentTemplateRejectsUnsafeTemplates(t *testing.T) {
+	tests := []struct {
+		name    string
+		mutate  func(*appsv1.DaemonSet)
+		wantErr string
+	}{
+		{
+			name: "windows node selector",
+			mutate: func(ds *appsv1.DaemonSet) {
+				ds.Spec.Template.Spec.NodeSelector = map[string]string{corev1.LabelOSStable: "windows"}
+			},
+			wantErr: "Linux-only",
+		},
+		{
+			name: "container lifecycle hook",
+			mutate: func(ds *appsv1.DaemonSet) {
+				ds.Spec.Template.Spec.Containers[0].Lifecycle = &corev1.Lifecycle{}
+			},
+			wantErr: "lifecycle hooks",
+		},
+		{
+			name: "container arguments",
+			mutate: func(ds *appsv1.DaemonSet) {
+				ds.Spec.Template.Spec.Containers[0].Args = []string{"--extra"}
+			},
+			wantErr: "command arguments",
+		},
+		{
+			name: "nonstandard core command",
+			mutate: func(ds *appsv1.DaemonSet) {
+				ds.Spec.Template.Spec.Containers[0].Command = []string{"agent", "start"}
+			},
+			wantErr: "standard agent run command",
+		},
+		{
+			name: "reserved mount path",
+			mutate: func(ds *appsv1.DaemonSet) {
+				ds.Spec.Template.Spec.Containers[0].VolumeMounts = []corev1.VolumeMount{{Name: "custom", MountPath: preparedRolloutLockDir}}
+			},
+			wantErr: "reserved name or path",
+		},
+		{
+			name: "unknown trace loader",
+			mutate: func(ds *appsv1.DaemonSet) {
+				ds.Spec.Template.Spec.Containers[1].Command = []string{"custom-loader"}
+			},
+			wantErr: "unknown trace-agent loader",
+		},
+		{
+			name: "unexpected init container",
+			mutate: func(ds *appsv1.DaemonSet) {
+				ds.Spec.Template.Spec.InitContainers[1].Name = "custom-init"
+			},
+			wantErr: "does not support init container",
+		},
+		{
+			name: "init container port",
+			mutate: func(ds *appsv1.DaemonSet) {
+				ds.Spec.Template.Spec.InitContainers[0].Ports = []corev1.ContainerPort{{ContainerPort: 1234}}
+			},
+			wantErr: "ports or lifecycle hooks",
+		},
+		{
+			name: "reserved volume name",
+			mutate: func(ds *appsv1.DaemonSet) {
+				ds.Spec.Template.Spec.Volumes = []corev1.Volume{{Name: preparedRolloutStateVolume}}
+			},
+			wantErr: "reserved",
+		},
+		{
+			name: "custom anti-affinity",
+			mutate: func(ds *appsv1.DaemonSet) {
+				ds.Spec.Template.Spec.Affinity = &corev1.Affinity{PodAntiAffinity: &corev1.PodAntiAffinity{}}
+			},
+			wantErr: "custom Pod anti-affinity",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			ds := preparedRolloutDaemonSet()
+			test.mutate(ds)
+			err := prepareAgentTemplate(ds, preparedRolloutPhaseArm)
+			require.ErrorContains(t, err, test.wantErr)
+		})
+	}
+}
+
+func TestConfigurePreparedContainerReplacesRolloutEnvironment(t *testing.T) {
+	container := &corev1.Container{
+		Name: "agent",
+		Env: []corev1.EnvVar{
+			{Name: rolloutEnabledEnv, Value: "false"},
+			{Name: "KEEP_ME", Value: "value"},
+		},
+	}
+
+	configurePreparedContainer(container)
+
+	assert.Equal(t, "true", envValue(container.Env, rolloutEnabledEnv))
+	assert.Equal(t, "value", envValue(container.Env, "KEEP_ME"))
+	count := 0
+	for i := range container.Env {
+		if container.Env[i].Name == rolloutEnabledEnv {
+			count++
+		}
+	}
+	assert.Equal(t, 1, count, "rollout configuration must replace, not duplicate, an existing environment variable")
+}
+
 func TestRequeuePreparedArm(t *testing.T) {
 	t.Run("polls while arm status is incomplete", func(t *testing.T) {
 		result := reconcile.Result{}
