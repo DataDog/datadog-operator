@@ -759,8 +759,8 @@ func Test_setProfileDDAIMeta(t *testing.T) {
 					Name:      "foo",
 					Namespace: "bar",
 					Annotations: map[string]string{
-						featureutils.EnableHostProfilerAnnotation:        "true",
-						featureutils.EnableHostProfilerSeccompAnnotation: "false",
+						featureutils.EnableHostProfilerAnnotation:                                                            "true",
+						featureutils.EnableHostProfilerSeccompAnnotation:                                                     "false",
 						experimental.ExperimentalAnnotationPrefix + "/" + experimental.ExperimentalImageOverrideConfigSubkey: `{"host-profiler":{"name":"datadog/ddot-ebpf-dev:nightly-main"}}`,
 					},
 				},
@@ -773,8 +773,8 @@ func Test_setProfileDDAIMeta(t *testing.T) {
 						constants.ProfileLabelKey: "foo",
 					},
 					Annotations: map[string]string{
-						featureutils.EnableHostProfilerAnnotation:        "true",
-						featureutils.EnableHostProfilerSeccompAnnotation: "false",
+						featureutils.EnableHostProfilerAnnotation:                                                            "true",
+						featureutils.EnableHostProfilerSeccompAnnotation:                                                     "false",
 						experimental.ExperimentalAnnotationPrefix + "/" + experimental.ExperimentalImageOverrideConfigSubkey: `{"host-profiler":{"name":"datadog/ddot-ebpf-dev:nightly-main"}}`,
 					},
 				},
