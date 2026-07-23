@@ -62,7 +62,7 @@ func TestDefaultWorkloadAllowlistVersion(t *testing.T) {
 
 func TestDefaultCSIWorkloadAllowlistVersion(t *testing.T) {
 	// Sanity check — locks the default to a known value so a silent bump is caught.
-	assert.Equal(t, "v1.1.0", DefaultCSIWorkloadAllowlistVersion)
+	assert.Equal(t, "v1.1.1", DefaultCSIWorkloadAllowlistVersion)
 }
 
 func TestApplyAllowlistSynchronizerResource_AllowlistPath(t *testing.T) {
@@ -109,19 +109,31 @@ func TestApplyCSIAllowlistSynchronizerResource_AllowlistPath(t *testing.T) {
 	require.NoError(t, SchemeBuilder.AddToScheme(scheme))
 
 	tests := []struct {
-		name       string
-		version    string
-		expectPath string
+		name        string
+		version     string
+		expectPaths []string
 	}{
 		{
-			name:       "default version",
-			version:    DefaultCSIWorkloadAllowlistVersion,
-			expectPath: "Datadog/datadog-csi-driver/datadog-datadog-csi-driver-daemonset-exemption-v1.1.0.yaml",
+			name:    "default version retains previous version",
+			version: DefaultCSIWorkloadAllowlistVersion,
+			expectPaths: []string{
+				"Datadog/datadog-csi-driver/datadog-datadog-csi-driver-daemonset-exemption-v1.1.0.yaml",
+				"Datadog/datadog-csi-driver/datadog-datadog-csi-driver-daemonset-exemption-v1.1.1.yaml",
+			},
 		},
 		{
-			name:       "user override",
-			version:    "v1.2.0",
-			expectPath: "Datadog/datadog-csi-driver/datadog-datadog-csi-driver-daemonset-exemption-v1.2.0.yaml",
+			name:    "previous version override is not duplicated",
+			version: previousCSIWorkloadAllowlistVersion,
+			expectPaths: []string{
+				"Datadog/datadog-csi-driver/datadog-datadog-csi-driver-daemonset-exemption-v1.1.0.yaml",
+			},
+		},
+		{
+			name:    "user override",
+			version: "v1.2.0",
+			expectPaths: []string{
+				"Datadog/datadog-csi-driver/datadog-datadog-csi-driver-daemonset-exemption-v1.2.0.yaml",
+			},
 		},
 	}
 
@@ -132,8 +144,7 @@ func TestApplyCSIAllowlistSynchronizerResource_AllowlistPath(t *testing.T) {
 
 			got := &AllowlistSynchronizer{}
 			require.NoError(t, c.Get(context.TODO(), client.ObjectKey{Name: "datadog-csi-synchronizer"}, got))
-			require.Len(t, got.Spec.AllowlistPaths, 1)
-			assert.Equal(t, tt.expectPath, got.Spec.AllowlistPaths[0])
+			assert.Equal(t, tt.expectPaths, got.Spec.AllowlistPaths)
 			assert.Empty(t, got.Annotations)
 			assert.Equal(t, "datadog-operator", got.Labels["app.kubernetes.io/created-by"])
 			assert.Equal(t, "datadog-operator", got.Labels[kubernetes.AppKubernetesManageByLabelKey])
@@ -200,12 +211,14 @@ func TestApplyCSIAllowlistSynchronizerResource_UpdatesExistingResource(t *testin
 	}
 	c := fake.NewClientBuilder().WithScheme(scheme).WithObjects(existing).Build()
 
-	require.NoError(t, applyCSIAllowlistSynchronizerResource(c, "v1.1.0", "default-foo", nil))
+	require.NoError(t, applyCSIAllowlistSynchronizerResource(c, DefaultCSIWorkloadAllowlistVersion, "default-foo", nil))
 
 	got := &AllowlistSynchronizer{}
 	require.NoError(t, c.Get(context.TODO(), client.ObjectKey{Name: "datadog-csi-synchronizer"}, got))
-	require.Len(t, got.Spec.AllowlistPaths, 1)
-	assert.Equal(t, "Datadog/datadog-csi-driver/datadog-datadog-csi-driver-daemonset-exemption-v1.1.0.yaml", got.Spec.AllowlistPaths[0])
+	assert.Equal(t, []string{
+		"Datadog/datadog-csi-driver/datadog-datadog-csi-driver-daemonset-exemption-v1.1.0.yaml",
+		"Datadog/datadog-csi-driver/datadog-datadog-csi-driver-daemonset-exemption-v1.1.1.yaml",
+	}, got.Spec.AllowlistPaths)
 	assert.Equal(t, "default-foo", got.Labels[kubernetes.AppKubernetesPartOfLabelKey])
 	assert.Equal(t, "datadog-operator", got.Labels[kubernetes.AppKubernetesManageByLabelKey])
 	assert.Equal(t, "datadog-csi-allowlist-synchronizer", got.Labels[kubernetes.AppKubernetesNameLabelKey])

@@ -5,7 +5,6 @@ import (
 	policyv1beta1 "k8s.io/api/policy/v1beta1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/version"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/DataDog/datadog-operator/pkg/utils"
@@ -123,5 +122,5 @@ func (platformInfo *PlatformInfo) SupportsAppArmorProfile() bool {
 		return false
 	}
 
-	return utils.IsAboveMinVersion(platformInfo.versionInfo.GitVersion, appArmorProfileMinimumVersion, ptr.To(false))
+	return utils.IsAboveMinVersion(platformInfo.versionInfo.GitVersion, appArmorProfileMinimumVersion, new(false))
 }

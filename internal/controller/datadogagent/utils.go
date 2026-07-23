@@ -24,7 +24,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 
@@ -163,14 +162,14 @@ func getReplicas(currentReplicas, newReplicas *int32) *int32 {
 		if currentReplicas != nil {
 			// Do not overwrite the current value
 			// It's most likely managed by an autoscaler
-			return ptr.To(*currentReplicas)
+			return new(*currentReplicas)
 		}
 
 		// Both new and current are nil
 		return nil
 	}
 
-	return ptr.To(*newReplicas)
+	return new(*newReplicas)
 }
 
 // getDDAICRDFromConfig is only used in tests

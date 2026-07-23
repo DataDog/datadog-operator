@@ -11,7 +11,6 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/utils/ptr"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -284,7 +283,7 @@ func overrideStartupProbe(startupProbeOverride *corev1.Probe) *corev1.Probe {
 func overrideSecurityContext(securityContext *corev1.SecurityContext) *corev1.SecurityContext {
 	if securityContext.ReadOnlyRootFilesystem == nil {
 		// Default to readOnlyRootFilesystem to true if not explicitly configured.
-		securityContext.ReadOnlyRootFilesystem = ptr.To(true)
+		securityContext.ReadOnlyRootFilesystem = new(true)
 	}
 	return securityContext
 }

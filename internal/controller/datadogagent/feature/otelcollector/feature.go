@@ -143,7 +143,7 @@ func (o *otelCollectorFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Da
 	if apiutils.BoolValue(ddaSpec.Features.OtelCollector.Enabled) {
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
-				IsRequired: ptr.To(true),
+				IsRequired: new(true),
 				Containers: []apicommon.AgentContainerName{
 					apicommon.CoreAgentContainerName,
 					apicommon.OtelAgent,
@@ -295,7 +295,7 @@ func otelCollectorSupportsAgentImage(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
 }
 
 func otelCollectorRequiresNewerAgent(agentImageName, agentVersion string) bool {
-	return !utils.IsAboveMinVersion(agentVersion, otelAgentMinVersion, ptr.To(true)) && agentImageName == ""
+	return !utils.IsAboveMinVersion(agentVersion, otelAgentMinVersion, new(true)) && agentImageName == ""
 }
 
 func otelCollectorRejectsFullTag(agentImageName, agentVersion string) bool {
@@ -447,6 +447,11 @@ func (o *otelCollectorFeature) ManageNodeAgent(managers feature.PodTemplateManag
 	managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.OtelAgent}, &corev1.EnvVar{
 		Name:  DDOtelCollectorInstallationMethod,
 		Value: "kubernetes",
+	})
+
+	managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.OtelAgent}, &corev1.EnvVar{
+		Name:  DDOtelStandalone,
+		Value: "false",
 	})
 
 	return nil

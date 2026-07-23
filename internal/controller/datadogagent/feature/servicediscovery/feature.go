@@ -8,7 +8,6 @@ package servicediscovery
 import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -48,7 +47,7 @@ func (f *serviceDiscoveryFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.D
 	if resolveEnabled(ddaSpec) {
 		f.useSystemProbeLite = shouldEnableServiceDiscoveryByDefault(ddaSpec)
 		reqComp.Agent = feature.RequiredComponent{
-			IsRequired: ptr.To(true),
+			IsRequired: new(true),
 			Containers: []apicommon.AgentContainerName{apicommon.CoreAgentContainerName, apicommon.SystemProbeContainerName},
 		}
 	}
@@ -68,7 +67,7 @@ func resolveEnabled(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
 	}
 
 	if ddaSpec.Features.ServiceDiscovery.Enabled == nil {
-		ddaSpec.Features.ServiceDiscovery.Enabled = ptr.To(shouldEnableServiceDiscoveryByDefault(ddaSpec))
+		ddaSpec.Features.ServiceDiscovery.Enabled = new(shouldEnableServiceDiscoveryByDefault(ddaSpec))
 	}
 
 	return apiutils.BoolValue(ddaSpec.Features.ServiceDiscovery.Enabled)
@@ -78,7 +77,7 @@ func shouldEnableServiceDiscoveryByDefault(ddaSpec *v2alpha1.DatadogAgentSpec) b
 	// Agent version must be >= 7.78.0 to enable service discovery by default.
 	if nodeAgent, ok := ddaSpec.Override[v2alpha1.NodeAgentComponentName]; ok {
 		if nodeAgent != nil && nodeAgent.Image != nil {
-			return pkgutils.IsAboveMinVersion(common.GetAgentVersionFromImage(*nodeAgent.Image), serviceDiscoveryAutoEnableMinVersion, ptr.To(true))
+			return pkgutils.IsAboveMinVersion(common.GetAgentVersionFromImage(*nodeAgent.Image), serviceDiscoveryAutoEnableMinVersion, new(true))
 		}
 	}
 	return pkgutils.IsAboveMinVersion(images.AgentLatestVersion, serviceDiscoveryAutoEnableMinVersion, nil)

@@ -10,7 +10,6 @@ import (
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/defaults"
@@ -97,50 +96,50 @@ func (builder *DatadogAgentBuilder) initDogstatsd() {
 
 func (builder *DatadogAgentBuilder) WithDogstatsdHostPortEnabled(enabled bool) *DatadogAgentBuilder {
 	builder.initDogstatsd()
-	builder.datadogAgent.Spec.Features.Dogstatsd.HostPortConfig.Enabled = ptr.To(enabled)
+	builder.datadogAgent.Spec.Features.Dogstatsd.HostPortConfig.Enabled = new(enabled)
 	return builder
 }
 
 func (builder *DatadogAgentBuilder) WithDogstatsdHostPortConfig(port int32) *DatadogAgentBuilder {
 	builder.initDogstatsd()
-	builder.datadogAgent.Spec.Features.Dogstatsd.HostPortConfig.Port = ptr.To(port)
+	builder.datadogAgent.Spec.Features.Dogstatsd.HostPortConfig.Port = new(port)
 	return builder
 }
 
 func (builder *DatadogAgentBuilder) WithDogstatsdOriginDetectionEnabled(enabled bool) *DatadogAgentBuilder {
 	builder.initDogstatsd()
-	builder.datadogAgent.Spec.Features.Dogstatsd.OriginDetectionEnabled = ptr.To(enabled)
+	builder.datadogAgent.Spec.Features.Dogstatsd.OriginDetectionEnabled = new(enabled)
 	return builder
 }
 
 func (builder *DatadogAgentBuilder) WithDogstatsdTagCardinality(cardinality string) *DatadogAgentBuilder {
 	builder.initDogstatsd()
-	builder.datadogAgent.Spec.Features.Dogstatsd.OriginDetectionEnabled = ptr.To(true)
-	builder.datadogAgent.Spec.Features.Dogstatsd.TagCardinality = ptr.To(cardinality)
+	builder.datadogAgent.Spec.Features.Dogstatsd.OriginDetectionEnabled = new(true)
+	builder.datadogAgent.Spec.Features.Dogstatsd.TagCardinality = new(cardinality)
 	return builder
 }
 
 func (builder *DatadogAgentBuilder) WithDogstatsdUnixDomainSocketConfigEnabled(enabled bool) *DatadogAgentBuilder {
 	builder.initDogstatsd()
-	builder.datadogAgent.Spec.Features.Dogstatsd.UnixDomainSocketConfig.Enabled = ptr.To(enabled)
+	builder.datadogAgent.Spec.Features.Dogstatsd.UnixDomainSocketConfig.Enabled = new(enabled)
 	return builder
 }
 
 func (builder *DatadogAgentBuilder) WithDogstatsdUnixDomainSocketConfigPath(customPath string) *DatadogAgentBuilder {
 	builder.initDogstatsd()
-	builder.datadogAgent.Spec.Features.Dogstatsd.UnixDomainSocketConfig.Path = ptr.To(customPath)
+	builder.datadogAgent.Spec.Features.Dogstatsd.UnixDomainSocketConfig.Path = new(customPath)
 	return builder
 }
 
 func (builder *DatadogAgentBuilder) WithDogstatsdMapperProfiles(customMapperProfilesConf string) *DatadogAgentBuilder {
 	builder.initDogstatsd()
-	builder.datadogAgent.Spec.Features.Dogstatsd.MapperProfiles = &v2alpha1.CustomConfig{ConfigData: ptr.To(customMapperProfilesConf)}
+	builder.datadogAgent.Spec.Features.Dogstatsd.MapperProfiles = &v2alpha1.CustomConfig{ConfigData: new(customMapperProfilesConf)}
 	return builder
 }
 
 func (builder *DatadogAgentBuilder) WithDogstatsdNonLocalTraffic(enabled bool) *DatadogAgentBuilder {
 	builder.initDogstatsd()
-	builder.datadogAgent.Spec.Features.Dogstatsd.NonLocalTraffic = ptr.To(enabled)
+	builder.datadogAgent.Spec.Features.Dogstatsd.NonLocalTraffic = new(enabled)
 	return builder
 }
 
@@ -153,7 +152,7 @@ func (builder *DatadogAgentBuilder) initLiveContainer() {
 
 func (builder *DatadogAgentBuilder) WithLiveContainerCollectionEnabled(enabled bool) *DatadogAgentBuilder {
 	builder.initLiveContainer()
-	builder.datadogAgent.Spec.Features.LiveContainerCollection.Enabled = ptr.To(enabled)
+	builder.datadogAgent.Spec.Features.LiveContainerCollection.Enabled = new(enabled)
 	return builder
 }
 
@@ -166,21 +165,21 @@ func (builder *DatadogAgentBuilder) initLiveProcesses() {
 
 func (builder *DatadogAgentBuilder) WithLiveProcessEnabled(enabled bool) *DatadogAgentBuilder {
 	builder.initLiveProcesses()
-	builder.datadogAgent.Spec.Features.LiveProcessCollection.Enabled = ptr.To(enabled)
+	builder.datadogAgent.Spec.Features.LiveProcessCollection.Enabled = new(enabled)
 	return builder
 }
 
 func (builder *DatadogAgentBuilder) WithLiveProcessScrubStrip(scrubEnabled, stripEnabled bool) *DatadogAgentBuilder {
 	builder.initLiveProcesses()
-	builder.datadogAgent.Spec.Features.LiveProcessCollection.ScrubProcessArguments = ptr.To(scrubEnabled)
-	builder.datadogAgent.Spec.Features.LiveProcessCollection.StripProcessArguments = ptr.To(stripEnabled)
+	builder.datadogAgent.Spec.Features.LiveProcessCollection.ScrubProcessArguments = new(scrubEnabled)
+	builder.datadogAgent.Spec.Features.LiveProcessCollection.StripProcessArguments = new(stripEnabled)
 	return builder
 }
 
 func (builder *DatadogAgentBuilder) WithWorkloadAutoscalerEnabled(enabled bool) *DatadogAgentBuilder {
 	builder.datadogAgent.Spec.Features.Autoscaling = &v2alpha1.AutoscalingFeatureConfig{
 		Workload: &v2alpha1.WorkloadAutoscalingFeatureConfig{
-			Enabled: ptr.To(enabled),
+			Enabled: new(enabled),
 		},
 	}
 
@@ -217,61 +216,61 @@ func (builder *DatadogAgentBuilder) initSidecarInjection() {
 
 func (builder *DatadogAgentBuilder) WithAdmissionControllerEnabled(enabled bool) *DatadogAgentBuilder {
 	builder.initAdmissionController()
-	builder.datadogAgent.Spec.Features.AdmissionController.Enabled = ptr.To(enabled)
+	builder.datadogAgent.Spec.Features.AdmissionController.Enabled = new(enabled)
 	return builder
 }
 
 func (builder *DatadogAgentBuilder) WithAdmissionControllerValidationEnabled(enabled bool) *DatadogAgentBuilder {
 	builder.initAdmissionController()
-	builder.datadogAgent.Spec.Features.AdmissionController.Validation.Enabled = ptr.To(enabled)
+	builder.datadogAgent.Spec.Features.AdmissionController.Validation.Enabled = new(enabled)
 	return builder
 }
 
 func (builder *DatadogAgentBuilder) WithAdmissionControllerMutationEnabled(enabled bool) *DatadogAgentBuilder {
 	builder.initAdmissionController()
-	builder.datadogAgent.Spec.Features.AdmissionController.Mutation.Enabled = ptr.To(enabled)
+	builder.datadogAgent.Spec.Features.AdmissionController.Mutation.Enabled = new(enabled)
 	return builder
 }
 
 func (builder *DatadogAgentBuilder) WithAdmissionControllerMutateUnlabelled(enabled bool) *DatadogAgentBuilder {
 	builder.initAdmissionController()
-	builder.datadogAgent.Spec.Features.AdmissionController.MutateUnlabelled = ptr.To(enabled)
+	builder.datadogAgent.Spec.Features.AdmissionController.MutateUnlabelled = new(enabled)
 	return builder
 }
 
 func (builder *DatadogAgentBuilder) WithAdmissionControllerServiceName(name string) *DatadogAgentBuilder {
 	builder.initAdmissionController()
-	builder.datadogAgent.Spec.Features.AdmissionController.ServiceName = ptr.To(name)
+	builder.datadogAgent.Spec.Features.AdmissionController.ServiceName = new(name)
 	return builder
 }
 
 func (builder *DatadogAgentBuilder) WithAdmissionControllerAgentCommunicationMode(comMode string) *DatadogAgentBuilder {
 	builder.initAdmissionController()
-	builder.datadogAgent.Spec.Features.AdmissionController.AgentCommunicationMode = ptr.To(comMode)
+	builder.datadogAgent.Spec.Features.AdmissionController.AgentCommunicationMode = new(comMode)
 	return builder
 }
 
 func (builder *DatadogAgentBuilder) WithAdmissionControllerFailurePolicy(policy string) *DatadogAgentBuilder {
 	builder.initAdmissionController()
-	builder.datadogAgent.Spec.Features.AdmissionController.FailurePolicy = ptr.To(policy)
+	builder.datadogAgent.Spec.Features.AdmissionController.FailurePolicy = new(policy)
 	return builder
 }
 
 func (builder *DatadogAgentBuilder) WithAdmissionControllerWebhookName(name string) *DatadogAgentBuilder {
 	builder.initAdmissionController()
-	builder.datadogAgent.Spec.Features.AdmissionController.WebhookName = ptr.To(name)
+	builder.datadogAgent.Spec.Features.AdmissionController.WebhookName = new(name)
 	return builder
 }
 
 func (builder *DatadogAgentBuilder) WithAdmissionControllerRegistry(name string) *DatadogAgentBuilder {
 	builder.initAdmissionController()
-	builder.datadogAgent.Spec.Features.AdmissionController.Registry = ptr.To(name)
+	builder.datadogAgent.Spec.Features.AdmissionController.Registry = new(name)
 	return builder
 }
 
 func (builder *DatadogAgentBuilder) WithAdmissionControllerProbeEnabled(enabled bool) *DatadogAgentBuilder {
 	builder.initAdmissionController()
-	builder.datadogAgent.Spec.Features.AdmissionController.Probe.Enabled = ptr.To(enabled)
+	builder.datadogAgent.Spec.Features.AdmissionController.Probe.Enabled = new(enabled)
 	return builder
 }
 
@@ -291,10 +290,10 @@ func (builder *DatadogAgentBuilder) WithAdmissionControllerProbeGracePeriod(grac
 func (builder *DatadogAgentBuilder) WithSidecarInjectionEnabled(enabled bool) *DatadogAgentBuilder {
 	// builder.initAdmissionController()
 	builder.initSidecarInjection()
-	builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection.Enabled = ptr.To(enabled)
+	builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection.Enabled = new(enabled)
 	if enabled {
-		builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection.ClusterAgentCommunicationEnabled = ptr.To(enabled)
-		builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection.Provider = ptr.To("fargate")
+		builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection.ClusterAgentCommunicationEnabled = new(enabled)
+		builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection.Provider = new("fargate")
 		builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection.Image.Name = "agent"
 		builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection.Image.Tag = images.AgentLatestVersion
 	}
@@ -304,21 +303,21 @@ func (builder *DatadogAgentBuilder) WithSidecarInjectionEnabled(enabled bool) *D
 func (builder *DatadogAgentBuilder) WithSidecarInjectionClusterAgentCommunicationEnabled(enabled bool) *DatadogAgentBuilder {
 	builder.initAdmissionController()
 	builder.initSidecarInjection()
-	builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection.ClusterAgentCommunicationEnabled = ptr.To(enabled)
+	builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection.ClusterAgentCommunicationEnabled = new(enabled)
 	return builder
 }
 
 func (builder *DatadogAgentBuilder) WithSidecarInjectionProvider(provider string) *DatadogAgentBuilder {
 	builder.initAdmissionController()
 	builder.initSidecarInjection()
-	builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection.Provider = ptr.To(provider)
+	builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection.Provider = new(provider)
 	return builder
 }
 
 func (builder *DatadogAgentBuilder) WithSidecarInjectionRegistry(registry string) *DatadogAgentBuilder {
 	builder.initAdmissionController()
 	builder.initSidecarInjection()
-	builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection.Registry = ptr.To(registry)
+	builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection.Registry = new(registry)
 	return builder
 }
 
@@ -399,8 +398,8 @@ func (builder *DatadogAgentBuilder) WithSidecarInjectionTLSVerification(enabled,
 	if builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection.ClusterAgentTLSVerification == nil {
 		builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection.ClusterAgentTLSVerification = &v2alpha1.AdmissionControllerClusterAgentTLSVerificationConfig{}
 	}
-	builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection.ClusterAgentTLSVerification.Enabled = ptr.To(enabled)
-	builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection.ClusterAgentTLSVerification.CopyCaConfigMap = ptr.To(copyCaConfigMap)
+	builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection.ClusterAgentTLSVerification.Enabled = new(enabled)
+	builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection.ClusterAgentTLSVerification.CopyCaConfigMap = new(copyCaConfigMap)
 	return builder
 }
 
@@ -413,7 +412,7 @@ func (builder *DatadogAgentBuilder) initProcessDiscovery() {
 
 func (builder *DatadogAgentBuilder) WithProcessDiscoveryEnabled(enabled bool) *DatadogAgentBuilder {
 	builder.initProcessDiscovery()
-	builder.datadogAgent.Spec.Features.ProcessDiscovery.Enabled = ptr.To(enabled)
+	builder.datadogAgent.Spec.Features.ProcessDiscovery.Enabled = new(enabled)
 	return builder
 }
 
@@ -426,13 +425,13 @@ func (builder *DatadogAgentBuilder) initOtelCollector() {
 
 func (builder *DatadogAgentBuilder) WithOTelCollectorEnabled(enabled bool) *DatadogAgentBuilder {
 	builder.initOtelCollector()
-	builder.datadogAgent.Spec.Features.OtelCollector.Enabled = ptr.To(enabled)
+	builder.datadogAgent.Spec.Features.OtelCollector.Enabled = new(enabled)
 	return builder
 }
 
 func (builder *DatadogAgentBuilder) WithOTelCollectorConfig() *DatadogAgentBuilder {
 	builder.datadogAgent.Spec.Features.OtelCollector.Conf = &v2alpha1.CustomConfig{}
-	builder.datadogAgent.Spec.Features.OtelCollector.Conf.ConfigData = ptr.To(otelcollectordefaultconfig.DefaultOtelCollectorConfig)
+	builder.datadogAgent.Spec.Features.OtelCollector.Conf.ConfigData = new(otelcollectordefaultconfig.DefaultOtelCollectorConfig)
 	return builder
 }
 
@@ -440,7 +439,7 @@ func (builder *DatadogAgentBuilder) WithOTelCollectorCoreConfigEnabled(enabled b
 	if builder.datadogAgent.Spec.Features.OtelCollector.CoreConfig == nil {
 		builder.datadogAgent.Spec.Features.OtelCollector.CoreConfig = &v2alpha1.CoreConfig{}
 	}
-	builder.datadogAgent.Spec.Features.OtelCollector.CoreConfig.Enabled = ptr.To(enabled)
+	builder.datadogAgent.Spec.Features.OtelCollector.CoreConfig.Enabled = new(enabled)
 	return builder
 }
 
@@ -448,7 +447,7 @@ func (builder *DatadogAgentBuilder) WithOTelCollectorCoreConfigExtensionTimeout(
 	if builder.datadogAgent.Spec.Features.OtelCollector.CoreConfig == nil {
 		builder.datadogAgent.Spec.Features.OtelCollector.CoreConfig = &v2alpha1.CoreConfig{}
 	}
-	builder.datadogAgent.Spec.Features.OtelCollector.CoreConfig.ExtensionTimeout = ptr.To(timeout)
+	builder.datadogAgent.Spec.Features.OtelCollector.CoreConfig.ExtensionTimeout = new(timeout)
 	return builder
 }
 
@@ -456,7 +455,7 @@ func (builder *DatadogAgentBuilder) WithOTelCollectorCoreConfigExtensionURL(url 
 	if builder.datadogAgent.Spec.Features.OtelCollector.CoreConfig == nil {
 		builder.datadogAgent.Spec.Features.OtelCollector.CoreConfig = &v2alpha1.CoreConfig{}
 	}
-	builder.datadogAgent.Spec.Features.OtelCollector.CoreConfig.ExtensionURL = ptr.To(url)
+	builder.datadogAgent.Spec.Features.OtelCollector.CoreConfig.ExtensionURL = new(url)
 	return builder
 }
 
@@ -511,13 +510,13 @@ func (builder *DatadogAgentBuilder) initOtelAgentGateway() {
 
 func (builder *DatadogAgentBuilder) WithOTelAgentGatewayEnabled(enabled bool) *DatadogAgentBuilder {
 	builder.initOtelAgentGateway()
-	builder.datadogAgent.Spec.Features.OtelAgentGateway.Enabled = ptr.To(enabled)
+	builder.datadogAgent.Spec.Features.OtelAgentGateway.Enabled = new(enabled)
 	return builder
 }
 
 func (builder *DatadogAgentBuilder) WithOTelAgentGatewayConfig() *DatadogAgentBuilder {
 	builder.datadogAgent.Spec.Features.OtelAgentGateway.Conf = &v2alpha1.CustomConfig{}
-	builder.datadogAgent.Spec.Features.OtelAgentGateway.Conf.ConfigData = ptr.To(otelagentgatewaydefaultconfig.DefaultOtelAgentGatewayConfig)
+	builder.datadogAgent.Spec.Features.OtelAgentGateway.Conf.ConfigData = new(otelagentgatewaydefaultconfig.DefaultOtelAgentGatewayConfig)
 	return builder
 }
 
@@ -578,40 +577,40 @@ func (builder *DatadogAgentBuilder) initLogCollection() {
 
 func (builder *DatadogAgentBuilder) WithLogCollectionEnabled(enabled bool) *DatadogAgentBuilder {
 	builder.initLogCollection()
-	builder.datadogAgent.Spec.Features.LogCollection.Enabled = ptr.To(enabled)
+	builder.datadogAgent.Spec.Features.LogCollection.Enabled = new(enabled)
 	return builder
 }
 
 func (builder *DatadogAgentBuilder) WithLogCollectionCollectAll(enabled bool) *DatadogAgentBuilder {
 	builder.initLogCollection()
-	builder.datadogAgent.Spec.Features.LogCollection.ContainerCollectAll = ptr.To(enabled)
+	builder.datadogAgent.Spec.Features.LogCollection.ContainerCollectAll = new(enabled)
 	return builder
 }
 
 func (builder *DatadogAgentBuilder) WithLogCollectionLogCollectionUsingFiles(enabled bool) *DatadogAgentBuilder {
 	builder.initLogCollection()
-	builder.datadogAgent.Spec.Features.LogCollection.ContainerCollectUsingFiles = ptr.To(enabled)
+	builder.datadogAgent.Spec.Features.LogCollection.ContainerCollectUsingFiles = new(enabled)
 	return builder
 }
 
 func (builder *DatadogAgentBuilder) WithLogCollectionOpenFilesLimit(limit int32) *DatadogAgentBuilder {
 	builder.initLogCollection()
-	builder.datadogAgent.Spec.Features.LogCollection.OpenFilesLimit = ptr.To(limit)
+	builder.datadogAgent.Spec.Features.LogCollection.OpenFilesLimit = new(limit)
 	return builder
 }
 
 func (builder *DatadogAgentBuilder) WithLogCollectionAutoMultiLineDetection(enabled bool) *DatadogAgentBuilder {
 	builder.initLogCollection()
-	builder.datadogAgent.Spec.Features.LogCollection.AutoMultiLineDetection = ptr.To(enabled)
+	builder.datadogAgent.Spec.Features.LogCollection.AutoMultiLineDetection = new(enabled)
 	return builder
 }
 
 func (builder *DatadogAgentBuilder) WithLogCollectionPaths(podLogs, containerLogs, containerSymlinks, tempStorate string) *DatadogAgentBuilder {
 	builder.initLogCollection()
-	builder.datadogAgent.Spec.Features.LogCollection.PodLogsPath = ptr.To(podLogs)
-	builder.datadogAgent.Spec.Features.LogCollection.ContainerLogsPath = ptr.To(containerLogs)
-	builder.datadogAgent.Spec.Features.LogCollection.ContainerSymlinksPath = ptr.To(containerSymlinks)
-	builder.datadogAgent.Spec.Features.LogCollection.TempStoragePath = ptr.To(tempStorate)
+	builder.datadogAgent.Spec.Features.LogCollection.PodLogsPath = new(podLogs)
+	builder.datadogAgent.Spec.Features.LogCollection.ContainerLogsPath = new(containerLogs)
+	builder.datadogAgent.Spec.Features.LogCollection.ContainerSymlinksPath = new(containerSymlinks)
+	builder.datadogAgent.Spec.Features.LogCollection.TempStoragePath = new(tempStorate)
 	return builder
 }
 
@@ -624,14 +623,14 @@ func (builder *DatadogAgentBuilder) initEventCollection() {
 
 func (builder *DatadogAgentBuilder) WithEventCollectionKubernetesEvents(enabled bool) *DatadogAgentBuilder {
 	builder.initEventCollection()
-	builder.datadogAgent.Spec.Features.EventCollection.CollectKubernetesEvents = ptr.To(enabled)
+	builder.datadogAgent.Spec.Features.EventCollection.CollectKubernetesEvents = new(enabled)
 
 	return builder
 }
 
 func (builder *DatadogAgentBuilder) WithEventCollectionUnbundleEvents(enabled bool, eventTypes []v2alpha1.EventTypes) *DatadogAgentBuilder {
 	builder.initEventCollection()
-	builder.datadogAgent.Spec.Features.EventCollection.UnbundleEvents = ptr.To(enabled)
+	builder.datadogAgent.Spec.Features.EventCollection.UnbundleEvents = new(enabled)
 	builder.datadogAgent.Spec.Features.EventCollection.CollectedEventTypes = eventTypes
 
 	return builder
@@ -646,7 +645,7 @@ func (builder *DatadogAgentBuilder) initRemoteConfig() {
 
 func (builder *DatadogAgentBuilder) WithRemoteConfigEnabled(enabled bool) *DatadogAgentBuilder {
 	builder.initRemoteConfig()
-	builder.datadogAgent.Spec.Features.RemoteConfiguration.Enabled = ptr.To(enabled)
+	builder.datadogAgent.Spec.Features.RemoteConfiguration.Enabled = new(enabled)
 	return builder
 }
 
@@ -660,14 +659,14 @@ func (builder *DatadogAgentBuilder) initKSM() {
 
 func (builder *DatadogAgentBuilder) WithKSMEnabled(enabled bool) *DatadogAgentBuilder {
 	builder.initKSM()
-	builder.datadogAgent.Spec.Features.KubeStateMetricsCore.Enabled = ptr.To(enabled)
+	builder.datadogAgent.Spec.Features.KubeStateMetricsCore.Enabled = new(enabled)
 	return builder
 }
 
 func (builder *DatadogAgentBuilder) WithKSMCustomConf(customData string) *DatadogAgentBuilder {
 	builder.initKSM()
 	builder.datadogAgent.Spec.Features.KubeStateMetricsCore.Conf = &v2alpha1.CustomConfig{
-		ConfigData: ptr.To(customData),
+		ConfigData: new(customData),
 	}
 	return builder
 }
@@ -682,13 +681,13 @@ func (builder *DatadogAgentBuilder) initOE() {
 
 func (builder *DatadogAgentBuilder) WithOrchestratorExplorerEnabled(enabled bool) *DatadogAgentBuilder {
 	builder.initOE()
-	builder.datadogAgent.Spec.Features.OrchestratorExplorer.Enabled = ptr.To(enabled)
+	builder.datadogAgent.Spec.Features.OrchestratorExplorer.Enabled = new(enabled)
 	return builder
 }
 
 func (builder *DatadogAgentBuilder) WithOrchestratorExplorerScrubContainers(enabled bool) *DatadogAgentBuilder {
 	builder.initOE()
-	builder.datadogAgent.Spec.Features.OrchestratorExplorer.ScrubContainers = ptr.To(enabled)
+	builder.datadogAgent.Spec.Features.OrchestratorExplorer.ScrubContainers = new(enabled)
 	return builder
 }
 
@@ -700,7 +699,7 @@ func (builder *DatadogAgentBuilder) WithOrchestratorExplorerExtraTags(tags []str
 
 func (builder *DatadogAgentBuilder) WithOrchestratorExplorerDDUrl(ddUrl string) *DatadogAgentBuilder {
 	builder.initOE()
-	builder.datadogAgent.Spec.Features.OrchestratorExplorer.DDUrl = ptr.To(ddUrl)
+	builder.datadogAgent.Spec.Features.OrchestratorExplorer.DDUrl = new(ddUrl)
 	return builder
 }
 
@@ -728,20 +727,20 @@ func (builder *DatadogAgentBuilder) initCC() {
 
 func (builder *DatadogAgentBuilder) WithClusterChecksEnabled(enabled bool) *DatadogAgentBuilder {
 	builder.initCC()
-	builder.datadogAgent.Spec.Features.ClusterChecks.Enabled = ptr.To(enabled)
+	builder.datadogAgent.Spec.Features.ClusterChecks.Enabled = new(enabled)
 	return builder
 }
 
 func (builder *DatadogAgentBuilder) WithClusterChecksUseCLCEnabled(enabled bool) *DatadogAgentBuilder {
 	builder.initCC()
-	builder.datadogAgent.Spec.Features.ClusterChecks.UseClusterChecksRunners = ptr.To(enabled)
+	builder.datadogAgent.Spec.Features.ClusterChecks.UseClusterChecksRunners = new(enabled)
 	return builder
 }
 
 func (builder *DatadogAgentBuilder) WithClusterChecks(enabled bool, useRunners bool) *DatadogAgentBuilder {
 	builder.initCC()
-	builder.datadogAgent.Spec.Features.ClusterChecks.Enabled = ptr.To(enabled)
-	builder.datadogAgent.Spec.Features.ClusterChecks.UseClusterChecksRunners = ptr.To(useRunners)
+	builder.datadogAgent.Spec.Features.ClusterChecks.Enabled = new(enabled)
+	builder.datadogAgent.Spec.Features.ClusterChecks.UseClusterChecksRunners = new(useRunners)
 	return builder
 }
 
@@ -755,25 +754,25 @@ func (builder *DatadogAgentBuilder) initPrometheusScrape() {
 
 func (builder *DatadogAgentBuilder) WithPrometheusScrapeEnabled(enabled bool) *DatadogAgentBuilder {
 	builder.initPrometheusScrape()
-	builder.datadogAgent.Spec.Features.PrometheusScrape.Enabled = ptr.To(enabled)
+	builder.datadogAgent.Spec.Features.PrometheusScrape.Enabled = new(enabled)
 	return builder
 }
 
 func (builder *DatadogAgentBuilder) WithPrometheusScrapeServiceEndpoints(enabled bool) *DatadogAgentBuilder {
 	builder.initPrometheusScrape()
-	builder.datadogAgent.Spec.Features.PrometheusScrape.EnableServiceEndpoints = ptr.To(enabled)
+	builder.datadogAgent.Spec.Features.PrometheusScrape.EnableServiceEndpoints = new(enabled)
 	return builder
 }
 
 func (builder *DatadogAgentBuilder) WithPrometheusScrapeAdditionalConfigs(additionalConfig string) *DatadogAgentBuilder {
 	builder.initPrometheusScrape()
-	builder.datadogAgent.Spec.Features.PrometheusScrape.AdditionalConfigs = ptr.To(additionalConfig)
+	builder.datadogAgent.Spec.Features.PrometheusScrape.AdditionalConfigs = new(additionalConfig)
 	return builder
 }
 
 func (builder *DatadogAgentBuilder) WithPrometheusScrapeVersion(version int) *DatadogAgentBuilder {
 	builder.initPrometheusScrape()
-	builder.datadogAgent.Spec.Features.PrometheusScrape.Version = ptr.To(version)
+	builder.datadogAgent.Spec.Features.PrometheusScrape.Version = new(version)
 	return builder
 }
 
@@ -787,14 +786,14 @@ func (builder *DatadogAgentBuilder) initAPM() {
 
 func (builder *DatadogAgentBuilder) WithAPMEnabled(enabled bool) *DatadogAgentBuilder {
 	builder.initAPM()
-	builder.datadogAgent.Spec.Features.APM.Enabled = ptr.To(enabled)
+	builder.datadogAgent.Spec.Features.APM.Enabled = new(enabled)
 	return builder
 }
 
 func (builder *DatadogAgentBuilder) WithErrorTrackingStandalone(enabled bool) *DatadogAgentBuilder {
 	builder.initAPM()
 	builder.datadogAgent.Spec.Features.APM.ErrorTrackingStandalone = &v2alpha1.ErrorTrackingStandalone{
-		Enabled: ptr.To(enabled),
+		Enabled: new(enabled),
 	}
 	return builder
 }
@@ -802,7 +801,7 @@ func (builder *DatadogAgentBuilder) WithErrorTrackingStandalone(enabled bool) *D
 func (builder *DatadogAgentBuilder) WithAPMHostPortEnabled(enabled bool, port *int32) *DatadogAgentBuilder {
 	builder.initAPM()
 	builder.datadogAgent.Spec.Features.APM.HostPortConfig = &v2alpha1.HostPortConfig{
-		Enabled: ptr.To(enabled),
+		Enabled: new(enabled),
 	}
 	if port != nil {
 		builder.datadogAgent.Spec.Features.APM.HostPortConfig.Port = port
@@ -813,8 +812,8 @@ func (builder *DatadogAgentBuilder) WithAPMHostPortEnabled(enabled bool, port *i
 func (builder *DatadogAgentBuilder) WithAPMUDSEnabled(enabled bool, apmSocketHostPath string) *DatadogAgentBuilder {
 	builder.initAPM()
 	builder.datadogAgent.Spec.Features.APM.UnixDomainSocketConfig = &v2alpha1.UnixDomainSocketConfig{
-		Enabled: ptr.To(enabled),
-		Path:    ptr.To(apmSocketHostPath),
+		Enabled: new(enabled),
+		Path:    new(apmSocketHostPath),
 	}
 	return builder
 }
@@ -839,11 +838,11 @@ func (builder *DatadogAgentBuilder) WithNodeAgentTag(tag string) *DatadogAgentBu
 func (builder *DatadogAgentBuilder) WithAPMSingleStepInstrumentationEnabled(enabled bool, enabledNamespaces []string, disabledNamespaces []string, libVersion map[string]string, languageDetectionEnabled bool, injectorImageTag string, targets []v2alpha1.SSITarget, injectionMode v2alpha1.InjectionModeType) *DatadogAgentBuilder {
 	builder.initAPM()
 	builder.datadogAgent.Spec.Features.APM.SingleStepInstrumentation = &v2alpha1.SingleStepInstrumentation{
-		Enabled:            ptr.To(enabled),
+		Enabled:            new(enabled),
 		EnabledNamespaces:  enabledNamespaces,
 		DisabledNamespaces: disabledNamespaces,
 		LibVersions:        libVersion,
-		LanguageDetection:  &v2alpha1.LanguageDetectionConfig{Enabled: ptr.To(languageDetectionEnabled)},
+		LanguageDetection:  &v2alpha1.LanguageDetectionConfig{Enabled: new(languageDetectionEnabled)},
 		Injector: &v2alpha1.InjectorConfig{
 			ImageTag: injectorImageTag,
 		},
@@ -856,13 +855,13 @@ func (builder *DatadogAgentBuilder) WithAPMSingleStepInstrumentationEnabled(enab
 func (builder *DatadogAgentBuilder) WithASMEnabled(threats, sca, iast bool) *DatadogAgentBuilder {
 	builder.datadogAgent.Spec.Features.ASM = &v2alpha1.ASMFeatureConfig{
 		Threats: &v2alpha1.ASMThreatsConfig{
-			Enabled: ptr.To(threats),
+			Enabled: new(threats),
 		},
 		SCA: &v2alpha1.ASMSCAConfig{
-			Enabled: ptr.To(sca),
+			Enabled: new(sca),
 		},
 		IAST: &v2alpha1.ASMIASTConfig{
-			Enabled: ptr.To(iast),
+			Enabled: new(iast),
 		},
 	}
 	return builder
@@ -882,12 +881,12 @@ func (builder *DatadogAgentBuilder) initOTLP() {
 func (builder *DatadogAgentBuilder) WithOTLPGRPCSettings(enabled bool, hostPortEnabled bool, customHostPort int32, endpoint string) *DatadogAgentBuilder {
 	builder.initOTLP()
 	builder.datadogAgent.Spec.Features.OTLP.Receiver.Protocols.GRPC = &v2alpha1.OTLPGRPCConfig{
-		Enabled: ptr.To(enabled),
+		Enabled: new(enabled),
 		HostPortConfig: &v2alpha1.HostPortConfig{
-			Enabled: ptr.To(hostPortEnabled),
-			Port:    ptr.To(customHostPort),
+			Enabled: new(hostPortEnabled),
+			Port:    new(customHostPort),
 		},
-		Endpoint: ptr.To(endpoint),
+		Endpoint: new(endpoint),
 	}
 	return builder
 }
@@ -895,12 +894,12 @@ func (builder *DatadogAgentBuilder) WithOTLPGRPCSettings(enabled bool, hostPortE
 func (builder *DatadogAgentBuilder) WithOTLPHTTPSettings(enabled bool, hostPortEnabled bool, customHostPort int32, endpoint string) *DatadogAgentBuilder {
 	builder.initOTLP()
 	builder.datadogAgent.Spec.Features.OTLP.Receiver.Protocols.HTTP = &v2alpha1.OTLPHTTPConfig{
-		Enabled: ptr.To(enabled),
+		Enabled: new(enabled),
 		HostPortConfig: &v2alpha1.HostPortConfig{
-			Enabled: ptr.To(hostPortEnabled),
-			Port:    ptr.To(customHostPort),
+			Enabled: new(hostPortEnabled),
+			Port:    new(customHostPort),
 		},
-		Endpoint: ptr.To(endpoint),
+		Endpoint: new(endpoint),
 	}
 	return builder
 }
@@ -915,7 +914,7 @@ func (builder *DatadogAgentBuilder) initNPM() {
 
 func (builder *DatadogAgentBuilder) WithNPMEnabled(enabled bool) *DatadogAgentBuilder {
 	builder.initNPM()
-	builder.datadogAgent.Spec.Features.NPM.Enabled = ptr.To(enabled)
+	builder.datadogAgent.Spec.Features.NPM.Enabled = new(enabled)
 	return builder
 }
 
@@ -929,7 +928,7 @@ func (builder *DatadogAgentBuilder) initCSPM() {
 
 func (builder *DatadogAgentBuilder) WithCSPMEnabled(enabled bool) *DatadogAgentBuilder {
 	builder.initCSPM()
-	builder.datadogAgent.Spec.Features.CSPM.Enabled = ptr.To(enabled)
+	builder.datadogAgent.Spec.Features.CSPM.Enabled = new(enabled)
 	return builder
 }
 
@@ -943,7 +942,7 @@ func (builder *DatadogAgentBuilder) initCWS() {
 
 func (builder *DatadogAgentBuilder) WithCWSEnabled(enabled bool) *DatadogAgentBuilder {
 	builder.initCWS()
-	builder.datadogAgent.Spec.Features.CWS.Enabled = ptr.To(enabled)
+	builder.datadogAgent.Spec.Features.CWS.Enabled = new(enabled)
 	return builder
 }
 
@@ -957,13 +956,13 @@ func (builder *DatadogAgentBuilder) initCWSInstrumentation() {
 
 func (builder *DatadogAgentBuilder) WithCWSInstrumentationEnabled(enabled bool) *DatadogAgentBuilder {
 	builder.initCWSInstrumentation()
-	builder.datadogAgent.Spec.Features.AdmissionController.CWSInstrumentation.Enabled = ptr.To(enabled)
+	builder.datadogAgent.Spec.Features.AdmissionController.CWSInstrumentation.Enabled = new(enabled)
 	return builder
 }
 
 func (builder *DatadogAgentBuilder) WithCWSInstrumentationMode(mode string) *DatadogAgentBuilder {
 	builder.initCWSInstrumentation()
-	builder.datadogAgent.Spec.Features.AdmissionController.CWSInstrumentation.Mode = ptr.To(mode)
+	builder.datadogAgent.Spec.Features.AdmissionController.CWSInstrumentation.Mode = new(mode)
 	return builder
 }
 
@@ -977,7 +976,7 @@ func (builder *DatadogAgentBuilder) initOOMKill() {
 
 func (builder *DatadogAgentBuilder) WithOOMKillEnabled(enabled bool) *DatadogAgentBuilder {
 	builder.initOOMKill()
-	builder.datadogAgent.Spec.Features.OOMKill.Enabled = ptr.To(enabled)
+	builder.datadogAgent.Spec.Features.OOMKill.Enabled = new(enabled)
 	return builder
 }
 
@@ -991,13 +990,13 @@ func (builder *DatadogAgentBuilder) initHelmCheck() {
 
 func (builder *DatadogAgentBuilder) WithHelmCheckEnabled(enabled bool) *DatadogAgentBuilder {
 	builder.initHelmCheck()
-	builder.datadogAgent.Spec.Features.HelmCheck.Enabled = ptr.To(enabled)
+	builder.datadogAgent.Spec.Features.HelmCheck.Enabled = new(enabled)
 	return builder
 }
 
 func (builder *DatadogAgentBuilder) WithHelmCheckCollectEvents(enabled bool) *DatadogAgentBuilder {
 	builder.initHelmCheck()
-	builder.datadogAgent.Spec.Features.HelmCheck.CollectEvents = ptr.To(enabled)
+	builder.datadogAgent.Spec.Features.HelmCheck.CollectEvents = new(enabled)
 	return builder
 }
 
@@ -1015,7 +1014,7 @@ func (builder *DatadogAgentBuilder) initKubernetesActions() {
 
 func (builder *DatadogAgentBuilder) WithKubernetesActionsEnabled(enabled bool) *DatadogAgentBuilder {
 	builder.initKubernetesActions()
-	builder.datadogAgent.Spec.Features.KubernetesActions.Enabled = ptr.To(enabled)
+	builder.datadogAgent.Spec.Features.KubernetesActions.Enabled = new(enabled)
 	return builder
 }
 
@@ -1023,7 +1022,7 @@ func (builder *DatadogAgentBuilder) WithKubernetesActionsEnabled(enabled bool) *
 
 func (builder *DatadogAgentBuilder) WithGlobalKubeletConfig(hostCAPath, agentCAPath string, tlsVerify bool, podResourcesSocketDir string) *DatadogAgentBuilder {
 	builder.datadogAgent.Spec.Global.Kubelet = &v2alpha1.KubeletConfig{
-		TLSVerify:              ptr.To(tlsVerify),
+		TLSVerify:              new(tlsVerify),
 		HostCAPath:             hostCAPath,
 		AgentCAPath:            agentCAPath,
 		PodResourcesSocketPath: podResourcesSocketDir,
@@ -1032,12 +1031,12 @@ func (builder *DatadogAgentBuilder) WithGlobalKubeletConfig(hostCAPath, agentCAP
 }
 
 func (builder *DatadogAgentBuilder) WithGlobalDockerSocketPath(dockerSocketPath string) *DatadogAgentBuilder {
-	builder.datadogAgent.Spec.Global.DockerSocketPath = ptr.To(dockerSocketPath)
+	builder.datadogAgent.Spec.Global.DockerSocketPath = new(dockerSocketPath)
 	return builder
 }
 
 func (builder *DatadogAgentBuilder) WithGlobalCriSocketPath(criSocketPath string) *DatadogAgentBuilder {
-	builder.datadogAgent.Spec.Global.DockerSocketPath = ptr.To(criSocketPath)
+	builder.datadogAgent.Spec.Global.DockerSocketPath = new(criSocketPath)
 	return builder
 }
 
@@ -1058,8 +1057,8 @@ func (builder *DatadogAgentBuilder) WithSingleContainerStrategy(enabled bool) *D
 
 func (builder *DatadogAgentBuilder) WithCredentials(apiKey, appKey string) *DatadogAgentBuilder {
 	builder.datadogAgent.Spec.Global.Credentials = &v2alpha1.DatadogCredentials{
-		APIKey: ptr.To(apiKey),
-		AppKey: ptr.To(appKey),
+		APIKey: new(apiKey),
+		AppKey: new(appKey),
 	}
 	return builder
 }
@@ -1083,7 +1082,7 @@ func (builder *DatadogAgentBuilder) WithCredentialsFromSecret(apiSecretName, api
 
 // Global DCA Token
 func (builder *DatadogAgentBuilder) WithDCAToken(token string) *DatadogAgentBuilder {
-	builder.datadogAgent.Spec.Global.ClusterAgentToken = ptr.To(token)
+	builder.datadogAgent.Spec.Global.ClusterAgentToken = new(token)
 	return builder
 }
 
@@ -1099,7 +1098,7 @@ func (builder *DatadogAgentBuilder) WithDCATokenFromSecret(secretName, secretKey
 
 func (builder *DatadogAgentBuilder) WithOriginDetectionUnified(enabled bool) *DatadogAgentBuilder {
 	builder.datadogAgent.Spec.Global.OriginDetectionUnified = &v2alpha1.OriginDetectionUnified{
-		Enabled: ptr.To(enabled),
+		Enabled: new(enabled),
 	}
 	return builder
 }
@@ -1107,7 +1106,7 @@ func (builder *DatadogAgentBuilder) WithOriginDetectionUnified(enabled bool) *Da
 // Global Registry
 
 func (builder *DatadogAgentBuilder) WithRegistry(registry string) *DatadogAgentBuilder {
-	builder.datadogAgent.Spec.Global.Registry = ptr.To(registry)
+	builder.datadogAgent.Spec.Global.Registry = new(registry)
 
 	return builder
 }
@@ -1115,14 +1114,14 @@ func (builder *DatadogAgentBuilder) WithRegistry(registry string) *DatadogAgentB
 // Global ChecksTagCardinality
 
 func (builder *DatadogAgentBuilder) WithChecksTagCardinality(cardinality string) *DatadogAgentBuilder {
-	builder.datadogAgent.Spec.Global.ChecksTagCardinality = ptr.To(cardinality)
+	builder.datadogAgent.Spec.Global.ChecksTagCardinality = new(cardinality)
 	return builder
 }
 
 // CSI Activation Config
 
 func (builder *DatadogAgentBuilder) WithCSIActivation(enabled bool) *DatadogAgentBuilder {
-	builder.datadogAgent.Spec.Global.CSI = &v2alpha1.CSIConfig{Enabled: ptr.To(enabled)}
+	builder.datadogAgent.Spec.Global.CSI = &v2alpha1.CSIConfig{Enabled: new(enabled)}
 	return builder
 }
 
@@ -1130,11 +1129,11 @@ func (builder *DatadogAgentBuilder) WithCSIActivation(enabled bool) *DatadogAgen
 
 func (builder *DatadogAgentBuilder) WithGlobalSecretBackendGlobalPerms(command string, args string, timeout int32, refreshInterval int32) *DatadogAgentBuilder {
 	builder.datadogAgent.Spec.Global.SecretBackend = &v2alpha1.SecretBackendConfig{
-		Command:                 ptr.To(command),
-		Args:                    ptr.To(args),
-		Timeout:                 ptr.To(timeout),
-		RefreshInterval:         ptr.To(refreshInterval),
-		EnableGlobalPermissions: ptr.To(true),
+		Command:                 new(command),
+		Args:                    new(args),
+		Timeout:                 new(timeout),
+		RefreshInterval:         new(refreshInterval),
+		EnableGlobalPermissions: new(true),
 	}
 	return builder
 }
@@ -1143,21 +1142,21 @@ func (builder *DatadogAgentBuilder) WithGlobalSecretBackendType(backendType stri
 	if builder.datadogAgent.Spec.Global.SecretBackend == nil {
 		builder.datadogAgent.Spec.Global.SecretBackend = &v2alpha1.SecretBackendConfig{}
 	}
-	builder.datadogAgent.Spec.Global.SecretBackend.Type = ptr.To(backendType)
+	builder.datadogAgent.Spec.Global.SecretBackend.Type = new(backendType)
 	builder.datadogAgent.Spec.Global.SecretBackend.Config = config
 	return builder
 }
 
 func (builder *DatadogAgentBuilder) WithGlobalSecretBackendSpecificRoles(command string, args string, timeout int32, refreshInterval int32, secretNs string, secretNames []string) *DatadogAgentBuilder {
 	builder.datadogAgent.Spec.Global.SecretBackend = &v2alpha1.SecretBackendConfig{
-		Command:                 ptr.To(command),
-		Args:                    ptr.To(args),
-		Timeout:                 ptr.To(timeout),
-		RefreshInterval:         ptr.To(refreshInterval),
-		EnableGlobalPermissions: ptr.To(false),
+		Command:                 new(command),
+		Args:                    new(args),
+		Timeout:                 new(timeout),
+		RefreshInterval:         new(refreshInterval),
+		EnableGlobalPermissions: new(false),
 		Roles: []*v2alpha1.SecretBackendRolesConfig{
 			{
-				Namespace: ptr.To(secretNs),
+				Namespace: new(secretNs),
 				Secrets:   secretNames,
 			},
 		},
@@ -1193,7 +1192,7 @@ func (builder *DatadogAgentBuilder) WithClusterAgentImage(image string) *Datadog
 
 func (builder *DatadogAgentBuilder) WithClusterAgentDisabled(disabled bool) *DatadogAgentBuilder {
 	builder.WithComponentOverride(v2alpha1.ClusterAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
-		Disabled: ptr.To(disabled),
+		Disabled: new(disabled),
 	})
 	return builder
 }
@@ -1235,7 +1234,7 @@ func (builder *DatadogAgentBuilder) WithUseFIPSAgent() *DatadogAgentBuilder {
 		builder.datadogAgent.Spec.Global = &v2alpha1.GlobalConfig{}
 	}
 
-	builder.datadogAgent.Spec.Global.UseFIPSAgent = ptr.To(true)
+	builder.datadogAgent.Spec.Global.UseFIPSAgent = new(true)
 	return builder
 }
 
@@ -1258,8 +1257,8 @@ func (builder *DatadogAgentBuilder) initGPUMonitoring() {
 
 func (builder *DatadogAgentBuilder) WithGPUMonitoringEnabled(enabled bool) *DatadogAgentBuilder {
 	builder.initGPUMonitoring()
-	builder.datadogAgent.Spec.Features.GPU.Enabled = ptr.To(enabled)
-	builder.datadogAgent.Spec.Features.GPU.PrivilegedMode = ptr.To(enabled)
+	builder.datadogAgent.Spec.Features.GPU.Enabled = new(enabled)
+	builder.datadogAgent.Spec.Features.GPU.PrivilegedMode = new(enabled)
 	return builder
 }
 
@@ -1271,7 +1270,7 @@ func (builder *DatadogAgentBuilder) initControlPlaneMonitoring() {
 
 func (builder *DatadogAgentBuilder) WithControlPlaneMonitoring(enabled bool) *DatadogAgentBuilder {
 	builder.initControlPlaneMonitoring()
-	builder.datadogAgent.Spec.Features.ControlPlaneMonitoring.Enabled = ptr.To(enabled)
+	builder.datadogAgent.Spec.Features.ControlPlaneMonitoring.Enabled = new(enabled)
 	return builder
 }
 
@@ -1286,7 +1285,7 @@ func (builder *DatadogAgentBuilder) initDataPlane() {
 
 func (builder *DatadogAgentBuilder) WithDataPlaneEnabled(enabled bool) *DatadogAgentBuilder {
 	builder.initDataPlane()
-	builder.datadogAgent.Spec.Features.DataPlane.Enabled = ptr.To(enabled)
+	builder.datadogAgent.Spec.Features.DataPlane.Enabled = new(enabled)
 	return builder
 }
 
@@ -1295,7 +1294,7 @@ func (builder *DatadogAgentBuilder) WithDataPlaneDogstatsdEnabled(enabled bool) 
 	if builder.datadogAgent.Spec.Features.DataPlane.Dogstatsd == nil {
 		builder.datadogAgent.Spec.Features.DataPlane.Dogstatsd = &v2alpha1.DataPlaneDogstatsdConfig{}
 	}
-	builder.datadogAgent.Spec.Features.DataPlane.Dogstatsd.Enabled = ptr.To(enabled)
+	builder.datadogAgent.Spec.Features.DataPlane.Dogstatsd.Enabled = new(enabled)
 	return builder
 }
 

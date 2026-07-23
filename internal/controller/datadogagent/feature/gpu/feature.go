@@ -84,7 +84,7 @@ func (f *gpuFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.DatadogAgentSp
 	}
 
 	reqComp.Agent = feature.RequiredComponent{
-		IsRequired: ptr.To(true),
+		IsRequired: new(true),
 		Containers: requiredContainers,
 	}
 
