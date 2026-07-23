@@ -261,7 +261,7 @@ func (nps *NodePoolsSet) Add(p NodePoolsSetAddParams) {
 		securityGroupIDs: lo.Keyify(p.SecurityGroupIDs),
 		metadataOptions:  p.MetadataOptions,
 		blockDeviceMappings: lo.Associate(p.BlockDeviceMappings, func(bdm BlockDeviceMapping) (string, *BlockDeviceMapping) {
-			return lo.FromPtr(bdm.DeviceName), lo.ToPtr(bdm)
+			return lo.FromPtr(bdm.DeviceName), new(bdm)
 		}),
 	}
 

@@ -12,7 +12,6 @@ import (
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -91,8 +90,8 @@ func (f *orchestratorExplorerFeature) Configure(dda metav1.Object, ddaSpec *v2al
 
 	if orchestratorExplorer != nil && apiutils.BoolValue(orchestratorExplorer.Enabled) {
 		f.enabled = true
-		reqComp.ClusterAgent.IsRequired = ptr.To(true)
-		reqComp.Agent.IsRequired = ptr.To(true)
+		reqComp.ClusterAgent.IsRequired = new(true)
+		reqComp.Agent.IsRequired = new(true)
 
 		if orchestratorExplorer.Conf != nil || len(orchestratorExplorer.CustomResources) > 0 {
 			f.customConfig = orchestratorExplorer.Conf
@@ -144,7 +143,7 @@ func (f *orchestratorExplorerFeature) Configure(dda metav1.Object, ddaSpec *v2al
 				f.runInClusterChecksRunner = true
 				f.rbacSuffix = common.ChecksRunnerSuffix
 				f.serviceAccountName = constants.GetClusterChecksRunnerServiceAccount(dda.GetName(), ddaSpec)
-				reqComp.ClusterChecksRunner.IsRequired = ptr.To(true)
+				reqComp.ClusterChecksRunner.IsRequired = new(true)
 			}
 		}
 	}

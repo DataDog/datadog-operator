@@ -230,14 +230,14 @@ func extractMetadataOptionsFromLaunchTemplate(opts *ec2types.LaunchTemplateInsta
 
 	var hopLimit *int64
 	if opts.HttpPutResponseHopLimit != nil {
-		hopLimit = lo.ToPtr(int64(*opts.HttpPutResponseHopLimit))
+		hopLimit = new(int64(*opts.HttpPutResponseHopLimit))
 	}
 
 	return &MetadataOptions{
-		HTTPEndpoint:            lo.Ternary(opts.HttpEndpoint != "", lo.ToPtr(string(opts.HttpEndpoint)), nil),
-		HTTPTokens:              lo.Ternary(opts.HttpTokens != "", lo.ToPtr(string(opts.HttpTokens)), nil),
+		HTTPEndpoint:            lo.Ternary(opts.HttpEndpoint != "", new(string(opts.HttpEndpoint)), nil),
+		HTTPTokens:              lo.Ternary(opts.HttpTokens != "", new(string(opts.HttpTokens)), nil),
 		HTTPPutResponseHopLimit: hopLimit,
-		HTTPProtocolIPv6:        lo.Ternary(opts.HttpProtocolIpv6 != "", lo.ToPtr(string(opts.HttpProtocolIpv6)), nil),
+		HTTPProtocolIPv6:        lo.Ternary(opts.HttpProtocolIpv6 != "", new(string(opts.HttpProtocolIpv6)), nil),
 	}
 }
 
@@ -256,10 +256,10 @@ func extractBlockDeviceMappingsFromLaunchTemplate(mappings []ec2types.LaunchTemp
 			DeviceName:          mapping.DeviceName,
 			RootVolume:          isRootDevice(mapping.DeviceName),
 			DeleteOnTermination: mapping.Ebs.DeleteOnTermination,
-			VolumeSize:          lo.Ternary(mapping.Ebs.VolumeSize != nil, lo.ToPtr(fmt.Sprintf("%dGi", lo.FromPtr(mapping.Ebs.VolumeSize))), nil),
-			VolumeType:          lo.Ternary(mapping.Ebs.VolumeType != "", lo.ToPtr(string(mapping.Ebs.VolumeType)), nil),
-			IOPS:                lo.Ternary(mapping.Ebs.Iops != nil, lo.ToPtr(int64(lo.FromPtr(mapping.Ebs.Iops))), nil),
-			Throughput:          lo.Ternary(mapping.Ebs.Throughput != nil, lo.ToPtr(int64(lo.FromPtr(mapping.Ebs.Throughput))), nil),
+			VolumeSize:          lo.Ternary(mapping.Ebs.VolumeSize != nil, new(fmt.Sprintf("%dGi", lo.FromPtr(mapping.Ebs.VolumeSize))), nil),
+			VolumeType:          lo.Ternary(mapping.Ebs.VolumeType != "", new(string(mapping.Ebs.VolumeType)), nil),
+			IOPS:                lo.Ternary(mapping.Ebs.Iops != nil, new(int64(lo.FromPtr(mapping.Ebs.Iops))), nil),
+			Throughput:          lo.Ternary(mapping.Ebs.Throughput != nil, new(int64(lo.FromPtr(mapping.Ebs.Throughput))), nil),
 			Encrypted:           mapping.Ebs.Encrypted,
 			KMSKeyID:            mapping.Ebs.KmsKeyId,
 			SnapshotID:          mapping.Ebs.SnapshotId,

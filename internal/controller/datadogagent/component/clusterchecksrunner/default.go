@@ -16,7 +16,6 @@ import (
 	policyv1beta1 "k8s.io/api/policy/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
@@ -177,8 +176,8 @@ func defaultPodSpec(dda metav1.Object, volumes []corev1.Volume, volumeMounts []c
 				ReadinessProbe: constants.GetDefaultReadinessProbe(),
 				StartupProbe:   constants.GetDefaultStartupProbe(),
 				SecurityContext: &corev1.SecurityContext{
-					ReadOnlyRootFilesystem:   ptr.To(true),
-					AllowPrivilegeEscalation: ptr.To(false),
+					ReadOnlyRootFilesystem:   new(true),
+					AllowPrivilegeEscalation: new(false),
 				},
 			},
 		},
