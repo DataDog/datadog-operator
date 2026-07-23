@@ -304,6 +304,7 @@ func (r *Reconciler) reconcileV2Agent(ctx context.Context, requiredComponents fe
 	if err != nil || preparedPhase == "" {
 		return result, err
 	}
+	requeuePreparedArm(&result, preparedPhase)
 	if preparedPhase == preparedRolloutPhaseStandby {
 		handoffResult, handoffErr := r.reconcilePreparedHandoff(ctx, ddai, daemonset, rolloutBudget)
 		if handoffErr != nil {

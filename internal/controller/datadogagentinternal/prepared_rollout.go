@@ -37,6 +37,7 @@ const (
 	preparedRolloutStateVolume = "agent-rollout-state"
 	preparedRolloutLockDir     = "/var/run/datadog-agent-rollout"
 	preparedRolloutStateDir    = "/var/run/datadog-agent-rollout-state"
+	preparedRolloutRequeue     = time.Second
 
 	rolloutEnabledEnv   = "DD_EXPERIMENTAL_NODE_AGENT_ROLLOUT_ENABLED"
 	rolloutLockPathEnv  = "DD_EXPERIMENTAL_NODE_AGENT_ROLLOUT_LOCK_PATH"
@@ -115,6 +116,16 @@ func (r *Reconciler) configurePreparedRollout(ctx context.Context, ddai *datadog
 	}
 	*desired = *standby
 	return phase, nil
+}
+
+// requeuePreparedArm keeps polling until the DaemonSet controller reports the
+// fully available arm revision. DaemonSet status-only updates are filtered by
+// the controller watch, so Pod and generation events alone cannot guarantee a
+// final reconcile after status catches up.
+func requeuePreparedArm(result *reconcile.Result, phase string) {
+	if phase == preparedRolloutPhaseArm && (result.RequeueAfter == 0 || preparedRolloutRequeue < result.RequeueAfter) {
+		result.RequeueAfter = preparedRolloutRequeue
+	}
 }
 
 func stampPreparedArmHash(template *corev1.PodTemplateSpec) (string, error) {

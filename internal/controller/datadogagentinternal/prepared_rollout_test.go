@@ -20,6 +20,7 @@ import (
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/stretchr/testify/assert"
@@ -112,6 +113,26 @@ func TestConfigurePreparedRolloutRejectsUnsupportedContainerWithoutMutation(t *t
 	_, err := r.configurePreparedRollout(context.Background(), ddai, desired, intstr.FromInt(1))
 	require.Error(t, err)
 	assert.Equal(t, original, desired)
+}
+
+func TestRequeuePreparedArm(t *testing.T) {
+	t.Run("polls while arm status is incomplete", func(t *testing.T) {
+		result := reconcile.Result{}
+		requeuePreparedArm(&result, preparedRolloutPhaseArm)
+		assert.Equal(t, time.Second, result.RequeueAfter)
+	})
+
+	t.Run("keeps an earlier requeue", func(t *testing.T) {
+		result := reconcile.Result{RequeueAfter: 500 * time.Millisecond}
+		requeuePreparedArm(&result, preparedRolloutPhaseArm)
+		assert.Equal(t, 500*time.Millisecond, result.RequeueAfter)
+	})
+
+	t.Run("does not poll once standby starts", func(t *testing.T) {
+		result := reconcile.Result{}
+		requeuePreparedArm(&result, preparedRolloutPhaseStandby)
+		assert.Zero(t, result.RequeueAfter)
+	})
 }
 
 func TestPodPreparedForHandoff(t *testing.T) {
