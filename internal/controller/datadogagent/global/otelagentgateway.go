@@ -46,6 +46,12 @@ func applyOtelAgentGatewayResources(manager feature.PodTemplateManagers, ddaSpec
 		Value: "true",
 	})
 
+	// Explicitly set bundled mode (DD_OTEL_STANDALONE=false)
+	manager.EnvVar().AddEnvVarToContainer(apicommon.OtelAgent, &corev1.EnvVar{
+		Name:  "DD_OTEL_STANDALONE",
+		Value: "false",
+	})
+
 	// Set hostname from spec.nodeName
 	manager.EnvVar().AddEnvVarToContainer(apicommon.OtelAgent, &corev1.EnvVar{
 		Name: "DD_HOSTNAME",
