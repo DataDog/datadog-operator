@@ -204,6 +204,45 @@ default in effect.
 Duration values follow Go's [`time.ParseDuration`](https://pkg.go.dev/time#ParseDuration);
 for example, `30s`, `5m`, or `1h`. Integer values use base 10.
 
+### Switch between DaemonSet and ExtendedDaemonSet
+
+Changing `--supportExtendedDaemonset` migrates the node Agent workload in either
+direction. The Operator completes the ownership handoff before it creates the
+target workload, so old and new Agent pods do not remain scheduled together and
+compete for the same node resources.
+
+- **DaemonSet to ExtendedDaemonSet:** The Operator changes the old DaemonSet to
+  the `OnDelete` update strategy, labels its existing pods for the
+  ExtendedDaemonSet controller, and deletes the DaemonSet with orphan
+  propagation. The ExtendedDaemonSet then treats the preserved pods as the
+  previous revision and replaces them using its configured rolling-update
+  policy.
+- **ExtendedDaemonSet to DaemonSet:** The Operator deletes the
+  ExtendedDaemonSet and its ExtendedDaemonSetReplicaSets with orphan
+  propagation. It updates selector labels on the preserved pods when necessary,
+  then creates the DaemonSet. The Kubernetes DaemonSet controller adopts
+  matching pods. Pods that cannot match the new selector are deleted before the
+  DaemonSet is created.
+
+The migration is reconciled from the resources that remain in the cluster, so
+it resumes after an Operator restart. To roll back an in-progress migration,
+restore the previous value of `--supportExtendedDaemonset` and restart the
+Operator; do not manually delete the preserved Agent pods.
+
+Keep the ExtendedDaemonSet CRDs and controller installed until a migration to a
+native DaemonSet has converged. Avoid changing the node Agent name override in
+the same rollout as this flag because the migration identifies the old and new
+workloads by their shared name.
+
+To verify convergence, replace `<namespace>` with the namespace containing the
+`DatadogAgent`:
+
+```shell
+kubectl get daemonset,extendeddaemonset,extendeddaemonsetreplicaset -n <namespace>
+```
+
+Only the workload kind selected by `--supportExtendedDaemonset` should remain.
+
 For example, to enable the DatadogMonitor controller in an OLM deployment:
 
 ```yaml
