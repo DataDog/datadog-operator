@@ -7,6 +7,7 @@ package datadogagentinternal
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"maps"
 	"testing"
 	"time"
@@ -23,6 +24,7 @@ import (
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 
 	datadoghqcommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
@@ -126,6 +128,9 @@ func TestResourceOnlyUnschedulable(t *testing.T) {
 		{name: "ephemeral storage is rejected", reason: corev1.PodReasonUnschedulable, message: "0/1 nodes are available: 1 Insufficient ephemeral-storage.", ok: false},
 		{name: "custom reason containing cpu text is rejected", reason: corev1.PodReasonUnschedulable, message: "0/1 nodes are available: 1 custom plugin: Insufficient cpu.", ok: false},
 		{name: "wrong condition reason", reason: "SchedulingGated", message: "0/1 nodes are available: 1 Insufficient cpu.", ok: false},
+		{name: "empty primary reason", reason: corev1.PodReasonUnschedulable, message: "preemption:", ok: false},
+		{name: "reason without count", reason: corev1.PodReasonUnschedulable, message: "0/1 nodes are available: cpu.", ok: false},
+		{name: "non-numeric count", reason: corev1.PodReasonUnschedulable, message: "0/1 nodes are available: many Insufficient cpu.", ok: false},
 	}
 
 	for _, tt := range tests {
@@ -370,6 +375,11 @@ func TestExistingPodRequiredAntiAffinityCanRejectReplacement(t *testing.T) {
 	assert.False(t, allowed, "wider topology terms fail closed without loading every Node's topology labels")
 }
 
+func TestAffinityTermMaySelectNamespace(t *testing.T) {
+	assert.True(t, affinityTermMaySelectNamespace(&corev1.PodAffinityTerm{Namespaces: []string{"target"}}, "source", "target"))
+	assert.False(t, affinityTermMaySelectNamespace(&corev1.PodAffinityTerm{Namespaces: []string{"other"}}, "source", "target"))
+}
+
 func TestPodAffinityTermSelector(t *testing.T) {
 	term := &corev1.PodAffinityTerm{
 		LabelSelector:     &metav1.LabelSelector{MatchLabels: map[string]string{"app": "agent"}},
@@ -426,6 +436,21 @@ func TestResourceFitAfterOldPodRemoval(t *testing.T) {
 	staleMessage := node.DeepCopy()
 	staleMessage.Status.Allocatable[corev1.ResourceCPU] = resource.MustParse("3")
 	assert.False(t, resourceFitAfterOldPodRemoval(staleMessage, []corev1.Pod{*old}, replacement, old, resourceShortage{cpu: true}), "reported shortage must still be observable")
+
+	claims := replacement.DeepCopy()
+	claims.Spec.ResourceClaims = []corev1.PodResourceClaim{{Name: "accelerator"}}
+	assert.False(t, resourceFitAfterOldPodRemoval(node, []corev1.Pod{*old}, claims, old, resourceShortage{cpu: true}), "dynamic resource claims are not modeled")
+
+	assert.False(t, resourceFitAfterOldPodRemoval(node, nil, replacement, old, resourceShortage{cpu: true}), "the exact old Pod must still be present")
+	assert.False(t, resourceFitAfterOldPodRemoval(node, []corev1.Pod{*old}, replacement, old, resourceShortage{}), "a scheduler-reported CPU or memory shortage is required")
+
+	podLimited := node.DeepCopy()
+	podLimited.Status.Allocatable[corev1.ResourcePods] = resource.MustParse("0")
+	assert.False(t, resourceFitAfterOldPodRemoval(podLimited, []corev1.Pod{*old}, replacement, old, resourceShortage{cpu: true}), "the replacement must fit the node Pod limit")
+
+	finished := scheduledResourcePod("finished", "finished-uid", "node-a", "10", "10Gi")
+	finished.Status.Phase = corev1.PodSucceeded
+	assert.True(t, resourceFitAfterOldPodRemoval(node, []corev1.Pod{*old, *finished}, replacement, old, resourceShortage{cpu: true}), "terminal Pods do not consume scheduler capacity")
 }
 
 func TestSchedulerPodRequestsIncludesInitAndOverhead(t *testing.T) {
@@ -571,6 +596,291 @@ func TestReconcileResourceFallbackRejectsForeignDaemonSet(t *testing.T) {
 	require.NoError(t, fixture.client.Get(context.Background(), client.ObjectKeyFromObject(fixture.old), &corev1.Pod{}), "foreign DaemonSet Pods must never be deleted")
 }
 
+func TestReconcileResourceFallbackEarlyExitsAndErrors(t *testing.T) {
+	t.Run("uses cached client when API reader is absent", func(t *testing.T) {
+		fixture := newFallbackTestFixture(t, healthyNodeConditions())
+		fixture.reconciler.apiReader = nil
+		result, err := fixture.reconciler.reconcileResourceFallback(context.Background(), fixture.ddai, fixture.ds, intstr.FromInt(0))
+		require.NoError(t, err)
+		assert.Zero(t, result)
+	})
+
+	t.Run("missing daemonset", func(t *testing.T) {
+		fixture := newFallbackTestFixture(t, healthyNodeConditions())
+		require.NoError(t, fixture.client.Delete(context.Background(), fixture.ds))
+		result, err := fixture.reconciler.reconcileResourceFallback(context.Background(), fixture.ddai, fixture.ds, intstr.FromInt(1))
+		require.NoError(t, err)
+		assert.Zero(t, result)
+	})
+
+	t.Run("daemonset read error", func(t *testing.T) {
+		fixture := newFallbackTestFixture(t, healthyNodeConditions())
+		reader := interceptor.NewClient(fixture.client.(client.WithWatch), interceptor.Funcs{
+			Get: func(ctx context.Context, c client.WithWatch, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+				if _, ok := obj.(*appsv1.DaemonSet); ok {
+					return errors.New("read daemonset")
+				}
+				return c.Get(ctx, key, obj, opts...)
+			},
+		})
+		fixture.reconciler.apiReader = reader
+		_, err := fixture.reconciler.reconcileResourceFallback(context.Background(), fixture.ddai, fixture.ds, intstr.FromInt(1))
+		require.ErrorContains(t, err, "get Agent DaemonSet")
+	})
+
+	t.Run("invalid and zero budgets", func(t *testing.T) {
+		for _, budget := range []intstr.IntOrString{intstr.FromString("invalid"), intstr.FromInt(0)} {
+			fixture := newFallbackTestFixture(t, healthyNodeConditions())
+			result, err := fixture.reconciler.reconcileResourceFallback(context.Background(), fixture.ddai, fixture.ds, budget)
+			if budget.Type == intstr.String {
+				require.ErrorContains(t, err, "resolve Agent resource fallback budget")
+			} else {
+				require.NoError(t, err)
+				assert.Zero(t, result)
+			}
+		}
+	})
+
+	t.Run("missing current revision", func(t *testing.T) {
+		fixture := newFallbackTestFixture(t, healthyNodeConditions())
+		revisions := &appsv1.ControllerRevisionList{}
+		require.NoError(t, fixture.client.List(context.Background(), revisions))
+		require.NotEmpty(t, revisions.Items)
+		require.NoError(t, fixture.client.Delete(context.Background(), &revisions.Items[0]))
+		result, err := fixture.reconciler.reconcileResourceFallback(context.Background(), fixture.ddai, fixture.ds, intstr.FromInt(1))
+		require.NoError(t, err)
+		assert.Zero(t, result)
+	})
+
+	t.Run("revision and pod list errors", func(t *testing.T) {
+		for _, failPods := range []bool{false, true} {
+			fixture := newFallbackTestFixture(t, healthyNodeConditions())
+			reader := interceptor.NewClient(fixture.client.(client.WithWatch), interceptor.Funcs{
+				List: func(ctx context.Context, c client.WithWatch, list client.ObjectList, opts ...client.ListOption) error {
+					if _, ok := list.(*appsv1.ControllerRevisionList); ok && !failPods {
+						return errors.New("list revisions")
+					}
+					if _, ok := list.(*corev1.PodList); ok && failPods {
+						return errors.New("list pods")
+					}
+					return c.List(ctx, list, opts...)
+				},
+			})
+			fixture.reconciler.apiReader = reader
+			_, err := fixture.reconciler.reconcileResourceFallback(context.Background(), fixture.ddai, fixture.ds, intstr.FromInt(1))
+			require.Error(t, err)
+		}
+	})
+
+	t.Run("reservation patch error", func(t *testing.T) {
+		fixture := newFallbackTestFixture(t, healthyNodeConditions())
+		writer := interceptor.NewClient(fixture.client.(client.WithWatch), interceptor.Funcs{
+			Patch: func(context.Context, client.WithWatch, client.Object, client.Patch, ...client.PatchOption) error {
+				return errors.New("patch reservation")
+			},
+		})
+		fixture.reconciler.client = writer
+		_, err := fixture.reconciler.reconcileResourceFallback(context.Background(), fixture.ddai, fixture.ds, intstr.FromInt(1))
+		require.ErrorContains(t, err, "reserve Agent resource fallback")
+	})
+
+	t.Run("old pod delete error", func(t *testing.T) {
+		fixture := newFallbackTestFixture(t, healthyNodeConditions())
+		writer := interceptor.NewClient(fixture.client.(client.WithWatch), interceptor.Funcs{
+			Delete: func(context.Context, client.WithWatch, client.Object, ...client.DeleteOption) error {
+				return errors.New("delete old pod")
+			},
+		})
+		fixture.reconciler.client = writer
+		_, err := fixture.reconciler.reconcileResourceFallback(context.Background(), fixture.ddai, fixture.ds, intstr.FromInt(1))
+		require.ErrorContains(t, err, "delete old Agent Pod")
+	})
+}
+
+func TestFallbackBudgetWithinLimitFailsClosed(t *testing.T) {
+	t.Run("missing DaemonSet", func(t *testing.T) {
+		fixture := newFallbackTestFixture(t, healthyNodeConditions())
+		require.NoError(t, fixture.client.Delete(context.Background(), fixture.ds))
+		ok, err := fallbackBudgetWithinLimit(context.Background(), fixture.client, fixture.ds, intstr.FromInt(1), "new-revision")
+		require.NoError(t, err)
+		assert.False(t, ok)
+	})
+
+	t.Run("stale DaemonSet identity", func(t *testing.T) {
+		fixture := newFallbackTestFixture(t, healthyNodeConditions())
+		expected := fixture.ds.DeepCopy()
+		expected.UID = "stale-uid"
+		ok, err := fallbackBudgetWithinLimit(context.Background(), fixture.client, expected, intstr.FromInt(1), "new-revision")
+		require.NoError(t, err)
+		assert.False(t, ok)
+	})
+
+	t.Run("revision changed", func(t *testing.T) {
+		fixture := newFallbackTestFixture(t, healthyNodeConditions())
+		ok, err := fallbackBudgetWithinLimit(context.Background(), fixture.client, fixture.ds, intstr.FromInt(1), "other-revision")
+		require.NoError(t, err)
+		assert.False(t, ok)
+	})
+
+	t.Run("invalid budget", func(t *testing.T) {
+		fixture := newFallbackTestFixture(t, healthyNodeConditions())
+		ok, err := fallbackBudgetWithinLimit(context.Background(), fixture.client, fixture.ds, intstr.FromString("invalid"), "new-revision")
+		require.Error(t, err)
+		assert.False(t, ok)
+	})
+}
+
+func TestControllerRevisionMatchesTemplateRejectsInvalidData(t *testing.T) {
+	fixture := newFallbackTestFixture(t, healthyNodeConditions())
+	revisions := &appsv1.ControllerRevisionList{}
+	require.NoError(t, fixture.client.List(context.Background(), revisions))
+	require.Len(t, revisions.Items, 1)
+	revision := revisions.Items[0].DeepCopy()
+	revision.Data.Raw = []byte("not-json")
+
+	got, err := controllerRevisionMatchesTemplate(revision, &fixture.ds.Spec.Template)
+	require.Error(t, err)
+	assert.False(t, got)
+}
+
+func TestFallbackCandidatesFailClosedAndSortReservations(t *testing.T) {
+	now := time.Now()
+	ds := &appsv1.DaemonSet{Spec: appsv1.DaemonSetSpec{MinReadySeconds: 0}}
+	pending := func(name, node, reservation string) corev1.Pod {
+		pod := pendingPodForNode(node)
+		pod.Name = name
+		pod.UID = types.UID(name + "-uid")
+		pod.Labels = map[string]string{appsv1.DefaultDaemonSetUniqueLabelKey: "new"}
+		pod.Status.Conditions = []corev1.PodCondition{{Type: corev1.PodScheduled, Status: corev1.ConditionFalse, Reason: corev1.PodReasonUnschedulable, Message: "0/1 nodes are available: 1 Insufficient cpu."}}
+		if reservation != "" {
+			pod.Annotations = map[string]string{resourceFallbackOldPodAnnotation: reservation}
+		}
+		return *pod
+	}
+	old := func(name, uid, node string) corev1.Pod {
+		pod := readyPod(name, uid, node, "old", now.Add(-time.Minute))
+		return *pod
+	}
+
+	noTarget := pending("no-target", "node-a", "")
+	noTarget.Spec.Affinity = nil
+	assert.Empty(t, fallbackCandidates(ds, []corev1.Pod{noTarget, old("old-a", "old-a-uid", "node-a")}, "new", now))
+	assert.Empty(t, fallbackCandidates(ds, []corev1.Pod{pending("no-old", "node-a", "")}, "new", now))
+	assert.Empty(t, fallbackCandidates(ds, []corev1.Pod{
+		pending("two-old", "node-a", ""), old("old-a", "old-a-uid", "node-a"), old("old-b", "old-b-uid", "node-a"),
+	}, "new", now))
+	assert.Empty(t, fallbackCandidates(ds, []corev1.Pod{
+		pending("wrong-reservation", "node-a", "other-uid"), old("old-a", "old-a-uid", "node-a"),
+	}, "new", now))
+
+	pods := []corev1.Pod{
+		pending("new-c", "node-c", ""), old("old-c", "old-c-uid", "node-c"),
+		pending("new-b", "node-b", ""), old("old-b", "old-b-uid", "node-b"),
+		pending("new-a", "node-a", "old-a-uid"), old("old-a", "old-a-uid", "node-a"),
+	}
+	candidates := fallbackCandidates(ds, pods, "new", now)
+	require.Len(t, candidates, 3)
+	assert.True(t, candidates[0].reserved)
+	assert.Equal(t, "node-a", candidates[0].nodeName)
+	assert.Equal(t, "node-b", candidates[1].nodeName)
+	assert.Equal(t, "node-c", candidates[2].nodeName)
+}
+
+func TestRevalidateFallbackCandidateRejectsStaleStateAndReadErrors(t *testing.T) {
+	candidateFor := func(fixture fallbackTestFixture) fallbackCandidate {
+		return fallbackCandidate{pending: fixture.pending.DeepCopy(), old: fixture.old.DeepCopy(), nodeName: "node-a", shortage: resourceShortage{cpu: true}}
+	}
+
+	t.Run("DaemonSet read error", func(t *testing.T) {
+		fixture := newFallbackTestFixture(t, healthyNodeConditions())
+		reader := interceptor.NewClient(fixture.client.(client.WithWatch), interceptor.Funcs{
+			Get: func(context.Context, client.WithWatch, client.ObjectKey, client.Object, ...client.GetOption) error {
+				return errors.New("read failed")
+			},
+		})
+		got, err := fixture.reconciler.revalidateFallbackCandidate(context.Background(), reader, fixture.ds, candidateFor(fixture), "new-revision", false)
+		require.ErrorContains(t, err, "read failed")
+		assert.Nil(t, got)
+	})
+
+	t.Run("stale DaemonSet", func(t *testing.T) {
+		fixture := newFallbackTestFixture(t, healthyNodeConditions())
+		expected := fixture.ds.DeepCopy()
+		expected.UID = "stale-uid"
+		got, err := fixture.reconciler.revalidateFallbackCandidate(context.Background(), fixture.client, expected, candidateFor(fixture), "new-revision", false)
+		require.NoError(t, err)
+		assert.Nil(t, got)
+	})
+
+	t.Run("revision changed", func(t *testing.T) {
+		fixture := newFallbackTestFixture(t, healthyNodeConditions())
+		got, err := fixture.reconciler.revalidateFallbackCandidate(context.Background(), fixture.client, fixture.ds, candidateFor(fixture), "other-revision", false)
+		require.NoError(t, err)
+		assert.Nil(t, got)
+	})
+
+	for _, objectName := range []string{"new", "old"} {
+		t.Run("missing "+objectName+" Pod", func(t *testing.T) {
+			fixture := newFallbackTestFixture(t, healthyNodeConditions())
+			pod := fixture.pending
+			if objectName == "old" {
+				pod = fixture.old
+			}
+			require.NoError(t, fixture.client.Delete(context.Background(), pod))
+			got, err := fixture.reconciler.revalidateFallbackCandidate(context.Background(), fixture.client, fixture.ds, candidateFor(fixture), "new-revision", false)
+			require.NoError(t, err)
+			assert.Nil(t, got)
+		})
+	}
+
+	t.Run("stale Pod UID", func(t *testing.T) {
+		fixture := newFallbackTestFixture(t, healthyNodeConditions())
+		candidate := candidateFor(fixture)
+		candidate.pending.UID = "stale-pending"
+		got, err := fixture.reconciler.revalidateFallbackCandidate(context.Background(), fixture.client, fixture.ds, candidate, "new-revision", false)
+		require.NoError(t, err)
+		assert.Nil(t, got)
+	})
+
+	t.Run("reservation required", func(t *testing.T) {
+		fixture := newFallbackTestFixture(t, healthyNodeConditions())
+		got, err := fixture.reconciler.revalidateFallbackCandidate(context.Background(), fixture.client, fixture.ds, candidateFor(fixture), "new-revision", true)
+		require.NoError(t, err)
+		assert.Nil(t, got)
+	})
+
+	t.Run("node disappeared", func(t *testing.T) {
+		fixture := newFallbackTestFixture(t, healthyNodeConditions())
+		node := &corev1.Node{}
+		require.NoError(t, fixture.client.Get(context.Background(), client.ObjectKey{Name: "node-a"}, node))
+		require.NoError(t, fixture.client.Delete(context.Background(), node))
+		got, err := fixture.reconciler.revalidateFallbackCandidate(context.Background(), fixture.client, fixture.ds, candidateFor(fixture), "new-revision", false)
+		require.NoError(t, err)
+		assert.Nil(t, got)
+	})
+
+	t.Run("Pod list errors", func(t *testing.T) {
+		for _, failCall := range []int{1, 2} {
+			fixture := newFallbackTestFixture(t, healthyNodeConditions())
+			podLists := 0
+			reader := interceptor.NewClient(fixture.client.(client.WithWatch), interceptor.Funcs{
+				List: func(ctx context.Context, c client.WithWatch, list client.ObjectList, opts ...client.ListOption) error {
+					if _, ok := list.(*corev1.PodList); ok {
+						podLists++
+						if podLists == failCall {
+							return errors.New("list failed")
+						}
+					}
+					return c.List(ctx, list, opts...)
+				},
+			})
+			got, err := fixture.reconciler.revalidateFallbackCandidate(context.Background(), reader, fixture.ds, candidateFor(fixture), "new-revision", false)
+			require.ErrorContains(t, err, "list")
+			assert.Nil(t, got)
+		}
+	})
+}
+
 func TestToleratesBlockingNodeTaints(t *testing.T) {
 	taints := []corev1.Taint{
 		{Key: "dedicated", Value: "agents", Effect: corev1.TaintEffectNoSchedule},
@@ -586,6 +896,52 @@ func TestToleratesBlockingNodeTaints(t *testing.T) {
 		{Key: "draining", Operator: corev1.TolerationOpExists, Effect: corev1.TaintEffectNoExecute},
 	}, taints))
 	assert.True(t, toleratesBlockingNodeTaints([]corev1.Toleration{{Operator: corev1.TolerationOpExists}}, taints))
+}
+
+func TestNodeReadyForResourceFallbackFailsClosed(t *testing.T) {
+	ready := &corev1.Node{Status: corev1.NodeStatus{Conditions: healthyNodeConditions()}}
+	assert.True(t, nodeReadyForResourceFallback(ready))
+
+	unschedulable := ready.DeepCopy()
+	unschedulable.Spec.Unschedulable = true
+	assert.False(t, nodeReadyForResourceFallback(unschedulable))
+
+	deleting := ready.DeepCopy()
+	deleting.DeletionTimestamp = &metav1.Time{Time: time.Now()}
+	assert.False(t, nodeReadyForResourceFallback(deleting))
+
+	networkUnavailable := ready.DeepCopy()
+	for i := range networkUnavailable.Status.Conditions {
+		if networkUnavailable.Status.Conditions[i].Type == corev1.NodeNetworkUnavailable {
+			networkUnavailable.Status.Conditions[i].Status = corev1.ConditionTrue
+		}
+	}
+	assert.False(t, nodeReadyForResourceFallback(networkUnavailable))
+}
+
+func TestResourceFallbackDaemonSetEligibleFailsClosed(t *testing.T) {
+	ds := &appsv1.DaemonSet{
+		ObjectMeta: metav1.ObjectMeta{Generation: 1},
+		Spec: appsv1.DaemonSetSpec{UpdateStrategy: appsv1.DaemonSetUpdateStrategy{
+			Type:          appsv1.RollingUpdateDaemonSetStrategyType,
+			RollingUpdate: &appsv1.RollingUpdateDaemonSet{MaxSurge: ptr.To(intstr.FromInt(1))},
+		}},
+		Status: appsv1.DaemonSetStatus{ObservedGeneration: 1, DesiredNumberScheduled: 1},
+	}
+	assert.True(t, resourceFallbackDaemonSetEligible(ds))
+
+	for _, mutate := range []func(*appsv1.DaemonSet){
+		func(value *appsv1.DaemonSet) { value.Status.DesiredNumberScheduled = 0 },
+		func(value *appsv1.DaemonSet) { value.Status.ObservedGeneration = 0 },
+		func(value *appsv1.DaemonSet) { value.Spec.UpdateStrategy.Type = appsv1.OnDeleteDaemonSetStrategyType },
+		func(value *appsv1.DaemonSet) {
+			value.Spec.UpdateStrategy.RollingUpdate.MaxSurge = ptr.To(intstr.FromInt(0))
+		},
+	} {
+		copy := ds.DeepCopy()
+		mutate(copy)
+		assert.False(t, resourceFallbackDaemonSetEligible(copy))
+	}
 }
 
 type fallbackTestFixture struct {

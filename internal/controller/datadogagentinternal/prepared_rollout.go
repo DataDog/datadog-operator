@@ -390,12 +390,37 @@ func (r *Reconciler) reconcilePreparedHandoff(ctx context.Context, ddai *datadog
 	if err != nil || budget <= 0 {
 		return reconcile.Result{}, err
 	}
+	candidates := preparedHandoffCandidates(liveDS, pods, currentRevision)
+	validReservations := make(map[string]struct{}, len(candidates))
+	for _, candidate := range candidates {
+		if candidate.reserved {
+			validReservations[string(candidate.replacement.UID)] = struct{}{}
+		}
+	}
+	for i := range pods {
+		pod := &pods[i]
+		if pod.Spec.NodeName == "" || pod.Labels[appsv1.DefaultDaemonSetUniqueLabelKey] != currentRevision || pod.Annotations[resourceFallbackOldPodAnnotation] == "" {
+			continue
+		}
+		if _, valid := validReservations[string(pod.UID)]; valid {
+			continue
+		}
+		return r.releasePreparedHandoffReservation(ctx, pod)
+	}
+
 	consumed := consumedFallbackBudget(liveDS, pods, currentRevision, time.Now())
-	if consumed >= budget {
+	if consumed > budget {
+		for i := len(candidates) - 1; i >= 0; i-- {
+			if candidates[i].reserved {
+				return r.releasePreparedHandoffReservation(ctx, candidates[i].replacement)
+			}
+		}
 		return reconcile.Result{}, nil
 	}
-	candidates := preparedHandoffCandidates(liveDS, pods, currentRevision)
 	for _, candidate := range candidates {
+		if !candidate.reserved && consumed >= budget {
+			continue
+		}
 		if !candidate.reserved {
 			base := candidate.replacement.DeepCopy()
 			patched := candidate.replacement.DeepCopy()
@@ -407,6 +432,7 @@ func (r *Reconciler) reconcilePreparedHandoff(ctx context.Context, ddai *datadog
 				return reconcile.Result{}, fmt.Errorf("reserve prepared Agent handoff for Pod %s/%s: %w", patched.Namespace, patched.Name, err)
 			}
 			candidate.replacement = patched
+			consumed++
 		}
 		liveCandidate, err := r.revalidatePreparedHandoff(ctx, liveDS, candidate, currentRevision)
 		if err != nil {
@@ -432,6 +458,16 @@ func (r *Reconciler) reconcilePreparedHandoff(ctx context.Context, ddai *datadog
 		return reconcile.Result{RequeueAfter: time.Second}, nil
 	}
 	return reconcile.Result{}, nil
+}
+
+func (r *Reconciler) releasePreparedHandoffReservation(ctx context.Context, replacement *corev1.Pod) (reconcile.Result, error) {
+	base := replacement.DeepCopy()
+	patched := replacement.DeepCopy()
+	delete(patched.Annotations, resourceFallbackOldPodAnnotation)
+	if err := r.client.Patch(ctx, patched, client.MergeFrom(base)); err != nil {
+		return reconcile.Result{}, fmt.Errorf("release prepared Agent handoff reservation for Pod %s/%s: %w", patched.Namespace, patched.Name, err)
+	}
+	return reconcile.Result{RequeueAfter: time.Second}, nil
 }
 
 func preparedHandoffCandidates(ds *appsv1.DaemonSet, pods []corev1.Pod, currentRevision string) []preparedHandoffCandidate {

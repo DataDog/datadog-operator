@@ -6,6 +6,7 @@ package datadogagentinternal
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -20,6 +21,7 @@ import (
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
@@ -435,6 +437,358 @@ func TestReconcilePreparedHandoffReservesThenDeletesOldPod(t *testing.T) {
 	updated := &corev1.Pod{}
 	require.NoError(t, c.Get(context.Background(), client.ObjectKeyFromObject(replacement), updated))
 	assert.Equal(t, string(old.UID), updated.Annotations[resourceFallbackOldPodAnnotation])
+}
+
+func TestReconcilePreparedHandoffResumesReservedCandidateAtBudget(t *testing.T) {
+	fixture := newPreparedHandoffFixture(t)
+	fixture.replacement.Annotations = map[string]string{resourceFallbackOldPodAnnotation: string(fixture.old.UID)}
+	base := fixture.client(t, true, true, true)
+	r := &Reconciler{client: base, apiReader: base}
+
+	result, err := r.reconcilePreparedHandoff(context.Background(), fixture.ddai, fixture.ds, intstr.FromInt(1))
+	require.NoError(t, err)
+	assert.Equal(t, time.Second, result.RequeueAfter)
+	err = base.Get(context.Background(), client.ObjectKeyFromObject(fixture.old), &corev1.Pod{})
+	assert.True(t, apierrors.IsNotFound(err), "a restart after reserving the full budget must resume and delete the exact old Pod")
+}
+
+func TestReconcilePreparedHandoffFindsReservedCandidateAfterUnreservedAtBudget(t *testing.T) {
+	fixture := newPreparedHandoffFixture(t)
+	fixture.old.Spec.NodeName = "node-b"
+	fixture.replacement.Spec.NodeName = "node-b"
+	fixture.replacement.Annotations = map[string]string{resourceFallbackOldPodAnnotation: string(fixture.old.UID)}
+
+	oldA := fixture.old.DeepCopy()
+	oldA.Name = "old-a"
+	oldA.UID = "old-a-uid"
+	oldA.Spec.NodeName = "node-a"
+	replacementA := fixture.replacement.DeepCopy()
+	replacementA.Name = "new-a"
+	replacementA.UID = "new-a-uid"
+	replacementA.Spec.NodeName = "node-a"
+	replacementA.Annotations = nil
+
+	base := fixture.client(t, true, true, true)
+	require.NoError(t, base.Create(context.Background(), oldA))
+	require.NoError(t, base.Create(context.Background(), replacementA))
+	r := &Reconciler{client: base, apiReader: base}
+
+	result, err := r.reconcilePreparedHandoff(context.Background(), fixture.ddai, fixture.ds, intstr.FromInt(1))
+	require.NoError(t, err)
+	assert.Equal(t, time.Second, result.RequeueAfter)
+	err = base.Get(context.Background(), client.ObjectKeyFromObject(fixture.old), &corev1.Pod{})
+	assert.True(t, apierrors.IsNotFound(err), "the reserved handoff must resume even when an unreserved node sorts first")
+	assertOldPodStillExists(t, base, oldA)
+}
+
+func TestReconcilePreparedHandoffReleasesStaleReservation(t *testing.T) {
+	fixture := newPreparedHandoffFixture(t)
+	fixture.replacement.Annotations = map[string]string{resourceFallbackOldPodAnnotation: string(fixture.old.UID)}
+	fixture.replacement.Status.ContainerStatuses[0].RestartCount = 1
+	base := fixture.client(t, true, true, true)
+	r := &Reconciler{client: base, apiReader: base}
+
+	result, err := r.reconcilePreparedHandoff(context.Background(), fixture.ddai, fixture.ds, intstr.FromInt(1))
+	require.NoError(t, err)
+	assert.Equal(t, time.Second, result.RequeueAfter)
+	updated := &corev1.Pod{}
+	require.NoError(t, base.Get(context.Background(), client.ObjectKeyFromObject(fixture.replacement), updated))
+	assert.Empty(t, updated.Annotations[resourceFallbackOldPodAnnotation], "an ineligible replacement must stop consuming rollout budget")
+	assertOldPodStillExists(t, base, fixture.old)
+}
+
+func TestReconcilePreparedHandoffReleasesReservationAboveReducedBudget(t *testing.T) {
+	fixture := newPreparedHandoffFixture(t)
+	fixture.old.Spec.NodeName = "node-a"
+	fixture.replacement.Spec.NodeName = "node-a"
+	fixture.replacement.Annotations = map[string]string{resourceFallbackOldPodAnnotation: string(fixture.old.UID)}
+
+	oldB := fixture.old.DeepCopy()
+	oldB.Name = "old-b"
+	oldB.UID = "old-b-uid"
+	oldB.Spec.NodeName = "node-b"
+	replacementB := fixture.replacement.DeepCopy()
+	replacementB.Name = "new-b"
+	replacementB.UID = "new-b-uid"
+	replacementB.Spec.NodeName = "node-b"
+	replacementB.Annotations = map[string]string{resourceFallbackOldPodAnnotation: string(oldB.UID)}
+
+	base := fixture.client(t, true, true, true)
+	require.NoError(t, base.Create(context.Background(), oldB))
+	require.NoError(t, base.Create(context.Background(), replacementB))
+	r := &Reconciler{client: base, apiReader: base}
+
+	result, err := r.reconcilePreparedHandoff(context.Background(), fixture.ddai, fixture.ds, intstr.FromInt(1))
+	require.NoError(t, err)
+	assert.Equal(t, time.Second, result.RequeueAfter)
+	updated := &corev1.Pod{}
+	require.NoError(t, base.Get(context.Background(), client.ObjectKeyFromObject(replacementB), updated))
+	assert.Empty(t, updated.Annotations[resourceFallbackOldPodAnnotation], "one reservation must be released when the budget is reduced")
+	assertOldPodStillExists(t, base, fixture.old)
+	assertOldPodStillExists(t, base, oldB)
+}
+
+func TestReconcilePreparedHandoffFailsClosed(t *testing.T) {
+	t.Run("API reader error", func(t *testing.T) {
+		fixture := newPreparedHandoffFixture(t)
+		base := fixture.client(t, true, true, true)
+		reader := interceptor.NewClient(base, interceptor.Funcs{
+			Get: func(context.Context, client.WithWatch, client.ObjectKey, client.Object, ...client.GetOption) error {
+				return errors.New("read failed")
+			},
+		})
+		r := &Reconciler{client: base, apiReader: reader}
+		_, err := r.reconcilePreparedHandoff(context.Background(), fixture.ddai, fixture.ds, intstr.FromInt(1))
+		require.ErrorContains(t, err, "read failed")
+	})
+
+	t.Run("foreign DaemonSet", func(t *testing.T) {
+		fixture := newPreparedHandoffFixture(t)
+		fixture.ds.OwnerReferences[0].UID = "other-ddai"
+		base := fixture.client(t, true, true, true)
+		r := &Reconciler{client: base, apiReader: base}
+		result, err := r.reconcilePreparedHandoff(context.Background(), fixture.ddai, fixture.ds, intstr.FromInt(1))
+		require.NoError(t, err)
+		assert.Equal(t, reconcile.Result{}, result)
+		assertOldPodStillExists(t, base, fixture.old)
+	})
+
+	t.Run("missing current revision", func(t *testing.T) {
+		fixture := newPreparedHandoffFixture(t)
+		base := fixture.client(t, false, true, true)
+		r := &Reconciler{client: base, apiReader: base}
+		result, err := r.reconcilePreparedHandoff(context.Background(), fixture.ddai, fixture.ds, intstr.FromInt(1))
+		require.NoError(t, err)
+		assert.Equal(t, reconcile.Result{}, result)
+		assertOldPodStillExists(t, base, fixture.old)
+	})
+
+	t.Run("revision list error", func(t *testing.T) {
+		fixture := newPreparedHandoffFixture(t)
+		base := fixture.client(t, true, true, true)
+		reader := interceptor.NewClient(base, interceptor.Funcs{
+			List: func(ctx context.Context, c client.WithWatch, list client.ObjectList, opts ...client.ListOption) error {
+				if _, ok := list.(*appsv1.ControllerRevisionList); ok {
+					return errors.New("revision list failed")
+				}
+				return c.List(ctx, list, opts...)
+			},
+		})
+		r := &Reconciler{client: base, apiReader: reader}
+		_, err := r.reconcilePreparedHandoff(context.Background(), fixture.ddai, fixture.ds, intstr.FromInt(1))
+		require.ErrorContains(t, err, "revision list failed")
+		assertOldPodStillExists(t, base, fixture.old)
+	})
+
+	t.Run("Pod list error", func(t *testing.T) {
+		fixture := newPreparedHandoffFixture(t)
+		base := fixture.client(t, true, true, true)
+		reader := interceptor.NewClient(base, interceptor.Funcs{
+			List: func(ctx context.Context, c client.WithWatch, list client.ObjectList, opts ...client.ListOption) error {
+				if _, ok := list.(*corev1.PodList); ok {
+					return errors.New("Pod list failed")
+				}
+				return c.List(ctx, list, opts...)
+			},
+		})
+		r := &Reconciler{client: base, apiReader: reader}
+		_, err := r.reconcilePreparedHandoff(context.Background(), fixture.ddai, fixture.ds, intstr.FromInt(1))
+		require.ErrorContains(t, err, "Pod list failed")
+		assertOldPodStillExists(t, base, fixture.old)
+	})
+
+	t.Run("invalid budget", func(t *testing.T) {
+		fixture := newPreparedHandoffFixture(t)
+		base := fixture.client(t, true, true, true)
+		r := &Reconciler{client: base, apiReader: base}
+		_, err := r.reconcilePreparedHandoff(context.Background(), fixture.ddai, fixture.ds, intstr.FromString("invalid"))
+		require.Error(t, err)
+		assertOldPodStillExists(t, base, fixture.old)
+	})
+
+	t.Run("budget already consumed", func(t *testing.T) {
+		fixture := newPreparedHandoffFixture(t)
+		fixture.ds.Status.NumberUnavailable = 1
+		base := fixture.client(t, true, true, true)
+		r := &Reconciler{client: base, apiReader: base}
+		result, err := r.reconcilePreparedHandoff(context.Background(), fixture.ddai, fixture.ds, intstr.FromInt(1))
+		require.NoError(t, err)
+		assert.Equal(t, reconcile.Result{}, result)
+		assertOldPodStillExists(t, base, fixture.old)
+	})
+
+	t.Run("mismatched reservation", func(t *testing.T) {
+		fixture := newPreparedHandoffFixture(t)
+		fixture.replacement.Annotations = map[string]string{resourceFallbackOldPodAnnotation: "another-old-pod"}
+		base := fixture.client(t, true, true, true)
+		r := &Reconciler{client: base, apiReader: base}
+		result, err := r.reconcilePreparedHandoff(context.Background(), fixture.ddai, fixture.ds, intstr.FromInt(1))
+		require.NoError(t, err)
+		assert.Equal(t, time.Second, result.RequeueAfter)
+		updated := &corev1.Pod{}
+		require.NoError(t, base.Get(context.Background(), client.ObjectKeyFromObject(fixture.replacement), updated))
+		assert.Empty(t, updated.Annotations[resourceFallbackOldPodAnnotation])
+		assertOldPodStillExists(t, base, fixture.old)
+	})
+
+	t.Run("reservation patch error", func(t *testing.T) {
+		fixture := newPreparedHandoffFixture(t)
+		base := fixture.client(t, true, true, true)
+		writer := interceptor.NewClient(base, interceptor.Funcs{
+			Patch: func(context.Context, client.WithWatch, client.Object, client.Patch, ...client.PatchOption) error {
+				return errors.New("patch failed")
+			},
+		})
+		r := &Reconciler{client: writer, apiReader: base}
+		_, err := r.reconcilePreparedHandoff(context.Background(), fixture.ddai, fixture.ds, intstr.FromInt(1))
+		require.ErrorContains(t, err, "reserve prepared Agent handoff")
+		assertOldPodStillExists(t, base, fixture.old)
+	})
+
+	t.Run("old Pod delete error", func(t *testing.T) {
+		fixture := newPreparedHandoffFixture(t)
+		fixture.replacement.Annotations = map[string]string{resourceFallbackOldPodAnnotation: string(fixture.old.UID)}
+		base := fixture.client(t, true, true, true)
+		writer := interceptor.NewClient(base, interceptor.Funcs{
+			Delete: func(context.Context, client.WithWatch, client.Object, ...client.DeleteOption) error {
+				return errors.New("delete failed")
+			},
+		})
+		r := &Reconciler{client: writer, apiReader: base}
+		_, err := r.reconcilePreparedHandoff(context.Background(), fixture.ddai, fixture.ds, intstr.FromInt(2))
+		require.ErrorContains(t, err, "delete old Agent Pod")
+		assertOldPodStillExists(t, base, fixture.old)
+	})
+}
+
+func TestRevalidatePreparedHandoffRejectsStaleState(t *testing.T) {
+	t.Run("API reader error", func(t *testing.T) {
+		fixture := newPreparedHandoffFixture(t)
+		base := fixture.client(t, true, true, true)
+		reader := interceptor.NewClient(base, interceptor.Funcs{
+			Get: func(context.Context, client.WithWatch, client.ObjectKey, client.Object, ...client.GetOption) error {
+				return errors.New("read failed")
+			},
+		})
+		r := &Reconciler{apiReader: reader}
+		candidate := fixture.candidate(true)
+		got, err := r.revalidatePreparedHandoff(context.Background(), fixture.ds, candidate, "new-revision")
+		require.ErrorContains(t, err, "read failed")
+		assert.Nil(t, got)
+	})
+
+	tests := []struct {
+		name               string
+		mutateExpected     func(*appsv1.DaemonSet)
+		mutateCandidate    func(*preparedHandoffCandidate)
+		mutateObjects      func(*preparedHandoffFixture)
+		includeReplacement bool
+		includeOld         bool
+		expectedRevision   string
+	}{
+		{name: "DaemonSet UID changed", mutateExpected: func(ds *appsv1.DaemonSet) { ds.UID = "stale-daemonset" }, includeReplacement: true, includeOld: true, expectedRevision: "new-revision"},
+		{name: "revision changed", includeReplacement: true, includeOld: true, expectedRevision: "other-revision"},
+		{name: "replacement disappeared", includeOld: true, expectedRevision: "new-revision"},
+		{name: "old Pod disappeared", includeReplacement: true, expectedRevision: "new-revision"},
+		{name: "replacement UID changed", mutateCandidate: func(candidate *preparedHandoffCandidate) { candidate.replacement.UID = "stale-replacement" }, includeReplacement: true, includeOld: true, expectedRevision: "new-revision"},
+		{name: "reservation changed", mutateObjects: func(fixture *preparedHandoffFixture) {
+			fixture.replacement.Annotations = map[string]string{resourceFallbackOldPodAnnotation: "different-old-pod"}
+		}, includeReplacement: true, includeOld: true, expectedRevision: "new-revision"},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			fixture := newPreparedHandoffFixture(t)
+			fixture.replacement.Annotations = map[string]string{resourceFallbackOldPodAnnotation: string(fixture.old.UID)}
+			if test.mutateObjects != nil {
+				test.mutateObjects(fixture)
+			}
+			base := fixture.client(t, true, test.includeReplacement, test.includeOld)
+			r := &Reconciler{apiReader: base}
+			expected := fixture.ds.DeepCopy()
+			if test.mutateExpected != nil {
+				test.mutateExpected(expected)
+			}
+			candidate := fixture.candidate(true)
+			if test.mutateCandidate != nil {
+				test.mutateCandidate(&candidate)
+			}
+			got, err := r.revalidatePreparedHandoff(context.Background(), expected, candidate, test.expectedRevision)
+			require.NoError(t, err)
+			assert.Nil(t, got)
+		})
+	}
+}
+
+type preparedHandoffFixture struct {
+	scheme      *runtime.Scheme
+	ddai        *datadoghqv1alpha1.DatadogAgentInternal
+	ds          *appsv1.DaemonSet
+	old         *corev1.Pod
+	replacement *corev1.Pod
+	revision    *appsv1.ControllerRevision
+}
+
+func newPreparedHandoffFixture(t *testing.T) *preparedHandoffFixture {
+	t.Helper()
+	scheme := runtime.NewScheme()
+	require.NoError(t, corev1.AddToScheme(scheme))
+	require.NoError(t, appsv1.AddToScheme(scheme))
+	require.NoError(t, datadoghqv1alpha1.AddToScheme(scheme))
+
+	ddai := &datadoghqv1alpha1.DatadogAgentInternal{ObjectMeta: metav1.ObjectMeta{
+		Name: "agent", Namespace: "datadog-agent", UID: "ddai-uid", Annotations: map[string]string{preparedRolloutAnnotation: "true"},
+	}}
+	ds := preparedRolloutDaemonSet()
+	ds.UID = "daemonset-uid"
+	ds.Generation = 2
+	ds.OwnerReferences = []metav1.OwnerReference{{
+		APIVersion: datadoghqv1alpha1.GroupVersion.String(), Kind: "DatadogAgentInternal", Name: ddai.Name, UID: ddai.UID, Controller: ptr.To(true),
+	}}
+	require.NoError(t, prepareAgentTemplate(ds, preparedRolloutPhaseStandby))
+	require.True(t, configureResourceFallback(ds, intstr.FromInt(1)))
+	ds.Status = appsv1.DaemonSetStatus{ObservedGeneration: 2, DesiredNumberScheduled: 1}
+
+	old := readyPod("old", "old-uid", "node-a", "old-revision", time.Now().Add(-time.Minute))
+	old.Namespace = ds.Namespace
+	old.Labels["app"] = "agent"
+	old.OwnerReferences = []metav1.OwnerReference{daemonSetOwner(ds)}
+	replacement := preparedReplacementPod()
+	replacement.ObjectMeta = metav1.ObjectMeta{
+		Name: "new", Namespace: ds.Namespace, UID: "new-uid",
+		Labels:          map[string]string{"app": "agent", appsv1.DefaultDaemonSetUniqueLabelKey: "new-revision"},
+		OwnerReferences: []metav1.OwnerReference{daemonSetOwner(ds)},
+	}
+	replacement.Spec.NodeName = "node-a"
+
+	return &preparedHandoffFixture{
+		scheme: scheme, ddai: ddai, ds: ds, old: old, replacement: replacement,
+		revision: controllerRevisionForTemplate(t, ds, "new-revision"),
+	}
+}
+
+func (f *preparedHandoffFixture) client(t *testing.T, includeRevision, includeReplacement, includeOld bool) client.WithWatch {
+	t.Helper()
+	objects := []client.Object{f.ddai, f.ds}
+	if includeRevision {
+		objects = append(objects, f.revision)
+	}
+	if includeReplacement {
+		objects = append(objects, f.replacement)
+	}
+	if includeOld {
+		objects = append(objects, f.old)
+	}
+	return fake.NewClientBuilder().WithScheme(f.scheme).WithObjects(objects...).Build()
+}
+
+func (f *preparedHandoffFixture) candidate(reserved bool) preparedHandoffCandidate {
+	return preparedHandoffCandidate{replacement: f.replacement.DeepCopy(), old: f.old.DeepCopy(), nodeName: "node-a", reserved: reserved}
+}
+
+func assertOldPodStillExists(t *testing.T, c client.Client, old *corev1.Pod) {
+	t.Helper()
+	require.NoError(t, c.Get(context.Background(), client.ObjectKeyFromObject(old), &corev1.Pod{}))
 }
 
 func preparedReplacementPod() *corev1.Pod {
