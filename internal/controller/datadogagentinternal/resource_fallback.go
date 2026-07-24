@@ -6,7 +6,6 @@ package datadogagentinternal
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"slices"
 	"sort"
@@ -21,7 +20,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	resourcehelper "k8s.io/component-helpers/resource"
 	"k8s.io/component-helpers/scheduling/corev1/nodeaffinity"
@@ -29,131 +27,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	datadoghqcommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
-	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	componentagent "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
-	"github.com/DataDog/datadog-operator/pkg/constants"
 )
 
-const (
-	resourceFallbackOldPodAnnotation = "agent.datadoghq.com/resource-fallback-old-pod-uid"
-	apiPodNodeNameField              = "spec.nodeName"
-	defaultFallbackMaxUnavailable    = 1
-)
-
-// configureResourceFallback keeps surge opt-in. When it is requested, the
-// existing maxUnavailable setting becomes both the surge limit and the
-// Operator's resource-pressure fallback budget. The emitted maxUnavailable is
-// intentionally 0 so the native DaemonSet controller never proactively
-// deletes an old Pod; only the resource-proven fallback below may do that.
-func configureResourceFallback(ds *appsv1.DaemonSet, budget intstr.IntOrString) bool {
-	strategy := &ds.Spec.UpdateStrategy
-	if strategy.Type != "" && strategy.Type != appsv1.RollingUpdateDaemonSetStrategyType {
-		return false
-	}
-	if strategy.RollingUpdate == nil || !positiveIntOrPercent(strategy.RollingUpdate.MaxSurge) {
-		return false
-	}
-	if _, err := intstr.GetScaledValueFromIntOrPercent(&budget, 100, true); err != nil {
-		return false
-	}
-
-	strategy.Type = appsv1.RollingUpdateDaemonSetStrategyType
-	zero := intstr.FromInt(0)
-	strategy.RollingUpdate.MaxUnavailable = &zero
-	if positiveIntOrPercent(&budget) {
-		surge := budget
-		strategy.RollingUpdate.MaxSurge = &surge
-		return true
-	}
-	return false
-}
-
-// prepareProfileAntiAffinityForSurge narrows the standard DAP anti-affinity so
-// only old and new revisions of the same profile and DDA may overlap. Unknown
-// or user-supplied anti-affinity fails closed.
-func prepareProfileAntiAffinityForSurge(template *corev1.PodTemplateSpec) bool {
-	if template.Spec.Affinity == nil || template.Spec.Affinity.PodAntiAffinity == nil {
-		return true
-	}
-	if !apiequality.Semantic.DeepEqual(template.Spec.Affinity.PodAntiAffinity, broadAgentPodAntiAffinity()) {
-		return false
-	}
-	narrowed, ok := profileSurgePodAntiAffinity(template.Labels)
-	if !ok {
-		return false
-	}
-	template.Spec.Affinity.PodAntiAffinity = narrowed
-	return true
-}
-
-func broadAgentPodAntiAffinity() *corev1.PodAntiAffinity {
-	return &corev1.PodAntiAffinity{RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{{
-		LabelSelector: &metav1.LabelSelector{MatchExpressions: []metav1.LabelSelectorRequirement{{
-			Key:      datadoghqcommon.AgentDeploymentComponentLabelKey,
-			Operator: metav1.LabelSelectorOpIn,
-			Values:   []string{constants.DefaultAgentResourceSuffix},
-		}}},
-		TopologyKey: corev1.LabelHostname,
-	}}}
-}
-
-func profileSurgePodAntiAffinity(podLabels map[string]string) (*corev1.PodAntiAffinity, bool) {
-	ddaName := podLabels[datadoghqcommon.AgentDeploymentNameLabelKey]
-	if ddaName == "" {
-		return nil, false
-	}
-
-	profileRequirement := metav1.LabelSelectorRequirement{Key: constants.ProfileLabelKey}
-	if profileName := podLabels[constants.ProfileLabelKey]; profileName != "" {
-		profileRequirement.Operator = metav1.LabelSelectorOpNotIn
-		profileRequirement.Values = []string{profileName}
-	} else {
-		profileRequirement.Operator = metav1.LabelSelectorOpExists
-	}
-	componentRequirement := metav1.LabelSelectorRequirement{
-		Key:      datadoghqcommon.AgentDeploymentComponentLabelKey,
-		Operator: metav1.LabelSelectorOpIn,
-		Values:   []string{constants.DefaultAgentResourceSuffix},
-	}
-
-	return &corev1.PodAntiAffinity{RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
-		{
-			LabelSelector: &metav1.LabelSelector{MatchExpressions: []metav1.LabelSelectorRequirement{
-				componentRequirement,
-				{Key: datadoghqcommon.AgentDeploymentNameLabelKey, Operator: metav1.LabelSelectorOpIn, Values: []string{ddaName}},
-				profileRequirement,
-			}},
-			TopologyKey: corev1.LabelHostname,
-		},
-		{
-			LabelSelector: &metav1.LabelSelector{MatchExpressions: []metav1.LabelSelectorRequirement{
-				componentRequirement,
-				{Key: datadoghqcommon.AgentDeploymentNameLabelKey, Operator: metav1.LabelSelectorOpNotIn, Values: []string{ddaName}},
-			}},
-			TopologyKey: corev1.LabelHostname,
-		},
-	}}, true
-}
-
-func positiveIntOrPercent(value *intstr.IntOrString) bool {
-	if value == nil {
-		return false
-	}
-	scaled, err := intstr.GetScaledValueFromIntOrPercent(value, 100, true)
-	return err == nil && scaled > 0
-}
-
-func resourceFallbackBudget(ddai *datadoghqv1alpha1.DatadogAgentInternal, options *componentagent.ExtendedDaemonsetOptions) intstr.IntOrString {
-	if override, ok := ddai.Spec.Override[datadoghqv2alpha1.NodeAgentComponentName]; ok && override != nil && override.UpdateStrategy != nil && override.UpdateStrategy.RollingUpdate != nil && override.UpdateStrategy.RollingUpdate.MaxUnavailable != nil {
-		return *override.UpdateStrategy.RollingUpdate.MaxUnavailable
-	}
-	if options != nil && options.MaxPodUnavailable != "" {
-		return intstr.Parse(options.MaxPodUnavailable)
-	}
-	return intstr.FromInt(defaultFallbackMaxUnavailable)
-}
+const resourceFallbackOldPodAnnotation = "agent.datadoghq.com/resource-fallback-old-pod-uid"
 
 type resourceShortage struct {
 	cpu    bool
@@ -168,65 +45,55 @@ type fallbackCandidate struct {
 	reserved bool
 }
 
+// reconcileResourceFallback breaks the maxSurge capacity deadlock only when
+// the scheduler reports CPU and/or memory as the sole target-node blocker and
+// removing the exact old Agent Pod is sufficient to make the replacement fit.
+// The original maxUnavailable value is reused as the deletion budget.
 func (r *Reconciler) reconcileResourceFallback(ctx context.Context, ddai *datadoghqv1alpha1.DatadogAgentInternal, expectedDS *appsv1.DaemonSet, budgetValue intstr.IntOrString) (reconcile.Result, error) {
 	reader := r.apiReader
 	if reader == nil {
 		reader = r.client
 	}
-
 	ds := &appsv1.DaemonSet{}
-	key := client.ObjectKeyFromObject(expectedDS)
-	if err := reader.Get(ctx, key, ds); err != nil {
-		if apierrors.IsNotFound(err) {
-			return reconcile.Result{}, nil
-		}
-		return reconcile.Result{}, fmt.Errorf("get Agent DaemonSet for resource fallback: %w", err)
+	if err := reader.Get(ctx, client.ObjectKeyFromObject(expectedDS), ds); err != nil {
+		return reconcile.Result{}, client.IgnoreNotFound(err)
 	}
-	if !daemonSetControlledByDDAI(ds, ddai) || !resourceFallbackDaemonSetEligible(ds) {
+	if !daemonSetControlledByDDAI(ds, ddai) || !preparedRolloutDaemonSetEligible(ds) || !hasRolloutMode(ds.Spec.Template.Annotations) {
 		return reconcile.Result{}, nil
 	}
-
-	desired := int(ds.Status.DesiredNumberScheduled)
-	budget, err := intstr.GetScaledValueFromIntOrPercent(&budgetValue, desired, true)
+	budget, err := intstr.GetScaledValueFromIntOrPercent(&budgetValue, int(ds.Status.DesiredNumberScheduled), true)
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("resolve Agent resource fallback budget: %w", err)
 	}
 	if budget <= 0 {
 		return reconcile.Result{}, nil
 	}
-
-	currentRevision, err := currentDaemonSetRevision(ctx, reader, ds)
-	if err != nil {
+	revision, err := currentDaemonSetRevision(ctx, reader, ds)
+	if err != nil || revision == "" {
 		return reconcile.Result{}, err
 	}
-	if currentRevision == "" {
-		return reconcile.Result{}, nil
-	}
-
 	pods, err := daemonSetPods(ctx, reader, ds)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
-	consumed := consumedFallbackBudget(ds, pods, currentRevision, time.Now())
-	candidates := fallbackCandidates(ds, pods, currentRevision, time.Now())
+	consumed := consumedResourceFallbackBudget(ds, pods, revision, time.Now())
 	if consumed > budget {
 		return reconcile.Result{}, nil
 	}
 
-	for _, candidate := range candidates {
+	for _, candidate := range fallbackCandidates(ds, pods, revision, time.Now()) {
 		if !candidate.reserved && consumed >= budget {
 			break
 		}
-
 		if !candidate.reserved {
-			liveCandidate, err := r.revalidateFallbackCandidate(ctx, reader, ds, candidate, currentRevision, false)
+			live, err := r.revalidateFallbackCandidate(ctx, reader, ds, candidate, revision, false)
 			if err != nil {
 				return reconcile.Result{}, err
 			}
-			if liveCandidate == nil {
+			if live == nil {
 				continue
 			}
-			candidate = *liveCandidate
+			candidate = *live
 			base := candidate.pending.DeepCopy()
 			patched := candidate.pending.DeepCopy()
 			if patched.Annotations == nil {
@@ -238,176 +105,71 @@ func (r *Reconciler) reconcileResourceFallback(ctx context.Context, ddai *datado
 			}
 			candidate.pending = patched
 			candidate.reserved = true
-			consumed++
 		}
 
-		liveCandidate, err := r.revalidateFallbackCandidate(ctx, reader, ds, candidate, currentRevision, true)
+		live, err := r.revalidateFallbackCandidate(ctx, reader, ds, candidate, revision, true)
 		if err != nil {
 			return reconcile.Result{}, err
 		}
-		if liveCandidate == nil {
+		if live == nil {
 			continue
 		}
-		withinBudget, err := fallbackBudgetWithinLimit(ctx, reader, ds, budgetValue, currentRevision)
+		withinBudget, err := resourceFallbackBudgetWithinLimit(ctx, reader, ds, budgetValue, revision)
 		if err != nil {
 			return reconcile.Result{}, err
 		}
 		if !withinBudget {
 			return reconcile.Result{RequeueAfter: time.Second}, nil
 		}
-
-		uid := liveCandidate.old.UID
-		if err := r.client.Delete(ctx, liveCandidate.old, &client.DeleteOptions{Preconditions: &metav1.Preconditions{UID: &uid}}); err != nil && !apierrors.IsNotFound(err) {
-			return reconcile.Result{}, fmt.Errorf("delete old Agent Pod %s/%s for resource fallback: %w", liveCandidate.old.Namespace, liveCandidate.old.Name, err)
+		uid := live.old.UID
+		if err := r.client.Delete(ctx, live.old, &client.DeleteOptions{Preconditions: &metav1.Preconditions{UID: &uid}}); err != nil && !apierrors.IsNotFound(err) {
+			return reconcile.Result{}, fmt.Errorf("delete old Agent Pod %s/%s for resource fallback: %w", live.old.Namespace, live.old.Name, err)
 		}
-
-		logger := ctrl.LoggerFrom(ctx).WithValues("daemonset", ds.Name, "node", liveCandidate.nodeName, "oldPod", liveCandidate.old.Name, "replacementPod", liveCandidate.pending.Name)
-		logger.Info("Deleted old Agent Pod after proving the surged replacement was blocked only by node CPU or memory")
+		ctrl.LoggerFrom(ctx).WithValues("daemonset", ds.Name, "node", live.nodeName, "oldPod", live.old.Name, "replacementPod", live.pending.Name).Info("Deleted old Agent Pod after proving the surged replacement was blocked only by node CPU or memory")
 		if r.recorder != nil {
-			r.recorder.Eventf(ddai, corev1.EventTypeWarning, "AgentResourceFallback", "Deleted old Agent Pod %s on node %s because replacement %s could not fit alongside it", liveCandidate.old.Name, liveCandidate.nodeName, liveCandidate.pending.Name)
+			r.recorder.Eventf(ddai, corev1.EventTypeWarning, "AgentResourceFallback", "Deleted old Agent Pod %s on node %s because replacement %s could not fit alongside it", live.old.Name, live.nodeName, live.pending.Name)
 		}
 		return reconcile.Result{RequeueAfter: time.Second}, nil
 	}
-
 	return reconcile.Result{}, nil
 }
 
-func fallbackBudgetWithinLimit(ctx context.Context, reader client.Reader, expectedDS *appsv1.DaemonSet, budgetValue intstr.IntOrString, expectedRevision string) (bool, error) {
-	liveDS := &appsv1.DaemonSet{}
-	if err := reader.Get(ctx, client.ObjectKeyFromObject(expectedDS), liveDS); err != nil {
-		return false, client.IgnoreNotFound(err)
-	}
-	if liveDS.UID != expectedDS.UID || liveDS.Generation != expectedDS.Generation || !resourceFallbackDaemonSetEligible(liveDS) {
-		return false, nil
-	}
-	revision, err := currentDaemonSetRevision(ctx, reader, liveDS)
-	if err != nil || revision != expectedRevision {
-		return false, err
-	}
-	pods, err := daemonSetPods(ctx, reader, liveDS)
-	if err != nil {
-		return false, err
-	}
-	budget, err := intstr.GetScaledValueFromIntOrPercent(&budgetValue, int(liveDS.Status.DesiredNumberScheduled), true)
-	if err != nil || budget <= 0 {
-		return false, err
-	}
-	return consumedFallbackBudget(liveDS, pods, revision, time.Now()) <= budget, nil
-}
-
-func daemonSetControlledByDDAI(ds *appsv1.DaemonSet, ddai *datadoghqv1alpha1.DatadogAgentInternal) bool {
-	owner := metav1.GetControllerOf(ds)
-	return owner != nil && owner.APIVersion == datadoghqv1alpha1.GroupVersion.String() && owner.Kind == "DatadogAgentInternal" && owner.UID == ddai.UID
-}
-
-func resourceFallbackDaemonSetEligible(ds *appsv1.DaemonSet) bool {
-	if ds.DeletionTimestamp != nil || ds.Status.DesiredNumberScheduled <= 0 || ds.Status.ObservedGeneration != ds.Generation {
-		return false
-	}
-	if ds.Spec.UpdateStrategy.Type != appsv1.RollingUpdateDaemonSetStrategyType || ds.Spec.UpdateStrategy.RollingUpdate == nil || !positiveIntOrPercent(ds.Spec.UpdateStrategy.RollingUpdate.MaxSurge) {
-		return false
-	}
-	return true
-}
-
-func currentDaemonSetRevision(ctx context.Context, reader client.Reader, ds *appsv1.DaemonSet) (string, error) {
-	revisions := &appsv1.ControllerRevisionList{}
-	if err := reader.List(ctx, revisions, client.InNamespace(ds.Namespace)); err != nil {
-		return "", fmt.Errorf("list revisions for Agent DaemonSet %s/%s: %w", ds.Namespace, ds.Name, err)
-	}
-	var current *appsv1.ControllerRevision
-	for i := range revisions.Items {
-		revision := &revisions.Items[i]
-		if !controlledByUID(revision, ds.UID) {
-			continue
-		}
-		matches, err := controllerRevisionMatchesTemplate(revision, &ds.Spec.Template)
-		if err != nil {
-			return "", fmt.Errorf("decode revision %s for Agent DaemonSet %s/%s: %w", revision.Name, ds.Namespace, ds.Name, err)
-		}
-		if matches && (current == nil || revision.Revision > current.Revision) {
-			current = revision
-		}
-	}
-	if current == nil {
-		return "", nil
-	}
-	return current.Labels[appsv1.DefaultDaemonSetUniqueLabelKey], nil
-}
-
-func controllerRevisionMatchesTemplate(revision *appsv1.ControllerRevision, template *corev1.PodTemplateSpec) (bool, error) {
-	var patch struct {
-		Spec struct {
-			Template corev1.PodTemplateSpec `json:"template"`
-		} `json:"spec"`
-	}
-	if err := json.Unmarshal(revision.Data.Raw, &patch); err != nil {
-		return false, err
-	}
-	return apiequality.Semantic.DeepEqual(patch.Spec.Template, *template), nil
-}
-
-func daemonSetPods(ctx context.Context, reader client.Reader, ds *appsv1.DaemonSet) ([]corev1.Pod, error) {
-	selector, err := metav1.LabelSelectorAsSelector(ds.Spec.Selector)
-	if err != nil {
-		return nil, fmt.Errorf("build selector for Agent DaemonSet %s/%s: %w", ds.Namespace, ds.Name, err)
-	}
-	list := &corev1.PodList{}
-	if err := reader.List(ctx, list, client.InNamespace(ds.Namespace), client.MatchingLabelsSelector{Selector: selector}); err != nil {
-		return nil, fmt.Errorf("list Pods for Agent DaemonSet %s/%s: %w", ds.Namespace, ds.Name, err)
-	}
-	result := make([]corev1.Pod, 0, len(list.Items))
-	for i := range list.Items {
-		if controlledByUID(&list.Items[i], ds.UID) {
-			result = append(result, list.Items[i])
-		}
-	}
-	return result, nil
-}
-
-func controlledByUID(obj metav1.Object, uid types.UID) bool {
-	owner := metav1.GetControllerOf(obj)
-	return owner != nil && owner.UID == uid
-}
-
-func fallbackCandidates(ds *appsv1.DaemonSet, pods []corev1.Pod, currentRevision string, now time.Time) []fallbackCandidate {
-	result := make([]fallbackCandidate, 0)
+func fallbackCandidates(ds *appsv1.DaemonSet, pods []corev1.Pod, revision string, now time.Time) []fallbackCandidate {
+	var candidates []fallbackCandidate
 	for i := range pods {
 		pending := &pods[i]
 		shortage, ok := resourceOnlyUnschedulable(pending)
-		if !ok || !resourceFallbackSchedulingShapeSafe(pending) || pending.DeletionTimestamp != nil || pending.Spec.NodeName != "" || pending.Status.NominatedNodeName != "" || pending.Labels[appsv1.DefaultDaemonSetUniqueLabelKey] != currentRevision {
+		if !ok || !resourceFallbackSchedulingShapeSafe(pending) || pending.DeletionTimestamp != nil || pending.Spec.NodeName != "" || pending.Status.NominatedNodeName != "" || pending.Labels[appsv1.DefaultDaemonSetUniqueLabelKey] != revision {
 			continue
 		}
 		nodeName, ok := targetNodeFromDaemonSetAffinity(pending)
 		if !ok {
 			continue
 		}
-
 		var oldPods []*corev1.Pod
 		for j := range pods {
 			old := &pods[j]
 			oldRevision := old.Labels[appsv1.DefaultDaemonSetUniqueLabelKey]
-			if old.Spec.NodeName == nodeName && oldRevision != "" && oldRevision != currentRevision && podAvailable(old, ds.Spec.MinReadySeconds, now) {
+			if old.Spec.NodeName == nodeName && oldRevision != "" && oldRevision != revision && podAvailable(old, ds.Spec.MinReadySeconds, now) {
 				oldPods = append(oldPods, old)
 			}
 		}
 		if len(oldPods) != 1 {
 			continue
 		}
-
 		reservedUID := pending.Annotations[resourceFallbackOldPodAnnotation]
 		if reservedUID != "" && reservedUID != string(oldPods[0].UID) {
 			continue
 		}
-		result = append(result, fallbackCandidate{pending: pending, old: oldPods[0], nodeName: nodeName, shortage: shortage, reserved: reservedUID != ""})
+		candidates = append(candidates, fallbackCandidate{pending: pending, old: oldPods[0], nodeName: nodeName, shortage: shortage, reserved: reservedUID != ""})
 	}
-	sort.Slice(result, func(i, j int) bool {
-		if result[i].reserved != result[j].reserved {
-			return result[i].reserved
+	sort.Slice(candidates, func(i, j int) bool {
+		if candidates[i].reserved != candidates[j].reserved {
+			return candidates[i].reserved
 		}
-		return result[i].nodeName < result[j].nodeName
+		return candidates[i].nodeName < candidates[j].nodeName
 	})
-	return result
+	return candidates
 }
 
 func resourceOnlyUnschedulable(pod *corev1.Pod) (resourceShortage, bool) {
@@ -415,7 +177,6 @@ func resourceOnlyUnschedulable(pod *corev1.Pod) (resourceShortage, bool) {
 	if condition == nil || condition.Status != corev1.ConditionFalse || condition.Reason != corev1.PodReasonUnschedulable {
 		return resourceShortage{}, false
 	}
-
 	primary := condition.Message
 	lower := strings.ToLower(primary)
 	if i := strings.Index(lower, "preemption:"); i >= 0 {
@@ -426,10 +187,6 @@ func resourceOnlyUnschedulable(pod *corev1.Pod) (resourceShortage, bool) {
 		primary = primary[i+len("nodes are available:"):]
 	}
 	primary = strings.TrimSuffix(strings.TrimSpace(primary), ".")
-	if primary == "" {
-		return resourceShortage{}, false
-	}
-
 	var shortage resourceShortage
 	for reason := range strings.SplitSeq(primary, ", ") {
 		fields := strings.Fields(strings.ToLower(strings.TrimSpace(reason)))
@@ -439,15 +196,13 @@ func resourceOnlyUnschedulable(pod *corev1.Pod) (resourceShortage, bool) {
 		if _, err := strconv.Atoi(fields[0]); err != nil {
 			return resourceShortage{}, false
 		}
-		normalized := strings.Join(fields[1:], " ")
-		switch normalized {
+		switch strings.Join(fields[1:], " ") {
 		case "insufficient cpu":
 			shortage.cpu = true
 		case "insufficient memory":
 			shortage.memory = true
 		case "node(s) didn't match pod's node affinity/selector", "node(s) didn't satisfy plugin(s) [nodeaffinity]":
-			// Expected for every non-target node because DaemonSet surge Pods are
-			// pinned through required node affinity.
+			// Expected on non-target nodes for DaemonSet surge Pods.
 		default:
 			return resourceShortage{}, false
 		}
@@ -474,7 +229,7 @@ func targetNodeFromDaemonSetAffinity(pod *corev1.Pod) (string, bool) {
 	}
 	var target string
 	for _, term := range terms {
-		termTarget := ""
+		var termTarget string
 		for _, requirement := range term.MatchFields {
 			if requirement.Key != metav1.ObjectNameField {
 				continue
@@ -484,7 +239,7 @@ func targetNodeFromDaemonSetAffinity(pod *corev1.Pod) (string, bool) {
 			}
 			termTarget = requirement.Values[0]
 		}
-		if termTarget == "" || (target != "" && termTarget != target) {
+		if termTarget == "" || target != "" && termTarget != target {
 			return "", false
 		}
 		target = termTarget
@@ -492,34 +247,31 @@ func targetNodeFromDaemonSetAffinity(pod *corev1.Pod) (string, bool) {
 	return target, target != ""
 }
 
-// resourceFallbackSchedulingShapeSafe rejects Pod-declared constraints whose
-// scheduler failure could be masked by a simultaneous CPU or memory shortage.
-// Cluster-specific plugins configured under the default scheduler name are not
-// visible through the Pod API and must be excluded operationally.
 func resourceFallbackSchedulingShapeSafe(pod *corev1.Pod) bool {
-	if pod.Spec.SchedulerName != "" && pod.Spec.SchedulerName != corev1.DefaultSchedulerName {
-		return false
-	}
-	if pod.Spec.RuntimeClassName != nil || len(pod.Spec.TopologySpreadConstraints) > 0 {
+	if pod.Spec.SchedulerName != "" && pod.Spec.SchedulerName != corev1.DefaultSchedulerName || pod.Spec.RuntimeClassName != nil || len(pod.Spec.TopologySpreadConstraints) > 0 {
 		return false
 	}
 	if pod.Spec.Affinity != nil {
 		if pod.Spec.Affinity.PodAffinity != nil {
 			return false
 		}
-		if pod.Spec.Affinity.PodAntiAffinity != nil && !profileSurgePodAntiAffinitySafe(pod) {
-			return false
+		if pod.Spec.Affinity.PodAntiAffinity != nil {
+			expected, ok := profileSurgePodAntiAffinity(pod.Labels)
+			if !ok || !apiequality.Semantic.DeepEqual(pod.Spec.Affinity.PodAntiAffinity, expected) {
+				return false
+			}
 		}
 	}
-	for _, container := range append(append([]corev1.Container{}, pod.Spec.InitContainers...), pod.Spec.Containers...) {
-		for _, port := range container.Ports {
+	containers := append(append([]corev1.Container{}, pod.Spec.InitContainers...), pod.Spec.Containers...)
+	for i := range containers {
+		for _, port := range containers[i].Ports {
 			if port.HostPort != 0 {
 				return false
 			}
 		}
 	}
-	for _, volume := range pod.Spec.Volumes {
-		source := volume.VolumeSource
+	for i := range pod.Spec.Volumes {
+		source := pod.Spec.Volumes[i].VolumeSource
 		if source.EmptyDir == nil && source.HostPath == nil && source.ConfigMap == nil && source.Secret == nil && source.DownwardAPI == nil && source.Projected == nil {
 			return false
 		}
@@ -527,32 +279,19 @@ func resourceFallbackSchedulingShapeSafe(pod *corev1.Pod) bool {
 	return true
 }
 
-// profileSurgePodAntiAffinitySafe recognizes the exact anti-affinity emitted
-// for DatadogAgentProfiles. It excludes only other profiles, so deleting the
-// old Pod of the same profile cannot reveal a hidden anti-affinity blocker.
-func profileSurgePodAntiAffinitySafe(pod *corev1.Pod) bool {
-	expected, ok := profileSurgePodAntiAffinity(pod.Labels)
-	if !ok {
-		return false
-	}
-	return apiequality.Semantic.DeepEqual(pod.Spec.Affinity.PodAntiAffinity, expected)
-}
-
 func profileSurgePodAntiAffinitySatisfied(pending *corev1.Pod, nodePods []corev1.Pod) (bool, error) {
-	if pending.Spec.Affinity != nil && pending.Spec.Affinity.PodAntiAffinity != nil {
-		if !profileSurgePodAntiAffinitySafe(pending) {
-			return false, nil
+	if pending.Spec.Affinity == nil || pending.Spec.Affinity.PodAntiAffinity == nil {
+		return true, nil
+	}
+	for _, term := range pending.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution {
+		selector, err := metav1.LabelSelectorAsSelector(term.LabelSelector)
+		if err != nil {
+			return false, fmt.Errorf("parse prepared Agent Pod anti-affinity: %w", err)
 		}
-		for _, term := range pending.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution {
-			selector, err := metav1.LabelSelectorAsSelector(term.LabelSelector)
-			if err != nil {
-				return false, fmt.Errorf("parse prepared Agent Pod anti-affinity: %w", err)
-			}
-			for i := range nodePods {
-				pod := &nodePods[i]
-				if pod.Namespace == pending.Namespace && selector.Matches(labels.Set(pod.Labels)) {
-					return false, nil
-				}
+		for i := range nodePods {
+			pod := &nodePods[i]
+			if pod.Namespace == pending.Namespace && selector.Matches(labels.Set(pod.Labels)) {
+				return false, nil
 			}
 		}
 	}
@@ -560,15 +299,11 @@ func profileSurgePodAntiAffinitySatisfied(pending *corev1.Pod, nodePods []corev1
 }
 
 // existingPodsAllowPendingByRequiredAntiAffinity checks the symmetric half of
-// inter-pod anti-affinity: an already scheduled Pod can reject the pending
-// replacement even when the replacement's own terms allow it.
+// inter-pod anti-affinity: a scheduled Pod can reject the pending replacement.
 func existingPodsAllowPendingByRequiredAntiAffinity(pending *corev1.Pod, existingPods []corev1.Pod, targetNodeName string) (bool, error) {
 	for i := range existingPods {
 		existing := &existingPods[i]
-		if existing.Spec.NodeName == "" {
-			continue
-		}
-		if existing.Spec.Affinity == nil || existing.Spec.Affinity.PodAntiAffinity == nil {
+		if existing.Spec.NodeName == "" || existing.Spec.Affinity == nil || existing.Spec.Affinity.PodAntiAffinity == nil {
 			continue
 		}
 		for _, term := range existing.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution {
@@ -576,15 +311,9 @@ func existingPodsAllowPendingByRequiredAntiAffinity(pending *corev1.Pod, existin
 			if err != nil {
 				return false, fmt.Errorf("parse existing Pod %s/%s anti-affinity: %w", existing.Namespace, existing.Name, err)
 			}
-			if !selector.Matches(labels.Set(pending.Labels)) {
+			if !selector.Matches(labels.Set(pending.Labels)) || !affinityTermMaySelectNamespace(&term, existing.Namespace, pending.Namespace) {
 				continue
 			}
-			if !affinityTermMaySelectNamespace(&term, existing.Namespace, pending.Namespace) {
-				continue
-			}
-			// Pods on the target node cover hostname topology. For wider
-			// topologies, conservatively reject because this lightweight check
-			// does not fetch every Node's topology labels.
 			if term.TopologyKey != corev1.LabelHostname || existing.Spec.NodeName == targetNodeName {
 				return false, nil
 			}
@@ -600,18 +329,18 @@ func podAffinityTermSelector(term *corev1.PodAffinityTerm, sourceLabels map[stri
 	}
 	for _, key := range term.MatchLabelKeys {
 		if value, ok := sourceLabels[key]; ok {
-			requirement, err := labels.NewRequirement(key, selection.In, []string{value})
-			if err != nil {
-				return nil, err
+			requirement, reqErr := labels.NewRequirement(key, selection.In, []string{value})
+			if reqErr != nil {
+				return nil, reqErr
 			}
 			selector = selector.Add(*requirement)
 		}
 	}
 	for _, key := range term.MismatchLabelKeys {
 		if value, ok := sourceLabels[key]; ok {
-			requirement, err := labels.NewRequirement(key, selection.NotIn, []string{value})
-			if err != nil {
-				return nil, err
+			requirement, reqErr := labels.NewRequirement(key, selection.NotIn, []string{value})
+			if reqErr != nil {
+				return nil, reqErr
 			}
 			selector = selector.Add(*requirement)
 		}
@@ -620,18 +349,101 @@ func podAffinityTermSelector(term *corev1.PodAffinityTerm, sourceLabels map[stri
 }
 
 func affinityTermMaySelectNamespace(term *corev1.PodAffinityTerm, sourceNamespace, targetNamespace string) bool {
-	if slices.Contains(term.Namespaces, targetNamespace) {
-		return true
-	}
-	// Namespace labels are intentionally not part of the fallback cache. Fail
-	// closed when a namespace selector could include the pending Pod.
-	if term.NamespaceSelector != nil {
+	if slices.Contains(term.Namespaces, targetNamespace) || term.NamespaceSelector != nil {
 		return true
 	}
 	return len(term.Namespaces) == 0 && sourceNamespace == targetNamespace
 }
 
-func consumedFallbackBudget(ds *appsv1.DaemonSet, pods []corev1.Pod, currentRevision string, now time.Time) int {
+func (r *Reconciler) revalidateFallbackCandidate(ctx context.Context, reader client.Reader, expectedDS *appsv1.DaemonSet, candidate fallbackCandidate, revision string, requireReservation bool) (*fallbackCandidate, error) {
+	liveDS := &appsv1.DaemonSet{}
+	if getErr := reader.Get(ctx, client.ObjectKeyFromObject(expectedDS), liveDS); getErr != nil {
+		return nil, client.IgnoreNotFound(getErr)
+	}
+	if liveDS.UID != expectedDS.UID || liveDS.Generation != expectedDS.Generation || !preparedRolloutDaemonSetEligible(liveDS) || !hasRolloutMode(liveDS.Spec.Template.Annotations) {
+		return nil, nil
+	}
+	liveRevision, err := currentDaemonSetRevision(ctx, reader, liveDS)
+	if err != nil || liveRevision != revision {
+		return nil, err
+	}
+	pending := &corev1.Pod{}
+	old := &corev1.Pod{}
+	if getErr := reader.Get(ctx, client.ObjectKeyFromObject(candidate.pending), pending); getErr != nil {
+		return nil, client.IgnoreNotFound(getErr)
+	}
+	if getErr := reader.Get(ctx, client.ObjectKeyFromObject(candidate.old), old); getErr != nil {
+		return nil, client.IgnoreNotFound(getErr)
+	}
+	if pending.UID != candidate.pending.UID || old.UID != candidate.old.UID || !controlledByUID(pending, liveDS.UID) || !controlledByUID(old, liveDS.UID) {
+		return nil, nil
+	}
+	shortage, ok := resourceOnlyUnschedulable(pending)
+	nodeName, targetOK := targetNodeFromDaemonSetAffinity(pending)
+	reservation := pending.Annotations[resourceFallbackOldPodAnnotation]
+	if !ok || !resourceFallbackSchedulingShapeSafe(pending) || !targetOK || nodeName != candidate.nodeName || pending.Spec.NodeName != "" || pending.Status.NominatedNodeName != "" || pending.DeletionTimestamp != nil || pending.Labels[appsv1.DefaultDaemonSetUniqueLabelKey] != revision || requireReservation && reservation != string(old.UID) || reservation != "" && reservation != string(old.UID) {
+		return nil, nil
+	}
+	if old.Spec.NodeName != nodeName || old.Labels[appsv1.DefaultDaemonSetUniqueLabelKey] == "" || old.Labels[appsv1.DefaultDaemonSetUniqueLabelKey] == revision || !podAvailable(old, liveDS.Spec.MinReadySeconds, time.Now()) {
+		return nil, nil
+	}
+	node := &corev1.Node{}
+	if getErr := reader.Get(ctx, client.ObjectKey{Name: nodeName}, node); getErr != nil {
+		return nil, client.IgnoreNotFound(getErr)
+	}
+	if !nodeReadyForResourceFallback(node) || !toleratesBlockingNodeTaints(pending.Spec.Tolerations, node.Spec.Taints) {
+		return nil, nil
+	}
+	matches, err := nodeaffinity.GetRequiredNodeAffinity(pending).Match(node)
+	if err != nil || !matches {
+		return nil, err
+	}
+	nodePods := &corev1.PodList{}
+	if listErr := reader.List(ctx, nodePods, client.MatchingFields{"spec.nodeName": nodeName}); listErr != nil {
+		return nil, fmt.Errorf("list Pods on node %s for Agent resource fallback: %w", nodeName, listErr)
+	}
+	affinitySatisfied, err := profileSurgePodAntiAffinitySatisfied(pending, nodePods.Items)
+	if err != nil || !affinitySatisfied {
+		return nil, err
+	}
+	clusterPods := &corev1.PodList{}
+	if listErr := reader.List(ctx, clusterPods); listErr != nil {
+		return nil, fmt.Errorf("list cluster Pods for Agent anti-affinity fallback safety: %w", listErr)
+	}
+	existingAffinitySatisfied, err := existingPodsAllowPendingByRequiredAntiAffinity(pending, clusterPods.Items, nodeName)
+	if err != nil || !existingAffinitySatisfied {
+		return nil, err
+	}
+	if !resourceFitAfterOldPodRemoval(node, nodePods.Items, pending, old, shortage) {
+		return nil, nil
+	}
+	return &fallbackCandidate{pending: pending, old: old, nodeName: nodeName, shortage: shortage, reserved: reservation != ""}, nil
+}
+
+func resourceFallbackBudgetWithinLimit(ctx context.Context, reader client.Reader, expectedDS *appsv1.DaemonSet, budgetValue intstr.IntOrString, revision string) (bool, error) {
+	liveDS := &appsv1.DaemonSet{}
+	if err := reader.Get(ctx, client.ObjectKeyFromObject(expectedDS), liveDS); err != nil {
+		return false, client.IgnoreNotFound(err)
+	}
+	if liveDS.UID != expectedDS.UID || liveDS.Generation != expectedDS.Generation || !preparedRolloutDaemonSetEligible(liveDS) {
+		return false, nil
+	}
+	liveRevision, err := currentDaemonSetRevision(ctx, reader, liveDS)
+	if err != nil || liveRevision != revision {
+		return false, err
+	}
+	pods, err := daemonSetPods(ctx, reader, liveDS)
+	if err != nil {
+		return false, err
+	}
+	budget, err := intstr.GetScaledValueFromIntOrPercent(&budgetValue, int(liveDS.Status.DesiredNumberScheduled), true)
+	if err != nil || budget <= 0 {
+		return false, err
+	}
+	return consumedResourceFallbackBudget(liveDS, pods, revision, time.Now()) <= budget, nil
+}
+
+func consumedResourceFallbackBudget(ds *appsv1.DaemonSet, pods []corev1.Pod, revision string, now time.Time) int {
 	availableByNode := map[string]bool{}
 	knownNodes := map[string]bool{}
 	for i := range pods {
@@ -653,7 +465,7 @@ func consumedFallbackBudget(ds *appsv1.DaemonSet, pods []corev1.Pod, currentRevi
 	reservedUnavailable := 0
 	for i := range pods {
 		pod := &pods[i]
-		if pod.Labels[appsv1.DefaultDaemonSetUniqueLabelKey] != currentRevision || pod.Annotations[resourceFallbackOldPodAnnotation] == "" || podAvailable(pod, ds.Spec.MinReadySeconds, now) {
+		if pod.Labels[appsv1.DefaultDaemonSetUniqueLabelKey] != revision || pod.Annotations[resourceFallbackOldPodAnnotation] == "" || podAvailable(pod, ds.Spec.MinReadySeconds, now) {
 			continue
 		}
 		nodeName := pod.Spec.NodeName
@@ -672,104 +484,11 @@ func consumedFallbackBudget(ds *appsv1.DaemonSet, pods []corev1.Pod, currentRevi
 			liveUnavailable++
 		}
 	}
-	if missingNodes := int(ds.Status.DesiredNumberScheduled) - len(knownNodes); missingNodes > 0 {
-		liveUnavailable += missingNodes
+	if missing := int(ds.Status.DesiredNumberScheduled) - len(knownNodes); missing > 0 {
+		liveUnavailable += missing
 	}
-
-	statusUnavailable := int(ds.Status.NumberUnavailable)
-	statusBeyondLive := max(0, statusUnavailable-liveUnavailable)
+	statusBeyondLive := max(0, int(ds.Status.NumberUnavailable)-liveUnavailable)
 	return reservations + liveUnavailable - min(liveUnavailable, reservedUnavailable) + statusBeyondLive
-}
-
-func podAvailable(pod *corev1.Pod, minReadySeconds int32, now time.Time) bool {
-	if pod.DeletionTimestamp != nil || pod.Status.Phase != corev1.PodRunning {
-		return false
-	}
-	for i := range pod.Status.Conditions {
-		condition := &pod.Status.Conditions[i]
-		if condition.Type != corev1.PodReady || condition.Status != corev1.ConditionTrue {
-			continue
-		}
-		return minReadySeconds == 0 || !condition.LastTransitionTime.IsZero() && condition.LastTransitionTime.Add(time.Duration(minReadySeconds)*time.Second).Before(now)
-	}
-	return false
-}
-
-func (r *Reconciler) revalidateFallbackCandidate(ctx context.Context, reader client.Reader, expectedDS *appsv1.DaemonSet, candidate fallbackCandidate, expectedRevision string, requireReservation bool) (*fallbackCandidate, error) {
-	liveDS := &appsv1.DaemonSet{}
-	if err := reader.Get(ctx, client.ObjectKeyFromObject(expectedDS), liveDS); err != nil {
-		return nil, client.IgnoreNotFound(err)
-	}
-	if liveDS.UID != expectedDS.UID || liveDS.Generation != expectedDS.Generation || !resourceFallbackDaemonSetEligible(liveDS) {
-		return nil, nil
-	}
-	liveRevision, err := currentDaemonSetRevision(ctx, reader, liveDS)
-	if err != nil || liveRevision != expectedRevision {
-		return nil, err
-	}
-
-	pending := &corev1.Pod{}
-	if getErr := reader.Get(ctx, client.ObjectKeyFromObject(candidate.pending), pending); getErr != nil {
-		return nil, client.IgnoreNotFound(getErr)
-	}
-	old := &corev1.Pod{}
-	if getErr := reader.Get(ctx, client.ObjectKeyFromObject(candidate.old), old); getErr != nil {
-		return nil, client.IgnoreNotFound(getErr)
-	}
-	if !controlledByUID(pending, liveDS.UID) || !controlledByUID(old, liveDS.UID) || pending.UID != candidate.pending.UID || old.UID != candidate.old.UID {
-		return nil, nil
-	}
-	shortage, ok := resourceOnlyUnschedulable(pending)
-	nodeName, targetOK := targetNodeFromDaemonSetAffinity(pending)
-	reservation := pending.Annotations[resourceFallbackOldPodAnnotation]
-	if !ok || !resourceFallbackSchedulingShapeSafe(pending) || !targetOK || nodeName != candidate.nodeName || pending.Spec.NodeName != "" || pending.Status.NominatedNodeName != "" || pending.DeletionTimestamp != nil || pending.Labels[appsv1.DefaultDaemonSetUniqueLabelKey] != liveRevision || requireReservation && reservation != string(old.UID) || reservation != "" && reservation != string(old.UID) {
-		return nil, nil
-	}
-	if old.Spec.NodeName != nodeName || old.Labels[appsv1.DefaultDaemonSetUniqueLabelKey] == "" || old.Labels[appsv1.DefaultDaemonSetUniqueLabelKey] == liveRevision || !podAvailable(old, liveDS.Spec.MinReadySeconds, time.Now()) {
-		return nil, nil
-	}
-
-	node := &corev1.Node{}
-	if getErr := reader.Get(ctx, client.ObjectKey{Name: nodeName}, node); getErr != nil {
-		return nil, client.IgnoreNotFound(getErr)
-	}
-	if !nodeReadyForResourceFallback(node) {
-		return nil, nil
-	}
-	if !toleratesBlockingNodeTaints(pending.Spec.Tolerations, node.Spec.Taints) {
-		return nil, nil
-	}
-	matches, err := nodeaffinity.GetRequiredNodeAffinity(pending).Match(node)
-	if err != nil || !matches {
-		return nil, err
-	}
-	nodePods := &corev1.PodList{}
-	if listErr := reader.List(ctx, nodePods, client.MatchingFields{apiPodNodeNameField: nodeName}); listErr != nil {
-		return nil, fmt.Errorf("list Pods on node %s for Agent resource fallback: %w", nodeName, listErr)
-	}
-	affinitySatisfied, err := profileSurgePodAntiAffinitySatisfied(pending, nodePods.Items)
-	if err != nil {
-		return nil, err
-	}
-	if !affinitySatisfied {
-		return nil, nil
-	}
-	clusterPods := &corev1.PodList{}
-	if listErr := reader.List(ctx, clusterPods); listErr != nil {
-		return nil, fmt.Errorf("list cluster Pods for Agent anti-affinity fallback safety: %w", listErr)
-	}
-	existingAffinitySatisfied, err := existingPodsAllowPendingByRequiredAntiAffinity(pending, clusterPods.Items, nodeName)
-	if err != nil {
-		return nil, err
-	}
-	if !existingAffinitySatisfied {
-		return nil, nil
-	}
-	if !resourceFitAfterOldPodRemoval(node, nodePods.Items, pending, old, shortage) {
-		return nil, nil
-	}
-
-	return &fallbackCandidate{pending: pending, old: old, nodeName: nodeName, shortage: shortage, reserved: reservation != ""}, nil
 }
 
 func toleratesBlockingNodeTaints(tolerations []corev1.Toleration, taints []corev1.Taint) bool {
@@ -788,13 +507,8 @@ func toleratesBlockingNodeTaints(tolerations []corev1.Toleration, taints []corev
 			if operator == "" {
 				operator = corev1.TolerationOpEqual
 			}
-			switch operator {
-			case corev1.TolerationOpExists:
-				tolerated = toleration.Key == "" || toleration.Key == taint.Key
-			case corev1.TolerationOpEqual:
-				tolerated = toleration.Key == taint.Key && toleration.Value == taint.Value
-			}
-			if tolerated {
+			if operator == corev1.TolerationOpExists && (toleration.Key == "" || toleration.Key == taint.Key) || operator == corev1.TolerationOpEqual && toleration.Key == taint.Key && toleration.Value == taint.Value {
+				tolerated = true
 				break
 			}
 		}
@@ -810,7 +524,7 @@ func nodeReadyForResourceFallback(node *corev1.Node) bool {
 		return false
 	}
 	ready := false
-	pressureHealthy := map[corev1.NodeConditionType]bool{
+	pressure := map[corev1.NodeConditionType]bool{
 		corev1.NodeMemoryPressure: false,
 		corev1.NodeDiskPressure:   false,
 		corev1.NodePIDPressure:    false,
@@ -824,14 +538,14 @@ func nodeReadyForResourceFallback(node *corev1.Node) bool {
 			if condition.Status != corev1.ConditionFalse {
 				return false
 			}
-			pressureHealthy[condition.Type] = true
+			pressure[condition.Type] = true
 		case corev1.NodeNetworkUnavailable:
 			if condition.Status != corev1.ConditionFalse {
 				return false
 			}
 		}
 	}
-	return ready && pressureHealthy[corev1.NodeMemoryPressure] && pressureHealthy[corev1.NodeDiskPressure] && pressureHealthy[corev1.NodePIDPressure]
+	return ready && pressure[corev1.NodeMemoryPressure] && pressure[corev1.NodeDiskPressure] && pressure[corev1.NodePIDPressure]
 }
 
 func resourceFitAfterOldPodRemoval(node *corev1.Node, nodePods []corev1.Pod, replacement, old *corev1.Pod, shortage resourceShortage) bool {
@@ -840,59 +554,34 @@ func resourceFitAfterOldPodRemoval(node *corev1.Node, nodePods []corev1.Pod, rep
 	}
 	used := corev1.ResourceList{}
 	oldFound := false
-	podCount := int64(0)
 	for i := range nodePods {
 		pod := &nodePods[i]
 		if pod.Status.Phase == corev1.PodSucceeded || pod.Status.Phase == corev1.PodFailed {
 			continue
 		}
-		podCount++
 		addResources(used, schedulerPodRequests(pod))
-		if pod.UID == old.UID {
-			oldFound = true
-		}
+		oldFound = oldFound || pod.UID == old.UID
 	}
 	if !oldFound {
 		return false
 	}
-
-	replacementRequests := schedulerPodRequests(replacement)
-	oldRequests := schedulerPodRequests(old)
 	before := copyResources(used)
-	addResources(before, replacementRequests)
+	addResources(before, schedulerPodRequests(replacement))
 	after := copyResources(used)
-	subtractResources(after, oldRequests)
-	addResources(after, replacementRequests)
-
-	shortageStillPresent := false
-	for _, resourceName := range []corev1.ResourceName{corev1.ResourceCPU, corev1.ResourceMemory} {
-		reported := resourceName == corev1.ResourceCPU && shortage.cpu || resourceName == corev1.ResourceMemory && shortage.memory
-		if !reported {
-			continue
-		}
-		if !resourceExceeds(before, node.Status.Allocatable, resourceName) {
+	subtractResources(after, schedulerPodRequests(old))
+	addResources(after, schedulerPodRequests(replacement))
+	for _, name := range []corev1.ResourceName{corev1.ResourceCPU, corev1.ResourceMemory} {
+		reported := name == corev1.ResourceCPU && shortage.cpu || name == corev1.ResourceMemory && shortage.memory
+		oldRequest := schedulerPodRequests(old)[name]
+		if reported && (!resourceExceeds(before, node.Status.Allocatable, name) || oldRequest.Sign() <= 0) {
 			return false
 		}
-		oldRequest := oldRequests[resourceName]
-		if oldRequest.Sign() <= 0 {
-			return false
-		}
-		shortageStillPresent = true
 	}
-	if !shortageStillPresent || !resourcesFit(after, node.Status.Allocatable) {
-		return false
-	}
-	if allocatablePods, ok := node.Status.Allocatable[corev1.ResourcePods]; ok && podCount > allocatablePods.Value() {
-		return false
-	}
-	return true
+	return resourcesFit(after, node.Status.Allocatable)
 }
 
 func schedulerPodRequests(pod *corev1.Pod) corev1.ResourceList {
-	return resourcehelper.PodRequests(pod, resourcehelper.PodResourcesOptions{
-		UseStatusResources: true,
-		InPlacePodLevelResourcesVerticalScalingEnabled: true,
-	})
+	return resourcehelper.PodRequests(pod, resourcehelper.PodResourcesOptions{UseStatusResources: true, InPlacePodLevelResourcesVerticalScalingEnabled: true})
 }
 
 func copyResources(resources corev1.ResourceList) corev1.ResourceList {

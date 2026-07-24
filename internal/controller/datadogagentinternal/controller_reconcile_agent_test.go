@@ -3,7 +3,6 @@ package datadogagentinternal
 import (
 	"context"
 	"testing"
-	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -11,7 +10,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/utils/ptr"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
@@ -33,29 +31,8 @@ import (
 const defaultProvider = kubernetes.DefaultProvider
 const gkeCosProvider = kubernetes.GKECloudProvider + "-" + kubernetes.GKECosType
 
-func TestReconcileV2AgentRejectsInvalidPreparedRolloutBeforeCreatingDaemonSet(t *testing.T) {
+func TestReconcileV2AgentCreatesPreparedSurgeDaemonSet(t *testing.T) {
 	r, ddai := newPreparedRolloutReconciler(t, false)
-
-	result, err := r.reconcileV2Agent(
-		context.Background(),
-		preparedRolloutRequiredComponents(),
-		nil,
-		ddai,
-		feature.NewResourceManagers(store.NewStore(ddai, nil)),
-		&datadoghqv1alpha1.DatadogAgentInternalStatus{},
-		defaultProvider,
-	)
-
-	require.ErrorContains(t, err, "hostNetwork=true")
-	assert.Zero(t, result.RequeueAfter)
-	daemonSets := &appsv1.DaemonSetList{}
-	require.NoError(t, r.client.List(context.Background(), daemonSets))
-	assert.Empty(t, daemonSets.Items, "an incompatible prepared rollout must fail before creating a DaemonSet")
-}
-
-func TestReconcileV2AgentCreatesArmedPreparedDaemonSet(t *testing.T) {
-	r, ddai := newPreparedRolloutReconciler(t, true)
-	ddai.Annotations[resourceFallbackAnnotation] = "true"
 	status := &datadoghqv1alpha1.DatadogAgentInternalStatus{}
 
 	result, err := r.reconcileV2Agent(
@@ -69,38 +46,13 @@ func TestReconcileV2AgentCreatesArmedPreparedDaemonSet(t *testing.T) {
 	)
 
 	require.NoError(t, err)
-	assert.Equal(t, time.Second, result.RequeueAfter)
+	assert.Zero(t, result.RequeueAfter)
 	daemonSets := &appsv1.DaemonSetList{}
 	require.NoError(t, r.client.List(context.Background(), daemonSets))
 	require.Len(t, daemonSets.Items, 1)
 	ds := &daemonSets.Items[0]
-	assert.Equal(t, preparedRolloutPhaseArm, ds.Spec.Template.Annotations[preparedRolloutPhaseAnnotation])
+	assert.Equal(t, preparedRolloutModeV1, ds.Spec.Template.Annotations[preparedRolloutModeAnnotation])
 	require.NotNil(t, ds.Spec.UpdateStrategy.RollingUpdate)
-	assert.Equal(t, intstr.FromInt(0), *ds.Spec.UpdateStrategy.RollingUpdate.MaxSurge)
-	assert.Equal(t, intstr.FromInt(1), *ds.Spec.UpdateStrategy.RollingUpdate.MaxUnavailable)
-
-	ds.Status = appsv1.DaemonSetStatus{
-		ObservedGeneration:     ds.Generation,
-		DesiredNumberScheduled: 1,
-		UpdatedNumberScheduled: 1,
-		NumberReady:            1,
-		NumberAvailable:        1,
-	}
-	require.NoError(t, r.client.Status().Update(context.Background(), ds))
-
-	result, err = r.reconcileV2Agent(
-		context.Background(),
-		preparedRolloutRequiredComponents(),
-		nil,
-		ddai,
-		feature.NewResourceManagers(store.NewStore(ddai, nil)),
-		status,
-		defaultProvider,
-	)
-	require.NoError(t, err)
-	assert.Zero(t, result.RequeueAfter, "standby without a handoff candidate does not need an extra poll")
-	require.NoError(t, r.client.Get(context.Background(), client.ObjectKeyFromObject(ds), ds))
-	assert.Equal(t, preparedRolloutPhaseStandby, ds.Spec.Template.Annotations[preparedRolloutPhaseAnnotation])
 	assert.Equal(t, intstr.FromInt(1), *ds.Spec.UpdateStrategy.RollingUpdate.MaxSurge)
 	assert.Equal(t, intstr.FromInt(0), *ds.Spec.UpdateStrategy.RollingUpdate.MaxUnavailable)
 }
@@ -115,7 +67,7 @@ func newPreparedRolloutReconciler(t *testing.T, hostNetwork bool) (*Reconciler, 
 	one := intstr.FromInt(1)
 	ddai := pkgtestutils.NewDatadogAgentInternal("datadog-agent", "agent", nil)
 	ddai.UID = "ddai-uid"
-	ddai.Annotations = map[string]string{preparedRolloutAnnotation: "true"}
+	ddai.Annotations = map[string]string{preparedRolloutModeAnnotation: preparedRolloutModeV1}
 	ddai.Spec.Features = &datadoghqv2alpha1.DatadogFeatures{}
 	ddai.Spec.Override = map[datadoghqv2alpha1.ComponentName]*datadoghqv2alpha1.DatadogAgentComponentOverride{
 		datadoghqv2alpha1.NodeAgentComponentName: {

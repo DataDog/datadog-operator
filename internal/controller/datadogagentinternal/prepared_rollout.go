@@ -5,43 +5,29 @@
 package datadogagentinternal
 
 import (
-	"context"
-	"crypto/sha256"
-	"encoding/json"
 	"fmt"
-	"sort"
+	"path"
 	"strings"
-	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 )
 
 const (
-	preparedRolloutAnnotation        = "experimental.agent.datadoghq.com/host-network-surge-prepared"
-	preparedRolloutPhaseAnnotation   = "experimental.agent.datadoghq.com/prepared-rollout-phase"
-	preparedRolloutArmHashAnnotation = "experimental.agent.datadoghq.com/prepared-rollout-arm-hash"
-	resourceFallbackAnnotation       = "experimental.agent.datadoghq.com/resource-fallback"
-	preparedRolloutPhaseArm          = "arm"
-	preparedRolloutPhaseStandby      = "standby"
+	preparedRolloutModeAnnotation = "experimental.agent.datadoghq.com/node-agent-rollout-mode"
+	preparedRolloutModeV1         = "prepared-surge-v1"
 
-	preparedRolloutLockVolume  = "agent-rollout-locks"
 	preparedRolloutStateVolume = "agent-rollout-state"
-	preparedRolloutLockDir     = "/var/run/datadog-agent-rollout"
 	preparedRolloutStateDir    = "/var/run/datadog-agent-rollout-state"
-	preparedRolloutRequeue     = time.Second
 
 	rolloutEnabledEnv   = "DD_EXPERIMENTAL_NODE_AGENT_ROLLOUT_ENABLED"
-	rolloutLockPathEnv  = "DD_EXPERIMENTAL_NODE_AGENT_ROLLOUT_LOCK_PATH"
 	rolloutStatePathEnv = "DD_EXPERIMENTAL_NODE_AGENT_ROLLOUT_STATE_PATH"
+	rolloutPodUIDEnv    = "DD_EXPERIMENTAL_NODE_AGENT_ROLLOUT_POD_UID"
 )
 
 var preparedRolloutContainerNames = []string{
@@ -50,127 +36,69 @@ var preparedRolloutContainerNames = []string{
 }
 
 func preparedRolloutEnabled(ddai *datadoghqv1alpha1.DatadogAgentInternal) bool {
-	return strings.EqualFold(ddai.Annotations[preparedRolloutAnnotation], "true")
+	return ddai != nil && ddai.Annotations[preparedRolloutModeAnnotation] == preparedRolloutModeV1
 }
 
-func resourceFallbackEnabled(ddai *datadoghqv1alpha1.DatadogAgentInternal) bool {
-	return preparedRolloutEnabled(ddai) && strings.EqualFold(ddai.Annotations[resourceFallbackAnnotation], "true")
-}
-
-// configurePreparedRollout installs a restart-safe two-phase protocol. A
-// conventional rollout first arms every old process with the node-local lock.
-// Only an exact, fully available arm revision may transition to standby surge.
-func (r *Reconciler) configurePreparedRollout(ctx context.Context, ddai *datadoghqv1alpha1.DatadogAgentInternal, desired *appsv1.DaemonSet, budget intstr.IntOrString) (string, error) {
+// configurePreparedRollout enables native DaemonSet surge. Profile-managed
+// DaemonSets first need one conventional affinity-only rollout because an old
+// Pod's broad required anti-affinity also rejects an incoming replacement.
+// The returned boolean is true while that prerequisite rollout is in progress.
+func configurePreparedRollout(ddai *datadoghqv1alpha1.DatadogAgentInternal, ds, current *appsv1.DaemonSet, budget intstr.IntOrString) (bool, error) {
 	if !preparedRolloutEnabled(ddai) {
-		return "", nil
+		return false, nil
 	}
 	if !positiveIntOrPercent(&budget) {
-		return "", fmt.Errorf("prepared Agent rollout requires a positive, valid maxUnavailable budget")
+		return false, fmt.Errorf("prepared Agent rollout requires a positive, valid maxUnavailable budget")
 	}
-	if desired.Spec.UpdateStrategy.Type != "" && desired.Spec.UpdateStrategy.Type != appsv1.RollingUpdateDaemonSetStrategyType {
-		return "", fmt.Errorf("prepared Agent rollout requires RollingUpdate strategy")
+	if ds.Spec.UpdateStrategy.Type != "" && ds.Spec.UpdateStrategy.Type != appsv1.RollingUpdateDaemonSetStrategyType {
+		return false, fmt.Errorf("prepared Agent rollout requires RollingUpdate strategy")
 	}
-
-	armed := desired.DeepCopy()
-	if err := prepareAgentTemplate(armed, preparedRolloutPhaseArm); err != nil {
-		return "", err
+	prepared := ds.DeepCopy()
+	if err := prepareAgentTemplate(prepared); err != nil {
+		return false, err
 	}
-	armHash, err := stampPreparedArmHash(&armed.Spec.Template)
-	if err != nil {
-		return "", err
-	}
-	configureArmStrategy(armed, budget)
-
-	live := &appsv1.DaemonSet{}
-	err = r.apiReader.Get(ctx, client.ObjectKeyFromObject(desired), live)
-	if err != nil && !apierrors.IsNotFound(err) {
-		return "", fmt.Errorf("get live Agent DaemonSet for prepared rollout: %w", err)
+	if !configurePreparedSurge(prepared, budget) {
+		return false, fmt.Errorf("prepared Agent rollout requires a positive, valid maxUnavailable budget")
 	}
 
-	phase := preparedRolloutPhaseArm
-	if err == nil {
-		livePhase := live.Spec.Template.Annotations[preparedRolloutPhaseAnnotation]
-		switch livePhase {
-		case preparedRolloutPhaseStandby:
-			// Never oscillate back to arm during a mixed or failed surged rollout.
-			phase = preparedRolloutPhaseStandby
-		case preparedRolloutPhaseArm:
-			if live.Spec.Template.Annotations[preparedRolloutArmHashAnnotation] == armHash && daemonSetArmComplete(live) {
-				phase = preparedRolloutPhaseStandby
+	if current != nil && profileAffinityMigrationPending(current) {
+		migrationTemplate := current.Spec.Template.DeepCopy()
+		if apiequality.Semantic.DeepEqual(migrationTemplate.Spec.Affinity.PodAntiAffinity, broadAgentPodAntiAffinity()) {
+			if !prepareProfileAntiAffinityForSurge(migrationTemplate) {
+				return false, fmt.Errorf("prepared Agent rollout cannot migrate profile anti-affinity")
 			}
 		}
+		ds.Spec.Template = *migrationTemplate
+		configureConventionalMigration(ds, budget)
+		return true, nil
 	}
 
-	if phase == preparedRolloutPhaseArm {
-		*desired = *armed
-		return phase, nil
-	}
-
-	standby := desired.DeepCopy()
-	if err := prepareAgentTemplate(standby, preparedRolloutPhaseStandby); err != nil {
-		return "", err
-	}
-	standby.Spec.Template.Annotations[preparedRolloutArmHashAnnotation] = armHash
-	if !configureResourceFallback(standby, budget) {
-		return "", fmt.Errorf("prepared Agent rollout requires a positive, valid maxUnavailable budget")
-	}
-	*desired = *standby
-	return phase, nil
+	ds.Spec.Template = prepared.Spec.Template
+	ds.Spec.UpdateStrategy = prepared.Spec.UpdateStrategy
+	return false, nil
 }
 
-// requeuePreparedArm keeps polling until the DaemonSet controller reports the
-// fully available arm revision. DaemonSet status-only updates are filtered by
-// the controller watch, so Pod and generation events alone cannot guarantee a
-// final reconcile after status catches up.
-func requeuePreparedArm(result *reconcile.Result, phase string) {
-	if phase == preparedRolloutPhaseArm && (result.RequeueAfter == 0 || preparedRolloutRequeue < result.RequeueAfter) {
-		result.RequeueAfter = preparedRolloutRequeue
+func profileAffinityMigrationPending(current *appsv1.DaemonSet) bool {
+	antiAffinity := current.Spec.Template.Spec.Affinity
+	if antiAffinity == nil || antiAffinity.PodAntiAffinity == nil {
+		return false
 	}
+	if apiequality.Semantic.DeepEqual(antiAffinity.PodAntiAffinity, broadAgentPodAntiAffinity()) {
+		return true
+	}
+	expected, ok := profileSurgePodAntiAffinity(current.Spec.Template.Labels)
+	return ok && apiequality.Semantic.DeepEqual(antiAffinity.PodAntiAffinity, expected) &&
+		!hasRolloutMode(current.Spec.Template.Annotations) && !daemonSetFullyRolledOut(current)
 }
 
-func stampPreparedArmHash(template *corev1.PodTemplateSpec) (string, error) {
-	templateCopy := template.DeepCopy()
-	delete(templateCopy.Annotations, preparedRolloutArmHashAnnotation)
-	serialized, err := json.Marshal(templateCopy)
-	if err != nil {
-		return "", fmt.Errorf("hash prepared Agent arm template: %w", err)
-	}
-	hash := fmt.Sprintf("%x", sha256.Sum256(serialized))
-	if template.Annotations == nil {
-		template.Annotations = map[string]string{}
-	}
-	template.Annotations[preparedRolloutArmHashAnnotation] = hash
-	return hash, nil
-}
-
-func daemonSetArmComplete(ds *appsv1.DaemonSet) bool {
+func daemonSetFullyRolledOut(ds *appsv1.DaemonSet) bool {
 	desired := ds.Status.DesiredNumberScheduled
-	return desired > 0 &&
-		ds.Status.ObservedGeneration == ds.Generation &&
-		ds.Status.UpdatedNumberScheduled == desired &&
-		ds.Status.NumberReady == desired &&
-		ds.Status.NumberAvailable == desired &&
-		ds.Status.NumberUnavailable == 0
+	return desired > 0 && ds.Status.ObservedGeneration == ds.Generation &&
+		ds.Status.UpdatedNumberScheduled == desired && ds.Status.NumberAvailable == desired && ds.Status.NumberUnavailable == 0
 }
 
-func configureArmStrategy(ds *appsv1.DaemonSet, budget intstr.IntOrString) {
-	ds.Spec.UpdateStrategy.Type = appsv1.RollingUpdateDaemonSetStrategyType
-	if ds.Spec.UpdateStrategy.RollingUpdate == nil {
-		ds.Spec.UpdateStrategy.RollingUpdate = &appsv1.RollingUpdateDaemonSet{}
-	}
-	zero := intstr.FromInt(0)
-	ds.Spec.UpdateStrategy.RollingUpdate.MaxSurge = &zero
-	if positiveIntOrPercent(&budget) {
-		value := budget
-		ds.Spec.UpdateStrategy.RollingUpdate.MaxUnavailable = &value
-	}
-}
-
-func prepareAgentTemplate(ds *appsv1.DaemonSet, phase string) error {
+func prepareAgentTemplate(ds *appsv1.DaemonSet) error {
 	spec := &ds.Spec.Template.Spec
-	if !spec.HostNetwork {
-		return fmt.Errorf("prepared Agent rollout requires hostNetwork=true")
-	}
 	if spec.OS != nil && spec.OS.Name != corev1.Linux {
 		return fmt.Errorf("prepared Agent rollout is Linux-only")
 	}
@@ -183,10 +111,12 @@ func prepareAgentTemplate(ds *appsv1.DaemonSet, phase string) error {
 	if !prepareProfileAntiAffinityForSurge(&ds.Spec.Template) {
 		return fmt.Errorf("prepared Agent rollout does not support custom Pod anti-affinity")
 	}
-	if err := addPreparedRolloutVolumes(spec); err != nil {
+	if !spec.HostNetwork && podUsesHostPorts(spec) {
+		return fmt.Errorf("prepared Agent rollout cannot overlap Pod-networked containers that declare hostPort")
+	}
+	if err := addPreparedRolloutStateVolume(spec); err != nil {
 		return err
 	}
-
 	for i := range spec.Containers {
 		container := &spec.Containers[i]
 		if container.Name == string(apicommon.TraceAgentContainerName) {
@@ -203,11 +133,14 @@ func prepareAgentTemplate(ds *appsv1.DaemonSet, phase string) error {
 			container.Command = append([]string(nil), container.Command[traceIndex:]...)
 		}
 		configurePreparedContainer(container)
-		if phase == preparedRolloutPhaseStandby {
+		// With host networking, Kubernetes' scheduler treats declared container
+		// ports as node-local claims. The process can still bind the same host
+		// address after the older Pod exits without these declarations.
+		if spec.HostNetwork {
 			container.Ports = nil
 		}
 	}
-	if phase == preparedRolloutPhaseStandby {
+	if spec.HostNetwork {
 		for i := range spec.InitContainers {
 			spec.InitContainers[i].Ports = nil
 		}
@@ -215,8 +148,26 @@ func prepareAgentTemplate(ds *appsv1.DaemonSet, phase string) error {
 	if ds.Spec.Template.Annotations == nil {
 		ds.Spec.Template.Annotations = map[string]string{}
 	}
-	ds.Spec.Template.Annotations[preparedRolloutPhaseAnnotation] = phase
+	ds.Spec.Template.Annotations[preparedRolloutModeAnnotation] = preparedRolloutModeV1
 	return nil
+}
+
+func podUsesHostPorts(spec *corev1.PodSpec) bool {
+	for i := range spec.InitContainers {
+		for _, port := range spec.InitContainers[i].Ports {
+			if port.HostPort != 0 {
+				return true
+			}
+		}
+	}
+	for i := range spec.Containers {
+		for _, port := range spec.Containers[i].Ports {
+			if port.HostPort != 0 {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func validatePreparedContainers(spec *corev1.PodSpec) error {
@@ -243,7 +194,7 @@ func validatePreparedContainers(spec *corev1.PodSpec) error {
 			return fmt.Errorf("prepared Agent rollout requires the standard agent run command")
 		}
 		for _, mount := range container.VolumeMounts {
-			if mount.Name == preparedRolloutLockVolume || mount.Name == preparedRolloutStateVolume || mount.MountPath == preparedRolloutLockDir || mount.MountPath == preparedRolloutStateDir {
+			if mount.Name == preparedRolloutStateVolume || mountContainsPath(mount.MountPath, preparedRolloutStateDir) {
 				return fmt.Errorf("prepared Agent rollout volume mount on container %q conflicts with a reserved name or path", container.Name)
 			}
 		}
@@ -251,6 +202,7 @@ func validatePreparedContainers(spec *corev1.PodSpec) error {
 	if !seen[string(apicommon.CoreAgentContainerName)] || !seen[string(apicommon.TraceAgentContainerName)] {
 		return fmt.Errorf("prepared Agent rollout requires agent and trace-agent containers")
 	}
+
 	if len(spec.InitContainers) != 2 {
 		return fmt.Errorf("prepared Agent rollout initially supports only init-volume and init-config init containers")
 	}
@@ -271,61 +223,59 @@ func validatePreparedContainers(spec *corev1.PodSpec) error {
 	return nil
 }
 
-func addPreparedRolloutVolumes(spec *corev1.PodSpec) error {
+func mountContainsPath(mountPath, target string) bool {
+	mountPath = path.Clean(mountPath)
+	target = path.Clean(target)
+	return mountPath == "/" || target == mountPath || strings.HasPrefix(target, mountPath+"/")
+}
+
+func addPreparedRolloutStateVolume(spec *corev1.PodSpec) error {
 	for i := range spec.Volumes {
-		if spec.Volumes[i].Name == preparedRolloutLockVolume || spec.Volumes[i].Name == preparedRolloutStateVolume {
-			return fmt.Errorf("prepared Agent rollout volume name %q is reserved", spec.Volumes[i].Name)
+		if spec.Volumes[i].Name == preparedRolloutStateVolume {
+			return fmt.Errorf("prepared Agent rollout volume name %q is reserved", preparedRolloutStateVolume)
 		}
 	}
-	directoryOrCreate := corev1.HostPathDirectoryOrCreate
-	spec.Volumes = append(spec.Volumes,
-		corev1.Volume{
-			Name: preparedRolloutLockVolume,
-			VolumeSource: corev1.VolumeSource{HostPath: &corev1.HostPathVolumeSource{
-				Path: preparedRolloutLockDir,
-				Type: &directoryOrCreate,
-			}},
-		},
-		corev1.Volume{
-			Name:         preparedRolloutStateVolume,
-			VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}},
-		},
-	)
+	spec.Volumes = append(spec.Volumes, corev1.Volume{
+		Name:         preparedRolloutStateVolume,
+		VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}},
+	})
 	return nil
 }
 
 func configurePreparedContainer(container *corev1.Container) {
-	lockPath := preparedRolloutLockDir + "/" + container.Name + ".lock"
 	statePath := preparedRolloutStateDir + "/" + container.Name + ".state"
 	originalLiveness := container.LivenessProbe.DeepCopy()
 	originalReadiness := container.ReadinessProbe.DeepCopy()
 	if originalReadiness == nil {
 		originalReadiness = originalLiveness
 	}
-	setContainerEnv(container, rolloutEnabledEnv, "true")
-	setContainerEnv(container, rolloutLockPathEnv, lockPath)
-	setContainerEnv(container, rolloutStatePathEnv, statePath)
-	container.VolumeMounts = append(container.VolumeMounts,
-		corev1.VolumeMount{Name: preparedRolloutLockVolume, MountPath: preparedRolloutLockDir},
-		corev1.VolumeMount{Name: preparedRolloutStateVolume, MountPath: preparedRolloutStateDir},
-	)
+	setContainerEnv(container, corev1.EnvVar{Name: rolloutEnabledEnv, Value: "true"})
+	setContainerEnv(container, corev1.EnvVar{Name: rolloutStatePathEnv, Value: statePath})
+	setContainerEnv(container, corev1.EnvVar{
+		Name: rolloutPodUIDEnv,
+		ValueFrom: &corev1.EnvVarSource{FieldRef: &corev1.ObjectFieldSelector{
+			APIVersion: "v1",
+			FieldPath:  "metadata.uid",
+		}},
+	})
+	container.VolumeMounts = append(container.VolumeMounts, corev1.VolumeMount{Name: preparedRolloutStateVolume, MountPath: preparedRolloutStateDir})
 	container.StartupProbe = rolloutStateProbe(statePath, "prepared|activating|active", 1, 300)
-	container.LivenessProbe = rolloutHealthProbe(container.Name, statePath, true, originalLiveness)
-	container.ReadinessProbe = rolloutHealthProbe(container.Name, statePath, false, originalReadiness)
+	container.LivenessProbe = rolloutHealthProbe(container.Name, statePath, originalLiveness)
+	container.ReadinessProbe = rolloutHealthProbe(container.Name, statePath, originalReadiness)
 }
 
-func setContainerEnv(container *corev1.Container, name, value string) {
+func setContainerEnv(container *corev1.Container, env corev1.EnvVar) {
 	for i := range container.Env {
-		if container.Env[i].Name == name {
-			container.Env[i] = corev1.EnvVar{Name: name, Value: value}
+		if container.Env[i].Name == env.Name {
+			container.Env[i] = env
 			return
 		}
 	}
-	container.Env = append(container.Env, corev1.EnvVar{Name: name, Value: value})
+	container.Env = append(container.Env, env)
 }
 
 func rolloutStateProbe(path, accepted string, period, failures int32) *corev1.Probe {
-	command := fmt.Sprintf(`case "$(cat %s 2>/dev/null)" in %s) exit 0;; *) exit 1;; esac`, path, accepted)
+	command := rolloutStateReadCommand(path) + fmt.Sprintf(`case "$state" in %s) exit 0;; *) exit 1;; esac`, accepted)
 	return &corev1.Probe{
 		ProbeHandler:     corev1.ProbeHandler{Exec: &corev1.ExecAction{Command: []string{"sh", "-c", command}}},
 		PeriodSeconds:    period,
@@ -334,25 +284,21 @@ func rolloutStateProbe(path, accepted string, period, failures int32) *corev1.Pr
 	}
 }
 
-// rolloutHealthProbe accepts a sleeping Prepared process for liveness, but
-// delegates to the component's real health mechanism after activation. This
-// avoids both overlap false positives and permanently replacing Agent health
-// with a state marker.
-func rolloutHealthProbe(containerName, statePath string, allowWaiting bool, base *corev1.Probe) *corev1.Probe {
-	var activeHealth string
+// rolloutHealthProbe deliberately treats Prepared as ready. That is the
+// contract consumed by native DaemonSet maxSurge: images, init containers and
+// the Agent graph are ready, while data-producing Fx hooks remain stopped.
+func rolloutHealthProbe(containerName, statePath string, base *corev1.Probe) *corev1.Probe {
+	activeHealth := "exit 1"
 	switch containerName {
 	case string(apicommon.CoreAgentContainerName):
 		activeHealth = "exec /opt/datadog-agent/bin/agent/agent health"
 	case string(apicommon.TraceAgentContainerName):
 		activeHealth = "exec 3<>/dev/tcp/127.0.0.1/8126; exec 3>&-; exec 3<&-"
-	default:
-		activeHealth = "exit 1"
 	}
-	waiting := ""
-	if allowWaiting {
-		waiting = "prepared|activating) exit 0;; "
-	}
-	command := fmt.Sprintf(`state="$(cat %s 2>/dev/null)" || exit 1; case "$state" in %sactive) %s;; *) exit 1;; esac`, statePath, waiting, activeHealth)
+	// Prepared may wait indefinitely for the old Pod. Activating must use the
+	// normal liveness failure budget so a hung Fx start is eventually restarted.
+	acceptedWaiting := "prepared) exit 0;; "
+	command := rolloutStateReadCommand(statePath) + fmt.Sprintf(`case "$state" in %sactive) %s;; *) exit 1;; esac`, acceptedWaiting, activeHealth)
 
 	probe := &corev1.Probe{PeriodSeconds: 10, TimeoutSeconds: 1, FailureThreshold: 3}
 	if base != nil {
@@ -362,188 +308,13 @@ func rolloutHealthProbe(containerName, statePath string, allowWaiting bool, base
 	return probe
 }
 
-type preparedHandoffCandidate struct {
-	replacement *corev1.Pod
-	old         *corev1.Pod
-	nodeName    string
-	reserved    bool
+// rolloutStateReadCommand rejects state left by a previous container
+// generation. EmptyDir volumes are Pod-lifetime, not container-lifetime, so
+// every marker includes the writer PID and its Linux /proc start time.
+func rolloutStateReadCommand(statePath string) string {
+	return fmt.Sprintf(`read -r state pid started extra < %s || exit 1; [ -z "$extra" ] || exit 1; case "$pid:$started" in *[!0-9:]*|:*|*:) exit 1;; esac; procstat="$(cat /proc/$pid/stat 2>/dev/null)" || exit 1; procstat="${procstat##*) }"; set -- $procstat; [ "$#" -ge 20 ] && [ "${20}" = "$started" ] || exit 1; `, statePath)
 }
 
-func (r *Reconciler) reconcilePreparedHandoff(ctx context.Context, ddai *datadoghqv1alpha1.DatadogAgentInternal, expectedDS *appsv1.DaemonSet, budgetValue intstr.IntOrString) (reconcile.Result, error) {
-	reader := r.apiReader
-	liveDS := &appsv1.DaemonSet{}
-	if err := reader.Get(ctx, client.ObjectKeyFromObject(expectedDS), liveDS); err != nil {
-		return reconcile.Result{}, client.IgnoreNotFound(err)
-	}
-	if !daemonSetControlledByDDAI(liveDS, ddai) || liveDS.Spec.Template.Annotations[preparedRolloutPhaseAnnotation] != preparedRolloutPhaseStandby || !resourceFallbackDaemonSetEligible(liveDS) {
-		return reconcile.Result{}, nil
-	}
-	currentRevision, err := currentDaemonSetRevision(ctx, reader, liveDS)
-	if err != nil || currentRevision == "" {
-		return reconcile.Result{}, err
-	}
-	pods, err := daemonSetPods(ctx, reader, liveDS)
-	if err != nil {
-		return reconcile.Result{}, err
-	}
-	budget, err := intstr.GetScaledValueFromIntOrPercent(&budgetValue, int(liveDS.Status.DesiredNumberScheduled), true)
-	if err != nil || budget <= 0 {
-		return reconcile.Result{}, err
-	}
-	candidates := preparedHandoffCandidates(liveDS, pods, currentRevision)
-	validReservations := make(map[string]struct{}, len(candidates))
-	for _, candidate := range candidates {
-		if candidate.reserved {
-			validReservations[string(candidate.replacement.UID)] = struct{}{}
-		}
-	}
-	for i := range pods {
-		pod := &pods[i]
-		if pod.Spec.NodeName == "" || pod.Labels[appsv1.DefaultDaemonSetUniqueLabelKey] != currentRevision || pod.Annotations[resourceFallbackOldPodAnnotation] == "" {
-			continue
-		}
-		if _, valid := validReservations[string(pod.UID)]; valid {
-			continue
-		}
-		return r.releasePreparedHandoffReservation(ctx, pod)
-	}
-
-	consumed := consumedFallbackBudget(liveDS, pods, currentRevision, time.Now())
-	if consumed > budget {
-		for i := len(candidates) - 1; i >= 0; i-- {
-			if candidates[i].reserved {
-				return r.releasePreparedHandoffReservation(ctx, candidates[i].replacement)
-			}
-		}
-		return reconcile.Result{}, nil
-	}
-	for _, candidate := range candidates {
-		if !candidate.reserved && consumed >= budget {
-			continue
-		}
-		if !candidate.reserved {
-			base := candidate.replacement.DeepCopy()
-			patched := candidate.replacement.DeepCopy()
-			if patched.Annotations == nil {
-				patched.Annotations = map[string]string{}
-			}
-			patched.Annotations[resourceFallbackOldPodAnnotation] = string(candidate.old.UID)
-			if err := r.client.Patch(ctx, patched, client.MergeFrom(base)); err != nil {
-				return reconcile.Result{}, fmt.Errorf("reserve prepared Agent handoff for Pod %s/%s: %w", patched.Namespace, patched.Name, err)
-			}
-			candidate.replacement = patched
-			consumed++
-		}
-		liveCandidate, err := r.revalidatePreparedHandoff(ctx, liveDS, candidate, currentRevision)
-		if err != nil {
-			return reconcile.Result{}, err
-		}
-		if liveCandidate == nil {
-			continue
-		}
-		withinBudget, err := fallbackBudgetWithinLimit(ctx, reader, liveDS, budgetValue, currentRevision)
-		if err != nil {
-			return reconcile.Result{}, err
-		}
-		if !withinBudget {
-			return reconcile.Result{RequeueAfter: time.Second}, nil
-		}
-		uid := liveCandidate.old.UID
-		if err := r.client.Delete(ctx, liveCandidate.old, &client.DeleteOptions{Preconditions: &metav1.Preconditions{UID: &uid}}); err != nil && !apierrors.IsNotFound(err) {
-			return reconcile.Result{}, fmt.Errorf("delete old Agent Pod %s/%s for prepared handoff: %w", liveCandidate.old.Namespace, liveCandidate.old.Name, err)
-		}
-		if r.recorder != nil {
-			r.recorder.Eventf(ddai, corev1.EventTypeNormal, "AgentPreparedHandoff", "Deleted old Agent Pod %s on node %s after replacement %s reported Prepared", liveCandidate.old.Name, liveCandidate.nodeName, liveCandidate.replacement.Name)
-		}
-		return reconcile.Result{RequeueAfter: time.Second}, nil
-	}
-	return reconcile.Result{}, nil
-}
-
-func (r *Reconciler) releasePreparedHandoffReservation(ctx context.Context, replacement *corev1.Pod) (reconcile.Result, error) {
-	base := replacement.DeepCopy()
-	patched := replacement.DeepCopy()
-	delete(patched.Annotations, resourceFallbackOldPodAnnotation)
-	if err := r.client.Patch(ctx, patched, client.MergeFrom(base)); err != nil {
-		return reconcile.Result{}, fmt.Errorf("release prepared Agent handoff reservation for Pod %s/%s: %w", patched.Namespace, patched.Name, err)
-	}
-	return reconcile.Result{RequeueAfter: time.Second}, nil
-}
-
-func preparedHandoffCandidates(ds *appsv1.DaemonSet, pods []corev1.Pod, currentRevision string) []preparedHandoffCandidate {
-	oldByNode := map[string]*corev1.Pod{}
-	for i := range pods {
-		pod := &pods[i]
-		if pod.Spec.NodeName != "" && pod.Labels[appsv1.DefaultDaemonSetUniqueLabelKey] != currentRevision && podAvailable(pod, ds.Spec.MinReadySeconds, time.Now()) {
-			oldByNode[pod.Spec.NodeName] = pod
-		}
-	}
-	var candidates []preparedHandoffCandidate
-	for i := range pods {
-		pod := &pods[i]
-		if pod.Labels[appsv1.DefaultDaemonSetUniqueLabelKey] != currentRevision || !podPreparedForHandoff(pod) || podAvailable(pod, ds.Spec.MinReadySeconds, time.Now()) {
-			continue
-		}
-		old := oldByNode[pod.Spec.NodeName]
-		if old == nil {
-			continue
-		}
-		reservation := pod.Annotations[resourceFallbackOldPodAnnotation]
-		if reservation != "" && reservation != string(old.UID) {
-			continue
-		}
-		candidates = append(candidates, preparedHandoffCandidate{replacement: pod, old: old, nodeName: pod.Spec.NodeName, reserved: reservation != ""})
-	}
-	sort.Slice(candidates, func(i, j int) bool { return candidates[i].nodeName < candidates[j].nodeName })
-	return candidates
-}
-
-func podPreparedForHandoff(pod *corev1.Pod) bool {
-	if pod.DeletionTimestamp != nil || pod.Status.Phase != corev1.PodRunning || len(pod.Status.InitContainerStatuses) != 2 || len(pod.Status.ContainerStatuses) != len(preparedRolloutContainerNames) {
-		return false
-	}
-	for i := range pod.Status.InitContainerStatuses {
-		status := &pod.Status.InitContainerStatuses[i]
-		if status.State.Terminated == nil || status.State.Terminated.ExitCode != 0 {
-			return false
-		}
-	}
-	seen := map[string]bool{}
-	for i := range pod.Status.ContainerStatuses {
-		status := &pod.Status.ContainerStatuses[i]
-		if status.Name != string(apicommon.CoreAgentContainerName) && status.Name != string(apicommon.TraceAgentContainerName) || status.State.Running == nil || status.Started == nil || !*status.Started || status.RestartCount != 0 {
-			return false
-		}
-		seen[status.Name] = true
-	}
-	return seen[string(apicommon.CoreAgentContainerName)] && seen[string(apicommon.TraceAgentContainerName)]
-}
-
-func (r *Reconciler) revalidatePreparedHandoff(ctx context.Context, expectedDS *appsv1.DaemonSet, candidate preparedHandoffCandidate, expectedRevision string) (*preparedHandoffCandidate, error) {
-	liveDS := &appsv1.DaemonSet{}
-	if err := r.apiReader.Get(ctx, client.ObjectKeyFromObject(expectedDS), liveDS); err != nil {
-		return nil, client.IgnoreNotFound(err)
-	}
-	if liveDS.UID != expectedDS.UID || liveDS.Generation != expectedDS.Generation || liveDS.Spec.Template.Annotations[preparedRolloutPhaseAnnotation] != preparedRolloutPhaseStandby {
-		return nil, nil
-	}
-	revision, err := currentDaemonSetRevision(ctx, r.apiReader, liveDS)
-	if err != nil || revision != expectedRevision {
-		return nil, err
-	}
-	replacement := &corev1.Pod{}
-	old := &corev1.Pod{}
-	if err := r.apiReader.Get(ctx, client.ObjectKeyFromObject(candidate.replacement), replacement); err != nil {
-		return nil, client.IgnoreNotFound(err)
-	}
-	if err := r.apiReader.Get(ctx, client.ObjectKeyFromObject(candidate.old), old); err != nil {
-		return nil, client.IgnoreNotFound(err)
-	}
-	if replacement.UID != candidate.replacement.UID || old.UID != candidate.old.UID || !controlledByUID(replacement, liveDS.UID) || !controlledByUID(old, liveDS.UID) || replacement.Spec.NodeName != candidate.nodeName || old.Spec.NodeName != candidate.nodeName {
-		return nil, nil
-	}
-	if replacement.Labels[appsv1.DefaultDaemonSetUniqueLabelKey] != revision || old.Labels[appsv1.DefaultDaemonSetUniqueLabelKey] == revision || replacement.Annotations[resourceFallbackOldPodAnnotation] != string(old.UID) || !podPreparedForHandoff(replacement) || !podAvailable(old, liveDS.Spec.MinReadySeconds, time.Now()) {
-		return nil, nil
-	}
-	return &preparedHandoffCandidate{replacement: replacement, old: old, nodeName: candidate.nodeName, reserved: true}, nil
+func hasRolloutMode(annotations map[string]string) bool {
+	return strings.EqualFold(annotations[preparedRolloutModeAnnotation], preparedRolloutModeV1)
 }

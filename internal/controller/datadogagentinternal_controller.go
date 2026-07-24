@@ -37,6 +37,8 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
+const preparedRolloutModeAnnotationKey = "experimental.agent.datadoghq.com/node-agent-rollout-mode"
+
 // DatadogAgentInternalReconciler reconciles a DatadogAgentInternal object.
 type DatadogAgentInternalReconciler struct {
 	client.Client
@@ -86,7 +88,7 @@ func (r *DatadogAgentInternalReconciler) SetupWithManager(mgr ctrl.Manager, metr
 	builder.Watches(
 		&corev1.Pod{},
 		handler.EnqueueRequestsFromMapFunc(enqueueDatadogAgentInternalForPod(mgr.GetAPIReader())),
-		ctrlbuilder.WithPredicates(resourceFallbackPodPredicate()),
+		ctrlbuilder.WithPredicates(preparedRolloutPodPredicate()),
 	)
 
 	if r.Options.ExtendedDaemonsetOptions.Enabled {
@@ -148,6 +150,9 @@ func enqueueDatadogAgentInternalForPod(reader client.Reader) handler.MapFunc {
 		if err := reader.Get(ctx, client.ObjectKey{Namespace: pod.Namespace, Name: podOwner.Name}, ds); err != nil || ds.UID != podOwner.UID {
 			return nil
 		}
+		if ds.Spec.Template.Annotations[preparedRolloutModeAnnotationKey] != "prepared-surge-v1" {
+			return nil
+		}
 		ddaiOwner := metav1.GetControllerOf(ds)
 		if ddaiOwner == nil || ddaiOwner.APIVersion != datadoghqv1alpha1.GroupVersion.String() || ddaiOwner.Kind != "DatadogAgentInternal" {
 			return nil
@@ -156,11 +161,11 @@ func enqueueDatadogAgentInternalForPod(reader client.Reader) handler.MapFunc {
 	}
 }
 
-func resourceFallbackPodPredicate() predicate.Predicate {
+func preparedRolloutPodPredicate() predicate.Predicate {
 	return predicate.Funcs{
 		CreateFunc: func(e event.CreateEvent) bool {
-			pod, ok := e.Object.(*corev1.Pod)
-			return ok && resourceFallbackSchedulingCondition(pod) != nil
+			_, ok := e.Object.(*corev1.Pod)
+			return ok
 		},
 		UpdateFunc: func(e event.UpdateEvent) bool {
 			oldPod, oldOK := e.ObjectOld.(*corev1.Pod)
@@ -168,8 +173,8 @@ func resourceFallbackPodPredicate() predicate.Predicate {
 			if !oldOK || !newOK {
 				return false
 			}
-			return resourceFallbackConditionChanged(oldPod, newPod, corev1.PodScheduled) ||
-				resourceFallbackConditionChanged(oldPod, newPod, corev1.PodReady) ||
+			return podConditionChanged(oldPod, newPod, corev1.PodScheduled) ||
+				podConditionChanged(oldPod, newPod, corev1.PodReady) ||
 				containerRolloutStatusChanged(oldPod.Status.InitContainerStatuses, newPod.Status.InitContainerStatuses) ||
 				containerRolloutStatusChanged(oldPod.Status.ContainerStatuses, newPod.Status.ContainerStatuses)
 		},
@@ -197,7 +202,7 @@ func containerRolloutStatusChanged(oldStatuses, newStatuses []corev1.ContainerSt
 	return false
 }
 
-func resourceFallbackConditionChanged(oldPod, newPod *corev1.Pod, conditionType corev1.PodConditionType) bool {
+func podConditionChanged(oldPod, newPod *corev1.Pod, conditionType corev1.PodConditionType) bool {
 	oldCondition := podCondition(oldPod, conditionType)
 	newCondition := podCondition(newPod, conditionType)
 	if oldCondition == nil || newCondition == nil {
@@ -213,10 +218,6 @@ func podCondition(pod *corev1.Pod, conditionType corev1.PodConditionType) *corev
 		}
 	}
 	return nil
-}
-
-func resourceFallbackSchedulingCondition(pod *corev1.Pod) *corev1.PodCondition {
-	return podCondition(pod, corev1.PodScheduled)
 }
 
 func enqueueIfOwnedByDatadogAgentInternal(ctx context.Context, obj client.Object) []reconcile.Request {

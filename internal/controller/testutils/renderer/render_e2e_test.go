@@ -165,7 +165,7 @@ func TestRender_AppArmorProfileVersionGate(t *testing.T) {
 	}
 }
 
-func TestRender_PreparedRolloutArmsBeforeSurge(t *testing.T) {
+func TestRender_PreparedRolloutUsesNativeSurge(t *testing.T) {
 	renderAgentDaemonSet := func(t *testing.T, prepared bool) *appsv1.DaemonSet {
 		t.Helper()
 		dda, err := LoadDDA("testdata/minimal-dda.yaml")
@@ -181,7 +181,7 @@ func TestRender_PreparedRolloutArmsBeforeSurge(t *testing.T) {
 			},
 		}
 		if prepared {
-			dda.Annotations = map[string]string{"experimental.agent.datadoghq.com/host-network-surge-prepared": "true"}
+			dda.Annotations = map[string]string{"experimental.agent.datadoghq.com/node-agent-rollout-mode": "prepared-surge-v1"}
 		}
 		dda.Spec.Override = map[datadoghqv2alpha1.ComponentName]*datadoghqv2alpha1.DatadogAgentComponentOverride{
 			datadoghqv2alpha1.NodeAgentComponentName: override,
@@ -210,15 +210,15 @@ func TestRender_PreparedRolloutArmsBeforeSurge(t *testing.T) {
 	}
 	require.Positive(t, baselinePortCount, "the host-network baseline must exercise Kubernetes's implicit hostPort defaulting")
 
-	armed := renderAgentDaemonSet(t, true)
-	require.True(t, armed.Spec.Template.Spec.HostNetwork)
-	require.NotNil(t, armed.Spec.UpdateStrategy.RollingUpdate)
-	assert.Equal(t, intstr.FromInt(0), *armed.Spec.UpdateStrategy.RollingUpdate.MaxSurge)
-	assert.Equal(t, intstr.FromInt(1), *armed.Spec.UpdateStrategy.RollingUpdate.MaxUnavailable)
-	assert.Equal(t, "arm", armed.Spec.Template.Annotations["experimental.agent.datadoghq.com/prepared-rollout-phase"])
-	armedPortCount := 0
-	for _, container := range armed.Spec.Template.Spec.Containers {
-		armedPortCount += len(container.Ports)
+	prepared := renderAgentDaemonSet(t, true)
+	require.True(t, prepared.Spec.Template.Spec.HostNetwork)
+	require.NotNil(t, prepared.Spec.UpdateStrategy.RollingUpdate)
+	assert.Equal(t, intstr.FromInt(1), *prepared.Spec.UpdateStrategy.RollingUpdate.MaxSurge)
+	assert.Equal(t, intstr.FromInt(0), *prepared.Spec.UpdateStrategy.RollingUpdate.MaxUnavailable)
+	assert.Equal(t, "prepared-surge-v1", prepared.Spec.Template.Annotations["experimental.agent.datadoghq.com/node-agent-rollout-mode"])
+	preparedPortCount := 0
+	for _, container := range prepared.Spec.Template.Spec.Containers {
+		preparedPortCount += len(container.Ports)
 		require.NotNil(t, container.StartupProbe)
 		require.NotNil(t, container.StartupProbe.Exec)
 		require.NotNil(t, container.ReadinessProbe)
@@ -227,14 +227,14 @@ func TestRender_PreparedRolloutArmsBeforeSurge(t *testing.T) {
 			assert.Equal(t, "trace-agent", container.Command[0], "prepared mode must bypass trace-loader")
 		}
 	}
-	assert.Equal(t, baselinePortCount, armedPortCount, "arming is a conventional rollout and keeps port declarations")
+	assert.Zero(t, preparedPortCount, "host-network replacements must not claim ports in the scheduler")
 }
 
 func TestRender_PreparedHostNetworkSurgeWithProfiles(t *testing.T) {
 	dda, err := LoadDDA("testdata/minimal-dda.yaml")
 	require.NoError(t, err)
 	dda.Spec.Features = preparedRolloutTestFeatures()
-	dda.Annotations = map[string]string{"experimental.agent.datadoghq.com/host-network-surge-prepared": "true"}
+	dda.Annotations = map[string]string{"experimental.agent.datadoghq.com/node-agent-rollout-mode": "prepared-surge-v1"}
 
 	surgeOverride := func() *datadoghqv2alpha1.DatadogAgentComponentOverride {
 		return &datadoghqv2alpha1.DatadogAgentComponentOverride{
@@ -265,7 +265,7 @@ func TestRender_PreparedHostNetworkSurgeWithProfiles(t *testing.T) {
 		}
 		daemonSets++
 		require.True(t, ds.Spec.Template.Spec.HostNetwork)
-		assert.Equal(t, "arm", ds.Spec.Template.Annotations["experimental.agent.datadoghq.com/prepared-rollout-phase"])
+		assert.Equal(t, "prepared-surge-v1", ds.Spec.Template.Annotations["experimental.agent.datadoghq.com/node-agent-rollout-mode"])
 		require.NotNil(t, ds.Spec.Template.Spec.Affinity)
 		require.NotNil(t, ds.Spec.Template.Spec.Affinity.PodAntiAffinity)
 		assert.Len(t, ds.Spec.Template.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution, 2,

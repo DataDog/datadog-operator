@@ -91,25 +91,20 @@ func TestDatadogAgentInternalSetupWithManager(t *testing.T) {
 	}
 }
 
-func TestResourceFallbackPodPredicate(t *testing.T) {
-	predicate := resourceFallbackPodPredicate()
+func TestPreparedRolloutPodPredicate(t *testing.T) {
+	predicate := preparedRolloutPodPredicate()
 	assert.False(t, predicate.Create(event.CreateEvent{Object: &corev1.ConfigMap{}}))
-	assert.False(t, predicate.Create(event.CreateEvent{Object: &corev1.Pod{}}))
-	oldPod := &corev1.Pod{Status: corev1.PodStatus{Conditions: []corev1.PodCondition{{Type: corev1.PodScheduled, Status: corev1.ConditionFalse, Reason: corev1.PodReasonUnschedulable, Message: "old"}}}}
+	oldPod := &corev1.Pod{}
 	assert.True(t, predicate.Create(event.CreateEvent{Object: oldPod}))
-	newPod := oldPod.DeepCopy()
-	newPod.Status.Conditions[0].Message = "0/1 nodes are available: 1 Insufficient cpu."
-	assert.True(t, predicate.Update(event.UpdateEvent{ObjectOld: oldPod, ObjectNew: newPod}), "PodScheduled message-only updates must enqueue")
-
-	readyPod := newPod.DeepCopy()
+	readyPod := oldPod.DeepCopy()
 	readyPod.Status.Conditions = append(readyPod.Status.Conditions, corev1.PodCondition{Type: corev1.PodReady, Status: corev1.ConditionTrue})
-	assert.True(t, predicate.Update(event.UpdateEvent{ObjectOld: newPod, ObjectNew: readyPod}), "PodReady transitions must release fallback reservations promptly")
+	assert.True(t, predicate.Update(event.UpdateEvent{ObjectOld: oldPod, ObjectNew: readyPod}), "PodReady transitions must enqueue capacity fallback")
 
 	waiting := readyPod.DeepCopy()
 	waiting.Status.ContainerStatuses = []corev1.ContainerStatus{{Name: "agent", Started: ptr.To(false), State: corev1.ContainerState{Running: &corev1.ContainerStateRunning{}}}}
 	prepared := waiting.DeepCopy()
 	prepared.Status.ContainerStatuses[0].Started = ptr.To(true)
-	assert.True(t, predicate.Update(event.UpdateEvent{ObjectOld: waiting, ObjectNew: prepared}), "startup-probe Prepared transitions must enqueue the handoff controller")
+	assert.True(t, predicate.Update(event.UpdateEvent{ObjectOld: waiting, ObjectNew: prepared}), "startup-probe transitions must enqueue capacity fallback")
 	assert.False(t, predicate.Update(event.UpdateEvent{ObjectOld: &corev1.ConfigMap{}, ObjectNew: &corev1.ConfigMap{}}))
 	assert.True(t, predicate.Delete(event.DeleteEvent{Object: oldPod}))
 	assert.False(t, predicate.Generic(event.GenericEvent{Object: oldPod}))
@@ -140,20 +135,20 @@ func TestContainerRolloutStatusChanged(t *testing.T) {
 	}
 }
 
-func TestResourceFallbackConditionChanged(t *testing.T) {
+func TestPodConditionChanged(t *testing.T) {
 	empty := &corev1.Pod{}
-	scheduled := &corev1.Pod{Status: corev1.PodStatus{Conditions: []corev1.PodCondition{{Type: corev1.PodScheduled, Status: corev1.ConditionFalse, Reason: "Unschedulable", Message: "cpu"}}}}
-	assert.False(t, resourceFallbackConditionChanged(empty, empty, corev1.PodScheduled))
-	assert.True(t, resourceFallbackConditionChanged(empty, scheduled, corev1.PodScheduled))
-	assert.False(t, resourceFallbackConditionChanged(scheduled, scheduled.DeepCopy(), corev1.PodScheduled))
+	ready := &corev1.Pod{Status: corev1.PodStatus{Conditions: []corev1.PodCondition{{Type: corev1.PodReady, Status: corev1.ConditionFalse, Reason: "Starting"}}}}
+	assert.False(t, podConditionChanged(empty, empty, corev1.PodReady))
+	assert.True(t, podConditionChanged(empty, ready, corev1.PodReady))
+	assert.False(t, podConditionChanged(ready, ready.DeepCopy(), corev1.PodReady))
 	for _, mutate := range []func(*corev1.PodCondition){
 		func(condition *corev1.PodCondition) { condition.Status = corev1.ConditionTrue },
-		func(condition *corev1.PodCondition) { condition.Reason = "Scheduled" },
-		func(condition *corev1.PodCondition) { condition.Message = "memory" },
+		func(condition *corev1.PodCondition) { condition.Reason = "Ready" },
+		func(condition *corev1.PodCondition) { condition.Message = "healthy" },
 	} {
-		changed := scheduled.DeepCopy()
+		changed := ready.DeepCopy()
 		mutate(&changed.Status.Conditions[0])
-		assert.True(t, resourceFallbackConditionChanged(scheduled, changed, corev1.PodScheduled))
+		assert.True(t, podConditionChanged(ready, changed, corev1.PodReady))
 	}
 }
 
@@ -166,16 +161,8 @@ func TestDatadogAgentInternalEventPredicate(t *testing.T) {
 	assert.True(t, p.Update(event.UpdateEvent{ObjectOld: old, ObjectNew: generation}))
 
 	prepared := old.DeepCopy()
-	prepared.Annotations["experimental.agent.datadoghq.com/host-network-surge-prepared"] = "true"
+	prepared.Annotations[preparedRolloutModeAnnotationKey] = "prepared-surge-v1"
 	assert.True(t, p.Update(event.UpdateEvent{ObjectOld: old, ObjectNew: prepared}))
-
-	fallback := prepared.DeepCopy()
-	fallback.Annotations["experimental.agent.datadoghq.com/resource-fallback"] = "true"
-	assert.True(t, p.Update(event.UpdateEvent{ObjectOld: prepared, ObjectNew: fallback}))
-
-	removed := fallback.DeepCopy()
-	delete(removed.Annotations, "experimental.agent.datadoghq.com/resource-fallback")
-	assert.True(t, p.Update(event.UpdateEvent{ObjectOld: fallback, ObjectNew: removed}))
 
 	unrelated := old.DeepCopy()
 	unrelated.Annotations["example.com/ignored"] = "new"
@@ -196,7 +183,7 @@ func TestEnqueueDatadogAgentInternalForPodFollowsDaemonSetOwner(t *testing.T) {
 			UID:        types.UID("ddai-uid"),
 			Controller: ptr.To(true),
 		}},
-	}}
+	}, Spec: appsv1.DaemonSetSpec{Template: corev1.PodTemplateSpec{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{preparedRolloutModeAnnotationKey: "prepared-surge-v1"}}}}}
 	reader := fake.NewClientBuilder().WithScheme(scheme).WithObjects(ds).Build()
 	pod := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{
 		Name:      "profile-agent-new",
@@ -215,6 +202,16 @@ func TestEnqueueDatadogAgentInternalForPodFollowsDaemonSetOwner(t *testing.T) {
 	require.Len(t, requests, 1)
 	assert.Equal(t, "default", requests[0].Namespace)
 	assert.Equal(t, "profile-ddai", requests[0].Name)
+
+	ordinaryDS := ds.DeepCopy()
+	ordinaryDS.Name = "ordinary-agent"
+	ordinaryDS.UID = "ordinary-ds-uid"
+	ordinaryDS.Spec.Template.Annotations = nil
+	ordinaryReader := fake.NewClientBuilder().WithScheme(scheme).WithObjects(ordinaryDS).Build()
+	ordinaryPod := pod.DeepCopy()
+	ordinaryPod.OwnerReferences[0].Name = ordinaryDS.Name
+	ordinaryPod.OwnerReferences[0].UID = ordinaryDS.UID
+	assert.Empty(t, enqueueDatadogAgentInternalForPod(ordinaryReader)(context.Background(), ordinaryPod), "ordinary Agent Pods must not trigger prepared-rollout reconciles")
 
 	pod.OwnerReferences[0].UID = "wrong-uid"
 	assert.Empty(t, enqueueDatadogAgentInternalForPod(reader)(context.Background(), pod), "stale Pod owner UIDs must not enqueue")

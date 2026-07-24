@@ -16,6 +16,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
@@ -125,8 +126,8 @@ func (r *Reconciler) reconcileV2Agent(ctx context.Context, requiredComponents fe
 					true,
 				)
 			}
-			if deleteErr := r.deleteV2ExtendedDaemonSet(ctx, ddai, eds, newStatus); deleteErr != nil {
-				return reconcile.Result{}, deleteErr
+			if err := r.deleteV2ExtendedDaemonSet(ctx, ddai, eds, newStatus); err != nil {
+				return reconcile.Result{}, err
 			}
 			return reconcile.Result{}, nil
 		}
@@ -219,8 +220,8 @@ func (r *Reconciler) reconcileV2Agent(ctx context.Context, requiredComponents fe
 			daemonsetLogger.Info("Removing Windows DaemonSet: FIPS (useFIPSAgent or fips.enabled) is enabled and FIPS is unsupported on Windows")
 			// Delete any existing Windows DaemonSet so a non-FIPS agent does not keep running
 			// under a FIPS-required configuration (compliance), rather than silently downgrading.
-			if deleteErr := r.deleteV2DaemonSet(ctx, ddai, daemonset, newStatus); deleteErr != nil {
-				return reconcile.Result{}, deleteErr
+			if err := r.deleteV2DaemonSet(ctx, ddai, daemonset, newStatus); err != nil {
+				return reconcile.Result{}, err
 			}
 			// Clear the Agent status unconditionally: deleteV2DaemonSet returns early (without
 			// clearing status) if the DaemonSet is already gone, which would otherwise leave a
@@ -283,15 +284,30 @@ func (r *Reconciler) reconcileV2Agent(ctx context.Context, requiredComponents fe
 				true,
 			)
 		}
-		if deleteErr := r.deleteV2DaemonSet(ctx, ddai, daemonset, newStatus); deleteErr != nil {
-			return reconcile.Result{}, deleteErr
+		if err := r.deleteV2DaemonSet(ctx, ddai, daemonset, newStatus); err != nil {
+			return reconcile.Result{}, err
 		}
 		deleteStatusWithAgent(newStatus)
 		return reconcile.Result{}, nil
 	}
 
-	rolloutBudget := resourceFallbackBudget(ddai, &r.options.ExtendedDaemonsetOptions)
-	preparedPhase, prepareErr := r.configurePreparedRollout(ctx, ddai, daemonset, rolloutBudget)
+	rolloutBudget := preparedRolloutBudget(ddai, &r.options.ExtendedDaemonsetOptions)
+	rolloutEnabled := preparedRolloutEnabled(ddai)
+	var currentDaemonSet *appsv1.DaemonSet
+	if rolloutEnabled {
+		reader := r.apiReader
+		if reader == nil {
+			reader = r.client
+		}
+		currentDaemonSet = &appsv1.DaemonSet{}
+		if getErr := reader.Get(ctx, client.ObjectKeyFromObject(daemonset), currentDaemonSet); getErr != nil {
+			if !errors.IsNotFound(getErr) {
+				return reconcile.Result{}, getErr
+			}
+			currentDaemonSet = nil
+		}
+	}
+	affinityMigration, prepareErr := configurePreparedRollout(ddai, daemonset, currentDaemonSet, rolloutBudget)
 	if prepareErr != nil {
 		objLogger.Error(prepareErr, "Prepared Agent rollout request is incompatible with the rendered Pod template")
 		if r.recorder != nil {
@@ -300,27 +316,21 @@ func (r *Reconciler) reconcileV2Agent(ctx context.Context, requiredComponents fe
 		return reconcile.Result{}, prepareErr
 	}
 	result, err := r.createOrUpdateDaemonset(ctx, ddai, daemonset, newStatus, updateDSStatusV2WithAgent)
-	if err != nil || preparedPhase == "" {
+	if err != nil || !rolloutEnabled {
 		return result, err
 	}
-	requeuePreparedArm(&result, preparedPhase)
-	if preparedPhase == preparedRolloutPhaseStandby {
-		handoffResult, handoffErr := r.reconcilePreparedHandoff(ctx, ddai, daemonset, rolloutBudget)
-		if handoffErr != nil {
-			return reconcile.Result{}, handoffErr
+	if affinityMigration {
+		if result.RequeueAfter == 0 || result.RequeueAfter > time.Second {
+			result.RequeueAfter = time.Second
 		}
-		if handoffResult.RequeueAfter > 0 && (result.RequeueAfter == 0 || handoffResult.RequeueAfter < result.RequeueAfter) {
-			result.RequeueAfter = handoffResult.RequeueAfter
-		}
+		return result, nil
 	}
-	if resourceFallbackEnabled(ddai) {
-		fallbackResult, fallbackErr := r.reconcileResourceFallback(ctx, ddai, daemonset, rolloutBudget)
-		if fallbackErr != nil {
-			return reconcile.Result{}, fallbackErr
-		}
-		if fallbackResult.RequeueAfter > 0 && (result.RequeueAfter == 0 || fallbackResult.RequeueAfter < result.RequeueAfter) {
-			result.RequeueAfter = fallbackResult.RequeueAfter
-		}
+	fallbackResult, fallbackErr := r.reconcileResourceFallback(ctx, ddai, daemonset, rolloutBudget)
+	if fallbackErr != nil {
+		return reconcile.Result{}, fallbackErr
+	}
+	if fallbackResult.RequeueAfter > 0 && (result.RequeueAfter == 0 || fallbackResult.RequeueAfter < result.RequeueAfter) {
+		result.RequeueAfter = fallbackResult.RequeueAfter
 	}
 	return result, nil
 }
