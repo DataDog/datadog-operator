@@ -229,6 +229,7 @@ func Render(opts Options) ([]client.Object, *runtime.Scheme, error) {
 
 	ddaiOpts := datadogagentinternal.ReconcilerOptions{
 		SupportCilium: opts.SupportCilium,
+		APIReader:     fakeClient,
 	}
 	ddaiReconciler := datadogagentinternal.NewReconciler(ddaiOpts, fakeClient, platformInfo, scheme, recorder, noopForwarder{})
 

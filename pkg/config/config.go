@@ -130,10 +130,10 @@ func CacheOptions(logger logr.Logger, opts WatchOptions) cache.Options {
 		}
 	}
 
-	if opts.DatadogAgentProfileEnabled || opts.UntaintControllerEnabled {
-		// For the profiles feature and untaint controller we need to list agent pods.
-		// The profiles feature needs node name and labels; the untaint controller also needs
-		// Status.Conditions to check readiness. Pods are watched in DatadogAgent namespace(s).
+	if opts.DatadogAgentEnabled || opts.DatadogAgentProfileEnabled || opts.UntaintControllerEnabled {
+		// The Agent, profiles, and untaint controllers need to watch Agent Pods.
+		// The profiles feature needs node name and labels. The Agent and untaint
+		// controllers need status for rollout and readiness reconciliation.
 		// When untaint is configured to wait for CSI, widen to merged agent+CSI
 		// namespaces and drop the pod informer label filter so CSI node-server pods
 		// (app=datadog-csi-driver-node-server) are cached for dual-readiness untaint.
@@ -161,19 +161,24 @@ func CacheOptions(logger logr.Logger, opts WatchOptions) cache.Options {
 				newPod := &corev1.Pod{
 					TypeMeta: pod.TypeMeta,
 					ObjectMeta: v1.ObjectMeta{
-						Namespace: pod.Namespace,
-						Name:      pod.Name,
-						Labels:    pod.Labels,
+						Namespace:       pod.Namespace,
+						Name:            pod.Name,
+						UID:             pod.UID,
+						Labels:          pod.Labels,
+						OwnerReferences: pod.OwnerReferences,
 					},
 					Spec: corev1.PodSpec{
 						NodeName: pod.Spec.NodeName,
 					},
 				}
+				newPod.Status.Conditions = pod.Status.Conditions
+				newPod.Status.Phase = pod.Status.Phase
+				newPod.Status.InitContainerStatuses = pod.Status.InitContainerStatuses
+				newPod.Status.ContainerStatuses = pod.Status.ContainerStatuses
 
-				// The untaint controller needs Pod.Status.Conditions (readiness check)
-				// and Pod.Status.StartTime (readiness-timeout clock).
+				// The untaint controller also needs Pod.Status.StartTime for its
+				// readiness-timeout clock.
 				if opts.UntaintControllerEnabled {
-					newPod.Status.Conditions = pod.Status.Conditions
 					newPod.Status.StartTime = pod.Status.StartTime
 				}
 
