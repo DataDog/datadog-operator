@@ -1,7 +1,7 @@
 name: Backport PR
 on:
   pull_request:
-    types: [ labeled ]
+    types: [ labeled, closed ]
 
 permissions:
   id-token: write # Required for dd-octo-sts action
@@ -12,8 +12,10 @@ jobs:
     runs-on: ubuntu-latest
     if: >
         (github.event_name == 'workflow_dispatch' ||
+        (github.event.pull_request.merged &&
+        (github.event.action == 'closed' ||
         (github.event.action == 'labeled'
-        && contains(github.event.label.name, 'backport/')))
+        && contains(github.event.label.name, 'backport/')))))
     steps:
       - uses: DataDog/dd-octo-sts-action@96a25462dbcb10ebf0bfd6e2ccc917d2ab235b9a # v1.0.4
         id: octo-sts
@@ -57,6 +59,10 @@ jobs:
             // Parse the backport PR number from the JSON output
             const backportData = JSON.parse(process.env.BACKPORT_PR);
             const prNumber = Object.values(backportData)[0];
+            if (!prNumber) {
+              console.log('No backport PR was created, skipping milestone copy.');
+              return;
+            }
             console.log('Parsed PR number:', prNumber);
             console.log(`Copying milestone ${milestoneNumber} to PR ${prNumber}`);
 
