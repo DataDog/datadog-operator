@@ -49,27 +49,24 @@ type CreateStrategyInfo struct {
 	nodesAlreadyLabeled int32    // number of nodes with the correct label
 }
 
-// CloneCreateStrategyInfoMap returns a deep copy of create strategy state.
-// The map stores pointers containing slices, so maps.Clone would still share
-// mutable CreateStrategyInfo values between the committed and staged state.
-func CloneCreateStrategyInfoMap(src map[types.NamespacedName]*CreateStrategyInfo) map[types.NamespacedName]*CreateStrategyInfo {
-	dst := make(map[types.NamespacedName]*CreateStrategyInfo, len(src))
-	for profile, info := range src {
-		if info == nil {
-			dst[profile] = nil
+// CheckProfileNodeConflicts checks whether a profile conflicts with already-assigned profiles.
+// It is a pure read: it does not modify profilesByNode or csInfo.
+func CheckProfileNodeConflicts(profile metav1.ObjectMeta, profileRequirements []*labels.Requirement, nodes []v1.Node, profilesByNode map[string]types.NamespacedName) error {
+	for _, node := range nodes {
+		if !profileMatchesNodeWithRequirements(profileRequirements, node.Labels) {
 			continue
 		}
-		dst[profile] = &CreateStrategyInfo{
-			nodesNeedingLabel:   slices.Clone(info.nodesNeedingLabel),
-			nodesAlreadyLabeled: info.nodesAlreadyLabeled,
+		if existingProfile := profilesByNode[node.Name]; !IsDefaultProfile(existingProfile.Namespace, existingProfile.Name) {
+			return fmt.Errorf("profile %s conflicts with existing profile: %s", profile.Name, existingProfile.String())
 		}
 	}
-	return dst
+	return nil
 }
 
-// ApplyProfileToNodes applies a profile to nodes based on its label requirements
-// If there is a conflict with an existing profile, it returns an error
-func ApplyProfileToNodes(profile metav1.ObjectMeta, profileRequirements []*labels.Requirement, nodes []v1.Node, profileAppliedByNode map[string]types.NamespacedName, csInfo map[types.NamespacedName]*CreateStrategyInfo) error {
+// AssignNodesToProfile assigns matching nodes to the profile in profilesByNode and records
+// create-strategy data in csInfo. It must only be called after CheckProfileNodeConflicts
+// returns nil, so it never returns an error.
+func AssignNodesToProfile(profile metav1.ObjectMeta, profileRequirements []*labels.Requirement, nodes []v1.Node, profilesByNode map[string]types.NamespacedName, csInfo map[types.NamespacedName]*CreateStrategyInfo) {
 	profileNSName := types.NamespacedName{
 		Namespace: profile.Namespace,
 		Name:      profile.Name,
@@ -83,15 +80,8 @@ func ApplyProfileToNodes(profile metav1.ObjectMeta, profileRequirements []*label
 		if !profileMatchesNodeWithRequirements(profileRequirements, node.Labels) {
 			continue
 		}
-
-		if existingProfile := profileAppliedByNode[node.Name]; !IsDefaultProfile(existingProfile.Namespace, existingProfile.Name) {
-			return fmt.Errorf("profile %s conflicts with existing profile: %s", profile.Name, existingProfile.String())
-		}
-
-		profileAppliedByNode[node.Name] = profileNSName
-
+		profilesByNode[node.Name] = profileNSName
 		if CreateStrategyEnabled() {
-			// check for missing or wrong label
 			profileLabelValue, labelExists := node.Labels[constants.ProfileLabelKey]
 			needsLabel := !(labelExists && profileLabelValue == profile.Name)
 			if needsLabel {
@@ -101,8 +91,6 @@ func ApplyProfileToNodes(profile metav1.ObjectMeta, profileRequirements []*label
 			}
 		}
 	}
-
-	return nil
 }
 
 // ValidateProfileAndReturnRequirements validates a profile's name and spec and affinity requirements

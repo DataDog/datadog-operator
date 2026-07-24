@@ -53,18 +53,12 @@ func applyProfileLocalAgentServicePort(dst, base, profileSpec *v2alpha1.DatadogA
 		return nil
 	}
 
-	existingPort, ok := profileLocalAgentServicePort(base)
-	if !ok {
-		if dst != nil && dst.Features != nil && dst.Features.APM != nil {
-			hostPort := dst.Features.APM.HostPortConfig
-			if hostPort != nil && ptr.Deref(hostPort.Enabled, false) && hostPort.Port != nil {
-				existingPort = *hostPort.Port
-				ok = true
-			}
-		}
-	}
+	existingPort, ok := existingLocalAgentServicePort(dst, base)
 	if ok && existingPort != profilePort {
 		return fmt.Errorf("local Agent Service port %q conflicts with existing port", constants.DefaultApmPortName)
+	}
+	if ok {
+		return nil
 	}
 
 	if dst.Features == nil {
@@ -86,6 +80,21 @@ func profileLocalAgentServicePort(spec *v2alpha1.DatadogAgentSpec) (int32, bool)
 		return 0, false
 	}
 	return ports[0].Port, true
+}
+
+// existingLocalAgentServicePort returns the local service port already present
+// in the immutable base spec or contributed by an earlier profile overlay.
+func existingLocalAgentServicePort(dst, base *v2alpha1.DatadogAgentSpec) (int32, bool) {
+	if port, ok := profileLocalAgentServicePort(base); ok {
+		return port, true
+	}
+	if dst != nil && dst.Features != nil && dst.Features.APM != nil {
+		hostPort := dst.Features.APM.HostPortConfig
+		if hostPort != nil && ptr.Deref(hostPort.Enabled, false) && hostPort.Port != nil {
+			return *hostPort.Port, true
+		}
+	}
+	return 0, false
 }
 
 // profileSSIOverlayConfig extracts the only APM profile config that affects a
