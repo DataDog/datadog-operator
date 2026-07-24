@@ -24,6 +24,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/experimental"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/metrics"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/constants"
@@ -356,6 +357,18 @@ func setProfileDDAIMeta(ddai *v1alpha1.DatadogAgentInternal, profile *v1alpha1.D
 			ddai.Annotations = make(map[string]string)
 		}
 		ddai.Annotations[kubernetes.ProviderAnnotationKey] = v
+	}
+	// Propagate the host-profiler experimental annotations from the profile onto the DDAI
+	// so a DAP can enable/configure host profiler only on the nodes it targets, independent
+	// of the DDA-level annotation.
+	imageOverrideAnnotationKey := fmt.Sprintf("%s/%s", experimental.ExperimentalAnnotationPrefix, experimental.ExperimentalImageOverrideConfigSubkey)
+	for _, annotationKey := range []string{featureutils.EnableHostProfilerAnnotation, featureutils.EnableHostProfilerSeccompAnnotation, imageOverrideAnnotationKey} {
+		if v, ok := profile.GetAnnotations()[annotationKey]; ok {
+			if ddai.Annotations == nil {
+				ddai.Annotations = make(map[string]string)
+			}
+			ddai.Annotations[annotationKey] = v
+		}
 	}
 	return nil
 }
