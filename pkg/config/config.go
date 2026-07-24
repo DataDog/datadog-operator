@@ -75,15 +75,20 @@ type WatchOptions struct {
 	DatadogCSIDriverEnabled           bool
 	UntaintControllerEnabled          bool
 	UntaintControllerWaitForCSIDriver bool
+	ManagedAgentInstallationEnabled   bool
+	ManagedAgentInstallationNamespace string
 }
 
 // CacheOptions function configures Controller Runtime cache options on a resource level (supported in v0.16+).
 // Datadog CRDs and additional resources required for their reconciliation will be cached only if the respective feature is enabled.
 func CacheOptions(logger logr.Logger, opts WatchOptions) cache.Options {
 	byObject := map[client.Object]cache.ByObject{}
+	agentNamespaces := GetWatchNamespacesFromEnv(logger, AgentWatchNamespaceEnvVar)
+	if opts.ManagedAgentInstallationEnabled {
+		agentNamespaces = includeWatchNamespace(agentNamespaces, opts.ManagedAgentInstallationNamespace)
+	}
 
 	if opts.DatadogAgentEnabled {
-		agentNamespaces := GetWatchNamespacesFromEnv(logger, AgentWatchNamespaceEnvVar)
 		logger.Info("DatadogAgent Enabled", "watching namespaces", slices.Collect(maps.Keys(agentNamespaces)))
 		byObject[agentObj] = cache.ByObject{
 			Namespaces: agentNamespaces,
@@ -124,6 +129,9 @@ func CacheOptions(logger logr.Logger, opts WatchOptions) cache.Options {
 
 	if opts.DatadogAgentProfileEnabled {
 		agentProfileNamespaces := GetWatchNamespacesFromEnv(logger, profileWatchNamespaceEnvVar)
+		if opts.ManagedAgentInstallationEnabled {
+			agentProfileNamespaces = includeWatchNamespace(agentProfileNamespaces, opts.ManagedAgentInstallationNamespace)
+		}
 		logger.Info("DatadogAgentProfile Enabled", "watching namespace", slices.Collect(maps.Keys(agentProfileNamespaces)))
 		byObject[profileObj] = cache.ByObject{
 			Namespaces: agentProfileNamespaces,
@@ -137,7 +145,6 @@ func CacheOptions(logger logr.Logger, opts WatchOptions) cache.Options {
 		// When untaint is configured to wait for CSI, widen to merged agent+CSI
 		// namespaces and drop the pod informer label filter so CSI node-server pods
 		// (app=datadog-csi-driver-node-server) are cached for dual-readiness untaint.
-		agentNamespaces := GetWatchNamespacesFromEnv(logger, AgentWatchNamespaceEnvVar)
 		podNamespaces := agentNamespaces
 		var podLabel labels.Selector
 		if opts.UntaintControllerEnabled && opts.UntaintControllerWaitForCSIDriver {
@@ -219,10 +226,9 @@ func CacheOptions(logger logr.Logger, opts WatchOptions) cache.Options {
 
 	// Since v1.27, DDAI is always tied to DDA — no separate flag. Kept as DDA guard since DDAI cache is only needed when DDA is enabled.
 	if opts.DatadogAgentEnabled {
-		agentInternalNamespaces := GetWatchNamespacesFromEnv(logger, AgentWatchNamespaceEnvVar)
-		logger.Info("DatadogAgentInternal Enabled", "watching namespaces", slices.Collect(maps.Keys(agentInternalNamespaces)))
+		logger.Info("DatadogAgentInternal Enabled", "watching namespaces", slices.Collect(maps.Keys(agentNamespaces)))
 		byObject[agentInternalObj] = cache.ByObject{
-			Namespaces: agentInternalNamespaces,
+			Namespaces: agentNamespaces,
 		}
 	}
 
@@ -235,7 +241,7 @@ func CacheOptions(logger logr.Logger, opts WatchOptions) cache.Options {
 		// The DaemonSet owned by DatadogCSIDriver lives in the CSIDriver namespace, which may
 		// differ from the agent namespace covered by DefaultNamespaces. Explicitly add DaemonSet
 		// to ByObject merging both so neither controller loses its cache coverage.
-		daemonSetNamespaces := maps.Clone(GetWatchNamespacesFromEnv(logger, AgentWatchNamespaceEnvVar))
+		daemonSetNamespaces := maps.Clone(agentNamespaces)
 		maps.Copy(daemonSetNamespaces, csiDriverNamespaces)
 		byObject[csiDaemonSetObj] = cache.ByObject{
 			Namespaces: daemonSetNamespaces,
@@ -245,9 +251,21 @@ func CacheOptions(logger logr.Logger, opts WatchOptions) cache.Options {
 	return cache.Options{
 		// DefaultNamespaces is set to DatadogAgent CRD namespaces so all resources needed for DatadogAgent reconciliation
 		// are cached from the same namespace(s) as the DatadogAgent.
-		DefaultNamespaces: GetWatchNamespacesFromEnv(logger, AgentWatchNamespaceEnvVar),
+		DefaultNamespaces: agentNamespaces,
 		ByObject:          byObject,
 	}
+}
+
+func includeWatchNamespace(namespaces map[string]cache.Config, namespace string) map[string]cache.Config {
+	if namespace == "" {
+		return namespaces
+	}
+	if _, watchesAllNamespaces := namespaces[cache.AllNamespaces]; watchesAllNamespaces {
+		return namespaces
+	}
+	namespaces = maps.Clone(namespaces)
+	namespaces[namespace] = cache.Config{}
+	return namespaces
 }
 
 // GetWatchNamespacesFromEnv retrieves the list of namespaces to watch from environment variables.

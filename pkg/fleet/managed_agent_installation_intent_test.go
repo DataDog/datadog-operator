@@ -420,7 +420,8 @@ func TestManagedAgentInstallationResumesPersistedRunningUninstall(t *testing.T) 
 
 func TestManagedAgentInstallationIntentForwarderCoalescesWhenWorkerIsBusy(t *testing.T) {
 	daemon := &Daemon{
-		managedAgentInstallationUpdates: make(chan struct{}, 1),
+		managedAgentInstallationNamespace: testManagedAgentInstallationNamespace,
+		managedAgentInstallationUpdates:   make(chan struct{}, 1),
 	}
 	daemon.managedAgentInstallationUpdates <- struct{}{}
 
@@ -1338,7 +1339,7 @@ func TestManagedAgentInstallationReadinessTagsRequireDurableAcknowledgement(t *t
 	putManagedAgentInstallationIntentConfigMap(t, kubeClient, acknowledgedIntent)
 	require.NoError(t, daemon.handleManagedAgentInstallationIntent(ctx, managedAgentInstallationIntentSnapshot{raw: acknowledgedIntent}))
 
-	tags, err := ManagedAgentInstallationReadinessTags(ctx, kubeClient, testManagedAgentInstallationIdentity)
+	tags, err := ManagedAgentInstallationReadinessTags(ctx, kubeClient, testManagedAgentInstallationIdentity, testManagedAgentInstallationNamespace)
 	require.NoError(t, err)
 	require.ElementsMatch(t, []string{
 		"managed_agent_installation_ack:" + testAddonInstallOperationID,
@@ -1347,7 +1348,7 @@ func TestManagedAgentInstallationReadinessTagsRequireDurableAcknowledgement(t *t
 
 	invalid := strings.Replace(string(acknowledgedIntent), `"version":"v1"`, `"version":"v1","unknown":true`, 1)
 	putManagedAgentInstallationIntentConfigMap(t, kubeClient, []byte(invalid))
-	_, err = ManagedAgentInstallationReadinessTags(ctx, kubeClient, testManagedAgentInstallationIdentity)
+	_, err = ManagedAgentInstallationReadinessTags(ctx, kubeClient, testManagedAgentInstallationIdentity, testManagedAgentInstallationNamespace)
 	require.Error(t, err)
 }
 
@@ -1383,22 +1384,22 @@ func TestManagedAgentInstallationReadinessTagsPreserveAcknowledgementDuringUnins
 	putManagedAgentInstallationIntentConfigMap(t, kubeClient, uninstallIntent)
 	wantTags := []string{"managed_agent_installation_ack:" + testAddonInstallOperationID}
 
-	tags, err := ManagedAgentInstallationReadinessTags(ctx, kubeClient, testManagedAgentInstallationIdentity)
+	tags, err := ManagedAgentInstallationReadinessTags(ctx, kubeClient, testManagedAgentInstallationIdentity, testManagedAgentInstallationNamespace)
 	require.NoError(t, err)
 	require.Equal(t, wantTags, tags)
 
 	require.NoError(t, daemon.handleManagedAgentInstallationIntent(ctx, managedAgentInstallationIntentSnapshot{raw: uninstallIntent}))
-	tags, err = ManagedAgentInstallationReadinessTags(ctx, kubeClient, testManagedAgentInstallationIdentity)
+	tags, err = ManagedAgentInstallationReadinessTags(ctx, kubeClient, testManagedAgentInstallationIdentity, testManagedAgentInstallationNamespace)
 	require.NoError(t, err)
 	require.Equal(t, wantTags, tags)
 }
 
 func TestManagedAgentInstallationReadinessTagsRejectsIncompleteState(t *testing.T) {
 	ctx := context.Background()
-	tags, err := ManagedAgentInstallationReadinessTags(ctx, nil, testManagedAgentInstallationIdentity)
+	tags, err := ManagedAgentInstallationReadinessTags(ctx, nil, testManagedAgentInstallationIdentity, testManagedAgentInstallationNamespace)
 	require.NoError(t, err)
 	assert.Empty(t, tags)
-	tags, err = ManagedAgentInstallationReadinessTags(ctx, nil, ManagedAgentInstallationIdentity{})
+	tags, err = ManagedAgentInstallationReadinessTags(ctx, nil, ManagedAgentInstallationIdentity{}, "")
 	require.NoError(t, err)
 	assert.Empty(t, tags)
 
@@ -1406,12 +1407,12 @@ func TestManagedAgentInstallationReadinessTagsRejectsIncompleteState(t *testing.
 		[]*pbgo.PackageState{{Package: packageDatadogOperator}},
 		testFleetCredentialSecret(),
 	)
-	_, err = ManagedAgentInstallationReadinessTags(ctx, kubeClient, testManagedAgentInstallationIdentity)
+	_, err = ManagedAgentInstallationReadinessTags(ctx, kubeClient, testManagedAgentInstallationIdentity, testManagedAgentInstallationNamespace)
 	require.ErrorContains(t, err, "read managed Agent installation intent")
 
 	installIntent := testManagedAgentInstallationIntent(t, testAddonInstallOperationID, managedAgentInstallationDesiredStateInstalled)
 	putManagedAgentInstallationIntentConfigMap(t, kubeClient, installIntent)
-	tags, err = ManagedAgentInstallationReadinessTags(ctx, kubeClient, testManagedAgentInstallationIdentity)
+	tags, err = ManagedAgentInstallationReadinessTags(ctx, kubeClient, testManagedAgentInstallationIdentity, testManagedAgentInstallationNamespace)
 	require.NoError(t, err)
 	assert.Empty(t, tags)
 
@@ -1422,7 +1423,7 @@ func TestManagedAgentInstallationReadinessTagsRejectsIncompleteState(t *testing.
 		testAddonInstallOperationID,
 	)
 	putManagedAgentInstallationIntentConfigMap(t, kubeClient, acknowledgedIntent)
-	_, err = ManagedAgentInstallationReadinessTags(ctx, kubeClient, testManagedAgentInstallationIdentity)
+	_, err = ManagedAgentInstallationReadinessTags(ctx, kubeClient, testManagedAgentInstallationIdentity, testManagedAgentInstallationNamespace)
 	require.ErrorContains(t, err, "acknowledgement state is not consistent")
 
 	putManagedAgentInstallationIntentConfigMap(t, kubeClient, installIntent)
@@ -1434,7 +1435,7 @@ func TestManagedAgentInstallationReadinessTagsRejectsIncompleteState(t *testing.
 	require.NotNil(t, state)
 	state.TaskState = pbgo.TaskState_RUNNING
 	require.NoError(t, daemon.writeManagedAgentInstallationState(ctx, *state))
-	_, err = ManagedAgentInstallationReadinessTags(ctx, kubeClient, testManagedAgentInstallationIdentity)
+	_, err = ManagedAgentInstallationReadinessTags(ctx, kubeClient, testManagedAgentInstallationIdentity, testManagedAgentInstallationNamespace)
 	require.ErrorContains(t, err, "not yet consistent")
 
 	state.TaskState = pbgo.TaskState_DONE
@@ -1442,7 +1443,7 @@ func TestManagedAgentInstallationReadinessTagsRejectsIncompleteState(t *testing.
 	dda := &v2alpha1.DatadogAgent{}
 	require.NoError(t, kubeClient.Get(ctx, managedAgentInstallationTarget, dda))
 	require.NoError(t, kubeClient.Delete(ctx, dda))
-	_, err = ManagedAgentInstallationReadinessTags(ctx, kubeClient, testManagedAgentInstallationIdentity)
+	_, err = ManagedAgentInstallationReadinessTags(ctx, kubeClient, testManagedAgentInstallationIdentity, testManagedAgentInstallationNamespace)
 	require.ErrorContains(t, err, "target is absent")
 }
 
@@ -1578,7 +1579,7 @@ func TestManagedAgentInstallationReadinessTagsRejectStateFailures(t *testing.T) 
 			},
 		}
 
-		_, err := ManagedAgentInstallationReadinessTags(ctx, reader, testManagedAgentInstallationIdentity)
+		_, err := ManagedAgentInstallationReadinessTags(ctx, reader, testManagedAgentInstallationIdentity, testManagedAgentInstallationNamespace)
 		require.ErrorContains(t, err, "state read failed")
 	})
 
@@ -1598,7 +1599,7 @@ func TestManagedAgentInstallationReadinessTagsRejectStateFailures(t *testing.T) 
 		state.Digest = strings.Repeat("f", 64)
 		require.NoError(t, daemon.writeManagedAgentInstallationState(ctx, state))
 
-		_, err := ManagedAgentInstallationReadinessTags(ctx, kubeClient, testManagedAgentInstallationIdentity)
+		_, err := ManagedAgentInstallationReadinessTags(ctx, kubeClient, testManagedAgentInstallationIdentity, testManagedAgentInstallationNamespace)
 		require.ErrorContains(t, err, "not consistent with the uninstall intent")
 	})
 }
@@ -1654,17 +1655,20 @@ func TestManagedAgentInstallationIntentWorkerStopsOnReadFailure(t *testing.T) {
 }
 
 func TestManagedAgentInstallationForwardersIgnoreUnrelatedObjects(t *testing.T) {
-	daemon := &Daemon{managedAgentInstallationUpdates: make(chan struct{}, 1)}
+	daemon := &Daemon{
+		managedAgentInstallationNamespace: testManagedAgentInstallationNamespace,
+		managedAgentInstallationUpdates:   make(chan struct{}, 1),
+	}
 
 	daemon.forwardManagedAgentInstallationIntent(&corev1.Secret{})
-	daemon.forwardManagedAgentInstallationIntent(&corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "other", Namespace: fleetDatadogAgentNamespace}})
+	daemon.forwardManagedAgentInstallationIntent(&corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "other", Namespace: testManagedAgentInstallationNamespace}})
 	assert.Empty(t, daemon.managedAgentInstallationUpdates)
 	daemon.forwardManagedAgentInstallationIntent(&corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: managedAgentInstallationIntentKey.Name, Namespace: managedAgentInstallationIntentKey.Namespace}})
 	require.Len(t, daemon.managedAgentInstallationUpdates, 1)
 	<-daemon.managedAgentInstallationUpdates
 
 	daemon.forwardManagedAgentInstallationCredential(&corev1.ConfigMap{})
-	daemon.forwardManagedAgentInstallationCredential(&corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "other", Namespace: fleetDatadogAgentNamespace}})
+	daemon.forwardManagedAgentInstallationCredential(&corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "other", Namespace: testManagedAgentInstallationNamespace}})
 	daemon.forwardManagedAgentInstallationCredential(&corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: managedAgentInstallationCredentialKey.Name, Namespace: managedAgentInstallationCredentialKey.Namespace}})
 	assert.Empty(t, daemon.managedAgentInstallationUpdates)
 	daemon.forwardManagedAgentInstallationCredential(testFleetCredentialSecret())
@@ -1731,6 +1735,7 @@ func testRestartedManagedAgentInstallationDaemon(kubeClient client.Client) *Daem
 		client:                               kubeClient,
 		apiReader:                            kubeClient,
 		managedAgentInstallationIdentity:     testManagedAgentInstallationIdentity,
+		managedAgentInstallationNamespace:    testManagedAgentInstallationNamespace,
 		managedAgentInstallationTaskReserved: true,
 		configs:                              make(map[string]installerConfig),
 		statusUpdates:                        make(chan ddaStatusSnapshot, 32),

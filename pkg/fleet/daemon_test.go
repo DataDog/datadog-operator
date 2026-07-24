@@ -1394,7 +1394,7 @@ func TestNewDaemonAppliesManagedInstallationOption(t *testing.T) {
 	recorder := record.NewFakeRecorder(1)
 	mgr := &recordingManager{client: kubeClient, reader: kubeClient, cache: cache, recorder: recorder}
 
-	d := NewDaemon(rcClient, mgr, true, WithManagedAgentInstallation(testManagedAgentInstallationIdentity, true))
+	d := NewDaemon(rcClient, mgr, true, WithManagedAgentInstallation(testManagedAgentInstallationIdentity, testManagedAgentInstallationNamespace, true))
 
 	assert.Same(t, kubeClient, d.client)
 	assert.Same(t, kubeClient, d.apiReader)
@@ -1404,6 +1404,7 @@ func TestNewDaemonAppliesManagedInstallationOption(t *testing.T) {
 	assert.True(t, d.managedAgentInstallationIntentsEnabled)
 	assert.True(t, d.managedAgentInstallationTaskReserved)
 	assert.Equal(t, testManagedAgentInstallationIdentity, d.managedAgentInstallationIdentity)
+	assert.Equal(t, testManagedAgentInstallationNamespace, d.managedAgentInstallationNamespace)
 	assert.NotNil(t, d.managedAgentInstallationTaskRunner)
 	assert.NotNil(t, d.configs)
 	assert.NotNil(t, d.statusUpdates)
@@ -1657,7 +1658,7 @@ func TestManagedAgentInstallationIntentsDisabledPreservesFleetUpdates(t *testing
 		StableConfigVersion: remoteconfig.InstallerStateUnknownConfigVersion,
 	}}, dda)
 	d.configs = testInstallerConfigWithDDA()
-	WithManagedAgentInstallation(testManagedAgentInstallationIdentity, false)(d)
+	WithManagedAgentInstallation(testManagedAgentInstallationIdentity, testManagedAgentInstallationNamespace, false)(d)
 	d.revisionsEnabled = true
 
 	require.NoError(t, d.rehydrateInstallerState(context.Background()))
@@ -1680,7 +1681,7 @@ func TestManagedAgentInstallationIntentsDisabledPreservesFleetUpdates(t *testing
 
 func TestManagedAgentInstallationDisabledPreservesUnmanagedFleetUpdates(t *testing.T) {
 	d, kubeClient := testDaemon(testDDAObject(""), testInstallerConfigWithDDA())
-	WithManagedAgentInstallation(ManagedAgentInstallationIdentity{}, false)(d)
+	WithManagedAgentInstallation(ManagedAgentInstallationIdentity{}, "", false)(d)
 
 	requireStartQueued(t, d, testStartRequest())
 

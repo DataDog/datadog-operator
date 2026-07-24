@@ -15,7 +15,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 	k8sretry "k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -35,11 +34,6 @@ const (
 	managedAgentInstallationAckTagPrefix           = "managed_agent_installation_ack:"
 )
 
-var managedAgentInstallationStateKey = types.NamespacedName{
-	Namespace: fleetDatadogAgentNamespace,
-	Name:      managedAgentInstallationStateConfigMapName,
-}
-
 type managedAgentInstallationPersistedState struct {
 	Provider                ManagedAgentInstallationProvider
 	InstallationID          string
@@ -52,12 +46,20 @@ type managedAgentInstallationPersistedState struct {
 	Error                   string
 }
 
-func ManagedAgentInstallationReadinessTags(ctx context.Context, reader client.Reader, identity ManagedAgentInstallationIdentity) ([]string, error) {
+func ManagedAgentInstallationReadinessTags(ctx context.Context, reader client.Reader, identity ManagedAgentInstallationIdentity, namespace string) ([]string, error) {
 	if reader == nil || !identity.Configured() {
 		return nil, nil
 	}
+	if namespace == "" {
+		return nil, fmt.Errorf("managed Agent installation namespace is required")
+	}
+	daemon := &Daemon{
+		apiReader:                         reader,
+		managedAgentInstallationIdentity:  identity,
+		managedAgentInstallationNamespace: namespace,
+	}
 	intentConfigMap := &corev1.ConfigMap{}
-	if err := reader.Get(ctx, managedAgentInstallationIntentKey, intentConfigMap); err != nil {
+	if err := reader.Get(ctx, daemon.managedAgentInstallationIntentKey(), intentConfigMap); err != nil {
 		return nil, fmt.Errorf("read managed Agent installation intent for Remote Configuration updater tags: %w", err)
 	}
 	intent, _, digest, err := decodeManagedAgentInstallationIntent([]byte(intentConfigMap.Data[managedAgentInstallationIntentDataKey]), identity)
@@ -68,10 +70,6 @@ func ManagedAgentInstallationReadinessTags(ctx context.Context, reader client.Re
 		return nil, nil
 	}
 
-	daemon := &Daemon{
-		apiReader:                        reader,
-		managedAgentInstallationIdentity: identity,
-	}
 	state, err := daemon.readManagedAgentInstallationState(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("read managed Agent installation acknowledgement state for Remote Configuration updater tags: %w", err)
@@ -147,22 +145,23 @@ func (d *Daemon) writeManagedAgentInstallationResult(ctx context.Context, state 
 
 func (d *Daemon) writeManagedAgentInstallationStateForOperation(ctx context.Context, state managedAgentInstallationPersistedState, expectedOperationID string) error {
 	return k8sretry.RetryOnConflict(k8sretry.DefaultBackoff, func() error {
+		stateKey := d.managedAgentInstallationStateKey()
 		current := &corev1.ConfigMap{}
-		getErr := d.client.Get(ctx, managedAgentInstallationStateKey, current)
+		getErr := d.client.Get(ctx, stateKey, current)
 		if apierrors.IsNotFound(getErr) {
 			if expectedOperationID != "" {
 				return fmt.Errorf("managed Agent installation state is missing for operation %s", expectedOperationID)
 			}
 			intent := &corev1.ConfigMap{}
-			if err := d.managedAgentInstallationReader().Get(ctx, managedAgentInstallationIntentKey, intent); err != nil {
+			if err := d.managedAgentInstallationReader().Get(ctx, d.managedAgentInstallationIntentKey(), intent); err != nil {
 				return fmt.Errorf("read managed Agent installation intent owner: %w", err)
 			}
 			owner := controllerOwnerReference(corev1.SchemeGroupVersion.String(), "ConfigMap", intent.Name, intent.UID)
 			owner.BlockOwnerDeletion = nil
 			return d.client.Create(ctx, &corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
-					Namespace:       managedAgentInstallationStateKey.Namespace,
-					Name:            managedAgentInstallationStateKey.Name,
+					Namespace:       stateKey.Namespace,
+					Name:            stateKey.Name,
 					OwnerReferences: []metav1.OwnerReference{owner},
 					Labels: map[string]string{
 						"app.kubernetes.io/managed-by": "datadog-operator",
@@ -202,7 +201,7 @@ func managedAgentInstallationStateData(state managedAgentInstallationPersistedSt
 
 func (d *Daemon) readManagedAgentInstallationState(ctx context.Context) (*managedAgentInstallationPersistedState, error) {
 	configMap := &corev1.ConfigMap{}
-	if err := d.managedAgentInstallationReader().Get(ctx, managedAgentInstallationStateKey, configMap); err != nil {
+	if err := d.managedAgentInstallationReader().Get(ctx, d.managedAgentInstallationStateKey(), configMap); err != nil {
 		if apierrors.IsNotFound(err) {
 			return nil, nil
 		}
@@ -237,7 +236,7 @@ func (d *Daemon) readManagedAgentInstallationState(ctx context.Context) (*manage
 
 func (d *Daemon) validateManagedAgentInstallationStateOwner(ctx context.Context, state *corev1.ConfigMap) error {
 	intent := &corev1.ConfigMap{}
-	if err := d.managedAgentInstallationReader().Get(ctx, managedAgentInstallationIntentKey, intent); err != nil {
+	if err := d.managedAgentInstallationReader().Get(ctx, d.managedAgentInstallationIntentKey(), intent); err != nil {
 		return fmt.Errorf("read managed Agent installation intent owner: %w", err)
 	}
 	wantOwner := controllerOwnerReference(corev1.SchemeGroupVersion.String(), "ConfigMap", intent.Name, intent.UID)

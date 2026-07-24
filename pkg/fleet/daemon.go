@@ -55,6 +55,7 @@ type Daemon struct {
 	recorder                                     record.EventRecorder // Kubernetes-event recorder for fleet-daemon-source events (gated by env var)
 	revisionsEnabled                             bool
 	managedAgentInstallationIdentity             ManagedAgentInstallationIdentity
+	managedAgentInstallationNamespace            string
 	managedAgentInstallationIntentsEnabled       bool
 	managedAgentInstallationTaskRunner           func(func())
 	mu                                           sync.RWMutex
@@ -80,9 +81,10 @@ type DaemonOption func(*Daemon)
 
 // WithManagedAgentInstallation configures the identity used by managed DDAs and
 // optionally enables local install and uninstall intent processing.
-func WithManagedAgentInstallation(identity ManagedAgentInstallationIdentity, intentsEnabled bool) DaemonOption {
+func WithManagedAgentInstallation(identity ManagedAgentInstallationIdentity, namespace string, intentsEnabled bool) DaemonOption {
 	return func(daemon *Daemon) {
 		daemon.managedAgentInstallationIdentity = identity
+		daemon.managedAgentInstallationNamespace = namespace
 		daemon.managedAgentInstallationIntentsEnabled = intentsEnabled
 		daemon.managedAgentInstallationTaskReserved = intentsEnabled
 	}
@@ -121,6 +123,9 @@ func (d *Daemon) Start(ctx context.Context) error {
 
 	if d.cache == nil {
 		return fmt.Errorf("fleet daemon requires a controller cache")
+	}
+	if d.managedAgentInstallationIdentity.Configured() && d.managedAgentInstallationNamespace == "" {
+		return fmt.Errorf("fleet daemon requires a managed Agent installation namespace")
 	}
 	if err := d.installDDAStatusForwarder(ctx); err != nil {
 		return err
@@ -367,7 +372,7 @@ func (d *Daemon) rehydrateInstallerState(ctx context.Context) error {
 	if err := d.apiReader.List(ctx, ddas); err != nil {
 		return fmt.Errorf("list DatadogAgents: %w", err)
 	}
-	target := managedAgentInstallationTarget
+	target := d.managedAgentInstallationTarget()
 	var dda *v2alpha1.DatadogAgent
 	for i := range ddas.Items {
 		if client.ObjectKeyFromObject(&ddas.Items[i]) == target {

@@ -136,7 +136,7 @@ func (d *Daemon) installDDAStatusForwarder(ctx context.Context) error {
 func (d *Daemon) forwardDDAStatusUpdate(obj any) {
 	if dda, ok := obj.(*v2alpha1.DatadogAgent); ok {
 		d.statusUpdates <- newDDAStatusSnapshot(dda)
-		if client.ObjectKeyFromObject(dda) == managedAgentInstallationTarget {
+		if client.ObjectKeyFromObject(dda) == d.managedAgentInstallationTarget() {
 			d.requestManagedAgentInstallationRetryIfWaiting()
 		}
 	}
