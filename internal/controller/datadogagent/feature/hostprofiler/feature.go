@@ -19,10 +19,14 @@ import (
 
 var errHostPIDDisabledManually = errors.New("Host PID is required for host profiler")
 
+// SELinux type applied to the host-profiler container unless overridden via the annotation.
+const defaultSELinuxType = "spc_t"
+
 type hostProfilerFeature struct {
 	owner                   metav1.Object
 	hostPIDDisabledManually bool
 	seccompEnabled          bool
+	selinuxType             string
 
 	logger logr.Logger
 }
@@ -64,6 +68,12 @@ func (o *hostProfilerFeature) Configure(dda metav1.Object, _ *v2alpha1.DatadogAg
 		} else {
 			o.seccompEnabled = value
 		}
+	}
+
+	// SELinux type defaults to spc_t; override via the selinux-type annotation.
+	o.selinuxType = defaultSELinuxType
+	if str, ok := dda.GetAnnotations()[featureutils.HostProfilerSELinuxTypeAnnotation]; ok && str != "" {
+		o.selinuxType = str
 	}
 
 	return feature.RequiredComponents{
@@ -153,6 +163,13 @@ func (o *hostProfilerFeature) ManageNodeAgent(managers feature.PodTemplateManage
 	// AppArmor: unconfined so the default containerd profile doesn't block ptrace cross-profile,
 	// which host-profiler requires to read /proc/<pid>/map_files for process profiling.
 	managers.Annotation().AddAnnotation(common.AppArmorAnnotationKey+"/"+string(apicommon.HostProfiler), "unconfined")
+
+	// SELinux: run as the super-privileged container type (spc_t by default) so SELinux-enforcing
+	// nodes don't block the cross-process /proc access the host-profiler needs. Overridable via the
+	// host-profiler-selinux-type annotation.
+	sc.SELinuxOptions = &corev1.SELinuxOptions{
+		Type: o.selinuxType,
+	}
 
 	// Tracingfs volume
 	volumeTracingfs := corev1.Volume{

@@ -19,6 +19,7 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
@@ -121,6 +122,10 @@ func Test_hostProfilerFeature_SeccompDisabled(t *testing.T) {
 	// AppArmor annotation is independent of seccomp and must remain.
 	assert.Equal(t, "unconfined", manager.AnnotationMgr.Annotations[common.AppArmorAnnotationKey+"/"+string(apicommon.HostProfiler)])
 
+	// SELinux options are independent of seccomp and must remain.
+	assert.NotNil(t, hpContainer.SecurityContext.SELinuxOptions, "SELinuxOptions must be set when seccomp is disabled")
+	assert.Equal(t, "spc_t", hpContainer.SecurityContext.SELinuxOptions.Type)
+
 	// seccomp-root volume must be absent.
 	for _, v := range manager.VolumeMgr.Volumes {
 		assert.NotEqual(t, common.SeccompRootVolumeName, v.Name, "seccomp-root volume must be absent when seccomp is disabled")
@@ -130,6 +135,46 @@ func Test_hostProfilerFeature_SeccompDisabled(t *testing.T) {
 	for _, c := range manager.Tpl.Spec.InitContainers {
 		assert.NotEqual(t, string(apicommon.HostProfilerSeccompSetupContainerName), c.Name, "seccomp setup init container must be absent when seccomp is disabled")
 	}
+}
+
+func Test_hostProfilerFeature_SELinuxTypeAnnotation(t *testing.T) {
+	hostProfilerImage := "gcr.io/datadoghq/agent:7.99.0-fips"
+	dda := testutils.NewDatadogAgentBuilder().
+		WithName("datadog-agent").
+		WithAnnotations(map[string]string{
+			"agent.datadoghq.com/host-profiler-enabled":      "true",
+			"agent.datadoghq.com/host-profiler-selinux-type": "custom_t",
+		}).
+		Build()
+
+	manager := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{
+				{Name: string(apicommon.CoreAgentContainerName), Image: images.GetLatestAgentImage()},
+				{
+					Name:            string(apicommon.HostProfiler),
+					Image:           hostProfilerImage,
+					SecurityContext: &corev1.SecurityContext{ReadOnlyRootFilesystem: ptr.To(true)},
+				},
+			},
+		},
+	})
+
+	hostProfilerFeat := buildHostProfilerFeature(nil).(*hostProfilerFeature)
+	hostProfilerFeat.Configure(dda, &dda.Spec, nil)
+	assert.NoError(t, hostProfilerFeat.ManageNodeAgent(manager))
+
+	var hpContainer *corev1.Container
+	for i := range manager.Tpl.Spec.Containers {
+		if manager.Tpl.Spec.Containers[i].Name == string(apicommon.HostProfiler) {
+			hpContainer = &manager.Tpl.Spec.Containers[i]
+			break
+		}
+	}
+	require.NotNil(t, hpContainer)
+	// The selinux-type annotation overrides the spc_t default.
+	require.NotNil(t, hpContainer.SecurityContext.SELinuxOptions)
+	assert.Equal(t, "custom_t", hpContainer.SecurityContext.SELinuxOptions.Type)
 }
 
 func testExpectedAgent(agentContainerName apicommon.AgentContainerName, expectedVolumeMount []corev1.VolumeMount) *test.ComponentTest {
