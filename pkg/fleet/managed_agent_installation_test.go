@@ -1,0 +1,1217 @@
+// Unless explicitly stated otherwise all files in this repository are licensed
+// under the Apache License Version 2.0.
+// This product includes software developed at Datadog (https://www.datadoghq.com/).
+// Copyright 2016-present Datadog, Inc.
+
+package fleet
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"testing"
+
+	pbgo "github.com/DataDog/datadog-agent/pkg/proto/pbgo/core"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
+	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+
+	v1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	v2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+)
+
+const testManagedAgentInstallationTargetHash = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+
+var testManagedAgentInstallationIdentity = NewEKSManagedAgentInstallationIdentity(
+	"123e4567-e89b-42d3-a456-426614174000",
+	testManagedAgentInstallationTargetHash,
+)
+
+type managedAgentInstallationTestClient struct {
+	client.Client
+}
+
+type rejectManagedAgentInstallationTargetCreateClient struct {
+	client.Client
+}
+
+func (c *rejectManagedAgentInstallationTargetCreateClient) Create(ctx context.Context, obj client.Object, opts ...client.CreateOption) error {
+	if _, ok := obj.(*v2alpha1.DatadogAgent); ok {
+		return apierrors.NewForbidden(
+			schema.GroupResource{Group: v2alpha1.GroupVersion.Group, Resource: "datadogagents"},
+			obj.GetName(),
+			errors.New("target create denied"),
+		)
+	}
+	return c.Client.Create(ctx, obj, opts...)
+}
+
+type recoverManagedAgentInstallationAlreadyExistsClient struct {
+	client.Client
+}
+
+func (c *recoverManagedAgentInstallationAlreadyExistsClient) Create(ctx context.Context, obj client.Object, opts ...client.CreateOption) error {
+	if _, ok := obj.(*v2alpha1.DatadogAgent); !ok {
+		return c.Client.Create(ctx, obj, opts...)
+	}
+	if err := c.Client.Create(ctx, obj, opts...); err != nil {
+		return err
+	}
+	return apierrors.NewAlreadyExists(schema.GroupResource{Group: v2alpha1.GroupVersion.Group, Resource: "datadogagents"}, obj.GetName())
+}
+
+type rejectManagedAgentInstallationTargetDeleteClient struct {
+	client.Client
+}
+
+type managedAgentInstallationFaultClient struct {
+	client.Client
+	createError func(client.Object) error
+	getError    func(client.ObjectKey, client.Object) error
+	listError   func(client.ObjectList) error
+	patchError  func(client.Object) error
+}
+
+func (c *managedAgentInstallationFaultClient) Create(ctx context.Context, obj client.Object, opts ...client.CreateOption) error {
+	if c.createError != nil {
+		if err := c.createError(obj); err != nil {
+			return err
+		}
+	}
+	return c.Client.Create(ctx, obj, opts...)
+}
+
+func (c *managedAgentInstallationFaultClient) Get(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+	if c.getError != nil {
+		if err := c.getError(key, obj); err != nil {
+			return err
+		}
+	}
+	return c.Client.Get(ctx, key, obj, opts...)
+}
+
+func (c *managedAgentInstallationFaultClient) List(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
+	if c.listError != nil {
+		if err := c.listError(list); err != nil {
+			return err
+		}
+	}
+	return c.Client.List(ctx, list, opts...)
+}
+
+func (c *managedAgentInstallationFaultClient) Patch(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
+	if c.patchError != nil {
+		if err := c.patchError(obj); err != nil {
+			return err
+		}
+	}
+	return c.Client.Patch(ctx, obj, patch, opts...)
+}
+
+func (c *rejectManagedAgentInstallationTargetDeleteClient) Delete(ctx context.Context, obj client.Object, opts ...client.DeleteOption) error {
+	if _, ok := obj.(*v2alpha1.DatadogAgent); ok {
+		return errors.New("target delete denied")
+	}
+	return c.Client.Delete(ctx, obj, opts...)
+}
+
+func (c *managedAgentInstallationTestClient) Create(ctx context.Context, obj client.Object, opts ...client.CreateOption) error {
+	if dda, ok := obj.(*v2alpha1.DatadogAgent); ok && dda.UID == "" {
+		dda.UID = types.UID("created-dda-uid")
+	}
+	return c.Client.Create(ctx, obj, opts...)
+}
+
+func (c *managedAgentInstallationTestClient) Delete(ctx context.Context, obj client.Object, opts ...client.DeleteOption) error {
+	if _, ok := obj.(*v2alpha1.DatadogAgent); ok {
+		profile := &v1alpha1.DatadogAgentProfile{}
+		if err := c.Client.Get(ctx, managedAgentInstallationWindowsProfileKey, profile); err == nil {
+			if err := c.Client.Delete(ctx, profile); err != nil && !apierrors.IsNotFound(err) {
+				return err
+			}
+		} else if !apierrors.IsNotFound(err) {
+			return err
+		}
+	}
+	return c.Client.Delete(ctx, obj, opts...)
+}
+
+func TestManagedAgentInstallationKeysUseConfiguredNamespace(t *testing.T) {
+	daemon := &Daemon{managedAgentInstallationNamespace: "custom-addon-namespace"}
+
+	for _, key := range []types.NamespacedName{
+		daemon.managedAgentInstallationTarget(),
+		daemon.managedAgentInstallationCredentialKey(),
+		daemon.managedAgentInstallationIntentKey(),
+		daemon.managedAgentInstallationStateKey(),
+		daemon.managedAgentInstallationWindowsProfileKey(),
+	} {
+		assert.Equal(t, "custom-addon-namespace", key.Namespace)
+	}
+}
+
+func TestManagedAgentInstallationConfigRejectsCredentials(t *testing.T) {
+	for _, raw := range []json.RawMessage{
+		json.RawMessage(`{"spec":{"global":{"credentials":{"apiKey":"api-key"}}}}`),
+		json.RawMessage(`{"spec":{"global":{"clusterAgentToken":"token"}}}`),
+		json.RawMessage(`{"spec":{"global":{"clusterAgentTokenSecret":{"secretName":"other"}}}}`),
+		json.RawMessage(`{"Spec":{"Global":{"Credentials":{"APIKey":"api-key"}}}}`),
+		json.RawMessage(`{"Spec":{"Global":{"ClusterAgentToken":"token"}}}`),
+		json.RawMessage(`{"Spec":{"Global":{"ClusterAgentTokenSecret":{"SecretName":"other"}}}}`),
+	} {
+		_, err := buildFleetDatadogAgentSpec(raw)
+		assert.Error(t, err)
+	}
+}
+
+func TestManagedAgentInstallationConfigAllowsAgentConfiguration(t *testing.T) {
+	for name, raw := range map[string]string{
+		"component image": `{"spec":{"override":{"nodeAgent":{"image":{"name":"registry.example/datadog-agent:latest"}}}}}`,
+		"global registry": `{"spec":{"global":{"registry":"registry.example"}}}`,
+		"service account": `{"spec":{"override":{"nodeAgent":{"serviceAccountName":"datadog-agent"}}}}`,
+		"node selector":   `{"spec":{"override":{"nodeAgent":{"nodeSelector":{"kubernetes.io/os":"linux"}}}}}`,
+		"OTLP endpoint":   `{"spec":{"features":{"otlp":{"receiver":{"protocols":{"grpc":{"endpoint":"0.0.0.0:4317"}}}}}}}`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			_, err := buildFleetDatadogAgentSpec(json.RawMessage(raw))
+			require.NoError(t, err)
+		})
+	}
+}
+
+func TestManagedAgentInstallationConfigRejectsInvalidDocument(t *testing.T) {
+	for _, raw := range []json.RawMessage{
+		json.RawMessage(`{"spec":null}`),
+		json.RawMessage(`{"spec":{"unknownField":true}}`),
+		json.RawMessage(`{"spec":{}} {}`),
+	} {
+		_, err := buildFleetDatadogAgentSpec(raw)
+		assert.Error(t, err)
+	}
+}
+
+func TestManagedAgentInstallationRevalidatesExistingResources(t *testing.T) {
+	ctx := context.Background()
+	daemon, kubeClient, _ := testManagedAgentInstallationDaemon(nil, testFleetCredentialSecret())
+	command := testManagedAgentInstallationCommand(t, testAddonInstallOperationID, managedAgentInstallationDesiredStateInstalled)
+
+	require.NoError(t, daemon.installDatadogAgent(ctx, command))
+	require.NoError(t, daemon.installDatadogAgent(ctx, command))
+
+	dda := &v2alpha1.DatadogAgent{}
+	require.NoError(t, kubeClient.Get(ctx, managedAgentInstallationTarget, dda))
+	assert.Equal(t, fleetManagedAgentInstallationStateReady, dda.Labels[fleetManagedAgentInstallationStateLabel])
+	profile := &v1alpha1.DatadogAgentProfile{}
+	require.NoError(t, kubeClient.Get(ctx, managedAgentInstallationWindowsProfileKey, profile))
+	require.NoError(t, daemon.validateManagedAgentInstallationWindowsProfile(profile, dda))
+}
+
+func TestManagedAgentInstallationRecoversPostAdmissionSpecHash(t *testing.T) {
+	ctx := context.Background()
+	command := testManagedAgentInstallationCommand(t, testAddonInstallOperationID, managedAgentInstallationDesiredStateInstalled)
+	desired, err := buildFleetDatadogAgentSpec(command.Config)
+	require.NoError(t, err)
+	desiredHash, err := fleetDatadogAgentSpecHash(desired)
+	require.NoError(t, err)
+
+	dda := testFleetManagedDatadogAgent(t, "", testAddonInstallOperationID)
+	dda.Labels[fleetManagedAgentInstallationStateLabel] = fleetManagedAgentInstallationStatePartial
+	dda.Spec = *desired.DeepCopy()
+	dda.Annotations[fleetConfigHashAnnotation] = desiredHash
+	dda.Annotations[fleetCreateTaskIDAnnotation] = testAddonInstallOperationID
+	defaultRegistry := "registry.example"
+	dda.Spec.Global.Registry = &defaultRegistry
+	liveHash, err := fleetDatadogAgentSpecHash(&dda.Spec)
+	require.NoError(t, err)
+	require.NotEqual(t, desiredHash, liveHash)
+
+	daemon, kubeClient, _ := testManagedAgentInstallationDaemon(nil, testFleetCredentialSecret(), dda)
+	require.NoError(t, daemon.installDatadogAgent(ctx, command))
+
+	updated := &v2alpha1.DatadogAgent{}
+	require.NoError(t, kubeClient.Get(ctx, managedAgentInstallationTarget, updated))
+	assert.Equal(t, fleetManagedAgentInstallationStateReady, updated.Labels[fleetManagedAgentInstallationStateLabel])
+	assert.Equal(t, liveHash, updated.Annotations[fleetConfigHashAnnotation])
+}
+
+func TestManagedAgentInstallationInstallFailureModes(t *testing.T) {
+	ctx := context.Background()
+	command := testManagedAgentInstallationCommand(t, testAddonInstallOperationID, managedAgentInstallationDesiredStateInstalled)
+
+	t.Run("invalid config", func(t *testing.T) {
+		daemon, _, _ := testManagedAgentInstallationDaemon(nil, testFleetCredentialSecret())
+		invalid := command
+		invalid.Config = json.RawMessage(`{}`)
+		err := daemon.installDatadogAgent(ctx, invalid)
+		require.ErrorContains(t, err, "config must contain spec")
+	})
+
+	t.Run("unmanaged target", func(t *testing.T) {
+		daemon, _, _ := testManagedAgentInstallationDaemon(nil, testFleetCredentialSecret(), testDDAObject(""))
+		err := daemon.installDatadogAgent(ctx, command)
+		require.ErrorContains(t, err, "is not owned by Fleet Automation")
+	})
+
+	t.Run("different accepted config", func(t *testing.T) {
+		dda := testFleetManagedDatadogAgent(t, "", testAddonUninstallOperationID)
+		daemon, _, _ := testManagedAgentInstallationDaemon(nil, testFleetCredentialSecret(), dda)
+		err := daemon.installDatadogAgent(ctx, command)
+		require.ErrorContains(t, err, "use an update operation")
+	})
+
+	t.Run("target read failure", func(t *testing.T) {
+		daemon, kubeClient, _ := testManagedAgentInstallationDaemon(nil, testFleetCredentialSecret())
+		daemon.apiReader = &failManagedAgentInstallationTargetReadClient{Reader: kubeClient}
+		err := daemon.installDatadogAgent(ctx, command)
+		require.ErrorContains(t, err, "transient managed Agent installation target read failure")
+	})
+
+	t.Run("non-retryable create failure", func(t *testing.T) {
+		daemon, _, _ := testManagedAgentInstallationDaemon(nil, testFleetCredentialSecret())
+		daemon.client = &rejectManagedAgentInstallationTargetCreateClient{Client: daemon.client}
+		err := daemon.installDatadogAgent(ctx, command)
+		require.ErrorContains(t, err, "target create denied")
+	})
+
+	t.Run("already-created target is recovered as partial", func(t *testing.T) {
+		daemon, kubeClient, rcClient := testManagedAgentInstallationDaemon(
+			[]*pbgo.PackageState{{Package: packageDatadogOperator}},
+			testFleetCredentialSecret(),
+		)
+		daemon.client = &recoverManagedAgentInstallationAlreadyExistsClient{Client: daemon.client}
+		err := daemon.installDatadogAgent(ctx, command)
+		require.ErrorContains(t, err, "recovered Fleet-owned resource remains partial")
+		dda := &v2alpha1.DatadogAgent{}
+		require.NoError(t, kubeClient.Get(ctx, managedAgentInstallationTarget, dda))
+		assert.Equal(t, fleetManagedAgentInstallationStatePartial, dda.Labels[fleetManagedAgentInstallationStateLabel])
+		assert.Equal(t, fleetPartialConfigVersionPrefix+testAddonInstallOperationID, rcClient.state[0].GetStableConfigVersion())
+	})
+}
+
+func TestManagedAgentInstallationInstallWriteAndObservationFailures(t *testing.T) {
+	ctx := context.Background()
+	command := testManagedAgentInstallationCommand(t, testAddonInstallOperationID, managedAgentInstallationDesiredStateInstalled)
+	newExistingDDA := func(t *testing.T) *v2alpha1.DatadogAgent {
+		t.Helper()
+		dda := testFleetManagedDatadogAgent(t, "", testAddonInstallOperationID)
+		spec, err := buildFleetDatadogAgentSpec(command.Config)
+		require.NoError(t, err)
+		dda.Spec = *spec
+		hash, err := fleetDatadogAgentSpecHash(&dda.Spec)
+		require.NoError(t, err)
+		dda.Annotations[fleetConfigHashAnnotation] = hash
+		return dda
+	}
+
+	t.Run("existing target read failure", func(t *testing.T) {
+		daemon, kubeClient, _ := testManagedAgentInstallationDaemon(nil, testFleetCredentialSecret())
+		reads := 0
+		daemon.apiReader = &managedAgentInstallationFaultClient{
+			Client: kubeClient,
+			getError: func(_ client.ObjectKey, obj client.Object) error {
+				if _, ok := obj.(*v2alpha1.DatadogAgent); ok {
+					reads++
+					if reads == 2 {
+						return errors.New("existing target read failed")
+					}
+				}
+				return nil
+			},
+		}
+
+		err := daemon.installDatadogAgent(ctx, command)
+		require.ErrorContains(t, err, "existing target read failed")
+	})
+
+	t.Run("mark existing target partial", func(t *testing.T) {
+		dda := newExistingDDA(t)
+		daemon, _, _ := testManagedAgentInstallationDaemon(nil, testFleetCredentialSecret(), dda)
+		daemon.client = &managedAgentInstallationFaultClient{
+			Client: daemon.client,
+			patchError: func(obj client.Object) error {
+				if _, ok := obj.(*v2alpha1.DatadogAgent); ok {
+					return errors.New("partial patch failed")
+				}
+				return nil
+			},
+		}
+
+		err := daemon.installDatadogAgent(ctx, command)
+		require.ErrorContains(t, err, "partial patch failed")
+	})
+
+	t.Run("create profile for existing target", func(t *testing.T) {
+		dda := newExistingDDA(t)
+		daemon, _, _ := testManagedAgentInstallationDaemon(nil, testFleetCredentialSecret(), dda)
+		daemon.client = &managedAgentInstallationFaultClient{
+			Client: daemon.client,
+			createError: func(obj client.Object) error {
+				if _, ok := obj.(*v1alpha1.DatadogAgentProfile); ok {
+					return errors.New("profile create failed")
+				}
+				return nil
+			},
+		}
+
+		err := daemon.installDatadogAgent(ctx, command)
+		require.ErrorContains(t, err, "profile create failed")
+	})
+
+	t.Run("mark existing target ready", func(t *testing.T) {
+		dda := newExistingDDA(t)
+		daemon, _, _ := testManagedAgentInstallationDaemon(nil, testFleetCredentialSecret(), dda)
+		patches := 0
+		daemon.client = &managedAgentInstallationFaultClient{
+			Client: daemon.client,
+			patchError: func(obj client.Object) error {
+				if _, ok := obj.(*v2alpha1.DatadogAgent); ok {
+					patches++
+					if patches == 2 {
+						return errors.New("ready patch failed")
+					}
+				}
+				return nil
+			},
+		}
+
+		err := daemon.installDatadogAgent(ctx, command)
+		require.ErrorContains(t, err, "ready patch failed")
+	})
+
+	t.Run("revalidate existing target", func(t *testing.T) {
+		dda := newExistingDDA(t)
+		daemon, kubeClient, _ := testManagedAgentInstallationDaemon(nil, testFleetCredentialSecret(), dda)
+		reads := 0
+		daemon.apiReader = &managedAgentInstallationFaultClient{
+			Client: kubeClient,
+			getError: func(_ client.ObjectKey, obj client.Object) error {
+				if _, ok := obj.(*v2alpha1.DatadogAgent); ok {
+					reads++
+					if reads == 5 {
+						return errors.New("target revalidation failed")
+					}
+				}
+				return nil
+			},
+		}
+
+		err := daemon.installDatadogAgent(ctx, command)
+		require.ErrorContains(t, err, "target revalidation failed")
+	})
+
+	t.Run("revalidate existing profile", func(t *testing.T) {
+		dda := newExistingDDA(t)
+		daemon, kubeClient, _ := testManagedAgentInstallationDaemon(nil, testFleetCredentialSecret(), dda)
+		reads := 0
+		daemon.apiReader = &managedAgentInstallationFaultClient{
+			Client: kubeClient,
+			getError: func(_ client.ObjectKey, obj client.Object) error {
+				if _, ok := obj.(*v1alpha1.DatadogAgentProfile); ok {
+					reads++
+					if reads == 2 {
+						return errors.New("profile revalidation failed")
+					}
+				}
+				return nil
+			},
+		}
+
+		err := daemon.installDatadogAgent(ctx, command)
+		require.ErrorContains(t, err, "profile revalidation failed")
+	})
+
+	t.Run("record new target hash", func(t *testing.T) {
+		daemon, _, _ := testManagedAgentInstallationDaemon(nil, testFleetCredentialSecret())
+		daemon.client = &managedAgentInstallationFaultClient{
+			Client: daemon.client,
+			createError: func(obj client.Object) error {
+				if dda, ok := obj.(*v2alpha1.DatadogAgent); ok {
+					dda.Annotations[fleetConfigHashAnnotation] = "stale"
+				}
+				return nil
+			},
+			patchError: func(obj client.Object) error {
+				if _, ok := obj.(*v2alpha1.DatadogAgent); ok {
+					return errors.New("accepted hash patch failed")
+				}
+				return nil
+			},
+		}
+
+		err := daemon.installDatadogAgent(ctx, command)
+		require.ErrorContains(t, err, "record accepted spec")
+		require.ErrorContains(t, err, "accepted hash patch failed")
+	})
+
+	t.Run("create profile for new target", func(t *testing.T) {
+		daemon, _, _ := testManagedAgentInstallationDaemon(nil, testFleetCredentialSecret())
+		daemon.client = &managedAgentInstallationFaultClient{
+			Client: daemon.client,
+			createError: func(obj client.Object) error {
+				if _, ok := obj.(*v1alpha1.DatadogAgentProfile); ok {
+					return errors.New("profile create failed")
+				}
+				return nil
+			},
+		}
+
+		err := daemon.installDatadogAgent(ctx, command)
+		require.ErrorContains(t, err, "profile create failed")
+	})
+
+	t.Run("mark new target ready", func(t *testing.T) {
+		daemon, _, _ := testManagedAgentInstallationDaemon(nil, testFleetCredentialSecret())
+		daemon.client = &managedAgentInstallationFaultClient{
+			Client: daemon.client,
+			patchError: func(obj client.Object) error {
+				if _, ok := obj.(*v2alpha1.DatadogAgent); ok {
+					return errors.New("ready patch failed")
+				}
+				return nil
+			},
+		}
+
+		err := daemon.installDatadogAgent(ctx, command)
+		require.ErrorContains(t, err, "mark managed Agent installation ready")
+		require.ErrorContains(t, err, "ready patch failed")
+	})
+
+	t.Run("revalidate new target", func(t *testing.T) {
+		daemon, kubeClient, _ := testManagedAgentInstallationDaemon(nil, testFleetCredentialSecret())
+		reads := 0
+		daemon.apiReader = &managedAgentInstallationFaultClient{
+			Client: kubeClient,
+			getError: func(_ client.ObjectKey, obj client.Object) error {
+				if _, ok := obj.(*v2alpha1.DatadogAgent); ok {
+					reads++
+					if reads == 3 {
+						return errors.New("target revalidation failed")
+					}
+				}
+				return nil
+			},
+		}
+
+		err := daemon.installDatadogAgent(ctx, command)
+		require.ErrorContains(t, err, "target revalidation failed")
+	})
+}
+
+func TestManagedAgentInstallationUninstallRejectsInvalidTargets(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("unmanaged target", func(t *testing.T) {
+		daemon, _, _ := testManagedAgentInstallationDaemon(nil, testDDAObject(""))
+		err := daemon.uninstallDatadogAgent(ctx)
+		require.ErrorContains(t, err, "is not owned by Fleet Automation")
+	})
+
+	t.Run("different managed installation", func(t *testing.T) {
+		dda := testFleetManagedDatadogAgent(t, "", testAddonInstallOperationID)
+		dda.Labels[fleetInstallationIDLabel] = "other-installation"
+		daemon, _, _ := testManagedAgentInstallationDaemon(nil, dda)
+		err := daemon.uninstallDatadogAgent(ctx)
+		require.ErrorContains(t, err, "belongs to a different managed installation")
+	})
+
+	t.Run("target read failure", func(t *testing.T) {
+		daemon, kubeClient, _ := testManagedAgentInstallationDaemon(nil)
+		daemon.apiReader = &failManagedAgentInstallationTargetReadClient{Reader: kubeClient}
+		err := daemon.uninstallDatadogAgent(ctx)
+		require.ErrorContains(t, err, "transient managed Agent installation target read failure")
+	})
+
+	t.Run("delete failure", func(t *testing.T) {
+		dda := testFleetManagedDatadogAgent(t, "", testAddonInstallOperationID)
+		daemon, _, _ := testManagedAgentInstallationDaemon(nil, dda)
+		daemon.client = &rejectManagedAgentInstallationTargetDeleteClient{Client: daemon.client}
+		err := daemon.uninstallDatadogAgent(ctx)
+		require.ErrorContains(t, err, "target delete denied")
+	})
+}
+
+func TestValidateFleetDatadogAgentInstallReplay(t *testing.T) {
+	command := testManagedAgentInstallationCommand(t, testAddonInstallOperationID, managedAgentInstallationDesiredStateInstalled)
+	desired, err := buildFleetDatadogAgentSpec(command.Config)
+	require.NoError(t, err)
+	valid := testFleetManagedDatadogAgent(t, "", testAddonInstallOperationID)
+	valid.Spec = *desired.DeepCopy()
+	hash, err := fleetDatadogAgentSpecHash(&valid.Spec)
+	require.NoError(t, err)
+	valid.Annotations[fleetConfigHashAnnotation] = hash
+	acceptedHash, needsRecording, err := validateFleetDatadogAgentInstallReplay(valid, testAddonInstallOperationID, desired)
+	require.NoError(t, err)
+	assert.Empty(t, acceptedHash)
+	assert.False(t, needsRecording)
+
+	for _, test := range []struct {
+		name      string
+		mutate    func(*v2alpha1.DatadogAgent)
+		wantError string
+	}{
+		{
+			name: "different config",
+			mutate: func(dda *v2alpha1.DatadogAgent) {
+				dda.Labels[fleetConfigIDLabel] = testAddonUninstallOperationID
+			},
+			wantError: "use an update operation",
+		},
+		{
+			name: "active experiment",
+			mutate: func(dda *v2alpha1.DatadogAgent) {
+				dda.Status.Experiment = &v2alpha1.ExperimentStatus{ID: testExperimentID, Phase: v2alpha1.ExperimentPhaseRunning}
+			},
+			wantError: "active Fleet experiment",
+		},
+		{
+			name: "terminating",
+			mutate: func(dda *v2alpha1.DatadogAgent) {
+				now := metav1.Now()
+				dda.DeletionTimestamp = &now
+			},
+			wantError: "is terminating",
+		},
+		{
+			name: "invalid credentials",
+			mutate: func(dda *v2alpha1.DatadogAgent) {
+				dda.Spec.Global.Credentials.APISecret.SecretName = "other-secret"
+			},
+			wantError: "does not use the Fleet-managed API Secret",
+		},
+		{
+			name: "different spec",
+			mutate: func(dda *v2alpha1.DatadogAgent) {
+				site := "datadoghq.eu"
+				dda.Spec.Global.Site = &site
+			},
+			wantError: "spec does not match Fleet config",
+		},
+		{
+			name: "stale accepted hash",
+			mutate: func(dda *v2alpha1.DatadogAgent) {
+				dda.Annotations[fleetConfigHashAnnotation] = "stale"
+			},
+			wantError: "spec changed after Fleet config",
+		},
+		{
+			name: "unrecognized partial hash",
+			mutate: func(dda *v2alpha1.DatadogAgent) {
+				dda.Labels[fleetManagedAgentInstallationStateLabel] = fleetManagedAgentInstallationStatePartial
+				dda.Annotations[fleetCreateTaskIDAnnotation] = testAddonInstallOperationID
+				dda.Annotations[fleetConfigHashAnnotation] = "stale"
+			},
+			wantError: "spec changed after Fleet config",
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			dda := valid.DeepCopy()
+			test.mutate(dda)
+			_, _, err := validateFleetDatadogAgentInstallReplay(dda, testAddonInstallOperationID, desired)
+			require.ErrorContains(t, err, test.wantError)
+		})
+	}
+}
+
+func TestValidateFleetDatadogAgentInstallCompletion(t *testing.T) {
+	command := testManagedAgentInstallationCommand(t, testAddonInstallOperationID, managedAgentInstallationDesiredStateInstalled)
+	spec, err := buildFleetDatadogAgentSpec(command.Config)
+	require.NoError(t, err)
+	valid := testFleetManagedDatadogAgent(t, "", testAddonInstallOperationID)
+	valid.Spec = *spec
+	hash, err := fleetDatadogAgentSpecHash(&valid.Spec)
+	require.NoError(t, err)
+	valid.Annotations[fleetConfigHashAnnotation] = hash
+	require.NoError(t, validateFleetDatadogAgentInstallCompletion(valid, valid.UID, testAddonInstallOperationID))
+
+	require.ErrorContains(t, validateFleetDatadogAgentInstallCompletion(nil, valid.UID, testAddonInstallOperationID), "disappeared")
+	require.ErrorContains(t, validateFleetDatadogAgentInstallCompletion(valid, "replacement", testAddonInstallOperationID), "was replaced")
+
+	wrongConfig := valid.DeepCopy()
+	wrongConfig.Labels[fleetConfigIDLabel] = testAddonUninstallOperationID
+	require.ErrorContains(t, validateFleetDatadogAgentInstallCompletion(wrongConfig, wrongConfig.UID, testAddonInstallOperationID), "use an update operation")
+
+	partial := valid.DeepCopy()
+	partial.Labels[fleetManagedAgentInstallationStateLabel] = fleetManagedAgentInstallationStatePartial
+	require.ErrorContains(t, validateFleetDatadogAgentInstallCompletion(partial, partial.UID, testAddonInstallOperationID), "not ready at install completion")
+}
+
+func TestPersistManagedAgentInstallationStableConfigValidatesPromotion(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("persists and accepts replay", func(t *testing.T) {
+		dda := testFleetManagedDatadogAgent(t, v2alpha1.ExperimentPhasePromoted, testAddonInstallOperationID)
+		daemon, kubeClient, _ := testManagedAgentInstallationDaemon(nil, dda)
+		require.NoError(t, daemon.persistManagedAgentInstallationStableConfig(ctx, managedAgentInstallationTarget, testExperimentID, "promoted-config"))
+		require.NoError(t, daemon.persistManagedAgentInstallationStableConfig(ctx, managedAgentInstallationTarget, testExperimentID, "promoted-config"))
+		updated := &v2alpha1.DatadogAgent{}
+		require.NoError(t, kubeClient.Get(ctx, managedAgentInstallationTarget, updated))
+		assert.Equal(t, "promoted-config", updated.Labels[fleetConfigIDLabel])
+		hash, err := fleetDatadogAgentSpecHash(&updated.Spec)
+		require.NoError(t, err)
+		assert.Equal(t, hash, updated.Annotations[fleetConfigHashAnnotation])
+	})
+
+	t.Run("requires complete operation identity", func(t *testing.T) {
+		daemon, _, _ := testManagedAgentInstallationDaemon(nil)
+		require.ErrorContains(t, daemon.persistManagedAgentInstallationStableConfig(ctx, managedAgentInstallationTarget, "", "promoted-config"), "is incomplete")
+		require.ErrorContains(t, daemon.persistManagedAgentInstallationStableConfig(ctx, managedAgentInstallationTarget, testExperimentID, ""), "is incomplete")
+	})
+
+	t.Run("requires target", func(t *testing.T) {
+		daemon, _, _ := testManagedAgentInstallationDaemon(nil)
+		require.Error(t, daemon.persistManagedAgentInstallationStableConfig(ctx, managedAgentInstallationTarget, testExperimentID, "promoted-config"))
+	})
+
+	t.Run("requires matching managed installation", func(t *testing.T) {
+		dda := testFleetManagedDatadogAgent(t, v2alpha1.ExperimentPhasePromoted, testAddonInstallOperationID)
+		dda.Labels[fleetTargetIDLabel] = "other-target"
+		daemon, _, _ := testManagedAgentInstallationDaemon(nil, dda)
+		require.ErrorContains(t, daemon.persistManagedAgentInstallationStableConfig(ctx, managedAgentInstallationTarget, testExperimentID, "promoted-config"), "belongs to a different managed target")
+	})
+
+	t.Run("requires completed install gate", func(t *testing.T) {
+		dda := testFleetManagedDatadogAgent(t, v2alpha1.ExperimentPhasePromoted, testAddonInstallOperationID)
+		dda.Labels[fleetManagedAgentInstallationStateLabel] = fleetManagedAgentInstallationStatePartial
+		daemon, _, _ := testManagedAgentInstallationDaemon(nil, dda)
+		require.ErrorContains(t, daemon.persistManagedAgentInstallationStableConfig(ctx, managedAgentInstallationTarget, testExperimentID, "promoted-config"), "install gate")
+	})
+
+	t.Run("requires matching promoted experiment", func(t *testing.T) {
+		dda := testFleetManagedDatadogAgent(t, v2alpha1.ExperimentPhasePromoted, testAddonInstallOperationID)
+		daemon, _, _ := testManagedAgentInstallationDaemon(nil, dda)
+		require.ErrorContains(t, daemon.persistManagedAgentInstallationStableConfig(ctx, managedAgentInstallationTarget, "other-experiment", "promoted-config"), "has not promoted experiment")
+	})
+
+	t.Run("legacy Fleet target is unchanged", func(t *testing.T) {
+		daemon, _, _ := testManagedAgentInstallationDaemon(nil)
+		daemon.managedAgentInstallationIdentity = ManagedAgentInstallationIdentity{}
+		require.NoError(t, daemon.persistManagedAgentInstallationStableConfig(ctx, managedAgentInstallationTarget, "", ""))
+	})
+}
+
+func TestManagedAgentInstallationMetadataMutationsRejectConflicts(t *testing.T) {
+	ctx := context.Background()
+	base := testFleetManagedDatadogAgent(t, "", testAddonInstallOperationID)
+	hash, err := fleetDatadogAgentSpecHash(&base.Spec)
+	require.NoError(t, err)
+
+	t.Run("record accepted hash", func(t *testing.T) {
+		dda := base.DeepCopy()
+		delete(dda.Annotations, fleetConfigHashAnnotation)
+		daemon, kubeClient, _ := testManagedAgentInstallationDaemon(nil, dda)
+		require.NoError(t, daemon.recordFleetDatadogAgentSpecHash(ctx, managedAgentInstallationTarget, dda.UID, testAddonInstallOperationID, hash))
+		require.NoError(t, daemon.recordFleetDatadogAgentSpecHash(ctx, managedAgentInstallationTarget, dda.UID, testAddonInstallOperationID, hash))
+		updated := &v2alpha1.DatadogAgent{}
+		require.NoError(t, kubeClient.Get(ctx, managedAgentInstallationTarget, updated))
+		assert.Equal(t, hash, updated.Annotations[fleetConfigHashAnnotation])
+	})
+
+	for _, test := range []struct {
+		name      string
+		uid       types.UID
+		configID  string
+		hash      string
+		wantError string
+	}{
+		{name: "replacement UID", uid: "replacement", configID: testAddonInstallOperationID, hash: hash, wantError: "was replaced"},
+		{name: "different config", uid: base.UID, configID: testAddonUninstallOperationID, hash: hash, wantError: "use an update operation"},
+		{name: "changed spec", uid: base.UID, configID: testAddonInstallOperationID, hash: "different-hash", wantError: "spec changed"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			daemon, _, _ := testManagedAgentInstallationDaemon(nil, base.DeepCopy())
+			require.ErrorContains(t, daemon.recordFleetDatadogAgentSpecHash(ctx, managedAgentInstallationTarget, test.uid, test.configID, test.hash), test.wantError)
+		})
+	}
+
+	t.Run("mark ready rejects replacement", func(t *testing.T) {
+		dda := base.DeepCopy()
+		dda.Labels[fleetManagedAgentInstallationStateLabel] = fleetManagedAgentInstallationStatePartial
+		daemon, _, _ := testManagedAgentInstallationDaemon(nil, dda)
+		require.ErrorContains(t, daemon.markFleetDatadogAgentReady(ctx, managedAgentInstallationTarget, "replacement", testAddonInstallOperationID), "was replaced")
+	})
+
+	t.Run("mark ready requires target", func(t *testing.T) {
+		daemon, _, _ := testManagedAgentInstallationDaemon(nil)
+		require.Error(t, daemon.markFleetDatadogAgentReady(ctx, managedAgentInstallationTarget, base.UID, testAddonInstallOperationID))
+	})
+
+	t.Run("mark ready requires matching config", func(t *testing.T) {
+		dda := base.DeepCopy()
+		dda.Labels[fleetManagedAgentInstallationStateLabel] = fleetManagedAgentInstallationStatePartial
+		daemon, _, _ := testManagedAgentInstallationDaemon(nil, dda)
+		require.ErrorContains(t, daemon.markFleetDatadogAgentReady(ctx, managedAgentInstallationTarget, dda.UID, testAddonUninstallOperationID), "use an update operation")
+	})
+
+	t.Run("mark ready requires accepted spec", func(t *testing.T) {
+		dda := base.DeepCopy()
+		command := testManagedAgentInstallationCommand(t, testAddonInstallOperationID, managedAgentInstallationDesiredStateInstalled)
+		spec, err := buildFleetDatadogAgentSpec(command.Config)
+		require.NoError(t, err)
+		dda.Spec = *spec
+		dda.Labels[fleetManagedAgentInstallationStateLabel] = fleetManagedAgentInstallationStatePartial
+		dda.Annotations[fleetConfigHashAnnotation] = "stale"
+		daemon, _, _ := testManagedAgentInstallationDaemon(nil, dda)
+		require.ErrorContains(t, daemon.markFleetDatadogAgentReady(ctx, managedAgentInstallationTarget, dda.UID, testAddonInstallOperationID), "does not match its accepted Fleet config")
+	})
+
+	t.Run("mark partial rejects incomplete ownership", func(t *testing.T) {
+		dda := base.DeepCopy()
+		delete(dda.Labels, fleetConfigIDLabel)
+		daemon, _, _ := testManagedAgentInstallationDaemon(nil, dda)
+		_, err := daemon.markFleetDatadogAgentPartial(ctx, managedAgentInstallationTarget, dda.UID)
+		require.ErrorContains(t, err, "incomplete or conflicting Fleet ownership metadata")
+	})
+
+	t.Run("mark partial requires target", func(t *testing.T) {
+		daemon, _, _ := testManagedAgentInstallationDaemon(nil)
+		_, err := daemon.markFleetDatadogAgentPartial(ctx, managedAgentInstallationTarget, base.UID)
+		require.Error(t, err)
+	})
+
+	t.Run("mark partial rejects replacement", func(t *testing.T) {
+		daemon, _, _ := testManagedAgentInstallationDaemon(nil, base.DeepCopy())
+		_, err := daemon.markFleetDatadogAgentPartial(ctx, managedAgentInstallationTarget, "replacement")
+		require.ErrorContains(t, err, "was replaced")
+	})
+
+	t.Run("mark partial requires matching installation", func(t *testing.T) {
+		dda := base.DeepCopy()
+		dda.Labels[fleetInstallationIDLabel] = "other-installation"
+		daemon, _, _ := testManagedAgentInstallationDaemon(nil, dda)
+		_, err := daemon.markFleetDatadogAgentPartial(ctx, managedAgentInstallationTarget, dda.UID)
+		require.ErrorContains(t, err, "different managed installation")
+	})
+}
+
+func TestValidateFleetCredentialSecretRejectsEmptyAPIKey(t *testing.T) {
+	secret := testFleetCredentialSecret()
+	secret.Data[fleetCredentialAPIKey] = nil
+	daemon, _, _ := testManagedAgentInstallationDaemon(nil, secret)
+
+	err := daemon.validateFleetCredentialSecret(context.Background())
+
+	require.ErrorContains(t, err, "missing non-empty key")
+}
+
+func TestManagedAgentInstallationRetainsPartialStateWhenProfileChanges(t *testing.T) {
+	ctx := context.Background()
+	daemon, kubeClient, rcClient := testManagedAgentInstallationDaemon(
+		[]*pbgo.PackageState{{Package: packageDatadogOperator}},
+		testFleetCredentialSecret(),
+	)
+	command := testManagedAgentInstallationCommand(t, testAddonInstallOperationID, managedAgentInstallationDesiredStateInstalled)
+	require.NoError(t, daemon.installDatadogAgent(ctx, command))
+
+	profile := &v1alpha1.DatadogAgentProfile{}
+	require.NoError(t, kubeClient.Get(ctx, managedAgentInstallationWindowsProfileKey, profile))
+	delete(profile.Annotations, kubernetes.ProviderAnnotationKey)
+	require.NoError(t, kubeClient.Update(ctx, profile))
+
+	err := daemon.installDatadogAgent(ctx, command)
+	require.ErrorContains(t, err, "differs from the pinned managed Agent installation configuration")
+	dda := &v2alpha1.DatadogAgent{}
+	require.NoError(t, kubeClient.Get(ctx, managedAgentInstallationTarget, dda))
+	assert.Equal(t, fleetManagedAgentInstallationStatePartial, dda.Labels[fleetManagedAgentInstallationStateLabel])
+	assert.Equal(t, fleetPartialConfigVersionPrefix+testAddonInstallOperationID, rcClient.state[0].GetStableConfigVersion())
+}
+
+func TestValidateManagedAgentInstallationCommand(t *testing.T) {
+	valid := testManagedAgentInstallationCommand(t, testAddonInstallOperationID, managedAgentInstallationDesiredStateInstalled)
+	for _, test := range []struct {
+		name   string
+		mutate func(*Daemon, *managedAgentInstallationCommand)
+	}{
+		{name: "missing operation ID", mutate: func(_ *Daemon, command *managedAgentInstallationCommand) { command.Intent.OperationID = "" }},
+		{name: "missing local identity", mutate: func(d *Daemon, _ *managedAgentInstallationCommand) {
+			d.managedAgentInstallationIdentity = ManagedAgentInstallationIdentity{}
+		}},
+		{name: "installation mismatch", mutate: func(_ *Daemon, command *managedAgentInstallationCommand) { command.Intent.InstallationID = "other" }},
+		{name: "provider mismatch", mutate: func(_ *Daemon, command *managedAgentInstallationCommand) { command.Intent.Provider = "other" }},
+		{name: "unsupported desired state", mutate: func(_ *Daemon, command *managedAgentInstallationCommand) { command.Intent.DesiredState = "other" }},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			daemon, _, _ := testManagedAgentInstallationDaemon(nil)
+			command := valid
+			test.mutate(daemon, &command)
+			require.Error(t, daemon.validateManagedAgentInstallationCommand(command))
+		})
+	}
+}
+
+func TestManagedAgentInstallationOwnershipValidation(t *testing.T) {
+	base := testFleetManagedDatadogAgent(t, "", testAddonInstallOperationID)
+
+	owned, err := classifyFleetDatadogAgentOwnership(base)
+	require.NoError(t, err)
+	assert.True(t, owned)
+	unmanaged := testDDAObject("")
+	owned, err = classifyFleetDatadogAgentOwnership(unmanaged)
+	require.NoError(t, err)
+	assert.False(t, owned)
+
+	incomplete := base.DeepCopy()
+	delete(incomplete.Annotations, fleetConfigHashAnnotation)
+	_, err = classifyFleetDatadogAgentOwnership(incomplete)
+	require.ErrorContains(t, err, "incomplete or conflicting")
+
+	require.NoError(t, validateFleetOwnedDatadogAgent(base, testAddonInstallOperationID))
+	require.ErrorContains(t, validateFleetOwnedDatadogAgent(base, "other-config"), "use an update operation")
+	require.ErrorContains(t, validateFleetOwnedDatadogAgent(unmanaged, ""), "not owned")
+
+	daemon, _, _ := testManagedAgentInstallationDaemon(nil)
+	require.NoError(t, daemon.validateFleetDatadogAgentInstallation(base))
+	for _, test := range []struct {
+		name   string
+		mutate func(*v2alpha1.DatadogAgent)
+	}{
+		{name: "provider", mutate: func(dda *v2alpha1.DatadogAgent) { dda.Labels[fleetManagedAgentInstallationProviderLabel] = "other" }},
+		{name: "installation", mutate: func(dda *v2alpha1.DatadogAgent) { dda.Labels[fleetInstallationIDLabel] = "other" }},
+		{name: "target", mutate: func(dda *v2alpha1.DatadogAgent) { dda.Labels[fleetTargetIDLabel] = "other" }},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			dda := base.DeepCopy()
+			test.mutate(dda)
+			require.Error(t, daemon.validateFleetDatadogAgentInstallation(dda))
+		})
+	}
+	daemon.managedAgentInstallationIdentity = ManagedAgentInstallationIdentity{}
+	require.ErrorContains(t, daemon.validateFleetDatadogAgentInstallation(base), "identity is not configured")
+	require.NoError(t, daemon.validateFleetDatadogAgentInstallation(unmanaged))
+}
+
+func TestManagedAgentInstallationExperimentStateValidation(t *testing.T) {
+	ready := testFleetManagedDatadogAgent(t, "", testAddonInstallOperationID)
+	require.NoError(t, validateFleetDatadogAgentExperimentOperationState(ready, pendingIntentStart))
+
+	partial := ready.DeepCopy()
+	partial.Labels[fleetManagedAgentInstallationStateLabel] = fleetManagedAgentInstallationStatePartial
+	require.ErrorContains(t, validateFleetDatadogAgentExperimentOperationState(partial, pendingIntentStart), "install gate")
+
+	partial.Status.Experiment = &v2alpha1.ExperimentStatus{ID: testExperimentID, Phase: v2alpha1.ExperimentPhaseRunning}
+	require.NoError(t, validateFleetDatadogAgentExperimentOperationState(partial, pendingIntentStop))
+	partial.Status.Experiment.Phase = v2alpha1.ExperimentPhasePromoted
+	partial.Annotations[v2alpha1.AnnotationPendingTaskID] = "promote-task"
+	partial.Annotations[v2alpha1.AnnotationPendingAction] = string(pendingIntentPromote)
+	partial.Annotations[v2alpha1.AnnotationPendingExperimentID] = testExperimentID
+	partial.Annotations[v2alpha1.AnnotationPendingPackage] = packageDatadogOperator
+	require.NoError(t, validateFleetDatadogAgentExperimentOperationState(partial, pendingIntentPromote))
+
+	ready.Status.Experiment = &v2alpha1.ExperimentStatus{ID: testExperimentID, Phase: v2alpha1.ExperimentPhaseRunning}
+	require.ErrorContains(t, validateNoActiveFleetExperiment(ready), "active Fleet experiment")
+	ready.Annotations[v2alpha1.AnnotationPendingTaskID] = "task"
+	ready.Annotations[v2alpha1.AnnotationPendingAction] = string(pendingIntentStart)
+	ready.Annotations[v2alpha1.AnnotationPendingExperimentID] = testExperimentID
+	ready.Annotations[v2alpha1.AnnotationPendingPackage] = packageDatadogOperator
+	require.ErrorContains(t, validateNoActiveFleetExperiment(ready), "pending Fleet experiment task")
+}
+
+func TestManagedAgentInstallationWindowsProfileValidation(t *testing.T) {
+	dda := testFleetManagedDatadogAgent(t, "", testAddonInstallOperationID)
+	daemon, _, _ := testManagedAgentInstallationDaemon(nil)
+	valid := daemon.managedAgentInstallationWindowsProfile(dda)
+	require.NoError(t, v1alpha1.ValidateDatadogAgentProfileSpec(&valid.Spec))
+	require.NoError(t, daemon.validateManagedAgentInstallationWindowsProfile(valid, dda))
+
+	for _, test := range []struct {
+		name   string
+		mutate func(*v1alpha1.DatadogAgentProfile)
+	}{
+		{name: "terminating", mutate: func(profile *v1alpha1.DatadogAgentProfile) { now := metav1.Now(); profile.DeletionTimestamp = &now }},
+		{name: "ownership labels", mutate: func(profile *v1alpha1.DatadogAgentProfile) { delete(profile.Labels, fleetInstallationIDLabel) }},
+		{name: "owner reference", mutate: func(profile *v1alpha1.DatadogAgentProfile) { profile.OwnerReferences[0].UID = "other" }},
+		{name: "provider annotation", mutate: func(profile *v1alpha1.DatadogAgentProfile) {
+			delete(profile.Annotations, kubernetes.ProviderAnnotationKey)
+		}},
+		{name: "profile affinity", mutate: func(profile *v1alpha1.DatadogAgentProfile) { profile.Spec.ProfileAffinity = nil }},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			profile := valid.DeepCopy()
+			test.mutate(profile)
+			require.Error(t, daemon.validateManagedAgentInstallationWindowsProfile(profile, dda))
+		})
+	}
+}
+
+func TestManagedAgentInstallationResourcesAbsentUsesOwnedInventory(t *testing.T) {
+	ddai := &v1alpha1.DatadogAgentInternal{ObjectMeta: metav1.ObjectMeta{
+		Namespace: testManagedAgentInstallationNamespace,
+		Name:      "datadog-agent-internal",
+		Labels: map[string]string{
+			fleetManagedAgentInstallationProviderLabel: string(testManagedAgentInstallationIdentity.Provider()),
+			fleetInstallationIDLabel:                   testManagedAgentInstallationIdentity.InstallationID(),
+			fleetTargetIDLabel:                         testManagedAgentInstallationIdentity.TargetID(),
+		},
+	}}
+	daemon, kubeClient, _ := testManagedAgentInstallationDaemon(nil, ddai)
+
+	absent, err := daemon.managedAgentInstallationResourcesAbsent(context.Background(), managedAgentInstallationTarget, "")
+	require.NoError(t, err)
+	assert.False(t, absent)
+
+	require.NoError(t, kubeClient.Delete(context.Background(), ddai))
+	absent, err = daemon.managedAgentInstallationResourcesAbsent(context.Background(), managedAgentInstallationTarget, "")
+	require.NoError(t, err)
+	assert.True(t, absent)
+}
+
+func TestManagedAgentInstallationResourcesAbsentRejectsReplacement(t *testing.T) {
+	replacement := &v2alpha1.DatadogAgent{ObjectMeta: metav1.ObjectMeta{
+		Namespace: managedAgentInstallationTarget.Namespace,
+		Name:      managedAgentInstallationTarget.Name,
+		UID:       types.UID("replacement-uid"),
+	}}
+	daemon, _, _ := testManagedAgentInstallationDaemon(nil, replacement)
+
+	absent, err := daemon.managedAgentInstallationResourcesAbsent(
+		context.Background(), managedAgentInstallationTarget, types.UID("deleted-uid"),
+	)
+
+	assert.False(t, absent)
+	require.ErrorContains(t, err, "was recreated while uninstalling")
+}
+
+func TestManagedAgentInstallationResourcesAbsentFailureModes(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("DatadogAgent read failure", func(t *testing.T) {
+		daemon, kubeClient, _ := testManagedAgentInstallationDaemon(nil)
+		daemon.apiReader = &managedAgentInstallationFaultClient{
+			Client: kubeClient,
+			getError: func(_ client.ObjectKey, obj client.Object) error {
+				if _, ok := obj.(*v2alpha1.DatadogAgent); ok {
+					return errors.New("DatadogAgent read failed")
+				}
+				return nil
+			},
+		}
+
+		absent, err := daemon.managedAgentInstallationResourcesAbsent(ctx, managedAgentInstallationTarget, "")
+		assert.False(t, absent)
+		require.ErrorContains(t, err, "DatadogAgent read failed")
+	})
+
+	t.Run("DatadogAgent deletion pending", func(t *testing.T) {
+		dda := testFleetManagedDatadogAgent(t, "", testAddonInstallOperationID)
+		daemon, _, _ := testManagedAgentInstallationDaemon(nil, dda)
+
+		absent, err := daemon.managedAgentInstallationResourcesAbsent(ctx, managedAgentInstallationTarget, dda.UID)
+		require.NoError(t, err)
+		assert.False(t, absent)
+	})
+
+	t.Run("Windows profile read failure", func(t *testing.T) {
+		daemon, kubeClient, _ := testManagedAgentInstallationDaemon(nil)
+		daemon.apiReader = &managedAgentInstallationFaultClient{
+			Client: kubeClient,
+			getError: func(_ client.ObjectKey, obj client.Object) error {
+				if _, ok := obj.(*v1alpha1.DatadogAgentProfile); ok {
+					return errors.New("profile read failed")
+				}
+				return nil
+			},
+		}
+
+		absent, err := daemon.managedAgentInstallationResourcesAbsent(ctx, managedAgentInstallationTarget, "")
+		assert.False(t, absent)
+		require.ErrorContains(t, err, "profile read failed")
+	})
+
+	t.Run("Windows profile deletion pending", func(t *testing.T) {
+		profile := &v1alpha1.DatadogAgentProfile{ObjectMeta: metav1.ObjectMeta{
+			Namespace: managedAgentInstallationWindowsProfileKey.Namespace,
+			Name:      managedAgentInstallationWindowsProfileKey.Name,
+		}}
+		daemon, _, _ := testManagedAgentInstallationDaemon(nil, profile)
+
+		absent, err := daemon.managedAgentInstallationResourcesAbsent(ctx, managedAgentInstallationTarget, "")
+		require.NoError(t, err)
+		assert.False(t, absent)
+	})
+
+	t.Run("DatadogAgentInternal list failure", func(t *testing.T) {
+		daemon, kubeClient, _ := testManagedAgentInstallationDaemon(nil)
+		daemon.apiReader = &managedAgentInstallationFaultClient{
+			Client: kubeClient,
+			listError: func(list client.ObjectList) error {
+				if _, ok := list.(*v1alpha1.DatadogAgentInternalList); ok {
+					return errors.New("DatadogAgentInternal list failed")
+				}
+				return nil
+			},
+		}
+
+		absent, err := daemon.managedAgentInstallationResourcesAbsent(ctx, managedAgentInstallationTarget, "")
+		assert.False(t, absent)
+		require.ErrorContains(t, err, "DatadogAgentInternal list failed")
+	})
+
+	t.Run("cluster resource list failure", func(t *testing.T) {
+		daemon, kubeClient, _ := testManagedAgentInstallationDaemon(nil)
+		daemon.apiReader = &managedAgentInstallationFaultClient{
+			Client: kubeClient,
+			listError: func(list client.ObjectList) error {
+				if _, ok := list.(*rbacv1.ClusterRoleList); ok {
+					return errors.New("cluster resource list failed")
+				}
+				return nil
+			},
+		}
+
+		absent, err := daemon.managedAgentInstallationResourcesAbsent(ctx, managedAgentInstallationTarget, "")
+		assert.False(t, absent)
+		require.ErrorContains(t, err, "cluster resource list failed")
+	})
+}
+
+func TestManagedAgentInstallationKubernetesWriteFailures(t *testing.T) {
+	ctx := context.Background()
+	command := testManagedAgentInstallationCommand(t, testAddonInstallOperationID, managedAgentInstallationDesiredStateInstalled)
+
+	t.Run("retain partial", func(t *testing.T) {
+		dda := testFleetManagedDatadogAgent(t, "", testAddonInstallOperationID)
+		daemon, _, _ := testManagedAgentInstallationDaemon(nil, dda)
+		daemon.client = &managedAgentInstallationFaultClient{
+			Client: daemon.client,
+			patchError: func(obj client.Object) error {
+				if _, ok := obj.(*v2alpha1.DatadogAgent); ok {
+					return errors.New("DatadogAgent patch failed")
+				}
+				return nil
+			},
+		}
+
+		err := daemon.retainFleetDatadogAgentPartial(ctx, command, dda.UID, errors.New("installation failed"))
+		require.ErrorContains(t, err, "installation failed")
+		require.ErrorContains(t, err, "DatadogAgent patch failed")
+	})
+
+	t.Run("record accepted hash", func(t *testing.T) {
+		dda := testFleetManagedDatadogAgent(t, "", testAddonInstallOperationID)
+		delete(dda.Annotations, fleetConfigHashAnnotation)
+		hash, err := fleetDatadogAgentSpecHash(&dda.Spec)
+		require.NoError(t, err)
+		daemon, _, _ := testManagedAgentInstallationDaemon(nil, dda)
+		daemon.client = &managedAgentInstallationFaultClient{
+			Client:     daemon.client,
+			patchError: func(client.Object) error { return errors.New("accepted hash patch failed") },
+		}
+
+		require.ErrorContains(t, daemon.recordFleetDatadogAgentSpecHash(ctx, managedAgentInstallationTarget, dda.UID, testAddonInstallOperationID, hash), "accepted hash patch failed")
+	})
+
+	t.Run("mark ready", func(t *testing.T) {
+		dda := testFleetManagedDatadogAgent(t, "", testAddonInstallOperationID)
+		spec, err := buildFleetDatadogAgentSpec(command.Config)
+		require.NoError(t, err)
+		dda.Spec = *spec
+		hash, err := fleetDatadogAgentSpecHash(&dda.Spec)
+		require.NoError(t, err)
+		dda.Annotations[fleetConfigHashAnnotation] = hash
+		dda.Labels[fleetManagedAgentInstallationStateLabel] = fleetManagedAgentInstallationStatePartial
+		daemon, _, _ := testManagedAgentInstallationDaemon(nil, dda)
+		daemon.client = &managedAgentInstallationFaultClient{
+			Client:     daemon.client,
+			patchError: func(client.Object) error { return errors.New("ready patch failed") },
+		}
+
+		require.ErrorContains(t, daemon.markFleetDatadogAgentReady(ctx, managedAgentInstallationTarget, dda.UID, testAddonInstallOperationID), "ready patch failed")
+	})
+
+	t.Run("persist promoted config", func(t *testing.T) {
+		dda := testFleetManagedDatadogAgent(t, v2alpha1.ExperimentPhasePromoted, testAddonInstallOperationID)
+		daemon, _, _ := testManagedAgentInstallationDaemon(nil, dda)
+		daemon.client = &managedAgentInstallationFaultClient{
+			Client:     daemon.client,
+			patchError: func(client.Object) error { return errors.New("promoted config patch failed") },
+		}
+
+		require.ErrorContains(t, daemon.persistManagedAgentInstallationStableConfig(ctx, managedAgentInstallationTarget, testExperimentID, "promoted-config"), "promoted config patch failed")
+	})
+}
+
+func TestValidateFleetCredentialSecretReadFailure(t *testing.T) {
+	daemon, kubeClient, _ := testManagedAgentInstallationDaemon(nil)
+	daemon.apiReader = nil
+	daemon.client = &managedAgentInstallationFaultClient{
+		Client: kubeClient,
+		getError: func(key client.ObjectKey, _ client.Object) error {
+			if key == managedAgentInstallationCredentialKey {
+				return errors.New("Secret read failed")
+			}
+			return nil
+		},
+	}
+
+	require.ErrorContains(t, daemon.validateFleetCredentialSecret(context.Background()), "Secret read failed")
+}
+
+func testFleetManagedDatadogAgent(t testing.TB, phase v2alpha1.ExperimentPhase, configID string) *v2alpha1.DatadogAgent {
+	t.Helper()
+	dda := testDDAObject(phase)
+	dda.UID = types.UID("managed-dda-uid")
+	dda.Labels = map[string]string{
+		fleetManagedByLabel:                        fleetManagedByValue,
+		fleetConfigIDLabel:                         configID,
+		fleetManagedAgentInstallationStateLabel:    fleetManagedAgentInstallationStateReady,
+		fleetManagedAgentInstallationProviderLabel: string(testManagedAgentInstallationIdentity.Provider()),
+		fleetInstallationIDLabel:                   testManagedAgentInstallationIdentity.InstallationID(),
+		fleetTargetIDLabel:                         testManagedAgentInstallationIdentity.TargetID(),
+	}
+	if dda.Annotations == nil {
+		dda.Annotations = make(map[string]string)
+	}
+	hash, err := fleetDatadogAgentSpecHash(&dda.Spec)
+	require.NoError(t, err)
+	dda.Annotations[fleetConfigHashAnnotation] = hash
+	return dda
+}
+
+func testManagedAgentInstallationCommand(t *testing.T, operationID string, desiredState managedAgentInstallationDesiredState) managedAgentInstallationCommand {
+	t.Helper()
+	raw := testManagedAgentInstallationIntent(t, operationID, desiredState)
+	intent, config, digest, err := decodeManagedAgentInstallationIntent(raw, testManagedAgentInstallationIdentity)
+	require.NoError(t, err)
+	return newManagedAgentInstallationCommand(intent, config, digest)
+}
+
+func testManagedAgentInstallationDaemon(rcState []*pbgo.PackageState, objects ...client.Object) (*Daemon, client.Client, *mockRCClient) {
+	scheme := testFleetScheme()
+	_ = corev1.AddToScheme(scheme)
+	_ = rbacv1.AddToScheme(scheme)
+	_ = apiregistrationv1.AddToScheme(scheme)
+	_ = v1alpha1.AddToScheme(scheme)
+	baseClient := fake.NewClientBuilder().
+		WithScheme(scheme).
+		WithStatusSubresource(&v2alpha1.DatadogAgent{}).
+		WithObjects(objects...).
+		Build()
+	kubeClient := &managedAgentInstallationTestClient{Client: baseClient}
+	rcClient := &mockRCClient{state: rcState}
+	daemon := &Daemon{
+		rcClient:                             rcClient,
+		client:                               kubeClient,
+		apiReader:                            kubeClient,
+		managedAgentInstallationIdentity:     testManagedAgentInstallationIdentity,
+		managedAgentInstallationNamespace:    testManagedAgentInstallationNamespace,
+		managedAgentInstallationTaskReserved: true,
+		configs:                              make(map[string]installerConfig),
+		statusUpdates:                        make(chan ddaStatusSnapshot, 32),
+	}
+	return daemon, kubeClient, rcClient
+}
+
+func testFleetCredentialSecret() *corev1.Secret {
+	return &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{Name: fleetCredentialSecretName, Namespace: testManagedAgentInstallationNamespace},
+		Data:       map[string][]byte{fleetCredentialAPIKey: []byte("api-key-value")},
+	}
+}

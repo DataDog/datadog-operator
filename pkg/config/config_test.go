@@ -257,6 +257,33 @@ func Test_CacheConfig(t *testing.T) {
 				csiDriverObj: {configured: false},
 			},
 		},
+		{
+			name: "Managed Agent installation namespace is included in Agent resource caches",
+
+			watchOptions: WatchOptions{
+				DatadogAgentEnabled:               true,
+				DatadogAgentProfileEnabled:        true,
+				DatadogCSIDriverEnabled:           true,
+				ManagedAgentInstallationEnabled:   true,
+				ManagedAgentInstallationNamespace: "addonNs",
+			},
+
+			envConfig: map[string]string{
+				AgentWatchNamespaceEnvVar:     "agentNs",
+				profileWatchNamespaceEnvVar:   "profileNs",
+				csiDriverWatchNamespaceEnvVar: "csiNs",
+			},
+
+			wantDefaultNamepsace: objectConfig{configured: true, namespaces: []string{"agentNs", "addonNs"}},
+			wantObjectConfig: map[client.Object]objectConfig{
+				agentObj:         {configured: true, namespaces: []string{"agentNs", "addonNs"}},
+				agentInternalObj: {configured: true, namespaces: []string{"agentNs", "addonNs"}},
+				profileObj:       {configured: true, namespaces: []string{"profileNs", "addonNs"}},
+				podObj:           {configured: true, namespaces: []string{"agentNs", "addonNs"}},
+				csiDriverObj:     {configured: true, namespaces: []string{"csiNs"}},
+				csiDaemonSetObj:  {configured: true, namespaces: []string{"agentNs", "addonNs", "csiNs"}},
+			},
+		},
 	}
 
 	logger := logf.Log.WithName(t.Name())
@@ -275,6 +302,12 @@ func Test_CacheConfig(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestIncludeWatchNamespacePreservesClusterWideWatch(t *testing.T) {
+	namespaces := map[string]cache.Config{cache.AllNamespaces: {}}
+
+	assert.Equal(t, namespaces, includeWatchNamespace(namespaces, "datadog-agent"))
 }
 
 func verifyResourceNamespace(t *testing.T, resource client.Object, wantConfig objectConfig, cacheOptions cache.Options) {

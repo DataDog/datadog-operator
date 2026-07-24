@@ -33,6 +33,8 @@ const (
 	eventReasonRemoteTaskReceived          = "RemoteTaskReceived"
 	eventReasonRemoteTaskRejected          = "RemoteTaskRejected"
 	eventReasonRemoteTaskCompleted         = "RemoteTaskCompleted"
+	eventReasonManagedInstallationRejected = "ManagedAgentInstallationRejected"
+	eventReasonManagedInstallationComplete = "ManagedAgentInstallationCompleted"
 	eventReasonLocalTerminationPublishedRC = "LocalTerminationPublishedToRC"
 	eventReasonInstallerStateRehydrated    = "InstallerStateRehydrated"
 )
@@ -83,13 +85,23 @@ func (d *Daemon) emitTaskReceivedEvent(ctx context.Context, req remoteAPIRequest
 		"Received %s task %q for experiment %q", methodLabel(req.Method), req.ID, req.Params.Version)
 }
 
-// emitTaskRejectedEvent records that handleTask refused a task because
-// the local state is impossible (INVALID_STATE) or processing failed
-// (ERROR). Fires after setTaskState commits the rejection.
+// emitTaskRejectedEvent records that handleTask refused a task.
 func (d *Daemon) emitTaskRejectedEvent(ctx context.Context, nsn types.NamespacedName, req remoteAPIRequest, reason string) {
 	d.emitDDAEventf(ctx, nsn,
 		corev1.EventTypeWarning, eventReasonRemoteTaskRejected,
 		"Rejected task %q (%s): %s", req.ID, methodLabel(req.Method), reason)
+}
+
+func (d *Daemon) emitManagedAgentInstallationRejectedEvent(ctx context.Context, command managedAgentInstallationCommand, reason string) {
+	d.emitDDAEventf(ctx, d.managedAgentInstallationTarget(),
+		corev1.EventTypeWarning, eventReasonManagedInstallationRejected,
+		"Rejected managed Agent installation operation %q (%s): %s", command.Intent.OperationID, command.Intent.DesiredState, reason)
+}
+
+func (d *Daemon) emitManagedAgentInstallationCompletedEvent(ctx context.Context, command managedAgentInstallationCommand) {
+	d.emitDDAEventf(ctx, d.managedAgentInstallationTarget(),
+		corev1.EventTypeNormal, eventReasonManagedInstallationComplete,
+		"Managed Agent installation operation %q (%s) completed", command.Intent.OperationID, command.Intent.DesiredState)
 }
 
 // emitTaskCompletedEvent records that the daemon reported DONE for a

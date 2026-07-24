@@ -234,9 +234,17 @@ func (d *Daemon) promoteDatadogAgentExperiment(ctx context.Context, req remoteAP
 func (d *Daemon) planStart(ctx context.Context, req remoteAPIRequest, op resolvedOperation) (*pendingOperation, []byte, error) {
 	experimentID := req.Params.Version
 	pending := d.newPendingOperation(pendingIntentStart, req, op.NamespacedName, experimentID)
+	if d.managedAgentInstallationIdentity.Configured() {
+		if _, err := decodeRemoteDatadogAgentConfig(op.Config, false); err != nil {
+			return nil, nil, fmt.Errorf("start DatadogAgent experiment: %w", err)
+		}
+	}
 	dda := &v2alpha1.DatadogAgent{}
 	if err := d.client.Get(ctx, op.NamespacedName, dda); err != nil {
 		return nil, nil, fmt.Errorf("start DatadogAgent experiment: failed to get DatadogAgent: %w", err)
+	}
+	if err := d.validateBridgeExperimentTarget(dda); err != nil {
+		return nil, nil, fmt.Errorf("start DatadogAgent experiment: %w", err)
 	}
 	if experimentHasPhase(dda, experimentID, v2alpha1.ExperimentPhaseRunning) {
 		// The controller already started this experiment. Update RC now and let
@@ -271,6 +279,9 @@ func (d *Daemon) planStop(ctx context.Context, req remoteAPIRequest, op resolved
 	dda := &v2alpha1.DatadogAgent{}
 	if getErr := d.client.Get(ctx, op.NamespacedName, dda); getErr != nil {
 		return nil, nil, fmt.Errorf("stop DatadogAgent experiment: failed to get DatadogAgent: %w", getErr)
+	}
+	if err := d.validateBridgeExperimentTarget(dda); err != nil {
+		return nil, nil, fmt.Errorf("stop DatadogAgent experiment: %w", err)
 	}
 
 	// Stop requests intentionally do not use params.version as the experiment
@@ -331,6 +342,9 @@ func (d *Daemon) planPromote(ctx context.Context, req remoteAPIRequest, op resol
 	if err := d.client.Get(ctx, op.NamespacedName, dda); err != nil {
 		return nil, nil, fmt.Errorf("promote DatadogAgent experiment: failed to get DatadogAgent: %w", err)
 	}
+	if err := d.validateBridgeExperimentTarget(dda); err != nil {
+		return nil, nil, fmt.Errorf("promote DatadogAgent experiment: %w", err)
+	}
 
 	// Promote requests intentionally do not use params.version as the experiment
 	// identity. RC does not include a version on promote; the signal applies to
@@ -345,8 +359,10 @@ func (d *Daemon) planPromote(ctx context.Context, req remoteAPIRequest, op resol
 	}
 
 	if experimentHasPhase(dda, experimentID, v2alpha1.ExperimentPhasePromoted) {
-		// Promotion already happened. Update RC now and let handleTask mark the
-		// task done.
+		if err := d.persistManagedAgentInstallationStableConfig(ctx, op.NamespacedName, experimentID, experiment); err != nil {
+			return nil, nil, fmt.Errorf("promote DatadogAgent experiment: persist promoted config: %w", err)
+		}
+		// Promotion already happened. Update RC now and let handleTask mark the task done.
 		d.setPackageConfigVersions(req.Package, experiment, "")
 		return nil, nil, nil
 	}
@@ -368,4 +384,14 @@ func (d *Daemon) planPromote(ctx context.Context, req remoteAPIRequest, op resol
 		return nil, nil, fmt.Errorf("promote DatadogAgent experiment: %w", err)
 	}
 	return pending, patch, nil
+}
+
+func (d *Daemon) validateBridgeExperimentTarget(dda *v2alpha1.DatadogAgent) error {
+	if !d.managedAgentInstallationIdentity.Configured() {
+		return nil
+	}
+	if err := d.validateFleetDatadogAgentInstallation(dda); err != nil {
+		return err
+	}
+	return validateFleetDatadogAgentManagedAgentInstallationReady(dda)
 }
