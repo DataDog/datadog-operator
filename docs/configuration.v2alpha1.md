@@ -101,6 +101,7 @@ spec:
 | features.cws.network.enabled | Enables Cloud Workload Security Network detections. Default: true |
 | features.cws.remoteConfiguration.enabled | Enables Remote Configuration for Cloud Workload Security. Default: true |
 | features.cws.securityProfiles.enabled | Enables Security Profiles collection for Cloud Workload Security. Default: true |
+| features.cws.securityProfiles.v2 | Enables Activity Dump v2 Security Profiles collection for Cloud Workload Security. Requires Agent version >= 7.81.0. On older or unidentifiable Agent images (e.g. digest-pinned or custom tags) this is disabled to avoid unbounded memory usage. Default: true |
 | features.cws.syscallMonitorEnabled | SyscallMonitorEnabled enables Syscall Monitoring (recommended for troubleshooting only). Default: false |
 | features.dataPlane.dogstatsd.enabled | Configures the Data Plane to handle DogStatsD traffic. When set to false, DogStatsD is handled by the Core Agent instead. Default: true |
 | features.dataPlane.enabled | Enables the Data Plane. Default: false |
