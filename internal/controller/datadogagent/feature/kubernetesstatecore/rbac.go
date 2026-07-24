@@ -93,6 +93,12 @@ func getRBACPolicyRules(collectorOpts collectorOptions) []rbacv1.PolicyRule {
 			},
 		},
 		{
+			APIGroups: []string{rbac.DiscoveryAPIGroup},
+			Resources: []string{
+				rbac.EndpointsSlicesResource,
+			},
+		},
+		{
 			APIGroups: []string{rbac.CoordinationAPIGroup},
 			Resources: []string{
 				rbac.LeasesResource,

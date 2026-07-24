@@ -34,6 +34,7 @@ By default the following collectors will be activated:
   - configmaps
   - services
   - endpoints
+  - endpointslices
   - daemonsets
   - horizontalpodautoscalers
   - limitranges
