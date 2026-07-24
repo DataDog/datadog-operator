@@ -93,13 +93,13 @@ func (d *Daemon) emitTaskRejectedEvent(ctx context.Context, nsn types.Namespaced
 }
 
 func (d *Daemon) emitManagedAgentInstallationRejectedEvent(ctx context.Context, command managedAgentInstallationCommand, reason string) {
-	d.emitDDAEventf(ctx, managedAgentInstallationTarget,
+	d.emitDDAEventf(ctx, d.managedAgentInstallationTarget(),
 		corev1.EventTypeWarning, eventReasonManagedInstallationRejected,
 		"Rejected managed Agent installation operation %q (%s): %s", command.Intent.OperationID, command.Intent.DesiredState, reason)
 }
 
 func (d *Daemon) emitManagedAgentInstallationCompletedEvent(ctx context.Context, command managedAgentInstallationCommand) {
-	d.emitDDAEventf(ctx, managedAgentInstallationTarget,
+	d.emitDDAEventf(ctx, d.managedAgentInstallationTarget(),
 		corev1.EventTypeNormal, eventReasonManagedInstallationComplete,
 		"Managed Agent installation operation %q (%s) completed", command.Intent.OperationID, command.Intent.DesiredState)
 }

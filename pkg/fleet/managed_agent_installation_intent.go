@@ -17,7 +17,6 @@ import (
 	"github.com/google/uuid"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/types"
 	toolscache "k8s.io/client-go/tools/cache"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -33,10 +32,6 @@ const (
 )
 
 var (
-	managedAgentInstallationIntentKey = types.NamespacedName{
-		Namespace: fleetDatadogAgentNamespace,
-		Name:      managedAgentInstallationIntentConfigMapName,
-	}
 	managedAgentInstallationRetryInterval         = time.Second
 	managedAgentInstallationCredentialRetryDelays = []time.Duration{
 		time.Second,
@@ -121,7 +116,7 @@ func (d *Daemon) installManagedAgentInstallationCredentialForwarder(ctx context.
 
 func (d *Daemon) forwardManagedAgentInstallationIntent(obj any) {
 	configMap, ok := obj.(*corev1.ConfigMap)
-	if !ok || client.ObjectKeyFromObject(configMap) != managedAgentInstallationIntentKey {
+	if !ok || client.ObjectKeyFromObject(configMap) != d.managedAgentInstallationIntentKey() {
 		return
 	}
 	d.resetManagedAgentInstallationCredentialRetries()
@@ -130,7 +125,7 @@ func (d *Daemon) forwardManagedAgentInstallationIntent(obj any) {
 
 func (d *Daemon) forwardManagedAgentInstallationCredential(obj any) {
 	secret, ok := obj.(*corev1.Secret)
-	if !ok || client.ObjectKeyFromObject(secret) != managedAgentInstallationCredentialKey || len(secret.Data[fleetCredentialAPIKey]) == 0 {
+	if !ok || client.ObjectKeyFromObject(secret) != d.managedAgentInstallationCredentialKey() || len(secret.Data[fleetCredentialAPIKey]) == 0 {
 		return
 	}
 	d.resetManagedAgentInstallationCredentialRetries()
@@ -177,7 +172,7 @@ func (d *Daemon) runManagedAgentInstallationIntentWorker(ctx context.Context) {
 
 func (d *Daemon) readCurrentManagedAgentInstallationIntent(ctx context.Context) (managedAgentInstallationIntentSnapshot, error) {
 	configMap := &corev1.ConfigMap{}
-	if err := d.managedAgentInstallationReader().Get(ctx, managedAgentInstallationIntentKey, configMap); err != nil {
+	if err := d.managedAgentInstallationReader().Get(ctx, d.managedAgentInstallationIntentKey(), configMap); err != nil {
 		return managedAgentInstallationIntentSnapshot{}, fmt.Errorf("read current managed Agent installation intent: %w", err)
 	}
 	return managedAgentInstallationIntentSnapshot{
@@ -326,7 +321,7 @@ func (d *Daemon) acknowledgeManagedAgentInstallationInstall(ctx context.Context,
 		return fmt.Errorf("managed Agent installation install is already acknowledged by a different operation")
 	}
 	dda := &v2alpha1.DatadogAgent{}
-	if err := d.managedAgentInstallationReader().Get(ctx, managedAgentInstallationTarget, dda); err != nil {
+	if err := d.managedAgentInstallationReader().Get(ctx, d.managedAgentInstallationTarget(), dda); err != nil {
 		return fmt.Errorf("read DatadogAgent before bootstrap acknowledgement: %w", err)
 	}
 	if err := validateFleetDatadogAgentInstallCompletion(dda, dda.UID, current.OperationID); err != nil {
@@ -368,7 +363,7 @@ func (d *Daemon) reconcileAcknowledgedManagedAgentInstallation(ctx context.Conte
 }
 
 func (d *Daemon) validateAcknowledgedManagedAgentInstallation(ctx context.Context) (*v2alpha1.DatadogAgent, error) {
-	dda, err := d.validateManagedAgentInstallationTarget(ctx, managedAgentInstallationTarget)
+	dda, err := d.validateManagedAgentInstallationTarget(ctx, d.managedAgentInstallationTarget())
 	if err != nil {
 		return nil, err
 	}

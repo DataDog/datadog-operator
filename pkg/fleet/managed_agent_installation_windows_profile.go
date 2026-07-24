@@ -13,7 +13,6 @@ import (
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	v1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
@@ -23,15 +22,11 @@ import (
 
 const managedAgentInstallationWindowsProfileName = "datadog-agent-windows"
 
-var managedAgentInstallationWindowsProfileKey = types.NamespacedName{
-	Namespace: fleetDatadogAgentNamespace,
-	Name:      managedAgentInstallationWindowsProfileName,
-}
-
 func (d *Daemon) ensureManagedAgentInstallationWindowsProfile(ctx context.Context, dda *v2alpha1.DatadogAgent) error {
 	wanted := d.managedAgentInstallationWindowsProfile(dda)
+	profileKey := d.managedAgentInstallationWindowsProfileKey()
 	current := &v1alpha1.DatadogAgentProfile{}
-	getErr := d.managedAgentInstallationReader().Get(ctx, managedAgentInstallationWindowsProfileKey, current)
+	getErr := d.managedAgentInstallationReader().Get(ctx, profileKey, current)
 	if apierrors.IsNotFound(getErr) {
 		if createErr := d.client.Create(ctx, wanted, client.FieldOwner("fleet-daemon")); createErr != nil {
 			return fmt.Errorf("create Windows DatadogAgentProfile: %w", createErr)
@@ -45,14 +40,15 @@ func (d *Daemon) ensureManagedAgentInstallationWindowsProfile(ctx context.Contex
 }
 
 func (d *Daemon) managedAgentInstallationWindowsProfile(dda *v2alpha1.DatadogAgent) *v1alpha1.DatadogAgentProfile {
+	profileKey := d.managedAgentInstallationWindowsProfileKey()
 	return &v1alpha1.DatadogAgentProfile{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: v1alpha1.GroupVersion.String(),
 			Kind:       "DatadogAgentProfile",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace: managedAgentInstallationWindowsProfileKey.Namespace,
-			Name:      managedAgentInstallationWindowsProfileKey.Name,
+			Namespace: profileKey.Namespace,
+			Name:      profileKey.Name,
 			Labels: map[string]string{
 				fleetManagedByLabel:                        fleetManagedByValue,
 				fleetManagedAgentInstallationProviderLabel: string(d.managedAgentInstallationIdentity.Provider()),
@@ -116,7 +112,7 @@ func requireManagedAgentInstallationWindowsProfileOwner(owners []metav1.OwnerRef
 
 func (d *Daemon) validateManagedAgentInstallationWindowsProfileExists(ctx context.Context, dda *v2alpha1.DatadogAgent) error {
 	profile := &v1alpha1.DatadogAgentProfile{}
-	if err := d.managedAgentInstallationReader().Get(ctx, managedAgentInstallationWindowsProfileKey, profile); err != nil {
+	if err := d.managedAgentInstallationReader().Get(ctx, d.managedAgentInstallationWindowsProfileKey(), profile); err != nil {
 		return fmt.Errorf("read Windows DatadogAgentProfile: %w", err)
 	}
 	return d.validateManagedAgentInstallationWindowsProfile(profile, dda)

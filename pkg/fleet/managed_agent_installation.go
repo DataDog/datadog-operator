@@ -49,19 +49,13 @@ const (
 	fleetManagedAgentInstallationStateReady    = "ready"
 	fleetPartialConfigVersionPrefix            = "partial:"
 
-	fleetDatadogAgentNamespace = "datadog-agent"
-	fleetDatadogAgentName      = "datadog-agent"
-	fleetCredentialSecretName  = "datadog-secret"
-	fleetCredentialAPIKey      = "api-key"
+	fleetDatadogAgentName     = "datadog-agent"
+	fleetCredentialSecretName = "datadog-secret"
+	fleetCredentialAPIKey     = "api-key"
 )
 
 var managedAgentInstallationDeletePollInterval = time.Second
 var managedAgentInstallationDeleteTimeout = 3 * time.Minute
-
-var managedAgentInstallationCredentialKey = types.NamespacedName{
-	Namespace: fleetDatadogAgentNamespace,
-	Name:      fleetCredentialSecretName,
-}
 
 var allowedManagedAgentInstallationSites = map[string]struct{}{
 	"datadoghq.com":     {},
@@ -86,7 +80,7 @@ func (e *managedAgentInstallationCredentialNotReadyError) Error() string {
 }
 
 func (d *Daemon) installDatadogAgent(ctx context.Context, command managedAgentInstallationCommand) error {
-	target := managedAgentInstallationTarget
+	target := d.managedAgentInstallationTarget()
 	configID := command.Intent.OperationID
 	spec, specErr := buildFleetDatadogAgentSpec(command.Config)
 	if specErr != nil {
@@ -232,7 +226,7 @@ func (d *Daemon) installDatadogAgent(ctx context.Context, command managedAgentIn
 
 func (d *Daemon) retainFleetDatadogAgentPartial(ctx context.Context, command managedAgentInstallationCommand, uid types.UID, cause error) error {
 	d.setPackageConfigVersions(packageDatadogOperator, fleetPartialConfigVersionPrefix+command.Intent.OperationID, "")
-	configID, err := d.markFleetDatadogAgentPartial(ctx, managedAgentInstallationTarget, uid)
+	configID, err := d.markFleetDatadogAgentPartial(ctx, d.managedAgentInstallationTarget(), uid)
 	if err != nil {
 		return fmt.Errorf("%w; failed to retain the Fleet-managed DatadogAgent as partial: %w", cause, err)
 	}
@@ -242,7 +236,7 @@ func (d *Daemon) retainFleetDatadogAgentPartial(ctx context.Context, command man
 }
 
 func (d *Daemon) uninstallDatadogAgent(ctx context.Context) error {
-	target := managedAgentInstallationTarget
+	target := d.managedAgentInstallationTarget()
 	if _, err := d.validateManagedAgentInstallationTarget(ctx, target); err != nil {
 		return err
 	}
@@ -597,6 +591,30 @@ func managedAgentInstallationPartOfLabelValue(key types.NamespacedName) string {
 	return object.NewPartOfLabelValue(metadata).String()
 }
 
+func (d *Daemon) managedAgentInstallationKey(name string) types.NamespacedName {
+	return types.NamespacedName{Namespace: d.managedAgentInstallationNamespace, Name: name}
+}
+
+func (d *Daemon) managedAgentInstallationTarget() types.NamespacedName {
+	return d.managedAgentInstallationKey(fleetDatadogAgentName)
+}
+
+func (d *Daemon) managedAgentInstallationCredentialKey() types.NamespacedName {
+	return d.managedAgentInstallationKey(fleetCredentialSecretName)
+}
+
+func (d *Daemon) managedAgentInstallationIntentKey() types.NamespacedName {
+	return d.managedAgentInstallationKey(managedAgentInstallationIntentConfigMapName)
+}
+
+func (d *Daemon) managedAgentInstallationStateKey() types.NamespacedName {
+	return d.managedAgentInstallationKey(managedAgentInstallationStateConfigMapName)
+}
+
+func (d *Daemon) managedAgentInstallationWindowsProfileKey() types.NamespacedName {
+	return d.managedAgentInstallationKey(managedAgentInstallationWindowsProfileName)
+}
+
 func controllerOwnerReference(apiVersion, kind, name string, uid types.UID) metav1.OwnerReference {
 	return metav1.OwnerReference{
 		APIVersion:         apiVersion,
@@ -619,7 +637,7 @@ func requireManagedAgentInstallationResourceOwner(owners []metav1.OwnerReference
 
 func (d *Daemon) validateFleetCredentialSecret(ctx context.Context) error {
 	secret := &corev1.Secret{}
-	nsn := managedAgentInstallationCredentialKey
+	nsn := d.managedAgentInstallationCredentialKey()
 	if err := d.managedAgentInstallationReader().Get(ctx, nsn, secret); err != nil {
 		if apierrors.IsNotFound(err) {
 			return &managedAgentInstallationCredentialNotReadyError{msg: fmt.Sprintf("credential Secret %s/%s is not ready", nsn.Namespace, nsn.Name)}
@@ -699,7 +717,7 @@ func (d *Daemon) managedAgentInstallationResourcesAbsent(ctx context.Context, ta
 	}
 
 	profile := &v1alpha1.DatadogAgentProfile{}
-	if err := d.managedAgentInstallationReader().Get(ctx, managedAgentInstallationWindowsProfileKey, profile); err != nil {
+	if err := d.managedAgentInstallationReader().Get(ctx, d.managedAgentInstallationWindowsProfileKey(), profile); err != nil {
 		if !apierrors.IsNotFound(err) {
 			return false, fmt.Errorf("read Windows DatadogAgentProfile after managed Agent uninstall: %w", err)
 		}

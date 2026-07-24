@@ -179,7 +179,7 @@ func (d *Daemon) managedAgentInstallationShouldWaitForFleet(ctx context.Context,
 	}
 
 	dda := &v2alpha1.DatadogAgent{}
-	if err := d.managedAgentInstallationReader().Get(ctx, managedAgentInstallationTarget, dda); err != nil {
+	if err := d.managedAgentInstallationReader().Get(ctx, d.managedAgentInstallationTarget(), dda); err != nil {
 		if apierrors.IsNotFound(err) {
 			return false, nil
 		}
@@ -223,9 +223,4 @@ func (d *Daemon) dispatchManagedAgentInstallationCommand(ctx context.Context, co
 	default:
 		return fmt.Errorf("unknown managed Agent installation desired state %q", command.Intent.DesiredState)
 	}
-}
-
-var managedAgentInstallationTarget = client.ObjectKey{
-	Namespace: fleetDatadogAgentNamespace,
-	Name:      fleetDatadogAgentName,
 }

@@ -145,6 +145,20 @@ func (c *managedAgentInstallationTestClient) Delete(ctx context.Context, obj cli
 	return c.Client.Delete(ctx, obj, opts...)
 }
 
+func TestManagedAgentInstallationKeysUseConfiguredNamespace(t *testing.T) {
+	daemon := &Daemon{managedAgentInstallationNamespace: "custom-addon-namespace"}
+
+	for _, key := range []types.NamespacedName{
+		daemon.managedAgentInstallationTarget(),
+		daemon.managedAgentInstallationCredentialKey(),
+		daemon.managedAgentInstallationIntentKey(),
+		daemon.managedAgentInstallationStateKey(),
+		daemon.managedAgentInstallationWindowsProfileKey(),
+	} {
+		assert.Equal(t, "custom-addon-namespace", key.Namespace)
+	}
+}
+
 func TestManagedAgentInstallationConfigRejectsCredentials(t *testing.T) {
 	for _, raw := range []json.RawMessage{
 		json.RawMessage(`{"spec":{"global":{"credentials":{"apiKey":"api-key"}}}}`),
@@ -929,7 +943,7 @@ func TestManagedAgentInstallationWindowsProfileValidation(t *testing.T) {
 
 func TestManagedAgentInstallationResourcesAbsentUsesOwnedInventory(t *testing.T) {
 	ddai := &v1alpha1.DatadogAgentInternal{ObjectMeta: metav1.ObjectMeta{
-		Namespace: fleetDatadogAgentNamespace,
+		Namespace: testManagedAgentInstallationNamespace,
 		Name:      "datadog-agent-internal",
 		Labels: map[string]string{
 			fleetManagedAgentInstallationProviderLabel: string(testManagedAgentInstallationIdentity.Provider()),
@@ -1187,6 +1201,7 @@ func testManagedAgentInstallationDaemon(rcState []*pbgo.PackageState, objects ..
 		client:                               kubeClient,
 		apiReader:                            kubeClient,
 		managedAgentInstallationIdentity:     testManagedAgentInstallationIdentity,
+		managedAgentInstallationNamespace:    testManagedAgentInstallationNamespace,
 		managedAgentInstallationTaskReserved: true,
 		configs:                              make(map[string]installerConfig),
 		statusUpdates:                        make(chan ddaStatusSnapshot, 32),
@@ -1196,7 +1211,7 @@ func testManagedAgentInstallationDaemon(rcState []*pbgo.PackageState, objects ..
 
 func testFleetCredentialSecret() *corev1.Secret {
 	return &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{Name: fleetCredentialSecretName, Namespace: fleetDatadogAgentNamespace},
+		ObjectMeta: metav1.ObjectMeta{Name: fleetCredentialSecretName, Namespace: testManagedAgentInstallationNamespace},
 		Data:       map[string][]byte{fleetCredentialAPIKey: []byte("api-key-value")},
 	}
 }
