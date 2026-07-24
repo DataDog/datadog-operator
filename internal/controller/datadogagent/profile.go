@@ -14,6 +14,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -26,6 +27,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/metrics"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
+	"github.com/DataDog/datadog-operator/pkg/condition"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
@@ -87,6 +89,8 @@ func (r *Reconciler) reconcileProfiles(ctx context.Context, dsNSName types.Names
 	for _, profile := range sortedProfiles {
 		originalStatus := profile.Status.DeepCopy()
 		logger.Info("reconciling profile", "datadogagentprofile", profile.Name, "datadogagentprofile_namespace", profile.Namespace)
+
+		r.addDDAIStatusToProfileStatus(ctx, &profile, defaultDDAI.Name, defaultDDAI.Namespace, now)
 
 		requirements, err := agentprofile.ValidateProfileAndReturnRequirements(&profile)
 		if err != nil {
@@ -358,6 +362,37 @@ func setProfileDDAIMeta(ddai *v1alpha1.DatadogAgentInternal, profile *v1alpha1.D
 		ddai.Annotations[kubernetes.ProviderAnnotationKey] = v
 	}
 	return nil
+}
+
+// addDDAIStatusToProfileStatus surfaces the profile's DatadogAgentInternal
+// reconcile-error condition on the DatadogAgentProfile itself. Unlike the DDA's
+// conditions (rebuilt from scratch every reconcile), DatadogAgentProfile
+// conditions persist across reconciles, so the condition must be explicitly
+// set to False on recovery or a stale error would linger forever.
+func (r *Reconciler) addDDAIStatusToProfileStatus(ctx context.Context, profile *v1alpha1.DatadogAgentProfile, ddaiName, ddaiNamespace string, now metav1.Time) {
+	ddaiName = getProfileDDAIName(ddaiName, profile.Name, profile.Namespace)
+	ddai := &v1alpha1.DatadogAgentInternal{}
+	if err := r.client.Get(ctx, types.NamespacedName{Name: ddaiName, Namespace: ddaiNamespace}, ddai); err != nil {
+		if !apierrors.IsNotFound(err) {
+			r.log.Error(err, "unexpected error during DDAI get", "datadogagentprofile", profile.Name, "datadogagentprofile_namespace", profile.Namespace)
+			return
+		}
+		// Leave a new profile untouched until its DDAI is created, but clear
+		// an error left behind after a previously existing DDAI is removed.
+		if apimeta.FindStatusCondition(profile.Status.Conditions, agentprofile.DDAIReconcileErrorConditionType) != nil {
+			newCondition := agentprofile.NewDatadogAgentProfileCondition(agentprofile.DDAIReconcileErrorConditionType, metav1.ConditionFalse, now, agentprofile.DDAIReconcileOKConditionReason, "")
+			profile.Status.Conditions = agentprofile.SetDatadogAgentProfileCondition(profile.Status.Conditions, newCondition)
+		}
+		return
+	}
+
+	var newCondition metav1.Condition
+	if ddaiErrCond := condition.GetDDAICondition(&ddai.Status, common.DatadogAgentReconcileErrorConditionType); ddaiErrCond != nil && ddaiErrCond.Status == metav1.ConditionTrue {
+		newCondition = agentprofile.NewDatadogAgentProfileCondition(agentprofile.DDAIReconcileErrorConditionType, metav1.ConditionTrue, now, agentprofile.DDAIReconcileErrorConditionReason, fmt.Sprintf("%s: %s", ddai.Name, ddaiErrCond.Message))
+	} else {
+		newCondition = agentprofile.NewDatadogAgentProfileCondition(agentprofile.DDAIReconcileErrorConditionType, metav1.ConditionFalse, now, agentprofile.DDAIReconcileOKConditionReason, "")
+	}
+	profile.Status.Conditions = agentprofile.SetDatadogAgentProfileCondition(profile.Status.Conditions, newCondition)
 }
 
 // getProfileDDAIName returns the name of the DDAI when profiles are used.

@@ -23,6 +23,7 @@ import (
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	agenttestutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/testutils"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/constants"
@@ -1819,4 +1820,124 @@ func testAPMMatrixConditionMessage(conditions []metav1.Condition, conditionType 
 		}
 	}
 	return ""
+}
+
+func Test_addDDAIStatusToProfileStatus(t *testing.T) {
+	sch := agenttestutils.TestScheme()
+	ctx := context.Background()
+	now := metav1.NewTime(time.Now())
+
+	newProfile := func() *v1alpha1.DatadogAgentProfile {
+		return &v1alpha1.DatadogAgentProfile{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-profile",
+				Namespace: "default",
+			},
+		}
+	}
+
+	tests := []struct {
+		name              string
+		profile           *v1alpha1.DatadogAgentProfile
+		existingDDAI      *v1alpha1.DatadogAgentInternal
+		expectNoCondition bool
+		expectStatus      metav1.ConditionStatus
+		expectReason      string
+		expectMessage     string
+	}{
+		{
+			name:              "DDAI not yet created leaves conditions untouched",
+			profile:           newProfile(),
+			existingDDAI:      nil,
+			expectNoCondition: true,
+		},
+		{
+			name:    "DDAI reconcile error is surfaced on the profile",
+			profile: newProfile(),
+			existingDDAI: &v1alpha1.DatadogAgentInternal{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-profile",
+					Namespace: "default",
+				},
+				Status: v1alpha1.DatadogAgentInternalStatus{
+					Conditions: []metav1.Condition{
+						{
+							Type:    common.DatadogAgentReconcileErrorConditionType,
+							Status:  metav1.ConditionTrue,
+							Reason:  "DatadogAgent_reconcile_error",
+							Message: "some daemonset error",
+						},
+					},
+				},
+			},
+			expectStatus:  metav1.ConditionTrue,
+			expectReason:  agentprofile.DDAIReconcileErrorConditionReason,
+			expectMessage: "test-profile: some daemonset error",
+		},
+		{
+			name: "recovered DDAI clears a stale profile error condition",
+			profile: func() *v1alpha1.DatadogAgentProfile {
+				p := newProfile()
+				p.Status.Conditions = []metav1.Condition{
+					{
+						Type:    agentprofile.DDAIReconcileErrorConditionType,
+						Status:  metav1.ConditionTrue,
+						Reason:  agentprofile.DDAIReconcileErrorConditionReason,
+						Message: "test-profile: some daemonset error",
+					},
+				}
+				return p
+			}(),
+			existingDDAI: &v1alpha1.DatadogAgentInternal{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-profile",
+					Namespace: "default",
+				},
+				Status: v1alpha1.DatadogAgentInternalStatus{
+					Conditions: []metav1.Condition{
+						{
+							Type:   common.DatadogAgentReconcileErrorConditionType,
+							Status: metav1.ConditionFalse,
+							Reason: "DatadogAgent_reconcile_ok",
+						},
+					},
+				},
+			},
+			expectStatus:  metav1.ConditionFalse,
+			expectReason:  agentprofile.DDAIReconcileOKConditionReason,
+			expectMessage: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			objects := []k8sruntime.Object{}
+			if tt.existingDDAI != nil {
+				objects = append(objects, tt.existingDDAI)
+			}
+			fakeClient := fake.NewClientBuilder().WithScheme(sch).WithRuntimeObjects(objects...).Build()
+			r := &Reconciler{
+				client: fakeClient,
+				log:    logf.Log.WithName(tt.name),
+			}
+
+			r.addDDAIStatusToProfileStatus(ctx, tt.profile, "test-profile", "default", now)
+
+			var found *metav1.Condition
+			for i := range tt.profile.Status.Conditions {
+				if tt.profile.Status.Conditions[i].Type == agentprofile.DDAIReconcileErrorConditionType {
+					found = &tt.profile.Status.Conditions[i]
+				}
+			}
+
+			if tt.expectNoCondition {
+				assert.Nil(t, found)
+				return
+			}
+			require.NotNil(t, found)
+			assert.Equal(t, tt.expectStatus, found.Status)
+			assert.Equal(t, tt.expectReason, found.Reason)
+			assert.Equal(t, tt.expectMessage, found.Message)
+		})
+	}
 }
