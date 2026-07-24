@@ -1,6 +1,23 @@
 # Operator EKS Add-on
 
-This is a wrapper chart for installing EKS add-on. Charts required for the add-on are added as a dependency to this chart. Chart itself doesn't contain any templates or configurable properties.
+This is a wrapper chart for installing the EKS add-on. The Datadog Operator chart is included as a dependency.
+
+## Managed Agent installation credentials sync
+
+The optional `managedAgentInstallationCredentials` value renders the resources that sync a Datadog API key from AWS Secrets Manager into `datadog-secret[api-key]` in the add-on namespace:
+
+- `ServiceAccount/datadog-ascp-sync`
+- `SecretProviderClass/datadog-api-key`
+- a Linux-only `Deployment/datadog-ascp-secret-sync` that keeps the CSI volume mounted
+
+The cluster must have the AWS Secrets Store CSI Driver provider and EKS Pod Identity Agent add-ons installed. The CSI driver must enable Kubernetes Secret sync, and the sync ServiceAccount must have an EKS Pod Identity association whose IAM role can read the configured Secrets Manager secret. The add-on namespace and Pod Identity association namespace must match. The sync Deployment requires a Linux EC2 node because the AWS provider does not support Fargate.
+
+Enable the CSI driver's rotation reconciler if updates to the Secrets Manager value must propagate to `datadog-secret` without restarting the sync Deployment.
+
+```yaml
+managedAgentInstallationCredentials:
+  secretsManagerSecretID: arn:aws:secretsmanager:us-east-1:123456789012:secret:/datadog/eks-instrumenter/123456789012/example
+```
 
 ## Version Mapping
 | `operator-addon-chart` | `datadog-operator` | `datadog-crds` | Operator | Agent | Cluster Agent |

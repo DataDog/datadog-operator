@@ -118,6 +118,23 @@
           "type": "object"
         }
       }
+    },
+    "managedAgentInstallationCredentials": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "secretsManagerSecretID": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2048
+        }
+      },
+      "required": [
+        "secretsManagerSecretID"
+      ],
+      "additionalProperties": false
     }
   }
 }

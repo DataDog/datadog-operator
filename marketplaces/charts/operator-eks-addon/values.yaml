@@ -7,3 +7,5 @@ datadog-operator:
     repository: 709825985650.dkr.ecr.us-east-1.amazonaws.com/datadog/operator
     tag: 1.28.0
   operatorMetricsEnabled: false
+
+managedAgentInstallationCredentials: null
