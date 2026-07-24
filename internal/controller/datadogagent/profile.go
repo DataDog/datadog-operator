@@ -14,6 +14,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -374,8 +375,14 @@ func (r *Reconciler) addDDAIStatusToProfileStatus(ctx context.Context, profile *
 	if err := r.client.Get(ctx, types.NamespacedName{Name: ddaiName, Namespace: ddaiNamespace}, ddai); err != nil {
 		if !apierrors.IsNotFound(err) {
 			r.log.Error(err, "unexpected error during DDAI get", "datadogagentprofile", profile.Name, "datadogagentprofile_namespace", profile.Namespace)
+			return
 		}
-		// DDAI not yet created
+		// Leave a new profile untouched until its DDAI is created, but clear
+		// an error left behind after a previously existing DDAI is removed.
+		if apimeta.FindStatusCondition(profile.Status.Conditions, agentprofile.DDAIReconcileErrorConditionType) != nil {
+			newCondition := agentprofile.NewDatadogAgentProfileCondition(agentprofile.DDAIReconcileErrorConditionType, metav1.ConditionFalse, now, agentprofile.DDAIReconcileOKConditionReason, "")
+			profile.Status.Conditions = agentprofile.SetDatadogAgentProfileCondition(profile.Status.Conditions, newCondition)
+		}
 		return
 	}
 
