@@ -110,14 +110,144 @@
         "collectOperatorMetrics": {
           "type": "boolean"
         },
+        "apiKeyExistingSecret": {
+          "type": "string"
+        },
+        "datadogCRDs": {
+          "type": "object",
+          "properties": {
+            "crds": {
+              "type": "object",
+              "properties": {
+                "datadogAgentProfiles": {
+                  "type": "boolean"
+                }
+              }
+            }
+          }
+        },
+        "datadogAgentProfile": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            }
+          }
+        },
+        "remoteConfiguration": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            }
+          }
+        },
         "watchNamespaces": {
           "type": "array",
           "items": {}
         },
         "containerSecurityContext": {
           "type": "object"
+        },
+        "volumes": {
+          "type": "array",
+          "items": {}
+        },
+        "volumeMounts": {
+          "type": "array",
+          "items": {}
         }
       }
+    },
+    "managedAgentInstallation": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "version": {
+          "type": "string",
+          "enum": [
+            "v1"
+          ]
+        },
+        "installationID": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "eksARNSHA256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "operationID": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "desiredState": {
+          "type": "string",
+          "enum": [
+            "installed",
+            "absent"
+          ]
+        },
+        "acknowledgedOperationID": {
+          "type": "string",
+          "pattern": "^$|^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "bootstrap": {
+          "type": "object",
+          "properties": {
+            "clusterName": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            },
+            "site": {
+              "type": "string",
+              "enum": [
+                "datadoghq.com",
+                "datadoghq.eu",
+                "us3.datadoghq.com",
+                "us5.datadoghq.com",
+                "ddog-gov.com",
+                "ap1.datadoghq.com",
+                "ap2.datadoghq.com"
+              ]
+            }
+          },
+          "required": [
+            "clusterName",
+            "site"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "version",
+        "installationID",
+        "eksARNSHA256",
+        "operationID",
+        "desiredState",
+        "bootstrap"
+      ],
+      "additionalProperties": false
+    },
+    "managedAgentInstallationCredentials": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "secretsManagerSecretID": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2048
+        }
+      },
+      "required": [
+        "secretsManagerSecretID"
+      ],
+      "additionalProperties": false
     }
   }
 }
