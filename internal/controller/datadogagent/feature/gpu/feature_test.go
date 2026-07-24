@@ -194,6 +194,10 @@ func Test_GPUMonitoringFeature_Configure(t *testing.T) {
 				Value: "true",
 			},
 			{
+				Name:  DDEnableEBPFProbesEnvVar,
+				Value: "false",
+			},
+			{
 				Name:  NVIDIAVisibleDevicesEnvVar,
 				Value: "all",
 			},
@@ -215,6 +219,10 @@ func Test_GPUMonitoringFeature_Configure(t *testing.T) {
 			{
 				Name:  DDEnableGPUProbeEnvVar,
 				Value: "true",
+			},
+			{
+				Name:  DDEnableEBPFProbesEnvVar,
+				Value: "false",
 			},
 			{
 				Name:  common.DDSystemProbeSocket,
