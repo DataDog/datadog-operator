@@ -28,8 +28,9 @@ const (
 	// EnableHostProfilerSeccompAnnotation controls whether the host-profiler applies its localhost
 	// seccomp profile (and the init container that installs it on the node). Defaults to enabled;
 	// set to "false" to disable both the seccomp profile and its setup init container.
-	EnableHostProfilerSeccompAnnotation = "agent.datadoghq.com/host-profiler-seccomp-enabled"
-	EnableKSMApiServerCacheAnnotation   = "agent.datadoghq.com/ksm-use-apiserver-cache"
+	EnableHostProfilerSeccompAnnotation        = "agent.datadoghq.com/host-profiler-seccomp-enabled"
+	EnableHostProfilerLoggingSeccompAnnotation = "agent.datadoghq.com/host-profiler-logging-seccomp-enabled"
+	EnableKSMApiServerCacheAnnotation          = "agent.datadoghq.com/ksm-use-apiserver-cache"
 
 	EnableInstrumentationCRDAnnotation = "agent.datadoghq.com/instrumentation-crd-enabled"
 

@@ -23,6 +23,7 @@ type hostProfilerFeature struct {
 	owner                   metav1.Object
 	hostPIDDisabledManually bool
 	seccompEnabled          bool
+	loggingSeccomp          bool
 
 	logger logr.Logger
 }
@@ -64,6 +65,11 @@ func (o *hostProfilerFeature) Configure(dda metav1.Object, _ *v2alpha1.DatadogAg
 		} else {
 			o.seccompEnabled = value
 		}
+	}
+
+	o.loggingSeccomp = featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnableHostProfilerLoggingSeccompAnnotation)
+	if o.loggingSeccomp && !o.seccompEnabled {
+		o.logger.Info("host profiler: logging-seccomp annotation has no effect when seccomp is disabled")
 	}
 
 	return feature.RequiredComponents{
@@ -142,7 +148,7 @@ func (o *hostProfilerFeature) ManageNodeAgent(managers feature.PodTemplateManage
 
 		// Init container: copy seccomp profile JSON to the kubelet seccomp directory on the host.
 		// Appended after the base init containers (init-volume, init-config) added by default.go.
-		initContainer := buildSeccompSetupInitContainer(hostProfilerImage)
+		initContainer := buildSeccompSetupInitContainer(hostProfilerImage, o.loggingSeccomp)
 		managers.PodTemplateSpec().Spec.InitContainers = append(managers.PodTemplateSpec().Spec.InitContainers, initContainer)
 	} else {
 		sc.SeccompProfile = &corev1.SeccompProfile{
