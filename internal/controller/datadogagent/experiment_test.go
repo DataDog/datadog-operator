@@ -23,11 +23,11 @@ func TestManageExperiment_AbortsOnManualChange(t *testing.T) {
 
 	// Create two revisions: pre-experiment (specA) and experiment (specB).
 	instanceA := newRevisionTestOwner("test-dda", "default")
-	require.NoError(t, r.manageRevision(context.Background(), instanceA, mustListRevisions(t, r, instanceA), nil))
+	require.NoError(t, r.manageRevision(context.Background(), instanceA, instanceA.Spec, mustListRevisions(t, r, instanceA), nil))
 
 	instanceB := newRevisionTestOwner("test-dda", "default")
 	instanceB.Spec = v2alpha1.DatadogAgentSpec{Global: &v2alpha1.GlobalConfig{}}
-	require.NoError(t, r.manageRevision(context.Background(), instanceB, mustListRevisions(t, r, instanceB), nil))
+	require.NoError(t, r.manageRevision(context.Background(), instanceB, instanceB.Spec, mustListRevisions(t, r, instanceB), nil))
 
 	// Simulate a manual spec change: specC doesn't match any revision.
 	instanceC := newRevisionTestOwner("test-dda", "default")
@@ -66,12 +66,12 @@ func TestManageExperiment_ManualRevertToBaselineTerminatesViaTimeout(t *testing.
 
 	// Rev1: pre-experiment spec (specA).
 	instanceA := newRevisionTestOwner("test-dda", "default")
-	require.NoError(t, r.manageRevision(context.Background(), instanceA, mustListRevisions(t, r, instanceA), nil))
+	require.NoError(t, r.manageRevision(context.Background(), instanceA, instanceA.Spec, mustListRevisions(t, r, instanceA), nil))
 
 	// Rev2: experiment spec (specB).
 	instanceB := newRevisionTestOwner("test-dda", "default")
 	instanceB.Spec = v2alpha1.DatadogAgentSpec{Global: &v2alpha1.GlobalConfig{}}
-	require.NoError(t, r.manageRevision(context.Background(), instanceB, mustListRevisions(t, r, instanceB), nil))
+	require.NoError(t, r.manageRevision(context.Background(), instanceB, instanceB.Spec, mustListRevisions(t, r, instanceB), nil))
 	require.NoError(t, c.Create(context.Background(), instanceA))
 
 	// User manually reverts to specA. The spec matches rev1 (the baseline),
@@ -98,7 +98,7 @@ func TestRollback_RestoresSpec(t *testing.T) {
 
 	// Create a revision for specA.
 	instanceA := newRevisionTestOwner("test-dda", "default")
-	err := r.manageRevision(context.Background(), instanceA, mustListRevisions(t, r, instanceA), nil)
+	err := r.manageRevision(context.Background(), instanceA, instanceA.Spec, mustListRevisions(t, r, instanceA), nil)
 	require.NoError(t, err)
 
 	revListA := mustListRevisions(t, r, instanceA)
@@ -108,7 +108,7 @@ func TestRollback_RestoresSpec(t *testing.T) {
 	// Create a second revision for specB.
 	instanceB := newRevisionTestOwner("test-dda", "default")
 	instanceB.Spec = v2alpha1.DatadogAgentSpec{Global: &v2alpha1.GlobalConfig{}}
-	err = r.manageRevision(context.Background(), instanceB, mustListRevisions(t, r, instanceB), nil)
+	err = r.manageRevision(context.Background(), instanceB, instanceB.Spec, mustListRevisions(t, r, instanceB), nil)
 	require.NoError(t, err)
 
 	// rollback fetches the current DDA to compare specs; it must exist in the fake client.
@@ -116,6 +116,34 @@ func TestRollback_RestoresSpec(t *testing.T) {
 
 	// Rollback from instanceB to prevRevision (specA).
 	require.NoError(t, r.rollback(context.Background(), instanceB, prevRevision))
+}
+
+// TestRollback_SkipsUpdateWhenSpecAlreadyMatchesTarget verifies that if the
+// raw spec has already been independently reverted to match the rollback
+// target (e.g. a manual kubectl/GitOps revert) before rollback() runs, the
+// short-circuit compares the raw current spec against the target and skips
+// the Update entirely rather than re-pinning defaulted values onto the CR.
+func TestRollback_SkipsUpdateWhenSpecAlreadyMatchesTarget(t *testing.T) {
+	r, c := newRevisionTestReconciler(t)
+
+	// Create the rollback target revision (specA).
+	instanceA := newRevisionTestOwner("test-dda", "default")
+	require.NoError(t, r.manageRevision(context.Background(), instanceA, instanceA.Spec, mustListRevisions(t, r, instanceA), nil))
+	revListA := mustListRevisions(t, r, instanceA)
+	require.Len(t, revListA, 1)
+	target := revListA[0].Name
+
+	// current already matches specA (manually reverted before rollback() ran).
+	current := newRevisionTestOwner("test-dda", "default")
+	require.NoError(t, c.Create(context.Background(), current))
+	rvBefore := current.ResourceVersion
+
+	require.NoError(t, r.rollback(context.Background(), current, target))
+
+	updated := &v2alpha1.DatadogAgent{}
+	require.NoError(t, c.Get(context.Background(), types.NamespacedName{Namespace: "default", Name: "test-dda"}, updated))
+	assert.Equal(t, rvBefore, updated.ResourceVersion,
+		"rollback must skip the Update when the raw spec already matches the target revision")
 }
 
 func TestRollback_NoPreviousRevision(t *testing.T) {
@@ -131,11 +159,11 @@ func TestProcessExperimentSignal_RollbackSignalRollsBack(t *testing.T) {
 
 	// Create two revisions so we have a previous to roll back to.
 	instanceA := newRevisionTestOwner("test-dda", "default")
-	require.NoError(t, r.manageRevision(context.Background(), instanceA, mustListRevisions(t, r, instanceA), nil))
+	require.NoError(t, r.manageRevision(context.Background(), instanceA, instanceA.Spec, mustListRevisions(t, r, instanceA), nil))
 
 	instanceB := newRevisionTestOwner("test-dda", "default")
 	instanceB.Spec = v2alpha1.DatadogAgentSpec{Global: &v2alpha1.GlobalConfig{}}
-	require.NoError(t, r.manageRevision(context.Background(), instanceB, mustListRevisions(t, r, instanceB), nil))
+	require.NoError(t, r.manageRevision(context.Background(), instanceB, instanceB.Spec, mustListRevisions(t, r, instanceB), nil))
 
 	// Set annotations to signal rollback (different task ID), and status to running
 	// (controller already processed start with a different ID).
@@ -168,7 +196,7 @@ func TestRollback_PreservesNonDatadogAnnotations(t *testing.T) {
 	instanceA.Annotations = map[string]string{
 		"some.datadoghq.com/key": "old-value",
 	}
-	require.NoError(t, r.manageRevision(context.Background(), instanceA, mustListRevisions(t, r, instanceA), nil))
+	require.NoError(t, r.manageRevision(context.Background(), instanceA, instanceA.Spec, mustListRevisions(t, r, instanceA), nil))
 	revListA := mustListRevisions(t, r, instanceA)
 	require.Len(t, revListA, 1)
 	prevRevision := revListA[0].Name
@@ -199,11 +227,11 @@ func TestRestorePreviousSpec_PhaseSetOnlyOnSuccess(t *testing.T) {
 
 	// Create two revisions so rollback has a target.
 	instanceA := newRevisionTestOwner("test-dda", "default")
-	require.NoError(t, r.manageRevision(context.Background(), instanceA, mustListRevisions(t, r, instanceA), nil))
+	require.NoError(t, r.manageRevision(context.Background(), instanceA, instanceA.Spec, mustListRevisions(t, r, instanceA), nil))
 
 	instanceB := newRevisionTestOwner("test-dda", "default")
 	instanceB.Spec = v2alpha1.DatadogAgentSpec{Global: &v2alpha1.GlobalConfig{}}
-	require.NoError(t, r.manageRevision(context.Background(), instanceB, mustListRevisions(t, r, instanceB), nil))
+	require.NoError(t, r.manageRevision(context.Background(), instanceB, instanceB.Spec, mustListRevisions(t, r, instanceB), nil))
 
 	newStatus := &v2alpha1.DatadogAgentStatus{Experiment: &v2alpha1.ExperimentStatus{Phase: v2alpha1.ExperimentPhaseRunning}}
 
@@ -226,11 +254,11 @@ func TestManageExperiment_ManualChangeAbortsInsteadOfTimeout(t *testing.T) {
 
 	// Create two revisions so rollback has a target.
 	instanceA := newRevisionTestOwner("test-dda", "default")
-	require.NoError(t, r.manageRevision(context.Background(), instanceA, mustListRevisions(t, r, instanceA), nil))
+	require.NoError(t, r.manageRevision(context.Background(), instanceA, instanceA.Spec, mustListRevisions(t, r, instanceA), nil))
 
 	instanceB := newRevisionTestOwner("test-dda", "default")
 	instanceB.Spec = v2alpha1.DatadogAgentSpec{Global: &v2alpha1.GlobalConfig{}}
-	require.NoError(t, r.manageRevision(context.Background(), instanceB, mustListRevisions(t, r, instanceB), nil))
+	require.NoError(t, r.manageRevision(context.Background(), instanceB, instanceB.Spec, mustListRevisions(t, r, instanceB), nil))
 
 	// Simulate: phase=running, the spec was manually changed so it doesn't match
 	// any revision, AND timeout has elapsed. With the fix, handleRollback defers
@@ -259,7 +287,7 @@ func TestHandleRollback_NoTimeoutOnFirstReconcile(t *testing.T) {
 
 	// Only one revision exists — for the pre-experiment spec — with an old timestamp.
 	instanceA := newRevisionTestOwner("test-dda", "default")
-	require.NoError(t, r.manageRevision(context.Background(), instanceA, mustListRevisions(t, r, instanceA), nil))
+	require.NoError(t, r.manageRevision(context.Background(), instanceA, instanceA.Spec, mustListRevisions(t, r, instanceA), nil))
 	revList := mustListRevisions(t, r, instanceA)
 	require.Len(t, revList, 1)
 	revList[0].CreationTimestamp = metav1.NewTime(time.Now().Add(-ExperimentDefaultTimeout - time.Hour))
@@ -288,12 +316,12 @@ func TestHandleRollback_PostRollbackSetsTerminated(t *testing.T) {
 
 	// rev1: pre-experiment spec (instanceA).
 	instanceA := newRevisionTestOwner("test-dda", "default")
-	require.NoError(t, r.manageRevision(context.Background(), instanceA, mustListRevisions(t, r, instanceA), nil))
+	require.NoError(t, r.manageRevision(context.Background(), instanceA, instanceA.Spec, mustListRevisions(t, r, instanceA), nil))
 
 	// rev2: experiment spec (instanceB).
 	instanceB := newRevisionTestOwner("test-dda", "default")
 	instanceB.Spec = v2alpha1.DatadogAgentSpec{Global: &v2alpha1.GlobalConfig{}}
-	require.NoError(t, r.manageRevision(context.Background(), instanceB, mustListRevisions(t, r, instanceB), nil))
+	require.NoError(t, r.manageRevision(context.Background(), instanceB, instanceB.Spec, mustListRevisions(t, r, instanceB), nil))
 
 	// The DDA in the cluster already has the rolled-back spec (instanceA's spec),
 	// as if reconcile-1 restored it but its status write 409'd. StartedAt sits
@@ -328,11 +356,11 @@ func TestReapplySameSpecAfterRollback_NoImmediateTimeout(t *testing.T) {
 
 	// Setup: create revisions for spec A (pre-experiment) and spec B (experiment).
 	instanceA := newRevisionTestOwner("test-dda", "default")
-	require.NoError(t, r.manageRevision(context.Background(), instanceA, mustListRevisions(t, r, instanceA), nil))
+	require.NoError(t, r.manageRevision(context.Background(), instanceA, instanceA.Spec, mustListRevisions(t, r, instanceA), nil))
 
 	instanceB := newRevisionTestOwner("test-dda", "default")
 	instanceB.Spec = v2alpha1.DatadogAgentSpec{Global: &v2alpha1.GlobalConfig{}}
-	require.NoError(t, r.manageRevision(context.Background(), instanceB, mustListRevisions(t, r, instanceB), nil))
+	require.NoError(t, r.manageRevision(context.Background(), instanceB, instanceB.Spec, mustListRevisions(t, r, instanceB), nil))
 	require.NoError(t, c.Create(context.Background(), instanceB))
 
 	// Backdate rev2 (B) to simulate a long-running experiment whose revision
@@ -377,7 +405,7 @@ func TestReapplySameSpecAfterRollback_NoImmediateTimeout(t *testing.T) {
 	instanceB2.Spec = v2alpha1.DatadogAgentSpec{Global: &v2alpha1.GlobalConfig{}}
 
 	// Step 1: ensureRevision recreates the annotated revision (fresh, no annotation).
-	_, err := r.ensureRevision(context.Background(), instanceB2, mustListRevisions(t, r, instanceB2), false)
+	_, err := r.ensureRevision(context.Background(), instanceB2, instanceB2.Spec, mustListRevisions(t, r, instanceB2), false)
 	require.NoError(t, err)
 
 	finalRevs := mustListRevisions(t, r, instanceB2)
@@ -410,18 +438,18 @@ func TestRestorePreviousSpec_ThreeRevisions_AnnotatesOnlyHighest(t *testing.T) {
 
 	// Build 3 revisions using ensureRevision directly (bypasses GC).
 	instanceA := newRevisionTestOwner("test-dda", "default")
-	rev1Name, err := r.ensureRevision(context.Background(), instanceA, nil, false)
+	rev1Name, err := r.ensureRevision(context.Background(), instanceA, instanceA.Spec, nil, false)
 	require.NoError(t, err)
 
 	instanceB := newRevisionTestOwner("test-dda", "default")
 	instanceB.Spec = v2alpha1.DatadogAgentSpec{Global: &v2alpha1.GlobalConfig{}}
-	rev2Name, err := r.ensureRevision(context.Background(), instanceB, mustListRevisions(t, r, instanceB), false)
+	rev2Name, err := r.ensureRevision(context.Background(), instanceB, instanceB.Spec, mustListRevisions(t, r, instanceB), false)
 	require.NoError(t, err)
 
 	experimentSite := "datadoghq.eu"
 	instanceC := newRevisionTestOwner("test-dda", "default")
 	instanceC.Spec = v2alpha1.DatadogAgentSpec{Global: &v2alpha1.GlobalConfig{Site: &experimentSite}}
-	rev3Name, err := r.ensureRevision(context.Background(), instanceC, mustListRevisions(t, r, instanceC), false)
+	rev3Name, err := r.ensureRevision(context.Background(), instanceC, instanceC.Spec, mustListRevisions(t, r, instanceC), false)
 	require.NoError(t, err)
 
 	revList := mustListRevisions(t, r, instanceA)
@@ -460,18 +488,18 @@ func TestAbortExperiment_ThreeRevisions_AnnotatesOnlyHighest(t *testing.T) {
 
 	// Build 3 revisions using ensureRevision directly (bypasses GC).
 	instanceA := newRevisionTestOwner("test-dda", "default")
-	rev1Name, err := r.ensureRevision(context.Background(), instanceA, nil, false)
+	rev1Name, err := r.ensureRevision(context.Background(), instanceA, instanceA.Spec, nil, false)
 	require.NoError(t, err)
 
 	instanceB := newRevisionTestOwner("test-dda", "default")
 	instanceB.Spec = v2alpha1.DatadogAgentSpec{Global: &v2alpha1.GlobalConfig{}}
-	rev2Name, err := r.ensureRevision(context.Background(), instanceB, mustListRevisions(t, r, instanceB), false)
+	rev2Name, err := r.ensureRevision(context.Background(), instanceB, instanceB.Spec, mustListRevisions(t, r, instanceB), false)
 	require.NoError(t, err)
 
 	experimentSite := "datadoghq.eu"
 	instanceC := newRevisionTestOwner("test-dda", "default")
 	instanceC.Spec = v2alpha1.DatadogAgentSpec{Global: &v2alpha1.GlobalConfig{Site: &experimentSite}}
-	rev3Name, err := r.ensureRevision(context.Background(), instanceC, mustListRevisions(t, r, instanceC), false)
+	rev3Name, err := r.ensureRevision(context.Background(), instanceC, instanceC.Spec, mustListRevisions(t, r, instanceC), false)
 	require.NoError(t, err)
 
 	revList := mustListRevisions(t, r, instanceA)
@@ -511,11 +539,11 @@ func TestHandleRollback_Timeout(t *testing.T) {
 
 	// Create two revisions so rollback has a target.
 	instanceA := newRevisionTestOwner("test-dda", "default")
-	require.NoError(t, r.manageRevision(context.Background(), instanceA, mustListRevisions(t, r, instanceA), nil))
+	require.NoError(t, r.manageRevision(context.Background(), instanceA, instanceA.Spec, mustListRevisions(t, r, instanceA), nil))
 
 	instanceB := newRevisionTestOwner("test-dda", "default")
 	instanceB.Spec = v2alpha1.DatadogAgentSpec{Global: &v2alpha1.GlobalConfig{}}
-	require.NoError(t, r.manageRevision(context.Background(), instanceB, mustListRevisions(t, r, instanceB), nil))
+	require.NoError(t, r.manageRevision(context.Background(), instanceB, instanceB.Spec, mustListRevisions(t, r, instanceB), nil))
 
 	// rollback fetches the current DDA to compare specs; it must exist in the fake client.
 	require.NoError(t, c.Create(context.Background(), instanceB))
@@ -640,11 +668,11 @@ func TestProcessExperimentSignal_PromoteRunning(t *testing.T) {
 
 	// Create a revision matching the instance spec so promote sees a matching revision.
 	instance := newRevisionTestOwner("test-dda", "default")
-	require.NoError(t, r.manageRevision(context.Background(), instance, mustListRevisions(t, r, instance), nil))
+	require.NoError(t, r.manageRevision(context.Background(), instance, instance.Spec, mustListRevisions(t, r, instance), nil))
 	// Create a second revision to satisfy len(revisions) >= 2.
 	instance2 := newRevisionTestOwner("test-dda", "default")
 	instance2.Spec = v2alpha1.DatadogAgentSpec{Global: &v2alpha1.GlobalConfig{}}
-	require.NoError(t, r.manageRevision(context.Background(), instance2, mustListRevisions(t, r, instance2), nil))
+	require.NoError(t, r.manageRevision(context.Background(), instance2, instance2.Spec, mustListRevisions(t, r, instance2), nil))
 
 	// Now promote back to the first spec (which has a matching revision).
 	// The promote signal has its own task ID, different from the start experiment ID.
@@ -669,11 +697,11 @@ func TestProcessExperimentSignal_PromoteBeatsTimeout(t *testing.T) {
 
 	// Create two revisions.
 	instanceA := newRevisionTestOwner("test-dda", "default")
-	require.NoError(t, r.manageRevision(context.Background(), instanceA, mustListRevisions(t, r, instanceA), nil))
+	require.NoError(t, r.manageRevision(context.Background(), instanceA, instanceA.Spec, mustListRevisions(t, r, instanceA), nil))
 
 	instanceB := newRevisionTestOwner("test-dda", "default")
 	instanceB.Spec = v2alpha1.DatadogAgentSpec{Global: &v2alpha1.GlobalConfig{}}
-	require.NoError(t, r.manageRevision(context.Background(), instanceB, mustListRevisions(t, r, instanceB), nil))
+	require.NoError(t, r.manageRevision(context.Background(), instanceB, instanceB.Spec, mustListRevisions(t, r, instanceB), nil))
 	require.NoError(t, c.Create(context.Background(), instanceB))
 
 	// Set promote annotation (different task ID) and running phase with timeout elapsed.
@@ -718,11 +746,11 @@ func TestProcessExperimentSignal_RollbackBeatsTimeout(t *testing.T) {
 
 	// Create two revisions.
 	instanceA := newRevisionTestOwner("test-dda", "default")
-	require.NoError(t, r.manageRevision(context.Background(), instanceA, mustListRevisions(t, r, instanceA), nil))
+	require.NoError(t, r.manageRevision(context.Background(), instanceA, instanceA.Spec, mustListRevisions(t, r, instanceA), nil))
 
 	instanceB := newRevisionTestOwner("test-dda", "default")
 	instanceB.Spec = v2alpha1.DatadogAgentSpec{Global: &v2alpha1.GlobalConfig{}}
-	require.NoError(t, r.manageRevision(context.Background(), instanceB, mustListRevisions(t, r, instanceB), nil))
+	require.NoError(t, r.manageRevision(context.Background(), instanceB, instanceB.Spec, mustListRevisions(t, r, instanceB), nil))
 	require.NoError(t, c.Create(context.Background(), instanceB))
 
 	// Set rollback annotation (different task ID) and running phase with timeout elapsed.
@@ -803,7 +831,7 @@ func TestRevisionState_SingleAnnotation(t *testing.T) {
 	r, _ := newRevisionTestReconciler(t)
 
 	instance := newRevisionTestOwner("test-dda", "default")
-	revName, err := r.ensureRevision(context.Background(), instance, nil, false)
+	revName, err := r.ensureRevision(context.Background(), instance, instance.Spec, nil, false)
 	require.NoError(t, err)
 	revList := mustListRevisions(t, r, instance)
 	require.Len(t, revList, 1)
@@ -839,7 +867,7 @@ func TestHandleRollback_StartedAt_AnchorsTimeout(t *testing.T) {
 
 	// Build a baseline revision with an ancient CreationTimestamp.
 	instance := newRevisionTestOwner("test-dda", "default")
-	_, err := r.ensureRevision(context.Background(), instance, nil, false)
+	_, err := r.ensureRevision(context.Background(), instance, instance.Spec, nil, false)
 	require.NoError(t, err)
 	revList := mustListRevisions(t, r, instance)
 	require.Len(t, revList, 1)
