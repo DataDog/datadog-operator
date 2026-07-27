@@ -49,7 +49,7 @@ func buildSeccompSetupInitContainer(image string, loggingSeccomp bool) corev1.Co
 		// Prefer the logging profile, but fall back to the default if the image predates it
 		// so an older image degrades gracefully instead of crash-looping on a missing file.
 		command = []string{"sh", "-c", fmt.Sprintf(
-			"if [ -f %[1]s ]; then cp %[1]s %[3]s; else cp %[2]s %[3]s; fi",
+			"if [ -f %[1]s ]; then cp %[1]s %[3]s; else echo 'WARNING: logging-seccomp.json not found in image, falling back to default seccomp profile' >&2; cp %[2]s %[3]s; fi",
 			loggingSeccompSourcePath, seccompSourcePath, dst,
 		)}
 	} else {
