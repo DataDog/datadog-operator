@@ -186,7 +186,7 @@ func testExpectedAgent(agentContainerName apicommon.AgentContainerName, expected
 					assert.False(t, *sc.AllowPrivilegeEscalation, "AllowPrivilegeEscalation must be false")
 					assert.NotNil(t, sc.SeccompProfile)
 					assert.Equal(t, corev1.SeccompProfileTypeLocalhost, sc.SeccompProfile.Type)
-					assert.Equal(t, seccompProfileName(hostProfilerImage), *sc.SeccompProfile.LocalhostProfile)
+					assert.Equal(t, seccompProfileName(hostProfilerImage, false), *sc.SeccompProfile.LocalhostProfile)
 					assert.NotNil(t, sc.Capabilities)
 					assert.Contains(t, sc.Capabilities.Drop, corev1.Capability("ALL"))
 					assert.True(t, apiutils.IsEqualStruct(sc.Capabilities.Add, defaultCapabilities()), "capabilities.Add \ndiff = %s", cmp.Diff(sc.Capabilities.Add, defaultCapabilities()))
@@ -220,7 +220,7 @@ func testExpectedAgent(agentContainerName apicommon.AgentContainerName, expected
 				if setupContainer != nil {
 					assert.Equal(t, hostProfilerImage, setupContainer.Image)
 					assert.Contains(t, setupContainer.Command, seccompSourcePath, "cp source should be the in-image seccomp path")
-					expectedDst := common.SeccompRootVolumePath + "/" + seccompProfileName(hostProfilerImage)
+					expectedDst := common.SeccompRootVolumePath + "/" + seccompProfileName(hostProfilerImage, false)
 					assert.Contains(t, setupContainer.Command, expectedDst, "cp command should target the kubelet seccomp path")
 					// Init container should only mount seccomp-root, not the ConfigMap volume
 					mountNames := map[string]bool{}
@@ -277,7 +277,11 @@ func TestHostProfilerLoggingSeccompAnnotation(t *testing.T) {
 			}
 			assert.NotNil(t, setup)
 			if setup != nil {
-				assert.Contains(t, strings.Join(setup.Command, " "), tt.wantContains)
+				cmd := strings.Join(setup.Command, " ")
+				assert.Contains(t, cmd, tt.wantContains)
+				if tt.annotation == "true" {
+					assert.Contains(t, cmd, "WARNING: logging-seccomp.json not found in image, falling back to default seccomp profile")
+				}
 			}
 		})
 	}
@@ -427,7 +431,7 @@ func TestHostProfilerSeccompImageStaysAlignedThroughOverrides(t *testing.T) {
 			if hostProfilerContainer != nil {
 				assert.Equal(t, tt.wantImage, hostProfilerContainer.Image)
 				assert.Equal(t, ifNotPresent, hostProfilerContainer.ImagePullPolicy)
-				assert.Equal(t, seccompProfileName(tt.wantImage), *hostProfilerContainer.SecurityContext.SeccompProfile.LocalhostProfile)
+				assert.Equal(t, seccompProfileName(tt.wantImage, false), *hostProfilerContainer.SecurityContext.SeccompProfile.LocalhostProfile)
 			}
 
 			var setupContainer *corev1.Container
@@ -441,7 +445,7 @@ func TestHostProfilerSeccompImageStaysAlignedThroughOverrides(t *testing.T) {
 			if setupContainer != nil {
 				assert.Equal(t, tt.wantImage, setupContainer.Image)
 				assert.Equal(t, ifNotPresent, setupContainer.ImagePullPolicy)
-				assert.Contains(t, setupContainer.Command, common.SeccompRootVolumePath+"/"+seccompProfileName(tt.wantImage))
+				assert.Contains(t, setupContainer.Command, common.SeccompRootVolumePath+"/"+seccompProfileName(tt.wantImage, false))
 			}
 		})
 	}

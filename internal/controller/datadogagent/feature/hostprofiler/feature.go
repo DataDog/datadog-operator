@@ -139,7 +139,7 @@ func (o *hostProfilerFeature) ManageNodeAgent(managers feature.PodTemplateManage
 	if o.seccompEnabled {
 		sc.SeccompProfile = &corev1.SeccompProfile{
 			Type:             corev1.SeccompProfileTypeLocalhost,
-			LocalhostProfile: new(seccompProfileName(hostProfilerImage)),
+			LocalhostProfile: new(seccompProfileName(hostProfilerImage, o.loggingSeccomp)),
 		}
 
 		// seccomp-root EmptyDir volume (shared with system-probe when both are enabled; VolumeManager deduplicates)
