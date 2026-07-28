@@ -56,23 +56,23 @@ func (r *Reconciler) reconcilePreparedRollout(ctx context.Context, ddai *datadog
 	if ds.Status.DesiredNumberScheduled <= 0 || ds.Status.ObservedGeneration != ds.Generation {
 		return resourceFallbackPollResult(ds), nil
 	}
-	budget, err := intstr.GetScaledValueFromIntOrPercent(&budgetValue, int(ds.Status.DesiredNumberScheduled), true)
-	if err != nil {
-		return reconcile.Result{}, fmt.Errorf("resolve Agent resource fallback budget: %w", err)
+	budget, budgetErr := intstr.GetScaledValueFromIntOrPercent(&budgetValue, int(ds.Status.DesiredNumberScheduled), true)
+	if budgetErr != nil {
+		return reconcile.Result{}, fmt.Errorf("resolve Agent resource fallback budget: %w", budgetErr)
 	}
 	if budget <= 0 {
 		return reconcile.Result{}, nil
 	}
-	pods, err := daemonSetPods(ctx, reader, ds)
-	if err != nil {
-		return reconcile.Result{}, err
+	pods, podsErr := daemonSetPods(ctx, reader, ds)
+	if podsErr != nil {
+		return reconcile.Result{}, podsErr
 	}
 	if consumedPreparedRolloutBudget(ds, pods) >= budget {
 		return resourceFallbackPollResult(ds), nil
 	}
-	desiredRevision, err := currentDaemonSetRevision(ctx, reader, ds)
-	if err != nil {
-		return reconcile.Result{}, err
+	desiredRevision, revisionErr := currentDaemonSetRevision(ctx, reader, ds)
+	if revisionErr != nil {
+		return reconcile.Result{}, revisionErr
 	}
 	if desiredRevision == "" {
 		return resourceFallbackPollResult(ds), nil
