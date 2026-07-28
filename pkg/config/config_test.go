@@ -6,11 +6,8 @@ import (
 	"testing"
 
 	"golang.org/x/exp/maps"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
@@ -123,7 +120,6 @@ func Test_CacheConfig(t *testing.T) {
 
 			wantObjectConfig: map[client.Object]objectConfig{
 				agentObj:        {configured: true, namespaces: []string{"system"}},
-				podObj:          {configured: true, namespaces: []string{"system"}},
 				csiDriverObj:    {configured: true, namespaces: []string{"default"}},
 				csiDaemonSetObj: {configured: true, namespaces: []string{"system", "default"}},
 			},
@@ -184,7 +180,7 @@ func Test_CacheConfig(t *testing.T) {
 			},
 		},
 		{
-			name: "Only Agent enabled; Monitor enabled without namespace config. Agent Pods are configured; other CRDs and Nodes are not",
+			name: "Only Agent enabled; Monitor enabled without namespace config. Other CRDs, Pods, Nodes not configured",
 
 			watchOptions: WatchOptions{
 				DatadogAgentEnabled:   true,
@@ -206,13 +202,13 @@ func Test_CacheConfig(t *testing.T) {
 				monitorObj:         {configured: true, namespaces: []string{"datadog"}},
 				sloObj:             {configured: false},
 				profileObj:         {configured: false},
-				podObj:             {configured: true, namespaces: []string{"agentNs1", "agentNs2"}},
+				podObj:             {configured: false},
 				nodeObj:            {configured: false},
 				csiDriverObj:       {configured: false},
 			},
 		},
 		{
-			name: "DAP disabled, Introspection enabled; Node uses nil namespace; Agent Pods are configured, Profiles are not",
+			name: "DAP disabled, Introspection enabled; Node uses nil namespace; Pods, Profiles are not configured",
 
 			watchOptions: WatchOptions{
 				DatadogAgentEnabled:        true,
@@ -235,7 +231,7 @@ func Test_CacheConfig(t *testing.T) {
 				monitorObj:         {configured: false},
 				sloObj:             {configured: false},
 				profileObj:         {configured: false},
-				podObj:             {configured: true, namespaces: []string{"agentNs1", "agentNs2"}},
+				podObj:             {configured: false},
 				nodeObj:            {configured: true, namespaces: nil},
 				csiDriverObj:       {configured: false},
 			},
@@ -294,36 +290,4 @@ func verifyResourceNamespace(t *testing.T, resource client.Object, wantConfig ob
 			assert.Nil(t, byObjectOptions.Label)
 		}
 	}
-}
-
-func TestAgentPodCacheTransformPreservesPreparedRolloutStatus(t *testing.T) {
-	t.Setenv(AgentWatchNamespaceEnvVar, "datadog-agent")
-	options := CacheOptions(logf.Log.WithName(t.Name()), WatchOptions{DatadogAgentEnabled: true})
-	podConfig, found := options.ByObject[podObj]
-	require.True(t, found)
-	require.NotNil(t, podConfig.Transform)
-
-	started := true
-	input := &corev1.Pod{
-		ObjectMeta: metav1.ObjectMeta{Name: "agent", Namespace: "datadog-agent"},
-		Status: corev1.PodStatus{
-			Phase: corev1.PodRunning,
-			InitContainerStatuses: []corev1.ContainerStatus{{
-				Name:  "init-config",
-				State: corev1.ContainerState{Terminated: &corev1.ContainerStateTerminated{ExitCode: 0}},
-			}},
-			ContainerStatuses: []corev1.ContainerStatus{{
-				Name:    "agent",
-				Started: &started,
-				State:   corev1.ContainerState{Running: &corev1.ContainerStateRunning{}},
-			}},
-		},
-	}
-	transformedObject, err := podConfig.Transform(input)
-	require.NoError(t, err)
-	transformed := transformedObject.(*corev1.Pod)
-	assert.Equal(t, corev1.PodRunning, transformed.Status.Phase)
-	require.Len(t, transformed.Status.InitContainerStatuses, 1)
-	require.Len(t, transformed.Status.ContainerStatuses, 1)
-	assert.True(t, *transformed.Status.ContainerStatuses[0].Started)
 }
