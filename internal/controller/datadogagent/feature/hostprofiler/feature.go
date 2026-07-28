@@ -8,7 +8,6 @@ import (
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -69,7 +68,7 @@ func (o *hostProfilerFeature) Configure(dda metav1.Object, _ *v2alpha1.DatadogAg
 
 	return feature.RequiredComponents{
 		Agent: feature.RequiredComponent{
-			IsRequired: ptr.To(true),
+			IsRequired: new(true),
 			Containers: []apicommon.AgentContainerName{
 				apicommon.CoreAgentContainerName,
 				apicommon.HostProfiler,
@@ -122,7 +121,7 @@ func (o *hostProfilerFeature) ManageNodeAgent(managers feature.PodTemplateManage
 	hostProfilerImage := resolveHostProfilerImage(o.owner, hostProfilerContainer.Image)
 
 	sc := hostProfilerContainer.SecurityContext
-	sc.AllowPrivilegeEscalation = ptr.To(false)
+	sc.AllowPrivilegeEscalation = new(false)
 	sc.Capabilities = &corev1.Capabilities{
 		Drop: []corev1.Capability{"ALL"},
 		Add:  defaultCapabilities(),
@@ -134,7 +133,7 @@ func (o *hostProfilerFeature) ManageNodeAgent(managers feature.PodTemplateManage
 	if o.seccompEnabled {
 		sc.SeccompProfile = &corev1.SeccompProfile{
 			Type:             corev1.SeccompProfileTypeLocalhost,
-			LocalhostProfile: ptr.To(seccompProfileName(hostProfilerImage)),
+			LocalhostProfile: new(seccompProfileName(hostProfilerImage)),
 		}
 
 		// seccomp-root EmptyDir volume (shared with system-probe when both are enabled; VolumeManager deduplicates)

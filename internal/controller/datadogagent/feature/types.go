@@ -11,7 +11,6 @@ import (
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/common"
@@ -108,9 +107,9 @@ func merge(a, b *bool) *bool {
 		return a
 	}
 	if !apiutils.BoolValue(a) || !apiutils.BoolValue(b) {
-		return ptr.To(false)
+		return new(false)
 	}
-	return ptr.To(true)
+	return new(true)
 }
 
 func mergeSlices(a, b []common.AgentContainerName) []common.AgentContainerName {

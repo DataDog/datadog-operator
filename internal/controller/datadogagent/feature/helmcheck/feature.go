@@ -11,7 +11,6 @@ import (
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -71,9 +70,9 @@ func (f *helmCheckFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Datado
 	helmCheck := ddaSpec.Features.HelmCheck
 
 	if helmCheck != nil && apiutils.BoolValue(helmCheck.Enabled) {
-		reqComp.ClusterAgent.IsRequired = ptr.To(true)
+		reqComp.ClusterAgent.IsRequired = new(true)
 		reqComp.ClusterAgent.Containers = []apicommon.AgentContainerName{apicommon.ClusterAgentContainerName}
-		reqComp.Agent.IsRequired = ptr.To(true)
+		reqComp.Agent.IsRequired = new(true)
 		reqComp.Agent.Containers = []apicommon.AgentContainerName{apicommon.CoreAgentContainerName}
 
 		f.configMapName = fmt.Sprintf("%s-%s", f.owner.GetName(), defaultHelmCheckConf)
@@ -85,7 +84,7 @@ func (f *helmCheckFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Datado
 			f.runInClusterChecksRunner = true
 			f.rbacSuffix = common.ChecksRunnerSuffix
 			f.serviceAccountName = constants.GetClusterChecksRunnerServiceAccount(dda.GetName(), ddaSpec)
-			reqComp.ClusterChecksRunner.IsRequired = ptr.To(true)
+			reqComp.ClusterChecksRunner.IsRequired = new(true)
 			reqComp.ClusterChecksRunner.Containers = []apicommon.AgentContainerName{apicommon.CoreAgentContainerName}
 		}
 

@@ -126,7 +126,7 @@ func TestReconcile_CreatesResources(t *testing.T) {
 
 	registrarContainer := ds.Spec.Template.Spec.Containers[1]
 	assert.Equal(t, v1alpha1.CSINodeDriverRegistrarContainerName, registrarContainer.Name)
-	assert.Equal(t, fmt.Sprintf("%s/%s:%s", defaultRegistrarImageRegistry, defaultRegistrarImageName, images.DefaultRegistrarImageVersion), registrarContainer.Image)
+	assert.Equal(t, "registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.0.1", registrarContainer.Image)
 	assert.Contains(t, registrarContainer.Env, corev1.EnvVar{
 		Name:  envDriverRegSock,
 		Value: csiSocketPath,

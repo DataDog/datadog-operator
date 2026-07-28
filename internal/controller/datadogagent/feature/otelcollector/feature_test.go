@@ -681,6 +681,12 @@ func testExpectedAgent(
 				})
 			}
 
+			// DD_OTEL_STANDALONE is always set on the otel-agent container.
+			wantEnvVarsOTel = append(wantEnvVarsOTel, &corev1.EnvVar{
+				Name:  DDOtelStandalone,
+				Value: "false",
+			})
+
 			if len(wantEnvVars) == 0 {
 				wantEnvVars = nil
 			}

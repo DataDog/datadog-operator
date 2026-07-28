@@ -183,7 +183,7 @@ func (r *Reconciler) updateStatusIfNeededV2(ctx context.Context, agentdeployment
 	if currentError == nil {
 		condition.UpdateDatadogAgentInternalStatusConditions(newStatus, now, common.DatadogAgentReconcileErrorConditionType, metav1.ConditionFalse, "DatadogAgent_reconcile_ok", "DatadogAgent reconcile ok", false)
 	} else {
-		condition.UpdateDatadogAgentInternalStatusConditions(newStatus, now, common.DatadogAgentReconcileErrorConditionType, metav1.ConditionTrue, "DatadogAgent_reconcile_error", "DatadogAgent reconcile error", false)
+		condition.UpdateDatadogAgentInternalStatusConditions(newStatus, now, common.DatadogAgentReconcileErrorConditionType, metav1.ConditionTrue, "DatadogAgent_reconcile_error", currentError.Error(), false)
 	}
 
 	r.setMetricsForwarderStatusV2(ctx, agentdeployment, newStatus)

@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/utils/ptr"
 
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
@@ -66,7 +65,7 @@ func appArmorProfileFromAnnotation(value string) *corev1.AppArmorProfile {
 	default:
 		return &corev1.AppArmorProfile{
 			Type:             corev1.AppArmorProfileTypeLocalhost,
-			LocalhostProfile: ptr.To(strings.TrimPrefix(value, "localhost/")),
+			LocalhostProfile: new(strings.TrimPrefix(value, "localhost/")),
 		}
 	}
 }
