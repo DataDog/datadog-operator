@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/ptr"
 
@@ -216,13 +217,18 @@ func TestRender_PreparedRolloutUsesNativeSurge(t *testing.T) {
 	assert.Equal(t, intstr.FromInt(1), *prepared.Spec.UpdateStrategy.RollingUpdate.MaxSurge)
 	assert.Equal(t, intstr.FromInt(0), *prepared.Spec.UpdateStrategy.RollingUpdate.MaxUnavailable)
 	assert.Equal(t, "prepared-surge-v1", prepared.Spec.Template.Annotations["experimental.agent.datadoghq.com/node-agent-rollout-mode"])
+	baselineByName := make(map[string]corev1.Container, len(baseline.Spec.Template.Spec.Containers))
+	for _, container := range baseline.Spec.Template.Spec.Containers {
+		baselineByName[container.Name] = container
+	}
 	preparedPortCount := 0
 	for _, container := range prepared.Spec.Template.Spec.Containers {
 		preparedPortCount += len(container.Ports)
-		require.NotNil(t, container.StartupProbe)
-		require.NotNil(t, container.StartupProbe.Exec)
-		require.NotNil(t, container.ReadinessProbe)
-		require.NotNil(t, container.ReadinessProbe.Exec)
+		baselineContainer, found := baselineByName[container.Name]
+		require.True(t, found)
+		assert.Equal(t, baselineContainer.StartupProbe, container.StartupProbe)
+		assert.Equal(t, baselineContainer.LivenessProbe, container.LivenessProbe)
+		assert.Equal(t, baselineContainer.ReadinessProbe, container.ReadinessProbe)
 		if container.Name == "trace-agent" {
 			assert.Equal(t, "trace-agent", container.Command[0], "prepared mode must bypass trace-loader")
 		}

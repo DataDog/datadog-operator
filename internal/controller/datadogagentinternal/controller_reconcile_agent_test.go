@@ -32,7 +32,7 @@ const defaultProvider = kubernetes.DefaultProvider
 const gkeCosProvider = kubernetes.GKECloudProvider + "-" + kubernetes.GKECosType
 
 func TestReconcileV2AgentCreatesPreparedSurgeDaemonSet(t *testing.T) {
-	r, ddai := newPreparedRolloutReconciler(t, false)
+	r, ddai := newPreparedRolloutReconciler(t, true)
 	status := &datadoghqv1alpha1.DatadogAgentInternalStatus{}
 
 	result, err := r.reconcileV2Agent(
@@ -46,7 +46,7 @@ func TestReconcileV2AgentCreatesPreparedSurgeDaemonSet(t *testing.T) {
 	)
 
 	require.NoError(t, err)
-	assert.Zero(t, result.RequeueAfter)
+	assert.Equal(t, resourceFallbackPollInterval, result.RequeueAfter)
 	daemonSets := &appsv1.DaemonSetList{}
 	require.NoError(t, r.client.List(context.Background(), daemonSets))
 	require.Len(t, daemonSets.Items, 1)

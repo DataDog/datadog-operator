@@ -148,7 +148,7 @@ func daemonSetControlledByDDAI(ds *appsv1.DaemonSet, ddai *datadoghqv1alpha1.Dat
 }
 
 func preparedRolloutDaemonSetEligible(ds *appsv1.DaemonSet) bool {
-	if ds.DeletionTimestamp != nil || ds.Status.DesiredNumberScheduled <= 0 || ds.Status.ObservedGeneration != ds.Generation {
+	if ds.DeletionTimestamp != nil {
 		return false
 	}
 	return ds.Spec.UpdateStrategy.Type == appsv1.RollingUpdateDaemonSetStrategyType &&
@@ -160,6 +160,7 @@ func currentDaemonSetRevision(ctx context.Context, reader client.Reader, ds *app
 	if err := reader.List(ctx, revisions, client.InNamespace(ds.Namespace)); err != nil {
 		return "", fmt.Errorf("list revisions for Agent DaemonSet %s/%s: %w", ds.Namespace, ds.Name, err)
 	}
+
 	var current *appsv1.ControllerRevision
 	for i := range revisions.Items {
 		revision := &revisions.Items[i]

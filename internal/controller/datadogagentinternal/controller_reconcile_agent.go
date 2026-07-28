@@ -325,7 +325,7 @@ func (r *Reconciler) reconcileV2Agent(ctx context.Context, requiredComponents fe
 		}
 		return result, nil
 	}
-	fallbackResult, fallbackErr := r.reconcileResourceFallback(ctx, ddai, daemonset, rolloutBudget)
+	fallbackResult, fallbackErr := r.reconcilePreparedRollout(ctx, ddai, daemonset, rolloutBudget)
 	if fallbackErr != nil {
 		return reconcile.Result{}, fallbackErr
 	}
