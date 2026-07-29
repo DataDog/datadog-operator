@@ -760,6 +760,7 @@ func Test_setProfileDDAIMeta(t *testing.T) {
 					Annotations: map[string]string{
 						featureutils.EnableHostProfilerAnnotation:                                                            "true",
 						featureutils.EnableHostProfilerSeccompAnnotation:                                                     "false",
+						featureutils.EnableHostProfilerLoggingSeccompAnnotation:                                              "true",
 						experimental.ExperimentalAnnotationPrefix + "/" + experimental.ExperimentalImageOverrideConfigSubkey: `{"host-profiler":{"name":"datadog/ddot-ebpf-dev:nightly-main"}}`,
 					},
 				},
@@ -774,7 +775,45 @@ func Test_setProfileDDAIMeta(t *testing.T) {
 					Annotations: map[string]string{
 						featureutils.EnableHostProfilerAnnotation:                                                            "true",
 						featureutils.EnableHostProfilerSeccompAnnotation:                                                     "false",
+						featureutils.EnableHostProfilerLoggingSeccompAnnotation:                                              "true",
 						experimental.ExperimentalAnnotationPrefix + "/" + experimental.ExperimentalImageOverrideConfigSubkey: `{"host-profiler":{"name":"datadog/ddot-ebpf-dev:nightly-main"}}`,
+					},
+				},
+			},
+		},
+		{
+			name: "user created profile with host profiler and logging seccomp annotations",
+			ddai: v1alpha1.DatadogAgentInternal{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "foo",
+					Namespace: "bar",
+					ManagedFields: []metav1.ManagedFieldsEntry{
+						{
+							Manager: "datadog-operator",
+						},
+					},
+				},
+			},
+			profile: v1alpha1.DatadogAgentProfile{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "foo",
+					Namespace: "bar",
+					Annotations: map[string]string{
+						featureutils.EnableHostProfilerAnnotation:               "true",
+						featureutils.EnableHostProfilerLoggingSeccompAnnotation: "true",
+					},
+				},
+			},
+			want: v1alpha1.DatadogAgentInternal{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "foo",
+					Namespace: "bar",
+					Labels: map[string]string{
+						constants.ProfileLabelKey: "foo",
+					},
+					Annotations: map[string]string{
+						featureutils.EnableHostProfilerAnnotation:               "true",
+						featureutils.EnableHostProfilerLoggingSeccompAnnotation: "true",
 					},
 				},
 			},
