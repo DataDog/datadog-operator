@@ -32,6 +32,9 @@ const (
 	EnableHostProfilerLoggingSeccompAnnotation = "agent.datadoghq.com/host-profiler-logging-seccomp-enabled"
 	EnableKSMApiServerCacheAnnotation          = "agent.datadoghq.com/ksm-use-apiserver-cache"
 
+	// EnableInstrumentationCRDAnnotation controls whether the DatadogInstrumentation CRD controller
+	// is enabled in the Cluster Agent. Defaults to enabled on agent versions that support it;
+	// set to "false" to disable it.
 	EnableInstrumentationCRDAnnotation = "agent.datadoghq.com/instrumentation-crd-enabled"
 
 	EnableFlightRecorderAnnotation = "agent.datadoghq.com/flightrecorder-enabled"
@@ -68,6 +71,15 @@ func ShouldRunProcessChecksInCoreAgent(ddaSpec *v2alpha1.DatadogAgentSpec) bool 
 func HasFeatureEnableAnnotation(dda metav1.Object, annotation string) bool {
 	if value, ok := dda.GetAnnotations()[annotation]; ok {
 		return value == "true"
+	}
+	return false
+}
+
+// HasFeatureDisableAnnotation returns true if the annotation is explicitly set to "false".
+// It is used by features that are enabled by default and can be opted out of.
+func HasFeatureDisableAnnotation(dda metav1.Object, annotation string) bool {
+	if value, ok := dda.GetAnnotations()[annotation]; ok {
+		return value == "false"
 	}
 	return false
 }

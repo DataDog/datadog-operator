@@ -56,6 +56,11 @@ func (f *instrumentationCRDFeature) ID() feature.IDType {
 func (f *instrumentationCRDFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) feature.RequiredComponents {
 	f.owner = dda
 
+	// The feature is enabled by default; opt out via the annotation set to "false".
+	if featureutils.HasFeatureDisableAnnotation(dda, featureutils.EnableInstrumentationCRDAnnotation) {
+		return feature.RequiredComponents{}
+	}
+
 	// If the cluster agent version is explicitly set and below the minimum, skip enabling.
 	if clusterAgent, ok := ddaSpec.Override[v2alpha1.ClusterAgentComponentName]; ok && clusterAgent.Image != nil {
 		version := common.GetAgentVersionFromImage(*clusterAgent.Image)
@@ -73,10 +78,6 @@ func (f *instrumentationCRDFeature) Configure(dda metav1.Object, ddaSpec *v2alph
 			return feature.RequiredComponents{}
 		}
 	} else if !utils.IsAboveMinVersion(images.AgentLatestVersion, minVersion, nil) {
-		return feature.RequiredComponents{}
-	}
-
-	if !featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnableInstrumentationCRDAnnotation) {
 		return feature.RequiredComponents{}
 	}
 
