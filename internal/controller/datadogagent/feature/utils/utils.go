@@ -32,9 +32,6 @@ const (
 	EnableHostProfilerLoggingSeccompAnnotation = "agent.datadoghq.com/host-profiler-logging-seccomp-enabled"
 	EnableKSMApiServerCacheAnnotation          = "agent.datadoghq.com/ksm-use-apiserver-cache"
 
-	// EnableInstrumentationCRDAnnotation controls whether the DatadogInstrumentation CRD controller
-	// is enabled in the Cluster Agent. Defaults to enabled on agent versions that support it;
-	// set to "false" to disable it.
 	EnableInstrumentationCRDAnnotation = "agent.datadoghq.com/instrumentation-crd-enabled"
 
 	EnableFlightRecorderAnnotation = "agent.datadoghq.com/flightrecorder-enabled"
