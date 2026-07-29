@@ -161,10 +161,9 @@ func Test_Experiment_StoppedRollback(t *testing.T) {
 	reconcileN(t, r, ns, name, 2)
 
 	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
-	// The snapshot is taken from the defaulted spec (defaults.DefaultDatadogAgentSpec applies
-	// site="datadoghq.com" before snapshotting), so rollback restores that value.
-	assert.NotNil(t, dda.Spec.Global.Site, "spec should be restored to pre-experiment state")
-	assert.Equal(t, "datadoghq.com", *dda.Spec.Global.Site, "spec should be restored to pre-experiment state")
+	// The snapshot is taken from the raw, user-submitted spec, which never set
+	// Site, so rollback restores Site to nil rather than baking in a default.
+	assert.Nil(t, dda.Spec.Global.Site, "spec should be restored to pre-experiment state")
 	assert.NotNil(t, dda.Status.Experiment)
 	assert.Equal(t, v2alpha1.ExperimentPhaseTerminated, dda.Status.Experiment.Phase)
 	assert.Equal(t, ExperimentTerminationReasonStopped, dda.Status.Experiment.TerminationReason)
@@ -203,9 +202,9 @@ func Test_Experiment_TimeoutRollback(t *testing.T) {
 	reconcileN(t, r, ns, name, 2)
 
 	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
-	// The snapshot is taken from the defaulted spec, so rollback restores site="datadoghq.com".
-	assert.NotNil(t, dda.Spec.Global.Site, "spec should be restored after timeout")
-	assert.Equal(t, "datadoghq.com", *dda.Spec.Global.Site, "spec should be restored after timeout")
+	// The snapshot is taken from the raw, user-submitted spec, which never set
+	// Site, so rollback restores Site to nil rather than baking in a default.
+	assert.Nil(t, dda.Spec.Global.Site, "spec should be restored after timeout")
 	assert.NotNil(t, dda.Status.Experiment)
 	assert.Equal(t, v2alpha1.ExperimentPhaseTerminated, dda.Status.Experiment.Phase)
 	assert.Equal(t, ExperimentTerminationReasonTimedOut, dda.Status.Experiment.TerminationReason)
@@ -284,7 +283,8 @@ func Test_Experiment_TimeoutPhase_IsStable(t *testing.T) {
 	reconcileN(t, r, ns, name, 3)
 
 	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
-	assert.Equal(t, "datadoghq.com", *dda.Spec.Global.Site)
+	// Raw baseline never set Site, so it stays nil after rollback.
+	assert.Nil(t, dda.Spec.Global.Site)
 	assert.Equal(t, v2alpha1.ExperimentPhaseTerminated, mustGetExperimentPhase(t, r, ns, name))
 }
 
@@ -318,7 +318,8 @@ func Test_Experiment_TerminatedPhase_IsStable(t *testing.T) {
 	reconcileN(t, r, ns, name, 3)
 
 	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
-	assert.Equal(t, "datadoghq.com", *dda.Spec.Global.Site)
+	// Raw baseline never set Site, so it stays nil after rollback.
+	assert.Nil(t, dda.Spec.Global.Site)
 	assert.Equal(t, v2alpha1.ExperimentPhaseTerminated, mustGetExperimentPhase(t, r, ns, name))
 }
 
@@ -393,8 +394,9 @@ func Test_Experiment_StopAfterRollback(t *testing.T) {
 	reconcileN(t, r, ns, name, 2)
 
 	// Spec should still be the rolled-back spec; phase=terminated unchanged.
+	// Raw baseline never set Site, so it stays nil after rollback.
 	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
-	assert.Equal(t, "datadoghq.com", *dda.Spec.Global.Site)
+	assert.Nil(t, dda.Spec.Global.Site)
 	assert.Equal(t, v2alpha1.ExperimentPhaseTerminated, mustGetExperimentPhase(t, r, ns, name))
 }
 
@@ -1012,7 +1014,8 @@ func Test_Experiment_ReapplySameSpec_NoImmediateTimeout(t *testing.T) {
 	assert.Equal(t, v2alpha1.ExperimentPhaseTerminated, mustGetExperimentPhase(t, r, ns, name))
 	assert.Equal(t, ExperimentTerminationReasonTimedOut, mustGetTerminationReason(t, r, ns, name))
 	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
-	assert.Equal(t, "datadoghq.com", *dda.Spec.Global.Site, "spec should be rolled back")
+	// Raw baseline never set Site, so it stays nil after rollback.
+	assert.Nil(t, dda.Spec.Global.Site, "spec should be rolled back")
 
 	// Verify the experiment revision is annotated as rolled back.
 	revs := listOwnedRevisions(t, r.client, ns, uid)
