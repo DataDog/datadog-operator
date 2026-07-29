@@ -366,7 +366,7 @@ func setProfileDDAIMeta(ddai *v1alpha1.DatadogAgentInternal, profile *v1alpha1.D
 	// so a DAP can enable/configure host profiler only on the nodes it targets, independent
 	// of the DDA-level annotation.
 	imageOverrideAnnotationKey := fmt.Sprintf("%s/%s", experimental.ExperimentalAnnotationPrefix, experimental.ExperimentalImageOverrideConfigSubkey)
-	for _, annotationKey := range []string{featureutils.EnableHostProfilerAnnotation, featureutils.EnableHostProfilerSeccompAnnotation, imageOverrideAnnotationKey} {
+	for _, annotationKey := range []string{featureutils.EnableHostProfilerAnnotation, featureutils.EnableHostProfilerSeccompAnnotation, featureutils.EnableHostProfilerLoggingSeccompAnnotation, imageOverrideAnnotationKey} {
 		if v, ok := profile.GetAnnotations()[annotationKey]; ok {
 			if ddai.Annotations == nil {
 				ddai.Annotations = make(map[string]string)
