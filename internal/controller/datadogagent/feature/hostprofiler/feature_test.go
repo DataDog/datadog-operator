@@ -1,6 +1,7 @@
 package hostprofiler
 
 import (
+	"strings"
 	"testing"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
@@ -185,7 +186,7 @@ func testExpectedAgent(agentContainerName apicommon.AgentContainerName, expected
 					assert.False(t, *sc.AllowPrivilegeEscalation, "AllowPrivilegeEscalation must be false")
 					assert.NotNil(t, sc.SeccompProfile)
 					assert.Equal(t, corev1.SeccompProfileTypeLocalhost, sc.SeccompProfile.Type)
-					assert.Equal(t, seccompProfileName(hostProfilerImage), *sc.SeccompProfile.LocalhostProfile)
+					assert.Equal(t, seccompProfileName(hostProfilerImage, false), *sc.SeccompProfile.LocalhostProfile)
 					assert.NotNil(t, sc.Capabilities)
 					assert.Contains(t, sc.Capabilities.Drop, corev1.Capability("ALL"))
 					assert.True(t, apiutils.IsEqualStruct(sc.Capabilities.Add, defaultCapabilities()), "capabilities.Add \ndiff = %s", cmp.Diff(sc.Capabilities.Add, defaultCapabilities()))
@@ -219,7 +220,7 @@ func testExpectedAgent(agentContainerName apicommon.AgentContainerName, expected
 				if setupContainer != nil {
 					assert.Equal(t, hostProfilerImage, setupContainer.Image)
 					assert.Contains(t, setupContainer.Command, seccompSourcePath, "cp source should be the in-image seccomp path")
-					expectedDst := common.SeccompRootVolumePath + "/" + seccompProfileName(hostProfilerImage)
+					expectedDst := common.SeccompRootVolumePath + "/" + seccompProfileName(hostProfilerImage, false)
 					assert.Contains(t, setupContainer.Command, expectedDst, "cp command should target the kubelet seccomp path")
 					// Init container should only mount seccomp-root, not the ConfigMap volume
 					mountNames := map[string]bool{}
@@ -230,6 +231,60 @@ func testExpectedAgent(agentContainerName apicommon.AgentContainerName, expected
 				}
 			},
 		)
+}
+
+func TestHostProfilerLoggingSeccompAnnotation(t *testing.T) {
+	tests := []struct {
+		name         string
+		annotation   string
+		wantContains string
+	}{
+		{name: "default seccomp profile", wantContains: "cp " + seccompSourcePath},
+		{name: "logging seccomp profile", annotation: "true", wantContains: "cp " + loggingSeccompSourcePath},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			annotations := map[string]string{"agent.datadoghq.com/host-profiler-enabled": "true"}
+			if tt.annotation != "" {
+				annotations["agent.datadoghq.com/host-profiler-logging-seccomp-enabled"] = tt.annotation
+			}
+			dda := testutils.NewDatadogAgentBuilder().WithAnnotations(annotations).Build()
+
+			manager := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{Name: string(apicommon.CoreAgentContainerName), Image: images.GetLatestAgentImage()},
+						{
+							Name:            string(apicommon.HostProfiler),
+							Image:           "gcr.io/datadoghq/agent:7.99.0",
+							SecurityContext: &corev1.SecurityContext{ReadOnlyRootFilesystem: ptr.To(true)},
+						},
+					},
+				},
+			})
+
+			feat := buildHostProfilerFeature(nil).(*hostProfilerFeature)
+			feat.Configure(dda, &dda.Spec, nil)
+			assert.NoError(t, feat.ManageNodeAgent(manager))
+
+			var setup *corev1.Container
+			for i := range manager.PodTemplateSpec().Spec.InitContainers {
+				if manager.PodTemplateSpec().Spec.InitContainers[i].Name == string(apicommon.HostProfilerSeccompSetupContainerName) {
+					setup = &manager.PodTemplateSpec().Spec.InitContainers[i]
+					break
+				}
+			}
+			assert.NotNil(t, setup)
+			if setup != nil {
+				cmd := strings.Join(setup.Command, " ")
+				assert.Contains(t, cmd, tt.wantContains)
+				if tt.annotation == "true" {
+					assert.Contains(t, cmd, "WARNING: logging-seccomp.json not found in image, falling back to default seccomp profile")
+				}
+			}
+		})
+	}
 }
 
 func TestResolveHostProfilerImage(t *testing.T) {
@@ -376,7 +431,7 @@ func TestHostProfilerSeccompImageStaysAlignedThroughOverrides(t *testing.T) {
 			if hostProfilerContainer != nil {
 				assert.Equal(t, tt.wantImage, hostProfilerContainer.Image)
 				assert.Equal(t, ifNotPresent, hostProfilerContainer.ImagePullPolicy)
-				assert.Equal(t, seccompProfileName(tt.wantImage), *hostProfilerContainer.SecurityContext.SeccompProfile.LocalhostProfile)
+				assert.Equal(t, seccompProfileName(tt.wantImage, false), *hostProfilerContainer.SecurityContext.SeccompProfile.LocalhostProfile)
 			}
 
 			var setupContainer *corev1.Container
@@ -390,7 +445,7 @@ func TestHostProfilerSeccompImageStaysAlignedThroughOverrides(t *testing.T) {
 			if setupContainer != nil {
 				assert.Equal(t, tt.wantImage, setupContainer.Image)
 				assert.Equal(t, ifNotPresent, setupContainer.ImagePullPolicy)
-				assert.Contains(t, setupContainer.Command, common.SeccompRootVolumePath+"/"+seccompProfileName(tt.wantImage))
+				assert.Contains(t, setupContainer.Command, common.SeccompRootVolumePath+"/"+seccompProfileName(tt.wantImage, false))
 			}
 		})
 	}
