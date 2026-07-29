@@ -23,8 +23,13 @@ import (
 const DefaultWorkloadAllowlistVersion = "v1.0.5"
 
 // DefaultCSIWorkloadAllowlistVersion is the default version of the Datadog CSI
-// driver daemonset WorkloadAllowlist.
-const DefaultCSIWorkloadAllowlistVersion = "v1.1.0"
+// driver daemonset WorkloadAllowlist. v1.1.1 allows the registrar image from
+// registry.k8s.io.
+const DefaultCSIWorkloadAllowlistVersion = "v1.1.1"
+
+// previousCSIWorkloadAllowlistVersion remains synchronized while the new
+// default propagates across GKE node versions.
+const previousCSIWorkloadAllowlistVersion = "v1.1.0"
 
 const allowlistSynchronizerFieldOwner = "datadog-operator-allowlist-synchronizer"
 
@@ -98,24 +103,34 @@ func applyAllowlistSynchronizerResource(k8sClient client.Client, version, partOf
 		k8sClient,
 		agentAllowlistSynchronizerName,
 		agentAllowlistAppNameLabel,
-		fmt.Sprintf("Datadog/datadog/datadog-datadog-daemonset-exemption-%s.yaml", version),
+		[]string{fmt.Sprintf("Datadog/datadog/datadog-datadog-daemonset-exemption-%s.yaml", version)},
 		partOfLabel,
 		commonLabels,
 	)
 }
 
 func applyCSIAllowlistSynchronizerResource(k8sClient client.Client, version, partOfLabel string, commonLabels map[string]string) error {
+	allowlistPaths := make([]string, 0, 2)
+	if version == DefaultCSIWorkloadAllowlistVersion && version != previousCSIWorkloadAllowlistVersion {
+		allowlistPaths = append(allowlistPaths, csiWorkloadAllowlistPath(previousCSIWorkloadAllowlistVersion))
+	}
+	allowlistPaths = append(allowlistPaths, csiWorkloadAllowlistPath(version))
+
 	return applyAllowlistSynchronizerResourceForPath(
 		k8sClient,
 		csiAllowlistSynchronizerName,
 		csiAllowlistAppNameLabel,
-		fmt.Sprintf("Datadog/datadog-csi-driver/datadog-datadog-csi-driver-daemonset-exemption-%s.yaml", version),
+		allowlistPaths,
 		partOfLabel,
 		commonLabels,
 	)
 }
 
-func applyAllowlistSynchronizerResourceForPath(k8sClient client.Client, name, appNameLabel, allowlistPath, partOfLabel string, commonLabels map[string]string) error {
+func csiWorkloadAllowlistPath(version string) string {
+	return fmt.Sprintf("Datadog/datadog-csi-driver/datadog-datadog-csi-driver-daemonset-exemption-%s.yaml", version)
+}
+
+func applyAllowlistSynchronizerResourceForPath(k8sClient client.Client, name, appNameLabel string, allowlistPaths []string, partOfLabel string, commonLabels map[string]string) error {
 	labels := map[string]string{
 		"app.kubernetes.io/created-by":           "datadog-operator",
 		kubernetes.AppKubernetesManageByLabelKey: "datadog-operator",
@@ -139,9 +154,7 @@ func applyAllowlistSynchronizerResourceForPath(k8sClient client.Client, name, ap
 			Labels: labels,
 		},
 		Spec: AllowlistSynchronizerSpec{
-			AllowlistPaths: []string{
-				allowlistPath,
-			},
+			AllowlistPaths: allowlistPaths,
 		},
 	}
 
@@ -176,7 +189,8 @@ func CreateAllowlistSynchronizer(version, partOfLabel string, commonLabels map[s
 //
 // version selects the Datadog CSI driver WorkloadAllowlist YAML to point at.
 // Pass an empty string to use DefaultCSIWorkloadAllowlistVersion. Malformed
-// versions also fall back to the default.
+// versions also fall back to the default. While the new default propagates
+// across GKE node versions, the previous default is synchronized alongside it.
 //
 // commonLabels are merged into the AllowlistSynchronizer ObjectMeta labels so
 // that required-label admission policies (e.g. Kyverno) do not reject the

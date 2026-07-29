@@ -1447,7 +1447,7 @@ func TestParseProfileRequirements(t *testing.T) {
 	}
 }
 
-func TestApplyProfileToNodes(t *testing.T) {
+func TestCheckAndAssignNodesToProfile(t *testing.T) {
 	tests := []struct {
 		name                    string
 		createStrategyEnabled   bool
@@ -1790,8 +1790,11 @@ func TestApplyProfileToNodes(t *testing.T) {
 			}
 
 			csInfo := make(map[types.NamespacedName]*CreateStrategyInfo)
-			e := ApplyProfileToNodes(tt.profileMeta, profileRequirements, tt.nodes, tt.existingProfileAppliedByNode, csInfo)
+			e := CheckProfileNodeConflicts(tt.profileMeta, profileRequirements, tt.nodes, tt.existingProfileAppliedByNode)
 			assert.Equal(t, tt.expectedError, e)
+			if e == nil {
+				AssignNodesToProfile(tt.profileMeta, profileRequirements, tt.nodes, tt.existingProfileAppliedByNode, csInfo)
+			}
 			assert.Equal(t, tt.expectedProfileAppliedByNode, tt.existingProfileAppliedByNode)
 
 			if tt.createStrategyEnabled {

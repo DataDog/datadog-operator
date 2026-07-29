@@ -459,7 +459,7 @@ func TestAPMProfileSharedConfigOverlay(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			dst := tt.dst.DeepCopy()
-			err := applyAPMProfileSharedConfigOverlay(dst, dst.DeepCopy(), tt.profile)
+			err := applyAPMProfileSharedConfigOverlay(dst, tt.dst.DeepCopy(), tt.profile)
 			if tt.wantErr != "" {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.wantErr)
@@ -476,17 +476,48 @@ func TestAPMProfileSharedConfigOverlay(t *testing.T) {
 }
 
 func TestAPMProfileSharedConfigOverlayLocalAgentServicePortConflict(t *testing.T) {
-	base := testProfileOverlayBaseSpec(false)
-	dst := base.DeepCopy()
+	t.Run("defaulted base port already covers profile default port without enabling base host port", func(t *testing.T) {
+		base := testProfileOverlayBaseSpec(false)
+		base.Features.APM.Enabled = ptr.To(true)
+		base.Features.APM.HostPortConfig = &v2alpha1.HostPortConfig{
+			Enabled: ptr.To(false),
+			Port:    ptr.To(int32(8126)),
+		}
+		dst := base.DeepCopy()
 
-	require.NoError(t, applyAPMProfileSharedConfigOverlay(dst, base, testProfileOverlayProfileAPMSpec(8126)))
-	assert.Equal(t, int32(8126), ptr.Deref(dst.Features.APM.HostPortConfig.Port, 0))
+		require.NoError(t, applyAPMProfileSharedConfigOverlay(dst, base, testProfileOverlayProfileAPMSpec(8126)))
+		require.NotNil(t, dst.Features.APM.HostPortConfig)
+		assert.False(t, ptr.Deref(dst.Features.APM.HostPortConfig.Enabled, true))
+		assert.Equal(t, int32(8126), ptr.Deref(dst.Features.APM.HostPortConfig.Port, 0))
+	})
 
-	require.NoError(t, applyAPMProfileSharedConfigOverlay(dst, base, testProfileOverlayProfileAPMSpec(8126)))
+	t.Run("prior profile contributes port, later profile conflicts", func(t *testing.T) {
+		base := testProfileOverlayBaseSpec(false)
+		dst := base.DeepCopy()
 
-	err := applyAPMProfileSharedConfigOverlay(dst, base, testProfileOverlayProfileAPMSpec(9126))
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), `local Agent Service port "traceport" conflicts`)
+		require.NoError(t, applyAPMProfileSharedConfigOverlay(dst, base, testProfileOverlayProfileAPMSpec(8126)))
+		assert.Equal(t, int32(8126), ptr.Deref(dst.Features.APM.HostPortConfig.Port, 0))
+
+		require.NoError(t, applyAPMProfileSharedConfigOverlay(dst, base, testProfileOverlayProfileAPMSpec(8126)))
+
+		err := applyAPMProfileSharedConfigOverlay(dst, base, testProfileOverlayProfileAPMSpec(9126))
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), `local Agent Service port "traceport" conflicts`)
+	})
+
+	t.Run("base DDA has host port, profile tries different port", func(t *testing.T) {
+		base := testProfileOverlayBaseSpec(false)
+		base.Features.APM.Enabled = ptr.To(true)
+		base.Features.APM.HostPortConfig = &v2alpha1.HostPortConfig{
+			Enabled: ptr.To(true),
+			Port:    ptr.To(int32(8126)),
+		}
+		dst := base.DeepCopy()
+
+		err := applyAPMProfileSharedConfigOverlay(dst, base, testProfileOverlayProfileAPMSpec(9126))
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), `local Agent Service port "traceport" conflicts`)
+	})
 }
 
 // Profile SSI overlays should render the same Cluster Agent config as direct

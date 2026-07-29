@@ -8,7 +8,6 @@ import (
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -24,6 +23,7 @@ type hostProfilerFeature struct {
 	owner                   metav1.Object
 	hostPIDDisabledManually bool
 	seccompEnabled          bool
+	loggingSeccomp          bool
 
 	logger logr.Logger
 }
@@ -67,9 +67,14 @@ func (o *hostProfilerFeature) Configure(dda metav1.Object, _ *v2alpha1.DatadogAg
 		}
 	}
 
+	o.loggingSeccomp = featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnableHostProfilerLoggingSeccompAnnotation)
+	if o.loggingSeccomp && !o.seccompEnabled {
+		o.logger.V(1).Info("host profiler: logging-seccomp annotation has no effect when seccomp is disabled")
+	}
+
 	return feature.RequiredComponents{
 		Agent: feature.RequiredComponent{
-			IsRequired: ptr.To(true),
+			IsRequired: new(true),
 			Containers: []apicommon.AgentContainerName{
 				apicommon.CoreAgentContainerName,
 				apicommon.HostProfiler,
@@ -122,7 +127,7 @@ func (o *hostProfilerFeature) ManageNodeAgent(managers feature.PodTemplateManage
 	hostProfilerImage := resolveHostProfilerImage(o.owner, hostProfilerContainer.Image)
 
 	sc := hostProfilerContainer.SecurityContext
-	sc.AllowPrivilegeEscalation = ptr.To(false)
+	sc.AllowPrivilegeEscalation = new(false)
 	sc.Capabilities = &corev1.Capabilities{
 		Drop: []corev1.Capability{"ALL"},
 		Add:  defaultCapabilities(),
@@ -134,7 +139,7 @@ func (o *hostProfilerFeature) ManageNodeAgent(managers feature.PodTemplateManage
 	if o.seccompEnabled {
 		sc.SeccompProfile = &corev1.SeccompProfile{
 			Type:             corev1.SeccompProfileTypeLocalhost,
-			LocalhostProfile: ptr.To(seccompProfileName(hostProfilerImage)),
+			LocalhostProfile: new(seccompProfileName(hostProfilerImage, o.loggingSeccomp)),
 		}
 
 		// seccomp-root EmptyDir volume (shared with system-probe when both are enabled; VolumeManager deduplicates)
@@ -143,7 +148,7 @@ func (o *hostProfilerFeature) ManageNodeAgent(managers feature.PodTemplateManage
 
 		// Init container: copy seccomp profile JSON to the kubelet seccomp directory on the host.
 		// Appended after the base init containers (init-volume, init-config) added by default.go.
-		initContainer := buildSeccompSetupInitContainer(hostProfilerImage)
+		initContainer := buildSeccompSetupInitContainer(hostProfilerImage, o.loggingSeccomp)
 		managers.PodTemplateSpec().Spec.InitContainers = append(managers.PodTemplateSpec().Spec.InitContainers, initContainer)
 	} else {
 		sc.SeccompProfile = &corev1.SeccompProfile{

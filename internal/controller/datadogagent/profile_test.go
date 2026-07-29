@@ -2,8 +2,6 @@ package datadogagent
 
 import (
 	"context"
-	"fmt"
-	"maps"
 	"testing"
 	"time"
 
@@ -25,6 +23,7 @@ import (
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/experimental"
 	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	agenttestutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/testutils"
@@ -844,391 +843,6 @@ func Test_setProfileNodeAgentOverride(t *testing.T) {
 	}
 }
 
-func Test_reconcileProfile(t *testing.T) {
-	sch := agenttestutils.TestScheme()
-	ctx := context.Background()
-	now := metav1.Now()
-
-	testCases := []struct {
-		name               string
-		profile            v1alpha1.DatadogAgentProfile
-		nodes              []corev1.Node
-		profilesByNode     map[string]types.NamespacedName
-		wantErr            error
-		wantStatus         v1alpha1.DatadogAgentProfileStatus
-		wantProfilesByNode map[string]types.NamespacedName
-	}{
-		{
-			name: "valid profile with matching node",
-			profile: v1alpha1.DatadogAgentProfile{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "profile",
-					Namespace: "default",
-				},
-				Spec: v1alpha1.DatadogAgentProfileSpec{
-					ProfileAffinity: &v1alpha1.ProfileAffinity{
-						ProfileNodeAffinity: []corev1.NodeSelectorRequirement{
-							{
-								Key:      "profile",
-								Operator: corev1.NodeSelectorOpIn,
-								Values:   []string{"enabled"},
-							},
-						},
-					},
-					Config: &v2alpha1.DatadogAgentSpec{
-						Features: &v2alpha1.DatadogFeatures{
-							GPU: &v2alpha1.GPUFeatureConfig{
-								Enabled: ptr.To(true),
-							},
-						},
-					},
-				},
-			},
-			nodes: []corev1.Node{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "node1",
-						Labels: map[string]string{
-							"profile": "enabled",
-						},
-					},
-				},
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "node2",
-						Labels: map[string]string{
-							"profile": "disabled",
-						},
-					},
-				},
-			},
-			profilesByNode: make(map[string]types.NamespacedName),
-			wantErr:        nil,
-			wantStatus: v1alpha1.DatadogAgentProfileStatus{
-				Conditions: []metav1.Condition{
-					{
-						Type:               agentprofile.ValidConditionType,
-						Status:             metav1.ConditionTrue,
-						LastTransitionTime: now,
-						Reason:             agentprofile.ValidConditionReason,
-						Message:            "Valid manifest",
-					},
-					{
-						Type:               agentprofile.AppliedConditionType,
-						Status:             metav1.ConditionTrue,
-						LastTransitionTime: now,
-						Reason:             agentprofile.AppliedConditionReason,
-						Message:            "Profile applied",
-					},
-				},
-			},
-			wantProfilesByNode: map[string]types.NamespacedName{
-				"node1": {
-					Name:      "profile",
-					Namespace: "default",
-				},
-				"node2": {
-					Name:      "default",
-					Namespace: "",
-				},
-			},
-		},
-		{
-			name: "invalid profile name",
-			profile: v1alpha1.DatadogAgentProfile{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "invalid-profile-name-that-is-way-too-long-and-exceeds-kubernetes-limits-for-resource-names",
-					Namespace: "default",
-				},
-			},
-			nodes:          []corev1.Node{},
-			profilesByNode: make(map[string]types.NamespacedName),
-			wantErr:        fmt.Errorf("profile name is invalid: %w", fmt.Errorf("Profile name must be no more than 63 characters")),
-			wantStatus: v1alpha1.DatadogAgentProfileStatus{
-				Conditions: []metav1.Condition{
-					{
-						Type:               agentprofile.ValidConditionType,
-						Status:             metav1.ConditionFalse,
-						LastTransitionTime: now,
-						Reason:             agentprofile.InvalidConditionReason,
-						Message:            "profile name is invalid: Profile name must be no more than 63 characters",
-					},
-					{
-						Type:               agentprofile.AppliedConditionType,
-						Status:             metav1.ConditionUnknown,
-						LastTransitionTime: now,
-						Reason:             agentprofile.InvalidConditionReason,
-						Message:            "Profile is invalid",
-					},
-				},
-			},
-			wantProfilesByNode: make(map[string]types.NamespacedName),
-		},
-		{
-			name: "profile conflict with existing profile",
-			profile: v1alpha1.DatadogAgentProfile{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "profile",
-					Namespace: "default",
-				},
-				Spec: v1alpha1.DatadogAgentProfileSpec{
-					ProfileAffinity: &v1alpha1.ProfileAffinity{
-						ProfileNodeAffinity: []corev1.NodeSelectorRequirement{
-							{
-								Key:      "profile",
-								Operator: corev1.NodeSelectorOpIn,
-								Values:   []string{"enabled"},
-							},
-						},
-					},
-					Config: &v2alpha1.DatadogAgentSpec{
-						Features: &v2alpha1.DatadogFeatures{
-							GPU: &v2alpha1.GPUFeatureConfig{
-								Enabled: ptr.To(true),
-							},
-						},
-					},
-				},
-			},
-			nodes: []corev1.Node{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "node1",
-						Labels: map[string]string{
-							"profile": "enabled",
-						},
-					},
-				},
-			},
-			profilesByNode: map[string]types.NamespacedName{
-				"node1": {
-					Name:      "existing-profile",
-					Namespace: "default",
-				},
-			},
-			wantErr: fmt.Errorf("profile profile conflicts with existing profile: default/existing-profile"),
-			wantStatus: v1alpha1.DatadogAgentProfileStatus{
-				Conditions: []metav1.Condition{
-					{
-						Type:               agentprofile.ValidConditionType,
-						Status:             metav1.ConditionTrue,
-						LastTransitionTime: now,
-						Reason:             agentprofile.ValidConditionReason,
-						Message:            "Valid manifest",
-					},
-					{
-						Type:               agentprofile.AppliedConditionType,
-						Status:             metav1.ConditionFalse,
-						LastTransitionTime: now,
-						Reason:             agentprofile.ConflictConditionReason,
-						Message:            "Conflict with existing profile",
-					},
-				},
-			},
-			wantProfilesByNode: map[string]types.NamespacedName{
-				"node1": {
-					Name:      "existing-profile",
-					Namespace: "default",
-				},
-			},
-		},
-		{
-			name: "no matching nodes",
-			profile: v1alpha1.DatadogAgentProfile{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "profile",
-					Namespace: "default",
-				},
-				Spec: v1alpha1.DatadogAgentProfileSpec{
-					ProfileAffinity: &v1alpha1.ProfileAffinity{
-						ProfileNodeAffinity: []corev1.NodeSelectorRequirement{
-							{
-								Key:      "profile",
-								Operator: corev1.NodeSelectorOpIn,
-								Values:   []string{"enabled"},
-							},
-						},
-					},
-					Config: &v2alpha1.DatadogAgentSpec{
-						Features: &v2alpha1.DatadogFeatures{
-							GPU: &v2alpha1.GPUFeatureConfig{
-								Enabled: ptr.To(true),
-							},
-						},
-					},
-				},
-			},
-			nodes: []corev1.Node{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "node1",
-						Labels: map[string]string{
-							"profile": "disabled",
-						},
-					},
-				},
-			},
-			profilesByNode: make(map[string]types.NamespacedName),
-			wantErr:        nil,
-			wantStatus: v1alpha1.DatadogAgentProfileStatus{
-				Conditions: []metav1.Condition{
-					{
-						Type:               agentprofile.ValidConditionType,
-						Status:             metav1.ConditionTrue,
-						LastTransitionTime: now,
-						Reason:             agentprofile.ValidConditionReason,
-						Message:            "Valid manifest",
-					},
-					{
-						Type:               agentprofile.AppliedConditionType,
-						Status:             metav1.ConditionTrue,
-						LastTransitionTime: now,
-						Reason:             agentprofile.AppliedConditionReason,
-						Message:            "Profile applied",
-					},
-				},
-			},
-			wantProfilesByNode: map[string]types.NamespacedName{
-				"node1": {
-					Name:      "default",
-					Namespace: "",
-				},
-			},
-		},
-	}
-
-	for _, tt := range testCases {
-		t.Run(tt.name, func(t *testing.T) {
-			fakeClient := fake.NewClientBuilder().WithScheme(sch).Build()
-			logger := logf.Log.WithName("Test_reconcileProfile")
-			eventBroadcaster := record.NewBroadcaster()
-			recorder := eventBroadcaster.NewRecorder(sch, corev1.EventSource{Component: "Test_reconcileProfile"})
-
-			r := &Reconciler{
-				client:   fakeClient,
-				log:      logger,
-				scheme:   sch,
-				recorder: recorder,
-				options:  ReconcilerOptions{},
-			}
-
-			// Pre-populate with default profile for nodes without a profile (matching production code)
-			for _, node := range tt.nodes {
-				if _, exists := tt.profilesByNode[node.Name]; !exists {
-					tt.profilesByNode[node.Name] = types.NamespacedName{Namespace: "", Name: "default"}
-				}
-			}
-
-			profileCopy := tt.profile.DeepCopy()
-			csInfo := make(map[types.NamespacedName]*agentprofile.CreateStrategyInfo)
-			defaultSpec := &v2alpha1.DatadogAgentSpec{}
-			baseDefaultSpec := defaultSpec.DeepCopy()
-			err := r.reconcileProfile(ctx, profileCopy, tt.nodes, tt.profilesByNode, csInfo, defaultSpec, baseDefaultSpec, now)
-
-			assert.Equal(t, tt.wantErr, err)
-			assert.Equal(t, tt.wantStatus, profileCopy.Status)
-			assertProfileConditionsValid(t, profileCopy.Status.Conditions)
-			assert.Equal(t, tt.wantProfilesByNode, tt.profilesByNode)
-		})
-	}
-}
-
-func assertProfileConditionsValid(t *testing.T, conditions []metav1.Condition) {
-	t.Helper()
-
-	conditionErrs := metav1validation.ValidateConditions(conditions, field.NewPath("status").Child("conditions"))
-	require.Empty(t, conditionErrs)
-}
-
-func Test_reconcileProfile_SharedOverlayConflictDoesNotCommitNodeAssignment(t *testing.T) {
-	sch := agenttestutils.TestScheme()
-	ctx := context.Background()
-	now := metav1.Now()
-	fakeClient := fake.NewClientBuilder().WithScheme(sch).Build()
-	logger := logf.Log.WithName("Test_reconcileProfile_SharedOverlayConflictDoesNotCommitNodeAssignment")
-	eventBroadcaster := record.NewBroadcaster()
-	recorder := eventBroadcaster.NewRecorder(sch, corev1.EventSource{Component: "Test_reconcileProfile_SharedOverlayConflictDoesNotCommitNodeAssignment"})
-
-	r := &Reconciler{
-		client:   fakeClient,
-		log:      logger,
-		scheme:   sch,
-		recorder: recorder,
-		options:  ReconcilerOptions{},
-	}
-
-	profile := &v1alpha1.DatadogAgentProfile{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "gpu",
-			Namespace: "default",
-		},
-		Spec: v1alpha1.DatadogAgentProfileSpec{
-			ProfileAffinity: &v1alpha1.ProfileAffinity{
-				ProfileNodeAffinity: []corev1.NodeSelectorRequirement{
-					{
-						Key:      "profile",
-						Operator: corev1.NodeSelectorOpIn,
-						Values:   []string{"gpu"},
-					},
-				},
-			},
-			Config: &v2alpha1.DatadogAgentSpec{
-				Features: &v2alpha1.DatadogFeatures{
-					APM: &v2alpha1.APMFeatureConfig{
-						Enabled: ptr.To(true),
-						SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
-							Enabled:     ptr.To(true),
-							LibVersions: map[string]string{"java": "1.44.0"},
-						},
-					},
-				},
-			},
-		},
-	}
-	nodes := []corev1.Node{
-		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   "node1",
-				Labels: map[string]string{"profile": "gpu"},
-			},
-		},
-	}
-	profilesByNode := map[string]types.NamespacedName{
-		"node1": {Name: "default"},
-	}
-	csInfo := make(map[types.NamespacedName]*agentprofile.CreateStrategyInfo)
-	defaultSpec := &v2alpha1.DatadogAgentSpec{
-		Features: &v2alpha1.DatadogFeatures{
-			AdmissionController: &v2alpha1.AdmissionControllerFeatureConfig{Enabled: ptr.To(true)},
-			APM: &v2alpha1.APMFeatureConfig{
-				SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
-					Enabled:           ptr.To(true),
-					LibVersions:       map[string]string{"java": "1.43.0"},
-					LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: ptr.To(true)},
-				},
-			},
-		},
-	}
-	baseDefaultSpec := defaultSpec.DeepCopy()
-
-	nextProfilesByNode := maps.Clone(profilesByNode)
-	nextCSInfo := agentprofile.CloneCreateStrategyInfoMap(csInfo)
-	nextDefaultSpec := defaultSpec.DeepCopy()
-	err := r.reconcileProfile(ctx, profile, nodes, nextProfilesByNode, nextCSInfo, nextDefaultSpec, baseDefaultSpec, now)
-
-	assert.Error(t, err)
-	assert.Equal(t, map[string]types.NamespacedName{"node1": {Name: "default"}}, profilesByNode)
-	appliedCondition := metav1.Condition{}
-	for _, condition := range profile.Status.Conditions {
-		if condition.Type == agentprofile.AppliedConditionType {
-			appliedCondition = condition
-			break
-		}
-	}
-	assert.Equal(t, metav1.ConditionFalse, appliedCondition.Status)
-	assert.Equal(t, "1.43.0", defaultSpec.Features.APM.SingleStepInstrumentation.LibVersions["java"])
-}
-
 func Test_reconcileProfiles(t *testing.T) {
 	sch := agenttestutils.TestScheme()
 	ctx := context.Background()
@@ -1239,6 +853,9 @@ func Test_reconcileProfiles(t *testing.T) {
 		existingNodes       []k8sruntime.Object
 		wantErr             error
 		wantAppliedProfiles int
+		// wantConditions maps profile name to expected condition type → status.
+		// Only the listed profiles and condition types are asserted.
+		wantConditions map[string]map[string]metav1.ConditionStatus
 	}{
 		{
 			name:                "no existing profiles",
@@ -1246,6 +863,7 @@ func Test_reconcileProfiles(t *testing.T) {
 			existingNodes:       []k8sruntime.Object{},
 			wantErr:             nil,
 			wantAppliedProfiles: 1, // default profile
+			wantConditions:      nil,
 		},
 		{
 			name: "one applied profile",
@@ -1288,6 +906,78 @@ func Test_reconcileProfiles(t *testing.T) {
 			},
 			wantErr:             nil,
 			wantAppliedProfiles: 2, // default + user profile
+			wantConditions: map[string]map[string]metav1.ConditionStatus{
+				"profile": {
+					agentprofile.ValidConditionType:   metav1.ConditionTrue,
+					agentprofile.AppliedConditionType: metav1.ConditionTrue,
+				},
+			},
+		},
+		{
+			name: "profile with existing conditions updates status",
+			existingProfiles: []k8sruntime.Object{
+				&v1alpha1.DatadogAgentProfile{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:              "profile-with-status",
+						Namespace:         "default",
+						CreationTimestamp: metav1.Now(),
+					},
+					Spec: v1alpha1.DatadogAgentProfileSpec{
+						ProfileAffinity: &v1alpha1.ProfileAffinity{
+							ProfileNodeAffinity: []corev1.NodeSelectorRequirement{
+								{
+									Key:      "profile",
+									Operator: corev1.NodeSelectorOpIn,
+									Values:   []string{"existing-status"},
+								},
+							},
+						},
+						Config: &v2alpha1.DatadogAgentSpec{
+							Features: &v2alpha1.DatadogFeatures{
+								GPU: &v2alpha1.GPUFeatureConfig{
+									Enabled: ptr.To(true),
+								},
+							},
+						},
+					},
+					Status: v1alpha1.DatadogAgentProfileStatus{
+						Conditions: []metav1.Condition{
+							{
+								Type:               agentprofile.ValidConditionType,
+								Status:             metav1.ConditionFalse,
+								LastTransitionTime: metav1.Now(),
+								Reason:             agentprofile.InvalidConditionReason,
+								Message:            "stale condition",
+							},
+							{
+								Type:               agentprofile.AppliedConditionType,
+								Status:             metav1.ConditionFalse,
+								LastTransitionTime: metav1.Now(),
+								Reason:             agentprofile.ConflictConditionReason,
+								Message:            "stale condition",
+							},
+						},
+					},
+				},
+			},
+			existingNodes: []k8sruntime.Object{
+				&corev1.Node{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "node1",
+						Labels: map[string]string{
+							"profile": "existing-status",
+						},
+					},
+				},
+			},
+			wantErr:             nil,
+			wantAppliedProfiles: 2,
+			wantConditions: map[string]map[string]metav1.ConditionStatus{
+				"profile-with-status": {
+					agentprofile.ValidConditionType:   metav1.ConditionTrue,
+					agentprofile.AppliedConditionType: metav1.ConditionTrue,
+				},
+			},
 		},
 		{
 			name: "multiple profiles with conflicts",
@@ -1355,6 +1045,18 @@ func Test_reconcileProfiles(t *testing.T) {
 			},
 			wantErr:             nil,
 			wantAppliedProfiles: 2, // default + user profile
+			wantConditions: map[string]map[string]metav1.ConditionStatus{
+				// profile1 wins the conflict (older creation timestamp)
+				"profile1": {
+					agentprofile.ValidConditionType:   metav1.ConditionTrue,
+					agentprofile.AppliedConditionType: metav1.ConditionTrue,
+				},
+				// profile2 loses: same node already claimed by profile1
+				"profile2": {
+					agentprofile.ValidConditionType:   metav1.ConditionTrue,
+					agentprofile.AppliedConditionType: metav1.ConditionFalse,
+				},
+			},
 		},
 		{
 			name: "invalid profile name",
@@ -1385,9 +1087,16 @@ func Test_reconcileProfiles(t *testing.T) {
 					},
 				},
 			},
-			existingNodes:       []k8sruntime.Object{},
-			wantErr:             nil,
-			wantAppliedProfiles: 1, // default profile
+			existingNodes: []k8sruntime.Object{},
+			wantErr:       nil,
+			// Invalid profile is not applied; only the default profile is returned.
+			wantAppliedProfiles: 1,
+			wantConditions: map[string]map[string]metav1.ConditionStatus{
+				"invalid-profile-name-that-is-way-too-long-and-exceeds-kubernetes-limits": {
+					agentprofile.ValidConditionType:   metav1.ConditionFalse,
+					agentprofile.AppliedConditionType: metav1.ConditionUnknown,
+				},
+			},
 		},
 	}
 
@@ -1421,17 +1130,41 @@ func Test_reconcileProfiles(t *testing.T) {
 
 			assert.Equal(t, tt.wantErr, err)
 			assert.Equal(t, tt.wantAppliedProfiles, len(appliedProfiles))
+
 			for _, existingProfile := range tt.existingProfiles {
 				profile, ok := existingProfile.(*v1alpha1.DatadogAgentProfile)
 				require.True(t, ok)
 
-				persistedProfile := &v1alpha1.DatadogAgentProfile{}
-				err := fakeClient.Get(ctx, types.NamespacedName{Namespace: profile.Namespace, Name: profile.Name}, persistedProfile)
-				require.NoError(t, err)
-				assertProfileConditionsValid(t, persistedProfile.Status.Conditions)
+				got := &v1alpha1.DatadogAgentProfile{}
+				require.NoError(t, fakeClient.Get(ctx, types.NamespacedName{Namespace: profile.Namespace, Name: profile.Name}, got))
+				assertProfileConditionsValid(t, got.Status.Conditions)
+			}
+
+			for profileName, wantConds := range tt.wantConditions {
+				got := &v1alpha1.DatadogAgentProfile{}
+				require.NoError(t, fakeClient.Get(ctx, types.NamespacedName{Namespace: "default", Name: profileName}, got))
+				for condType, wantStatus := range wantConds {
+					found := false
+					for _, cond := range got.Status.Conditions {
+						if cond.Type == condType {
+							assert.Equal(t, wantStatus, metav1.ConditionStatus(cond.Status),
+								"profile %s condition %s", profileName, condType)
+							found = true
+							break
+						}
+					}
+					assert.True(t, found, "profile %s missing condition %s", profileName, condType)
+				}
 			}
 		})
 	}
+}
+
+func assertProfileConditionsValid(t *testing.T, conditions []metav1.Condition) {
+	t.Helper()
+
+	conditionErrs := metav1validation.ValidateConditions(conditions, field.NewPath("status").Child("conditions"))
+	require.Empty(t, conditionErrs)
 }
 
 func Test_reconcileProfiles_APMSharedOverlayMatrix(t *testing.T) {
@@ -2128,4 +1861,124 @@ func testAPMMatrixConditionMessage(conditions []metav1.Condition, conditionType 
 		}
 	}
 	return ""
+}
+
+func Test_addDDAIStatusToProfileStatus(t *testing.T) {
+	sch := agenttestutils.TestScheme()
+	ctx := context.Background()
+	now := metav1.NewTime(time.Now())
+
+	newProfile := func() *v1alpha1.DatadogAgentProfile {
+		return &v1alpha1.DatadogAgentProfile{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-profile",
+				Namespace: "default",
+			},
+		}
+	}
+
+	tests := []struct {
+		name              string
+		profile           *v1alpha1.DatadogAgentProfile
+		existingDDAI      *v1alpha1.DatadogAgentInternal
+		expectNoCondition bool
+		expectStatus      metav1.ConditionStatus
+		expectReason      string
+		expectMessage     string
+	}{
+		{
+			name:              "DDAI not yet created leaves conditions untouched",
+			profile:           newProfile(),
+			existingDDAI:      nil,
+			expectNoCondition: true,
+		},
+		{
+			name:    "DDAI reconcile error is surfaced on the profile",
+			profile: newProfile(),
+			existingDDAI: &v1alpha1.DatadogAgentInternal{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-profile",
+					Namespace: "default",
+				},
+				Status: v1alpha1.DatadogAgentInternalStatus{
+					Conditions: []metav1.Condition{
+						{
+							Type:    common.DatadogAgentReconcileErrorConditionType,
+							Status:  metav1.ConditionTrue,
+							Reason:  "DatadogAgent_reconcile_error",
+							Message: "some daemonset error",
+						},
+					},
+				},
+			},
+			expectStatus:  metav1.ConditionTrue,
+			expectReason:  agentprofile.DDAIReconcileErrorConditionReason,
+			expectMessage: "test-profile: some daemonset error",
+		},
+		{
+			name: "recovered DDAI clears a stale profile error condition",
+			profile: func() *v1alpha1.DatadogAgentProfile {
+				p := newProfile()
+				p.Status.Conditions = []metav1.Condition{
+					{
+						Type:    agentprofile.DDAIReconcileErrorConditionType,
+						Status:  metav1.ConditionTrue,
+						Reason:  agentprofile.DDAIReconcileErrorConditionReason,
+						Message: "test-profile: some daemonset error",
+					},
+				}
+				return p
+			}(),
+			existingDDAI: &v1alpha1.DatadogAgentInternal{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-profile",
+					Namespace: "default",
+				},
+				Status: v1alpha1.DatadogAgentInternalStatus{
+					Conditions: []metav1.Condition{
+						{
+							Type:   common.DatadogAgentReconcileErrorConditionType,
+							Status: metav1.ConditionFalse,
+							Reason: "DatadogAgent_reconcile_ok",
+						},
+					},
+				},
+			},
+			expectStatus:  metav1.ConditionFalse,
+			expectReason:  agentprofile.DDAIReconcileOKConditionReason,
+			expectMessage: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			objects := []k8sruntime.Object{}
+			if tt.existingDDAI != nil {
+				objects = append(objects, tt.existingDDAI)
+			}
+			fakeClient := fake.NewClientBuilder().WithScheme(sch).WithRuntimeObjects(objects...).Build()
+			r := &Reconciler{
+				client: fakeClient,
+				log:    logf.Log.WithName(tt.name),
+			}
+
+			r.addDDAIStatusToProfileStatus(ctx, tt.profile, "test-profile", "default", now)
+
+			var found *metav1.Condition
+			for i := range tt.profile.Status.Conditions {
+				if tt.profile.Status.Conditions[i].Type == agentprofile.DDAIReconcileErrorConditionType {
+					found = &tt.profile.Status.Conditions[i]
+				}
+			}
+
+			if tt.expectNoCondition {
+				assert.Nil(t, found)
+				return
+			}
+			require.NotNil(t, found)
+			assert.Equal(t, tt.expectStatus, found.Status)
+			assert.Equal(t, tt.expectReason, found.Reason)
+			assert.Equal(t, tt.expectMessage, found.Message)
+		})
+	}
 }

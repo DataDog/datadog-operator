@@ -8,7 +8,6 @@ package processdiscovery
 import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -53,7 +52,7 @@ func (p *processDiscoveryFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.D
 
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
-				IsRequired: ptr.To(true),
+				IsRequired: new(true),
 				Containers: reqContainers,
 			},
 		}

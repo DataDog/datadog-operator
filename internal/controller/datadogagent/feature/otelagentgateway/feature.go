@@ -70,7 +70,7 @@ func (f *otelAgentGatewayFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1
 
 	reqComp = feature.RequiredComponents{
 		OtelAgentGateway: feature.RequiredComponent{
-			IsRequired: ptr.To(true),
+			IsRequired: new(true),
 			Containers: []apicommon.AgentContainerName{apicommon.OtelAgent},
 		},
 	}

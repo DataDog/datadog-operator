@@ -176,6 +176,13 @@ rules:
   - list
   - watch
 - apiGroups:
+  - discovery.k8s.io
+  resources:
+  - endpointslices
+  verbs:
+  - list
+  - watch
+- apiGroups:
   - networking.k8s.io
   resources:
   - ingresses
@@ -809,6 +816,7 @@ data:
         - configmaps
         - services
         - endpoints
+        - endpointslices
         - daemonsets
         - horizontalpodautoscalers
         - poddisruptionbudgets

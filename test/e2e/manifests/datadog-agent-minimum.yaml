@@ -9,16 +9,3 @@ spec:
     registry: public.ecr.aws/datadog
     kubelet:
       tlsVerify: false
-  override:
-    nodeAgent:
-      envFrom:
-        - configMapRef:
-            name: datadog-operator-e2e-agent-metrics-v2-env
-    clusterAgent:
-      envFrom:
-        - configMapRef:
-            name: datadog-operator-e2e-agent-metrics-v2-env
-    clusterChecksRunner:
-      envFrom:
-        - configMapRef:
-            name: datadog-operator-e2e-agent-metrics-v2-env

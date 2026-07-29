@@ -33,7 +33,6 @@ import (
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	"k8s.io/klog/v2"
 	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
-	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	ctrlconfig "sigs.k8s.io/controller-runtime/pkg/config"
@@ -399,7 +398,7 @@ func run(opts *options) error {
 		// the sync.Once in SetProvider, routing standard workqueue metrics to the
 		// k8s legacy registry instead of controller-runtime's registry.
 		Controller: ctrlconfig.Controller{
-			UsePriorityQueue: ptr.To(true),
+			UsePriorityQueue: new(true),
 		},
 	})
 	if err != nil {
