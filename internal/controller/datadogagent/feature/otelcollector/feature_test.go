@@ -20,6 +20,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/otelcollector/defaultconfig"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/testutils"
@@ -460,6 +461,63 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 		},
 	}
 	tests.Run(t, buildOtelCollectorFeature)
+}
+
+// TestOtelCollectorFeature_StripsRawAPIKeyAndSiteEnvVars guards against otel-agent silently sending
+// an unresolved secrets-backend placeholder (e.g. "ENC[...]") as its API key. Pod-wide credential
+// wiring (global.go's credentialResource) sets DD_API_KEY/DD_SITE on every agent container,
+// including otel-agent, before this feature's ManageNodeAgent runs. Since otel-agent's config sync
+// (enabled unconditionally via the IPC env vars) mirrors the core agent's already-resolved values at
+// a higher priority, the raw env vars on otel-agent are both redundant and, when DD_API_KEY still
+// holds an unresolved placeholder, actively harmful. ManageNodeAgent must remove them from the
+// otel-agent container while leaving the core agent container untouched.
+func TestOtelCollectorFeature_StripsRawAPIKeyAndSiteEnvVars(t *testing.T) {
+	dda := testutils.NewDatadogAgentBuilder().
+		WithOTelCollectorEnabled(true).
+		WithOTelCollectorConfig().
+		Build()
+
+	feat := buildOtelCollectorFeature(&feature.Options{})
+	feat.Configure(dda, &dda.Spec, dda.Status.RemoteConfigConfiguration)
+
+	// Simulate global.go's credentialResource having already run pod-wide.
+	seededEnv := []corev1.EnvVar{
+		{Name: constants.DDAPIKey, Value: "ENC[vault://secret/path]"},
+		{Name: constants.DDSite, Value: "datadoghq.com"},
+	}
+	newPTS := corev1.PodTemplateSpec{
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{
+				{
+					Name: string(apicommon.CoreAgentContainerName),
+					Env:  append([]corev1.EnvVar{}, seededEnv...),
+				},
+				{
+					Name: string(apicommon.OtelAgent),
+					Env:  append([]corev1.EnvVar{}, seededEnv...),
+				},
+			},
+		},
+	}
+	tplManager := fake.NewPodTemplateManagers(t, newPTS)
+
+	err := feat.ManageNodeAgent(tplManager)
+	assert.NoError(t, err)
+
+	for _, container := range tplManager.PodTemplateSpec().Spec.Containers {
+		envNames := make(map[string]bool, len(container.Env))
+		for _, e := range container.Env {
+			envNames[e.Name] = true
+		}
+		switch container.Name {
+		case string(apicommon.OtelAgent):
+			assert.False(t, envNames[constants.DDAPIKey], "otel-agent container should not keep a raw DD_API_KEY")
+			assert.False(t, envNames[constants.DDSite], "otel-agent container should not keep a raw DD_SITE")
+		case string(apicommon.CoreAgentContainerName):
+			assert.True(t, envNames[constants.DDAPIKey], "core agent container should keep DD_API_KEY")
+			assert.True(t, envNames[constants.DDSite], "core agent container should keep DD_SITE")
+		}
+	}
 }
 
 func TestApplyOTelCollectorDDASharedDependencies(t *testing.T) {

@@ -405,6 +405,28 @@ func (o *otelCollectorFeature) ManageNodeAgent(managers feature.PodTemplateManag
 		managers.EnvVar().AddEnvVarToContainerWithMergeFunc(container, agentIpcConfigRefreshIntervalEnvVar, mergeFunc)
 	}
 
+	// Pod-wide credential wiring (global.go's credentialResource) sets DD_API_KEY/DD_SITE on every
+	// agent container, including otel-agent. That raw value can be an unresolved secrets-backend
+	// placeholder (e.g. "ENC[...]"), which otel-agent's internal Datadog exporter/extension config
+	// would read verbatim since it has no secrets-resolution step of its own. Strip it here: the IPC
+	// env vars set above make config sync mirror the core agent's already-resolved api_key/site at a
+	// higher config priority than a raw env var, so the synced value is sufficient on its own.
+	// Do not apply this to standalone Gateway mode, which has no core agent to sync from and relies
+	// on these env vars directly (see otelagentgateway/global.go).
+	for id, container := range managers.PodTemplateSpec().Spec.Containers {
+		if container.Name != string(apicommon.OtelAgent) {
+			continue
+		}
+		filteredEnv := make([]corev1.EnvVar, 0, len(container.Env))
+		for _, envVar := range container.Env {
+			if envVar.Name == constants.DDAPIKey || envVar.Name == constants.DDSite {
+				continue
+			}
+			filteredEnv = append(filteredEnv, envVar)
+		}
+		managers.PodTemplateSpec().Spec.Containers[id].Env = filteredEnv
+	}
+
 	var enableEnvVar *corev1.EnvVar
 	if o.coreAgentConfig.enabled != nil {
 		if *o.coreAgentConfig.enabled {
