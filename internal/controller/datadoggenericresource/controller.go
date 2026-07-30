@@ -159,10 +159,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, instance *v1alpha1.DatadogGe
 				if strings.Contains(err.Error(), ctrutils.NotFoundString) {
 					shouldCreate = true
 				}
+				// Do not advance LastForceSyncTime here: leaving it stale lets the next
+				// reconcile retry the force sync instead of waiting out a full forceSyncPeriod.
+				// create()/update() advance it themselves once the sync actually succeeds.
 			} else {
 				shouldUpdate = true
 			}
-			status.LastForceSyncTime = &now
 		} else if instance.Status.StateLastUpdateTime == nil || ((r.requeuePeriod - now.Sub(instance.Status.StateLastUpdateTime.Time)) <= 0) {
 			// Idle tick: refresh Datadog-side state for resource types that expose it.
 			// No-op for resource types without live state.
