@@ -183,7 +183,8 @@ func newRolloutTestClusterAgentDeployment() *appsv1.Deployment {
 	}
 }
 
-func noopUpdateDepStatus(*appsv1.Deployment, *v1alpha1.DatadogAgentInternalStatus, metav1.Time, metav1.ConditionStatus, string, string) {}
+func noopUpdateDepStatus(*appsv1.Deployment, *v1alpha1.DatadogAgentInternalStatus, metav1.Time, metav1.ConditionStatus, string, string) {
+}
 
 func Test_ConfigMapRollout_ClusterAgent_ContentChange_TriggersUpdate(t *testing.T) {
 	cm := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "cluster-agent-custom-config", Namespace: "ns-1"}, Data: map[string]string{"foo": "bar"}}
