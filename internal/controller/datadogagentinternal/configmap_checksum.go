@@ -25,13 +25,13 @@ type configMapContent struct {
 	BinaryData map[string][]byte `json:"binaryData,omitempty"`
 }
 
-// annotateWithReferencedConfigMapsChecksum hashes the content of ConfigMaps
+// annotateConfigMapsChecksum hashes the content of ConfigMaps
 // referenced by podTmpl's volumes and stores it as an annotation on podTmpl,
 // so the change is picked up by the existing pod-template-hash rollout.
 //
 // Missing ConfigMaps are skipped rather than erroring, since a dangling
 // reference already surfaces elsewhere as a pod mount failure.
-func (r *Reconciler) annotateWithReferencedConfigMapsChecksum(ctx context.Context, namespace string, podTmpl *corev1.PodTemplateSpec) error {
+func (r *Reconciler) annotateConfigMapsChecksum(ctx context.Context, namespace string, podTmpl *corev1.PodTemplateSpec) error {
 	names := referencedConfigMapNames(podTmpl)
 	if len(names) == 0 {
 		return nil
@@ -74,7 +74,7 @@ func (r *Reconciler) annotateWithReferencedConfigMapsChecksum(ctx context.Contex
 	if podTmpl.Annotations == nil {
 		podTmpl.Annotations = map[string]string{}
 	}
-	podTmpl.Annotations[constants.MD5ReferencedConfigMapsAnnotationKey] = hash
+	podTmpl.Annotations[constants.MD5ConfigMapsAnnotationKey] = hash
 
 	return nil
 }

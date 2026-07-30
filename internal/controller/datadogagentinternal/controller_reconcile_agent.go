@@ -135,7 +135,7 @@ func (r *Reconciler) reconcileV2Agent(ctx context.Context, requiredComponents fe
 		}
 
 		if r.options.RolloutOnConfigMapChangeEnabled {
-			if err := r.annotateWithReferencedConfigMapsChecksum(ctx, ddai.Namespace, &eds.Spec.Template); err != nil {
+			if err := r.annotateConfigMapsChecksum(ctx, ddai.Namespace, &eds.Spec.Template); err != nil {
 				return result, err
 			}
 		}
@@ -304,7 +304,7 @@ func (r *Reconciler) reconcileV2Agent(ctx context.Context, requiredComponents fe
 	}
 
 	if r.options.RolloutOnConfigMapChangeEnabled {
-		if err := r.annotateWithReferencedConfigMapsChecksum(ctx, ddai.Namespace, &daemonset.Spec.Template); err != nil {
+		if err := r.annotateConfigMapsChecksum(ctx, ddai.Namespace, &daemonset.Spec.Template); err != nil {
 			return result, err
 		}
 	}

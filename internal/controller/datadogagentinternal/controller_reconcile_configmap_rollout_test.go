@@ -67,7 +67,7 @@ func reconcileOnce(t *testing.T, r *Reconciler, ddai *v1alpha1.DatadogAgentInter
 	t.Helper()
 	ctx := context.Background()
 	if r.options.RolloutOnConfigMapChangeEnabled {
-		require.NoError(t, r.annotateWithReferencedConfigMapsChecksum(ctx, ddai.Namespace, &ds.Spec.Template))
+		require.NoError(t, r.annotateConfigMapsChecksum(ctx, ddai.Namespace, &ds.Spec.Template))
 	}
 	_, err := r.createOrUpdateDaemonset(ctx, ddai, ds, &v1alpha1.DatadogAgentInternalStatus{}, updateDSStatusV2WithAgent)
 	require.NoError(t, err)
@@ -89,7 +89,7 @@ func Test_ConfigMapRollout_FlagDisabled(t *testing.T) {
 	reconcileOnce(t, r, ddai, ds)
 
 	got := getDaemonSet(t, r, ds)
-	_, ok := got.Spec.Template.Annotations[constants.MD5ReferencedConfigMapsAnnotationKey]
+	_, ok := got.Spec.Template.Annotations[constants.MD5ConfigMapsAnnotationKey]
 	assert.False(t, ok, "checksum annotation should never be added when the flag is disabled")
 }
 
@@ -183,8 +183,7 @@ func newRolloutTestClusterAgentDeployment() *appsv1.Deployment {
 	}
 }
 
-func noopUpdateDepStatus(*appsv1.Deployment, *v1alpha1.DatadogAgentInternalStatus, metav1.Time, metav1.ConditionStatus, string, string) {
-}
+func noopUpdateDepStatus(*appsv1.Deployment, *v1alpha1.DatadogAgentInternalStatus, metav1.Time, metav1.ConditionStatus, string, string) {}
 
 func Test_ConfigMapRollout_ClusterAgent_ContentChange_TriggersUpdate(t *testing.T) {
 	cm := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "cluster-agent-custom-config", Namespace: "ns-1"}, Data: map[string]string{"foo": "bar"}}
@@ -193,7 +192,7 @@ func Test_ConfigMapRollout_ClusterAgent_ContentChange_TriggersUpdate(t *testing.
 	ctx := context.Background()
 
 	reconcileOnDeployment := func(dep *appsv1.Deployment) {
-		require.NoError(t, r.annotateWithReferencedConfigMapsChecksum(ctx, ddai.Namespace, &dep.Spec.Template))
+		require.NoError(t, r.annotateConfigMapsChecksum(ctx, ddai.Namespace, &dep.Spec.Template))
 		_, err := r.createOrUpdateDeployment(ctx, ddai, dep, &v1alpha1.DatadogAgentInternalStatus{}, noopUpdateDepStatus)
 		require.NoError(t, err)
 	}
