@@ -199,7 +199,7 @@ func (opts *options) Parse() {
 	flag.BoolVar(&opts.untaintControllerEnabled, "untaintControllerEnabled", false, "Enable the Untaint controller")
 	flag.BoolVar(&opts.untaintControllerWaitForCSIDriver, "untaintControllerWaitForCSIDriver", false,
 		"When true (requires --untaintControllerEnabled), the Untaint controller removes the startup taint only after both the node Agent and Datadog CSI node-server pods are Ready. Requires Pod watch coverage of CSI namespaces (DD_CSIDRIVER_WATCH_NAMESPACE).")
-	flag.BoolVar(&opts.rolloutOnConfigMapChangeEnabled, "rolloutOnConfigMapChangeEnabled", false,
+	flag.BoolVar(&opts.rolloutOnConfigMapChangeEnabled, "rolloutOnConfigMapChangeEnabled", true,
 		"Automatically roll out Agent/Cluster Agent/Cluster Check Runner/OTel Agent Gateway workloads when a ConfigMap referenced by their pod template changes content out-of-band")
 
 	// DatadogAgentInternal
