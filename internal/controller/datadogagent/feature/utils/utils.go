@@ -30,7 +30,9 @@ const (
 	// set to "false" to disable both the seccomp profile and its setup init container.
 	EnableHostProfilerSeccompAnnotation        = "agent.datadoghq.com/host-profiler-seccomp-enabled"
 	EnableHostProfilerLoggingSeccompAnnotation = "agent.datadoghq.com/host-profiler-logging-seccomp-enabled"
-	EnableKSMApiServerCacheAnnotation          = "agent.datadoghq.com/ksm-use-apiserver-cache"
+	// HostProfilerSELinuxTypeAnnotation overrides the SELinux type applied to the host-profiler container.
+	HostProfilerSELinuxTypeAnnotation = "agent.datadoghq.com/host-profiler-selinux-type"
+	EnableKSMApiServerCacheAnnotation = "agent.datadoghq.com/ksm-use-apiserver-cache"
 
 	EnableInstrumentationCRDAnnotation = "agent.datadoghq.com/instrumentation-crd-enabled"
 
