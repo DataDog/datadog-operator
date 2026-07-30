@@ -164,8 +164,9 @@ func Run(ctx context.Context, streams genericclioptions.IOStreams, configFlags *
 // fargate; empty string otherwise.
 func createCloudFormationStacks(ctx context.Context, cli *clients.Clients, opts RunOptions) (string, error) {
 	// The first stack (karpenter.yaml) is mode-independent — its resources
-	// (KarpenterNodeRole, KarpenterControllerPolicy, SQS, EventBridge) are
-	// identical in both modes, so no guardrail or install-mode tag is needed.
+	// (KarpenterNodeRole, KarpenterControllerPolicy, KarpenterControllerPolicy2, SQS,
+	// EventBridge) are identical in both modes, so no guardrail or
+	// install-mode tag is needed.
 	karpenterStackName := KarpenterStackName(opts.ClusterName)
 	if err := aws.CreateOrUpdateStack(ctx, cli.CloudFormation, karpenterStackName, KarpenterCfn, map[string]string{
 		"ClusterName": opts.ClusterName,
