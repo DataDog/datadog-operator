@@ -20,12 +20,12 @@ func (f *ksmFeature) buildKSMCoreConfigMap(collectorOpts collectorOptions) (*cor
 	if f.customConfig != nil && f.customConfig.ConfigMap != nil {
 		return nil, nil
 	}
+
 	if f.customConfig != nil && f.customConfig.ConfigData != nil {
 		return configmap.BuildConfigMapConfigData(f.owner.GetNamespace(), f.customConfig.ConfigData, f.configConfigMapName, ksmCoreCheckName)
 	}
 
-	configMap := buildDefaultConfigMap(f.owner.GetNamespace(), f.configConfigMapName, ksmCheckConfig(f.runInClusterChecksRunner, collectorOpts))
-	return configMap, nil
+	return buildDefaultConfigMap(f.owner.GetNamespace(), f.configConfigMapName, ksmCheckConfig(f.runInClusterChecksRunner, collectorOpts)), nil
 }
 
 func buildDefaultConfigMap(namespace, cmName string, content string) *corev1.ConfigMap {

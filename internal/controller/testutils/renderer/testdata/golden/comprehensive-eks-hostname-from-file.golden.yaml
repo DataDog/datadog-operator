@@ -961,8 +961,6 @@ data:
         - customresourcedefinitions
 kind: ConfigMap
 metadata:
-  annotations:
-    checksum/ksm-custom-config: 7078d4e77dfdf37ca618d148c6c7af2b
   labels:
     app.kubernetes.io/instance: datadog-agent
     app.kubernetes.io/managed-by: datadog-operator
@@ -1931,7 +1929,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: 0f13eccae0579833f12952a73bb95477
+    agent.datadoghq.com/agentspechash: 997b8987c1ecf740760c74d5a11f4015
   labels:
     agent.datadoghq.com/component: cluster-agent
     agent.datadoghq.com/name: datadog-agent
@@ -1959,9 +1957,9 @@ spec:
   template:
     metadata:
       annotations:
+        checksum.datadoghq.com/clusterAgent.ksm: 5ef1eacd4b7936dc2919088b02e111d9
         checksum/cluster_checks-custom-config: dd67482b385a64075d38f42c9ae04554
         checksum/dca-token-custom-config: 3f6998966e6de63b16d45512e01ccc84
-        checksum/ksm-custom-config: 7078d4e77dfdf37ca618d148c6c7af2b
       labels:
         agent.datadoghq.com/component: cluster-agent
         agent.datadoghq.com/name: datadog-agent

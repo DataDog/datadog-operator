@@ -6,10 +6,7 @@
 package kubernetesstatecore
 
 import (
-	"fmt"
 	"testing"
-
-	"k8s.io/utils/ptr"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -19,7 +16,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
 	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	mergerfake "github.com/DataDog/datadog-operator/internal/controller/datadogagent/merger/fake"
-	"github.com/DataDog/datadog-operator/pkg/constants"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/testutils"
 
@@ -58,9 +55,10 @@ func Test_ksmFeature_Configure(t *testing.T) {
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithKSMEnabled(true).
 				Build(),
-			WantConfigure: true,
-			ClusterAgent:  ksmClusterAgentWantFunc(false),
-			Agent:         test.NewDefaultComponentTest().WithWantFunc(ksmAgentNodeWantFunc),
+			WantConfigure:        true,
+			ClusterAgent:         ksmClusterAgentWantFunc(false),
+			Agent:                test.NewDefaultComponentTest().WithWantFunc(ksmAgentNodeWantFunc),
+			WantDependenciesFunc: ksmWantChecksumRegistered(false, collectorOptions{enableAPIService: true, enableCRD: true, enableControllerRevisions: true}),
 		},
 		{
 			Name: "ksm-core enabled with single agent container",
@@ -78,9 +76,10 @@ func Test_ksmFeature_Configure(t *testing.T) {
 				WithKSMEnabled(true).
 				WithKSMCustomConf(customData).
 				Build(),
-			WantConfigure: true,
-			ClusterAgent:  ksmClusterAgentWantFunc(true),
-			Agent:         test.NewDefaultComponentTest().WithWantFunc(ksmAgentNodeWantFunc),
+			WantConfigure:        true,
+			ClusterAgent:         ksmClusterAgentWantFunc(true),
+			Agent:                test.NewDefaultComponentTest().WithWantFunc(ksmAgentNodeWantFunc),
+			WantDependenciesFunc: ksmWantChecksumRegisteredForContent(customData),
 		},
 		{
 			Name: "ksm-core enabled, custom config with single agent container",
@@ -92,6 +91,21 @@ func Test_ksmFeature_Configure(t *testing.T) {
 			WantConfigure: true,
 			ClusterAgent:  ksmClusterAgentWantFunc(true),
 			Agent:         test.NewDefaultComponentTest().WithWantFunc(ksmAgentSingleAgentWantFunc),
+		},
+		{
+			Name: "ksm-core enabled, custom config referenced via ConfigMap",
+			DDA: func() *v2alpha1.DatadogAgent {
+				dda := testutils.NewDatadogAgentBuilder().
+					WithKSMEnabled(true).
+					Build()
+				dda.Spec.Features.KubeStateMetricsCore.Conf = &v2alpha1.CustomConfig{
+					ConfigMap: &v2alpha1.ConfigMapConfig{Name: "user-provided-ksm-cm"},
+				}
+				return dda
+			}(),
+			WantConfigure:        true,
+			Agent:                test.NewDefaultComponentTest().WithWantFunc(ksmAgentNodeWantFunc),
+			WantDependenciesFunc: ksmWantNoChecksumRegistered,
 		},
 		{
 			Name: "ksm-core enabled, cluster agent with image >= 7.72.0",
@@ -120,10 +134,11 @@ func Test_ksmFeature_Configure(t *testing.T) {
 				WithClusterChecks(true, true).
 				WithClusterChecksRunnerImage("gcr.io/datadoghq/agent:7.72.0").
 				Build(),
-			WantConfigure:       true,
-			Agent:               test.NewDefaultComponentTest().WithWantFunc(ksmAgentNodeWantFunc),
-			ClusterAgent:        test.NewDefaultComponentTest().WithWantFunc(func(t testing.TB, mgrInterface feature.PodTemplateManagers) {}),
-			ClusterChecksRunner: test.NewDefaultComponentTest().WithWantFunc(func(t testing.TB, mgrInterface feature.PodTemplateManagers) {}),
+			WantConfigure:        true,
+			Agent:                test.NewDefaultComponentTest().WithWantFunc(ksmAgentNodeWantFunc),
+			ClusterAgent:         test.NewDefaultComponentTest().WithWantFunc(func(t testing.TB, mgrInterface feature.PodTemplateManagers) {}),
+			ClusterChecksRunner:  test.NewDefaultComponentTest().WithWantFunc(func(t testing.TB, mgrInterface feature.PodTemplateManagers) {}),
+			WantDependenciesFunc: ksmWantChecksumRegistered(true, collectorOptions{enableAPIService: true, enableCRD: true, enableControllerRevisions: true}),
 		},
 		{
 			Name: "ksm-core enabled, cluster checks runner with image < 7.72.0",
@@ -132,10 +147,11 @@ func Test_ksmFeature_Configure(t *testing.T) {
 				WithClusterChecks(true, true).
 				WithClusterChecksRunnerImage("gcr.io/datadoghq/agent:7.71.0").
 				Build(),
-			WantConfigure:       true,
-			Agent:               test.NewDefaultComponentTest().WithWantFunc(ksmAgentNodeWantFunc),
-			ClusterAgent:        test.NewDefaultComponentTest().WithWantFunc(func(t testing.TB, mgrInterface feature.PodTemplateManagers) {}),
-			ClusterChecksRunner: test.NewDefaultComponentTest().WithWantFunc(func(t testing.TB, mgrInterface feature.PodTemplateManagers) {}),
+			WantConfigure:        true,
+			Agent:                test.NewDefaultComponentTest().WithWantFunc(ksmAgentNodeWantFunc),
+			ClusterAgent:         test.NewDefaultComponentTest().WithWantFunc(func(t testing.TB, mgrInterface feature.PodTemplateManagers) {}),
+			ClusterChecksRunner:  test.NewDefaultComponentTest().WithWantFunc(func(t testing.TB, mgrInterface feature.PodTemplateManagers) {}),
+			WantDependenciesFunc: ksmWantChecksumRegistered(true, collectorOptions{enableAPIService: true, enableCRD: true}),
 		},
 		{
 			Name: "ksm-core enabled, useApiServerCache annotation set",
@@ -145,15 +161,17 @@ func Test_ksmFeature_Configure(t *testing.T) {
 					featureutils.EnableKSMApiServerCacheAnnotation: "true",
 				}).
 				Build(),
-			WantConfigure: true,
-			ClusterAgent:  ksmClusterAgentApiServerCacheWantFunc(),
-			Agent:         test.NewDefaultComponentTest().WithWantFunc(ksmAgentNodeWantFunc),
+			WantConfigure:        true,
+			ClusterAgent:         ksmClusterAgentApiServerCacheWantFunc(),
+			Agent:                test.NewDefaultComponentTest().WithWantFunc(ksmAgentNodeWantFunc),
+			WantDependenciesFunc: ksmWantChecksumRegistered(false, collectorOptions{enableAPIService: true, enableCRD: true, enableControllerRevisions: true, useApiServerCache: true}),
 		},
 	}
 
 	tests.Run(t, buildKSMFeature)
 }
 
+// hasCustomConfig is unused; kept so call sites don't need to change.
 func ksmClusterAgentWantFunc(hasCustomConfig bool) *test.ComponentTest {
 	return test.NewDefaultComponentTest().WithWantFunc(
 		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
@@ -171,57 +189,37 @@ func ksmClusterAgentWantFunc(hasCustomConfig bool) *test.ComponentTest {
 				},
 			}
 			assert.True(t, apiutils.IsEqualStruct(dcaEnvVars, want), "DCA envvars \ndiff = %s", cmp.Diff(dcaEnvVars, want))
-
-			if hasCustomConfig {
-				customConfig := v2alpha1.CustomConfig{
-					ConfigData: ptr.To(customData),
-				}
-				hash, err := comparison.GenerateMD5ForSpec(&customConfig)
-				assert.NoError(t, err)
-				wantAnnotations := map[string]string{
-					fmt.Sprintf(constants.MD5ChecksumAnnotationKey, feature.KubernetesStateCoreIDType): hash,
-				}
-				annotations := mgr.AnnotationMgr.Annotations
-				assert.True(t, apiutils.IsEqualStruct(annotations, wantAnnotations), "Annotations \ndiff = %s", cmp.Diff(annotations, wantAnnotations))
-			} else {
-				// Verify default config annotation - CRDs and APIServices collected, no custom resource metrics
-				defaultConfigData := map[string]any{
-					"collect_crds":        true,
-					"collect_apiservices": true,
-					"collect_cr_metrics":  nil,
-					"use_apiserver_cache": false,
-				}
-				hash, err := comparison.GenerateMD5ForSpec(defaultConfigData)
-				assert.NoError(t, err)
-				wantAnnotations := map[string]string{
-					fmt.Sprintf(constants.MD5ChecksumAnnotationKey, feature.KubernetesStateCoreIDType): hash,
-				}
-				annotations := mgr.AnnotationMgr.Annotations
-				assert.True(t, apiutils.IsEqualStruct(annotations, wantAnnotations), "Default config annotations \ndiff = %s", cmp.Diff(annotations, wantAnnotations))
-			}
 		},
 	)
 }
 
 func ksmClusterAgentApiServerCacheWantFunc() *test.ComponentTest {
-	return test.NewDefaultComponentTest().WithWantFunc(
-		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
-			mgr := mgrInterface.(*fake.PodTemplateManagers)
-			defaultConfigData := map[string]any{
-				"collect_crds":        true,
-				"collect_apiservices": true,
-				"collect_cr_metrics":  nil,
-				"use_apiserver_cache": true,
-			}
-			hash, err := comparison.GenerateMD5ForSpec(defaultConfigData)
-			assert.NoError(t, err)
-			wantAnnotations := map[string]string{
-				fmt.Sprintf(constants.MD5ChecksumAnnotationKey, feature.KubernetesStateCoreIDType): hash,
-			}
-			annotations := mgr.AnnotationMgr.Annotations
-			assert.True(t, apiutils.IsEqualStruct(annotations, wantAnnotations), "Annotations \ndiff = %s", cmp.Diff(annotations, wantAnnotations))
-		},
-	)
+	return ksmClusterAgentWantFunc(false)
+}
+
+// ksmWantChecksumRegistered asserts ManageDependencies registered the default KSM ConfigMap's checksum against the Cluster Agent.
+func ksmWantChecksumRegistered(clusterCheck bool, collectorOpts collectorOptions) func(testing.TB, store.StoreClient) {
+	return ksmWantChecksumRegisteredForContent(ksmCheckConfig(clusterCheck, collectorOpts))
+}
+
+// ksmWantChecksumRegisteredForContent asserts ManageDependencies registered the given check config content's checksum against the Cluster Agent.
+func ksmWantChecksumRegisteredForContent(content string) func(testing.TB, store.StoreClient) {
+	return func(t testing.TB, s store.StoreClient) {
+		wantHash, err := comparison.GenerateMD5ForSpec(map[string]string{
+			ksmCoreCheckName: content,
+		})
+		assert.NoError(t, err)
+
+		wantKey := "checksum.datadoghq.com/clusterAgent." + string(feature.KubernetesStateCoreIDType)
+		annotations := s.GetComponentChecksums(v2alpha1.ClusterAgentComponentName)
+		assert.Equal(t, wantHash, annotations[wantKey])
+	}
+}
+
+// ksmWantNoChecksumRegistered asserts ManageDependencies registered no checksum against the Cluster Agent,
+// e.g. when the KSM config is provided via a user-supplied ConfigMap rather than generated by the feature.
+func ksmWantNoChecksumRegistered(t testing.TB, s store.StoreClient) {
+	assert.Nil(t, s.GetComponentChecksums(v2alpha1.ClusterAgentComponentName))
 }
 
 func ksmAgentNodeWantFunc(t testing.TB, mgrInterface feature.PodTemplateManagers) {

@@ -28,6 +28,19 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 )
 
+// propagateComponentChecksums copies checksum annotations registered against a component (e.g.
+// ConfigMap MD5 hashes from the dependency Store) onto its pod template, skipping any key the user
+// already set via override so an override annotation always wins.
+func propagateComponentChecksums(podManagers feature.PodTemplateManagers, checksums map[string]string) {
+	existing := podManagers.PodTemplateSpec().Annotations
+	for key, value := range checksums {
+		if _, found := existing[key]; found {
+			continue
+		}
+		podManagers.Annotation().AddAnnotation(key, value)
+	}
+}
+
 // checkComponentEnabledWithOverride is a helper function that determines if a component is enabled
 // based on both feature requirements and override settings. This is the default logic used by most components.
 // Returns (enabled, conflict) where:
@@ -229,6 +242,11 @@ func (r *ComponentRegistry) reconcileComponent(ctx context.Context, params *Reco
 		component.UpdateStatus(deployment, params.Status, now, metav1.ConditionFalse, fmt.Sprintf("%s FIPS version error", component.Name()), err.Error())
 		return result, err
 	}
+
+	// Propagate checksum annotations (e.g. ConfigMap MD5 hashes) that dependencies registered
+	// against this component, so the pod template rolls when a dependency's content changes.
+	// Centralized here so components don't each need to remember to wire this in.
+	propagateComponentChecksums(podManagers, params.ResourceManagers.Store().GetComponentChecksums(component.Name()))
 
 	res, err := r.reconciler.createOrUpdateDeployment(ctx, params.DDAI, deployment, params.Status, component.UpdateStatus)
 

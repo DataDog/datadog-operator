@@ -22,6 +22,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/pkg/equality"
@@ -35,6 +36,8 @@ const (
 	// These resources should not be cleaned up by the DDAI controller to avoid competition
 	// between the two controllers.
 	ManagedByDDAControllerLabelKey = "operator.datadoghq.com/managed-by-dda-controller"
+	// checksumAnnotationPrefix is the prefix for checksum-tracking annotations set by RegisterComponentChecksum.
+	checksumAnnotationPrefix = "checksum.datadoghq.com/"
 )
 
 // StoreClient dependencies store client interface
@@ -46,13 +49,18 @@ type StoreClient interface {
 	Delete(kind kubernetes.ObjectKind, namespace string, name string) bool
 	DeleteAll(ctx context.Context, k8sClient client.Client) []error
 	Logger() logr.Logger
+	// GetComponentChecksums returns checksum annotations registered against the given component.
+	GetComponentChecksums(componentName v2alpha1.ComponentName) map[string]string
+	// RegisterComponentChecksum records a dependency's content hash against a component. See Store.RegisterComponentChecksum.
+	RegisterComponentChecksum(component v2alpha1.ComponentName, configID, hash string)
 }
 
 // NewStore returns a new Store instance
 func NewStore(owner metav1.Object, options *StoreOptions) *Store {
 	store := &Store{
-		deps:  make(map[kubernetes.ObjectKind]map[string]client.Object),
-		owner: owner,
+		deps:                 make(map[kubernetes.ObjectKind]map[string]client.Object),
+		owner:                owner,
+		componentAnnotations: make(map[v2alpha1.ComponentName]map[string]string),
 	}
 	if options != nil {
 		store.supportCilium = options.SupportCilium
@@ -74,6 +82,9 @@ type Store struct {
 	supportCilium        bool
 	platformInfo         kubernetes.PlatformInfo
 	isDDAControllerStore bool
+
+	// componentAnnotations holds checksum annotations registered against each component.
+	componentAnnotations map[v2alpha1.ComponentName]map[string]string
 
 	scheme *runtime.Scheme
 	logger logr.Logger
@@ -97,6 +108,7 @@ type StoreOptions struct {
 // AddOrUpdate used to add or update an object in the Store
 // kind correspond to the object kind, and id can be `namespace/name` identifier of just
 // `name` if we are talking about a cluster scope object like `ClusterRole`.
+// Call RegisterComponentChecksum separately to roll a component when this dependency's content changes.
 func (ds *Store) AddOrUpdate(kind kubernetes.ObjectKind, obj client.Object) error {
 	ds.mutex.Lock()
 	defer ds.mutex.Unlock()
@@ -106,6 +118,7 @@ func (ds *Store) AddOrUpdate(kind kubernetes.ObjectKind, obj client.Object) erro
 	}
 
 	id := buildID(obj.GetNamespace(), obj.GetName())
+
 	if obj.GetLabels() == nil {
 		obj.SetLabels(map[string]string{})
 	}
@@ -190,8 +203,8 @@ func (ds *Store) GetOrCreate(kind kubernetes.ObjectKind, namespace, name string)
 
 // Delete deletes an item from the store by kind, namespace and name.
 func (ds *Store) Delete(kind kubernetes.ObjectKind, namespace string, name string) bool {
-	ds.mutex.RLock()
-	defer ds.mutex.RUnlock()
+	ds.mutex.Lock()
+	defer ds.mutex.Unlock()
 
 	if _, found := ds.deps[kind]; !found {
 		return false
@@ -212,6 +225,7 @@ func (ds *Store) Apply(ctx context.Context, k8sClient client.Client) []error {
 	var errs []error
 	var objsToCreate []client.Object
 	var objsToUpdate []client.Object
+
 	for kind := range ds.deps {
 		for objID, objStore := range ds.deps[kind] {
 			objNSName := buildObjectKey(objID)
@@ -224,7 +238,6 @@ func (ds *Store) Apply(ctx context.Context, k8sClient client.Client) []error {
 				continue
 			}
 
-			// Apply preprocessing for each object kind
 			objStore, err = ds.applyPreprocessing(kind, objStore, objAPIServer)
 			if err != nil {
 				errs = append(errs, err)
@@ -482,4 +495,35 @@ func shouldSetOwnerReference(kind kubernetes.ObjectKind, objNamespace, ownerName
 	}
 
 	return true
+}
+
+// GetComponentChecksums returns a copy of the checksum annotations registered against a component.
+func (ds *Store) GetComponentChecksums(componentName v2alpha1.ComponentName) map[string]string {
+	ds.mutex.RLock()
+	defer ds.mutex.RUnlock()
+
+	return maps.Clone(ds.componentAnnotations[componentName])
+}
+
+// RegisterComponentChecksum records a dependency's content hash (identified by configID) against
+// a component. Callers propagate it onto that component's pod template via GetComponentChecksums,
+// triggering a rollout when the hash changes.
+//
+// On collision (configID already registered against component with a different hash), the first
+// registration wins and the collision is logged rather than returned as an error.
+func (ds *Store) RegisterComponentChecksum(component v2alpha1.ComponentName, configID, hash string) {
+	ds.mutex.Lock()
+	defer ds.mutex.Unlock()
+
+	if ds.componentAnnotations[component] == nil {
+		ds.componentAnnotations[component] = map[string]string{}
+	}
+
+	key := checksumAnnotationPrefix + string(component) + "." + configID
+	if existing, found := ds.componentAnnotations[component][key]; found && existing != hash {
+		ds.logger.Info("store.RegisterComponentChecksum: checksum collision, keeping first registered value",
+			"component", component, "configID", configID, "existing", existing, "attempted", hash)
+		return
+	}
+	ds.componentAnnotations[component][key] = hash
 }

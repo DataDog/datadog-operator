@@ -133,6 +133,11 @@ func (r *Reconciler) reconcileV2Agent(ctx context.Context, requiredComponents fe
 		if handled, migrationResult, err := r.migrateDaemonSetToExtendedDaemonSet(ctx, ddai, eds, newStatus); handled || err != nil {
 			return migrationResult, err
 		}
+
+		// Propagate checksum annotations (e.g. ConfigMap MD5 hashes) that dependencies registered
+		// against the node Agent component, so the pod template rolls when a dependency's content changes.
+		propagateComponentChecksums(podManagers, resourcesManager.Store().GetComponentChecksums(datadoghqv2alpha1.NodeAgentComponentName))
+
 		return r.createOrUpdateExtendedDaemonset(ctx, ddai, eds, newStatus, updateEDSStatusV2WithAgent)
 	}
 
@@ -295,6 +300,11 @@ func (r *Reconciler) reconcileV2Agent(ctx context.Context, requiredComponents fe
 	if handled, migrationResult, err := r.migrateExtendedDaemonSetToDaemonSet(ctx, ddai, daemonset, newStatus); handled || err != nil {
 		return migrationResult, err
 	}
+
+	// Propagate checksum annotations (e.g. ConfigMap MD5 hashes) that dependencies registered
+	// against the node Agent component, so the pod template rolls when a dependency's content changes.
+	propagateComponentChecksums(podManagers, resourcesManager.Store().GetComponentChecksums(datadoghqv2alpha1.NodeAgentComponentName))
+
 	return r.createOrUpdateDaemonset(ctx, ddai, daemonset, newStatus, updateDSStatusV2WithAgent)
 }
 

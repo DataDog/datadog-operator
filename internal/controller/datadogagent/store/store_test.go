@@ -391,6 +391,65 @@ func TestStore_Apply(t *testing.T) {
 	}
 }
 
+func newTestStoreForChecksums(t *testing.T) *Store {
+	return NewStore(nil, &StoreOptions{Logger: logf.Log.WithName(t.Name())})
+}
+
+func TestStore_RegisterComponentChecksum(t *testing.T) {
+	t.Run("registers a checksum retrievable via GetComponentChecksums", func(t *testing.T) {
+		ds := newTestStoreForChecksums(t)
+
+		ds.RegisterComponentChecksum(v2alpha1.ClusterAgentComponentName, "kubernetes-state-core", "hash1")
+
+		got := ds.GetComponentChecksums(v2alpha1.ClusterAgentComponentName)
+		assert.Equal(t, map[string]string{
+			"checksum.datadoghq.com/clusterAgent.kubernetes-state-core": "hash1",
+		}, got)
+	})
+
+	t.Run("different components don't see each other's checksums", func(t *testing.T) {
+		ds := newTestStoreForChecksums(t)
+
+		ds.RegisterComponentChecksum(v2alpha1.ClusterAgentComponentName, "kubernetes-state-core", "hash1")
+		ds.RegisterComponentChecksum(v2alpha1.NodeAgentComponentName, "kubernetes-state-core", "hash2")
+
+		assert.Equal(t, map[string]string{
+			"checksum.datadoghq.com/clusterAgent.kubernetes-state-core": "hash1",
+		}, ds.GetComponentChecksums(v2alpha1.ClusterAgentComponentName))
+		assert.Equal(t, map[string]string{
+			"checksum.datadoghq.com/nodeAgent.kubernetes-state-core": "hash2",
+		}, ds.GetComponentChecksums(v2alpha1.NodeAgentComponentName))
+	})
+
+	t.Run("re-registering the same configID with the same hash is a no-op", func(t *testing.T) {
+		ds := newTestStoreForChecksums(t)
+
+		ds.RegisterComponentChecksum(v2alpha1.ClusterAgentComponentName, "kubernetes-state-core", "hash1")
+		ds.RegisterComponentChecksum(v2alpha1.ClusterAgentComponentName, "kubernetes-state-core", "hash1")
+
+		assert.Equal(t, map[string]string{
+			"checksum.datadoghq.com/clusterAgent.kubernetes-state-core": "hash1",
+		}, ds.GetComponentChecksums(v2alpha1.ClusterAgentComponentName))
+	})
+
+	t.Run("a colliding registration is dropped, not returned as an error, and the first value wins", func(t *testing.T) {
+		ds := newTestStoreForChecksums(t)
+
+		ds.RegisterComponentChecksum(v2alpha1.ClusterAgentComponentName, "kubernetes-state-core", "hash1")
+		ds.RegisterComponentChecksum(v2alpha1.ClusterAgentComponentName, "kubernetes-state-core", "hash2")
+
+		assert.Equal(t, map[string]string{
+			"checksum.datadoghq.com/clusterAgent.kubernetes-state-core": "hash1",
+		}, ds.GetComponentChecksums(v2alpha1.ClusterAgentComponentName))
+	})
+
+	t.Run("GetComponentChecksums on an unregistered component returns nil, not an empty map", func(t *testing.T) {
+		ds := newTestStoreForChecksums(t)
+
+		assert.Nil(t, ds.GetComponentChecksums(v2alpha1.ClusterAgentComponentName))
+	})
+}
+
 func TestStore_Cleanup(t *testing.T) {
 	dummyConfigMap1 := &corev1.ConfigMap{
 		TypeMeta: metav1.TypeMeta{

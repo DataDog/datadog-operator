@@ -8,7 +8,6 @@ package kubernetesstatecore
 import (
 	"fmt"
 
-	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -19,7 +18,6 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/merger"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
@@ -35,15 +33,9 @@ func init() {
 }
 
 func buildKSMFeature(options *feature.Options) feature.Feature {
-	ksmFeat := &ksmFeature{
+	return &ksmFeature{
 		rbacSuffix: common.ClusterAgentSuffix,
 	}
-
-	if options != nil {
-		ksmFeat.logger = options.Logger
-	}
-
-	return ksmFeat
 }
 
 type ksmFeature struct {
@@ -57,13 +49,9 @@ type ksmFeature struct {
 	rbacSuffix         string
 	serviceAccountName string
 
-	owner                       metav1.Object
-	customConfig                *v2alpha1.CustomConfig
-	configConfigMapName         string
-	customConfigAnnotationKey   string
-	customConfigAnnotationValue string
-
-	logger logr.Logger
+	owner               metav1.Object
+	customConfig        *v2alpha1.CustomConfig
+	configConfigMapName string
 }
 
 const (
@@ -148,31 +136,6 @@ func (f *ksmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 
 		if ddaSpec.Features.KubeStateMetricsCore.Conf != nil {
 			f.customConfig = ddaSpec.Features.KubeStateMetricsCore.Conf
-			hash, err := comparison.GenerateMD5ForSpec(f.customConfig)
-			if err != nil {
-				f.logger.Error(err, "couldn't generate hash for ksm core custom config")
-			} else {
-				f.logger.V(2).Info("built ksm core from custom config", "hash", hash)
-			}
-			f.customConfigAnnotationValue = hash
-			f.customConfigAnnotationKey = object.GetChecksumAnnotationKey(feature.KubernetesStateCoreIDType)
-		} else {
-			// Generate dynamic checksum for default configuration (based on user provided collectCrMetrics field and whether or not APIServices/CRD metrics are collected)
-			defaultConfigData := map[string]any{
-				"collect_crds":        f.collectCRDMetrics,
-				"collect_apiservices": f.collectAPIServiceMetrics,
-				"collect_cr_metrics":  f.collectCrMetrics,
-				"use_apiserver_cache": f.useApiServerCache,
-			}
-
-			hash, err := comparison.GenerateMD5ForSpec(defaultConfigData)
-			if err != nil {
-				f.logger.Error(err, "couldn't generate hash for default ksm core config")
-			} else {
-				f.logger.V(2).Info("generated default ksm core config hash", "hash", hash, "config", defaultConfigData)
-			}
-			f.customConfigAnnotationValue = hash
-			f.customConfigAnnotationKey = object.GetChecksumAnnotationKey(feature.KubernetesStateCoreIDType)
 		}
 
 		f.configConfigMapName = constants.GetConfName(dda, f.customConfig, defaultKubeStateMetricsCoreConf)
@@ -209,14 +172,15 @@ func (f *ksmFeature) ManageDependencies(managers feature.ResourceManagers) error
 		return err
 	}
 	if configCM != nil {
-		// Add md5 hash annotation for custom config
-		if f.customConfigAnnotationKey != "" && f.customConfigAnnotationValue != "" {
-			annotations := object.MergeAnnotationsLabels(f.logger, configCM.GetAnnotations(), map[string]string{f.customConfigAnnotationKey: f.customConfigAnnotationValue}, "*")
-			configCM.SetAnnotations(annotations)
+		hash, err := comparison.GenerateMD5ForSpec(configCM.Data)
+		if err != nil {
+			return err
 		}
 		if err := managers.Store().AddOrUpdate(kubernetes.ConfigMapKind, configCM); err != nil {
 			return err
 		}
+		// DCA reads and dispatches this config to CCRs over the cluster-check API; CCR pods never mount it themselves.
+		managers.Store().RegisterComponentChecksum(v2alpha1.ClusterAgentComponentName, string(feature.KubernetesStateCoreIDType), hash)
 	}
 
 	// Manage RBAC permission
@@ -247,9 +211,6 @@ func (f *ksmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) er
 			MountPath: fmt.Sprintf("%s%s/%s", common.ConfigVolumePath, common.ConfdVolumePath, ksmCoreCheckFolderName),
 			ReadOnly:  true,
 		}
-	}
-	if f.customConfigAnnotationKey != "" && f.customConfigAnnotationValue != "" {
-		managers.Annotation().AddAnnotation(f.customConfigAnnotationKey, f.customConfigAnnotationValue)
 	}
 	managers.VolumeMount().AddVolumeMountToContainer(&volMount, apicommon.ClusterAgentContainerName)
 	managers.Volume().AddVolume(&vol)
