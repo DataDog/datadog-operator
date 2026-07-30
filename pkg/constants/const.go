@@ -75,8 +75,7 @@ const (
 	MD5DDAIDeploymentAnnotationKey = "agent.datadoghq.com/ddaispechash"
 	// MD5ChecksumAnnotationKey annotation key is used to identify customConfig configurations
 	MD5ChecksumAnnotationKey = "checksum/%s-custom-config"
-	// MD5ReferencedConfigMapsAnnotationKey annotation key is used to detect content changes in ConfigMaps
-	// referenced by a pod template's volumes, whether operator-owned or user-supplied.
+	// MD5ReferencedConfigMapsAnnotationKey annotation key is used to detect content changes in ConfigMaps referenced by a pod template's volumes
 	MD5ReferencedConfigMapsAnnotationKey = "checksum.agent.datadoghq.com/referenced-configmaps"
 )
 

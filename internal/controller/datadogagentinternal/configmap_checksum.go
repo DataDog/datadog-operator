@@ -18,26 +18,19 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 )
 
-// configMapContent is the subset of a ConfigMap that participates in the
-// referenced-configmaps checksum. Only content fields are hashed so that
-// metadata-only changes (resourceVersion, labels, annotations) on the
-// ConfigMap don't cause spurious rollouts.
+// configMapContent excludes metadata (resourceVersion, labels, annotations) so
+// those changes don't affect the checksum.
 type configMapContent struct {
 	Data       map[string]string `json:"data,omitempty"`
 	BinaryData map[string][]byte `json:"binaryData,omitempty"`
 }
 
-// annotateWithReferencedConfigMapsChecksum walks podTmpl's volumes for
-// ConfigMap references (operator-owned or user-supplied alike), hashes their
-// current content, and stamps the result onto podTmpl's annotations. Because
-// this annotation becomes part of the pod template that is later hashed as a
-// whole by createOrUpdateDaemonset/createOrUpdateDeployment, a ConfigMap
-// content change automatically participates in the existing rollout decision
-// with no further wiring.
+// annotateWithReferencedConfigMapsChecksum hashes the content of ConfigMaps
+// referenced by podTmpl's volumes and stores it as an annotation on podTmpl,
+// so the change is picked up by the existing pod-template-hash rollout.
 //
-// Missing ConfigMaps are skipped rather than treated as a reconcile error,
-// since a dangling reference is already surfaced elsewhere as a pod mount
-// failure.
+// Missing ConfigMaps are skipped rather than erroring, since a dangling
+// reference already surfaces elsewhere as a pod mount failure.
 func (r *Reconciler) annotateWithReferencedConfigMapsChecksum(ctx context.Context, namespace string, podTmpl *corev1.PodTemplateSpec) error {
 	names := referencedConfigMapNames(podTmpl)
 	if len(names) == 0 {
@@ -86,8 +79,6 @@ func (r *Reconciler) annotateWithReferencedConfigMapsChecksum(ctx context.Contex
 	return nil
 }
 
-// referencedConfigMapNames returns the distinct ConfigMap names referenced
-// by podTmpl's volumes.
 func referencedConfigMapNames(podTmpl *corev1.PodTemplateSpec) []string {
 	seen := map[string]struct{}{}
 	var names []string

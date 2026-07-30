@@ -25,8 +25,6 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/constants"
 )
 
-// newRolloutTestReconciler builds a Reconciler with a fake client seeded with objs,
-// suitable for driving createOrUpdateDaemonset/annotateWithReferencedConfigMapsChecksum directly.
 func newRolloutTestReconciler(flagEnabled bool, objs ...client.Object) *Reconciler {
 	sch := runtime.NewScheme()
 	_ = scheme.AddToScheme(sch)
@@ -124,7 +122,6 @@ func Test_ConfigMapRollout_NoChange_NoUpdate(t *testing.T) {
 	reconcileOnce(t, r, ddai, newRolloutTestDaemonSet())
 	firstVersion := getDaemonSet(t, r, newRolloutTestDaemonSet()).ResourceVersion
 
-	// Reconcile again with nothing changed anywhere.
 	reconcileOnce(t, r, ddai, newRolloutTestDaemonSet())
 
 	got := getDaemonSet(t, r, newRolloutTestDaemonSet())
@@ -149,13 +146,11 @@ func Test_ConfigMapRollout_ConfigMapChangeAndSpecChange_SingleUpdate(t *testing.
 	reconcileOnce(t, r, ddai, newRolloutTestDaemonSet())
 	firstVersion := getDaemonSet(t, r, newRolloutTestDaemonSet()).ResourceVersion
 
-	// Mutate the referenced ConfigMap...
 	liveCM := &corev1.ConfigMap{}
 	require.NoError(t, r.client.Get(context.Background(), types.NamespacedName{Name: "agent-custom-config", Namespace: "ns-1"}, liveCM))
 	liveCM.Data = map[string]string{"foo": "baz"}
 	require.NoError(t, r.client.Update(context.Background(), liveCM))
 
-	// ...AND make a direct spec change in the same reconcile pass.
 	dsWithSpecChange := newRolloutTestDaemonSet()
 	dsWithSpecChange.Spec.Template.Spec.Containers[0].Image = "agent:new-tag"
 
@@ -188,7 +183,8 @@ func newRolloutTestClusterAgentDeployment() *appsv1.Deployment {
 	}
 }
 
-func noopUpdateDepStatus(*appsv1.Deployment, *v1alpha1.DatadogAgentInternalStatus, metav1.Time, metav1.ConditionStatus, string, string) {}
+func noopUpdateDepStatus(*appsv1.Deployment, *v1alpha1.DatadogAgentInternalStatus, metav1.Time, metav1.ConditionStatus, string, string) {
+}
 
 func Test_ConfigMapRollout_ClusterAgent_ContentChange_TriggersUpdate(t *testing.T) {
 	cm := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "cluster-agent-custom-config", Namespace: "ns-1"}, Data: map[string]string{"foo": "bar"}}
