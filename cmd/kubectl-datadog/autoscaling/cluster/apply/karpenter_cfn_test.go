@@ -194,6 +194,63 @@ func TestKarpenterControllerPolicyNameLength(t *testing.T) {
 	}
 }
 
+// karpenterMigrationCriticalSids are the statements that must always remain
+// in KarpenterControllerPolicy (never move to KarpenterControllerPolicy2).
+//
+// On `update` of an existing installation, CloudFormation updates
+// KarpenterControllerPolicy's PolicyDocument in place — the role always has
+// *some* valid version of it, so statements that stay here are never
+// unavailable. KarpenterControllerPolicy2, by contrast, is a brand-new
+// resource that isn't attached to the controller role until the second
+// (mode-specific) stack update completes afterwards; any statement that
+// lives there is briefly unavailable during that window (see PR review
+// discussion on CASCL-1645: https://github.com/DataDog/datadog-operator/pull/3315#discussion_r3686163248).
+//
+// This set covers everything needed to keep provisioning nodes and
+// processing interruptions working throughout that window:
+//   - the three ec2:RunInstances/ec2:CreateFleet statements, which IAM
+//     evaluates together across every resource type touched by a single
+//     RunInstances call (image/snapshot/security-group/subnet/capacity-reservation,
+//     launch-template, and fleet/instance/volume/network-interface/spot-request) —
+//     losing any one of them would break node provisioning entirely, so they
+//     must move (or stay) together;
+//   - iam:PassRole, required by every RunInstances call;
+//   - the continuous ec2:Describe* reads used by every scheduling decision;
+//   - SQS interruption-queue processing.
+var karpenterMigrationCriticalSids = []string{
+	"AllowScopedEC2InstanceAccessActions",
+	"AllowScopedEC2LaunchTemplateAccessActions",
+	"AllowScopedEC2InstanceActionsWithTags",
+	"AllowPassingInstanceRole",
+	"AllowRegionalReadActions",
+	"AllowInterruptionQueueActions",
+}
+
+// TestKarpenterControllerPolicyMigrationSafety guards the upgrade-safety
+// property described above karpenterMigrationCriticalSids: none of those
+// statements may be moved into KarpenterControllerPolicy2, since doing so
+// would reintroduce a window (during `update` of a pre-existing install)
+// where Karpenter can neither provision nodes nor process interruption
+// events until the second CloudFormation stack update completes.
+func TestKarpenterControllerPolicyMigrationSafety(t *testing.T) {
+	policyBJSON := extractSubJSONBlock(t, KarpenterCfn, `ManagedPolicyName: !Sub "KarpenterControllerPolicy2-${ClusterName}"`)
+
+	var docB iamPolicyDocument
+	require.NoError(t, json.Unmarshal([]byte(policyBJSON), &docB), "KarpenterControllerPolicy2 PolicyDocument must be valid JSON")
+
+	inPolicy2 := make(map[string]bool, len(docB.Statement))
+	for _, s := range docB.Statement {
+		inPolicy2[s.Sid] = true
+	}
+
+	for _, sid := range karpenterMigrationCriticalSids {
+		assert.Falsef(t, inPolicy2[sid],
+			"%q must stay in KarpenterControllerPolicy, not KarpenterControllerPolicy2 — "+
+				"moving it would leave Karpenter unable to provision nodes or process interruptions "+
+				"during the window between the two CloudFormation stack updates on `update`", sid)
+	}
+}
+
 // TestKarpenterControllerPolicyReferencedByBothStacks asserts that both the
 // existing-nodes and Fargate mode-specific stacks attach *both*
 // KarpenterControllerPolicy and KarpenterControllerPolicy2 to their
