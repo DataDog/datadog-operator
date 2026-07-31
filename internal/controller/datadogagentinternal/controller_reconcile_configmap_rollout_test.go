@@ -89,7 +89,7 @@ func Test_ConfigMapRollout_FlagDisabled(t *testing.T) {
 	reconcileOnce(t, r, ddai, ds)
 
 	got := getDaemonSet(t, r, ds)
-	_, ok := got.Spec.Template.Annotations[constants.MD5ConfigMapsAnnotationKey]
+	_, ok := got.Spec.Template.Annotations[constants.ConfigMapsChecksumAnnotationKey]
 	assert.False(t, ok, "checksum annotation should never be added when the flag is disabled")
 }
 

@@ -7,6 +7,9 @@ package datadogagentinternal
 
 import (
 	"context"
+	"fmt"
+	"hash"
+	"hash/fnv"
 	"sort"
 
 	corev1 "k8s.io/api/core/v1"
@@ -15,14 +18,13 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/DataDog/datadog-operator/pkg/constants"
-	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 )
 
 // configMapContent excludes metadata (resourceVersion, labels, annotations) so
 // those changes don't affect the checksum.
 type configMapContent struct {
-	Data       map[string]string `json:"data,omitempty"`
-	BinaryData map[string][]byte `json:"binaryData,omitempty"`
+	Data       map[string]string
+	BinaryData map[string][]byte
 }
 
 // annotateConfigMapsChecksum hashes the content of ConfigMaps
@@ -55,28 +57,45 @@ func (r *Reconciler) annotateConfigMapsChecksum(ctx context.Context, namespace s
 		return nil
 	}
 
-	orderedNames := make([]string, 0, len(contents))
-	for name := range contents {
-		orderedNames = append(orderedNames, name)
-	}
-	sort.Strings(orderedNames)
-
-	ordered := make([]configMapContent, 0, len(orderedNames))
-	for _, name := range orderedNames {
-		ordered = append(ordered, contents[name])
-	}
-
-	hash, err := comparison.GenerateMD5ForSpec(ordered)
-	if err != nil {
-		return err
-	}
-
 	if podTmpl.Annotations == nil {
 		podTmpl.Annotations = map[string]string{}
 	}
-	podTmpl.Annotations[constants.MD5ConfigMapsAnnotationKey] = hash
+	podTmpl.Annotations[constants.ConfigMapsChecksumAnnotationKey] = hashConfigMapContents(contents)
 
 	return nil
+}
+
+// hashConfigMapContents hashes contents in sorted-name order, so the result
+// doesn't depend on map iteration order.
+func hashConfigMapContents(contents map[string]configMapContent) string {
+	names := make([]string, 0, len(contents))
+	for name := range contents {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	h := fnv.New64a()
+	for _, name := range names {
+		h.Write([]byte(name))
+		c := contents[name]
+		writeSortedMap(h, c.Data)
+		writeSortedMap(h, c.BinaryData)
+	}
+
+	return fmt.Sprintf("%016x", h.Sum64())
+}
+
+func writeSortedMap[V ~string | ~[]byte](h hash.Hash, m map[string]V) {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	for _, k := range keys {
+		h.Write([]byte(k))
+		h.Write([]byte(m[k]))
+	}
 }
 
 func referencedConfigMapNames(podTmpl *corev1.PodTemplateSpec) []string {

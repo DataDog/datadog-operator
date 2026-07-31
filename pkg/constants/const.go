@@ -73,10 +73,10 @@ const (
 	MD5AgentDeploymentAnnotationKey = "agent.datadoghq.com/agentspechash"
 	// MD5DDAIDeploymentAnnotationKey annotation key is used on a DatadogAgentInternal resource to identify if changes have been made to the spec.
 	MD5DDAIDeploymentAnnotationKey = "agent.datadoghq.com/ddaispechash"
-	// MD5ConfigMapsAnnotationKey annotation key is used to detect content changes in ConfigMaps referenced by a pod template's volumes
-	MD5ConfigMapsAnnotationKey = "agent.datadoghq.com/configmapshash"
 	// MD5ChecksumAnnotationKey annotation key is used to identify customConfig configurations
 	MD5ChecksumAnnotationKey = "checksum/%s-custom-config"
+	// ConfigMapsChecksumAnnotationKey annotation key is used to detect content changes in ConfigMaps referenced by a pod template's volumes
+	ConfigMapsChecksumAnnotationKey = "agent.datadoghq.com/configmapshash"
 )
 
 // Profiles

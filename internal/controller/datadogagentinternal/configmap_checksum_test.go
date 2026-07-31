@@ -19,7 +19,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"github.com/DataDog/datadog-operator/pkg/constants"
-	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 )
 
 func newChecksumTestReconciler(objs ...client.Object) *Reconciler {
@@ -52,9 +51,10 @@ func Test_annotateConfigMapsChecksum_SetsAnnotation(t *testing.T) {
 	err := r.annotateConfigMapsChecksum(context.Background(), "ns-1", podTmpl)
 	require.NoError(t, err)
 
-	wantHash, err := comparison.GenerateMD5ForSpec([]configMapContent{{Data: map[string]string{"foo": "bar"}}})
-	require.NoError(t, err)
-	assert.Equal(t, wantHash, podTmpl.Annotations[constants.MD5ConfigMapsAnnotationKey])
+	wantHash := hashConfigMapContents(map[string]configMapContent{
+		"my-config": {Data: map[string]string{"foo": "bar"}},
+	})
+	assert.Equal(t, wantHash, podTmpl.Annotations[constants.ConfigMapsChecksumAnnotationKey])
 }
 
 func Test_annotateConfigMapsChecksum_NoConfigMapVolumes(t *testing.T) {
@@ -66,7 +66,7 @@ func Test_annotateConfigMapsChecksum_NoConfigMapVolumes(t *testing.T) {
 	err := r.annotateConfigMapsChecksum(context.Background(), "ns-1", podTmpl)
 	require.NoError(t, err)
 
-	_, ok := podTmpl.Annotations[constants.MD5ConfigMapsAnnotationKey]
+	_, ok := podTmpl.Annotations[constants.ConfigMapsChecksumAnnotationKey]
 	assert.False(t, ok)
 }
 
@@ -79,7 +79,7 @@ func Test_annotateConfigMapsChecksum_MissingConfigMap(t *testing.T) {
 	err := r.annotateConfigMapsChecksum(context.Background(), "ns-1", podTmpl)
 	require.NoError(t, err)
 
-	_, ok := podTmpl.Annotations[constants.MD5ConfigMapsAnnotationKey]
+	_, ok := podTmpl.Annotations[constants.ConfigMapsChecksumAnnotationKey]
 	assert.False(t, ok)
 }
 
@@ -99,9 +99,28 @@ func Test_annotateConfigMapsChecksum_DeterministicOrdering(t *testing.T) {
 	require.NoError(t, r.annotateConfigMapsChecksum(context.Background(), "ns-1", podTmplBA))
 
 	assert.Equal(t,
-		podTmplAB.Annotations[constants.MD5ConfigMapsAnnotationKey],
-		podTmplBA.Annotations[constants.MD5ConfigMapsAnnotationKey],
+		podTmplAB.Annotations[constants.ConfigMapsChecksumAnnotationKey],
+		podTmplBA.Annotations[constants.ConfigMapsChecksumAnnotationKey],
 	)
+}
+
+func Test_hashConfigMapContents_Consistent(t *testing.T) {
+	contents := map[string]configMapContent{
+		"cm-a": {Data: map[string]string{"a": "1", "z": "26"}, BinaryData: map[string][]byte{"bin": {0, 1, 2}}},
+		"cm-b": {Data: map[string]string{"foo": "bar"}},
+		"cm-c": {BinaryData: map[string][]byte{"x": []byte("hello"), "y": []byte("world")}},
+	}
+
+	want := hashConfigMapContents(contents)
+	assert.Equal(t, want, hashConfigMapContents(contents))
+
+	// Rebuilding the same logical contents via different map insertion order must not change the hash.
+	rebuilt := map[string]configMapContent{}
+	rebuilt["cm-c"] = configMapContent{BinaryData: map[string][]byte{"y": []byte("world"), "x": []byte("hello")}}
+	rebuilt["cm-b"] = configMapContent{Data: map[string]string{"foo": "bar"}}
+	rebuilt["cm-a"] = configMapContent{Data: map[string]string{"z": "26", "a": "1"}, BinaryData: map[string][]byte{"bin": {0, 1, 2}}}
+
+	assert.Equal(t, want, hashConfigMapContents(rebuilt))
 }
 
 func Test_annotateConfigMapsChecksum_ContentChangeChangesHash(t *testing.T) {
@@ -119,7 +138,7 @@ func Test_annotateConfigMapsChecksum_ContentChangeChangesHash(t *testing.T) {
 	require.NoError(t, r2.annotateConfigMapsChecksum(context.Background(), "ns-1", podTmpl2))
 
 	assert.NotEqual(t,
-		podTmpl1.Annotations[constants.MD5ConfigMapsAnnotationKey],
-		podTmpl2.Annotations[constants.MD5ConfigMapsAnnotationKey],
+		podTmpl1.Annotations[constants.ConfigMapsChecksumAnnotationKey],
+		podTmpl2.Annotations[constants.ConfigMapsChecksumAnnotationKey],
 	)
 }
