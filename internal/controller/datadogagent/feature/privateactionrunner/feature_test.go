@@ -19,7 +19,6 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
@@ -149,10 +148,7 @@ func Test_privateActionRunnerFeature_ManageNodeAgent(t *testing.T) {
 	capabilities := managers.SecurityContextMgr.CapabilitiesByC[apicommon.PrivateActionRunnerContainerName]
 	assert.Contains(t, capabilities, corev1.Capability("NET_RAW"))
 
-	// Verify hash
-	assert.NotEmpty(t, managers.AnnotationMgr.Annotations)
-	assert.NotEmpty(t, managers.AnnotationMgr.Annotations["checksum/private_action_runner-custom-config"])
-	assert.Equal(t, "7aca0ab8a2cb083533a5552c17a50aa3", managers.AnnotationMgr.Annotations["checksum/private_action_runner-custom-config"])
+	assert.Empty(t, managers.AnnotationMgr.Annotations)
 }
 
 // Test_privateActionRunnerFeature_ProfileDDAI_ConfigMapNames verifies that when PAR is
@@ -214,7 +210,6 @@ func Test_privateActionRunnerFeature_ConfigMapContent(t *testing.T) {
 		annotations     map[string]string
 		expectConfigMap bool
 		expectedYAML    string
-		expectedHash    string
 	}{
 		{
 			name: "feature disabled",
@@ -230,7 +225,6 @@ func Test_privateActionRunnerFeature_ConfigMapContent(t *testing.T) {
 			},
 			expectConfigMap: true,
 			expectedYAML:    defaultConfigData,
-			expectedHash:    "57aedff9cb18bcec9b12a3974ef6fc55",
 		},
 		{
 			name: "enabled with configdata - passes through directly",
@@ -252,7 +246,6 @@ func Test_privateActionRunnerFeature_ConfigMapContent(t *testing.T) {
     actions_allowlist:
         - com.datadoghq.script.testConnection
         - com.datadoghq.script.enrichScript`,
-			expectedHash: "76f45ac891d62eb42272bbe26f32fb7c",
 		},
 	}
 
@@ -300,10 +293,7 @@ func Test_privateActionRunnerFeature_ConfigMapContent(t *testing.T) {
 			// Verify content matches expected
 			assert.Equal(t, tt.expectedYAML, yamlContent, "ConfigMap content should match expected output")
 
-			// Verify hash
-			assert.NotEmpty(t, configMap.Annotations)
-			assert.NotEmpty(t, configMap.Annotations["checksum/private_action_runner-custom-config"])
-			assert.Equal(t, tt.expectedHash, configMap.Annotations["checksum/private_action_runner-custom-config"])
+			assert.Empty(t, configMap.Annotations)
 		})
 	}
 }
@@ -591,11 +581,7 @@ func Test_privateActionRunnerFeature_ManageClusterAgent_ConfigMap(t *testing.T) 
 			}
 			assert.True(t, containerFound, "Cluster agent container should be found")
 
-			// Verify checksum annotation was added
-			annotations := managers.AnnotationMgr.Annotations
-			checksumKey := object.GetChecksumAnnotationKey(feature.PrivateActionRunnerIDType)
-			_, foundAnnotation := annotations[checksumKey]
-			assert.True(t, foundAnnotation, "Checksum annotation should be present")
+			assert.Empty(t, managers.AnnotationMgr.Annotations)
 		})
 	}
 }

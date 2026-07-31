@@ -26,7 +26,6 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/experimental"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
@@ -78,7 +77,6 @@ func addComponentDependencies(logger logr.Logger, ddaMeta metav1.Object, ddaSpec
 		for _, containerName := range rc.Containers {
 			if containerName == apicommon.SystemProbeContainerName {
 				var seccompConfigData map[string]string
-				useCustomSeccompConfigData := false
 
 				if componentOverride, ok := ddaSpec.Override[v2alpha1.NodeAgentComponentName]; ok {
 					if spContainer, ok := componentOverride.Containers[apicommon.SystemProbeContainerName]; ok {
@@ -89,7 +87,6 @@ func addComponentDependencies(logger logr.Logger, ddaMeta metav1.Object, ddaSpec
 							seccompConfigData = map[string]string{
 								common.SystemProbeSeccompKey: *spContainer.SeccompConfig.CustomProfile.ConfigData,
 							}
-							useCustomSeccompConfigData = true
 						}
 					}
 				}
@@ -104,15 +101,6 @@ func addComponentDependencies(logger logr.Logger, ddaMeta metav1.Object, ddaSpec
 						ddaMeta.GetNamespace(),
 						seccompConfigData,
 					)
-
-					if err == nil && useSystemProbeCustomSeccomp(ddaSpec) && useCustomSeccompConfigData {
-						// Add checksum annotation to the configMap
-						if seccompCM, ok := manager.Store().Get(kubernetes.ConfigMapKind, ddaMeta.GetNamespace(), common.GetDefaultSeccompConfigMapName(ddaMeta)); ok {
-							configHash, _ := comparison.GenerateMD5ForSpec(seccompConfigData)
-							annotations := object.MergeAnnotationsLabels(logger, seccompCM.GetAnnotations(), map[string]string{object.GetChecksumAnnotationKey(common.SystemProbeSeccompKey): configHash}, "*")
-							seccompCM.SetAnnotations(annotations)
-						}
-					}
 					errs = append(errs, err)
 				}
 			}
