@@ -66,12 +66,13 @@ const (
 
 // ReconcilerOptions provides options read from command line
 type ReconcilerOptions struct {
-	ExtendedDaemonsetOptions componentagent.ExtendedDaemonsetOptions
-	SupportCilium            bool
-	OperatorMetricsEnabled   bool
-	UntaintControllerEnabled bool
-	DatadogCSIDriverEnabled  bool
-	APIReader                client.Reader
+	ExtendedDaemonsetOptions        componentagent.ExtendedDaemonsetOptions
+	SupportCilium                   bool
+	OperatorMetricsEnabled          bool
+	UntaintControllerEnabled        bool
+	DatadogCSIDriverEnabled         bool
+	RolloutOnConfigMapChangeEnabled bool
+	APIReader                       client.Reader
 }
 
 // Reconciler is the internal reconciler for Datadog Agent

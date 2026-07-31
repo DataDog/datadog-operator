@@ -133,6 +133,13 @@ func (r *Reconciler) reconcileV2Agent(ctx context.Context, requiredComponents fe
 		if handled, migrationResult, err := r.migrateDaemonSetToExtendedDaemonSet(ctx, ddai, eds, newStatus); handled || err != nil {
 			return migrationResult, err
 		}
+
+		if r.options.RolloutOnConfigMapChangeEnabled {
+			if err := r.annotateConfigMapsChecksum(ctx, ddai.Namespace, &eds.Spec.Template); err != nil {
+				return result, err
+			}
+		}
+
 		return r.createOrUpdateExtendedDaemonset(ctx, ddai, eds, newStatus, updateEDSStatusV2WithAgent)
 	}
 
@@ -295,6 +302,13 @@ func (r *Reconciler) reconcileV2Agent(ctx context.Context, requiredComponents fe
 	if handled, migrationResult, err := r.migrateExtendedDaemonSetToDaemonSet(ctx, ddai, daemonset, newStatus); handled || err != nil {
 		return migrationResult, err
 	}
+
+	if r.options.RolloutOnConfigMapChangeEnabled {
+		if err := r.annotateConfigMapsChecksum(ctx, ddai.Namespace, &daemonset.Spec.Template); err != nil {
+			return result, err
+		}
+	}
+
 	return r.createOrUpdateDaemonset(ctx, ddai, daemonset, newStatus, updateDSStatusV2WithAgent)
 }
 
