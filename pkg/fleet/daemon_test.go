@@ -16,6 +16,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
+	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -23,7 +24,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
+	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	v2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 // --- Test helpers ---
@@ -31,14 +34,18 @@ import (
 func testFleetScheme() *runtime.Scheme {
 	s := runtime.NewScheme()
 	_ = v2alpha1.AddToScheme(s)
+	_ = appsv1.AddToScheme(s)
 	return s
 }
 
-func testDaemon(dda *v2alpha1.DatadogAgent, configs map[string]installerConfig) (*Daemon, client.Client) {
+func testDaemon(dda *v2alpha1.DatadogAgent, configs map[string]installerConfig, extraObjs ...client.Object) (*Daemon, client.Client) {
 	s := testFleetScheme()
 	b := fake.NewClientBuilder().WithScheme(s).WithStatusSubresource(&v2alpha1.DatadogAgent{})
 	if dda != nil {
 		b = b.WithObjects(dda)
+	}
+	if len(extraObjs) > 0 {
+		b = b.WithObjects(extraObjs...)
 	}
 	c := b.Build()
 	return &Daemon{
@@ -60,11 +67,14 @@ var testDDANSN = types.NamespacedName{Namespace: "datadog", Name: "datadog-agent
 
 const testExperimentID = "test-config"
 
+const testDDAUID = types.UID("test-dda-uid")
+
 func testDDAObject(phase v2alpha1.ExperimentPhase) *v2alpha1.DatadogAgent {
 	dda := &v2alpha1.DatadogAgent{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      testDDANSN.Name,
 			Namespace: testDDANSN.Namespace,
+			UID:       testDDAUID,
 		},
 	}
 	if phase != "" {
@@ -132,6 +142,22 @@ func testInstallerConfigWithDDA() map[string]installerConfig {
 					Operation: OperationUpdate,
 					Config:    json.RawMessage(`{}`),
 				},
+			},
+		},
+	}
+}
+
+// testControllerRevisionForDDA builds a ControllerRevision owned by dda, as if
+// the operator had already reconciled it once.
+func testControllerRevisionForDDA(dda *v2alpha1.DatadogAgent) *appsv1.ControllerRevision {
+	isController := true
+	return &appsv1.ControllerRevision{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      dda.Name + "-baseline",
+			Namespace: dda.Namespace,
+			Labels:    map[string]string{apicommon.DatadogAgentNameLabelKey: dda.Name},
+			OwnerReferences: []metav1.OwnerReference{
+				{UID: dda.UID, Controller: &isController},
 			},
 		},
 	}
@@ -808,6 +834,291 @@ func TestBuildSignalPatch_WithoutConfig(t *testing.T) {
 	annotations := metadata["annotations"].(map[string]interface{})
 	assert.Equal(t, v2alpha1.ExperimentSignalRollback, annotations[v2alpha1.AnnotationExperimentSignal])
 	assert.Equal(t, "exp-123", annotations[v2alpha1.AnnotationExperimentID])
+}
+
+// --- operation:replace tests ---
+
+func testReplaceConfig(spec string) map[string]installerConfig {
+	return map[string]installerConfig{
+		"test-config": {
+			ID: "test-config",
+			Operations: []fleetManagementOperation{
+				{
+					Operation: OperationReplace,
+					Config:    json.RawMessage(`{"spec":` + spec + `}`),
+				},
+			},
+		},
+	}
+}
+
+func TestResolveOperation_Replace_RejectsMissingSpec(t *testing.T) {
+	d, _ := testDaemon(testDDAObject(""), map[string]installerConfig{
+		"test-config": {
+			ID: "test-config",
+			Operations: []fleetManagementOperation{
+				{Operation: OperationReplace, Config: json.RawMessage(`{"other":{}}`)},
+			},
+		},
+	})
+	err := syncTaskErr(d.startDatadogAgentExperiment(context.Background(), testStartRequest()))
+	assert.ErrorContains(t, err, `"spec" key`)
+}
+
+func TestResolveOperation_Replace_RejectsEmptySpec(t *testing.T) {
+	d, _ := testDaemon(testDDAObject(""), testReplaceConfig(`{}`))
+	err := syncTaskErr(d.startDatadogAgentExperiment(context.Background(), testStartRequest()))
+	assert.ErrorContains(t, err, "must not be empty")
+}
+
+func TestResolveOperation_Replace_RejectsWhitespaceOnlyEmptySpec(t *testing.T) {
+	// A spec that is empty modulo whitespace must be rejected the same way as
+	// "{}" — this used to bypass validation because the old check compared
+	// against the literal string "{}".
+	d, _ := testDaemon(testDDAObject(""), testReplaceConfig(`{   }`))
+	err := syncTaskErr(d.startDatadogAgentExperiment(context.Background(), testStartRequest()))
+	assert.ErrorContains(t, err, "must not be empty")
+}
+
+func TestResolveOperation_Replace_AllowsNonObjectSpec(t *testing.T) {
+	// extractReplaceSpec only rejects an empty spec; it doesn't type-check
+	// "spec" beyond that. The API server rejects a malformed spec on its own.
+	d, _ := testDaemon(testDDAObject(""), testReplaceConfig(`"not-an-object"`))
+	op, err := d.resolveOperation(testStartRequest(), signalStartDatadogAgentExperiment)
+	require.NoError(t, err)
+	assert.Equal(t, OperationReplace, op.Operation)
+}
+
+func TestResolveOperation_Replace_AllowsExtraTopLevelKeys(t *testing.T) {
+	// Extra top-level keys (e.g. "metadata") are ignored — only "spec" is used.
+	d, _ := testDaemon(testDDAObject(""), map[string]installerConfig{
+		"test-config": {
+			ID: "test-config",
+			Operations: []fleetManagementOperation{
+				{
+					Operation: OperationReplace,
+					Config:    json.RawMessage(`{"spec":{"features":{}},"metadata":{"annotations":{"a":"b"}}}`),
+				},
+			},
+		},
+	})
+	op, err := d.resolveOperation(testStartRequest(), signalStartDatadogAgentExperiment)
+	require.NoError(t, err)
+	assert.Equal(t, OperationReplace, op.Operation)
+}
+
+func TestBuildReplaceSignalPatch_Shape(t *testing.T) {
+	spec := json.RawMessage(`{"features":{"apm":{"enabled":true}}}`)
+	rawOps := buildReplaceSignalPatch(v2alpha1.ExperimentSignalStart, "exp-123", spec, false)
+	patch, err := json.Marshal(rawOps)
+	require.NoError(t, err)
+
+	var ops []map[string]any
+	require.NoError(t, json.Unmarshal(patch, &ops))
+
+	// bootstrapAnnotations=false: just spec + signal + experimentID.
+	require.Len(t, ops, 3)
+
+	// Replace uses no merging, so every op is an "add".
+	for _, op := range ops {
+		assert.Equal(t, "add", op["op"])
+	}
+
+	specOp := ops[0]
+	assert.Equal(t, "/spec", specOp["path"])
+	assert.Equal(t, map[string]any{"features": map[string]any{"apm": map[string]any{"enabled": true}}}, specOp["value"])
+
+	assert.Equal(t, "/metadata/annotations/"+kubernetes.JSONPointerEscape(v2alpha1.AnnotationExperimentSignal), ops[1]["path"])
+	assert.Equal(t, v2alpha1.ExperimentSignalStart, ops[1]["value"])
+	assert.Equal(t, "/metadata/annotations/"+kubernetes.JSONPointerEscape(v2alpha1.AnnotationExperimentID), ops[2]["path"])
+	assert.Equal(t, "exp-123", ops[2]["value"])
+}
+
+func TestBuildReplaceSignalPatch_BootstrapsAnnotations(t *testing.T) {
+	rawOps := buildReplaceSignalPatch(v2alpha1.ExperimentSignalStart, "exp-123", json.RawMessage(`{"features":{}}`), true)
+	patch, err := json.Marshal(rawOps)
+	require.NoError(t, err)
+
+	var ops []map[string]any
+	require.NoError(t, json.Unmarshal(patch, &ops))
+	require.Len(t, ops, 5)
+
+	// "test" checks annotations are still absent before "add" creates them.
+	assert.Equal(t, "test", ops[0]["op"])
+	assert.Equal(t, "/metadata/annotations", ops[0]["path"])
+	assert.Nil(t, ops[0]["value"])
+
+	assert.Equal(t, "add", ops[1]["op"])
+	assert.Equal(t, "/metadata/annotations", ops[1]["path"])
+	assert.Equal(t, map[string]any{}, ops[1]["value"])
+}
+
+func TestInjectPendingAnnotations_JSONPatch(t *testing.T) {
+	base := buildReplaceSignalPatch(v2alpha1.ExperimentSignalStart, "exp-123", json.RawMessage(`{"features":{}}`), false)
+	pending := &pendingOperation{taskID: "task-1", intent: pendingIntentStart, experimentID: "exp-123", packageName: "datadog-operator"}
+
+	patch, err := injectPendingAnnotations(jsonPatch(base), pending)
+	require.NoError(t, err)
+
+	var ops []map[string]any
+	require.NoError(t, json.Unmarshal(patch, &ops))
+	// 3 base ops (spec, signal, experimentID) + 4 pending annotation ops +
+	// 1 resultVersion op (written even though it's empty here).
+	require.Len(t, ops, 8)
+
+	for _, op := range ops {
+		assert.Equal(t, "add", op["op"])
+	}
+
+	found := false
+	for _, op := range ops {
+		if op["path"] == "/metadata/annotations/"+kubernetes.JSONPointerEscape(v2alpha1.AnnotationPendingTaskID) {
+			found = true
+			assert.Equal(t, "task-1", op["value"])
+		}
+	}
+	assert.True(t, found, "expected an op for the pending-task-id annotation")
+
+	foundResultVersion := false
+	for _, op := range ops {
+		if op["path"] == "/metadata/annotations/"+kubernetes.JSONPointerEscape(v2alpha1.AnnotationPendingResultVersion) {
+			foundResultVersion = true
+			assert.Equal(t, "", op["value"])
+		}
+	}
+	assert.True(t, foundResultVersion, "expected a resultVersion op even when resultVersion is unset, to clear any stale value")
+}
+
+func TestInjectPendingAnnotations_JSONPatch_WithResultVersion(t *testing.T) {
+	pending := &pendingOperation{taskID: "task-1", intent: pendingIntentPromote, experimentID: "exp-123", packageName: "datadog-operator", resultVersion: "stable-2"}
+
+	patch, err := injectPendingAnnotations(jsonPatch(nil), pending)
+	require.NoError(t, err)
+
+	var ops []map[string]any
+	require.NoError(t, json.Unmarshal(patch, &ops))
+
+	found := false
+	for _, op := range ops {
+		if op["path"] == "/metadata/annotations/"+kubernetes.JSONPointerEscape(v2alpha1.AnnotationPendingResultVersion) {
+			found = true
+			assert.Equal(t, "stable-2", op["value"])
+		}
+	}
+	assert.True(t, found, "expected an op for the pending-result-version annotation")
+}
+
+func TestInjectPendingAnnotations_MergePatch(t *testing.T) {
+	pending := &pendingOperation{taskID: "task-1", intent: pendingIntentStart, experimentID: "exp-123", packageName: "datadog-operator"}
+
+	patch, err := injectPendingAnnotations(mergePatch(nil), pending)
+	require.NoError(t, err)
+
+	var patchMap map[string]any
+	require.NoError(t, json.Unmarshal(patch, &patchMap))
+	annotations := patchMap["metadata"].(map[string]any)["annotations"].(map[string]any)
+	assert.Equal(t, "task-1", annotations[v2alpha1.AnnotationPendingTaskID])
+	// Unset result version is written as an explicit null so the merge patch clears any stale value.
+	assert.Nil(t, annotations[v2alpha1.AnnotationPendingResultVersion])
+}
+
+func TestInjectPendingAnnotations_UnsupportedPatchType(t *testing.T) {
+	pending := &pendingOperation{taskID: "task-1", intent: pendingIntentStart, experimentID: "exp-123", packageName: "datadog-operator"}
+
+	_, err := injectPendingAnnotations(signalPatch{Type: types.StrategicMergePatchType}, pending)
+	assert.ErrorContains(t, err, "unsupported patch type")
+}
+
+func TestStartDatadogAgentExperiment_Replace_Success(t *testing.T) {
+	seedDDA := testDDAObject("")
+	d, c := testDaemon(seedDDA, testReplaceConfig(`{"features":{"apm":{"enabled":true}}}`), testControllerRevisionForDDA(seedDDA))
+	req := testStartRequest()
+	requireStartQueued(t, d, req)
+
+	dda := &v2alpha1.DatadogAgent{}
+	require.NoError(t, c.Get(context.Background(), testDDANSN, dda))
+	require.NotNil(t, dda.Spec.Features)
+	require.NotNil(t, dda.Spec.Features.APM)
+	require.NotNil(t, dda.Spec.Features.APM.Enabled)
+	assert.True(t, *dda.Spec.Features.APM.Enabled)
+
+	assert.Equal(t, req.Params.Version, dda.Annotations[v2alpha1.AnnotationExperimentID])
+	assert.Equal(t, v2alpha1.ExperimentSignalStart, dda.Annotations[v2alpha1.AnnotationExperimentSignal])
+	assert.Equal(t, req.ID, dda.Annotations[v2alpha1.AnnotationPendingTaskID])
+	assert.Equal(t, string(pendingIntentStart), dda.Annotations[v2alpha1.AnnotationPendingAction])
+	assert.Equal(t, req.Params.Version, dda.Annotations[v2alpha1.AnnotationPendingExperimentID])
+	assert.Equal(t, req.Package, dda.Annotations[v2alpha1.AnnotationPendingPackage])
+}
+
+func TestStartDatadogAgentExperiment_Replace_NoBaselineRevision(t *testing.T) {
+	// Without a ControllerRevision, the operator has never reconciled this DDA:
+	// a replace has nothing to roll back to if the experiment is later stopped.
+	d, _ := testDaemon(testDDAObject(""), testReplaceConfig(`{"features":{"apm":{"enabled":true}}}`))
+	_, err := d.startDatadogAgentExperiment(context.Background(), testStartRequest())
+	assert.ErrorContains(t, err, "no baseline ControllerRevision")
+}
+
+func TestStartDatadogAgentExperiment_Replace_WholesaleReplacesSpec(t *testing.T) {
+	dda := testDDAObject("")
+	clusterName := "old-cluster"
+	dda.Spec.Global = &v2alpha1.GlobalConfig{ClusterName: &clusterName}
+	d, c := testDaemon(dda, testReplaceConfig(`{"features":{"apm":{"enabled":true}}}`), testControllerRevisionForDDA(dda))
+
+	requireStartQueued(t, d, testStartRequest())
+
+	got := &v2alpha1.DatadogAgent{}
+	require.NoError(t, c.Get(context.Background(), testDDANSN, got))
+	// The new config's spec has no "global" key — a merge would have kept the old
+	// Global config, but replace must wipe it since the whole spec is replaced.
+	assert.Nil(t, got.Spec.Global)
+	require.NotNil(t, got.Spec.Features)
+	require.NotNil(t, got.Spec.Features.APM)
+	assert.True(t, *got.Spec.Features.APM.Enabled)
+}
+
+func TestStartDatadogAgentExperiment_Replace_BootstrapsAnnotations(t *testing.T) {
+	dda := testDDAObject("")
+	dda.Annotations = nil
+	d, c := testDaemon(dda, testReplaceConfig(`{"features":{"apm":{"enabled":true}}}`), testControllerRevisionForDDA(dda))
+	req := testStartRequest()
+	requireStartQueued(t, d, req)
+
+	got := &v2alpha1.DatadogAgent{}
+	require.NoError(t, c.Get(context.Background(), testDDANSN, got))
+	assert.Equal(t, req.Params.Version, got.Annotations[v2alpha1.AnnotationExperimentID])
+}
+
+func TestStopDatadogAgentExperiment_AfterReplace(t *testing.T) {
+	// Stop/rollback always uses the merge-patch signal path regardless of how the
+	// experiment was started; replace only changes how the start patch is built.
+	dda := testDDAObject(v2alpha1.ExperimentPhaseRunning)
+	dda.Spec.Features = &v2alpha1.DatadogFeatures{APM: &v2alpha1.APMFeatureConfig{Enabled: proto.Bool(true)}}
+	d, c := testDaemon(dda, testReplaceConfig(`{"features":{"apm":{"enabled":true}}}`))
+	requireStopQueued(t, d, testStopRequest())
+
+	got := &v2alpha1.DatadogAgent{}
+	require.NoError(t, c.Get(context.Background(), testDDANSN, got))
+	// Stop only writes the rollback signal; the replaced spec must not be touched.
+	require.NotNil(t, got.Spec.Features)
+	require.NotNil(t, got.Spec.Features.APM)
+	assert.True(t, *got.Spec.Features.APM.Enabled)
+}
+
+func TestPromoteDatadogAgentExperiment_AfterReplace(t *testing.T) {
+	dda := testDDAObject(v2alpha1.ExperimentPhaseRunning)
+	dda.Spec.Features = &v2alpha1.DatadogFeatures{APM: &v2alpha1.APMFeatureConfig{Enabled: proto.Bool(true)}}
+	d, c := testDaemon(dda, testReplaceConfig(`{"features":{"apm":{"enabled":true}}}`))
+	d.rcClient = &mockRCClient{state: []*pbgo.PackageState{
+		{Package: "datadog-operator", StableConfigVersion: "stable-1", ExperimentConfigVersion: testExperimentID},
+	}}
+	requirePromoteQueued(t, d, testPromoteRequest())
+
+	got := &v2alpha1.DatadogAgent{}
+	require.NoError(t, c.Get(context.Background(), testDDANSN, got))
+	// Promote only writes the promote signal; the replaced spec must not be touched.
+	require.NotNil(t, got.Spec.Features)
+	require.NotNil(t, got.Spec.Features.APM)
+	assert.True(t, *got.Spec.Features.APM.Enabled)
 }
 
 // --- Start idempotency with annotations already applied ---

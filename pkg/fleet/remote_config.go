@@ -26,13 +26,16 @@ type installerConfig struct {
 type Operation string
 
 const (
-	OperationCreate Operation = "create"
-	OperationUpdate Operation = "update"
-	OperationDelete Operation = "delete"
+	OperationCreate  Operation = "create"
+	OperationUpdate  Operation = "update"
+	OperationDelete  Operation = "delete"
+	OperationReplace Operation = "replace"
 )
 
 // fleetManagementOperation is a single fleet operation for config management of a Kubernetes resource.
-// Config is a JSON merge patch (no strategic merge patch).
+// For OperationUpdate, Config is a JSON merge patch (no strategic merge patch) applied to the resource.
+// For OperationReplace, Config must contain a "spec" key, whose value wholly replaces the
+// resource's spec (no merging); other top-level keys are ignored.
 type fleetManagementOperation struct {
 	Operation Operation       `json:"operation"`
 	Config    json.RawMessage `json:"config"`
