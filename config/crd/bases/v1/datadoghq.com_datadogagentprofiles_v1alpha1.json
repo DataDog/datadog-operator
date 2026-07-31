@@ -1401,6 +1401,10 @@
                         "enabled": {
                           "description": "Enabled enables Security Profiles collection for Cloud Workload Security.\nDefault: true",
                           "type": "boolean"
+                        },
+                        "v2": {
+                          "description": "V2 enables Activity Dump v2 Security Profiles collection for Cloud Workload Security.\nRequires Agent version \u003e= 7.81.0. On older or unidentifiable Agent images (e.g. digest-pinned\nor custom tags) this is disabled to avoid unbounded memory usage.\nDefault: true",
+                          "type": "boolean"
                         }
                       },
                       "type": "object"
