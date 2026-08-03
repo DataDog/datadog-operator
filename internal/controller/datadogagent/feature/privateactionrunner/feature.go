@@ -17,10 +17,8 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
 	"github.com/DataDog/datadog-operator/pkg/constants"
-	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
@@ -124,19 +122,11 @@ func (f *privateActionRunnerFeature) Configure(dda metav1.Object, ddaSpec *v2alp
 func (f *privateActionRunnerFeature) ManageDependencies(managers feature.ResourceManagers) error {
 	// Handle Node Agent dependencies (ConfigMap for annotation-based config)
 	if f.nodeEnabled {
-		checksumKey, checksumValue, err := checksumAnnotation(f.nodeConfigData)
-		if err != nil {
-			return err
-		}
-
 		// Create ConfigMap with the config content (either from annotation or default)
 		cm := &corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      f.getConfigMapName(),
 				Namespace: f.owner.GetNamespace(),
-				Annotations: map[string]string{
-					checksumKey: checksumValue,
-				},
 			},
 			Data: map[string]string{
 				privateActionRunnerFileName: f.nodeConfigData,
@@ -150,19 +140,11 @@ func (f *privateActionRunnerFeature) ManageDependencies(managers feature.Resourc
 
 	// Handle Cluster Agent dependencies (ConfigMap for config and RBAC for secret access)
 	if f.clusterConfig != nil && f.clusterConfig.Enabled {
-		checksumKey, checksumValue, err := checksumAnnotation(f.clusterConfigData)
-		if err != nil {
-			return err
-		}
-
 		// Create ConfigMap with the config content (either from annotation or default)
 		cm := &corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      f.getClusterAgentConfigMapName(),
 				Namespace: f.owner.GetNamespace(),
-				Annotations: map[string]string{
-					checksumKey: checksumValue,
-				},
 			},
 			Data: map[string]string{
 				privateActionRunnerFileName: f.clusterConfigData,
@@ -254,13 +236,6 @@ func (f *privateActionRunnerFeature) ManageClusterAgent(managers feature.PodTemp
 		}
 	}
 
-	// Add checksum annotation to force pod restart on config changes
-	checksumKey, checksumValue, err := checksumAnnotation(f.clusterConfigData)
-	if err != nil {
-		return err
-	}
-	managers.Annotation().AddAnnotation(checksumKey, checksumValue)
-
 	return nil
 }
 
@@ -286,12 +261,6 @@ func (f *privateActionRunnerFeature) ManageNodeAgent(managers feature.PodTemplat
 		ReadOnly:  true,
 	}
 	managers.VolumeMount().AddVolumeMountToContainer(&volMount, apicommon.PrivateActionRunnerContainerName)
-
-	checksumKey, checksumValue, err := checksumAnnotation(f.nodeConfigData)
-	if err != nil {
-		return err
-	}
-	managers.Annotation().AddAnnotation(checksumKey, checksumValue)
 
 	// procdir volume mount
 	procdirVol, procdirVolMount := volume.GetVolumes(common.ProcdirVolumeName, common.ProcdirHostPath, common.ProcdirMountPath, true)
@@ -333,12 +302,4 @@ func (f *privateActionRunnerFeature) ManageClusterChecksRunner(managers feature.
 func (f *privateActionRunnerFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers) error {
 	// Private Action Runner doesn't run in OTel Agent Gateway
 	return nil
-}
-
-func checksumAnnotation(configData string) (string, string, error) {
-	checksum, err := comparison.GenerateMD5ForSpec(configData)
-	if err != nil {
-		return "", "", fmt.Errorf("failed to generate MD5 for Private Action Runner config: %w", err)
-	}
-	return object.GetChecksumAnnotationKey(feature.PrivateActionRunnerIDType), checksum, nil
 }
