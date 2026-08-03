@@ -15,4 +15,8 @@ const (
 	hostVarLogVolumeName = "host-varlog"
 	hostVarLogHostPath   = "/var/log"
 	hostVarLogMountPath  = "/host/var/log"
+
+	hostMachineIDVolumeName = "host-machine-id"
+	hostMachineIDHostPath   = "/etc/machine-id"
+	hostMachineIDMountPath  = "/host/etc/machine-id"
 )

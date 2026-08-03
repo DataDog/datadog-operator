@@ -273,9 +273,19 @@ func (f *privateActionRunnerFeature) ManageNodeAgent(managers feature.PodTemplat
 	managers.VolumeMount().AddVolumeMountToContainer(&osReleaseVolMount, apicommon.PrivateActionRunnerContainerName)
 
 	// host var log volume mount
-	varLogVol, varLogVolMount := volume.GetVolumes(hostVarLogVolumeName, hostVarLogHostPath, hostVarLogMountPath, true)
+	varLogVol, varLogVolMount := volume.GetVolumes(hostVarLogVolumeName, hostVarLogHostPath, hostVarLogMountPath, false)
 	managers.Volume().AddVolume(&varLogVol)
 	managers.VolumeMount().AddVolumeMountToContainer(&varLogVolMount, apicommon.PrivateActionRunnerContainerName)
+
+	// host run volume mount
+	hostRunVol, hostRunVolMount := volume.GetVolumes(common.HostRunVolumeName, common.HostRunPath, common.HostRunMountPath, false)
+	managers.Volume().AddVolume(&hostRunVol)
+	managers.VolumeMount().AddVolumeMountToContainer(&hostRunVolMount, apicommon.PrivateActionRunnerContainerName)
+
+	// host machine ID volume mount
+	machineIDVol, machineIDVolMount := volume.GetVolumes(hostMachineIDVolumeName, hostMachineIDHostPath, hostMachineIDMountPath, true)
+	managers.Volume().AddVolume(&machineIDVol)
+	managers.VolumeMount().AddVolumeMountToContainer(&machineIDVolMount, apicommon.PrivateActionRunnerContainerName)
 
 	// Add NET_RAW capability for network operations
 	managers.SecurityContext().AddCapabilitiesToContainer(
