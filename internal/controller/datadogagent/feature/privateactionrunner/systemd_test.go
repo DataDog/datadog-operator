@@ -17,6 +17,7 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
+	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 )
 
 func TestSystemdHostConfigFromAnnotations(t *testing.T) {
@@ -55,13 +56,13 @@ func TestSystemdHostConfigFromAnnotations(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			annotations := map[string]string{}
 			if tt.enabled != "" {
-				annotations[systemdEnabledAnnotation] = tt.enabled
+				annotations[featureutils.EnablePrivateActionRunnerSystemdAnnotation] = tt.enabled
 			}
 			if tt.storage != "" {
-				annotations[systemdJournalStorageAnnotation] = tt.storage
+				annotations[featureutils.PrivateActionRunnerSystemdJournalStorageAnnotation] = tt.storage
 			}
 			if tt.vacuum != "" {
-				annotations[systemdJournalVacuumEnabledAnnotation] = tt.vacuum
+				annotations[featureutils.EnablePrivateActionRunnerSystemdJournalVacuumAnnotation] = tt.vacuum
 			}
 
 			got, err := systemdHostConfigFromAnnotations(annotations)
@@ -139,11 +140,11 @@ func TestSystemdHostConfigAddVolumeMounts(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			annotations := map[string]string{}
 			if tt.storage != "" {
-				annotations[systemdEnabledAnnotation] = "true"
-				annotations[systemdJournalStorageAnnotation] = tt.storage
+				annotations[featureutils.EnablePrivateActionRunnerSystemdAnnotation] = "true"
+				annotations[featureutils.PrivateActionRunnerSystemdJournalStorageAnnotation] = tt.storage
 			}
 			if tt.vacuum {
-				annotations[systemdJournalVacuumEnabledAnnotation] = "true"
+				annotations[featureutils.EnablePrivateActionRunnerSystemdJournalVacuumAnnotation] = "true"
 			}
 			config, err := systemdHostConfigFromAnnotations(annotations)
 			require.NoError(t, err)
@@ -189,10 +190,10 @@ func TestSystemdHostConfigAddVolumeMounts(t *testing.T) {
 
 func TestManageNodeAgentAddsConfiguredSystemdMounts(t *testing.T) {
 	managers, err := manageNodeAgent(t, map[string]string{
-		"agent.datadoghq.com/private-action-runner-enabled": "true",
-		systemdEnabledAnnotation:                            "true",
-		systemdJournalStorageAnnotation:                     systemdJournalStoragePersistent,
-		systemdJournalVacuumEnabledAnnotation:               "true",
+		featureutils.EnablePrivateActionRunnerAnnotation:                     "true",
+		featureutils.EnablePrivateActionRunnerSystemdAnnotation:              "true",
+		featureutils.PrivateActionRunnerSystemdJournalStorageAnnotation:      systemdJournalStoragePersistent,
+		featureutils.EnablePrivateActionRunnerSystemdJournalVacuumAnnotation: "true",
 	})
 	require.NoError(t, err)
 
@@ -207,10 +208,10 @@ func TestManageNodeAgentAddsConfiguredSystemdMounts(t *testing.T) {
 
 func TestManageNodeAgentRejectsInvalidSystemdConfigBeforeMutation(t *testing.T) {
 	managers, err := manageNodeAgent(t, map[string]string{
-		"agent.datadoghq.com/private-action-runner-enabled": "true",
-		systemdEnabledAnnotation:                            "true",
+		featureutils.EnablePrivateActionRunnerAnnotation:        "true",
+		featureutils.EnablePrivateActionRunnerSystemdAnnotation: "true",
 	})
-	require.ErrorContains(t, err, systemdJournalStorageAnnotation)
+	require.ErrorContains(t, err, featureutils.PrivateActionRunnerSystemdJournalStorageAnnotation)
 	assert.Empty(t, managers.VolumeMgr.Volumes)
 	assert.Empty(t, managers.VolumeMountMgr.VolumeMountsByC)
 }

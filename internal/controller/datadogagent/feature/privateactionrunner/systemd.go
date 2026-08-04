@@ -12,14 +12,11 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
 )
 
 const (
-	systemdEnabledAnnotation              = "agent.datadoghq.com/private-action-runner-systemd-enabled"
-	systemdJournalStorageAnnotation       = "agent.datadoghq.com/private-action-runner-systemd-journal-storage"
-	systemdJournalVacuumEnabledAnnotation = "agent.datadoghq.com/private-action-runner-systemd-journal-vacuum-enabled"
-
 	systemdJournalStoragePersistent = "persistent"
 	systemdJournalStorageVolatile   = "volatile"
 	systemdJournalStorageBoth       = "both"
@@ -31,33 +28,33 @@ type systemdHostConfig struct {
 }
 
 func systemdHostConfigFromAnnotations(annotations map[string]string) (systemdHostConfig, error) {
-	enabled, err := strictBoolAnnotation(annotations, systemdEnabledAnnotation)
+	enabled, err := strictBoolAnnotation(annotations, featureutils.EnablePrivateActionRunnerSystemdAnnotation)
 	if err != nil {
 		return systemdHostConfig{}, err
 	}
 
-	vacuumEnabled, err := strictBoolAnnotation(annotations, systemdJournalVacuumEnabledAnnotation)
+	vacuumEnabled, err := strictBoolAnnotation(annotations, featureutils.EnablePrivateActionRunnerSystemdJournalVacuumAnnotation)
 	if err != nil {
 		return systemdHostConfig{}, err
 	}
 
-	storage, storageSet := annotations[systemdJournalStorageAnnotation]
+	storage, storageSet := annotations[featureutils.PrivateActionRunnerSystemdJournalStorageAnnotation]
 	if !enabled {
 		if storageSet || vacuumEnabled {
-			return systemdHostConfig{}, fmt.Errorf("annotation %q must be true when configuring systemd journal access", systemdEnabledAnnotation)
+			return systemdHostConfig{}, fmt.Errorf("annotation %q must be true when configuring systemd journal access", featureutils.EnablePrivateActionRunnerSystemdAnnotation)
 		}
 		return systemdHostConfig{}, nil
 	}
 
 	if !storageSet || storage == "" {
-		return systemdHostConfig{}, fmt.Errorf("annotation %q is required when %q is true", systemdJournalStorageAnnotation, systemdEnabledAnnotation)
+		return systemdHostConfig{}, fmt.Errorf("annotation %q is required when %q is true", featureutils.PrivateActionRunnerSystemdJournalStorageAnnotation, featureutils.EnablePrivateActionRunnerSystemdAnnotation)
 	}
 
 	switch storage {
 	case systemdJournalStoragePersistent, systemdJournalStorageVolatile, systemdJournalStorageBoth:
 		return systemdHostConfig{journalStorage: storage, journalVacuumEnabled: vacuumEnabled}, nil
 	default:
-		return systemdHostConfig{}, fmt.Errorf("invalid value %q for annotation %q (allowed values: persistent, volatile, both)", storage, systemdJournalStorageAnnotation)
+		return systemdHostConfig{}, fmt.Errorf("invalid value %q for annotation %q (allowed values: persistent, volatile, both)", storage, featureutils.PrivateActionRunnerSystemdJournalStorageAnnotation)
 	}
 }
 
