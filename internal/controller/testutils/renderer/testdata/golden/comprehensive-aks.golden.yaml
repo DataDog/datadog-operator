@@ -1161,7 +1161,7 @@ kind: DatadogAgentInternal
 metadata:
   annotations:
     agent.datadoghq.com/cluster-provider: aks
-    agent.datadoghq.com/ddaispechash: 4aa209cbf559d486dc4dfdf461eaba01
+    agent.datadoghq.com/ddaispechash: a040e6bbd29ce266787466726b12abc3
   finalizers:
   - finalizer.datadoghq.com/datadogagentinternal
   labels:

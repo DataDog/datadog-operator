@@ -1171,7 +1171,7 @@ kind: DatadogAgentInternal
 metadata:
   annotations:
     agent.datadoghq.com/cluster-provider: gke-autopilot
-    agent.datadoghq.com/ddaispechash: a7db4d33f3ddfb4710ce07ee801b6444
+    agent.datadoghq.com/ddaispechash: 415bd42b0444d907b514e74bdddf0ee3
     experimental.agent.datadoghq.com/autopilot: "true"
   finalizers:
   - finalizer.datadoghq.com/datadogagentinternal

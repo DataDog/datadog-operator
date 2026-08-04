@@ -1033,7 +1033,7 @@ apiVersion: datadoghq.com/v1alpha1
 kind: DatadogAgentInternal
 metadata:
   annotations:
-    agent.datadoghq.com/ddaispechash: 42c22cc68bc435428d38fbc91176741f
+    agent.datadoghq.com/ddaispechash: ac55e0a21c2cea2b727a677d16fdaca9
   finalizers:
   - finalizer.datadoghq.com/datadogagentinternal
   labels:

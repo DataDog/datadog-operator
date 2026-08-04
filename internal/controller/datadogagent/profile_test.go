@@ -82,9 +82,6 @@ func Test_computeProfileMerge(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "foo",
 					Namespace: "bar",
-					Annotations: map[string]string{
-						constants.MD5DDAIDeploymentAnnotationKey: "10394c6b4f1e5029544f602ecb5a557b",
-					},
 				},
 				Spec: v2alpha1.DatadogAgentSpec{
 					Features: &v2alpha1.DatadogFeatures{
@@ -195,9 +192,6 @@ func Test_computeProfileMerge(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "foo-profile",
 					Namespace: "bar",
-					Annotations: map[string]string{
-						constants.MD5DDAIDeploymentAnnotationKey: "a9033f6ffba89ddf862136d39a5db466",
-					},
 				},
 				Spec: v2alpha1.DatadogAgentSpec{
 					Features: &v2alpha1.DatadogFeatures{
@@ -303,7 +297,6 @@ func Test_computeProfileMerge(t *testing.T) {
 			ddai, err := r.computeProfileMerge(&tt.ddai, &tt.profile)
 			assert.NoError(t, err)
 			assert.Equal(t, tt.want.Name, ddai.Name)
-			assert.Equal(t, tt.want.Annotations[constants.MD5DDAIDeploymentAnnotationKey], ddai.Annotations[constants.MD5DDAIDeploymentAnnotationKey])
 			assert.Equal(t, tt.want.Spec, ddai.Spec)
 		})
 	}
@@ -377,7 +370,6 @@ func Test_computeProfileMergeEnforcesAutopilotRegistry(t *testing.T) {
 			require.NotNil(t, mergedDDAI.Spec.Global)
 			require.NotNil(t, mergedDDAI.Spec.Global.Registry)
 			assert.Equal(t, images.GCRContainerRegistry, *mergedDDAI.Spec.Global.Registry)
-			assert.NotEmpty(t, mergedDDAI.Annotations[constants.MD5DDAIDeploymentAnnotationKey])
 		})
 	}
 }
@@ -1165,7 +1157,20 @@ func Test_reconcileProfiles(t *testing.T) {
 			}
 			maxUnavailable := intstr.FromInt(1)
 			defaultDDAI := &v1alpha1.DatadogAgentInternal{}
-			appliedProfiles, err := r.reconcileProfiles(ctx, dsNSName, maxUnavailable, defaultDDAI)
+
+			nodeList := make([]corev1.Node, 0, len(tt.existingNodes))
+			for _, obj := range tt.existingNodes {
+				node, ok := obj.(*corev1.Node)
+				require.True(t, ok)
+				nodeList = append(nodeList, *node)
+			}
+			defaultNSName := types.NamespacedName{Namespace: agentprofile.DefaultProfile().Namespace, Name: agentprofile.DefaultProfile().Name}
+			profilesByNode := make(map[string]types.NamespacedName, len(nodeList))
+			for _, node := range nodeList {
+				profilesByNode[node.Name] = defaultNSName
+			}
+
+			appliedProfiles, _, err := r.reconcileProfiles(ctx, dsNSName, maxUnavailable, defaultDDAI, nodeList, profilesByNode)
 
 			assert.Equal(t, tt.wantErr, err)
 			assert.Equal(t, tt.wantAppliedProfiles, len(appliedProfiles))
@@ -1732,7 +1737,12 @@ func Test_reconcileProfiles_APMSharedOverlayMatrix(t *testing.T) {
 				baseSpec = tt.baseSpec()
 			}
 			defaultDDAI := &v1alpha1.DatadogAgentInternal{Spec: *baseSpec}
-			appliedProfiles, err := r.reconcileProfiles(ctx, types.NamespacedName{Namespace: namespace, Name: "datadog-agent"}, intstr.FromInt(1), defaultDDAI)
+			defaultNSName := types.NamespacedName{Namespace: agentprofile.DefaultProfile().Namespace, Name: agentprofile.DefaultProfile().Name}
+			profilesByNode := make(map[string]types.NamespacedName, len(tt.nodes))
+			for _, node := range tt.nodes {
+				profilesByNode[node.Name] = defaultNSName
+			}
+			appliedProfiles, _, err := r.reconcileProfiles(ctx, types.NamespacedName{Namespace: namespace, Name: "datadog-agent"}, intstr.FromInt(1), defaultDDAI, tt.nodes, profilesByNode)
 			require.NoError(t, err)
 
 			wantAppliedCount := 1
@@ -2020,4 +2030,9 @@ func Test_addDDAIStatusToProfileStatus(t *testing.T) {
 			assert.Equal(t, tt.expectMessage, found.Message)
 		})
 	}
+}
+
+func Test_getProfileDDAIName(t *testing.T) {
+	assert.Equal(t, "dda-name", getProfileDDAIName("dda-name", "default", ""))
+	assert.Equal(t, "user-profile", getProfileDDAIName("dda-name", "user-profile", "default"))
 }

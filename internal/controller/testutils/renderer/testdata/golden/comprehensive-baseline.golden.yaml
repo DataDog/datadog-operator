@@ -1160,7 +1160,7 @@ apiVersion: datadoghq.com/v1alpha1
 kind: DatadogAgentInternal
 metadata:
   annotations:
-    agent.datadoghq.com/ddaispechash: 4aa209cbf559d486dc4dfdf461eaba01
+    agent.datadoghq.com/ddaispechash: 2f44dd7b1072d14915a11d70b7911943
   finalizers:
   - finalizer.datadoghq.com/datadogagentinternal
   labels:
