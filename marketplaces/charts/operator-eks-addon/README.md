@@ -113,40 +113,25 @@ Push the artifact to EKS repo:
     ```
 
 ## Pushing Container Images
-
-The Operator image required during add-on installation must be copied into the AWS Marketplace ECR repository associated with the Datadog Operator product.
-
-Authenticate `crane` and copy the image tag referenced by `values.yaml`:
-
+Images required during add-on installation must be available through the EKS marketplace repository. Each image can be copied by using `crane copy`. Make sure all referenced tags are uploaded to the respective repository.
 ```sh
-MARKETPLACE_REGISTRY=709825985650.dkr.ecr.us-east-1.amazonaws.com
-OPERATOR_IMAGE_TAG="$(yq -r '.datadog-operator.image.tag' charts/operator-eks-addon/values.yaml)"
+aws ecr get-login-password --region us-east-1|crane auth login --username AWS --password-stdin 709825985650.dkr.ecr.us-east-1.amazonaws.com
 
-aws ecr get-login-password --region us-east-1 \
-  | crane auth login --username AWS --password-stdin "$MARKETPLACE_REGISTRY"
-
-crane copy \
-  "gcr.io/datadoghq/operator:$OPERATOR_IMAGE_TAG" \
-  "$MARKETPLACE_REGISTRY/datadog/operator:$OPERATOR_IMAGE_TAG"
+❯ crane copy gcr.io/datadoghq/operator:1.0.3 709825985650.dkr.ecr.us-east-1.amazonaws.com/datadog/operator:1.0.3
 ```
 
-Verify that the destination tag resolves to the same multi-architecture manifest digest as its source:
-
+To validate, describe the repository
 ```sh
-test "$(crane digest "gcr.io/datadoghq/operator:$OPERATOR_IMAGE_TAG")" = \
-  "$(crane digest "$MARKETPLACE_REGISTRY/datadog/operator:$OPERATOR_IMAGE_TAG")"
+aws ecr describe-images --registry-id 709825985650 --region us-east-1  --repository-name datadog/operator
+..
+        {
+            "registryId": "709825985650",
+            "repositoryName": "datadog/operator",
+            "imageDigest": "sha256:e7ad530ca73db7324186249239dec25556b4d60d85fa9ba0374dd2d0468795b3",
+            "imageTags": [
+                "1.0.3"
+            ],
+..
 ```
-
-Confirm that the copied tag is present in Marketplace ECR:
-
-```sh
-aws ecr describe-images \
-  --registry-id 709825985650 \
-  --region us-east-1 \
-  --repository-name datadog/operator \
-  --image-ids "imageTag=$OPERATOR_IMAGE_TAG"
-```
-
-Declare the container image URI in the Marketplace **Add new version** delivery option together with the packaged Helm chart.
 
 [eks-helm-push]: https://docs.aws.amazon.com/AmazonECR/latest/userguide/push-oci-artifact.html
