@@ -1,4 +1,14 @@
 datadog-operator:
+  # apiKeyExistingSecret -- Use existing Secret which stores API key instead of creating a new one
+
+  ## If set, this parameter takes precedence over "apiKey".
+  apiKeyExistingSecret:  # <DATADOG_API_KEY_SECRET>
+
+  # appKeyExistingSecret -- Use existing Secret which stores APP key instead of creating a new one
+
+  ## If set, this parameter takes precedence over "appKey".
+  appKeyExistingSecret:  # <DATADOG_APP_KEY_SECRET>
+
   toolVersion: eks-addon
   datadogCRDs:
     crds:
@@ -8,4 +18,19 @@ datadog-operator:
     tag: 1.28.0
   operatorMetricsEnabled: false
 
-managedAgentInstallationCredentials: null
+# credentialsSecretSync -- Configures synchronization of Secrets Manager secrets to `datadog-secret`
+## Configure `apiKey`, `appKey`, or both. Set each `secretsManagerSecretID` to the corresponding secret ARN or name.
+## Set the corresponding `datadog-operator.apiKeyExistingSecret` or `datadog-operator.appKeyExistingSecret`
+## value to `datadog-secret` for the Operator to consume a synchronized key.
+## Requires Kubernetes Secret sync and EKS Pod Identity, an association for `ServiceAccount/datadog-ascp-sync`, and a Linux EC2 node.
+## credentialsSecretSync:
+##   apiKey:
+##     secretsManagerSecretID: <ARN or name>
+##   appKey:
+##     secretsManagerSecretID: <ARN or name>
+credentialsSecretSync: null
+
+# secretSyncImage -- Configures the image used by the credentials sync Deployment to mount the Secrets Store CSI volume
+secretSyncImage:
+  repository: 709825985650.dkr.ecr.us-east-1.amazonaws.com/datadog/amazonlinux
+  tag: 2023.12.20260727.0
