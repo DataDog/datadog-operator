@@ -9,7 +9,7 @@
 README.md                                       @DataDog/container-platform
 /docs/                                          @DataDog/container-platform
 /docs/kubectl-plugin.md                         @DataDog/documentation  @DataDog/container-platform @DataDog/container-autoscaling
-/docs/configuration_public.md              @DataDog/documentation  @DataDog/container-platform
+/docs/configuration_public.md                   @DataDog/documentation  @DataDog/container-platform
 /docs/custom_check.md                           @DataDog/documentation  @DataDog/container-platform
 /docs/data_collected.md                         @DataDog/documentation  @DataDog/container-platform
 /docs/installation.md                           @DataDog/documentation  @DataDog/container-platform
@@ -18,7 +18,7 @@ README.md                                       @DataDog/container-platform
 
 
 # Features owners
-/internal/controller/datadogagent/feature/admissioncontroller       @DataDog/container-platform     @DataDog/container-platform
+/internal/controller/datadogagent/feature/admissioncontroller       @DataDog/container-platform
 /internal/controller/datadogagent/feature/apm                       @DataDog/agent-apm              @DataDog/container-platform
 # TODO check team or add label
 /internal/controller/datadogagent/feature/appsec                    @DataDog/asm-go     @DataDog/container-platform
@@ -77,3 +77,8 @@ README.md                                       @DataDog/container-platform
 
 # fleet automation
 /pkg/fleet    @DataDog/fleet @DataDog/container-platform
+
+# release bundle files
+/bundle/**                      @DataDog/container-platform @DataDog/agent-delivery
+/bundle-community-operators/**  @DataDog/container-platform @DataDog/agent-delivery
+/config/manager/**              @DataDog/container-platform @DataDog/agent-delivery
