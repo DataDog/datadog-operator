@@ -105,9 +105,9 @@ func Test_privateActionRunnerFeature_ManageNodeAgent(t *testing.T) {
 	err := f.ManageNodeAgent(managers)
 	assert.NoError(t, err)
 
-	// Verify volumes (1 configmap + 5 host volumes)
+	// Verify volumes (1 configmap + 3 host volumes)
 	volumes := managers.VolumeMgr.Volumes
-	require.Len(t, volumes, 6)
+	require.Len(t, volumes, 4)
 	assert.Equal(t, "test-dda-privateactionrunner-config", volumes[0].Name, "Volume name should match")
 	require.NotNil(t, volumes[0].VolumeSource.ConfigMap, "Volume should be a ConfigMap volume")
 	assert.Equal(t, "test-dda-privateactionrunner", volumes[0].VolumeSource.ConfigMap.Name, "ConfigMap name should match")
@@ -117,9 +117,9 @@ func Test_privateActionRunnerFeature_ManageNodeAgent(t *testing.T) {
 		volumesByName[v.Name] = v
 	}
 
-	// Verify volume mounts (1 configmap + 5 host mounts)
+	// Verify volume mounts (1 configmap + 3 host mounts)
 	volumeMounts := managers.VolumeMountMgr.VolumeMountsByC[apicommon.PrivateActionRunnerContainerName]
-	require.Len(t, volumeMounts, 6)
+	require.Len(t, volumeMounts, 4)
 	mount := volumeMounts[0]
 	assert.Equal(t, "test-dda-privateactionrunner-config", mount.Name, "Mount name should match")
 	assert.Equal(t, "/etc/datadog-agent/privateactionrunner.yaml", mount.MountPath, "Mount path should be the hardcoded path")
@@ -153,16 +153,6 @@ func Test_privateActionRunnerFeature_ManageNodeAgent(t *testing.T) {
 			name:      hostVarLogVolumeName,
 			hostPath:  "/var/log",
 			mountPath: "/host/var/log",
-		},
-		{
-			name:      common.HostRunVolumeName,
-			hostPath:  "/run",
-			mountPath: "/host/run",
-		},
-		{
-			name:      hostMachineIDVolumeName,
-			hostPath:  "/etc/machine-id",
-			mountPath: "/host/etc/machine-id",
 			readOnly:  true,
 		},
 	}

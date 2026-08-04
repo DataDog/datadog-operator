@@ -19,4 +19,20 @@ const (
 	hostMachineIDVolumeName = "host-machine-id"
 	hostMachineIDHostPath   = "/etc/machine-id"
 	hostMachineIDMountPath  = "/host/etc/machine-id"
+
+	hostManagerBusSocketVolumeName = "host-manager-bus-socket"
+	hostManagerBusSocketHostPath   = "/run/dbus/system_bus_socket"
+	hostManagerBusSocketMountPath  = "/host/run/dbus/system_bus_socket"
+
+	hostJournalControlSocketVolumeName = "host-journal-control-socket"
+	hostJournalControlSocketHostPath   = "/run/systemd/journal/io.systemd.journal"
+	hostJournalControlSocketMountPath  = "/host/run/systemd/journal/io.systemd.journal"
+
+	hostPersistentJournalVolumeName = "host-persistent-journal"
+	hostPersistentJournalHostPath   = "/var/log/journal"
+	hostPersistentJournalMountPath  = "/host/var/log/journal"
+
+	hostVolatileJournalVolumeName = "host-volatile-journal"
+	hostVolatileJournalHostPath   = "/run/log/journal"
+	hostVolatileJournalMountPath  = "/host/run/log/journal"
 )
