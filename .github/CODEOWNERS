@@ -79,6 +79,6 @@ README.md                                       @DataDog/container-platform
 /pkg/fleet    @DataDog/fleet @DataDog/container-platform
 
 # release bundle files
-/bundle/**                      @DataDog/container-platform @DataDog/agent-delivery
-/bundle-community-operators/**  @DataDog/container-platform @DataDog/agent-delivery
-/config/manager/**              @DataDog/container-platform @DataDog/agent-delivery
+/bundle                      @DataDog/container-platform @DataDog/agent-delivery
+/bundle-community-operators  @DataDog/container-platform @DataDog/agent-delivery
+/config/manager              @DataDog/container-platform @DataDog/agent-delivery
