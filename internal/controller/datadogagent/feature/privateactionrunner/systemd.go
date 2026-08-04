@@ -9,7 +9,6 @@ import (
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/utils/ptr"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
@@ -103,7 +102,7 @@ func (config systemdHostConfig) addVolumeMounts(managers feature.PodTemplateMana
 
 func addHostPathVolumeMount(managers feature.PodTemplateManagers, name, hostPath, mountPath string, hostPathType corev1.HostPathType, readOnly bool) {
 	vol, volMount := volume.GetVolumes(name, hostPath, mountPath, readOnly)
-	vol.HostPath.Type = ptr.To(hostPathType)
+	vol.HostPath.Type = new(hostPathType)
 	managers.Volume().AddVolume(&vol)
 	managers.VolumeMount().AddVolumeMountToContainer(&volMount, apicommon.PrivateActionRunnerContainerName)
 }
