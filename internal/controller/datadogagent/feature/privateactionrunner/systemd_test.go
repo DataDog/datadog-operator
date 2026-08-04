@@ -123,10 +123,10 @@ func TestSystemdHostConfigAddVolumeMounts(t *testing.T) {
 			readOnly:     true,
 		},
 		{
-			name:         hostJournalControlSocketVolumeName,
-			hostPath:     "/run/systemd/journal/io.systemd.journal",
-			mountPath:    "/host/run/systemd/journal/io.systemd.journal",
-			hostPathType: corev1.HostPathSocket,
+			name:         hostJournaldRuntimeVolumeName,
+			hostPath:     "/run/systemd/journal",
+			mountPath:    "/host/run/systemd/journal",
+			hostPathType: corev1.HostPathDirectory,
 			readOnly:     true,
 		},
 	}
@@ -254,12 +254,12 @@ func TestManageNodeAgentAddsConfiguredSystemdMounts(t *testing.T) {
 	require.Contains(t, mountsByName, hostPersistentJournalVolumeName)
 	require.Contains(t, mountsByName, hostMachineIDVolumeName)
 	require.Contains(t, mountsByName, hostManagerBusSocketVolumeName)
-	require.Contains(t, mountsByName, hostJournalControlSocketVolumeName)
+	require.Contains(t, mountsByName, hostJournaldRuntimeVolumeName)
 	require.True(t, mountsByName[hostVarLogVolumeName].ReadOnly)
 	require.False(t, mountsByName[hostPersistentJournalVolumeName].ReadOnly)
 	require.True(t, mountsByName[hostMachineIDVolumeName].ReadOnly)
 	require.True(t, mountsByName[hostManagerBusSocketVolumeName].ReadOnly)
-	require.True(t, mountsByName[hostJournalControlSocketVolumeName].ReadOnly)
+	require.True(t, mountsByName[hostJournaldRuntimeVolumeName].ReadOnly)
 }
 
 func TestManageNodeAgentRejectsInvalidSystemdConfigBeforeMutation(t *testing.T) {

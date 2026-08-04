@@ -89,7 +89,8 @@ func (config systemdHostConfig) addVolumeMounts(managers feature.PodTemplateMana
 
 	addHostPathVolumeMount(managers, hostMachineIDVolumeName, hostMachineIDHostPath, hostMachineIDMountPath, corev1.HostPathFile, true)
 	addHostPathVolumeMount(managers, hostManagerBusSocketVolumeName, hostManagerBusSocketHostPath, hostManagerBusSocketMountPath, corev1.HostPathSocket, true)
-	addHostPathVolumeMount(managers, hostJournalControlSocketVolumeName, hostJournalControlSocketHostPath, hostJournalControlSocketMountPath, corev1.HostPathSocket, true)
+	// Mount the runtime directory so journald socket replacements remain visible.
+	addHostPathVolumeMount(managers, hostJournaldRuntimeVolumeName, hostJournaldRuntimeHostPath, hostJournaldRuntimeMountPath, corev1.HostPathDirectory, true)
 
 	journalReadOnly := !config.journalVacuumEnabled
 	if config.journalStorage == systemdJournalStoragePersistent || config.journalStorage == systemdJournalStorageBoth {

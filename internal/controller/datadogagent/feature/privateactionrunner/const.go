@@ -24,9 +24,9 @@ const (
 	hostManagerBusSocketHostPath   = "/run/dbus/system_bus_socket"
 	hostManagerBusSocketMountPath  = "/host/run/dbus/system_bus_socket"
 
-	hostJournalControlSocketVolumeName = "host-journal-control-socket"
-	hostJournalControlSocketHostPath   = "/run/systemd/journal/io.systemd.journal"
-	hostJournalControlSocketMountPath  = "/host/run/systemd/journal/io.systemd.journal"
+	hostJournaldRuntimeVolumeName = "host-journald-runtime"
+	hostJournaldRuntimeHostPath   = "/run/systemd/journal"
+	hostJournaldRuntimeMountPath  = "/host/run/systemd/journal"
 
 	hostPersistentJournalVolumeName = "host-persistent-journal"
 	hostPersistentJournalHostPath   = "/var/log/journal"
