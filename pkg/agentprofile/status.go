@@ -32,6 +32,13 @@ const (
 	AppliedConditionReason = "Applied"
 	// ConflictConditionReason is for DatadogAgentProfiles that conflict with an existing DatadogAgentProfile
 	ConflictConditionReason = "Conflict"
+
+	// DDAIReconcileErrorConditionType surfaces a reconcile error from the profile's DatadogAgentInternal
+	DDAIReconcileErrorConditionType = "DatadogAgentInternalReconcileError"
+	// DDAIReconcileErrorConditionReason is used when the profile's DatadogAgentInternal failed to reconcile
+	DDAIReconcileErrorConditionReason = "DatadogAgentInternal_reconcile_error"
+	// DDAIReconcileOKConditionReason is used when the profile's DatadogAgentInternal is reconciling successfully
+	DDAIReconcileOKConditionReason = "DatadogAgentInternal_reconcile_ok"
 )
 
 func UpdateProfileStatus(logger logr.Logger, profile *v1alpha1.DatadogAgentProfile, newStatus v1alpha1.DatadogAgentProfileStatus, now metav1.Time) {

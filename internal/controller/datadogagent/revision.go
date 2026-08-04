@@ -32,6 +32,14 @@ type revisionSnapshot struct {
 	Annotations map[string]string         `json:"annotations,omitempty"`
 }
 
+// buildRevisionSnapshot marshals a revisionSnapshot from spec and annotations.
+// Spec must be the raw, user-submitted spec (not the in-memory defaulted
+// copy) so that snapshot comparisons are unaffected by defaulting.
+func buildRevisionSnapshot(spec v2alpha1.DatadogAgentSpec, allAnnotations map[string]string) ([]byte, error) {
+	snap := revisionSnapshot{Spec: spec, Annotations: datadogAnnotations(allAnnotations)}
+	return json.Marshal(snap)
+}
+
 // skipRevisionBump returns true when the revision bump should be suppressed.
 // During experiment rollback the spec is restored to an older revision; bumping
 // its revision number to "latest" would make it appear newer than the experiment
@@ -47,8 +55,13 @@ func skipRevisionBump(newStatus *v2alpha1.DatadogAgentStatus) bool {
 
 // manageRevision creates a ControllerRevision snapshot of the current spec and
 // garbage collects old revisions. Must be called after manageExperiment.
-func (r *Reconciler) manageRevision(ctx context.Context, instance *v2alpha1.DatadogAgent, revList []appsv1.ControllerRevision, newStatus *v2alpha1.DatadogAgentStatus) error {
-	revName, err := r.ensureRevision(ctx, instance, revList, skipRevisionBump(newStatus))
+//
+// rawSpec is the user-submitted spec (before in-memory defaulting is applied)
+// and is what gets stored in the ControllerRevision snapshot; instance is
+// still used for labels, annotations, and object identity, which are
+// unaffected by defaulting.
+func (r *Reconciler) manageRevision(ctx context.Context, instance *v2alpha1.DatadogAgent, rawSpec v2alpha1.DatadogAgentSpec, revList []appsv1.ControllerRevision, newStatus *v2alpha1.DatadogAgentStatus) error {
+	revName, err := r.ensureRevision(ctx, instance, rawSpec, revList, skipRevisionBump(newStatus))
 	if err != nil {
 		return err
 	}
@@ -84,21 +97,24 @@ func (r *Reconciler) listRevisions(ctx context.Context, instance *v2alpha1.Datad
 	return revList.Items, nil
 }
 
-// ensureRevision creates a ControllerRevision snapshot of the instance spec and
+// ensureRevision creates a ControllerRevision snapshot of the raw spec and
 // annotations if it does not already exist, and returns the revision name.
+//
+// rawSpec (not instance.Spec, which may carry in-memory defaults) is what
+// gets stored, so that revisions reflect only user-intended changes.
 //
 // The Revision field is a monotonic creation counter. If skipBump is true the
 // existing revision is returned as-is without bumping its Revision number.
 func (r *Reconciler) ensureRevision(
 	ctx context.Context,
 	instance *v2alpha1.DatadogAgent,
+	rawSpec v2alpha1.DatadogAgentSpec,
 	revList []appsv1.ControllerRevision,
 	skipBump bool,
 ) (string, error) {
 	logger := ctrl.LoggerFrom(ctx)
 
-	snap := revisionSnapshot{Spec: instance.Spec, Annotations: datadogAnnotations(instance.GetAnnotations())}
-	specBytes, err := json.Marshal(snap)
+	specBytes, err := buildRevisionSnapshot(rawSpec, instance.GetAnnotations())
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal snapshot: %w", err)
 	}
@@ -111,6 +127,18 @@ func (r *Reconciler) ensureRevision(
 	data := runtime.RawExtension{Raw: specBytes}
 	labels := map[string]string{
 		apicommon.DatadogAgentNameLabelKey: instance.GetName(),
+	}
+	// Merge commonLabels from spec.global so that ControllerRevision objects
+	// receive the same labels as all other operator-managed resources. Without
+	// this, a Kyverno-style required-labels policy rejects the revision create
+	// and stops reconciliation before any DDAI or workload resources are updated.
+	// Operator-owned keys already present in labels win on conflicts.
+	if instance.Spec.Global != nil {
+		for k, v := range instance.Spec.Global.CommonLabels {
+			if _, exists := labels[k]; !exists {
+				labels[k] = v
+			}
+		}
 	}
 
 	// Find any existing revision with identical data, and track the max Revision.

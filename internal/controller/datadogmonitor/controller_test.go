@@ -20,6 +20,7 @@ import (
 	"github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -41,6 +42,116 @@ const (
 	resourcesName      = "foo"
 	resourcesNamespace = "bar"
 )
+
+type conflictOnceClient struct {
+	client.Client
+	remainingConflicts atomic.Int32
+}
+
+func (c *conflictOnceClient) Status() client.SubResourceWriter {
+	return &conflictOnceStatusWriter{
+		SubResourceWriter: c.Client.Status(),
+		client:            c,
+	}
+}
+
+type conflictOnceStatusWriter struct {
+	client.SubResourceWriter
+	client *conflictOnceClient
+}
+
+func (w *conflictOnceStatusWriter) Update(ctx context.Context, obj client.Object, opts ...client.SubResourceUpdateOption) error {
+	if w.client.remainingConflicts.CompareAndSwap(1, 0) {
+		latest := &datadoghqv1alpha1.DatadogMonitor{}
+		if err := w.client.Client.Get(ctx, client.ObjectKeyFromObject(obj), latest); err != nil {
+			return err
+		}
+		if latest.Annotations == nil {
+			latest.Annotations = map[string]string{}
+		}
+		latest.Annotations["issue-3272-conflict"] = "true"
+		if err := w.client.Client.Update(ctx, latest); err != nil {
+			return err
+		}
+
+		return apierrors.NewConflict(
+			datadoghqv1alpha1.GroupVersion.WithResource("datadogmonitors").GroupResource(),
+			obj.GetName(),
+			fmt.Errorf("injected status update conflict"),
+		)
+	}
+	return w.SubResourceWriter.Update(ctx, obj, opts...)
+}
+
+func TestReconcileDatadogMonitor_RetriesCreatedStatusAfterConflict(t *testing.T) {
+	logf.SetLogger(zap.New(zap.UseDevMode(true)))
+
+	eventBroadcaster := record.NewBroadcaster()
+	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: "TestReconcileDatadogMonitor_RetriesCreatedStatusAfterConflict"})
+
+	s := scheme.Scheme
+	s.AddKnownTypes(datadoghqv1alpha1.GroupVersion, &datadoghqv1alpha1.DatadogMonitor{})
+
+	var createCount atomic.Int32
+	httpServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch {
+		case r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/validate"):
+			fmt.Fprint(w, `{}`)
+		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/monitor":
+			createCount.Add(1)
+			fmt.Fprint(w, `{"id":12345,"name":"test monitor","query":"q","type":"metric alert","created":"2026-07-21T08:00:00Z","creator":{"email":"test@example.com"}}`)
+		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/monitor/12345":
+			fmt.Fprint(w, `{"id":12345,"name":"test monitor","query":"q","type":"metric alert"}`)
+		case r.Method == http.MethodPut && r.URL.Path == "/api/v1/monitor/12345":
+			fmt.Fprint(w, `{"id":12345,"name":"test monitor","query":"q","type":"metric alert"}`)
+		default:
+			http.Error(w, "unexpected request", http.StatusNotFound)
+		}
+	}))
+	defer httpServer.Close()
+
+	t.Setenv("DD_URL", httpServer.URL)
+	t.Setenv("DD_API_KEY", "DUMMY_API_KEY")
+	t.Setenv("DD_APP_KEY", "DUMMY_APP_KEY")
+
+	testConfig := datadogapi.NewConfiguration()
+	testConfig.HTTPClient = httpServer.Client()
+	apiClient := datadogapi.NewAPIClient(testConfig)
+	ddClient := datadogV1.NewMonitorsApi(apiClient)
+
+	baseClient := fake.NewClientBuilder().WithStatusSubresource(&datadoghqv1alpha1.DatadogMonitor{}).Build()
+	conflictingClient := &conflictOnceClient{Client: baseClient}
+	r := &Reconciler{
+		client:        conflictingClient,
+		datadogClient: ddClient,
+		credsManager:  config.NewCredentialManager(fake.NewClientBuilder().Build()),
+		scheme:        s,
+		recorder:      recorder,
+		log:           logf.Log.WithName("created-status-conflict"),
+	}
+
+	dm := genericDatadogMonitor(r.client)
+	dm.Finalizers = []string{datadogMonitorFinalizer}
+	dm.Spec.Tags = []string{requiredTag}
+	assert.NoError(t, r.client.Update(context.TODO(), dm))
+	assert.NoError(t, r.client.Get(context.TODO(), client.ObjectKeyFromObject(dm), dm))
+
+	conflictingClient.remainingConflicts.Store(1)
+	result, err := r.Reconcile(context.TODO(), dm)
+	assert.NoError(t, err)
+	assert.Equal(t, ctrl.Result{RequeueAfter: defaultRequeuePeriod}, result)
+	assert.Equal(t, int32(0), conflictingClient.remainingConflicts.Load(), "the injected status conflict should be consumed")
+
+	assert.NoError(t, r.client.Get(context.TODO(), client.ObjectKeyFromObject(dm), dm))
+	assert.Equal(t, 12345, dm.Status.ID, "the ID returned by the successful create must be persisted")
+	assert.True(t, dm.Status.Primary)
+	assert.Equal(t, "true", dm.Annotations["issue-3272-conflict"], "the concurrent metadata update must be preserved")
+
+	_, err = r.Reconcile(context.TODO(), dm)
+	assert.NoError(t, err)
+	assert.Equal(t, int32(1), createCount.Load(), "a status conflict must not cause a second Datadog create")
+}
 
 func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 	eventBroadcaster := record.NewBroadcaster()

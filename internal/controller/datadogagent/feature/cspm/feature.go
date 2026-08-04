@@ -11,18 +11,15 @@ import (
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/configmap"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
 	"github.com/DataDog/datadog-operator/pkg/constants"
-	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
@@ -53,10 +50,8 @@ type cspmFeature struct {
 	owner  metav1.Object
 	logger logr.Logger
 
-	customConfig                *v2alpha1.CustomConfig
-	configMapName               string
-	customConfigAnnotationKey   string
-	customConfigAnnotationValue string
+	customConfig  *v2alpha1.CustomConfig
+	configMapName string
 }
 
 // ID returns the ID of the Feature
@@ -83,14 +78,6 @@ func (f *cspmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgen
 
 		if cspmConfig.CustomBenchmarks != nil {
 			f.customConfig = cspmConfig.CustomBenchmarks
-			hash, err := comparison.GenerateMD5ForSpec(f.customConfig)
-			if err != nil {
-				f.logger.Error(err, "couldn't generate hash for cspm custom benchmarks config")
-			} else {
-				f.logger.V(2).Info("built cspm custom benchmarks from custom config", "hash", hash)
-			}
-			f.customConfigAnnotationValue = hash
-			f.customConfigAnnotationKey = object.GetChecksumAnnotationKey(feature.CSPMIDType)
 		}
 		f.configMapName = constants.GetConfName(dda, f.customConfig, defaultCSPMConf)
 
@@ -110,11 +97,11 @@ func (f *cspmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgen
 
 		reqComp = feature.RequiredComponents{
 			ClusterAgent: feature.RequiredComponent{
-				IsRequired: ptr.To(true),
+				IsRequired: new(true),
 				Containers: []apicommon.AgentContainerName{apicommon.ClusterAgentContainerName},
 			},
 			Agent: feature.RequiredComponent{
-				IsRequired: ptr.To(true),
+				IsRequired: new(true),
 				Containers: []apicommon.AgentContainerName{
 					nodeContainer,
 				},
@@ -154,12 +141,6 @@ func (f *cspmFeature) ManageDependencies(managers feature.ResourceManagers) erro
 		}
 
 		if cm != nil {
-			// Add md5 hash annotation for custom config
-			if f.customConfigAnnotationKey != "" && f.customConfigAnnotationValue != "" {
-				annotations := object.MergeAnnotationsLabels(f.logger, cm.GetAnnotations(), map[string]string{f.customConfigAnnotationKey: f.customConfigAnnotationValue}, "*")
-				cm.SetAnnotations(annotations)
-			}
-
 			if err := managers.Store().AddOrUpdate(kubernetes.ConfigMapKind, cm); err != nil {
 				return err
 			}
@@ -178,10 +159,6 @@ func (f *cspmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) e
 	if f.customConfig != nil {
 		var vol corev1.Volume
 		var volMount corev1.VolumeMount
-
-		if f.customConfigAnnotationKey != "" && f.customConfigAnnotationValue != "" {
-			managers.Annotation().AddAnnotation(f.customConfigAnnotationKey, f.customConfigAnnotationValue)
-		}
 
 		if f.customConfig.ConfigMap != nil {
 			// Custom config is referenced via ConfigMap
@@ -263,10 +240,6 @@ func (f *cspmFeature) ManageNodeAgent(managers feature.PodTemplateManagers) erro
 	if f.customConfig != nil {
 		var vol corev1.Volume
 		var volMount corev1.VolumeMount
-
-		if f.customConfigAnnotationKey != "" && f.customConfigAnnotationValue != "" {
-			managers.Annotation().AddAnnotation(f.customConfigAnnotationKey, f.customConfigAnnotationValue)
-		}
 
 		if f.customConfig.ConfigMap != nil {
 			// Custom config is referenced via ConfigMap

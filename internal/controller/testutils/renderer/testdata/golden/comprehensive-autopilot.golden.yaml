@@ -195,6 +195,13 @@ rules:
   - list
   - watch
 - apiGroups:
+  - discovery.k8s.io
+  resources:
+  - endpointslices
+  verbs:
+  - list
+  - watch
+- apiGroups:
   - networking.k8s.io
   resources:
   - ingresses
@@ -560,21 +567,6 @@ rules:
   verbs:
   - get
   - list
-- apiGroups:
-  - storage.k8s.io
-  resourceNames:
-  - k8s.csi.datadoghq.com
-  resources:
-  - csidrivers
-  verbs:
-  - get
-- apiGroups:
-  - storage.k8s.io
-  resources:
-  - csidrivers
-  verbs:
-  - list
-  - watch
 - nonResourceURLs:
   - /healthz
   - /metrics
@@ -961,6 +953,7 @@ data:
         - configmaps
         - services
         - endpoints
+        - endpointslices
         - daemonsets
         - horizontalpodautoscalers
         - poddisruptionbudgets
@@ -978,8 +971,6 @@ data:
         - customresourcedefinitions
 kind: ConfigMap
 metadata:
-  annotations:
-    checksum/ksm-custom-config: 7078d4e77dfdf37ca618d148c6c7af2b
   labels:
     app.kubernetes.io/instance: datadog-agent
     app.kubernetes.io/managed-by: datadog-operator
@@ -1347,7 +1338,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: 40f352e6a33aa574cad33bbbb260b69f
+    agent.datadoghq.com/agentspechash: 3d559495a5d61788e11fc24c7cc24829
   labels:
     admission.datadoghq.com/enabled: "false"
     agent.datadoghq.com/component: agent
@@ -1375,6 +1366,7 @@ spec:
   template:
     metadata:
       annotations:
+        agent.datadoghq.com/configmapshash: 2e0fb9e7949d41a5
         checksum/dca-token-custom-config: 3f6998966e6de63b16d45512e01ccc84
         container.apparmor.security.beta.kubernetes.io/system-probe: unconfined
       labels:
@@ -1890,7 +1882,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: db0adca8a42b3c8f026d678026996ccd
+    agent.datadoghq.com/agentspechash: 8a31a7295887debaf6b7dcd2b916b306
   labels:
     agent.datadoghq.com/component: cluster-agent
     agent.datadoghq.com/name: datadog-agent
@@ -1918,9 +1910,9 @@ spec:
   template:
     metadata:
       annotations:
+        agent.datadoghq.com/configmapshash: 4bb0ce42b5c97687
         checksum/cluster_checks-custom-config: dd67482b385a64075d38f42c9ae04554
         checksum/dca-token-custom-config: 3f6998966e6de63b16d45512e01ccc84
-        checksum/ksm-custom-config: 7078d4e77dfdf37ca618d148c6c7af2b
       labels:
         agent.datadoghq.com/component: cluster-agent
         agent.datadoghq.com/name: datadog-agent
@@ -2140,7 +2132,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: 396747e4e69c910aa70f8f5d5cc909e9
+    agent.datadoghq.com/agentspechash: 9bb3d4e42d99fde0ef482717a4d139d7
   labels:
     agent.datadoghq.com/component: cluster-checks-runner
     agent.datadoghq.com/name: datadog-agent
@@ -2167,6 +2159,7 @@ spec:
   template:
     metadata:
       annotations:
+        agent.datadoghq.com/configmapshash: 6281aebca1be6a93
         checksum/dca-token-custom-config: 3f6998966e6de63b16d45512e01ccc84
       labels:
         agent.datadoghq.com/component: cluster-checks-runner
@@ -2263,7 +2256,7 @@ spec:
           value: "true"
         - name: DD_ORCHESTRATOR_EXPLORER_CONTAINER_SCRUBBING_ENABLED
           value: "true"
-        image: gcr.io/datadoghq/agent:7.80.4
+        image: gcr.io/datadoghq/agent:7.81.1
         livenessProbe:
           failureThreshold: 6
           httpGet:
@@ -2318,7 +2311,7 @@ spec:
         command:
         - bash
         - -c
-        image: gcr.io/datadoghq/agent:7.80.4
+        image: gcr.io/datadoghq/agent:7.81.1
         name: init-config
         resources: {}
         volumeMounts:

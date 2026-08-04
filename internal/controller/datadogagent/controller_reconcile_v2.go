@@ -51,6 +51,7 @@ func (r *Reconciler) internalReconcileV2(ctx context.Context, instance *datadogh
 	}
 
 	// 3. Set default values for GlobalConfig and Features
+	rawSpec := instance.Spec
 	instanceCopy := instance.DeepCopy()
 	defaults.DefaultDatadogAgentSpec(&instanceCopy.Spec)
 	if experimental.IsAutopilotEnabled(instanceCopy) {
@@ -58,7 +59,7 @@ func (r *Reconciler) internalReconcileV2(ctx context.Context, instance *datadogh
 	}
 
 	// 4. Delegate to the main reconcile function.
-	return r.reconcileInstanceV3(ctx, reqLogger, instanceCopy)
+	return r.reconcileInstanceV3(ctx, reqLogger, instanceCopy, rawSpec)
 }
 
 // Force GCR registry if not set to avoid defaulting to Datadog registry
@@ -81,7 +82,7 @@ func ensureGCRAutopilotRegistry(spec *datadoghqv2alpha1.DatadogAgentSpec) {
 	spec.Global.Registry = ptr.To(images.GCRContainerRegistry)
 }
 
-func (r *Reconciler) reconcileInstanceV3(ctx context.Context, logger logr.Logger, instance *datadoghqv2alpha1.DatadogAgent) (reconcile.Result, error) {
+func (r *Reconciler) reconcileInstanceV3(ctx context.Context, logger logr.Logger, instance *datadoghqv2alpha1.DatadogAgent, rawSpec datadoghqv2alpha1.DatadogAgentSpec) (reconcile.Result, error) {
 	// Set up field manager for crd apply
 	if r.fieldManager == nil {
 		f, err := newFieldManager(r.client, r.scheme, getDDAIGVK())
@@ -112,10 +113,15 @@ func (r *Reconciler) reconcileInstanceV3(ctx context.Context, logger logr.Logger
 		if err != nil {
 			return r.updateStatusIfNeededV2(logger, instance, ddaStatusCopy, result, err, now)
 		}
-		if err := r.manageExperiment(ctx, instance, newDDAStatus, now, revList); err != nil {
-			return r.updateStatusIfNeededV2(logger, instance, newDDAStatus, result, err, now)
+		// Use user-submitted instance instead of defaulted instance
+		rawInstance := instance.DeepCopy()
+		rawInstance.Spec = rawSpec
+		experimentErr := r.manageExperiment(ctx, rawInstance, newDDAStatus, now, revList)
+		instance.ResourceVersion = rawInstance.ResourceVersion
+		if experimentErr != nil {
+			return r.updateStatusIfNeededV2(logger, instance, newDDAStatus, result, experimentErr, now)
 		}
-		if err := r.manageRevision(ctx, instance, revList, newDDAStatus); err != nil {
+		if err := r.manageRevision(ctx, instance, rawSpec, revList, newDDAStatus); err != nil {
 			return r.updateStatusIfNeededV2(logger, instance, newDDAStatus, result, err, now)
 		}
 	}
@@ -165,7 +171,7 @@ func (r *Reconciler) reconcileInstanceV3(ctx context.Context, logger logr.Logger
 		}
 
 		// Add DDAI status to DDA status
-		if e := r.addDDAIStatusToDDAStatus(newDDAStatus, ddai.ObjectMeta); e != nil {
+		if e := r.addDDAIStatusToDDAStatus(newDDAStatus, ddai.ObjectMeta, now); e != nil {
 			return r.updateStatusIfNeededV2(logger, instance, ddaStatusCopy, result, e, now)
 		}
 

@@ -24,6 +24,7 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	controllercommon "github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/condition"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
@@ -50,6 +51,8 @@ func (r *Reconciler) createOrUpdateDeployment(ctx context.Context, ddai *v1alpha
 	if err = controllerutil.SetControllerReference(ddai, deployment, r.scheme); err != nil {
 		return reconcile.Result{}, err
 	}
+	// Finalize Kubernetes-version-dependent Pod template compatibility after all mutations and before hashing.
+	controllercommon.FinalizeAppArmorProfile(&deployment.Spec.Template, r.platformInfo)
 
 	// From here the PodTemplateSpec should be ready, we can generate the hash that will be used to compare this deployment with the current one (if it exists).
 	var hash string
@@ -163,6 +166,8 @@ func (r *Reconciler) createOrUpdateDaemonset(ctx context.Context, ddai *v1alpha1
 	if err = controllerutil.SetControllerReference(ddai, daemonset, r.scheme); err != nil {
 		return reconcile.Result{}, err
 	}
+	// Finalize Kubernetes-version-dependent Pod template compatibility after all mutations and before hashing.
+	controllercommon.FinalizeAppArmorProfile(&daemonset.Spec.Template, r.platformInfo)
 
 	// Get the current daemonset and compare
 	nsName := types.NamespacedName{
@@ -323,6 +328,8 @@ func (r *Reconciler) createOrUpdateExtendedDaemonset(ctx context.Context, ddai *
 	if err = controllerutil.SetControllerReference(ddai, eds, r.scheme); err != nil {
 		return reconcile.Result{}, err
 	}
+	// Finalize Kubernetes-version-dependent Pod template compatibility after all mutations and before hashing.
+	controllercommon.FinalizeAppArmorProfile(&eds.Spec.Template, r.platformInfo)
 
 	// From here the PodTemplateSpec should be ready, we can generate the hash that will be used to compare this extendeddaemonset with the current one (if it exists).
 	var hash string

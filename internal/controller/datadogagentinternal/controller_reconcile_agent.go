@@ -130,6 +130,16 @@ func (r *Reconciler) reconcileV2Agent(ctx context.Context, requiredComponents fe
 			return reconcile.Result{}, nil
 		}
 
+		if handled, migrationResult, err := r.migrateDaemonSetToExtendedDaemonSet(ctx, ddai, eds, newStatus); handled || err != nil {
+			return migrationResult, err
+		}
+
+		if r.options.RolloutOnConfigMapChangeEnabled {
+			if err := r.annotateConfigMapsChecksum(ctx, ddai.Namespace, &eds.Spec.Template); err != nil {
+				return result, err
+			}
+		}
+
 		return r.createOrUpdateExtendedDaemonset(ctx, ddai, eds, newStatus, updateEDSStatusV2WithAgent)
 	}
 
@@ -149,10 +159,10 @@ func (r *Reconciler) reconcileV2Agent(ctx context.Context, requiredComponents fe
 	// Provider capabilities are applied immediately after each feature's ManageNodeAgent
 	// so that each feature owns its provider correctness independently.
 	for _, feat := range features {
-		// On the Windows provider path, only allowlisted features run their node-agent hooks;
-		// the rest (eBPF/system-probe, etc.) are gated out so they don't inject config the
-		// Windows agent can't use. The subsequent strip is the safety net for what slips through.
-		if windowsProfile && !windowsSupportedFeatures[feat.ID()] {
+		// On the Windows provider path, features the support matrix marks Excluded do not run
+		// their node-agent hooks; they'd inject config the Windows agent can't use
+		// (eBPF/system-probe, etc.). The subsequent strip is the safety net for what slips through.
+		if windowsProfile && feature.FeatureSupportLevel(provider, feat.ID()) == feature.Excluded {
 			continue
 		}
 		if singleContainerStrategyEnabled {
@@ -287,6 +297,16 @@ func (r *Reconciler) reconcileV2Agent(ctx context.Context, requiredComponents fe
 		}
 		deleteStatusWithAgent(newStatus)
 		return reconcile.Result{}, nil
+	}
+
+	if handled, migrationResult, err := r.migrateExtendedDaemonSetToDaemonSet(ctx, ddai, daemonset, newStatus); handled || err != nil {
+		return migrationResult, err
+	}
+
+	if r.options.RolloutOnConfigMapChangeEnabled {
+		if err := r.annotateConfigMapsChecksum(ctx, ddai.Namespace, &daemonset.Spec.Template); err != nil {
+			return result, err
+		}
 	}
 
 	return r.createOrUpdateDaemonset(ctx, ddai, daemonset, newStatus, updateDSStatusV2WithAgent)

@@ -1774,6 +1774,7 @@ type DeploymentStatus struct {
 }
 
 // GlobalConfig is a set of parameters that are used to configure all the components of the Datadog Operator.
+// +k8s:openapi-gen=true
 type GlobalConfig struct {
 	// Credentials defines the Datadog credentials used to submit data to/query data from Datadog.
 	Credentials *DatadogCredentials `json:"credentials,omitempty"`
@@ -1832,6 +1833,16 @@ type GlobalConfig struct {
 	// +listType=map
 	// +listMapKey=name
 	Env []corev1.EnvVar `json:"env,omitempty"`
+
+	// CommonLabels specified labels to be added to all operator-managed Kubernetes resources
+	// (DaemonSets, Deployments, ConfigMaps, Services, ServiceAccounts, etc.).
+	// This is useful when external policy tools such as Kyverno enforce the presence of
+	// specific labels on all cluster resources.
+	// Labels defined here are merged with the operator's own default labels; operator labels
+	// take precedence on any key conflict.
+	// +optional
+	//+mapType=granular
+	CommonLabels map[string]string `json:"commonLabels,omitempty"`
 
 	// ChecksTagCardinality configures tag cardinality for the metrics collected by integrations (`low`, `orchestrator` or `high`).
 	// See also: https://docs.datadoghq.com/getting_started/tagging/assigning_tags/?tab=containerizedenvironments#tags-cardinality.

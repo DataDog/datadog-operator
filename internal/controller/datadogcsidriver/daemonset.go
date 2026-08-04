@@ -37,6 +37,17 @@ func buildDaemonSet(instance *datadoghqv1alpha1.DatadogCSIDriver) *appsv1.Daemon
 		admissionControllerEnabledLabel: "false",
 	}
 
+	// Merge commonLabels propagated from spec.global.commonLabels on the parent
+	// DatadogAgent. Operator-owned keys already present in labels/podLabels win.
+	for k, v := range instance.Spec.CommonLabels {
+		if _, exists := labels[k]; !exists {
+			labels[k] = v
+		}
+		if _, exists := podLabels[k]; !exists {
+			podLabels[k] = v
+		}
+	}
+
 	volumes := buildVolumes(apmSocketDir, dsdSocketDir)
 	csiDriverContainer := buildCSIDriverContainer(instance, apmSocketPath, dsdSocketPath, apmSocketDir, dsdSocketDir)
 	registrarContainer := buildRegistrarContainer(instance)

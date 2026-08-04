@@ -2723,6 +2723,14 @@
               "description": "ClusterName sets a unique cluster name for the deployment to easily scope monitoring data in the Datadog app.",
               "type": "string"
             },
+            "commonLabels": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "description": "CommonLabels specified labels to be added to all operator-managed Kubernetes resources\n(DaemonSets, Deployments, ConfigMaps, Services, ServiceAccounts, etc.).\nThis is useful when external policy tools such as Kyverno enforce the presence of\nspecific labels on all cluster resources.\nLabels defined here are merged with the operator's own default labels; operator labels\ntake precedence on any key conflict.",
+              "type": "object",
+              "x-kubernetes-map-type": "granular"
+            },
             "containerStrategy": {
               "description": "ContainerStrategy determines whether agents run in a single or multiple containers.\nDefault: 'optimized'",
               "type": "string"

@@ -11,7 +11,6 @@ import (
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/common"
@@ -108,9 +107,9 @@ func merge(a, b *bool) *bool {
 		return a
 	}
 	if !apiutils.BoolValue(a) || !apiutils.BoolValue(b) {
-		return ptr.To(false)
+		return new(false)
 	}
-	return ptr.To(true)
+	return new(true)
 }
 
 func mergeSlices(a, b []common.AgentContainerName) []common.AgentContainerName {
@@ -185,6 +184,10 @@ type Options struct {
 	// cluster state while building dependencies. Callers should pass an uncached
 	// reader when the feature may read outside the controller cache scope.
 	Client client.Reader
+	// DatadogCSIDriverEnabled mirrors the operator's --datadogCSIDriverEnabled flag.
+	// The operator's own ClusterRole only holds csidrivers permissions when this is
+	// true, so features must not grant permissions to other components unless it is set.
+	DatadogCSIDriverEnabled bool
 }
 
 // BuildFunc function type used by each Feature during its factory registration.

@@ -69,7 +69,7 @@ func (f *controlPlaneMonitoringFeature) Configure(dda metav1.Object, ddaSpec *v2
 
 	if controlPlaneMonitoring != nil && apiutils.BoolValue(controlPlaneMonitoring.Enabled) {
 		f.enabled = true
-		reqComp.ClusterAgent.IsRequired = ptr.To(true)
+		reqComp.ClusterAgent.IsRequired = new(true)
 		reqComp.ClusterAgent.Containers = []apicommon.AgentContainerName{apicommon.ClusterAgentContainerName}
 	}
 	return reqComp

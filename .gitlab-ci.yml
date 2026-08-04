@@ -1,4 +1,4 @@
-image: registry.ddbuild.io/images/mirror/library/golang:1.25.12
+image: registry.ddbuild.io/images/mirror/library/golang:1.26.5
 variables:
   NIGHTLY_BUILD_CONDUCTOR_NAME: "operator-nightly-build"
   PROJECTNAME: "datadog-operator"
@@ -435,15 +435,32 @@ go_e2e_deps:
     - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.e2e_tests_gcp_credentials --with-decryption --query "Parameter.Value" --out text > ~/gcp-credentials.json
     - export GOOGLE_APPLICATION_CREDENTIALS=~/gcp-credentials.json
 
+.docker_publish_job_definition:
+  image: registry.ddbuild.io/agent-delivery/dd-pkg:v0.9.0
+  tags: ["arch:arm64"]
+  variables:
+    IMG_SIGNING: "false"
+    PUBLIC_IMAGES_PUBLISH_TIMEOUT: "1800"
+  script:
+    - |
+      set -euo pipefail
+      dd-pkg version
+      args=(publish-image --timeout "${PUBLIC_IMAGES_PUBLISH_TIMEOUT}" --poll-interval 30 --signing="${IMG_SIGNING}")
+      if [[ -n "${IMG_REGISTRIES:-}" ]]; then args+=(--registries "${IMG_REGISTRIES}"); fi
+      if [[ -n "${IMG_SOURCES:-}" ]]; then args+=(--sources "${IMG_SOURCES}"); fi
+      if [[ -n "${IMG_DESTINATIONS:-}" ]]; then args+=(--destinations "${IMG_DESTINATIONS}"); fi
+      if [[ -n "${IMG_DESTINATIONS_REGEX:-}" ]]; then args+=(--regex-expression "${IMG_DESTINATIONS_REGEX}"); fi
+      if [[ -n "${IMG_DESTINATIONS_REGEX_REPL:-}" ]]; then args+=(--regex-replacement "${IMG_DESTINATIONS_REGEX_REPL}"); fi
+      if [[ -n "${IMG_TAG_REFERENCE:-}" ]]; then args+=(--tag-reference "${IMG_TAG_REFERENCE}"); fi
+      if [[ -n "${IMG_NEW_TAGS:-}" ]]; then args+=(--new-tags "${IMG_NEW_TAGS}"); fi
+      dd-pkg "${args[@]}"
+
 trigger_e2e_operator_image:
   stage: e2e
   rules: !reference [.on_run_e2e_base]
   needs:
     - build_operator_image_amd64
-  trigger:
-    project: DataDog/public-images
-    branch: main
-    strategy: depend
+  extends: .docker_publish_job_definition
   variables:
     IMG_SOURCES: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-amd64
     IMG_DESTINATIONS: operator:${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
@@ -616,13 +633,11 @@ publish_public_main:
     - if: '$CI_COMMIT_BRANCH == "main" && $DDR != "true"'
       when: on_success
     - when: never
-  trigger:
-    project: DataDog/public-images
-    branch: main
-    strategy: depend
+  extends: .docker_publish_job_definition
   variables:
     IMG_SOURCES: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-amd64,$BUILD_DOCKER_REGISTRY/$PROJECTNAME:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-arm64
     IMG_DESTINATIONS: operator:main
+    IMG_REGISTRIES: public
     IMG_SIGNING: "false"
     IMG_MERGE_STRATEGY: "index_oci"
 
@@ -638,15 +653,13 @@ publish_public_tag:
     - if: $CI_COMMIT_TAG
       when: manual
     - when: never
-  trigger:
-    project: DataDog/public-images
-    branch: main
-    strategy: depend
+  extends: .docker_publish_job_definition
   variables:
     IMG_SOURCES: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-amd64,$BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-arm64
     IMG_DESTINATIONS: operator:$CI_COMMIT_TAG
     IMG_DESTINATIONS_REGEX: ":v"
     IMG_DESTINATIONS_REGEX_REPL: ":"
+    IMG_REGISTRIES: public
     IMG_SIGNING: "false"
     IMG_MERGE_STRATEGY: "index_oci"
 
@@ -662,10 +675,7 @@ publish_redhat_public_tag:
     - if: $CI_COMMIT_TAG
       when: manual
     - when: never
-  trigger:
-    project: DataDog/public-images
-    branch: main
-    strategy: depend
+  extends: .docker_publish_job_definition
   variables:
     IMG_SOURCES: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-amd64,$BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-arm64
     IMG_DESTINATIONS: $RH_PARTNER_PROJECT_ID:$CI_COMMIT_TAG
@@ -677,61 +687,75 @@ publish_redhat_public_tag:
 
 publish_public_latest:
   stage: release-latest
+  needs:
+    - publish_public_tag
   rules:
     # Skip latest jobs for vX.Y.Z-rc.W tags
     - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+-rc\.[0-9]+$/'
       when: never
+    # Auto-promote to latest only for proper vX.Y.Z stable release tags
+    - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
+      when: on_success
+    # Any other tag shape: require manual confirmation instead of auto-publishing latest
     - if: $CI_COMMIT_TAG
       when: manual
     - when: never
-  trigger:
-    project: DataDog/public-images
-    branch: main
-    strategy: depend
+  extends: .docker_publish_job_definition
   variables:
     IMG_SOURCES: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-amd64,$BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-arm64
     IMG_DESTINATIONS: operator:latest
+    IMG_REGISTRIES: public
     IMG_SIGNING: "false"
     IMG_MERGE_STRATEGY: "index_oci"
 
 publish_public_latest_fips:
   extends: publish_public_latest
+  needs:
+    - publish_public_tag_fips
   variables:
     IMG_SOURCES: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-fips-amd64,$BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-fips-arm64
     IMG_DESTINATIONS: operator:latest-fips
 
 publish_public_rc_latest:
   stage: release-latest
+  needs:
+    - publish_public_tag
   rules:
     - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+-rc\.[0-9]+$/'
-      when: manual
+      when: on_success
     - when: never
-  trigger:
-    project: DataDog/public-images
-    branch: main
-    strategy: depend
+  extends: .docker_publish_job_definition
   variables:
     IMG_SOURCES: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-amd64,$BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-arm64
     IMG_DESTINATIONS: operator:rc-latest
+    IMG_REGISTRIES: public
     IMG_SIGNING: "false"
     IMG_MERGE_STRATEGY: "index_oci"
 
 publish_public_rc_latest_fips:
   extends: publish_public_rc_latest
+  needs:
+    - publish_public_tag_fips
   variables:
     IMG_SOURCES: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-fips-amd64,$BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-fips-arm64
     IMG_DESTINATIONS: operator:rc-latest-fips
 
 publish_redhat_public_latest:
   stage: release-latest
+  needs:
+    - publish_redhat_public_tag
   rules:
+    # Skip latest jobs for vX.Y.Z-rc.W tags
+    - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+-rc\.[0-9]+$/'
+      when: never
+    # Auto-promote to latest only for proper vX.Y.Z stable release tags
+    - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
+      when: on_success
+    # Any other tag shape: require manual confirmation instead of auto-publishing latest
     - if: $CI_COMMIT_TAG
       when: manual
     - when: never
-  trigger:
-    project: DataDog/public-images
-    branch: main
-    strategy: depend
+  extends: .docker_publish_job_definition
   variables:
     IMG_SOURCES: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-amd64,$BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-arm64
     IMG_DESTINATIONS: $RH_PARTNER_PROJECT_ID:latest

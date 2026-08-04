@@ -35,6 +35,92 @@ const (
 	resourcesNamespace = "bar"
 )
 
+type conflictOnceClient struct {
+	client.Client
+	remainingConflicts int
+}
+
+func (c *conflictOnceClient) Status() client.SubResourceWriter {
+	return &conflictOnceStatusWriter{
+		SubResourceWriter: c.Client.Status(),
+		client:            c,
+	}
+}
+
+type conflictOnceStatusWriter struct {
+	client.SubResourceWriter
+	client *conflictOnceClient
+}
+
+func (w *conflictOnceStatusWriter) Update(ctx context.Context, obj client.Object, opts ...client.SubResourceUpdateOption) error {
+	if w.client.remainingConflicts > 0 {
+		w.client.remainingConflicts--
+
+		latest := &datadoghqv1alpha1.DatadogGenericResource{}
+		if err := w.client.Client.Get(ctx, client.ObjectKeyFromObject(obj), latest); err != nil {
+			return err
+		}
+		if latest.Annotations == nil {
+			latest.Annotations = map[string]string{}
+		}
+		latest.Annotations["issue-3272-conflict"] = "true"
+		if err := w.client.Client.Update(ctx, latest); err != nil {
+			return err
+		}
+
+		return apierrors.NewConflict(
+			datadoghqv1alpha1.GroupVersion.WithResource("datadoggenericresources").GroupResource(),
+			obj.GetName(),
+			fmt.Errorf("injected status update conflict"),
+		)
+	}
+	return w.SubResourceWriter.Update(ctx, obj, opts...)
+}
+
+func TestReconcileGenericResource_RetriesCreatedStatusAfterConflict(t *testing.T) {
+	resetMockHandlerState()
+	t.Setenv("DD_API_KEY", "DUMMY_API_KEY")
+	t.Setenv("DD_APP_KEY", "DUMMY_APP_KEY")
+
+	logf.SetLogger(zap.New(zap.UseDevMode(true)))
+	s := scheme.Scheme
+	s.AddKnownTypes(datadoghqv1alpha1.GroupVersion, &datadoghqv1alpha1.DatadogGenericResource{})
+
+	eventBroadcaster := record.NewBroadcaster()
+	recorder := eventBroadcaster.NewRecorder(s, corev1.EventSource{Component: "TestReconcileGenericResource_RetriesCreatedStatusAfterConflict"})
+
+	baseClient := fake.NewClientBuilder().WithScheme(s).WithStatusSubresource(&datadoghqv1alpha1.DatadogGenericResource{}).Build()
+	conflictingClient := &conflictOnceClient{Client: baseClient}
+	r := NewReconciler(
+		conflictingClient,
+		config.NewCredentialManager(fake.NewClientBuilder().Build()),
+		s,
+		logf.Log.WithName("created-status-conflict"),
+		recorder,
+	)
+	r.handlers = map[datadoghqv1alpha1.SupportedResourcesType]ResourceHandler{
+		mockSubresource: &MockHandler{},
+	}
+
+	instance := mockGenericResource()
+	instance.Finalizers = []string{datadogGenericResourceFinalizer}
+	assert.NoError(t, r.client.Create(context.TODO(), instance))
+
+	conflictingClient.remainingConflicts = 1
+	result, err := reconcileRequest(r, context.TODO(), newRequest(resourcesNamespace, resourcesName))
+	assert.NoError(t, err)
+	assert.Equal(t, ctrl.Result{RequeueAfter: defaultRequeuePeriod}, result)
+	assert.Equal(t, 0, conflictingClient.remainingConflicts, "the injected status conflict should be consumed")
+
+	assert.NoError(t, r.client.Get(context.TODO(), client.ObjectKeyFromObject(instance), instance))
+	assert.Equal(t, mockResourceID, instance.Status.Id, "the ID returned by the successful create must be persisted")
+	assert.Equal(t, "true", instance.Annotations["issue-3272-conflict"], "the concurrent metadata update must be preserved")
+
+	_, err = reconcileRequest(r, context.TODO(), newRequest(resourcesNamespace, resourcesName))
+	assert.NoError(t, err)
+	assert.Equal(t, 1, mockCreateCalls, "a status conflict must not cause a second Datadog create")
+}
+
 func TestReconcileGenericResource_Reconcile(t *testing.T) {
 	eventBroadcaster := record.NewBroadcaster()
 	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: "TestReconcileGenericResource_Reconcile"})
@@ -460,6 +546,83 @@ func TestReconcileGenericResource_ForceSyncPeriodTriggersRemoteUpdate(t *testing
 	assert.Equal(t, reconcile.Result{RequeueAfter: defaultRequeuePeriod}, result)
 	assert.Equal(t, 1, mockGetCalls)
 	assert.Equal(t, 1, mockUpdateCalls)
+}
+
+func TestReconcileGenericResource_ForceSyncFailureDoesNotDeferRetry(t *testing.T) {
+	resetMockHandlerState()
+	t.Setenv("DD_API_KEY", "DUMMY_API_KEY")
+	t.Setenv("DD_APP_KEY", "DUMMY_APP_KEY")
+	t.Setenv(ddGenericResourceForceSyncPeriodEnvVar, "1")
+
+	eventBroadcaster := record.NewBroadcaster()
+	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: "TestReconcileGenericResource_ForceSyncFailureDoesNotDeferRetry"})
+
+	logf.SetLogger(zap.New(zap.UseDevMode(true)))
+	logger := logf.Log.WithName("force-sync-failure-test")
+
+	s := scheme.Scheme
+	s.AddKnownTypes(datadoghqv1alpha1.GroupVersion, &datadoghqv1alpha1.DatadogGenericResource{})
+
+	r := NewReconciler(
+		fake.NewClientBuilder().WithScheme(s).WithStatusSubresource(&datadoghqv1alpha1.DatadogGenericResource{}).Build(),
+		config.NewCredentialManager(fake.NewClientBuilder().Build()),
+		s,
+		logger,
+		recorder,
+	)
+	r.handlers = map[datadoghqv1alpha1.SupportedResourcesType]ResourceHandler{
+		mockSubresource: &MockHandler{},
+	}
+
+	err := r.client.Create(context.TODO(), mockGenericResource())
+	assert.NoError(t, err)
+
+	req := newRequest(resourcesNamespace, resourcesName)
+
+	// Add finalizer, then create the Datadog resource.
+	_, err = reconcileRequest(r, context.TODO(), req)
+	assert.NoError(t, err)
+	_, err = reconcileRequest(r, context.TODO(), req)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, mockCreateCalls)
+
+	obj := &datadoghqv1alpha1.DatadogGenericResource{}
+	err = r.client.Get(context.TODO(), types.NamespacedName{Name: resourcesName, Namespace: resourcesNamespace}, obj)
+	assert.NoError(t, err)
+	obj.Status.LastForceSyncTime = ptr.To(metav1.NewTime(time.Now().Add(-2 * time.Minute)))
+	err = r.client.Status().Update(context.TODO(), obj)
+	assert.NoError(t, err)
+
+	// Read back the round-tripped (second-precision) value as our baseline, since
+	// metav1.Time truncates to seconds on serialization.
+	err = r.client.Get(context.TODO(), types.NamespacedName{Name: resourcesName, Namespace: resourcesNamespace}, obj)
+	assert.NoError(t, err)
+	staleLastForceSyncTime := *obj.Status.LastForceSyncTime
+
+	// Simulate a transient failure (e.g. a Datadog API timeout) on the force-synced update.
+	mockUpdateErr = fmt.Errorf("504 Gateway Timeout: stream timeout")
+
+	result, err := reconcileRequest(r, context.TODO(), req)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, mockGetCalls)
+	assert.Equal(t, 1, mockUpdateCalls)
+	assert.Equal(t, ctrl.Result{RequeueAfter: defaultErrRequeuePeriod}, result)
+
+	err = r.client.Get(context.TODO(), types.NamespacedName{Name: resourcesName, Namespace: resourcesNamespace}, obj)
+	assert.NoError(t, err)
+	// LastForceSyncTime must not advance on failure: advancing it would make the
+	// controller wait out a full forceSyncPeriod before retrying, instead of
+	// retrying on the fast error-requeue cadence.
+	assert.True(t, obj.Status.LastForceSyncTime.Equal(&staleLastForceSyncTime), "LastForceSyncTime should not advance when the force-synced update fails")
+
+	// The next reconcile should retry the force sync immediately rather than
+	// waiting out the (already-elapsed, but now-irrelevant) forceSyncPeriod window.
+	mockUpdateErr = nil
+	result, err = reconcileRequest(r, context.TODO(), req)
+	assert.NoError(t, err)
+	assert.Equal(t, 2, mockGetCalls)
+	assert.Equal(t, 2, mockUpdateCalls)
+	assert.Equal(t, reconcile.Result{RequeueAfter: defaultRequeuePeriod}, result)
 }
 
 func newRequest(ns, name string) reconcile.Request {
