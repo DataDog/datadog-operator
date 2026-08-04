@@ -11,6 +11,8 @@ import (
 	"strings"
 	"testing"
 
+	"k8s.io/utils/ptr"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -20,7 +22,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	testutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/testutils"
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/constants"
@@ -118,9 +119,9 @@ func TestSetupRequestPrerequisites(t *testing.T) {
 						},
 						Spec: v2alpha1.DatadogAgentSpec{
 							Global: &v2alpha1.GlobalConfig{
-								ClusterName: apiutils.NewStringPointer("dda-cluster-name"),
+								ClusterName: ptr.To("dda-cluster-name"),
 								Credentials: &v2alpha1.DatadogCredentials{
-									APIKey: apiutils.NewStringPointer("dda-api-key"),
+									APIKey: ptr.To("dda-api-key"),
 								},
 							},
 						},
@@ -146,11 +147,11 @@ func TestSetupRequestPrerequisites(t *testing.T) {
 						},
 						Spec: v2alpha1.DatadogAgentSpec{
 							Global: &v2alpha1.GlobalConfig{
-								ClusterName: apiutils.NewStringPointer("dda-eu-cluster"),
+								ClusterName: ptr.To("dda-eu-cluster"),
 								Credentials: &v2alpha1.DatadogCredentials{
-									APIKey: apiutils.NewStringPointer("dda-api-key"),
+									APIKey: ptr.To("dda-api-key"),
 								},
-								Site: apiutils.NewStringPointer("datadoghq.eu"),
+								Site: ptr.To("datadoghq.eu"),
 							},
 						},
 					},
@@ -175,7 +176,7 @@ func TestSetupRequestPrerequisites(t *testing.T) {
 						},
 						Spec: v2alpha1.DatadogAgentSpec{
 							Global: &v2alpha1.GlobalConfig{
-								ClusterName: apiutils.NewStringPointer("dda-secret-cluster"),
+								ClusterName: ptr.To("dda-secret-cluster"),
 								Credentials: &v2alpha1.DatadogCredentials{
 									APISecret: &v2alpha1.SecretConfig{
 										SecretName: "datadog-secret",
@@ -219,9 +220,9 @@ func TestSetupRequestPrerequisites(t *testing.T) {
 						},
 						Spec: v2alpha1.DatadogAgentSpec{
 							Global: &v2alpha1.GlobalConfig{
-								ClusterName: apiutils.NewStringPointer("dda-encrypted-cluster"),
+								ClusterName: ptr.To("dda-encrypted-cluster"),
 								Credentials: &v2alpha1.DatadogCredentials{
-									APIKey: apiutils.NewStringPointer("ENC[encrypted-api-key]"),
+									APIKey: ptr.To("ENC[encrypted-api-key]"),
 								},
 							},
 						},
@@ -250,9 +251,9 @@ func TestSetupRequestPrerequisites(t *testing.T) {
 						},
 						Spec: v2alpha1.DatadogAgentSpec{
 							Global: &v2alpha1.GlobalConfig{
-								ClusterName: apiutils.NewStringPointer("dda-cluster-name"),
+								ClusterName: ptr.To("dda-cluster-name"),
 								Credentials: &v2alpha1.DatadogCredentials{
-									APIKey: apiutils.NewStringPointer("dda-fallback-key"),
+									APIKey: ptr.To("dda-fallback-key"),
 								},
 							},
 						},

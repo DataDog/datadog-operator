@@ -393,7 +393,6 @@ datadog.dd_url: spec.endpoint.url
 datadog.disableDefaultOsReleasePaths: ""
 datadog.disablePasswdMount: ""
 datadog.discovery.enabled: ""
-datadog.discovery.networkStats.enabled: ""
 datadog.dockerSocketPath: spec.global.dockerSocketPath
 datadog.dogstatsd.hostSocketPath: ""
 datadog.dogstatsd.nonLocalTraffic: ""
@@ -512,7 +511,6 @@ datadog.processAgent.containerCollection: spec.features.liveContainerCollection.
 datadog.processAgent.enabled: ""
 datadog.processAgent.processCollection: spec.features.liveProcessCollection.enabled
 datadog.processAgent.processDiscovery: spec.features.processDiscovery.enabled
-datadog.processAgent.runInCoreAgent: spec.global.runProcessChecksInCoreAgent
 datadog.processAgent.stripProcessArguments: spec.features.liveProcessCollection.stripProcessArguments
 datadog.profiling.enabled: ""
 datadog.prometheusScrape.additionalConfigs:

@@ -39,8 +39,8 @@ func createValidReleaseData() ([]byte, error) {
 	release.Chart.Metadata.Name = "datadog"
 	release.Chart.Metadata.Version = "3.10.0"
 	release.Chart.Metadata.AppVersion = "7.50.0"
-	release.Config = map[string]interface{}{"key": "value"}
-	release.Chart.Values = map[string]interface{}{"default": "value"}
+	release.Config = map[string]any{"key": "value"}
+	release.Chart.Values = map[string]any{"default": "value"}
 
 	jsonData, err := json.Marshal(release)
 	if err != nil {
@@ -58,28 +58,13 @@ func createValidReleaseData() ([]byte, error) {
 func Test_workqueueInitialization(t *testing.T) {
 	hmf := createTestForwarder()
 
-	if hmf.queue == nil {
-		t.Fatal("Workqueue not initialized")
+	if hmf.runner == nil {
+		t.Fatal("runner not initialized")
 	}
 
-	hmf.queue.Add("test/key")
-	if hmf.queue.Len() != 1 {
-		t.Errorf("Queue length = %d, want 1", hmf.queue.Len())
-	}
-
-	key, shutdown := hmf.queue.Get()
-	if shutdown {
-		t.Error("Queue should not be shutting down")
-	}
-	if key != "test/key" {
-		t.Errorf("Got key %v, want test/key", key)
-	}
-
-	hmf.queue.Done(key)
-	hmf.queue.ShutDown()
-
-	if !hmf.queue.ShuttingDown() {
-		t.Error("Queue should be marked as shutting down")
+	hmf.runner.Enqueue("ConfigMap", "test", "key")
+	if got := hmf.runner.QueueLen(); got != 1 {
+		t.Errorf("QueueLen = %d, want 1", got)
 	}
 }
 
@@ -211,8 +196,8 @@ func Test_buildSnapshot(t *testing.T) {
 	release.Info.Status = "deployed"
 	release.Chart.Metadata.Name = "datadog"
 	release.Chart.Metadata.Version = "3.10.0"
-	release.Config = map[string]interface{}{"datadog": map[string]interface{}{"apiKey": "key"}}
-	release.Chart.Values = map[string]interface{}{"datadog": map[string]interface{}{"site": "datadoghq.com"}}
+	release.Config = map[string]any{"datadog": map[string]any{"apiKey": "key"}}
+	release.Chart.Values = map[string]any{"datadog": map[string]any{"site": "datadoghq.com"}}
 
 	snapshot := hmf.buildSnapshot(release, "test-release", "default", "uid-123", 2)
 
@@ -258,21 +243,21 @@ func Test_snapshotToReleaseData(t *testing.T) {
 func Test_mergeValues(t *testing.T) {
 	hmf := createTestForwarder()
 
-	defaults := map[string]interface{}{
-		"datadog": map[string]interface{}{
+	defaults := map[string]any{
+		"datadog": map[string]any{
 			"apiKey": "default-key",
 			"site":   "datadoghq.com",
 		},
 	}
-	overrides := map[string]interface{}{
-		"datadog": map[string]interface{}{
+	overrides := map[string]any{
+		"datadog": map[string]any{
 			"apiKey": "user-key",
 		},
 	}
 
 	result := hmf.mergeValues(defaults, overrides)
 
-	datadog := result["datadog"].(map[string]interface{})
+	datadog := result["datadog"].(map[string]any)
 	if datadog["apiKey"] != "user-key" {
 		t.Errorf("apiKey = %v, want user-key", datadog["apiKey"])
 	}
@@ -293,12 +278,12 @@ func Test_buildPayload(t *testing.T) {
 
 	payload := hmf.buildPayload(release, "cluster-123")
 
-	var parsed map[string]interface{}
+	var parsed map[string]any
 	if err := json.Unmarshal(payload, &parsed); err != nil {
 		t.Fatalf("Invalid JSON: %v", err)
 	}
 
-	metadata := parsed["datadog_operator_helm_metadata"].(map[string]interface{})
+	metadata := parsed["datadog_operator_helm_metadata"].(map[string]any)
 	if metadata["chart_name"] != "datadog" {
 		t.Errorf("chart_name = %v, want datadog", metadata["chart_name"])
 	}

@@ -17,7 +17,6 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component"
 	"github.com/DataDog/datadog-operator/pkg/constants"
@@ -66,7 +65,7 @@ func NewDefaultClusterAgentDeployment(ddaMeta metav1.Object, ddaSpec *v2alpha1.D
 
 	maps.Copy(podTemplate.Annotations, deployment.GetAnnotations())
 	deployment.Spec.Template = *podTemplate
-	deployment.Spec.Replicas = apiutils.NewInt32Pointer(defaultClusterAgentReplicas)
+	deployment.Spec.Replicas = new(defaultClusterAgentReplicas)
 
 	return deployment
 }
@@ -78,7 +77,7 @@ func NewDefaultClusterAgentPodTemplateSpec(ddaMeta metav1.Object, ddaSpec *v2alp
 		common.GetVolumeForConfd(),
 		common.GetVolumeForLogs(),
 		common.GetVolumeForCertificates(),
-		common.GetVolumeForAuth(),
+		common.GetVolumeForAuth(false),
 
 		// /tmp is needed because some versions of the DCA (at least until
 		// 1.19.0) write to it.
@@ -132,8 +131,8 @@ func defaultPodSpec(ddaMeta metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, v
 				Command:        nil,
 				Args:           nil,
 				SecurityContext: &corev1.SecurityContext{
-					ReadOnlyRootFilesystem:   apiutils.NewBoolPointer(true),
-					AllowPrivilegeEscalation: apiutils.NewBoolPointer(false),
+					ReadOnlyRootFilesystem:   new(true),
+					AllowPrivilegeEscalation: new(false),
 				},
 			},
 		},
@@ -141,7 +140,7 @@ func defaultPodSpec(ddaMeta metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, v
 		Volumes:  volumes,
 		// To be uncommented when the cluster-agent Dockerfile will be updated to use a non-root user by default
 		// SecurityContext: &corev1.PodSecurityContext{
-		// 	RunAsNonRoot: apiutils.NewBoolPointer(true),
+		// 	RunAsNonRoot: ptr.To(true),
 		// },
 	}
 
@@ -165,6 +164,10 @@ func defaultEnvVars(ddaMeta metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec) [
 		{
 			Name:  DDKubeResourcesNamespace,
 			Value: utils.GetDatadogAgentResourceNamespace(ddaMeta),
+		},
+		{
+			Name:  common.DDKubernetesUseEndpointSlices,
+			Value: "true",
 		},
 		{
 			Name:  common.DDLeaderElection,

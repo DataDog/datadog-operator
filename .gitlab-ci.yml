@@ -1,8 +1,9 @@
-image: registry.ddbuild.io/images/mirror/library/golang:1.25.7
+image: registry.ddbuild.io/images/mirror/library/golang:1.26.5
 variables:
   NIGHTLY_BUILD_CONDUCTOR_NAME: "operator-nightly-build"
   PROJECTNAME: "datadog-operator"
   PROJECTNAME_CHECK: "datadog-operator-check"
+  IMAGE_VERSION: "tmpl-v4"
   BUILD_DOCKER_REGISTRY: "486234852809.dkr.ecr.us-east-1.amazonaws.com/ci"
   E2E_DOCKER_REGISTRY: "669783387624.dkr.ecr.us-east-1.amazonaws.com/operator"
   JOB_DOCKER_IMAGE: "registry.ddbuild.io/ci-containers-project:v68399443-88dc260-v1.22"
@@ -16,17 +17,15 @@ variables:
   RH_PARTNER_REGISTRY_KEY_SSM_KEY: redhat_registry_key
   RH_PARTNER_API_KEY_SSM_KEY: redhat_api_key
   # Image version from datadog-agent-buildimages (same as datadog-agent main branch)
-  CI_IMAGE_LINUX: v88930157-ef91d52f
+  CI_IMAGE_LINUX: v102144341-64dad9f8
   CI_IMAGE_LINUX_SUFFIX: ""
   PUSH_IMAGES_TO_STAGING:
     description: "Set PUSH_IMAGE_TO_STAGING to 'true' if you want to push the operator to internal staging registry."
   FIPS_ENABLED: false
   FF_TIMESTAMPS: true
-
-cache: &global_cache
-  key: ${CI_COMMIT_REF_SLUG}
-  paths:
-    - /go/pkg/mod
+  GOPATH: "$CI_PROJECT_DIR/.go"
+  GOMODCACHE: "$CI_PROJECT_DIR/.go/pkg/mod"
+  GOCACHE: "$CI_PROJECT_DIR/.cache/go-build"
 
 .resource_variables: &resource_variables
   KUBERNETES_MEMORY_REQUEST: 16Gi
@@ -74,7 +73,19 @@ unit_tests:
   before_script:
     - make install-tools
   script:
-    - make test
+    - make ci-test
+
+verify_licenses:
+  stage: test
+  tags: ["arch:amd64"]
+  rules:
+    - if: '$DDR == "true"'
+      when: never
+    - when: on_success
+  before_script:
+    - make install-tools
+  script:
+    - make verify-licenses
 
 check-golang-version:
   stage: build
@@ -116,6 +127,28 @@ check_formatting:
   script:
     - make fmt
     - git diff --exit-code
+
+lint_e2e:
+  stage: test
+  tags: ["arch:amd64"]
+  rules:
+    - if: '$DDR == "true"'
+      when: never
+    - if: $CI_COMMIT_BRANCH
+      changes:
+        paths:
+          - "test/e2e/**/*"
+        compare_to: "refs/heads/main"
+      when: on_success
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      when: on_success
+    - when: never
+  variables:
+    <<: *resource_variables
+  before_script:
+    - make install-tools
+  script:
+    - make lint-e2e
 
 build_operator_image_amd64:
   stage: image
@@ -223,6 +256,11 @@ go_e2e_deps:
   tags: ["arch:amd64"]
   variables:
     KUBERNETES_CPU_REQUEST: 16
+    KUBERNETES_CPU_LIMIT: 16
+    KUBERNETES_MEMORY_REQUEST: 16Gi
+    KUBERNETES_MEMORY_LIMIT: 16Gi
+    GOMEMLIMIT: 15GiB
+    GOMAXPROCS: 4
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
       variables:
@@ -238,6 +276,12 @@ go_e2e_deps:
     - export GITHUB_TOKEN=$(dd-octo-sts token --scope DataDog/datadog-operator --policy self.gitlab.deps-fetch)
   script:
     - |
+      # Pre-warm Go module and build caches before the e2e matrix starts.
+      pushd test/e2e
+      GOWORK=off go mod download
+      GOWORK=off go test -p 4 ./... -count=1 --tags=e2e -run '^$'
+      popd
+    - |
       if [ ! -f pulumi_plugins.tar.xz ]; then
         # Pre-download Pulumi plugins used by e2e scenarios and components
         pushd test/e2e
@@ -250,6 +294,13 @@ go_e2e_deps:
     paths:
       - $CI_PROJECT_DIR/pulumi_plugins.tar.xz
   cache:
+    - key: e2e-go-${CI_COMMIT_REF_SLUG}
+      fallback_keys:
+        - e2e-go-${CI_DEFAULT_BRANCH}
+      paths:
+        - .go/pkg/mod
+        - .cache/go-build
+      policy: pull-push
     - key:
         files:
           - ./test/e2e/go.mod
@@ -271,8 +322,9 @@ go_e2e_deps:
     allow_failure: true
   - if: $CI_COMMIT_TAG
     allow_failure: true
-  # Allow failure if we're explicitly pushing images to staging
+  # Make e2e optional when pushing custom builds to staging
   - if: $PUSH_IMAGES_TO_STAGING == 'true'
+    when: manual
     allow_failure: true
   # Disable on Conductor-triggered jobs (ex: nightly)
   - if: '$DDR == "true"'
@@ -293,8 +345,9 @@ go_e2e_deps:
     when: never
   - if: $CI_COMMIT_TAG
     allow_failure: true
-  # Allow failure if we're explicitly pushing images to staging
+  # Make e2e optional when pushing custom builds to staging
   - if: $PUSH_IMAGES_TO_STAGING == 'true'
+    when: manual
     allow_failure: true
   # Disable on Conductor-triggered jobs (ex: nightly)
   - if: '$DDR == "true"'
@@ -311,9 +364,15 @@ go_e2e_deps:
     E2E_AWS_PUBLIC_KEY_PATH: /tmp/agent-qa-ssh-key.pub
     E2E_AWS_PRIVATE_KEY_PATH: /tmp/agent-qa-ssh-key
     E2E_KEY_PAIR_NAME: ci.datadog-operator
-    # Temporary workaround from https://github.com/golang/go/issues/75031
-    GOTOOLCHAIN: go1.25.0+auto
   image: registry.ddbuild.io/ci/datadog-agent-buildimages/linux$CI_IMAGE_LINUX_SUFFIX:$CI_IMAGE_LINUX
+  cache:
+    - key: e2e-go-${CI_COMMIT_REF_SLUG}
+      fallback_keys:
+        - e2e-go-${CI_DEFAULT_BRANCH}
+      paths:
+        - .go/pkg/mod
+        - .cache/go-build
+      policy: pull
   before_script:
     # Extract cached Pulumi plugins
     - mkdir -p ~/.pulumi && tar xJf pulumi_plugins.tar.xz -C ~/.pulumi
@@ -335,15 +394,73 @@ go_e2e_deps:
     - echo "Logging in to Pulumi with S3 backend..."
     - pulumi login "s3://dd-pulumi-state?region=us-east-1&awssdk=v2&profile=$AWS_PROFILE"
 
+# Base configuration for E2E jobs provisioning GCP infrastructure.
+.e2e_gcp_base:
+  tags:
+    - "arch:amd64"
+  variables:
+    <<: *resource_variables
+    E2E_GCP_PUBLIC_KEY_PATH: /tmp/agent-qa-gcp-ssh-key.pub
+    E2E_GCP_PRIVATE_KEY_PATH: /tmp/agent-qa-gcp-ssh-key
+    E2E_KEY_PAIR_NAME: ci.datadog-operator
+  image: registry.ddbuild.io/ci/datadog-agent-buildimages/linux$CI_IMAGE_LINUX_SUFFIX:$CI_IMAGE_LINUX
+  cache:
+    - key: e2e-go-${CI_COMMIT_REF_SLUG}
+      fallback_keys:
+        - e2e-go-${CI_DEFAULT_BRANCH}
+      paths:
+        - .go/pkg/mod
+        - .cache/go-build
+      policy: pull
+  before_script:
+    # Extract cached Pulumi plugins
+    - mkdir -p ~/.pulumi && tar xJf pulumi_plugins.tar.xz -C ~/.pulumi
+    - rm -f pulumi_plugins.tar.xz
+    # Generate GitHub token to avoid rate limiting when downloading Pulumi plugins
+    - dd-octo-sts version
+    - dd-octo-sts debug --scope DataDog/datadog-operator --policy self.gitlab.e2e
+    - export GITHUB_TOKEN=$(dd-octo-sts token --scope DataDog/datadog-operator --policy self.gitlab.e2e)
+    # Configure and use the agent-qa AWS profile for SSM secrets, ECR, and the Pulumi S3 backend.
+    - echo "Starting setup for GCP E2E testing..."
+    - mkdir -p ~/.aws
+    - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.agent-qa-profile --with-decryption --query "Parameter.Value" --out text >> ~/.aws/config
+    - export AWS_PROFILE=agent-qa-ci
+    # Use S3 backend to store stack status
+    - echo "Logging in to Pulumi with S3 backend..."
+    - pulumi login "s3://dd-pulumi-state?region=us-east-1&awssdk=v2&profile=$AWS_PROFILE"
+    # SSH key retrieval for GCP fakeintake/VM resources
+    - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.ssh_public_key --with-decryption --query "Parameter.Value" --out text > $E2E_GCP_PUBLIC_KEY_PATH
+    - touch $E2E_GCP_PRIVATE_KEY_PATH && chmod 600 $E2E_GCP_PRIVATE_KEY_PATH && aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.ssh_private_key --with-decryption --query "Parameter.Value" --out text > $E2E_GCP_PRIVATE_KEY_PATH
+    # Setup GCP credentials. The service account should match the agent-e2e-tests account used by the shared e2e framework.
+    - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.e2e_tests_gcp_credentials --with-decryption --query "Parameter.Value" --out text > ~/gcp-credentials.json
+    - export GOOGLE_APPLICATION_CREDENTIALS=~/gcp-credentials.json
+
+.docker_publish_job_definition:
+  image: registry.ddbuild.io/agent-delivery/dd-pkg:v0.9.0
+  tags: ["arch:arm64"]
+  variables:
+    IMG_SIGNING: "false"
+    PUBLIC_IMAGES_PUBLISH_TIMEOUT: "1800"
+  script:
+    - |
+      set -euo pipefail
+      dd-pkg version
+      args=(publish-image --timeout "${PUBLIC_IMAGES_PUBLISH_TIMEOUT}" --poll-interval 30 --signing="${IMG_SIGNING}")
+      if [[ -n "${IMG_REGISTRIES:-}" ]]; then args+=(--registries "${IMG_REGISTRIES}"); fi
+      if [[ -n "${IMG_SOURCES:-}" ]]; then args+=(--sources "${IMG_SOURCES}"); fi
+      if [[ -n "${IMG_DESTINATIONS:-}" ]]; then args+=(--destinations "${IMG_DESTINATIONS}"); fi
+      if [[ -n "${IMG_DESTINATIONS_REGEX:-}" ]]; then args+=(--regex-expression "${IMG_DESTINATIONS_REGEX}"); fi
+      if [[ -n "${IMG_DESTINATIONS_REGEX_REPL:-}" ]]; then args+=(--regex-replacement "${IMG_DESTINATIONS_REGEX_REPL}"); fi
+      if [[ -n "${IMG_TAG_REFERENCE:-}" ]]; then args+=(--tag-reference "${IMG_TAG_REFERENCE}"); fi
+      if [[ -n "${IMG_NEW_TAGS:-}" ]]; then args+=(--new-tags "${IMG_NEW_TAGS}"); fi
+      dd-pkg "${args[@]}"
+
 trigger_e2e_operator_image:
   stage: e2e
   rules: !reference [.on_run_e2e_base]
   needs:
     - build_operator_image_amd64
-  trigger:
-    project: DataDog/public-images
-    branch: main
-    strategy: depend
+  extends: .docker_publish_job_definition
   variables:
     IMG_SOURCES: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-amd64
     IMG_DESTINATIONS: operator:${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
@@ -379,7 +496,7 @@ e2e:
 
 e2e_mq:
   extends: e2e
-  timeout: 40m
+  timeout: 60m
   retry: 0
   rules:
     # Skip if only .md files are changed
@@ -400,17 +517,23 @@ e2e_autoscaling:
   stage: e2e
   needs:
     - "go_e2e_deps"
-  timeout: 60m
+  timeout: 150m
+  id_tokens:
+    DDOCTOSTS_ID_TOKEN:
+      aud: dd-octo-sts
   rules:
-    # Disable on Conductor-triggered jobs (ex: nightly) — must be first so it wins
+    # Disable on Conductor-triggered jobs (ex: nightly) - must be first so it wins
     - if: '$DDR == "true"'
+      when: never
+    # Disable on manual pipelines to test staging images
+    - if: $PUSH_IMAGES_TO_STAGING == 'true'
       when: never
     # Run automatically on changes to autoscaling code
     - if: $CI_COMMIT_BRANCH
       changes:
         paths:
-          - "cmd/kubectl-datadog/autoscaling/**"
-          - "test/e2e/tests/autoscaling_suite/**"
+          - "cmd/kubectl-datadog/autoscaling/**/*"
+          - "test/e2e/tests/autoscaling_suite/**/*"
           - "test/e2e/provisioners/eks.go"
           - "test/e2e/common/autoscaling.go"
       when: on_success
@@ -422,19 +545,99 @@ e2e_autoscaling:
     - make e2e-autoscaling-tests
   retry: 2
 
+e2e_gke_autopilot:
+  extends: .e2e_gcp_base
+  stage: e2e
+  needs:
+    - "trigger_e2e_operator_image"
+    - "go_e2e_deps"
+  timeout: 120m
+  id_tokens:
+    DDOCTOSTS_ID_TOKEN:
+      aud: dd-octo-sts
+  rules:
+    # Disable on Conductor-triggered jobs (ex: nightly) - must be first so it wins
+    - if: '$DDR == "true"'
+      when: never
+    # Run manually for now. Release branch/tag automation can be added once the job is stable.
+    - when: manual
+      allow_failure: true
+  variables:
+    TARGET_IMAGE: $E2E_DOCKER_REGISTRY:${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
+  script:
+    - echo "Running GKE Autopilot e2e test with target image $TARGET_IMAGE"
+    - IMAGE_PULL_PASSWORD=$(aws ecr get-login-password) IMG=$TARGET_IMAGE make e2e-gke-autopilot-tests
+  retry: 2
+
+e2e_untaint:
+  extends: .e2e_aws_base
+  stage: e2e
+  needs:
+    # Needs the operator image (unlike autoscaling, which exercises the CLI).
+    - "trigger_e2e_operator_image"
+    - "go_e2e_deps"
+  timeout: 100m
+  id_tokens:
+    DDOCTOSTS_ID_TOKEN:
+      aud: dd-octo-sts
+  variables:
+    # Untaint controller is supported on Kubernetes 1.27.0+; pin a single recent
+    # version rather than running the full e2e matrix.
+    K8S_VERSION: "1.30"
+    TARGET_IMAGE: $E2E_DOCKER_REGISTRY:${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
+  rules:
+    # Skip when a root *.md file changed (docs-only *or* docs mixed with code).
+    # This has to gate every rule below because the hard `needs` above
+    # (trigger_e2e_operator_image, via .on_run_e2e_base) itself skips on any
+    # root markdown change. Letting this job run on such a pipeline would leave
+    # it depending on a job that isn't there, which GitLab rejects as a missing
+    # need. So the mixed-changes "skip" is required for consistency, not a docs
+    # optimization we can simply drop like the other e2e suites.
+    - if: $CI_COMMIT_BRANCH
+      changes:
+        paths:
+          - "*.md"
+        compare_to: "refs/heads/main"
+      when: never
+    # Disable on Conductor-triggered jobs (ex: nightly)
+    - if: '$DDR == "true"'
+      when: never
+    # Disable on manual pipelines to test staging images
+    - if: $PUSH_IMAGES_TO_STAGING == 'true'
+      when: never
+    # Run automatically on changes to untaint controller / suite code.
+    - if: $CI_COMMIT_BRANCH
+      changes:
+        paths:
+          - "internal/controller/untaint_controller.go"
+          - "internal/controller/datadogagent/component/agent/untaint_toleration.go"
+          - "internal/controller/datadogcsidriver/**/*"
+          - "pkg/untaint/**/*"
+          - "test/e2e/tests/untaint_suite/**/*"
+          - "test/e2e/provisioners/kind.go"
+        compare_to: "refs/heads/main"
+      when: on_success
+    # On pipelines that don't touch untaint code, expose it as an optional manual
+    # button. allow_failure here only affects this fallback rule, so it keeps
+    # unrelated pipelines from being blocked without weakening the on_success gate.
+    - when: manual
+      allow_failure: true
+  script:
+    - echo "Running untaint controller e2e tests with target image $TARGET_IMAGE"
+    - IMAGE_PULL_PASSWORD=$(aws ecr get-login-password) IMG=$TARGET_IMAGE make e2e-untaint-tests
+  retry: 2
+
 publish_public_main:
   stage: release
   rules:
     - if: '$CI_COMMIT_BRANCH == "main" && $DDR != "true"'
       when: on_success
     - when: never
-  trigger:
-    project: DataDog/public-images
-    branch: main
-    strategy: depend
+  extends: .docker_publish_job_definition
   variables:
     IMG_SOURCES: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-amd64,$BUILD_DOCKER_REGISTRY/$PROJECTNAME:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-arm64
     IMG_DESTINATIONS: operator:main
+    IMG_REGISTRIES: public
     IMG_SIGNING: "false"
     IMG_MERGE_STRATEGY: "index_oci"
 
@@ -450,15 +653,13 @@ publish_public_tag:
     - if: $CI_COMMIT_TAG
       when: manual
     - when: never
-  trigger:
-    project: DataDog/public-images
-    branch: main
-    strategy: depend
+  extends: .docker_publish_job_definition
   variables:
     IMG_SOURCES: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-amd64,$BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-arm64
     IMG_DESTINATIONS: operator:$CI_COMMIT_TAG
     IMG_DESTINATIONS_REGEX: ":v"
     IMG_DESTINATIONS_REGEX_REPL: ":"
+    IMG_REGISTRIES: public
     IMG_SIGNING: "false"
     IMG_MERGE_STRATEGY: "index_oci"
 
@@ -474,10 +675,7 @@ publish_redhat_public_tag:
     - if: $CI_COMMIT_TAG
       when: manual
     - when: never
-  trigger:
-    project: DataDog/public-images
-    branch: main
-    strategy: depend
+  extends: .docker_publish_job_definition
   variables:
     IMG_SOURCES: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-amd64,$BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-arm64
     IMG_DESTINATIONS: $RH_PARTNER_PROJECT_ID:$CI_COMMIT_TAG
@@ -489,36 +687,75 @@ publish_redhat_public_tag:
 
 publish_public_latest:
   stage: release-latest
+  needs:
+    - publish_public_tag
   rules:
+    # Skip latest jobs for vX.Y.Z-rc.W tags
+    - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+-rc\.[0-9]+$/'
+      when: never
+    # Auto-promote to latest only for proper vX.Y.Z stable release tags
+    - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
+      when: on_success
+    # Any other tag shape: require manual confirmation instead of auto-publishing latest
     - if: $CI_COMMIT_TAG
       when: manual
     - when: never
-  trigger:
-    project: DataDog/public-images
-    branch: main
-    strategy: depend
+  extends: .docker_publish_job_definition
   variables:
     IMG_SOURCES: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-amd64,$BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-arm64
     IMG_DESTINATIONS: operator:latest
+    IMG_REGISTRIES: public
     IMG_SIGNING: "false"
     IMG_MERGE_STRATEGY: "index_oci"
 
 publish_public_latest_fips:
   extends: publish_public_latest
+  needs:
+    - publish_public_tag_fips
   variables:
     IMG_SOURCES: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-fips-amd64,$BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-fips-arm64
     IMG_DESTINATIONS: operator:latest-fips
 
+publish_public_rc_latest:
+  stage: release-latest
+  needs:
+    - publish_public_tag
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+-rc\.[0-9]+$/'
+      when: on_success
+    - when: never
+  extends: .docker_publish_job_definition
+  variables:
+    IMG_SOURCES: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-amd64,$BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-arm64
+    IMG_DESTINATIONS: operator:rc-latest
+    IMG_REGISTRIES: public
+    IMG_SIGNING: "false"
+    IMG_MERGE_STRATEGY: "index_oci"
+
+publish_public_rc_latest_fips:
+  extends: publish_public_rc_latest
+  needs:
+    - publish_public_tag_fips
+  variables:
+    IMG_SOURCES: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-fips-amd64,$BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-fips-arm64
+    IMG_DESTINATIONS: operator:rc-latest-fips
+
 publish_redhat_public_latest:
   stage: release-latest
+  needs:
+    - publish_redhat_public_tag
   rules:
+    # Skip latest jobs for vX.Y.Z-rc.W tags
+    - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+-rc\.[0-9]+$/'
+      when: never
+    # Auto-promote to latest only for proper vX.Y.Z stable release tags
+    - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
+      when: on_success
+    # Any other tag shape: require manual confirmation instead of auto-publishing latest
     - if: $CI_COMMIT_TAG
       when: manual
     - when: never
-  trigger:
-    project: DataDog/public-images
-    branch: main
-    strategy: depend
+  extends: .docker_publish_job_definition
   variables:
     IMG_SOURCES: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-amd64,$BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-arm64
     IMG_DESTINATIONS: $RH_PARTNER_PROJECT_ID:latest
@@ -536,7 +773,6 @@ trigger_internal_operator_image:
     branch: master
     strategy: depend
   variables:
-    IMAGE_VERSION: tmpl-v2
     IMAGE_NAME: $PROJECTNAME
     TMPL_SRC_IMAGE: v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
     RELEASE_TAG: ${CI_COMMIT_REF_SLUG}
@@ -545,22 +781,11 @@ trigger_internal_operator_image:
     RELEASE_PROD: "true"
 
 trigger_internal_operator_image_fips:
-  stage: release
-  rules:
-    - if: $CI_COMMIT_TAG
-    - when: never
-  trigger:
-    project: DataDog/images
-    branch: master
-    strategy: depend
+  extends: trigger_internal_operator_image
   variables:
-    IMAGE_VERSION: tmpl-v2-fips
-    IMAGE_NAME: $PROJECTNAME
     TMPL_SRC_IMAGE: v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-fips
     RELEASE_TAG: ${CI_COMMIT_REF_SLUG}-fips
     BUILD_TAG: ${CI_COMMIT_REF_SLUG}-fips
-    RELEASE_STAGING: "true"
-    RELEASE_PROD: "true"
 
 trigger_internal_operator_check_image:
   stage: release
@@ -580,6 +805,57 @@ trigger_internal_operator_check_image:
     RELEASE_STAGING: "true"
     RELEASE_PROD: "true"
 
+trigger_internal_operator_image_rc_latest:
+  stage: release-latest
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+-rc\.[0-9]+$/'
+    - when: never
+  trigger:
+    project: DataDog/images
+    branch: master
+    strategy: depend
+  variables:
+    IMAGE_NAME: $PROJECTNAME
+    TMPL_SRC_IMAGE: v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
+    RELEASE_TAG: rc-latest
+    BUILD_TAG: rc-latest
+    RELEASE_STAGING: "true"
+    RELEASE_PROD: "true"
+
+trigger_internal_operator_image_fips_rc_latest:
+  extends: trigger_internal_operator_image_rc_latest
+  variables:
+    TMPL_SRC_IMAGE: v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-fips
+    RELEASE_TAG: rc-latest-fips
+    BUILD_TAG: rc-latest-fips
+
+trigger_internal_operator_image_latest:
+  stage: release-latest
+  rules:
+    # Skip latest jobs for vX.Y.Z-rc.W tags
+    - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+-rc\.[0-9]+$/'
+      when: never
+    - if: $CI_COMMIT_TAG
+    - when: never
+  trigger:
+    project: DataDog/images
+    branch: master
+    strategy: depend
+  variables:
+    IMAGE_NAME: $PROJECTNAME
+    TMPL_SRC_IMAGE: v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
+    RELEASE_TAG: latest
+    BUILD_TAG: latest
+    RELEASE_STAGING: "true"
+    RELEASE_PROD: "true"
+
+trigger_internal_operator_image_fips_latest:
+  extends: trigger_internal_operator_image_latest
+  variables:
+    TMPL_SRC_IMAGE: v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-fips
+    RELEASE_TAG: latest-fips
+    BUILD_TAG: latest-fips
+
 trigger_internal_operator_nightly_image:
   stage: release
   rules:
@@ -591,7 +867,6 @@ trigger_internal_operator_nightly_image:
     branch: master
     strategy: depend
   variables:
-    IMAGE_VERSION: tmpl-v2
     IMAGE_NAME: $PROJECTNAME
     TMPL_SRC_IMAGE: v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
     # Trigger a nightly images build that sets the RELEASE_TAG and BUILD_TAG
@@ -629,7 +904,6 @@ trigger_custom_operator_image_staging:
     branch: master
     strategy: depend
   variables:
-    IMAGE_VERSION: tmpl-v2
     IMAGE_NAME: $PROJECTNAME
     TMPL_SRC_IMAGE: v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
     RELEASE_TAG: ${CI_COMMIT_REF_SLUG}-${CI_COMMIT_SHORT_SHA}
@@ -648,11 +922,10 @@ trigger_custom_operator_image_fips_staging:
     branch: master
     strategy: depend
   variables:
-    IMAGE_VERSION: tmpl-v2-fips
     IMAGE_NAME: $PROJECTNAME
-    TMPL_SRC_IMAGE: v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
-    RELEASE_TAG: ${CI_COMMIT_REF_SLUG}-${CI_COMMIT_SHORT_SHA}
-    BUILD_TAG: ${CI_COMMIT_REF_SLUG}-${CI_COMMIT_SHORT_SHA}
+    TMPL_SRC_IMAGE: v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-fips
+    RELEASE_TAG: ${CI_COMMIT_REF_SLUG}-${CI_COMMIT_SHORT_SHA}-fips
+    BUILD_TAG: ${CI_COMMIT_REF_SLUG}-${CI_COMMIT_SHORT_SHA}-fips
     RELEASE_STAGING: "true"
     RELEASE_PROD: "false"
 
@@ -684,7 +957,8 @@ check_preflight_redhat_image:
     - when: never
   needs:
     - "publish_redhat_public_tag"
-  tags: ["runner:docker", "size:large"]
+  tags:
+    - "docker-in-docker:amd64"
   image: $JOB_DOCKER_IMAGE
   script:
     - apt-get update && apt-get -y install --no-install-recommends build-essential git awscli && apt-get -y clean && rm -rf /var/lib/apt/lists/*
@@ -703,7 +977,8 @@ submit_preflight_redhat_image:
     - when: never
   needs:
     - "publish_redhat_public_tag"
-  tags: ["runner:docker", "size:large"]
+  tags:
+    - "docker-in-docker:amd64"
   image: $JOB_DOCKER_IMAGE
   script:
     - apt-get update && apt-get -y install --no-install-recommends build-essential git awscli && apt-get -y clean && rm -rf /var/lib/apt/lists/*
@@ -722,7 +997,8 @@ publish_community_operators:
   # preflight submission can be retried locally followed by this manual job trigger in the pipeline
   # needs:
   #   - "submit_preflight_redhat_image"
-  tags: ["runner:docker", "size:large"]
+  tags:
+    - "docker-in-docker:amd64"
   image: $OCTO_JOB_DOCKER_IMAGE
   id_tokens:
     DDOCTOSTS_ID_TOKEN:
@@ -784,16 +1060,8 @@ publish_nightly_workflow:
     project: DataDog/k8s-datadog-agent-ops
     branch: main
     strategy: depend
-    forward:
-      pipeline_variables: true
   variables:
     OPERATOR_NIGHTLY: "true"
-    # Conductor-related variables
-    APPS: $APPS
-    BAZEL_TARGET: $BAZEL_TARGET
-    DDR: $DDR
-    TARGET_ENV: $TARGET_ENV
-    CONDUCTOR_TARGET: $CONDUCTOR_TARGET
     DDR_WORKFLOW_ID: $DDR_WORKFLOW_ID
 
 # On success, this will cause CNAB to trigger a Deployment to Release Candidate clusters and open a corresponding pull request

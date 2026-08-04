@@ -19,9 +19,7 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
-	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/images"
 )
 
@@ -37,6 +35,7 @@ func getAgentContainersMap() map[apicommon.AgentContainerName]string {
 		apicommon.OtelAgent:                            "",
 		apicommon.HostProfiler:                         "",
 		apicommon.AgentDataPlaneContainerName:          "",
+		apicommon.FlightRecorderContainerName:          "",
 		apicommon.ClusterAgentContainerName:            "",
 		// apicommon.ClusterChecksRunnersContainerName:    "", // Is the same value as CoreAgentContainerName
 	}
@@ -72,7 +71,7 @@ func PodTemplateSpec(logger logr.Logger, manager feature.PodTemplateManagers, ov
 						JMXEnabled: false,
 					}
 					manager.PodTemplateSpec().Spec.Containers[i].Image = images.OverrideAgentImage(container.Image, otelOverride)
-				} else {
+				} else if containerName != apicommon.HostProfiler {
 					manager.PodTemplateSpec().Spec.Containers[i].Image = images.OverrideAgentImage(container.Image, override.Image)
 				}
 				if override.Image.PullPolicy != nil {
@@ -82,7 +81,10 @@ func PodTemplateSpec(logger logr.Logger, manager feature.PodTemplateManagers, ov
 		}
 
 		for i, initContainer := range manager.PodTemplateSpec().Spec.InitContainers {
-			manager.PodTemplateSpec().Spec.InitContainers[i].Image = images.OverrideAgentImage(initContainer.Image, override.Image)
+			// host-profiler-seccomp-setup copies a seccomp profile JSON baked into the profiler image, not the agent image.
+			if apicommon.AgentContainerName(initContainer.Name) != apicommon.HostProfilerSeccompSetupContainerName {
+				manager.PodTemplateSpec().Spec.InitContainers[i].Image = images.OverrideAgentImage(initContainer.Image, override.Image)
+			}
 			if override.Image.PullPolicy != nil {
 				manager.PodTemplateSpec().Spec.InitContainers[i].ImagePullPolicy = *override.Image.PullPolicy
 			}
@@ -103,7 +105,7 @@ func PodTemplateSpec(logger logr.Logger, manager feature.PodTemplateManagers, ov
 		manager.EnvFromVar().AddEnvFromVar(&e)
 	}
 
-	if override.CELWorkloadExclude != nil && len(override.CELWorkloadExclude) > 0 {
+	if len(override.CELWorkloadExclude) > 0 {
 		jsonConfig, err := json.Marshal(override.CELWorkloadExclude)
 		if err != nil {
 			logger.Error(err, "failed to convert to JSON")
@@ -117,7 +119,7 @@ func PodTemplateSpec(logger logr.Logger, manager feature.PodTemplateManagers, ov
 	}
 
 	// Override agent configurations such as datadog.yaml, system-probe.yaml, etc.
-	overrideCustomConfigVolumes(logger, manager, override.CustomConfigurations, componentName, ddaName)
+	overrideCustomConfigVolumes(manager, override.CustomConfigurations, componentName, ddaName)
 
 	// For ExtraConfd and ExtraChecksd, the ConfigMap contents to an init container. This allows use of
 	// the workaround to merge existing config and check files with custom ones. The VolumeMount is already
@@ -127,16 +129,6 @@ func PodTemplateSpec(logger logr.Logger, manager feature.PodTemplateManagers, ov
 		cmName := fmt.Sprintf(extraConfdConfigMapName, strings.ToLower((string(componentName))))
 		vol := volume.GetVolumeFromMultiCustomConfig(override.ExtraConfd, common.ConfdVolumeName, cmName)
 		manager.Volume().AddVolume(&vol)
-
-		// Add md5 hash annotation for custom config
-		hash, err := comparison.GenerateMD5ForSpec(override.ExtraConfd)
-		if err != nil {
-			logger.Error(err, "couldn't generate hash for extra confd custom config")
-		} else {
-			logger.V(2).Info("built extra confd from custom config", "hash", hash)
-		}
-		annotationKey := object.GetChecksumAnnotationKey(cmName)
-		manager.Annotation().AddAnnotation(annotationKey, hash)
 	}
 
 	// If both ConfigMap and ConfigData exist, ConfigMap has higher priority.
@@ -144,16 +136,6 @@ func PodTemplateSpec(logger logr.Logger, manager feature.PodTemplateManagers, ov
 		cmName := fmt.Sprintf(extraChecksdConfigMapName, strings.ToLower((string(componentName))))
 		vol := volume.GetVolumeFromMultiCustomConfig(override.ExtraChecksd, common.ChecksdVolumeName, cmName)
 		manager.Volume().AddVolume(&vol)
-
-		// Add md5 hash annotation for custom config
-		hash, err := comparison.GenerateMD5ForSpec(override.ExtraChecksd)
-		if err != nil {
-			logger.Error(err, "couldn't generate hash for extra checksd custom config")
-		} else {
-			logger.V(2).Info("built extra checksd from custom config", "hash", hash)
-		}
-		annotationKey := object.GetChecksumAnnotationKey(cmName)
-		manager.Annotation().AddAnnotation(annotationKey, hash)
 	}
 
 	for agentContainerName, containerOverride := range override.Containers {
@@ -192,6 +174,14 @@ func PodTemplateSpec(logger logr.Logger, manager feature.PodTemplateManagers, ov
 	manager.PodTemplateSpec().Spec.Tolerations = append(manager.PodTemplateSpec().Spec.Tolerations, override.Tolerations...)
 
 	for annotationName, annotationVal := range override.Annotations {
+		// For AppArmor annotations, skip if the referenced container doesn't exist.
+		// This mirrors the check in overrideAppArmorProfile() and prevents invalid DaemonSet
+		// configurations when a container is absent (e.g. security-agent with directSendFromSystemProbe).
+		if containerName, ok := strings.CutPrefix(annotationName, common.AppArmorAnnotationKey+"/"); ok {
+			if !podSpecHasContainer(&manager.PodTemplateSpec().Spec, containerName) {
+				continue
+			}
+		}
 		manager.Annotation().AddAnnotation(annotationName, annotationVal)
 	}
 
@@ -216,7 +206,7 @@ func PodTemplateSpec(logger logr.Logger, manager feature.PodTemplateManagers, ov
 	manager.PodTemplateSpec().Spec.TopologySpreadConstraints = append(manager.PodTemplateSpec().Spec.TopologySpreadConstraints, override.TopologySpreadConstraints...)
 }
 
-func overrideCustomConfigVolumes(logger logr.Logger, manager feature.PodTemplateManagers, customConfs map[v2alpha1.AgentConfigFileName]v2alpha1.CustomConfig, componentName v2alpha1.ComponentName, ddaName string) {
+func overrideCustomConfigVolumes(manager feature.PodTemplateManagers, customConfs map[v2alpha1.AgentConfigFileName]v2alpha1.CustomConfig, componentName v2alpha1.ComponentName, ddaName string) {
 	sortedKeys := sortKeys(customConfs)
 	for _, fileName := range sortedKeys {
 		customConfig := customConfs[fileName]
@@ -248,17 +238,15 @@ func overrideCustomConfigVolumes(logger logr.Logger, manager feature.PodTemplate
 			)
 			manager.VolumeMount().AddVolumeMount(&volumeMount)
 		}
-
-		// Add md5 hash annotation for custom config
-		hash, err := comparison.GenerateMD5ForSpec(customConfig)
-		if err != nil {
-			logger.Error(err, "couldn't generate hash for custom config", "filename", fileName)
-		} else {
-			logger.V(2).Info("built file from custom config", "filename", fileName, "hash", hash)
-		}
-		annotationKey := object.GetChecksumAnnotationKey(string(fileName))
-		manager.Annotation().AddAnnotation(annotationKey, hash)
 	}
+}
+
+// podSpecHasContainer reports whether the pod spec contains a (init)container with the given name.
+func podSpecHasContainer(podSpec *corev1.PodSpec, name string) bool {
+	allContainers := append(podSpec.Containers, podSpec.InitContainers...)
+	return slices.ContainsFunc(allContainers, func(c corev1.Container) bool {
+		return c.Name == name
+	})
 }
 
 func sortKeys(keysMap map[v2alpha1.AgentConfigFileName]v2alpha1.CustomConfig) []v2alpha1.AgentConfigFileName {

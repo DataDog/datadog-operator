@@ -18,11 +18,9 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/configmap"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
 	"github.com/DataDog/datadog-operator/pkg/constants"
-	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
@@ -50,14 +48,13 @@ type cwsFeature struct {
 	remoteConfigurationEnabled bool
 	directSendFromSystemProbe  bool
 	enforcementEnabled         bool
+	useVSock                   bool
 
 	owner  metav1.Object
 	logger logr.Logger
 
-	customConfig                *v2alpha1.CustomConfig
-	configMapName               string
-	customConfigAnnotationKey   string
-	customConfigAnnotationValue string
+	customConfig  *v2alpha1.CustomConfig
+	configMapName string
 }
 
 // ID returns the ID of the Feature
@@ -80,19 +77,14 @@ func (f *cwsFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 
 		if cwsConfig.CustomPolicies != nil {
 			f.customConfig = cwsConfig.CustomPolicies
-			hash, err := comparison.GenerateMD5ForSpec(f.customConfig)
-			if err != nil {
-				f.logger.Error(err, "couldn't generate hash for cws custom policies config")
-			} else {
-				f.logger.V(2).Info("built cws custom policies from custom config", "hash", hash)
-			}
-			f.customConfigAnnotationValue = hash
-			f.customConfigAnnotationKey = object.GetChecksumAnnotationKey(feature.CWSIDType)
 		}
 		f.configMapName = constants.GetConfName(dda, f.customConfig, defaultCWSConf)
 
 		if cwsConfig.Enforcement != nil {
 			f.enforcementEnabled = apiutils.BoolValue(cwsConfig.Enforcement.Enabled)
+		}
+		if ddaSpec.Global != nil {
+			f.useVSock = apiutils.BoolValue(ddaSpec.Global.UseVSock)
 		}
 		if cwsConfig.Network != nil {
 			f.networkEnabled = apiutils.BoolValue(cwsConfig.Network.Enabled)
@@ -118,7 +110,7 @@ func (f *cwsFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
-				IsRequired: apiutils.NewBoolPointer(true),
+				IsRequired: new(true),
 				Containers: reqContainers,
 			},
 		}
@@ -147,7 +139,7 @@ func mergeConfigs(ddaSpec *v2alpha1.DatadogAgentSpec, ddaRCStatus *v2alpha1.Remo
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *cwsFeature) ManageDependencies(managers feature.ResourceManagers, provider string) error {
+func (f *cwsFeature) ManageDependencies(managers feature.ResourceManagers) error {
 	// Create configMap if one does not already exist and ConfigData is defined
 	if f.customConfig != nil && f.customConfig.ConfigMap == nil && f.customConfig.ConfigData != nil {
 		cm, err := configmap.BuildConfigMapConfigData(f.owner.GetNamespace(), f.customConfig.ConfigData, f.configMapName, cwsConfFileName)
@@ -156,12 +148,6 @@ func (f *cwsFeature) ManageDependencies(managers feature.ResourceManagers, provi
 		}
 
 		if cm != nil {
-			// Add md5 hash annotation for custom config
-			if f.customConfigAnnotationKey != "" && f.customConfigAnnotationValue != "" {
-				annotations := object.MergeAnnotationsLabels(f.logger, cm.GetAnnotations(), map[string]string{f.customConfigAnnotationKey: f.customConfigAnnotationValue}, "*")
-				cm.SetAnnotations(annotations)
-			}
-
 			if err := managers.Store().AddOrUpdate(kubernetes.ConfigMapKind, cm); err != nil {
 				return err
 			}
@@ -172,20 +158,20 @@ func (f *cwsFeature) ManageDependencies(managers feature.ResourceManagers, provi
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *cwsFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *cwsFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
 	return nil
 }
 
 // ManageSingleContainerNodeAgent allows a feature to configure the Agent container for the Node Agent's corev1.PodTemplateSpec
 // if SingleContainerStrategy is enabled and can be used with the configured feature set.
 // It should do nothing if the feature doesn't need to configure it.
-func (f *cwsFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *cwsFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers) error {
 	return nil
 }
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *cwsFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *cwsFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
 	// enable HostPID for system-probe
 	managers.PodTemplateSpec().Spec.HostPID = true
 
@@ -217,9 +203,19 @@ func (f *cwsFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provi
 	}
 	managers.EnvVar().AddEnvVarToContainers(containersForEnvVars, enabledEnvVar)
 
+	socketPath := filepath.Join(common.SystemProbeSocketVolumePath, "runtime-security.sock")
+	if f.useVSock {
+		socketPath = "vsock:5020"
+
+		managers.EnvVar().AddEnvVarToContainers(containersForEnvVars, &corev1.EnvVar{
+			Name:  DDRuntimeSecurityConfigEventGRPCServer,
+			Value: "security-agent",
+		})
+	}
+
 	runtimeSocketEnvVar := &corev1.EnvVar{
 		Name:  DDRuntimeSecurityConfigSocket,
-		Value: filepath.Join(common.SystemProbeSocketVolumePath, "runtime-security.sock"),
+		Value: socketPath,
 	}
 	managers.EnvVar().AddEnvVarToContainers(containersForEnvVars, runtimeSocketEnvVar)
 
@@ -330,10 +326,6 @@ func (f *cwsFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provi
 		var vol corev1.Volume
 		var volMount corev1.VolumeMount
 
-		if f.customConfigAnnotationKey != "" && f.customConfigAnnotationValue != "" {
-			managers.Annotation().AddAnnotation(f.customConfigAnnotationKey, f.customConfigAnnotationValue)
-		}
-
 		if f.customConfig.ConfigMap != nil {
 			// Custom config is referenced via ConfigMap
 			// Cannot use standard GetVolumesFromConfigMap because security features are not under /conf.d
@@ -384,10 +376,10 @@ func (f *cwsFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provi
 
 // ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunner's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *cwsFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
+func (f *cwsFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
 	return nil
 }
 
-func (f *cwsFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
+func (f *cwsFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers) error {
 	return nil
 }

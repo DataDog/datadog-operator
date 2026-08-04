@@ -1,0 +1,48 @@
+apiVersion: datadoghq.com/v2alpha1
+kind: DatadogAgent
+metadata:
+  name: datadog-agent
+spec:
+  global:
+    credentials:
+      apiSecret:
+        secretName: datadog-secret
+        keyName: api-key
+      appSecret:
+        secretName: datadog-secret
+        keyName: app-key
+    clusterName: test-cluster
+    # Fixed so the generated cluster-agent token Secret is deterministic for golden files.
+    clusterAgentToken: golden-fixed-cluster-agent-token-0000000000
+    criSocketPath: /var/run/containerd/containerd.sock
+    kubelet:
+      tlsVerify: false
+  features:
+    # trace-agent container + APMSocketVolumeName (UDS) + host port
+    apm:
+      enabled: true
+      hostPortConfig:
+        enabled: true
+      unixDomainSocketConfig:
+        enabled: true
+    # dogstatsd UDS → DogstatsdSocketVolumeName
+    dogstatsd:
+      originDetectionEnabled: true
+      unixDomainSocketConfig:
+        enabled: true
+    # process-agent container
+    liveProcessCollection:
+      enabled: true
+    # system-probe container (+ src/modules/debugfs volumes)
+    oomKill:
+      enabled: true
+    tcpQueueLength:
+      enabled: true
+    # log collection (RunPathVolumeName hostPath remap on autopilot)
+    logCollection:
+      enabled: true
+      containerCollectAll: true
+    # cluster checks runner — exercises CCR provider env vars on autopilot
+    clusterChecks:
+      enabled: true
+      useClusterChecksRunners: true

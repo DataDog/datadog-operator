@@ -18,10 +18,9 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
+	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
 	"github.com/DataDog/datadog-operator/pkg/constants"
-	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/utils"
 )
@@ -51,21 +50,20 @@ func buildOrchestratorExplorerFeature(options *feature.Options) feature.Feature 
 }
 
 type orchestratorExplorerFeature struct {
-	enabled                  bool
-	runInClusterChecksRunner bool
-	scrubContainers          bool
-	extraTags                []string
-	ddURL                    string
-	rbacSuffix               string
-	serviceAccountName       string
-	owner                    metav1.Object
-	customConfig             *v2alpha1.CustomConfig
-	customResources          []string
-	configConfigMapName      string
+	enabled                           bool
+	runInClusterChecksRunner          bool
+	scrubContainers                   bool
+	collectKubernetesNetworkResources bool
+	extraTags                         []string
+	ddURL                             string
+	rbacSuffix                        string
+	serviceAccountName                string
+	owner                             metav1.Object
+	customConfig                      *v2alpha1.CustomConfig
+	customResources                   []string
+	configConfigMapName               string
 
-	logger                      logr.Logger
-	customConfigAnnotationKey   string
-	customConfigAnnotationValue string
+	logger logr.Logger
 
 	processAgentRequired bool
 }
@@ -88,25 +86,15 @@ func (f *orchestratorExplorerFeature) Configure(dda metav1.Object, ddaSpec *v2al
 
 	if orchestratorExplorer != nil && apiutils.BoolValue(orchestratorExplorer.Enabled) {
 		f.enabled = true
-		reqComp.ClusterAgent.IsRequired = apiutils.NewBoolPointer(true)
-		reqComp.Agent.IsRequired = apiutils.NewBoolPointer(true)
+		reqComp.ClusterAgent.IsRequired = new(true)
+		reqComp.Agent.IsRequired = new(true)
 
 		if orchestratorExplorer.Conf != nil || len(orchestratorExplorer.CustomResources) > 0 {
 			f.customConfig = orchestratorExplorer.Conf
-
-			// Used to force restart of DCA
-			// use entire orchestratorExplorer to handle custom config and CRDs
-			hash, err := comparison.GenerateMD5ForSpec(orchestratorExplorer)
-			if err != nil {
-				f.logger.Error(err, "couldn't generate hash for orchestrator explorer custom config")
-			} else {
-				f.logger.V(2).Info("built orchestrator explorer from custom config", "hash", hash)
-			}
-			f.customConfigAnnotationValue = hash
-			f.customConfigAnnotationKey = object.GetChecksumAnnotationKey(feature.OrchestratorExplorerIDType)
 		}
 
 		f.customResources = ddaSpec.Features.OrchestratorExplorer.CustomResources
+		f.collectKubernetesNetworkResources = featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnableNetworkCRDsAnnotation)
 		f.configConfigMapName = constants.GetConfName(dda, f.customConfig, defaultOrchestratorExplorerConf)
 		f.scrubContainers = apiutils.BoolValue(orchestratorExplorer.ScrubContainers)
 		f.extraTags = orchestratorExplorer.ExtraTags
@@ -140,7 +128,7 @@ func (f *orchestratorExplorerFeature) Configure(dda metav1.Object, ddaSpec *v2al
 				f.runInClusterChecksRunner = true
 				f.rbacSuffix = common.ChecksRunnerSuffix
 				f.serviceAccountName = constants.GetClusterChecksRunnerServiceAccount(dda.GetName(), ddaSpec)
-				reqComp.ClusterChecksRunner.IsRequired = apiutils.NewBoolPointer(true)
+				reqComp.ClusterChecksRunner.IsRequired = new(true)
 			}
 		}
 	}
@@ -184,7 +172,7 @@ func (f *orchestratorExplorerFeature) mergeConfigs(ddaSpec *v2alpha1.DatadogAgen
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *orchestratorExplorerFeature) ManageDependencies(managers feature.ResourceManagers, provider string) error {
+func (f *orchestratorExplorerFeature) ManageDependencies(managers feature.ResourceManagers) error {
 	// Create a configMap if CustomConfig.ConfigData is provided and CustomConfig.ConfigMap == nil,
 	// OR if the default configMap is needed.
 	configCM, err := f.buildOrchestratorExplorerConfigMap()
@@ -192,11 +180,6 @@ func (f *orchestratorExplorerFeature) ManageDependencies(managers feature.Resour
 		return err
 	}
 	if configCM != nil {
-		// Add md5 hash annotation for custom config
-		if f.customConfigAnnotationKey != "" && f.customConfigAnnotationValue != "" {
-			annotations := object.MergeAnnotationsLabels(f.logger, configCM.GetAnnotations(), map[string]string{f.customConfigAnnotationKey: f.customConfigAnnotationValue}, "*")
-			configCM.SetAnnotations(annotations)
-		}
 		if err := managers.Store().AddOrUpdate(kubernetes.ConfigMapKind, configCM); err != nil {
 			return err
 		}
@@ -205,12 +188,12 @@ func (f *orchestratorExplorerFeature) ManageDependencies(managers feature.Resour
 	// Manage RBAC permission
 	rbacName := GetOrchestratorExplorerRBACResourceName(f.owner, f.rbacSuffix)
 
-	return managers.RBACManager().AddClusterPolicyRules(f.owner.GetNamespace(), rbacName, f.serviceAccountName, getRBACPolicyRules(f.logger, f.customResources))
+	return managers.RBACManager().AddClusterPolicyRules(f.owner.GetNamespace(), rbacName, f.serviceAccountName, getRBACPolicyRules(f.logger, f.customResources, f.collectKubernetesNetworkResources))
 }
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *orchestratorExplorerFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *orchestratorExplorerFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
 	// Add the env var to explicitly disable this feature
 	// Otherwise, this feature is enabled by default in the Agent code
 	managers.EnvVar().AddEnvVar(f.getEnabledEnvVar())
@@ -243,10 +226,6 @@ func (f *orchestratorExplorerFeature) ManageClusterAgent(managers feature.PodTem
 	managers.VolumeMount().AddVolumeMountToContainer(&volMount, apicommon.ClusterAgentContainerName)
 	managers.Volume().AddVolume(&vol)
 
-	if f.customConfigAnnotationKey != "" && f.customConfigAnnotationValue != "" {
-		managers.Annotation().AddAnnotation(f.customConfigAnnotationKey, f.customConfigAnnotationValue)
-	}
-
 	for _, env := range f.getEnvVars() {
 		managers.EnvVar().AddEnvVar(env)
 	}
@@ -257,7 +236,7 @@ func (f *orchestratorExplorerFeature) ManageClusterAgent(managers feature.PodTem
 // ManageSingleContainerNodeAgent allows a feature to configure the Agent container for the Node Agent's corev1.PodTemplateSpec
 // if SingleContainerStrategy is enabled and can be used with the configured feature set.
 // It should do nothing if the feature doesn't need to configure it.
-func (f *orchestratorExplorerFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *orchestratorExplorerFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers) error {
 	// Add the env var to explicitly disable this feature
 	// Otherwise, this feature is enabled by default in the Agent code
 	managers.EnvVar().AddEnvVar(f.getEnabledEnvVar())
@@ -274,7 +253,7 @@ func (f *orchestratorExplorerFeature) ManageSingleContainerNodeAgent(managers fe
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *orchestratorExplorerFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *orchestratorExplorerFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
 	containers := []apicommon.AgentContainerName{apicommon.CoreAgentContainerName}
 	if f.processAgentRequired {
 		containers = append(containers, apicommon.ProcessAgentContainerName)
@@ -296,7 +275,7 @@ func (f *orchestratorExplorerFeature) ManageNodeAgent(managers feature.PodTempla
 
 // ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunner's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *orchestratorExplorerFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
+func (f *orchestratorExplorerFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
 	if f.runInClusterChecksRunner {
 		// Add the env var to explicitly disable this feature
 		// Otherwise, this feature is enabled by default in the Agent code
@@ -313,6 +292,6 @@ func (f *orchestratorExplorerFeature) ManageClusterChecksRunner(managers feature
 	return nil
 }
 
-func (f *orchestratorExplorerFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
+func (f *orchestratorExplorerFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers) error {
 	return nil
 }

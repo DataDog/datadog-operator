@@ -18,6 +18,8 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/merger"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/providercaps"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 func init() {
@@ -74,7 +76,7 @@ func (f *logCollectionFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.Data
 
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
-				IsRequired: apiutils.NewBoolPointer(true),
+				IsRequired: new(true),
 				Containers: []apicommon.AgentContainerName{
 					apicommon.CoreAgentContainerName,
 				},
@@ -86,33 +88,56 @@ func (f *logCollectionFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.Data
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *logCollectionFeature) ManageDependencies(managers feature.ResourceManagers, provider string) error {
+func (f *logCollectionFeature) ManageDependencies(managers feature.ResourceManagers) error {
 	return nil
 }
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *logCollectionFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *logCollectionFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
 	return nil
 }
 
 // ManageSingleContainerNodeAgent allows a feature to configure the Agent container for the Node Agent's corev1.PodTemplateSpec
 // if SingleContainerStrategy is enabled and can be used with the configured feature set.
 // It should do nothing if the feature doesn't need to configure it.
-func (f *logCollectionFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
-	f.manageNodeAgent(apicommon.UnprivilegedSingleAgentContainerName, managers, provider)
+func (f *logCollectionFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers) error {
+	f.manageNodeAgent(apicommon.UnprivilegedSingleAgentContainerName, managers)
 	return nil
 }
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *logCollectionFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
-	f.manageNodeAgent(apicommon.CoreAgentContainerName, managers, provider)
+func (f *logCollectionFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
+	f.manageNodeAgent(apicommon.CoreAgentContainerName, managers)
 	return nil
 }
 
-func (f *logCollectionFeature) manageNodeAgent(agentContainerName apicommon.AgentContainerName, managers feature.PodTemplateManagers, provider string) error {
-	// pointerdir volume mount (replace default empty dir volume)
+// NodeAgentProviderCapabilities returns provider-conditional pod-template mutations.
+// On GKE Autopilot the run-path (pointer) volume this feature adds in manageNodeAgent
+// must use the only hostPath the WorkloadAllowlist permits; override it in place.
+// Colocated here because this feature owns the pointer volume.
+func (f *logCollectionFeature) NodeAgentProviderCapabilities() providercaps.ProviderCapabilityMap {
+	// Empty when log collection is disabled (no pointer volume was added).
+	if f.tempStoragePath == "" {
+		return providercaps.ProviderCapabilityMap{}
+	}
+	pointerVol, pointerVolMount := volume.GetVolumes(pointerVolumeName, autopilotPointerHostPath, pointerVolumePath, false)
+	return providercaps.ProviderCapabilityMap{
+		kubernetes.GKEAutopilotProvider: {
+			Volumes: []providercaps.VolumeAndMount{
+				{
+					Volume:     pointerVol,
+					Mount:      pointerVolMount,
+					Containers: []apicommon.AgentContainerName{apicommon.CoreAgentContainerName},
+				},
+			},
+		},
+	}
+}
+
+func (f *logCollectionFeature) manageNodeAgent(agentContainerName apicommon.AgentContainerName, managers feature.PodTemplateManagers) error {
+	// run path volume mount (replace default empty dir volume)
 	pointerVol, pointerVolMount := volume.GetVolumes(pointerVolumeName, f.tempStoragePath, pointerVolumePath, false)
 	managers.VolumeMount().AddVolumeMountToContainerWithMergeFunc(&pointerVolMount, agentContainerName, merger.OverrideCurrentVolumeMountMergeFunction)
 	managers.Volume().AddVolumeWithMergeFunc(&pointerVol, merger.OverrideCurrentVolumeMergeFunction)
@@ -163,10 +188,10 @@ func (f *logCollectionFeature) manageNodeAgent(agentContainerName apicommon.Agen
 
 // ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunnerAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *logCollectionFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
+func (f *logCollectionFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
 	return nil
 }
 
-func (f *logCollectionFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
+func (f *logCollectionFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers) error {
 	return nil
 }

@@ -8,13 +8,14 @@ package global
 import (
 	"testing"
 
+	"k8s.io/utils/ptr"
+
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	apiutils "github.com/DataDog/datadog-operator/api/utils"
 )
 
 type InstallInfoData struct {
@@ -129,7 +130,7 @@ func Test_useSystemProbeCustomSeccomp(t *testing.T) {
 								apicommon.SystemProbeContainerName: {
 									SeccompConfig: &v2alpha1.SeccompConfig{
 										CustomProfile: &v2alpha1.CustomConfig{
-											ConfigData: apiutils.NewStringPointer("foo"),
+											ConfigData: ptr.To("foo"),
 										},
 									},
 								},
@@ -181,7 +182,7 @@ func Test_setCredentialsFromDDA(t *testing.T) {
 			},
 			ddaiFromDDA: &v2alpha1.GlobalConfig{
 				Credentials: &v2alpha1.DatadogCredentials{
-					APIKey: apiutils.NewStringPointer("api_key"),
+					APIKey: ptr.To("api_key"),
 				},
 			},
 			expected: &v2alpha1.GlobalConfig{
@@ -200,7 +201,7 @@ func Test_setCredentialsFromDDA(t *testing.T) {
 			},
 			ddaiFromDDA: &v2alpha1.GlobalConfig{
 				Credentials: &v2alpha1.DatadogCredentials{
-					APIKey: apiutils.NewStringPointer("api_key"),
+					APIKey: ptr.To("api_key"),
 					APISecret: &v2alpha1.SecretConfig{
 						SecretName: "bar",
 						KeyName:    "bar_key",
@@ -223,7 +224,7 @@ func Test_setCredentialsFromDDA(t *testing.T) {
 			},
 			ddaiFromDDA: &v2alpha1.GlobalConfig{
 				Credentials: &v2alpha1.DatadogCredentials{
-					APIKey: apiutils.NewStringPointer("api_key"),
+					APIKey: ptr.To("api_key"),
 					AppSecret: &v2alpha1.SecretConfig{
 						SecretName: "bar",
 						KeyName:    "bar_key",
@@ -254,7 +255,7 @@ func Test_setCredentialsFromDDA(t *testing.T) {
 						SecretName: "bar",
 						KeyName:    "bar_key",
 					},
-					AppKey: apiutils.NewStringPointer("api_key"),
+					AppKey: ptr.To("api_key"),
 				},
 			},
 			expected: &v2alpha1.GlobalConfig{
@@ -307,8 +308,8 @@ func Test_setCredentialsFromDDA(t *testing.T) {
 			},
 			ddaiFromDDA: &v2alpha1.GlobalConfig{
 				Credentials: &v2alpha1.DatadogCredentials{
-					APIKey: apiutils.NewStringPointer("api_key"),
-					AppKey: apiutils.NewStringPointer("app_key"),
+					APIKey: ptr.To("api_key"),
+					AppKey: ptr.To("app_key"),
 				},
 			},
 			expected: &v2alpha1.GlobalConfig{

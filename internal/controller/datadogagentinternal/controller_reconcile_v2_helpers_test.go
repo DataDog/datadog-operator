@@ -1,6 +1,7 @@
 package datadogagentinternal
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
@@ -8,7 +9,6 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
-	"github.com/go-logr/logr"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
@@ -38,32 +38,32 @@ func (df *dummyFeature) Configure(ddai metav1.Object, ddaiSpec *v2alpha1.Datadog
 }
 
 // ManageDependencies returns a predefined error (or nil for success).
-func (df *dummyFeature) ManageDependencies(managers feature.ResourceManagers, provider string) error {
+func (df *dummyFeature) ManageDependencies(managers feature.ResourceManagers) error {
 	return df.ManageDependenciesError
 }
 
 // ManageClusterAgent returns a predefined error (or nil for success).
-func (df *dummyFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
+func (df *dummyFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
 	return df.ManageClusterAgentError
 }
 
 // ManageNodeAgent returns a predefined error (or nil for success).
-func (df *dummyFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+func (df *dummyFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
 	return df.ManageNodeAgentError
 }
 
 // ManageSingleContainerNodeAgent returns a predefined error (or nil for success).
-func (df *dummyFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+func (df *dummyFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers) error {
 	return df.ManageSingleContainerAgentError
 }
 
 // ManageClusterChecksRunner returns a predefined error (or nil for success).
-func (df *dummyFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
+func (df *dummyFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
 	return df.ManageClusterChecksRunnerError
 }
 
 // ManageOtelAgentGateway returns a predefined error (or nil for success).
-func (df *dummyFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
+func (df *dummyFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers) error {
 	return df.ManageOtelAgentGatewayError
 }
 
@@ -72,7 +72,6 @@ func Test_setupDependencies(t *testing.T) {
 	// Create a dummy DatadogAgent instance.
 	dummyAgent := &datadoghqv1alpha1.DatadogAgentInternal{}
 	dummyPlatformInfo := kubernetes.PlatformInfo{}
-	dummyLogger := logr.Discard()
 	dummyOpts := &ReconcilerOptions{
 		SupportCilium: false,
 	}
@@ -82,14 +81,13 @@ func Test_setupDependencies(t *testing.T) {
 		platformInfo: dummyPlatformInfo,
 		scheme:       scheme,
 	}
-	storeObj, resMgrs := r.setupDependencies(dummyAgent, dummyLogger)
+	storeObj, resMgrs := r.setupDependencies(context.Background(), dummyAgent)
 	require.NotNil(t, storeObj)
 	require.NotNil(t, resMgrs)
 }
 
 // Test_manageFeatureDependencies checks that feature dependency management aggregates errors correctly.
 func Test_manageFeatureDependencies(t *testing.T) {
-	dummyLogger := logr.Discard()
 	dummyResMgrs := feature.NewResourceManagers(nil) // passing nil for simplicity
 
 	// One feature succeeds and one fails.
@@ -103,11 +101,11 @@ func Test_manageFeatureDependencies(t *testing.T) {
 
 	r := &Reconciler{}
 	// Test when all features succeed.
-	err := r.manageFeatureDependencies(dummyLogger, []feature.Feature{f1}, dummyResMgrs)
+	err := r.manageFeatureDependencies([]feature.Feature{f1}, dummyResMgrs)
 	require.NoError(t, err)
 
 	// Test with one failing feature.
-	err = r.manageFeatureDependencies(dummyLogger, []feature.Feature{f1, f2}, dummyResMgrs)
+	err = r.manageFeatureDependencies([]feature.Feature{f1, f2}, dummyResMgrs)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "fail dependency")
 }

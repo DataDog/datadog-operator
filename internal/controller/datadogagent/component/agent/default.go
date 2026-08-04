@@ -15,10 +15,10 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component"
 	componentdca "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusteragent"
@@ -65,7 +65,7 @@ func NewDefaultAgentPodTemplateSpec(dda metav1.Object, agentComponent feature.Re
 		Spec: corev1.PodSpec{
 			// Force root user for when the agent Dockerfile will be updated to use a non-root user by default
 			SecurityContext: &corev1.PodSecurityContext{
-				RunAsUser: apiutils.NewInt64Pointer(0),
+				RunAsUser: ptr.To[int64](0),
 			},
 			ServiceAccountName: getDefaultServiceAccountName(dda),
 			InitContainers:     initContainers(dda, requiredContainers),
@@ -251,12 +251,14 @@ func DefaultSyscallsForSystemProbe() []string {
 		"setitimer",
 		"setns",
 		"setpgid",
+		"setresgid",
+		"setresuid",
 		"setrlimit",
 		"setsid",
-		"setsidaccept4",
 		"setsockopt",
 		"setuid",
 		"setuid32",
+		"shutdown",
 		"sigaltstack",
 		"socket",
 		"socketcall",
@@ -280,15 +282,22 @@ func DefaultSyscallsForSystemProbe() []string {
 		"waitid",
 		"waitpid",
 		"write",
+		"writev",
 	}
 }
 
 func syscallsForSystemProbe(ddaSpec *v2alpha1.DatadogAgentSpec) []string {
 	syscalls := DefaultSyscallsForSystemProbe()
 
-	if ddaSpec.Features.CWS != nil &&
-		ddaSpec.Features.CWS.Enabled != nil && *ddaSpec.Features.CWS.Enabled &&
-		ddaSpec.Features.CWS.Enforcement != nil && *ddaSpec.Features.CWS.Enforcement.Enabled {
+	if (ddaSpec.Features.CWS != nil &&
+		ptr.Deref(ddaSpec.Features.CWS.Enabled, false) &&
+		ddaSpec.Features.CWS.Enforcement != nil &&
+		ptr.Deref(ddaSpec.Features.CWS.Enforcement.Enabled, false)) ||
+		(ddaSpec.Features.CSPM != nil &&
+			ptr.Deref(ddaSpec.Features.CSPM.Enabled, false) &&
+			ddaSpec.Features.CSPM.HostBenchmarks != nil &&
+			ptr.Deref(ddaSpec.Features.CSPM.HostBenchmarks.Enabled, false) &&
+			ptr.Deref(ddaSpec.Features.CSPM.RunInSystemProbe, false)) {
 		syscalls = append(syscalls, "kill")
 	}
 	return syscalls
@@ -387,7 +396,7 @@ func agentSingleContainer(dda metav1.Object) []corev1.Container {
 		ReadinessProbe: constants.GetDefaultReadinessProbe(),
 		StartupProbe:   constants.GetDefaultStartupProbe(),
 		SecurityContext: &corev1.SecurityContext{
-			ReadOnlyRootFilesystem: apiutils.NewBoolPointer(true),
+			ReadOnlyRootFilesystem: new(true),
 		},
 	}
 
@@ -420,6 +429,8 @@ func agentOptimizedContainers(dda metav1.Object, requiredContainers []apicommon.
 			containers = append(containers, hostProfilerContainer(dda))
 		case apicommon.AgentDataPlaneContainerName:
 			containers = append(containers, agentDataPlaneContainer(dda))
+		case apicommon.FlightRecorderContainerName:
+			containers = append(containers, flightRecorderContainer(dda))
 		}
 	}
 
@@ -437,7 +448,7 @@ func coreAgentContainer(dda metav1.Object) corev1.Container {
 		ReadinessProbe: constants.GetDefaultReadinessProbe(),
 		StartupProbe:   constants.GetDefaultStartupProbe(),
 		SecurityContext: &corev1.SecurityContext{
-			ReadOnlyRootFilesystem: apiutils.NewBoolPointer(true),
+			ReadOnlyRootFilesystem: new(true),
 		},
 	}
 }
@@ -461,7 +472,7 @@ func traceAgentContainer(dda metav1.Object) corev1.Container {
 		VolumeMounts:  volumeMountsForTraceAgent(),
 		LivenessProbe: constants.GetDefaultTraceAgentProbe(),
 		SecurityContext: &corev1.SecurityContext{
-			ReadOnlyRootFilesystem: apiutils.NewBoolPointer(true),
+			ReadOnlyRootFilesystem: new(true),
 		},
 	}
 }
@@ -471,13 +482,13 @@ func processAgentContainer(dda metav1.Object) corev1.Container {
 		Name:  string(apicommon.ProcessAgentContainerName),
 		Image: agentImage(),
 		Command: []string{
-			"process-agent", fmt.Sprintf("--config=%s", agentCustomConfigVolumePath),
+			"process-agent", fmt.Sprintf("--cfgpath=%s", agentCustomConfigVolumePath),
 			fmt.Sprintf("--sysprobe-config=%s", systemProbeConfigVolumePath),
 		},
 		Env:          commonEnvVars(dda),
 		VolumeMounts: volumeMountsForProcessAgent(),
 		SecurityContext: &corev1.SecurityContext{
-			ReadOnlyRootFilesystem: apiutils.NewBoolPointer(true),
+			ReadOnlyRootFilesystem: new(true),
 		},
 	}
 }
@@ -511,7 +522,7 @@ func otelAgentContainer(dda metav1.Object) corev1.Container {
 			},
 		},
 		SecurityContext: &corev1.SecurityContext{
-			ReadOnlyRootFilesystem: apiutils.NewBoolPointer(true),
+			ReadOnlyRootFilesystem: new(true),
 		},
 	}
 }
@@ -522,16 +533,15 @@ func hostProfilerContainer(dda metav1.Object) corev1.Container {
 		// Note: Need to override image via annotation
 		Image: agentImage(),
 		Command: []string{
-			"/opt/datadog-agent/embedded/bin/full-host-profiler",
-			"run",
+			"host-profiler",
 			"--core-config=" + agentCustomConfigVolumePath,
 		},
-		Env:          commonEnvVars(dda),
+		Env: commonEnvVars(dda),
+		// host-profiler needs the same base mounts as otel-agent (logs, config, auth, tmp);
+		// the hostprofiler feature adds tracingfs on top via ManageNodeAgent.
 		VolumeMounts: volumeMountsForOtelAgent(),
-		Ports:        []corev1.ContainerPort{},
 		SecurityContext: &corev1.SecurityContext{
-			ReadOnlyRootFilesystem: apiutils.NewBoolPointer(true),
-			Privileged:             apiutils.NewBoolPointer(true),
+			ReadOnlyRootFilesystem: new(true),
 		},
 	}
 }
@@ -547,7 +557,7 @@ func securityAgentContainer(dda metav1.Object) corev1.Container {
 		Env:          envVarsForSecurityAgent(dda),
 		VolumeMounts: volumeMountsForSecurityAgent(),
 		SecurityContext: &corev1.SecurityContext{
-			ReadOnlyRootFilesystem: apiutils.NewBoolPointer(true),
+			ReadOnlyRootFilesystem: new(true),
 		},
 	}
 }
@@ -563,10 +573,10 @@ func systemProbeContainer(dda metav1.Object) corev1.Container {
 		Env:          commonEnvVars(dda),
 		VolumeMounts: volumeMountsForSystemProbe(),
 		SecurityContext: &corev1.SecurityContext{
-			ReadOnlyRootFilesystem: apiutils.NewBoolPointer(true),
+			ReadOnlyRootFilesystem: new(true),
 			SeccompProfile: &corev1.SeccompProfile{
 				Type:             corev1.SeccompProfileTypeLocalhost,
-				LocalhostProfile: apiutils.NewStringPointer(common.SystemProbeSeccompProfileName),
+				LocalhostProfile: ptr.To(common.SystemProbeSeccompProfileName),
 			},
 		},
 	}
@@ -580,12 +590,12 @@ func privateActionRunnerContainer(dda metav1.Object) corev1.Container {
 			"/opt/datadog-agent/embedded/bin/privateactionrunner",
 			"run",
 			fmt.Sprintf("-c=%s", agentCustomConfigVolumePath),
-			fmt.Sprintf("-c=%s", privateactionrunner.PrivateActionRunnerConfigPath),
+			fmt.Sprintf("-E=%s", privateactionrunner.PrivateActionRunnerConfigPath),
 		},
 		Env:          commonEnvVars(dda),
 		VolumeMounts: volumeMountsForPrivateActionRunner(),
 		SecurityContext: &corev1.SecurityContext{
-			ReadOnlyRootFilesystem: apiutils.NewBoolPointer(true),
+			ReadOnlyRootFilesystem: new(true),
 		},
 	}
 }
@@ -596,15 +606,31 @@ func agentDataPlaneContainer(dda metav1.Object) corev1.Container {
 		Image: agentImage(),
 		Command: []string{
 			"agent-data-plane",
+			"--config",
+			agentCustomConfigVolumePath,
 			"run",
-			fmt.Sprintf("--config=%s", agentCustomConfigVolumePath),
 		},
 		Env:            commonEnvVars(dda),
 		VolumeMounts:   volumeMountsForAgentDataPlane(),
 		LivenessProbe:  constants.GetDefaultAgentDataPlaneLivenessProbe(),
 		ReadinessProbe: constants.GetDefaultAgentDataPlaneReadinessProbe(),
 		SecurityContext: &corev1.SecurityContext{
-			ReadOnlyRootFilesystem: apiutils.NewBoolPointer(true),
+			ReadOnlyRootFilesystem: new(true),
+		},
+	}
+}
+
+func flightRecorderContainer(dda metav1.Object) corev1.Container {
+	return corev1.Container{
+		Name:  string(apicommon.FlightRecorderContainerName),
+		Image: agentImage(),
+		Command: []string{
+			"/opt/datadog-agent/embedded/bin/flightrecorder",
+		},
+		Env:          commonEnvVars(dda),
+		VolumeMounts: volumeMountsForFlightRecorder(),
+		SecurityContext: &corev1.SecurityContext{
+			ReadOnlyRootFilesystem: new(true),
 		},
 	}
 }
@@ -665,6 +691,10 @@ func commonEnvVars(dda metav1.Object) []corev1.EnvVar {
 			Value: componentdca.GetClusterAgentServiceName(dda),
 		},
 		{
+			Name:  common.DDKubernetesUseEndpointSlices,
+			Value: "true",
+		},
+		{
 			Name:  common.DDClusterAgentTokenName,
 			Value: secrets.GetDefaultDCATokenSecretName(dda),
 		},
@@ -684,25 +714,33 @@ func commonEnvVars(dda metav1.Object) []corev1.EnvVar {
 }
 
 func envVarsForCoreAgent(dda metav1.Object) []corev1.EnvVar {
-	envs := []corev1.EnvVar{
-		{
-			Name:  common.DDHealthPort,
-			Value: strconv.Itoa(int(constants.DefaultAgentHealthPort)),
-		},
-		{
-			// we want to default it in 7.49.0
-			// but in 7.50.0 it will be already defaulted in the agent process.
-			Name:  DDContainerImageEnabled,
-			Value: "true",
-		},
-	}
+	commonEnvs := commonEnvVars(dda)
+	envs := make([]corev1.EnvVar, 0, 3+len(commonEnvs))
+	envs = append(envs, corev1.EnvVar{
+		Name:  common.DDHealthPort,
+		Value: strconv.Itoa(int(constants.DefaultAgentHealthPort)),
+	})
+	envs = append(envs, corev1.EnvVar{
+		// we want to default it in 7.49.0
+		// but in 7.50.0 it will be already defaulted in the agent process.
+		Name:  DDContainerImageEnabled,
+		Value: "true",
+	})
 
-	return append(envs, commonEnvVars(dda)...)
+	if images.IsJMXImage(component.AgentImageConfigForComponent(dda, v2alpha1.NodeAgentComponentName)) {
+		envs = append(envs, corev1.EnvVar{
+			Name:  common.DDJMXUseContainerSupport,
+			Value: "true",
+		})
+	}
+	return append(envs, commonEnvs...)
 }
 
 func envVarsForTraceAgent(dda metav1.Object) []corev1.EnvVar {
-	envs := []corev1.EnvVar{
-		{
+	commonEnvs := commonEnvVars(dda)
+	envs := make([]corev1.EnvVar, 0, 3+len(commonEnvs))
+	envs = append(envs,
+		corev1.EnvVar{
 			Name: common.DDAPMInstrumentationInstallId,
 			ValueFrom: &corev1.EnvVarSource{
 				ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
@@ -713,7 +751,7 @@ func envVarsForTraceAgent(dda metav1.Object) []corev1.EnvVar {
 				},
 			},
 		},
-		{
+		corev1.EnvVar{
 			Name: common.DDAPMInstrumentationInstallTime,
 			ValueFrom: &corev1.EnvVarSource{
 				ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
@@ -724,7 +762,7 @@ func envVarsForTraceAgent(dda metav1.Object) []corev1.EnvVar {
 				},
 			},
 		},
-		{
+		corev1.EnvVar{
 			Name: common.DDAPMInstrumentationInstallType,
 			ValueFrom: &corev1.EnvVarSource{
 				ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
@@ -735,20 +773,18 @@ func envVarsForTraceAgent(dda metav1.Object) []corev1.EnvVar {
 				},
 			},
 		},
-	}
-
-	return append(envs, commonEnvVars(dda)...)
+	)
+	return append(envs, commonEnvs...)
 }
 
 func envVarsForSecurityAgent(dda metav1.Object) []corev1.EnvVar {
-	envs := []corev1.EnvVar{
-		{
-			Name:  "HOST_ROOT",
-			Value: common.HostRootMountPath,
-		},
-	}
-
-	return append(envs, commonEnvVars(dda)...)
+	commonEnvs := commonEnvVars(dda)
+	envs := make([]corev1.EnvVar, 0, 1+len(commonEnvs))
+	envs = append(envs, corev1.EnvVar{
+		Name:  "HOST_ROOT",
+		Value: common.HostRootMountPath,
+	})
+	return append(envs, commonEnvs...)
 }
 
 func volumeMountsForInitConfig() []corev1.VolumeMount {
@@ -766,7 +802,7 @@ func volumeMountsForInitConfig() []corev1.VolumeMount {
 func volumesForAgent(dda metav1.Object, requiredContainers []apicommon.AgentContainerName) []corev1.Volume {
 	volumes := []corev1.Volume{
 		common.GetVolumeForLogs(),
-		common.GetVolumeForAuth(),
+		common.GetVolumeForAuth(false),
 		common.GetVolumeInstallInfo(dda),
 		common.GetVolumeForChecksd(),
 		common.GetVolumeForConfd(),
@@ -848,10 +884,10 @@ func volumeMountsForSystemProbe() []corev1.VolumeMount {
 		common.GetVolumeMountForLogs(),
 		common.GetVolumeMountForAuth(true),
 		common.GetVolumeMountForConfig(),
-		common.GetVolumeMountForDogstatsdSocket(false),
 		common.GetVolumeMountForProc(),
 		common.GetVolumeMountForRunPath(),
 		common.GetVolumeMountForTmp(),
+		common.GetVolumeMountForDogstatsdSocket(false),
 	}
 }
 
@@ -878,6 +914,7 @@ func volumeMountsForOtelAgent() []corev1.VolumeMount {
 		common.GetVolumeMountForConfig(),
 		common.GetVolumeMountForAuth(true),
 		common.GetVolumeMountForTmp(),
+		common.GetVolumeMountForRunPath(),
 	}
 }
 
@@ -891,5 +928,18 @@ func volumeMountsForAgentDataPlane() []corev1.VolumeMount {
 		common.GetVolumeMountForProc(),
 		common.GetVolumeMountForCgroups(),
 		common.GetVolumeMountForTmp(),
+	}
+}
+
+func volumeMountsForFlightRecorder() []corev1.VolumeMount {
+	return []corev1.VolumeMount{
+		{
+			Name:      common.FlightRecorderSocketVolumeName,
+			MountPath: common.FlightRecorderSocketPath,
+		},
+		{
+			Name:      common.FlightRecorderDataVolumeName,
+			MountPath: common.FlightRecorderDataPath,
+		},
 	}
 }

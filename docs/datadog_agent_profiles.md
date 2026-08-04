@@ -46,6 +46,13 @@ datadogagentprofile-sample                                      1         1     
 * `datadog-agent` is the DaemonSet created by the default profile
 * `datadogagentprofile-sample` is the DaemonSet created by the profile `datadogagentprofile-sample`
 
+## When to use DatadogAgentProfiles
+
+Common scenarios:
+
+* **Heterogeneous clusters with varying CPU core counts.** A single global resource limit set on the `DatadogAgent` is either too low for small control-plane nodes or too high for large GPU/bare-metal nodes. Use one DatadogAgentProfile (DAP) per node shape (selected via `profileAffinity` on a label such as `node.kubernetes.io/instance-type` or a custom node-role label) to apply appropriate `resources.limits.cpu` and `resources.limits.memory` to each group. On nodes with a high logical CPU count, an explicit CPU limit also prevents the Agent's Go runtime from sizing its scheduler to the host CPU count, which can otherwise lead to OOM kills.
+* **Targeting specific node roles.** Run a different Agent configuration (for example, additional checks or a higher log level) on nodes labeled for a particular workload.
+
 ## Prerequisites
 
 * Operator v1.5.0+
@@ -56,6 +63,15 @@ datadogagentprofile-sample                                      1         1     
 DAP is disabled by default. To enable DAP using the [datadog-operator helm chart](https://github.com/DataDog/helm-charts/tree/main/charts/datadog-operator), set in your `values.yaml` or as a flag in the command line arguments using `--set`:
 * `datadogAgentProfile.enabled=true`: this instructs the Operator deployment to start the `DatadogAgentProfile` controller.
 * `datadogCRDs.crds.datadogAgentProfiles=true`: this installs the `DatadogAgentProfile` CRD.
+
+For **OLM deployments** where container args cannot be set, enable the controller
+via environment variable in the `Subscription`:
+```yaml
+config:
+  env:
+    - name: DD_AGENT_PROFILE_CONTROLLER_ENABLED
+      value: "true"
+```
 
 > [!CAUTION]
 > Enabling DAP will increase the resource usage of the Operator. Please ensure the operator pod has enough resources allocated to it prior to enabling DAP.
@@ -70,3 +86,5 @@ DAP is disabled by default. To enable DAP using the [datadog-operator helm chart
 | override.[nodeAgent].labels | v1.8.0 |
 | override.[nodeAgent].updateStrategy | v1.9.0 |
 | override.[nodeAgent].runtimeClassName | v1.12.0 |
+| override.[nodeAgent].volumes | v1.29.0 |
+| override.[nodeAgent].containers.[\*].volumeMounts | v1.29.0 |

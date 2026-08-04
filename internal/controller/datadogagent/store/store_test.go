@@ -495,6 +495,7 @@ func TestStore_Cleanup(t *testing.T) {
 			ds := &Store{
 				deps:   tt.fields.deps,
 				logger: logf.Log.WithName(t.Name()),
+				scheme: s,
 				owner: &metav1.ObjectMeta{
 					Name:      tt.args.ddaName,
 					Namespace: tt.args.ddaNs,
@@ -604,6 +605,7 @@ func TestStore_Cleanup_ExcludeDDAManagedResources(t *testing.T) {
 			ds := &Store{
 				deps:   tt.deps,
 				logger: logf.Log.WithName(t.Name()),
+				scheme: s,
 				owner: &metav1.ObjectMeta{
 					Name:      dummyName,
 					Namespace: dummyNs,
@@ -896,7 +898,8 @@ func TestStore_DeleteAll(t *testing.T) {
 				Build()
 
 			store := &Store{
-				deps: test.dependenciesStore,
+				deps:   test.dependenciesStore,
+				scheme: testutils.TestScheme(),
 			}
 
 			errs := store.DeleteAll(context.TODO(), k8sClient)

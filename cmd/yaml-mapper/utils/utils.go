@@ -10,19 +10,19 @@ import "helm.sh/helm/v3/pkg/chartutil"
 // GetPathVal safely traverses nested maps and retrieves the value at the given path.
 // It supports map[string]interface{} and chartutil.Values.
 // Returns (value, true) if found, otherwise (nil, false).
-func GetPathVal(obj interface{}, keys ...string) (interface{}, bool) {
+func GetPathVal(obj any, keys ...string) (any, bool) {
 	if obj == nil {
 		return nil, false
 	}
 
 	current := obj
 	for _, key := range keys {
-		var m map[string]interface{}
+		var m map[string]any
 		switch typed := current.(type) {
-		case map[string]interface{}:
+		case map[string]any:
 			m = typed
 		case chartutil.Values: // alias of map[string]interface{}
-			m = map[string]interface{}(typed)
+			m = map[string]any(typed)
 		default:
 			return nil, false
 		}
@@ -37,7 +37,7 @@ func GetPathVal(obj interface{}, keys ...string) (interface{}, bool) {
 }
 
 // GetPathString returns the string value at the nested path, if present.
-func GetPathString(obj interface{}, keys ...string) (string, bool) {
+func GetPathString(obj any, keys ...string) (string, bool) {
 	v, ok := GetPathVal(obj, keys...)
 	if !ok {
 		return "", false
@@ -47,17 +47,17 @@ func GetPathString(obj interface{}, keys ...string) (string, bool) {
 }
 
 // GetPathSlice returns the []interface{} value at the nested path, if present.
-func GetPathSlice(obj interface{}, keys ...string) ([]interface{}, bool) {
+func GetPathSlice(obj any, keys ...string) ([]any, bool) {
 	v, ok := GetPathVal(obj, keys...)
 	if !ok {
 		return nil, false
 	}
-	s, ok := v.([]interface{})
+	s, ok := v.([]any)
 	return s, ok
 }
 
 // GetPathBool returns the boolean value at the nested path, if present.
-func GetPathBool(obj interface{}, keys ...string) (bool, bool) {
+func GetPathBool(obj any, keys ...string) (bool, bool) {
 	val, ok := GetPathVal(obj, keys...)
 	if !ok {
 		return false, false
@@ -67,17 +67,17 @@ func GetPathBool(obj interface{}, keys ...string) (bool, bool) {
 }
 
 // GetPathMap returns the map[string]interface{} value at the nested path, if present.
-func GetPathMap(obj interface{}, keys ...string) (map[string]interface{}, bool) {
+func GetPathMap(obj any, keys ...string) (map[string]any, bool) {
 	v, ok := GetPathVal(obj, keys...)
 	if !ok || v == nil {
 		return nil, false
 	}
 
 	switch typed := v.(type) {
-	case map[string]interface{}:
+	case map[string]any:
 		return typed, true
 	case chartutil.Values: // alias of map[string]interface{}
-		return map[string]interface{}(typed), true
+		return map[string]any(typed), true
 	default:
 		return nil, false
 	}

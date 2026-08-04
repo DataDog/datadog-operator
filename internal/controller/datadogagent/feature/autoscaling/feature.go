@@ -38,8 +38,10 @@ func buildAutoscalingFeature(options *feature.Options) feature.Feature {
 }
 
 type autoscalingFeature struct {
-	workloadEnabled bool
-	clusterEnabled  bool
+	workloadEnabled                       bool
+	workloadInPlaceVerticalScalingEnabled bool
+	clusterEnabled                        bool
+	clusterSpotEnabled                    bool
 
 	serviceAccountName           string
 	owner                        metav1.Object
@@ -71,6 +73,9 @@ func (f *autoscalingFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Data
 
 	if autoscaling.Workload != nil && apiutils.BoolValue(autoscaling.Workload.Enabled) {
 		f.workloadEnabled = true
+		if autoscaling.Workload.InPlaceVerticalScaling != nil {
+			f.workloadInPlaceVerticalScalingEnabled = apiutils.BoolValue(autoscaling.Workload.InPlaceVerticalScaling.Enabled)
+		}
 		f.admissionControllerActivated = apiutils.BoolValue(ddaSpec.Features.AdmissionController.Enabled)
 		f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda.GetName(), ddaSpec)
 	}
@@ -78,11 +83,15 @@ func (f *autoscalingFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Data
 	if autoscaling.Cluster != nil && apiutils.BoolValue(autoscaling.Cluster.Enabled) {
 		f.clusterEnabled = true
 		f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda.GetName(), ddaSpec)
+
+		if autoscaling.Cluster.Spot != nil && apiutils.BoolValue(autoscaling.Cluster.Spot.Enabled) {
+			f.clusterSpotEnabled = true
+		}
 	}
 
 	return feature.RequiredComponents{
 		ClusterAgent: feature.RequiredComponent{
-			IsRequired: apiutils.NewBoolPointer(true),
+			IsRequired: new(true),
 			Containers: []apicommon.AgentContainerName{apicommon.ClusterAgentContainerName},
 		},
 	}
@@ -91,7 +100,7 @@ func (f *autoscalingFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Data
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *autoscalingFeature) ManageDependencies(managers feature.ResourceManagers, provider string) error {
+func (f *autoscalingFeature) ManageDependencies(managers feature.ResourceManagers) error {
 	// Hack to trigger an error if admission feature is not enabled as we cannot return an error in configure
 	if f.workloadEnabled && !f.admissionControllerActivated {
 		return errors.New("admission controller feature must be enabled to use the workload autoscaling feature")
@@ -101,14 +110,14 @@ func (f *autoscalingFeature) ManageDependencies(managers feature.ResourceManager
 		f.owner.GetNamespace(),
 		componentdca.GetClusterAgentRbacResourcesName(f.owner)+"-autoscaling",
 		f.serviceAccountName,
-		getDCAClusterPolicyRules(f.workloadEnabled, f.clusterEnabled),
+		getDCAClusterPolicyRules(f),
 		string(v2alpha1.ClusterAgentComponentName),
 	)
 }
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *autoscalingFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *autoscalingFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
 
 	if f.workloadEnabled {
 		managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
@@ -120,11 +129,25 @@ func (f *autoscalingFeature) ManageClusterAgent(managers feature.PodTemplateMana
 			Name:  DDAutoscalingFailoverEnabled,
 			Value: "true",
 		})
+
+		if f.workloadInPlaceVerticalScalingEnabled {
+			managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
+				Name:  DDAutoscalingWorkloadInPlaceVerticalScalingEnabled,
+				Value: "true",
+			})
+		}
 	}
 
 	if f.clusterEnabled {
 		managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
 			Name:  DDAutoscalingClusterEnabled,
+			Value: "true",
+		})
+	}
+
+	if f.clusterSpotEnabled {
+		managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
+			Name:  DDAutoscalingClusterSpotEnabled,
 			Value: "true",
 		})
 	}
@@ -135,13 +158,13 @@ func (f *autoscalingFeature) ManageClusterAgent(managers feature.PodTemplateMana
 // ManageSingleContainerNodeAgent allows a feature to configure the Agent container for the Node Agent's corev1.PodTemplateSpec
 // if SingleContainerStrategy is enabled and can be used with the configured feature set.
 // It should do nothing if the feature doesn't need to configure it.
-func (f *autoscalingFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *autoscalingFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers) error {
 	return nil
 }
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *autoscalingFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *autoscalingFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
 
 	if f.workloadEnabled {
 		managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
@@ -160,10 +183,10 @@ func (f *autoscalingFeature) ManageNodeAgent(managers feature.PodTemplateManager
 
 // ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunner's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *autoscalingFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
+func (f *autoscalingFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
 	return nil
 }
 
-func (f *autoscalingFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
+func (f *autoscalingFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers) error {
 	return nil
 }

@@ -12,7 +12,9 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/apm"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/cspm"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/dataplane"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/enabledefault"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/flightrecorder"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/gpu"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/hostprofiler"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/livecontainer"
@@ -103,7 +105,7 @@ func TestBuilder(t *testing.T) {
 			},
 		},
 		{
-			name: "APM, NPM enabled, 4 agents",
+			name: "APM, NPM enabled, 3 agents",
 			dda: testutils.NewDatadogAgentBuilder().
 				WithAPMEnabled(true).
 				WithNPMEnabled(true).
@@ -111,7 +113,7 @@ func TestBuilder(t *testing.T) {
 			wantAgentContainer: map[common.AgentContainerName]bool{
 				common.UnprivilegedSingleAgentContainerName: false,
 				common.CoreAgentContainerName:               true,
-				common.ProcessAgentContainerName:            true,
+				common.ProcessAgentContainerName:            false,
 				common.TraceAgentContainerName:              true,
 				common.SystemProbeContainerName:             true,
 				common.SecurityAgentContainerName:           false,
@@ -122,7 +124,7 @@ func TestBuilder(t *testing.T) {
 			},
 		},
 		{
-			name: "APM, NPM enabled with single container strategy, 4 agents",
+			name: "APM, NPM enabled with single container strategy, 3 agents",
 			dda: testutils.NewDatadogAgentBuilder().
 				WithSingleContainerStrategy(true).
 				WithAPMEnabled(true).
@@ -131,7 +133,7 @@ func TestBuilder(t *testing.T) {
 			wantAgentContainer: map[common.AgentContainerName]bool{
 				common.UnprivilegedSingleAgentContainerName: false,
 				common.CoreAgentContainerName:               true,
-				common.ProcessAgentContainerName:            true,
+				common.ProcessAgentContainerName:            false,
 				common.TraceAgentContainerName:              true,
 				common.SystemProbeContainerName:             true,
 				common.SecurityAgentContainerName:           false,
@@ -142,7 +144,7 @@ func TestBuilder(t *testing.T) {
 			},
 		},
 		{
-			name: "APM, NPM, CSPM enabled, 5 agents",
+			name: "APM, NPM, CSPM enabled, 4 agents",
 			dda: testutils.NewDatadogAgentBuilder().
 				WithAPMEnabled(true).
 				WithNPMEnabled(true).
@@ -151,7 +153,7 @@ func TestBuilder(t *testing.T) {
 			wantAgentContainer: map[common.AgentContainerName]bool{
 				common.UnprivilegedSingleAgentContainerName: false,
 				common.CoreAgentContainerName:               true,
-				common.ProcessAgentContainerName:            true,
+				common.ProcessAgentContainerName:            false,
 				common.TraceAgentContainerName:              true,
 				common.SystemProbeContainerName:             true,
 				common.SecurityAgentContainerName:           true,
@@ -162,7 +164,7 @@ func TestBuilder(t *testing.T) {
 			},
 		},
 		{
-			name: "APM, NPM, CSPM enabled with single container strategy, 5 agents",
+			name: "APM, NPM, CSPM enabled with single container strategy, 4 agents",
 			dda: testutils.NewDatadogAgentBuilder().
 				WithSingleContainerStrategy(true).
 				WithAPMEnabled(true).
@@ -172,7 +174,7 @@ func TestBuilder(t *testing.T) {
 			wantAgentContainer: map[common.AgentContainerName]bool{
 				common.UnprivilegedSingleAgentContainerName: false,
 				common.CoreAgentContainerName:               true,
-				common.ProcessAgentContainerName:            true,
+				common.ProcessAgentContainerName:            false,
 				common.TraceAgentContainerName:              true,
 				common.SystemProbeContainerName:             true,
 				common.SecurityAgentContainerName:           true,
@@ -348,7 +350,7 @@ func TestBuilder(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, _, requiredComponents := feature.BuildFeatures(tt.dda, &tt.dda.Spec, tt.dda.Status.RemoteConfigConfiguration, &tt.featureOptions)
+			_, _, requiredComponents, _ := feature.BuildFeatures(tt.dda, &tt.dda.Spec, tt.dda.Status.RemoteConfigConfiguration, &tt.featureOptions)
 
 			assert.True(t, *requiredComponents.Agent.IsRequired)
 

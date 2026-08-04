@@ -59,9 +59,9 @@ func (c *ClusterChecksRunnerComponent) GetNewDeploymentFunc() func(ddai metav1.O
 	return componentccr.NewDefaultClusterChecksRunnerDeployment
 }
 
-func (c *ClusterChecksRunnerComponent) GetManageFeatureFunc() func(feat feature.Feature, managers feature.PodTemplateManagers, provider string) error {
-	return func(feat feature.Feature, managers feature.PodTemplateManagers, provider string) error {
-		return feat.ManageClusterChecksRunner(managers, provider)
+func (c *ClusterChecksRunnerComponent) GetManageFeatureFunc(_ string) func(feat feature.Feature, managers feature.PodTemplateManagers) error {
+	return func(feat feature.Feature, managers feature.PodTemplateManagers) error {
+		return feat.ManageClusterChecksRunner(managers)
 	}
 }
 
@@ -90,6 +90,6 @@ func (c *ClusterChecksRunnerComponent) ForceDeleteComponent(ddai *v1alpha1.Datad
 	return false
 }
 
-func (c *ClusterChecksRunnerComponent) CleanupDependencies(ctx context.Context, logger logr.Logger, ddai *v1alpha1.DatadogAgentInternal, resourcesManager feature.ResourceManagers) (reconcile.Result, error) {
+func (c *ClusterChecksRunnerComponent) CleanupDependencies(ctx context.Context, ddai *v1alpha1.DatadogAgentInternal, resourcesManager feature.ResourceManagers) (reconcile.Result, error) {
 	return reconcile.Result{}, nil
 }

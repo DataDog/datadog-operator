@@ -154,6 +154,75 @@ spec:
    ```
 
 
+### Enable optional controllers with OLM
+
+Each optional controller can be toggled via a CLI flag (highest precedence) or
+an environment variable (middle precedence). If neither is set, the compiled
+default applies.
+
+| Controller              | CLI flag                          | Env var                                  | Default |
+|-------------------------|-----------------------------------|------------------------------------------|---------|
+| DatadogAgent            | `--datadogAgentEnabled`           | `DD_AGENT_CONTROLLER_ENABLED`            | `true`  |
+| DatadogMonitor          | `--datadogMonitorEnabled`         | `DD_MONITOR_CONTROLLER_ENABLED`          | `false` |
+| DatadogSLO              | `--datadogSLOEnabled`             | `DD_SLO_CONTROLLER_ENABLED`              | `false` |
+| DatadogDashboard        | `--datadogDashboardEnabled`       | `DD_DASHBOARD_CONTROLLER_ENABLED`        | `false` |
+| DatadogGenericResource  | `--datadogGenericResourceEnabled` | `DD_GENERIC_RESOURCE_CONTROLLER_ENABLED` | `false` |
+| DatadogCSIDriver        | `--datadogCSIDriverEnabled`       | `DD_CSI_DRIVER_CONTROLLER_ENABLED`       | `false` |
+| DatadogAgentProfile     | `--datadogAgentProfileEnabled`    | `DD_AGENT_PROFILE_CONTROLLER_ENABLED`    | `false` |
+| Introspection           | `--introspectionEnabled`          | `DD_INTROSPECTION_ENABLED`               | `false` |
+| RemoteConfig            | `--remoteConfigEnabled`           | `DD_REMOTE_CONFIG_ENABLED`               | `false` |
+| RemoteUpdates           | `--remoteUpdatesEnabled`          | `DD_REMOTE_UPDATES_ENABLED`              | `false` |
+| OperatorMetrics         | `--operatorMetricsEnabled`        | `DD_OPERATOR_METRICS_ENABLED`            | `true`  |
+| UntaintController       | `--untaintControllerEnabled`      | `DD_UNTAINT_CONTROLLER_ENABLED`          | `false` |
+| UntaintWaitForCSIDriver | `--untaintControllerWaitForCSIDriver` | `DD_UNTAINT_CONTROLLER_WAIT_FOR_CSI_DRIVER` | `false` |
+
+Other operator startup options can also be configured via environment variable:
+
+| Option                     | CLI flag                             | Env var                               | Default |
+|----------------------------|--------------------------------------|---------------------------------------|---------|
+| Metrics address            | `--metrics-addr`                     | `DD_METRICS_ADDR`                     | `:8080` |
+| Secure metrics             | `--metrics-secure`                   | `DD_METRICS_SECURE`                   | `false` |
+| Profiling                  | `--profiling-enabled`                | `DD_PROFILING_ENABLED`                | `false` |
+| Leader election lease      | `--leader-election-lease-duration`   | `DD_LEADER_ELECTION_LEASE_DURATION`   | `60s`   |
+| Cilium network policies    | `--supportCilium`                    | `DD_SUPPORT_CILIUM`                   | `false` |
+| Maximum goroutines         | `--maximumGoroutines`                | `DD_MAXIMUM_GOROUTINES`               | `400`   |
+| DDGR max concurrent reconciles | `--datadogGenericResourceMaxConcurrentReconciles` | `DD_GENERIC_RESOURCE_MAX_CONCURRENT_RECONCILES` | `1` |
+| DDGR requeue period        | `--datadogGenericResourceRequeuePeriod` | `DD_GENERIC_RESOURCE_REQUEUE_PERIOD` | `60s`   |
+| Controller revisions       | `--createControllerRevisions`        | `DD_CREATE_CONTROLLER_REVISIONS`      | `false` |
+
+ExtendedDaemonset options (`--supportExtendedDaemonset` and `--eds*`),
+the leader election toggle (`--enable-leader-election`), pprof (`--pprof`),
+log options (`--loglevel`, `--logEncoder`), secret backend options
+(`--secretBackend*`, `--secretRefreshInterval`), and `--version` are only
+configurable using CLI flags in the shipped manifests.
+
+Boolean values follow Go's [`strconv.ParseBool`](https://pkg.go.dev/strconv#ParseBool):
+`true`, `True`, `TRUE`, `1` or `false`, `False`, `FALSE`, `0`. The strings
+`yes` and `no` are **not** accepted and are logged as errors, leaving the
+default in effect.
+
+Duration values follow Go's [`time.ParseDuration`](https://pkg.go.dev/time#ParseDuration);
+for example, `30s`, `5m`, or `1h`. Integer values use base 10.
+
+For example, to enable the DatadogMonitor controller in an OLM deployment:
+
+```yaml
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: my-datadog-operator
+  namespace: operators
+spec:
+  channel: stable
+  name: datadog-operator
+  source: operatorhubio-catalog
+  sourceNamespace: olm
+  config:
+    env:
+      - name: DD_MONITOR_CONTROLLER_ENABLED
+        value: "true"
+```
+
 ## Deploy the DatadogAgent custom resource managed by the Operator
 
 After deploying the Datadog Operator, create the `DatadogAgent` resource that triggers the deployment of the Datadog Agent, Cluster Agent, and Cluster Checks Runners (if used) in your Kubernetes cluster. The Datadog Agent is deployed as a DaemonSet, running a pod on every node of your cluster.

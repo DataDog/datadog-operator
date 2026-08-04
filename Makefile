@@ -8,8 +8,8 @@ SHELL = /usr/bin/env bash -o pipefail
 # Datadog custom variables
 #
 BUILDINFOPKG=github.com/DataDog/datadog-operator/pkg/version
-GIT_TAG?=$(shell git tag | tr - \~ | sort -V | tr \~ - | tail -1)
-TAG_HASH=$(shell git tag | tr - \~ | sort -V | tr \~ - | tail -1)_$(shell git rev-parse --short HEAD)
+GIT_TAG?=$(shell git describe --tags --exact-match --match 'v[0-9]*' 2>/dev/null)
+TAG_HASH=$(shell git rev-parse --short HEAD)
 IMG_VERSION?=$(if $(VERSION),$(VERSION),latest)
 VERSION?=$(if $(GIT_TAG),$(GIT_TAG),$(TAG_HASH))
 GIT_COMMIT?=$(shell git rev-parse HEAD)
@@ -56,6 +56,10 @@ ENVTEST_K8S_VERSION = 1.30
 # (E2E provisioning can hang; having a finite timeout ensures we get goroutine dumps
 # instead of the CI job timing out with no actionable logs.)
 E2E_GO_TEST_TIMEOUT ?= 55m
+E2E_AUTOSCALING_GO_TEST_TIMEOUT ?= 140m
+E2E_GKE_AUTOPILOT_GO_TEST_TIMEOUT ?= 100m
+E2E_UNTAINT_GO_TEST_TIMEOUT ?= 90m
+E2E_GO_TEST_OUTPUT ?= go run ./hack/e2e-test-output
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -70,13 +74,13 @@ endif
 all: build test ## Build test
 
 .PHONY: build
-build: manager kubectl-datadog ## Builds manager + kubectl plugin
+build: manager kubectl-datadog build-renderer ## Builds manager + kubectl plugin + operator-render
 
 .PHONY: fmt
 fmt: bin/$(PLATFORM)/golangci-lint ## Run formatters against code
 	go fmt ./...
 	bin/$(PLATFORM)/golangci-lint run ./... ./api/... --fix
-	cd test/e2e && GOWORK=off go fmt ./... && GOWORK=off ../../bin/$(PLATFORM)/golangci-lint run ./... --fix
+	cd test/e2e && GOWORK=off go fmt ./...
 
 .PHONY: vet
 vet: ## Run go vet against code
@@ -117,9 +121,14 @@ endef
 
 .PHONY: manager
 manager: sync generate lint managergobuild ## Build manager binary
+
+.PHONY: managergobuild
+managergobuild: ## Build only manager go binary (no lint/generate)
 	go build -ldflags '${LDFLAGS}' -o bin/$(PLATFORM)/manager cmd/main.go
-managergobuild: ## Builds only manager go binary
-	go build -ldflags '${LDFLAGS}' -o bin/$(PLATFORM)/manager cmd/main.go
+
+.PHONY: build-renderer
+build-renderer: ## Build operator-render binary
+	go build -ldflags '${LDFLAGS}' -o bin/$(PLATFORM)/operator-render ./cmd/operator-render
 
 .PHONY: run
 run: generate lint manifests ## Run against the configured Kubernetes cluster in ~/.kube/config
@@ -143,7 +152,7 @@ undeploy: $(KUSTOMIZE) ## Undeploy controller from the K8s cluster specified in 
 	$(KUSTOMIZE) build $(KUSTOMIZE_CONFIG) | kubectl delete -f -
 
 .PHONY: manifests
-manifests: generate-manifests patch-crds ## Generate manifestcd s e.g. CRD, RBAC etc.
+manifests: generate-manifests patch-crds ## Generate manifests e.g. CRD, RBAC etc.
 
 .PHONY: generate-manifests
 generate-manifests: $(CONTROLLER_GEN)
@@ -197,11 +206,22 @@ docker-push-check-img:
 ##@ Test
 
 .PHONY: test
-test: build manifests generate fmt vet verify-licenses gotest integration-tests ## Run unit tests and integration tests
+test: build fmt verify-licenses gotest integration-tests ## Run unit tests and integration tests
+
+.PHONY: ci-test
+ci-test: gotest integration-tests ## Run tests only (for CI, where build/generate/lint are separate jobs)
 
 .PHONY: gotest
 gotest:
-	go test ./... -coverprofile cover.out
+	go test ./... ./api/... -coverprofile cover.out
+
+.PHONY: golden-test
+golden-test: ## Verify operator-render golden files match the current reconciler output
+	go test ./internal/controller/testutils/renderer/ -run TestRender_Golden -count=1
+
+.PHONY: golden-update
+golden-update: ## Regenerate operator-render golden files (review the diff before committing)
+	go test ./internal/controller/testutils/renderer/ -run TestRender_Golden -update -count=1
 
 .PHONY: integration-tests
 integration-tests: $(ENVTEST) ## Run integration tests with reconciler
@@ -210,18 +230,26 @@ integration-tests: $(ENVTEST) ## Run integration tests with reconciler
 .PHONY: e2e-tests
 e2e-tests: ## Run E2E tests and destroy environment stacks after tests complete. To run locally, complete pre-reqs (see docs/how-to-contribute.md) and prepend command with `aws-vault exec sso-agent-sandbox-account-admin --`. E.g. `aws-vault exec sso-agent-sandbox-account-admin -- make e2e-tests`.
 	@if [ -z "$(E2E_RUN_REGEX)" ]; then \
-		GOWORK=off KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" go test -C test/e2e/ ./... -count=1 --tags=e2e -v -run TestAWSKindSuite -timeout $(E2E_GO_TEST_TIMEOUT) -coverprofile cover_e2e.out; \
+		GOWORK=off KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" go test -C test/e2e/ ./... -count=1 --tags=e2e -json -run TestAWSKindSuite -timeout $(E2E_GO_TEST_TIMEOUT) -coverprofile cover_e2e.out | $(E2E_GO_TEST_OUTPUT); \
 	else \
 	    echo "Running e2e test: $(E2E_RUN_REGEX)"; \
-		GOWORK=off KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" go test -C test/e2e/ ./... -count=1 --tags=e2e -v -run $(E2E_RUN_REGEX) -timeout $(E2E_GO_TEST_TIMEOUT) -coverprofile cover_e2e.out; \
+		GOWORK=off KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" go test -C test/e2e/ ./... -count=1 --tags=e2e -json -run $(E2E_RUN_REGEX) -timeout $(E2E_GO_TEST_TIMEOUT) -coverprofile cover_e2e.out | $(E2E_GO_TEST_OUTPUT); \
 	fi
 
 .PHONY: e2e-autoscaling-tests
 e2e-autoscaling-tests: kubectl-datadog ## Run autoscaling E2E tests on EKS. To run locally, complete pre-reqs (see docs/how-to-contribute.md) and prepend command with `aws-vault exec sso-agent-sandbox-account-admin --`.
-	GOWORK=off KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" go test -C test/e2e/ ./tests/autoscaling_suite/... -count=1 --tags=e2e -v -timeout $(E2E_GO_TEST_TIMEOUT) -coverprofile cover_e2e_autoscaling.out
+	GOWORK=off KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" go test -C test/e2e/ ./tests/autoscaling_suite/... -count=1 --tags=e2e -json -timeout $(E2E_AUTOSCALING_GO_TEST_TIMEOUT) -coverprofile cover_e2e_autoscaling.out | $(E2E_GO_TEST_OUTPUT)
+
+.PHONY: e2e-gke-autopilot-tests
+e2e-gke-autopilot-tests: ## Run GKE Autopilot E2E tests.
+	GOWORK=off KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" go test -C test/e2e/ ./tests/k8s_suite/... -count=1 --tags=e2e -json -run TestGKEAutopilotSuite -timeout $(E2E_GKE_AUTOPILOT_GO_TEST_TIMEOUT) -coverprofile cover_e2e_gke_autopilot.out | $(E2E_GO_TEST_OUTPUT)
+
+.PHONY: e2e-untaint-tests
+e2e-untaint-tests: ## Run untaint controller E2E tests on kind (kind-on-VM). Requires IMG to point at the operator image. To run locally, complete pre-reqs (see docs/how-to-contribute.md) and prepend command with `aws-vault exec sso-agent-sandbox-account-admin --`.
+	GOWORK=off KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" go test -C test/e2e/ ./tests/untaint_suite/... -count=1 --tags=e2e -json -run 'TestUntaint.*AWSKind' -timeout $(E2E_UNTAINT_GO_TEST_TIMEOUT) -coverprofile cover_e2e_untaint.out | $(E2E_GO_TEST_OUTPUT)
 
 .PHONY: yaml-mapper-tests
-yaml-mapper-tests:  fmt vet yaml-mapper-unit-tests
+yaml-mapper-tests: fmt yaml-mapper-unit-tests
 # Run yaml-mapper tests
 
 .PHONY: yaml-mapper-unit-tests
@@ -235,6 +263,10 @@ bundle: bin/$(PLATFORM)/operator-sdk bin/$(PLATFORM)/yq $(KUSTOMIZE) manifests #
 	$(KUSTOMIZE) build config/manifests | bin/$(PLATFORM)/operator-sdk generate bundle -q --overwrite --version $(VERSION) $(BUNDLE_METADATA_OPTS)
 	hack/patch-bundle.sh
 	bin/$(PLATFORM)/operator-sdk bundle validate ./bundle
+
+.PHONY: render-golden-tests-update
+render-golden-tests-update:
+	go test ./internal/controller/testutils/renderer/ -update
 
 # Require Skopeo installed
 # And to download token from https://console.redhat.com/openshift/downloads#tool-pull-secret saved to ~/.redhat/auths.json
@@ -293,8 +325,15 @@ catalog-push: ## Push a catalog image.
 	$(MAKE) docker-push IMG=$(CATALOG_IMG)
 
 ##@ Datadog Custom part
+
+.PHONY: ensure-gsed
+ensure-gsed: ## Install GNU sed on macOS if not present (no-op on Linux)
+	@if [ "$$(uname -s)" = "Darwin" ]; then \
+		command -v gsed >/dev/null 2>&1 || brew install gnu-sed; \
+	fi
+
 .PHONY: install-tools
-install-tools: bin/$(PLATFORM)/golangci-lint bin/$(PLATFORM)/operator-sdk bin/$(PLATFORM)/yq bin/$(PLATFORM)/jq bin/$(PLATFORM)/kubebuilder bin/$(PLATFORM)/controller-tools bin/$(PLATFORM)/go-licenses bin/$(PLATFORM)/openapi-gen
+install-tools: bin/$(PLATFORM)/golangci-lint bin/$(PLATFORM)/operator-sdk bin/$(PLATFORM)/yq bin/$(PLATFORM)/jq bin/$(PLATFORM)/kubebuilder bin/$(PLATFORM)/controller-tools bin/$(PLATFORM)/go-licenses bin/$(PLATFORM)/openapi-gen ensure-gsed
 
 .PHONY: generate-openapi
 generate-openapi: bin/$(PLATFORM)/openapi-gen
@@ -319,6 +358,9 @@ patch-crds: bin/$(PLATFORM)/yq ## Patch-crds
 .PHONY: lint
 lint: bin/$(PLATFORM)/golangci-lint vet ## Lint
 	bin/$(PLATFORM)/golangci-lint run ./... ./api/...
+
+.PHONY: lint-e2e
+lint-e2e: bin/$(PLATFORM)/golangci-lint ## Lint e2e tests (slow, run separately from main lint)
 	cd test/e2e && GOWORK=off ../../bin/$(PLATFORM)/golangci-lint run ./...
 
 .PHONY: licenses
@@ -335,24 +377,27 @@ licenses: bin/$(PLATFORM)/go-licenses
 verify-licenses: bin/$(PLATFORM)/go-licenses ## Verify licenses
 	hack/verify-licenses.sh
 
-# Update the golang version in different repository files from the version present in go.mod file
+# Update the golang version across the repo.
+# Pass GOVERSION=x.y.z to also update go.work first.
+# Usage: make update-golang GOVERSION=1.25.12
 .PHONY: update-golang
-update-golang:
-	hack/update-golang.sh
+update-golang: bin/$(PLATFORM)/jq bin/$(PLATFORM)/yq ensure-gsed
+	hack/update-golang.sh $(GOVERSION)
 
 .PHONY: sync
 sync: ## Run go work sync
 	go work sync
 
+.PHONY: kubectl-datadog
 kubectl-datadog: lint
 	go build -ldflags '${LDFLAGS}' -o bin/kubectl-datadog ./cmd/kubectl-datadog/main.go
 
 .PHONY: yaml-mapper
-yaml-mapper: fmt vet lint
+yaml-mapper: fmt lint
 	go build -ldflags '${LDFLAGS}' -o bin/yaml-mapper ./cmd/yaml-mapper/main.go
 
 .PHONY: check-operator
-check-operator: fmt vet lint
+check-operator: fmt lint
 	go build -ldflags '${LDFLAGS}' -o bin/check-operator ./cmd/check-operator/main.go
 
 .PHONY: publish-community-bundles
@@ -370,7 +415,7 @@ bin/$(PLATFORM)/jq: Makefile
 	hack/install-jq.sh 1.7.1
 
 bin/$(PLATFORM)/golangci-lint: Makefile
-	hack/golangci-lint.sh -b "bin/$(PLATFORM)" v2.5.0
+	hack/golangci-lint.sh -b "bin/$(PLATFORM)" v2.11.3
 
 bin/$(PLATFORM)/operator-sdk: Makefile
 	hack/install-operator-sdk.sh v1.34.1
@@ -398,8 +443,4 @@ bin/$(PLATFORM)/controller-tools:
 .DEFAULT_GOAL := help
 .PHONY: help
 help: ## Show this help screen.
-	@echo 'Usage: make <OPTIONS> ... <TARGETS>'
-	@echo ''
-	@echo 'Available targets are:'
-	@echo ''
 	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z0-9_-]+:.*?##/ { printf "  \033[36m%-25s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)

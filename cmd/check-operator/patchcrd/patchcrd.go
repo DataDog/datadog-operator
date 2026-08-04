@@ -112,7 +112,8 @@ func (o *Options) Run() error {
 }
 
 func (o *Options) printOutf(format string, a ...any) {
-	args := []any{time.Now().UTC().Format("2006-01-02T15:04:05.999Z"), o.crdName}
+	args := make([]any, 0, 2+len(a))
+	args = append(args, time.Now().UTC().Format("2006-01-02T15:04:05.999Z"), o.crdName)
 	args = append(args, a...)
 	_, _ = fmt.Fprintf(o.Out, "[%s] CRD '%s': "+format+"\n", args...)
 }

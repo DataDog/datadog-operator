@@ -1,7 +1,7 @@
 name: Backport PR
 on:
   pull_request:
-    types: [ labeled ]
+    types: [labeled, closed]
 
 permissions:
   id-token: write # Required for dd-octo-sts action
@@ -10,12 +10,17 @@ jobs:
   backport:
     name: Backport PR
     runs-on: ubuntu-latest
+    # 1.  PR must always be merged, then either:
+    # 2a. backport/* label is added to the closed PR
+    # 2b. PR is closed while already carrying a backport/* label
     if: >
-        (github.event_name == 'workflow_dispatch' ||
-        (github.event.action == 'labeled'
-        && contains(github.event.label.name, 'backport/')))
+      github.event.pull_request.merged &&
+      ((github.event.action == 'labeled' &&
+      startsWith(github.event.label.name, 'backport/')) ||
+      (github.event.action == 'closed' &&
+      contains(format(',{0},', join(github.event.pull_request.labels.*.name, ',')), ',backport/')))
     steps:
-      - uses: DataDog/dd-octo-sts-action@acaa02eee7e3bb0839e4272dacb37b8f3b58ba80 # v1.0.3
+      - uses: DataDog/dd-octo-sts-action@96a25462dbcb10ebf0bfd6e2ccc917d2ab235b9a # v1.0.4
         id: octo-sts
         with:
           scope: DataDog/datadog-operator
@@ -26,7 +31,7 @@ jobs:
         id: backport
         with:
           label_pattern: "^backport/(?<base>([^ ]+))$"
-          labels_template: "<%= JSON.stringify([...labels, 'backport', 'bot', 'qa/skip-qa']) %>"
+          labels_template: "<%= JSON.stringify([...labels, 'backport', 'bot']) %>"
           github_token: ${{ steps.octo-sts.outputs.token }}
           title_template: "[Backport <%- base %>] <%- title %>"
           body_template: |
@@ -57,6 +62,10 @@ jobs:
             // Parse the backport PR number from the JSON output
             const backportData = JSON.parse(process.env.BACKPORT_PR);
             const prNumber = Object.values(backportData)[0];
+            if (!prNumber) {
+              console.log('No backport PR was created, skipping milestone copy.');
+              return;
+            }
             console.log('Parsed PR number:', prNumber);
             console.log(`Copying milestone ${milestoneNumber} to PR ${prNumber}`);
 

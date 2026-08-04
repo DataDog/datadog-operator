@@ -6,6 +6,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -14,6 +15,8 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/providercaps"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 func init() {
@@ -41,6 +44,31 @@ func (f *gpuFeature) ID() feature.IDType {
 	return feature.GPUIDType
 }
 
+// NodeAgentProviderCapabilities returns provider-conditional pod-template mutations.
+// On GKE COS, the NVIDIA driver libraries are not available at the standard path used
+// by the nvidia-container-runtime; mount them from the host location.
+func (f *gpuFeature) NodeAgentProviderCapabilities() providercaps.ProviderCapabilityMap {
+	containers := []apicommon.AgentContainerName{apicommon.CoreAgentContainerName}
+	if f.isPrivilegedModeEnabled {
+		containers = append(containers, apicommon.SystemProbeContainerName)
+	}
+
+	vol, volMount := volume.GetVolumes(gkeCOSNVIDIADriverLib64VolumeName, gkeCOSNVIDIADriverLib64HostPath, gkeCOSNVIDIADriverLib64MountPath, true)
+	vol.VolumeSource.HostPath.Type = ptr.To(corev1.HostPathDirectoryOrCreate)
+
+	return providercaps.ProviderCapabilityMap{
+		kubernetes.GKECosProvider: {
+			Volumes: []providercaps.VolumeAndMount{
+				{
+					Volume:     vol,
+					Mount:      volMount,
+					Containers: containers,
+				},
+			},
+		},
+	}
+}
+
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *gpuFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
 	if ddaSpec.Features == nil || ddaSpec.Features.GPU == nil || !apiutils.BoolValue(ddaSpec.Features.GPU.Enabled) {
@@ -56,7 +84,7 @@ func (f *gpuFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.DatadogAgentSp
 	}
 
 	reqComp.Agent = feature.RequiredComponent{
-		IsRequired: apiutils.NewBoolPointer(true),
+		IsRequired: new(true),
 		Containers: requiredContainers,
 	}
 
@@ -76,13 +104,13 @@ func (f *gpuFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.DatadogAgentSp
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *gpuFeature) ManageDependencies(managers feature.ResourceManagers, provider string) error {
+func (f *gpuFeature) ManageDependencies(managers feature.ResourceManagers) error {
 	return nil
 }
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *gpuFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *gpuFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
 	return nil
 }
 
@@ -198,7 +226,12 @@ func (f *gpuFeature) configureCgroupPermissions(managers feature.PodTemplateMana
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *gpuFeature) ManageNodeAgent(managers feature.PodTemplateManagers, _ string) error {
+func (f *gpuFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
+	// GPU monitoring watches host processes, so it needs the host PID namespace.
+	// It is also required when patchCgroupPermissions is enabled, as the cgroup
+	// permissions patch resolves the host pid 1 cgroup.
+	managers.PodTemplateSpec().Spec.HostPID = true
+
 	// env var to enable the GPU core check
 	enableCoreCheckEnvVar := &corev1.EnvVar{
 		Name:  DDEnableGPUMonitoringCheckEnvVar,
@@ -270,16 +303,16 @@ func (f *gpuFeature) ManageNodeAgent(managers feature.PodTemplateManagers, _ str
 // ManageSingleContainerNodeAgent allows a feature to configure the Agent container for the Node Agent's corev1.PodTemplateSpec
 // if SingleContainerStrategy is enabled and can be used with the configured feature set.
 // It should do nothing if the feature doesn't need to configure it.
-func (f *gpuFeature) ManageSingleContainerNodeAgent(feature.PodTemplateManagers, string) error {
+func (f *gpuFeature) ManageSingleContainerNodeAgent(feature.PodTemplateManagers) error {
 	return nil
 }
 
 // ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunner's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *gpuFeature) ManageClusterChecksRunner(feature.PodTemplateManagers, string) error {
+func (f *gpuFeature) ManageClusterChecksRunner(feature.PodTemplateManagers) error {
 	return nil
 }
 
-func (f *gpuFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
+func (f *gpuFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers) error {
 	return nil
 }

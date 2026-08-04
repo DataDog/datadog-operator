@@ -4,7 +4,15 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/stretchr/testify/assert"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/apimachinery/pkg/version"
+	"k8s.io/utils/ptr"
+
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
@@ -15,12 +23,6 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/testutils"
-
-	"github.com/google/go-cmp/cmp"
-	"github.com/stretchr/testify/assert"
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/apimachinery/pkg/version"
 )
 
 type expectedPorts struct {
@@ -29,12 +31,13 @@ type expectedPorts struct {
 }
 
 type expectedEnvVars struct {
-	agent_ipc_port     expectedEnvVar
-	agent_ipc_refresh  expectedEnvVar
-	enabled            expectedEnvVar
-	extension_timeout  expectedEnvVar
-	extension_url      expectedEnvVar
-	converter_features expectedEnvVar
+	agent_ipc_port      expectedEnvVar
+	agent_ipc_refresh   expectedEnvVar
+	enabled             expectedEnvVar
+	extension_timeout   expectedEnvVar
+	extension_url       expectedEnvVar
+	converter_features  expectedEnvVar
+	installation_method expectedEnvVar
 }
 
 type expectedEnvVar struct {
@@ -47,7 +50,7 @@ var (
 		httpPort: 4318,
 		grpcPort: 4317,
 	}
-	defaultLocalObjectReferenceName = "-otel-agent-config"
+	defaultLocalObjectReferenceName = "-otel-config"
 	defaultExpectedEnvVars          = expectedEnvVars{
 		agent_ipc_port: expectedEnvVar{
 			present: true,
@@ -64,6 +67,10 @@ var (
 		extension_timeout:  expectedEnvVar{},
 		extension_url:      expectedEnvVar{},
 		converter_features: expectedEnvVar{},
+		installation_method: expectedEnvVar{
+			present: true,
+			value:   "kubernetes",
+		},
 	}
 
 	onlyIpcEnvVars = expectedEnvVars{
@@ -75,12 +82,15 @@ var (
 			present: true,
 			value:   "60",
 		},
+		installation_method: expectedEnvVar{
+			present: true,
+			value:   "kubernetes",
+		},
 	}
 	defaultVolumeMounts = []corev1.VolumeMount{
 		{
 			Name:      otelAgentVolumeName,
-			MountPath: common.ConfigVolumePath + "/" + otelConfigFileName,
-			SubPath:   otelConfigFileName,
+			MountPath: otelConfigPath,
 			ReadOnly:  true,
 		},
 	}
@@ -100,7 +110,7 @@ var (
 	}
 )
 
-var defaultAnnotations = map[string]string{"checksum/otel_agent-custom-config": "8e715f9526c27c6cd06ba9a9d8913451"}
+var defaultAnnotations = map[string]string{}
 
 func Test_otelCollectorFeature_Configure(t *testing.T) {
 	tests := test.FeatureTestSuite{
@@ -152,7 +162,8 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 			Agent: testExpectedAgent(apicommon.OtelAgent, defaultExpectedPorts, defaultExpectedEnvVars, map[string]string{}, []corev1.VolumeMount{
 				{
 					Name:      otelAgentVolumeName,
-					MountPath: common.ConfigVolumePath + "/otel/",
+					MountPath: otelConfigPath,
+					ReadOnly:  true,
 				},
 			},
 				[]corev1.Volume{
@@ -200,7 +211,7 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 				httpPort: 5555,
 			},
 				defaultExpectedEnvVars,
-				map[string]string{"checksum/otel_agent-custom-config": "1b4f73fd3576db6a939bbfe788cc1f80"},
+				map[string]string{},
 				defaultVolumeMounts,
 				defaultVolumes(defaultLocalObjectReferenceName),
 			),
@@ -234,8 +245,12 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 						present: true,
 						value:   "health_check,zpages,pprof,ddflare",
 					},
+					installation_method: expectedEnvVar{
+						present: true,
+						value:   "kubernetes",
+					},
 				},
-				map[string]string{"checksum/otel_agent-custom-config": "b4ea5ecc5c7901d3b48c58622379ecfb"},
+				map[string]string{},
 				defaultVolumeMounts,
 				defaultVolumes(defaultLocalObjectReferenceName),
 			),
@@ -272,8 +287,12 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 						present: true,
 						value:   "health_check,zpages,pprof,ddflare",
 					},
+					installation_method: expectedEnvVar{
+						present: true,
+						value:   "kubernetes",
+					},
 				},
-				map[string]string{"checksum/otel_agent-custom-config": "d9c73c9017a4fcb811da0e51f5044b3c"},
+				map[string]string{},
 				defaultVolumeMounts,
 				defaultVolumes(defaultLocalObjectReferenceName),
 			),
@@ -321,6 +340,10 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 					present: true,
 					value:   "13",
 				},
+				installation_method: expectedEnvVar{
+					present: true,
+					value:   "kubernetes",
+				},
 			},
 				defaultAnnotations,
 				defaultVolumeMounts,
@@ -347,6 +370,10 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 				extension_url: expectedEnvVar{
 					present: true,
 					value:   "https://localhost:1234",
+				},
+				installation_method: expectedEnvVar{
+					present: true,
+					value:   "kubernetes",
 				},
 			},
 				defaultAnnotations,
@@ -384,6 +411,10 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 					present: true,
 					value:   "true",
 				},
+				installation_method: expectedEnvVar{
+					present: true,
+					value:   "kubernetes",
+				},
 			},
 				defaultAnnotations,
 				defaultVolumeMounts,
@@ -395,18 +426,7 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 				WithOTelCollectorEnabled(true).
 				WithOTelCollectorConfig().
 				Build(),
-			WantConfigure: true,
-			StoreOption: &store.StoreOptions{
-				PlatformInfo: kubernetes.NewPlatformInfo(
-					&version.Info{
-						Major:      "1",
-						Minor:      "32",
-						GitVersion: "1.32.0",
-					},
-					nil,
-					nil,
-				),
-			},
+			WantConfigure:        true,
 			WantDependenciesFunc: testExpectedDepsCreatedCM,
 			Agent: testExpectedAgent(
 				apicommon.OtelAgent,
@@ -424,18 +444,7 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 				WithOTelCollectorPorts(4444, 5555).
 				WithOTelCollectorConfig().
 				Build(),
-			WantConfigure: true,
-			StoreOption: &store.StoreOptions{
-				PlatformInfo: kubernetes.NewPlatformInfo(
-					&version.Info{
-						Major:      "1",
-						Minor:      "32",
-						GitVersion: "1.32.0",
-					},
-					nil,
-					nil,
-				),
-			},
+			WantConfigure:        true,
 			WantDependenciesFunc: testExpectedDepsCreatedCM,
 			Agent: testExpectedAgent(
 				apicommon.OtelAgent,
@@ -453,6 +462,88 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 	tests.Run(t, buildOtelCollectorFeature)
 }
 
+func TestApplyOTelCollectorDDASharedDependencies(t *testing.T) {
+	tests := []struct {
+		name string
+		dda  *v2alpha1.DatadogAgent
+		want []corev1.ServicePort
+	}{
+		{
+			name: "default ports",
+			dda: testutils.NewInitializedDatadogAgentBuilder("default", "datadog").
+				WithOTelCollectorEnabled(true).
+				Build(),
+			want: []corev1.ServicePort{
+				{
+					Name:        "otlpgrpcport",
+					Port:        4317,
+					Protocol:    corev1.ProtocolTCP,
+					TargetPort:  intstr.FromInt(4317),
+					AppProtocol: ptr.To(common.KubernetesAppProtocolH2C),
+				},
+				{
+					Name:       "otlphttpport",
+					Port:       4318,
+					Protocol:   corev1.ProtocolTCP,
+					TargetPort: intstr.FromInt(4318),
+				},
+			},
+		},
+		{
+			name: "override ports",
+			dda: testutils.NewInitializedDatadogAgentBuilder("default", "datadog").
+				WithOTelCollectorEnabled(true).
+				WithOTelCollectorPorts(4444, 5555).
+				Build(),
+			want: []corev1.ServicePort{
+				{
+					Name:        "otlpgrpcport",
+					Port:        4444,
+					Protocol:    corev1.ProtocolTCP,
+					TargetPort:  intstr.FromInt(4444),
+					AppProtocol: ptr.To(common.KubernetesAppProtocolH2C),
+				},
+				{
+					Name:       "otlphttpport",
+					Port:       5555,
+					Protocol:   corev1.ProtocolTCP,
+					TargetPort: intstr.FromInt(5555),
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			depsStore := store.NewStore(nil, &store.StoreOptions{
+				PlatformInfo: kubernetes.NewPlatformInfo(
+					&version.Info{
+						Major:      "1",
+						Minor:      "32",
+						GitVersion: "1.32.0",
+					},
+					nil,
+					nil,
+				),
+			})
+			managers := feature.NewResourceManagers(depsStore)
+
+			err := applyOTelCollectorDDASharedDependencies(tt.dda, &tt.dda.Spec, tt.dda, &tt.dda.Spec, managers)
+			assert.NoError(t, err)
+
+			serviceObject, found := depsStore.Get(kubernetes.ServicesKind, "default", "datadog-agent")
+			if assert.True(t, found) {
+				service := serviceObject.(*corev1.Service)
+				assert.Equal(t, common.GetAgentLocalServiceSelector(tt.dda), service.Spec.Selector)
+				if assert.NotNil(t, service.Spec.InternalTrafficPolicy) {
+					assert.Equal(t, corev1.ServiceInternalTrafficPolicyLocal, *service.Spec.InternalTrafficPolicy)
+				}
+				assert.Equal(t, tt.want, service.Spec.Ports)
+			}
+		})
+	}
+}
+
 func testExpectedAgent(
 	agentContainerName apicommon.AgentContainerName,
 	expectedPorts expectedPorts,
@@ -460,12 +551,48 @@ func testExpectedAgent(
 	expectedAnnotations map[string]string,
 	expectedVolumeMount []corev1.VolumeMount,
 	expectedVolume []corev1.Volume) *test.ComponentTest {
-	return test.NewDefaultComponentTest().WithWantFunc(
+	return test.NewDefaultComponentTest().WithCreateFunc(
+		func(t testing.TB) (feature.PodTemplateManagers, string) {
+			newPTS := corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Name:    string(apicommon.CoreAgentContainerName),
+							Image:   images.GetLatestAgentImage(),
+							Command: []string{"agent", "run"},
+						},
+						{
+							Name:    string(apicommon.OtelAgent),
+							Image:   images.GetLatestAgentImage(),
+							Command: []string{"otel-agent"},
+						},
+					},
+				},
+			}
+			return fake.NewPodTemplateManagers(t, newPTS), kubernetes.DefaultProvider
+		},
+	).WithWantFunc(
 		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 			mgr := mgrInterface.(*fake.PodTemplateManagers)
 
 			agentMounts := mgr.VolumeMountMgr.VolumeMountsByC[agentContainerName]
 			assert.True(t, apiutils.IsEqualStruct(agentMounts, expectedVolumeMount), "%s volume mounts \ndiff = %s", agentContainerName, cmp.Diff(agentMounts, expectedVolumeMount))
+
+			expectedArgs := []string{"--config=" + otelConfigPath + "/" + otelConfigFileName}
+			if len(expectedVolume) > 0 && expectedVolume[0].ConfigMap != nil && len(expectedVolume[0].ConfigMap.Items) > 0 {
+				expectedArgs = nil
+				for _, item := range expectedVolume[0].ConfigMap.Items {
+					expectedArgs = append(expectedArgs, "--config="+otelConfigPath+"/"+item.Path)
+				}
+			}
+			foundContainer := false
+			for _, container := range mgr.PodTemplateSpec().Spec.Containers {
+				if container.Name == string(agentContainerName) {
+					foundContainer = true
+					assert.Equal(t, expectedArgs, container.Args)
+				}
+			}
+			assert.True(t, foundContainer, "expected container %s to be present", agentContainerName)
 
 			volumes := mgr.VolumeMgr.Volumes
 			assert.True(t, apiutils.IsEqualStruct(volumes, expectedVolume), "Volumes \ndiff = %s", cmp.Diff(volumes, expectedVolume))
@@ -495,22 +622,22 @@ func testExpectedAgent(
 
 			if expectedEnvVars.agent_ipc_port.present {
 				wantEnvVars = append(wantEnvVars, &corev1.EnvVar{
-					Name:  DDAgentIpcPort,
+					Name:  common.DDAgentIpcPort,
 					Value: expectedEnvVars.agent_ipc_port.value,
 				})
 				wantEnvVarsOTel = append(wantEnvVarsOTel, &corev1.EnvVar{
-					Name:  DDAgentIpcPort,
+					Name:  common.DDAgentIpcPort,
 					Value: expectedEnvVars.agent_ipc_port.value,
 				})
 			}
 
 			if expectedEnvVars.agent_ipc_refresh.present {
 				wantEnvVars = append(wantEnvVars, &corev1.EnvVar{
-					Name:  DDAgentIpcConfigRefreshInterval,
+					Name:  common.DDAgentIpcConfigRefreshInterval,
 					Value: expectedEnvVars.agent_ipc_refresh.value,
 				})
 				wantEnvVarsOTel = append(wantEnvVarsOTel, &corev1.EnvVar{
-					Name:  DDAgentIpcConfigRefreshInterval,
+					Name:  common.DDAgentIpcConfigRefreshInterval,
 					Value: expectedEnvVars.agent_ipc_refresh.value,
 				})
 			}
@@ -547,6 +674,19 @@ func testExpectedAgent(
 				})
 			}
 
+			if expectedEnvVars.installation_method.present {
+				wantEnvVarsOTel = append(wantEnvVarsOTel, &corev1.EnvVar{
+					Name:  DDOtelCollectorInstallationMethod,
+					Value: expectedEnvVars.installation_method.value,
+				})
+			}
+
+			// DD_OTEL_STANDALONE is always set on the otel-agent container.
+			wantEnvVarsOTel = append(wantEnvVarsOTel, &corev1.EnvVar{
+				Name:  DDOtelStandalone,
+				Value: "false",
+			})
+
 			if len(wantEnvVars) == 0 {
 				wantEnvVars = nil
 			}
@@ -570,17 +710,17 @@ func testExpectedDepsCreatedCM(t testing.TB, store store.StoreClient) {
 	// modifying WantDependenciesFunc definition.
 	if t.Name() == "Test_otelCollectorFeature_Configure/otel_agent_enabled_with_configMap" {
 		// configMap is provided by user, no need to create it.
-		_, found := store.Get(kubernetes.ConfigMapKind, "", "-otel-agent-config")
+		_, found := store.Get(kubernetes.ConfigMapKind, "", "-otel-config")
 		assert.False(t, found)
 		return
 	}
 	if t.Name() == "Test_otelCollectorFeature_Configure/otel_agent_enabled_with_configMap_multi_items" {
 		// configMap is provided by user, no need to create it.
-		_, found := store.Get(kubernetes.ConfigMapKind, "", "-otel-agent-config")
+		_, found := store.Get(kubernetes.ConfigMapKind, "", "-otel-config")
 		assert.False(t, found)
 		return
 	}
-	configMapObject, found := store.Get(kubernetes.ConfigMapKind, "", "-otel-agent-config")
+	configMapObject, found := store.Get(kubernetes.ConfigMapKind, "", "-otel-config")
 	assert.True(t, found)
 
 	configMap := configMapObject.(*corev1.ConfigMap)
@@ -629,43 +769,6 @@ func testExpectedDepsCreatedCM(t testing.TB, store store.StoreClient) {
 		"ConfigMap \ndiff = %s", cmp.Diff(configMap.Data, expectedCM),
 	)
 
-	serviceObject, found := store.Get(kubernetes.ServicesKind, "", "-agent")
-	switch t.Name() {
-	case "Test_otelCollectorFeature_Configure/otel_agent_enabled_with_service_ports_default":
-		assert.True(t, found)
-		service := serviceObject.(*corev1.Service)
-		assert.Equal(t, []corev1.ServicePort{
-			{
-				Name:       "otlpgrpcport",
-				Port:       4317,
-				Protocol:   corev1.ProtocolTCP,
-				TargetPort: intstr.FromInt(4317),
-			},
-			{
-				Name:       "otlphttpport",
-				Port:       4318,
-				Protocol:   corev1.ProtocolTCP,
-				TargetPort: intstr.FromInt(4318),
-			},
-		}, service.Spec.Ports)
-	case "Test_otelCollectorFeature_Configure/otel_agent_enabled_with_service_ports_override":
-		assert.True(t, found)
-		service := serviceObject.(*corev1.Service)
-		assert.Equal(t, []corev1.ServicePort{
-			{
-				Name:       "otlpgrpcport",
-				Port:       4444,
-				Protocol:   corev1.ProtocolTCP,
-				TargetPort: intstr.FromInt(4444),
-			},
-			{
-				Name:       "otlphttpport",
-				Port:       5555,
-				Protocol:   corev1.ProtocolTCP,
-				TargetPort: intstr.FromInt(5555),
-			},
-		}, service.Spec.Ports)
-	default:
-		assert.False(t, found)
-	}
+	_, found = store.Get(kubernetes.ServicesKind, "", "-agent")
+	assert.False(t, found)
 }

@@ -35,10 +35,21 @@ func applyOtelAgentGatewayResources(manager feature.PodTemplateManagers, ddaSpec
 		Value: "true",
 	})
 
+	manager.EnvVar().AddEnvVarToContainer(apicommon.OtelAgent, &corev1.EnvVar{
+		Name:  "DD_OTELCOLLECTOR_INSTALLATION_METHOD",
+		Value: "kubernetes",
+	})
+
 	// Enable gateway mode
 	manager.EnvVar().AddEnvVarToContainer(apicommon.OtelAgent, &corev1.EnvVar{
 		Name:  "DD_OTELCOLLECTOR_GATEWAY_MODE",
 		Value: "true",
+	})
+
+	// Explicitly set bundled mode (DD_OTEL_STANDALONE=false)
+	manager.EnvVar().AddEnvVarToContainer(apicommon.OtelAgent, &corev1.EnvVar{
+		Name:  "DD_OTEL_STANDALONE",
+		Value: "false",
 	})
 
 	// Set hostname from spec.nodeName
@@ -65,11 +76,6 @@ func applyOtelAgentGatewayResources(manager feature.PodTemplateManagers, ddaSpec
 
 	manager.EnvVar().AddEnvVarToContainer(apicommon.OtelAgent, &corev1.EnvVar{
 		Name:  "DD_PROCESS_AGENT_ENABLED",
-		Value: "false",
-	})
-
-	manager.EnvVar().AddEnvVarToContainer(apicommon.OtelAgent, &corev1.EnvVar{
-		Name:  "DD_PROCESS_CONFIG_RUN_IN_CORE_AGENT_ENABLED",
 		Value: "false",
 	})
 

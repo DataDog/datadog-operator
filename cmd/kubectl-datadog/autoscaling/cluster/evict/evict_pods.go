@@ -1,0 +1,164 @@
+package evict
+
+import (
+	"context"
+	"fmt"
+	"log"
+	"time"
+
+	"github.com/samber/lo"
+	corev1 "k8s.io/api/core/v1"
+	policyv1 "k8s.io/api/policy/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/pager"
+	"k8s.io/client-go/util/retry"
+)
+
+// nodeDrainOptions captures the per-call tunables for evicting a node's pods.
+type nodeDrainOptions struct {
+	DryRun          bool
+	EvictionTimeout time.Duration // per pod, bound for retries on 429
+	NodeTimeout     time.Duration // total wait for the node to become empty
+	PollInterval    time.Duration // interval between empty-checks; default 2s
+}
+
+// drainNode evicts every evictable pod from the node and waits for the node to
+// become empty. Pods owned by a DaemonSet, mirror pods, terminating pods and
+// completed Job pods are skipped — the kubelet handles their cleanup when the
+// underlying instance disappears.
+//
+// Pods that cannot be evicted (PDB-blocked beyond EvictionTimeout, etc.) are
+// logged as warnings; drainNode then continues with the remaining pods rather
+// than aborting the whole run.
+func drainNode(ctx context.Context, clientset kubernetes.Interface, nodeName string, opts nodeDrainOptions) error {
+	if opts.DryRun {
+		log.Printf("[dry-run] would drain node %s", nodeName)
+		return nil
+	}
+	pods, err := listPodsOnNode(ctx, clientset, nodeName)
+	if err != nil {
+		return fmt.Errorf("failed to list pods on node %s: %w", nodeName, err)
+	}
+	for _, p := range pods {
+		if shouldSkipEviction(&p) {
+			continue
+		}
+		if err := evictPodWithRetry(ctx, clientset, &p, opts.EvictionTimeout, opts.PollInterval); err != nil {
+			log.Printf("Warning: pod %s/%s: %v", p.Namespace, p.Name, err)
+		}
+	}
+	return waitForNodeEmpty(ctx, clientset, nodeName, opts.NodeTimeout, opts.PollInterval)
+}
+
+// listPodsOnNode enumerates pods scheduled on the given node, server-side
+// filtered via the spec.nodeName field selector.
+func listPodsOnNode(ctx context.Context, clientset kubernetes.Interface, nodeName string) (pods []corev1.Pod, err error) {
+	p := pager.New(func(ctx context.Context, opts metav1.ListOptions) (runtime.Object, error) {
+		return clientset.CoreV1().Pods(metav1.NamespaceAll).List(ctx, opts)
+	})
+	if err = p.EachListItem(ctx, metav1.ListOptions{
+		FieldSelector: fields.OneTermEqualSelector("spec.nodeName", nodeName).String(),
+	}, func(obj runtime.Object) error {
+		pods = append(pods, *obj.(*corev1.Pod))
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+	return pods, nil
+}
+
+// evictPodWithRetry sends a single Eviction request and retries while the
+// apiserver returns 429 TooManyRequests (the canonical PDB-blocked signal).
+// Retries at retryInterval for up to timeout's worth of attempts; the caller
+// then logs and moves to the next pod.
+//
+// 404 (pod already gone) is treated as success — the eviction goal is met.
+// Non-429 errors are returned immediately.
+func evictPodWithRetry(ctx context.Context, clientset kubernetes.Interface, p *corev1.Pod, timeout, retryInterval time.Duration) error {
+	eviction := &policyv1.Eviction{
+		ObjectMeta: metav1.ObjectMeta{Name: p.Name, Namespace: p.Namespace},
+	}
+	steps := 1
+	if retryInterval > 0 {
+		steps = max(1, int(timeout/retryInterval))
+	}
+	backoff := wait.Backoff{Duration: retryInterval, Factor: 1, Steps: steps}
+	err := retry.OnError(backoff, apierrors.IsTooManyRequests, func() error {
+		return clientset.CoreV1().Pods(p.Namespace).EvictV1(ctx, eviction)
+	})
+	switch {
+	case err == nil:
+		log.Printf("Evicted pod %s/%s.", p.Namespace, p.Name)
+		return nil
+	case apierrors.IsNotFound(err):
+		return nil // already gone — eviction goal met
+	case apierrors.IsTooManyRequests(err):
+		// OnError exhausted its retries while still 429-blocked.
+		return fmt.Errorf("eviction timed out (likely PDB-blocked): %w", err)
+	default:
+		return fmt.Errorf("eviction failed: %w", err)
+	}
+}
+
+// waitForNodeEmpty polls the node until no pod still occupies it. A pod is
+// considered to still occupy the node until it is actually gone from the API
+// server — including pods that are merely terminating (DeletionTimestamp
+// set). This matters for callers that terminate the underlying EC2 instance
+// next: returning early while a pod is mid-grace-period would kill the
+// container before its preStop hook / graceful shutdown finishes.
+//
+// DaemonSet pods, mirror pods and completed pods are not counted: DS and
+// mirror pods are tied to the node's lifecycle and disappear with it,
+// completed pods are inert and GC'd promptly.
+func waitForNodeEmpty(ctx context.Context, clientset kubernetes.Interface, nodeName string, timeout, pollInterval time.Duration) error {
+	return wait.PollUntilContextTimeout(ctx, pollInterval, timeout, true, func(ctx context.Context) (bool, error) {
+		pods, err := listPodsOnNode(ctx, clientset, nodeName)
+		if err != nil {
+			return false, fmt.Errorf("failed to list pods on node %s: %w", nodeName, err)
+		}
+		return lo.NoneBy(pods, func(p corev1.Pod) bool {
+			return podOccupiesNode(&p)
+		}), nil
+	})
+}
+
+// shouldSkipEviction reports whether drainNode should leave a pod alone
+// rather than call the Eviction API on it. A pod already terminating is
+// skipped because issuing another eviction would 404 once the kubelet
+// finishes the deletion; every pod that does not occupy the node for drain
+// purposes (mirror, DaemonSet and completed pods) needs no eviction either.
+func shouldSkipEviction(p *corev1.Pod) bool {
+	return p.DeletionTimestamp != nil || !podOccupiesNode(p)
+}
+
+// podOccupiesNode reports whether a pod still consumes the node from a drain
+// perspective. Terminating pods DO occupy the node until they are gone;
+// returning false for them prematurely would let the caller terminate the
+// instance before the container finished its grace period.
+func podOccupiesNode(p *corev1.Pod) bool {
+	return !isMirrorPod(p) && !isDaemonSetPod(p) && !isCompleted(p)
+}
+
+func isMirrorPod(p *corev1.Pod) bool {
+	_, ok := p.Annotations[corev1.MirrorPodAnnotationKey]
+	return ok
+}
+
+func isDaemonSetPod(p *corev1.Pod) bool {
+	ctrl := metav1.GetControllerOf(p)
+	if ctrl == nil || ctrl.Kind != "DaemonSet" {
+		return false
+	}
+	gv, _ := schema.ParseGroupVersion(ctrl.APIVersion)
+	return gv.Group == "apps"
+}
+
+func isCompleted(p *corev1.Pod) bool {
+	return p.Status.Phase == corev1.PodSucceeded || p.Status.Phase == corev1.PodFailed
+}

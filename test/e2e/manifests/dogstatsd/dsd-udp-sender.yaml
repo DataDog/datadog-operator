@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dsd-udp-sender
+  namespace: e2e-operator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dsd-udp-sender
+  template:
+    metadata:
+      labels:
+        app: dsd-udp-sender
+    spec:
+      containers:
+        - name: sender
+          image: public.ecr.aws/docker/library/python:3-alpine
+          command:
+            - python3
+            - -c
+            - |
+              import socket, time, os
+              host = os.environ.get('DD_AGENT_HOST', 'localhost')
+              sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+              print(f"Sending e2e.dsd.udp.counter to {host}:8125", flush=True)
+              while True:
+                  try:
+                      sock.sendto(b'e2e.dsd.udp.counter:1|c', (host, 8125))
+                  except Exception as e:
+                      print(f"send error: {e}", flush=True)
+                  time.sleep(1)
+          env:
+            - name: DD_AGENT_HOST
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
+          resources:
+            requests:
+              memory: "32Mi"
+              cpu: "2m"
+            limits:
+              memory: "64Mi"
+              cpu: "10m"

@@ -288,7 +288,14 @@ func deleteMonitor(auth context.Context, client *datadogV1.MonitorsApi, monitorI
 	optionalParams := datadogV1.DeleteMonitorOptionalParameters{
 		Force: &force,
 	}
-	if _, _, err := client.DeleteMonitor(auth, int64(monitorID), optionalParams); err != nil {
+	_, httpResponse, err := client.DeleteMonitor(auth, int64(monitorID), optionalParams)
+	if err != nil {
+		// Deletion is idempotent for finalization: if the monitor was already removed
+		// in Datadog (for example from the UI), allow the Kubernetes finalizer to clear.
+		// Retry other errors (e.g. 401, 429, 5XX)
+		if httpResponse != nil && httpResponse.StatusCode == 404 {
+			return nil
+		}
 		return translateClientError(err, "error deleting monitor")
 	}
 

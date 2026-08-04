@@ -1,0 +1,27 @@
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogGenericResource
+metadata:
+  name: ddgr-slo-sample
+spec:
+  type: slo
+  jsonSpec: |-
+    {
+      "name": "Example Metric SLO",
+      "type": "metric",
+      "description": "Example metric SLO managed by Datadog Generic Resource",
+      "query": {
+        "numerator": "sum:trace.http.request.hits.by_http_status{http.status_code:200}.as_count()",
+        "denominator": "sum:trace.http.request.hits{*}.as_count()"
+      },
+      "thresholds": [
+        {
+          "timeframe": "7d",
+          "target": 99.9,
+          "warning": 99.95
+        }
+      ],
+      "tags": [
+        "test:example-slo",
+        "env:ci"
+      ]
+    }

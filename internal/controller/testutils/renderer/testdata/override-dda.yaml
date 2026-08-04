@@ -1,0 +1,42 @@
+apiVersion: datadoghq.com/v2alpha1
+kind: DatadogAgent
+metadata:
+  name: datadog-agent
+spec:
+  global:
+    credentials:
+      apiSecret:
+        secretName: datadog-secret
+        keyName: api-key
+      appSecret:
+        secretName: datadog-secret
+        keyName: app-key
+    clusterName: test-cluster
+    # Fixed so the generated cluster-agent token Secret is deterministic for golden files.
+    clusterAgentToken: golden-fixed-cluster-agent-token-0000000000
+    kubelet:
+      tlsVerify: false
+  override:
+    nodeAgent:
+      volumes:
+        # Re-add volumes GKE Autopilot strips (CRI socket, auth). Demonstrates
+        # override-vs-autopilot precedence (plan §9 F2): today autopilot runs LAST
+        # and strips these even though the user re-added them; after the refactor
+        # removals run BEFORE overrides, so these survive.
+        - name: runtimesocketdir
+          hostPath:
+            path: /var/run
+        - name: datadog-agent-auth
+          emptyDir: {}
+        # A user volume autopilot does NOT target — control that stays in both models.
+        - name: user-extra
+          emptyDir: {}
+      containers:
+        agent:
+          volumeMounts:
+            - name: runtimesocketdir
+              mountPath: /host/var/run
+            - name: datadog-agent-auth
+              mountPath: /etc/datadog-agent/auth
+            - name: user-extra
+              mountPath: /opt/user-extra

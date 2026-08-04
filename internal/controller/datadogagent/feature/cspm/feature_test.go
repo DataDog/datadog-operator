@@ -6,9 +6,10 @@
 package cspm
 
 import (
-	"fmt"
 	"testing"
 	"time"
+
+	"k8s.io/utils/ptr"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -20,38 +21,24 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
-	"github.com/DataDog/datadog-operator/pkg/constants"
-	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 )
-
-var customConfig = &v2alpha1.CustomConfig{
-	ConfigMap: &v2alpha1.ConfigMapConfig{
-		Name: "custom_test",
-		Items: []corev1.KeyToPath{
-			{
-				Key:  "key1",
-				Path: "some/path",
-			},
-		},
-	},
-}
 
 func Test_cspmFeature_Configure(t *testing.T) {
 	ddaCSPMDisabled := v2alpha1.DatadogAgent{
 		Spec: v2alpha1.DatadogAgentSpec{
 			Features: &v2alpha1.DatadogFeatures{
 				CSPM: &v2alpha1.CSPMFeatureConfig{
-					Enabled: apiutils.NewBoolPointer(false),
+					Enabled: ptr.To(false),
 				},
 			},
 		},
 	}
 	ddaCSPMEnabled := ddaCSPMDisabled.DeepCopy()
 	{
-		ddaCSPMEnabled.Spec.Features.CSPM.Enabled = apiutils.NewBoolPointer(true)
+		ddaCSPMEnabled.Spec.Features.CSPM.Enabled = ptr.To(true)
 		ddaCSPMEnabled.Spec.Features.CSPM.CustomBenchmarks = &v2alpha1.CustomConfig{
 			ConfigMap: &v2alpha1.ConfigMapConfig{
 				Name: "custom_test",
@@ -64,12 +51,12 @@ func Test_cspmFeature_Configure(t *testing.T) {
 			},
 		}
 		ddaCSPMEnabled.Spec.Features.CSPM.CheckInterval = &metav1.Duration{Duration: 20 * time.Minute}
-		ddaCSPMEnabled.Spec.Features.CSPM.HostBenchmarks = &v2alpha1.CSPMHostBenchmarksConfig{Enabled: apiutils.NewBoolPointer(true)}
+		ddaCSPMEnabled.Spec.Features.CSPM.HostBenchmarks = &v2alpha1.CSPMHostBenchmarksConfig{Enabled: ptr.To(true)}
 	}
 
 	ddaCSPMDirectSendEnabled := ddaCSPMDisabled.DeepCopy()
 	{
-		ddaCSPMDirectSendEnabled.Spec.Features.CSPM.Enabled = apiutils.NewBoolPointer(true)
+		ddaCSPMDirectSendEnabled.Spec.Features.CSPM.Enabled = ptr.To(true)
 		ddaCSPMDirectSendEnabled.Spec.Features.CSPM.CustomBenchmarks = &v2alpha1.CustomConfig{
 			ConfigMap: &v2alpha1.ConfigMapConfig{
 				Name: "custom_test",
@@ -82,8 +69,8 @@ func Test_cspmFeature_Configure(t *testing.T) {
 			},
 		}
 		ddaCSPMDirectSendEnabled.Spec.Features.CSPM.CheckInterval = &metav1.Duration{Duration: 20 * time.Minute}
-		ddaCSPMDirectSendEnabled.Spec.Features.CSPM.HostBenchmarks = &v2alpha1.CSPMHostBenchmarksConfig{Enabled: apiutils.NewBoolPointer(true)}
-		ddaCSPMDirectSendEnabled.Spec.Features.CSPM.RunInSystemProbe = apiutils.NewBoolPointer(true)
+		ddaCSPMDirectSendEnabled.Spec.Features.CSPM.HostBenchmarks = &v2alpha1.CSPMHostBenchmarksConfig{Enabled: ptr.To(true)}
+		ddaCSPMDirectSendEnabled.Spec.Features.CSPM.RunInSystemProbe = ptr.To(true)
 	}
 
 	tests := test.FeatureTestSuite{
@@ -158,14 +145,8 @@ func cspmClusterAgentWantFunc() *test.ComponentTest {
 			volumes := mgr.VolumeMgr.Volumes
 			assert.True(t, apiutils.IsEqualStruct(volumes, wantVolumes), "Cluster Agent volumes \ndiff = %s", cmp.Diff(volumes, wantVolumes))
 
-			// check annotations
-			hash, err := comparison.GenerateMD5ForSpec(customConfig)
-			assert.NoError(t, err)
-			wantAnnotations := map[string]string{
-				fmt.Sprintf(constants.MD5ChecksumAnnotationKey, feature.CSPMIDType): hash,
-			}
 			annotations := mgr.AnnotationMgr.Annotations
-			assert.True(t, apiutils.IsEqualStruct(annotations, wantAnnotations), "Annotations \ndiff = %s", cmp.Diff(annotations, wantAnnotations))
+			assert.Empty(t, annotations)
 
 		},
 	)
@@ -309,14 +290,8 @@ func cspmAgentNodeWantFunc(runInSystemProbe bool) *test.ComponentTest {
 			volumes := mgr.VolumeMgr.Volumes
 			assert.True(t, apiutils.IsEqualStruct(volumes, wantVolumes), "Volumes \ndiff = %s", cmp.Diff(volumes, wantVolumes))
 
-			// check annotations
-			hash, err := comparison.GenerateMD5ForSpec(customConfig)
-			assert.NoError(t, err)
-			wantAnnotations := map[string]string{
-				fmt.Sprintf(constants.MD5ChecksumAnnotationKey, feature.CSPMIDType): hash,
-			}
 			annotations := mgr.AnnotationMgr.Annotations
-			assert.True(t, apiutils.IsEqualStruct(annotations, wantAnnotations), "Annotations \ndiff = %s", cmp.Diff(annotations, wantAnnotations))
+			assert.Empty(t, annotations)
 		},
 	)
 }

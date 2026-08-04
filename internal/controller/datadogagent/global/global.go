@@ -17,6 +17,7 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	componentdca "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusteragent"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/experimental"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/helm"
@@ -44,6 +45,7 @@ func ApplyGlobalSettingsClusterAgent(logger logr.Logger, manager feature.PodTemp
 	resourcesManager feature.ResourceManagers, requiredComponents feature.RequiredComponents) {
 	applyGlobalSettings(logger, manager, ddaMeta, ddaSpec, resourcesManager, requiredComponents)
 	applyClusterAgentResources(manager, ddaSpec)
+	ApplyGlobalClusterAgentSpec(manager, ddaMeta.GetAnnotations()[kubernetes.ProviderAnnotationKey])
 }
 
 // ApplyGlobalSettingsClusterChecksRunner applies the global settings for the ClusterChecksRunner component.
@@ -51,6 +53,7 @@ func ApplyGlobalSettingsClusterChecksRunner(logger logr.Logger, manager feature.
 	resourcesManager feature.ResourceManagers, requiredComponents feature.RequiredComponents) {
 	applyGlobalSettings(logger, manager, ddaMeta, ddaSpec, resourcesManager, requiredComponents)
 	applyClusterChecksRunnerResources(manager, ddaSpec)
+	ApplyGlobalClusterChecksRunnerSpec(manager, ddaMeta.GetAnnotations()[kubernetes.ProviderAnnotationKey])
 }
 
 // ApplyGlobalSettingsNodeAgent applies the global settings for the NodeAgent component.
@@ -60,7 +63,24 @@ func ApplyGlobalSettingsNodeAgent(logger logr.Logger, manager feature.PodTemplat
 	applyNodeAgentResources(manager, ddaSpec, singleContainerStrategyEnabled)
 }
 
-// ApplyGlobalSettings use to apply global setting to a PodTemplateSpec
+// ValidateFIPSVersions checks all containers in the pod template for FIPS version compatibility.
+// This must be called after all image overrides have been applied, so it sees the final image tags.
+func ValidateFIPSVersions(manager feature.PodTemplateManagers) []error {
+	var errs []error
+	for _, container := range manager.PodTemplateSpec().Spec.Containers {
+		if err := images.FromString(container.Image).FIPSVersionError(); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	for _, container := range manager.PodTemplateSpec().Spec.InitContainers {
+		if err := images.FromString(container.Image).FIPSVersionError(); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	return errs
+}
+
+// applyGlobalSettings applies global settings to a PodTemplateSpec.
 func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers, ddaMeta metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, resourcesManager feature.ResourceManagers, requiredComponents feature.RequiredComponents) {
 	config := ddaSpec.Global
 
@@ -254,13 +274,34 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 				Value: strconv.FormatInt(int64(*config.SecretBackend.RefreshInterval), 10),
 			})
 		}
+
+		// Set secret backend type
+		if config.SecretBackend.Type != nil {
+			manager.EnvVar().AddEnvVar(&corev1.EnvVar{
+				Name:  DDSecretBackendType,
+				Value: apiutils.StringValue(config.SecretBackend.Type),
+			})
+		}
+
+		// Set secret backend config
+		if len(config.SecretBackend.Config) > 0 {
+			configJSON, err := json.Marshal(config.SecretBackend.Config)
+			if err == nil {
+				manager.EnvVar().AddEnvVar(&corev1.EnvVar{
+					Name:  DDSecretBackendConfig,
+					Value: string(configJSON),
+				})
+			}
+		}
 	}
 
 	// Update images with Global Registry and UseFIPSAgent configurations
 	updateContainerImages(config, manager)
 
-	// Apply FIPS proxy settings - UseFIPSAgent must be false
-	if !*config.UseFIPSAgent && config.FIPS != nil && apiutils.BoolValue(config.FIPS.Enabled) {
+	// Apply FIPS proxy settings - UseFIPSAgent must be false; FIPS sidecar is
+	// not permitted on GKE Autopilot (WorkloadAllowlist rejects extra containers).
+	if !*config.UseFIPSAgent && config.FIPS != nil && apiutils.BoolValue(config.FIPS.Enabled) &&
+		!experimental.IsAutopilotEnabled(ddaMeta) {
 		applyFIPSConfig(logger, manager, ddaMeta, ddaSpec, resourcesManager)
 	}
 
@@ -284,9 +325,9 @@ func updateContainerImages(config *v2alpha1.GlobalConfig, podTemplateManager fea
 	}
 
 	for i, container := range podTemplateManager.PodTemplateSpec().Spec.InitContainers {
-		image = images.FromString(container.Image)
-		image.WithRegistry(*config.Registry)
-		image.WithFIPS(*config.UseFIPSAgent)
+		image = images.FromString(container.Image).
+			WithRegistry(*config.Registry).
+			WithFIPS(*config.UseFIPSAgent)
 		// Note: if an image tag override is configured, this image tag will be overwritten
 		podTemplateManager.PodTemplateSpec().Spec.InitContainers[i].Image = image.ToString()
 	}

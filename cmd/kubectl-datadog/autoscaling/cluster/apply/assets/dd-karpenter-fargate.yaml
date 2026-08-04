@@ -1,0 +1,89 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: IAM role, Fargate profile and execution role for Karpenter controller on Fargate
+Conditions:
+  ShouldDeployNodeAccessEntry: !Equals [!Ref DeployNodeAccessEntry, "true"]
+Parameters:
+  ClusterName:
+    Type: String
+    Description: "EKS cluster name"
+  KarpenterNamespace:
+    Type: String
+    Description: "Namespace where Karpenter will be deployed"
+  OIDCProviderArn:
+    Type: String
+    Description: "ARN of the IAM OIDC provider registered for the cluster"
+  OIDCProviderURL:
+    Type: String
+    Description: "OIDC provider issuer URL without the https:// scheme (e.g. oidc.eks.eu-west-3.amazonaws.com/id/ABCDEF)"
+  FargateSubnets:
+    Type: CommaDelimitedList
+    Description: "Private subnets to use for the Karpenter Fargate profile"
+  DeployNodeAccessEntry:
+    Type: String
+    Description: "Whether to deploy the EKS Access Entry for Karpenter nodes. Requires cluster authentication mode to be API or API_AND_CONFIG_MAP."
+    Default: "true"
+    AllowedValues:
+      - "true"
+      - "false"
+Resources:
+  FargatePodExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      # Trust is scoped to our specific Fargate profile name so this role cannot
+      # be used by other Fargate profiles that might exist on the same cluster.
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: eks-fargate-pods.amazonaws.com
+            Action: sts:AssumeRole
+            Condition:
+              ArnLike:
+                "aws:SourceArn": !Sub "arn:${AWS::Partition}:eks:${AWS::Region}:${AWS::AccountId}:fargateprofile/${ClusterName}/dd-karpenter-${ClusterName}/*"
+      ManagedPolicyArns:
+        - !Sub "arn:${AWS::Partition}:iam::aws:policy/AmazonEKSFargatePodExecutionRolePolicy"
+  KarpenterFargateProfile:
+    Type: AWS::EKS::FargateProfile
+    Properties:
+      ClusterName: !Ref ClusterName
+      FargateProfileName: !Sub "dd-karpenter-${ClusterName}"
+      PodExecutionRoleArn: !GetAtt FargatePodExecutionRole.Arn
+      Selectors:
+        - Namespace: !Ref KarpenterNamespace
+      Subnets: !Ref FargateSubnets
+  KarpenterIRSARole:
+    Type: AWS::IAM::Role
+    # Use a JSON-string AssumeRolePolicyDocument because the StringEquals
+    # condition keys include interpolated parameters (${OIDCProviderURL}:sub
+    # and :aud) — YAML maps do not interpolate keys.
+    Properties:
+      RoleName: !Sub "${ClusterName}-karpenter"
+      AssumeRolePolicyDocument: !Sub |
+        {
+          "Version": "2012-10-17",
+          "Statement": [{
+            "Effect": "Allow",
+            "Principal": { "Federated": "${OIDCProviderArn}" },
+            "Action": "sts:AssumeRoleWithWebIdentity",
+            "Condition": {
+              "StringEquals": {
+                "${OIDCProviderURL}:sub": "system:serviceaccount:${KarpenterNamespace}:karpenter",
+                "${OIDCProviderURL}:aud": "sts.amazonaws.com"
+              }
+            }
+          }]
+        }
+      ManagedPolicyArns:
+        - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/KarpenterControllerPolicy-${ClusterName}"
+  NodeAccessEntry:
+    Type: AWS::EKS::AccessEntry
+    Condition: ShouldDeployNodeAccessEntry
+    Properties:
+      ClusterName: !Ref ClusterName
+      PrincipalArn: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/KarpenterNodeRole-${ClusterName}"
+      Type: EC2_LINUX
+Outputs:
+  KarpenterRoleArn:
+    Description: "ARN of the IAM role used by the Karpenter controller via IRSA"
+    Value: !GetAtt KarpenterIRSARole.Arn

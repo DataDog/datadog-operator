@@ -24,7 +24,7 @@ func IsValidDatadogSLO(spec *DatadogSLOSpec) error {
 	}
 
 	if spec.Type != "" && !spec.Type.IsValid() {
-		errs = append(errs, fmt.Errorf("spec.Type must be one of the values: %s or %s", DatadogSLOTypeMonitor, DatadogSLOTypeMetric))
+		errs = append(errs, fmt.Errorf("spec.Type must be one of the values: %s, %s, or %s", DatadogSLOTypeMonitor, DatadogSLOTypeMetric, DatadogSLOTypeTimeSlice))
 	}
 
 	if spec.Type == DatadogSLOTypeMetric && spec.Query == nil {
@@ -33,6 +33,30 @@ func IsValidDatadogSLO(spec *DatadogSLOSpec) error {
 
 	if spec.Type == DatadogSLOTypeMonitor && len(spec.MonitorIDs) == 0 {
 		errs = append(errs, fmt.Errorf("spec.MonitorIDs must be defined when spec.Type is monitor"))
+	}
+
+	if spec.Type == DatadogSLOTypeTimeSlice {
+		if spec.TimeSlice == nil {
+			errs = append(errs, fmt.Errorf("spec.TimeSlice must be defined when spec.Type is time_slice"))
+		} else {
+			if spec.TimeSlice.Query == "" {
+				errs = append(errs, fmt.Errorf("spec.TimeSlice.Query must be defined"))
+			}
+		}
+	}
+
+	// Cross-field validation: reject fields that don't belong to the specified type.
+	if spec.Type == DatadogSLOTypeMetric && spec.TimeSlice != nil {
+		errs = append(errs, fmt.Errorf("spec.TimeSlice must not be defined when spec.Type is metric"))
+	}
+	if spec.Type == DatadogSLOTypeMonitor && spec.TimeSlice != nil {
+		errs = append(errs, fmt.Errorf("spec.TimeSlice must not be defined when spec.Type is monitor"))
+	}
+	if spec.Type == DatadogSLOTypeTimeSlice && spec.Query != nil {
+		errs = append(errs, fmt.Errorf("spec.Query must not be defined when spec.Type is time_slice"))
+	}
+	if spec.Type == DatadogSLOTypeTimeSlice && len(spec.MonitorIDs) > 0 {
+		errs = append(errs, fmt.Errorf("spec.MonitorIDs must not be defined when spec.Type is time_slice"))
 	}
 
 	if spec.TargetThreshold.AsApproximateFloat64() <= 0 || spec.TargetThreshold.AsApproximateFloat64() >= 100 {

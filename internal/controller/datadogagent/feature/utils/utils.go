@@ -6,27 +6,48 @@
 package utils
 
 import (
-	"strconv"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/utils"
 )
 
-const ProcessConfigRunInCoreAgentMinVersion = "7.60.0-0"
-const EnableADPAnnotation = "agent.datadoghq.com/adp-enabled"
-const EnableFineGrainedKubeletAuthz = "agent.datadoghq.com/fine-grained-kubelet-authorization-enabled"
-const EnableHostProfilerAnnotion = "agent.datadoghq.com/host-profiler-enabled"
-const HostProfilerConfigDataAnnotion = "agent.datadoghq.com/host-profiler-configdata"
+const (
+	ProcessConfigRunInCoreAgentMinVersion = "7.60.0-0"
+	// ADPDogstatsdDelegationMinVersion is the minimum Agent version that natively disables Core Agent
+	// DogStatsD when data_plane.enabled and data_plane.dogstatsd.enabled are both true. Below this
+	// version the Operator must set DD_USE_DOGSTATSD=false explicitly to avoid a bind conflict.
+	ADPDogstatsdDelegationMinVersion = "7.75.0-0"
+	EnableADPAnnotation              = "agent.datadoghq.com/adp-enabled"
+	EnableFineGrainedKubeletAuthz    = "agent.datadoghq.com/fine-grained-kubelet-authorization-enabled"
+	EnableHostProfilerAnnotation     = "agent.datadoghq.com/host-profiler-enabled"
+	// EnableHostProfilerSeccompAnnotation controls whether the host-profiler applies its localhost
+	// seccomp profile (and the init container that installs it on the node). Defaults to enabled;
+	// set to "false" to disable both the seccomp profile and its setup init container.
+	EnableHostProfilerSeccompAnnotation        = "agent.datadoghq.com/host-profiler-seccomp-enabled"
+	EnableHostProfilerLoggingSeccompAnnotation = "agent.datadoghq.com/host-profiler-logging-seccomp-enabled"
+	// HostProfilerSELinuxTypeAnnotation overrides the SELinux type applied to the host-profiler container.
+	HostProfilerSELinuxTypeAnnotation = "agent.datadoghq.com/host-profiler-selinux-type"
+	EnableKSMApiServerCacheAnnotation = "agent.datadoghq.com/ksm-use-apiserver-cache"
 
-// Config map item must be `host-profiler-config.yaml`
-const HostProfilerConfigMapNameAnnotion = "agent.datadoghq.com/host-profiler-configmap-name"
+	EnableInstrumentationCRDAnnotation = "agent.datadoghq.com/instrumentation-crd-enabled"
 
-const EnablePrivateActionRunnerAnnotation = "agent.datadoghq.com/private-action-runner-enabled"
-const PrivateActionRunnerConfigDataAnnotation = "agent.datadoghq.com/private-action-runner-configdata"
+	EnableFlightRecorderAnnotation = "agent.datadoghq.com/flightrecorder-enabled"
+	EnableNetworkCRDsAnnotation    = "agent.datadoghq.com/network-crds-enabled"
+
+	EnablePrivateActionRunnerAnnotation     = "agent.datadoghq.com/private-action-runner-enabled"
+	PrivateActionRunnerConfigDataAnnotation = "agent.datadoghq.com/private-action-runner-configdata"
+
+	EnableCNMDirectSendAnnotation = "agent.datadoghq.com/cnm-direct-send-enabled"
+
+	EnableClusterAgentPrivateActionRunnerAnnotation      = "cluster-agent.datadoghq.com/private-action-runner-enabled"
+	ClusterAgentPrivateActionRunnerConfigDataAnnotation  = "cluster-agent.datadoghq.com/private-action-runner-configdata"
+	ClusterAgentPrivateActionRunnerK8sRemediationEnabled = "cluster-agent.datadoghq.com/private-action-runner-k8s-remediation-enabled"
+)
 
 func agentSupportsRunInCoreAgent(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
 	// Agent version must >= 7.60.0 to run feature in core agent
@@ -38,65 +59,80 @@ func agentSupportsRunInCoreAgent(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
 	return utils.IsAboveMinVersion(images.AgentLatestVersion, ProcessConfigRunInCoreAgentMinVersion, nil)
 }
 
-// ShouldRunProcessChecksInCoreAgent determines whether allow process checks to run in core agent based on
-// environment variables and the agent version.
+// ShouldRunProcessChecksInCoreAgent determines whether process checks should run in the core agent
+// based on the agent version. Agents >= 7.60.0 support running process checks in the core agent.
+// Note: As of Agent 7.78, process checks always run in the core agent on Linux and the
+// DD_PROCESS_CONFIG_RUN_IN_CORE_AGENT_ENABLED envvar is no longer recognized.
 func ShouldRunProcessChecksInCoreAgent(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
-
-	// Prioritize env var override
-	if nodeAgent, ok := ddaSpec.Override[v2alpha1.NodeAgentComponentName]; ok {
-		for _, env := range nodeAgent.Env {
-			if env.Name == common.DDProcessConfigRunInCoreAgent {
-				val, err := strconv.ParseBool(env.Value)
-				if err == nil {
-					return val
-				}
-			}
-		}
-	}
-
-	// Check if agent version supports process checks running in core agent
-	if !agentSupportsRunInCoreAgent(ddaSpec) {
-		return false
-	}
-
-	return true
+	return agentSupportsRunInCoreAgent(ddaSpec)
 }
 
-func hasFeatureEnableAnnotation(dda metav1.Object, annotation string) bool {
+func HasFeatureEnableAnnotation(dda metav1.Object, annotation string) bool {
 	if value, ok := dda.GetAnnotations()[annotation]; ok {
 		return value == "true"
 	}
 	return false
 }
 
-// HasAgentDataPlaneAnnotation returns true if the Agent Data Plane is enabled via the dedicated `agent.datadoghq.com/adp-enabled` annotation
-func HasAgentDataPlaneAnnotation(dda metav1.Object) bool {
-	return hasFeatureEnableAnnotation(dda, EnableADPAnnotation)
+// HasFeatureDisableAnnotation returns true if the annotation is explicitly set to "false".
+// It is used by features that are enabled by default and can be opted out of.
+func HasFeatureDisableAnnotation(dda metav1.Object, annotation string) bool {
+	if value, ok := dda.GetAnnotations()[annotation]; ok {
+		return value == "false"
+	}
+	return false
 }
 
-// HasHostProfilerAnnotation returns true if the Host Profiler is enabled via the dedicated `agent.datadoghq.com/host-profiler` annotation
-func HasHostProfilerAnnotation(dda metav1.Object) bool {
-	return hasFeatureEnableAnnotation(dda, EnableHostProfilerAnnotion)
-}
-
-// HasHostProfilerConfigAnnotion returns true if the Host Profiler has a config annotation, and returns the config.
-func HasHostProfilerConfigAnnotion(dda metav1.Object, annotationName string) (string, bool) {
-	value, ok := dda.GetAnnotations()[annotationName]
+func GetFeatureConfigAnnotation(dda metav1.Object, annotation string) (string, bool) {
+	value, ok := dda.GetAnnotations()[annotation]
 	return value, ok
 }
 
-// HasFineGrainedKubeletAuthz returns true if the feature is enabled via the dedicated `agent.datadoghq.com/fine-grained-kubelet-authorization-enabled` annotation
-func HasFineGrainedKubeletAuthz(dda metav1.Object) bool {
-	return hasFeatureEnableAnnotation(dda, EnableFineGrainedKubeletAuthz)
+// AgentSupportsADPDogstatsdDelegation returns true if the agent version is >= 7.75.0, meaning it
+// natively disables Core DogStatsD when data_plane.enabled + data_plane.dogstatsd.enabled are true.
+// For older agents the Operator must set DD_USE_DOGSTATSD=false explicitly.
+func AgentSupportsADPDogstatsdDelegation(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
+	if nodeAgent, ok := ddaSpec.Override[v2alpha1.NodeAgentComponentName]; ok {
+		if nodeAgent.Image != nil {
+			return utils.IsAboveMinVersion(common.GetAgentVersionFromImage(*nodeAgent.Image), ADPDogstatsdDelegationMinVersion, nil)
+		}
+	}
+	return utils.IsAboveMinVersion(images.AgentLatestVersion, ADPDogstatsdDelegationMinVersion, nil)
 }
 
-// HasPrivateActionRunnerAnnotation returns true if the Private Action Runner is enabled via the dedicated annotation
-func HasPrivateActionRunnerAnnotation(dda metav1.Object) bool {
-	return hasFeatureEnableAnnotation(dda, EnablePrivateActionRunnerAnnotation)
+// IsDataPlaneEnabled returns true if the Data Plane is enabled.
+// CRD configuration takes precedence over the annotation.
+// If the annotation is used, a deprecation warning is logged.
+func IsDataPlaneEnabled(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec) bool {
+	// CRD takes precedence
+	if ddaSpec.Features != nil && ddaSpec.Features.DataPlane != nil && ddaSpec.Features.DataPlane.Enabled != nil {
+		return *ddaSpec.Features.DataPlane.Enabled
+	}
+
+	// Fall back to annotation
+	if HasFeatureEnableAnnotation(dda, EnableADPAnnotation) {
+		return true
+	}
+
+	return false
 }
 
-// HasPrivateActionRunnerConfigAnnotation returns the value and presence of a Private Action Runner config annotation
-func HasPrivateActionRunnerConfigAnnotation(dda metav1.Object, annotationName string) (string, bool) {
-	value, ok := dda.GetAnnotations()[annotationName]
-	return value, ok
+// IsDataPlaneDogstatsdEnabled returns true if the Data Plane should handle DogStatsD.
+// Defaults to true: when data_plane.enabled=true, ADP handles DogStatsD unless explicitly disabled.
+func IsDataPlaneDogstatsdEnabled(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
+	if ddaSpec.Features != nil && ddaSpec.Features.DataPlane != nil &&
+		ddaSpec.Features.DataPlane.Dogstatsd != nil && ddaSpec.Features.DataPlane.Dogstatsd.Enabled != nil {
+		return *ddaSpec.Features.DataPlane.Dogstatsd.Enabled
+	}
+	return true
+}
+
+func ShouldCreateLocalAgentService(ddaSpec *v2alpha1.DatadogAgentSpec, managers feature.ResourceManagers) bool {
+	forceEnableLocalService := false
+	if ddaSpec != nil && ddaSpec.Global != nil && ddaSpec.Global.LocalService != nil {
+		forceEnableLocalService = apiutils.BoolValue(ddaSpec.Global.LocalService.ForceEnableLocalService)
+	}
+
+	platformInfo := managers.Store().GetPlatformInfo()
+	return common.ShouldCreateAgentLocalService(platformInfo.GetVersionInfo(), forceEnableLocalService)
 }

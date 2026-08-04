@@ -14,13 +14,10 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
-	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 )
 
 // Container use to override a corev1.Container with a v2alpha1.DatadogAgentGenericContainer.
@@ -44,9 +41,6 @@ func Container(containerName apicommon.AgentContainerName, manager feature.PodTe
 	addEnvsToInitContainer(containerName, manager, override.Env)
 	addVolMountsToInitContainer(containerName, manager, override.VolumeMounts)
 
-	overrideSeccompProfile(containerName, manager, override)
-	overrideAppArmorProfile(containerName, manager, override)
-
 	for i, container := range manager.PodTemplateSpec().Spec.Containers {
 		if container.Name == string(containerName) {
 			overrideContainer(&manager.PodTemplateSpec().Spec.Containers[i], override)
@@ -58,6 +52,9 @@ func Container(containerName apicommon.AgentContainerName, manager feature.PodTe
 			overrideInitContainer(&manager.PodTemplateSpec().Spec.InitContainers[i], override)
 		}
 	}
+
+	overrideSeccompProfile(containerName, manager, override)
+	overrideAppArmorProfile(containerName, manager, override)
 }
 
 func overrideLogLevel(containerName apicommon.AgentContainerName, manager feature.PodTemplateManagers, logLevel string) {
@@ -216,31 +213,30 @@ func overrideSeccompProfile(containerName apicommon.AgentContainerName, manager 
 			// 	manager.PodTemplateSpec().Spec.InitContainers[id].SecurityContext = &corev1.SecurityContext{
 			// 		SeccompProfile: &corev1.SeccompProfile{
 			// 			Type:             corev1.SeccompProfileTypeLocalhost,
-			// 			LocalhostProfile: apiutils.NewStringPointer(containerName),
+			// 			LocalhostProfile: ptr.To(containerName),
 			// 		},
 			// 	}
 			// }
 		}
 
-		// Adds checksum annotation to DaemonSet when configData is used
-		if utils.UseCustomSeccompConfigData(override.SeccompConfig) {
-			annotationValue, _ := comparison.GenerateMD5ForSpec(map[string]string{
-				common.SystemProbeSeccompKey: *override.SeccompConfig.CustomProfile.ConfigData})
-			annotationKey := object.GetChecksumAnnotationKey(common.SystemProbeSeccompKey)
-			manager.Annotation().AddAnnotation(annotationKey, annotationValue)
-		}
 	}
 }
 
 func overrideAppArmorProfile(containerName apicommon.AgentContainerName, manager feature.PodTemplateManagers, override *v2alpha1.DatadogAgentGenericContainer) {
 	if override.AppArmorProfileName != nil {
-		var annotation string
+		effectiveName := string(containerName)
 		if override.Name != nil {
-			annotation = fmt.Sprintf("%s/%s", common.AppArmorAnnotationKey, *override.Name)
-		} else {
-			annotation = fmt.Sprintf("%s/%s", common.AppArmorAnnotationKey, containerName)
+			effectiveName = *override.Name
 		}
 
+		// Only add the AppArmor annotation if the container actually exists in the pod spec.
+		// This avoids invalid DaemonSet configurations when a container is not present
+		// (e.g. security-agent is absent when directSendFromSystemProbe is enabled).
+		if !podSpecHasContainer(&manager.PodTemplateSpec().Spec, effectiveName) {
+			return
+		}
+
+		annotation := fmt.Sprintf("%s/%s", common.AppArmorAnnotationKey, effectiveName)
 		manager.Annotation().AddAnnotation(annotation, *override.AppArmorProfileName)
 	}
 }
@@ -278,7 +274,7 @@ func overrideStartupProbe(startupProbeOverride *corev1.Probe) *corev1.Probe {
 func overrideSecurityContext(securityContext *corev1.SecurityContext) *corev1.SecurityContext {
 	if securityContext.ReadOnlyRootFilesystem == nil {
 		// Default to readOnlyRootFilesystem to true if not explicitly configured.
-		securityContext.ReadOnlyRootFilesystem = apiutils.NewBoolPointer(true)
+		securityContext.ReadOnlyRootFilesystem = new(true)
 	}
 	return securityContext
 }

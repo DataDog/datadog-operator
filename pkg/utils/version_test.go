@@ -8,9 +8,9 @@ package utils
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"k8s.io/utils/ptr"
 
-	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestIsAboveMinVersion(t *testing.T) {
@@ -168,7 +168,7 @@ func TestIsAboveMinVersion(t *testing.T) {
 			name:         "foobar unparseable with false default",
 			version:      "foobar",
 			minVersion:   "7.28.0",
-			defaultValue: apiutils.NewBoolPointer(false),
+			defaultValue: ptr.To(false),
 			expected:     false,
 			description:  "unparseable versions return false when defaultValue is false",
 		},
@@ -176,7 +176,7 @@ func TestIsAboveMinVersion(t *testing.T) {
 			name:         "main unparseable with false default",
 			version:      "main",
 			minVersion:   "7.99.0",
-			defaultValue: apiutils.NewBoolPointer(false),
+			defaultValue: ptr.To(false),
 			expected:     false,
 		},
 		// Test cases with explicit true default
@@ -184,14 +184,14 @@ func TestIsAboveMinVersion(t *testing.T) {
 			name:         "foobar with explicit true default",
 			version:      "foobar",
 			minVersion:   "7.28.0",
-			defaultValue: apiutils.NewBoolPointer(true),
+			defaultValue: ptr.To(true),
 			expected:     true,
 		},
 		{
 			name:         "valid version with explicit true default",
 			version:      "7.30.0",
 			minVersion:   "7.27.0",
-			defaultValue: apiutils.NewBoolPointer(true),
+			defaultValue: ptr.To(true),
 			expected:     true,
 		},
 	}

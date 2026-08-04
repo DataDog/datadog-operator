@@ -46,6 +46,7 @@ data:
       datadog:
         api:
           key: ${env:DD_API_KEY}
+        deployment_type: gateway
     service:
       extensions: [datadog]
       pipelines:

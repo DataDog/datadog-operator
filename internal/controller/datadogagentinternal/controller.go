@@ -9,9 +9,9 @@ import (
 	"context"
 	"time"
 
-	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
@@ -30,14 +30,17 @@ import (
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/clusterchecks"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/cspm"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/cws"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/dataplane"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/dogstatsd"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/dummy"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/dyninst"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/ebpfcheck"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/enabledefault"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/eventcollection"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/externalmetrics"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/gpu"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/helmcheck"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/kubernetesactions"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/kubernetesstatecore"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/livecontainer"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/liveprocess"
@@ -57,24 +60,33 @@ import (
 )
 
 const (
-	defaultRequeuePeriod = 15 * time.Second
+	defaultRequeuePeriod    = 15 * time.Second
+	defaultErrRequeuePeriod = 5 * time.Second
 )
 
 // ReconcilerOptions provides options read from command line
 type ReconcilerOptions struct {
-	ExtendedDaemonsetOptions componentagent.ExtendedDaemonsetOptions
-	SupportCilium            bool
-	OperatorMetricsEnabled   bool
+	ExtendedDaemonsetOptions        componentagent.ExtendedDaemonsetOptions
+	SupportCilium                   bool
+	OperatorMetricsEnabled          bool
+	UntaintControllerEnabled        bool
+	DatadogCSIDriverEnabled         bool
+	RolloutOnConfigMapChangeEnabled bool
+	APIReader                       client.Reader
 }
 
 // Reconciler is the internal reconciler for Datadog Agent
 type Reconciler struct {
-	options           ReconcilerOptions
-	client            client.Client
-	platformInfo      kubernetes.PlatformInfo
-	scheme            *runtime.Scheme
-	recorder          record.EventRecorder
-	forwarders        datadog.MetricsForwardersManager
+	options      ReconcilerOptions
+	client       client.Client
+	platformInfo kubernetes.PlatformInfo
+	scheme       *runtime.Scheme
+	recorder     record.EventRecorder
+	forwarders   datadog.MetricsForwardersManager
+	// apiReader bypasses the controller cache for feature-owned reads outside
+	// the watched namespace set, for example OpenShift control-plane source
+	// secrets. Writes still go through the normal dependency store and client.
+	apiReader         client.Reader
 	componentRegistry *ComponentRegistry
 }
 
@@ -87,9 +99,7 @@ func (r *Reconciler) initializeComponentRegistry() {
 }
 
 // NewReconciler returns a reconciler for DatadogAgent
-func NewReconciler(options ReconcilerOptions, client client.Client, platformInfo kubernetes.PlatformInfo,
-	scheme *runtime.Scheme, recorder record.EventRecorder, metricForwardersMgr datadog.MetricsForwardersManager,
-) (*Reconciler, error) {
+func NewReconciler(options ReconcilerOptions, client client.Client, platformInfo kubernetes.PlatformInfo, scheme *runtime.Scheme, recorder record.EventRecorder, metricForwardersMgr datadog.MetricsForwardersManager) *Reconciler {
 	r := &Reconciler{
 		options:      options,
 		client:       client,
@@ -97,12 +107,16 @@ func NewReconciler(options ReconcilerOptions, client client.Client, platformInfo
 		scheme:       scheme,
 		recorder:     recorder,
 		forwarders:   metricForwardersMgr,
+		apiReader:    options.APIReader,
+	}
+	if r.apiReader == nil {
+		r.apiReader = client
 	}
 
 	// Initialize component registry
 	r.initializeComponentRegistry()
 
-	return r, nil
+	return r
 }
 
 // Reconcile is similar to reconciler.Reconcile interface, but taking a context
@@ -116,9 +130,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, ddai *v1alpha1.DatadogAgentI
 	return resp, err
 }
 
-func reconcilerOptionsToFeatureOptions(opts *ReconcilerOptions, logger logr.Logger) *feature.Options {
+func (r *Reconciler) reconcilerOptionsToFeatureOptions(ctx context.Context) *feature.Options {
 	return &feature.Options{
-		Logger: logger,
+		Logger:                  ctrl.LoggerFrom(ctx),
+		Client:                  r.apiReader,
+		DatadogCSIDriverEnabled: r.options.DatadogCSIDriverEnabled,
 	}
 }
 

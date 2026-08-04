@@ -19,6 +19,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/utils/ptr"
 )
 
 type expectedPorts struct {
@@ -56,7 +57,7 @@ var (
 	}
 )
 
-var defaultAnnotations = map[string]string{"checksum/otel_agent_gateway-custom-config": "271b7a21b7215c549ce1d617f2064a3f"}
+var defaultAnnotations = map[string]string{}
 
 func Test_otelAgentGatewayFeature_Configure(t *testing.T) {
 	tests := test.FeatureTestSuite{
@@ -155,7 +156,7 @@ func Test_otelAgentGatewayFeature_Configure(t *testing.T) {
 				grpcPort: 4444,
 				httpPort: 5555,
 			},
-				map[string]string{"checksum/otel_agent_gateway-custom-config": "69dcc5c01755641076ba5748c90ba409"},
+				map[string]string{},
 				defaultVolumeMounts,
 				defaultVolumes(defaultLocalObjectReferenceName),
 			),
@@ -331,10 +332,11 @@ func testExpectedDepsCreatedCM(t testing.TB, store store.StoreClient) {
 		service := serviceObject.(*corev1.Service)
 		assert.Equal(t, []corev1.ServicePort{
 			{
-				Name:       "otlpgrpcport",
-				Port:       4317,
-				Protocol:   corev1.ProtocolTCP,
-				TargetPort: intstr.FromInt(4317),
+				Name:        "otlpgrpcport",
+				Port:        4317,
+				Protocol:    corev1.ProtocolTCP,
+				TargetPort:  intstr.FromInt(4317),
+				AppProtocol: ptr.To(common.KubernetesAppProtocolH2C),
 			},
 			{
 				Name:       "otlphttpport",
@@ -348,10 +350,11 @@ func testExpectedDepsCreatedCM(t testing.TB, store store.StoreClient) {
 		service := serviceObject.(*corev1.Service)
 		assert.Equal(t, []corev1.ServicePort{
 			{
-				Name:       "otlpgrpcport",
-				Port:       4444,
-				Protocol:   corev1.ProtocolTCP,
-				TargetPort: intstr.FromInt(4444),
+				Name:        "otlpgrpcport",
+				Port:        4444,
+				Protocol:    corev1.ProtocolTCP,
+				TargetPort:  intstr.FromInt(4444),
+				AppProtocol: ptr.To(common.KubernetesAppProtocolH2C),
 			},
 			{
 				Name:       "otlphttpport",
@@ -372,24 +375,24 @@ func Test_otelAgentGatewayFeature_ID(t *testing.T) {
 
 func Test_otelAgentGatewayFeature_ManageClusterAgent(t *testing.T) {
 	feat := &otelAgentGatewayFeature{}
-	err := feat.ManageClusterAgent(nil, "")
+	err := feat.ManageClusterAgent(nil)
 	assert.NoError(t, err)
 }
 
 func Test_otelAgentGatewayFeature_ManageSingleContainerNodeAgent(t *testing.T) {
 	feat := &otelAgentGatewayFeature{}
-	err := feat.ManageSingleContainerNodeAgent(nil, "")
+	err := feat.ManageSingleContainerNodeAgent(nil)
 	assert.NoError(t, err)
 }
 
 func Test_otelAgentGatewayFeature_ManageNodeAgent(t *testing.T) {
 	feat := &otelAgentGatewayFeature{}
-	err := feat.ManageNodeAgent(nil, "")
+	err := feat.ManageNodeAgent(nil)
 	assert.NoError(t, err)
 }
 
 func Test_otelAgentGatewayFeature_ManageClusterChecksRunner(t *testing.T) {
 	feat := &otelAgentGatewayFeature{}
-	err := feat.ManageClusterChecksRunner(nil, "")
+	err := feat.ManageClusterChecksRunner(nil)
 	assert.NoError(t, err)
 }

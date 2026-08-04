@@ -11,6 +11,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/utils/ptr"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -23,27 +24,45 @@ import (
 )
 
 func Test_usmFeature_Configure(t *testing.T) {
-
 	ddaUSMDisabled := v2alpha1.DatadogAgent{
 		Spec: v2alpha1.DatadogAgentSpec{
 			Features: &v2alpha1.DatadogFeatures{
 				USM: &v2alpha1.USMFeatureConfig{
-					Enabled: apiutils.NewBoolPointer(false),
+					Enabled: ptr.To(false),
+				},
+				NPM: &v2alpha1.NPMFeatureConfig{
+					Enabled: ptr.To(false),
 				},
 			},
 		},
 	}
+	ddaUSMDisabled.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+		v2alpha1.NodeAgentComponentName: {
+			Image: &v2alpha1.AgentImageConfig{Tag: "7.81.0"},
+		},
+	}
 	ddaUSMEnabled := ddaUSMDisabled.DeepCopy()
-	{
-		ddaUSMEnabled.Spec.Features.USM.Enabled = apiutils.NewBoolPointer(true)
+	ddaUSMEnabled.Spec.Features.USM.Enabled = ptr.To(true)
+	ddaUSMEnabled.ObjectMeta.Annotations = map[string]string{
+		"agent.datadoghq.com/cnm-direct-send-enabled": "true",
 	}
-	ddaUSMDirectSendEnabled := ddaUSMEnabled.DeepCopy()
-	{
-		ddaUSMDirectSendEnabled.Spec.Features.NPM = &v2alpha1.NPMFeatureConfig{DirectSend: apiutils.NewBoolPointer(true)}
+
+	ddaUSMDirectSendDisabled := ddaUSMEnabled.DeepCopy()
+	ddaUSMDirectSendDisabled.ObjectMeta.Annotations = map[string]string{
+		"agent.datadoghq.com/cnm-direct-send-enabled": "false",
 	}
+
+	ddaUSMDirectSendEnabledUnsupportedAgentVersionConfig := ddaUSMEnabled.DeepCopy()
+	ddaUSMDirectSendEnabledUnsupportedAgentVersionConfig.Spec.Override[v2alpha1.NodeAgentComponentName].Image.Tag = "7.80.0"
 
 	usmAgentNodeWantFunc := func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 		mgr := mgrInterface.(*fake.PodTemplateManagers)
+
+		for _, c := range mgr.Tpl.Spec.Containers {
+			if c.Name == string(apicommon.ProcessAgentContainerName) {
+				assert.Fail(t, "process-agent should not have a container")
+			}
+		}
 
 		// check annotations
 		wantAnnotations := make(map[string]string)
@@ -91,31 +110,6 @@ func Test_usmFeature_Configure(t *testing.T) {
 		}
 		coreAgentMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommon.CoreAgentContainerName]
 		assert.True(t, apiutils.IsEqualStruct(coreAgentMounts, coreWantVolumeMounts), "Core Agent volume mounts \ndiff = %s", cmp.Diff(coreAgentMounts, coreWantVolumeMounts))
-
-		processWantVolumeMounts := []corev1.VolumeMount{
-			{
-				Name:      common.ProcdirVolumeName,
-				MountPath: common.ProcdirMountPath,
-				ReadOnly:  true,
-			},
-			{
-				Name:      common.CgroupsVolumeName,
-				MountPath: common.CgroupsMountPath,
-				ReadOnly:  true,
-			},
-			{
-				Name:      common.DebugfsVolumeName,
-				MountPath: common.DebugfsPath,
-				ReadOnly:  false,
-			},
-			{
-				Name:      common.SystemProbeSocketVolumeName,
-				MountPath: common.SystemProbeSocketVolumePath,
-				ReadOnly:  true,
-			},
-		}
-		processAgentMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommon.ProcessAgentContainerName]
-		assert.True(t, apiutils.IsEqualStruct(processAgentMounts, processWantVolumeMounts), "Process Agent volume mounts \ndiff = %s", cmp.Diff(processAgentMounts, processWantVolumeMounts))
 
 		// check volumes
 		wantVolumes := []corev1.Volume{
@@ -170,7 +164,7 @@ func Test_usmFeature_Configure(t *testing.T) {
 			},
 			{
 				Name:  DDSystemProbeCNMDirectSend,
-				Value: "false",
+				Value: "true",
 			},
 		}
 
@@ -178,14 +172,35 @@ func Test_usmFeature_Configure(t *testing.T) {
 		assert.True(t, apiutils.IsEqualStruct(systemProbeEnvVars, wantEnvVars), "System Probe envvars \ndiff = %s", cmp.Diff(systemProbeEnvVars, wantEnvVars))
 	}
 
-	usmDirectSendNodeWantFunc := func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+	usmDirectSendDisabledNodeWantFunc := func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 		mgr := mgrInterface.(*fake.PodTemplateManagers)
 
-		for _, c := range mgr.Tpl.Spec.Containers {
-			if c.Name == string(apicommon.ProcessAgentContainerName) {
-				assert.Fail(t, "process-agent should not have a container")
-			}
+		// check annotations
+		wantAnnotations := map[string]string{
+			common.SystemProbeAppArmorAnnotationKey: common.SystemProbeAppArmorAnnotationValue,
 		}
+		annotations := mgr.AnnotationMgr.Annotations
+		assert.True(t, apiutils.IsEqualStruct(annotations, wantAnnotations), "Annotations \ndiff = %s", cmp.Diff(annotations, wantAnnotations))
+
+		processWantVolumeMounts := []corev1.VolumeMount{
+			{
+				Name:      common.ProcdirVolumeName,
+				MountPath: common.ProcdirMountPath,
+				ReadOnly:  true,
+			},
+			{
+				Name:      common.CgroupsVolumeName,
+				MountPath: common.CgroupsMountPath,
+				ReadOnly:  true,
+			},
+			{
+				Name:      common.SystemProbeSocketVolumeName,
+				MountPath: common.SystemProbeSocketVolumePath,
+				ReadOnly:  true,
+			},
+		}
+		processAgentMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommon.ProcessAgentContainerName]
+		assert.True(t, apiutils.IsEqualStruct(processAgentMounts, processWantVolumeMounts), "Process Agent volume mounts \ndiff = %s", cmp.Diff(processAgentMounts, processWantVolumeMounts))
 
 		// check env vars
 		wantEnvVars := []*corev1.EnvVar{
@@ -203,12 +218,20 @@ func Test_usmFeature_Configure(t *testing.T) {
 			},
 			{
 				Name:  DDSystemProbeCNMDirectSend,
-				Value: "true",
+				Value: "false",
 			},
 		}
 
 		systemProbeEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.SystemProbeContainerName]
 		assert.True(t, apiutils.IsEqualStruct(systemProbeEnvVars, wantEnvVars), "System Probe envvars \ndiff = %s", cmp.Diff(systemProbeEnvVars, wantEnvVars))
+
+		processWantEnvVars := append(wantEnvVars, &corev1.EnvVar{
+			Name:  common.DDSystemProbeExternal,
+			Value: "true",
+		})
+
+		processAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.ProcessAgentContainerName]
+		assert.True(t, apiutils.IsEqualStruct(processAgentEnvVars, processWantEnvVars), "Process Agent envvars \ndiff = %s", cmp.Diff(processAgentEnvVars, processWantEnvVars))
 	}
 
 	tests := test.FeatureTestSuite{
@@ -224,10 +247,16 @@ func Test_usmFeature_Configure(t *testing.T) {
 			Agent:         test.NewDefaultComponentTest().WithWantFunc(usmAgentNodeWantFunc),
 		},
 		{
-			Name:          "USM enabled, Direct Send enabled",
-			DDA:           ddaUSMDirectSendEnabled,
+			Name:          "USM enabled, Direct Send disabled",
+			DDA:           ddaUSMDirectSendDisabled,
 			WantConfigure: true,
-			Agent:         test.NewDefaultComponentTest().WithWantFunc(usmDirectSendNodeWantFunc),
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(usmDirectSendDisabledNodeWantFunc),
+		},
+		{
+			Name:          "USM enabled, Direct Send enabled on unsupported agent version",
+			DDA:           ddaUSMDirectSendEnabledUnsupportedAgentVersionConfig,
+			WantConfigure: true,
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(usmDirectSendDisabledNodeWantFunc),
 		},
 	}
 

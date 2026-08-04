@@ -10,54 +10,18 @@ import (
 	"math/rand/v2"
 
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/yaml"
 )
 
-// NewPointer returns a pointer to a new value instance
-func NewPointer[T any](v T) *T {
-	return &v
-}
-
-// NewInt32Pointer returns pointer on a new int32 value instance
-func NewInt32Pointer(i int32) *int32 {
-	return &i
-}
-
-// NewInt64Pointer returns pointer on a new int32 value instance
-func NewInt64Pointer(i int64) *int64 {
-	return &i
-}
-
-// NewIntPointer returns pointer to an int value
-func NewIntPointer(i int) *int {
-	return &i
-}
-
-// NewStringPointer returns pointer on a new string value instance
-func NewStringPointer(s string) *string {
-	return &s
-}
-
-// NewBoolPointer returns pointer on a new bool value instance
-func NewBoolPointer(b bool) *bool {
-	return &b
-}
-
 // BoolValue return the boolean value, false if nil
 func BoolValue(b *bool) bool {
-	if b == nil {
-		return false
-	}
-
-	return *b
+	return ptr.Deref(b, false)
 }
 
 // StringValue return the string value, "" if nil
 func StringValue(s *string) string {
-	if s == nil {
-		return ""
-	}
-	return *s
+	return ptr.Deref(s, "")
 }
 
 // BoolToString return "true" if b == true, else "false"
@@ -99,7 +63,7 @@ func DefaultStringIfUnset(valPtr **string, d string) {
 
 // IsEqualStruct is a util function that returns whether 2 structures are the same
 // We compare the marshaled results to avoid traversing all fields and be agnostic of the struct.
-func IsEqualStruct(in interface{}, cmp interface{}) bool {
+func IsEqualStruct(in any, cmp any) bool {
 	if in == nil {
 		return true
 	}

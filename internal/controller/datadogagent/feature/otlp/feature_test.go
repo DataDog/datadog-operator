@@ -8,24 +8,30 @@ package otlp
 import (
 	"testing"
 
-	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	apiutils "github.com/DataDog/datadog-operator/api/utils"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
-	"github.com/DataDog/datadog-operator/pkg/testutils"
-
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/apimachinery/pkg/version"
+	"k8s.io/utils/ptr"
+
+	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	"github.com/DataDog/datadog-operator/pkg/testutils"
 )
 
 func TestOTLPFeature(t *testing.T) {
 	tests := test.FeatureTestSuite{
 		{
 			Name: "gRPC and HTTP enabled, APM",
-			DDA: newAgent(Settings{
+			DDA: withForcedLocalService(newAgent(Settings{
 				EnabledGRPC:         true,
 				EnabledGRPCHostPort: true,
 				CustomGRPCHostPort:  4317,
@@ -35,7 +41,7 @@ func TestOTLPFeature(t *testing.T) {
 				CustomHTTPHostPort:  4318,
 				EndpointHTTP:        "0.0.0.0:4318",
 				APM:                 true,
-			}),
+			})),
 			WantConfigure: true,
 			Agent: testExpected(Expected{
 				EnvVars: []*corev1.EnvVar{
@@ -378,6 +384,54 @@ func TestOTLPFeature(t *testing.T) {
 	tests.Run(t, buildOTLPFeature)
 }
 
+func TestApplyOTLPDDASharedDependencies(t *testing.T) {
+	dda := withForcedLocalService(
+		testutils.NewInitializedDatadogAgentBuilder("default", "datadog").
+			WithOTLPGRPCSettings(true, true, 4317, "0.0.0.0:4317").
+			WithOTLPHTTPSettings(true, true, 4318, "0.0.0.0:4318").
+			Build(),
+	)
+	depsStore := store.NewStore(nil, &store.StoreOptions{
+		PlatformInfo: kubernetes.NewPlatformInfo(
+			&version.Info{
+				Major:      "1",
+				Minor:      "32",
+				GitVersion: "1.32.0",
+			},
+			nil,
+			nil,
+		),
+	})
+	managers := feature.NewResourceManagers(depsStore)
+
+	err := applyOTLPDDASharedDependencies(dda, &dda.Spec, dda, &dda.Spec, managers)
+	assert.NoError(t, err)
+
+	serviceObject, found := depsStore.Get(kubernetes.ServicesKind, "default", "datadog-agent")
+	if assert.True(t, found) {
+		service := serviceObject.(*corev1.Service)
+		assert.Equal(t, common.GetAgentLocalServiceSelector(dda), service.Spec.Selector)
+		if assert.NotNil(t, service.Spec.InternalTrafficPolicy) {
+			assert.Equal(t, corev1.ServiceInternalTrafficPolicyLocal, *service.Spec.InternalTrafficPolicy)
+		}
+		assert.Equal(t, []corev1.ServicePort{
+			{
+				Protocol:    corev1.ProtocolTCP,
+				TargetPort:  intstr.FromInt(4317),
+				Port:        4317,
+				Name:        otlpGRPCPortName,
+				AppProtocol: ptr.To(common.KubernetesAppProtocolH2C),
+			},
+			{
+				Protocol:   corev1.ProtocolTCP,
+				TargetPort: intstr.FromInt(4318),
+				Port:       4318,
+				Name:       otlpHTTPPortName,
+			},
+		}, service.Spec.Ports)
+	}
+}
+
 type Settings struct {
 	EnabledGRPC         bool
 	CustomGRPCHostPort  int32
@@ -406,6 +460,13 @@ func newAgentSingleContainer(set Settings) *v2alpha1.DatadogAgent {
 		WithAPMEnabled(set.APM).
 		WithSingleContainerStrategy(true).
 		Build()
+}
+
+func withForcedLocalService(dda *v2alpha1.DatadogAgent) *v2alpha1.DatadogAgent {
+	dda.Spec.Global.LocalService = &v2alpha1.LocalService{
+		ForceEnableLocalService: ptr.To(true),
+	}
+	return dda
 }
 
 type Expected struct {

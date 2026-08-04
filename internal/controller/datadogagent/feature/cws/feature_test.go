@@ -6,13 +6,12 @@
 package cws
 
 import (
-	"fmt"
 	"testing"
+
+	"k8s.io/utils/ptr"
 
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
-	"github.com/DataDog/datadog-operator/pkg/constants"
-	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	corev1 "k8s.io/api/core/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
@@ -31,20 +30,20 @@ func Test_cwsFeature_Configure(t *testing.T) {
 		Spec: v2alpha1.DatadogAgentSpec{
 			Features: &v2alpha1.DatadogFeatures{
 				CWS: &v2alpha1.CWSFeatureConfig{
-					Enabled: apiutils.NewBoolPointer(false),
+					Enabled: ptr.To(false),
 					Enforcement: &v2alpha1.CWSEnforcementConfig{
-						Enabled: apiutils.NewBoolPointer(false),
+						Enabled: ptr.To(false),
 					},
 				},
 				RemoteConfiguration: &v2alpha1.RemoteConfigurationFeatureConfig{
-					Enabled: apiutils.NewBoolPointer(false),
+					Enabled: ptr.To(false),
 				},
 			},
 		},
 	}
 	ddaCWSLiteEnabled := ddaCWSDisabled.DeepCopy()
 	{
-		ddaCWSLiteEnabled.Spec.Features.CWS.Enabled = apiutils.NewBoolPointer(true)
+		ddaCWSLiteEnabled.Spec.Features.CWS.Enabled = ptr.To(true)
 		ddaCWSLiteEnabled.Spec.Features.CWS.CustomPolicies = &v2alpha1.CustomConfig{
 			ConfigMap: &v2alpha1.ConfigMapConfig{
 				Name: "custom_test",
@@ -56,16 +55,16 @@ func Test_cwsFeature_Configure(t *testing.T) {
 				},
 			},
 		}
-		ddaCWSLiteEnabled.Spec.Features.CWS.SyscallMonitorEnabled = apiutils.NewBoolPointer(true)
+		ddaCWSLiteEnabled.Spec.Features.CWS.SyscallMonitorEnabled = ptr.To(true)
 	}
 	ddaCWSFullEnabled := ddaCWSDisabled.DeepCopy()
 	{
-		ddaCWSFullEnabled.Spec.Features.CWS.Enabled = apiutils.NewBoolPointer(true)
+		ddaCWSFullEnabled.Spec.Features.CWS.Enabled = ptr.To(true)
 		ddaCWSFullEnabled.Spec.Features.CWS.Network = &v2alpha1.CWSNetworkConfig{
-			Enabled: apiutils.NewBoolPointer(true),
+			Enabled: ptr.To(true),
 		}
 		ddaCWSFullEnabled.Spec.Features.CWS.SecurityProfiles = &v2alpha1.CWSSecurityProfilesConfig{
-			Enabled: apiutils.NewBoolPointer(true),
+			Enabled: ptr.To(true),
 		}
 		ddaCWSFullEnabled.Spec.Features.CWS.CustomPolicies = &v2alpha1.CustomConfig{
 			ConfigMap: &v2alpha1.ConfigMapConfig{
@@ -78,17 +77,17 @@ func Test_cwsFeature_Configure(t *testing.T) {
 				},
 			},
 		}
-		ddaCWSFullEnabled.Spec.Features.CWS.SyscallMonitorEnabled = apiutils.NewBoolPointer(true)
-		ddaCWSFullEnabled.Spec.Features.RemoteConfiguration.Enabled = apiutils.NewBoolPointer(true)
+		ddaCWSFullEnabled.Spec.Features.CWS.SyscallMonitorEnabled = ptr.To(true)
+		ddaCWSFullEnabled.Spec.Features.RemoteConfiguration.Enabled = ptr.To(true)
 	}
 	ddaCWSLiteDirectSendEnabled := ddaCWSLiteEnabled.DeepCopy()
 	{
-		ddaCWSLiteDirectSendEnabled.Spec.Features.CWS.DirectSendFromSystemProbe = apiutils.NewBoolPointer(true)
+		ddaCWSLiteDirectSendEnabled.Spec.Features.CWS.DirectSendFromSystemProbe = ptr.To(true)
 	}
 
 	ddaCWSLiteEnforcementEnabled := ddaCWSLiteEnabled.DeepCopy()
 	{
-		ddaCWSLiteEnforcementEnabled.Spec.Features.CWS.Enforcement.Enabled = apiutils.NewBoolPointer(true)
+		ddaCWSLiteEnforcementEnabled.Spec.Features.CWS.Enforcement.Enabled = ptr.To(true)
 	}
 
 	tests := test.FeatureTestSuite{
@@ -363,22 +362,8 @@ func cwsAgentNodeWantFunc(withSubFeatures bool, directSendFromSysProbe bool, enf
 			assert.True(t, apiutils.IsEqualStruct(volumes, wantVolumes), "Volumes \ndiff = %s", cmp.Diff(volumes, wantVolumes))
 
 			// check annotations
-			customConfig := &v2alpha1.CustomConfig{
-				ConfigMap: &v2alpha1.ConfigMapConfig{
-					Name: "custom_test",
-					Items: []corev1.KeyToPath{
-						{
-							Key:  "key1",
-							Path: "some/path",
-						},
-					},
-				},
-			}
-			hash, err := comparison.GenerateMD5ForSpec(customConfig)
-			assert.NoError(t, err)
 			wantAnnotations := map[string]string{
-				fmt.Sprintf(constants.MD5ChecksumAnnotationKey, feature.CWSIDType): hash,
-				common.SystemProbeAppArmorAnnotationKey:                            common.SystemProbeAppArmorAnnotationValue,
+				common.SystemProbeAppArmorAnnotationKey: common.SystemProbeAppArmorAnnotationValue,
 			}
 			annotations := mgr.AnnotationMgr.Annotations
 			assert.True(t, apiutils.IsEqualStruct(annotations, wantAnnotations), "Annotations \ndiff = %s", cmp.Diff(annotations, wantAnnotations))

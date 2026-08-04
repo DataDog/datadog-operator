@@ -112,12 +112,12 @@ func translateClientError(err error, msg string) error {
 }
 
 func convertTempVarPresets(tempVarPresets []v1alpha1.DashboardTemplateVariablePreset) []datadogV1.DashboardTemplateVariablePreset {
-	dbTemplateVariablePresets := []datadogV1.DashboardTemplateVariablePreset{}
+	dbTemplateVariablePresets := make([]datadogV1.DashboardTemplateVariablePreset, 0, len(tempVarPresets))
 	for _, variablePreset := range tempVarPresets {
 		dbTemplateVariablePreset := datadogV1.DashboardTemplateVariablePreset{}
 		// Note: Name is required
 		dbTemplateVariablePreset.SetName(*variablePreset.Name)
-		dbTemplateVariablePresetValues := []datadogV1.DashboardTemplateVariablePresetValue{}
+		dbTemplateVariablePresetValues := make([]datadogV1.DashboardTemplateVariablePresetValue, 0, len(variablePreset.TemplateVariables))
 		for _, presetValue := range variablePreset.TemplateVariables {
 			dbTemplateVariablePresetValue := datadogV1.DashboardTemplateVariablePresetValue{}
 			dbTemplateVariablePresetValue.SetName(*presetValue.Name)
@@ -133,7 +133,7 @@ func convertTempVarPresets(tempVarPresets []v1alpha1.DashboardTemplateVariablePr
 }
 
 func convertTempVars(tempVars []v1alpha1.DashboardTemplateVariable) []datadogV1.DashboardTemplateVariable {
-	dbTemplateVariables := []datadogV1.DashboardTemplateVariable{}
+	dbTemplateVariables := make([]datadogV1.DashboardTemplateVariable, 0, len(tempVars))
 	for _, templateVariable := range tempVars {
 		dbTemplateVariable := datadogV1.DashboardTemplateVariable{}
 		dbTemplateVariable.SetName(templateVariable.Name)

@@ -22,12 +22,12 @@ import (
 
 // DatadogDashboardReconciler reconciles a DatadogDashboard object
 type DatadogDashboardReconciler struct {
-	Client   client.Client
-	Creds    config.Creds
-	Log      logr.Logger
-	Scheme   *runtime.Scheme
-	Recorder record.EventRecorder
-	internal *datadogdashboard.Reconciler
+	Client       client.Client
+	CredsManager *config.CredentialManager
+	Log          logr.Logger
+	Scheme       *runtime.Scheme
+	Recorder     record.EventRecorder
+	internal     *datadogdashboard.Reconciler
 }
 
 //+kubebuilder:rbac:groups=datadoghq.com,resources=datadogdashboards,verbs=get;list;watch;create;update;patch;delete
@@ -41,25 +41,16 @@ func (r *DatadogDashboardReconciler) Reconcile(ctx context.Context, req ctrl.Req
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *DatadogDashboardReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	internal, err := datadogdashboard.NewReconciler(r.Client, r.Creds, r.Scheme, r.Log, r.Recorder)
-	if err != nil {
-		return err
-	}
-	r.internal = internal
+	r.internal = datadogdashboard.NewReconciler(r.Client, r.CredsManager, r.Scheme, r.Log, r.Recorder)
 
 	builder := ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.DatadogDashboard{}).
 		WithEventFilter(predicate.GenerationChangedPredicate{})
 
-	err = builder.Complete(r)
+	err := builder.Complete(r)
 
 	if err != nil {
 		return err
 	}
 	return nil
-}
-
-// Callback function for credential change from credential manager
-func (r *DatadogDashboardReconciler) onCredentialChange(newCreds config.Creds) error {
-	return r.internal.UpdateDatadogClient(newCreds)
 }

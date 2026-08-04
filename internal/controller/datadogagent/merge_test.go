@@ -5,6 +5,8 @@ import (
 	"errors"
 	"testing"
 
+	"k8s.io/utils/ptr"
+
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -61,7 +63,7 @@ func Test_ssaMergeCRD(t *testing.T) {
 				Spec: v2alpha1.DatadogAgentSpec{
 					Features: &v2alpha1.DatadogFeatures{
 						APM: &v2alpha1.APMFeatureConfig{
-							Enabled: apiutils.NewBoolPointer(true),
+							Enabled: ptr.To(true),
 						},
 					},
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
@@ -106,7 +108,7 @@ func Test_ssaMergeCRD(t *testing.T) {
 				Spec: v2alpha1.DatadogAgentSpec{
 					Features: &v2alpha1.DatadogFeatures{
 						APM: &v2alpha1.APMFeatureConfig{
-							Enabled: apiutils.NewBoolPointer(true),
+							Enabled: ptr.To(true),
 						},
 					},
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
@@ -140,7 +142,7 @@ func Test_ssaMergeCRD(t *testing.T) {
 				Spec: v2alpha1.DatadogAgentSpec{
 					Features: &v2alpha1.DatadogFeatures{
 						APM: &v2alpha1.APMFeatureConfig{
-							Enabled: apiutils.NewBoolPointer(true),
+							Enabled: ptr.To(true),
 						},
 					},
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
@@ -185,7 +187,7 @@ func Test_ssaMergeCRD(t *testing.T) {
 				Spec: v2alpha1.DatadogAgentSpec{
 					Features: &v2alpha1.DatadogFeatures{
 						APM: &v2alpha1.APMFeatureConfig{
-							Enabled: apiutils.NewBoolPointer(true),
+							Enabled: ptr.To(true),
 						},
 					},
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
@@ -275,9 +277,9 @@ func Test_ssaMergeCRD_OutdatedCRD_IgnoresUnknownFields(t *testing.T) {
 		Spec: v2alpha1.DatadogAgentSpec{
 			Features: &v2alpha1.DatadogFeatures{
 				CWS: &v2alpha1.CWSFeatureConfig{
-					Enabled: apiutils.NewBoolPointer(true),
+					Enabled: ptr.To(true),
 					Enforcement: &v2alpha1.CWSEnforcementConfig{
-						Enabled: apiutils.NewBoolPointer(true),
+						Enabled: ptr.To(true),
 					},
 				},
 			},
@@ -470,12 +472,12 @@ func Test_stripDottedFieldPath(t *testing.T) {
 			Spec: v2alpha1.DatadogAgentSpec{
 				Features: &v2alpha1.DatadogFeatures{
 					CWS: &v2alpha1.CWSFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(true),
+						Enabled: ptr.To(true),
 						Network: &v2alpha1.CWSNetworkConfig{
-							Enabled: apiutils.NewBoolPointer(true),
+							Enabled: ptr.To(true),
 						},
 						Enforcement: &v2alpha1.CWSEnforcementConfig{
-							Enabled: apiutils.NewBoolPointer(true),
+							Enabled: ptr.To(true),
 						},
 					},
 				},
@@ -495,7 +497,7 @@ func Test_stripDottedFieldPath(t *testing.T) {
 			Spec: v2alpha1.DatadogAgentSpec{
 				Features: &v2alpha1.DatadogFeatures{
 					CWS: &v2alpha1.CWSFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(true),
+						Enabled: ptr.To(true),
 					},
 				},
 			},

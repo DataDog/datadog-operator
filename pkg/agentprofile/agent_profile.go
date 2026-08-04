@@ -49,9 +49,24 @@ type CreateStrategyInfo struct {
 	nodesAlreadyLabeled int32    // number of nodes with the correct label
 }
 
-// ApplyProfileToNodes applies a profile to nodes based on its label requirements
-// If there is a conflict with an existing profile, it returns an error
-func ApplyProfileToNodes(profile metav1.ObjectMeta, profileRequirements []*labels.Requirement, nodes []v1.Node, profileAppliedByNode map[string]types.NamespacedName, csInfo map[types.NamespacedName]*CreateStrategyInfo) error {
+// CheckProfileNodeConflicts checks whether a profile conflicts with already-assigned profiles.
+// It is a pure read: it does not modify profilesByNode or csInfo.
+func CheckProfileNodeConflicts(profile metav1.ObjectMeta, profileRequirements []*labels.Requirement, nodes []v1.Node, profilesByNode map[string]types.NamespacedName) error {
+	for _, node := range nodes {
+		if !profileMatchesNodeWithRequirements(profileRequirements, node.Labels) {
+			continue
+		}
+		if existingProfile := profilesByNode[node.Name]; !IsDefaultProfile(existingProfile.Namespace, existingProfile.Name) {
+			return fmt.Errorf("profile %s conflicts with existing profile: %s", profile.Name, existingProfile.String())
+		}
+	}
+	return nil
+}
+
+// AssignNodesToProfile assigns matching nodes to the profile in profilesByNode and records
+// create-strategy data in csInfo. It must only be called after CheckProfileNodeConflicts
+// returns nil, so it never returns an error.
+func AssignNodesToProfile(profile metav1.ObjectMeta, profileRequirements []*labels.Requirement, nodes []v1.Node, profilesByNode map[string]types.NamespacedName, csInfo map[types.NamespacedName]*CreateStrategyInfo) {
 	profileNSName := types.NamespacedName{
 		Namespace: profile.Namespace,
 		Name:      profile.Name,
@@ -65,15 +80,8 @@ func ApplyProfileToNodes(profile metav1.ObjectMeta, profileRequirements []*label
 		if !profileMatchesNodeWithRequirements(profileRequirements, node.Labels) {
 			continue
 		}
-
-		if existingProfile := profileAppliedByNode[node.Name]; !IsDefaultProfile(existingProfile.Namespace, existingProfile.Name) {
-			return fmt.Errorf("profile %s conflicts with existing profile: %s", profile.Name, existingProfile.String())
-		}
-
-		profileAppliedByNode[node.Name] = profileNSName
-
+		profilesByNode[node.Name] = profileNSName
 		if CreateStrategyEnabled() {
-			// check for missing or wrong label
 			profileLabelValue, labelExists := node.Labels[constants.ProfileLabelKey]
 			needsLabel := !(labelExists && profileLabelValue == profile.Name)
 			if needsLabel {
@@ -83,24 +91,22 @@ func ApplyProfileToNodes(profile metav1.ObjectMeta, profileRequirements []*label
 			}
 		}
 	}
-
-	return nil
 }
 
 // ValidateProfileAndReturnRequirements validates a profile's name and spec and affinity requirements
-func ValidateProfileAndReturnRequirements(profile *v1alpha1.DatadogAgentProfile, ddaiEnabled bool) ([]*labels.Requirement, error) {
-	if err := validateProfile(profile, ddaiEnabled); err != nil {
+func ValidateProfileAndReturnRequirements(profile *v1alpha1.DatadogAgentProfile) ([]*labels.Requirement, error) {
+	if err := validateProfile(profile); err != nil {
 		return nil, err
 	}
 	return parseProfileRequirements(profile)
 }
 
 // validateProfile validates a profile's name and spec
-func validateProfile(profile *v1alpha1.DatadogAgentProfile, ddaiEnabled bool) error {
+func validateProfile(profile *v1alpha1.DatadogAgentProfile) error {
 	if err := validateProfileName(profile.Name); err != nil {
 		return fmt.Errorf("profile name is invalid: %w", err)
 	}
-	if err := v1alpha1.ValidateDatadogAgentProfileSpec(&profile.Spec, ddaiEnabled); err != nil {
+	if err := v1alpha1.ValidateDatadogAgentProfileSpec(&profile.Spec); err != nil {
 		return fmt.Errorf("profile spec is invalid: %w", err)
 	}
 	return nil
@@ -112,7 +118,7 @@ func validateProfile(profile *v1alpha1.DatadogAgentProfile, ddaiEnabled bool) er
 // - existing nodes with the correct label
 // - nodes that need a new or corrected label up to maxUnavailable # of nodes
 func ApplyProfile(logger logr.Logger, profile *v1alpha1.DatadogAgentProfile, nodes []v1.Node, profileAppliedByNode map[string]types.NamespacedName,
-	now metav1.Time, maxUnavailable int, datadogAgentInternalEnabled bool) (map[string]types.NamespacedName, error) {
+	now metav1.Time, maxUnavailable int) (map[string]types.NamespacedName, error) {
 	matchingNodes := map[string]bool{}
 	profileStatus := v1alpha1.DatadogAgentProfileStatus{}
 
@@ -130,7 +136,7 @@ func ApplyProfile(logger logr.Logger, profile *v1alpha1.DatadogAgentProfile, nod
 		return profileAppliedByNode, err
 	}
 
-	if err := v1alpha1.ValidateDatadogAgentProfileSpec(&profile.Spec, datadogAgentInternalEnabled); err != nil {
+	if err := v1alpha1.ValidateDatadogAgentProfileSpec(&profile.Spec); err != nil {
 		logger.Error(err, "profile spec is invalid, skipping", "datadogagentprofile", profile.Name, "datadogagentprofile_namespace", profile.Namespace)
 		metrics.DAPValid.With(prometheus.Labels{"datadogagentprofile": profile.Name}).Set(metrics.FalseValue)
 		profileStatus.Conditions = SetDatadogAgentProfileCondition(profileStatus.Conditions, NewDatadogAgentProfileCondition(ValidConditionType, metav1.ConditionFalse, now, InvalidConditionReason, err.Error()))
@@ -257,6 +263,7 @@ func OverrideFromProfile(profile *v1alpha1.DatadogAgentProfile, useV3Metadata bo
 			profileComponentOverride.PriorityClassName = nodeAgentOverride.PriorityClassName
 			profileComponentOverride.RuntimeClassName = nodeAgentOverride.RuntimeClassName
 			profileComponentOverride.UpdateStrategy = nodeAgentOverride.UpdateStrategy
+			profileComponentOverride.Volumes = nodeAgentOverride.Volumes
 		}
 	}
 
@@ -395,8 +402,9 @@ func containersOverride(nodeAgentOverride *v2alpha1.DatadogAgentComponentOverrid
 	for _, containerName := range containersInNodeAgent {
 		if overrideForContainer, overrideIsDefined := nodeAgentOverride.Containers[containerName]; overrideIsDefined {
 			res[containerName] = &v2alpha1.DatadogAgentGenericContainer{
-				Resources: overrideForContainer.Resources,
-				Env:       overrideForContainer.Env,
+				Resources:    overrideForContainer.Resources,
+				Env:          overrideForContainer.Env,
+				VolumeMounts: overrideForContainer.VolumeMounts,
 			}
 		}
 	}

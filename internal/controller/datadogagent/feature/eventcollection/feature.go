@@ -17,11 +17,9 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	common "github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
-	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/secrets"
 )
@@ -51,9 +49,6 @@ type eventCollectionFeature struct {
 	configMapName      string
 	unbundleEvents     bool
 	unbundleEventTypes []v2alpha1.EventTypes
-
-	cmAnnotationKey   string
-	cmAnnotationValue string
 
 	logger logr.Logger
 }
@@ -85,7 +80,7 @@ func (f *eventCollectionFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.
 
 		reqComp = feature.RequiredComponents{
 			ClusterAgent: feature.RequiredComponent{
-				IsRequired: apiutils.NewBoolPointer(true),
+				IsRequired: new(true),
 				Containers: []apicommon.AgentContainerName{apicommon.ClusterAgentContainerName},
 			},
 		}
@@ -96,7 +91,7 @@ func (f *eventCollectionFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *eventCollectionFeature) ManageDependencies(managers feature.ResourceManagers, provider string) error {
+func (f *eventCollectionFeature) ManageDependencies(managers feature.ResourceManagers) error {
 	// Manage RBAC
 	rbacName := getRBACResourceName(f.owner, f.rbacSuffix)
 
@@ -122,18 +117,6 @@ func (f *eventCollectionFeature) ManageDependencies(managers feature.ResourceMan
 			return err
 		}
 
-		// Add md5 hash annotation for configMap
-		f.cmAnnotationKey = object.GetChecksumAnnotationKey(feature.KubernetesAPIServerIDType)
-		f.cmAnnotationValue, err = comparison.GenerateMD5ForSpec(cm.Data)
-		if err != nil {
-			return err
-		}
-
-		if f.cmAnnotationKey != "" && f.cmAnnotationValue != "" {
-			annotations := object.MergeAnnotationsLabels(f.logger, cm.Annotations, map[string]string{f.cmAnnotationKey: f.cmAnnotationValue}, "*")
-			cm.SetAnnotations(annotations)
-		}
-
 		if err := managers.Store().AddOrUpdate(kubernetes.ConfigMapKind, cm); err != nil {
 			return err
 		}
@@ -144,7 +127,7 @@ func (f *eventCollectionFeature) ManageDependencies(managers feature.ResourceMan
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *eventCollectionFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *eventCollectionFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
 	// Env vars
 	managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
 		Name:  DDCollectKubernetesEvents,
@@ -177,11 +160,6 @@ func (f *eventCollectionFeature) ManageClusterAgent(managers feature.PodTemplate
 
 		managers.VolumeMount().AddVolumeMountToContainer(&volMount, apicommon.ClusterAgentContainerName)
 		managers.Volume().AddVolume(&vol)
-
-		// Add md5 hash annotation for configMap
-		if f.cmAnnotationKey != "" && f.cmAnnotationValue != "" {
-			managers.Annotation().AddAnnotation(f.cmAnnotationKey, f.cmAnnotationValue)
-		}
 	}
 
 	return nil
@@ -190,22 +168,22 @@ func (f *eventCollectionFeature) ManageClusterAgent(managers feature.PodTemplate
 // ManageSingleContainerNodeAgent allows a feature to configure the Agent container for the Node Agent's corev1.PodTemplateSpec
 // if SingleContainerStrategy is enabled and can be used with the configured feature set.
 // It should do nothing if the feature doesn't need to configure it.
-func (f *eventCollectionFeature) ManageSingleContainerNodeAgent(_ feature.PodTemplateManagers, _ string) error {
+func (f *eventCollectionFeature) ManageSingleContainerNodeAgent(_ feature.PodTemplateManagers) error {
 	return nil
 }
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *eventCollectionFeature) ManageNodeAgent(_ feature.PodTemplateManagers, _ string) error {
+func (f *eventCollectionFeature) ManageNodeAgent(_ feature.PodTemplateManagers) error {
 	return nil
 }
 
 // ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunner's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *eventCollectionFeature) ManageClusterChecksRunner(_ feature.PodTemplateManagers, _ string) error {
+func (f *eventCollectionFeature) ManageClusterChecksRunner(_ feature.PodTemplateManagers) error {
 	return nil
 }
 
-func (f *eventCollectionFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
+func (f *eventCollectionFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers) error {
 	return nil
 }

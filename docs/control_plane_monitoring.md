@@ -40,7 +40,22 @@ Using the command line:
 helm install datadog-operator datadog/datadog-operator --set introspection.enabled=true
 ```
 
-Or, for **OpenShift users** who installed the operator via OperatorHub/Marketplace (the [recommended method](install-openshift.md)), by patching the operator cluster service version:
+Or, for **OpenShift users** who installed the operator using OperatorHub/Marketplace (the [recommended method](install-openshift.md), because it survives operator upgrades), set the environment variable in the `Subscription`:
+
+```yaml
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: datadog-operator
+spec:
+  # ... channel, source, etc.
+  config:
+    env:
+      - name: DD_INTROSPECTION_ENABLED
+        value: "true"
+```
+
+Alternatively, you can patch the CSV directly, which does not persist after operator upgrades:
 
 ```bash
 oc patch csv <datadog-operator.VERSION> -n <datadog-operator-namespace> \

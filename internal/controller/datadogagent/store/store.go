@@ -31,9 +31,9 @@ import (
 const (
 	// OperatorStoreLabelKey used to identified which resource is managed by the store.
 	OperatorStoreLabelKey = "operator.datadoghq.com/managed-by-store"
-	// ManagedByDDAControllerLabelKey used to identify resources managed by the DDA controller
-	// when DatadogAgentInternalEnabled is true. These resources should not be cleaned up
-	// by the DDAI controller to avoid competition between the two controllers.
+	// ManagedByDDAControllerLabelKey used to identify resources managed by the DDA controller.
+	// These resources should not be cleaned up by the DDAI controller to avoid competition
+	// between the two controllers.
 	ManagedByDDAControllerLabelKey = "operator.datadoghq.com/managed-by-dda-controller"
 )
 
@@ -88,8 +88,7 @@ type StoreOptions struct {
 	Scheme *runtime.Scheme
 	Logger logr.Logger
 
-	// IsDDAControllerStore indicates that this store is used by the DDA controller
-	// to manage dependencies when DatadogAgentInternalEnabled is true.
+	// IsDDAControllerStore indicates that this store is used by the DDA controller.
 	// Resources created by this store will be labeled with ManagedByDDAControllerLabelKey
 	// so they won't be cleaned up by the DDAI controller.
 	IsDDAControllerStore bool
@@ -112,9 +111,8 @@ func (ds *Store) AddOrUpdate(kind kubernetes.ObjectKind, obj client.Object) erro
 	}
 	obj.GetLabels()[OperatorStoreLabelKey] = "true"
 
-	// Add the DDA controller label when this store is used by the DDA controller
-	// with DatadogAgentInternalEnabled. This prevents DDAI controller from cleaning
-	// up these resources.
+	// Add the DDA controller label when this store is used by the DDA controller.
+	// This prevents the DDAI controller from cleaning up these resources.
 	if ds.isDDAControllerStore {
 		obj.GetLabels()[ManagedByDDAControllerLabelKey] = "true"
 	}
@@ -294,6 +292,7 @@ func (ds *Store) Cleanup(ctx context.Context, k8sClient client.Client, excludeDD
 	listOptions := &client.ListOptions{
 		LabelSelector: selector,
 	}
+
 	for _, kind := range ds.platformInfo.GetAgentResourcesKind(ds.supportCilium) {
 		objList := kubernetes.ObjectListFromKind(kind, ds.platformInfo)
 		if err := k8sClient.List(ctx, objList, listOptions); err != nil {
@@ -301,7 +300,7 @@ func (ds *Store) Cleanup(ctx context.Context, k8sClient client.Client, excludeDD
 			continue
 		}
 
-		objsToDelete, err := ds.listObjectToDelete(objList, ds.deps[kind], excludeDDAManagedResources)
+		objsToDelete, err := ds.listObjectToDelete(kind, objList, ds.deps[kind], excludeDDAManagedResources)
 		if err != nil {
 			errs = append(errs, err)
 			continue
@@ -355,7 +354,14 @@ func (ds *Store) DeleteAll(ctx context.Context, k8sClient client.Client) []error
 						Namespace: objMeta.GetNamespace(),
 					},
 				}
-				partialObj.TypeMeta.SetGroupVersionKind(objAPIServer.GetObjectKind().GroupVersionKind())
+				gvk := objAPIServer.GetObjectKind().GroupVersionKind()
+				if gvk.Empty() && ds.scheme != nil {
+					refObj := kubernetes.ObjectFromKind(kind, ds.platformInfo)
+					if gvks, _, schemeErr := ds.scheme.ObjectKinds(refObj); schemeErr == nil && len(gvks) > 0 {
+						gvk = gvks[0]
+					}
+				}
+				partialObj.TypeMeta.SetGroupVersionKind(gvk)
 				objsToDelete = append(objsToDelete, partialObj)
 			}
 		}
@@ -364,7 +370,7 @@ func (ds *Store) DeleteAll(ctx context.Context, k8sClient client.Client) []error
 	return deleteObjects(ctx, k8sClient, objsToDelete)
 }
 
-func (ds *Store) listObjectToDelete(objList client.ObjectList, cacheObjects map[string]client.Object, excludeDDAManagedResources bool) ([]client.Object, error) {
+func (ds *Store) listObjectToDelete(kind kubernetes.ObjectKind, objList client.ObjectList, cacheObjects map[string]client.Object, excludeDDAManagedResources bool) ([]client.Object, error) {
 	items, err := apimeta.ExtractList(objList)
 	if err != nil {
 		return nil, err
@@ -402,7 +408,19 @@ func (ds *Store) listObjectToDelete(objList client.ObjectList, cacheObjects map[
 							Namespace: objMeta.GetNamespace(),
 						},
 					}
-					partialObj.TypeMeta.SetGroupVersionKind(objAPIServer.GetObjectKind().GroupVersionKind())
+
+					// Try to get GVK from the listed object first (works in production)
+					gvk := objAPIServer.GetObjectKind().GroupVersionKind()
+
+					// If GVK is empty (e.g., in fake client tests), get it from the scheme
+					if gvk.Empty() && ds.scheme != nil {
+						refObj := kubernetes.ObjectFromKind(kind, ds.platformInfo)
+						if gvks, _, err := ds.scheme.ObjectKinds(refObj); err == nil && len(gvks) > 0 {
+							gvk = gvks[0]
+						}
+					}
+
+					partialObj.TypeMeta.SetGroupVersionKind(gvk)
 					objsToDelete = append(objsToDelete, partialObj)
 				}
 			}

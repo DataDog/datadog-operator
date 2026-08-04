@@ -14,6 +14,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/cloudformation"
 	"github.com/aws/aws-sdk-go-v2/service/cloudformation/types"
 	"github.com/aws/smithy-go"
+	"github.com/samber/lo"
 
 	"github.com/DataDog/datadog-operator/pkg/version"
 )
@@ -22,50 +23,124 @@ const (
 	maxWaitDuration = 30 * time.Minute
 )
 
-func CreateOrUpdateStack(ctx context.Context, client *cloudformation.Client, stackName string, templateBody string, params map[string]string) error {
-	exist, err := DoesStackExist(ctx, client, stackName)
+// ManagedByTag and ManagedByTagValue identify CloudFormation stacks owned by
+// kubectl-datadog. The pair is also propagated from the stack to its
+// resources (e.g. AWS::EKS::FargateProfile) by CloudFormation's tag
+// inheritance, so downstream code reading those resource tags can rely on
+// the same constants.
+const (
+	ManagedByTag      = "managed-by"
+	ManagedByTagValue = "kubectl-datadog"
+)
+
+func CreateOrUpdateStack(ctx context.Context, client *cloudformation.Client, stackName string, templateBody string, params map[string]string, extraTags map[string]string) error {
+	existing, err := GetStack(ctx, client, stackName)
 	if err != nil {
 		return err
 	}
+	return createOrUpdateStack(ctx, client, stackName, templateBody, params, extraTags, existing != nil)
+}
 
-	parameters := make([]types.Parameter, 0, len(params))
-	for key, value := range params {
-		parameters = append(parameters, types.Parameter{
-			ParameterKey:   aws.String(key),
-			ParameterValue: aws.String(value),
-		})
-	}
+// CreateOrUpdateStackWithExisting is like CreateOrUpdateStack but takes a
+// pre-fetched stack (nil if it does not exist), saving a DescribeStacks call
+// for callers that already looked it up.
+func CreateOrUpdateStackWithExisting(ctx context.Context, client *cloudformation.Client, stackName string, templateBody string, params map[string]string, extraTags map[string]string, existing *Stack) error {
+	return createOrUpdateStack(ctx, client, stackName, templateBody, params, extraTags, existing != nil)
+}
 
-	if exist {
-		return updateStack(ctx, client, stackName, templateBody, parameters)
+func createOrUpdateStack(ctx context.Context, client *cloudformation.Client, stackName string, templateBody string, params map[string]string, extraTags map[string]string, exists bool) error {
+	parameters := lo.MapToSlice(params, func(key, value string) types.Parameter {
+		return types.Parameter{ParameterKey: aws.String(key), ParameterValue: aws.String(value)}
+	})
+	if exists {
+		return updateStack(ctx, client, stackName, templateBody, parameters, buildTags(extraTags))
 	} else {
-		return createStack(ctx, client, stackName, templateBody, parameters)
+		return createStack(ctx, client, stackName, templateBody, parameters, buildTags(extraTags))
 	}
 }
 
-// DoesStackExist checks if a CloudFormation stack exists.
-func DoesStackExist(ctx context.Context, client *cloudformation.Client, stackName string) (bool, error) {
-	_, err := client.DescribeStacks(
-		ctx,
-		&cloudformation.DescribeStacksInput{
-			StackName: aws.String(stackName),
-		},
-	)
+// buildTags returns the base tags (managed-by, version) plus any extra tags
+// passed by the caller. Base tags are passed last to lo.Assign so they
+// override any extra entry sharing the same key.
+func buildTags(extraTags map[string]string) []types.Tag {
+	base := map[string]string{
+		ManagedByTag: ManagedByTagValue,
+		"version":    version.GetVersion(),
+	}
+	return lo.MapToSlice(lo.Assign(extraTags, base), func(k, v string) types.Tag {
+		return types.Tag{Key: aws.String(k), Value: aws.String(v)}
+	})
+}
 
+// Stack wraps *types.Stack with map accessors for tags, parameters and
+// outputs. All accessors tolerate a nil receiver and return a nil map.
+type Stack struct {
+	*types.Stack
+}
+
+// GetStack returns the named CloudFormation stack, or (nil, nil) if the stack
+// does not exist. Callers read tags, parameters and outputs from the returned
+// wrapper rather than issuing additional DescribeStacks calls.
+func GetStack(ctx context.Context, client *cloudformation.Client, stackName string) (*Stack, error) {
+	out, err := client.DescribeStacks(ctx, &cloudformation.DescribeStacksInput{
+		StackName: aws.String(stackName),
+	})
 	if err != nil {
 		var apiErr smithy.APIError
 		if errors.As(err, &apiErr) &&
 			apiErr.ErrorCode() == "ValidationError" &&
 			strings.Contains(apiErr.ErrorMessage(), "does not exist") {
-			return false, nil
+			return nil, nil
 		}
-		return false, fmt.Errorf("failed to describe stack %s: %w", stackName, err)
+		return nil, fmt.Errorf("failed to describe stack %s: %w", stackName, err)
 	}
-
-	return true, nil
+	if len(out.Stacks) == 0 {
+		return nil, nil
+	}
+	return &Stack{&out.Stacks[0]}, nil
 }
 
-func createStack(ctx context.Context, client *cloudformation.Client, stackName string, templateBody string, parameters []types.Parameter) error {
+// TagMap returns the stack's tags as a map, or nil if the receiver is nil.
+// Method name differs from the embedded `Tags` field to avoid selector
+// ambiguity.
+func (s *Stack) TagMap() map[string]string {
+	if s == nil {
+		return nil
+	}
+	return lo.SliceToMap(s.Tags, func(t types.Tag) (string, string) {
+		return aws.ToString(t.Key), aws.ToString(t.Value)
+	})
+}
+
+// ParameterMap returns the stack's parameters as a map, or nil if the
+// receiver is nil.
+func (s *Stack) ParameterMap() map[string]string {
+	if s == nil {
+		return nil
+	}
+	return lo.SliceToMap(s.Parameters, func(p types.Parameter) (string, string) {
+		return aws.ToString(p.ParameterKey), aws.ToString(p.ParameterValue)
+	})
+}
+
+// OutputMap returns the stack's outputs as a map, or nil if the receiver is
+// nil.
+func (s *Stack) OutputMap() map[string]string {
+	if s == nil {
+		return nil
+	}
+	return lo.SliceToMap(s.Outputs, func(o types.Output) (string, string) {
+		return aws.ToString(o.OutputKey), aws.ToString(o.OutputValue)
+	})
+}
+
+// DoesStackExist checks if a CloudFormation stack exists.
+func DoesStackExist(ctx context.Context, client *cloudformation.Client, stackName string) (bool, error) {
+	stack, err := GetStack(ctx, client, stackName)
+	return stack != nil, err
+}
+
+func createStack(ctx context.Context, client *cloudformation.Client, stackName string, templateBody string, parameters []types.Parameter, tags []types.Tag) error {
 	log.Printf("Creating stack %s…", stackName)
 
 	out, err := client.CreateStack(
@@ -77,16 +152,7 @@ func createStack(ctx context.Context, client *cloudformation.Client, stackName s
 			Capabilities: []types.Capability{
 				types.CapabilityCapabilityNamedIam,
 			},
-			Tags: []types.Tag{
-				{
-					Key:   aws.String("managed-by"),
-					Value: aws.String("kubectl-datadog"),
-				},
-				{
-					Key:   aws.String("version"),
-					Value: aws.String(version.GetVersion()),
-				},
-			},
+			Tags: tags,
 		},
 	)
 	if err != nil {
@@ -112,7 +178,7 @@ func createStack(ctx context.Context, client *cloudformation.Client, stackName s
 	return nil
 }
 
-func updateStack(ctx context.Context, client *cloudformation.Client, stackName string, templateBody string, parameters []types.Parameter) error {
+func updateStack(ctx context.Context, client *cloudformation.Client, stackName string, templateBody string, parameters []types.Parameter, tags []types.Tag) error {
 	log.Printf("Updating stack %s…", stackName)
 
 	out, err := client.UpdateStack(
@@ -124,16 +190,7 @@ func updateStack(ctx context.Context, client *cloudformation.Client, stackName s
 			Capabilities: []types.Capability{
 				types.CapabilityCapabilityNamedIam,
 			},
-			Tags: []types.Tag{
-				{
-					Key:   aws.String("managed-by"),
-					Value: aws.String("kubectl-datadog"),
-				},
-				{
-					Key:   aws.String("version"),
-					Value: aws.String(version.GetVersion()),
-				},
-			},
+			Tags: tags,
 		},
 	)
 	if err != nil {
@@ -209,20 +266,13 @@ func DeleteStack(ctx context.Context, client *cloudformation.Client, stackName s
 }
 
 func describeStack(ctx context.Context, client *cloudformation.Client, stackName string) error {
-	out, err := client.DescribeStacks(
-		ctx,
-		&cloudformation.DescribeStacksInput{
-			StackName: aws.String(stackName),
-		},
-	)
+	stack, err := GetStack(ctx, client, stackName)
 	if err != nil {
 		return err
 	}
-	if len(out.Stacks) == 0 {
+	if stack == nil {
 		return errors.New("no stack found")
 	}
-
-	stack := out.Stacks[0]
 
 	log.Printf("Stack status: %s", stack.StackStatus)
 	if stack.StackStatusReason != nil {
@@ -230,13 +280,13 @@ func describeStack(ctx context.Context, client *cloudformation.Client, stackName
 	}
 
 	log.Print("Stack events:")
-	out2, err := client.DescribeStackEvents(ctx, &cloudformation.DescribeStackEventsInput{
+	events, err := client.DescribeStackEvents(ctx, &cloudformation.DescribeStackEventsInput{
 		StackName: aws.String(stackName),
 	})
 	if err != nil {
 		return err
 	}
-	for _, event := range out2.StackEvents {
+	for _, event := range events.StackEvents {
 		log.Printf("  %s: %s — %s", event.Timestamp.Format(time.RFC3339), event.ResourceStatus, aws.ToString(event.ResourceStatusReason))
 	}
 

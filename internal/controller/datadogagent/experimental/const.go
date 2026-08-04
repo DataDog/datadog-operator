@@ -8,3 +8,5 @@ package experimental
 const ExperimentalAnnotationPrefix = "experimental.agent.datadoghq.com"
 const ExperimentalImageOverrideConfigSubkey = "image-override-config"
 const ExperimentalAutopilotSubkey = "autopilot"
+const ExperimentalAutopilotAllowlistVersionSubkey = "autopilot-allowlist-version"
+const ExperimentalAutopilotCSIAllowlistVersionSubkey = "autopilot-csi-allowlist-version"

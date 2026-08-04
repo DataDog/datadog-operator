@@ -13,6 +13,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/utils/ptr"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -20,11 +21,9 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/otelagentgateway/defaultconfig"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/configmap"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
 	"github.com/DataDog/datadog-operator/pkg/constants"
-	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
@@ -36,15 +35,13 @@ func init() {
 }
 
 type otelAgentGatewayFeature struct {
-	owner                       metav1.Object
-	logger                      logr.Logger
-	ports                       []*corev1.ContainerPort
-	localServiceName            string
-	customConfig                *v2alpha1.CustomConfig
-	configMapName               string
-	customConfigAnnotationKey   string
-	customConfigAnnotationValue string
-	featureGates                *string
+	owner            metav1.Object
+	logger           logr.Logger
+	ports            []*corev1.ContainerPort
+	localServiceName string
+	customConfig     *v2alpha1.CustomConfig
+	configMapName    string
+	featureGates     *string
 }
 
 func buildOtelAgentGatewayFeature(options *feature.Options) feature.Feature {
@@ -69,7 +66,7 @@ func (f *otelAgentGatewayFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1
 
 	reqComp = feature.RequiredComponents{
 		OtelAgentGateway: feature.RequiredComponent{
-			IsRequired: apiutils.NewBoolPointer(true),
+			IsRequired: new(true),
 			Containers: []apicommon.AgentContainerName{apicommon.OtelAgent},
 		},
 	}
@@ -110,24 +107,12 @@ func (f *otelAgentGatewayFeature) buildOTelAgentCoreConfigMap() (*corev1.ConfigM
 			return nil, err
 		}
 
-		// Add md5 hash annotation for configMap
-		f.customConfigAnnotationKey = object.GetChecksumAnnotationKey(feature.OtelAgentGatewayIDType)
-		f.customConfigAnnotationValue, err = comparison.GenerateMD5ForSpec(f.customConfig.ConfigData)
-		if err != nil {
-			return cm, err
-		}
-
-		if f.customConfigAnnotationKey != "" && f.customConfigAnnotationValue != "" {
-			annotations := object.MergeAnnotationsLabels(f.logger, cm.Annotations, map[string]string{f.customConfigAnnotationKey: f.customConfigAnnotationValue}, "*")
-			cm.SetAnnotations(annotations)
-		}
-
 		return cm, nil
 	}
 	return nil, nil
 }
 
-func (f *otelAgentGatewayFeature) ManageDependencies(managers feature.ResourceManagers, provider string) error {
+func (f *otelAgentGatewayFeature) ManageDependencies(managers feature.ResourceManagers) error {
 	// check if an otel collector config was provided. If not, use default.
 	if f.customConfig == nil {
 		f.customConfig = &v2alpha1.CustomConfig{}
@@ -145,10 +130,11 @@ func (f *otelAgentGatewayFeature) ManageDependencies(managers feature.ResourceMa
 	}
 
 	otlpGrpcPort := &corev1.ServicePort{
-		Name:       "otlpgrpcport",
-		Port:       int32(grpcPort),
-		Protocol:   corev1.ProtocolTCP,
-		TargetPort: intstr.FromInt(grpcPort),
+		Name:        "otlpgrpcport",
+		Port:        int32(grpcPort),
+		Protocol:    corev1.ProtocolTCP,
+		TargetPort:  intstr.FromInt(grpcPort),
+		AppProtocol: ptr.To(common.KubernetesAppProtocolH2C),
 	}
 	otlpHttpPort := &corev1.ServicePort{
 		Name:       "otlphttpport",
@@ -192,27 +178,27 @@ func (f *otelAgentGatewayFeature) ManageDependencies(managers feature.ResourceMa
 	return nil
 }
 
-func (f *otelAgentGatewayFeature) ManageClusterAgent(feature.PodTemplateManagers, string) error {
+func (f *otelAgentGatewayFeature) ManageClusterAgent(feature.PodTemplateManagers) error {
 	// OtelAgentGateway doesn't need to configure the Cluster Agent
 	return nil
 }
 
-func (f *otelAgentGatewayFeature) ManageSingleContainerNodeAgent(feature.PodTemplateManagers, string) error {
+func (f *otelAgentGatewayFeature) ManageSingleContainerNodeAgent(feature.PodTemplateManagers) error {
 	// OtelAgentGateway doesn't need to configure the Node Agent
 	return nil
 }
 
-func (f *otelAgentGatewayFeature) ManageNodeAgent(feature.PodTemplateManagers, string) error {
+func (f *otelAgentGatewayFeature) ManageNodeAgent(feature.PodTemplateManagers) error {
 	// OtelAgentGateway doesn't need to configure the Node Agent
 	return nil
 }
 
-func (f *otelAgentGatewayFeature) ManageClusterChecksRunner(feature.PodTemplateManagers, string) error {
+func (f *otelAgentGatewayFeature) ManageClusterChecksRunner(feature.PodTemplateManagers) error {
 	// OtelAgentGateway doesn't need to configure the Cluster Checks Runner
 	return nil
 }
 
-func (f *otelAgentGatewayFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
+func (f *otelAgentGatewayFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers) error {
 	var vol corev1.Volume
 	if f.customConfig != nil && f.customConfig.ConfigMap != nil {
 		// Custom config is referenced via ConfigMap
@@ -242,11 +228,6 @@ func (f *otelAgentGatewayFeature) ManageOtelAgentGateway(managers feature.PodTem
 		// - when no config is passed (we use DefaultOtelAgentGatewayConfig)
 		volMount := volume.GetVolumeMountWithSubPath(otelAgentVolumeName, common.ConfigVolumePath+"/"+otelConfigFileName, otelConfigFileName)
 		managers.VolumeMount().AddVolumeMountToContainer(&volMount, apicommon.OtelAgent)
-	}
-
-	// Add md5 hash annotation for configMap
-	if f.customConfigAnnotationKey != "" && f.customConfigAnnotationValue != "" {
-		managers.Annotation().AddAnnotation(f.customConfigAnnotationKey, f.customConfigAnnotationValue)
 	}
 
 	// Add ports

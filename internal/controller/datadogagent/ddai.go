@@ -21,17 +21,19 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/experimental"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/global"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/override"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
-func (r *Reconciler) generateDDAIFromDDA(dda *v2alpha1.DatadogAgent) (*v1alpha1.DatadogAgentInternal, error) {
+func (r *Reconciler) generateDDAIFromDDA(dda *v2alpha1.DatadogAgent, provider string) (*v1alpha1.DatadogAgentInternal, error) {
 	ddai := &v1alpha1.DatadogAgentInternal{}
 	// Object meta
-	if err := generateObjMetaFromDDA(dda, ddai, r.scheme); err != nil {
+	if err := generateObjMetaFromDDA(dda, ddai, r.scheme, provider); err != nil {
 		return nil, err
 	}
 	// Spec
@@ -47,11 +49,32 @@ func (r *Reconciler) generateDDAIFromDDA(dda *v2alpha1.DatadogAgent) (*v1alpha1.
 	return ddai, nil
 }
 
-func generateObjMetaFromDDA(dda *v2alpha1.DatadogAgent, ddai *v1alpha1.DatadogAgentInternal, scheme *runtime.Scheme) error {
+// generateObjMetaFromDDA builds the DDAI ObjectMeta from the DDA. A resolved
+// provider that is specific (non-empty and not "default") is stamped as the
+// provider annotation on the DDAI (never on the DDA); "default"/empty is left
+// unset since it carries no provider-specific config. See resolveClusterProvider
+// for precedence.
+func generateObjMetaFromDDA(dda *v2alpha1.DatadogAgent, ddai *v1alpha1.DatadogAgentInternal, scheme *runtime.Scheme, provider string) error {
 	// Copy ddaiAnnotations but strip kubectl last-applied-configuration to avoid confusing kind detection for metrics forwarder
 	// Moreover, the applied configuration is the one for DDA, not DDAI, so it doesn't make sense.
 	ddaiAnnotations := maps.Clone(dda.Annotations)
 	delete(ddaiAnnotations, "kubectl.kubernetes.io/last-applied-configuration")
+
+	// Resolve the provider from the DDA annotations and stamp it on the DDAI so the
+	// DDAI reconciler picks it up. GKE Autopilot can be enabled via either the experimental
+	// or provider annotation and we need to check both.
+	if experimental.IsAutopilotEnabled(dda) {
+		if ddaiAnnotations == nil {
+			ddaiAnnotations = map[string]string{}
+		}
+		ddaiAnnotations[kubernetes.ProviderAnnotationKey] = kubernetes.GKEAutopilotProvider
+	}
+	if kubernetes.IsSpecificProvider(provider) {
+		if ddaiAnnotations == nil {
+			ddaiAnnotations = make(map[string]string)
+		}
+		ddaiAnnotations[kubernetes.ProviderAnnotationKey] = provider
+	}
 
 	ddai.ObjectMeta = metav1.ObjectMeta{
 		Name:        dda.Name,
@@ -74,12 +97,21 @@ func generateSpecFromDDA(dda *v2alpha1.DatadogAgent, ddai *v1alpha1.DatadogAgent
 }
 
 // getDDAILabels adds the following labels to the DDAI:
-// - all DDA labels
-// - agent.datadoghq.com/datadogagent: <dda-name>
-func getDDAILabels(dda metav1.Object) map[string]string {
+//   - all DDA labels
+//   - agent.datadoghq.com/datadogagent: <dda-name>
+//   - spec.global.commonLabels (if set), so that policy enforcement tools acting
+//     on the DDAI object itself see the same extra labels as all other resources.
+func getDDAILabels(dda *v2alpha1.DatadogAgent) map[string]string {
 	labels := make(map[string]string)
 	maps.Copy(labels, dda.GetLabels())
 	labels[apicommon.DatadogAgentNameLabelKey] = dda.GetName()
+	if dda.Spec.Global != nil {
+		for k, v := range dda.Spec.Global.CommonLabels {
+			if _, exists := labels[k]; !exists {
+				labels[k] = v
+			}
+		}
+	}
 	return labels
 }
 

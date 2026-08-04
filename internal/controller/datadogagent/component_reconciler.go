@@ -20,6 +20,7 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/global"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/override"
 	"github.com/DataDog/datadog-operator/pkg/condition"
 	"github.com/DataDog/datadog-operator/pkg/constants"
@@ -82,7 +83,7 @@ type ComponentReconciler interface {
 	GetNewDeploymentFunc() func(dda metav1.Object, spec *datadoghqv2alpha1.DatadogAgentSpec) *appsv1.Deployment
 
 	// GetManageFeatureFunc feature function to manage the component
-	GetManageFeatureFunc() func(feat feature.Feature, managers feature.PodTemplateManagers, provider string) error
+	GetManageFeatureFunc() func(feat feature.Feature, managers feature.PodTemplateManagers) error
 
 	// UpdateStatus updates the status of the component
 	UpdateStatus(deployment *appsv1.Deployment, newStatus *datadoghqv2alpha1.DatadogAgentStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string)
@@ -164,7 +165,7 @@ func (r *ComponentRegistry) ReconcileComponents(ctx context.Context, params *Rec
 		}
 
 		// Merge result (preserve requeue settings)
-		if res.Requeue || res.RequeueAfter > 0 {
+		if !res.IsZero() {
 			result = res
 		}
 	}
@@ -179,16 +180,18 @@ func (r *ComponentRegistry) reconcileComponent(ctx context.Context, params *Reco
 	deploymentLogger := params.Logger.WithValues("component", component.Name())
 
 	// Start by creating the Default Cluster-Agent deployment
-	deployment := component.GetNewDeploymentFunc()(params.DDA.GetObjectMeta(), &params.DDA.Spec)
+	// Pass params.DDA directly (not GetObjectMeta()) so that getCommonLabels can
+	// type-assert to *v2alpha1.DatadogAgent and read spec.global.commonLabels.
+	deployment := component.GetNewDeploymentFunc()(params.DDA, &params.DDA.Spec)
 	podManagers := feature.NewPodTemplateManagers(&deployment.Spec.Template)
 
 	// Set Global setting on the default deployment
-	component.GetGlobalSettingsFunc()(deploymentLogger, podManagers, params.DDA.GetObjectMeta(), &params.DDA.Spec, params.ResourceManagers, params.RequiredComponents)
+	component.GetGlobalSettingsFunc()(deploymentLogger, podManagers, params.DDA, &params.DDA.Spec, params.ResourceManagers, params.RequiredComponents)
 
 	// Apply features changes on the Deployment.Spec.Template
 	var featErrors []error
 	for _, feat := range params.Features {
-		if errFeat := component.GetManageFeatureFunc()(feat, podManagers, params.Provider); errFeat != nil {
+		if errFeat := component.GetManageFeatureFunc()(feat, podManagers); errFeat != nil {
 			featErrors = append(featErrors, errFeat)
 		}
 	}
@@ -207,6 +210,12 @@ func (r *ComponentRegistry) reconcileComponent(ctx context.Context, params *Reco
 	if componentOverride, ok := params.DDA.Spec.Override[component.Name()]; ok {
 		override.PodTemplateSpec(deploymentLogger, podManagers, componentOverride, component.Name(), params.DDA.Name)
 		override.Deployment(deployment, componentOverride)
+	}
+
+	if errs := global.ValidateFIPSVersions(podManagers); len(errs) > 0 {
+		err := utilerrors.NewAggregate(errs)
+		component.UpdateStatus(deployment, params.Status, now, metav1.ConditionFalse, fmt.Sprintf("%s FIPS version error", component.Name()), err.Error())
+		return result, err
 	}
 
 	if r.reconciler.options.IntrospectionEnabled {
@@ -237,7 +246,13 @@ func (r *ComponentRegistry) reconcileComponent(ctx context.Context, params *Reco
 
 // Cleanup removes the component deployment, associated resources and updates status
 func (r *ComponentRegistry) Cleanup(ctx context.Context, params *ReconcileComponentParams, component ComponentReconciler) (reconcile.Result, error) {
-	deployment := component.GetNewDeploymentFunc()(params.DDA.GetObjectMeta(), &params.DDA.Spec)
+	deployment := component.GetNewDeploymentFunc()(params.DDA, &params.DDA.Spec)
+
+	// Apply the name override so we delete the correct deployment
+	if componentOverride, ok := params.DDA.Spec.Override[component.Name()]; ok {
+		override.Deployment(deployment, componentOverride)
+	}
+
 	result, err := r.reconciler.deleteDeploymentWithEvent(ctx, params.Logger, params.DDA, deployment)
 
 	if err != nil {

@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dsd-uds-sender
+  namespace: e2e-operator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dsd-uds-sender
+  template:
+    metadata:
+      labels:
+        app: dsd-uds-sender
+    spec:
+      containers:
+        - name: sender
+          image: public.ecr.aws/docker/library/python:3-alpine
+          command:
+            - python3
+            - -c
+            - |
+              import socket, time
+              sock_path = '/var/run/datadog/dsd.socket'
+              print(f"Sending e2e.dsd.uds.counter to {sock_path}", flush=True)
+              while True:
+                  s = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
+                  try:
+                      s.sendto(b'e2e.dsd.uds.counter:1|c', sock_path)
+                  except Exception as e:
+                      print(f"send error: {e}", flush=True)
+                  finally:
+                      s.close()
+                  time.sleep(1)
+          volumeMounts:
+            - name: dsdsocket
+              mountPath: /var/run/datadog
+              readOnly: false
+          resources:
+            requests:
+              memory: "32Mi"
+              cpu: "2m"
+            limits:
+              memory: "64Mi"
+              cpu: "10m"
+      volumes:
+        - name: dsdsocket
+          hostPath:
+            path: /var/run/datadog
+            type: DirectoryOrCreate

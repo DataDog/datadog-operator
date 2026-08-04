@@ -38,6 +38,16 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
+	// SSI is configured on the Cluster Agent, so profile SSI config needs a
+	// shared-component overlay in addition to the normal per-DDAI feature path.
+	err = feature.RegisterProfileSharedConfigOverlay(feature.APMIDType, applyAPMProfileSharedConfigOverlay)
+	if err != nil {
+		panic(err)
+	}
+	err = feature.RegisterDDASharedDependencies(feature.APMIDType, applyAPMDDASharedDependencies)
+	if err != nil {
+		panic(err)
+	}
 }
 
 func buildAPMFeature(options *feature.Options) feature.Feature {
@@ -51,6 +61,10 @@ func buildAPMFeature(options *feature.Options) feature.Feature {
 }
 
 type apmFeature struct {
+	// nodeAPMEnabled tracks the node-agent side of APM separately from SSI.
+	// Profiles can contribute SSI Cluster Agent config without enabling trace
+	// agent configuration on the default DDAI.
+	nodeAPMEnabled   bool
 	hostPortEnabled  bool
 	hostPortHostPort int32
 	useHostNetwork   bool
@@ -61,9 +75,6 @@ type apmFeature struct {
 	udsHostFilepath string
 
 	owner metav1.Object
-
-	forceEnableLocalService bool
-	localServiceName        string
 
 	createKubernetesNetworkPolicy bool
 	createCiliumNetworkPolicy     bool
@@ -84,6 +95,7 @@ type instrumentationConfig struct {
 	libVersions        map[string]string
 	languageDetection  *languageDetection
 	injector           *injector
+	injectionMode      string
 	targets            []v2alpha1.SSITarget
 }
 
@@ -121,15 +133,33 @@ func shouldEnableAPM(apmConf *v2alpha1.APMFeatureConfig) bool {
 	return false
 }
 
+func shouldConfigureSSI(apmConf *v2alpha1.APMFeatureConfig, ddaSpec *v2alpha1.DatadogAgentSpec) bool {
+	if apmConf == nil || apmConf.SingleStepInstrumentation == nil {
+		return false
+	}
+	// Configure only renders SSI when the shared components it needs can exist.
+	// Profile overlays use the same validation but return an error instead of
+	// silently skipping the profile contribution.
+	return validateSSISharedComponentPrerequisites(ddaSpec) == nil
+}
+
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *apmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
 	f.owner = dda
 	apm := ddaSpec.Features.APM
-	if shouldEnableAPM(apm) {
-		f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda.GetName(), ddaSpec)
+	if apm == nil {
+		return reqComp
+	}
+
+	f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda.GetName(), ddaSpec)
+	f.nodeAPMEnabled = shouldEnableAPM(apm)
+	f.processCheckRunsInCoreAgent = featutils.ShouldRunProcessChecksInCoreAgent(ddaSpec)
+
+	// Node APM controls trace-agent configuration and node-scoped dependencies.
+	if f.nodeAPMEnabled {
 		f.useHostNetwork = constants.IsHostNetworkEnabled(ddaSpec, v2alpha1.NodeAgentComponentName)
 
-		// Check if autopilot is enabled and override defaults accordingly
+		// Check if autopilot is enabled and override defaults accordingly.
 		if experimental.IsAutopilotEnabled(dda) {
 			f.hostPortEnabled = true
 			f.udsEnabled = false
@@ -150,51 +180,52 @@ func (f *apmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 		}
 		f.udsHostFilepath = *apm.UnixDomainSocketConfig.Path
 
-		if ddaSpec.Global.LocalService != nil {
-			f.forceEnableLocalService = apiutils.BoolValue(ddaSpec.Global.LocalService.ForceEnableLocalService)
-		}
-		f.localServiceName = constants.GetLocalAgentServiceName(dda.GetName(), ddaSpec)
-
-		reqComp = feature.RequiredComponents{
-			Agent: feature.RequiredComponent{
-				IsRequired: apiutils.NewBoolPointer(true),
-				Containers: []apicommon.AgentContainerName{
-					apicommon.CoreAgentContainerName,
-					apicommon.TraceAgentContainerName,
-				},
+		reqComp.Agent = feature.RequiredComponent{
+			IsRequired: new(true),
+			Containers: []apicommon.AgentContainerName{
+				apicommon.CoreAgentContainerName,
+				apicommon.TraceAgentContainerName,
 			},
 		}
+	}
 
-		if apm.SingleStepInstrumentation != nil &&
-			(ddaSpec.Features.AdmissionController != nil && apiutils.BoolValue(ddaSpec.Features.AdmissionController.Enabled)) {
-			// TODO: add debug log in case Admission controller is disabled (it's a required feature).
-			f.singleStepInstrumentation = &instrumentationConfig{}
-			f.singleStepInstrumentation.enabled = apiutils.BoolValue(apm.SingleStepInstrumentation.Enabled)
-			f.singleStepInstrumentation.disabledNamespaces = apm.SingleStepInstrumentation.DisabledNamespaces
-			f.singleStepInstrumentation.enabledNamespaces = apm.SingleStepInstrumentation.EnabledNamespaces
-			f.singleStepInstrumentation.libVersions = apm.SingleStepInstrumentation.LibVersions
-			f.singleStepInstrumentation.languageDetection = &languageDetection{enabled: apiutils.BoolValue(ddaSpec.Features.APM.SingleStepInstrumentation.LanguageDetection.Enabled)}
+	// SSI controls Cluster Agent admission instrumentation config. It is kept
+	// separate from nodeAPMEnabled so a profile can enable SSI for a node group
+	// without turning on trace-agent config in the default DDAI.
+	if shouldConfigureSSI(apm, ddaSpec) {
+		f.singleStepInstrumentation = &instrumentationConfig{}
+		f.singleStepInstrumentation.enabled = apiutils.BoolValue(apm.SingleStepInstrumentation.Enabled)
+		f.singleStepInstrumentation.disabledNamespaces = apm.SingleStepInstrumentation.DisabledNamespaces
+		f.singleStepInstrumentation.enabledNamespaces = apm.SingleStepInstrumentation.EnabledNamespaces
+		f.singleStepInstrumentation.libVersions = apm.SingleStepInstrumentation.LibVersions
+		if apm.SingleStepInstrumentation.LanguageDetection != nil {
+			f.singleStepInstrumentation.languageDetection = &languageDetection{enabled: apiutils.BoolValue(apm.SingleStepInstrumentation.LanguageDetection.Enabled)}
+		}
+		if apm.SingleStepInstrumentation.Injector != nil {
 			f.singleStepInstrumentation.injector = &injector{imageTag: apm.SingleStepInstrumentation.Injector.ImageTag}
-			if len(apm.SingleStepInstrumentation.Targets) > 0 {
-				if supportsInstrumentationTargets(ddaSpec) {
-					f.singleStepInstrumentation.targets = apm.SingleStepInstrumentation.Targets
-				} else {
-					f.logger.Info("Cannot enable instrumentation targets. features.apm.instrumentation.targets requires agent version >= 7.64.0")
-				}
-			}
-			reqComp.ClusterAgent = feature.RequiredComponent{
-				IsRequired: apiutils.NewBoolPointer(true),
-				Containers: []apicommon.AgentContainerName{
-					apicommon.ClusterAgentContainerName,
-				},
+		}
+		f.singleStepInstrumentation.injectionMode = string(apm.SingleStepInstrumentation.InjectionMode)
+		if len(apm.SingleStepInstrumentation.Targets) > 0 {
+			if supportsInstrumentationTargets(ddaSpec) {
+				f.singleStepInstrumentation.targets = apm.SingleStepInstrumentation.Targets
+			} else {
+				f.logger.Info(fmt.Sprintf("Cannot enable instrumentation targets. features.apm.instrumentation.targets requires agent version >= %s", minInstrumentationTargetsVersion))
 			}
 		}
+		reqComp.ClusterAgent = feature.RequiredComponent{
+			IsRequired: new(true),
+			Containers: []apicommon.AgentContainerName{
+				apicommon.ClusterAgentContainerName,
+			},
+		}
+	}
 
-		f.processCheckRunsInCoreAgent = featutils.ShouldRunProcessChecksInCoreAgent(ddaSpec)
+	// Language detection still needs process-agent support on nodes when process
+	// checks are not running in the core agent.
+	if f.nodeAPMEnabled {
 		if f.shouldEnableLanguageDetection() && !f.processCheckRunsInCoreAgent {
 			reqComp.Agent.Containers = append(reqComp.Agent.Containers, apicommon.ProcessAgentContainerName)
 		}
-
 		if apm.ErrorTrackingStandalone != nil {
 			f.errorTrackingStandalone = apiutils.BoolValue(apm.ErrorTrackingStandalone.Enabled)
 		}
@@ -210,6 +241,12 @@ func (f *apmFeature) shouldSetCustomInjectorImage() bool {
 		f.singleStepInstrumentation.injector.imageTag != ""
 }
 
+func (f *apmFeature) shouldSetInjectionMode() bool {
+	return f.singleStepInstrumentation != nil &&
+		f.singleStepInstrumentation.enabled &&
+		f.singleStepInstrumentation.injectionMode != ""
+}
+
 func (f *apmFeature) shouldEnableLanguageDetection() bool {
 	return f.singleStepInstrumentation != nil &&
 		f.singleStepInstrumentation.enabled &&
@@ -219,32 +256,9 @@ func (f *apmFeature) shouldEnableLanguageDetection() bool {
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *apmFeature) ManageDependencies(managers feature.ResourceManagers, provider string) error {
-	platformInfo := managers.Store().GetPlatformInfo()
-	// agent local service
-	if common.ShouldCreateAgentLocalService(platformInfo.GetVersionInfo(), f.forceEnableLocalService) {
-		apmPort := &corev1.ServicePort{
-			Protocol:   corev1.ProtocolTCP,
-			TargetPort: intstr.FromInt(int(constants.DefaultApmPort)),
-			Port:       constants.DefaultApmPort,
-			Name:       constants.DefaultApmPortName,
-		}
-		if f.hostPortEnabled {
-			apmPort.Port = f.hostPortHostPort
-			apmPort.Name = apmHostPortName
-			if f.useHostNetwork {
-				apmPort.TargetPort = intstr.FromInt(int(f.hostPortHostPort))
-			}
-		}
-
-		serviceInternalTrafficPolicy := corev1.ServiceInternalTrafficPolicyLocal
-		if err := managers.ServiceManager().AddService(f.localServiceName, f.owner.GetNamespace(), common.GetAgentLocalServiceSelector(f.owner), []corev1.ServicePort{*apmPort}, &serviceInternalTrafficPolicy); err != nil {
-			return err
-		}
-	}
-
+func (f *apmFeature) ManageDependencies(managers feature.ResourceManagers) error {
 	// network policies
-	if f.hostPortEnabled {
+	if f.nodeAPMEnabled && f.hostPortEnabled {
 		policyName, podSelector := objects.GetNetworkPolicyMetadata(f.owner, v2alpha1.NodeAgentComponentName)
 		if f.createKubernetesNetworkPolicy {
 			protocolTCP := corev1.ProtocolTCP
@@ -306,9 +320,70 @@ func (f *apmFeature) ManageDependencies(managers feature.ResourceManagers, provi
 	return nil
 }
 
+func applyAPMDDASharedDependencies(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, ddai metav1.Object, ddaiSpec *v2alpha1.DatadogAgentSpec, managers feature.ResourceManagers) error {
+	ports := apmLocalAgentServicePorts(ddai, ddaiSpec)
+	if len(ports) == 0 || !featutils.ShouldCreateLocalAgentService(ddaSpec, managers) {
+		return nil
+	}
+
+	serviceInternalTrafficPolicy := corev1.ServiceInternalTrafficPolicyLocal
+	return managers.ServiceManager().AddService(
+		constants.GetLocalAgentServiceName(dda.GetName(), ddaSpec),
+		dda.GetNamespace(),
+		common.GetAgentLocalServiceSelector(dda),
+		ports,
+		&serviceInternalTrafficPolicy,
+	)
+}
+
+func apmLocalAgentServicePorts(ddai metav1.Object, ddaiSpec *v2alpha1.DatadogAgentSpec) []corev1.ServicePort {
+	if ddaiSpec == nil || ddaiSpec.Features == nil || !shouldEnableAPM(ddaiSpec.Features.APM) {
+		return nil
+	}
+
+	apm := ddaiSpec.Features.APM
+	hostPortEnabled := false
+	hostPortHostPort := int32(constants.DefaultApmPort)
+	if apm.HostPortConfig != nil {
+		hostPortEnabled = apiutils.BoolValue(apm.HostPortConfig.Enabled)
+		if apm.HostPortConfig.Port != nil {
+			hostPortHostPort = *apm.HostPortConfig.Port
+		}
+	}
+	if experimental.IsAutopilotEnabled(ddai) {
+		hostPortEnabled = true
+	}
+
+	apmPort := corev1.ServicePort{
+		Protocol:   corev1.ProtocolTCP,
+		TargetPort: intstr.FromInt(int(constants.DefaultApmPort)),
+		Port:       constants.DefaultApmPort,
+		Name:       constants.DefaultApmPortName,
+	}
+	if hostPortEnabled {
+		apmPort.Port = hostPortHostPort
+		apmPort.Name = apmHostPortName
+		if constants.IsHostNetworkEnabled(ddaiSpec, v2alpha1.NodeAgentComponentName) {
+			apmPort.TargetPort = intstr.FromInt(int(hostPortHostPort))
+		}
+	}
+
+	return []corev1.ServicePort{apmPort}
+}
+
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *apmFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *apmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
+	if f.udsEnabled {
+		managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
+			Name:  DDTraceAgentHostSocketPath,
+			Value: filepath.Dir(f.udsHostFilepath),
+		})
+		managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
+			Name:  DDAPMReceiverSocket,
+			Value: f.udsHostFilepath,
+		})
+	}
 	if f.singleStepInstrumentation != nil {
 		if len(f.singleStepInstrumentation.disabledNamespaces) > 0 && len(f.singleStepInstrumentation.enabledNamespaces) > 0 {
 			// This configuration is not supported
@@ -323,6 +398,13 @@ func (f *apmFeature) ManageClusterAgent(managers feature.PodTemplateManagers, pr
 			managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
 				Name:  DDAPMInstrumentationInjectorImageTag,
 				Value: f.singleStepInstrumentation.injector.imageTag,
+			})
+		}
+
+		if f.shouldSetInjectionMode() {
+			managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
+				Name:  DDAPMInstrumentationInjectionMode,
+				Value: f.singleStepInstrumentation.injectionMode,
 			})
 		}
 
@@ -397,22 +479,28 @@ func supportsInstrumentationTargets(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
 // ManageSingleContainerNodeAgent allows a feature to configure the Agent container for the Node Agent's corev1.PodTemplateSpec
 // if SingleContainerStrategy is enabled and can be used with the configured feature set.
 // It should do nothing if the feature doesn't need to configure it.
-func (f *apmFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
-	f.manageNodeAgent(apicommon.UnprivilegedSingleAgentContainerName, managers, provider)
+func (f *apmFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers) error {
+	if !f.nodeAPMEnabled {
+		return nil
+	}
+	f.manageNodeAgent(apicommon.UnprivilegedSingleAgentContainerName, managers)
 	return nil
 }
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *apmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
-	f.manageNodeAgent(apicommon.TraceAgentContainerName, managers, provider)
+func (f *apmFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
+	if !f.nodeAPMEnabled {
+		return nil
+	}
+	f.manageNodeAgent(apicommon.TraceAgentContainerName, managers)
 	return nil
 }
 
-func (f *apmFeature) manageNodeAgent(agentContainerName apicommon.AgentContainerName, managers feature.PodTemplateManagers, provider string) error {
+func (f *apmFeature) manageNodeAgent(agentContainerName apicommon.AgentContainerName, managers feature.PodTemplateManagers) error {
 
 	managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
-		Name:  common.DDAPMEnabled,
+		Name:  constants.DDAPMEnabled,
 		Value: "true",
 	})
 
@@ -509,10 +597,10 @@ func (f *apmFeature) manageNodeAgent(agentContainerName apicommon.AgentContainer
 
 // ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunner's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *apmFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
+func (f *apmFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
 	return nil
 }
 
-func (f *apmFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
+func (f *apmFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers) error {
 	return nil
 }

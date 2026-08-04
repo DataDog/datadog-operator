@@ -38,31 +38,31 @@ func TestKsmCheckConfigYAMLFormat(t *testing.T) {
 			},
 			validateFunc: func(t *testing.T, output string) {
 				// Check that the YAML is valid
-				var config map[string]interface{}
+				var config map[string]any
 				err := yaml.Unmarshal([]byte(output), &config)
 				require.NoError(t, err, "YAML should be valid")
 
 				// Check structure
-				instances, ok := config["instances"].([]interface{})
+				instances, ok := config["instances"].([]any)
 				require.True(t, ok, "instances should be a list")
 				require.Len(t, instances, 1, "should have one instance")
 
-				instance, ok := instances[0].(map[string]interface{})
+				instance, ok := instances[0].(map[string]any)
 				require.True(t, ok, "instance should be a map")
 
-				customResource, ok := instance["custom_resource"].(map[string]interface{})
+				customResource, ok := instance["custom_resource"].(map[string]any)
 				require.True(t, ok, "custom_resource should exist")
 
-				spec, ok := customResource["spec"].(map[string]interface{})
+				spec, ok := customResource["spec"].(map[string]any)
 				require.True(t, ok, "spec should exist")
 
-				resources, ok := spec["resources"].([]interface{})
+				resources, ok := spec["resources"].([]any)
 				require.True(t, ok, "resources should be a list")
 				require.Len(t, resources, 1, "should have one resource")
 
 				// Check indentation visually
-				lines := strings.Split(output, "\n")
-				for _, line := range lines {
+				lines := strings.SplitSeq(output, "\n")
+				for line := range lines {
 					if strings.Contains(line, "custom_resource:") {
 						assert.True(t, strings.HasPrefix(line, "    "), "custom_resource should be indented with 4 spaces")
 					}
@@ -101,23 +101,23 @@ func TestKsmCheckConfigYAMLFormat(t *testing.T) {
 			},
 			validateFunc: func(t *testing.T, output string) {
 				// Check that the YAML is valid
-				var config map[string]interface{}
+				var config map[string]any
 				err := yaml.Unmarshal([]byte(output), &config)
 				require.NoError(t, err, "YAML should be valid")
 
 				// Navigate to resources
-				instances := config["instances"].([]interface{})
-				instance := instances[0].(map[string]interface{})
-				customResource := instance["custom_resource"].(map[string]interface{})
-				spec := customResource["spec"].(map[string]interface{})
-				resources := spec["resources"].([]interface{})
+				instances := config["instances"].([]any)
+				instance := instances[0].(map[string]any)
+				customResource := instance["custom_resource"].(map[string]any)
+				spec := customResource["spec"].(map[string]any)
+				resources := spec["resources"].([]any)
 
 				assert.Len(t, resources, 2, "should have two resources")
 
 				// Check both resources have the correct fields
 				for i, res := range resources {
-					resource := res.(map[string]interface{})
-					gvk, ok := resource["groupVersionKind"].(map[string]interface{})
+					resource := res.(map[string]any)
+					gvk, ok := resource["groupVersionKind"].(map[string]any)
 					require.True(t, ok, "resource %d should have groupVersionKind", i)
 					assert.NotNil(t, gvk["group"], "resource %d should have group", i)
 					assert.NotNil(t, gvk["version"], "resource %d should have version", i)
@@ -146,7 +146,7 @@ func TestKsmCheckConfigYAMLFormat(t *testing.T) {
 				assert.Contains(t, output, "custom_resource:", "should contain custom_resource section")
 
 				// Verify YAML is still valid
-				var config map[string]interface{}
+				var config map[string]any
 				err := yaml.Unmarshal([]byte(output), &config)
 				require.NoError(t, err, "YAML should be valid with both VPA and custom resources")
 			},
@@ -189,17 +189,17 @@ func TestKsmCheckConfigCustomResourcesWithMetricNamePrefix(t *testing.T) {
 	output := ksmCheckConfig(true, opts)
 
 	// Parse YAML to verify structure
-	var config map[string]interface{}
+	var config map[string]any
 	err := yaml.Unmarshal([]byte(output), &config)
 	require.NoError(t, err, "YAML should be valid")
 
 	// Navigate to the resource and check metricNamePrefix
-	instances := config["instances"].([]interface{})
-	instance := instances[0].(map[string]interface{})
-	customResource := instance["custom_resource"].(map[string]interface{})
-	spec := customResource["spec"].(map[string]interface{})
-	resources := spec["resources"].([]interface{})
-	resource := resources[0].(map[string]interface{})
+	instances := config["instances"].([]any)
+	instance := instances[0].(map[string]any)
+	customResource := instance["custom_resource"].(map[string]any)
+	spec := customResource["spec"].(map[string]any)
+	resources := spec["resources"].([]any)
+	resource := resources[0].(map[string]any)
 
 	assert.Equal(t, prefix, resource["metricNamePrefix"], "metricNamePrefix should be preserved")
 }

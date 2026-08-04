@@ -4,25 +4,25 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	apiutils "github.com/DataDog/datadog-operator/api/utils"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
-	"github.com/DataDog/datadog-operator/pkg/constants"
-	"github.com/DataDog/datadog-operator/pkg/images"
-	"github.com/DataDog/datadog-operator/pkg/testutils"
-	"github.com/stretchr/testify/assert"
+	"k8s.io/utils/ptr"
 
+	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	policyv1 "k8s.io/api/policy/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	"github.com/DataDog/datadog-operator/pkg/constants"
+	"github.com/DataDog/datadog-operator/pkg/images"
+	"github.com/DataDog/datadog-operator/pkg/testutils"
 )
 
 const (
 	testDdaName      = "foo"
 	testDdaNamespace = "bar"
-	agentConfigFile  = "/etc/datadog-agent/datadog.yaml"
 )
 
 func defaultDatadogAgent() *datadoghqv2alpha1.DatadogAgent {
@@ -96,7 +96,7 @@ func clusterAgentDefaultPodSpec(dda *datadoghqv2alpha1.DatadogAgent) corev1.PodS
 					{Name: "installinfo", ReadOnly: true, SubPath: "install_info", MountPath: "/etc/datadog-agent/install_info"},
 					{Name: "confd", ReadOnly: true, MountPath: "/conf.d"},
 					{Name: "logdatadog", ReadOnly: false, MountPath: "/var/log/datadog"},
-					{Name: "tmp", ReadOnly: false, MountPath: "/tmp"},
+					{Name: "tmpdir", ReadOnly: false, MountPath: "/tmp"},
 					{Name: "certificates", ReadOnly: false, MountPath: "/etc/datadog-agent/certificates"},
 					{Name: "datadog-agent-auth", MountPath: "/etc/datadog-agent/auth"},
 				},
@@ -104,8 +104,8 @@ func clusterAgentDefaultPodSpec(dda *datadoghqv2alpha1.DatadogAgent) corev1.PodS
 				ReadinessProbe: defaultReadinessProbe(),
 				StartupProbe:   defaultStartupProbe(),
 				SecurityContext: &corev1.SecurityContext{
-					ReadOnlyRootFilesystem:   apiutils.NewBoolPointer(true),
-					AllowPrivilegeEscalation: apiutils.NewBoolPointer(false),
+					ReadOnlyRootFilesystem:   ptr.To(true),
+					AllowPrivilegeEscalation: ptr.To(false),
 				},
 			},
 		},
@@ -131,7 +131,7 @@ func clusterAgentDefaultPodSpec(dda *datadoghqv2alpha1.DatadogAgent) corev1.PodS
 				},
 			},
 			{
-				Name: "tmp",
+				Name: "tmpdir",
 				VolumeSource: corev1.VolumeSource{
 					EmptyDir: &corev1.EmptyDirVolumeSource{},
 				},
@@ -235,6 +235,10 @@ func clusterAgentDefaultEnvVars(dda *datadoghqv2alpha1.DatadogAgent) []corev1.En
 		{
 			Name:  "DD_KUBE_RESOURCES_NAMESPACE",
 			Value: testDdaNamespace,
+		},
+		{
+			Name:  "DD_KUBERNETES_USE_ENDPOINT_SLICES",
+			Value: "true",
 		},
 		{
 			Name: "DD_INSTRUMENTATION_INSTALL_ID",

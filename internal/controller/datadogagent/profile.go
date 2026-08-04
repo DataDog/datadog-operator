@@ -8,23 +8,30 @@ package datadogagent
 import (
 	"context"
 	"fmt"
+	"maps"
 
 	"github.com/prometheus/client_golang/prometheus"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	ctrl "sigs.k8s.io/controller-runtime"
 
 	v1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	v2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/experimental"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/metrics"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
+	"github.com/DataDog/datadog-operator/pkg/condition"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 func sendProfileEnabledMetric(enabled bool) {
@@ -35,16 +42,30 @@ func sendProfileEnabledMetric(enabled bool) {
 	}
 }
 
+// setProfileCondition updates a single condition on the profile in place.
+func setProfileCondition(profile *v1alpha1.DatadogAgentProfile, conditionType string, status metav1.ConditionStatus, now metav1.Time, reason, message string) {
+	profile.Status.Conditions = agentprofile.SetDatadogAgentProfileCondition(
+		profile.Status.Conditions,
+		agentprofile.NewDatadogAgentProfileCondition(conditionType, status, now, reason, message),
+	)
+}
+
 // reconcileProfiles reconciles all profiles
 // - returns a list of profiles that should be applied (including the default profile)
 // - configures node labels based on the profiles that are applied
 // - applies profile status updates in k8s
-func (r *Reconciler) reconcileProfiles(ctx context.Context, dsNSName types.NamespacedName, ddaEDSMaxUnavailable intstr.IntOrString) ([]*v1alpha1.DatadogAgentProfile, error) {
+func (r *Reconciler) reconcileProfiles(ctx context.Context, dsNSName types.NamespacedName, ddaEDSMaxUnavailable intstr.IntOrString, defaultDDAI *v1alpha1.DatadogAgentInternal) ([]*v1alpha1.DatadogAgentProfile, error) {
+	logger := ctrl.LoggerFrom(ctx)
 	now := metav1.Now()
 	// start with the default profile so that on error, at minimum the default profile is applied
 	defaultProfile := agentprofile.DefaultProfile()
 	appliedProfiles := []*v1alpha1.DatadogAgentProfile{&defaultProfile}
-	// get and sort all profiles
+	// accumulatedDefaultSpec config starts as the DDA-generated default and
+	// changes with each accepted profile's shared overlay contributions.
+	baseDefaultSpec := defaultDDAI.Spec.DeepCopy()
+	accumulatedDefaultSpec := defaultDDAI.Spec.DeepCopy()
+
+	// list and sort profiles
 	profilesList := v1alpha1.DatadogAgentProfileList{}
 	if err := r.client.List(ctx, &profilesList); err != nil {
 		return appliedProfiles, fmt.Errorf("unable to list DatadogAgentProfiles: %w", err)
@@ -65,79 +86,110 @@ func (r *Reconciler) reconcileProfiles(ctx context.Context, dsNSName types.Names
 
 	// csInfo holds create strategy data per profile
 	csInfo := make(map[types.NamespacedName]*agentprofile.CreateStrategyInfo)
+
 	for _, profile := range sortedProfiles {
-		profileCopy := profile.DeepCopy() // deep copy to avoid modifying status of original profile
-		if err := r.reconcileProfile(ctx, profileCopy, nodeList, profilesByNode, csInfo, now); err != nil {
-			// errors will be validation or conflict errors
-			r.log.Error(err, "unable to reconcile profile", "datadogagentprofile", profileCopy.Name, "datadogagentprofile_namespace", profileCopy.Namespace)
+		originalStatus := profile.Status.DeepCopy()
+		logger.Info("reconciling profile", "datadogagentprofile", profile.Name, "datadogagentprofile_namespace", profile.Namespace)
+
+		r.addDDAIStatusToProfileStatus(ctx, &profile, defaultDDAI.Name, defaultDDAI.Namespace, now)
+
+		requirements, err := agentprofile.ValidateProfileAndReturnRequirements(&profile)
+		if err != nil {
+			metrics.DAPValid.With(prometheus.Labels{"datadogagentprofile": profile.Name}).Set(metrics.FalseValue)
+			setProfileCondition(&profile, agentprofile.ValidConditionType, metav1.ConditionFalse, now, agentprofile.InvalidConditionReason, err.Error())
+			setProfileCondition(&profile, agentprofile.AppliedConditionType, metav1.ConditionUnknown, now, agentprofile.InvalidConditionReason, "Profile is invalid")
+			logger.Error(err, "unable to reconcile profile", "datadogagentprofile", profile.Name, "datadogagentprofile_namespace", profile.Namespace)
+			r.syncProfileStatus(ctx, &profile, originalStatus, now)
+			continue
 		}
-		agentprofile.GenerateProfileStatusFromConditions(r.log, profileCopy, now)
-		if !agentprofile.IsEqualStatus(&profile.Status, &profileCopy.Status) {
-			if err := r.client.Status().Update(ctx, profileCopy); err != nil {
-				r.log.Error(err, "unable to update profile status", "datadogagentprofile", profile.Name, "datadogagentprofile_namespace", profile.Namespace)
-			}
+		metrics.DAPValid.With(prometheus.Labels{"datadogagentprofile": profile.Name}).Set(metrics.TrueValue)
+		setProfileCondition(&profile, agentprofile.ValidConditionType, metav1.ConditionTrue, now, agentprofile.ValidConditionReason, "Valid manifest")
+
+		if err := agentprofile.CheckProfileNodeConflicts(profile.ObjectMeta, requirements, nodeList, profilesByNode); err != nil {
+			setProfileCondition(&profile, agentprofile.AppliedConditionType, metav1.ConditionFalse, now, agentprofile.ConflictConditionReason, "Conflict with existing profile")
+			logger.Error(err, "unable to reconcile profile", "datadogagentprofile", profile.Name, "datadogagentprofile_namespace", profile.Namespace)
+			r.syncProfileStatus(ctx, &profile, originalStatus, now)
+			continue
 		}
-		// add profile to list of applied profiles only if it was applied successfully
-		if profileCopy.Status.Applied == metav1.ConditionTrue {
-			appliedProfiles = append(appliedProfiles, profileCopy)
+
+		// Modify default DDAI spec with shared configs, e.g. DCA configs.
+		// Spec changes are applied later if there is no error.
+		// candidateDefaultSpec = accumulated spec config from default DDAI and profiles.
+		// baseDefaultSpec = original default DDAI spec before any profile overlays were applied (used to detect user-configured vs defaulted configs)
+		candidateDefaultSpec := accumulatedDefaultSpec.DeepCopy()
+		if err := feature.ApplyProfileSharedConfigOverlays(candidateDefaultSpec, baseDefaultSpec, profile.Spec.Config); err != nil {
+			setProfileCondition(&profile, agentprofile.AppliedConditionType, metav1.ConditionFalse, now, agentprofile.ConflictConditionReason, err.Error())
+			logger.Error(err, "unable to reconcile profile", "datadogagentprofile", profile.Name, "datadogagentprofile_namespace", profile.Namespace)
+			r.syncProfileStatus(ctx, &profile, originalStatus, now)
+			continue
 		}
+
+		// The profile is valid and its shared overlay was accepted.
+		// Commit node assignment and shared overlay changes.
+		agentprofile.AssignNodesToProfile(profile.ObjectMeta, requirements, nodeList, profilesByNode, csInfo)
+		accumulatedDefaultSpec = candidateDefaultSpec
+		setProfileCondition(&profile, agentprofile.AppliedConditionType, metav1.ConditionTrue, now, agentprofile.AppliedConditionReason, "Profile applied")
+		r.syncProfileStatus(ctx, &profile, originalStatus, now)
+		appliedProfiles = append(appliedProfiles, &profile)
 	}
 
-	// create strategy
-	if agentprofile.CreateStrategyEnabled() {
-		for _, profile := range appliedProfiles {
-			if !agentprofile.CreateStrategyNeeded(profile, csInfo) {
-				continue
-			}
+	// Persist the accepted shared config back to the default DDAI used later to
+	// render the default-profile DDAI object.
+	defaultDDAI.Spec = *accumulatedDefaultSpec
 
-			// get ds to set create strategy status
-			ds, err := r.getProfileDaemonSet(ctx, profile, dsNSName)
-			if err != nil {
-				return appliedProfiles, fmt.Errorf("unable to get profile daemon set: %w", err)
-			}
-
-			profileCopy := profile.DeepCopy()
-			agentprofile.ApplyCreateStrategy(r.log, profilesByNode, csInfo[types.NamespacedName{Namespace: profile.Namespace, Name: profile.Name}], profileCopy, ddaEDSMaxUnavailable, len(nodeList), &ds.Status)
-			if !agentprofile.IsEqualStatus(&profile.Status, &profileCopy.Status) {
-				if err := r.client.Status().Update(ctx, profileCopy); err != nil {
-					r.log.Error(err, "unable to update profile status", "datadogagentprofile", profileCopy.Name, "datadogagentprofile_namespace", profileCopy.Namespace)
-				}
-			}
-		}
+	if err := r.enforceCreateStrategy(ctx, appliedProfiles, profilesByNode, csInfo, dsNSName, ddaEDSMaxUnavailable, len(nodeList)); err != nil {
+		return appliedProfiles, err
 	}
 
-	// label nodes
 	if err := r.labelNodesWithProfiles(ctx, profilesByNode); err != nil {
 		return appliedProfiles, fmt.Errorf("unable to label nodes with profiles: %w", err)
 	}
+
+	if err := r.cleanupPodsForProfilesThatNoLongerApply(ctx, profilesByNode, dsNSName.Namespace); err != nil {
+		return appliedProfiles, fmt.Errorf("unable to cleanup pods for profiles that no longer apply: %w", err)
+	}
+
 	return appliedProfiles, nil
 }
 
-// reconcileProfile reconciles a single profile
-// - validates the profile
-// - checks for conflicts with existing profiles
-// - updates the profile status based on profile validation and application success
-func (r *Reconciler) reconcileProfile(ctx context.Context, profile *v1alpha1.DatadogAgentProfile, nodeList []corev1.Node, profilesByNode map[string]types.NamespacedName, csInfo map[types.NamespacedName]*agentprofile.CreateStrategyInfo, now metav1.Time) error {
-	r.log.Info("reconciling profile", "datadogagentprofile", profile.Name, "datadogagentprofile_namespace", profile.Namespace)
-	// validate profile name, spec, and selectors
-	requirements, err := agentprofile.ValidateProfileAndReturnRequirements(profile, r.options.DatadogAgentInternalEnabled)
-	if err != nil {
-		metrics.DAPValid.With(prometheus.Labels{"datadogagentprofile": profile.Name}).Set(metrics.FalseValue)
-		profile.Status.Conditions = agentprofile.SetDatadogAgentProfileCondition(profile.Status.Conditions, agentprofile.NewDatadogAgentProfileCondition(agentprofile.ValidConditionType, metav1.ConditionFalse, now, agentprofile.InvalidConditionReason, err.Error()))
-		profile.Status.Conditions = agentprofile.SetDatadogAgentProfileCondition(profile.Status.Conditions, agentprofile.NewDatadogAgentProfileCondition(agentprofile.AppliedConditionType, metav1.ConditionUnknown, now, "", ""))
-		return err
+// enforceCreateStrategy updates create-strategy status for applied profiles and
+// prunes profilesByNode so only nodes allowed by the strategy are labeled.
+func (r *Reconciler) enforceCreateStrategy(ctx context.Context, appliedProfiles []*v1alpha1.DatadogAgentProfile, profilesByNode map[string]types.NamespacedName, csInfo map[types.NamespacedName]*agentprofile.CreateStrategyInfo, dsNSName types.NamespacedName, ddaEDSMaxUnavailable intstr.IntOrString, nodeCount int) error {
+	if !agentprofile.CreateStrategyEnabled() {
+		return nil
 	}
-	metrics.DAPValid.With(prometheus.Labels{"datadogagentprofile": profile.Name}).Set(metrics.TrueValue)
-	profile.Status.Conditions = agentprofile.SetDatadogAgentProfileCondition(profile.Status.Conditions, agentprofile.NewDatadogAgentProfileCondition(agentprofile.ValidConditionType, metav1.ConditionTrue, now, agentprofile.ValidConditionReason, "Valid manifest"))
+	logger := ctrl.LoggerFrom(ctx)
+	for _, profile := range appliedProfiles {
+		if !agentprofile.CreateStrategyNeeded(profile, csInfo) {
+			continue
+		}
 
-	// err can only be conflict
-	if err := agentprofile.ApplyProfileToNodes(profile.ObjectMeta, requirements, nodeList, profilesByNode, csInfo); err != nil {
-		profile.Status.Conditions = agentprofile.SetDatadogAgentProfileCondition(profile.Status.Conditions, agentprofile.NewDatadogAgentProfileCondition(agentprofile.AppliedConditionType, metav1.ConditionFalse, now, agentprofile.ConflictConditionReason, "Conflict with existing profile"))
-		return err
+		// get profile ds to set create strategy status
+		ds, err := r.getProfileDaemonSet(ctx, profile, dsNSName)
+		if err != nil {
+			return fmt.Errorf("unable to get profile daemon set: %w", err)
+		}
+
+		profileCopy := profile.DeepCopy()
+		agentprofile.ApplyCreateStrategy(logger, profilesByNode, csInfo[types.NamespacedName{Namespace: profile.Namespace, Name: profile.Name}], profileCopy, ddaEDSMaxUnavailable, nodeCount, &ds.Status)
+		if !agentprofile.IsEqualStatus(&profile.Status, &profileCopy.Status) {
+			if err := r.client.Status().Update(ctx, profileCopy); err != nil {
+				logger.Error(err, "unable to update profile status", "datadogagentprofile", profileCopy.Name, "datadogagentprofile_namespace", profileCopy.Namespace)
+			}
+		}
 	}
-	profile.Status.Conditions = agentprofile.SetDatadogAgentProfileCondition(profile.Status.Conditions, agentprofile.NewDatadogAgentProfileCondition(agentprofile.AppliedConditionType, metav1.ConditionTrue, now, agentprofile.AppliedConditionReason, "Profile applied"))
-
 	return nil
+}
+
+// syncProfileStatus generates status from conditions and persists it to k8s if it changed.
+func (r *Reconciler) syncProfileStatus(ctx context.Context, profile *v1alpha1.DatadogAgentProfile, originalStatus *v1alpha1.DatadogAgentProfileStatus, now metav1.Time) {
+	logger := ctrl.LoggerFrom(ctx)
+	agentprofile.GenerateProfileStatusFromConditions(logger, profile, now)
+	if !agentprofile.IsEqualStatus(originalStatus, &profile.Status) {
+		if err := r.client.Status().Update(ctx, profile); err != nil {
+			logger.Error(err, "unable to update profile status", "datadogagentprofile", profile.Name, "datadogagentprofile_namespace", profile.Namespace)
+		}
+	}
 }
 
 func (r *Reconciler) getProfileDaemonSet(ctx context.Context, profile *v1alpha1.DatadogAgentProfile, dsName types.NamespacedName) (*appsv1.DaemonSet, error) {
@@ -156,13 +208,20 @@ func (r *Reconciler) getProfileDaemonSet(ctx context.Context, profile *v1alpha1.
 	return nil, fmt.Errorf("no valid daemonset found")
 }
 
-func (r *Reconciler) applyProfilesToDDAISpec(ddai *v1alpha1.DatadogAgentInternal, profiles []*v1alpha1.DatadogAgentProfile) ([]*v1alpha1.DatadogAgentInternal, error) {
+func (r *Reconciler) applyProfilesToDDAISpec(baseDDAI, defaultDDAI *v1alpha1.DatadogAgentInternal, profiles []*v1alpha1.DatadogAgentProfile) ([]*v1alpha1.DatadogAgentInternal, error) {
 	ddais := []*v1alpha1.DatadogAgentInternal{}
 
 	// For all profiles, create DDAI objects
 	// Note: profiles includes the default profile to allow the default affinity to be set
 	for _, profile := range profiles {
-		mergedDDAI, err := r.computeProfileMerge(ddai, profile)
+		// User profiles are merged from the original base DDAI. The synthetic
+		// default profile is merged from defaultDDAI so it includes shared config
+		// accepted from profiles, for example APM SSI Cluster Agent config.
+		sourceDDAI := baseDDAI
+		if agentprofile.IsDefaultProfile(profile.Namespace, profile.Name) {
+			sourceDDAI = defaultDDAI
+		}
+		mergedDDAI, err := r.computeProfileMerge(sourceDDAI, profile)
 		if err != nil {
 			return nil, err
 		}
@@ -197,6 +256,12 @@ func (r *Reconciler) computeProfileMerge(ddai *v1alpha1.DatadogAgentInternal, pr
 	if !ok {
 		return nil, fmt.Errorf("unexpected type: %T", obj)
 	}
+	// Profile merging replaces the DDAI spec and can reintroduce a registry that
+	// is rejected by the GKE Autopilot workload allowlist. Enforce the registry
+	// constraint on the final merged object before computing its spec hash.
+	if experimental.IsAutopilotEnabled(typedObj) {
+		ensureGCRAutopilotRegistry(&typedObj.Spec)
+	}
 
 	// Set spec hash
 	if _, err := comparison.SetMD5GenerationAnnotation(&typedObj.ObjectMeta, typedObj.Spec, constants.MD5DDAIDeploymentAnnotationKey); err != nil {
@@ -209,7 +274,37 @@ func setProfileSpec(ddai *v1alpha1.DatadogAgentInternal, profile *v1alpha1.Datad
 	// create affinity from ddai and profile prior to re-set after replacing the ddai spec
 	affinity := setProfileDDAIAffinity(ddai, profile)
 	if !agentprofile.IsDefaultProfile(profile.Namespace, profile.Name) {
+		// Capture spec.global.commonLabels from the base DDAI before replacing
+		// the spec with the profile config. The profile's Config is a user-defined
+		// DatadogAgentSpec that doesn't include the parent DDA's global settings,
+		// so commonLabels would be silently dropped. We restore them afterward so
+		// that label-enforcing admission policies (e.g. Kyverno) do not reject
+		// the profile DaemonSet even when the parent DDA sets spec.global.commonLabels.
+		var commonLabels map[string]string
+		if ddai.Spec.Global != nil && len(ddai.Spec.Global.CommonLabels) > 0 {
+			commonLabels = make(map[string]string, len(ddai.Spec.Global.CommonLabels))
+			maps.Copy(commonLabels, ddai.Spec.Global.CommonLabels)
+		}
+
 		ddai.Spec = *profile.Spec.Config
+
+		// Restore commonLabels into the replaced spec.
+		if len(commonLabels) > 0 {
+			if ddai.Spec.Global == nil {
+				ddai.Spec.Global = &v2alpha1.GlobalConfig{}
+			}
+			// Profile config wins on any key conflict — only fill in keys
+			// not already set by the profile itself.
+			if ddai.Spec.Global.CommonLabels == nil {
+				ddai.Spec.Global.CommonLabels = make(map[string]string, len(commonLabels))
+			}
+			for k, v := range commonLabels {
+				if _, exists := ddai.Spec.Global.CommonLabels[k]; !exists {
+					ddai.Spec.Global.CommonLabels[k] = v
+				}
+			}
+		}
+
 		// DCA, CCR, and OtelAgentGateway are auto disabled for user created profiles
 		disableComponent(ddai, v2alpha1.ClusterAgentComponentName)
 		disableComponent(ddai, v2alpha1.ClusterChecksRunnerComponentName)
@@ -231,7 +326,7 @@ func ensureOverrideExists(ddai *v1alpha1.DatadogAgentInternal, componentName v2a
 
 func disableComponent(ddai *v1alpha1.DatadogAgentInternal, componentName v2alpha1.ComponentName) {
 	ensureOverrideExists(ddai, componentName)
-	ddai.Spec.Override[componentName].Disabled = apiutils.NewBoolPointer(true)
+	ddai.Spec.Override[componentName].Disabled = new(true)
 }
 
 func setProfileDDAIAffinity(ddai *v1alpha1.DatadogAgentInternal, profile *v1alpha1.DatadogAgentProfile) *corev1.Affinity {
@@ -257,7 +352,61 @@ func setProfileDDAIMeta(ddai *v1alpha1.DatadogAgentInternal, profile *v1alpha1.D
 		}
 		ddai.Labels[constants.ProfileLabelKey] = profile.Name
 	}
+	// Propagate the provider annotation from the profile onto the DDAI so a
+	// DAP can declare a provider that differs from the DDA (e.g. a GKE COS
+	// node pool selected by the profile). The profile value overrides the
+	// DDA-inherited value when set.
+	if v, ok := profile.GetAnnotations()[kubernetes.ProviderAnnotationKey]; ok {
+		if ddai.Annotations == nil {
+			ddai.Annotations = make(map[string]string)
+		}
+		ddai.Annotations[kubernetes.ProviderAnnotationKey] = v
+	}
+	// todo (mackjmr): Remove this once Host Profiler is moved to CRD/ annotation support is removed.
+	// Propagate the host-profiler experimental annotations from the profile onto the DDAI
+	// so a DAP can enable/configure host profiler only on the nodes it targets, independent
+	// of the DDA-level annotation.
+	imageOverrideAnnotationKey := fmt.Sprintf("%s/%s", experimental.ExperimentalAnnotationPrefix, experimental.ExperimentalImageOverrideConfigSubkey)
+	for _, annotationKey := range []string{featureutils.EnableHostProfilerAnnotation, featureutils.EnableHostProfilerSeccompAnnotation, featureutils.EnableHostProfilerLoggingSeccompAnnotation, imageOverrideAnnotationKey} {
+		if v, ok := profile.GetAnnotations()[annotationKey]; ok {
+			if ddai.Annotations == nil {
+				ddai.Annotations = make(map[string]string)
+			}
+			ddai.Annotations[annotationKey] = v
+		}
+	}
 	return nil
+}
+
+// addDDAIStatusToProfileStatus surfaces the profile's DatadogAgentInternal
+// reconcile-error condition on the DatadogAgentProfile itself. Unlike the DDA's
+// conditions (rebuilt from scratch every reconcile), DatadogAgentProfile
+// conditions persist across reconciles, so the condition must be explicitly
+// set to False on recovery or a stale error would linger forever.
+func (r *Reconciler) addDDAIStatusToProfileStatus(ctx context.Context, profile *v1alpha1.DatadogAgentProfile, ddaiName, ddaiNamespace string, now metav1.Time) {
+	ddaiName = getProfileDDAIName(ddaiName, profile.Name, profile.Namespace)
+	ddai := &v1alpha1.DatadogAgentInternal{}
+	if err := r.client.Get(ctx, types.NamespacedName{Name: ddaiName, Namespace: ddaiNamespace}, ddai); err != nil {
+		if !apierrors.IsNotFound(err) {
+			r.log.Error(err, "unexpected error during DDAI get", "datadogagentprofile", profile.Name, "datadogagentprofile_namespace", profile.Namespace)
+			return
+		}
+		// Leave a new profile untouched until its DDAI is created, but clear
+		// an error left behind after a previously existing DDAI is removed.
+		if apimeta.FindStatusCondition(profile.Status.Conditions, agentprofile.DDAIReconcileErrorConditionType) != nil {
+			newCondition := agentprofile.NewDatadogAgentProfileCondition(agentprofile.DDAIReconcileErrorConditionType, metav1.ConditionFalse, now, agentprofile.DDAIReconcileOKConditionReason, "")
+			profile.Status.Conditions = agentprofile.SetDatadogAgentProfileCondition(profile.Status.Conditions, newCondition)
+		}
+		return
+	}
+
+	var newCondition metav1.Condition
+	if ddaiErrCond := condition.GetDDAICondition(&ddai.Status, common.DatadogAgentReconcileErrorConditionType); ddaiErrCond != nil && ddaiErrCond.Status == metav1.ConditionTrue {
+		newCondition = agentprofile.NewDatadogAgentProfileCondition(agentprofile.DDAIReconcileErrorConditionType, metav1.ConditionTrue, now, agentprofile.DDAIReconcileErrorConditionReason, fmt.Sprintf("%s: %s", ddai.Name, ddaiErrCond.Message))
+	} else {
+		newCondition = agentprofile.NewDatadogAgentProfileCondition(agentprofile.DDAIReconcileErrorConditionType, metav1.ConditionFalse, now, agentprofile.DDAIReconcileOKConditionReason, "")
+	}
+	profile.Status.Conditions = agentprofile.SetDatadogAgentProfileCondition(profile.Status.Conditions, newCondition)
 }
 
 // getProfileDDAIName returns the name of the DDAI when profiles are used.

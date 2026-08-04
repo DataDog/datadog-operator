@@ -177,7 +177,11 @@ properties:
             resources:
             - controllerrevisions
             verbs:
+            - create
+            - delete
+            - get
             - list
+            - patch
             - watch
           - apiGroups:
             - apps
@@ -197,9 +201,25 @@ properties:
             - apps
             resources:
             - replicasets
+            verbs:
+            - get
+            - list
+            - watch
+          - apiGroups:
+            - apps
+            resources:
             - statefulsets
             verbs:
             - get
+            - list
+            - patch
+            - watch
+          - apiGroups:
+            - argoproj.io
+            resources:
+            - applications
+            - applicationsets
+            verbs:
             - list
             - watch
           - apiGroups:
@@ -207,6 +227,7 @@ properties:
             resources:
             - rollouts
             verbs:
+            - get
             - list
             - patch
             - watch
@@ -234,6 +255,7 @@ properties:
             - create
             - get
             - list
+            - patch
             - watch
           - apiGroups:
             - autoscaling
@@ -279,6 +301,23 @@ properties:
             - update
             - watch
           - apiGroups:
+            - configuration.konghq.com
+            - consul.hashicorp.com
+            - core.haproxy.org
+            - datadoghq.com
+            - gateway.envoyproxy.io
+            - ingress.v1.haproxy.org
+            - karpenter.azure.com
+            - kuma.io
+            - mesh.consul.hashicorp.com
+            - policy.linkerd.io
+            - traefik.containo.us
+            resources:
+            - '*'
+            verbs:
+            - list
+            - watch
+          - apiGroups:
             - coordination.k8s.io
             resources:
             - leases
@@ -299,6 +338,8 @@ properties:
             - datadogagentprofiles/finalizers
             - datadogagents
             - datadogagents/finalizers
+            - datadogcsidrivers
+            - datadogcsidrivers/finalizers
             - datadogdashboards
             - datadoggenericresources
             - datadoggenericresources/finalizers
@@ -321,6 +362,7 @@ properties:
             - datadogagentinternals/status
             - datadogagentprofiles/status
             - datadogagents/status
+            - datadogcsidrivers/status
             - datadogdashboards/status
             - datadoggenericresources/status
             - datadogmonitors/status
@@ -339,6 +381,23 @@ properties:
           - apiGroups:
             - datadoghq.com
             resources:
+            - datadoginstrumentations
+            - extendeddaemonsetreplicasets
+            - watermarkpodautoscalers
+            verbs:
+            - get
+            - list
+            - watch
+          - apiGroups:
+            - datadoghq.com
+            resources:
+            - datadoginstrumentations/status
+            verbs:
+            - patch
+            - update
+          - apiGroups:
+            - datadoghq.com
+            resources:
             - datadogmetrics
             verbs:
             - create
@@ -349,35 +408,22 @@ properties:
           - apiGroups:
             - datadoghq.com
             resources:
+            - datadogpodautoscalerclusterprofiles
+            - datadogpodautoscalerclusterprofiles/status
             - datadogpodautoscalers
             - datadogpodautoscalers/status
             verbs:
             - '*'
           - apiGroups:
-            - datadoghq.com
+            - discovery.k8s.io
             resources:
-            - extendeddaemonsetreplicasets
-            - watermarkpodautoscalers
+            - endpointslices
             verbs:
             - get
             - list
             - watch
           - apiGroups:
-            - datadoghq.com
-            - karpenter.azure.com
-            resources:
-            - '*'
-            verbs:
-            - list
-            - watch
-          - apiGroups:
-            - discovery.k8s.io
-            resources:
-            - endpointslices
-            verbs:
-            - list
-            - watch
-          - apiGroups:
+            - eks.amazonaws.com
             - external.metrics.k8s.io
             - karpenter.k8s.aws
             resources:
@@ -389,7 +435,9 @@ properties:
           - apiGroups:
             - gateway.envoyproxy.io
             resources:
+            - backends
             - envoyextensionpolicies
+            - envoypatchpolicies
             verbs:
             - create
             - delete
@@ -408,12 +456,29 @@ properties:
           - apiGroups:
             - gateway.networking.k8s.io
             resources:
+            - grpcroutes
+            - listenersets
+            - tlsroutes
+            verbs:
+            - list
+            - watch
+          - apiGroups:
+            - gateway.networking.k8s.io
+            resources:
             - referencegrants
             verbs:
             - create
             - delete
             - get
             - patch
+          - apiGroups:
+            - k8s.nginx.org
+            resources:
+            - virtualserverroutes
+            - virtualservers
+            verbs:
+            - list
+            - watch
           - apiGroups:
             - karpenter.sh
             resources:
@@ -427,6 +492,23 @@ properties:
             - update
             - watch
           - apiGroups:
+            - kustomize.toolkit.fluxcd.io
+            resources:
+            - kustomizations
+            verbs:
+            - list
+            - watch
+          - apiGroups:
+            - networking.istio.io
+            resources:
+            - destinationrules
+            - serviceentries
+            - sidecars
+            - virtualservices
+            verbs:
+            - list
+            - watch
+          - apiGroups:
             - networking.istio.io
             resources:
             - envoyfilters
@@ -434,6 +516,22 @@ properties:
             - create
             - delete
             - get
+          - apiGroups:
+            - networking.istio.io
+            resources:
+            - gateways
+            verbs:
+            - get
+            - list
+            - watch
+          - apiGroups:
+            - networking.k8s.io
+            resources:
+            - ingressclasses
+            verbs:
+            - get
+            - list
+            - watch
           - apiGroups:
             - networking.k8s.io
             resources:
@@ -510,6 +608,18 @@ properties:
             verbs:
             - use
           - apiGroups:
+            - source.toolkit.fluxcd.io
+            resources:
+            - buckets
+            - externalartifacts
+            - gitrepositories
+            - helmcharts
+            - helmrepositories
+            - ocirepositories
+            verbs:
+            - list
+            - watch
+          - apiGroups:
             - storage.k8s.io
             resources:
             - storageclasses
@@ -518,9 +628,45 @@ properties:
             - get
             - list
             - watch
-          - apiGroups: [""]
-            resources: ["pods/exec"]
-            verbs: ["create"]
+          - apiGroups:
+            - storage.k8s.io
+            resources:
+            - csidrivers
+            verbs:
+            - create
+            - list
+            - watch
+          - apiGroups:
+            - storage.k8s.io
+            resourceNames:
+            - k8s.csi.datadoghq.com
+            resources:
+            - csidrivers
+            verbs:
+            - delete
+            - get
+            - patch
+            - update
+          - apiGroups:
+            - traefik.io
+            resources:
+            - ingressroutes
+            verbs:
+            - list
+            - watch
+          - apiGroups:
+            - ""
+            resources:
+            - pods/exec
+            - pods/eviction
+            verbs:
+            - create
+          - apiGroups:
+            - ""
+            resources:
+            - pods/resize
+            verbs:
+            - patch
 required:
 - name
 - namespace

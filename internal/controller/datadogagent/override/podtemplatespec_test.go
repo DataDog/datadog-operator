@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 
+	"k8s.io/utils/ptr"
+
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -17,7 +19,6 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/pkg/constants"
@@ -46,7 +47,7 @@ func TestPodTemplateSpec(t *testing.T) {
 				return manager
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
-				ServiceAccountName: apiutils.NewStringPointer("new-service-account"),
+				ServiceAccountName: ptr.To("new-service-account"),
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
 				assert.Equal(t, "new-service-account", manager.PodTemplateSpec().Spec.ServiceAccountName)
@@ -343,6 +344,45 @@ func TestPodTemplateSpec(t *testing.T) {
 			},
 		},
 		{
+			name: "image override does not rewrite host-profiler images but applies pull policy",
+			existingManager: func() *fake.PodTemplateManagers {
+				manager := fake.NewPodTemplateManagers(t, v1.PodTemplateSpec{
+					Spec: v1.PodSpec{
+						Containers: []v1.Container{
+							{Name: string(apicommon.CoreAgentContainerName), Image: "agent:old"},
+							{Name: string(apicommon.HostProfiler), Image: "profiler:old"},
+						},
+						InitContainers: []v1.Container{
+							{Name: string(apicommon.InitVolumeContainerName), Image: "agent:old"},
+							{Name: string(apicommon.HostProfilerSeccompSetupContainerName), Image: "profiler:old"},
+						},
+					},
+				})
+				return manager
+			},
+			override: v2alpha1.DatadogAgentComponentOverride{
+				Image: &v2alpha1.AgentImageConfig{Name: "agent", Tag: "new", PullPolicy: &ifNotPresent},
+			},
+			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
+				for _, c := range manager.PodTemplateSpec().Spec.Containers {
+					if c.Name == string(apicommon.HostProfiler) {
+						assert.Equal(t, "profiler:old", c.Image, "host-profiler image must not be overridden")
+					} else {
+						assert.NotEqual(t, "profiler:old", c.Image, "container %s image should have been overridden", c.Name)
+					}
+					assert.Equal(t, v1.PullIfNotPresent, c.ImagePullPolicy, "container %s pull policy should have been overridden", c.Name)
+				}
+				for _, c := range manager.PodTemplateSpec().Spec.InitContainers {
+					if c.Name == string(apicommon.HostProfilerSeccompSetupContainerName) {
+						assert.Equal(t, "profiler:old", c.Image, "host-profiler-seccomp-setup image must not be overridden")
+					} else {
+						assert.NotEqual(t, "profiler:old", c.Image, "init container %s image should have been overridden", c.Name)
+					}
+					assert.Equal(t, v1.PullIfNotPresent, c.ImagePullPolicy, "init container %s pull policy should have been overridden", c.Name)
+				}
+			},
+		},
+		{
 			name: "add envs",
 			existingManager: func() *fake.PodTemplateManagers {
 				manager := fake.NewPodTemplateManagers(t, v1.PodTemplateSpec{})
@@ -574,7 +614,7 @@ func TestPodTemplateSpec(t *testing.T) {
 			override: v2alpha1.DatadogAgentComponentOverride{
 				Containers: map[apicommon.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
 					apicommon.ClusterAgentContainerName: {
-						LogLevel: apiutils.NewStringPointer("trace"),
+						LogLevel: ptr.To("trace"),
 					},
 				},
 			},
@@ -627,13 +667,13 @@ func TestPodTemplateSpec(t *testing.T) {
 			existingManager: func() *fake.PodTemplateManagers {
 				manager := fake.NewPodTemplateManagers(t, v1.PodTemplateSpec{})
 				manager.PodTemplateSpec().Spec.SecurityContext = &v1.PodSecurityContext{
-					RunAsUser: apiutils.NewInt64Pointer(1234),
+					RunAsUser: ptr.To[int64](1234),
 				}
 				return manager
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
 				SecurityContext: &v1.PodSecurityContext{
-					RunAsUser: apiutils.NewInt64Pointer(5678),
+					RunAsUser: ptr.To[int64](5678),
 				},
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
@@ -648,7 +688,7 @@ func TestPodTemplateSpec(t *testing.T) {
 				return manager
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
-				PriorityClassName: apiutils.NewStringPointer("new-name"),
+				PriorityClassName: ptr.To("new-name"),
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
 				assert.Equal(t, "new-name", manager.PodTemplateSpec().Spec.PriorityClassName)
@@ -658,11 +698,11 @@ func TestPodTemplateSpec(t *testing.T) {
 			name: "override runtime class name",
 			existingManager: func() *fake.PodTemplateManagers {
 				manager := fake.NewPodTemplateManagers(t, v1.PodTemplateSpec{})
-				manager.PodTemplateSpec().Spec.RuntimeClassName = apiutils.NewStringPointer("old-name")
+				manager.PodTemplateSpec().Spec.RuntimeClassName = ptr.To("old-name")
 				return manager
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
-				RuntimeClassName: apiutils.NewStringPointer("new-name"),
+				RuntimeClassName: ptr.To("new-name"),
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
 				assert.Equal(t, "new-name", *manager.PodTemplateSpec().Spec.RuntimeClassName)
@@ -868,11 +908,11 @@ func TestPodTemplateSpec(t *testing.T) {
 					Options: []v1.PodDNSConfigOption{
 						{
 							Name:  "",
-							Value: apiutils.NewStringPointer("value-0"),
+							Value: ptr.To("value-0"),
 						},
 						{
 							Name:  "",
-							Value: apiutils.NewStringPointer("value-1"),
+							Value: ptr.To("value-1"),
 						},
 					},
 				}
@@ -889,11 +929,11 @@ func TestPodTemplateSpec(t *testing.T) {
 					Options: []v1.PodDNSConfigOption{
 						{
 							Name:  "DNSResolver1",
-							Value: apiutils.NewStringPointer("value-2"),
+							Value: ptr.To("value-2"),
 						},
 						{
 							Name:  "DNSResolver2",
-							Value: apiutils.NewStringPointer("value-3"),
+							Value: ptr.To("value-3"),
 						},
 					},
 				},
@@ -909,11 +949,11 @@ func TestPodTemplateSpec(t *testing.T) {
 					Options: []v1.PodDNSConfigOption{
 						{
 							Name:  "DNSResolver1",
-							Value: apiutils.NewStringPointer("value-2"),
+							Value: ptr.To("value-2"),
 						},
 						{
 							Name:  "DNSResolver2",
-							Value: apiutils.NewStringPointer("value-3"),
+							Value: ptr.To("value-3"),
 						},
 					},
 				}
@@ -953,7 +993,7 @@ func TestPodTemplateSpec(t *testing.T) {
 				return manager
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
-				HostNetwork: apiutils.NewBoolPointer(true),
+				HostNetwork: ptr.To(true),
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
 				assert.True(t, manager.PodTemplateSpec().Spec.HostNetwork)
@@ -967,7 +1007,7 @@ func TestPodTemplateSpec(t *testing.T) {
 				return manager
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
-				HostPID: apiutils.NewBoolPointer(true),
+				HostPID: ptr.To(true),
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
 				assert.True(t, manager.PodTemplateSpec().Spec.HostPID)
@@ -1065,6 +1105,59 @@ func TestPodTemplateSpec(t *testing.T) {
 
 				// OtelAgent should NOT have JMX suffix
 				assert.Equal(t, "gcr.io/datadoghq/ddot-collector:7.72.1", otelAgentImage, "OtelAgent should not have JMX suffix")
+			},
+		},
+		{
+			name: "AppArmor annotation in override.Annotations for existing container is added",
+			existingManager: func() *fake.PodTemplateManagers {
+				manager := fake.NewPodTemplateManagers(t, v1.PodTemplateSpec{})
+				manager.PodTemplateSpec().Spec.Containers = []v1.Container{
+					{Name: string(apicommon.CoreAgentContainerName)},
+				}
+				return manager
+			},
+			override: v2alpha1.DatadogAgentComponentOverride{
+				Annotations: map[string]string{
+					fmt.Sprintf("%s/%s", common.AppArmorAnnotationKey, apicommon.CoreAgentContainerName): "runtime/default",
+				},
+			},
+			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
+				annotation := fmt.Sprintf("%s/%s", common.AppArmorAnnotationKey, apicommon.CoreAgentContainerName)
+				assert.Equal(t, "runtime/default", manager.AnnotationMgr.Annotations[annotation])
+			},
+		},
+		{
+			name: "AppArmor annotation in override.Annotations for absent container is skipped",
+			existingManager: func() *fake.PodTemplateManagers {
+				manager := fake.NewPodTemplateManagers(t, v1.PodTemplateSpec{})
+				manager.PodTemplateSpec().Spec.Containers = []v1.Container{
+					{Name: string(apicommon.CoreAgentContainerName)},
+				}
+				return manager
+			},
+			override: v2alpha1.DatadogAgentComponentOverride{
+				Annotations: map[string]string{
+					fmt.Sprintf("%s/%s", common.AppArmorAnnotationKey, apicommon.SecurityAgentContainerName): "runtime/default",
+				},
+			},
+			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
+				annotation := fmt.Sprintf("%s/%s", common.AppArmorAnnotationKey, apicommon.SecurityAgentContainerName)
+				_, found := manager.AnnotationMgr.Annotations[annotation]
+				assert.False(t, found, "AppArmor annotation for absent container should not be added")
+			},
+		},
+		{
+			name: "non-AppArmor annotation in override.Annotations is always added",
+			existingManager: func() *fake.PodTemplateManagers {
+				return fake.NewPodTemplateManagers(t, v1.PodTemplateSpec{})
+			},
+			override: v2alpha1.DatadogAgentComponentOverride{
+				Annotations: map[string]string{
+					"some-other-annotation": "value",
+				},
+			},
+			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
+				assert.Equal(t, "value", manager.AnnotationMgr.Annotations["some-other-annotation"])
 			},
 		},
 		{

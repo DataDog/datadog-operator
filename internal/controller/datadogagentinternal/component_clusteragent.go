@@ -11,6 +11,7 @@ import (
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
@@ -19,6 +20,7 @@ import (
 	componentdca "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusteragent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/global"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/providercaps"
 	"github.com/DataDog/datadog-operator/pkg/condition"
 )
 
@@ -57,9 +59,15 @@ func (c *ClusterAgentComponent) GetNewDeploymentFunc() func(ddai metav1.Object, 
 	return componentdca.NewDefaultClusterAgentDeployment
 }
 
-func (c *ClusterAgentComponent) GetManageFeatureFunc() func(feat feature.Feature, managers feature.PodTemplateManagers, provider string) error {
-	return func(feat feature.Feature, managers feature.PodTemplateManagers, provider string) error {
-		return feat.ManageClusterAgent(managers, provider)
+func (c *ClusterAgentComponent) GetManageFeatureFunc(provider string) func(feat feature.Feature, managers feature.PodTemplateManagers) error {
+	return func(feat feature.Feature, managers feature.PodTemplateManagers) error {
+		if err := feat.ManageClusterAgent(managers); err != nil {
+			return err
+		}
+		if paf, ok := feat.(feature.ClusterAgentProviderAwareFeature); ok {
+			providercaps.ApplyProviderCapabilities(managers, provider, paf.ClusterAgentProviderCapabilities())
+		}
+		return nil
 	}
 }
 
@@ -77,10 +85,10 @@ func (c *ClusterAgentComponent) ForceDeleteComponent(ddai *v1alpha1.DatadogAgent
 	return false
 }
 
-func (c *ClusterAgentComponent) CleanupDependencies(ctx context.Context, logger logr.Logger, ddai *v1alpha1.DatadogAgentInternal, resourcesManager feature.ResourceManagers) (reconcile.Result, error) {
+func (c *ClusterAgentComponent) CleanupDependencies(ctx context.Context, ddai *v1alpha1.DatadogAgentInternal, resourcesManager feature.ResourceManagers) (reconcile.Result, error) {
 	// Delete associated RBACs as well
 	rbacManager := resourcesManager.RBACManager()
-	logger.Info("Deleting Cluster Agent RBACs")
+	ctrl.LoggerFrom(ctx).Info("Deleting Cluster Agent RBACs")
 	if err := rbacManager.DeleteServiceAccountByComponent(string(datadoghqv2alpha1.ClusterAgentComponentName), ddai.Namespace); err != nil {
 		return reconcile.Result{}, err
 	}

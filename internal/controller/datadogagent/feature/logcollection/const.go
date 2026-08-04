@@ -5,13 +5,19 @@
 
 package logcollection
 
+import "github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+
 const (
-	pointerVolumeName          = "pointerdir"
-	pointerVolumePath          = "/opt/datadog-agent/run"
+	pointerVolumeName          = common.RunPathVolumeName
+	pointerVolumePath          = common.RunPathVolumeMount
 	podLogVolumeName           = "logpodpath"
 	podLogVolumePath           = "/var/log/pods"
-	containerLogVolumeName     = "logcontainerpath"
+	containerLogVolumeName     = "logdockercontainerpath"
 	containerLogVolumePath     = "/var/lib/docker/containers"
-	symlinkContainerVolumeName = "symlinkcontainerpath"
+	symlinkContainerVolumeName = "logscontainerspath"
 	symlinkContainerVolumePath = "/var/log/containers"
+
+	// autopilotPointerHostPath is the only hostPath the GKE Autopilot
+	// WorkloadAllowlist permits for the run-path (log-collection pointer) volume.
+	autopilotPointerHostPath = "/var/autopilot/addon/datadog/logs"
 )

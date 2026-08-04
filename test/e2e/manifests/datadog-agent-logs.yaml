@@ -7,6 +7,7 @@ metadata:
     agent.datadoghq.com/e2e-test: datadog-agent-logs
 spec:
   global:
+    registry: public.ecr.aws/datadog
     kubelet:
       tlsVerify: false
   features:

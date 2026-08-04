@@ -59,6 +59,25 @@ func overrideImage(currentImg string, overrideImg imageOverride) string {
 	return images.OverrideAgentImage(currentImg, overrideImgConfig)
 }
 
+// ResolveImageOverride returns the effective image for a container after applying the experimental image override
+// annotation. If no override is configured, or if the annotation is malformed, it returns currentImg.
+func ResolveImageOverride(dda metav1.Object, containerName, currentImg string) (string, error) {
+	if dda == nil {
+		return currentImg, nil
+	}
+
+	imageOverrides, err := getImageOverrideConfig(dda)
+	if err != nil {
+		return currentImg, err
+	}
+
+	if imageOverride, ok := imageOverrides[containerName]; ok {
+		return overrideImage(currentImg, imageOverride), nil
+	}
+
+	return currentImg, nil
+}
+
 func applyExperimentalImageOverrides(logger logr.Logger, dda metav1.Object, manager feature.PodTemplateManagers) {
 	// We support overriding the image used for any non-init container in the Agent's pod spec.
 	//

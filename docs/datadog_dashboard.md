@@ -1,5 +1,7 @@
 # Datadog Dashboards
-This feature is in Preview.
+
+> [!WARNING]
+> Soft deprecation notice: for new dashboard resources, prefer [`DatadogGenericResource`](./datadoggenericresource/datadog_generic_resource.md) with `type: dashboard`. `DatadogDashboard` remains supported for existing users, but DDGR is the preferred path for new Datadog API capabilities. To move existing dashboards, see the [DDGR migration guide](./datadoggenericresource/datadog_generic_resource_migration.md).
 
 ## Overview
 The `DatadogDashboard` Custom Resource Definition (CRD) allows users to create [dashboards][1] using the Operator and manage them as Kubernetes resources.
@@ -18,6 +20,14 @@ To deploy a `DatadogDashboard` with the Datadog Operator, use the [`datadog-oper
 
     ```shell
     helm repo add datadog https://helm.datadoghq.com
+    ```
+
+    For **OLM deployments**, enable the controller via environment variable in the `Subscription`:
+    ```yaml
+    config:
+      env:
+        - name: DD_DASHBOARD_CONTROLLER_ENABLED
+          value: "true"
     ```
 
 1. Choose one of the following options:

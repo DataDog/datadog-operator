@@ -1,0 +1,153 @@
+# This file contains a mapping of DataDog Github teams to slack channels.
+# Each team has a 'notification' channel (for CI/pipeline alerts) and a 'review' channel (for PR reviews).
+# The DEFAULT_SLACK_CHANNEL value is interpreted as '#agent-devx-ops'.
+# Note that the values must be quoted if they contain a '#' symbol, because
+# YAML interprets that as the beginning of a comment. Keys must also be quoted
+# because the '@' symbol is reserved in YAML.
+'@datadog/action-platform':
+  notification:
+    name: '#action-platform'
+    id: 'C037JEVR8S3'
+  review:
+    name: '#action-platform-reviews'
+    id: 'C0AG2UCHUKZ'
+'@datadog/agent-apm':
+  notification:
+    name: '#apm-agent'
+    id: 'CK4KK761W'
+  review:
+    name: '#apm-agent'
+    id: 'CK4KK761W'
+'@datadog/agent-data-plane':
+  notification:
+    name: '#agent-data-plane'
+    id: 'C070PQKLLP5'
+  review:
+    name: '#agent-data-plane'
+    id: 'C070PQKLLP5'
+'@datadog/agent-discovery':
+  notification:
+    name: '#agent-discovery'
+    id: 'C089ER2M7MZ'
+  review:
+    name: '#agent-discovery'
+    id: 'C089ER2M7MZ'
+'@datadog/agent-log-pipelines':
+  notification:
+    name: '#agent-log-pipelines'
+    id: 'C089UJ6CUAW'
+  review:
+    name: '#agent-log-pipelines'
+    id: 'C089UJ6CUAW'
+'@datadog/agent-metric-pipelines':
+  notification:
+    name: '#agent-metric-pipelines'
+    id: 'C08A7KEN7LL'
+  review:
+    name: '#agent-metric-pipelines'
+    id: 'C08A7KEN7LL'
+'@datadog/agent-security':
+  notification:
+    name: '#security-and-compliance-agent-ops'
+    id: 'C031KSGGNBW'
+  review:
+    name: '#security-and-compliance-agent'
+    id: 'CTNVD37T3'
+'@datadog/asm-go':
+  notification:
+    name: '#k9-library-go'
+    id: 'C02HVGRLQ8Z'
+  review:
+    name: '#k9-library-go'
+    id: 'C02HVGRLQ8Z'
+'@datadog/cloud-network-monitoring':
+  notification:
+    name: '#cloud-network-monitoring'
+    id: 'CFB4213BJ'
+  review:
+    name: '#cnm-agent'
+    id: 'C07FNUP1M3N'
+'@datadog/container-autoscaling':
+  notification:
+    name: '#container-autoscaling'
+    id: 'C06D0H262G4'
+  review:
+    name: '#container-autoscaling'
+    id: 'C06D0H262G4'
+'@datadog/container-experiences':
+  notification:
+    name: '#process-agent-ops'
+    id: 'C0493DCUR6C'
+  review:
+    name: '#container-experiences'
+    id: 'C05404GL3R8'
+'@datadog/container-integrations':
+  notification:
+    name: '#container-integrations'
+    id: 'C4TQDFK1P'
+  review:
+    name: '#container-integrations'
+    id: 'C4TQDFK1P'
+'@datadog/container-platform':
+  notification:
+    name: '#container-platform'
+    id: 'C0702JHC7G8'
+  review:
+    name: '#container-platform'
+    id: 'C0702JHC7G8'
+'@datadog/documentation':
+  notification:
+    name: 'DEFAULT_SLACK_CHANNEL'
+    id: 'C0795C1C2AE'
+  review:
+    name: '#documentation'
+    id: 'C0DESMBQU'
+'@datadog/ebpf-platform':
+  notification:
+    name: '#ebpf-platform-ops'
+    id: 'C04NAC0JVMM'
+  review:
+    name: '#ebpf-platform'
+    id: 'C0424HA1SJK'
+'@datadog/fleet':
+  notification:
+    name: '#fleet-automation-monitoring'
+    id: 'C06TZ0APY6Q'
+  review:
+    name: '#fleet-automation'
+    id: 'C05PUSNU4H5'
+'@datadog/kubernetes-experiences':
+  notification:
+    name: '#kubernetes-experiences'
+    id: 'CSY06FKSP'
+  review:
+    name: '#kubernetes-experiences'
+    id: 'CSY06FKSP'
+'@datadog/opentelemetry-agent':
+  notification:
+    name: '#opentelemetry-agent-ops'
+    id: 'C08R19TR3FS'
+  review:
+    name: '#opentelemetry-agent'
+    id: 'C086Z7E2A0Y'
+'@datadog/profiling-full-host':
+  notification:
+    name: '#profiling-full-host-project'
+    id: 'C06F2EP2SDA'
+  review:
+    name: '#profiling-full-host-project'
+    id: 'C06F2EP2SDA'
+'@datadog/remote-config':
+  notification:
+    name: '#remote-config-platform'
+    id: 'C01HVED6Q1M'
+  review:
+    name: '#remote-config-platform'
+    id: 'C01HVED6Q1M'
+'@datadog/universal-service-monitoring':
+  notification:
+    name: '#universal-service-monitoring'
+    id: 'C01R6Q0HQDD'
+  review:
+    name: '#universal-service-monitoring'
+    id: 'C01R6Q0HQDD'

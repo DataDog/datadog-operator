@@ -23,6 +23,7 @@ extensions:
     api:
       key: ${env:DD_API_KEY}
       site: ${env:DD_SITE}
+    deployment_type: gateway
 service:
   pipelines:
     traces:

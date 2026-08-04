@@ -21,6 +21,11 @@ const (
 	DatadogConditionTypeUpdated Type = "Updated"
 	// DatadogConditionTypeError means the  Datadog CRD has error
 	DatadogConditionTypeError Type = "Error"
+	// DatadogConditionTypeStateSynced reports whether the controller has
+	// successfully refreshed the live Datadog-side state of the resource into
+	// the CR. Applies to any resource type that exposes live state — only set
+	// by controllers/handlers that perform state refresh.
+	DatadogConditionTypeStateSynced Type = "StateSynced"
 )
 
 // UpdateFailureStatusConditions is a generic method to update the failure StatusConditions.

@@ -8,6 +8,7 @@ package images
 import (
 	"fmt"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -22,7 +23,7 @@ func TestGetLatestAgentImage(t *testing.T) {
 	}{
 		{
 			name: "default registry",
-			want: fmt.Sprintf("gcr.io/datadoghq/agent:%s", AgentLatestVersion),
+			want: fmt.Sprintf("%s/agent:%s", DatadogContainerRegistry, AgentLatestVersion),
 		},
 	}
 	for _, tt := range tests {
@@ -34,6 +35,26 @@ func TestGetLatestAgentImage(t *testing.T) {
 	}
 }
 
+func TestGetLatestWindowsAgentImage(t *testing.T) {
+	got := GetLatestWindowsAgentImage()
+	// Must use the default registry (consistent with other sibling functions).
+	if !strings.HasPrefix(got, DefaultImageRegistry+"/") {
+		t.Errorf("GetLatestWindowsAgentImage() registry = %q, want prefix %q", got, DefaultImageRegistry+"/")
+	}
+	// Must carry the -servercore suffix.
+	if !strings.HasSuffix(got, WindowsServerCoreTagSuffix) {
+		t.Errorf("GetLatestWindowsAgentImage() = %q, want suffix %q", got, WindowsServerCoreTagSuffix)
+	}
+	// Must embed the current agent version.
+	if !strings.Contains(got, AgentLatestVersion) {
+		t.Errorf("GetLatestWindowsAgentImage() = %q, want version %q", got, AgentLatestVersion)
+	}
+	want := fmt.Sprintf("%s/agent:%s%s", DefaultImageRegistry, AgentLatestVersion, WindowsServerCoreTagSuffix)
+	if got != want {
+		t.Errorf("GetLatestWindowsAgentImage() = %q, want %q", got, want)
+	}
+}
+
 func TestGetLatestClusterAgentImage(t *testing.T) {
 	tests := []struct {
 		name string
@@ -41,7 +62,7 @@ func TestGetLatestClusterAgentImage(t *testing.T) {
 	}{
 		{
 			name: "default registry",
-			want: fmt.Sprintf("gcr.io/datadoghq/cluster-agent:%s", ClusterAgentLatestVersion),
+			want: fmt.Sprintf("%s/cluster-agent:%s", DatadogContainerRegistry, ClusterAgentLatestVersion),
 		},
 	}
 	for _, tt := range tests {
@@ -169,6 +190,24 @@ func Test_imageNameContainsTag(t *testing.T) {
 	}
 }
 
+func Test_IsGCRRegistry(t *testing.T) {
+	cases := map[string]bool{
+		"gcr.io/datadoghq":          true,
+		"gcr.io/datadoghq/":         false,
+		"eu.gcr.io/datadoghq":       true,
+		"asia.gcr.io/datadoghq":     true,
+		"registry.datadoghq.com":    false,
+		"public.ecr.aws/datadog":    false,
+		"gcr.io/other":              false,
+		"notgcr.io/datadoghq":       false,
+		"custom/gcr.io/datadoghq":   false,
+		"eu.gcr.io/datadoghq/agent": false,
+	}
+	for registry, expected := range cases {
+		assert.Equal(t, expected, IsGCRRegistry(registry), registry)
+	}
+}
+
 func Test_AssembleImage(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -207,7 +246,7 @@ func Test_AssembleImage(t *testing.T) {
 				Name: "agent",
 				Tag:  "latest",
 			},
-			want: "gcr.io/datadoghq/agent:latest",
+			want: "registry.datadoghq.com/agent:latest",
 		},
 		{
 			name: "cluster-agent",
@@ -225,7 +264,7 @@ func Test_AssembleImage(t *testing.T) {
 				Tag:        "latest-jmx",
 				JMXEnabled: true,
 			},
-			want: "gcr.io/datadoghq/agent:latest-jmx",
+			want: "registry.datadoghq.com/agent:latest-jmx",
 		},
 	}
 	for _, tt := range tests {
@@ -316,7 +355,7 @@ func Test_ToString(t *testing.T) {
 				isFIPS:   true,
 				isFull:   true,
 			},
-			want: "gcr.io/datadoghq/agent:7.64.0-fips",
+			want: "gcr.io/datadoghq/agent:7.64.0-fips-full",
 		},
 		{
 			name: "with full, jmx and fips",
@@ -328,7 +367,7 @@ func Test_ToString(t *testing.T) {
 				isFIPS:   true,
 				isFull:   true,
 			},
-			want: "gcr.io/datadoghq/agent:7.64.0-fips-jmx",
+			want: "gcr.io/datadoghq/agent:7.64.0-fips-full",
 		},
 	}
 	for _, tt := range tests {
@@ -395,10 +434,107 @@ func Test_FromString(t *testing.T) {
 				isFull:   true,
 			},
 		},
+		{
+			name:        "with fips and full",
+			imageString: "gcr.io/datadoghq/agent:7.64.0-fips-full",
+			want: &Image{
+				registry: "gcr.io/datadoghq",
+				name:     "agent",
+				tag:      "7.64.0",
+				isFIPS:   true,
+				isFull:   true,
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert.Equal(t, tt.want, FromString(tt.imageString))
+		})
+	}
+}
+
+func Test_IsJMXImage(t *testing.T) {
+	tests := []struct {
+		name        string
+		imageConfig *v2alpha1.AgentImageConfig
+		want        bool
+	}{
+		{
+			name: "nil image config",
+			want: false,
+		},
+		{
+			name:        "JMX enabled",
+			imageConfig: &v2alpha1.AgentImageConfig{JMXEnabled: true},
+			want:        true,
+		},
+		{
+			name:        "JMX tag",
+			imageConfig: &v2alpha1.AgentImageConfig{Tag: "7.64.0-jmx"},
+			want:        true,
+		},
+		{
+			name:        "FIPS JMX tag",
+			imageConfig: &v2alpha1.AgentImageConfig{Tag: "7.64.0-fips-jmx"},
+			want:        true,
+		},
+		{
+			name:        "full tag",
+			imageConfig: &v2alpha1.AgentImageConfig{Tag: "7.64.0-full"},
+			want:        true,
+		},
+		{
+			name:        "FIPS full tag",
+			imageConfig: &v2alpha1.AgentImageConfig{Tag: "7.80.2-fips-full"},
+			want:        true,
+		},
+		{
+			name:        "JMX image string",
+			imageConfig: &v2alpha1.AgentImageConfig{Name: "gcr.io/datadoghq/agent:7.64.0-jmx"},
+			want:        true,
+		},
+		{
+			name:        "FIPS JMX image string",
+			imageConfig: &v2alpha1.AgentImageConfig{Name: "gcr.io/datadoghq/agent:7.64.0-fips-jmx"},
+			want:        true,
+		},
+		{
+			name:        "full image string",
+			imageConfig: &v2alpha1.AgentImageConfig{Name: "gcr.io/datadoghq/agent:7.80.2-full"},
+			want:        true,
+		},
+		{
+			name:        "FIPS full image string",
+			imageConfig: &v2alpha1.AgentImageConfig{Name: "gcr.io/datadoghq/agent:7.80.2-fips-full"},
+			want:        true,
+		},
+		{
+			name: "tagged image name ignores JMX enabled",
+			imageConfig: &v2alpha1.AgentImageConfig{
+				Name:       "gcr.io/datadoghq/agent:7.64.0",
+				JMXEnabled: true,
+			},
+			want: false,
+		},
+		{
+			name: "tagged image name ignores JMX tag and JMX enabled",
+			imageConfig: &v2alpha1.AgentImageConfig{
+				Name:       "gcr.io/datadoghq/agent:7.64.0",
+				Tag:        "7.64.0-jmx",
+				JMXEnabled: true,
+			},
+			want: false,
+		},
+		{
+			name:        "non JMX image config",
+			imageConfig: &v2alpha1.AgentImageConfig{Tag: "7.64.0"},
+			want:        false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, IsJMXImage(tt.imageConfig))
 		})
 	}
 }
@@ -604,10 +740,115 @@ func Test_OverrideAgentImage(t *testing.T) {
 			},
 			want: "gcr.io/datadoghq/agent:7.65.0-full",
 		},
+		{
+			name:         "current image includes fips-full suffix and override tag does not include suffix",
+			currentImage: "gcr.io/datadoghq/agent:7.64.0-fips-full",
+			overrideImageSpec: &v2alpha1.AgentImageConfig{
+				Tag: "7.65.0",
+			},
+			want: "gcr.io/datadoghq/agent:7.65.0",
+		},
+		{
+			name:         "current image is ddot-collector with fips and override tag does not preserve fips",
+			currentImage: "gcr.io/datadoghq/ddot-collector:7.64.0-fips",
+			overrideImageSpec: &v2alpha1.AgentImageConfig{
+				Tag: "7.75.0",
+			},
+			want: "gcr.io/datadoghq/ddot-collector:7.75.0",
+		},
+		{
+			name:         "current image includes fips suffix and override tag includes fips-full suffix",
+			currentImage: "gcr.io/datadoghq/agent:7.64.0-fips",
+			overrideImageSpec: &v2alpha1.AgentImageConfig{
+				Tag: "7.65.0-fips-full",
+			},
+			want: "gcr.io/datadoghq/agent:7.65.0-fips-full",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert.Equal(t, tt.want, OverrideAgentImage(tt.currentImage, tt.overrideImageSpec))
+		})
+	}
+}
+
+func Test_FIPSVersionError(t *testing.T) {
+	tests := []struct {
+		name      string
+		image     *Image
+		wantError bool
+	}{
+		// No error: FIPS not requested
+		{
+			name:      "ddot-collector, no fips",
+			image:     &Image{name: DefaultDdotCollectorImageName, tag: "7.77.0", isFIPS: false},
+			wantError: false,
+		},
+		{
+			name:      "agent-full, no fips",
+			image:     &Image{name: DefaultAgentImageName, tag: "7.77.0", isFull: true, isFIPS: false},
+			wantError: false,
+		},
+		// No error: regular agent -fips has existed before 7.78
+		{
+			name:      "agent, fips, old version",
+			image:     &Image{name: DefaultAgentImageName, tag: "7.77.0", isFIPS: true},
+			wantError: false,
+		},
+		// No error: version is sufficient
+		{
+			name:      "ddot-collector, fips, version 7.78.0",
+			image:     &Image{name: DefaultDdotCollectorImageName, tag: "7.78.0", isFIPS: true},
+			wantError: false,
+		},
+		{
+			name:      "ddot-collector, fips, version above 7.78",
+			image:     &Image{name: DefaultDdotCollectorImageName, tag: "7.80.0", isFIPS: true},
+			wantError: false,
+		},
+		{
+			name:      "agent-full, fips, version 7.78.0",
+			image:     &Image{name: DefaultAgentImageName, tag: "7.78.0", isFIPS: true, isFull: true},
+			wantError: false,
+		},
+		// No error: unparseable version is assumed sufficient (fallback = true)
+		{
+			name:      "ddot-collector, fips, unparseable version",
+			image:     &Image{name: DefaultDdotCollectorImageName, tag: "latest", isFIPS: true},
+			wantError: false,
+		},
+		// Error: ddot-collector -fips does not exist before 7.78
+		{
+			name:      "ddot-collector, fips, version below 7.78",
+			image:     &Image{name: DefaultDdotCollectorImageName, tag: "7.77.0", isFIPS: true},
+			wantError: true,
+		},
+		{
+			name:      "ddot-collector, fips, version 7.67.0",
+			image:     &Image{name: DefaultDdotCollectorImageName, tag: "7.67.0", isFIPS: true},
+			wantError: true,
+		},
+		// Error: agent -fips-full does not exist before 7.78
+		{
+			name:      "agent-full, fips, version below 7.78",
+			image:     &Image{name: DefaultAgentImageName, tag: "7.77.0", isFIPS: true, isFull: true},
+			wantError: true,
+		},
+		// No error: custom image with fips-full naming — not a known DD image, don't validate
+		{
+			name:      "custom image, fips-full naming, low version",
+			image:     &Image{name: "my-image", tag: "1.0.0", isFIPS: true, isFull: true},
+			wantError: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.image.FIPSVersionError()
+			if tt.wantError {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
 		})
 	}
 }

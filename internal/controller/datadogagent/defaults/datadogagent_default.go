@@ -6,6 +6,8 @@
 package defaults
 
 import (
+	"k8s.io/utils/ptr"
+
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
@@ -39,9 +41,6 @@ const (
 
 	defaultGPUMonitoringEnabled bool = false
 
-	defaultServiceDiscoveryEnabled             bool = false
-	defaultServiceDiscoveryNetworkStatsEnabled bool = true
-
 	defaultAPMEnabled                   bool   = true
 	defaultAPMHostPortEnabled           bool   = false
 	defaultAPMHostPort                  int32  = 8126
@@ -64,6 +63,8 @@ const (
 	defaultNPMCollectDNSStats bool = true
 
 	defaultUSMEnabled bool = false
+
+	defaultDynamicInstrumentationEnabled bool = false
 
 	defaultDogstatsdOriginDetectionEnabled bool   = false
 	defaultDogstatsdHostPortEnabled        bool   = false
@@ -137,6 +138,8 @@ const (
 	defaultFIPSUseHTTPS     bool   = false
 
 	defaultControlPlaneMonitoringEnabled bool = true
+
+	defaultDataPlaneDogstatsdEnabled bool = true
 )
 
 // DefaultDatadogAgentSpec defaults the DatadogAgentSpec GlobalConfig and Features.
@@ -153,26 +156,22 @@ func defaultGlobalConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
 	}
 
 	if ddaSpec.Global.Site == nil {
-		ddaSpec.Global.Site = apiutils.NewStringPointer(defaultSite)
+		ddaSpec.Global.Site = new(defaultSite)
 	}
 
 	if ddaSpec.Global.Registry == nil {
-		switch *ddaSpec.Global.Site {
-		case defaultEuropeSite:
-			ddaSpec.Global.Registry = apiutils.NewStringPointer(images.DefaultEuropeImageRegistry)
-		case defaultAsiaSite:
-			ddaSpec.Global.Registry = apiutils.NewStringPointer(images.DefaultAsiaImageRegistry)
-		case defaultAzureSite:
-			ddaSpec.Global.Registry = apiutils.NewStringPointer(images.DefaultAzureImageRegistry)
-		case defaultGovSite:
-			ddaSpec.Global.Registry = apiutils.NewStringPointer(images.DefaultGovImageRegistry)
-		default:
-			ddaSpec.Global.Registry = apiutils.NewStringPointer(images.DefaultImageRegistry)
+		// Keep registry selection simple while no explicit registry is provided.
+		// Later, cluster introspection can make this smarter based on the cluster's
+		// reachable registries.
+		if *ddaSpec.Global.Site == defaultGovSite {
+			ddaSpec.Global.Registry = ptr.To(images.DefaultGovImageRegistry)
+		} else {
+			ddaSpec.Global.Registry = ptr.To(images.DefaultImageRegistry)
 		}
 	}
 
 	if ddaSpec.Global.LogLevel == nil {
-		ddaSpec.Global.LogLevel = apiutils.NewStringPointer(defaultLogLevel)
+		ddaSpec.Global.LogLevel = new(defaultLogLevel)
 	}
 
 	if ddaSpec.Global.ContainerStrategy == nil {
@@ -282,15 +281,6 @@ func defaultFeaturesConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
 	// Service Discovery Feature
 	if ddaSpec.Features.ServiceDiscovery == nil {
 		ddaSpec.Features.ServiceDiscovery = &v2alpha1.ServiceDiscoveryFeatureConfig{}
-	}
-	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.ServiceDiscovery.Enabled, defaultServiceDiscoveryEnabled)
-
-	if *ddaSpec.Features.ServiceDiscovery.Enabled {
-		if ddaSpec.Features.ServiceDiscovery.NetworkStats == nil {
-			ddaSpec.Features.ServiceDiscovery.NetworkStats = &v2alpha1.ServiceDiscoveryNetworkStatsConfig{}
-		}
-
-		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.ServiceDiscovery.NetworkStats.Enabled, defaultServiceDiscoveryNetworkStatsEnabled)
 	}
 
 	// GPU monitoring feature
@@ -420,6 +410,12 @@ func defaultFeaturesConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
 	}
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.USM.Enabled, defaultUSMEnabled)
 
+	// Dynamic Instrumentation Feature
+	if ddaSpec.Features.DynamicInstrumentation == nil {
+		ddaSpec.Features.DynamicInstrumentation = &v2alpha1.DynamicInstrumentationFeatureConfig{}
+	}
+	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.DynamicInstrumentation.Enabled, defaultDynamicInstrumentationEnabled)
+
 	// Dogstatsd Feature
 	if ddaSpec.Features.Dogstatsd == nil {
 		ddaSpec.Features.Dogstatsd = &v2alpha1.DogstatsdFeatureConfig{}
@@ -428,7 +424,7 @@ func defaultFeaturesConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
 
 	if ddaSpec.Features.Dogstatsd.HostPortConfig == nil {
 		ddaSpec.Features.Dogstatsd.HostPortConfig = &v2alpha1.HostPortConfig{
-			Enabled: apiutils.NewBoolPointer(defaultDogstatsdHostPortEnabled),
+			Enabled: new(defaultDogstatsdHostPortEnabled),
 		}
 	}
 
@@ -621,4 +617,17 @@ func defaultFeaturesConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
 		ddaSpec.Features.ControlPlaneMonitoring = &v2alpha1.ControlPlaneMonitoringFeatureConfig{}
 	}
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.ControlPlaneMonitoring.Enabled, defaultControlPlaneMonitoringEnabled)
+
+	// DataPlane Feature
+	// Note: We intentionally do NOT default DataPlane.Enabled to allow the annotation fallback
+	// to work when the user hasn't explicitly configured Data Plane via the CRD.
+	// See IsDataPlaneEnabled() in feature/utils/utils.go for the precedence logic.
+	if ddaSpec.Features.DataPlane == nil {
+		ddaSpec.Features.DataPlane = &v2alpha1.DataPlaneFeatureConfig{}
+	}
+
+	if ddaSpec.Features.DataPlane.Dogstatsd == nil {
+		ddaSpec.Features.DataPlane.Dogstatsd = &v2alpha1.DataPlaneDogstatsdConfig{}
+	}
+	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.DataPlane.Dogstatsd.Enabled, defaultDataPlaneDogstatsdEnabled)
 }

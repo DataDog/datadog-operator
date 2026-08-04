@@ -15,4 +15,5 @@ const (
 	DDRuntimeSecurityConfigActivityDumpEnabled        = "DD_RUNTIME_SECURITY_CONFIG_ACTIVITY_DUMP_ENABLED"
 	DDRuntimeSecurityConfigRemoteConfigurationEnabled = "DD_RUNTIME_SECURITY_CONFIG_REMOTE_CONFIGURATION_ENABLED"
 	DDRuntimeSecurityConfigDirectSendFromSystemProbe  = "DD_RUNTIME_SECURITY_CONFIG_DIRECT_SEND_FROM_SYSTEM_PROBE"
+	DDRuntimeSecurityConfigEventGRPCServer            = "DD_RUNTIME_SECURITY_CONFIG_EVENT_GRPC_SERVER"
 )

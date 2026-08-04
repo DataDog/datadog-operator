@@ -7,11 +7,13 @@ package datadogagent
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/util/errors"
+	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 
+	v1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusteragent"
@@ -22,9 +24,9 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/secrets"
 )
 
-// setupDDADependenciesStore initializes a store specifically for DDA controller dependencies
-// when DatadogAgentInternalEnabled is true. The store is marked with IsDDAControllerStore
-// so that resources created by it are labeled and won't be cleaned up by the DDAI controller.
+// setupDDADependenciesStore initializes a store specifically for DDA controller dependencies.
+// The store is marked with IsDDAControllerStore so that resources created by it are labeled
+// and won't be cleaned up by the DDAI controller.
 func (r *Reconciler) setupDDADependenciesStore(instance *v2alpha1.DatadogAgent, logger logr.Logger) (*store.Store, feature.ResourceManagers) {
 	storeOptions := &store.StoreOptions{
 		SupportCilium:        r.options.SupportCilium,
@@ -38,7 +40,7 @@ func (r *Reconciler) setupDDADependenciesStore(instance *v2alpha1.DatadogAgent, 
 	return depsStore, resourceManagers
 }
 
-func (r *Reconciler) manageDDADependenciesWithDDAI(ctx context.Context, logger logr.Logger, instance *v2alpha1.DatadogAgent, newDDAStatus *v2alpha1.DatadogAgentStatus) error {
+func (r *Reconciler) manageDDADependenciesWithDDAI(ctx context.Context, logger logr.Logger, instance *v2alpha1.DatadogAgent, newDDAStatus *v2alpha1.DatadogAgentStatus, ddais []*v1alpha1.DatadogAgentInternal) error {
 	// Use a store marked as DDA controller store so resources are labeled
 	// with ManagedByDDAControllerLabelKey and won't be cleaned up by DDAI controller.
 	depsStore, resourceManagers := r.setupDDADependenciesStore(instance, logger)
@@ -71,18 +73,46 @@ func (r *Reconciler) manageDDADependenciesWithDDAI(ctx context.Context, logger l
 		return err
 	}
 
+	// Dependencies that can get configs from DDA and DDAI
+	// Example: agent local service for APM, DSD, and OTLP
+	if err := r.addDDASharedDependencies(instance, ddais, resourceManagers); err != nil {
+		return err
+	}
+
 	// Apply dependencies
 	if err := depsStore.Apply(ctx, r.client); err != nil {
-		return errors.NewAggregate(err)
+		return utilerrors.NewAggregate(err)
 	}
 
 	// Cleanup unused DDA controller dependencies.
 	// Pass false since we want to clean up DDA-managed resources (this is the DDA controller).
 	// Note that we don't really need to clean these dependencies as they're all ownerRef'ed by the DDA, so they will be cleaned if the DDA is deleted.
 	if err := depsStore.Cleanup(ctx, r.client, false); err != nil {
-		return errors.NewAggregate(err)
+		return utilerrors.NewAggregate(err)
 	}
 
+	// DatadogCSIDriver: create or delete based on spec.global.csi configuration.
+	// This is managed outside the store because the store only supports built-in Kubernetes
+	// resource types. See ddcsi.go for details.
+	if err := r.reconcileDatadogCSIDriver(ctx, logger, instance); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (r *Reconciler) addDDASharedDependencies(dda *v2alpha1.DatadogAgent, ddais []*v1alpha1.DatadogAgentInternal, managers feature.ResourceManagers) error {
+	var errs []error
+
+	for _, ddai := range ddais {
+		if err := feature.ApplyDDASharedDependencies(dda, &dda.Spec, ddai, &ddai.Spec, managers); err != nil {
+			errs = append(errs, fmt.Errorf("%s/%s DDA shared dependencies failed: %w", ddai.Namespace, ddai.Name, err))
+		}
+	}
+
+	if len(errs) > 0 {
+		return utilerrors.NewAggregate(errs)
+	}
 	return nil
 }
 

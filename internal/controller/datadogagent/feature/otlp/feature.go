@@ -16,6 +16,7 @@ import (
 	netv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/utils/ptr"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -23,6 +24,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/objects"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/pkg/cilium/v1"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 )
@@ -33,6 +35,10 @@ var (
 
 func init() {
 	err := feature.Register(feature.OTLPIDType, buildOTLPFeature)
+	if err != nil {
+		panic(err)
+	}
+	err = feature.RegisterDDASharedDependencies(feature.OTLPIDType, applyOTLPDDASharedDependencies)
 	if err != nil {
 		panic(err)
 	}
@@ -58,9 +64,6 @@ type otlpFeature struct {
 	httpEndpoint        string
 
 	usingAPM bool
-
-	forceEnableLocalService bool
-	localServiceName        string
 
 	createKubernetesNetworkPolicy bool
 	createCiliumNetworkPolicy     bool
@@ -108,15 +111,10 @@ func (f *otlpFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgen
 		f.usingAPM = apiutils.BoolValue(apm.Enabled)
 	}
 
-	if ddaSpec.Global.LocalService != nil {
-		f.forceEnableLocalService = apiutils.BoolValue(ddaSpec.Global.LocalService.ForceEnableLocalService)
-	}
-	f.localServiceName = constants.GetLocalAgentServiceName(dda.GetName(), ddaSpec)
-
 	if f.grpcEnabled || f.httpEnabled {
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
-				IsRequired: apiutils.NewBoolPointer(true),
+				IsRequired: new(true),
 				Containers: []apicommon.AgentContainerName{
 					apicommon.CoreAgentContainerName,
 				},
@@ -142,32 +140,11 @@ func (f *otlpFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgen
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *otlpFeature) ManageDependencies(managers feature.ResourceManagers, provider string) error {
-	platformInfo := managers.Store().GetPlatformInfo()
-	versionInfo := platformInfo.GetVersionInfo()
-
+func (f *otlpFeature) ManageDependencies(managers feature.ResourceManagers) error {
 	if f.grpcEnabled {
-		port, err := extractPortEndpoint(f.grpcEndpoint)
+		port, err := f.grpcServicePort()
 		if err != nil {
-			f.logger.Error(err, "failed to extract port from OTLP/gRPC endpoint")
-			return fmt.Errorf("failed to extract port from OTLP/gRPC endpoint: %w", err)
-		}
-		if f.grpcHostPortEnabled && f.grpcCustomHostPort != 0 {
-			port = f.grpcCustomHostPort
-		}
-		if common.ShouldCreateAgentLocalService(versionInfo, f.forceEnableLocalService) {
-			servicePort := []corev1.ServicePort{
-				{
-					Protocol:   corev1.ProtocolTCP,
-					TargetPort: intstr.FromInt(int(port)),
-					Port:       port,
-					Name:       otlpGRPCPortName,
-				},
-			}
-			serviceInternalTrafficPolicy := corev1.ServiceInternalTrafficPolicyLocal
-			if err := managers.ServiceManager().AddService(f.localServiceName, f.owner.GetNamespace(), common.GetAgentLocalServiceSelector(f.owner), servicePort, &serviceInternalTrafficPolicy); err != nil {
-				return err
-			}
+			return err
 		}
 		//network policies for gRPC OTLP
 		policyName, podSelector := objects.GetNetworkPolicyMetadata(f.owner, v2alpha1.NodeAgentComponentName)
@@ -226,27 +203,9 @@ func (f *otlpFeature) ManageDependencies(managers feature.ResourceManagers, prov
 		}
 	}
 	if f.httpEnabled {
-		port, err := extractPortEndpoint(f.httpEndpoint)
+		port, err := f.httpServicePort()
 		if err != nil {
-			f.logger.Error(err, "failed to extract port from OTLP/HTTP endpoint")
-			return fmt.Errorf("failed to extract port from OTLP/HTTP endpoint: %w", err)
-		}
-		if f.httpHostPortEnabled && f.httpCustomHostPort != 0 {
-			port = f.httpCustomHostPort
-		}
-		if common.ShouldCreateAgentLocalService(versionInfo, f.forceEnableLocalService) {
-			servicePort := []corev1.ServicePort{
-				{
-					Protocol:   corev1.ProtocolTCP,
-					TargetPort: intstr.FromInt(int(port)),
-					Port:       port,
-					Name:       otlpHTTPPortName,
-				},
-			}
-			serviceInternalTrafficPolicy := corev1.ServiceInternalTrafficPolicyLocal
-			if err := managers.ServiceManager().AddService(f.localServiceName, f.owner.GetNamespace(), nil, servicePort, &serviceInternalTrafficPolicy); err != nil {
-				return err
-			}
+			return err
 		}
 		//network policies for HTTP OTLP
 		policyName, podSelector := objects.GetNetworkPolicyMetadata(f.owner, v2alpha1.NodeAgentComponentName)
@@ -307,9 +266,117 @@ func (f *otlpFeature) ManageDependencies(managers feature.ResourceManagers, prov
 	return nil
 }
 
+func applyOTLPDDASharedDependencies(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ metav1.Object, ddaiSpec *v2alpha1.DatadogAgentSpec, managers feature.ResourceManagers) error {
+	ports, err := otlpLocalAgentServicePorts(ddaiSpec)
+	if err != nil {
+		return err
+	}
+	if len(ports) == 0 || !featureutils.ShouldCreateLocalAgentService(ddaSpec, managers) {
+		return nil
+	}
+
+	serviceInternalTrafficPolicy := corev1.ServiceInternalTrafficPolicyLocal
+	return managers.ServiceManager().AddService(
+		constants.GetLocalAgentServiceName(dda.GetName(), ddaSpec),
+		dda.GetNamespace(),
+		common.GetAgentLocalServiceSelector(dda),
+		ports,
+		&serviceInternalTrafficPolicy,
+	)
+}
+
+func otlpLocalAgentServicePorts(ddaiSpec *v2alpha1.DatadogAgentSpec) ([]corev1.ServicePort, error) {
+	if ddaiSpec == nil || ddaiSpec.Features == nil || ddaiSpec.Features.OTLP == nil {
+		return nil, nil
+	}
+
+	ports := []corev1.ServicePort{}
+	protocols := ddaiSpec.Features.OTLP.Receiver.Protocols
+	if protocols.GRPC != nil && apiutils.BoolValue(protocols.GRPC.Enabled) {
+		port, err := otlpGRPCServicePort(protocols.GRPC)
+		if err != nil {
+			return nil, err
+		}
+		ports = append(ports, corev1.ServicePort{
+			Protocol:    corev1.ProtocolTCP,
+			TargetPort:  intstr.FromInt(int(port)),
+			Port:        port,
+			Name:        otlpGRPCPortName,
+			AppProtocol: ptr.To(common.KubernetesAppProtocolH2C),
+		})
+	}
+	if protocols.HTTP != nil && apiutils.BoolValue(protocols.HTTP.Enabled) {
+		port, err := otlpHTTPServicePort(protocols.HTTP)
+		if err != nil {
+			return nil, err
+		}
+		ports = append(ports, corev1.ServicePort{
+			Protocol:   corev1.ProtocolTCP,
+			TargetPort: intstr.FromInt(int(port)),
+			Port:       port,
+			Name:       otlpHTTPPortName,
+		})
+	}
+	return ports, nil
+}
+
+func otlpGRPCServicePort(config *v2alpha1.OTLPGRPCConfig) (int32, error) {
+	endpoint := ""
+	if config.Endpoint != nil {
+		endpoint = *config.Endpoint
+	}
+	port, err := extractPortEndpoint(endpoint)
+	if err != nil {
+		return 0, fmt.Errorf("failed to extract port from OTLP/gRPC endpoint: %w", err)
+	}
+	if config.HostPortConfig != nil && apiutils.BoolValue(config.HostPortConfig.Enabled) && config.HostPortConfig.Port != nil && *config.HostPortConfig.Port != 0 {
+		port = *config.HostPortConfig.Port
+	}
+	return port, nil
+}
+
+func otlpHTTPServicePort(config *v2alpha1.OTLPHTTPConfig) (int32, error) {
+	endpoint := ""
+	if config.Endpoint != nil {
+		endpoint = *config.Endpoint
+	}
+	port, err := extractPortEndpoint(endpoint)
+	if err != nil {
+		return 0, fmt.Errorf("failed to extract port from OTLP/HTTP endpoint: %w", err)
+	}
+	if config.HostPortConfig != nil && apiutils.BoolValue(config.HostPortConfig.Enabled) && config.HostPortConfig.Port != nil && *config.HostPortConfig.Port != 0 {
+		port = *config.HostPortConfig.Port
+	}
+	return port, nil
+}
+
+func (f *otlpFeature) grpcServicePort() (int32, error) {
+	port, err := extractPortEndpoint(f.grpcEndpoint)
+	if err != nil {
+		f.logger.Error(err, "failed to extract port from OTLP/gRPC endpoint")
+		return 0, fmt.Errorf("failed to extract port from OTLP/gRPC endpoint: %w", err)
+	}
+	if f.grpcHostPortEnabled && f.grpcCustomHostPort != 0 {
+		port = f.grpcCustomHostPort
+	}
+	return port, nil
+}
+
+func (f *otlpFeature) httpServicePort() (int32, error) {
+	port, err := extractPortEndpoint(f.httpEndpoint)
+	if err != nil {
+		f.logger.Error(err, "failed to extract port from OTLP/HTTP endpoint")
+		return 0, fmt.Errorf("failed to extract port from OTLP/HTTP endpoint: %w", err)
+	}
+	if f.httpHostPortEnabled && f.httpCustomHostPort != 0 {
+		port = f.httpCustomHostPort
+	}
+	return port, nil
+}
+
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *otlpFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *otlpFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
 	return nil
 }
 
@@ -347,7 +414,7 @@ func extractPortEndpoint(endpoint string) (int32, error) {
 // ManageSingleContainerNodeAgent allows a feature to configure the Agent container for the Node Agent's corev1.PodTemplateSpec
 // if SingleContainerStrategy is enabled and can be used with the configured feature set.
 // It should do nothing if the feature doesn't need to configure it.
-func (f *otlpFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *otlpFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers) error {
 	if f.grpcEnabled {
 		if err := validateOTLPGRPCEndpoint(f.grpcEndpoint); err != nil {
 			f.logger.Error(err, "invalid OTLP/gRPC endpoint")
@@ -407,7 +474,7 @@ func (f *otlpFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplat
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *otlpFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *otlpFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
 	if f.grpcEnabled {
 		if err := validateOTLPGRPCEndpoint(f.grpcEndpoint); err != nil {
 			f.logger.Error(err, "invalid OTLP/gRPC endpoint")
@@ -473,10 +540,10 @@ func (f *otlpFeature) ManageNodeAgent(managers feature.PodTemplateManagers, prov
 
 // ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunner's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *otlpFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
+func (f *otlpFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
 	return nil
 }
 
-func (f *otlpFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
+func (f *otlpFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers) error {
 	return nil
 }

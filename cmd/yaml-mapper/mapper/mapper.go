@@ -38,11 +38,11 @@ var skipMappingKeys = []string{
 const defaultDDAMapUrl = "https://raw.githubusercontent.com/DataDog/helm-charts/main/tools/yaml-mapper/mapping_datadog_helm_to_datadogagent_crd.yaml"
 
 // newDefaultFileHeader returns a new default file header for the mapped DDA custom resource output.
-func newDefaultFileHeader() map[string]interface{} {
-	return map[string]interface{}{
+func newDefaultFileHeader() map[string]any {
+	return map[string]any{
 		"apiVersion": "datadoghq.com/v2alpha1",
 		"kind":       "DatadogAgent",
-		"metadata":   map[string]interface{}{},
+		"metadata":   map[string]any{},
 	}
 }
 
@@ -164,10 +164,10 @@ func (m *Mapper) loadInputs() (mappingValues chartutil.Values, sourceValues char
 }
 
 // mapValues maps the Helm source Values to a DDA custom resource based on the provided mapping Values.
-func (m *Mapper) mapValues(sourceValues chartutil.Values, mappingValues chartutil.Values) (map[string]interface{}, int) {
+func (m *Mapper) mapValues(sourceValues chartutil.Values, mappingValues chartutil.Values) (map[string]any, int) {
 	var errorCount int
 	var ddaName = m.MapConfig.DDAName
-	var interim = map[string]interface{}{}
+	var interim = map[string]any{}
 
 	if m.MapConfig.HeaderPath == "" {
 		interim = newDefaultFileHeader()
@@ -189,10 +189,10 @@ func (m *Mapper) mapValues(sourceValues chartutil.Values, mappingValues chartuti
 	sort.Strings(mappingKeys)
 
 	// Keep track of visited values source keys that are present in mapping file
-	sourceKeys := flattenValues(sourceValues, map[string]interface{}{}, "")
-	sourceKeysRef := map[string]interface{}{}
+	sourceKeys := flattenValues(sourceValues, map[string]any{}, "")
+	sourceKeysRef := map[string]any{}
 	for k := range sourceKeys {
-		utils.MergeOrSet(sourceKeysRef, k, map[string]interface{}{"visited": false})
+		utils.MergeOrSet(sourceKeysRef, k, map[string]any{"visited": false})
 	}
 
 	// Map values.yaml => DDA
@@ -208,7 +208,7 @@ func (m *Mapper) mapValues(sourceValues chartutil.Values, mappingValues chartuti
 			}
 		}
 
-		utils.MergeOrSet(sourceKeysRef, sourceKey, map[string]interface{}{"visited": true})
+		utils.MergeOrSet(sourceKeysRef, sourceKey, map[string]any{"visited": true})
 
 		destKey, _ := mappingValues[sourceKey]
 		if (destKey == "" || destKey == nil) && !shouldSkipMappingKey(sourceKey) {
@@ -235,7 +235,7 @@ func (m *Mapper) mapValues(sourceValues chartutil.Values, mappingValues chartuti
 			}
 			utils.MergeOrSet(interim, typedDestKey, pathVal)
 
-		case []interface{}:
+		case []any:
 			// Provide support for the case where one source key may map to multiple destination keys
 			for _, val := range typedDestKey {
 				if s, sOk := val.(string); sOk {
@@ -246,7 +246,7 @@ func (m *Mapper) mapValues(sourceValues chartutil.Values, mappingValues chartuti
 				}
 			}
 
-		case map[string]interface{}:
+		case map[string]any:
 			// Perform further processing
 			newPath, _ := utils.GetPathString(typedDestKey, "newPath")
 
@@ -283,7 +283,7 @@ func (m *Mapper) mapValues(sourceValues chartutil.Values, mappingValues chartuti
 	sort.Strings(interimKeys)
 
 	// Create final mapping with properly nested map keys (converted from period-delimited keys)
-	dda := make(map[string]interface{})
+	dda := make(map[string]any)
 	for _, k := range interimKeys {
 		v := interim[k]
 		dda = utils.InsertAtPath(k, v, dda)
@@ -293,7 +293,7 @@ func (m *Mapper) mapValues(sourceValues chartutil.Values, mappingValues chartuti
 
 // writeDDA writes a DDA map[string]interface{} object to a configured destination filepath.
 // If the destPath is not provided, a new file is created.
-func (m *Mapper) writeDDA(dda map[string]interface{}, cfg MapConfig) error {
+func (m *Mapper) writeDDA(dda map[string]any, cfg MapConfig) error {
 	destPath := cfg.DestPath
 	headerPath := cfg.HeaderPath
 
@@ -354,7 +354,7 @@ func (m *Mapper) writeDDA(dda map[string]interface{}, cfg MapConfig) error {
 // preserving existing mappings.
 func (m *Mapper) updateMapping(sourceValues chartutil.Values, mappingValues chartutil.Values) error {
 	// Populate interim map with keys from latest chart's values.yaml
-	interim := flattenValues(sourceValues, make(map[string]interface{}), "")
+	interim := flattenValues(sourceValues, make(map[string]any), "")
 	// Add back existing key values from mapping file
 	for sourceKey, sourceVal := range mappingValues {
 		utils.MergeOrSet(interim, sourceKey, sourceVal)
@@ -384,7 +384,7 @@ func (m *Mapper) updateMapping(sourceValues chartutil.Values, mappingValues char
 }
 
 // flattenValues builds a mapping of dotted-key paths from a provided Values source.
-func flattenValues(sourceValues chartutil.Values, valuesMap map[string]interface{}, prefix string) map[string]interface{} {
+func flattenValues(sourceValues chartutil.Values, valuesMap map[string]any, prefix string) map[string]any {
 	for key, value := range sourceValues {
 		currentKey := prefix + key
 		// If the value is a map, recursive call to get nested keys.

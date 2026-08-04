@@ -16,6 +16,8 @@ import (
 type objectConfig struct {
 	configured bool
 	namespaces []string
+	// noPodLabel, when true, asserts Pod ByObject has no label selector (widened informer).
+	noPodLabel bool
 }
 
 func Test_CacheConfig(t *testing.T) {
@@ -38,6 +40,7 @@ func Test_CacheConfig(t *testing.T) {
 				DatadogAgentProfileEnabled:    true,
 				DatadogDashboardEnabled:       true,
 				DatadogGenericResourceEnabled: true,
+				DatadogCSIDriverEnabled:       true,
 			},
 
 			envConfig: map[string]string{
@@ -48,6 +51,7 @@ func Test_CacheConfig(t *testing.T) {
 				profileWatchNamespaceEnvVar:         "profileNs",
 				dashboardWatchNamespaceEnvVar:       "dashboardNs",
 				genericResourceWatchNamespaceEnvVar: "genericNs",
+				csiDriverWatchNamespaceEnvVar:       "csiDriverNs",
 			},
 
 			wantDefaultNamepsace: objectConfig{configured: true, namespaces: []string{"agentNs"}},
@@ -61,6 +65,63 @@ func Test_CacheConfig(t *testing.T) {
 				profileObj:         {configured: true, namespaces: []string{"profileNs"}},
 				podObj:             {configured: true, namespaces: []string{"agentNs"}},
 				nodeObj:            {configured: true, namespaces: nil},
+				csiDriverObj:       {configured: true, namespaces: []string{"csiDriverNs"}},
+				csiDaemonSetObj:    {configured: true, namespaces: []string{"csiDriverNs", "agentNs"}},
+			},
+		},
+		{
+			name: "CSIDriver enabled; falls back to WATCH_NAMESPACE when DD_CSIDRIVER_WATCH_NAMESPACE not set",
+			watchOptions: WatchOptions{
+				DatadogCSIDriverEnabled: true,
+			},
+
+			envConfig: map[string]string{
+				WatchNamespaceEnvVar: "commonNs",
+			},
+
+			wantDefaultNamepsace: objectConfig{configured: true, namespaces: []string{"commonNs"}},
+
+			wantObjectConfig: map[client.Object]objectConfig{
+				csiDriverObj:    {configured: true, namespaces: []string{"commonNs"}},
+				csiDaemonSetObj: {configured: true, namespaces: []string{"commonNs"}},
+			},
+		},
+		{
+			name: "CSIDriver enabled; uses DD_CSIDRIVER_WATCH_NAMESPACE when set",
+			watchOptions: WatchOptions{
+				DatadogCSIDriverEnabled: true,
+			},
+
+			envConfig: map[string]string{
+				WatchNamespaceEnvVar:          "commonNs",
+				csiDriverWatchNamespaceEnvVar: "csiNs1,csiNs2",
+			},
+
+			wantDefaultNamepsace: objectConfig{configured: true, namespaces: []string{"commonNs"}},
+
+			wantObjectConfig: map[client.Object]objectConfig{
+				csiDriverObj:    {configured: true, namespaces: []string{"csiNs1", "csiNs2"}},
+				csiDaemonSetObj: {configured: true, namespaces: []string{"csiNs1", "csiNs2", "commonNs"}},
+			},
+		},
+		{
+			name: "CSIDriver in different namespace than Agent; DaemonSet cached in both",
+			watchOptions: WatchOptions{
+				DatadogAgentEnabled:     true,
+				DatadogCSIDriverEnabled: true,
+			},
+
+			envConfig: map[string]string{
+				AgentWatchNamespaceEnvVar:     "system",
+				csiDriverWatchNamespaceEnvVar: "default",
+			},
+
+			wantDefaultNamepsace: objectConfig{configured: true, namespaces: []string{"system"}},
+
+			wantObjectConfig: map[client.Object]objectConfig{
+				agentObj:        {configured: true, namespaces: []string{"system"}},
+				csiDriverObj:    {configured: true, namespaces: []string{"default"}},
+				csiDaemonSetObj: {configured: true, namespaces: []string{"system", "default"}},
 			},
 		},
 		{
@@ -86,6 +147,7 @@ func Test_CacheConfig(t *testing.T) {
 				profileObj:         {configured: true, namespaces: []string{"profileNs"}},
 				podObj:             {configured: true, namespaces: []string{"datadog"}},
 				nodeObj:            {configured: true, namespaces: nil},
+				csiDriverObj:       {configured: false},
 			},
 		},
 
@@ -114,6 +176,7 @@ func Test_CacheConfig(t *testing.T) {
 				profileObj:         {configured: true, namespaces: []string{"profileNs"}},
 				podObj:             {configured: true, namespaces: []string{"agentNs1", "agentNs2"}},
 				nodeObj:            {configured: true, namespaces: nil},
+				csiDriverObj:       {configured: false},
 			},
 		},
 		{
@@ -141,6 +204,7 @@ func Test_CacheConfig(t *testing.T) {
 				profileObj:         {configured: false},
 				podObj:             {configured: false},
 				nodeObj:            {configured: false},
+				csiDriverObj:       {configured: false},
 			},
 		},
 		{
@@ -169,6 +233,28 @@ func Test_CacheConfig(t *testing.T) {
 				profileObj:         {configured: false},
 				podObj:             {configured: false},
 				nodeObj:            {configured: true, namespaces: nil},
+				csiDriverObj:       {configured: false},
+			},
+		},
+		{
+			name: "Untaint wait-for-CSI; Pod cache merges agent and CSI namespaces and omits label selector",
+
+			watchOptions: WatchOptions{
+				UntaintControllerEnabled:          true,
+				UntaintControllerWaitForCSIDriver: true,
+			},
+
+			envConfig: map[string]string{
+				WatchNamespaceEnvVar:          "commonNs",
+				AgentWatchNamespaceEnvVar:     "agentNs",
+				csiDriverWatchNamespaceEnvVar: "csiNs1,csiNs2",
+			},
+
+			wantDefaultNamepsace: objectConfig{configured: true, namespaces: []string{"agentNs"}},
+			wantObjectConfig: map[client.Object]objectConfig{
+				podObj:       {configured: true, namespaces: []string{"agentNs", "csiNs1", "csiNs2"}, noPodLabel: true},
+				nodeObj:      {configured: true, namespaces: nil},
+				csiDriverObj: {configured: false},
 			},
 		},
 	}
@@ -199,6 +285,9 @@ func verifyResourceNamespace(t *testing.T, resource client.Object, wantConfig ob
 			assert.Nil(t, byObjectOptions.Namespaces, "Namespaces should be nil for", reflect.TypeOf(resource).Elem())
 		} else {
 			assert.ElementsMatch(t, wantConfig.namespaces, maps.Keys(byObjectOptions.Namespaces), "Namespaces don't match for", reflect.TypeOf(resource).Elem())
+		}
+		if wantConfig.noPodLabel {
+			assert.Nil(t, byObjectOptions.Label)
 		}
 	}
 }

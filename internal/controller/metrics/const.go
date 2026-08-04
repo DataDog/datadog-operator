@@ -8,6 +8,7 @@ package metrics
 const (
 	datadogAgentSubsystem        = "datadogagent"
 	datadogAgentProfileSubsystem = "datadogagentprofile"
+	untaintSubsystem             = "untaint"
 
 	TrueValue  = 1.0
 	FalseValue = 0.0

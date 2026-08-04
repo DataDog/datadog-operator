@@ -14,8 +14,10 @@ import (
 
 // RBAC for Agent
 
-// GetDefaultAgentClusterRolePolicyRules returns the default policy rules for the Agent cluster role
-func GetDefaultAgentClusterRolePolicyRules(excludeNonResourceRules bool, useFineGrainedAuthorization bool) []rbacv1.PolicyRule {
+// GetDefaultAgentClusterRolePolicyRules returns the default policy rules for the Agent cluster role.
+// kubeletUseAPIServer adds get/list on pods so the Agent can discover pods via
+// the API server when the kubelet endpoint is not reachable (e.g. GKE Autopilot).
+func GetDefaultAgentClusterRolePolicyRules(excludeNonResourceRules bool, useFineGrainedAuthorization bool, kubeletUseAPIServer bool) []rbacv1.PolicyRule {
 	policyRule := []rbacv1.PolicyRule{
 		getKubeletPolicyRule(useFineGrainedAuthorization),
 		getEndpointsPolicyRule(),
@@ -23,11 +25,23 @@ func GetDefaultAgentClusterRolePolicyRules(excludeNonResourceRules bool, useFine
 		component.GetEKSControlPlaneMetricsPolicyRule(),
 	}
 
+	if kubeletUseAPIServer {
+		policyRule = append(policyRule, getPodsPolicyRule())
+	}
+
 	if !excludeNonResourceRules {
 		policyRule = append(policyRule, getMetricsEndpointPolicyRule())
 	}
 
 	return policyRule
+}
+
+func getPodsPolicyRule() rbacv1.PolicyRule {
+	return rbacv1.PolicyRule{
+		APIGroups: []string{rbac.CoreAPIGroup},
+		Resources: []string{rbac.PodsResource},
+		Verbs:     []string{rbac.GetVerb, rbac.ListVerb},
+	}
 }
 
 func getMetricsEndpointPolicyRule() rbacv1.PolicyRule {

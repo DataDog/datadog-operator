@@ -12,6 +12,7 @@ import (
 	"io"
 
 	"github.com/olekukonko/tablewriter"
+	"github.com/olekukonko/tablewriter/tw"
 	"github.com/spf13/cobra"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
@@ -137,21 +138,24 @@ func (o *options) renderTable(statuses []common.StatusWrapper) {
 			data = append(data, "")
 		}
 		data = append(data, common.GetDurationAsString(item.GetObjectMeta()))
-		table.Append(data)
+		_ = table.Append(data)
 	}
-	table.Render()
+	_ = table.Render()
 }
 
 func newTable(out io.Writer) *tablewriter.Table {
 	table := tablewriter.NewWriter(out)
-	table.SetHeader([]string{"Namespace", "Name", "Agent", "Cluster-Agent", "Cluster-Checks-Runner", "Age"})
-	table.SetBorders(tablewriter.Border{Left: false, Top: false, Right: false, Bottom: false})
-	table.SetHeaderAlignment(tablewriter.ALIGN_LEFT)
-	table.SetRowLine(false)
-	table.SetCenterSeparator("")
-	table.SetColumnSeparator("")
-	table.SetRowSeparator("")
-	table.SetAlignment(tablewriter.ALIGN_LEFT)
-	table.SetHeaderLine(false)
+	table.Header("Namespace", "Name", "Agent", "Cluster-Agent", "Cluster-Checks-Runner", "Age")
+	table.Options(
+		tablewriter.WithHeaderAlignment(tw.AlignLeft),
+		tablewriter.WithRowAlignment(tw.AlignLeft),
+		tablewriter.WithRendition(tw.Rendition{
+			Borders: tw.Border{Left: tw.Off, Top: tw.Off, Right: tw.Off, Bottom: tw.Off},
+			Settings: tw.Settings{
+				Lines:      tw.Lines{ShowHeaderLine: tw.Off},
+				Separators: tw.Separators{BetweenRows: tw.Off},
+			},
+		}),
+	)
 	return table
 }

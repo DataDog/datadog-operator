@@ -389,6 +389,15 @@ func egressAgentDatadogIntake(podSelector metav1.LabelSelector, site string, ddU
 					{
 						MatchName: fmt.Sprintf("orchestrator.%s", site),
 					},
+					{
+						MatchName: fmt.Sprintf("intake.profile.%s", site),
+					},
+					{
+						MatchName: fmt.Sprintf("sourcemap-intake.%s", site),
+					},
+					{
+						MatchName: fmt.Sprintf("otlp.%s", site),
+					},
 				}...),
 				ToPorts: []cilium.PortRule{
 					{

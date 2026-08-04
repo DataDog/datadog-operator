@@ -4,6 +4,8 @@ import (
 	"path"
 	"testing"
 
+	"k8s.io/utils/ptr"
+
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
@@ -16,6 +18,8 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/providercaps"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 const alternativeRuntimeClass = "nvidia-like"
@@ -27,7 +31,7 @@ func Test_GPUMonitoringFeature_Configure(t *testing.T) {
 		Spec: v2alpha1.DatadogAgentSpec{
 			Features: &v2alpha1.DatadogFeatures{
 				GPU: &v2alpha1.GPUFeatureConfig{
-					Enabled: apiutils.NewBoolPointer(false),
+					Enabled: ptr.To(false),
 				},
 			},
 			Global: &v2alpha1.GlobalConfig{
@@ -38,25 +42,25 @@ func Test_GPUMonitoringFeature_Configure(t *testing.T) {
 		},
 	}
 	ddaGPUMonitoringEnabled := ddaGPUMonitoringDisabled.DeepCopy()
-	ddaGPUMonitoringEnabled.Spec.Features.GPU.Enabled = apiutils.NewBoolPointer(true)
-	ddaGPUMonitoringEnabled.Spec.Features.GPU.PrivilegedMode = apiutils.NewBoolPointer(true)
+	ddaGPUMonitoringEnabled.Spec.Features.GPU.Enabled = ptr.To(true)
+	ddaGPUMonitoringEnabled.Spec.Features.GPU.PrivilegedMode = ptr.To(true)
 
 	ddaGPUMonitoringEnabledAlternativeRuntimeClass := ddaGPUMonitoringEnabled.DeepCopy()
-	ddaGPUMonitoringEnabledAlternativeRuntimeClass.Spec.Features.GPU.PodRuntimeClassName = apiutils.NewStringPointer(alternativeRuntimeClass)
+	ddaGPUMonitoringEnabledAlternativeRuntimeClass.Spec.Features.GPU.PodRuntimeClassName = ptr.To(alternativeRuntimeClass)
 
 	ddaGPUMonitoringEnabledANoRuntimeClass := ddaGPUMonitoringEnabled.DeepCopy()
-	ddaGPUMonitoringEnabledANoRuntimeClass.Spec.Features.GPU.PodRuntimeClassName = apiutils.NewStringPointer("")
+	ddaGPUMonitoringEnabledANoRuntimeClass.Spec.Features.GPU.PodRuntimeClassName = ptr.To("")
 
 	ddaGPUCoreCheckOnly := ddaGPUMonitoringDisabled.DeepCopy()
-	ddaGPUCoreCheckOnly.Spec.Features.GPU.Enabled = apiutils.NewBoolPointer(true)
-	ddaGPUCoreCheckOnly.Spec.Features.GPU.PrivilegedMode = apiutils.NewBoolPointer(false)
+	ddaGPUCoreCheckOnly.Spec.Features.GPU.Enabled = ptr.To(true)
+	ddaGPUCoreCheckOnly.Spec.Features.GPU.PrivilegedMode = ptr.To(false)
 
 	ddaGPUInvalidConfig := ddaGPUMonitoringDisabled.DeepCopy()
-	ddaGPUInvalidConfig.Spec.Features.GPU.Enabled = apiutils.NewBoolPointer(false)
-	ddaGPUInvalidConfig.Spec.Features.GPU.PrivilegedMode = apiutils.NewBoolPointer(true)
+	ddaGPUInvalidConfig.Spec.Features.GPU.Enabled = ptr.To(false)
+	ddaGPUInvalidConfig.Spec.Features.GPU.PrivilegedMode = ptr.To(true)
 
 	ddaGPUCgroupPermissionsEnabled := ddaGPUMonitoringEnabled.DeepCopy()
-	ddaGPUCgroupPermissionsEnabled.Spec.Features.GPU.PatchCgroupPermissions = apiutils.NewBoolPointer(true)
+	ddaGPUCgroupPermissionsEnabled.Spec.Features.GPU.PatchCgroupPermissions = ptr.To(true)
 
 	GPUMonitoringAgentNodeWantFunc := func(t testing.TB, mgrInterface feature.PodTemplateManagers, expectedRuntimeClass string) {
 		mgr := mgrInterface.(*fake.PodTemplateManagers)
@@ -228,6 +232,9 @@ func Test_GPUMonitoringFeature_Configure(t *testing.T) {
 		systemProbeEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.SystemProbeContainerName]
 		assert.ElementsMatch(t, systemProbeEnvVars, wantSystemProbeEnvVars)
 
+		// GPU monitoring requires the host PID namespace
+		assert.True(t, mgr.PodTemplateSpec().Spec.HostPID, "HostPID should be enabled for GPU monitoring")
+
 		// Check runtime class
 		if expectedRuntimeClass == "" {
 			assert.Nil(t, mgr.PodTemplateSpec().Spec.RuntimeClassName)
@@ -311,6 +318,9 @@ func Test_GPUMonitoringFeature_Configure(t *testing.T) {
 		// check that system probe has NO env vars for core-check only
 		systemProbeEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.SystemProbeContainerName]
 		assert.Empty(t, systemProbeEnvVars, "System Probe should not have env vars when privileged mode is disabled")
+
+		// GPU monitoring requires the host PID namespace, even in core-check only mode
+		assert.True(t, mgr.PodTemplateSpec().Spec.HostPID, "HostPID should be enabled for GPU monitoring")
 
 		// Check runtime class
 		if expectedRuntimeClass == "" {
@@ -407,4 +417,81 @@ func Test_GPUMonitoringFeature_Configure(t *testing.T) {
 	}
 
 	tests.Run(t, buildFeature)
+}
+
+// Test_GPUFeature_NodeAgentProviderCapabilities verifies that the GKE COS
+// NVIDIA driver lib64 host mount is injected only on the gke-cos provider, and
+// only into system-probe when privileged mode is enabled.
+func Test_GPUFeature_NodeAgentProviderCapabilities(t *testing.T) {
+	wantVolume := corev1.Volume{
+		Name: gkeCOSNVIDIADriverLib64VolumeName,
+		VolumeSource: corev1.VolumeSource{
+			HostPath: &corev1.HostPathVolumeSource{
+				Path: gkeCOSNVIDIADriverLib64HostPath,
+				Type: ptr.To(corev1.HostPathDirectoryOrCreate),
+			},
+		},
+	}
+	wantMount := corev1.VolumeMount{
+		Name:      gkeCOSNVIDIADriverLib64VolumeName,
+		MountPath: gkeCOSNVIDIADriverLib64MountPath,
+		ReadOnly:  true,
+	}
+
+	newPodTemplate := func() *corev1.PodTemplateSpec {
+		return &corev1.PodTemplateSpec{
+			Spec: corev1.PodSpec{
+				Containers: []corev1.Container{
+					{Name: string(apicommon.CoreAgentContainerName)},
+					{Name: string(apicommon.SystemProbeContainerName)},
+				},
+			},
+		}
+	}
+
+	getContainer := func(tmpl *corev1.PodTemplateSpec, name apicommon.AgentContainerName) corev1.Container {
+		for _, c := range tmpl.Spec.Containers {
+			if c.Name == string(name) {
+				return c
+			}
+		}
+		t.Fatalf("container %q not found", name)
+		return corev1.Container{}
+	}
+
+	t.Run("gke-cos privileged mounts into core agent and system-probe", func(t *testing.T) {
+		f := &gpuFeature{isPrivilegedModeEnabled: true}
+		tmpl := newPodTemplate()
+		mgr := feature.NewPodTemplateManagers(tmpl)
+
+		providercaps.ApplyProviderCapabilities(mgr, kubernetes.GKECosProvider, f.NodeAgentProviderCapabilities())
+
+		assert.Contains(t, tmpl.Spec.Volumes, wantVolume)
+		assert.Contains(t, getContainer(tmpl, apicommon.CoreAgentContainerName).VolumeMounts, wantMount)
+		assert.Contains(t, getContainer(tmpl, apicommon.SystemProbeContainerName).VolumeMounts, wantMount)
+	})
+
+	t.Run("gke-cos non-privileged mounts into core agent only", func(t *testing.T) {
+		f := &gpuFeature{isPrivilegedModeEnabled: false}
+		tmpl := newPodTemplate()
+		mgr := feature.NewPodTemplateManagers(tmpl)
+
+		providercaps.ApplyProviderCapabilities(mgr, kubernetes.GKECosProvider, f.NodeAgentProviderCapabilities())
+
+		assert.Contains(t, tmpl.Spec.Volumes, wantVolume)
+		assert.Contains(t, getContainer(tmpl, apicommon.CoreAgentContainerName).VolumeMounts, wantMount)
+		assert.NotContains(t, getContainer(tmpl, apicommon.SystemProbeContainerName).VolumeMounts, wantMount)
+	})
+
+	t.Run("non-gke-cos provider adds nothing", func(t *testing.T) {
+		f := &gpuFeature{isPrivilegedModeEnabled: true}
+		tmpl := newPodTemplate()
+		mgr := feature.NewPodTemplateManagers(tmpl)
+
+		providercaps.ApplyProviderCapabilities(mgr, kubernetes.DefaultProvider, f.NodeAgentProviderCapabilities())
+
+		assert.Empty(t, tmpl.Spec.Volumes)
+		assert.Empty(t, getContainer(tmpl, apicommon.CoreAgentContainerName).VolumeMounts)
+		assert.Empty(t, getContainer(tmpl, apicommon.SystemProbeContainerName).VolumeMounts)
+	})
 }

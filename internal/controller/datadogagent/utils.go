@@ -28,7 +28,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
@@ -163,14 +162,14 @@ func getReplicas(currentReplicas, newReplicas *int32) *int32 {
 		if currentReplicas != nil {
 			// Do not overwrite the current value
 			// It's most likely managed by an autoscaler
-			return apiutils.NewInt32Pointer(*currentReplicas)
+			return new(*currentReplicas)
 		}
 
 		// Both new and current are nil
 		return nil
 	}
 
-	return apiutils.NewInt32Pointer(*newReplicas)
+	return new(*newReplicas)
 }
 
 // getDDAICRDFromConfig is only used in tests
@@ -245,13 +244,4 @@ func deleteObjectAndOrphanDependents(ctx context.Context, logger logr.Logger, c 
 		return err
 	}
 	return nil
-}
-
-// default to true as of 1.21
-// TODO: remove once the UpdateMetadataAnnotationKey annotation is removed
-func useV3Metadata(dda metav1.Object) bool {
-	if val, ok := dda.GetAnnotations()[apicommon.UpdateMetadataAnnotationKey]; ok && val == "false" {
-		return false
-	}
-	return true
 }

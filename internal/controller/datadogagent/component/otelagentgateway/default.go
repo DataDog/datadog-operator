@@ -15,7 +15,6 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/images"
@@ -40,7 +39,7 @@ func NewDefaultOtelAgentGatewayDeployment(dda metav1.Object, ddaSpec *v2alpha1.D
 	maps.Copy(podTemplate.Annotations, deployment.GetAnnotations())
 
 	deployment.Spec.Template = *podTemplate
-	deployment.Spec.Replicas = apiutils.NewInt32Pointer(defaultOtelAgentGatewayReplicas)
+	deployment.Spec.Replicas = new(defaultOtelAgentGatewayReplicas)
 
 	return deployment
 }
@@ -104,7 +103,7 @@ func defaultPodSpec(dda metav1.Object) corev1.PodSpec {
 			common.GetVolumeForLogs(),
 			common.GetVolumeForTmp(),
 			common.GetVolumeForConfig(),
-			common.GetVolumeForAuth(),
+			common.GetVolumeForAuth(false),
 		},
 	}
 }

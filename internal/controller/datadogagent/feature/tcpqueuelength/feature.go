@@ -16,6 +16,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/providercaps"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
@@ -34,6 +35,17 @@ func buildTCPQueueLengthFeature(options *feature.Options) feature.Feature {
 
 type tcpQueueLengthFeature struct{}
 
+// NodeAgentProviderCapabilities returns provider-conditional pod-template
+// mutations for the node agent. On GKE COS, /usr/src does not exist on host
+// nodes; strip the src volume + mounts so the pod schedules successfully.
+func (f *tcpQueueLengthFeature) NodeAgentProviderCapabilities() providercaps.ProviderCapabilityMap {
+	return providercaps.ProviderCapabilityMap{
+		kubernetes.GKECosProvider: {
+			RemoveVolumes: []string{common.SrcVolumeName},
+		},
+	}
+}
+
 // ID returns the ID of the Feature
 func (f *tcpQueueLengthFeature) ID() feature.IDType {
 	return feature.TCPQueueLengthIDType
@@ -46,7 +58,7 @@ func (f *tcpQueueLengthFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.Dat
 	}
 	if ddaSpec.Features.TCPQueueLength != nil && apiutils.BoolValue(ddaSpec.Features.TCPQueueLength.Enabled) {
 		reqComp.Agent = feature.RequiredComponent{
-			IsRequired: apiutils.NewBoolPointer(true),
+			IsRequired: new(true),
 			Containers: []apicommon.AgentContainerName{apicommon.CoreAgentContainerName, apicommon.SystemProbeContainerName},
 		}
 	}
@@ -56,26 +68,26 @@ func (f *tcpQueueLengthFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.Dat
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *tcpQueueLengthFeature) ManageDependencies(managers feature.ResourceManagers, provider string) error {
+func (f *tcpQueueLengthFeature) ManageDependencies(managers feature.ResourceManagers) error {
 	return nil
 }
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *tcpQueueLengthFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *tcpQueueLengthFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
 	return nil
 }
 
 // ManageSingleContainerNodeAgent allows a feature to configure the Agent container for the Node Agent's corev1.PodTemplateSpec
 // if SingleContainerStrategy is enabled and can be used with the configured feature set.
 // It should do nothing if the feature doesn't need to configure it.
-func (f *tcpQueueLengthFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *tcpQueueLengthFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers) error {
 	return nil
 }
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *tcpQueueLengthFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *tcpQueueLengthFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
 	// security context capabilities
 	managers.SecurityContext().AddCapabilitiesToContainer(agent.DefaultCapabilitiesForSystemProbe(), apicommon.SystemProbeContainerName)
 
@@ -84,18 +96,16 @@ func (f *tcpQueueLengthFeature) ManageNodeAgent(managers feature.PodTemplateMana
 	managers.VolumeMount().AddVolumeMountToContainer(&modulesVolMount, apicommon.SystemProbeContainerName)
 	managers.Volume().AddVolume(&modulesVol)
 
-	// src volume mount
-	_, providerValue := kubernetes.GetProviderLabelKeyValue(provider)
-	if providerValue != kubernetes.GKECosType {
-		srcVol, srcVolMount := volume.GetVolumes(common.SrcVolumeName, common.SrcVolumePath, common.SrcVolumePath, true)
-		managers.VolumeMount().AddVolumeMountToContainer(&srcVolMount, apicommon.SystemProbeContainerName)
-		managers.Volume().AddVolume(&srcVol)
-	}
+	// src volume mount — stripped on GKE COS by NodeAgentProviderCapabilities
+	// (host nodes have no /usr/src).
+	srcVol, srcVolMount := volume.GetVolumes(common.SrcVolumeName, common.SrcVolumePath, common.SrcVolumePath, true)
+	managers.VolumeMount().AddVolumeMountToContainer(&srcVolMount, apicommon.SystemProbeContainerName)
+	managers.Volume().AddVolume(&srcVol)
 
 	// debugfs volume mount
 	debugfsVol, debugfsVolMount := volume.GetVolumes(common.DebugfsVolumeName, common.DebugfsPath, common.DebugfsPath, false)
 	managers.Volume().AddVolume(&debugfsVol)
-	managers.VolumeMount().AddVolumeMountToContainers(&debugfsVolMount, []apicommon.AgentContainerName{apicommon.ProcessAgentContainerName, apicommon.SystemProbeContainerName})
+	managers.VolumeMount().AddVolumeMountToContainers(&debugfsVolMount, []apicommon.AgentContainerName{apicommon.SystemProbeContainerName})
 
 	// socket volume mount (needs write perms for the system probe container but not the others)
 	socketVol, socketVolMount := volume.GetVolumesEmptyDir(common.SystemProbeSocketVolumeName, common.SystemProbeSocketVolumePath, false)
@@ -130,10 +140,10 @@ func (f *tcpQueueLengthFeature) ManageNodeAgent(managers feature.PodTemplateMana
 
 // ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunner's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *tcpQueueLengthFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
+func (f *tcpQueueLengthFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
 	return nil
 }
 
-func (f *tcpQueueLengthFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
+func (f *tcpQueueLengthFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers) error {
 	return nil
 }

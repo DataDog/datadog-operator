@@ -17,11 +17,9 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/configmap"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
 	"github.com/DataDog/datadog-operator/pkg/constants"
-	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
@@ -52,10 +50,8 @@ type cspmFeature struct {
 	owner  metav1.Object
 	logger logr.Logger
 
-	customConfig                *v2alpha1.CustomConfig
-	configMapName               string
-	customConfigAnnotationKey   string
-	customConfigAnnotationValue string
+	customConfig  *v2alpha1.CustomConfig
+	configMapName string
 }
 
 // ID returns the ID of the Feature
@@ -82,14 +78,6 @@ func (f *cspmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgen
 
 		if cspmConfig.CustomBenchmarks != nil {
 			f.customConfig = cspmConfig.CustomBenchmarks
-			hash, err := comparison.GenerateMD5ForSpec(f.customConfig)
-			if err != nil {
-				f.logger.Error(err, "couldn't generate hash for cspm custom benchmarks config")
-			} else {
-				f.logger.V(2).Info("built cspm custom benchmarks from custom config", "hash", hash)
-			}
-			f.customConfigAnnotationValue = hash
-			f.customConfigAnnotationKey = object.GetChecksumAnnotationKey(feature.CSPMIDType)
 		}
 		f.configMapName = constants.GetConfName(dda, f.customConfig, defaultCSPMConf)
 
@@ -109,11 +97,11 @@ func (f *cspmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgen
 
 		reqComp = feature.RequiredComponents{
 			ClusterAgent: feature.RequiredComponent{
-				IsRequired: apiutils.NewBoolPointer(true),
+				IsRequired: new(true),
 				Containers: []apicommon.AgentContainerName{apicommon.ClusterAgentContainerName},
 			},
 			Agent: feature.RequiredComponent{
-				IsRequired: apiutils.NewBoolPointer(true),
+				IsRequired: new(true),
 				Containers: []apicommon.AgentContainerName{
 					nodeContainer,
 				},
@@ -144,7 +132,7 @@ func mergeConfigs(ddaSpec *v2alpha1.DatadogAgentSpec, ddaRCStatus *v2alpha1.Remo
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *cspmFeature) ManageDependencies(managers feature.ResourceManagers, provider string) error {
+func (f *cspmFeature) ManageDependencies(managers feature.ResourceManagers) error {
 	// Create configMap if one does not already exist and ConfigData is defined
 	if f.customConfig != nil && f.customConfig.ConfigMap == nil && f.customConfig.ConfigData != nil {
 		cm, err := configmap.BuildConfigMapConfigData(f.owner.GetNamespace(), f.customConfig.ConfigData, f.configMapName, cspmConfFileName)
@@ -153,12 +141,6 @@ func (f *cspmFeature) ManageDependencies(managers feature.ResourceManagers, prov
 		}
 
 		if cm != nil {
-			// Add md5 hash annotation for custom config
-			if f.customConfigAnnotationKey != "" && f.customConfigAnnotationValue != "" {
-				annotations := object.MergeAnnotationsLabels(f.logger, cm.GetAnnotations(), map[string]string{f.customConfigAnnotationKey: f.customConfigAnnotationValue}, "*")
-				cm.SetAnnotations(annotations)
-			}
-
 			if err := managers.Store().AddOrUpdate(kubernetes.ConfigMapKind, cm); err != nil {
 				return err
 			}
@@ -173,14 +155,10 @@ func (f *cspmFeature) ManageDependencies(managers feature.ResourceManagers, prov
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *cspmFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *cspmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
 	if f.customConfig != nil {
 		var vol corev1.Volume
 		var volMount corev1.VolumeMount
-
-		if f.customConfigAnnotationKey != "" && f.customConfigAnnotationValue != "" {
-			managers.Annotation().AddAnnotation(f.customConfigAnnotationKey, f.customConfigAnnotationValue)
-		}
 
 		if f.customConfig.ConfigMap != nil {
 			// Custom config is referenced via ConfigMap
@@ -234,13 +212,13 @@ func (f *cspmFeature) ManageClusterAgent(managers feature.PodTemplateManagers, p
 // ManageSingleContainerNodeAgent allows a feature to configure the Agent container for the Node Agent's corev1.PodTemplateSpec
 // if SingleContainerStrategy is enabled and can be used with the configured feature set.
 // It should do nothing if the feature doesn't need to configure it.
-func (f *cspmFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *cspmFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers) error {
 	return nil
 }
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *cspmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *cspmFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
 	// Determine which container to use based on runInSystemProbe
 	targetContainer := apicommon.SecurityAgentContainerName
 	if f.runInSystemProbe {
@@ -251,6 +229,7 @@ func (f *cspmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, prov
 	capabilities := []corev1.Capability{
 		"AUDIT_CONTROL",
 		"AUDIT_READ",
+		"KILL",
 	}
 	managers.SecurityContext().AddCapabilitiesToContainer(capabilities, targetContainer)
 
@@ -261,10 +240,6 @@ func (f *cspmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, prov
 	if f.customConfig != nil {
 		var vol corev1.Volume
 		var volMount corev1.VolumeMount
-
-		if f.customConfigAnnotationKey != "" && f.customConfigAnnotationValue != "" {
-			managers.Annotation().AddAnnotation(f.customConfigAnnotationKey, f.customConfigAnnotationValue)
-		}
 
 		if f.customConfig.ConfigMap != nil {
 			// Custom config is referenced via ConfigMap
@@ -375,10 +350,10 @@ func (f *cspmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, prov
 
 // ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunner's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *cspmFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers, provider string) error {
+func (f *cspmFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
 	return nil
 }
 
-func (f *cspmFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers, provider string) error {
+func (f *cspmFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers) error {
 	return nil
 }

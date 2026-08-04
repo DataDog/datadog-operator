@@ -8,5 +8,5 @@ package otelagentgateway
 const (
 	// pdbMaxUnavailableInstances = 1
 	// DefaultOtelAgentGatewayReplicas default OTel Agent Gateway deployment replicas
-	defaultOtelAgentGatewayReplicas = 1
+	defaultOtelAgentGatewayReplicas int32 = 1
 )
