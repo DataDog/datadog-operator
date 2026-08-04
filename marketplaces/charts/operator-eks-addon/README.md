@@ -114,16 +114,13 @@ Push the artifact to EKS repo:
 
 ## Pushing Container Images
 
-Every image required during add-on installation, including open-source dependencies, must be copied into an AWS Marketplace ECR repository associated with the Datadog Operator product. If `datadog/amazonlinux` does not exist yet, create it through the Marketplace Management Portal's **Add repository** request before preparing the release.
+The Operator image required during add-on installation must be copied into the AWS Marketplace ECR repository associated with the Datadog Operator product.
 
-Before each release, choose a current version-specific Amazon Linux 2023 tag, test it with the chart, and update `secretSyncImage.tag` in `values.yaml`. Do not use the moving `2023` tag or overwrite a tag used by an existing add-on release.
-
-Authenticate `crane` and copy the image tags referenced by `values.yaml`:
+Authenticate `crane` and copy the image tag referenced by `values.yaml`:
 
 ```sh
 MARKETPLACE_REGISTRY=709825985650.dkr.ecr.us-east-1.amazonaws.com
 OPERATOR_IMAGE_TAG="$(yq -r '.datadog-operator.image.tag' charts/operator-eks-addon/values.yaml)"
-SECRET_SYNC_IMAGE_TAG="$(yq -r '.secretSyncImage.tag' charts/operator-eks-addon/values.yaml)"
 
 aws ecr get-login-password --region us-east-1 \
   | crane auth login --username AWS --password-stdin "$MARKETPLACE_REGISTRY"
@@ -131,23 +128,16 @@ aws ecr get-login-password --region us-east-1 \
 crane copy \
   "gcr.io/datadoghq/operator:$OPERATOR_IMAGE_TAG" \
   "$MARKETPLACE_REGISTRY/datadog/operator:$OPERATOR_IMAGE_TAG"
-
-crane copy \
-  "public.ecr.aws/amazonlinux/amazonlinux:$SECRET_SYNC_IMAGE_TAG" \
-  "$MARKETPLACE_REGISTRY/datadog/amazonlinux:$SECRET_SYNC_IMAGE_TAG"
 ```
 
-Verify that each destination tag resolves to the same multi-architecture manifest digest as its source:
+Verify that the destination tag resolves to the same multi-architecture manifest digest as its source:
 
 ```sh
 test "$(crane digest "gcr.io/datadoghq/operator:$OPERATOR_IMAGE_TAG")" = \
   "$(crane digest "$MARKETPLACE_REGISTRY/datadog/operator:$OPERATOR_IMAGE_TAG")"
-
-test "$(crane digest "public.ecr.aws/amazonlinux/amazonlinux:$SECRET_SYNC_IMAGE_TAG")" = \
-  "$(crane digest "$MARKETPLACE_REGISTRY/datadog/amazonlinux:$SECRET_SYNC_IMAGE_TAG")"
 ```
 
-Confirm that the copied tags are present in Marketplace ECR:
+Confirm that the copied tag is present in Marketplace ECR:
 
 ```sh
 aws ecr describe-images \
@@ -155,14 +145,8 @@ aws ecr describe-images \
   --region us-east-1 \
   --repository-name datadog/operator \
   --image-ids "imageTag=$OPERATOR_IMAGE_TAG"
-
-aws ecr describe-images \
-  --registry-id 709825985650 \
-  --region us-east-1 \
-  --repository-name datadog/amazonlinux \
-  --image-ids "imageTag=$SECRET_SYNC_IMAGE_TAG"
 ```
 
-Declare both container image URIs in the Marketplace **Add new version** delivery option together with the packaged Helm chart.
+Declare the container image URI in the Marketplace **Add new version** delivery option together with the packaged Helm chart.
 
 [eks-helm-push]: https://docs.aws.amazon.com/AmazonECR/latest/userguide/push-oci-artifact.html
