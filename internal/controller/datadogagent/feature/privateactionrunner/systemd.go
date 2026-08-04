@@ -12,97 +12,87 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
-	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
 )
 
-type systemdJournalStorage string
-
 const (
-	systemdJournalStoragePersistent systemdJournalStorage = "persistent"
-	systemdJournalStorageVolatile   systemdJournalStorage = "volatile"
-	systemdJournalStorageBoth       systemdJournalStorage = "both"
+	systemdEnabledAnnotation              = "agent.datadoghq.com/private-action-runner-systemd-enabled"
+	systemdJournalStorageAnnotation       = "agent.datadoghq.com/private-action-runner-systemd-journal-storage"
+	systemdJournalVacuumEnabledAnnotation = "agent.datadoghq.com/private-action-runner-systemd-journal-vacuum-enabled"
+
+	systemdJournalStoragePersistent = "persistent"
+	systemdJournalStorageVolatile   = "volatile"
+	systemdJournalStorageBoth       = "both"
 )
 
 type systemdHostConfig struct {
-	enabled              bool
-	journalStorage       systemdJournalStorage
+	journalStorage       string
 	journalVacuumEnabled bool
 }
 
 func systemdHostConfigFromAnnotations(annotations map[string]string) (systemdHostConfig, error) {
-	config := systemdHostConfig{}
-
-	enabled, _, err := strictBoolAnnotation(annotations, featureutils.EnablePrivateActionRunnerSystemdAnnotation)
+	enabled, err := strictBoolAnnotation(annotations, systemdEnabledAnnotation)
 	if err != nil {
-		return config, err
+		return systemdHostConfig{}, err
 	}
-	config.enabled = enabled
 
-	vacuumEnabled, vacuumSet, err := strictBoolAnnotation(annotations, featureutils.EnablePrivateActionRunnerSystemdJournalVacuumAnnotation)
+	vacuumEnabled, err := strictBoolAnnotation(annotations, systemdJournalVacuumEnabledAnnotation)
 	if err != nil {
-		return config, err
+		return systemdHostConfig{}, err
 	}
-	config.journalVacuumEnabled = vacuumEnabled
 
-	storage, storageSet := annotations[featureutils.PrivateActionRunnerSystemdJournalStorageAnnotation]
-	if !config.enabled {
-		if storageSet || (vacuumSet && vacuumEnabled) {
-			return config, fmt.Errorf("annotation %q must be true when configuring systemd journal access", featureutils.EnablePrivateActionRunnerSystemdAnnotation)
+	storage, storageSet := annotations[systemdJournalStorageAnnotation]
+	if !enabled {
+		if storageSet || vacuumEnabled {
+			return systemdHostConfig{}, fmt.Errorf("annotation %q must be true when configuring systemd journal access", systemdEnabledAnnotation)
 		}
-		return config, nil
+		return systemdHostConfig{}, nil
 	}
 
 	if !storageSet || storage == "" {
-		return config, fmt.Errorf("annotation %q is required when %q is true", featureutils.PrivateActionRunnerSystemdJournalStorageAnnotation, featureutils.EnablePrivateActionRunnerSystemdAnnotation)
+		return systemdHostConfig{}, fmt.Errorf("annotation %q is required when %q is true", systemdJournalStorageAnnotation, systemdEnabledAnnotation)
 	}
 
-	config.journalStorage = systemdJournalStorage(storage)
-	switch config.journalStorage {
+	switch storage {
 	case systemdJournalStoragePersistent, systemdJournalStorageVolatile, systemdJournalStorageBoth:
-		return config, nil
+		return systemdHostConfig{journalStorage: storage, journalVacuumEnabled: vacuumEnabled}, nil
 	default:
-		return systemdHostConfig{}, fmt.Errorf("invalid value %q for annotation %q (allowed values: persistent, volatile, both)", storage, featureutils.PrivateActionRunnerSystemdJournalStorageAnnotation)
+		return systemdHostConfig{}, fmt.Errorf("invalid value %q for annotation %q (allowed values: persistent, volatile, both)", storage, systemdJournalStorageAnnotation)
 	}
 }
 
-func strictBoolAnnotation(annotations map[string]string, name string) (value, set bool, err error) {
+func strictBoolAnnotation(annotations map[string]string, name string) (bool, error) {
 	raw, set := annotations[name]
-	if !set {
-		return false, false, nil
+	if !set || raw == "false" {
+		return false, nil
 	}
-
-	switch raw {
-	case "true":
-		return true, true, nil
-	case "false":
-		return false, true, nil
-	default:
-		return false, true, fmt.Errorf("invalid value %q for annotation %q (allowed values: true, false)", raw, name)
+	if raw == "true" {
+		return true, nil
 	}
+	return false, fmt.Errorf("invalid value %q for annotation %q (allowed values: true, false)", raw, name)
 }
 
 func (config systemdHostConfig) addVolumeMounts(managers feature.PodTemplateManagers) {
-	if !config.enabled {
+	if config.journalStorage == "" {
 		return
 	}
 
-	addHostPathVolumeMount(managers, hostMachineIDVolumeName, hostMachineIDHostPath, hostMachineIDMountPath, corev1.HostPathFile, true)
-	addHostPathVolumeMount(managers, hostManagerBusSocketVolumeName, hostManagerBusSocketHostPath, hostManagerBusSocketMountPath, corev1.HostPathSocket, true)
+	addHostPathVolumeMount(managers, "host-machine-id", "/etc/machine-id", corev1.HostPathFile, true)
+	addHostPathVolumeMount(managers, "host-manager-bus-socket", "/run/dbus/system_bus_socket", corev1.HostPathSocket, true)
 	// Mount the runtime directory so journald socket replacements remain visible.
-	addHostPathVolumeMount(managers, hostJournaldRuntimeVolumeName, hostJournaldRuntimeHostPath, hostJournaldRuntimeMountPath, corev1.HostPathDirectory, true)
+	addHostPathVolumeMount(managers, "host-journald-runtime", "/run/systemd/journal", corev1.HostPathDirectory, true)
 
 	journalReadOnly := !config.journalVacuumEnabled
 	if config.journalStorage == systemdJournalStoragePersistent || config.journalStorage == systemdJournalStorageBoth {
-		addHostPathVolumeMount(managers, hostPersistentJournalVolumeName, hostPersistentJournalHostPath, hostPersistentJournalMountPath, corev1.HostPathDirectory, journalReadOnly)
+		addHostPathVolumeMount(managers, "host-persistent-journal", "/var/log/journal", corev1.HostPathDirectory, journalReadOnly)
 	}
 	if config.journalStorage == systemdJournalStorageVolatile || config.journalStorage == systemdJournalStorageBoth {
-		addHostPathVolumeMount(managers, hostVolatileJournalVolumeName, hostVolatileJournalHostPath, hostVolatileJournalMountPath, corev1.HostPathDirectory, journalReadOnly)
+		addHostPathVolumeMount(managers, "host-volatile-journal", "/run/log/journal", corev1.HostPathDirectory, journalReadOnly)
 	}
 }
 
-func addHostPathVolumeMount(managers feature.PodTemplateManagers, name, hostPath, mountPath string, hostPathType corev1.HostPathType, readOnly bool) {
-	vol, volMount := volume.GetVolumes(name, hostPath, mountPath, readOnly)
+func addHostPathVolumeMount(managers feature.PodTemplateManagers, name, hostPath string, hostPathType corev1.HostPathType, readOnly bool) {
+	vol, volMount := volume.GetVolumes(name, hostPath, "/host"+hostPath, readOnly)
 	vol.HostPath.Type = new(hostPathType)
 	managers.Volume().AddVolume(&vol)
 	managers.VolumeMount().AddVolumeMountToContainer(&volMount, apicommon.PrivateActionRunnerContainerName)

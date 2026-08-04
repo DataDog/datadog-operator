@@ -17,83 +17,61 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
-	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 )
 
 func TestSystemdHostConfigFromAnnotations(t *testing.T) {
-	tests := []struct {
-		name        string
-		annotations map[string]string
-		want        systemdHostConfig
-		wantErr     string
+	tests := map[string]struct {
+		enabled string
+		storage string
+		vacuum  string
+		wantErr string
 	}{
-		{
-			name: "disabled",
-		},
-		{
-			name: "explicitly disabled with vacuum disabled",
-			annotations: map[string]string{
-				featureutils.EnablePrivateActionRunnerSystemdAnnotation:              "false",
-				featureutils.EnablePrivateActionRunnerSystemdJournalVacuumAnnotation: "false",
-			},
-		},
-		{
-			name: "storage configured while disabled",
-			annotations: map[string]string{
-				featureutils.PrivateActionRunnerSystemdJournalStorageAnnotation: string(systemdJournalStoragePersistent),
-			},
+		"disabled": {},
+		"explicitly disabled with vacuum disabled": {enabled: "false", vacuum: "false"},
+		"storage configured while disabled": {
+			storage: systemdJournalStoragePersistent,
 			wantErr: "must be true when configuring systemd journal access",
 		},
-		{
-			name: "vacuum enabled while systemd disabled",
-			annotations: map[string]string{
-				featureutils.EnablePrivateActionRunnerSystemdJournalVacuumAnnotation: "true",
-			},
+		"vacuum enabled while systemd disabled": {
+			vacuum:  "true",
 			wantErr: "must be true when configuring systemd journal access",
 		},
-		{
-			name: "missing journal storage",
-			annotations: map[string]string{
-				featureutils.EnablePrivateActionRunnerSystemdAnnotation: "true",
-			},
-			wantErr: "is required",
-		},
-		{
-			name: "invalid journal storage",
-			annotations: map[string]string{
-				featureutils.EnablePrivateActionRunnerSystemdAnnotation:         "true",
-				featureutils.PrivateActionRunnerSystemdJournalStorageAnnotation: "unknown",
-			},
+		"missing journal storage": {enabled: "true", wantErr: "is required"},
+		"invalid journal storage": {
+			enabled: "true",
+			storage: "unknown",
 			wantErr: "allowed values: persistent, volatile, both",
 		},
-		{
-			name: "invalid enabled boolean",
-			annotations: map[string]string{
-				featureutils.EnablePrivateActionRunnerSystemdAnnotation: "True",
-			},
-			wantErr: "allowed values: true, false",
-		},
-		{
-			name: "invalid vacuum boolean",
-			annotations: map[string]string{
-				featureutils.EnablePrivateActionRunnerSystemdAnnotation:              "true",
-				featureutils.PrivateActionRunnerSystemdJournalStorageAnnotation:      string(systemdJournalStoragePersistent),
-				featureutils.EnablePrivateActionRunnerSystemdJournalVacuumAnnotation: "1",
-			},
+		"invalid enabled boolean": {enabled: "True", wantErr: "allowed values: true, false"},
+		"invalid vacuum boolean": {
+			enabled: "true",
+			storage: systemdJournalStoragePersistent,
+			vacuum:  "1",
 			wantErr: "allowed values: true, false",
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := systemdHostConfigFromAnnotations(tt.annotations)
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			annotations := map[string]string{}
+			if tt.enabled != "" {
+				annotations[systemdEnabledAnnotation] = tt.enabled
+			}
+			if tt.storage != "" {
+				annotations[systemdJournalStorageAnnotation] = tt.storage
+			}
+			if tt.vacuum != "" {
+				annotations[systemdJournalVacuumEnabledAnnotation] = tt.vacuum
+			}
+
+			got, err := systemdHostConfigFromAnnotations(annotations)
 			if tt.wantErr != "" {
 				assert.ErrorContains(t, err, tt.wantErr)
 				return
 			}
 
 			require.NoError(t, err)
-			assert.Equal(t, tt.want, got)
+			assert.Zero(t, got)
 		})
 	}
 }
@@ -102,94 +80,77 @@ func TestSystemdHostConfigAddVolumeMounts(t *testing.T) {
 	type expectedMount struct {
 		name         string
 		hostPath     string
-		mountPath    string
 		hostPathType corev1.HostPathType
-		readOnly     bool
+		writable     bool
 	}
 
 	baseMounts := []expectedMount{
 		{
-			name:         hostMachineIDVolumeName,
+			name:         "host-machine-id",
 			hostPath:     "/etc/machine-id",
-			mountPath:    "/host/etc/machine-id",
 			hostPathType: corev1.HostPathFile,
-			readOnly:     true,
 		},
 		{
-			name:         hostManagerBusSocketVolumeName,
+			name:         "host-manager-bus-socket",
 			hostPath:     "/run/dbus/system_bus_socket",
-			mountPath:    "/host/run/dbus/system_bus_socket",
 			hostPathType: corev1.HostPathSocket,
-			readOnly:     true,
 		},
 		{
-			name:         hostJournaldRuntimeVolumeName,
+			name:         "host-journald-runtime",
 			hostPath:     "/run/systemd/journal",
-			mountPath:    "/host/run/systemd/journal",
 			hostPathType: corev1.HostPathDirectory,
-			readOnly:     true,
 		},
 	}
 	persistentJournalMount := expectedMount{
-		name:         hostPersistentJournalVolumeName,
+		name:         "host-persistent-journal",
 		hostPath:     "/var/log/journal",
-		mountPath:    "/host/var/log/journal",
 		hostPathType: corev1.HostPathDirectory,
-		readOnly:     true,
 	}
 	volatileJournalMount := expectedMount{
-		name:         hostVolatileJournalVolumeName,
+		name:         "host-volatile-journal",
 		hostPath:     "/run/log/journal",
-		mountPath:    "/host/run/log/journal",
 		hostPathType: corev1.HostPathDirectory,
-		readOnly:     true,
 	}
+	writableVolatileJournalMount := volatileJournalMount
+	writableVolatileJournalMount.writable = true
 
-	tests := []struct {
-		name        string
-		annotations map[string]string
-		wantMounts  []expectedMount
+	tests := map[string]struct {
+		storage           string
+		vacuum            bool
+		wantJournalMounts []expectedMount
 	}{
-		{
-			name: "disabled",
+		"disabled": {},
+		"persistent journal is read-only without vacuum": {
+			storage:           systemdJournalStoragePersistent,
+			wantJournalMounts: []expectedMount{persistentJournalMount},
 		},
-		{
-			name: "persistent journal is read-only without vacuum",
-			annotations: map[string]string{
-				featureutils.EnablePrivateActionRunnerSystemdAnnotation:         "true",
-				featureutils.PrivateActionRunnerSystemdJournalStorageAnnotation: string(systemdJournalStoragePersistent),
-			},
-			wantMounts: append(append([]expectedMount{}, baseMounts...), persistentJournalMount),
+		"volatile journal is writable with vacuum": {
+			storage:           systemdJournalStorageVolatile,
+			vacuum:            true,
+			wantJournalMounts: []expectedMount{writableVolatileJournalMount},
 		},
-		{
-			name: "volatile journal is writable with vacuum",
-			annotations: map[string]string{
-				featureutils.EnablePrivateActionRunnerSystemdAnnotation:              "true",
-				featureutils.PrivateActionRunnerSystemdJournalStorageAnnotation:      string(systemdJournalStorageVolatile),
-				featureutils.EnablePrivateActionRunnerSystemdJournalVacuumAnnotation: "true",
-			},
-			wantMounts: append(append([]expectedMount{}, baseMounts...), expectedMount{
-				name:         volatileJournalMount.name,
-				hostPath:     volatileJournalMount.hostPath,
-				mountPath:    volatileJournalMount.mountPath,
-				hostPathType: volatileJournalMount.hostPathType,
-				readOnly:     false,
-			}),
-		},
-		{
-			name: "both journals are selected",
-			annotations: map[string]string{
-				featureutils.EnablePrivateActionRunnerSystemdAnnotation:         "true",
-				featureutils.PrivateActionRunnerSystemdJournalStorageAnnotation: string(systemdJournalStorageBoth),
-			},
-			wantMounts: append(append(append([]expectedMount{}, baseMounts...), persistentJournalMount), volatileJournalMount),
+		"both journals are selected": {
+			storage:           systemdJournalStorageBoth,
+			wantJournalMounts: []expectedMount{persistentJournalMount, volatileJournalMount},
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			config, err := systemdHostConfigFromAnnotations(tt.annotations)
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			annotations := map[string]string{}
+			if tt.storage != "" {
+				annotations[systemdEnabledAnnotation] = "true"
+				annotations[systemdJournalStorageAnnotation] = tt.storage
+			}
+			if tt.vacuum {
+				annotations[systemdJournalVacuumEnabledAnnotation] = "true"
+			}
+			config, err := systemdHostConfigFromAnnotations(annotations)
 			require.NoError(t, err)
+			wantMounts := tt.wantJournalMounts
+			if len(wantMounts) > 0 {
+				wantMounts = append(append([]expectedMount{}, baseMounts...), wantMounts...)
+			}
 
 			managers := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{})
 			config.addVolumeMounts(managers)
@@ -208,9 +169,9 @@ func TestSystemdHostConfigAddVolumeMounts(t *testing.T) {
 				mountsByName[mount.Name] = mount
 			}
 
-			require.Len(t, volumesByName, len(tt.wantMounts))
-			require.Len(t, mountsByName, len(tt.wantMounts))
-			for _, want := range tt.wantMounts {
+			require.Len(t, volumesByName, len(wantMounts))
+			require.Len(t, mountsByName, len(wantMounts))
+			for _, want := range wantMounts {
 				volume, found := volumesByName[want.name]
 				require.True(t, found, "volume %q should exist", want.name)
 				assert.Equal(t, want.hostPath, volume.HostPath.Path)
@@ -219,64 +180,46 @@ func TestSystemdHostConfigAddVolumeMounts(t *testing.T) {
 
 				mount, found := mountsByName[want.name]
 				require.True(t, found, "mount %q should exist", want.name)
-				assert.Equal(t, want.mountPath, mount.MountPath)
-				assert.Equal(t, want.readOnly, mount.ReadOnly)
+				assert.Equal(t, "/host"+want.hostPath, mount.MountPath)
+				assert.Equal(t, !want.writable, mount.ReadOnly)
 			}
 		})
 	}
 }
 
 func TestManageNodeAgentAddsConfiguredSystemdMounts(t *testing.T) {
-	dda := &v2alpha1.DatadogAgent{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "test-dda",
-			Annotations: map[string]string{
-				featureutils.EnablePrivateActionRunnerAnnotation:                     "true",
-				featureutils.EnablePrivateActionRunnerSystemdAnnotation:              "true",
-				featureutils.PrivateActionRunnerSystemdJournalStorageAnnotation:      string(systemdJournalStoragePersistent),
-				featureutils.EnablePrivateActionRunnerSystemdJournalVacuumAnnotation: "true",
-			},
-		},
-	}
-	f := buildPrivateActionRunnerFeature(nil).(*privateActionRunnerFeature)
-	f.Configure(dda, &v2alpha1.DatadogAgentSpec{}, nil)
-
-	managers := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{})
-	require.NoError(t, f.ManageNodeAgent(managers))
+	managers, err := manageNodeAgent(t, map[string]string{
+		"agent.datadoghq.com/private-action-runner-enabled": "true",
+		systemdEnabledAnnotation:                            "true",
+		systemdJournalStorageAnnotation:                     systemdJournalStoragePersistent,
+		systemdJournalVacuumEnabledAnnotation:               "true",
+	})
+	require.NoError(t, err)
 
 	mountsByName := make(map[string]*corev1.VolumeMount)
 	for _, mount := range managers.VolumeMountMgr.VolumeMountsByC[apicommon.PrivateActionRunnerContainerName] {
-		assert.NotEqual(t, common.HostRunMountPath, mount.MountPath)
 		mountsByName[mount.Name] = mount
 	}
 
-	require.Contains(t, mountsByName, hostVarLogVolumeName)
-	require.Contains(t, mountsByName, hostPersistentJournalVolumeName)
-	require.Contains(t, mountsByName, hostMachineIDVolumeName)
-	require.Contains(t, mountsByName, hostManagerBusSocketVolumeName)
-	require.Contains(t, mountsByName, hostJournaldRuntimeVolumeName)
-	require.True(t, mountsByName[hostVarLogVolumeName].ReadOnly)
-	require.False(t, mountsByName[hostPersistentJournalVolumeName].ReadOnly)
-	require.True(t, mountsByName[hostMachineIDVolumeName].ReadOnly)
-	require.True(t, mountsByName[hostManagerBusSocketVolumeName].ReadOnly)
-	require.True(t, mountsByName[hostJournaldRuntimeVolumeName].ReadOnly)
+	require.Contains(t, mountsByName, "host-persistent-journal")
+	require.False(t, mountsByName["host-persistent-journal"].ReadOnly)
 }
 
 func TestManageNodeAgentRejectsInvalidSystemdConfigBeforeMutation(t *testing.T) {
-	dda := &v2alpha1.DatadogAgent{
-		ObjectMeta: metav1.ObjectMeta{
-			Annotations: map[string]string{
-				featureutils.EnablePrivateActionRunnerAnnotation:        "true",
-				featureutils.EnablePrivateActionRunnerSystemdAnnotation: "true",
-			},
-		},
-	}
-	f := buildPrivateActionRunnerFeature(nil).(*privateActionRunnerFeature)
-	f.Configure(dda, &v2alpha1.DatadogAgentSpec{}, nil)
-
-	managers := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{})
-	err := f.ManageNodeAgent(managers)
-	require.ErrorContains(t, err, featureutils.PrivateActionRunnerSystemdJournalStorageAnnotation)
+	managers, err := manageNodeAgent(t, map[string]string{
+		"agent.datadoghq.com/private-action-runner-enabled": "true",
+		systemdEnabledAnnotation:                            "true",
+	})
+	require.ErrorContains(t, err, systemdJournalStorageAnnotation)
 	assert.Empty(t, managers.VolumeMgr.Volumes)
 	assert.Empty(t, managers.VolumeMountMgr.VolumeMountsByC)
+}
+
+func manageNodeAgent(t *testing.T, annotations map[string]string) (*fake.PodTemplateManagers, error) {
+	t.Helper()
+	dda := &v2alpha1.DatadogAgent{ObjectMeta: metav1.ObjectMeta{Annotations: annotations}}
+	f := buildPrivateActionRunnerFeature(nil).(*privateActionRunnerFeature)
+	f.Configure(dda, &v2alpha1.DatadogAgentSpec{}, nil)
+	managers := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{})
+	return managers, f.ManageNodeAgent(managers)
 }

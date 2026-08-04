@@ -39,11 +39,8 @@ const (
 	EnableFlightRecorderAnnotation = "agent.datadoghq.com/flightrecorder-enabled"
 	EnableNetworkCRDsAnnotation    = "agent.datadoghq.com/network-crds-enabled"
 
-	EnablePrivateActionRunnerAnnotation                     = "agent.datadoghq.com/private-action-runner-enabled"
-	PrivateActionRunnerConfigDataAnnotation                 = "agent.datadoghq.com/private-action-runner-configdata"
-	EnablePrivateActionRunnerSystemdAnnotation              = "agent.datadoghq.com/private-action-runner-systemd-enabled"
-	PrivateActionRunnerSystemdJournalStorageAnnotation      = "agent.datadoghq.com/private-action-runner-systemd-journal-storage"
-	EnablePrivateActionRunnerSystemdJournalVacuumAnnotation = "agent.datadoghq.com/private-action-runner-systemd-journal-vacuum-enabled"
+	EnablePrivateActionRunnerAnnotation     = "agent.datadoghq.com/private-action-runner-enabled"
+	PrivateActionRunnerConfigDataAnnotation = "agent.datadoghq.com/private-action-runner-configdata"
 
 	EnableCNMDirectSendAnnotation = "agent.datadoghq.com/cnm-direct-send-enabled"
 

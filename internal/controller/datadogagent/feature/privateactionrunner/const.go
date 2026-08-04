@@ -15,24 +15,4 @@ const (
 	hostVarLogVolumeName = "host-varlog"
 	hostVarLogHostPath   = "/var/log"
 	hostVarLogMountPath  = "/host/var/log"
-
-	hostMachineIDVolumeName = "host-machine-id"
-	hostMachineIDHostPath   = "/etc/machine-id"
-	hostMachineIDMountPath  = "/host/etc/machine-id"
-
-	hostManagerBusSocketVolumeName = "host-manager-bus-socket"
-	hostManagerBusSocketHostPath   = "/run/dbus/system_bus_socket"
-	hostManagerBusSocketMountPath  = "/host/run/dbus/system_bus_socket"
-
-	hostJournaldRuntimeVolumeName = "host-journald-runtime"
-	hostJournaldRuntimeHostPath   = "/run/systemd/journal"
-	hostJournaldRuntimeMountPath  = "/host/run/systemd/journal"
-
-	hostPersistentJournalVolumeName = "host-persistent-journal"
-	hostPersistentJournalHostPath   = "/var/log/journal"
-	hostPersistentJournalMountPath  = "/host/var/log/journal"
-
-	hostVolatileJournalVolumeName = "host-volatile-journal"
-	hostVolatileJournalHostPath   = "/run/log/journal"
-	hostVolatileJournalMountPath  = "/host/run/log/journal"
 )

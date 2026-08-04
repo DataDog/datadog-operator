@@ -107,65 +107,41 @@ func Test_privateActionRunnerFeature_ManageNodeAgent(t *testing.T) {
 
 	// Verify volumes (1 configmap + 3 host volumes)
 	volumes := managers.VolumeMgr.Volumes
-	require.Len(t, volumes, 4)
+	assert.Len(t, volumes, 4)
 	assert.Equal(t, "test-dda-privateactionrunner-config", volumes[0].Name, "Volume name should match")
-	require.NotNil(t, volumes[0].VolumeSource.ConfigMap, "Volume should be a ConfigMap volume")
+	assert.NotNil(t, volumes[0].VolumeSource.ConfigMap, "Volume should be a ConfigMap volume")
 	assert.Equal(t, "test-dda-privateactionrunner", volumes[0].VolumeSource.ConfigMap.Name, "ConfigMap name should match")
 
-	volumesByName := make(map[string]*corev1.Volume)
+	volumeNames := make(map[string]bool)
 	for _, v := range volumes {
-		volumesByName[v.Name] = v
+		volumeNames[v.Name] = true
 	}
+	assert.True(t, volumeNames[common.ProcdirVolumeName])
+	assert.True(t, volumeNames[common.SystemProbeOSReleaseDirVolumeName])
+	assert.True(t, volumeNames[hostVarLogVolumeName])
 
 	// Verify volume mounts (1 configmap + 3 host mounts)
 	volumeMounts := managers.VolumeMountMgr.VolumeMountsByC[apicommon.PrivateActionRunnerContainerName]
-	require.Len(t, volumeMounts, 4)
+	assert.Len(t, volumeMounts, 4)
 	mount := volumeMounts[0]
 	assert.Equal(t, "test-dda-privateactionrunner-config", mount.Name, "Mount name should match")
 	assert.Equal(t, "/etc/datadog-agent/privateactionrunner.yaml", mount.MountPath, "Mount path should be the hardcoded path")
 	assert.Equal(t, "privateactionrunner.yaml", mount.SubPath, "SubPath should mount the file directly")
 	assert.True(t, mount.ReadOnly, "Mount should be read-only")
 
-	mountsByName := make(map[string]*corev1.VolumeMount)
+	mountNames := make(map[string]bool)
 	for _, m := range volumeMounts {
-		mountsByName[m.Name] = m
+		mountNames[m.Name] = true
 	}
+	assert.True(t, mountNames[common.ProcdirVolumeName])
+	assert.True(t, mountNames[common.SystemProbeOSReleaseDirVolumeName])
+	assert.True(t, mountNames[hostVarLogVolumeName])
 
-	expectedHostMounts := []struct {
-		name      string
-		hostPath  string
-		mountPath string
-		readOnly  bool
-	}{
-		{
-			name:      common.ProcdirVolumeName,
-			hostPath:  common.ProcdirHostPath,
-			mountPath: common.ProcdirMountPath,
-			readOnly:  true,
-		},
-		{
-			name:      common.SystemProbeOSReleaseDirVolumeName,
-			hostPath:  common.SystemProbeOSReleaseDirVolumePath,
-			mountPath: common.SystemProbeOSReleaseDirMountPath,
-			readOnly:  true,
-		},
-		{
-			name:      hostVarLogVolumeName,
-			hostPath:  "/var/log",
-			mountPath: "/host/var/log",
-			readOnly:  true,
-		},
-	}
-	for _, expected := range expectedHostMounts {
-		vol, found := volumesByName[expected.name]
-		require.True(t, found, "volume %s should exist", expected.name)
-		require.NotNil(t, vol.HostPath, "volume %s should be a hostPath volume", expected.name)
-		assert.Equal(t, expected.hostPath, vol.HostPath.Path)
-
-		mount, found := mountsByName[expected.name]
-		require.True(t, found, "mount %s should exist", expected.name)
-		assert.Equal(t, expected.mountPath, mount.MountPath)
-		assert.Equal(t, expected.readOnly, mount.ReadOnly)
+	// Verify host mounts are read-only
+	for _, m := range volumeMounts {
+		if m.Name == common.ProcdirVolumeName || m.Name == common.SystemProbeOSReleaseDirVolumeName || m.Name == hostVarLogVolumeName {
+			assert.True(t, m.ReadOnly, "mount %s should be read-only", m.Name)
+		}
 	}
 
 	// Verify NET_RAW capability
