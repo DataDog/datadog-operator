@@ -1,6 +1,6 @@
 # Operator EKS Add-on
 
-This is a wrapper chart for installing EKS add-on. Charts required for the add-on are added as a dependency to this chart. Chart itself doesn't contain any templates or configurable properties.
+This is a wrapper chart for installing the EKS add-on. The Datadog Operator chart is included as a dependency.
 
 ## Version Mapping
 | `operator-addon-chart` | `datadog-operator` | `datadog-crds` | Operator | Agent | Cluster Agent |
