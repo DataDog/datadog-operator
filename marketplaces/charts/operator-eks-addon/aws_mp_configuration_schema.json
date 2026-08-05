@@ -5,6 +5,20 @@
     "datadog-operator": {
       "type": "object",
       "properties": {
+        "apiKeyExistingSecret": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1
+        },
+        "appKeyExistingSecret": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1
+        },
         "replicaCount": {
           "type": "integer"
         },
@@ -118,6 +132,38 @@
           "type": "object"
         }
       }
+    },
+    "credentialsSecretSync": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "kubernetesSecretName": {
+          "type": "string",
+          "default": "datadog-secret",
+          "minLength": 1,
+          "maxLength": 253,
+          "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$"
+        },
+        "apiKeySecretId": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1,
+          "maxLength": 2048
+        },
+        "appKeySecretId": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1,
+          "maxLength": 2048
+        }
+      },
+      "additionalProperties": false
     }
   }
 }
