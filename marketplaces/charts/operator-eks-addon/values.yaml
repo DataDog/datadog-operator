@@ -18,12 +18,13 @@ datadog-operator:
     tag: 1.28.0
   operatorMetricsEnabled: false
 
-# credentialsSecretSync -- Synchronizes AWS Secrets Manager credentials to the `datadog-secret` Kubernetes Secret on EKS
+# credentialsSecretSync -- Synchronizes AWS Secrets Manager credentials to a Kubernetes Secret on EKS
 ## Requires EKS Pod Identity and Secrets Store CSI Driver Kubernetes Secret sync.
 ## An EKS Pod Identity-enabled pod must mount `datadog-credentials`.
-## Set the corresponding Operator existing-secret value to `datadog-secret`.
+## Set the corresponding Operator existing-secret value to `kubernetesSecretName`.
 credentialsSecretSync: null
 ## credentialsSecretSync:
+##   kubernetesSecretName: datadog-secret
 ##   apiKey:
 ##     secretsManagerSecretID: <ARN or name>
 ##   appKey:
