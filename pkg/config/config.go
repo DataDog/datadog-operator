@@ -246,6 +246,7 @@ func CacheOptions(logger logr.Logger, opts WatchOptions) cache.Options {
 		// DefaultNamespaces is set to DatadogAgent CRD namespaces so all resources needed for DatadogAgent reconciliation
 		// are cached from the same namespace(s) as the DatadogAgent.
 		DefaultNamespaces: GetWatchNamespacesFromEnv(logger, AgentWatchNamespaceEnvVar),
+		DefaultTransform:  cache.TransformStripManagedFields(),
 		ByObject:          byObject,
 	}
 }
