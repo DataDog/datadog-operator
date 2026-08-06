@@ -9,6 +9,13 @@ import (
 	"strings"
 	"testing"
 
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/utils/ptr"
+
+	common "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -156,6 +163,142 @@ func TestRender_AppArmorProfileVersionGate(t *testing.T) {
 			assert.Equal(t, tt.wantAnnotation, strings.Contains(rendered, "container.apparmor.security.beta.kubernetes.io/system-probe: unconfined"))
 			assert.Equal(t, tt.wantProfileField, strings.Contains(rendered, "appArmorProfile:\n            type: Unconfined"))
 		})
+	}
+}
+
+func TestRender_PreparedRolloutUsesNativeSurge(t *testing.T) {
+	renderAgentDaemonSet := func(t *testing.T, prepared bool) *appsv1.DaemonSet {
+		t.Helper()
+		dda, err := LoadDDA("testdata/minimal-dda.yaml")
+		require.NoError(t, err)
+		dda.Spec.Features = preparedRolloutTestFeatures()
+
+		override := &datadoghqv2alpha1.DatadogAgentComponentOverride{HostNetwork: ptr.To(true)}
+		override.UpdateStrategy = &common.UpdateStrategy{
+			Type: string(appsv1.RollingUpdateDaemonSetStrategyType),
+			RollingUpdate: &common.RollingUpdate{
+				MaxUnavailable: ptr.To(intstr.FromInt(1)),
+				MaxSurge:       ptr.To(intstr.FromInt(1)),
+			},
+		}
+		if prepared {
+			dda.Annotations = map[string]string{"experimental.agent.datadoghq.com/node-agent-rollout-mode": "prepared-surge-v3"}
+		}
+		dda.Spec.Override = map[datadoghqv2alpha1.ComponentName]*datadoghqv2alpha1.DatadogAgentComponentOverride{
+			datadoghqv2alpha1.NodeAgentComponentName: override,
+		}
+
+		objects, _, err := Render(Options{DDA: dda})
+		require.NoError(t, err)
+		for _, object := range objects {
+			if ds, ok := object.(*appsv1.DaemonSet); ok {
+				return ds
+			}
+		}
+		t.Fatal("render produced no Agent DaemonSet")
+		return nil
+	}
+
+	baseline := renderAgentDaemonSet(t, false)
+	require.True(t, baseline.Spec.Template.Spec.HostNetwork)
+	require.NotNil(t, baseline.Spec.UpdateStrategy.RollingUpdate)
+	assert.Equal(t, intstr.FromInt(1), *baseline.Spec.UpdateStrategy.RollingUpdate.MaxSurge)
+	assert.Equal(t, intstr.FromInt(1), *baseline.Spec.UpdateStrategy.RollingUpdate.MaxUnavailable,
+		"ordinary native surge must remain unchanged when prepared rollout is disabled")
+	baselinePortCount := 0
+	for _, container := range baseline.Spec.Template.Spec.Containers {
+		baselinePortCount += len(container.Ports)
+	}
+	require.Positive(t, baselinePortCount, "the host-network baseline must exercise Kubernetes's implicit hostPort defaulting")
+
+	prepared := renderAgentDaemonSet(t, true)
+	require.True(t, prepared.Spec.Template.Spec.HostNetwork)
+	require.NotNil(t, prepared.Spec.UpdateStrategy.RollingUpdate)
+	assert.Equal(t, intstr.FromInt(1), *prepared.Spec.UpdateStrategy.RollingUpdate.MaxSurge)
+	assert.Equal(t, intstr.FromInt(0), *prepared.Spec.UpdateStrategy.RollingUpdate.MaxUnavailable)
+	assert.Equal(t, "prepared-surge-v3", prepared.Spec.Template.Annotations["experimental.agent.datadoghq.com/node-agent-rollout-mode"])
+	baselineByName := make(map[string]corev1.Container, len(baseline.Spec.Template.Spec.Containers))
+	for _, container := range baseline.Spec.Template.Spec.Containers {
+		baselineByName[container.Name] = container
+	}
+	preparedPortCount := 0
+	securityAgentFound := false
+	for _, container := range prepared.Spec.Template.Spec.Containers {
+		preparedPortCount += len(container.Ports)
+		securityAgentFound = securityAgentFound || container.Name == "security-agent"
+		baselineContainer, found := baselineByName[container.Name]
+		require.True(t, found)
+		require.NotNil(t, container.StartupProbe)
+		require.NotNil(t, container.StartupProbe.Exec)
+		assert.Equal(t, int32(2147483647), container.StartupProbe.FailureThreshold)
+		assert.Equal(t, baselineContainer.LivenessProbe, container.LivenessProbe)
+		assert.Equal(t, baselineContainer.ReadinessProbe, container.ReadinessProbe)
+		assert.Equal(t, []string{"/opt/datadog-agent/embedded/bin/agent-rollout-gate"}, container.Command)
+		prefix := []string{"--component", container.Name}
+		if container.Name != "agent" {
+			prefix = append(prefix, "--wait-file", "/etc/datadog-agent/auth/token")
+		}
+		prefix = append(prefix, "--")
+		require.GreaterOrEqual(t, len(container.Args), len(prefix)+1)
+		assert.Equal(t, prefix, container.Args[:len(prefix)])
+		assert.Equal(t, append(baselineContainer.Command, baselineContainer.Args...), container.Args[len(prefix):])
+	}
+	assert.Zero(t, preparedPortCount, "host-network replacements must not claim ports in the scheduler")
+	assert.True(t, securityAgentFound, "the staging-like render must exercise security-agent prepared-rollout support")
+}
+
+func TestRender_PreparedHostNetworkSurgeWithProfiles(t *testing.T) {
+	dda, err := LoadDDA("testdata/minimal-dda.yaml")
+	require.NoError(t, err)
+	dda.Spec.Features = preparedRolloutTestFeatures()
+	dda.Annotations = map[string]string{"experimental.agent.datadoghq.com/node-agent-rollout-mode": "prepared-surge-v3"}
+
+	surgeOverride := func() *datadoghqv2alpha1.DatadogAgentComponentOverride {
+		return &datadoghqv2alpha1.DatadogAgentComponentOverride{
+			HostNetwork: ptr.To(true),
+			UpdateStrategy: &common.UpdateStrategy{
+				Type: string(appsv1.RollingUpdateDaemonSetStrategyType),
+				RollingUpdate: &common.RollingUpdate{
+					MaxUnavailable: ptr.To(intstr.FromInt(1)),
+					MaxSurge:       ptr.To(intstr.FromInt(1)),
+				},
+			},
+		}
+	}
+	dda.Spec.Override = map[datadoghqv2alpha1.ComponentName]*datadoghqv2alpha1.DatadogAgentComponentOverride{
+		datadoghqv2alpha1.NodeAgentComponentName: surgeOverride(),
+	}
+
+	daps, err := LoadDAPs([]string{"testdata/linux-profile.yaml", "testdata/gpu-profile.yaml"})
+	require.NoError(t, err)
+
+	objects, _, err := Render(Options{DDA: dda, DAPs: daps, ProfileEnabled: true})
+	require.NoError(t, err)
+	daemonSets := 0
+	for _, object := range objects {
+		ds, ok := object.(*appsv1.DaemonSet)
+		if !ok {
+			continue
+		}
+		daemonSets++
+		require.True(t, ds.Spec.Template.Spec.HostNetwork)
+		assert.Equal(t, "prepared-surge-v3", ds.Spec.Template.Annotations["experimental.agent.datadoghq.com/node-agent-rollout-mode"])
+		require.NotNil(t, ds.Spec.Template.Spec.Affinity)
+		require.NotNil(t, ds.Spec.Template.Spec.Affinity.PodAntiAffinity)
+		assert.Len(t, ds.Spec.Template.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution, 2,
+			"DaemonSet %s must scope overlap to the same DDA and profile", ds.Name)
+	}
+	assert.Equal(t, 3, daemonSets)
+}
+
+func preparedRolloutTestFeatures() *datadoghqv2alpha1.DatadogFeatures {
+	return &datadoghqv2alpha1.DatadogFeatures{
+		APM:                     &datadoghqv2alpha1.APMFeatureConfig{Enabled: ptr.To(true)},
+		CSPM:                    &datadoghqv2alpha1.CSPMFeatureConfig{Enabled: ptr.To(true)},
+		LiveProcessCollection:   &datadoghqv2alpha1.LiveProcessCollectionFeatureConfig{Enabled: ptr.To(false)},
+		LiveContainerCollection: &datadoghqv2alpha1.LiveContainerCollectionFeatureConfig{Enabled: ptr.To(false)},
+		ProcessDiscovery:        &datadoghqv2alpha1.ProcessDiscoveryFeatureConfig{Enabled: ptr.To(false)},
+		ServiceDiscovery:        &datadoghqv2alpha1.ServiceDiscoveryFeatureConfig{Enabled: ptr.To(false)},
 	}
 }
 

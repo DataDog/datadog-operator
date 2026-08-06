@@ -12,9 +12,11 @@ import (
 
 	edsv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
@@ -309,7 +311,37 @@ func (r *Reconciler) reconcileV2Agent(ctx context.Context, requiredComponents fe
 		}
 	}
 
-	return r.createOrUpdateDaemonset(ctx, ddai, daemonset, newStatus, updateDSStatusV2WithAgent)
+	rolloutBudget := preparedRolloutBudget(ddai, &r.options.ExtendedDaemonsetOptions)
+	rolloutEnabled := preparedRolloutEnabled(ddai)
+	var currentDaemonSet *appsv1.DaemonSet
+	if rolloutEnabled {
+		currentDaemonSet = &appsv1.DaemonSet{}
+		if getErr := r.client.Get(ctx, client.ObjectKeyFromObject(daemonset), currentDaemonSet); getErr != nil {
+			if !errors.IsNotFound(getErr) {
+				return reconcile.Result{}, getErr
+			}
+			currentDaemonSet = nil
+		}
+	}
+	arming, prepareErr := configurePreparedRollout(ddai, daemonset, currentDaemonSet, rolloutBudget)
+	if prepareErr != nil {
+		objLogger.Error(prepareErr, "Prepared Agent rollout request is incompatible with the rendered Pod template")
+		if r.recorder != nil {
+			r.recorder.Eventf(ddai, corev1.EventTypeWarning, "AgentPreparedRolloutRejected", "Prepared Agent rollout is disabled for this template: %v", prepareErr)
+		}
+		return reconcile.Result{}, prepareErr
+	}
+	result, err := r.createOrUpdateDaemonset(ctx, ddai, daemonset, newStatus, updateDSStatusV2WithAgent)
+	if err != nil || !rolloutEnabled {
+		return result, err
+	}
+	if arming {
+		if result.RequeueAfter == 0 || result.RequeueAfter > time.Second {
+			result.RequeueAfter = time.Second
+		}
+		return result, nil
+	}
+	return result, nil
 }
 
 func updateDSStatusV2WithAgent(dsName string, ds *appsv1.DaemonSet, newStatus *datadoghqv1alpha1.DatadogAgentInternalStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string) {
