@@ -107,10 +107,11 @@ func (d *Daemon) installDatadogAgent(ctx context.Context, command managedAgentIn
 		if err := d.validateAndRecoverFleetDatadogAgentInstallReplay(ctx, existing, configID, spec); err != nil {
 			return err
 		}
-		d.setPackageConfigVersions(packageDatadogOperator, fleetPartialConfigVersionPrefix+configID, "")
-		if _, err := d.markFleetDatadogAgentPartial(ctx, target, existing.UID); err != nil {
+		liveConfigID, err := d.markFleetDatadogAgentPartial(ctx, target, existing.UID)
+		if err != nil {
 			return fmt.Errorf("create DatadogAgent: mark managed Agent installation partial before readiness revalidation: %w", err)
 		}
+		d.setPackageConfigVersions(packageDatadogOperator, fleetPartialConfigVersionPrefix+liveConfigID, "")
 		if err := d.ensureManagedAgentInstallationWindowsProfile(ctx, existing); err != nil {
 			return d.retainFleetDatadogAgentPartial(ctx, command, existing.UID, err)
 		}

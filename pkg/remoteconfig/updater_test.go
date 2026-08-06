@@ -238,7 +238,8 @@ func TestRefreshUpdaterTagsWaitsForPreviousClientCallbacks(t *testing.T) {
 		close(callbackEntered)
 		<-releaseCallback
 	})
-	go updater.subscriptions[0].callback(nil, func(string, state.ApplyStatus) {})
+	currentCallback := updater.wrapRemoteConfigCallback(current, updater.subscriptions[0].callback)
+	go currentCallback(nil, func(string, state.ApplyStatus) {})
 	<-callbackEntered
 
 	refreshResult := make(chan error, 1)
@@ -254,6 +255,53 @@ func TestRefreshUpdaterTagsWaitsForPreviousClientCallbacks(t *testing.T) {
 
 	close(releaseCallback)
 	require.NoError(t, <-refreshResult)
+}
+
+func TestRefreshUpdaterTagsDiscardsRetiredClientCallbacks(t *testing.T) {
+	current, err := rcclient.NewClient(stoppedConfigFetcher{}, rcclient.WithoutTufVerification())
+	require.NoError(t, err)
+
+	updater := &RemoteConfigUpdater{
+		rcClient:              current,
+		rcService:             &rcservice.CoreAgentService{},
+		additionalUpdaterTags: testAdditionalUpdaterTags,
+		dynamicUpdaterTags: func(context.Context) ([]string, error) {
+			return []string{"operator_config_updates:ready"}, nil
+		},
+		logger: logr.Discard(),
+		updaterTags: append(
+			[]string{"updater_type:datadog-operator"},
+			testAdditionalUpdaterTags...,
+		),
+	}
+	require.NoError(t, updater.configureService("api-key", "datadoghq.com", "", "", "", "https://config.datadoghq.com"))
+
+	originalNewRemoteConfigClient := newRemoteConfigClient
+	t.Cleanup(func() {
+		newRemoteConfigClient = originalNewRemoteConfigClient
+		if updater.rcClient != nil {
+			updater.rcClient.Close()
+		}
+	})
+	newRemoteConfigClient = func(_ rcclient.ConfigFetcher, options ...func(*rcclient.Options)) (*rcclient.Client, error) {
+		options = append(options, rcclient.WithoutTufVerification())
+		return rcclient.NewClient(stoppedConfigFetcher{}, options...)
+	}
+
+	callbackCalls := 0
+	updater.Subscribe("TEST_PRODUCT", func(map[string]state.RawConfig, func(string, state.ApplyStatus)) {
+		callbackCalls++
+	})
+	retiredCallback := updater.wrapRemoteConfigCallback(current, updater.subscriptions[0].callback)
+
+	require.NoError(t, updater.RefreshUpdaterTags(context.Background()))
+	replacement := updater.rcClient
+	replacementCallback := updater.wrapRemoteConfigCallback(replacement, updater.subscriptions[0].callback)
+
+	retiredCallback(nil, func(string, state.ApplyStatus) {})
+	assert.Zero(t, callbackCalls)
+	replacementCallback(nil, func(string, state.ApplyStatus) {})
+	assert.Equal(t, 1, callbackCalls)
 }
 
 func TestGetUpdaterTags(t *testing.T) {

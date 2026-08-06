@@ -396,6 +396,7 @@ func (d *Daemon) reconcileTerminalManagedAgentInstallation(
 		}
 		d.taskMu.Lock()
 		d.setTaskState(packageDatadogOperator, current.OperationID, current.TaskState, taskErr)
+		d.managedAgentInstallationTaskReserved = false
 		d.taskMu.Unlock()
 		return nil
 	default:

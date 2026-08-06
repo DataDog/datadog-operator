@@ -740,28 +740,33 @@ func TestManagedAgentInstallationTerminalDoneReconcilesPackageState(t *testing.T
 }
 
 func TestManagedAgentInstallationTerminalErrorReconcilesTaskState(t *testing.T) {
-	ctx := context.Background()
-	daemon, kubeClient, rcClient := testManagedAgentInstallationDaemon(
-		[]*pbgo.PackageState{{Package: packageDatadogOperator}},
-	)
-	raw := testManagedAgentInstallationIntent(t, testAddonInstallOperationID, managedAgentInstallationDesiredStateInstalled)
-	putManagedAgentInstallationIntentConfigMap(t, kubeClient, raw)
-	intent, config, digest, err := decodeManagedAgentInstallationIntent(raw, testManagedAgentInstallationIdentity)
-	require.NoError(t, err)
-	terminalErr := fmt.Errorf("installation failed")
-	require.NoError(t, daemon.writeManagedAgentInstallationState(ctx, managedAgentInstallationStateFromCommand(
-		newManagedAgentInstallationCommand(intent, config, digest),
-		pbgo.TaskState_ERROR,
-		terminalErr,
-	)))
+	for _, taskState := range []pbgo.TaskState{pbgo.TaskState_ERROR, pbgo.TaskState_INVALID_STATE} {
+		t.Run(taskState.String(), func(t *testing.T) {
+			ctx := context.Background()
+			daemon, kubeClient, rcClient := testManagedAgentInstallationDaemon(
+				[]*pbgo.PackageState{{Package: packageDatadogOperator}},
+			)
+			raw := testManagedAgentInstallationIntent(t, testAddonInstallOperationID, managedAgentInstallationDesiredStateInstalled)
+			putManagedAgentInstallationIntentConfigMap(t, kubeClient, raw)
+			intent, config, digest, err := decodeManagedAgentInstallationIntent(raw, testManagedAgentInstallationIdentity)
+			require.NoError(t, err)
+			terminalErr := fmt.Errorf("installation failed")
+			require.NoError(t, daemon.writeManagedAgentInstallationState(ctx, managedAgentInstallationStateFromCommand(
+				newManagedAgentInstallationCommand(intent, config, digest),
+				taskState,
+				terminalErr,
+			)))
 
-	require.NoError(t, daemon.handleManagedAgentInstallationIntent(ctx, managedAgentInstallationIntentSnapshot{raw: raw}))
+			require.NoError(t, daemon.handleManagedAgentInstallationIntent(ctx, managedAgentInstallationIntentSnapshot{raw: raw}))
 
-	require.Len(t, rcClient.state, 1)
-	require.NotNil(t, rcClient.state[0].GetTask())
-	assert.Equal(t, testAddonInstallOperationID, rcClient.state[0].GetTask().GetId())
-	assert.Equal(t, pbgo.TaskState_ERROR, rcClient.state[0].GetTask().GetState())
-	assert.Equal(t, terminalErr.Error(), rcClient.state[0].GetTask().GetError().GetMessage())
+			require.Len(t, rcClient.state, 1)
+			require.NotNil(t, rcClient.state[0].GetTask())
+			assert.Equal(t, testAddonInstallOperationID, rcClient.state[0].GetTask().GetId())
+			assert.Equal(t, taskState, rcClient.state[0].GetTask().GetState())
+			assert.Equal(t, terminalErr.Error(), rcClient.state[0].GetTask().GetError().GetMessage())
+			assert.False(t, daemon.managedAgentInstallationTaskReserved)
+		})
+	}
 }
 
 func TestManagedAgentInstallationReservesFleetTaskSlotBeforeDurableAcceptance(t *testing.T) {

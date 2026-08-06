@@ -97,16 +97,26 @@ func (r *RemoteConfigUpdater) Client() RCClient {
 }
 
 func (r *RemoteConfigUpdater) Subscribe(product string, callback func(map[string]state.RawConfig, func(string, state.ApplyStatus))) {
-	wrapped := func(updates map[string]state.RawConfig, applyStatus func(string, state.ApplyStatus)) {
-		r.callbackMu.RLock()
-		defer r.callbackMu.RUnlock()
-		callback(updates, applyStatus)
-	}
 	r.clientMu.Lock()
 	defer r.clientMu.Unlock()
-	r.subscriptions = append(r.subscriptions, remoteConfigSubscription{product: product, callback: wrapped})
+	r.subscriptions = append(r.subscriptions, remoteConfigSubscription{product: product, callback: callback})
 	if r.rcClient != nil {
-		r.rcClient.Subscribe(product, wrapped)
+		r.rcClient.Subscribe(product, r.wrapRemoteConfigCallback(r.rcClient, callback))
+	}
+}
+
+func (r *RemoteConfigUpdater) wrapRemoteConfigCallback(owner *client.Client, callback func(map[string]state.RawConfig, func(string, state.ApplyStatus))) func(map[string]state.RawConfig, func(string, state.ApplyStatus)) {
+	return func(updates map[string]state.RawConfig, applyStatus func(string, state.ApplyStatus)) {
+		r.callbackMu.RLock()
+		defer r.callbackMu.RUnlock()
+
+		r.clientMu.RLock()
+		active := r.rcClient == owner
+		r.clientMu.RUnlock()
+		if !active {
+			return
+		}
+		callback(updates, applyStatus)
 	}
 }
 
@@ -319,7 +329,7 @@ func (r *RemoteConfigUpdater) RefreshUpdaterTags(ctx context.Context) error {
 	replacement.ID = r.rcClient.ID
 	replacement.SetInstallerState(r.rcClient.GetInstallerState())
 	for _, subscription := range r.subscriptions {
-		replacement.Subscribe(subscription.product, subscription.callback)
+		replacement.Subscribe(subscription.product, r.wrapRemoteConfigCallback(replacement, subscription.callback))
 	}
 
 	r.rcClient.Close()

@@ -335,6 +335,7 @@ func TestManagedAgentInstallationInstallWriteAndObservationFailures(t *testing.T
 	t.Run("mark existing target partial", func(t *testing.T) {
 		dda := newExistingDDA(t)
 		daemon, _, _ := testManagedAgentInstallationDaemon(nil, testFleetCredentialSecret(), dda)
+		daemon.setPackageConfigVersions(packageDatadogOperator, "previous-stable", "previous-experiment")
 		daemon.client = &managedAgentInstallationFaultClient{
 			Client: daemon.client,
 			patchError: func(obj client.Object) error {
@@ -347,6 +348,9 @@ func TestManagedAgentInstallationInstallWriteAndObservationFailures(t *testing.T
 
 		err := daemon.installDatadogAgent(ctx, command)
 		require.ErrorContains(t, err, "partial patch failed")
+		stable, experiment := daemon.getPackageConfigVersions(packageDatadogOperator)
+		assert.Equal(t, "previous-stable", stable)
+		assert.Equal(t, "previous-experiment", experiment)
 	})
 
 	t.Run("create profile for existing target", func(t *testing.T) {
