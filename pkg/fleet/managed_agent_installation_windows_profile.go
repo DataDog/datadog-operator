@@ -13,6 +13,7 @@ import (
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	v1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
@@ -108,6 +109,17 @@ func requireManagedAgentInstallationWindowsProfileOwner(owners []metav1.OwnerRef
 		}
 	}
 	return fmt.Errorf("required controller owner reference is missing")
+}
+
+func (d *Daemon) isManagedAgentInstallationWindowsProfile(profile *v1alpha1.DatadogAgentProfile, target types.NamespacedName, uid types.UID) bool {
+	if profile.Labels[fleetManagedByLabel] != fleetManagedByValue ||
+		profile.Labels[fleetManagedAgentInstallationProviderLabel] != string(d.managedAgentInstallationIdentity.Provider()) ||
+		profile.Labels[fleetInstallationIDLabel] != d.managedAgentInstallationIdentity.InstallationID() ||
+		profile.Labels[fleetTargetIDLabel] != d.managedAgentInstallationIdentity.TargetID() {
+		return false
+	}
+	want := controllerOwnerReference(v2alpha1.GroupVersion.String(), "DatadogAgent", target.Name, uid)
+	return requireManagedAgentInstallationWindowsProfileOwner(profile.OwnerReferences, want, uid != "") == nil
 }
 
 func (d *Daemon) validateManagedAgentInstallationWindowsProfileExists(ctx context.Context, dda *v2alpha1.DatadogAgent) error {

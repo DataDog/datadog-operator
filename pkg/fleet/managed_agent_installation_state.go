@@ -278,6 +278,9 @@ func (d *Daemon) rehydrateManagedAgentInstallationState(ctx context.Context) err
 	}
 	d.taskMu.Lock()
 	d.setTaskState(packageDatadogOperator, state.OperationID, state.TaskState, taskErr)
+	if state.TaskState == pbgo.TaskState_ERROR || state.TaskState == pbgo.TaskState_INVALID_STATE {
+		d.managedAgentInstallationTaskReserved = false
+	}
 	d.taskMu.Unlock()
 	return nil
 }

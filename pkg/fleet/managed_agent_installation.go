@@ -113,23 +113,23 @@ func (d *Daemon) installDatadogAgent(ctx context.Context, command managedAgentIn
 		}
 		d.setPackageConfigVersions(packageDatadogOperator, fleetPartialConfigVersionPrefix+liveConfigID, "")
 		if err := d.ensureManagedAgentInstallationWindowsProfile(ctx, existing); err != nil {
-			return d.retainFleetDatadogAgentPartial(ctx, command, existing.UID, err)
+			return d.retainFleetDatadogAgentPartial(ctx, existing.UID, err)
 		}
 		if err := d.markFleetDatadogAgentReady(ctx, target, existing.UID, configID); err != nil {
-			return d.retainFleetDatadogAgentPartial(ctx, command, existing.UID, fmt.Errorf("create DatadogAgent: mark managed Agent installation ready: %w", err))
+			return d.retainFleetDatadogAgentPartial(ctx, existing.UID, fmt.Errorf("create DatadogAgent: mark managed Agent installation ready: %w", err))
 		}
 		observed, conflictErr := d.validateManagedAgentInstallationTarget(ctx, target)
 		if conflictErr != nil {
-			return d.retainFleetDatadogAgentPartial(ctx, command, existing.UID, conflictErr)
+			return d.retainFleetDatadogAgentPartial(ctx, existing.UID, conflictErr)
 		}
 		if err := validateFleetDatadogAgentInstallCompletion(observed, existing.UID, configID); err != nil {
-			return d.retainFleetDatadogAgentPartial(ctx, command, existing.UID, err)
+			return d.retainFleetDatadogAgentPartial(ctx, existing.UID, err)
 		}
 		if err := d.validateFleetDatadogAgentInstallation(observed); err != nil {
 			return err
 		}
 		if err := d.validateManagedAgentInstallationWindowsProfileExists(ctx, observed); err != nil {
-			return d.retainFleetDatadogAgentPartial(ctx, command, existing.UID, err)
+			return d.retainFleetDatadogAgentPartial(ctx, existing.UID, err)
 		}
 		return nil
 	}
@@ -184,14 +184,14 @@ func (d *Daemon) installDatadogAgent(ctx context.Context, command managedAgentIn
 		}
 		_, conflictErr := d.validateManagedAgentInstallationTarget(ctx, target)
 		if conflictErr != nil {
-			return d.retainFleetDatadogAgentPartial(ctx, command, current.UID, conflictErr)
+			return d.retainFleetDatadogAgentPartial(ctx, current.UID, conflictErr)
 		}
 		return fmt.Errorf("create DatadogAgent: create returned %w; recovered Fleet-owned resource remains partial for retry or explicit uninstall", createErr)
 	}
 	d.publishFleetDatadogAgentManagedAgentInstallationState(packageDatadogOperator, dda, configID)
 	_, conflictErr := d.validateManagedAgentInstallationTarget(ctx, target)
 	if conflictErr != nil {
-		return d.retainFleetDatadogAgentPartial(ctx, command, dda.UID, conflictErr)
+		return d.retainFleetDatadogAgentPartial(ctx, dda.UID, conflictErr)
 	}
 	acceptedHash, acceptedHashErr := fleetDatadogAgentSpecHash(&dda.Spec)
 	if acceptedHashErr != nil {
@@ -201,37 +201,36 @@ func (d *Daemon) installDatadogAgent(ctx context.Context, command managedAgentIn
 		return fmt.Errorf("create DatadogAgent: record accepted spec: %w", err)
 	}
 	if err := d.ensureManagedAgentInstallationWindowsProfile(ctx, dda); err != nil {
-		return d.retainFleetDatadogAgentPartial(ctx, command, dda.UID, err)
+		return d.retainFleetDatadogAgentPartial(ctx, dda.UID, err)
 	}
 	if err := d.markFleetDatadogAgentReady(ctx, target, dda.UID, configID); err != nil {
 		return fmt.Errorf("create DatadogAgent: mark managed Agent installation ready: %w", err)
 	}
 	observed, conflictErr := d.validateManagedAgentInstallationTarget(ctx, target)
 	if conflictErr != nil {
-		return d.retainFleetDatadogAgentPartial(ctx, command, dda.UID, conflictErr)
+		return d.retainFleetDatadogAgentPartial(ctx, dda.UID, conflictErr)
 	}
 	if err := validateFleetDatadogAgentInstallCompletion(observed, dda.UID, configID); err != nil {
-		return d.retainFleetDatadogAgentPartial(ctx, command, dda.UID, err)
+		return d.retainFleetDatadogAgentPartial(ctx, dda.UID, err)
 	}
 	if err := d.validateFleetDatadogAgentInstallation(observed); err != nil {
 		return err
 	}
 	if err := d.validateManagedAgentInstallationWindowsProfileExists(ctx, observed); err != nil {
-		return d.retainFleetDatadogAgentPartial(ctx, command, dda.UID, err)
+		return d.retainFleetDatadogAgentPartial(ctx, dda.UID, err)
 	}
 
 	ctrl.LoggerFrom(ctx).Info("Created Fleet-managed DatadogAgent", "namespace", dda.Namespace, "name", dda.Name, "config", configID)
 	return nil
 }
 
-func (d *Daemon) retainFleetDatadogAgentPartial(ctx context.Context, command managedAgentInstallationCommand, uid types.UID, cause error) error {
+func (d *Daemon) retainFleetDatadogAgentPartial(ctx context.Context, uid types.UID, cause error) error {
 	configID, err := d.markFleetDatadogAgentPartial(ctx, d.managedAgentInstallationTarget(), uid)
 	if err != nil {
 		return fmt.Errorf("%w; failed to retain the Fleet-managed DatadogAgent as partial: %w", cause, err)
 	}
 	d.setPackageConfigVersions(packageDatadogOperator, fleetPartialConfigVersionPrefix+configID, "")
 	return cause
-
 }
 
 func (d *Daemon) uninstallDatadogAgent(ctx context.Context) error {
@@ -720,7 +719,7 @@ func (d *Daemon) managedAgentInstallationResourcesAbsent(ctx context.Context, ta
 		if !apierrors.IsNotFound(err) {
 			return false, fmt.Errorf("read Windows DatadogAgentProfile after managed Agent uninstall: %w", err)
 		}
-	} else {
+	} else if d.isManagedAgentInstallationWindowsProfile(profile, target, deletedUID) {
 		return false, nil
 	}
 

@@ -1103,6 +1103,29 @@ func TestRehydrateManagedAgentInstallationRunningState(t *testing.T) {
 	assert.Contains(t, rcClient.state[0].GetTask().GetError().GetMessage(), "waiting for dependency")
 }
 
+func TestRehydrateManagedAgentInstallationTerminalStateReleasesTaskReservation(t *testing.T) {
+	for _, taskState := range []pbgo.TaskState{pbgo.TaskState_ERROR, pbgo.TaskState_INVALID_STATE} {
+		t.Run(taskState.String(), func(t *testing.T) {
+			ctx := context.Background()
+			d, kubeClient, _ := testManagedAgentInstallationDaemon(
+				[]*pbgo.PackageState{{Package: packageDatadogOperator}},
+			)
+			raw := testManagedAgentInstallationIntent(t, testAddonInstallOperationID, managedAgentInstallationDesiredStateInstalled)
+			putManagedAgentInstallationIntentConfigMap(t, kubeClient, raw)
+			command := testManagedAgentInstallationCommand(t, testAddonInstallOperationID, managedAgentInstallationDesiredStateInstalled)
+			require.NoError(t, d.writeManagedAgentInstallationState(ctx, managedAgentInstallationStateFromCommand(
+				command,
+				taskState,
+				errors.New("terminal failure"),
+			)))
+
+			require.NoError(t, d.rehydrateManagedAgentInstallationState(ctx))
+
+			assert.False(t, d.managedAgentInstallationTaskReserved)
+		})
+	}
+}
+
 func TestRehydrateManagedAgentInstallationRejectsDifferentIdentity(t *testing.T) {
 	ctx := context.Background()
 	d, kubeClient, _ := testManagedAgentInstallationDaemon([]*pbgo.PackageState{{Package: packageDatadogOperator}})

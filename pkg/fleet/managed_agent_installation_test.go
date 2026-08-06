@@ -1030,6 +1030,17 @@ func TestManagedAgentInstallationResourcesAbsentFailureModes(t *testing.T) {
 	})
 
 	t.Run("Windows profile deletion pending", func(t *testing.T) {
+		dda := testFleetManagedDatadogAgent(t, "", testAddonInstallOperationID)
+		profileDaemon, _, _ := testManagedAgentInstallationDaemon(nil)
+		profile := profileDaemon.managedAgentInstallationWindowsProfile(dda)
+		daemon, _, _ := testManagedAgentInstallationDaemon(nil, profile)
+
+		absent, err := daemon.managedAgentInstallationResourcesAbsent(ctx, managedAgentInstallationTarget, dda.UID)
+		require.NoError(t, err)
+		assert.False(t, absent)
+	})
+
+	t.Run("unrelated Windows profile", func(t *testing.T) {
 		profile := &v1alpha1.DatadogAgentProfile{ObjectMeta: metav1.ObjectMeta{
 			Namespace: managedAgentInstallationWindowsProfileKey.Namespace,
 			Name:      managedAgentInstallationWindowsProfileKey.Name,
@@ -1038,7 +1049,7 @@ func TestManagedAgentInstallationResourcesAbsentFailureModes(t *testing.T) {
 
 		absent, err := daemon.managedAgentInstallationResourcesAbsent(ctx, managedAgentInstallationTarget, "")
 		require.NoError(t, err)
-		assert.False(t, absent)
+		assert.True(t, absent)
 	})
 
 	t.Run("DatadogAgentInternal list failure", func(t *testing.T) {
@@ -1094,7 +1105,7 @@ func TestManagedAgentInstallationKubernetesWriteFailures(t *testing.T) {
 			},
 		}
 
-		err := daemon.retainFleetDatadogAgentPartial(ctx, command, dda.UID, errors.New("installation failed"))
+		err := daemon.retainFleetDatadogAgentPartial(ctx, dda.UID, errors.New("installation failed"))
 		require.ErrorContains(t, err, "installation failed")
 		require.ErrorContains(t, err, "DatadogAgent patch failed")
 		stable, experiment := daemon.getPackageConfigVersions(packageDatadogOperator)
