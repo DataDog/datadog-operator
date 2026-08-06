@@ -224,7 +224,6 @@ func (d *Daemon) installDatadogAgent(ctx context.Context, command managedAgentIn
 }
 
 func (d *Daemon) retainFleetDatadogAgentPartial(ctx context.Context, command managedAgentInstallationCommand, uid types.UID, cause error) error {
-	d.setPackageConfigVersions(packageDatadogOperator, fleetPartialConfigVersionPrefix+command.Intent.OperationID, "")
 	configID, err := d.markFleetDatadogAgentPartial(ctx, d.managedAgentInstallationTarget(), uid)
 	if err != nil {
 		return fmt.Errorf("%w; failed to retain the Fleet-managed DatadogAgent as partial: %w", cause, err)

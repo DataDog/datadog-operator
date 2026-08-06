@@ -102,7 +102,9 @@ func (d *Daemon) handleManagedAgentInstallationCommand(ctx context.Context, comm
 	d.transitionMu.Unlock()
 
 	if err := d.writeManagedAgentInstallationState(taskCtx, managedAgentInstallationStateFromCommand(command, pbgo.TaskState_RUNNING, nil)); err != nil {
-		d.finishManagedAgentInstallationTask(command.Intent.OperationID)
+		if d.finishManagedAgentInstallationTaskAndRelease(command.Intent.OperationID) {
+			d.requestManagedAgentInstallationRetryAfter()
+		}
 		return fmt.Errorf("persist accepted managed Agent installation intent: %w", err)
 	}
 	if d.managedAgentInstallationTaskRunner == nil {
@@ -199,8 +201,22 @@ func (d *Daemon) managedAgentInstallationShouldWaitForFleet(ctx context.Context,
 func (d *Daemon) finishManagedAgentInstallationTask(operationID string) {
 	d.taskMu.Lock()
 	defer d.taskMu.Unlock()
+	d.finishManagedAgentInstallationTaskLocked(operationID)
+}
+
+func (d *Daemon) finishManagedAgentInstallationTaskAndRelease(operationID string) bool {
+	d.taskMu.Lock()
+	defer d.taskMu.Unlock()
+	if !d.finishManagedAgentInstallationTaskLocked(operationID) {
+		return false
+	}
+	d.managedAgentInstallationTaskReserved = false
+	return true
+}
+
+func (d *Daemon) finishManagedAgentInstallationTaskLocked(operationID string) bool {
 	if d.managedAgentInstallationOperationID != operationID {
-		return
+		return false
 	}
 	d.managedAgentInstallationActive = false
 	d.managedAgentInstallationOperationID = ""
@@ -212,6 +228,7 @@ func (d *Daemon) finishManagedAgentInstallationTask(operationID string) {
 		close(d.managedAgentInstallationDone)
 		d.managedAgentInstallationDone = nil
 	}
+	return true
 }
 
 func (d *Daemon) dispatchManagedAgentInstallationCommand(ctx context.Context, command managedAgentInstallationCommand) error {

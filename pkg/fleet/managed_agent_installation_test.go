@@ -1079,6 +1079,7 @@ func TestManagedAgentInstallationKubernetesWriteFailures(t *testing.T) {
 	t.Run("retain partial", func(t *testing.T) {
 		dda := testFleetManagedDatadogAgent(t, "", testAddonInstallOperationID)
 		daemon, _, _ := testManagedAgentInstallationDaemon(nil, dda)
+		daemon.setPackageConfigVersions(packageDatadogOperator, "previous-stable", "previous-experiment")
 		daemon.client = &managedAgentInstallationFaultClient{
 			Client: daemon.client,
 			patchError: func(obj client.Object) error {
@@ -1092,6 +1093,9 @@ func TestManagedAgentInstallationKubernetesWriteFailures(t *testing.T) {
 		err := daemon.retainFleetDatadogAgentPartial(ctx, command, dda.UID, errors.New("installation failed"))
 		require.ErrorContains(t, err, "installation failed")
 		require.ErrorContains(t, err, "DatadogAgent patch failed")
+		stable, experiment := daemon.getPackageConfigVersions(packageDatadogOperator)
+		assert.Equal(t, "previous-stable", stable)
+		assert.Equal(t, "previous-experiment", experiment)
 	})
 
 	t.Run("record accepted hash", func(t *testing.T) {

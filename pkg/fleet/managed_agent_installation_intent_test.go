@@ -792,12 +792,13 @@ func TestManagedAgentInstallationReservesFleetTaskSlotBeforeDurableAcceptance(t 
 	require.NoError(t, <-result)
 }
 
-func TestManagedAgentInstallationRetainsFleetTaskReservationWhenDurableAcceptanceFails(t *testing.T) {
+func TestManagedAgentInstallationReleasesFleetTaskReservationWhenDurableAcceptanceFails(t *testing.T) {
 	ctx := context.Background()
 	daemon, kubeClient, _ := testManagedAgentInstallationDaemon(
 		[]*pbgo.PackageState{{Package: packageDatadogOperator}},
 		testFleetCredentialSecret(),
 	)
+	daemon.managedAgentInstallationUpdates = make(chan struct{}, 1)
 	raw := testManagedAgentInstallationIntent(t, testAddonInstallOperationID, managedAgentInstallationDesiredStateInstalled)
 	putManagedAgentInstallationIntentConfigMap(t, kubeClient, raw)
 	daemon.managedAgentInstallationTaskReserved = false
@@ -806,8 +807,11 @@ func TestManagedAgentInstallationRetainsFleetTaskReservationWhenDurableAcceptanc
 	err := daemon.handleManagedAgentInstallationIntent(ctx, managedAgentInstallationIntentSnapshot{raw: raw})
 
 	require.ErrorContains(t, err, "transient managed Agent installation state create failure")
-	assert.True(t, daemon.managedAgentInstallationTaskReserved)
+	assert.False(t, daemon.managedAgentInstallationTaskReserved)
 	assert.False(t, daemon.managedAgentInstallationActive)
+	require.Eventually(t, func() bool {
+		return len(daemon.managedAgentInstallationUpdates) == 1
+	}, 2*time.Second, 10*time.Millisecond)
 }
 
 func TestManagedAgentInstallationRetriesWhenRunningStatePersistenceFails(t *testing.T) {
