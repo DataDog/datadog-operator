@@ -6,8 +6,10 @@
 package metadata
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"sync/atomic"
 	"testing"
 
@@ -232,5 +234,40 @@ func Test_HashCRD(t *testing.T) {
 	// Different labels should produce different hash
 	if hash1 == hash4 {
 		t.Errorf("Expected different hash for different labels, both got %s", hash1)
+	}
+}
+
+func TestSharedMetadataGetOrCreateClusterUIDConcurrent(t *testing.T) {
+	h := newCRDTestHarness(t)
+	const workers = 32
+
+	start := make(chan struct{})
+	results := make(chan string, workers)
+	errs := make(chan error, workers)
+	var wg sync.WaitGroup
+	for range workers {
+		wg.Go(func() {
+			<-start
+			clusterUID, err := h.cmf.GetOrCreateClusterUID(context.Background())
+			if err != nil {
+				errs <- err
+				return
+			}
+			results <- clusterUID
+		})
+	}
+
+	close(start)
+	wg.Wait()
+	close(results)
+	close(errs)
+
+	for err := range errs {
+		t.Errorf("GetOrCreateClusterUID() error = %v", err)
+	}
+	for clusterUID := range results {
+		if clusterUID != "kube-system-uid" {
+			t.Errorf("GetOrCreateClusterUID() = %q, want %q", clusterUID, "kube-system-uid")
+		}
 	}
 }
