@@ -36,4 +36,5 @@ const (
 	DDCSIEnabled                           = "DD_CSI_ENABLED"
 	DDVSockAddr                            = "DD_VSOCK_ADDR"
 	DDProviderKind                         = "DD_PROVIDER_KIND"
+	DDRemoteAgentRegistryEnabled           = "DD_REMOTE_AGENT_REGISTRY_ENABLED"
 )

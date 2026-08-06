@@ -135,11 +135,71 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 			want:                      assertAll,
 		},
 		{
-			name:                           "VSock enabled",
+			name:                           "VSock enabled, agent version below RAR vsock support",
 			singleContainerStrategyEnabled: false,
 			dda: func() *v2alpha1.DatadogAgent {
 				dda := testutils.NewDatadogAgentBuilder().
 					WithCredentials("apiKey", "appKey").
+					BuildWithDefaults()
+				dda.Spec.Global.UseVSock = ptr.To(true)
+				return dda
+			}(),
+			wantCoreAgentEnvVars: nil,
+			wantEnvVars: getExpectedEnvVars([]*corev1.EnvVar{
+				{
+					Name: constants.DDAPIKey,
+					ValueFrom: &corev1.EnvVarSource{
+						SecretKeyRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: "-secret",
+							},
+							Key: v2alpha1.DefaultAPIKeyKey,
+						},
+					},
+				},
+				{
+					Name: constants.DDAppKey,
+					ValueFrom: &corev1.EnvVarSource{
+						SecretKeyRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: "-secret",
+							},
+							Key: v2alpha1.DefaultAPPKeyKey,
+						},
+					},
+				},
+				{
+					Name: DDClusterAgentAuthToken,
+					ValueFrom: &corev1.EnvVarSource{
+						SecretKeyRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: "-token",
+							},
+							Key: common.DefaultTokenKey,
+						},
+					},
+				},
+				{
+					Name:  DDVSockAddr,
+					Value: "host",
+				},
+				{
+					Name:  DDRemoteAgentRegistryEnabled,
+					Value: "false",
+				},
+			}...),
+			wantCoreAgentVolumeMounts: nil,
+			wantVolumeMounts:          nil,
+			wantVolumes:               getExpectedVolumes(authVolume),
+			want:                      assertAll,
+		},
+		{
+			name:                           "VSock enabled, agent version supports RAR vsock",
+			singleContainerStrategyEnabled: false,
+			dda: func() *v2alpha1.DatadogAgent {
+				dda := testutils.NewDatadogAgentBuilder().
+					WithCredentials("apiKey", "appKey").
+					WithNodeAgentImage("gcr.io/datadoghq/agent:7.83.0").
 					BuildWithDefaults()
 				dda.Spec.Global.UseVSock = ptr.To(true)
 				return dda
