@@ -255,12 +255,17 @@ func validatePreparedProbes(container *corev1.Container) error {
 		return nil
 
 	case string(apicommon.TraceAgentContainerName):
-		if err := validateTraceProbe("liveness", container.LivenessProbe); err != nil {
+		livenessPort, err := validateTraceProbe("liveness", container.LivenessProbe)
+		if err != nil {
 			return probeValidationError(container.Name, err)
 		}
 		if container.ReadinessProbe != nil {
-			if err := validateTraceProbe("readiness", container.ReadinessProbe); err != nil {
+			readinessPort, err := validateTraceProbe("readiness", container.ReadinessProbe)
+			if err != nil {
 				return probeValidationError(container.Name, err)
+			}
+			if readinessPort != livenessPort {
+				return probeValidationError(container.Name, fmt.Errorf("readiness port %d differs from liveness port %d", readinessPort, livenessPort))
 			}
 		}
 		return nil
@@ -307,16 +312,18 @@ func validateCoreHTTPProbe(name string, probe *corev1.Probe, path string) (int32
 	return probe.HTTPGet.Port.IntVal, nil
 }
 
-func validateTraceProbe(name string, probe *corev1.Probe) error {
+func validateTraceProbe(name string, probe *corev1.Probe) (int32, error) {
 	if probe == nil || probe.TCPSocket == nil {
-		return fmt.Errorf("%s probe must use the trace Agent TCP listener", name)
+		return 0, fmt.Errorf("%s probe must use the trace Agent TCP listener", name)
+	}
+	if probe.TCPSocket.Host != "" {
+		return 0, fmt.Errorf("%s TCP host must be empty", name)
 	}
 	if err := validateNumericProbePort(probe.TCPSocket.Port); err != nil {
-		return fmt.Errorf("%s %w", name, err)
+		return 0, fmt.Errorf("%s %w", name, err)
 	}
-	return nil
+	return probe.TCPSocket.Port.IntVal, nil
 }
-
 func validateNumericProbePort(port intstr.IntOrString) error {
 	if port.Type != intstr.Int || port.IntVal <= 0 {
 		return fmt.Errorf("port must be a positive number because declared named ports are removed")

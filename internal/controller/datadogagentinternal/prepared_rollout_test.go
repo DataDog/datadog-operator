@@ -266,6 +266,39 @@ func TestPreparedRolloutAcceptsCompatibleCustomNetworkProbes(t *testing.T) {
 	assert.Equal(t, int32(5558), ds.Spec.Template.Spec.Containers[2].LivenessProbe.HTTPGet.Port.IntVal)
 }
 
+func TestPreparedRolloutRejectsUnsafeTraceProbes(t *testing.T) {
+	tests := []struct {
+		name   string
+		mutate func(*corev1.Container)
+		error  string
+	}{
+		{
+			name: "remote host",
+			mutate: func(container *corev1.Container) {
+				container.LivenessProbe.TCPSocket.Host = "192.0.2.10"
+			},
+			error: "liveness TCP host must be empty",
+		},
+		{
+			name: "different readiness listener",
+			mutate: func(container *corev1.Container) {
+				container.ReadinessProbe = container.LivenessProbe.DeepCopy()
+				container.ReadinessProbe.TCPSocket.Port = intstr.FromInt(9000)
+			},
+			error: "readiness port 9000 differs from liveness port 8126",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ds := preparedTestDaemonSet(true)
+			trace := &ds.Spec.Template.Spec.Containers[1]
+			tt.mutate(trace)
+			require.ErrorContains(t, prepareAgentTemplate(ds), tt.error)
+		})
+	}
+}
+
 func TestPreparedRolloutOlderTemplateMustArmV3Conventionally(t *testing.T) {
 	current := preparedTestDaemonSet(true)
 	current.Generation = 1
