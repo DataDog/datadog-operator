@@ -633,10 +633,15 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			},
 		},
 		{
-			name: "DatadogAgent with Private Action Runner enabled on node, create Daemonset with core, trace, and private-action-runner containers",
+			name: "DatadogAgent with Private Action Runner systemd support, create DaemonSet with host mounts",
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
 				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
-					WithAnnotations(map[string]string{"agent.datadoghq.com/private-action-runner-enabled": "true"}).
+					WithAnnotations(map[string]string{
+						"agent.datadoghq.com/private-action-runner-enabled":                        "true",
+						"agent.datadoghq.com/private-action-runner-systemd-enabled":                "true",
+						"agent.datadoghq.com/private-action-runner-systemd-journal-storage":        "both",
+						"agent.datadoghq.com/private-action-runner-systemd-journal-vacuum-enabled": "true",
+					}).
 					Build()
 				_ = c.Create(context.TODO(), dda)
 				return dda
@@ -654,6 +659,7 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 				}
 
 				verifyDaemonsetContainers(t, c, resourcesNamespace, dsName, expectedContainers)
+				verifySystemdHostMounts(t, c, resourcesNamespace, dsName)
 			},
 		},
 		{
@@ -2034,6 +2040,53 @@ func verifyDaemonsetContainers(t *testing.T, c client.Client, resourcesNamespace
 	sort.Strings(dsContainers)
 	sort.Strings(expectedContainers)
 	assert.Equal(t, expectedContainers, dsContainers, "Container names don't match")
+}
+
+func verifySystemdHostMounts(t *testing.T, c client.Client, resourcesNamespace, dsName string) {
+	expected := []struct {
+		name         string
+		hostPath     string
+		hostPathType corev1.HostPathType
+		readOnly     bool
+	}{
+		{"host-machine-id", "/etc/machine-id", corev1.HostPathFile, true},
+		{"host-manager-bus-socket", "/run/dbus/system_bus_socket", corev1.HostPathSocket, true},
+		{"host-journald-runtime", "/run/systemd/journal", corev1.HostPathDirectory, true},
+		{"host-persistent-journal", "/var/log/journal", corev1.HostPathDirectory, false},
+		{"host-volatile-journal", "/run/log/journal", corev1.HostPathDirectory, false},
+	}
+
+	ds := &appsv1.DaemonSet{}
+	err := c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: dsName}, ds)
+	assert.NoError(t, err, "Failed to get DaemonSet %s/%s", resourcesNamespace, dsName)
+
+	volumesByName := map[string]corev1.Volume{}
+	for _, volume := range ds.Spec.Template.Spec.Volumes {
+		volumesByName[volume.Name] = volume
+	}
+
+	containers := getDsContainers(c, resourcesNamespace, dsName)
+	privateActionRunner, found := containers[apicommon.PrivateActionRunnerContainerName]
+	assert.True(t, found, "private-action-runner container not found")
+	mountsByName := map[string]corev1.VolumeMount{}
+	for _, mount := range privateActionRunner.VolumeMounts {
+		mountsByName[mount.Name] = mount
+		assert.NotEqual(t, common.HostRunMountPath, mount.MountPath, "the broad host /run path must not be mounted")
+	}
+
+	for _, want := range expected {
+		volume, found := volumesByName[want.name]
+		assert.True(t, found, "volume %s not found", want.name)
+		assert.NotNil(t, volume.HostPath, "volume %s is not a HostPath", want.name)
+		assert.NotNil(t, volume.HostPath.Type, "volume %s has no HostPath type", want.name)
+		assert.Equal(t, want.hostPath, volume.HostPath.Path)
+		assert.Equal(t, want.hostPathType, *volume.HostPath.Type)
+
+		mount, found := mountsByName[want.name]
+		assert.True(t, found, "volume mount %s not found", want.name)
+		assert.Equal(t, "/host"+want.hostPath, mount.MountPath)
+		assert.Equal(t, want.readOnly, mount.ReadOnly)
+	}
 }
 
 func assertNoDanglingVolumeMounts(t *testing.T, podSpec corev1.PodSpec) {

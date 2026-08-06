@@ -13,6 +13,11 @@ metadata:
   annotations:
     # Enable Private Action Runner for Node Agent
     agent.datadoghq.com/private-action-runner-enabled: "true"
+    # Grant PAR access to host systemd and select persistent, volatile, or both journal stores
+    agent.datadoghq.com/private-action-runner-systemd-enabled: "true"
+    agent.datadoghq.com/private-action-runner-systemd-journal-storage: "persistent"
+    # Allow journal vacuum actions to delete archived journals in the selected directories
+    agent.datadoghq.com/private-action-runner-systemd-journal-vacuum-enabled: "true"
     # Configure PAR using YAML configuration
     agent.datadoghq.com/private-action-runner-configdata: |
       private_action_runner:
