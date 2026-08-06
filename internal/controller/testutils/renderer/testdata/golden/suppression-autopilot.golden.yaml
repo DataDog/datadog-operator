@@ -1044,7 +1044,7 @@ kind: DatadogAgentInternal
 metadata:
   annotations:
     agent.datadoghq.com/cluster-provider: gke-autopilot
-    agent.datadoghq.com/ddaispechash: f4da8a2daaca56ee72517152fb8ea28c
+    agent.datadoghq.com/ddaispechash: d13d3f79908ea4001e0e3301265738d6
     experimental.agent.datadoghq.com/autopilot: "true"
   finalizers:
   - finalizer.datadoghq.com/datadogagentinternal
@@ -1189,7 +1189,7 @@ spec:
       enabled: true
       image:
         name: fips-proxy
-        tag: 1.1.28
+        tag: 1.1.29
       localAddress: 127.0.0.1
       port: 9803
       portRange: 15
