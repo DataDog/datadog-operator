@@ -95,6 +95,7 @@
                       "pattern_table_max_size": {
                         "description": "PatternTableMaxSize sets the maximum number of patterns used by automatic multi-line detection.",
                         "format": "int32",
+                        "minimum": 1,
                         "type": "integer"
                       },
                       "stack_trace_parsers": {
@@ -192,11 +193,13 @@
                       "count": {
                         "description": "Count is the number of lines or bytes used to compute the fingerprint.",
                         "format": "int32",
+                        "minimum": 1,
                         "type": "integer"
                       },
                       "count_to_skip": {
                         "description": "CountToSkip is the number of lines or bytes skipped before computing the fingerprint.",
                         "format": "int32",
+                        "minimum": 0,
                         "type": "integer"
                       },
                       "fingerprint_strategy": {
@@ -211,6 +214,7 @@
                       "max_bytes": {
                         "description": "MaxBytes limits the number of bytes used for line-based fingerprinting.",
                         "format": "int32",
+                        "minimum": 1,
                         "type": "integer"
                       }
                     },
@@ -252,6 +256,7 @@
                   "max_message_size_bytes": {
                     "description": "MaxMessageSizeBytes overrides the global maximum message size for this source.",
                     "format": "int32",
+                    "minimum": 1,
                     "type": "integer"
                   },
                   "path": {

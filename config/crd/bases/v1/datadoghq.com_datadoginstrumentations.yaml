@@ -113,6 +113,7 @@ spec:
                               pattern_table_max_size:
                                 description: PatternTableMaxSize sets the maximum number of patterns used by automatic multi-line detection.
                                 format: int32
+                                minimum: 1
                                 type: integer
                               stack_trace_parsers:
                                 description: StackTraceParsers overrides the enabled stack trace parsers. An empty list disables stack trace aggregation.
@@ -186,10 +187,12 @@ spec:
                               count:
                                 description: Count is the number of lines or bytes used to compute the fingerprint.
                                 format: int32
+                                minimum: 1
                                 type: integer
                               count_to_skip:
                                 description: CountToSkip is the number of lines or bytes skipped before computing the fingerprint.
                                 format: int32
+                                minimum: 0
                                 type: integer
                               fingerprint_strategy:
                                 description: FingerprintStrategy sets the fingerprinting strategy.
@@ -201,6 +204,7 @@ spec:
                               max_bytes:
                                 description: MaxBytes limits the number of bytes used for line-based fingerprinting.
                                 format: int32
+                                minimum: 1
                                 type: integer
                             required:
                               - fingerprint_strategy
@@ -231,6 +235,7 @@ spec:
                           max_message_size_bytes:
                             description: MaxMessageSizeBytes overrides the global maximum message size for this source.
                             format: int32
+                            minimum: 1
                             type: integer
                           path:
                             description: Path is the file path for gathering logs when type is file or journald.

@@ -69,6 +69,7 @@ type DatadogInstrumentationLogAutoMultiLineOptions struct {
 
 	// PatternTableMaxSize sets the maximum number of patterns used by automatic multi-line detection.
 	// +optional
+	// +kubebuilder:validation:Minimum=1
 	PatternTableMaxSize *int32 `json:"pattern_table_max_size,omitempty"`
 
 	// EnableJSONAggregation controls aggregation of multi-line JSON logs.
@@ -108,14 +109,17 @@ type DatadogInstrumentationLogFingerprintConfig struct {
 
 	// Count is the number of lines or bytes used to compute the fingerprint.
 	// +optional
+	// +kubebuilder:validation:Minimum=1
 	Count *int32 `json:"count,omitempty"`
 
 	// CountToSkip is the number of lines or bytes skipped before computing the fingerprint.
 	// +optional
+	// +kubebuilder:validation:Minimum=0
 	CountToSkip *int32 `json:"count_to_skip,omitempty"`
 
 	// MaxBytes limits the number of bytes used for line-based fingerprinting.
 	// +optional
+	// +kubebuilder:validation:Minimum=1
 	MaxBytes *int32 `json:"max_bytes,omitempty"`
 }
 
@@ -222,7 +226,7 @@ type DatadogInstrumentationLogFields struct {
 	// AutoMultiLineDetectionCustomSamples defines samples and regular expressions used by automatic multi-line detection.
 	// +optional
 	// +listType=atomic
-	AutoMultiLineDetectionCustomSamples []DatadogInstrumentationLogAutoMultiLineSample `json:"auto_multi_line_detection_custom_samples,omitempty"`
+	AutoMultiLineDetectionCustomSamples *[]DatadogInstrumentationLogAutoMultiLineSample `json:"auto_multi_line_detection_custom_samples,omitempty"`
 
 	// AutoMultiLine defines detailed automatic multi-line detection options for this source.
 	// +optional
@@ -234,6 +238,7 @@ type DatadogInstrumentationLogFields struct {
 
 	// MaxMessageSizeBytes overrides the global maximum message size for this source.
 	// +optional
+	// +kubebuilder:validation:Minimum=1
 	MaxMessageSizeBytes *int32 `json:"max_message_size_bytes,omitempty"`
 }
 

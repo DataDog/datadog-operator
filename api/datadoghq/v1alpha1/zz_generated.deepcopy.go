@@ -1108,9 +1108,13 @@ func (in *DatadogInstrumentationLogFields) DeepCopyInto(out *DatadogInstrumentat
 	}
 	if in.AutoMultiLineDetectionCustomSamples != nil {
 		in, out := &in.AutoMultiLineDetectionCustomSamples, &out.AutoMultiLineDetectionCustomSamples
-		*out = make([]DatadogInstrumentationLogAutoMultiLineSample, len(*in))
-		for i := range *in {
-			(*in)[i].DeepCopyInto(&(*out)[i])
+		*out = new([]DatadogInstrumentationLogAutoMultiLineSample)
+		if **in != nil {
+			in, out := *in, *out
+			*out = make([]DatadogInstrumentationLogAutoMultiLineSample, len(*in))
+			for i := range *in {
+				(*in)[i].DeepCopyInto(&(*out)[i])
+			}
 		}
 	}
 	if in.AutoMultiLine != nil {
