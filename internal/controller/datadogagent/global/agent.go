@@ -38,8 +38,7 @@ func applyNodeAgentResources(manager feature.PodTemplateManagers, ddaSpec *v2alp
 		if override, ok := ddaSpec.Override[v2alpha1.NodeAgentComponentName]; ok && override.Image != nil {
 			agentVersion = common.GetAgentVersionFromImage(*override.Image)
 		}
-		defaultIfVersionUnknown := false
-		if !utils.IsAboveMinVersion(agentVersion, remoteAgentRegistryVSockMinVersion, &defaultIfVersionUnknown) {
+		if !utils.IsAboveMinVersion(agentVersion, remoteAgentRegistryVSockMinVersion, new(false)) {
 			manager.EnvVar().AddEnvVar(&corev1.EnvVar{
 				Name:  DDRemoteAgentRegistryEnabled,
 				Value: "false",
