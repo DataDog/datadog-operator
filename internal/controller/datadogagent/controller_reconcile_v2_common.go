@@ -26,6 +26,7 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	controllercommon "github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/pkg/condition"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
@@ -52,6 +53,8 @@ func (r *Reconciler) createOrUpdateDeployment(parentLogger logr.Logger, dda *v2a
 	if err = controllerutil.SetControllerReference(dda, deployment, r.scheme); err != nil {
 		return reconcile.Result{}, err
 	}
+	// Finalize Kubernetes-version-dependent Pod template compatibility after all mutations and before hashing.
+	controllercommon.FinalizeAppArmorProfile(&deployment.Spec.Template, r.platformInfo)
 
 	// From here the PodTemplateSpec should be ready, we can generate the hash that will be used to compare this deployment with the current one (if it exists).
 	var hash string
@@ -184,7 +187,7 @@ func (r *Reconciler) createOrUpdateDDAI(ddai *v1alpha1.DatadogAgentInternal) err
 	return nil
 }
 
-func (r *Reconciler) addDDAIStatusToDDAStatus(status *v2alpha1.DatadogAgentStatus, ddai metav1.ObjectMeta) error {
+func (r *Reconciler) addDDAIStatusToDDAStatus(status *v2alpha1.DatadogAgentStatus, ddai metav1.ObjectMeta, now metav1.Time) error {
 	currentDDAI := &v1alpha1.DatadogAgentInternal{}
 	if err := r.client.Get(context.TODO(), types.NamespacedName{Name: ddai.Name, Namespace: ddai.Namespace}, currentDDAI); err != nil {
 		if !apierrors.IsNotFound(err) {
@@ -199,7 +202,15 @@ func (r *Reconciler) addDDAIStatusToDDAStatus(status *v2alpha1.DatadogAgentStatu
 	status.ClusterAgent = condition.CombineDeploymentStatus(status.ClusterAgent, currentDDAI.Status.ClusterAgent)
 	status.ClusterChecksRunner = condition.CombineDeploymentStatus(status.ClusterChecksRunner, currentDDAI.Status.ClusterChecksRunner)
 
-	// TODO: Add and/or merge conditions once DDAI reconcile PR is merged
+	// Only the default DDAI runs dependency management (e.g. RBAC-gated
+	// resources), so it's the only DDAI whose reconcile error is surfaced on
+	// the DDA. Profile DDAI reconcile errors are surfaced on their own
+	// DatadogAgentProfile status instead (see addDDAIStatusToProfileStatus).
+	if currentDDAI.Labels[constants.ProfileLabelKey] == "" {
+		if ddaiErrCond := condition.GetDDAICondition(&currentDDAI.Status, controllercommon.DatadogAgentReconcileErrorConditionType); ddaiErrCond != nil && ddaiErrCond.Status == metav1.ConditionTrue {
+			condition.UpdateDatadogAgentStatusConditions(status, now, controllercommon.DatadogAgentInternalReconcileErrorConditionType, metav1.ConditionTrue, "DatadogAgentInternal_reconcile_error", fmt.Sprintf("%s: %s", currentDDAI.Name, ddaiErrCond.Message), false)
+		}
+	}
 
 	return nil
 }

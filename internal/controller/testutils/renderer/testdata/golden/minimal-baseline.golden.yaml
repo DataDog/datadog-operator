@@ -176,6 +176,13 @@ rules:
   - list
   - watch
 - apiGroups:
+  - discovery.k8s.io
+  resources:
+  - endpointslices
+  verbs:
+  - list
+  - watch
+- apiGroups:
   - networking.k8s.io
   resources:
   - ingresses
@@ -531,21 +538,6 @@ rules:
   verbs:
   - get
   - list
-- apiGroups:
-  - storage.k8s.io
-  resourceNames:
-  - k8s.csi.datadoghq.com
-  resources:
-  - csidrivers
-  verbs:
-  - get
-- apiGroups:
-  - storage.k8s.io
-  resources:
-  - csidrivers
-  verbs:
-  - list
-  - watch
 - nonResourceURLs:
   - /healthz
   - /metrics
@@ -824,6 +816,7 @@ data:
         - configmaps
         - services
         - endpoints
+        - endpointslices
         - daemonsets
         - horizontalpodautoscalers
         - poddisruptionbudgets
@@ -841,8 +834,6 @@ data:
         - customresourcedefinitions
 kind: ConfigMap
 metadata:
-  annotations:
-    checksum/ksm-custom-config: 7078d4e77dfdf37ca618d148c6c7af2b
   labels:
     app.kubernetes.io/instance: datadog-agent
     app.kubernetes.io/managed-by: datadog-operator
@@ -1042,7 +1033,7 @@ apiVersion: datadoghq.com/v1alpha1
 kind: DatadogAgentInternal
 metadata:
   annotations:
-    agent.datadoghq.com/ddaispechash: 32fe14d06cb7dcf1b643f2eb32c31035
+    agent.datadoghq.com/ddaispechash: 213e774cbfb2ee5dccded3cdc0672609
   finalizers:
   - finalizer.datadoghq.com/datadogagentinternal
   labels:
@@ -1111,6 +1102,8 @@ spec:
       unixDomainSocketConfig:
         enabled: true
         path: /var/run/datadog/dsd.socket
+    dynamicInstrumentation:
+      enabled: false
     ebpfCheck:
       enabled: false
     eventCollection:
@@ -1177,7 +1170,7 @@ spec:
       podResourcesSocketPath: /var/lib/kubelet/pod-resources/
       tlsVerify: false
     logLevel: info
-    registry: gcr.io/datadoghq
+    registry: registry.datadoghq.com
     site: datadoghq.com
     useFIPSAgent: false
   override:
@@ -1191,18 +1184,15 @@ spec:
         checksum/dca-token-custom-config: 3f6998966e6de63b16d45512e01ccc84
       image:
         tag: 7.80.0
-      labels:
-        agent.datadoghq.com/provider: ""
 ---
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: 62ee077f9f8a3099f08e4e79eaccaf91
+    agent.datadoghq.com/agentspechash: ce9a214dfda4e08df1d66d624dcd5b73
   labels:
     agent.datadoghq.com/component: agent
     agent.datadoghq.com/name: datadog-agent
-    agent.datadoghq.com/provider: ""
     app.kubernetes.io/component: agent
     app.kubernetes.io/instance: datadog-agent-agent
     app.kubernetes.io/managed-by: datadog-operator
@@ -1225,12 +1215,12 @@ spec:
   template:
     metadata:
       annotations:
+        agent.datadoghq.com/configmapshash: 2e0fb9e7949d41a5
         checksum/dca-token-custom-config: 3f6998966e6de63b16d45512e01ccc84
         container.apparmor.security.beta.kubernetes.io/system-probe: unconfined
       labels:
         agent.datadoghq.com/component: agent
         agent.datadoghq.com/name: datadog-agent
-        agent.datadoghq.com/provider: ""
         app.kubernetes.io/component: agent
         app.kubernetes.io/instance: datadog-agent-agent
         app.kubernetes.io/managed-by: datadog-operator
@@ -1312,7 +1302,7 @@ spec:
           value: "true"
         - name: DD_SYSPROBE_SOCKET
           value: /var/run/sysprobe/sysprobe.sock
-        image: gcr.io/datadoghq/agent:7.80.0
+        image: registry.datadoghq.com/agent:7.80.0
         livenessProbe:
           failureThreshold: 6
           httpGet:
@@ -1448,7 +1438,7 @@ spec:
           value: /var/run/datadog/dsd.socket
         - name: DD_REMOTE_CONFIGURATION_ENABLED
           value: "true"
-        image: gcr.io/datadoghq/agent:7.80.0
+        image: registry.datadoghq.com/agent:7.80.0
         livenessProbe:
           initialDelaySeconds: 15
           periodSeconds: 15
@@ -1537,7 +1527,7 @@ spec:
           value: "true"
         - name: DD_SYSPROBE_SOCKET
           value: /var/run/sysprobe/sysprobe.sock
-        image: gcr.io/datadoghq/agent:7.80.0
+        image: registry.datadoghq.com/agent:7.80.0
         name: system-probe
         resources: {}
         securityContext:
@@ -1584,7 +1574,7 @@ spec:
         command:
         - bash
         - -c
-        image: gcr.io/datadoghq/agent:7.80.0
+        image: registry.datadoghq.com/agent:7.80.0
         name: init-volume
         resources: {}
         volumeMounts:
@@ -1619,7 +1609,7 @@ spec:
               fieldPath: status.hostIP
         - name: DD_DISCOVERY_ENABLED
           value: "true"
-        image: gcr.io/datadoghq/agent:7.80.0
+        image: registry.datadoghq.com/agent:7.80.0
         name: init-config
         resources: {}
         volumeMounts:
@@ -1645,7 +1635,7 @@ spec:
         - cp
         - /etc/config/system-probe-seccomp.json
         - /host/var/lib/kubelet/seccomp/system-probe
-        image: gcr.io/datadoghq/agent:7.80.0
+        image: registry.datadoghq.com/agent:7.80.0
         name: seccomp-setup
         resources: {}
         volumeMounts:
@@ -1709,7 +1699,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: 8ded1d0b8e452f396c68e4b0f93a71c1
+    agent.datadoghq.com/agentspechash: 41473d90b0a13a8f221447ea0ba6e878
   labels:
     agent.datadoghq.com/component: cluster-agent
     agent.datadoghq.com/name: datadog-agent
@@ -1737,9 +1727,9 @@ spec:
   template:
     metadata:
       annotations:
+        agent.datadoghq.com/configmapshash: f4da1a5e704c25db
         checksum/cluster_checks-custom-config: f7dc31a1080204b2a0f72ea0cc314033
         checksum/dca-token-custom-config: 3f6998966e6de63b16d45512e01ccc84
-        checksum/ksm-custom-config: 7078d4e77dfdf37ca618d148c6c7af2b
       labels:
         agent.datadoghq.com/component: cluster-agent
         agent.datadoghq.com/name: datadog-agent
@@ -1829,7 +1819,7 @@ spec:
         - name: DD_ADMISSION_CONTROLLER_MUTATE_UNLABELLED
           value: "false"
         - name: DD_ADMISSION_CONTROLLER_CONTAINER_REGISTRY
-          value: gcr.io/datadoghq
+          value: registry.datadoghq.com
         - name: DD_ADMISSION_CONTROLLER_SERVICE_NAME
           value: datadog-admission-controller
         - name: DD_ADMISSION_CONTROLLER_PROBE_ENABLED
@@ -1876,7 +1866,7 @@ spec:
           value: "true"
         - name: DD_REMOTE_CONFIGURATION_ENABLED
           value: "true"
-        image: gcr.io/datadoghq/cluster-agent:7.80.0
+        image: registry.datadoghq.com/cluster-agent:7.80.0
         livenessProbe:
           failureThreshold: 6
           httpGet:

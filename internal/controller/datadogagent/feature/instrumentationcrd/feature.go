@@ -9,7 +9,6 @@ import (
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -57,6 +56,11 @@ func (f *instrumentationCRDFeature) ID() feature.IDType {
 func (f *instrumentationCRDFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) feature.RequiredComponents {
 	f.owner = dda
 
+	// The feature is enabled by default; opt out via the annotation set to "false".
+	if featureutils.HasFeatureDisableAnnotation(dda, featureutils.EnableInstrumentationCRDAnnotation) {
+		return feature.RequiredComponents{}
+	}
+
 	// If the cluster agent version is explicitly set and below the minimum, skip enabling.
 	if clusterAgent, ok := ddaSpec.Override[v2alpha1.ClusterAgentComponentName]; ok && clusterAgent.Image != nil {
 		version := common.GetAgentVersionFromImage(*clusterAgent.Image)
@@ -77,19 +81,15 @@ func (f *instrumentationCRDFeature) Configure(dda metav1.Object, ddaSpec *v2alph
 		return feature.RequiredComponents{}
 	}
 
-	if !featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnableInstrumentationCRDAnnotation) {
-		return feature.RequiredComponents{}
-	}
-
 	f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda.GetName(), ddaSpec)
 
 	return feature.RequiredComponents{
 		ClusterAgent: feature.RequiredComponent{
-			IsRequired: ptr.To(true),
+			IsRequired: new(true),
 			Containers: []apicommon.AgentContainerName{apicommon.ClusterAgentContainerName},
 		},
 		Agent: feature.RequiredComponent{
-			IsRequired: ptr.To(true),
+			IsRequired: new(true),
 			Containers: []apicommon.AgentContainerName{apicommon.CoreAgentContainerName},
 		},
 	}

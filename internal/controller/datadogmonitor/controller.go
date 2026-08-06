@@ -23,6 +23,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/util/retry"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -333,8 +334,37 @@ func (r *Reconciler) updateStatusIfNeeded(logger logr.Logger, datadogMonitor *da
 	condition.SetErrorActiveConditions(status, now, currentErr)
 
 	if !apiequality.Semantic.DeepEqual(&datadogMonitor.Status, status) {
-		datadogMonitor.Status = *status
-		if err := r.client.Status().Update(context.TODO(), datadogMonitor); err != nil {
+		desiredStatus := status.DeepCopy()
+		datadogMonitor.Status = *desiredStatus.DeepCopy()
+		err := r.client.Status().Update(context.TODO(), datadogMonitor)
+		if apierrors.IsConflict(err) {
+			// The Datadog API operation may already have succeeded, so preserve
+			// the resulting status (most importantly the remote resource ID) and
+			// retry only the Kubernetes status write against the latest object.
+			key := client.ObjectKeyFromObject(datadogMonitor)
+			err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
+				latest := &datadoghqv1alpha1.DatadogMonitor{}
+				if getErr := r.client.Get(context.TODO(), key, latest); getErr != nil {
+					return getErr
+				}
+
+				if apiequality.Semantic.DeepEqual(&latest.Status, desiredStatus) {
+					datadogMonitor.ResourceVersion = latest.ResourceVersion
+					datadogMonitor.Status = latest.Status
+					return nil
+				}
+
+				latest.Status = *desiredStatus.DeepCopy()
+				if updateErr := r.client.Status().Update(context.TODO(), latest); updateErr != nil {
+					return updateErr
+				}
+
+				datadogMonitor.ResourceVersion = latest.ResourceVersion
+				datadogMonitor.Status = latest.Status
+				return nil
+			})
+		}
+		if err != nil {
 			if apierrors.IsConflict(err) {
 				logger.Error(err, "unable to update DatadogMonitor status due to update conflict")
 				return ctrl.Result{RequeueAfter: defaultErrRequeuePeriod}, nil

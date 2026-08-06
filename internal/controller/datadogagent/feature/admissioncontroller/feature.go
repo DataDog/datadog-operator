@@ -13,7 +13,6 @@ import (
 	netv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/utils/ptr"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -57,6 +56,8 @@ type admissionControllerFeature struct {
 	kubernetesAdmissionEvents *KubernetesAdmissionEventConfig
 
 	probeConfig *ProbeConfig
+
+	csiDriverEnabled bool
 }
 
 type ValidationConfig struct {
@@ -91,7 +92,9 @@ type ProbeConfig struct {
 }
 
 func buildAdmissionControllerFeature(options *feature.Options) feature.Feature {
-	return &admissionControllerFeature{}
+	return &admissionControllerFeature{
+		csiDriverEnabled: options.DatadogCSIDriverEnabled,
+	}
 }
 
 // ID returns the ID of the Feature
@@ -150,7 +153,7 @@ func (f *admissionControllerFeature) Configure(dda metav1.Object, ddaSpec *v2alp
 		f.localServiceName = constants.GetLocalAgentServiceName(dda.GetName(), ddaSpec)
 		reqComp = feature.RequiredComponents{
 			ClusterAgent: feature.RequiredComponent{
-				IsRequired: ptr.To(true),
+				IsRequired: new(true),
 				Containers: []apicommon.AgentContainerName{apicommon.ClusterAgentContainerName},
 			},
 		}

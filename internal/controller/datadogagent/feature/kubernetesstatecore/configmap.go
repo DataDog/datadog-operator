@@ -73,6 +73,7 @@ instances:
     - configmaps
     - services
     - endpoints
+    - endpointslices
     - daemonsets
     - horizontalpodautoscalers
     - poddisruptionbudgets

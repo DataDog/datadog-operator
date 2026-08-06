@@ -32,6 +32,14 @@
           "description": "APMSocketPath is the host path to the APM socket.\nDefault: /var/run/datadog/apm.socket",
           "type": "string"
         },
+        "commonLabels": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "CommonLabels are propagated from spec.global.commonLabels on the parent\nDatadogAgent and are applied to all resources managed by the CSI\ncontroller (DaemonSet ObjectMeta, pod template, and cluster-scoped\nCSIDriver object). This field is managed by the operator; do not set it\nmanually.",
+          "type": "object",
+          "x-kubernetes-map-type": "granular"
+        },
         "csiDriverImage": {
           "additionalProperties": false,
           "description": "CSIDriverImage is the image configuration for the main CSI node driver container.",

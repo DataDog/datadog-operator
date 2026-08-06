@@ -122,6 +122,43 @@ func TestRender_WithDAP(t *testing.T) {
 	}, kindSequence(string(out)))
 }
 
+func TestRender_AppArmorProfileVersionGate(t *testing.T) {
+	tests := []struct {
+		name              string
+		kubernetesVersion string
+		wantAnnotation    bool
+		wantProfileField  bool
+	}{
+		{
+			name:              "Kubernetes 1.29 uses the annotation",
+			kubernetesVersion: "v1.29.9",
+			wantAnnotation:    true,
+		},
+		{
+			name:              "Kubernetes 1.30 uses the field",
+			kubernetesVersion: "v1.30.0",
+			wantProfileField:  true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dda, err := LoadDDA("testdata/comprehensive-dda.yaml")
+			require.NoError(t, err)
+
+			objects, scheme, err := Render(Options{DDA: dda, KubernetesVersion: tt.kubernetesVersion})
+			require.NoError(t, err)
+
+			out, err := Serialize(objects, scheme, "yaml", false)
+			require.NoError(t, err)
+			rendered := string(out)
+
+			assert.Equal(t, tt.wantAnnotation, strings.Contains(rendered, "container.apparmor.security.beta.kubernetes.io/system-probe: unconfined"))
+			assert.Equal(t, tt.wantProfileField, strings.Contains(rendered, "appArmorProfile:\n            type: Unconfined"))
+		})
+	}
+}
+
 // kindSequence extracts the ordered list of "kind: X" values from serialized YAML.
 func kindSequence(yaml string) []string {
 	var kinds []string

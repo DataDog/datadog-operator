@@ -11,18 +11,15 @@ import (
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	common "github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
-	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/secrets"
 )
@@ -52,9 +49,6 @@ type eventCollectionFeature struct {
 	configMapName      string
 	unbundleEvents     bool
 	unbundleEventTypes []v2alpha1.EventTypes
-
-	cmAnnotationKey   string
-	cmAnnotationValue string
 
 	logger logr.Logger
 }
@@ -86,7 +80,7 @@ func (f *eventCollectionFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.
 
 		reqComp = feature.RequiredComponents{
 			ClusterAgent: feature.RequiredComponent{
-				IsRequired: ptr.To(true),
+				IsRequired: new(true),
 				Containers: []apicommon.AgentContainerName{apicommon.ClusterAgentContainerName},
 			},
 		}
@@ -121,18 +115,6 @@ func (f *eventCollectionFeature) ManageDependencies(managers feature.ResourceMan
 		cm, err := buildDefaultConfigMap(f.owner.GetNamespace(), f.configMapName, f.unbundleEvents, f.unbundleEventTypes)
 		if err != nil {
 			return err
-		}
-
-		// Add md5 hash annotation for configMap
-		f.cmAnnotationKey = object.GetChecksumAnnotationKey(feature.KubernetesAPIServerIDType)
-		f.cmAnnotationValue, err = comparison.GenerateMD5ForSpec(cm.Data)
-		if err != nil {
-			return err
-		}
-
-		if f.cmAnnotationKey != "" && f.cmAnnotationValue != "" {
-			annotations := object.MergeAnnotationsLabels(f.logger, cm.Annotations, map[string]string{f.cmAnnotationKey: f.cmAnnotationValue}, "*")
-			cm.SetAnnotations(annotations)
 		}
 
 		if err := managers.Store().AddOrUpdate(kubernetes.ConfigMapKind, cm); err != nil {
@@ -178,11 +160,6 @@ func (f *eventCollectionFeature) ManageClusterAgent(managers feature.PodTemplate
 
 		managers.VolumeMount().AddVolumeMountToContainer(&volMount, apicommon.ClusterAgentContainerName)
 		managers.Volume().AddVolume(&vol)
-
-		// Add md5 hash annotation for configMap
-		if f.cmAnnotationKey != "" && f.cmAnnotationValue != "" {
-			managers.Annotation().AddAnnotation(f.cmAnnotationKey, f.cmAnnotationValue)
-		}
 	}
 
 	return nil

@@ -171,14 +171,14 @@ func extractMetadataOptions(opts *ec2types.InstanceMetadataOptionsResponse) *Met
 
 	var hopLimit *int64
 	if opts.HttpPutResponseHopLimit != nil {
-		hopLimit = lo.ToPtr(int64(*opts.HttpPutResponseHopLimit))
+		hopLimit = new(int64(*opts.HttpPutResponseHopLimit))
 	}
 
 	return &MetadataOptions{
-		HTTPEndpoint:            lo.Ternary(opts.HttpEndpoint != "", lo.ToPtr(string(opts.HttpEndpoint)), nil),
-		HTTPTokens:              lo.Ternary(opts.HttpTokens != "", lo.ToPtr(string(opts.HttpTokens)), nil),
+		HTTPEndpoint:            lo.Ternary(opts.HttpEndpoint != "", new(string(opts.HttpEndpoint)), nil),
+		HTTPTokens:              lo.Ternary(opts.HttpTokens != "", new(string(opts.HttpTokens)), nil),
 		HTTPPutResponseHopLimit: hopLimit,
-		HTTPProtocolIPv6:        lo.Ternary(opts.HttpProtocolIpv6 != "", lo.ToPtr(string(opts.HttpProtocolIpv6)), nil),
+		HTTPProtocolIPv6:        lo.Ternary(opts.HttpProtocolIpv6 != "", new(string(opts.HttpProtocolIpv6)), nil),
 	}
 }
 
@@ -256,10 +256,10 @@ func extractBlockDeviceMappingsWithVolumeDetails(ctx context.Context, ec2Client 
 				DeviceName:          mapping.DeviceName,
 				RootVolume:          isRootDevice(mapping.DeviceName),
 				DeleteOnTermination: mapping.Ebs.DeleteOnTermination,
-				VolumeSize:          lo.Ternary(vol.Size != nil, lo.ToPtr(fmt.Sprintf("%dGi", lo.FromPtr(vol.Size))), nil),
-				VolumeType:          lo.Ternary(vol.VolumeType != "", lo.ToPtr(string(vol.VolumeType)), nil),
-				IOPS:                lo.Ternary(vol.Iops != nil, lo.ToPtr(int64(lo.FromPtr(vol.Iops))), nil),
-				Throughput:          lo.Ternary(vol.Throughput != nil, lo.ToPtr(int64(lo.FromPtr(vol.Throughput))), nil),
+				VolumeSize:          lo.Ternary(vol.Size != nil, new(fmt.Sprintf("%dGi", lo.FromPtr(vol.Size))), nil),
+				VolumeType:          lo.Ternary(vol.VolumeType != "", new(string(vol.VolumeType)), nil),
+				IOPS:                lo.Ternary(vol.Iops != nil, new(int64(lo.FromPtr(vol.Iops))), nil),
+				Throughput:          lo.Ternary(vol.Throughput != nil, new(int64(lo.FromPtr(vol.Throughput))), nil),
 				Encrypted:           vol.Encrypted,
 				KMSKeyID:            vol.KmsKeyId,
 				SnapshotID:          vol.SnapshotId,

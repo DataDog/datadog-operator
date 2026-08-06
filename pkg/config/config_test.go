@@ -8,6 +8,8 @@ import (
 	"golang.org/x/exp/maps"
 
 	"github.com/stretchr/testify/assert"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
@@ -290,4 +292,21 @@ func verifyResourceNamespace(t *testing.T, resource client.Object, wantConfig ob
 			assert.Nil(t, byObjectOptions.Label)
 		}
 	}
+}
+
+func TestCacheConfigStripsManagedFields(t *testing.T) {
+	cacheOptions := CacheOptions(logf.Log.WithName(t.Name()), WatchOptions{})
+	requireTransform := cacheOptions.DefaultTransform
+	if !assert.NotNil(t, requireTransform) {
+		return
+	}
+
+	obj := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{
+		ManagedFields: []metav1.ManagedFieldsEntry{{Manager: "test-manager"}},
+	}}
+	transformed, err := requireTransform(obj)
+
+	assert.NoError(t, err)
+	assert.Same(t, obj, transformed)
+	assert.Nil(t, obj.ManagedFields)
 }

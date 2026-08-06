@@ -15,16 +15,24 @@ import (
 )
 
 func buildCSIDriverObject(instance *datadoghqv1alpha1.DatadogCSIDriver) *storagev1.CSIDriver {
+	labels := map[string]string{
+		kubernetes.AppKubernetesManageByLabelKey: "datadog-operator",
+		kubernetes.AppKubernetesPartOfLabelKey:   object.NewPartOfLabelValue(instance).String(),
+	}
+	// Merge commonLabels propagated from spec.global.commonLabels on the parent
+	// DatadogAgent. Operator-owned keys already present in labels win.
+	for k, v := range instance.Spec.CommonLabels {
+		if _, exists := labels[k]; !exists {
+			labels[k] = v
+		}
+	}
 	return &storagev1.CSIDriver{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: csiDriverName,
 			Annotations: map[string]string{
 				apmEnabledAnnotationKey: getAPMEnabledString(instance),
 			},
-			Labels: map[string]string{
-				kubernetes.AppKubernetesManageByLabelKey: "datadog-operator",
-				kubernetes.AppKubernetesPartOfLabelKey:   object.NewPartOfLabelValue(instance).String(),
-			},
+			Labels: labels,
 		},
 		Spec: storagev1.CSIDriverSpec{
 			VolumeLifecycleModes: []storagev1.VolumeLifecycleMode{

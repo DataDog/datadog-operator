@@ -29,6 +29,10 @@ var update = flag.Bool("update", false, "update golden files")
 // plausible current semver since some rendering paths gate behavior on it.
 const goldenImageTag = "7.80.0"
 
+// goldenFIPSImageTag pins the FIPS proxy sidecar tag for the same reason as
+// goldenImageTag: decouple goldens from FIPSProxyLatestVersion bumps.
+const goldenFIPSImageTag = "1.1.29"
+
 // pinImageTags overrides image tags on the in-memory DDA before rendering,
 // rather than in the testdata fixtures, so the fixtures stay representative
 // of real user input. It merges into any existing per-component override
@@ -40,6 +44,16 @@ func pinImageTags(dda *datadoghqv2alpha1.DatadogAgent) {
 	}
 	setImageTag(dda, datadoghqv2alpha1.NodeAgentComponentName)
 	setImageTag(dda, datadoghqv2alpha1.ClusterAgentComponentName)
+	pinFIPSImageTag(dda)
+}
+
+// pinFIPSImageTag sets a fixed FIPS proxy tag when the fixture enables FIPS,
+// so goldens don't churn on FIPSProxyLatestVersion bumps.
+func pinFIPSImageTag(dda *datadoghqv2alpha1.DatadogAgent) {
+	if dda.Spec.Global == nil || dda.Spec.Global.FIPS == nil {
+		return
+	}
+	dda.Spec.Global.FIPS.Image = &datadoghqv2alpha1.AgentImageConfig{Tag: goldenFIPSImageTag}
 }
 
 func setImageTag(dda *datadoghqv2alpha1.DatadogAgent, component datadoghqv2alpha1.ComponentName) {
@@ -120,6 +134,21 @@ func TestRender_Golden(t *testing.T) {
 			name:    "override dda, baseline (no provider)",
 			ddaFile: "testdata/override-dda.yaml",
 			golden:  "testdata/golden/override-baseline.golden.yaml",
+		},
+		{
+			// GPU (pod-resources socket), SBOM (host + uncompressed-layers), and FIPS
+			// are all enabled. On baseline the volumes/sidecar appear; on autopilot
+			// NodeAgentProviderCapabilities strips the forbidden hostPath volumes and
+			// the FIPS gate suppresses the fips-proxy sidecar.
+			name:    "suppression dda, baseline (gpu+sbom+fips present)",
+			ddaFile: "testdata/suppression-dda.yaml",
+			golden:  "testdata/golden/suppression-baseline.golden.yaml",
+		},
+		{
+			name:      "suppression dda, autopilot (gpu+sbom+fips suppressed)",
+			ddaFile:   "testdata/suppression-dda.yaml",
+			autopilot: true,
+			golden:    "testdata/golden/suppression-autopilot.golden.yaml",
 		},
 	}
 

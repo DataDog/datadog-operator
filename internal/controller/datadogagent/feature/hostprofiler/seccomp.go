@@ -16,15 +16,21 @@ import (
 )
 
 const (
-	// seccompSourcePath is the path to the seccomp profile baked into the collector image.
+	// seccompSourcePath is the path to the default seccomp profile baked into the collector image.
 	seccompSourcePath = "/etc/dd-host-profiler/seccomp.json"
+	// loggingSeccompSourcePath is the path to the seccomp profile that also permits logging syscalls.
+	loggingSeccompSourcePath = "/etc/dd-host-profiler/logging-seccomp.json"
 )
 
-// seccompProfileName returns a profile name unique to the image, avoiding
+// seccompProfileName returns a name unique to the image and variant, avoiding
 // races when multiple host-profiler versions coexist on the same node.
-func seccompProfileName(imageRef string) string {
+func seccompProfileName(imageRef string, logging bool) string {
 	h := sha256.Sum256([]byte(imageRef))
-	return fmt.Sprintf("host-profiler-%x", h[:4])
+	name := fmt.Sprintf("host-profiler-%x", h[:4])
+	if logging {
+		name += "-logging"
+	}
+	return name
 }
 
 func defaultCapabilities() []corev1.Capability {
@@ -40,15 +46,23 @@ func defaultCapabilities() []corev1.Capability {
 	}
 }
 
-func buildSeccompSetupInitContainer(image string) corev1.Container {
+func buildSeccompSetupInitContainer(image string, loggingSeccomp bool) corev1.Container {
+	dst := fmt.Sprintf("%s/%s", common.SeccompRootVolumePath, seccompProfileName(image, loggingSeccomp))
+	var command []string
+	if loggingSeccomp {
+		// Prefer the logging profile, but fall back to the default if the image predates it
+		// so an older image degrades gracefully instead of crash-looping on a missing file.
+		command = []string{"sh", "-c", fmt.Sprintf(
+			"if [ -f %[1]s ]; then cp %[1]s %[3]s; else echo 'WARNING: logging-seccomp.json not found in image, falling back to default seccomp profile'; cp %[2]s %[3]s; fi",
+			loggingSeccompSourcePath, seccompSourcePath, dst,
+		)}
+	} else {
+		command = []string{"cp", seccompSourcePath, dst}
+	}
 	return corev1.Container{
-		Name:  string(apicommon.HostProfilerSeccompSetupContainerName),
-		Image: image,
-		Command: []string{
-			"cp",
-			seccompSourcePath,
-			fmt.Sprintf("%s/%s", common.SeccompRootVolumePath, seccompProfileName(image)),
-		},
+		Name:    string(apicommon.HostProfilerSeccompSetupContainerName),
+		Image:   image,
+		Command: command,
 		VolumeMounts: []corev1.VolumeMount{
 			common.GetVolumeMountForSeccomp(),
 		},

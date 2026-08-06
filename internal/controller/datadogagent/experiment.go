@@ -548,12 +548,15 @@ func (r *Reconciler) rollback(
 	if err := r.client.Get(ctx, nsn, current); err != nil {
 		return fmt.Errorf("failed to get current DDA for rollback: %w", err)
 	}
-	currentSnap, err := json.Marshal(revisionSnapshot{Spec: current.Spec, Annotations: datadogAnnotations(current.GetAnnotations())})
+	currentSnap, err := buildRevisionSnapshot(current.Spec, current.GetAnnotations())
 	if err != nil {
 		return fmt.Errorf("failed to marshal current snapshot for comparison: %w", err)
 	}
 	if bytes.Equal(currentSnap, cr.Data.Raw) {
 		ctrl.LoggerFrom(ctx).Info("Rollback spec already matches target, skipping update", "rollbackTarget", rollbackTarget)
+		// No update happened, but still sync the re-fetched ResourceVersion so
+		// the caller's status update doesn't 409 against a concurrent write.
+		instance.ResourceVersion = current.ResourceVersion
 		return nil
 	}
 
@@ -609,9 +612,12 @@ func findRollbackTarget(revisions []appsv1.ControllerRevision) string {
 //     The matching revision is the pre-experiment one (old timestamp), so elapsed is
 //     large, timeout fires, and the idempotent rollback path sets phase=terminated cleanly
 //     without a spec-update conflict (ResourceVersion unchanged → status write succeeds).
+//
+// instance.Spec must be the raw, user-submitted spec, not the in-memory
+// defaulted copy — pass rawInstance, not instance. Stored revisions are raw,
+// so a defaulted spec never matches any of them.
 func findMostRecentMatchingRevision(revisions []appsv1.ControllerRevision, instance *v2alpha1.DatadogAgent) *appsv1.ControllerRevision {
-	snap := revisionSnapshot{Spec: instance.Spec, Annotations: datadogAnnotations(instance.GetAnnotations())}
-	snapBytes, err := json.Marshal(snap)
+	snapBytes, err := buildRevisionSnapshot(instance.Spec, instance.GetAnnotations())
 	if err != nil {
 		return nil
 	}

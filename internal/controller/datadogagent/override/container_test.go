@@ -16,9 +16,7 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/pkg/constants"
-	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
@@ -1154,7 +1152,7 @@ func TestContainer(t *testing.T) {
 			},
 		},
 		{
-			name:          "seccomp inline ConfigData adds checksum annotation",
+			name:          "seccomp inline ConfigData has no checksum annotation",
 			containerName: apicommon.SystemProbeContainerName,
 			existingManager: func() *fake.PodTemplateManagers {
 				return fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
@@ -1171,10 +1169,7 @@ func TestContainer(t *testing.T) {
 				},
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers, _ string) {
-				annotationKey := object.GetChecksumAnnotationKey(string(common.SystemProbeSeccompKey))
-				expectedHash, _ := comparison.GenerateMD5ForSpec(map[string]string{
-					common.SystemProbeSeccompKey: "inline-seccomp-data"})
-				assert.Equal(t, expectedHash, manager.AnnotationMgr.Annotations[annotationKey])
+				assert.Empty(t, manager.AnnotationMgr.Annotations)
 			},
 		},
 		{
@@ -1206,9 +1201,7 @@ func TestContainer(t *testing.T) {
 					},
 				}
 				assert.Equal(t, expectedVolumes, manager.VolumeMgr.Volumes)
-				annotationKey := object.GetChecksumAnnotationKey(common.SystemProbeSeccompKey)
-				_, found := manager.AnnotationMgr.Annotations[annotationKey]
-				assert.False(t, found)
+				assert.Empty(t, manager.AnnotationMgr.Annotations)
 			},
 		},
 		{
@@ -1223,9 +1216,7 @@ func TestContainer(t *testing.T) {
 			},
 			override: v2alpha1.DatadogAgentGenericContainer{},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers, _ string) {
-				annotationKey := object.GetChecksumAnnotationKey(string(common.SystemProbeSeccompKey))
-				_, found := manager.AnnotationMgr.Annotations[annotationKey]
-				assert.False(t, found)
+				assert.Empty(t, manager.AnnotationMgr.Annotations)
 			},
 		},
 	}

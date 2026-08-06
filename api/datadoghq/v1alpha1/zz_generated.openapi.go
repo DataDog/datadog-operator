@@ -779,6 +779,27 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogCSIDriverSpec(ref com
 							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogCSIDriverOverride"),
 						},
 					},
+					"commonLabels": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-map-type": "granular",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "CommonLabels are propagated from spec.global.commonLabels on the parent DatadogAgent and are applied to all resources managed by the CSI controller (DaemonSet ObjectMeta, pod template, and cluster-scoped CSIDriver object). This field is managed by the operator; do not set it manually.",
+							Type:        []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
 				},
 			},
 		},

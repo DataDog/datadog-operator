@@ -47,6 +47,15 @@ type DatadogCSIDriverSpec struct {
 	// Override allows customization of the CSI driver DaemonSet pod template.
 	// +optional
 	Override *DatadogCSIDriverOverride `json:"override,omitempty"`
+
+	// CommonLabels are propagated from spec.global.commonLabels on the parent
+	// DatadogAgent and are applied to all resources managed by the CSI
+	// controller (DaemonSet ObjectMeta, pod template, and cluster-scoped
+	// CSIDriver object). This field is managed by the operator; do not set it
+	// manually.
+	// +optional
+	//+mapType=granular
+	CommonLabels map[string]string `json:"commonLabels,omitempty"`
 }
 
 // DatadogCSIDriverAPMConfig defines APM/Single Step Instrumentation settings for the CSI driver.

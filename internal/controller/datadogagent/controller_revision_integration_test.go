@@ -26,6 +26,7 @@ package datadogagent
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -34,6 +35,7 @@ import (
 	assert "github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -42,8 +44,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	v2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/defaults"
 	agenttestutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/testutils"
+	"github.com/DataDog/datadog-operator/pkg/controllerrevisions"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	testutils "github.com/DataDog/datadog-operator/pkg/testutils"
 )
@@ -377,4 +382,86 @@ func Test_ControllerRevisions_UIDScoping(t *testing.T) {
 		"new DDA instance must start with a fresh revision history")
 	assert.Len(t, listOwnedRevisions(t, c, ns, "uid-old"), 1,
 		"old revision is still present (orphaned); not mistaken for new owner's history")
+}
+
+// Test_ControllerRevisions_SnapshotStoresRawSpec verifies that the snapshot
+// stored in a ControllerRevision is the raw, user-submitted spec rather than
+// the in-memory defaulted copy, and that reconciling repeatedly does not
+// create new revisions merely because defaulting recomputes fields like
+// Site on every reconcile.
+func Test_ControllerRevisions_SnapshotStoresRawSpec(t *testing.T) {
+	const ns, name = "default", "test-dda"
+	const uid = types.UID("uid-1")
+
+	r, c := newRevisionIntegrationReconciler(t)
+	dda := baseDDA(ns, name, uid)
+	createAndReconcile(t, r, dda)
+
+	revs := listOwnedRevisions(t, c, ns, uid)
+	assert.Len(t, revs, 1)
+
+	var snapshot revisionSnapshot
+	assert.NoError(t, json.Unmarshal(revs[0].Data.Raw, &snapshot))
+	assert.Nil(t, snapshot.Spec.Global.Site,
+		"snapshot must store the raw spec (Site unset), not the in-memory defaulted copy")
+
+	// A second reconcile must not create a new revision: defaulting recomputes
+	// Site="datadoghq.com" into the in-memory copy every time, but the snapshot
+	// is built from the unchanged raw spec, so no defaulting-driven churn occurs.
+	_, err := r.Reconcile(context.TODO(), dda)
+	assert.NoError(t, err)
+	assert.Len(t, listOwnedRevisions(t, c, ns, uid), 1, "defaulting recomputation alone must not create a new revision")
+}
+
+// Test_ControllerRevisions_MigrationFromDefaultedSnapshot simulates upgrading
+// from the old (pre-fix) code, which snapshotted the in-memory defaulted spec,
+// to the current code, which snapshots the raw spec. A pre-existing revision
+// holding defaulted-format bytes is seeded directly; the first reconcile after
+// the upgrade should create exactly one new raw-format revision alongside it,
+// and the second reconcile should create no further revisions.
+func Test_ControllerRevisions_MigrationFromDefaultedSnapshot(t *testing.T) {
+	const ns, name = "default", "test-dda"
+	const uid = types.UID("uid-1")
+
+	r, c := newRevisionIntegrationReconciler(t)
+
+	dda := baseDDA(ns, name, uid)
+	assert.NoError(t, c.Create(context.TODO(), dda))
+
+	// Seed a ControllerRevision as the old (pre-fix) code would have created
+	// it: snapshotting the defaulted spec instead of the raw one.
+	oldDefaultedSpec := dda.Spec.DeepCopy()
+	defaults.DefaultDatadogAgentSpec(oldDefaultedSpec)
+	oldSnapBytes, err := buildRevisionSnapshot(*oldDefaultedSpec, dda.GetAnnotations())
+	assert.NoError(t, err)
+
+	gvks, _, err := r.scheme.ObjectKinds(dda)
+	assert.NoError(t, err)
+	oldRev := controllerrevisions.NewControllerRevision(
+		dda, gvks[0],
+		map[string]string{apicommon.DatadogAgentNameLabelKey: name},
+		runtime.RawExtension{Raw: oldSnapBytes},
+		1, nil,
+	)
+	assert.NoError(t, c.Create(context.TODO(), oldRev))
+
+	// First reconcile after the upgrade: the raw-spec snapshot doesn't match
+	// the pre-existing defaulted-format revision, so exactly one new revision
+	// is created; the old one is kept as "previous".
+	_, err = r.Reconcile(context.TODO(), dda)
+	assert.NoError(t, err)
+
+	revs := listOwnedRevisions(t, c, ns, uid)
+	assert.Len(t, revs, 2, "expected the old defaulted-format revision plus one new raw-format revision")
+
+	names := map[string]bool{}
+	for _, rev := range revs {
+		names[rev.Name] = true
+	}
+	assert.True(t, names[oldRev.Name], "pre-existing defaulted-format revision must be preserved")
+
+	// Second reconcile: raw spec is unchanged, so no further revision is created.
+	_, err = r.Reconcile(context.TODO(), dda)
+	assert.NoError(t, err)
+	assert.Len(t, listOwnedRevisions(t, c, ns, uid), 2, "second reconcile after migration must not create additional revisions")
 }

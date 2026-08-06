@@ -1,0 +1,21 @@
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogGenericResource
+metadata:
+  name: ddgr-notification-rule-sample
+spec:
+  type: monitor_notification_rule
+  # This example creates a monitor notification rule that routes alerts from
+  # monitors tagged with "env:prod" and "team:ops" to a Slack channel.
+  jsonSpec: |-
+    {
+      "data": {
+        "type": "monitor-notification-rule",
+        "attributes": {
+          "name": "Prod ops alert routing",
+          "recipients": ["slack-ops-alerts"],
+          "filter": {
+            "tags": ["env:prod", "team:ops"]
+          }
+        }
+      }
+    }

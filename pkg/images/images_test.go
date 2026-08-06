@@ -8,6 +8,7 @@ package images
 import (
 	"fmt"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -22,7 +23,7 @@ func TestGetLatestAgentImage(t *testing.T) {
 	}{
 		{
 			name: "default registry",
-			want: fmt.Sprintf("gcr.io/datadoghq/agent:%s", AgentLatestVersion),
+			want: fmt.Sprintf("%s/agent:%s", DatadogContainerRegistry, AgentLatestVersion),
 		},
 	}
 	for _, tt := range tests {
@@ -34,6 +35,26 @@ func TestGetLatestAgentImage(t *testing.T) {
 	}
 }
 
+func TestGetLatestWindowsAgentImage(t *testing.T) {
+	got := GetLatestWindowsAgentImage()
+	// Must use the default registry (consistent with other sibling functions).
+	if !strings.HasPrefix(got, DefaultImageRegistry+"/") {
+		t.Errorf("GetLatestWindowsAgentImage() registry = %q, want prefix %q", got, DefaultImageRegistry+"/")
+	}
+	// Must carry the -servercore suffix.
+	if !strings.HasSuffix(got, WindowsServerCoreTagSuffix) {
+		t.Errorf("GetLatestWindowsAgentImage() = %q, want suffix %q", got, WindowsServerCoreTagSuffix)
+	}
+	// Must embed the current agent version.
+	if !strings.Contains(got, AgentLatestVersion) {
+		t.Errorf("GetLatestWindowsAgentImage() = %q, want version %q", got, AgentLatestVersion)
+	}
+	want := fmt.Sprintf("%s/agent:%s%s", DefaultImageRegistry, AgentLatestVersion, WindowsServerCoreTagSuffix)
+	if got != want {
+		t.Errorf("GetLatestWindowsAgentImage() = %q, want %q", got, want)
+	}
+}
+
 func TestGetLatestClusterAgentImage(t *testing.T) {
 	tests := []struct {
 		name string
@@ -41,7 +62,7 @@ func TestGetLatestClusterAgentImage(t *testing.T) {
 	}{
 		{
 			name: "default registry",
-			want: fmt.Sprintf("gcr.io/datadoghq/cluster-agent:%s", ClusterAgentLatestVersion),
+			want: fmt.Sprintf("%s/cluster-agent:%s", DatadogContainerRegistry, ClusterAgentLatestVersion),
 		},
 	}
 	for _, tt := range tests {
@@ -169,6 +190,24 @@ func Test_imageNameContainsTag(t *testing.T) {
 	}
 }
 
+func Test_IsGCRRegistry(t *testing.T) {
+	cases := map[string]bool{
+		"gcr.io/datadoghq":          true,
+		"gcr.io/datadoghq/":         false,
+		"eu.gcr.io/datadoghq":       true,
+		"asia.gcr.io/datadoghq":     true,
+		"registry.datadoghq.com":    false,
+		"public.ecr.aws/datadog":    false,
+		"gcr.io/other":              false,
+		"notgcr.io/datadoghq":       false,
+		"custom/gcr.io/datadoghq":   false,
+		"eu.gcr.io/datadoghq/agent": false,
+	}
+	for registry, expected := range cases {
+		assert.Equal(t, expected, IsGCRRegistry(registry), registry)
+	}
+}
+
 func Test_AssembleImage(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -207,7 +246,7 @@ func Test_AssembleImage(t *testing.T) {
 				Name: "agent",
 				Tag:  "latest",
 			},
-			want: "gcr.io/datadoghq/agent:latest",
+			want: "registry.datadoghq.com/agent:latest",
 		},
 		{
 			name: "cluster-agent",
@@ -225,7 +264,7 @@ func Test_AssembleImage(t *testing.T) {
 				Tag:        "latest-jmx",
 				JMXEnabled: true,
 			},
-			want: "gcr.io/datadoghq/agent:latest-jmx",
+			want: "registry.datadoghq.com/agent:latest-jmx",
 		},
 	}
 	for _, tt := range tests {

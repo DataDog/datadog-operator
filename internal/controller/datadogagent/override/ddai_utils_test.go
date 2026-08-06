@@ -13,7 +13,6 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/global"
-	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/stretchr/testify/assert"
 )
@@ -115,9 +114,6 @@ func TestSetOverrideFromDDA(t *testing.T) {
 				},
 				Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 					v2alpha1.NodeAgentComponentName: {
-						Labels: map[string]string{
-							constants.MD5AgentDeploymentProviderLabelKey: "",
-						},
 						Annotations: map[string]string{
 							dcaTokenChecksumAnnotationKey: tokenHash,
 						},
@@ -155,9 +151,6 @@ func TestSetOverrideFromDDA(t *testing.T) {
 				},
 				Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 					v2alpha1.NodeAgentComponentName: {
-						Labels: map[string]string{
-							constants.MD5AgentDeploymentProviderLabelKey: "",
-						},
 						Annotations: map[string]string{
 							dcaTokenChecksumAnnotationKey: tokenHash,
 						},
@@ -193,11 +186,7 @@ func TestSetOverrideFromDDA(t *testing.T) {
 					},
 				},
 				Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
-					v2alpha1.NodeAgentComponentName: {
-						Labels: map[string]string{
-							constants.MD5AgentDeploymentProviderLabelKey: "",
-						},
-					},
+					v2alpha1.NodeAgentComponentName: {},
 				},
 			},
 		},
@@ -237,7 +226,6 @@ func TestSetOverrideFromDDA(t *testing.T) {
 					v2alpha1.NodeAgentComponentName: {
 						Labels: map[string]string{
 							existingLabel: existingValue,
-							constants.MD5AgentDeploymentProviderLabelKey: "",
 						},
 						Annotations: map[string]string{
 							existingAnnotation:            existingValue,
@@ -293,7 +281,6 @@ func TestSetOverrideFromDDA(t *testing.T) {
 					v2alpha1.NodeAgentComponentName: {
 						Labels: map[string]string{
 							existingLabel: existingValue,
-							constants.MD5AgentDeploymentProviderLabelKey: "",
 						},
 					},
 				},
