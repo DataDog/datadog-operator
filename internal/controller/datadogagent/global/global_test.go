@@ -183,10 +183,6 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 					Name:  DDVSockAddr,
 					Value: "host",
 				},
-				{
-					Name:  DDRemoteAgentRegistryEnabled,
-					Value: "false",
-				},
 			}...),
 			wantCoreAgentVolumeMounts: nil,
 			wantVolumeMounts:          nil,

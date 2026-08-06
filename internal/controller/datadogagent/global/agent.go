@@ -27,12 +27,6 @@ func applyNodeAgentResources(manager feature.PodTemplateManagers, ddaSpec *v2alp
 			Value: "host",
 		})
 
-		// Remote agent doesn't work with vsock yet.
-		manager.EnvVar().AddEnvVar(&corev1.EnvVar{
-			Name:  DDRemoteAgentRegistryEnabled,
-			Value: "false",
-		})
-
 		authVol := common.GetVolumeForAuth(true)
 		manager.Volume().AddVolume(&authVol)
 	}
