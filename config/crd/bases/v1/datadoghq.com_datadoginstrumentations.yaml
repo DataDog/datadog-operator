@@ -270,7 +270,6 @@ spec:
                         required:
                           - containerName
                         type: object
-                        x-kubernetes-preserve-unknown-fields: true
                       type: array
                       x-kubernetes-list-type: atomic
                   type: object

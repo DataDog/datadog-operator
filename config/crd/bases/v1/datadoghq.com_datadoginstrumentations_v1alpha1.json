@@ -300,8 +300,7 @@
                 "required": [
                   "containerName"
                 ],
-                "type": "object",
-                "x-kubernetes-preserve-unknown-fields": true
+                "type": "object"
               },
               "type": "array",
               "x-kubernetes-list-type": "atomic"

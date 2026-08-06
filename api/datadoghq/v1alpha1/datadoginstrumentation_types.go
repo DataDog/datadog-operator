@@ -124,7 +124,6 @@ type DatadogInstrumentationLogFingerprintConfig struct {
 }
 
 // DatadogInstrumentationLogFields defines common Agent log collection configuration fields.
-// +kubebuilder:pruning:PreserveUnknownFields
 type DatadogInstrumentationLogFields struct {
 	// Type is the type of log input source. Common values include tcp, udp, file, windows_event, docker, and journald.
 	// +optional
@@ -243,7 +242,6 @@ type DatadogInstrumentationLogFields struct {
 }
 
 // DatadogInstrumentationLogConfig defines Agent log collection configuration fields.
-// +kubebuilder:pruning:PreserveUnknownFields
 type DatadogInstrumentationLogConfig struct {
 	// ContainerName identifies the container name this log configuration applies to.
 	ContainerName string `json:"containerName"`
