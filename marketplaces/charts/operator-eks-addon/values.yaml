@@ -1,19 +1,16 @@
 datadog-operator:
   # apiKeyExistingSecret -- Use existing Secret which stores API key instead of creating a new one
-  apiKeyExistingSecret:  # <DATADOG_API_KEY_SECRET>
-
+  apiKeyExistingSecret: # <DATADOG_API_KEY_SECRET>
   # appKeyExistingSecret -- Use existing Secret which stores APP key instead of creating a new one
-  appKeyExistingSecret:  # <DATADOG_APP_KEY_SECRET>
-
+  appKeyExistingSecret: # <DATADOG_APP_KEY_SECRET>
   toolVersion: eks-addon
   datadogCRDs:
     crds:
       datadogMonitors: false
   image:
     repository: 709825985650.dkr.ecr.us-east-1.amazonaws.com/datadog/operator
-    tag: 1.28.0
+    tag: 1.29.0
   operatorMetricsEnabled: false
-
 # credentialsSecretSync -- Syncs Datadog credentials from AWS Secrets Manager to a Kubernetes Secret on EKS
 
 ## Requires EKS Pod Identity and Secrets Store CSI Driver secret sync.
@@ -23,9 +20,7 @@ datadog-operator:
 credentialsSecretSync:
   # credentialsSecretSync.kubernetesSecretName -- Name of the Kubernetes Secret to create
   kubernetesSecretName: datadog-secret
-
   # credentialsSecretSync.apiKeySecretId -- AWS Secrets Manager ARN or name for the Datadog API key
   apiKeySecretId:
-
   # credentialsSecretSync.appKeySecretId -- AWS Secrets Manager ARN or name for the Datadog application key
   appKeySecretId:
