@@ -855,6 +855,16 @@ func TestConfigValidate(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "gke-gateway is a valid proxy value",
+			config: Config{
+				Enabled:              true,
+				Proxies:              []string{"gke-gateway"},
+				Mode:                 "external",
+				ProcessorServiceName: "x",
+			},
+			wantErr: false,
+		},
+		{
 			name: "invalid port - negative",
 			config: Config{
 				Enabled:              true,
