@@ -1094,6 +1094,194 @@
               },
               "type": "object"
             },
+            "appsec": {
+              "additionalProperties": false,
+              "description": "Appsec configuration.",
+              "properties": {
+                "injector": {
+                  "additionalProperties": false,
+                  "description": "Configures the AppSec injector.",
+                  "properties": {
+                    "autoDetect": {
+                      "description": "Controls automatic proxy detection.\nDefault: true\nThis is the AGENT-SIDE default; leaving this field unset uses the annotation value if one is present.",
+                      "type": "boolean"
+                    },
+                    "enabled": {
+                      "description": "Enables the AppSec injector.\nDefault: false\nThis is the AGENT-SIDE default; leaving this field unset uses the annotation value if one is present.",
+                      "type": "boolean"
+                    },
+                    "gke": {
+                      "additionalProperties": false,
+                      "description": "Configures GKE Gateway injection.",
+                      "properties": {
+                        "gatewayClasses": {
+                          "description": "Lists GKE GatewayClasses for AppSec injection.\nConfiguration is create-only with no drift reconciliation, so deleting a GCPTrafficExtension while its Gateway still exists does not recreate it.\nThe extension has no ownerReferences; if the cluster-agent is down or not leader when the Gateway is deleted, it can be orphaned.\nAfter disabling AppSec, teardown can take about 5-7 minutes and traffic remains inspected or blocked during that period.\nA pre-existing GCPTrafficExtension without the app.kubernetes.io/managed-by: datadog-cluster-agent label is left alone.\nA Gateway labeled appsec.datadoghq.com/enabled=false is skipped.\nGKE injection requires cluster-agent version 7.82.0 or later.\nThe `mode: external` setting is required only when `gke-gateway` is explicitly listed in `proxies`; a `gatewayClasses`-only configuration relying on agent-side autoDetect remains valid in any mode.",
+                          "items": {
+                            "type": "string"
+                          },
+                          "type": "array"
+                        }
+                      },
+                      "type": "object"
+                    },
+                    "mode": {
+                      "description": "Selects the AppSec injection mode.\nWhen unset, this uses the agent default sidecar; leaving this field unset uses the annotation value if one is present.",
+                      "enum": [
+                        "sidecar",
+                        "external"
+                      ],
+                      "type": "string"
+                    },
+                    "nginx": {
+                      "additionalProperties": false,
+                      "description": "Configures nginx injection.",
+                      "properties": {
+                        "moduleMountPath": {
+                          "description": "Sets the nginx module mount path.\nDefault: /modules_mount\nThis is the AGENT-SIDE default; leaving this field unset uses the annotation value if one is present.",
+                          "type": "string"
+                        }
+                      },
+                      "type": "object"
+                    },
+                    "processor": {
+                      "additionalProperties": false,
+                      "description": "Configures the external processor.",
+                      "properties": {
+                        "address": {
+                          "description": "Sets the processor address.\nLeaving this field unset uses the annotation value if one is present.",
+                          "type": "string"
+                        },
+                        "port": {
+                          "description": "Sets the processor port.\nDefault: 443\nThis is the AGENT-SIDE default; leaving this field unset uses the annotation value if one is present.",
+                          "format": "int32",
+                          "type": "integer"
+                        },
+                        "service": {
+                          "additionalProperties": false,
+                          "description": "Configures the processor Service.",
+                          "properties": {
+                            "name": {
+                              "description": "Sets the processor Service name.\nLeaving this field unset uses the annotation value if one is present.",
+                              "type": "string"
+                            },
+                            "namespace": {
+                              "description": "Sets the processor Service namespace.\nLeaving this field unset uses the annotation value if one is present.\nThis is ignored for gke-gateway because the callout Service is resolved in each Gateway's own namespace; deploy the Service in every AppSec-enabled Gateway namespace.",
+                              "type": "string"
+                            }
+                          },
+                          "type": "object"
+                        }
+                      },
+                      "type": "object"
+                    },
+                    "proxies": {
+                      "description": "Lists proxies for AppSec injection.\nDefault: []\nThis is the AGENT-SIDE default; leaving this field unset uses the annotation value if one is present.\nAn empty CRD list does not clear an annotation-set value; the annotation remains in effect.",
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
+                    "sidecar": {
+                      "additionalProperties": false,
+                      "description": "Configures the injected sidecar.",
+                      "properties": {
+                        "bodyParsingSizeLimit": {
+                          "description": "Sets the sidecar body parsing size limit.\nDefault: 0\nThis is the AGENT-SIDE default; leaving this field unset uses the annotation value if one is present.",
+                          "format": "int64",
+                          "type": "integer"
+                        },
+                        "healthPort": {
+                          "description": "Sets the sidecar health port.\nDefault: 8081\nThis is the AGENT-SIDE default; leaving this field unset uses the annotation value if one is present.",
+                          "format": "int32",
+                          "type": "integer"
+                        },
+                        "image": {
+                          "description": "Sets the sidecar image.\nDefault: ghcr.io/datadog/dd-trace-go/service-extensions-callout\nThis is the AGENT-SIDE default; leaving this field unset uses the annotation value if one is present.",
+                          "type": "string"
+                        },
+                        "imageTag": {
+                          "description": "Sets the sidecar image tag.\nDefault: v2.8.2\nThis is the AGENT-SIDE default; leaving this field unset uses the annotation value if one is present.",
+                          "type": "string"
+                        },
+                        "port": {
+                          "description": "Sets the sidecar port.\nDefault: 8080\nThis is the AGENT-SIDE default; leaving this field unset uses the annotation value if one is present.",
+                          "format": "int32",
+                          "type": "integer"
+                        },
+                        "resources": {
+                          "additionalProperties": false,
+                          "description": "Configures sidecar resources.\nLeaving this field unset uses the annotation value if one is present.\nOnly requests and limits for cpu and memory are honored.",
+                          "properties": {
+                            "claims": {
+                              "description": "Claims lists the names of resources, defined in spec.resourceClaims,\nthat are used by this container.\n\nThis field depends on the\nDynamicResourceAllocation feature gate.\n\nThis field is immutable. It can only be set for containers.",
+                              "items": {
+                                "additionalProperties": false,
+                                "description": "ResourceClaim references one entry in PodSpec.ResourceClaims.",
+                                "properties": {
+                                  "name": {
+                                    "description": "Name must match the name of one entry in pod.spec.resourceClaims of\nthe Pod where this field is used. It makes that resource available\ninside a container.",
+                                    "type": "string"
+                                  },
+                                  "request": {
+                                    "description": "Request is the name chosen for a request in the referenced claim.\nIf empty, everything from the claim is made available, otherwise\nonly the result of this request.",
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "name"
+                                ],
+                                "type": "object"
+                              },
+                              "type": "array",
+                              "x-kubernetes-list-map-keys": [
+                                "name"
+                              ],
+                              "x-kubernetes-list-type": "map"
+                            },
+                            "limits": {
+                              "additionalProperties": {
+                                "anyOf": [
+                                  {
+                                    "type": "integer"
+                                  },
+                                  {
+                                    "type": "string"
+                                  }
+                                ],
+                                "pattern": "^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$",
+                                "x-kubernetes-int-or-string": true
+                              },
+                              "description": "Limits describes the maximum amount of compute resources allowed.\nMore info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/",
+                              "type": "object"
+                            },
+                            "requests": {
+                              "additionalProperties": {
+                                "anyOf": [
+                                  {
+                                    "type": "integer"
+                                  },
+                                  {
+                                    "type": "string"
+                                  }
+                                ],
+                                "pattern": "^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$",
+                                "x-kubernetes-int-or-string": true
+                              },
+                              "description": "Requests describes the minimum amount of compute resources required.\nIf Requests is omitted for a container, it defaults to Limits if that is explicitly specified,\notherwise to an implementation-defined value. Requests cannot exceed Limits.\nMore info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/",
+                              "type": "object"
+                            }
+                          },
+                          "type": "object"
+                        }
+                      },
+                      "type": "object"
+                    }
+                  },
+                  "type": "object"
+                }
+              },
+              "type": "object"
+            },
             "asm": {
               "additionalProperties": false,
               "description": "ASM (Application Security Management) configuration.",
@@ -9568,6 +9756,194 @@
                         "path": {
                           "description": "Path defines the socket path used when enabled.",
                           "type": "string"
+                        }
+                      },
+                      "type": "object"
+                    }
+                  },
+                  "type": "object"
+                },
+                "appsec": {
+                  "additionalProperties": false,
+                  "description": "Appsec configuration.",
+                  "properties": {
+                    "injector": {
+                      "additionalProperties": false,
+                      "description": "Configures the AppSec injector.",
+                      "properties": {
+                        "autoDetect": {
+                          "description": "Controls automatic proxy detection.\nDefault: true\nThis is the AGENT-SIDE default; leaving this field unset uses the annotation value if one is present.",
+                          "type": "boolean"
+                        },
+                        "enabled": {
+                          "description": "Enables the AppSec injector.\nDefault: false\nThis is the AGENT-SIDE default; leaving this field unset uses the annotation value if one is present.",
+                          "type": "boolean"
+                        },
+                        "gke": {
+                          "additionalProperties": false,
+                          "description": "Configures GKE Gateway injection.",
+                          "properties": {
+                            "gatewayClasses": {
+                              "description": "Lists GKE GatewayClasses for AppSec injection.\nConfiguration is create-only with no drift reconciliation, so deleting a GCPTrafficExtension while its Gateway still exists does not recreate it.\nThe extension has no ownerReferences; if the cluster-agent is down or not leader when the Gateway is deleted, it can be orphaned.\nAfter disabling AppSec, teardown can take about 5-7 minutes and traffic remains inspected or blocked during that period.\nA pre-existing GCPTrafficExtension without the app.kubernetes.io/managed-by: datadog-cluster-agent label is left alone.\nA Gateway labeled appsec.datadoghq.com/enabled=false is skipped.\nGKE injection requires cluster-agent version 7.82.0 or later.\nThe `mode: external` setting is required only when `gke-gateway` is explicitly listed in `proxies`; a `gatewayClasses`-only configuration relying on agent-side autoDetect remains valid in any mode.",
+                              "items": {
+                                "type": "string"
+                              },
+                              "type": "array"
+                            }
+                          },
+                          "type": "object"
+                        },
+                        "mode": {
+                          "description": "Selects the AppSec injection mode.\nWhen unset, this uses the agent default sidecar; leaving this field unset uses the annotation value if one is present.",
+                          "enum": [
+                            "sidecar",
+                            "external"
+                          ],
+                          "type": "string"
+                        },
+                        "nginx": {
+                          "additionalProperties": false,
+                          "description": "Configures nginx injection.",
+                          "properties": {
+                            "moduleMountPath": {
+                              "description": "Sets the nginx module mount path.\nDefault: /modules_mount\nThis is the AGENT-SIDE default; leaving this field unset uses the annotation value if one is present.",
+                              "type": "string"
+                            }
+                          },
+                          "type": "object"
+                        },
+                        "processor": {
+                          "additionalProperties": false,
+                          "description": "Configures the external processor.",
+                          "properties": {
+                            "address": {
+                              "description": "Sets the processor address.\nLeaving this field unset uses the annotation value if one is present.",
+                              "type": "string"
+                            },
+                            "port": {
+                              "description": "Sets the processor port.\nDefault: 443\nThis is the AGENT-SIDE default; leaving this field unset uses the annotation value if one is present.",
+                              "format": "int32",
+                              "type": "integer"
+                            },
+                            "service": {
+                              "additionalProperties": false,
+                              "description": "Configures the processor Service.",
+                              "properties": {
+                                "name": {
+                                  "description": "Sets the processor Service name.\nLeaving this field unset uses the annotation value if one is present.",
+                                  "type": "string"
+                                },
+                                "namespace": {
+                                  "description": "Sets the processor Service namespace.\nLeaving this field unset uses the annotation value if one is present.\nThis is ignored for gke-gateway because the callout Service is resolved in each Gateway's own namespace; deploy the Service in every AppSec-enabled Gateway namespace.",
+                                  "type": "string"
+                                }
+                              },
+                              "type": "object"
+                            }
+                          },
+                          "type": "object"
+                        },
+                        "proxies": {
+                          "description": "Lists proxies for AppSec injection.\nDefault: []\nThis is the AGENT-SIDE default; leaving this field unset uses the annotation value if one is present.\nAn empty CRD list does not clear an annotation-set value; the annotation remains in effect.",
+                          "items": {
+                            "type": "string"
+                          },
+                          "type": "array"
+                        },
+                        "sidecar": {
+                          "additionalProperties": false,
+                          "description": "Configures the injected sidecar.",
+                          "properties": {
+                            "bodyParsingSizeLimit": {
+                              "description": "Sets the sidecar body parsing size limit.\nDefault: 0\nThis is the AGENT-SIDE default; leaving this field unset uses the annotation value if one is present.",
+                              "format": "int64",
+                              "type": "integer"
+                            },
+                            "healthPort": {
+                              "description": "Sets the sidecar health port.\nDefault: 8081\nThis is the AGENT-SIDE default; leaving this field unset uses the annotation value if one is present.",
+                              "format": "int32",
+                              "type": "integer"
+                            },
+                            "image": {
+                              "description": "Sets the sidecar image.\nDefault: ghcr.io/datadog/dd-trace-go/service-extensions-callout\nThis is the AGENT-SIDE default; leaving this field unset uses the annotation value if one is present.",
+                              "type": "string"
+                            },
+                            "imageTag": {
+                              "description": "Sets the sidecar image tag.\nDefault: v2.8.2\nThis is the AGENT-SIDE default; leaving this field unset uses the annotation value if one is present.",
+                              "type": "string"
+                            },
+                            "port": {
+                              "description": "Sets the sidecar port.\nDefault: 8080\nThis is the AGENT-SIDE default; leaving this field unset uses the annotation value if one is present.",
+                              "format": "int32",
+                              "type": "integer"
+                            },
+                            "resources": {
+                              "additionalProperties": false,
+                              "description": "Configures sidecar resources.\nLeaving this field unset uses the annotation value if one is present.\nOnly requests and limits for cpu and memory are honored.",
+                              "properties": {
+                                "claims": {
+                                  "description": "Claims lists the names of resources, defined in spec.resourceClaims,\nthat are used by this container.\n\nThis field depends on the\nDynamicResourceAllocation feature gate.\n\nThis field is immutable. It can only be set for containers.",
+                                  "items": {
+                                    "additionalProperties": false,
+                                    "description": "ResourceClaim references one entry in PodSpec.ResourceClaims.",
+                                    "properties": {
+                                      "name": {
+                                        "description": "Name must match the name of one entry in pod.spec.resourceClaims of\nthe Pod where this field is used. It makes that resource available\ninside a container.",
+                                        "type": "string"
+                                      },
+                                      "request": {
+                                        "description": "Request is the name chosen for a request in the referenced claim.\nIf empty, everything from the claim is made available, otherwise\nonly the result of this request.",
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "name"
+                                    ],
+                                    "type": "object"
+                                  },
+                                  "type": "array",
+                                  "x-kubernetes-list-map-keys": [
+                                    "name"
+                                  ],
+                                  "x-kubernetes-list-type": "map"
+                                },
+                                "limits": {
+                                  "additionalProperties": {
+                                    "anyOf": [
+                                      {
+                                        "type": "integer"
+                                      },
+                                      {
+                                        "type": "string"
+                                      }
+                                    ],
+                                    "pattern": "^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$",
+                                    "x-kubernetes-int-or-string": true
+                                  },
+                                  "description": "Limits describes the maximum amount of compute resources allowed.\nMore info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/",
+                                  "type": "object"
+                                },
+                                "requests": {
+                                  "additionalProperties": {
+                                    "anyOf": [
+                                      {
+                                        "type": "integer"
+                                      },
+                                      {
+                                        "type": "string"
+                                      }
+                                    ],
+                                    "pattern": "^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$",
+                                    "x-kubernetes-int-or-string": true
+                                  },
+                                  "description": "Requests describes the minimum amount of compute resources required.\nIf Requests is omitted for a container, it defaults to Limits if that is explicitly specified,\notherwise to an implementation-defined value. Requests cannot exceed Limits.\nMore info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/",
+                                  "type": "object"
+                                }
+                              },
+                              "type": "object"
+                            }
+                          },
+                          "type": "object"
                         }
                       },
                       "type": "object"
