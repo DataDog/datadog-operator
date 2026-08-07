@@ -7,6 +7,8 @@ package appsec
 
 const ClusterAgentMinVersion = "7.76.0"
 
+const ClusterAgentGKEMinVersion = "7.82.0"
+
 // ClusterAgentNginxMinVersion is the minimum cluster-agent version for ingress-nginx injection (explicit config only)
 const ClusterAgentNginxMinVersion = "7.79.0"
 
@@ -69,6 +71,7 @@ const (
 	DDClusterAgentAppsecInjectorProcessorServiceNamespace = "DD_CLUSTER_AGENT_APPSEC_INJECTOR_PROCESSOR_SERVICE_NAMESPACE"
 	// DDClusterAgentAppsecInjectorMode is the injector mode (sidecar or external)
 	DDClusterAgentAppsecInjectorMode = "DD_CLUSTER_AGENT_APPSEC_INJECTOR_MODE"
+	DDAppsecProxyGKEGatewayClasses   = "DD_APPSEC_PROXY_GKE_GATEWAY_CLASSES"
 	// DDAdmissionControllerAppsecSidecarImage is the sidecar container image
 	DDAdmissionControllerAppsecSidecarImage = "DD_ADMISSION_CONTROLLER_APPSEC_SIDECAR_IMAGE"
 	// DDAdmissionControllerAppsecSidecarImageTag is the sidecar container image tag
@@ -91,7 +94,7 @@ const (
 	DDAdmissionControllerAppsecNginxModuleMountPath = "DD_ADMISSION_CONTROLLER_APPSEC_NGINX_MODULE_MOUNT_PATH"
 )
 
-var allowedProxyValues = []string{"envoy-gateway", "istio", "istio-gateway", "ingress-nginx"}
+var allowedProxyValues = []string{"envoy-gateway", "istio", "istio-gateway", "ingress-nginx", "gke-gateway"}
 
 // AllowedProxyValues returns the proxy types that the current RBAC supports.
 // The returned slice must not be modified.
