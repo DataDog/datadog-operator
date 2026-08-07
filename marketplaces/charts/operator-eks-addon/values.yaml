@@ -29,3 +29,9 @@ credentialsSecretSync:
 
   # credentialsSecretSync.appKeySecretId -- AWS Secrets Manager ARN or name for the Datadog application key
   appKeySecretId:
+
+# managedAgentInstallation -- Enables Datadog-managed Agent installation through the Operator EKS add-on
+## This lifecycle request is populated automatically by Datadog and is not intended for manual configuration.
+## The managed workflow uses `credentialsSecretSync`
+## to deliver credentials to a Kubernetes Secret in the add-on namespace.
+managedAgentInstallation: null
