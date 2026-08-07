@@ -70,6 +70,9 @@ type DatadogFeatures struct {
 	APM *APMFeatureConfig `json:"apm,omitempty"`
 	// ASM (Application Security Management) configuration.
 	ASM *ASMFeatureConfig `json:"asm,omitempty"`
+	// Appsec configuration.
+	// +optional
+	Appsec *AppsecFeatureConfig `json:"appsec,omitempty"`
 	// CSPM (Cloud Security Posture Management) configuration.
 	CSPM *CSPMFeatureConfig `json:"cspm,omitempty"`
 	// CWS (Cloud Workload Security) configuration.
@@ -172,6 +175,152 @@ type APMFeatureConfig struct {
 	// Feature is in preview.
 	// +optional
 	ErrorTrackingStandalone *ErrorTrackingStandalone `json:"errorTrackingStandalone,omitempty"`
+}
+
+// AppsecFeatureConfig contains AppSec proxy injector configuration.
+type AppsecFeatureConfig struct {
+	// Configures the AppSec injector.
+	// +optional
+	Injector *AppsecInjectorConfig `json:"injector,omitempty"`
+}
+
+// AppsecInjectorConfig contains AppSec proxy injector configuration.
+type AppsecInjectorConfig struct {
+	// Enables the AppSec injector.
+	// Default: false
+	// This is the AGENT-SIDE default; leaving this field unset uses the annotation value if one is present.
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// Controls automatic proxy detection.
+	// Default: true
+	// This is the AGENT-SIDE default; leaving this field unset uses the annotation value if one is present.
+	// +optional
+	AutoDetect *bool `json:"autoDetect,omitempty"`
+
+	// Lists proxies for AppSec injection.
+	// Default: []
+	// This is the AGENT-SIDE default; leaving this field unset uses the annotation value if one is present.
+	// An empty CRD list does not clear an annotation-set value; the annotation remains in effect.
+	// +optional
+	Proxies []string `json:"proxies,omitempty"`
+
+	// Selects the AppSec injection mode.
+	// When unset, this uses the agent default sidecar; leaving this field unset uses the annotation value if one is present.
+	// +kubebuilder:validation:Enum=sidecar;external
+	// +optional
+	Mode *string `json:"mode,omitempty"`
+
+	// Configures the external processor.
+	// +optional
+	Processor *AppsecInjectorProcessorConfig `json:"processor,omitempty"`
+
+	// Configures the injected sidecar.
+	// +optional
+	Sidecar *AppsecInjectorSidecarConfig `json:"sidecar,omitempty"`
+
+	// Configures nginx injection.
+	// +optional
+	Nginx *AppsecInjectorNginxConfig `json:"nginx,omitempty"`
+
+	// Configures GKE Gateway injection.
+	// +optional
+	GKE *AppsecInjectorGKEConfig `json:"gke,omitempty"`
+}
+
+// AppsecInjectorProcessorConfig contains AppSec external processor configuration.
+type AppsecInjectorProcessorConfig struct {
+	// Sets the processor address.
+	// Leaving this field unset uses the annotation value if one is present.
+	// +optional
+	Address *string `json:"address,omitempty"`
+
+	// Sets the processor port.
+	// Default: 443
+	// This is the AGENT-SIDE default; leaving this field unset uses the annotation value if one is present.
+	// +optional
+	Port *int32 `json:"port,omitempty"`
+
+	// Configures the processor Service.
+	// +optional
+	Service *AppsecInjectorProcessorServiceConfig `json:"service,omitempty"`
+}
+
+// AppsecInjectorProcessorServiceConfig contains AppSec external processor Service configuration.
+type AppsecInjectorProcessorServiceConfig struct {
+	// Sets the processor Service name.
+	// Leaving this field unset uses the annotation value if one is present.
+	// +optional
+	Name *string `json:"name,omitempty"`
+
+	// Sets the processor Service namespace.
+	// Leaving this field unset uses the annotation value if one is present.
+	// This is ignored for gke-gateway because the callout Service is resolved in each Gateway's own namespace; deploy the Service in every AppSec-enabled Gateway namespace.
+	// +optional
+	Namespace *string `json:"namespace,omitempty"`
+}
+
+// AppsecInjectorSidecarConfig contains AppSec injector sidecar configuration.
+type AppsecInjectorSidecarConfig struct {
+	// Sets the sidecar image.
+	// Default: ghcr.io/datadog/dd-trace-go/service-extensions-callout
+	// This is the AGENT-SIDE default; leaving this field unset uses the annotation value if one is present.
+	// +optional
+	Image *string `json:"image,omitempty"`
+
+	// Sets the sidecar image tag.
+	// Default: v2.8.2
+	// This is the AGENT-SIDE default; leaving this field unset uses the annotation value if one is present.
+	// +optional
+	ImageTag *string `json:"imageTag,omitempty"`
+
+	// Sets the sidecar port.
+	// Default: 8080
+	// This is the AGENT-SIDE default; leaving this field unset uses the annotation value if one is present.
+	// +optional
+	Port *int32 `json:"port,omitempty"`
+
+	// Sets the sidecar health port.
+	// Default: 8081
+	// This is the AGENT-SIDE default; leaving this field unset uses the annotation value if one is present.
+	// +optional
+	HealthPort *int32 `json:"healthPort,omitempty"`
+
+	// Sets the sidecar body parsing size limit.
+	// Default: 0
+	// This is the AGENT-SIDE default; leaving this field unset uses the annotation value if one is present.
+	// +optional
+	BodyParsingSizeLimit *int64 `json:"bodyParsingSizeLimit,omitempty"`
+
+	// Configures sidecar resources.
+	// Leaving this field unset uses the annotation value if one is present.
+	// Only requests and limits for cpu and memory are honored.
+	// +doc-gen:link=https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+	// +optional
+	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
+}
+
+// AppsecInjectorNginxConfig contains AppSec nginx injector configuration.
+type AppsecInjectorNginxConfig struct {
+	// Sets the nginx module mount path.
+	// Default: /modules_mount
+	// This is the AGENT-SIDE default; leaving this field unset uses the annotation value if one is present.
+	// +optional
+	ModuleMountPath *string `json:"moduleMountPath,omitempty"`
+}
+
+// AppsecInjectorGKEConfig contains AppSec GKE Gateway injector configuration.
+type AppsecInjectorGKEConfig struct {
+	// Lists GKE GatewayClasses for AppSec injection.
+	// Configuration is create-only with no drift reconciliation, so deleting a GCPTrafficExtension while its Gateway still exists does not recreate it.
+	// The extension has no ownerReferences; if the cluster-agent is down or not leader when the Gateway is deleted, it can be orphaned.
+	// After disabling AppSec, teardown can take about 5-7 minutes and traffic remains inspected or blocked during that period.
+	// A pre-existing GCPTrafficExtension without the app.kubernetes.io/managed-by: datadog-cluster-agent label is left alone.
+	// A Gateway labeled appsec.datadoghq.com/enabled=false is skipped.
+	// GKE injection requires cluster-agent version 7.82.0 or later.
+	// The `mode: external` setting is required only when `gke-gateway` is explicitly listed in `proxies`; a `gatewayClasses`-only configuration relying on agent-side autoDetect remains valid in any mode.
+	// +optional
+	GatewayClasses []string `json:"gatewayClasses,omitempty"`
 }
 
 // ErrorTrackingStandalone contains the configuration for the Error Tracking standalone feature.
