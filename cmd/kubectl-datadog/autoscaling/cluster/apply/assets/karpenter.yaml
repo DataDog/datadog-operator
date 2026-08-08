@@ -24,6 +24,29 @@ Resources:
         - !Sub "arn:${AWS::Partition}:iam::aws:policy/AmazonEKSWorkerNodePolicy"
         - !Sub "arn:${AWS::Partition}:iam::aws:policy/AmazonEC2ContainerRegistryPullOnly"
         - !Sub "arn:${AWS::Partition}:iam::aws:policy/AmazonSSMManagedInstanceCore"
+  # The Karpenter controller permissions are split across two managed policies
+  # (KarpenterControllerPolicy and KarpenterControllerPolicy2) to stay under IAM's
+  # 6,144-character managed-policy size limit (whitespace excluded, not raisable via
+  # a quota increase): ${ClusterName} is interpolated more than a dozen times across
+  # the combined document, so a single policy would exceed the limit for long EKS
+  # cluster names. See CASCL-1645.
+  #
+  # Statement placement is deliberate, not just size-balanced: on an `update` of an
+  # existing (pre-split) installation, CloudFormation updates KarpenterControllerPolicy's
+  # PolicyDocument in place (no gap — the role always has *some* valid document), but
+  # KarpenterControllerPolicy2 is a brand-new resource that isn't attached to the
+  # controller role until the second (mode-specific) stack update completes afterwards.
+  # Any statement that moves from the original single policy into KarpenterControllerPolicy2
+  # is therefore briefly unavailable during that window. To keep Karpenter continuously able
+  # to provision nodes and process interruptions throughout an upgrade, every statement
+  # needed for those two operations — the three ec2:RunInstances/CreateFleet statements
+  # (which IAM evaluates together across the resource types touched by a single
+  # RunInstances call), iam:PassRole (required by every RunInstances call), the continuous
+  # ec2:Describe* reads used by every scheduling decision, and SQS interruption-queue
+  # processing — stays in KarpenterControllerPolicy and is never moved. Only the more
+  # occasional, less time-sensitive permissions (tagging, termination, instance-profile
+  # management, SSM/pricing lookups, cluster endpoint discovery) are split out into
+  # KarpenterControllerPolicy2.
   KarpenterControllerPolicy:
     Type: AWS::IAM::ManagedPolicy
     Properties:
@@ -93,6 +116,65 @@ Resources:
                 }
               }
             },
+            {
+              "Sid": "AllowPassingInstanceRole",
+              "Effect": "Allow",
+              "Resource": "${KarpenterNodeRole.Arn}",
+              "Action": "iam:PassRole",
+              "Condition": {
+                "StringEquals": {
+                  "iam:PassedToService": [
+                    "ec2.amazonaws.com",
+                    "ec2.amazonaws.com.cn"
+                  ]
+                }
+              }
+            },
+            {
+              "Sid": "AllowRegionalReadActions",
+              "Effect": "Allow",
+              "Resource": "*",
+              "Action": [
+                "ec2:DescribeCapacityReservations",
+                "ec2:DescribeImages",
+                "ec2:DescribeInstances",
+                "ec2:DescribeInstanceTypeOfferings",
+                "ec2:DescribeInstanceTypes",
+                "ec2:DescribeLaunchTemplates",
+                "ec2:DescribeSecurityGroups",
+                "ec2:DescribeSpotPriceHistory",
+                "ec2:DescribeSubnets"
+              ],
+              "Condition": {
+                "StringEquals": {
+                  "aws:RequestedRegion": "${AWS::Region}"
+                }
+              }
+            },
+            {
+              "Sid": "AllowInterruptionQueueActions",
+              "Effect": "Allow",
+              "Resource": "${KarpenterInterruptionQueue.Arn}",
+              "Action": [
+                "sqs:DeleteMessage",
+                "sqs:GetQueueUrl",
+                "sqs:ReceiveMessage"
+              ]
+            }
+          ]
+        }
+  KarpenterControllerPolicy2:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: !Sub "KarpenterControllerPolicy2-${ClusterName}"
+      # See the comment above KarpenterControllerPolicy: this holds the more occasional,
+      # less time-sensitive permissions (tagging, termination, instance-profile management,
+      # SSM/pricing lookups, cluster endpoint discovery) split out to stay under IAM's
+      # managed-policy size limit.
+      PolicyDocument: !Sub |
+        {
+          "Version": "2012-10-17",
+          "Statement": [
             {
               "Sid": "AllowScopedResourceCreationTagging",
               "Effect": "Allow",
@@ -165,27 +247,6 @@ Resources:
               }
             },
             {
-              "Sid": "AllowRegionalReadActions",
-              "Effect": "Allow",
-              "Resource": "*",
-              "Action": [
-                "ec2:DescribeCapacityReservations",
-                "ec2:DescribeImages",
-                "ec2:DescribeInstances",
-                "ec2:DescribeInstanceTypeOfferings",
-                "ec2:DescribeInstanceTypes",
-                "ec2:DescribeLaunchTemplates",
-                "ec2:DescribeSecurityGroups",
-                "ec2:DescribeSpotPriceHistory",
-                "ec2:DescribeSubnets"
-              ],
-              "Condition": {
-                "StringEquals": {
-                  "aws:RequestedRegion": "${AWS::Region}"
-                }
-              }
-            },
-            {
               "Sid": "AllowSSMReadActions",
               "Effect": "Allow",
               "Resource": "arn:${AWS::Partition}:ssm:${AWS::Region}::parameter/aws/service/*",
@@ -196,30 +257,6 @@ Resources:
               "Effect": "Allow",
               "Resource": "*",
               "Action": "pricing:GetProducts"
-            },
-            {
-              "Sid": "AllowInterruptionQueueActions",
-              "Effect": "Allow",
-              "Resource": "${KarpenterInterruptionQueue.Arn}",
-              "Action": [
-                "sqs:DeleteMessage",
-                "sqs:GetQueueUrl",
-                "sqs:ReceiveMessage"
-              ]
-            },
-            {
-              "Sid": "AllowPassingInstanceRole",
-              "Effect": "Allow",
-              "Resource": "${KarpenterNodeRole.Arn}",
-              "Action": "iam:PassRole",
-              "Condition": {
-                "StringEquals": {
-                  "iam:PassedToService": [
-                    "ec2.amazonaws.com",
-                    "ec2.amazonaws.com.cn"
-                  ]
-                }
-              }
             },
             {
               "Sid": "AllowScopedInstanceProfileCreationActions",
