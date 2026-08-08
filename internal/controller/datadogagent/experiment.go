@@ -11,9 +11,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"maps"
-	"strings"
 	"time"
 
+	jsonpatch "gomodules.xyz/jsonpatch/v2"
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -21,6 +21,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	v2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 // ExperimentDefaultTimeout is the duration after which a running experiment is automatically rolled back.
@@ -347,28 +348,15 @@ func (r *Reconciler) processPromoteSignal(
 	return true, nil
 }
 
-// annotationToJSONPatchPath converts an annotation key to a JSON Patch path
-// under /metadata/annotations, escaping "/" as "~1" per RFC 6901.
-func annotationToJSONPatchPath(key string) string {
-	return "/metadata/annotations/" + strings.ReplaceAll(key, "/", "~1")
-}
-
-// jsonPatchOp represents a single JSON Patch operation (RFC 6902).
-type jsonPatchOp struct {
-	Op    string `json:"op"`
-	Path  string `json:"path"`
-	Value string `json:"value,omitempty"`
-}
-
 // clearExperimentAnnotations removes the experiment signal annotations from the
 // DDA using a conditional JSON Patch. The patch asserts the annotation ID matches
 // the one we just processed, preventing accidental removal of a newer signal
 // written concurrently by the daemon.
 func (r *Reconciler) clearExperimentAnnotations(ctx context.Context, instance *v2alpha1.DatadogAgent, expectedID string) error {
-	ops := []jsonPatchOp{
-		{Op: "test", Path: annotationToJSONPatchPath(v2alpha1.AnnotationExperimentID), Value: expectedID},
-		{Op: "remove", Path: annotationToJSONPatchPath(v2alpha1.AnnotationExperimentSignal)},
-		{Op: "remove", Path: annotationToJSONPatchPath(v2alpha1.AnnotationExperimentID)},
+	ops := []jsonpatch.Operation{
+		{Operation: "test", Path: kubernetes.AnnotationJSONPatchPath(v2alpha1.AnnotationExperimentID), Value: expectedID},
+		{Operation: "remove", Path: kubernetes.AnnotationJSONPatchPath(v2alpha1.AnnotationExperimentSignal)},
+		{Operation: "remove", Path: kubernetes.AnnotationJSONPatchPath(v2alpha1.AnnotationExperimentID)},
 	}
 	patch, err := json.Marshal(ops)
 	if err != nil {
