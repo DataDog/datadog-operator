@@ -95,6 +95,11 @@ const (
 	DDAdmissionControllerAppsecNginxModuleMountPath = "DD_ADMISSION_CONTROLLER_APPSEC_NGINX_MODULE_MOUNT_PATH"
 )
 
+// allowedProxyValues is the source of truth for the accepted proxy names. Keep it in sync
+// with the +kubebuilder:validation:items:Enum marker on AppsecInjectorConfig.Proxies in
+// api/datadoghq/v2alpha1/datadogagent_types.go, which enforces the same set at admission.
+// The runtime check in Config.Validate remains as defense in depth and still guards the
+// annotation path, which the CRD schema cannot reach.
 var allowedProxyValues = []string{"envoy-gateway", "istio", "istio-gateway", "ingress-nginx", "gke-gateway"}
 
 // AllowedProxyValues returns the proxy types that the current RBAC supports.

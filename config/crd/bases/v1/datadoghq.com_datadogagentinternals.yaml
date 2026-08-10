@@ -1191,6 +1191,8 @@ spec:
                                     Sets the processor port.
                                     Default: 443
                                   format: int32
+                                  maximum: 65535
+                                  minimum: 0
                                   type: integer
                                 service:
                                   description: Configures the processor Service.
@@ -1210,6 +1212,12 @@ spec:
                                 Lists proxies for AppSec injection.
                                 Default: []
                               items:
+                                enum:
+                                  - envoy-gateway
+                                  - istio
+                                  - istio-gateway
+                                  - ingress-nginx
+                                  - gke-gateway
                                 type: string
                               type: array
                             sidecar:
@@ -1220,12 +1228,15 @@ spec:
                                     Sets the sidecar body parsing size limit.
                                     Default: 0
                                   format: int64
+                                  minimum: 0
                                   type: integer
                                 healthPort:
                                   description: |-
                                     Sets the sidecar health port.
                                     Default: 8081
                                   format: int32
+                                  maximum: 65535
+                                  minimum: 1
                                   type: integer
                                 image:
                                   description: |-
@@ -1242,6 +1253,8 @@ spec:
                                     Sets the sidecar port.
                                     Default: 8080
                                   format: int32
+                                  maximum: 65535
+                                  minimum: 1
                                   type: integer
                                 resources:
                                   description: |-
@@ -10109,6 +10122,8 @@ spec:
                                         Sets the processor port.
                                         Default: 443
                                       format: int32
+                                      maximum: 65535
+                                      minimum: 0
                                       type: integer
                                     service:
                                       description: Configures the processor Service.
@@ -10128,6 +10143,12 @@ spec:
                                     Lists proxies for AppSec injection.
                                     Default: []
                                   items:
+                                    enum:
+                                      - envoy-gateway
+                                      - istio
+                                      - istio-gateway
+                                      - ingress-nginx
+                                      - gke-gateway
                                     type: string
                                   type: array
                                 sidecar:
@@ -10138,12 +10159,15 @@ spec:
                                         Sets the sidecar body parsing size limit.
                                         Default: 0
                                       format: int64
+                                      minimum: 0
                                       type: integer
                                     healthPort:
                                       description: |-
                                         Sets the sidecar health port.
                                         Default: 8081
                                       format: int32
+                                      maximum: 65535
+                                      minimum: 1
                                       type: integer
                                     image:
                                       description: |-
@@ -10160,6 +10184,8 @@ spec:
                                         Sets the sidecar port.
                                         Default: 8080
                                       format: int32
+                                      maximum: 65535
+                                      minimum: 1
                                       type: integer
                                     resources:
                                       description: |-
