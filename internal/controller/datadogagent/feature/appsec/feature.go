@@ -213,6 +213,18 @@ func (f *appsecFeature) ManageClusterAgent(managers feature.PodTemplateManagers)
 		}
 	}
 
+	// Set GKE gateway classes if specified. An empty list is skipped rather than emitted as
+	// "[]", which the cluster-agent would read as "no GatewayClass is eligible".
+	if len(f.config.GatewayClasses) > 0 {
+		gatewayClassesJSON, err := json.Marshal(f.config.GatewayClasses)
+		if err != nil {
+			return fmt.Errorf("could not marshal AppSec GKE gateway classes list to JSON: %w", err)
+		}
+		if err := addEnvVar(DDAppsecProxyGKEGatewayClasses, string(gatewayClassesJSON)); err != nil {
+			return err
+		}
+	}
+
 	// Set processor port only when explicitly configured (zero means unset)
 	if f.config.ProcessorPort != 0 {
 		if err := addEnvVar(DDAppsecProxyProcessorPort, strconv.Itoa(f.config.ProcessorPort)); err != nil {
