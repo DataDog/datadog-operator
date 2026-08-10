@@ -55,8 +55,13 @@ stages:
 # branches and only ever contain the regenerated bundle manifests plus
 # config/manager/kustomization.yaml. There is no operator code for e2e to
 # exercise, so skip the whole e2e stage to get them through CI quickly.
+#
+# The second clause covers the mergequeue: once queued, the pipeline runs on
+# `mq-working-branch-*` and the original branch name is gone, so match the
+# squashed commit title instead. The bot always produces
+# `chore(bundle): regenerate for vX.Y.Z`.
 .skip_e2e_on_release_bundle_branch: &skip_e2e_on_release_bundle_branch
-  if: '$CI_COMMIT_BRANCH =~ /^operator-release\//'
+  if: '$CI_COMMIT_BRANCH =~ /^operator-release\// || ($CI_COMMIT_BRANCH =~ /^mq-working-branch-/ && $CI_COMMIT_TITLE =~ /^chore\(bundle\): regenerate for v/)'
   when: never
 
 build:
@@ -510,6 +515,7 @@ e2e_mq:
   timeout: 60m
   retry: 0
   rules:
+    - *skip_e2e_on_release_bundle_branch
     # Skip if only .md files are changed
     - if: $CI_COMMIT_BRANCH
       changes:
