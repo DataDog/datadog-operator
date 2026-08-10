@@ -56,6 +56,47 @@ func assertEnv(envVars ...envVar) *test.ComponentTest {
 	)
 }
 
+// assertEnvRan is assertEnv plus a guard that the suite actually invoked the WantFunc.
+//
+// feature.BuildFeatures returns no feature at all when Configure gates the feature off, so
+// testsuite.go's per-feature loop never reaches ClusterAgent.WantFunc and every assertEnv
+// expectation - including the "present: true" ones - passes vacuously. Registering the
+// guard on the parent *testing.T turns that silence into a failure.
+func assertEnvRan(t *testing.T, envVars ...envVar) *test.ComponentTest {
+	ran := false
+	t.Cleanup(func() {
+		assert.True(t, ran, "ClusterAgent.WantFunc never ran: the feature was gated off, so the env assertions passed vacuously")
+	})
+
+	componentTest := assertEnv(envVars...)
+	assertions := componentTest.WantFunc
+	return componentTest.WithWantFunc(func(tb testing.TB, managers feature.PodTemplateManagers) {
+		ran = true
+		assertions(tb, managers)
+	})
+}
+
+// gkeGatewayClassesDDA builds the inline CRD fixture for the gatewayClasses env var. The
+// happy and the unset case share it so that they are mechanically identical except for
+// gatewayClasses itself.
+//
+// The 7.82.0 cluster-agent tag is load-bearing: a non-empty gatewayClasses makes
+// requiresGKESupport() true, and the default cluster-agent version
+// (images.AgentLatestVersion) is below ClusterAgentGKEMinVersion, so an unpinned fixture is
+// gated off, emits no env var whatsoever, and makes every env assertion meaningless.
+func gkeGatewayClassesDDA(gatewayClasses []string) *v2alpha1.DatadogAgent {
+	dda := testutils.NewDatadogAgentBuilder().
+		WithClusterAgentTag("7.82.0").
+		BuildWithDefaults()
+	dda.Spec.Features.Appsec = &v2alpha1.AppsecFeatureConfig{
+		Injector: &v2alpha1.AppsecInjectorConfig{
+			Enabled: ptr.To(true),
+			GKE:     &v2alpha1.AppsecInjectorGKEConfig{GatewayClasses: gatewayClasses},
+		},
+	}
+	return dda
+}
+
 func TestAppsecFeature(t *testing.T) {
 	test.FeatureTestSuite{
 		{
@@ -403,6 +444,26 @@ func TestAppsecFeature(t *testing.T) {
 				envVar{name: DDAdmissionControllerAppsecNginxModuleMountPath, present: false},
 			),
 		},
+		{
+			Name:          "Appsec enabled with GKE gatewayClasses on 7.82.0",
+			DDA:           gkeGatewayClassesDDA([]string{"gke-l7-global-external-managed", "gke-l7-regional-external-managed"}),
+			WantConfigure: true,
+			ClusterAgent: assertEnvRan(t,
+				envVar{name: DDAppsecProxyEnabled, value: "true", present: true},
+				envVar{name: DDClusterAgentAppsecInjectorEnabled, value: "true", present: true},
+				envVar{name: DDAppsecProxyGKEGatewayClasses, value: `["gke-l7-global-external-managed","gke-l7-regional-external-managed"]`, present: true},
+			),
+		},
+		{
+			Name:          "Appsec enabled without GKE gatewayClasses does not inject gateway classes",
+			DDA:           gkeGatewayClassesDDA(nil),
+			WantConfigure: true,
+			ClusterAgent: assertEnvRan(t,
+				envVar{name: DDAppsecProxyEnabled, value: "true", present: true},
+				envVar{name: DDClusterAgentAppsecInjectorEnabled, value: "true", present: true},
+				envVar{name: DDAppsecProxyGKEGatewayClasses, present: false},
+			),
+		},
 	}.Run(t, buildAppsecFeature)
 }
 
@@ -597,6 +658,82 @@ func TestAppsecFeatureManageClusterAgentEnabled(t *testing.T) {
 	assert.Equal(t, "true", envMap[DDAppsecProxyEnabled])
 	assert.Equal(t, "true", envMap[DDClusterAgentAppsecInjectorEnabled])
 	assert.Equal(t, "true", envMap[DDAppsecProxyAutoDetect])
+}
+
+// TestManageClusterAgentGKEGatewayClasses pins the DD_APPSEC_PROXY_GKE_GATEWAY_CLASSES
+// emission by driving Configure and ManageClusterAgent directly, so the assertions cannot
+// be skipped the way a gated-off feature skips test.FeatureTestSuite's WantFunc. Every case
+// additionally asserts that the feature really configured and really emitted its baseline
+// env vars, which is what makes the "absent" cases meaningful instead of vacuous.
+func TestManageClusterAgentGKEGatewayClasses(t *testing.T) {
+	tests := []struct {
+		name           string
+		gatewayClasses []string
+		wantEnv        string
+		wantPresent    bool
+	}{
+		{
+			name:           "two gateway classes are emitted as a JSON array",
+			gatewayClasses: []string{"gke-l7-global-external-managed", "gke-l7-regional-external-managed"},
+			wantEnv:        `["gke-l7-global-external-managed","gke-l7-regional-external-managed"]`,
+			wantPresent:    true,
+		},
+		{
+			name:           "a single gateway class is still a JSON array",
+			gatewayClasses: []string{"gke-l7-global-external-managed"},
+			wantEnv:        `["gke-l7-global-external-managed"]`,
+			wantPresent:    true,
+		},
+		{
+			name:           "nil gateway classes emit nothing",
+			gatewayClasses: nil,
+		},
+		{
+			// An empty list must be skipped entirely rather than marshalled to "[]",
+			// which the cluster-agent would read as "no gateway class is eligible".
+			name:           "an explicitly empty gateway class list emits nothing, not []",
+			gatewayClasses: []string{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dda := gkeGatewayClassesDDA(tt.gatewayClasses)
+
+			f := buildAppsecFeature(nil).(*appsecFeature)
+			got := f.Configure(dda, &dda.Spec, nil)
+
+			// Non-vacuity controls: a gated-off feature returns no required component and
+			// emits nothing, which would satisfy every "absent" assertion below for the
+			// wrong reason.
+			require.NotNil(t, got.ClusterAgent.IsRequired, "fixture must configure the feature")
+			require.True(t, *got.ClusterAgent.IsRequired)
+			if tt.wantPresent {
+				require.Equal(t, tt.gatewayClasses, f.config.GatewayClasses)
+			} else {
+				// mergeInjectorConfig only copies a non-empty list, so an empty input leaves
+				// the field nil: the absence below is caused by the list, not by a lost field.
+				require.Empty(t, f.config.GatewayClasses)
+			}
+
+			mgr := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{})
+			require.NoError(t, f.ManageClusterAgent(mgr))
+
+			envVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.ClusterAgentContainerName]
+			require.Contains(t, envVars, &corev1.EnvVar{Name: DDAppsecProxyEnabled, Value: "true"},
+				"the feature must have emitted its baseline env vars")
+
+			if tt.wantPresent {
+				assert.Contains(t, envVars, &corev1.EnvVar{Name: DDAppsecProxyGKEGatewayClasses, Value: tt.wantEnv})
+				return
+			}
+
+			for _, env := range envVars {
+				assert.NotEqual(t, DDAppsecProxyGKEGatewayClasses, env.Name,
+					"an empty gateway class list must emit no env var at all")
+			}
+		})
+	}
 }
 
 // deprecationLogMessage duplicates the literal Configure logs on purpose: if the
