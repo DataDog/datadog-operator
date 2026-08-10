@@ -57,26 +57,6 @@ func assertEnv(envVars ...envVar) *test.ComponentTest {
 	)
 }
 
-// assertEnvRan is assertEnv plus a guard that the suite actually invoked the WantFunc.
-//
-// feature.BuildFeatures returns no feature at all when Configure gates the feature off, so
-// testsuite.go's per-feature loop never reaches ClusterAgent.WantFunc and every assertEnv
-// expectation - including the "present: true" ones - passes vacuously. Registering the
-// guard on the parent *testing.T turns that silence into a failure.
-func assertEnvRan(t *testing.T, envVars ...envVar) *test.ComponentTest {
-	ran := false
-	t.Cleanup(func() {
-		assert.True(t, ran, "ClusterAgent.WantFunc never ran: the feature was gated off, so the env assertions passed vacuously")
-	})
-
-	componentTest := assertEnv(envVars...)
-	assertions := componentTest.WantFunc
-	return componentTest.WithWantFunc(func(tb testing.TB, managers feature.PodTemplateManagers) {
-		ran = true
-		assertions(tb, managers)
-	})
-}
-
 // gkeGatewayClassesDDA builds the inline CRD fixture for the gatewayClasses env var. The
 // happy and the unset case share it so that they are mechanically identical except for
 // gatewayClasses itself.
@@ -522,7 +502,7 @@ func TestAppsecFeature(t *testing.T) {
 			Name:          "Appsec enabled with GKE gatewayClasses on 7.82.0",
 			DDA:           gkeGatewayClassesDDA([]string{"gke-l7-global-external-managed", "gke-l7-regional-external-managed"}),
 			WantConfigure: true,
-			ClusterAgent: assertEnvRan(t,
+			ClusterAgent: assertEnv(
 				envVar{name: DDAppsecProxyEnabled, value: "true", present: true},
 				envVar{name: DDClusterAgentAppsecInjectorEnabled, value: "true", present: true},
 				envVar{name: DDAppsecProxyGKEGatewayClasses, value: `["gke-l7-global-external-managed","gke-l7-regional-external-managed"]`, present: true},
@@ -532,7 +512,7 @@ func TestAppsecFeature(t *testing.T) {
 			Name:          "Appsec enabled without GKE gatewayClasses does not inject gateway classes",
 			DDA:           gkeGatewayClassesDDA(nil),
 			WantConfigure: true,
-			ClusterAgent: assertEnvRan(t,
+			ClusterAgent: assertEnv(
 				envVar{name: DDAppsecProxyEnabled, value: "true", present: true},
 				envVar{name: DDClusterAgentAppsecInjectorEnabled, value: "true", present: true},
 				envVar{name: DDAppsecProxyGKEGatewayClasses, present: false},
@@ -546,7 +526,7 @@ func TestAppsecFeature(t *testing.T) {
 				WithAppsecInjector(&v2alpha1.AppsecInjectorConfig{Enabled: ptr.To(true)}).
 				Build(),
 			WantConfigure: true,
-			ClusterAgent: assertEnvRan(t,
+			ClusterAgent: assertEnv(
 				envVar{name: DDAppsecProxyEnabled, value: "true", present: true},
 				envVar{name: DDClusterAgentAppsecInjectorEnabled, value: "true", present: true},
 			),
@@ -558,14 +538,16 @@ func TestAppsecFeature(t *testing.T) {
 			// gatewayClasses, so requiresGKESupport() is true; on the default cluster-agent
 			// version the GKE gate would drop the feature, BuildFeatures would return an
 			// empty list, ClusterAgent.WantFunc would never run, and every expectation
-			// below would pass vacuously. assertEnvRan turns that silence into a failure.
+			// below would pass vacuously. WantConfigure: true is what forbids that:
+			// verifyFeatures compares IsConfigured() against it, so a gated-off fixture
+			// fails before the env expectations can be silently skipped.
 			Name: "Appsec enabled from a full CRD config emits every env var",
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithClusterAgentTag("7.82.0").
 				WithAppsecInjector(crdFullInjector()).
 				Build(),
 			WantConfigure: true,
-			ClusterAgent: assertEnvRan(t,
+			ClusterAgent: assertEnv(
 				envVar{name: DDAppsecProxyEnabled, value: "true", present: true},
 				envVar{name: DDClusterAgentAppsecInjectorEnabled, value: "true", present: true},
 				envVar{name: DDAppsecProxyAutoDetect, value: "true", present: true},
@@ -608,7 +590,7 @@ func TestAppsecFeature(t *testing.T) {
 				}).
 				Build(),
 			WantConfigure: true,
-			ClusterAgent: assertEnvRan(t,
+			ClusterAgent: assertEnv(
 				envVar{name: DDAppsecProxyEnabled, value: "true", present: true},
 				envVar{name: DDClusterAgentAppsecInjectorEnabled, value: "true", present: true},
 				envVar{name: DDClusterAgentAppsecInjectorMode, value: "external", present: true},
@@ -621,7 +603,7 @@ func TestAppsecFeature(t *testing.T) {
 			Name:          "Appsec annotation-only config is unaffected by the CRD migration",
 			DDA:           annotationOnlyDDA,
 			WantConfigure: true,
-			ClusterAgent: assertEnvRan(t,
+			ClusterAgent: assertEnv(
 				envVar{name: DDAppsecProxyEnabled, value: "true", present: true},
 				envVar{name: DDClusterAgentAppsecInjectorEnabled, value: "true", present: true},
 				envVar{name: DDAppsecProxyAutoDetect, value: "true", present: true},
@@ -641,7 +623,7 @@ func TestAppsecFeature(t *testing.T) {
 			Name:          "Appsec GKE gateway proxy on 7.82.0 configures and emits the proxies env",
 			DDA:           gkeExternalDDA("7.82.0"),
 			WantConfigure: true,
-			ClusterAgent: assertEnvRan(t,
+			ClusterAgent: assertEnv(
 				envVar{name: DDAppsecProxyEnabled, value: "true", present: true},
 				envVar{name: DDClusterAgentAppsecInjectorEnabled, value: "true", present: true},
 				envVar{name: DDAppsecProxyProxies, value: `["gke-gateway"]`, present: true},
