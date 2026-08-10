@@ -231,6 +231,10 @@ func (c Config) requiresNginxSupport() bool {
 	return slices.Contains(c.Proxies, "ingress-nginx")
 }
 
+func (c Config) requiresGKESupport() bool {
+	return slices.Contains(c.Proxies, "gke-gateway") || len(c.GatewayClasses) > 0
+}
+
 func (c Config) isEnabled() bool {
 	if !c.Enabled {
 		return false
@@ -261,6 +265,13 @@ func (c Config) Validate() error {
 	if c.Mode != "" && c.Mode != "sidecar" && c.Mode != "external" {
 		return fmt.Errorf("invalid mode %q (allowed values: sidecar, external, annotation: %s)",
 			c.Mode, AnnotationInjectorMode)
+	}
+
+	// The gke-gateway proxy is only supported by the external processor, so it rejects
+	// both sidecar mode and the empty default, which means sidecar. This message names
+	// fields rather than an annotation because the config can also come from the CRD.
+	if slices.Contains(c.Proxies, "gke-gateway") && c.Mode != "external" {
+		return fmt.Errorf(`gke-gateway in proxies requires mode "external", got %q`, c.Mode)
 	}
 
 	// ProcessorServiceName is only required in external mode (not in sidecar mode, which is the default)
