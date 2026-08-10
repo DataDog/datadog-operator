@@ -199,8 +199,14 @@ type AppsecInjectorConfig struct {
 	// +optional
 	AutoDetect *bool `json:"autoDetect,omitempty"`
 
+	// The items:Enum marker below mirrors allowedProxyValues in
+	// internal/controller/datadogagent/feature/appsec/const.go, which is the source of
+	// truth for accepted proxy names. Keep the two lists in sync. This note sits outside
+	// the field doc comment on purpose, so it stays out of the generated CRD description.
+
 	// Lists proxies for AppSec injection.
 	// Default: []
+	// +kubebuilder:validation:items:Enum=envoy-gateway;istio;istio-gateway;ingress-nginx;gke-gateway
 	// +optional
 	Proxies []string `json:"proxies,omitempty"`
 
@@ -235,6 +241,8 @@ type AppsecInjectorProcessorConfig struct {
 
 	// Sets the processor port.
 	// Default: 443
+	// +kubebuilder:validation:Minimum=0
+	// +kubebuilder:validation:Maximum=65535
 	// +optional
 	Port *int32 `json:"port,omitempty"`
 
@@ -269,16 +277,21 @@ type AppsecInjectorSidecarConfig struct {
 
 	// Sets the sidecar port.
 	// Default: 8080
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=65535
 	// +optional
 	Port *int32 `json:"port,omitempty"`
 
 	// Sets the sidecar health port.
 	// Default: 8081
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=65535
 	// +optional
 	HealthPort *int32 `json:"healthPort,omitempty"`
 
 	// Sets the sidecar body parsing size limit.
 	// Default: 0
+	// +kubebuilder:validation:Minimum=0
 	// +optional
 	BodyParsingSizeLimit *int64 `json:"bodyParsingSizeLimit,omitempty"`
 

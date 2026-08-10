@@ -36,6 +36,15 @@ This field can be removed from your `DatadogAgent` spec with no behavior change.
 
 The `agent.datadoghq.com/appsec.*` annotations are deprecated in `v1.30` and will be removed in `v1.32`. They have been migrated to the `DatadogAgent` CRD spec under `spec.features.appsec.injector`.
 
+#### Precedence
+
+While both sources are present, they are merged **per field** rather than one replacing the other wholesale. The CRD value wins only for the fields it actually sets; every other field falls back to its annotation value.
+
+- A CRD field counts as *set* when it is non-nil for a scalar field, or **non-empty** for a list field. As a result, `proxies: []` in the CRD does **not** clear a proxy list supplied by the `agent.datadoghq.com/appsec.injector.proxies` annotation.
+- A field left unset in the CRD keeps the value parsed from its annotation, if one is present.
+- A malformed annotation on a field the CRD does **not** set still rejects the whole AppSec feature, preserving annotation-only strictness.
+- A malformed annotation on a field the CRD **does** set is ignored entirely, because the CRD value replaces it before validation.
+
 #### Migration Path
 
 Migrate your Kubernetes annotations to the `spec.features.appsec.injector` configuration in your `DatadogAgent` spec:

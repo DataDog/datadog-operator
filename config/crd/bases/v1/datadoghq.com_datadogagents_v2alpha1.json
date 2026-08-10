@@ -1154,6 +1154,8 @@
                         "port": {
                           "description": "Sets the processor port.\nDefault: 443",
                           "format": "int32",
+                          "maximum": 65535,
+                          "minimum": 0,
                           "type": "integer"
                         },
                         "service": {
@@ -1177,6 +1179,13 @@
                     "proxies": {
                       "description": "Lists proxies for AppSec injection.\nDefault: []",
                       "items": {
+                        "enum": [
+                          "envoy-gateway",
+                          "istio",
+                          "istio-gateway",
+                          "ingress-nginx",
+                          "gke-gateway"
+                        ],
                         "type": "string"
                       },
                       "type": "array"
@@ -1188,11 +1197,14 @@
                         "bodyParsingSizeLimit": {
                           "description": "Sets the sidecar body parsing size limit.\nDefault: 0",
                           "format": "int64",
+                          "minimum": 0,
                           "type": "integer"
                         },
                         "healthPort": {
                           "description": "Sets the sidecar health port.\nDefault: 8081",
                           "format": "int32",
+                          "maximum": 65535,
+                          "minimum": 1,
                           "type": "integer"
                         },
                         "image": {
@@ -1206,6 +1218,8 @@
                         "port": {
                           "description": "Sets the sidecar port.\nDefault: 8080",
                           "format": "int32",
+                          "maximum": 65535,
+                          "minimum": 1,
                           "type": "integer"
                         },
                         "resources": {
@@ -9926,6 +9940,8 @@
                             "port": {
                               "description": "Sets the processor port.\nDefault: 443",
                               "format": "int32",
+                              "maximum": 65535,
+                              "minimum": 0,
                               "type": "integer"
                             },
                             "service": {
@@ -9949,6 +9965,13 @@
                         "proxies": {
                           "description": "Lists proxies for AppSec injection.\nDefault: []",
                           "items": {
+                            "enum": [
+                              "envoy-gateway",
+                              "istio",
+                              "istio-gateway",
+                              "ingress-nginx",
+                              "gke-gateway"
+                            ],
                             "type": "string"
                           },
                           "type": "array"
@@ -9960,11 +9983,14 @@
                             "bodyParsingSizeLimit": {
                               "description": "Sets the sidecar body parsing size limit.\nDefault: 0",
                               "format": "int64",
+                              "minimum": 0,
                               "type": "integer"
                             },
                             "healthPort": {
                               "description": "Sets the sidecar health port.\nDefault: 8081",
                               "format": "int32",
+                              "maximum": 65535,
+                              "minimum": 1,
                               "type": "integer"
                             },
                             "image": {
@@ -9978,6 +10004,8 @@
                             "port": {
                               "description": "Sets the sidecar port.\nDefault: 8080",
                               "format": "int32",
+                              "maximum": 65535,
+                              "minimum": 1,
                               "type": "integer"
                             },
                             "resources": {
