@@ -51,6 +51,14 @@ stages:
     when: never
   - when: always
 
+# Release-bundle PRs are opened by the operator-release bot on `operator-release/*`
+# branches and only ever contain the regenerated bundle manifests plus
+# config/manager/kustomization.yaml. There is no operator code for e2e to
+# exercise, so skip the whole e2e stage to get them through CI quickly.
+.skip_e2e_on_release_bundle_branch: &skip_e2e_on_release_bundle_branch
+  if: '$CI_COMMIT_BRANCH =~ /^operator-release\//'
+  when: never
+
 build:
   stage: build
   tags: ["arch:amd64"]
@@ -262,6 +270,7 @@ go_e2e_deps:
     GOMEMLIMIT: 15GiB
     GOMAXPROCS: 4
   rules:
+    - *skip_e2e_on_release_bundle_branch
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
       variables:
         POLICY: pull-push
@@ -310,6 +319,7 @@ go_e2e_deps:
         - pulumi_plugins.tar.xz
 
 .on_run_e2e_base:
+  - *skip_e2e_on_release_bundle_branch
   # Skip if only .md files are changed
   - if: $CI_COMMIT_BRANCH
     changes:
@@ -333,6 +343,7 @@ go_e2e_deps:
   - when: on_success
 
 .on_run_e2e:
+  - *skip_e2e_on_release_bundle_branch
   # Skip if only .md files are changed
   - if: $CI_COMMIT_BRANCH
     changes:
@@ -522,6 +533,7 @@ e2e_autoscaling:
     DDOCTOSTS_ID_TOKEN:
       aud: dd-octo-sts
   rules:
+    - *skip_e2e_on_release_bundle_branch
     # Disable on Conductor-triggered jobs (ex: nightly) - must be first so it wins
     - if: '$DDR == "true"'
       when: never
@@ -556,6 +568,7 @@ e2e_gke_autopilot:
     DDOCTOSTS_ID_TOKEN:
       aud: dd-octo-sts
   rules:
+    - *skip_e2e_on_release_bundle_branch
     # Disable on Conductor-triggered jobs (ex: nightly) - must be first so it wins
     - if: '$DDR == "true"'
       when: never
@@ -586,6 +599,7 @@ e2e_untaint:
     K8S_VERSION: "1.30"
     TARGET_IMAGE: $E2E_DOCKER_REGISTRY:${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
   rules:
+    - *skip_e2e_on_release_bundle_branch
     # Skip when a root *.md file changed (docs-only *or* docs mixed with code).
     # This has to gate every rule below because the hard `needs` above
     # (trigger_e2e_operator_image, via .on_run_e2e_base) itself skips on any
