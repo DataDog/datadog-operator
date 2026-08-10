@@ -23,6 +23,7 @@ import (
 	"github.com/go-logr/logr/funcr"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/utils/ptr"
 )
 
@@ -97,7 +98,80 @@ func gkeGatewayClassesDDA(gatewayClasses []string) *v2alpha1.DatadogAgent {
 	return dda
 }
 
+// crdFullInjector sets every CRD field that the feature can turn into a cluster-agent
+// environment variable, so one fixture pins the whole env surface declared in const.go
+// plus the CRD-only DD_APPSEC_PROXY_GKE_GATEWAY_CLASSES.
+//
+// Mode is "external" because gke-gateway is listed in proxies and Validate() rejects any
+// other mode for it; ProcessorServiceName is therefore mandatory as well. Listing
+// ingress-nginx and setting nginx.moduleMountPath also arms the nginx version gate, which
+// 7.82.0 clears along with the GKE one.
+func crdFullInjector() *v2alpha1.AppsecInjectorConfig {
+	return &v2alpha1.AppsecInjectorConfig{
+		Enabled:    ptr.To(true),
+		AutoDetect: ptr.To(true),
+		Proxies:    []string{"envoy-gateway", "gke-gateway", "ingress-nginx"},
+		Mode:       ptr.To("external"),
+		Processor: &v2alpha1.AppsecInjectorProcessorConfig{
+			Address: ptr.To("processor.example.com"),
+			Port:    ptr.To(int32(8443)),
+			Service: &v2alpha1.AppsecInjectorProcessorServiceConfig{
+				Name:      ptr.To("appsec-processor"),
+				Namespace: ptr.To("datadog"),
+			},
+		},
+		Sidecar: &v2alpha1.AppsecInjectorSidecarConfig{
+			Image:                ptr.To("datadog/appsec-proxy"),
+			ImageTag:             ptr.To("v2.8.2"),
+			Port:                 ptr.To(int32(8080)),
+			HealthPort:           ptr.To(int32(8081)),
+			BodyParsingSizeLimit: ptr.To(int64(1048576)),
+			Resources: &corev1.ResourceRequirements{
+				Requests: corev1.ResourceList{
+					corev1.ResourceCPU:    resource.MustParse("100m"),
+					corev1.ResourceMemory: resource.MustParse("128Mi"),
+				},
+				Limits: corev1.ResourceList{
+					corev1.ResourceCPU:    resource.MustParse("500m"),
+					corev1.ResourceMemory: resource.MustParse("256Mi"),
+				},
+			},
+		},
+		Nginx: &v2alpha1.AppsecInjectorNginxConfig{ModuleMountPath: ptr.To("/modules_mount")},
+		GKE:   &v2alpha1.AppsecInjectorGKEConfig{GatewayClasses: []string{"gke-l7-global-external-managed"}},
+	}
+}
+
+// gkeExternalDDA builds the GKE version-gate matched pair from a single fixture, reusing
+// gkeExternalInjector so the two cases differ ONLY in the cluster-agent tag. "Same config
+// otherwise" is then guaranteed by construction rather than by review.
+func gkeExternalDDA(clusterAgentTag string) *v2alpha1.DatadogAgent {
+	return testutils.NewDatadogAgentBuilder().
+		WithClusterAgentTag(clusterAgentTag).
+		WithAppsecInjector(gkeExternalInjector()).
+		Build()
+}
+
 func TestAppsecFeature(t *testing.T) {
+	// Annotation-only regression fixture, built here so the require.Nil below can prove
+	// mechanically that it carries no CRD block at all and therefore really exercises the
+	// pre-migration path.
+	annotationOnlyDDA := testutils.NewDatadogAgentBuilder().
+		WithClusterAgentTag("7.76.0").
+		WithAnnotations(map[string]string{
+			AnnotationInjectorEnabled:                   "true",
+			AnnotationInjectorAutoDetect:                "true",
+			AnnotationInjectorProxies:                   `["envoy-gateway","istio"]`,
+			AnnotationInjectorMode:                      "external",
+			AnnotationInjectorProcessorPort:             "443",
+			AnnotationInjectorProcessorAddress:          "processor.example.com",
+			AnnotationInjectorProcessorServiceName:      "appsec-processor",
+			AnnotationInjectorProcessorServiceNamespace: "datadog",
+		}).
+		Build()
+	require.Nil(t, annotationOnlyDDA.Spec.Features.Appsec,
+		"the annotation-only regression fixture must not carry a CRD appsec block")
+
 	test.FeatureTestSuite{
 		{
 			Name: "Appsec not enabled",
@@ -463,6 +537,126 @@ func TestAppsecFeature(t *testing.T) {
 				envVar{name: DDClusterAgentAppsecInjectorEnabled, value: "true", present: true},
 				envVar{name: DDAppsecProxyGKEGatewayClasses, present: false},
 			),
+		},
+		{
+			// (a) CRD-only minimal enable: no annotation whatsoever, a single CRD field.
+			Name: "Appsec enabled from the CRD alone with no annotations",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithClusterAgentTag("7.76.0").
+				WithAppsecInjector(&v2alpha1.AppsecInjectorConfig{Enabled: ptr.To(true)}).
+				Build(),
+			WantConfigure: true,
+			ClusterAgent: assertEnvRan(t,
+				envVar{name: DDAppsecProxyEnabled, value: "true", present: true},
+				envVar{name: DDClusterAgentAppsecInjectorEnabled, value: "true", present: true},
+			),
+		},
+		{
+			// (b) Full CRD config: every env var in const.go plus the GKE one.
+			//
+			// The 7.82.0 tag is load-bearing. crdFullInjector lists gke-gateway and sets
+			// gatewayClasses, so requiresGKESupport() is true; on the default cluster-agent
+			// version the GKE gate would drop the feature, BuildFeatures would return an
+			// empty list, ClusterAgent.WantFunc would never run, and every expectation
+			// below would pass vacuously. assertEnvRan turns that silence into a failure.
+			Name: "Appsec enabled from a full CRD config emits every env var",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithClusterAgentTag("7.82.0").
+				WithAppsecInjector(crdFullInjector()).
+				Build(),
+			WantConfigure: true,
+			ClusterAgent: assertEnvRan(t,
+				envVar{name: DDAppsecProxyEnabled, value: "true", present: true},
+				envVar{name: DDClusterAgentAppsecInjectorEnabled, value: "true", present: true},
+				envVar{name: DDAppsecProxyAutoDetect, value: "true", present: true},
+				envVar{name: DDAppsecProxyProxies, value: `["envoy-gateway","gke-gateway","ingress-nginx"]`, present: true},
+				envVar{name: DDAppsecProxyProcessorPort, value: "8443", present: true},
+				envVar{name: DDAppsecProxyProcessorAddress, value: "processor.example.com", present: true},
+				envVar{name: DDClusterAgentAppsecInjectorProcessorServiceName, value: "appsec-processor", present: true},
+				envVar{name: DDClusterAgentAppsecInjectorProcessorServiceNamespace, value: "datadog", present: true},
+				envVar{name: DDClusterAgentAppsecInjectorMode, value: "external", present: true},
+				envVar{name: DDAppsecProxyGKEGatewayClasses, value: `["gke-l7-global-external-managed"]`, present: true},
+				envVar{name: DDAdmissionControllerAppsecSidecarImage, value: "datadog/appsec-proxy", present: true},
+				envVar{name: DDAdmissionControllerAppsecSidecarImageTag, value: "v2.8.2", present: true},
+				envVar{name: DDAdmissionControllerAppsecSidecarPort, value: "8080", present: true},
+				envVar{name: DDAdmissionControllerAppsecSidecarHealthPort, value: "8081", present: true},
+				envVar{name: DDAdmissionControllerAppsecSidecarResourcesRequestsCPU, value: "100m", present: true},
+				envVar{name: DDAdmissionControllerAppsecSidecarResourcesRequestsMemory, value: "128Mi", present: true},
+				envVar{name: DDAdmissionControllerAppsecSidecarResourcesLimitsCPU, value: "500m", present: true},
+				envVar{name: DDAdmissionControllerAppsecSidecarResourcesLimitsMemory, value: "256Mi", present: true},
+				envVar{name: DDAdmissionControllerAppsecSidecarBodyParsingSizeLimit, value: "1048576", present: true},
+				envVar{name: DDAdmissionControllerAppsecNginxModuleMountPath, value: "/modules_mount", present: true},
+			),
+		},
+		{
+			// (c) PRECEDENCE: the annotation asks for sidecar mode and annotation-svc, the
+			// CRD asks for external mode and crd-svc. The CRD value must win in the env var
+			// the cluster-agent actually receives, not merely inside f.config.
+			Name: "Appsec CRD mode external beats annotation mode sidecar in the emitted env",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithClusterAgentTag("7.76.0").
+				WithAnnotations(map[string]string{
+					AnnotationInjectorEnabled:              "true",
+					AnnotationInjectorMode:                 "sidecar",
+					AnnotationInjectorProcessorServiceName: "annotation-svc",
+				}).
+				WithAppsecInjector(&v2alpha1.AppsecInjectorConfig{
+					Mode: ptr.To("external"),
+					Processor: &v2alpha1.AppsecInjectorProcessorConfig{
+						Service: &v2alpha1.AppsecInjectorProcessorServiceConfig{Name: ptr.To("crd-svc")},
+					},
+				}).
+				Build(),
+			WantConfigure: true,
+			ClusterAgent: assertEnvRan(t,
+				envVar{name: DDAppsecProxyEnabled, value: "true", present: true},
+				envVar{name: DDClusterAgentAppsecInjectorEnabled, value: "true", present: true},
+				envVar{name: DDClusterAgentAppsecInjectorMode, value: "external", present: true},
+				envVar{name: DDClusterAgentAppsecInjectorProcessorServiceName, value: "crd-svc", present: true},
+			),
+		},
+		{
+			// (d) REGRESSION: an annotation-driven DatadogAgent behaves exactly as it did
+			// before the CRD existed, and the CRD-only env var never leaks into it.
+			Name:          "Appsec annotation-only config is unaffected by the CRD migration",
+			DDA:           annotationOnlyDDA,
+			WantConfigure: true,
+			ClusterAgent: assertEnvRan(t,
+				envVar{name: DDAppsecProxyEnabled, value: "true", present: true},
+				envVar{name: DDClusterAgentAppsecInjectorEnabled, value: "true", present: true},
+				envVar{name: DDAppsecProxyAutoDetect, value: "true", present: true},
+				envVar{name: DDAppsecProxyProxies, value: `["envoy-gateway","istio"]`, present: true},
+				envVar{name: DDAppsecProxyProcessorPort, value: "443", present: true},
+				envVar{name: DDAppsecProxyProcessorAddress, value: "processor.example.com", present: true},
+				envVar{name: DDClusterAgentAppsecInjectorProcessorServiceName, value: "appsec-processor", present: true},
+				envVar{name: DDClusterAgentAppsecInjectorProcessorServiceNamespace, value: "datadog", present: true},
+				envVar{name: DDClusterAgentAppsecInjectorMode, value: "external", present: true},
+				// GatewayClasses is CRD-only: no annotation can produce it.
+				envVar{name: DDAppsecProxyGKEGatewayClasses, present: false},
+			),
+		},
+		{
+			// (e) GKE positive. Matched pair with the 7.81.0 case below: both come from
+			// gkeExternalDDA, so only the cluster-agent tag differs.
+			Name:          "Appsec GKE gateway proxy on 7.82.0 configures and emits the proxies env",
+			DDA:           gkeExternalDDA("7.82.0"),
+			WantConfigure: true,
+			ClusterAgent: assertEnvRan(t,
+				envVar{name: DDAppsecProxyEnabled, value: "true", present: true},
+				envVar{name: DDClusterAgentAppsecInjectorEnabled, value: "true", present: true},
+				envVar{name: DDAppsecProxyProxies, value: `["gke-gateway"]`, present: true},
+				envVar{name: DDClusterAgentAppsecInjectorMode, value: "external", present: true},
+				envVar{name: DDClusterAgentAppsecInjectorProcessorServiceName, value: "appsec-processor", present: true},
+			),
+		},
+		{
+			// (f) GKE negative, the same config one patch version lower. The triple that
+			// proves the version gate is what rejected it lives in
+			// TestAppsecGKEGatewayMatchedPair, because the shared suite cannot reach
+			// f.config.
+			Name:          "Appsec GKE gateway proxy on 7.81.0 is gated off",
+			DDA:           gkeExternalDDA("7.81.0"),
+			WantConfigure: false,
 		},
 	}.Run(t, buildAppsecFeature)
 }
@@ -1379,6 +1573,53 @@ func TestConfigureGKEGateUsesDefaultClusterAgentVersion(t *testing.T) {
 	assert.True(t, f.config.isEnabled())
 	assert.NoError(t, f.config.Validate())
 	assert.True(t, f.config.requiresGKESupport())
+}
+
+// TestAppsecGKEGatewayMatchedPair is the non-vacuity companion to the two suite cases
+// "Appsec GKE gateway proxy on 7.8{1,2}.0 ...". test.FeatureTestSuite never exposes the
+// feature instance, so the triple that proves the *version gate* rejected 7.81.0 - rather
+// than isEnabled() or Validate() short-circuiting earlier - has to be asserted by driving
+// Configure directly. Both legs are built from the same gkeExternalDDA fixture, so they
+// differ only in the cluster-agent tag.
+func TestAppsecGKEGatewayMatchedPair(t *testing.T) {
+	for _, tt := range []struct {
+		clusterAgentTag string
+		wantCfg         bool
+	}{
+		{clusterAgentTag: "7.81.0", wantCfg: false},
+		{clusterAgentTag: "7.82.0", wantCfg: true},
+	} {
+		t.Run(tt.clusterAgentTag, func(t *testing.T) {
+			dda := gkeExternalDDA(tt.clusterAgentTag)
+
+			f := buildAppsecFeature(nil).(*appsecFeature)
+			got := f.Configure(dda, &dda.Spec, nil)
+
+			if !tt.wantCfg {
+				assert.Nil(t, got.ClusterAgent.IsRequired)
+
+				// Non-vacuity controls: the rejected config was enabled, valid, and really
+				// GKE-requiring, so only the version gate can have returned.
+				assert.True(t, f.config.isEnabled(), "fixture must reach the version gate: isEnabled() returned first")
+				assert.NoError(t, f.config.Validate(), "fixture must reach the version gate: Validate() returned first")
+				assert.True(t, f.config.requiresGKESupport(), "fixture must actually require GKE support")
+				return
+			}
+
+			require.NotNil(t, got.ClusterAgent.IsRequired)
+			assert.True(t, *got.ClusterAgent.IsRequired)
+			assert.Contains(t, got.ClusterAgent.Containers, apicommon.ClusterAgentContainerName)
+
+			mgr := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{})
+			require.NoError(t, f.ManageClusterAgent(mgr))
+
+			envVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.ClusterAgentContainerName]
+			assert.Contains(t, envVars, &corev1.EnvVar{Name: DDAppsecProxyEnabled, Value: "true"})
+			assert.Contains(t, envVars, &corev1.EnvVar{Name: DDAppsecProxyProxies, Value: `["gke-gateway"]`})
+			assert.Contains(t, envVars, &corev1.EnvVar{Name: DDClusterAgentAppsecInjectorMode, Value: "external"})
+			assert.Contains(t, envVars, &corev1.EnvVar{Name: DDClusterAgentAppsecInjectorProcessorServiceName, Value: "appsec-processor"})
+		})
+	}
 }
 
 // TestConfigureQAScenarios are the two hand-run QA scenarios for this change.
