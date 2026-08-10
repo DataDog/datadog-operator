@@ -22,13 +22,9 @@ func TestEKSAutoscalingSuite(t *testing.T) {
 	}
 
 	e2eOpts := []e2e.SuiteOption{
-		// Keep the stack name short: the cluster name (derived from the stack
-		// name) is interpolated into several IAM/SQS resource names in the
-		// Karpenter CloudFormation templates. The managed-policy size limit
-		// (CASCL-1645) now supports cluster names up to EKS's own 100-char
-		// maximum, but the KarpenterNodeRole-${ClusterName} IAM role name
-		// (64-char limit) still caps supported names at ~46 chars — tracked
-		// in CASCL-1646.
+		// Keep the stack name short to avoid exceeding IAM policy size limits.
+		// The cluster name (derived from stack name) appears 20+ times in the
+		// KarpenterControllerPolicy, which has a 6144 char limit.
 		e2e.WithStackName("eks-as"),
 		e2e.WithProvisioner(provisioners.EKSProvisioner(provisionerOptions...)),
 	}

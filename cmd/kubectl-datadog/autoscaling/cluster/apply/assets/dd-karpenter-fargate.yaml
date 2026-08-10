@@ -75,8 +75,11 @@ Resources:
           }]
         }
       ManagedPolicyArns:
-        - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/KarpenterControllerPolicy-${ClusterName}"
-        - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/KarpenterControllerPolicy2-${ClusterName}"
+        - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/KarpenterControllerNodeLifecyclePolicy-${ClusterName}"
+        - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/KarpenterControllerIAMIntegrationPolicy-${ClusterName}"
+        - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/KarpenterControllerEKSIntegrationPolicy-${ClusterName}"
+        - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/KarpenterControllerInterruptionPolicy-${ClusterName}"
+        - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/KarpenterControllerResourceDiscoveryPolicy-${ClusterName}"
   NodeAccessEntry:
     Type: AWS::EKS::AccessEntry
     Condition: ShouldDeployNodeAccessEntry

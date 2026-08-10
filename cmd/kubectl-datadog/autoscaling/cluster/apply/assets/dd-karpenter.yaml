@@ -48,8 +48,11 @@ Resources:
               Service: pods.eks.amazonaws.com
         Version: "2012-10-17"
       ManagedPolicyArns:
-        - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/KarpenterControllerPolicy-${ClusterName}"
-        - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/KarpenterControllerPolicy2-${ClusterName}"
+        - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/KarpenterControllerNodeLifecyclePolicy-${ClusterName}"
+        - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/KarpenterControllerIAMIntegrationPolicy-${ClusterName}"
+        - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/KarpenterControllerEKSIntegrationPolicy-${ClusterName}"
+        - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/KarpenterControllerInterruptionPolicy-${ClusterName}"
+        - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/KarpenterControllerResourceDiscoveryPolicy-${ClusterName}"
   PodIdentityAssociation:
     Type: AWS::EKS::PodIdentityAssociation
     DependsOn:
