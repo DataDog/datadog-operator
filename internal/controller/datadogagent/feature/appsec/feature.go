@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
@@ -73,14 +74,58 @@ func isAboveMinVersion(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
 	return utils.IsAboveMinVersion(clusterAgentVersion(ddaSpec), ClusterAgentMinVersion, nil)
 }
 
+// appsecAnnotationPrefix is the shared prefix of every AppSec annotation in const.go.
+const appsecAnnotationPrefix = "agent.datadoghq.com/appsec."
+
+// hasAppsecAnnotations reports whether any AppSec annotation is present, whatever its
+// value. It is a local prefix scan on purpose: pkg/plugin/common.IsAnnotated would drag
+// the kubectl plugin and its dependencies into the controller.
+func hasAppsecAnnotations(annotations map[string]string) bool {
+	for key := range annotations {
+		if strings.HasPrefix(key, appsecAnnotationPrefix) {
+			return true
+		}
+	}
+	return false
+}
+
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *appsecFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, ddaSpecRC *v2alpha1.RemoteConfigConfiguration) feature.RequiredComponents {
-	var err error
-	f.config, err = FromAnnotations(dda.GetAnnotations())
-	if err != nil {
-		f.logger.Error(err, "failed to parse and validate AppSec configuration")
+	// Warn before anything else, including every early return below, so that users who
+	// disabled the feature or run a cluster-agent too old to support it still hear about
+	// the migration to spec.features.appsec.injector.
+	if hasAppsecAnnotations(dda.GetAnnotations()) {
+		f.logger.V(0).Info("appsec.* annotations are deprecated; migrate to spec.features.appsec.injector")
+	}
+
+	// Everything below reads ddaSpec, and constants.GetClusterAgentServiceAccount
+	// dereferences it unconditionally, so a nil spec can configure nothing.
+	if ddaSpec == nil {
 		return feature.RequiredComponents{}
 	}
+
+	var inj *v2alpha1.AppsecInjectorConfig
+	if ddaSpec.Features != nil && ddaSpec.Features.Appsec != nil {
+		inj = ddaSpec.Features.Appsec.Injector
+	}
+
+	// parseAnnotations skips the fallible annotations whose field the CRD already sets, so
+	// a malformed annotation on a CRD-set field is not an error here. A malformed
+	// annotation on a field the CRD leaves unset still is.
+	cfg, err := parseAnnotations(dda.GetAnnotations(), inj)
+	if err != nil {
+		f.logger.Error(err, "failed to parse AppSec annotations")
+		return feature.RequiredComponents{}
+	}
+
+	// Merge before validating: a CRD field can rescue configuration that the annotations
+	// alone would not satisfy. mergeInjectorConfig is a no-op when inj is nil.
+	cfg = mergeInjectorConfig(cfg, inj)
+	if validateErr := cfg.Validate(); validateErr != nil {
+		f.logger.Error(validateErr, "invalid AppSec configuration")
+		return feature.RequiredComponents{}
+	}
+	f.config = cfg
 
 	if !isAboveMinVersion(ddaSpec) {
 		f.logger.V(1).Info("agent version is too low")
@@ -94,6 +139,11 @@ func (f *appsecFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAg
 
 	if f.config.requiresNginxSupport() && !utils.IsAboveMinVersion(clusterAgentVersion(ddaSpec), ClusterAgentNginxMinVersion, nil) {
 		f.logger.Info("ingress-nginx injection requires cluster-agent >= " + ClusterAgentNginxMinVersion)
+		return feature.RequiredComponents{}
+	}
+
+	if f.config.requiresGKESupport() && !utils.IsAboveMinVersion(clusterAgentVersion(ddaSpec), ClusterAgentGKEMinVersion, nil) {
+		f.logger.Info("gke-gateway injection requires cluster-agent >= " + ClusterAgentGKEMinVersion)
 		return feature.RequiredComponents{}
 	}
 
