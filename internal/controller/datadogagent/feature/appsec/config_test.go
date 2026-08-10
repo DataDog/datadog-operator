@@ -495,17 +495,29 @@ func TestMergeInjectorConfigFullOverlayFromZeroBase(t *testing.T) {
 // AutoDetect instead of storing a pointer into the DatadogAgent spec.
 func TestMergeInjectorConfigDoesNotAliasSpecPointers(t *testing.T) {
 	autoDetect := true
-	inj := &v2alpha1.AppsecInjectorConfig{AutoDetect: &autoDetect}
+	inj := &v2alpha1.AppsecInjectorConfig{
+		AutoDetect: &autoDetect,
+		Proxies:    []string{"istio"},
+		GKE:        &v2alpha1.AppsecInjectorGKEConfig{GatewayClasses: []string{"gke-l7-global-external-managed"}},
+	}
 
 	got := mergeInjectorConfig(Config{}, inj)
 	require.NotNil(t, got.AutoDetect)
 	require.True(t, *got.AutoDetect)
+	require.Len(t, got.Proxies, 1)
+	require.Len(t, got.GatewayClasses, 1)
 
 	assert.NotSame(t, inj.AutoDetect, got.AutoDetect, "merged config must not alias the spec pointer")
+	assert.NotSame(t, &inj.Proxies[0], &got.Proxies[0], "merged config must not alias the spec slice")
+	assert.NotSame(t, &inj.GKE.GatewayClasses[0], &got.GatewayClasses[0], "merged config must not alias the spec slice")
 
 	// Mutating the spec target must not be visible through the merged config.
 	autoDetect = false
+	inj.Proxies[0] = "ingress-nginx"
+	inj.GKE.GatewayClasses[0] = "gke-l7-regional-external-managed"
 	assert.True(t, *got.AutoDetect, "merged AutoDetect changed after mutating the spec value")
+	assert.Equal(t, "istio", got.Proxies[0], "merged Proxies changed after mutating the spec slice")
+	assert.Equal(t, "gke-l7-global-external-managed", got.GatewayClasses[0], "merged GatewayClasses changed after mutating the spec slice")
 }
 
 // TestParseAnnotationsSkip covers the CRD-aware parse skip. A malformed annotation on

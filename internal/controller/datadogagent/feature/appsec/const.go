@@ -71,7 +71,8 @@ const (
 	DDClusterAgentAppsecInjectorProcessorServiceNamespace = "DD_CLUSTER_AGENT_APPSEC_INJECTOR_PROCESSOR_SERVICE_NAMESPACE"
 	// DDClusterAgentAppsecInjectorMode is the injector mode (sidecar or external)
 	DDClusterAgentAppsecInjectorMode = "DD_CLUSTER_AGENT_APPSEC_INJECTOR_MODE"
-	DDAppsecProxyGKEGatewayClasses   = "DD_APPSEC_PROXY_GKE_GATEWAY_CLASSES"
+	// DDAppsecProxyGKEGatewayClasses is the JSON list of GKE GatewayClasses eligible for AppSec injection
+	DDAppsecProxyGKEGatewayClasses = "DD_APPSEC_PROXY_GKE_GATEWAY_CLASSES"
 	// DDAdmissionControllerAppsecSidecarImage is the sidecar container image
 	DDAdmissionControllerAppsecSidecarImage = "DD_ADMISSION_CONTROLLER_APPSEC_SIDECAR_IMAGE"
 	// DDAdmissionControllerAppsecSidecarImageTag is the sidecar container image tag
