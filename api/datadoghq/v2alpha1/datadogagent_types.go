@@ -71,6 +71,9 @@ type DatadogFeatures struct {
 	// ASM (Application Security Management) configuration.
 	ASM *ASMFeatureConfig `json:"asm,omitempty"`
 	// Appsec configuration.
+	// This block supersedes the deprecated `agent.datadoghq.com/appsec.*` annotations. Resolution is
+	// per field: a field set here wins, and a field left unset falls back to its annotation value if
+	// one is present. An empty list here does not clear an annotation-set value.
 	// +optional
 	Appsec *AppsecFeatureConfig `json:"appsec,omitempty"`
 	// CSPM (Cloud Security Posture Management) configuration.
@@ -188,25 +191,21 @@ type AppsecFeatureConfig struct {
 type AppsecInjectorConfig struct {
 	// Enables the AppSec injector.
 	// Default: false
-	// This is the AGENT-SIDE default; leaving this field unset uses the annotation value if one is present.
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 
 	// Controls automatic proxy detection.
 	// Default: true
-	// This is the AGENT-SIDE default; leaving this field unset uses the annotation value if one is present.
 	// +optional
 	AutoDetect *bool `json:"autoDetect,omitempty"`
 
 	// Lists proxies for AppSec injection.
 	// Default: []
-	// This is the AGENT-SIDE default; leaving this field unset uses the annotation value if one is present.
-	// An empty CRD list does not clear an annotation-set value; the annotation remains in effect.
 	// +optional
 	Proxies []string `json:"proxies,omitempty"`
 
 	// Selects the AppSec injection mode.
-	// When unset, this uses the agent default sidecar; leaving this field unset uses the annotation value if one is present.
+	// When unset, this uses the agent default sidecar.
 	// +kubebuilder:validation:Enum=sidecar;external
 	// +optional
 	Mode *string `json:"mode,omitempty"`
@@ -231,13 +230,11 @@ type AppsecInjectorConfig struct {
 // AppsecInjectorProcessorConfig contains AppSec external processor configuration.
 type AppsecInjectorProcessorConfig struct {
 	// Sets the processor address.
-	// Leaving this field unset uses the annotation value if one is present.
 	// +optional
 	Address *string `json:"address,omitempty"`
 
 	// Sets the processor port.
 	// Default: 443
-	// This is the AGENT-SIDE default; leaving this field unset uses the annotation value if one is present.
 	// +optional
 	Port *int32 `json:"port,omitempty"`
 
@@ -249,12 +246,10 @@ type AppsecInjectorProcessorConfig struct {
 // AppsecInjectorProcessorServiceConfig contains AppSec external processor Service configuration.
 type AppsecInjectorProcessorServiceConfig struct {
 	// Sets the processor Service name.
-	// Leaving this field unset uses the annotation value if one is present.
 	// +optional
 	Name *string `json:"name,omitempty"`
 
 	// Sets the processor Service namespace.
-	// Leaving this field unset uses the annotation value if one is present.
 	// This is ignored for gke-gateway because the callout Service is resolved in each Gateway's own namespace; deploy the Service in every AppSec-enabled Gateway namespace.
 	// +optional
 	Namespace *string `json:"namespace,omitempty"`
@@ -264,36 +259,30 @@ type AppsecInjectorProcessorServiceConfig struct {
 type AppsecInjectorSidecarConfig struct {
 	// Sets the sidecar image.
 	// Default: ghcr.io/datadog/dd-trace-go/service-extensions-callout
-	// This is the AGENT-SIDE default; leaving this field unset uses the annotation value if one is present.
 	// +optional
 	Image *string `json:"image,omitempty"`
 
 	// Sets the sidecar image tag.
-	// Default: v2.8.2
-	// This is the AGENT-SIDE default; leaving this field unset uses the annotation value if one is present.
+	// When unset, the tag defaults to a value determined by the cluster-agent image in use.
 	// +optional
 	ImageTag *string `json:"imageTag,omitempty"`
 
 	// Sets the sidecar port.
 	// Default: 8080
-	// This is the AGENT-SIDE default; leaving this field unset uses the annotation value if one is present.
 	// +optional
 	Port *int32 `json:"port,omitempty"`
 
 	// Sets the sidecar health port.
 	// Default: 8081
-	// This is the AGENT-SIDE default; leaving this field unset uses the annotation value if one is present.
 	// +optional
 	HealthPort *int32 `json:"healthPort,omitempty"`
 
 	// Sets the sidecar body parsing size limit.
 	// Default: 0
-	// This is the AGENT-SIDE default; leaving this field unset uses the annotation value if one is present.
 	// +optional
 	BodyParsingSizeLimit *int64 `json:"bodyParsingSizeLimit,omitempty"`
 
 	// Configures sidecar resources.
-	// Leaving this field unset uses the annotation value if one is present.
 	// Only requests and limits for cpu and memory are honored.
 	// +doc-gen:link=https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
 	// +optional
@@ -304,7 +293,6 @@ type AppsecInjectorSidecarConfig struct {
 type AppsecInjectorNginxConfig struct {
 	// Sets the nginx module mount path.
 	// Default: /modules_mount
-	// This is the AGENT-SIDE default; leaving this field unset uses the annotation value if one is present.
 	// +optional
 	ModuleMountPath *string `json:"moduleMountPath,omitempty"`
 }

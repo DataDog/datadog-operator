@@ -1127,7 +1127,11 @@ spec:
                               type: object
                           type: object
                         appsec:
-                          description: Appsec configuration.
+                          description: |-
+                            Appsec configuration.
+                            This block supersedes the deprecated `agent.datadoghq.com/appsec.*` annotations. Resolution is
+                            per field: a field set here wins, and a field left unset falls back to its annotation value if
+                            one is present. An empty list here does not clear an annotation-set value.
                           properties:
                             injector:
                               description: Configures the AppSec injector.
@@ -1136,13 +1140,11 @@ spec:
                                   description: |-
                                     Controls automatic proxy detection.
                                     Default: true
-                                    This is the AGENT-SIDE default; leaving this field unset uses the annotation value if one is present.
                                   type: boolean
                                 enabled:
                                   description: |-
                                     Enables the AppSec injector.
                                     Default: false
-                                    This is the AGENT-SIDE default; leaving this field unset uses the annotation value if one is present.
                                   type: boolean
                                 gke:
                                   description: Configures GKE Gateway injection.
@@ -1164,7 +1166,7 @@ spec:
                                 mode:
                                   description: |-
                                     Selects the AppSec injection mode.
-                                    When unset, this uses the agent default sidecar; leaving this field unset uses the annotation value if one is present.
+                                    When unset, this uses the agent default sidecar.
                                   enum:
                                     - sidecar
                                     - external
@@ -1176,36 +1178,29 @@ spec:
                                       description: |-
                                         Sets the nginx module mount path.
                                         Default: /modules_mount
-                                        This is the AGENT-SIDE default; leaving this field unset uses the annotation value if one is present.
                                       type: string
                                   type: object
                                 processor:
                                   description: Configures the external processor.
                                   properties:
                                     address:
-                                      description: |-
-                                        Sets the processor address.
-                                        Leaving this field unset uses the annotation value if one is present.
+                                      description: Sets the processor address.
                                       type: string
                                     port:
                                       description: |-
                                         Sets the processor port.
                                         Default: 443
-                                        This is the AGENT-SIDE default; leaving this field unset uses the annotation value if one is present.
                                       format: int32
                                       type: integer
                                     service:
                                       description: Configures the processor Service.
                                       properties:
                                         name:
-                                          description: |-
-                                            Sets the processor Service name.
-                                            Leaving this field unset uses the annotation value if one is present.
+                                          description: Sets the processor Service name.
                                           type: string
                                         namespace:
                                           description: |-
                                             Sets the processor Service namespace.
-                                            Leaving this field unset uses the annotation value if one is present.
                                             This is ignored for gke-gateway because the callout Service is resolved in each Gateway's own namespace; deploy the Service in every AppSec-enabled Gateway namespace.
                                           type: string
                                       type: object
@@ -1214,8 +1209,6 @@ spec:
                                   description: |-
                                     Lists proxies for AppSec injection.
                                     Default: []
-                                    This is the AGENT-SIDE default; leaving this field unset uses the annotation value if one is present.
-                                    An empty CRD list does not clear an annotation-set value; the annotation remains in effect.
                                   items:
                                     type: string
                                   type: array
@@ -1226,39 +1219,33 @@ spec:
                                       description: |-
                                         Sets the sidecar body parsing size limit.
                                         Default: 0
-                                        This is the AGENT-SIDE default; leaving this field unset uses the annotation value if one is present.
                                       format: int64
                                       type: integer
                                     healthPort:
                                       description: |-
                                         Sets the sidecar health port.
                                         Default: 8081
-                                        This is the AGENT-SIDE default; leaving this field unset uses the annotation value if one is present.
                                       format: int32
                                       type: integer
                                     image:
                                       description: |-
                                         Sets the sidecar image.
                                         Default: ghcr.io/datadog/dd-trace-go/service-extensions-callout
-                                        This is the AGENT-SIDE default; leaving this field unset uses the annotation value if one is present.
                                       type: string
                                     imageTag:
                                       description: |-
                                         Sets the sidecar image tag.
-                                        Default: v2.8.2
-                                        This is the AGENT-SIDE default; leaving this field unset uses the annotation value if one is present.
+                                        When unset, the tag defaults to a value determined by the cluster-agent image in use.
                                       type: string
                                     port:
                                       description: |-
                                         Sets the sidecar port.
                                         Default: 8080
-                                        This is the AGENT-SIDE default; leaving this field unset uses the annotation value if one is present.
                                       format: int32
                                       type: integer
                                     resources:
                                       description: |-
                                         Configures sidecar resources.
-                                        Leaving this field unset uses the annotation value if one is present.
                                         Only requests and limits for cpu and memory are honored.
                                       properties:
                                         claims:

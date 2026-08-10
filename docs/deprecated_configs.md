@@ -8,7 +8,7 @@ This document lists configuration options that are deprecated or will be depreca
 |---------|-------------------|-------------------|-------------------|
 | `global.runProcessChecksInCoreAgent` | The `runProcessChecksInCoreAgent` configuration is deprecated in 1.19, and will be removed in v1.21. | v1.19 | v1.21 |
 | `features.serviceDiscovery.networkStats` | The `networkStats` configuration is deprecated in v1.26 and removed in v1.28. | v1.26 | v1.28 |
-| `appsec.* annotations` | The `appsec.*` annotations are deprecated in v1.30 in favor of `spec.features.appsec.injector`. | v1.30 | TBD |
+| `appsec.* annotations` | The `appsec.*` annotations are deprecated in v1.30 in favor of `spec.features.appsec.injector`, and will be removed in v1.32. | v1.30 | v1.32 |
 
 ## Migration Guidelines
 
@@ -34,7 +34,7 @@ This field can be removed from your `DatadogAgent` spec with no behavior change.
 
 ### appsec.* annotations
 
-The `agent.datadoghq.com/appsec.*` annotations are deprecated in `v1.30` and have been migrated to the `DatadogAgent` CRD spec under `spec.features.appsec.injector`.
+The `agent.datadoghq.com/appsec.*` annotations are deprecated in `v1.30` and will be removed in `v1.32`. They have been migrated to the `DatadogAgent` CRD spec under `spec.features.appsec.injector`.
 
 #### Migration Path
 
