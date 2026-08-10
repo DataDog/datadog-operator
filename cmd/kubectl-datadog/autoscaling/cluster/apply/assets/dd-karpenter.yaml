@@ -53,6 +53,7 @@ Resources:
         - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/KarpenterControllerEKSIntegrationPolicy-${ClusterName}"
         - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/KarpenterControllerInterruptionPolicy-${ClusterName}"
         - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/KarpenterControllerResourceDiscoveryPolicy-${ClusterName}"
+        - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/KarpenterControllerZonalShiftPolicy-${ClusterName}"
   PodIdentityAssociation:
     Type: AWS::EKS::PodIdentityAssociation
     DependsOn:
