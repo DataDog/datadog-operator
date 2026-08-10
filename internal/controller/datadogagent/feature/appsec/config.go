@@ -71,7 +71,8 @@ func mergeInjectorConfig(base Config, inj *v2alpha1.AppsecInjectorConfig) Config
 	}
 
 	if len(inj.Proxies) > 0 {
-		base.Proxies = inj.Proxies
+		// Clone to keep the feature config independent from the DatadogAgent spec.
+		base.Proxies = slices.Clone(inj.Proxies)
 	}
 
 	if inj.Mode != nil {
@@ -132,7 +133,7 @@ func mergeInjectorConfig(base Config, inj *v2alpha1.AppsecInjectorConfig) Config
 	}
 
 	if inj.GKE != nil && len(inj.GKE.GatewayClasses) > 0 {
-		base.GatewayClasses = inj.GKE.GatewayClasses
+		base.GatewayClasses = slices.Clone(inj.GKE.GatewayClasses)
 	}
 
 	return base
