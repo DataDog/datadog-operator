@@ -1096,18 +1096,18 @@
             },
             "appsec": {
               "additionalProperties": false,
-              "description": "Appsec configuration.",
+              "description": "Appsec configuration.\nThis block supersedes the deprecated `agent.datadoghq.com/appsec.*` annotations. Resolution is\nper field: a field set here wins, and a field left unset falls back to its annotation value if\none is present. An empty list here does not clear an annotation-set value.",
               "properties": {
                 "injector": {
                   "additionalProperties": false,
                   "description": "Configures the AppSec injector.",
                   "properties": {
                     "autoDetect": {
-                      "description": "Controls automatic proxy detection.\nDefault: true\nThis is the AGENT-SIDE default; leaving this field unset uses the annotation value if one is present.",
+                      "description": "Controls automatic proxy detection.\nDefault: true",
                       "type": "boolean"
                     },
                     "enabled": {
-                      "description": "Enables the AppSec injector.\nDefault: false\nThis is the AGENT-SIDE default; leaving this field unset uses the annotation value if one is present.",
+                      "description": "Enables the AppSec injector.\nDefault: false",
                       "type": "boolean"
                     },
                     "gke": {
@@ -1125,7 +1125,7 @@
                       "type": "object"
                     },
                     "mode": {
-                      "description": "Selects the AppSec injection mode.\nWhen unset, this uses the agent default sidecar; leaving this field unset uses the annotation value if one is present.",
+                      "description": "Selects the AppSec injection mode.\nWhen unset, this uses the agent default sidecar.",
                       "enum": [
                         "sidecar",
                         "external"
@@ -1137,7 +1137,7 @@
                       "description": "Configures nginx injection.",
                       "properties": {
                         "moduleMountPath": {
-                          "description": "Sets the nginx module mount path.\nDefault: /modules_mount\nThis is the AGENT-SIDE default; leaving this field unset uses the annotation value if one is present.",
+                          "description": "Sets the nginx module mount path.\nDefault: /modules_mount",
                           "type": "string"
                         }
                       },
@@ -1148,11 +1148,11 @@
                       "description": "Configures the external processor.",
                       "properties": {
                         "address": {
-                          "description": "Sets the processor address.\nLeaving this field unset uses the annotation value if one is present.",
+                          "description": "Sets the processor address.",
                           "type": "string"
                         },
                         "port": {
-                          "description": "Sets the processor port.\nDefault: 443\nThis is the AGENT-SIDE default; leaving this field unset uses the annotation value if one is present.",
+                          "description": "Sets the processor port.\nDefault: 443",
                           "format": "int32",
                           "type": "integer"
                         },
@@ -1161,11 +1161,11 @@
                           "description": "Configures the processor Service.",
                           "properties": {
                             "name": {
-                              "description": "Sets the processor Service name.\nLeaving this field unset uses the annotation value if one is present.",
+                              "description": "Sets the processor Service name.",
                               "type": "string"
                             },
                             "namespace": {
-                              "description": "Sets the processor Service namespace.\nLeaving this field unset uses the annotation value if one is present.\nThis is ignored for gke-gateway because the callout Service is resolved in each Gateway's own namespace; deploy the Service in every AppSec-enabled Gateway namespace.",
+                              "description": "Sets the processor Service namespace.\nThis is ignored for gke-gateway because the callout Service is resolved in each Gateway's own namespace; deploy the Service in every AppSec-enabled Gateway namespace.",
                               "type": "string"
                             }
                           },
@@ -1175,7 +1175,7 @@
                       "type": "object"
                     },
                     "proxies": {
-                      "description": "Lists proxies for AppSec injection.\nDefault: []\nThis is the AGENT-SIDE default; leaving this field unset uses the annotation value if one is present.\nAn empty CRD list does not clear an annotation-set value; the annotation remains in effect.",
+                      "description": "Lists proxies for AppSec injection.\nDefault: []",
                       "items": {
                         "type": "string"
                       },
@@ -1186,31 +1186,31 @@
                       "description": "Configures the injected sidecar.",
                       "properties": {
                         "bodyParsingSizeLimit": {
-                          "description": "Sets the sidecar body parsing size limit.\nDefault: 0\nThis is the AGENT-SIDE default; leaving this field unset uses the annotation value if one is present.",
+                          "description": "Sets the sidecar body parsing size limit.\nDefault: 0",
                           "format": "int64",
                           "type": "integer"
                         },
                         "healthPort": {
-                          "description": "Sets the sidecar health port.\nDefault: 8081\nThis is the AGENT-SIDE default; leaving this field unset uses the annotation value if one is present.",
+                          "description": "Sets the sidecar health port.\nDefault: 8081",
                           "format": "int32",
                           "type": "integer"
                         },
                         "image": {
-                          "description": "Sets the sidecar image.\nDefault: ghcr.io/datadog/dd-trace-go/service-extensions-callout\nThis is the AGENT-SIDE default; leaving this field unset uses the annotation value if one is present.",
+                          "description": "Sets the sidecar image.\nDefault: ghcr.io/datadog/dd-trace-go/service-extensions-callout",
                           "type": "string"
                         },
                         "imageTag": {
-                          "description": "Sets the sidecar image tag.\nDefault: v2.8.2\nThis is the AGENT-SIDE default; leaving this field unset uses the annotation value if one is present.",
+                          "description": "Sets the sidecar image tag.\nWhen unset, the tag defaults to a value determined by the cluster-agent image in use.",
                           "type": "string"
                         },
                         "port": {
-                          "description": "Sets the sidecar port.\nDefault: 8080\nThis is the AGENT-SIDE default; leaving this field unset uses the annotation value if one is present.",
+                          "description": "Sets the sidecar port.\nDefault: 8080",
                           "format": "int32",
                           "type": "integer"
                         },
                         "resources": {
                           "additionalProperties": false,
-                          "description": "Configures sidecar resources.\nLeaving this field unset uses the annotation value if one is present.\nOnly requests and limits for cpu and memory are honored.",
+                          "description": "Configures sidecar resources.\nOnly requests and limits for cpu and memory are honored.",
                           "properties": {
                             "claims": {
                               "description": "Claims lists the names of resources, defined in spec.resourceClaims,\nthat are used by this container.\n\nThis field depends on the\nDynamicResourceAllocation feature gate.\n\nThis field is immutable. It can only be set for containers.",
@@ -9843,18 +9843,18 @@
                 },
                 "appsec": {
                   "additionalProperties": false,
-                  "description": "Appsec configuration.",
+                  "description": "Appsec configuration.\nThis block supersedes the deprecated `agent.datadoghq.com/appsec.*` annotations. Resolution is\nper field: a field set here wins, and a field left unset falls back to its annotation value if\none is present. An empty list here does not clear an annotation-set value.",
                   "properties": {
                     "injector": {
                       "additionalProperties": false,
                       "description": "Configures the AppSec injector.",
                       "properties": {
                         "autoDetect": {
-                          "description": "Controls automatic proxy detection.\nDefault: true\nThis is the AGENT-SIDE default; leaving this field unset uses the annotation value if one is present.",
+                          "description": "Controls automatic proxy detection.\nDefault: true",
                           "type": "boolean"
                         },
                         "enabled": {
-                          "description": "Enables the AppSec injector.\nDefault: false\nThis is the AGENT-SIDE default; leaving this field unset uses the annotation value if one is present.",
+                          "description": "Enables the AppSec injector.\nDefault: false",
                           "type": "boolean"
                         },
                         "gke": {
@@ -9872,7 +9872,7 @@
                           "type": "object"
                         },
                         "mode": {
-                          "description": "Selects the AppSec injection mode.\nWhen unset, this uses the agent default sidecar; leaving this field unset uses the annotation value if one is present.",
+                          "description": "Selects the AppSec injection mode.\nWhen unset, this uses the agent default sidecar.",
                           "enum": [
                             "sidecar",
                             "external"
@@ -9884,7 +9884,7 @@
                           "description": "Configures nginx injection.",
                           "properties": {
                             "moduleMountPath": {
-                              "description": "Sets the nginx module mount path.\nDefault: /modules_mount\nThis is the AGENT-SIDE default; leaving this field unset uses the annotation value if one is present.",
+                              "description": "Sets the nginx module mount path.\nDefault: /modules_mount",
                               "type": "string"
                             }
                           },
@@ -9895,11 +9895,11 @@
                           "description": "Configures the external processor.",
                           "properties": {
                             "address": {
-                              "description": "Sets the processor address.\nLeaving this field unset uses the annotation value if one is present.",
+                              "description": "Sets the processor address.",
                               "type": "string"
                             },
                             "port": {
-                              "description": "Sets the processor port.\nDefault: 443\nThis is the AGENT-SIDE default; leaving this field unset uses the annotation value if one is present.",
+                              "description": "Sets the processor port.\nDefault: 443",
                               "format": "int32",
                               "type": "integer"
                             },
@@ -9908,11 +9908,11 @@
                               "description": "Configures the processor Service.",
                               "properties": {
                                 "name": {
-                                  "description": "Sets the processor Service name.\nLeaving this field unset uses the annotation value if one is present.",
+                                  "description": "Sets the processor Service name.",
                                   "type": "string"
                                 },
                                 "namespace": {
-                                  "description": "Sets the processor Service namespace.\nLeaving this field unset uses the annotation value if one is present.\nThis is ignored for gke-gateway because the callout Service is resolved in each Gateway's own namespace; deploy the Service in every AppSec-enabled Gateway namespace.",
+                                  "description": "Sets the processor Service namespace.\nThis is ignored for gke-gateway because the callout Service is resolved in each Gateway's own namespace; deploy the Service in every AppSec-enabled Gateway namespace.",
                                   "type": "string"
                                 }
                               },
@@ -9922,7 +9922,7 @@
                           "type": "object"
                         },
                         "proxies": {
-                          "description": "Lists proxies for AppSec injection.\nDefault: []\nThis is the AGENT-SIDE default; leaving this field unset uses the annotation value if one is present.\nAn empty CRD list does not clear an annotation-set value; the annotation remains in effect.",
+                          "description": "Lists proxies for AppSec injection.\nDefault: []",
                           "items": {
                             "type": "string"
                           },
@@ -9933,31 +9933,31 @@
                           "description": "Configures the injected sidecar.",
                           "properties": {
                             "bodyParsingSizeLimit": {
-                              "description": "Sets the sidecar body parsing size limit.\nDefault: 0\nThis is the AGENT-SIDE default; leaving this field unset uses the annotation value if one is present.",
+                              "description": "Sets the sidecar body parsing size limit.\nDefault: 0",
                               "format": "int64",
                               "type": "integer"
                             },
                             "healthPort": {
-                              "description": "Sets the sidecar health port.\nDefault: 8081\nThis is the AGENT-SIDE default; leaving this field unset uses the annotation value if one is present.",
+                              "description": "Sets the sidecar health port.\nDefault: 8081",
                               "format": "int32",
                               "type": "integer"
                             },
                             "image": {
-                              "description": "Sets the sidecar image.\nDefault: ghcr.io/datadog/dd-trace-go/service-extensions-callout\nThis is the AGENT-SIDE default; leaving this field unset uses the annotation value if one is present.",
+                              "description": "Sets the sidecar image.\nDefault: ghcr.io/datadog/dd-trace-go/service-extensions-callout",
                               "type": "string"
                             },
                             "imageTag": {
-                              "description": "Sets the sidecar image tag.\nDefault: v2.8.2\nThis is the AGENT-SIDE default; leaving this field unset uses the annotation value if one is present.",
+                              "description": "Sets the sidecar image tag.\nWhen unset, the tag defaults to a value determined by the cluster-agent image in use.",
                               "type": "string"
                             },
                             "port": {
-                              "description": "Sets the sidecar port.\nDefault: 8080\nThis is the AGENT-SIDE default; leaving this field unset uses the annotation value if one is present.",
+                              "description": "Sets the sidecar port.\nDefault: 8080",
                               "format": "int32",
                               "type": "integer"
                             },
                             "resources": {
                               "additionalProperties": false,
-                              "description": "Configures sidecar resources.\nLeaving this field unset uses the annotation value if one is present.\nOnly requests and limits for cpu and memory are honored.",
+                              "description": "Configures sidecar resources.\nOnly requests and limits for cpu and memory are honored.",
                               "properties": {
                                 "claims": {
                                   "description": "Claims lists the names of resources, defined in spec.resourceClaims,\nthat are used by this container.\n\nThis field depends on the\nDynamicResourceAllocation feature gate.\n\nThis field is immutable. It can only be set for containers.",
