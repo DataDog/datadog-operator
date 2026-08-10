@@ -6,7 +6,6 @@
 package appsec
 
 import (
-	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -774,8 +773,9 @@ func TestParseAnnotationsThenMergeThenValidate(t *testing.T) {
 	}
 
 	// Annotations alone are rejected: "bogus" is not a valid mode.
-	_, annotationOnlyErr := FromAnnotations(ann)
-	require.Error(t, annotationOnlyErr, "annotation-only path must still reject an invalid mode")
+	annotationOnlyCfg, annotationOnlyErr := parseAnnotations(ann, nil)
+	require.NoError(t, annotationOnlyErr, "an invalid mode is a validation failure, not a parse failure")
+	require.Error(t, annotationOnlyCfg.Validate(), "annotation-only path must still reject an invalid mode")
 
 	inj := &v2alpha1.AppsecInjectorConfig{
 		Enabled: ptr.To(true),
@@ -794,39 +794,6 @@ func TestParseAnnotationsThenMergeThenValidate(t *testing.T) {
 	assert.True(t, merged.Enabled)
 
 	assert.NoError(t, merged.Validate(), "the CRD overlay must be applied before Validate")
-}
-
-// TestFromAnnotationsShimMatchesParseThenValidate pins that the exported shim is
-// exactly parseAnnotations with a nil injector followed by Validate.
-func TestFromAnnotationsShimMatchesParseThenValidate(t *testing.T) {
-	tests := []map[string]string{
-		{},
-		{AnnotationInjectorEnabled: "true", AnnotationInjectorProcessorServiceName: "svc"},
-		{AnnotationInjectorEnabled: "not-a-bool"},
-		{AnnotationInjectorEnabled: "true", AnnotationInjectorMode: "bogus"},
-		{AnnotationInjectorEnabled: "true", AnnotationInjectorProxies: `["istio"]`},
-	}
-
-	for i, ann := range tests {
-		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			shimCfg, shimErr := FromAnnotations(ann)
-
-			parsedCfg, parseErr := parseAnnotations(ann, nil)
-			if parseErr != nil {
-				require.Error(t, shimErr)
-				assert.Equal(t, parsedCfg, shimCfg)
-				return
-			}
-
-			if validateErr := parsedCfg.Validate(); validateErr != nil {
-				require.Error(t, shimErr)
-				return
-			}
-
-			require.NoError(t, shimErr)
-			assert.Equal(t, parsedCfg, shimCfg)
-		})
-	}
 }
 
 // TestConfigValidateGKEGateway covers the gke-gateway external-mode requirement.

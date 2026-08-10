@@ -46,28 +46,6 @@ type Config struct {
 	GatewayClasses []string
 }
 
-// FromAnnotations creates an appsec.Config from an annotation map and validates it.
-// It parses annotations with the "agent.datadoghq.com/appsec.injector.*" prefix
-// to configure the AppSec proxy injection feature.
-//
-// Returns an error if:
-//   - Boolean values cannot be parsed (enabled, autoDetect)
-//   - Proxies JSON is malformed
-//   - Port is not a valid integer
-//   - Configuration validation fails (invalid port range, invalid proxy values, missing required fields)
-func FromAnnotations(annotations map[string]string) (Config, error) {
-	config, err := parseAnnotations(annotations, nil)
-	if err != nil {
-		return config, err
-	}
-
-	if validateErr := config.Validate(); validateErr != nil {
-		return config, fmt.Errorf("invalid configuration: %w", validateErr)
-	}
-
-	return config, nil
-}
-
 // mergeInjectorConfig overlays the CRD injector configuration on top of base and
 // returns the result. A CRD field that is set always wins over the annotation-derived
 // value already in base; a field the CRD leaves unset keeps the base value.
