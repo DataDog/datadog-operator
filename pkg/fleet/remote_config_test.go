@@ -8,7 +8,10 @@ package fleet
 import (
 	"context"
 	"encoding/json"
+	"sync"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/DataDog/datadog-agent/pkg/remoteconfig/state"
 	"github.com/stretchr/testify/assert"
@@ -138,6 +141,30 @@ func TestRemoteAPIRequest(t *testing.T) {
 	cb.AssertCalled(t, "handleRemoteAPIRequest", testRemoteAPIRequest)
 	cb.AssertCalled(t, "applyStateCallback", "path/to/task", state.ApplyStatus{State: state.ApplyStateUnacknowledged})
 	cb.AssertCalled(t, "applyStateCallback", "path/to/task", state.ApplyStatus{State: state.ApplyStateAcknowledged})
+}
+
+func TestRemoteAPIRequestConcurrentDuplicatesAreHandledOnce(t *testing.T) {
+	var calls atomic.Int32
+	handler := handleUpdaterTaskUpdate(context.Background(), func(remoteAPIRequest) error {
+		calls.Add(1)
+		time.Sleep(10 * time.Millisecond)
+		return nil
+	})
+	updates := map[string]state.RawConfig{"path/to/task": marshalRawConfig(t, testRemoteAPIRequest)}
+	start := make(chan struct{})
+	var wg sync.WaitGroup
+	for range 16 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			handler(updates, func(string, state.ApplyStatus) {})
+		}()
+	}
+	close(start)
+	wg.Wait()
+
+	assert.Equal(t, int32(1), calls.Load())
 }
 
 func TestRemoteAPIRequestParsesParamsVersion(t *testing.T) {
