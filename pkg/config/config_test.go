@@ -14,6 +14,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
+	"github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
@@ -382,4 +384,47 @@ func TestCacheConfigNodeTransform(t *testing.T) {
 			assert.Equal(t, kubernetes.TalosProvider, kubernetes.ClusterProviderFromNode(got))
 		})
 	}
+}
+
+// TestCacheConfigPodTransformComponentHealthGating verifies that when the
+// wait-for-CSI branch widens the Pod cache to a merged namespace set and drops
+// the informer-level label selector, the Transform still only retains the
+// memory-heavy status fields (container statuses, phase, etc.) for the managed
+// component pods (DCA/CLC), not for every Pod that now passes through it (e.g.
+// CSI driver node-server pods).
+func TestCacheConfigPodTransformComponentHealthGating(t *testing.T) {
+	opts := WatchOptions{
+		UntaintControllerEnabled:          true,
+		UntaintControllerWaitForCSIDriver: true,
+		ComponentHealthEnabled:            true,
+	}
+	os.Clearenv()
+	os.Setenv(AgentWatchNamespaceEnvVar, "agentNs")
+	os.Setenv(csiDriverWatchNamespaceEnvVar, "csiNs")
+
+	byObject, ok := CacheOptions(logf.Log.WithName(t.Name()), opts).ByObject[podObj]
+	if !assert.True(t, ok) || !assert.NotNil(t, byObject.Transform) {
+		return
+	}
+
+	podWithStatus := func(component string) *corev1.Pod {
+		return &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Labels: map[string]string{common.AgentDeploymentComponentLabelKey: component},
+			},
+			Status: corev1.PodStatus{
+				Phase:             corev1.PodRunning,
+				ContainerStatuses: []corev1.ContainerStatus{{Name: "container"}},
+			},
+		}
+	}
+
+	dca, err := byObject.Transform(podWithStatus(constants.DefaultClusterAgentResourceSuffix))
+	assert.NoError(t, err)
+	assert.NotEmpty(t, dca.(*corev1.Pod).Status.ContainerStatuses, "DCA pod should keep container statuses")
+
+	csi, err := byObject.Transform(podWithStatus("datadog-csi-driver-node-server"))
+	assert.NoError(t, err)
+	assert.Empty(t, csi.(*corev1.Pod).Status.ContainerStatuses, "non-managed-component pod should not keep container statuses")
+	assert.Empty(t, csi.(*corev1.Pod).Status.Phase, "non-managed-component pod should not keep phase")
 }
