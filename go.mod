@@ -67,6 +67,7 @@ require (
 	go.etcd.io/bbolt v1.4.3
 	golang.org/x/exp v0.0.0-20250106191152-7588d65b2ba8
 	golang.org/x/text v0.40.0
+	google.golang.org/grpc v1.81.1
 	google.golang.org/protobuf v1.36.11
 	helm.sh/helm/v3 v3.20.2
 	k8s.io/kubectl v0.35.3
