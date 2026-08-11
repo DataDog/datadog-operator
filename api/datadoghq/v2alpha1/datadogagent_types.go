@@ -206,6 +206,8 @@ type AppsecInjectorConfig struct {
 
 	// Lists proxies for AppSec injection.
 	// Default: []
+	// An empty list does not clear a value set by the `agent.datadoghq.com/appsec.injector.proxies`
+	// annotation; the annotation value stays in effect.
 	// +kubebuilder:validation:items:Enum=envoy-gateway;istio;istio-gateway;ingress-nginx;gke-gateway
 	// +optional
 	Proxies []string `json:"proxies,omitempty"`

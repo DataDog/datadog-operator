@@ -1181,7 +1181,7 @@
                           "type": "object"
                         },
                         "proxies": {
-                          "description": "Lists proxies for AppSec injection.\nDefault: []",
+                          "description": "Lists proxies for AppSec injection.\nDefault: []\nAn empty list does not clear a value set by the `agent.datadoghq.com/appsec.injector.proxies`\nannotation; the annotation value stays in effect.",
                           "items": {
                             "enum": [
                               "envoy-gateway",

@@ -84,7 +84,7 @@ spec:
 | features.appsec.injector.processor.port | Sets the processor port. Default: 443 |
 | features.appsec.injector.processor.service.name | Sets the processor Service name. |
 | features.appsec.injector.processor.service.namespace | Sets the processor Service namespace. This is ignored for gke-gateway because the callout Service is resolved in each Gateway's own namespace; deploy the Service in every AppSec-enabled Gateway namespace. |
-| features.appsec.injector.proxies | Lists proxies for AppSec injection. Default: [] |
+| features.appsec.injector.proxies | Lists proxies for AppSec injection. Default: [] An empty list does not clear a value set by the `agent.datadoghq.com/appsec.injector.proxies` annotation; the annotation value stays in effect. |
 | features.appsec.injector.sidecar.bodyParsingSizeLimit | Sets the sidecar body parsing size limit. Default: 0 |
 | features.appsec.injector.sidecar.healthPort | Sets the sidecar health port. Default: 8081 |
 | features.appsec.injector.sidecar.image | Sets the sidecar image. Default: ghcr.io/datadog/dd-trace-go/service-extensions-callout |

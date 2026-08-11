@@ -1211,6 +1211,8 @@ spec:
                               description: |-
                                 Lists proxies for AppSec injection.
                                 Default: []
+                                An empty list does not clear a value set by the `agent.datadoghq.com/appsec.injector.proxies`
+                                annotation; the annotation value stays in effect.
                               items:
                                 enum:
                                   - envoy-gateway
@@ -10142,6 +10144,8 @@ spec:
                                   description: |-
                                     Lists proxies for AppSec injection.
                                     Default: []
+                                    An empty list does not clear a value set by the `agent.datadoghq.com/appsec.injector.proxies`
+                                    annotation; the annotation value stays in effect.
                                   items:
                                     enum:
                                       - envoy-gateway
