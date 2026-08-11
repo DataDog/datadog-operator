@@ -9,6 +9,8 @@ import (
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
+
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/providers"
 )
 
 // VolumeManager use to add a Volume to Pod and associated containers.
@@ -21,14 +23,16 @@ type VolumeManager interface {
 }
 
 // NewVolumeManager returns a new instance of the VolumeManager
-func NewVolumeManager(podTmpl *corev1.PodTemplateSpec) VolumeManager {
+func NewVolumeManager(podTmpl *corev1.PodTemplateSpec, provider providers.Provider) VolumeManager {
 	return &volumeManagerImpl{
-		podTmpl: podTmpl,
+		podTmpl:  podTmpl,
+		provider: provider,
 	}
 }
 
 type volumeManagerImpl struct {
-	podTmpl *corev1.PodTemplateSpec
+	podTmpl  *corev1.PodTemplateSpec
+	provider providers.Provider
 }
 
 func (impl *volumeManagerImpl) AddVolume(volume *corev1.Volume) {
@@ -36,6 +40,13 @@ func (impl *volumeManagerImpl) AddVolume(volume *corev1.Volume) {
 }
 
 func (impl *volumeManagerImpl) AddVolumeWithMergeFunc(volume *corev1.Volume, volumeMergeFunc VolumeMergeFunction) error {
+	if v, ok := impl.provider.Volume(volume.Name); ok {
+		if v == nil {
+			return nil
+		}
+		volume = v
+	}
+
 	_, err := AddVolumeToPod(&impl.podTmpl.Spec, volume, volumeMergeFunc)
 	if err != nil {
 		return err

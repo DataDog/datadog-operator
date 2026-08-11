@@ -72,6 +72,7 @@ type ReconcilerOptions struct {
 	UntaintControllerEnabled        bool
 	DatadogCSIDriverEnabled         bool
 	RolloutOnConfigMapChangeEnabled bool
+	IntrospectionEnabled            bool
 	APIReader                       client.Reader
 }
 

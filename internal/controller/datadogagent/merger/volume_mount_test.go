@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/providers"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 )
@@ -247,7 +248,8 @@ func TestAddVolumeMountWithMergeFunc(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Logf("description: %s", tt.description)
 			manager := &volumeMountManagerImpl{
-				podTmpl: &podTmpl,
+				podTmpl:  &podTmpl,
+				provider: providers.Default(),
 			}
 			err := manager.AddVolumeMountWithMergeFunc(volumemountFoo, DefaultVolumeMountMergeFunction)
 			assert.NoError(t, err)

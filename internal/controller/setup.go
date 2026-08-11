@@ -178,6 +178,7 @@ func startDatadogAgentInternal(logger logr.Logger, mgr manager.Manager, pInfo ku
 			UntaintControllerEnabled:        options.UntaintControllerEnabled,
 			DatadogCSIDriverEnabled:         options.DatadogCSIDriverEnabled,
 			RolloutOnConfigMapChangeEnabled: options.RolloutOnConfigMapChangeEnabled,
+			IntrospectionEnabled:            options.IntrospectionEnabled,
 			APIReader:                       mgr.GetAPIReader(),
 		},
 	}).SetupWithManager(mgr, metricForwardersMgr)

@@ -70,7 +70,7 @@ func (r *Reconciler) reconcileV2Agent(ctx context.Context, requiredComponents fe
 		// Start by creating the Default Agent extendeddaemonset
 		eds = componentagent.NewDefaultAgentExtendedDaemonset(ddai, &r.options.ExtendedDaemonsetOptions, requiredComponents.Agent)
 		objLogger := daemonsetLogger.WithValues("object.kind", "ExtendedDaemonSet", "object.namespace", eds.Namespace, "object.name", eds.Name)
-		podManagers = feature.NewPodTemplateManagers(&eds.Spec.Template)
+		podManagers = feature.NewPodTemplateManagers(&eds.Spec.Template, nodeProvider(r.options.IntrospectionEnabled, ddai))
 
 		// Set Global setting on the default extendeddaemonset
 		global.ApplyGlobalSettingsNodeAgent(objLogger, podManagers, ddai.GetObjectMeta(), &ddai.Spec, resourcesManager, singleContainerStrategyEnabled, requiredComponents)
@@ -146,7 +146,7 @@ func (r *Reconciler) reconcileV2Agent(ctx context.Context, requiredComponents fe
 	// Start by creating the Default Agent daemonset
 	daemonset = componentagent.NewDefaultAgentDaemonset(ddai, &r.options.ExtendedDaemonsetOptions, requiredComponents.Agent, component.GetAgentName(ddai))
 	objLogger := daemonsetLogger.WithValues("object.kind", "DaemonSet", "object.namespace", daemonset.Namespace, "object.name", daemonset.Name)
-	podManagers = feature.NewPodTemplateManagers(&daemonset.Spec.Template)
+	podManagers = feature.NewPodTemplateManagers(&daemonset.Spec.Template, nodeProvider(r.options.IntrospectionEnabled, ddai))
 
 	// Set Global setting on the default daemonset
 	global.ApplyGlobalSettingsNodeAgent(objLogger, podManagers, ddai.GetObjectMeta(), &ddai.Spec, resourcesManager, singleContainerStrategyEnabled, requiredComponents)

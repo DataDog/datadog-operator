@@ -19,6 +19,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/providercaps"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/providers"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
@@ -462,7 +463,7 @@ func Test_GPUFeature_NodeAgentProviderCapabilities(t *testing.T) {
 	t.Run("gke-cos privileged mounts into core agent and system-probe", func(t *testing.T) {
 		f := &gpuFeature{isPrivilegedModeEnabled: true}
 		tmpl := newPodTemplate()
-		mgr := feature.NewPodTemplateManagers(tmpl)
+		mgr := feature.NewPodTemplateManagers(tmpl, providers.Default())
 
 		providercaps.ApplyProviderCapabilities(mgr, kubernetes.GKECosProvider, f.NodeAgentProviderCapabilities())
 
@@ -474,7 +475,7 @@ func Test_GPUFeature_NodeAgentProviderCapabilities(t *testing.T) {
 	t.Run("gke-cos non-privileged mounts into core agent only", func(t *testing.T) {
 		f := &gpuFeature{isPrivilegedModeEnabled: false}
 		tmpl := newPodTemplate()
-		mgr := feature.NewPodTemplateManagers(tmpl)
+		mgr := feature.NewPodTemplateManagers(tmpl, providers.Default())
 
 		providercaps.ApplyProviderCapabilities(mgr, kubernetes.GKECosProvider, f.NodeAgentProviderCapabilities())
 
@@ -486,7 +487,7 @@ func Test_GPUFeature_NodeAgentProviderCapabilities(t *testing.T) {
 	t.Run("non-gke-cos provider adds nothing", func(t *testing.T) {
 		f := &gpuFeature{isPrivilegedModeEnabled: true}
 		tmpl := newPodTemplate()
-		mgr := feature.NewPodTemplateManagers(tmpl)
+		mgr := feature.NewPodTemplateManagers(tmpl, providers.Default())
 
 		providercaps.ApplyProviderCapabilities(mgr, kubernetes.DefaultProvider, f.NodeAgentProviderCapabilities())
 

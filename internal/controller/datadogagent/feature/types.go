@@ -18,6 +18,7 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/merger"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/providercaps"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/providers"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
 )
 
@@ -283,15 +284,15 @@ type PodTemplateManagers interface {
 	Port() merger.PortManager
 }
 
-// NewPodTemplateManagers use to create a new instance of PodTemplateManagers from
-// a corev1.PodTemplateSpec argument
-func NewPodTemplateManagers(podTmpl *corev1.PodTemplateSpec) PodTemplateManagers {
+// NewPodTemplateManagers creates a new instance of PodTemplateManagers from
+// a corev1.PodTemplateSpec argument and a node provider.
+func NewPodTemplateManagers(podTmpl *corev1.PodTemplateSpec, provider providers.Provider) PodTemplateManagers {
 	return &podTemplateManagerImpl{
 		podTmpl:                podTmpl,
 		envVarManager:          merger.NewEnvVarManager(podTmpl),
 		envFromVarManager:      merger.NewEnvFromVarManager(podTmpl),
-		volumeManager:          merger.NewVolumeManager(podTmpl),
-		volumeMountManager:     merger.NewVolumeMountManager(podTmpl),
+		volumeManager:          merger.NewVolumeManager(podTmpl, provider),
+		volumeMountManager:     merger.NewVolumeMountManager(podTmpl, provider),
 		securityContextManager: merger.NewSecurityContextManager(podTmpl),
 		annotationManager:      merger.NewAnnotationManager(podTmpl),
 		portManager:            merger.NewPortManager(podTmpl),
