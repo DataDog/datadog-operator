@@ -134,6 +134,7 @@ func (r *Reconciler) reconcilerOptionsToFeatureOptions(ctx context.Context) *fea
 	return &feature.Options{
 		Logger:                  ctrl.LoggerFrom(ctx),
 		Client:                  r.apiReader,
+		PlatformInfo:            r.platformInfo,
 		DatadogCSIDriverEnabled: r.options.DatadogCSIDriverEnabled,
 	}
 }
