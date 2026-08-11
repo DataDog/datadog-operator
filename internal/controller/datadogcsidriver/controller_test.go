@@ -27,6 +27,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
@@ -224,6 +225,92 @@ func TestReconcile_APMDisabled(t *testing.T) {
 		Name:  constants.DDAPMEnabled,
 		Value: "false",
 	})
+}
+
+func TestBuildDaemonSet_APMPullSecrets(t *testing.T) {
+	apmSecrets := []corev1.LocalObjectReference{{Name: "apm-registry"}}
+	imageSecrets := []corev1.LocalObjectReference{{Name: "image-registry"}}
+
+	instance := defaultCSIDriverCR()
+	instance.Spec.CSIDriverImage = &v2alpha1.AgentImageConfig{PullSecrets: &imageSecrets}
+	instance.Spec.APM = &v1alpha1.DatadogCSIDriverAPMConfig{PullSecrets: apmSecrets}
+
+	ds := buildDaemonSet(instance)
+
+	assert.Equal(t, imageSecrets, ds.Spec.Template.Spec.ImagePullSecrets)
+	csiContainer := ds.Spec.Template.Spec.Containers[0]
+	assert.Contains(t, csiContainer.Env, corev1.EnvVar{
+		Name: "DD_APM_REGISTRY_AUTH_0",
+		ValueFrom: &corev1.EnvVarSource{
+			SecretKeyRef: &corev1.SecretKeySelector{
+				LocalObjectReference: corev1.LocalObjectReference{Name: "apm-registry"},
+				Key:                  dockerConfigJSONKey,
+				Optional:             ptr.To(false),
+			},
+		},
+	})
+	assert.NotContains(t, envNames(csiContainer.Env), "DD_APM_REGISTRY_AUTH_1")
+}
+
+func TestBuildDaemonSet_FallbackImagePullSecretsOptional(t *testing.T) {
+	imageSecrets := []corev1.LocalObjectReference{
+		{Name: "first-registry"},
+		{Name: "second-registry"},
+	}
+	instance := defaultCSIDriverCR()
+	instance.Spec.CSIDriverImage = &v2alpha1.AgentImageConfig{PullSecrets: &imageSecrets}
+
+	ds := buildDaemonSet(instance)
+
+	assert.Equal(t, imageSecrets, ds.Spec.Template.Spec.ImagePullSecrets)
+	csiContainer := ds.Spec.Template.Spec.Containers[0]
+	for index, secret := range imageSecrets {
+		assert.Contains(t, csiContainer.Env, corev1.EnvVar{
+			Name: fmt.Sprintf("DD_APM_REGISTRY_AUTH_%d", index),
+			ValueFrom: &corev1.EnvVarSource{
+				SecretKeyRef: &corev1.SecretKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{Name: secret.Name},
+					Key:                  dockerConfigJSONKey,
+					Optional:             ptr.To(true),
+				},
+			},
+		})
+	}
+}
+
+func TestBuildDaemonSet_SkipRegistryAuthWhenAPMDisabled(t *testing.T) {
+	apmEnabled := false
+	secrets := []corev1.LocalObjectReference{{Name: "apm-registry"}}
+	instance := defaultCSIDriverCR()
+	instance.Spec.APM = &v1alpha1.DatadogCSIDriverAPMConfig{
+		Enabled:     &apmEnabled,
+		PullSecrets: secrets,
+	}
+
+	ds := buildDaemonSet(instance)
+
+	assert.NotContains(t, envNames(ds.Spec.Template.Spec.Containers[0].Env), "DD_APM_REGISTRY_AUTH_0")
+}
+
+func TestBuildDaemonSet_SkipRegistryAuthOnAutopilot(t *testing.T) {
+	secrets := []corev1.LocalObjectReference{{Name: "apm-registry"}}
+	instance := defaultCSIDriverCR()
+	instance.Annotations = map[string]string{
+		kubernetes.ProviderAnnotationKey: kubernetes.GKEAutopilotProvider,
+	}
+	instance.Spec.APM = &v1alpha1.DatadogCSIDriverAPMConfig{PullSecrets: secrets}
+
+	ds := buildDaemonSet(instance)
+
+	assert.NotContains(t, envNames(ds.Spec.Template.Spec.Containers[0].Env), "DD_APM_REGISTRY_AUTH_0")
+}
+
+func envNames(envVars []corev1.EnvVar) []string {
+	names := make([]string, 0, len(envVars))
+	for _, env := range envVars {
+		names = append(names, env.Name)
+	}
+	return names
 }
 
 func TestReconcile_Deletion(t *testing.T) {
