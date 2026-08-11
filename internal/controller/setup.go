@@ -56,6 +56,7 @@ type SetupOptions struct {
 	DatadogCSIDriverEnabled           bool
 	UntaintControllerEnabled          bool
 	UntaintControllerWaitForCSIDriver bool
+	ComponentHealthEnabled            bool
 	ClusterProviderDetector           datadogagent.ProviderReader
 }
 
@@ -87,6 +88,7 @@ var controllerStarters = map[string]starterFunc{
 	genericResourceControllerName: startDatadogGenericResource,
 	csiDriverControllerName:       startDatadogCSIDriver,
 	untaintControllerName:         startUntaint,
+	componentHealthControllerName: startComponentHealth,
 }
 
 // SetupControllers starts all controllers (also used by e2e tests)
@@ -270,6 +272,17 @@ func startUntaint(logger logr.Logger, mgr manager.Manager, _ kubernetes.Platform
 		return fmt.Errorf("untaint controller setup: %w", err)
 	}
 	return reconciler.SetupWithManager(mgr)
+}
+
+func startComponentHealth(logger logr.Logger, mgr manager.Manager, _ kubernetes.PlatformInfo, options SetupOptions, _ datadog.MetricsForwardersManager) error {
+	if !options.ComponentHealthEnabled {
+		logger.Info("Feature disabled, not starting the controller", "controller", componentHealthControllerName)
+		return nil
+	}
+	return NewComponentHealthReconciler(
+		mgr.GetClient(),
+		ctrl.Log.WithName("controllers").WithName(componentHealthControllerName),
+	).SetupWithManager(mgr)
 }
 
 func startDatadogAgentProfiles(logger logr.Logger, mgr manager.Manager, pInfo kubernetes.PlatformInfo, options SetupOptions, metricForwardersMgr datadog.MetricsForwardersManager) error {

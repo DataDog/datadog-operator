@@ -154,6 +154,7 @@ type options struct {
 	datadogCSIDriverEnabled                bool
 	untaintControllerEnabled               bool
 	untaintControllerWaitForCSIDriver      bool
+	componentHealthEnabled                 bool
 
 	// Secret Backend options
 	secretBackendCommand  string
@@ -198,6 +199,8 @@ func (opts *options) Parse() {
 	flag.BoolVar(&opts.untaintControllerEnabled, "untaintControllerEnabled", false, "Enable the Untaint controller")
 	flag.BoolVar(&opts.untaintControllerWaitForCSIDriver, "untaintControllerWaitForCSIDriver", false,
 		"When true (requires --untaintControllerEnabled), the Untaint controller removes the startup taint only after both the node Agent and Datadog CSI node-server pods are Ready. Requires Pod watch coverage of CSI namespaces (DD_CSIDRIVER_WATCH_NAMESPACE).")
+	flag.BoolVar(&opts.componentHealthEnabled, "componentHealthEnabled", false,
+		"Enable the ComponentHealth controller, which monitors the managed cluster-level components (cluster-agent, cluster-checks-runner) for Kubernetes health issues (OOMKills, crash loops, scheduling failures, image-pull failures) (beta). Retains Pod status in the cache, increasing the operator's memory usage.")
 
 	// DatadogAgentInternal
 	flag.BoolVar(&opts.createControllerRevisions, "createControllerRevisions", false, "Enable creation of ControllerRevision snapshots on each DDA spec change")
@@ -241,6 +244,7 @@ func (opts *options) Parse() {
 		boolEnv(&opts.datadogCSIDriverEnabled, "DD_CSI_DRIVER_CONTROLLER_ENABLED"),
 		boolEnv(&opts.untaintControllerEnabled, "DD_UNTAINT_CONTROLLER_ENABLED"),
 		boolEnv(&opts.untaintControllerWaitForCSIDriver, "DD_UNTAINT_CONTROLLER_WAIT_FOR_CSI_DRIVER"),
+		boolEnv(&opts.componentHealthEnabled, "DD_COMPONENT_HEALTH_ENABLED"),
 		boolEnv(&opts.createControllerRevisions, "DD_CREATE_CONTROLLER_REVISIONS"),
 	})
 
@@ -389,6 +393,7 @@ func run(opts *options) error {
 			DatadogCSIDriverEnabled:           opts.datadogCSIDriverEnabled,
 			UntaintControllerEnabled:          opts.untaintControllerEnabled,
 			UntaintControllerWaitForCSIDriver: opts.untaintControllerWaitForCSIDriver,
+			ComponentHealthEnabled:            opts.componentHealthEnabled,
 		}),
 		// UsePriorityQueue makes all controllers use the priority queue, which
 		// directly registers workqueue metrics into controller-runtime's metrics
@@ -482,6 +487,7 @@ func run(opts *options) error {
 		DatadogCSIDriverEnabled:           opts.datadogCSIDriverEnabled,
 		UntaintControllerEnabled:          opts.untaintControllerEnabled,
 		UntaintControllerWaitForCSIDriver: opts.untaintControllerWaitForCSIDriver,
+		ComponentHealthEnabled:            opts.componentHealthEnabled,
 		ClusterProviderDetector:           providerDetector,
 	}
 
