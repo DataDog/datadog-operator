@@ -4,6 +4,22 @@ title: Configure the Datadog Operator
 
 This page lists commonly-used configuration parameters for the Datadog Operator. For all configuration parameters, see the [configuration spec][1] in the [`DataDog/datadog-operator`][2] repo.
 
+## Configuration inputs
+
+The Agent configuration the Operator generates is determined by two inputs: the `DatadogAgent` `spec` (the parameters documented on this page) and a small set of metadata annotations on the `DatadogAgent`.
+
+### Provider
+
+A *provider* identifies an environment or platform that needs a specific set of customizations to the Agent configuration. The Operator detects the cluster provider automatically, or you can declare it with the `agent.datadoghq.com/cluster-provider` annotation (mirroring the Helm chart's `providers.*` configuration):
+
+{{< highlight yaml "hl_lines=3" >}}
+metadata:
+  annotations:
+    agent.datadoghq.com/cluster-provider: eks
+{{< /highlight >}}
+
+For what a provider is, how it is resolved, the full list of values, and their Helm mappings, see the [providers documentation][11].
+
 ### Example manifests
 
 * [Manifest with logs, APM, process, and metrics collection enabled][3]
@@ -206,6 +222,9 @@ spec:
 
 `features.dogstatsd.unixDomainSocketConfig.path`
 : Defines the socket path used when enabled.
+
+`features.dynamicInstrumentation.enabled`
+: Enables the Dynamic Instrumentation system probe module. Default: false
 
 `features.ebpfCheck.enabled`
 : Enables the eBPF check. Default: false
@@ -414,6 +433,9 @@ spec:
 `global.clusterName`
 : ClusterName sets a unique cluster name for the deployment to easily scope monitoring data in the Datadog app.
 
+`global.commonLabels`
+: CommonLabels specified labels to be added to all operator-managed Kubernetes resources (DaemonSets, Deployments, ConfigMaps, Services, ServiceAccounts, etc.). This is useful when external policy tools such as Kyverno enforce the presence of specific labels on all cluster resources. Labels defined here are merged with the operator's own default labels; operator labels take precedence on any key conflict.
+
 `global.containerStrategy`
 : ContainerStrategy determines whether agents run in a single or multiple containers. Default: 'optimized'
 
@@ -544,7 +566,7 @@ spec:
 : Provide a mapping of Kubernetes Labels to Datadog Tags. <KUBERNETES_LABEL>: <DATADOG_TAG_KEY>
 
 `global.registry`
-: Is the image registry to use for all Agent images. Use 'public.ecr.aws/datadog' for AWS ECR. Use 'datadoghq.azurecr.io' for Azure Container Registry. Use 'gcr.io/datadoghq' for Google Container Registry. Use 'eu.gcr.io/datadoghq' for Google Container Registry in the EU region. Use 'asia.gcr.io/datadoghq' for Google Container Registry in the Asia region. Use 'docker.io/datadog' for DockerHub. Default: 'gcr.io/datadoghq'
+: Is the image registry to use for all Agent images. Use 'public.ecr.aws/datadog' for AWS ECR. Use 'datadoghq.azurecr.io' for Azure Container Registry. Use 'gcr.io/datadoghq' for Google Container Registry. Use 'eu.gcr.io/datadoghq' for Google Container Registry in the EU region. Use 'asia.gcr.io/datadoghq' for Google Container Registry in the Asia region. Use 'docker.io/datadog' for DockerHub. Default: 'registry.datadoghq.com'
 
 `global.secretBackend.args`
 : List of arguments to pass to the command (space-separated strings).
@@ -832,3 +854,4 @@ For a complete list of parameters, see the [Operator configuration spec][9].
 [8]: https://github.com/DataDog/datadog-operator/blob/main/docs/configuration.v2alpha1.md#all-configuration-options
 [9]: https://github.com/DataDog/datadog-operator/blob/main/docs/configuration.v2alpha1.md#override
 [10]: https://github.com/DataDog/datadog-operator/blob/main/docs/datadog_agent_profiles.md
+[11]: https://github.com/DataDog/datadog-operator/blob/main/docs/providers.md

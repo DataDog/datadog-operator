@@ -91,4 +91,6 @@ const (
 	FlightRecorderIDType = "flightrecorder"
 	// KubernetesActionsIDType Kubernetes Actions feature.
 	KubernetesActionsIDType = "kubernetes_actions"
+	// DynamicInstrumentationIDType Dynamic Instrumentation feature.
+	DynamicInstrumentationIDType = "dynamic_instrumentation"
 )

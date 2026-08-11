@@ -633,10 +633,15 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			},
 		},
 		{
-			name: "DatadogAgent with Private Action Runner enabled on node, create Daemonset with core, trace, and private-action-runner containers",
+			name: "DatadogAgent with Private Action Runner systemd support, create DaemonSet with host mounts",
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
 				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
-					WithAnnotations(map[string]string{"agent.datadoghq.com/private-action-runner-enabled": "true"}).
+					WithAnnotations(map[string]string{
+						"agent.datadoghq.com/private-action-runner-enabled":                        "true",
+						"agent.datadoghq.com/private-action-runner-systemd-enabled":                "true",
+						"agent.datadoghq.com/private-action-runner-systemd-journal-storage":        "both",
+						"agent.datadoghq.com/private-action-runner-systemd-journal-vacuum-enabled": "true",
+					}).
 					Build()
 				_ = c.Create(context.TODO(), dda)
 				return dda
@@ -654,6 +659,7 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 				}
 
 				verifyDaemonsetContainers(t, c, resourcesNamespace, dsName, expectedContainers)
+				verifySystemdHostMounts(t, c, resourcesNamespace, dsName)
 			},
 		},
 		{
@@ -1078,6 +1084,29 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 				}
 			},
 		},
+		{
+			name: "CCR with JMX image override adds DD_JMX_USE_CONTAINER_SUPPORT env var",
+			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
+				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+					WithClusterChecksEnabled(true).
+					WithClusterChecksUseCLCEnabled(true).
+					WithComponentOverride(v2alpha1.ClusterChecksRunnerComponentName, v2alpha1.DatadogAgentComponentOverride{
+						Image: &v2alpha1.AgentImageConfig{JMXEnabled: true},
+					}).
+					Build()
+				_ = c.Create(context.TODO(), dda)
+				return dda
+			},
+			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
+			wantErr: false,
+			wantFunc: func(t *testing.T, c client.Client) {
+				ccrContainers := getDeploymentContainers(c, resourcesNamespace, fmt.Sprintf("%s-cluster-checks-runner", resourcesName))
+				ccrContainer, ok := ccrContainers[apicommon.ClusterChecksRunnersContainerName]
+				assert.True(t, ok, "cluster-checks-runner container not found in deployment")
+
+				assertContainerHasEnvVar(t, ccrContainer, common.DDJMXUseContainerSupport, "true")
+			},
+		},
 	}
 
 	runTestCases(t, tests, runDDAReconcilerTest)
@@ -1110,9 +1139,9 @@ func Test_otelImageTags(t *testing.T) {
 				verifyDaemonsetContainers(t, c, resourcesNamespace, dsName, expectedContainers)
 				agentContainer := getDsContainers(c, resourcesNamespace, dsName)
 
-				assert.Equal(t, fmt.Sprintf("gcr.io/datadoghq/agent:%s", images.AgentLatestVersion), agentContainer[apicommon.CoreAgentContainerName].Image)
-				assert.Equal(t, fmt.Sprintf("gcr.io/datadoghq/agent:%s", images.AgentLatestVersion), agentContainer[apicommon.TraceAgentContainerName].Image)
-				assert.Equal(t, fmt.Sprintf("gcr.io/datadoghq/ddot-collector:%s", images.AgentLatestVersion), agentContainer[apicommon.OtelAgent].Image)
+				assert.Equal(t, fmt.Sprintf("%s/agent:%s", images.DefaultImageRegistry, images.AgentLatestVersion), agentContainer[apicommon.CoreAgentContainerName].Image)
+				assert.Equal(t, fmt.Sprintf("%s/agent:%s", images.DefaultImageRegistry, images.AgentLatestVersion), agentContainer[apicommon.TraceAgentContainerName].Image)
+				assert.Equal(t, fmt.Sprintf("%s/ddot-collector:%s", images.DefaultImageRegistry, images.DdotCollectorLatestVersion), agentContainer[apicommon.OtelAgent].Image)
 
 			},
 		},
@@ -1136,9 +1165,9 @@ func Test_otelImageTags(t *testing.T) {
 				verifyDaemonsetContainers(t, c, resourcesNamespace, dsName, expectedContainers)
 				agentContainer := getDsContainers(c, resourcesNamespace, dsName)
 
-				assert.Equal(t, "gcr.io/datadoghq/agent:7.71.0", agentContainer[apicommon.CoreAgentContainerName].Image)
-				assert.Equal(t, "gcr.io/datadoghq/agent:7.71.0", agentContainer[apicommon.TraceAgentContainerName].Image)
-				assert.Equal(t, "gcr.io/datadoghq/ddot-collector:7.71.0", agentContainer[apicommon.OtelAgent].Image)
+				assert.Equal(t, fmt.Sprintf("%s/agent:7.71.0", images.DefaultImageRegistry), agentContainer[apicommon.CoreAgentContainerName].Image)
+				assert.Equal(t, fmt.Sprintf("%s/agent:7.71.0", images.DefaultImageRegistry), agentContainer[apicommon.TraceAgentContainerName].Image)
+				assert.Equal(t, fmt.Sprintf("%s/ddot-collector:7.71.0", images.DefaultImageRegistry), agentContainer[apicommon.OtelAgent].Image)
 
 			},
 		},
@@ -1198,9 +1227,9 @@ func Test_otelImageTags(t *testing.T) {
 				verifyDaemonsetContainers(t, c, resourcesNamespace, dsName, expectedContainers)
 				agentContainer := getDsContainers(c, resourcesNamespace, dsName)
 
-				assert.Equal(t, "gcr.io/datadoghq/testagent:7.65.0-full", agentContainer[apicommon.CoreAgentContainerName].Image)
-				assert.Equal(t, "gcr.io/datadoghq/testagent:7.65.0-full", agentContainer[apicommon.TraceAgentContainerName].Image)
-				assert.Equal(t, "gcr.io/datadoghq/testagent:7.65.0-full", agentContainer[apicommon.OtelAgent].Image)
+				assert.Equal(t, fmt.Sprintf("%s/testagent:7.65.0-full", images.DefaultImageRegistry), agentContainer[apicommon.CoreAgentContainerName].Image)
+				assert.Equal(t, fmt.Sprintf("%s/testagent:7.65.0-full", images.DefaultImageRegistry), agentContainer[apicommon.TraceAgentContainerName].Image)
+				assert.Equal(t, fmt.Sprintf("%s/testagent:7.65.0-full", images.DefaultImageRegistry), agentContainer[apicommon.OtelAgent].Image)
 
 			},
 		},
@@ -1223,9 +1252,9 @@ func Test_otelImageTags(t *testing.T) {
 				verifyDaemonsetContainers(t, c, resourcesNamespace, dsName, expectedContainers)
 				agentContainer := getDsContainers(c, resourcesNamespace, dsName)
 
-				assert.Equal(t, "gcr.io/datadoghq/testagent:7.65.0-full", agentContainer[apicommon.CoreAgentContainerName].Image)
-				assert.Equal(t, "gcr.io/datadoghq/testagent:7.65.0-full", agentContainer[apicommon.TraceAgentContainerName].Image)
-				assert.Equal(t, "gcr.io/datadoghq/testagent:7.65.0-full", agentContainer[apicommon.OtelAgent].Image)
+				assert.Equal(t, fmt.Sprintf("%s/testagent:7.65.0-full", images.DefaultImageRegistry), agentContainer[apicommon.CoreAgentContainerName].Image)
+				assert.Equal(t, fmt.Sprintf("%s/testagent:7.65.0-full", images.DefaultImageRegistry), agentContainer[apicommon.TraceAgentContainerName].Image)
+				assert.Equal(t, fmt.Sprintf("%s/testagent:7.65.0-full", images.DefaultImageRegistry), agentContainer[apicommon.OtelAgent].Image)
 
 			},
 		},
@@ -2013,6 +2042,53 @@ func verifyDaemonsetContainers(t *testing.T, c client.Client, resourcesNamespace
 	assert.Equal(t, expectedContainers, dsContainers, "Container names don't match")
 }
 
+func verifySystemdHostMounts(t *testing.T, c client.Client, resourcesNamespace, dsName string) {
+	expected := []struct {
+		name         string
+		hostPath     string
+		hostPathType corev1.HostPathType
+		readOnly     bool
+	}{
+		{"host-machine-id", "/etc/machine-id", corev1.HostPathFile, true},
+		{"host-manager-bus-socket", "/run/dbus/system_bus_socket", corev1.HostPathSocket, true},
+		{"host-journald-runtime", "/run/systemd/journal", corev1.HostPathDirectory, true},
+		{"host-persistent-journal", "/var/log/journal", corev1.HostPathDirectory, false},
+		{"host-volatile-journal", "/run/log/journal", corev1.HostPathDirectory, false},
+	}
+
+	ds := &appsv1.DaemonSet{}
+	err := c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: dsName}, ds)
+	assert.NoError(t, err, "Failed to get DaemonSet %s/%s", resourcesNamespace, dsName)
+
+	volumesByName := map[string]corev1.Volume{}
+	for _, volume := range ds.Spec.Template.Spec.Volumes {
+		volumesByName[volume.Name] = volume
+	}
+
+	containers := getDsContainers(c, resourcesNamespace, dsName)
+	privateActionRunner, found := containers[apicommon.PrivateActionRunnerContainerName]
+	assert.True(t, found, "private-action-runner container not found")
+	mountsByName := map[string]corev1.VolumeMount{}
+	for _, mount := range privateActionRunner.VolumeMounts {
+		mountsByName[mount.Name] = mount
+		assert.NotEqual(t, common.HostRunMountPath, mount.MountPath, "the broad host /run path must not be mounted")
+	}
+
+	for _, want := range expected {
+		volume, found := volumesByName[want.name]
+		assert.True(t, found, "volume %s not found", want.name)
+		assert.NotNil(t, volume.HostPath, "volume %s is not a HostPath", want.name)
+		assert.NotNil(t, volume.HostPath.Type, "volume %s has no HostPath type", want.name)
+		assert.Equal(t, want.hostPath, volume.HostPath.Path)
+		assert.Equal(t, want.hostPathType, *volume.HostPath.Type)
+
+		mount, found := mountsByName[want.name]
+		assert.True(t, found, "volume mount %s not found", want.name)
+		assert.Equal(t, "/host"+want.hostPath, mount.MountPath)
+		assert.Equal(t, want.readOnly, mount.ReadOnly)
+	}
+}
+
 func assertNoDanglingVolumeMounts(t *testing.T, podSpec corev1.PodSpec) {
 	t.Helper()
 
@@ -2179,7 +2255,6 @@ func Test_DDAI_ReconcileV3(t *testing.T) {
 					v2alpha1.NodeAgentComponentName: {
 						Labels: map[string]string{
 							"custom-label": "custom-value",
-							constants.MD5AgentDeploymentProviderLabelKey: "",
 						},
 						Annotations: map[string]string{
 							"checksum/dca-token-custom-config": "0c85492446fadac292912bb6d5fc3efd",
@@ -2277,7 +2352,6 @@ func Test_DDAI_ReconcileV3(t *testing.T) {
 					v2alpha1.NodeAgentComponentName: {
 						Name: ptr.To("foo-profile-agent"),
 						Labels: map[string]string{
-							constants.MD5AgentDeploymentProviderLabelKey: "",
 							"foo":                     "bar",
 							constants.ProfileLabelKey: "foo-profile",
 						},
@@ -2484,11 +2558,7 @@ func getBaseDDAI(dda *v2alpha1.DatadogAgent) v1alpha1.DatadogAgentInternal {
 			Features: features,
 			Global:   globalConfig,
 			Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
-				v2alpha1.NodeAgentComponentName: {
-					Labels: map[string]string{
-						constants.MD5AgentDeploymentProviderLabelKey: "",
-					},
-				},
+				v2alpha1.NodeAgentComponentName: {},
 			},
 		},
 	}
@@ -2515,9 +2585,6 @@ func getDefaultDDAI(dda *v2alpha1.DatadogAgent) v1alpha1.DatadogAgentInternal {
 	expectedDDAI := getBaseDDAI(dda)
 	expectedDDAI.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 		v2alpha1.NodeAgentComponentName: {
-			Labels: map[string]string{
-				constants.MD5AgentDeploymentProviderLabelKey: "",
-			},
 			Affinity: &corev1.Affinity{
 				NodeAffinity: &corev1.NodeAffinity{
 					RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
@@ -2644,42 +2711,13 @@ func Test_RegistryDefaultingBySite(t *testing.T) {
 	type registryTestCase struct {
 		name         string
 		site         string
-		envVars      map[string]string
 		wantRegistry string
 	}
 
 	tests := []registryTestCase{
 		{
-			name:         "Europe site defaults to EU registry",
+			name:         "Europe site defaults to Datadog registry",
 			site:         "datadoghq.eu",
-			wantRegistry: images.DefaultEuropeImageRegistry,
-		},
-		{
-			name:         "Europe site with DD_REGISTRY_OVERRIDE_EU=true uses Datadog registry",
-			site:         "datadoghq.eu",
-			envVars:      map[string]string{"DD_REGISTRY_OVERRIDE_EU": "true"},
-			wantRegistry: images.DatadogContainerRegistry,
-		},
-		{
-			name:         "Asia site defaults to Asia registry",
-			site:         "ap1.datadoghq.com",
-			wantRegistry: images.DefaultAsiaImageRegistry,
-		},
-		{
-			name:         "Asia site with DD_REGISTRY_OVERRIDE_ASIA=true uses Datadog registry",
-			site:         "ap1.datadoghq.com",
-			envVars:      map[string]string{"DD_REGISTRY_OVERRIDE_ASIA": "true"},
-			wantRegistry: images.DatadogContainerRegistry,
-		},
-		{
-			name:         "Azure site defaults to Azure registry",
-			site:         "us3.datadoghq.com",
-			wantRegistry: images.DefaultAzureImageRegistry,
-		},
-		{
-			name:         "Azure site with DD_REGISTRY_OVERRIDE_AZURE=true uses Datadog registry",
-			site:         "us3.datadoghq.com",
-			envVars:      map[string]string{"DD_REGISTRY_OVERRIDE_AZURE": "true"},
 			wantRegistry: images.DatadogContainerRegistry,
 		},
 		{
@@ -2687,47 +2725,10 @@ func Test_RegistryDefaultingBySite(t *testing.T) {
 			site:         "ddog-gov.com",
 			wantRegistry: images.DefaultGovImageRegistry,
 		},
-		{
-			name:         "default site without DD_REGISTRY_OVERRIDE_DEFAULT uses GCR registry",
-			site:         "datadoghq.com",
-			wantRegistry: images.DefaultImageRegistry,
-		},
-		{
-			name:         "default site with DD_REGISTRY_OVERRIDE_DEFAULT=true uses Datadog registry",
-			site:         "datadoghq.com",
-			envVars:      map[string]string{"DD_REGISTRY_OVERRIDE_DEFAULT": "true"},
-			wantRegistry: images.DatadogContainerRegistry,
-		},
-		// Verify that override env vars are site-scoped: setting overrides for other sites
-		// must not affect the current site's registry selection.
-		{
-			name: "EU site ignores non-EU override env vars",
-			site: "datadoghq.eu",
-			envVars: map[string]string{
-				"DD_REGISTRY_OVERRIDE_ASIA":    "true",
-				"DD_REGISTRY_OVERRIDE_AZURE":   "true",
-				"DD_REGISTRY_OVERRIDE_DEFAULT": "true",
-			},
-			wantRegistry: images.DefaultEuropeImageRegistry,
-		},
-		{
-			name: "default site ignores non-default override env vars",
-			site: "datadoghq.com",
-			envVars: map[string]string{
-				"DD_REGISTRY_OVERRIDE_EU":    "true",
-				"DD_REGISTRY_OVERRIDE_ASIA":  "true",
-				"DD_REGISTRY_OVERRIDE_AZURE": "true",
-			},
-			wantRegistry: images.DefaultImageRegistry,
-		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			for k, v := range tt.envVars {
-				t.Setenv(k, v)
-			}
-
 			site := tt.site
 			wantRegistry := tt.wantRegistry
 
@@ -2758,6 +2759,94 @@ func Test_RegistryDefaultingBySite(t *testing.T) {
 					)
 
 					// Cluster Checks Runner
+					ccrContainers := getDeploymentContainers(c, resourcesNamespace, ccrName)
+					assert.Equal(t,
+						fmt.Sprintf("%s/%s:%s", wantRegistry, images.DefaultAgentImageName, images.AgentLatestVersion),
+						ccrContainers[apicommon.ClusterChecksRunnersContainerName].Image,
+					)
+				},
+			}
+
+			runDDAReconcilerTest(t, tc, ReconcilerOptions{})
+		})
+	}
+}
+
+func Test_AutopilotRegistryDefaulting(t *testing.T) {
+	const resourcesName = "foo"
+	const resourcesNamespace = "bar"
+	const dsName = "foo-agent"
+	const dcaName = "foo-cluster-agent"
+	const ccrName = "foo-cluster-checks-runner"
+
+	defaultRequeueDuration := 15 * time.Second
+	autopilotKey := experimental.ExperimentalAnnotationPrefix + "/" + experimental.ExperimentalAutopilotSubkey
+
+	tests := []struct {
+		name         string
+		registry     *string
+		wantRegistry string
+	}{
+		{
+			name:         "autopilot uses GCR when registry is defaulted",
+			wantRegistry: images.GCRContainerRegistry,
+		},
+		{
+			name:         "autopilot uses GCR when registry is non-GCR",
+			registry:     ptr.To(images.PublicECSContainerRegistry),
+			wantRegistry: images.GCRContainerRegistry,
+		},
+		{
+			name:         "autopilot preserves default GCR",
+			registry:     ptr.To(images.GCRContainerRegistry),
+			wantRegistry: images.GCRContainerRegistry,
+		},
+		{
+			name:         "autopilot preserves EU GCR",
+			registry:     ptr.To(images.DefaultEuropeImageRegistry),
+			wantRegistry: images.DefaultEuropeImageRegistry,
+		},
+		{
+			name:         "autopilot preserves Asia GCR",
+			registry:     ptr.To(images.DefaultAsiaImageRegistry),
+			wantRegistry: images.DefaultAsiaImageRegistry,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			registry := tt.registry
+			wantRegistry := tt.wantRegistry
+
+			tc := testCase{
+				loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
+					builder := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+						WithClusterChecks(true, true).
+						WithAnnotations(map[string]string{
+							autopilotKey: "true",
+						})
+					if registry != nil {
+						builder = builder.WithRegistry(*registry)
+					}
+					dda := builder.Build()
+					_ = c.Create(context.TODO(), dda)
+					return dda
+				},
+				want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
+				wantErr: false,
+				wantFunc: func(t *testing.T, c client.Client) {
+					agentContainers := getDsContainers(c, resourcesNamespace, dsName)
+					assert.Equal(t,
+						fmt.Sprintf("%s/%s:%s", wantRegistry, images.DefaultAgentImageName, images.AgentLatestVersion),
+						agentContainers[apicommon.CoreAgentContainerName].Image,
+					)
+
+					dcaContainers := getDeploymentContainers(c, resourcesNamespace, dcaName)
+					assert.Equal(t,
+						fmt.Sprintf("%s/%s:%s", wantRegistry, images.DefaultClusterAgentImageName, images.ClusterAgentLatestVersion),
+						dcaContainers[apicommon.ClusterAgentContainerName].Image,
+					)
+
 					ccrContainers := getDeploymentContainers(c, resourcesNamespace, ccrName)
 					assert.Equal(t,
 						fmt.Sprintf("%s/%s:%s", wantRegistry, images.DefaultAgentImageName, images.AgentLatestVersion),

@@ -26,11 +26,13 @@ var datadogAgentProfileComponentOverrideAllowlist = map[string]struct{}{
 	"runtimeClassName":  {},
 	"updateStrategy":    {},
 	"labels":            {},
+	"volumes":           {},
 }
 
 var datadogAgentProfileContainerOverrideAllowlist = map[string]struct{}{
-	"resources": {},
-	"env":       {},
+	"resources":    {},
+	"env":          {},
+	"volumeMounts": {},
 }
 
 // ValidateDatadogAgentProfileSpec is used to check if a DatadogAgentProfileSpec is valid

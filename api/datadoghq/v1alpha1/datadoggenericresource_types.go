@@ -13,20 +13,21 @@ type SupportedResourcesType string
 
 // When adding a new type, make sure to update the kubebuilder validation enum marker
 const (
-	Dashboard             SupportedResourcesType = "dashboard"
-	Downtime              SupportedResourcesType = "downtime"
-	Monitor               SupportedResourcesType = "monitor"
-	Notebook              SupportedResourcesType = "notebook"
-	SLO                   SupportedResourcesType = "slo"
-	SyntheticsAPITest     SupportedResourcesType = "synthetics_api_test"
-	SyntheticsBrowserTest SupportedResourcesType = "synthetics_browser_test"
+	Dashboard               SupportedResourcesType = "dashboard"
+	Downtime                SupportedResourcesType = "downtime"
+	Monitor                 SupportedResourcesType = "monitor"
+	MonitorNotificationRule SupportedResourcesType = "monitor_notification_rule"
+	Notebook                SupportedResourcesType = "notebook"
+	SLO                     SupportedResourcesType = "slo"
+	SyntheticsAPITest       SupportedResourcesType = "synthetics_api_test"
+	SyntheticsBrowserTest   SupportedResourcesType = "synthetics_browser_test"
 )
 
 // DatadogGenericResourceSpec defines the desired state of DatadogGenericResource
 // +k8s:openapi-gen=true
 type DatadogGenericResourceSpec struct {
 	// Type is the type of the API object
-	// +kubebuilder:validation:Enum=dashboard;downtime;monitor;notebook;slo;synthetics_api_test;synthetics_browser_test
+	// +kubebuilder:validation:Enum=dashboard;downtime;monitor;monitor_notification_rule;notebook;slo;synthetics_api_test;synthetics_browser_test
 	Type SupportedResourcesType `json:"type"`
 	// JsonSpec is the specification of the API object
 	// +kubebuilder:validation:MinLength=1

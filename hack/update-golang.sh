@@ -32,6 +32,13 @@ if [[ ! -x "$YQ" ]]; then
     exit 1
 fi
 
+# If a version argument is provided, update go.work first
+# This will trigger the command to actually update the Go version.
+if [[ -n "${1:-}" ]]; then
+    echo "Updating go.work to Go $1..."
+    go work edit -go "$1" -toolchain "go$1"
+fi
+
 # Get Go version from go.work and parse it
 GOVERSION=$(go work edit --json | $JQ -r .Go)
 IFS='.' read -r major minor revision <<< "$GOVERSION"

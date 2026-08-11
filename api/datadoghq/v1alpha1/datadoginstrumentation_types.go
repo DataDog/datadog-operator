@@ -53,8 +53,77 @@ type DatadogInstrumentationCheckConfig struct {
 	Instances []runtime.RawExtension `json:"instances,omitempty"`
 }
 
+// DatadogInstrumentationLogAutoMultiLineOptions defines per-source automatic multi-line detection options.
+type DatadogInstrumentationLogAutoMultiLineOptions struct {
+	// EnableJSONDetection controls detection of JSON logs so they are not aggregated as unstructured multi-line logs.
+	// +optional
+	EnableJSONDetection *bool `json:"enable_json_detection,omitempty"`
+
+	// EnableDatetimeDetection controls detection of multi-line logs based on leading timestamps.
+	// +optional
+	EnableDatetimeDetection *bool `json:"enable_datetime_detection,omitempty"`
+
+	// TokenizerMaxInputBytes sets the maximum number of bytes tokenized from each log line.
+	// +optional
+	TokenizerMaxInputBytes *int32 `json:"tokenizer_max_input_bytes,omitempty"`
+
+	// PatternTableMaxSize sets the maximum number of patterns used by automatic multi-line detection.
+	// +optional
+	// +kubebuilder:validation:Minimum=1
+	PatternTableMaxSize *int32 `json:"pattern_table_max_size,omitempty"`
+
+	// EnableJSONAggregation controls aggregation of multi-line JSON logs.
+	// +optional
+	EnableJSONAggregation *bool `json:"enable_json_aggregation,omitempty"`
+
+	// TagAggregatedJSON controls whether aggregated JSON logs are tagged.
+	// +optional
+	TagAggregatedJSON *bool `json:"tag_aggregated_json,omitempty"`
+
+	// StackTraceParsers overrides the enabled stack trace parsers. An empty list disables stack trace aggregation.
+	// +optional
+	// +listType=atomic
+	StackTraceParsers *[]string `json:"stack_trace_parsers,omitempty"`
+}
+
+// DatadogInstrumentationLogAutoMultiLineSample defines a sample or regular expression used by automatic multi-line detection.
+type DatadogInstrumentationLogAutoMultiLineSample struct {
+	// Sample is a representative raw log message used to identify the start of a multi-line log.
+	// +optional
+	Sample string `json:"sample,omitempty"`
+
+	// Regex is a regular expression used to identify the start of a multi-line log.
+	// +optional
+	Regex string `json:"regex,omitempty"`
+
+	// Label is applied when the sample or regular expression matches.
+	// +optional
+	Label *string `json:"label,omitempty"`
+}
+
+// DatadogInstrumentationLogFingerprintConfig defines per-source file fingerprinting options.
+type DatadogInstrumentationLogFingerprintConfig struct {
+	// FingerprintStrategy sets the fingerprinting strategy.
+	// +kubebuilder:validation:Enum=line_checksum;byte_checksum;disabled
+	FingerprintStrategy string `json:"fingerprint_strategy"`
+
+	// Count is the number of lines or bytes used to compute the fingerprint.
+	// +optional
+	// +kubebuilder:validation:Minimum=1
+	Count *int32 `json:"count,omitempty"`
+
+	// CountToSkip is the number of lines or bytes skipped before computing the fingerprint.
+	// +optional
+	// +kubebuilder:validation:Minimum=0
+	CountToSkip *int32 `json:"count_to_skip,omitempty"`
+
+	// MaxBytes limits the number of bytes used for line-based fingerprinting.
+	// +optional
+	// +kubebuilder:validation:Minimum=1
+	MaxBytes *int32 `json:"max_bytes,omitempty"`
+}
+
 // DatadogInstrumentationLogFields defines common Agent log collection configuration fields.
-// +kubebuilder:pruning:PreserveUnknownFields
 type DatadogInstrumentationLogFields struct {
 	// Type is the type of log input source. Common values include tcp, udp, file, windows_event, docker, and journald.
 	// +optional
@@ -63,6 +132,28 @@ type DatadogInstrumentationLogFields struct {
 	// Port is the port for listening to logs when type is tcp or udp.
 	// +optional
 	Port *int32 `json:"port,omitempty"`
+
+	// BindHost is the host or IP address on which a TCP or UDP log source listens.
+	// +optional
+	BindHost string `json:"bind_host,omitempty"`
+
+	// IdleTimeout is the duration before an idle TCP connection is closed.
+	// +optional
+	IdleTimeout string `json:"idle_timeout,omitempty"`
+
+	// MaxConnections is the maximum number of concurrent TCP connections.
+	// +optional
+	MaxConnections *int32 `json:"max_connections,omitempty"`
+
+	// AllowedIPs lists IP addresses or CIDR ranges allowed to send TCP or UDP logs.
+	// +optional
+	// +listType=set
+	AllowedIPs []string `json:"allowed_ips,omitempty"`
+
+	// DeniedIPs lists IP addresses or CIDR ranges denied from sending TCP or UDP logs.
+	// +optional
+	// +listType=set
+	DeniedIPs []string `json:"denied_ips,omitempty"`
 
 	// Path is the file path for gathering logs when type is file or journald.
 	// +optional
@@ -109,6 +200,10 @@ type DatadogInstrumentationLogFields struct {
 	// +optional
 	Encoding string `json:"encoding,omitempty"`
 
+	// Format sets the parsing format for this log source. The supported structured format is syslog.
+	// +optional
+	Format string `json:"format,omitempty"`
+
 	// Tags sets additional tags on collected logs.
 	// +optional
 	// +listType=set
@@ -118,10 +213,35 @@ type DatadogInstrumentationLogFields struct {
 	// +optional
 	// +listType=atomic
 	LogProcessingRules []runtime.RawExtension `json:"log_processing_rules,omitempty"`
+
+	// AttributeParsing controls whether the full syslog parser is enabled for this source.
+	// +optional
+	AttributeParsing *bool `json:"attribute_parsing,omitempty"`
+
+	// AutoMultiLineDetection enables automatic multi-line detection for this source.
+	// +optional
+	AutoMultiLineDetection *bool `json:"auto_multi_line_detection,omitempty"`
+
+	// AutoMultiLineDetectionCustomSamples defines samples and regular expressions used by automatic multi-line detection.
+	// +optional
+	// +listType=atomic
+	AutoMultiLineDetectionCustomSamples *[]DatadogInstrumentationLogAutoMultiLineSample `json:"auto_multi_line_detection_custom_samples,omitempty"`
+
+	// AutoMultiLine defines detailed automatic multi-line detection options for this source.
+	// +optional
+	AutoMultiLine *DatadogInstrumentationLogAutoMultiLineOptions `json:"auto_multi_line,omitempty"`
+
+	// FingerprintConfig defines per-source file fingerprinting options.
+	// +optional
+	FingerprintConfig *DatadogInstrumentationLogFingerprintConfig `json:"fingerprint_config,omitempty"`
+
+	// MaxMessageSizeBytes overrides the global maximum message size for this source.
+	// +optional
+	// +kubebuilder:validation:Minimum=1
+	MaxMessageSizeBytes *int32 `json:"max_message_size_bytes,omitempty"`
 }
 
 // DatadogInstrumentationLogConfig defines Agent log collection configuration fields.
-// +kubebuilder:pruning:PreserveUnknownFields
 type DatadogInstrumentationLogConfig struct {
 	// ContainerName identifies the container name this log configuration applies to.
 	ContainerName string `json:"containerName"`

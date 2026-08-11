@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.30
+
+* Release for Operator 1.29.0
+
+## 0.1.29
+
+* Release for Operator 1.28.0
+
 ## 0.1.28
 
 * Release for Operator 1.27.1

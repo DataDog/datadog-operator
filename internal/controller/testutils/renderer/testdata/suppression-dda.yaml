@@ -1,0 +1,34 @@
+apiVersion: datadoghq.com/v2alpha1
+kind: DatadogAgent
+metadata:
+  name: datadog-agent
+spec:
+  global:
+    credentials:
+      apiSecret:
+        secretName: datadog-secret
+        keyName: api-key
+      appSecret:
+        secretName: datadog-secret
+        keyName: app-key
+    clusterName: test-cluster
+    # Fixed so the generated cluster-agent token Secret is deterministic for golden files.
+    clusterAgentToken: golden-fixed-cluster-agent-token-0000000000
+    kubelet:
+      tlsVerify: false
+      # Required for GPU to add the pod-resources socket volume.
+      podResourcesSocketPath: /var/lib/kubelet/pod-resources
+    fips:
+      enabled: true
+  features:
+    gpu:
+      enabled: true
+    sbom:
+      enabled: true
+      host:
+        enabled: true
+        analyzers:
+          - os
+      containerImage:
+        enabled: true
+        uncompressedLayersSupport: true

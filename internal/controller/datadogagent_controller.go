@@ -112,7 +112,7 @@ type DatadogAgentReconciler struct {
 
 // Use ExtendedDaemonSet
 // +kubebuilder:rbac:groups=datadoghq.com,resources=extendeddaemonsets,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=datadoghq.com,resources=extendeddaemonsetreplicasets,verbs=get;list;watch
+// +kubebuilder:rbac:groups=datadoghq.com,resources=extendeddaemonsetreplicasets,verbs=get;list;watch;delete
 
 // Use CiliumNetworkPolicy
 // +kubebuilder:rbac:groups=cilium.io,resources=ciliumnetworkpolicies,verbs=get;list;watch;create;update;patch;delete
@@ -151,6 +151,12 @@ type DatadogAgentReconciler struct {
 // +kubebuilder:rbac:groups="",resources=pods,verbs=patch
 // +kubebuilder:rbac:groups="",resources=configmaps,verbs=create;update;patch
 // +kubebuilder:rbac:groups="",resources=events,verbs=create;patch
+
+// Configure Kubernetes Actions remediation (grants the Cluster Agent these permissions,
+// so the operator must hold them itself to create the ClusterRole)
+// +kubebuilder:rbac:groups="",resources=pods,verbs=get;list;delete
+// +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;patch;update
+// +kubebuilder:rbac:groups=apps,resources=deployments/status,verbs=get
 
 // OpenShift
 // +kubebuilder:rbac:groups=quota.openshift.io,resources=clusterresourcequotas,verbs=get;list

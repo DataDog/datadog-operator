@@ -17,6 +17,10 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
+// operatorAPIGroup is the API group prefix for operator-owned CRs (DDA, DDAI, DAP).
+// Their status fields carry meaningful reconciler state and are preserved in debug output.
+const operatorAPIGroup = "datadoghq.com/"
+
 // dynamicFields lists metadata sub-fields that are non-deterministic at render time
 // (set by the API server or fake client) and should be stripped for stable golden files.
 // Add or remove entries here to tune what appears in the output.
@@ -32,7 +36,9 @@ var dynamicFields = []string{
 // Key ordering is guaranteed because we round-trip through map[string]interface{} first;
 // encoding/json sorts map keys alphabetically, and sigs.k8s.io/yaml converts via JSON.
 // Supported formats: "yaml" (default), "json".
-func Serialize(objects []client.Object, scheme *runtime.Scheme, format string) ([]byte, error) {
+// When keepStatus is true, the status field is preserved for datadoghq.com resources
+// (DDA, DDAI, DAP) so reconciler-set conditions are visible in the output.
+func Serialize(objects []client.Object, scheme *runtime.Scheme, format string, keepStatus bool) ([]byte, error) {
 	sorted := SortResources(objects, scheme)
 
 	docs := make([][]byte, 0, len(sorted))
@@ -41,7 +47,7 @@ func Serialize(objects []client.Object, scheme *runtime.Scheme, format string) (
 		if err != nil {
 			return nil, fmt.Errorf("converting %s/%s: %w", obj.GetNamespace(), obj.GetName(), err)
 		}
-		stripDynamicFields(m)
+		stripDynamicFields(m, keepStatus)
 
 		var doc []byte
 		switch format {
@@ -84,11 +90,15 @@ func toSortedMap(obj client.Object, scheme *runtime.Scheme) (map[string]any, err
 	return u.Object, nil
 }
 
-// stripDynamicFields removes non-deterministic metadata fields and the status
-// stanza in-place. Status is always server-side runtime state and is not
-// meaningful in rendered manifests.
-func stripDynamicFields(m map[string]any) {
-	delete(m, "status")
+// stripDynamicFields removes non-deterministic metadata fields. When keepStatus
+// is false, or when the object is not a datadoghq.com resource, the status
+// stanza is also removed (workload statuses are always zero-value on the fake
+// client and add noise to the output).
+func stripDynamicFields(m map[string]any, keepStatus bool) {
+	apiVersion, _ := m["apiVersion"].(string)
+	if !keepStatus || !strings.HasPrefix(apiVersion, operatorAPIGroup) {
+		delete(m, "status")
+	}
 	meta, ok := m["metadata"].(map[string]any)
 	if !ok {
 		return

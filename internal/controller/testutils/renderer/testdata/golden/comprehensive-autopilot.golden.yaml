@@ -36,6 +36,25 @@ metadata:
     name: datadog-agent
     uid: ""
 ---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    app.kubernetes.io/instance: datadog-agent
+    app.kubernetes.io/managed-by: datadog-operator
+    app.kubernetes.io/name: datadog-agent-deployment
+    app.kubernetes.io/part-of: -datadog--agent
+    app.kubernetes.io/version: ""
+    operator.datadoghq.com/managed-by-store: "true"
+  name: datadog-agent-cluster-checks-runner
+  ownerReferences:
+  - apiVersion: datadoghq.com/v1alpha1
+    blockOwnerDeletion: true
+    controller: true
+    kind: DatadogAgentInternal
+    name: datadog-agent
+    uid: ""
+---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
@@ -85,7 +104,7 @@ metadata:
     app.kubernetes.io/part-of: -datadog--agent
     app.kubernetes.io/version: ""
     operator.datadoghq.com/managed-by-store: "true"
-  name: -datadog-agent-ksm-core-dca
+  name: -datadog-agent-ksm-core-ccr
 rules:
 - apiGroups:
   - ""
@@ -176,6 +195,13 @@ rules:
   - list
   - watch
 - apiGroups:
+  - discovery.k8s.io
+  resources:
+  - endpointslices
+  verbs:
+  - list
+  - watch
+- apiGroups:
   - networking.k8s.io
   resources:
   - ingresses
@@ -209,7 +235,7 @@ metadata:
     app.kubernetes.io/part-of: -datadog--agent
     app.kubernetes.io/version: ""
     operator.datadoghq.com/managed-by-store: "true"
-  name: -datadog-agent-orch-exp-dca
+  name: -datadog-agent-orch-exp-ccr
 rules:
 - apiGroups:
   - ""
@@ -541,24 +567,98 @@ rules:
   verbs:
   - get
   - list
-- apiGroups:
-  - storage.k8s.io
-  resourceNames:
-  - k8s.csi.datadoghq.com
-  resources:
-  - csidrivers
-  verbs:
-  - get
-- apiGroups:
-  - storage.k8s.io
-  resources:
-  - csidrivers
-  verbs:
-  - list
-  - watch
 - nonResourceURLs:
   - /healthz
   - /metrics
+  - /version
+  verbs:
+  - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/instance: datadog-agent
+    app.kubernetes.io/managed-by: datadog-operator
+    app.kubernetes.io/name: datadog-agent-deployment
+    app.kubernetes.io/part-of: -datadog--agent
+    app.kubernetes.io/version: ""
+    operator.datadoghq.com/managed-by-store: "true"
+  name: datadog-agent-cluster-checks-runner
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - create
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resourceNames:
+  - kube-system
+  resources:
+  - namespaces
+  verbs:
+  - get
+- apiGroups:
+  - ""
+  resources:
+  - componentstatuses
+  - endpoints
+  - events
+  - namespaces
+  - nodes
+  - pods
+  - services
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resourceNames:
+  - datadog-agent-leader-election
+  resources:
+  - configmaps
+  verbs:
+  - get
+  - update
+- apiGroups:
+  - autoscaling
+  resources:
+  - horizontalpodautoscalers
+  verbs:
+  - list
+  - watch
+- apiGroups:
+  - coordination.k8s.io
+  resources:
+  - leases
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - metrics.eks.amazonaws.com
+  resources:
+  - kcm/metrics
+  - ksh/metrics
+  verbs:
+  - get
+- apiGroups:
+  - quota.openshift.io
+  resources:
+  - clusterresourcequotas
+  verbs:
+  - get
+  - list
+- nonResourceURLs:
+  - /healthz
+  - /metrics
+  - /metrics/slis
   - /version
   verbs:
   - get
@@ -592,14 +692,14 @@ metadata:
     app.kubernetes.io/part-of: -datadog--agent
     app.kubernetes.io/version: ""
     operator.datadoghq.com/managed-by-store: "true"
-  name: -datadog-agent-ksm-core-dca
+  name: -datadog-agent-ksm-core-ccr
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: -datadog-agent-ksm-core-dca
+  name: -datadog-agent-ksm-core-ccr
 subjects:
 - kind: ServiceAccount
-  name: datadog-agent-cluster-agent
+  name: datadog-agent-cluster-checks-runner
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -611,14 +711,14 @@ metadata:
     app.kubernetes.io/part-of: -datadog--agent
     app.kubernetes.io/version: ""
     operator.datadoghq.com/managed-by-store: "true"
-  name: -datadog-agent-orch-exp-dca
+  name: -datadog-agent-orch-exp-ccr
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: -datadog-agent-orch-exp-dca
+  name: -datadog-agent-orch-exp-ccr
 subjects:
 - kind: ServiceAccount
-  name: datadog-agent-cluster-agent
+  name: datadog-agent-cluster-checks-runner
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -657,6 +757,25 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: datadog-agent-cluster-agent
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/instance: datadog-agent
+    app.kubernetes.io/managed-by: datadog-operator
+    app.kubernetes.io/name: datadog-agent-deployment
+    app.kubernetes.io/part-of: -datadog--agent
+    app.kubernetes.io/version: ""
+    operator.datadoghq.com/managed-by-store: "true"
+  name: datadog-agent-cluster-checks-runner
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: datadog-agent-cluster-checks-runner
+subjects:
+- kind: ServiceAccount
+  name: datadog-agent-cluster-checks-runner
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
@@ -818,10 +937,10 @@ apiVersion: v1
 data:
   kubernetes_state_core.yaml.default: |
     ---
-    cluster_check: false
+    cluster_check: true
     init_config:
     instances:
-      - skip_leader_election: false
+      - skip_leader_election: true
         collectors:
         - pods
         - replicationcontrollers
@@ -834,6 +953,7 @@ data:
         - configmaps
         - services
         - endpoints
+        - endpointslices
         - daemonsets
         - horizontalpodautoscalers
         - poddisruptionbudgets
@@ -851,8 +971,6 @@ data:
         - customresourcedefinitions
 kind: ConfigMap
 metadata:
-  annotations:
-    checksum/ksm-custom-config: 7078d4e77dfdf37ca618d148c6c7af2b
   labels:
     app.kubernetes.io/instance: datadog-agent
     app.kubernetes.io/managed-by: datadog-operator
@@ -873,13 +991,13 @@ apiVersion: v1
 data:
   orchestrator.yaml: |
     ---
-    cluster_check: false
+    cluster_check: true
     ad_identifiers:
       - _kube_orchestrator
     init_config:
 
     instances:
-      - skip_leader_election: false
+      - skip_leader_election: true
 kind: ConfigMap
 metadata:
   labels:
@@ -994,6 +1112,41 @@ metadata:
     app.kubernetes.io/version: ""
     operator.datadoghq.com/managed-by-dda-controller: "true"
     operator.datadoghq.com/managed-by-store: "true"
+  name: datadog-agent-agent
+  ownerReferences:
+  - apiVersion: datadoghq.com/v2alpha1
+    blockOwnerDeletion: true
+    controller: true
+    kind: DatadogAgent
+    name: datadog-agent
+    uid: ""
+spec:
+  internalTrafficPolicy: Local
+  ports:
+  - name: traceport
+    port: 8126
+    protocol: TCP
+    targetPort: 8126
+  - name: dogstatsdport
+    port: 8125
+    protocol: UDP
+    targetPort: 8125
+  selector:
+    agent.datadoghq.com/component: agent
+    app.kubernetes.io/part-of: -datadog--agent
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/instance: datadog-agent
+    app.kubernetes.io/managed-by: datadog-operator
+    app.kubernetes.io/name: datadog-agent-deployment
+    app.kubernetes.io/part-of: -datadog--agent
+    app.kubernetes.io/version: ""
+    operator.datadoghq.com/managed-by-dda-controller: "true"
+    operator.datadoghq.com/managed-by-store: "true"
   name: datadog-agent-cluster-agent
   ownerReferences:
   - apiVersion: datadoghq.com/v2alpha1
@@ -1018,7 +1171,7 @@ kind: DatadogAgentInternal
 metadata:
   annotations:
     agent.datadoghq.com/cluster-provider: gke-autopilot
-    agent.datadoghq.com/ddaispechash: 948422f2156abec1b0120dc8b6b8454c
+    agent.datadoghq.com/ddaispechash: a7db4d33f3ddfb4710ce07ee801b6444
     experimental.agent.datadoghq.com/autopilot: "true"
   finalizers:
   - finalizer.datadoghq.com/datadogagentinternal
@@ -1070,7 +1223,7 @@ spec:
         enabled: false
     clusterChecks:
       enabled: true
-      useClusterChecksRunners: false
+      useClusterChecksRunners: true
     controlPlaneMonitoring:
       enabled: true
     cspm:
@@ -1088,6 +1241,8 @@ spec:
       unixDomainSocketConfig:
         enabled: true
         path: /var/run/datadog/dsd.socket
+    dynamicInstrumentation:
+      enabled: false
     ebpfCheck:
       enabled: false
     eventCollection:
@@ -1168,28 +1323,33 @@ spec:
     clusterAgent:
       annotations:
         checksum/dca-token-custom-config: 3f6998966e6de63b16d45512e01ccc84
+      image:
+        tag: 7.80.0
+    clusterChecksRunner:
+      annotations:
+        checksum/dca-token-custom-config: 3f6998966e6de63b16d45512e01ccc84
     nodeAgent:
       annotations:
         checksum/dca-token-custom-config: 3f6998966e6de63b16d45512e01ccc84
-      labels:
-        agent.datadoghq.com/provider: ""
+      image:
+        tag: 7.80.0
 ---
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: 0547a339b41de5cf57ca4f285bff4f14
+    agent.datadoghq.com/agentspechash: 3d559495a5d61788e11fc24c7cc24829
   labels:
     admission.datadoghq.com/enabled: "false"
     agent.datadoghq.com/component: agent
     agent.datadoghq.com/name: datadog-agent
-    agent.datadoghq.com/provider: ""
     app.kubernetes.io/component: agent
     app.kubernetes.io/instance: datadog-agent-agent
     app.kubernetes.io/managed-by: datadog-operator
     app.kubernetes.io/name: datadog-agent-deployment
     app.kubernetes.io/part-of: -datadog--agent
     app.kubernetes.io/version: ""
+    env.datadoghq.com/kind: gke-autopilot
   name: datadog-agent-agent
   ownerReferences:
   - apiVersion: datadoghq.com/v1alpha1
@@ -1206,19 +1366,20 @@ spec:
   template:
     metadata:
       annotations:
+        agent.datadoghq.com/configmapshash: 2e0fb9e7949d41a5
         checksum/dca-token-custom-config: 3f6998966e6de63b16d45512e01ccc84
         container.apparmor.security.beta.kubernetes.io/system-probe: unconfined
       labels:
         admission.datadoghq.com/enabled: "false"
         agent.datadoghq.com/component: agent
         agent.datadoghq.com/name: datadog-agent
-        agent.datadoghq.com/provider: ""
         app.kubernetes.io/component: agent
         app.kubernetes.io/instance: datadog-agent-agent
         app.kubernetes.io/managed-by: datadog-operator
         app.kubernetes.io/name: datadog-agent-deployment
         app.kubernetes.io/part-of: -datadog--agent
         app.kubernetes.io/version: ""
+        env.datadoghq.com/kind: gke-autopilot
     spec:
       containers:
       - command:
@@ -1272,10 +1433,12 @@ spec:
           value: "true"
         - name: DD_CLOUD_PROVIDER_METADATA
           value: '["gcp"]'
+        - name: DD_PROVIDER_KIND
+          value: gke-autopilot
         - name: DD_LANGUAGE_DETECTION_REPORTING_ENABLED
           value: "false"
         - name: DD_EXTRA_CONFIG_PROVIDERS
-          value: clusterchecks endpointschecks
+          value: endpointschecks
         - name: DD_DOGSTATSD_PORT
           value: "8125"
         - name: DD_DOGSTATSD_NON_LOCAL_TRAFFIC
@@ -1314,7 +1477,7 @@ spec:
           value: "true"
         - name: DD_SYSTEM_PROBE_CONFIG_ENABLE_TCP_QUEUE_LENGTH
           value: "true"
-        image: gcr.io/datadoghq/agent:7.80.2
+        image: gcr.io/datadoghq/agent:7.80.0
         livenessProbe:
           failureThreshold: 6
           httpGet:
@@ -1447,6 +1610,8 @@ spec:
           value: "true"
         - name: DD_CLOUD_PROVIDER_METADATA
           value: '["gcp"]'
+        - name: DD_PROVIDER_KIND
+          value: gke-autopilot
         - name: DD_APM_ENABLED
           value: "true"
         - name: DD_APM_NON_LOCAL_TRAFFIC
@@ -1455,7 +1620,7 @@ spec:
           value: "8126"
         - name: DD_REMOTE_CONFIGURATION_ENABLED
           value: "true"
-        image: gcr.io/datadoghq/agent:7.80.2
+        image: gcr.io/datadoghq/agent:7.80.0
         livenessProbe:
           initialDelaySeconds: 15
           periodSeconds: 15
@@ -1525,6 +1690,8 @@ spec:
           value: "true"
         - name: DD_CLOUD_PROVIDER_METADATA
           value: '["gcp"]'
+        - name: DD_PROVIDER_KIND
+          value: gke-autopilot
         - name: DD_SYSTEM_PROBE_CONFIG_ENABLE_OOM_KILL
           value: "true"
         - name: DD_SYSPROBE_SOCKET
@@ -1537,7 +1704,7 @@ spec:
           value: "true"
         - name: DD_SYSTEM_PROBE_CONFIG_ENABLE_TCP_QUEUE_LENGTH
           value: "true"
-        image: gcr.io/datadoghq/agent:7.80.2
+        image: gcr.io/datadoghq/agent:7.80.0
         name: system-probe
         resources: {}
         securityContext:
@@ -1587,7 +1754,7 @@ spec:
         command:
         - bash
         - -c
-        image: gcr.io/datadoghq/agent:7.80.2
+        image: gcr.io/datadoghq/agent:7.80.0
         name: init-volume
         resources: {}
         volumeMounts:
@@ -1624,7 +1791,7 @@ spec:
           value: "true"
         - name: DD_SYSTEM_PROBE_CONFIG_ENABLE_TCP_QUEUE_LENGTH
           value: "true"
-        image: gcr.io/datadoghq/agent:7.80.2
+        image: gcr.io/datadoghq/agent:7.80.0
         name: init-config
         resources: {}
         volumeMounts:
@@ -1645,7 +1812,7 @@ spec:
         - cp
         - /etc/config/system-probe-seccomp.json
         - /host/var/lib/kubelet/seccomp/system-probe
-        image: gcr.io/datadoghq/agent:7.80.2
+        image: gcr.io/datadoghq/agent:7.80.0
         name: seccomp-setup
         resources: {}
         volumeMounts:
@@ -1715,7 +1882,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: f0b4d8b503f22c56ab3fce845ac81d29
+    agent.datadoghq.com/agentspechash: 8a31a7295887debaf6b7dcd2b916b306
   labels:
     agent.datadoghq.com/component: cluster-agent
     agent.datadoghq.com/name: datadog-agent
@@ -1743,9 +1910,9 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/cluster_checks-custom-config: f7dc31a1080204b2a0f72ea0cc314033
+        agent.datadoghq.com/configmapshash: 4bb0ce42b5c97687
+        checksum/cluster_checks-custom-config: dd67482b385a64075d38f42c9ae04554
         checksum/dca-token-custom-config: 3f6998966e6de63b16d45512e01ccc84
-        checksum/ksm-custom-config: 7078d4e77dfdf37ca618d148c6c7af2b
       labels:
         agent.datadoghq.com/component: cluster-agent
         agent.datadoghq.com/name: datadog-agent
@@ -1826,6 +1993,8 @@ spec:
             secretKeyRef:
               key: token
               name: datadog-agent-token
+        - name: DD_CLOUD_PROVIDER_METADATA
+          value: '["gcp"]'
         - name: DD_ADMISSION_CONTROLLER_ENABLED
           value: "true"
         - name: DD_ADMISSION_CONTROLLER_VALIDATION_ENABLED
@@ -1874,7 +2043,7 @@ spec:
           value: "true"
         - name: DD_REMOTE_CONFIGURATION_ENABLED
           value: "true"
-        image: gcr.io/datadoghq/cluster-agent:7.80.2
+        image: gcr.io/datadoghq/cluster-agent:7.80.0
         livenessProbe:
           failureThreshold: 6
           httpGet:
@@ -1958,3 +2127,223 @@ spec:
         name: orchestrator-explorer-config
       - emptyDir: {}
         name: datadogrun
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    agent.datadoghq.com/agentspechash: 9bb3d4e42d99fde0ef482717a4d139d7
+  labels:
+    agent.datadoghq.com/component: cluster-checks-runner
+    agent.datadoghq.com/name: datadog-agent
+    app.kubernetes.io/component: cluster-checks-runner
+    app.kubernetes.io/instance: datadog-agent-cluster-checks-runner
+    app.kubernetes.io/managed-by: datadog-operator
+    app.kubernetes.io/name: datadog-agent-deployment
+    app.kubernetes.io/part-of: -datadog--agent
+    app.kubernetes.io/version: ""
+  name: datadog-agent-cluster-checks-runner
+  ownerReferences:
+  - apiVersion: datadoghq.com/v1alpha1
+    blockOwnerDeletion: true
+    controller: true
+    kind: DatadogAgentInternal
+    name: datadog-agent
+    uid: ""
+spec:
+  selector:
+    matchLabels:
+      agent.datadoghq.com/component: cluster-checks-runner
+      app.kubernetes.io/instance: datadog-agent-cluster-checks-runner
+  strategy: {}
+  template:
+    metadata:
+      annotations:
+        agent.datadoghq.com/configmapshash: 6281aebca1be6a93
+        checksum/dca-token-custom-config: 3f6998966e6de63b16d45512e01ccc84
+      labels:
+        agent.datadoghq.com/component: cluster-checks-runner
+        agent.datadoghq.com/name: datadog-agent
+        app.kubernetes.io/component: cluster-checks-runner
+        app.kubernetes.io/instance: datadog-agent-cluster-checks-runner
+        app.kubernetes.io/managed-by: datadog-operator
+        app.kubernetes.io/name: datadog-agent-deployment
+        app.kubernetes.io/part-of: -datadog--agent
+        app.kubernetes.io/version: ""
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  agent.datadoghq.com/component: cluster-checks-runner
+              topologyKey: kubernetes.io/hostname
+            weight: 50
+      containers:
+      - args:
+        - agent run
+        command:
+        - bash
+        - -c
+        env:
+        - name: DD_CLUSTER_AGENT_KUBERNETES_SERVICE_NAME
+          value: datadog-agent-cluster-agent
+        - name: DD_CLUSTER_AGENT_ENABLED
+          value: "true"
+        - name: DD_HEALTH_PORT
+          value: "5555"
+        - name: KUBERNETES
+          value: "yes"
+        - name: DD_ENABLE_METADATA_COLLECTION
+          value: "false"
+        - name: DD_CLC_RUNNER_ENABLED
+          value: "true"
+        - name: DD_CLC_RUNNER_HOST
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        - name: DD_CLC_RUNNER_ID
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: DD_USE_DOGSTATSD
+          value: "false"
+        - name: DD_PROCESS_CONFIG_PROCESS_COLLECTION_ENABLED
+          value: "false"
+        - name: DD_PROCESS_CONFIG_CONTAINER_COLLECTION_ENABLED
+          value: "true"
+        - name: DD_LOGS_ENABLED
+          value: "false"
+        - name: DD_APM_ENABLED
+          value: "false"
+        - name: DD_HOSTNAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: DD_APM_ERROR_TRACKING_STANDALONE_ENABLED
+          value: "false"
+        - name: DD_CLUSTER_NAME
+          value: test-cluster
+        - name: DD_SITE
+          value: datadoghq.com
+        - name: DD_LOG_LEVEL
+          value: info
+        - name: DD_API_KEY
+          valueFrom:
+            secretKeyRef:
+              key: api-key
+              name: datadog-secret
+        - name: DD_APP_KEY
+          valueFrom:
+            secretKeyRef:
+              key: app-key
+              name: datadog-secret
+        - name: DD_CLUSTER_AGENT_AUTH_TOKEN
+          valueFrom:
+            secretKeyRef:
+              key: token
+              name: datadog-agent-token
+        - name: DD_CLOUD_PROVIDER_METADATA
+          value: '["gcp"]'
+        - name: DD_PROVIDER_KIND
+          value: gke-autopilot
+        - name: DD_CLUSTER_CHECKS_ENABLED
+          value: "true"
+        - name: DD_EXTRA_CONFIG_PROVIDERS
+          value: clusterchecks
+        - name: DD_ORCHESTRATOR_EXPLORER_ENABLED
+          value: "true"
+        - name: DD_ORCHESTRATOR_EXPLORER_CONTAINER_SCRUBBING_ENABLED
+          value: "true"
+        image: gcr.io/datadoghq/agent:7.81.1
+        livenessProbe:
+          failureThreshold: 6
+          httpGet:
+            path: /live
+            port: 5555
+          initialDelaySeconds: 15
+          periodSeconds: 15
+          successThreshold: 1
+          timeoutSeconds: 5
+        name: agent
+        readinessProbe:
+          failureThreshold: 6
+          httpGet:
+            path: /ready
+            port: 5555
+          initialDelaySeconds: 15
+          periodSeconds: 15
+          successThreshold: 1
+          timeoutSeconds: 5
+        resources: {}
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+        startupProbe:
+          failureThreshold: 6
+          httpGet:
+            path: /startup
+            port: 5555
+          initialDelaySeconds: 15
+          periodSeconds: 15
+          successThreshold: 1
+          timeoutSeconds: 5
+        volumeMounts:
+        - mountPath: /etc/datadog-agent/install_info
+          name: installinfo
+          readOnly: true
+          subPath: install_info
+        - mountPath: /etc/datadog-agent
+          name: config
+        - mountPath: /var/log/datadog
+          name: logdatadog
+        - mountPath: /tmp
+          name: tmpdir
+        - mountPath: /etc/datadog-agent/conf.d
+          name: remove-corechecks
+        - mountPath: /opt/datadog-agent/run
+          name: datadogrun
+      initContainers:
+      - args:
+        - for script in $(find /etc/cont-init.d/ -type f -name '*.sh' | sort) ; do
+          bash $script ; done
+        command:
+        - bash
+        - -c
+        image: gcr.io/datadoghq/agent:7.81.1
+        name: init-config
+        resources: {}
+        volumeMounts:
+        - mountPath: /etc/datadog-agent/install_info
+          name: installinfo
+          readOnly: true
+          subPath: install_info
+        - mountPath: /etc/datadog-agent
+          name: config
+        - mountPath: /var/log/datadog
+          name: logdatadog
+        - mountPath: /tmp
+          name: tmpdir
+        - mountPath: /etc/datadog-agent/conf.d
+          name: remove-corechecks
+        - mountPath: /checks.d
+          name: checksd
+          readOnly: true
+      serviceAccountName: datadog-agent-cluster-checks-runner
+      volumes:
+      - configMap:
+          name: datadog-agent-install-info
+        name: installinfo
+      - emptyDir: {}
+        name: config
+      - emptyDir: {}
+        name: remove-corechecks
+      - emptyDir: {}
+        name: logdatadog
+      - emptyDir: {}
+        name: checksd
+      - emptyDir: {}
+        name: datadogrun
+      - emptyDir: {}
+        name: tmpdir

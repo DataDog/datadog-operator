@@ -17,6 +17,7 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	componentdca "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusteragent"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/experimental"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/helm"
@@ -44,6 +45,7 @@ func ApplyGlobalSettingsClusterAgent(logger logr.Logger, manager feature.PodTemp
 	resourcesManager feature.ResourceManagers, requiredComponents feature.RequiredComponents) {
 	applyGlobalSettings(logger, manager, ddaMeta, ddaSpec, resourcesManager, requiredComponents)
 	applyClusterAgentResources(manager, ddaSpec)
+	ApplyGlobalClusterAgentSpec(manager, ddaMeta.GetAnnotations()[kubernetes.ProviderAnnotationKey])
 }
 
 // ApplyGlobalSettingsClusterChecksRunner applies the global settings for the ClusterChecksRunner component.
@@ -51,6 +53,7 @@ func ApplyGlobalSettingsClusterChecksRunner(logger logr.Logger, manager feature.
 	resourcesManager feature.ResourceManagers, requiredComponents feature.RequiredComponents) {
 	applyGlobalSettings(logger, manager, ddaMeta, ddaSpec, resourcesManager, requiredComponents)
 	applyClusterChecksRunnerResources(manager, ddaSpec)
+	ApplyGlobalClusterChecksRunnerSpec(manager, ddaMeta.GetAnnotations()[kubernetes.ProviderAnnotationKey])
 }
 
 // ApplyGlobalSettingsNodeAgent applies the global settings for the NodeAgent component.
@@ -295,8 +298,10 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 	// Update images with Global Registry and UseFIPSAgent configurations
 	updateContainerImages(config, manager)
 
-	// Apply FIPS proxy settings - UseFIPSAgent must be false
-	if !*config.UseFIPSAgent && config.FIPS != nil && apiutils.BoolValue(config.FIPS.Enabled) {
+	// Apply FIPS proxy settings - UseFIPSAgent must be false; FIPS sidecar is
+	// not permitted on GKE Autopilot (WorkloadAllowlist rejects extra containers).
+	if !*config.UseFIPSAgent && config.FIPS != nil && apiutils.BoolValue(config.FIPS.Enabled) &&
+		!experimental.IsAutopilotEnabled(ddaMeta) {
 		applyFIPSConfig(logger, manager, ddaMeta, ddaSpec, resourcesManager)
 	}
 

@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"sync"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -45,6 +46,7 @@ type SharedMetadata struct {
 	logger    logr.Logger
 
 	// Shared metadata fields
+	clusterUIDMu      sync.Mutex
 	clusterUID        string
 	operatorVersion   string
 	kubernetesVersion string
@@ -88,6 +90,9 @@ func (sm *SharedMetadata) createRequest(payload []byte) (*http.Request, error) {
 
 // GetOrCreateClusterUID retrieves the cluster UID from kube-system namespace
 func (sm *SharedMetadata) GetOrCreateClusterUID(ctx context.Context) (string, error) {
+	sm.clusterUIDMu.Lock()
+	defer sm.clusterUIDMu.Unlock()
+
 	if sm.clusterUID != "" {
 		return sm.clusterUID, nil
 	}

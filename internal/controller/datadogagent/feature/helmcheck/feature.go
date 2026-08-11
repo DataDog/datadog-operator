@@ -11,17 +11,14 @@ import (
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
 	"github.com/DataDog/datadog-operator/pkg/constants"
-	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
@@ -51,11 +48,9 @@ type helmCheckFeature struct {
 	serviceAccountName string
 	rbacSuffix         string
 
-	owner                 metav1.Object
-	config                *corev1.ConfigMap
-	configMapName         string
-	configAnnotationKey   string
-	configAnnotationValue string
+	owner         metav1.Object
+	config        *corev1.ConfigMap
+	configMapName string
 
 	logger logr.Logger
 }
@@ -71,9 +66,9 @@ func (f *helmCheckFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Datado
 	helmCheck := ddaSpec.Features.HelmCheck
 
 	if helmCheck != nil && apiutils.BoolValue(helmCheck.Enabled) {
-		reqComp.ClusterAgent.IsRequired = ptr.To(true)
+		reqComp.ClusterAgent.IsRequired = new(true)
 		reqComp.ClusterAgent.Containers = []apicommon.AgentContainerName{apicommon.ClusterAgentContainerName}
-		reqComp.Agent.IsRequired = ptr.To(true)
+		reqComp.Agent.IsRequired = new(true)
 		reqComp.Agent.Containers = []apicommon.AgentContainerName{apicommon.CoreAgentContainerName}
 
 		f.configMapName = fmt.Sprintf("%s-%s", f.owner.GetName(), defaultHelmCheckConf)
@@ -85,7 +80,7 @@ func (f *helmCheckFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Datado
 			f.runInClusterChecksRunner = true
 			f.rbacSuffix = common.ChecksRunnerSuffix
 			f.serviceAccountName = constants.GetClusterChecksRunnerServiceAccount(dda.GetName(), ddaSpec)
-			reqComp.ClusterChecksRunner.IsRequired = ptr.To(true)
+			reqComp.ClusterChecksRunner.IsRequired = new(true)
 			reqComp.ClusterChecksRunner.Containers = []apicommon.AgentContainerName{apicommon.CoreAgentContainerName}
 		}
 
@@ -95,17 +90,6 @@ func (f *helmCheckFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Datado
 			f.logger.Error(err, "couldn't generate configMap for helm check")
 		}
 		f.config = cm
-
-		// Create hash based on configMap.
-		hash, err := comparison.GenerateMD5ForSpec(cm.Data)
-		if err != nil {
-			f.logger.Error(err, "couldn't generate hash for helm check config")
-		} else {
-			f.logger.V(2).Info("built helm check from config", "hash", hash)
-		}
-
-		f.configAnnotationValue = hash
-		f.configAnnotationKey = object.GetChecksumAnnotationKey(feature.HelmCheckIDType)
 	}
 
 	return reqComp
@@ -115,11 +99,6 @@ func (f *helmCheckFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Datado
 // Feature's dependencies should be added in the store.
 func (f *helmCheckFeature) ManageDependencies(managers feature.ResourceManagers) error {
 	if f.config != nil {
-		// Add md5 hash annotation for configMap
-		if f.configAnnotationKey != "" && f.configAnnotationValue != "" {
-			annotations := object.MergeAnnotationsLabels(f.logger, f.config.GetAnnotations(), map[string]string{f.configAnnotationKey: f.configAnnotationValue}, "*")
-			f.config.SetAnnotations(annotations)
-		}
 		if err := managers.Store().AddOrUpdate(kubernetes.ConfigMapKind, f.config); err != nil {
 			return err
 		}
@@ -147,11 +126,6 @@ func (f *helmCheckFeature) ManageClusterAgent(managers feature.PodTemplateManage
 
 	managers.VolumeMount().AddVolumeMountToContainer(&volMount, apicommon.ClusterAgentContainerName)
 	managers.Volume().AddVolume(&vol)
-
-	// Add md5 hash annotation for configMap
-	if f.configAnnotationKey != "" && f.configAnnotationValue != "" {
-		managers.Annotation().AddAnnotation(f.configAnnotationKey, f.configAnnotationValue)
-	}
 
 	return nil
 }

@@ -130,6 +130,10 @@ func updateDowntime(auth context.Context, client *datadogV2.DowntimesApi, instan
 		return datadogV2.DowntimeResponse{}, translateClientError(err, "error unmarshalling downtime spec")
 	}
 
+	if specData.Data.Attributes == nil {
+		return datadogV2.DowntimeResponse{}, errors.New("cannot update downtime: spec.jsonSpec.data.attributes is missing")
+	}
+
 	// Construct the update request data with the required id and type fields
 	updateData := datadogV2.NewDowntimeUpdateRequestData(*specData.Data.Attributes, instance.Status.Id, datadogV2.DOWNTIMERESOURCETYPE_DOWNTIME)
 

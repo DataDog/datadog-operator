@@ -14,6 +14,7 @@ import (
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 func init() {
@@ -32,8 +33,11 @@ func Register(id IDType, buildFunc BuildFunc) error {
 	return nil
 }
 
-// BuildFeatures use to build a list features depending of the v2alpha1.DatadogAgent instance
-func BuildFeatures(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, ddaRCStatus *v2alpha1.RemoteConfigConfiguration, options *Options) ([]Feature, []Feature, RequiredComponents) {
+// BuildFeatures use to build a list features depending of the v2alpha1.DatadogAgent instance.
+// It also returns support level of each enabled feature for a given provider.
+// The caller enforces it (block on Rejected, warn on Degraded); this
+// function stays side-effect-free.
+func BuildFeatures(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, ddaRCStatus *v2alpha1.RemoteConfigConfiguration, options *Options) ([]Feature, []Feature, RequiredComponents, []ProviderSupportResult) {
 	builderMutex.RLock()
 	defer builderMutex.RUnlock()
 
@@ -68,6 +72,11 @@ func BuildFeatures(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, ddaRCS
 	options.Logger.V(1).Info("Enabled features", "features", enabledFeatureIDs)
 	options.Logger.V(1).Info("Configured features", "features", configuredFeatureIDs)
 
+	// Enabled features the instance's provider does not fully support (Rejected or Degraded),
+	// read from the provider annotation. Only enabled features are considered — a
+	// configured-but-disabled feature does not restrict the provider.
+	unsupportedFeatures := EvaluateProviderSupport(enabledFeatures, dda.GetAnnotations()[kubernetes.ProviderAnnotationKey])
+
 	if ddaSpec.Global != nil &&
 		ddaSpec.Global.ContainerStrategy != nil &&
 		*ddaSpec.Global.ContainerStrategy == v2alpha1.SingleContainerStrategy &&
@@ -77,9 +86,9 @@ func BuildFeatures(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, ddaRCS
 		!requiredComponents.Agent.IsPrivileged() {
 
 		requiredComponents.Agent.Containers = []common.AgentContainerName{common.UnprivilegedSingleAgentContainerName}
-		return configuredFeatures, enabledFeatures, requiredComponents
+		return configuredFeatures, enabledFeatures, requiredComponents, unsupportedFeatures
 	}
-	return configuredFeatures, enabledFeatures, requiredComponents
+	return configuredFeatures, enabledFeatures, requiredComponents, unsupportedFeatures
 }
 
 var (

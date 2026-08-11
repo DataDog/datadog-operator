@@ -33,6 +33,7 @@ import (
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/dataplane"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/dogstatsd"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/dummy"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/dyninst"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/ebpfcheck"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/enabledefault"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/eventcollection"
@@ -65,11 +66,13 @@ const (
 
 // ReconcilerOptions provides options read from command line
 type ReconcilerOptions struct {
-	ExtendedDaemonsetOptions componentagent.ExtendedDaemonsetOptions
-	SupportCilium            bool
-	OperatorMetricsEnabled   bool
-	UntaintControllerEnabled bool
-	APIReader                client.Reader
+	ExtendedDaemonsetOptions        componentagent.ExtendedDaemonsetOptions
+	SupportCilium                   bool
+	OperatorMetricsEnabled          bool
+	UntaintControllerEnabled        bool
+	DatadogCSIDriverEnabled         bool
+	RolloutOnConfigMapChangeEnabled bool
+	APIReader                       client.Reader
 }
 
 // Reconciler is the internal reconciler for Datadog Agent
@@ -127,11 +130,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, ddai *v1alpha1.DatadogAgentI
 	return resp, err
 }
 
-func reconcilerOptionsToFeatureOptions(ctx context.Context, reader client.Reader, platformInfo kubernetes.PlatformInfo) *feature.Options {
+func (r *Reconciler) reconcilerOptionsToFeatureOptions(ctx context.Context) *feature.Options {
 	return &feature.Options{
-		Logger:       ctrl.LoggerFrom(ctx),
-		Client:       reader,
-		PlatformInfo: platformInfo,
+		Logger:                  ctrl.LoggerFrom(ctx),
+		Client:                  r.apiReader,
+		PlatformInfo:            r.platformInfo,
+		DatadogCSIDriverEnabled: r.options.DatadogCSIDriverEnabled,
 	}
 }
 

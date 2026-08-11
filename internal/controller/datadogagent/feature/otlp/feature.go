@@ -114,7 +114,7 @@ func (f *otlpFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgen
 	if f.grpcEnabled || f.httpEnabled {
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
-				IsRequired: ptr.To(true),
+				IsRequired: new(true),
 				Containers: []apicommon.AgentContainerName{
 					apicommon.CoreAgentContainerName,
 				},

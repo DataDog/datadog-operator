@@ -21,10 +21,17 @@ const (
 	// ADPDogstatsdDelegationMinVersion is the minimum Agent version that natively disables Core Agent
 	// DogStatsD when data_plane.enabled and data_plane.dogstatsd.enabled are both true. Below this
 	// version the Operator must set DD_USE_DOGSTATSD=false explicitly to avoid a bind conflict.
-	ADPDogstatsdDelegationMinVersion  = "7.75.0-0"
-	EnableADPAnnotation               = "agent.datadoghq.com/adp-enabled"
-	EnableFineGrainedKubeletAuthz     = "agent.datadoghq.com/fine-grained-kubelet-authorization-enabled"
-	EnableHostProfilerAnnotation      = "agent.datadoghq.com/host-profiler-enabled"
+	ADPDogstatsdDelegationMinVersion = "7.75.0-0"
+	EnableADPAnnotation              = "agent.datadoghq.com/adp-enabled"
+	EnableFineGrainedKubeletAuthz    = "agent.datadoghq.com/fine-grained-kubelet-authorization-enabled"
+	EnableHostProfilerAnnotation     = "agent.datadoghq.com/host-profiler-enabled"
+	// EnableHostProfilerSeccompAnnotation controls whether the host-profiler applies its localhost
+	// seccomp profile (and the init container that installs it on the node). Defaults to enabled;
+	// set to "false" to disable both the seccomp profile and its setup init container.
+	EnableHostProfilerSeccompAnnotation        = "agent.datadoghq.com/host-profiler-seccomp-enabled"
+	EnableHostProfilerLoggingSeccompAnnotation = "agent.datadoghq.com/host-profiler-logging-seccomp-enabled"
+	// HostProfilerSELinuxTypeAnnotation overrides the SELinux type applied to the host-profiler container.
+	HostProfilerSELinuxTypeAnnotation = "agent.datadoghq.com/host-profiler-selinux-type"
 	EnableKSMApiServerCacheAnnotation = "agent.datadoghq.com/ksm-use-apiserver-cache"
 
 	EnableInstrumentationCRDAnnotation = "agent.datadoghq.com/instrumentation-crd-enabled"
@@ -32,8 +39,11 @@ const (
 	EnableFlightRecorderAnnotation = "agent.datadoghq.com/flightrecorder-enabled"
 	EnableNetworkCRDsAnnotation    = "agent.datadoghq.com/network-crds-enabled"
 
-	EnablePrivateActionRunnerAnnotation     = "agent.datadoghq.com/private-action-runner-enabled"
-	PrivateActionRunnerConfigDataAnnotation = "agent.datadoghq.com/private-action-runner-configdata"
+	EnablePrivateActionRunnerAnnotation                     = "agent.datadoghq.com/private-action-runner-enabled"
+	PrivateActionRunnerConfigDataAnnotation                 = "agent.datadoghq.com/private-action-runner-configdata"
+	EnablePrivateActionRunnerSystemdAnnotation              = "agent.datadoghq.com/private-action-runner-systemd-enabled"
+	PrivateActionRunnerSystemdJournalStorageAnnotation      = "agent.datadoghq.com/private-action-runner-systemd-journal-storage"
+	EnablePrivateActionRunnerSystemdJournalVacuumAnnotation = "agent.datadoghq.com/private-action-runner-systemd-journal-vacuum-enabled"
 
 	EnableCNMDirectSendAnnotation = "agent.datadoghq.com/cnm-direct-send-enabled"
 
@@ -63,6 +73,15 @@ func ShouldRunProcessChecksInCoreAgent(ddaSpec *v2alpha1.DatadogAgentSpec) bool 
 func HasFeatureEnableAnnotation(dda metav1.Object, annotation string) bool {
 	if value, ok := dda.GetAnnotations()[annotation]; ok {
 		return value == "true"
+	}
+	return false
+}
+
+// HasFeatureDisableAnnotation returns true if the annotation is explicitly set to "false".
+// It is used by features that are enabled by default and can be opted out of.
+func HasFeatureDisableAnnotation(dda metav1.Object, annotation string) bool {
+	if value, ok := dda.GetAnnotations()[annotation]; ok {
+		return value == "false"
 	}
 	return false
 }

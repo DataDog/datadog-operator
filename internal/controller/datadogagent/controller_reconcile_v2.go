@@ -16,6 +16,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
@@ -23,11 +24,13 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/defaults"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/experimental"
 	"github.com/DataDog/datadog-operator/internal/controller/finalizer"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/condition"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	pkgutils "github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
+	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
@@ -48,14 +51,38 @@ func (r *Reconciler) internalReconcileV2(ctx context.Context, instance *datadogh
 	}
 
 	// 3. Set default values for GlobalConfig and Features
+	rawSpec := instance.Spec
 	instanceCopy := instance.DeepCopy()
 	defaults.DefaultDatadogAgentSpec(&instanceCopy.Spec)
+	if experimental.IsAutopilotEnabled(instanceCopy) {
+		ensureGCRAutopilotRegistry(&instanceCopy.Spec)
+	}
 
 	// 4. Delegate to the main reconcile function.
-	return r.reconcileInstanceV3(ctx, reqLogger, instanceCopy)
+	return r.reconcileInstanceV3(ctx, reqLogger, instanceCopy, rawSpec)
 }
 
-func (r *Reconciler) reconcileInstanceV3(ctx context.Context, logger logr.Logger, instance *datadoghqv2alpha1.DatadogAgent) (reconcile.Result, error) {
+// Force GCR registry if not set to avoid defaulting to Datadog registry
+// Required by GKE Autopilot workloadallowlist
+func ensureGCRAutopilotRegistry(spec *datadoghqv2alpha1.DatadogAgentSpec) {
+	// Should never happen as credentials are configured under `spec.global`
+	if spec.Global == nil {
+		spec.Global = &datadoghqv2alpha1.GlobalConfig{}
+	}
+	// No registry set
+	if spec.Global.Registry == nil {
+		spec.Global.Registry = ptr.To(images.GCRContainerRegistry)
+		return
+	}
+	// Registry set to a GCR variation, allowed in workloadallowlist
+	if images.IsGCRRegistry(*spec.Global.Registry) {
+		return
+	}
+	// Registry set outside GCR, not allowed in workloadallowlist, force back GCR
+	spec.Global.Registry = ptr.To(images.GCRContainerRegistry)
+}
+
+func (r *Reconciler) reconcileInstanceV3(ctx context.Context, logger logr.Logger, instance *datadoghqv2alpha1.DatadogAgent, rawSpec datadoghqv2alpha1.DatadogAgentSpec) (reconcile.Result, error) {
 	// Set up field manager for crd apply
 	if r.fieldManager == nil {
 		f, err := newFieldManager(r.client, r.scheme, getDDAIGVK())
@@ -86,10 +113,15 @@ func (r *Reconciler) reconcileInstanceV3(ctx context.Context, logger logr.Logger
 		if err != nil {
 			return r.updateStatusIfNeededV2(logger, instance, ddaStatusCopy, result, err, now)
 		}
-		if err := r.manageExperiment(ctx, instance, newDDAStatus, now, revList); err != nil {
-			return r.updateStatusIfNeededV2(logger, instance, newDDAStatus, result, err, now)
+		// Use user-submitted instance instead of defaulted instance
+		rawInstance := instance.DeepCopy()
+		rawInstance.Spec = rawSpec
+		experimentErr := r.manageExperiment(ctx, rawInstance, newDDAStatus, now, revList)
+		instance.ResourceVersion = rawInstance.ResourceVersion
+		if experimentErr != nil {
+			return r.updateStatusIfNeededV2(logger, instance, newDDAStatus, result, experimentErr, now)
 		}
-		if err := r.manageRevision(ctx, instance, revList, newDDAStatus); err != nil {
+		if err := r.manageRevision(ctx, instance, rawSpec, revList, newDDAStatus); err != nil {
 			return r.updateStatusIfNeededV2(logger, instance, newDDAStatus, result, err, now)
 		}
 	}
@@ -139,7 +171,7 @@ func (r *Reconciler) reconcileInstanceV3(ctx context.Context, logger logr.Logger
 		}
 
 		// Add DDAI status to DDA status
-		if e := r.addDDAIStatusToDDAStatus(newDDAStatus, ddai.ObjectMeta); e != nil {
+		if e := r.addDDAIStatusToDDAStatus(newDDAStatus, ddai.ObjectMeta, now); e != nil {
 			return r.updateStatusIfNeededV2(logger, instance, ddaStatusCopy, result, e, now)
 		}
 

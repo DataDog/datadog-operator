@@ -1381,6 +1381,17 @@
                           }
                         },
                         "type": "object"
+                      },
+                      "runtime": {
+                        "additionalProperties": false,
+                        "description": "Runtime holds extensible runtime configuration for the container.",
+                        "properties": {
+                          "gomemlimit": {
+                            "description": "Gomemlimit is the GOMEMLIMIT environment variable value for the container.",
+                            "type": "string"
+                          }
+                        },
+                        "type": "object"
                       }
                     },
                     "required": [

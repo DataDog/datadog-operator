@@ -1,5 +1,39 @@
 # Configuration
 
+## Configuration inputs
+
+The Agent configuration the Operator generates is determined by two inputs: the
+`DatadogAgent` `spec` (the parameters documented on this page) and a small set of
+metadata annotations on the `DatadogAgent`.
+
+### Provider
+
+A *provider* identifies an environment or platform that needs a specific set of
+customizations to the Agent configuration. The Operator detects the cluster
+provider automatically, or you can declare it with the
+`agent.datadoghq.com/cluster-provider` annotation (mirroring the Helm chart's
+`providers.*` configuration):
+
+```yaml
+metadata:
+  annotations:
+    agent.datadoghq.com/cluster-provider: eks
+```
+
+For what a provider is, how it is resolved, the full list of values, and their
+Helm mappings, see the
+[providers documentation](https://github.com/DataDog/datadog-operator/blob/main/docs/providers.md).
+
+### Experimental annotations
+
+Some features are gated by *experimental* annotations under the
+`experimental.agent.datadoghq.com/` prefix rather than by the `spec` or a
+provider—for example, `experimental.agent.datadoghq.com/autopilot: "true"`
+enables GKE Autopilot handling. Experimental annotations are unstable and may
+change or be removed; prefer the stable equivalent where one exists (for GKE
+Autopilot, the `agent.datadoghq.com/cluster-provider: gke-autopilot` provider).
+They are documented with the features they control.
+
 ## Manifest Templates
 
 * [Manifest with Logs, APM, process, and metrics collection enabled.][1]
@@ -114,6 +148,7 @@ spec:
 | features.dogstatsd.tagCardinality | TagCardinality configures tag cardinality for the metrics collected using origin detection (`low`, `orchestrator` or `high`). This setting only applies when OriginDetectionEnabled is true. See also: https://docs.datadoghq.com/getting_started/tagging/assigning_tags/?tab=containerizedenvironments#environment-variables Cardinality default: low |
 | features.dogstatsd.unixDomainSocketConfig.enabled | Enables Unix Domain Socket. Default: true |
 | features.dogstatsd.unixDomainSocketConfig.path | Defines the socket path used when enabled. |
+| features.dynamicInstrumentation.enabled | Enables the Dynamic Instrumentation system probe module. Default: false |
 | features.ebpfCheck.enabled | Enables the eBPF check. Default: false |
 | features.eventCollection.collectKubernetesEvents | CollectKubernetesEvents enables Kubernetes event collection. Default: true |
 | features.eventCollection.collectedEventTypes | CollectedEventTypes defines the list of events to collect when UnbundleEvents is enabled. Default: [ {"kind":"Pod","reasons":["Failed","BackOff","Unhealthy","FailedScheduling","FailedMount","FailedAttachVolume"]}, {"kind":"Node","reasons":["TerminatingEvictedPod","NodeNotReady","Rebooted","HostPortConflict"]}, {"kind":"CronJob","reasons":["SawCompletedJob"]} ] |
@@ -212,6 +247,7 @@ spec:
 | global.clusterAgentTokenSecret.keyName | KeyName is the key of the secret to use. |
 | global.clusterAgentTokenSecret.secretName | SecretName is the name of the secret. |
 | global.clusterName | ClusterName sets a unique cluster name for the deployment to easily scope monitoring data in the Datadog app. |
+| global.commonLabels | CommonLabels specified labels to be added to all operator-managed Kubernetes resources (DaemonSets, Deployments, ConfigMaps, Services, ServiceAccounts, etc.). This is useful when external policy tools such as Kyverno enforce the presence of specific labels on all cluster resources. Labels defined here are merged with the operator's own default labels; operator labels take precedence on any key conflict. |
 | global.containerStrategy | ContainerStrategy determines whether agents run in a single or multiple containers. Default: 'optimized' |
 | global.credentials.apiKey | APIKey configures your Datadog API key. See also: https://app.datadoghq.com/account/settings#agent/kubernetes |
 | global.credentials.apiSecret.keyName | KeyName is the key of the secret to use. |
@@ -285,7 +321,7 @@ spec:
 | global.originDetectionUnified.enabled | Enables unified mechanism for origin detection. Default: false |
 | global.podAnnotationsAsTags | Provide a mapping of Kubernetes Annotations to Datadog Tags. <KUBERNETES_ANNOTATIONS>: <DATADOG_TAG_KEY> |
 | global.podLabelsAsTags | Provide a mapping of Kubernetes Labels to Datadog Tags. <KUBERNETES_LABEL>: <DATADOG_TAG_KEY> |
-| global.registry | Is the image registry to use for all Agent images. Use 'public.ecr.aws/datadog' for AWS ECR. Use 'datadoghq.azurecr.io' for Azure Container Registry. Use 'gcr.io/datadoghq' for Google Container Registry. Use 'eu.gcr.io/datadoghq' for Google Container Registry in the EU region. Use 'asia.gcr.io/datadoghq' for Google Container Registry in the Asia region. Use 'docker.io/datadog' for DockerHub. Default: 'gcr.io/datadoghq' |
+| global.registry | Is the image registry to use for all Agent images. Use 'public.ecr.aws/datadog' for AWS ECR. Use 'datadoghq.azurecr.io' for Azure Container Registry. Use 'gcr.io/datadoghq' for Google Container Registry. Use 'eu.gcr.io/datadoghq' for Google Container Registry in the EU region. Use 'asia.gcr.io/datadoghq' for Google Container Registry in the Asia region. Use 'docker.io/datadog' for DockerHub. Default: 'registry.datadoghq.com' |
 | global.secretBackend.args | List of arguments to pass to the command (space-separated strings). |
 | global.secretBackend.command | The secret backend command to use. Datadog provides a pre-defined binary `/readsecret_multiple_providers.sh`. Read more about `/readsecret_multiple_providers.sh` at https://docs.datadoghq.com/agent/configuration/secrets-management/?tab=linux#script-for-reading-from-multiple-secret-providers. |
 | global.secretBackend.config | Additional configuration for the secret backend type. |
