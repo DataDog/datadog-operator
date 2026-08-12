@@ -1189,7 +1189,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: ce9a214dfda4e08df1d66d624dcd5b73
+    agent.datadoghq.com/agentspechash: eb24d8f6476671882e1ee4e795753e76
   labels:
     agent.datadoghq.com/component: agent
     agent.datadoghq.com/name: datadog-agent
@@ -1431,6 +1431,8 @@ spec:
         - name: DD_KUBELET_TLS_VERIFY
           value: "false"
         - name: DD_APM_ENABLED
+          value: "true"
+        - name: DD_APM_NON_LOCAL_TRAFFIC
           value: "true"
         - name: DD_APM_RECEIVER_SOCKET
           value: /var/run/datadog/apm.socket

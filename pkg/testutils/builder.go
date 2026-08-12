@@ -1018,6 +1018,16 @@ func (builder *DatadogAgentBuilder) WithKubernetesActionsEnabled(enabled bool) *
 	return builder
 }
 
+// Global LocalService
+
+func (builder *DatadogAgentBuilder) WithForceEnableLocalService(force bool) *DatadogAgentBuilder {
+	if builder.datadogAgent.Spec.Global.LocalService == nil {
+		builder.datadogAgent.Spec.Global.LocalService = &v2alpha1.LocalService{}
+	}
+	builder.datadogAgent.Spec.Global.LocalService.ForceEnableLocalService = new(force)
+	return builder
+}
+
 // Global Kubelet
 
 func (builder *DatadogAgentBuilder) WithGlobalKubeletConfig(hostCAPath, agentCAPath string, tlsVerify bool, podResourcesSocketDir string) *DatadogAgentBuilder {
