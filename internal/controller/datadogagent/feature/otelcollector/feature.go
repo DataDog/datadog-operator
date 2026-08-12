@@ -19,11 +19,9 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/otelcollector/defaultconfig"
 	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/configmap"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
 	"github.com/DataDog/datadog-operator/pkg/constants"
-	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/utils"
@@ -67,9 +65,6 @@ type otelCollectorFeature struct {
 	configMapName   string
 	ports           []*corev1.ContainerPort
 	coreAgentConfig coreAgentConfig
-
-	customConfigAnnotationKey   string
-	customConfigAnnotationValue string
 
 	incompatibleImage bool
 
@@ -167,18 +162,6 @@ func (o *otelCollectorFeature) buildOTelAgentCoreConfigMap() (*corev1.ConfigMap,
 			return nil, err
 		}
 
-		// Add md5 hash annotation for configMap
-		o.customConfigAnnotationKey = object.GetChecksumAnnotationKey(feature.OtelAgentIDType)
-		o.customConfigAnnotationValue, err = comparison.GenerateMD5ForSpec(o.customConfig.ConfigData)
-		if err != nil {
-			return cm, err
-		}
-
-		if o.customConfigAnnotationKey != "" && o.customConfigAnnotationValue != "" {
-			annotations := object.MergeAnnotationsLabels(o.logger, cm.Annotations, map[string]string{o.customConfigAnnotationKey: o.customConfigAnnotationValue}, "*")
-			cm.SetAnnotations(annotations)
-		}
-
 		return cm, nil
 	}
 	return nil, nil
@@ -237,7 +220,7 @@ func (o *otelCollectorFeature) ManageDependencies(managers feature.ResourceManag
 
 func applyOTelCollectorDDASharedDependencies(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ metav1.Object, ddaiSpec *v2alpha1.DatadogAgentSpec, managers feature.ResourceManagers) error {
 	ports := otelCollectorLocalAgentServicePorts(ddaiSpec)
-	if len(ports) == 0 || !featureutils.ShouldCreateLocalAgentService(ddaSpec, managers) {
+	if len(ports) == 0 || !featureutils.ShouldCreateLocalAgentService(ddaSpec, managers.Store().GetPlatformInfo()) {
 		return nil
 	}
 
@@ -372,11 +355,6 @@ func (o *otelCollectorFeature) ManageNodeAgent(managers feature.PodTemplateManag
 			}
 
 		}
-	}
-
-	// Add md5 hash annotation for configMap
-	if o.customConfigAnnotationKey != "" && o.customConfigAnnotationValue != "" {
-		managers.Annotation().AddAnnotation(o.customConfigAnnotationKey, o.customConfigAnnotationValue)
 	}
 
 	// add ports

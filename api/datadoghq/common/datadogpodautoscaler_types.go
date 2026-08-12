@@ -623,6 +623,18 @@ type DatadogPodAutoscalerContainerResources struct {
 	// Requests describes the requested amount of compute resources.
 	// +optional
 	Requests corev1.ResourceList `json:"requests,omitempty"`
+
+	// Runtime holds extensible runtime configuration for the container.
+	// +optional
+	Runtime *DatadogPodAutoscalerContainerRuntimeValues `json:"runtime,omitempty"`
+}
+
+// DatadogPodAutoscalerContainerRuntimeValues holds runtime configuration values for a container.
+// +kubebuilder:object:generate=true
+type DatadogPodAutoscalerContainerRuntimeValues struct {
+	// Gomemlimit is the GOMEMLIMIT environment variable value for the container.
+	// +optional
+	Gomemlimit string `json:"gomemlimit,omitempty"`
 }
 
 // DatadogPodAutoscalerConditionType is the type used to represent a DatadogPodAutoscaler condition

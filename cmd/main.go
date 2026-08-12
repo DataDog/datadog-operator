@@ -6,6 +6,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"net/http"
@@ -66,6 +67,7 @@ const (
 	defaultMaximumGoroutines                             = 400
 	defaultDatadogGenericResourceMaxConcurrentReconciles = 1
 	defaultDatadogGenericResourceRequeuePeriod           = 60 * time.Second
+	podNamespaceEnvVar                                   = "POD_NAMESPACE"
 )
 
 var (
@@ -147,6 +149,7 @@ type options struct {
 	datadogAgentProfileEnabled             bool
 	remoteConfigEnabled                    bool
 	remoteUpdatesEnabled                   bool
+	managedAgentInstallationEnabled        bool
 	datadogDashboardEnabled                bool
 	datadogGenericResourceEnabled          bool
 	datadogGenericResourceMaxWorkers       int
@@ -155,6 +158,7 @@ type options struct {
 	untaintControllerEnabled               bool
 	untaintControllerWaitForCSIDriver      bool
 	componentHealthEnabled                 bool
+	rolloutOnConfigMapChangeEnabled        bool
 
 	// Secret Backend options
 	secretBackendCommand  string
@@ -191,6 +195,7 @@ func (opts *options) Parse() {
 	flag.BoolVar(&opts.datadogAgentProfileEnabled, "datadogAgentProfileEnabled", false, "Enable DatadogAgentProfile controller")
 	flag.BoolVar(&opts.remoteConfigEnabled, "remoteConfigEnabled", false, "Enable RemoteConfig capabilities in the Operator (beta)")
 	flag.BoolVar(&opts.remoteUpdatesEnabled, "remoteUpdatesEnabled", false, "Enable Remote Updates capabilities in the Operator (beta)")
+	flag.BoolVar(&opts.managedAgentInstallationEnabled, "managedAgentInstallationEnabled", false, "Enable managed Agent installation intents")
 	flag.BoolVar(&opts.datadogDashboardEnabled, "datadogDashboardEnabled", false, "Enable the DatadogDashboard controller")
 	flag.BoolVar(&opts.datadogGenericResourceEnabled, "datadogGenericResourceEnabled", false, "Enable the DatadogGenericResource controller")
 	flag.IntVar(&opts.datadogGenericResourceMaxWorkers, "datadogGenericResourceMaxConcurrentReconciles", defaultDatadogGenericResourceMaxConcurrentReconciles, "Maximum number of concurrent DatadogGenericResource reconciles")
@@ -201,6 +206,8 @@ func (opts *options) Parse() {
 		"When true (requires --untaintControllerEnabled), the Untaint controller removes the startup taint only after both the node Agent and Datadog CSI node-server pods are Ready. Requires Pod watch coverage of CSI namespaces (DD_CSIDRIVER_WATCH_NAMESPACE).")
 	flag.BoolVar(&opts.componentHealthEnabled, "componentHealthEnabled", false,
 		"Enable the ComponentHealth controller, which monitors the managed cluster-level components (cluster-agent, cluster-checks-runner) for Kubernetes health issues (OOMKills, crash loops, scheduling failures, image-pull failures) (beta). Retains Pod status in the cache, increasing the operator's memory usage.")
+	flag.BoolVar(&opts.rolloutOnConfigMapChangeEnabled, "rolloutOnConfigMapChangeEnabled", true,
+		"Automatically roll out Agent/Cluster Agent/Cluster Check Runner/OTel Agent Gateway workloads when a ConfigMap referenced by their pod template changes content out-of-band")
 
 	// DatadogAgentInternal
 	flag.BoolVar(&opts.createControllerRevisions, "createControllerRevisions", false, "Enable creation of ControllerRevision snapshots on each DDA spec change")
@@ -237,6 +244,7 @@ func (opts *options) Parse() {
 		boolEnv(&opts.datadogAgentProfileEnabled, "DD_AGENT_PROFILE_CONTROLLER_ENABLED"),
 		boolEnv(&opts.remoteConfigEnabled, "DD_REMOTE_CONFIG_ENABLED"),
 		boolEnv(&opts.remoteUpdatesEnabled, "DD_REMOTE_UPDATES_ENABLED"),
+		boolEnv(&opts.managedAgentInstallationEnabled, "DD_MANAGED_AGENT_INSTALLATION_ENABLED"),
 		boolEnv(&opts.datadogDashboardEnabled, "DD_DASHBOARD_CONTROLLER_ENABLED"),
 		boolEnv(&opts.datadogGenericResourceEnabled, "DD_GENERIC_RESOURCE_CONTROLLER_ENABLED"),
 		intEnv(&opts.datadogGenericResourceMaxWorkers, "DD_GENERIC_RESOURCE_MAX_CONCURRENT_RECONCILES"),
@@ -246,6 +254,7 @@ func (opts *options) Parse() {
 		boolEnv(&opts.untaintControllerWaitForCSIDriver, "DD_UNTAINT_CONTROLLER_WAIT_FOR_CSI_DRIVER"),
 		boolEnv(&opts.componentHealthEnabled, "DD_COMPONENT_HEALTH_ENABLED"),
 		boolEnv(&opts.createControllerRevisions, "DD_CREATE_CONTROLLER_REVISIONS"),
+		boolEnv(&opts.rolloutOnConfigMapChangeEnabled, "DD_ROLLOUT_ON_CONFIGMAP_CHANGE_ENABLED"),
 	})
 
 	// Parsing flags
@@ -370,6 +379,34 @@ func run(opts *options) error {
 		metricsServerOptions.FilterProvider = filters.WithAuthenticationAndAuthorization
 	}
 
+	var (
+		managedAgentInstallationIdentity  fleet.ManagedAgentInstallationIdentity
+		managedAgentInstallationEnabled   bool
+		managedAgentInstallationNamespace string
+	)
+	if opts.remoteConfigEnabled {
+		var identityErr error
+		managedAgentInstallationIdentity, identityErr = fleet.ManagedAgentInstallationIdentityFromEnvironment()
+		if identityErr != nil {
+			setupLog.Error(identityErr, "Managed Agent installation identity is invalid; managed Agent installation support is disabled")
+			managedAgentInstallationIdentity = fleet.ManagedAgentInstallationIdentity{}
+		} else {
+			setupLog.Info("Configured managed Agent installation identity", "provider", managedAgentInstallationIdentity.Provider(), "enabled", managedAgentInstallationIdentity.Configured())
+		}
+		managedAgentInstallationEnabled = opts.operatorManagedAgentInstallationEnabled(managedAgentInstallationIdentity)
+		if !managedAgentInstallationEnabled {
+			if managedAgentInstallationIdentity.Configured() {
+				setupLog.Info("Managed Agent installation support is disabled because its feature flag or a required Operator controller is not enabled", "provider", managedAgentInstallationIdentity.Provider())
+			}
+			managedAgentInstallationIdentity = fleet.ManagedAgentInstallationIdentity{}
+		} else {
+			managedAgentInstallationNamespace = strings.TrimSpace(os.Getenv(podNamespaceEnvVar))
+			if managedAgentInstallationNamespace == "" {
+				return setupErrorf(setupLog, fmt.Errorf("%s is empty", podNamespaceEnvVar), "Unable to configure managed Agent installation namespace")
+			}
+		}
+	}
+
 	restConfig := ctrl.GetConfigOrDie()
 	restConfig.UserAgent = "datadog-operator/" + version.Version
 	mgr, err := ctrl.NewManager(restConfig, ctrl.Options{
@@ -394,6 +431,8 @@ func run(opts *options) error {
 			UntaintControllerEnabled:          opts.untaintControllerEnabled,
 			UntaintControllerWaitForCSIDriver: opts.untaintControllerWaitForCSIDriver,
 			ComponentHealthEnabled:            opts.componentHealthEnabled,
+			ManagedAgentInstallationEnabled:   managedAgentInstallationEnabled,
+			ManagedAgentInstallationNamespace: managedAgentInstallationNamespace,
 		}),
 		// UsePriorityQueue makes all controllers use the priority queue, which
 		// directly registers workqueue metrics into controller-runtime's metrics
@@ -428,22 +467,40 @@ func run(opts *options) error {
 
 	// Custom setup
 	customSetupHealthChecks(setupLog, mgr, &opts.maximumGoroutines)
+	managerCtx, cancelManager := context.WithCancel(ctrl.SetupSignalHandler())
+	defer cancelManager()
 
 	if opts.remoteConfigEnabled {
-		rcUpdater := remoteconfig.NewRemoteConfigUpdater(mgr.GetClient(), ctrl.Log.WithName("remote_config"))
+		var rcUpdaterOptions []remoteconfig.RemoteConfigUpdaterOption
+		if managedAgentInstallationIdentity.Configured() {
+			identityTags, tagsErr := managedAgentInstallationIdentity.UpdaterTags()
+			if tagsErr != nil {
+				setupLog.Error(tagsErr, "Managed Agent installation updater identity is invalid; managed Agent installation support is disabled")
+				managedAgentInstallationIdentity = fleet.ManagedAgentInstallationIdentity{}
+				managedAgentInstallationEnabled = false
+			} else {
+				rcUpdaterOptions = append(rcUpdaterOptions,
+					remoteconfig.WithAdditionalUpdaterTags(identityTags...),
+					remoteconfig.WithDynamicUpdaterTags(func(ctx context.Context) ([]string, error) {
+						return fleet.ManagedAgentInstallationReadinessTags(ctx, mgr.GetAPIReader(), managedAgentInstallationIdentity, managedAgentInstallationNamespace)
+					}),
+					remoteconfig.WithInitialInstallerConfigVersion(remoteconfig.InstallerStateUnknownConfigVersion),
+				)
+			}
+		}
+		rcUpdater := remoteconfig.NewRemoteConfigUpdater(mgr.GetClient(), ctrl.Log.WithName("remote_config"), rcUpdaterOptions...)
 		go func() {
-			// Block until this controller manager is elected leader. We presume the
-			// entire process will terminate if we lose leadership, so we don't need
-			// to handle that.
-			<-mgr.Elected()
-
+			select {
+			case <-managerCtx.Done():
+				return
+			case <-mgr.Elected():
+			}
 			if rcErr := rcUpdater.Setup(creds); rcErr != nil {
 				setupErrorf(setupLog, rcErr, "Unable to set up Remote Config service")
 				return
 			}
-
 			if opts.remoteUpdatesEnabled {
-				if rcErr := setupFleetDaemon(setupLog, mgr, rcUpdater.Client(), opts.createControllerRevisions && opts.datadogAgentEnabled); rcErr != nil {
+				if rcErr := setupFleetDaemon(setupLog, mgr, rcUpdater.Client(), opts.createControllerRevisions && opts.datadogAgentEnabled, managedAgentInstallationIdentity, managedAgentInstallationNamespace, managedAgentInstallationEnabled); rcErr != nil {
 					setupErrorf(setupLog, rcErr, "Unable to setup Fleet daemon")
 				}
 			}
@@ -488,6 +545,7 @@ func run(opts *options) error {
 		UntaintControllerEnabled:          opts.untaintControllerEnabled,
 		UntaintControllerWaitForCSIDriver: opts.untaintControllerWaitForCSIDriver,
 		ComponentHealthEnabled:            opts.componentHealthEnabled,
+		RolloutOnConfigMapChangeEnabled:   opts.rolloutOnConfigMapChangeEnabled,
 		ClusterProviderDetector:           providerDetector,
 	}
 
@@ -529,7 +587,7 @@ func run(opts *options) error {
 	// +kubebuilder:scaffold:builder
 
 	setupLog.Info("starting manager")
-	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+	if err := mgr.Start(managerCtx); err != nil {
 		return setupErrorf(setupLog, err, "Problem running manager")
 	}
 
@@ -767,9 +825,17 @@ func setupAndStartHelmMetadataForwarder(logger logr.Logger, mgr manager.Manager,
 	return mgr.Add(hmf)
 }
 
-func setupFleetDaemon(logger logr.Logger, mgr manager.Manager, rcClient remoteconfig.RCClient, revisionsEnabled bool) error {
-	daemon := fleet.NewDaemon(rcClient, mgr, revisionsEnabled)
+func setupFleetDaemon(logger logr.Logger, mgr manager.Manager, rcClient remoteconfig.RCClient, revisionsEnabled bool, managedAgentInstallationIdentity fleet.ManagedAgentInstallationIdentity, managedAgentInstallationNamespace string, managedAgentInstallationIntentsEnabled bool) error {
+	var options []fleet.DaemonOption
+	if managedAgentInstallationIdentity.Configured() {
+		options = append(options, fleet.WithManagedAgentInstallation(managedAgentInstallationIdentity, managedAgentInstallationNamespace, managedAgentInstallationIntentsEnabled))
+	}
+	daemon := fleet.NewDaemon(rcClient, mgr, revisionsEnabled, options...)
 	return mgr.Add(daemon)
+}
+
+func (opts *options) operatorManagedAgentInstallationEnabled(identity fleet.ManagedAgentInstallationIdentity) bool {
+	return identity.Configured() && identity.Validate() == nil && opts.managedAgentInstallationEnabled && opts.remoteConfigEnabled && opts.remoteUpdatesEnabled && opts.datadogAgentEnabled && opts.datadogAgentProfileEnabled && opts.createControllerRevisions
 }
 
 // setupAndStartProviderDetector registers the cluster-provider detector as a

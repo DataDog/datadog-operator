@@ -19,10 +19,8 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
 	"github.com/DataDog/datadog-operator/pkg/constants"
-	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/utils"
 )
@@ -65,9 +63,7 @@ type orchestratorExplorerFeature struct {
 	customResources                   []string
 	configConfigMapName               string
 
-	logger                      logr.Logger
-	customConfigAnnotationKey   string
-	customConfigAnnotationValue string
+	logger logr.Logger
 
 	processAgentRequired bool
 }
@@ -95,17 +91,6 @@ func (f *orchestratorExplorerFeature) Configure(dda metav1.Object, ddaSpec *v2al
 
 		if orchestratorExplorer.Conf != nil || len(orchestratorExplorer.CustomResources) > 0 {
 			f.customConfig = orchestratorExplorer.Conf
-
-			// Used to force restart of DCA
-			// use entire orchestratorExplorer to handle custom config and CRDs
-			hash, err := comparison.GenerateMD5ForSpec(orchestratorExplorer)
-			if err != nil {
-				f.logger.Error(err, "couldn't generate hash for orchestrator explorer custom config")
-			} else {
-				f.logger.V(2).Info("built orchestrator explorer from custom config", "hash", hash)
-			}
-			f.customConfigAnnotationValue = hash
-			f.customConfigAnnotationKey = object.GetChecksumAnnotationKey(feature.OrchestratorExplorerIDType)
 		}
 
 		f.customResources = ddaSpec.Features.OrchestratorExplorer.CustomResources
@@ -195,11 +180,6 @@ func (f *orchestratorExplorerFeature) ManageDependencies(managers feature.Resour
 		return err
 	}
 	if configCM != nil {
-		// Add md5 hash annotation for custom config
-		if f.customConfigAnnotationKey != "" && f.customConfigAnnotationValue != "" {
-			annotations := object.MergeAnnotationsLabels(f.logger, configCM.GetAnnotations(), map[string]string{f.customConfigAnnotationKey: f.customConfigAnnotationValue}, "*")
-			configCM.SetAnnotations(annotations)
-		}
 		if err := managers.Store().AddOrUpdate(kubernetes.ConfigMapKind, configCM); err != nil {
 			return err
 		}
@@ -245,10 +225,6 @@ func (f *orchestratorExplorerFeature) ManageClusterAgent(managers feature.PodTem
 
 	managers.VolumeMount().AddVolumeMountToContainer(&volMount, apicommon.ClusterAgentContainerName)
 	managers.Volume().AddVolume(&vol)
-
-	if f.customConfigAnnotationKey != "" && f.customConfigAnnotationValue != "" {
-		managers.Annotation().AddAnnotation(f.customConfigAnnotationKey, f.customConfigAnnotationValue)
-	}
 
 	for _, env := range f.getEnvVars() {
 		managers.EnvVar().AddEnvVar(env)

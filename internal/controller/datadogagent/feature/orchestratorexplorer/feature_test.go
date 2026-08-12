@@ -6,10 +6,7 @@
 package orchestratorexplorer
 
 import (
-	"fmt"
 	"testing"
-
-	"k8s.io/utils/ptr"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -19,8 +16,6 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
 	mergerfake "github.com/DataDog/datadog-operator/internal/controller/datadogagent/merger/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
-	"github.com/DataDog/datadog-operator/pkg/constants"
-	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/testutils"
 
@@ -252,27 +247,8 @@ func orchestratorExplorerClusterAgentWantFuncV2() *test.ComponentTest {
 			dcaEnvVars := mgr.EnvVarMgr.EnvVarsByC[mergerfake.AllContainers]
 			assert.True(t, apiutils.IsEqualStruct(dcaEnvVars, expectedOrchestratorEnvsV2), "DCA envvars \ndiff = %s", cmp.Diff(dcaEnvVars, expectedOrchestratorEnvsV2))
 
-			// check annotation
-			customConfig := v2alpha1.CustomConfig{
-				ConfigData: ptr.To(customConfDataV2),
-			}
-			trueValue := true
-			url := "https://foo.bar"
-			orchExp := v2alpha1.OrchestratorExplorerFeatureConfig{
-				Enabled:         &trueValue,
-				Conf:            &customConfig,
-				ScrubContainers: &trueValue,
-				CustomResources: []string{},
-				ExtraTags:       []string{"a:z", "b:y", "c:x"},
-				DDUrl:           &url,
-			}
-			hash, err := comparison.GenerateMD5ForSpec(&orchExp)
-			assert.NoError(t, err)
-			wantAnnotations := map[string]string{
-				fmt.Sprintf(constants.MD5ChecksumAnnotationKey, feature.OrchestratorExplorerIDType): hash,
-			}
 			annotations := mgr.AnnotationMgr.Annotations
-			assert.True(t, apiutils.IsEqualStruct(annotations, wantAnnotations), "Annotations \ndiff = %s", cmp.Diff(annotations, wantAnnotations))
+			assert.Empty(t, annotations)
 		},
 	)
 }

@@ -961,8 +961,6 @@ data:
         - customresourcedefinitions
 kind: ConfigMap
 metadata:
-  annotations:
-    checksum/ksm-custom-config: 7078d4e77dfdf37ca618d148c6c7af2b
   labels:
     app.kubernetes.io/instance: datadog-agent
     app.kubernetes.io/managed-by: datadog-operator
@@ -1329,7 +1327,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: 1b432aa517965949bdc4b6a3048ed626
+    agent.datadoghq.com/agentspechash: 688c72983fcbb751ef471ef10a1f32d9
   labels:
     agent.datadoghq.com/component: agent
     agent.datadoghq.com/name: datadog-agent
@@ -1355,6 +1353,7 @@ spec:
   template:
     metadata:
       annotations:
+        agent.datadoghq.com/configmapshash: 2e0fb9e7949d41a5
         checksum/dca-token-custom-config: 3f6998966e6de63b16d45512e01ccc84
         container.apparmor.security.beta.kubernetes.io/system-probe: unconfined
       labels:
@@ -1910,7 +1909,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: 5fdc2283d407ca7a0747a1c5852e0c97
+    agent.datadoghq.com/agentspechash: 09f5e1af85f4e02545bdc53dbea3c4dc
   labels:
     agent.datadoghq.com/component: cluster-agent
     agent.datadoghq.com/name: datadog-agent
@@ -1938,9 +1937,9 @@ spec:
   template:
     metadata:
       annotations:
+        agent.datadoghq.com/configmapshash: 4bb0ce42b5c97687
         checksum/cluster_checks-custom-config: dd67482b385a64075d38f42c9ae04554
         checksum/dca-token-custom-config: 3f6998966e6de63b16d45512e01ccc84
-        checksum/ksm-custom-config: 7078d4e77dfdf37ca618d148c6c7af2b
       labels:
         agent.datadoghq.com/component: cluster-agent
         agent.datadoghq.com/name: datadog-agent
@@ -2168,7 +2167,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: 796858400c16bcf92c5b81a3a03388e0
+    agent.datadoghq.com/agentspechash: 9f9cc18615463016b51e37676cc4b72a
   labels:
     agent.datadoghq.com/component: cluster-checks-runner
     agent.datadoghq.com/name: datadog-agent
@@ -2195,6 +2194,7 @@ spec:
   template:
     metadata:
       annotations:
+        agent.datadoghq.com/configmapshash: 6281aebca1be6a93
         checksum/dca-token-custom-config: 3f6998966e6de63b16d45512e01ccc84
       labels:
         agent.datadoghq.com/component: cluster-checks-runner

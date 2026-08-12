@@ -18,11 +18,9 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/configmap"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
 	"github.com/DataDog/datadog-operator/pkg/constants"
-	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
@@ -55,10 +53,8 @@ type cwsFeature struct {
 	owner  metav1.Object
 	logger logr.Logger
 
-	customConfig                *v2alpha1.CustomConfig
-	configMapName               string
-	customConfigAnnotationKey   string
-	customConfigAnnotationValue string
+	customConfig  *v2alpha1.CustomConfig
+	configMapName string
 }
 
 // ID returns the ID of the Feature
@@ -81,14 +77,6 @@ func (f *cwsFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 
 		if cwsConfig.CustomPolicies != nil {
 			f.customConfig = cwsConfig.CustomPolicies
-			hash, err := comparison.GenerateMD5ForSpec(f.customConfig)
-			if err != nil {
-				f.logger.Error(err, "couldn't generate hash for cws custom policies config")
-			} else {
-				f.logger.V(2).Info("built cws custom policies from custom config", "hash", hash)
-			}
-			f.customConfigAnnotationValue = hash
-			f.customConfigAnnotationKey = object.GetChecksumAnnotationKey(feature.CWSIDType)
 		}
 		f.configMapName = constants.GetConfName(dda, f.customConfig, defaultCWSConf)
 
@@ -160,12 +148,6 @@ func (f *cwsFeature) ManageDependencies(managers feature.ResourceManagers) error
 		}
 
 		if cm != nil {
-			// Add md5 hash annotation for custom config
-			if f.customConfigAnnotationKey != "" && f.customConfigAnnotationValue != "" {
-				annotations := object.MergeAnnotationsLabels(f.logger, cm.GetAnnotations(), map[string]string{f.customConfigAnnotationKey: f.customConfigAnnotationValue}, "*")
-				cm.SetAnnotations(annotations)
-			}
-
 			if err := managers.Store().AddOrUpdate(kubernetes.ConfigMapKind, cm); err != nil {
 				return err
 			}
@@ -343,10 +325,6 @@ func (f *cwsFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error
 	if f.customConfig != nil {
 		var vol corev1.Volume
 		var volMount corev1.VolumeMount
-
-		if f.customConfigAnnotationKey != "" && f.customConfigAnnotationValue != "" {
-			managers.Annotation().AddAnnotation(f.customConfigAnnotationKey, f.customConfigAnnotationValue)
-		}
 
 		if f.customConfig.ConfigMap != nil {
 			// Custom config is referenced via ConfigMap
