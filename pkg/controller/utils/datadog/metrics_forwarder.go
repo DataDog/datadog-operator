@@ -282,7 +282,7 @@ func (mf *metricsForwarder) setup() error {
 			mf.logger.Error(err, "cannot retrieve DatadogAgentInternal to get Datadog credentials, will retry later...")
 			return err
 		}
-		return mf.setupFromDDAI(ddai)
+		return mf.setupFromDDAI(ddai, credsSet)
 	}
 
 	return nil
@@ -343,15 +343,17 @@ func (mf *metricsForwarder) setupFromDDA(dda *v2alpha1.DatadogAgent, credsSetFro
 	return nil
 }
 
-func (mf *metricsForwarder) setupFromDDAI(ddai *v1alpha1.DatadogAgentInternal) error {
-	mf.baseURL = getbaseURL(&ddai.Spec)
+func (mf *metricsForwarder) setupFromDDAI(ddai *v1alpha1.DatadogAgentInternal, credsSetFromOperator bool) error {
+	if !credsSetFromOperator {
+		mf.baseURL = getbaseURL(&ddai.Spec)
 
-	// set apiKey
-	apiKey, err := mf.getCredentialsFromDDAI(ddai)
-	if err != nil {
-		return err
+		// set apiKey
+		apiKey, err := mf.getCredentialsFromDDAI(ddai)
+		if err != nil {
+			return err
+		}
+		mf.apiKey = apiKey
 	}
-	mf.apiKey = apiKey
 
 	mf.labels = ddai.GetLabels()
 
