@@ -121,7 +121,7 @@ func (r *Reconciler) reconcileInstanceV3(ctx context.Context, logger logr.Logger
 		// freshness check requires the pointer to be committed for the current
 		// generation; publishing at the end of the reconcile would leave a
 		// window where Fleet could checkpoint a stale baseline.
-		revName, err := r.ensureRevision(ctx, instance, rawSpec, revList, skipRevisionBump(newDDAStatus))
+		revName, err := r.ensureRevision(ctx, instance, rawSpec, revList)
 		if err != nil {
 			return r.updateStatusIfNeededV2(logger, instance, newDDAStatus, result, err, now)
 		}

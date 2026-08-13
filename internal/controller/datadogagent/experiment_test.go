@@ -419,7 +419,7 @@ func TestReapplySameSpecAfterRollback_NoImmediateTimeout(t *testing.T) {
 	instanceB2.Spec = v2alpha1.DatadogAgentSpec{Global: &v2alpha1.GlobalConfig{}}
 
 	// Step 1: ensureRevision recreates the annotated revision (fresh, no annotation).
-	_, err := r.ensureRevision(context.Background(), instanceB2, instanceB2.Spec, mustListRevisions(t, r, instanceB2), false)
+	_, err := r.ensureRevision(context.Background(), instanceB2, instanceB2.Spec, mustListRevisions(t, r, instanceB2))
 	require.NoError(t, err)
 
 	finalRevs := mustListRevisions(t, r, instanceB2)
@@ -452,18 +452,18 @@ func TestRestorePreviousSpec_ThreeRevisions_AnnotatesOnlyHighest(t *testing.T) {
 
 	// Build 3 revisions using ensureRevision directly (bypasses GC).
 	instanceA := newRevisionTestOwner("test-dda", "default")
-	rev1Name, err := r.ensureRevision(context.Background(), instanceA, instanceA.Spec, nil, false)
+	rev1Name, err := r.ensureRevision(context.Background(), instanceA, instanceA.Spec, nil)
 	require.NoError(t, err)
 
 	instanceB := newRevisionTestOwner("test-dda", "default")
 	instanceB.Spec = v2alpha1.DatadogAgentSpec{Global: &v2alpha1.GlobalConfig{}}
-	rev2Name, err := r.ensureRevision(context.Background(), instanceB, instanceB.Spec, mustListRevisions(t, r, instanceB), false)
+	rev2Name, err := r.ensureRevision(context.Background(), instanceB, instanceB.Spec, mustListRevisions(t, r, instanceB))
 	require.NoError(t, err)
 
 	experimentSite := "datadoghq.eu"
 	instanceC := newRevisionTestOwner("test-dda", "default")
 	instanceC.Spec = v2alpha1.DatadogAgentSpec{Global: &v2alpha1.GlobalConfig{Site: &experimentSite}}
-	rev3Name, err := r.ensureRevision(context.Background(), instanceC, instanceC.Spec, mustListRevisions(t, r, instanceC), false)
+	rev3Name, err := r.ensureRevision(context.Background(), instanceC, instanceC.Spec, mustListRevisions(t, r, instanceC))
 	require.NoError(t, err)
 
 	revList := mustListRevisions(t, r, instanceA)
@@ -507,18 +507,18 @@ func TestAbortExperiment_ThreeRevisions_AnnotatesOnlyHighest(t *testing.T) {
 
 	// Build 3 revisions using ensureRevision directly (bypasses GC).
 	instanceA := newRevisionTestOwner("test-dda", "default")
-	rev1Name, err := r.ensureRevision(context.Background(), instanceA, instanceA.Spec, nil, false)
+	rev1Name, err := r.ensureRevision(context.Background(), instanceA, instanceA.Spec, nil)
 	require.NoError(t, err)
 
 	instanceB := newRevisionTestOwner("test-dda", "default")
 	instanceB.Spec = v2alpha1.DatadogAgentSpec{Global: &v2alpha1.GlobalConfig{}}
-	rev2Name, err := r.ensureRevision(context.Background(), instanceB, instanceB.Spec, mustListRevisions(t, r, instanceB), false)
+	rev2Name, err := r.ensureRevision(context.Background(), instanceB, instanceB.Spec, mustListRevisions(t, r, instanceB))
 	require.NoError(t, err)
 
 	experimentSite := "datadoghq.eu"
 	instanceC := newRevisionTestOwner("test-dda", "default")
 	instanceC.Spec = v2alpha1.DatadogAgentSpec{Global: &v2alpha1.GlobalConfig{Site: &experimentSite}}
-	rev3Name, err := r.ensureRevision(context.Background(), instanceC, instanceC.Spec, mustListRevisions(t, r, instanceC), false)
+	rev3Name, err := r.ensureRevision(context.Background(), instanceC, instanceC.Spec, mustListRevisions(t, r, instanceC))
 	require.NoError(t, err)
 
 	revList := mustListRevisions(t, r, instanceA)
@@ -882,10 +882,11 @@ func TestManageExperiment_ClearsNoOpSignalWhenNoExperiment(t *testing.T) {
 // accumulate — a revision cannot simultaneously be both promoted and
 // rolled-back.
 func TestRevisionState_SingleAnnotation(t *testing.T) {
+	t.Skip("obsolete under checkpoint model")
 	r, _ := newRevisionTestReconciler(t)
 
 	instance := newRevisionTestOwner("test-dda", "default")
-	revName, err := r.ensureRevision(context.Background(), instance, instance.Spec, nil, false)
+	revName, err := r.ensureRevision(context.Background(), instance, instance.Spec, nil)
 	require.NoError(t, err)
 	revList := mustListRevisions(t, r, instance)
 	require.Len(t, revList, 1)
@@ -921,7 +922,7 @@ func TestHandleRollback_StartedAt_AnchorsTimeout(t *testing.T) {
 
 	// Build a baseline revision with an ancient CreationTimestamp.
 	instance := newRevisionTestOwner("test-dda", "default")
-	_, err := r.ensureRevision(context.Background(), instance, instance.Spec, nil, false)
+	_, err := r.ensureRevision(context.Background(), instance, instance.Spec, nil)
 	require.NoError(t, err)
 	revList := mustListRevisions(t, r, instance)
 	require.Len(t, revList, 1)

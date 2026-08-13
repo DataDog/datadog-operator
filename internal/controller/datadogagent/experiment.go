@@ -43,24 +43,6 @@ const (
 	ExperimentTerminationReasonBaselineNotFound = "baseline_not_found"
 )
 
-// annotationExperimentState records the terminal outcome of an experiment
-// on a ControllerRevision. The value is one of experimentRevisionState.
-//
-// Used by handleRollback to skip the timeout check on revisions whose
-// CreationTimestamp is stale from a prior experiment, and by ensureRevision
-// to refresh a rolled-back revision's timestamp when the same spec is
-// re-applied. The annotation is single-valued so a revision cannot
-// simultaneously represent two terminal outcomes.
-const annotationExperimentState = "operator.datadoghq.com/experiment-state"
-
-// experimentRevisionState is the value stored at annotationExperimentState.
-type experimentRevisionState string
-
-const (
-	experimentRevisionStatePromoted   experimentRevisionState = "promoted"
-	experimentRevisionStateRolledBack experimentRevisionState = "rolled-back"
-)
-
 // isTerminalPhase returns true if the phase is a terminal state (terminated, promoted, aborted).
 func isTerminalPhase(phase v2alpha1.ExperimentPhase) bool {
 	switch phase {
@@ -116,14 +98,6 @@ func (r *Reconciler) manageExperiment(
 
 	if err := r.handleRollback(ctx, instance, newStatus, now, revList); err != nil {
 		return err
-	}
-	// Mark the highest revision when promoted so its stale timestamp doesn't
-	// cause a false timeout if a new experiment starts before manageRevision
-	// creates a fresh revision.
-	if experiment.Phase == v2alpha1.ExperimentPhasePromoted {
-		if rev := highestRevision(revList); rev != nil {
-			r.markRevisionState(ctx, rev, experimentRevisionStatePromoted)
-		}
 	}
 	r.abortExperiment(ctx, instance, experiment, newStatus, revList)
 
@@ -628,96 +602,6 @@ func (r *Reconciler) rollback(
 	// uses the correct RV and doesn't 409.
 	instance.ResourceVersion = toUpdate.ResourceVersion
 	return nil
-}
-
-// findRollbackTarget returns the name of the previous ControllerRevision to restore.
-// GC keeps at most two revisions (current and previous), so this returns whichever
-// revision has the lower revision number.
-func findRollbackTarget(revisions []appsv1.ControllerRevision) string {
-	var curRev, prevRev int64 = -1, -1
-	var curName, prevName string
-	for i := range revisions {
-		rev := &revisions[i]
-		if rev.Revision > curRev {
-			prevRev, prevName = curRev, curName
-			curRev, curName = rev.Revision, rev.Name
-		} else if rev.Revision > prevRev {
-			prevRev, prevName = rev.Revision, rev.Name
-		}
-	}
-	return prevName
-}
-
-// findMostRecentMatchingRevision returns the revision with the highest Revision number
-// whose snapshot content matches the current instance spec and annotations, or nil if
-// none match. This serves two purposes:
-//
-//   - First reconcile after experiment start: the revision for the new spec has not been
-//     created yet, so no revision matches → nil → timeout check is skipped, preventing a
-//     spurious immediate timeout from an old pre-experiment revision's timestamp.
-//
-//   - Post-rollback reconcile: the spec has been restored to the pre-experiment value.
-//     The matching revision is the pre-experiment one (old timestamp), so elapsed is
-//     large, timeout fires, and the idempotent rollback path sets phase=terminated cleanly
-//     without a spec-update conflict (ResourceVersion unchanged → status write succeeds).
-//
-// instance.Spec must be the raw, user-submitted spec, not the in-memory
-// defaulted copy — pass rawInstance, not instance. Stored revisions are raw,
-// so a defaulted spec never matches any of them.
-func findMostRecentMatchingRevision(revisions []appsv1.ControllerRevision, instance *v2alpha1.DatadogAgent) *appsv1.ControllerRevision {
-	snapBytes, err := buildRevisionSnapshot(instance.Spec, instance.GetAnnotations())
-	if err != nil {
-		return nil
-	}
-	var result *appsv1.ControllerRevision
-	for i := range revisions {
-		rev := &revisions[i]
-		if bytes.Equal(rev.Data.Raw, snapBytes) {
-			if result == nil || rev.Revision > result.Revision {
-				result = rev
-			}
-		}
-	}
-	return result
-}
-
-// highestRevision returns the revision with the largest Revision number.
-func highestRevision(revisions []appsv1.ControllerRevision) *appsv1.ControllerRevision {
-	var result *appsv1.ControllerRevision
-	for i := range revisions {
-		if result == nil || revisions[i].Revision > result.Revision {
-			result = &revisions[i]
-		}
-	}
-	return result
-}
-
-// revisionExperimentState returns the recorded experiment outcome on a
-// ControllerRevision, or "" if none is set.
-func revisionExperimentState(rev *appsv1.ControllerRevision) experimentRevisionState {
-	if rev == nil {
-		return ""
-	}
-	return experimentRevisionState(rev.Annotations[annotationExperimentState])
-}
-
-// markRevisionState records `state` on the ControllerRevision.
-// Best-effort: if the patch fails, the timeout fallback still applies.
-func (r *Reconciler) markRevisionState(ctx context.Context, rev *appsv1.ControllerRevision, state experimentRevisionState) {
-	if revisionExperimentState(rev) == state {
-		return
-	}
-	logger := ctrl.LoggerFrom(ctx).WithValues(
-		"object.kind", "ControllerRevision",
-		"object.namespace", rev.Namespace,
-		"object.name", rev.Name,
-	)
-	patch := fmt.Appendf(nil, `{"metadata":{"annotations":{%q:%q}}}`, annotationExperimentState, string(state))
-	if err := r.client.Patch(ctx, rev, client.RawPatch(types.MergePatchType, patch)); err != nil {
-		logger.Error(err, "Failed to mark experiment revision state", "state", state)
-		return
-	}
-	logger.Info("Marked experiment revision state", "state", state)
 }
 
 func getExperimentTimeout(timeout time.Duration) time.Duration {

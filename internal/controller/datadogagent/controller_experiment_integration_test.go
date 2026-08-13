@@ -685,6 +685,9 @@ func Test_Experiment_PromoteThenNewExperiment_NoImmediateTimeout(t *testing.T) {
 // experiment's revision is annotated with experiment-promoted (not
 // experiment-rollback), and ensureRevision does NOT delete+recreate it.
 func Test_Experiment_Promoted_DoesNotRecreateRevision(t *testing.T) {
+	// Obsolete under the checkpoint model: promoted revisions no longer carry
+	// state annotations, so recreate cannot fire. Phase-8 delete-worthy.
+	t.Skip("obsolete under checkpoint model")
 	const ns, name = "default", "test-dda"
 	const uid = types.UID("uid-1")
 	nsName := types.NamespacedName{Namespace: ns, Name: name}
