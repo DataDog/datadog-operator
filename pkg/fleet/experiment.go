@@ -84,12 +84,24 @@ func retryWithBackoff(ctx context.Context, fn func() error) error {
 // and ID annotations. If config is non-nil, spec fields from the config are
 // merged into the patch so that the spec and annotations are written atomically.
 func buildSignalPatch(signal, id string, config ...json.RawMessage) ([]byte, error) {
+	return buildSignalPatchWithAnnotations(signal, id, nil, config...)
+}
+
+// buildSignalPatchWithAnnotations behaves like buildSignalPatch and additionally
+// merges caller-supplied annotations into the patch. Callers use this for
+// signal-adjacent metadata that must land atomically with the spec write —
+// e.g. the daemon writes the rollback-target-revision annotation here so the
+// reconciler observes the baseline checkpoint in the same MergePatch that
+// carried the start signal.
+func buildSignalPatchWithAnnotations(signal, id string, extraAnnotations map[string]string, config ...json.RawMessage) ([]byte, error) {
+	annotations := map[string]string{
+		v2alpha1.AnnotationExperimentSignal: signal,
+		v2alpha1.AnnotationExperimentID:     id,
+	}
+	maps.Copy(annotations, extraAnnotations)
 	patch := map[string]any{
 		"metadata": map[string]any{
-			"annotations": map[string]string{
-				v2alpha1.AnnotationExperimentSignal: signal,
-				v2alpha1.AnnotationExperimentID:     id,
-			},
+			"annotations": annotations,
 		},
 	}
 

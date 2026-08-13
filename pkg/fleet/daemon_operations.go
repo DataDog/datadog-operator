@@ -268,7 +268,16 @@ func (d *Daemon) planStart(ctx context.Context, req remoteAPIRequest, op resolve
 	if err := d.guardPendingOperationSlot(dda.Annotations, op.NamespacedName, *pending); err != nil {
 		return nil, nil, err
 	}
-	patch, err := buildSignalPatch(v2alpha1.ExperimentSignalStart, experimentID, op.Config)
+	// Checkpoint the pre-experiment baseline from the reconciler-published
+	// current-revision pointer. Includes it in the same MergePatch so the
+	// reconciler observes the baseline atomically with the spec write and
+	// the start signal. An empty pointer will be rejected by the reconciler
+	// (baseline_missing abort), which is the correct behavior on a fresh
+	// install where no revision has been published yet.
+	extraAnnotations := map[string]string{
+		v2alpha1.AnnotationExperimentRollbackTargetRevision: dda.Status.CurrentRevision,
+	}
+	patch, err := buildSignalPatchWithAnnotations(v2alpha1.ExperimentSignalStart, experimentID, extraAnnotations, op.Config)
 	if err != nil {
 		return nil, nil, fmt.Errorf("start DatadogAgent experiment: %w", err)
 	}
