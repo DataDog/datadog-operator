@@ -590,7 +590,7 @@ func buildRegistryAuthEnvVars(instance *datadoghqv1alpha1.DatadogCSIDriver) []co
 				SecretKeyRef: &corev1.SecretKeySelector{
 					LocalObjectReference: corev1.LocalObjectReference{Name: secret.Name},
 					Key:                  dockerConfigJSONKey,
-					Optional:             ptr.To(optional),
+					Optional:             new(optional),
 				},
 			},
 		})

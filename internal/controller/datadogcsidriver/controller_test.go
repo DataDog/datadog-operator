@@ -245,7 +245,7 @@ func TestBuildDaemonSet_APMPullSecrets(t *testing.T) {
 			SecretKeyRef: &corev1.SecretKeySelector{
 				LocalObjectReference: corev1.LocalObjectReference{Name: "apm-registry"},
 				Key:                  dockerConfigJSONKey,
-				Optional:             ptr.To(false),
+				Optional:             new(false),
 			},
 		},
 	})
@@ -271,7 +271,7 @@ func TestBuildDaemonSet_FallbackImagePullSecretsOptional(t *testing.T) {
 				SecretKeyRef: &corev1.SecretKeySelector{
 					LocalObjectReference: corev1.LocalObjectReference{Name: secret.Name},
 					Key:                  dockerConfigJSONKey,
-					Optional:             ptr.To(true),
+					Optional:             new(true),
 				},
 			},
 		})
