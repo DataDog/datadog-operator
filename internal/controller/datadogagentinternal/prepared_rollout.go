@@ -26,13 +26,10 @@ const (
 	preparedRolloutGateBinary = "/opt/datadog-agent/embedded/bin/agent-rollout-gate"
 	preparedRolloutAuthToken  = "/etc/datadog-agent/auth/token"
 
-	rolloutPodUIDEnv       = "DD_EXPERIMENTAL_NODE_AGENT_ROLLOUT_POD_UID"
-	rolloutLockPathEnv     = "DD_EXPERIMENTAL_NODE_AGENT_ROLLOUT_LOCK_PATH"
-	rolloutPreparedPathEnv = "DD_EXPERIMENTAL_NODE_AGENT_ROLLOUT_PREPARED_PATH"
-	rolloutActivePathEnv   = "DD_EXPERIMENTAL_NODE_AGENT_ROLLOUT_ACTIVE_PATH"
-	coreAgentCmdPortEnv    = "DD_CMD_PORT"
-	rolloutPodIPEnv        = "DD_EXPERIMENTAL_NODE_AGENT_ROLLOUT_POD_IP"
-	greenCoreAgentCmdPort  = int32(5002)
+	rolloutPodUIDEnv      = "DD_EXPERIMENTAL_NODE_AGENT_ROLLOUT_POD_UID"
+	coreAgentCmdPortEnv   = "DD_CMD_PORT"
+	rolloutPodIPEnv       = "DD_EXPERIMENTAL_NODE_AGENT_ROLLOUT_POD_IP"
+	greenCoreAgentCmdPort = int32(5002)
 
 	maxStartupProbeFailures          = int32(2147483647)
 	preparedMarkerProbePeriodSeconds = int32(5)
@@ -363,9 +360,6 @@ func preparedContainerCommandSupported(container *corev1.Container) bool {
 }
 
 func configurePreparedContainer(container *corev1.Container) {
-	setContainerEnv(container, corev1.EnvVar{Name: rolloutLockPathEnv, Value: preparedRolloutLockDir + "/" + container.Name + ".lock"})
-	setContainerEnv(container, corev1.EnvVar{Name: rolloutPreparedPathEnv, Value: preparedRolloutLockDir + "/" + container.Name + ".prepared"})
-	setContainerEnv(container, corev1.EnvVar{Name: rolloutActivePathEnv, Value: preparedRolloutLockDir + "/" + container.Name + ".active"})
 	setContainerEnv(container, corev1.EnvVar{
 		Name: rolloutPodUIDEnv,
 		ValueFrom: &corev1.EnvVarSource{FieldRef: &corev1.ObjectFieldSelector{
@@ -391,7 +385,7 @@ func configurePreparedProbes(container *corev1.Container, podTerminationGraceSec
 	if startup == nil {
 		startup = &corev1.Probe{PeriodSeconds: preparedMarkerProbePeriodSeconds, TimeoutSeconds: 1}
 	}
-	startup.ProbeHandler = preparedStartupProbe(originalStartup, podTerminationGraceSeconds)
+	startup.ProbeHandler = preparedStartupProbe(container.Name, originalStartup, podTerminationGraceSeconds)
 	// The startup probe remains unsuccessful while the process is Prepared, so
 	// Kubernetes keeps the container Unready without running its liveness or
 	// readiness probes. The effectively infinite failure budget prevents a
@@ -402,8 +396,8 @@ func configurePreparedProbes(container *corev1.Container, podTerminationGraceSec
 	container.StartupProbe = startup
 }
 
-func preparedStartupProbe(original *corev1.Probe, podTerminationGraceSeconds *int64) corev1.ProbeHandler {
-	command := []string{preparedRolloutGateBinary, "probe", "--kind", "startup"}
+func preparedStartupProbe(component string, original *corev1.Probe, podTerminationGraceSeconds *int64) corev1.ProbeHandler {
+	command := []string{preparedRolloutGateBinary, "probe", "--component", component, "--kind", "startup"}
 	if original == nil {
 		command = append(command, "--handler", "active")
 	} else if original.HTTPGet != nil {

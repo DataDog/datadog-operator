@@ -28,8 +28,6 @@ func TestPrepareAgentTemplatePreservesHostNetworkAndUDS(t *testing.T) {
 	for i := range ds.Spec.Template.Spec.Containers {
 		container := &ds.Spec.Template.Spec.Containers[i]
 		assert.Empty(t, container.Ports)
-		assert.Equal(t, preparedRolloutLockDir+"/"+container.Name+".lock", containerEnv(container, rolloutLockPathEnv).Value)
-		assert.Equal(t, preparedRolloutLockDir+"/"+container.Name+".prepared", containerEnv(container, rolloutPreparedPathEnv).Value)
 		assert.True(t, hasVolumeMount(*container, preparedRolloutLockVolume, preparedRolloutLockDir))
 	}
 	assert.True(t, hasHostPath(ds.Spec.Template.Spec.Volumes, "/var/run/datadog"))
@@ -61,12 +59,10 @@ func TestPreparedRolloutUsesGenerationSafePreparedStartupProbes(t *testing.T) {
 		require.NotNil(t, container.StartupProbe.Exec)
 		assert.Equal(t, preparedRolloutGateBinary, container.StartupProbe.Exec.Command[0])
 		assert.Contains(t, container.StartupProbe.Exec.Command, "startup")
+		assert.Equal(t, container.Name, probeArgument(t, container.StartupProbe.Exec.Command, "--component"))
 		assert.Equal(t, maxStartupProbeFailures, container.StartupProbe.FailureThreshold)
 		assert.Equal(t, "metadata.uid", containerEnv(container, rolloutPodUIDEnv).ValueFrom.FieldRef.FieldPath)
 		assert.Equal(t, "status.podIP", containerEnv(container, rolloutPodIPEnv).ValueFrom.FieldRef.FieldPath)
-		assert.Equal(t, preparedRolloutLockDir+"/"+container.Name+".lock", containerEnv(container, rolloutLockPathEnv).Value)
-		assert.Equal(t, preparedRolloutLockDir+"/"+container.Name+".prepared", containerEnv(container, rolloutPreparedPathEnv).Value)
-		assert.Equal(t, preparedRolloutLockDir+"/"+container.Name+".active", containerEnv(container, rolloutActivePathEnv).Value)
 	}
 	assert.Contains(t, ds.Spec.Template.Spec.Containers[0].StartupProbe.Exec.Command, fmt.Sprint(constants.DefaultAgentHealthPort))
 	assert.NotNil(t, ds.Spec.Template.Spec.Containers[0].LivenessProbe.HTTPGet)
