@@ -14,6 +14,7 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -99,6 +100,20 @@ func (r *Reconciler) reconcilePreparedDisable(
 			returnToBlue.Spec.Template.Annotations[preparedRolloutDisableRevisionAnnotation] = preparedBlueGreenArmed
 			return r.reconcilePreparedDaemonSetPair(ctx, ddai, returnToBlue, budget, newStatus)
 		}
+		updatedBlue := pair.blue.DeepCopy()
+		addedFallback, fallbackErr := ensurePreparedUnlabeledFallback(&updatedBlue.Spec.Template.Spec, preparedRolloutNodeLabelKey(ddai))
+		if fallbackErr != nil {
+			return reconcile.Result{}, fallbackErr
+		}
+		if addedFallback {
+			if err := r.client.Patch(ctx, updatedBlue, client.MergeFrom(pair.blue)); err != nil {
+				return reconcile.Result{}, err
+			}
+			return requeuePreparedRollout(), nil
+		}
+		if !daemonSetObserved(pair.blue) {
+			return requeuePreparedRollout(), nil
+		}
 
 		foreground := metav1.DeletePropagationForeground
 		if err := r.client.Delete(ctx, pair.green, &client.DeleteOptions{PropagationPolicy: &foreground}); err != nil && !apierrors.IsNotFound(err) {
@@ -133,6 +148,42 @@ func (r *Reconciler) reconcilePreparedDisable(
 		return reconcile.Result{}, err
 	}
 	return r.createOrUpdateDaemonset(ctx, ddai, rendered, newStatus, updateDSStatusV2WithAgent)
+}
+
+func ensurePreparedUnlabeledFallback(spec *corev1.PodSpec, key string) (bool, error) {
+	if spec.Affinity == nil || spec.Affinity.NodeAffinity == nil || spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution == nil {
+		return false, fmt.Errorf("prepared blue slot has no required node affinity for %q", key)
+	}
+	required := spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution
+	for _, term := range required.NodeSelectorTerms {
+		for _, expression := range term.MatchExpressions {
+			if expression.Key == key && expression.Operator == corev1.NodeSelectorOpDoesNotExist {
+				return false, nil
+			}
+		}
+	}
+	originalTerms := len(required.NodeSelectorTerms)
+	added := false
+	for i := range originalTerms {
+		fallback := required.NodeSelectorTerms[i].DeepCopy()
+		found := false
+		for j := range fallback.MatchExpressions {
+			if fallback.MatchExpressions[j].Key != key {
+				continue
+			}
+			fallback.MatchExpressions[j].Operator = corev1.NodeSelectorOpDoesNotExist
+			fallback.MatchExpressions[j].Values = nil
+			found = true
+		}
+		if found {
+			required.NodeSelectorTerms = append(required.NodeSelectorTerms, *fallback)
+			added = true
+		}
+	}
+	if !added {
+		return false, fmt.Errorf("prepared blue slot node affinity does not contain rollout key %q", key)
+	}
+	return true, nil
 }
 
 func (r *Reconciler) clearPreparedDaemonSetAnnotations(ctx context.Context, ds *appsv1.DaemonSet) (bool, error) {
@@ -357,6 +408,23 @@ func (r *Reconciler) reconcilePreparedDaemonSetPair(
 		}
 		activeHasDesiredRevision := daemonSetHasPreparedRevision(activeDS, desiredRevision)
 		if activeHasDesiredRevision {
+			activeDesired := blueDesired
+			if active == rolloutSlotGreen {
+				activeDesired = greenDesired
+			}
+			// Slot ownership changes independently of the content revision. Apply
+			// the new source affinity first and wait for the DaemonSet controller to
+			// observe it before removing unlabeled-node fallback from the old source.
+			if !preparedSlotAffinityMatches(activeDS, activeDesired) {
+				result, reconcileErr := r.createOrUpdateDaemonset(ctx, ddai, activeDesired, newStatus, noOpDaemonSetStatus)
+				if reconcileErr != nil {
+					return result, reconcileErr
+				}
+				return requeuePreparedRollout(), nil
+			}
+			if !daemonSetObserved(activeDS) {
+				return requeuePreparedRollout(), nil
+			}
 			pairPods, listErr := r.listPreparedPairPods(ctx, pair)
 			if listErr != nil {
 				return reconcile.Result{}, listErr
@@ -371,15 +439,15 @@ func (r *Reconciler) reconcilePreparedDaemonSetPair(
 			activeHasDesiredRevision = !staleServing
 		}
 		if activeHasDesiredRevision {
-			// Keep the inactive slot at the last known-good desired template. Blue
-			// accepts unlabeled nodes even while green is active; leaving a failed
-			// or obsolete target template there would make a later node bootstrap
-			// with an image which the rollout already rejected.
-			if !daemonSetHasPreparedRevision(inactiveDS, desiredRevision) || !daemonSetObserved(inactiveDS) {
-				inactiveDesired := blueDesired
-				if active == rolloutSlotBlue {
-					inactiveDesired = greenDesired
-				}
+			// Keep the inactive slot at the last known-good desired template, but
+			// remove its unlabeled-node fallback only after the active source owns it.
+			inactiveDesired := blueDesired
+			if active == rolloutSlotBlue {
+				inactiveDesired = greenDesired
+			}
+			if !daemonSetHasPreparedRevision(inactiveDS, desiredRevision) ||
+				!preparedSlotAffinityMatches(inactiveDS, inactiveDesired) ||
+				!daemonSetObserved(inactiveDS) {
 				result, reconcileErr := r.createOrUpdateDaemonset(ctx, ddai, inactiveDesired, newStatus, noOpDaemonSetStatus)
 				if reconcileErr != nil {
 					return result, reconcileErr
@@ -463,6 +531,13 @@ func (r *Reconciler) reconcilePreparedDaemonSetPair(
 	}
 	updatePreparedPairStatus(newStatus, pair, target)
 	return requeuePreparedRollout(), nil
+}
+
+func preparedSlotAffinityMatches(current, desired *appsv1.DaemonSet) bool {
+	return current != nil && desired != nil && apiequality.Semantic.DeepEqual(
+		current.Spec.Template.Spec.Affinity,
+		desired.Spec.Template.Spec.Affinity,
+	)
 }
 
 // abortPreparedTargetBeforeHandoff cancels an obsolete preparation only while

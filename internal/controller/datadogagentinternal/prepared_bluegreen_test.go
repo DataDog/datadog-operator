@@ -363,6 +363,11 @@ func TestPreparedSteadyPairRefreshesInactiveBootstrapSlot(t *testing.T) {
 	r := NewReconciler(ReconcilerOptions{}, fakeClient, kubernetes.PlatformInfo{}, scheme, record.NewFakeRecorder(100), nil)
 	_, err = r.reconcilePreparedDaemonSetPair(ctx, ddai, rendered.DeepCopy(), intstr.FromInt(1), &datadoghqv1alpha1.DatadogAgentInternalStatus{})
 	require.NoError(t, err)
+	// The active green slot first acquires unlabeled-node coverage. Only after
+	// that update is observed may the stale inactive blue template be replaced.
+	setPreparedDaemonSetStatus(t, ctx, fakeClient, green.Namespace, green.Name, 0, 0, 0, 0)
+	_, err = r.reconcilePreparedDaemonSetPair(ctx, ddai, rendered.DeepCopy(), intstr.FromInt(1), &datadoghqv1alpha1.DatadogAgentInternalStatus{})
+	require.NoError(t, err)
 	refreshedBlue := &appsv1.DaemonSet{}
 	require.NoError(t, fakeClient.Get(ctx, client.ObjectKeyFromObject(blue), refreshedBlue))
 	assert.Equal(t, rendered.Spec.Template.Spec.Containers[0].Image, refreshedBlue.Spec.Template.Spec.Containers[0].Image)
@@ -570,6 +575,32 @@ func TestPreparedDisableKeepsGreenWhileItIsAuthoritative(t *testing.T) {
 	require.NoError(t, fakeClient.Get(ctx, client.ObjectKeyFromObject(green), &appsv1.DaemonSet{}), "green must remain until a prepared handoff makes blue authoritative")
 }
 
+func TestPreparedDisableMakesBlueEligibleBeforeDeletingGreen(t *testing.T) {
+	ctx := context.Background()
+	ddai, rendered, _, fakeClient, scheme := preparedLifecycleFixture(t)
+	base := rendered.DeepCopy()
+	require.NoError(t, prepareAgentTemplate(base))
+	key := preparedRolloutNodeLabelKey(ddai)
+	blue, err := preparedSlotDaemonSet(base, rolloutSlotBlue, key, "revision", false)
+	require.NoError(t, err)
+	green, err := preparedSlotDaemonSet(base, rolloutSlotGreen, key, "revision", true)
+	require.NoError(t, err)
+	for _, ds := range []*appsv1.DaemonSet{blue, green} {
+		setPreparedTestController(ds, ddai)
+		ds.Annotations[preparedRolloutPairInitializedAnnotation] = preparedBlueGreenArmed
+		ds.Annotations[preparedRolloutActiveSlotAnnotation] = rolloutSlotBlue
+		require.NoError(t, fakeClient.Create(ctx, ds))
+	}
+
+	r := NewReconciler(ReconcilerOptions{}, fakeClient, kubernetes.PlatformInfo{}, scheme, record.NewFakeRecorder(100), nil)
+	_, err = r.reconcilePreparedDisable(ctx, ddai, rendered.DeepCopy(), intstr.FromInt(1), &datadoghqv1alpha1.DatadogAgentInternalStatus{})
+	require.NoError(t, err)
+	currentBlue := &appsv1.DaemonSet{}
+	require.NoError(t, fakeClient.Get(ctx, client.ObjectKeyFromObject(blue), currentBlue))
+	assert.True(t, slotAffinityAllowsUnlabeled(currentBlue, key))
+	require.NoError(t, fakeClient.Get(ctx, client.ObjectKeyFromObject(green), &appsv1.DaemonSet{}), "green must remain until blue accepts unlabeled nodes")
+}
+
 func TestPreparedCleanupResumesAfterBothDaemonSetsDisappear(t *testing.T) {
 	ctx := context.Background()
 	ddai, rendered, node, fakeClient, scheme := preparedLifecycleFixture(t)
@@ -761,6 +792,48 @@ func TestPreparedUnlabeledFallbackFollowsTheSourceSlot(t *testing.T) {
 	require.NoError(t, err)
 	assert.False(t, slotAffinityAllowsUnlabeled(blue, key))
 	assert.True(t, slotAffinityAllowsUnlabeled(green, key))
+}
+
+func TestPreparedSteadyReconcileTransfersUnlabeledFallbackToActiveSlot(t *testing.T) {
+	ctx := context.Background()
+	ddai, rendered, node, fakeClient, scheme := preparedLifecycleFixture(t)
+	key := preparedRolloutNodeLabelKey(ddai)
+	node.Labels[key] = rolloutSlotGreen
+	require.NoError(t, fakeClient.Update(ctx, node))
+
+	base := rendered.DeepCopy()
+	require.NoError(t, prepareAgentTemplate(base))
+	base.Spec.Template.Annotations[preparedRolloutArmedAnnotation] = preparedBlueGreenArmed
+	base.Spec.Template.Annotations[preparedRolloutSchemaAnnotation] = preparedRolloutSchemaVersion
+	controllercommon.FinalizeAppArmorProfile(&base.Spec.Template, kubernetes.PlatformInfo{})
+	revision, err := comparison.GenerateMD5ForSpec(base.Spec.Template)
+	require.NoError(t, err)
+	// Model the instant after a blue-to-green handoff completed but before the
+	// source-specific bootstrap affinity was reconciled.
+	blue, err := preparedSlotDaemonSet(base, rolloutSlotBlue, key, revision, true)
+	require.NoError(t, err)
+	green, err := preparedSlotDaemonSet(base, rolloutSlotGreen, key, revision, false)
+	require.NoError(t, err)
+	for _, ds := range []*appsv1.DaemonSet{blue, green} {
+		setPreparedTestController(ds, ddai)
+		ds.Annotations[preparedRolloutPairInitializedAnnotation] = preparedBlueGreenArmed
+		ds.Annotations[preparedRolloutActiveSlotAnnotation] = rolloutSlotGreen
+		require.NoError(t, fakeClient.Create(ctx, ds))
+	}
+
+	r := NewReconciler(ReconcilerOptions{}, fakeClient, kubernetes.PlatformInfo{}, scheme, record.NewFakeRecorder(100), nil)
+	status := &datadoghqv1alpha1.DatadogAgentInternalStatus{}
+	_, err = r.reconcilePreparedDaemonSetPair(ctx, ddai, rendered.DeepCopy(), intstr.FromInt(1), status)
+	require.NoError(t, err)
+	currentGreen := &appsv1.DaemonSet{}
+	require.NoError(t, fakeClient.Get(ctx, client.ObjectKeyFromObject(green), currentGreen))
+	assert.True(t, slotAffinityAllowsUnlabeled(currentGreen, key), "the proven active slot must gain bootstrap coverage first")
+
+	_, err = r.reconcilePreparedDaemonSetPair(ctx, ddai, rendered.DeepCopy(), intstr.FromInt(1), status)
+	require.NoError(t, err)
+	currentBlue := &appsv1.DaemonSet{}
+	require.NoError(t, fakeClient.Get(ctx, client.ObjectKeyFromObject(blue), currentBlue))
+	assert.False(t, slotAffinityAllowsUnlabeled(currentBlue, key), "the old source relinquishes bootstrap only after green owns it")
 }
 
 func TestPreparedNodeProgressionUsesBudgetAndRealReadiness(t *testing.T) {

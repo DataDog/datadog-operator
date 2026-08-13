@@ -265,7 +265,6 @@ func TestPreparedRolloutSupportsOptimizedAgentContainers(t *testing.T) {
 		{Name: string(apicommon.OtelAgent), Command: []string{"otel-agent"}},
 		{Name: string(apicommon.AgentDataPlaneContainerName), Command: []string{"agent-data-plane", "--config", "/etc/datadog-agent/datadog.yaml", "run"}, LivenessProbe: constants.GetDefaultAgentDataPlaneLivenessProbe(), ReadinessProbe: constants.GetDefaultAgentDataPlaneReadinessProbe()},
 		{Name: string(apicommon.FlightRecorderContainerName), Command: []string{"/opt/datadog-agent/embedded/bin/flightrecorder"}},
-		{Name: string(apicommon.PrivateActionRunnerContainerName), Command: []string{"/opt/datadog-agent/embedded/bin/privateactionrunner"}},
 	}
 	ds.Spec.Template.Spec.InitContainers = append(ds.Spec.Template.Spec.InitContainers,
 		corev1.Container{Name: "seccomp-setup", Command: []string{"cp", "/etc/config/system-probe-seccomp.json", "/host/var/lib/kubelet/seccomp/system-probe"}},
@@ -287,6 +286,14 @@ func TestPreparedRolloutSupportsOptimizedAgentContainers(t *testing.T) {
 	assert.Nil(t, ds.Spec.Template.Spec.Containers[2].ReadinessProbe, "components without readiness keep baseline behavior")
 	flightRecorder := ds.Spec.Template.Spec.Containers[8]
 	assert.NotContains(t, flightRecorder.Args, "--wait-file", "Flight Recorder has no auth-token mount and must not wait for the core token")
+}
+
+func TestPreparedRolloutRejectsPrivateActionRunnerWithoutDurableIdentity(t *testing.T) {
+	ds := preparedTestDaemonSet(true)
+	ds.Spec.Template.Spec.Containers = append(ds.Spec.Template.Spec.Containers, corev1.Container{
+		Name: string(apicommon.PrivateActionRunnerContainerName), Command: []string{"/opt/datadog-agent/embedded/bin/privateactionrunner"},
+	})
+	require.ErrorContains(t, prepareAgentTemplate(ds), "does not support container \"private-action-runner\"")
 }
 
 func TestPreparedRolloutRejectsStandaloneHostProfiler(t *testing.T) {
