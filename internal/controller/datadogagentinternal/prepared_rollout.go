@@ -14,15 +14,12 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
-	"github.com/DataDog/datadog-operator/pkg/constants"
+	agentcommon "github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 )
 
 const (
 	preparedRolloutModeAnnotation  = "experimental.agent.datadoghq.com/node-agent-rollout-mode"
-	preparedRolloutModeV3          = "prepared-surge-v3"
 	preparedRolloutArmedAnnotation = "experimental.agent.datadoghq.com/node-agent-rollout-armed"
-	preparedRolloutArmedV3         = "v3"
 
 	preparedRolloutLockVolume = "agent-rollout-locks"
 	preparedRolloutLockDir    = "/var/run/datadog-agent-rollout"
@@ -32,8 +29,15 @@ const (
 	rolloutPodUIDEnv       = "DD_EXPERIMENTAL_NODE_AGENT_ROLLOUT_POD_UID"
 	rolloutLockPathEnv     = "DD_EXPERIMENTAL_NODE_AGENT_ROLLOUT_LOCK_PATH"
 	rolloutPreparedPathEnv = "DD_EXPERIMENTAL_NODE_AGENT_ROLLOUT_PREPARED_PATH"
+	rolloutActivePathEnv   = "DD_EXPERIMENTAL_NODE_AGENT_ROLLOUT_ACTIVE_PATH"
+	coreAgentCmdPortEnv    = "DD_CMD_PORT"
+	rolloutPodIPEnv        = "DD_EXPERIMENTAL_NODE_AGENT_ROLLOUT_POD_IP"
+	greenCoreAgentCmdPort  = int32(5002)
 
-	maxStartupProbeFailures = int32(2147483647)
+	maxStartupProbeFailures          = int32(2147483647)
+	preparedMarkerProbePeriodSeconds = int32(5)
+	defaultStartupFailureThreshold   = int32(3)
+	defaultTerminationGraceSeconds   = int64(30)
 )
 
 var preparedRolloutContainerNames = map[string]struct{}{
@@ -44,6 +48,8 @@ var preparedRolloutContainerNames = map[string]struct{}{
 	string(apicommon.SystemProbeContainerName):         {},
 	string(apicommon.HostProfiler):                     {},
 	string(apicommon.OtelAgent):                        {},
+	string(apicommon.AgentDataPlaneContainerName):      {},
+	string(apicommon.FlightRecorderContainerName):      {},
 	string(apicommon.PrivateActionRunnerContainerName): {},
 }
 
@@ -52,54 +58,6 @@ var preparedRolloutInitContainerNames = map[string]struct{}{
 	string(apicommon.InitConfigContainerName): {},
 	"seccomp-setup":               {},
 	"host-profiler-seccomp-setup": {},
-}
-
-func preparedRolloutEnabled(ddai *datadoghqv1alpha1.DatadogAgentInternal) bool {
-	return ddai != nil && ddai.Annotations[preparedRolloutModeAnnotation] == preparedRolloutModeV3
-}
-
-// configurePreparedRollout enables native DaemonSet surge. Existing profile
-// DaemonSets need one ordinary rollout to narrow their anti-affinity before two
-// revisions can share a node.
-func configurePreparedRollout(ddai *datadoghqv1alpha1.DatadogAgentInternal, ds, current *appsv1.DaemonSet, budget intstr.IntOrString) (bool, error) {
-	if !preparedRolloutEnabled(ddai) {
-		return false, nil
-	}
-	if !positiveIntOrPercent(&budget) {
-		return false, fmt.Errorf("prepared Agent rollout requires a positive, valid maxUnavailable budget")
-	}
-	if ds.Spec.UpdateStrategy.Type != "" && ds.Spec.UpdateStrategy.Type != appsv1.RollingUpdateDaemonSetStrategyType {
-		return false, fmt.Errorf("prepared Agent rollout requires RollingUpdate strategy")
-	}
-	prepared := ds.DeepCopy()
-	if err := prepareAgentTemplate(prepared); err != nil {
-		return false, err
-	}
-	if !configurePreparedSurge(prepared, budget) {
-		return false, fmt.Errorf("prepared Agent rollout requires a positive, valid maxUnavailable budget")
-	}
-
-	if current != nil && preparedRolloutArmingPending(current) {
-		armingTemplate := prepared.Spec.Template.DeepCopy()
-		delete(armingTemplate.Annotations, preparedRolloutModeAnnotation)
-		armingTemplate.Annotations[preparedRolloutArmedAnnotation] = preparedRolloutArmedV3
-		ds.Spec.Template = *armingTemplate
-		configureConventionalMigration(ds, budget)
-		return true, nil
-	}
-
-	ds.Spec.Template = prepared.Spec.Template
-	ds.Spec.UpdateStrategy = prepared.Spec.UpdateStrategy
-	return false, nil
-}
-
-func preparedRolloutArmingPending(current *appsv1.DaemonSet) bool {
-	if hasRolloutMode(current.Spec.Template.Annotations) {
-		return false
-	}
-	// Existing containers do not own component locks. Roll them once through
-	// the lightweight wrapper before allowing a second generation onto a node.
-	return current.Spec.Template.Annotations[preparedRolloutArmedAnnotation] != preparedRolloutArmedV3 || !daemonSetFullyRolledOut(current)
 }
 
 func daemonSetFullyRolledOut(ds *appsv1.DaemonSet) bool {
@@ -120,11 +78,25 @@ func prepareAgentTemplate(ds *appsv1.DaemonSet) error {
 	if err := validatePreparedContainers(spec); err != nil {
 		return err
 	}
-	if !prepareProfileAntiAffinityForSurge(&ds.Spec.Template) {
+	if !prepareProfileAntiAffinityForOverlap(&ds.Spec.Template) {
 		return fmt.Errorf("prepared Agent rollout does not support custom Pod anti-affinity")
 	}
 	if !spec.HostNetwork {
-		return fmt.Errorf("prepared Agent rollout currently requires hostNetwork so the waiting replacement's network probes reach the old generation")
+		for _, container := range append(slices.Clone(spec.Containers), spec.InitContainers...) {
+			for _, port := range container.Ports {
+				if port.HostPort != 0 {
+					return fmt.Errorf("prepared Agent rollout does not support hostPort %d on pod-networked container %q", port.HostPort, container.Name)
+				}
+			}
+		}
+	} else {
+		for _, container := range append(slices.Clone(spec.Containers), spec.InitContainers...) {
+			for _, port := range container.Ports {
+				if port.HostPort != 0 && port.HostPort != port.ContainerPort {
+					return fmt.Errorf("prepared Agent rollout cannot preserve hostPort %d to containerPort %d mapping on host-networked container %q", port.HostPort, port.ContainerPort, container.Name)
+				}
+			}
+		}
 	}
 	if err := addPreparedRolloutLockVolume(spec); err != nil {
 		return err
@@ -133,12 +105,13 @@ func prepareAgentTemplate(ds *appsv1.DaemonSet) error {
 		container := &spec.Containers[i]
 		wrapPreparedContainerCommand(container)
 		configurePreparedContainer(container)
-		configurePreparedStartupProbe(container)
+		configurePreparedProbes(container, spec.TerminationGracePeriodSeconds)
 		container.VolumeMounts = append(container.VolumeMounts, corev1.VolumeMount{Name: preparedRolloutLockVolume, MountPath: preparedRolloutLockDir})
 		if spec.HostNetwork {
-			// On hostNetwork, declared container ports are scheduler host-port
-			// claims. The process still binds the same node ports after its older
-			// peer stops. Pod-networked containers keep their port metadata.
+			// Kubernetes defaults declared containerPort entries on host-networked
+			// Pods into host-port scheduling claims, even when hostPort is cleared.
+			// Remove the declarations so the waiting generation may overlap; the
+			// process still binds the same numeric node ports after lock handoff.
 			container.Ports = nil
 		}
 	}
@@ -150,7 +123,7 @@ func prepareAgentTemplate(ds *appsv1.DaemonSet) error {
 	if ds.Spec.Template.Annotations == nil {
 		ds.Spec.Template.Annotations = map[string]string{}
 	}
-	ds.Spec.Template.Annotations[preparedRolloutModeAnnotation] = preparedRolloutModeV3
+	ds.Spec.Template.Annotations[preparedRolloutModeAnnotation] = preparedBlueGreenMode
 	return nil
 }
 
@@ -160,7 +133,10 @@ func wrapPreparedContainerCommand(container *corev1.Container) {
 	original = append(original, container.Args...)
 	container.Command = []string{preparedRolloutGateBinary}
 	gateArgs := []string{"--component", container.Name}
-	if container.Name != string(apicommon.CoreAgentContainerName) {
+	// The core creates the token. Flight Recorder is independent of the core
+	// and intentionally has no auth-volume mount, so waiting for that path would
+	// leave an otherwise prepared Flight Recorder asleep forever.
+	if container.Name != string(apicommon.CoreAgentContainerName) && container.Name != string(apicommon.FlightRecorderContainerName) {
 		gateArgs = append(gateArgs, "--wait-file", preparedRolloutAuthToken)
 	}
 	gateArgs = append(gateArgs, "--")
@@ -173,10 +149,10 @@ func addPreparedRolloutLockVolume(spec *corev1.PodSpec) error {
 			return fmt.Errorf("prepared Agent rollout volume name %q is reserved", preparedRolloutLockVolume)
 		}
 	}
-	for i := range spec.Containers {
-		for _, mount := range spec.Containers[i].VolumeMounts {
+	for _, container := range append(slices.Clone(spec.Containers), spec.InitContainers...) {
+		for _, mount := range container.VolumeMounts {
 			if mount.Name == preparedRolloutLockVolume || mount.MountPath == preparedRolloutLockDir || strings.HasPrefix(preparedRolloutLockDir, strings.TrimRight(mount.MountPath, "/")+"/") {
-				return fmt.Errorf("prepared Agent rollout lock mount conflicts with container %q", spec.Containers[i].Name)
+				return fmt.Errorf("prepared Agent rollout lock mount conflicts with container %q", container.Name)
 			}
 		}
 	}
@@ -194,6 +170,9 @@ func addPreparedRolloutLockVolume(spec *corev1.PodSpec) error {
 func validatePreparedContainers(spec *corev1.PodSpec) error {
 	for i := range spec.Containers {
 		container := &spec.Containers[i]
+		if findContainerEnv(container, coreAgentCmdPortEnv) != nil {
+			return fmt.Errorf("prepared Agent rollout does not support an explicit %s override because the green slot reserves port %d", coreAgentCmdPortEnv, greenCoreAgentCmdPort)
+		}
 		if _, ok := preparedRolloutContainerNames[container.Name]; !ok {
 			return fmt.Errorf("prepared Agent rollout does not support container %q", container.Name)
 		}
@@ -218,111 +197,131 @@ func validatePreparedContainers(spec *corev1.PodSpec) error {
 		if container.Lifecycle != nil {
 			return fmt.Errorf("prepared Agent rollout does not support lifecycle hooks on init container %q", container.Name)
 		}
+		if !preparedInitCommandSupported(container) {
+			return fmt.Errorf("prepared Agent rollout does not support command %q on init container %q", container.Command, container.Name)
+		}
+		if err := validatePreparedInitHostMounts(spec, container); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func findContainerEnv(container *corev1.Container, name string) *corev1.EnvVar {
+	for i := range container.Env {
+		if container.Env[i].Name == name {
+			return &container.Env[i]
+		}
+	}
+	return nil
+}
+
+func preparedInitCommandSupported(container *corev1.Container) bool {
+	switch container.Name {
+	case string(apicommon.InitVolumeContainerName), string(apicommon.InitConfigContainerName):
+		return slices.Equal(container.Command, []string{"bash", "-c"}) && len(container.Args) == 1 && container.Args[0] != ""
+	case "seccomp-setup":
+		return len(container.Command) == 3 && container.Command[0] == "cp" &&
+			container.Command[1] == agentcommon.SeccompSecurityVolumePath+"/"+agentcommon.SystemProbeSeccompKey &&
+			container.Command[2] == agentcommon.SeccompRootVolumePath+"/"+agentcommon.SystemProbeSeccompProfileName && len(container.Args) == 0
+	case "host-profiler-seccomp-setup":
+		if len(container.Args) != 0 {
+			return false
+		}
+		if len(container.Command) == 3 && container.Command[0] == "cp" {
+			return container.Command[1] == "/etc/dd-host-profiler/seccomp.json" && preparedHostProfilerSeccompDestination(container.Command[2])
+		}
+		return len(container.Command) == 3 && container.Command[0] == "sh" && container.Command[1] == "-c" &&
+			strings.Contains(container.Command[2], "/etc/dd-host-profiler/logging-seccomp.json") &&
+			strings.Contains(container.Command[2], "/etc/dd-host-profiler/seccomp.json") &&
+			strings.Contains(container.Command[2], agentcommon.SeccompRootVolumePath+"/host-profiler-")
+	default:
+		return false
+	}
+}
+
+func preparedHostProfilerSeccompDestination(destination string) bool {
+	name := strings.TrimPrefix(destination, agentcommon.SeccompRootVolumePath+"/")
+	return name != destination && strings.HasPrefix(name, "host-profiler-") && !strings.Contains(name, "/")
+}
+
+func validatePreparedInitHostMounts(spec *corev1.PodSpec, container *corev1.Container) error {
+	volumes := make(map[string]corev1.Volume, len(spec.Volumes))
+	for i := range spec.Volumes {
+		volumes[spec.Volumes[i].Name] = spec.Volumes[i]
+	}
+	for _, mount := range container.VolumeMounts {
+		volume, found := volumes[mount.Name]
+		if !found || volume.HostPath == nil || mount.ReadOnly {
+			continue
+		}
+		seccompWriter := (container.Name == "seccomp-setup" || container.Name == "host-profiler-seccomp-setup") &&
+			volume.HostPath.Path == agentcommon.SeccompRootPath && mount.MountPath == agentcommon.SeccompRootVolumePath
+		if !seccompWriter {
+			return fmt.Errorf("prepared Agent rollout does not support writable hostPath %q on init container %q before handoff", volume.HostPath.Path, container.Name)
+		}
 	}
 	return nil
 }
 
 func validatePreparedProbes(container *corev1.Container) error {
-	// After Prepared, host-network probes deliberately reach the listener owned
-	// by the old generation. Restrict them to listeners owned by the matching
-	// Agent component; an arbitrary healthy node port must not authorize deleting
-	// the old Agent.
-	switch container.Name {
-	case string(apicommon.CoreAgentContainerName):
-		startupPort, err := validateCoreHTTPProbe("startup", container.StartupProbe, "")
-		if err != nil {
+	for _, entry := range []struct {
+		name  string
+		probe *corev1.Probe
+	}{
+		{name: "startup", probe: container.StartupProbe},
+		{name: "liveness", probe: container.LivenessProbe},
+		{name: "readiness", probe: container.ReadinessProbe},
+	} {
+		if entry.probe == nil {
+			continue
+		}
+		if err := validateDelegatedProbe(entry.name, entry.probe); err != nil {
 			return probeValidationError(container.Name, err)
 		}
-		if path := container.StartupProbe.HTTPGet.Path; path != constants.DefaultStartupProbeHTTPPath && path != constants.DefaultReadinessProbeHTTPPath {
-			return probeValidationError(container.Name, fmt.Errorf("startup HTTP path must be %q or %q", constants.DefaultStartupProbeHTTPPath, constants.DefaultReadinessProbeHTTPPath))
-		}
-		for _, probe := range []struct {
-			name  string
-			path  string
-			probe *corev1.Probe
-		}{
-			{name: "liveness", path: constants.DefaultLivenessProbeHTTPPath, probe: container.LivenessProbe},
-			{name: "readiness", path: constants.DefaultReadinessProbeHTTPPath, probe: container.ReadinessProbe},
-		} {
-			port, err := validateCoreHTTPProbe(probe.name, probe.probe, probe.path)
-			if err != nil {
-				return probeValidationError(container.Name, err)
-			}
-			if port != startupPort {
-				return probeValidationError(container.Name, fmt.Errorf("%s port %d differs from startup port %d", probe.name, port, startupPort))
-			}
-		}
-		return nil
-
-	case string(apicommon.TraceAgentContainerName):
-		livenessPort, err := validateTraceProbe("liveness", container.LivenessProbe)
-		if err != nil {
-			return probeValidationError(container.Name, err)
-		}
-		if container.ReadinessProbe != nil {
-			readinessPort, err := validateTraceProbe("readiness", container.ReadinessProbe)
-			if err != nil {
-				return probeValidationError(container.Name, err)
-			}
-			if readinessPort != livenessPort {
-				return probeValidationError(container.Name, fmt.Errorf("readiness port %d differs from liveness port %d", readinessPort, livenessPort))
-			}
-		}
-		return nil
-
-	case string(apicommon.SystemProbeContainerName):
-		if container.LivenessProbe != nil {
-			if _, err := validateCoreHTTPProbe("liveness", container.LivenessProbe, constants.DefaultLivenessProbeHTTPPath); err != nil {
-				return probeValidationError(container.Name, err)
-			}
-		}
-		if container.ReadinessProbe != nil {
-			return probeValidationError(container.Name, fmt.Errorf("readiness probe has no proven old-generation listener"))
-		}
-		return nil
-
-	default:
-		if container.LivenessProbe != nil || container.ReadinessProbe != nil {
-			return probeValidationError(container.Name, fmt.Errorf("network probes have no proven old-generation listener"))
-		}
-		return nil
 	}
+	return nil
 }
 
 func probeValidationError(container string, err error) error {
 	return fmt.Errorf("prepared Agent rollout does not support probes on container %q: %w", container, err)
 }
 
-func validateCoreHTTPProbe(name string, probe *corev1.Probe, path string) (int32, error) {
-	if probe == nil || probe.HTTPGet == nil {
-		return 0, fmt.Errorf("%s probe must use the Agent HTTP listener", name)
+func validateDelegatedProbe(name string, probe *corev1.Probe) error {
+	if probe.HTTPGet != nil {
+		if probe.TCPSocket != nil || probe.Exec != nil || probe.GRPC != nil {
+			return fmt.Errorf("%s probe must have exactly one handler", name)
+		}
+		if probe.HTTPGet.Host != "" {
+			return fmt.Errorf("%s HTTP host must be empty", name)
+		}
+		if probe.HTTPGet.Scheme != "" && probe.HTTPGet.Scheme != corev1.URISchemeHTTP {
+			return fmt.Errorf("%s HTTP scheme must be HTTP", name)
+		}
+		if probe.HTTPGet.Path == "" || !strings.HasPrefix(probe.HTTPGet.Path, "/") {
+			return fmt.Errorf("%s HTTP path must be absolute", name)
+		}
+		if len(probe.HTTPGet.HTTPHeaders) != 0 {
+			return fmt.Errorf("%s HTTP headers are not supported", name)
+		}
+		if err := validateNumericProbePort(probe.HTTPGet.Port); err != nil {
+			return fmt.Errorf("%s %w", name, err)
+		}
+		return nil
 	}
-	if probe.HTTPGet.Host != "" {
-		return 0, fmt.Errorf("%s HTTP host must be empty", name)
+	if probe.TCPSocket != nil {
+		if probe.Exec != nil || probe.GRPC != nil {
+			return fmt.Errorf("%s probe must have exactly one handler", name)
+		}
+		if probe.TCPSocket.Host != "" {
+			return fmt.Errorf("%s TCP host must be empty", name)
+		}
+		if err := validateNumericProbePort(probe.TCPSocket.Port); err != nil {
+			return fmt.Errorf("%s %w", name, err)
+		}
+		return nil
 	}
-	if probe.HTTPGet.Scheme != "" && probe.HTTPGet.Scheme != corev1.URISchemeHTTP {
-		return 0, fmt.Errorf("%s HTTP scheme must be HTTP", name)
-	}
-	if path != "" && probe.HTTPGet.Path != path {
-		return 0, fmt.Errorf("%s HTTP path must be %q", name, path)
-	}
-	if err := validateNumericProbePort(probe.HTTPGet.Port); err != nil {
-		return 0, fmt.Errorf("%s %w", name, err)
-	}
-	return probe.HTTPGet.Port.IntVal, nil
-}
-
-func validateTraceProbe(name string, probe *corev1.Probe) (int32, error) {
-	if probe == nil || probe.TCPSocket == nil {
-		return 0, fmt.Errorf("%s probe must use the trace Agent TCP listener", name)
-	}
-	if probe.TCPSocket.Host != "" {
-		return 0, fmt.Errorf("%s TCP host must be empty", name)
-	}
-	if err := validateNumericProbePort(probe.TCPSocket.Port); err != nil {
-		return 0, fmt.Errorf("%s %w", name, err)
-	}
-	return probe.TCPSocket.Port.IntVal, nil
+	return fmt.Errorf("%s probe must use HTTP or TCP", name)
 }
 func validateNumericProbePort(port intstr.IntOrString) error {
 	if port.Type != intstr.Int || port.IntVal <= 0 {
@@ -343,6 +342,8 @@ func preparedContainerCommandSupported(container *corev1.Container) bool {
 		string(apicommon.SystemProbeContainerName):         "system-probe",
 		string(apicommon.HostProfiler):                     "host-profiler",
 		string(apicommon.OtelAgent):                        "otel-agent",
+		string(apicommon.AgentDataPlaneContainerName):      "agent-data-plane",
+		string(apicommon.FlightRecorderContainerName):      "/opt/datadog-agent/embedded/bin/flightrecorder",
 		string(apicommon.PrivateActionRunnerContainerName): "/opt/datadog-agent/embedded/bin/privateactionrunner",
 	}
 	want := expected[container.Name]
@@ -366,6 +367,7 @@ func preparedContainerCommandSupported(container *corev1.Container) bool {
 func configurePreparedContainer(container *corev1.Container) {
 	setContainerEnv(container, corev1.EnvVar{Name: rolloutLockPathEnv, Value: preparedRolloutLockDir + "/" + container.Name + ".lock"})
 	setContainerEnv(container, corev1.EnvVar{Name: rolloutPreparedPathEnv, Value: preparedRolloutLockDir + "/" + container.Name + ".prepared"})
+	setContainerEnv(container, corev1.EnvVar{Name: rolloutActivePathEnv, Value: preparedRolloutLockDir + "/" + container.Name + ".active"})
 	setContainerEnv(container, corev1.EnvVar{
 		Name: rolloutPodUIDEnv,
 		ValueFrom: &corev1.EnvVarSource{FieldRef: &corev1.ObjectFieldSelector{
@@ -373,20 +375,78 @@ func configurePreparedContainer(container *corev1.Container) {
 			FieldPath:  "metadata.uid",
 		}},
 	})
+	// Kubelet network probes with an empty host target status.podIP, not
+	// loopback. The exec-based gate delegates to the same address so enabling a
+	// prepared rollout does not silently change probe semantics (including IPv6).
+	setContainerEnv(container, corev1.EnvVar{
+		Name: rolloutPodIPEnv,
+		ValueFrom: &corev1.EnvVarSource{FieldRef: &corev1.ObjectFieldSelector{
+			APIVersion: "v1",
+			FieldPath:  "status.podIP",
+		}},
+	})
 }
 
-func configurePreparedStartupProbe(container *corev1.Container) {
-	probe := container.StartupProbe.DeepCopy()
-	if probe == nil {
-		probe = &corev1.Probe{PeriodSeconds: 1, TimeoutSeconds: 1}
+func configurePreparedProbes(container *corev1.Container, podTerminationGraceSeconds *int64) {
+	originalStartup := container.StartupProbe
+	startup := originalStartup.DeepCopy()
+	if startup == nil {
+		startup = &corev1.Probe{PeriodSeconds: preparedMarkerProbePeriodSeconds, TimeoutSeconds: 1}
 	}
-	probe.ProbeHandler = corev1.ProbeHandler{Exec: &corev1.ExecAction{Command: []string{
-		"sh", "-c", `read uid pid fd < "$DD_EXPERIMENTAL_NODE_AGENT_ROLLOUT_PREPARED_PATH" && test "$uid" = "$DD_EXPERIMENTAL_NODE_AGENT_ROLLOUT_POD_UID" && test "/proc/$pid/fd/$fd" -ef "$DD_EXPERIMENTAL_NODE_AGENT_ROLLOUT_PREPARED_PATH"`,
-	}}}
-	// Waiting for an old generation is not a startup failure. Keep probing for
-	// the lifetime of the container instead of restarting the prepared process.
-	probe.FailureThreshold = maxStartupProbeFailures
-	container.StartupProbe = probe
+	startup.ProbeHandler = preparedStartupProbe(originalStartup, podTerminationGraceSeconds)
+	// The startup probe remains unsuccessful while the process is Prepared, so
+	// Kubernetes keeps the container Unready without running its liveness or
+	// readiness probes. The effectively infinite failure budget prevents a
+	// sleeping replacement from being restarted. Once Active, any original
+	// startup health check runs before Kubernetes restores the container's
+	// unchanged liveness and readiness behavior.
+	startup.FailureThreshold = maxStartupProbeFailures
+	container.StartupProbe = startup
+}
+
+func preparedStartupProbe(original *corev1.Probe, podTerminationGraceSeconds *int64) corev1.ProbeHandler {
+	command := []string{preparedRolloutGateBinary, "probe", "--kind", "startup"}
+	if original == nil {
+		command = append(command, "--handler", "active")
+	} else if original.HTTPGet != nil {
+		command = append(command,
+			"--handler", "http",
+			"--port", original.HTTPGet.Port.String(),
+			"--path", original.HTTPGet.Path,
+			"--timeout", preparedNetworkProbeTimeout(original.TimeoutSeconds),
+		)
+	} else {
+		command = append(command,
+			"--handler", "tcp",
+			"--port", original.TCPSocket.Port.String(),
+			"--timeout", preparedNetworkProbeTimeout(original.TimeoutSeconds),
+		)
+	}
+	if original != nil {
+		failureThreshold := original.FailureThreshold
+		if failureThreshold <= 0 {
+			failureThreshold = defaultStartupFailureThreshold
+		}
+		terminationGrace := defaultTerminationGraceSeconds
+		if podTerminationGraceSeconds != nil && *podTerminationGraceSeconds > 0 {
+			terminationGrace = *podTerminationGraceSeconds
+		}
+		if original.TerminationGracePeriodSeconds != nil && *original.TerminationGracePeriodSeconds > 0 {
+			terminationGrace = *original.TerminationGracePeriodSeconds
+		}
+		command = append(command,
+			"--failure-threshold", fmt.Sprint(failureThreshold),
+			"--termination-grace-period", fmt.Sprintf("%ds", terminationGrace),
+		)
+	}
+	return corev1.ProbeHandler{Exec: &corev1.ExecAction{Command: command}}
+}
+
+func preparedNetworkProbeTimeout(seconds int32) string {
+	if seconds <= 0 {
+		seconds = 1
+	}
+	return fmt.Sprintf("%dms", seconds*900)
 }
 
 func containerRunsAsNonRoot(pod *corev1.PodSecurityContext, container *corev1.SecurityContext) bool {
@@ -417,8 +477,4 @@ func setContainerEnv(container *corev1.Container, env corev1.EnvVar) {
 		}
 	}
 	container.Env = append(container.Env, env)
-}
-
-func hasRolloutMode(annotations map[string]string) bool {
-	return strings.EqualFold(annotations[preparedRolloutModeAnnotation], preparedRolloutModeV3)
 }

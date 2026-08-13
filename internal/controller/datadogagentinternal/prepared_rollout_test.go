@@ -5,6 +5,7 @@
 package datadogagentinternal
 
 import (
+	"fmt"
 	"testing"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -15,34 +16,10 @@ import (
 	"k8s.io/utils/ptr"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-func TestPreparedRolloutRequiresExplicitMode(t *testing.T) {
-	ddai := &datadoghqv1alpha1.DatadogAgentInternal{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{}}}
-	assert.False(t, preparedRolloutEnabled(ddai))
-	ddai.Annotations[preparedRolloutModeAnnotation] = "true"
-	assert.False(t, preparedRolloutEnabled(ddai))
-	ddai.Annotations[preparedRolloutModeAnnotation] = "prepared-surge-v1"
-	assert.False(t, preparedRolloutEnabled(ddai))
-	ddai.Annotations[preparedRolloutModeAnnotation] = preparedRolloutModeV3
-	assert.True(t, preparedRolloutEnabled(ddai))
-}
-
-func TestPreparedRolloutDisabledLeavesDaemonSetUntouched(t *testing.T) {
-	ddai := &datadoghqv1alpha1.DatadogAgentInternal{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{}}}
-	ds := preparedTestDaemonSet(true)
-	ds.Spec.Template.Spec.Containers[0].ReadinessProbe.HTTPGet.Path = "/custom-ready"
-	original := ds.DeepCopy()
-
-	migrating, err := configurePreparedRollout(ddai, ds, nil, intstr.FromInt(1))
-	require.NoError(t, err)
-	assert.False(t, migrating)
-	assert.Equal(t, original, ds)
-}
 
 func TestPrepareAgentTemplatePreservesHostNetworkAndUDS(t *testing.T) {
 	ds := preparedTestDaemonSet(true)
@@ -59,108 +36,43 @@ func TestPrepareAgentTemplatePreservesHostNetworkAndUDS(t *testing.T) {
 	assert.True(t, hasHostPath(ds.Spec.Template.Spec.Volumes, preparedRolloutLockDir))
 
 	podNetwork := preparedTestDaemonSet(false)
-	require.ErrorContains(t, prepareAgentTemplate(podNetwork), "requires hostNetwork")
-}
+	for i := range podNetwork.Spec.Template.Spec.Containers {
+		for j := range podNetwork.Spec.Template.Spec.Containers[i].Ports {
+			podNetwork.Spec.Template.Spec.Containers[i].Ports[j].HostPort = 0
+		}
+	}
+	require.NoError(t, prepareAgentTemplate(podNetwork))
+	assert.NotEmpty(t, podNetwork.Spec.Template.Spec.Containers[0].Ports, "pod-network port metadata must be preserved")
 
-func TestConfigurePreparedRolloutUsesExistingUnavailableBudgetAsSurge(t *testing.T) {
-	ddai := preparedRolloutDDAI()
-	ds := preparedTestDaemonSet(true)
-	budget := intstr.FromString("10%")
-	migrating, err := configurePreparedRollout(ddai, ds, nil, budget)
-	require.NoError(t, err)
-	assert.False(t, migrating)
-	assert.Equal(t, budget, *ds.Spec.UpdateStrategy.RollingUpdate.MaxSurge)
-	assert.Equal(t, intstr.FromInt(0), *ds.Spec.UpdateStrategy.RollingUpdate.MaxUnavailable)
-	assert.Equal(t, preparedRolloutModeV3, ds.Spec.Template.Annotations[preparedRolloutModeAnnotation])
-}
+	podNetworkWithHostPort := preparedTestDaemonSet(false)
+	require.ErrorContains(t, prepareAgentTemplate(podNetworkWithHostPort), "does not support hostPort 8126")
 
-func TestPreparedRolloutArmsExistingOrdinaryDaemonSetBeforeSurge(t *testing.T) {
-	budget := intstr.FromInt(1)
-	current := preparedTestDaemonSet(true)
-	current.Generation = 1
-	current.Status = appsv1.DaemonSetStatus{ObservedGeneration: 1, DesiredNumberScheduled: 2, UpdatedNumberScheduled: 2, NumberAvailable: 2}
-	desired := preparedTestDaemonSet(true)
-
-	migrating, err := configurePreparedRollout(preparedRolloutDDAI(), desired, current, budget)
-	require.NoError(t, err)
-	assert.True(t, migrating)
-	assert.Equal(t, intstr.FromInt(0), *desired.Spec.UpdateStrategy.RollingUpdate.MaxSurge)
-	assert.Equal(t, budget, *desired.Spec.UpdateStrategy.RollingUpdate.MaxUnavailable)
-	assert.Equal(t, preparedRolloutArmedV3, desired.Spec.Template.Annotations[preparedRolloutArmedAnnotation])
-	assert.Empty(t, desired.Spec.Template.Annotations[preparedRolloutModeAnnotation])
-}
-
-func TestPreparedRolloutMigratesExistingProfileAntiAffinityBeforeSurge(t *testing.T) {
-	budget := intstr.FromInt(1)
-	current := preparedTestDaemonSet(true)
-	current.Generation = 1
-	current.Spec.Template.Spec.Affinity = &corev1.Affinity{PodAntiAffinity: broadAgentPodAntiAffinity()}
-
-	desired := preparedTestDaemonSet(true)
-	migrating, err := configurePreparedRollout(preparedRolloutDDAI(), desired, current, budget)
-	require.NoError(t, err)
-	require.True(t, migrating)
-	assert.Equal(t, intstr.FromInt(0), *desired.Spec.UpdateStrategy.RollingUpdate.MaxSurge)
-	assert.Equal(t, budget, *desired.Spec.UpdateStrategy.RollingUpdate.MaxUnavailable)
-	assert.Equal(t, []string{preparedRolloutGateBinary}, desired.Spec.Template.Spec.Containers[0].Command)
-	assert.Equal(t, preparedRolloutArmedV3, desired.Spec.Template.Annotations[preparedRolloutArmedAnnotation])
-	assert.Empty(t, desired.Spec.Template.Annotations[preparedRolloutModeAnnotation])
-
-	current = desired.DeepCopy()
-	current.Generation = 2
-	current.Status = appsv1.DaemonSetStatus{ObservedGeneration: 2, DesiredNumberScheduled: 2, UpdatedNumberScheduled: 2, NumberAvailable: 2}
-	desired = preparedTestDaemonSet(true)
-	migrating, err = configurePreparedRollout(preparedRolloutDDAI(), desired, current, budget)
-	require.NoError(t, err)
-	assert.False(t, migrating)
-	assert.Equal(t, budget, *desired.Spec.UpdateStrategy.RollingUpdate.MaxSurge)
-}
-
-func TestPreparedRolloutZeroNodeProfileFinishesArming(t *testing.T) {
-	current := preparedTestDaemonSet(true)
-	current.Generation = 2
-	current.Spec.Template.Spec.Affinity = &corev1.Affinity{PodAntiAffinity: broadAgentPodAntiAffinity()}
-	current.Spec.Template.Annotations = map[string]string{}
-	current.Spec.Template.Annotations[preparedRolloutArmedAnnotation] = preparedRolloutArmedV3
-	current.Status = appsv1.DaemonSetStatus{ObservedGeneration: 2}
-	desired := preparedTestDaemonSet(true)
-	desired.Spec.Template.Spec.Affinity = &corev1.Affinity{PodAntiAffinity: broadAgentPodAntiAffinity()}
-
-	migrating, err := configurePreparedRollout(preparedRolloutDDAI(), desired, current, intstr.FromInt(1))
-	require.NoError(t, err)
-	assert.False(t, migrating)
-	assert.Equal(t, preparedRolloutModeV3, desired.Spec.Template.Annotations[preparedRolloutModeAnnotation])
+	hostNetworkWithPortMapping := preparedTestDaemonSet(true)
+	hostNetworkWithPortMapping.Spec.Template.Spec.Containers[0].Ports[0].HostPort = 18126
+	require.ErrorContains(t, prepareAgentTemplate(hostNetworkWithPortMapping), "cannot preserve hostPort 18126 to containerPort 8126 mapping")
 }
 
 func TestPreparedRolloutUsesGenerationSafePreparedStartupProbes(t *testing.T) {
 	ds := preparedTestDaemonSet(true)
-	original := make(map[string]struct {
-		liveness  *corev1.Probe
-		readiness *corev1.Probe
-	}, len(ds.Spec.Template.Spec.Containers))
-	for i := range ds.Spec.Template.Spec.Containers {
-		container := &ds.Spec.Template.Spec.Containers[i]
-		original[container.Name] = struct {
-			liveness  *corev1.Probe
-			readiness *corev1.Probe
-		}{container.LivenessProbe.DeepCopy(), container.ReadinessProbe.DeepCopy()}
-	}
 	require.NoError(t, prepareAgentTemplate(ds))
 	for i := range ds.Spec.Template.Spec.Containers {
 		container := &ds.Spec.Template.Spec.Containers[i]
 		require.NotNil(t, container.StartupProbe)
 		require.NotNil(t, container.StartupProbe.Exec)
-		assert.Equal(t, []string{"sh", "-c", `read uid pid fd < "$DD_EXPERIMENTAL_NODE_AGENT_ROLLOUT_PREPARED_PATH" && test "$uid" = "$DD_EXPERIMENTAL_NODE_AGENT_ROLLOUT_POD_UID" && test "/proc/$pid/fd/$fd" -ef "$DD_EXPERIMENTAL_NODE_AGENT_ROLLOUT_PREPARED_PATH"`}, container.StartupProbe.Exec.Command)
+		assert.Equal(t, preparedRolloutGateBinary, container.StartupProbe.Exec.Command[0])
+		assert.Contains(t, container.StartupProbe.Exec.Command, "startup")
 		assert.Equal(t, maxStartupProbeFailures, container.StartupProbe.FailureThreshold)
-		assert.Equal(t, original[container.Name].liveness, container.LivenessProbe)
-		assert.Equal(t, original[container.Name].readiness, container.ReadinessProbe)
 		assert.Equal(t, "metadata.uid", containerEnv(container, rolloutPodUIDEnv).ValueFrom.FieldRef.FieldPath)
+		assert.Equal(t, "status.podIP", containerEnv(container, rolloutPodIPEnv).ValueFrom.FieldRef.FieldPath)
 		assert.Equal(t, preparedRolloutLockDir+"/"+container.Name+".lock", containerEnv(container, rolloutLockPathEnv).Value)
 		assert.Equal(t, preparedRolloutLockDir+"/"+container.Name+".prepared", containerEnv(container, rolloutPreparedPathEnv).Value)
+		assert.Equal(t, preparedRolloutLockDir+"/"+container.Name+".active", containerEnv(container, rolloutActivePathEnv).Value)
 	}
-	assert.Equal(t, int32(constants.DefaultAgentHealthPort), ds.Spec.Template.Spec.Containers[0].LivenessProbe.HTTPGet.Port.IntVal)
-	assert.Equal(t, int32(constants.DefaultAgentHealthPort), ds.Spec.Template.Spec.Containers[0].ReadinessProbe.HTTPGet.Port.IntVal)
-	assert.Equal(t, int32(constants.DefaultApmPort), ds.Spec.Template.Spec.Containers[1].LivenessProbe.TCPSocket.Port.IntVal)
+	assert.Contains(t, ds.Spec.Template.Spec.Containers[0].StartupProbe.Exec.Command, fmt.Sprint(constants.DefaultAgentHealthPort))
+	assert.NotNil(t, ds.Spec.Template.Spec.Containers[0].LivenessProbe.HTTPGet)
+	assert.NotNil(t, ds.Spec.Template.Spec.Containers[0].ReadinessProbe.HTTPGet)
+	assert.NotNil(t, ds.Spec.Template.Spec.Containers[1].LivenessProbe.TCPSocket)
+	assert.Nil(t, ds.Spec.Template.Spec.Containers[1].ReadinessProbe)
 }
 
 func TestPreparedRolloutAddsLinuxSchedulingConstraint(t *testing.T) {
@@ -217,21 +129,42 @@ func TestPreparedRolloutRejectsCustomProbes(t *testing.T) {
 			mutate: func(container *corev1.Container) {
 				container.ReadinessProbe.ProbeHandler = corev1.ProbeHandler{Exec: &corev1.ExecAction{Command: []string{"true"}}}
 			},
-			error: "readiness probe must use the Agent HTTP listener",
+			error: "readiness probe must use HTTP or TCP",
 		},
 		{
-			name: "unrelated HTTP path",
+			name: "HTTP headers",
 			mutate: func(container *corev1.Container) {
-				container.ReadinessProbe.HTTPGet.Path = "/healthy-node-service"
+				container.ReadinessProbe.HTTPGet.HTTPHeaders = []corev1.HTTPHeader{{Name: "X-Test", Value: "value"}}
 			},
-			error: `readiness HTTP path must be "/ready"`,
+			error: "readiness HTTP headers are not supported",
 		},
 		{
-			name: "different health port",
+			name: "HTTPS",
 			mutate: func(container *corev1.Container) {
-				container.ReadinessProbe.HTTPGet.Port = intstr.FromInt(5556)
+				container.ReadinessProbe.HTTPGet.Scheme = corev1.URISchemeHTTPS
 			},
-			error: "readiness port 5556 differs from startup port 5555",
+			error: "readiness HTTP scheme must be HTTP",
+		},
+		{
+			name: "gRPC",
+			mutate: func(container *corev1.Container) {
+				container.ReadinessProbe.ProbeHandler = corev1.ProbeHandler{GRPC: &corev1.GRPCAction{Port: 5555}}
+			},
+			error: "readiness probe must use HTTP or TCP",
+		},
+		{
+			name: "relative HTTP path",
+			mutate: func(container *corev1.Container) {
+				container.ReadinessProbe.HTTPGet.Path = "ready"
+			},
+			error: "readiness HTTP path must be absolute",
+		},
+		{
+			name: "multiple handlers",
+			mutate: func(container *corev1.Container) {
+				container.ReadinessProbe.TCPSocket = &corev1.TCPSocketAction{Port: intstr.FromInt(5555)}
+			},
+			error: "readiness probe must have exactly one handler",
 		},
 	}
 
@@ -242,6 +175,35 @@ func TestPreparedRolloutRejectsCustomProbes(t *testing.T) {
 			require.ErrorContains(t, prepareAgentTemplate(ds), tt.error)
 		})
 	}
+}
+
+func TestPreparedRolloutPreservesStartupOnlyHealthSignal(t *testing.T) {
+	ds := preparedTestDaemonSet(true)
+	core := &ds.Spec.Template.Spec.Containers[0]
+	core.LivenessProbe = nil
+	core.ReadinessProbe = nil
+	require.NoError(t, prepareAgentTemplate(ds))
+	assert.Nil(t, core.LivenessProbe)
+	assert.Nil(t, core.ReadinessProbe)
+	assert.Contains(t, core.StartupProbe.Exec.Command, constants.DefaultStartupProbeHTTPPath)
+}
+
+func TestPreparedStartupProbePreservesActiveRestartBudget(t *testing.T) {
+	ds := preparedTestDaemonSet(true)
+	podGrace := int64(42)
+	probeGrace := int64(7)
+	ds.Spec.Template.Spec.TerminationGracePeriodSeconds = &podGrace
+	core := &ds.Spec.Template.Spec.Containers[0]
+	core.StartupProbe.FailureThreshold = 6
+	core.StartupProbe.TerminationGracePeriodSeconds = &probeGrace
+
+	require.NoError(t, prepareAgentTemplate(ds))
+	command := ds.Spec.Template.Spec.Containers[0].StartupProbe.Exec.Command
+	assert.Equal(t, "6", probeArgument(t, command, "--failure-threshold"))
+	assert.Equal(t, "7s", probeArgument(t, command, "--termination-grace-period"))
+
+	traceCommand := ds.Spec.Template.Spec.Containers[1].StartupProbe.Exec.Command
+	assert.NotContains(t, traceCommand, "--failure-threshold", "a synthesized active-only startup probe cannot fail after handoff")
 }
 
 func TestPreparedRolloutAcceptsCompatibleCustomNetworkProbes(t *testing.T) {
@@ -262,7 +224,7 @@ func TestPreparedRolloutAcceptsCompatibleCustomNetworkProbes(t *testing.T) {
 	assert.Equal(t, int32(1), core.StartupProbe.PeriodSeconds)
 	assert.Equal(t, maxStartupProbeFailures, core.StartupProbe.FailureThreshold)
 	assert.NotNil(t, core.StartupProbe.Exec)
-	assert.Equal(t, constants.DefaultLivenessProbeHTTPPath, core.LivenessProbe.HTTPGet.Path)
+	assert.NotNil(t, core.LivenessProbe.HTTPGet)
 	assert.Equal(t, int32(5558), ds.Spec.Template.Spec.Containers[2].LivenessProbe.HTTPGet.Port.IntVal)
 }
 
@@ -279,14 +241,6 @@ func TestPreparedRolloutRejectsUnsafeTraceProbes(t *testing.T) {
 			},
 			error: "liveness TCP host must be empty",
 		},
-		{
-			name: "different readiness listener",
-			mutate: func(container *corev1.Container) {
-				container.ReadinessProbe = container.LivenessProbe.DeepCopy()
-				container.ReadinessProbe.TCPSocket.Port = intstr.FromInt(9000)
-			},
-			error: "readiness port 9000 differs from liveness port 8126",
-		},
 	}
 
 	for _, tt := range tests {
@@ -299,22 +253,7 @@ func TestPreparedRolloutRejectsUnsafeTraceProbes(t *testing.T) {
 	}
 }
 
-func TestPreparedRolloutOlderTemplateMustArmV3Conventionally(t *testing.T) {
-	current := preparedTestDaemonSet(true)
-	current.Generation = 1
-	current.Spec.Template.Annotations = map[string]string{}
-	current.Spec.Template.Annotations[preparedRolloutModeAnnotation] = "prepared-surge-v1"
-	current.Status = appsv1.DaemonSetStatus{ObservedGeneration: 1, DesiredNumberScheduled: 2, UpdatedNumberScheduled: 2, NumberAvailable: 2}
-	desired := preparedTestDaemonSet(true)
-	migrating, err := configurePreparedRollout(preparedRolloutDDAI(), desired, current, intstr.FromInt(1))
-	require.NoError(t, err)
-	require.True(t, migrating)
-	assert.Equal(t, intstr.FromInt(0), *desired.Spec.UpdateStrategy.RollingUpdate.MaxSurge)
-	assert.Equal(t, preparedRolloutArmedV3, desired.Spec.Template.Annotations[preparedRolloutArmedAnnotation])
-	assert.Empty(t, desired.Spec.Template.Annotations[preparedRolloutModeAnnotation])
-}
-
-func TestPreparedRolloutSupportsAllRenderedAgentContainers(t *testing.T) {
+func TestPreparedRolloutSupportsOptimizedAgentContainers(t *testing.T) {
 	ds := preparedTestDaemonSet(true)
 	ds.Spec.Template.Spec.Containers = []corev1.Container{
 		{Name: string(apicommon.CoreAgentContainerName), Command: []string{"agent", "run"}, StartupProbe: constants.GetDefaultStartupProbe(), LivenessProbe: constants.GetDefaultLivenessProbe(), ReadinessProbe: constants.GetDefaultReadinessProbe()},
@@ -324,17 +263,20 @@ func TestPreparedRolloutSupportsAllRenderedAgentContainers(t *testing.T) {
 		{Name: string(apicommon.SystemProbeContainerName), Command: []string{"system-probe"}},
 		{Name: string(apicommon.HostProfiler), Command: []string{"host-profiler", "--core-config=/etc/datadog-agent/datadog.yaml"}},
 		{Name: string(apicommon.OtelAgent), Command: []string{"otel-agent"}},
+		{Name: string(apicommon.AgentDataPlaneContainerName), Command: []string{"agent-data-plane", "--config", "/etc/datadog-agent/datadog.yaml", "run"}, LivenessProbe: constants.GetDefaultAgentDataPlaneLivenessProbe(), ReadinessProbe: constants.GetDefaultAgentDataPlaneReadinessProbe()},
+		{Name: string(apicommon.FlightRecorderContainerName), Command: []string{"/opt/datadog-agent/embedded/bin/flightrecorder"}},
 		{Name: string(apicommon.PrivateActionRunnerContainerName), Command: []string{"/opt/datadog-agent/embedded/bin/privateactionrunner"}},
 	}
 	ds.Spec.Template.Spec.InitContainers = append(ds.Spec.Template.Spec.InitContainers,
-		corev1.Container{Name: "seccomp-setup"}, corev1.Container{Name: "host-profiler-seccomp-setup"})
+		corev1.Container{Name: "seccomp-setup", Command: []string{"cp", "/etc/config/system-probe-seccomp.json", "/host/var/lib/kubelet/seccomp/system-probe"}},
+		corev1.Container{Name: "host-profiler-seccomp-setup", Command: []string{"cp", "/etc/dd-host-profiler/seccomp.json", "/host/var/lib/kubelet/seccomp/host-profiler-deadbeef"}})
 	original := append([]corev1.Container(nil), ds.Spec.Template.Spec.Containers...)
 	require.NoError(t, prepareAgentTemplate(ds))
 	for i := range ds.Spec.Template.Spec.Containers {
 		container := &ds.Spec.Template.Spec.Containers[i]
 		assert.Equal(t, []string{preparedRolloutGateBinary}, container.Command)
 		prefix := []string{"--component", container.Name}
-		if container.Name != string(apicommon.CoreAgentContainerName) {
+		if container.Name != string(apicommon.CoreAgentContainerName) && container.Name != string(apicommon.FlightRecorderContainerName) {
 			prefix = append(prefix, "--wait-file", preparedRolloutAuthToken)
 		}
 		prefix = append(prefix, "--")
@@ -342,6 +284,9 @@ func TestPreparedRolloutSupportsAllRenderedAgentContainers(t *testing.T) {
 		assert.Equal(t, prefix, container.Args[:len(prefix)])
 		assert.Equal(t, append(original[i].Command, original[i].Args...), container.Args[len(prefix):])
 	}
+	assert.Nil(t, ds.Spec.Template.Spec.Containers[2].ReadinessProbe, "components without readiness keep baseline behavior")
+	flightRecorder := ds.Spec.Template.Spec.Containers[8]
+	assert.NotContains(t, flightRecorder.Args, "--wait-file", "Flight Recorder has no auth-token mount and must not wait for the core token")
 }
 
 func TestPreparedRolloutRejectsStandaloneHostProfiler(t *testing.T) {
@@ -364,8 +309,64 @@ func TestPreparedRolloutRejectsUnknownSidecar(t *testing.T) {
 	require.ErrorContains(t, prepareAgentTemplate(ds), "does not support container")
 }
 
-func TestProfileSurgeAntiAffinityAllowsOnlySameProfileOverlap(t *testing.T) {
-	antiAffinity, ok := profileSurgePodAntiAffinity(map[string]string{
+func TestPreparedRolloutRejectsExplicitCoreCommandPort(t *testing.T) {
+	ds := preparedTestDaemonSet(true)
+	ds.Spec.Template.Spec.Containers[0].Env = append(ds.Spec.Template.Spec.Containers[0].Env, corev1.EnvVar{Name: coreAgentCmdPortEnv, Value: "6001"})
+	require.ErrorContains(t, prepareAgentTemplate(ds), "does not support an explicit DD_CMD_PORT")
+}
+
+func TestPreparedRolloutRejectsSingleContainerStrategy(t *testing.T) {
+	ds := preparedTestDaemonSet(true)
+	ds.Spec.Template.Spec.Containers = []corev1.Container{{Name: string(apicommon.UnprivilegedSingleAgentContainerName)}}
+	require.ErrorContains(t, prepareAgentTemplate(ds), "does not support container")
+}
+
+func TestPreparedRolloutRejectsFIPSProxy(t *testing.T) {
+	ds := preparedTestDaemonSet(true)
+	ds.Spec.Template.Spec.Containers = append(ds.Spec.Template.Spec.Containers, corev1.Container{Name: string(apicommon.FIPSProxyContainerName)})
+	require.ErrorContains(t, prepareAgentTemplate(ds), "does not support container")
+}
+
+func TestPreparedRolloutRejectsMutatedAllowlistedInitContainer(t *testing.T) {
+	ds := preparedTestDaemonSet(true)
+	ds.Spec.Template.Spec.InitContainers[0].Command = []string{"sh", "-c"}
+	require.ErrorContains(t, prepareAgentTemplate(ds), "does not support command")
+}
+
+func TestPreparedRolloutRejectsWritableInitHostPathBeforeHandoff(t *testing.T) {
+	ds := preparedTestDaemonSet(true)
+	hostPathType := corev1.HostPathDirectoryOrCreate
+	ds.Spec.Template.Spec.Volumes = append(ds.Spec.Template.Spec.Volumes, corev1.Volume{
+		Name: "mutable-host", VolumeSource: corev1.VolumeSource{HostPath: &corev1.HostPathVolumeSource{Path: "/var/lib/example", Type: &hostPathType}},
+	})
+	ds.Spec.Template.Spec.InitContainers[0].VolumeMounts = append(ds.Spec.Template.Spec.InitContainers[0].VolumeMounts,
+		corev1.VolumeMount{Name: "mutable-host", MountPath: "/host-state"})
+	require.ErrorContains(t, prepareAgentTemplate(ds), "does not support writable hostPath")
+}
+
+func TestPreparedRolloutAllowsKnownSeccompHostWrite(t *testing.T) {
+	ds := preparedTestDaemonSet(true)
+	hostPathType := corev1.HostPathDirectoryOrCreate
+	ds.Spec.Template.Spec.Volumes = append(ds.Spec.Template.Spec.Volumes, corev1.Volume{
+		Name: "seccomp-root", VolumeSource: corev1.VolumeSource{HostPath: &corev1.HostPathVolumeSource{Path: "/var/lib/kubelet/seccomp", Type: &hostPathType}},
+	})
+	ds.Spec.Template.Spec.InitContainers = append(ds.Spec.Template.Spec.InitContainers, corev1.Container{
+		Name: "seccomp-setup", Command: []string{"cp", "/etc/config/system-probe-seccomp.json", "/host/var/lib/kubelet/seccomp/system-probe"},
+		VolumeMounts: []corev1.VolumeMount{{Name: "seccomp-root", MountPath: "/host/var/lib/kubelet/seccomp"}},
+	})
+	require.NoError(t, prepareAgentTemplate(ds))
+}
+
+func TestPreparedRolloutRejectsInitLockPathCollision(t *testing.T) {
+	ds := preparedTestDaemonSet(true)
+	ds.Spec.Template.Spec.Volumes = append(ds.Spec.Template.Spec.Volumes, corev1.Volume{Name: "collision", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}}})
+	ds.Spec.Template.Spec.InitContainers[0].VolumeMounts = append(ds.Spec.Template.Spec.InitContainers[0].VolumeMounts,
+		corev1.VolumeMount{Name: "collision", MountPath: preparedRolloutLockDir})
+	require.ErrorContains(t, prepareAgentTemplate(ds), "lock mount conflicts")
+}
+
+func TestProfileOverlapAntiAffinityAllowsOnlySameProfileOverlap(t *testing.T) {
+	antiAffinity, ok := profileOverlapPodAntiAffinity(map[string]string{
 		apicommon.AgentDeploymentNameLabelKey: "agent-a",
 		constants.ProfileLabelKey:             "blue",
 	})
@@ -385,12 +386,6 @@ func TestProfileSurgeAntiAffinityAllowsOnlySameProfileOverlap(t *testing.T) {
 	assert.True(t, blocked(mergeLabels(base, map[string]string{apicommon.AgentDeploymentNameLabelKey: "agent-a", constants.ProfileLabelKey: "green"})))
 }
 
-func preparedRolloutDDAI() *datadoghqv1alpha1.DatadogAgentInternal {
-	return &datadoghqv1alpha1.DatadogAgentInternal{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{
-		preparedRolloutModeAnnotation: preparedRolloutModeV3,
-	}}}
-}
-
 func preparedTestDaemonSet(hostNetwork bool) *appsv1.DaemonSet {
 	port := corev1.ContainerPort{Name: "declared", ContainerPort: 8126, HostPort: 8126, Protocol: corev1.ProtocolTCP}
 	return &appsv1.DaemonSet{
@@ -407,8 +402,8 @@ func preparedTestDaemonSet(hostNetwork bool) *appsv1.DaemonSet {
 					HostNetwork:  hostNetwork,
 					NodeSelector: map[string]string{corev1.LabelOSStable: "linux"},
 					InitContainers: []corev1.Container{
-						{Name: string(apicommon.InitVolumeContainerName)},
-						{Name: string(apicommon.InitConfigContainerName)},
+						{Name: string(apicommon.InitVolumeContainerName), Command: []string{"bash", "-c"}, Args: []string{"cp -vnr /etc/datadog-agent /opt"}},
+						{Name: string(apicommon.InitConfigContainerName), Command: []string{"bash", "-c"}, Args: []string{"for script in $(find /etc/cont-init.d/ -type f -name '*.sh' | sort) ; do bash $script ; done"}},
 					},
 					Containers: []corev1.Container{
 						{Name: string(apicommon.CoreAgentContainerName), Command: []string{"agent", "run"}, Ports: []corev1.ContainerPort{port}, StartupProbe: constants.GetDefaultStartupProbe(), LivenessProbe: constants.GetDefaultLivenessProbe(), ReadinessProbe: constants.GetDefaultReadinessProbe()},
@@ -458,4 +453,15 @@ func mergeLabels(left, right map[string]string) map[string]string {
 		result[key] = value
 	}
 	return result
+}
+
+func probeArgument(t *testing.T, command []string, name string) string {
+	t.Helper()
+	for i := 0; i+1 < len(command); i++ {
+		if command[i] == name {
+			return command[i+1]
+		}
+	}
+	t.Fatalf("probe command %v has no %s argument", command, name)
+	return ""
 }

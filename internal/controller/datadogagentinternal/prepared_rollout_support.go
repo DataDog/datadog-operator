@@ -5,6 +5,9 @@
 package datadogagentinternal
 
 import (
+	"fmt"
+	"maps"
+
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
@@ -22,26 +25,6 @@ const (
 	defaultPreparedRolloutMaxUnavailable = 1
 )
 
-func configurePreparedSurge(ds *appsv1.DaemonSet, budget intstr.IntOrString) bool {
-	strategy := &ds.Spec.UpdateStrategy
-	if strategy.Type != "" && strategy.Type != appsv1.RollingUpdateDaemonSetStrategyType {
-		return false
-	}
-	if strategy.RollingUpdate == nil {
-		strategy.RollingUpdate = &appsv1.RollingUpdateDaemonSet{}
-	}
-	if _, err := intstr.GetScaledValueFromIntOrPercent(&budget, 100, true); err != nil {
-		return false
-	}
-
-	strategy.Type = appsv1.RollingUpdateDaemonSetStrategyType
-	zero := intstr.FromInt(0)
-	strategy.RollingUpdate.MaxUnavailable = &zero
-	surge := budget
-	strategy.RollingUpdate.MaxSurge = &surge
-	return positiveIntOrPercent(&surge)
-}
-
 func configureConventionalMigration(ds *appsv1.DaemonSet, budget intstr.IntOrString) {
 	zero := intstr.FromInt(0)
 	value := budget
@@ -54,17 +37,44 @@ func configureConventionalMigration(ds *appsv1.DaemonSet, budget intstr.IntOrStr
 	}
 }
 
-// prepareProfileAntiAffinityForSurge narrows the standard DAP anti-affinity so
+// validatePreparedMigrationSource makes enabling prepared mode a distinct
+// operation from publishing its gate-capable image. Without this guard, the
+// one-time conventional arming rollout could delete a serving Pod and only
+// then discover that the replacement image does not contain the gate binary.
+func validatePreparedMigrationSource(current, desired corev1.PodTemplateSpec, fullyRolledOut bool) error {
+	if !maps.Equal(preparedContainerImages(current), preparedContainerImages(desired)) {
+		return fmt.Errorf("prepared blue/green rollout requires the desired Agent images to be deployed conventionally first; current and desired container images differ")
+	}
+	if !fullyRolledOut {
+		return fmt.Errorf("prepared blue/green rollout requires the gate-capable Agent image rollout to finish before enabling prepared mode")
+	}
+	return nil
+}
+
+func preparedContainerImages(template corev1.PodTemplateSpec) map[string]string {
+	images := make(map[string]string, len(template.Spec.InitContainers)+len(template.Spec.Containers))
+	for i := range template.Spec.InitContainers {
+		container := &template.Spec.InitContainers[i]
+		images["init/"+container.Name] = container.Image
+	}
+	for i := range template.Spec.Containers {
+		container := &template.Spec.Containers[i]
+		images["container/"+container.Name] = container.Image
+	}
+	return images
+}
+
+// prepareProfileAntiAffinityForOverlap narrows the standard DAP anti-affinity so
 // old and new revisions of the same profile may overlap. Unknown user-supplied
 // anti-affinity fails closed.
-func prepareProfileAntiAffinityForSurge(template *corev1.PodTemplateSpec) bool {
+func prepareProfileAntiAffinityForOverlap(template *corev1.PodTemplateSpec) bool {
 	if template.Spec.Affinity == nil || template.Spec.Affinity.PodAntiAffinity == nil {
 		return true
 	}
 	if !apiequality.Semantic.DeepEqual(template.Spec.Affinity.PodAntiAffinity, broadAgentPodAntiAffinity()) {
 		return false
 	}
-	narrowed, ok := profileSurgePodAntiAffinity(template.Labels)
+	narrowed, ok := profileOverlapPodAntiAffinity(template.Labels)
 	if !ok {
 		return false
 	}
@@ -81,7 +91,7 @@ func broadAgentPodAntiAffinity() *corev1.PodAntiAffinity {
 	}}}
 }
 
-func profileSurgePodAntiAffinity(podLabels map[string]string) (*corev1.PodAntiAffinity, bool) {
+func profileOverlapPodAntiAffinity(podLabels map[string]string) (*corev1.PodAntiAffinity, bool) {
 	ddaName := podLabels[datadoghqcommon.AgentDeploymentNameLabelKey]
 	if ddaName == "" {
 		return nil, false

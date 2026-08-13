@@ -87,4 +87,8 @@ const (
 // DDAI finalizer
 const (
 	DatadogAgentInternalFinalizer = "finalizer.datadoghq.com/datadogagentinternal"
+	// PreparedRolloutCleanupAnnotation is internal transaction state shared by
+	// the parent DDA and child DDAI reconcilers. The parent must preserve it
+	// until the DDAI controller finishes deleting both prepared Agent slots.
+	PreparedRolloutCleanupAnnotation = "experimental.agent.datadoghq.com/node-agent-rollout-cleanup"
 )

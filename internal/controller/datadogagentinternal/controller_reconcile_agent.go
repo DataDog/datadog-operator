@@ -12,7 +12,6 @@ import (
 
 	edsv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -49,6 +48,19 @@ func (r *Reconciler) reconcileV2Agent(ctx context.Context, requiredComponents fe
 	// requiredComponents needs to be taken into account in case a feature(s) changes and
 	// a requiredComponent becomes disabled, in addition to taking into account override.Disabled
 	disabledByOverride := false
+	preparedMode := PreparedBlueGreenEnabled(ddai)
+	preparedNameProbe := &appsv1.DaemonSet{ObjectMeta: metav1.ObjectMeta{
+		Namespace: ddai.Namespace,
+		Name:      component.GetDaemonSetNameFromDatadogAgent(ddai, &ddai.Spec),
+	}}
+	preparedInitialized, err := r.preparedBlueGreenInitialized(ctx, ddai, preparedNameProbe)
+	if err != nil {
+		return result, err
+	}
+	nodeAgentDisabledByOverride := false
+	if componentOverride, ok := ddai.Spec.Override[datadoghqv2alpha1.NodeAgentComponentName]; ok {
+		nodeAgentDisabledByOverride = apiutils.BoolValue(componentOverride.Disabled)
+	}
 
 	agentEnabled := requiredComponents.Agent.IsEnabled()
 	singleContainerStrategyEnabled := requiredComponents.Agent.SingleContainerStrategyEnabled()
@@ -64,7 +76,13 @@ func (r *Reconciler) reconcileV2Agent(ctx context.Context, requiredComponents fe
 	// DaemonSets.
 	// This is to make deployments simpler. With multiple EDS there would be
 	// multiple canaries, etc.
-	if r.options.ExtendedDaemonsetOptions.Enabled && !isDDAILabeledWithProfile(ddai) {
+	if useExtendedDaemonSetForNodeAgent(
+		r.options.ExtendedDaemonsetOptions.Enabled,
+		isDDAILabeledWithProfile(ddai),
+		preparedMode,
+		preparedInitialized,
+		nodeAgentDisabledByOverride,
+	) {
 		// Note: Windows is only applied on profile-labeled DDAIs (see windowsProfile below), which
 		// never reach this branch. A default DDAI with a stray provider=windows annotation builds a
 		// normal Linux ExtendedDaemonSet here (the annotation is ignored) so Linux nodes keep their
@@ -294,11 +312,29 @@ func (r *Reconciler) reconcileV2Agent(ctx context.Context, requiredComponents fe
 				true,
 			)
 		}
+		if handled, err := r.deletePreparedDaemonSetPairIfPresent(ctx, ddai, daemonset, newStatus); err != nil {
+			return reconcile.Result{}, err
+		} else if handled {
+			deleteStatusWithAgent(newStatus)
+			return requeuePreparedRollout(), nil
+		}
 		if err := r.deleteV2DaemonSet(ctx, ddai, daemonset, newStatus); err != nil {
 			return reconcile.Result{}, err
 		}
 		deleteStatusWithAgent(newStatus)
 		return reconcile.Result{}, nil
+	}
+
+	// A disable operation persists cleanup intent before deleting either slot.
+	// Finish that transaction before honoring a concurrent re-enable so a crash
+	// cannot strand a half-pair or node labels from the previous rollout.
+	if ddai.Annotations[preparedRolloutCleanupAnnotation] == preparedBlueGreenArmed {
+		if handled, err := r.deletePreparedDaemonSetPairIfPresent(ctx, ddai, daemonset, newStatus); err != nil {
+			return reconcile.Result{}, err
+		} else if handled {
+			deleteStatusWithAgent(newStatus)
+			return requeuePreparedRollout(), nil
+		}
 	}
 
 	if handled, migrationResult, err := r.migrateExtendedDaemonSetToDaemonSet(ctx, ddai, daemonset, newStatus); handled || err != nil {
@@ -311,37 +347,35 @@ func (r *Reconciler) reconcileV2Agent(ctx context.Context, requiredComponents fe
 		}
 	}
 
-	rolloutBudget := preparedRolloutBudget(ddai, &r.options.ExtendedDaemonsetOptions)
-	rolloutEnabled := preparedRolloutEnabled(ddai)
-	var currentDaemonSet *appsv1.DaemonSet
-	if rolloutEnabled {
-		currentDaemonSet = &appsv1.DaemonSet{}
-		if getErr := r.client.Get(ctx, client.ObjectKeyFromObject(daemonset), currentDaemonSet); getErr != nil {
-			if !errors.IsNotFound(getErr) {
-				return reconcile.Result{}, getErr
-			}
-			currentDaemonSet = nil
-		}
+	if preparedMode {
+		return r.reconcilePreparedDaemonSetPair(
+			ctx,
+			ddai,
+			daemonset,
+			preparedRolloutBudget(ddai, &r.options.ExtendedDaemonsetOptions),
+			newStatus,
+		)
 	}
-	arming, prepareErr := configurePreparedRollout(ddai, daemonset, currentDaemonSet, rolloutBudget)
-	if prepareErr != nil {
-		objLogger.Error(prepareErr, "Prepared Agent rollout request is incompatible with the rendered Pod template")
-		if r.recorder != nil {
-			r.recorder.Eventf(ddai, corev1.EventTypeWarning, "AgentPreparedRolloutRejected", "Prepared Agent rollout is disabled for this template: %v", prepareErr)
-		}
-		return reconcile.Result{}, prepareErr
+	if preparedInitialized {
+		return r.reconcilePreparedDisable(
+			ctx,
+			ddai,
+			daemonset,
+			preparedRolloutBudget(ddai, &r.options.ExtendedDaemonsetOptions),
+			newStatus,
+		)
 	}
-	result, err := r.createOrUpdateDaemonset(ctx, ddai, daemonset, newStatus, updateDSStatusV2WithAgent)
-	if err != nil || !rolloutEnabled {
-		return result, err
+	return r.createOrUpdateDaemonset(ctx, ddai, daemonset, newStatus, updateDSStatusV2WithAgent)
+}
+
+func useExtendedDaemonSetForNodeAgent(edsEnabled, profile, preparedMode, preparedInitialized, disabled bool) bool {
+	if !edsEnabled || profile || preparedInitialized {
+		return false
 	}
-	if arming {
-		if result.RequeueAfter == 0 || result.RequeueAfter > time.Second {
-			result.RequeueAfter = time.Second
-		}
-		return result, nil
-	}
-	return result, nil
+	// A prepared installation always uses the native blue/green pair. A
+	// disabled installation which has not created that pair still follows the
+	// EDS path so an existing conventional EDS is actually removed.
+	return !preparedMode || disabled
 }
 
 func updateDSStatusV2WithAgent(dsName string, ds *appsv1.DaemonSet, newStatus *datadoghqv1alpha1.DatadogAgentInternalStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string) {
@@ -355,7 +389,11 @@ func updateEDSStatusV2WithAgent(eds *edsv1alpha1.ExtendedDaemonSet, newStatus *d
 }
 
 func (r *Reconciler) deleteV2DaemonSet(ctx context.Context, ddai *datadoghqv1alpha1.DatadogAgentInternal, ds *appsv1.DaemonSet, newStatus *datadoghqv1alpha1.DatadogAgentInternalStatus) error {
-	err := r.client.Delete(ctx, ds)
+	return r.deleteV2DaemonSetWithOptions(ctx, ddai, ds, newStatus)
+}
+
+func (r *Reconciler) deleteV2DaemonSetWithOptions(ctx context.Context, ddai *datadoghqv1alpha1.DatadogAgentInternal, ds *appsv1.DaemonSet, newStatus *datadoghqv1alpha1.DatadogAgentInternalStatus, options ...client.DeleteOption) error {
+	err := r.client.Delete(ctx, ds, options...)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return nil

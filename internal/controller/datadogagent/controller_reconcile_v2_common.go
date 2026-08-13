@@ -175,6 +175,16 @@ func (r *Reconciler) createOrUpdateDDAI(ddai *v1alpha1.DatadogAgentInternal) err
 		return nil
 	}
 
+	// The child DDAI reconciler owns this multi-reconcile cleanup transaction.
+	// Regenerating DDAI annotations from the parent DDA must not erase it between
+	// deleting the prepared DaemonSets and releasing their node labels.
+	if cleanup := currentDDAI.Annotations[constants.PreparedRolloutCleanupAnnotation]; cleanup != "" {
+		if ddai.Annotations == nil {
+			ddai.Annotations = map[string]string{}
+		}
+		ddai.Annotations[constants.PreparedRolloutCleanupAnnotation] = cleanup
+	}
+
 	// By comparing annotations, we reconcile either instantly if the spec annotation changed or after the reconcile period
 	// if only the annotations changed.
 	if !maps.Equal(currentDDAI.Annotations, ddai.Annotations) {

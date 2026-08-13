@@ -1,104 +1,17 @@
 package datadogagentinternal
 
 import (
-	"context"
 	"testing"
 
-	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/client-go/tools/record"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
-	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
-	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/defaults"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
 	"github.com/DataDog/datadog-operator/pkg/constants"
-	"github.com/DataDog/datadog-operator/pkg/kubernetes"
-	pkgtestutils "github.com/DataDog/datadog-operator/pkg/testutils"
-
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
-
-const defaultProvider = kubernetes.DefaultProvider
-const gkeCosProvider = kubernetes.GKECloudProvider + "-" + kubernetes.GKECosType
-
-func TestReconcileV2AgentCreatesPreparedSurgeDaemonSet(t *testing.T) {
-	r, ddai := newPreparedRolloutReconciler(t, true)
-	status := &datadoghqv1alpha1.DatadogAgentInternalStatus{}
-
-	result, err := r.reconcileV2Agent(
-		context.Background(),
-		preparedRolloutRequiredComponents(),
-		nil,
-		ddai,
-		feature.NewResourceManagers(store.NewStore(ddai, nil)),
-		status,
-		defaultProvider,
-	)
-
-	require.NoError(t, err)
-	assert.Zero(t, result.RequeueAfter)
-	daemonSets := &appsv1.DaemonSetList{}
-	require.NoError(t, r.client.List(context.Background(), daemonSets))
-	require.Len(t, daemonSets.Items, 1)
-	ds := &daemonSets.Items[0]
-	assert.Equal(t, preparedRolloutModeV3, ds.Spec.Template.Annotations[preparedRolloutModeAnnotation])
-	require.NotNil(t, ds.Spec.UpdateStrategy.RollingUpdate)
-	assert.Equal(t, intstr.FromInt(1), *ds.Spec.UpdateStrategy.RollingUpdate.MaxSurge)
-	assert.Equal(t, intstr.FromInt(0), *ds.Spec.UpdateStrategy.RollingUpdate.MaxUnavailable)
-}
-
-func newPreparedRolloutReconciler(t *testing.T, hostNetwork bool) (*Reconciler, *datadoghqv1alpha1.DatadogAgentInternal) {
-	t.Helper()
-	scheme := runtime.NewScheme()
-	require.NoError(t, corev1.AddToScheme(scheme))
-	require.NoError(t, appsv1.AddToScheme(scheme))
-	require.NoError(t, datadoghqv1alpha1.AddToScheme(scheme))
-	c := fake.NewClientBuilder().WithScheme(scheme).WithStatusSubresource(&appsv1.DaemonSet{}).Build()
-	one := intstr.FromInt(1)
-	ddai := pkgtestutils.NewDatadogAgentInternal("datadog-agent", "agent", nil)
-	ddai.UID = "ddai-uid"
-	ddai.Annotations = map[string]string{preparedRolloutModeAnnotation: preparedRolloutModeV3}
-	ddai.Spec.Features = &datadoghqv2alpha1.DatadogFeatures{}
-	ddai.Spec.Override = map[datadoghqv2alpha1.ComponentName]*datadoghqv2alpha1.DatadogAgentComponentOverride{
-		datadoghqv2alpha1.NodeAgentComponentName: {
-			HostNetwork: ptr.To(hostNetwork),
-			UpdateStrategy: &apicommon.UpdateStrategy{
-				Type: string(appsv1.RollingUpdateDaemonSetStrategyType),
-				RollingUpdate: &apicommon.RollingUpdate{
-					MaxSurge:       ptr.To(one),
-					MaxUnavailable: ptr.To(one),
-				},
-			},
-		},
-	}
-	defaults.DefaultDatadogAgentSpec(&ddai.Spec)
-	return &Reconciler{
-		client:    c,
-		apiReader: c,
-		scheme:    scheme,
-		recorder:  record.NewFakeRecorder(10),
-	}, ddai
-}
-
-func preparedRolloutRequiredComponents() feature.RequiredComponents {
-	return feature.RequiredComponents{Agent: feature.RequiredComponent{
-		IsRequired: ptr.To(true),
-		Containers: []apicommon.AgentContainerName{
-			apicommon.CoreAgentContainerName,
-			apicommon.TraceAgentContainerName,
-		},
-	}}
-}
 
 // func Test_getValidDaemonSetNames(t *testing.T) {
 // 	testCases := []struct {
@@ -250,6 +163,32 @@ func Test_isDDAILabeledWithProfile(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got := isDDAILabeledWithProfile(tt.ddai)
 			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestUseExtendedDaemonSetForNodeAgent(t *testing.T) {
+	tests := []struct {
+		name                string
+		edsEnabled          bool
+		profile             bool
+		preparedMode        bool
+		preparedInitialized bool
+		disabled            bool
+		want                bool
+	}{
+		{name: "conventional EDS", edsEnabled: true, want: true},
+		{name: "prepared request migrates to native DaemonSets", edsEnabled: true, preparedMode: true, want: false},
+		{name: "initialized pair cannot fall back to EDS after annotation removal", edsEnabled: true, preparedInitialized: true, want: false},
+		{name: "disabled pre-migration installation deletes conventional EDS", edsEnabled: true, preparedMode: true, disabled: true, want: true},
+		{name: "disabled initialized pair uses native cleanup", edsEnabled: true, preparedMode: true, preparedInitialized: true, disabled: true, want: false},
+		{name: "profile always uses native DaemonSet", edsEnabled: true, profile: true, want: false},
+		{name: "EDS globally disabled", want: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, useExtendedDaemonSetForNodeAgent(tt.edsEnabled, tt.profile, tt.preparedMode, tt.preparedInitialized, tt.disabled))
 		})
 	}
 }

@@ -7,6 +7,7 @@ package datadogagentinternal
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -41,7 +42,18 @@ func (r *Reconciler) internalReconcileV2(ctx context.Context, instance *v1alpha1
 
 	// 2. Handle finalizer logic.
 	final := finalizer.NewFinalizer(logger, r.client, r.deleteResource(), defaultRequeuePeriod, defaultErrRequeuePeriod)
-	if result, err := final.HandleFinalizer(ctx, instance, "", constants.DatadogAgentInternalFinalizer); utils.ShouldReturn(result, err) {
+	if result, err := final.HandleFinalizer(ctx, instance, "", constants.DatadogAgentInternalFinalizer); errors.Is(err, errPreparedRolloutWorkloadsTerminating) {
+		// Foreground deletion is expected to take more than one API observation.
+		// Treat it as controller state, not a reconciliation failure: returning the
+		// generic finalizer's result together with an error creates noisy warnings
+		// and exponential backoff during an otherwise healthy teardown.
+		return reconcile.Result{RequeueAfter: defaultErrRequeuePeriod}, nil
+	} else if apierrors.IsNotFound(err) && !instance.GetDeletionTimestamp().IsZero() {
+		// The API server may remove the object immediately after the finalizer is
+		// cleared, racing the final Update response. Deletion is already complete;
+		// do not surface that terminal NotFound as a reconciliation failure.
+		return reconcile.Result{}, nil
+	} else if utils.ShouldReturn(result, err) {
 		return result, err
 	}
 

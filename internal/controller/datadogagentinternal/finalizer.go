@@ -7,12 +7,16 @@ package datadogagentinternal
 
 import (
 	"context"
+	stderrors "errors"
 
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
 	"github.com/DataDog/datadog-operator/internal/controller/finalizer"
@@ -20,6 +24,8 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
+
+var errPreparedRolloutWorkloadsTerminating = stderrors.New("waiting for prepared blue/green Agent workloads to terminate")
 
 func (r *Reconciler) deleteResource() finalizer.ResourceDeleteFunc {
 	return func(ctx context.Context, k8sObj client.Object, datadogID string) error {
@@ -39,11 +45,77 @@ func (r *Reconciler) finalizeDDAI(ctx context.Context, obj client.Object) error 
 		return err
 	}
 
+	if ddai, ok := obj.(*datadoghqv1alpha1.DatadogAgentInternal); ok {
+		pending, err := r.preparedRolloutWorkloadsCleanup(ctx, ddai)
+		if err != nil {
+			return err
+		}
+		if pending {
+			// Keep the DDAI owner and its finalizer until foreground deletion has
+			// removed both DaemonSets and their Pods. Releasing node labels first
+			// would make blue eligible again while a green Pod may still own the
+			// host-local component locks.
+			return errPreparedRolloutWorkloadsTerminating
+		}
+		if err := r.preparedRolloutLabelsCleanup(ctx, ddai); err != nil {
+			return err
+		}
+	}
+	// Profile labels also affect which Agent workload owns a node. Remove them
+	// only after prepared workloads and their lock owners are fully gone.
 	if err := r.profilesCleanup(ctx); err != nil {
 		return err
 	}
 
 	logger.Info("Successfully finalized DatadogAgentInternal")
+	return nil
+}
+
+func (r *Reconciler) preparedRolloutWorkloadsCleanup(ctx context.Context, ddai *datadoghqv1alpha1.DatadogAgentInternal) (bool, error) {
+	daemonSets := appsv1.DaemonSetList{}
+	if err := r.client.List(ctx, &daemonSets, client.InNamespace(ddai.Namespace)); err != nil {
+		return false, err
+	}
+
+	pending := false
+	foreground := metav1.DeletePropagationForeground
+	for i := range daemonSets.Items {
+		daemonSet := &daemonSets.Items[i]
+		if !metav1.IsControlledBy(daemonSet, ddai) || !preparedDaemonSetInitialized(daemonSet) {
+			continue
+		}
+		pending = true
+		if daemonSet.DeletionTimestamp != nil {
+			continue
+		}
+		if err := r.client.Delete(ctx, daemonSet, &client.DeleteOptions{PropagationPolicy: &foreground}); err != nil && !errors.IsNotFound(err) {
+			return false, err
+		}
+	}
+	return pending, nil
+}
+
+func (r *Reconciler) preparedRolloutLabelsCleanup(ctx context.Context, ddai *datadoghqv1alpha1.DatadogAgentInternal) error {
+	key := preparedRolloutNodeLabelKey(ddai)
+	candidateKey := preparedRolloutCandidateAnnotationKey(key)
+	nodes := corev1.NodeList{}
+	if err := r.client.List(ctx, &nodes); err != nil {
+		return err
+	}
+	for i := range nodes.Items {
+		node := &nodes.Items[i]
+		_, hasLabel := node.Labels[key]
+		_, hasCandidate := node.Annotations[candidateKey]
+		if !hasLabel && !hasCandidate {
+			continue
+		}
+		updated := node.DeepCopy()
+		delete(updated.Labels, key)
+		delete(updated.Annotations, candidateKey)
+		if err := r.client.Patch(ctx, updated, client.MergeFrom(node)); err != nil && !errors.IsNotFound(err) {
+			return err
+		}
+	}
 	return nil
 }
 
