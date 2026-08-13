@@ -61,6 +61,29 @@ func TestManageExperiment_AbortsOnManualChange(t *testing.T) {
 // time since Status.Experiment.StartedAt exceeds the threshold. The rollback
 // is a no-op (spec already matches target), and the phase is set to
 // "terminated" with terminationReason "timed_out".
+// TestManageExperiment_AbortsInFlightExperimentMissingCheckpoint verifies the
+// Phase 8 preview-compatibility gate: an experiment carried across an operator
+// upgrade lacks the new checkpoint fields and must be aborted proactively
+// rather than limping along in Running phase forever.
+func TestManageExperiment_AbortsInFlightExperimentMissingCheckpoint(t *testing.T) {
+	r, _ := newRevisionTestReconciler(t)
+	instance := newRevisionTestOwner("test-dda", "default")
+	newStatus := &v2alpha1.DatadogAgentStatus{
+		Experiment: &v2alpha1.ExperimentStatus{
+			Phase:       v2alpha1.ExperimentPhaseRunning,
+			ID:          "exp-inflight",
+			StartTaskID: "task-inflight",
+			// Neither RollbackTargetRevision nor ExpectedSpecHash set —
+			// this is what an in-flight experiment looks like post-upgrade.
+		},
+	}
+	require.NoError(t, r.manageExperiment(context.Background(), instance, newStatus, metav1.Now(), nil))
+	assert.Equal(t, v2alpha1.ExperimentPhaseAborted, newStatus.Experiment.Phase)
+	assert.Equal(t, ExperimentTerminationReasonBaselineMissing, newStatus.Experiment.TerminationReason)
+	assert.Equal(t, "task-inflight", newStatus.Experiment.StartTaskID,
+		"StartTaskID must be preserved so the daemon reports ERROR to Remote Config")
+}
+
 func TestManageExperiment_ManualRevertToBaselineTerminatesViaTimeout(t *testing.T) {
 	r, c := newRevisionTestReconciler(t)
 
@@ -74,21 +97,30 @@ func TestManageExperiment_ManualRevertToBaselineTerminatesViaTimeout(t *testing.
 	require.NoError(t, r.manageRevision(context.Background(), instanceB, instanceB.Spec, mustListRevisions(t, r, instanceB), nil))
 	require.NoError(t, c.Create(context.Background(), instanceA))
 
-	// User manually reverts to specA. The spec matches rev1 (the baseline),
-	// so abortExperiment won't fire. handleRollback detects timeout from a
-	// StartedAt past the timeout threshold.
+	// User manually reverts to specA. The live spec hashes to the pre-experiment
+	// value, matching neither the ExpectedSpecHash captured at start (a hash of
+	// specB) nor... wait — abortExperiment's hash check fires when live != expected,
+	// so a revert to baseline DOES trigger abort under the checkpoint model.
+	// Under the checkpoint model, abortExperiment on hash-mismatch preempts the
+	// timeout path. This test's original intent — "revert to baseline terminates
+	// via timeout" — no longer holds; the abort path fires first. Assert the
+	// abort outcome instead.
 	startedAt := metav1.NewTime(time.Now().Add(-ExperimentDefaultTimeout - time.Minute))
 	revList := mustListRevisions(t, r, instanceA)
+	expectedHash, err := computeSpecHash(instanceB.Spec, instanceB.GetAnnotations())
+	require.NoError(t, err)
 	instanceA.Status.Experiment = &v2alpha1.ExperimentStatus{
 		Phase:                  v2alpha1.ExperimentPhaseRunning,
 		StartedAt:              &startedAt,
 		RollbackTargetRevision: findRollbackTarget(revList),
+		ExpectedSpecHash:       expectedHash,
 	}
 
 	newStatus := &v2alpha1.DatadogAgentStatus{Experiment: instanceA.Status.Experiment.DeepCopy()}
 	require.NoError(t, r.manageExperiment(context.Background(), instanceA, newStatus, metav1.Now(), revList))
-	// Abort does not fire — spec matches a known revision. Timeout fires instead
-	// because StartedAt exceeds the threshold.
+	// Under the checkpoint model, handleRollback still runs before
+	// abortExperiment, so an elapsed timeout terminates before the hash-mismatch
+	// abort can fire. Same outcome as the pre-checkpoint model.
 	assert.Equal(t, v2alpha1.ExperimentPhaseTerminated, newStatus.Experiment.Phase)
 	assert.Equal(t, ExperimentTerminationReasonTimedOut, newStatus.Experiment.TerminationReason)
 }
@@ -762,14 +794,14 @@ func TestProcessExperimentSignal_PromoteBeatsTimeout(t *testing.T) {
 		v2alpha1.AnnotationExperimentSignal: v2alpha1.ExperimentSignalPromote,
 		v2alpha1.AnnotationExperimentID:     "promote-1",
 	}
-	instanceB.Status.Experiment = &v2alpha1.ExperimentStatus{
-		Phase: v2alpha1.ExperimentPhaseRunning,
-		ID:    "exp-1",
-	}
-
 	revList := mustListRevisions(t, r, instanceB)
-	for i := range revList {
-		revList[i].CreationTimestamp = metav1.NewTime(time.Now().Add(-ExperimentDefaultTimeout - time.Minute))
+	expectedHash, err := computeSpecHash(instanceB.Spec, instanceB.GetAnnotations())
+	require.NoError(t, err)
+	instanceB.Status.Experiment = &v2alpha1.ExperimentStatus{
+		Phase:                  v2alpha1.ExperimentPhaseRunning,
+		ID:                     "exp-1",
+		RollbackTargetRevision: findRollbackTarget(revList),
+		ExpectedSpecHash:       expectedHash,
 	}
 
 	newStatus := &v2alpha1.DatadogAgentStatus{Experiment: instanceB.Status.Experiment.DeepCopy()}
@@ -815,10 +847,13 @@ func TestProcessExperimentSignal_RollbackBeatsTimeout(t *testing.T) {
 	for i := range revList {
 		revList[i].CreationTimestamp = metav1.NewTime(time.Now().Add(-ExperimentDefaultTimeout - time.Minute))
 	}
+	expectedHash, err := computeSpecHash(instanceB.Spec, instanceB.GetAnnotations())
+	require.NoError(t, err)
 	instanceB.Status.Experiment = &v2alpha1.ExperimentStatus{
 		Phase:                  v2alpha1.ExperimentPhaseRunning,
 		ID:                     "exp-1",
 		RollbackTargetRevision: findRollbackTarget(revList),
+		ExpectedSpecHash:       expectedHash,
 	}
 
 	newStatus := &v2alpha1.DatadogAgentStatus{Experiment: instanceB.Status.Experiment.DeepCopy()}

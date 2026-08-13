@@ -62,6 +62,23 @@ func (r *Reconciler) manageExperiment(
 	now metav1.Time,
 	revList []appsv1.ControllerRevision,
 ) error {
+	// Preview compatibility: an in-flight experiment carried across an operator
+	// upgrade lacks the new checkpoint fields (RollbackTargetRevision and/or
+	// ExpectedSpecHash). Without both, rollback cannot be proven safe and
+	// manual-change detection cannot fire — the plan's decision is to abort
+	// such experiments cleanly rather than fall back to the deleted heuristic.
+	// Preserves StartTaskID so the daemon reports ERROR to Remote Config via
+	// the existing reconcileLocallyTerminatedExperiment path.
+	if exp := newStatus.Experiment; exp != nil && exp.Phase == v2alpha1.ExperimentPhaseRunning &&
+		(exp.RollbackTargetRevision == "" || exp.ExpectedSpecHash == "") {
+		ctrl.LoggerFrom(ctx).Info("Aborting in-flight experiment carried across upgrade: missing checkpoint fields",
+			"hasRollbackTarget", exp.RollbackTargetRevision != "",
+			"hasSpecHash", exp.ExpectedSpecHash != "")
+		exp.Phase = v2alpha1.ExperimentPhaseAborted
+		exp.TerminationReason = ExperimentTerminationReasonBaselineMissing
+		return nil
+	}
+
 	// Snapshot the experiment status before processing to detect mutations.
 	var oldPhase v2alpha1.ExperimentPhase
 	var oldID string
