@@ -29,25 +29,25 @@ func TestManageExperiment_AbortsOnManualChange(t *testing.T) {
 	instanceB.Spec = v2alpha1.DatadogAgentSpec{Global: &v2alpha1.GlobalConfig{}}
 	require.NoError(t, r.manageRevision(context.Background(), instanceB, instanceB.Spec, mustListRevisions(t, r, instanceB), nil))
 
-	// Simulate a manual spec change: specC doesn't match any revision.
+	// Simulate a manual spec change: specC differs from what was captured
+	// as ExpectedSpecHash at experiment start (a hash of specB).
 	instanceC := newRevisionTestOwner("test-dda", "default")
 	manualSite := "manual-change.example.com"
 	instanceC.Spec = v2alpha1.DatadogAgentSpec{Global: &v2alpha1.GlobalConfig{Site: &manualSite}}
+	expectedHash, err := computeSpecHash(instanceB.Spec, instanceB.GetAnnotations())
+	require.NoError(t, err)
 	instanceC.Status.Experiment = &v2alpha1.ExperimentStatus{
-		Phase: v2alpha1.ExperimentPhaseRunning,
+		Phase:            v2alpha1.ExperimentPhaseRunning,
+		ExpectedSpecHash: expectedHash,
 	}
 
-	// Set recent timestamps so the timeout path in handleRollback does not fire.
 	revList := mustListRevisions(t, r, instanceC)
-	for i := range revList {
-		revList[i].CreationTimestamp = metav1.Now()
-	}
 
 	status := &v2alpha1.DatadogAgentStatus{
 		Experiment: instanceC.Status.Experiment.DeepCopy(),
 	}
 
-	err := r.manageExperiment(context.Background(), instanceC, status, metav1.Now(), revList)
+	err = r.manageExperiment(context.Background(), instanceC, status, metav1.Now(), revList)
 	require.NoError(t, err)
 	require.NotNil(t, status.Experiment)
 	assert.Equal(t, v2alpha1.ExperimentPhaseAborted, status.Experiment.Phase)
@@ -265,22 +265,23 @@ func TestManageExperiment_ManualChangeAbortsInsteadOfTimeout(t *testing.T) {
 	instanceB.Spec = v2alpha1.DatadogAgentSpec{Global: &v2alpha1.GlobalConfig{}}
 	require.NoError(t, r.manageRevision(context.Background(), instanceB, instanceB.Spec, mustListRevisions(t, r, instanceB), nil))
 
-	// Simulate: phase=running, the spec was manually changed so it doesn't match
-	// any revision, AND timeout has elapsed. With the fix, handleRollback defers
-	// to abortExperiment when spec doesn't match any revision and len >= 2.
-	// The user's manual change takes precedence over timeout.
+	// Simulate: Phase=Running, live spec differs from ExpectedSpecHash captured
+	// at start (a hash of instanceB.Spec), AND timeout has elapsed. Under the
+	// checkpoint model the hash-based manual-change check fires first and
+	// aborts; timeout does not fire because abortExperiment publishes the
+	// terminal phase before handleRollback runs.
+	expectedHash, err := computeSpecHash(instanceB.Spec, instanceB.GetAnnotations())
+	require.NoError(t, err)
 	manualSite := "manual-change.example.com"
 	instanceB.Spec = v2alpha1.DatadogAgentSpec{Global: &v2alpha1.GlobalConfig{Site: &manualSite}}
+	startedAt := metav1.NewTime(time.Now().Add(-ExperimentDefaultTimeout - time.Minute))
 	instanceB.Status.Experiment = &v2alpha1.ExperimentStatus{
-		Phase: v2alpha1.ExperimentPhaseRunning,
+		Phase:            v2alpha1.ExperimentPhaseRunning,
+		StartedAt:        &startedAt,
+		ExpectedSpecHash: expectedHash,
 	}
 
 	revList := mustListRevisions(t, r, instanceB)
-	for i := range revList {
-		if revList[i].Revision == 2 {
-			revList[i].CreationTimestamp = metav1.NewTime(time.Now().Add(-ExperimentDefaultTimeout - time.Minute))
-		}
-	}
 
 	newStatus := &v2alpha1.DatadogAgentStatus{Experiment: instanceB.Status.Experiment.DeepCopy()}
 	require.NoError(t, r.manageExperiment(context.Background(), instanceB, newStatus, metav1.Now(), revList))
@@ -498,6 +499,10 @@ func TestRestorePreviousSpec_ThreeRevisions_AnnotatesOnlyHighest(t *testing.T) {
 // 3+ revisions exist and abort fires, only the highest-numbered revision (the
 // experiment) is annotated — not older baselines.
 func TestAbortExperiment_ThreeRevisions_AnnotatesOnlyHighest(t *testing.T) {
+	// Under the checkpoint model abortExperiment no longer annotates any
+	// revision — abort is proven by the ExpectedSpecHash mismatch alone.
+	// Test's original intent is Phase-7-obsolete.
+	t.Skip("obsolete under checkpoint model; will be deleted in Phase 7")
 	r, _ := newRevisionTestReconciler(t)
 
 	// Build 3 revisions using ensureRevision directly (bypasses GC).

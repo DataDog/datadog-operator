@@ -447,6 +447,9 @@ func Test_Experiment_AbortDoesNotRollback(t *testing.T) {
 //     is NOT annotated.
 //   - Subsequent reconciles do not re-annotate or spread the annotation.
 func Test_Experiment_Abort_AnnotatesOnlyExperimentRevision(t *testing.T) {
+	// Under the checkpoint model abort no longer annotates revisions —
+	// Phase-7-obsolete.
+	t.Skip("obsolete under checkpoint model; will be deleted in Phase 7")
 	const ns, name = "default", "test-dda"
 	const uid = types.UID("uid-1")
 	nsName := types.NamespacedName{Namespace: ns, Name: name}
