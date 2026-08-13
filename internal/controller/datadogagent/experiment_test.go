@@ -570,8 +570,9 @@ func TestProcessExperimentSignal_StartNewExperiment(t *testing.T) {
 	r, _ := newRevisionTestReconciler(t)
 	instance := newRevisionTestOwner("test-dda", "default")
 	instance.Annotations = map[string]string{
-		v2alpha1.AnnotationExperimentSignal: v2alpha1.ExperimentSignalStart,
-		v2alpha1.AnnotationExperimentID:     "exp-new",
+		v2alpha1.AnnotationExperimentSignal:                    v2alpha1.ExperimentSignalStart,
+		v2alpha1.AnnotationExperimentID:                        "exp-new",
+		v2alpha1.AnnotationExperimentRollbackTargetRevision:    "baseline-rev",
 	}
 
 	newStatus := &v2alpha1.DatadogAgentStatus{}
@@ -580,6 +581,31 @@ func TestProcessExperimentSignal_StartNewExperiment(t *testing.T) {
 	require.NotNil(t, newStatus.Experiment)
 	assert.Equal(t, v2alpha1.ExperimentPhaseRunning, newStatus.Experiment.Phase)
 	assert.Equal(t, "exp-new", newStatus.Experiment.ID)
+	assert.Equal(t, "baseline-rev", newStatus.Experiment.RollbackTargetRevision)
+	assert.NotEmpty(t, newStatus.Experiment.ExpectedSpecHash)
+}
+
+// TestProcessStartSignal_AbortsWhenBaselineMissing verifies that a start
+// signal without the rollback-target-revision annotation aborts the
+// experiment (with StartTaskID persisted so the daemon can report ERROR).
+func TestProcessStartSignal_AbortsWhenBaselineMissing(t *testing.T) {
+	r, _ := newRevisionTestReconciler(t)
+	instance := newRevisionTestOwner("test-dda", "default")
+	instance.Annotations = map[string]string{
+		v2alpha1.AnnotationExperimentSignal: v2alpha1.ExperimentSignalStart,
+		v2alpha1.AnnotationExperimentID:     "exp-abort",
+		v2alpha1.AnnotationPendingTaskID:    "task-42",
+	}
+
+	newStatus := &v2alpha1.DatadogAgentStatus{}
+	_, processErr := r.processExperimentSignal(context.Background(), instance, newStatus, metav1.Now(), nil)
+	require.NoError(t, processErr)
+	require.NotNil(t, newStatus.Experiment)
+	assert.Equal(t, v2alpha1.ExperimentPhaseAborted, newStatus.Experiment.Phase)
+	assert.Equal(t, "exp-abort", newStatus.Experiment.ID)
+	assert.Equal(t, "task-42", newStatus.Experiment.StartTaskID,
+		"StartTaskID must be persisted so reconcileLocallyTerminatedExperiment can report ERROR to RC")
+	assert.Equal(t, ExperimentTerminationReasonBaselineMissing, newStatus.Experiment.TerminationReason)
 }
 
 func TestProcessExperimentSignal_StartIdempotent(t *testing.T) {
@@ -782,8 +808,9 @@ func TestManageExperiment_StartSignalDoesNotClearAnnotationsPrematurely(t *testi
 	// and annotations must NOT be cleared (they'll be cleared on the next reconcile).
 	instance := newRevisionTestOwner("test-dda", "default")
 	instance.Annotations = map[string]string{
-		v2alpha1.AnnotationExperimentSignal: v2alpha1.ExperimentSignalStart,
-		v2alpha1.AnnotationExperimentID:     "new-exp",
+		v2alpha1.AnnotationExperimentSignal:                 v2alpha1.ExperimentSignalStart,
+		v2alpha1.AnnotationExperimentID:                     "new-exp",
+		v2alpha1.AnnotationExperimentRollbackTargetRevision: "baseline-rev",
 	}
 	require.NoError(t, c.Create(context.Background(), instance))
 
@@ -901,10 +928,11 @@ func TestProcessStartSignal_CapturesStartTaskID(t *testing.T) {
 	const expID = "exp-new"
 	instance := newRevisionTestOwner("test-dda", "default")
 	instance.Annotations = map[string]string{
-		v2alpha1.AnnotationExperimentSignal: v2alpha1.ExperimentSignalStart,
-		v2alpha1.AnnotationExperimentID:     expID,
-		v2alpha1.AnnotationPendingTaskID:    taskID,
-		v2alpha1.AnnotationPendingAction:    "start",
+		v2alpha1.AnnotationExperimentSignal:                 v2alpha1.ExperimentSignalStart,
+		v2alpha1.AnnotationExperimentID:                     expID,
+		v2alpha1.AnnotationPendingTaskID:                    taskID,
+		v2alpha1.AnnotationPendingAction:                    "start",
+		v2alpha1.AnnotationExperimentRollbackTargetRevision: "baseline-rev",
 	}
 
 	newStatus := &v2alpha1.DatadogAgentStatus{}

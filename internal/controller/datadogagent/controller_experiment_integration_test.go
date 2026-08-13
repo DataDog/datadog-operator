@@ -44,7 +44,9 @@ import (
 )
 
 // simulateDaemonStart writes experiment start annotations on the DDA, simulating
-// what the fleet daemon does when starting an experiment.
+// what the fleet daemon does when starting an experiment. The daemon-side
+// rollback-target-revision annotation is populated from the current status
+// pointer (which is what the real daemon reads before patching).
 func simulateDaemonStart(t *testing.T, c client.Client, nsName types.NamespacedName, experimentID string) {
 	t.Helper()
 	var dda v2alpha1.DatadogAgent
@@ -54,6 +56,7 @@ func simulateDaemonStart(t *testing.T, c client.Client, nsName types.NamespacedN
 	}
 	dda.Annotations[v2alpha1.AnnotationExperimentID] = experimentID
 	dda.Annotations[v2alpha1.AnnotationExperimentSignal] = v2alpha1.ExperimentSignalStart
+	dda.Annotations[v2alpha1.AnnotationExperimentRollbackTargetRevision] = dda.Status.CurrentRevision
 	assert.NoError(t, c.Update(context.TODO(), &dda))
 }
 

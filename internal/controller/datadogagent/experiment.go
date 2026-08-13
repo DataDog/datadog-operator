@@ -32,6 +32,14 @@ const (
 	ExperimentTerminationReasonStopped = "stopped"
 	// ExperimentTerminationReasonTimedOut indicates the experiment exceeded the timeout and was auto-rolled back.
 	ExperimentTerminationReasonTimedOut = "timed_out"
+	// ExperimentTerminationReasonBaselineMissing indicates a start signal
+	// arrived without the daemon-written rollback checkpoint annotation, so
+	// the experiment could not be safely accepted.
+	ExperimentTerminationReasonBaselineMissing = "baseline_missing"
+	// ExperimentTerminationReasonBaselineNotFound indicates the ControllerRevision
+	// named by Status.Experiment.RollbackTargetRevision no longer exists at
+	// rollback time (e.g. external deletion).
+	ExperimentTerminationReasonBaselineNotFound = "baseline_not_found"
 )
 
 // annotationExperimentState records the terminal outcome of an experiment
@@ -184,7 +192,8 @@ func (r *Reconciler) processExperimentSignal(
 		// pending annotations being available later (the worker clears them when
 		// the start task completes).
 		pendingTaskID := annotations[v2alpha1.AnnotationPendingTaskID]
-		acted, err = r.processStartSignal(ctx, annotationID, currentPhase, currentID, newStatus, now, pendingTaskID)
+		rollbackTarget := annotations[v2alpha1.AnnotationExperimentRollbackTargetRevision]
+		acted, err = r.processStartSignal(ctx, instance, annotationID, currentPhase, currentID, newStatus, now, pendingTaskID, rollbackTarget)
 
 	case v2alpha1.ExperimentSignalRollback:
 		acted, err = r.processRollbackSignal(ctx, instance, annotationID, currentPhase, newStatus, revisions)
@@ -220,14 +229,28 @@ func (r *Reconciler) processExperimentSignal(
 // TaskState_ERROR for the original task on local timeout. Persisting
 // it on Status keeps the value durable across daemon restarts (the
 // pending annotations get cleared once the start task completes).
+//
+// rollbackTarget is the ControllerRevision name the daemon captured
+// as the pre-experiment baseline in the same MergePatch that carried
+// this start signal. It is copied into Status.Experiment.RollbackTargetRevision
+// so rollback can restore by name without walking revision history.
+// A missing value aborts the experiment: without a proven baseline,
+// rollback cannot be safely performed.
+//
+// instance.Spec at this point is the experiment spec (the daemon's
+// MergePatch overwrote spec + signal annotations atomically), so
+// ExpectedSpecHash captured here is the content hash of the intended
+// experiment state, used by later reconciles to detect manual changes.
 func (r *Reconciler) processStartSignal(
 	ctx context.Context,
+	instance *v2alpha1.DatadogAgent,
 	annotationID string,
 	currentPhase v2alpha1.ExperimentPhase,
 	currentID string,
 	newStatus *v2alpha1.DatadogAgentStatus,
 	now metav1.Time,
 	pendingTaskID string,
+	rollbackTarget string,
 ) (bool, error) {
 	logger := ctrl.LoggerFrom(ctx)
 	// Already processed: same ID already in status.
@@ -241,13 +264,37 @@ func (r *Reconciler) processStartSignal(
 		return true, nil // clear annotations — can't act on this
 	}
 
-	logger.Info("Processing start signal")
+	// Missing rollback checkpoint: abort. Without a named baseline, rollback
+	// cannot be proven safe. Persist StartTaskID before publishing Aborted so
+	// the daemon's reconcileLocallyTerminatedExperiment path can report the
+	// start task as ERROR to Remote Config.
+	if rollbackTarget == "" {
+		logger.Info("Aborting start signal: rollback checkpoint missing from annotations")
+		startedAt := now
+		newStatus.Experiment = &v2alpha1.ExperimentStatus{
+			Phase:             v2alpha1.ExperimentPhaseAborted,
+			ID:                annotationID,
+			StartedAt:         &startedAt,
+			StartTaskID:       pendingTaskID,
+			TerminationReason: ExperimentTerminationReasonBaselineMissing,
+		}
+		return true, nil
+	}
+
+	specHash, err := computeSpecHash(instance.Spec, instance.GetAnnotations())
+	if err != nil {
+		return false, fmt.Errorf("compute expected spec hash: %w", err)
+	}
+
+	logger.Info("Processing start signal", "rollbackTarget", rollbackTarget)
 	startedAt := now
 	newStatus.Experiment = &v2alpha1.ExperimentStatus{
-		Phase:       v2alpha1.ExperimentPhaseRunning,
-		ID:          annotationID,
-		StartedAt:   &startedAt,
-		StartTaskID: pendingTaskID,
+		Phase:                  v2alpha1.ExperimentPhaseRunning,
+		ID:                     annotationID,
+		StartedAt:              &startedAt,
+		StartTaskID:            pendingTaskID,
+		RollbackTargetRevision: rollbackTarget,
+		ExpectedSpecHash:       specHash,
 	}
 	return true, nil
 }
