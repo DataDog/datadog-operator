@@ -185,7 +185,7 @@ Other operator startup options can also be configured via environment variable:
 | Profiling                  | `--profiling-enabled`                | `DD_PROFILING_ENABLED`                | `false` |
 | Leader election lease      | `--leader-election-lease-duration`   | `DD_LEADER_ELECTION_LEASE_DURATION`   | `60s`   |
 | Cilium network policies    | `--supportCilium`                    | `DD_SUPPORT_CILIUM`                   | `false` |
-| Maximum goroutines         | `--maximumGoroutines`                | `DD_MAXIMUM_GOROUTINES`               | `400`   |
+| Maximum goroutines         | `--maximumGoroutines`                | `DD_MAXIMUM_GOROUTINES`               | `500`   |
 | DDGR max concurrent reconciles | `--datadogGenericResourceMaxConcurrentReconciles` | `DD_GENERIC_RESOURCE_MAX_CONCURRENT_RECONCILES` | `1` |
 | DDGR requeue period        | `--datadogGenericResourceRequeuePeriod` | `DD_GENERIC_RESOURCE_REQUEUE_PERIOD` | `60s`   |
 | Controller revisions       | `--createControllerRevisions`        | `DD_CREATE_CONTROLLER_REVISIONS`      | `false` |

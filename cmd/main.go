@@ -64,7 +64,7 @@ import (
 )
 
 const (
-	defaultMaximumGoroutines                             = 400
+	defaultMaximumGoroutines                             = 500
 	defaultDatadogGenericResourceMaxConcurrentReconciles = 1
 	defaultDatadogGenericResourceRequeuePeriod           = 60 * time.Second
 	podNamespaceEnvVar                                   = "POD_NAMESPACE"
