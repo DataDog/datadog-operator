@@ -127,10 +127,16 @@ const testExperimentID = "test-config"
 func testDDAObject(phase v2alpha1.ExperimentPhase) *v2alpha1.DatadogAgent {
 	dda := &v2alpha1.DatadogAgent{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      testDDANSN.Name,
-			Namespace: testDDANSN.Namespace,
+			Name:       testDDANSN.Name,
+			Namespace:  testDDANSN.Namespace,
+			Generation: 1,
 		},
 	}
+	// Populate the current-revision pointer so the baseline-freshness preflight
+	// in handleTask (start method) passes. Real DDAs get this from the
+	// reconcile barrier; tests need to seed it explicitly.
+	dda.Status.CurrentRevision = "test-baseline-rev"
+	dda.Status.CurrentRevisionObservedGeneration = 1
 	if phase != "" {
 		dda.Status.Experiment = &v2alpha1.ExperimentStatus{Phase: phase, ID: testExperimentID}
 		// Set experiment annotations to match status — this is the state the daemon
@@ -1607,6 +1613,47 @@ func TestHandleTask_DispatchesWithoutSettingTaskState(t *testing.T) {
 	req.ExpectedState = expectedState{StableConfig: "0.0.1"}
 	require.NoError(t, d.handleTask(context.Background(), req))
 	assert.Nil(t, m.state[0].Task)
+}
+
+// TestHandleTask_StartBaselineUninitialized verifies that a start task on a
+// DDA whose Status.CurrentRevision is empty reports ERROR to Remote Config
+// with the baseline-uninitialized reason after the freshness retry budget is
+// exhausted. Uses a short-context path via testDDAObjectNoBaseline to skip
+// waiting for the real backoff.
+func TestHandleTask_StartBaselineUninitialized(t *testing.T) {
+	dda := testDDAObject("")
+	dda.Status.CurrentRevision = ""
+	dda.Status.CurrentRevisionObservedGeneration = 0
+	rc := []*pbgo.PackageState{{Package: "datadog-operator", StableConfigVersion: "0.0.1"}}
+	d, _, m := testDaemonFull(dda, testInstallerConfigWithDDA(), rc)
+	req := testStartRequest()
+	req.ExpectedState = expectedState{StableConfig: "0.0.1"}
+
+	err := d.handleTask(context.Background(), req)
+	require.Error(t, err)
+	assert.ErrorIs(t, err, errBaselineUninitialized)
+	require.NotNil(t, m.state[0].Task)
+	assert.Equal(t, pbgo.TaskState_ERROR, m.state[0].Task.State)
+}
+
+// TestHandleTask_StartBaselineNotReady verifies that a start task on a DDA
+// whose Status.CurrentRevisionObservedGeneration lags metadata.Generation
+// reports ERROR with the baseline-not-ready reason.
+func TestHandleTask_StartBaselineNotReady(t *testing.T) {
+	dda := testDDAObject("")
+	dda.Generation = 5
+	dda.Status.CurrentRevision = "some-rev"
+	dda.Status.CurrentRevisionObservedGeneration = 4
+	rc := []*pbgo.PackageState{{Package: "datadog-operator", StableConfigVersion: "0.0.1"}}
+	d, _, m := testDaemonFull(dda, testInstallerConfigWithDDA(), rc)
+	req := testStartRequest()
+	req.ExpectedState = expectedState{StableConfig: "0.0.1"}
+
+	err := d.handleTask(context.Background(), req)
+	require.Error(t, err)
+	assert.ErrorIs(t, err, errBaselineNotReady)
+	require.NotNil(t, m.state[0].Task)
+	assert.Equal(t, pbgo.TaskState_ERROR, m.state[0].Task.State)
 }
 
 func TestHandleTask_Error(t *testing.T) {

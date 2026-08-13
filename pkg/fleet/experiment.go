@@ -8,6 +8,7 @@ package fleet
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"maps"
 	"math"
@@ -117,6 +118,61 @@ func buildSignalPatchWithAnnotations(signal, id string, extraAnnotations map[str
 	}
 
 	return json.Marshal(patch)
+}
+
+// Baseline-freshness sentinel errors. These distinguish the ways a Fleet
+// start can fail before the daemon writes the spec, so the RC ERROR carries
+// an actionable reason.
+var (
+	errBaselineUninitialized = errors.New("baseline-uninitialized")
+	errBaselineNotReady      = errors.New("baseline-not-ready")
+	errBaselineConflict      = errors.New("baseline-conflict")
+)
+
+// checkBaselineFreshness returns nil when the reconciler-published current-
+// revision pointer is fresh for the DDA's current generation. Callers use the
+// returned sentinel to distinguish the failure mode when reporting ERROR to
+// Remote Config.
+func checkBaselineFreshness(dda *v2alpha1.DatadogAgent) error {
+	if dda.Status.CurrentRevision == "" {
+		return errBaselineUninitialized
+	}
+	if dda.Status.CurrentRevisionObservedGeneration != dda.Generation {
+		return errBaselineNotReady
+	}
+	return nil
+}
+
+// waitForBaselineFreshness re-reads the DDA and evaluates freshness with a
+// bounded retry budget (~10s across 4 attempts, exponential 500ms → 4s).
+// Callers hold no daemon locks while this runs, so other operations on the
+// same DDA are not stalled waiting for the reconciler to catch up. Returns
+// the fresh DDA on success, or the last freshness sentinel on failure.
+func (d *Daemon) waitForBaselineFreshness(ctx context.Context, nsn types.NamespacedName) (*v2alpha1.DatadogAgent, error) {
+	backoff := 500 * time.Millisecond
+	const maxAttempts = 4
+	var lastErr error
+	for attempt := 0; attempt < maxAttempts; attempt++ {
+		if attempt > 0 {
+			select {
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			case <-time.After(backoff):
+			}
+			backoff *= 2
+		}
+		dda := &v2alpha1.DatadogAgent{}
+		if err := d.client.Get(ctx, nsn, dda); err != nil {
+			lastErr = err
+			continue
+		}
+		if err := checkBaselineFreshness(dda); err != nil {
+			lastErr = err
+			continue
+		}
+		return dda, nil
+	}
+	return nil, lastErr
 }
 
 // isTerminalPhase returns true for terminal experiment phases.

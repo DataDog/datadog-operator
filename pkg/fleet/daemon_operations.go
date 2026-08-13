@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -155,16 +156,65 @@ func (d *Daemon) applyOperation(ctx context.Context, nsn types.NamespacedName, s
 			return nil, fmt.Errorf("%s: failed to build pending operation patch: %w", signalLog, err)
 		}
 	}
-	dda := &v2alpha1.DatadogAgent{}
-	dda.Name = nsn.Name
-	dda.Namespace = nsn.Namespace
-	if err := retryWithBackoff(ctx, func() error {
-		return d.client.Patch(ctx, dda, client.RawPatch(types.MergePatchType, patch), client.FieldOwner("fleet-daemon"))
-	}); err != nil {
-		return nil, fmt.Errorf("%s: failed to patch DatadogAgent: %w", signalLog, err)
+	// Optimistic-lock patch: re-read the DDA to capture its resourceVersion,
+	// then apply the merge patch with MergeFromWithOptimisticLock so the
+	// server rejects the write if another actor mutated the DDA between
+	// read and write. On 409 conflict retry once with a fresh read; if the
+	// second attempt still conflicts, surface baseline-conflict so RC gets
+	// a distinct reason code from freshness failures.
+	patchErr := d.applyMergePatchOptimistic(ctx, nsn, patch)
+	if apierrors.IsConflict(patchErr) {
+		ctrl.LoggerFrom(ctx).V(1).Info("Optimistic lock conflict on signal patch, retrying once")
+		patchErr = d.applyMergePatchOptimistic(ctx, nsn, patch)
+		if apierrors.IsConflict(patchErr) {
+			return nil, fmt.Errorf("%s: %w", signalLog, errBaselineConflict)
+		}
+	}
+	if patchErr != nil {
+		return nil, fmt.Errorf("%s: failed to patch DatadogAgent: %w", signalLog, patchErr)
 	}
 	ctrl.LoggerFrom(ctx).Info("Wrote signal")
 	return pending, nil
+}
+
+// applyMergePatchOptimistic reads the DDA to capture its resourceVersion,
+// injects it into the merge patch's metadata block so the server enforces the
+// precondition, and applies the patch. Returns apierrors.IsConflict(err)==true
+// when the resourceVersion changed between read and write.
+func (d *Daemon) applyMergePatchOptimistic(ctx context.Context, nsn types.NamespacedName, patch []byte) error {
+	base := &v2alpha1.DatadogAgent{}
+	if err := d.client.Get(ctx, nsn, base); err != nil {
+		return err
+	}
+	patchWithRV, err := injectResourceVersion(patch, base.ResourceVersion)
+	if err != nil {
+		return fmt.Errorf("inject resourceVersion: %w", err)
+	}
+	target := &v2alpha1.DatadogAgent{}
+	target.Name = nsn.Name
+	target.Namespace = nsn.Namespace
+	return d.client.Patch(ctx, target,
+		client.RawPatch(types.MergePatchType, patchWithRV),
+		client.FieldOwner("fleet-daemon"),
+	)
+}
+
+// injectResourceVersion adds metadata.resourceVersion to a JSON merge patch.
+// The Kubernetes API server treats resourceVersion in a merge patch's metadata
+// as an optimistic-lock precondition, rejecting the write with 409 Conflict
+// when the current object's resourceVersion differs.
+func injectResourceVersion(patch []byte, resourceVersion string) ([]byte, error) {
+	var m map[string]any
+	if err := json.Unmarshal(patch, &m); err != nil {
+		return nil, err
+	}
+	metadata, ok := m["metadata"].(map[string]any)
+	if !ok {
+		metadata = map[string]any{}
+		m["metadata"] = metadata
+	}
+	metadata["resourceVersion"] = resourceVersion
+	return json.Marshal(m)
 }
 
 // startDatadogAgentExperiment starts a DatadogAgent experiment by atomically
