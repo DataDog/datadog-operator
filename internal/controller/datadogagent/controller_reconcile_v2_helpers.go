@@ -36,6 +36,12 @@ func generateNewStatusFromDDA(ddaStatus *datadoghqv2alpha1.DatadogAgentStatus) *
 			status.RemoteConfigConfiguration = ddaStatus.RemoteConfigConfiguration
 		}
 		status.Experiment = ddaStatus.Experiment.DeepCopy()
+		// Preserve the current-revision pointer across reconciles. Revision
+		// management republishes it inside the barrier when the DDA generation
+		// bumps; keeping the previously observed values here means status
+		// writes elsewhere in this reconcile do not nuke the pointer.
+		status.CurrentRevision = ddaStatus.CurrentRevision
+		status.CurrentRevisionObservedGeneration = ddaStatus.CurrentRevisionObservedGeneration
 	}
 	return status
 }

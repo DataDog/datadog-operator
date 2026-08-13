@@ -8,6 +8,8 @@ package datadogagent
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -38,6 +40,20 @@ type revisionSnapshot struct {
 func buildRevisionSnapshot(spec v2alpha1.DatadogAgentSpec, allAnnotations map[string]string) ([]byte, error) {
 	snap := revisionSnapshot{Spec: spec, Annotations: datadogAnnotations(allAnnotations)}
 	return json.Marshal(snap)
+}
+
+// computeSpecHash returns sha256(revisionSnapshot bytes) hex-encoded. Same
+// payload as ControllerRevision storage — spec plus filtered Datadog
+// annotations — so "hash matches" and "snapshot content equals" agree by
+// construction. Used by experiment logic to detect manual spec changes
+// without walking ControllerRevisions.
+func computeSpecHash(spec v2alpha1.DatadogAgentSpec, allAnnotations map[string]string) (string, error) {
+	snap, err := buildRevisionSnapshot(spec, allAnnotations)
+	if err != nil {
+		return "", err
+	}
+	sum := sha256.Sum256(snap)
+	return hex.EncodeToString(sum[:]), nil
 }
 
 // skipRevisionBump returns true when the revision bump should be suppressed.

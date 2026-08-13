@@ -661,6 +661,20 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_DatadogAgentStatus(ref commo
 							Format:      "",
 						},
 					},
+					"currentRevision": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CurrentRevision names the ControllerRevision that snapshots the currently observed raw DatadogAgent spec. Published by revision management as a public contract; the Fleet daemon checkpoints the experiment baseline from this pointer, and experiment logic never derives it by listing ControllerRevisions. Moves with the live spec (including during a running experiment — the baseline for that experiment lives in status.experiment.rollbackTargetRevision).",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"currentRevisionObservedGeneration": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CurrentRevisionObservedGeneration records the metadata.generation for which CurrentRevision is valid. The pointer is usable only when CurrentRevision != \"\" AND CurrentRevisionObservedGeneration == metadata.generation.",
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
 				},
 			},
 		},
@@ -1172,6 +1186,20 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_ExperimentStatus(ref common.
 					"startTaskID": {
 						SchemaProps: spec.SchemaProps{
 							Description: "StartTaskID is the Fleet Automation task identifier that drove the transition into phase=Running. Captured from the daemon's pending annotations and preserved across daemon restarts. On local timeout the daemon uses it to report TaskState_ERROR for the original start task, so Fleet Automation gets an explicit terminal failure tied to the task it sent rather than inferring termination from a cleared experimentConfigVersion.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"rollbackTargetRevision": {
+						SchemaProps: spec.SchemaProps{
+							Description: "RollbackTargetRevision names the ControllerRevision that holds the pre-experiment DatadogAgent spec, checkpointed by the Fleet daemon in the same patch that starts the experiment. Rollback restores this revision by name; experiment logic never selects a target by revision ordering. Written once on the transition to phase=Running; retained across terminal phases as audit context and overwritten by the next Running transition.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"expectedSpecHash": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ExpectedSpecHash is sha256(canonicalJSON({spec, filteredAnnotations})) of the DatadogAgent at the moment it transitioned to phase=Running. Manual-change detection compares the current live hash against this value; a mismatch aborts the experiment. Written exactly once at the Running transition and never refreshed while Running.",
 							Type:        []string{"string"},
 							Format:      "",
 						},

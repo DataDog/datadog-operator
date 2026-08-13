@@ -8800,9 +8800,35 @@ spec:
                   x-kubernetes-list-map-keys:
                     - type
                   x-kubernetes-list-type: map
+                currentRevision:
+                  description: |-
+                    CurrentRevision names the ControllerRevision that snapshots the
+                    currently observed raw DatadogAgent spec. Published by revision
+                    management as a public contract; the Fleet daemon checkpoints the
+                    experiment baseline from this pointer, and experiment logic never
+                    derives it by listing ControllerRevisions. Moves with the live spec
+                    (including during a running experiment — the baseline for that
+                    experiment lives in status.experiment.rollbackTargetRevision).
+                  type: string
+                currentRevisionObservedGeneration:
+                  description: |-
+                    CurrentRevisionObservedGeneration records the metadata.generation
+                    for which CurrentRevision is valid. The pointer is usable only when
+                    CurrentRevision != "" AND CurrentRevisionObservedGeneration ==
+                    metadata.generation.
+                  format: int64
+                  type: integer
                 experiment:
                   description: Experiment tracks the state of an active or recent Fleet Automation experiment.
                   properties:
+                    expectedSpecHash:
+                      description: |-
+                        ExpectedSpecHash is sha256(canonicalJSON({spec, filteredAnnotations}))
+                        of the DatadogAgent at the moment it transitioned to phase=Running.
+                        Manual-change detection compares the current live hash against this
+                        value; a mismatch aborts the experiment. Written exactly once at the
+                        Running transition and never refreshed while Running.
+                      type: string
                     id:
                       description: ID is the RC task ID that triggered this experiment state.
                       type: string
@@ -8813,6 +8839,16 @@ spec:
                         - terminated
                         - promoted
                         - aborted
+                      type: string
+                    rollbackTargetRevision:
+                      description: |-
+                        RollbackTargetRevision names the ControllerRevision that holds the
+                        pre-experiment DatadogAgent spec, checkpointed by the Fleet daemon
+                        in the same patch that starts the experiment. Rollback restores this
+                        revision by name; experiment logic never selects a target by revision
+                        ordering. Written once on the transition to phase=Running; retained
+                        across terminal phases as audit context and overwritten by the next
+                        Running transition.
                       type: string
                     startTaskID:
                       description: |-
