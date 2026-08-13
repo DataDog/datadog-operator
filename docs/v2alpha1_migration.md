@@ -2,6 +2,8 @@
 
 This page discusses how to convert your DatadogAgent Custom Resources Definitions (CRDs) from `v1alpha1` to version `v2alpha1` used by the Datadog Operator v1.0.0+.
 
+> If you are migrating from the Datadog Helm chart, the chart's `providers.*` configuration maps to the Operator's `agent.datadoghq.com/cluster-provider` annotation. See the [providers documentation](providers.md) for the full mapping.
+
 ## Prerequisites
 
 * Completed Datadog Operator v1.0.0+ Helm chart migration. For details, see the [Migration Guide][1].

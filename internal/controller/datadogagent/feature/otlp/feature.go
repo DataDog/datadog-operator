@@ -271,7 +271,7 @@ func applyOTLPDDASharedDependencies(dda metav1.Object, ddaSpec *v2alpha1.Datadog
 	if err != nil {
 		return err
 	}
-	if len(ports) == 0 || !featureutils.ShouldCreateLocalAgentService(ddaSpec, managers) {
+	if len(ports) == 0 || !featureutils.ShouldCreateLocalAgentService(ddaSpec, managers.Store().GetPlatformInfo()) {
 		return nil
 	}
 

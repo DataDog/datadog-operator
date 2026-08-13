@@ -9,6 +9,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sync"
 
 	"github.com/DataDog/datadog-agent/pkg/remoteconfig/state"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -73,7 +74,7 @@ func handleInstallerConfigUpdate(ctx context.Context, h func(map[string]installe
 		logger := ctrl.LoggerFrom(ctx)
 		configs := make(map[string]installerConfig, len(updates))
 		for cfgPath, raw := range updates {
-			logger.V(1).Info("Received INSTALLER_CONFIG payload", "cfgPath", cfgPath, "rawPayload", string(raw.Config))
+			logger.V(1).Info("Received INSTALLER_CONFIG payload", "cfgPath", cfgPath)
 
 			var cfg installerConfig
 			if err := json.Unmarshal(raw.Config, &cfg); err != nil {
@@ -101,10 +102,14 @@ func handleInstallerConfigUpdate(ctx context.Context, h func(map[string]installe
 // Requests that have already been accepted (tracked by seen IDs) are ignored.
 func handleUpdaterTaskUpdate(ctx context.Context, h func(remoteAPIRequest) error) func(map[string]state.RawConfig, func(string, state.ApplyStatus)) {
 	seen := make(map[string]struct{})
+	var mu sync.Mutex
 	return func(updates map[string]state.RawConfig, applyStatus func(string, state.ApplyStatus)) {
+		mu.Lock()
+		defer mu.Unlock()
+
 		logger := ctrl.LoggerFrom(ctx)
 		for cfgPath, raw := range updates {
-			logger.V(1).Info("Received UPDATER_TASK payload", "cfgPath", cfgPath, "rawPayload", string(raw.Config))
+			logger.V(1).Info("Received UPDATER_TASK payload", "cfgPath", cfgPath)
 
 			var req remoteAPIRequest
 			if err := json.Unmarshal(raw.Config, &req); err != nil {

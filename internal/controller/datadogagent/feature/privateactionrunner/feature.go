@@ -42,6 +42,8 @@ type privateActionRunnerFeature struct {
 	logger                    logr.Logger
 	nodeEnabled               bool
 	nodeConfigData            string
+	systemdConfig             systemdHostConfig
+	systemdConfigErr          error
 	clusterConfig             *PrivateActionRunnerConfig
 	clusterConfigData         string
 	clusterServiceAccountName string
@@ -62,6 +64,7 @@ func (f *privateActionRunnerFeature) Configure(dda metav1.Object, ddaSpec *v2alp
 	// Check for Node Agent configuration (annotation-based)
 	if featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnablePrivateActionRunnerAnnotation) {
 		f.nodeEnabled = true
+		f.systemdConfig, f.systemdConfigErr = systemdHostConfigFromAnnotations(dda.GetAnnotations())
 
 		// Use config data from annotation directly, or fall back to default
 		if configData, ok := featureutils.GetFeatureConfigAnnotation(dda, featureutils.PrivateActionRunnerConfigDataAnnotation); ok {
@@ -244,6 +247,9 @@ func (f *privateActionRunnerFeature) ManageNodeAgent(managers feature.PodTemplat
 	if !f.nodeEnabled {
 		return nil
 	}
+	if f.systemdConfigErr != nil {
+		return fmt.Errorf("invalid Private Action Runner systemd configuration: %w", f.systemdConfigErr)
+	}
 
 	configMapName := f.getConfigMapName()
 
@@ -276,6 +282,8 @@ func (f *privateActionRunnerFeature) ManageNodeAgent(managers feature.PodTemplat
 	varLogVol, varLogVolMount := volume.GetVolumes(hostVarLogVolumeName, hostVarLogHostPath, hostVarLogMountPath, true)
 	managers.Volume().AddVolume(&varLogVol)
 	managers.VolumeMount().AddVolumeMountToContainer(&varLogVolMount, apicommon.PrivateActionRunnerContainerName)
+
+	f.systemdConfig.addVolumeMounts(managers)
 
 	// Add NET_RAW capability for network operations
 	managers.SecurityContext().AddCapabilitiesToContainer(

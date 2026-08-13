@@ -57,6 +57,7 @@ Common scenarios:
 
 * Operator v1.5.0+
 * Tests were performed on Kubernetes versions >= `1.27.0`
+* The cluster must allow the Operator to `patch` nodes. Environments that block node modifications, such as GKE Autopilot, cannot use DAPs.
 
 ## Enabling DatadogAgentProfiles
 
@@ -75,6 +76,45 @@ config:
 
 > [!CAUTION]
 > Enabling DAP will increase the resource usage of the Operator. Please ensure the operator pod has enough resources allocated to it prior to enabling DAP.
+
+## Declaring a provider
+
+A DAP can declare a [provider](providers.md) for the subset of nodes it targets by setting the `agent.datadoghq.com/cluster-provider` annotation on the profile. This is the supported way to apply provider-specific configuration (for example, a GKE COS node pool) to a subset of nodes.
+
+This is safe **only if the profile's `profileAffinity` correctly selects the nodes that actually match the declared provider**. The Operator does not verify that the selected nodes match the annotation; if the selector is too broad, the provider configuration is applied to nodes it does not fit.
+
+The node-scoped providers that make sense on a DAP are:
+
+| Provider | Applies to | Notes |
+| -------- | ---------- | ----- |
+| `gke-cos` | GKE Container-Optimized OS node pools | Drops the `/usr/src` volume for the OOM Kill, TCP Queue Length, and GPU checks |
+| `eks-ec2-use-hostname-from-file` | EKS EC2 node groups | Adds `DD_HOSTNAME_FILE` and the cloud-init instance-id mount |
+
+See the [providers documentation](providers.md) for the full catalog, effects, and Helm mappings.
+
+```yaml
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgentProfile
+metadata:
+  name: gke-cos-profile
+  annotations:
+    agent.datadoghq.com/cluster-provider: gke-cos
+spec:
+  profileAffinity:
+    profileNodeAffinity:
+      - key: cloud.google.com/gke-os-distribution
+        operator: In
+        values:
+          - cos
+  config:
+    override:
+      nodeAgent:
+        containers:
+          agent:
+            resources:
+              requests:
+                cpu: 256m
+```
 
 ## Supported Settings
 
