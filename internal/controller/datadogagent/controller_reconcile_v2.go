@@ -147,7 +147,25 @@ func (r *Reconciler) reconcileInstanceV3(ctx context.Context, logger logr.Logger
 		if experimentErr != nil {
 			return r.updateStatusIfNeededV2(logger, instance, newDDAStatus, result, experimentErr, now)
 		}
-		if err := r.gcOldRevisions(ctx, revName, revList); err != nil {
+		// Pin public-pointer revisions so GC cannot prune them out from under
+		// Fleet or an active experiment. Includes: (1) the current-revision
+		// pointer (always); (2) the active experiment's rollback target while
+		// non-terminal; (3) the pending-signal annotation baseline before the
+		// reconciler has copied it into Status.
+		pins := []string{revName}
+		if exp := newDDAStatus.Experiment; exp != nil && !isTerminalPhase(exp.Phase) && exp.RollbackTargetRevision != "" {
+			pins = append(pins, exp.RollbackTargetRevision)
+		}
+		if annBaseline := instance.Annotations[datadoghqv2alpha1.AnnotationExperimentRollbackTargetRevision]; annBaseline != "" {
+			currentStatusBaseline := ""
+			if newDDAStatus.Experiment != nil {
+				currentStatusBaseline = newDDAStatus.Experiment.RollbackTargetRevision
+			}
+			if annBaseline != currentStatusBaseline {
+				pins = append(pins, annBaseline)
+			}
+		}
+		if err := r.gcOldRevisions(ctx, revName, revList, pins...); err != nil {
 			logger.Error(err, "Failed to garbage collect old ControllerRevisions, will retry on next reconcile")
 		}
 	}

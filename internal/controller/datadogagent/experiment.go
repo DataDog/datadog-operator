@@ -15,6 +15,7 @@ import (
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -534,11 +535,16 @@ func (r *Reconciler) handleRollback(
 	return nil
 }
 
-// restorePreviousSpec restores the DDA spec from the previous ControllerRevision
-// and, on success, sets the terminal experiment phase to terminated with the given
-// reason. It also marks the experiment revision (the highest-numbered, non-rollback-target
-// revision) with the rollback annotation so its stale CreationTimestamp doesn't cause
-// an immediate timeout if the same spec is re-applied later.
+// restorePreviousSpec restores the DDA spec from the ControllerRevision named
+// by newStatus.Experiment.RollbackTargetRevision — the pre-experiment baseline
+// captured by the Fleet daemon at start time. On success, sets the terminal
+// experiment phase to terminated with the given reason.
+//
+// When the checkpoint is missing (upgrade case, or a user stripped the field)
+// or the named revision no longer exists (external delete evaded the GC pin),
+// the experiment is aborted with a distinct reason so the daemon reports
+// ERROR to Remote Config rather than silently rolling back to a heuristic
+// target. This matches the plan's "no fallback to revision ordering" rule.
 func (r *Reconciler) restorePreviousSpec(
 	ctx context.Context,
 	instance *v2alpha1.DatadogAgent,
@@ -546,21 +552,39 @@ func (r *Reconciler) restorePreviousSpec(
 	revisions []appsv1.ControllerRevision,
 	terminationReason string,
 ) error {
-	rollbackTarget := findRollbackTarget(revisions)
+	logger := ctrl.LoggerFrom(ctx)
+	rollbackTarget := ""
+	if newStatus.Experiment != nil {
+		rollbackTarget = newStatus.Experiment.RollbackTargetRevision
+	}
+	if rollbackTarget == "" {
+		logger.Info("Aborting rollback: no rollback checkpoint recorded in status.experiment.rollbackTargetRevision")
+		newStatus.Experiment.Phase = v2alpha1.ExperimentPhaseAborted
+		newStatus.Experiment.TerminationReason = ExperimentTerminationReasonBaselineNotFound
+		return nil
+	}
+
+	// Verify the named revision exists before invoking rollback so we can
+	// distinguish NotFound (structural baseline loss → abort) from transient
+	// API errors (return + retry).
+	cr := &appsv1.ControllerRevision{}
+	getErr := r.client.Get(ctx, types.NamespacedName{Namespace: instance.Namespace, Name: rollbackTarget}, cr)
+	if apierrors.IsNotFound(getErr) {
+		logger.Info("Aborting rollback: named baseline ControllerRevision not found (external delete?)",
+			"rollbackTarget", rollbackTarget)
+		newStatus.Experiment.Phase = v2alpha1.ExperimentPhaseAborted
+		newStatus.Experiment.TerminationReason = ExperimentTerminationReasonBaselineNotFound
+		return nil
+	}
+	if getErr != nil {
+		return fmt.Errorf("failed to get rollback target %q: %w", rollbackTarget, getErr)
+	}
+
 	if err := r.rollback(ctx, instance, rollbackTarget); err != nil {
 		return err
 	}
 	newStatus.Experiment.Phase = v2alpha1.ExperimentPhaseTerminated
 	newStatus.Experiment.TerminationReason = terminationReason
-	// Mark the experiment revision (highest-numbered) so its stale timestamp
-	// doesn't cause an immediate timeout if the same spec is re-applied.
-	// Only annotate the highest revision rather than all non-rollback-target
-	// revisions: if GC failed on a prior reconcile there may be 3+ revisions,
-	// and annotating old baselines would cause needless delete+recreate in
-	// ensureRevision if those specs are ever re-applied.
-	if rev := highestRevision(revisions); rev != nil && rev.Name != rollbackTarget {
-		r.markRevisionState(ctx, rev, experimentRevisionStateRolledBack)
-	}
 	return nil
 }
 

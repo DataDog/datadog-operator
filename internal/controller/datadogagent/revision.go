@@ -289,23 +289,32 @@ func datadogAnnotations(all map[string]string) map[string]string {
 	return filtered
 }
 
-// gcOldRevisions deletes all but the two most recent ControllerRevisions:
-// the current and previous. Stale experiment revisions (marked with the
-// rollback annotation) are kept here — they are handled by ensureRevision
-// which recreates them with a fresh timestamp when the same spec is re-applied.
+// gcOldRevisions deletes all but the two most recent ControllerRevisions
+// (current and previous) plus any names in pinned. Pinned revisions survive GC
+// unconditionally; callers include public-status pointers here so retention
+// counts cannot prune a revision named by Status.CurrentRevision or an active
+// experiment's rollback target.
 func (r *Reconciler) gcOldRevisions(
 	ctx context.Context,
 	current string,
 	revList []appsv1.ControllerRevision,
+	pinned ...string,
 ) error {
 	logger := ctrl.LoggerFrom(ctx)
+	keep := make(map[string]struct{}, len(pinned)+2)
+	keep[current] = struct{}{}
+	for _, name := range pinned {
+		if name != "" {
+			keep[name] = struct{}{}
+		}
+	}
 
-	// Identify the most recent non-current revision to keep as previous.
+	// Identify the most recent non-kept revision to keep as previous.
 	previous := ""
 	previousRevision := int64(-1)
 	for i := range revList {
 		rev := &revList[i]
-		if rev.Name == current {
+		if _, isKept := keep[rev.Name]; isKept {
 			continue
 		}
 		if rev.Revision > previousRevision {
@@ -313,10 +322,13 @@ func (r *Reconciler) gcOldRevisions(
 			previous = rev.Name
 		}
 	}
+	if previous != "" {
+		keep[previous] = struct{}{}
+	}
 
 	for i := range revList {
 		rev := &revList[i]
-		if rev.Name == current || rev.Name == previous {
+		if _, isKept := keep[rev.Name]; isKept {
 			continue
 		}
 		objLogger := logger.WithValues(

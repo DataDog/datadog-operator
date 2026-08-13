@@ -534,6 +534,10 @@ func Test_Experiment_Abort_AnnotatesOnlyExperimentRevision(t *testing.T) {
 //   - The rollback target (baseline) revision is NOT annotated.
 //   - Subsequent reconciles do not spread or remove the annotation.
 func Test_Experiment_StopRollback_AnnotatesOnlyExperimentRevision(t *testing.T) {
+	// Obsolete under the checkpoint model: rollback no longer annotates the
+	// experiment revision. Rollback target is proven by
+	// Status.Experiment.RollbackTargetRevision. To be deleted in Phase 7.
+	t.Skip("obsolete under checkpoint model; will be deleted in Phase 7")
 	const ns, name = "default", "test-dda"
 	const uid = types.UID("uid-1")
 	nsName := types.NamespacedName{Namespace: ns, Name: name}
@@ -986,6 +990,11 @@ func Test_Experiment_StateTransitions(t *testing.T) {
 // real API server), so we manually patch timestamps to simulate fresh
 // revisions after the re-apply reconcile.
 func Test_Experiment_ReapplySameSpec_NoImmediateTimeout(t *testing.T) {
+	// Obsolete under the checkpoint model: revision annotation, recreate, and
+	// timeout anchoring on revision timestamps are all gone. Timeout is now
+	// anchored on Status.Experiment.StartedAt only, so re-applied specs never
+	// carry a stale timeout across the restart. To be replaced in Phase 7.
+	t.Skip("obsolete under checkpoint model; will be replaced in Phase 7")
 	const ns, name = "default", "test-dda"
 	const uid = types.UID("uid-1")
 	// Use a short timeout for the initial experiment so it times out quickly,
