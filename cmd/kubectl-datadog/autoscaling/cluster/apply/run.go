@@ -46,6 +46,36 @@ const (
 )
 
 var (
+	// assets/karpenter.yaml is a verbatim copy of the upstream Karpenter
+	// "Getting Started" CloudFormation template, currently synced from
+	// https://github.com/aws/karpenter-provider-aws/blob/v1.14.0/website/content/en/preview/getting-started/getting-started-with-karpenter/cloudformation.yaml
+	//
+	// Do not edit it: keeping it byte-for-byte identical to upstream is what lets
+	// us pick up new controller permissions as Karpenter evolves (the plugin
+	// installs the latest chart by default). To check it has not drifted from the
+	// version referenced above:
+	//
+	//	curl -sSL https://raw.githubusercontent.com/aws/karpenter-provider-aws/v1.14.0/website/content/en/preview/getting-started/getting-started-with-karpenter/cloudformation.yaml |
+	//		diff - cmd/kubectl-datadog/autoscaling/cluster/apply/assets/karpenter.yaml
+	//
+	// To take a newer version, re-sync the whole file, bump both references above,
+	// and then:
+	//
+	//  1. Mirror every managed policy it creates in the ManagedPolicyArns of
+	//     assets/dd-karpenter.yaml and assets/dd-karpenter-fargate.yaml. Upstream
+	//     attaches them from an eksctl script we do not use, so that wiring is
+	//     ours. The autoscaling E2E suite catches a missing attachment for any
+	//     policy the node-provisioning path needs, but not for policies it never
+	//     exercises: KarpenterControllerZonalShiftPolicy (Zonal Shift is opt-in
+	//     and off by default) and KarpenterControllerInterruptionPolicy (a missing
+	//     permission there only surfaces as controller error logs). Check those
+	//     two by hand.
+	//  2. Check every PolicyDocument still fits IAM's 6,144-character
+	//     managed-policy limit — measured with whitespace stripped — for a cluster
+	//     name at the longest length we support (~46 chars, capped by the
+	//     KarpenterNodeRole-${ClusterName} role name; see CASCL-1646). Overflowing
+	//     it is CASCL-1645, and the E2E suite cannot catch it: it deliberately
+	//     uses a short cluster name.
 	//go:embed assets/karpenter.yaml
 	KarpenterCfn string
 
@@ -73,7 +103,7 @@ type RunOptions struct {
 }
 
 // KarpenterStackName returns the name of the mode-independent CloudFormation
-// stack carrying the KarpenterNodeRole, controller policy, SQS queue and
+// stack carrying the KarpenterNodeRole, controller policies, SQS queue and
 // EventBridge rules.
 func KarpenterStackName(clusterName string) string {
 	return "dd-karpenter-" + clusterName + "-karpenter"
@@ -164,8 +194,9 @@ func Run(ctx context.Context, streams genericclioptions.IOStreams, configFlags *
 // fargate; empty string otherwise.
 func createCloudFormationStacks(ctx context.Context, cli *clients.Clients, opts RunOptions) (string, error) {
 	// The first stack (karpenter.yaml) is mode-independent — its resources
-	// (KarpenterNodeRole, KarpenterControllerPolicy, SQS, EventBridge) are
-	// identical in both modes, so no guardrail or install-mode tag is needed.
+	// (KarpenterNodeRole, the Karpenter controller managed policies, SQS,
+	// EventBridge) are identical in both modes, so no guardrail or install-mode
+	// tag is needed.
 	karpenterStackName := KarpenterStackName(opts.ClusterName)
 	if err := aws.CreateOrUpdateStack(ctx, cli.CloudFormation, karpenterStackName, KarpenterCfn, map[string]string{
 		"ClusterName": opts.ClusterName,
