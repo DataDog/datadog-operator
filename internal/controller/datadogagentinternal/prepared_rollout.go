@@ -228,12 +228,48 @@ func preparedInitCommandSupported(container *corev1.Container) bool {
 			return container.Command[1] == "/etc/dd-host-profiler/seccomp.json" && preparedHostProfilerSeccompDestination(container.Command[2])
 		}
 		return len(container.Command) == 3 && container.Command[0] == "sh" && container.Command[1] == "-c" &&
-			strings.Contains(container.Command[2], "/etc/dd-host-profiler/logging-seccomp.json") &&
-			strings.Contains(container.Command[2], "/etc/dd-host-profiler/seccomp.json") &&
-			strings.Contains(container.Command[2], agentcommon.SeccompRootVolumePath+"/host-profiler-")
+			preparedHostProfilerLoggingSeccompCommand(container.Command[2])
 	default:
 		return false
 	}
+}
+
+func preparedHostProfilerLoggingSeccompCommand(command string) bool {
+	const (
+		loggingSource = "/etc/dd-host-profiler/logging-seccomp.json"
+		defaultSource = "/etc/dd-host-profiler/seccomp.json"
+		warning       = "WARNING: logging-seccomp.json not found in image, falling back to default seccomp profile"
+	)
+	prefix := "if [ -f " + loggingSource + " ]; then cp " + loggingSource + " "
+	middle := "; else echo '" + warning + "'; cp " + defaultSource + " "
+
+	remainder, found := strings.CutPrefix(command, prefix)
+	if !found {
+		return false
+	}
+	destination, remainder, found := strings.Cut(remainder, middle)
+	if !found {
+		return false
+	}
+	fallbackDestination, found := strings.CutSuffix(remainder, "; fi")
+	return found && destination == fallbackDestination && preparedHostProfilerGeneratedSeccompDestination(destination)
+}
+
+func preparedHostProfilerGeneratedSeccompDestination(destination string) bool {
+	name := strings.TrimPrefix(destination, agentcommon.SeccompRootVolumePath+"/host-profiler-")
+	if name == destination {
+		return false
+	}
+	name = strings.TrimSuffix(name, "-logging")
+	if len(name) != 8 {
+		return false
+	}
+	for _, character := range name {
+		if !strings.ContainsRune("0123456789abcdef", character) {
+			return false
+		}
+	}
+	return true
 }
 
 func preparedHostProfilerSeccompDestination(destination string) bool {

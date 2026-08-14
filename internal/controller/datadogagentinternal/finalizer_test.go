@@ -2,6 +2,7 @@ package datadogagentinternal
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 
@@ -17,6 +18,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -225,6 +227,95 @@ func TestPreparedRolloutFinalizerDeletesWorkloadsBeforeReleasingNodeLabels(t *te
 	assert.NotContains(t, currentNode.Labels, rolloutKey)
 	assert.NotContains(t, currentNode.Labels, constants.ProfileLabelKey)
 	assert.NotContains(t, currentNode.Annotations, candidateKey)
+}
+
+func TestInternalReconcileV2TreatsPreparedWorkloadTerminationAsControllerState(t *testing.T) {
+	ctx := context.Background()
+	now := metav1.Now()
+	ddai := &datadoghqv1alpha1.DatadogAgentInternal{ObjectMeta: metav1.ObjectMeta{
+		Namespace:         "default",
+		Name:              "agent",
+		UID:               "agent-uid",
+		DeletionTimestamp: &now,
+		Finalizers:        []string{constants.DatadogAgentInternalFinalizer},
+	}}
+	rolloutKey := preparedRolloutNodeLabelKey(ddai)
+	node := &corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node", Labels: map[string]string{rolloutKey: rolloutSlotBlue}}}
+	controller := true
+	ds := &appsv1.DaemonSet{ObjectMeta: metav1.ObjectMeta{
+		Name:      "agent",
+		Namespace: ddai.Namespace,
+		OwnerReferences: []metav1.OwnerReference{{
+			APIVersion: datadoghqv1alpha1.GroupVersion.String(), Kind: "DatadogAgentInternal", Name: ddai.Name, UID: ddai.UID, Controller: &controller,
+		}},
+	}, Spec: appsv1.DaemonSetSpec{Template: corev1.PodTemplateSpec{ObjectMeta: metav1.ObjectMeta{
+		Annotations: map[string]string{preparedRolloutModeAnnotation: preparedBlueGreenMode},
+	}}}}
+	r := reconcilerForFinalizerTest([]client.Object{ddai, node, ds})
+
+	result, err := r.internalReconcileV2(ctx, ddai)
+	require.NoError(t, err)
+	assert.Equal(t, defaultErrRequeuePeriod, result.RequeueAfter)
+	assert.Contains(t, ddai.Finalizers, constants.DatadogAgentInternalFinalizer)
+	currentNode := &corev1.Node{}
+	require.NoError(t, r.client.Get(ctx, client.ObjectKeyFromObject(node), currentNode))
+	assert.Equal(t, rolloutSlotBlue, currentNode.Labels[rolloutKey], "node ownership remains until the child workload disappears")
+}
+
+func TestPreparedRolloutFinalizerPropagatesClientFailures(t *testing.T) {
+	ctx := context.Background()
+	injected := errors.New("injected client failure")
+	ddai := &datadoghqv1alpha1.DatadogAgentInternal{ObjectMeta: metav1.ObjectMeta{Name: "agent", Namespace: "default", UID: "agent-uid"}}
+
+	base := reconcilerForFinalizerTest(nil)
+	base.client = &finalizerFailureClient{Client: base.client, listErr: injected}
+	_, err := base.preparedRolloutWorkloadsCleanup(ctx, ddai)
+	require.ErrorIs(t, err, injected)
+	require.ErrorIs(t, base.preparedRolloutLabelsCleanup(ctx, ddai), injected)
+
+	key := preparedRolloutNodeLabelKey(ddai)
+	node := &corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node", Labels: map[string]string{key: rolloutSlotBlue}}}
+	base = reconcilerForFinalizerTest([]client.Object{node})
+	base.client = &finalizerFailureClient{Client: base.client, patchErr: injected}
+	require.ErrorIs(t, base.preparedRolloutLabelsCleanup(ctx, ddai), injected)
+
+	controller := true
+	ds := &appsv1.DaemonSet{ObjectMeta: metav1.ObjectMeta{
+		Name: "agent", Namespace: ddai.Namespace,
+		OwnerReferences: []metav1.OwnerReference{{APIVersion: datadoghqv1alpha1.GroupVersion.String(), Kind: "DatadogAgentInternal", Name: ddai.Name, UID: ddai.UID, Controller: &controller}},
+	}, Spec: appsv1.DaemonSetSpec{Template: corev1.PodTemplateSpec{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{preparedRolloutModeAnnotation: preparedBlueGreenMode}}}}}
+	base = reconcilerForFinalizerTest([]client.Object{ds})
+	base.client = &finalizerFailureClient{Client: base.client, deleteErr: injected}
+	_, err = base.preparedRolloutWorkloadsCleanup(ctx, ddai)
+	require.ErrorIs(t, err, injected)
+}
+
+type finalizerFailureClient struct {
+	client.Client
+	listErr   error
+	patchErr  error
+	deleteErr error
+}
+
+func (c *finalizerFailureClient) List(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
+	if c.listErr != nil {
+		return c.listErr
+	}
+	return c.Client.List(ctx, list, opts...)
+}
+
+func (c *finalizerFailureClient) Patch(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
+	if c.patchErr != nil {
+		return c.patchErr
+	}
+	return c.Client.Patch(ctx, obj, patch, opts...)
+}
+
+func (c *finalizerFailureClient) Delete(ctx context.Context, obj client.Object, opts ...client.DeleteOption) error {
+	if c.deleteErr != nil {
+		return c.deleteErr
+	}
+	return c.Client.Delete(ctx, obj, opts...)
 }
 
 func reconcilerForFinalizerTest(initialKubeObjects []client.Object) Reconciler {

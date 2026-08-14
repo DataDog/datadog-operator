@@ -1778,6 +1778,57 @@ func TestPreparedRolloutIdentityHelpers(t *testing.T) {
 	assert.False(t, IsPreparedRolloutNodeLabel("example.com/rollout-slot"))
 }
 
+func TestPreparedPairReconcileRejectsUnsafeInputsBeforeMutation(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("zero budget", func(t *testing.T) {
+		ddai, rendered, _, fakeClient, scheme := preparedLifecycleFixture(t)
+		assertUnchanged := assertPreparedAPIStateUnchanged(t, ctx, fakeClient)
+		r := NewReconciler(ReconcilerOptions{}, fakeClient, kubernetes.PlatformInfo{}, scheme, record.NewFakeRecorder(10), nil)
+		_, err := r.reconcilePreparedDaemonSetPair(ctx, ddai, rendered, intstr.FromInt(0), &datadoghqv1alpha1.DatadogAgentInternalStatus{})
+		require.ErrorContains(t, err, "positive maxUnavailable")
+		assertUnchanged()
+	})
+
+	t.Run("unsupported template", func(t *testing.T) {
+		ddai, rendered, _, fakeClient, scheme := preparedLifecycleFixture(t)
+		rendered.Spec.Template.Spec.Containers[0].Lifecycle = &corev1.Lifecycle{}
+		assertUnchanged := assertPreparedAPIStateUnchanged(t, ctx, fakeClient)
+		r := NewReconciler(ReconcilerOptions{}, fakeClient, kubernetes.PlatformInfo{}, scheme, record.NewFakeRecorder(10), nil)
+		_, err := r.reconcilePreparedDaemonSetPair(ctx, ddai, rendered, intstr.FromInt(1), &datadoghqv1alpha1.DatadogAgentInternalStatus{})
+		require.ErrorContains(t, err, "lifecycle hooks")
+		assertUnchanged()
+	})
+
+	t.Run("unowned name collision", func(t *testing.T) {
+		ddai, rendered, _, fakeClient, scheme := preparedLifecycleFixture(t)
+		require.NoError(t, fakeClient.Create(ctx, rendered.DeepCopy()))
+		assertUnchanged := assertPreparedAPIStateUnchanged(t, ctx, fakeClient)
+		r := NewReconciler(ReconcilerOptions{}, fakeClient, kubernetes.PlatformInfo{}, scheme, record.NewFakeRecorder(10), nil)
+		_, err := r.reconcilePreparedDaemonSetPair(ctx, ddai, rendered, intstr.FromInt(1), &datadoghqv1alpha1.DatadogAgentInternalStatus{})
+		require.ErrorContains(t, err, "name collision")
+		assertUnchanged()
+	})
+}
+
+func assertPreparedAPIStateUnchanged(t *testing.T, ctx context.Context, c client.Client) func() {
+	t.Helper()
+	beforeNodes := &corev1.NodeList{}
+	beforeDaemonSets := &appsv1.DaemonSetList{}
+	require.NoError(t, c.List(ctx, beforeNodes))
+	require.NoError(t, c.List(ctx, beforeDaemonSets))
+
+	return func() {
+		t.Helper()
+		afterNodes := &corev1.NodeList{}
+		afterDaemonSets := &appsv1.DaemonSetList{}
+		require.NoError(t, c.List(ctx, afterNodes))
+		require.NoError(t, c.List(ctx, afterDaemonSets))
+		assert.Equal(t, beforeNodes.Items, afterNodes.Items, "rejected rollout must not mutate Nodes")
+		assert.Equal(t, beforeDaemonSets.Items, afterDaemonSets.Items, "rejected rollout must not mutate DaemonSets")
+	}
+}
+
 func TestPreparedUnlabeledFallbackValidation(t *testing.T) {
 	tests := []struct {
 		name string

@@ -237,6 +237,25 @@ func TestReconcileV2AgentCreatesConventionalDaemonSet(t *testing.T) {
 	assert.Error(t, fakeClient.Get(ctx, types.NamespacedName{Namespace: ddai.Namespace, Name: suffixedKubernetesName(created.Name, "-green")}, green))
 }
 
+func TestInternalReconcileV2InstallsFinalizerBeforeCreatingWorkloads(t *testing.T) {
+	ctx := context.Background()
+	scheme := runtime.NewScheme()
+	require.NoError(t, appsv1.AddToScheme(scheme))
+	require.NoError(t, datadoghqv1alpha1.AddToScheme(scheme))
+	ddai := &datadoghqv1alpha1.DatadogAgentInternal{ObjectMeta: metav1.ObjectMeta{Name: "agent", Namespace: "default"}}
+	fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(ddai).Build()
+	r := NewReconciler(ReconcilerOptions{}, fakeClient, kubernetes.PlatformInfo{}, scheme, record.NewFakeRecorder(10), nil)
+
+	_, err := r.internalReconcileV2(ctx, ddai)
+	require.NoError(t, err)
+	updated := &datadoghqv1alpha1.DatadogAgentInternal{}
+	require.NoError(t, fakeClient.Get(ctx, client.ObjectKeyFromObject(ddai), updated))
+	assert.Contains(t, updated.Finalizers, constants.DatadogAgentInternalFinalizer)
+	daemonSets := &appsv1.DaemonSetList{}
+	require.NoError(t, fakeClient.List(ctx, daemonSets))
+	assert.Empty(t, daemonSets.Items, "workload creation waits for a later reconciliation")
+}
+
 func TestReconcileV2AgentEntersPreparedFreshInstall(t *testing.T) {
 	ctx := context.Background()
 	scheme := runtime.NewScheme()

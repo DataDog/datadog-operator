@@ -6,6 +6,7 @@ package datadogagentinternal
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -495,6 +496,51 @@ func TestPreparedStartupProbeUsesKubernetesDefaults(t *testing.T) {
 	assert.Equal(t, "3", probeArgument(t, handler.Exec.Command, "--failure-threshold"))
 	assert.Equal(t, "30s", probeArgument(t, handler.Exec.Command, "--termination-grace-period"))
 	assert.Equal(t, "900ms", probeArgument(t, handler.Exec.Command, "--timeout"))
+}
+
+func TestPreparedStartupProbeDelegatesTCPHandler(t *testing.T) {
+	probe := &corev1.Probe{ProbeHandler: corev1.ProbeHandler{TCPSocket: &corev1.TCPSocketAction{Port: intstr.FromInt(8126)}}}
+	handler := preparedStartupProbe(string(apicommon.TraceAgentContainerName), probe, nil)
+	require.NotNil(t, handler.Exec)
+	assert.Equal(t, "tcp", probeArgument(t, handler.Exec.Command, "--handler"))
+	assert.Equal(t, "8126", probeArgument(t, handler.Exec.Command, "--port"))
+}
+
+func TestPreparedHostProfilerInitCommandVariants(t *testing.T) {
+	destination := agentcommon.SeccompRootVolumePath + "/host-profiler-deadbeef-logging"
+	validShell := &corev1.Container{
+		Name: "host-profiler-seccomp-setup",
+		Command: []string{"sh", "-c",
+			"if [ -f /etc/dd-host-profiler/logging-seccomp.json ]; then cp /etc/dd-host-profiler/logging-seccomp.json " + destination +
+				"; else echo 'WARNING: logging-seccomp.json not found in image, falling back to default seccomp profile'; cp /etc/dd-host-profiler/seccomp.json " + destination + "; fi"},
+	}
+	assert.True(t, preparedInitCommandSupported(validShell))
+
+	withArgs := validShell.DeepCopy()
+	withArgs.Args = []string{"unexpected"}
+	assert.False(t, preparedInitCommandSupported(withArgs))
+
+	appendedWrite := validShell.DeepCopy()
+	appendedWrite.Command[2] += " && touch " + agentcommon.SeccompRootVolumePath + "/evil"
+	assert.False(t, preparedInitCommandSupported(appendedWrite))
+
+	differentFallbackDestination := validShell.DeepCopy()
+	differentFallbackDestination.Command[2] = strings.Replace(
+		differentFallbackDestination.Command[2],
+		"cp /etc/dd-host-profiler/seccomp.json "+destination,
+		"cp /etc/dd-host-profiler/seccomp.json "+agentcommon.SeccompRootVolumePath+"/host-profiler-other",
+		1,
+	)
+	assert.False(t, preparedInitCommandSupported(differentFallbackDestination))
+
+	injectedDestination := validShell.DeepCopy()
+	injectedDestination.Command[2] = strings.ReplaceAll(
+		injectedDestination.Command[2],
+		destination,
+		destination+"; touch pwn",
+	)
+	assert.False(t, preparedInitCommandSupported(injectedDestination))
+	assert.False(t, preparedInitCommandSupported(&corev1.Container{Name: "unknown-init"}))
 }
 
 func TestPreparedContainerSecurityAndEnvironmentOverrides(t *testing.T) {
