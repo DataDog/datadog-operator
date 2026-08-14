@@ -265,7 +265,7 @@ core,k8s.io/client-go,Apache-2.0
 core,k8s.io/client-go/third_party/forked/golang/template,BSD-3-Clause
 core,k8s.io/cloud-provider/api,Apache-2.0
 core,k8s.io/component-base,Apache-2.0
-core,k8s.io/component-helpers/resource,Apache-2.0
+core,k8s.io/component-helpers,Apache-2.0
 core,k8s.io/csi-translation-lib,Apache-2.0
 core,k8s.io/klog/v2,Apache-2.0
 core,k8s.io/kube-aggregator/pkg/apis/apiregistration,Apache-2.0
