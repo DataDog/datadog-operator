@@ -1639,6 +1639,93 @@ func TestPreparedPairRepairsPartiallyPersistedState(t *testing.T) {
 	assert.Equal(t, "revision-2", green.Annotations[preparedRolloutTargetRevisionAnnotation])
 }
 
+func TestPreparedPairStateInitializesSurvivingSlotAfterPartialCreation(t *testing.T) {
+	ctx := context.Background()
+	scheme := runtime.NewScheme()
+	require.NoError(t, appsv1.AddToScheme(scheme))
+	green := preparedTestPair().green
+	green.Namespace = "default"
+	green.Annotations = map[string]string{preparedRolloutRevisionAnnotation: "test-revision"}
+	fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(green.DeepCopy()).Build()
+	r := &Reconciler{client: fakeClient}
+
+	changed, err := r.reconcilePreparedPairState(ctx, preparedPair{green: green})
+	require.NoError(t, err)
+	assert.True(t, changed)
+	updated := &appsv1.DaemonSet{}
+	require.NoError(t, fakeClient.Get(ctx, client.ObjectKeyFromObject(green), updated))
+	assert.Equal(t, preparedBlueGreenArmed, updated.Annotations[preparedRolloutPairInitializedAnnotation])
+	assert.Equal(t, rolloutSlotBlue, updated.Annotations[preparedRolloutActiveSlotAnnotation])
+
+	changed, err = r.reconcilePreparedPairState(ctx, preparedPair{green: updated})
+	require.NoError(t, err)
+	assert.False(t, changed)
+}
+
+func TestReconcilePreparedPairStateFailsClosedOnCorruptionAndWriteFailure(t *testing.T) {
+	ctx := context.Background()
+
+	divergentTarget := preparedTestPair()
+	divergentTarget.blue.Annotations = map[string]string{
+		preparedRolloutTargetSlotAnnotation: rolloutSlotGreen, preparedRolloutTargetRevisionAnnotation: "revision-2",
+	}
+	divergentTarget.green.Annotations = map[string]string{
+		preparedRolloutTargetSlotAnnotation: rolloutSlotBlue, preparedRolloutTargetRevisionAnnotation: "revision-3",
+	}
+	_, err := (&Reconciler{}).reconcilePreparedPairState(ctx, divergentTarget)
+	require.ErrorContains(t, err, "target state diverged")
+
+	divergentActive := preparedTestPair()
+	divergentActive.blue.Annotations = map[string]string{preparedRolloutActiveSlotAnnotation: rolloutSlotBlue}
+	divergentActive.green.Annotations = map[string]string{preparedRolloutActiveSlotAnnotation: rolloutSlotGreen}
+	_, err = (&Reconciler{}).reconcilePreparedPairState(ctx, divergentActive)
+	require.ErrorContains(t, err, "active state diverged")
+
+	scheme := runtime.NewScheme()
+	require.NoError(t, appsv1.AddToScheme(scheme))
+	green := preparedTestPair().green
+	green.Namespace = "default"
+	green.Annotations = map[string]string{preparedRolloutRevisionAnnotation: "test-revision"}
+	baseClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(green.DeepCopy()).Build()
+	r := &Reconciler{client: &failNthPatchClient{Client: baseClient, failAt: 1}}
+	_, err = r.reconcilePreparedPairState(ctx, preparedPair{green: green})
+	require.ErrorContains(t, err, "injected patch failure")
+}
+
+func TestActiveSlotRejectsUncommittedOrMixedNodeOwnership(t *testing.T) {
+	const key = preparedRolloutNodeLabelPrefix + "0123456789ab"
+
+	active, err := activeSlot([]corev1.Node{{ObjectMeta: metav1.ObjectMeta{Name: "unlabeled"}}}, key, rolloutSlotBlue)
+	require.NoError(t, err)
+	assert.Equal(t, rolloutSlotBlue, active)
+
+	_, err = activeSlot([]corev1.Node{preparedNode("transition", key, rolloutTransitionValue(rolloutSlotBlue, rolloutSlotGreen))}, key, "")
+	require.ErrorContains(t, err, "in-flight rollout state")
+
+	_, err = activeSlot([]corev1.Node{
+		preparedNode("blue", key, rolloutSlotBlue),
+		preparedNode("green", key, rolloutSlotGreen),
+	}, key, "")
+	require.ErrorContains(t, err, "mixed steady slots")
+}
+
+func TestSetPreparedNodeStateInitializesNewNodeAndClearsCandidate(t *testing.T) {
+	ctx := context.Background()
+	scheme := runtime.NewScheme()
+	require.NoError(t, corev1.AddToScheme(scheme))
+	const key = preparedRolloutNodeLabelPrefix + "0123456789ab"
+	candidateKey := preparedRolloutCandidateAnnotationKey(key)
+	node := &corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "new-node", Annotations: map[string]string{candidateKey: "candidate-uid"}}}
+	fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(node.DeepCopy()).Build()
+	r := &Reconciler{client: fakeClient}
+
+	require.NoError(t, r.setPreparedNodeState(ctx, node, key, rolloutSlotBlue))
+	updated := &corev1.Node{}
+	require.NoError(t, fakeClient.Get(ctx, client.ObjectKeyFromObject(node), updated))
+	assert.Equal(t, rolloutSlotBlue, updated.Labels[key])
+	assert.NotContains(t, updated.Annotations, candidateKey)
+}
+
 func TestPreparedPairRecoversWhenCompletionSecondPatchFails(t *testing.T) {
 	ctx := context.Background()
 	scheme := runtime.NewScheme()

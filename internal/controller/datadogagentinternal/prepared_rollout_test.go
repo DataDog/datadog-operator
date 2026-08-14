@@ -540,6 +540,20 @@ func TestPreparedHostProfilerInitCommandVariants(t *testing.T) {
 		destination+"; touch pwn",
 	)
 	assert.False(t, preparedInitCommandSupported(injectedDestination))
+
+	invalidCommands := map[string]string{
+		"different shell structure": strings.Replace(validShell.Command[2], "if [ -f", "while [ -f", 1),
+		"different fallback":        strings.Replace(validShell.Command[2], "else echo", "else printf", 1),
+		"destination outside root":  strings.ReplaceAll(validShell.Command[2], destination, "/tmp/host-profiler-deadbeef-logging"),
+		"non-hex profile hash":      strings.ReplaceAll(validShell.Command[2], "deadbeef", "deadbeeG"),
+	}
+	for name, command := range invalidCommands {
+		t.Run(name, func(t *testing.T) {
+			invalid := validShell.DeepCopy()
+			invalid.Command[2] = command
+			assert.False(t, preparedInitCommandSupported(invalid))
+		})
+	}
 	assert.False(t, preparedInitCommandSupported(&corev1.Container{Name: "unknown-init"}))
 }
 
