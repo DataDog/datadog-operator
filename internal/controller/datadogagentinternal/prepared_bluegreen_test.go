@@ -219,7 +219,7 @@ func TestPreparedMissingQueuedTargetRecoversBeforeApplyingNewRevision(t *testing
 	ctx := context.Background()
 	ddai, rendered, node, fakeClient, scheme := preparedLifecycleFixture(t)
 	key := preparedRolloutNodeLabelKey(ddai)
-	node.Labels[key] = rolloutPendingValue(rolloutSlotGreen)
+	node.Labels[key] = rolloutSlotGreen
 	require.NoError(t, fakeClient.Update(ctx, node))
 	blue := rendered.DeepCopy()
 	blue.UID = "blue-uid"
@@ -444,7 +444,7 @@ func TestPreparedObsoleteTargetContinuesAfterHandoffStarts(t *testing.T) {
 	ctx := context.Background()
 	ddai, rendered, node, fakeClient, scheme := preparedLifecycleFixture(t)
 	key := preparedRolloutNodeLabelKey(ddai)
-	node.Labels[key] = rolloutPendingValue(rolloutSlotGreen)
+	node.Labels[key] = rolloutSlotGreen
 	require.NoError(t, fakeClient.Update(ctx, node))
 	base := rendered.DeepCopy()
 	require.NoError(t, prepareAgentTemplate(base))
@@ -465,7 +465,7 @@ func TestPreparedObsoleteTargetContinuesAfterHandoffStarts(t *testing.T) {
 	r := NewReconciler(ReconcilerOptions{}, fakeClient, kubernetes.PlatformInfo{}, scheme, record.NewFakeRecorder(100), nil)
 	_, err = r.reconcilePreparedDaemonSetPair(ctx, ddai, rendered.DeepCopy(), intstr.FromInt(1), &datadoghqv1alpha1.DatadogAgentInternalStatus{})
 	require.NoError(t, err)
-	assert.Equal(t, rolloutPendingValue(rolloutSlotGreen), nodeState(t, ctx, fakeClient, node.Name, key))
+	assert.Equal(t, rolloutSlotGreen, nodeState(t, ctx, fakeClient, node.Name, key))
 }
 
 func TestPreparedPairDeletionRemovesBothSlotsAndNodeState(t *testing.T) {
@@ -473,7 +473,7 @@ func TestPreparedPairDeletionRemovesBothSlotsAndNodeState(t *testing.T) {
 	ddai, rendered, node, fakeClient, scheme := preparedLifecycleFixture(t)
 	key := preparedRolloutNodeLabelKey(ddai)
 	candidateKey := preparedRolloutCandidateAnnotationKey(key)
-	node.Labels[key] = rolloutPendingValue(rolloutSlotGreen)
+	node.Labels[key] = rolloutSlotGreen
 	node.Annotations = map[string]string{candidateKey: "green-pod-uid"}
 	require.NoError(t, fakeClient.Update(ctx, node))
 	blue := rendered.DeepCopy()
@@ -608,7 +608,7 @@ func TestPreparedCleanupResumesAfterBothDaemonSetsDisappear(t *testing.T) {
 	candidateKey := preparedRolloutCandidateAnnotationKey(key)
 	ddai.Annotations = map[string]string{preparedRolloutCleanupAnnotation: preparedBlueGreenArmed}
 	require.NoError(t, fakeClient.Update(ctx, ddai))
-	node.Labels[key] = rolloutPendingValue(rolloutSlotGreen)
+	node.Labels[key] = rolloutSlotGreen
 	node.Annotations = map[string]string{candidateKey: "deleted-target-uid"}
 	require.NoError(t, fakeClient.Update(ctx, node))
 	r := NewReconciler(ReconcilerOptions{}, fakeClient, kubernetes.PlatformInfo{}, scheme, record.NewFakeRecorder(100), nil)
@@ -740,7 +740,7 @@ func TestPreparedSlotDaemonSetsHaveDistinctSelectors(t *testing.T) {
 	assert.False(t, slotAffinityAllows(blue, rolloutSlotGreen))
 	assert.True(t, slotAffinityAllows(green, rolloutSlotGreen))
 	assert.False(t, slotAffinityAllowsUnlabeled(green, "example.com/slot"))
-	assert.True(t, slotAffinityAllows(green, rolloutPendingValue(rolloutSlotGreen)))
+	assert.False(t, slotAffinityAllows(green, legacyRolloutPendingValue(rolloutSlotGreen)))
 	for i := range blue.Spec.Template.Spec.Containers {
 		assert.Nil(t, containerEnv(&blue.Spec.Template.Spec.Containers[i], coreAgentCmdPortEnv))
 	}
@@ -872,7 +872,14 @@ func TestPreparedNodeProgressionUsesBudgetAndRealReadiness(t *testing.T) {
 	changed, err = r.advancePreparedNodes(ctx, nodes, pods, pair, key, rolloutSlotGreen, intstr.FromInt(1))
 	require.NoError(t, err)
 	assert.True(t, changed)
-	assert.Equal(t, rolloutPendingValue(rolloutSlotGreen), nodeState(t, ctx, client, "node-a", key))
+	assert.Equal(t, rolloutSlotGreen, nodeState(t, ctx, client, "node-a", key))
+	assert.Equal(t, rolloutSlotBlue, nodeState(t, ctx, client, "node-b", key))
+
+	nodes = currentNodes(t, ctx, client, "node-a", "node-b")
+	changed, err = r.advancePreparedNodes(ctx, nodes, pods, pair, key, rolloutSlotGreen, intstr.FromInt(1))
+	require.NoError(t, err)
+	assert.False(t, changed, "an unavailable handed-off target must consume the budget")
+	assert.Equal(t, rolloutSlotGreen, nodeState(t, ctx, client, "node-a", key))
 	assert.Equal(t, rolloutSlotBlue, nodeState(t, ctx, client, "node-b", key))
 
 	nodes = currentNodes(t, ctx, client, "node-a", "node-b")
@@ -882,7 +889,71 @@ func TestPreparedNodeProgressionUsesBudgetAndRealReadiness(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, changed)
 	assert.Equal(t, rolloutSlotGreen, nodeState(t, ctx, client, "node-a", key))
-	assert.Equal(t, rolloutSlotBlue, nodeState(t, ctx, client, "node-b", key))
+	assert.Equal(t, rolloutTransitionValue(rolloutSlotBlue, rolloutSlotGreen), nodeState(t, ctx, client, "node-b", key))
+}
+
+func TestPreparedUnavailableTargetConsumesFivePercentBudget(t *testing.T) {
+	ctx := context.Background()
+	scheme := runtime.NewScheme()
+	require.NoError(t, corev1.AddToScheme(scheme))
+	key := "example.com/slot"
+	nodes := make([]corev1.Node, 20)
+	objects := make([]runtime.Object, 0, len(nodes))
+	pods := emptyPairPods()
+	for i := range nodes {
+		name := fmt.Sprintf("node-%02d", i)
+		state := rolloutSlotBlue
+		if i == 0 {
+			state = rolloutSlotGreen
+			pods[rolloutSlotGreen] = append(pods[rolloutSlotGreen], preparedPod("green-"+name, name, false))
+		} else {
+			pods[rolloutSlotBlue] = append(pods[rolloutSlotBlue], preparedPod("blue-"+name, name, true))
+		}
+		nodes[i] = preparedNode(name, key, state)
+		objects = append(objects, nodes[i].DeepCopy())
+	}
+	fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(objects...).Build()
+	r := &Reconciler{client: fakeClient}
+
+	changed, err := r.advancePreparedNodes(ctx, nodes, pods, preparedTestPair(), key, rolloutSlotGreen, intstr.FromString("5%"))
+	require.NoError(t, err)
+	assert.False(t, changed)
+	for i := 1; i < len(nodes); i++ {
+		assert.Equal(t, rolloutSlotBlue, nodeState(t, ctx, fakeClient, nodes[i].Name, key))
+	}
+}
+
+func TestPreparedTargetAvailabilityHonorsMinReadySeconds(t *testing.T) {
+	ctx := context.Background()
+	scheme := runtime.NewScheme()
+	require.NoError(t, corev1.AddToScheme(scheme))
+	key := "example.com/slot"
+	nodes := []corev1.Node{
+		preparedNode("node-a", key, rolloutSlotGreen),
+		preparedNode("node-b", key, rolloutSlotBlue),
+	}
+	objects := []runtime.Object{nodes[0].DeepCopy(), nodes[1].DeepCopy()}
+	fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(objects...).Build()
+	r := &Reconciler{client: fakeClient}
+	pair := preparedTestPair()
+	pair.green.Spec.MinReadySeconds = 60
+	pods := emptyPairPods()
+	green := preparedPod("green-a", "node-a", true)
+	green.Status.Conditions[0].LastTransitionTime = metav1.NewTime(time.Now().Add(-30 * time.Second))
+	pods[rolloutSlotGreen] = []corev1.Pod{green}
+	pods[rolloutSlotBlue] = []corev1.Pod{preparedPod("blue-b", "node-b", true)}
+
+	changed, err := r.advancePreparedNodes(ctx, nodes, pods, pair, key, rolloutSlotGreen, intstr.FromInt(1))
+	require.NoError(t, err)
+	assert.False(t, changed, "a Ready target inside minReadySeconds must still consume the budget")
+	assert.Equal(t, rolloutSlotBlue, nodeState(t, ctx, fakeClient, "node-b", key))
+
+	green.Status.Conditions[0].LastTransitionTime = metav1.NewTime(time.Now().Add(-61 * time.Second))
+	pods[rolloutSlotGreen] = []corev1.Pod{green}
+	changed, err = r.advancePreparedNodes(ctx, nodes, pods, pair, key, rolloutSlotGreen, intstr.FromInt(1))
+	require.NoError(t, err)
+	assert.True(t, changed)
+	assert.Equal(t, rolloutTransitionValue(rolloutSlotBlue, rolloutSlotGreen), nodeState(t, ctx, fakeClient, "node-b", key))
 }
 
 func TestPreparedUpdateAdmitsTargetOnAlreadyUncoveredNode(t *testing.T) {
@@ -940,7 +1011,7 @@ func TestPreparedNodeUsesDeleteFirstFallbackForNodeResources(t *testing.T) {
 	changed, err := r.advancePreparedNodes(ctx, []corev1.Node{node}, pods, pair, key, rolloutSlotGreen, intstr.FromInt(1))
 	require.NoError(t, err)
 	assert.True(t, changed)
-	assert.Equal(t, rolloutPendingValue(rolloutSlotGreen), nodeState(t, ctx, fakeClient, "node-a", key))
+	assert.Equal(t, rolloutSlotGreen, nodeState(t, ctx, fakeClient, "node-a", key))
 }
 
 func TestPreparedCapacityFallbackRepairsAlreadyUnavailableNodeAtZeroAdditionalCost(t *testing.T) {
@@ -962,7 +1033,7 @@ func TestPreparedCapacityFallbackRepairsAlreadyUnavailableNodeAtZeroAdditionalCo
 	changed, err := r.advancePreparedNodes(ctx, []corev1.Node{node}, pods, preparedTestPair(), key, rolloutSlotGreen, intstr.FromInt(1))
 	require.NoError(t, err)
 	assert.True(t, changed)
-	assert.Equal(t, rolloutPendingValue(rolloutSlotGreen), nodeState(t, ctx, fakeClient, node.Name, key))
+	assert.Equal(t, rolloutSlotGreen, nodeState(t, ctx, fakeClient, node.Name, key))
 }
 
 func TestPreparedNodeCapacityFallbackAcceptsAnUnpulledNewImage(t *testing.T) {
@@ -985,7 +1056,7 @@ func TestPreparedNodeCapacityFallbackAcceptsAnUnpulledNewImage(t *testing.T) {
 	changed, err := r.advancePreparedNodes(ctx, []corev1.Node{node}, pods, pair, key, rolloutSlotGreen, intstr.FromInt(1))
 	require.NoError(t, err)
 	assert.True(t, changed)
-	assert.Equal(t, rolloutPendingValue(rolloutSlotGreen), nodeState(t, ctx, fakeClient, "node-a", key))
+	assert.Equal(t, rolloutSlotGreen, nodeState(t, ctx, fakeClient, "node-a", key))
 }
 
 func TestPreparedNodeDoesNotDeleteSourceForNonCapacitySchedulingFailure(t *testing.T) {
@@ -1037,7 +1108,7 @@ func TestPreparedCandidateMustBeObservedTwiceWithSameUID(t *testing.T) {
 	changed, err = r.advancePreparedNodes(ctx, nodes, pods, pair, key, rolloutSlotGreen, intstr.FromInt(1))
 	require.NoError(t, err)
 	assert.True(t, changed)
-	assert.Equal(t, rolloutPendingValue(rolloutSlotGreen), nodeState(t, ctx, fakeClient, "node-a", key))
+	assert.Equal(t, rolloutSlotGreen, nodeState(t, ctx, fakeClient, "node-a", key))
 }
 
 func TestPreparedOverlappingNodesCannotExceedHandoffBudget(t *testing.T) {
@@ -1075,7 +1146,7 @@ func TestPreparedOverlappingNodesCannotExceedHandoffBudget(t *testing.T) {
 	changed, err = r.advancePreparedNodes(ctx, nodes, pods, pair, key, rolloutSlotGreen, intstr.FromInt(1))
 	require.NoError(t, err)
 	assert.True(t, changed)
-	assert.Equal(t, rolloutPendingValue(rolloutSlotGreen), nodeState(t, ctx, fakeClient, "node-a", key))
+	assert.Equal(t, rolloutSlotGreen, nodeState(t, ctx, fakeClient, "node-a", key))
 	assert.Equal(t, rolloutTransitionValue(rolloutSlotBlue, rolloutSlotGreen), nodeState(t, ctx, fakeClient, "node-b", key))
 }
 
@@ -1133,14 +1204,65 @@ func TestPreparedCandidateMustBePristine(t *testing.T) {
 	pod.Status.ContainerStatuses[0].RestartCount = 0
 	assert.True(t, podReady(&pod, ds))
 	assert.True(t, podServingReady(&pod, ds), "a recovered serving Pod may have historical restarts")
+	pod.Status.ContainerStatuses[0].RestartCount = 3
+	assert.True(t, podReady(&pod, ds), "historical restarts must not permanently consume the handoff budget")
+	pod.Status.ContainerStatuses[0].RestartCount = 0
 	pod.Status.ContainerStatuses[0].State.Running.StartedAt = metav1.Now()
-	assert.False(t, podPrepared(&pod, ds), "a restarted gate must remain stable before handoff")
-	pod.Status.ContainerStatuses[0].State.Running.StartedAt = metav1.NewTime(time.Now().Add(-2 * preparedRolloutReadySoak))
+	assert.True(t, podPrepared(&pod, ds), "preparation is based on current process state, not an arbitrary soak")
 	pod.Status.ContainerStatuses[0].Started = ptr.To(false)
 	assert.True(t, podPrepared(&pod, ds), "a sleeping gate has Started=false until it acquires the component lock")
 	pod.Status.ContainerStatuses[0].Started = ptr.To(true)
 	pod.Annotations[preparedRolloutRevisionAnnotation] = "previous-revision"
 	assert.False(t, podPrepared(&pod, ds), "an old OnDelete Pod must not satisfy the desired revision")
+}
+
+func TestPreparedRestartedCandidateIsRetriedWhileSourceServes(t *testing.T) {
+	ctx := context.Background()
+	scheme := runtime.NewScheme()
+	require.NoError(t, corev1.AddToScheme(scheme))
+	key := "example.com/slot"
+	node := preparedNode("node-a", key, rolloutTransitionValue(rolloutSlotBlue, rolloutSlotGreen))
+	target := preparedPod("green-a", node.Name, false)
+	target.Status.ContainerStatuses[0].RestartCount = 1
+	fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(node.DeepCopy(), target.DeepCopy()).Build()
+	r := &Reconciler{client: fakeClient}
+	pods := emptyPairPods()
+	pods[rolloutSlotBlue] = []corev1.Pod{preparedPod("blue-a", node.Name, true)}
+	pods[rolloutSlotGreen] = []corev1.Pod{target}
+
+	changed, err := r.advancePreparedNodes(ctx, []corev1.Node{node}, pods, preparedTestPair(), key, rolloutSlotGreen, intstr.FromInt(1))
+	require.NoError(t, err)
+	assert.True(t, changed)
+	assert.Equal(t, rolloutTransitionValue(rolloutSlotBlue, rolloutSlotGreen), nodeState(t, ctx, fakeClient, node.Name, key))
+	current := &corev1.Pod{}
+	assert.True(t, apierrors.IsNotFound(fakeClient.Get(ctx, client.ObjectKeyFromObject(&target), current)))
+}
+
+func TestPreparedRecoveredTargetCanHandoffWhenSourceIsUnavailable(t *testing.T) {
+	ctx := context.Background()
+	scheme := runtime.NewScheme()
+	require.NoError(t, corev1.AddToScheme(scheme))
+	key := "example.com/slot"
+	node := preparedNode("node-a", key, rolloutTransitionValue(rolloutSlotBlue, rolloutSlotGreen))
+	fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(node.DeepCopy()).Build()
+	r := &Reconciler{client: fakeClient}
+	pair := preparedTestPair()
+	target := preparedPod("green-a", node.Name, true)
+	target.Status.ContainerStatuses[0].RestartCount = 2
+	pods := emptyPairPods()
+	pods[rolloutSlotBlue] = []corev1.Pod{preparedPod("blue-a", node.Name, false)}
+	pods[rolloutSlotGreen] = []corev1.Pod{target}
+
+	changed, err := r.advancePreparedNodes(ctx, []corev1.Node{node}, pods, pair, key, rolloutSlotGreen, intstr.FromInt(1))
+	require.NoError(t, err)
+	assert.True(t, changed, "the recovered target UID must be recorded first")
+	assert.Equal(t, rolloutTransitionValue(rolloutSlotBlue, rolloutSlotGreen), nodeState(t, ctx, fakeClient, node.Name, key))
+
+	current := currentNodes(t, ctx, fakeClient, node.Name)
+	changed, err = r.advancePreparedNodes(ctx, current, pods, pair, key, rolloutSlotGreen, intstr.FromInt(1))
+	require.NoError(t, err)
+	assert.True(t, changed)
+	assert.Equal(t, rolloutSlotGreen, nodeState(t, ctx, fakeClient, node.Name, key))
 }
 
 func TestPreparedGreenAdoptionAdmitsBothSlotsOnUnlabeledNode(t *testing.T) {
@@ -1157,6 +1279,56 @@ func TestPreparedGreenAdoptionAdmitsBothSlotsOnUnlabeledNode(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, changed)
 	assert.Equal(t, rolloutTransitionValue(rolloutSlotBlue, rolloutSlotGreen), nodeState(t, ctx, fakeClient, node.Name, key))
+}
+
+func TestPreparedLegacyPendingNormalizesDirectlyToTarget(t *testing.T) {
+	ctx := context.Background()
+	scheme := runtime.NewScheme()
+	require.NoError(t, corev1.AddToScheme(scheme))
+	key := "example.com/slot"
+	candidateKey := preparedRolloutCandidateAnnotationKey(key)
+	node := preparedNode("node-a", key, legacyRolloutPendingValue(rolloutSlotGreen))
+	node.Labels[corev1.LabelOSStable] = "linux"
+	node.Annotations = map[string]string{candidateKey: "legacy-candidate"}
+	fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(node.DeepCopy()).Build()
+	r := &Reconciler{client: fakeClient}
+
+	nodes, changed, err := r.reconcilePreparedNodeLabels(ctx, preparedTestDaemonSet(true), key, rolloutSlotBlue, rolloutSlotGreen)
+	require.NoError(t, err)
+	assert.True(t, changed)
+	require.Len(t, nodes, 1)
+	assert.Equal(t, rolloutSlotGreen, nodes[0].Labels[key], "legacy target-only state must not re-admit the source")
+	assert.NotContains(t, nodes[0].Annotations, candidateKey)
+}
+
+func TestPreparedRolloutCompleteRequiresAvailableExactTargetAndNoSource(t *testing.T) {
+	key := "example.com/slot"
+	node := preparedNode("node-a", key, rolloutSlotGreen)
+	pair := preparedTestPair()
+	pods := emptyPairPods()
+	target := preparedPod("green-a", node.Name, true)
+	pods[rolloutSlotGreen] = []corev1.Pod{target}
+
+	assert.True(t, preparedRolloutComplete([]corev1.Node{node}, pods, pair, key, rolloutSlotGreen))
+
+	wrongRevision := target.DeepCopy()
+	wrongRevision.Annotations[preparedRolloutRevisionAnnotation] = "old-revision"
+	pods[rolloutSlotGreen] = []corev1.Pod{*wrongRevision}
+	assert.False(t, preparedRolloutComplete([]corev1.Node{node}, pods, pair, key, rolloutSlotGreen))
+
+	pods[rolloutSlotGreen] = []corev1.Pod{target}
+	pods[rolloutSlotBlue] = []corev1.Pod{preparedPod("blue-a", node.Name, true)}
+	assert.False(t, preparedRolloutComplete([]corev1.Node{node}, pods, pair, key, rolloutSlotGreen))
+
+	pods[rolloutSlotBlue] = nil
+	target.Status.Conditions[0].Status = corev1.ConditionFalse
+	pods[rolloutSlotGreen] = []corev1.Pod{target}
+	assert.False(t, preparedRolloutComplete([]corev1.Node{node}, pods, pair, key, rolloutSlotGreen))
+
+	node.Labels[key] = rolloutTransitionValue(rolloutSlotBlue, rolloutSlotGreen)
+	target.Status.Conditions[0].Status = corev1.ConditionTrue
+	pods[rolloutSlotGreen] = []corev1.Pod{target}
+	assert.False(t, preparedRolloutComplete([]corev1.Node{node}, pods, pair, key, rolloutSlotGreen))
 }
 
 func TestPreparedBlueTargetLabelsNewNodeForLastHealthyGreenSlot(t *testing.T) {
@@ -1286,7 +1458,7 @@ func TestPreparedTargetIsNotAbortedAfterHandoffStarts(t *testing.T) {
 	require.NoError(t, corev1.AddToScheme(scheme))
 	require.NoError(t, appsv1.AddToScheme(scheme))
 	key := "example.com/slot"
-	node := preparedNode("node-a", key, rolloutPendingValue(rolloutSlotBlue))
+	node := preparedNode("node-a", key, rolloutSlotBlue)
 	pair := preparedTestPair()
 	pair.blue.Annotations = map[string]string{
 		preparedRolloutTargetSlotAnnotation:     rolloutSlotBlue,
@@ -1298,7 +1470,7 @@ func TestPreparedTargetIsNotAbortedAfterHandoffStarts(t *testing.T) {
 	aborted, err := r.abortPreparedTargetBeforeHandoff(ctx, []corev1.Node{node}, emptyPairPods(), pair, key, rolloutSlotBlue)
 	require.NoError(t, err)
 	assert.False(t, aborted)
-	assert.Equal(t, rolloutPendingValue(rolloutSlotBlue), nodeState(t, ctx, fakeClient, "node-a", key))
+	assert.Equal(t, rolloutSlotBlue, nodeState(t, ctx, fakeClient, "node-a", key))
 }
 
 func TestPreparedFailedTargetOnUncoveredNodeCanBeReplaced(t *testing.T) {
@@ -1542,7 +1714,7 @@ func TestPreparedIneligibleNodeCleanupRemovesCandidateUID(t *testing.T) {
 	require.NoError(t, corev1.AddToScheme(scheme))
 	key := "example.com/slot"
 	candidateKey := preparedRolloutCandidateAnnotationKey(key)
-	node := preparedNode("node-a", key, rolloutPendingValue(rolloutSlotGreen))
+	node := preparedNode("node-a", key, rolloutSlotGreen)
 	node.Labels[corev1.LabelOSStable] = "windows"
 	node.Annotations = map[string]string{candidateKey: "stale-uid"}
 	fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(node.DeepCopy()).Build()
@@ -1564,7 +1736,7 @@ func TestPreparedNodeStateValidationRepairsUnknownAndStaleStates(t *testing.T) {
 	assert.False(t, preparedNodeStateValid("corrupt", rolloutSlotBlue, ""))
 	assert.False(t, preparedNodeStateValid(rolloutTransitionValue(rolloutSlotBlue, rolloutSlotGreen), rolloutSlotBlue, ""))
 	assert.True(t, preparedNodeStateValid(rolloutTransitionValue(rolloutSlotBlue, rolloutSlotGreen), rolloutSlotBlue, rolloutSlotGreen))
-	assert.True(t, preparedNodeStateValid(rolloutPendingValue(rolloutSlotGreen), rolloutSlotBlue, rolloutSlotGreen))
+	assert.False(t, preparedNodeStateValid(legacyRolloutPendingValue(rolloutSlotGreen), rolloutSlotBlue, rolloutSlotGreen))
 	assert.True(t, preparedNodeStateValid(rolloutSlotGreen, rolloutSlotBlue, rolloutSlotGreen))
 }
 
@@ -1610,7 +1782,7 @@ func preparedNode(name, key, value string) corev1.Node {
 }
 
 func preparedPod(name, node string, ready bool) corev1.Pod {
-	stableSince := metav1.NewTime(time.Now().Add(-2 * preparedRolloutReadySoak))
+	stableSince := metav1.NewTime(time.Now().Add(-time.Hour))
 	conditions := []corev1.PodCondition{{Type: corev1.PodReady, Status: corev1.ConditionFalse, LastTransitionTime: stableSince}}
 	if ready {
 		conditions[0].Status = corev1.ConditionTrue
