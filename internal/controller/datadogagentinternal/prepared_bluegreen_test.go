@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -1765,6 +1766,77 @@ func TestPreparedPodListingRejectsPreviousDaemonSetUID(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, pods[rolloutSlotBlue], 1)
 	assert.Equal(t, "current", pods[rolloutSlotBlue][0].Name)
+}
+
+func TestPreparedRolloutIdentityHelpers(t *testing.T) {
+	assert.False(t, PreparedBlueGreenEnabled(nil))
+	assert.False(t, PreparedBlueGreenEnabled(&datadoghqv1alpha1.DatadogAgentInternal{}))
+	assert.True(t, PreparedBlueGreenEnabled(&datadoghqv1alpha1.DatadogAgentInternal{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{
+		preparedRolloutModeAnnotation: preparedBlueGreenMode,
+	}}}))
+	assert.True(t, IsPreparedRolloutNodeLabel(preparedRolloutNodeLabelPrefix+"1234"))
+	assert.False(t, IsPreparedRolloutNodeLabel("example.com/rollout-slot"))
+}
+
+func TestPreparedUnlabeledFallbackValidation(t *testing.T) {
+	tests := []struct {
+		name string
+		spec corev1.PodSpec
+	}{
+		{name: "missing affinity"},
+		{
+			name: "missing rollout expression",
+			spec: corev1.PodSpec{Affinity: &corev1.Affinity{NodeAffinity: &corev1.NodeAffinity{RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+				NodeSelectorTerms: []corev1.NodeSelectorTerm{{
+					MatchExpressions: []corev1.NodeSelectorRequirement{{Key: "other", Operator: corev1.NodeSelectorOpIn, Values: []string{"value"}}},
+				}},
+			}}}},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			changed, err := ensurePreparedUnlabeledFallback(&tt.spec, "rollout-key")
+			assert.False(t, changed)
+			require.Error(t, err)
+		})
+	}
+}
+
+func TestPreparedHelpersFailClosedOnMissingObjects(t *testing.T) {
+	ctx := context.Background()
+	r := &Reconciler{}
+	changed, err := r.clearPreparedDaemonSetAnnotations(ctx, nil)
+	require.NoError(t, err)
+	assert.False(t, changed)
+
+	changed, err = r.advancePreparedNodes(ctx, nil, emptyPairPods(), preparedTestPair(), "rollout-key", rolloutSlotGreen, intstr.FromInt(1))
+	require.NoError(t, err)
+	assert.False(t, changed)
+
+	_, err = r.advancePreparedNodes(ctx, []corev1.Node{preparedNode("node", "rollout-key", rolloutSlotBlue)}, emptyPairPods(), preparedTestPair(), "rollout-key", rolloutSlotGreen, intstr.FromInt(0))
+	require.ErrorContains(t, err, "invalid prepared rollout budget")
+
+	assert.False(t, podTargetsNode(nil, "node"))
+	assert.False(t, podTargetsNode(&corev1.Pod{}, "node"))
+	assert.False(t, podHasRestartedContainer(nil))
+	assert.False(t, podServingReady(nil, nil))
+	assert.False(t, podMatchesPreparedRevision(nil, nil))
+	require.ErrorContains(t, r.patchPreparedPair(ctx, preparedPair{}, func(map[string]string) {}), "without a DaemonSet")
+}
+
+func TestPreparedNodeEligibilityHonorsExplicitNodeName(t *testing.T) {
+	template := &corev1.PodTemplateSpec{Spec: corev1.PodSpec{NodeName: "node-a"}}
+	eligible, err := preparedNodeEligible(template, &corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node-b"}})
+	require.NoError(t, err)
+	assert.False(t, eligible)
+}
+
+func TestSuffixedKubernetesNameKeepsDNSLengthLimit(t *testing.T) {
+	name := strings.Repeat("a", 63)
+	result := suffixedKubernetesName(name, "-green")
+	assert.Len(t, result, 63)
+	assert.True(t, strings.HasSuffix(result, "-green"))
 }
 
 func preparedTestPair() preparedPair {

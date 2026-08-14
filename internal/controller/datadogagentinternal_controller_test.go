@@ -32,6 +32,29 @@ func TestPreparedBlueGreenNodePredicateWatchesRelevantLabels(t *testing.T) {
 	unchanged := profileChanged.DeepCopy()
 	assert.False(t, predicate.Update(event.UpdateEvent{ObjectOld: profileChanged, ObjectNew: unchanged}))
 	assert.True(t, predicate.Create(event.CreateEvent{Object: oldNode}))
+	assert.True(t, predicate.Delete(event.DeleteEvent{Object: oldNode}))
+	assert.False(t, predicate.Generic(event.GenericEvent{Object: oldNode}))
+	assert.False(t, predicate.Update(event.UpdateEvent{ObjectOld: oldNode, ObjectNew: &corev1.Pod{}}))
+}
+
+func TestPreparedBlueGreenEventPredicateWatchesModeAndNodeChanges(t *testing.T) {
+	pred := preparedBlueGreenEventPredicate()
+	disabled := &datadoghqv1alpha1.DatadogAgentInternal{}
+	enabled := disabled.DeepCopy()
+	enabled.Annotations = map[string]string{"experimental.agent.datadoghq.com/node-agent-rollout-mode": "prepared-blue-green-v1"}
+	assert.True(t, pred.Update(event.UpdateEvent{ObjectOld: disabled, ObjectNew: enabled}))
+	assert.False(t, pred.Update(event.UpdateEvent{ObjectOld: enabled, ObjectNew: enabled.DeepCopy()}))
+	assert.False(t, pred.Update(event.UpdateEvent{ObjectOld: enabled, ObjectNew: &corev1.Node{}}))
+
+	oldNode := &corev1.Node{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"profile": "default"}}}
+	newNode := oldNode.DeepCopy()
+	newNode.Labels["profile"] = "gpu"
+	assert.True(t, pred.Update(event.UpdateEvent{ObjectOld: oldNode, ObjectNew: newNode}))
+	assert.False(t, pred.Update(event.UpdateEvent{ObjectOld: oldNode, ObjectNew: &corev1.Pod{}}))
+	assert.False(t, pred.Update(event.UpdateEvent{ObjectOld: &corev1.Pod{}, ObjectNew: &corev1.Pod{}}))
+	assert.False(t, pred.Create(event.CreateEvent{Object: enabled}))
+	assert.False(t, pred.Delete(event.DeleteEvent{Object: enabled}))
+	assert.False(t, pred.Generic(event.GenericEvent{Object: enabled}))
 }
 
 func TestNodeEventsEnqueueOnlyPreparedBlueGreenDDAIs(t *testing.T) {

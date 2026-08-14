@@ -442,23 +442,21 @@ func preparedNetworkProbeTimeout(seconds int32) string {
 }
 
 func containerRunsAsNonRoot(pod *corev1.PodSecurityContext, container *corev1.SecurityContext) bool {
+	runAsNonRoot := (*bool)(nil)
+	runAsUser := (*int64)(nil)
+	if pod != nil {
+		runAsNonRoot = pod.RunAsNonRoot
+		runAsUser = pod.RunAsUser
+	}
 	if container != nil {
-		if container.RunAsNonRoot != nil && *container.RunAsNonRoot {
-			return true
+		if container.RunAsNonRoot != nil {
+			runAsNonRoot = container.RunAsNonRoot
 		}
 		if container.RunAsUser != nil {
-			return *container.RunAsUser != 0
+			runAsUser = container.RunAsUser
 		}
 	}
-	if pod != nil {
-		if pod.RunAsNonRoot != nil && *pod.RunAsNonRoot {
-			return true
-		}
-		if pod.RunAsUser != nil {
-			return *pod.RunAsUser != 0
-		}
-	}
-	return false
+	return runAsNonRoot != nil && *runAsNonRoot || runAsUser != nil && *runAsUser != 0
 }
 
 func setContainerEnv(container *corev1.Container, env corev1.EnvVar) {

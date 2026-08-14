@@ -1,16 +1,30 @@
 package datadogagentinternal
 
 import (
+	"context"
 	"testing"
 
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/record"
 	"k8s.io/utils/ptr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
+	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/defaults"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
 	"github.com/DataDog/datadog-operator/pkg/constants"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // func Test_getValidDaemonSetNames(t *testing.T) {
@@ -191,6 +205,121 @@ func TestUseExtendedDaemonSetForNodeAgent(t *testing.T) {
 			assert.Equal(t, tt.want, useExtendedDaemonSetForNodeAgent(tt.edsEnabled, tt.profile, tt.preparedMode, tt.preparedInitialized, tt.disabled))
 		})
 	}
+}
+
+func TestReconcileV2AgentCreatesConventionalDaemonSet(t *testing.T) {
+	ctx := context.Background()
+	scheme := runtime.NewScheme()
+	require.NoError(t, appsv1.AddToScheme(scheme))
+	require.NoError(t, corev1.AddToScheme(scheme))
+	require.NoError(t, datadoghqv1alpha1.AddToScheme(scheme))
+	ddai := &datadoghqv1alpha1.DatadogAgentInternal{ObjectMeta: metav1.ObjectMeta{Name: "agent", Namespace: "default", UID: types.UID("agent-uid")}}
+	defaults.DefaultDatadogAgentSpec(&ddai.Spec)
+	ddai.Spec.Global.Credentials = &datadoghqv2alpha1.DatadogCredentials{}
+	fakeClient := fake.NewClientBuilder().WithScheme(scheme).Build()
+	r := NewReconciler(ReconcilerOptions{}, fakeClient, kubernetes.PlatformInfo{}, scheme, record.NewFakeRecorder(10), nil)
+	resources := feature.NewResourceManagers(store.NewStore(ddai, &store.StoreOptions{Scheme: scheme}))
+	required := feature.RequiredComponents{Agent: feature.RequiredComponent{
+		IsRequired: ptr.To(true),
+		Containers: []apicommon.AgentContainerName{apicommon.CoreAgentContainerName, apicommon.TraceAgentContainerName},
+	}}
+	status := &datadoghqv1alpha1.DatadogAgentInternalStatus{}
+
+	_, err := r.reconcileV2Agent(ctx, required, nil, ddai, resources, status, "")
+	require.NoError(t, err)
+	created := &appsv1.DaemonSet{}
+	require.NoError(t, fakeClient.Get(ctx, types.NamespacedName{Namespace: ddai.Namespace, Name: component.GetAgentName(ddai)}, created))
+	assert.NotEmpty(t, created.Spec.Template.Spec.Containers)
+	assert.NotEqual(t, appsv1.OnDeleteDaemonSetStrategyType, created.Spec.UpdateStrategy.Type)
+	assert.Empty(t, created.Annotations[preparedRolloutPairInitializedAnnotation])
+	assert.Empty(t, created.Spec.Template.Annotations[preparedRolloutModeAnnotation])
+	green := &appsv1.DaemonSet{}
+	assert.Error(t, fakeClient.Get(ctx, types.NamespacedName{Namespace: ddai.Namespace, Name: suffixedKubernetesName(created.Name, "-green")}, green))
+}
+
+func TestReconcileV2AgentEntersPreparedFreshInstall(t *testing.T) {
+	ctx := context.Background()
+	scheme := runtime.NewScheme()
+	require.NoError(t, appsv1.AddToScheme(scheme))
+	require.NoError(t, corev1.AddToScheme(scheme))
+	require.NoError(t, datadoghqv1alpha1.AddToScheme(scheme))
+	ddai := &datadoghqv1alpha1.DatadogAgentInternal{ObjectMeta: metav1.ObjectMeta{
+		Name: "agent", Namespace: "default", UID: types.UID("agent-uid"),
+		Annotations: map[string]string{preparedRolloutModeAnnotation: preparedBlueGreenMode},
+	}}
+	defaults.DefaultDatadogAgentSpec(&ddai.Spec)
+	ddai.Spec.Global.Credentials = &datadoghqv2alpha1.DatadogCredentials{}
+	node := &corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node-a", Labels: map[string]string{corev1.LabelOSStable: string(corev1.Linux)}}}
+	fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(node).Build()
+	r := NewReconciler(ReconcilerOptions{}, fakeClient, kubernetes.PlatformInfo{}, scheme, record.NewFakeRecorder(10), nil)
+	resources := feature.NewResourceManagers(store.NewStore(ddai, &store.StoreOptions{Scheme: scheme}))
+	required := feature.RequiredComponents{Agent: feature.RequiredComponent{IsRequired: ptr.To(true)}}
+
+	result, err := r.reconcileV2Agent(ctx, required, nil, ddai, resources, &datadoghqv1alpha1.DatadogAgentInternalStatus{}, "")
+	require.NoError(t, err)
+	assert.Equal(t, preparedRolloutRequeue, result.RequeueAfter)
+	current := &corev1.Node{}
+	require.NoError(t, fakeClient.Get(ctx, types.NamespacedName{Name: node.Name}, current))
+	assert.Equal(t, rolloutSlotBlue, current.Labels[preparedRolloutNodeLabelKey(ddai)])
+}
+
+func TestReconcileV2AgentDisablesInitializedPreparedPair(t *testing.T) {
+	ctx := context.Background()
+	scheme := runtime.NewScheme()
+	require.NoError(t, appsv1.AddToScheme(scheme))
+	require.NoError(t, corev1.AddToScheme(scheme))
+	require.NoError(t, datadoghqv1alpha1.AddToScheme(scheme))
+	ddai := &datadoghqv1alpha1.DatadogAgentInternal{ObjectMeta: metav1.ObjectMeta{Name: "agent", Namespace: "default", UID: types.UID("agent-uid")}}
+	defaults.DefaultDatadogAgentSpec(&ddai.Spec)
+	ddai.Spec.Global.Credentials = &datadoghqv2alpha1.DatadogCredentials{}
+	blue := preparedTestDaemonSet(true)
+	blue.Name = component.GetAgentName(ddai)
+	blue.Annotations = map[string]string{preparedRolloutPairInitializedAnnotation: preparedBlueGreenArmed}
+	blue.Spec.Template.Annotations = map[string]string{preparedRolloutModeAnnotation: preparedBlueGreenMode}
+	setPreparedTestController(blue, ddai)
+	fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(blue).Build()
+	r := NewReconciler(ReconcilerOptions{}, fakeClient, kubernetes.PlatformInfo{}, scheme, record.NewFakeRecorder(10), nil)
+	resources := feature.NewResourceManagers(store.NewStore(ddai, &store.StoreOptions{Scheme: scheme}))
+	required := feature.RequiredComponents{Agent: feature.RequiredComponent{IsRequired: ptr.To(true)}}
+
+	result, err := r.reconcileV2Agent(ctx, required, nil, ddai, resources, &datadoghqv1alpha1.DatadogAgentInternalStatus{}, "")
+	require.NoError(t, err)
+	assert.Equal(t, preparedRolloutRequeue, result.RequeueAfter)
+	updated := &appsv1.DaemonSet{}
+	require.NoError(t, fakeClient.Get(ctx, types.NamespacedName{Namespace: blue.Namespace, Name: blue.Name}, updated))
+	assert.Empty(t, updated.Annotations[preparedRolloutPairInitializedAnnotation])
+}
+
+func TestReconcileV2AgentDisabledOverrideCleansPreparedPair(t *testing.T) {
+	ctx := context.Background()
+	scheme := runtime.NewScheme()
+	require.NoError(t, appsv1.AddToScheme(scheme))
+	require.NoError(t, corev1.AddToScheme(scheme))
+	require.NoError(t, datadoghqv1alpha1.AddToScheme(scheme))
+	ddai := &datadoghqv1alpha1.DatadogAgentInternal{ObjectMeta: metav1.ObjectMeta{
+		Name: "agent", Namespace: "default", UID: types.UID("agent-uid"),
+		Annotations: map[string]string{preparedRolloutModeAnnotation: preparedBlueGreenMode},
+	}}
+	defaults.DefaultDatadogAgentSpec(&ddai.Spec)
+	ddai.Spec.Global.Credentials = &datadoghqv2alpha1.DatadogCredentials{}
+	ddai.Spec.Override = map[datadoghqv2alpha1.ComponentName]*datadoghqv2alpha1.DatadogAgentComponentOverride{
+		datadoghqv2alpha1.NodeAgentComponentName: {Disabled: ptr.To(true)},
+	}
+	blue := preparedTestDaemonSet(true)
+	blue.Name = component.GetAgentName(ddai)
+	blue.Annotations = map[string]string{preparedRolloutPairInitializedAnnotation: preparedBlueGreenArmed}
+	setPreparedTestController(blue, ddai)
+	fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(ddai, blue).Build()
+	r := NewReconciler(ReconcilerOptions{}, fakeClient, kubernetes.PlatformInfo{}, scheme, record.NewFakeRecorder(10), nil)
+	resources := feature.NewResourceManagers(store.NewStore(ddai, &store.StoreOptions{Scheme: scheme}))
+	required := feature.RequiredComponents{Agent: feature.RequiredComponent{IsRequired: ptr.To(true)}}
+	status := &datadoghqv1alpha1.DatadogAgentInternalStatus{}
+
+	result, err := r.reconcileV2Agent(ctx, required, nil, ddai, resources, status, "")
+	require.NoError(t, err)
+	assert.Equal(t, preparedRolloutRequeue, result.RequeueAfter)
+	assert.Nil(t, status.Agent)
+	assert.Error(t, fakeClient.Get(ctx, client.ObjectKeyFromObject(blue), &appsv1.DaemonSet{}))
 }
 
 // func Test_cleanupExtraneousDaemonSets(t *testing.T) {

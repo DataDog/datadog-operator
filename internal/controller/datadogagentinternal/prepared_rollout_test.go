@@ -16,6 +16,7 @@ import (
 	"k8s.io/utils/ptr"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	agentcommon "github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -366,6 +367,161 @@ func TestPreparedRolloutRejectsInitLockPathCollision(t *testing.T) {
 	ds.Spec.Template.Spec.InitContainers[0].VolumeMounts = append(ds.Spec.Template.Spec.InitContainers[0].VolumeMounts,
 		corev1.VolumeMount{Name: "collision", MountPath: preparedRolloutLockDir})
 	require.ErrorContains(t, prepareAgentTemplate(ds), "lock mount conflicts")
+}
+
+func TestPreparedRolloutValidationEdgeCases(t *testing.T) {
+	tests := []struct {
+		name   string
+		mutate func(*appsv1.DaemonSet)
+		error  string
+	}{
+		{
+			name: "custom pod anti-affinity",
+			mutate: func(ds *appsv1.DaemonSet) {
+				ds.Spec.Template.Spec.Affinity = &corev1.Affinity{PodAntiAffinity: &corev1.PodAntiAffinity{}}
+			},
+			error: "custom Pod anti-affinity",
+		},
+		{
+			name: "reserved volume name",
+			mutate: func(ds *appsv1.DaemonSet) {
+				ds.Spec.Template.Spec.Volumes = append(ds.Spec.Template.Spec.Volumes, corev1.Volume{Name: preparedRolloutLockVolume})
+			},
+			error: "volume name",
+		},
+		{
+			name: "container lifecycle",
+			mutate: func(ds *appsv1.DaemonSet) {
+				ds.Spec.Template.Spec.Containers[0].Lifecycle = &corev1.Lifecycle{}
+			},
+			error: "lifecycle hooks on container",
+		},
+		{
+			name: "unknown init container",
+			mutate: func(ds *appsv1.DaemonSet) {
+				ds.Spec.Template.Spec.InitContainers = append(ds.Spec.Template.Spec.InitContainers, corev1.Container{Name: "unknown-init"})
+			},
+			error: "does not support init container",
+		},
+		{
+			name: "init container lifecycle",
+			mutate: func(ds *appsv1.DaemonSet) {
+				ds.Spec.Template.Spec.InitContainers[0].Lifecycle = &corev1.Lifecycle{}
+			},
+			error: "lifecycle hooks on init container",
+		},
+		{
+			name: "seccomp arguments",
+			mutate: func(ds *appsv1.DaemonSet) {
+				ds.Spec.Template.Spec.InitContainers = append(ds.Spec.Template.Spec.InitContainers, corev1.Container{
+					Name: "seccomp-setup", Command: []string{"cp", agentcommon.SeccompSecurityVolumePath + "/" + agentcommon.SystemProbeSeccompKey, agentcommon.SeccompRootVolumePath + "/" + agentcommon.SystemProbeSeccompProfileName}, Args: []string{"unexpected"},
+				})
+			},
+			error: "does not support command",
+		},
+		{
+			name: "missing command",
+			mutate: func(ds *appsv1.DaemonSet) {
+				ds.Spec.Template.Spec.Containers[0].Command = nil
+			},
+			error: "does not support command",
+		},
+		{
+			name: "unexpected core command",
+			mutate: func(ds *appsv1.DaemonSet) {
+				ds.Spec.Template.Spec.Containers[0].Command = []string{"not-agent"}
+			},
+			error: "does not support command",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ds := preparedTestDaemonSet(true)
+			tt.mutate(ds)
+			require.ErrorContains(t, prepareAgentTemplate(ds), tt.error)
+		})
+	}
+}
+
+func TestPreparedRolloutAcceptsTemplatesWithoutNodeSelector(t *testing.T) {
+	ds := preparedTestDaemonSet(true)
+	ds.Spec.Template.Spec.NodeSelector = nil
+
+	require.NoError(t, prepareAgentTemplate(ds))
+	assert.Equal(t, string(corev1.Linux), ds.Spec.Template.Spec.NodeSelector[corev1.LabelOSStable])
+}
+
+func TestPreparedRolloutRejectsUnsafeTCPProbeVariants(t *testing.T) {
+	tests := []struct {
+		name   string
+		mutate func(*corev1.Probe)
+		error  string
+	}{
+		{
+			name: "multiple handlers",
+			mutate: func(probe *corev1.Probe) {
+				probe.Exec = &corev1.ExecAction{Command: []string{"true"}}
+			},
+			error: "must have exactly one handler",
+		},
+		{
+			name: "named port",
+			mutate: func(probe *corev1.Probe) {
+				probe.TCPSocket.Port = intstr.FromString("trace")
+			},
+			error: "port must be a positive number",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ds := preparedTestDaemonSet(true)
+			probe := ds.Spec.Template.Spec.Containers[1].LivenessProbe
+			tt.mutate(probe)
+			require.ErrorContains(t, prepareAgentTemplate(ds), tt.error)
+		})
+	}
+}
+
+func TestPreparedStartupProbeUsesKubernetesDefaults(t *testing.T) {
+	probe := constants.GetDefaultStartupProbe()
+	probe.FailureThreshold = 0
+	probe.TimeoutSeconds = 0
+	probe.TerminationGracePeriodSeconds = nil
+
+	handler := preparedStartupProbe(string(apicommon.CoreAgentContainerName), probe, nil)
+	require.NotNil(t, handler.Exec)
+	assert.Equal(t, "3", probeArgument(t, handler.Exec.Command, "--failure-threshold"))
+	assert.Equal(t, "30s", probeArgument(t, handler.Exec.Command, "--termination-grace-period"))
+	assert.Equal(t, "900ms", probeArgument(t, handler.Exec.Command, "--timeout"))
+}
+
+func TestPreparedContainerSecurityAndEnvironmentOverrides(t *testing.T) {
+	tests := []struct {
+		name      string
+		pod       *corev1.PodSecurityContext
+		container *corev1.SecurityContext
+		want      bool
+	}{
+		{name: "container requires non-root", container: &corev1.SecurityContext{RunAsNonRoot: ptr.To(true)}, want: true},
+		{name: "pod selects non-root UID", pod: &corev1.PodSecurityContext{RunAsUser: ptr.To[int64](1000)}, want: true},
+		{name: "pod selects root UID", pod: &corev1.PodSecurityContext{RunAsUser: ptr.To[int64](0)}},
+		{name: "pod non-root constraint remains with container root UID", pod: &corev1.PodSecurityContext{RunAsNonRoot: ptr.To(true)}, container: &corev1.SecurityContext{RunAsUser: ptr.To[int64](0)}, want: true},
+		{name: "container clears pod non-root constraint", pod: &corev1.PodSecurityContext{RunAsNonRoot: ptr.To(true)}, container: &corev1.SecurityContext{RunAsNonRoot: ptr.To(false)}},
+		{name: "container root UID overrides pod UID", pod: &corev1.PodSecurityContext{RunAsUser: ptr.To[int64](1000)}, container: &corev1.SecurityContext{RunAsUser: ptr.To[int64](0)}},
+		{name: "container non-root UID overrides pod UID", pod: &corev1.PodSecurityContext{RunAsUser: ptr.To[int64](0)}, container: &corev1.SecurityContext{RunAsUser: ptr.To[int64](1000)}, want: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, containerRunsAsNonRoot(tt.pod, tt.container))
+		})
+	}
+
+	core := corev1.Container{Env: []corev1.EnvVar{{Name: rolloutPodUIDEnv, Value: "stale"}}}
+	setContainerEnv(&core, corev1.EnvVar{Name: rolloutPodUIDEnv, Value: "current"})
+	require.Len(t, core.Env, 1)
+	assert.Equal(t, "current", core.Env[0].Value)
 }
 
 func TestProfileOverlapAntiAffinityAllowsOnlySameProfileOverlap(t *testing.T) {
