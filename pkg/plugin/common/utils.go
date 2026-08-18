@@ -21,11 +21,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// IntToString converts int32 to string
-func IntToString(i int32) string {
-	return fmt.Sprintf("%d", i)
-}
-
 // GetDurationAsString gets object's age
 func GetDurationAsString(obj metav1.Object) string {
 	return durafmt.ParseShort(time.Since(obj.GetCreationTimestamp().Time)).String()
