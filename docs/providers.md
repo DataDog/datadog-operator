@@ -175,5 +175,5 @@ an Autopilot cluster (see the [GKE Autopilot guide][3]).
 [1]: https://github.com/DataDog/datadog-operator/blob/main/docs/introspection.md
 [2]: https://docs.datadoghq.com/containers/kubernetes/control_plane/?tab=datadogoperator#EKS
 [3]: https://docs.datadoghq.com/containers/kubernetes/distributions/?tab=datadogoperator#autopilot
-[4]: https://docs.datadoghq.com/containers/datadog_agent_profiles
-[5]: https://docs.datadoghq.com/containers/datadog_agent_profiles#declaring-a-provider
+[4]: https://docs.datadoghq.com/containers/datadog_operator/datadog_agent_profiles
+[5]: https://docs.datadoghq.com/containers/datadog_operator/datadog_agent_profiles#declaring-a-provider
