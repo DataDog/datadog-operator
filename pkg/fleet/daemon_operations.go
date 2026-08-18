@@ -112,32 +112,101 @@ func (d *Daemon) guardPendingOperationSlot(annotations map[string]string, nsn ty
 	}
 }
 
-func (d *Daemon) applyOperation(ctx context.Context, nsn types.NamespacedName, signalLog string, pending *pendingOperation, patch []byte) (*pendingOperation, error) {
-	if pending == nil && len(patch) == 0 {
-		return nil, nil
-	}
-	if pending != nil {
-		var patchMap map[string]any
-		if len(patch) != 0 {
-			if err := json.Unmarshal(patch, &patchMap); err != nil {
-				return nil, fmt.Errorf("%s: failed to unmarshal base patch: %w", signalLog, err)
-			}
-		} else {
-			patchMap = make(map[string]any)
+// planResult carries a plan* function's outputs. resourceVersion is the DDA's
+// resourceVersion at the moment the plan was constructed — bound to the same
+// read that produced the baseline annotation, so the server rejects the write
+// via optimistic-lock precondition if any actor mutated the DDA between plan
+// and apply.
+type planResult struct {
+	pending         *pendingOperation
+	patch           []byte
+	resourceVersion string
+}
+
+// planFn produces a planResult. Called by applyOperation once per attempt,
+// so on optimistic-lock conflict the caller re-plans from a fresh read
+// (fresh baseline + fresh resourceVersion together, never one without
+// the other).
+type planFn func(ctx context.Context) (planResult, error)
+
+// applyOperation wraps a plan-and-patch cycle with two nested retry policies:
+// (a) transient retry via retryWithBackoff, which handles timeouts, throttling,
+// and other retryable apiserver errors up to the retry budget; (b) an outer
+// conflict-retry-once loop that re-invokes plan on 409 so both the baseline
+// annotation and the resourceVersion precondition come from the same fresh
+// read. Terminal failure surfaces errBaselineConflict on repeated conflicts.
+func (d *Daemon) applyOperation(ctx context.Context, nsn types.NamespacedName, signalLog string, plan planFn) (*pendingOperation, error) {
+	logger := ctrl.LoggerFrom(ctx)
+	var (
+		lastPending *pendingOperation
+		lastErr     error
+	)
+	for conflictAttempt := 0; conflictAttempt < 2; conflictAttempt++ {
+		result, err := plan(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if result.pending == nil && len(result.patch) == 0 {
+			return nil, nil
+		}
+		lastPending = result.pending
+
+		finalPatch, err := composePatchWithPendingAndRV(result.patch, result.pending, result.resourceVersion)
+		if err != nil {
+			return nil, fmt.Errorf("%s: %w", signalLog, err)
 		}
 
-		metadata, ok := patchMap["metadata"].(map[string]any)
-		if !ok {
-			metadata = make(map[string]any)
-			patchMap["metadata"] = metadata
+		lastErr = retryWithBackoff(ctx, func() error {
+			target := &v2alpha1.DatadogAgent{}
+			target.Name = nsn.Name
+			target.Namespace = nsn.Namespace
+			return d.client.Patch(ctx, target,
+				client.RawPatch(types.MergePatchType, finalPatch),
+				client.FieldOwner("fleet-daemon"),
+			)
+		})
+		if !apierrors.IsConflict(lastErr) {
+			break
 		}
+		logger.V(1).Info("Optimistic lock conflict on signal patch, replanning and retrying once")
+	}
+	if apierrors.IsConflict(lastErr) {
+		return nil, fmt.Errorf("%s: %w", signalLog, errBaselineConflict)
+	}
+	if lastErr != nil {
+		return nil, fmt.Errorf("%s: failed to patch DatadogAgent: %w", signalLog, lastErr)
+	}
+	logger.Info("Wrote signal")
+	return lastPending, nil
+}
+
+// composePatchWithPendingAndRV merges pending-operation annotations into the
+// plan patch and injects metadata.resourceVersion as the optimistic-lock
+// precondition. The resourceVersion belongs to the DDA read that produced
+// the plan; the server rejects with 409 if it no longer matches.
+func composePatchWithPendingAndRV(patch []byte, pending *pendingOperation, resourceVersion string) ([]byte, error) {
+	var m map[string]any
+	if len(patch) != 0 {
+		if err := json.Unmarshal(patch, &m); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal base patch: %w", err)
+		}
+	} else {
+		m = make(map[string]any)
+	}
+	metadata, ok := m["metadata"].(map[string]any)
+	if !ok {
+		metadata = map[string]any{}
+		m["metadata"] = metadata
+	}
+	if resourceVersion != "" {
+		metadata["resourceVersion"] = resourceVersion
+	}
+	if pending != nil {
 		annotations, ok := metadata["annotations"].(map[string]any)
 		if !ok {
-			annotations = make(map[string]any)
+			annotations = map[string]any{}
 			metadata["annotations"] = annotations
 		}
-		// Write the pending task in the same patch as the signal. If the daemon
-		// restarts, the worker can read these annotations and continue.
 		annotations[v2alpha1.AnnotationPendingTaskID] = pending.taskID
 		annotations[v2alpha1.AnnotationPendingAction] = string(pending.intent)
 		annotations[v2alpha1.AnnotationPendingExperimentID] = pending.experimentID
@@ -145,76 +214,16 @@ func (d *Daemon) applyOperation(ctx context.Context, nsn types.NamespacedName, s
 		if pending.resultVersion != "" {
 			annotations[v2alpha1.AnnotationPendingResultVersion] = pending.resultVersion
 		} else {
-			// Clear any old promote result version. Merge patch leaves keys alone
-			// when they are omitted.
+			// Clear any old promote result version. Merge patch leaves keys
+			// alone when they are omitted.
 			annotations[v2alpha1.AnnotationPendingResultVersion] = nil
 		}
-
-		var err error
-		patch, err = json.Marshal(patchMap)
-		if err != nil {
-			return nil, fmt.Errorf("%s: failed to build pending operation patch: %w", signalLog, err)
-		}
 	}
-	// Optimistic-lock patch: re-read the DDA to capture its resourceVersion,
-	// then apply the merge patch with MergeFromWithOptimisticLock so the
-	// server rejects the write if another actor mutated the DDA between
-	// read and write. On 409 conflict retry once with a fresh read; if the
-	// second attempt still conflicts, surface baseline-conflict so RC gets
-	// a distinct reason code from freshness failures.
-	patchErr := d.applyMergePatchOptimistic(ctx, nsn, patch)
-	if apierrors.IsConflict(patchErr) {
-		ctrl.LoggerFrom(ctx).V(1).Info("Optimistic lock conflict on signal patch, retrying once")
-		patchErr = d.applyMergePatchOptimistic(ctx, nsn, patch)
-		if apierrors.IsConflict(patchErr) {
-			return nil, fmt.Errorf("%s: %w", signalLog, errBaselineConflict)
-		}
-	}
-	if patchErr != nil {
-		return nil, fmt.Errorf("%s: failed to patch DatadogAgent: %w", signalLog, patchErr)
-	}
-	ctrl.LoggerFrom(ctx).Info("Wrote signal")
-	return pending, nil
-}
-
-// applyMergePatchOptimistic reads the DDA to capture its resourceVersion,
-// injects it into the merge patch's metadata block so the server enforces the
-// precondition, and applies the patch. Returns apierrors.IsConflict(err)==true
-// when the resourceVersion changed between read and write.
-func (d *Daemon) applyMergePatchOptimistic(ctx context.Context, nsn types.NamespacedName, patch []byte) error {
-	base := &v2alpha1.DatadogAgent{}
-	if err := d.client.Get(ctx, nsn, base); err != nil {
-		return err
-	}
-	patchWithRV, err := injectResourceVersion(patch, base.ResourceVersion)
+	out, err := json.Marshal(m)
 	if err != nil {
-		return fmt.Errorf("inject resourceVersion: %w", err)
+		return nil, fmt.Errorf("failed to marshal composed patch: %w", err)
 	}
-	target := &v2alpha1.DatadogAgent{}
-	target.Name = nsn.Name
-	target.Namespace = nsn.Namespace
-	return d.client.Patch(ctx, target,
-		client.RawPatch(types.MergePatchType, patchWithRV),
-		client.FieldOwner("fleet-daemon"),
-	)
-}
-
-// injectResourceVersion adds metadata.resourceVersion to a JSON merge patch.
-// The Kubernetes API server treats resourceVersion in a merge patch's metadata
-// as an optimistic-lock precondition, rejecting the write with 409 Conflict
-// when the current object's resourceVersion differs.
-func injectResourceVersion(patch []byte, resourceVersion string) ([]byte, error) {
-	var m map[string]any
-	if err := json.Unmarshal(patch, &m); err != nil {
-		return nil, err
-	}
-	metadata, ok := m["metadata"].(map[string]any)
-	if !ok {
-		metadata = map[string]any{}
-		m["metadata"] = metadata
-	}
-	metadata["resourceVersion"] = resourceVersion
-	return json.Marshal(m)
+	return out, nil
 }
 
 // startDatadogAgentExperiment starts a DatadogAgent experiment by atomically
@@ -233,12 +242,9 @@ func (d *Daemon) startDatadogAgentExperiment(ctx context.Context, req remoteAPIR
 
 	logger = logger.WithValues("namespace", op.NamespacedName.Namespace, "name", op.NamespacedName.Name)
 	ctx = ctrl.LoggerInto(ctx, logger)
-	pending, patch, err := d.planStart(ctx, req, op)
-	if err != nil {
-		return nil, err
-	}
-	logger.Info("Prepared DatadogAgent experiment start signal")
-	return d.applyOperation(ctx, op.NamespacedName, "start DatadogAgent experiment", pending, patch)
+	return d.applyOperation(ctx, op.NamespacedName, "start DatadogAgent experiment", func(ctx context.Context) (planResult, error) {
+		return d.planStart(ctx, req, op)
+	})
 }
 
 // stopDatadogAgentExperiment writes a rollback signal annotation on the DDA.
@@ -251,14 +257,10 @@ func (d *Daemon) stopDatadogAgentExperiment(ctx context.Context, req remoteAPIRe
 	}
 
 	ctx = ctrl.LoggerInto(ctx, ctrl.LoggerFrom(ctx).WithValues("id", req.ID, "namespace", op.NamespacedName.Namespace, "name", op.NamespacedName.Name))
-	logger := ctrl.LoggerFrom(ctx)
-	logger.V(1).Info("Stopping DatadogAgent experiment")
-	pending, patch, err := d.planStop(ctx, req, op)
-	if err != nil {
-		return nil, err
-	}
-	logger.Info("Prepared DatadogAgent experiment stop signal")
-	return d.applyOperation(ctx, op.NamespacedName, "stop DatadogAgent experiment", pending, patch)
+	ctrl.LoggerFrom(ctx).V(1).Info("Stopping DatadogAgent experiment")
+	return d.applyOperation(ctx, op.NamespacedName, "stop DatadogAgent experiment", func(ctx context.Context) (planResult, error) {
+		return d.planStop(ctx, req, op)
+	})
 }
 
 // promoteDatadogAgentExperiment writes a promote signal annotation on the DDA.
@@ -271,76 +273,73 @@ func (d *Daemon) promoteDatadogAgentExperiment(ctx context.Context, req remoteAP
 	}
 
 	ctx = ctrl.LoggerInto(ctx, ctrl.LoggerFrom(ctx).WithValues("id", req.ID, "namespace", op.NamespacedName.Namespace, "name", op.NamespacedName.Name))
-	logger := ctrl.LoggerFrom(ctx)
-	logger.V(1).Info("Promoting DatadogAgent experiment")
-	pending, patch, err := d.planPromote(ctx, req, op)
-	if err != nil {
-		return nil, err
-	}
-	logger.Info("Prepared DatadogAgent experiment promote signal")
-	return d.applyOperation(ctx, op.NamespacedName, "promote DatadogAgent experiment", pending, patch)
+	ctrl.LoggerFrom(ctx).V(1).Info("Promoting DatadogAgent experiment")
+	return d.applyOperation(ctx, op.NamespacedName, "promote DatadogAgent experiment", func(ctx context.Context) (planResult, error) {
+		return d.planPromote(ctx, req, op)
+	})
 }
 
-func (d *Daemon) planStart(ctx context.Context, req remoteAPIRequest, op resolvedOperation) (*pendingOperation, []byte, error) {
+func (d *Daemon) planStart(ctx context.Context, req remoteAPIRequest, op resolvedOperation) (planResult, error) {
 	experimentID := req.Params.Version
 	pending := d.newPendingOperation(pendingIntentStart, req, op.NamespacedName, experimentID)
 	if d.managedAgentInstallationIdentity.Configured() {
 		if _, err := decodeRemoteDatadogAgentConfig(op.Config, false); err != nil {
-			return nil, nil, fmt.Errorf("start DatadogAgent experiment: %w", err)
+			return planResult{}, fmt.Errorf("start DatadogAgent experiment: %w", err)
 		}
 	}
 	dda := &v2alpha1.DatadogAgent{}
 	if err := d.client.Get(ctx, op.NamespacedName, dda); err != nil {
-		return nil, nil, fmt.Errorf("start DatadogAgent experiment: failed to get DatadogAgent: %w", err)
+		return planResult{}, fmt.Errorf("start DatadogAgent experiment: failed to get DatadogAgent: %w", err)
 	}
 	if err := d.validateBridgeExperimentTarget(dda); err != nil {
-		return nil, nil, fmt.Errorf("start DatadogAgent experiment: %w", err)
+		return planResult{}, fmt.Errorf("start DatadogAgent experiment: %w", err)
 	}
 	if experimentHasPhase(dda, experimentID, v2alpha1.ExperimentPhaseRunning) {
 		// The controller already started this experiment. Update RC now and let
 		// handleTask mark the task done.
 		stable, _ := d.getPackageConfigVersions(req.Package)
 		d.setPackageConfigVersions(req.Package, stable, req.Params.Version)
-		return nil, nil, nil
+		return planResult{}, nil
 	}
 	if dda.Annotations[v2alpha1.AnnotationExperimentID] == experimentID {
 		// The start signal is already on the DDA. Keep the same signal, but make
 		// sure the pending task annotations exist.
 		if err := d.guardPendingOperationSlot(dda.Annotations, op.NamespacedName, *pending); err != nil {
-			return nil, nil, err
+			return planResult{}, err
 		}
-		return pending, nil, nil
+		return planResult{pending: pending, resourceVersion: dda.ResourceVersion}, nil
 	}
 	if runningID := runningExperimentID(dda); runningID != "" {
-		return nil, nil, fmt.Errorf("start DatadogAgent experiment: experiment %q already running", runningID)
+		return planResult{}, fmt.Errorf("start DatadogAgent experiment: experiment %q already running", runningID)
 	}
 	// Do not overwrite another unfinished task.
 	if err := d.guardPendingOperationSlot(dda.Annotations, op.NamespacedName, *pending); err != nil {
-		return nil, nil, err
+		return planResult{}, err
 	}
 	// Checkpoint the pre-experiment baseline from the reconciler-published
-	// current-revision pointer. Includes it in the same MergePatch so the
-	// reconciler observes the baseline atomically with the spec write and
-	// the start signal. An empty pointer will be rejected by the reconciler
-	// (baseline_missing abort), which is the correct behavior on a fresh
-	// install where no revision has been published yet.
+	// current-revision pointer AND capture the DDA's resourceVersion from the
+	// same read. applyOperation writes both into the merge patch, so the
+	// server rejects the write with 409 Conflict if any actor mutated the DDA
+	// between this read and the patch. That prevents a stale
+	// Status.CurrentRevision from being persisted as the rollback baseline
+	// when a concurrent user apply bumped the generation after this read.
 	extraAnnotations := map[string]string{
 		v2alpha1.AnnotationExperimentRollbackTargetRevision: dda.Status.CurrentRevision,
 	}
 	patch, err := buildSignalPatchWithAnnotations(v2alpha1.ExperimentSignalStart, experimentID, extraAnnotations, op.Config)
 	if err != nil {
-		return nil, nil, fmt.Errorf("start DatadogAgent experiment: %w", err)
+		return planResult{}, fmt.Errorf("start DatadogAgent experiment: %w", err)
 	}
-	return pending, patch, nil
+	return planResult{pending: pending, patch: patch, resourceVersion: dda.ResourceVersion}, nil
 }
 
-func (d *Daemon) planStop(ctx context.Context, req remoteAPIRequest, op resolvedOperation) (*pendingOperation, []byte, error) {
+func (d *Daemon) planStop(ctx context.Context, req remoteAPIRequest, op resolvedOperation) (planResult, error) {
 	dda := &v2alpha1.DatadogAgent{}
 	if getErr := d.client.Get(ctx, op.NamespacedName, dda); getErr != nil {
-		return nil, nil, fmt.Errorf("stop DatadogAgent experiment: failed to get DatadogAgent: %w", getErr)
+		return planResult{}, fmt.Errorf("stop DatadogAgent experiment: failed to get DatadogAgent: %w", getErr)
 	}
 	if err := d.validateBridgeExperimentTarget(dda); err != nil {
-		return nil, nil, fmt.Errorf("stop DatadogAgent experiment: %w", err)
+		return planResult{}, fmt.Errorf("stop DatadogAgent experiment: %w", err)
 	}
 
 	// Stop requests intentionally do not use params.version as the experiment
@@ -359,50 +358,50 @@ func (d *Daemon) planStop(ctx context.Context, req remoteAPIRequest, op resolved
 		if experimentID == "" || dda.Annotations[v2alpha1.AnnotationExperimentSignal] != v2alpha1.ExperimentSignalStart {
 			// Nothing is running and there is no start signal to roll back.
 			d.clearExperimentConfigVersion(req.Package)
-			return nil, nil, nil
+			return planResult{}, nil
 		}
 	} else {
 		if isTerminalPhase(dda.Status.Experiment.Phase) {
 			// The experiment is already stopped/promoted/aborted.
 			d.clearExperimentConfigVersion(req.Package)
-			return nil, nil, nil
+			return planResult{}, nil
 		}
 		switch dda.Status.Experiment.Phase {
 		case v2alpha1.ExperimentPhaseRunning:
 			if experimentID == "" {
-				return nil, nil, fmt.Errorf("stop DatadogAgent experiment: running experiment is missing an ID")
+				return planResult{}, fmt.Errorf("stop DatadogAgent experiment: running experiment is missing an ID")
 			}
 		case "":
 			// Start was requested, but the reconciler has not written a phase yet.
 			if experimentID == "" {
-				return nil, nil, fmt.Errorf("stop DatadogAgent experiment: current experiment is missing an ID")
+				return planResult{}, fmt.Errorf("stop DatadogAgent experiment: current experiment is missing an ID")
 			}
 		default:
-			return nil, nil, fmt.Errorf("stop DatadogAgent experiment: cannot stop, current phase is %q", dda.Status.Experiment.Phase)
+			return planResult{}, fmt.Errorf("stop DatadogAgent experiment: cannot stop, current phase is %q", dda.Status.Experiment.Phase)
 		}
 	}
 	pending := d.newPendingOperation(pendingIntentStop, req, op.NamespacedName, experimentID)
 	if err := d.guardPendingOperationSlot(dda.Annotations, op.NamespacedName, *pending); err != nil {
-		return nil, nil, err
+		return planResult{}, err
 	}
 	patch, err := buildSignalPatch(v2alpha1.ExperimentSignalRollback, experimentID)
 	if err != nil {
-		return nil, nil, fmt.Errorf("stop DatadogAgent experiment: %w", err)
+		return planResult{}, fmt.Errorf("stop DatadogAgent experiment: %w", err)
 	}
-	return pending, patch, nil
+	return planResult{pending: pending, patch: patch, resourceVersion: dda.ResourceVersion}, nil
 }
 
-func (d *Daemon) planPromote(ctx context.Context, req remoteAPIRequest, op resolvedOperation) (*pendingOperation, []byte, error) {
+func (d *Daemon) planPromote(ctx context.Context, req remoteAPIRequest, op resolvedOperation) (planResult, error) {
 	_, experiment := d.getPackageConfigVersions(req.Package)
 	if experiment == "" {
-		return nil, nil, fmt.Errorf("promote DatadogAgent experiment: no experiment config version set")
+		return planResult{}, fmt.Errorf("promote DatadogAgent experiment: no experiment config version set")
 	}
 	dda := &v2alpha1.DatadogAgent{}
 	if err := d.client.Get(ctx, op.NamespacedName, dda); err != nil {
-		return nil, nil, fmt.Errorf("promote DatadogAgent experiment: failed to get DatadogAgent: %w", err)
+		return planResult{}, fmt.Errorf("promote DatadogAgent experiment: failed to get DatadogAgent: %w", err)
 	}
 	if err := d.validateBridgeExperimentTarget(dda); err != nil {
-		return nil, nil, fmt.Errorf("promote DatadogAgent experiment: %w", err)
+		return planResult{}, fmt.Errorf("promote DatadogAgent experiment: %w", err)
 	}
 
 	// Promote requests intentionally do not use params.version as the experiment
@@ -419,30 +418,30 @@ func (d *Daemon) planPromote(ctx context.Context, req remoteAPIRequest, op resol
 
 	if experimentHasPhase(dda, experimentID, v2alpha1.ExperimentPhasePromoted) {
 		if err := d.persistManagedAgentInstallationStableConfig(ctx, op.NamespacedName, experimentID, experiment); err != nil {
-			return nil, nil, fmt.Errorf("promote DatadogAgent experiment: persist promoted config: %w", err)
+			return planResult{}, fmt.Errorf("promote DatadogAgent experiment: persist promoted config: %w", err)
 		}
 		// Promotion already happened. Update RC now and let handleTask mark the task done.
 		d.setPackageConfigVersions(req.Package, experiment, "")
-		return nil, nil, nil
+		return planResult{}, nil
 	}
 	if !experimentHasPhase(dda, experimentID, v2alpha1.ExperimentPhaseRunning) {
 		currentPhase := ""
 		if dda.Status.Experiment != nil {
 			currentPhase = string(dda.Status.Experiment.Phase)
 		}
-		return nil, nil, fmt.Errorf("promote DatadogAgent experiment: cannot promote, current phase is %q", currentPhase)
+		return planResult{}, fmt.Errorf("promote DatadogAgent experiment: cannot promote, current phase is %q", currentPhase)
 	}
 	pending := d.newPendingOperation(pendingIntentPromote, req, op.NamespacedName, experimentID)
 	// Promote makes the current experiment config the stable config on success.
 	pending.resultVersion = experiment
 	if err := d.guardPendingOperationSlot(dda.Annotations, op.NamespacedName, *pending); err != nil {
-		return nil, nil, err
+		return planResult{}, err
 	}
 	patch, err := buildSignalPatch(v2alpha1.ExperimentSignalPromote, experimentID)
 	if err != nil {
-		return nil, nil, fmt.Errorf("promote DatadogAgent experiment: %w", err)
+		return planResult{}, fmt.Errorf("promote DatadogAgent experiment: %w", err)
 	}
-	return pending, patch, nil
+	return planResult{pending: pending, patch: patch, resourceVersion: dda.ResourceVersion}, nil
 }
 
 func (d *Daemon) validateBridgeExperimentTarget(dda *v2alpha1.DatadogAgent) error {
