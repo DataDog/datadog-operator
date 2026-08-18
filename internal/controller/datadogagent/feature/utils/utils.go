@@ -6,11 +6,14 @@
 package utils
 
 import (
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/utils"
@@ -46,6 +49,11 @@ const (
 	EnablePrivateActionRunnerSystemdJournalVacuumAnnotation = "agent.datadoghq.com/private-action-runner-systemd-journal-vacuum-enabled"
 
 	EnableCNMDirectSendAnnotation = "agent.datadoghq.com/cnm-direct-send-enabled"
+
+	// DefaultAgentIpcPort and DefaultAgentIpcConfigRefreshInterval configure config sync, which
+	// serves resolved config (notably a secret-backed api_key) from the core agent to sub-processes.
+	DefaultAgentIpcPort                  = "5009"
+	DefaultAgentIpcConfigRefreshInterval = "60"
 
 	EnableClusterAgentPrivateActionRunnerAnnotation      = "cluster-agent.datadoghq.com/private-action-runner-enabled"
 	ClusterAgentPrivateActionRunnerConfigDataAnnotation  = "cluster-agent.datadoghq.com/private-action-runner-configdata"
@@ -137,4 +145,25 @@ func ShouldCreateLocalAgentService(ddaSpec *v2alpha1.DatadogAgentSpec, platformI
 	}
 
 	return common.ShouldCreateAgentLocalService(platformInfo.GetVersionInfo(), forceEnableLocalService)
+}
+
+// EnableConfigSyncForDirectSend sets the agent_ipc env vars that config sync requires, on the
+// given containers. system-probe wires the no-op secrets component, so with direct send it cannot
+// resolve an ENC[...] api_key itself; config sync is what supplies the resolved value from the
+// core agent. Both a refresh interval and an IPC transport are needed, since agent_ipc.port
+// defaults to 0 and is gated independently of agent_ipc.config_refresh_interval.
+//
+// Values match the otelcollector and hostprofiler features, which set the same core agent env
+// vars for the same reason; a mismatch there would leave the port up to feature ordering.
+// User-provided values win.
+func EnableConfigSyncForDirectSend(managers feature.PodTemplateManagers, containers []apicommon.AgentContainerName) {
+	keepCurrent := func(current, _ *corev1.EnvVar) (*corev1.EnvVar, error) { return current, nil }
+	for _, envVar := range []*corev1.EnvVar{
+		{Name: common.DDAgentIpcPort, Value: DefaultAgentIpcPort},
+		{Name: common.DDAgentIpcConfigRefreshInterval, Value: DefaultAgentIpcConfigRefreshInterval},
+	} {
+		for _, container := range containers {
+			managers.EnvVar().AddEnvVarToContainerWithMergeFunc(container, envVar, keepCurrent)
+		}
+	}
 }
