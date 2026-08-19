@@ -10,10 +10,10 @@ platform-specific Agent behavior (`eks-ec2-use-hostname-from-file`).
 
 Setting a provider applies that set of customizations to the Agents it covers,
 whether across the whole cluster or only the nodes a
-[DatadogAgentProfile](datadog_agent_profiles.md) targets.
+[DatadogAgentProfile][4] targets.
 
 > This page describes the supported provider model, which is distinct from
-> the legacy [introspection](introspection.md) feature (one DaemonSet per node
+> the legacy [introspection][1] feature (one DaemonSet per node
 > provider), which is deprecated and no longer active on the default
 > reconciliation path.
 
@@ -27,7 +27,7 @@ A provider applies at one of two scopes, both expressed through the single
 - **Cluster scope**: set on (or detected for) the `DatadogAgent`. Applies to the
 whole cluster. Used for cluster-wide providers such as `eks`, `openshift`,
 `aks`, and `gke-autopilot` on an Autopilot cluster.
-- **Node scope**: set on a [DatadogAgentProfile](datadog_agent_profiles.md)
+- **Node scope**: set on a [DatadogAgentProfile][4]
 (DAP). Applies only to the subset of nodes the profile targets. Used for node
 variations such as `gke-cos`.
 
@@ -87,7 +87,7 @@ spec:
 ### On a DatadogAgentProfile
 
 Declare a node-scope provider by setting the same annotation on a
-[DatadogAgentProfile](datadog_agent_profiles.md#declaring-a-provider). The value
+[DatadogAgentProfile][5]. The value
 is propagated to the DaemonSet the profile generates and applies only to the
 nodes the profile's `profileAffinity` selects.
 
@@ -146,10 +146,10 @@ values are the value of the `agent.datadoghq.com/cluster-provider` annotation.
 | -------------------------------- | --------------------------- | ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------- |
 | `gke-cos`                        | Cluster (DDA) or Node (DAP) | Annotation only         | Drops the `/usr/src` volume from the OOM Kill, TCP Queue Length, and GPU checks (node OS has no kernel sources)                                                                                                                        | `providers.gke.cos`                          |
 | `eks-ec2-use-hostname-from-file` | Cluster (DDA) or Node (DAP) | Annotation only         | Adds `DD_HOSTNAME_FILE` and a host mount of the cloud-init instance-id file so the Agent derives a stable hostname                                                                                                                     | `providers.eks.ec2.useHostnameFromFile`      |
-| `eks`                            | Cluster (DDA)               | Detection or annotation | Enables [control plane monitoring](control_plane_monitoring.md): API Server, Controller Manager, Scheduler                                                                                                                             | `providers.eks.controlPlaneMonitoring`       |
-| `openshift` (`openshift-<os>`)   | Cluster (DDA)               | Detection or annotation | Enables [control plane monitoring](control_plane_monitoring.md): API Server, Controller Manager, Scheduler, and etcd                                                                                                                   | `providers.openshift.controlPlaneMonitoring` |
+| `eks`                            | Cluster (DDA)               | Detection or annotation | Enables [control plane monitoring][2]: API Server, Controller Manager, Scheduler                                                                                                                             | `providers.eks.controlPlaneMonitoring`       |
+| `openshift` (`openshift-<os>`)   | Cluster (DDA)               | Detection or annotation | Enables [control plane monitoring][2]: API Server, Controller Manager, Scheduler, and etcd                                                                                                                   | `providers.openshift.controlPlaneMonitoring` |
 | `aks`                            | Cluster (DDA)               | Detection or annotation | Sets the mandatory `DD_ADMISSION_CONTROLLER_ADD_AKS_SELECTORS=true` environment variable on the Cluster Agent                                                                                                                          | `providers.aks.enabled`                      |
-| `gke-autopilot`                  | Cluster (DDA)               | Annotation only         | Full GKE Autopilot workload adaptation (volume, env var, path, image, and PriorityClass changes). See [Datadog Operator on GKE Autopilot](gke_autopilot/external.md)                                                                   | `providers.gke.autopilot`                    |
+| `gke-autopilot`                  | Cluster (DDA)               | Annotation only         | Full GKE Autopilot workload adaptation (volume, env var, path, image, and PriorityClass changes). See [Datadog Operator on GKE Autopilot][3]                                                                   | `providers.gke.autopilot`                    |
 | `windows`                        | Node (DAP)                  | Annotation only         | Builds a Windows-compatible node Agent DaemonSet on the targeted Windows nodes: Linux-only containers, mounts, and security context are stripped, and a Windows base image and init config are applied. Available in Operator v1.30.0+ | None                                         |
 
 
@@ -158,7 +158,7 @@ values are the value of the `agent.datadoghq.com/cluster-provider` annotation.
 ## Examples
 
 - **Cluster-wide, auto-detected**: an EKS cluster gets `eks` from detection and
-enables [control plane monitoring](control_plane_monitoring.md) with no user
+enables [control plane monitoring][2] with no user
 configuration.
 - **Cluster-wide, declared**: set `agent.datadoghq.com/cluster-provider: aks` on
 the `DatadogAgent` to apply the required AKS admission controller selectors.
@@ -169,5 +169,11 @@ DAP that targets the COS node pool.
 targeting EC2 nodes that need file-based hostname resolution.
 - **Restricted managed environment**: set
 `agent.datadoghq.com/cluster-provider: gke-autopilot` on the `DatadogAgent` for
-an Autopilot cluster (see the [GKE Autopilot guide](gke_autopilot/external.md)).
+an Autopilot cluster (see the [GKE Autopilot guide][3]).
 
+
+[1]: https://github.com/DataDog/datadog-operator/blob/main/docs/introspection.md
+[2]: https://docs.datadoghq.com/containers/kubernetes/control_plane/?tab=datadogoperator#EKS
+[3]: https://docs.datadoghq.com/containers/kubernetes/distributions/?tab=datadogoperator#autopilot
+[4]: https://docs.datadoghq.com/containers/datadog_operator/datadog_agent_profiles
+[5]: https://docs.datadoghq.com/containers/datadog_operator/datadog_agent_profiles#declaring-a-provider

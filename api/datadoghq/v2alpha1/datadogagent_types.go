@@ -314,6 +314,10 @@ type CSIConfig struct {
 	// +optional
 	AutoManage *bool `json:"autoManage,omitempty"`
 
+	// APM configures APM/Single Step Instrumentation settings for the managed CSI driver.
+	// +optional
+	APM *CSIAPMConfig `json:"apm,omitempty"`
+
 	// Tolerations configure the CSI driver DaemonSet pod tolerations.
 	// +optional
 	// +listType=atomic
@@ -326,6 +330,18 @@ type CSIConfig struct {
 	// NodeAffinity specifies node affinity scheduling rules for CSI driver DaemonSet pods.
 	// +optional
 	NodeAffinity *corev1.NodeAffinity `json:"nodeAffinity,omitempty"`
+}
+
+// CSIAPMConfig configures APM/SSI-related settings for the CSI driver managed by the Operator.
+// +k8s:openapi-gen=true
+type CSIAPMConfig struct {
+	// PullSecrets are kubernetes.io/dockerconfigjson Secrets used to download APM
+	// libraries from private registries. Propagated to the managed DatadogCSIDriver as
+	// spec.apm.pullSecrets. Restart the CSI DaemonSet after rotating these Secrets.
+	// Not supported on GKE Autopilot.
+	// +optional
+	// +listType=atomic
+	PullSecrets []corev1.LocalObjectReference `json:"pullSecrets,omitempty"`
 }
 
 // InjectorConfig contains the configuration for the APM Injector.

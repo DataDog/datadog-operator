@@ -17,7 +17,6 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
@@ -221,19 +220,4 @@ func (r *Reconciler) getValidDaemonSetNames(dsName string, providerList map[stri
 	}
 
 	return validDaemonSetNames, validExtendedDaemonSetNames
-}
-
-// GetAgentInstanceLabelValue returns the instance name for the agent
-// The current and default is DDA name + suffix (e.g. <dda-name>-agent)
-// This is used when profiles are disabled or for the default profile
-// If profiles are enabled, use the profile name (e.g. <profile-name>-agent) for profile DSs
-func GetAgentInstanceLabelValue(dda, profile metav1.Object) string {
-	// Always use v3 metadata for instance name
-	if profile.GetName() != "" {
-		if name := agentprofile.DaemonSetName(types.NamespacedName{Name: profile.GetName(), Namespace: profile.GetNamespace()}, true); name != "" {
-			return name
-		}
-	}
-	// Use default daemonset name
-	return component.GetAgentName(dda)
 }

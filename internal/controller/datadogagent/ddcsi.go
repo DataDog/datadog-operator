@@ -27,6 +27,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/experimental"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 const (
@@ -100,12 +101,22 @@ func (r *Reconciler) externalCSIDriverExists(ctx context.Context) (bool, error) 
 // The socket paths mirror the DDA's APM and DogStatsD UDS configuration so the CSI driver
 // exposes the same host paths the Agent is configured to use.
 func (r *Reconciler) buildDesiredDatadogCSIDriver(instance *v2alpha1.DatadogAgent) (*v1alpha1.DatadogCSIDriver, error) {
+	annotations := object.GetDefaultAnnotations(instance)
+	if experimental.IsAutopilotEnabled(instance) {
+		if annotations == nil {
+			annotations = map[string]string{}
+		}
+		// Stamp the provider annotation so the CSI controller can skip registry
+		// authentication env vars that are not covered by the WorkloadAllowlist.
+		annotations[kubernetes.ProviderAnnotationKey] = kubernetes.GKEAutopilotProvider
+	}
+
 	ddcsi := &v1alpha1.DatadogCSIDriver{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        instance.Name,
 			Namespace:   instance.Namespace,
 			Labels:      object.GetDefaultLabels(instance, instance.Name, common.GetAgentVersion(instance)),
-			Annotations: object.GetDefaultAnnotations(instance),
+			Annotations: annotations,
 		},
 		Spec: v1alpha1.DatadogCSIDriverSpec{
 			APMSocketPath: apmSocketPathFromDDA(instance),
@@ -122,6 +133,12 @@ func (r *Reconciler) buildDesiredDatadogCSIDriver(instance *v2alpha1.DatadogAgen
 
 	csiConfig := instance.Spec.Global.CSI
 	if csiConfig != nil {
+		if csiConfig.APM != nil && len(csiConfig.APM.PullSecrets) > 0 {
+			ddcsi.Spec.APM = &v1alpha1.DatadogCSIDriverAPMConfig{
+				PullSecrets: append([]corev1.LocalObjectReference(nil), csiConfig.APM.PullSecrets...),
+			}
+		}
+
 		override := &v1alpha1.DatadogCSIDriverOverride{}
 		override.Tolerations = csiConfig.Tolerations
 		override.NodeSelector = csiConfig.NodeSelector
@@ -206,7 +223,7 @@ func (r *Reconciler) createOrUpdateDatadogCSIDriver(ctx context.Context, logger 
 
 	experimental.CreateDatadogCSIAllowlistSynchronizer(instance)
 
-	// Update if the spec has drifted from the desired state.
+	// Update if the managed fields have drifted from the desired state.
 	//
 	// Use a JSON merge patch rather than a full Update so only fields we actually own (.spec,
 	// labels, annotations) appear in the wire payload. Finalizers added by the DatadogCSIDriver
@@ -214,7 +231,9 @@ func (r *Reconciler) createOrUpdateDatadogCSIDriver(ctx context.Context, logger 
 	// `existing`, so they are absent from the diff and preserved on the server. Without this,
 	// a spec-drift update could wipe the finalizer and a subsequent DDA delete / CSI disable
 	// landing before it was re-added would leak the cluster-scoped `k8s.csi.datadoghq.com`.
-	if !apiequality.Semantic.DeepEqual(existing.Spec, desired.Spec) {
+	if !apiequality.Semantic.DeepEqual(existing.Spec, desired.Spec) ||
+		!apiequality.Semantic.DeepEqual(existing.Labels, desired.Labels) ||
+		!apiequality.Semantic.DeepEqual(existing.Annotations, desired.Annotations) {
 		patchBase := existing.DeepCopy()
 		existing.Spec = desired.Spec
 		existing.Labels = desired.Labels
