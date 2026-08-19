@@ -120,6 +120,48 @@ func TestAPMProfileSharedConfigOverlay(t *testing.T) {
 			wantErr: `features.apm.instrumentation.injectionMode has conflicting values "init_container" and "csi"`,
 		},
 		{
+			name: "on-demand conflict rejects profile",
+			dst: func() *v2alpha1.DatadogAgentSpec {
+				spec := testProfileOverlayBaseSpec(true)
+				spec.Features.APM.SingleStepInstrumentation.OnDemand = ptr.To(true)
+				return spec
+			}(),
+			profile: testProfileOverlayProfileSpec(&v2alpha1.SingleStepInstrumentation{
+				Enabled:  ptr.To(true),
+				OnDemand: ptr.To(false),
+			}),
+			wantErr: "features.apm.instrumentation.onDemand has conflicting values",
+		},
+		{
+			name: "disabled base keeps on-demand opt-out",
+			dst: func() *v2alpha1.DatadogAgentSpec {
+				spec := testProfileOverlayBaseSpec(false)
+				spec.Features.APM.SingleStepInstrumentation.OnDemand = ptr.To(false)
+				return spec
+			}(),
+			profile: testProfileOverlayProfileSpec(&v2alpha1.SingleStepInstrumentation{
+				Enabled: ptr.To(true),
+			}),
+			want: &v2alpha1.SingleStepInstrumentation{
+				Enabled:           ptr.To(true),
+				OnDemand:          ptr.To(false),
+				LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: ptr.To(true)},
+			},
+		},
+		{
+			name: "disabled base on-demand conflict rejects profile",
+			dst: func() *v2alpha1.DatadogAgentSpec {
+				spec := testProfileOverlayBaseSpec(false)
+				spec.Features.APM.SingleStepInstrumentation.OnDemand = ptr.To(true)
+				return spec
+			}(),
+			profile: testProfileOverlayProfileSpec(&v2alpha1.SingleStepInstrumentation{
+				Enabled:  ptr.To(true),
+				OnDemand: ptr.To(false),
+			}),
+			wantErr: "features.apm.instrumentation.onDemand has conflicting values",
+		},
+		{
 			name: "targets append in order",
 			dst: func() *v2alpha1.DatadogAgentSpec {
 				spec := testProfileOverlayBaseSpec(true)

@@ -94,6 +94,7 @@ type apmFeature struct {
 
 type instrumentationConfig struct {
 	enabled            bool
+	onDemand           bool
 	enabledNamespaces  []string
 	disabledNamespaces []string
 	libVersions        map[string]string
@@ -200,6 +201,11 @@ func (f *apmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 	if shouldConfigureSSI(apm, ddaSpec) {
 		f.singleStepInstrumentation = &instrumentationConfig{}
 		f.singleStepInstrumentation.enabled = apiutils.BoolValue(apm.SingleStepInstrumentation.Enabled)
+		// Unset OnDemand matches the Agent/Helm default (true).
+		f.singleStepInstrumentation.onDemand = true
+		if apm.SingleStepInstrumentation.OnDemand != nil {
+			f.singleStepInstrumentation.onDemand = apiutils.BoolValue(apm.SingleStepInstrumentation.OnDemand)
+		}
 		f.singleStepInstrumentation.disabledNamespaces = apm.SingleStepInstrumentation.DisabledNamespaces
 		f.singleStepInstrumentation.enabledNamespaces = apm.SingleStepInstrumentation.EnabledNamespaces
 		f.singleStepInstrumentation.libVersions = apm.SingleStepInstrumentation.LibVersions
@@ -397,6 +403,10 @@ func (f *apmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) er
 		managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
 			Name:  DDAPMInstrumentationEnabled,
 			Value: apiutils.BoolToString(&f.singleStepInstrumentation.enabled),
+		})
+		managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
+			Name:  DDAPMInstrumentationOnDemand,
+			Value: apiutils.BoolToString(&f.singleStepInstrumentation.onDemand),
 		})
 
 		if f.shouldSetCustomInjectorImage() {
