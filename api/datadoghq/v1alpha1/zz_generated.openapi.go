@@ -556,9 +556,30 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogCSIDriverAPMConfig(re
 							Format:      "",
 						},
 					},
+					"pullSecrets": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "PullSecrets are kubernetes.io/dockerconfigjson Secrets used to download APM libraries from private registries. When empty, the CSI driver falls back to csiDriverImage.pullSecrets; legacy kubernetes.io/dockercfg Secrets are ignored for APM authentication in that fallback path. Restart the CSI DaemonSet after rotating these Secrets. Not supported on GKE Autopilot.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("k8s.io/api/core/v1.LocalObjectReference"),
+									},
+								},
+							},
+						},
+					},
 				},
 			},
 		},
+		Dependencies: []string{
+			"k8s.io/api/core/v1.LocalObjectReference"},
 	}
 }
 
