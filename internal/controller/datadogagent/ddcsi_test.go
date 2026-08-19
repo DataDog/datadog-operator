@@ -125,6 +125,41 @@ func TestReconcileDatadogCSIDriver_EnabledAndCreated(t *testing.T) {
 	assert.Equal(t, "datadog-agent-deployment", ddcsi.Labels[kubernetes.AppKubernetesNameLabelKey])
 }
 
+func TestReconcileDatadogCSIDriver_AutopilotAnnotationPropagated(t *testing.T) {
+	r := newTestReconcilerForDDCSI(testScheme(), platformInfoWithDDCSI())
+	dda := newDDAForDDCSI("test-dda", "default", true)
+	dda.Annotations = map[string]string{
+		kubernetes.ProviderAnnotationKey: kubernetes.GKEAutopilotProvider,
+	}
+
+	require.NoError(t, r.reconcileDatadogCSIDriver(context.Background(), r.log, dda))
+
+	ddcsi := &v1alpha1.DatadogCSIDriver{}
+	require.NoError(t, r.client.Get(context.Background(), types.NamespacedName{Name: "test-dda", Namespace: "default"}, ddcsi))
+	assert.Equal(t, kubernetes.GKEAutopilotProvider, ddcsi.Annotations[kubernetes.ProviderAnnotationKey])
+}
+
+func TestReconcileDatadogCSIDriver_APMPullSecretsPropagated(t *testing.T) {
+	r := newTestReconcilerForDDCSI(testScheme(), platformInfoWithDDCSI())
+	dda := newDDAForDDCSI("test-dda", "default", true)
+	dda.Spec.Global.CSI.APM = &v2alpha1.CSIAPMConfig{
+		PullSecrets: []corev1.LocalObjectReference{
+			{Name: "apm-registry"},
+			{Name: "extra-registry"},
+		},
+	}
+
+	require.NoError(t, r.reconcileDatadogCSIDriver(context.Background(), r.log, dda))
+
+	ddcsi := &v1alpha1.DatadogCSIDriver{}
+	require.NoError(t, r.client.Get(context.Background(), types.NamespacedName{Name: "test-dda", Namespace: "default"}, ddcsi))
+	require.NotNil(t, ddcsi.Spec.APM)
+	assert.Equal(t, []corev1.LocalObjectReference{
+		{Name: "apm-registry"},
+		{Name: "extra-registry"},
+	}, ddcsi.Spec.APM.PullSecrets)
+}
+
 func TestReconcileDatadogCSIDriver_SpecFromDDA(t *testing.T) {
 	r := newTestReconcilerForDDCSI(testScheme(), platformInfoWithDDCSI())
 	dda := newDDAForDDCSI("test-dda", "default", true)

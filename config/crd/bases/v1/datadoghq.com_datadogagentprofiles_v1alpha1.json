@@ -2798,6 +2798,31 @@
                   "additionalProperties": false,
                   "description": "CSI contains configuration for Datadog CSI Driver",
                   "properties": {
+                    "apm": {
+                      "additionalProperties": false,
+                      "description": "APM configures APM/Single Step Instrumentation settings for the managed CSI driver.",
+                      "properties": {
+                        "pullSecrets": {
+                          "description": "PullSecrets are kubernetes.io/dockerconfigjson Secrets used to download APM\nlibraries from private registries. Propagated to the managed DatadogCSIDriver as\nspec.apm.pullSecrets. Restart the CSI DaemonSet after rotating these Secrets.\nNot supported on GKE Autopilot.",
+                          "items": {
+                            "additionalProperties": false,
+                            "description": "LocalObjectReference contains enough information to let you locate the\nreferenced object inside the same namespace.",
+                            "properties": {
+                              "name": {
+                                "default": "",
+                                "description": "Name of the referent.\nThis field is effectively required, but due to backwards compatibility is\nallowed to be empty. Instances of this type with an empty value here are\nalmost certainly wrong.\nMore info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names",
+                                "type": "string"
+                              }
+                            },
+                            "type": "object",
+                            "x-kubernetes-map-type": "atomic"
+                          },
+                          "type": "array",
+                          "x-kubernetes-list-type": "atomic"
+                        }
+                      },
+                      "type": "object"
+                    },
                     "autoManage": {
                       "description": "AutoManage controls whether the operator automatically manages the DatadogCSIDriver\ncustom resource on behalf of this DatadogAgent. Set to false to hand ownership over to a\nDatadogCSIDriver CR that you maintain yourself (useful for migrations where you need\ncustomizations not exposed on the DatadogAgent spec). When toggled from true to false,\nthe operator cleans up the DDA-owned DatadogCSIDriver CR; you are then responsible for\nproviding a replacement so CSI continues to work.\nDefault: true",
                       "type": "boolean"

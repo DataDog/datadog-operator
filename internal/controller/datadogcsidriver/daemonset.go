@@ -19,6 +19,7 @@ import (
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/experimental"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/images"
 )
@@ -51,6 +52,7 @@ func buildDaemonSet(instance *datadoghqv1alpha1.DatadogCSIDriver) *appsv1.Daemon
 	volumes := buildVolumes(apmSocketDir, dsdSocketDir)
 	csiDriverContainer := buildCSIDriverContainer(instance, apmSocketPath, dsdSocketPath, apmSocketDir, dsdSocketDir)
 	registrarContainer := buildRegistrarContainer(instance)
+	imagePullSecrets := getCSIDriverImagePullSecrets(instance)
 
 	revisionHistoryLimit := int32(10)
 	ds := &appsv1.DaemonSet{
@@ -81,7 +83,8 @@ func buildDaemonSet(instance *datadoghqv1alpha1.DatadogCSIDriver) *appsv1.Daemon
 						csiDriverContainer,
 						registrarContainer,
 					},
-					Volumes: volumes,
+					Volumes:          volumes,
+					ImagePullSecrets: imagePullSecrets,
 				},
 			},
 		},
@@ -132,7 +135,7 @@ func buildCSIDriverContainer(instance *datadoghqv1alpha1.DatadogCSIDriver, apmSo
 			fmt.Sprintf("--apm-host-socket-path=%s", apmSocketPath),
 			fmt.Sprintf("--dsd-host-socket-path=%s", dsdSocketPath),
 		},
-		Env: []corev1.EnvVar{
+		Env: append([]corev1.EnvVar{
 			{
 				Name: envNodeID,
 				ValueFrom: &corev1.EnvVarSource{
@@ -145,7 +148,7 @@ func buildCSIDriverContainer(instance *datadoghqv1alpha1.DatadogCSIDriver, apmSo
 				Name:  constants.DDAPMEnabled,
 				Value: getAPMEnabledString(instance),
 			},
-		},
+		}, buildRegistryAuthEnvVars(instance)...),
 		Ports: []corev1.ContainerPort{
 			{
 				ContainerPort: csiDriverPort,
@@ -545,4 +548,52 @@ func getAPMEnabled(instance *datadoghqv1alpha1.DatadogCSIDriver) bool {
 
 func getAPMEnabledString(instance *datadoghqv1alpha1.DatadogCSIDriver) string {
 	return strconv.FormatBool(getAPMEnabled(instance))
+}
+
+func getCSIDriverImagePullSecrets(instance *datadoghqv1alpha1.DatadogCSIDriver) []corev1.LocalObjectReference {
+	if instance.Spec.CSIDriverImage == nil || instance.Spec.CSIDriverImage.PullSecrets == nil {
+		return nil
+	}
+	return append([]corev1.LocalObjectReference(nil), (*instance.Spec.CSIDriverImage.PullSecrets)...)
+}
+
+// registryAuthSecrets returns the Secrets used for APM library registry authentication
+// and whether the .dockerconfigjson key should be optional.
+// Dedicated APM pull secrets are required (optional=false). When falling back to
+// csiDriverImage.pullSecrets the key is optional so legacy kubernetes.io/dockercfg
+// Secrets do not block the DaemonSet.
+func registryAuthSecrets(instance *datadoghqv1alpha1.DatadogCSIDriver) (secrets []corev1.LocalObjectReference, optional bool) {
+	if instance.Spec.APM != nil && len(instance.Spec.APM.PullSecrets) > 0 {
+		return append([]corev1.LocalObjectReference(nil), instance.Spec.APM.PullSecrets...), false
+	}
+	return getCSIDriverImagePullSecrets(instance), true
+}
+
+// buildRegistryAuthEnvVars emits DD_APM_REGISTRY_AUTH_<n> secret references, matching the
+// Helm chart. Skipped when APM is disabled or on GKE Autopilot (not covered by the
+// published WorkloadAllowlist).
+func buildRegistryAuthEnvVars(instance *datadoghqv1alpha1.DatadogCSIDriver) []corev1.EnvVar {
+	if !getAPMEnabled(instance) || experimental.IsAutopilotEnabled(instance) {
+		return nil
+	}
+
+	secrets, optional := registryAuthSecrets(instance)
+	if len(secrets) == 0 {
+		return nil
+	}
+
+	envVars := make([]corev1.EnvVar, 0, len(secrets))
+	for index, secret := range secrets {
+		envVars = append(envVars, corev1.EnvVar{
+			Name: fmt.Sprintf("%s%d", envAPMRegistryAuthPrefix, index),
+			ValueFrom: &corev1.EnvVarSource{
+				SecretKeyRef: &corev1.SecretKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{Name: secret.Name},
+					Key:                  dockerConfigJSONKey,
+					Optional:             new(optional),
+				},
+			},
+		})
+	}
+	return envVars
 }

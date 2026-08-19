@@ -65,6 +65,15 @@ type DatadogCSIDriverAPMConfig struct {
 	// Default: true
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
+
+	// PullSecrets are kubernetes.io/dockerconfigjson Secrets used to download APM
+	// libraries from private registries. When empty, the CSI driver falls back to
+	// csiDriverImage.pullSecrets; legacy kubernetes.io/dockercfg Secrets are ignored
+	// for APM authentication in that fallback path. Restart the CSI DaemonSet after
+	// rotating these Secrets. Not supported on GKE Autopilot.
+	// +optional
+	// +listType=atomic
+	PullSecrets []corev1.LocalObjectReference `json:"pullSecrets,omitempty"`
 }
 
 // DatadogCSIDriverOverride provides override capabilities for the CSI driver DaemonSet.

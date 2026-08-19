@@ -199,64 +199,6 @@ func UpdateDeploymentStatus(dep *appsv1.Deployment, depStatus *v2alpha1.Deployme
 	return depStatus
 }
 
-// UpdateDaemonSetStatus updates a daemonset's DaemonSetStatus
-func UpdateDaemonSetStatus(dsName string, ds *appsv1.DaemonSet, dsStatus []*v2alpha1.DaemonSetStatus, updateTime *metav1.Time) []*v2alpha1.DaemonSetStatus {
-	if dsStatus == nil {
-		dsStatus = []*v2alpha1.DaemonSetStatus{}
-	}
-
-	var newStatus v2alpha1.DaemonSetStatus
-	if ds == nil {
-		newStatus = v2alpha1.DaemonSetStatus{
-			State:         string(DatadogAgentStateFailed),
-			Status:        string(DatadogAgentStateFailed),
-			DaemonsetName: dsName,
-		}
-	} else {
-		newStatus = v2alpha1.DaemonSetStatus{
-			Desired:       ds.Status.DesiredNumberScheduled,
-			Current:       ds.Status.CurrentNumberScheduled,
-			Ready:         ds.Status.NumberReady,
-			Available:     ds.Status.NumberAvailable,
-			UpToDate:      ds.Status.UpdatedNumberScheduled,
-			DaemonsetName: ds.ObjectMeta.Name,
-		}
-		if updateTime != nil {
-			newStatus.LastUpdate = updateTime
-		}
-		if hash, ok := ds.Annotations[constants.MD5AgentDeploymentAnnotationKey]; ok {
-			newStatus.CurrentHash = hash
-		}
-
-		var deploymentState DatadogAgentState
-		switch {
-		case newStatus.UpToDate != newStatus.Desired:
-			deploymentState = DatadogAgentStateUpdating
-		case newStatus.Ready == 0 && newStatus.Desired != 0:
-			deploymentState = DatadogAgentStateProgressing
-		default:
-			deploymentState = DatadogAgentStateRunning
-		}
-
-		newStatus.State = fmt.Sprintf("%v", deploymentState)
-		newStatus.Status = fmt.Sprintf("%v (%d/%d/%d)", deploymentState, newStatus.Desired, newStatus.Ready, newStatus.UpToDate)
-	}
-
-	// match ds name to ds status
-	found := false
-	for id := range dsStatus {
-		if dsStatus[id].DaemonsetName == newStatus.DaemonsetName {
-			*dsStatus[id] = newStatus
-			found = true
-		}
-	}
-	if !found {
-		dsStatus = append(dsStatus, &newStatus)
-	}
-
-	return dsStatus
-}
-
 // UpdateDaemonSetStatusDDAI updates a daemonset's DaemonSetStatus
 func UpdateDaemonSetStatusDDAI(dsName string, ds *appsv1.DaemonSet, dsStatus *v2alpha1.DaemonSetStatus, updateTime *metav1.Time) *v2alpha1.DaemonSetStatus {
 	if dsStatus == nil {
@@ -298,58 +240,6 @@ func UpdateDaemonSetStatusDDAI(dsName string, ds *appsv1.DaemonSet, dsStatus *v2
 	return dsStatus
 }
 
-// UpdateExtendedDaemonSetStatus updates an ExtendedDaemonSet's DaemonSetStatus
-func UpdateExtendedDaemonSetStatus(eds *edsdatadoghqv1alpha1.ExtendedDaemonSet, dsStatus []*v2alpha1.DaemonSetStatus, updateTime *metav1.Time) []*v2alpha1.DaemonSetStatus {
-	if dsStatus == nil {
-		dsStatus = []*v2alpha1.DaemonSetStatus{}
-	}
-
-	newStatus := v2alpha1.DaemonSetStatus{
-		Desired:       eds.Status.Desired,
-		Current:       eds.Status.Current,
-		Ready:         eds.Status.Ready,
-		Available:     eds.Status.Available,
-		UpToDate:      eds.Status.UpToDate,
-		DaemonsetName: eds.ObjectMeta.Name,
-	}
-
-	if updateTime != nil {
-		newStatus.LastUpdate = updateTime
-	}
-	if hash, ok := eds.Annotations[constants.MD5AgentDeploymentAnnotationKey]; ok {
-		newStatus.CurrentHash = hash
-	}
-
-	var deploymentState DatadogAgentState
-	switch {
-	case eds.Status.Canary != nil:
-		deploymentState = DatadogAgentStateCanary
-	case newStatus.UpToDate != newStatus.Desired:
-		deploymentState = DatadogAgentStateUpdating
-	case newStatus.Ready == 0 && newStatus.Desired != 0:
-		deploymentState = DatadogAgentStateProgressing
-	default:
-		deploymentState = DatadogAgentStateRunning
-	}
-
-	newStatus.State = fmt.Sprintf("%v", deploymentState)
-	newStatus.Status = fmt.Sprintf("%v (%d/%d/%d)", deploymentState, newStatus.Desired, newStatus.Ready, newStatus.UpToDate)
-
-	// match eds name to eds status
-	found := false
-	for id := range dsStatus {
-		if dsStatus[id].DaemonsetName == newStatus.DaemonsetName {
-			*dsStatus[id] = newStatus
-			found = true
-		}
-	}
-	if !found {
-		dsStatus = append(dsStatus, &newStatus)
-	}
-
-	return dsStatus
-}
-
 // UpdateExtendedDaemonSetStatusDDAI updates an ExtendedDaemonSet's DaemonSetStatus
 func UpdateExtendedDaemonSetStatusDDAI(eds *edsdatadoghqv1alpha1.ExtendedDaemonSet, dsStatus *v2alpha1.DaemonSetStatus, updateTime *metav1.Time) *v2alpha1.DaemonSetStatus {
 	if dsStatus == nil {
@@ -386,29 +276,6 @@ func UpdateExtendedDaemonSetStatusDDAI(eds *edsdatadoghqv1alpha1.ExtendedDaemonS
 	dsStatus.Status = fmt.Sprintf("%v (%d/%d/%d)", deploymentState, dsStatus.Desired, dsStatus.Ready, dsStatus.UpToDate)
 
 	return dsStatus
-}
-
-// UpdateCombinedDaemonSetStatus combines the status of multiple DaemonSetStatus
-func UpdateCombinedDaemonSetStatus(dsStatus []*v2alpha1.DaemonSetStatus) *v2alpha1.DaemonSetStatus {
-	combinedStatus := v2alpha1.DaemonSetStatus{}
-	if len(dsStatus) == 0 {
-		return &combinedStatus
-	}
-
-	for _, status := range dsStatus {
-		combinedStatus.Desired += status.Desired
-		combinedStatus.Current += status.Current
-		combinedStatus.Ready += status.Ready
-		combinedStatus.Available += status.Available
-		combinedStatus.UpToDate += status.UpToDate
-		if combinedStatus.LastUpdate.Before(status.LastUpdate) {
-			combinedStatus.LastUpdate = status.LastUpdate
-		}
-		combinedStatus.State = getCombinedState(combinedStatus.State, status.State)
-		combinedStatus.Status = fmt.Sprintf("%v (%d/%d/%d)", combinedStatus.State, combinedStatus.Desired, combinedStatus.Ready, combinedStatus.UpToDate)
-	}
-
-	return &combinedStatus
 }
 
 func getCombinedState(currentState, newState string) string {
