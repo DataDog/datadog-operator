@@ -1083,7 +1083,7 @@ func TestApplyDeprecationRules(t *testing.T) {
 func TestMappingProcessors(t *testing.T) {
 	// Test that all mapping processors are properly registered
 	t.Run("mapFuncRegistry_dict", func(t *testing.T) {
-		expectedFuncs := []string{"mapSecretKeyName", "mapSeccompProfile", "mapSystemProbeAppArmor", "mapLocalServiceName", "mapAppendEnvVar", "mapMergeEnvs", "mapOverrideType"}
+		expectedFuncs := []string{"mapSecretKeyName", "mapSeccompProfile", "mapSystemProbeAppArmor", "mapLocalServiceName", "mapAppendEnvVar", "mapMergeEnvs", "mapOverrideType", "mapCustomConfigFile"}
 		mapFuncs := mapFuncRegistry()
 
 		for _, funcName := range expectedFuncs {

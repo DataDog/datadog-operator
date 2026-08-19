@@ -201,7 +201,7 @@ func (m *Mapper) mapValues(sourceValues chartutil.Values, mappingValues chartuti
 		if pathVal == nil {
 			if mapVal, ok := utils.GetPathMap(sourceValues[sourceKey]); ok && mapVal != nil {
 				pathVal = mapVal
-			} else if tableVal, err := sourceValues.Table(sourceKey); err == nil && len(tableVal) == 1 {
+			} else if tableVal, err := sourceValues.Table(sourceKey); err == nil && len(tableVal) > 0 {
 				pathVal = tableVal
 			} else {
 				continue

@@ -90,7 +90,11 @@ agents.containers.traceAgent.logLevel: spec.override.nodeAgent.containers.trace-
 agents.containers.traceAgent.ports: spec.override.nodeAgent.containers.trace-agent.ports
 agents.containers.traceAgent.resources: spec.override.nodeAgent.containers.trace-agent.resources
 agents.containers.traceAgent.securityContext: spec.override.nodeAgent.containers.trace-agent.securityContext
-agents.customAgentConfig: spec.override.nodeAgent.customConfigurations.datadog.yaml.configData
+agents.customAgentConfig:
+  mapFunc: mapCustomConfigFile
+  newPath: spec.override.nodeAgent.customConfigurations
+  args:
+  - fileName: datadog.yaml
 agents.daemonsetAnnotations: spec.override.nodeAgent.annotations
 agents.dnsConfig: spec.override.nodeAgent.dnsConfig
 agents.enabled: ""
@@ -188,7 +192,11 @@ clusterAgent.containers.clusterAgent.securityContext.allowPrivilegeEscalation: s
 clusterAgent.containers.clusterAgent.securityContext.readOnlyRootFilesystem: spec.override.clusterAgent.containers.clusterAgent.securityContext.readOnlyRootFilesystem
 clusterAgent.containers.initContainer.securityContext: spec.override.clusterAgent.containers.init-config.securityContext
 clusterAgent.createPodDisruptionBudget: ""
-clusterAgent.datadog_cluster_yaml: spec.override.clusterAgent.customConfigurations.datadog-cluster.yaml.configData
+clusterAgent.datadog_cluster_yaml:
+  mapFunc: mapCustomConfigFile
+  newPath: spec.override.clusterAgent.customConfigurations
+  args:
+  - fileName: datadog-cluster.yaml
 clusterAgent.deploymentAnnotations: spec.override.clusterAgent.annotations
 clusterAgent.dnsConfig: spec.override.clusterAgent.dnsConfig
 clusterAgent.enabled: ""
