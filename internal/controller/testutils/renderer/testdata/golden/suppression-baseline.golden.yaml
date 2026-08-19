@@ -1033,7 +1033,7 @@ apiVersion: datadoghq.com/v1alpha1
 kind: DatadogAgentInternal
 metadata:
   annotations:
-    agent.datadoghq.com/ddaispechash: 5eba754bd6a44be78e2dfde7b71c0aff
+    agent.datadoghq.com/ddaispechash: e18f29a6ccd3a74ff1213994b249d051
   finalizers:
   - finalizer.datadoghq.com/datadogagentinternal
   labels:
@@ -1072,6 +1072,7 @@ spec:
         injector: {}
         languageDetection:
           enabled: true
+        onDemand: true
       unixDomainSocketConfig:
         enabled: true
         path: /var/run/datadog/apm.socket
@@ -1849,7 +1850,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: 213f10c811c401893367317e36fe443f
+    agent.datadoghq.com/agentspechash: e67d0c1c6c01fb30e7d3d19d2906c2e9
   labels:
     agent.datadoghq.com/component: cluster-agent
     agent.datadoghq.com/name: datadog-agent
@@ -1998,6 +1999,8 @@ spec:
           value: /var/run/datadog/apm.socket
         - name: DD_APM_INSTRUMENTATION_ENABLED
           value: "false"
+        - name: DD_APM_INSTRUMENTATION_ON_DEMAND
+          value: "true"
         - name: DD_CLUSTER_CHECKS_ENABLED
           value: "true"
         - name: DD_EXTRA_CONFIG_PROVIDERS

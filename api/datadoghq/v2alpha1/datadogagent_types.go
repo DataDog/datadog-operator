@@ -205,6 +205,13 @@ type SingleStepInstrumentation struct {
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 
+	// OnDemand keeps the SSI admission webhook available for runtime workload
+	// selection (annotations and Remote Config APM_POLICIES) when cluster-wide
+	// instrumentation is disabled. Matches the Agent and Helm chart default (true).
+	// Default: true
+	// +optional
+	OnDemand *bool `json:"onDemand,omitempty"`
+
 	// EnabledNamespaces enables injecting the Datadog APM libraries into pods in specific namespaces.
 	// +optional
 	// +listType=set

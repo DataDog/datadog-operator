@@ -348,6 +348,7 @@ datadog.apm.errorTrackingStandalone.enabled: spec.features.apm.errorTrackingStan
 datadog.apm.hostSocketPath: spec.features.apm.unixDomainSocketConfig.path
 datadog.apm.instrumentation.disabledNamespaces: spec.features.apm.instrumentation.disabledNamespaces
 datadog.apm.instrumentation.enabled: spec.features.apm.instrumentation.enabled
+datadog.apm.instrumentation.onDemand: spec.features.apm.instrumentation.onDemand
 datadog.apm.instrumentation.enabledNamespaces: spec.features.apm.instrumentation.enabledNamespaces
 datadog.apm.instrumentation.injector.imageTag: spec.features.apm.instrumentation.injector.imageTag
 datadog.apm.instrumentation.language_detection.enabled: spec.features.apm.instrumentation.languageDetection.enabled
