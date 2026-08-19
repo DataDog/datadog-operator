@@ -1,3 +1,10 @@
+// Package evict implements the `kubectl datadog autoscaling cluster
+// evict-legacy-nodes` subcommand. It drains workloads from nodes that are not
+// managed by the Datadog Karpenter NodePools (cluster-autoscaler ASGs, EKS
+// managed node groups, user-created Karpenter NodePools, standalone EC2
+// instances) and removes those node groups so that future capacity is
+// provisioned exclusively by the NodePools created by
+// `kubectl datadog autoscaling cluster install`.
 package evict
 
 import (
@@ -39,6 +46,7 @@ type options struct {
 	targets            []Target // populated by validate()
 	skipCA             bool
 	ensurePDBs         bool
+	force              bool
 	evictionTimeout    time.Duration
 	nodeTimeout        time.Duration
 	dryRun             bool
@@ -82,6 +90,7 @@ func New(streams genericclioptions.IOStreams) *cobra.Command {
 	cmd.Flags().StringSliceVar(&o.targetSpecs, "target", nil, "Target a specific node group: <manager>/<name>, with <manager> one of asg, eksManagedNodeGroup, karpenter. Use `standalone` (no name) for standalone EC2 instances. Repeatable. Mutually exclusive with --all.")
 	cmd.Flags().BoolVar(&o.skipCA, "skip-cluster-autoscaler", false, "Do not scale the cluster-autoscaler Deployment to 0 replicas as step 1")
 	cmd.Flags().BoolVar(&o.ensurePDBs, "ensure-pdbs", true, "Create temporary PodDisruptionBudgets (maxUnavailable: 1) for workloads without one, and remove them at the end")
+	cmd.Flags().BoolVar(&o.force, "force", false, "Evict pods not managed by a controller (bare pods); without it, a node hosting such pods is left intact")
 	cmd.Flags().DurationVar(&o.evictionTimeout, "eviction-timeout", 5*time.Minute, "Time budget per pod for the Eviction API to succeed before giving up (PDB-blocked pods)")
 	cmd.Flags().DurationVar(&o.nodeTimeout, "node-timeout", 15*time.Minute, "Time budget per node for it to become empty after pods have been evicted")
 	cmd.Flags().BoolVar(&o.dryRun, "dry-run", false, "Log the actions that would be taken without performing them")
@@ -148,6 +157,7 @@ func (o *options) run() error {
 		Targets:            o.targets,
 		SkipCA:             o.skipCA,
 		EnsurePDBs:         o.ensurePDBs,
+		Force:              o.force,
 		DryRun:             o.dryRun,
 		Yes:                o.yes,
 		EvictionTimeout:    o.evictionTimeout,
