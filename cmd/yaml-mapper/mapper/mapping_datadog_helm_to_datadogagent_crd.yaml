@@ -180,7 +180,7 @@ clusterAgent.admissionController.webhookName: spec.features.admissionController.
 clusterAgent.advancedConfd: spec.override.clusterAgent.extraConfd.configData
 clusterAgent.affinity: spec.override.clusterAgent.affinity
 clusterAgent.command: spec.override.clusterAgent.containers.cluster-agent.command
-clusterAgent.confd: spec.override.clusterAgent.extraConfd
+clusterAgent.confd: spec.override.clusterAgent.extraConfd.configDataMap
 clusterAgent.containerExclude: ""
 clusterAgent.containerInclude: ""
 clusterAgent.containers.clusterAgent.securityContext: spec.override.clusterAgent.containers.clusterAgent.securityContext
@@ -485,10 +485,7 @@ datadog.orchestratorExplorer.customResources: spec.features.orchestratorExplorer
 datadog.orchestratorExplorer.enabled: spec.features.orchestratorExplorer.enabled
 datadog.originDetectionUnified.enabled: spec.global.originDetectionUnified.enabled
 datadog.osReleasePath: ""
-datadog.otelCollector.config:
-- spec.features.otelCollector.conf.configMap.items
-- spec.features.otelCollector.conf.configMap.name
-- spec.features.otelCollector.conf.configData
+datadog.otelCollector.config: spec.features.otelCollector.conf.configData
 datadog.otelCollector.configMap.items: spec.features.otelCollector.conf.configMap.items
 datadog.otelCollector.configMap.key: ""
 datadog.otelCollector.configMap.name: spec.features.otelCollector.conf.configMap.name
