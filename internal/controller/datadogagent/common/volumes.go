@@ -49,7 +49,7 @@ func GetVolumeForChecksd() corev1.Volume {
 // GetVolumeForRmCorechecks return the volume that overwrites the corecheck directory
 func GetVolumeForRmCorechecks() corev1.Volume {
 	return corev1.Volume{
-		Name: "remove-corechecks",
+		Name: RmCorechecksVolumeName,
 		VolumeSource: corev1.VolumeSource{
 			EmptyDir: &corev1.EmptyDirVolumeSource{},
 		},
@@ -171,8 +171,19 @@ func GetVolumeMountForChecksd() corev1.VolumeMount {
 // GetVolumeMountForRmCorechecks return the VolumeMount that overwrites the corechecks directory
 func GetVolumeMountForRmCorechecks() corev1.VolumeMount {
 	return corev1.VolumeMount{
-		Name:      "remove-corechecks",
+		Name:      RmCorechecksVolumeName,
 		MountPath: fmt.Sprintf("%s/%s", ConfigVolumePath, "conf.d"),
+	}
+}
+
+// GetVolumeMountForRmCorechecksInit return the VolumeMount used by the init
+// container that seeds the remove-corechecks overlay. It is mounted at a scratch
+// path (not over the agent conf.d) so the init container can read the packaged
+// conf.d assets from the agent image and copy them into the overlay.
+func GetVolumeMountForRmCorechecksInit() corev1.VolumeMount {
+	return corev1.VolumeMount{
+		Name:      RmCorechecksVolumeName,
+		MountPath: RmCorechecksConfdInitPath,
 	}
 }
 
