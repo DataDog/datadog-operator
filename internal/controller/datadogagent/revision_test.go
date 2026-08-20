@@ -24,6 +24,62 @@ import (
 	v2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 )
 
+// manageRevision is a test-only shim retained after the production wrapper
+// was inlined into reconcileInstanceV3 in the Phase 7 deletion sweep. It runs
+// the same ensure+gc pair the reconciler runs during a normal reconcile;
+// keeping it here avoids rewriting ~30 test callsites in one go.
+func (r *Reconciler) manageRevision(ctx context.Context, instance *v2alpha1.DatadogAgent, rawSpec v2alpha1.DatadogAgentSpec, revList []appsv1.ControllerRevision, _ *v2alpha1.DatadogAgentStatus) error {
+	revName, err := r.ensureRevision(ctx, instance, rawSpec, revList)
+	if err != nil {
+		return err
+	}
+	return r.gcOldRevisions(ctx, revName, revList)
+}
+
+// Test-only stubs for the revision-annotation machinery removed in the
+// Phase 7 deletion sweep. Some tests reference these symbols inside
+// t.Skip()'d bodies (skipped at runtime but still compiled); providing
+// no-op equivalents here lets those files build without wholesale test
+// deletion. Tests exercising this machinery are Phase 8 delete-worthy.
+const annotationExperimentState = "operator.datadoghq.com/experiment-state"
+
+type experimentRevisionState string
+
+const (
+	experimentRevisionStatePromoted   experimentRevisionState = "promoted"
+	experimentRevisionStateRolledBack experimentRevisionState = "rolled-back"
+)
+
+func revisionExperimentState(rev *appsv1.ControllerRevision) experimentRevisionState {
+	if rev == nil {
+		return ""
+	}
+	return experimentRevisionState(rev.Annotations[annotationExperimentState])
+}
+
+func (r *Reconciler) markRevisionState(_ context.Context, _ *appsv1.ControllerRevision, _ experimentRevisionState) {
+	// no-op; kept only so obsolete tests compile
+}
+
+// findRollbackTarget is a test-only fallback retained for pre-checkpoint tests
+// that seeded rollback via revision-number ordering. Production code now uses
+// Status.Experiment.RollbackTargetRevision exclusively.
+func findRollbackTarget(revisions []appsv1.ControllerRevision) string {
+	var curRev, prevRev int64 = -1, -1
+	var curName, prevName string
+	for i := range revisions {
+		rev := &revisions[i]
+		if rev.Revision > curRev {
+			prevRev, prevName = curRev, curName
+			curRev, curName = rev.Revision, rev.Name
+		} else if rev.Revision > prevRev {
+			prevRev, prevName = rev.Revision, rev.Name
+		}
+	}
+	_ = prevRev
+	return prevName
+}
+
 func newRevisionTestScheme(t *testing.T) *runtime.Scheme {
 	t.Helper()
 	s := runtime.NewScheme()
@@ -72,7 +128,7 @@ func TestEnsureRevision_CreatesOnFirstCall(t *testing.T) {
 	r, c := newRevisionTestReconciler(t)
 	instance := newRevisionTestOwner("test-dda", "default")
 
-	name, err := r.ensureRevision(context.Background(), instance, instance.Spec, mustListRevisions(t, r, instance), false)
+	name, err := r.ensureRevision(context.Background(), instance, instance.Spec, mustListRevisions(t, r, instance))
 	require.NoError(t, err)
 	assert.NotEmpty(t, name)
 
@@ -88,9 +144,9 @@ func TestEnsureRevision_Idempotent(t *testing.T) {
 	instance := newRevisionTestOwner("test-dda", "default")
 	instance.Annotations = map[string]string{"foo": "bar"}
 
-	name1, err := r.ensureRevision(context.Background(), instance, instance.Spec, mustListRevisions(t, r, instance), false)
+	name1, err := r.ensureRevision(context.Background(), instance, instance.Spec, mustListRevisions(t, r, instance))
 	require.NoError(t, err)
-	name2, err := r.ensureRevision(context.Background(), instance, instance.Spec, mustListRevisions(t, r, instance), false)
+	name2, err := r.ensureRevision(context.Background(), instance, instance.Spec, mustListRevisions(t, r, instance))
 	require.NoError(t, err)
 
 	assert.Equal(t, name1, name2)
@@ -112,7 +168,7 @@ func TestEnsureRevision_StoresRawSpecNotInstanceSpec(t *testing.T) {
 	// instance.Spec carries a defaulted field the raw spec never set.
 	instance.Spec.Global = &v2alpha1.GlobalConfig{Site: ptr.To("datadoghq.com")}
 
-	name, err := r.ensureRevision(context.Background(), instance, rawSpec, mustListRevisions(t, r, instance), false)
+	name, err := r.ensureRevision(context.Background(), instance, rawSpec, mustListRevisions(t, r, instance))
 	require.NoError(t, err)
 
 	rev := fetchRevisionByName(t, c, "default", name)
@@ -128,9 +184,9 @@ func TestEnsureRevision_DifferentSpecsDifferentNames(t *testing.T) {
 	instanceB := newRevisionTestOwner("test-dda", "default")
 	instanceB.Spec = v2alpha1.DatadogAgentSpec{Global: &v2alpha1.GlobalConfig{}}
 
-	name1, err := r.ensureRevision(context.Background(), instanceA, instanceA.Spec, mustListRevisions(t, r, instanceA), false)
+	name1, err := r.ensureRevision(context.Background(), instanceA, instanceA.Spec, mustListRevisions(t, r, instanceA))
 	require.NoError(t, err)
-	name2, err := r.ensureRevision(context.Background(), instanceB, instanceB.Spec, mustListRevisions(t, r, instanceB), false)
+	name2, err := r.ensureRevision(context.Background(), instanceB, instanceB.Spec, mustListRevisions(t, r, instanceB))
 	require.NoError(t, err)
 
 	assert.NotEqual(t, name1, name2)
@@ -143,9 +199,9 @@ func TestEnsureRevision_DifferentAnnotationsDifferentNames(t *testing.T) {
 	instanceB := newRevisionTestOwner("test-dda", "default")
 	instanceB.Annotations = map[string]string{"feature.datadoghq.com/beta": "true"}
 
-	name1, err := r.ensureRevision(context.Background(), instanceA, instanceA.Spec, mustListRevisions(t, r, instanceA), false)
+	name1, err := r.ensureRevision(context.Background(), instanceA, instanceA.Spec, mustListRevisions(t, r, instanceA))
 	require.NoError(t, err)
-	name2, err := r.ensureRevision(context.Background(), instanceB, instanceB.Spec, mustListRevisions(t, r, instanceB), false)
+	name2, err := r.ensureRevision(context.Background(), instanceB, instanceB.Spec, mustListRevisions(t, r, instanceB))
 	require.NoError(t, err)
 
 	assert.NotEqual(t, name1, name2)
@@ -165,9 +221,9 @@ func TestEnsureRevision_NonDatadogAnnotationsIgnored(t *testing.T) {
 		"some-other-tool/annotation":                       "value",
 	}
 
-	name1, err := r.ensureRevision(context.Background(), instanceA, instanceA.Spec, mustListRevisions(t, r, instanceA), false)
+	name1, err := r.ensureRevision(context.Background(), instanceA, instanceA.Spec, mustListRevisions(t, r, instanceA))
 	require.NoError(t, err)
-	name2, err := r.ensureRevision(context.Background(), instanceB, instanceB.Spec, mustListRevisions(t, r, instanceB), false)
+	name2, err := r.ensureRevision(context.Background(), instanceB, instanceB.Spec, mustListRevisions(t, r, instanceB))
 	require.NoError(t, err)
 
 	assert.Equal(t, name1, name2, "non-datadoghq annotations should not affect the revision snapshot")
@@ -191,7 +247,7 @@ func TestGCOldRevisions_KeepsCurrentAndPrevious(t *testing.T) {
 	}
 	names := make([]string, len(instances))
 	for i, inst := range instances {
-		name, err := r.ensureRevision(context.Background(), inst, inst.Spec, mustListRevisions(t, r, inst), false)
+		name, err := r.ensureRevision(context.Background(), inst, inst.Spec, mustListRevisions(t, r, inst))
 		require.NoError(t, err)
 		names[i] = name
 	}
@@ -219,13 +275,13 @@ func TestEnsureRevision_RevertBumpsRevision(t *testing.T) {
 	instanceB := newRevisionTestOwner("test-dda", "default")
 	instanceB.Spec = v2alpha1.DatadogAgentSpec{Global: &v2alpha1.GlobalConfig{}}
 
-	name1, err := r.ensureRevision(context.Background(), instanceA, instanceA.Spec, mustListRevisions(t, r, instanceA), false)
+	name1, err := r.ensureRevision(context.Background(), instanceA, instanceA.Spec, mustListRevisions(t, r, instanceA))
 	require.NoError(t, err)
-	_, err = r.ensureRevision(context.Background(), instanceB, instanceB.Spec, mustListRevisions(t, r, instanceB), false)
+	_, err = r.ensureRevision(context.Background(), instanceB, instanceB.Spec, mustListRevisions(t, r, instanceB))
 	require.NoError(t, err)
 
 	// Revert to spec A — should reuse name1 but bump its Revision.
-	name3, err := r.ensureRevision(context.Background(), instanceA, instanceA.Spec, mustListRevisions(t, r, instanceA), false)
+	name3, err := r.ensureRevision(context.Background(), instanceA, instanceA.Spec, mustListRevisions(t, r, instanceA))
 	require.NoError(t, err)
 	assert.Equal(t, name1, name3, "revert should reuse same CR name")
 
@@ -240,9 +296,9 @@ func TestGCOldRevisions_KeepsTwoRevisions(t *testing.T) {
 	instanceB := newRevisionTestOwner("test-dda", "default")
 	instanceB.Spec = v2alpha1.DatadogAgentSpec{Global: &v2alpha1.GlobalConfig{}}
 
-	_, err := r.ensureRevision(context.Background(), instanceA, instanceA.Spec, mustListRevisions(t, r, instanceA), false)
+	_, err := r.ensureRevision(context.Background(), instanceA, instanceA.Spec, mustListRevisions(t, r, instanceA))
 	require.NoError(t, err)
-	name2, err := r.ensureRevision(context.Background(), instanceB, instanceB.Spec, mustListRevisions(t, r, instanceB), false)
+	name2, err := r.ensureRevision(context.Background(), instanceB, instanceB.Spec, mustListRevisions(t, r, instanceB))
 	require.NoError(t, err)
 
 	err = r.gcOldRevisions(context.Background(), name2, mustListRevisions(t, r, instanceB))
@@ -272,7 +328,7 @@ func TestEnsureRevision_RevisionNumbersMonotonic(t *testing.T) {
 
 	names := make([]string, len(instances))
 	for i, inst := range instances {
-		name, err := r.ensureRevision(context.Background(), inst, inst.Spec, mustListRevisions(t, r, inst), false)
+		name, err := r.ensureRevision(context.Background(), inst, inst.Spec, mustListRevisions(t, r, inst))
 		require.NoError(t, err)
 		names[i] = name
 	}
@@ -287,7 +343,7 @@ func TestGCOldRevisions_NoPreviousWhenOnlyCurrent(t *testing.T) {
 	r, c := newRevisionTestReconciler(t)
 	instance := newRevisionTestOwner("test-dda", "default")
 
-	revName, err := r.ensureRevision(context.Background(), instance, instance.Spec, mustListRevisions(t, r, instance), false)
+	revName, err := r.ensureRevision(context.Background(), instance, instance.Spec, mustListRevisions(t, r, instance))
 	require.NoError(t, err)
 
 	err = r.gcOldRevisions(context.Background(), revName, mustListRevisions(t, r, instance))
@@ -307,7 +363,7 @@ func TestGCOldRevisions_DeletesMultipleOld(t *testing.T) {
 	for i, site := range sites {
 		inst := newRevisionTestOwner("test-dda", "default")
 		inst.Spec = v2alpha1.DatadogAgentSpec{Global: &v2alpha1.GlobalConfig{Site: ptr.To(site)}}
-		name, err := r.ensureRevision(context.Background(), inst, inst.Spec, mustListRevisions(t, r, inst), false)
+		name, err := r.ensureRevision(context.Background(), inst, inst.Spec, mustListRevisions(t, r, inst))
 		require.NoError(t, err)
 		names[i] = name
 	}
@@ -435,15 +491,16 @@ func TestManageRevision_PreviousDeletedContinuesNormally(t *testing.T) {
 // it to get a fresh CreationTimestamp. This prevents an immediate timeout when
 // the same experiment spec is re-applied after a previous experiment was rejected.
 func TestEnsureRevision_RecreatesRolledBackRevision(t *testing.T) {
+	t.Skip("recreateRevision deleted under checkpoint model")
 	r, c := newRevisionTestReconciler(t)
 
 	instanceA := newRevisionTestOwner("test-dda", "default")
 	instanceB := newRevisionTestOwner("test-dda", "default")
 	instanceB.Spec = v2alpha1.DatadogAgentSpec{Global: &v2alpha1.GlobalConfig{}}
 
-	_, err := r.ensureRevision(context.Background(), instanceA, instanceA.Spec, mustListRevisions(t, r, instanceA), false)
+	_, err := r.ensureRevision(context.Background(), instanceA, instanceA.Spec, mustListRevisions(t, r, instanceA))
 	require.NoError(t, err)
-	nameB, err := r.ensureRevision(context.Background(), instanceB, instanceB.Spec, mustListRevisions(t, r, instanceB), false)
+	nameB, err := r.ensureRevision(context.Background(), instanceB, instanceB.Spec, mustListRevisions(t, r, instanceB))
 	require.NoError(t, err)
 
 	// Annotate revB as rolled back (simulating what restorePreviousSpec does).
@@ -456,7 +513,7 @@ func TestEnsureRevision_RecreatesRolledBackRevision(t *testing.T) {
 	// (In real Kubernetes the CreationTimestamp is set server-side on create;
 	// the fake client doesn't refresh it, so we verify the annotation and
 	// revision number instead.)
-	nameB2, err := r.ensureRevision(context.Background(), instanceB, instanceB.Spec, mustListRevisions(t, r, instanceB), false)
+	nameB2, err := r.ensureRevision(context.Background(), instanceB, instanceB.Spec, mustListRevisions(t, r, instanceB))
 	require.NoError(t, err)
 	assert.Equal(t, nameB, nameB2, "should reuse same name (same data hash)")
 
@@ -475,9 +532,9 @@ func TestEnsureRevision_SkipsRecreateWhenSkipBump(t *testing.T) {
 	instanceB := newRevisionTestOwner("test-dda", "default")
 	instanceB.Spec = v2alpha1.DatadogAgentSpec{Global: &v2alpha1.GlobalConfig{}}
 
-	_, err := r.ensureRevision(context.Background(), instanceA, instanceA.Spec, mustListRevisions(t, r, instanceA), false)
+	_, err := r.ensureRevision(context.Background(), instanceA, instanceA.Spec, mustListRevisions(t, r, instanceA))
 	require.NoError(t, err)
-	nameB, err := r.ensureRevision(context.Background(), instanceB, instanceB.Spec, mustListRevisions(t, r, instanceB), false)
+	nameB, err := r.ensureRevision(context.Background(), instanceB, instanceB.Spec, mustListRevisions(t, r, instanceB))
 	require.NoError(t, err)
 
 	// Annotate revB as rolled back.
@@ -486,7 +543,7 @@ func TestEnsureRevision_SkipsRecreateWhenSkipBump(t *testing.T) {
 	require.NoError(t, c.Update(context.Background(), revB))
 
 	// With skipBump=true, the annotated revision should be returned as-is.
-	nameB2, err := r.ensureRevision(context.Background(), instanceB, instanceB.Spec, mustListRevisions(t, r, instanceB), true)
+	nameB2, err := r.ensureRevision(context.Background(), instanceB, instanceB.Spec, mustListRevisions(t, r, instanceB))
 	require.NoError(t, err)
 	assert.Equal(t, nameB, nameB2)
 
@@ -504,9 +561,9 @@ func TestGCOldRevisions_AlwaysKeepsPrevious(t *testing.T) {
 	instanceB := newRevisionTestOwner("test-dda", "default")
 	instanceB.Spec = v2alpha1.DatadogAgentSpec{Global: &v2alpha1.GlobalConfig{}}
 
-	_, err := r.ensureRevision(context.Background(), instanceA, instanceA.Spec, mustListRevisions(t, r, instanceA), false)
+	_, err := r.ensureRevision(context.Background(), instanceA, instanceA.Spec, mustListRevisions(t, r, instanceA))
 	require.NoError(t, err)
-	nameB, err := r.ensureRevision(context.Background(), instanceB, instanceB.Spec, mustListRevisions(t, r, instanceB), false)
+	nameB, err := r.ensureRevision(context.Background(), instanceB, instanceB.Spec, mustListRevisions(t, r, instanceB))
 	require.NoError(t, err)
 
 	err = r.gcOldRevisions(context.Background(), nameB, mustListRevisions(t, r, instanceB))
@@ -563,7 +620,7 @@ func TestEnsureRevision_CommonLabelsApplied(t *testing.T) {
 		},
 	}
 
-	name, err := r.ensureRevision(context.Background(), instance, instance.Spec, mustListRevisions(t, r, instance), false)
+	name, err := r.ensureRevision(context.Background(), instance, instance.Spec, mustListRevisions(t, r, instance))
 	require.NoError(t, err)
 
 	rev := fetchRevisionByName(t, c, "default", name)
@@ -583,7 +640,7 @@ func TestEnsureRevision_CommonLabels_CannotOverrideOperatorKey(t *testing.T) {
 		},
 	}
 
-	name, err := r.ensureRevision(context.Background(), instance, instance.Spec, mustListRevisions(t, r, instance), false)
+	name, err := r.ensureRevision(context.Background(), instance, instance.Spec, mustListRevisions(t, r, instance))
 	require.NoError(t, err)
 
 	rev := fetchRevisionByName(t, c, "default", name)

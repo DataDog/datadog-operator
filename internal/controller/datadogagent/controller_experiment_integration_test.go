@@ -44,7 +44,9 @@ import (
 )
 
 // simulateDaemonStart writes experiment start annotations on the DDA, simulating
-// what the fleet daemon does when starting an experiment.
+// what the fleet daemon does when starting an experiment. The daemon-side
+// rollback-target-revision annotation is populated from the current status
+// pointer (which is what the real daemon reads before patching).
 func simulateDaemonStart(t *testing.T, c client.Client, nsName types.NamespacedName, experimentID string) {
 	t.Helper()
 	var dda v2alpha1.DatadogAgent
@@ -54,6 +56,7 @@ func simulateDaemonStart(t *testing.T, c client.Client, nsName types.NamespacedN
 	}
 	dda.Annotations[v2alpha1.AnnotationExperimentID] = experimentID
 	dda.Annotations[v2alpha1.AnnotationExperimentSignal] = v2alpha1.ExperimentSignalStart
+	dda.Annotations[v2alpha1.AnnotationExperimentRollbackTargetRevision] = dda.Status.CurrentRevision
 	assert.NoError(t, c.Update(context.TODO(), &dda))
 }
 
@@ -444,6 +447,9 @@ func Test_Experiment_AbortDoesNotRollback(t *testing.T) {
 //     is NOT annotated.
 //   - Subsequent reconciles do not re-annotate or spread the annotation.
 func Test_Experiment_Abort_AnnotatesOnlyExperimentRevision(t *testing.T) {
+	// Under the checkpoint model abort no longer annotates revisions —
+	// Phase-7-obsolete.
+	t.Skip("obsolete under checkpoint model; will be deleted in Phase 7")
 	const ns, name = "default", "test-dda"
 	const uid = types.UID("uid-1")
 	nsName := types.NamespacedName{Namespace: ns, Name: name}
@@ -531,6 +537,10 @@ func Test_Experiment_Abort_AnnotatesOnlyExperimentRevision(t *testing.T) {
 //   - The rollback target (baseline) revision is NOT annotated.
 //   - Subsequent reconciles do not spread or remove the annotation.
 func Test_Experiment_StopRollback_AnnotatesOnlyExperimentRevision(t *testing.T) {
+	// Obsolete under the checkpoint model: rollback no longer annotates the
+	// experiment revision. Rollback target is proven by
+	// Status.Experiment.RollbackTargetRevision. To be deleted in Phase 7.
+	t.Skip("obsolete under checkpoint model; will be deleted in Phase 7")
 	const ns, name = "default", "test-dda"
 	const uid = types.UID("uid-1")
 	nsName := types.NamespacedName{Namespace: ns, Name: name}
@@ -675,6 +685,9 @@ func Test_Experiment_PromoteThenNewExperiment_NoImmediateTimeout(t *testing.T) {
 // experiment's revision is annotated with experiment-promoted (not
 // experiment-rollback), and ensureRevision does NOT delete+recreate it.
 func Test_Experiment_Promoted_DoesNotRecreateRevision(t *testing.T) {
+	// Obsolete under the checkpoint model: promoted revisions no longer carry
+	// state annotations, so recreate cannot fire. Phase-8 delete-worthy.
+	t.Skip("obsolete under checkpoint model")
 	const ns, name = "default", "test-dda"
 	const uid = types.UID("uid-1")
 	nsName := types.NamespacedName{Namespace: ns, Name: name}
@@ -983,6 +996,11 @@ func Test_Experiment_StateTransitions(t *testing.T) {
 // real API server), so we manually patch timestamps to simulate fresh
 // revisions after the re-apply reconcile.
 func Test_Experiment_ReapplySameSpec_NoImmediateTimeout(t *testing.T) {
+	// Obsolete under the checkpoint model: revision annotation, recreate, and
+	// timeout anchoring on revision timestamps are all gone. Timeout is now
+	// anchored on Status.Experiment.StartedAt only, so re-applied specs never
+	// carry a stale timeout across the restart. To be replaced in Phase 7.
+	t.Skip("obsolete under checkpoint model; will be replaced in Phase 7")
 	const ns, name = "default", "test-dda"
 	const uid = types.UID("uid-1")
 	// Use a short timeout for the initial experiment so it times out quickly,

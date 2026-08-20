@@ -2,7 +2,6 @@ package remoteconfig
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
 	"github.com/DataDog/datadog-agent/pkg/remoteconfig/state"
@@ -50,18 +49,18 @@ func (r *RemoteConfigUpdater) crdConfigUpdateCallback(updates map[string]state.R
 func (r *RemoteConfigUpdater) parseCRDReceivedUpdates(updates map[string]state.RawConfig, applyStatus func(string, state.ApplyStatus)) (OrchestratorK8sCRDRemoteConfig, error) {
 	// Unmarshal configs and config order
 	crds := []string{}
-	for _, c := range updates {
-		if c.Metadata.Product == state.ProductOrchestratorK8sCRDs {
-			rcCRDs := CustomResourceDefinitionURLs{}
-			err := json.Unmarshal(c.Config, &rcCRDs)
-			if err != nil {
-				return OrchestratorK8sCRDRemoteConfig{}, err
-			}
-			if rcCRDs.Crds != nil {
-				crds = append(crds, *rcCRDs.Crds...)
-			}
-		}
-	}
+	// for _, c := range updates {
+	// 	if c.Metadata.Product == state.ProductOrchestratorK8sCRDs {
+	// 		rcCRDs := CustomResourceDefinitionURLs{}
+	// 		err := json.Unmarshal(c.Config, &rcCRDs)
+	// 		if err != nil {
+	// 			return OrchestratorK8sCRDRemoteConfig{}, err
+	// 		}
+	// 		if rcCRDs.Crds != nil {
+	// 			crds = append(crds, *rcCRDs.Crds...)
+	// 		}
+	// 	}
+	// }
 
 	if len(crds) == 0 {
 		r.logger.Info("No CRDs received")

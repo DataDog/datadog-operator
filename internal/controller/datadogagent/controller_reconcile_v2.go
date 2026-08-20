@@ -17,6 +17,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
@@ -113,6 +114,31 @@ func (r *Reconciler) reconcileInstanceV3(ctx context.Context, logger logr.Logger
 		if err != nil {
 			return r.updateStatusIfNeededV2(logger, instance, ddaStatusCopy, result, err, now)
 		}
+
+		// Reconcile barrier: ensure a ControllerRevision exists for the raw spec
+		// and publish status.currentRevision / currentRevisionObservedGeneration
+		// BEFORE experiment or dependency work consumes them. Fleet's start-path
+		// freshness check requires the pointer to be committed for the current
+		// generation; publishing at the end of the reconcile would leave a
+		// window where Fleet could checkpoint a stale baseline.
+		revName, err := r.ensureRevision(ctx, instance, rawSpec, revList)
+		if err != nil {
+			return r.updateStatusIfNeededV2(logger, instance, newDDAStatus, result, err, now)
+		}
+		if instance.Status.CurrentRevision != revName ||
+			instance.Status.CurrentRevisionObservedGeneration != instance.Generation {
+			base := instance.DeepCopy()
+			instance.Status.CurrentRevision = revName
+			instance.Status.CurrentRevisionObservedGeneration = instance.Generation
+			if err := r.client.Status().Patch(ctx, instance, client.MergeFrom(base)); err != nil {
+				return r.updateStatusIfNeededV2(logger, instance, newDDAStatus, result, err, now)
+			}
+			logger.V(1).Info("Published current-revision pointer",
+				"revision", revName, "generation", instance.Generation)
+		}
+		newDDAStatus.CurrentRevision = revName
+		newDDAStatus.CurrentRevisionObservedGeneration = instance.Generation
+
 		// Use user-submitted instance instead of defaulted instance
 		rawInstance := instance.DeepCopy()
 		rawInstance.Spec = rawSpec
@@ -121,8 +147,26 @@ func (r *Reconciler) reconcileInstanceV3(ctx context.Context, logger logr.Logger
 		if experimentErr != nil {
 			return r.updateStatusIfNeededV2(logger, instance, newDDAStatus, result, experimentErr, now)
 		}
-		if err := r.manageRevision(ctx, instance, rawSpec, revList, newDDAStatus); err != nil {
-			return r.updateStatusIfNeededV2(logger, instance, newDDAStatus, result, err, now)
+		// Pin public-pointer revisions so GC cannot prune them out from under
+		// Fleet or an active experiment. Includes: (1) the current-revision
+		// pointer (always); (2) the active experiment's rollback target while
+		// non-terminal; (3) the pending-signal annotation baseline before the
+		// reconciler has copied it into Status.
+		pins := []string{revName}
+		if exp := newDDAStatus.Experiment; exp != nil && !isTerminalPhase(exp.Phase) && exp.RollbackTargetRevision != "" {
+			pins = append(pins, exp.RollbackTargetRevision)
+		}
+		if annBaseline := instance.Annotations[datadoghqv2alpha1.AnnotationExperimentRollbackTargetRevision]; annBaseline != "" {
+			currentStatusBaseline := ""
+			if newDDAStatus.Experiment != nil {
+				currentStatusBaseline = newDDAStatus.Experiment.RollbackTargetRevision
+			}
+			if annBaseline != currentStatusBaseline {
+				pins = append(pins, annBaseline)
+			}
+		}
+		if err := r.gcOldRevisions(ctx, revName, revList, pins...); err != nil {
+			logger.Error(err, "Failed to garbage collect old ControllerRevisions, will retry on next reconcile")
 		}
 	}
 

@@ -21,6 +21,12 @@ const (
 	AnnotationExperimentID = "experiment.datadoghq.com/id"
 	// AnnotationExperimentSignal is the annotation key for the experiment signal type.
 	AnnotationExperimentSignal = "experiment.datadoghq.com/signal"
+	// AnnotationExperimentRollbackTargetRevision names the ControllerRevision
+	// that should be restored on rollback. Written by the Fleet daemon in
+	// the same MergePatch that carries the experiment spec and start signal;
+	// copied into status.experiment.rollbackTargetRevision by the reconciler
+	// on transition to phase=Running.
+	AnnotationExperimentRollbackTargetRevision = "experiment.datadoghq.com/rollback-target-revision"
 )
 
 // Fleet pending-operation annotations. The fleet daemon writes these

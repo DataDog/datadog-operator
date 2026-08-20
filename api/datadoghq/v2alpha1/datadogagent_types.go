@@ -2525,6 +2525,22 @@ type ExperimentStatus struct {
 	// experimentConfigVersion.
 	// +optional
 	StartTaskID string `json:"startTaskID,omitempty"`
+	// RollbackTargetRevision names the ControllerRevision that holds the
+	// pre-experiment DatadogAgent spec, checkpointed by the Fleet daemon
+	// in the same patch that starts the experiment. Rollback restores this
+	// revision by name; experiment logic never selects a target by revision
+	// ordering. Written once on the transition to phase=Running; retained
+	// across terminal phases as audit context and overwritten by the next
+	// Running transition.
+	// +optional
+	RollbackTargetRevision string `json:"rollbackTargetRevision,omitempty"`
+	// ExpectedSpecHash is sha256(canonicalJSON({spec, filteredAnnotations}))
+	// of the DatadogAgent at the moment it transitioned to phase=Running.
+	// Manual-change detection compares the current live hash against this
+	// value; a mismatch aborts the experiment. Written exactly once at the
+	// Running transition and never refreshed while Running.
+	// +optional
+	ExpectedSpecHash string `json:"expectedSpecHash,omitempty"`
 	// TerminationReason distinguishes why the experiment was terminated.
 	// Only set when Phase is "terminated".
 	// +optional
@@ -2566,6 +2582,21 @@ type DatadogAgentStatus struct {
 	// means no provider was detected or configured.
 	// +optional
 	ClusterProvider string `json:"clusterProvider,omitempty"`
+	// CurrentRevision names the ControllerRevision that snapshots the
+	// currently observed raw DatadogAgent spec. Published by revision
+	// management as a public contract; the Fleet daemon checkpoints the
+	// experiment baseline from this pointer, and experiment logic never
+	// derives it by listing ControllerRevisions. Moves with the live spec
+	// (including during a running experiment — the baseline for that
+	// experiment lives in status.experiment.rollbackTargetRevision).
+	// +optional
+	CurrentRevision string `json:"currentRevision,omitempty"`
+	// CurrentRevisionObservedGeneration records the metadata.generation
+	// for which CurrentRevision is valid. The pointer is usable only when
+	// CurrentRevision != "" AND CurrentRevisionObservedGeneration ==
+	// metadata.generation.
+	// +optional
+	CurrentRevisionObservedGeneration int64 `json:"currentRevisionObservedGeneration,omitempty"`
 }
 
 // DatadogAgent defines Agent configuration, see reference https://github.com/DataDog/datadog-operator/blob/main/docs/configuration.v2alpha1.md

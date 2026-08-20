@@ -176,6 +176,23 @@ func (d *Daemon) handleTask(ctx context.Context, req remoteAPIRequest) error {
 	// Incoming-edge event: emitted before processing so the timeline shows
 	// every task FA sent, including those that will be rejected below.
 	d.emitTaskReceivedEvent(ctx, req)
+
+	// Baseline-freshness preflight for start tasks. Runs BEFORE acquiring
+	// transitionMu/taskMu so an in-flight retry does not stall unrelated
+	// Fleet operations on the same DDA. Retries with bounded backoff; on
+	// terminal failure reports the specific reason (baseline-uninitialized /
+	// baseline-not-ready) to Remote Config so operators can distinguish
+	// "reconciler hasn't caught up yet" from a real failure.
+	if req.Method == methodStartDatadogAgentExperiment {
+		if _, err := d.waitForBaselineFreshness(ctx, req.Params.NamespacedName); err != nil {
+			d.taskMu.Lock()
+			d.setTaskState(req.Package, req.ID, pbgo.TaskState_ERROR, err)
+			d.taskMu.Unlock()
+			d.emitTaskRejectedEvent(ctx, req.Params.NamespacedName, req, err.Error())
+			return err
+		}
+	}
+
 	d.transitionMu.Lock()
 	defer d.transitionMu.Unlock()
 	d.taskMu.Lock()
