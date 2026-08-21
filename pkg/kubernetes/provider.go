@@ -6,14 +6,9 @@
 package kubernetes
 
 import (
-	"sort"
 	"strings"
 
-	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
-
-	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	"github.com/DataDog/datadog-operator/pkg/constants"
 )
 
 const (
@@ -89,30 +84,6 @@ var providerValueAllowlist = map[string]struct{}{
 	GKECosType: {},
 }
 
-// DetermineProvider returns a single provider derived from a map of node labels
-// (e.g. the operator's own node). It is the cluster-level detection entry point
-// used for control plane monitoring defaults.
-func DetermineProvider(labels map[string]string) string {
-	if len(labels) > 0 {
-		// GKE
-		if val, ok := labels[GKEProviderLabel]; ok {
-			if provider := generateValidProviderName(GKECloudProvider, val); provider != "" {
-				return provider
-			}
-		}
-		// Openshift
-		if val, ok := labels[OpenShiftProviderLabel]; ok {
-			return generateValidProviderName(OpenshiftProvider, val)
-		}
-		// EKS - check for any EKS-related labels
-		if isEKSProvider(labels) {
-			return EKSCloudProvider
-		}
-	}
-
-	return DefaultProvider
-}
-
 // isEKSProvider checks if a node is an EKS node by looking for EKS-specific labels
 func isEKSProvider(labels map[string]string) bool {
 	// Check for any eks.amazonaws.com/* or eksctl labels
@@ -152,68 +123,6 @@ func ShouldUseDefaultDaemonset(providerList map[string]struct{}) bool {
 		}
 	}
 	return false
-}
-
-// getProviderNodeAffinity creates NodeSelectorTerms based on the provider
-func getProviderNodeAffinity(provider string, providerList map[string]struct{}) *corev1.Affinity {
-	if provider == "" || providerList == nil || len(providerList) == 0 {
-		return nil
-	}
-	// if only the default provider exists, there should be no affinity override
-	if provider == DefaultProvider && len(providerList) == 1 {
-		return nil
-	}
-
-	// If EKS or OpenShift is present and we're using the default provider,
-	// don't apply affinity rules. We don't support provider-specific daemonsets
-	// for these platforms, so a single daemonset runs on all nodes without affinity.
-	if provider == DefaultProvider && ShouldUseDefaultDaemonset(providerList) {
-		return nil
-	}
-
-	// default provider has NodeAffinity to NOT match provider-specific labels
-	// build NodeSelectorRequirement list with negative (`OpNotIn`) operator
-	nsrList := []corev1.NodeSelectorRequirement{}
-	if provider == DefaultProvider {
-		// sort providers to get consistently ordered affinity
-		sortedProviders := sortProviders(providerList)
-		for _, providerDef := range sortedProviders {
-			key, value := GetProviderLabelKeyValue(providerDef)
-			if key != "" && value != "" {
-				nsrList = append(nsrList, corev1.NodeSelectorRequirement{
-					Key:      key,
-					Operator: corev1.NodeSelectorOpNotIn,
-					Values: []string{
-						value,
-					},
-				})
-			}
-		}
-	} else {
-		// create provider-specific NodeSelectorTerm for NodeAffinity
-		key, value := GetProviderLabelKeyValue(provider)
-		if key != "" && value != "" {
-			nsrList = append(nsrList, corev1.NodeSelectorRequirement{
-				Key:      key,
-				Operator: corev1.NodeSelectorOpIn,
-				Values: []string{
-					value,
-				},
-			})
-		}
-	}
-
-	return &corev1.Affinity{
-		NodeAffinity: &corev1.NodeAffinity{
-			RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
-				NodeSelectorTerms: []corev1.NodeSelectorTerm{
-					{
-						MatchExpressions: nsrList,
-					},
-				},
-			},
-		},
-	}
 }
 
 // generateValidProviderName creates a provider name from the cloud provider
@@ -270,28 +179,6 @@ func splitProviderSuffix(provider string) (string, string) {
 	return splitSuffix[0], splitSuffix[1]
 }
 
-// sortProviders sorts a map of providers to get a consistently ordered list to create affinity requirements
-func sortProviders(providers map[string]struct{}) []string {
-	sortedProviders := make([]string, 0, len(providers))
-	for provider := range providers {
-		sortedProviders = append(sortedProviders, provider)
-	}
-	sort.Strings(sortedProviders)
-
-	return sortedProviders
-}
-
-// ComponentOverrideFromProvider generates a componentOverride with overrides for
-// the DatadogAgent name, provider, and label
-func ComponentOverrideFromProvider(overrideName, provider string, providerList map[string]struct{}) v2alpha1.DatadogAgentComponentOverride {
-	overrideDSName := GetAgentNameWithProvider(overrideName, provider)
-	return v2alpha1.DatadogAgentComponentOverride{
-		Name:     &overrideDSName,
-		Affinity: getProviderNodeAffinity(provider, providerList),
-		Labels:   map[string]string{constants.MD5AgentDeploymentProviderLabelKey: provider},
-	}
-}
-
 // GetAgentNameWithProvider returns the agent name based on the ds name and provider
 func GetAgentNameWithProvider(overrideDSName, provider string) string {
 	if provider != "" && overrideDSName != "" {
@@ -310,10 +197,9 @@ func IsSpecificProvider(p string) bool {
 // provider (eks, aks, openshift-<os>, or default). It is the node-label signal for the
 // cluster dimension.
 //
-// Node-OS distinctions such as gke-cos belong to the node
-// dimension (DetermineProvider / GetProviderListFromNodeList) and are intentionally
-// NOT returned here, so a node-OS variation doesn't appear as a cluster
-// provider. GKE therefore maps to default at cluster scope.
+// Node-OS distinctions such as gke-cos belong to the node dimension and are
+// intentionally NOT returned here, so a node-OS variation doesn't appear as a
+// cluster provider. GKE therefore maps to default at cluster scope.
 func ClusterProviderFromNodeLabels(labels map[string]string) string {
 	if len(labels) > 0 {
 		// OpenShift keeps its os_id suffix: control plane monitoring resolves the
@@ -340,17 +226,4 @@ func GetClusterProviderFromNodeList(nodeList []corev1.Node) string {
 		}
 	}
 	return DefaultProvider
-}
-
-// GetProviderListFromNodeList generates a list of providers given a list of nodes
-func GetProviderListFromNodeList(nodeList []corev1.Node, logger logr.Logger) map[string]struct{} {
-	providerList := make(map[string]struct{})
-	for _, node := range nodeList {
-		provider := DetermineProvider(node.Labels)
-		if _, ok := providerList[provider]; !ok {
-			providerList[provider] = struct{}{}
-			logger.V(1).Info("New provider detected", "provider", provider)
-		}
-	}
-	return providerList
 }

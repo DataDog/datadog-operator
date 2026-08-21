@@ -79,7 +79,7 @@ config:
 
 ## Declaring a provider
 
-A DAP can declare a [provider](providers.md) for the subset of nodes it targets by setting the `agent.datadoghq.com/cluster-provider` annotation on the profile. This is the supported way to apply provider-specific configuration (for example, a GKE COS node pool) to a subset of nodes.
+A DAP can declare a [provider][1] for the subset of nodes it targets by setting the `agent.datadoghq.com/cluster-provider` annotation on the profile. This is the supported way to apply provider-specific configuration (for example, a GKE COS node pool) to a subset of nodes.
 
 This is safe **only if the profile's `profileAffinity` correctly selects the nodes that actually match the declared provider**. The Operator does not verify that the selected nodes match the annotation; if the selector is too broad, the provider configuration is applied to nodes it does not fit.
 
@@ -90,7 +90,7 @@ The node-scoped providers that make sense on a DAP are:
 | `gke-cos` | GKE Container-Optimized OS node pools | Drops the `/usr/src` volume for the OOM Kill, TCP Queue Length, and GPU checks |
 | `eks-ec2-use-hostname-from-file` | EKS EC2 node groups | Adds `DD_HOSTNAME_FILE` and the cloud-init instance-id mount |
 
-See the [providers documentation](providers.md) for the full catalog, effects, and Helm mappings.
+See the [providers documentation][1] for the full catalog, effects, and Helm mappings.
 
 ```yaml
 apiVersion: datadoghq.com/v1alpha1
@@ -128,3 +128,5 @@ spec:
 | override.[nodeAgent].runtimeClassName | v1.12.0 |
 | override.[nodeAgent].volumes | v1.29.0 |
 | override.[nodeAgent].containers.[\*].volumeMounts | v1.29.0 |
+
+[1]: https://docs.datadoghq.com/containers/datadog_operator/providers

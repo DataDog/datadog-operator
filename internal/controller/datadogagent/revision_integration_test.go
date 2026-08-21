@@ -67,7 +67,7 @@ func newRevisionIntegrationReconciler(t *testing.T) (*Reconciler, client.Client)
 	eventBroadcaster := record.NewBroadcaster()
 	recorder := eventBroadcaster.NewRecorder(s, corev1.EventSource{Component: "test"})
 
-	// Load DDAI CRD — required for reconcileInstanceV3 (which is where
+	// Load DDAI CRD — required for reconcileInstance (which is where
 	// manageRevision is called) to check CRD existence before creating DDAIs.
 	crd, err := getDDAICRDFromConfig(s)
 	assert.NoError(t, err)
