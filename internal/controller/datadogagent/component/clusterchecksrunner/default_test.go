@@ -79,9 +79,12 @@ func Test_copyCheckAssetsInitContainer(t *testing.T) {
 	}
 
 	// The command copies the image conf.d into the overlay and drops default
-	// check configs while preserving packaged sub-directory assets.
+	// check configs while preserving packaged sub-directory assets. It must copy
+	// without preserving ownership (no "cp -a") so it does not fail when the
+	// runner is forced to run as a non-root UID.
 	require.Len(t, initContainer.Args, 1)
-	assert.Contains(t, initContainer.Args[0], "cp -a /etc/datadog-agent/conf.d/.")
+	assert.Contains(t, initContainer.Args[0], "cp -RL /etc/datadog-agent/conf.d/.")
+	assert.NotContains(t, initContainer.Args[0], "cp -a", "cp -a preserves root ownership and breaks non-root runners")
 	assert.Contains(t, initContainer.Args[0], common.RmCorechecksConfdInitPath)
 	assert.Contains(t, initContainer.Args[0], "*.yaml.default")
 }
