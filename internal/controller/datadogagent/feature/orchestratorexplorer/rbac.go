@@ -77,7 +77,7 @@ func getRBACPolicyRules(logger logr.Logger, crs []string, collectKubernetesNetwo
 		},
 		{
 			APIGroups: []string{rbac.NetworkingAPIGroup},
-			Resources: []string{rbac.IngressesResource},
+			Resources: []string{rbac.IngressesResource, rbac.NetworkPolicyResource},
 		},
 		{
 			APIGroups: []string{rbac.AutoscalingK8sIoAPIGroup},
