@@ -6,9 +6,11 @@ import (
 
 	"k8s.io/utils/ptr"
 
+	"github.com/go-logr/logr"
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -18,6 +20,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/override"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/providercaps"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
@@ -194,6 +197,10 @@ func Test_GPUMonitoringFeature_Configure(t *testing.T) {
 				Value: "true",
 			},
 			{
+				Name:  DDEnableEBPFProbesEnvVar,
+				Value: "false",
+			},
+			{
 				Name:  NVIDIAVisibleDevicesEnvVar,
 				Value: "all",
 			},
@@ -215,6 +222,10 @@ func Test_GPUMonitoringFeature_Configure(t *testing.T) {
 			{
 				Name:  DDEnableGPUProbeEnvVar,
 				Value: "true",
+			},
+			{
+				Name:  DDEnableEBPFProbesEnvVar,
+				Value: "false",
 			},
 			{
 				Name:  common.DDSystemProbeSocket,
@@ -494,4 +505,61 @@ func Test_GPUFeature_NodeAgentProviderCapabilities(t *testing.T) {
 		assert.Empty(t, getContainer(tmpl, apicommon.CoreAgentContainerName).VolumeMounts)
 		assert.Empty(t, getContainer(tmpl, apicommon.SystemProbeContainerName).VolumeMounts)
 	})
+}
+
+// Test_GPUMonitoringFeature_EBPFProbesOverride documents the escape hatch for the
+// force-disabled eBPF probes: feature configuration runs before spec.override, and env
+// vars merge last-writer-wins by name, so an override re-enables the probes cleanly and
+// without leaving a duplicate env var behind.
+func Test_GPUMonitoringFeature_EBPFProbesOverride(t *testing.T) {
+	newPodTemplate := func() *corev1.PodTemplateSpec {
+		return &corev1.PodTemplateSpec{
+			ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{}},
+			Spec: corev1.PodSpec{
+				Containers: []corev1.Container{
+					{Name: string(apicommon.CoreAgentContainerName)},
+					{Name: string(apicommon.SystemProbeContainerName)},
+				},
+			},
+		}
+	}
+
+	envVarValues := func(tmpl *corev1.PodTemplateSpec, name apicommon.AgentContainerName) []string {
+		var values []string
+		for _, c := range tmpl.Spec.Containers {
+			if c.Name != string(name) {
+				continue
+			}
+			for _, e := range c.Env {
+				if e.Name == DDEnableEBPFProbesEnvVar {
+					values = append(values, e.Value)
+				}
+			}
+		}
+		return values
+	}
+
+	tmpl := newPodTemplate()
+	mgr := feature.NewPodTemplateManagers(tmpl)
+
+	configureSystemProbe(mgr)
+
+	assert.Equal(t, []string{"false"}, envVarValues(tmpl, apicommon.CoreAgentContainerName))
+	assert.Equal(t, []string{"false"}, envVarValues(tmpl, apicommon.SystemProbeContainerName))
+
+	reEnableProbes := &v2alpha1.DatadogAgentComponentOverride{
+		Containers: map[apicommon.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
+			apicommon.CoreAgentContainerName: {
+				Env: []corev1.EnvVar{{Name: DDEnableEBPFProbesEnvVar, Value: "true"}},
+			},
+			apicommon.SystemProbeContainerName: {
+				Env: []corev1.EnvVar{{Name: DDEnableEBPFProbesEnvVar, Value: "true"}},
+			},
+		},
+	}
+	override.PodTemplateSpec(logr.Discard(), mgr, reEnableProbes, v2alpha1.NodeAgentComponentName, "dda")
+
+	// the override wins, and there is exactly one env var per container
+	assert.Equal(t, []string{"true"}, envVarValues(tmpl, apicommon.CoreAgentContainerName))
+	assert.Equal(t, []string{"true"}, envVarValues(tmpl, apicommon.SystemProbeContainerName))
 }

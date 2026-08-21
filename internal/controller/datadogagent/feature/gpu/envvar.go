@@ -17,3 +17,6 @@ const NVIDIAVisibleDevicesEnvVar = "NVIDIA_VISIBLE_DEVICES"
 
 // DDPatchCgroupPermissionsEnvVar is the name of the system-probe gpu_monitoring module cgroup permissions patch knob
 const DDPatchCgroupPermissionsEnvVar = "DD_GPU_MONITORING_CONFIGURE_CGROUP_PERMS"
+
+// DDEnableEBPFProbesEnvVar is the name of the system-probe gpu_monitoring module eBPF probes enablement knob
+const DDEnableEBPFProbesEnvVar = "DD_GPU_MONITORING_ENABLE_EBPF_PROBES"
