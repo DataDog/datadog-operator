@@ -129,6 +129,9 @@ func configureSystemProbe(managers feature.PodTemplateManagers) {
 
 	// In privileged mode the eBPF probes are disabled, as GPU monitoring relies on
 	// the privileged host access rather than the eBPF probes.
+	// This runs before spec.override is applied, and env vars merge last-writer-wins by
+	// name, so a user who still needs the probes can re-enable them by setting
+	// DD_GPU_MONITORING_ENABLE_EBPF_PROBES=true via spec.override.nodeAgent.containers.
 	disableEBPFProbesEnvVar := &corev1.EnvVar{
 		Name:  DDEnableEBPFProbesEnvVar,
 		Value: "false",
