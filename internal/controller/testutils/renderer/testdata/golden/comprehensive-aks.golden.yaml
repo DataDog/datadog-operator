@@ -2167,7 +2167,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: 9f9cc18615463016b51e37676cc4b72a
+    agent.datadoghq.com/agentspechash: e5182e5df9f9aa5754b67d69dde750fe
   labels:
     agent.datadoghq.com/component: cluster-checks-runner
     agent.datadoghq.com/name: datadog-agent
@@ -2361,6 +2361,25 @@ spec:
         - mountPath: /checks.d
           name: checksd
           readOnly: true
+      - args:
+        - |-
+          set -euo pipefail
+          if [ -d /etc/datadog-agent/conf.d ]; then
+            cp -RL /etc/datadog-agent/conf.d/. /opt/conf.d-overlay/
+            find /opt/conf.d-overlay -type f -name '*.yaml.default' -delete
+          fi
+        command:
+        - bash
+        - -c
+        image: registry.datadoghq.com/agent:7.81.1
+        name: init-copy-check-assets
+        resources: {}
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+        volumeMounts:
+        - mountPath: /opt/conf.d-overlay
+          name: remove-corechecks
       serviceAccountName: datadog-agent-cluster-checks-runner
       volumes:
       - configMap:
