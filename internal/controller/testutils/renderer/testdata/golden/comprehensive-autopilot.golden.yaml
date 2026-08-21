@@ -2132,7 +2132,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: a2a6bbfdb0ee424f4ec827072ddf80a8
+    agent.datadoghq.com/agentspechash: 977561eccc4bc79683f1bbbbf100d060
   labels:
     agent.datadoghq.com/component: cluster-checks-runner
     agent.datadoghq.com/name: datadog-agent
@@ -2334,7 +2334,7 @@ spec:
         - |-
           set -euo pipefail
           if [ -d /etc/datadog-agent/conf.d ]; then
-            cp -a /etc/datadog-agent/conf.d/. /opt/conf.d-overlay/
+            cp -RL /etc/datadog-agent/conf.d/. /opt/conf.d-overlay/
             find /opt/conf.d-overlay -type f -name '*.yaml.default' -delete
           fi
         command:
