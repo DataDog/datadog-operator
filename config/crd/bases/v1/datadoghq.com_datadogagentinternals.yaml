@@ -840,6 +840,13 @@ spec:
                                 <Library>: <Version>
                                 ex: "java": "v1.18.0"
                               type: object
+                            onDemand:
+                              description: |-
+                                OnDemand keeps the SSI admission webhook available for runtime workload
+                                selection (annotations and Remote Config APM_POLICIES) when cluster-wide
+                                instrumentation is disabled. Matches the Agent and Helm chart default (true).
+                                Default: true
+                              type: boolean
                             targets:
                               description: |-
                                 Targets is a list of targets to apply the auto instrumentation to. The first target that matches the pod will be
@@ -9605,6 +9612,13 @@ spec:
                                     <Library>: <Version>
                                     ex: "java": "v1.18.0"
                                   type: object
+                                onDemand:
+                                  description: |-
+                                    OnDemand keeps the SSI admission webhook available for runtime workload
+                                    selection (annotations and Remote Config APM_POLICIES) when cluster-wide
+                                    instrumentation is disabled. Matches the Agent and Helm chart default (true).
+                                    Default: true
+                                  type: boolean
                                 targets:
                                   description: |-
                                     Targets is a list of targets to apply the auto instrumentation to. The first target that matches the pod will be

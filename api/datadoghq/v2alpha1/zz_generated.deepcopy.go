@@ -3699,6 +3699,11 @@ func (in *SingleStepInstrumentation) DeepCopyInto(out *SingleStepInstrumentation
 		*out = new(bool)
 		**out = **in
 	}
+	if in.OnDemand != nil {
+		in, out := &in.OnDemand, &out.OnDemand
+		*out = new(bool)
+		**out = **in
+	}
 	if in.EnabledNamespaces != nil {
 		in, out := &in.EnabledNamespaces, &out.EnabledNamespaces
 		*out = make([]string, len(*in))
