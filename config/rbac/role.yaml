@@ -453,6 +453,14 @@ rules:
   verbs:
   - get
 - apiGroups:
+  - networking.gke.io
+  resources:
+  - gcptrafficextensions
+  verbs:
+  - create
+  - delete
+  - get
+- apiGroups:
   - networking.istio.io
   resources:
   - destinationrules
