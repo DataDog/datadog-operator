@@ -39,7 +39,6 @@ core,github.com/Masterminds/semver/v3,MIT
 core,github.com/Masterminds/sprig/v3,MIT
 core,github.com/Masterminds/squirrel,MIT
 core,github.com/Microsoft/go-winio,MIT
-core,github.com/andybalholm/brotli,MIT
 core,github.com/antlr4-go/antlr/v4,BSD-3-Clause
 core,github.com/asaskevich/govalidator,MIT
 core,github.com/aws/aws-sdk-go-v2,Apache-2.0
@@ -82,7 +81,6 @@ core,github.com/containerd/log,Apache-2.0
 core,github.com/containerd/platforms,Apache-2.0
 core,github.com/cyphar/filepath-securejoin,MPL-2.0
 core,github.com/davecgh/go-spew/spew,ISC
-core,github.com/dsnet/compress,BSD-3-Clause
 core,github.com/dustin/go-humanize,MIT
 core,github.com/emicklei/go-restful/v3,MIT
 core,github.com/evanphx/json-patch,BSD-3-Clause
@@ -114,7 +112,6 @@ core,github.com/go-openapi/swag/yamlutils,Apache-2.0
 core,github.com/gobuffalo/flect,MIT
 core,github.com/gobwas/glob,MIT
 core,github.com/golang/protobuf,BSD-3-Clause
-core,github.com/golang/snappy,BSD-3-Clause
 core,github.com/google/btree,Apache-2.0
 core,github.com/google/cel-go,Apache-2.0
 core,github.com/google/gnostic-models,Apache-2.0
@@ -141,7 +138,6 @@ core,github.com/json-iterator/go,MIT
 core,github.com/klauspost/compress,Apache-2.0
 core,github.com/klauspost/compress/internal/snapref,BSD-3-Clause
 core,github.com/klauspost/compress/zstd/internal/xxhash,MIT
-core,github.com/klauspost/pgzip,MIT
 core,github.com/lann/builder,MIT
 core,github.com/lann/ps,MIT
 core,github.com/lib/pq,MIT
@@ -150,7 +146,6 @@ core,github.com/magiconair/properties,BSD-2-Clause
 core,github.com/mattn/go-colorable,MIT
 core,github.com/mattn/go-isatty,MIT
 core,github.com/mattn/go-runewidth,MIT
-core,github.com/mholt/archiver/v3,MIT
 core,github.com/mitchellh/copystructure,MIT
 core,github.com/mitchellh/go-wordwrap,MIT
 core,github.com/mitchellh/hashstructure/v2,MIT
@@ -165,7 +160,6 @@ core,github.com/mohae/deepcopy,MIT
 core,github.com/monochromegane/go-gitignore,MIT
 core,github.com/munnerz/goautoneg,BSD-3-Clause
 core,github.com/mxk/go-flowrate/flowrate,BSD-3-Clause
-core,github.com/nwaples/rardecode,BSD-2-Clause
 core,github.com/olekukonko/cat,MIT
 core,github.com/olekukonko/errors,MIT
 core,github.com/olekukonko/ll,MIT
@@ -178,7 +172,6 @@ core,github.com/patrickmn/go-cache,MIT
 core,github.com/pelletier/go-toml,Apache-2.0
 core,github.com/peterbourgon/diskv,MIT
 core,github.com/philhofer/fwd,MIT
-core,github.com/pierrec/lz4/v4,BSD-3-Clause
 core,github.com/pkg/browser,BSD-2-Clause
 core,github.com/pkg/errors,BSD-2-Clause
 core,github.com/pmezard/go-difflib/difflib,BSD-3-Clause
@@ -212,9 +205,7 @@ core,github.com/stretchr/objx,MIT
 core,github.com/stretchr/testify,MIT
 core,github.com/tinylib/msgp/msgp,MIT
 core,github.com/tklauser/go-sysconf,BSD-3-Clause
-core,github.com/ulikunitz/xz,BSD-3-Clause
 core,github.com/x448/float16,MIT
-core,github.com/xi2/xz,Unknown
 core,github.com/xlab/treeprint,MIT
 core,go.etcd.io/bbolt,MIT
 core,go.opentelemetry.io/auto/sdk,Apache-2.0
