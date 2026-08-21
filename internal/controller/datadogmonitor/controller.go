@@ -112,13 +112,6 @@ func requeuePeriod(logger logr.Logger, configured time.Duration) time.Duration {
 	return configured
 }
 
-func (r *Reconciler) resolvedRequeuePeriod() time.Duration {
-	if r.requeuePeriod <= 0 {
-		return defaultRequeuePeriod
-	}
-	return r.requeuePeriod
-}
-
 // Reconcile is similar to reconciler.Reconcile interface, but taking a context
 func (r *Reconciler) Reconcile(ctx context.Context, instance *datadoghqv1alpha1.DatadogMonitor) (reconcile.Result, error) {
 	res, err := r.internalReconcile(ctx, instance)
@@ -158,7 +151,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 
 	newStatus := instance.Status.DeepCopy()
 
-	final := finalizer.NewFinalizer(logger, r.client, r.deleteResource(logger, auth), r.resolvedRequeuePeriod(), defaultErrRequeuePeriod)
+	final := finalizer.NewFinalizer(logger, r.client, r.deleteResource(logger, auth), r.requeuePeriod, defaultErrRequeuePeriod)
 	if result, err = final.HandleFinalizer(ctx, instance, fmt.Sprint(instance.Status.ID), datadogMonitorFinalizer); ctrutils.ShouldReturn(result, err) {
 		return result, err
 	}
@@ -199,6 +192,8 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 				logger.Error(err, "error getting monitor", "Monitor ID", instance.Status.ID)
 				if strings.Contains(err.Error(), ctrutils.NotFoundString) {
 					shouldCreate = true
+				} else {
+					result.RequeueAfter = defaultErrRequeuePeriod
 				}
 			} else {
 				shouldUpdate = true
@@ -211,11 +206,13 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 				logger.Error(err, "error getting monitor", "Monitor ID", instance.Status.ID)
 				if strings.Contains(err.Error(), ctrutils.NotFoundString) {
 					shouldCreate = true
+				} else {
+					result.RequeueAfter = defaultErrRequeuePeriod
 				}
 			} else {
 				shouldUpdate = true
 			}
-		} else if instance.Status.MonitorStateLastUpdateTime == nil || (r.resolvedRequeuePeriod()-now.Sub(instance.Status.MonitorStateLastUpdateTime.Time)) <= 0 {
+		} else if instance.Status.MonitorStateLastUpdateTime == nil || (r.requeuePeriod-now.Sub(instance.Status.MonitorStateLastUpdateTime.Time)) <= 0 {
 			// If other conditions aren't met, and we have passed the configured requeue period, refresh monitor state.
 			shouldRefreshState = true
 		}
@@ -253,10 +250,12 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 			}
 			if err = r.create(auth, logger, instance, newStatus, now, instanceSpecHash); err != nil {
 				logger.Error(err, "error creating monitor")
+				result.RequeueAfter = defaultErrRequeuePeriod
 			}
 		} else {
 			err = fmt.Errorf("monitor type %v not supported", instance.Spec.Type)
 			logger.Error(err, "error creating monitor")
+			result.RequeueAfter = defaultErrRequeuePeriod
 		}
 	} else if shouldUpdate {
 		logger.V(1).Info("Updating monitor in Datadog")
@@ -273,6 +272,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 		}
 		if err = r.update(auth, logger, instance, newStatus, now, instanceSpecHash); err != nil {
 			logger.Error(err, "error updating monitor", "Monitor ID", instance.Status.ID)
+			result.RequeueAfter = defaultErrRequeuePeriod
 			// If the monitor was deleted between our existence check and this
 			// update (TOCTOU), clear status.ID so the next reconcile takes the
 			// create path and recreates the monitor.
@@ -283,13 +283,40 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 		}
 	}
 
-	// If reconcile was successful, requeue with the configured period.
+	// Schedule background reconciliation at low priority, without delaying the independent force-sync deadline.
 	if result.RequeueAfter == 0 {
-		result.RequeueAfter = r.resolvedRequeuePeriod()
+		result.RequeueAfter = nextRequeueAfter(newStatus, now, r.requeuePeriod, forceSyncPeriod)
+		if err == nil {
+			result.Priority = ptr.To(ctrlhandler.LowPriority)
+		}
 	}
 
 	// Update the status
 	return r.updateStatusIfNeeded(logger, instance, now, newStatus, err, result)
+}
+
+func nextRequeueAfter(status *datadoghqv1alpha1.DatadogMonitorStatus, now metav1.Time, statePollingPeriod, forceSyncPeriod time.Duration) time.Duration {
+	next := statePollingPeriod
+	if status.ID == 0 {
+		return next
+	}
+
+	lastForceSync := status.MonitorLastForceSyncTime
+	if lastForceSync == nil {
+		lastForceSync = status.Created
+	}
+	if lastForceSync == nil {
+		if forceSyncPeriod > 0 && forceSyncPeriod < next {
+			return forceSyncPeriod
+		}
+		return next
+	}
+
+	untilForceSync := forceSyncPeriod - now.Sub(lastForceSync.Time)
+	if untilForceSync > 0 && untilForceSync < next {
+		return untilForceSync
+	}
+	return next
 }
 
 func (r *Reconciler) create(auth context.Context, logger logr.Logger, datadogMonitor *datadoghqv1alpha1.DatadogMonitor, status *datadoghqv1alpha1.DatadogMonitorStatus, now metav1.Time, instanceSpecHash string) error {
@@ -416,7 +443,10 @@ func (r *Reconciler) updateStatusIfNeeded(logger logr.Logger, datadogMonitor *da
 		// not an issue, but if a monitor has many groups and is "flapping", then it can cause a flood of updates to
 		// the Status.TriggeredState and put pressure on the controller. As a safeguard against this, the maximum number
 		// of groups stored in Status.TriggeredState should be conservative.
-		return ctrl.Result{RequeueAfter: r.resolvedRequeuePeriod(), Priority: result.Priority}, nil
+		if result.RequeueAfter == 0 {
+			result.RequeueAfter = r.requeuePeriod
+		}
+		return result, nil
 	}
 
 	return result, nil

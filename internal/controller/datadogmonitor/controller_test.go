@@ -46,6 +46,10 @@ const (
 	resourcesNamespace = "bar"
 )
 
+func lowPriorityResult(requeueAfter time.Duration) reconcile.Result {
+	return reconcile.Result{RequeueAfter: requeueAfter, Priority: ptr.To(handler.LowPriority)}
+}
+
 type conflictOnceClient struct {
 	client.Client
 	remainingConflicts atomic.Int32
@@ -132,6 +136,7 @@ func TestReconcileDatadogMonitor_RetriesCreatedStatusAfterConflict(t *testing.T)
 		scheme:        s,
 		recorder:      recorder,
 		log:           logf.Log.WithName("created-status-conflict"),
+		requeuePeriod: defaultRequeuePeriod,
 	}
 
 	dm := genericDatadogMonitor(r.client)
@@ -143,7 +148,7 @@ func TestReconcileDatadogMonitor_RetriesCreatedStatusAfterConflict(t *testing.T)
 	conflictingClient.remainingConflicts.Store(1)
 	result, err := r.Reconcile(context.TODO(), dm)
 	assert.NoError(t, err)
-	assert.Equal(t, ctrl.Result{RequeueAfter: defaultRequeuePeriod}, result)
+	assert.Equal(t, lowPriorityResult(defaultRequeuePeriod), result)
 	assert.Equal(t, int32(0), conflictingClient.remainingConflicts.Load(), "the injected status conflict should be consumed")
 
 	assert.NoError(t, r.client.Get(context.TODO(), client.ObjectKeyFromObject(dm), dm))
@@ -162,6 +167,102 @@ func TestRequeuePeriod(t *testing.T) {
 
 	assert.Equal(t, defaultRequeuePeriod, requeuePeriod(logger, 0))
 	assert.Equal(t, 2*time.Minute, requeuePeriod(logger, 2*time.Minute))
+}
+
+func TestNextRequeueAfter(t *testing.T) {
+	now := metav1.NewTime(time.Now())
+	lastForceSync := metav1.NewTime(now.Add(-50 * time.Minute))
+	created := metav1.NewTime(now.Add(-30 * time.Minute))
+
+	tests := []struct {
+		name               string
+		status             *datadoghqv1alpha1.DatadogMonitorStatus
+		statePollingPeriod time.Duration
+		forceSyncPeriod    time.Duration
+		want               time.Duration
+	}{
+		{
+			name:               "state polling is sooner",
+			status:             &datadoghqv1alpha1.DatadogMonitorStatus{ID: 1, MonitorLastForceSyncTime: &now},
+			statePollingPeriod: time.Minute,
+			forceSyncPeriod:    time.Hour,
+			want:               time.Minute,
+		},
+		{
+			name:               "force sync is sooner",
+			status:             &datadoghqv1alpha1.DatadogMonitorStatus{ID: 1, MonitorLastForceSyncTime: &lastForceSync},
+			statePollingPeriod: time.Hour,
+			forceSyncPeriod:    time.Hour,
+			want:               10 * time.Minute,
+		},
+		{
+			name:               "creation time is force sync fallback",
+			status:             &datadoghqv1alpha1.DatadogMonitorStatus{ID: 1, Created: &created},
+			statePollingPeriod: time.Hour,
+			forceSyncPeriod:    time.Hour,
+			want:               30 * time.Minute,
+		},
+		{
+			name:               "resource without remote ID uses polling period",
+			status:             &datadoghqv1alpha1.DatadogMonitorStatus{},
+			statePollingPeriod: 24 * time.Hour,
+			forceSyncPeriod:    time.Hour,
+			want:               24 * time.Hour,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, nextRequeueAfter(tt.status, now, tt.statePollingPeriod, tt.forceSyncPeriod))
+		})
+	}
+}
+
+func TestReconcileDatadogMonitor_CreateErrorUsesErrorRequeuePeriod(t *testing.T) {
+	logf.SetLogger(zap.New(zap.UseDevMode(true)))
+
+	httpServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		http.Error(w, "temporary failure", http.StatusInternalServerError)
+	}))
+	defer httpServer.Close()
+
+	t.Setenv("DD_URL", httpServer.URL)
+	t.Setenv("DD_API_KEY", "DUMMY_API_KEY")
+	t.Setenv("DD_APP_KEY", "DUMMY_APP_KEY")
+
+	s := scheme.Scheme
+	s.AddKnownTypes(datadoghqv1alpha1.GroupVersion, &datadoghqv1alpha1.DatadogMonitor{})
+	testConfig := datadogapi.NewConfiguration()
+	testConfig.HTTPClient = httpServer.Client()
+	ddClient := datadogV1.NewMonitorsApi(datadogapi.NewAPIClient(testConfig))
+	dm := &datadoghqv1alpha1.DatadogMonitor{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:       resourcesName,
+			Namespace:  resourcesNamespace,
+			Finalizers: []string{datadogMonitorFinalizer},
+		},
+		Spec: datadoghqv1alpha1.DatadogMonitorSpec{
+			Query:   "avg(last_5m):avg:system.load.1{*} > 100000",
+			Type:    datadoghqv1alpha1.DatadogMonitorTypeMetric,
+			Name:    "test monitor",
+			Message: "load test",
+			Tags:    []string{requiredTag},
+		},
+	}
+	kubeClient := fake.NewClientBuilder().WithScheme(s).WithStatusSubresource(&datadoghqv1alpha1.DatadogMonitor{}).WithObjects(dm).Build()
+	r := &Reconciler{
+		client:        kubeClient,
+		datadogClient: ddClient,
+		credsManager:  config.NewCredentialManager(fake.NewClientBuilder().Build()),
+		scheme:        s,
+		recorder:      record.NewFakeRecorder(1),
+		log:           logf.Log.WithName("create-error-requeue"),
+		requeuePeriod: 24 * time.Hour,
+	}
+
+	result, err := r.Reconcile(context.Background(), dm)
+	assert.NoError(t, err)
+	assert.Equal(t, ctrl.Result{RequeueAfter: defaultErrRequeuePeriod}, result)
 }
 
 func TestReconcileDatadogMonitor_StatePollingUsesLowPriority(t *testing.T) {
@@ -278,7 +379,7 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 				loadFunc:            genericDatadogMonitor,
 				firstReconcileCount: 3,
 			},
-			wantResult: reconcile.Result{RequeueAfter: defaultRequeuePeriod},
+			wantResult: lowPriorityResult(defaultRequeuePeriod),
 			wantFunc: func(c client.Client) error {
 				dm := &datadoghqv1alpha1.DatadogMonitor{}
 				if err := c.Get(context.TODO(), types.NamespacedName{Name: resourcesName, Namespace: resourcesNamespace}, dm); err != nil {
@@ -392,7 +493,7 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 
 				firstReconcileCount: 10,
 			},
-			wantResult: reconcile.Result{RequeueAfter: defaultRequeuePeriod},
+			wantResult: lowPriorityResult(defaultRequeuePeriod),
 			wantErr:    false,
 			wantFunc: func(c client.Client) error {
 				dm := &datadoghqv1alpha1.DatadogMonitor{}
@@ -411,7 +512,7 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 
 				firstReconcileCount: 10,
 			},
-			wantResult: reconcile.Result{RequeueAfter: defaultRequeuePeriod},
+			wantResult: lowPriorityResult(defaultRequeuePeriod),
 			wantErr:    false,
 			wantFunc: func(c client.Client) error {
 				dm := &datadoghqv1alpha1.DatadogMonitor{}
@@ -430,7 +531,7 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 
 				firstReconcileCount: 10,
 			},
-			wantResult: reconcile.Result{RequeueAfter: defaultRequeuePeriod},
+			wantResult: lowPriorityResult(defaultRequeuePeriod),
 			wantErr:    false,
 			wantFunc: func(c client.Client) error {
 				dm := &datadoghqv1alpha1.DatadogMonitor{}
@@ -449,7 +550,7 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 
 				firstReconcileCount: 10,
 			},
-			wantResult: reconcile.Result{RequeueAfter: defaultRequeuePeriod},
+			wantResult: lowPriorityResult(defaultRequeuePeriod),
 			wantErr:    false,
 			wantFunc: func(c client.Client) error {
 				dm := &datadoghqv1alpha1.DatadogMonitor{}
@@ -468,7 +569,7 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 
 				firstReconcileCount: 10,
 			},
-			wantResult: reconcile.Result{RequeueAfter: defaultRequeuePeriod},
+			wantResult: lowPriorityResult(defaultRequeuePeriod),
 			wantErr:    false,
 			wantFunc: func(c client.Client) error {
 				dm := &datadoghqv1alpha1.DatadogMonitor{}
@@ -487,7 +588,7 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 
 				firstReconcileCount: 10,
 			},
-			wantResult: reconcile.Result{RequeueAfter: defaultRequeuePeriod},
+			wantResult: lowPriorityResult(defaultRequeuePeriod),
 			wantErr:    false,
 			wantFunc: func(c client.Client) error {
 				dm := &datadoghqv1alpha1.DatadogMonitor{}
@@ -506,7 +607,7 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 
 				firstReconcileCount: 10,
 			},
-			wantResult: reconcile.Result{RequeueAfter: defaultRequeuePeriod},
+			wantResult: lowPriorityResult(defaultRequeuePeriod),
 			wantErr:    false,
 			wantFunc: func(c client.Client) error {
 				dm := &datadoghqv1alpha1.DatadogMonitor{}
@@ -525,7 +626,7 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 
 				firstReconcileCount: 10,
 			},
-			wantResult: reconcile.Result{RequeueAfter: defaultRequeuePeriod},
+			wantResult: lowPriorityResult(defaultRequeuePeriod),
 			wantErr:    false,
 			wantFunc: func(c client.Client) error {
 				dm := &datadoghqv1alpha1.DatadogMonitor{}
@@ -543,7 +644,7 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 				loadFunc:            testAuditMonitor,
 				firstReconcileCount: 10,
 			},
-			wantResult: reconcile.Result{RequeueAfter: defaultRequeuePeriod},
+			wantResult: lowPriorityResult(defaultRequeuePeriod),
 			wantErr:    false,
 			wantFunc: func(c client.Client) error {
 				dm := &datadoghqv1alpha1.DatadogMonitor{}
@@ -561,7 +662,7 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 				loadFunc:            testErrorTrackingMonitor,
 				firstReconcileCount: 10,
 			},
-			wantResult: reconcile.Result{RequeueAfter: defaultRequeuePeriod},
+			wantResult: lowPriorityResult(defaultRequeuePeriod),
 			wantErr:    false,
 			wantFunc: func(c client.Client) error {
 				dm := &datadoghqv1alpha1.DatadogMonitor{}
@@ -598,7 +699,7 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 				},
 				firstReconcileCount: 2,
 			},
-			wantResult: reconcile.Result{RequeueAfter: defaultRequeuePeriod},
+			wantResult: reconcile.Result{RequeueAfter: defaultErrRequeuePeriod},
 			wantErr:    false,
 			wantFunc: func(c client.Client) error {
 				dm := &datadoghqv1alpha1.DatadogMonitor{}
@@ -640,6 +741,7 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 				scheme:        s,
 				recorder:      recorder,
 				log:           logf.Log.WithName(tt.name),
+				requeuePeriod: defaultRequeuePeriod,
 			}
 			_ = testAuth
 
@@ -726,6 +828,7 @@ func TestReconcileDatadogMonitor_CredentialRefresh(t *testing.T) {
 		scheme:        s,
 		recorder:      recorder,
 		log:           logf.Log.WithName("credential-refresh-test"),
+		requeuePeriod: defaultRequeuePeriod,
 	}
 
 	dm := genericDatadogMonitor(r.client)
@@ -1341,6 +1444,7 @@ func TestReconcileDatadogMonitor_RecreatesOnOutOfBandDelete(t *testing.T) {
 		scheme:        s,
 		recorder:      recorder,
 		log:           logf.Log.WithName("recreate-on-404"),
+		requeuePeriod: defaultRequeuePeriod,
 	}
 
 	dm := genericDatadogMonitor(r.client)
@@ -1439,6 +1543,7 @@ func TestReconcileDatadogMonitor_ClearsIDOnUpdate404(t *testing.T) {
 		scheme:        s,
 		recorder:      recorder,
 		log:           logf.Log.WithName("clears-id-on-update-404"),
+		requeuePeriod: defaultRequeuePeriod,
 	}
 
 	dm := genericDatadogMonitor(rec.client)
