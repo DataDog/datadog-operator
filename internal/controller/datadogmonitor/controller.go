@@ -24,8 +24,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/retry"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	ctrlhandler "sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
@@ -179,12 +181,13 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 
 	shouldCreate := false
 	shouldUpdate := false
+	shouldRefreshState := false
+	var m datadogV1.Monitor
 
 	// Check if we need to create the monitor, update the monitor definition, or update monitor state
 	if instance.Status.ID == 0 {
 		shouldCreate = true
 	} else {
-		var m datadogV1.Monitor
 		if instanceSpecHash != statusSpecHash {
 			// Custom resource manifest has changed; verify the monitor still
 			// exists before updating. If it was deleted out-of-band (e.g. from
@@ -213,17 +216,24 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 				shouldUpdate = true
 			}
 		} else if instance.Status.MonitorStateLastUpdateTime == nil || (r.resolvedRequeuePeriod()-now.Sub(instance.Status.MonitorStateLastUpdateTime.Time)) <= 0 {
-			// If other conditions aren't met, and we have passed the configured requeue period, then update monitor state
-			// Get monitor to make sure it exists before trying any updates. If it doesn't, set shouldCreate
-			m, err = r.get(auth, instance, newStatus)
-			if err != nil {
-				logger.Error(err, "error getting monitor", "Monitor ID", instance.Status.ID)
-				if strings.Contains(err.Error(), ctrutils.NotFoundString) {
-					shouldCreate = true
-				}
-			}
-			updateMonitorState(m, now, newStatus)
+			// If other conditions aren't met, and we have passed the configured requeue period, refresh monitor state.
+			shouldRefreshState = true
 		}
+	}
+
+	if shouldRefreshState {
+		// State polling is eventual-consistency work. Keep lifecycle and spec changes ahead of it.
+		result.Priority = ptr.To(ctrlhandler.LowPriority)
+		m, err = r.get(auth, instance, newStatus)
+		if err != nil {
+			logger.Error(err, "error getting monitor", "Monitor ID", instance.Status.ID)
+			if strings.Contains(err.Error(), ctrutils.NotFoundString) {
+				shouldCreate = true
+				// A missing remote monitor needs lifecycle work, not background polling.
+				result.Priority = nil
+			}
+		}
+		updateMonitorState(m, now, newStatus)
 	}
 
 	// Create and update actions
@@ -274,7 +284,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 	}
 
 	// If reconcile was successful, requeue with the configured period.
-	if result.IsZero() {
+	if result.RequeueAfter == 0 {
 		result.RequeueAfter = r.resolvedRequeuePeriod()
 	}
 
@@ -406,7 +416,7 @@ func (r *Reconciler) updateStatusIfNeeded(logger logr.Logger, datadogMonitor *da
 		// not an issue, but if a monitor has many groups and is "flapping", then it can cause a flood of updates to
 		// the Status.TriggeredState and put pressure on the controller. As a safeguard against this, the maximum number
 		// of groups stored in Status.TriggeredState should be conservative.
-		return ctrl.Result{RequeueAfter: r.resolvedRequeuePeriod()}, nil
+		return ctrl.Result{RequeueAfter: r.resolvedRequeuePeriod(), Priority: result.Priority}, nil
 	}
 
 	return result, nil

@@ -26,9 +26,11 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -160,6 +162,67 @@ func TestRequeuePeriod(t *testing.T) {
 
 	assert.Equal(t, defaultRequeuePeriod, requeuePeriod(logger, 0))
 	assert.Equal(t, 2*time.Minute, requeuePeriod(logger, 2*time.Minute))
+}
+
+func TestReconcileDatadogMonitor_StatePollingUsesLowPriority(t *testing.T) {
+	logf.SetLogger(zap.New(zap.UseDevMode(true)))
+
+	httpServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if r.Method == http.MethodGet && r.URL.Path == "/api/v1/monitor/12345" {
+			fmt.Fprint(w, `{"id":12345,"name":"test monitor","query":"q","type":"metric alert"}`)
+			return
+		}
+		http.Error(w, "unexpected request", http.StatusNotFound)
+	}))
+	defer httpServer.Close()
+
+	t.Setenv("DD_URL", httpServer.URL)
+	t.Setenv("DD_API_KEY", "DUMMY_API_KEY")
+	t.Setenv("DD_APP_KEY", "DUMMY_APP_KEY")
+
+	s := scheme.Scheme
+	s.AddKnownTypes(datadoghqv1alpha1.GroupVersion, &datadoghqv1alpha1.DatadogMonitor{})
+	testConfig := datadogapi.NewConfiguration()
+	testConfig.HTTPClient = httpServer.Client()
+	ddClient := datadogV1.NewMonitorsApi(datadogapi.NewAPIClient(testConfig))
+
+	requeuePeriod := 2 * time.Minute
+	now := metav1.Now()
+	dm := &datadoghqv1alpha1.DatadogMonitor{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:       resourcesName,
+			Namespace:  resourcesNamespace,
+			Finalizers: []string{datadogMonitorFinalizer},
+		},
+		Spec: datadoghqv1alpha1.DatadogMonitorSpec{
+			Query:   "avg(last_10m):avg:system.cpu.user{*} > 1",
+			Type:    datadoghqv1alpha1.DatadogMonitorTypeMetric,
+			Name:    "test monitor",
+			Message: "something is wrong",
+		},
+		Status: datadoghqv1alpha1.DatadogMonitorStatus{
+			ID:                         12345,
+			MonitorLastForceSyncTime:   &now,
+			MonitorStateLastUpdateTime: &metav1.Time{Time: now.Add(-2 * requeuePeriod)},
+		},
+	}
+	dm.Status.CurrentHash, _ = comparison.GenerateMD5ForSpec(&dm.Spec)
+
+	client := fake.NewClientBuilder().WithScheme(s).WithStatusSubresource(&datadoghqv1alpha1.DatadogMonitor{}).WithObjects(dm).Build()
+	r := &Reconciler{
+		client:        client,
+		datadogClient: ddClient,
+		credsManager:  config.NewCredentialManager(fake.NewClientBuilder().Build()),
+		scheme:        s,
+		recorder:      record.NewFakeRecorder(1),
+		log:           logf.Log.WithName("state-polling-priority"),
+		requeuePeriod: requeuePeriod,
+	}
+
+	result, err := r.Reconcile(context.Background(), dm)
+	assert.NoError(t, err)
+	assert.Equal(t, ctrl.Result{RequeueAfter: requeuePeriod, Priority: ptr.To(handler.LowPriority)}, result)
 }
 
 func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
