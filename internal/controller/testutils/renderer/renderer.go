@@ -159,7 +159,7 @@ func Render(opts Options) ([]client.Object, *runtime.Scheme, error) {
 	}
 
 	// Build fake client pre-populated with DDA, DAPs, and the DDAI CRD.
-	// The DDAI CRD is required by newFieldManager() inside reconcileInstanceV3.
+	// The DDAI CRD is required by newFieldManager() inside reconcileInstance.
 	// StatusSubresource registration ensures Status().Update() calls work correctly.
 	initObjs := []client.Object{opts.DDA, crd}
 	for _, dap := range opts.DAPs {

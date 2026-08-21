@@ -28,7 +28,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
-func (r *Reconciler) internalReconcileV2(ctx context.Context, instance *v1alpha1.DatadogAgentInternal) (reconcile.Result, error) {
+func (r *Reconciler) internalReconcile(ctx context.Context, instance *v1alpha1.DatadogAgentInternal) (reconcile.Result, error) {
 	logger := ctrl.LoggerFrom(ctx)
 	logger.Info("Reconciling DatadogAgentInternal")
 	// var result reconcile.Result
@@ -50,10 +50,10 @@ func (r *Reconciler) internalReconcileV2(ctx context.Context, instance *v1alpha1
 	defaults.DefaultDatadogAgentSpec(&instanceCopy.Spec)
 
 	// 4. Delegate to the main reconcile function.
-	return r.reconcileInstanceV2(ctx, instanceCopy)
+	return r.reconcileInstance(ctx, instanceCopy)
 }
 
-func (r *Reconciler) reconcileInstanceV2(ctx context.Context, instance *v1alpha1.DatadogAgentInternal) (reconcile.Result, error) {
+func (r *Reconciler) reconcileInstance(ctx context.Context, instance *v1alpha1.DatadogAgentInternal) (reconcile.Result, error) {
 	logger := ctrl.LoggerFrom(ctx)
 	var result reconcile.Result
 	newStatus := instance.Status.DeepCopy()
@@ -67,7 +67,7 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, instance *v1alpha1
 	// (mirrors Helm's install-time fail) before any dependency/resource is created; a degraded
 	// feature only warns. Evaluated on the verdict BuildFeatures returned.
 	if r.providerSupportBlocks(logger, instance, unsupportedFeatures, newStatus, now) {
-		return r.updateStatusIfNeededV2(ctx, instance, newStatus, reconcile.Result{}, nil, now)
+		return r.updateStatusIfNeeded(ctx, instance, newStatus, reconcile.Result{}, nil, now)
 	}
 
 	// 1. Manage dependencies.
@@ -78,17 +78,17 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, instance *v1alpha1
 	// only manage dependencies for default DDAIs
 	if !isDDAILabeledWithProfile(instance) {
 		if err = r.manageGlobalDependencies(ctx, instance, resourceManagers, requiredComponents); err != nil {
-			return r.updateStatusIfNeededV2(ctx, instance, newStatus, reconcile.Result{}, err, now)
+			return r.updateStatusIfNeeded(ctx, instance, newStatus, reconcile.Result{}, err, now)
 		}
 		if err = r.manageFeatureDependencies(enabledFeatures, resourceManagers); err != nil {
-			return r.updateStatusIfNeededV2(ctx, instance, newStatus, reconcile.Result{}, err, now)
+			return r.updateStatusIfNeeded(ctx, instance, newStatus, reconcile.Result{}, err, now)
 		}
 		if err = r.overrideDependencies(ctx, resourceManagers, instance); err != nil {
-			return r.updateStatusIfNeededV2(ctx, instance, newStatus, reconcile.Result{}, err, now)
+			return r.updateStatusIfNeeded(ctx, instance, newStatus, reconcile.Result{}, err, now)
 		}
 		// 1. Apply and cleanup dependencies before reconciling components to ensure deps exist at reconciliation time.
 		if err = r.applyAndCleanupDependencies(ctx, depsStore); err != nil {
-			return r.updateStatusIfNeededV2(ctx, instance, newStatus, reconcile.Result{}, err, now)
+			return r.updateStatusIfNeeded(ctx, instance, newStatus, reconcile.Result{}, err, now)
 		}
 	}
 
@@ -108,7 +108,7 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, instance *v1alpha1
 
 		result, err = r.componentRegistry.ReconcileComponents(ctx, params)
 		if utils.ShouldReturn(result, err) {
-			return r.updateStatusIfNeededV2(ctx, instance, newStatus, result, err, now)
+			return r.updateStatusIfNeeded(ctx, instance, newStatus, result, err, now)
 		}
 	}
 
@@ -116,20 +116,20 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, instance *v1alpha1
 	// controller stamps gke-autopilot there for both the OOTB and experimental opt-in paths.
 	result, err = r.reconcileV2Agent(ctx, requiredComponents, append(configuredFeatures, enabledFeatures...), instance, resourceManagers, newStatus, provider)
 	if utils.ShouldReturn(result, err) {
-		return r.updateStatusIfNeededV2(ctx, instance, newStatus, result, err, now)
+		return r.updateStatusIfNeeded(ctx, instance, newStatus, result, err, now)
 	}
 	condition.UpdateDatadogAgentInternalStatusConditions(newStatus, now, common.AgentReconcileConditionType, metav1.ConditionTrue, "reconcile_succeed", "reconcile succeed", false)
 
 	// 3. Cleanup extraneous resources.
 	if err = r.cleanupExtraneousResources(ctx, instance, newStatus, resourceManagers); err != nil {
 		logger.Error(err, "Error cleaning up extraneous resources")
-		return r.updateStatusIfNeededV2(ctx, instance, newStatus, result, err, now)
+		return r.updateStatusIfNeeded(ctx, instance, newStatus, result, err, now)
 	}
 
 	// 4. Cleanup stale dependencies (only for default DDAIs).
 	if !isDDAILabeledWithProfile(instance) {
 		if cleanupErrs := depsStore.Cleanup(ctx, r.client, true); len(cleanupErrs) > 0 {
-			return r.updateStatusIfNeededV2(ctx, instance, newStatus, result, cleanupErrs[0], now)
+			return r.updateStatusIfNeeded(ctx, instance, newStatus, result, cleanupErrs[0], now)
 		}
 	}
 
@@ -137,7 +137,7 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, instance *v1alpha1
 	if result.IsZero() {
 		result.RequeueAfter = defaultRequeuePeriod
 	}
-	return r.updateStatusIfNeededV2(ctx, instance, newStatus, result, err, now)
+	return r.updateStatusIfNeeded(ctx, instance, newStatus, result, err, now)
 }
 
 // providerSupportBlocks acts on the provider-support verdict returned by BuildFeatures. Features
@@ -178,7 +178,7 @@ func (r *Reconciler) providerSupportBlocks(logger logr.Logger, instance *v1alpha
 	return false
 }
 
-func (r *Reconciler) updateStatusIfNeededV2(ctx context.Context, agentdeployment *v1alpha1.DatadogAgentInternal, newStatus *v1alpha1.DatadogAgentInternalStatus, result reconcile.Result, currentError error, now metav1.Time) (reconcile.Result, error) {
+func (r *Reconciler) updateStatusIfNeeded(ctx context.Context, agentdeployment *v1alpha1.DatadogAgentInternal, newStatus *v1alpha1.DatadogAgentInternalStatus, result reconcile.Result, currentError error, now metav1.Time) (reconcile.Result, error) {
 	logger := ctrl.LoggerFrom(ctx)
 	if currentError == nil {
 		condition.UpdateDatadogAgentInternalStatusConditions(newStatus, now, common.DatadogAgentReconcileErrorConditionType, metav1.ConditionFalse, "DatadogAgent_reconcile_ok", "DatadogAgent reconcile ok", false)
@@ -186,7 +186,7 @@ func (r *Reconciler) updateStatusIfNeededV2(ctx context.Context, agentdeployment
 		condition.UpdateDatadogAgentInternalStatusConditions(newStatus, now, common.DatadogAgentReconcileErrorConditionType, metav1.ConditionTrue, "DatadogAgent_reconcile_error", currentError.Error(), false)
 	}
 
-	r.setMetricsForwarderStatusV2(ctx, agentdeployment, newStatus)
+	r.setMetricsForwarderStatus(ctx, agentdeployment, newStatus)
 
 	if !IsEqualStatus(&agentdeployment.Status, newStatus) {
 		updateAgentDeployment := agentdeployment.DeepCopy()
@@ -205,7 +205,7 @@ func (r *Reconciler) updateStatusIfNeededV2(ctx context.Context, agentdeployment
 }
 
 // setMetricsForwarderStatus sets the metrics forwarder status condition if enabled
-func (r *Reconciler) setMetricsForwarderStatusV2(ctx context.Context, agentdeployment *v1alpha1.DatadogAgentInternal, newStatus *v1alpha1.DatadogAgentInternalStatus) {
+func (r *Reconciler) setMetricsForwarderStatus(ctx context.Context, agentdeployment *v1alpha1.DatadogAgentInternal, newStatus *v1alpha1.DatadogAgentInternalStatus) {
 	if r.options.OperatorMetricsEnabled {
 		if forwarderCondition := r.forwarders.MetricsForwarderStatusForObj(agentdeployment); forwarderCondition != nil {
 			condition.UpdateDatadogAgentInternalStatusConditions(
