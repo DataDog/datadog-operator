@@ -138,7 +138,7 @@ func Test_handleFinalizer(t *testing.T) {
 
 	reconciler := reconcilerForFinalizerTest(initialKubeObjects)
 
-	err := reconciler.finalizeDadV2(logf.Log.WithName("Handle Finalizer V2 test"), dda)
+	err := reconciler.finalizeDad(logf.Log.WithName("Handle Finalizer V2 test"), dda)
 	assert.NoError(t, err)
 
 	// With DDAI always enabled, the DDA finalizer no longer deletes cluster-level resources

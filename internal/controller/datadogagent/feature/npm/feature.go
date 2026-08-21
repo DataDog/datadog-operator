@@ -189,6 +189,10 @@ func (f *npmFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error
 	}
 	managers.EnvVar().AddEnvVarToContainers(containersForEnvVars, cnmDirectSendEnvVar)
 
+	if f.directSend {
+		featureutils.EnableConfigSyncForDirectSend(managers, containersForEnvVars)
+	}
+
 	// env vars for Process Agent only
 	sysProbeExternalEnvVar := &corev1.EnvVar{
 		Name:  common.DDSystemProbeExternal,

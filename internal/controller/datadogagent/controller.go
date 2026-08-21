@@ -151,7 +151,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, dda *v2alpha1.DatadogAgent) 
 	var resp reconcile.Result
 	var err error
 
-	resp, err = r.internalReconcileV2(ctx, dda)
+	resp, err = r.internalReconcile(ctx, dda)
 
 	r.metricsForwarderProcessError(dda, err)
 	return resp, err

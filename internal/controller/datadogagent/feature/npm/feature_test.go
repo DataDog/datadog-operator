@@ -21,6 +21,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
+	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 )
 
 func Test_npmFeature_Configure(t *testing.T) {
@@ -84,9 +85,20 @@ func Test_npmFeature_Configure(t *testing.T) {
 				Name:  DDSystemProbeCNMDirectSend,
 				Value: "true",
 			},
+			{
+				Name:  common.DDAgentIpcPort,
+				Value: featureutils.DefaultAgentIpcPort,
+			},
+			{
+				Name:  common.DDAgentIpcConfigRefreshInterval,
+				Value: featureutils.DefaultAgentIpcConfigRefreshInterval,
+			},
 		}
 		systemProbeEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.SystemProbeContainerName]
 		assert.True(t, apiutils.IsEqualStruct(systemProbeEnvVars, sysProbeWantEnvVars), "4. System Probe envvars \ndiff = %s", cmp.Diff(systemProbeEnvVars, sysProbeWantEnvVars))
+
+		// config sync is served by the core agent, so it needs the same env vars
+		assertHasConfigSyncEnvVars(t, mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName])
 	}
 	npmAgentNodeWantFunc := func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 		mgr := mgrInterface.(*fake.PodTemplateManagers)
@@ -209,6 +221,14 @@ func Test_npmFeature_Configure(t *testing.T) {
 				Name:  DDSystemProbeCNMDirectSend,
 				Value: "true",
 			},
+			{
+				Name:  common.DDAgentIpcPort,
+				Value: featureutils.DefaultAgentIpcPort,
+			},
+			{
+				Name:  common.DDAgentIpcConfigRefreshInterval,
+				Value: featureutils.DefaultAgentIpcConfigRefreshInterval,
+			},
 		}
 		sysProbeWantEnvVarsNPM := append(sysProbeWantEnvVars, npmFeatureEnvVar...)
 		systemProbeEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.SystemProbeContainerName]
@@ -284,6 +304,8 @@ func Test_npmFeature_Configure(t *testing.T) {
 
 		processAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.ProcessAgentContainerName]
 		assert.True(t, apiutils.IsEqualStruct(processAgentEnvVars, processWantEnvVars), "Process Agent envvars \ndiff = %s", cmp.Diff(processAgentEnvVars, processWantEnvVars))
+
+		assertNoConfigSyncEnvVars(t, mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName])
 	}
 
 	tests := test.FeatureTestSuite{
@@ -319,4 +341,23 @@ func Test_npmFeature_Configure(t *testing.T) {
 	}
 
 	tests.Run(t, buildNPMFeature)
+}
+
+// configSyncEnvVars are the env vars direct send needs so that system-probe, which cannot resolve
+// secret handles itself, receives a resolved api_key from the core agent.
+func configSyncEnvVars() []*corev1.EnvVar {
+	return []*corev1.EnvVar{
+		{Name: common.DDAgentIpcPort, Value: featureutils.DefaultAgentIpcPort},
+		{Name: common.DDAgentIpcConfigRefreshInterval, Value: featureutils.DefaultAgentIpcConfigRefreshInterval},
+	}
+}
+
+func assertHasConfigSyncEnvVars(t testing.TB, envVars []*corev1.EnvVar) {
+	assert.Subset(t, envVars, configSyncEnvVars())
+}
+
+func assertNoConfigSyncEnvVars(t testing.TB, envVars []*corev1.EnvVar) {
+	for _, envVar := range configSyncEnvVars() {
+		assert.NotContains(t, envVars, envVar)
+	}
 }
