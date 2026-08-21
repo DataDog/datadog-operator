@@ -15,6 +15,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	datadogapi "github.com/DataDog/datadog-api-client-go/v2/api/datadog"
 	"github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
@@ -151,6 +152,14 @@ func TestReconcileDatadogMonitor_RetriesCreatedStatusAfterConflict(t *testing.T)
 	_, err = r.Reconcile(context.TODO(), dm)
 	assert.NoError(t, err)
 	assert.Equal(t, int32(1), createCount.Load(), "a status conflict must not cause a second Datadog create")
+}
+
+func TestRequeuePeriod(t *testing.T) {
+	logf.SetLogger(zap.New(zap.UseDevMode(true)))
+	logger := logf.Log.WithName("requeue-period-test")
+
+	assert.Equal(t, defaultRequeuePeriod, requeuePeriod(logger, 0))
+	assert.Equal(t, 2*time.Minute, requeuePeriod(logger, 2*time.Minute))
 }
 
 func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {

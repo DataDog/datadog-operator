@@ -75,10 +75,20 @@ type Reconciler struct {
 	recorder               record.EventRecorder
 	operatorMetricsEnabled bool
 	forwarders             pkgutils.MetricsForwardersManager
+	requeuePeriod          time.Duration
+}
+
+type ReconcilerOptions struct {
+	RequeuePeriod time.Duration
 }
 
 // NewReconciler returns a new Reconciler object
-func NewReconciler(client client.Client, credsManager *config.CredentialManager, scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder, operatorMetricsEnabled bool, metricForwardersMgr pkgutils.MetricsForwardersManager) *Reconciler {
+func NewReconciler(client client.Client, credsManager *config.CredentialManager, scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder, operatorMetricsEnabled bool, metricForwardersMgr pkgutils.MetricsForwardersManager, opts ...ReconcilerOptions) *Reconciler {
+	options := ReconcilerOptions{}
+	if len(opts) > 0 {
+		options = opts[0]
+	}
+
 	return &Reconciler{
 		client:                 client,
 		datadogClient:          datadogclient.InitMonitorClient(),
@@ -88,7 +98,23 @@ func NewReconciler(client client.Client, credsManager *config.CredentialManager,
 		recorder:               recorder,
 		operatorMetricsEnabled: operatorMetricsEnabled,
 		forwarders:             metricForwardersMgr,
+		requeuePeriod:          requeuePeriod(log, options.RequeuePeriod),
 	}
+}
+
+func requeuePeriod(logger logr.Logger, configured time.Duration) time.Duration {
+	if configured <= 0 {
+		configured = defaultRequeuePeriod
+	}
+	logger.Info("Setting monitor requeue period", "duration", configured.String())
+	return configured
+}
+
+func (r *Reconciler) resolvedRequeuePeriod() time.Duration {
+	if r.requeuePeriod <= 0 {
+		return defaultRequeuePeriod
+	}
+	return r.requeuePeriod
 }
 
 // Reconcile is similar to reconciler.Reconcile interface, but taking a context
@@ -130,7 +156,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 
 	newStatus := instance.Status.DeepCopy()
 
-	final := finalizer.NewFinalizer(logger, r.client, r.deleteResource(logger, auth), defaultRequeuePeriod, defaultErrRequeuePeriod)
+	final := finalizer.NewFinalizer(logger, r.client, r.deleteResource(logger, auth), r.resolvedRequeuePeriod(), defaultErrRequeuePeriod)
 	if result, err = final.HandleFinalizer(ctx, instance, fmt.Sprint(instance.Status.ID), datadogMonitorFinalizer); ctrutils.ShouldReturn(result, err) {
 		return result, err
 	}
@@ -186,8 +212,8 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 			} else {
 				shouldUpdate = true
 			}
-		} else if instance.Status.MonitorStateLastUpdateTime == nil || (defaultRequeuePeriod-now.Sub(instance.Status.MonitorStateLastUpdateTime.Time)) <= 0 {
-			// If other conditions aren't met, and we have passed the defaultRequeuePeriod, then update monitor state
+		} else if instance.Status.MonitorStateLastUpdateTime == nil || (r.resolvedRequeuePeriod()-now.Sub(instance.Status.MonitorStateLastUpdateTime.Time)) <= 0 {
+			// If other conditions aren't met, and we have passed the configured requeue period, then update monitor state
 			// Get monitor to make sure it exists before trying any updates. If it doesn't, set shouldCreate
 			m, err = r.get(auth, instance, newStatus)
 			if err != nil {
@@ -247,9 +273,9 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 		}
 	}
 
-	// If reconcile was successful, requeue with period defaultRequeuePeriod
+	// If reconcile was successful, requeue with the configured period.
 	if result.IsZero() {
-		result.RequeueAfter = defaultRequeuePeriod
+		result.RequeueAfter = r.resolvedRequeuePeriod()
 	}
 
 	// Update the status
@@ -380,7 +406,7 @@ func (r *Reconciler) updateStatusIfNeeded(logger logr.Logger, datadogMonitor *da
 		// not an issue, but if a monitor has many groups and is "flapping", then it can cause a flood of updates to
 		// the Status.TriggeredState and put pressure on the controller. As a safeguard against this, the maximum number
 		// of groups stored in Status.TriggeredState should be conservative.
-		return ctrl.Result{RequeueAfter: defaultRequeuePeriod}, nil
+		return ctrl.Result{RequeueAfter: r.resolvedRequeuePeriod()}, nil
 	}
 
 	return result, nil
