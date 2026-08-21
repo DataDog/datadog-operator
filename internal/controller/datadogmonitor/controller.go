@@ -177,7 +177,8 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 	shouldRefreshState := false
 	var m datadogV1.Monitor
 
-	// Check if we need to create the monitor, update the monitor definition, or update monitor state
+	// Decide which remote work is due. Lifecycle and specification work takes
+	// precedence over the eventual-consistency state poll.
 	if instance.Status.ID == 0 {
 		shouldCreate = true
 	} else {
@@ -199,8 +200,9 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 				shouldUpdate = true
 			}
 		} else if instance.Status.MonitorLastForceSyncTime == nil || (forceSyncPeriod-now.Sub(instance.Status.MonitorLastForceSyncTime.Time)) <= 0 {
-			// Periodically force a sync with the API monitor to ensure parity
-			// Get monitor to make sure it exists before trying any updates. If it doesn't, set shouldCreate
+			// A force sync periodically reapplies the desired monitor definition
+			// to correct out-of-band changes. Check that the remote monitor still
+			// exists first so an out-of-band deletion takes the create path.
 			_, err = r.get(auth, instance, newStatus)
 			if err != nil {
 				logger.Error(err, "error getting monitor", "Monitor ID", instance.Status.ID)
@@ -213,20 +215,23 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 				shouldUpdate = true
 			}
 		} else if instance.Status.MonitorStateLastUpdateTime == nil || (r.requeuePeriod-now.Sub(instance.Status.MonitorStateLastUpdateTime.Time)) <= 0 {
-			// If other conditions aren't met, and we have passed the configured requeue period, refresh monitor state.
+			// Refresh state only when no lifecycle or specification operation is
+			// due and the configured polling period has elapsed.
 			shouldRefreshState = true
 		}
 	}
 
 	if shouldRefreshState {
-		// State polling is eventual-consistency work. Keep lifecycle and spec changes ahead of it.
+		// State polling is eventual-consistency work, so its scheduled follow-up
+		// stays behind lifecycle and specification changes in the work queue.
 		result.Priority = ptr.To(ctrlhandler.LowPriority)
 		m, err = r.get(auth, instance, newStatus)
 		if err != nil {
 			logger.Error(err, "error getting monitor", "Monitor ID", instance.Status.ID)
 			if strings.Contains(err.Error(), ctrutils.NotFoundString) {
 				shouldCreate = true
-				// A missing remote monitor needs lifecycle work, not background polling.
+				// A missing remote monitor promotes this reconciliation from state
+				// polling to lifecycle work, which must return at normal priority.
 				result.Priority = nil
 			}
 		}
@@ -283,7 +288,12 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 		}
 	}
 
-	// Schedule background reconciliation at low priority, without delaying the independent force-sync deadline.
+	// Delayed polling and force-sync requeues are controller-scheduled maintenance,
+	// not new informer events. Successful work is assigned low priority here;
+	// state polling is assigned low priority before its API call above. Informer
+	// events, including the initial list at startup, retain the controller-runtime
+	// default priority and can overtake this background work. Preserve a delay
+	// already set by an error path so lifecycle failures keep their short retry.
 	if result.RequeueAfter == 0 {
 		result.RequeueAfter = nextRequeueAfter(newStatus, now, r.requeuePeriod, forceSyncPeriod)
 		if err == nil {
@@ -296,6 +306,9 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 }
 
 func nextRequeueAfter(status *datadoghqv1alpha1.DatadogMonitorStatus, now metav1.Time, statePollingPeriod, forceSyncPeriod time.Duration) time.Duration {
+	// State polling and force sync are independent schedules. Use the earlier
+	// deadline so a long polling period cannot postpone reapplying the desired
+	// monitor definition. Creation time anchors the first force-sync deadline.
 	next := statePollingPeriod
 	if status.ID == 0 {
 		return next
@@ -436,13 +449,12 @@ func (r *Reconciler) updateStatusIfNeeded(logger logr.Logger, datadogMonitor *da
 
 			return ctrl.Result{}, err
 		}
-		// This is brittle; typically if a Spec or Status is updated in the API, the result gets requeued without additional action.
-		// However, sometimes apiequality.Semantic.DeepEqual() is false even when the API thinks they are equal (and no update is made).
-		// Thus, the result does not get requeued after entering this `if` block. To safeguard this, we will always requeue the result
-		// here. The danger of this is potentially requeueing twice for every status update. In most circumstances this is
-		// not an issue, but if a monitor has many groups and is "flapping", then it can cause a flood of updates to
-		// the Status.TriggeredState and put pressure on the controller. As a safeguard against this, the maximum number
-		// of groups stored in Status.TriggeredState should be conservative.
+		// A status write usually emits an informer event, but the API server may
+		// consider the update a no-op even when Semantic.DeepEqual reported a
+		// difference. Ensure another reconciliation is scheduled in that case.
+		// Preserve any delay and priority selected above: in particular, lifecycle
+		// errors must retain their short retry and background work must remain low
+		// priority. Default to the state-polling period only when no schedule exists.
 		if result.RequeueAfter == 0 {
 			result.RequeueAfter = r.requeuePeriod
 		}
