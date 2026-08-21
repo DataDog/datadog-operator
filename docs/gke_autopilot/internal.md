@@ -35,7 +35,7 @@ DatadogAgent
 
 Relevant code:
 
-- `internal/controller/datadogagent/controller_reconcile_v2.go`
+- `internal/controller/datadogagent/reconcile.go`
 - `internal/controller/datadogagent/ddai.go`
 
 `generateObjMetaFromDDA` copies annotations from the `DatadogAgent` to the generated `DatadogAgentInternal`, excluding only `kubectl.kubernetes.io/last-applied-configuration`. This is what carries the Autopilot annotation into the internal reconciler.
@@ -54,8 +54,8 @@ DatadogAgentInternal
 
 Relevant code:
 
-- `internal/controller/datadogagentinternal/controller_reconcile_v2.go`
-- `internal/controller/datadogagentinternal/controller_reconcile_agent.go`
+- `internal/controller/datadogagentinternal/reconcile.go`
+- `internal/controller/datadogagentinternal/reconcile_agent.go`
 - `internal/controller/datadogagentinternal/component_reconciler.go`
 
 ## Where Autopilot mutates the Node Agent
@@ -164,7 +164,7 @@ The lower-level rule construction is in `internal/controller/datadogagent/compon
 Focused tests:
 
 - `internal/controller/datadogagent/experimental/autopilot_test.go`
-- `internal/controller/datadogagent/controller_v2_test.go`, `Test_AutopilotOverrides`
+- `internal/controller/datadogagent/reconcile_test.go`, `Test_AutopilotOverrides`
 
 Add tests when changing:
 
