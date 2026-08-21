@@ -197,11 +197,16 @@ func (m *Mapper) mapValues(sourceValues chartutil.Values, mappingValues chartuti
 
 	// Map values.yaml => DDA
 	for _, sourceKey := range mappingKeys {
+		destKey, _ := mappingValues[sourceKey]
+		// Only mapFunc destinations can safely handle a multi-key table; plain string/list
+		// destinations expect a single scalar and can collide with separate leaf mappings.
+		_, destIsMapFunc := destKey.(map[string]any)
+
 		pathVal, _ := sourceValues.PathValue(sourceKey)
 		if pathVal == nil {
 			if mapVal, ok := utils.GetPathMap(sourceValues[sourceKey]); ok && mapVal != nil {
 				pathVal = mapVal
-			} else if tableVal, err := sourceValues.Table(sourceKey); err == nil && len(tableVal) == 1 {
+			} else if tableVal, err := sourceValues.Table(sourceKey); err == nil && len(tableVal) > 0 && (len(tableVal) == 1 || destIsMapFunc) {
 				pathVal = tableVal
 			} else {
 				continue
@@ -210,7 +215,6 @@ func (m *Mapper) mapValues(sourceValues chartutil.Values, mappingValues chartuti
 
 		utils.MergeOrSet(sourceKeysRef, sourceKey, map[string]any{"visited": true})
 
-		destKey, _ := mappingValues[sourceKey]
 		if (destKey == "" || destKey == nil) && !shouldSkipMappingKey(sourceKey) {
 			slog.Error("DDA destination key not found", "sourceKey", sourceKey)
 			errorCount++

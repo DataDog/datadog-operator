@@ -1083,7 +1083,7 @@ func TestApplyDeprecationRules(t *testing.T) {
 func TestMappingProcessors(t *testing.T) {
 	// Test that all mapping processors are properly registered
 	t.Run("mapFuncRegistry_dict", func(t *testing.T) {
-		expectedFuncs := []string{"mapSecretKeyName", "mapSeccompProfile", "mapSystemProbeAppArmor", "mapLocalServiceName", "mapAppendEnvVar", "mapMergeEnvs", "mapOverrideType"}
+		expectedFuncs := []string{"mapSecretKeyName", "mapSeccompProfile", "mapSystemProbeAppArmor", "mapLocalServiceName", "mapAppendEnvVar", "mapMergeEnvs", "mapOverrideType", "mapCustomConfigFile"}
 		mapFuncs := mapFuncRegistry()
 
 		for _, funcName := range expectedFuncs {
@@ -1719,6 +1719,139 @@ func TestMappingProcessors(t *testing.T) {
 			pathVal: "8080",
 			expectedMap: map[string]any{
 				"spec.features.foo.bar": 8080,
+			},
+		},
+		// mapCustomConfigFile tests
+		{
+			name:     "mapCustomConfigFile_string_value",
+			funcName: "mapCustomConfigFile",
+			interim:  map[string]any{},
+			newPath:  "spec.override.nodeAgent.customConfigurations",
+			pathVal:  "log_level: debug\ntags:\n  - foo:bar\n",
+			mapFuncArgs: []any{
+				map[string]any{
+					"fileName": "datadog.yaml",
+				},
+			},
+			expectedMap: map[string]any{
+				"spec.override.nodeAgent.customConfigurations": map[string]any{
+					"datadog.yaml": map[string]any{
+						"configData": "log_level: debug\ntags:\n  - foo:bar\n",
+					},
+				},
+			},
+		},
+		{
+			name:     "mapCustomConfigFile_object_value_marshaled_to_yaml",
+			funcName: "mapCustomConfigFile",
+			interim:  map[string]any{},
+			newPath:  "spec.override.clusterAgent.customConfigurations",
+			pathVal: map[string]any{
+				"log_level": "debug",
+				"tags":      []any{"foo:bar"},
+			},
+			mapFuncArgs: []any{
+				map[string]any{
+					"fileName": "datadog-cluster.yaml",
+				},
+			},
+			expectedMap: map[string]any{
+				"spec.override.clusterAgent.customConfigurations": map[string]any{
+					"datadog-cluster.yaml": map[string]any{
+						"configData": "log_level: debug\ntags:\n- foo:bar\n",
+					},
+				},
+			},
+		},
+		{
+			name:     "mapCustomConfigFile_merges_with_existing_customConfigurations",
+			funcName: "mapCustomConfigFile",
+			interim: map[string]any{
+				"spec.override.nodeAgent.customConfigurations": map[string]any{
+					"other-file.yaml": map[string]any{
+						"configData": "foo: bar\n",
+					},
+				},
+			},
+			newPath: "spec.override.nodeAgent.customConfigurations",
+			pathVal: "log_level: debug\n",
+			mapFuncArgs: []any{
+				map[string]any{
+					"fileName": "datadog.yaml",
+				},
+			},
+			expectedMap: map[string]any{
+				"spec.override.nodeAgent.customConfigurations": map[string]any{
+					"other-file.yaml": map[string]any{
+						"configData": "foo: bar\n",
+					},
+					"datadog.yaml": map[string]any{
+						"configData": "log_level: debug\n",
+					},
+				},
+			},
+		},
+		{
+			name:     "mapCustomConfigFile_no_args_is_noop",
+			funcName: "mapCustomConfigFile",
+			interim: map[string]any{
+				"spec.global.site": "datadoghq.com",
+			},
+			newPath:     "spec.override.nodeAgent.customConfigurations",
+			pathVal:     "log_level: debug\n",
+			mapFuncArgs: []any{},
+			expectedMap: map[string]any{
+				"spec.global.site": "datadoghq.com",
+			},
+		},
+		{
+			name:     "mapCustomConfigFile_missing_fileName_is_noop",
+			funcName: "mapCustomConfigFile",
+			interim: map[string]any{
+				"spec.global.site": "datadoghq.com",
+			},
+			newPath: "spec.override.nodeAgent.customConfigurations",
+			pathVal: "log_level: debug\n",
+			mapFuncArgs: []any{
+				map[string]any{},
+			},
+			expectedMap: map[string]any{
+				"spec.global.site": "datadoghq.com",
+			},
+		},
+		{
+			name:     "mapCustomConfigFile_empty_fileName_is_noop",
+			funcName: "mapCustomConfigFile",
+			interim: map[string]any{
+				"spec.global.site": "datadoghq.com",
+			},
+			newPath: "spec.override.nodeAgent.customConfigurations",
+			pathVal: "log_level: debug\n",
+			mapFuncArgs: []any{
+				map[string]any{
+					"fileName": "",
+				},
+			},
+			expectedMap: map[string]any{
+				"spec.global.site": "datadoghq.com",
+			},
+		},
+		{
+			name:     "mapCustomConfigFile_unmarshalable_value_is_noop",
+			funcName: "mapCustomConfigFile",
+			interim: map[string]any{
+				"spec.global.site": "datadoghq.com",
+			},
+			newPath: "spec.override.nodeAgent.customConfigurations",
+			// funcs can't be marshaled to YAML/JSON, exercising the yaml.Marshal error branch.
+			pathVal: func() {},
+			mapFuncArgs: []any{
+				map[string]any{
+					"fileName": "datadog.yaml",
+				},
+			},
+			expectedMap: map[string]any{
+				"spec.global.site": "datadoghq.com",
 			},
 		},
 	}
