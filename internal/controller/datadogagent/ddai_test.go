@@ -186,6 +186,32 @@ func Test_generateObjMetaFromDDA(t *testing.T) {
 	}
 }
 
+func TestCreateOrUpdateDDAIPreservesPreparedCleanupTransaction(t *testing.T) {
+	ctx := context.Background()
+	current := &v1alpha1.DatadogAgentInternal{ObjectMeta: metav1.ObjectMeta{
+		Name:      "agent",
+		Namespace: "default",
+		Annotations: map[string]string{
+			constants.PreparedRolloutCleanupAnnotation: "blue-green-v1",
+			"parent.example/current":                   "obsolete",
+		},
+	}}
+	desired := &v1alpha1.DatadogAgentInternal{ObjectMeta: metav1.ObjectMeta{
+		Name:        current.Name,
+		Namespace:   current.Namespace,
+		Annotations: map[string]string{"parent.example/desired": "current"},
+	}}
+	fakeClient := fake.NewClientBuilder().WithScheme(agenttestutils.TestScheme()).WithObjects(current).Build()
+	r := &Reconciler{client: fakeClient, log: logf.Log.WithName("test")}
+
+	assert.NoError(t, r.createOrUpdateDDAI(desired))
+	updated := &v1alpha1.DatadogAgentInternal{}
+	assert.NoError(t, fakeClient.Get(ctx, client.ObjectKeyFromObject(current), updated))
+	assert.Equal(t, "blue-green-v1", updated.Annotations[constants.PreparedRolloutCleanupAnnotation])
+	assert.Equal(t, "current", updated.Annotations["parent.example/desired"])
+	assert.NotContains(t, updated.Annotations, "parent.example/current")
+}
+
 func Test_generateSpecFromDDA(t *testing.T) {
 	tests := []struct {
 		name string
