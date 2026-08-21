@@ -246,7 +246,7 @@ func TestInternalReconcileV2InstallsFinalizerBeforeCreatingWorkloads(t *testing.
 	fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(ddai).Build()
 	r := NewReconciler(ReconcilerOptions{}, fakeClient, kubernetes.PlatformInfo{}, scheme, record.NewFakeRecorder(10), nil)
 
-	_, err := r.internalReconcileV2(ctx, ddai)
+	_, err := r.internalReconcile(ctx, ddai)
 	require.NoError(t, err)
 	updated := &datadoghqv1alpha1.DatadogAgentInternal{}
 	require.NoError(t, fakeClient.Get(ctx, client.ObjectKeyFromObject(ddai), updated))

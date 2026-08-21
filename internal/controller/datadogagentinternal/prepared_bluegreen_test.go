@@ -1819,6 +1819,36 @@ func TestPreparedIneligibleNodeCleanupRemovesCandidateUID(t *testing.T) {
 	assert.NotContains(t, clean.Annotations, candidateKey)
 }
 
+func TestPreparedNodeLabelReconciliationLimitsAPIMutations(t *testing.T) {
+	ctx := context.Background()
+	scheme := runtime.NewScheme()
+	require.NoError(t, corev1.AddToScheme(scheme))
+	objects := make([]client.Object, 0, preparedRolloutMutationLimit+1)
+	for i := 0; i < preparedRolloutMutationLimit+1; i++ {
+		objects = append(objects, &corev1.Node{ObjectMeta: metav1.ObjectMeta{
+			Name:   fmt.Sprintf("node-%03d", i),
+			Labels: map[string]string{corev1.LabelOSStable: string(corev1.Linux)},
+		}})
+	}
+	fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(objects...).Build()
+	r := &Reconciler{client: fakeClient}
+	key := "example.com/slot"
+
+	_, changed, err := r.reconcilePreparedNodeLabels(ctx, preparedTestDaemonSet(true), key, rolloutSlotBlue, "")
+	require.NoError(t, err)
+	assert.True(t, changed)
+
+	updated := &corev1.NodeList{}
+	require.NoError(t, fakeClient.List(ctx, updated))
+	labeled := 0
+	for i := range updated.Items {
+		if updated.Items[i].Labels[key] == rolloutSlotBlue {
+			labeled++
+		}
+	}
+	assert.Equal(t, preparedRolloutMutationLimit, labeled)
+}
+
 func TestPreparedNodeStateValidationRepairsUnknownAndStaleStates(t *testing.T) {
 	assert.True(t, preparedNodeStateValid(rolloutSlotBlue, rolloutSlotBlue, ""))
 	assert.False(t, preparedNodeStateValid("corrupt", rolloutSlotBlue, ""))

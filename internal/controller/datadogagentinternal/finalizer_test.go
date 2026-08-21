@@ -253,7 +253,7 @@ func TestInternalReconcileV2TreatsPreparedWorkloadTerminationAsControllerState(t
 	}}}}
 	r := reconcilerForFinalizerTest([]client.Object{ddai, node, ds})
 
-	result, err := r.internalReconcileV2(ctx, ddai)
+	result, err := r.internalReconcile(ctx, ddai)
 	require.NoError(t, err)
 	assert.Equal(t, defaultErrRequeuePeriod, result.RequeueAfter)
 	assert.Contains(t, ddai.Finalizers, constants.DatadogAgentInternalFinalizer)
@@ -271,13 +271,15 @@ func TestPreparedRolloutFinalizerPropagatesClientFailures(t *testing.T) {
 	base.client = &finalizerFailureClient{Client: base.client, listErr: injected}
 	_, err := base.preparedRolloutWorkloadsCleanup(ctx, ddai)
 	require.ErrorIs(t, err, injected)
-	require.ErrorIs(t, base.preparedRolloutLabelsCleanup(ctx, ddai), injected)
+	_, err = base.preparedRolloutLabelsCleanup(ctx, ddai)
+	require.ErrorIs(t, err, injected)
 
 	key := preparedRolloutNodeLabelKey(ddai)
 	node := &corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node", Labels: map[string]string{key: rolloutSlotBlue}}}
 	base = reconcilerForFinalizerTest([]client.Object{node})
 	base.client = &finalizerFailureClient{Client: base.client, patchErr: injected}
-	require.ErrorIs(t, base.preparedRolloutLabelsCleanup(ctx, ddai), injected)
+	_, err = base.preparedRolloutLabelsCleanup(ctx, ddai)
+	require.ErrorIs(t, err, injected)
 
 	controller := true
 	ds := &appsv1.DaemonSet{ObjectMeta: metav1.ObjectMeta{

@@ -9,6 +9,7 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"maps"
+	"sort"
 	"strings"
 	"time"
 
@@ -128,8 +129,12 @@ func (r *Reconciler) reconcilePreparedDisable(
 		// ineligible. Persist this cleanup before the update: metadata merging
 		// intentionally preserves datadoghq.com annotations and would otherwise
 		// leave the DaemonSet permanently classified as prepared.
-		if err := r.preparedRolloutLabelsCleanup(ctx, ddai); err != nil {
-			return reconcile.Result{}, err
+		pending, cleanupErr := r.preparedRolloutLabelsCleanup(ctx, ddai)
+		if cleanupErr != nil {
+			return reconcile.Result{}, cleanupErr
+		}
+		if pending {
+			return requeuePreparedRollout(), nil
 		}
 		cleared, clearErr := r.clearPreparedDaemonSetAnnotations(ctx, pair.blue)
 		if clearErr != nil {
@@ -144,8 +149,12 @@ func (r *Reconciler) reconcilePreparedDisable(
 		}
 		return requeuePreparedRollout(), nil
 	}
-	if err := r.preparedRolloutLabelsCleanup(ctx, ddai); err != nil {
-		return reconcile.Result{}, err
+	pending, cleanupErr := r.preparedRolloutLabelsCleanup(ctx, ddai)
+	if cleanupErr != nil {
+		return reconcile.Result{}, cleanupErr
+	}
+	if pending {
+		return requeuePreparedRollout(), nil
 	}
 	return r.createOrUpdateDaemonset(ctx, ddai, rendered, newStatus, updateDSStatusV2WithAgent)
 }
@@ -548,6 +557,7 @@ func preparedSlotAffinityMatches(current, desired *appsv1.DaemonSet) bool {
 func (r *Reconciler) abortPreparedTargetBeforeHandoff(ctx context.Context, nodes []corev1.Node, pods map[string][]corev1.Pod, pair preparedPair, key, target string) (bool, error) {
 	source := otherSlot(target)
 	transition := rolloutTransitionValue(source, target)
+	sort.Slice(nodes, func(i, j int) bool { return nodes[i].Name < nodes[j].Name })
 	for i := range nodes {
 		switch nodes[i].Labels[key] {
 		case source:
@@ -565,13 +575,18 @@ func (r *Reconciler) abortPreparedTargetBeforeHandoff(ctx context.Context, nodes
 		}
 	}
 
+	mutations := 0
 	for i := range nodes {
 		if nodes[i].Labels[key] != transition {
 			continue
 		}
+		if mutations >= preparedRolloutMutationLimit {
+			return true, nil
+		}
 		if err := r.setPreparedNodeState(ctx, &nodes[i], key, source); err != nil {
 			return false, err
 		}
+		mutations++
 	}
 	if err := r.setPairTarget(ctx, pair, "", ""); err != nil {
 		return false, err
@@ -625,6 +640,7 @@ func (r *Reconciler) recoverMissingPreparedSlot(
 	if err := r.client.List(ctx, allNodes); err != nil {
 		return false, false, err
 	}
+	sort.Slice(allNodes.Items, func(i, j int) bool { return allNodes.Items[i].Name < allNodes.Items[j].Name })
 	pods, podsErr := r.listPreparedPairPods(ctx, pair)
 	if podsErr != nil {
 		return false, false, podsErr
@@ -633,6 +649,7 @@ func (r *Reconciler) recoverMissingPreparedSlot(
 	rollbackTransition := rolloutTransitionValue(survivorSlot, missingSlot)
 	allServing := true
 	changed := false
+	mutations := 0
 	for i := range allNodes.Items {
 		node := &allNodes.Items[i]
 		matches, matchErr := preparedNodeEligible(&base.Spec.Template, node)
@@ -680,28 +697,40 @@ func (r *Reconciler) recoverMissingPreparedSlot(
 		case rollbackTransition:
 			allServing = false
 			if survivorReady {
+				if mutations >= preparedRolloutMutationLimit {
+					return false, true, nil
+				}
 				if err := r.setPreparedNodeState(ctx, node, key, survivorSlot); err != nil {
 					return false, false, err
 				}
 				changed = true
+				mutations++
 			}
 		case recoveryTransition:
 			allServing = false
 			if survivorReady {
+				if mutations >= preparedRolloutMutationLimit {
+					return false, true, nil
+				}
 				if err := r.setPreparedNodeState(ctx, node, key, survivorSlot); err != nil {
 					return false, false, err
 				}
 				changed = true
+				mutations++
 			}
 		default:
 			// Missing steady states and unlabeled bootstrap nodes first
 			// enter overlap eligibility. A stale terminating Pod can retain its
 			// lock; the survivor waits behind it and only becomes Ready afterward.
 			allServing = false
+			if mutations >= preparedRolloutMutationLimit {
+				return false, true, nil
+			}
 			if err := r.setPreparedNodeState(ctx, node, key, recoveryTransition); err != nil {
 				return false, false, err
 			}
 			changed = true
+			mutations++
 		}
 	}
 	if changed || !allServing {
@@ -902,8 +931,12 @@ func (r *Reconciler) deletePreparedDaemonSetPairIfPresent(
 	if pair.blue != nil || pair.green != nil {
 		return true, nil
 	}
-	if err := r.preparedRolloutLabelsCleanup(ctx, ddai); err != nil {
-		return true, err
+	pending, cleanupErr := r.preparedRolloutLabelsCleanup(ctx, ddai)
+	if cleanupErr != nil {
+		return true, cleanupErr
+	}
+	if pending {
+		return true, nil
 	}
 	if err := r.setPreparedCleanupPending(ctx, ddai, false); err != nil {
 		return true, err
@@ -1131,8 +1164,10 @@ func (r *Reconciler) reconcilePreparedNodeLabels(ctx context.Context, base *apps
 	if err := r.client.List(ctx, all); err != nil {
 		return nil, false, err
 	}
+	sort.Slice(all.Items, func(i, j int) bool { return all.Items[i].Name < all.Items[j].Name })
 	eligible := make([]corev1.Node, 0, len(all.Items))
 	changed := false
+	mutations := 0
 	for i := range all.Items {
 		node := &all.Items[i]
 		matches, err := preparedNodeEligible(&base.Spec.Template, node)
@@ -1144,6 +1179,9 @@ func (r *Reconciler) reconcilePreparedNodeLabels(ctx context.Context, base *apps
 			candidateKey := preparedRolloutCandidateAnnotationKey(key)
 			_, hasCandidate := node.Annotations[candidateKey]
 			if hasLabel || hasCandidate {
+				if mutations >= preparedRolloutMutationLimit {
+					return eligible, true, nil
+				}
 				updated := node.DeepCopy()
 				delete(updated.Labels, key)
 				delete(updated.Annotations, candidateKey)
@@ -1151,10 +1189,14 @@ func (r *Reconciler) reconcilePreparedNodeLabels(ctx context.Context, base *apps
 					return nil, false, err
 				}
 				changed = true
+				mutations++
 			}
 			continue
 		}
 		if node.Labels == nil || !preparedNodeStateValid(node.Labels[key], initialSlot, target) {
+			if mutations >= preparedRolloutMutationLimit {
+				return eligible, true, nil
+			}
 			updated := node.DeepCopy()
 			if updated.Labels == nil {
 				updated.Labels = map[string]string{}
@@ -1178,6 +1220,7 @@ func (r *Reconciler) reconcilePreparedNodeLabels(ctx context.Context, base *apps
 			}
 			node = updated
 			changed = true
+			mutations++
 		}
 		eligible = append(eligible, *node.DeepCopy())
 	}
@@ -1272,148 +1315,79 @@ func (r *Reconciler) advancePreparedNodes(ctx context.Context, nodes []corev1.No
 	}
 	source := otherSlot(target)
 	transition := rolloutTransitionValue(source, target)
-	changed := false
-	inFlight := 0
-	unavailable := 0
-
-	// Count unavailability before advancing any handoff. Nodes may enter overlap
-	// outside the normal batch admission path (most notably newly eligible nodes),
-	// so transition state alone is not proof that the maxUnavailable budget was
-	// respected. A transition whose source is not serving is already unavailable
-	// and can advance without making the count worse. A target-state node remains
-	// unavailable until its exact target Pod is Kubernetes-Available, including
-	// the DaemonSet's minReadySeconds.
+	candidateKey := preparedRolloutCandidateAnnotationKey(key)
+	states := make([]preparedNodePlanState, 0, len(nodes))
+	nodeByName := make(map[string]*corev1.Node, len(nodes))
 	for i := range nodes {
 		node := &nodes[i]
+		nodeByName[node.Name] = node
+		sourcePod := podOnNode(pods[source], node.Name)
+		targetPod := podOnNode(pods[target], node.Name)
+		state := preparedNodePlanState{
+			name:              node.Name,
+			sourceServing:     podServingReady(sourcePod, pair.slot(source)),
+			sourcePrepared:    podPrepared(sourcePod, pair.slot(source)),
+			targetServing:     podServingReady(targetPod, pair.slot(target)),
+			targetReady:       podReady(targetPod, pair.slot(target)),
+			targetPrepared:    podPrepared(targetPod, pair.slot(target)),
+			targetRestarted:   podHasRestartedContainer(targetPod),
+			targetMatches:     podMatchesPreparedRevision(targetPod, pair.slot(target)),
+			targetCapacity:    podUnschedulableForCapacity(targetPod),
+			targetExists:      targetPod != nil,
+			recordedTargetUID: node.Annotations[candidateKey],
+		}
+		if targetPod != nil {
+			state.targetUID = string(targetPod.UID)
+		}
 		switch node.Labels[key] {
 		case transition:
-			inFlight++
-			if !podServingReady(podOnNode(pods[source], node.Name), pair.slot(source)) {
-				unavailable++
-			}
+			state.phase = preparedNodeTransition
 		case source:
-			if !podServingReady(podOnNode(pods[source], node.Name), pair.slot(source)) {
-				unavailable++
-			}
+			state.phase = preparedNodeSource
 		case target:
-			if !podReady(podOnNode(pods[target], node.Name), pair.slot(target)) {
-				unavailable++
-			}
+			state.phase = preparedNodeTarget
+		default:
+			return false, fmt.Errorf("invalid prepared rollout state %q on node %s", node.Labels[key], node.Name)
 		}
+		states = append(states, state)
 	}
-	remainingHandoffs := max(0, limit-unavailable)
 
-	for i := range nodes {
-		node := &nodes[i]
-		switch node.Labels[key] {
-		case transition:
+	plan := planPreparedRollout(states, limit, preparedRolloutMutationLimit)
+	for _, action := range plan.actions {
+		node := nodeByName[action.node]
+		if node == nil {
+			return false, fmt.Errorf("prepared rollout plan references unknown node %s", action.node)
+		}
+		switch action.kind {
+		case preparedActionRecordCandidate:
 			targetPod := podOnNode(pods[target], node.Name)
-			sourcePod := podOnNode(pods[source], node.Name)
-			sourceServing := podServingReady(sourcePod, pair.slot(source))
-			targetPrepared := podPrepared(targetPod, pair.slot(target))
-			targetRecovered := !sourceServing && podReady(targetPod, pair.slot(target))
-			if targetPrepared || targetRecovered {
-				candidateKey := preparedRolloutCandidateAnnotationKey(key)
-				candidateUID := string(targetPod.UID)
-				if candidateUID == "" {
-					continue
-				}
-				if node.Annotations[candidateKey] != candidateUID {
-					if err := r.setPreparedNodeCandidate(ctx, node, candidateKey, candidateUID); err != nil {
-						return false, err
-					}
-					changed = true
-					continue
-				}
-				handoffCost := 1
-				if !sourceServing {
-					handoffCost = 0
-				}
-				if handoffCost > remainingHandoffs {
-					continue
-				}
-				if err := r.setPreparedNodeState(ctx, node, key, target); err != nil {
-					return false, err
-				}
-				remainingHandoffs -= handoffCost
-				changed = true
-			} else if sourceServing && podMatchesPreparedRevision(targetPod, pair.slot(target)) && podHasRestartedContainer(targetPod) {
-				// A pre-handoff restart makes RestartCount permanently non-zero,
-				// so this Pod can never again be a pristine candidate. The source
-				// is still available; retry only the exact target revision without
-				// spending availability budget.
-				if err := r.client.Delete(ctx, targetPod); err != nil && !apierrors.IsNotFound(err) {
-					return false, err
-				}
-				changed = true
-			} else if podUnschedulableForCapacity(targetPod) &&
-				podMatchesPreparedRevision(targetPod, pair.slot(target)) {
-				// This is the explicit delete-first fallback for nodes which cannot
-				// hold both requested Pods. The transition batch is already bounded
-				// by maxUnavailable; moving to the target state releases the source Pod's
-				// resources and does not admit another healthy node until this one
-				// recovers. An already-unavailable source has zero additional cost.
-				// This deliberately falls back to conventional delete-first behavior:
-				// an unscheduled target has not proved a new image pull, so availability
-				// on this bounded batch is no better than an ordinary DaemonSet rollout.
-				handoffCost := 1
-				if !podServingReady(sourcePod, pair.slot(source)) {
-					handoffCost = 0
-				}
-				if handoffCost > remainingHandoffs {
-					continue
-				}
-				if err := r.setPreparedNodeState(ctx, node, key, target); err != nil {
-					return false, err
-				}
-				remainingHandoffs -= handoffCost
-				changed = true
-			} else if targetPod != nil && !podMatchesPreparedRevision(targetPod, pair.slot(target)) &&
-				(podPrepared(sourcePod, pair.slot(source)) ||
-					(!podServingReady(sourcePod, pair.slot(source)) && !podServingReady(targetPod, pair.slot(target)))) {
-				// An OnDelete bootstrap Pod can predate the target revision. Keep it
-				// serving until the other slot is prepared. If neither generation is
-				// serving (as on a newly eligible node), deleting the stale failed Pod
-				// cannot worsen availability and lets a corrected revision proceed.
-				if err := r.client.Delete(ctx, targetPod); err != nil && !apierrors.IsNotFound(err) {
-					return false, err
-				}
-				changed = true
+			if targetPod == nil || targetPod.UID == "" {
+				return false, fmt.Errorf("prepared rollout candidate disappeared from node %s", node.Name)
 			}
-		case source:
-			sourcePod := podOnNode(pods[source], node.Name)
-			if !podServingReady(sourcePod, pair.slot(source)) {
-				// This node is already unavailable (for example it only matches an
-				// expanded selector, or its old Agent is unhealthy). Admitting overlap
-				// cannot make availability worse and lets a prepared target repair it.
-				// Source eligibility is retained until that target is proven.
-				if err := r.setPreparedNodeState(ctx, node, key, transition); err != nil {
-					return false, err
-				}
-				changed = true
-				continue
+			if err := r.setPreparedNodeCandidate(ctx, node, candidateKey, string(targetPod.UID)); err != nil {
+				return false, err
 			}
+		case preparedActionSelectTarget:
+			if err := r.setPreparedNodeState(ctx, node, key, target); err != nil {
+				return false, err
+			}
+		case preparedActionRetryTarget:
+			targetPod := podOnNode(pods[target], node.Name)
+			if targetPod == nil {
+				return false, fmt.Errorf("prepared rollout retry target disappeared from node %s", node.Name)
+			}
+			if err := r.client.Delete(ctx, targetPod); err != nil && !apierrors.IsNotFound(err) {
+				return false, err
+			}
+		case preparedActionStartOverlap:
+			if err := r.setPreparedNodeState(ctx, node, key, transition); err != nil {
+				return false, err
+			}
+		default:
+			return false, fmt.Errorf("unknown prepared rollout action %d", action.kind)
 		}
 	}
-	if changed || inFlight > 0 {
-		return changed, nil
-	}
-
-	limit = max(0, limit-unavailable)
-	for i := range nodes {
-		if limit == 0 {
-			break
-		}
-		if nodes[i].Labels[key] != source {
-			continue
-		}
-		if err := r.setPreparedNodeState(ctx, &nodes[i], key, transition); err != nil {
-			return false, err
-		}
-		changed = true
-		limit--
-	}
-	return changed, nil
+	return len(plan.actions) > 0, nil
 }
 
 func podUnschedulableForCapacity(pod *corev1.Pod) bool {

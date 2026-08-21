@@ -8,6 +8,7 @@ package datadogagentinternal
 import (
 	"context"
 	stderrors "errors"
+	"sort"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -25,7 +26,10 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
-var errPreparedRolloutWorkloadsTerminating = stderrors.New("waiting for prepared blue/green Agent workloads to terminate")
+var (
+	errPreparedRolloutWorkloadsTerminating = stderrors.New("waiting for prepared blue/green Agent workloads to terminate")
+	errPreparedRolloutLabelsPending        = stderrors.New("waiting for prepared blue/green Agent node labels to be removed")
+)
 
 func (r *Reconciler) deleteResource() finalizer.ResourceDeleteFunc {
 	return func(ctx context.Context, k8sObj client.Object, datadogID string) error {
@@ -57,8 +61,12 @@ func (r *Reconciler) finalizeDDAI(ctx context.Context, obj client.Object) error 
 			// host-local component locks.
 			return errPreparedRolloutWorkloadsTerminating
 		}
-		if err := r.preparedRolloutLabelsCleanup(ctx, ddai); err != nil {
+		pending, err = r.preparedRolloutLabelsCleanup(ctx, ddai)
+		if err != nil {
 			return err
+		}
+		if pending {
+			return errPreparedRolloutLabelsPending
 		}
 	}
 	// Profile labels also affect which Agent workload owns a node. Remove them
@@ -95,13 +103,15 @@ func (r *Reconciler) preparedRolloutWorkloadsCleanup(ctx context.Context, ddai *
 	return pending, nil
 }
 
-func (r *Reconciler) preparedRolloutLabelsCleanup(ctx context.Context, ddai *datadoghqv1alpha1.DatadogAgentInternal) error {
+func (r *Reconciler) preparedRolloutLabelsCleanup(ctx context.Context, ddai *datadoghqv1alpha1.DatadogAgentInternal) (bool, error) {
 	key := preparedRolloutNodeLabelKey(ddai)
 	candidateKey := preparedRolloutCandidateAnnotationKey(key)
 	nodes := corev1.NodeList{}
 	if err := r.client.List(ctx, &nodes); err != nil {
-		return err
+		return false, err
 	}
+	sort.Slice(nodes.Items, func(i, j int) bool { return nodes.Items[i].Name < nodes.Items[j].Name })
+	mutations := 0
 	for i := range nodes.Items {
 		node := &nodes.Items[i]
 		_, hasLabel := node.Labels[key]
@@ -109,14 +119,18 @@ func (r *Reconciler) preparedRolloutLabelsCleanup(ctx context.Context, ddai *dat
 		if !hasLabel && !hasCandidate {
 			continue
 		}
+		if mutations >= preparedRolloutMutationLimit {
+			return true, nil
+		}
 		updated := node.DeepCopy()
 		delete(updated.Labels, key)
 		delete(updated.Annotations, candidateKey)
 		if err := r.client.Patch(ctx, updated, client.MergeFrom(node)); err != nil && !errors.IsNotFound(err) {
-			return err
+			return false, err
 		}
+		mutations++
 	}
-	return nil
+	return false, nil
 }
 
 // profilesCleanup performs the cleanups required for the profiles feature. The
