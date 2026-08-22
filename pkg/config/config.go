@@ -17,6 +17,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/selection"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -75,6 +76,13 @@ type WatchOptions struct {
 	DatadogCSIDriverEnabled           bool
 	UntaintControllerEnabled          bool
 	UntaintControllerWaitForCSIDriver bool
+	// ComponentHealthEnabled, when true, caches Pod status for the managed
+	// cluster-level components (cluster-agent, cluster-checks-runner) so the
+	// operator can derive component health signals (restarts, OOMKills,
+	// scheduling failures, ...). Off by default: retaining Pod status in cache
+	// increases the operator's memory footprint, so it is opt-in while the
+	// impact is evaluated on large clusters.
+	ComponentHealthEnabled bool
 	ManagedAgentInstallationEnabled   bool
 	ManagedAgentInstallationNamespace string
 }
@@ -138,10 +146,13 @@ func CacheOptions(logger logr.Logger, opts WatchOptions) cache.Options {
 		}
 	}
 
-	if opts.DatadogAgentProfileEnabled || opts.UntaintControllerEnabled {
-		// For the profiles feature and untaint controller we need to list agent pods.
+	if opts.DatadogAgentProfileEnabled || opts.UntaintControllerEnabled || opts.ComponentHealthEnabled {
+		// For the profiles feature, untaint controller, and component-health
+		// monitoring we need to list agent pods.
 		// The profiles feature needs node name and labels; the untaint controller also needs
-		// Status.Conditions to check readiness. Pods are watched in DatadogAgent namespace(s).
+		// Status.Conditions to check readiness; component health additionally needs the
+		// container statuses / phase / scheduling conditions of the cluster-level components.
+		// Pods are watched in DatadogAgent namespace(s).
 		// When untaint is configured to wait for CSI, widen to merged agent+CSI
 		// namespaces and drop the pod informer label filter so CSI node-server pods
 		// (app=datadog-csi-driver-node-server) are cached for dual-readiness untaint.
@@ -154,10 +165,32 @@ func CacheOptions(logger logr.Logger, opts WatchOptions) cache.Options {
 			logger.Info("Pod cache enabled for untaint with wait-for-CSI",
 				"watching Pods in namespaces", slices.Collect(maps.Keys(podNamespaces)))
 		} else {
-			podLabel = labels.SelectorFromSet(map[string]string{
-				common.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
-			})
-			logger.Info("Pod cache enabled", "watching Pods in namespaces", slices.Collect(maps.Keys(agentNamespaces)))
+			// Cache only the components each enabled feature needs, expressed as an
+			// `agent.datadoghq.com/component in (...)` selector. Profiles/untaint need the
+			// node Agent; component health needs the cluster-level components.
+			components := map[string]struct{}{}
+			if opts.DatadogAgentProfileEnabled || opts.UntaintControllerEnabled {
+				components[constants.DefaultAgentResourceSuffix] = struct{}{}
+			}
+			if opts.ComponentHealthEnabled {
+				components[constants.DefaultClusterAgentResourceSuffix] = struct{}{}
+				components[constants.DefaultClusterChecksRunnerResourceSuffix] = struct{}{}
+			}
+			componentValues := slices.Collect(maps.Keys(components))
+			slices.Sort(componentValues)
+			req, err := labels.NewRequirement(common.AgentDeploymentComponentLabelKey, selection.In, componentValues)
+			if err != nil {
+				// componentValues are static, known-valid label values, so this is not
+				// expected; fail closed to the node-Agent selector rather than caching
+				// every Pod in the namespace (which would defeat the memory stripping).
+				logger.Error(err, "failed to build Pod component selector, falling back to node Agent only")
+				podLabel = labels.SelectorFromSet(map[string]string{
+					common.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
+				})
+			} else {
+				podLabel = labels.NewSelector().Add(*req)
+			}
+			logger.Info("Pod cache enabled", "components", componentValues, "watching Pods in namespaces", slices.Collect(maps.Keys(agentNamespaces)))
 		}
 		podByObject := cache.ByObject{
 			Namespaces: podNamespaces,
@@ -182,6 +215,21 @@ func CacheOptions(logger logr.Logger, opts WatchOptions) cache.Options {
 				if opts.UntaintControllerEnabled {
 					newPod.Status.Conditions = pod.Status.Conditions
 					newPod.Status.StartTime = pod.Status.StartTime
+				}
+
+				// Component health monitoring derives issues from the managed components'
+				// pod status: container statuses (restart counts, OOMKill/crash reasons,
+				// waiting reasons like ImagePullBackOff), scheduling conditions, phase, and
+				// termination context. Retaining these fields is what increases cache memory,
+				// which is why this is gated behind ComponentHealthEnabled.
+				if opts.ComponentHealthEnabled {
+					newPod.Status.Phase = pod.Status.Phase
+					newPod.Status.Reason = pod.Status.Reason
+					newPod.Status.Message = pod.Status.Message
+					newPod.Status.Conditions = pod.Status.Conditions
+					newPod.Status.StartTime = pod.Status.StartTime
+					newPod.Status.ContainerStatuses = pod.Status.ContainerStatuses
+					newPod.Status.InitContainerStatuses = pod.Status.InitContainerStatuses
 				}
 
 				return newPod, nil
