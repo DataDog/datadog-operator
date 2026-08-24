@@ -18110,10 +18110,16 @@ spec:
                 release:
                   properties:
                     digest:
+                      pattern: ^sha256:[a-f0-9]{64}$
                       type: string
                     tag:
                       type: string
                   type: object
+                  x-kubernetes-validations:
+                    - message: at least one of tag or digest must be specified
+                      rule: has(self.tag) || has(self.digest)
+              required:
+                - release
               type: object
             status:
               properties:
