@@ -239,7 +239,7 @@ func (r *RemoteConfigUpdater) Start(apiKey string, site string, clusterName stri
 		"",
 		r.serviceConf.baseRawURL,
 		r.serviceConf.hostname,
-		func() []string { return []string{"cluster_name:" + r.serviceConf.clusterName} },
+		func() []string { return r.clusterTags(context.Background()) },
 		r.serviceConf.telemetryReporter,
 		r.serviceConf.agentVersion,
 		service.WithAPIKey(apiKey),
@@ -340,22 +340,31 @@ func (r *RemoteConfigUpdater) RefreshUpdaterTags(ctx context.Context) error {
 	return nil
 }
 
-func (r *RemoteConfigUpdater) getUpdaterTags(ctx context.Context, includeReadiness bool) ([]string, error) {
-	updaterTags := []string{"updater_type:datadog-operator"}
+// clusterTags returns the cluster_name/cluster_id tags shared by the Remote
+// Configuration service's telemetry callback and the updater client's tags.
+func (r *RemoteConfigUpdater) clusterTags(ctx context.Context) []string {
+	var tags []string
 
 	if r.serviceConf.clusterName != "" {
-		updaterTags = append(updaterTags, "cluster_name:"+r.serviceConf.clusterName)
+		tags = append(tags, "cluster_name:"+r.serviceConf.clusterName)
 	}
 
 	if r.kubeClient != nil {
 		sharedMetadata := metadata.NewSharedMetadata(r.logger, r.kubeClient, "", "", nil)
 		clusterUID, err := sharedMetadata.GetOrCreateClusterUID(ctx)
 		if err != nil {
-			r.logger.V(1).Info("Could not get cluster UID for Remote Configuration updater tags", "error", err)
+			r.logger.V(1).Info("Could not get cluster UID for Remote Configuration tags", "error", err)
 		} else if clusterUID != "" {
-			updaterTags = append(updaterTags, "cluster_id:"+clusterUID)
+			tags = append(tags, "cluster_id:"+clusterUID)
 		}
 	}
+
+	return tags
+}
+
+func (r *RemoteConfigUpdater) getUpdaterTags(ctx context.Context, includeReadiness bool) ([]string, error) {
+	updaterTags := append([]string{"updater_type:datadog-operator"}, r.clusterTags(ctx)...)
+
 	updaterTags = append(updaterTags, r.additionalUpdaterTags...)
 	if includeReadiness && r.dynamicUpdaterTags != nil {
 		dynamicTags, err := r.dynamicUpdaterTags(ctx)

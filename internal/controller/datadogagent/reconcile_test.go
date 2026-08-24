@@ -108,7 +108,7 @@ func runTestCases(t *testing.T, tests []testCase, testFunc func(t *testing.T, tt
 
 // runDDAReconcilerTest runs test case using both DDA and DDAI reconcilers.
 // Since DDAI is always enabled, the DDA controller delegates resource creation
-// to the DDAI controller via reconcileInstanceV3, so the DDAI reconciler must
+// to the DDAI controller via reconcileInstance, so the DDAI reconciler must
 // also run for resources (DaemonSets, Deployments, etc.) to be created.
 func runDDAReconcilerTest(t *testing.T, tt testCase, opts ReconcilerOptions) {
 	t.Helper()
@@ -2158,7 +2158,7 @@ func verifyPDB(t *testing.T, c client.Client) {
 	assert.Equal(t, intstr.FromInt(1), *ccrPDB.Spec.MaxUnavailable)
 	assert.Nil(t, ccrPDB.Spec.MinAvailable)
 }
-func Test_DDAI_ReconcileV3(t *testing.T) {
+func Test_DDAI_Reconcile(t *testing.T) {
 	const resourcesName = "foo"
 	const resourcesNamespace = "bar"
 
@@ -2407,8 +2407,8 @@ func Test_DDAI_ReconcileV3(t *testing.T) {
 
 // Test_StaleAgentPodCleanup tests that agent pods whose profile assignment has changed are deleted.
 // It exercises both code paths:
-//   - DDA-only path via runDDAReconcilerTest: reconcileInstanceV3
-//   - Full path via runFullReconcilerTest (DDA + DDAI reconcilers): reconcileInstanceV3 → reconcileProfiles → cleanupPodsForProfilesThatNoLongerApply
+//   - DDA-only path via runDDAReconcilerTest: reconcileInstance
+//   - Full path via runFullReconcilerTest (DDA + DDAI reconcilers): reconcileInstance → reconcileProfiles → cleanupPodsForProfilesThatNoLongerApply
 func Test_StaleAgentPodCleanup(t *testing.T) {
 	const resourcesName = "foo"
 	const resourcesNamespace = "bar"

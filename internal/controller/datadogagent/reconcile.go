@@ -34,7 +34,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
-func (r *Reconciler) internalReconcileV2(ctx context.Context, instance *datadoghqv2alpha1.DatadogAgent) (reconcile.Result, error) {
+func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv2alpha1.DatadogAgent) (reconcile.Result, error) {
 	reqLogger := r.log.WithValues("datadogagent", pkgutils.GetNamespacedName(instance))
 	reqLogger.Info("Reconciling DatadogAgent")
 	var result reconcile.Result
@@ -59,7 +59,7 @@ func (r *Reconciler) internalReconcileV2(ctx context.Context, instance *datadogh
 	}
 
 	// 4. Delegate to the main reconcile function.
-	return r.reconcileInstanceV3(ctx, reqLogger, instanceCopy, rawSpec)
+	return r.reconcileInstance(ctx, reqLogger, instanceCopy, rawSpec)
 }
 
 // Force GCR registry if not set to avoid defaulting to Datadog registry
@@ -82,7 +82,7 @@ func ensureGCRAutopilotRegistry(spec *datadoghqv2alpha1.DatadogAgentSpec) {
 	spec.Global.Registry = ptr.To(images.GCRContainerRegistry)
 }
 
-func (r *Reconciler) reconcileInstanceV3(ctx context.Context, logger logr.Logger, instance *datadoghqv2alpha1.DatadogAgent, rawSpec datadoghqv2alpha1.DatadogAgentSpec) (reconcile.Result, error) {
+func (r *Reconciler) reconcileInstance(ctx context.Context, logger logr.Logger, instance *datadoghqv2alpha1.DatadogAgent, rawSpec datadoghqv2alpha1.DatadogAgentSpec) (reconcile.Result, error) {
 	// Set up field manager for crd apply
 	if r.fieldManager == nil {
 		f, err := newFieldManager(r.client, r.scheme, getDDAIGVK())
@@ -111,7 +111,7 @@ func (r *Reconciler) reconcileInstanceV3(ctx context.Context, logger logr.Logger
 	if r.options.CreateControllerRevisions {
 		revList, err := r.listRevisions(ctx, instance)
 		if err != nil {
-			return r.updateStatusIfNeededV2(logger, instance, ddaStatusCopy, result, err, now)
+			return r.updateStatusIfNeeded(logger, instance, ddaStatusCopy, result, err, now)
 		}
 		// Use user-submitted instance instead of defaulted instance
 		rawInstance := instance.DeepCopy()
@@ -119,17 +119,17 @@ func (r *Reconciler) reconcileInstanceV3(ctx context.Context, logger logr.Logger
 		experimentErr := r.manageExperiment(ctx, rawInstance, newDDAStatus, now, revList)
 		instance.ResourceVersion = rawInstance.ResourceVersion
 		if experimentErr != nil {
-			return r.updateStatusIfNeededV2(logger, instance, newDDAStatus, result, experimentErr, now)
+			return r.updateStatusIfNeeded(logger, instance, newDDAStatus, result, experimentErr, now)
 		}
 		if err := r.manageRevision(ctx, instance, rawSpec, revList, newDDAStatus); err != nil {
-			return r.updateStatusIfNeededV2(logger, instance, newDDAStatus, result, err, now)
+			return r.updateStatusIfNeeded(logger, instance, newDDAStatus, result, err, now)
 		}
 	}
 
 	// Generate default DDAI object from DDA
 	ddai, err := r.generateDDAIFromDDA(instance, provider)
 	if err != nil {
-		return r.updateStatusIfNeededV2(logger, instance, ddaStatusCopy, result, err, now)
+		return r.updateStatusIfNeeded(logger, instance, ddaStatusCopy, result, err, now)
 	}
 	ddais = append(ddais, ddai)
 
@@ -149,11 +149,11 @@ func (r *Reconciler) reconcileInstanceV3(ctx context.Context, logger logr.Logger
 		defaultDDAI := ddai.DeepCopy()
 		appliedProfiles, e := r.reconcileProfiles(ctx, dsNSName, maxUnavailable, defaultDDAI)
 		if e != nil {
-			return r.updateStatusIfNeededV2(logger, instance, ddaStatusCopy, result, e, now)
+			return r.updateStatusIfNeeded(logger, instance, ddaStatusCopy, result, e, now)
 		}
 		profileDDAIs, e := r.applyProfilesToDDAISpec(ddai, defaultDDAI, appliedProfiles)
 		if e != nil {
-			return r.updateStatusIfNeededV2(logger, instance, ddaStatusCopy, result, e, now)
+			return r.updateStatusIfNeeded(logger, instance, ddaStatusCopy, result, e, now)
 		}
 		ddais = profileDDAIs
 	}
@@ -161,44 +161,44 @@ func (r *Reconciler) reconcileInstanceV3(ctx context.Context, logger logr.Logger
 	// Manage dependencies after DDAIs are computed to include profile changes
 	err = r.manageDDADependenciesWithDDAI(ctx, logger, instance, newDDAStatus, ddais)
 	if err != nil {
-		return r.updateStatusIfNeededV2(logger, instance, ddaStatusCopy, result, err, now)
+		return r.updateStatusIfNeeded(logger, instance, ddaStatusCopy, result, err, now)
 	}
 
 	// Create or update the DDAI object in k8s
 	for _, ddai := range ddais {
 		if e := r.createOrUpdateDDAI(ddai); e != nil {
-			return r.updateStatusIfNeededV2(logger, instance, ddaStatusCopy, result, e, now)
+			return r.updateStatusIfNeeded(logger, instance, ddaStatusCopy, result, e, now)
 		}
 
 		// Add DDAI status to DDA status
 		if e := r.addDDAIStatusToDDAStatus(newDDAStatus, ddai.ObjectMeta, now); e != nil {
-			return r.updateStatusIfNeededV2(logger, instance, ddaStatusCopy, result, e, now)
+			return r.updateStatusIfNeeded(logger, instance, ddaStatusCopy, result, e, now)
 		}
 
 		// Add DDA remote config status to DDAI status
 		if res, e := r.addRemoteConfigStatusToDDAIStatus(ctx, newDDAStatus, ddai.ObjectMeta); utils.ShouldReturn(res, e) {
-			return r.updateStatusIfNeededV2(logger, instance, ddaStatusCopy, result, e, now)
+			return r.updateStatusIfNeeded(logger, instance, ddaStatusCopy, result, e, now)
 		}
 	}
 
 	// Clean up unused DDAI objects
 	if e := r.cleanUpUnusedDDAIs(ctx, ddais); e != nil {
-		return r.updateStatusIfNeededV2(logger, instance, ddaStatusCopy, result, e, now)
+		return r.updateStatusIfNeeded(logger, instance, ddaStatusCopy, result, e, now)
 	}
 
 	// Prevent the reconcile loop from stopping by requeueing the DDAI object after a period of time
 	result.RequeueAfter = defaultRequeuePeriod
-	return r.updateStatusIfNeededV2(logger, instance, newDDAStatus, result, err, now)
+	return r.updateStatusIfNeeded(logger, instance, newDDAStatus, result, err, now)
 }
 
-func (r *Reconciler) updateStatusIfNeededV2(logger logr.Logger, agentdeployment *datadoghqv2alpha1.DatadogAgent, newStatus *datadoghqv2alpha1.DatadogAgentStatus, result reconcile.Result, currentError error, now metav1.Time) (reconcile.Result, error) {
+func (r *Reconciler) updateStatusIfNeeded(logger logr.Logger, agentdeployment *datadoghqv2alpha1.DatadogAgent, newStatus *datadoghqv2alpha1.DatadogAgentStatus, result reconcile.Result, currentError error, now metav1.Time) (reconcile.Result, error) {
 	if currentError == nil {
 		condition.UpdateDatadogAgentStatusConditions(newStatus, now, common.DatadogAgentReconcileErrorConditionType, metav1.ConditionFalse, "DatadogAgent_reconcile_ok", "DatadogAgent reconcile ok", false)
 	} else {
 		condition.UpdateDatadogAgentStatusConditions(newStatus, now, common.DatadogAgentReconcileErrorConditionType, metav1.ConditionTrue, "DatadogAgent_reconcile_error", "DatadogAgent reconcile error", false)
 	}
 
-	r.setMetricsForwarderStatusV2(logger, agentdeployment, newStatus)
+	r.setMetricsForwarderStatus(logger, agentdeployment, newStatus)
 
 	if !IsEqualStatus(&agentdeployment.Status, newStatus) {
 		updateAgentDeployment := agentdeployment.DeepCopy()
@@ -221,7 +221,7 @@ func (r *Reconciler) updateStatusIfNeededV2(logger logr.Logger, agentdeployment 
 }
 
 // setMetricsForwarderStatus sets the metrics forwarder status condition if enabled
-func (r *Reconciler) setMetricsForwarderStatusV2(logger logr.Logger, agentdeployment *datadoghqv2alpha1.DatadogAgent, newStatus *datadoghqv2alpha1.DatadogAgentStatus) {
+func (r *Reconciler) setMetricsForwarderStatus(logger logr.Logger, agentdeployment *datadoghqv2alpha1.DatadogAgent, newStatus *datadoghqv2alpha1.DatadogAgentStatus) {
 	if r.options.OperatorMetricsEnabled {
 		if forwarderCondition := r.forwarders.MetricsForwarderStatusForObj(agentdeployment); forwarderCondition != nil {
 			condition.UpdateDatadogAgentStatusConditions(
