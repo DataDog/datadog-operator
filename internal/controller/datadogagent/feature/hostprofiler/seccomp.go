@@ -63,6 +63,9 @@ func buildSeccompSetupInitContainer(image string, loggingSeccomp bool) corev1.Co
 		Name:    string(apicommon.HostProfilerSeccompSetupContainerName),
 		Image:   image,
 		Command: command,
+		SecurityContext: &corev1.SecurityContext{
+			SELinuxOptions: &corev1.SELinuxOptions{Type: defaultSELinuxType},
+		},
 		VolumeMounts: []corev1.VolumeMount{
 			common.GetVolumeMountForSeccomp(),
 		},
