@@ -29,6 +29,14 @@ func Test_dataPlaneFeature(t *testing.T) {
 		Name:  common.DDDataPlaneDogstatsdEnabled,
 		Value: "true",
 	}
+	dataPlaneRemoteAgentEnabledEnvVar := &corev1.EnvVar{
+		Name:  common.DDDataPlaneRemoteAgentEnabled,
+		Value: "true",
+	}
+	dataPlaneUseNewConfigStreamEndpointEnvVar := &corev1.EnvVar{
+		Name:  common.DDDataPlaneUseNewConfigStreamEndpoint,
+		Value: "true",
+	}
 
 	tests := test.FeatureTestSuite{
 		{
@@ -58,6 +66,14 @@ func Test_dataPlaneFeature(t *testing.T) {
 					mgr := mgrInterface.(*fake.PodTemplateManagers)
 					agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
 					assert.Contains(t, agentEnvVars, dataPlaneEnabledEnvVar, "DD_DATA_PLANE_ENABLED should be set when Data Plane is enabled by the feature default")
+
+					adpEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.AgentDataPlaneContainerName]
+					assert.Contains(t, adpEnvVars, dataPlaneRemoteAgentEnabledEnvVar, "DD_DATA_PLANE_REMOTE_AGENT_ENABLED should be set on Agent Data Plane when Data Plane is enabled by the feature default")
+					assert.Contains(t, adpEnvVars, dataPlaneUseNewConfigStreamEndpointEnvVar, "DD_DATA_PLANE_USE_NEW_CONFIG_STREAM_ENDPOINT should be set on Agent Data Plane when Data Plane is enabled by the feature default")
+
+					dda := testutils.NewDatadogAgentBuilder().BuildWithDefaults()
+					requiredComponents := buildDataPlaneFeature(&feature.Options{DefaultDataPlaneEnabled: true}).Configure(dda, &dda.Spec, dda.Status.RemoteConfigConfiguration)
+					assert.Contains(t, requiredComponents.Agent.Containers, apicommon.AgentDataPlaneContainerName, "Agent Data Plane should be a required Agent component when Data Plane is enabled by the feature default")
 				},
 			),
 		},
