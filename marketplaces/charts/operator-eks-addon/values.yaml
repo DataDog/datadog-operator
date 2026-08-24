@@ -19,7 +19,7 @@ datadog-operator:
 ## and/or `datadog-operator.appKeyExistingSecret`.
 credentialsSecretSync:
   # credentialsSecretSync.kubernetesSecretName -- Name of the Kubernetes Secret to create
-  kubernetesSecretName: datadog-managed-secret
+  kubernetesSecretName: datadog-secret
   # credentialsSecretSync.apiKeySecretId -- AWS Secrets Manager ARN or name for the Datadog API key
   apiKeySecretId:
   # credentialsSecretSync.appKeySecretId -- AWS Secrets Manager ARN or name for the Datadog application key
