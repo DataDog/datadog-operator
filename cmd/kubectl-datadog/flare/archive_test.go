@@ -53,7 +53,7 @@ func TestArchiveDir(t *testing.T) {
 	}
 
 	assert.Equal(t, map[string]string{
-		"datadog-operator/":                              "",
+		"datadog-operator/": "",
 		"datadog-operator/datadog-custom-resources.yaml": "apiVersion: datadoghq.com/v2alpha1\n",
 		"datadog-operator/pod-abc.json":                  `{"msg":"hello"}`,
 		"datadog-operator/sub/":                          "",
