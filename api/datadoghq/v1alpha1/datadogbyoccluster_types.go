@@ -16,7 +16,7 @@ import (
 // +k8s:openapi-gen=true
 type DatadogBYOCClusterSpec struct {
 	// Release identifies the BYOC release artifact.
-	// +optional
+	// +kubebuilder:validation:Required
 	Release *DatadogBYOCClusterReleaseSpec `json:"release,omitempty"`
 
 	// Datadog configures the connection to Datadog.
@@ -43,6 +43,7 @@ type DatadogBYOCClusterSpec struct {
 
 // DatadogBYOCClusterReleaseSpec identifies a BYOC release artifact.
 // +k8s:openapi-gen=true
+// +kubebuilder:validation:XValidation:rule="has(self.tag) || has(self.digest)",message="at least one of tag or digest must be specified"
 type DatadogBYOCClusterReleaseSpec struct {
 	// Tag is the OCI tag of the BYOC release artifact.
 	// +optional
@@ -50,6 +51,7 @@ type DatadogBYOCClusterReleaseSpec struct {
 
 	// Digest is the OCI digest of the BYOC release artifact.
 	// +optional
+	// +kubebuilder:validation:Pattern=`^sha256:[a-f0-9]{64}$`
 	Digest *string `json:"digest,omitempty"`
 }
 

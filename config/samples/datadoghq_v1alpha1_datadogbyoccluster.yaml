@@ -6,7 +6,7 @@ metadata:
 spec:
   release:
     tag: "0.1.32"
-    digest: sha256:0123456789abcdef
+    digest: sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
   datadog:
     site: datadoghq.com
     apiKeySecretRef:
