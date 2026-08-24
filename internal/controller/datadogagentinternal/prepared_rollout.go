@@ -21,20 +21,23 @@ const (
 	preparedRolloutModeAnnotation  = "experimental.agent.datadoghq.com/node-agent-rollout-mode"
 	preparedRolloutArmedAnnotation = "experimental.agent.datadoghq.com/node-agent-rollout-armed"
 
-	preparedRolloutLockVolume = "agent-rollout-locks"
-	preparedRolloutLockDir    = "/var/run/datadog-agent-rollout"
-	preparedRolloutGateBinary = "/opt/datadog-agent/embedded/bin/agent-rollout-gate"
-	preparedRolloutAuthToken  = "/etc/datadog-agent/auth/token"
+	preparedRolloutLockVolume     = "agent-rollout-locks"
+	preparedRolloutLockDir        = "/var/run/datadog-agent-rollout"
+	preparedRolloutStateVolume    = "agent-rollout-state"
+	preparedRolloutStateDir       = "/var/run/datadog-agent-rollout-state"
+	preparedRolloutToolsVolume    = "agent-rollout-tools"
+	preparedRolloutToolsDir       = "/opt/datadog-agent-rollout"
+	preparedRolloutToolInit       = "prepare-agent-rollout-tools"
+	preparedRolloutToolSource     = "/usr/bin/s6-setlock"
+	preparedRolloutSetlockBinary  = preparedRolloutToolsDir + "/s6-setlock"
+	preparedRolloutTrueBinary     = "/usr/bin/true"
+	preparedRolloutProbeShell     = "/bin/sh"
+	preparedRolloutProbePeriodSec = int32(1)
 
-	rolloutPodUIDEnv      = "DD_EXPERIMENTAL_NODE_AGENT_ROLLOUT_POD_UID"
 	coreAgentCmdPortEnv   = "DD_CMD_PORT"
-	rolloutPodIPEnv       = "DD_EXPERIMENTAL_NODE_AGENT_ROLLOUT_POD_IP"
 	greenCoreAgentCmdPort = int32(5002)
 
-	maxStartupProbeFailures          = int32(2147483647)
-	preparedMarkerProbePeriodSeconds = int32(5)
-	defaultStartupFailureThreshold   = int32(3)
-	defaultTerminationGraceSeconds   = int64(30)
+	maxStartupProbeFailures = int32(2147483647)
 )
 
 var preparedRolloutContainerNames = map[string]struct{}{
@@ -95,15 +98,16 @@ func prepareAgentTemplate(ds *appsv1.DaemonSet) error {
 			}
 		}
 	}
-	if err := addPreparedRolloutLockVolume(spec); err != nil {
+	if err := addPreparedRolloutVolumesAndTool(spec); err != nil {
 		return err
 	}
 	for i := range spec.Containers {
 		container := &spec.Containers[i]
-		wrapPreparedContainerCommand(container)
-		configurePreparedContainer(container)
-		configurePreparedProbes(container, spec.TerminationGracePeriodSeconds)
-		container.VolumeMounts = append(container.VolumeMounts, corev1.VolumeMount{Name: preparedRolloutLockVolume, MountPath: preparedRolloutLockDir})
+		container.VolumeMounts = append(container.VolumeMounts,
+			corev1.VolumeMount{Name: preparedRolloutLockVolume, MountPath: preparedRolloutLockDir},
+			corev1.VolumeMount{Name: preparedRolloutStateVolume, MountPath: preparedRolloutStateDir},
+			corev1.VolumeMount{Name: preparedRolloutToolsVolume, MountPath: preparedRolloutToolsDir, ReadOnly: true},
+		)
 		if spec.HostNetwork {
 			// Kubernetes defaults declared containerPort entries on host-networked
 			// Pods into host-port scheduling claims, even when hostPort is cleared.
@@ -128,28 +132,43 @@ func wrapPreparedContainerCommand(container *corev1.Container) {
 	original := make([]string, 0, len(container.Command)+len(container.Args))
 	original = append(original, container.Command...)
 	original = append(original, container.Args...)
-	container.Command = []string{preparedRolloutGateBinary}
-	gateArgs := []string{"--component", container.Name}
-	// The core creates the token. Flight Recorder is independent of the core
-	// and intentionally has no auth-volume mount, so waiting for that path would
-	// leave an otherwise prepared Flight Recorder asleep forever.
-	if container.Name != string(apicommon.CoreAgentContainerName) && container.Name != string(apicommon.FlightRecorderContainerName) {
-		gateArgs = append(gateArgs, "--wait-file", preparedRolloutAuthToken)
+	container.Command = []string{preparedRolloutSetlockBinary}
+	container.Args = []string{
+		preparedComponentLockPath(container.Name),
+		preparedRolloutSetlockBinary,
+		preparedActiveLockPath(container.Name),
 	}
-	gateArgs = append(gateArgs, "--")
-	container.Args = append(gateArgs, original...)
+	container.Args = append(container.Args, original...)
 }
 
-func addPreparedRolloutLockVolume(spec *corev1.PodSpec) error {
+func addPreparedRolloutVolumesAndTool(spec *corev1.PodSpec) error {
+	coreImage := ""
+	coreImagePullPolicy := corev1.PullIfNotPresent
+	for i := range spec.Containers {
+		if spec.Containers[i].Name == string(apicommon.CoreAgentContainerName) {
+			coreImage = spec.Containers[i].Image
+			coreImagePullPolicy = spec.Containers[i].ImagePullPolicy
+			break
+		}
+	}
+	if coreImage == "" {
+		return fmt.Errorf("prepared Agent rollout requires the core Agent container image")
+	}
 	for i := range spec.Volumes {
-		if spec.Volumes[i].Name == preparedRolloutLockVolume {
-			return fmt.Errorf("prepared Agent rollout volume name %q is reserved", preparedRolloutLockVolume)
+		if spec.Volumes[i].Name == preparedRolloutLockVolume || spec.Volumes[i].Name == preparedRolloutStateVolume || spec.Volumes[i].Name == preparedRolloutToolsVolume {
+			return fmt.Errorf("prepared Agent rollout volume name %q is reserved", spec.Volumes[i].Name)
 		}
 	}
 	for _, container := range append(slices.Clone(spec.Containers), spec.InitContainers...) {
 		for _, mount := range container.VolumeMounts {
-			if mount.Name == preparedRolloutLockVolume || mount.MountPath == preparedRolloutLockDir || strings.HasPrefix(preparedRolloutLockDir, strings.TrimRight(mount.MountPath, "/")+"/") {
+			if mount.Name == preparedRolloutLockVolume || pathsOverlap(mount.MountPath, preparedRolloutLockDir) {
 				return fmt.Errorf("prepared Agent rollout lock mount conflicts with container %q", container.Name)
+			}
+			if mount.Name == preparedRolloutStateVolume || pathsOverlap(mount.MountPath, preparedRolloutStateDir) {
+				return fmt.Errorf("prepared Agent rollout state mount conflicts with container %q", container.Name)
+			}
+			if mount.Name == preparedRolloutToolsVolume || pathsOverlap(mount.MountPath, preparedRolloutToolsDir) {
+				return fmt.Errorf("prepared Agent rollout tools mount conflicts with container %q", container.Name)
 			}
 		}
 	}
@@ -161,7 +180,102 @@ func addPreparedRolloutLockVolume(spec *corev1.PodSpec) error {
 			Type: &lockDirType,
 		}},
 	})
+	spec.Volumes = append(spec.Volumes, corev1.Volume{
+		Name:         preparedRolloutStateVolume,
+		VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}},
+	})
+	spec.Volumes = append(spec.Volumes, corev1.Volume{
+		Name:         preparedRolloutToolsVolume,
+		VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}},
+	})
+	spec.InitContainers = append(spec.InitContainers, corev1.Container{
+		Name:            preparedRolloutToolInit,
+		Image:           coreImage,
+		ImagePullPolicy: coreImagePullPolicy,
+		Command:         []string{"/usr/bin/cp"},
+		Args:            []string{preparedRolloutToolSource, preparedRolloutSetlockBinary},
+		VolumeMounts: []corev1.VolumeMount{{
+			Name:      preparedRolloutToolsVolume,
+			MountPath: preparedRolloutToolsDir,
+		}},
+		SecurityContext: &corev1.SecurityContext{
+			ReadOnlyRootFilesystem: new(true),
+			RunAsNonRoot:           new(false),
+			RunAsUser:              new(int64(0)),
+		},
+	})
 	return nil
+}
+
+func pathsOverlap(left, right string) bool {
+	left = strings.TrimRight(left, "/")
+	right = strings.TrimRight(right, "/")
+	return left == right || strings.HasPrefix(left, right+"/") || strings.HasPrefix(right, left+"/")
+}
+
+func preparedComponentLockPath(component string) string {
+	return preparedRolloutLockDir + "/" + component + ".lock"
+}
+
+func preparedActiveLockPath(component string) string {
+	return preparedRolloutStateDir + "/" + component + ".active.lock"
+}
+
+func configurePreparedStartupProbe(container *corev1.Container) {
+	preservePreparedStartupWindow(container)
+	activeLock := preparedActiveLockPath(container.Name)
+	// s6-setlock returns 1 when -n finds a busy lock. A free lock runs true and
+	// returns 0. The startup probe inverts those two results.
+	command := fmt.Sprintf("%s -n %s %s; status=$?; [ \"$status\" -eq 1 ]", preparedRolloutSetlockBinary, activeLock, preparedRolloutTrueBinary)
+	container.StartupProbe = &corev1.Probe{
+		ProbeHandler:     corev1.ProbeHandler{Exec: &corev1.ExecAction{Command: []string{preparedRolloutProbeShell, "-c", command}}},
+		PeriodSeconds:    preparedRolloutProbePeriodSec,
+		TimeoutSeconds:   1,
+		FailureThreshold: maxStartupProbeFailures,
+	}
+}
+
+func preservePreparedStartupWindow(container *corev1.Container) {
+	if container.LivenessProbe == nil {
+		return
+	}
+	livenessFailures := probeFailureThreshold(container.LivenessProbe.FailureThreshold)
+	livenessPeriod := int64(probePeriodSeconds(container.LivenessProbe.PeriodSeconds))
+	preservedWindow := int64(container.LivenessProbe.InitialDelaySeconds) + livenessPeriod*int64(livenessFailures)
+	if container.StartupProbe != nil {
+		startupPeriod := probePeriodSeconds(container.StartupProbe.PeriodSeconds)
+		startupTimeout := probeTimeoutSeconds(container.StartupProbe.TimeoutSeconds)
+		startupFailures := probeFailureThreshold(container.StartupProbe.FailureThreshold)
+		startupInterval := max(startupPeriod, startupTimeout)
+		startupWindow := int64(container.StartupProbe.InitialDelaySeconds) + int64(startupInterval)*int64(startupFailures) + int64(startupTimeout)
+		preservedWindow = max(preservedWindow, startupWindow)
+	}
+	requiredFailures := (preservedWindow+livenessPeriod-1)/livenessPeriod + 1
+	requiredFailures = min(requiredFailures, int64(maxStartupProbeFailures))
+	if requiredFailures > int64(livenessFailures) {
+		container.LivenessProbe.FailureThreshold = int32(requiredFailures)
+	}
+}
+
+func probePeriodSeconds(value int32) int32 {
+	if value == 0 {
+		return 10
+	}
+	return value
+}
+
+func probeFailureThreshold(value int32) int32 {
+	if value == 0 {
+		return 3
+	}
+	return value
+}
+
+func probeTimeoutSeconds(value int32) int32 {
+	if value == 0 {
+		return 1
+	}
+	return value
 }
 
 func validatePreparedContainers(spec *corev1.PodSpec) error {
@@ -179,8 +293,13 @@ func validatePreparedContainers(spec *corev1.PodSpec) error {
 		if !preparedContainerCommandSupported(container) {
 			return fmt.Errorf("prepared Agent rollout does not support command %q on container %q", container.Command, container.Name)
 		}
-		if err := validatePreparedProbes(container); err != nil {
-			return err
+		if container.StartupProbe != nil && container.LivenessProbe == nil {
+			return fmt.Errorf("prepared Agent rollout requires a liveness probe on container %q because its startup probe becomes the lock signal", container.Name)
+		}
+		if spec.HostNetwork {
+			if err := validatePreparedProbePorts(container); err != nil {
+				return err
+			}
 		}
 		if containerRunsAsNonRoot(spec.SecurityContext, container.SecurityContext) {
 			return fmt.Errorf("prepared Agent rollout requires container %q to run as root so it can create host-local lock files", container.Name)
@@ -297,68 +416,26 @@ func validatePreparedInitHostMounts(spec *corev1.PodSpec, container *corev1.Cont
 	return nil
 }
 
-func validatePreparedProbes(container *corev1.Container) error {
+func validatePreparedProbePorts(container *corev1.Container) error {
 	for _, entry := range []struct {
 		name  string
 		probe *corev1.Probe
 	}{
-		{name: "startup", probe: container.StartupProbe},
 		{name: "liveness", probe: container.LivenessProbe},
 		{name: "readiness", probe: container.ReadinessProbe},
 	} {
 		if entry.probe == nil {
 			continue
 		}
-		if err := validateDelegatedProbe(entry.name, entry.probe); err != nil {
-			return probeValidationError(container.Name, err)
+		var port *intstr.IntOrString
+		if entry.probe.HTTPGet != nil {
+			port = &entry.probe.HTTPGet.Port
+		} else if entry.probe.TCPSocket != nil {
+			port = &entry.probe.TCPSocket.Port
 		}
-	}
-	return nil
-}
-
-func probeValidationError(container string, err error) error {
-	return fmt.Errorf("prepared Agent rollout does not support probes on container %q: %w", container, err)
-}
-
-func validateDelegatedProbe(name string, probe *corev1.Probe) error {
-	if probe.HTTPGet != nil {
-		if probe.TCPSocket != nil || probe.Exec != nil || probe.GRPC != nil {
-			return fmt.Errorf("%s probe must have exactly one handler", name)
+		if port != nil && port.Type != intstr.Int {
+			return fmt.Errorf("prepared Agent rollout does not support named %s probe port %q on host-networked container %q because declared ports are removed", entry.name, port.StrVal, container.Name)
 		}
-		if probe.HTTPGet.Host != "" {
-			return fmt.Errorf("%s HTTP host must be empty", name)
-		}
-		if probe.HTTPGet.Scheme != "" && probe.HTTPGet.Scheme != corev1.URISchemeHTTP {
-			return fmt.Errorf("%s HTTP scheme must be HTTP", name)
-		}
-		if probe.HTTPGet.Path == "" || !strings.HasPrefix(probe.HTTPGet.Path, "/") {
-			return fmt.Errorf("%s HTTP path must be absolute", name)
-		}
-		if len(probe.HTTPGet.HTTPHeaders) != 0 {
-			return fmt.Errorf("%s HTTP headers are not supported", name)
-		}
-		if err := validateNumericProbePort(probe.HTTPGet.Port); err != nil {
-			return fmt.Errorf("%s %w", name, err)
-		}
-		return nil
-	}
-	if probe.TCPSocket != nil {
-		if probe.Exec != nil || probe.GRPC != nil {
-			return fmt.Errorf("%s probe must have exactly one handler", name)
-		}
-		if probe.TCPSocket.Host != "" {
-			return fmt.Errorf("%s TCP host must be empty", name)
-		}
-		if err := validateNumericProbePort(probe.TCPSocket.Port); err != nil {
-			return fmt.Errorf("%s %w", name, err)
-		}
-		return nil
-	}
-	return fmt.Errorf("%s probe must use HTTP or TCP", name)
-}
-func validateNumericProbePort(port intstr.IntOrString) error {
-	if port.Type != intstr.Int || port.IntVal <= 0 {
-		return fmt.Errorf("port must be a positive number because declared named ports are removed")
 	}
 	return nil
 }
@@ -395,88 +472,6 @@ func preparedContainerCommandSupported(container *corev1.Container) bool {
 		})
 	}
 	return true
-}
-
-func configurePreparedContainer(container *corev1.Container) {
-	setContainerEnv(container, corev1.EnvVar{
-		Name: rolloutPodUIDEnv,
-		ValueFrom: &corev1.EnvVarSource{FieldRef: &corev1.ObjectFieldSelector{
-			APIVersion: "v1",
-			FieldPath:  "metadata.uid",
-		}},
-	})
-	// Kubelet network probes with an empty host target status.podIP, not
-	// loopback. The exec-based gate delegates to the same address so enabling a
-	// prepared rollout does not silently change probe semantics (including IPv6).
-	setContainerEnv(container, corev1.EnvVar{
-		Name: rolloutPodIPEnv,
-		ValueFrom: &corev1.EnvVarSource{FieldRef: &corev1.ObjectFieldSelector{
-			APIVersion: "v1",
-			FieldPath:  "status.podIP",
-		}},
-	})
-}
-
-func configurePreparedProbes(container *corev1.Container, podTerminationGraceSeconds *int64) {
-	originalStartup := container.StartupProbe
-	startup := originalStartup.DeepCopy()
-	if startup == nil {
-		startup = &corev1.Probe{PeriodSeconds: preparedMarkerProbePeriodSeconds, TimeoutSeconds: 1}
-	}
-	startup.ProbeHandler = preparedStartupProbe(container.Name, originalStartup, podTerminationGraceSeconds)
-	// The startup probe remains unsuccessful while the process is Prepared, so
-	// Kubernetes keeps the container Unready without running its liveness or
-	// readiness probes. The effectively infinite failure budget prevents a
-	// sleeping replacement from being restarted. Once Active, any original
-	// startup health check runs before Kubernetes restores the container's
-	// unchanged liveness and readiness behavior.
-	startup.FailureThreshold = maxStartupProbeFailures
-	container.StartupProbe = startup
-}
-
-func preparedStartupProbe(component string, original *corev1.Probe, podTerminationGraceSeconds *int64) corev1.ProbeHandler {
-	command := []string{preparedRolloutGateBinary, "probe", "--component", component, "--kind", "startup"}
-	if original == nil {
-		command = append(command, "--handler", "active")
-	} else if original.HTTPGet != nil {
-		command = append(command,
-			"--handler", "http",
-			"--port", original.HTTPGet.Port.String(),
-			"--path", original.HTTPGet.Path,
-			"--timeout", preparedNetworkProbeTimeout(original.TimeoutSeconds),
-		)
-	} else {
-		command = append(command,
-			"--handler", "tcp",
-			"--port", original.TCPSocket.Port.String(),
-			"--timeout", preparedNetworkProbeTimeout(original.TimeoutSeconds),
-		)
-	}
-	if original != nil {
-		failureThreshold := original.FailureThreshold
-		if failureThreshold <= 0 {
-			failureThreshold = defaultStartupFailureThreshold
-		}
-		terminationGrace := defaultTerminationGraceSeconds
-		if podTerminationGraceSeconds != nil && *podTerminationGraceSeconds > 0 {
-			terminationGrace = *podTerminationGraceSeconds
-		}
-		if original.TerminationGracePeriodSeconds != nil && *original.TerminationGracePeriodSeconds > 0 {
-			terminationGrace = *original.TerminationGracePeriodSeconds
-		}
-		command = append(command,
-			"--failure-threshold", fmt.Sprint(failureThreshold),
-			"--termination-grace-period", fmt.Sprintf("%ds", terminationGrace),
-		)
-	}
-	return corev1.ProbeHandler{Exec: &corev1.ExecAction{Command: command}}
-}
-
-func preparedNetworkProbeTimeout(seconds int32) string {
-	if seconds <= 0 {
-		seconds = 1
-	}
-	return fmt.Sprintf("%dms", seconds*900)
 }
 
 func containerRunsAsNonRoot(pod *corev1.PodSecurityContext, container *corev1.SecurityContext) bool {

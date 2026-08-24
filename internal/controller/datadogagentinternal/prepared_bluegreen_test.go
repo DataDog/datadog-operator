@@ -64,6 +64,17 @@ func TestPreparedFreshInstallStagesBlueBeforeCreatingGreen(t *testing.T) {
 	assert.Equal(t, rolloutSlotBlue, nodeState(t, ctx, fakeClient, node.Name, key))
 }
 
+func TestPreparedPairRejectsOlderLockSchema(t *testing.T) {
+	blue := preparedTestDaemonSet(true)
+	blue.Spec.Template.Annotations = map[string]string{
+		preparedRolloutModeAnnotation:   preparedBlueGreenMode,
+		preparedRolloutSchemaAnnotation: "2",
+	}
+
+	err := validatePreparedPairSchema(preparedPair{blue: blue})
+	require.ErrorContains(t, err, "disable it with its current Operator")
+}
+
 func TestPreparedConventionalMigrationDoesNotCreateGreenBeforeArmingCompletes(t *testing.T) {
 	ctx := context.Background()
 	ddai, rendered, node, fakeClient, scheme := preparedLifecycleFixture(t)
@@ -90,7 +101,7 @@ func TestPreparedConventionalMigrationDoesNotCreateGreenBeforeArmingCompletes(t 
 func TestPreparedConventionalMigrationRequiresImagesToBeStagedFirst(t *testing.T) {
 	ctx := context.Background()
 	ddai, rendered, node, fakeClient, scheme := preparedLifecycleFixture(t)
-	rendered.Spec.Template.Spec.Containers[0].Image = "agent:gate-capable"
+	rendered.Spec.Template.Spec.Containers[0].Image = "agent:prepared"
 	existing := rendered.DeepCopy()
 	existing.Spec.Template.Spec.Containers[0].Image = "agent:old"
 	setPreparedTestController(existing, ddai)
@@ -109,7 +120,7 @@ func TestPreparedConventionalMigrationRequiresImagesToBeStagedFirst(t *testing.T
 func TestPreparedConventionalMigrationWaitsForStagedRolloutToFinish(t *testing.T) {
 	ctx := context.Background()
 	ddai, rendered, node, fakeClient, scheme := preparedLifecycleFixture(t)
-	rendered.Spec.Template.Spec.Containers[0].Image = "agent:gate-capable"
+	rendered.Spec.Template.Spec.Containers[0].Image = "agent:prepared"
 	existing := rendered.DeepCopy()
 	setPreparedTestController(existing, ddai)
 	require.NoError(t, fakeClient.Create(ctx, existing))
@@ -752,7 +763,7 @@ func TestPreparedSlotDaemonSetsHaveDistinctSelectors(t *testing.T) {
 	}
 }
 
-func TestPreparedGreenCoreUsesDistinctCommandPortAndSharedHealthPort(t *testing.T) {
+func TestPreparedGreenCoreUsesDistinctCommandPortAndActiveLockProbe(t *testing.T) {
 	base := preparedTestDaemonSet(true)
 	base.Spec.Selector.MatchLabels[kubernetes.AppKubernetesInstanceLabelKey] = "agent"
 	base.Spec.Template.Labels[kubernetes.AppKubernetesInstanceLabelKey] = "agent"
@@ -765,7 +776,7 @@ func TestPreparedGreenCoreUsesDistinctCommandPortAndSharedHealthPort(t *testing.
 	assert.Equal(t, fmt.Sprint(greenCoreAgentCmdPort), containerEnv(core, coreAgentCmdPortEnv).Value)
 	require.NotNil(t, core.StartupProbe)
 	require.NotNil(t, core.StartupProbe.Exec)
-	assert.Contains(t, core.StartupProbe.Exec.Command, fmt.Sprint(constants.DefaultAgentHealthPort))
+	assert.Contains(t, core.StartupProbe.Exec.Command[2], preparedActiveLockPath(core.Name))
 	require.NotNil(t, core.LivenessProbe)
 	require.NotNil(t, core.LivenessProbe.HTTPGet)
 	assert.Equal(t, constants.DefaultAgentHealthPort, core.LivenessProbe.HTTPGet.Port.IntVal)
@@ -1201,7 +1212,7 @@ func TestPreparedCandidateMustBePristine(t *testing.T) {
 	pod := preparedPod("candidate", "node-a", true)
 	assert.True(t, podPrepared(&pod, ds))
 	pod.Status.ContainerStatuses[0].RestartCount = 1
-	assert.False(t, podPrepared(&pod, ds), "a restarted gate must not trigger source removal")
+	assert.False(t, podPrepared(&pod, ds), "a restarted lock wrapper must not trigger source removal")
 	pod.Status.ContainerStatuses[0].RestartCount = 0
 	assert.True(t, podReady(&pod, ds))
 	assert.True(t, podServingReady(&pod, ds), "a recovered serving Pod may have historical restarts")
@@ -1211,7 +1222,7 @@ func TestPreparedCandidateMustBePristine(t *testing.T) {
 	pod.Status.ContainerStatuses[0].State.Running.StartedAt = metav1.Now()
 	assert.True(t, podPrepared(&pod, ds), "preparation is based on current process state, not an arbitrary soak")
 	pod.Status.ContainerStatuses[0].Started = ptr.To(false)
-	assert.True(t, podPrepared(&pod, ds), "a sleeping gate has Started=false until it acquires the component lock")
+	assert.True(t, podPrepared(&pod, ds), "a sleeping lock wrapper has Started=false until it acquires the component lock")
 	pod.Status.ContainerStatuses[0].Started = ptr.To(true)
 	pod.Annotations[preparedRolloutRevisionAnnotation] = "previous-revision"
 	assert.False(t, podPrepared(&pod, ds), "an old OnDelete Pod must not satisfy the desired revision")

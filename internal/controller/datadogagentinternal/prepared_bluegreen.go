@@ -48,7 +48,7 @@ const (
 	preparedRolloutCleanupAnnotation         = constants.PreparedRolloutCleanupAnnotation
 	preparedRolloutSchemaAnnotation          = "experimental.agent.datadoghq.com/node-agent-rollout-schema"
 	preparedRolloutDisableRevisionAnnotation = "experimental.agent.datadoghq.com/node-agent-rollout-disable"
-	preparedRolloutSchemaVersion             = "2"
+	preparedRolloutSchemaVersion             = "3"
 
 	preparedRolloutNodeLabelPrefix           = "experimental.agent.datadoghq.com/rollout-slot-"
 	preparedRolloutCandidateAnnotationPrefix = "experimental.agent.datadoghq.com/rollout-candidate-"
@@ -66,9 +66,9 @@ type preparedPair struct {
 // reconcilePreparedDisable returns an initialized pair to the conventional
 // single DaemonSet. If green is serving, it first uses the ordinary prepared
 // handoff to make blue authoritative. Only then does it remove green and let
-// the conventional DaemonSet strategy replace blue's gated Pods. Disabling the
-// experiment may therefore reintroduce baseline per-node rollout downtime, but
-// it never starts an ungated blue Pod beside a serving green Pod.
+// the conventional DaemonSet strategy replace blue's lock-wrapped Pods.
+// Disabling the experiment may reintroduce baseline per-node rollout downtime,
+// but it never starts an unwrapped blue Pod beside a serving green Pod.
 func (r *Reconciler) reconcilePreparedDisable(
 	ctx context.Context,
 	ddai *datadoghqv1alpha1.DatadogAgentInternal,
@@ -78,6 +78,9 @@ func (r *Reconciler) reconcilePreparedDisable(
 ) (reconcile.Result, error) {
 	pair, err := r.getPreparedPair(ctx, ddai, rendered)
 	if err != nil {
+		return reconcile.Result{}, err
+	}
+	if err := validatePreparedPairSchema(pair); err != nil {
 		return reconcile.Result{}, err
 	}
 
@@ -270,6 +273,9 @@ func (r *Reconciler) reconcilePreparedDaemonSetPair(
 	if pairErr != nil {
 		return reconcile.Result{}, pairErr
 	}
+	if err := validatePreparedPairSchema(pair); err != nil {
+		return reconcile.Result{}, err
+	}
 	if pair.blue != nil && pair.green == nil && pair.blue.Spec.Template.Annotations[preparedRolloutModeAnnotation] != preparedBlueGreenMode {
 		if err := validatePreparedMigrationSource(pair.blue.Spec.Template, rendered.Spec.Template, daemonSetFullyRolledOut(pair.blue)); err != nil {
 			return reconcile.Result{}, err
@@ -345,7 +351,7 @@ func (r *Reconciler) reconcilePreparedDaemonSetPair(
 	}
 	if pair.green == nil {
 		// Existing installations get one conventional rollout which gives every
-		// old container the gate and final slot affinity before overlap is
+		// old container the lock wrapper and final slot affinity before overlap is
 		// possible. A fresh install follows the same path without replacing a Pod.
 		if !preparedBlueDaemonSetArmed(pair.blue, desiredRevision) {
 			configureConventionalMigration(blueDesired, budget)
@@ -779,6 +785,11 @@ func copyPreparedPairState(destination, source *appsv1.DaemonSet) {
 
 func preparedSlotDaemonSet(base *appsv1.DaemonSet, slot, nodeLabelKey, revision string, allowUnlabeled bool) (*appsv1.DaemonSet, error) {
 	ds := base.DeepCopy()
+	for i := range ds.Spec.Template.Spec.Containers {
+		container := &ds.Spec.Template.Spec.Containers[i]
+		wrapPreparedContainerCommand(container)
+		configurePreparedStartupProbe(container)
+	}
 	if ds.Annotations == nil {
 		ds.Annotations = map[string]string{}
 	}
@@ -959,6 +970,19 @@ func preparedDaemonSetInitialized(ds *appsv1.DaemonSet) bool {
 	return ds != nil && (ds.Spec.Template.Annotations[preparedRolloutModeAnnotation] == preparedBlueGreenMode ||
 		ds.Annotations[preparedRolloutPairInitializedAnnotation] == preparedBlueGreenArmed ||
 		ds.Annotations[preparedRolloutRevisionAnnotation] != "")
+}
+
+func validatePreparedPairSchema(pair preparedPair) error {
+	for _, ds := range []*appsv1.DaemonSet{pair.blue, pair.green} {
+		if !preparedDaemonSetInitialized(ds) {
+			continue
+		}
+		schema := ds.Spec.Template.Annotations[preparedRolloutSchemaAnnotation]
+		if schema != "" && schema != preparedRolloutSchemaVersion {
+			return fmt.Errorf("prepared Agent rollout %q uses schema %q; disable it with its current Operator before upgrading to schema %q", ds.Name, schema, preparedRolloutSchemaVersion)
+		}
+	}
+	return nil
 }
 
 func preparedTopologyReference(pair preparedPair) *appsv1.DaemonSet {
@@ -1439,12 +1463,10 @@ func podPrepared(pod *corev1.Pod, ds *appsv1.DaemonSet) bool {
 	}
 	for i := range pod.Status.ContainerStatuses {
 		status := &pod.Status.ContainerStatuses[i]
-		// The rollout gate intentionally keeps the startup probe unsuccessful
-		// while it waits for the component lock. Kubelet consequently reports
-		// Started=false for a correctly prepared replacement. A stable, running,
-		// never-restarted gate is the preparation signal; Started only becomes a
-		// serving-health signal after handoff. The candidate UID is re-observed on
-		// a later reconciliation before source removal.
+		// The lock wrapper keeps the startup probe unsuccessful while it waits for
+		// the component lock. Kubelet reports Started=false for a prepared
+		// replacement. A stable, running, never-restarted wrapper is the preparation
+		// signal. The candidate UID is re-observed before source removal.
 		if status.State.Running == nil || status.RestartCount != 0 {
 			return false
 		}

@@ -37,16 +37,15 @@ func configureConventionalMigration(ds *appsv1.DaemonSet, budget intstr.IntOrStr
 	}
 }
 
-// validatePreparedMigrationSource makes enabling prepared mode a distinct
-// operation from publishing its gate-capable image. Without this guard, the
-// one-time conventional arming rollout could delete a serving Pod and only
-// then discover that the replacement image does not contain the gate binary.
+// validatePreparedMigrationSource keeps prepared-mode enablement separate from
+// an Agent image update. The one-time arming rollout is delete-first, so it
+// must not also introduce an unproven Agent image.
 func validatePreparedMigrationSource(current, desired corev1.PodTemplateSpec, fullyRolledOut bool) error {
 	if !maps.Equal(preparedContainerImages(current), preparedContainerImages(desired)) {
 		return fmt.Errorf("prepared blue/green rollout requires the desired Agent images to be deployed conventionally first; current and desired container images differ")
 	}
 	if !fullyRolledOut {
-		return fmt.Errorf("prepared blue/green rollout requires the gate-capable Agent image rollout to finish before enabling prepared mode")
+		return fmt.Errorf("prepared blue/green rollout requires the current Agent image rollout to finish before enabling prepared mode")
 	}
 	return nil
 }
