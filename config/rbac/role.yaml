@@ -277,6 +277,7 @@ rules:
   - datadogagentprofiles/finalizers
   - datadogagents
   - datadogagents/finalizers
+  - datadogbyocclusters
   - datadogcsidrivers
   - datadogcsidrivers/finalizers
   - datadogdashboards
@@ -300,6 +301,7 @@ rules:
   - datadogagentinternals/status
   - datadogagentprofiles/status
   - datadogagents/status
+  - datadogbyocclusters/status
   - datadogcsidrivers/status
   - datadogdashboards/status
   - datadoggenericresources/status
@@ -312,6 +314,7 @@ rules:
 - apiGroups:
   - datadoghq.com
   resources:
+  - datadogbyocclusters/finalizers
   - datadogdashboards/finalizers
   - datadogmetrics/status
   verbs:
