@@ -176,6 +176,18 @@ func Test_hostProfilerFeature_SELinuxTypeAnnotation(t *testing.T) {
 	// The selinux-type annotation overrides the spc_t default.
 	require.NotNil(t, hpContainer.SecurityContext.SELinuxOptions)
 	assert.Equal(t, "custom_t", hpContainer.SecurityContext.SELinuxOptions.Type)
+
+	var setupContainer *corev1.Container
+	for i := range manager.Tpl.Spec.InitContainers {
+		if manager.Tpl.Spec.InitContainers[i].Name == string(apicommon.HostProfilerSeccompSetupContainerName) {
+			setupContainer = &manager.Tpl.Spec.InitContainers[i]
+			break
+		}
+	}
+	require.NotNil(t, setupContainer)
+	require.NotNil(t, setupContainer.SecurityContext)
+	require.NotNil(t, setupContainer.SecurityContext.SELinuxOptions)
+	assert.Equal(t, "custom_t", setupContainer.SecurityContext.SELinuxOptions.Type)
 }
 
 func testExpectedAgent(agentContainerName apicommon.AgentContainerName, expectedVolumeMount []corev1.VolumeMount) *test.ComponentTest {
