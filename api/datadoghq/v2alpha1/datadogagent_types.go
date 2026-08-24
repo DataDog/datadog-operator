@@ -734,7 +734,10 @@ type GPUFeatureConfig struct {
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 
-	// PrivilegedMode enables GPU Probe module in System Probe.
+	// PrivilegedMode enables GPU Probe module in System Probe. The module's eBPF
+	// probes are disabled; privileged mode is retained for cgroup permission patching.
+	// To re-enable the eBPF probes, set DD_GPU_MONITORING_ENABLE_EBPF_PROBES=true on the
+	// core agent and system-probe containers via spec.override.nodeAgent.containers.
 	// Default: false
 	// +optional
 	PrivilegedMode *bool `json:"privilegedMode,omitempty"`
