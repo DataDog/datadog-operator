@@ -29,6 +29,7 @@ func buildDataPlaneFeature(options *feature.Options) feature.Feature {
 
 	if options != nil {
 		f.logger = options.Logger
+		f.defaultEnabled = options.DefaultDataPlaneEnabled
 	}
 
 	return f
@@ -37,6 +38,7 @@ func buildDataPlaneFeature(options *feature.Options) feature.Feature {
 type dataPlaneFeature struct {
 	logger logr.Logger
 
+	defaultEnabled   bool
 	enabled          bool
 	dogstatsdEnabled bool
 }
@@ -53,7 +55,7 @@ func (f *dataPlaneFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Datado
 		f.logger.Info("DEPRECATION WARNING: annotation 'agent.datadoghq.com/adp-enabled' is deprecated; use 'spec.features.dataPlane.enabled' instead")
 	}
 
-	f.enabled = featureutils.IsDataPlaneEnabled(dda, ddaSpec)
+	f.enabled = featureutils.IsDataPlaneEnabled(dda, ddaSpec, f.defaultEnabled)
 	f.dogstatsdEnabled = featureutils.IsDataPlaneDogstatsdEnabled(ddaSpec)
 
 	var reqComp feature.RequiredComponents

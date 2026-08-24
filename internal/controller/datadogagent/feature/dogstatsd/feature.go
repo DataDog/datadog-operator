@@ -44,6 +44,7 @@ func buildDogstatsdFeature(options *feature.Options) feature.Feature {
 
 	if options != nil {
 		dogstatsdFeat.logger = options.Logger
+		dogstatsdFeat.defaultDataPlaneEnabled = options.DefaultDataPlaneEnabled
 	}
 
 	return dogstatsdFeat
@@ -61,6 +62,7 @@ type dogstatsdFeature struct {
 	tagCardinality         string
 	mapperProfiles         *v2alpha1.CustomConfig
 
+	defaultDataPlaneEnabled    bool
 	dataPlaneEnabled           bool
 	dataPlaneDogstatsdEnabled  bool
 	agentSupportsADPDelegation bool
@@ -114,7 +116,7 @@ func (f *dogstatsdFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Datado
 	// non-local traffic from hostPort/local-service exposure like APM.
 	f.nonLocalTraffic = apiutils.BoolValue(dogstatsd.NonLocalTraffic)
 
-	f.dataPlaneEnabled = featureutils.IsDataPlaneEnabled(dda, ddaSpec)
+	f.dataPlaneEnabled = featureutils.IsDataPlaneEnabled(dda, ddaSpec, f.defaultDataPlaneEnabled)
 	f.dataPlaneDogstatsdEnabled = featureutils.IsDataPlaneDogstatsdEnabled(ddaSpec)
 	f.agentSupportsADPDelegation = featureutils.AgentSupportsADPDogstatsdDelegation(ddaSpec)
 

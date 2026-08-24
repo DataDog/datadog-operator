@@ -508,6 +508,49 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 			),
 		},
 		{
+			Name: "data plane feature default routes DogStatsD UDP host port to ADP",
+			DDA: testutils.NewDefaultDatadogAgentBuilder().
+				WithDogstatsdHostPortEnabled(true).
+				BuildWithDefaults(),
+			FeatureOptions: &feature.Options{
+				DefaultDataPlaneEnabled: true,
+			},
+			WantConfigure: true,
+			Agent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+					mgr := mgrInterface.(*fake.PodTemplateManagers)
+
+					adpPorts := mgr.PortMgr.PortsByC[apicommon.AgentDataPlaneContainerName]
+					assert.NotEmpty(t, adpPorts, "ADP container should have the DogStatsD UDP host port when Data Plane is enabled by the feature default")
+
+					coreAgentPorts := mgr.PortMgr.PortsByC[apicommon.CoreAgentContainerName]
+					assert.Empty(t, coreAgentPorts, "Core Agent container should not have the DogStatsD UDP host port when Data Plane is enabled by the feature default")
+				},
+			),
+		},
+		{
+			Name: "data plane explicit CRD disable keeps DogStatsD UDP host port on Core Agent",
+			DDA: testutils.NewDefaultDatadogAgentBuilder().
+				WithDataPlaneEnabled(false).
+				WithDogstatsdHostPortEnabled(true).
+				BuildWithDefaults(),
+			FeatureOptions: &feature.Options{
+				DefaultDataPlaneEnabled: true,
+			},
+			WantConfigure: true,
+			Agent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+					mgr := mgrInterface.(*fake.PodTemplateManagers)
+
+					adpPorts := mgr.PortMgr.PortsByC[apicommon.AgentDataPlaneContainerName]
+					assert.Empty(t, adpPorts, "ADP container should not have the DogStatsD UDP host port when the CRD explicitly disables Data Plane")
+
+					coreAgentPorts := mgr.PortMgr.PortsByC[apicommon.CoreAgentContainerName]
+					assert.NotEmpty(t, coreAgentPorts, "Core Agent container should have the DogStatsD UDP host port when the CRD explicitly disables Data Plane")
+				},
+			),
+		},
+		{
 			Name: "data plane + dogstatsd + host port enabled - UDP port binding on ADP container, not Core Agent",
 			DDA: testutils.NewDefaultDatadogAgentBuilder().
 				WithDataPlaneEnabled(true).

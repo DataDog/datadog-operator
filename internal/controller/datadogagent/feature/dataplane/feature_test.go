@@ -46,6 +46,39 @@ func Test_dataPlaneFeature(t *testing.T) {
 			),
 		},
 		{
+			Name: "data plane enabled by feature default",
+			DDA: testutils.NewDatadogAgentBuilder().
+				BuildWithDefaults(),
+			FeatureOptions: &feature.Options{
+				DefaultDataPlaneEnabled: true,
+			},
+			WantConfigure: true,
+			Agent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+					mgr := mgrInterface.(*fake.PodTemplateManagers)
+					agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
+					assert.Contains(t, agentEnvVars, dataPlaneEnabledEnvVar, "DD_DATA_PLANE_ENABLED should be set when Data Plane is enabled by the feature default")
+				},
+			),
+		},
+		{
+			Name: "data plane explicitly disabled via CRD overrides feature default",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithDataPlaneEnabled(false).
+				BuildWithDefaults(),
+			FeatureOptions: &feature.Options{
+				DefaultDataPlaneEnabled: true,
+			},
+			WantConfigure: false,
+			Agent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+					mgr := mgrInterface.(*fake.PodTemplateManagers)
+					agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
+					assert.NotContains(t, agentEnvVars, dataPlaneEnabledEnvVar, "DD_DATA_PLANE_ENABLED should not be set when the CRD explicitly disables Data Plane")
+				},
+			),
+		},
+		{
 			Name: "data plane disabled (forced via annotation)",
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithAnnotations(map[string]string{
