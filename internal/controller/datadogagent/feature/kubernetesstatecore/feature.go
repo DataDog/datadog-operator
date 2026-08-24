@@ -197,7 +197,7 @@ func (f *ksmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 				fallback := true // assume compatible when unparseable
 				if !utils.IsAboveMinVersion(agentVersion, podCollectionOnNodeMinVersion, &fallback) {
 					f.logger.Info(
-						"PodCollectionMode=node_kubelet requires agent >= 7.60; falling back to default",
+						"PodCollectionMode=node_kubelet requires agent >= 7.82; falling back to default",
 						"component", string(comp),
 						"version", agentVersion,
 					)
@@ -215,7 +215,9 @@ func (f *ksmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 							"cluster-side config. To avoid double pod collection ensure the cluster-side instance " +
 							"either omits `pods` from `collectors` OR sets `pod_collection_mode: cluster_unassigned`. " +
 							"Note that omitting `collectors` entirely falls back to upstream KSM defaults, which " +
-							"include `pods`.",
+							"include `pods`. To collect cluster-aggregate metrics, add a dedicated instance with " +
+							"`pod_collection_mode: cluster_aggregates_only` to the cluster-side config yourself; " +
+							"the operator does not add one for user-supplied configs.",
 					)
 				}
 			}
@@ -264,7 +266,10 @@ func (f *ksmFeature) ManageDependencies(managers feature.ResourceManagers) error
 	// to every node agent regardless of whether the cluster-side config was
 	// user-supplied.
 	if f.podCollectionOnNode {
-		nodeCM := f.buildKSMCorePodsOnNodeConfigMap()
+		nodeCM, err := f.buildKSMCorePodsOnNodeConfigMap()
+		if err != nil {
+			return err
+		}
 		if err := managers.Store().AddOrUpdate(kubernetes.ConfigMapKind, nodeCM); err != nil {
 			return err
 		}

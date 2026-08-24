@@ -172,7 +172,7 @@ func TestKsmCheckConfigYAMLFormat(t *testing.T) {
 }
 
 func TestKsmCheckConfigPodCollectionOnNode(t *testing.T) {
-	t.Run("emits cluster_unassigned when podCollectionOnNode is true", func(t *testing.T) {
+	t.Run("emits cluster_unassigned and a second cluster_aggregates_only instance when podCollectionOnNode is true", func(t *testing.T) {
 		output := ksmCheckConfig(true, true, collectorOptions{})
 		assert.Contains(t, output, "pod_collection_mode: cluster_unassigned",
 			"cluster-side instance should declare cluster_unassigned mode")
@@ -180,20 +180,34 @@ func TestKsmCheckConfigPodCollectionOnNode(t *testing.T) {
 		var config map[string]any
 		require.NoError(t, yaml.Unmarshal([]byte(output), &config), "YAML should be valid")
 		instances := config["instances"].([]any)
-		require.Len(t, instances, 1)
-		instance := instances[0].(map[string]any)
-		assert.Equal(t, "cluster_unassigned", instance["pod_collection_mode"])
+		require.Len(t, instances, 2, "expected a cluster_unassigned instance and a cluster_aggregates_only instance")
+
+		first := instances[0].(map[string]any)
+		assert.Equal(t, "cluster_unassigned", first["pod_collection_mode"])
+		assert.Equal(t, true, first["cluster_aggregates_enabled"],
+			"cluster-side instance must silence its own aggregate metrics when a dedicated aggregator instance exists")
 		// Full collector list still present — cluster_unassigned only filters pods.
-		collectors, ok := instance["collectors"].([]any)
+		collectors, ok := first["collectors"].([]any)
 		require.True(t, ok, "collectors should be present alongside cluster_unassigned")
 		assert.Contains(t, collectors, "pods", "pods collector must remain so unscheduled pods are collected")
 		assert.Contains(t, collectors, "nodes", "other collectors must remain")
+
+		second := instances[1].(map[string]any)
+		assert.Equal(t, "cluster_aggregates_only", second["pod_collection_mode"])
+		assert.Empty(t, second["collectors"], "cluster_aggregates_only instance should not declare a collectors list")
+		_, hasClusterAggregatesEnabled := second["cluster_aggregates_enabled"]
+		assert.False(t, hasClusterAggregatesEnabled, "cluster_aggregates_only instance is the aggregator itself and should not set cluster_aggregates_enabled")
 	})
 
-	t.Run("does NOT emit cluster_unassigned when podCollectionOnNode is false", func(t *testing.T) {
+	t.Run("does NOT emit pod_collection_mode or a second instance when podCollectionOnNode is false", func(t *testing.T) {
 		output := ksmCheckConfig(true, false, collectorOptions{})
 		assert.NotContains(t, output, "pod_collection_mode",
 			"default cluster-side config must not mention pod_collection_mode")
+
+		var config map[string]any
+		require.NoError(t, yaml.Unmarshal([]byte(output), &config), "YAML should be valid")
+		instances := config["instances"].([]any)
+		require.Len(t, instances, 1)
 	})
 }
 

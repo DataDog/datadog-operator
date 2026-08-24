@@ -7,12 +7,12 @@ package kubernetesstatecore
 
 import (
 	"bytes"
-	"strconv"
 
 	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/configmap"
 )
 
@@ -32,26 +32,60 @@ func (f *ksmFeature) buildKSMCoreConfigMap(collectorOpts collectorOptions) (*cor
 	return configMap, nil
 }
 
+// ksmCoreConfig is the kubernetes_state_core check config, shared by any
+// agent running the check (cluster agent, cluster check runner, node agent).
+type ksmCoreConfig struct {
+	ClusterCheck *bool             `yaml:"cluster_check,omitempty"`
+	InitConfig   any               `yaml:"init_config"`
+	Instances    []ksmCoreInstance `yaml:"instances"`
+}
+
+type ksmCoreInstance struct {
+	SkipLeaderElection       *bool                  `yaml:"skip_leader_election,omitempty"`
+	UseAPIServerCache        bool                   `yaml:"use_apiserver_cache,omitempty"`
+	PodCollectionMode        string                 `yaml:"pod_collection_mode,omitempty"`
+	ClusterAggregatesEnabled bool                   `yaml:"cluster_aggregates_enabled,omitempty"`
+	Collectors               []string               `yaml:"collectors,omitempty"`
+	CustomResource           *ksmCoreCustomResource `yaml:"custom_resource,omitempty"`
+}
+
+type ksmCoreCustomResource struct {
+	Spec ksmCoreCustomResourceSpec `yaml:"spec"`
+}
+
+type ksmCoreCustomResourceSpec struct {
+	Resources []v2alpha1.Resource `yaml:"resources"`
+}
+
 // buildKSMCorePodsOnNodeConfigMap builds the ConfigMap mounted into every node
 // agent when PodCollectionMode is set to node_kubelet. Each node agent then
 // runs a pods-only kubernetes_state_core check that reads pods locally from
 // the Kubelet via workloadmeta.
-func (f *ksmFeature) buildKSMCorePodsOnNodeConfigMap() *corev1.ConfigMap {
-	content := `init_config:
-instances:
-  - pod_collection_mode: node_kubelet
-    collectors:
-      - pods
-`
+func (f *ksmFeature) buildKSMCorePodsOnNodeConfigMap() (*corev1.ConfigMap, error) {
+	cfg := ksmCoreConfig{
+		Instances: []ksmCoreInstance{
+			{
+				PodCollectionMode:        "node_kubelet",
+				ClusterAggregatesEnabled: true,
+				Collectors:               []string{"pods"},
+			},
+		},
+	}
+
+	content, err := yaml.Marshal(cfg)
+	if err != nil {
+		return nil, err
+	}
+
 	return &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      f.nodeAgentConfigMapName,
 			Namespace: f.owner.GetNamespace(),
 		},
 		Data: map[string]string{
-			ksmCorePodsOnNodeCheckName: content,
+			ksmCorePodsOnNodeCheckName: string(content),
 		},
-	}
+	}, nil
 }
 
 func buildDefaultConfigMap(namespace, cmName string, content string) *corev1.ConfigMap {
@@ -74,79 +108,88 @@ func buildDefaultConfigMap(namespace, cmName string, content string) *corev1.Con
 // to set this check as a cluster check, because then it would be scheduled in
 // the DaemonSet agent instead of the DCA.
 func ksmCheckConfig(clusterCheck, podCollectionOnNode bool, collectorOpts collectorOptions) string {
-	stringVal := strconv.FormatBool(clusterCheck)
-	config := bytes.NewBufferString(`---
-cluster_check: `)
-	config.WriteString(stringVal)
-	config.WriteString(`
-init_config:
-instances:
-  - skip_leader_election: `)
-	config.WriteString(stringVal)
-	config.WriteString("\n")
-	if collectorOpts.useApiServerCache {
-		config.WriteString("    use_apiserver_cache: true\n")
+	collectors := []string{
+		"pods",
+		"replicationcontrollers",
+		"statefulsets",
+		"nodes",
+		"cronjobs",
+		"jobs",
+		"replicasets",
+		"deployments",
+		"configmaps",
+		"services",
+		"endpoints",
+		"endpointslices",
+		"daemonsets",
+		"horizontalpodautoscalers",
+		"poddisruptionbudgets",
+		"limitranges",
+		"resourcequotas",
+		"secrets",
+		"namespaces",
+		"persistentvolumeclaims",
+		"persistentvolumes",
+		"ingresses",
+		"storageclasses",
+		"volumeattachments",
 	}
+
+	if collectorOpts.enableVPA {
+		collectors = append(collectors, "verticalpodautoscalers")
+	}
+	if collectorOpts.enableAPIService {
+		collectors = append(collectors, "apiservices")
+	}
+	if collectorOpts.enableControllerRevisions {
+		collectors = append(collectors, "controllerrevisions")
+	}
+	if collectorOpts.enableCRD {
+		collectors = append(collectors, "customresourcedefinitions")
+	}
+
+	var instances []ksmCoreInstance
+	instance := ksmCoreInstance{
+		SkipLeaderElection:       &clusterCheck,
+		UseAPIServerCache:        collectorOpts.useApiServerCache,
+		Collectors:               collectors,
+		ClusterAggregatesEnabled: podCollectionOnNode,
+	}
+
 	if podCollectionOnNode {
 		// Cluster-side instance only collects pods that have not been
 		// scheduled to a node yet; node agents collect the rest locally.
-		config.WriteString("    pod_collection_mode: cluster_unassigned\n")
-	}
-	config.WriteString(`    collectors:
-    - pods
-    - replicationcontrollers
-    - statefulsets
-    - nodes
-    - cronjobs
-    - jobs
-    - replicasets
-    - deployments
-    - configmaps
-    - services
-    - endpoints
-    - endpointslices
-    - daemonsets
-    - horizontalpodautoscalers
-    - poddisruptionbudgets
-    - limitranges
-    - resourcequotas
-    - secrets
-    - namespaces
-    - persistentvolumeclaims
-    - persistentvolumes
-    - ingresses
-    - storageclasses
-    - volumeattachments
-`)
-
-	if collectorOpts.enableVPA {
-		config.WriteString("    - verticalpodautoscalers\n")
-	}
-
-	if collectorOpts.enableAPIService {
-		config.WriteString("    - apiservices\n")
-	}
-
-	if collectorOpts.enableControllerRevisions {
-		config.WriteString("    - controllerrevisions\n")
-	}
-
-	if collectorOpts.enableCRD {
-		config.WriteString("    - customresourcedefinitions\n")
+		instance.PodCollectionMode = "cluster_unassigned"
 	}
 
 	if collectorOpts.customResources != nil {
-		config.WriteString(`    custom_resource:
-      spec:
-        resources:
-`)
-		// Use indentWriter to add proper indentation (10 spaces for YAML nesting)
-		indentedWriter := newIndentWriter(config, 10)
-		encoder := yaml.NewEncoder(indentedWriter)
-		encoder.SetIndent(2) // Keep YAML's internal indentation
-		encoder.Encode(collectorOpts.customResources)
-		encoder.Close()
+		instance.CustomResource = &ksmCoreCustomResource{
+			Spec: ksmCoreCustomResourceSpec{Resources: collectorOpts.customResources},
+		}
 	}
 
-	return config.String()
+	instances = append(instances, instance)
+	if podCollectionOnNode {
+		instances = append(instances, ksmCoreInstance{
+			SkipLeaderElection: &clusterCheck,
+			PodCollectionMode:  "cluster_aggregates_only",
+		})
+	}
+
+	cfg := ksmCoreConfig{
+		ClusterCheck: &clusterCheck,
+		Instances:    instances,
+	}
+
+	var buf bytes.Buffer
+	encoder := yaml.NewEncoder(&buf)
+	encoder.SetIndent(2)
+	if err := encoder.Encode(cfg); err != nil {
+		return ""
+	}
+	if err := encoder.Close(); err != nil {
+		return ""
+	}
+
+	return "---\n" + buf.String()
 }

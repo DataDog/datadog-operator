@@ -91,6 +91,7 @@ instances:
 		customConfig             *v2alpha1.CustomConfig
 		configConfigMapName      string
 		collectorOpts            collectorOptions
+		podCollectionOnNode      bool
 	}
 	tests := []struct {
 		name    string
@@ -230,6 +231,17 @@ instances:
 			},
 			want: buildDefaultConfigMap(owner.GetNamespace(), defaultKubeStateMetricsCoreConf, ksmCheckConfig(false, false, optionsWithCustomResources)),
 		},
+		{
+			name: "with podCollectionOnNode",
+			fields: fields{
+				owner:                    owner,
+				enable:                   true,
+				runInClusterChecksRunner: true,
+				configConfigMapName:      defaultKubeStateMetricsCoreConf,
+				podCollectionOnNode:      true,
+			},
+			want: buildDefaultConfigMap(owner.GetNamespace(), defaultKubeStateMetricsCoreConf, ksmCheckConfig(true, true, defaultOptions)),
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -240,6 +252,7 @@ instances:
 				owner:                    tt.fields.owner,
 				customConfig:             tt.fields.customConfig,
 				configConfigMapName:      tt.fields.configConfigMapName,
+				podCollectionOnNode:      tt.fields.podCollectionOnNode,
 			}
 			got, err := f.buildKSMCoreConfigMap(tt.fields.collectorOpts)
 			if (err != nil) != tt.wantErr {
@@ -263,7 +276,8 @@ func Test_ksmFeature_buildKSMCorePodsOnNodeConfigMap(t *testing.T) {
 		nodeAgentConfigMapName: "test-kube-state-metrics-core-pods-on-node-config",
 	}
 
-	got := f.buildKSMCorePodsOnNodeConfigMap()
+	got, err := f.buildKSMCorePodsOnNodeConfigMap()
+	require.NoError(t, err)
 	assert.Equal(t, "foo", got.Namespace)
 	assert.Equal(t, "test-kube-state-metrics-core-pods-on-node-config", got.Name)
 
@@ -283,8 +297,9 @@ func Test_ksmFeature_buildKSMCorePodsOnNodeConfigMap(t *testing.T) {
 		"init_config": nil,
 		"instances": []any{
 			map[string]any{
-				"pod_collection_mode": "node_kubelet",
-				"collectors":          []any{"pods"},
+				"pod_collection_mode":        "node_kubelet",
+				"cluster_aggregates_enabled": true,
+				"collectors":                 []any{"pods"},
 			},
 		},
 	}

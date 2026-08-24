@@ -187,22 +187,22 @@ func Test_ksmFeature_Configure(t *testing.T) {
 			Agent:         test.NewDefaultComponentTest().WithWantFunc(ksmAgentNodeWantFuncWithPodsOnNode),
 		},
 		{
-			Name: "ksm-core enabled, podCollectionMode=node_kubelet but cluster-agent image < 7.60 -> fall back",
+			Name: "ksm-core enabled, podCollectionMode=node_kubelet but cluster-agent image < 7.82 -> fall back",
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithKSMEnabled(true).
 				WithKSMPodCollectionMode(v2alpha1.KSMPodCollectionModeNodeKubelet).
-				WithClusterAgentImage("gcr.io/datadoghq/cluster-agent:7.59.0").
+				WithClusterAgentImage("gcr.io/datadoghq/cluster-agent:7.81.0").
 				Build(),
 			WantConfigure: true,
 			ClusterAgent:  ksmClusterAgentWantFunc(),
 			Agent:         test.NewDefaultComponentTest().WithWantFunc(ksmAgentNodeWantFunc),
 		},
 		{
-			Name: "ksm-core enabled, podCollectionMode=node_kubelet but node-agent image < 7.60 -> fall back",
+			Name: "ksm-core enabled, podCollectionMode=node_kubelet but node-agent image < 7.82 -> fall back",
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithKSMEnabled(true).
 				WithKSMPodCollectionMode(v2alpha1.KSMPodCollectionModeNodeKubelet).
-				WithNodeAgentImage("gcr.io/datadoghq/agent:7.59.0").
+				WithNodeAgentImage("gcr.io/datadoghq/agent:7.81.0").
 				Build(),
 			WantConfigure: true,
 			ClusterAgent:  ksmClusterAgentWantFunc(),
