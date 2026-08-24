@@ -38,15 +38,16 @@ const (
 )
 
 var preparedRolloutContainerNames = map[string]struct{}{
-	string(apicommon.CoreAgentContainerName):      {},
-	string(apicommon.TraceAgentContainerName):     {},
-	string(apicommon.ProcessAgentContainerName):   {},
-	string(apicommon.SecurityAgentContainerName):  {},
-	string(apicommon.SystemProbeContainerName):    {},
-	string(apicommon.HostProfiler):                {},
-	string(apicommon.OtelAgent):                   {},
-	string(apicommon.AgentDataPlaneContainerName): {},
-	string(apicommon.FlightRecorderContainerName): {},
+	string(apicommon.CoreAgentContainerName):           {},
+	string(apicommon.TraceAgentContainerName):          {},
+	string(apicommon.ProcessAgentContainerName):        {},
+	string(apicommon.SecurityAgentContainerName):       {},
+	string(apicommon.SystemProbeContainerName):         {},
+	string(apicommon.HostProfiler):                     {},
+	string(apicommon.OtelAgent):                        {},
+	string(apicommon.AgentDataPlaneContainerName):      {},
+	string(apicommon.FlightRecorderContainerName):      {},
+	string(apicommon.PrivateActionRunnerContainerName): {},
 }
 
 var preparedRolloutInitContainerNames = map[string]struct{}{
@@ -367,15 +368,16 @@ func preparedContainerCommandSupported(container *corev1.Container) bool {
 		return false
 	}
 	expected := map[string]string{
-		string(apicommon.CoreAgentContainerName):      "agent",
-		string(apicommon.TraceAgentContainerName):     "trace-agent",
-		string(apicommon.ProcessAgentContainerName):   "process-agent",
-		string(apicommon.SecurityAgentContainerName):  "security-agent",
-		string(apicommon.SystemProbeContainerName):    "system-probe",
-		string(apicommon.HostProfiler):                "host-profiler",
-		string(apicommon.OtelAgent):                   "otel-agent",
-		string(apicommon.AgentDataPlaneContainerName): "agent-data-plane",
-		string(apicommon.FlightRecorderContainerName): "/opt/datadog-agent/embedded/bin/flightrecorder",
+		string(apicommon.CoreAgentContainerName):           "agent",
+		string(apicommon.TraceAgentContainerName):          "trace-agent",
+		string(apicommon.ProcessAgentContainerName):        "process-agent",
+		string(apicommon.SecurityAgentContainerName):       "security-agent",
+		string(apicommon.SystemProbeContainerName):         "system-probe",
+		string(apicommon.HostProfiler):                     "host-profiler",
+		string(apicommon.OtelAgent):                        "otel-agent",
+		string(apicommon.AgentDataPlaneContainerName):      "agent-data-plane",
+		string(apicommon.FlightRecorderContainerName):      "/opt/datadog-agent/embedded/bin/flightrecorder",
+		string(apicommon.PrivateActionRunnerContainerName): "/opt/datadog-agent/embedded/bin/privateactionrunner",
 	}
 	want := expected[container.Name]
 	if container.Name == string(apicommon.TraceAgentContainerName) {
