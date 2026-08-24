@@ -133,6 +133,7 @@ type options struct {
 	managedAgentInstallationEnabled     bool
 	datadogDashboardEnabled             bool
 	datadogGenericResourceEnabled       bool
+	datadogBYOCClusterEnabled           bool
 	datadogGenericResourceMaxWorkers    int
 	datadogGenericResourceRequeuePeriod time.Duration
 	datadogCSIDriverEnabled             bool
@@ -180,6 +181,7 @@ func (opts *options) Parse() {
 	flag.BoolVar(&opts.managedAgentInstallationEnabled, "managedAgentInstallationEnabled", false, "Enable managed Agent installation intents")
 	flag.BoolVar(&opts.datadogDashboardEnabled, "datadogDashboardEnabled", false, "Enable the DatadogDashboard controller")
 	flag.BoolVar(&opts.datadogGenericResourceEnabled, "datadogGenericResourceEnabled", false, "Enable the DatadogGenericResource controller")
+	flag.BoolVar(&opts.datadogBYOCClusterEnabled, "datadogBYOCClusterEnabled", false, "Enable the DatadogBYOCCluster controller")
 	flag.IntVar(&opts.datadogGenericResourceMaxWorkers, "datadogGenericResourceMaxConcurrentReconciles", defaultDatadogGenericResourceMaxConcurrentReconciles, "Maximum number of concurrent DatadogGenericResource reconciles")
 	flag.DurationVar(&opts.datadogGenericResourceRequeuePeriod, "datadogGenericResourceRequeuePeriod", defaultDatadogGenericResourceRequeuePeriod, "DatadogGenericResource status polling requeue period, for example 5m")
 	flag.BoolVar(&opts.datadogCSIDriverEnabled, "datadogCSIDriverEnabled", false, "Enable the DatadogCSIDriver controller")
@@ -395,6 +397,7 @@ func run(opts *options) error {
 			IntrospectionEnabled:              opts.introspectionEnabled,
 			DatadogDashboardEnabled:           opts.datadogDashboardEnabled,
 			DatadogGenericResourceEnabled:     opts.datadogGenericResourceEnabled,
+			DatadogBYOCClusterEnabled:         opts.datadogBYOCClusterEnabled,
 			DatadogCSIDriverEnabled:           opts.datadogCSIDriverEnabled,
 			UntaintControllerEnabled:          opts.untaintControllerEnabled,
 			UntaintControllerWaitForCSIDriver: opts.untaintControllerWaitForCSIDriver,
@@ -495,6 +498,7 @@ func run(opts *options) error {
 		DatadogAgentProfileEnabled:        opts.datadogAgentProfileEnabled,
 		DatadogDashboardEnabled:           opts.datadogDashboardEnabled,
 		DatadogGenericResourceEnabled:     opts.datadogGenericResourceEnabled,
+		DatadogBYOCClusterEnabled:         opts.datadogBYOCClusterEnabled,
 		DatadogGenericResourceMaxWorkers:  opts.datadogGenericResourceMaxWorkers,
 		DatadogGenericResourceRequeue:     opts.datadogGenericResourceRequeuePeriod,
 		DatadogCSIDriverEnabled:           opts.datadogCSIDriverEnabled,
