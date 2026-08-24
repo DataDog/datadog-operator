@@ -34,7 +34,7 @@ The DAP spec has two main sections:
 * `profileAffinity` is used to target a subset of nodes. It accepts a list of [NodeSelectorRequirements](https://pkg.go.dev/k8s.io/api/core/v1#NodeSelectorRequirement).
 * `config` defines the configuration to override in the DDA. It follows the configuration formatting of the Operator's [DatadogAgentSpec](https://github.com/DataDog/datadog-operator/blob/98276c56ad824f81be6f75128d230d2c4eda4c0b/apis/datadoghq/v2alpha1/datadogagent_types.go#L28).
 
-When a DAP is applied, the Operator creates a new DaemonSet for that profile using the same name as the DAP. Even if the Operator is configured to use ExtendedDaemonSets, it will still create DaemonSets for any DAPs. It will also create a DaemonSet (or an ExtendedDaemonSet, if enabled) for a default profile. The default profile uses the same name as the DDA and applies to all nodes that are not targeted by a DAP.
+When a DAP is applied, the Operator creates a new DaemonSet for that profile using the same name as the DAP. It also creates a DaemonSet for the default profile. The default profile uses the same name as the DDA and applies to all nodes that are not targeted by a DAP.
 
 ```console
 $ kubectl get ds
