@@ -88,8 +88,6 @@ func getResourcesKind(withCiliumResources bool) []ObjectKind {
 
 // These constants are used in Datadog event submission
 const (
-	// ExtendedDaemonSetKind is the ExtendedDaemonset resource kind
-	ExtendedDaemonSetKind = "extendeddaemonset"
 	// DaemonSetKind is the Daemonset resource kind
 	DaemonSetKind = "daemonset"
 	// DeploymentKind is the Deployment resource kind

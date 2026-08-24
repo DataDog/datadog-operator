@@ -106,9 +106,6 @@ var _ = BeforeSuite(func(ctx context.Context) {
 	Expect(err).ToNot(HaveOccurred())
 
 	options := SetupOptions{
-		SupportExtendedDaemonset: ExtendedDaemonsetOptions{
-			Enabled: false,
-		},
 		CredsManager:               config.NewCredentialManager(mgr.GetClient()),
 		DatadogAgentEnabled:        true,
 		DatadogMonitorEnabled:      true,

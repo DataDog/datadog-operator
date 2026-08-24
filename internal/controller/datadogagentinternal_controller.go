@@ -8,7 +8,6 @@ package controller
 import (
 	"context"
 
-	edsdatadoghqv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -76,10 +75,6 @@ func (r *DatadogAgentInternalReconciler) SetupWithManager(mgr ctrl.Manager, metr
 	handlerEnqueue := handler.EnqueueRequestsFromMapFunc(enqueueIfOwnedByDatadogAgentInternal)
 	builder.Watches(&rbacv1.ClusterRole{}, handlerEnqueue)
 	builder.Watches(&rbacv1.ClusterRoleBinding{}, handlerEnqueue)
-
-	if r.Options.ExtendedDaemonsetOptions.Enabled {
-		builder = builder.Owns(&edsdatadoghqv1alpha1.ExtendedDaemonSet{})
-	}
 
 	if r.Options.SupportCilium {
 		policy := &unstructured.Unstructured{}

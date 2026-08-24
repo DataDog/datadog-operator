@@ -86,7 +86,6 @@ const (
 	EndpointsResource                                 = "endpoints"
 	EndpointsSlicesResource                           = "endpointslices"
 	EventsResource                                    = "events"
-	ExtendedDaemonSetReplicaSetResource               = "extendeddaemonsetreplicasets"
 	HorizontalPodAutoscalersRecource                  = "horizontalpodautoscalers"
 	IngressesResource                                 = "ingresses"
 	IngressClassesResource                            = "ingressclasses"

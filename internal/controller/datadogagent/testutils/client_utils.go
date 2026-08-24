@@ -6,7 +6,6 @@
 package testutils_test
 
 import (
-	edsdatadoghqv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -24,7 +23,6 @@ import (
 // TestScheme return a runtime.Scheme for testing purposes
 func TestScheme() *runtime.Scheme {
 	s := scheme.Scheme
-	s.AddKnownTypes(edsdatadoghqv1alpha1.GroupVersion, &edsdatadoghqv1alpha1.ExtendedDaemonSet{})
 	s.AddKnownTypes(v1alpha1.GroupVersion, &v1alpha1.DatadogAgentProfile{})
 	s.AddKnownTypes(v1alpha1.GroupVersion, &v1alpha1.DatadogAgentProfileList{})
 	s.AddKnownTypes(appsv1.SchemeGroupVersion, &appsv1.DaemonSet{})
