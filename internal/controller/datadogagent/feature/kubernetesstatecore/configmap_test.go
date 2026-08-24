@@ -276,8 +276,7 @@ func Test_ksmFeature_buildKSMCorePodsOnNodeConfigMap(t *testing.T) {
 		nodeAgentConfigMapName: "test-kube-state-metrics-core-pods-on-node-config",
 	}
 
-	got, err := f.buildKSMCorePodsOnNodeConfigMap()
-	require.NoError(t, err)
+	got := f.buildKSMCorePodsOnNodeConfigMap()
 	assert.Equal(t, "foo", got.Namespace)
 	assert.Equal(t, "test-kube-state-metrics-core-pods-on-node-config", got.Name)
 

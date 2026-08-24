@@ -266,10 +266,7 @@ func (f *ksmFeature) ManageDependencies(managers feature.ResourceManagers) error
 	// to every node agent regardless of whether the cluster-side config was
 	// user-supplied.
 	if f.podCollectionOnNode {
-		nodeCM, err := f.buildKSMCorePodsOnNodeConfigMap()
-		if err != nil {
-			return err
-		}
+		nodeCM := f.buildKSMCorePodsOnNodeConfigMap()
 		if err := managers.Store().AddOrUpdate(kubernetes.ConfigMapKind, nodeCM); err != nil {
 			return err
 		}
