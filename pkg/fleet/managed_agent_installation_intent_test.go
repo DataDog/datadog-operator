@@ -279,11 +279,14 @@ func TestManagedAgentInstallationIntentInstallAndUninstall(t *testing.T) {
 	dda := &v2alpha1.DatadogAgent{}
 	require.NoError(t, kubeClient.Get(ctx, testDDANSN, dda))
 	assert.Equal(t, fleetManagedAgentInstallationStatePartial, dda.Labels[fleetManagedAgentInstallationStateLabel])
+	_, readinessStartedAtErr := time.Parse(time.RFC3339Nano, dda.Annotations[fleetReadinessStartedAtAnnotation])
+	require.NoError(t, readinessStartedAtErr)
 	setTestManagedAgentInstallationWorkloadsReady(dda)
 	require.NoError(t, kubeClient.Status().Update(ctx, dda))
 	require.NoError(t, daemon.handleManagedAgentInstallationIntent(ctx, install))
 	require.NoError(t, kubeClient.Get(ctx, testDDANSN, dda))
 	assert.Equal(t, testAddonInstallOperationID, dda.Labels[fleetConfigIDLabel])
+	assert.NotContains(t, dda.Annotations, fleetReadinessStartedAtAnnotation)
 	assert.Equal(t, string(testManagedAgentInstallationIdentity.Provider()), dda.Labels[fleetManagedAgentInstallationProviderLabel])
 	assert.Equal(t, testManagedAgentInstallationIdentity.InstallationID(), dda.Labels[fleetInstallationIDLabel])
 	assert.Equal(t, testManagedAgentInstallationIdentity.TargetID(), dda.Labels[fleetTargetIDLabel])
@@ -654,6 +657,35 @@ func TestManagedAgentInstallationCommandReportsTerminalFailures(t *testing.T) {
 			assert.False(t, daemon.managedAgentInstallationTaskReserved)
 		})
 	}
+}
+
+func TestManagedAgentInstallationCompletedInstallStartsFreshReadinessDeadline(t *testing.T) {
+	ctx := context.Background()
+	daemon, kubeClient, _ := testManagedAgentInstallationDaemon(
+		[]*pbgo.PackageState{{Package: packageDatadogOperator}},
+		testFleetCredentialSecret(),
+	)
+	raw := testManagedAgentInstallationIntent(t, testAddonInstallOperationID, managedAgentInstallationDesiredStateInstalled)
+	putManagedAgentInstallationIntentConfigMap(t, kubeClient, raw)
+	snapshot := managedAgentInstallationIntentSnapshot{raw: raw}
+	require.NoError(t, daemon.handleManagedAgentInstallationIntent(ctx, snapshot))
+
+	dda := &v2alpha1.DatadogAgent{}
+	require.NoError(t, kubeClient.Get(ctx, managedAgentInstallationTarget, dda))
+	dda.CreationTimestamp = metav1.NewTime(time.Now().Add(-24 * time.Hour))
+	require.NoError(t, kubeClient.Update(ctx, dda))
+	require.NoError(t, kubeClient.Get(ctx, managedAgentInstallationTarget, dda))
+	dda.Status.Agent.Ready = 0
+	require.NoError(t, kubeClient.Status().Update(ctx, dda))
+
+	err := daemon.handleManagedAgentInstallationIntent(ctx, snapshot)
+	require.ErrorContains(t, err, "pending managed installation readiness")
+	var terminalErr *managedAgentInstallationReadinessTimeoutError
+	require.NotErrorAs(t, err, &terminalErr)
+	require.NoError(t, kubeClient.Get(ctx, managedAgentInstallationTarget, dda))
+	readinessStartedAt, parseErr := time.Parse(time.RFC3339Nano, dda.Annotations[fleetReadinessStartedAtAnnotation])
+	require.NoError(t, parseErr)
+	assert.WithinDuration(t, time.Now(), readinessStartedAt, time.Second)
 }
 
 func TestManagedAgentInstallationPendingReadinessSchedulesConfiguredRetry(t *testing.T) {

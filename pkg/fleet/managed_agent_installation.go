@@ -46,6 +46,7 @@ const (
 	fleetTargetIDLabel                         = "fleet.datadoghq.com/target-id"
 	fleetConfigHashAnnotation                  = "fleet.datadoghq.com/config-hash"
 	fleetCreateTaskIDAnnotation                = "fleet.datadoghq.com/create-task-id"
+	fleetReadinessStartedAtAnnotation          = "fleet.datadoghq.com/readiness-started-at"
 	fleetManagedByValue                        = "fleet-automation"
 	fleetManagedAgentInstallationStatePartial  = "partial"
 	fleetManagedAgentInstallationStateReady    = "ready"
@@ -178,8 +179,9 @@ func (d *Daemon) installDatadogAgent(ctx context.Context, command managedAgentIn
 				fleetTargetIDLabel:                         d.managedAgentInstallationIdentity.TargetID(),
 			},
 			Annotations: map[string]string{
-				fleetConfigHashAnnotation:   configHash,
-				fleetCreateTaskIDAnnotation: command.Intent.OperationID,
+				fleetConfigHashAnnotation:         configHash,
+				fleetCreateTaskIDAnnotation:       command.Intent.OperationID,
+				fleetReadinessStartedAtAnnotation: time.Now().UTC().Format(time.RFC3339Nano),
 			},
 		},
 		Spec: *spec,
@@ -540,7 +542,7 @@ func (d *Daemon) markFleetDatadogAgentReady(ctx context.Context, nsn types.Names
 		if err := validateFleetDatadogAgentAcceptedSpec(dda); err != nil {
 			return err
 		}
-		if dda.Labels[fleetManagedAgentInstallationStateLabel] == fleetManagedAgentInstallationStateReady {
+		if dda.Labels[fleetManagedAgentInstallationStateLabel] == fleetManagedAgentInstallationStateReady && dda.Annotations[fleetReadinessStartedAtAnnotation] == "" {
 			return nil
 		}
 		base := dda.DeepCopy()
@@ -548,6 +550,7 @@ func (d *Daemon) markFleetDatadogAgentReady(ctx context.Context, nsn types.Names
 			dda.Labels = make(map[string]string)
 		}
 		dda.Labels[fleetManagedAgentInstallationStateLabel] = fleetManagedAgentInstallationStateReady
+		delete(dda.Annotations, fleetReadinessStartedAtAnnotation)
 		return d.client.Patch(
 			ctx,
 			dda,
@@ -574,11 +577,17 @@ func (d *Daemon) markFleetDatadogAgentPartial(ctx context.Context, nsn types.Nam
 			return err
 		}
 		configID = dda.Labels[fleetConfigIDLabel]
-		if dda.Labels[fleetManagedAgentInstallationStateLabel] == fleetManagedAgentInstallationStatePartial {
+		if dda.Labels[fleetManagedAgentInstallationStateLabel] == fleetManagedAgentInstallationStatePartial && dda.Annotations[fleetReadinessStartedAtAnnotation] != "" {
 			return nil
 		}
 		base := dda.DeepCopy()
 		dda.Labels[fleetManagedAgentInstallationStateLabel] = fleetManagedAgentInstallationStatePartial
+		if dda.Annotations == nil {
+			dda.Annotations = make(map[string]string)
+		}
+		if dda.Annotations[fleetReadinessStartedAtAnnotation] == "" {
+			dda.Annotations[fleetReadinessStartedAtAnnotation] = time.Now().UTC().Format(time.RFC3339Nano)
+		}
 		return d.client.Patch(
 			ctx,
 			dda,
@@ -750,6 +759,20 @@ func managedAgentInstallationOptionalComponentEnabled(dda *v2alpha1.DatadogAgent
 	}
 }
 
+func managedAgentInstallationDaemonSetReadinessDetail(name string, status *v2alpha1.DaemonSetStatus) string {
+	if status == nil {
+		return name + " status is unavailable"
+	}
+	if status.Desired == 0 || status.Current != status.Desired || status.Ready != status.Desired ||
+		status.Available != status.Desired || status.UpToDate != status.Desired {
+		return fmt.Sprintf(
+			"%s is not ready (desired=%d current=%d ready=%d available=%d upToDate=%d)",
+			name, status.Desired, status.Current, status.Ready, status.Available, status.UpToDate,
+		)
+	}
+	return ""
+}
+
 func managedAgentInstallationDeploymentReadinessDetail(name string, status *v2alpha1.DeploymentStatus) string {
 	if status == nil {
 		return name + " status is unavailable"
@@ -783,30 +806,26 @@ func validateFleetDatadogAgentWorkloadsReady(dda *v2alpha1.DatadogAgent, now tim
 		}
 	}
 
-	agent := dda.Status.Agent
-	if !managedAgentInstallationComponentDisabled(dda, v2alpha1.NodeAgentComponentName) && (agent == nil || agent.Desired == 0 || agent.Current != agent.Desired || agent.Ready != agent.Desired || agent.Available != agent.Desired || agent.UpToDate != agent.Desired) {
-		if agent == nil {
-			details = append(details, "Agent status is unavailable")
-		} else {
-			details = append(details, fmt.Sprintf(
-				"Agent is not ready (desired=%d current=%d ready=%d available=%d upToDate=%d)",
-				agent.Desired, agent.Current, agent.Ready, agent.Available, agent.UpToDate,
-			))
+	if !managedAgentInstallationComponentDisabled(dda, v2alpha1.NodeAgentComponentName) {
+		if detail := managedAgentInstallationDaemonSetReadinessDetail("Agent", dda.Status.Agent); detail != "" {
+			details = append(details, detail)
 		}
 	}
 
-	if !managedAgentInstallationComponentDisabled(dda, v2alpha1.ClusterAgentComponentName) {
-		if detail := managedAgentInstallationDeploymentReadinessDetail("Cluster Agent", dda.Status.ClusterAgent); detail != "" {
-			details = append(details, detail)
-		}
+	deploymentWorkloads := []struct {
+		name    string
+		enabled bool
+		status  *v2alpha1.DeploymentStatus
+	}{
+		{name: "Cluster Agent", enabled: !managedAgentInstallationComponentDisabled(dda, v2alpha1.ClusterAgentComponentName), status: dda.Status.ClusterAgent},
+		{name: "Cluster Checks Runner", enabled: managedAgentInstallationOptionalComponentEnabled(dda, v2alpha1.ClusterChecksRunnerComponentName), status: dda.Status.ClusterChecksRunner},
+		{name: "OTel Agent Gateway", enabled: managedAgentInstallationOptionalComponentEnabled(dda, v2alpha1.OtelAgentGatewayComponentName), status: dda.Status.OtelAgentGateway},
 	}
-	if managedAgentInstallationOptionalComponentEnabled(dda, v2alpha1.ClusterChecksRunnerComponentName) {
-		if detail := managedAgentInstallationDeploymentReadinessDetail("Cluster Checks Runner", dda.Status.ClusterChecksRunner); detail != "" {
-			details = append(details, detail)
+	for _, workload := range deploymentWorkloads {
+		if !workload.enabled {
+			continue
 		}
-	}
-	if managedAgentInstallationOptionalComponentEnabled(dda, v2alpha1.OtelAgentGatewayComponentName) {
-		if detail := managedAgentInstallationDeploymentReadinessDetail("OTel Agent Gateway", dda.Status.OtelAgentGateway); detail != "" {
+		if detail := managedAgentInstallationDeploymentReadinessDetail(workload.name, workload.status); detail != "" {
 			details = append(details, detail)
 		}
 	}
@@ -815,7 +834,13 @@ func validateFleetDatadogAgentWorkloadsReady(dda *v2alpha1.DatadogAgent, now tim
 		return nil
 	}
 
-	if !now.Before(dda.CreationTimestamp.Add(managedAgentInstallationReadinessTimeout)) {
+	readinessStartedAt, err := time.Parse(time.RFC3339Nano, dda.Annotations[fleetReadinessStartedAtAnnotation])
+	if err != nil {
+		return &stateDoesntMatchError{msg: fmt.Sprintf(
+			"DatadogAgent %s/%s has invalid managed installation readiness start time", dda.Namespace, dda.Name,
+		)}
+	}
+	if !now.Before(readinessStartedAt.Add(managedAgentInstallationReadinessTimeout)) {
 		return &managedAgentInstallationReadinessTimeoutError{msg: fmt.Sprintf(
 			"DatadogAgent %s/%s did not become ready within %s: %s",
 			dda.Namespace, dda.Name, managedAgentInstallationReadinessTimeout, strings.Join(details, "; "),

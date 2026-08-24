@@ -161,7 +161,10 @@ func TestManagedAgentInstallationWorkloadReadiness(t *testing.T) {
 	ready := &v2alpha1.DatadogAgent{ObjectMeta: metav1.ObjectMeta{
 		Namespace:         managedAgentInstallationTarget.Namespace,
 		Name:              managedAgentInstallationTarget.Name,
-		CreationTimestamp: metav1.NewTime(now.Add(-time.Minute)),
+		CreationTimestamp: metav1.NewTime(now.Add(-24 * time.Hour)),
+		Annotations: map[string]string{
+			fleetReadinessStartedAtAnnotation: now.Add(-time.Minute).Format(time.RFC3339Nano),
+		},
 	}}
 	setTestManagedAgentInstallationWorkloadsReady(ready)
 	require.NoError(t, validateFleetDatadogAgentWorkloadsReady(ready, now))
@@ -238,9 +241,8 @@ func TestManagedAgentInstallationWorkloadReadiness(t *testing.T) {
 	} {
 		t.Run(test.name+" may be disabled", func(t *testing.T) {
 			dda := ready.DeepCopy()
-			disabled := true
 			dda.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
-				test.component: {Disabled: &disabled},
+				test.component: {Disabled: new(true)},
 			}
 			test.disable(dda)
 			require.NoError(t, validateFleetDatadogAgentWorkloadsReady(dda, now))
@@ -251,31 +253,29 @@ func TestManagedAgentInstallationWorkloadReadiness(t *testing.T) {
 		name      string
 		component v2alpha1.ComponentName
 		enable    func(*v2alpha1.DatadogAgent)
-		status    func(*v2alpha1.DatadogAgent) **v2alpha1.DeploymentStatus
+		setStatus func(*v2alpha1.DatadogAgent, *v2alpha1.DeploymentStatus)
 	}{
 		{
 			name:      "Cluster Checks Runner",
 			component: v2alpha1.ClusterChecksRunnerComponentName,
 			enable: func(dda *v2alpha1.DatadogAgent) {
-				enabled := true
 				dda.Spec.Features = &v2alpha1.DatadogFeatures{ClusterChecks: &v2alpha1.ClusterChecksFeatureConfig{
-					Enabled:                 &enabled,
-					UseClusterChecksRunners: &enabled,
+					Enabled:                 new(true),
+					UseClusterChecksRunners: new(true),
 				}}
 			},
-			status: func(dda *v2alpha1.DatadogAgent) **v2alpha1.DeploymentStatus {
-				return &dda.Status.ClusterChecksRunner
+			setStatus: func(dda *v2alpha1.DatadogAgent, status *v2alpha1.DeploymentStatus) {
+				dda.Status.ClusterChecksRunner = status
 			},
 		},
 		{
 			name:      "OTel Agent Gateway",
 			component: v2alpha1.OtelAgentGatewayComponentName,
 			enable: func(dda *v2alpha1.DatadogAgent) {
-				enabled := true
-				dda.Spec.Features = &v2alpha1.DatadogFeatures{OtelAgentGateway: &v2alpha1.OtelAgentGatewayFeatureConfig{Enabled: &enabled}}
+				dda.Spec.Features = &v2alpha1.DatadogFeatures{OtelAgentGateway: &v2alpha1.OtelAgentGatewayFeatureConfig{Enabled: new(true)}}
 			},
-			status: func(dda *v2alpha1.DatadogAgent) **v2alpha1.DeploymentStatus {
-				return &dda.Status.OtelAgentGateway
+			setStatus: func(dda *v2alpha1.DatadogAgent, status *v2alpha1.DeploymentStatus) {
+				dda.Status.OtelAgentGateway = status
 			},
 		},
 	} {
@@ -284,23 +284,22 @@ func TestManagedAgentInstallationWorkloadReadiness(t *testing.T) {
 			test.enable(dda)
 
 			require.ErrorContains(t, validateFleetDatadogAgentWorkloadsReady(dda, now), test.name+" status is unavailable")
-			*test.status(dda) = &v2alpha1.DeploymentStatus{Replicas: 1}
+			test.setStatus(dda, &v2alpha1.DeploymentStatus{Replicas: 1})
 			require.ErrorContains(t, validateFleetDatadogAgentWorkloadsReady(dda, now), test.name+" is not ready")
-			*test.status(dda) = testManagedAgentInstallationDeploymentReady()
+			test.setStatus(dda, testManagedAgentInstallationDeploymentReady())
 			require.NoError(t, validateFleetDatadogAgentWorkloadsReady(dda, now))
 
-			disabled := true
 			dda.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
-				test.component: {Disabled: &disabled},
+				test.component: {Disabled: new(true)},
 			}
-			*test.status(dda) = nil
+			test.setStatus(dda, nil)
 			require.NoError(t, validateFleetDatadogAgentWorkloadsReady(dda, now))
 		})
 	}
 
 	t.Run("deadline returns terminal error with details", func(t *testing.T) {
 		dda := ready.DeepCopy()
-		dda.CreationTimestamp = metav1.NewTime(now.Add(-managedAgentInstallationReadinessTimeout))
+		dda.Annotations[fleetReadinessStartedAtAnnotation] = now.Add(-managedAgentInstallationReadinessTimeout).Format(time.RFC3339Nano)
 		dda.Status.Agent.Ready = 0
 		err := validateFleetDatadogAgentWorkloadsReady(dda, now)
 		var terminalErr *managedAgentInstallationReadinessTimeoutError
