@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"strings"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -29,8 +30,10 @@ import (
 
 	v1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	v2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
@@ -55,6 +58,8 @@ const (
 
 var managedAgentInstallationDeletePollInterval = time.Second
 var managedAgentInstallationDeleteTimeout = 3 * time.Minute
+var managedAgentInstallationReadinessTimeout = 10 * time.Minute
+var managedAgentInstallationReadinessRetryInterval = 5 * time.Second
 
 var allowedManagedAgentInstallationSites = map[string]struct{}{
 	"datadoghq.com":     {},
@@ -75,6 +80,22 @@ type managedAgentInstallationCredentialNotReadyError struct {
 }
 
 func (e *managedAgentInstallationCredentialNotReadyError) Error() string {
+	return e.msg
+}
+
+type managedAgentInstallationWorkloadsNotReadyError struct {
+	msg string
+}
+
+func (e *managedAgentInstallationWorkloadsNotReadyError) Error() string {
+	return e.msg
+}
+
+type managedAgentInstallationReadinessTimeoutError struct {
+	msg string
+}
+
+func (e *managedAgentInstallationReadinessTimeoutError) Error() string {
 	return e.msg
 }
 
@@ -114,6 +135,9 @@ func (d *Daemon) installDatadogAgent(ctx context.Context, command managedAgentIn
 		d.setPackageConfigVersions(packageDatadogOperator, fleetPartialConfigVersionPrefix+liveConfigID, "")
 		if err := d.ensureManagedAgentInstallationWindowsProfile(ctx, existing); err != nil {
 			return d.retainFleetDatadogAgentPartial(ctx, existing.UID, err)
+		}
+		if err := d.validateManagedAgentInstallationWorkloadsReady(ctx, target, existing.UID); err != nil {
+			return err
 		}
 		if err := d.markFleetDatadogAgentReady(ctx, target, existing.UID, configID); err != nil {
 			return d.retainFleetDatadogAgentPartial(ctx, existing.UID, fmt.Errorf("create DatadogAgent: mark managed Agent installation ready: %w", err))
@@ -202,6 +226,9 @@ func (d *Daemon) installDatadogAgent(ctx context.Context, command managedAgentIn
 	}
 	if err := d.ensureManagedAgentInstallationWindowsProfile(ctx, dda); err != nil {
 		return d.retainFleetDatadogAgentPartial(ctx, dda.UID, err)
+	}
+	if err := d.validateManagedAgentInstallationWorkloadsReady(ctx, target, dda.UID); err != nil {
+		return err
 	}
 	if err := d.markFleetDatadogAgentReady(ctx, target, dda.UID, configID); err != nil {
 		return fmt.Errorf("create DatadogAgent: mark managed Agent installation ready: %w", err)
@@ -693,6 +720,111 @@ func validateFleetDatadogAgentInstallCompletion(dda *v2alpha1.DatadogAgent, uid 
 		return &stateDoesntMatchError{msg: fmt.Sprintf("DatadogAgent %s/%s is not ready at install completion", dda.Namespace, dda.Name)}
 	}
 	return nil
+}
+
+func (d *Daemon) validateManagedAgentInstallationWorkloadsReady(ctx context.Context, target types.NamespacedName, uid types.UID) error {
+	dda, err := d.validateManagedAgentInstallationTarget(ctx, target)
+	if err != nil {
+		return d.retainFleetDatadogAgentPartial(ctx, uid, err)
+	}
+	return validateFleetDatadogAgentWorkloadsReady(dda, time.Now())
+}
+
+func managedAgentInstallationComponentDisabled(dda *v2alpha1.DatadogAgent, component v2alpha1.ComponentName) bool {
+	override := dda.Spec.Override[component]
+	return override != nil && override.Disabled != nil && *override.Disabled
+}
+
+func managedAgentInstallationOptionalComponentEnabled(dda *v2alpha1.DatadogAgent, component v2alpha1.ComponentName) bool {
+	if managedAgentInstallationComponentDisabled(dda, component) || dda.Spec.Features == nil {
+		return false
+	}
+	switch component {
+	case v2alpha1.ClusterChecksRunnerComponentName:
+		return constants.IsClusterChecksEnabled(&dda.Spec) && constants.IsCCREnabled(&dda.Spec)
+	case v2alpha1.OtelAgentGatewayComponentName:
+		feature := dda.Spec.Features.OtelAgentGateway
+		return feature != nil && feature.Enabled != nil && *feature.Enabled
+	default:
+		return false
+	}
+}
+
+func managedAgentInstallationDeploymentReadinessDetail(name string, status *v2alpha1.DeploymentStatus) string {
+	if status == nil {
+		return name + " status is unavailable"
+	}
+	if status.Replicas == 0 || status.UpdatedReplicas != status.Replicas || status.ReadyReplicas != status.Replicas ||
+		status.AvailableReplicas != status.Replicas || status.UnavailableReplicas != 0 {
+		return fmt.Sprintf(
+			"%s is not ready (replicas=%d updated=%d ready=%d available=%d unavailable=%d)",
+			name, status.Replicas, status.UpdatedReplicas, status.ReadyReplicas, status.AvailableReplicas, status.UnavailableReplicas,
+		)
+	}
+	return ""
+}
+
+func validateFleetDatadogAgentWorkloadsReady(dda *v2alpha1.DatadogAgent, now time.Time) error {
+	if dda == nil {
+		return &managedAgentInstallationWorkloadsNotReadyError{msg: "Fleet-managed DatadogAgent is pending workload readiness: resource is unavailable"}
+	}
+
+	var details []string
+	for _, conditionType := range []string{
+		common.DatadogAgentReconcileErrorConditionType,
+		common.DatadogAgentInternalReconcileErrorConditionType,
+	} {
+		if condition := meta.FindStatusCondition(dda.Status.Conditions, conditionType); condition != nil && condition.Status == metav1.ConditionTrue {
+			detail := condition.Type
+			if condition.Message != "" {
+				detail += ": " + condition.Message
+			}
+			details = append(details, detail)
+		}
+	}
+
+	agent := dda.Status.Agent
+	if !managedAgentInstallationComponentDisabled(dda, v2alpha1.NodeAgentComponentName) && (agent == nil || agent.Desired == 0 || agent.Current != agent.Desired || agent.Ready != agent.Desired || agent.Available != agent.Desired || agent.UpToDate != agent.Desired) {
+		if agent == nil {
+			details = append(details, "Agent status is unavailable")
+		} else {
+			details = append(details, fmt.Sprintf(
+				"Agent is not ready (desired=%d current=%d ready=%d available=%d upToDate=%d)",
+				agent.Desired, agent.Current, agent.Ready, agent.Available, agent.UpToDate,
+			))
+		}
+	}
+
+	if !managedAgentInstallationComponentDisabled(dda, v2alpha1.ClusterAgentComponentName) {
+		if detail := managedAgentInstallationDeploymentReadinessDetail("Cluster Agent", dda.Status.ClusterAgent); detail != "" {
+			details = append(details, detail)
+		}
+	}
+	if managedAgentInstallationOptionalComponentEnabled(dda, v2alpha1.ClusterChecksRunnerComponentName) {
+		if detail := managedAgentInstallationDeploymentReadinessDetail("Cluster Checks Runner", dda.Status.ClusterChecksRunner); detail != "" {
+			details = append(details, detail)
+		}
+	}
+	if managedAgentInstallationOptionalComponentEnabled(dda, v2alpha1.OtelAgentGatewayComponentName) {
+		if detail := managedAgentInstallationDeploymentReadinessDetail("OTel Agent Gateway", dda.Status.OtelAgentGateway); detail != "" {
+			details = append(details, detail)
+		}
+	}
+
+	if len(details) == 0 {
+		return nil
+	}
+
+	if !now.Before(dda.CreationTimestamp.Add(managedAgentInstallationReadinessTimeout)) {
+		return &managedAgentInstallationReadinessTimeoutError{msg: fmt.Sprintf(
+			"DatadogAgent %s/%s did not become ready within %s: %s",
+			dda.Namespace, dda.Name, managedAgentInstallationReadinessTimeout, strings.Join(details, "; "),
+		)}
+	}
+	return &managedAgentInstallationWorkloadsNotReadyError{msg: fmt.Sprintf(
+		"DatadogAgent %s/%s is pending managed installation readiness: %s",
+		dda.Namespace, dda.Name, strings.Join(details, "; "),
+	)}
 }
 
 func (d *Daemon) waitForManagedAgentInstallationResourcesAbsent(ctx context.Context, target types.NamespacedName, deletedUID types.UID) error {

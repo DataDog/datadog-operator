@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
 
 	pbgo "github.com/DataDog/datadog-agent/pkg/proto/pbgo/core"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -132,12 +133,14 @@ func (d *Daemon) executeManagedAgentInstallationCommand(ctx context.Context, com
 			return err
 		}
 		var stateErr *stateDoesntMatchError
-		if !errors.As(err, &stateErr) && ctx.Err() == nil && isRetryable(err) {
+		var terminalErr *managedAgentInstallationReadinessTimeoutError
+		if !errors.As(err, &stateErr) && !errors.As(err, &terminalErr) && ctx.Err() == nil && isRetryable(err) {
+			retryDelay := managedAgentInstallationRetryDelay(err)
 			if persistErr := d.recordManagedAgentInstallationResult(ctx, command, pbgo.TaskState_RUNNING, err); persistErr != nil {
-				d.requestManagedAgentInstallationRetryAfter()
+				d.requestManagedAgentInstallationRetryAfterDelay(retryDelay)
 				return errors.Join(err, persistErr)
 			}
-			d.requestManagedAgentInstallationRetryAfter()
+			d.requestManagedAgentInstallationRetryAfterDelay(retryDelay)
 			return err
 		}
 		resultState := pbgo.TaskState_ERROR
@@ -170,6 +173,14 @@ func (d *Daemon) executeManagedAgentInstallationCommand(ctx context.Context, com
 	d.taskMu.Unlock()
 	d.emitManagedAgentInstallationCompletedEvent(ctx, command)
 	return nil
+}
+
+func managedAgentInstallationRetryDelay(err error) time.Duration {
+	var workloadsNotReadyErr *managedAgentInstallationWorkloadsNotReadyError
+	if errors.As(err, &workloadsNotReadyErr) {
+		return managedAgentInstallationReadinessRetryInterval
+	}
+	return managedAgentInstallationRetryInterval
 }
 
 func (d *Daemon) managedAgentInstallationShouldWaitForFleet(ctx context.Context, desiredState managedAgentInstallationDesiredState) (bool, error) {

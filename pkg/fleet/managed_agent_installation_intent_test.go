@@ -262,6 +262,7 @@ func TestManagedAgentInstallationIntentInstallAndUninstall(t *testing.T) {
 		testFleetCredentialSecret(),
 		unrelated,
 	)
+	kubeClient.(*managedAgentInstallationTestClient).workloadsReadyOnCreate = false
 
 	install := managedAgentInstallationIntentSnapshot{raw: testManagedAgentInstallationIntent(
 		t,
@@ -269,9 +270,18 @@ func TestManagedAgentInstallationIntentInstallAndUninstall(t *testing.T) {
 		managedAgentInstallationDesiredStateInstalled,
 	)}
 	putManagedAgentInstallationIntentConfigMap(t, kubeClient, install.raw)
-	require.NoError(t, daemon.handleManagedAgentInstallationIntent(ctx, install))
+	err := daemon.handleManagedAgentInstallationIntent(ctx, install)
+	require.ErrorContains(t, err, "pending managed installation readiness")
+	require.Len(t, rcClient.state, 1)
+	assert.Equal(t, pbgo.TaskState_RUNNING, rcClient.state[0].GetTask().GetState())
+	assert.Equal(t, fleetPartialConfigVersionPrefix+testAddonInstallOperationID, rcClient.state[0].GetStableConfigVersion())
 
 	dda := &v2alpha1.DatadogAgent{}
+	require.NoError(t, kubeClient.Get(ctx, testDDANSN, dda))
+	assert.Equal(t, fleetManagedAgentInstallationStatePartial, dda.Labels[fleetManagedAgentInstallationStateLabel])
+	setTestManagedAgentInstallationWorkloadsReady(dda)
+	require.NoError(t, kubeClient.Status().Update(ctx, dda))
+	require.NoError(t, daemon.handleManagedAgentInstallationIntent(ctx, install))
 	require.NoError(t, kubeClient.Get(ctx, testDDANSN, dda))
 	assert.Equal(t, testAddonInstallOperationID, dda.Labels[fleetConfigIDLabel])
 	assert.Equal(t, string(testManagedAgentInstallationIdentity.Provider()), dda.Labels[fleetManagedAgentInstallationProviderLabel])
@@ -332,7 +342,7 @@ func TestManagedAgentInstallationIntentInstallAndUninstall(t *testing.T) {
 	require.NoError(t, daemon.handleManagedAgentInstallationIntent(ctx, uninstall))
 	assert.True(t, reservedDuringUninstallRefresh)
 
-	err := kubeClient.Get(ctx, testDDANSN, &v2alpha1.DatadogAgent{})
+	err = kubeClient.Get(ctx, testDDANSN, &v2alpha1.DatadogAgent{})
 	require.True(t, apierrors.IsNotFound(err))
 	require.NoError(t, kubeClient.Get(ctx, client.ObjectKeyFromObject(unrelated), &v2alpha1.DatadogAgent{}))
 	assert.Equal(t, testAddonUninstallOperationID, rcClient.state[0].GetTask().GetId())
@@ -644,6 +654,57 @@ func TestManagedAgentInstallationCommandReportsTerminalFailures(t *testing.T) {
 			assert.False(t, daemon.managedAgentInstallationTaskReserved)
 		})
 	}
+}
+
+func TestManagedAgentInstallationPendingReadinessSchedulesConfiguredRetry(t *testing.T) {
+	ctx := context.Background()
+	previousInterval := managedAgentInstallationReadinessRetryInterval
+	managedAgentInstallationReadinessRetryInterval = 10 * time.Millisecond
+	t.Cleanup(func() { managedAgentInstallationReadinessRetryInterval = previousInterval })
+
+	daemon, kubeClient, _ := testManagedAgentInstallationDaemon(
+		[]*pbgo.PackageState{{Package: packageDatadogOperator}},
+		testFleetCredentialSecret(),
+	)
+	daemon.managedAgentInstallationUpdates = make(chan struct{}, 1)
+	kubeClient.(*managedAgentInstallationTestClient).workloadsReadyOnCreate = false
+	raw := testManagedAgentInstallationIntent(t, testAddonInstallOperationID, managedAgentInstallationDesiredStateInstalled)
+	putManagedAgentInstallationIntentConfigMap(t, kubeClient, raw)
+	command := testManagedAgentInstallationCommand(t, testAddonInstallOperationID, managedAgentInstallationDesiredStateInstalled)
+
+	err := daemon.handleManagedAgentInstallationCommand(ctx, command)
+	require.ErrorContains(t, err, "pending managed installation readiness")
+	select {
+	case <-daemon.managedAgentInstallationUpdates:
+	case <-time.After(250 * time.Millisecond):
+		t.Fatal("pending workload readiness did not schedule the configured retry")
+	}
+}
+
+func TestManagedAgentInstallationReadinessTimeoutReportsTerminalError(t *testing.T) {
+	ctx := context.Background()
+	previousTimeout := managedAgentInstallationReadinessTimeout
+	managedAgentInstallationReadinessTimeout = 0
+	t.Cleanup(func() { managedAgentInstallationReadinessTimeout = previousTimeout })
+
+	daemon, kubeClient, rcClient := testManagedAgentInstallationDaemon(
+		[]*pbgo.PackageState{{Package: packageDatadogOperator}},
+		testFleetCredentialSecret(),
+	)
+	kubeClient.(*managedAgentInstallationTestClient).workloadsReadyOnCreate = false
+	raw := testManagedAgentInstallationIntent(t, testAddonInstallOperationID, managedAgentInstallationDesiredStateInstalled)
+	putManagedAgentInstallationIntentConfigMap(t, kubeClient, raw)
+	command := testManagedAgentInstallationCommand(t, testAddonInstallOperationID, managedAgentInstallationDesiredStateInstalled)
+
+	err := daemon.handleManagedAgentInstallationCommand(ctx, command)
+	require.ErrorContains(t, err, "did not become ready within 0s")
+	persisted, readErr := daemon.readManagedAgentInstallationState(ctx)
+	require.NoError(t, readErr)
+	require.NotNil(t, persisted)
+	assert.Equal(t, pbgo.TaskState_ERROR, persisted.TaskState)
+	require.Len(t, rcClient.state, 1)
+	assert.Equal(t, pbgo.TaskState_ERROR, rcClient.state[0].GetTask().GetState())
+	assert.False(t, daemon.managedAgentInstallationTaskReserved)
 }
 
 func TestManagedAgentInstallationCommandRejectsConcurrentOperation(t *testing.T) {

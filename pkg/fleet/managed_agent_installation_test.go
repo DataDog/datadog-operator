@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"testing"
+	"time"
 
 	pbgo "github.com/DataDog/datadog-agent/pkg/proto/pbgo/core"
 	"github.com/stretchr/testify/assert"
@@ -26,6 +27,7 @@ import (
 
 	v1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	v2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
@@ -38,6 +40,7 @@ var testManagedAgentInstallationIdentity = NewEKSManagedAgentInstallationIdentit
 
 type managedAgentInstallationTestClient struct {
 	client.Client
+	workloadsReadyOnCreate bool
 }
 
 type rejectManagedAgentInstallationTargetCreateClient struct {
@@ -125,8 +128,16 @@ func (c *rejectManagedAgentInstallationTargetDeleteClient) Delete(ctx context.Co
 }
 
 func (c *managedAgentInstallationTestClient) Create(ctx context.Context, obj client.Object, opts ...client.CreateOption) error {
-	if dda, ok := obj.(*v2alpha1.DatadogAgent); ok && dda.UID == "" {
-		dda.UID = types.UID("created-dda-uid")
+	if dda, ok := obj.(*v2alpha1.DatadogAgent); ok {
+		if dda.UID == "" {
+			dda.UID = types.UID("created-dda-uid")
+		}
+		if dda.CreationTimestamp.IsZero() {
+			dda.CreationTimestamp = metav1.Now()
+		}
+		if c.workloadsReadyOnCreate {
+			setTestManagedAgentInstallationWorkloadsReady(dda)
+		}
 	}
 	return c.Client.Create(ctx, obj, opts...)
 }
@@ -143,6 +154,160 @@ func (c *managedAgentInstallationTestClient) Delete(ctx context.Context, obj cli
 		}
 	}
 	return c.Client.Delete(ctx, obj, opts...)
+}
+
+func TestManagedAgentInstallationWorkloadReadiness(t *testing.T) {
+	now := time.Date(2026, time.August, 24, 12, 0, 0, 0, time.UTC)
+	ready := &v2alpha1.DatadogAgent{ObjectMeta: metav1.ObjectMeta{
+		Namespace:         managedAgentInstallationTarget.Namespace,
+		Name:              managedAgentInstallationTarget.Name,
+		CreationTimestamp: metav1.NewTime(now.Add(-time.Minute)),
+	}}
+	setTestManagedAgentInstallationWorkloadsReady(ready)
+	require.NoError(t, validateFleetDatadogAgentWorkloadsReady(ready, now))
+
+	t.Run("pending status", func(t *testing.T) {
+		dda := ready.DeepCopy()
+		dda.Status = v2alpha1.DatadogAgentStatus{}
+		err := validateFleetDatadogAgentWorkloadsReady(dda, now)
+		require.ErrorContains(t, err, "Agent status is unavailable")
+		require.ErrorContains(t, err, "Cluster Agent status is unavailable")
+		var notReadyErr *managedAgentInstallationWorkloadsNotReadyError
+		require.ErrorAs(t, err, &notReadyErr)
+		assert.Equal(t, managedAgentInstallationReadinessRetryInterval, managedAgentInstallationRetryDelay(err))
+		assert.Equal(t, managedAgentInstallationRetryInterval, managedAgentInstallationRetryDelay(errors.New("retryable error")))
+	})
+
+	for _, conditionType := range []string{
+		common.DatadogAgentReconcileErrorConditionType,
+		common.DatadogAgentInternalReconcileErrorConditionType,
+	} {
+		t.Run("active "+conditionType, func(t *testing.T) {
+			dda := ready.DeepCopy()
+			dda.Status.Conditions = []metav1.Condition{{
+				Type:    conditionType,
+				Status:  metav1.ConditionTrue,
+				Message: "RBAC reconciliation failed",
+			}}
+			err := validateFleetDatadogAgentWorkloadsReady(dda, now)
+			require.ErrorContains(t, err, "RBAC reconciliation failed")
+			var notReadyErr *managedAgentInstallationWorkloadsNotReadyError
+			require.ErrorAs(t, err, &notReadyErr)
+		})
+	}
+
+	t.Run("inactive reconciliation error does not block readiness", func(t *testing.T) {
+		dda := ready.DeepCopy()
+		dda.Status.Conditions = []metav1.Condition{{
+			Type:   common.DatadogAgentReconcileErrorConditionType,
+			Status: metav1.ConditionFalse,
+		}}
+		require.NoError(t, validateFleetDatadogAgentWorkloadsReady(dda, now))
+	})
+
+	readinessChecks := []struct {
+		name   string
+		mutate func(*v2alpha1.DatadogAgent)
+	}{
+		{name: "Agent desired", mutate: func(dda *v2alpha1.DatadogAgent) { dda.Status.Agent = &v2alpha1.DaemonSetStatus{} }},
+		{name: "Agent current", mutate: func(dda *v2alpha1.DatadogAgent) { dda.Status.Agent.Current = 0 }},
+		{name: "Agent ready", mutate: func(dda *v2alpha1.DatadogAgent) { dda.Status.Agent.Ready = 0 }},
+		{name: "Agent available", mutate: func(dda *v2alpha1.DatadogAgent) { dda.Status.Agent.Available = 0 }},
+		{name: "Agent up to date", mutate: func(dda *v2alpha1.DatadogAgent) { dda.Status.Agent.UpToDate = 0 }},
+		{name: "Cluster Agent replicas", mutate: func(dda *v2alpha1.DatadogAgent) { dda.Status.ClusterAgent = &v2alpha1.DeploymentStatus{} }},
+		{name: "Cluster Agent updated", mutate: func(dda *v2alpha1.DatadogAgent) { dda.Status.ClusterAgent.UpdatedReplicas = 0 }},
+		{name: "Cluster Agent ready", mutate: func(dda *v2alpha1.DatadogAgent) { dda.Status.ClusterAgent.ReadyReplicas = 0 }},
+		{name: "Cluster Agent available", mutate: func(dda *v2alpha1.DatadogAgent) { dda.Status.ClusterAgent.AvailableReplicas = 0 }},
+		{name: "Cluster Agent unavailable", mutate: func(dda *v2alpha1.DatadogAgent) { dda.Status.ClusterAgent.UnavailableReplicas = 1 }},
+	}
+	for _, test := range readinessChecks {
+		t.Run(test.name, func(t *testing.T) {
+			dda := ready.DeepCopy()
+			test.mutate(dda)
+			require.ErrorContains(t, validateFleetDatadogAgentWorkloadsReady(dda, now), "is not ready")
+		})
+	}
+
+	for _, test := range []struct {
+		name      string
+		component v2alpha1.ComponentName
+		disable   func(*v2alpha1.DatadogAgent)
+	}{
+		{name: "Node Agent", component: v2alpha1.NodeAgentComponentName, disable: func(dda *v2alpha1.DatadogAgent) { dda.Status.Agent = nil }},
+		{name: "Cluster Agent", component: v2alpha1.ClusterAgentComponentName, disable: func(dda *v2alpha1.DatadogAgent) { dda.Status.ClusterAgent = nil }},
+	} {
+		t.Run(test.name+" may be disabled", func(t *testing.T) {
+			dda := ready.DeepCopy()
+			disabled := true
+			dda.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+				test.component: {Disabled: &disabled},
+			}
+			test.disable(dda)
+			require.NoError(t, validateFleetDatadogAgentWorkloadsReady(dda, now))
+		})
+	}
+
+	for _, test := range []struct {
+		name      string
+		component v2alpha1.ComponentName
+		enable    func(*v2alpha1.DatadogAgent)
+		status    func(*v2alpha1.DatadogAgent) **v2alpha1.DeploymentStatus
+	}{
+		{
+			name:      "Cluster Checks Runner",
+			component: v2alpha1.ClusterChecksRunnerComponentName,
+			enable: func(dda *v2alpha1.DatadogAgent) {
+				enabled := true
+				dda.Spec.Features = &v2alpha1.DatadogFeatures{ClusterChecks: &v2alpha1.ClusterChecksFeatureConfig{
+					Enabled:                 &enabled,
+					UseClusterChecksRunners: &enabled,
+				}}
+			},
+			status: func(dda *v2alpha1.DatadogAgent) **v2alpha1.DeploymentStatus {
+				return &dda.Status.ClusterChecksRunner
+			},
+		},
+		{
+			name:      "OTel Agent Gateway",
+			component: v2alpha1.OtelAgentGatewayComponentName,
+			enable: func(dda *v2alpha1.DatadogAgent) {
+				enabled := true
+				dda.Spec.Features = &v2alpha1.DatadogFeatures{OtelAgentGateway: &v2alpha1.OtelAgentGatewayFeatureConfig{Enabled: &enabled}}
+			},
+			status: func(dda *v2alpha1.DatadogAgent) **v2alpha1.DeploymentStatus {
+				return &dda.Status.OtelAgentGateway
+			},
+		},
+	} {
+		t.Run(test.name+" readiness", func(t *testing.T) {
+			dda := ready.DeepCopy()
+			test.enable(dda)
+
+			require.ErrorContains(t, validateFleetDatadogAgentWorkloadsReady(dda, now), test.name+" status is unavailable")
+			*test.status(dda) = &v2alpha1.DeploymentStatus{Replicas: 1}
+			require.ErrorContains(t, validateFleetDatadogAgentWorkloadsReady(dda, now), test.name+" is not ready")
+			*test.status(dda) = testManagedAgentInstallationDeploymentReady()
+			require.NoError(t, validateFleetDatadogAgentWorkloadsReady(dda, now))
+
+			disabled := true
+			dda.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+				test.component: {Disabled: &disabled},
+			}
+			*test.status(dda) = nil
+			require.NoError(t, validateFleetDatadogAgentWorkloadsReady(dda, now))
+		})
+	}
+
+	t.Run("deadline returns terminal error with details", func(t *testing.T) {
+		dda := ready.DeepCopy()
+		dda.CreationTimestamp = metav1.NewTime(now.Add(-managedAgentInstallationReadinessTimeout))
+		dda.Status.Agent.Ready = 0
+		err := validateFleetDatadogAgentWorkloadsReady(dda, now)
+		var terminalErr *managedAgentInstallationReadinessTimeoutError
+		require.ErrorAs(t, err, &terminalErr)
+		require.ErrorContains(t, err, "did not become ready within 10m0s")
+		require.ErrorContains(t, err, "ready=0")
+	})
 }
 
 func TestManagedAgentInstallationKeysUseConfiguredNamespace(t *testing.T) {
@@ -1173,9 +1338,31 @@ func TestValidateFleetCredentialSecretReadFailure(t *testing.T) {
 	require.ErrorContains(t, daemon.validateFleetCredentialSecret(context.Background()), "Secret read failed")
 }
 
+func setTestManagedAgentInstallationWorkloadsReady(dda *v2alpha1.DatadogAgent) {
+	dda.Status.Agent = &v2alpha1.DaemonSetStatus{
+		Desired:   1,
+		Current:   1,
+		Ready:     1,
+		Available: 1,
+		UpToDate:  1,
+	}
+	dda.Status.ClusterAgent = testManagedAgentInstallationDeploymentReady()
+}
+
+func testManagedAgentInstallationDeploymentReady() *v2alpha1.DeploymentStatus {
+	return &v2alpha1.DeploymentStatus{
+		Replicas:          1,
+		UpdatedReplicas:   1,
+		ReadyReplicas:     1,
+		AvailableReplicas: 1,
+	}
+}
+
 func testFleetManagedDatadogAgent(t testing.TB, phase v2alpha1.ExperimentPhase, configID string) *v2alpha1.DatadogAgent {
 	t.Helper()
 	dda := testDDAObject(phase)
+	dda.CreationTimestamp = metav1.Now()
+	setTestManagedAgentInstallationWorkloadsReady(dda)
 	dda.UID = types.UID("managed-dda-uid")
 	dda.Labels = map[string]string{
 		fleetManagedByLabel:                        fleetManagedByValue,
@@ -1213,7 +1400,7 @@ func testManagedAgentInstallationDaemon(rcState []*pbgo.PackageState, objects ..
 		WithStatusSubresource(&v2alpha1.DatadogAgent{}).
 		WithObjects(objects...).
 		Build()
-	kubeClient := &managedAgentInstallationTestClient{Client: baseClient}
+	kubeClient := &managedAgentInstallationTestClient{Client: baseClient, workloadsReadyOnCreate: true}
 	rcClient := &mockRCClient{state: rcState}
 	daemon := &Daemon{
 		rcClient:                             rcClient,
