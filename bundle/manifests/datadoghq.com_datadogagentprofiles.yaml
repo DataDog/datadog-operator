@@ -1533,8 +1533,9 @@ spec:
                             type: object
                           enabled:
                             description: |-
-                              Enabled enables the Data Plane.
-                              Default: false
+                              Enabled explicitly enables or disables the Data Plane.
+                              When unset, the Operator applies its configured Linux default after considering the legacy annotation.
+                              Default: unset; the Operator default is false unless configured otherwise.
                             type: boolean
                         type: object
                       dogstatsd:
@@ -1812,7 +1813,10 @@ spec:
                             type: boolean
                           privilegedMode:
                             description: |-
-                              PrivilegedMode enables GPU Probe module in System Probe.
+                              PrivilegedMode enables GPU Probe module in System Probe. The module's eBPF
+                              probes are disabled; privileged mode is retained for cgroup permission patching.
+                              To re-enable the eBPF probes, set DD_GPU_MONITORING_ENABLE_EBPF_PROBES=true on the
+                              core agent and system-probe containers via spec.override.nodeAgent.containers.
                               Default: false
                             type: boolean
                           requiredRuntimeClassName:

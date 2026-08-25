@@ -8,7 +8,11 @@ package dataplane
 import (
 	"testing"
 
+	"github.com/go-logr/zapr"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
+	"go.uber.org/zap/zaptest/observer"
 	corev1 "k8s.io/api/core/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
@@ -224,4 +228,20 @@ func Test_dataPlaneFeature(t *testing.T) {
 	}
 
 	tests.Run(t, buildDataPlaneFeature)
+}
+
+func TestDataPlaneFeatureLogsLegacyAnnotationDeprecation(t *testing.T) {
+	for _, annotationValue := range []string{"true", "false"} {
+		t.Run(annotationValue, func(t *testing.T) {
+			core, logs := observer.New(zapcore.InfoLevel)
+			feature := buildDataPlaneFeature(&feature.Options{Logger: zapr.NewLogger(zap.New(core))}).(*dataPlaneFeature)
+			dda := testutils.NewDatadogAgentBuilder().
+				WithAnnotations(map[string]string{utils.EnableADPAnnotation: annotationValue}).
+				BuildWithDefaults()
+
+			feature.Configure(dda, &dda.Spec, nil)
+
+			assert.Len(t, logs.FilterMessage("DEPRECATION WARNING: annotation 'agent.datadoghq.com/adp-enabled' is deprecated; use 'spec.features.dataPlane.enabled' instead").All(), 1)
+		})
+	}
 }
