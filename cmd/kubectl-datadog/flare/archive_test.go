@@ -85,3 +85,20 @@ func TestArchiveDirMissingSource(t *testing.T) {
 	_, err := os.Stat(destination)
 	assert.True(t, os.IsNotExist(err), "a failed archive must not be left behind")
 }
+
+func TestArchiveDirUnreadableFile(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("root reads files regardless of their permission bits")
+	}
+
+	src := filepath.Join(t.TempDir(), "datadog-operator")
+	require.NoError(t, os.MkdirAll(src, 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(src, "unreadable.txt"), []byte("collected"), 0000))
+
+	destination := filepath.Join(t.TempDir(), "flare.zip")
+
+	assert.Error(t, archiveDir(src, destination))
+
+	_, err := os.Stat(destination)
+	assert.True(t, os.IsNotExist(err), "a failed archive must not be left behind")
+}
