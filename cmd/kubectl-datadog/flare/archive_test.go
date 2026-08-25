@@ -60,3 +60,19 @@ func TestArchiveDir(t *testing.T) {
 		"datadog-operator/sub/nested.txt":                "nested\n",
 	}, got)
 }
+
+func TestArchiveDirKeepsExistingArchive(t *testing.T) {
+	src := filepath.Join(t.TempDir(), "datadog-operator")
+	require.NoError(t, os.MkdirAll(src, 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(src, "pod-abc.json"), []byte(`{"msg":"hello"}`), 0644))
+
+	destination := filepath.Join(t.TempDir(), "flare.zip")
+	existing := []byte("archive from a concurrent flare")
+	require.NoError(t, os.WriteFile(destination, existing, 0644))
+
+	assert.Error(t, archiveDir(src, destination))
+
+	kept, err := os.ReadFile(destination)
+	require.NoError(t, err)
+	assert.Equal(t, existing, kept)
+}

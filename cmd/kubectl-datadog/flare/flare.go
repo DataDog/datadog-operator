@@ -504,7 +504,10 @@ func createFile(path string) (*os.File, error) {
 // with the base name of dir, so that extracting the flare yields a single
 // top-level folder.
 func archiveDir(dir, destination string) error {
-	out, err := createFile(destination)
+	// O_EXCL rather than truncating: getArchivePath only has second precision,
+	// so two concurrent flares can pick the same name, and clobbering one would
+	// upload a corrupt archive.
+	out, err := os.OpenFile(destination, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0644)
 	if err != nil {
 		return err
 	}
