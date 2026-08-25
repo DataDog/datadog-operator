@@ -7,6 +7,7 @@ package k8ssuite
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/DataDog/datadog-agent/test/e2e-framework/testing/environments"
@@ -477,6 +478,68 @@ serviceAccount:
 		}, 3*time.Minute, 10*time.Second, "DSD UDP with ADP: metrics not received by fakeintake")
 	})
 
+	// --- Subtest: DSD UDP, single-container ADP enabled by the Operator default ---
+	s.T().Run("Single-container DSD UDP uses the Operator ADP default", func(t *testing.T) {
+		ddaConfigPath, err := common.GetAbsPath(filepath.Join(common.ManifestsPath, "dogstatsd", "datadog-agent-dsd-udp-single-adp-default.yaml"))
+		assert.NoError(s.T(), err)
+		senderPath, err := common.GetAbsPath(filepath.Join(common.ManifestsPath, "dogstatsd", "dsd-udp-sender.yaml"))
+		assert.NoError(s.T(), err)
+
+		ddaOpts := append([]agentwithoperatorparams.Option{
+			agentwithoperatorparams.WithDDAConfig(agentwithoperatorparams.DDAConfig{
+				Name:         "dda-dsd-udp-single-adp-default",
+				YamlFilePath: ddaConfigPath,
+			}),
+		}, defaultDDAOpts...)
+
+		operatorOpts := append([]operatorparams.Option{}, defaultOperatorOpts...)
+		operatorOpts = append(operatorOpts, operatorparams.WithHelmValues(`env:
+  - name: DD_DEFAULT_DATA_PLANE_LINUX_ENABLED
+    value: "true"
+`))
+
+		provisionerOpts := []provisioners.KubernetesProvisionerOption{
+			provisioners.WithTestName("e2e-operator-dsd-udp-single-adp-default"),
+			provisioners.WithOperatorOptions(operatorOpts...),
+			provisioners.WithDDAOptions(ddaOpts...),
+			provisioners.WithYAMLWorkload(provisioners.YAMLWorkload{Name: "dsd-udp-sender", Path: senderPath}),
+			provisioners.WithLocal(s.local),
+		}
+		applyDDA("e2e-operator-dsd-udp-single-adp-default", provisionerOpts)
+
+		err = s.Env().FakeIntake.Client().FlushServerAndResetAggregators()
+		s.Assert().NoError(err)
+
+		agentSelector := common.NodeAgentSelector + ",agent.datadoghq.com/name=dda-dsd-udp-single-adp-default"
+
+		s.Assert().EventuallyWithTf(func(c *assert.CollectT) {
+			utils.VerifyAgentPods(s.T(), c, common.NamespaceName, s.Env().KubernetesCluster.Client(), agentSelector)
+
+			pods, err := s.Env().KubernetesCluster.Client().CoreV1().Pods(common.NamespaceName).List(
+				context.TODO(), metav1.ListOptions{LabelSelector: agentSelector})
+			if !assert.NoError(c, err) {
+				return
+			}
+			if !assert.Len(c, pods.Items, 1, "expected one single-container Agent pod") {
+				for _, pod := range pods.Items {
+					assert.Failf(c, "unexpected Agent pod count", "pod %s diagnostics:\n%s", pod.Name, s.singleContainerADPDiagnostics(pod))
+				}
+				return
+			}
+
+			pod := pods.Items[0]
+			if pod.Status.Phase != corev1.PodRunning {
+				assert.Failf(c, "Agent pod is not running", "pod %s is %s:\n%s", pod.Name, pod.Status.Phase, s.singleContainerADPDiagnostics(pod))
+				return
+			}
+			s.assertSingleContainerADPRuntime(c, pod)
+		}, 5*time.Minute, 15*time.Second, "single-container DSD UDP ADP default runtime verification failed")
+
+		s.Assert().EventuallyWithTf(func(c *assert.CollectT) {
+			s.assertDSDMetricsWithRuntimeDiagnostics(c, agentSelector, "e2e.dsd.udp.counter")
+		}, 3*time.Minute, 10*time.Second, "single-container DSD UDP ADP default metrics not received by fakeintake")
+	})
+
 	// --- Subtest: DSD UDS, ADP disabled ---
 	s.T().Run("DSD UDS without ADP", func(t *testing.T) {
 		ddaConfigPath, err := common.GetAbsPath(filepath.Join(common.ManifestsPath, "dogstatsd", "datadog-agent-dsd-uds.yaml"))
@@ -664,6 +727,144 @@ func assertContainerDoesNotHaveHostPort(c *assert.CollectT, pod corev1.Pod, cont
 			return
 		}
 	}
+}
+
+func (s *k8sSuite) assertDSDMetricsWithRuntimeDiagnostics(c *assert.CollectT, agentSelector, metricName string) {
+	var failures []string
+
+	metricNames, err := s.Env().FakeIntake.Client().GetMetricNames()
+	if err != nil {
+		failures = append(failures, fmt.Sprintf("could not list fakeintake metrics: %v", err))
+	} else if !containsString(metricNames, metricName) {
+		failures = append(failures, fmt.Sprintf("fakeintake does not contain metric %q; available metrics: %s", metricName, strings.Join(metricNames, ", ")))
+	}
+
+	metrics, err := s.Env().FakeIntake.Client().FilterMetrics(metricName)
+	if err != nil {
+		failures = append(failures, fmt.Sprintf("could not filter fakeintake metric %q: %v", metricName, err))
+	} else if len(metrics) == 0 {
+		failures = append(failures, fmt.Sprintf("fakeintake metric %q has no series", metricName))
+	}
+
+	if len(failures) == 0 {
+		return
+	}
+
+	pods, err := s.Env().KubernetesCluster.Client().CoreV1().Pods(common.NamespaceName).List(
+		context.TODO(), metav1.ListOptions{LabelSelector: agentSelector})
+	if err != nil {
+		failures = append(failures, fmt.Sprintf("could not list Agent pods for diagnostics: %v", err))
+	} else {
+		for _, pod := range pods.Items {
+			failures = append(failures, fmt.Sprintf("pod %s diagnostics:\n%s", pod.Name, s.singleContainerADPDiagnostics(pod)))
+		}
+	}
+	assert.Failf(c, "single-container DogStatsD metric verification failed", "%s", strings.Join(failures, "\n\n"))
+}
+
+func (s *k8sSuite) assertSingleContainerADPRuntime(c *assert.CollectT, pod corev1.Pod) {
+	var failures []string
+
+	if len(pod.Spec.Containers) != 1 {
+		failures = append(failures, fmt.Sprintf("expected one Agent container, got %d", len(pod.Spec.Containers)))
+	}
+
+	container := findContainer(pod, "unprivileged-single-agent")
+	if container == nil {
+		failures = append(failures, "unprivileged-single-agent container is missing")
+	} else {
+		for _, env := range []string{
+			"DD_DATA_PLANE_ENABLED",
+			"DD_DATA_PLANE_DOGSTATSD_ENABLED",
+			"DD_DATA_PLANE_REMOTE_AGENT_ENABLED",
+			"DD_DATA_PLANE_USE_NEW_CONFIG_STREAM_ENDPOINT",
+		} {
+			value, found := containerEnvValue(*container, env)
+			if !found || value != "true" {
+				failures = append(failures, fmt.Sprintf("expected %s=true, got %q (present=%t)", env, value, found))
+			}
+		}
+		if !containerHasUDPHostPort(*container, dsdPort) {
+			failures = append(failures, fmt.Sprintf("unprivileged-single-agent does not expose UDP HostPort %d", dsdPort))
+		}
+	}
+
+	socketOutput, socketErr, err := s.Env().KubernetesCluster.KubernetesClient.PodExec(
+		common.NamespaceName, pod.Name, "unprivileged-single-agent", []string{"sh", "-c", "ss -lunp 'sport = :8125'"})
+	socketDetails := strings.TrimSpace(strings.Join([]string{socketOutput, socketErr}, "\n"))
+	if err != nil {
+		failures = append(failures, fmt.Sprintf("could not inspect UDP/8125 with ss: %v; output: %s", err, socketDetails))
+	} else {
+		if !strings.Contains(socketDetails, ":8125") {
+			failures = append(failures, fmt.Sprintf("ss did not report UDP/8125: %s", socketDetails))
+		}
+		if !strings.Contains(socketDetails, "agent-data-plan") {
+			failures = append(failures, fmt.Sprintf("ss did not identify agent-data-plane as the UDP/8125 owner: %s", socketDetails))
+		}
+	}
+
+	if len(failures) > 0 {
+		assert.Failf(c, "single-container ADP runtime verification failed", "%s\n\nDiagnostics:\n%s", strings.Join(failures, "\n"), s.singleContainerADPDiagnostics(pod))
+	}
+}
+
+func (s *k8sSuite) singleContainerADPDiagnostics(pod corev1.Pod) string {
+	var diagnostics []string
+
+	podJSON, err := json.MarshalIndent(pod, "", "  ")
+	if err != nil {
+		diagnostics = append(diagnostics, fmt.Sprintf("could not marshal pod: %v", err))
+	} else {
+		diagnostics = append(diagnostics, "Pod:\n"+string(podJSON))
+	}
+
+	processOutput, processErr, processExecErr := s.Env().KubernetesCluster.KubernetesClient.PodExec(
+		common.NamespaceName, pod.Name, "unprivileged-single-agent", []string{"sh", "-c", "ps -ef; printf '\\n--- UDP sockets ---\\n'; ss -lunp"})
+	if processExecErr != nil {
+		diagnostics = append(diagnostics, fmt.Sprintf("process/socket inspection failed: %v\n%s\n%s", processExecErr, processOutput, processErr))
+	} else {
+		diagnostics = append(diagnostics, "Processes and UDP sockets:\n"+strings.Join([]string{processOutput, processErr}, "\n"))
+	}
+
+	tailLines := int64(200)
+	logs, logsErr := s.Env().KubernetesCluster.Client().CoreV1().Pods(common.NamespaceName).GetLogs(pod.Name, &corev1.PodLogOptions{
+		Container: "unprivileged-single-agent",
+		TailLines: &tailLines,
+	}).DoRaw(context.Background())
+	if logsErr != nil {
+		diagnostics = append(diagnostics, fmt.Sprintf("could not fetch unprivileged-single-agent logs: %v", logsErr))
+	} else {
+		diagnostics = append(diagnostics, "unprivileged-single-agent logs:\n"+string(logs))
+	}
+
+	return strings.Join(diagnostics, "\n\n")
+}
+
+func containsString(values []string, want string) bool {
+	for _, value := range values {
+		if value == want {
+			return true
+		}
+	}
+	return false
+}
+
+func containerEnvValue(container corev1.Container, name string) (string, bool) {
+	for _, env := range container.Env {
+		if env.Name == name {
+			return env.Value, true
+		}
+	}
+	return "", false
+}
+
+func containerHasUDPHostPort(container corev1.Container, port int32) bool {
+	for _, containerPort := range container.Ports {
+		if containerPort.Protocol == corev1.ProtocolUDP && containerPort.HostPort == port {
+			return true
+		}
+	}
+	return false
 }
 
 func assertContainerHasEnvVar(c *assert.CollectT, pod corev1.Pod, containerName, envName, envValue string) {
