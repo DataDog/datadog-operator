@@ -352,12 +352,12 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_DataPlaneFeatureConfig(ref c
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "DataPlaneFeatureConfig contains the Data Plane configuration. Data Plane runs as a sidecar container alongside the Core Agent with the optimized container strategy. With the single container strategy, the Agent image's s6 supervisor runs Data Plane as a process in the Agent container.",
+				Description: "DataPlaneFeatureConfig contains the Data Plane configuration. Data Plane runs as a sidecar container alongside the Core Agent.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"enabled": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Enabled explicitly enables or disables the Data Plane. When unset, the Operator applies its configured Linux default after considering the legacy annotation. Default: unset; the Operator default is false unless configured otherwise.",
+							Description: "Enabled enables the Data Plane. Default: false",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},

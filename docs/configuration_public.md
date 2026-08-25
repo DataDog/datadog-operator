@@ -191,7 +191,7 @@ spec:
 : Configures the Data Plane to handle DogStatsD traffic. When set to false, DogStatsD is handled by the Core Agent instead. Default: true
 
 `features.dataPlane.enabled`
-: Explicitly enables or disables the Data Plane. When unset, the Operator applies its configured Linux default after considering the legacy annotation. Default: unset; the Operator default is false unless configured otherwise.
+: Enables the Data Plane. Default: false
 
 `features.dogstatsd.hostPortConfig.enabled`
 : Enables host port configuration

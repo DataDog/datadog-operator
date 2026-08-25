@@ -137,7 +137,7 @@ spec:
 | features.cws.securityProfiles.enabled | Enables Security Profiles collection for Cloud Workload Security. Default: true |
 | features.cws.syscallMonitorEnabled | SyscallMonitorEnabled enables Syscall Monitoring (recommended for troubleshooting only). Default: false |
 | features.dataPlane.dogstatsd.enabled | Configures the Data Plane to handle DogStatsD traffic. When set to false, DogStatsD is handled by the Core Agent instead. Default: true |
-| features.dataPlane.enabled | Explicitly enables or disables the Data Plane. When unset, the Operator applies its configured Linux default after considering the legacy annotation. Default: unset; the Operator default is false unless configured otherwise. |
+| features.dataPlane.enabled | Enables the Data Plane. Default: false |
 | features.dogstatsd.hostPortConfig.enabled | Enables host port configuration |
 | features.dogstatsd.hostPortConfig.hostPort | Port takes a port number (0 < x < 65536) to expose on the host. (Most containers do not need this.) If HostNetwork is enabled, this value must match the ContainerPort. |
 | features.dogstatsd.mapperProfiles.configData | ConfigData corresponds to the configuration file content. |

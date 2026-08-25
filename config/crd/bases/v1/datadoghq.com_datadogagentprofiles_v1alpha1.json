@@ -1428,7 +1428,7 @@
                       "type": "object"
                     },
                     "enabled": {
-                      "description": "Enabled explicitly enables or disables the Data Plane.\nWhen unset, the Operator applies its configured Linux default after considering the legacy annotation.\nDefault: unset; the Operator default is false unless configured otherwise.",
+                      "description": "Enabled enables the Data Plane.\nDefault: false",
                       "type": "boolean"
                     }
                   },

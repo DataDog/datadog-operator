@@ -1431,9 +1431,8 @@ spec:
                               type: object
                             enabled:
                               description: |-
-                                Enabled explicitly enables or disables the Data Plane.
-                                When unset, the Operator applies its configured Linux default after considering the legacy annotation.
-                                Default: unset; the Operator default is false unless configured otherwise.
+                                Enabled enables the Data Plane.
+                                Default: false
                               type: boolean
                           type: object
                         dogstatsd:
