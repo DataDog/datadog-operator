@@ -19,7 +19,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent"
 	componentagent "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal"
-	byoccluster "github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster"
+	byocrelease "github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/release"
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
@@ -261,7 +261,7 @@ func startDatadogBYOCCluster(logger logr.Logger, mgr manager.Manager, _ kubernet
 		Log:             ctrl.Log.WithName("controllers").WithName(byocClusterControllerName),
 		Scheme:          mgr.GetScheme(),
 		Recorder:        mgr.GetEventRecorderFor(byocClusterControllerName),
-		ReleaseResolver: byoccluster.NewOCIReleaseResolver(),
+		ReleaseResolver: byocrelease.NewOCIReleaseResolver(),
 	}).SetupWithManager(mgr)
 }
 
