@@ -10,11 +10,45 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
+
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 )
+
+func TestIsDataPlaneEnabled(t *testing.T) {
+	withDataPlaneEnabled := func(enabled bool) *v2alpha1.DatadogAgentSpec {
+		return &v2alpha1.DatadogAgentSpec{
+			Features: &v2alpha1.DatadogFeatures{
+				DataPlane: &v2alpha1.DataPlaneFeatureConfig{Enabled: ptr.To(enabled)},
+			},
+		}
+	}
+
+	for _, tt := range []struct {
+		name           string
+		annotations    map[string]string
+		spec           *v2alpha1.DatadogAgentSpec
+		defaultEnabled bool
+		want           bool
+	}{
+		{name: "runtime default disabled", spec: &v2alpha1.DatadogAgentSpec{}},
+		{name: "runtime default enabled", spec: &v2alpha1.DatadogAgentSpec{}, defaultEnabled: true, want: true},
+		{name: "legacy enable annotation", annotations: map[string]string{EnableADPAnnotation: "true"}, spec: &v2alpha1.DatadogAgentSpec{}, want: true},
+		{name: "legacy disable annotation overrides runtime default", annotations: map[string]string{EnableADPAnnotation: "false"}, spec: &v2alpha1.DatadogAgentSpec{}, defaultEnabled: true},
+		{name: "CRD enable overrides legacy disable", annotations: map[string]string{EnableADPAnnotation: "false"}, spec: withDataPlaneEnabled(true), defaultEnabled: true, want: true},
+		{name: "CRD disable overrides legacy enable", annotations: map[string]string{EnableADPAnnotation: "true"}, spec: withDataPlaneEnabled(false), defaultEnabled: true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			dda := &v2alpha1.DatadogAgent{ObjectMeta: metav1.ObjectMeta{Annotations: tt.annotations}}
+			assert.Equal(t, tt.want, IsDataPlaneEnabled(dda, tt.spec, tt.defaultEnabled))
+		})
+	}
+}
 
 func TestEnableConfigSyncForDirectSend(t *testing.T) {
 	containers := []apicommon.AgentContainerName{
