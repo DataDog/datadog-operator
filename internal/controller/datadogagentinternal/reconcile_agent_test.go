@@ -1,22 +1,105 @@
 package datadogagentinternal
 
 import (
+	"context"
 	"testing"
 
+	edsv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/record"
 	"k8s.io/utils/ptr"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
+	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
-
-	"github.com/stretchr/testify/assert"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"github.com/DataDog/datadog-operator/pkg/testutils"
 )
 
 const defaultProvider = kubernetes.DefaultProvider
 const gkeCosProvider = kubernetes.GKECloudProvider + "-" + kubernetes.GKECosType
+
+func TestReconcileV2Agent_EDSSingleContainerStrategySetsDataPlaneFlags(t *testing.T) {
+	ctx := context.Background()
+	scheme := newMigrationTestScheme(t)
+	client := fake.NewClientBuilder().WithScheme(scheme).Build()
+	reconciler := NewReconciler(
+		ReconcilerOptions{
+			ExtendedDaemonsetOptions:     agent.ExtendedDaemonsetOptions{Enabled: true},
+			DefaultDataPlaneLinuxEnabled: true,
+		},
+		client,
+		kubernetes.PlatformInfo{},
+		scheme,
+		record.NewFakeRecorder(10),
+		nil,
+	)
+	ddai := testutils.NewDefaultDatadogAgentInternalBuilder().
+		WithCredentials("api-key", "").
+		WithSingleContainerStrategy(true).
+		Build()
+	ddai.Name = "datadog"
+	ddai.Namespace = "default"
+
+	configuredFeatures, enabledFeatures, _, _ := feature.BuildFeatures(
+		ddai,
+		&ddai.Spec,
+		ddai.Status.RemoteConfigConfiguration,
+		reconciler.reconcilerOptionsToFeatureOptions(ctx, ddai),
+	)
+	var dataPlaneFeature feature.Feature
+	for _, candidate := range append(configuredFeatures, enabledFeatures...) {
+		if candidate.ID() == feature.DataPlaneIDType {
+			dataPlaneFeature = candidate
+			break
+		}
+	}
+	require.NotNil(t, dataPlaneFeature)
+
+	requiredComponents := feature.RequiredComponents{
+		Agent: feature.RequiredComponent{
+			IsRequired: ptr.To(true),
+			Containers: []apicommon.AgentContainerName{
+				apicommon.UnprivilegedSingleAgentContainerName,
+			},
+		},
+	}
+	_, resourceManagers := reconciler.setupDependencies(ctx, ddai)
+	_, err := reconciler.reconcileV2Agent(
+		ctx,
+		requiredComponents,
+		[]feature.Feature{dataPlaneFeature},
+		ddai,
+		resourceManagers,
+		&datadoghqv1alpha1.DatadogAgentInternalStatus{},
+		"",
+	)
+	require.NoError(t, err)
+
+	eds := &edsv1alpha1.ExtendedDaemonSet{}
+	require.NoError(t, client.Get(ctx, types.NamespacedName{Namespace: ddai.Namespace, Name: "datadog-agent"}, eds))
+	require.Len(t, eds.Spec.Template.Spec.Containers, 1)
+	agentContainer := eds.Spec.Template.Spec.Containers[0]
+	assert.Equal(t, string(apicommon.UnprivilegedSingleAgentContainerName), agentContainer.Name)
+
+	envVars := make(map[string]string, len(agentContainer.Env))
+	for _, envVar := range agentContainer.Env {
+		envVars[envVar.Name] = envVar.Value
+	}
+	assert.Equal(t, "true", envVars[common.DDDataPlaneEnabled])
+	assert.Equal(t, "true", envVars[common.DDDataPlaneDogstatsdEnabled])
+	assert.Equal(t, "true", envVars[common.DDDataPlaneRemoteAgentEnabled])
+	assert.Equal(t, "true", envVars[common.DDDataPlaneUseNewConfigStreamEndpoint])
+}
 
 // func Test_getValidDaemonSetNames(t *testing.T) {
 // 	testCases := []struct {

@@ -80,11 +80,17 @@ func (r *Reconciler) reconcileV2Agent(ctx context.Context, requiredComponents fe
 		global.ApplyGlobalNodeAgentSpec(podManagers, provider)
 
 		// Apply features changes on the Deployment.Spec.Template.
-		// Provider capabilities are applied immediately after each feature's ManageNodeAgent
+		// Provider capabilities are applied immediately after each feature's node-agent hook
 		// so that each feature owns its provider correctness independently.
 		for _, feat := range features {
-			if errFeat := feat.ManageNodeAgent(podManagers); errFeat != nil {
-				return result, errFeat
+			if singleContainerStrategyEnabled {
+				if errFeat := feat.ManageSingleContainerNodeAgent(podManagers); errFeat != nil {
+					return result, errFeat
+				}
+			} else {
+				if errFeat := feat.ManageNodeAgent(podManagers); errFeat != nil {
+					return result, errFeat
+				}
 			}
 			if paf, ok := feat.(feature.ProviderAwareFeature); ok {
 				providercaps.ApplyProviderCapabilities(podManagers, provider, paf.NodeAgentProviderCapabilities())
