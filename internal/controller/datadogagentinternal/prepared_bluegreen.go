@@ -471,7 +471,7 @@ func (r *Reconciler) reconcilePreparedDaemonSetPair(
 		return reconcile.Result{}, podsErr
 	}
 	if targetRevision != desiredRevision {
-		aborted, abortErr := r.abortPreparedTargetBeforeHandoff(ctx, nodes, pods, pair, labelKey, target)
+		aborted, abortErr := r.abortObsoletePreparedTarget(ctx, nodes, pods, pair, labelKey, target)
 		if abortErr != nil {
 			return reconcile.Result{}, abortErr
 		}
@@ -522,37 +522,37 @@ func (r *Reconciler) createOrUpdatePreparedDaemonSet(
 	return requeuePreparedRollout(), nil
 }
 
-// abortPreparedTargetBeforeHandoff cancels an obsolete preparation only while
-// no node has begun serving from the target slot. A transition node with no
-// serving generation may safely take a corrected target revision because its
-// source was never made ineligible. Once any node reaches the target state, or a
-// target restores service first, rollback is deliberately left to a later design.
-func (r *Reconciler) abortPreparedTargetBeforeHandoff(ctx context.Context, nodes []corev1.Node, pods map[string][]corev1.Pod, pair preparedPair, key, target string) (bool, error) {
+// abortObsoletePreparedTarget cancels an obsolete target while no target Pod
+// is Ready. A node whose failed target already replaced its source first
+// returns to the last known-good slot. The normal planner then applies the
+// availability budget while it starts the corrected revision.
+func (r *Reconciler) abortObsoletePreparedTarget(ctx context.Context, nodes []corev1.Node, pods map[string][]corev1.Pod, pair preparedPair, key, target string) (bool, error) {
 	source := otherSlot(target)
 	transition := rolloutTransitionValue(source, target)
 	sort.Slice(nodes, func(i, j int) bool { return nodes[i].Name < nodes[j].Name })
+	rollbackNodes := make([]int, 0)
 	for i := range nodes {
 		switch nodes[i].Labels[key] {
 		case source:
 		case transition:
-			sourceServing := podServingReady(podOnNode(pods[source], nodes[i].Name), pair.slot(source))
-			targetServing := podServingReady(podOnNode(pods[target], nodes[i].Name), pair.slot(target))
-			if !sourceServing && targetServing {
-				// The target has already restored availability after the source
-				// disappeared. Treat that as a completed runtime handoff even though
-				// the node-label observation has not caught up yet.
+			if podConditionReady(podOnNode(pods[target], nodes[i].Name), pair.slot(target)) {
+				// A Ready target may already serve node-local traffic. Finish this
+				// persisted handoff before reusing the slot for another revision.
 				return false, nil
 			}
+			rollbackNodes = append(rollbackNodes, i)
+		case target:
+			if podConditionReady(podOnNode(pods[target], nodes[i].Name), pair.slot(target)) {
+				return false, nil
+			}
+			rollbackNodes = append(rollbackNodes, i)
 		default:
 			return false, nil
 		}
 	}
 
 	mutations := 0
-	for i := range nodes {
-		if nodes[i].Labels[key] != transition {
-			continue
-		}
+	for _, i := range rollbackNodes {
 		if mutations >= preparedRolloutMutationLimit {
 			return true, nil
 		}
@@ -1458,6 +1458,10 @@ func podReady(pod *corev1.Pod, ds *appsv1.DaemonSet) bool {
 		return false
 	}
 	return podServingReady(pod, ds)
+}
+
+func podConditionReady(pod *corev1.Pod, ds *appsv1.DaemonSet) bool {
+	return podMatchesPreparedRevision(pod, ds) && podutils.IsPodReady(pod)
 }
 
 func podServingReady(pod *corev1.Pod, ds *appsv1.DaemonSet) bool {

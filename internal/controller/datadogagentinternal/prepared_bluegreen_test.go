@@ -471,6 +471,7 @@ func TestPreparedObsoleteTargetContinuesAfterHandoffStarts(t *testing.T) {
 		ds.Annotations[preparedRolloutTargetRevisionAnnotation] = "obsolete-revision"
 		require.NoError(t, fakeClient.Create(ctx, ds))
 	}
+	createPreparedServingPod(t, ctx, fakeClient, green, node.Name)
 
 	r := NewReconciler(ReconcilerOptions{}, fakeClient, kubernetes.PlatformInfo{}, scheme, record.NewFakeRecorder(100), nil)
 	_, err = r.reconcilePreparedDaemonSetPair(ctx, ddai, rendered.DeepCopy(), intstr.FromInt(1), &datadoghqv1alpha1.DatadogAgentInternalStatus{})
@@ -1321,6 +1322,13 @@ func TestPreparedRolloutCompleteRequiresAvailableExactTargetAndNoSource(t *testi
 
 	assert.True(t, preparedRolloutComplete([]corev1.Node{node}, pods, pair, key, rolloutSlotGreen))
 
+	pair.green.Spec.MinReadySeconds = 60
+	recentTarget := target.DeepCopy()
+	recentTarget.Status.Conditions[0].LastTransitionTime = metav1.NewTime(time.Now().Add(-30 * time.Second))
+	pods[rolloutSlotGreen] = []corev1.Pod{*recentTarget}
+	assert.False(t, preparedRolloutComplete([]corev1.Node{node}, pods, pair, key, rolloutSlotGreen))
+	pair.green.Spec.MinReadySeconds = 0
+
 	wrongRevision := target.DeepCopy()
 	wrongRevision.Annotations[preparedRolloutRevisionAnnotation] = "old-revision"
 	pods[rolloutSlotGreen] = []corev1.Pod{*wrongRevision}
@@ -1436,6 +1444,7 @@ func TestPreparedTargetCanBeAbortedBeforeHandoff(t *testing.T) {
 	}
 	pair := preparedTestPair()
 	pair.blue.Annotations = map[string]string{
+		preparedRolloutRevisionAnnotation:       "test-revision",
 		preparedRolloutTargetSlotAnnotation:     rolloutSlotBlue,
 		preparedRolloutTargetRevisionAnnotation: "obsolete",
 	}
@@ -1448,7 +1457,7 @@ func TestPreparedTargetCanBeAbortedBeforeHandoff(t *testing.T) {
 		preparedPod("green-b", "node-b", true),
 	}
 
-	aborted, err := r.abortPreparedTargetBeforeHandoff(ctx, nodes, pods, pair, key, rolloutSlotBlue)
+	aborted, err := r.abortObsoletePreparedTarget(ctx, nodes, pods, pair, key, rolloutSlotBlue)
 	require.NoError(t, err)
 	assert.True(t, aborted)
 	assert.Equal(t, rolloutSlotGreen, nodeState(t, ctx, fakeClient, "node-a", key))
@@ -1471,16 +1480,110 @@ func TestPreparedTargetIsNotAbortedAfterHandoffStarts(t *testing.T) {
 	node := preparedNode("node-a", key, rolloutSlotBlue)
 	pair := preparedTestPair()
 	pair.blue.Annotations = map[string]string{
+		preparedRolloutRevisionAnnotation:       "test-revision",
 		preparedRolloutTargetSlotAnnotation:     rolloutSlotBlue,
 		preparedRolloutTargetRevisionAnnotation: "obsolete",
 	}
 	fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(node.DeepCopy(), pair.blue.DeepCopy()).Build()
 	r := &Reconciler{client: fakeClient}
+	pods := emptyPairPods()
+	pods[rolloutSlotBlue] = []corev1.Pod{preparedPod("blue-a", node.Name, true)}
 
-	aborted, err := r.abortPreparedTargetBeforeHandoff(ctx, []corev1.Node{node}, emptyPairPods(), pair, key, rolloutSlotBlue)
+	aborted, err := r.abortObsoletePreparedTarget(ctx, []corev1.Node{node}, pods, pair, key, rolloutSlotBlue)
 	require.NoError(t, err)
 	assert.False(t, aborted)
 	assert.Equal(t, rolloutSlotBlue, nodeState(t, ctx, fakeClient, "node-a", key))
+}
+
+func TestPreparedFailedTargetReturnsToKnownGoodSourceBeforeAbort(t *testing.T) {
+	ctx := context.Background()
+	scheme := runtime.NewScheme()
+	require.NoError(t, corev1.AddToScheme(scheme))
+	require.NoError(t, appsv1.AddToScheme(scheme))
+	key := "example.com/slot"
+	node := preparedNode("node-a", key, rolloutSlotBlue)
+	pair := preparedTestPair()
+	for _, ds := range pair.daemonSets() {
+		ds.Annotations = map[string]string{
+			preparedRolloutTargetSlotAnnotation:     rolloutSlotBlue,
+			preparedRolloutTargetRevisionAnnotation: "obsolete",
+		}
+	}
+	fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(node.DeepCopy(), pair.blue.DeepCopy(), pair.green.DeepCopy()).Build()
+	r := &Reconciler{client: fakeClient}
+	pods := emptyPairPods()
+	pods[rolloutSlotBlue] = []corev1.Pod{preparedPod("failed-blue", node.Name, false)}
+
+	aborted, err := r.abortObsoletePreparedTarget(ctx, []corev1.Node{node}, pods, pair, key, rolloutSlotBlue)
+	require.NoError(t, err)
+	assert.True(t, aborted)
+	assert.Equal(t, rolloutSlotGreen, nodeState(t, ctx, fakeClient, node.Name, key))
+
+	currentPair := getPreparedTestPair(t, ctx, fakeClient, pair)
+	assert.NotContains(t, currentPair.blue.Annotations, preparedRolloutTargetSlotAnnotation)
+	assert.NotContains(t, currentPair.green.Annotations, preparedRolloutTargetSlotAnnotation)
+}
+
+func TestPreparedObsoleteTargetAbortIgnoresUnrelatedUnreadySource(t *testing.T) {
+	ctx := context.Background()
+	scheme := runtime.NewScheme()
+	require.NoError(t, corev1.AddToScheme(scheme))
+	require.NoError(t, appsv1.AddToScheme(scheme))
+	key := "example.com/slot"
+	nodes := []corev1.Node{
+		preparedNode("failed-target", key, rolloutSlotBlue),
+		preparedNode("unready-source", key, rolloutSlotGreen),
+	}
+	pair := preparedTestPair()
+	for _, ds := range pair.daemonSets() {
+		ds.Annotations = map[string]string{
+			preparedRolloutTargetSlotAnnotation:     rolloutSlotBlue,
+			preparedRolloutTargetRevisionAnnotation: "obsolete",
+		}
+	}
+	fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(
+		nodes[0].DeepCopy(), nodes[1].DeepCopy(), pair.blue.DeepCopy(), pair.green.DeepCopy(),
+	).Build()
+	r := &Reconciler{client: fakeClient}
+	pods := emptyPairPods()
+	pods[rolloutSlotBlue] = []corev1.Pod{preparedPod("failed-blue", nodes[0].Name, false)}
+	pods[rolloutSlotGreen] = []corev1.Pod{preparedPod("unready-green", nodes[1].Name, false)}
+
+	aborted, err := r.abortObsoletePreparedTarget(ctx, nodes, pods, pair, key, rolloutSlotBlue)
+	require.NoError(t, err)
+	assert.True(t, aborted)
+	assert.Equal(t, rolloutSlotGreen, nodeState(t, ctx, fakeClient, nodes[0].Name, key))
+
+	currentPair := getPreparedTestPair(t, ctx, fakeClient, pair)
+	assert.NotContains(t, currentPair.blue.Annotations, preparedRolloutTargetSlotAnnotation)
+	assert.NotContains(t, currentPair.green.Annotations, preparedRolloutTargetSlotAnnotation)
+}
+
+func TestPreparedReadyTargetInsideMinReadySecondsIsNotAborted(t *testing.T) {
+	ctx := context.Background()
+	scheme := runtime.NewScheme()
+	require.NoError(t, corev1.AddToScheme(scheme))
+	require.NoError(t, appsv1.AddToScheme(scheme))
+	key := "example.com/slot"
+	node := preparedNode("node-a", key, rolloutSlotBlue)
+	pair := preparedTestPair()
+	pair.blue.Spec.MinReadySeconds = 60
+	pair.blue.Annotations = map[string]string{
+		preparedRolloutRevisionAnnotation:       "test-revision",
+		preparedRolloutTargetSlotAnnotation:     rolloutSlotBlue,
+		preparedRolloutTargetRevisionAnnotation: "obsolete",
+	}
+	fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(node.DeepCopy(), pair.blue.DeepCopy(), pair.green.DeepCopy()).Build()
+	r := &Reconciler{client: fakeClient}
+	targetPod := preparedPod("blue-a", node.Name, true)
+	targetPod.Status.Conditions[0].LastTransitionTime = metav1.NewTime(time.Now().Add(-30 * time.Second))
+	pods := emptyPairPods()
+	pods[rolloutSlotBlue] = []corev1.Pod{targetPod}
+
+	aborted, err := r.abortObsoletePreparedTarget(ctx, []corev1.Node{node}, pods, pair, key, rolloutSlotBlue)
+	require.NoError(t, err)
+	assert.False(t, aborted)
+	assert.Equal(t, rolloutSlotBlue, nodeState(t, ctx, fakeClient, node.Name, key))
 }
 
 func TestPreparedFailedTargetOnUncoveredNodeCanBeReplaced(t *testing.T) {
@@ -1504,7 +1607,7 @@ func TestPreparedFailedTargetOnUncoveredNodeCanBeReplaced(t *testing.T) {
 	require.NoError(t, fakeClient.Create(ctx, &failed))
 	pods[rolloutSlotGreen] = []corev1.Pod{failed}
 
-	aborted, err := r.abortPreparedTargetBeforeHandoff(ctx, []corev1.Node{node}, pods, pair, key, rolloutSlotGreen)
+	aborted, err := r.abortObsoletePreparedTarget(ctx, []corev1.Node{node}, pods, pair, key, rolloutSlotGreen)
 	require.NoError(t, err)
 	assert.True(t, aborted, "a corrected revision must not be blocked when neither generation serves the newly eligible node")
 	assert.Equal(t, rolloutSlotBlue, nodeState(t, ctx, fakeClient, node.Name, key))
@@ -1539,7 +1642,7 @@ func TestPreparedTargetServingInTransitionIsNotAborted(t *testing.T) {
 	pods := emptyPairPods()
 	pods[rolloutSlotGreen] = []corev1.Pod{preparedPod("green", node.Name, true)}
 
-	aborted, err := r.abortPreparedTargetBeforeHandoff(ctx, []corev1.Node{node}, pods, pair, key, rolloutSlotGreen)
+	aborted, err := r.abortObsoletePreparedTarget(ctx, []corev1.Node{node}, pods, pair, key, rolloutSlotGreen)
 	require.NoError(t, err)
 	assert.False(t, aborted, "a target which already restored service is a completed runtime handoff")
 	assert.Equal(t, rolloutTransitionValue(rolloutSlotBlue, rolloutSlotGreen), nodeState(t, ctx, fakeClient, node.Name, key))
