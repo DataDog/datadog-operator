@@ -3,7 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-package datadogbyoccluster
+package release
 
 import (
 	"bytes"
@@ -194,7 +194,7 @@ func TestOCIReleaseResolver_Resolve(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			artifact := newFakeArtifact(t, tt.payload)
-			resolver := newOCIReleaseResolver(DefaultReleaseRepository, func(context.Context, string) (oras.ReadOnlyTarget, error) {
+			resolver := newOCIReleaseResolver(defaultReleaseRepository, func(context.Context, string) (oras.ReadOnlyTarget, error) {
 				return artifact, nil
 			})
 

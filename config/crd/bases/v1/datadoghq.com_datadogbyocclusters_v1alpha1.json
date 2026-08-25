@@ -26325,10 +26325,18 @@
               "type": "object"
             }
           },
+          "required": [
+            "controlPlane",
+            "indexer",
+            "janitor",
+            "metastore",
+            "searcher"
+          ],
           "type": "object"
         },
         "datadog": {
           "additionalProperties": false,
+          "default": {},
           "properties": {
             "apiKeySecretRef": {
               "additionalProperties": false,
@@ -26351,15 +26359,18 @@
               "x-kubernetes-map-type": "atomic"
             },
             "byocTelemetry": {
+              "default": true,
               "type": "boolean"
             },
             "dogstatsdServer": {
               "additionalProperties": false,
+              "default": {},
               "properties": {
                 "host": {
                   "type": "string"
                 },
                 "port": {
+                  "default": 8125,
                   "format": "int32",
                   "type": "integer"
                 }
@@ -26367,6 +26378,7 @@
               "type": "object"
             },
             "site": {
+              "default": "datadoghq.com",
               "type": "string"
             }
           },
@@ -28728,6 +28740,7 @@
         }
       },
       "required": [
+        "components",
         "release"
       ],
       "type": "object"
