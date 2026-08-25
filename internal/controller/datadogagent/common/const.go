@@ -83,6 +83,15 @@ const (
 	ChecksdVolumeName = "checksd"
 	ChecksdVolumePath = "/checks.d"
 
+	// RmCorechecksVolumeName is the volume that overlays the agent's conf.d
+	// directory on the cluster checks runner to prevent default core checks
+	// from running there.
+	RmCorechecksVolumeName = "remove-corechecks"
+	// RmCorechecksConfdInitPath is the scratch mount path used by the init
+	// container that seeds the remove-corechecks overlay with the packaged
+	// conf.d assets (e.g. SNMP profiles) from the agent image.
+	RmCorechecksConfdInitPath = "/opt/conf.d-overlay"
+
 	HostRootVolumeName = "hostroot"
 	HostRootHostPath   = "/"
 	HostRootMountPath  = "/host/root"
