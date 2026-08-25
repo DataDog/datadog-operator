@@ -565,6 +565,12 @@ func archiveDir(dir, destination string) error {
 		err = closeErr
 	}
 
+	if err != nil {
+		// A truncated archive would mislead whoever finds it, and would block the
+		// next flare of the same second through the O_EXCL above.
+		_ = os.Remove(destination)
+	}
+
 	return err
 }
 

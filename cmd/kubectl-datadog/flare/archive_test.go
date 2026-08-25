@@ -76,3 +76,12 @@ func TestArchiveDirKeepsExistingArchive(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, existing, kept)
 }
+
+func TestArchiveDirMissingSource(t *testing.T) {
+	destination := filepath.Join(t.TempDir(), "flare.zip")
+
+	assert.Error(t, archiveDir(filepath.Join(t.TempDir(), "absent"), destination))
+
+	_, err := os.Stat(destination)
+	assert.True(t, os.IsNotExist(err), "a failed archive must not be left behind")
+}
