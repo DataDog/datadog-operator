@@ -63,6 +63,10 @@ type preparedPair struct {
 	green *appsv1.DaemonSet
 }
 
+func (p preparedPair) daemonSets() [2]*appsv1.DaemonSet {
+	return [2]*appsv1.DaemonSet{p.blue, p.green}
+}
+
 // reconcilePreparedDisable returns an initialized pair to the conventional
 // single DaemonSet. If green is serving, it first uses the ordinary prepared
 // handoff to make blue authoritative. Only then does it remove green and let
@@ -146,11 +150,7 @@ func (r *Reconciler) reconcilePreparedDisable(
 		if cleared {
 			return requeuePreparedRollout(), nil
 		}
-		result, updateErr := r.createOrUpdateDaemonset(ctx, ddai, rendered, newStatus, updateDSStatusV2WithAgent)
-		if updateErr != nil {
-			return result, updateErr
-		}
-		return requeuePreparedRollout(), nil
+		return r.createOrUpdatePreparedDaemonSet(ctx, ddai, rendered, newStatus, updateDSStatusV2WithAgent)
 	}
 	pending, cleanupErr := r.preparedRolloutLabelsCleanup(ctx, ddai)
 	if cleanupErr != nil {
@@ -323,6 +323,7 @@ func (r *Reconciler) reconcilePreparedDaemonSetPair(
 	if greenErr != nil {
 		return reconcile.Result{}, greenErr
 	}
+	desiredPair := preparedPair{blue: blueDesired, green: greenDesired}
 	if missingPreparedChild {
 		missingDesired, survivor := blueDesired, pair.green
 		statusUpdate := updateDSStatusV2WithAgent
@@ -335,19 +336,11 @@ func (r *Reconciler) reconcilePreparedDaemonSetPair(
 		// desired revision without combining stale target state with a new
 		// template.
 		copyPreparedPairState(missingDesired, survivor)
-		result, reconcileErr := r.createOrUpdateDaemonset(ctx, ddai, missingDesired, newStatus, statusUpdate)
-		if reconcileErr != nil {
-			return result, reconcileErr
-		}
-		return requeuePreparedRollout(), nil
+		return r.createOrUpdatePreparedDaemonSet(ctx, ddai, missingDesired, newStatus, statusUpdate)
 	}
 	if pair.blue == nil {
 		configureConventionalMigration(blueDesired, budget)
-		result, reconcileErr := r.createOrUpdateDaemonset(ctx, ddai, blueDesired, newStatus, updateDSStatusV2WithAgent)
-		if reconcileErr != nil {
-			return result, reconcileErr
-		}
-		return requeuePreparedRollout(), nil
+		return r.createOrUpdatePreparedDaemonSet(ctx, ddai, blueDesired, newStatus, updateDSStatusV2WithAgent)
 	}
 	if pair.green == nil {
 		// Existing installations get one conventional rollout which gives every
@@ -355,25 +348,13 @@ func (r *Reconciler) reconcilePreparedDaemonSetPair(
 		// possible. A fresh install follows the same path without replacing a Pod.
 		if !preparedBlueDaemonSetArmed(pair.blue, desiredRevision) {
 			configureConventionalMigration(blueDesired, budget)
-			result, reconcileErr := r.createOrUpdateDaemonset(ctx, ddai, blueDesired, newStatus, updateDSStatusV2WithAgent)
-			if reconcileErr != nil {
-				return result, reconcileErr
-			}
-			return requeuePreparedRollout(), nil
+			return r.createOrUpdatePreparedDaemonSet(ctx, ddai, blueDesired, newStatus, updateDSStatusV2WithAgent)
 		}
 		if pair.blue.Spec.UpdateStrategy.Type != appsv1.OnDeleteDaemonSetStrategyType {
-			result, reconcileErr := r.createOrUpdateDaemonset(ctx, ddai, blueDesired, newStatus, updateDSStatusV2WithAgent)
-			if reconcileErr != nil {
-				return result, reconcileErr
-			}
-			return requeuePreparedRollout(), nil
+			return r.createOrUpdatePreparedDaemonSet(ctx, ddai, blueDesired, newStatus, updateDSStatusV2WithAgent)
 		}
 		copyPreparedPairState(greenDesired, pair.blue)
-		result, reconcileErr := r.createOrUpdateDaemonset(ctx, ddai, greenDesired, newStatus, noOpDaemonSetStatus)
-		if reconcileErr != nil {
-			return result, reconcileErr
-		}
-		return requeuePreparedRollout(), nil
+		return r.createOrUpdatePreparedDaemonSet(ctx, ddai, greenDesired, newStatus, noOpDaemonSetStatus)
 	}
 	if err := validatePreparedPairSelectors(pair, blueDesired, greenDesired); err != nil {
 		return reconcile.Result{}, err
@@ -411,31 +392,17 @@ func (r *Reconciler) reconcilePreparedDaemonSetPair(
 			return requeuePreparedRollout(), nil
 		}
 		if activeDS.Annotations[preparedRolloutRevisionAnnotation] == desiredRevision && activeDS.Spec.Template.Annotations[preparedRolloutRevisionAnnotation] != desiredRevision {
-			activeDesired := blueDesired
-			if active == rolloutSlotGreen {
-				activeDesired = greenDesired
-			}
-			result, reconcileErr := r.createOrUpdateDaemonset(ctx, ddai, activeDesired, newStatus, noOpDaemonSetStatus)
-			if reconcileErr != nil {
-				return result, reconcileErr
-			}
-			return requeuePreparedRollout(), nil
+			activeDesired := desiredPair.slot(active)
+			return r.createOrUpdatePreparedDaemonSet(ctx, ddai, activeDesired, newStatus, noOpDaemonSetStatus)
 		}
 		activeHasDesiredRevision := daemonSetHasPreparedRevision(activeDS, desiredRevision)
 		if activeHasDesiredRevision {
-			activeDesired := blueDesired
-			if active == rolloutSlotGreen {
-				activeDesired = greenDesired
-			}
+			activeDesired := desiredPair.slot(active)
 			// Slot ownership changes independently of the content revision. Apply
 			// the new source affinity first and wait for the DaemonSet controller to
 			// observe it before removing unlabeled-node fallback from the old source.
 			if !preparedSlotAffinityMatches(activeDS, activeDesired) {
-				result, reconcileErr := r.createOrUpdateDaemonset(ctx, ddai, activeDesired, newStatus, noOpDaemonSetStatus)
-				if reconcileErr != nil {
-					return result, reconcileErr
-				}
-				return requeuePreparedRollout(), nil
+				return r.createOrUpdatePreparedDaemonSet(ctx, ddai, activeDesired, newStatus, noOpDaemonSetStatus)
 			}
 			if !daemonSetObserved(activeDS) {
 				return requeuePreparedRollout(), nil
@@ -456,34 +423,20 @@ func (r *Reconciler) reconcilePreparedDaemonSetPair(
 		if activeHasDesiredRevision {
 			// Keep the inactive slot at the last known-good desired template, but
 			// remove its unlabeled-node fallback only after the active source owns it.
-			inactiveDesired := blueDesired
-			if active == rolloutSlotBlue {
-				inactiveDesired = greenDesired
-			}
+			inactiveDesired := desiredPair.slot(otherSlot(active))
 			if !daemonSetHasPreparedRevision(inactiveDS, desiredRevision) ||
 				!preparedSlotAffinityMatches(inactiveDS, inactiveDesired) ||
 				!daemonSetObserved(inactiveDS) {
-				result, reconcileErr := r.createOrUpdateDaemonset(ctx, ddai, inactiveDesired, newStatus, noOpDaemonSetStatus)
-				if reconcileErr != nil {
-					return result, reconcileErr
-				}
-				return requeuePreparedRollout(), nil
+				return r.createOrUpdatePreparedDaemonSet(ctx, ddai, inactiveDesired, newStatus, noOpDaemonSetStatus)
 			}
 			updatePreparedPairStatus(newStatus, pair, active)
 			return reconcile.Result{}, nil
 		}
 
 		target = otherSlot(active)
-		targetDesired := blueDesired
-		if target == rolloutSlotGreen {
-			targetDesired = greenDesired
-		}
+		targetDesired := desiredPair.slot(target)
 		if !daemonSetHasPreparedRevision(inactiveDS, desiredRevision) || !daemonSetObserved(inactiveDS) {
-			result, reconcileErr := r.createOrUpdateDaemonset(ctx, ddai, targetDesired, newStatus, noOpDaemonSetStatus)
-			if reconcileErr != nil {
-				return result, reconcileErr
-			}
-			return requeuePreparedRollout(), nil
+			return r.createOrUpdatePreparedDaemonSet(ctx, ddai, targetDesired, newStatus, noOpDaemonSetStatus)
 		}
 		if err := r.setPairTarget(ctx, pair, target, desiredRevision); err != nil {
 			return reconcile.Result{}, err
@@ -553,6 +506,20 @@ func preparedSlotAffinityMatches(current, desired *appsv1.DaemonSet) bool {
 		current.Spec.Template.Spec.Affinity,
 		desired.Spec.Template.Spec.Affinity,
 	)
+}
+
+func (r *Reconciler) createOrUpdatePreparedDaemonSet(
+	ctx context.Context,
+	ddai *datadoghqv1alpha1.DatadogAgentInternal,
+	daemonSet *appsv1.DaemonSet,
+	newStatus *datadoghqv1alpha1.DatadogAgentInternalStatus,
+	updateStatus updateDSStatusComponentFunc,
+) (reconcile.Result, error) {
+	result, err := r.createOrUpdateDaemonset(ctx, ddai, daemonSet, newStatus, updateStatus)
+	if err != nil {
+		return result, err
+	}
+	return requeuePreparedRollout(), nil
 }
 
 // abortPreparedTargetBeforeHandoff cancels an obsolete preparation only while
@@ -973,7 +940,7 @@ func preparedDaemonSetInitialized(ds *appsv1.DaemonSet) bool {
 }
 
 func validatePreparedPairSchema(pair preparedPair) error {
-	for _, ds := range []*appsv1.DaemonSet{pair.blue, pair.green} {
+	for _, ds := range pair.daemonSets() {
 		if !preparedDaemonSetInitialized(ds) {
 			continue
 		}
@@ -1056,7 +1023,7 @@ func (p preparedPair) forSlots(active string) (*appsv1.DaemonSet, *appsv1.Daemon
 
 func pairTarget(pair preparedPair) (string, string, error) {
 	var target, revision string
-	for _, ds := range []*appsv1.DaemonSet{pair.blue, pair.green} {
+	for _, ds := range pair.daemonSets() {
 		if ds == nil {
 			continue
 		}
@@ -1088,7 +1055,7 @@ func pairInitialSlot(pair preparedPair, target string) (string, error) {
 
 func pairActiveSlot(pair preparedPair) (string, error) {
 	active := ""
-	for _, ds := range []*appsv1.DaemonSet{pair.blue, pair.green} {
+	for _, ds := range pair.daemonSets() {
 		if ds == nil {
 			continue
 		}
@@ -1130,7 +1097,7 @@ func (r *Reconciler) reconcilePreparedPairState(ctx context.Context, pair prepar
 			return false, err
 		}
 	}
-	for _, ds := range []*appsv1.DaemonSet{pair.blue, pair.green} {
+	for _, ds := range pair.daemonSets() {
 		if ds == nil {
 			continue
 		}
@@ -1571,7 +1538,7 @@ func (r *Reconciler) completePairTarget(ctx context.Context, pair preparedPair, 
 
 func (r *Reconciler) patchPreparedPair(ctx context.Context, pair preparedPair, mutate func(map[string]string)) error {
 	found := false
-	for _, ds := range []*appsv1.DaemonSet{pair.blue, pair.green} {
+	for _, ds := range pair.daemonSets() {
 		if ds == nil {
 			continue
 		}
@@ -1635,7 +1602,7 @@ func preparedPairInitialized(pair preparedPair) bool {
 	if pair.green != nil {
 		return true
 	}
-	for _, ds := range []*appsv1.DaemonSet{pair.blue, pair.green} {
+	for _, ds := range pair.daemonSets() {
 		if ds != nil && ds.Annotations[preparedRolloutPairInitializedAnnotation] == preparedBlueGreenArmed {
 			return true
 		}

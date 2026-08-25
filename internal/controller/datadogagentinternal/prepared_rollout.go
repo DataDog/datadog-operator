@@ -40,17 +40,17 @@ const (
 	maxStartupProbeFailures = int32(2147483647)
 )
 
-var preparedRolloutContainerNames = map[string]struct{}{
-	string(apicommon.CoreAgentContainerName):           {},
-	string(apicommon.TraceAgentContainerName):          {},
-	string(apicommon.ProcessAgentContainerName):        {},
-	string(apicommon.SecurityAgentContainerName):       {},
-	string(apicommon.SystemProbeContainerName):         {},
-	string(apicommon.HostProfiler):                     {},
-	string(apicommon.OtelAgent):                        {},
-	string(apicommon.AgentDataPlaneContainerName):      {},
-	string(apicommon.FlightRecorderContainerName):      {},
-	string(apicommon.PrivateActionRunnerContainerName): {},
+var preparedRolloutContainerCommands = map[string]string{
+	string(apicommon.CoreAgentContainerName):           "agent",
+	string(apicommon.TraceAgentContainerName):          "trace-agent",
+	string(apicommon.ProcessAgentContainerName):        "process-agent",
+	string(apicommon.SecurityAgentContainerName):       "security-agent",
+	string(apicommon.SystemProbeContainerName):         "system-probe",
+	string(apicommon.HostProfiler):                     "host-profiler",
+	string(apicommon.OtelAgent):                        "otel-agent",
+	string(apicommon.AgentDataPlaneContainerName):      "agent-data-plane",
+	string(apicommon.FlightRecorderContainerName):      "/opt/datadog-agent/embedded/bin/flightrecorder",
+	string(apicommon.PrivateActionRunnerContainerName): "/opt/datadog-agent/embedded/bin/privateactionrunner",
 }
 
 var preparedRolloutInitContainerNames = map[string]struct{}{
@@ -81,20 +81,13 @@ func prepareAgentTemplate(ds *appsv1.DaemonSet) error {
 	if !prepareProfileAntiAffinityForOverlap(&ds.Spec.Template) {
 		return fmt.Errorf("prepared Agent rollout does not support custom Pod anti-affinity")
 	}
-	if !spec.HostNetwork {
-		for _, container := range append(slices.Clone(spec.Containers), spec.InitContainers...) {
-			for _, port := range container.Ports {
-				if port.HostPort != 0 {
-					return fmt.Errorf("prepared Agent rollout does not support hostPort %d on pod-networked container %q", port.HostPort, container.Name)
-				}
-			}
-		}
-	} else {
-		for _, container := range append(slices.Clone(spec.Containers), spec.InitContainers...) {
-			for _, port := range container.Ports {
-				if port.HostPort != 0 && port.HostPort != port.ContainerPort {
-					return fmt.Errorf("prepared Agent rollout cannot preserve hostPort %d to containerPort %d mapping on host-networked container %q", port.HostPort, port.ContainerPort, container.Name)
-				}
+	for _, container := range append(slices.Clone(spec.Containers), spec.InitContainers...) {
+		for _, port := range container.Ports {
+			switch {
+			case !spec.HostNetwork && port.HostPort != 0:
+				return fmt.Errorf("prepared Agent rollout does not support hostPort %d on pod-networked container %q", port.HostPort, container.Name)
+			case spec.HostNetwork && port.HostPort != 0 && port.HostPort != port.ContainerPort:
+				return fmt.Errorf("prepared Agent rollout cannot preserve hostPort %d to containerPort %d mapping on host-networked container %q", port.HostPort, port.ContainerPort, container.Name)
 			}
 		}
 	}
@@ -239,13 +232,13 @@ func preservePreparedStartupWindow(container *corev1.Container) {
 	if container.LivenessProbe == nil {
 		return
 	}
-	livenessFailures := probeFailureThreshold(container.LivenessProbe.FailureThreshold)
-	livenessPeriod := int64(probePeriodSeconds(container.LivenessProbe.PeriodSeconds))
+	livenessFailures := probeValueOrDefault(container.LivenessProbe.FailureThreshold, 3)
+	livenessPeriod := int64(probeValueOrDefault(container.LivenessProbe.PeriodSeconds, 10))
 	preservedWindow := int64(container.LivenessProbe.InitialDelaySeconds) + livenessPeriod*int64(livenessFailures)
 	if container.StartupProbe != nil {
-		startupPeriod := probePeriodSeconds(container.StartupProbe.PeriodSeconds)
-		startupTimeout := probeTimeoutSeconds(container.StartupProbe.TimeoutSeconds)
-		startupFailures := probeFailureThreshold(container.StartupProbe.FailureThreshold)
+		startupPeriod := probeValueOrDefault(container.StartupProbe.PeriodSeconds, 10)
+		startupTimeout := probeValueOrDefault(container.StartupProbe.TimeoutSeconds, 1)
+		startupFailures := probeValueOrDefault(container.StartupProbe.FailureThreshold, 3)
 		startupInterval := max(startupPeriod, startupTimeout)
 		startupWindow := int64(container.StartupProbe.InitialDelaySeconds) + int64(startupInterval)*int64(startupFailures) + int64(startupTimeout)
 		preservedWindow = max(preservedWindow, startupWindow)
@@ -257,23 +250,9 @@ func preservePreparedStartupWindow(container *corev1.Container) {
 	}
 }
 
-func probePeriodSeconds(value int32) int32 {
+func probeValueOrDefault(value, fallback int32) int32 {
 	if value == 0 {
-		return 10
-	}
-	return value
-}
-
-func probeFailureThreshold(value int32) int32 {
-	if value == 0 {
-		return 3
-	}
-	return value
-}
-
-func probeTimeoutSeconds(value int32) int32 {
-	if value == 0 {
-		return 1
+		return fallback
 	}
 	return value
 }
@@ -284,7 +263,7 @@ func validatePreparedContainers(spec *corev1.PodSpec) error {
 		if findContainerEnv(container, coreAgentCmdPortEnv) != nil {
 			return fmt.Errorf("prepared Agent rollout does not support an explicit %s override because the green slot reserves port %d", coreAgentCmdPortEnv, greenCoreAgentCmdPort)
 		}
-		if _, ok := preparedRolloutContainerNames[container.Name]; !ok {
+		if _, ok := preparedRolloutContainerCommands[container.Name]; !ok {
 			return fmt.Errorf("prepared Agent rollout does not support container %q", container.Name)
 		}
 		if container.Lifecycle != nil {
@@ -444,19 +423,7 @@ func preparedContainerCommandSupported(container *corev1.Container) bool {
 	if len(container.Command) == 0 {
 		return false
 	}
-	expected := map[string]string{
-		string(apicommon.CoreAgentContainerName):           "agent",
-		string(apicommon.TraceAgentContainerName):          "trace-agent",
-		string(apicommon.ProcessAgentContainerName):        "process-agent",
-		string(apicommon.SecurityAgentContainerName):       "security-agent",
-		string(apicommon.SystemProbeContainerName):         "system-probe",
-		string(apicommon.HostProfiler):                     "host-profiler",
-		string(apicommon.OtelAgent):                        "otel-agent",
-		string(apicommon.AgentDataPlaneContainerName):      "agent-data-plane",
-		string(apicommon.FlightRecorderContainerName):      "/opt/datadog-agent/embedded/bin/flightrecorder",
-		string(apicommon.PrivateActionRunnerContainerName): "/opt/datadog-agent/embedded/bin/privateactionrunner",
-	}
-	want := expected[container.Name]
+	want := preparedRolloutContainerCommands[container.Name]
 	if container.Name == string(apicommon.TraceAgentContainerName) {
 		return slices.Contains(container.Command, want)
 	}

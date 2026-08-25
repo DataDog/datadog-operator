@@ -181,10 +181,8 @@ func TestPreparedMissingInitializedGreenChildIsRecreated(t *testing.T) {
 	createPreparedServingPod(t, ctx, fakeClient, blue, node.Name)
 
 	r := NewReconciler(ReconcilerOptions{}, fakeClient, kubernetes.PlatformInfo{}, scheme, record.NewFakeRecorder(100), nil)
-	for range 1 {
-		_, err := r.reconcilePreparedDaemonSetPair(ctx, ddai, rendered.DeepCopy(), intstr.FromInt(1), &datadoghqv1alpha1.DatadogAgentInternalStatus{})
-		require.NoError(t, err)
-	}
+	_, err := r.reconcilePreparedDaemonSetPair(ctx, ddai, rendered.DeepCopy(), intstr.FromInt(1), &datadoghqv1alpha1.DatadogAgentInternalStatus{})
+	require.NoError(t, err)
 	green := &appsv1.DaemonSet{}
 	require.NoError(t, fakeClient.Get(ctx, types.NamespacedName{Namespace: rendered.Namespace, Name: suffixedKubernetesName(rendered.Name, "-green")}, green))
 	assert.Equal(t, preparedBlueGreenArmed, green.Annotations[preparedRolloutPairInitializedAnnotation])
@@ -714,7 +712,7 @@ func TestPreparedContainerTopologyCannotChangeAfterArming(t *testing.T) {
 
 func TestPreparedInitializedPairRejectsImmutableSelectorChange(t *testing.T) {
 	pair := preparedTestPair()
-	for _, ds := range []*appsv1.DaemonSet{pair.blue, pair.green} {
+	for _, ds := range pair.daemonSets() {
 		ds.Annotations[preparedRolloutPairInitializedAnnotation] = preparedBlueGreenArmed
 		ds.Spec.Selector = &metav1.LabelSelector{MatchLabels: map[string]string{"slot": ds.Name}}
 	}
@@ -1493,7 +1491,7 @@ func TestPreparedFailedTargetOnUncoveredNodeCanBeReplaced(t *testing.T) {
 	key := "example.com/slot"
 	node := preparedNode("newly-eligible", key, rolloutTransitionValue(rolloutSlotBlue, rolloutSlotGreen))
 	pair := preparedTestPair()
-	for _, ds := range []*appsv1.DaemonSet{pair.blue, pair.green} {
+	for _, ds := range pair.daemonSets() {
 		ds.Annotations = map[string]string{
 			preparedRolloutTargetSlotAnnotation:     rolloutSlotGreen,
 			preparedRolloutTargetRevisionAnnotation: "failed-revision",
@@ -1744,7 +1742,7 @@ func TestPreparedPairRecoversWhenCompletionSecondPatchFails(t *testing.T) {
 	pair := preparedTestPair()
 	pair.blue.Namespace = "default"
 	pair.green.Namespace = "default"
-	for _, ds := range []*appsv1.DaemonSet{pair.blue, pair.green} {
+	for _, ds := range pair.daemonSets() {
 		ds.Annotations[preparedRolloutActiveSlotAnnotation] = rolloutSlotGreen
 		ds.Annotations[preparedRolloutTargetSlotAnnotation] = rolloutSlotBlue
 		ds.Annotations[preparedRolloutTargetRevisionAnnotation] = "revision-2"
