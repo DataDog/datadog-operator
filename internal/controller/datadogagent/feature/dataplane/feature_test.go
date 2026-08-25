@@ -230,6 +230,24 @@ func Test_dataPlaneFeature(t *testing.T) {
 	tests.Run(t, buildDataPlaneFeature)
 }
 
+func TestDataPlaneFeatureManageSingleContainerNodeAgent(t *testing.T) {
+	managers := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{})
+	feature := &dataPlaneFeature{enabled: true, dogstatsdEnabled: true}
+
+	assert.NoError(t, feature.ManageSingleContainerNodeAgent(managers))
+	assert.ElementsMatch(t, []*corev1.EnvVar{
+		{Name: common.DDDataPlaneEnabled, Value: "true"},
+		{Name: common.DDDataPlaneRemoteAgentEnabled, Value: "true"},
+		{Name: common.DDDataPlaneUseNewConfigStreamEndpoint, Value: "true"},
+		{Name: common.DDDataPlaneDogstatsdEnabled, Value: "true"},
+	}, managers.EnvVarMgr.EnvVarsByC[apicommon.UnprivilegedSingleAgentContainerName])
+
+	disabledManagers := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{})
+	disabledFeature := &dataPlaneFeature{}
+	assert.NoError(t, disabledFeature.ManageSingleContainerNodeAgent(disabledManagers))
+	assert.Empty(t, disabledManagers.EnvVarMgr.EnvVarsByC[apicommon.UnprivilegedSingleAgentContainerName])
+}
+
 func TestDataPlaneFeatureLogsLegacyAnnotationDeprecation(t *testing.T) {
 	for _, annotationValue := range []string{"true", "false"} {
 		t.Run(annotationValue, func(t *testing.T) {
