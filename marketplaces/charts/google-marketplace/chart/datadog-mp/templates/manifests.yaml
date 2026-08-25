@@ -1431,8 +1431,9 @@ spec:
                           type: object
                         enabled:
                           description: |-
-                            Enabled enables the Data Plane.
-                            Default: false
+                            Enabled explicitly enables or disables the Data Plane.
+                            When unset, the Operator applies its configured Linux default after considering the legacy annotation.
+                            Default: unset; the Operator default is false unless configured otherwise.
                           type: boolean
                       type: object
                     dogstatsd:
@@ -1537,6 +1538,15 @@ spec:
                               description: Path defines the socket path used when enabled.
                               type: string
                           type: object
+                      type: object
+                    dynamicInstrumentation:
+                      description: DynamicInstrumentation configuration.
+                      properties:
+                        enabled:
+                          description: |-
+                            Enabled enables the Dynamic Instrumentation system probe module.
+                            Default: false
+                          type: boolean
                       type: object
                     ebpfCheck:
                       description: EBPFCheck configuration.
@@ -1688,7 +1698,10 @@ spec:
                           type: boolean
                         privilegedMode:
                           description: |-
-                            PrivilegedMode enables GPU Probe module in System Probe.
+                            PrivilegedMode enables GPU Probe module in System Probe. The module's eBPF
+                            probes are disabled; privileged mode is retained for cgroup permission patching.
+                            To re-enable the eBPF probes, set DD_GPU_MONITORING_ENABLE_EBPF_PROBES=true on the
+                            core agent and system-probe containers via spec.override.nodeAgent.containers.
                             Default: false
                           type: boolean
                         requiredRuntimeClassName:
@@ -1934,6 +1947,15 @@ spec:
                           description: |-
                             Enabled enables Kube State Metrics Core.
                             Default: true
+                          type: boolean
+                      type: object
+                    kubernetesActions:
+                      description: KubernetesActions configuration.
+                      properties:
+                        enabled:
+                          description: |-
+                            Enabled enables the Kubernetes Actions feature on the Cluster Agent.
+                            Default: false
                           type: boolean
                       type: object
                     liveContainerCollection:
@@ -2587,6 +2609,18 @@ spec:
                     clusterName:
                       description: ClusterName sets a unique cluster name for the deployment to easily scope monitoring data in the Datadog app.
                       type: string
+                    commonLabels:
+                      additionalProperties:
+                        type: string
+                      description: |-
+                        CommonLabels specified labels to be added to all operator-managed Kubernetes resources
+                        (DaemonSets, Deployments, ConfigMaps, Services, ServiceAccounts, etc.).
+                        This is useful when external policy tools such as Kyverno enforce the presence of
+                        specific labels on all cluster resources.
+                        Labels defined here are merged with the operator's own default labels; operator labels
+                        take precedence on any key conflict.
+                      type: object
+                      x-kubernetes-map-type: granular
                     containerStrategy:
                       description: |-
                         ContainerStrategy determines whether agents run in a single or multiple containers.
@@ -2641,6 +2675,34 @@ spec:
                     csi:
                       description: CSI contains configuration for Datadog CSI Driver
                       properties:
+                        apm:
+                          description: APM configures APM/Single Step Instrumentation settings for the managed CSI driver.
+                          properties:
+                            pullSecrets:
+                              description: |-
+                                PullSecrets are kubernetes.io/dockerconfigjson Secrets used to download APM
+                                libraries from private registries. Propagated to the managed DatadogCSIDriver as
+                                spec.apm.pullSecrets. Restart the CSI DaemonSet after rotating these Secrets.
+                                Not supported on GKE Autopilot.
+                              items:
+                                description: |-
+                                  LocalObjectReference contains enough information to let you locate the
+                                  referenced object inside the same namespace.
+                                properties:
+                                  name:
+                                    default: ""
+                                    description: |-
+                                      Name of the referent.
+                                      This field is effectively required, but due to backwards compatibility is
+                                      allowed to be empty. Instances of this type with an empty value here are
+                                      almost certainly wrong.
+                                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                    type: string
+                                type: object
+                                x-kubernetes-map-type: atomic
+                              type: array
+                              x-kubernetes-list-type: atomic
+                          type: object
                         autoManage:
                           description: |-
                             AutoManage controls whether the operator automatically manages the DatadogCSIDriver
@@ -3593,7 +3655,7 @@ spec:
                         Use 'eu.gcr.io/datadoghq' for Google Container Registry in the EU region.
                         Use 'asia.gcr.io/datadoghq' for Google Container Registry in the Asia region.
                         Use 'docker.io/datadog' for DockerHub.
-                        Default: 'gcr.io/datadoghq'
+                        Default: 'registry.datadoghq.com'
                       type: string
                     secretBackend:
                       description: |-
@@ -3610,7 +3672,7 @@ spec:
                           type: string
                         config:
                           additionalProperties:
-                            type: string
+                            x-kubernetes-preserve-unknown-fields: true
                           description: Additional configuration for the secret backend type.
                           type: object
                         enableGlobalPermissions:
@@ -5738,9 +5800,9 @@ spec:
                               type: object
                           type: object
                         description: |-
-                          CustomConfiguration allows to specify custom configuration files for `datadog.yaml`, `datadog-cluster.yaml`, `security-agent.yaml`, and `system-probe.yaml`.
-                          The content is merged with configuration generated by the Datadog Operator, with priority given to custom configuration.
-                          WARNING: It is possible to override values set in the `DatadogAgent`.
+                          CustomConfigurations specifies custom contents for `datadog.yaml`, `datadog-cluster.yaml`, `security-agent.yaml`, and `system-probe.yaml`.
+                          Each provided file replaces the corresponding default file from the Agent image without merging.
+                          Agent settings provided through environment variables take precedence over these files.
                         type: object
                       disabled:
                         description: Disabled force disables a component.
@@ -10138,8 +10200,9 @@ spec:
                               type: object
                             enabled:
                               description: |-
-                                Enabled enables the Data Plane.
-                                Default: false
+                                Enabled explicitly enables or disables the Data Plane.
+                                When unset, the Operator applies its configured Linux default after considering the legacy annotation.
+                                Default: unset; the Operator default is false unless configured otherwise.
                               type: boolean
                           type: object
                         dogstatsd:
@@ -10244,6 +10307,15 @@ spec:
                                   description: Path defines the socket path used when enabled.
                                   type: string
                               type: object
+                          type: object
+                        dynamicInstrumentation:
+                          description: DynamicInstrumentation configuration.
+                          properties:
+                            enabled:
+                              description: |-
+                                Enabled enables the Dynamic Instrumentation system probe module.
+                                Default: false
+                              type: boolean
                           type: object
                         ebpfCheck:
                           description: EBPFCheck configuration.
@@ -10395,7 +10467,10 @@ spec:
                               type: boolean
                             privilegedMode:
                               description: |-
-                                PrivilegedMode enables GPU Probe module in System Probe.
+                                PrivilegedMode enables GPU Probe module in System Probe. The module's eBPF
+                                probes are disabled; privileged mode is retained for cgroup permission patching.
+                                To re-enable the eBPF probes, set DD_GPU_MONITORING_ENABLE_EBPF_PROBES=true on the
+                                core agent and system-probe containers via spec.override.nodeAgent.containers.
                                 Default: false
                               type: boolean
                             requiredRuntimeClassName:
@@ -10641,6 +10716,15 @@ spec:
                               description: |-
                                 Enabled enables Kube State Metrics Core.
                                 Default: true
+                              type: boolean
+                          type: object
+                        kubernetesActions:
+                          description: KubernetesActions configuration.
+                          properties:
+                            enabled:
+                              description: |-
+                                Enabled enables the Kubernetes Actions feature on the Cluster Agent.
+                                Default: false
                               type: boolean
                           type: object
                         liveContainerCollection:
@@ -12706,8 +12790,9 @@ spec:
                               type: object
                             enabled:
                               description: |-
-                                Enabled enables the Data Plane.
-                                Default: false
+                                Enabled explicitly enables or disables the Data Plane.
+                                When unset, the Operator applies its configured Linux default after considering the legacy annotation.
+                                Default: unset; the Operator default is false unless configured otherwise.
                               type: boolean
                           type: object
                         dogstatsd:
@@ -12812,6 +12897,15 @@ spec:
                                   description: Path defines the socket path used when enabled.
                                   type: string
                               type: object
+                          type: object
+                        dynamicInstrumentation:
+                          description: DynamicInstrumentation configuration.
+                          properties:
+                            enabled:
+                              description: |-
+                                Enabled enables the Dynamic Instrumentation system probe module.
+                                Default: false
+                              type: boolean
                           type: object
                         ebpfCheck:
                           description: EBPFCheck configuration.
@@ -12963,7 +13057,10 @@ spec:
                               type: boolean
                             privilegedMode:
                               description: |-
-                                PrivilegedMode enables GPU Probe module in System Probe.
+                                PrivilegedMode enables GPU Probe module in System Probe. The module's eBPF
+                                probes are disabled; privileged mode is retained for cgroup permission patching.
+                                To re-enable the eBPF probes, set DD_GPU_MONITORING_ENABLE_EBPF_PROBES=true on the
+                                core agent and system-probe containers via spec.override.nodeAgent.containers.
                                 Default: false
                               type: boolean
                             requiredRuntimeClassName:
@@ -13209,6 +13306,15 @@ spec:
                               description: |-
                                 Enabled enables Kube State Metrics Core.
                                 Default: true
+                              type: boolean
+                          type: object
+                        kubernetesActions:
+                          description: KubernetesActions configuration.
+                          properties:
+                            enabled:
+                              description: |-
+                                Enabled enables the Kubernetes Actions feature on the Cluster Agent.
+                                Default: false
                               type: boolean
                           type: object
                         liveContainerCollection:
@@ -13862,6 +13968,18 @@ spec:
                         clusterName:
                           description: ClusterName sets a unique cluster name for the deployment to easily scope monitoring data in the Datadog app.
                           type: string
+                        commonLabels:
+                          additionalProperties:
+                            type: string
+                          description: |-
+                            CommonLabels specified labels to be added to all operator-managed Kubernetes resources
+                            (DaemonSets, Deployments, ConfigMaps, Services, ServiceAccounts, etc.).
+                            This is useful when external policy tools such as Kyverno enforce the presence of
+                            specific labels on all cluster resources.
+                            Labels defined here are merged with the operator's own default labels; operator labels
+                            take precedence on any key conflict.
+                          type: object
+                          x-kubernetes-map-type: granular
                         containerStrategy:
                           description: |-
                             ContainerStrategy determines whether agents run in a single or multiple containers.
@@ -13916,6 +14034,34 @@ spec:
                         csi:
                           description: CSI contains configuration for Datadog CSI Driver
                           properties:
+                            apm:
+                              description: APM configures APM/Single Step Instrumentation settings for the managed CSI driver.
+                              properties:
+                                pullSecrets:
+                                  description: |-
+                                    PullSecrets are kubernetes.io/dockerconfigjson Secrets used to download APM
+                                    libraries from private registries. Propagated to the managed DatadogCSIDriver as
+                                    spec.apm.pullSecrets. Restart the CSI DaemonSet after rotating these Secrets.
+                                    Not supported on GKE Autopilot.
+                                  items:
+                                    description: |-
+                                      LocalObjectReference contains enough information to let you locate the
+                                      referenced object inside the same namespace.
+                                    properties:
+                                      name:
+                                        default: ""
+                                        description: |-
+                                          Name of the referent.
+                                          This field is effectively required, but due to backwards compatibility is
+                                          allowed to be empty. Instances of this type with an empty value here are
+                                          almost certainly wrong.
+                                          More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                        type: string
+                                    type: object
+                                    x-kubernetes-map-type: atomic
+                                  type: array
+                                  x-kubernetes-list-type: atomic
+                              type: object
                             autoManage:
                               description: |-
                                 AutoManage controls whether the operator automatically manages the DatadogCSIDriver
@@ -14868,7 +15014,7 @@ spec:
                             Use 'eu.gcr.io/datadoghq' for Google Container Registry in the EU region.
                             Use 'asia.gcr.io/datadoghq' for Google Container Registry in the Asia region.
                             Use 'docker.io/datadog' for DockerHub.
-                            Default: 'gcr.io/datadoghq'
+                            Default: 'registry.datadoghq.com'
                           type: string
                         secretBackend:
                           description: |-
@@ -14885,7 +15031,7 @@ spec:
                               type: string
                             config:
                               additionalProperties:
-                                type: string
+                                x-kubernetes-preserve-unknown-fields: true
                               description: Additional configuration for the secret backend type.
                               type: object
                             enableGlobalPermissions:
@@ -17013,9 +17159,9 @@ spec:
                                   type: object
                               type: object
                             description: |-
-                              CustomConfiguration allows to specify custom configuration files for `datadog.yaml`, `datadog-cluster.yaml`, `security-agent.yaml`, and `system-probe.yaml`.
-                              The content is merged with configuration generated by the Datadog Operator, with priority given to custom configuration.
-                              WARNING: It is possible to override values set in the `DatadogAgent`.
+                              CustomConfigurations specifies custom contents for `datadog.yaml`, `datadog-cluster.yaml`, `security-agent.yaml`, and `system-probe.yaml`.
+                              Each provided file replaces the corresponding default file from the Agent image without merging.
+                              Agent settings provided through environment variables take precedence over these files.
                             type: object
                           disabled:
                             description: Disabled force disables a component.
@@ -21356,8 +21502,9 @@ spec:
                           type: object
                         enabled:
                           description: |-
-                            Enabled enables the Data Plane.
-                            Default: false
+                            Enabled explicitly enables or disables the Data Plane.
+                            When unset, the Operator applies its configured Linux default after considering the legacy annotation.
+                            Default: unset; the Operator default is false unless configured otherwise.
                           type: boolean
                       type: object
                     dogstatsd:
@@ -21462,6 +21609,15 @@ spec:
                               description: Path defines the socket path used when enabled.
                               type: string
                           type: object
+                      type: object
+                    dynamicInstrumentation:
+                      description: DynamicInstrumentation configuration.
+                      properties:
+                        enabled:
+                          description: |-
+                            Enabled enables the Dynamic Instrumentation system probe module.
+                            Default: false
+                          type: boolean
                       type: object
                     ebpfCheck:
                       description: EBPFCheck configuration.
@@ -21613,7 +21769,10 @@ spec:
                           type: boolean
                         privilegedMode:
                           description: |-
-                            PrivilegedMode enables GPU Probe module in System Probe.
+                            PrivilegedMode enables GPU Probe module in System Probe. The module's eBPF
+                            probes are disabled; privileged mode is retained for cgroup permission patching.
+                            To re-enable the eBPF probes, set DD_GPU_MONITORING_ENABLE_EBPF_PROBES=true on the
+                            core agent and system-probe containers via spec.override.nodeAgent.containers.
                             Default: false
                           type: boolean
                         requiredRuntimeClassName:
@@ -21859,6 +22018,15 @@ spec:
                           description: |-
                             Enabled enables Kube State Metrics Core.
                             Default: true
+                          type: boolean
+                      type: object
+                    kubernetesActions:
+                      description: KubernetesActions configuration.
+                      properties:
+                        enabled:
+                          description: |-
+                            Enabled enables the Kubernetes Actions feature on the Cluster Agent.
+                            Default: false
                           type: boolean
                       type: object
                     liveContainerCollection:
@@ -22512,6 +22680,18 @@ spec:
                     clusterName:
                       description: ClusterName sets a unique cluster name for the deployment to easily scope monitoring data in the Datadog app.
                       type: string
+                    commonLabels:
+                      additionalProperties:
+                        type: string
+                      description: |-
+                        CommonLabels specified labels to be added to all operator-managed Kubernetes resources
+                        (DaemonSets, Deployments, ConfigMaps, Services, ServiceAccounts, etc.).
+                        This is useful when external policy tools such as Kyverno enforce the presence of
+                        specific labels on all cluster resources.
+                        Labels defined here are merged with the operator's own default labels; operator labels
+                        take precedence on any key conflict.
+                      type: object
+                      x-kubernetes-map-type: granular
                     containerStrategy:
                       description: |-
                         ContainerStrategy determines whether agents run in a single or multiple containers.
@@ -22566,6 +22746,34 @@ spec:
                     csi:
                       description: CSI contains configuration for Datadog CSI Driver
                       properties:
+                        apm:
+                          description: APM configures APM/Single Step Instrumentation settings for the managed CSI driver.
+                          properties:
+                            pullSecrets:
+                              description: |-
+                                PullSecrets are kubernetes.io/dockerconfigjson Secrets used to download APM
+                                libraries from private registries. Propagated to the managed DatadogCSIDriver as
+                                spec.apm.pullSecrets. Restart the CSI DaemonSet after rotating these Secrets.
+                                Not supported on GKE Autopilot.
+                              items:
+                                description: |-
+                                  LocalObjectReference contains enough information to let you locate the
+                                  referenced object inside the same namespace.
+                                properties:
+                                  name:
+                                    default: ""
+                                    description: |-
+                                      Name of the referent.
+                                      This field is effectively required, but due to backwards compatibility is
+                                      allowed to be empty. Instances of this type with an empty value here are
+                                      almost certainly wrong.
+                                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                    type: string
+                                type: object
+                                x-kubernetes-map-type: atomic
+                              type: array
+                              x-kubernetes-list-type: atomic
+                          type: object
                         autoManage:
                           description: |-
                             AutoManage controls whether the operator automatically manages the DatadogCSIDriver
@@ -23518,7 +23726,7 @@ spec:
                         Use 'eu.gcr.io/datadoghq' for Google Container Registry in the EU region.
                         Use 'asia.gcr.io/datadoghq' for Google Container Registry in the Asia region.
                         Use 'docker.io/datadog' for DockerHub.
-                        Default: 'gcr.io/datadoghq'
+                        Default: 'registry.datadoghq.com'
                       type: string
                     secretBackend:
                       description: |-
@@ -23535,7 +23743,7 @@ spec:
                           type: string
                         config:
                           additionalProperties:
-                            type: string
+                            x-kubernetes-preserve-unknown-fields: true
                           description: Additional configuration for the secret backend type.
                           type: object
                         enableGlobalPermissions:
@@ -25663,9 +25871,9 @@ spec:
                               type: object
                           type: object
                         description: |-
-                          CustomConfiguration allows to specify custom configuration files for `datadog.yaml`, `datadog-cluster.yaml`, `security-agent.yaml`, and `system-probe.yaml`.
-                          The content is merged with configuration generated by the Datadog Operator, with priority given to custom configuration.
-                          WARNING: It is possible to override values set in the `DatadogAgent`.
+                          CustomConfigurations specifies custom contents for `datadog.yaml`, `datadog-cluster.yaml`, `security-agent.yaml`, and `system-probe.yaml`.
+                          Each provided file replaces the corresponding default file from the Agent image without merging.
+                          Agent settings provided through environment variables take precedence over these files.
                         type: object
                       disabled:
                         description: Disabled force disables a component.
@@ -28626,6 +28834,12 @@ spec:
                       format: int32
                       type: integer
                   type: object
+                clusterProvider:
+                  description: |-
+                    ClusterProvider is the detected (or user-specified) cluster provider used to
+                    apply provider-specific configuration (e.g. control plane monitoring). Empty
+                    means no provider was detected or configured.
+                  type: string
                 conditions:
                   description: Conditions Represents the latest available observations of a DatadogAgent's current state.
                   items:
@@ -30152,8 +30366,9 @@ spec:
                               type: object
                             enabled:
                               description: |-
-                                Enabled enables the Data Plane.
-                                Default: false
+                                Enabled explicitly enables or disables the Data Plane.
+                                When unset, the Operator applies its configured Linux default after considering the legacy annotation.
+                                Default: unset; the Operator default is false unless configured otherwise.
                               type: boolean
                           type: object
                         dogstatsd:
@@ -30258,6 +30473,15 @@ spec:
                                   description: Path defines the socket path used when enabled.
                                   type: string
                               type: object
+                          type: object
+                        dynamicInstrumentation:
+                          description: DynamicInstrumentation configuration.
+                          properties:
+                            enabled:
+                              description: |-
+                                Enabled enables the Dynamic Instrumentation system probe module.
+                                Default: false
+                              type: boolean
                           type: object
                         ebpfCheck:
                           description: EBPFCheck configuration.
@@ -30409,7 +30633,10 @@ spec:
                               type: boolean
                             privilegedMode:
                               description: |-
-                                PrivilegedMode enables GPU Probe module in System Probe.
+                                PrivilegedMode enables GPU Probe module in System Probe. The module's eBPF
+                                probes are disabled; privileged mode is retained for cgroup permission patching.
+                                To re-enable the eBPF probes, set DD_GPU_MONITORING_ENABLE_EBPF_PROBES=true on the
+                                core agent and system-probe containers via spec.override.nodeAgent.containers.
                                 Default: false
                               type: boolean
                             requiredRuntimeClassName:
@@ -30655,6 +30882,15 @@ spec:
                               description: |-
                                 Enabled enables Kube State Metrics Core.
                                 Default: true
+                              type: boolean
+                          type: object
+                        kubernetesActions:
+                          description: KubernetesActions configuration.
+                          properties:
+                            enabled:
+                              description: |-
+                                Enabled enables the Kubernetes Actions feature on the Cluster Agent.
+                                Default: false
                               type: boolean
                           type: object
                         liveContainerCollection:
@@ -31345,12 +31581,48 @@ spec:
                         Enabled enables APM/Single Step Instrumentation support for the CSI driver.
                         Default: true
                       type: boolean
+                    pullSecrets:
+                      description: |-
+                        PullSecrets are kubernetes.io/dockerconfigjson Secrets used to download APM
+                        libraries from private registries. When empty, the CSI driver falls back to
+                        csiDriverImage.pullSecrets; legacy kubernetes.io/dockercfg Secrets are ignored
+                        for APM authentication in that fallback path. Restart the CSI DaemonSet after
+                        rotating these Secrets. Not supported on GKE Autopilot.
+                      items:
+                        description: |-
+                          LocalObjectReference contains enough information to let you locate the
+                          referenced object inside the same namespace.
+                        properties:
+                          name:
+                            default: ""
+                            description: |-
+                              Name of the referent.
+                              This field is effectively required, but due to backwards compatibility is
+                              allowed to be empty. Instances of this type with an empty value here are
+                              almost certainly wrong.
+                              More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                            type: string
+                        type: object
+                        x-kubernetes-map-type: atomic
+                      type: array
+                      x-kubernetes-list-type: atomic
                   type: object
                 apmSocketPath:
                   description: |-
                     APMSocketPath is the host path to the APM socket.
                     Default: /var/run/datadog/apm.socket
                   type: string
+                commonLabels:
+                  additionalProperties:
+                    type: string
+                  description: |-
+                    CommonLabels are propagated from spec.global.commonLabels on the parent
+                    DatadogAgent and are applied to all resources managed by the CSI
+                    controller (DaemonSet ObjectMeta, pod template, and cluster-scoped
+                    CSIDriver object). This field is managed by the operator; do not set it
+                    manually.
+                  type: object
+                  x-kubernetes-map-type: granular
                 csiDriverImage:
                   description: CSIDriverImage is the image configuration for the main CSI node driver container.
                   properties:
@@ -36108,6 +36380,7 @@ spec:
                     - dashboard
                     - downtime
                     - monitor
+                    - monitor_notification_rule
                     - notebook
                     - slo
                     - synthetics_api_test
@@ -36287,12 +36560,9 @@ spec:
                       items:
                         description: DatadogInstrumentationCheckConfig defines an Autodiscovery check configuration.
                         properties:
-                          containerImage:
-                            description: ContainerImage identifies container image names this check applies to.
-                            items:
-                              type: string
-                            type: array
-                            x-kubernetes-list-type: set
+                          containerName:
+                            description: ContainerName identifies the container name this check applies to.
+                            type: string
                           initConfig:
                             description: InitConfig is the integration-specific Autodiscovery init_config payload.
                             type: object
@@ -36307,80 +36577,196 @@ spec:
                           integration:
                             description: Integration is the Datadog integration name, for example redisdb.
                             type: string
-                          logs:
-                            description: Logs contains log collection configuration payloads for this integration.
+                        required:
+                          - integration
+                        type: object
+                      type: array
+                      x-kubernetes-list-type: atomic
+                    logs:
+                      description: Logs configures Datadog Agent log collection for the target workload.
+                      items:
+                        description: DatadogInstrumentationLogConfig defines Agent log collection configuration fields.
+                        properties:
+                          allowed_ips:
+                            description: AllowedIPs lists IP addresses or CIDR ranges allowed to send TCP or UDP logs.
                             items:
-                              description: DatadogInstrumentationLogConfig defines Agent log collection configuration fields.
+                              type: string
+                            type: array
+                            x-kubernetes-list-type: set
+                          attribute_parsing:
+                            description: AttributeParsing controls whether the full syslog parser is enabled for this source.
+                            type: boolean
+                          auto_multi_line:
+                            description: AutoMultiLine defines detailed automatic multi-line detection options for this source.
+                            properties:
+                              enable_datetime_detection:
+                                description: EnableDatetimeDetection controls detection of multi-line logs based on leading timestamps.
+                                type: boolean
+                              enable_json_aggregation:
+                                description: EnableJSONAggregation controls aggregation of multi-line JSON logs.
+                                type: boolean
+                              enable_json_detection:
+                                description: EnableJSONDetection controls detection of JSON logs so they are not aggregated as unstructured multi-line logs.
+                                type: boolean
+                              pattern_table_max_size:
+                                description: PatternTableMaxSize sets the maximum number of patterns used by automatic multi-line detection.
+                                format: int32
+                                minimum: 1
+                                type: integer
+                              stack_trace_parsers:
+                                description: StackTraceParsers overrides the enabled stack trace parsers. An empty list disables stack trace aggregation.
+                                items:
+                                  type: string
+                                type: array
+                                x-kubernetes-list-type: atomic
+                              tag_aggregated_json:
+                                description: TagAggregatedJSON controls whether aggregated JSON logs are tagged.
+                                type: boolean
+                              tokenizer_max_input_bytes:
+                                description: TokenizerMaxInputBytes sets the maximum number of bytes tokenized from each log line.
+                                format: int32
+                                type: integer
+                            type: object
+                          auto_multi_line_detection:
+                            description: AutoMultiLineDetection enables automatic multi-line detection for this source.
+                            type: boolean
+                          auto_multi_line_detection_custom_samples:
+                            description: AutoMultiLineDetectionCustomSamples defines samples and regular expressions used by automatic multi-line detection.
+                            items:
+                              description: DatadogInstrumentationLogAutoMultiLineSample defines a sample or regular expression used by automatic multi-line detection.
                               properties:
-                                channel_path:
-                                  description: ChannelPath is the Windows event channel path when type is windows_event.
+                                label:
+                                  description: Label is applied when the sample or regular expression matches.
                                   type: string
-                                encoding:
-                                  description: |-
-                                    Encoding sets the file encoding when type is file.
-                                    Common values include utf-16-le, utf-16-be, and shift-jis.
+                                regex:
+                                  description: Regex is a regular expression used to identify the start of a multi-line log.
                                   type: string
-                                exclude_paths:
-                                  description: ExcludePaths lists matching files to exclude when type is file and path contains a wildcard.
-                                  items:
-                                    type: string
-                                  type: array
-                                  x-kubernetes-list-type: set
-                                exclude_units:
-                                  description: ExcludeUnits lists journald units to exclude when type is journald.
-                                  items:
-                                    type: string
-                                  type: array
-                                  x-kubernetes-list-type: set
-                                include_units:
-                                  description: IncludeUnits lists journald units to include when type is journald.
-                                  items:
-                                    type: string
-                                  type: array
-                                  x-kubernetes-list-type: set
-                                log_processing_rules:
-                                  description: LogProcessingRules contains Agent log processing rules for this log source.
-                                  items:
-                                    type: object
-                                    x-kubernetes-preserve-unknown-fields: true
-                                  type: array
-                                  x-kubernetes-list-type: atomic
-                                path:
-                                  description: Path is the file path for gathering logs when type is file or journald.
+                                sample:
+                                  description: Sample is a representative raw log message used to identify the start of a multi-line log.
                                   type: string
-                                port:
-                                  description: Port is the port for listening to logs when type is tcp or udp.
-                                  format: int32
-                                  type: integer
-                                service:
-                                  description: Service sets the log service name.
-                                  type: string
-                                source:
-                                  description: Source sets the log source name.
-                                  type: string
-                                sourcecategory:
-                                  description: SourceCategory sets the source category attribute.
-                                  type: string
-                                start_position:
-                                  description: |-
-                                    StartPosition sets where the Agent starts reading for file and journald tailers.
-                                    Common values include beginning, end, forceBeginning, and forceEnd.
-                                  type: string
-                                tags:
-                                  description: Tags sets additional tags on collected logs.
-                                  items:
-                                    type: string
-                                  type: array
-                                  x-kubernetes-list-type: set
-                                type:
-                                  description: Type is the type of log input source. Common values include tcp, udp, file, windows_event, docker, and journald.
-                                  type: string
+                              type: object
+                            type: array
+                            x-kubernetes-list-type: atomic
+                          bind_host:
+                            description: BindHost is the host or IP address on which a TCP or UDP log source listens.
+                            type: string
+                          channel_path:
+                            description: ChannelPath is the Windows event channel path when type is windows_event.
+                            type: string
+                          containerName:
+                            description: ContainerName identifies the container name this log configuration applies to.
+                            type: string
+                          denied_ips:
+                            description: DeniedIPs lists IP addresses or CIDR ranges denied from sending TCP or UDP logs.
+                            items:
+                              type: string
+                            type: array
+                            x-kubernetes-list-type: set
+                          encoding:
+                            description: |-
+                              Encoding sets the file encoding when type is file.
+                              Common values include utf-16-le, utf-16-be, and shift-jis.
+                            type: string
+                          exclude_paths:
+                            description: ExcludePaths lists matching files to exclude when type is file and path contains a wildcard.
+                            items:
+                              type: string
+                            type: array
+                            x-kubernetes-list-type: set
+                          exclude_units:
+                            description: ExcludeUnits lists journald units to exclude when type is journald.
+                            items:
+                              type: string
+                            type: array
+                            x-kubernetes-list-type: set
+                          fingerprint_config:
+                            description: FingerprintConfig defines per-source file fingerprinting options.
+                            properties:
+                              count:
+                                description: Count is the number of lines or bytes used to compute the fingerprint.
+                                format: int32
+                                minimum: 1
+                                type: integer
+                              count_to_skip:
+                                description: CountToSkip is the number of lines or bytes skipped before computing the fingerprint.
+                                format: int32
+                                minimum: 0
+                                type: integer
+                              fingerprint_strategy:
+                                description: FingerprintStrategy sets the fingerprinting strategy.
+                                enum:
+                                  - line_checksum
+                                  - byte_checksum
+                                  - disabled
+                                type: string
+                              max_bytes:
+                                description: MaxBytes limits the number of bytes used for line-based fingerprinting.
+                                format: int32
+                                minimum: 1
+                                type: integer
+                            required:
+                              - fingerprint_strategy
+                            type: object
+                          format:
+                            description: Format sets the parsing format for this log source. The supported structured format is syslog.
+                            type: string
+                          idle_timeout:
+                            description: IdleTimeout is the duration before an idle TCP connection is closed.
+                            type: string
+                          include_units:
+                            description: IncludeUnits lists journald units to include when type is journald.
+                            items:
+                              type: string
+                            type: array
+                            x-kubernetes-list-type: set
+                          log_processing_rules:
+                            description: LogProcessingRules contains Agent log processing rules for this log source.
+                            items:
                               type: object
                               x-kubernetes-preserve-unknown-fields: true
                             type: array
                             x-kubernetes-list-type: atomic
+                          max_connections:
+                            description: MaxConnections is the maximum number of concurrent TCP connections.
+                            format: int32
+                            type: integer
+                          max_message_size_bytes:
+                            description: MaxMessageSizeBytes overrides the global maximum message size for this source.
+                            format: int32
+                            minimum: 1
+                            type: integer
+                          path:
+                            description: Path is the file path for gathering logs when type is file or journald.
+                            type: string
+                          port:
+                            description: Port is the port for listening to logs when type is tcp or udp.
+                            format: int32
+                            type: integer
+                          service:
+                            description: Service sets the log service name.
+                            type: string
+                          source:
+                            description: Source sets the log source name.
+                            type: string
+                          sourcecategory:
+                            description: SourceCategory sets the source category attribute.
+                            type: string
+                          start_position:
+                            description: |-
+                              StartPosition sets where the Agent starts reading for file and journald tailers.
+                              Common values include beginning, end, forceBeginning, and forceEnd.
+                            type: string
+                          tags:
+                            description: Tags sets additional tags on collected logs.
+                            items:
+                              type: string
+                            type: array
+                            x-kubernetes-list-type: set
+                          type:
+                            description: Type is the type of log input source. Common values include tcp, udp, file, windows_event, docker, and journald.
+                            type: string
                         required:
-                          - integration
+                          - containerName
                         type: object
                       type: array
                       x-kubernetes-list-type: atomic
@@ -38681,6 +39067,13 @@ spec:
                                   x-kubernetes-int-or-string: true
                                 description: Requests describes the requested amount of compute resources.
                                 type: object
+                              runtime:
+                                description: Runtime holds extensible runtime configuration for the container.
+                                properties:
+                                  gomemlimit:
+                                    description: Gomemlimit is the GOMEMLIMIT environment variable value for the container.
+                                    type: string
+                                type: object
                             required:
                               - name
                             type: object
@@ -39767,6 +40160,13 @@ spec:
                                   pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                   x-kubernetes-int-or-string: true
                                 description: Requests describes the requested amount of compute resources.
+                                type: object
+                              runtime:
+                                description: Runtime holds extensible runtime configuration for the container.
+                                properties:
+                                  gomemlimit:
+                                    description: Gomemlimit is the GOMEMLIMIT environment variable value for the container.
+                                    type: string
                                 type: object
                             required:
                               - name
