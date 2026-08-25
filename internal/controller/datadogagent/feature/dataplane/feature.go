@@ -86,7 +86,37 @@ func (f *dataPlaneFeature) ManageClusterAgent(managers feature.PodTemplateManage
 // if SingleContainerStrategy is enabled and can be used with the configured feature set.
 // It should do nothing if the feature doesn't need to configure it.
 func (f *dataPlaneFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers) error {
-	return f.ManageNodeAgent(managers)
+	if !f.enabled {
+		return nil
+	}
+
+	// The single Agent container runs both Core and ADP processes under s6, so their
+	// interaction flags must be available to both processes in the shared environment.
+	for _, envVar := range []*corev1.EnvVar{
+		{
+			Name:  common.DDDataPlaneEnabled,
+			Value: "true",
+		},
+		{
+			Name:  common.DDDataPlaneRemoteAgentEnabled,
+			Value: "true",
+		},
+		{
+			Name:  common.DDDataPlaneUseNewConfigStreamEndpoint,
+			Value: "true",
+		},
+	} {
+		managers.EnvVar().AddEnvVarToContainer(apicommon.UnprivilegedSingleAgentContainerName, envVar)
+	}
+
+	if f.dogstatsdEnabled {
+		managers.EnvVar().AddEnvVarToContainer(apicommon.UnprivilegedSingleAgentContainerName, &corev1.EnvVar{
+			Name:  common.DDDataPlaneDogstatsdEnabled,
+			Value: "true",
+		})
+	}
+
+	return nil
 }
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec

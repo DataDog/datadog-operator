@@ -78,6 +78,31 @@ func Test_dataPlaneFeature(t *testing.T) {
 			),
 		},
 		{
+			Name: "data plane enabled by feature default with single container strategy",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithSingleContainerStrategy(true).
+				WithDataPlaneDogstatsdEnabled(true).
+				BuildWithDefaults(),
+			FeatureOptions: &feature.Options{
+				DefaultDataPlaneEnabled: true,
+			},
+			WantConfigure: true,
+			Agent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+					mgr := mgrInterface.(*fake.PodTemplateManagers)
+					singleAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.UnprivilegedSingleAgentContainerName]
+					assert.ElementsMatch(t, []*corev1.EnvVar{
+						dataPlaneEnabledEnvVar,
+						dataPlaneDogstatsdEnabledEnvVar,
+						dataPlaneRemoteAgentEnabledEnvVar,
+						dataPlaneUseNewConfigStreamEndpointEnvVar,
+					}, singleAgentEnvVars, "all Data Plane interaction flags should be set on the shared single Agent container")
+					assert.Empty(t, mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName], "single container strategy should not mutate the Core Agent container")
+					assert.Empty(t, mgr.EnvVarMgr.EnvVarsByC[apicommon.AgentDataPlaneContainerName], "single container strategy should not mutate the Agent Data Plane container")
+				},
+			),
+		},
+		{
 			Name: "data plane explicitly disabled via CRD overrides feature default",
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithDataPlaneEnabled(false).
