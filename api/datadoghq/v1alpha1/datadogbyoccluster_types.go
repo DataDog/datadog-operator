@@ -20,6 +20,8 @@ type DatadogBYOCClusterSpec struct {
 	Release *DatadogBYOCClusterReleaseSpec `json:"release,omitempty"`
 
 	// Datadog configures the connection to Datadog.
+	// +optional
+	// +kubebuilder:default={}
 	Datadog *DatadogBYOCClusterDatadogSpec `json:"datadog,omitempty"`
 
 	// Provider configures the cloud provider used by the BYOC cluster.
@@ -30,9 +32,10 @@ type DatadogBYOCClusterSpec struct {
 
 	// Global configures settings shared by all BYOC workloads.
 	// +optional
-	Global *DatadogBYOCClusterGlobalSpec `json:"global,omitempty"`
+	Global DatadogBYOCClusterGlobalSpec `json:"global,omitempty"`
 
 	// Components configures the workloads that compose the BYOC cluster.
+	// +kubebuilder:validation:Required
 	Components *DatadogBYOCClusterComponentsSpec `json:"components,omitempty"`
 
 	// NodeConfig contains the Quickwit node configuration.
@@ -60,6 +63,7 @@ type DatadogBYOCClusterReleaseSpec struct {
 type DatadogBYOCClusterDatadogSpec struct {
 	// Site is the Datadog site used by the BYOC workloads.
 	// +optional
+	// +kubebuilder:default=datadoghq.com
 	Site *string `json:"site,omitempty"`
 
 	// APIKeySecretRef references the Kubernetes Secret containing the Datadog API key.
@@ -67,10 +71,12 @@ type DatadogBYOCClusterDatadogSpec struct {
 
 	// BYOCTelemetry controls the export of BYOC product telemetry.
 	// +optional
+	// +kubebuilder:default=true
 	BYOCTelemetry *bool `json:"byocTelemetry,omitempty"`
 
 	// DogstatsdServer configures the DogStatsD server used by the BYOC workloads.
 	// +optional
+	// +kubebuilder:default={}
 	DogstatsdServer *DatadogBYOCClusterDogstatsdServerSpec `json:"dogstatsdServer,omitempty"`
 }
 
@@ -83,6 +89,7 @@ type DatadogBYOCClusterDogstatsdServerSpec struct {
 
 	// Port is the DogStatsD server port.
 	// +optional
+	// +kubebuilder:default=8125
 	Port *int32 `json:"port,omitempty"`
 }
 
@@ -174,6 +181,7 @@ type DatadogBYOCClusterGlobalSpec struct {
 // +k8s:openapi-gen=true
 type DatadogBYOCClusterComponentsSpec struct {
 	// Metastore configures the primary Metastore workload.
+	// +kubebuilder:validation:Required
 	Metastore *DatadogBYOCClusterMetastoreComponentSpec `json:"metastore,omitempty"`
 
 	// ReadOnlyMetastore configures the read-only Metastore workload.
@@ -181,12 +189,15 @@ type DatadogBYOCClusterComponentsSpec struct {
 	ReadOnlyMetastore *DatadogBYOCClusterMetastoreComponentSpec `json:"readOnlyMetastore,omitempty"`
 
 	// Indexer configures the Indexer workload.
+	// +kubebuilder:validation:Required
 	Indexer *DatadogBYOCClusterStatefulComponentSpec `json:"indexer,omitempty"`
 
 	// Searcher configures the Searcher workload.
+	// +kubebuilder:validation:Required
 	Searcher *DatadogBYOCClusterStatefulComponentSpec `json:"searcher,omitempty"`
 
 	// ControlPlane configures the Control Plane workload.
+	// +kubebuilder:validation:Required
 	ControlPlane *DatadogBYOCClusterComponentSpec `json:"controlPlane,omitempty"`
 
 	// Compactor configures the Compactor workload.
@@ -194,6 +205,7 @@ type DatadogBYOCClusterComponentsSpec struct {
 	Compactor *DatadogBYOCClusterComponentSpec `json:"compactor,omitempty"`
 
 	// Janitor configures the Janitor workload.
+	// +kubebuilder:validation:Required
 	Janitor *DatadogBYOCClusterComponentSpec `json:"janitor,omitempty"`
 }
 

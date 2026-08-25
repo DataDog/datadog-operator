@@ -1695,6 +1695,7 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterSpec(ref c
 					"global": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Global configures settings shared by all BYOC workloads.",
+							Default:     map[string]interface{}{},
 							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterGlobalSpec"),
 						},
 					},

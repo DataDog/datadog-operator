@@ -3,7 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-package datadogbyoccluster
+package release
 
 import (
 	"context"
@@ -23,8 +23,7 @@ import (
 )
 
 const (
-	// DefaultReleaseRepository is the OCI repository containing BYOC release artifacts.
-	DefaultReleaseRepository = "public.ecr.aws/datadog/byoc-release"
+	defaultReleaseRepository = "public.ecr.aws/datadog/byoc-release"
 )
 
 // ReleaseResolver resolves a DatadogBYOCCluster release reference.
@@ -66,28 +65,27 @@ func (i BYOCReleaseImage) ImageReference() string {
 
 type targetFactory func(context.Context, string) (oras.ReadOnlyTarget, error)
 
-// OCIReleaseResolver resolves BYOC release artifacts from an OCI repository.
-type OCIReleaseResolver struct {
+type ociReleaseResolver struct {
 	repository    string
 	targetFactory targetFactory
 }
 
 // NewOCIReleaseResolver returns a resolver backed by the Datadog public OCI repository.
-func NewOCIReleaseResolver() *OCIReleaseResolver {
-	return newOCIReleaseResolver(DefaultReleaseRepository, func(_ context.Context, repository string) (oras.ReadOnlyTarget, error) {
+func NewOCIReleaseResolver() ReleaseResolver {
+	return newOCIReleaseResolver(defaultReleaseRepository, func(_ context.Context, repository string) (oras.ReadOnlyTarget, error) {
 		return remote.NewRepository(repository)
 	})
 }
 
-func newOCIReleaseResolver(repository string, factory targetFactory) *OCIReleaseResolver {
-	return &OCIReleaseResolver{
+func newOCIReleaseResolver(repository string, factory targetFactory) *ociReleaseResolver {
+	return &ociReleaseResolver{
 		repository:    repository,
 		targetFactory: factory,
 	}
 }
 
 // Resolve fetches and validates the release artifact selected by tag or digest.
-func (r *OCIReleaseResolver) Resolve(ctx context.Context, spec *datadoghqv1alpha1.DatadogBYOCClusterReleaseSpec) (*ResolvedRelease, error) {
+func (r *ociReleaseResolver) Resolve(ctx context.Context, spec *datadoghqv1alpha1.DatadogBYOCClusterReleaseSpec) (*ResolvedRelease, error) {
 	if spec == nil {
 		return nil, errors.New("release must be specified")
 	}
@@ -144,7 +142,7 @@ func (r *OCIReleaseResolver) Resolve(ctx context.Context, spec *datadoghqv1alpha
 	if err := json.Unmarshal(layerBytes, &release); err != nil {
 		return nil, fmt.Errorf("decode release payload: %w", err)
 	}
-	if err := release.validate(); err != nil {
+	if err := validateRelease(release); err != nil {
 		return nil, fmt.Errorf("validate release payload: %w", err)
 	}
 
@@ -154,25 +152,25 @@ func (r *OCIReleaseResolver) Resolve(ctx context.Context, spec *datadoghqv1alpha
 	}, nil
 }
 
-func (r BYOCRelease) validate() error {
-	if err := r.Images.Pomsky.validate("images.pomsky"); err != nil {
+func validateRelease(release BYOCRelease) error {
+	if err := validateReleaseImage(release.Images.Pomsky, "images.pomsky"); err != nil {
 		return err
 	}
-	if err := r.Images.ObservabilityPipelinesWorker.validate("images.observabilityPipelinesWorker"); err != nil {
+	if err := validateReleaseImage(release.Images.ObservabilityPipelinesWorker, "images.observabilityPipelinesWorker"); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (i BYOCReleaseImage) validate(field string) error {
-	if strings.TrimSpace(i.Repository) == "" {
+func validateReleaseImage(image BYOCReleaseImage, field string) error {
+	if strings.TrimSpace(image.Repository) == "" {
 		return fmt.Errorf("%s.repository must be specified", field)
 	}
-	if i.Tag == "" && i.Digest == "" {
+	if image.Tag == "" && image.Digest == "" {
 		return fmt.Errorf("%s.tag or %s.digest must be specified", field, field)
 	}
-	if i.Digest != "" {
-		if err := validateDigest(i.Digest); err != nil {
+	if image.Digest != "" {
+		if err := validateDigest(image.Digest); err != nil {
 			return fmt.Errorf("%s.digest is invalid: %w", field, err)
 		}
 	}

@@ -947,11 +947,7 @@ func (in *DatadogBYOCClusterSpec) DeepCopyInto(out *DatadogBYOCClusterSpec) {
 		*out = new(DatadogBYOCClusterIdentitySpec)
 		(*in).DeepCopyInto(*out)
 	}
-	if in.Global != nil {
-		in, out := &in.Global, &out.Global
-		*out = new(DatadogBYOCClusterGlobalSpec)
-		(*in).DeepCopyInto(*out)
-	}
+	in.Global.DeepCopyInto(&out.Global)
 	if in.Components != nil {
 		in, out := &in.Components, &out.Components
 		*out = new(DatadogBYOCClusterComponentsSpec)
