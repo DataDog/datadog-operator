@@ -112,15 +112,17 @@ func AgentSupportsADPDogstatsdDelegation(ddaSpec *v2alpha1.DatadogAgentSpec) boo
 }
 
 // IsDataPlaneEnabled returns true if the Data Plane is enabled.
-// CRD configuration takes precedence over the annotation, which takes precedence over defaultEnabled.
-// If the annotation is used, a deprecation warning is logged.
+// CRD configuration takes precedence over the legacy annotation, which takes precedence over defaultEnabled.
 func IsDataPlaneEnabled(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, defaultEnabled bool) bool {
-	// CRD takes precedence
+	// CRD takes precedence.
 	if ddaSpec.Features != nil && ddaSpec.Features.DataPlane != nil && ddaSpec.Features.DataPlane.Enabled != nil {
 		return *ddaSpec.Features.DataPlane.Enabled
 	}
 
-	// Fall back to annotation
+	// Fall back to the legacy annotation before applying the Operator default.
+	if HasFeatureDisableAnnotation(dda, EnableADPAnnotation) {
+		return false
+	}
 	if HasFeatureEnableAnnotation(dda, EnableADPAnnotation) {
 		return true
 	}
