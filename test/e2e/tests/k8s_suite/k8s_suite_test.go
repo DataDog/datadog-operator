@@ -28,6 +28,9 @@ import (
 	"github.com/DataDog/datadog-agent/test/e2e-framework/testing/e2e"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/dynamic"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -513,6 +516,7 @@ serviceAccount:
 		agentSelector := common.NodeAgentSelector + ",agent.datadoghq.com/name=dda-dsd-udp-single-adp-default"
 
 		s.Assert().EventuallyWithTf(func(c *assert.CollectT) {
+			s.assertSingleContainerStrategy(c, "dda-dsd-udp-single-adp-default")
 			utils.VerifyAgentPods(s.T(), c, common.NamespaceName, s.Env().KubernetesCluster.Client(), agentSelector)
 
 			pods, err := s.Env().KubernetesCluster.Client().CoreV1().Pods(common.NamespaceName).List(
@@ -760,6 +764,28 @@ func (s *k8sSuite) assertDSDMetricsWithRuntimeDiagnostics(c *assert.CollectT, ag
 		}
 	}
 	assert.Failf(c, "single-container DogStatsD metric verification failed", "%s", strings.Join(failures, "\n\n"))
+}
+
+func (s *k8sSuite) assertSingleContainerStrategy(c *assert.CollectT, name string) {
+	client, err := dynamic.NewForConfig(s.Env().KubernetesCluster.KubernetesClient.K8sConfig)
+	if !assert.NoError(c, err) {
+		return
+	}
+
+	for _, resource := range []schema.GroupVersionResource{
+		{Group: "datadoghq.com", Version: "v2alpha1", Resource: "datadogagents"},
+		{Group: "datadoghq.com", Version: "v1alpha1", Resource: "datadogagentinternals"},
+	} {
+		object, err := client.Resource(resource).Namespace(common.NamespaceName).Get(context.Background(), name, metav1.GetOptions{})
+		if !assert.NoError(c, err) {
+			return
+		}
+		strategy, found, err := unstructured.NestedString(object.Object, "spec", "global", "containerStrategy")
+		if !assert.NoError(c, err) || !assert.True(c, found, "%s/%s has no spec.global.containerStrategy", resource.Resource, name) {
+			return
+		}
+		assert.Equal(c, "single", strategy, "%s/%s container strategy", resource.Resource, name)
+	}
 }
 
 func (s *k8sSuite) assertSingleContainerADPRuntime(c *assert.CollectT, pod corev1.Pod) {
