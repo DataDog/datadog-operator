@@ -136,6 +136,142 @@ datadog:
 	}
 }
 
+// TestMapValuesMultiKeyTable covers two real-world helm2dda bug reports:
+//  1. clusterAgent.confd/datadog.confd with multiple files must map wholesale into
+//     their configDataMap destination, instead of being silently dropped.
+//  2. agents.customAgentConfig/clusterAgent.datadog_cluster_yaml with nested fields
+//     must not report the flattened nested keys as "not found in mapping" errors,
+//     since they're already fully consumed by the mapCustomConfigFile mapFunc.
+//
+// It also guards against regressing the fix for agents.podSecurity.seLinuxContext,
+// whose sub-fields (e.g. seLinuxOptions.level) have their own separate mapping
+// entries and must therefore NOT be copied wholesale as a multi-key table.
+// fileConfigDataCheck verifies the configData content of a single file entry within a
+// MultiCustomConfig/customConfigurations-style map, whose filename key may itself
+// contain literal dots (e.g. "datadog.yaml"), making PathValue/Table unusable for it.
+type fileConfigDataCheck struct {
+	fileName string
+	want     string
+}
+
+func TestMapValuesMultiKeyTable(t *testing.T) {
+	tempDir := t.TempDir()
+
+	tests := []struct {
+		name                string
+		inputValues         string
+		expectNoErrors      bool
+		expectedDDA         map[string]any
+		checkTables         map[string]map[string]any
+		checkFileConfigData map[string]fileConfigDataCheck
+		missingPaths        []string
+	}{
+		{
+			name: "clusterAgent.confd with multiple files maps wholesale",
+			inputValues: `clusterAgent:
+  confd:
+    mysql.yaml: |-
+      cluster_check: true
+    kubernetes_state.yaml: |-
+      ad_identifiers:
+        - kube-state-metrics
+`,
+			expectNoErrors: true,
+			checkTables: map[string]map[string]any{
+				"spec.override.clusterAgent.extraConfd.configDataMap": {
+					"mysql.yaml":            "cluster_check: true",
+					"kubernetes_state.yaml": "ad_identifiers:\n  - kube-state-metrics",
+				},
+			},
+		},
+		{
+			name: "customAgentConfig and datadog_cluster_yaml do not report spurious leaf errors",
+			inputValues: `agents:
+  customAgentConfig:
+    log_level: "debug"
+    jmx_use_container_support: true
+clusterAgent:
+  datadog_cluster_yaml:
+    log_level: "debug"
+    cluster_checks:
+      enabled: true
+`,
+			expectNoErrors: true,
+			checkFileConfigData: map[string]fileConfigDataCheck{
+				"spec.override.nodeAgent.customConfigurations": {
+					fileName: "datadog.yaml",
+					want:     "jmx_use_container_support: true\nlog_level: debug\n",
+				},
+				"spec.override.clusterAgent.customConfigurations": {
+					fileName: "datadog-cluster.yaml",
+					want:     "cluster_checks:\n  enabled: true\nlog_level: debug\n",
+				},
+			},
+		},
+		{
+			name: "seLinuxContext sub-fields stay individually mapped, not copied wholesale",
+			inputValues: `agents:
+  podSecurity:
+    seLinuxContext:
+      seLinuxOptions:
+        level: "s0:c123,c456"
+        role: "system_r"
+        type: "spc_t"
+        user: "system_u"
+`,
+			expectNoErrors: true,
+			expectedDDA: map[string]any{
+				"spec.override.nodeAgent.containers.agent.securityContext.seLinuxOptions.level": "s0:c123,c456",
+				"spec.override.nodeAgent.containers.agent.securityContext.seLinuxOptions.role":  "system_r",
+				"spec.override.nodeAgent.containers.agent.securityContext.seLinuxOptions.type":  "spc_t",
+				"spec.override.nodeAgent.containers.agent.securityContext.seLinuxOptions.user":  "system_u",
+			},
+			// seLinuxOptions itself must not also appear as a flat, wholesale-copied value.
+			missingPaths: []string{"spec.override.nodeAgent.containers.agent.securityContext.seLinuxOptions.rule"},
+		},
+	}
+
+	for i, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			valuesPath := filepath.Join(tempDir, fmt.Sprintf("multikey-values-%d.yaml", i+1))
+			ddaPath := filepath.Join(tempDir, fmt.Sprintf("multikey-dda-%d.yaml", i+1))
+			writeTestFile(t, valuesPath, tt.inputValues)
+
+			mapper := NewMapper(MapConfig{
+				MappingPath: "mapping_datadog_helm_to_datadogagent_crd.yaml",
+				SourcePath:  valuesPath,
+				DestPath:    ddaPath,
+			})
+			err := mapper.Run()
+			if tt.expectNoErrors {
+				require.NoError(t, err, "run %s failed", tt.name)
+			}
+
+			dda, err := chartutil.ReadValuesFile(ddaPath)
+			require.NoError(t, err, "run %s failed to read output", tt.name)
+
+			assertValues(t, dda, tt.expectedDDA)
+			for _, missingPath := range tt.missingPaths {
+				assertMissingPath(t, dda, missingPath, "run %s should not contain %s", tt.name, missingPath)
+			}
+			for path, want := range tt.checkTables {
+				got, tableErr := dda.Table(path)
+				require.NoError(t, tableErr, "run %s: expected table at path %q", tt.name, path)
+				for k, v := range want {
+					assert.Equal(t, v, got[k], "run %s: unexpected value at %q[%q]", tt.name, path, k)
+				}
+			}
+			for path, check := range tt.checkFileConfigData {
+				parent, tableErr := dda.Table(path)
+				require.NoError(t, tableErr, "run %s: expected table at path %q", tt.name, path)
+				fileEntry, ok := utils.GetPathMap(parent[check.fileName])
+				require.True(t, ok, "run %s: expected %q[%q] to be a map", tt.name, path, check.fileName)
+				assert.Equal(t, check.want, fileEntry["configData"], "run %s: unexpected configData at %q[%q]", tt.name, path, check.fileName)
+			}
+		})
+	}
+}
+
 func writeTestFile(t *testing.T, path, content string) {
 	t.Helper()
 	require.NoError(t, os.WriteFile(path, []byte(content), 0644))
