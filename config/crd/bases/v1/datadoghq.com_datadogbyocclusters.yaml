@@ -16587,8 +16587,15 @@ spec:
                             - name
                           x-kubernetes-list-type: map
                       type: object
+                  required:
+                    - controlPlane
+                    - indexer
+                    - janitor
+                    - metastore
+                    - searcher
                   type: object
                 datadog:
+                  default: {}
                   properties:
                     apiKeySecretRef:
                       properties:
@@ -16604,16 +16611,20 @@ spec:
                       type: object
                       x-kubernetes-map-type: atomic
                     byocTelemetry:
+                      default: true
                       type: boolean
                     dogstatsdServer:
+                      default: {}
                       properties:
                         host:
                           type: string
                         port:
+                          default: 8125
                           format: int32
                           type: integer
                       type: object
                     site:
+                      default: datadoghq.com
                       type: string
                   type: object
                 global:
@@ -18119,6 +18130,7 @@ spec:
                     - message: at least one of tag or digest must be specified
                       rule: has(self.tag) || has(self.digest)
               required:
+                - components
                 - release
               type: object
             status:
