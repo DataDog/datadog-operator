@@ -1274,6 +1274,24 @@ func TestPreparedCandidateMustBePristine(t *testing.T) {
 	assert.False(t, podPrepared(&pod, ds), "an old OnDelete Pod must not satisfy the desired revision")
 }
 
+func TestPreparedCandidateRequiresRestartableInitSidecars(t *testing.T) {
+	ds := preparedTestPair().green
+	pod := preparedPod("candidate", "node-a", true)
+	restartAlways := corev1.ContainerRestartPolicyAlways
+	pod.Spec.InitContainers = []corev1.Container{{Name: "emissary", RestartPolicy: &restartAlways}}
+	assert.False(t, podPrepared(&pod, ds), "a restartable init sidecar missing from status must block handoff")
+
+	pod.Status.InitContainerStatuses = []corev1.ContainerStatus{{
+		Name: "emissary", Ready: true, State: corev1.ContainerState{Running: &corev1.ContainerStateRunning{}},
+	}}
+	assert.True(t, podPrepared(&pod, ds))
+	pod.Status.InitContainerStatuses[0].Ready = false
+	assert.False(t, podPrepared(&pod, ds), "an unready restartable init sidecar must block handoff")
+	pod.Status.InitContainerStatuses[0].Ready = true
+	pod.Status.InitContainerStatuses[0].RestartCount = 1
+	assert.False(t, podPrepared(&pod, ds), "a restarted init sidecar must block handoff")
+}
+
 func TestPreparedRestartedCandidateIsRetriedWhileSourceServes(t *testing.T) {
 	ctx := context.Background()
 	scheme := runtime.NewScheme()

@@ -1462,6 +1462,20 @@ func podPrepared(pod *corev1.Pod, ds *appsv1.DaemonSet) bool {
 			return false
 		}
 	}
+	initStatuses := make(map[string]*corev1.ContainerStatus, len(pod.Status.InitContainerStatuses))
+	for i := range pod.Status.InitContainerStatuses {
+		initStatuses[pod.Status.InitContainerStatuses[i].Name] = &pod.Status.InitContainerStatuses[i]
+	}
+	for i := range pod.Spec.InitContainers {
+		container := &pod.Spec.InitContainers[i]
+		if container.RestartPolicy == nil || *container.RestartPolicy != corev1.ContainerRestartPolicyAlways {
+			continue
+		}
+		status := initStatuses[container.Name]
+		if status == nil || status.State.Running == nil || !status.Ready || status.RestartCount != 0 {
+			return false
+		}
+	}
 	return true
 }
 
