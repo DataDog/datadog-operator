@@ -12,6 +12,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	corev1 "k8s.io/api/core/v1"
+	policyv1 "k8s.io/api/policy/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -21,9 +22,10 @@ import (
 
 // StatefulSetResources contains the resources managed for a stateful component.
 type StatefulSetResources struct {
-	Service     *corev1.Service
-	StatefulSet *appsv1.StatefulSet
-	HPA         *autoscalingv2.HorizontalPodAutoscaler
+	Service             *corev1.Service
+	StatefulSet         *appsv1.StatefulSet
+	HPA                 *autoscalingv2.HorizontalPodAutoscaler
+	PodDisruptionBudget *policyv1.PodDisruptionBudget
 }
 
 // Objects returns the component resources in apply order.
@@ -31,6 +33,9 @@ func (r *StatefulSetResources) Objects() []client.Object {
 	objects := []client.Object{r.Service, r.StatefulSet}
 	if r.HPA != nil {
 		objects = append(objects, r.HPA)
+	}
+	if r.PodDisruptionBudget != nil {
+		objects = append(objects, r.PodDisruptionBudget)
 	}
 	return objects
 }
@@ -121,9 +126,19 @@ func (b statefulSetBuilder) build() (*StatefulSetResources, error) {
 	if err != nil {
 		return nil, err
 	}
+	podDisruptionBudget, err := newPodDisruptionBudgetBuilder(
+		statefulSet.Workload.Metadata,
+		statefulSet.Workload.Selector,
+		b.workload.Cluster.Spec.Global.PodDisruptionBudget,
+		b.workload.Spec.PodDisruptionBudget,
+	).build()
+	if err != nil {
+		return nil, err
+	}
 	result := &StatefulSetResources{
-		Service:     createService(service),
-		StatefulSet: createStatefulSet(statefulSet),
+		Service:             createService(service),
+		StatefulSet:         createStatefulSet(statefulSet),
+		PodDisruptionBudget: podDisruptionBudget,
 	}
 	if hpa != nil {
 		result.HPA = createHPA(*hpa)

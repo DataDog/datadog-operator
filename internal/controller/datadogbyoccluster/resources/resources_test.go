@@ -13,6 +13,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	corev1 "k8s.io/api/core/v1"
+	policyv1 "k8s.io/api/policy/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -267,6 +268,137 @@ func TestBuildResources_ServiceAccount(t *testing.T) {
 			}
 			if diff := cmp.Diff(tt.want, resources.serviceAccount); diff != "" {
 				t.Errorf("serviceAccount mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestResolveAffinity(t *testing.T) {
+	cluster := testCluster()
+	customAffinity := &corev1.Affinity{
+		NodeAffinity: &corev1.NodeAffinity{
+			PreferredDuringSchedulingIgnoredDuringExecution: []corev1.PreferredSchedulingTerm{{
+				Weight:     50,
+				Preference: corev1.NodeSelectorTerm{MatchExpressions: []corev1.NodeSelectorRequirement{{Key: "example.com/node", Operator: corev1.NodeSelectorOpExists}}},
+			}},
+		},
+	}
+	tests := []struct {
+		name      string
+		global    *corev1.Affinity
+		component *corev1.Affinity
+		want      *corev1.Affinity
+	}{
+		{
+			name: "default pod anti-affinity",
+			want: &corev1.Affinity{
+				PodAntiAffinity: &corev1.PodAntiAffinity{
+					PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{{
+						Weight: 100,
+						PodAffinityTerm: corev1.PodAffinityTerm{
+							LabelSelector: &metav1.LabelSelector{MatchLabels: selectorLabels(cluster, "indexer")},
+							TopologyKey:   corev1.LabelHostname,
+						},
+					}},
+				},
+			},
+		},
+		{
+			name:   "explicit empty global affinity disables default",
+			global: &corev1.Affinity{},
+			want:   &corev1.Affinity{},
+		},
+		{
+			name:      "explicit empty component affinity disables default",
+			component: &corev1.Affinity{},
+			want:      &corev1.Affinity{},
+		},
+		{
+			name:      "custom affinity replaces default",
+			component: customAffinity,
+			want:      customAffinity,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := resolveAffinity(cluster, "indexer", tt.global, tt.component)
+			if err != nil {
+				t.Fatalf("resolveAffinity() unexpected error: %v", err)
+			}
+			if diff := cmp.Diff(tt.want, got); diff != "" {
+				t.Errorf("resolveAffinity() mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestPodDisruptionBudgetBuilder(t *testing.T) {
+	minAvailable := intstr.FromInt32(2)
+	maxUnavailable := intstr.FromString("25%")
+	workload := workloadValues{
+		Metadata: metav1.ObjectMeta{Name: "byoc-indexer", Namespace: "testing"},
+		Selector: map[string]string{"app.kubernetes.io/component": "indexer"},
+	}
+	podDisruptionBudget := func(minAvailable, maxUnavailable *intstr.IntOrString) *policyv1.PodDisruptionBudget {
+		return &policyv1.PodDisruptionBudget{
+			ObjectMeta: metav1.ObjectMeta{Name: "byoc-indexer", Namespace: "testing"},
+			Spec: policyv1.PodDisruptionBudgetSpec{
+				MinAvailable:   minAvailable,
+				MaxUnavailable: maxUnavailable,
+				Selector:       &metav1.LabelSelector{MatchLabels: map[string]string{"app.kubernetes.io/component": "indexer"}},
+			},
+		}
+	}
+	tests := []struct {
+		name      string
+		global    *datadoghqv1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec
+		component *datadoghqv1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec
+		want      *policyv1.PodDisruptionBudget
+		wantErr   bool
+	}{
+		{
+			name: "operator default",
+			want: podDisruptionBudget(nil, ptr.To(intstr.FromInt32(1))),
+		},
+		{
+			name:   "global override",
+			global: &datadoghqv1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec{MinAvailable: &minAvailable},
+			want:   podDisruptionBudget(&minAvailable, nil),
+		},
+		{
+			name:      "component override takes precedence",
+			global:    &datadoghqv1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec{MinAvailable: &minAvailable},
+			component: &datadoghqv1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec{MaxUnavailable: &maxUnavailable},
+			want:      podDisruptionBudget(nil, &maxUnavailable),
+		},
+		{
+			name:   "empty global setting disables budget",
+			global: &datadoghqv1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec{},
+		},
+		{
+			name:      "empty component setting disables budget",
+			global:    &datadoghqv1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec{MinAvailable: &minAvailable},
+			component: &datadoghqv1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec{},
+		},
+		{
+			name: "minAvailable and maxUnavailable conflict",
+			component: &datadoghqv1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec{
+				MinAvailable:   &minAvailable,
+				MaxUnavailable: &maxUnavailable,
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := newPodDisruptionBudgetBuilder(workload.Metadata, workload.Selector, tt.global, tt.component).build()
+			if gotErr := err != nil; gotErr != tt.wantErr {
+				t.Fatalf("build() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if diff := cmp.Diff(tt.want, got); diff != "" {
+				t.Errorf("build() mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
@@ -799,6 +931,7 @@ func wantDefaultStatefulSet(options wantStatefulSetOptions) *StatefulSetResource
 				Template:            workload.template,
 			},
 		},
+		PodDisruptionBudget: wantDefaultPodDisruptionBudget(workload),
 	}
 }
 
@@ -834,6 +967,7 @@ func wantDefaultDeployment(options wantDeploymentOptions) *DeploymentResources {
 				Strategy: options.strategy,
 			},
 		},
+		PodDisruptionBudget: wantDefaultPodDisruptionBudget(workload),
 	}
 }
 
@@ -999,8 +1133,30 @@ func wantDefaultWorkload(options wantWorkloadOptions) wantWorkload {
 					},
 					{Name: "data", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}}},
 				},
+				Affinity: &corev1.Affinity{
+					PodAntiAffinity: &corev1.PodAntiAffinity{
+						PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{{
+							Weight: 100,
+							PodAffinityTerm: corev1.PodAffinityTerm{
+								LabelSelector: &metav1.LabelSelector{MatchLabels: selector},
+								TopologyKey:   corev1.LabelHostname,
+							},
+						}},
+					},
+				},
 				TerminationGracePeriodSeconds: options.terminationGracePeriodSeconds,
 			},
+		},
+	}
+}
+
+func wantDefaultPodDisruptionBudget(workload wantWorkload) *policyv1.PodDisruptionBudget {
+	metadata := workload.metadata.DeepCopy()
+	return &policyv1.PodDisruptionBudget{
+		ObjectMeta: *metadata,
+		Spec: policyv1.PodDisruptionBudgetSpec{
+			MaxUnavailable: ptr.To(intstr.FromInt32(1)),
+			Selector:       workload.selector.DeepCopy(),
 		},
 	}
 }

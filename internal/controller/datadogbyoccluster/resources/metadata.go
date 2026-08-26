@@ -13,6 +13,11 @@ import (
 
 const appName = "cloudprem"
 
+// ComponentResourceName returns the Kubernetes resource name for a BYOC component.
+func ComponentResourceName(clusterName, componentName string) string {
+	return clusterName + "-" + componentName
+}
+
 func labels(cluster *datadoghqv1alpha1.DatadogBYOCCluster, overrides ...map[string]string) map[string]string {
 	result := map[string]string{
 		"app.kubernetes.io/name":       appName,
