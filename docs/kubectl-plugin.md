@@ -106,16 +106,11 @@ Available Commands:
 
 Installs Karpenter on an EKS cluster and configures it for use with Datadog Cluster Autoscaling. The command:
 
-1. Creates two AWS CloudFormation stacks: one carrying the node role, the controller IAM policies and the interruption-handling resources Karpenter needs, and one carrying the mode-specific authentication resources described below.
-2. Configures how the Karpenter controller authenticates and where it runs, depending on `--install-mode`:
-   - `fargate` (default): registers the cluster OIDC provider, creates an IRSA role for the controller, and creates a Fargate profile on the cluster private subnets (auto-discovered unless `--fargate-subnets` is set), so that Karpenter never runs on the nodes it manages.
-   - `existing-nodes`: ensures the EKS Pod Identity agent addon is available and configures a Pod Identity association for the controller.
+1. Creates two AWS CloudFormation stacks holding the IAM roles, permissions and AWS-side plumbing Karpenter needs.
+2. Installs Karpenter via Helm from the OCI registry. By default the controller runs on dedicated Fargate nodes, so that it never runs on the nodes it manages; pass `--install-mode=existing-nodes` to run it on the cluster's own nodes instead.
+3. Optionally creates `EC2NodeClass` and `NodePool` Karpenter resources, inferred from existing cluster nodes or EKS node groups.
 
-   In both modes, an EKS access entry is created for the Karpenter node role on clusters whose authentication mode supports access entries (`API` or `API_AND_CONFIG_MAP`), and that role is also mapped in the `aws-auth` ConfigMap when that ConfigMap is present.
-3. Installs Karpenter via Helm from the OCI registry.
-4. Optionally creates `EC2NodeClass` and `NodePool` Karpenter resources, inferred from existing cluster nodes or EKS node groups.
-
-The command installs nothing and exits successfully with an explanatory message when EKS auto-mode is active, or when a Karpenter installation it did not create, or one in a different namespace, is already present on the cluster.
+If something goes wrong, those CloudFormation stacks and that Helm release are the two places to look. The command installs nothing and exits successfully with an explanatory message when EKS auto-mode is active, or when Karpenter is already installed on the cluster.
 
 ```console
 $ kubectl datadog autoscaling cluster install --help
@@ -170,25 +165,11 @@ Flags:
 
 #### `autoscaling cluster evict-legacy-nodes`
 
-Drains the node groups that Datadog does not manage, with the goal of having their workloads rescheduled onto the Datadog-managed Karpenter NodePools. It covers EC2 Auto Scaling groups, EKS managed node groups, user-managed Karpenter NodePools and standalone EC2 instances. Fargate profiles, and nodes whose provider cannot be identified, are out of scope and are left in place.
+Migrates a cluster off the node groups Datadog does not manage — EC2 Auto Scaling groups, EKS managed node groups, user Karpenter NodePools and standalone EC2 instances — so that their workloads end up on the Datadog-managed Karpenter NodePools. It scales down the `cluster-autoscaler` if there is one, then cordons and drains each target's nodes and scales the target down to zero, one target at a time.
 
-Before anything destructive, the command verifies its preconditions — Karpenter is installed, the cluster does not run EKS auto-mode, and at least one Datadog-managed `NodePool` exists to receive the evicted pods — then displays the eviction plan and asks for confirmation. It also warns when a user `NodePool` has a `spec.weight` greater than or equal to the Datadog ones, since evicted pods could land back on it.
+Select the targets with `--all` or with one or more `--target`, and preview a run with `--dry-run`. The command displays its plan and asks for confirmation before touching anything. It is re-runnable: a node that fails to drain keeps its workloads and its instance is never terminated, so a later run can pick up where this one stopped.
 
-Audit your PodDisruptionBudgets first: a workload whose own PDB never allows a disruption (`maxUnavailable: 0`, or `minAvailable` equal to its replica count) cannot be evicted, and its node will only fail once the timeouts have elapsed.
-
-Once confirmed:
-
-1. The `cluster-autoscaler` Deployment, when the cluster runs one, is scaled down to 0 replicas, so that it cannot provision new legacy nodes mid-migration (skip with `--skip-cluster-autoscaler`). The command waits for it to reach 0 replicas and aborts before any drain if it does not. It is never scaled back up — re-enabling it afterwards is manual.
-2. Temporary PodDisruptionBudgets (`maxUnavailable: 1`) are created for the Deployments, StatefulSets and standalone ReplicaSets running on the targeted nodes that no PDB already covers, and removed at the end (enabled by default, disable with `--ensure-pdbs=false`). Pods owned by anything else — Jobs, CronJobs, DaemonSets, custom controllers — or by nothing at all get none.
-3. Targets are processed one at a time. Each target's nodes are cordoned and drained through the Eviction API, then its capacity is retired:
-   - **EC2 Auto Scaling group**: `AZRebalance` is suspended and `MinSize` set to 0 up front, each drained instance is terminated individually, and the group is finally locked at `min=max=desired=0`.
-   - **EKS managed node group**: scaled to `min=desired=0`, `max` preserved, then the command waits for the group's nodes to disappear from the cluster. Raise `--node-timeout` for large node groups: it bounds that wait as a whole.
-   - **Standalone EC2 instance**: terminated.
-   - **User Karpenter NodePool**: its nodes are drained, but the NodePool itself is left untouched. The command does not disable it, so Karpenter may provision fresh nodes from it for the pods just evicted — lower its `spec.weight` or set its limits yourself to retire it for good.
-
-None of this is reversible by the plugin: the previous scaling configuration is not recorded, so restoring legacy capacity is manual.
-
-Exactly one of `--all` or `--target` is required. The command is re-runnable rather than transactional: a node that fails to drain keeps its workloads and is never terminated, and its node group is not scaled to zero — but everything already applied stays applied, so a later run resumes from there.
+The migration is one-way — the plugin does not restore the previous capacity, nor scale the `cluster-autoscaler` back up. Note also that a user Karpenter NodePool is only drained, not disabled, so Karpenter may provision new nodes from it unless you retire it yourself.
 
 ```console
 $ kubectl datadog autoscaling cluster evict-legacy-nodes --help
@@ -225,14 +206,9 @@ Flags:
 
 #### `autoscaling cluster uninstall`
 
-Removes the `kubectl-datadog`-managed autoscaling resources from an EKS cluster. The command:
+Removes Karpenter and the associated resources from an EKS cluster. Deletes the `NodePool` and `EC2NodeClass` resources it created, waits for the corresponding EC2 instances to terminate, uninstalls the Karpenter Helm release, cleans up IAM, and removes the CloudFormation stacks.
 
-1. Deletes the `NodePool` and `EC2NodeClass` resources it created, then waits for the corresponding EC2 instances to terminate. Every node Karpenter provisioned from them is drained and terminated, so make sure the cluster has other capacity first — in particular after `evict-legacy-nodes`, which leaves the legacy node groups scaled to zero. NodePools created by other Datadog products, or by hand, are left in place.
-2. Uninstalls the Helm release named `karpenter`.
-3. Removes the Karpenter node role mapping from the `aws-auth` ConfigMap when that ConfigMap is present, and deletes the instance profiles attached to that role.
-4. Deletes the CloudFormation stacks, and with them the IAM roles.
-
-Each step is independent and best-effort, so that a run interrupted halfway can simply be re-run: `uninstall` deliberately skips the ownership pre-checks `install` and `update` perform, since the resources they key off may already be gone. Point `--karpenter-namespace` at the installation to remove. The cluster OIDC provider registered by a Fargate-mode install is left in place.
+Every node Karpenter provisioned is drained and terminated in the process, so make sure the cluster has other capacity first. Each step is independent and best-effort, so an interrupted run can simply be re-run.
 
 ```console
 $ kubectl datadog autoscaling cluster uninstall --help
