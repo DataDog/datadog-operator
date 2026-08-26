@@ -736,6 +736,8 @@ func TestPreparedPairIgnoresConventionalNameMismatchOutsideEnable(t *testing.T) 
 	require.NoError(t, err)
 	assert.Nil(t, pair.blue)
 	assert.Nil(t, pair.green)
+	currentPrevious := &appsv1.DaemonSet{}
+	require.NoError(t, fakeClient.Get(ctx, client.ObjectKeyFromObject(previous), currentPrevious), "conventional name changes remain owned by native cleanup")
 	_, err = r.getPreparedPair(ctx, ddai, rendered, true)
 	require.ErrorContains(t, err, "complete the conventional name change")
 }
