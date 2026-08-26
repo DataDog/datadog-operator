@@ -63,7 +63,7 @@ func resolveWorkloadValues(input workloadInput) (workloadValues, error) {
 	selector := selectorLabels(input.Cluster, input.Name)
 	componentLabel := map[string]string{"app.kubernetes.io/component": input.Name}
 	componentLabels := labels(input.Cluster, componentLabel, input.Spec.Labels)
-	resourceName := input.Cluster.Name + "-" + input.Name
+	resourceName := ComponentResourceName(input.Cluster.Name, input.Name)
 
 	return workloadValues{
 		Metadata: metav1.ObjectMeta{
@@ -110,7 +110,7 @@ func resolvePodSpec(input workloadInput) (corev1.PodSpec, error) {
 	}
 
 	global := input.Cluster.Spec.Global
-	affinity, err := mergeAffinity(global.Affinity, input.Spec.Affinity)
+	affinity, err := resolveAffinity(input.Cluster, input.Name, global.Affinity, input.Spec.Affinity)
 	if err != nil {
 		return corev1.PodSpec{}, fmt.Errorf("merge %s affinity: %w", input.Name, err)
 	}
@@ -271,6 +271,23 @@ func selectorLabels(cluster *datadoghqv1alpha1.DatadogBYOCCluster, componentName
 		"app.kubernetes.io/instance":  cluster.Name,
 		"app.kubernetes.io/component": componentName,
 	}
+}
+
+func resolveAffinity(cluster *datadoghqv1alpha1.DatadogBYOCCluster, componentName string, global, component *corev1.Affinity) (*corev1.Affinity, error) {
+	if global == nil && component == nil {
+		return &corev1.Affinity{
+			PodAntiAffinity: &corev1.PodAntiAffinity{
+				PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{{
+					Weight: 100,
+					PodAffinityTerm: corev1.PodAffinityTerm{
+						LabelSelector: &metav1.LabelSelector{MatchLabels: selectorLabels(cluster, componentName)},
+						TopologyKey:   corev1.LabelHostname,
+					},
+				}},
+			},
+		}, nil
+	}
+	return mergeAffinity(global, component)
 }
 
 func mergeAffinity(global, component *corev1.Affinity) (*corev1.Affinity, error) {
