@@ -67,13 +67,18 @@ spec:
         behavior:
           scaleDown:
             stabilizationWindowSeconds: 300
-      persistentVolumeClaim:
-        accessModes:
-          - ReadWriteOnce
-        storageClassName: gp3
-        resources:
-          requests:
-            storage: 250Gi
+      storage:
+        volumeClaimTemplate:
+          metadata:
+            annotations:
+              example.com/storage: indexer
+          spec:
+            accessModes:
+              - ReadWriteOnce
+            storageClassName: gp3
+            resources:
+              requests:
+                storage: 250Gi
     searcher:
       replicas: 2
       resources:
@@ -82,13 +87,15 @@ spec:
           memory: 16Gi
         limits:
           memory: 16Gi
-      persistentVolumeClaim:
-        accessModes:
-          - ReadWriteOnce
-        storageClassName: gp3
-        resources:
-          requests:
-            storage: 50Gi
+      storage:
+        volumeClaimTemplate:
+          spec:
+            accessModes:
+              - ReadWriteOnce
+            storageClassName: gp3
+            resources:
+              requests:
+                storage: 50Gi
     controlPlane:
       resources:
         requests:

@@ -40,7 +40,6 @@ type workloadInput struct {
 
 // workloadDefaults contains component defaults expressed with Kubernetes fields.
 type workloadDefaults struct {
-	Replicas     int32
 	ServicePorts []corev1.ServicePort
 	PodSpec      corev1.PodSpec
 }
@@ -72,7 +71,7 @@ func resolveWorkloadValues(input workloadInput) (workloadValues, error) {
 			Labels:      labels(input.Cluster, componentLabel, input.Spec.Labels, selector),
 			Annotations: annotations(input.Cluster, input.Spec.Annotations),
 		},
-		Replicas: ptr.Deref(input.Spec.Replicas, input.Defaults.Replicas),
+		Replicas: *input.Spec.Replicas,
 		Selector: selector,
 		Template: template,
 		Service: serviceValues{
@@ -137,7 +136,7 @@ func resolvePodSpec(input workloadInput) (corev1.PodSpec, error) {
 		resources = *input.Spec.Resources.DeepCopy()
 	}
 
-	terminationGracePeriodSeconds := input.Defaults.PodSpec.TerminationGracePeriodSeconds
+	var terminationGracePeriodSeconds *int64
 	if input.Spec.TerminationGracePeriodSeconds != nil {
 		terminationGracePeriodSeconds = ptr.To(*input.Spec.TerminationGracePeriodSeconds)
 	}
