@@ -6,6 +6,7 @@
 package flare
 
 import (
+	"archive/zip"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -22,7 +23,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mholt/archiver/v3"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
@@ -60,7 +60,6 @@ type options struct {
 	genericclioptions.IOStreams
 	common.Options
 	args   []string
-	zip    *archiver.Zip
 	site   string
 	caseID string
 }
@@ -69,7 +68,6 @@ type options struct {
 func newOptions(streams genericclioptions.IOStreams) *options {
 	o := &options{
 		IOStreams: streams,
-		zip:       archiver.NewZip(),
 	}
 	o.SetConfigFlags()
 	return o
@@ -213,7 +211,7 @@ func (o *options) run(cmd *cobra.Command) error {
 
 	// Create zip with the collected files
 	zipFilePath := getArchivePath()
-	if err = o.zip.Archive([]string{baseDir}, zipFilePath); err != nil {
+	if err = archiveDir(baseDir, zipFilePath); err != nil {
 		return err
 	}
 
@@ -500,6 +498,80 @@ func getArchivePath() string {
 func createFile(path string) (*os.File, error) {
 	flags := os.O_WRONLY | os.O_CREATE | os.O_TRUNC
 	return os.OpenFile(path, flags, 0644)
+}
+
+// archiveDir zips the content of dir into destination. Entries are prefixed
+// with the base name of dir, so that extracting the flare yields a single
+// top-level folder.
+func archiveDir(dir, destination string) error {
+	// O_EXCL rather than truncating: getArchivePath only has second precision,
+	// so two concurrent flares can pick the same name, and clobbering one would
+	// upload a corrupt archive.
+	out, err := os.OpenFile(destination, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0644)
+	if err != nil {
+		return err
+	}
+
+	writer := zip.NewWriter(out)
+	root := filepath.Base(dir)
+
+	err = filepath.Walk(dir, func(fpath string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if !info.IsDir() && !info.Mode().IsRegular() {
+			return nil
+		}
+
+		rel, err := filepath.Rel(dir, fpath)
+		if err != nil {
+			return err
+		}
+
+		header, err := zip.FileInfoHeader(info)
+		if err != nil {
+			return err
+		}
+		header.Name = path.Join(root, filepath.ToSlash(rel))
+		if info.IsDir() {
+			header.Name += "/"
+		} else {
+			header.Method = zip.Deflate
+		}
+
+		entry, err := writer.CreateHeader(header)
+		if err != nil {
+			return err
+		}
+		if info.IsDir() {
+			return nil
+		}
+
+		file, err := os.Open(fpath)
+		if err != nil {
+			return err
+		}
+		defer file.Close()
+
+		_, err = io.Copy(entry, file)
+		return err
+	})
+
+	// The central directory is only written on Close, so it must be reported.
+	if closeErr := writer.Close(); err == nil {
+		err = closeErr
+	}
+	if closeErr := out.Close(); err == nil {
+		err = closeErr
+	}
+
+	if err != nil {
+		// A truncated archive would mislead whoever finds it, and would block the
+		// next flare of the same second through the O_EXCL above.
+		_ = os.Remove(destination)
+	}
+
+	return err
 }
 
 type flareResponse struct {
