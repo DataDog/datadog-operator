@@ -2065,6 +2065,40 @@
                   },
                   "type": "object"
                 },
+                "podDisruptionBudget": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "maxUnavailable": {
+                      "anyOf": [
+                        {
+                          "type": "integer"
+                        },
+                        {
+                          "type": "string"
+                        }
+                      ],
+                      "x-kubernetes-int-or-string": true
+                    },
+                    "minAvailable": {
+                      "anyOf": [
+                        {
+                          "type": "integer"
+                        },
+                        {
+                          "type": "string"
+                        }
+                      ],
+                      "x-kubernetes-int-or-string": true
+                    }
+                  },
+                  "type": "object",
+                  "x-kubernetes-validations": [
+                    {
+                      "message": "minAvailable and maxUnavailable are mutually exclusive",
+                      "rule": "!(has(self.minAvailable) \u0026\u0026 has(self.maxUnavailable))"
+                    }
+                  ]
+                },
                 "replicas": {
                   "format": "int32",
                   "type": "integer"
@@ -5610,6 +5644,40 @@
                     "type": "string"
                   },
                   "type": "object"
+                },
+                "podDisruptionBudget": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "maxUnavailable": {
+                      "anyOf": [
+                        {
+                          "type": "integer"
+                        },
+                        {
+                          "type": "string"
+                        }
+                      ],
+                      "x-kubernetes-int-or-string": true
+                    },
+                    "minAvailable": {
+                      "anyOf": [
+                        {
+                          "type": "integer"
+                        },
+                        {
+                          "type": "string"
+                        }
+                      ],
+                      "x-kubernetes-int-or-string": true
+                    }
+                  },
+                  "type": "object",
+                  "x-kubernetes-validations": [
+                    {
+                      "message": "minAvailable and maxUnavailable are mutually exclusive",
+                      "rule": "!(has(self.minAvailable) \u0026\u0026 has(self.maxUnavailable))"
+                    }
+                  ]
                 },
                 "replicas": {
                   "format": "int32",
@@ -9874,6 +9942,40 @@
                   },
                   "type": "object"
                 },
+                "podDisruptionBudget": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "maxUnavailable": {
+                      "anyOf": [
+                        {
+                          "type": "integer"
+                        },
+                        {
+                          "type": "string"
+                        }
+                      ],
+                      "x-kubernetes-int-or-string": true
+                    },
+                    "minAvailable": {
+                      "anyOf": [
+                        {
+                          "type": "integer"
+                        },
+                        {
+                          "type": "string"
+                        }
+                      ],
+                      "x-kubernetes-int-or-string": true
+                    }
+                  },
+                  "type": "object",
+                  "x-kubernetes-validations": [
+                    {
+                      "message": "minAvailable and maxUnavailable are mutually exclusive",
+                      "rule": "!(has(self.minAvailable) \u0026\u0026 has(self.maxUnavailable))"
+                    }
+                  ]
+                },
                 "replicas": {
                   "format": "int32",
                   "type": "integer"
@@ -13419,6 +13521,40 @@
                     "type": "string"
                   },
                   "type": "object"
+                },
+                "podDisruptionBudget": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "maxUnavailable": {
+                      "anyOf": [
+                        {
+                          "type": "integer"
+                        },
+                        {
+                          "type": "string"
+                        }
+                      ],
+                      "x-kubernetes-int-or-string": true
+                    },
+                    "minAvailable": {
+                      "anyOf": [
+                        {
+                          "type": "integer"
+                        },
+                        {
+                          "type": "string"
+                        }
+                      ],
+                      "x-kubernetes-int-or-string": true
+                    }
+                  },
+                  "type": "object",
+                  "x-kubernetes-validations": [
+                    {
+                      "message": "minAvailable and maxUnavailable are mutually exclusive",
+                      "rule": "!(has(self.minAvailable) \u0026\u0026 has(self.maxUnavailable))"
+                    }
+                  ]
                 },
                 "replicas": {
                   "format": "int32",
@@ -16992,6 +17128,40 @@
                   },
                   "type": "object"
                 },
+                "podDisruptionBudget": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "maxUnavailable": {
+                      "anyOf": [
+                        {
+                          "type": "integer"
+                        },
+                        {
+                          "type": "string"
+                        }
+                      ],
+                      "x-kubernetes-int-or-string": true
+                    },
+                    "minAvailable": {
+                      "anyOf": [
+                        {
+                          "type": "integer"
+                        },
+                        {
+                          "type": "string"
+                        }
+                      ],
+                      "x-kubernetes-int-or-string": true
+                    }
+                  },
+                  "type": "object",
+                  "x-kubernetes-validations": [
+                    {
+                      "message": "minAvailable and maxUnavailable are mutually exclusive",
+                      "rule": "!(has(self.minAvailable) \u0026\u0026 has(self.maxUnavailable))"
+                    }
+                  ]
+                },
                 "replicas": {
                   "format": "int32",
                   "type": "integer"
@@ -20563,6 +20733,40 @@
                     "type": "string"
                   },
                   "type": "object"
+                },
+                "podDisruptionBudget": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "maxUnavailable": {
+                      "anyOf": [
+                        {
+                          "type": "integer"
+                        },
+                        {
+                          "type": "string"
+                        }
+                      ],
+                      "x-kubernetes-int-or-string": true
+                    },
+                    "minAvailable": {
+                      "anyOf": [
+                        {
+                          "type": "integer"
+                        },
+                        {
+                          "type": "string"
+                        }
+                      ],
+                      "x-kubernetes-int-or-string": true
+                    }
+                  },
+                  "type": "object",
+                  "x-kubernetes-validations": [
+                    {
+                      "message": "minAvailable and maxUnavailable are mutually exclusive",
+                      "rule": "!(has(self.minAvailable) \u0026\u0026 has(self.maxUnavailable))"
+                    }
+                  ]
                 },
                 "replicas": {
                   "format": "int32",
@@ -24827,6 +25031,40 @@
                   },
                   "type": "object"
                 },
+                "podDisruptionBudget": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "maxUnavailable": {
+                      "anyOf": [
+                        {
+                          "type": "integer"
+                        },
+                        {
+                          "type": "string"
+                        }
+                      ],
+                      "x-kubernetes-int-or-string": true
+                    },
+                    "minAvailable": {
+                      "anyOf": [
+                        {
+                          "type": "integer"
+                        },
+                        {
+                          "type": "string"
+                        }
+                      ],
+                      "x-kubernetes-int-or-string": true
+                    }
+                  },
+                  "type": "object",
+                  "x-kubernetes-validations": [
+                    {
+                      "message": "minAvailable and maxUnavailable are mutually exclusive",
+                      "rule": "!(has(self.minAvailable) \u0026\u0026 has(self.maxUnavailable))"
+                    }
+                  ]
+                },
                 "replicas": {
                   "format": "int32",
                   "type": "integer"
@@ -27250,6 +27488,40 @@
                 "type": "string"
               },
               "type": "object"
+            },
+            "podDisruptionBudget": {
+              "additionalProperties": false,
+              "properties": {
+                "maxUnavailable": {
+                  "anyOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "string"
+                    }
+                  ],
+                  "x-kubernetes-int-or-string": true
+                },
+                "minAvailable": {
+                  "anyOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "string"
+                    }
+                  ],
+                  "x-kubernetes-int-or-string": true
+                }
+              },
+              "type": "object",
+              "x-kubernetes-validations": [
+                {
+                  "message": "minAvailable and maxUnavailable are mutually exclusive",
+                  "rule": "!(has(self.minAvailable) \u0026\u0026 has(self.maxUnavailable))"
+                }
+              ]
             },
             "tolerations": {
               "items": {

@@ -15,6 +15,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	corev1 "k8s.io/api/core/v1"
+	policyv1 "k8s.io/api/policy/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -57,6 +58,7 @@ type DatadogBYOCClusterReconciler struct {
 // +kubebuilder:rbac:groups="",resources=configmaps;serviceaccounts;services,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=apps,resources=deployments;statefulsets,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=autoscaling,resources=horizontalpodautoscalers,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=policy,resources=poddisruptionbudgets,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile resolves the requested release and converges all managed resources.
 func (r *DatadogBYOCClusterReconciler) Reconcile(ctx context.Context, request ctrl.Request) (ctrl.Result, error) {
@@ -205,11 +207,31 @@ func (r *DatadogBYOCClusterReconciler) deleteObsoleteResources(ctx context.Conte
 			return err
 		}
 	}
+	desiredPodDisruptionBudgets := map[string]*policyv1.PodDisruptionBudget{
+		"indexer":       resources.Indexer().PodDisruptionBudget,
+		"searcher":      resources.Searcher().PodDisruptionBudget,
+		"metastore":     resources.Metastore().PodDisruptionBudget,
+		"control-plane": resources.ControlPlane().PodDisruptionBudget,
+		"janitor":       resources.Janitor().PodDisruptionBudget,
+	}
+	if resources.ReadOnlyMetastore() != nil {
+		desiredPodDisruptionBudgets["metastore-ro"] = resources.ReadOnlyMetastore().PodDisruptionBudget
+	}
+	if resources.Compactor() != nil {
+		desiredPodDisruptionBudgets["compactor"] = resources.Compactor().PodDisruptionBudget
+	}
+	for _, component := range []string{"indexer", "searcher", "metastore", "control-plane", "janitor", "metastore-ro", "compactor"} {
+		if desiredPodDisruptionBudgets[component] == nil {
+			if err := r.deletePodDisruptionBudget(ctx, cluster, component); err != nil {
+				return err
+			}
+		}
+	}
 	return nil
 }
 
 func (r *DatadogBYOCClusterReconciler) deleteDeploymentComponent(ctx context.Context, cluster *datadoghqv1alpha1.DatadogBYOCCluster, component string) error {
-	name := cluster.Name + "-" + component
+	name := byocresources.ComponentResourceName(cluster.Name, component)
 	if err := deleteOwnedIfExists(ctx, r.Client, cluster, &corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: cluster.Namespace}}); err != nil {
 		return err
 	}
@@ -217,8 +239,16 @@ func (r *DatadogBYOCClusterReconciler) deleteDeploymentComponent(ctx context.Con
 }
 
 func (r *DatadogBYOCClusterReconciler) deleteHPA(ctx context.Context, cluster *datadoghqv1alpha1.DatadogBYOCCluster, component string) error {
-	name := cluster.Name + "-" + component
+	name := byocresources.ComponentResourceName(cluster.Name, component)
 	return deleteOwnedIfExists(ctx, r.Client, cluster, &autoscalingv2.HorizontalPodAutoscaler{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: cluster.Namespace}})
+}
+
+func (r *DatadogBYOCClusterReconciler) deletePodDisruptionBudget(ctx context.Context, cluster *datadoghqv1alpha1.DatadogBYOCCluster, component string) error {
+	podDisruptionBudget := &policyv1.PodDisruptionBudget{ObjectMeta: metav1.ObjectMeta{
+		Name:      byocresources.ComponentResourceName(cluster.Name, component),
+		Namespace: cluster.Namespace,
+	}}
+	return deleteOwnedIfExists(ctx, r.Client, cluster, podDisruptionBudget)
 }
 
 func (r *DatadogBYOCClusterReconciler) fail(ctx context.Context, cluster *datadoghqv1alpha1.DatadogBYOCCluster, conditionType, reason string, reconcileErr error) error {
@@ -337,5 +367,6 @@ func (r *DatadogBYOCClusterReconciler) SetupWithManager(mgr ctrl.Manager) error 
 		Owns(&appsv1.Deployment{}).
 		Owns(&appsv1.StatefulSet{}).
 		Owns(&autoscalingv2.HorizontalPodAutoscaler{}).
+		Owns(&policyv1.PodDisruptionBudget{}).
 		Complete(r)
 }
