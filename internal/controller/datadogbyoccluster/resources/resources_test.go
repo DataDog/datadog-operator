@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	appsv1 "k8s.io/api/apps/v1"
 	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	corev1 "k8s.io/api/core/v1"
@@ -348,7 +349,7 @@ func TestBuildResources_Indexer(t *testing.T) {
 			if err != nil {
 				t.Fatalf("BuildResources() unexpected error: %v", err)
 			}
-			if diff := cmp.Diff(tt.want(), resources.indexer); diff != "" {
+			if diff := cmp.Diff(tt.want(), resources.indexer, ignoreConfigChecksum); diff != "" {
 				t.Errorf("indexer mismatch (-want +got):\n%s", diff)
 			}
 		})
@@ -440,8 +441,132 @@ func TestBuildResources_Searcher(t *testing.T) {
 			if err != nil {
 				t.Fatalf("BuildResources() unexpected error: %v", err)
 			}
-			if diff := cmp.Diff(tt.want(), resources.searcher); diff != "" {
+			if diff := cmp.Diff(tt.want(), resources.searcher, ignoreConfigChecksum); diff != "" {
 				t.Errorf("searcher mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestBuildResources_Metastore(t *testing.T) {
+	wantDefault := func() *DeploymentResources {
+		return wantDefaultDeployment(wantDeploymentOptions{
+			component: "metastore",
+			service:   "metastore",
+		})
+	}
+
+	tests := []struct {
+		name      string
+		metastore *datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec
+		want      func() *DeploymentResources
+	}{
+		{
+			name:      "defaults",
+			metastore: &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{},
+			want:      wantDefault,
+		},
+		{
+			name: "database URI secret",
+			metastore: &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{
+				Database: &datadoghqv1alpha1.DatadogBYOCClusterDatabaseSpec{
+					URISecretRef: &corev1.SecretKeySelector{
+						LocalObjectReference: corev1.LocalObjectReference{Name: "metastore-database"},
+						Key:                  "uri",
+					},
+				},
+			},
+			want: func() *DeploymentResources {
+				return wantDefaultDeployment(wantDeploymentOptions{
+					component: "metastore",
+					service:   "metastore",
+					additionalEnv: []corev1.EnvVar{{
+						Name: "QW_METASTORE_URI",
+						ValueFrom: &corev1.EnvVarSource{SecretKeyRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{Name: "metastore-database"},
+							Key:                  "uri",
+						}},
+					}},
+				})
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cluster := testCluster()
+			cluster.Spec.Components.Metastore = tt.metastore
+
+			resources, err := BuildResources(cluster, testRelease())
+			if err != nil {
+				t.Fatalf("BuildResources() unexpected error: %v", err)
+			}
+			if diff := cmp.Diff(tt.want(), resources.metastore, ignoreConfigChecksum); diff != "" {
+				t.Errorf("metastore mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestBuildResources_ReadOnlyMetastore(t *testing.T) {
+	tests := []struct {
+		name              string
+		readOnlyMetastore *datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec
+		want              func() *DeploymentResources
+	}{
+		{
+			name: "disabled",
+			want: func() *DeploymentResources {
+				return nil
+			},
+		},
+		{
+			name:              "defaults",
+			readOnlyMetastore: &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{},
+			want: func() *DeploymentResources {
+				return wantDefaultDeployment(wantDeploymentOptions{
+					component: "metastore-ro",
+					service:   "metastore_read_replica",
+				})
+			},
+		},
+		{
+			name: "database URI secret",
+			readOnlyMetastore: &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{
+				Database: &datadoghqv1alpha1.DatadogBYOCClusterDatabaseSpec{
+					URISecretRef: &corev1.SecretKeySelector{
+						LocalObjectReference: corev1.LocalObjectReference{Name: "metastore-read-replica-database"},
+						Key:                  "uri",
+					},
+				},
+			},
+			want: func() *DeploymentResources {
+				return wantDefaultDeployment(wantDeploymentOptions{
+					component: "metastore-ro",
+					service:   "metastore_read_replica",
+					additionalEnv: []corev1.EnvVar{{
+						Name: "QW_METASTORE_READ_REPLICA_URI",
+						ValueFrom: &corev1.EnvVarSource{SecretKeyRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{Name: "metastore-read-replica-database"},
+							Key:                  "uri",
+						}},
+					}},
+				})
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cluster := testCluster()
+			cluster.Spec.Components.ReadOnlyMetastore = tt.readOnlyMetastore
+
+			resources, err := BuildResources(cluster, testRelease())
+			if err != nil {
+				t.Fatalf("BuildResources() unexpected error: %v", err)
+			}
+			if diff := cmp.Diff(tt.want(), resources.readOnlyMetastore, ignoreConfigChecksum); diff != "" {
+				t.Errorf("readOnlyMetastore mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
@@ -486,6 +611,10 @@ func testRelease() *byocrelease.ResolvedRelease {
 	}
 }
 
+var ignoreConfigChecksum = cmpopts.IgnoreMapEntries(func(key, _ string) bool {
+	return key == configChecksumAnnotation
+})
+
 type wantStatefulSetOptions struct {
 	component                     string
 	additionalServicePorts        []corev1.ServicePort
@@ -495,6 +624,84 @@ type wantStatefulSetOptions struct {
 }
 
 func wantDefaultStatefulSet(options wantStatefulSetOptions) *StatefulSetResources {
+	workload := wantDefaultWorkload(wantWorkloadOptions{
+		component:              options.component,
+		service:                options.component,
+		additionalServicePorts: options.additionalServicePorts,
+		configVolumeMount:      options.configVolumeMount,
+		additionalEnv:          options.additionalEnv,
+		resources: corev1.ResourceRequirements{
+			Limits:   corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("13100Mi")},
+			Requests: corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("3600m"), corev1.ResourceMemory: resource.MustParse("13100Mi")},
+		},
+		terminationGracePeriodSeconds: options.terminationGracePeriodSeconds,
+	})
+
+	return &StatefulSetResources{
+		Service: workload.service,
+		StatefulSet: &appsv1.StatefulSet{
+			ObjectMeta: workload.metadata,
+			Spec: appsv1.StatefulSetSpec{
+				Replicas:            workload.replicas,
+				ServiceName:         "byoc-headless",
+				PodManagementPolicy: appsv1.OrderedReadyPodManagement,
+				Selector:            workload.selector,
+				Template:            workload.template,
+			},
+		},
+	}
+}
+
+type wantDeploymentOptions struct {
+	component     string
+	service       string
+	additionalEnv []corev1.EnvVar
+}
+
+func wantDefaultDeployment(options wantDeploymentOptions) *DeploymentResources {
+	workload := wantDefaultWorkload(wantWorkloadOptions{
+		component:         options.component,
+		service:           options.service,
+		configVolumeMount: defaultConfigVolumeMount(),
+		additionalEnv:     options.additionalEnv,
+		resources: corev1.ResourceRequirements{
+			Limits:   corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("4Gi")},
+			Requests: corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("2"), corev1.ResourceMemory: resource.MustParse("4Gi")},
+		},
+	})
+
+	return &DeploymentResources{
+		Service: workload.service,
+		Deployment: &appsv1.Deployment{
+			ObjectMeta: workload.metadata,
+			Spec: appsv1.DeploymentSpec{
+				Replicas: workload.replicas,
+				Selector: workload.selector,
+				Template: workload.template,
+			},
+		},
+	}
+}
+
+type wantWorkloadOptions struct {
+	component                     string
+	service                       string
+	additionalServicePorts        []corev1.ServicePort
+	configVolumeMount             corev1.VolumeMount
+	additionalEnv                 []corev1.EnvVar
+	resources                     corev1.ResourceRequirements
+	terminationGracePeriodSeconds *int64
+}
+
+type wantWorkload struct {
+	service  *corev1.Service
+	metadata metav1.ObjectMeta
+	replicas *int32
+	selector *metav1.LabelSelector
+	template corev1.PodTemplateSpec
+}
+
+func wantDefaultWorkload(options wantWorkloadOptions) wantWorkload {
 	selector := map[string]string{
 		"app.kubernetes.io/name":      "cloudprem",
 		"app.kubernetes.io/instance":  "byoc",
@@ -565,8 +772,8 @@ func wantDefaultStatefulSet(options wantStatefulSetOptions) *StatefulSetResource
 	servicePorts = append(servicePorts, options.additionalServicePorts...)
 	servicePorts = append(servicePorts, corev1.ServicePort{Name: "health", Port: 7284, Protocol: corev1.ProtocolTCP, TargetPort: intstr.FromString("health")})
 
-	return &StatefulSetResources{
-		Service: &corev1.Service{
+	return wantWorkload{
+		service: &corev1.Service{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:        resourceName,
 				Namespace:   "testing",
@@ -579,77 +786,65 @@ func wantDefaultStatefulSet(options wantStatefulSetOptions) *StatefulSetResource
 				Ports:    servicePorts,
 			},
 		},
-		StatefulSet: &appsv1.StatefulSet{
+		metadata: metav1.ObjectMeta{
+			Name:        resourceName,
+			Namespace:   "testing",
+			Labels:      labels,
+			Annotations: map[string]string{"example.com/owner": "operator"},
+		},
+		replicas: ptr.To[int32](2),
+		selector: &metav1.LabelSelector{MatchLabels: selector},
+		template: corev1.PodTemplateSpec{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:        resourceName,
-				Namespace:   "testing",
 				Labels:      labels,
 				Annotations: map[string]string{"example.com/owner": "operator"},
 			},
-			Spec: appsv1.StatefulSetSpec{
-				Replicas:            ptr.To[int32](2),
-				ServiceName:         "byoc-headless",
-				PodManagementPolicy: appsv1.OrderedReadyPodManagement,
-				Selector:            &metav1.LabelSelector{MatchLabels: selector},
-				Template: corev1.PodTemplateSpec{
-					ObjectMeta: metav1.ObjectMeta{
-						Labels: labels,
-						Annotations: map[string]string{
-							"example.com/owner": "operator",
-							"checksum/config":   "629e87e9b2537f18b429f6996cf16972707992d13b1634fc07bc6fb6c122cc74",
-						},
+			Spec: corev1.PodSpec{
+				ServiceAccountName: "byoc",
+				SecurityContext:    &corev1.PodSecurityContext{FSGroup: ptr.To[int64](1005)},
+				DNSConfig:          &corev1.PodDNSConfig{Options: []corev1.PodDNSConfigOption{{Name: "ndots", Value: ptr.To("1")}}},
+				Containers: []corev1.Container{{
+					Name:            "cloudprem",
+					Image:           "registry.example.com/cloudprem:v1.2.3",
+					ImagePullPolicy: corev1.PullIfNotPresent,
+					Args:            []string{"run", "--service", options.service},
+					Env:             env,
+					Ports: []corev1.ContainerPort{
+						{Name: "rest", ContainerPort: 7280, Protocol: corev1.ProtocolTCP},
+						{Name: "grpc", ContainerPort: 7281, Protocol: corev1.ProtocolTCP},
+						{Name: "discovery", ContainerPort: 7282, Protocol: corev1.ProtocolUDP},
+						{Name: "cloudprem", ContainerPort: 7283, Protocol: corev1.ProtocolTCP},
+						{Name: "health", ContainerPort: 7284, Protocol: corev1.ProtocolTCP},
 					},
-					Spec: corev1.PodSpec{
-						ServiceAccountName: "byoc",
-						SecurityContext:    &corev1.PodSecurityContext{FSGroup: ptr.To[int64](1005)},
-						DNSConfig:          &corev1.PodDNSConfig{Options: []corev1.PodDNSConfigOption{{Name: "ndots", Value: ptr.To("1")}}},
-						Containers: []corev1.Container{{
-							Name:            "cloudprem",
-							Image:           "registry.example.com/cloudprem:v1.2.3",
-							ImagePullPolicy: corev1.PullIfNotPresent,
-							Args:            []string{"run", "--service", options.component},
-							Env:             env,
-							Ports: []corev1.ContainerPort{
-								{Name: "rest", ContainerPort: 7280, Protocol: corev1.ProtocolTCP},
-								{Name: "grpc", ContainerPort: 7281, Protocol: corev1.ProtocolTCP},
-								{Name: "discovery", ContainerPort: 7282, Protocol: corev1.ProtocolUDP},
-								{Name: "cloudprem", ContainerPort: 7283, Protocol: corev1.ProtocolTCP},
-								{Name: "health", ContainerPort: 7284, Protocol: corev1.ProtocolTCP},
-							},
-							Resources: corev1.ResourceRequirements{
-								Limits:   corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("13100Mi")},
-								Requests: corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("3600m"), corev1.ResourceMemory: resource.MustParse("13100Mi")},
-							},
-							VolumeMounts: []corev1.VolumeMount{
-								options.configVolumeMount,
-								{Name: "data", MountPath: "/quickwit/qwdata"},
-							},
-							StartupProbe: &corev1.Probe{
-								ProbeHandler:     corev1.ProbeHandler{HTTPGet: &corev1.HTTPGetAction{Path: "/health/livez", Port: intstr.FromString("health")}},
-								FailureThreshold: 12,
-								PeriodSeconds:    5,
-							},
-							LivenessProbe:  &corev1.Probe{ProbeHandler: corev1.ProbeHandler{HTTPGet: &corev1.HTTPGetAction{Path: "/health/livez", Port: intstr.FromString("health")}}},
-							ReadinessProbe: &corev1.Probe{ProbeHandler: corev1.ProbeHandler{HTTPGet: &corev1.HTTPGetAction{Path: "/health/readyz", Port: intstr.FromString("health")}}},
-							SecurityContext: &corev1.SecurityContext{
-								RunAsNonRoot:           ptr.To(true),
-								RunAsUser:              ptr.To[int64](1005),
-								ReadOnlyRootFilesystem: ptr.To(true),
-							},
+					Resources: options.resources,
+					VolumeMounts: []corev1.VolumeMount{
+						options.configVolumeMount,
+						{Name: "data", MountPath: "/quickwit/qwdata"},
+					},
+					StartupProbe: &corev1.Probe{
+						ProbeHandler:     corev1.ProbeHandler{HTTPGet: &corev1.HTTPGetAction{Path: "/health/livez", Port: intstr.FromString("health")}},
+						FailureThreshold: 12,
+						PeriodSeconds:    5,
+					},
+					LivenessProbe:  &corev1.Probe{ProbeHandler: corev1.ProbeHandler{HTTPGet: &corev1.HTTPGetAction{Path: "/health/livez", Port: intstr.FromString("health")}}},
+					ReadinessProbe: &corev1.Probe{ProbeHandler: corev1.ProbeHandler{HTTPGet: &corev1.HTTPGetAction{Path: "/health/readyz", Port: intstr.FromString("health")}}},
+					SecurityContext: &corev1.SecurityContext{
+						RunAsNonRoot:           ptr.To(true),
+						RunAsUser:              ptr.To[int64](1005),
+						ReadOnlyRootFilesystem: ptr.To(true),
+					},
+				}},
+				Volumes: []corev1.Volume{
+					{
+						Name: "config",
+						VolumeSource: corev1.VolumeSource{ConfigMap: &corev1.ConfigMapVolumeSource{
+							LocalObjectReference: corev1.LocalObjectReference{Name: "byoc"},
+							Items:                []corev1.KeyToPath{{Key: "node.yaml", Path: "node.yaml"}},
 						}},
-						Volumes: []corev1.Volume{
-							{
-								Name: "config",
-								VolumeSource: corev1.VolumeSource{ConfigMap: &corev1.ConfigMapVolumeSource{
-									LocalObjectReference: corev1.LocalObjectReference{Name: "byoc"},
-									Items:                []corev1.KeyToPath{{Key: "node.yaml", Path: "node.yaml"}},
-								}},
-							},
-							{Name: "data", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}}},
-						},
-						TerminationGracePeriodSeconds: options.terminationGracePeriodSeconds,
 					},
+					{Name: "data", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}}},
 				},
+				TerminationGracePeriodSeconds: options.terminationGracePeriodSeconds,
 			},
 		},
 	}
