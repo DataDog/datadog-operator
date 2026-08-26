@@ -46,8 +46,13 @@ type DatadogBYOCClusterSpec struct {
 
 // DatadogBYOCClusterReleaseSpec identifies a BYOC release artifact.
 // +k8s:openapi-gen=true
-// +kubebuilder:validation:XValidation:rule="has(self.tag) || has(self.digest)",message="at least one of tag or digest must be specified"
+// +kubebuilder:validation:XValidation:rule="has(self.tag) != has(self.digest)",message="exactly one of tag or digest must be specified"
 type DatadogBYOCClusterReleaseSpec struct {
+	// Repository is the OCI repository containing BYOC release artifacts.
+	// The public Datadog BYOC release repository is used when this field is omitted.
+	// +optional
+	Repository *string `json:"repository,omitempty"`
+
 	// Tag is the OCI tag of the BYOC release artifact.
 	// +optional
 	Tag *string `json:"tag,omitempty"`
