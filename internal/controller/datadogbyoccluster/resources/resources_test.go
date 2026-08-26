@@ -6,15 +6,17 @@
 package resources
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	appsv1 "k8s.io/api/apps/v1"
+	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/ptr"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	byocrelease "github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/release"
@@ -269,112 +271,85 @@ func TestBuildResources_ServiceAccount(t *testing.T) {
 	}
 }
 
-func TestBuildResources_StatefulSetReplicasOwnership(t *testing.T) {
+func TestBuildResources_Indexer(t *testing.T) {
+	wantDefault := func() *StatefulSetResources {
+		return wantDefaultStatefulSet(wantStatefulSetOptions{
+			component:                     "indexer",
+			configVolumeMount:             corev1.VolumeMount{Name: "config", MountPath: "/quickwit/"},
+			additionalEnv:                 []corev1.EnvVar{{Name: "QW_INGEST_DECOMMISSION_TIMEOUT", Value: "270s"}},
+			terminationGracePeriodSeconds: ptr.To[int64](300),
+		})
+	}
+
 	tests := []struct {
-		name         string
-		autoscaling  *datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec
-		wantReplicas *int32
-		wantHPA      bool
+		name    string
+		indexer *datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec
+		want    func() *StatefulSetResources
 	}{
 		{
-			name:         "fixed replicas",
-			wantReplicas: ptr.To[int32](2),
+			name:    "defaults",
+			indexer: &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{},
+			want:    wantDefault,
 		},
 		{
-			name:        "replicas managed by HPA",
-			autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{},
-			wantHPA:     true,
+			name: "autoscaling",
+			indexer: &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{
+				Autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{},
+			},
+			want: func() *StatefulSetResources {
+				want := wantDefault()
+				want.StatefulSet.Spec.Replicas = nil
+				want.HPA = wantAutoscaling(wantAutoscalingOptions{
+					component:          "indexer",
+					averageUtilization: 70,
+					scaleUpWindow:      0,
+					scaleDownWindow:    300,
+				})
+				return want
+			},
+		},
+		{
+			name: "persistent volume claim",
+			indexer: &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{
+				PersistentVolumeClaim: &datadoghqv1alpha1.DatadogBYOCClusterPersistentVolumeClaimSpec{
+					PersistentVolumeClaimSpec: corev1.PersistentVolumeClaimSpec{
+						AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+						StorageClassName: ptr.To("gp3"),
+						Resources: corev1.VolumeResourceRequirements{
+							Requests: corev1.ResourceList{corev1.ResourceStorage: resource.MustParse("100Gi")},
+						},
+					},
+				},
+			},
+			want: func() *StatefulSetResources {
+				want := wantDefault()
+				want.StatefulSet.Spec.Template.Spec.Volumes = want.StatefulSet.Spec.Template.Spec.Volumes[:1]
+				want.StatefulSet.Spec.VolumeClaimTemplates = []corev1.PersistentVolumeClaim{{
+					ObjectMeta: metav1.ObjectMeta{Name: "data"},
+					Spec: corev1.PersistentVolumeClaimSpec{
+						AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+						StorageClassName: ptr.To("gp3"),
+						Resources: corev1.VolumeResourceRequirements{
+							Requests: corev1.ResourceList{corev1.ResourceStorage: resource.MustParse("100Gi")},
+						},
+					},
+				}}
+				return want
+			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cluster := testCluster()
-			cluster.Spec.Components.Indexer.Autoscaling = tt.autoscaling
+			cluster.Spec.Components.Indexer = tt.indexer
 
 			resources, err := BuildResources(cluster, testRelease())
 			if err != nil {
 				t.Fatalf("BuildResources() unexpected error: %v", err)
 			}
-			if diff := cmp.Diff(tt.wantReplicas, resources.indexer.StatefulSet.Spec.Replicas); diff != "" {
-				t.Errorf("indexer.StatefulSet.Spec.Replicas mismatch (-want +got):\n%s", diff)
-			}
-			if got := resources.indexer.HPA != nil; got != tt.wantHPA {
-				t.Errorf("indexer.HPA presence = %t, want %t", got, tt.wantHPA)
-			}
-		})
-	}
-}
-
-func TestBuildResources_ComponentObjects(t *testing.T) {
-	defaultCluster := testCluster()
-	optionalResourcesCluster := testCluster()
-	optionalResourcesCluster.Spec.Components.Indexer.Autoscaling = &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{}
-	optionalResourcesCluster.Spec.Components.ReadOnlyMetastore = &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{}
-	optionalResourcesCluster.Spec.Components.Compactor = &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{}
-
-	tests := []struct {
-		name    string
-		cluster *datadoghqv1alpha1.DatadogBYOCCluster
-		want    [][]string
-	}{
-		{
-			name:    "required resources",
-			cluster: defaultCluster,
-			want: [][]string{
-				{"*v1.ConfigMap/byoc", "*v1.ServiceAccount/byoc", "*v1.Service/byoc-headless"},
-				{"*v1.Service/byoc-metastore", "*v1.Deployment/byoc-metastore"},
-				{"*v1.Service/byoc-indexer", "*v1.StatefulSet/byoc-indexer"},
-				{"*v1.Service/byoc-searcher", "*v1.StatefulSet/byoc-searcher"},
-				{"*v1.Service/byoc-control-plane", "*v1.Deployment/byoc-control-plane"},
-				{"*v1.Service/byoc-janitor", "*v1.Deployment/byoc-janitor"},
-				{},
-				{},
-			},
-		},
-		{
-			name:    "optional resources",
-			cluster: optionalResourcesCluster,
-			want: [][]string{
-				{"*v1.ConfigMap/byoc", "*v1.ServiceAccount/byoc", "*v1.Service/byoc-headless"},
-				{"*v1.Service/byoc-metastore", "*v1.Deployment/byoc-metastore"},
-				{"*v1.Service/byoc-indexer", "*v1.StatefulSet/byoc-indexer", "*v2.HorizontalPodAutoscaler/byoc-indexer"},
-				{"*v1.Service/byoc-searcher", "*v1.StatefulSet/byoc-searcher"},
-				{"*v1.Service/byoc-control-plane", "*v1.Deployment/byoc-control-plane"},
-				{"*v1.Service/byoc-janitor", "*v1.Deployment/byoc-janitor"},
-				{"*v1.Service/byoc-metastore-ro", "*v1.Deployment/byoc-metastore-ro"},
-				{"*v1.Service/byoc-compactor", "*v1.Deployment/byoc-compactor"},
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			resources, err := BuildResources(tt.cluster, testRelease())
-			if err != nil {
-				t.Fatalf("BuildResources() unexpected error: %v", err)
-			}
-
-			groups := [][]client.Object{
-				resources.Shared(),
-				resources.Metastore().Objects(),
-				resources.Indexer().Objects(),
-				resources.Searcher().Objects(),
-				resources.ControlPlane().Objects(),
-				resources.Janitor().Objects(),
-				resources.ReadOnlyMetastore().Objects(),
-				resources.Compactor().Objects(),
-			}
-			got := make([][]string, 0, len(groups))
-			for _, group := range groups {
-				objects := make([]string, 0, len(group))
-				for _, object := range group {
-					objects = append(objects, fmt.Sprintf("%T/%s", object, object.GetName()))
-				}
-				got = append(got, objects)
-			}
-			if diff := cmp.Diff(tt.want, got); diff != "" {
-				t.Errorf("component objects mismatch (-want +got):\n%s", diff)
+			if diff := cmp.Diff(tt.want(), resources.indexer); diff != "" {
+				t.Errorf("indexer mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
@@ -414,6 +389,215 @@ func testRelease() *byocrelease.ResolvedRelease {
 					Repository: "registry.example.com/cloudprem",
 					Tag:        "v1.2.3",
 				},
+			},
+		},
+	}
+}
+
+type wantStatefulSetOptions struct {
+	component                     string
+	additionalServicePorts        []corev1.ServicePort
+	configVolumeMount             corev1.VolumeMount
+	additionalEnv                 []corev1.EnvVar
+	terminationGracePeriodSeconds *int64
+}
+
+func wantDefaultStatefulSet(options wantStatefulSetOptions) *StatefulSetResources {
+	selector := map[string]string{
+		"app.kubernetes.io/name":      "cloudprem",
+		"app.kubernetes.io/instance":  "byoc",
+		"app.kubernetes.io/component": options.component,
+	}
+	labels := map[string]string{
+		"app.kubernetes.io/name":       "cloudprem",
+		"app.kubernetes.io/instance":   "byoc",
+		"app.kubernetes.io/component":  options.component,
+		"app.kubernetes.io/managed-by": "datadog-operator",
+		"team":                         "search",
+	}
+	field := func(fieldPath string) *corev1.EnvVarSource {
+		return &corev1.EnvVarSource{FieldRef: &corev1.ObjectFieldSelector{FieldPath: fieldPath}}
+	}
+	resourceField := func(resourceName string) *corev1.EnvVarSource {
+		return &corev1.EnvVarSource{ResourceFieldRef: &corev1.ResourceFieldSelector{ContainerName: "cloudprem", Resource: resourceName}}
+	}
+	env := []corev1.EnvVar{
+		{Name: "KUBERNETES_NAMESPACE", ValueFrom: field("metadata.namespace")},
+		{Name: "KUBERNETES_COMPONENT", ValueFrom: field("metadata.labels['app.kubernetes.io/component']")},
+		{Name: "KUBERNETES_POD_NAME", ValueFrom: field("metadata.name")},
+		{Name: "KUBERNETES_NODE_NAME", ValueFrom: field("spec.nodeName")},
+		{Name: "KUBERNETES_POD_IP", ValueFrom: field("status.podIP")},
+		{Name: "KUBERNETES_LIMITS_CPU", ValueFrom: resourceField("limits.cpu")},
+		{Name: "KUBERNETES_LIMITS_MEMORY", ValueFrom: resourceField("limits.memory")},
+		{Name: "KUBERNETES_REQUESTS_CPU", ValueFrom: resourceField("requests.cpu")},
+		{Name: "QW_NUM_CPUS", ValueFrom: resourceField("requests.cpu")},
+		{Name: "KUBERNETES_REQUESTS_MEMORY", ValueFrom: resourceField("requests.memory")},
+		{Name: "QW_CONFIG", Value: "/quickwit/node.yaml"},
+		{Name: "QW_CLUSTER_ID", Value: "testing-byoc"},
+		{Name: "QW_NODE_ID", Value: "$(KUBERNETES_POD_NAME)"},
+		{Name: "QW_AVAILABILITY_ZONE", ValueFrom: field("metadata.labels['topology.kubernetes.io/zone']")},
+		{Name: "QW_PEER_SEEDS", Value: "byoc-headless"},
+		{Name: "QW_ADVERTISE_ADDRESS", Value: "$(KUBERNETES_POD_IP)"},
+		{Name: "QW_CLUSTER_ENDPOINT", Value: "http://byoc-metastore.testing.svc.cluster.local:7280"},
+		{Name: "CP_DOGSTATSD_SERVER_HOST", ValueFrom: field("status.hostIP")},
+		{Name: "CP_DOGSTATSD_SERVER_PORT", Value: "8125"},
+		{Name: "CP_ENABLE_REVERSE_CONNECTION", Value: "true"},
+		{Name: "CP_MIN_SHARDS", Value: "12"},
+		{Name: "DD_SITE", Value: "datadoghq.com"},
+		{Name: "QW_ENABLE_OPENTELEMETRY_OTLP_EXPORTER", Value: "true"},
+		{Name: "BYOC_TELEMETRY_ENABLED", Value: "true"},
+		{Name: "OTEL_RESOURCE_ATTRIBUTES", Value: "cluster_id=testing-byoc,node_id=$(QW_NODE_ID),host.name=$(KUBERNETES_NODE_NAME)"},
+		{Name: "OTEL_EXPORTER_OTLP_PROTOCOL", Value: "http/protobuf"},
+		{Name: "OTEL_EXPORTER_OTLP_LOGS_ENDPOINT", Value: "https://app.datadoghq.com/api/unstable/byoc-telemetry-intake/v1/logs"},
+		{Name: "OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE", Value: "delta"},
+		{Name: "OTEL_EXPORTER_OTLP_METRICS_ENDPOINT", Value: "https://app.datadoghq.com/api/unstable/byoc-telemetry-intake/v1/metrics"},
+		{Name: "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", Value: "https://app.datadoghq.com/api/unstable/byoc-telemetry-intake/v1/traces"},
+		{Name: "OTEL_TRACES_SAMPLER", Value: "parentbased_traceidratio"},
+		{Name: "OTEL_TRACES_SAMPLER_ARG", Value: "0.2"},
+		{Name: "IMAGE_NAME", Value: "registry.example.com/cloudprem"},
+		{Name: "IMAGE_TAG", Value: "v1.2.3"},
+	}
+	env = append(env, options.additionalEnv...)
+	env = append(env,
+		corev1.EnvVar{Name: "NO_COLOR", Value: "true"},
+		corev1.EnvVar{Name: "QW_DISABLE_INGEST_V1", Value: "true"},
+		corev1.EnvVar{Name: "QW_DISABLE_TELEMETRY", Value: "true"},
+		corev1.EnvVar{Name: "QW_LOG_FORMAT", Value: "DDG"},
+		corev1.EnvVar{Name: "QW_RANDOM_SPLIT_PREFIX", Value: "true"},
+	)
+	resourceName := "byoc-" + options.component
+	servicePorts := []corev1.ServicePort{
+		{Name: "rest", Port: 7280, Protocol: corev1.ProtocolTCP, TargetPort: intstr.FromString("rest")},
+		{Name: "grpc", Port: 7281, Protocol: corev1.ProtocolTCP, TargetPort: intstr.FromString("grpc")},
+	}
+	servicePorts = append(servicePorts, options.additionalServicePorts...)
+	servicePorts = append(servicePorts, corev1.ServicePort{Name: "health", Port: 7284, Protocol: corev1.ProtocolTCP, TargetPort: intstr.FromString("health")})
+
+	return &StatefulSetResources{
+		Service: &corev1.Service{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:        resourceName,
+				Namespace:   "testing",
+				Labels:      labels,
+				Annotations: map[string]string{"example.com/owner": "operator"},
+			},
+			Spec: corev1.ServiceSpec{
+				Type:     corev1.ServiceTypeClusterIP,
+				Selector: selector,
+				Ports:    servicePorts,
+			},
+		},
+		StatefulSet: &appsv1.StatefulSet{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:        resourceName,
+				Namespace:   "testing",
+				Labels:      labels,
+				Annotations: map[string]string{"example.com/owner": "operator"},
+			},
+			Spec: appsv1.StatefulSetSpec{
+				Replicas:            ptr.To[int32](2),
+				ServiceName:         "byoc-headless",
+				PodManagementPolicy: appsv1.OrderedReadyPodManagement,
+				Selector:            &metav1.LabelSelector{MatchLabels: selector},
+				Template: corev1.PodTemplateSpec{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: labels,
+						Annotations: map[string]string{
+							"example.com/owner": "operator",
+							"checksum/config":   "629e87e9b2537f18b429f6996cf16972707992d13b1634fc07bc6fb6c122cc74",
+						},
+					},
+					Spec: corev1.PodSpec{
+						ServiceAccountName: "byoc",
+						SecurityContext:    &corev1.PodSecurityContext{FSGroup: ptr.To[int64](1005)},
+						DNSConfig:          &corev1.PodDNSConfig{Options: []corev1.PodDNSConfigOption{{Name: "ndots", Value: ptr.To("1")}}},
+						Containers: []corev1.Container{{
+							Name:            "cloudprem",
+							Image:           "registry.example.com/cloudprem:v1.2.3",
+							ImagePullPolicy: corev1.PullIfNotPresent,
+							Args:            []string{"run", "--service", options.component},
+							Env:             env,
+							Ports: []corev1.ContainerPort{
+								{Name: "rest", ContainerPort: 7280, Protocol: corev1.ProtocolTCP},
+								{Name: "grpc", ContainerPort: 7281, Protocol: corev1.ProtocolTCP},
+								{Name: "discovery", ContainerPort: 7282, Protocol: corev1.ProtocolUDP},
+								{Name: "cloudprem", ContainerPort: 7283, Protocol: corev1.ProtocolTCP},
+								{Name: "health", ContainerPort: 7284, Protocol: corev1.ProtocolTCP},
+							},
+							Resources: corev1.ResourceRequirements{
+								Limits:   corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("13100Mi")},
+								Requests: corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("3600m"), corev1.ResourceMemory: resource.MustParse("13100Mi")},
+							},
+							VolumeMounts: []corev1.VolumeMount{
+								options.configVolumeMount,
+								{Name: "data", MountPath: "/quickwit/qwdata"},
+							},
+							StartupProbe: &corev1.Probe{
+								ProbeHandler:     corev1.ProbeHandler{HTTPGet: &corev1.HTTPGetAction{Path: "/health/livez", Port: intstr.FromString("health")}},
+								FailureThreshold: 12,
+								PeriodSeconds:    5,
+							},
+							LivenessProbe:  &corev1.Probe{ProbeHandler: corev1.ProbeHandler{HTTPGet: &corev1.HTTPGetAction{Path: "/health/livez", Port: intstr.FromString("health")}}},
+							ReadinessProbe: &corev1.Probe{ProbeHandler: corev1.ProbeHandler{HTTPGet: &corev1.HTTPGetAction{Path: "/health/readyz", Port: intstr.FromString("health")}}},
+							SecurityContext: &corev1.SecurityContext{
+								RunAsNonRoot:           ptr.To(true),
+								RunAsUser:              ptr.To[int64](1005),
+								ReadOnlyRootFilesystem: ptr.To(true),
+							},
+						}},
+						Volumes: []corev1.Volume{
+							{
+								Name: "config",
+								VolumeSource: corev1.VolumeSource{ConfigMap: &corev1.ConfigMapVolumeSource{
+									LocalObjectReference: corev1.LocalObjectReference{Name: "byoc"},
+									Items:                []corev1.KeyToPath{{Key: "node.yaml", Path: "node.yaml"}},
+								}},
+							},
+							{Name: "data", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}}},
+						},
+						TerminationGracePeriodSeconds: options.terminationGracePeriodSeconds,
+					},
+				},
+			},
+		},
+	}
+}
+
+type wantAutoscalingOptions struct {
+	component          string
+	averageUtilization int32
+	scaleUpWindow      int32
+	scaleDownWindow    int32
+}
+
+func wantAutoscaling(options wantAutoscalingOptions) *autoscalingv2.HorizontalPodAutoscaler {
+	resourceName := "byoc-" + options.component
+	return &autoscalingv2.HorizontalPodAutoscaler{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      resourceName,
+			Namespace: "testing",
+			Labels: map[string]string{
+				"app.kubernetes.io/name":       "cloudprem",
+				"app.kubernetes.io/instance":   "byoc",
+				"app.kubernetes.io/component":  options.component,
+				"app.kubernetes.io/managed-by": "datadog-operator",
+				"team":                         "search",
+			},
+		},
+		Spec: autoscalingv2.HorizontalPodAutoscalerSpec{
+			ScaleTargetRef: autoscalingv2.CrossVersionObjectReference{APIVersion: "apps/v1", Kind: "StatefulSet", Name: resourceName},
+			MinReplicas:    ptr.To[int32](2),
+			MaxReplicas:    10,
+			Metrics: []autoscalingv2.MetricSpec{{
+				Type: autoscalingv2.ResourceMetricSourceType,
+				Resource: &autoscalingv2.ResourceMetricSource{
+					Name:   corev1.ResourceCPU,
+					Target: autoscalingv2.MetricTarget{Type: autoscalingv2.UtilizationMetricType, AverageUtilization: ptr.To(options.averageUtilization)},
+				},
+			}},
+			Behavior: &autoscalingv2.HorizontalPodAutoscalerBehavior{
+				ScaleUp:   &autoscalingv2.HPAScalingRules{StabilizationWindowSeconds: ptr.To(options.scaleUpWindow)},
+				ScaleDown: &autoscalingv2.HPAScalingRules{StabilizationWindowSeconds: ptr.To(options.scaleDownWindow)},
 			},
 		},
 	}
