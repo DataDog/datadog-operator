@@ -58,11 +58,12 @@ const (
 
 func TestOCIReleaseResolver_Resolve(t *testing.T) {
 	tests := []struct {
-		name    string
-		release datadoghqv1alpha1.DatadogBYOCClusterReleaseSpec
-		payload string
-		want    *ResolvedRelease
-		wantErr string
+		name           string
+		release        datadoghqv1alpha1.DatadogBYOCClusterReleaseSpec
+		payload        string
+		want           *ResolvedRelease
+		wantRepository string
+		wantErr        string
 	}{
 		{
 			name:    "tag",
@@ -107,28 +108,13 @@ func TestOCIReleaseResolver_Resolve(t *testing.T) {
 			},
 		},
 		{
-			name: "matching tag and digest",
+			name: "tag and digest",
 			release: datadoghqv1alpha1.DatadogBYOCClusterReleaseSpec{
 				Tag:    ptr.To(releaseTag),
 				Digest: ptr.To(validArtifactDigest),
 			},
 			payload: validReleasePayload,
-			want: &ResolvedRelease{
-				Release: BYOCRelease{
-					Images: BYOCReleaseImages{
-						Pomsky: BYOCReleaseImage{
-							Repository: "public.ecr.aws/datadog/cloudprem",
-							Tag:        "v0.1.32",
-							Digest:     "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-						},
-						ObservabilityPipelinesWorker: BYOCReleaseImage{
-							Repository: "public.ecr.aws/datadog/observability-pipelines-worker",
-							Tag:        "2.10.0",
-							Digest:     "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-						},
-					},
-				},
-			},
+			wantErr: "tag and digest are mutually exclusive",
 		},
 		{
 			name:    "Pomsky image with tag",
@@ -150,13 +136,27 @@ func TestOCIReleaseResolver_Resolve(t *testing.T) {
 			},
 		},
 		{
-			name: "tag and digest mismatch",
+			name: "custom repository",
 			release: datadoghqv1alpha1.DatadogBYOCClusterReleaseSpec{
-				Tag:    ptr.To(releaseTag),
-				Digest: ptr.To("sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"),
+				Repository: ptr.To("public.ecr.aws/example/releases"),
+				Tag:        ptr.To(releaseTag),
 			},
-			payload: validReleasePayload,
-			wantErr: "resolved to digest",
+			payload:        tagOnlyReleasePayload,
+			wantRepository: "public.ecr.aws/example/releases",
+			want: &ResolvedRelease{
+				Release: BYOCRelease{
+					Images: BYOCReleaseImages{
+						Pomsky: BYOCReleaseImage{
+							Repository: "public.ecr.aws/datadog/cloudprem",
+							Tag:        "v0.1.32",
+						},
+						ObservabilityPipelinesWorker: BYOCReleaseImage{
+							Repository: "public.ecr.aws/datadog/observability-pipelines-worker",
+							Tag:        "2.10.0",
+						},
+					},
+				},
+			},
 		},
 		{
 			name:    "missing reference",
@@ -194,7 +194,9 @@ func TestOCIReleaseResolver_Resolve(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			artifact := newFakeArtifact(t, tt.payload)
-			resolver := newOCIReleaseResolver(defaultReleaseRepository, func(context.Context, string) (oras.ReadOnlyTarget, error) {
+			var repository string
+			resolver := newOCIReleaseResolver(defaultReleaseRepository, func(_ context.Context, gotRepository string) (oras.ReadOnlyTarget, error) {
+				repository = gotRepository
 				return artifact, nil
 			})
 
@@ -213,6 +215,13 @@ func TestOCIReleaseResolver_Resolve(t *testing.T) {
 			}
 			if diff := cmp.Diff(tt.want, got, cmpopts.IgnoreFields(ResolvedRelease{}, "Digest")); diff != "" {
 				t.Errorf("Resolve() mismatch (-want +got):\n%s", diff)
+			}
+			wantRepository := tt.wantRepository
+			if wantRepository == "" {
+				wantRepository = defaultReleaseRepository
+			}
+			if repository != wantRepository {
+				t.Errorf("repository = %q, want %q", repository, wantRepository)
 			}
 		})
 	}

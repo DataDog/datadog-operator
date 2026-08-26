@@ -1641,6 +1641,13 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterReleaseSpe
 				Description: "DatadogBYOCClusterReleaseSpec identifies a BYOC release artifact.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
+					"repository": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Repository is the OCI repository containing BYOC release artifacts. The public Datadog BYOC release repository is used when this field is omitted.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 					"tag": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Tag is the OCI tag of the BYOC release artifact.",
