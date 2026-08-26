@@ -11,6 +11,9 @@ spec:
     kubelet:
       tlsVerify: false
   features:
+    # Service Discovery requires the privileged System Probe container, which is incompatible with this strategy.
+    serviceDiscovery:
+      enabled: false
     dogstatsd:
       hostPortConfig:
         enabled: true
