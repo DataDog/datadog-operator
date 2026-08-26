@@ -21,6 +21,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
+	mergerfake "github.com/DataDog/datadog-operator/internal/controller/datadogagent/merger/fake"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
@@ -163,14 +164,12 @@ func cspmAgentNodeWantFunc(runInSystemProbe bool) *test.ComponentTest {
 				targetContainer = apicommon.SystemProbeContainerName
 			}
 
-			want := []*corev1.EnvVar{
+			// The compliance settings are added to all the containers of the pod so that the
+			// Core Agent config snapshot carries them when config streaming is enabled.
+			wantAllContainers := []*corev1.EnvVar{
 				{
 					Name:  DDComplianceConfigEnabled,
 					Value: "true",
-				},
-				{
-					Name:  common.DDHostRootEnvVar,
-					Value: common.HostRootMountPath,
 				},
 				{
 					Name:  DDComplianceConfigCheckInterval,
@@ -186,8 +185,20 @@ func cspmAgentNodeWantFunc(runInSystemProbe bool) *test.ComponentTest {
 				},
 			}
 
+			allContainersEnvVars := mgr.EnvVarMgr.EnvVarsByC[mergerfake.AllContainers]
+			assert.True(t, apiutils.IsEqualStruct(allContainersEnvVars, wantAllContainers), "Agent envvars \ndiff = %s", cmp.Diff(allContainersEnvVars, wantAllContainers))
+
+			// HOST_ROOT is only set on the container running the checks, since it is where the
+			// host root volume is mounted.
+			wantTargetContainer := []*corev1.EnvVar{
+				{
+					Name:  common.DDHostRootEnvVar,
+					Value: common.HostRootMountPath,
+				},
+			}
+
 			targetContainerEnvVars := mgr.EnvVarMgr.EnvVarsByC[targetContainer]
-			assert.True(t, apiutils.IsEqualStruct(targetContainerEnvVars, want), "Agent envvars \ndiff = %s", cmp.Diff(targetContainerEnvVars, want))
+			assert.True(t, apiutils.IsEqualStruct(targetContainerEnvVars, wantTargetContainer), "Agent envvars \ndiff = %s", cmp.Diff(targetContainerEnvVars, wantTargetContainer))
 
 			// check volume mounts
 			wantVolumeMounts := []corev1.VolumeMount{
