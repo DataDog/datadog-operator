@@ -149,9 +149,12 @@ rules:
   resources:
   - statefulsets
   verbs:
+  - create
+  - delete
   - get
   - list
   - patch
+  - update
   - watch
 - apiGroups:
   - argoproj.io
@@ -201,7 +204,12 @@ rules:
   resources:
   - horizontalpodautoscalers
   verbs:
+  - create
+  - delete
+  - get
   - list
+  - patch
+  - update
   - watch
 - apiGroups:
   - autoscaling.k8s.io
