@@ -254,6 +254,7 @@ func (r *Reconciler) reconcilePreparedDaemonSetPair(
 	if err := prepareAgentTemplate(base); err != nil {
 		return reconcile.Result{}, err
 	}
+	copyPreparedSlotMetadataAnnotations(&base.Spec.Template, ddai.Annotations)
 	base.Spec.Template.Annotations[preparedRolloutArmedAnnotation] = preparedBlueGreenArmed
 	// Include controller-side template transforms in the persisted revision.
 	// Otherwise an Operator upgrade which changes only slot-specific rendering
@@ -754,8 +755,10 @@ func preparedSlotDaemonSet(base *appsv1.DaemonSet, slot, nodeLabelKey, revision 
 	ds := base.DeepCopy()
 	for i := range ds.Spec.Template.Spec.Containers {
 		container := &ds.Spec.Template.Spec.Containers[i]
-		wrapPreparedContainerCommand(container)
-		configurePreparedStartupProbe(container)
+		if preparedAgentContainer(container.Name) {
+			wrapPreparedContainerCommand(container)
+			configurePreparedStartupProbe(container)
+		}
 	}
 	if ds.Annotations == nil {
 		ds.Annotations = map[string]string{}
@@ -775,7 +778,9 @@ func preparedSlotDaemonSet(base *appsv1.DaemonSet, slot, nodeLabelKey, revision 
 		// the other generation. Blue retains the conventional port.
 		for i := range ds.Spec.Template.Spec.Containers {
 			container := &ds.Spec.Template.Spec.Containers[i]
-			setContainerEnv(container, corev1.EnvVar{Name: coreAgentCmdPortEnv, Value: fmt.Sprint(greenCoreAgentCmdPort)})
+			if preparedAgentContainer(container.Name) {
+				setContainerEnv(container, corev1.EnvVar{Name: coreAgentCmdPortEnv, Value: fmt.Sprint(greenCoreAgentCmdPort)})
+			}
 		}
 		ds.Name = suffixedKubernetesName(ds.Name, "-green")
 		instanceKey := kubernetes.AppKubernetesInstanceLabelKey
@@ -790,6 +795,9 @@ func preparedSlotDaemonSet(base *appsv1.DaemonSet, slot, nodeLabelKey, revision 
 		if ds.Labels[instanceKey] == instance {
 			ds.Labels[instanceKey] = greenInstance
 		}
+	}
+	if err := applyPreparedSlotMetadata(ds, slot); err != nil {
+		return nil, err
 	}
 	return ds, nil
 }
@@ -1425,9 +1433,11 @@ func podTargetsNode(pod *corev1.Pod, node string) bool {
 }
 
 func podPrepared(pod *corev1.Pod, ds *appsv1.DaemonSet) bool {
-	if !podMatchesPreparedRevision(pod, ds) || pod.Status.Phase != corev1.PodRunning || len(pod.Status.ContainerStatuses) != len(ds.Spec.Template.Spec.Containers) {
+	if !podMatchesPreparedRevision(pod, ds) || pod.Status.Phase != corev1.PodRunning ||
+		len(pod.Status.ContainerStatuses) < len(ds.Spec.Template.Spec.Containers) || len(pod.Status.ContainerStatuses) < len(pod.Spec.Containers) {
 		return false
 	}
+	seen := make(map[string]struct{}, len(pod.Status.ContainerStatuses))
 	for i := range pod.Status.ContainerStatuses {
 		status := &pod.Status.ContainerStatuses[i]
 		// The lock wrapper keeps the startup probe unsuccessful while it waits for
@@ -1435,6 +1445,20 @@ func podPrepared(pod *corev1.Pod, ds *appsv1.DaemonSet) bool {
 		// replacement. A stable, running, never-restarted wrapper is the preparation
 		// signal. The candidate UID is re-observed before source removal.
 		if status.State.Running == nil || status.RestartCount != 0 {
+			return false
+		}
+		if !preparedAgentContainer(status.Name) && !status.Ready {
+			return false
+		}
+		seen[status.Name] = struct{}{}
+	}
+	for i := range ds.Spec.Template.Spec.Containers {
+		if _, found := seen[ds.Spec.Template.Spec.Containers[i].Name]; !found {
+			return false
+		}
+	}
+	for i := range pod.Spec.Containers {
+		if _, found := seen[pod.Spec.Containers[i].Name]; !found {
 			return false
 		}
 	}

@@ -762,6 +762,41 @@ func TestPreparedSlotDaemonSetsHaveDistinctSelectors(t *testing.T) {
 	}
 }
 
+func TestPreparedSlotMetadataOverrides(t *testing.T) {
+	base := preparedTestDaemonSet(true)
+	base.Spec.Template.Annotations = map[string]string{
+		preparedRolloutBluePodAnnotationsAnnotation:  `{"example.com/port":"9000"}`,
+		preparedRolloutGreenPodAnnotationsAnnotation: `{"example.com/port":"9001"}`,
+		preparedRolloutBluePodLabelsAnnotation:       `{"example.com/slot":"blue"}`,
+		preparedRolloutGreenPodLabelsAnnotation:      `{"example.com/slot":"green"}`,
+	}
+
+	blue, err := preparedSlotDaemonSet(base, rolloutSlotBlue, "example.com/rollout", "revision", true)
+	require.NoError(t, err)
+	green, err := preparedSlotDaemonSet(base, rolloutSlotGreen, "example.com/rollout", "revision", false)
+	require.NoError(t, err)
+	assert.Equal(t, "9000", blue.Spec.Template.Annotations["example.com/port"])
+	assert.Equal(t, "9001", green.Spec.Template.Annotations["example.com/port"])
+	assert.Equal(t, "blue", blue.Spec.Template.Labels["example.com/slot"])
+	assert.Equal(t, "green", green.Spec.Template.Labels["example.com/slot"])
+}
+
+func TestPreparedSlotMetadataRejectsInvalidOrControllerOwnedValues(t *testing.T) {
+	base := preparedTestDaemonSet(true)
+	base.Spec.Template.Annotations = map[string]string{preparedRolloutGreenPodAnnotationsAnnotation: `{`}
+	_, err := preparedSlotDaemonSet(base, rolloutSlotGreen, "example.com/rollout", "revision", false)
+	require.ErrorContains(t, err, "invalid "+preparedRolloutGreenPodAnnotationsAnnotation)
+
+	base.Spec.Template.Annotations[preparedRolloutGreenPodAnnotationsAnnotation] = `{"experimental.agent.datadoghq.com/node-agent-rollout-revision":"other"}`
+	_, err = preparedSlotDaemonSet(base, rolloutSlotGreen, "example.com/rollout", "revision", false)
+	require.ErrorContains(t, err, "cannot override controller annotation")
+
+	base.Spec.Template.Annotations[preparedRolloutGreenPodAnnotationsAnnotation] = `{}`
+	base.Spec.Template.Annotations[preparedRolloutGreenPodLabelsAnnotation] = `{"app":"other"}`
+	_, err = preparedSlotDaemonSet(base, rolloutSlotGreen, "example.com/rollout", "revision", false)
+	require.ErrorContains(t, err, "cannot override selector label")
+}
+
 func TestPreparedGreenCoreUsesDistinctCommandPortAndActiveLockProbe(t *testing.T) {
 	base := preparedTestDaemonSet(true)
 	base.Spec.Selector.MatchLabels[kubernetes.AppKubernetesInstanceLabelKey] = "agent"
@@ -1222,6 +1257,18 @@ func TestPreparedCandidateMustBePristine(t *testing.T) {
 	assert.True(t, podPrepared(&pod, ds), "preparation is based on current process state, not an arbitrary soak")
 	pod.Status.ContainerStatuses[0].Started = ptr.To(false)
 	assert.True(t, podPrepared(&pod, ds), "a sleeping lock wrapper has Started=false until it acquires the component lock")
+	pod.Spec.Containers = append(pod.Spec.Containers, corev1.Container{Name: "injected-sidecar"})
+	assert.False(t, podPrepared(&pod, ds), "an injected sidecar missing from status must block handoff")
+	pod.Status.ContainerStatuses = append(pod.Status.ContainerStatuses, corev1.ContainerStatus{
+		Name: "injected-sidecar", Ready: true, State: corev1.ContainerState{Running: &corev1.ContainerStateRunning{}},
+	})
+	assert.True(t, podPrepared(&pod, ds), "an injected sidecar must not make preparation impossible")
+	pod.Status.ContainerStatuses[1].Ready = false
+	assert.False(t, podPrepared(&pod, ds), "an unready injected sidecar must block handoff")
+	pod.Status.ContainerStatuses[1].Ready = true
+	pod.Status.ContainerStatuses[1].RestartCount = 1
+	assert.False(t, podPrepared(&pod, ds), "an unhealthy injected sidecar must block handoff")
+	pod.Status.ContainerStatuses[1].RestartCount = 0
 	pod.Status.ContainerStatuses[0].Started = ptr.To(true)
 	pod.Annotations[preparedRolloutRevisionAnnotation] = "previous-revision"
 	assert.False(t, podPrepared(&pod, ds), "an old OnDelete Pod must not satisfy the desired revision")

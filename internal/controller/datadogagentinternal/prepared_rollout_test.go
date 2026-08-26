@@ -223,10 +223,25 @@ func TestPreparedRolloutRejectsUnknownSecurityAgentCommand(t *testing.T) {
 	require.ErrorContains(t, prepareAgentTemplate(ds), "does not support command")
 }
 
-func TestPreparedRolloutRejectsUnknownSidecar(t *testing.T) {
+func TestPreparedRolloutLeavesUnknownSidecarUnchanged(t *testing.T) {
 	ds := preparedTestDaemonSet(true)
-	ds.Spec.Template.Spec.Containers = append(ds.Spec.Template.Spec.Containers, corev1.Container{Name: "unknown-sidecar", Command: []string{"sidecar"}})
-	require.ErrorContains(t, prepareAgentTemplate(ds), "does not support container")
+	sidecar := corev1.Container{
+		Name: "unknown-sidecar", Command: []string{"sidecar"}, Args: []string{"serve"},
+		Lifecycle: &corev1.Lifecycle{}, SecurityContext: &corev1.SecurityContext{RunAsUser: ptr.To[int64](1000)},
+		Ports: []corev1.ContainerPort{{Name: "sidecar", ContainerPort: 9000, HostPort: 9000}},
+	}
+	ds.Spec.Template.Spec.Containers = append(ds.Spec.Template.Spec.Containers, sidecar)
+	require.NoError(t, prepareAgentTemplate(ds))
+	green, err := preparedSlotDaemonSet(ds, rolloutSlotGreen, "rollout.example/slot", "revision", false)
+	require.NoError(t, err)
+	actual := green.Spec.Template.Spec.Containers[len(green.Spec.Template.Spec.Containers)-1]
+	assert.Equal(t, sidecar.Command, actual.Command)
+	assert.Equal(t, sidecar.Args, actual.Args)
+	assert.Equal(t, sidecar.Lifecycle, actual.Lifecycle)
+	assert.Empty(t, actual.Ports, "host-network port declarations must not block overlap")
+	assert.Nil(t, actual.StartupProbe)
+	assert.Nil(t, containerEnv(&actual, coreAgentCmdPortEnv))
+	assert.False(t, hasVolumeMount(actual, preparedRolloutLockVolume, preparedRolloutLockDir))
 }
 
 func TestPreparedRolloutRejectsExplicitCoreCommandPort(t *testing.T) {
@@ -238,13 +253,13 @@ func TestPreparedRolloutRejectsExplicitCoreCommandPort(t *testing.T) {
 func TestPreparedRolloutRejectsSingleContainerStrategy(t *testing.T) {
 	ds := preparedTestDaemonSet(true)
 	ds.Spec.Template.Spec.Containers = []corev1.Container{{Name: string(apicommon.UnprivilegedSingleAgentContainerName)}}
-	require.ErrorContains(t, prepareAgentTemplate(ds), "does not support container")
+	require.ErrorContains(t, prepareAgentTemplate(ds), "single-container Agent")
 }
 
 func TestPreparedRolloutRejectsFIPSProxy(t *testing.T) {
 	ds := preparedTestDaemonSet(true)
 	ds.Spec.Template.Spec.Containers = append(ds.Spec.Template.Spec.Containers, corev1.Container{Name: string(apicommon.FIPSProxyContainerName)})
-	require.ErrorContains(t, prepareAgentTemplate(ds), "does not support container")
+	require.ErrorContains(t, prepareAgentTemplate(ds), "FIPS proxy")
 }
 
 func TestPreparedRolloutRejectsMutatedAllowlistedInitContainer(t *testing.T) {

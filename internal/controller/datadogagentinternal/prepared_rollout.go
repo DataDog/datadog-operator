@@ -5,6 +5,7 @@
 package datadogagentinternal
 
 import (
+	"encoding/json"
 	"fmt"
 	"slices"
 	"strings"
@@ -18,8 +19,12 @@ import (
 )
 
 const (
-	preparedRolloutModeAnnotation  = "experimental.agent.datadoghq.com/node-agent-rollout-mode"
-	preparedRolloutArmedAnnotation = "experimental.agent.datadoghq.com/node-agent-rollout-armed"
+	preparedRolloutModeAnnotation                = "experimental.agent.datadoghq.com/node-agent-rollout-mode"
+	preparedRolloutArmedAnnotation               = "experimental.agent.datadoghq.com/node-agent-rollout-armed"
+	preparedRolloutBluePodAnnotationsAnnotation  = "experimental.agent.datadoghq.com/node-agent-rollout-blue-pod-annotations"
+	preparedRolloutGreenPodAnnotationsAnnotation = "experimental.agent.datadoghq.com/node-agent-rollout-green-pod-annotations"
+	preparedRolloutBluePodLabelsAnnotation       = "experimental.agent.datadoghq.com/node-agent-rollout-blue-pod-labels"
+	preparedRolloutGreenPodLabelsAnnotation      = "experimental.agent.datadoghq.com/node-agent-rollout-green-pod-labels"
 
 	preparedRolloutLockVolume     = "agent-rollout-locks"
 	preparedRolloutLockDir        = "/var/run/datadog-agent-rollout"
@@ -96,11 +101,13 @@ func prepareAgentTemplate(ds *appsv1.DaemonSet) error {
 	}
 	for i := range spec.Containers {
 		container := &spec.Containers[i]
-		container.VolumeMounts = append(container.VolumeMounts,
-			corev1.VolumeMount{Name: preparedRolloutLockVolume, MountPath: preparedRolloutLockDir},
-			corev1.VolumeMount{Name: preparedRolloutStateVolume, MountPath: preparedRolloutStateDir},
-			corev1.VolumeMount{Name: preparedRolloutToolsVolume, MountPath: preparedRolloutToolsDir, ReadOnly: true},
-		)
+		if preparedAgentContainer(container.Name) {
+			container.VolumeMounts = append(container.VolumeMounts,
+				corev1.VolumeMount{Name: preparedRolloutLockVolume, MountPath: preparedRolloutLockDir},
+				corev1.VolumeMount{Name: preparedRolloutStateVolume, MountPath: preparedRolloutStateDir},
+				corev1.VolumeMount{Name: preparedRolloutToolsVolume, MountPath: preparedRolloutToolsDir, ReadOnly: true},
+			)
+		}
 		if spec.HostNetwork {
 			// Kubernetes defaults declared containerPort entries on host-networked
 			// Pods into host-port scheduling claims, even when hostPort is cleared.
@@ -260,11 +267,22 @@ func probeValueOrDefault(value, fallback int32) int32 {
 func validatePreparedContainers(spec *corev1.PodSpec) error {
 	for i := range spec.Containers {
 		container := &spec.Containers[i]
+		if spec.HostNetwork {
+			if err := validatePreparedProbePorts(container); err != nil {
+				return err
+			}
+		}
+		if !preparedAgentContainer(container.Name) {
+			if container.Name == string(apicommon.UnprivilegedSingleAgentContainerName) {
+				return fmt.Errorf("prepared Agent rollout does not support the single-container Agent")
+			}
+			if container.Name == string(apicommon.FIPSProxyContainerName) {
+				return fmt.Errorf("prepared Agent rollout does not support the FIPS proxy because both slots use the same host-network ports")
+			}
+			continue
+		}
 		if findContainerEnv(container, coreAgentCmdPortEnv) != nil {
 			return fmt.Errorf("prepared Agent rollout does not support an explicit %s override because the green slot reserves port %d", coreAgentCmdPortEnv, greenCoreAgentCmdPort)
-		}
-		if _, ok := preparedRolloutContainerCommands[container.Name]; !ok {
-			return fmt.Errorf("prepared Agent rollout does not support container %q", container.Name)
 		}
 		if container.Lifecycle != nil {
 			return fmt.Errorf("prepared Agent rollout does not support lifecycle hooks on container %q", container.Name)
@@ -274,11 +292,6 @@ func validatePreparedContainers(spec *corev1.PodSpec) error {
 		}
 		if container.StartupProbe != nil && container.LivenessProbe == nil {
 			return fmt.Errorf("prepared Agent rollout requires a liveness probe on container %q because its startup probe becomes the lock signal", container.Name)
-		}
-		if spec.HostNetwork {
-			if err := validatePreparedProbePorts(container); err != nil {
-				return err
-			}
 		}
 		if containerRunsAsNonRoot(spec.SecurityContext, container.SecurityContext) {
 			return fmt.Errorf("prepared Agent rollout requires container %q to run as root so it can create host-local lock files", container.Name)
@@ -300,6 +313,69 @@ func validatePreparedContainers(spec *corev1.PodSpec) error {
 		}
 	}
 	return nil
+}
+
+func preparedAgentContainer(name string) bool {
+	_, found := preparedRolloutContainerCommands[name]
+	return found
+}
+
+func copyPreparedSlotMetadataAnnotations(template *corev1.PodTemplateSpec, annotations map[string]string) {
+	if template.Annotations == nil {
+		template.Annotations = map[string]string{}
+	}
+	for _, key := range []string{
+		preparedRolloutBluePodAnnotationsAnnotation,
+		preparedRolloutGreenPodAnnotationsAnnotation,
+		preparedRolloutBluePodLabelsAnnotation,
+		preparedRolloutGreenPodLabelsAnnotation,
+	} {
+		if value := annotations[key]; value != "" {
+			template.Annotations[key] = value
+		}
+	}
+}
+
+func applyPreparedSlotMetadata(ds *appsv1.DaemonSet, slot string) error {
+	annotationsKey := preparedRolloutBluePodAnnotationsAnnotation
+	labelsKey := preparedRolloutBluePodLabelsAnnotation
+	if slot == rolloutSlotGreen {
+		annotationsKey = preparedRolloutGreenPodAnnotationsAnnotation
+		labelsKey = preparedRolloutGreenPodLabelsAnnotation
+	}
+
+	annotations, err := preparedSlotMetadataMap(ds.Spec.Template.Annotations[annotationsKey], annotationsKey)
+	if err != nil {
+		return err
+	}
+	labels, err := preparedSlotMetadataMap(ds.Spec.Template.Annotations[labelsKey], labelsKey)
+	if err != nil {
+		return err
+	}
+	for key, value := range annotations {
+		if strings.HasPrefix(key, "experimental.agent.datadoghq.com/node-agent-rollout-") {
+			return fmt.Errorf("prepared rollout slot metadata cannot override controller annotation %q", key)
+		}
+		ds.Spec.Template.Annotations[key] = value
+	}
+	for key, value := range labels {
+		if selected, found := ds.Spec.Selector.MatchLabels[key]; found && selected != value {
+			return fmt.Errorf("prepared rollout slot metadata cannot override selector label %q", key)
+		}
+		ds.Spec.Template.Labels[key] = value
+	}
+	return nil
+}
+
+func preparedSlotMetadataMap(value, annotation string) (map[string]string, error) {
+	if value == "" {
+		return nil, nil
+	}
+	result := map[string]string{}
+	if err := json.Unmarshal([]byte(value), &result); err != nil {
+		return nil, fmt.Errorf("invalid %s annotation: %w", annotation, err)
+	}
+	return result, nil
 }
 
 func findContainerEnv(container *corev1.Container, name string) *corev1.EnvVar {
