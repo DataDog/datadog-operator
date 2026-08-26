@@ -95,6 +95,9 @@ func (r *ociReleaseResolver) Resolve(ctx context.Context, spec *datadoghqv1alpha
 	if tag == "" && requestedDigest == "" {
 		return nil, errors.New("release tag or digest must be specified")
 	}
+	if tag != "" && requestedDigest != "" {
+		return nil, errors.New("release tag and digest are mutually exclusive")
+	}
 	if requestedDigest != "" {
 		if err := validateDigest(requestedDigest); err != nil {
 			return nil, fmt.Errorf("invalid release digest: %w", err)
@@ -104,7 +107,8 @@ func (r *ociReleaseResolver) Resolve(ctx context.Context, spec *datadoghqv1alpha
 		return nil, errors.New("OCI target factory is not configured")
 	}
 
-	target, err := r.targetFactory(ctx, r.repository)
+	repository := ptr.Deref(spec.Repository, r.repository)
+	target, err := r.targetFactory(ctx, repository)
 	if err != nil {
 		return nil, fmt.Errorf("create OCI repository client: %w", err)
 	}

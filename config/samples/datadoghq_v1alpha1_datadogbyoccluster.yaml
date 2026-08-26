@@ -5,8 +5,8 @@ metadata:
   namespace: byoc
 spec:
   release:
+    repository: public.ecr.aws/datadog/byoc-release
     tag: "0.1.32"
-    digest: sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
   datadog:
     site: datadoghq.com
     apiKeySecretRef:

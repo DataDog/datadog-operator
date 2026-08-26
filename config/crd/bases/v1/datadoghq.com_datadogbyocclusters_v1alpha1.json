@@ -28726,6 +28726,9 @@
               "pattern": "^sha256:[a-f0-9]{64}$",
               "type": "string"
             },
+            "repository": {
+              "type": "string"
+            },
             "tag": {
               "type": "string"
             }
@@ -28733,8 +28736,8 @@
           "type": "object",
           "x-kubernetes-validations": [
             {
-              "message": "at least one of tag or digest must be specified",
-              "rule": "has(self.tag) || has(self.digest)"
+              "message": "exactly one of tag or digest must be specified",
+              "rule": "has(self.tag) != has(self.digest)"
             }
           ]
         }
