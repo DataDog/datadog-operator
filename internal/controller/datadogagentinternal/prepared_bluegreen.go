@@ -1488,6 +1488,18 @@ func podHasRestartedContainer(pod *corev1.Pod) bool {
 			return true
 		}
 	}
+	for i := range pod.Spec.InitContainers {
+		container := &pod.Spec.InitContainers[i]
+		if container.RestartPolicy == nil || *container.RestartPolicy != corev1.ContainerRestartPolicyAlways {
+			continue
+		}
+		for j := range pod.Status.InitContainerStatuses {
+			status := &pod.Status.InitContainerStatuses[j]
+			if status.Name == container.Name && status.RestartCount > 0 {
+				return true
+			}
+		}
+	}
 	return false
 }
 

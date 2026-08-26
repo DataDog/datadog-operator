@@ -1314,6 +1314,32 @@ func TestPreparedRestartedCandidateIsRetriedWhileSourceServes(t *testing.T) {
 	assert.True(t, apierrors.IsNotFound(fakeClient.Get(ctx, client.ObjectKeyFromObject(&target), current)))
 }
 
+func TestPreparedRestartedInitSidecarIsRetriedWhileSourceServes(t *testing.T) {
+	ctx := context.Background()
+	scheme := runtime.NewScheme()
+	require.NoError(t, corev1.AddToScheme(scheme))
+	key := "example.com/slot"
+	node := preparedNode("node-a", key, rolloutTransitionValue(rolloutSlotBlue, rolloutSlotGreen))
+	target := preparedPod("green-a", node.Name, false)
+	restartAlways := corev1.ContainerRestartPolicyAlways
+	target.Spec.InitContainers = []corev1.Container{{Name: "emissary", RestartPolicy: &restartAlways}}
+	target.Status.InitContainerStatuses = []corev1.ContainerStatus{{
+		Name: "emissary", Ready: true, RestartCount: 1, State: corev1.ContainerState{Running: &corev1.ContainerStateRunning{}},
+	}}
+	fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(node.DeepCopy(), target.DeepCopy()).Build()
+	r := &Reconciler{client: fakeClient}
+	pods := emptyPairPods()
+	pods[rolloutSlotBlue] = []corev1.Pod{preparedPod("blue-a", node.Name, true)}
+	pods[rolloutSlotGreen] = []corev1.Pod{target}
+
+	changed, err := r.advancePreparedNodes(ctx, []corev1.Node{node}, pods, preparedTestPair(), key, rolloutSlotGreen, intstr.FromInt(1))
+	require.NoError(t, err)
+	assert.True(t, changed)
+	assert.Equal(t, rolloutTransitionValue(rolloutSlotBlue, rolloutSlotGreen), nodeState(t, ctx, fakeClient, node.Name, key))
+	current := &corev1.Pod{}
+	assert.True(t, apierrors.IsNotFound(fakeClient.Get(ctx, client.ObjectKeyFromObject(&target), current)))
+}
+
 func TestPreparedRecoveredTargetCanHandoffWhenSourceIsUnavailable(t *testing.T) {
 	ctx := context.Background()
 	scheme := runtime.NewScheme()
@@ -2165,6 +2191,21 @@ func TestPreparedHelpersFailClosedOnMissingObjects(t *testing.T) {
 	assert.False(t, podTargetsNode(nil, "node"))
 	assert.False(t, podTargetsNode(&corev1.Pod{}, "node"))
 	assert.False(t, podHasRestartedContainer(nil))
+	restartAlways := corev1.ContainerRestartPolicyAlways
+	restartNever := corev1.ContainerRestartPolicyNever
+	pod := &corev1.Pod{
+		Spec: corev1.PodSpec{InitContainers: []corev1.Container{
+			{Name: "sidecar", RestartPolicy: &restartAlways},
+			{Name: "setup", RestartPolicy: &restartNever},
+		}},
+		Status: corev1.PodStatus{InitContainerStatuses: []corev1.ContainerStatus{
+			{Name: "sidecar", RestartCount: 1},
+			{Name: "setup", RestartCount: 1},
+		}},
+	}
+	assert.True(t, podHasRestartedContainer(pod))
+	pod.Status.InitContainerStatuses[0].RestartCount = 0
+	assert.False(t, podHasRestartedContainer(pod), "completed ordinary init containers must not trigger a retry")
 	assert.False(t, podServingReady(nil, nil))
 	assert.False(t, podMatchesPreparedRevision(nil, nil))
 	require.ErrorContains(t, r.patchPreparedPair(ctx, preparedPair{}, func(map[string]string) {}), "without a DaemonSet")
