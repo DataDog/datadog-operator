@@ -453,6 +453,8 @@ func TestBuildResources_Metastore(t *testing.T) {
 		return wantDefaultDeployment(wantDeploymentOptions{
 			component: "metastore",
 			service:   "metastore",
+			replicas:  2,
+			resources: wantDefaultDeploymentResources(),
 		})
 	}
 
@@ -480,6 +482,8 @@ func TestBuildResources_Metastore(t *testing.T) {
 				return wantDefaultDeployment(wantDeploymentOptions{
 					component: "metastore",
 					service:   "metastore",
+					replicas:  2,
+					resources: wantDefaultDeploymentResources(),
 					additionalEnv: []corev1.EnvVar{{
 						Name: "QW_METASTORE_URI",
 						ValueFrom: &corev1.EnvVarSource{SecretKeyRef: &corev1.SecretKeySelector{
@@ -508,6 +512,80 @@ func TestBuildResources_Metastore(t *testing.T) {
 	}
 }
 
+func TestBuildResources_ControlPlane(t *testing.T) {
+	tests := []struct {
+		name         string
+		controlPlane *datadoghqv1alpha1.DatadogBYOCClusterComponentSpec
+		want         func() *DeploymentResources
+	}{
+		{
+			name:         "defaults",
+			controlPlane: &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
+			want: func() *DeploymentResources {
+				return wantDefaultDeployment(wantDeploymentOptions{
+					component: "control-plane",
+					service:   "control_plane",
+					replicas:  1,
+					strategy:  appsv1.DeploymentStrategy{Type: appsv1.RecreateDeploymentStrategyType},
+					resources: wantDefaultDeploymentResources(),
+				})
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cluster := testCluster()
+			cluster.Spec.Components.ControlPlane = tt.controlPlane
+
+			resources, err := BuildResources(cluster, testRelease())
+			if err != nil {
+				t.Fatalf("BuildResources() unexpected error: %v", err)
+			}
+			if diff := cmp.Diff(tt.want(), resources.controlPlane, ignoreConfigChecksum); diff != "" {
+				t.Errorf("controlPlane mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestBuildResources_Janitor(t *testing.T) {
+	tests := []struct {
+		name    string
+		janitor *datadoghqv1alpha1.DatadogBYOCClusterComponentSpec
+		want    func() *DeploymentResources
+	}{
+		{
+			name:    "defaults",
+			janitor: &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
+			want: func() *DeploymentResources {
+				return wantDefaultDeployment(wantDeploymentOptions{
+					component: "janitor",
+					service:   "janitor",
+					replicas:  1,
+					strategy:  appsv1.DeploymentStrategy{Type: appsv1.RecreateDeploymentStrategyType},
+					resources: wantDefaultDeploymentResources(),
+				})
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cluster := testCluster()
+			cluster.Spec.Components.Janitor = tt.janitor
+
+			resources, err := BuildResources(cluster, testRelease())
+			if err != nil {
+				t.Fatalf("BuildResources() unexpected error: %v", err)
+			}
+			if diff := cmp.Diff(tt.want(), resources.janitor, ignoreConfigChecksum); diff != "" {
+				t.Errorf("janitor mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
 func TestBuildResources_ReadOnlyMetastore(t *testing.T) {
 	tests := []struct {
 		name              string
@@ -527,6 +605,8 @@ func TestBuildResources_ReadOnlyMetastore(t *testing.T) {
 				return wantDefaultDeployment(wantDeploymentOptions{
 					component: "metastore-ro",
 					service:   "metastore_read_replica",
+					replicas:  2,
+					resources: wantDefaultDeploymentResources(),
 				})
 			},
 		},
@@ -544,6 +624,8 @@ func TestBuildResources_ReadOnlyMetastore(t *testing.T) {
 				return wantDefaultDeployment(wantDeploymentOptions{
 					component: "metastore-ro",
 					service:   "metastore_read_replica",
+					replicas:  2,
+					resources: wantDefaultDeploymentResources(),
 					additionalEnv: []corev1.EnvVar{{
 						Name: "QW_METASTORE_READ_REPLICA_URI",
 						ValueFrom: &corev1.EnvVarSource{SecretKeyRef: &corev1.SecretKeySelector{
@@ -567,6 +649,66 @@ func TestBuildResources_ReadOnlyMetastore(t *testing.T) {
 			}
 			if diff := cmp.Diff(tt.want(), resources.readOnlyMetastore, ignoreConfigChecksum); diff != "" {
 				t.Errorf("readOnlyMetastore mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestBuildResources_Compactor(t *testing.T) {
+	wantDefault := func(terminationGracePeriodSeconds int64, decommissionTimeout string) *DeploymentResources {
+		return wantDefaultDeployment(wantDeploymentOptions{
+			component:                     "compactor",
+			service:                       "compactor",
+			replicas:                      1,
+			resources:                     corev1.ResourceRequirements{},
+			terminationGracePeriodSeconds: ptr.To(terminationGracePeriodSeconds),
+			additionalEnv: []corev1.EnvVar{
+				{Name: "QW_ENABLE_STANDALONE_COMPACTORS", Value: "true"},
+				{Name: "QW_COMPACTOR_DECOMMISSION_TIMEOUT", Value: decommissionTimeout},
+			},
+		})
+	}
+
+	tests := []struct {
+		name      string
+		compactor *datadoghqv1alpha1.DatadogBYOCClusterComponentSpec
+		want      func() *DeploymentResources
+	}{
+		{
+			name: "disabled",
+			want: func() *DeploymentResources {
+				return nil
+			},
+		},
+		{
+			name:      "defaults",
+			compactor: &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
+			want: func() *DeploymentResources {
+				return wantDefault(60, "54s")
+			},
+		},
+		{
+			name: "termination grace period",
+			compactor: &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
+				TerminationGracePeriodSeconds: ptr.To[int64](120),
+			},
+			want: func() *DeploymentResources {
+				return wantDefault(120, "108s")
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cluster := testCluster()
+			cluster.Spec.Components.Compactor = tt.compactor
+
+			resources, err := BuildResources(cluster, testRelease())
+			if err != nil {
+				t.Fatalf("BuildResources() unexpected error: %v", err)
+			}
+			if diff := cmp.Diff(tt.want(), resources.compactor, ignoreConfigChecksum); diff != "" {
+				t.Errorf("compactor mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
@@ -615,6 +757,13 @@ var ignoreConfigChecksum = cmpopts.IgnoreMapEntries(func(key, _ string) bool {
 	return key == configChecksumAnnotation
 })
 
+func wantDefaultDeploymentResources() corev1.ResourceRequirements {
+	return corev1.ResourceRequirements{
+		Limits:   corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("4Gi")},
+		Requests: corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("2"), corev1.ResourceMemory: resource.MustParse("4Gi")},
+	}
+}
+
 type wantStatefulSetOptions struct {
 	component                     string
 	additionalServicePorts        []corev1.ServicePort
@@ -627,6 +776,7 @@ func wantDefaultStatefulSet(options wantStatefulSetOptions) *StatefulSetResource
 	workload := wantDefaultWorkload(wantWorkloadOptions{
 		component:              options.component,
 		service:                options.component,
+		replicas:               2,
 		additionalServicePorts: options.additionalServicePorts,
 		configVolumeMount:      options.configVolumeMount,
 		additionalEnv:          options.additionalEnv,
@@ -653,21 +803,24 @@ func wantDefaultStatefulSet(options wantStatefulSetOptions) *StatefulSetResource
 }
 
 type wantDeploymentOptions struct {
-	component     string
-	service       string
-	additionalEnv []corev1.EnvVar
+	component                     string
+	service                       string
+	replicas                      int32
+	strategy                      appsv1.DeploymentStrategy
+	additionalEnv                 []corev1.EnvVar
+	resources                     corev1.ResourceRequirements
+	terminationGracePeriodSeconds *int64
 }
 
 func wantDefaultDeployment(options wantDeploymentOptions) *DeploymentResources {
 	workload := wantDefaultWorkload(wantWorkloadOptions{
-		component:         options.component,
-		service:           options.service,
-		configVolumeMount: defaultConfigVolumeMount(),
-		additionalEnv:     options.additionalEnv,
-		resources: corev1.ResourceRequirements{
-			Limits:   corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("4Gi")},
-			Requests: corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("2"), corev1.ResourceMemory: resource.MustParse("4Gi")},
-		},
+		component:                     options.component,
+		service:                       options.service,
+		replicas:                      options.replicas,
+		configVolumeMount:             defaultConfigVolumeMount(),
+		additionalEnv:                 options.additionalEnv,
+		resources:                     options.resources,
+		terminationGracePeriodSeconds: options.terminationGracePeriodSeconds,
 	})
 
 	return &DeploymentResources{
@@ -678,6 +831,7 @@ func wantDefaultDeployment(options wantDeploymentOptions) *DeploymentResources {
 				Replicas: workload.replicas,
 				Selector: workload.selector,
 				Template: workload.template,
+				Strategy: options.strategy,
 			},
 		},
 	}
@@ -686,6 +840,7 @@ func wantDefaultDeployment(options wantDeploymentOptions) *DeploymentResources {
 type wantWorkloadOptions struct {
 	component                     string
 	service                       string
+	replicas                      int32
 	additionalServicePorts        []corev1.ServicePort
 	configVolumeMount             corev1.VolumeMount
 	additionalEnv                 []corev1.EnvVar
@@ -792,7 +947,7 @@ func wantDefaultWorkload(options wantWorkloadOptions) wantWorkload {
 			Labels:      labels,
 			Annotations: map[string]string{"example.com/owner": "operator"},
 		},
-		replicas: ptr.To[int32](2),
+		replicas: ptr.To(options.replicas),
 		selector: &metav1.LabelSelector{MatchLabels: selector},
 		template: corev1.PodTemplateSpec{
 			ObjectMeta: metav1.ObjectMeta{
