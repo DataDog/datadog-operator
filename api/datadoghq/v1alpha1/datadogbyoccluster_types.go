@@ -322,9 +322,10 @@ type DatadogBYOCClusterStatefulComponentSpec struct {
 	// +optional
 	Autoscaling *DatadogBYOCClusterAutoscalingSpec `json:"autoscaling,omitempty"`
 
-	// PersistentVolumeClaim configures the persistent volume claim template for the component.
+	// Storage configures the data volume for the component.
+	// When omitted, the component default is used.
 	// +optional
-	PersistentVolumeClaim *DatadogBYOCClusterPersistentVolumeClaimSpec `json:"persistentVolumeClaim,omitempty"`
+	Storage *DatadogBYOCClusterStorageSpec `json:"storage,omitempty"`
 }
 
 // DatadogBYOCClusterMetastoreComponentSpec defines settings for a Metastore workload.
@@ -357,10 +358,43 @@ type DatadogBYOCClusterAutoscalingSpec struct {
 	Behavior *autoscalingv2.HorizontalPodAutoscalerBehavior `json:"behavior,omitempty"`
 }
 
-// DatadogBYOCClusterPersistentVolumeClaimSpec defines the persistent volume claim template spec.
+// DatadogBYOCClusterStorageSpec defines storage for a stateful BYOC workload.
 // +k8s:openapi-gen=true
-type DatadogBYOCClusterPersistentVolumeClaimSpec struct {
-	corev1.PersistentVolumeClaimSpec `json:",inline"`
+// +kubebuilder:validation:XValidation:rule="has(self.emptyDir) != has(self.volumeClaimTemplate)",message="exactly one storage type must be specified"
+type DatadogBYOCClusterStorageSpec struct {
+	// EmptyDir configures an emptyDir volume for the component.
+	// +optional
+	EmptyDir *corev1.EmptyDirVolumeSource `json:"emptyDir,omitempty"`
+
+	// VolumeClaimTemplate configures a persistent volume claim template for the component.
+	// +optional
+	VolumeClaimTemplate *DatadogBYOCClusterEmbeddedPersistentVolumeClaim `json:"volumeClaimTemplate,omitempty"`
+}
+
+// DatadogBYOCClusterEmbeddedPersistentVolumeClaim is an embedded PersistentVolumeClaim with reduced metadata.
+// +k8s:openapi-gen=true
+type DatadogBYOCClusterEmbeddedPersistentVolumeClaim struct {
+	metav1.TypeMeta `json:",inline"`
+
+	// Metadata contains metadata relevant to the embedded PersistentVolumeClaim.
+	// +optional
+	DatadogBYOCClusterEmbeddedObjectMetadata `json:"metadata,omitempty"`
+
+	// Spec defines the desired characteristics of the persistent volume claim.
+	// +optional
+	Spec corev1.PersistentVolumeClaimSpec `json:"spec,omitempty"`
+}
+
+// DatadogBYOCClusterEmbeddedObjectMetadata contains metadata relevant to an embedded resource.
+// +k8s:openapi-gen=true
+type DatadogBYOCClusterEmbeddedObjectMetadata struct {
+	// Labels are applied to the embedded resource.
+	// +optional
+	Labels map[string]string `json:"labels,omitempty"`
+
+	// Annotations are applied to the embedded resource.
+	// +optional
+	Annotations map[string]string `json:"annotations,omitempty"`
 }
 
 // DatadogBYOCClusterDatabaseSpec defines a Metastore database connection.

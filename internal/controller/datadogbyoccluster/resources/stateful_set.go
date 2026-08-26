@@ -49,14 +49,6 @@ type statefulSetBuilder struct {
 
 type statefulSetDefaults struct {
 	PodManagementPolicy appsv1.PodManagementPolicyType
-	Autoscaling         autoscalingDefaults
-}
-
-type autoscalingDefaults struct {
-	MinReplicas *int32
-	MaxReplicas int32
-	Metrics     []autoscalingv2.MetricSpec
-	Behavior    *autoscalingv2.HorizontalPodAutoscalerBehavior
 }
 
 type statefulSetValues struct {
@@ -95,10 +87,16 @@ func (b statefulSetBuilder) values() (serviceValues, statefulSetValues, *hpaValu
 	}
 
 	var volumeClaimTemplates []corev1.PersistentVolumeClaim
-	if b.spec.PersistentVolumeClaim != nil {
+	if b.spec.Storage != nil && b.spec.Storage.VolumeClaimTemplate != nil {
+		template := b.spec.Storage.VolumeClaimTemplate
 		claim := corev1.PersistentVolumeClaim{
-			ObjectMeta: metav1.ObjectMeta{Name: "data"},
-			Spec:       *b.spec.PersistentVolumeClaim.PersistentVolumeClaimSpec.DeepCopy(),
+			TypeMeta: template.TypeMeta,
+			ObjectMeta: metav1.ObjectMeta{
+				Name:        "data",
+				Labels:      maps.Clone(template.Labels),
+				Annotations: maps.Clone(template.Annotations),
+			},
+			Spec: *template.Spec.DeepCopy(),
 		}
 		volumeClaimTemplates = []corev1.PersistentVolumeClaim{claim}
 	}
@@ -152,46 +150,13 @@ func (b statefulSetBuilder) hpaValues(workload workloadValues, autoscaling *data
 		Namespace: workload.Metadata.Namespace,
 		Labels:    maps.Clone(workload.Service.Metadata.Labels),
 	}
-	minReplicas := autoscaling.MinReplicas
-	if minReplicas == nil {
-		minReplicas = ptr.To(ptr.Deref(b.defaults.Autoscaling.MinReplicas, int32(0)))
-	}
-	maxReplicas := b.defaults.Autoscaling.MaxReplicas
-	if autoscaling.MaxReplicas != nil {
-		maxReplicas = *autoscaling.MaxReplicas
-	}
-	metrics := slices.Clone(autoscaling.Metrics)
-	if len(metrics) == 0 {
-		metrics = slices.Clone(b.defaults.Autoscaling.Metrics)
-	}
-	behavior := autoscaling.Behavior.DeepCopy()
-	if behavior == nil {
-		behavior = b.defaults.Autoscaling.Behavior.DeepCopy()
-	}
 	return hpaValues{
 		Metadata:       metadata,
 		ScaleTargetRef: autoscalingv2.CrossVersionObjectReference{APIVersion: "apps/v1", Kind: "StatefulSet", Name: metadata.Name},
-		MinReplicas:    minReplicas,
-		MaxReplicas:    maxReplicas,
-		Metrics:        metrics,
-		Behavior:       behavior,
-	}
-}
-
-func cpuUtilizationMetrics(averageUtilization int32) []autoscalingv2.MetricSpec {
-	return []autoscalingv2.MetricSpec{{
-		Type: autoscalingv2.ResourceMetricSourceType,
-		Resource: &autoscalingv2.ResourceMetricSource{
-			Name:   corev1.ResourceCPU,
-			Target: autoscalingv2.MetricTarget{Type: autoscalingv2.UtilizationMetricType, AverageUtilization: ptr.To(averageUtilization)},
-		},
-	}}
-}
-
-func hpaBehavior(scaleUpWindow, scaleDownWindow int32) *autoscalingv2.HorizontalPodAutoscalerBehavior {
-	return &autoscalingv2.HorizontalPodAutoscalerBehavior{
-		ScaleUp:   &autoscalingv2.HPAScalingRules{StabilizationWindowSeconds: ptr.To(scaleUpWindow)},
-		ScaleDown: &autoscalingv2.HPAScalingRules{StabilizationWindowSeconds: ptr.To(scaleDownWindow)},
+		MinReplicas:    autoscaling.MinReplicas,
+		MaxReplicas:    *autoscaling.MaxReplicas,
+		Metrics:        slices.Clone(autoscaling.Metrics),
+		Behavior:       autoscaling.Behavior.DeepCopy(),
 	}
 }
 

@@ -12,12 +12,11 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	byocdefaults "github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/defaults"
 	byocrelease "github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/release"
 )
 
@@ -79,6 +78,8 @@ func (r *Resources) Compactor() *DeploymentResources {
 
 // BuildResources builds the deterministic Kubernetes resources for a resolved release.
 func BuildResources(cluster *datadoghqv1alpha1.DatadogBYOCCluster, release *byocrelease.ResolvedRelease) (*Resources, error) {
+	cluster = byocdefaults.Apply(cluster)
+
 	configMap, err := newConfigMapBuilder(cluster).build()
 	if err != nil {
 		return nil, err
@@ -97,8 +98,10 @@ func BuildResources(cluster *datadoghqv1alpha1.DatadogBYOCCluster, release *byoc
 	}
 
 	components := cluster.Spec.Components
-	indexerSpec := components.Indexer.DatadogBYOCClusterComponentSpec.DeepCopy()
-	searcherSpec := components.Searcher.DatadogBYOCClusterComponentSpec.DeepCopy()
+	indexerStatefulSpec := components.Indexer
+	searcherStatefulSpec := components.Searcher
+	indexerSpec := indexerStatefulSpec.DatadogBYOCClusterComponentSpec.DeepCopy()
+	searcherSpec := searcherStatefulSpec.DatadogBYOCClusterComponentSpec.DeepCopy()
 	metastoreSpec := components.Metastore.DatadogBYOCClusterComponentSpec.DeepCopy()
 	controlPlaneSpec := components.ControlPlane.DeepCopy()
 	janitorSpec := components.Janitor.DeepCopy()
@@ -111,28 +114,19 @@ func BuildResources(cluster *datadoghqv1alpha1.DatadogBYOCCluster, release *byoc
 
 	resources.indexer, err = newStatefulSetBuilder(
 		newWorkload("indexer", indexerSpec, workloadDefaults{
-			Replicas:     2,
 			ServicePorts: componentServicePorts(),
 			PodSpec: corev1.PodSpec{
-				TerminationGracePeriodSeconds: ptr.To[int64](300),
-				Volumes:                       statefulDataVolumes(components.Indexer),
+				Volumes: statefulDataVolumes(indexerStatefulSpec),
 				Containers: []corev1.Container{{
 					Args:         []string{"run", "--service", "indexer"},
-					Env:          decommissionTimeoutEnvironment("QW_INGEST_DECOMMISSION_TIMEOUT", indexerSpec.TerminationGracePeriodSeconds, 300),
-					Resources:    statefulDefaultResources(),
+					Env:          decommissionTimeoutEnvironment("QW_INGEST_DECOMMISSION_TIMEOUT", *indexerSpec.TerminationGracePeriodSeconds),
 					VolumeMounts: []corev1.VolumeMount{{Name: "config", MountPath: "/quickwit/"}},
 				}},
 			},
 		}),
-		components.Indexer,
+		indexerStatefulSpec,
 		statefulSetDefaults{
 			PodManagementPolicy: appsv1.OrderedReadyPodManagement,
-			Autoscaling: autoscalingDefaults{
-				MinReplicas: ptr.To[int32](2),
-				MaxReplicas: 10,
-				Metrics:     cpuUtilizationMetrics(70),
-				Behavior:    hpaBehavior(0, 300),
-			},
 		},
 	).build()
 	if err != nil {
@@ -141,26 +135,18 @@ func BuildResources(cluster *datadoghqv1alpha1.DatadogBYOCCluster, release *byoc
 
 	resources.searcher, err = newStatefulSetBuilder(
 		newWorkload("searcher", searcherSpec, workloadDefaults{
-			Replicas:     2,
 			ServicePorts: componentServicePorts(corev1.ServicePort{Name: "cloudprem", Port: 7283, Protocol: corev1.ProtocolTCP, TargetPort: intstr.FromString("cloudprem")}),
 			PodSpec: corev1.PodSpec{
 				Containers: []corev1.Container{{
 					Args:         []string{"run", "--service", "searcher"},
-					Resources:    statefulDefaultResources(),
 					VolumeMounts: []corev1.VolumeMount{{Name: "config", MountPath: nodeConfigMountPath, SubPath: nodeConfigFileName}},
 				}},
-				Volumes: statefulDataVolumes(components.Searcher),
+				Volumes: statefulDataVolumes(searcherStatefulSpec),
 			},
 		}),
-		components.Searcher,
+		searcherStatefulSpec,
 		statefulSetDefaults{
 			PodManagementPolicy: appsv1.OrderedReadyPodManagement,
-			Autoscaling: autoscalingDefaults{
-				MinReplicas: ptr.To[int32](2),
-				MaxReplicas: 10,
-				Metrics:     cpuUtilizationMetrics(50),
-				Behavior:    hpaBehavior(60, 300),
-			},
 		},
 	).build()
 	if err != nil {
@@ -169,14 +155,12 @@ func BuildResources(cluster *datadoghqv1alpha1.DatadogBYOCCluster, release *byoc
 
 	resources.metastore, err = newDeploymentBuilder(
 		newWorkload("metastore", metastoreSpec, workloadDefaults{
-			Replicas:     2,
 			ServicePorts: componentServicePorts(),
 			PodSpec: corev1.PodSpec{
 				Volumes: []corev1.Volume{defaultDataVolume()},
 				Containers: []corev1.Container{{
 					Args:         []string{"run", "--service", "metastore"},
 					Env:          databaseEnvironment("QW_METASTORE_URI", metastoreDatabase(components.Metastore)),
-					Resources:    deploymentDefaultResources(),
 					VolumeMounts: []corev1.VolumeMount{defaultConfigVolumeMount()},
 				}},
 			},
@@ -189,13 +173,11 @@ func BuildResources(cluster *datadoghqv1alpha1.DatadogBYOCCluster, release *byoc
 
 	resources.controlPlane, err = newDeploymentBuilder(
 		newWorkload("control-plane", controlPlaneSpec, workloadDefaults{
-			Replicas:     1,
 			ServicePorts: componentServicePorts(),
 			PodSpec: corev1.PodSpec{
 				Volumes: []corev1.Volume{defaultDataVolume()},
 				Containers: []corev1.Container{{
 					Args:         []string{"run", "--service", "control_plane"},
-					Resources:    deploymentDefaultResources(),
 					VolumeMounts: []corev1.VolumeMount{defaultConfigVolumeMount()},
 				}},
 			},
@@ -208,13 +190,11 @@ func BuildResources(cluster *datadoghqv1alpha1.DatadogBYOCCluster, release *byoc
 
 	resources.janitor, err = newDeploymentBuilder(
 		newWorkload("janitor", janitorSpec, workloadDefaults{
-			Replicas:     1,
 			ServicePorts: componentServicePorts(),
 			PodSpec: corev1.PodSpec{
 				Volumes: []corev1.Volume{defaultDataVolume()},
 				Containers: []corev1.Container{{
 					Args:         []string{"run", "--service", "janitor"},
-					Resources:    deploymentDefaultResources(),
 					VolumeMounts: []corev1.VolumeMount{defaultConfigVolumeMount()},
 				}},
 			},
@@ -229,14 +209,12 @@ func BuildResources(cluster *datadoghqv1alpha1.DatadogBYOCCluster, release *byoc
 		readOnlyMetastoreSpec := components.ReadOnlyMetastore.DatadogBYOCClusterComponentSpec.DeepCopy()
 		resources.readOnlyMetastore, err = newDeploymentBuilder(
 			newWorkload("metastore-ro", readOnlyMetastoreSpec, workloadDefaults{
-				Replicas:     2,
 				ServicePorts: componentServicePorts(),
 				PodSpec: corev1.PodSpec{
 					Volumes: []corev1.Volume{defaultDataVolume()},
 					Containers: []corev1.Container{{
 						Args:         []string{"run", "--service", "metastore_read_replica"},
 						Env:          databaseEnvironment("QW_METASTORE_READ_REPLICA_URI", metastoreDatabase(components.ReadOnlyMetastore)),
-						Resources:    deploymentDefaultResources(),
 						VolumeMounts: []corev1.VolumeMount{defaultConfigVolumeMount()},
 					}},
 				},
@@ -252,14 +230,12 @@ func BuildResources(cluster *datadoghqv1alpha1.DatadogBYOCCluster, release *byoc
 		compactorSpec := components.Compactor.DeepCopy()
 		resources.compactor, err = newDeploymentBuilder(
 			newWorkload("compactor", compactorSpec, workloadDefaults{
-				Replicas:     1,
 				ServicePorts: componentServicePorts(),
 				PodSpec: corev1.PodSpec{
-					TerminationGracePeriodSeconds: ptr.To[int64](60),
-					Volumes:                       []corev1.Volume{defaultDataVolume()},
+					Volumes: []corev1.Volume{defaultDataVolume()},
 					Containers: []corev1.Container{{
 						Args:         []string{"run", "--service", "compactor"},
-						Env:          decommissionTimeoutEnvironment("QW_COMPACTOR_DECOMMISSION_TIMEOUT", compactorSpec.TerminationGracePeriodSeconds, 60),
+						Env:          decommissionTimeoutEnvironment("QW_COMPACTOR_DECOMMISSION_TIMEOUT", *compactorSpec.TerminationGracePeriodSeconds),
 						VolumeMounts: []corev1.VolumeMount{defaultConfigVolumeMount()},
 					}},
 				},
@@ -277,9 +253,8 @@ func metastoreDatabase(spec *datadoghqv1alpha1.DatadogBYOCClusterMetastoreCompon
 	return spec.Database
 }
 
-func decommissionTimeoutEnvironment(name string, terminationGracePeriod *int64, defaultTerminationGracePeriod int64) []corev1.EnvVar {
-	grace := ptr.Deref(terminationGracePeriod, defaultTerminationGracePeriod)
-	return []corev1.EnvVar{{Name: name, Value: fmt.Sprintf("%ds", grace*9/10)}}
+func decommissionTimeoutEnvironment(name string, terminationGracePeriod int64) []corev1.EnvVar {
+	return []corev1.EnvVar{{Name: name, Value: fmt.Sprintf("%ds", terminationGracePeriod*9/10)}}
 }
 
 func databaseEnvironment(name string, database *datadoghqv1alpha1.DatadogBYOCClusterDatabaseSpec) []corev1.EnvVar {
@@ -307,22 +282,11 @@ func defaultDataVolume() corev1.Volume {
 }
 
 func statefulDataVolumes(spec *datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec) []corev1.Volume {
-	if spec.PersistentVolumeClaim != nil {
+	if spec.Storage.VolumeClaimTemplate != nil {
 		return nil
 	}
-	return []corev1.Volume{defaultDataVolume()}
-}
-
-func statefulDefaultResources() corev1.ResourceRequirements {
-	return corev1.ResourceRequirements{
-		Limits:   corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("13100Mi")},
-		Requests: corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("3600m"), corev1.ResourceMemory: resource.MustParse("13100Mi")},
+	if spec.Storage.EmptyDir != nil {
+		return []corev1.Volume{{Name: "data", VolumeSource: corev1.VolumeSource{EmptyDir: spec.Storage.EmptyDir.DeepCopy()}}}
 	}
-}
-
-func deploymentDefaultResources() corev1.ResourceRequirements {
-	return corev1.ResourceRequirements{
-		Limits:   corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("4Gi")},
-		Requests: corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("2"), corev1.ResourceMemory: resource.MustParse("4Gi")},
-	}
+	return nil
 }
