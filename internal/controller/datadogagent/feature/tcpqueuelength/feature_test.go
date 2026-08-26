@@ -18,9 +18,12 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/providercaps"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -160,4 +163,49 @@ func Test_tcpQueueLengthFeature_Configure(t *testing.T) {
 	}
 
 	tests.Run(t, buildTCPQueueLengthFeature)
+}
+
+func Test_tcpQueueLengthFeature_NodeAgentProviderCapabilities(t *testing.T) {
+	newPodTemplate := func() *corev1.PodTemplateSpec {
+		return &corev1.PodTemplateSpec{
+			Spec: corev1.PodSpec{
+				Containers: []corev1.Container{
+					{Name: string(apicommon.CoreAgentContainerName)},
+					{Name: string(apicommon.SystemProbeContainerName)},
+				},
+			},
+		}
+	}
+
+	volumeNames := func(tmpl *corev1.PodTemplateSpec) []string {
+		names := make([]string, 0, len(tmpl.Spec.Volumes))
+		for _, v := range tmpl.Spec.Volumes {
+			names = append(names, v.Name)
+		}
+		return names
+	}
+
+	t.Run("talos strips src and modules volumes", func(t *testing.T) {
+		f := &tcpQueueLengthFeature{}
+		tmpl := newPodTemplate()
+		mgr := feature.NewPodTemplateManagers(tmpl)
+		require.NoError(t, f.ManageNodeAgent(mgr))
+
+		providercaps.ApplyProviderCapabilities(mgr, kubernetes.TalosProvider, f.NodeAgentProviderCapabilities())
+
+		assert.NotContains(t, volumeNames(tmpl), common.SrcVolumeName)
+		assert.NotContains(t, volumeNames(tmpl), common.ModulesVolumeName)
+	})
+
+	t.Run("default provider keeps src and modules volumes", func(t *testing.T) {
+		f := &tcpQueueLengthFeature{}
+		tmpl := newPodTemplate()
+		mgr := feature.NewPodTemplateManagers(tmpl)
+		require.NoError(t, f.ManageNodeAgent(mgr))
+
+		providercaps.ApplyProviderCapabilities(mgr, kubernetes.DefaultProvider, f.NodeAgentProviderCapabilities())
+
+		assert.Contains(t, volumeNames(tmpl), common.SrcVolumeName)
+		assert.Contains(t, volumeNames(tmpl), common.ModulesVolumeName)
+	})
 }
