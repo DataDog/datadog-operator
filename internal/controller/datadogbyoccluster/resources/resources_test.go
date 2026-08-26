@@ -355,6 +355,98 @@ func TestBuildResources_Indexer(t *testing.T) {
 	}
 }
 
+func TestBuildResources_Searcher(t *testing.T) {
+	wantDefault := func() *StatefulSetResources {
+		return wantDefaultStatefulSet(wantStatefulSetOptions{
+			component: "searcher",
+			additionalServicePorts: []corev1.ServicePort{{
+				Name:       "cloudprem",
+				Port:       7283,
+				Protocol:   corev1.ProtocolTCP,
+				TargetPort: intstr.FromString("cloudprem"),
+			}},
+			configVolumeMount: corev1.VolumeMount{
+				Name:      "config",
+				MountPath: "/quickwit/node.yaml",
+				SubPath:   "node.yaml",
+			},
+		})
+	}
+
+	tests := []struct {
+		name     string
+		searcher *datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec
+		want     func() *StatefulSetResources
+	}{
+		{
+			name:     "defaults",
+			searcher: &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{},
+			want:     wantDefault,
+		},
+		{
+			name: "autoscaling",
+			searcher: &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{
+				Autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{},
+			},
+			want: func() *StatefulSetResources {
+				want := wantDefault()
+				want.StatefulSet.Spec.Replicas = nil
+				want.HPA = wantAutoscaling(wantAutoscalingOptions{
+					component:          "searcher",
+					averageUtilization: 50,
+					scaleUpWindow:      60,
+					scaleDownWindow:    300,
+				})
+				return want
+			},
+		},
+		{
+			name: "persistent volume claim",
+			searcher: &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{
+				PersistentVolumeClaim: &datadoghqv1alpha1.DatadogBYOCClusterPersistentVolumeClaimSpec{
+					PersistentVolumeClaimSpec: corev1.PersistentVolumeClaimSpec{
+						AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+						StorageClassName: ptr.To("gp3"),
+						Resources: corev1.VolumeResourceRequirements{
+							Requests: corev1.ResourceList{corev1.ResourceStorage: resource.MustParse("100Gi")},
+						},
+					},
+				},
+			},
+			want: func() *StatefulSetResources {
+				want := wantDefault()
+				want.StatefulSet.Spec.Template.Spec.Volumes = want.StatefulSet.Spec.Template.Spec.Volumes[:1]
+				want.StatefulSet.Spec.VolumeClaimTemplates = []corev1.PersistentVolumeClaim{{
+					ObjectMeta: metav1.ObjectMeta{Name: "data"},
+					Spec: corev1.PersistentVolumeClaimSpec{
+						AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+						StorageClassName: ptr.To("gp3"),
+						Resources: corev1.VolumeResourceRequirements{
+							Requests: corev1.ResourceList{corev1.ResourceStorage: resource.MustParse("100Gi")},
+						},
+					},
+				}}
+				return want
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cluster := testCluster()
+			cluster.Spec.Components.Searcher = tt.searcher
+
+			resources, err := BuildResources(cluster, testRelease())
+			if err != nil {
+				t.Fatalf("BuildResources() unexpected error: %v", err)
+			}
+			if diff := cmp.Diff(tt.want(), resources.searcher); diff != "" {
+				t.Errorf("searcher mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
 func testCluster() *datadoghqv1alpha1.DatadogBYOCCluster {
 	return &datadoghqv1alpha1.DatadogBYOCCluster{
 		ObjectMeta: metav1.ObjectMeta{Name: "byoc", Namespace: "testing"},
