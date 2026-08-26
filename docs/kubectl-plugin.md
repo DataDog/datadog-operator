@@ -110,7 +110,7 @@ Installs Karpenter on an EKS cluster and configures it for use with Datadog Clus
 2. Installs Karpenter via Helm from the OCI registry. By default the controller runs on dedicated Fargate nodes, so that it never runs on the nodes it manages; pass `--install-mode=existing-nodes` to run it on the cluster's own nodes instead.
 3. Optionally creates `EC2NodeClass` and `NodePool` Karpenter resources, inferred from existing cluster nodes or EKS node groups.
 
-If something goes wrong, those CloudFormation stacks and that Helm release are the two places to look. The command installs nothing and exits successfully with an explanatory message when EKS auto-mode is active, or when the cluster already runs a Karpenter installation that `kubectl-datadog` does not manage — including one it manages but in a namespace other than the requested one. Re-running `install` against an installation it does manage in that namespace is *not* a no-op: it converges the CloudFormation stacks, upgrades the Helm release, and, with the default `--create-karpenter-resources=all`, re-creates the `EC2NodeClass` and `NodePool` resources, discarding any manual edits to them.
+If something goes wrong, those CloudFormation stacks and that Helm release are the two places to look. The command installs nothing and exits with an explanatory message when EKS auto-mode is active, or when the cluster already runs a Karpenter installation `kubectl-datadog` does not manage in the requested namespace. Re-running it over its own installation is not a no-op: with the default `--create-karpenter-resources=all` it re-creates the `EC2NodeClass` and `NodePool`, discarding manual edits — use `update` for that.
 
 ```console
 $ kubectl datadog autoscaling cluster install --help
@@ -167,7 +167,7 @@ Flags:
 
 Migrates a cluster off the node groups Datadog does not manage — EC2 Auto Scaling groups, EKS managed node groups, user Karpenter NodePools and standalone EC2 instances — so that their workloads end up on the Datadog-managed Karpenter NodePools. It scales down the `cluster-autoscaler` if there is one, then cordons and drains each target's nodes and scales the target down to zero, one target at a time.
 
-Select the targets with `--all` or with one or more `--target`, and preview a run with `--dry-run`. The command displays its plan and asks for confirmation before any destructive step. One write does precede the prompt: the cluster-info ConfigMap snapshot is refreshed first, so declining still leaves that snapshot updated — `--dry-run` skips the write altogether. It is re-runnable: a node that fails to drain keeps its workloads and its instance is never terminated, so a later run can pick up where this one stopped.
+Select the targets with `--all` or with one or more `--target`, and preview a run with `--dry-run`. The command displays its plan and asks for confirmation before draining anything. It is re-runnable: a node that fails to drain keeps its workloads and its instance is never terminated, so a later run can pick up where this one stopped.
 
 The migration is one-way — the plugin does not restore the previous capacity, nor scale the `cluster-autoscaler` back up. Note also that a user Karpenter NodePool is only drained, not disabled, so Karpenter may provision new nodes from it unless you retire it yourself.
 
@@ -208,7 +208,7 @@ Flags:
 
 Removes Karpenter and the associated resources from an EKS cluster. Deletes the `NodePool` and `EC2NodeClass` resources it created, waits for the corresponding EC2 instances to terminate, uninstalls the Karpenter Helm release, cleans up IAM, and removes the CloudFormation stacks.
 
-Nodes provisioned from the `NodePool` resources this command created are drained and terminated in the process, so make sure the cluster has other capacity first. Hand-created and third-party `NodePool` resources are not selected, so they and their nodes are left running. Each step is independent and best-effort, so an interrupted run can simply be re-run.
+The nodes provisioned from the `NodePool` resources it created are drained and terminated in the process, so make sure the cluster has other capacity first; hand-created and third-party NodePools are left alone. Each step is independent and best-effort, so an interrupted run can simply be re-run.
 
 ```console
 $ kubectl datadog autoscaling cluster uninstall --help
