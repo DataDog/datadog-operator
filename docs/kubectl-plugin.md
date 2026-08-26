@@ -165,7 +165,7 @@ Flags:
 
 #### `autoscaling cluster evict-legacy-nodes`
 
-Migrates a cluster off the node groups Datadog does not manage — EC2 Auto Scaling groups, EKS managed node groups, user Karpenter NodePools and standalone EC2 instances — so that their workloads end up on the Datadog-managed Karpenter NodePools. It scales down the `cluster-autoscaler` if there is one, then cordons and drains each target's nodes and scales the target down to zero, one target at a time.
+Migrates a cluster off the node groups Datadog does not manage — EC2 Auto Scaling groups, EKS managed node groups, user Karpenter NodePools and standalone EC2 instances — so that their workloads can reschedule onto the Datadog-managed Karpenter NodePools. It scales down the `cluster-autoscaler` if there is one, then cordons and drains each target's nodes and scales the target down to zero, one target at a time.
 
 Select the targets with `--all` or with one or more `--target`, and preview a run with `--dry-run`. The command displays its plan and asks for confirmation before draining anything. It is re-runnable: a node that fails to drain keeps its workloads and its instance is never terminated, so a later run can pick up where this one stopped.
 
