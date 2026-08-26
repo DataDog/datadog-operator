@@ -87,70 +87,40 @@ func (f *dataPlaneFeature) ManageClusterAgent(managers feature.PodTemplateManage
 // if SingleContainerStrategy is enabled and can be used with the configured feature set.
 // It should do nothing if the feature doesn't need to configure it.
 func (f *dataPlaneFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers) error {
-	if !f.enabled {
-		return nil
-	}
-
-	// The single Agent container runs both Core and ADP processes under s6, so their
-	// interaction flags must be available to both processes in the shared environment.
-	for _, envVar := range []*corev1.EnvVar{
-		{
-			Name:  common.DDDataPlaneEnabled,
-			Value: "true",
-		},
-		{
-			Name:  common.DDDataPlaneRemoteAgentEnabled,
-			Value: "true",
-		},
-		{
-			Name:  common.DDDataPlaneUseNewConfigStreamEndpoint,
-			Value: "true",
-		},
-	} {
-		managers.EnvVar().AddEnvVarToContainer(apicommon.UnprivilegedSingleAgentContainerName, envVar)
-	}
-
-	if f.dogstatsdEnabled {
-		managers.EnvVar().AddEnvVarToContainer(apicommon.UnprivilegedSingleAgentContainerName, &corev1.EnvVar{
-			Name:  common.DDDataPlaneDogstatsdEnabled,
-			Value: "true",
-		})
-	}
-
-	return nil
+	return f.manageNodeAgent(managers, apicommon.UnprivilegedSingleAgentContainerName, apicommon.UnprivilegedSingleAgentContainerName)
 }
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *dataPlaneFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
-	// We set the relevant configuration on the Core Agent specifically, which trickles down to the Data Plane when it
-	// queries the Core Agent for its configuration.
-	//
-	// It is also used to influence the Core Agent in terms of what it chooses to run itself or allow to be delegated to
-	// the data plane.
-	if f.enabled {
-		// When Data Plane is enabled, we signal this to the Core Agent by setting an environment variable.
-		managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
-			Name:  common.DDDataPlaneEnabled,
-			Value: "true",
-		})
+	return f.manageNodeAgent(managers, apicommon.CoreAgentContainerName, apicommon.AgentDataPlaneContainerName)
+}
 
-		// Configure the ADP container to fetch configuration from the Core Agent.
-		managers.EnvVar().AddEnvVarToContainer(apicommon.AgentDataPlaneContainerName, &corev1.EnvVar{
-			Name:  common.DDDataPlaneRemoteAgentEnabled,
-			Value: "true",
-		})
-		managers.EnvVar().AddEnvVarToContainer(apicommon.AgentDataPlaneContainerName, &corev1.EnvVar{
-			Name:  common.DDDataPlaneUseNewConfigStreamEndpoint,
-			Value: "true",
-		})
+func (f *dataPlaneFeature) manageNodeAgent(managers feature.PodTemplateManagers, coreContainer, dataPlaneContainer apicommon.AgentContainerName) error {
+	if !f.enabled {
+		return nil
+	}
 
-		if f.dogstatsdEnabled {
-			managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
-				Name:  common.DDDataPlaneDogstatsdEnabled,
-				Value: "true",
-			})
-		}
+	// Core Agent delegates the selected pipelines to ADP. In the single-container strategy,
+	// both processes inherit these settings from the shared container environment.
+	managers.EnvVar().AddEnvVarToContainer(coreContainer, &corev1.EnvVar{
+		Name:  common.DDDataPlaneEnabled,
+		Value: "true",
+	})
+	managers.EnvVar().AddEnvVarToContainer(dataPlaneContainer, &corev1.EnvVar{
+		Name:  common.DDDataPlaneRemoteAgentEnabled,
+		Value: "true",
+	})
+	managers.EnvVar().AddEnvVarToContainer(dataPlaneContainer, &corev1.EnvVar{
+		Name:  common.DDDataPlaneUseNewConfigStreamEndpoint,
+		Value: "true",
+	})
+
+	if f.dogstatsdEnabled {
+		managers.EnvVar().AddEnvVarToContainer(coreContainer, &corev1.EnvVar{
+			Name:  common.DDDataPlaneDogstatsdEnabled,
+			Value: "true",
+		})
 	}
 
 	return nil

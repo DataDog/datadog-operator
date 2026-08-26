@@ -191,8 +191,6 @@ Other operator startup options can also be configured via environment variable:
 | Controller revisions       | `--createControllerRevisions`        | `DD_CREATE_CONTROLLER_REVISIONS`      | `false` |
 | Linux Data Plane default   | `--defaultDataPlaneLinuxEnabled`     | `DD_DEFAULT_DATA_PLANE_LINUX_ENABLED` | `false` |
 
-The Linux Data Plane default applies only when `spec.features.dataPlane.enabled` is unset. An explicit CRD value takes precedence, followed by the deprecated `agent.datadoghq.com/adp-enabled` annotation. Set `spec.features.dataPlane.enabled: false` to opt an individual workload out. Windows profiles do not inherit this default. With the optimized container strategy, Data Plane runs in a sidecar. With the single container strategy, the Agent image's s6 supervisor runs it as a process in the Agent container.
-
 ExtendedDaemonset options (`--supportExtendedDaemonset` and `--eds*`),
 the leader election toggle (`--enable-leader-election`), pprof (`--pprof`),
 log options (`--loglevel`, `--logEncoder`), secret backend options
