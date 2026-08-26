@@ -50,47 +50,43 @@ type preparedNodeAction struct {
 	kind preparedNodeActionKind
 }
 
-type preparedRolloutPlan struct {
-	actions     []preparedNodeAction
-	unavailable int
-	inFlight    int
-}
-
 // planPreparedRollout applies the same maxUnavailable model as the Kubernetes
 // DaemonSet controller. It counts unavailable nodes before it spends budget,
 // permits recovery that adds no unavailability, and then admits a bounded set
 // of healthy nodes. Datadog-specific Prepared and two-slot states are inputs to
 // this planner; Kubernetes API reads and writes remain outside it.
-func planPreparedRollout(states []preparedNodePlanState, maxUnavailable, mutationLimit int) preparedRolloutPlan {
+func planPreparedRollout(states []preparedNodePlanState, maxUnavailable, mutationLimit int) []preparedNodeAction {
 	ordered := append([]preparedNodePlanState(nil), states...)
 	sort.Slice(ordered, func(i, j int) bool { return ordered[i].name < ordered[j].name })
 
-	plan := preparedRolloutPlan{}
+	actions := []preparedNodeAction{}
+	unavailable := 0
+	inFlight := 0
 	for i := range ordered {
 		state := &ordered[i]
 		switch state.phase {
 		case preparedNodeTransition:
-			plan.inFlight++
+			inFlight++
 			if !state.sourceServing {
-				plan.unavailable++
+				unavailable++
 			}
 		case preparedNodeSource:
 			if !state.sourceServing {
-				plan.unavailable++
+				unavailable++
 			}
 		case preparedNodeTarget:
 			if !state.targetReady {
-				plan.unavailable++
+				unavailable++
 			}
 		}
 	}
 
-	remaining := max(0, maxUnavailable-plan.unavailable)
+	remaining := max(0, maxUnavailable-unavailable)
 	appendAction := func(state *preparedNodePlanState, kind preparedNodeActionKind) bool {
-		if mutationLimit <= 0 || len(plan.actions) >= mutationLimit {
+		if mutationLimit <= 0 || len(actions) >= mutationLimit {
 			return false
 		}
-		plan.actions = append(plan.actions, preparedNodeAction{node: state.name, kind: kind})
+		actions = append(actions, preparedNodeAction{node: state.name, kind: kind})
 		return true
 	}
 
@@ -144,8 +140,8 @@ func planPreparedRollout(states []preparedNodePlanState, maxUnavailable, mutatio
 		}
 	}
 
-	if len(plan.actions) > 0 || plan.inFlight > 0 {
-		return plan
+	if len(actions) > 0 || inFlight > 0 {
+		return actions
 	}
 
 	// No prior batch remains. Admit healthy source nodes up to both the
@@ -163,5 +159,5 @@ func planPreparedRollout(states []preparedNodePlanState, maxUnavailable, mutatio
 		}
 		remaining--
 	}
-	return plan
+	return actions
 }

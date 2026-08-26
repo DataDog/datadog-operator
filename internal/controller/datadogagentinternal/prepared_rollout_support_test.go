@@ -92,11 +92,13 @@ func TestProfileOverlapAntiAffinityWithoutProfileBlocksProfiledPods(t *testing.T
 }
 
 func TestPreparedRolloutBudgetValidationAndConventionalStrategy(t *testing.T) {
-	assert.False(t, positiveIntOrPercent(nil))
 	zero := intstr.FromInt(0)
-	assert.False(t, positiveIntOrPercent(&zero))
+	assert.False(t, validMaxUnavailable(zero))
 	fivePercent := intstr.FromString("5%")
-	assert.True(t, positiveIntOrPercent(&fivePercent))
+	assert.True(t, validMaxUnavailable(fivePercent))
+	assert.False(t, validMaxUnavailable(intstr.FromString("101%")))
+	assert.False(t, validMaxUnavailable(intstr.FromString("invalid")))
+	assert.True(t, validMaxUnavailable(intstr.FromInt(101)), "Kubernetes allows absolute values above the node count")
 
 	ds := &appsv1.DaemonSet{}
 	configureConventionalMigration(ds, fivePercent)

@@ -479,6 +479,50 @@ func TestPreparedObsoleteTargetContinuesAfterHandoffStarts(t *testing.T) {
 	assert.Equal(t, rolloutSlotGreen, nodeState(t, ctx, fakeClient, node.Name, key))
 }
 
+func TestPreparedObsoleteTargetDefersNewlyEligibleNodes(t *testing.T) {
+	ctx := context.Background()
+	ddai, rendered, oldNode, fakeClient, scheme := preparedLifecycleFixture(t)
+	key := preparedRolloutNodeLabelKey(ddai)
+	oldNode.Labels["pool"] = "old"
+	oldNode.Labels[key] = rolloutSlotBlue
+	require.NoError(t, fakeClient.Update(ctx, oldNode))
+	newNode := &corev1.Node{ObjectMeta: metav1.ObjectMeta{
+		Name:   "node-new",
+		Labels: map[string]string{corev1.LabelOSStable: string(corev1.Linux), "pool": "new"},
+	}}
+	require.NoError(t, fakeClient.Create(ctx, newNode))
+
+	oldBase := rendered.DeepCopy()
+	oldBase.Spec.Template.Spec.NodeSelector = map[string]string{"pool": "old"}
+	require.NoError(t, prepareAgentTemplate(oldBase))
+	oldBase.Spec.Template.Annotations[preparedRolloutArmedAnnotation] = preparedBlueGreenArmed
+	oldBase.Spec.Template.Annotations[preparedRolloutSchemaAnnotation] = preparedRolloutSchemaVersion
+	controllercommon.FinalizeAppArmorProfile(&oldBase.Spec.Template, kubernetes.PlatformInfo{})
+	oldRevision, err := comparison.GenerateMD5ForSpec(oldBase.Spec.Template)
+	require.NoError(t, err)
+	blue, err := preparedSlotDaemonSet(oldBase, rolloutSlotBlue, key, oldRevision, true)
+	require.NoError(t, err)
+	green, err := preparedSlotDaemonSet(oldBase, rolloutSlotGreen, key, oldRevision, false)
+	require.NoError(t, err)
+	for _, ds := range []*appsv1.DaemonSet{blue, green} {
+		setPreparedTestController(ds, ddai)
+		ds.Annotations[preparedRolloutPairInitializedAnnotation] = preparedBlueGreenArmed
+		ds.Annotations[preparedRolloutActiveSlotAnnotation] = rolloutSlotBlue
+		ds.Annotations[preparedRolloutTargetSlotAnnotation] = rolloutSlotGreen
+		ds.Annotations[preparedRolloutTargetRevisionAnnotation] = oldRevision
+		require.NoError(t, fakeClient.Create(ctx, ds))
+	}
+
+	newDesired := rendered.DeepCopy()
+	newDesired.Spec.Template.Spec.NodeSelector = map[string]string{"pool": "new"}
+	r := NewReconciler(ReconcilerOptions{}, fakeClient, kubernetes.PlatformInfo{}, scheme, record.NewFakeRecorder(100), nil)
+	_, err = r.reconcilePreparedDaemonSetPair(ctx, ddai, newDesired, intstr.FromInt(1), &datadoghqv1alpha1.DatadogAgentInternalStatus{})
+	require.NoError(t, err)
+
+	assert.Equal(t, rolloutSlotBlue, nodeState(t, ctx, fakeClient, oldNode.Name, key))
+	assert.Empty(t, nodeState(t, ctx, fakeClient, newNode.Name, key), "the next revision must wait until the persisted rollout finishes")
+}
+
 func TestPreparedPairDeletionRemovesBothSlotsAndNodeState(t *testing.T) {
 	ctx := context.Background()
 	ddai, rendered, node, fakeClient, scheme := preparedLifecycleFixture(t)
@@ -657,7 +701,7 @@ func TestPreparedPairRejectsUnownedGreenNameCollision(t *testing.T) {
 	require.NoError(t, fakeClient.Create(ctx, collision))
 	r := NewReconciler(ReconcilerOptions{}, fakeClient, kubernetes.PlatformInfo{}, scheme, record.NewFakeRecorder(100), nil)
 
-	_, err := r.getPreparedPair(ctx, ddai, rendered)
+	_, err := r.getPreparedPair(ctx, ddai, rendered, true)
 	require.ErrorContains(t, err, "name collision")
 	stillThere := &appsv1.DaemonSet{}
 	require.NoError(t, fakeClient.Get(ctx, client.ObjectKeyFromObject(collision), stillThere))
@@ -674,9 +718,26 @@ func TestPreparedPairRejectsNodeAgentNameChange(t *testing.T) {
 	renamed := rendered.DeepCopy()
 	renamed.Name = "renamed-agent"
 	r := NewReconciler(ReconcilerOptions{}, fakeClient, kubernetes.PlatformInfo{}, scheme, record.NewFakeRecorder(100), nil)
-	_, err := r.getPreparedPair(ctx, ddai, renamed)
+	_, err := r.getPreparedPair(ctx, ddai, renamed, false)
 	require.ErrorContains(t, err, "name cannot change after initialization")
 	assert.Error(t, fakeClient.Get(ctx, client.ObjectKey{Namespace: renamed.Namespace, Name: renamed.Name}, &appsv1.DaemonSet{}))
+}
+
+func TestPreparedPairIgnoresConventionalNameMismatchOutsideEnable(t *testing.T) {
+	ctx := context.Background()
+	ddai, rendered, _, fakeClient, scheme := preparedLifecycleFixture(t)
+	previous := rendered.DeepCopy()
+	previous.Name = "previous-agent"
+	setPreparedTestController(previous, ddai)
+	require.NoError(t, fakeClient.Create(ctx, previous))
+	r := NewReconciler(ReconcilerOptions{}, fakeClient, kubernetes.PlatformInfo{}, scheme, record.NewFakeRecorder(100), nil)
+
+	pair, err := r.getPreparedPair(ctx, ddai, rendered, false)
+	require.NoError(t, err)
+	assert.Nil(t, pair.blue)
+	assert.Nil(t, pair.green)
+	_, err = r.getPreparedPair(ctx, ddai, rendered, true)
+	require.ErrorContains(t, err, "complete the conventional name change")
 }
 
 func TestPreparedIdentitySurvivesTemplateModeAnnotationRemoval(t *testing.T) {
@@ -696,7 +757,7 @@ func TestPreparedIdentitySurvivesTemplateModeAnnotationRemoval(t *testing.T) {
 	assert.True(t, initialized)
 	renamed := rendered.DeepCopy()
 	renamed.Name = "renamed-agent"
-	_, err = r.getPreparedPair(ctx, ddai, renamed)
+	_, err = r.getPreparedPair(ctx, ddai, renamed, false)
 	require.ErrorContains(t, err, "name cannot change after initialization")
 }
 
@@ -760,6 +821,17 @@ func TestPreparedSlotDaemonSetsHaveDistinctSelectors(t *testing.T) {
 		require.NotNil(t, env)
 		assert.Equal(t, fmt.Sprint(greenCoreAgentCmdPort), env.Value)
 	}
+}
+
+func TestPreparedSlotAffinityPreservesExplicitEmptyTerm(t *testing.T) {
+	spec := corev1.PodSpec{Affinity: &corev1.Affinity{NodeAffinity: &corev1.NodeAffinity{
+		RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{NodeSelectorTerms: []corev1.NodeSelectorTerm{{}}},
+	}}}
+	addPreparedSlotAffinity(&spec, "example.com/slot", rolloutSlotGreen, false)
+	required := spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution
+	require.Len(t, required.NodeSelectorTerms, 1)
+	assert.Empty(t, required.NodeSelectorTerms[0].MatchExpressions)
+	assert.Empty(t, required.NodeSelectorTerms[0].MatchFields)
 }
 
 func TestPreparedSlotMetadataOverrides(t *testing.T) {
@@ -1377,7 +1449,7 @@ func TestPreparedGreenAdoptionAdmitsBothSlotsOnUnlabeledNode(t *testing.T) {
 	fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(node).Build()
 	r := &Reconciler{client: fakeClient}
 
-	_, changed, err := r.reconcilePreparedNodeLabels(ctx, base, key, rolloutSlotBlue, rolloutSlotGreen)
+	_, changed, err := r.reconcilePreparedNodeLabels(ctx, base, key, rolloutSlotBlue, rolloutSlotGreen, "")
 	require.NoError(t, err)
 	assert.True(t, changed)
 	assert.Equal(t, rolloutTransitionValue(rolloutSlotBlue, rolloutSlotGreen), nodeState(t, ctx, fakeClient, node.Name, key))
@@ -1395,7 +1467,7 @@ func TestPreparedLegacyPendingNormalizesDirectlyToTarget(t *testing.T) {
 	fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(node.DeepCopy()).Build()
 	r := &Reconciler{client: fakeClient}
 
-	nodes, changed, err := r.reconcilePreparedNodeLabels(ctx, preparedTestDaemonSet(true), key, rolloutSlotBlue, rolloutSlotGreen)
+	nodes, changed, err := r.reconcilePreparedNodeLabels(ctx, preparedTestDaemonSet(true), key, rolloutSlotBlue, rolloutSlotGreen, "")
 	require.NoError(t, err)
 	assert.True(t, changed)
 	require.Len(t, nodes, 1)
@@ -1450,7 +1522,7 @@ func TestPreparedBlueTargetLabelsNewNodeForLastHealthyGreenSlot(t *testing.T) {
 	fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(node).Build()
 	r := &Reconciler{client: fakeClient}
 
-	_, changed, err := r.reconcilePreparedNodeLabels(ctx, base, key, rolloutSlotGreen, rolloutSlotBlue)
+	_, changed, err := r.reconcilePreparedNodeLabels(ctx, base, key, rolloutSlotGreen, rolloutSlotBlue, "")
 	require.NoError(t, err)
 	assert.True(t, changed)
 	assert.Equal(t, rolloutSlotGreen, nodeState(t, ctx, fakeClient, node.Name, key),
@@ -2012,7 +2084,7 @@ func TestPreparedIneligibleNodeCleanupRemovesCandidateUID(t *testing.T) {
 	r := &Reconciler{client: fakeClient}
 	base := preparedTestDaemonSet(true)
 
-	nodes, changed, err := r.reconcilePreparedNodeLabels(ctx, base, key, rolloutSlotBlue, rolloutSlotGreen)
+	nodes, changed, err := r.reconcilePreparedNodeLabels(ctx, base, key, rolloutSlotBlue, rolloutSlotGreen, "")
 	require.NoError(t, err)
 	assert.True(t, changed)
 	assert.Empty(t, nodes)
@@ -2037,7 +2109,7 @@ func TestPreparedNodeLabelReconciliationLimitsAPIMutations(t *testing.T) {
 	r := &Reconciler{client: fakeClient}
 	key := "example.com/slot"
 
-	_, changed, err := r.reconcilePreparedNodeLabels(ctx, preparedTestDaemonSet(true), key, rolloutSlotBlue, "")
+	_, changed, err := r.reconcilePreparedNodeLabels(ctx, preparedTestDaemonSet(true), key, rolloutSlotBlue, "", "")
 	require.NoError(t, err)
 	assert.True(t, changed)
 
@@ -2106,7 +2178,16 @@ func TestPreparedPairReconcileRejectsUnsafeInputsBeforeMutation(t *testing.T) {
 		assertUnchanged := assertPreparedAPIStateUnchanged(t, ctx, fakeClient)
 		r := NewReconciler(ReconcilerOptions{}, fakeClient, kubernetes.PlatformInfo{}, scheme, record.NewFakeRecorder(10), nil)
 		_, err := r.reconcilePreparedDaemonSetPair(ctx, ddai, rendered, intstr.FromInt(0), &datadoghqv1alpha1.DatadogAgentInternalStatus{})
-		require.ErrorContains(t, err, "positive maxUnavailable")
+		require.ErrorContains(t, err, "maxUnavailable to be positive")
+		assertUnchanged()
+	})
+
+	t.Run("percentage budget above one hundred", func(t *testing.T) {
+		ddai, rendered, _, fakeClient, scheme := preparedLifecycleFixture(t)
+		assertUnchanged := assertPreparedAPIStateUnchanged(t, ctx, fakeClient)
+		r := NewReconciler(ReconcilerOptions{}, fakeClient, kubernetes.PlatformInfo{}, scheme, record.NewFakeRecorder(10), nil)
+		_, err := r.reconcilePreparedDaemonSetPair(ctx, ddai, rendered, intstr.FromString("101%"), &datadoghqv1alpha1.DatadogAgentInternalStatus{})
+		require.ErrorContains(t, err, "no greater than 100%")
 		assertUnchanged()
 	})
 
@@ -2127,6 +2208,45 @@ func TestPreparedPairReconcileRejectsUnsafeInputsBeforeMutation(t *testing.T) {
 		r := NewReconciler(ReconcilerOptions{}, fakeClient, kubernetes.PlatformInfo{}, scheme, record.NewFakeRecorder(10), nil)
 		_, err := r.reconcilePreparedDaemonSetPair(ctx, ddai, rendered, intstr.FromInt(1), &datadoghqv1alpha1.DatadogAgentInternalStatus{})
 		require.ErrorContains(t, err, "name collision")
+		assertUnchanged()
+	})
+
+	t.Run("conventional DaemonSet with previous name", func(t *testing.T) {
+		ddai, rendered, _, fakeClient, scheme := preparedLifecycleFixture(t)
+		previous := rendered.DeepCopy()
+		previous.Name = "previous-agent"
+		setPreparedTestController(previous, ddai)
+		require.NoError(t, fakeClient.Create(ctx, previous))
+		assertUnchanged := assertPreparedAPIStateUnchanged(t, ctx, fakeClient)
+		r := NewReconciler(ReconcilerOptions{}, fakeClient, kubernetes.PlatformInfo{}, scheme, record.NewFakeRecorder(10), nil)
+		_, err := r.reconcilePreparedDaemonSetPair(ctx, ddai, rendered, intstr.FromInt(1), &datadoghqv1alpha1.DatadogAgentInternalStatus{})
+		require.ErrorContains(t, err, "complete the conventional name change")
+		assertUnchanged()
+	})
+
+	t.Run("invalid persisted target", func(t *testing.T) {
+		ddai, rendered, _, fakeClient, scheme := preparedLifecycleFixture(t)
+		status := &datadoghqv1alpha1.DatadogAgentInternalStatus{}
+		reconcilePreparedLifecycle(t, ctx, fakeClient, scheme, ddai, rendered, status)
+		reconcilePreparedLifecycle(t, ctx, fakeClient, scheme, ddai, rendered, status)
+		setPreparedDaemonSetStatus(t, ctx, fakeClient, rendered.Namespace, rendered.Name, 1, 1, 1, 0)
+		reconcilePreparedLifecycle(t, ctx, fakeClient, scheme, ddai, rendered, status)
+		reconcilePreparedLifecycle(t, ctx, fakeClient, scheme, ddai, rendered, status)
+
+		pair, err := (&Reconciler{client: fakeClient}).getPreparedPair(ctx, ddai, rendered, true)
+		require.NoError(t, err)
+		require.NotNil(t, pair.blue)
+		require.NotNil(t, pair.green)
+		for _, ds := range pair.daemonSets() {
+			updated := ds.DeepCopy()
+			updated.Annotations[preparedRolloutTargetSlotAnnotation] = "corrupt"
+			updated.Annotations[preparedRolloutTargetRevisionAnnotation] = "revision"
+			require.NoError(t, fakeClient.Update(ctx, updated))
+		}
+		assertUnchanged := assertPreparedAPIStateUnchanged(t, ctx, fakeClient)
+		r := NewReconciler(ReconcilerOptions{}, fakeClient, kubernetes.PlatformInfo{}, scheme, record.NewFakeRecorder(10), nil)
+		_, err = r.reconcilePreparedDaemonSetPair(ctx, ddai, rendered, intstr.FromInt(1), status)
+		require.ErrorContains(t, err, "invalid prepared rollout target")
 		assertUnchanged()
 	})
 }
@@ -2218,11 +2338,74 @@ func TestPreparedNodeEligibilityHonorsExplicitNodeName(t *testing.T) {
 	assert.False(t, eligible)
 }
 
+func TestPreparedPersistedEligibilityPreservesDenyAllAffinity(t *testing.T) {
+	ctx := context.Background()
+	scheme := runtime.NewScheme()
+	require.NoError(t, corev1.AddToScheme(scheme))
+	key := "example.com/slot"
+	node := &corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node-a", Labels: map[string]string{corev1.LabelOSStable: string(corev1.Linux)}}}
+	fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(node).Build()
+	r := &Reconciler{client: fakeClient}
+	target := preparedTestDaemonSet(true)
+	target.Spec.Template.Spec.Affinity = &corev1.Affinity{NodeAffinity: &corev1.NodeAffinity{
+		RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{NodeSelectorTerms: []corev1.NodeSelectorTerm{{}}},
+	}}
+	addPreparedSlotAffinity(&target.Spec.Template.Spec, key, rolloutSlotGreen, false)
+
+	nodes, changed, err := r.reconcilePreparedNodeLabels(ctx, target, key, rolloutSlotBlue, rolloutSlotGreen, rolloutSlotGreen)
+	require.NoError(t, err)
+	assert.False(t, changed)
+	assert.Empty(t, nodes)
+	assert.Empty(t, nodeState(t, ctx, fakeClient, node.Name, key))
+}
+
 func TestSuffixedKubernetesNameKeepsDNSLengthLimit(t *testing.T) {
 	name := strings.Repeat("a", 63)
 	result := suffixedKubernetesName(name, "-green")
 	assert.Len(t, result, 63)
 	assert.True(t, strings.HasSuffix(result, "-green"))
+	assert.NotEqual(t, name, result)
+
+	name = strings.Repeat("a", 57) + "-green"
+	result = suffixedKubernetesName(name, "-green")
+	assert.Len(t, result, 63)
+	assert.Equal(t, name, result, "legacy truncation can collide and must be rejected before rollout mutation")
+}
+
+func TestPreparedPairKeepsLegacyLongGreenName(t *testing.T) {
+	ctx := context.Background()
+	ddai, rendered, _, fakeClient, _ := preparedLifecycleFixture(t)
+	rendered.Name = strings.Repeat("a", 63)
+	blue := rendered.DeepCopy()
+	green := rendered.DeepCopy()
+	green.Name = strings.Repeat("a", 57) + "-green"
+	for _, ds := range []*appsv1.DaemonSet{blue, green} {
+		ds.Spec.Template.Annotations = map[string]string{preparedRolloutModeAnnotation: preparedBlueGreenMode}
+		setPreparedTestController(ds, ddai)
+		require.NoError(t, fakeClient.Create(ctx, ds))
+	}
+
+	pair, err := (&Reconciler{client: fakeClient}).getPreparedPair(ctx, ddai, rendered, true)
+	require.NoError(t, err)
+	assert.Equal(t, blue.Name, pair.blue.Name)
+	assert.Equal(t, green.Name, pair.green.Name)
+}
+
+func TestPreparedPairRejectsLongNameCollision(t *testing.T) {
+	ctx := context.Background()
+	ddai, rendered, _, fakeClient, _ := preparedLifecycleFixture(t)
+	rendered.Name = strings.Repeat("a", 57) + "-green"
+	conventional := rendered.DeepCopy()
+	setPreparedTestController(conventional, ddai)
+	require.NoError(t, fakeClient.Create(ctx, conventional))
+	assertUnchanged := assertPreparedAPIStateUnchanged(t, ctx, fakeClient)
+
+	pair, err := (&Reconciler{client: fakeClient}).getPreparedPair(ctx, ddai, rendered, false)
+	require.NoError(t, err, "conventional cleanup does not need a second slot")
+	assert.Equal(t, conventional.Name, pair.blue.Name)
+	_, err = (&Reconciler{client: fakeClient}).getPreparedPair(ctx, ddai, rendered, true)
+	require.ErrorContains(t, err, "names collide")
+	assertUnchanged()
 }
 
 func preparedTestPair() preparedPair {

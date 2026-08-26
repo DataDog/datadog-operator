@@ -7,6 +7,7 @@ package controller
 
 import (
 	"context"
+	"maps"
 
 	edsdatadoghqv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
@@ -170,17 +171,7 @@ func preparedBlueGreenNodePredicate() predicate.Predicate {
 }
 
 func preparedRelevantNodeLabelsChanged(oldLabels, newLabels map[string]string) bool {
-	for key, oldValue := range oldLabels {
-		if newValue, ok := newLabels[key]; !ok || newValue != oldValue {
-			return true
-		}
-	}
-	for key := range newLabels {
-		if _, ok := oldLabels[key]; !ok {
-			return true
-		}
-	}
-	return false
+	return !maps.Equal(oldLabels, newLabels)
 }
 
 func enqueueIfOwnedByDatadogAgentInternal(ctx context.Context, obj client.Object) []reconcile.Request {

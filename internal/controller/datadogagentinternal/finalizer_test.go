@@ -262,6 +262,40 @@ func TestInternalReconcileV2TreatsPreparedWorkloadTerminationAsControllerState(t
 	assert.Equal(t, rolloutSlotBlue, currentNode.Labels[rolloutKey], "node ownership remains until the child workload disappears")
 }
 
+func TestInternalReconcileV2TreatsPreparedLabelCleanupAsControllerState(t *testing.T) {
+	ctx := context.Background()
+	now := metav1.Now()
+	ddai := &datadoghqv1alpha1.DatadogAgentInternal{ObjectMeta: metav1.ObjectMeta{
+		Namespace:         "default",
+		Name:              "agent",
+		UID:               "agent-uid",
+		DeletionTimestamp: &now,
+		Finalizers:        []string{constants.DatadogAgentInternalFinalizer},
+	}}
+	rolloutKey := preparedRolloutNodeLabelKey(ddai)
+	objects := []client.Object{ddai}
+	for i := range preparedRolloutMutationLimit + 1 {
+		objects = append(objects, &corev1.Node{ObjectMeta: metav1.ObjectMeta{
+			Name: fmt.Sprintf("node-%03d", i), Labels: map[string]string{rolloutKey: rolloutSlotBlue},
+		}})
+	}
+	r := reconcilerForFinalizerTest(objects)
+
+	result, err := r.internalReconcile(ctx, ddai)
+	require.NoError(t, err)
+	assert.Equal(t, defaultErrRequeuePeriod, result.RequeueAfter)
+	assert.Contains(t, ddai.Finalizers, constants.DatadogAgentInternalFinalizer)
+	nodes := &corev1.NodeList{}
+	require.NoError(t, r.client.List(ctx, nodes))
+	remaining := 0
+	for i := range nodes.Items {
+		if _, found := nodes.Items[i].Labels[rolloutKey]; found {
+			remaining++
+		}
+	}
+	assert.Equal(t, 1, remaining)
+}
+
 func TestPreparedRolloutFinalizerPropagatesClientFailures(t *testing.T) {
 	ctx := context.Background()
 	injected := errors.New("injected client failure")

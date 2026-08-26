@@ -235,6 +235,14 @@ func TestReconcileV2AgentCreatesConventionalDaemonSet(t *testing.T) {
 	assert.Empty(t, created.Spec.Template.Annotations[preparedRolloutModeAnnotation])
 	green := &appsv1.DaemonSet{}
 	assert.Error(t, fakeClient.Get(ctx, types.NamespacedName{Namespace: ddai.Namespace, Name: suffixedKubernetesName(created.Name, "-green")}, green))
+
+	customName := "renamed-agent"
+	ddai.Spec.Override = map[datadoghqv2alpha1.ComponentName]*datadoghqv2alpha1.DatadogAgentComponentOverride{
+		datadoghqv2alpha1.NodeAgentComponentName: {Name: &customName},
+	}
+	_, err = r.reconcileV2Agent(ctx, required, nil, ddai, resources, status, "")
+	require.NoError(t, err, "a conventional DaemonSet rename must not be mistaken for prepared rollout state")
+	require.NoError(t, fakeClient.Get(ctx, types.NamespacedName{Namespace: ddai.Namespace, Name: customName}, &appsv1.DaemonSet{}))
 }
 
 func TestInternalReconcileV2InstallsFinalizerBeforeCreatingWorkloads(t *testing.T) {

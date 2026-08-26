@@ -126,12 +126,12 @@ func profileOverlapPodAntiAffinity(podLabels map[string]string) (*corev1.PodAnti
 	}}, true
 }
 
-func positiveIntOrPercent(value *intstr.IntOrString) bool {
-	if value == nil {
+func validMaxUnavailable(value intstr.IntOrString) bool {
+	scaled, err := intstr.GetScaledValueFromIntOrPercent(&value, 100, true)
+	if err != nil || scaled <= 0 {
 		return false
 	}
-	scaled, err := intstr.GetScaledValueFromIntOrPercent(value, 100, true)
-	return err == nil && scaled > 0
+	return value.Type != intstr.String || scaled <= 100
 }
 
 func preparedRolloutBudget(ddai *datadoghqv1alpha1.DatadogAgentInternal, options *componentagent.ExtendedDaemonsetOptions) intstr.IntOrString {

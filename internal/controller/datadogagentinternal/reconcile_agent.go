@@ -388,11 +388,7 @@ func updateEDSStatusV2WithAgent(eds *edsv1alpha1.ExtendedDaemonSet, newStatus *d
 	condition.UpdateDatadogAgentInternalStatusConditions(newStatus, updateTime, common.AgentReconcileConditionType, status, reason, message, true)
 }
 
-func (r *Reconciler) deleteV2DaemonSet(ctx context.Context, ddai *datadoghqv1alpha1.DatadogAgentInternal, ds *appsv1.DaemonSet, newStatus *datadoghqv1alpha1.DatadogAgentInternalStatus) error {
-	return r.deleteV2DaemonSetWithOptions(ctx, ddai, ds, newStatus)
-}
-
-func (r *Reconciler) deleteV2DaemonSetWithOptions(ctx context.Context, ddai *datadoghqv1alpha1.DatadogAgentInternal, ds *appsv1.DaemonSet, newStatus *datadoghqv1alpha1.DatadogAgentInternalStatus, options ...client.DeleteOption) error {
+func (r *Reconciler) deleteV2DaemonSet(ctx context.Context, ddai *datadoghqv1alpha1.DatadogAgentInternal, ds *appsv1.DaemonSet, newStatus *datadoghqv1alpha1.DatadogAgentInternalStatus, options ...client.DeleteOption) error {
 	err := r.client.Delete(ctx, ds, options...)
 	if err != nil {
 		if errors.IsNotFound(err) {

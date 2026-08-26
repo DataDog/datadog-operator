@@ -18,11 +18,8 @@ func TestPreparedRolloutPlannerUsesUnavailableBudget(t *testing.T) {
 
 	plan := planPreparedRollout(states, 2, preparedRolloutMutationLimit)
 	want := []preparedNodeAction{{node: "node-b", kind: preparedActionStartOverlap}}
-	if !reflect.DeepEqual(plan.actions, want) {
-		t.Fatalf("unexpected actions: got %#v, want %#v", plan.actions, want)
-	}
-	if plan.unavailable != 1 {
-		t.Fatalf("unexpected unavailable count: got %d, want 1", plan.unavailable)
+	if !reflect.DeepEqual(plan, want) {
+		t.Fatalf("unexpected actions: got %#v, want %#v", plan, want)
 	}
 }
 
@@ -33,11 +30,8 @@ func TestPreparedRolloutPlannerStopsBehindInFlightNode(t *testing.T) {
 	}
 
 	plan := planPreparedRollout(states, 1, preparedRolloutMutationLimit)
-	if len(plan.actions) != 0 {
-		t.Fatalf("unexpected actions while a prior batch is in flight: %#v", plan.actions)
-	}
-	if plan.inFlight != 1 {
-		t.Fatalf("unexpected in-flight count: got %d, want 1", plan.inFlight)
+	if len(plan) != 0 {
+		t.Fatalf("unexpected actions while a prior batch is in flight: %#v", plan)
 	}
 }
 
@@ -53,15 +47,15 @@ func TestPreparedRolloutPlannerReobservesCandidateBeforeHandoff(t *testing.T) {
 
 	plan := planPreparedRollout([]preparedNodePlanState{state}, 1, preparedRolloutMutationLimit)
 	want := []preparedNodeAction{{node: "node-a", kind: preparedActionRecordCandidate}}
-	if !reflect.DeepEqual(plan.actions, want) {
-		t.Fatalf("unexpected first observation: got %#v, want %#v", plan.actions, want)
+	if !reflect.DeepEqual(plan, want) {
+		t.Fatalf("unexpected first observation: got %#v, want %#v", plan, want)
 	}
 
 	state.recordedTargetUID = state.targetUID
 	plan = planPreparedRollout([]preparedNodePlanState{state}, 1, preparedRolloutMutationLimit)
 	want = []preparedNodeAction{{node: "node-a", kind: preparedActionSelectTarget}}
-	if !reflect.DeepEqual(plan.actions, want) {
-		t.Fatalf("unexpected second observation: got %#v, want %#v", plan.actions, want)
+	if !reflect.DeepEqual(plan, want) {
+		t.Fatalf("unexpected second observation: got %#v, want %#v", plan, want)
 	}
 }
 
@@ -79,8 +73,8 @@ func TestPreparedRolloutPlannerLimitsAPIMutations(t *testing.T) {
 		{node: "node-a", kind: preparedActionStartOverlap},
 		{node: "node-b", kind: preparedActionStartOverlap},
 	}
-	if !reflect.DeepEqual(plan.actions, want) {
-		t.Fatalf("unexpected bounded actions: got %#v, want %#v", plan.actions, want)
+	if !reflect.DeepEqual(plan, want) {
+		t.Fatalf("unexpected bounded actions: got %#v, want %#v", plan, want)
 	}
 }
 
@@ -92,10 +86,7 @@ func TestPreparedRolloutPlannerRepairsUnavailableSourceWithoutSpendingBudget(t *
 
 	plan := planPreparedRollout(states, 1, preparedRolloutMutationLimit)
 	want := []preparedNodeAction{{node: "node-a", kind: preparedActionStartOverlap}}
-	if !reflect.DeepEqual(plan.actions, want) {
-		t.Fatalf("unexpected recovery actions: got %#v, want %#v", plan.actions, want)
-	}
-	if plan.unavailable != 1 {
-		t.Fatalf("unexpected unavailable count: got %d, want 1", plan.unavailable)
+	if !reflect.DeepEqual(plan, want) {
+		t.Fatalf("unexpected recovery actions: got %#v, want %#v", plan, want)
 	}
 }

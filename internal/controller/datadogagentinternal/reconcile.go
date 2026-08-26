@@ -42,11 +42,11 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *v1alpha1.D
 
 	// 2. Handle finalizer logic.
 	final := finalizer.NewFinalizer(logger, r.client, r.deleteResource(), defaultRequeuePeriod, defaultErrRequeuePeriod)
-	if result, err := final.HandleFinalizer(ctx, instance, "", constants.DatadogAgentInternalFinalizer); errors.Is(err, errPreparedRolloutWorkloadsTerminating) {
+	if result, err := final.HandleFinalizer(ctx, instance, "", constants.DatadogAgentInternalFinalizer); errors.Is(err, errPreparedRolloutWorkloadsTerminating) || errors.Is(err, errPreparedRolloutLabelsPending) {
 		// Foreground deletion is expected to take more than one API observation.
-		// Treat it as controller state, not a reconciliation failure: returning the
-		// generic finalizer's result together with an error creates noisy warnings
-		// and exponential backoff during an otherwise healthy teardown.
+		// Node-label cleanup is also bounded across observations. Treat both as
+		// controller state so expected teardown does not produce warnings or
+		// exponential backoff.
 		return reconcile.Result{RequeueAfter: defaultErrRequeuePeriod}, nil
 	} else if apierrors.IsNotFound(err) && !instance.GetDeletionTimestamp().IsZero() {
 		// The API server may remove the object immediately after the finalizer is

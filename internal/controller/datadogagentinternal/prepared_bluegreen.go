@@ -80,7 +80,7 @@ func (r *Reconciler) reconcilePreparedDisable(
 	budget intstr.IntOrString,
 	newStatus *datadoghqv1alpha1.DatadogAgentInternalStatus,
 ) (reconcile.Result, error) {
-	pair, err := r.getPreparedPair(ctx, ddai, rendered)
+	pair, err := r.getPreparedPair(ctx, ddai, rendered, false)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
@@ -246,8 +246,8 @@ func (r *Reconciler) reconcilePreparedDaemonSetPair(
 	budget intstr.IntOrString,
 	newStatus *datadoghqv1alpha1.DatadogAgentInternalStatus,
 ) (reconcile.Result, error) {
-	if !positiveIntOrPercent(&budget) {
-		return reconcile.Result{}, fmt.Errorf("prepared blue/green rollout requires a positive maxUnavailable budget")
+	if !validMaxUnavailable(budget) {
+		return reconcile.Result{}, fmt.Errorf("prepared blue/green rollout requires maxUnavailable to be positive and no greater than 100%%")
 	}
 
 	base := rendered.DeepCopy()
@@ -270,7 +270,7 @@ func (r *Reconciler) reconcilePreparedDaemonSetPair(
 	}
 	labelKey := preparedRolloutNodeLabelKey(ddai)
 
-	pair, pairErr := r.getPreparedPair(ctx, ddai, rendered)
+	pair, pairErr := r.getPreparedPair(ctx, ddai, rendered, true)
 	if pairErr != nil {
 		return reconcile.Result{}, pairErr
 	}
@@ -297,7 +297,7 @@ func (r *Reconciler) reconcilePreparedDaemonSetPair(
 			return requeuePreparedRollout(), nil
 		}
 	}
-	target, _, targetErr := pairTarget(pair)
+	target, targetRevision, targetErr := pairTarget(pair)
 	if targetErr != nil {
 		return reconcile.Result{}, targetErr
 	}
@@ -305,7 +305,17 @@ func (r *Reconciler) reconcilePreparedDaemonSetPair(
 	if slotErr != nil {
 		return reconcile.Result{}, slotErr
 	}
-	nodes, changed, nodeErr := r.reconcilePreparedNodeLabels(ctx, base, labelKey, initialSlot, target)
+	eligibilityBase := base
+	eligibilitySlot := ""
+	if target != "" && targetRevision != desiredRevision {
+		targetDS := pair.slot(target)
+		if targetDS == nil {
+			return reconcile.Result{}, fmt.Errorf("prepared rollout target %s is missing", target)
+		}
+		eligibilityBase = targetDS
+		eligibilitySlot = target
+	}
+	nodes, changed, nodeErr := r.reconcilePreparedNodeLabels(ctx, eligibilityBase, labelKey, initialSlot, target, eligibilitySlot)
 	if nodeErr != nil {
 		return reconcile.Result{}, nodeErr
 	}
@@ -363,7 +373,7 @@ func (r *Reconciler) reconcilePreparedDaemonSetPair(
 
 	// Refresh after create/update stages so the state machine only reasons from
 	// API-observed objects and statuses.
-	refreshedPair, refreshErr := r.getPreparedPair(ctx, ddai, rendered)
+	refreshedPair, refreshErr := r.getPreparedPair(ctx, ddai, rendered, true)
 	if refreshErr != nil {
 		return reconcile.Result{}, refreshErr
 	}
@@ -375,7 +385,7 @@ func (r *Reconciler) reconcilePreparedDaemonSetPair(
 	if stateChanged {
 		return requeuePreparedRollout(), nil
 	}
-	target, targetRevision, targetErr := pairTarget(pair)
+	target, targetRevision, targetErr = pairTarget(pair)
 	if targetErr != nil {
 		return reconcile.Result{}, targetErr
 	}
@@ -812,12 +822,16 @@ func addPreparedSlotAffinity(spec *corev1.PodSpec, key, slot string, allowUnlabe
 		spec.Affinity.NodeAffinity = &corev1.NodeAffinity{}
 	}
 	required := spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution
+	createdRequired := required == nil
 	if required == nil {
 		required = &corev1.NodeSelector{NodeSelectorTerms: []corev1.NodeSelectorTerm{{}}}
 		spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution = required
 	}
 	baseTermCount := len(required.NodeSelectorTerms)
 	for i := range baseTermCount {
+		if !createdRequired && len(required.NodeSelectorTerms[i].MatchExpressions) == 0 && len(required.NodeSelectorTerms[i].MatchFields) == 0 {
+			continue
+		}
 		required.NodeSelectorTerms[i].MatchExpressions = append(required.NodeSelectorTerms[i].MatchExpressions, requirement)
 		if allowUnlabeled {
 			fallback := *required.NodeSelectorTerms[i].DeepCopy()
@@ -832,8 +846,12 @@ func addPreparedSlotAffinity(spec *corev1.PodSpec, key, slot string, allowUnlabe
 	}
 }
 
-func (r *Reconciler) getPreparedPair(ctx context.Context, ddai *datadoghqv1alpha1.DatadogAgentInternal, rendered *appsv1.DaemonSet) (preparedPair, error) {
+func (r *Reconciler) getPreparedPair(ctx context.Context, ddai *datadoghqv1alpha1.DatadogAgentInternal, rendered *appsv1.DaemonSet, rejectUnpreparedNameMismatch bool) (preparedPair, error) {
 	pair := preparedPair{}
+	expectedGreen := suffixedKubernetesName(rendered.Name, "-green")
+	if expectedGreen == rendered.Name && rejectUnpreparedNameMismatch {
+		return pair, fmt.Errorf("prepared rollout blue and green DaemonSet names collide at %q", rendered.Name)
+	}
 	// A prepared pair owns host-local locks and node-slot labels whose identity
 	// is derived from the DDAI, not from the rendered DaemonSet name. Creating a
 	// second pair after an override.name change would therefore make both pairs
@@ -843,20 +861,25 @@ func (r *Reconciler) getPreparedPair(ctx context.Context, ddai *datadoghqv1alpha
 	if err := r.client.List(ctx, owned, client.InNamespace(rendered.Namespace)); err != nil {
 		return pair, err
 	}
-	expectedGreen := suffixedKubernetesName(rendered.Name, "-green")
 	for i := range owned.Items {
 		ds := &owned.Items[i]
-		if !metav1.IsControlledBy(ds, ddai) || !preparedDaemonSetInitialized(ds) {
+		controller := metav1.GetControllerOf(ds)
+		if controller == nil || controller.UID != ddai.UID || controller.Name != ddai.Name || ds.Name == rendered.Name || ds.Name == expectedGreen {
 			continue
 		}
-		if ds.Name != rendered.Name && ds.Name != expectedGreen {
+		if preparedDaemonSetInitialized(ds) {
 			return pair, fmt.Errorf("prepared rollout DaemonSet name cannot change after initialization: found existing child %s/%s while desired blue name is %q", ds.Namespace, ds.Name, rendered.Name)
 		}
+		if rejectUnpreparedNameMismatch {
+			return pair, fmt.Errorf("prepared rollout cannot start while controlled DaemonSet %s/%s uses a different name; complete the conventional name change before enabling prepared rollout", ds.Namespace, ds.Name)
+		}
 	}
-	for slot, name := range map[string]string{
-		rolloutSlotBlue:  rendered.Name,
-		rolloutSlotGreen: suffixedKubernetesName(rendered.Name, "-green"),
-	} {
+	slots := []struct{ slot, name string }{{rolloutSlotBlue, rendered.Name}}
+	if expectedGreen != rendered.Name {
+		slots = append(slots, struct{ slot, name string }{rolloutSlotGreen, expectedGreen})
+	}
+	for _, candidate := range slots {
+		slot, name := candidate.slot, candidate.name
 		ds := &appsv1.DaemonSet{}
 		err := r.client.Get(ctx, types.NamespacedName{Namespace: rendered.Namespace, Name: name}, ds)
 		if apierrors.IsNotFound(err) {
@@ -886,7 +909,7 @@ func (r *Reconciler) deletePreparedDaemonSetPairIfPresent(
 	rendered *appsv1.DaemonSet,
 	newStatus *datadoghqv1alpha1.DatadogAgentInternalStatus,
 ) (bool, error) {
-	pair, err := r.getPreparedPair(ctx, ddai, rendered)
+	pair, err := r.getPreparedPair(ctx, ddai, rendered, false)
 	if err != nil {
 		return false, err
 	}
@@ -906,7 +929,7 @@ func (r *Reconciler) deletePreparedDaemonSetPairIfPresent(
 			continue
 		}
 		foreground := metav1.DeletePropagationForeground
-		if err := r.deleteV2DaemonSetWithOptions(ctx, ddai, ds, newStatus, &client.DeleteOptions{PropagationPolicy: &foreground}); err != nil {
+		if err := r.deleteV2DaemonSet(ctx, ddai, ds, newStatus, &client.DeleteOptions{PropagationPolicy: &foreground}); err != nil {
 			return true, err
 		}
 	}
@@ -934,11 +957,16 @@ func (r *Reconciler) preparedBlueGreenInitialized(ctx context.Context, ddai *dat
 	if ddai.Annotations[preparedRolloutCleanupAnnotation] == preparedBlueGreenArmed {
 		return true, nil
 	}
-	pair, err := r.getPreparedPair(ctx, ddai, rendered)
-	if err != nil {
+	owned := &appsv1.DaemonSetList{}
+	if err := r.client.List(ctx, owned, client.InNamespace(rendered.Namespace)); err != nil {
 		return false, err
 	}
-	return preparedDaemonSetInitialized(pair.blue) || preparedDaemonSetInitialized(pair.green), nil
+	for i := range owned.Items {
+		if metav1.IsControlledBy(&owned.Items[i], ddai) && preparedDaemonSetInitialized(&owned.Items[i]) {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 func preparedDaemonSetInitialized(ds *appsv1.DaemonSet) bool {
@@ -1042,6 +1070,9 @@ func pairTarget(pair preparedPair) (string, string, error) {
 		}
 		if candidateTarget == "" {
 			continue
+		}
+		if candidateTarget != rolloutSlotBlue && candidateTarget != rolloutSlotGreen {
+			return "", "", fmt.Errorf("invalid prepared rollout target %q on DaemonSet %s", candidateTarget, ds.Name)
 		}
 		if target == "" {
 			target, revision = candidateTarget, candidateRevision
@@ -1158,7 +1189,7 @@ func activeSlot(nodes []corev1.Node, key, recorded string) (string, error) {
 	return active, nil
 }
 
-func (r *Reconciler) reconcilePreparedNodeLabels(ctx context.Context, base *appsv1.DaemonSet, key, initialSlot, target string) ([]corev1.Node, bool, error) {
+func (r *Reconciler) reconcilePreparedNodeLabels(ctx context.Context, base *appsv1.DaemonSet, key, initialSlot, target, eligibilitySlot string) ([]corev1.Node, bool, error) {
 	all := &corev1.NodeList{}
 	if err := r.client.List(ctx, all); err != nil {
 		return nil, false, err
@@ -1169,7 +1200,15 @@ func (r *Reconciler) reconcilePreparedNodeLabels(ctx context.Context, base *apps
 	mutations := 0
 	for i := range all.Items {
 		node := &all.Items[i]
-		matches, err := preparedNodeEligible(&base.Spec.Template, node)
+		eligibilityNode := node
+		if eligibilitySlot != "" {
+			eligibilityNode = node.DeepCopy()
+			if eligibilityNode.Labels == nil {
+				eligibilityNode.Labels = map[string]string{}
+			}
+			eligibilityNode.Labels[key] = eligibilitySlot
+		}
+		matches, err := preparedNodeEligible(&base.Spec.Template, eligibilityNode)
 		if err != nil {
 			return nil, false, err
 		}
@@ -1351,8 +1390,8 @@ func (r *Reconciler) advancePreparedNodes(ctx context.Context, nodes []corev1.No
 		states = append(states, state)
 	}
 
-	plan := planPreparedRollout(states, limit, preparedRolloutMutationLimit)
-	for _, action := range plan.actions {
+	actions := planPreparedRollout(states, limit, preparedRolloutMutationLimit)
+	for _, action := range actions {
 		node := nodeByName[action.node]
 		if node == nil {
 			return false, fmt.Errorf("prepared rollout plan references unknown node %s", action.node)
@@ -1386,7 +1425,7 @@ func (r *Reconciler) advancePreparedNodes(ctx context.Context, nodes []corev1.No
 			return false, fmt.Errorf("unknown prepared rollout action %d", action.kind)
 		}
 	}
-	return len(plan.actions) > 0, nil
+	return len(actions) > 0, nil
 }
 
 func podUnschedulableForCapacity(pod *corev1.Pod) bool {
