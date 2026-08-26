@@ -176,6 +176,18 @@ func Test_hostProfilerFeature_SELinuxTypeAnnotation(t *testing.T) {
 	// The selinux-type annotation overrides the spc_t default.
 	require.NotNil(t, hpContainer.SecurityContext.SELinuxOptions)
 	assert.Equal(t, "custom_t", hpContainer.SecurityContext.SELinuxOptions.Type)
+
+	var setupContainer *corev1.Container
+	for i := range manager.Tpl.Spec.InitContainers {
+		if manager.Tpl.Spec.InitContainers[i].Name == string(apicommon.HostProfilerSeccompSetupContainerName) {
+			setupContainer = &manager.Tpl.Spec.InitContainers[i]
+			break
+		}
+	}
+	require.NotNil(t, setupContainer)
+	require.NotNil(t, setupContainer.SecurityContext)
+	require.NotNil(t, setupContainer.SecurityContext.SELinuxOptions)
+	assert.Equal(t, "custom_t", setupContainer.SecurityContext.SELinuxOptions.Type)
 }
 
 func testExpectedAgent(agentContainerName apicommon.AgentContainerName, expectedVolumeMount []corev1.VolumeMount) *test.ComponentTest {
@@ -264,6 +276,9 @@ func testExpectedAgent(agentContainerName apicommon.AgentContainerName, expected
 				assert.NotNil(t, setupContainer, "host-profiler-seccomp-setup init container should be present")
 				if setupContainer != nil {
 					assert.Equal(t, hostProfilerImage, setupContainer.Image)
+					assert.NotNil(t, setupContainer.SecurityContext)
+					assert.NotNil(t, setupContainer.SecurityContext.SELinuxOptions)
+					assert.Equal(t, "spc_t", setupContainer.SecurityContext.SELinuxOptions.Type)
 					assert.Contains(t, setupContainer.Command, seccompSourcePath, "cp source should be the in-image seccomp path")
 					expectedDst := common.SeccompRootVolumePath + "/" + seccompProfileName(hostProfilerImage, false)
 					assert.Contains(t, setupContainer.Command, expectedDst, "cp command should target the kubelet seccomp path")

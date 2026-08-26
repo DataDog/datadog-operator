@@ -158,7 +158,7 @@ func (o *hostProfilerFeature) ManageNodeAgent(managers feature.PodTemplateManage
 
 		// Init container: copy seccomp profile JSON to the kubelet seccomp directory on the host.
 		// Appended after the base init containers (init-volume, init-config) added by default.go.
-		initContainer := buildSeccompSetupInitContainer(hostProfilerImage, o.loggingSeccomp)
+		initContainer := buildSeccompSetupInitContainer(hostProfilerImage, o.loggingSeccomp, o.selinuxType)
 		managers.PodTemplateSpec().Spec.InitContainers = append(managers.PodTemplateSpec().Spec.InitContainers, initContainer)
 	} else {
 		sc.SeccompProfile = &corev1.SeccompProfile{
