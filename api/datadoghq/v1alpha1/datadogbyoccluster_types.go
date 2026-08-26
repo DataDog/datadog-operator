@@ -10,6 +10,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 // DatadogBYOCClusterSpec defines the desired state of DatadogBYOCCluster.
@@ -180,6 +181,12 @@ type DatadogBYOCClusterGlobalSpec struct {
 	// +listMapKey=topologyKey
 	// +listMapKey=whenUnsatisfiable
 	TopologySpreadConstraints []corev1.TopologySpreadConstraint `json:"topologySpreadConstraints,omitempty"`
+
+	// PodDisruptionBudget configures Pod disruption budgets for all BYOC components.
+	// When omitted, the Operator creates a budget with maxUnavailable set to 1.
+	// Set this field to an empty object to disable the default budgets.
+	// +optional
+	PodDisruptionBudget *DatadogBYOCClusterPodDisruptionBudgetSpec `json:"podDisruptionBudget,omitempty"`
 }
 
 // DatadogBYOCClusterComponentsSpec defines the BYOC workloads.
@@ -276,6 +283,12 @@ type DatadogBYOCClusterComponentSpec struct {
 	// +listMapKey=whenUnsatisfiable
 	TopologySpreadConstraints []corev1.TopologySpreadConstraint `json:"topologySpreadConstraints,omitempty"`
 
+	// PodDisruptionBudget configures the component Pod disruption budget.
+	// When omitted, the global setting or Operator default is used.
+	// Set this field to an empty object to disable the budget for this component.
+	// +optional
+	PodDisruptionBudget *DatadogBYOCClusterPodDisruptionBudgetSpec `json:"podDisruptionBudget,omitempty"`
+
 	// InitContainers are added to the component Pods.
 	// +optional
 	// +listType=map
@@ -285,6 +298,19 @@ type DatadogBYOCClusterComponentSpec struct {
 	// TerminationGracePeriodSeconds is the grace period before a component Pod is forcibly terminated.
 	// +optional
 	TerminationGracePeriodSeconds *int64 `json:"terminationGracePeriodSeconds,omitempty"`
+}
+
+// DatadogBYOCClusterPodDisruptionBudgetSpec defines the availability constraint for voluntary Pod disruptions.
+// +k8s:openapi-gen=true
+// +kubebuilder:validation:XValidation:rule="!(has(self.minAvailable) && has(self.maxUnavailable))",message="minAvailable and maxUnavailable are mutually exclusive"
+type DatadogBYOCClusterPodDisruptionBudgetSpec struct {
+	// MinAvailable is the minimum number or percentage of Pods that must remain available after an eviction.
+	// +optional
+	MinAvailable *intstr.IntOrString `json:"minAvailable,omitempty"`
+
+	// MaxUnavailable is the maximum number or percentage of Pods that may be unavailable after an eviction.
+	// +optional
+	MaxUnavailable *intstr.IntOrString `json:"maxUnavailable,omitempty"`
 }
 
 // DatadogBYOCClusterStatefulComponentSpec defines settings for a stateful BYOC workload.

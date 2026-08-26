@@ -10,6 +10,7 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	policyv1 "k8s.io/api/policy/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -17,8 +18,9 @@ import (
 
 // DeploymentResources contains the resources managed for a deployment component.
 type DeploymentResources struct {
-	Service    *corev1.Service
-	Deployment *appsv1.Deployment
+	Service             *corev1.Service
+	Deployment          *appsv1.Deployment
+	PodDisruptionBudget *policyv1.PodDisruptionBudget
 }
 
 // Objects returns the component resources in apply order.
@@ -26,7 +28,11 @@ func (r *DeploymentResources) Objects() []client.Object {
 	if r == nil {
 		return nil
 	}
-	return []client.Object{r.Service, r.Deployment}
+	objects := []client.Object{r.Service, r.Deployment}
+	if r.PodDisruptionBudget != nil {
+		objects = append(objects, r.PodDisruptionBudget)
+	}
+	return objects
 }
 
 // deploymentBuilder builds the resources for a deployment component.
@@ -64,9 +70,19 @@ func (b deploymentBuilder) build() (*DeploymentResources, error) {
 	if err != nil {
 		return nil, err
 	}
+	podDisruptionBudget, err := newPodDisruptionBudgetBuilder(
+		deployment.Workload.Metadata,
+		deployment.Workload.Selector,
+		b.workload.Cluster.Spec.Global.PodDisruptionBudget,
+		b.workload.Spec.PodDisruptionBudget,
+	).build()
+	if err != nil {
+		return nil, err
+	}
 	return &DeploymentResources{
-		Service:    createService(service),
-		Deployment: createDeployment(deployment),
+		Service:             createService(service),
+		Deployment:          createDeployment(deployment),
+		PodDisruptionBudget: podDisruptionBudget,
 	}, nil
 }
 
