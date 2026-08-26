@@ -406,12 +406,23 @@ func TestPodDisruptionBudgetBuilder(t *testing.T) {
 
 func TestBuildResources_Indexer(t *testing.T) {
 	wantDefault := func() *StatefulSetResources {
-		return wantDefaultStatefulSet(wantStatefulSetOptions{
+		want := wantDefaultStatefulSet(wantStatefulSetOptions{
 			component:                     "indexer",
 			configVolumeMount:             corev1.VolumeMount{Name: "config", MountPath: "/quickwit/"},
 			additionalEnv:                 []corev1.EnvVar{{Name: "QW_INGEST_DECOMMISSION_TIMEOUT", Value: "270s"}},
 			terminationGracePeriodSeconds: ptr.To[int64](300),
 		})
+		want.StatefulSet.Spec.Template.Spec.Volumes = want.StatefulSet.Spec.Template.Spec.Volumes[:1]
+		want.StatefulSet.Spec.VolumeClaimTemplates = []corev1.PersistentVolumeClaim{{
+			ObjectMeta: metav1.ObjectMeta{Name: "data"},
+			Spec: corev1.PersistentVolumeClaimSpec{
+				AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+				Resources: corev1.VolumeResourceRequirements{
+					Requests: corev1.ResourceList{corev1.ResourceStorage: resource.MustParse("250Gi")},
+				},
+			},
+		}}
+		return want
 	}
 
 	tests := []struct {
@@ -442,23 +453,34 @@ func TestBuildResources_Indexer(t *testing.T) {
 			},
 		},
 		{
-			name: "persistent volume claim",
+			name: "volume claim template",
 			indexer: &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{
-				PersistentVolumeClaim: &datadoghqv1alpha1.DatadogBYOCClusterPersistentVolumeClaimSpec{
-					PersistentVolumeClaimSpec: corev1.PersistentVolumeClaimSpec{
-						AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
-						StorageClassName: ptr.To("gp3"),
-						Resources: corev1.VolumeResourceRequirements{
-							Requests: corev1.ResourceList{corev1.ResourceStorage: resource.MustParse("100Gi")},
+				Storage: &datadoghqv1alpha1.DatadogBYOCClusterStorageSpec{
+					VolumeClaimTemplate: &datadoghqv1alpha1.DatadogBYOCClusterEmbeddedPersistentVolumeClaim{
+						TypeMeta: metav1.TypeMeta{APIVersion: "v1", Kind: "PersistentVolumeClaim"},
+						DatadogBYOCClusterEmbeddedObjectMetadata: datadoghqv1alpha1.DatadogBYOCClusterEmbeddedObjectMetadata{
+							Labels:      map[string]string{"storage": "indexer"},
+							Annotations: map[string]string{"example.com/storage": "indexer"},
+						},
+						Spec: corev1.PersistentVolumeClaimSpec{
+							AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+							StorageClassName: ptr.To("gp3"),
+							Resources: corev1.VolumeResourceRequirements{
+								Requests: corev1.ResourceList{corev1.ResourceStorage: resource.MustParse("100Gi")},
+							},
 						},
 					},
 				},
 			},
 			want: func() *StatefulSetResources {
 				want := wantDefault()
-				want.StatefulSet.Spec.Template.Spec.Volumes = want.StatefulSet.Spec.Template.Spec.Volumes[:1]
 				want.StatefulSet.Spec.VolumeClaimTemplates = []corev1.PersistentVolumeClaim{{
-					ObjectMeta: metav1.ObjectMeta{Name: "data"},
+					TypeMeta: metav1.TypeMeta{APIVersion: "v1", Kind: "PersistentVolumeClaim"},
+					ObjectMeta: metav1.ObjectMeta{
+						Name:        "data",
+						Labels:      map[string]string{"storage": "indexer"},
+						Annotations: map[string]string{"example.com/storage": "indexer"},
+					},
 					Spec: corev1.PersistentVolumeClaimSpec{
 						AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 						StorageClassName: ptr.To("gp3"),
@@ -467,6 +489,35 @@ func TestBuildResources_Indexer(t *testing.T) {
 						},
 					},
 				}}
+				return want
+			},
+		},
+		{
+			name: "empty dir",
+			indexer: &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{
+				Storage: &datadoghqv1alpha1.DatadogBYOCClusterStorageSpec{EmptyDir: &corev1.EmptyDirVolumeSource{}},
+			},
+			want: func() *StatefulSetResources {
+				want := wantDefault()
+				want.StatefulSet.Spec.VolumeClaimTemplates = nil
+				want.StatefulSet.Spec.Template.Spec.Volumes = append(want.StatefulSet.Spec.Template.Spec.Volumes, defaultDataVolume())
+				return want
+			},
+		},
+		{
+			name: "volume claim template metadata with defaults",
+			indexer: &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{
+				Storage: &datadoghqv1alpha1.DatadogBYOCClusterStorageSpec{
+					VolumeClaimTemplate: &datadoghqv1alpha1.DatadogBYOCClusterEmbeddedPersistentVolumeClaim{
+						DatadogBYOCClusterEmbeddedObjectMetadata: datadoghqv1alpha1.DatadogBYOCClusterEmbeddedObjectMetadata{
+							Annotations: map[string]string{"example.com/defaulted": "true"},
+						},
+					},
+				},
+			},
+			want: func() *StatefulSetResources {
+				want := wantDefault()
+				want.StatefulSet.Spec.VolumeClaimTemplates[0].Annotations = map[string]string{"example.com/defaulted": "true"}
 				return want
 			},
 		},
@@ -534,14 +585,16 @@ func TestBuildResources_Searcher(t *testing.T) {
 			},
 		},
 		{
-			name: "persistent volume claim",
+			name: "volume claim template",
 			searcher: &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{
-				PersistentVolumeClaim: &datadoghqv1alpha1.DatadogBYOCClusterPersistentVolumeClaimSpec{
-					PersistentVolumeClaimSpec: corev1.PersistentVolumeClaimSpec{
-						AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
-						StorageClassName: ptr.To("gp3"),
-						Resources: corev1.VolumeResourceRequirements{
-							Requests: corev1.ResourceList{corev1.ResourceStorage: resource.MustParse("100Gi")},
+				Storage: &datadoghqv1alpha1.DatadogBYOCClusterStorageSpec{
+					VolumeClaimTemplate: &datadoghqv1alpha1.DatadogBYOCClusterEmbeddedPersistentVolumeClaim{
+						Spec: corev1.PersistentVolumeClaimSpec{
+							AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+							StorageClassName: ptr.To("gp3"),
+							Resources: corev1.VolumeResourceRequirements{
+								Requests: corev1.ResourceList{corev1.ResourceStorage: resource.MustParse("100Gi")},
+							},
 						},
 					},
 				},
