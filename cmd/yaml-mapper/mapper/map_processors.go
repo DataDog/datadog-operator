@@ -34,6 +34,7 @@ func mapFuncRegistry() map[string]MappingRunFunc {
 		mapAppendEnvVar,
 		mapMergeEnvs,
 		mapOverrideType,
+		mapCustomConfigFile,
 	} {
 		registry[p.name] = p.runFunc
 	}
@@ -293,6 +294,44 @@ var mapOverrideType = MappingProcessor{
 				}
 			}
 		}
+	},
+}
+
+// mapCustomConfigFile serializes an object-shaped Helm value (e.g. custom datadog.yaml settings)
+// into a YAML string and stores it under CustomConfig's `configData` field, keyed by the given
+// filename. The filename is passed via `args` instead of `newPath` since it can contain dots
+// (e.g. "datadog.yaml") that shouldn't be split into nested path segments.
+// args:
+//   - fileName: datadog.yaml
+var mapCustomConfigFile = MappingProcessor{
+	name: "mapCustomConfigFile",
+	runFunc: func(interim map[string]any, newPath string, pathVal any, args []any) {
+		if len(args) != 1 {
+			return
+		}
+		fileName, ok := utils.GetPathString(args[0], "fileName")
+		if !ok || fileName == "" {
+			return
+		}
+
+		var configData string
+		switch v := pathVal.(type) {
+		case string:
+			configData = v
+		default:
+			out, err := yaml.Marshal(pathVal)
+			if err != nil {
+				slog.Error("failed to marshal custom config content", "path", newPath, "fileName", fileName, "error", err)
+				return
+			}
+			configData = string(out)
+		}
+
+		utils.MergeOrSet(interim, newPath, map[string]any{
+			fileName: map[string]any{
+				"configData": configData,
+			},
+		})
 	},
 }
 
