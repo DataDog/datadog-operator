@@ -44,7 +44,7 @@ spec:
       database:
         uriSecretRef:
           name: byoc-postgres
-          key: read-replica-uri
+          key: read-only-metastore-uri
       replicas: 2
     indexer:
       replicas: 2

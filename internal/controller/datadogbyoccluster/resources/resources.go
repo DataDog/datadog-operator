@@ -113,14 +113,14 @@ func BuildResources(cluster *datadoghqv1alpha1.DatadogBYOCCluster, release *byoc
 	}
 
 	resources.indexer, err = newStatefulSetBuilder(
-		newWorkload("indexer", indexerSpec, workloadDefaults{
+		newWorkload(IndexerComponentName, indexerSpec, workloadDefaults{
 			ServicePorts: componentServicePorts(),
 			PodSpec: corev1.PodSpec{
 				Volumes: statefulDataVolumes(indexerStatefulSpec),
 				Containers: []corev1.Container{{
-					Args:         []string{"run", "--service", "indexer"},
+					Args:         []string{"run", "--service", quickwitIndexerServiceName},
 					Env:          decommissionTimeoutEnvironment("QW_INGEST_DECOMMISSION_TIMEOUT", *indexerSpec.TerminationGracePeriodSeconds),
-					VolumeMounts: []corev1.VolumeMount{{Name: "config", MountPath: "/quickwit/"}},
+					VolumeMounts: []corev1.VolumeMount{{Name: "config", MountPath: quickwitDirectory}},
 				}},
 			},
 		}),
@@ -134,12 +134,12 @@ func BuildResources(cluster *datadoghqv1alpha1.DatadogBYOCCluster, release *byoc
 	}
 
 	resources.searcher, err = newStatefulSetBuilder(
-		newWorkload("searcher", searcherSpec, workloadDefaults{
-			ServicePorts: componentServicePorts(corev1.ServicePort{Name: "cloudprem", Port: 7283, Protocol: corev1.ProtocolTCP, TargetPort: intstr.FromString("cloudprem")}),
+		newWorkload(SearcherComponentName, searcherSpec, workloadDefaults{
+			ServicePorts: componentServicePorts(corev1.ServicePort{Name: "cloudprem", Port: cloudpremPort, Protocol: corev1.ProtocolTCP, TargetPort: intstr.FromString("cloudprem")}),
 			PodSpec: corev1.PodSpec{
 				Containers: []corev1.Container{{
-					Args:         []string{"run", "--service", "searcher"},
-					VolumeMounts: []corev1.VolumeMount{{Name: "config", MountPath: nodeConfigMountPath, SubPath: nodeConfigFileName}},
+					Args:         []string{"run", "--service", quickwitSearcherServiceName},
+					VolumeMounts: []corev1.VolumeMount{{Name: "config", MountPath: nodeConfigPath, SubPath: nodeConfigFileName}},
 				}},
 				Volumes: statefulDataVolumes(searcherStatefulSpec),
 			},
@@ -154,12 +154,12 @@ func BuildResources(cluster *datadoghqv1alpha1.DatadogBYOCCluster, release *byoc
 	}
 
 	resources.metastore, err = newDeploymentBuilder(
-		newWorkload("metastore", metastoreSpec, workloadDefaults{
+		newWorkload(MetastoreComponentName, metastoreSpec, workloadDefaults{
 			ServicePorts: componentServicePorts(),
 			PodSpec: corev1.PodSpec{
 				Volumes: []corev1.Volume{defaultDataVolume()},
 				Containers: []corev1.Container{{
-					Args:         []string{"run", "--service", "metastore"},
+					Args:         []string{"run", "--service", quickwitMetastoreServiceName},
 					Env:          databaseEnvironment("QW_METASTORE_URI", metastoreDatabase(components.Metastore)),
 					VolumeMounts: []corev1.VolumeMount{defaultConfigVolumeMount()},
 				}},
@@ -172,12 +172,12 @@ func BuildResources(cluster *datadoghqv1alpha1.DatadogBYOCCluster, release *byoc
 	}
 
 	resources.controlPlane, err = newDeploymentBuilder(
-		newWorkload("control-plane", controlPlaneSpec, workloadDefaults{
+		newWorkload(ControlPlaneComponentName, controlPlaneSpec, workloadDefaults{
 			ServicePorts: componentServicePorts(),
 			PodSpec: corev1.PodSpec{
 				Volumes: []corev1.Volume{defaultDataVolume()},
 				Containers: []corev1.Container{{
-					Args:         []string{"run", "--service", "control_plane"},
+					Args:         []string{"run", "--service", quickwitControlPlaneServiceName},
 					VolumeMounts: []corev1.VolumeMount{defaultConfigVolumeMount()},
 				}},
 			},
@@ -189,12 +189,12 @@ func BuildResources(cluster *datadoghqv1alpha1.DatadogBYOCCluster, release *byoc
 	}
 
 	resources.janitor, err = newDeploymentBuilder(
-		newWorkload("janitor", janitorSpec, workloadDefaults{
+		newWorkload(JanitorComponentName, janitorSpec, workloadDefaults{
 			ServicePorts: componentServicePorts(),
 			PodSpec: corev1.PodSpec{
 				Volumes: []corev1.Volume{defaultDataVolume()},
 				Containers: []corev1.Container{{
-					Args:         []string{"run", "--service", "janitor"},
+					Args:         []string{"run", "--service", quickwitJanitorServiceName},
 					VolumeMounts: []corev1.VolumeMount{defaultConfigVolumeMount()},
 				}},
 			},
@@ -208,13 +208,13 @@ func BuildResources(cluster *datadoghqv1alpha1.DatadogBYOCCluster, release *byoc
 	if components.ReadOnlyMetastore != nil {
 		readOnlyMetastoreSpec := components.ReadOnlyMetastore.DatadogBYOCClusterComponentSpec.DeepCopy()
 		resources.readOnlyMetastore, err = newDeploymentBuilder(
-			newWorkload("metastore-ro", readOnlyMetastoreSpec, workloadDefaults{
+			newWorkload(ReadOnlyMetastoreComponentName, readOnlyMetastoreSpec, workloadDefaults{
 				ServicePorts: componentServicePorts(),
 				PodSpec: corev1.PodSpec{
 					Volumes: []corev1.Volume{defaultDataVolume()},
 					Containers: []corev1.Container{{
-						Args:         []string{"run", "--service", "metastore_read_replica"},
-						Env:          databaseEnvironment("QW_METASTORE_READ_REPLICA_URI", metastoreDatabase(components.ReadOnlyMetastore)),
+						Args:         []string{"run", "--service", quickwitReadOnlyMetastoreServiceName},
+						Env:          databaseEnvironment(quickwitReadOnlyMetastoreURIEnvName, metastoreDatabase(components.ReadOnlyMetastore)),
 						VolumeMounts: []corev1.VolumeMount{defaultConfigVolumeMount()},
 					}},
 				},
@@ -229,12 +229,12 @@ func BuildResources(cluster *datadoghqv1alpha1.DatadogBYOCCluster, release *byoc
 	if components.Compactor != nil {
 		compactorSpec := components.Compactor.DeepCopy()
 		resources.compactor, err = newDeploymentBuilder(
-			newWorkload("compactor", compactorSpec, workloadDefaults{
+			newWorkload(CompactorComponentName, compactorSpec, workloadDefaults{
 				ServicePorts: componentServicePorts(),
 				PodSpec: corev1.PodSpec{
 					Volumes: []corev1.Volume{defaultDataVolume()},
 					Containers: []corev1.Container{{
-						Args:         []string{"run", "--service", "compactor"},
+						Args:         []string{"run", "--service", quickwitCompactorServiceName},
 						Env:          decommissionTimeoutEnvironment("QW_COMPACTOR_DECOMMISSION_TIMEOUT", *compactorSpec.TerminationGracePeriodSeconds),
 						VolumeMounts: []corev1.VolumeMount{defaultConfigVolumeMount()},
 					}},
@@ -266,15 +266,15 @@ func databaseEnvironment(name string, database *datadoghqv1alpha1.DatadogBYOCClu
 
 func componentServicePorts(additional ...corev1.ServicePort) []corev1.ServicePort {
 	ports := []corev1.ServicePort{
-		{Name: "rest", Port: 7280, Protocol: corev1.ProtocolTCP, TargetPort: intstr.FromString("rest")},
-		{Name: "grpc", Port: 7281, Protocol: corev1.ProtocolTCP, TargetPort: intstr.FromString("grpc")},
+		{Name: "rest", Port: restPort, Protocol: corev1.ProtocolTCP, TargetPort: intstr.FromString("rest")},
+		{Name: "grpc", Port: grpcPort, Protocol: corev1.ProtocolTCP, TargetPort: intstr.FromString("grpc")},
 	}
 	ports = append(ports, additional...)
-	return append(ports, corev1.ServicePort{Name: "health", Port: 7284, Protocol: corev1.ProtocolTCP, TargetPort: intstr.FromString("health")})
+	return append(ports, corev1.ServicePort{Name: "health", Port: healthPort, Protocol: corev1.ProtocolTCP, TargetPort: intstr.FromString("health")})
 }
 
 func defaultConfigVolumeMount() corev1.VolumeMount {
-	return corev1.VolumeMount{Name: "config", MountPath: nodeConfigMountPath, SubPath: nodeConfigFileName}
+	return corev1.VolumeMount{Name: "config", MountPath: nodeConfigPath, SubPath: nodeConfigFileName}
 }
 
 func defaultDataVolume() corev1.Volume {
