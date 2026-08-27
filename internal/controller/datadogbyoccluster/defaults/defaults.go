@@ -125,11 +125,11 @@ func applyAutoscalingDefaults(autoscaling *datadoghqv1alpha1.DatadogBYOCClusterA
 func statefulResources() *corev1.ResourceRequirements {
 	return &corev1.ResourceRequirements{
 		Limits: corev1.ResourceList{
-			corev1.ResourceMemory: resource.MustParse("13100Mi"),
+			corev1.ResourceMemory: resource.MustParse("16Gi"),
 		},
 		Requests: corev1.ResourceList{
-			corev1.ResourceCPU:    resource.MustParse("3600m"),
-			corev1.ResourceMemory: resource.MustParse("13100Mi"),
+			corev1.ResourceCPU:    resource.MustParse("4"),
+			corev1.ResourceMemory: resource.MustParse("16Gi"),
 		},
 	}
 }

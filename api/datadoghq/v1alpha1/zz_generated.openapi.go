@@ -1778,7 +1778,7 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterStatefulCo
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "DatadogBYOCClusterStatefulComponentSpec defines settings for a stateful BYOC workload.",
+				Description: "DatadogBYOCClusterStatefulComponentSpec defines settings for a stateful BYOC workload. When Resources is specified, its memory limit is required for Quickwit node configuration sizing.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"replicas": {
