@@ -315,9 +315,9 @@ func updateComponentStatus(cluster *datadoghqv1alpha1.DatadogBYOCCluster, resour
 
 func statefulSetStatus(statefulSet *appsv1.StatefulSet) (*datadoghqv1alpha1.DatadogBYOCClusterStatefulSetStatus, bool) {
 	status := &datadoghqv1alpha1.DatadogBYOCClusterStatefulSetStatus{
-		ObservedGeneration: ptr.To(statefulSet.Status.ObservedGeneration),
-		Replicas:           ptr.To(statefulSet.Status.Replicas),
-		ReadyReplicas:      ptr.To(statefulSet.Status.ReadyReplicas),
+		ObservedGeneration: new(statefulSet.Status.ObservedGeneration),
+		Replicas:           new(statefulSet.Status.Replicas),
+		ReadyReplicas:      new(statefulSet.Status.ReadyReplicas),
 	}
 	available := statefulSet.Status.ObservedGeneration >= statefulSet.Generation && statefulSet.Status.ReadyReplicas >= ptr.Deref(statefulSet.Spec.Replicas, 1)
 	return status, available
@@ -325,10 +325,10 @@ func statefulSetStatus(statefulSet *appsv1.StatefulSet) (*datadoghqv1alpha1.Data
 
 func deploymentStatus(deployment *appsv1.Deployment) (*datadoghqv1alpha1.DatadogBYOCClusterDeploymentStatus, bool) {
 	status := &datadoghqv1alpha1.DatadogBYOCClusterDeploymentStatus{
-		Replicas:            ptr.To(deployment.Status.Replicas),
-		ReadyReplicas:       ptr.To(deployment.Status.ReadyReplicas),
-		UnavailableReplicas: ptr.To(deployment.Status.UnavailableReplicas),
-		AvailableReplicas:   ptr.To(deployment.Status.AvailableReplicas),
+		Replicas:            new(deployment.Status.Replicas),
+		ReadyReplicas:       new(deployment.Status.ReadyReplicas),
+		UnavailableReplicas: new(deployment.Status.UnavailableReplicas),
+		AvailableReplicas:   new(deployment.Status.AvailableReplicas),
 	}
 	available := deployment.Status.ObservedGeneration >= deployment.Generation && deployment.Status.AvailableReplicas >= ptr.Deref(deployment.Spec.Replicas, 1)
 	return status, available

@@ -112,9 +112,8 @@ func resolvePodSpec(input workloadInput) (corev1.PodSpec, error) {
 		serviceAccountName = *input.Cluster.Spec.Identity.ServiceAccountName
 	}
 
-	volumes := []corev1.Volume{
-		{Name: "config", VolumeSource: corev1.VolumeSource{ConfigMap: &corev1.ConfigMapVolumeSource{LocalObjectReference: corev1.LocalObjectReference{Name: input.Cluster.Name}, Items: []corev1.KeyToPath{{Key: nodeConfigFileName, Path: nodeConfigFileName}}}}},
-	}
+	volumes := make([]corev1.Volume, 0, 1+len(input.Defaults.PodSpec.Volumes)+len(global.Volumes)+len(input.Spec.Volumes))
+	volumes = append(volumes, corev1.Volume{Name: "config", VolumeSource: corev1.VolumeSource{ConfigMap: &corev1.ConfigMapVolumeSource{LocalObjectReference: corev1.LocalObjectReference{Name: input.Cluster.Name}, Items: []corev1.KeyToPath{{Key: nodeConfigFileName, Path: nodeConfigFileName}}}}})
 	volumes = append(volumes, slices.Clone(input.Defaults.PodSpec.Volumes)...)
 	volumes = append(volumes, slices.Clone(global.Volumes)...)
 	volumes = append(volumes, slices.Clone(input.Spec.Volumes)...)
@@ -131,13 +130,13 @@ func resolvePodSpec(input workloadInput) (corev1.PodSpec, error) {
 
 	var terminationGracePeriodSeconds *int64
 	if input.Spec.TerminationGracePeriodSeconds != nil {
-		terminationGracePeriodSeconds = ptr.To(*input.Spec.TerminationGracePeriodSeconds)
+		terminationGracePeriodSeconds = new(*input.Spec.TerminationGracePeriodSeconds)
 	}
 
 	return corev1.PodSpec{
 		ServiceAccountName: serviceAccountName,
 		SecurityContext:    &corev1.PodSecurityContext{FSGroup: ptr.To[int64](1005)},
-		DNSConfig:          &corev1.PodDNSConfig{Options: []corev1.PodDNSConfigOption{{Name: "ndots", Value: ptr.To("1")}}},
+		DNSConfig:          &corev1.PodDNSConfig{Options: []corev1.PodDNSConfigOption{{Name: "ndots", Value: new("1")}}},
 		InitContainers:     slices.Clone(input.Spec.InitContainers),
 		Containers: []corev1.Container{{
 			Name:            appName,
@@ -159,9 +158,9 @@ func resolvePodSpec(input workloadInput) (corev1.PodSpec, error) {
 			LivenessProbe:  &corev1.Probe{ProbeHandler: healthProbeHandler("/health/livez")},
 			ReadinessProbe: &corev1.Probe{ProbeHandler: healthProbeHandler("/health/readyz")},
 			SecurityContext: &corev1.SecurityContext{
-				RunAsNonRoot:           ptr.To(true),
+				RunAsNonRoot:           new(true),
 				RunAsUser:              ptr.To[int64](1005),
-				ReadOnlyRootFilesystem: ptr.To(true),
+				ReadOnlyRootFilesystem: new(true),
 			},
 		}},
 		Volumes:                       volumes,
