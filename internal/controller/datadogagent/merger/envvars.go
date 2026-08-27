@@ -11,6 +11,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/providers"
 )
 
 // EnvVarManager use to manage adding Environment variable to container in a PodTemplateSpec
@@ -32,14 +33,16 @@ type EnvVarManager interface {
 }
 
 // NewEnvVarManager return new instance of the EnvVarManager
-func NewEnvVarManager(podTmpl *corev1.PodTemplateSpec) EnvVarManager {
+func NewEnvVarManager(podTmpl *corev1.PodTemplateSpec, provider providers.Provider) EnvVarManager {
 	return &envVarManagerImpl{
-		podTmpl: podTmpl,
+		podTmpl:  podTmpl,
+		provider: provider,
 	}
 }
 
 type envVarManagerImpl struct {
-	podTmpl *corev1.PodTemplateSpec
+	podTmpl  *corev1.PodTemplateSpec
+	provider providers.Provider
 }
 
 func (impl *envVarManagerImpl) AddEnvVar(newEnvVar *corev1.EnvVar) {
@@ -47,6 +50,10 @@ func (impl *envVarManagerImpl) AddEnvVar(newEnvVar *corev1.EnvVar) {
 }
 
 func (impl *envVarManagerImpl) AddEnvVarWithMergeFunc(newEnvVar *corev1.EnvVar, mergeFunc EnvVarMergeFunction) error {
+	newEnvVar, allow := impl.provider.ResolveEnvVar(newEnvVar)
+	if !allow {
+		return nil
+	}
 	for id, cont := range impl.podTmpl.Spec.Containers {
 		if _, ok := AllAgentContainers[common.AgentContainerName(cont.Name)]; ok {
 			_, err := AddEnvVarToContainer(&impl.podTmpl.Spec.Containers[id], newEnvVar, mergeFunc)
@@ -73,6 +80,10 @@ func (impl *envVarManagerImpl) AddEnvVarToInitContainer(initContainerName common
 }
 
 func (impl *envVarManagerImpl) AddEnvVarToContainerWithMergeFunc(containerName common.AgentContainerName, newEnvVar *corev1.EnvVar, mergeFunc EnvVarMergeFunction) error {
+	newEnvVar, allow := impl.provider.ResolveEnvVar(newEnvVar)
+	if !allow {
+		return nil
+	}
 	for id := range impl.podTmpl.Spec.Containers {
 		if impl.podTmpl.Spec.Containers[id].Name == string(containerName) {
 			_, err := AddEnvVarToContainer(&impl.podTmpl.Spec.Containers[id], newEnvVar, mergeFunc)
@@ -85,6 +96,10 @@ func (impl *envVarManagerImpl) AddEnvVarToContainerWithMergeFunc(containerName c
 }
 
 func (impl *envVarManagerImpl) AddEnvVarToInitContainerWithMergeFunc(initContainerName common.AgentContainerName, newEnvVar *corev1.EnvVar, mergeFunc EnvVarMergeFunction) error {
+	newEnvVar, allow := impl.provider.ResolveEnvVar(newEnvVar)
+	if !allow {
+		return nil
+	}
 	for id := range impl.podTmpl.Spec.InitContainers {
 		if impl.podTmpl.Spec.InitContainers[id].Name == string(initContainerName) {
 			_, err := AddEnvVarToContainer(&impl.podTmpl.Spec.InitContainers[id], newEnvVar, mergeFunc)

@@ -22,6 +22,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/global"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/override"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/providers"
 	"github.com/DataDog/datadog-operator/pkg/condition"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
@@ -183,7 +184,7 @@ func (r *ComponentRegistry) reconcileComponent(ctx context.Context, params *Reco
 	// Pass params.DDA directly (not GetObjectMeta()) so that getCommonLabels can
 	// type-assert to *v2alpha1.DatadogAgent and read spec.global.commonLabels.
 	deployment := component.GetNewDeploymentFunc()(params.DDA, &params.DDA.Spec)
-	podManagers := feature.NewPodTemplateManagers(&deployment.Spec.Template)
+	podManagers := feature.NewPodTemplateManagers(&deployment.Spec.Template, providers.Default())
 
 	// Set Global setting on the default deployment
 	component.GetGlobalSettingsFunc()(deploymentLogger, podManagers, params.DDA, &params.DDA.Spec, params.ResourceManagers, params.RequiredComponents)

@@ -12,6 +12,7 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/providers"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 )
 
@@ -74,7 +75,7 @@ func TestVolumesForAgent(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			volumes := volumesForAgent(tt.dda, tt.requiredContainers)
+			volumes := volumesForAgent(tt.dda, providers.Default(), tt.requiredContainers)
 
 			installVol := findVolume(volumes, common.InstallInfoVolumeName)
 			assert.NotNil(t, installVol, "install-info volume should exist")
@@ -121,7 +122,7 @@ func TestCommonEnvVars(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			envVars := commonEnvVars(tt.dda)
+			envVars := commonEnvVars(tt.dda, providers.Default())
 
 			// Find the relevant env vars
 			var clusterAgentServiceName string
@@ -296,7 +297,7 @@ func TestEnvVarsForCoreAgentJMXUseContainerSupport(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assertJMXUseContainerSupportEnv(t, envVarsForCoreAgent(tt.dda), tt.want)
+			assertJMXUseContainerSupportEnv(t, envVarsForCoreAgent(tt.dda, providers.Default()), tt.want)
 		})
 	}
 }
@@ -372,7 +373,7 @@ func TestDefaultSyscallsForSystemProbe(t *testing.T) {
 func TestHostProfilerContainer(t *testing.T) {
 	dda := &metav1.ObjectMeta{Name: "foo", Namespace: "default", Labels: map[string]string{}}
 
-	containers := agentOptimizedContainers(dda, []apicommon.AgentContainerName{
+	containers := agentOptimizedContainers(dda, providers.Default(), []apicommon.AgentContainerName{
 		apicommon.CoreAgentContainerName,
 		apicommon.HostProfiler,
 	})
@@ -394,7 +395,7 @@ func TestPrivateActionRunnerContainer(t *testing.T) {
 		Namespace: "default",
 	}
 
-	containers := agentOptimizedContainers(dda, []apicommon.AgentContainerName{
+	containers := agentOptimizedContainers(dda, providers.Default(), []apicommon.AgentContainerName{
 		apicommon.CoreAgentContainerName,
 		apicommon.PrivateActionRunnerContainerName,
 	})

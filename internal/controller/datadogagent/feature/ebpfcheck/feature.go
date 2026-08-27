@@ -23,6 +23,19 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
+	// The eBPF check needs kernel headers, so a provider without them can deny it.
+	err = feature.RegisterEnabledSetter(feature.EBPFCheckIDType, setEnabled)
+	if err != nil {
+		panic(err)
+	}
+}
+
+// setEnabled writes the flag Configure reads.
+func setEnabled(ddaSpec *v2alpha1.DatadogAgentSpec, enabled bool) {
+	if ddaSpec.Features.EBPFCheck == nil {
+		ddaSpec.Features.EBPFCheck = &v2alpha1.EBPFCheckFeatureConfig{}
+	}
+	ddaSpec.Features.EBPFCheck.Enabled = new(enabled)
 }
 
 func buildEBPFCheckFeature(options *feature.Options) feature.Feature {

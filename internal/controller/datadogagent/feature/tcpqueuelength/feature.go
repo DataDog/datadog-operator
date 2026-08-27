@@ -25,6 +25,19 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
+	// TCP queue length needs kernel headers, so a provider without them can deny it.
+	err = feature.RegisterEnabledSetter(feature.TCPQueueLengthIDType, setEnabled)
+	if err != nil {
+		panic(err)
+	}
+}
+
+// setEnabled writes the flag Configure reads.
+func setEnabled(ddaSpec *v2alpha1.DatadogAgentSpec, enabled bool) {
+	if ddaSpec.Features.TCPQueueLength == nil {
+		ddaSpec.Features.TCPQueueLength = &v2alpha1.TCPQueueLengthFeatureConfig{}
+	}
+	ddaSpec.Features.TCPQueueLength.Enabled = new(enabled)
 }
 
 func buildTCPQueueLengthFeature(options *feature.Options) feature.Feature {

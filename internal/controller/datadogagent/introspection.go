@@ -6,6 +6,8 @@
 package datadogagent
 
 import (
+	"maps"
+	"slices"
 	"sort"
 
 	corev1 "k8s.io/api/core/v1"
@@ -14,6 +16,8 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/providers"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
@@ -97,13 +101,11 @@ func computeProfileProviders(nodeList []corev1.Node, nodeToProfile map[string]ty
 	return profileToProviders
 }
 
-// applyDDAIProvider scopes ddai to provider: sets its affinity, name, and node provider annotation.
+// applyDDAIProvider scopes ddai to provider: sets its affinity, name, and node
+// provider annotation. provider is "" for the split covering the nodes the named
+// providers don't, which gets affinity only.
 func applyDDAIProvider(ddai *v1alpha1.DatadogAgentInternal, provider string, providers []string) {
-	// No provider to apply.
-	if provider == "" && len(providers) <= 1 {
-		return
-	}
-
+	// The "" split needs affinity too, to exclude the nodes the others take.
 	if len(providers) > 1 {
 		ensureOverrideExists(ddai, v2alpha1.NodeAgentComponentName)
 		override := ddai.Spec.Override[v2alpha1.NodeAgentComponentName]
@@ -123,6 +125,28 @@ func applyDDAIProvider(ddai *v1alpha1.DatadogAgentInternal, provider string, pro
 			ddai.Annotations = make(map[string]string)
 		}
 		ddai.Annotations[kubernetes.NodeProviderAnnotationKey] = provider
+		applyProviderFeatures(ddai, provider)
+	}
+}
+
+// applyProviderFeatures writes the provider's feature rules into ddai's spec, so
+// the spec matches what the agent will actually run.
+func applyProviderFeatures(ddai *v1alpha1.DatadogAgentInternal, provider string) {
+	rules := providers.Get(providers.Name(provider)).Features()
+	// sorted so the spec doesn't change between reconciles
+	for _, id := range slices.Sorted(maps.Keys(rules)) {
+		switch rules[id] {
+		// forcing a feature on adds config the user didn't ask for, so it
+		// stays unwired until a provider needs it
+		//
+		// case providers.Add:
+		// 	_ = feature.SetEnabled(&ddai.Spec, feature.IDType(id), true)
+
+		case providers.Deny:
+			// TestProviderFeatureRulesHaveSetters catches a missing setter, so
+			// this can't fail at runtime
+			_ = feature.SetEnabled(&ddai.Spec, feature.IDType(id), false)
+		}
 	}
 }
 

@@ -16,6 +16,8 @@ import (
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/providers"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
@@ -338,4 +340,60 @@ func TestApplyIntrospection(t *testing.T) {
 		}
 		assert.True(t, sawOriginal, "expected one of the results to be the original ddai pointer")
 	})
+}
+
+func TestProviderFeatureRulesHaveSetters(t *testing.T) {
+	for name, provider := range providers.All() {
+		for id := range provider.Features() {
+			t.Run(string(name)+"/"+id, func(t *testing.T) {
+				assert.NoError(t, feature.SetEnabled(&v2alpha1.DatadogAgentSpec{}, feature.IDType(id), false),
+					"provider %s has a rule for %s, so that feature must register an enabled setter in its own package", name, id)
+			})
+		}
+	}
+}
+
+func TestSetEnabled(t *testing.T) {
+	tests := []struct {
+		name    string
+		id      feature.IDType
+		enabled func(*v2alpha1.DatadogFeatures) *bool
+		wantErr bool
+	}{
+		{
+			name:    "oom kill",
+			id:      feature.OOMKillIDType,
+			enabled: func(f *v2alpha1.DatadogFeatures) *bool { return f.OOMKill.Enabled },
+		},
+		{
+			name:    "tcp queue length",
+			id:      feature.TCPQueueLengthIDType,
+			enabled: func(f *v2alpha1.DatadogFeatures) *bool { return f.TCPQueueLength.Enabled },
+		},
+		{
+			name:    "ebpf check",
+			id:      feature.EBPFCheckIDType,
+			enabled: func(f *v2alpha1.DatadogFeatures) *bool { return f.EBPFCheck.Enabled },
+		},
+		{
+			name:    "a feature with no setter fails",
+			id:      feature.NPMIDType,
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			spec := &v2alpha1.DatadogAgentSpec{}
+			err := feature.SetEnabled(spec, tt.id, false)
+			if tt.wantErr {
+				assert.Error(t, err)
+				assert.Nil(t, spec.Features, "a failed set leaves the spec alone")
+				return
+			}
+			require.NoError(t, err)
+			require.NotNil(t, spec.Features)
+			assert.Equal(t, new(false), tt.enabled(spec.Features))
+		})
+	}
 }

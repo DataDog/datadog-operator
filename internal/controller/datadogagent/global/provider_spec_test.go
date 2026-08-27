@@ -15,6 +15,7 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/providercaps"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/providers"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
@@ -35,7 +36,7 @@ func TestNodeAgentProviderSpec_EKS(t *testing.T) {
 			},
 		},
 	}
-	mgr := feature.NewPodTemplateManagers(tmpl)
+	mgr := feature.NewPodTemplateManagers(tmpl, providers.Default())
 
 	providercaps.ApplyProviderCapabilities(mgr, kubernetes.EKSEC2UseHostnameFromFileProvider, NodeAgentProviderSpec)
 
@@ -85,7 +86,7 @@ func TestNodeAgentProviderSpec_NoProvider(t *testing.T) {
 			Containers: []corev1.Container{{Name: string(apicommon.CoreAgentContainerName)}},
 		},
 	}
-	mgr := feature.NewPodTemplateManagers(tmpl)
+	mgr := feature.NewPodTemplateManagers(tmpl, providers.Default())
 
 	providercaps.ApplyProviderCapabilities(mgr, "", NodeAgentProviderSpec)
 

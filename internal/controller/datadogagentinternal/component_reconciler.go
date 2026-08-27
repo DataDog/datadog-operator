@@ -24,9 +24,20 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/global"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/override"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/providers"
 	"github.com/DataDog/datadog-operator/pkg/condition"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
+
+// nodeProvider resolves the provider in effect for ddai from its node-provider
+// annotation. It is independent of the providercaps mechanism.
+func nodeProvider(introspectionEnabled bool, ddai *v1alpha1.DatadogAgentInternal) providers.Provider {
+	if !introspectionEnabled {
+		return providers.Default()
+	}
+	return providers.Get(providers.Name(ddai.GetAnnotations()[kubernetes.NodeProviderAnnotationKey]))
+}
 
 // checkComponentEnabledWithOverride is a helper function that determines if a component is enabled
 // based on both feature requirements and override settings. This is the default logic used by most components.
@@ -193,7 +204,7 @@ func (r *ComponentRegistry) reconcileComponent(ctx context.Context, params *Reco
 	// type-assert to *v1alpha1.DatadogAgentInternal and read spec.global.commonLabels.
 	deployment := component.GetNewDeploymentFunc()(params.DDAI, &params.DDAI.Spec)
 	objLogger := ctrl.LoggerFrom(ctx).WithValues("object.kind", "Deployment", "object.namespace", deployment.Namespace, "object.name", deployment.Name)
-	podManagers := feature.NewPodTemplateManagers(&deployment.Spec.Template)
+	podManagers := feature.NewPodTemplateManagers(&deployment.Spec.Template, nodeProvider(r.reconciler.options.IntrospectionEnabled, params.DDAI))
 
 	// Set Global setting on the default deployment
 	component.GetGlobalSettingsFunc()(objLogger, podManagers, params.DDAI, &params.DDAI.Spec, params.ResourceManagers, params.RequiredComponents)

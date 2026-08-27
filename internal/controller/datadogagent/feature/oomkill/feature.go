@@ -25,6 +25,19 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
+	// OOM kill needs kernel headers, so a provider without them can deny it.
+	err = feature.RegisterEnabledSetter(feature.OOMKillIDType, setEnabled)
+	if err != nil {
+		panic(err)
+	}
+}
+
+// setEnabled writes the flag Configure reads.
+func setEnabled(ddaSpec *v2alpha1.DatadogAgentSpec, enabled bool) {
+	if ddaSpec.Features.OOMKill == nil {
+		ddaSpec.Features.OOMKill = &v2alpha1.OOMKillFeatureConfig{}
+	}
+	ddaSpec.Features.OOMKill.Enabled = new(enabled)
 }
 
 func buildOOMKillFeature(options *feature.Options) feature.Feature {
