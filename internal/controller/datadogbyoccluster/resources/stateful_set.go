@@ -1,0 +1,187 @@
+// Unless explicitly stated otherwise all files in this repository are licensed
+// under the Apache License Version 2.0.
+// This product includes software developed at Datadog (https://www.datadoghq.com/).
+// Copyright 2016-present Datadog, Inc.
+
+package resources
+
+import (
+	"maps"
+	"slices"
+
+	appsv1 "k8s.io/api/apps/v1"
+	autoscalingv2 "k8s.io/api/autoscaling/v2"
+	corev1 "k8s.io/api/core/v1"
+	policyv1 "k8s.io/api/policy/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+)
+
+// StatefulSetResources contains the resources managed for a stateful component.
+type StatefulSetResources struct {
+	Service             *corev1.Service
+	StatefulSet         *appsv1.StatefulSet
+	HPA                 *autoscalingv2.HorizontalPodAutoscaler
+	PodDisruptionBudget *policyv1.PodDisruptionBudget
+}
+
+// Objects returns the component resources in apply order.
+func (r *StatefulSetResources) Objects() []client.Object {
+	objects := []client.Object{r.Service, r.StatefulSet}
+	if r.HPA != nil {
+		objects = append(objects, r.HPA)
+	}
+	if r.PodDisruptionBudget != nil {
+		objects = append(objects, r.PodDisruptionBudget)
+	}
+	return objects
+}
+
+// statefulSetBuilder renders the resources for a stateful component.
+type statefulSetBuilder struct {
+	workload workloadInput
+	spec     *datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec
+	defaults statefulSetDefaults
+}
+
+type statefulSetDefaults struct {
+	PodManagementPolicy appsv1.PodManagementPolicyType
+}
+
+type statefulSetValues struct {
+	Workload             workloadValues
+	Replicas             *int32
+	ServiceName          string
+	PodManagementPolicy  appsv1.PodManagementPolicyType
+	VolumeClaimTemplates []corev1.PersistentVolumeClaim
+}
+
+type hpaValues struct {
+	Metadata       metav1.ObjectMeta
+	ScaleTargetRef autoscalingv2.CrossVersionObjectReference
+	MinReplicas    *int32
+	MaxReplicas    int32
+	Metrics        []autoscalingv2.MetricSpec
+	Behavior       *autoscalingv2.HorizontalPodAutoscalerBehavior
+}
+
+func newStatefulSetBuilder(
+	workload workloadInput,
+	spec *datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec,
+	defaults statefulSetDefaults,
+) statefulSetBuilder {
+	return statefulSetBuilder{
+		workload: workload,
+		spec:     spec,
+		defaults: defaults,
+	}
+}
+
+func (b statefulSetBuilder) values() (serviceValues, statefulSetValues, *hpaValues, error) {
+	workload, err := resolveWorkloadValues(b.workload)
+	if err != nil {
+		return serviceValues{}, statefulSetValues{}, nil, err
+	}
+
+	var volumeClaimTemplates []corev1.PersistentVolumeClaim
+	if b.spec.Storage != nil && b.spec.Storage.VolumeClaimTemplate != nil {
+		template := b.spec.Storage.VolumeClaimTemplate
+		claim := corev1.PersistentVolumeClaim{
+			TypeMeta: template.TypeMeta,
+			ObjectMeta: metav1.ObjectMeta{
+				Name:        "data",
+				Labels:      maps.Clone(template.Labels),
+				Annotations: maps.Clone(template.Annotations),
+			},
+			Spec: *template.Spec.DeepCopy(),
+		}
+		volumeClaimTemplates = []corev1.PersistentVolumeClaim{claim}
+	}
+
+	var replicas *int32
+	var hpa *hpaValues
+	if b.spec.Autoscaling == nil {
+		replicas = new(workload.Replicas)
+	} else {
+		values := b.hpaValues(workload, b.spec.Autoscaling)
+		hpa = &values
+	}
+
+	return workload.Service, statefulSetValues{
+		Workload:             workload,
+		Replicas:             replicas,
+		ServiceName:          headlessServiceName(b.workload.Cluster.Name),
+		PodManagementPolicy:  b.defaults.PodManagementPolicy,
+		VolumeClaimTemplates: volumeClaimTemplates,
+	}, hpa, nil
+}
+
+func (b statefulSetBuilder) build() (*StatefulSetResources, error) {
+	service, statefulSet, hpa, err := b.values()
+	if err != nil {
+		return nil, err
+	}
+	podDisruptionBudget, err := newPodDisruptionBudgetBuilder(
+		statefulSet.Workload.Metadata,
+		statefulSet.Workload.Selector,
+		b.workload.Cluster.Spec.Global.PodDisruptionBudget,
+		b.workload.Spec.PodDisruptionBudget,
+	).build()
+	if err != nil {
+		return nil, err
+	}
+	result := &StatefulSetResources{
+		Service:             createService(service),
+		StatefulSet:         createStatefulSet(statefulSet),
+		PodDisruptionBudget: podDisruptionBudget,
+	}
+	if hpa != nil {
+		result.HPA = createHPA(*hpa)
+	}
+	return result, nil
+}
+
+func (b statefulSetBuilder) hpaValues(workload workloadValues, autoscaling *datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec) hpaValues {
+	metadata := metav1.ObjectMeta{
+		Name:      workload.Metadata.Name,
+		Namespace: workload.Metadata.Namespace,
+		Labels:    maps.Clone(workload.Service.Metadata.Labels),
+	}
+	return hpaValues{
+		Metadata:       metadata,
+		ScaleTargetRef: autoscalingv2.CrossVersionObjectReference{APIVersion: "apps/v1", Kind: "StatefulSet", Name: metadata.Name},
+		MinReplicas:    autoscaling.MinReplicas,
+		MaxReplicas:    *autoscaling.MaxReplicas,
+		Metrics:        slices.Clone(autoscaling.Metrics),
+		Behavior:       autoscaling.Behavior.DeepCopy(),
+	}
+}
+
+func createStatefulSet(values statefulSetValues) *appsv1.StatefulSet {
+	return &appsv1.StatefulSet{
+		ObjectMeta: *values.Workload.Metadata.DeepCopy(),
+		Spec: appsv1.StatefulSetSpec{
+			Replicas:             values.Replicas,
+			ServiceName:          values.ServiceName,
+			PodManagementPolicy:  values.PodManagementPolicy,
+			Selector:             &metav1.LabelSelector{MatchLabels: maps.Clone(values.Workload.Selector)},
+			Template:             *values.Workload.Template.DeepCopy(),
+			VolumeClaimTemplates: slices.Clone(values.VolumeClaimTemplates),
+		},
+	}
+}
+
+func createHPA(values hpaValues) *autoscalingv2.HorizontalPodAutoscaler {
+	return &autoscalingv2.HorizontalPodAutoscaler{
+		ObjectMeta: *values.Metadata.DeepCopy(),
+		Spec: autoscalingv2.HorizontalPodAutoscalerSpec{
+			ScaleTargetRef: values.ScaleTargetRef,
+			MinReplicas:    values.MinReplicas,
+			MaxReplicas:    values.MaxReplicas,
+			Metrics:        slices.Clone(values.Metrics),
+			Behavior:       values.Behavior,
+		},
+	}
+}

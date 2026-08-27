@@ -1,0 +1,119 @@
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogBYOCCluster
+metadata:
+  name: datadogbyoccluster-sample
+  namespace: byoc
+spec:
+  release:
+    repository: public.ecr.aws/datadog/byoc-release
+    tag: "0.1.32"
+  datadog:
+    site: datadoghq.com
+    apiKeySecretRef:
+      name: datadog-secret
+      key: api-key
+    byocTelemetry: true
+    dogstatsdServer:
+      host: dogstatsd.monitoring.svc
+      port: 8125
+  provider:
+    aws:
+      accountID: "123456789012"
+      region: us-east-1
+      partition: aws
+      irsaRoleARN: arn:aws:iam::123456789012:role/byoclogs
+  identity:
+    serviceAccountName: byoclogs
+  global:
+    labels:
+      team: byoc-logs
+    env:
+    - name: AWS_REGION
+      value: us-east-1
+  components:
+    metastore:
+      database:
+        uriSecretRef:
+          name: byoc-postgres
+          key: primary-uri
+      resources:
+        requests:
+          cpu: "2"
+          memory: 4Gi
+    readOnlyMetastore:
+      database:
+        uriSecretRef:
+          name: byoc-postgres
+          key: read-only-metastore-uri
+      replicas: 2
+    indexer:
+      replicas: 2
+      resources:
+        requests:
+          cpu: "8"
+          memory: 32Gi
+        limits:
+          memory: 32Gi
+      autoscaling:
+        minReplicas: 2
+        maxReplicas: 10
+        metrics:
+          - type: Resource
+            resource:
+              name: cpu
+              target:
+                type: Utilization
+                averageUtilization: 70
+        behavior:
+          scaleDown:
+            stabilizationWindowSeconds: 300
+      storage:
+        volumeClaimTemplate:
+          metadata:
+            annotations:
+              example.com/storage: indexer
+          spec:
+            accessModes:
+              - ReadWriteOnce
+            storageClassName: gp3
+            resources:
+              requests:
+                storage: 250Gi
+    searcher:
+      replicas: 2
+      resources:
+        requests:
+          cpu: "4"
+          memory: 16Gi
+        limits:
+          memory: 16Gi
+      storage:
+        volumeClaimTemplate:
+          spec:
+            accessModes:
+              - ReadWriteOnce
+            storageClassName: gp3
+            resources:
+              requests:
+                storage: 50Gi
+    controlPlane:
+      resources:
+        requests:
+          cpu: "1"
+          memory: 2Gi
+    compactor:
+      replicas: 2
+      resources:
+        requests:
+          cpu: "4"
+          memory: 16Gi
+    janitor:
+      resources:
+        requests:
+          cpu: "1"
+          memory: 2Gi
+  nodeConfig:
+    version: 0.8
+    default_index_root_uri: s3://byoc-logs/indexes
+    indexer:
+      enable_otlp_endpoint: true

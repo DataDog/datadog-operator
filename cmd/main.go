@@ -45,6 +45,7 @@ import (
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller"
+	byocrelease "github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/release"
 	"github.com/DataDog/datadog-operator/internal/controller/metrics"
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/constants"
@@ -156,6 +157,7 @@ type options struct {
 	managedAgentInstallationEnabled        bool
 	datadogDashboardEnabled                bool
 	datadogGenericResourceEnabled          bool
+	datadogBYOCClusterEnabled              bool
 	datadogGenericResourceMaxWorkers       int
 	datadogGenericResourceRequeuePeriod    time.Duration
 	datadogCSIDriverEnabled                bool
@@ -203,6 +205,7 @@ func (opts *options) Parse() {
 	flag.BoolVar(&opts.managedAgentInstallationEnabled, "managedAgentInstallationEnabled", false, "Enable managed Agent installation intents")
 	flag.BoolVar(&opts.datadogDashboardEnabled, "datadogDashboardEnabled", false, "Enable the DatadogDashboard controller")
 	flag.BoolVar(&opts.datadogGenericResourceEnabled, "datadogGenericResourceEnabled", false, "Enable the DatadogGenericResource controller")
+	flag.BoolVar(&opts.datadogBYOCClusterEnabled, "datadogBYOCClusterEnabled", false, "Enable the DatadogBYOCCluster controller")
 	flag.IntVar(&opts.datadogGenericResourceMaxWorkers, "datadogGenericResourceMaxConcurrentReconciles", defaultDatadogGenericResourceMaxConcurrentReconciles, "Maximum number of concurrent DatadogGenericResource reconciles")
 	flag.DurationVar(&opts.datadogGenericResourceRequeuePeriod, "datadogGenericResourceRequeuePeriod", defaultDatadogGenericResourceRequeuePeriod, "DatadogGenericResource status polling requeue period, for example 5m")
 	flag.BoolVar(&opts.datadogCSIDriverEnabled, "datadogCSIDriverEnabled", false, "Enable the DatadogCSIDriver controller")
@@ -431,6 +434,7 @@ func run(opts *options) error {
 			IntrospectionEnabled:              opts.introspectionEnabled,
 			DatadogDashboardEnabled:           opts.datadogDashboardEnabled,
 			DatadogGenericResourceEnabled:     opts.datadogGenericResourceEnabled,
+			DatadogBYOCClusterEnabled:         opts.datadogBYOCClusterEnabled,
 			DatadogCSIDriverEnabled:           opts.datadogCSIDriverEnabled,
 			UntaintControllerEnabled:          opts.untaintControllerEnabled,
 			UntaintControllerWaitForCSIDriver: opts.untaintControllerWaitForCSIDriver,
@@ -544,6 +548,7 @@ func run(opts *options) error {
 		DatadogAgentProfileEnabled:        opts.datadogAgentProfileEnabled,
 		DatadogDashboardEnabled:           opts.datadogDashboardEnabled,
 		DatadogGenericResourceEnabled:     opts.datadogGenericResourceEnabled,
+		DatadogBYOCClusterEnabled:         opts.datadogBYOCClusterEnabled,
 		DatadogGenericResourceMaxWorkers:  opts.datadogGenericResourceMaxWorkers,
 		DatadogGenericResourceRequeue:     opts.datadogGenericResourceRequeuePeriod,
 		DatadogCSIDriverEnabled:           opts.datadogCSIDriverEnabled,
@@ -551,6 +556,7 @@ func run(opts *options) error {
 		UntaintControllerWaitForCSIDriver: opts.untaintControllerWaitForCSIDriver,
 		RolloutOnConfigMapChangeEnabled:   opts.rolloutOnConfigMapChangeEnabled,
 		ClusterProviderDetector:           providerDetector,
+		BYOCReleaseResolver:               byocrelease.NewOCIReleaseResolver(),
 	}
 
 	versionInfo, platformInfo, err := getVersionAndPlatformInfo(rest.CopyConfig(mgr.GetConfig()))
