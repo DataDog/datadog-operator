@@ -14,7 +14,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	policyv1 "k8s.io/api/policy/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
@@ -104,7 +103,7 @@ func (b statefulSetBuilder) values() (serviceValues, statefulSetValues, *hpaValu
 	var replicas *int32
 	var hpa *hpaValues
 	if b.spec.Autoscaling == nil {
-		replicas = ptr.To(workload.Replicas)
+		replicas = new(workload.Replicas)
 	} else {
 		values := b.hpaValues(workload, b.spec.Autoscaling)
 		hpa = &values

@@ -53,6 +53,7 @@ type SetupOptions struct {
 	DatadogDashboardEnabled           bool
 	DatadogGenericResourceEnabled     bool
 	DatadogBYOCClusterEnabled         bool
+	BYOCReleaseResolver               byocrelease.ReleaseResolver
 	DatadogGenericResourceMaxWorkers  int
 	DatadogGenericResourceRequeue     time.Duration
 	CreateControllerRevisions         bool
@@ -217,7 +218,7 @@ func startDatadogBYOCCluster(logger logr.Logger, mgr manager.Manager, _ kubernet
 		Log:             ctrl.Log.WithName("controllers").WithName(byocClusterControllerName),
 		Scheme:          mgr.GetScheme(),
 		Recorder:        mgr.GetEventRecorderFor(byocClusterControllerName),
-		ReleaseResolver: byocrelease.NewOCIReleaseResolver(),
+		ReleaseResolver: options.BYOCReleaseResolver,
 	}).SetupWithManager(mgr)
 }
 
