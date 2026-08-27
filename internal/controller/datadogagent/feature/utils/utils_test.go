@@ -28,6 +28,15 @@ func TestIsDataPlaneEnabled(t *testing.T) {
 			},
 		}
 	}
+	withNodeAgentImage := func(tag string) *v2alpha1.DatadogAgentSpec {
+		return &v2alpha1.DatadogAgentSpec{
+			Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+				v2alpha1.NodeAgentComponentName: {
+					Image: &v2alpha1.AgentImageConfig{Name: "agent", Tag: tag},
+				},
+			},
+		}
+	}
 
 	for _, tt := range []struct {
 		name           string
@@ -38,6 +47,13 @@ func TestIsDataPlaneEnabled(t *testing.T) {
 	}{
 		{name: "runtime default disabled", spec: &v2alpha1.DatadogAgentSpec{}},
 		{name: "runtime default enabled", spec: &v2alpha1.DatadogAgentSpec{}, defaultEnabled: true, want: true},
+		{name: "runtime default does not enable older pinned Agent image", spec: withNodeAgentImage("7.80.0"), defaultEnabled: true},
+		{name: "runtime default enables compatible pinned Agent image", spec: withNodeAgentImage("7.81.0"), defaultEnabled: true, want: true},
+		{name: "explicit CRD enable overrides incompatible pinned Agent image", spec: func() *v2alpha1.DatadogAgentSpec {
+			spec := withNodeAgentImage("7.80.0")
+			spec.Features = &v2alpha1.DatadogFeatures{DataPlane: &v2alpha1.DataPlaneFeatureConfig{Enabled: ptr.To(true)}}
+			return spec
+		}(), defaultEnabled: true, want: true},
 		{name: "legacy enable annotation", annotations: map[string]string{EnableADPAnnotation: "true"}, spec: &v2alpha1.DatadogAgentSpec{}, want: true},
 		{name: "legacy disable annotation overrides runtime default", annotations: map[string]string{EnableADPAnnotation: "false"}, spec: &v2alpha1.DatadogAgentSpec{}, defaultEnabled: true},
 		{name: "CRD enable overrides legacy disable", annotations: map[string]string{EnableADPAnnotation: "false"}, spec: withDataPlaneEnabled(true), defaultEnabled: true, want: true},

@@ -25,9 +25,12 @@ const (
 	// DogStatsD when data_plane.enabled and data_plane.dogstatsd.enabled are both true. Below this
 	// version the Operator must set DD_USE_DOGSTATSD=false explicitly to avoid a bind conflict.
 	ADPDogstatsdDelegationMinVersion = "7.75.0-0"
-	EnableADPAnnotation              = "agent.datadoghq.com/adp-enabled"
-	EnableFineGrainedKubeletAuthz    = "agent.datadoghq.com/fine-grained-kubelet-authorization-enabled"
-	EnableHostProfilerAnnotation     = "agent.datadoghq.com/host-profiler-enabled"
+	// DefaultDataPlaneMinAgentVersion is the minimum Agent version that receives the Operator-level Data Plane default.
+	// Explicit Data Plane configuration remains available for older versions.
+	DefaultDataPlaneMinAgentVersion = "7.81.0-0"
+	EnableADPAnnotation             = "agent.datadoghq.com/adp-enabled"
+	EnableFineGrainedKubeletAuthz   = "agent.datadoghq.com/fine-grained-kubelet-authorization-enabled"
+	EnableHostProfilerAnnotation    = "agent.datadoghq.com/host-profiler-enabled"
 	// EnableHostProfilerSeccompAnnotation controls whether the host-profiler applies its localhost
 	// seccomp profile (and the init container that installs it on the node). Defaults to enabled;
 	// set to "false" to disable both the seccomp profile and its setup init container.
@@ -127,7 +130,15 @@ func IsDataPlaneEnabled(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, d
 		return true
 	}
 
-	return defaultEnabled
+	return defaultEnabled && AgentSupportsDefaultDataPlane(ddaSpec)
+}
+
+// AgentSupportsDefaultDataPlane returns whether the selected Agent image supports the Operator-level Data Plane default.
+func AgentSupportsDefaultDataPlane(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
+	if nodeAgent, ok := ddaSpec.Override[v2alpha1.NodeAgentComponentName]; ok && nodeAgent != nil && nodeAgent.Image != nil {
+		return utils.IsAboveMinVersion(common.GetAgentVersionFromImage(*nodeAgent.Image), DefaultDataPlaneMinAgentVersion, nil)
+	}
+	return utils.IsAboveMinVersion(images.AgentLatestVersion, DefaultDataPlaneMinAgentVersion, nil)
 }
 
 // IsDataPlaneDogstatsdEnabled returns true if the Data Plane should handle DogStatsD.
