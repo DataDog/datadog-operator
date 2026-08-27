@@ -119,7 +119,7 @@ func (r *DatadogBYOCClusterReconciler) finalize(ctx context.Context, cluster *da
 	if !controllerutil.ContainsFinalizer(cluster, datadogBYOCClusterFinalizer) {
 		return ctrl.Result{}, nil
 	}
-	indexer := &appsv1.StatefulSet{ObjectMeta: metav1.ObjectMeta{Name: cluster.Name + "-indexer", Namespace: cluster.Namespace}}
+	indexer := &appsv1.StatefulSet{ObjectMeta: metav1.ObjectMeta{Name: byocresources.ComponentResourceName(cluster.Name, byocresources.IndexerComponentName), Namespace: cluster.Namespace}}
 	err := r.Client.Delete(ctx, indexer)
 	if err != nil && !apierrors.IsNotFound(err) {
 		return ctrl.Result{}, fmt.Errorf("delete indexer StatefulSet: %w", err)
@@ -188,39 +188,39 @@ func (r *DatadogBYOCClusterReconciler) applyObject(ctx context.Context, owner *d
 
 func (r *DatadogBYOCClusterReconciler) deleteObsoleteResources(ctx context.Context, cluster *datadoghqv1alpha1.DatadogBYOCCluster, resources *byocresources.Resources) error {
 	if resources.ReadOnlyMetastore() == nil {
-		if err := r.deleteDeploymentComponent(ctx, cluster, "metastore-ro"); err != nil {
+		if err := r.deleteDeploymentComponent(ctx, cluster, byocresources.ReadOnlyMetastoreComponentName); err != nil {
 			return err
 		}
 	}
 	if resources.Compactor() == nil {
-		if err := r.deleteDeploymentComponent(ctx, cluster, "compactor"); err != nil {
+		if err := r.deleteDeploymentComponent(ctx, cluster, byocresources.CompactorComponentName); err != nil {
 			return err
 		}
 	}
 	if resources.Indexer().HPA == nil {
-		if err := r.deleteHPA(ctx, cluster, "indexer"); err != nil {
+		if err := r.deleteHPA(ctx, cluster, byocresources.IndexerComponentName); err != nil {
 			return err
 		}
 	}
 	if resources.Searcher().HPA == nil {
-		if err := r.deleteHPA(ctx, cluster, "searcher"); err != nil {
+		if err := r.deleteHPA(ctx, cluster, byocresources.SearcherComponentName); err != nil {
 			return err
 		}
 	}
 	desiredPodDisruptionBudgets := map[string]*policyv1.PodDisruptionBudget{
-		"indexer":       resources.Indexer().PodDisruptionBudget,
-		"searcher":      resources.Searcher().PodDisruptionBudget,
-		"metastore":     resources.Metastore().PodDisruptionBudget,
-		"control-plane": resources.ControlPlane().PodDisruptionBudget,
-		"janitor":       resources.Janitor().PodDisruptionBudget,
+		byocresources.IndexerComponentName:      resources.Indexer().PodDisruptionBudget,
+		byocresources.SearcherComponentName:     resources.Searcher().PodDisruptionBudget,
+		byocresources.MetastoreComponentName:    resources.Metastore().PodDisruptionBudget,
+		byocresources.ControlPlaneComponentName: resources.ControlPlane().PodDisruptionBudget,
+		byocresources.JanitorComponentName:      resources.Janitor().PodDisruptionBudget,
 	}
 	if resources.ReadOnlyMetastore() != nil {
-		desiredPodDisruptionBudgets["metastore-ro"] = resources.ReadOnlyMetastore().PodDisruptionBudget
+		desiredPodDisruptionBudgets[byocresources.ReadOnlyMetastoreComponentName] = resources.ReadOnlyMetastore().PodDisruptionBudget
 	}
 	if resources.Compactor() != nil {
-		desiredPodDisruptionBudgets["compactor"] = resources.Compactor().PodDisruptionBudget
+		desiredPodDisruptionBudgets[byocresources.CompactorComponentName] = resources.Compactor().PodDisruptionBudget
 	}
-	for _, component := range []string{"indexer", "searcher", "metastore", "control-plane", "janitor", "metastore-ro", "compactor"} {
+	for _, component := range byocresources.ComponentNames() {
 		if desiredPodDisruptionBudgets[component] == nil {
 			if err := r.deletePodDisruptionBudget(ctx, cluster, component); err != nil {
 				return err

@@ -18,10 +18,6 @@ import (
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 )
 
-const nodeConfigFileName = "node.yaml"
-
-const bytesPerGiB = 1024 * 1024 * 1024
-
 type configMapBuilder struct {
 	cluster *datadoghqv1alpha1.DatadogBYOCCluster
 }
@@ -39,11 +35,11 @@ func (b configMapBuilder) build() (*corev1.ConfigMap, error) {
 	config := map[string]any{
 		"version":               0.8,
 		"listen_address":        "0.0.0.0",
-		"gossip_listen_port":    7282,
-		"cloudprem_listen_port": 7283,
-		"data_dir":              "/quickwit/qwdata",
+		"gossip_listen_port":    gossipPort,
+		"cloudprem_listen_port": cloudpremPort,
+		"data_dir":              defaultDataPath,
 		"grpc":                  map[string]any{"keep_alive": map[string]any{"interval": "30s", "timeout": "10s"}},
-		"health":                map[string]any{"listen_port": 7284},
+		"health":                map[string]any{"listen_port": healthPort},
 		"cloudprem": map[string]any{
 			"mtls_header":              "X-Amzn-Mtls-Clientcert",
 			"create_dd_logs_index":     true,
@@ -57,13 +53,13 @@ func (b configMapBuilder) build() (*corev1.ConfigMap, error) {
 			map[string]any{"fingerprint": []any{map[string]any{"kind": "raw", "path": "status"}}},
 			map[string]any{"fingerprint": []any{map[string]any{"kind": "tokenized", "path": "message"}}},
 		},
-		"indexer": map[string]any{"split_store_max_num_bytes": "200G", "split_store_max_num_splits": 10000},
+		quickwitIndexerServiceName: map[string]any{"split_store_max_num_bytes": "200G", "split_store_max_num_splits": 10000},
 		"ingest_api": map[string]any{
 			// ByteSize accepts integer byte counts, so no unit conversion is needed.
 			"max_queue_disk_usage":   indexerMemoryBytes * 3 / 5,
 			"max_queue_memory_usage": indexerMemoryBytes * 3 / 10,
 		},
-		"searcher": map[string]any{
+		quickwitSearcherServiceName: map[string]any{
 			"aggregation_memory_limit":          "500M",
 			"fast_field_cache_capacity":         searcherMemoryBytes * 13 / 32,
 			"max_num_concurrent_split_searches": int64(math.Ceil(float64(searcherMemoryBytes) / bytesPerGiB * 3.125)),
@@ -72,7 +68,7 @@ func (b configMapBuilder) build() (*corev1.ConfigMap, error) {
 		},
 	}
 	if b.cluster.Spec.Components.ReadOnlyMetastore != nil {
-		config["searcher"].(map[string]any)["use_metastore_read_replica"] = true
+		config[quickwitSearcherServiceName].(map[string]any)[quickwitUseReadOnlyMetastoreConfigKey] = true
 	}
 	if b.cluster.Spec.NodeConfig != nil && len(b.cluster.Spec.NodeConfig.Raw) != 0 {
 		var override map[string]any

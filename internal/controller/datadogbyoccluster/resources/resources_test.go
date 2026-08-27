@@ -809,7 +809,7 @@ func TestBuildResources_ReadOnlyMetastore(t *testing.T) {
 			readOnlyMetastore: &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{},
 			want: func() *DeploymentResources {
 				return wantDefaultDeployment(wantDeploymentOptions{
-					component: "metastore-ro",
+					component: "read-only-metastore",
 					service:   "metastore_read_replica",
 					replicas:  2,
 					resources: wantDefaultDeploymentResources(),
@@ -821,21 +821,21 @@ func TestBuildResources_ReadOnlyMetastore(t *testing.T) {
 			readOnlyMetastore: &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{
 				Database: &datadoghqv1alpha1.DatadogBYOCClusterDatabaseSpec{
 					URISecretRef: &corev1.SecretKeySelector{
-						LocalObjectReference: corev1.LocalObjectReference{Name: "metastore-read-replica-database"},
+						LocalObjectReference: corev1.LocalObjectReference{Name: "read-only-metastore-database"},
 						Key:                  "uri",
 					},
 				},
 			},
 			want: func() *DeploymentResources {
 				return wantDefaultDeployment(wantDeploymentOptions{
-					component: "metastore-ro",
+					component: "read-only-metastore",
 					service:   "metastore_read_replica",
 					replicas:  2,
 					resources: wantDefaultDeploymentResources(),
 					additionalEnv: []corev1.EnvVar{{
 						Name: "QW_METASTORE_READ_REPLICA_URI",
 						ValueFrom: &corev1.EnvVarSource{SecretKeyRef: &corev1.SecretKeySelector{
-							LocalObjectReference: corev1.LocalObjectReference{Name: "metastore-read-replica-database"},
+							LocalObjectReference: corev1.LocalObjectReference{Name: "read-only-metastore-database"},
 							Key:                  "uri",
 						}},
 					}},

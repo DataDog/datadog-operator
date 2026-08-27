@@ -47,11 +47,11 @@ func (b headlessServiceBuilder) build() *corev1.Service {
 			PublishNotReadyAddresses: true,
 			Selector:                 b.selector,
 			Ports: []corev1.ServicePort{
-				{Name: "tcp-http", Port: 7280, Protocol: corev1.ProtocolTCP},
-				{Name: "tcp-grpc", Port: 7281, Protocol: corev1.ProtocolTCP},
-				{Name: "udp", Port: 7282, Protocol: corev1.ProtocolUDP},
-				{Name: "tcp-cloudprem", Port: 7283, Protocol: corev1.ProtocolTCP},
-				{Name: "tcp-health", Port: 7284, Protocol: corev1.ProtocolTCP},
+				{Name: "tcp-http", Port: restPort, Protocol: corev1.ProtocolTCP},
+				{Name: "tcp-grpc", Port: grpcPort, Protocol: corev1.ProtocolTCP},
+				{Name: "udp", Port: gossipPort, Protocol: corev1.ProtocolUDP},
+				{Name: "tcp-cloudprem", Port: cloudpremPort, Protocol: corev1.ProtocolTCP},
+				{Name: "tcp-health", Port: healthPort, Protocol: corev1.ProtocolTCP},
 			},
 		},
 	}
