@@ -42,6 +42,8 @@ type SetupOptions struct {
 	CredsManager                      *config.CredentialManager
 	DatadogAgentEnabled               bool
 	DatadogMonitorEnabled             bool
+	DatadogMonitorMaxWorkers          int
+	DatadogMonitorRequeue             time.Duration
 	DatadogSLOEnabled                 bool
 	OperatorMetricsEnabled            bool
 	V2APIEnabled                      bool
@@ -197,6 +199,10 @@ func startDatadogMonitor(logger logr.Logger, mgr manager.Manager, pInfo kubernet
 		Scheme:                 mgr.GetScheme(),
 		Recorder:               mgr.GetEventRecorderFor(monitorControllerName),
 		operatorMetricsEnabled: options.OperatorMetricsEnabled,
+		Options: DatadogMonitorReconcilerOptions{
+			MaxConcurrentReconciles: options.DatadogMonitorMaxWorkers,
+			RequeuePeriod:           options.DatadogMonitorRequeue,
+		},
 	}
 
 	return monitorReconciler.SetupWithManager(mgr, metricForwardersMgr)

@@ -7,6 +7,7 @@ package controller
 
 import (
 	"context"
+	"time"
 
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -14,6 +15,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlbuilder "sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	ctrlcontroller "sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -32,7 +34,13 @@ type DatadogMonitorReconciler struct {
 	Scheme                 *runtime.Scheme
 	Recorder               record.EventRecorder
 	operatorMetricsEnabled bool
+	Options                DatadogMonitorReconcilerOptions
 	internal               *datadogmonitor.Reconciler
+}
+
+type DatadogMonitorReconcilerOptions struct {
+	MaxConcurrentReconciles int
+	RequeuePeriod           time.Duration
 }
 
 // +kubebuilder:rbac:groups=datadoghq.com,resources=datadogmonitors,verbs=get;list;watch;create;update;patch;delete
@@ -46,7 +54,9 @@ func (r *DatadogMonitorReconciler) Reconcile(ctx context.Context, instance *data
 
 // SetupWithManager creates a new DatadogMonitor controller.
 func (r *DatadogMonitorReconciler) SetupWithManager(mgr ctrl.Manager, metricForwardersMgr datadog.MetricsForwardersManager) error {
-	r.internal = datadogmonitor.NewReconciler(r.Client, r.CredsManager, r.Scheme, r.Log, r.Recorder, r.operatorMetricsEnabled, metricForwardersMgr)
+	r.internal = datadogmonitor.NewReconciler(r.Client, r.CredsManager, r.Scheme, r.Log, r.Recorder, r.operatorMetricsEnabled, metricForwardersMgr, datadogmonitor.ReconcilerOptions{
+		RequeuePeriod: r.Options.RequeuePeriod,
+	})
 
 	builder := ctrl.NewControllerManagedBy(mgr)
 
@@ -61,7 +71,13 @@ func (r *DatadogMonitorReconciler) SetupWithManager(mgr ctrl.Manager, metricForw
 		}))
 	}
 	or := reconcile.AsReconciler[*datadoghqv1alpha1.DatadogMonitor](r.Client, r)
-	if err := builder.For(&datadoghqv1alpha1.DatadogMonitor{}, builderOptions...).WithEventFilter(predicate.GenerationChangedPredicate{}).Complete(or); err != nil {
+	// Keep informer events at the default priority, including the initial list
+	// delivered after controller startup. This ensures that every existing
+	// DatadogMonitor is reconciled promptly; only controller-scheduled
+	// background requeues are assigned low priority by the internal reconciler.
+	if err := builder.For(&datadoghqv1alpha1.DatadogMonitor{}, builderOptions...).WithEventFilter(predicate.GenerationChangedPredicate{}).WithOptions(ctrlcontroller.Options{
+		MaxConcurrentReconciles: r.Options.MaxConcurrentReconciles,
+	}).Complete(or); err != nil {
 		return err
 	}
 

@@ -65,6 +65,8 @@ import (
 
 const (
 	defaultMaximumGoroutines                             = 500
+	defaultDatadogMonitorMaxConcurrentReconciles         = 1
+	defaultDatadogMonitorRequeuePeriod                   = 60 * time.Second
 	defaultDatadogGenericResourceMaxConcurrentReconciles = 1
 	defaultDatadogGenericResourceRequeuePeriod           = 60 * time.Second
 	podNamespaceEnvVar                                   = "POD_NAMESPACE"
@@ -142,6 +144,8 @@ type options struct {
 	datadogAgentEnabled                    bool
 	createControllerRevisions              bool
 	datadogMonitorEnabled                  bool
+	datadogMonitorMaxWorkers               int
+	datadogMonitorRequeuePeriod            time.Duration
 	datadogSLOEnabled                      bool
 	operatorMetricsEnabled                 bool
 	maximumGoroutines                      int
@@ -187,6 +191,8 @@ func (opts *options) Parse() {
 	flag.BoolVar(&opts.supportCilium, "supportCilium", false, "Support usage of Cilium network policies.")
 	flag.BoolVar(&opts.datadogAgentEnabled, "datadogAgentEnabled", true, "Enable the DatadogAgent controller")
 	flag.BoolVar(&opts.datadogMonitorEnabled, "datadogMonitorEnabled", false, "Enable the DatadogMonitor controller")
+	flag.IntVar(&opts.datadogMonitorMaxWorkers, "datadogMonitorMaxConcurrentReconciles", defaultDatadogMonitorMaxConcurrentReconciles, "Maximum number of concurrent DatadogMonitor reconciles")
+	flag.DurationVar(&opts.datadogMonitorRequeuePeriod, "datadogMonitorRequeuePeriod", defaultDatadogMonitorRequeuePeriod, "DatadogMonitor status polling requeue period, for example 5m")
 	flag.BoolVar(&opts.datadogSLOEnabled, "datadogSLOEnabled", false, "Enable the DatadogSLO controller")
 	flag.BoolVar(&opts.operatorMetricsEnabled, "operatorMetricsEnabled", true, "Enable sending operator metrics to Datadog")
 	flag.IntVar(&opts.maximumGoroutines, "maximumGoroutines", defaultMaximumGoroutines, "Override health check threshold for maximum number of goroutines.")
@@ -234,6 +240,8 @@ func (opts *options) Parse() {
 		boolEnv(&opts.supportCilium, "DD_SUPPORT_CILIUM"),
 		boolEnv(&opts.datadogAgentEnabled, "DD_AGENT_CONTROLLER_ENABLED"),
 		boolEnv(&opts.datadogMonitorEnabled, "DD_MONITOR_CONTROLLER_ENABLED"),
+		intEnv(&opts.datadogMonitorMaxWorkers, "DD_MONITOR_MAX_CONCURRENT_RECONCILES"),
+		durationEnv(&opts.datadogMonitorRequeuePeriod, "DD_MONITOR_REQUEUE_PERIOD"),
 		boolEnv(&opts.datadogSLOEnabled, "DD_SLO_CONTROLLER_ENABLED"),
 		boolEnv(&opts.operatorMetricsEnabled, "DD_OPERATOR_METRICS_ENABLED"),
 		intEnv(&opts.maximumGoroutines, "DD_MAXIMUM_GOROUTINES"),
@@ -527,6 +535,8 @@ func run(opts *options) error {
 		DatadogAgentEnabled:               opts.datadogAgentEnabled,
 		CreateControllerRevisions:         opts.createControllerRevisions && opts.datadogAgentEnabled,
 		DatadogMonitorEnabled:             opts.datadogMonitorEnabled,
+		DatadogMonitorMaxWorkers:          opts.datadogMonitorMaxWorkers,
+		DatadogMonitorRequeue:             opts.datadogMonitorRequeuePeriod,
 		DatadogSLOEnabled:                 opts.datadogSLOEnabled,
 		OperatorMetricsEnabled:            opts.operatorMetricsEnabled,
 		V2APIEnabled:                      true,
