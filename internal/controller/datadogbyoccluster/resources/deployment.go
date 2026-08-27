@@ -12,7 +12,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	policyv1 "k8s.io/api/policy/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -90,7 +89,7 @@ func createDeployment(values deploymentValues) *appsv1.Deployment {
 	return &appsv1.Deployment{
 		ObjectMeta: *values.Workload.Metadata.DeepCopy(),
 		Spec: appsv1.DeploymentSpec{
-			Replicas: ptr.To(values.Workload.Replicas),
+			Replicas: new(values.Workload.Replicas),
 			Selector: &metav1.LabelSelector{MatchLabels: maps.Clone(values.Workload.Selector)},
 			Template: *values.Workload.Template.DeepCopy(),
 			Strategy: values.Strategy,

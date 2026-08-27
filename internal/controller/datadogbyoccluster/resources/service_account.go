@@ -8,7 +8,6 @@ package resources
 import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 )
@@ -49,6 +48,6 @@ func (b serviceAccountBuilder) build() *corev1.ServiceAccount {
 			Labels:      b.labels,
 			Annotations: b.annotations,
 		},
-		AutomountServiceAccountToken: ptr.To(false),
+		AutomountServiceAccountToken: new(false),
 	}
 }

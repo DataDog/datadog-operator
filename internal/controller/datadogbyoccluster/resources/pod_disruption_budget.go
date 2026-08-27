@@ -12,7 +12,6 @@ import (
 	policyv1 "k8s.io/api/policy/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/utils/ptr"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 )
@@ -49,13 +48,13 @@ func (b podDisruptionBudgetBuilder) build() (*policyv1.PodDisruptionBudget, erro
 	var minAvailable, maxUnavailable *intstr.IntOrString
 	switch {
 	case spec == nil:
-		maxUnavailable = ptr.To(intstr.FromInt32(1))
+		maxUnavailable = new(intstr.FromInt32(1))
 	case spec.MinAvailable != nil && spec.MaxUnavailable != nil:
 		return nil, fmt.Errorf("%s pod disruption budget: minAvailable and maxUnavailable are mutually exclusive", b.metadata.Name)
 	case spec.MinAvailable != nil:
-		minAvailable = ptr.To(*spec.MinAvailable)
+		minAvailable = new(*spec.MinAvailable)
 	default:
-		maxUnavailable = ptr.To(*spec.MaxUnavailable)
+		maxUnavailable = new(*spec.MaxUnavailable)
 	}
 
 	metadata := b.metadata.DeepCopy()

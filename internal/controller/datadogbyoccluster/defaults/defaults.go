@@ -85,7 +85,7 @@ func applyCompactorDefaults(compactor *datadoghqv1alpha1.DatadogBYOCClusterCompo
 
 func applyComponentDefaults(component *datadoghqv1alpha1.DatadogBYOCClusterComponentSpec, replicas int32, resources *corev1.ResourceRequirements) {
 	if component.Replicas == nil {
-		component.Replicas = ptr.To(replicas)
+		component.Replicas = new(replicas)
 	}
 	if component.Resources == nil && resources != nil {
 		component.Resources = resources.DeepCopy()
@@ -109,15 +109,15 @@ func applyAutoscalingDefaults(autoscaling *datadoghqv1alpha1.DatadogBYOCClusterA
 				Name: corev1.ResourceCPU,
 				Target: autoscalingv2.MetricTarget{
 					Type:               autoscalingv2.UtilizationMetricType,
-					AverageUtilization: ptr.To(averageUtilization),
+					AverageUtilization: new(averageUtilization),
 				},
 			},
 		}}
 	}
 	if autoscaling.Behavior == nil {
 		autoscaling.Behavior = &autoscalingv2.HorizontalPodAutoscalerBehavior{
-			ScaleUp:   &autoscalingv2.HPAScalingRules{StabilizationWindowSeconds: ptr.To(scaleUpWindow)},
-			ScaleDown: &autoscalingv2.HPAScalingRules{StabilizationWindowSeconds: ptr.To(scaleDownWindow)},
+			ScaleUp:   &autoscalingv2.HPAScalingRules{StabilizationWindowSeconds: new(scaleUpWindow)},
+			ScaleDown: &autoscalingv2.HPAScalingRules{StabilizationWindowSeconds: new(scaleDownWindow)},
 		}
 	}
 }
