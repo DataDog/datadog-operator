@@ -11,11 +11,22 @@ import (
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 )
 
-const appName = "cloudprem"
-
 // ComponentResourceName returns the Kubernetes resource name for a BYOC component.
 func ComponentResourceName(clusterName, componentName string) string {
 	return clusterName + "-" + componentName
+}
+
+// ComponentNames returns all BYOC Kubernetes component names.
+func ComponentNames() []string {
+	return []string{
+		IndexerComponentName,
+		SearcherComponentName,
+		MetastoreComponentName,
+		ControlPlaneComponentName,
+		JanitorComponentName,
+		ReadOnlyMetastoreComponentName,
+		CompactorComponentName,
+	}
 }
 
 func labels(cluster *datadoghqv1alpha1.DatadogBYOCCluster, overrides ...map[string]string) map[string]string {

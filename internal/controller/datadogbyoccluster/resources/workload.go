@@ -21,13 +21,6 @@ import (
 	byocrelease "github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/release"
 )
 
-const (
-	configChecksumAnnotation   = "checksum/config"
-	defaultClusterDomain       = "cluster.local"
-	nodeConfigMountPath        = "/quickwit/" + nodeConfigFileName
-	defaultDataVolumeMountPath = "/quickwit/qwdata"
-)
-
 // workloadInput contains the domain inputs used to resolve a component workload.
 type workloadInput struct {
 	Cluster  *datadoghqv1alpha1.DatadogBYOCCluster
@@ -127,7 +120,7 @@ func resolvePodSpec(input workloadInput) (corev1.PodSpec, error) {
 	volumes = append(volumes, slices.Clone(input.Spec.Volumes)...)
 
 	defaultContainer := input.Defaults.PodSpec.Containers[0].DeepCopy()
-	volumeMounts := append(slices.Clone(defaultContainer.VolumeMounts), corev1.VolumeMount{Name: "data", MountPath: defaultDataVolumeMountPath})
+	volumeMounts := append(slices.Clone(defaultContainer.VolumeMounts), corev1.VolumeMount{Name: "data", MountPath: defaultDataPath})
 	volumeMounts = append(volumeMounts, slices.Clone(global.VolumeMounts)...)
 	volumeMounts = append(volumeMounts, slices.Clone(input.Spec.VolumeMounts)...)
 
@@ -154,11 +147,11 @@ func resolvePodSpec(input workloadInput) (corev1.PodSpec, error) {
 			Env:             resolveEnvironment(input, defaultContainer.Env),
 			EnvFrom:         append(slices.Clone(global.EnvFrom), slices.Clone(input.Spec.EnvFrom)...),
 			Ports: []corev1.ContainerPort{
-				{Name: "rest", ContainerPort: 7280, Protocol: corev1.ProtocolTCP},
-				{Name: "grpc", ContainerPort: 7281, Protocol: corev1.ProtocolTCP},
-				{Name: "discovery", ContainerPort: 7282, Protocol: corev1.ProtocolUDP},
-				{Name: "cloudprem", ContainerPort: 7283, Protocol: corev1.ProtocolTCP},
-				{Name: "health", ContainerPort: 7284, Protocol: corev1.ProtocolTCP},
+				{Name: "rest", ContainerPort: restPort, Protocol: corev1.ProtocolTCP},
+				{Name: "grpc", ContainerPort: grpcPort, Protocol: corev1.ProtocolTCP},
+				{Name: "discovery", ContainerPort: gossipPort, Protocol: corev1.ProtocolUDP},
+				{Name: "cloudprem", ContainerPort: cloudpremPort, Protocol: corev1.ProtocolTCP},
+				{Name: "health", ContainerPort: healthPort, Protocol: corev1.ProtocolTCP},
 			},
 			Resources:      resources,
 			VolumeMounts:   volumeMounts,
@@ -208,13 +201,13 @@ func resolveEnvironment(input workloadInput, additional []corev1.EnvVar) []corev
 		{Name: "KUBERNETES_REQUESTS_CPU", ValueFrom: resourceField("requests.cpu")},
 		{Name: "QW_NUM_CPUS", ValueFrom: resourceField("requests.cpu")},
 		{Name: "KUBERNETES_REQUESTS_MEMORY", ValueFrom: resourceField("requests.memory")},
-		{Name: "QW_CONFIG", Value: nodeConfigMountPath},
+		{Name: "QW_CONFIG", Value: nodeConfigPath},
 		{Name: "QW_CLUSTER_ID", Value: clusterID},
 		{Name: "QW_NODE_ID", Value: "$(KUBERNETES_POD_NAME)"},
 		{Name: "QW_AVAILABILITY_ZONE", ValueFrom: field("metadata.labels['topology.kubernetes.io/zone']")},
 		{Name: "QW_PEER_SEEDS", Value: headlessServiceName(input.Cluster.Name)},
 		{Name: "QW_ADVERTISE_ADDRESS", Value: "$(KUBERNETES_POD_IP)"},
-		{Name: "QW_CLUSTER_ENDPOINT", Value: fmt.Sprintf("http://%s-metastore.%s.svc.%s:7280", input.Cluster.Name, input.Cluster.Namespace, defaultClusterDomain)},
+		{Name: "QW_CLUSTER_ENDPOINT", Value: fmt.Sprintf("http://%s-metastore.%s.svc.%s:%d", input.Cluster.Name, input.Cluster.Namespace, defaultClusterDomain, restPort)},
 		{Name: "CP_DOGSTATSD_SERVER_HOST", ValueFrom: &dogstatsdHost},
 		{Name: "CP_DOGSTATSD_SERVER_PORT", Value: fmt.Sprint(dogstatsdPort)},
 		{Name: "CP_ENABLE_REVERSE_CONNECTION", Value: "true"},
