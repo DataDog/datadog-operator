@@ -72,6 +72,12 @@ func Test_addDDAIStatusToDDAStatus(t *testing.T) {
 					ClusterChecksRunner: &v2alpha1.DeploymentStatus{
 						CurrentHash: "foo",
 					},
+					OtelAgentGateway: &v2alpha1.DeploymentStatus{
+						Replicas:          int32(1),
+						UpdatedReplicas:   int32(1),
+						ReadyReplicas:     int32(1),
+						AvailableReplicas: int32(1),
+					},
 					RemoteConfigConfiguration: &v2alpha1.RemoteConfigConfiguration{
 						Features: &v2alpha1.DatadogFeatures{
 							CWS: &v2alpha1.CWSFeatureConfig{
@@ -93,6 +99,12 @@ func Test_addDDAIStatusToDDAStatus(t *testing.T) {
 				},
 				ClusterChecksRunner: &v2alpha1.DeploymentStatus{
 					CurrentHash: "foo",
+				},
+				OtelAgentGateway: &v2alpha1.DeploymentStatus{
+					Replicas:          int32(1),
+					UpdatedReplicas:   int32(1),
+					ReadyReplicas:     int32(1),
+					AvailableReplicas: int32(1),
 				},
 			},
 		},
@@ -167,4 +179,19 @@ func Test_addDDAIStatusToDDAStatus(t *testing.T) {
 			assert.Equal(t, tt.expectedStatus, tt.status)
 		})
 	}
+}
+
+func TestIsEqualStatusIncludesOtelAgentGateway(t *testing.T) {
+	current := &v2alpha1.DatadogAgentStatus{
+		OtelAgentGateway: &v2alpha1.DeploymentStatus{
+			Replicas:          1,
+			UpdatedReplicas:   1,
+			ReadyReplicas:     1,
+			AvailableReplicas: 1,
+		},
+	}
+	updated := current.DeepCopy()
+	updated.OtelAgentGateway.ReadyReplicas = 0
+
+	assert.False(t, IsEqualStatus(current, updated))
 }

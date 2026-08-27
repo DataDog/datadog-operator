@@ -1572,6 +1572,39 @@ func TestManagedAgentInstallationReadinessTagsRejectsIncompleteState(t *testing.
 	require.ErrorContains(t, err, "target is absent")
 }
 
+func TestManagedAgentInstallationStateWritesAreDeduplicated(t *testing.T) {
+	ctx := context.Background()
+	daemon, kubeClient, _ := testManagedAgentInstallationDaemon(nil)
+	raw := testManagedAgentInstallationIntent(t, testAddonInstallOperationID, managedAgentInstallationDesiredStateInstalled)
+	putManagedAgentInstallationIntentConfigMap(t, kubeClient, raw)
+	command := testManagedAgentInstallationCommand(t, testAddonInstallOperationID, managedAgentInstallationDesiredStateInstalled)
+	pending := managedAgentInstallationStateFromCommand(command, pbgo.TaskState_RUNNING, errors.New("workloads are pending"))
+	require.NoError(t, daemon.writeManagedAgentInstallationState(ctx, pending))
+
+	patchCalls := 0
+	daemon.client = &managedAgentInstallationFaultClient{
+		Client: kubeClient,
+		patchError: func(client.Object) error {
+			patchCalls++
+			return nil
+		},
+	}
+
+	accepted := managedAgentInstallationStateFromCommand(command, pbgo.TaskState_RUNNING, nil)
+	require.NoError(t, daemon.writeManagedAgentInstallationState(ctx, accepted))
+	state, err := daemon.readManagedAgentInstallationState(ctx)
+	require.NoError(t, err)
+	require.NotNil(t, state)
+	assert.Equal(t, pending.Error, state.Error)
+	assert.Zero(t, patchCalls)
+
+	changed := pending
+	changed.Error = "workloads are still pending"
+	require.NoError(t, daemon.writeManagedAgentInstallationResult(ctx, changed))
+	require.NoError(t, daemon.writeManagedAgentInstallationResult(ctx, changed))
+	assert.Equal(t, 1, patchCalls)
+}
+
 func TestManagedAgentInstallationPersistedStateFailures(t *testing.T) {
 	ctx := context.Background()
 	newDaemonWithIntent := func(t *testing.T) (*Daemon, client.Client, managedAgentInstallationPersistedState) {

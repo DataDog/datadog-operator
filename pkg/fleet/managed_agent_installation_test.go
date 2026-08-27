@@ -15,6 +15,7 @@ import (
 	pbgo "github.com/DataDog/datadog-agent/pkg/proto/pbgo/core"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -212,12 +213,10 @@ func TestManagedAgentInstallationWorkloadReadiness(t *testing.T) {
 		name   string
 		mutate func(*v2alpha1.DatadogAgent)
 	}{
-		{name: "Agent desired", mutate: func(dda *v2alpha1.DatadogAgent) { dda.Status.Agent = &v2alpha1.DaemonSetStatus{} }},
 		{name: "Agent current", mutate: func(dda *v2alpha1.DatadogAgent) { dda.Status.Agent.Current = 0 }},
 		{name: "Agent ready", mutate: func(dda *v2alpha1.DatadogAgent) { dda.Status.Agent.Ready = 0 }},
 		{name: "Agent available", mutate: func(dda *v2alpha1.DatadogAgent) { dda.Status.Agent.Available = 0 }},
 		{name: "Agent up to date", mutate: func(dda *v2alpha1.DatadogAgent) { dda.Status.Agent.UpToDate = 0 }},
-		{name: "Cluster Agent replicas", mutate: func(dda *v2alpha1.DatadogAgent) { dda.Status.ClusterAgent = &v2alpha1.DeploymentStatus{} }},
 		{name: "Cluster Agent updated", mutate: func(dda *v2alpha1.DatadogAgent) { dda.Status.ClusterAgent.UpdatedReplicas = 0 }},
 		{name: "Cluster Agent ready", mutate: func(dda *v2alpha1.DatadogAgent) { dda.Status.ClusterAgent.ReadyReplicas = 0 }},
 		{name: "Cluster Agent available", mutate: func(dda *v2alpha1.DatadogAgent) { dda.Status.ClusterAgent.AvailableReplicas = 0 }},
@@ -230,6 +229,23 @@ func TestManagedAgentInstallationWorkloadReadiness(t *testing.T) {
 			require.ErrorContains(t, validateFleetDatadogAgentWorkloadsReady(dda, now), "is not ready")
 		})
 	}
+
+	t.Run("unobserved zero status is pending", func(t *testing.T) {
+		dda := ready.DeepCopy()
+		dda.Status.Agent = &v2alpha1.DaemonSetStatus{}
+		dda.Status.ClusterAgent = &v2alpha1.DeploymentStatus{}
+		err := validateFleetDatadogAgentWorkloadsReady(dda, now)
+		require.ErrorContains(t, err, "Agent status has not been observed")
+		require.ErrorContains(t, err, "Cluster Agent status has not been observed")
+	})
+
+	t.Run("summarized zero-target status remains pending", func(t *testing.T) {
+		dda := ready.DeepCopy()
+		observedAt := metav1.NewTime(now)
+		dda.Status.Agent = &v2alpha1.DaemonSetStatus{LastUpdate: &observedAt}
+		dda.Status.ClusterAgent = &v2alpha1.DeploymentStatus{LastUpdate: &observedAt}
+		require.ErrorContains(t, validateFleetDatadogAgentWorkloadsReady(dda, now), "is not ready")
+	})
 
 	for _, test := range []struct {
 		name      string
@@ -248,6 +264,16 @@ func TestManagedAgentInstallationWorkloadReadiness(t *testing.T) {
 			require.NoError(t, validateFleetDatadogAgentWorkloadsReady(dda, now))
 		})
 	}
+
+	t.Run("profile readiness blocks when the parent Agent is disabled", func(t *testing.T) {
+		dda := ready.DeepCopy()
+		dda.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+			v2alpha1.NodeAgentComponentName: {Disabled: new(true)},
+		}
+		dda.Status.Agent = nil
+		err := validateFleetDatadogAgentWorkloadsReady(dda, now, "Windows Agent status has not been observed")
+		require.ErrorContains(t, err, "Windows Agent status has not been observed")
+	})
 
 	for _, test := range []struct {
 		name      string
@@ -284,7 +310,8 @@ func TestManagedAgentInstallationWorkloadReadiness(t *testing.T) {
 			test.enable(dda)
 
 			require.ErrorContains(t, validateFleetDatadogAgentWorkloadsReady(dda, now), test.name+" status is unavailable")
-			test.setStatus(dda, &v2alpha1.DeploymentStatus{Replicas: 1})
+			observedAt := metav1.NewTime(now)
+			test.setStatus(dda, &v2alpha1.DeploymentStatus{Replicas: 1, LastUpdate: &observedAt})
 			require.ErrorContains(t, validateFleetDatadogAgentWorkloadsReady(dda, now), test.name+" is not ready")
 			test.setStatus(dda, testManagedAgentInstallationDeploymentReady())
 			require.NoError(t, validateFleetDatadogAgentWorkloadsReady(dda, now))
@@ -307,6 +334,77 @@ func TestManagedAgentInstallationWorkloadReadiness(t *testing.T) {
 		require.ErrorContains(t, err, "did not become ready within 10m0s")
 		require.ErrorContains(t, err, "ready=0")
 	})
+}
+
+func TestManagedAgentInstallationWindowsReadinessDetails(t *testing.T) {
+	ctx := context.Background()
+	daemon, kubeClient, _ := testManagedAgentInstallationDaemon(nil)
+
+	details, err := daemon.managedAgentInstallationWindowsReadinessDetails(ctx)
+	require.NoError(t, err)
+	assert.Empty(t, details)
+
+	daemonSet := &appsv1.DaemonSet{}
+	require.NoError(t, kubeClient.Get(ctx, types.NamespacedName{Namespace: managedAgentInstallationWindowsProfileKey.Namespace, Name: "datadog-agent-windows-agent"}, daemonSet))
+	daemonSet.Status.ObservedGeneration = 0
+	require.NoError(t, kubeClient.Status().Update(ctx, daemonSet))
+	details, err = daemon.managedAgentInstallationWindowsReadinessDetails(ctx)
+	require.NoError(t, err)
+	require.Len(t, details, 1)
+	assert.Contains(t, details[0], "has not been observed by the workload controller")
+
+	daemonSet.Status.ObservedGeneration = 1
+	daemonSet.Status.DesiredNumberScheduled = 1
+	require.NoError(t, kubeClient.Status().Update(ctx, daemonSet))
+	details, err = daemon.managedAgentInstallationWindowsReadinessDetails(ctx)
+	require.NoError(t, err)
+	require.Len(t, details, 1)
+	assert.Contains(t, details[0], "status is newer than the DatadogAgent status")
+
+	daemonSet.Status.DesiredNumberScheduled = 0
+	require.NoError(t, kubeClient.Status().Update(ctx, daemonSet))
+	details, err = daemon.managedAgentInstallationWindowsReadinessDetails(ctx)
+	require.NoError(t, err)
+	assert.Empty(t, details)
+
+	ddai := &v1alpha1.DatadogAgentInternal{}
+	require.NoError(t, kubeClient.Get(ctx, managedAgentInstallationWindowsProfileKey, ddai))
+	ddai.Status.Agent = nil
+	require.NoError(t, kubeClient.Update(ctx, ddai))
+	details, err = daemon.managedAgentInstallationWindowsReadinessDetails(ctx)
+	require.NoError(t, err)
+	require.Len(t, details, 1)
+	assert.Contains(t, details[0], "Windows Agent status is unavailable")
+
+	observedAt := metav1.Now()
+	ddai.Status.Agent = &v2alpha1.DaemonSetStatus{LastUpdate: &observedAt}
+	ddai.Status.Conditions = []metav1.Condition{{
+		Type:    common.DatadogAgentReconcileErrorConditionType,
+		Status:  metav1.ConditionTrue,
+		Message: "RBAC reconciliation failed",
+	}}
+	require.NoError(t, kubeClient.Update(ctx, ddai))
+	details, err = daemon.managedAgentInstallationWindowsReadinessDetails(ctx)
+	require.NoError(t, err)
+	assert.Contains(t, details, "Windows Agent "+common.DatadogAgentReconcileErrorConditionType+": RBAC reconciliation failed")
+
+	require.NoError(t, kubeClient.Delete(ctx, ddai))
+	details, err = daemon.managedAgentInstallationWindowsReadinessDetails(ctx)
+	require.NoError(t, err)
+	require.Len(t, details, 1)
+	assert.Contains(t, details[0], "Windows Agent status is unavailable")
+
+	daemon.apiReader = &managedAgentInstallationFaultClient{
+		Client: kubeClient,
+		getError: func(key client.ObjectKey, _ client.Object) error {
+			if key == managedAgentInstallationWindowsProfileKey {
+				return errors.New("Windows DDAI read failed")
+			}
+			return nil
+		},
+	}
+	_, err = daemon.managedAgentInstallationWindowsReadinessDetails(ctx)
+	require.ErrorContains(t, err, "Windows DDAI read failed")
 }
 
 func TestManagedAgentInstallationKeysUseConfiguredNamespace(t *testing.T) {
@@ -1338,22 +1436,26 @@ func TestValidateFleetCredentialSecretReadFailure(t *testing.T) {
 }
 
 func setTestManagedAgentInstallationWorkloadsReady(dda *v2alpha1.DatadogAgent) {
+	now := metav1.Now()
 	dda.Status.Agent = &v2alpha1.DaemonSetStatus{
-		Desired:   1,
-		Current:   1,
-		Ready:     1,
-		Available: 1,
-		UpToDate:  1,
+		Desired:    1,
+		Current:    1,
+		Ready:      1,
+		Available:  1,
+		UpToDate:   1,
+		LastUpdate: &now,
 	}
 	dda.Status.ClusterAgent = testManagedAgentInstallationDeploymentReady()
 }
 
 func testManagedAgentInstallationDeploymentReady() *v2alpha1.DeploymentStatus {
+	now := metav1.Now()
 	return &v2alpha1.DeploymentStatus{
 		Replicas:          1,
 		UpdatedReplicas:   1,
 		ReadyReplicas:     1,
 		AvailableReplicas: 1,
+		LastUpdate:        &now,
 	}
 }
 
@@ -1388,8 +1490,34 @@ func testManagedAgentInstallationCommand(t *testing.T, operationID string, desir
 	return newManagedAgentInstallationCommand(intent, config, digest)
 }
 
+func testManagedAgentInstallationWindowsDDAIReady() *v1alpha1.DatadogAgentInternal {
+	now := metav1.Now()
+	return &v1alpha1.DatadogAgentInternal{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: managedAgentInstallationWindowsProfileKey.Namespace,
+			Name:      managedAgentInstallationWindowsProfileKey.Name,
+		},
+		Status: v1alpha1.DatadogAgentInternalStatus{
+			Agent: &v2alpha1.DaemonSetStatus{LastUpdate: &now, DaemonsetName: "datadog-agent-windows-agent"},
+		},
+	}
+}
+
+func testManagedAgentInstallationWindowsDaemonSetObserved() *appsv1.DaemonSet {
+	return &appsv1.DaemonSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace:  managedAgentInstallationWindowsProfileKey.Namespace,
+			Name:       "datadog-agent-windows-agent",
+			Generation: 1,
+		},
+		Status: appsv1.DaemonSetStatus{ObservedGeneration: 1},
+	}
+}
+
 func testManagedAgentInstallationDaemon(rcState []*pbgo.PackageState, objects ...client.Object) (*Daemon, client.Client, *mockRCClient) {
+	objects = append(objects, testManagedAgentInstallationWindowsDDAIReady(), testManagedAgentInstallationWindowsDaemonSetObserved())
 	scheme := testFleetScheme()
+	_ = appsv1.AddToScheme(scheme)
 	_ = corev1.AddToScheme(scheme)
 	_ = rbacv1.AddToScheme(scheme)
 	_ = apiregistrationv1.AddToScheme(scheme)

@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
@@ -736,7 +737,66 @@ func (d *Daemon) validateManagedAgentInstallationWorkloadsReady(ctx context.Cont
 	if err != nil {
 		return d.retainFleetDatadogAgentPartial(ctx, uid, err)
 	}
-	return validateFleetDatadogAgentWorkloadsReady(dda, time.Now())
+	windowsDetails, err := d.managedAgentInstallationWindowsReadinessDetails(ctx)
+	if err != nil {
+		return d.retainFleetDatadogAgentPartial(ctx, uid, err)
+	}
+	return validateFleetDatadogAgentWorkloadsReady(dda, time.Now(), windowsDetails...)
+}
+
+func (d *Daemon) managedAgentInstallationWindowsReadinessDetails(ctx context.Context) ([]string, error) {
+	key := d.managedAgentInstallationWindowsProfileKey()
+	ddai := &v1alpha1.DatadogAgentInternal{}
+	if err := d.managedAgentInstallationReader().Get(ctx, key, ddai); err != nil {
+		if apierrors.IsNotFound(err) {
+			return []string{fmt.Sprintf("Windows Agent status is unavailable: DatadogAgentInternal %s/%s was not found", key.Namespace, key.Name)}, nil
+		}
+		return nil, fmt.Errorf("read Windows DatadogAgentInternal %s/%s for managed installation readiness: %w", key.Namespace, key.Name, err)
+	}
+
+	var details []string
+	if condition := meta.FindStatusCondition(ddai.Status.Conditions, common.DatadogAgentReconcileErrorConditionType); condition != nil && condition.Status == metav1.ConditionTrue {
+		detail := "Windows Agent " + condition.Type
+		if condition.Message != "" {
+			detail += ": " + condition.Message
+		}
+		details = append(details, detail)
+	}
+	detail, err := d.managedAgentInstallationWindowsAgentReadinessDetail(ctx, ddai.Status.Agent)
+	if err != nil {
+		return nil, err
+	}
+	if detail != "" {
+		details = append(details, detail)
+	}
+	return details, nil
+}
+
+func (d *Daemon) managedAgentInstallationWindowsAgentReadinessDetail(ctx context.Context, status *v2alpha1.DaemonSetStatus) (string, error) {
+	detail := managedAgentInstallationDaemonSetReadinessDetail("Windows Agent", status)
+	if status == nil || status.LastUpdate == nil || status.DaemonsetName == "" || status.Desired != 0 || status.Current != 0 || status.Ready != 0 || status.Available != 0 || status.UpToDate != 0 {
+		return detail, nil
+	}
+
+	key := types.NamespacedName{Namespace: d.managedAgentInstallationWindowsProfileKey().Namespace, Name: status.DaemonsetName}
+	daemonSet := &appsv1.DaemonSet{}
+	if err := d.managedAgentInstallationReader().Get(ctx, key, daemonSet); err != nil {
+		if apierrors.IsNotFound(err) {
+			return fmt.Sprintf("Windows Agent DaemonSet %s/%s is unavailable", key.Namespace, key.Name), nil
+		}
+		return "", fmt.Errorf("read Windows Agent DaemonSet %s/%s for managed installation readiness: %w", key.Namespace, key.Name, err)
+	}
+	if daemonSet.Generation <= 0 || daemonSet.Status.ObservedGeneration < daemonSet.Generation {
+		return fmt.Sprintf("Windows Agent DaemonSet %s/%s has not been observed by the workload controller", key.Namespace, key.Name), nil
+	}
+	if daemonSet.Status.DesiredNumberScheduled != 0 || daemonSet.Status.CurrentNumberScheduled != 0 ||
+		daemonSet.Status.NumberReady != 0 || daemonSet.Status.NumberAvailable != 0 || daemonSet.Status.UpdatedNumberScheduled != 0 {
+		return fmt.Sprintf(
+			"Windows Agent DaemonSet %s/%s status is newer than the DatadogAgent status",
+			key.Namespace, key.Name,
+		), nil
+	}
+	return "", nil
 }
 
 func managedAgentInstallationComponentDisabled(dda *v2alpha1.DatadogAgent, component v2alpha1.ComponentName) bool {
@@ -763,6 +823,9 @@ func managedAgentInstallationDaemonSetReadinessDetail(name string, status *v2alp
 	if status == nil {
 		return name + " status is unavailable"
 	}
+	if status.LastUpdate == nil {
+		return name + " status has not been observed"
+	}
 	if status.Desired == 0 || status.Current != status.Desired || status.Ready != status.Desired ||
 		status.Available != status.Desired || status.UpToDate != status.Desired {
 		return fmt.Sprintf(
@@ -777,6 +840,9 @@ func managedAgentInstallationDeploymentReadinessDetail(name string, status *v2al
 	if status == nil {
 		return name + " status is unavailable"
 	}
+	if status.LastUpdate == nil {
+		return name + " status has not been observed"
+	}
 	if status.Replicas == 0 || status.UpdatedReplicas != status.Replicas || status.ReadyReplicas != status.Replicas ||
 		status.AvailableReplicas != status.Replicas || status.UnavailableReplicas != 0 {
 		return fmt.Sprintf(
@@ -787,12 +853,12 @@ func managedAgentInstallationDeploymentReadinessDetail(name string, status *v2al
 	return ""
 }
 
-func validateFleetDatadogAgentWorkloadsReady(dda *v2alpha1.DatadogAgent, now time.Time) error {
+func validateFleetDatadogAgentWorkloadsReady(dda *v2alpha1.DatadogAgent, now time.Time, additionalDetails ...string) error {
 	if dda == nil {
 		return &managedAgentInstallationWorkloadsNotReadyError{msg: "Fleet-managed DatadogAgent is pending workload readiness: resource is unavailable"}
 	}
 
-	var details []string
+	details := append([]string(nil), additionalDetails...)
 	for _, conditionType := range []string{
 		common.DatadogAgentReconcileErrorConditionType,
 		common.DatadogAgentInternalReconcileErrorConditionType,

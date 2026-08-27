@@ -201,6 +201,7 @@ func (r *Reconciler) addDDAIStatusToDDAStatus(status *v2alpha1.DatadogAgentStatu
 	status.Agent = condition.CombineDaemonSetStatus(status.Agent, currentDDAI.Status.Agent)
 	status.ClusterAgent = condition.CombineDeploymentStatus(status.ClusterAgent, currentDDAI.Status.ClusterAgent)
 	status.ClusterChecksRunner = condition.CombineDeploymentStatus(status.ClusterChecksRunner, currentDDAI.Status.ClusterChecksRunner)
+	status.OtelAgentGateway = condition.CombineDeploymentStatus(status.OtelAgentGateway, currentDDAI.Status.OtelAgentGateway)
 
 	// Only the default DDAI runs dependency management (e.g. RBAC-gated
 	// resources), so it's the only DDAI whose reconcile error is surfaced on
@@ -319,7 +320,8 @@ func IsEqualStatus(current *v2alpha1.DatadogAgentStatus, newStatus *v2alpha1.Dat
 	}
 
 	if !condition.IsEqualDeploymentStatus(current.ClusterAgent, newStatus.ClusterAgent) ||
-		!condition.IsEqualDeploymentStatus(current.ClusterChecksRunner, newStatus.ClusterChecksRunner) {
+		!condition.IsEqualDeploymentStatus(current.ClusterChecksRunner, newStatus.ClusterChecksRunner) ||
+		!condition.IsEqualDeploymentStatus(current.OtelAgentGateway, newStatus.OtelAgentGateway) {
 		return false
 	}
 

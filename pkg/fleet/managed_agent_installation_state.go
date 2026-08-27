@@ -9,6 +9,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"strings"
 
 	pbgo "github.com/DataDog/datadog-agent/pkg/proto/pbgo/core"
@@ -179,8 +180,20 @@ func (d *Daemon) writeManagedAgentInstallationStateForOperation(ctx context.Cont
 		if expectedOperationID != "" && current.Data[managedAgentInstallationStateOperationIDKey] != expectedOperationID {
 			return nil
 		}
+
+		desiredData := managedAgentInstallationStateData(state)
+		if expectedOperationID == "" &&
+			state.TaskState == pbgo.TaskState_RUNNING &&
+			state.Error == "" &&
+			current.Data[managedAgentInstallationStateOperationIDKey] == state.OperationID &&
+			current.Data[managedAgentInstallationStateTaskStateKey] == pbgo.TaskState_RUNNING.String() {
+			desiredData[managedAgentInstallationStateErrorKey] = current.Data[managedAgentInstallationStateErrorKey]
+		}
+		if maps.Equal(current.Data, desiredData) {
+			return nil
+		}
 		base := current.DeepCopy()
-		current.Data = managedAgentInstallationStateData(state)
+		current.Data = desiredData
 		return d.client.Patch(ctx, current, client.MergeFromWithOptions(base, client.MergeFromWithOptimisticLock{}), client.FieldOwner("fleet-daemon"))
 	})
 }
