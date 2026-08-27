@@ -11534,7 +11534,13 @@
                   "x-kubernetes-list-type": "map"
                 }
               },
-              "type": "object"
+              "type": "object",
+              "x-kubernetes-validations": [
+                {
+                  "message": "resources.limits.memory must be specified when resources is set",
+                  "rule": "!has(self.resources) || (has(self.resources.limits) \u0026\u0026 'memory' in self.resources.limits)"
+                }
+              ]
             },
             "janitor": {
               "additionalProperties": false,
@@ -26686,7 +26692,13 @@
                   "x-kubernetes-list-type": "map"
                 }
               },
-              "type": "object"
+              "type": "object",
+              "x-kubernetes-validations": [
+                {
+                  "message": "resources.limits.memory must be specified when resources is set",
+                  "rule": "!has(self.resources) || (has(self.resources.limits) \u0026\u0026 'memory' in self.resources.limits)"
+                }
+              ]
             }
           },
           "required": [
