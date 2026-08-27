@@ -41,12 +41,23 @@ func (r *Reconciler) generateDDAIFromDDA(dda *v2alpha1.DatadogAgent, provider st
 		return nil, err
 	}
 
-	// Set hash
-	if _, err := comparison.SetMD5GenerationAnnotation(&ddai.ObjectMeta, ddai.Spec, constants.MD5DDAIDeploymentAnnotationKey); err != nil {
-		return nil, err
-	}
-
 	return ddai, nil
+}
+
+// setDDAIDeploymentHash hashes the DDAI's spec together with its cluster and
+// node provider annotations, so a provider-only change still triggers a rollout.
+func setDDAIDeploymentHash(ddai *v1alpha1.DatadogAgentInternal) error {
+	hashInput := struct {
+		Spec         v2alpha1.DatadogAgentSpec
+		Provider     string
+		NodeProvider string
+	}{
+		Spec:         ddai.Spec,
+		Provider:     ddai.Annotations[kubernetes.ProviderAnnotationKey],
+		NodeProvider: ddai.Annotations[kubernetes.NodeProviderAnnotationKey],
+	}
+	_, err := comparison.SetMD5GenerationAnnotation(&ddai.ObjectMeta, hashInput, constants.MD5DDAIDeploymentAnnotationKey)
+	return err
 }
 
 // generateObjMetaFromDDA builds the DDAI ObjectMeta from the DDA. A resolved

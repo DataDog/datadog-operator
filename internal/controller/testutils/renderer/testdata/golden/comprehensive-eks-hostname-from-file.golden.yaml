@@ -1162,7 +1162,7 @@ kind: DatadogAgentInternal
 metadata:
   annotations:
     agent.datadoghq.com/cluster-provider: eks-ec2-use-hostname-from-file
-    agent.datadoghq.com/ddaispechash: 4aa209cbf559d486dc4dfdf461eaba01
+    agent.datadoghq.com/ddaispechash: de30c855bc61e27a02117e458a40f702
   finalizers:
   - finalizer.datadoghq.com/datadogagentinternal
   labels:

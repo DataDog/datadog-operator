@@ -2625,7 +2625,18 @@ func getDefaultDDAI(dda *v2alpha1.DatadogAgent) v1alpha1.DatadogAgentInternal {
 func setDDAIHash(t *testing.T, ddai *v1alpha1.DatadogAgentInternal) {
 	t.Helper()
 
-	_, err := comparison.SetMD5GenerationAnnotation(&ddai.ObjectMeta, ddai.Spec, constants.MD5DDAIDeploymentAnnotationKey)
+	// Mirrors setDDAIDeploymentHash's hash input: spec plus the cluster and
+	// node provider annotations, so a provider-only change also triggers a rollout.
+	hashInput := struct {
+		Spec         v2alpha1.DatadogAgentSpec
+		Provider     string
+		NodeProvider string
+	}{
+		Spec:         ddai.Spec,
+		Provider:     ddai.Annotations[kubernetes.ProviderAnnotationKey],
+		NodeProvider: ddai.Annotations[kubernetes.NodeProviderAnnotationKey],
+	}
+	_, err := comparison.SetMD5GenerationAnnotation(&ddai.ObjectMeta, hashInput, constants.MD5DDAIDeploymentAnnotationKey)
 	assert.NoError(t, err, "failed to compute DDAI spec hash")
 }
 

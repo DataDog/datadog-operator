@@ -319,6 +319,60 @@ func Test_GetAgentNameWithProvider(t *testing.T) {
 	}
 }
 
+func TestNodeProvider(t *testing.T) {
+	tests := []struct {
+		name   string
+		labels map[string]string
+		want   string
+	}{
+		{
+			name:   "nil labels",
+			labels: nil,
+			want:   "",
+		},
+		{
+			name:   "empty labels",
+			labels: map[string]string{},
+			want:   "",
+		},
+		{
+			name:   "no matching labels",
+			labels: map[string]string{"foo": "bar"},
+			want:   "",
+		},
+		{
+			name:   "gke cos node",
+			labels: map[string]string{GKEProviderLabel: GKECosType},
+			want:   GKECosProvider,
+		},
+		{
+			name:   "gke non-cos node (e.g. ubuntu)",
+			labels: map[string]string{GKEProviderLabel: "ubuntu"},
+			want:   "",
+		},
+		{
+			name:   "unrelated eks label does not match node-scope rules",
+			labels: map[string]string{EKSProviderLabel: "ami-x"},
+			want:   "",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, NodeProvider(tt.labels))
+		})
+	}
+}
+
+func TestGetNodeProviderRule(t *testing.T) {
+	rule, ok := GetNodeProviderRule(GKECosProvider)
+	assert.True(t, ok)
+	assert.Equal(t, GKEProviderLabel, rule.LabelKey)
+	assert.Equal(t, []string{GKECosType}, rule.LabelValues)
+
+	_, ok = GetNodeProviderRule("not-a-provider")
+	assert.False(t, ok)
+}
+
 func TestClusterProviderFromNodeLabels(t *testing.T) {
 	tests := []struct {
 		name   string

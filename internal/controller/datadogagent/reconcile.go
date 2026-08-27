@@ -133,6 +133,21 @@ func (r *Reconciler) reconcileInstance(ctx context.Context, logger logr.Logger, 
 	}
 	ddais = append(ddais, ddai)
 
+	// Shared by profiles and introspection, so only fetched once, and only when needed.
+	var nodeList []corev1.Node
+	var nodesToProfile map[string]types.NamespacedName
+	if r.options.DatadogAgentProfileEnabled || r.options.IntrospectionEnabled {
+		nodeList, err = r.getNodeList(ctx)
+		if err != nil {
+			return r.updateStatusIfNeeded(logger, instance, ddaStatusCopy, result, err, now)
+		}
+		defaultOwner := types.NamespacedName{Namespace: "", Name: "default"}
+		nodesToProfile = make(map[string]types.NamespacedName, len(nodeList))
+		for _, node := range nodeList {
+			nodesToProfile[node.Name] = defaultOwner
+		}
+	}
+
 	// Profiles
 	sendProfileEnabledMetric(r.options.DatadogAgentProfileEnabled)
 	if r.options.DatadogAgentProfileEnabled {
@@ -147,15 +162,24 @@ func (r *Reconciler) reconcileInstance(ctx context.Context, logger logr.Logger, 
 		// component config contributed by profiles is accumulated on the default
 		// DDAI, because there is only one Cluster Agent/CCR for the cluster.
 		defaultDDAI := ddai.DeepCopy()
-		appliedProfiles, e := r.reconcileProfiles(ctx, dsNSName, maxUnavailable, defaultDDAI)
+		appliedProfiles, preCreateStrategyNodesToProfile, e := r.reconcileProfiles(ctx, dsNSName, maxUnavailable, defaultDDAI, nodeList, nodesToProfile)
 		if e != nil {
 			return r.updateStatusIfNeeded(logger, instance, ddaStatusCopy, result, e, now)
 		}
+		// Introspection should see every node's true eventual profile, not the
+		// canary-reduced subset create-strategy prunes nodesToProfile to.
+		nodesToProfile = preCreateStrategyNodesToProfile
 		profileDDAIs, e := r.applyProfilesToDDAISpec(ddai, defaultDDAI, appliedProfiles)
 		if e != nil {
 			return r.updateStatusIfNeeded(logger, instance, ddaStatusCopy, result, e, now)
 		}
 		ddais = profileDDAIs
+	}
+
+	// Introspection: split any DDAI whose nodes span more than one node-scope
+	// provider (e.g. GKE COS) into one DDAI per provider.
+	if r.options.IntrospectionEnabled {
+		ddais = r.applyIntrospection(nodeList, nodesToProfile, ddais)
 	}
 
 	// Manage dependencies after DDAIs are computed to include profile changes
@@ -166,6 +190,9 @@ func (r *Reconciler) reconcileInstance(ctx context.Context, logger logr.Logger, 
 
 	// Create or update the DDAI object in k8s
 	for _, ddai := range ddais {
+		if e := setDDAIDeploymentHash(ddai); e != nil {
+			return r.updateStatusIfNeeded(logger, instance, ddaStatusCopy, result, e, now)
+		}
 		if e := r.createOrUpdateDDAI(ddai); e != nil {
 			return r.updateStatusIfNeeded(logger, instance, ddaStatusCopy, result, e, now)
 		}

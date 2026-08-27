@@ -6,14 +6,19 @@
 package kubernetes
 
 import (
+	"slices"
 	"strings"
 
+	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 )
 
 const (
 	// DDA/DDAI annotation key for provider used in reconciler to apply provider-specific configs
 	ProviderAnnotationKey = "agent.datadoghq.com/cluster-provider"
+
+	// DDAI annotation key for the node-scope provider (e.g. GKE COS) a DDAI was split for
+	NodeProviderAnnotationKey = "agent.datadoghq.com/node-provider"
 
 	// LegacyProvider Legacy Provider (empty name)
 	LegacyProvider = ""
@@ -226,4 +231,85 @@ func GetClusterProviderFromNodeList(nodeList []corev1.Node) string {
 		}
 	}
 	return DefaultProvider
+}
+
+// GetProviderListFromNodeList generates a list of providers given a list of nodes
+func GetProviderListFromNodeList(nodeList []corev1.Node, logger logr.Logger) map[string]struct{} {
+	providerList := make(map[string]struct{})
+	for _, node := range nodeList {
+		provider := ClusterProviderFromNodeLabels(node.Labels)
+		if _, ok := providerList[provider]; !ok {
+			providerList[provider] = struct{}{}
+			logger.V(1).Info("New provider detected", "provider", provider)
+		}
+	}
+	return providerList
+}
+
+// NodeProviderRule maps a node label to a node-scope provider (e.g. gke-cos).
+type NodeProviderRule struct {
+	Provider    string
+	LabelKey    string
+	LabelValues []string
+}
+
+// NodeProviderRules is the ordered list of node-scope provider detection
+// rules. First match wins. Windows is not here: it's declared via the
+// DatadogAgentProfile provider annotation, not node labels.
+var NodeProviderRules = []NodeProviderRule{
+	{
+		Provider:    GKECosProvider,
+		LabelKey:    GKEProviderLabel,
+		LabelValues: []string{GKECosType},
+	},
+}
+
+// NodeProvider returns the node-scope provider matching the node's labels, or
+// "" if none match.
+func NodeProvider(labels map[string]string) string {
+	if len(labels) == 0 {
+		return ""
+	}
+	for _, rule := range NodeProviderRules {
+		val, ok := labels[rule.LabelKey]
+		if !ok {
+			continue
+		}
+		if slices.Contains(rule.LabelValues, val) {
+			return rule.Provider
+		}
+	}
+	return ""
+}
+
+// NodeProviders returns every node-scope provider matching the node's labels.
+// Today at most one rule ever matches, but callers should not assume that:
+// this exists so a node matching more than one rule in the future needs no
+// call-site changes.
+func NodeProviders(labels map[string]string) []string {
+	if len(labels) == 0 {
+		return nil
+	}
+	var providers []string
+	for _, rule := range NodeProviderRules {
+		val, ok := labels[rule.LabelKey]
+		if !ok {
+			continue
+		}
+		if slices.Contains(rule.LabelValues, val) {
+			providers = append(providers, rule.Provider)
+		}
+	}
+	return providers
+}
+
+// GetNodeProviderRule returns the rule for a node-scope provider name, or
+// ok=false if there isn't one.
+func GetNodeProviderRule(provider string) (rule NodeProviderRule, ok bool) {
+	for _, r := range NodeProviderRules {
+		if r.Provider == provider {
+			return r, true
+		}
+	}
+	return NodeProviderRule{}, false
 }
