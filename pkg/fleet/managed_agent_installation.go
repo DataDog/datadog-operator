@@ -49,7 +49,7 @@ const (
 	fleetPartialConfigVersionPrefix            = "partial:"
 
 	fleetDatadogAgentName     = "datadog-agent"
-	fleetCredentialSecretName = "datadog-secret"
+	fleetCredentialSecretName = "datadog-managed-secret"
 	fleetCredentialAPIKey     = "api-key"
 )
 

@@ -464,10 +464,18 @@ func TestManagedAgentInstallationTerminalStateIsDurableBeforeRemoteConfigComplet
 	}, 2*time.Second, 10*time.Millisecond)
 }
 
-func TestManagedAgentInstallationParksUntilCredentialSecretExists(t *testing.T) {
+func TestManagedAgentInstallationIgnoresCustomerCredentialSecretUntilManagedSecretExists(t *testing.T) {
 	ctx := context.Background()
+	customerSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: testManagedAgentInstallationNamespace,
+			Name:      "datadog-secret",
+		},
+		Data: map[string][]byte{fleetCredentialAPIKey: []byte("customer-api-key")},
+	}
 	daemon, kubeClient, rcClient := testManagedAgentInstallationDaemon(
 		[]*pbgo.PackageState{{Package: packageDatadogOperator}},
+		customerSecret,
 	)
 	originalRetryDelays := managedAgentInstallationCredentialRetryDelays
 	managedAgentInstallationCredentialRetryDelays = []time.Duration{0, 0}
@@ -479,7 +487,7 @@ func TestManagedAgentInstallationParksUntilCredentialSecretExists(t *testing.T) 
 	snapshot := managedAgentInstallationIntentSnapshot{raw: raw}
 
 	for range len(managedAgentInstallationCredentialRetryDelays) + 1 {
-		require.ErrorContains(t, daemon.handleManagedAgentInstallationIntent(ctx, snapshot), "credential Secret datadog-agent/datadog-secret is not ready")
+		require.ErrorContains(t, daemon.handleManagedAgentInstallationIntent(ctx, snapshot), "credential Secret datadog-agent/datadog-managed-secret is not ready")
 		assert.False(t, daemon.managedAgentInstallationActive)
 		assert.False(t, daemon.managedAgentInstallationTaskReserved)
 	}
@@ -493,10 +501,10 @@ func TestManagedAgentInstallationParksUntilCredentialSecretExists(t *testing.T) 
 	assert.False(t, daemon.managedAgentInstallationTaskReserved)
 	require.True(t, apierrors.IsNotFound(kubeClient.Get(ctx, managedAgentInstallationTarget, &v2alpha1.DatadogAgent{})))
 
-	secret := testFleetCredentialSecret()
-	require.NoError(t, kubeClient.Create(ctx, secret))
+	managedSecret := testFleetCredentialSecret()
+	require.NoError(t, kubeClient.Create(ctx, managedSecret))
 	daemon.managedAgentInstallationUpdates = make(chan struct{}, 1)
-	daemon.forwardManagedAgentInstallationCredential(secret)
+	daemon.forwardManagedAgentInstallationCredential(managedSecret)
 	require.Len(t, daemon.managedAgentInstallationUpdates, 1)
 	assert.Zero(t, daemon.managedAgentInstallationCredentialRetryIndex)
 	assert.False(t, daemon.managedAgentInstallationTaskReserved)
@@ -505,7 +513,19 @@ func TestManagedAgentInstallationParksUntilCredentialSecretExists(t *testing.T) 
 	require.NoError(t, err)
 	require.NotNil(t, persisted)
 	assert.Equal(t, pbgo.TaskState_DONE, persisted.TaskState)
-	require.NoError(t, kubeClient.Get(ctx, managedAgentInstallationTarget, &v2alpha1.DatadogAgent{}))
+	dda := &v2alpha1.DatadogAgent{}
+	require.NoError(t, kubeClient.Get(ctx, managedAgentInstallationTarget, dda))
+	require.NotNil(t, dda.Spec.Global)
+	require.NotNil(t, dda.Spec.Global.Credentials)
+	require.NotNil(t, dda.Spec.Global.Credentials.APISecret)
+	assert.Equal(t, "datadog-managed-secret", dda.Spec.Global.Credentials.APISecret.SecretName)
+	assert.Equal(t, fleetCredentialAPIKey, dda.Spec.Global.Credentials.APISecret.KeyName)
+	observedCustomerSecret := &corev1.Secret{}
+	require.NoError(t, kubeClient.Get(ctx, types.NamespacedName{
+		Namespace: testManagedAgentInstallationNamespace,
+		Name:      "datadog-secret",
+	}, observedCustomerSecret))
+	assert.Equal(t, []byte("customer-api-key"), observedCustomerSecret.Data[fleetCredentialAPIKey])
 }
 
 func TestManagedAgentInstallationDefersToFleetTask(t *testing.T) {
