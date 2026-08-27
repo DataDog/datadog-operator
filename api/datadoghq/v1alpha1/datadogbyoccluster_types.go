@@ -314,7 +314,9 @@ type DatadogBYOCClusterPodDisruptionBudgetSpec struct {
 }
 
 // DatadogBYOCClusterStatefulComponentSpec defines settings for a stateful BYOC workload.
+// When Resources is specified, its memory limit is required for Quickwit node configuration sizing.
 // +k8s:openapi-gen=true
+// +kubebuilder:validation:XValidation:rule="!has(self.resources) || (has(self.resources.limits) && 'memory' in self.resources.limits)",message="resources.limits.memory must be specified when resources is set"
 type DatadogBYOCClusterStatefulComponentSpec struct {
 	DatadogBYOCClusterComponentSpec `json:",inline"`
 

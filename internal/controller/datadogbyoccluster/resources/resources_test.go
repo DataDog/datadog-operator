@@ -6,6 +6,7 @@
 package resources
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -19,131 +20,152 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/ptr"
+	"sigs.k8s.io/yaml"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	byocrelease "github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/release"
 )
 
 func TestBuildResources_ConfigMap(t *testing.T) {
+	type nodeConfigValues struct {
+		maxQueueDiskUsage             any
+		maxQueueMemoryUsage           any
+		aggregationMemoryLimit        any
+		fastFieldCacheCapacity        any
+		maxNumConcurrentSplitSearches int64
+		partialRequestCacheCapacity   any
+		splitFooterCacheCapacity      any
+	}
+	wantConfigMap := func(values nodeConfigValues) *corev1.ConfigMap {
+		config := map[string]any{
+			"version":               0.8,
+			"listen_address":        "0.0.0.0",
+			"gossip_listen_port":    7282,
+			"cloudprem_listen_port": 7283,
+			"data_dir":              "/quickwit/qwdata",
+			"grpc":                  map[string]any{"keep_alive": map[string]any{"interval": "30s", "timeout": "10s"}},
+			"health":                map[string]any{"listen_port": 7284},
+			"cloudprem": map[string]any{
+				"mtls_header":              "X-Amzn-Mtls-Clientcert",
+				"create_dd_logs_index":     true,
+				"create_dd_metrics_index":  false,
+				"create_dd_sketches_index": false,
+				"create_dd_traces_index":   false,
+			},
+			"docs_clustering": []any{
+				map[string]any{"fingerprint": []any{map[string]any{"kind": "structure"}}},
+				map[string]any{"fingerprint": []any{map[string]any{"kind": "raw", "path": "source"}}},
+				map[string]any{"fingerprint": []any{map[string]any{"kind": "raw", "path": "status"}}},
+				map[string]any{"fingerprint": []any{map[string]any{"kind": "tokenized", "path": "message"}}},
+			},
+			"indexer": map[string]any{"split_store_max_num_bytes": "200G", "split_store_max_num_splits": 10000},
+			"ingest_api": map[string]any{
+				"max_queue_disk_usage":   values.maxQueueDiskUsage,
+				"max_queue_memory_usage": values.maxQueueMemoryUsage,
+			},
+			"searcher": map[string]any{
+				"aggregation_memory_limit":          values.aggregationMemoryLimit,
+				"fast_field_cache_capacity":         values.fastFieldCacheCapacity,
+				"max_num_concurrent_split_searches": values.maxNumConcurrentSplitSearches,
+				"partial_request_cache_capacity":    values.partialRequestCacheCapacity,
+				"split_footer_cache_capacity":       values.splitFooterCacheCapacity,
+			},
+		}
+		nodeConfig, err := yaml.Marshal(config)
+		if err != nil {
+			t.Fatalf("encode expected node config: %v", err)
+		}
+		return &corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "byoc",
+				Namespace: "testing",
+				Labels: map[string]string{
+					"app.kubernetes.io/name":       "cloudprem",
+					"app.kubernetes.io/instance":   "byoc",
+					"app.kubernetes.io/managed-by": "datadog-operator",
+					"team":                         "search",
+				},
+				Annotations: map[string]string{"example.com/owner": "operator"},
+			},
+			Data: map[string]string{nodeConfigFileName: strings.TrimSuffix(string(nodeConfig), "\n")},
+		}
+	}
+
 	tests := []struct {
-		name       string
-		nodeConfig *runtime.RawExtension
-		want       *corev1.ConfigMap
+		name        string
+		clusterFunc func(*datadoghqv1alpha1.DatadogBYOCCluster)
+		want        nodeConfigValues
 	}{
 		{
-			name: "default",
-			want: &corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "byoc",
-					Namespace: "testing",
-					Labels: map[string]string{
-						"app.kubernetes.io/name":       "cloudprem",
-						"app.kubernetes.io/instance":   "byoc",
-						"app.kubernetes.io/managed-by": "datadog-operator",
-						"team":                         "search",
-					},
-					Annotations: map[string]string{"example.com/owner": "operator"},
-				},
-				Data: map[string]string{nodeConfigFileName: `cloudprem:
-  create_dd_logs_index: true
-  create_dd_metrics_index: false
-  create_dd_sketches_index: false
-  create_dd_traces_index: false
-  mtls_header: X-Amzn-Mtls-Clientcert
-cloudprem_listen_port: 7283
-data_dir: /quickwit/qwdata
-docs_clustering:
-- fingerprint:
-  - kind: structure
-- fingerprint:
-  - kind: raw
-    path: source
-- fingerprint:
-  - kind: raw
-    path: status
-- fingerprint:
-  - kind: tokenized
-    path: message
-gossip_listen_port: 7282
-grpc:
-  keep_alive:
-    interval: 30s
-    timeout: 10s
-health:
-  listen_port: 7284
-indexer:
-  split_store_max_num_bytes: 200G
-  split_store_max_num_splits: 10000
-ingest_api:
-  max_queue_disk_usage: 7.2GiB
-  max_queue_memory_usage: 3.6GiB
-listen_address: 0.0.0.0
-searcher:
-  aggregation_memory_limit: 500M
-  fast_field_cache_capacity: 4.875G
-  max_num_concurrent_split_searches: 40
-  partial_request_cache_capacity: 187.5M
-  split_footer_cache_capacity: 375M
-version: 0.8`},
+			name:        "default",
+			clusterFunc: func(*datadoghqv1alpha1.DatadogBYOCCluster) {},
+			want: nodeConfigValues{
+				maxQueueDiskUsage:             int64(10307921510),
+				maxQueueMemoryUsage:           int64(5153960755),
+				aggregationMemoryLimit:        "500M",
+				fastFieldCacheCapacity:        int64(6979321856),
+				maxNumConcurrentSplitSearches: 50,
+				partialRequestCacheCapacity:   int64(268435456),
+				splitFooterCacheCapacity:      int64(536870912),
 			},
 		},
 		{
 			name: "with node config override",
-			nodeConfig: &runtime.RawExtension{Raw: []byte(`searcher:
-  aggregation_memory_limit: 1G`)},
-			want: &corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "byoc",
-					Namespace: "testing",
-					Labels: map[string]string{
-						"app.kubernetes.io/name":       "cloudprem",
-						"app.kubernetes.io/instance":   "byoc",
-						"app.kubernetes.io/managed-by": "datadog-operator",
-						"team":                         "search",
-					},
-					Annotations: map[string]string{"example.com/owner": "operator"},
-				},
-				Data: map[string]string{nodeConfigFileName: `cloudprem:
-  create_dd_logs_index: true
-  create_dd_metrics_index: false
-  create_dd_sketches_index: false
-  create_dd_traces_index: false
-  mtls_header: X-Amzn-Mtls-Clientcert
-cloudprem_listen_port: 7283
-data_dir: /quickwit/qwdata
-docs_clustering:
-- fingerprint:
-  - kind: structure
-- fingerprint:
-  - kind: raw
-    path: source
-- fingerprint:
-  - kind: raw
-    path: status
-- fingerprint:
-  - kind: tokenized
-    path: message
-gossip_listen_port: 7282
-grpc:
-  keep_alive:
-    interval: 30s
-    timeout: 10s
-health:
-  listen_port: 7284
-indexer:
-  split_store_max_num_bytes: 200G
-  split_store_max_num_splits: 10000
-ingest_api:
-  max_queue_disk_usage: 7.2GiB
-  max_queue_memory_usage: 3.6GiB
-listen_address: 0.0.0.0
-searcher:
+			clusterFunc: func(cluster *datadoghqv1alpha1.DatadogBYOCCluster) {
+				cluster.Spec.NodeConfig = &runtime.RawExtension{Raw: []byte(`searcher:
   aggregation_memory_limit: 1G
-  fast_field_cache_capacity: 4.875G
-  max_num_concurrent_split_searches: 40
-  partial_request_cache_capacity: 187.5M
-  split_footer_cache_capacity: 375M
-version: 0.8`},
+  fast_field_cache_capacity: 2G
+ingest_api:
+  max_queue_memory_usage: 1GiB`)}
+			},
+			want: nodeConfigValues{
+				maxQueueDiskUsage:             int64(10307921510),
+				maxQueueMemoryUsage:           "1GiB",
+				aggregationMemoryLimit:        "1G",
+				fastFieldCacheCapacity:        "2G",
+				maxNumConcurrentSplitSearches: 50,
+				partialRequestCacheCapacity:   int64(268435456),
+				splitFooterCacheCapacity:      int64(536870912),
+			},
+		},
+		{
+			name: "independent component limits",
+			clusterFunc: func(cluster *datadoghqv1alpha1.DatadogBYOCCluster) {
+				cluster.Spec.Components.Indexer.Resources = &corev1.ResourceRequirements{
+					Limits: corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("8Gi")},
+				}
+				cluster.Spec.Components.Searcher.Resources = &corev1.ResourceRequirements{
+					Limits: corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("32Gi")},
+				}
+			},
+			want: nodeConfigValues{
+				maxQueueDiskUsage:             int64(5153960755),
+				maxQueueMemoryUsage:           int64(2576980377),
+				aggregationMemoryLimit:        "500M",
+				fastFieldCacheCapacity:        int64(13958643712),
+				maxNumConcurrentSplitSearches: 100,
+				partialRequestCacheCapacity:   int64(536870912),
+				splitFooterCacheCapacity:      int64(1073741824),
+			},
+		},
+		{
+			name: "fractional GiB limits",
+			clusterFunc: func(cluster *datadoghqv1alpha1.DatadogBYOCCluster) {
+				cluster.Spec.Components.Indexer.Resources = &corev1.ResourceRequirements{
+					Limits: corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("10752Mi")},
+				}
+				cluster.Spec.Components.Searcher.Resources = &corev1.ResourceRequirements{
+					Limits: corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("10752Mi")},
+				}
+			},
+			want: nodeConfigValues{
+				maxQueueDiskUsage:             int64(6764573491),
+				maxQueueMemoryUsage:           int64(3382286745),
+				aggregationMemoryLimit:        "500M",
+				fastFieldCacheCapacity:        int64(4580179968),
+				maxNumConcurrentSplitSearches: 33,
+				partialRequestCacheCapacity:   int64(176160768),
+				splitFooterCacheCapacity:      int64(352321536),
 			},
 		},
 	}
@@ -151,13 +173,12 @@ version: 0.8`},
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cluster := testCluster()
-			cluster.Spec.NodeConfig = tt.nodeConfig
-
+			tt.clusterFunc(cluster)
 			resources, err := BuildResources(cluster, testRelease())
 			if err != nil {
 				t.Fatalf("BuildResources() unexpected error: %v", err)
 			}
-			if diff := cmp.Diff(tt.want, resources.configMap); diff != "" {
+			if diff := cmp.Diff(wantConfigMap(tt.want), resources.configMap); diff != "" {
 				t.Errorf("configMap mismatch (-want +got):\n%s", diff)
 			}
 		})
@@ -966,8 +987,8 @@ func wantDefaultStatefulSet(options wantStatefulSetOptions) *StatefulSetResource
 		configVolumeMount:      options.configVolumeMount,
 		additionalEnv:          options.additionalEnv,
 		resources: corev1.ResourceRequirements{
-			Limits:   corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("13100Mi")},
-			Requests: corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("3600m"), corev1.ResourceMemory: resource.MustParse("13100Mi")},
+			Limits:   corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("16Gi")},
+			Requests: corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("4"), corev1.ResourceMemory: resource.MustParse("16Gi")},
 		},
 		terminationGracePeriodSeconds: options.terminationGracePeriodSeconds,
 	})
