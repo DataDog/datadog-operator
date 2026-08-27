@@ -7257,6 +7257,9 @@ spec:
                             - name
                           x-kubernetes-list-type: map
                       type: object
+                      x-kubernetes-validations:
+                        - message: resources.limits.memory must be specified when resources is set
+                          rule: '!has(self.resources) || (has(self.resources.limits) && ''memory'' in self.resources.limits)'
                     janitor:
                       properties:
                         affinity:
@@ -16769,6 +16772,9 @@ spec:
                             - name
                           x-kubernetes-list-type: map
                       type: object
+                      x-kubernetes-validations:
+                        - message: resources.limits.memory must be specified when resources is set
+                          rule: '!has(self.resources) || (has(self.resources.limits) && ''memory'' in self.resources.limits)'
                   required:
                     - controlPlane
                     - indexer
