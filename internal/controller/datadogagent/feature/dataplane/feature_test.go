@@ -60,6 +60,7 @@ func Test_dataPlaneFeature(t *testing.T) {
 		{
 			Name: "data plane enabled by feature default",
 			DDA: testutils.NewDatadogAgentBuilder().
+				WithNodeAgentImage("agent:7.83.0-rc.5").
 				BuildWithDefaults(),
 			FeatureOptions: &feature.Options{
 				DefaultDataPlaneEnabled: true,
@@ -75,7 +76,7 @@ func Test_dataPlaneFeature(t *testing.T) {
 					assert.Contains(t, adpEnvVars, dataPlaneRemoteAgentEnabledEnvVar, "DD_DATA_PLANE_REMOTE_AGENT_ENABLED should be set on Agent Data Plane when Data Plane is enabled by the feature default")
 					assert.Contains(t, adpEnvVars, dataPlaneUseNewConfigStreamEndpointEnvVar, "DD_DATA_PLANE_USE_NEW_CONFIG_STREAM_ENDPOINT should be set on Agent Data Plane when Data Plane is enabled by the feature default")
 
-					dda := testutils.NewDatadogAgentBuilder().BuildWithDefaults()
+					dda := testutils.NewDatadogAgentBuilder().WithNodeAgentImage("agent:7.83.0-rc.5").BuildWithDefaults()
 					requiredComponents := buildDataPlaneFeature(&feature.Options{DefaultDataPlaneEnabled: true}).Configure(dda, &dda.Spec, dda.Status.RemoteConfigConfiguration)
 					assert.Contains(t, requiredComponents.Agent.Containers, apicommon.AgentDataPlaneContainerName, "Agent Data Plane should be a required Agent component when Data Plane is enabled by the feature default")
 				},
@@ -86,6 +87,7 @@ func Test_dataPlaneFeature(t *testing.T) {
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithSingleContainerStrategy(true).
 				WithDataPlaneDogstatsdEnabled(true).
+				WithNodeAgentImage("agent:7.83.0-rc.5").
 				BuildWithDefaults(),
 			FeatureOptions: &feature.Options{
 				DefaultDataPlaneEnabled: true,

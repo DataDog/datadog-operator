@@ -46,6 +46,9 @@ func TestReconcileV2Agent_EDSSingleContainerStrategySetsDataPlaneFlags(t *testin
 	ddai := testutils.NewDefaultDatadogAgentInternalBuilder().
 		WithCredentials("api-key", "").
 		WithSingleContainerStrategy(true).
+		WithComponentOverride(datadoghqv2alpha1.NodeAgentComponentName, datadoghqv2alpha1.DatadogAgentComponentOverride{
+			Image: &datadoghqv2alpha1.AgentImageConfig{Name: "agent", Tag: "7.83.0-rc.5"},
+		}).
 		Build()
 	ddai.Name = "datadog"
 	ddai.Namespace = "default"

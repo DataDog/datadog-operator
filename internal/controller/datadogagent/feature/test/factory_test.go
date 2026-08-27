@@ -71,6 +71,7 @@ func TestBuilder(t *testing.T) {
 			name: "Data Plane enabled by feature options with single container strategy, 1 single container",
 			dda: testutils.NewDatadogAgentBuilder().
 				WithSingleContainerStrategy(true).
+				WithNodeAgentImage("agent:7.83.0-rc.5").
 				BuildWithDefaults(),
 			featureOptions: feature.Options{
 				DefaultDataPlaneEnabled: true,

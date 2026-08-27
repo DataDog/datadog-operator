@@ -10,6 +10,10 @@ spec:
     registry: public.ecr.aws/datadog
     kubelet:
       tlsVerify: false
+  override:
+    nodeAgent:
+      image:
+        tag: 7.83.0-rc.5
   features:
     # Service Discovery requires the privileged System Probe container, which is incompatible with this strategy.
     serviceDiscovery:
