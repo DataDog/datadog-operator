@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -21,6 +22,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
+	datadoghqcommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
@@ -677,6 +679,89 @@ func Test_setProfileSpec(t *testing.T) {
 			assert.Equal(t, tt.want, tt.ddai)
 		})
 	}
+}
+
+func TestSetProfileSpecPreservesParentNodeAgentUpdateStrategy(t *testing.T) {
+	fivePercent := intstr.FromString("5%")
+	tenPercent := intstr.FromString("10%")
+	one := intstr.FromInt(1)
+	ddai := v1alpha1.DatadogAgentInternal{Spec: v2alpha1.DatadogAgentSpec{Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+		v2alpha1.NodeAgentComponentName: {UpdateStrategy: &datadoghqcommon.UpdateStrategy{
+			RollingUpdate: &datadoghqcommon.RollingUpdate{MaxUnavailable: &fivePercent},
+		}},
+	}}}
+	profile := v1alpha1.DatadogAgentProfile{
+		ObjectMeta: metav1.ObjectMeta{Name: "gpu", Namespace: "default"},
+		Spec:       v1alpha1.DatadogAgentProfileSpec{Config: &v2alpha1.DatadogAgentSpec{}},
+	}
+
+	setProfileSpec(&ddai, &profile)
+	require.NotNil(t, ddai.Spec.Override[v2alpha1.NodeAgentComponentName].UpdateStrategy)
+	assert.Equal(t, fivePercent, *ddai.Spec.Override[v2alpha1.NodeAgentComponentName].UpdateStrategy.RollingUpdate.MaxUnavailable)
+
+	ddai.Spec.Override[v2alpha1.NodeAgentComponentName].UpdateStrategy = &datadoghqcommon.UpdateStrategy{
+		RollingUpdate: &datadoghqcommon.RollingUpdate{MaxUnavailable: &fivePercent},
+	}
+	profile.Spec.Config.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+		v2alpha1.NodeAgentComponentName: {UpdateStrategy: &datadoghqcommon.UpdateStrategy{
+			RollingUpdate: &datadoghqcommon.RollingUpdate{MaxUnavailable: &tenPercent},
+		}},
+	}
+	setProfileSpec(&ddai, &profile)
+	assert.Equal(t, tenPercent, *ddai.Spec.Override[v2alpha1.NodeAgentComponentName].UpdateStrategy.RollingUpdate.MaxUnavailable)
+
+	partialDDAI := v1alpha1.DatadogAgentInternal{Spec: v2alpha1.DatadogAgentSpec{Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+		v2alpha1.NodeAgentComponentName: {UpdateStrategy: &datadoghqcommon.UpdateStrategy{
+			Type:          "RollingUpdate",
+			RollingUpdate: &datadoghqcommon.RollingUpdate{MaxUnavailable: &fivePercent},
+		}},
+	}}}
+	partialProfile := v1alpha1.DatadogAgentProfile{
+		ObjectMeta: metav1.ObjectMeta{Name: "gpu", Namespace: "default"},
+		Spec: v1alpha1.DatadogAgentProfileSpec{Config: &v2alpha1.DatadogAgentSpec{Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+			v2alpha1.NodeAgentComponentName: {UpdateStrategy: &datadoghqcommon.UpdateStrategy{
+				RollingUpdate: &datadoghqcommon.RollingUpdate{MaxSurge: &one},
+			}},
+		}}},
+	}
+	setProfileSpec(&partialDDAI, &partialProfile)
+	strategy := partialDDAI.Spec.Override[v2alpha1.NodeAgentComponentName].UpdateStrategy
+	assert.Equal(t, "RollingUpdate", strategy.Type)
+	assert.Equal(t, fivePercent, *strategy.RollingUpdate.MaxUnavailable)
+	assert.Equal(t, one, *strategy.RollingUpdate.MaxSurge)
+
+	onDeleteDDAI := v1alpha1.DatadogAgentInternal{Spec: v2alpha1.DatadogAgentSpec{Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+		v2alpha1.NodeAgentComponentName: {UpdateStrategy: &datadoghqcommon.UpdateStrategy{
+			Type:          string(appsv1.RollingUpdateDaemonSetStrategyType),
+			RollingUpdate: &datadoghqcommon.RollingUpdate{MaxUnavailable: &fivePercent},
+		}},
+	}}}
+	onDeleteProfile := v1alpha1.DatadogAgentProfile{
+		ObjectMeta: metav1.ObjectMeta{Name: "gpu", Namespace: "default"},
+		Spec: v1alpha1.DatadogAgentProfileSpec{Config: &v2alpha1.DatadogAgentSpec{Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+			v2alpha1.NodeAgentComponentName: {UpdateStrategy: &datadoghqcommon.UpdateStrategy{Type: string(appsv1.OnDeleteDaemonSetStrategyType)}},
+		}}},
+	}
+	setProfileSpec(&onDeleteDDAI, &onDeleteProfile)
+	strategy = onDeleteDDAI.Spec.Override[v2alpha1.NodeAgentComponentName].UpdateStrategy
+	assert.Equal(t, string(appsv1.OnDeleteDaemonSetStrategyType), strategy.Type)
+	assert.Nil(t, strategy.RollingUpdate)
+
+	partialRollingDDAI := v1alpha1.DatadogAgentInternal{Spec: v2alpha1.DatadogAgentSpec{Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+		v2alpha1.NodeAgentComponentName: {UpdateStrategy: &datadoghqcommon.UpdateStrategy{Type: string(appsv1.OnDeleteDaemonSetStrategyType)}},
+	}}}
+	partialRollingProfile := v1alpha1.DatadogAgentProfile{
+		ObjectMeta: metav1.ObjectMeta{Name: "gpu", Namespace: "default"},
+		Spec: v1alpha1.DatadogAgentProfileSpec{Config: &v2alpha1.DatadogAgentSpec{Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+			v2alpha1.NodeAgentComponentName: {UpdateStrategy: &datadoghqcommon.UpdateStrategy{
+				RollingUpdate: &datadoghqcommon.RollingUpdate{MaxSurge: &one},
+			}},
+		}}},
+	}
+	setProfileSpec(&partialRollingDDAI, &partialRollingProfile)
+	strategy = partialRollingDDAI.Spec.Override[v2alpha1.NodeAgentComponentName].UpdateStrategy
+	assert.Equal(t, string(appsv1.RollingUpdateDaemonSetStrategyType), strategy.Type)
+	assert.Equal(t, one, *strategy.RollingUpdate.MaxSurge)
 }
 
 func Test_setProfileDDAIMeta(t *testing.T) {

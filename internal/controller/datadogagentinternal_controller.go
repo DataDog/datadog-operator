@@ -7,6 +7,7 @@ package controller
 
 import (
 	"context"
+	"maps"
 
 	edsdatadoghqv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
@@ -46,6 +47,8 @@ type DatadogAgentInternalReconciler struct {
 // +kubebuilder:rbac:groups=datadoghq.com,resources=datadogagentinternals,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=datadoghq.com,resources=datadogagentinternals/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=datadoghq.com,resources=datadogagentinternals/finalizers,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups="",resources=nodes,verbs=get;list;watch;patch
+// +kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch
 
 // Reconcile loop for DatadogAgent.
 func (r *DatadogAgentInternalReconciler) Reconcile(ctx context.Context, ddai *v1alpha1.DatadogAgentInternal) (ctrl.Result, error) {
@@ -76,6 +79,11 @@ func (r *DatadogAgentInternalReconciler) SetupWithManager(mgr ctrl.Manager, metr
 	handlerEnqueue := handler.EnqueueRequestsFromMapFunc(enqueueIfOwnedByDatadogAgentInternal)
 	builder.Watches(&rbacv1.ClusterRole{}, handlerEnqueue)
 	builder.Watches(&rbacv1.ClusterRoleBinding{}, handlerEnqueue)
+	builder.Watches(
+		&corev1.Node{},
+		handler.EnqueueRequestsFromMapFunc(r.enqueuePreparedBlueGreenDDAIs),
+		ctrlbuilder.WithPredicates(preparedBlueGreenNodePredicate()),
+	)
 
 	if r.Options.ExtendedDaemonsetOptions.Enabled {
 		builder = builder.Owns(&edsdatadoghqv1alpha1.ExtendedDaemonSet{})
@@ -103,13 +111,67 @@ func (r *DatadogAgentInternalReconciler) SetupWithManager(mgr ctrl.Manager, metr
 	}
 
 	or := reconcile.AsReconciler[*v1alpha1.DatadogAgentInternal](r.Client, r)
-	if err := builder.For(&datadoghqv1alpha1.DatadogAgentInternal{}, builderOptions...).WithEventFilter(predicate.GenerationChangedPredicate{}).Complete(or); err != nil {
+	if err := builder.For(&datadoghqv1alpha1.DatadogAgentInternal{}, builderOptions...).WithEventFilter(
+		predicate.Or(predicate.GenerationChangedPredicate{}, preparedBlueGreenEventPredicate()),
+	).Complete(or); err != nil {
 		return err
 	}
 
 	r.internal = datadogagentinternal.NewReconciler(r.Options, r.Client, r.PlatformInfo, r.Scheme, r.Recorder, metricForwardersMgr)
 
 	return nil
+}
+
+func (r *DatadogAgentInternalReconciler) enqueuePreparedBlueGreenDDAIs(ctx context.Context, _ client.Object) []reconcile.Request {
+	list := &datadoghqv1alpha1.DatadogAgentInternalList{}
+	if err := r.List(ctx, list); err != nil {
+		return nil
+	}
+	requests := make([]reconcile.Request, 0, len(list.Items))
+	for i := range list.Items {
+		ddai := &list.Items[i]
+		if datadogagentinternal.PreparedBlueGreenEnabled(ddai) {
+			requests = append(requests, reconcile.Request{NamespacedName: client.ObjectKeyFromObject(ddai)})
+		}
+	}
+	return requests
+}
+
+func preparedBlueGreenEventPredicate() predicate.Predicate {
+	return predicate.Funcs{
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			switch oldObject := e.ObjectOld.(type) {
+			case *corev1.Node:
+				newObject, ok := e.ObjectNew.(*corev1.Node)
+				return ok && preparedRelevantNodeLabelsChanged(oldObject.Labels, newObject.Labels)
+			case *datadoghqv1alpha1.DatadogAgentInternal:
+				newObject, ok := e.ObjectNew.(*datadoghqv1alpha1.DatadogAgentInternal)
+				return ok && datadogagentinternal.PreparedBlueGreenEnabled(oldObject) != datadogagentinternal.PreparedBlueGreenEnabled(newObject)
+			default:
+				return false
+			}
+		},
+		CreateFunc:  func(event.CreateEvent) bool { return false },
+		DeleteFunc:  func(event.DeleteEvent) bool { return false },
+		GenericFunc: func(event.GenericEvent) bool { return false },
+	}
+}
+
+func preparedBlueGreenNodePredicate() predicate.Predicate {
+	return predicate.Funcs{
+		CreateFunc: func(event.CreateEvent) bool { return true },
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			oldNode, oldOK := e.ObjectOld.(*corev1.Node)
+			newNode, newOK := e.ObjectNew.(*corev1.Node)
+			return oldOK && newOK && preparedRelevantNodeLabelsChanged(oldNode.Labels, newNode.Labels)
+		},
+		DeleteFunc:  func(event.DeleteEvent) bool { return true },
+		GenericFunc: func(event.GenericEvent) bool { return false },
+	}
+}
+
+func preparedRelevantNodeLabelsChanged(oldLabels, newLabels map[string]string) bool {
+	return !maps.Equal(oldLabels, newLabels)
 }
 
 func enqueueIfOwnedByDatadogAgentInternal(ctx context.Context, obj client.Object) []reconcile.Request {

@@ -20,6 +20,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	ctrl "sigs.k8s.io/controller-runtime"
 
+	datadoghqcommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	v1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	v2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
@@ -281,9 +282,13 @@ func setProfileSpec(ddai *v1alpha1.DatadogAgentInternal, profile *v1alpha1.Datad
 		// that label-enforcing admission policies (e.g. Kyverno) do not reject
 		// the profile DaemonSet even when the parent DDA sets spec.global.commonLabels.
 		var commonLabels map[string]string
+		var nodeAgentUpdateStrategy *datadoghqcommon.UpdateStrategy
 		if ddai.Spec.Global != nil && len(ddai.Spec.Global.CommonLabels) > 0 {
 			commonLabels = make(map[string]string, len(ddai.Spec.Global.CommonLabels))
 			maps.Copy(commonLabels, ddai.Spec.Global.CommonLabels)
+		}
+		if override := ddai.Spec.Override[v2alpha1.NodeAgentComponentName]; override != nil && override.UpdateStrategy != nil {
+			nodeAgentUpdateStrategy = override.UpdateStrategy.DeepCopy()
 		}
 
 		ddai.Spec = *profile.Spec.Config
@@ -310,6 +315,32 @@ func setProfileSpec(ddai *v1alpha1.DatadogAgentInternal, profile *v1alpha1.Datad
 		disableComponent(ddai, v2alpha1.ClusterChecksRunnerComponentName)
 		disableComponent(ddai, v2alpha1.OtelAgentGatewayComponentName)
 		setProfileNodeAgentOverride(ddai, profile)
+		nodeAgentOverride := ddai.Spec.Override[v2alpha1.NodeAgentComponentName]
+		if nodeAgentOverride.UpdateStrategy == nil {
+			nodeAgentOverride.UpdateStrategy = nodeAgentUpdateStrategy
+		} else if nodeAgentUpdateStrategy != nil {
+			if nodeAgentOverride.UpdateStrategy.Type == "" {
+				if nodeAgentOverride.UpdateStrategy.RollingUpdate != nil {
+					nodeAgentOverride.UpdateStrategy.Type = string(appsv1.RollingUpdateDaemonSetStrategyType)
+				} else {
+					nodeAgentOverride.UpdateStrategy.Type = nodeAgentUpdateStrategy.Type
+				}
+			}
+			profileUsesRollingUpdate := nodeAgentOverride.UpdateStrategy.Type == "" || nodeAgentOverride.UpdateStrategy.Type == string(appsv1.RollingUpdateDaemonSetStrategyType)
+			parentUsesRollingUpdate := nodeAgentUpdateStrategy.Type == "" || nodeAgentUpdateStrategy.Type == string(appsv1.RollingUpdateDaemonSetStrategyType)
+			if profileUsesRollingUpdate && parentUsesRollingUpdate {
+				if nodeAgentOverride.UpdateStrategy.RollingUpdate == nil {
+					nodeAgentOverride.UpdateStrategy.RollingUpdate = nodeAgentUpdateStrategy.RollingUpdate.DeepCopy()
+				} else if nodeAgentUpdateStrategy.RollingUpdate != nil {
+					if nodeAgentOverride.UpdateStrategy.RollingUpdate.MaxUnavailable == nil {
+						nodeAgentOverride.UpdateStrategy.RollingUpdate.MaxUnavailable = nodeAgentUpdateStrategy.RollingUpdate.MaxUnavailable
+					}
+					if nodeAgentOverride.UpdateStrategy.RollingUpdate.MaxSurge == nil {
+						nodeAgentOverride.UpdateStrategy.RollingUpdate.MaxSurge = nodeAgentUpdateStrategy.RollingUpdate.MaxSurge
+					}
+				}
+			}
+		}
 	}
 	ensureOverrideExists(ddai, v2alpha1.NodeAgentComponentName)
 	ddai.Spec.Override[v2alpha1.NodeAgentComponentName].Affinity = affinity

@@ -70,6 +70,7 @@ require (
 	google.golang.org/grpc v1.82.1
 	google.golang.org/protobuf v1.36.11
 	helm.sh/helm/v3 v3.20.2
+	k8s.io/component-helpers v0.35.3
 	k8s.io/kubectl v0.35.3
 	k8s.io/utils v0.0.0-20251222233032-718f0e51e6d2
 	sigs.k8s.io/karpenter v1.9.0
@@ -290,7 +291,6 @@ require (
 	k8s.io/apiserver v0.35.3 // indirect
 	k8s.io/cloud-provider v0.35.0 // indirect
 	k8s.io/component-base v0.35.3 // indirect
-	k8s.io/component-helpers v0.35.3 // indirect
 	k8s.io/csi-translation-lib v0.35.0 // indirect
 	k8s.io/gengo/v2 v2.0.0-20250922181213-ec3ebc5fd46b // indirect
 	modernc.org/sqlite v1.34.1 // indirect
