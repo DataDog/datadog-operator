@@ -71,9 +71,6 @@ type DatadogFeatures struct {
 	// ASM (Application Security Management) configuration.
 	ASM *ASMFeatureConfig `json:"asm,omitempty"`
 	// Appsec configuration.
-	// This block supersedes the deprecated `agent.datadoghq.com/appsec.*` annotations. Resolution is
-	// per field: a field set here wins, and a field left unset falls back to its annotation value if
-	// one is present. An empty list here does not clear an annotation-set value.
 	// +optional
 	Appsec *AppsecFeatureConfig `json:"appsec,omitempty"`
 	// CSPM (Cloud Security Posture Management) configuration.

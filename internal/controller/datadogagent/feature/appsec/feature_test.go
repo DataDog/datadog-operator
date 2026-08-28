@@ -519,7 +519,6 @@ func TestAppsecFeature(t *testing.T) {
 			),
 		},
 		{
-			// (a) CRD-only minimal enable: no annotation whatsoever, a single CRD field.
 			Name: "Appsec enabled from the CRD alone with no annotations",
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithClusterAgentTag("7.76.0").
@@ -532,8 +531,6 @@ func TestAppsecFeature(t *testing.T) {
 			),
 		},
 		{
-			// (b) Full CRD config: every env var in const.go plus the GKE one.
-			//
 			// The 7.82.0 tag is load-bearing. crdFullInjector lists gke-gateway and sets
 			// gatewayClasses, so requiresGKESupport() is true; on the default cluster-agent
 			// version the GKE gate would drop the feature, BuildFeatures would return an
@@ -571,9 +568,6 @@ func TestAppsecFeature(t *testing.T) {
 			),
 		},
 		{
-			// (c) PRECEDENCE: the annotation asks for sidecar mode and annotation-svc, the
-			// CRD asks for external mode and crd-svc. The CRD value must win in the env var
-			// the cluster-agent actually receives, not merely inside f.config.
 			Name: "Appsec CRD mode external beats annotation mode sidecar in the emitted env",
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithClusterAgentTag("7.76.0").
@@ -598,8 +592,6 @@ func TestAppsecFeature(t *testing.T) {
 			),
 		},
 		{
-			// (d) REGRESSION: an annotation-driven DatadogAgent behaves exactly as it did
-			// before the CRD existed, and the CRD-only env var never leaks into it.
 			Name:          "Appsec annotation-only config is unaffected by the CRD migration",
 			DDA:           annotationOnlyDDA,
 			WantConfigure: true,
@@ -613,7 +605,6 @@ func TestAppsecFeature(t *testing.T) {
 				envVar{name: DDClusterAgentAppsecInjectorProcessorServiceName, value: "appsec-processor", present: true},
 				envVar{name: DDClusterAgentAppsecInjectorProcessorServiceNamespace, value: "datadog", present: true},
 				envVar{name: DDClusterAgentAppsecInjectorMode, value: "external", present: true},
-				// GatewayClasses is CRD-only: no annotation can produce it.
 				envVar{name: DDAppsecProxyGKEGatewayClasses, present: false},
 			),
 		},
