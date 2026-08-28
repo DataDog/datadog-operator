@@ -6249,7 +6249,7 @@ spec:
                       replicas:
                         description: |-
                           Number of the replicas.
-                          Not applicable for a DaemonSet/ExtendedDaemonSet deployment
+                          Not applicable for a DaemonSet deployment
                         format: int32
                         type: integer
                       runtimeClassName:
@@ -8571,7 +8571,7 @@ spec:
               description: DatadogAgentInternalStatus defines the observed state of DatadogAgentInternal
               properties:
                 agent:
-                  description: The actual state of the Agent as a daemonset or an extended daemonset.
+                  description: The actual state of the Agent as a DaemonSet.
                   properties:
                     available:
                       description: Number of available pods in the DaemonSet.

@@ -642,7 +642,7 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_DatadogAgentStatus(ref commo
 							},
 						},
 						SchemaProps: spec.SchemaProps{
-							Description: "The actual state of the Agent as a daemonset or an extended daemonset.",
+							Description: "The actual state of the Agent as a DaemonSet.",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -655,7 +655,7 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_DatadogAgentStatus(ref commo
 					},
 					"agent": {
 						SchemaProps: spec.SchemaProps{
-							Description: "The combined actual state of all Agents as daemonsets or extended daemonsets.",
+							Description: "The combined actual state of all Agents as DaemonSets.",
 							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.DaemonSetStatus"),
 						},
 					},

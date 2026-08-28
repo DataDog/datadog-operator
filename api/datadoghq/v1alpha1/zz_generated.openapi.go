@@ -342,7 +342,7 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogAgentInternalStatus(r
 					},
 					"agent": {
 						SchemaProps: spec.SchemaProps{
-							Description: "The actual state of the Agent as a daemonset or an extended daemonset.",
+							Description: "The actual state of the Agent as a DaemonSet.",
 							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.DaemonSetStatus"),
 						},
 					},

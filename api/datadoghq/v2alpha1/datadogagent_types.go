@@ -2173,7 +2173,7 @@ type DatadogAgentComponentOverride struct {
 	Name *string `json:"name,omitempty"`
 
 	// Number of the replicas.
-	// Not applicable for a DaemonSet/ExtendedDaemonSet deployment
+	// Not applicable for a DaemonSet deployment
 	// +optional
 	Replicas *int32 `json:"replicas,omitempty"`
 
@@ -2542,11 +2542,11 @@ type DatadogAgentStatus struct {
 	// +listType=map
 	// +listMapKey=type
 	Conditions []metav1.Condition `json:"conditions"`
-	// The actual state of the Agent as a daemonset or an extended daemonset.
+	// The actual state of the Agent as a DaemonSet.
 	// +optional
 	// +listType=atomic
 	AgentList []*DaemonSetStatus `json:"agentList,omitempty"`
-	// The combined actual state of all Agents as daemonsets or extended daemonsets.
+	// The combined actual state of all Agents as DaemonSets.
 	// +optional
 	Agent *DaemonSetStatus `json:"agent,omitempty"`
 	// The actual state of the Cluster Agent as a deployment.

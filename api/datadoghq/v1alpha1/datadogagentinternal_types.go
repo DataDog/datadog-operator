@@ -19,7 +19,7 @@ type DatadogAgentInternalStatus struct {
 	// +listType=map
 	// +listMapKey=type
 	Conditions []metav1.Condition `json:"conditions"`
-	// The actual state of the Agent as a daemonset or an extended daemonset.
+	// The actual state of the Agent as a DaemonSet.
 	// +optional
 	Agent *v2alpha1.DaemonSetStatus `json:"agent,omitempty"`
 	// The actual state of the Cluster Agent as a deployment.
