@@ -226,7 +226,7 @@ func (s *gkeAutopilotSuite) logADPWorkloadDiagnostics(ddaName, agentSelector str
 		s.T().Logf("no Agent pods found for %s", ddaName)
 	} else {
 		for _, pod := range pods.Items {
-			s.T().Logf("Agent pod for %s: name=%s phase=%s init=%v containers=%v", ddaName, pod.Name, pod.Status.Phase, pod.Status.InitContainerStatuses, pod.Status.ContainerStatuses)
+			s.T().Logf("Agent pod for %s: name=%s node=%s phase=%s reason=%s message=%s conditions=%v init=%v containers=%v", ddaName, pod.Name, pod.Spec.NodeName, pod.Status.Phase, pod.Status.Reason, pod.Status.Message, pod.Status.Conditions, pod.Status.InitContainerStatuses, pod.Status.ContainerStatuses)
 		}
 	}
 
@@ -240,16 +240,16 @@ func (s *gkeAutopilotSuite) logADPWorkloadDiagnostics(ddaName, agentSelector str
 		s.T().Logf("could not get DatadogAgentInternal for %s: %v", ddaName, err)
 		return
 	}
-	conditions, found, err := unstructured.NestedSlice(ddai.Object, "status", "conditions")
+	status, found, err := unstructured.NestedMap(ddai.Object, "status")
 	if err != nil {
-		s.T().Logf("could not read DatadogAgentInternal conditions for %s: %v", ddaName, err)
+		s.T().Logf("could not read DatadogAgentInternal status for %s: %v", ddaName, err)
 		return
 	}
 	if !found {
-		s.T().Logf("DatadogAgentInternal for %s has no status conditions", ddaName)
+		s.T().Logf("DatadogAgentInternal for %s has no status", ddaName)
 		return
 	}
-	s.T().Logf("DatadogAgentInternal conditions for %s: %v", ddaName, conditions)
+	s.T().Logf("DatadogAgentInternal status for %s: %v", ddaName, status)
 }
 
 func (s *gkeAutopilotSuite) verifyAPIMetrics(c *assert.CollectT) {
