@@ -663,7 +663,7 @@ func (in *CSIAPMConfig) DeepCopyInto(out *CSIAPMConfig) {
 	*out = *in
 	if in.PullSecrets != nil {
 		in, out := &in.PullSecrets, &out.PullSecrets
-		*out = make([]corev1.LocalObjectReference, len(*in))
+		*out = make([]v1.LocalObjectReference, len(*in))
 		copy(*out, *in)
 	}
 }
