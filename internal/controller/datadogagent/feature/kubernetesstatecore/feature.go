@@ -194,8 +194,7 @@ func (f *ksmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 					continue
 				}
 				agentVersion := common.GetAgentVersionFromImage(*ovr.Image)
-				fallback := true // assume compatible when unparseable
-				if !utils.IsAboveMinVersion(agentVersion, podCollectionOnNodeMinVersion, &fallback) {
+				if !utils.IsAboveMinVersion(agentVersion, podCollectionOnNodeMinVersion, nil) {
 					f.logger.Info(
 						"PodCollectionMode=node_kubelet requires agent >= 7.82; falling back to default",
 						"component", string(comp),
@@ -210,14 +209,11 @@ func (f *ksmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 				f.nodeAgentConfigMapName = constants.GetConfName(dda, nil, defaultKSMPodsOnNodeConf)
 				if f.podCollectionOnNodeUserConfig {
 					f.logger.Info(
-						"PodCollectionMode=node_kubelet was set alongside features.kubeStateMetricsCore.conf; " +
-							"the operator will deploy the node-side check but will not modify the user-supplied " +
-							"cluster-side config. To avoid double pod collection ensure the cluster-side instance " +
-							"either omits `pods` from `collectors` OR sets `pod_collection_mode: cluster_unassigned`. " +
-							"Note that omitting `collectors` entirely falls back to upstream KSM defaults, which " +
-							"include `pods`. To collect cluster-aggregate metrics, add a dedicated instance with " +
-							"`pod_collection_mode: cluster_aggregates_only` to the cluster-side config yourself; " +
-							"the operator does not add one for user-supplied configs.",
+						"PodCollectionMode=node_kubelet is set with a user-supplied features.kubeStateMetricsCore.conf; " +
+							"the operator will deploy the node-side check but won't alter the user-supplied cluster-side values. " +
+							"To avoid double pod collection, set pod_collection_mode: cluster_unassigned " +
+							"(or omit `pods` from `collectors`) on the cluster-side instance. " +
+							"For cluster-aggregate metrics, add an instance with no collectors and pod_collection_mode: cluster_aggregates_only.",
 					)
 				}
 			}
