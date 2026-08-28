@@ -8,6 +8,10 @@ metadata:
   annotations:
     experimental.agent.datadoghq.com/autopilot: "true"
 spec:
+  override:
+    nodeAgent:
+      image:
+        tag: 7.83.0-rc.5
   features:
     logCollection:
       enabled: true

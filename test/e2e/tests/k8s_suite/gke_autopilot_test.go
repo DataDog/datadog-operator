@@ -27,9 +27,11 @@ import (
 )
 
 const (
-	gkeAutopilotDDAName       = "datadog-agent-gke-autopilot"
-	gkeAutopilotAgentSelector = common.NodeAgentSelector + ",agent.datadoghq.com/name=" + gkeAutopilotDDAName
-	systemProbeContainerName  = "system-probe"
+	gkeAutopilotDDAName                  = "datadog-agent-gke-autopilot"
+	gkeAutopilotAgentSelector            = common.NodeAgentSelector + ",agent.datadoghq.com/name=" + gkeAutopilotDDAName
+	gkeAutopilotADPDisabledDDAName       = "datadog-agent-gke-autopilot-adp-disabled"
+	gkeAutopilotADPDisabledAgentSelector = common.NodeAgentSelector + ",agent.datadoghq.com/name=" + gkeAutopilotADPDisabledDDAName
+	systemProbeContainerName             = "system-probe"
 )
 
 type gkeAutopilotSuite struct {
@@ -46,10 +48,15 @@ rbac:
 serviceAccount:
   create: false
   name: datadog-operator-e2e-controller-manager
+env:
+  - name: DD_DEFAULT_DATA_PLANE_LINUX_ENABLED
+    value: "true"
 `),
 	}
 
 	ddaConfigPath, err := common.GetAbsPath(filepath.Join(common.ManifestsPath, "datadog-agent-gke-autopilot.yaml"))
+	require.NoError(t, err)
+	disabledDDAConfigPath, err := common.GetAbsPath(filepath.Join(common.ManifestsPath, "datadog-agent-gke-autopilot-adp-disabled.yaml"))
 	require.NoError(t, err)
 
 	ddaOptions := []agentwithoperatorparams.Option{
@@ -65,6 +72,7 @@ serviceAccount:
 		provisioners.WithGKETestName("e2e-operator-gke-autopilot"),
 		provisioners.WithGKEOperatorOptions(operatorOptions...),
 		provisioners.WithGKEDDAOptions(ddaOptions...),
+		provisioners.WithGKEYAMLWorkload(provisioners.YAMLWorkload{Name: "gke-autopilot-adp-disabled", Path: disabledDDAConfigPath}),
 		provisioners.WithGKEAutopilot(),
 	}
 
@@ -101,18 +109,35 @@ func (s *gkeAutopilotSuite) TestAutopilotDDA() {
 			utils.VerifyAgentPods(s.T(), c, common.NamespaceName, s.Env().KubernetesCluster.Client(), gkeAutopilotAgentSelector)
 			utils.VerifyNumPodsForSelector(s.T(), c, common.NamespaceName, s.Env().KubernetesCluster.Client(), 1, common.ClusterAgentSelector+",agent.datadoghq.com/name="+gkeAutopilotDDAName)
 
-			agentPods, err := s.runningAgentPods()
+			agentPods, err := s.runningAgentPods(gkeAutopilotAgentSelector)
 			assert.NoError(c, err)
 			assert.NotEmpty(c, agentPods)
 
 			for _, pod := range agentPods {
 				assertContainerPresent(c, pod, systemProbeContainerName)
+				assertContainerPresent(c, pod, adpContainerName)
+				assertContainerHasEnvVar(c, pod, coreAgentContainerName, "DD_DATA_PLANE_ENABLED", "true")
+				assertContainerHasEnvVar(c, pod, adpContainerName, "DD_DATA_PLANE_REMOTE_AGENT_ENABLED", "true")
+				assertContainerHasEnvVar(c, pod, adpContainerName, "DD_DATA_PLANE_USE_NEW_CONFIG_STREAM_ENDPOINT", "true")
 			}
 
 			s.verifyAPIMetrics(c)
 			s.verifyAPILogs(c)
 			s.verifyAPIConnections(c)
 		}, 15*time.Minute, 30*time.Second, "could not validate GKE Autopilot Agent in time")
+	})
+
+	s.Run("Verify Autopilot Agent with ADP explicitly disabled", func() {
+		s.Assert().EventuallyWithT(func(c *assert.CollectT) {
+			utils.VerifyAgentPods(s.T(), c, common.NamespaceName, s.Env().KubernetesCluster.Client(), gkeAutopilotADPDisabledAgentSelector)
+
+			agentPods, err := s.runningAgentPods(gkeAutopilotADPDisabledAgentSelector)
+			assert.NoError(c, err)
+			assert.NotEmpty(c, agentPods)
+			for _, pod := range agentPods {
+				assertContainerAbsent(c, pod, adpContainerName)
+			}
+		}, 15*time.Minute, 30*time.Second, "could not validate GKE Autopilot Agent with ADP disabled in time")
 	})
 }
 
@@ -171,9 +196,9 @@ func selectedNodeLabels(labels map[string]string) string {
 	return strings.Join(selected, ",")
 }
 
-func (s *gkeAutopilotSuite) runningAgentPods() ([]corev1.Pod, error) {
+func (s *gkeAutopilotSuite) runningAgentPods(selector string) ([]corev1.Pod, error) {
 	agentPods, err := s.Env().KubernetesCluster.Client().CoreV1().Pods(common.NamespaceName).List(context.TODO(), metav1.ListOptions{
-		LabelSelector: gkeAutopilotAgentSelector,
+		LabelSelector: selector,
 		FieldSelector: "status.phase=Running",
 	})
 	if err != nil {

@@ -1,0 +1,43 @@
+apiVersion: datadoghq.com/v2alpha1
+kind: DatadogAgent
+metadata:
+  name: datadog-agent-gke-autopilot-adp-disabled
+  namespace: e2e-operator
+  labels:
+    agent.datadoghq.com/e2e-test: datadog-agent-gke-autopilot-adp-disabled
+  annotations:
+    experimental.agent.datadoghq.com/autopilot: "true"
+spec:
+  global:
+    credentials:
+      apiSecret:
+        secretName: dda-datadog-credentials
+        keyName: api-key
+      appSecret:
+        secretName: dda-datadog-credentials
+        keyName: app-key
+  override:
+    nodeAgent:
+      image:
+        tag: 7.83.0-rc.5
+      env:
+        - name: DD_DD_URL
+          value: http://127.0.0.1:1
+        - name: DD_PROCESS_CONFIG_PROCESS_DD_URL
+          value: http://127.0.0.1:1
+        - name: DD_LOGS_CONFIG_LOGS_DD_URL
+          value: http://127.0.0.1:1
+        - name: DD_LOGS_CONFIG_USE_HTTP
+          value: "true"
+    clusterAgent:
+      env:
+        - name: DD_DD_URL
+          value: http://127.0.0.1:1
+  features:
+    dataPlane:
+      enabled: false
+    logCollection:
+      enabled: true
+      containerCollectAll: true
+    npm:
+      enabled: true
