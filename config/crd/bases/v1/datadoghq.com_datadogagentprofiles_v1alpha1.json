@@ -6306,7 +6306,7 @@
                     "type": "string"
                   },
                   "replicas": {
-                    "description": "Number of the replicas.\nNot applicable for a DaemonSet/ExtendedDaemonSet deployment",
+                    "description": "Number of the replicas.\nNot applicable for a DaemonSet deployment",
                     "format": "int32",
                     "type": "integer"
                   },

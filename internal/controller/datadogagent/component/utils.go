@@ -22,7 +22,7 @@ func GetAgentName(dda metav1.Object) string {
 	return fmt.Sprintf("%s-%s", dda.GetName(), constants.DefaultAgentResourceSuffix)
 }
 
-// GetDaemonSetNameFromDatadogAgent returns the expected node Agent DS/EDS name based on
+// GetDaemonSetNameFromDatadogAgent returns the expected node Agent DaemonSet name based on
 // the DDA name and nodeAgent name override
 func GetDaemonSetNameFromDatadogAgent(ddaObject metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec) string {
 	dsName := GetAgentName(ddaObject)

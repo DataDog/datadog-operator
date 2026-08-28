@@ -6302,7 +6302,7 @@
                 "type": "string"
               },
               "replicas": {
-                "description": "Number of the replicas.\nNot applicable for a DaemonSet/ExtendedDaemonSet deployment",
+                "description": "Number of the replicas.\nNot applicable for a DaemonSet deployment",
                 "format": "int32",
                 "type": "integer"
               },
@@ -8205,7 +8205,7 @@
       "properties": {
         "agent": {
           "additionalProperties": false,
-          "description": "The combined actual state of all Agents as daemonsets or extended daemonsets.",
+          "description": "The combined actual state of all Agents as DaemonSets.",
           "properties": {
             "available": {
               "description": "Number of available pods in the DaemonSet.",
@@ -8264,7 +8264,7 @@
           "type": "object"
         },
         "agentList": {
-          "description": "The actual state of the Agent as a daemonset or an extended daemonset.",
+          "description": "The actual state of the Agent as a DaemonSet.",
           "items": {
             "additionalProperties": false,
             "description": "DaemonSetStatus defines the observed state of Agent running as DaemonSet.",

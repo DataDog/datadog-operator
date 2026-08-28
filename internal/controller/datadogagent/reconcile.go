@@ -141,7 +141,7 @@ func (r *Reconciler) reconcileInstance(ctx context.Context, logger logr.Logger, 
 			Namespace: instance.Namespace,
 			Name:      dsName,
 		}
-		maxUnavailable := agentprofile.GetMaxUnavailableFromSpecAndEDS(&instance.Spec, &r.options.ExtendedDaemonsetOptions, nil)
+		maxUnavailable := agentprofile.GetMaxUnavailableFromSpec(&instance.Spec, nil)
 
 		// Profiles normally render their own DDAIs from the base DDAI. Shared
 		// component config contributed by profiles is accumulated on the default

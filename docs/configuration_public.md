@@ -812,7 +812,7 @@ Use an integer value for `limits.cpu` so the runtime can read it directly. If yo
 : If specified, indicates the pod's priority. "system-node-critical" and "system-cluster-critical" are two special keywords which indicate the highest priorities with the former being the highest priority. Any other name must be defined by creating a PriorityClass object with that name. If not specified, the pod priority is default, or zero if there is no default.
 
 `[component].replicas`
-: Number of the replicas. Not applicable for a DaemonSet/ExtendedDaemonSet deployment
+: Number of the replicas. Not applicable for a DaemonSet deployment
 
 `[component].runtimeClassName`
 : If specified, indicates the pod's RuntimeClass kubelet should use to run the pod. If the named RuntimeClass does not exist, or the CRI cannot run the corresponding handler, the pod enters the Failed terminal phase. If no runtimeClassName is specified, the default RuntimeHandler is used, which is equivalent to the behavior when the RuntimeClass feature is disabled.

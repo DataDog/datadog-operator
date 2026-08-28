@@ -31,6 +31,24 @@ import (
 
 const testNamespace = "default"
 
+func TestGetMaxUnavailableFromSpec(t *testing.T) {
+	overrideValue := intstr.FromString("25%")
+	customDefault := intstr.FromInt(3)
+	spec := &v2alpha1.DatadogAgentSpec{
+		Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+			v2alpha1.NodeAgentComponentName: {
+				UpdateStrategy: &apicommon.UpdateStrategy{
+					RollingUpdate: &apicommon.RollingUpdate{MaxUnavailable: &overrideValue},
+				},
+			},
+		},
+	}
+
+	assert.Equal(t, overrideValue, GetMaxUnavailableFromSpec(spec, &customDefault))
+	assert.Equal(t, customDefault, GetMaxUnavailableFromSpec(nil, &customDefault))
+	assert.Equal(t, intstr.FromInt(defaultMaxUnavailable), GetMaxUnavailableFromSpec(nil, nil))
+}
+
 func TestDaemonSetName(t *testing.T) {
 	tests := []struct {
 		name                  string
@@ -936,7 +954,7 @@ func TestApplyCreateStrategy(t *testing.T) {
 		profilesByNode               map[string]types.NamespacedName
 		csInfo                       map[types.NamespacedName]*CreateStrategyInfo
 		appliedProfiles              []*v1alpha1.DatadogAgentProfile
-		ddaEDSMaxUnavailable         intstr.IntOrString
+		ddaMaxUnavailable            intstr.IntOrString
 		numNodes                     int
 		numberReady                  int32
 		expectedProfilesByNode       map[string]types.NamespacedName
@@ -972,9 +990,9 @@ func TestApplyCreateStrategy(t *testing.T) {
 					},
 				},
 			},
-			ddaEDSMaxUnavailable: intstr.FromInt(3),
-			numNodes:             5,
-			numberReady:          0,
+			ddaMaxUnavailable: intstr.FromInt(3),
+			numNodes:          5,
+			numberReady:       0,
 			expectedProfilesByNode: map[string]types.NamespacedName{
 				"node1": {Namespace: testNamespace, Name: "profile1"},
 				"node2": {Namespace: testNamespace, Name: "profile1"},
@@ -1015,9 +1033,9 @@ func TestApplyCreateStrategy(t *testing.T) {
 					},
 				},
 			},
-			ddaEDSMaxUnavailable: intstr.FromInt(3),
-			numNodes:             5,
-			numberReady:          0,
+			ddaMaxUnavailable: intstr.FromInt(3),
+			numNodes:          5,
+			numberReady:       0,
 			expectedProfilesByNode: map[string]types.NamespacedName{
 				"node1": {Namespace: testNamespace, Name: "profile1"},
 				"node2": {Namespace: testNamespace, Name: "profile1"},
@@ -1059,9 +1077,9 @@ func TestApplyCreateStrategy(t *testing.T) {
 					},
 				},
 			},
-			ddaEDSMaxUnavailable: intstr.FromInt(2),
-			numNodes:             5,
-			numberReady:          0,
+			ddaMaxUnavailable: intstr.FromInt(2),
+			numNodes:          5,
+			numberReady:       0,
 			expectedProfilesByNode: map[string]types.NamespacedName{
 				"node1": {Namespace: testNamespace, Name: "profile1"},
 				"node2": {Namespace: testNamespace, Name: "profile1"},
@@ -1104,9 +1122,9 @@ func TestApplyCreateStrategy(t *testing.T) {
 					},
 				},
 			},
-			ddaEDSMaxUnavailable: intstr.FromInt(1),
-			numNodes:             5,
-			numberReady:          2, // node1 and node2 pods are ready
+			ddaMaxUnavailable: intstr.FromInt(1),
+			numNodes:          5,
+			numberReady:       2, // node1 and node2 pods are ready
 			expectedProfilesByNode: map[string]types.NamespacedName{
 				"node1": {Namespace: testNamespace, Name: "profile1"},
 				"node2": {Namespace: testNamespace, Name: "profile1"},
@@ -1177,9 +1195,9 @@ func TestApplyCreateStrategy(t *testing.T) {
 					},
 				},
 			},
-			ddaEDSMaxUnavailable: intstr.FromInt(2),
-			numNodes:             5,
-			numberReady:          0,
+			ddaMaxUnavailable: intstr.FromInt(2),
+			numNodes:          5,
+			numberReady:       0,
 			expectedProfilesByNode: map[string]types.NamespacedName{
 				"node1": {Namespace: testNamespace, Name: "profile1"},
 				"node2": {Namespace: testNamespace, Name: "profile1"},
@@ -1219,9 +1237,9 @@ func TestApplyCreateStrategy(t *testing.T) {
 					Status: v1alpha1.DatadogAgentProfileStatus{}, // nil CreateStrategy
 				},
 			},
-			ddaEDSMaxUnavailable: intstr.FromInt(1),
-			numNodes:             1,
-			numberReady:          0,
+			ddaMaxUnavailable: intstr.FromInt(1),
+			numNodes:          1,
+			numberReady:       0,
 			expectedProfilesByNode: map[string]types.NamespacedName{
 				"node1": {Namespace: testNamespace, Name: "profile1"},
 			},
@@ -1245,7 +1263,7 @@ func TestApplyCreateStrategy(t *testing.T) {
 					NumberReady: tt.numberReady,
 				}
 				profileNSName := types.NamespacedName{Namespace: profile.Namespace, Name: profile.Name}
-				ApplyCreateStrategy(logger, tt.profilesByNode, tt.csInfo[profileNSName], profile, tt.ddaEDSMaxUnavailable, tt.numNodes, dsStatus)
+				ApplyCreateStrategy(logger, tt.profilesByNode, tt.csInfo[profileNSName], profile, tt.ddaMaxUnavailable, tt.numNodes, dsStatus)
 			}
 
 			assert.Equal(t, tt.expectedProfilesByNode, tt.profilesByNode)

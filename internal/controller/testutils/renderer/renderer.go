@@ -17,7 +17,6 @@ import (
 	"path/filepath"
 	goruntime "runtime"
 
-	edsdatadoghqv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -88,7 +87,6 @@ func BuildScheme() *runtime.Scheme {
 	utilruntime.Must(clientgoscheme.AddToScheme(s))
 	utilruntime.Must(apiregistrationv1.AddToScheme(s))
 	utilruntime.Must(datadoghqv1alpha1.AddToScheme(s))
-	utilruntime.Must(edsdatadoghqv1alpha1.AddToScheme(s))
 	utilruntime.Must(datadoghqv2alpha1.AddToScheme(s))
 	utilruntime.Must(apiextensionsv1.AddToScheme(s))
 	return s

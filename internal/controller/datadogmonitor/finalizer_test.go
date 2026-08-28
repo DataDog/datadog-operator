@@ -34,6 +34,7 @@ func Test_handleFinalizer(t *testing.T) {
 	metaNow := metav1.NewTime(time.Now())
 
 	r := &Reconciler{
+		requeuePeriod: defaultRequeuePeriod,
 		client: fake.NewClientBuilder().
 			WithRuntimeObjects(
 				&datadoghqv1alpha1.DatadogMonitor{

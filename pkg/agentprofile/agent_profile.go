@@ -23,7 +23,6 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 )
 
@@ -312,7 +311,7 @@ func CreateStrategyEnabled() bool {
 // ApplyCreateStrategy applies the create strategy to the profiles
 // - determines the max number of nodes that can be labeled based on max unavailable values
 // - updates the profile status based on the create strategy
-func ApplyCreateStrategy(logger logr.Logger, profilesByNode map[string]types.NamespacedName, csInfo *CreateStrategyInfo, profile *v1alpha1.DatadogAgentProfile, ddaEDSMaxUnavailable intstr.IntOrString, numNodes int, dsStatus *appsv1.DaemonSetStatus) {
+func ApplyCreateStrategy(logger logr.Logger, profilesByNode map[string]types.NamespacedName, csInfo *CreateStrategyInfo, profile *v1alpha1.DatadogAgentProfile, ddaMaxUnavailable intstr.IntOrString, numNodes int, dsStatus *appsv1.DaemonSetStatus) {
 	// Preserve previous status fields to ensure stable transitions across reconciles.
 	var previousStatus v1alpha1.CreateStrategyStatus
 	var previousLastTransition *metav1.Time
@@ -325,7 +324,7 @@ func ApplyCreateStrategy(logger logr.Logger, profilesByNode map[string]types.Nam
 		profile.Status.CreateStrategy = &v1alpha1.CreateStrategy{}
 	}
 
-	maxUnavailable := int32(getMaxNodesToLabel(logger, profile.Spec.Config, ddaEDSMaxUnavailable, numNodes))
+	maxUnavailable := int32(getMaxNodesToLabel(logger, profile.Spec.Config, ddaMaxUnavailable, numNodes))
 
 	// currentUnavailable: nodes labeled but pods not ready yet
 	currentUnavailable := int32(0)
@@ -400,8 +399,8 @@ func updateCreateStrategyStatus(profile *v1alpha1.DatadogAgentProfile, info *Cre
 	profile.Status.CreateStrategy.Status = newStatus
 }
 
-// GetMaxUnavailableFromSpecAndEDS gets the max unavailable value from a dda spec and eds options, and allows for a custom default value to be provided
-func GetMaxUnavailableFromSpecAndEDS(spec *v2alpha1.DatadogAgentSpec, edsOptions *agent.ExtendedDaemonsetOptions, customDefault *intstr.IntOrString) intstr.IntOrString {
+// GetMaxUnavailableFromSpec gets the max unavailable value from a DatadogAgent spec and allows for a custom default value to be provided.
+func GetMaxUnavailableFromSpec(spec *v2alpha1.DatadogAgentSpec, customDefault *intstr.IntOrString) intstr.IntOrString {
 	// maxUnavailable from DDA spec
 	if spec != nil {
 		if nodeAgentOverride, ok := spec.Override[v2alpha1.NodeAgentComponentName]; ok {
@@ -409,11 +408,6 @@ func GetMaxUnavailableFromSpecAndEDS(spec *v2alpha1.DatadogAgentSpec, edsOptions
 				return *nodeAgentOverride.UpdateStrategy.RollingUpdate.MaxUnavailable
 			}
 		}
-	}
-
-	// maxUnavailable from EDS options
-	if edsOptions != nil && edsOptions.MaxPodUnavailable != "" {
-		return intstr.Parse(edsOptions.MaxPodUnavailable)
 	}
 
 	// if a default value is provided, return it over the k8s default
@@ -425,9 +419,9 @@ func GetMaxUnavailableFromSpecAndEDS(spec *v2alpha1.DatadogAgentSpec, edsOptions
 	return intstr.FromInt(defaultMaxUnavailable)
 }
 
-func getMaxNodesToLabel(logger logr.Logger, spec *v2alpha1.DatadogAgentSpec, ddaEDSMaxUnavailable intstr.IntOrString, numNodes int) int {
-	// get max unavailable from profile with fallback to dda/eds max unavailable
-	profileMaxUnavailable := GetMaxUnavailableFromSpecAndEDS(spec, nil, &ddaEDSMaxUnavailable)
+func getMaxNodesToLabel(logger logr.Logger, spec *v2alpha1.DatadogAgentSpec, ddaMaxUnavailable intstr.IntOrString, numNodes int) int {
+	// Get max unavailable from the profile with fallback to the DatadogAgent value.
+	profileMaxUnavailable := GetMaxUnavailableFromSpec(spec, &ddaMaxUnavailable)
 
 	// use max unavailable to calculate the max number of nodes to label
 	numToScale, err := intstr.GetScaledValueFromIntOrPercent(&profileMaxUnavailable, numNodes, true)

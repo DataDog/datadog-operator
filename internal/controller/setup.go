@@ -17,7 +17,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent"
-	componentagent "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal"
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
@@ -37,11 +36,12 @@ const (
 
 // SetupOptions defines options for setting up controllers to ease testing
 type SetupOptions struct {
-	SupportExtendedDaemonset          ExtendedDaemonsetOptions
 	SupportCilium                     bool
 	CredsManager                      *config.CredentialManager
 	DatadogAgentEnabled               bool
 	DatadogMonitorEnabled             bool
+	DatadogMonitorMaxWorkers          int
+	DatadogMonitorRequeue             time.Duration
 	DatadogSLOEnabled                 bool
 	OperatorMetricsEnabled            bool
 	V2APIEnabled                      bool
@@ -59,22 +59,6 @@ type SetupOptions struct {
 	RolloutOnConfigMapChangeEnabled   bool
 	DefaultDataPlaneLinuxEnabled      bool
 	ClusterProviderDetector           datadogagent.ProviderReader
-}
-
-// ExtendedDaemonsetOptions defines ExtendedDaemonset options
-type ExtendedDaemonsetOptions struct {
-	Enabled                   bool
-	MaxPodUnavailable         string
-	MaxPodSchedulerFailure    string
-	SlowStartAdditiveIncrease string
-
-	CanaryDuration                      time.Duration
-	CanaryReplicas                      string
-	CanaryAutoPauseEnabled              bool
-	CanaryAutoPauseMaxRestarts          int
-	CanaryAutoFailEnabled               bool
-	CanaryAutoFailMaxRestarts           int
-	CanaryAutoPauseMaxSlowStartDuration time.Duration
 }
 
 type starterFunc func(logr.Logger, manager.Manager, kubernetes.PlatformInfo, SetupOptions, datadog.MetricsForwardersManager) error
@@ -122,19 +106,6 @@ func startDatadogAgent(logger logr.Logger, mgr manager.Manager, pInfo kubernetes
 		Scheme:       mgr.GetScheme(),
 		Recorder:     mgr.GetEventRecorderFor(agentControllerName),
 		Options: datadogagent.ReconcilerOptions{
-			ExtendedDaemonsetOptions: componentagent.ExtendedDaemonsetOptions{
-				Enabled:                             options.SupportExtendedDaemonset.Enabled,
-				MaxPodUnavailable:                   options.SupportExtendedDaemonset.MaxPodUnavailable,
-				MaxPodSchedulerFailure:              options.SupportExtendedDaemonset.MaxPodSchedulerFailure,
-				SlowStartAdditiveIncrease:           options.SupportExtendedDaemonset.SlowStartAdditiveIncrease,
-				CanaryDuration:                      options.SupportExtendedDaemonset.CanaryDuration,
-				CanaryReplicas:                      options.SupportExtendedDaemonset.CanaryReplicas,
-				CanaryAutoPauseEnabled:              options.SupportExtendedDaemonset.CanaryAutoPauseEnabled,
-				CanaryAutoPauseMaxRestarts:          int32(options.SupportExtendedDaemonset.CanaryAutoPauseMaxRestarts),
-				CanaryAutoPauseMaxSlowStartDuration: options.SupportExtendedDaemonset.CanaryAutoPauseMaxSlowStartDuration,
-				CanaryAutoFailEnabled:               options.SupportExtendedDaemonset.CanaryAutoFailEnabled,
-				CanaryAutoFailMaxRestarts:           int32(options.SupportExtendedDaemonset.CanaryAutoFailMaxRestarts),
-			},
 			SupportCilium:              options.SupportCilium,
 			OperatorMetricsEnabled:     options.OperatorMetricsEnabled,
 			IntrospectionEnabled:       options.IntrospectionEnabled,
@@ -161,19 +132,6 @@ func startDatadogAgentInternal(logger logr.Logger, mgr manager.Manager, pInfo ku
 		Scheme:       mgr.GetScheme(),
 		Recorder:     mgr.GetEventRecorderFor(agentInternalControllerName),
 		Options: datadogagentinternal.ReconcilerOptions{
-			ExtendedDaemonsetOptions: componentagent.ExtendedDaemonsetOptions{
-				Enabled:                             options.SupportExtendedDaemonset.Enabled,
-				MaxPodUnavailable:                   options.SupportExtendedDaemonset.MaxPodUnavailable,
-				MaxPodSchedulerFailure:              options.SupportExtendedDaemonset.MaxPodSchedulerFailure,
-				SlowStartAdditiveIncrease:           options.SupportExtendedDaemonset.SlowStartAdditiveIncrease,
-				CanaryDuration:                      options.SupportExtendedDaemonset.CanaryDuration,
-				CanaryReplicas:                      options.SupportExtendedDaemonset.CanaryReplicas,
-				CanaryAutoPauseEnabled:              options.SupportExtendedDaemonset.CanaryAutoPauseEnabled,
-				CanaryAutoPauseMaxRestarts:          int32(options.SupportExtendedDaemonset.CanaryAutoPauseMaxRestarts),
-				CanaryAutoPauseMaxSlowStartDuration: options.SupportExtendedDaemonset.CanaryAutoPauseMaxSlowStartDuration,
-				CanaryAutoFailEnabled:               options.SupportExtendedDaemonset.CanaryAutoFailEnabled,
-				CanaryAutoFailMaxRestarts:           int32(options.SupportExtendedDaemonset.CanaryAutoFailMaxRestarts),
-			},
 			SupportCilium:                   options.SupportCilium,
 			OperatorMetricsEnabled:          options.OperatorMetricsEnabled,
 			UntaintControllerEnabled:        options.UntaintControllerEnabled,
@@ -199,6 +157,10 @@ func startDatadogMonitor(logger logr.Logger, mgr manager.Manager, pInfo kubernet
 		Scheme:                 mgr.GetScheme(),
 		Recorder:               mgr.GetEventRecorderFor(monitorControllerName),
 		operatorMetricsEnabled: options.OperatorMetricsEnabled,
+		Options: DatadogMonitorReconcilerOptions{
+			MaxConcurrentReconciles: options.DatadogMonitorMaxWorkers,
+			RequeuePeriod:           options.DatadogMonitorRequeue,
+		},
 	}
 
 	return monitorReconciler.SetupWithManager(mgr, metricForwardersMgr)

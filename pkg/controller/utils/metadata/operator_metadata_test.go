@@ -282,7 +282,6 @@ func Test_GetPayload(t *testing.T) {
 		"datadogagentprofile_enabled",
 		"datadogagentinternal_enabled",
 		"leader_election_enabled",
-		"extendeddaemonset_enabled",
 		"remote_config_enabled",
 		"introspection_enabled",
 		"cluster_id",
