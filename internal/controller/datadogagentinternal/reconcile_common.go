@@ -11,7 +11,6 @@ import (
 	"maps"
 	"time"
 
-	edsv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -40,7 +39,6 @@ const (
 
 type updateDepStatusComponentFunc func(deployment *appsv1.Deployment, newStatus *v1alpha1.DatadogAgentInternalStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string)
 type updateDSStatusComponentFunc func(daemonsetName string, daemonset *appsv1.DaemonSet, newStatus *v1alpha1.DatadogAgentInternalStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string)
-type updateEDSStatusComponentFunc func(eds *edsv1alpha1.ExtendedDaemonSet, newStatus *v1alpha1.DatadogAgentInternalStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string)
 
 func (r *Reconciler) createOrUpdateDeployment(ctx context.Context, ddai *v1alpha1.DatadogAgentInternal, deployment *appsv1.Deployment, newStatus *v1alpha1.DatadogAgentInternalStatus, updateStatusFunc updateDepStatusComponentFunc) (reconcile.Result, error) {
 	logger := ctrl.LoggerFrom(ctx).WithValues("object.kind", "Deployment", "object.namespace", deployment.Namespace, "object.name", deployment.Name)
@@ -315,117 +313,6 @@ func (r *Reconciler) createOrUpdateDaemonset(ctx context.Context, ddai *v1alpha1
 		r.recordEvent(ddai, event)
 		updateStatusFunc(daemonset.Name, daemonset, newStatus, now, metav1.ConditionTrue, createSucceeded, "Daemonset created")
 	}
-
-	return result, err
-}
-
-func (r *Reconciler) createOrUpdateExtendedDaemonset(ctx context.Context, ddai *v1alpha1.DatadogAgentInternal, eds *edsv1alpha1.ExtendedDaemonSet, newStatus *v1alpha1.DatadogAgentInternalStatus, updateStatusFunc updateEDSStatusComponentFunc) (reconcile.Result, error) {
-	logger := ctrl.LoggerFrom(ctx).WithValues("object.kind", "ExtendedDaemonSet", "object.namespace", eds.Namespace, "object.name", eds.Name)
-	var result reconcile.Result
-	var err error
-
-	// Set DatadogAgent instance as the owner and controller
-	if err = controllerutil.SetControllerReference(ddai, eds, r.scheme); err != nil {
-		return reconcile.Result{}, err
-	}
-	// Finalize Kubernetes-version-dependent Pod template compatibility after all mutations and before hashing.
-	controllercommon.FinalizeAppArmorProfile(&eds.Spec.Template, r.platformInfo)
-
-	// From here the PodTemplateSpec should be ready, we can generate the hash that will be used to compare this extendeddaemonset with the current one (if it exists).
-	var hash string
-	hash, err = comparison.SetMD5DatadogAgentGenerationAnnotation(&eds.ObjectMeta, eds.Spec)
-	if err != nil {
-		return result, err
-	}
-
-	// Get the current extendeddaemonset and compare
-	nsName := types.NamespacedName{
-		Name:      eds.GetName(),
-		Namespace: eds.GetNamespace(),
-	}
-
-	currentEDS := &edsv1alpha1.ExtendedDaemonSet{}
-	alreadyExists := true
-	err = r.client.Get(ctx, nsName, currentEDS)
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			logger.Info("ExtendedDaemonSet is not found")
-			alreadyExists = false
-		} else {
-			logger.Error(err, "unexpected error during ExtendedDaemonSet get")
-			return reconcile.Result{}, err
-		}
-	}
-
-	if alreadyExists {
-		// check owner reference
-		if shouldUpdateOwnerReference(currentEDS.OwnerReferences) {
-			logger.Info("Updating ExtendedDaemonSet owner reference")
-			now := metav1.NewTime(time.Now())
-			patch, e := createOwnerReferencePatch(currentEDS.OwnerReferences, ddai, ddai.GetObjectKind().GroupVersionKind())
-			if e != nil {
-				logger.Error(e, "Unable to patch ExtendedDaemonSet owner reference")
-				updateStatusFunc(nil, newStatus, now, metav1.ConditionFalse, patchSucceeded, "Unable to patch ExtendedDaemonSet owner reference")
-				return reconcile.Result{}, e
-			}
-			// use merge patch to replace the entire existing owner reference list
-			err = r.client.Patch(ctx, currentEDS, client.RawPatch(types.MergePatchType, patch))
-			if err != nil {
-				logger.Error(err, "Unable to patch ExtendedDaemonSet owner reference")
-				updateStatusFunc(nil, newStatus, now, metav1.ConditionFalse, patchSucceeded, "Unable to patch ExtendedDaemonSet owner reference")
-				return reconcile.Result{}, err
-			}
-			logger.Info("ExtendedDaemonSet owner reference patched")
-		}
-
-		// check if same hash
-		needUpdate := !comparison.IsSameSpecMD5Hash(hash, currentEDS.GetAnnotations())
-		if !needUpdate {
-			// Even if the EDS is still the same, its status might have
-			// changed (for example, the number of pods ready). This call is
-			// needed to keep the agent status updated.
-			now := metav1.NewTime(time.Now())
-			newStatus.Agent = condition.UpdateExtendedDaemonSetStatusDDAI(currentEDS, newStatus.Agent, &now)
-
-			// Stop reconcile loop since EDS hasn't changed
-			return reconcile.Result{}, nil
-		}
-
-		logger.Info("Updating ExtendedDaemonSet")
-
-		// TODO: these parameters can be added to the override.PodTemplateSpec. (It exists in v1alpha1)
-		keepAnnotationsFilter := ""
-		keepLabelsFilter := ""
-
-		// Copy possibly changed fields
-		updateEDS := eds.DeepCopy()
-		updateEDS.Spec = *eds.Spec.DeepCopy()
-		updateEDS.Annotations = mergeAnnotationsLabels(ctx, currentEDS.GetAnnotations(), eds.GetAnnotations(), keepAnnotationsFilter)
-		updateEDS.Labels = mergeAnnotationsLabels(ctx, currentEDS.GetLabels(), eds.GetLabels(), keepLabelsFilter)
-
-		now := metav1.NewTime(time.Now())
-		err = kubernetes.UpdateFromObject(ctx, r.client, updateEDS, currentEDS.ObjectMeta)
-		if err != nil {
-			updateStatusFunc(updateEDS, newStatus, now, metav1.ConditionFalse, updateSucceeded, "Unable to update ExtendedDaemonSet")
-			return reconcile.Result{}, err
-		}
-		event := buildEventInfo(updateEDS.Name, updateEDS.Namespace, kubernetes.ExtendedDaemonSetKind, datadog.UpdateEvent)
-		r.recordEvent(ddai, event)
-		updateStatusFunc(updateEDS, newStatus, now, metav1.ConditionTrue, updateSucceeded, "ExtendedDaemonSet updated")
-	} else {
-		now := metav1.NewTime(time.Now())
-
-		err = r.client.Create(ctx, eds)
-		if err != nil {
-			updateStatusFunc(nil, newStatus, now, metav1.ConditionFalse, createSucceeded, "Unable to create ExtendedDaemonSet")
-			return reconcile.Result{}, err
-		}
-		event := buildEventInfo(eds.Name, eds.Namespace, kubernetes.ExtendedDaemonSetKind, datadog.CreationEvent)
-		r.recordEvent(ddai, event)
-		updateStatusFunc(eds, newStatus, now, metav1.ConditionTrue, createSucceeded, "ExtendedDaemonSet created")
-	}
-
-	logger.Info("Creating ExtendedDaemonSet")
 
 	return result, err
 }

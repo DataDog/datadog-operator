@@ -10,7 +10,6 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
@@ -34,76 +33,41 @@ func Test_getValidDaemonSetNames(t *testing.T) {
 		dsName               string
 		introspectionEnabled bool
 		profilesEnabled      bool
-		edsEnabled           bool
 		useV3Metadata        bool
 		existingProviders    map[string]struct{}
 		existingProfiles     []v1alpha1.DatadogAgentProfile
 		wantDS               map[string]struct{}
-		wantEDS              map[string]struct{}
 	}{
 		// V2 Metadata test cases
 		{
-			name:                 "v2: introspection disabled, profiles disabled, eds disabled",
+			name:                 "v2: introspection disabled, profiles disabled",
 			dsName:               "foo",
 			introspectionEnabled: false,
 			profilesEnabled:      false,
-			edsEnabled:           false,
 			useV3Metadata:        false,
 			existingProviders: map[string]struct{}{
 				gkeCosProvider: {},
 			},
 			existingProfiles: []v1alpha1.DatadogAgentProfile{},
 			wantDS:           map[string]struct{}{"foo": {}},
-			wantEDS:          map[string]struct{}{},
 		},
 		{
-			name:                 "v2: introspection disabled, profiles disabled, eds enabled",
-			dsName:               "foo",
-			introspectionEnabled: false,
-			profilesEnabled:      false,
-			edsEnabled:           true,
-			useV3Metadata:        false,
-			existingProviders: map[string]struct{}{
-				gkeCosProvider: {},
-			},
-			existingProfiles: []v1alpha1.DatadogAgentProfile{},
-			wantDS:           map[string]struct{}{},
-			wantEDS:          map[string]struct{}{"foo": {}},
-		},
-		{
-			name:                 "v2: introspection enabled, profiles disabled, eds disabled",
+			name:                 "v2: introspection enabled, profiles disabled",
 			dsName:               "foo",
 			introspectionEnabled: true,
 			profilesEnabled:      false,
-			edsEnabled:           false,
 			useV3Metadata:        false,
 			existingProviders: map[string]struct{}{
 				gkeCosProvider: {},
 			},
 			existingProfiles: []v1alpha1.DatadogAgentProfile{},
 			wantDS:           map[string]struct{}{"foo-gke-cos": {}},
-			wantEDS:          map[string]struct{}{},
 		},
 		{
-			name:                 "v2: introspection enabled, profiles disabled, eds enabled",
-			dsName:               "foo",
-			introspectionEnabled: true,
-			profilesEnabled:      false,
-			edsEnabled:           true,
-			useV3Metadata:        false,
-			existingProviders: map[string]struct{}{
-				gkeCosProvider: {},
-			},
-			existingProfiles: []v1alpha1.DatadogAgentProfile{},
-			wantDS:           map[string]struct{}{},
-			wantEDS:          map[string]struct{}{"foo-gke-cos": {}},
-		},
-		{
-			name:                 "v2: introspection enabled, profiles enabled, eds disabled",
+			name:                 "v2: introspection enabled, profiles enabled",
 			dsName:               "foo",
 			introspectionEnabled: true,
 			profilesEnabled:      true,
-			edsEnabled:           false,
 			useV3Metadata:        false,
 			existingProviders: map[string]struct{}{
 				gkeCosProvider:  {},
@@ -122,100 +86,38 @@ func Test_getValidDaemonSetNames(t *testing.T) {
 				"foo-gke-cos": {},
 				"datadog-agent-with-profile-ns-1-profile-1-default": {},
 				"datadog-agent-with-profile-ns-1-profile-1-gke-cos": {},
-			},
-			wantEDS: map[string]struct{}{},
-		},
-		{
-			name:                 "v2: introspection enabled, profiles enabled, eds enabled",
-			dsName:               "foo",
-			introspectionEnabled: true,
-			profilesEnabled:      true,
-			edsEnabled:           true,
-			useV3Metadata:        false,
-			existingProviders: map[string]struct{}{
-				gkeCosProvider:  {},
-				defaultProvider: {},
-			},
-			existingProfiles: []v1alpha1.DatadogAgentProfile{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "profile-1",
-						Namespace: "ns-1",
-					},
-				},
-			},
-			wantDS: map[string]struct{}{
-				"datadog-agent-with-profile-ns-1-profile-1-default": {},
-				"datadog-agent-with-profile-ns-1-profile-1-gke-cos": {},
-			},
-			wantEDS: map[string]struct{}{
-				"foo-default": {},
-				"foo-gke-cos": {},
 			},
 		},
 		// V3 Metadata test cases
 		{
-			name:                 "v3: introspection disabled, profiles disabled, eds disabled",
+			name:                 "v3: introspection disabled, profiles disabled",
 			dsName:               "foo",
 			introspectionEnabled: false,
 			profilesEnabled:      false,
-			edsEnabled:           false,
 			useV3Metadata:        true,
 			existingProviders: map[string]struct{}{
 				gkeCosProvider: {},
 			},
 			existingProfiles: []v1alpha1.DatadogAgentProfile{},
 			wantDS:           map[string]struct{}{"foo": {}},
-			wantEDS:          map[string]struct{}{},
 		},
 		{
-			name:                 "v3: introspection disabled, profiles disabled, eds enabled",
-			dsName:               "foo",
-			introspectionEnabled: false,
-			profilesEnabled:      false,
-			edsEnabled:           true,
-			useV3Metadata:        true,
-			existingProviders: map[string]struct{}{
-				gkeCosProvider: {},
-			},
-			existingProfiles: []v1alpha1.DatadogAgentProfile{},
-			wantDS:           map[string]struct{}{},
-			wantEDS:          map[string]struct{}{"foo": {}},
-		},
-		{
-			name:                 "v3: introspection enabled, profiles disabled, eds disabled",
+			name:                 "v3: introspection enabled, profiles disabled",
 			dsName:               "foo",
 			introspectionEnabled: true,
 			profilesEnabled:      false,
-			edsEnabled:           false,
 			useV3Metadata:        true,
 			existingProviders: map[string]struct{}{
 				gkeCosProvider: {},
 			},
 			existingProfiles: []v1alpha1.DatadogAgentProfile{},
 			wantDS:           map[string]struct{}{"foo-gke-cos": {}},
-			wantEDS:          map[string]struct{}{},
 		},
 		{
-			name:                 "v3: introspection enabled, profiles disabled, eds enabled",
-			dsName:               "foo",
-			introspectionEnabled: true,
-			profilesEnabled:      false,
-			edsEnabled:           true,
-			useV3Metadata:        true,
-			existingProviders: map[string]struct{}{
-				gkeCosProvider: {},
-			},
-			existingProfiles: []v1alpha1.DatadogAgentProfile{},
-			wantDS:           map[string]struct{}{},
-			wantEDS:          map[string]struct{}{"foo-gke-cos": {}},
-		},
-		{
-			name:                 "v3: introspection enabled, profiles enabled, eds disabled",
+			name:                 "v3: introspection enabled, profiles enabled",
 			dsName:               "foo",
 			introspectionEnabled: true,
 			profilesEnabled:      true,
-			edsEnabled:           false,
 			useV3Metadata:        true,
 			existingProviders: map[string]struct{}{
 				gkeCosProvider:  {},
@@ -235,35 +137,6 @@ func Test_getValidDaemonSetNames(t *testing.T) {
 				"profile-1-agent-default": {},
 				"profile-1-agent-gke-cos": {},
 			},
-			wantEDS: map[string]struct{}{},
-		},
-		{
-			name:                 "v3: introspection enabled, profiles enabled, eds enabled",
-			dsName:               "foo",
-			introspectionEnabled: true,
-			profilesEnabled:      true,
-			edsEnabled:           true,
-			useV3Metadata:        true,
-			existingProviders: map[string]struct{}{
-				gkeCosProvider:  {},
-				defaultProvider: {},
-			},
-			existingProfiles: []v1alpha1.DatadogAgentProfile{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "profile-1",
-						Namespace: "ns-1",
-					},
-				},
-			},
-			wantDS: map[string]struct{}{
-				"profile-1-agent-default": {},
-				"profile-1-agent-gke-cos": {},
-			},
-			wantEDS: map[string]struct{}{
-				"foo-default": {},
-				"foo-gke-cos": {},
-			},
 		},
 	}
 
@@ -273,15 +146,11 @@ func Test_getValidDaemonSetNames(t *testing.T) {
 				options: ReconcilerOptions{
 					IntrospectionEnabled:       tt.introspectionEnabled,
 					DatadogAgentProfileEnabled: tt.profilesEnabled,
-					ExtendedDaemonsetOptions: agent.ExtendedDaemonsetOptions{
-						Enabled: tt.edsEnabled,
-					},
 				},
 			}
 
-			validDSNames, validEDSNames := r.getValidDaemonSetNames(tt.dsName, tt.existingProviders, tt.existingProfiles, tt.useV3Metadata)
+			validDSNames := r.getValidDaemonSetNames(tt.dsName, tt.existingProviders, tt.existingProfiles, tt.useV3Metadata)
 			assert.Equal(t, tt.wantDS, validDSNames)
-			assert.Equal(t, tt.wantEDS, validEDSNames)
 		})
 	}
 }

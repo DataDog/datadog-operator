@@ -529,12 +529,6 @@ rules:
   - list
   - watch
 - apiGroups:
-  - datadoghq.com
-  resources:
-  - extendeddaemonsetreplicasets
-  verbs:
-  - get
-- apiGroups:
   - discovery.k8s.io
   resources:
   - endpointslices

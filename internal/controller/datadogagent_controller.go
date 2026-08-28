@@ -10,7 +10,6 @@ import (
 	"reflect"
 	"strings"
 
-	edsdatadoghqv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -109,10 +108,6 @@ type DatadogAgentReconciler struct {
 // Configure Datadog Intrumentation
 // +kubebuilder:rbac:groups=datadoghq.com,resources=datadoginstrumentations,verbs=get;list;watch
 // +kubebuilder:rbac:groups=datadoghq.com,resources=datadoginstrumentations/status,verbs=patch;update
-
-// Use ExtendedDaemonSet
-// +kubebuilder:rbac:groups=datadoghq.com,resources=extendeddaemonsets,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=datadoghq.com,resources=extendeddaemonsetreplicasets,verbs=get;list;watch;delete
 
 // Use CiliumNetworkPolicy
 // +kubebuilder:rbac:groups=cilium.io,resources=ciliumnetworkpolicies,verbs=get;list;watch;create;update;patch;delete
@@ -313,10 +308,6 @@ func (r *DatadogAgentReconciler) SetupWithManager(mgr ctrl.Manager, metricForwar
 	handlerEnqueue := handler.EnqueueRequestsFromMapFunc(enqueueIfOwnedByDatadogAgent)
 	builder.Watches(&rbacv1.ClusterRole{}, handlerEnqueue)
 	builder.Watches(&rbacv1.ClusterRoleBinding{}, handlerEnqueue)
-
-	if r.Options.ExtendedDaemonsetOptions.Enabled {
-		builder = builder.Owns(&edsdatadoghqv1alpha1.ExtendedDaemonSet{})
-	}
 
 	if r.Options.SupportCilium {
 		policy := &unstructured.Unstructured{}

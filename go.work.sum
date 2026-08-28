@@ -324,7 +324,6 @@ github.com/DataDog/datadog-agent/pkg/util/testutil v0.63.0-rc.1 h1:3Ct/38ONls2/g
 github.com/DataDog/datadog-agent/pkg/util/testutil v0.63.0-rc.1/go.mod h1:y1l7iTMENfjfgV4L3a5RtsMiQAVeu6B/0SEo6A8XDFQ=
 github.com/DataDog/datadog-api-client-go v1.16.0 h1:5jOZv1m98criCvYTa3qpW8Hzv301nbZX3K9yJtwGyWY=
 github.com/DataDog/datadog-api-client-go v1.16.0/go.mod h1:PgrP2ABuJWL3Auw2iEkemAJ/r72ghG4DQQmb5sgnKW4=
-github.com/DataDog/extendeddaemonset v0.10.0-rc.4 h1:m88E+emuRHIqKgi7kHMd9N0S/NtruCCOISp3cjB7DNs=
 github.com/DataDog/zstd v1.5.2/go.mod h1:g4AWEaM3yOg3HYfnJ3YIawPnVdXJh9QME85blwSAmyw=
 github.com/GoogleCloudPlatform/grpc-gcp-go/grpcgcp v1.5.0 h1:oVLqHXhnYtUwM89y9T1fXGaK9wTkXHgNp8/ZNMQzUxE=
 github.com/GoogleCloudPlatform/grpc-gcp-go/grpcgcp v1.5.0/go.mod h1:dppbR7CwXD4pgtV9t3wD1812RaLDcBjtblcDF5f1vI0=

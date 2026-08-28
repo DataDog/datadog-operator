@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"slices"
 
-	edsdatadoghqv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -30,8 +29,6 @@ const (
 	DatadogAgentStateRunning DatadogAgentState = "Running"
 	// DatadogAgentStateUpdating the deployment is currently under a rolling update.
 	DatadogAgentStateUpdating DatadogAgentState = "Updating"
-	// DatadogAgentStateCanary the deployment is currently under a canary testing (EDS only).
-	DatadogAgentStateCanary DatadogAgentState = "Canary"
 	// DatadogAgentStateFailed the current state of the deployment is considered as Failed.
 	DatadogAgentStateFailed DatadogAgentState = "Failed"
 )
@@ -240,44 +237,6 @@ func UpdateDaemonSetStatusDDAI(dsName string, ds *appsv1.DaemonSet, dsStatus *v2
 	return dsStatus
 }
 
-// UpdateExtendedDaemonSetStatusDDAI updates an ExtendedDaemonSet's DaemonSetStatus
-func UpdateExtendedDaemonSetStatusDDAI(eds *edsdatadoghqv1alpha1.ExtendedDaemonSet, dsStatus *v2alpha1.DaemonSetStatus, updateTime *metav1.Time) *v2alpha1.DaemonSetStatus {
-	if dsStatus == nil {
-		dsStatus = &v2alpha1.DaemonSetStatus{}
-	}
-
-	dsStatus.Desired = eds.Status.Desired
-	dsStatus.Current = eds.Status.Current
-	dsStatus.Ready = eds.Status.Ready
-	dsStatus.Available = eds.Status.Available
-	dsStatus.UpToDate = eds.Status.UpToDate
-	dsStatus.DaemonsetName = eds.ObjectMeta.Name
-
-	if updateTime != nil {
-		dsStatus.LastUpdate = updateTime
-	}
-	if hash, ok := eds.Annotations[constants.MD5AgentDeploymentAnnotationKey]; ok {
-		dsStatus.CurrentHash = hash
-	}
-
-	var deploymentState DatadogAgentState
-	switch {
-	case eds.Status.Canary != nil:
-		deploymentState = DatadogAgentStateCanary
-	case dsStatus.UpToDate != dsStatus.Desired:
-		deploymentState = DatadogAgentStateUpdating
-	case dsStatus.Ready == 0 && dsStatus.Desired != 0:
-		deploymentState = DatadogAgentStateProgressing
-	default:
-		deploymentState = DatadogAgentStateRunning
-	}
-
-	dsStatus.State = fmt.Sprintf("%v", deploymentState)
-	dsStatus.Status = fmt.Sprintf("%v (%d/%d/%d)", deploymentState, dsStatus.Desired, dsStatus.Ready, dsStatus.UpToDate)
-
-	return dsStatus
-}
-
 func getCombinedState(currentState, newState string) string {
 	currentNum := assignNumeralState(currentState)
 	newNum := assignNumeralState(newState)
@@ -298,14 +257,12 @@ func assignNumeralState(state string) int {
 	switch state {
 	case string(DatadogAgentStateFailed):
 		return 1
-	case string(DatadogAgentStateCanary):
-		return 2
 	case string(DatadogAgentStateUpdating):
-		return 3
+		return 2
 	case string(DatadogAgentStateProgressing):
-		return 4
+		return 3
 	case string(DatadogAgentStateRunning):
-		return 5
+		return 4
 	default:
 		return 0
 	}
