@@ -24,6 +24,9 @@ import (
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/dynamic"
 )
 
 const (
@@ -85,6 +88,13 @@ env:
 }
 
 func (s *gkeAutopilotSuite) TestAutopilotDDA() {
+	defer func() {
+		if s.T().Failed() {
+			s.logADPWorkloadDiagnostics(gkeAutopilotDDAName, gkeAutopilotAgentSelector)
+			s.logADPWorkloadDiagnostics(gkeAutopilotADPDisabledDDAName, gkeAutopilotADPDisabledAgentSelector)
+		}
+	}()
+
 	s.T().Cleanup(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 		defer cancel()
@@ -206,6 +216,40 @@ func (s *gkeAutopilotSuite) runningAgentPods(selector string) ([]corev1.Pod, err
 	}
 
 	return agentPods.Items, nil
+}
+
+func (s *gkeAutopilotSuite) logADPWorkloadDiagnostics(ddaName, agentSelector string) {
+	pods, err := s.Env().KubernetesCluster.Client().CoreV1().Pods(common.NamespaceName).List(context.TODO(), metav1.ListOptions{LabelSelector: agentSelector})
+	if err != nil {
+		s.T().Logf("could not list Agent pods for %s: %v", ddaName, err)
+	} else if len(pods.Items) == 0 {
+		s.T().Logf("no Agent pods found for %s", ddaName)
+	} else {
+		for _, pod := range pods.Items {
+			s.T().Logf("Agent pod for %s: name=%s phase=%s init=%v containers=%v", ddaName, pod.Name, pod.Status.Phase, pod.Status.InitContainerStatuses, pod.Status.ContainerStatuses)
+		}
+	}
+
+	client, err := dynamic.NewForConfig(s.Env().KubernetesCluster.KubernetesClient.K8sConfig)
+	if err != nil {
+		s.T().Logf("could not create dynamic client for %s: %v", ddaName, err)
+		return
+	}
+	ddai, err := client.Resource(schema.GroupVersionResource{Group: "datadoghq.com", Version: "v1alpha1", Resource: "datadogagentinternals"}).Namespace(common.NamespaceName).Get(context.TODO(), ddaName, metav1.GetOptions{})
+	if err != nil {
+		s.T().Logf("could not get DatadogAgentInternal for %s: %v", ddaName, err)
+		return
+	}
+	conditions, found, err := unstructured.NestedSlice(ddai.Object, "status", "conditions")
+	if err != nil {
+		s.T().Logf("could not read DatadogAgentInternal conditions for %s: %v", ddaName, err)
+		return
+	}
+	if !found {
+		s.T().Logf("DatadogAgentInternal for %s has no status conditions", ddaName)
+		return
+	}
+	s.T().Logf("DatadogAgentInternal conditions for %s: %v", ddaName, conditions)
 }
 
 func (s *gkeAutopilotSuite) verifyAPIMetrics(c *assert.CollectT) {
