@@ -820,7 +820,7 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_DatadogFeatures(ref common.R
 					},
 					"appsec": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Appsec configuration. This block supersedes the deprecated `agent.datadoghq.com/appsec.*` annotations. Resolution is per field: a field set here wins, and a field left unset falls back to its annotation value if one is present. An empty list here does not clear an annotation-set value.",
+							Description: "Appsec configuration.",
 							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.AppsecFeatureConfig"),
 						},
 					},
