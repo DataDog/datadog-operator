@@ -575,6 +575,14 @@ e2e_gke_autopilot:
       aud: dd-octo-sts
   rules:
     - *skip_e2e_on_release_bundle_branch
+    # Skip if only .md files are changed. The operator image trigger uses the same
+    # guard, so this job must be excluded instead of depending on a missing job.
+    - if: $CI_COMMIT_BRANCH
+      changes:
+        paths:
+          - "*.md"
+        compare_to: "refs/heads/main"
+      when: never
     # Disable on Conductor-triggered jobs (ex: nightly) - must be first so it wins
     - if: '$DDR == "true"'
       when: never
