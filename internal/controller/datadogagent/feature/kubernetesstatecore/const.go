@@ -19,6 +19,19 @@ const (
 	ksmCoreVolumeName = "ksm-core-config"
 	// DefaultKubeStateMetricsCoreConf default ksm core ConfigMap name
 	defaultKubeStateMetricsCoreConf string = "kube-state-metrics-core-config"
+
+	// Filename for the pods-only check shipped to node agents when
+	// PodCollectionMode is set to node_kubelet.
+	ksmCorePodsOnNodeCheckName  = "kubernetes_state_core.yaml"
+	ksmCorePodsOnNodeVolumeName = "ksm-core-pods-on-node-config"
+	// defaultKSMPodsOnNodeConf is the default ConfigMap name suffix for
+	// the node-side KSM check (each pod-collection-on-node deployment owns
+	// one of these alongside the cluster-side ConfigMap).
+	defaultKSMPodsOnNodeConf string = "kube-state-metrics-core-pods-on-node-config"
+
+	// Minimum agent / cluster-agent / node-agent version supporting
+	// PodCollectionMode=node_kubelet and cluster_aggregates_enabled.
+	podCollectionOnNodeMinVersion = "7.82.0-0"
 )
 
 // GetKubeStateMetricsRBACResourceName return the RBAC resources name
