@@ -197,20 +197,27 @@ func (m *Mapper) mapValues(sourceValues chartutil.Values, mappingValues chartuti
 
 	// Map values.yaml => DDA
 	for _, sourceKey := range mappingKeys {
+		destKey, _ := mappingValues[sourceKey]
+		// Only copy a whole table if none of its sub-keys are mapped separately
+		// (e.g. agents.podSecurity.seLinuxContext.rule has its own mapping entry,
+		// so seLinuxContext itself shouldn't be copied as one big table).
+		hasMappedDescendant := hasDescendantMappingKey(mappingKeys, sourceKey)
+
 		pathVal, _ := sourceValues.PathValue(sourceKey)
 		if pathVal == nil {
 			if mapVal, ok := utils.GetPathMap(sourceValues[sourceKey]); ok && mapVal != nil {
 				pathVal = mapVal
-			} else if tableVal, err := sourceValues.Table(sourceKey); err == nil && len(tableVal) == 1 {
+			} else if tableVal, err := sourceValues.Table(sourceKey); err == nil && len(tableVal) > 0 && !hasMappedDescendant {
 				pathVal = tableVal
 			} else {
 				continue
 			}
 		}
 
-		utils.MergeOrSet(sourceKeysRef, sourceKey, map[string]any{"visited": true})
+		// Mark this key and everything nested under it as visited, since copying the
+		// whole table also covers all of its nested values.
+		markVisited(sourceKeysRef, sourceKey)
 
-		destKey, _ := mappingValues[sourceKey]
 		if (destKey == "" || destKey == nil) && !shouldSkipMappingKey(sourceKey) {
 			slog.Error("DDA destination key not found", "sourceKey", sourceKey)
 			errorCount++
@@ -381,6 +388,33 @@ func (m *Mapper) updateMapping(sourceValues chartutil.Values, mappingValues char
 	slog.Info("mapping file successfully updated", "path", m.MapConfig.MappingPath)
 
 	return nil
+}
+
+// hasDescendantMappingKey returns true if mappingKeys contains an entry that is a strict
+// descendant of sourceKey (i.e. prefixed with "sourceKey."). Such entries indicate that
+// sub-fields of the table at sourceKey are mapped individually, so the table itself must
+// not be copied wholesale.
+func hasDescendantMappingKey(mappingKeys []string, sourceKey string) bool {
+	prefix := sourceKey + "."
+	for _, k := range mappingKeys {
+		if strings.HasPrefix(k, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
+// markVisited marks sourceKey, and every flattened key nested beneath it, as visited in
+// sourceKeysRef. This is used when a table value is consumed as a whole (either copied
+// directly or passed to a mapFunc), which implicitly consumes all of its nested values too.
+func markVisited(sourceKeysRef map[string]any, sourceKey string) {
+	utils.MergeOrSet(sourceKeysRef, sourceKey, map[string]any{"visited": true})
+	prefix := sourceKey + "."
+	for k := range sourceKeysRef {
+		if strings.HasPrefix(k, prefix) {
+			utils.MergeOrSet(sourceKeysRef, k, map[string]any{"visited": true})
+		}
+	}
 }
 
 // flattenValues builds a mapping of dotted-key paths from a provided Values source.
