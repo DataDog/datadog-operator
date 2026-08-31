@@ -101,6 +101,19 @@ func (s *gkeAutopilotSuite) TestAutopilotDDA() {
 		s.logClusterAndNodeVersions()
 	})
 
+	s.Run("Verify Autopilot Agent DaemonSet creation", func() {
+		s.Assert().EventuallyWithT(func(c *assert.CollectT) {
+			_, err := s.Env().KubernetesCluster.Client().AppsV1().DaemonSets(common.NamespaceName).Get(
+				context.TODO(), gkeAutopilotDDAName+"-agent", metav1.GetOptions{},
+			)
+			assert.NoError(c, err)
+		}, 2*time.Minute, 10*time.Second, "GKE Autopilot rejected or did not create the Agent DaemonSet")
+	})
+	if s.T().Failed() {
+		s.logADPWorkloadDiagnostics(gkeAutopilotDDAName, gkeAutopilotAgentSelector)
+		return
+	}
+
 	s.Run("Verify Autopilot Agent", func() {
 		s.Assert().EventuallyWithT(func(c *assert.CollectT) {
 			utils.VerifyAgentPods(s.T(), c, common.NamespaceName, s.Env().KubernetesCluster.Client(), gkeAutopilotAgentSelector)
