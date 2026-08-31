@@ -11,7 +11,7 @@ spec:
   override:
     nodeAgent:
       labels:
-        cloud.google.com/matching-allowlist: datadog-datadog-daemonset-exemption-v1.0.5
+        cloud.google.com/matching-allowlist: datadog-datadog-daemonset-exemption-v1.0.6
       image:
         tag: 7.83.0-rc.5
   features:

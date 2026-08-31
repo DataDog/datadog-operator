@@ -57,6 +57,8 @@ env:
 
 	ddaConfigPath, err := common.GetAbsPath(filepath.Join(common.ManifestsPath, "datadog-agent-gke-autopilot.yaml"))
 	require.NoError(t, err)
+	allowlistPath, err := common.GetAbsPath(filepath.Join(common.ManifestsPath, "datadog-datadog-daemonset-exemption-v1.0.6.yaml"))
+	require.NoError(t, err)
 	ddaOptions := []agentwithoperatorparams.Option{
 		agentwithoperatorparams.WithNamespace(common.NamespaceName),
 		agentwithoperatorparams.WithDDAConfig(agentwithoperatorparams.DDAConfig{
@@ -70,6 +72,10 @@ env:
 		provisioners.WithGKETestName("e2e-operator-gke-autopilot"),
 		provisioners.WithGKEOperatorOptions(operatorOptions...),
 		provisioners.WithGKEDDAOptions(ddaOptions...),
+		provisioners.WithGKEYAMLWorkload(provisioners.YAMLWorkload{
+			Name: "datadog-workload-allowlist-v1-0-6",
+			Path: allowlistPath,
+		}),
 		provisioners.WithGKEAutopilot(),
 	}
 
