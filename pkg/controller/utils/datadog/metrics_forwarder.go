@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"hash/fnv"
+	"maps"
 	"os"
 	"strings"
 	"sync"
@@ -438,7 +439,7 @@ func (mf *metricsForwarder) forwardMetrics() error {
 	}
 
 	// send feature metrics
-	for _, featuresList := range mf.EnabledFeatures {
+	for _, featuresList := range mf.snapshotEnabledFeatures() {
 		for _, feature := range featuresList {
 			mf.sendFeatureMetric(ctx, feature)
 		}
@@ -447,6 +448,12 @@ func (mf *metricsForwarder) forwardMetrics() error {
 	mf.sendResourceCountMetric(ctx)
 
 	return nil
+}
+
+func (mf *metricsForwarder) snapshotEnabledFeatures() map[string][]string {
+	mf.RLock()
+	defer mf.RUnlock()
+	return maps.Clone(mf.EnabledFeatures)
 }
 
 // processReconcileError updates lastReconcileErr
