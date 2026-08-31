@@ -82,12 +82,6 @@ env:
 }
 
 func (s *gkeAutopilotSuite) TestAutopilotDDA() {
-	defer func() {
-		if s.T().Failed() {
-			s.logADPWorkloadDiagnostics(gkeAutopilotDDAName, gkeAutopilotAgentSelector)
-		}
-	}()
-
 	s.T().Cleanup(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 		defer cancel()
@@ -129,6 +123,10 @@ func (s *gkeAutopilotSuite) TestAutopilotDDA() {
 			s.verifyAPIConnections(c)
 		}, 15*time.Minute, 30*time.Second, "could not validate GKE Autopilot Agent in time")
 	})
+	if s.T().Failed() {
+		s.logADPWorkloadDiagnostics(gkeAutopilotDDAName, gkeAutopilotAgentSelector)
+		return
+	}
 
 	s.Run("Verify Autopilot Agent with ADP explicitly disabled", func() {
 		require.NoError(s.T(), s.setDDADataPlaneEnabled(gkeAutopilotDDAName, false))
@@ -144,6 +142,9 @@ func (s *gkeAutopilotSuite) TestAutopilotDDA() {
 			}
 		}, 15*time.Minute, 30*time.Second, "could not validate GKE Autopilot Agent with ADP disabled in time")
 	})
+	if s.T().Failed() {
+		s.logADPWorkloadDiagnostics(gkeAutopilotDDAName, gkeAutopilotAgentSelector)
+	}
 }
 
 func (s *gkeAutopilotSuite) logClusterAndNodeVersions() {
