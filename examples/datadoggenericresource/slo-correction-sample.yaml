@@ -1,0 +1,22 @@
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogGenericResource
+metadata:
+  name: ddgr-slo-correction-sample
+spec:
+  type: slo_correction
+  # This example excludes a scheduled maintenance window from the given SLO's error budget calculation.
+  # Replace slo_id with the ID of the SLO you want to correct.
+  jsonSpec: |-
+    {
+      "data": {
+        "type": "correction",
+        "attributes": {
+          "category": "Scheduled Maintenance",
+          "description": "Example SLO correction set by Datadog Generic Resource",
+          "slo_id": "00000000000000000000000000000000",
+          "start": 1735689600,
+          "duration": 3600,
+          "timezone": "UTC"
+        }
+      }
+    }

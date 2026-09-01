@@ -55,6 +55,7 @@ A `DatadogGenericResource` object has two fields:
 | `dashboard`               | v1.27.0          | https://docs.datadoghq.com/api/latest/dashboards/#create-a-dashboard                  | [Dashboard manifest](../../examples/datadoggenericresource/dashboard-sample.yaml)       |
 | `slo`                     | v1.28.0          | https://docs.datadoghq.com/api/latest/service-level-objectives/#create-an-slo-object  | [SLO manifest](../../examples/datadoggenericresource/slo-sample.yaml)                   |
 | `monitor_notification_rule` | v1.30.0        | https://docs.datadoghq.com/api/latest/monitors/create-a-monitor-notification-rule/    | [Notification rule manifest](../../examples/datadoggenericresource/notification-rule-sample.yaml) |
+| `slo_correction`          | v1.31.0          | https://docs.datadoghq.com/api/latest/service-level-objective-corrections/#create-an-slo-correction | [SLO correction manifest](../../examples/datadoggenericresource/slo-correction-sample.yaml) |
 
 ## Prerequisites
 
