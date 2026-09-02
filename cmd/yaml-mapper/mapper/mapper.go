@@ -197,7 +197,7 @@ func (m *Mapper) mapValues(sourceValues chartutil.Values, mappingValues chartuti
 
 	// Map values.yaml => DDA
 	for _, sourceKey := range mappingKeys {
-		destKey, _ := mappingValues[sourceKey]
+		destKey := mappingValues[sourceKey]
 		// Only copy a whole table if none of its sub-keys are mapped separately
 		// (e.g. agents.podSecurity.seLinuxContext.rule has its own mapping entry,
 		// so seLinuxContext itself shouldn't be copied as one big table).

@@ -1804,7 +1804,7 @@ spec:
                                                   description: NilIsZero indicates that if a value is nil it will be treated as zero value.
                                                   type: boolean
                                                 path:
-                                                  description: Path is the path to to generate metric(s) for.
+                                                  description: Path is the path to generate metric(s) for.
                                                   items:
                                                     type: string
                                                   type: array
@@ -1830,7 +1830,7 @@ spec:
                                                   description: LabelsFromPath adds additional labels where the value of the label is taken from a field under Path.
                                                   type: object
                                                 path:
-                                                  description: Path is the path to to generate metric(s) for.
+                                                  description: Path is the path to generate metric(s) for.
                                                   items:
                                                     type: string
                                                   type: array
@@ -1856,7 +1856,7 @@ spec:
                                                     type: string
                                                   type: array
                                                 path:
-                                                  description: Path is the path to to generate metric(s) for.
+                                                  description: Path is the path to generate metric(s) for.
                                                   items:
                                                     type: string
                                                   type: array

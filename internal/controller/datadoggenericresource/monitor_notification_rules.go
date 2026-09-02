@@ -126,8 +126,8 @@ func updateMonitorNotificationRule(auth context.Context, client *datadogV2.Monit
 
 	var specData struct {
 		Data struct {
-			Attributes *datadogV2.MonitorNotificationRuleAttributes
-		}
+			Attributes *datadogV2.MonitorNotificationRuleAttributes `json:"attributes"`
+		} `json:"data"`
 	}
 	if err := json.Unmarshal([]byte(instance.Spec.JsonSpec), &specData); err != nil {
 		return datadogV2.MonitorNotificationRuleResponse{}, translateClientError(err, "error unmarshalling monitor notification rule spec")

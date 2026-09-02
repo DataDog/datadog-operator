@@ -15,16 +15,12 @@ custom-order = true
 [linters]
 default = 'all'
 disable = [
-  'bodyclose',
-  'containedctx',
   'contextcheck',
   'cyclop',
   'dupl',
-  'dupword',
   'embeddedstructfieldcheck',
   'err113',
   'errcheck',
-  'errchkjson',
   'exhaustive',
   'exhaustruct',
   'forcetypeassert',
@@ -39,7 +35,6 @@ disable = [
   'godoclint',
   'godot',
   'godox',
-  'gomoddirectives',
   'gosec',
   'inamedparam',
   'interfacebloat',
@@ -49,27 +44,21 @@ disable = [
   'maintidx',
   'misspell',
   'mnd',
-  'musttag',
   'nakedret',
   'nestif',
   'nilnil',
   'nlreturn',
-  'nolintlint',
   'noinlineerr',
   'nonamedreturns',
   'paralleltest',
   'perfsprint',
   'revive',
-  'rowserrcheck',
-  'sqlclosecheck',
-  'staticcheck',
   'tagliatelle',
   'testpackage',
   'thelper',
   'unparam',
   'usestdlibvars',
   'varnamelen',
-  'wastedassign',
   'whitespace',
   'wrapcheck',
   'wsl',
@@ -108,6 +97,10 @@ enable = [
 [linters.settings.misspell]
 locale = 'US'
 
+[linters.settings.staticcheck]
+# Keep correctness checks while deferring the existing style and dependency-deprecation backlog.
+checks = ['all', '-QF*', '-ST*', '-SA1019']
+
 [linters.exclusions]
 generated = 'lax'
 paths = [
@@ -118,8 +111,5 @@ paths = [
 ]
 
 [issues]
-exclude-use-default = false
-max-per-linter = 0
+max-issues-per-linter = 0
 max-same-issues = 0
-exclude = []
-

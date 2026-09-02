@@ -694,8 +694,8 @@ func (mf *metricsForwarder) getCredentialsFromDDA(dda *v2alpha1.DatadogAgent) (s
 
 	defaultSecretName := secrets.GetDefaultCredentialsSecretName(dda)
 
+	var apiKey string
 	var err error
-	apiKey := ""
 
 	if dda.Spec.Global != nil && dda.Spec.Global.Credentials != nil && dda.Spec.Global.Credentials.APIKey != nil && *dda.Spec.Global.Credentials.APIKey != "" {
 		apiKey = *dda.Spec.Global.Credentials.APIKey
@@ -715,16 +715,12 @@ func (mf *metricsForwarder) getCredentialsFromDDA(dda *v2alpha1.DatadogAgent) (s
 }
 
 // getCredentialsFromDDAI retrieves the API key configured in the DatadogAgentInternal
-// DatadogAgentInternal are always stored in a secret, so we don't need to resolve secrets
+// credentials are always stored in a secret, so we don't need to resolve secrets.
 func (mf *metricsForwarder) getCredentialsFromDDAI(ddai *v1alpha1.DatadogAgentInternal) (string, error) {
-
-	var err error
-	apiKey := ""
-
 	defaultSecretName := secrets.GetDefaultCredentialsSecretName(ddai)
 
 	_, secretName, secretKeyName := secrets.GetAPIKeySecret(ddai.Spec.Global.Credentials, defaultSecretName)
-	apiKey, err = mf.getKeyFromSecret(ddai.Namespace, secretName, secretKeyName)
+	apiKey, err := mf.getKeyFromSecret(ddai.Namespace, secretName, secretKeyName)
 	if err != nil {
 		return "", err
 	}
@@ -922,7 +918,7 @@ func (mf *metricsForwarder) setUpDatadogAPIClient() {
 	mf.datadogEventsApi = datadogV1.NewEventsApi(apiClient) // Initialize events API
 }
 
-// API key set here. This and Get API from etc. etc.
+// generateDatadogContext configures the API key and endpoint used by API calls.
 func (mf *metricsForwarder) generateDatadogContext() context.Context {
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, datadogapi.ContextAPIKeys,
