@@ -13,6 +13,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/utils/ptr"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -149,6 +150,81 @@ func Test_privateActionRunnerFeature_ManageNodeAgent(t *testing.T) {
 	assert.Contains(t, capabilities, corev1.Capability("NET_RAW"))
 
 	assert.Empty(t, managers.AnnotationMgr.Annotations)
+}
+
+func Test_privateActionRunnerFeature_ManageNodeAgentSplitMode(t *testing.T) {
+	testScheme := runtime.NewScheme()
+	require.NoError(t, corev1.AddToScheme(testScheme))
+	require.NoError(t, v2alpha1.AddToScheme(testScheme))
+
+	dda := &v2alpha1.DatadogAgent{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-dda",
+			Namespace: "default",
+			Annotations: map[string]string{
+				"agent.datadoghq.com/private-action-runner-enabled": "true",
+				"agent.datadoghq.com/private-action-runner-configdata": `private_action_runner:
+  enabled: true
+  split_enabled: true`,
+			},
+		},
+	}
+	f := buildPrivateActionRunnerFeature(nil)
+	f.Configure(dda, &v2alpha1.DatadogAgentSpec{}, nil)
+
+	resourceManagers := feature.NewResourceManagers(store.NewStore(dda, &store.StoreOptions{Scheme: testScheme}))
+	require.NoError(t, f.ManageDependencies(resourceManagers))
+	obj, found := resourceManagers.Store().Get(kubernetes.ConfigMapKind, "default", "test-dda-privateactionrunner")
+	require.True(t, found)
+	configMap := obj.(*corev1.ConfigMap)
+	assert.Equal(t, privateActionRunnerControlProcessConfig, configMap.Data[privateActionRunnerControlProcessFileName])
+	assert.Equal(t, privateActionRunnerExecutorProcessConfig, configMap.Data[privateActionRunnerExecutorProcessFileName])
+
+	podTmpl := corev1.PodTemplateSpec{
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{{
+				Name:    string(apicommon.PrivateActionRunnerContainerName),
+				Command: []string{"monolithic-command"},
+			}},
+		},
+	}
+	managers := fake.NewPodTemplateManagers(t, podTmpl)
+	require.NoError(t, f.ManageNodeAgent(managers))
+
+	require.Len(t, managers.Tpl.Spec.Containers, 1)
+	assert.Equal(t, []string{
+		privateActionRunnerPythonPath,
+		"-c",
+		privateActionRunnerProcessManagerBootstrap,
+	}, managers.Tpl.Spec.Containers[0].Command)
+	assert.Nil(t, managers.Tpl.Spec.Containers[0].Args)
+
+	processVolumeName := "test-dda-privateactionrunner-processes"
+	var processVolume *corev1.Volume
+	for i := range managers.VolumeMgr.Volumes {
+		if managers.VolumeMgr.Volumes[i].Name == processVolumeName {
+			processVolume = managers.VolumeMgr.Volumes[i]
+			break
+		}
+	}
+	require.NotNil(t, processVolume)
+	assert.Equal(t, "test-dda-privateactionrunner", processVolume.ConfigMap.Name)
+	assert.ElementsMatch(t, []corev1.KeyToPath{
+		{Key: privateActionRunnerControlProcessFileName, Path: privateActionRunnerControlProcessFileName},
+		{Key: privateActionRunnerExecutorProcessFileName, Path: privateActionRunnerExecutorProcessFileName},
+	}, processVolume.ConfigMap.Items)
+
+	mounts := managers.VolumeMountMgr.VolumeMountsByC[apicommon.PrivateActionRunnerContainerName]
+	assert.Contains(t, mounts, &corev1.VolumeMount{
+		Name:      processVolumeName,
+		MountPath: privateActionRunnerProcessesPath,
+		ReadOnly:  true,
+	})
+	assert.Contains(t, mounts, ptr.To(common.GetVolumeMountForRunPath()))
+	assert.Contains(t, managers.EnvVarMgr.EnvVarsByC[apicommon.PrivateActionRunnerContainerName], &corev1.EnvVar{
+		Name:  "DD_PM_SOCKET_PATH",
+		Value: privateActionRunnerProcessManagerSocketPath,
+	})
 }
 
 // Test_privateActionRunnerFeature_ProfileDDAI_ConfigMapNames verifies that when PAR is

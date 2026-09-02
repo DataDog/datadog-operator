@@ -24,6 +24,7 @@ func TestParsePrivateActionRunnerConfig(t *testing.T) {
 			name: "valid config with self-enroll",
 			configData: `private_action_runner:
   enabled: true
+  split_enabled: true
   self_enroll: true
   identity_secret_name: my-secret`,
 			wantErr: false,
@@ -179,6 +180,49 @@ func TestParsePrivateActionRunnerConfig(t *testing.T) {
 			if tt.expectedConfig.LogFile != "" {
 				assert.Equal(t, tt.expectedConfig.LogFile, config.LogFile)
 			}
+		})
+	}
+}
+
+func TestSplitModeEnabledFromConfigData(t *testing.T) {
+	tests := []struct {
+		name       string
+		configData string
+		want       bool
+		wantErr    bool
+	}{
+		{
+			name: "enabled",
+			configData: `private_action_runner:
+  split_enabled: true`,
+			want: true,
+		},
+		{
+			name: "disabled",
+			configData: `private_action_runner:
+  split_enabled: false`,
+		},
+		{
+			name: "missing",
+			configData: `private_action_runner:
+  enabled: true`,
+		},
+		{
+			name:       "invalid YAML",
+			configData: `private_action_runner:\n  split_enabled: [`,
+			wantErr:    true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := splitModeEnabledFromConfigData(tt.configData)
+			if tt.wantErr {
+				assert.Error(t, err)
+				return
+			}
+			assert.NoError(t, err)
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }
