@@ -98,8 +98,8 @@ enable = [
 locale = 'US'
 
 [linters.settings.staticcheck]
-# Keep correctness checks while deferring the existing style and dependency-deprecation backlog.
-checks = ['all', '-QF*', '-ST*', '-SA1019']
+# Keep correctness and quick-fix checks while deferring the existing style and dependency-deprecation backlog.
+checks = ['all', '-ST*', '-SA1019']
 
 [linters.exclusions]
 generated = 'lax'

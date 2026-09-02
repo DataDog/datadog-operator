@@ -77,7 +77,7 @@ func AssignNodesToProfile(profile metav1.ObjectMeta, profileRequirements []*labe
 		profilesByNode[node.Name] = profileNSName
 		if CreateStrategyEnabled() {
 			profileLabelValue, labelExists := node.Labels[constants.ProfileLabelKey]
-			needsLabel := !(labelExists && profileLabelValue == profile.Name)
+			needsLabel := !labelExists || profileLabelValue != profile.Name
 			if needsLabel {
 				csInfo[profileNSName].nodesNeedingLabel = append(csInfo[profileNSName].nodesNeedingLabel, node.Name)
 			} else {
@@ -230,7 +230,7 @@ func SortProfiles(profiles []v1alpha1.DatadogAgentProfile) []v1alpha1.DatadogAge
 // compareProfiles compares two profiles first by creation time, then by name.
 func compareProfiles(a, b v1alpha1.DatadogAgentProfile) int {
 	return cmp.Or(
-		a.CreationTimestamp.Time.Compare(b.CreationTimestamp.Time),
+		a.CreationTimestamp.Compare(b.CreationTimestamp.Time),
 		cmp.Compare(a.Name, b.Name),
 	)
 }
