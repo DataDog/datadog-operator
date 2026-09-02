@@ -140,7 +140,7 @@ spec:
 : Sets the processor Service namespace. This is ignored for gke-gateway because the callout Service is resolved in each Gateway's own namespace; deploy the Service in every AppSec-enabled Gateway namespace.
 
 `features.appsec.injector.proxies`
-: Lists proxies for AppSec injection. Default: [] An empty list does not clear a value set by the `agent.datadoghq.com/appsec.injector.proxies` annotation; the annotation value stays in effect.
+: Lists proxies for AppSec injection. Default: []
 
 `features.appsec.injector.sidecar.bodyParsingSizeLimit`
 : Sets the sidecar body parsing size limit. Default: 0

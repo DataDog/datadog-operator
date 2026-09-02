@@ -17,418 +17,11 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 )
 
-// annotationBase returns a Config in which every annotation-backed field holds a
-// distinct, non-zero "annotation-derived" value. Merge tests start from this base so
-// that a single-field CRD overlay proves both that the CRD wins for that field and
-// that no other field is disturbed.
-//
-// GatewayClasses is intentionally absent: it is CRD-only and has no annotation.
-func annotationBase() Config {
-	return Config{
-		Enabled:                        true,
-		AutoDetect:                     ptr.To(true),
-		Proxies:                        []string{"istio"},
-		ProcessorAddress:               "ann-addr",
-		ProcessorPort:                  1111,
-		ProcessorServiceName:           "ann-svc",
-		ProcessorServiceNamespace:      "ann-ns",
-		Mode:                           "sidecar",
-		SidecarImage:                   "ann-image",
-		SidecarImageTag:                "ann-tag",
-		SidecarPort:                    "1000",
-		SidecarHealthPort:              "1001",
-		SidecarResourcesRequestsCPU:    "100m",
-		SidecarResourcesRequestsMemory: "128Mi",
-		SidecarResourcesLimitsCPU:      "200m",
-		SidecarResourcesLimitsMemory:   "256Mi",
-		SidecarBodyParsingSizeLimit:    "1024",
-		NginxModuleMountPath:           "/ann-mount",
-	}
-}
-
-// TestMergeInjectorConfig covers per-field CRD precedence, annotation fallback,
-// nil-safety at every nesting level, and the pointer/slice "is set" asymmetry.
-func TestMergeInjectorConfig(t *testing.T) {
-	tests := []struct {
-		name string
-		inj  *v2alpha1.AppsecInjectorConfig
-		// want mutates a copy of annotationBase() to describe the expected result.
-		// A nil mutator means "base returned unchanged".
-		want func(*Config)
-	}{
-		// --- A. Per-field CRD-wins: one row per destination Config field (19 total) ---
-		{
-			name: "1/19 Enabled: CRD wins over annotation",
-			inj:  &v2alpha1.AppsecInjectorConfig{Enabled: ptr.To(false)},
-			want: func(c *Config) { c.Enabled = false },
-		},
-		{
-			name: "2/19 AutoDetect: CRD wins over annotation",
-			inj:  &v2alpha1.AppsecInjectorConfig{AutoDetect: ptr.To(false)},
-			want: func(c *Config) { c.AutoDetect = ptr.To(false) },
-		},
-		{
-			name: "3/19 Proxies: CRD wins over annotation",
-			inj:  &v2alpha1.AppsecInjectorConfig{Proxies: []string{"envoy-gateway", "ingress-nginx"}},
-			want: func(c *Config) { c.Proxies = []string{"envoy-gateway", "ingress-nginx"} },
-		},
-		{
-			name: "4/19 ProcessorAddress: CRD wins over annotation",
-			inj: &v2alpha1.AppsecInjectorConfig{
-				Processor: &v2alpha1.AppsecInjectorProcessorConfig{Address: ptr.To("crd-addr")},
-			},
-			want: func(c *Config) { c.ProcessorAddress = "crd-addr" },
-		},
-		{
-			name: "5/19 ProcessorPort: CRD wins over annotation",
-			inj: &v2alpha1.AppsecInjectorConfig{
-				Processor: &v2alpha1.AppsecInjectorProcessorConfig{Port: ptr.To(int32(2222))},
-			},
-			want: func(c *Config) { c.ProcessorPort = 2222 },
-		},
-		{
-			name: "6/19 ProcessorServiceName: CRD wins over annotation",
-			inj: &v2alpha1.AppsecInjectorConfig{
-				Processor: &v2alpha1.AppsecInjectorProcessorConfig{
-					Service: &v2alpha1.AppsecInjectorProcessorServiceConfig{Name: ptr.To("crd-svc")},
-				},
-			},
-			want: func(c *Config) { c.ProcessorServiceName = "crd-svc" },
-		},
-		{
-			name: "7/19 ProcessorServiceNamespace: CRD wins over annotation",
-			inj: &v2alpha1.AppsecInjectorConfig{
-				Processor: &v2alpha1.AppsecInjectorProcessorConfig{
-					Service: &v2alpha1.AppsecInjectorProcessorServiceConfig{Namespace: ptr.To("crd-ns")},
-				},
-			},
-			want: func(c *Config) { c.ProcessorServiceNamespace = "crd-ns" },
-		},
-		{
-			name: "8/19 Mode: CRD wins over annotation",
-			inj:  &v2alpha1.AppsecInjectorConfig{Mode: ptr.To("external")},
-			want: func(c *Config) { c.Mode = "external" },
-		},
-		{
-			name: "9/19 SidecarImage: CRD wins over annotation",
-			inj: &v2alpha1.AppsecInjectorConfig{
-				Sidecar: &v2alpha1.AppsecInjectorSidecarConfig{Image: ptr.To("crd-image")},
-			},
-			want: func(c *Config) { c.SidecarImage = "crd-image" },
-		},
-		{
-			name: "10/19 SidecarImageTag: CRD wins over annotation",
-			inj: &v2alpha1.AppsecInjectorConfig{
-				Sidecar: &v2alpha1.AppsecInjectorSidecarConfig{ImageTag: ptr.To("crd-tag")},
-			},
-			want: func(c *Config) { c.SidecarImageTag = "crd-tag" },
-		},
-		{
-			name: "11/19 SidecarPort: CRD wins over annotation",
-			inj: &v2alpha1.AppsecInjectorConfig{
-				Sidecar: &v2alpha1.AppsecInjectorSidecarConfig{Port: ptr.To(int32(2000))},
-			},
-			want: func(c *Config) { c.SidecarPort = "2000" },
-		},
-		{
-			name: "12/19 SidecarHealthPort: CRD wins over annotation",
-			inj: &v2alpha1.AppsecInjectorConfig{
-				Sidecar: &v2alpha1.AppsecInjectorSidecarConfig{HealthPort: ptr.To(int32(2001))},
-			},
-			want: func(c *Config) { c.SidecarHealthPort = "2001" },
-		},
-		{
-			name: "13/19 SidecarResourcesRequestsCPU: CRD wins over annotation",
-			inj: &v2alpha1.AppsecInjectorConfig{
-				Sidecar: &v2alpha1.AppsecInjectorSidecarConfig{
-					Resources: &corev1.ResourceRequirements{
-						Requests: corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("250m")},
-					},
-				},
-			},
-			want: func(c *Config) { c.SidecarResourcesRequestsCPU = "250m" },
-		},
-		{
-			name: "14/19 SidecarResourcesRequestsMemory: CRD wins over annotation",
-			inj: &v2alpha1.AppsecInjectorConfig{
-				Sidecar: &v2alpha1.AppsecInjectorSidecarConfig{
-					Resources: &corev1.ResourceRequirements{
-						Requests: corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("512Mi")},
-					},
-				},
-			},
-			want: func(c *Config) { c.SidecarResourcesRequestsMemory = "512Mi" },
-		},
-		{
-			name: "15/19 SidecarResourcesLimitsCPU: CRD wins over annotation",
-			inj: &v2alpha1.AppsecInjectorConfig{
-				Sidecar: &v2alpha1.AppsecInjectorSidecarConfig{
-					Resources: &corev1.ResourceRequirements{
-						Limits: corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("750m")},
-					},
-				},
-			},
-			want: func(c *Config) { c.SidecarResourcesLimitsCPU = "750m" },
-		},
-		{
-			name: "16/19 SidecarResourcesLimitsMemory: CRD wins over annotation",
-			inj: &v2alpha1.AppsecInjectorConfig{
-				Sidecar: &v2alpha1.AppsecInjectorSidecarConfig{
-					Resources: &corev1.ResourceRequirements{
-						Limits: corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("1Gi")},
-					},
-				},
-			},
-			want: func(c *Config) { c.SidecarResourcesLimitsMemory = "1Gi" },
-		},
-		{
-			name: "17/19 SidecarBodyParsingSizeLimit: CRD wins over annotation",
-			inj: &v2alpha1.AppsecInjectorConfig{
-				Sidecar: &v2alpha1.AppsecInjectorSidecarConfig{BodyParsingSizeLimit: ptr.To(int64(4096))},
-			},
-			want: func(c *Config) { c.SidecarBodyParsingSizeLimit = "4096" },
-		},
-		{
-			name: "18/19 NginxModuleMountPath: CRD wins over annotation",
-			inj: &v2alpha1.AppsecInjectorConfig{
-				Nginx: &v2alpha1.AppsecInjectorNginxConfig{ModuleMountPath: ptr.To("/crd-mount")},
-			},
-			want: func(c *Config) { c.NginxModuleMountPath = "/crd-mount" },
-		},
-		{
-			name: "19/19 GatewayClasses: CRD-only value lands",
-			inj: &v2alpha1.AppsecInjectorConfig{
-				GKE: &v2alpha1.AppsecInjectorGKEConfig{GatewayClasses: []string{"gke-l7-global-external-managed"}},
-			},
-			want: func(c *Config) { c.GatewayClasses = []string{"gke-l7-global-external-managed"} },
-		},
-
-		// --- C. nil injector ---
-		{
-			name: "C nil injector returns base unchanged",
-			inj:  nil,
-			want: nil,
-		},
-
-		// --- B + D. Annotation fallback and nested-nil safety ---
-		{
-			name: "B empty injector: every annotation value survives",
-			inj:  &v2alpha1.AppsecInjectorConfig{},
-			want: nil,
-		},
-		{
-			name: "D nil Processor, Sidecar, Nginx and GKE: no panic, base unchanged",
-			inj: &v2alpha1.AppsecInjectorConfig{
-				Processor: nil,
-				Sidecar:   nil,
-				Nginx:     nil,
-				GKE:       nil,
-			},
-			want: nil,
-		},
-		{
-			name: "D empty nested objects: no panic, base unchanged",
-			inj: &v2alpha1.AppsecInjectorConfig{
-				Processor: &v2alpha1.AppsecInjectorProcessorConfig{},
-				Sidecar:   &v2alpha1.AppsecInjectorSidecarConfig{},
-				Nginx:     &v2alpha1.AppsecInjectorNginxConfig{},
-				GKE:       &v2alpha1.AppsecInjectorGKEConfig{},
-			},
-			want: nil,
-		},
-		{
-			name: "D non-nil Processor with nil Service: address and port still applied",
-			inj: &v2alpha1.AppsecInjectorConfig{
-				Processor: &v2alpha1.AppsecInjectorProcessorConfig{
-					Address: ptr.To("crd-addr"),
-					Port:    ptr.To(int32(8443)),
-					Service: nil,
-				},
-			},
-			want: func(c *Config) {
-				c.ProcessorAddress = "crd-addr"
-				c.ProcessorPort = 8443
-			},
-		},
-		{
-			name: "D non-nil Processor with empty Service: no panic, service fields fall back",
-			inj: &v2alpha1.AppsecInjectorConfig{
-				Processor: &v2alpha1.AppsecInjectorProcessorConfig{
-					Service: &v2alpha1.AppsecInjectorProcessorServiceConfig{},
-				},
-			},
-			want: nil,
-		},
-		{
-			name: "D non-nil Sidecar with nil Resources: image still applied",
-			inj: &v2alpha1.AppsecInjectorConfig{
-				Sidecar: &v2alpha1.AppsecInjectorSidecarConfig{
-					Image:     ptr.To("crd-image"),
-					Resources: nil,
-				},
-			},
-			want: func(c *Config) { c.SidecarImage = "crd-image" },
-		},
-		{
-			name: "D non-nil Sidecar with empty Resources: no panic, resource fields fall back",
-			inj: &v2alpha1.AppsecInjectorConfig{
-				Sidecar: &v2alpha1.AppsecInjectorSidecarConfig{
-					Resources: &corev1.ResourceRequirements{},
-				},
-			},
-			want: nil,
-		},
-		{
-			name: "D non-nil Nginx with nil ModuleMountPath: falls back to annotation",
-			inj: &v2alpha1.AppsecInjectorConfig{
-				Nginx: &v2alpha1.AppsecInjectorNginxConfig{ModuleMountPath: nil},
-			},
-			want: nil,
-		},
-		{
-			name: "D non-nil GKE with nil GatewayClasses: no panic, stays empty",
-			inj: &v2alpha1.AppsecInjectorConfig{
-				GKE: &v2alpha1.AppsecInjectorGKEConfig{GatewayClasses: nil},
-			},
-			want: nil,
-		},
-
-		// --- E. Non-nil pointer to the empty string counts as SET ---
-		{
-			name: "E Mode set to empty string blanks the annotation value",
-			inj:  &v2alpha1.AppsecInjectorConfig{Mode: ptr.To("")},
-			want: func(c *Config) { c.Mode = "" },
-		},
-		{
-			name: "E ProcessorAddress set to empty string blanks the annotation value",
-			inj: &v2alpha1.AppsecInjectorConfig{
-				Processor: &v2alpha1.AppsecInjectorProcessorConfig{Address: ptr.To("")},
-			},
-			want: func(c *Config) { c.ProcessorAddress = "" },
-		},
-
-		// --- F. Empty slice does NOT clear the base (asymmetric with pointers) ---
-		{
-			name: "F empty Proxies slice does not clear the annotation value",
-			inj:  &v2alpha1.AppsecInjectorConfig{Proxies: []string{}},
-			want: nil,
-		},
-		{
-			name: "F nil Proxies slice does not clear the annotation value",
-			inj:  &v2alpha1.AppsecInjectorConfig{Proxies: nil},
-			want: nil,
-		},
-		{
-			name: "F empty GatewayClasses slice leaves the field empty",
-			inj: &v2alpha1.AppsecInjectorConfig{
-				GKE: &v2alpha1.AppsecInjectorGKEConfig{GatewayClasses: []string{}},
-			},
-			want: nil,
-		},
-
-		// --- G. Partial resources: only the entries actually present are overridden ---
-		{
-			name: "G only requests.cpu present: the other three annotation values survive",
-			inj: &v2alpha1.AppsecInjectorConfig{
-				Sidecar: &v2alpha1.AppsecInjectorSidecarConfig{
-					Resources: &corev1.ResourceRequirements{
-						Requests: corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("333m")},
-					},
-				},
-			},
-			want: func(c *Config) { c.SidecarResourcesRequestsCPU = "333m" },
-		},
-		{
-			name: "G empty Requests and Limits maps: all four annotation values survive",
-			inj: &v2alpha1.AppsecInjectorConfig{
-				Sidecar: &v2alpha1.AppsecInjectorSidecarConfig{
-					Resources: &corev1.ResourceRequirements{
-						Requests: corev1.ResourceList{},
-						Limits:   corev1.ResourceList{},
-					},
-				},
-			},
-			want: nil,
-		},
-
-		// --- H. Claims and non-cpu/memory resource names are ignored ---
-		{
-			name: "H Claims entry is ignored",
-			inj: &v2alpha1.AppsecInjectorConfig{
-				Sidecar: &v2alpha1.AppsecInjectorSidecarConfig{
-					Resources: &corev1.ResourceRequirements{
-						Claims: []corev1.ResourceClaim{{Name: "example-claim"}},
-					},
-				},
-			},
-			want: nil,
-		},
-		{
-			name: "H non cpu/memory resource names are ignored",
-			inj: &v2alpha1.AppsecInjectorConfig{
-				Sidecar: &v2alpha1.AppsecInjectorSidecarConfig{
-					Resources: &corev1.ResourceRequirements{
-						Requests: corev1.ResourceList{
-							corev1.ResourceEphemeralStorage: resource.MustParse("2Gi"),
-						},
-						Limits: corev1.ResourceList{
-							corev1.ResourceEphemeralStorage: resource.MustParse("4Gi"),
-						},
-						Claims: []corev1.ResourceClaim{{Name: "example-claim"}},
-					},
-				},
-			},
-			want: nil,
-		},
-		{
-			name: "H cpu is taken while a sibling non cpu/memory name is dropped",
-			inj: &v2alpha1.AppsecInjectorConfig{
-				Sidecar: &v2alpha1.AppsecInjectorSidecarConfig{
-					Resources: &corev1.ResourceRequirements{
-						Requests: corev1.ResourceList{
-							corev1.ResourceCPU:              resource.MustParse("125m"),
-							corev1.ResourceEphemeralStorage: resource.MustParse("2Gi"),
-						},
-					},
-				},
-			},
-			want: func(c *Config) { c.SidecarResourcesRequestsCPU = "125m" },
-		},
-
-		// --- Manual QA scenarios recorded in /tmp/appsec_w4_merge.txt ---
-		{
-			name: "QA happy: base sidecar mode overridden by CRD external mode",
-			inj:  &v2alpha1.AppsecInjectorConfig{Mode: ptr.To("external")},
-			want: func(c *Config) { c.Mode = "external" },
-		},
-		{
-			name: "QA failure: base sidecar mode preserved when CRD mode is nil",
-			inj:  &v2alpha1.AppsecInjectorConfig{Mode: nil},
-			want: nil,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			base := annotationBase()
-			want := annotationBase()
-			if tt.want != nil {
-				tt.want(&want)
-			}
-
-			var got Config
-			require.NotPanics(t, func() {
-				got = mergeInjectorConfig(base, tt.inj)
-			})
-
-			assert.Equal(t, want, got)
-		})
-	}
-}
-
-// TestMergeInjectorConfigFullOverlayFromZeroBase proves that every one of the 19
-// destination fields can be populated by the CRD alone, with no annotation present.
-func TestMergeInjectorConfigFullOverlayFromZeroBase(t *testing.T) {
+// TestConfigFromInjector proves that every one of the 19 destination fields can be
+// populated by the CRD alone. That is the only way the CRD path ever runs: the CRD and
+// the annotations are mutually exclusive sources, so a CRD-configured DatadogAgent never
+// inherits an annotation value for a field it leaves unset.
+func TestConfigFromInjector(t *testing.T) {
 	inj := &v2alpha1.AppsecInjectorConfig{
 		Enabled:    ptr.To(true),
 		AutoDetect: ptr.To(false),
@@ -487,13 +80,13 @@ func TestMergeInjectorConfigFullOverlayFromZeroBase(t *testing.T) {
 		GatewayClasses:                 []string{"gke-l7-global-external-managed", "gke-l7-regional-external-managed"},
 	}
 
-	assert.Equal(t, want, mergeInjectorConfig(Config{}, inj))
+	assert.Equal(t, want, configFromInjector(inj))
 	assert.NoError(t, want.Validate())
 }
 
-// TestMergeInjectorConfigDoesNotAliasSpecPointers proves the merge deref-and-copies
+// TestConfigFromInjectorDoesNotAliasSpecPointers proves the builder deref-and-copies
 // AutoDetect instead of storing a pointer into the DatadogAgent spec.
-func TestMergeInjectorConfigDoesNotAliasSpecPointers(t *testing.T) {
+func TestConfigFromInjectorDoesNotAliasSpecPointers(t *testing.T) {
 	autoDetect := true
 	inj := &v2alpha1.AppsecInjectorConfig{
 		AutoDetect: &autoDetect,
@@ -501,212 +94,27 @@ func TestMergeInjectorConfigDoesNotAliasSpecPointers(t *testing.T) {
 		GKE:        &v2alpha1.AppsecInjectorGKEConfig{GatewayClasses: []string{"gke-l7-global-external-managed"}},
 	}
 
-	got := mergeInjectorConfig(Config{}, inj)
+	got := configFromInjector(inj)
 	require.NotNil(t, got.AutoDetect)
 	require.True(t, *got.AutoDetect)
 	require.Len(t, got.Proxies, 1)
 	require.Len(t, got.GatewayClasses, 1)
 
-	assert.NotSame(t, inj.AutoDetect, got.AutoDetect, "merged config must not alias the spec pointer")
-	assert.NotSame(t, &inj.Proxies[0], &got.Proxies[0], "merged config must not alias the spec slice")
-	assert.NotSame(t, &inj.GKE.GatewayClasses[0], &got.GatewayClasses[0], "merged config must not alias the spec slice")
+	assert.NotSame(t, inj.AutoDetect, got.AutoDetect, "config must not alias the spec pointer")
+	assert.NotSame(t, &inj.Proxies[0], &got.Proxies[0], "config must not alias the spec slice")
+	assert.NotSame(t, &inj.GKE.GatewayClasses[0], &got.GatewayClasses[0], "config must not alias the spec slice")
 
-	// Mutating the spec target must not be visible through the merged config.
+	// Mutating the spec target must not be visible through the built config.
 	autoDetect = false
 	inj.Proxies[0] = "ingress-nginx"
 	inj.GKE.GatewayClasses[0] = "gke-l7-regional-external-managed"
-	assert.True(t, *got.AutoDetect, "merged AutoDetect changed after mutating the spec value")
-	assert.Equal(t, "istio", got.Proxies[0], "merged Proxies changed after mutating the spec slice")
-	assert.Equal(t, "gke-l7-global-external-managed", got.GatewayClasses[0], "merged GatewayClasses changed after mutating the spec slice")
-}
-
-// TestParseAnnotationsSkip covers the CRD-aware parse skip. A malformed annotation on
-// a field the CRD sets must NOT error (the CRD wins even over garbage), while the same
-// malformed annotation on a field the CRD leaves unset must still error.
-func TestParseAnnotationsSkip(t *testing.T) {
-	tests := []struct {
-		name    string
-		ann     map[string]string
-		inj     *v2alpha1.AppsecInjectorConfig
-		wantErr bool
-		// wantCfg asserts on the parsed (pre-merge) config when no error is expected.
-		wantCfg *Config
-	}{
-		// --- I. Parse skip: malformed annotation + CRD sets the same field -> no error ---
-		{
-			name:    "I enabled: malformed annotation skipped because CRD sets Enabled",
-			ann:     map[string]string{AnnotationInjectorEnabled: "not-a-bool"},
-			inj:     &v2alpha1.AppsecInjectorConfig{Enabled: ptr.To(true)},
-			wantErr: false,
-			wantCfg: &Config{},
-		},
-		{
-			name:    "I autoDetect: malformed annotation skipped because CRD sets AutoDetect",
-			ann:     map[string]string{AnnotationInjectorAutoDetect: "not-a-bool"},
-			inj:     &v2alpha1.AppsecInjectorConfig{AutoDetect: ptr.To(false)},
-			wantErr: false,
-			wantCfg: &Config{},
-		},
-		{
-			name:    "I proxies: malformed annotation skipped because CRD sets Proxies",
-			ann:     map[string]string{AnnotationInjectorProxies: "not-json"},
-			inj:     &v2alpha1.AppsecInjectorConfig{Proxies: []string{"istio"}},
-			wantErr: false,
-			wantCfg: &Config{},
-		},
-		{
-			name: "I processorPort: malformed annotation skipped because CRD sets Processor.Port",
-			ann:  map[string]string{AnnotationInjectorProcessorPort: "not-a-number"},
-			inj: &v2alpha1.AppsecInjectorConfig{
-				Processor: &v2alpha1.AppsecInjectorProcessorConfig{Port: ptr.To(int32(8443))},
-			},
-			wantErr: false,
-			wantCfg: &Config{},
-		},
-		{
-			name: "I all four malformed at once, all four set by the CRD",
-			ann: map[string]string{
-				AnnotationInjectorEnabled:       "not-a-bool",
-				AnnotationInjectorAutoDetect:    "not-a-bool",
-				AnnotationInjectorProxies:       "not-json",
-				AnnotationInjectorProcessorPort: "not-a-number",
-			},
-			inj: &v2alpha1.AppsecInjectorConfig{
-				Enabled:    ptr.To(true),
-				AutoDetect: ptr.To(true),
-				Proxies:    []string{"istio"},
-				Processor:  &v2alpha1.AppsecInjectorProcessorConfig{Port: ptr.To(int32(8443))},
-			},
-			wantErr: false,
-			wantCfg: &Config{},
-		},
-
-		// --- J. Skip mirror: non-nil injector that does NOT set the field -> still errors ---
-		{
-			name:    "J enabled: injector present but Enabled nil",
-			ann:     map[string]string{AnnotationInjectorEnabled: "not-a-bool"},
-			inj:     &v2alpha1.AppsecInjectorConfig{Enabled: nil},
-			wantErr: true,
-		},
-		{
-			name:    "J enabled: injector sets an unrelated field only",
-			ann:     map[string]string{AnnotationInjectorEnabled: "not-a-bool"},
-			inj:     &v2alpha1.AppsecInjectorConfig{Mode: ptr.To("external")},
-			wantErr: true,
-		},
-		{
-			name:    "J autoDetect: injector present but AutoDetect nil",
-			ann:     map[string]string{AnnotationInjectorAutoDetect: "not-a-bool"},
-			inj:     &v2alpha1.AppsecInjectorConfig{AutoDetect: nil},
-			wantErr: true,
-		},
-		{
-			name:    "J proxies: injector present but Proxies nil",
-			ann:     map[string]string{AnnotationInjectorProxies: "not-json"},
-			inj:     &v2alpha1.AppsecInjectorConfig{Proxies: nil},
-			wantErr: true,
-		},
-		{
-			name:    "J proxies: injector present with an empty Proxies slice",
-			ann:     map[string]string{AnnotationInjectorProxies: "not-json"},
-			inj:     &v2alpha1.AppsecInjectorConfig{Proxies: []string{}},
-			wantErr: true,
-		},
-		{
-			name: "J processorPort: injector present with Processor set but Port nil",
-			ann:  map[string]string{AnnotationInjectorProcessorPort: "not-a-number"},
-			inj: &v2alpha1.AppsecInjectorConfig{
-				Processor: &v2alpha1.AppsecInjectorProcessorConfig{Port: nil},
-			},
-			wantErr: true,
-		},
-		{
-			name:    "J processorPort: injector present but Processor nil",
-			ann:     map[string]string{AnnotationInjectorProcessorPort: "not-a-number"},
-			inj:     &v2alpha1.AppsecInjectorConfig{Processor: nil},
-			wantErr: true,
-		},
-
-		// --- Annotation-only strictness is unchanged when there is no injector ---
-		{
-			name:    "nil injector: malformed enabled still errors",
-			ann:     map[string]string{AnnotationInjectorEnabled: "not-a-bool"},
-			inj:     nil,
-			wantErr: true,
-		},
-		{
-			name:    "nil injector: malformed autoDetect still errors",
-			ann:     map[string]string{AnnotationInjectorAutoDetect: "not-a-bool"},
-			inj:     nil,
-			wantErr: true,
-		},
-		{
-			name:    "nil injector: malformed proxies still errors",
-			ann:     map[string]string{AnnotationInjectorProxies: "not-json"},
-			inj:     nil,
-			wantErr: true,
-		},
-		{
-			name:    "nil injector: malformed processorPort still errors",
-			ann:     map[string]string{AnnotationInjectorProcessorPort: "not-a-number"},
-			inj:     nil,
-			wantErr: true,
-		},
-
-		// --- Well-formed annotations are still parsed when the CRD leaves them unset ---
-		{
-			name: "annotation fallback: well-formed values parsed with an empty injector",
-			ann: map[string]string{
-				AnnotationInjectorEnabled:       "true",
-				AnnotationInjectorAutoDetect:    "true",
-				AnnotationInjectorProxies:       `["istio"]`,
-				AnnotationInjectorProcessorPort: "1234",
-			},
-			inj:     &v2alpha1.AppsecInjectorConfig{},
-			wantErr: false,
-			wantCfg: &Config{
-				Enabled:       true,
-				AutoDetect:    ptr.To(true),
-				Proxies:       []string{"istio"},
-				ProcessorPort: 1234,
-			},
-		},
-		{
-			name: "parse skip leaves the field at its zero value for the merge to fill",
-			ann: map[string]string{
-				AnnotationInjectorEnabled:       "true",
-				AnnotationInjectorProcessorPort: "1234",
-			},
-			inj: &v2alpha1.AppsecInjectorConfig{
-				Enabled: ptr.To(false),
-			},
-			wantErr: false,
-			wantCfg: &Config{
-				// Enabled was skipped, so it stays false here and is filled by the merge.
-				ProcessorPort: 1234,
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			cfg, err := parseAnnotations(tt.ann, tt.inj)
-
-			if tt.wantErr {
-				require.Error(t, err)
-				return
-			}
-
-			require.NoError(t, err)
-			if tt.wantCfg != nil {
-				assert.Equal(t, *tt.wantCfg, cfg)
-			}
-		})
-	}
+	assert.True(t, *got.AutoDetect, "AutoDetect changed after mutating the spec value")
+	assert.Equal(t, "istio", got.Proxies[0], "Proxies changed after mutating the spec slice")
+	assert.Equal(t, "gke-l7-global-external-managed", got.GatewayClasses[0], "GatewayClasses changed after mutating the spec slice")
 }
 
 // TestParseAnnotationsDoesNotValidate proves parseAnnotations reports parse failures
-// only. Validate-time failures must survive so the merge can override them.
+// only, leaving semantic rejection to Validate.
 func TestParseAnnotationsDoesNotValidate(t *testing.T) {
 	ann := map[string]string{
 		AnnotationInjectorEnabled:       "true",
@@ -714,7 +122,7 @@ func TestParseAnnotationsDoesNotValidate(t *testing.T) {
 		AnnotationInjectorProcessorPort: "70000",
 	}
 
-	cfg, err := parseAnnotations(ann, nil)
+	cfg, err := parseAnnotations(ann)
 	require.NoError(t, err, "parseAnnotations must not run Validate")
 	assert.Equal(t, "bogus", cfg.Mode)
 	assert.Equal(t, 70000, cfg.ProcessorPort)
@@ -762,7 +170,7 @@ func TestParseAnnotationsFirstErrorIsDeterministic(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			seen := map[string]struct{}{}
 			for range 200 {
-				_, err := parseAnnotations(tt.ann, nil)
+				_, err := parseAnnotations(tt.ann)
 				require.Error(t, err)
 				seen[err.Error()] = struct{}{}
 			}
@@ -773,39 +181,6 @@ func TestParseAnnotationsFirstErrorIsDeterministic(t *testing.T) {
 			}
 		})
 	}
-}
-
-// TestParseAnnotationsThenMergeThenValidate pins the production ordering: the CRD
-// overlay is applied BEFORE Validate, so a CRD value can rescue an annotation that
-// would otherwise fail validation.
-func TestParseAnnotationsThenMergeThenValidate(t *testing.T) {
-	ann := map[string]string{
-		AnnotationInjectorEnabled: "true",
-		AnnotationInjectorMode:    "bogus",
-	}
-
-	// Annotations alone are rejected: "bogus" is not a valid mode.
-	annotationOnlyCfg, annotationOnlyErr := parseAnnotations(ann, nil)
-	require.NoError(t, annotationOnlyErr, "an invalid mode is a validation failure, not a parse failure")
-	require.Error(t, annotationOnlyCfg.Validate(), "annotation-only path must still reject an invalid mode")
-
-	inj := &v2alpha1.AppsecInjectorConfig{
-		Enabled: ptr.To(true),
-		Mode:    ptr.To("external"),
-		Processor: &v2alpha1.AppsecInjectorProcessorConfig{
-			Service: &v2alpha1.AppsecInjectorProcessorServiceConfig{Name: ptr.To("appsec-processor")},
-		},
-	}
-
-	cfg, err := parseAnnotations(ann, inj)
-	require.NoError(t, err)
-
-	merged := mergeInjectorConfig(cfg, inj)
-	assert.Equal(t, "external", merged.Mode)
-	assert.Equal(t, "appsec-processor", merged.ProcessorServiceName)
-	assert.True(t, merged.Enabled)
-
-	assert.NoError(t, merged.Validate(), "the CRD overlay must be applied before Validate")
 }
 
 // TestConfigValidateGKEGateway covers the gke-gateway external-mode requirement.

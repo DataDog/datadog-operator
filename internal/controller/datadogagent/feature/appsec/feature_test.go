@@ -568,16 +568,22 @@ func TestAppsecFeature(t *testing.T) {
 			),
 		},
 		{
-			Name: "Appsec CRD mode external beats annotation mode sidecar in the emitted env",
+			// The CRD and the annotations are mutually exclusive sources. The
+			// processorAddress annotation is the load-bearing one: the CRD leaves that
+			// field unset, so asserting its env var is absent proves the annotations
+			// were not consulted at all, rather than merely losing a per-field contest.
+			Name: "Appsec CRD config ignores the annotations entirely",
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithClusterAgentTag("7.76.0").
 				WithAnnotations(map[string]string{
 					AnnotationInjectorEnabled:              "true",
 					AnnotationInjectorMode:                 "sidecar",
 					AnnotationInjectorProcessorServiceName: "annotation-svc",
+					AnnotationInjectorProcessorAddress:     "annotation-addr",
 				}).
 				WithAppsecInjector(&v2alpha1.AppsecInjectorConfig{
-					Mode: ptr.To("external"),
+					Enabled: ptr.To(true),
+					Mode:    ptr.To("external"),
 					Processor: &v2alpha1.AppsecInjectorProcessorConfig{
 						Service: &v2alpha1.AppsecInjectorProcessorServiceConfig{Name: ptr.To("crd-svc")},
 					},
@@ -589,6 +595,7 @@ func TestAppsecFeature(t *testing.T) {
 				envVar{name: DDClusterAgentAppsecInjectorEnabled, value: "true", present: true},
 				envVar{name: DDClusterAgentAppsecInjectorMode, value: "external", present: true},
 				envVar{name: DDClusterAgentAppsecInjectorProcessorServiceName, value: "crd-svc", present: true},
+				envVar{name: DDAppsecProxyProcessorAddress, present: false},
 			),
 		},
 		{
@@ -965,7 +972,7 @@ func TestHasAppsecAnnotations(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, hasAppsecAnnotations(tt.annotations))
+			assert.Equal(t, tt.want, HasDeprecatedAnnotations(tt.annotations))
 		})
 	}
 }
@@ -995,7 +1002,7 @@ func TestHasAppsecAnnotationsCoversEveryAnnotationConst(t *testing.T) {
 		AnnotationNginxModuleMountPath,
 	} {
 		t.Run(key, func(t *testing.T) {
-			assert.True(t, hasAppsecAnnotations(map[string]string{key: "v"}),
+			assert.True(t, HasDeprecatedAnnotations(map[string]string{key: "v"}),
 				"annotation %q is not covered by the deprecation warning", key)
 		})
 	}
@@ -1219,11 +1226,18 @@ func TestConfigureNilSafety(t *testing.T) {
 	}
 }
 
-// TestConfigureAnnotationParsePrecedence pins the CRD-aware parse skip. A malformed
-// annotation whose field the CRD already sets must not fail Configure, because the parsed
-// value would have been discarded by the merge anyway. A malformed annotation on a field
-// the CRD leaves unset must still fail, preserving annotation-only strictness.
-func TestConfigureAnnotationParsePrecedence(t *testing.T) {
+// TestConfigureSourceExclusivity pins that the CRD and the annotations are mutually
+// exclusive sources rather than merged ones.
+//
+// When spec.features.appsec.injector is present the annotations are never read, so no
+// annotation can fail Configure and no annotation value can reach the resulting Config —
+// not even for a field the CRD leaves unset. When it is absent the annotations are the
+// only source and every malformed one still rejects the feature.
+//
+// The exclusivity is symmetric, and the two "external mode" rows at the end prove it:
+// an annotation cannot rescue an incomplete CRD any more than a CRD rescues a malformed
+// annotation.
+func TestConfigureSourceExclusivity(t *testing.T) {
 	tests := []struct {
 		name        string
 		annotations map[string]string
@@ -1232,20 +1246,27 @@ func TestConfigureAnnotationParsePrecedence(t *testing.T) {
 		assertCfg   func(t *testing.T, cfg Config)
 	}{
 		{
-			name: "malformed proxies rescued by CRD proxies",
+			// The annotation-only field (processorServiceName) is the load-bearing part:
+			// it proves the CRD path does not inherit annotation values for fields it
+			// leaves unset, which is the whole difference from the previous merge.
+			name: "malformed proxies ignored when the CRD is present, and no annotation leaks in",
 			annotations: map[string]string{
 				AnnotationInjectorEnabled:              "true",
 				AnnotationInjectorProxies:              "not-json",
-				AnnotationInjectorProcessorServiceName: "appsec-processor",
+				AnnotationInjectorProcessorServiceName: "annotation-svc",
 			},
-			injector: &v2alpha1.AppsecInjectorConfig{Proxies: []string{"envoy-gateway"}},
-			wantCfg:  true,
+			injector: &v2alpha1.AppsecInjectorConfig{
+				Enabled: ptr.To(true),
+				Proxies: []string{"envoy-gateway"},
+			},
+			wantCfg: true,
 			assertCfg: func(t *testing.T, cfg Config) {
 				assert.Equal(t, []string{"envoy-gateway"}, cfg.Proxies)
+				assert.Empty(t, cfg.ProcessorServiceName, "annotation value must not reach a CRD-configured Config")
 			},
 		},
 		{
-			name: "malformed proxies without CRD proxies is rejected",
+			name: "malformed proxies rejected when the CRD is absent",
 			annotations: map[string]string{
 				AnnotationInjectorEnabled:              "true",
 				AnnotationInjectorProxies:              "not-json",
@@ -1255,16 +1276,22 @@ func TestConfigureAnnotationParsePrecedence(t *testing.T) {
 			wantCfg:  false,
 		},
 		{
-			name: "malformed proxies with a CRD injector that does not set proxies is rejected",
+			// Under the previous merge this was rejected, because the annotation was
+			// still parsed for a field the CRD did not set. It is now accepted: the
+			// annotations are not read at all.
+			name: "malformed proxies ignored even when the CRD does not set proxies",
 			annotations: map[string]string{
 				AnnotationInjectorEnabled: "true",
 				AnnotationInjectorProxies: "not-json",
 			},
 			injector: &v2alpha1.AppsecInjectorConfig{Enabled: ptr.To(true)},
-			wantCfg:  false,
+			wantCfg:  true,
+			assertCfg: func(t *testing.T, cfg Config) {
+				assert.Nil(t, cfg.Proxies)
+			},
 		},
 		{
-			name: "malformed enabled rescued by CRD enabled",
+			name: "malformed enabled ignored when the CRD is present",
 			annotations: map[string]string{
 				AnnotationInjectorEnabled: "not-a-bool",
 			},
@@ -1275,7 +1302,7 @@ func TestConfigureAnnotationParsePrecedence(t *testing.T) {
 			},
 		},
 		{
-			name: "malformed enabled without CRD enabled is rejected",
+			name: "malformed enabled rejected when the CRD is absent",
 			annotations: map[string]string{
 				AnnotationInjectorEnabled: "not-a-bool",
 			},
@@ -1283,25 +1310,29 @@ func TestConfigureAnnotationParsePrecedence(t *testing.T) {
 			wantCfg:  false,
 		},
 		{
-			name: "malformed autoDetect rescued by CRD autoDetect",
+			name: "malformed autoDetect ignored when the CRD is present",
 			annotations: map[string]string{
 				AnnotationInjectorEnabled:    "true",
 				AnnotationInjectorAutoDetect: "not-a-bool",
 			},
-			injector: &v2alpha1.AppsecInjectorConfig{AutoDetect: ptr.To(true)},
-			wantCfg:  true,
+			injector: &v2alpha1.AppsecInjectorConfig{
+				Enabled:    ptr.To(true),
+				AutoDetect: ptr.To(true),
+			},
+			wantCfg: true,
 			assertCfg: func(t *testing.T, cfg Config) {
 				require.NotNil(t, cfg.AutoDetect)
 				assert.True(t, *cfg.AutoDetect)
 			},
 		},
 		{
-			name: "malformed processor port rescued by CRD processor port",
+			name: "malformed processor port ignored when the CRD is present",
 			annotations: map[string]string{
 				AnnotationInjectorEnabled:       "true",
 				AnnotationInjectorProcessorPort: "not-a-number",
 			},
 			injector: &v2alpha1.AppsecInjectorConfig{
+				Enabled:   ptr.To(true),
 				Processor: &v2alpha1.AppsecInjectorProcessorConfig{Port: ptr.To(int32(8443))},
 			},
 			wantCfg: true,
@@ -1310,20 +1341,20 @@ func TestConfigureAnnotationParsePrecedence(t *testing.T) {
 			},
 		},
 		{
-			name: "CRD mode rescues an annotation-only external config missing the service name",
+			// The mirror of the rows above: exclusivity cuts both ways, so an
+			// annotation cannot complete a CRD that external mode leaves invalid.
+			// Under the previous merge the annotation service name would have
+			// satisfied Validate.
+			name: "annotation service name does not rescue a CRD external config",
 			annotations: map[string]string{
-				AnnotationInjectorEnabled: "true",
-				AnnotationInjectorMode:    "external",
+				AnnotationInjectorEnabled:              "true",
+				AnnotationInjectorProcessorServiceName: "annotation-svc",
 			},
 			injector: &v2alpha1.AppsecInjectorConfig{
-				Processor: &v2alpha1.AppsecInjectorProcessorConfig{
-					Service: &v2alpha1.AppsecInjectorProcessorServiceConfig{Name: ptr.To("appsec-processor")},
-				},
+				Enabled: ptr.To(true),
+				Mode:    ptr.To("external"),
 			},
-			wantCfg: true,
-			assertCfg: func(t *testing.T, cfg Config) {
-				assert.Equal(t, "appsec-processor", cfg.ProcessorServiceName)
-			},
+			wantCfg: false,
 		},
 		{
 			name: "annotation-only external config without a service name is still rejected",
@@ -1861,9 +1892,9 @@ func TestFromAnnotations(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// A nil injector is the pure annotation path: no CRD field is set, so no
-			// annotation is skipped and every parse failure still surfaces.
-			config, err := parseAnnotations(tt.annotations, nil)
+			// parseAnnotations is only reached when the CRD injector is absent, so
+			// every parse failure surfaces.
+			config, err := parseAnnotations(tt.annotations)
 			if err == nil {
 				err = config.Validate()
 			}

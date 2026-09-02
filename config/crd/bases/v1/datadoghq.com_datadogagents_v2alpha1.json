@@ -1100,7 +1100,7 @@
               "properties": {
                 "injector": {
                   "additionalProperties": false,
-                  "description": "Configures the AppSec injector.",
+                  "description": "Configures the AppSec injector.\nSetting this block replaces the deprecated `agent.datadoghq.com/appsec.*` annotations\nentirely: while it is present no annotation is read, so port the whole configuration\nrather than a single field.",
                   "properties": {
                     "autoDetect": {
                       "description": "Controls automatic proxy detection.\nDefault: true",
@@ -1177,7 +1177,7 @@
                       "type": "object"
                     },
                     "proxies": {
-                      "description": "Lists proxies for AppSec injection.\nDefault: []\nAn empty list does not clear a value set by the `agent.datadoghq.com/appsec.injector.proxies`\nannotation; the annotation value stays in effect.",
+                      "description": "Lists proxies for AppSec injection.\nDefault: []",
                       "items": {
                         "enum": [
                           "envoy-gateway",
@@ -9886,7 +9886,7 @@
                   "properties": {
                     "injector": {
                       "additionalProperties": false,
-                      "description": "Configures the AppSec injector.",
+                      "description": "Configures the AppSec injector.\nSetting this block replaces the deprecated `agent.datadoghq.com/appsec.*` annotations\nentirely: while it is present no annotation is read, so port the whole configuration\nrather than a single field.",
                       "properties": {
                         "autoDetect": {
                           "description": "Controls automatic proxy detection.\nDefault: true",
@@ -9963,7 +9963,7 @@
                           "type": "object"
                         },
                         "proxies": {
-                          "description": "Lists proxies for AppSec injection.\nDefault: []\nAn empty list does not clear a value set by the `agent.datadoghq.com/appsec.injector.proxies`\nannotation; the annotation value stays in effect.",
+                          "description": "Lists proxies for AppSec injection.\nDefault: []",
                           "items": {
                             "enum": [
                               "envoy-gateway",

@@ -38,12 +38,24 @@ The `agent.datadoghq.com/appsec.*` annotations are deprecated in `v1.30` and wil
 
 #### Precedence
 
-While both sources are present, they are merged **per field** rather than one replacing the other wholesale. The CRD value wins only for the fields it actually sets; every other field falls back to its annotation value.
+The two sources are **mutually exclusive**, never merged. AppSec is configured either entirely from the CRD or entirely from the annotations:
 
-- A CRD field counts as *set* when it is non-nil for a scalar field, or **non-empty** for a list field. As a result, `proxies: []` in the CRD does **not** clear a proxy list supplied by the `agent.datadoghq.com/appsec.injector.proxies` annotation.
-- A field left unset in the CRD keeps the value parsed from its annotation, if one is present.
-- A malformed annotation on a field the CRD does **not** set still rejects the whole AppSec feature, preserving annotation-only strictness.
-- A malformed annotation on a field the CRD **does** set is ignored entirely, because the CRD value replaces it before validation.
+- When `spec.features.appsec.injector` is present it defines the **whole** AppSec configuration. No annotation is read, including for fields the CRD leaves unset, so a malformed `appsec.*` annotation cannot fail the feature and an annotation value can never reach a CRD-configured deployment.
+- When `spec.features.appsec.injector` is absent the annotations are the only source, and any malformed one rejects the AppSec feature.
+
+Migrate the **entire** configuration in one step. Adding a single field under `spec.features.appsec.injector` to a deployment configured by annotations silently drops every annotation-supplied value, including `enabled`, which turns AppSec off.
+
+This applies to `spec.features.appsec.injector.gke.gatewayClasses` too. It has no annotation equivalent, so adopting GKE Gateway support means porting the rest of the configuration to the CRD at the same time.
+
+#### Detecting the deprecated annotations
+
+While any `agent.datadoghq.com/appsec.*` annotation is present, the operator reports it on the `DatadogAgent` through the `DeprecatedConfigInUse` status condition:
+
+```console
+$ kubectl describe datadogagent datadog | grep -A3 DeprecatedConfigInUse
+```
+
+The condition is informational and exists only while a deprecated surface is in use; it is removed once the migration is complete.
 
 #### Migration Path
 

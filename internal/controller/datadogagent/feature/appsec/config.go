@@ -46,16 +46,18 @@ type Config struct {
 	GatewayClasses []string
 }
 
-// mergeInjectorConfig overlays the CRD injector configuration on top of base and
-// returns the result. A CRD field that is set always wins over the annotation-derived
-// value already in base; a field the CRD leaves unset keeps the base value.
+// configFromInjector builds a Config from the CRD injector configuration alone.
 //
-// "Set" means non-nil for pointer fields, so a non-nil pointer to the empty string
-// blanks the base value. For slices it means a non-empty slice, so an empty CRD list
-// never clears an annotation-set value. That asymmetry is intentional. Only the cpu
-// and memory entries of the resource lists are honored; claims and any other resource
-// name are ignored.
-func mergeInjectorConfig(base Config, inj *v2alpha1.AppsecInjectorConfig) Config {
+// The CRD and the deprecated `appsec.*` annotations are mutually exclusive sources:
+// when spec.features.appsec.injector is present it defines the entire AppSec
+// configuration and no annotation is consulted. Callers must therefore not seed this
+// with annotation-derived values. See Feature.Configure for the source selection.
+//
+// Only the cpu and memory entries of the resource lists are honored; claims and any
+// other resource name are ignored.
+func configFromInjector(inj *v2alpha1.AppsecInjectorConfig) Config {
+	var base Config
+
 	if inj == nil {
 		return base
 	}
@@ -139,32 +141,25 @@ func mergeInjectorConfig(base Config, inj *v2alpha1.AppsecInjectorConfig) Config
 	return base
 }
 
-// parseAnnotations builds a Config from annotations without validating it.
+// parseAnnotations builds a Config from the deprecated `appsec.*` annotations without
+// validating it.
 //
-// When inj sets one of the four fallible fields (enabled, autoDetect, proxies,
-// processorPort), the matching annotation is not parsed at all: mergeInjectorConfig
-// would discard the parsed value anyway, so a malformed annotation on a CRD-set field
-// must not surface as an error. Each skip predicate below mirrors exactly the "is set"
-// predicate mergeInjectorConfig uses for the same field. A malformed annotation on a
-// field the CRD leaves unset still errors, preserving annotation-only strictness.
+// This is only reached when spec.features.appsec.injector is absent: the CRD and the
+// annotations are mutually exclusive sources, so there is no CRD value to defer to and
+// every malformed annotation is an error.
 //
 // Errors are reported in source order, so a config with several malformed annotations
 // always yields the same first error.
-func parseAnnotations(annotations map[string]string, inj *v2alpha1.AppsecInjectorConfig) (config Config, err error) {
-	crdSetsEnabled := inj != nil && inj.Enabled != nil
-	crdSetsAutoDetect := inj != nil && inj.AutoDetect != nil
-	crdSetsProxies := inj != nil && len(inj.Proxies) > 0
-	crdSetsProcessorPort := inj != nil && inj.Processor != nil && inj.Processor.Port != nil
-
+func parseAnnotations(annotations map[string]string) (config Config, err error) {
 	// Read configuration from annotations
 
-	if enabledStr, ok := annotations[AnnotationInjectorEnabled]; ok && !crdSetsEnabled {
+	if enabledStr, ok := annotations[AnnotationInjectorEnabled]; ok {
 		if config.Enabled, err = strconv.ParseBool(enabledStr); err != nil {
 			return config, fmt.Errorf("failed to parse annotation %q value: %w", AnnotationInjectorEnabled, err)
 		}
 	}
 
-	if autoDetectStr, ok := annotations[AnnotationInjectorAutoDetect]; ok && !crdSetsAutoDetect {
+	if autoDetectStr, ok := annotations[AnnotationInjectorAutoDetect]; ok {
 		autoDetect, parseErr := strconv.ParseBool(autoDetectStr)
 		if parseErr != nil {
 			return config, fmt.Errorf("failed to parse annotation %q value: %w", AnnotationInjectorAutoDetect, parseErr)
@@ -172,7 +167,7 @@ func parseAnnotations(annotations map[string]string, inj *v2alpha1.AppsecInjecto
 		config.AutoDetect = &autoDetect
 	}
 
-	if proxiesStr, ok := annotations[AnnotationInjectorProxies]; ok && proxiesStr != "" && !crdSetsProxies {
+	if proxiesStr, ok := annotations[AnnotationInjectorProxies]; ok && proxiesStr != "" {
 		if parseErr := json.Unmarshal([]byte(proxiesStr), &config.Proxies); parseErr != nil {
 			return config, fmt.Errorf("cannot parse annotation %q value: %w", AnnotationInjectorProxies, parseErr)
 		}
@@ -182,7 +177,7 @@ func parseAnnotations(annotations map[string]string, inj *v2alpha1.AppsecInjecto
 	config.ProcessorServiceName = annotations[AnnotationInjectorProcessorServiceName]
 	config.ProcessorServiceNamespace = annotations[AnnotationInjectorProcessorServiceNamespace]
 
-	if portStr, ok := annotations[AnnotationInjectorProcessorPort]; ok && portStr != "" && !crdSetsProcessorPort {
+	if portStr, ok := annotations[AnnotationInjectorProcessorPort]; ok && portStr != "" {
 		if config.ProcessorPort, err = strconv.Atoi(portStr); err != nil {
 			return config, fmt.Errorf("cannot parse annotation %q value: %w", AnnotationInjectorProcessorPort, err)
 		}
