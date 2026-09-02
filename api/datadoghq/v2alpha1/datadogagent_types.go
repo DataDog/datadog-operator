@@ -2555,6 +2555,42 @@ const (
 	ExperimentSignalPromote = "promote"
 )
 
+// ExperimentTerminationReason distinguishes why a terminal experiment ended.
+// +kubebuilder:validation:Enum=stopped;timed_out;manual_spec_change;baseline_missing;baseline_not_found
+type ExperimentTerminationReason string
+
+const (
+	// ExperimentTerminationReasonStopped means an explicit Fleet rollback completed.
+	ExperimentTerminationReasonStopped ExperimentTerminationReason = "stopped"
+	// ExperimentTerminationReasonTimedOut means an automatic timeout rollback completed.
+	ExperimentTerminationReasonTimedOut ExperimentTerminationReason = "timed_out"
+	// ExperimentTerminationReasonManualSpecChange means the live DDA no longer
+	// matches the experiment checkpoint, so the user edit stands.
+	ExperimentTerminationReasonManualSpecChange ExperimentTerminationReason = "manual_spec_change"
+	// ExperimentTerminationReasonBaselineMissing means no checkpoint was
+	// recorded, usually old in-flight preview state or a malformed start signal.
+	ExperimentTerminationReasonBaselineMissing ExperimentTerminationReason = "baseline_missing"
+	// ExperimentTerminationReasonBaselineNotFound means a checkpoint was
+	// recorded, but the named owned ControllerRevision is absent from the API server.
+	ExperimentTerminationReasonBaselineNotFound ExperimentTerminationReason = "baseline_not_found"
+)
+
+// ExperimentCheckpoint is recorded exactly once when an experiment enters
+// phase=running. Both fields are required when the checkpoint is present, so
+// that "half a checkpoint" is never a valid in-flight state.
+// +k8s:openapi-gen=true
+type ExperimentCheckpoint struct {
+	// RollbackTargetRevision is the pre-experiment baseline ControllerRevision.
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=253
+	RollbackTargetRevision string `json:"rollbackTargetRevision"`
+
+	// ExpectedSpecHash is sha256 hex over the canonical revision snapshot of
+	// the raw experiment spec plus selected raw Datadog annotations.
+	// +kubebuilder:validation:Pattern=`^[a-f0-9]{64}$`
+	ExpectedSpecHash string `json:"expectedSpecHash"`
+}
+
 // ExperimentStatus defines the state of a Fleet Automation experiment.
 // +k8s:openapi-gen=true
 type ExperimentStatus struct {
@@ -2580,10 +2616,14 @@ type ExperimentStatus struct {
 	// experimentConfigVersion.
 	// +optional
 	StartTaskID string `json:"startTaskID,omitempty"`
-	// TerminationReason distinguishes why the experiment was terminated.
-	// Only set when Phase is "terminated".
+	// TerminationReason records why a terminal experiment ended.
+	// Set when Phase is "terminated" or "aborted" and a cause should be reported.
 	// +optional
-	TerminationReason string `json:"terminationReason,omitempty"`
+	TerminationReason ExperimentTerminationReason `json:"terminationReason,omitempty"`
+	// Checkpoint holds the baseline and expected live experiment snapshot.
+	// Required while Phase is "running"; retained on terminal phases for audit.
+	// +optional
+	Checkpoint *ExperimentCheckpoint `json:"checkpoint,omitempty"`
 }
 
 // DatadogAgentStatus defines the observed state of DatadogAgent.
@@ -2621,6 +2661,21 @@ type DatadogAgentStatus struct {
 	// means no provider was detected or configured.
 	// +optional
 	ClusterProvider string `json:"clusterProvider,omitempty"`
+	// CurrentRevision names the ControllerRevision that snapshots the currently
+	// observed raw DatadogAgent spec plus selected Datadog annotations.
+	// +optional
+	CurrentRevision string `json:"currentRevision,omitempty"`
+	// CurrentRevisionObservedGeneration records the metadata.generation for which
+	// CurrentRevision is valid.
+	// +optional
+	// +kubebuilder:validation:Minimum=0
+	CurrentRevisionObservedGeneration int64 `json:"currentRevisionObservedGeneration,omitempty"`
+	// CurrentRevisionObservedAnnotationsHash records DatadogAnnotationsHash over
+	// the annotations that participate in the revision snapshot. Generation does
+	// not change for metadata-only updates, so this closes annotation-only races.
+	// +optional
+	// +kubebuilder:validation:Pattern=`^[a-f0-9]{64}$`
+	CurrentRevisionObservedAnnotationsHash string `json:"currentRevisionObservedAnnotationsHash,omitempty"`
 }
 
 // DatadogAgent defines Agent configuration, see reference https://github.com/DataDog/datadog-operator/blob/main/docs/configuration.v2alpha1.md

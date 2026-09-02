@@ -29,9 +29,9 @@ const ExperimentDefaultTimeout = 15 * time.Minute
 // Termination reasons for ExperimentPhaseTerminated.
 const (
 	// ExperimentTerminationReasonStopped indicates the experiment was explicitly rolled back via a rollback signal.
-	ExperimentTerminationReasonStopped = "stopped"
+	ExperimentTerminationReasonStopped v2alpha1.ExperimentTerminationReason = "stopped"
 	// ExperimentTerminationReasonTimedOut indicates the experiment exceeded the timeout and was auto-rolled back.
-	ExperimentTerminationReasonTimedOut = "timed_out"
+	ExperimentTerminationReasonTimedOut v2alpha1.ExperimentTerminationReason = "timed_out"
 )
 
 // annotationExperimentState records the terminal outcome of an experiment
@@ -497,7 +497,7 @@ func (r *Reconciler) restorePreviousSpec(
 	instance *v2alpha1.DatadogAgent,
 	newStatus *v2alpha1.DatadogAgentStatus,
 	revisions []appsv1.ControllerRevision,
-	terminationReason string,
+	terminationReason v2alpha1.ExperimentTerminationReason,
 ) error {
 	rollbackTarget := findRollbackTarget(revisions)
 	if err := r.rollback(ctx, instance, rollbackTarget); err != nil {
@@ -537,7 +537,7 @@ func (r *Reconciler) rollback(
 		return fmt.Errorf("failed to get previous ControllerRevision %s: %w", rollbackTarget, err)
 	}
 
-	var snapshot revisionSnapshot
+	var snapshot v2alpha1.RevisionSnapshot
 	if err := json.Unmarshal(cr.Data.Raw, &snapshot); err != nil {
 		return fmt.Errorf("failed to decode ControllerRevision data: %w", err)
 	}
@@ -548,7 +548,7 @@ func (r *Reconciler) rollback(
 	if err := r.client.Get(ctx, nsn, current); err != nil {
 		return fmt.Errorf("failed to get current DDA for rollback: %w", err)
 	}
-	currentSnap, err := buildRevisionSnapshot(current.Spec, current.GetAnnotations())
+	currentSnap, err := v2alpha1.BuildRevisionSnapshot(current.Spec, current.GetAnnotations())
 	if err != nil {
 		return fmt.Errorf("failed to marshal current snapshot for comparison: %w", err)
 	}
@@ -617,7 +617,7 @@ func findRollbackTarget(revisions []appsv1.ControllerRevision) string {
 // defaulted copy — pass rawInstance, not instance. Stored revisions are raw,
 // so a defaulted spec never matches any of them.
 func findMostRecentMatchingRevision(revisions []appsv1.ControllerRevision, instance *v2alpha1.DatadogAgent) *appsv1.ControllerRevision {
-	snapBytes, err := buildRevisionSnapshot(instance.Spec, instance.GetAnnotations())
+	snapBytes, err := v2alpha1.BuildRevisionSnapshot(instance.Spec, instance.GetAnnotations())
 	if err != nil {
 		return nil
 	}

@@ -400,7 +400,7 @@ func Test_ControllerRevisions_SnapshotStoresRawSpec(t *testing.T) {
 	revs := listOwnedRevisions(t, c, ns, uid)
 	assert.Len(t, revs, 1)
 
-	var snapshot revisionSnapshot
+	var snapshot v2alpha1.RevisionSnapshot
 	assert.NoError(t, json.Unmarshal(revs[0].Data.Raw, &snapshot))
 	assert.Nil(t, snapshot.Spec.Global.Site,
 		"snapshot must store the raw spec (Site unset), not the in-memory defaulted copy")
@@ -432,7 +432,7 @@ func Test_ControllerRevisions_MigrationFromDefaultedSnapshot(t *testing.T) {
 	// it: snapshotting the defaulted spec instead of the raw one.
 	oldDefaultedSpec := dda.Spec.DeepCopy()
 	defaults.DefaultDatadogAgentSpec(oldDefaultedSpec)
-	oldSnapBytes, err := buildRevisionSnapshot(*oldDefaultedSpec, dda.GetAnnotations())
+	oldSnapBytes, err := v2alpha1.BuildRevisionSnapshot(*oldDefaultedSpec, dda.GetAnnotations())
 	assert.NoError(t, err)
 
 	gvks, _, err := r.scheme.ObjectKinds(dda)

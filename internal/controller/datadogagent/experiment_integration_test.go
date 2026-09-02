@@ -119,7 +119,7 @@ func mustGetExperimentPhase(t *testing.T, r *Reconciler, ns, name string) v2alph
 }
 
 // mustGetTerminationReason fetches the DDA and returns the experiment termination reason.
-func mustGetTerminationReason(t *testing.T, r *Reconciler, ns, name string) string {
+func mustGetTerminationReason(t *testing.T, r *Reconciler, ns, name string) v2alpha1.ExperimentTerminationReason {
 	t.Helper()
 	var dda v2alpha1.DatadogAgent
 	assert.NoError(t, r.client.Get(context.TODO(), types.NamespacedName{Namespace: ns, Name: name}, &dda))

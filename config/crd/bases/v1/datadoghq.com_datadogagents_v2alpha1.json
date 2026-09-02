@@ -8514,10 +8514,47 @@
           ],
           "x-kubernetes-list-type": "map"
         },
+        "currentRevision": {
+          "description": "CurrentRevision names the ControllerRevision that snapshots the currently\nobserved raw DatadogAgent spec plus selected Datadog annotations.",
+          "type": "string"
+        },
+        "currentRevisionObservedAnnotationsHash": {
+          "description": "CurrentRevisionObservedAnnotationsHash records DatadogAnnotationsHash over\nthe annotations that participate in the revision snapshot. Generation does\nnot change for metadata-only updates, so this closes annotation-only races.",
+          "pattern": "^[a-f0-9]{64}$",
+          "type": "string"
+        },
+        "currentRevisionObservedGeneration": {
+          "description": "CurrentRevisionObservedGeneration records the metadata.generation for which\nCurrentRevision is valid.",
+          "format": "int64",
+          "minimum": 0,
+          "type": "integer"
+        },
         "experiment": {
           "additionalProperties": false,
           "description": "Experiment tracks the state of an active or recent Fleet Automation experiment.",
           "properties": {
+            "checkpoint": {
+              "additionalProperties": false,
+              "description": "Checkpoint holds the baseline and expected live experiment snapshot.\nRequired while Phase is \"running\"; retained on terminal phases for audit.",
+              "properties": {
+                "expectedSpecHash": {
+                  "description": "ExpectedSpecHash is sha256 hex over the canonical revision snapshot of\nthe raw experiment spec plus selected raw Datadog annotations.",
+                  "pattern": "^[a-f0-9]{64}$",
+                  "type": "string"
+                },
+                "rollbackTargetRevision": {
+                  "description": "RollbackTargetRevision is the pre-experiment baseline ControllerRevision.",
+                  "maxLength": 253,
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "expectedSpecHash",
+                "rollbackTargetRevision"
+              ],
+              "type": "object"
+            },
             "id": {
               "description": "ID is the RC task ID that triggered this experiment state.",
               "type": "string"
@@ -8542,7 +8579,14 @@
               "type": "string"
             },
             "terminationReason": {
-              "description": "TerminationReason distinguishes why the experiment was terminated.\nOnly set when Phase is \"terminated\".",
+              "description": "TerminationReason records why a terminal experiment ended.\nSet when Phase is \"terminated\" or \"aborted\" and a cause should be reported.",
+              "enum": [
+                "stopped",
+                "timed_out",
+                "manual_spec_change",
+                "baseline_missing",
+                "baseline_not_found"
+              ],
               "type": "string"
             }
           },

@@ -61,6 +61,10 @@ const (
 	ClusterProviderDetectedConditionType = "ClusterProviderDetected"
 	// FeatureNotSupportedOnProviderConditionType reports that an enabled feature is not supported on the detected provider
 	FeatureNotSupportedOnProviderConditionType = "FeatureNotSupportedOnProvider"
+	// ExperimentConfigStrandedConditionType reports that a running experiment
+	// was aborted because its rollback baseline could not be proven safe
+	// (TerminationReason baseline_missing or baseline_not_found).
+	ExperimentConfigStrandedConditionType = "ExperimentConfigStranded"
 )
 
 const (

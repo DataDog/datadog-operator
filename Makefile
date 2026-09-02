@@ -226,6 +226,7 @@ golden-update: ## Regenerate operator-render golden files (review the diff befor
 .PHONY: integration-tests
 integration-tests: $(ENVTEST) ## Run integration tests with reconciler
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(ROOT)/bin/$(PLATFORM) -p path)" go test --tags=integration github.com/DataDog/datadog-operator/internal/controller -coverprofile cover_integration.out
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(ROOT)/bin/$(PLATFORM) -p path)" go test --tags=integration github.com/DataDog/datadog-operator/pkg/fleet/... -coverprofile cover_integration_fleet.out
 
 .PHONY: e2e-tests
 e2e-tests: ## Run E2E tests and destroy environment stacks after tests complete. To run locally, complete pre-reqs (see docs/how-to-contribute.md) and prepend command with `aws-vault exec sso-agent-sandbox-account-admin --`. E.g. `aws-vault exec sso-agent-sandbox-account-admin -- make e2e-tests`.

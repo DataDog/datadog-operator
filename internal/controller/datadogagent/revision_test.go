@@ -116,7 +116,7 @@ func TestEnsureRevision_StoresRawSpecNotInstanceSpec(t *testing.T) {
 	require.NoError(t, err)
 
 	rev := fetchRevisionByName(t, c, "default", name)
-	var snapshot revisionSnapshot
+	var snapshot v2alpha1.RevisionSnapshot
 	require.NoError(t, json.Unmarshal(rev.Data.Raw, &snapshot))
 	assert.Nil(t, snapshot.Spec.Global, "snapshot must reflect rawSpec, not instance.Spec's defaulted Global.Site")
 }

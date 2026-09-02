@@ -35,6 +35,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.DogstatsdFeatureConfig":              schema_datadog_operator_api_datadoghq_v2alpha1_DogstatsdFeatureConfig(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.ErrorTrackingStandalone":             schema_datadog_operator_api_datadoghq_v2alpha1_ErrorTrackingStandalone(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.EventCollectionFeatureConfig":        schema_datadog_operator_api_datadoghq_v2alpha1_EventCollectionFeatureConfig(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.ExperimentCheckpoint":                schema_datadog_operator_api_datadoghq_v2alpha1_ExperimentCheckpoint(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.ExperimentStatus":                    schema_datadog_operator_api_datadoghq_v2alpha1_ExperimentStatus(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.FIPSConfig":                          schema_datadog_operator_api_datadoghq_v2alpha1_FIPSConfig(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.GlobalConfig":                        schema_datadog_operator_api_datadoghq_v2alpha1_GlobalConfig(ref),
@@ -696,6 +697,27 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_DatadogAgentStatus(ref commo
 							Format:      "",
 						},
 					},
+					"currentRevision": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CurrentRevision names the ControllerRevision that snapshots the currently observed raw DatadogAgent spec plus selected Datadog annotations.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"currentRevisionObservedGeneration": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CurrentRevisionObservedGeneration records the metadata.generation for which CurrentRevision is valid.",
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
+					"currentRevisionObservedAnnotationsHash": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CurrentRevisionObservedAnnotationsHash records DatadogAnnotationsHash over the annotations that participate in the revision snapshot. Generation does not change for metadata-only updates, so this closes annotation-only races.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
 			},
 		},
@@ -1177,6 +1199,36 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_EventCollectionFeatureConfig
 	}
 }
 
+func schema_datadog_operator_api_datadoghq_v2alpha1_ExperimentCheckpoint(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ExperimentCheckpoint is recorded exactly once when an experiment enters phase=running. Both fields are required when the checkpoint is present, so that \"half a checkpoint\" is never a valid in-flight state.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"rollbackTargetRevision": {
+						SchemaProps: spec.SchemaProps{
+							Description: "RollbackTargetRevision is the pre-experiment baseline ControllerRevision.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"expectedSpecHash": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ExpectedSpecHash is sha256 hex over the canonical revision snapshot of the raw experiment spec plus selected raw Datadog annotations.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"rollbackTargetRevision", "expectedSpecHash"},
+			},
+		},
+	}
+}
+
 func schema_datadog_operator_api_datadoghq_v2alpha1_ExperimentStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -1213,16 +1265,22 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_ExperimentStatus(ref common.
 					},
 					"terminationReason": {
 						SchemaProps: spec.SchemaProps{
-							Description: "TerminationReason distinguishes why the experiment was terminated. Only set when Phase is \"terminated\".",
+							Description: "TerminationReason records why a terminal experiment ended. Set when Phase is \"terminated\" or \"aborted\" and a cause should be reported.",
 							Type:        []string{"string"},
 							Format:      "",
+						},
+					},
+					"checkpoint": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Checkpoint holds the baseline and expected live experiment snapshot. Required while Phase is \"running\"; retained on terminal phases for audit.",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.ExperimentCheckpoint"),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
+			"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.ExperimentCheckpoint", "k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
 	}
 }
 

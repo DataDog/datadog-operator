@@ -8,9 +8,7 @@ package datadogagent
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
-	"strings"
 
 	appsv1 "k8s.io/api/apps/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -24,21 +22,6 @@ import (
 	v2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/pkg/controllerrevisions"
 )
-
-// revisionSnapshot is the payload stored in a ControllerRevision.
-// Annotations are included for preview features.
-type revisionSnapshot struct {
-	Spec        v2alpha1.DatadogAgentSpec `json:"spec"`
-	Annotations map[string]string         `json:"annotations,omitempty"`
-}
-
-// buildRevisionSnapshot marshals a revisionSnapshot from spec and annotations.
-// Spec must be the raw, user-submitted spec (not the in-memory defaulted
-// copy) so that snapshot comparisons are unaffected by defaulting.
-func buildRevisionSnapshot(spec v2alpha1.DatadogAgentSpec, allAnnotations map[string]string) ([]byte, error) {
-	snap := revisionSnapshot{Spec: spec, Annotations: datadogAnnotations(allAnnotations)}
-	return json.Marshal(snap)
-}
 
 // skipRevisionBump returns true when the revision bump should be suppressed.
 // During experiment rollback the spec is restored to an older revision; bumping
@@ -114,7 +97,7 @@ func (r *Reconciler) ensureRevision(
 ) (string, error) {
 	logger := ctrl.LoggerFrom(ctx)
 
-	specBytes, err := buildRevisionSnapshot(rawSpec, instance.GetAnnotations())
+	specBytes, err := v2alpha1.BuildRevisionSnapshot(rawSpec, instance.GetAnnotations())
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal snapshot: %w", err)
 	}
@@ -252,25 +235,6 @@ func (r *Reconciler) recreateRevision(
 		return "", fmt.Errorf("failed to recreate ControllerRevision %s: %w", fresh.Name, err)
 	}
 	return fresh.Name, nil
-}
-
-// datadogAnnotations returns a copy of annotations filtered to only those
-// with `.datadoghq.com/` in the key, which are used for preview features.
-// Experiment signal annotations (experiment.datadoghq.com/) are excluded
-// because they are transient signals, not part of the spec snapshot.
-func datadogAnnotations(all map[string]string) map[string]string {
-	filtered := make(map[string]string)
-	for k, v := range all {
-		if strings.Contains(k, ".datadoghq.com/") &&
-			!strings.HasPrefix(k, "experiment.datadoghq.com/") &&
-			!strings.HasPrefix(k, "fleet.datadoghq.com/") {
-			filtered[k] = v
-		}
-	}
-	if len(filtered) == 0 {
-		return nil
-	}
-	return filtered
 }
 
 // gcOldRevisions deletes all but the two most recent ControllerRevisions:
