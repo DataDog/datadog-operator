@@ -142,6 +142,27 @@ func getRBACPolicyRules(logger logr.Logger, crs []string, collectKubernetesNetwo
 			APIGroups: []string{rbac.EKSAPIGroup},
 			Resources: []string{rbac.Wildcard},
 		},
+		{
+			APIGroups: []string{rbac.KubeRayAPIGroup},
+			Resources: []string{
+				rbac.RayClustersResource,
+				rbac.RayCronJobsResource,
+				rbac.RayJobsResource,
+				rbac.RayServicesResource,
+			},
+		},
+		{
+			APIGroups: []string{rbac.DynamoAPIGroup},
+			Resources: []string{
+				rbac.DynamoCheckpointsResource,
+				rbac.DynamoComponentDeploymentsResource,
+				rbac.DynamoGraphDeploymentRequestsResource,
+				rbac.DynamoGraphDeploymentsResource,
+				rbac.DynamoGraphDeploymentScalingAdaptersResource,
+				rbac.DynamoModelsResource,
+				rbac.DynamoWorkerMetadatasResource,
+			},
+		},
 	}
 
 	if collectKubernetesNetworkResources {
