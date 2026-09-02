@@ -34,7 +34,7 @@ instances:
 	optionsWithCRD := collectorOptions{enableCRD: true}
 	optionsWithAPIService := collectorOptions{enableAPIService: true}
 	optionsWithControllerRevisions := collectorOptions{enableControllerRevisions: true}
-	optionsWithAPIServerCache := collectorOptions{useApiServerCache: true}
+	optionsWithAPIServerCache := collectorOptions{useAPIServerCache: true}
 
 	// Test custom resources
 	optionsWithCustomResources := collectorOptions{

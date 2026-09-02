@@ -78,8 +78,8 @@ func GetNodeGroupsProperties(ctx context.Context, eksClient *eks.Client, ec2Clie
 				}
 
 				ltData := launchTemplate.LaunchTemplateVersions[0].LaunchTemplateData
-				if imageId := ltData.ImageId; imageId != nil {
-					params.AMIID = *imageId
+				if imageID := ltData.ImageId; imageID != nil {
+					params.AMIID = *imageID
 				}
 				params.SecurityGroupIDs = ltData.SecurityGroupIds
 				params.MetadataOptions = extractMetadataOptionsFromLaunchTemplate(ltData.MetadataOptions)

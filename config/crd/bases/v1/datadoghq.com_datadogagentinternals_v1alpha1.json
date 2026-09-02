@@ -491,7 +491,7 @@
                       "description": "Selectors define the pod selector for sidecar injection. Only one rule is supported.",
                       "items": {
                         "additionalProperties": false,
-                        "description": "Selectors define a pod selector for sidecar injection.",
+                        "description": "Selector defines a pod selector for sidecar injection.",
                         "properties": {
                           "namespaceSelector": {
                             "additionalProperties": false,
@@ -2592,7 +2592,7 @@
               "properties": {
                 "containerImage": {
                   "additionalProperties": false,
-                  "description": "SBOMTypeConfig contains configuration for a SBOM collection type.",
+                  "description": "SBOMContainerImageConfig contains configuration for container image SBOM collection.",
                   "properties": {
                     "analyzers": {
                       "description": "Analyzers to use for SBOM collection.",
@@ -2641,7 +2641,7 @@
                 },
                 "host": {
                   "additionalProperties": false,
-                  "description": "SBOMTypeConfig contains configuration for a SBOM collection type.",
+                  "description": "SBOMHostConfig contains configuration for host SBOM collection.",
                   "properties": {
                     "analyzers": {
                       "description": "Analyzers to use for SBOM collection.",
@@ -8980,7 +8980,7 @@
                           "description": "Selectors define the pod selector for sidecar injection. Only one rule is supported.",
                           "items": {
                             "additionalProperties": false,
-                            "description": "Selectors define a pod selector for sidecar injection.",
+                            "description": "Selector defines a pod selector for sidecar injection.",
                             "properties": {
                               "namespaceSelector": {
                                 "additionalProperties": false,
@@ -11081,7 +11081,7 @@
                   "properties": {
                     "containerImage": {
                       "additionalProperties": false,
-                      "description": "SBOMTypeConfig contains configuration for a SBOM collection type.",
+                      "description": "SBOMContainerImageConfig contains configuration for container image SBOM collection.",
                       "properties": {
                         "analyzers": {
                           "description": "Analyzers to use for SBOM collection.",
@@ -11130,7 +11130,7 @@
                     },
                     "host": {
                       "additionalProperties": false,
-                      "description": "SBOMTypeConfig contains configuration for a SBOM collection type.",
+                      "description": "SBOMHostConfig contains configuration for host SBOM collection.",
                       "properties": {
                         "analyzers": {
                           "description": "Analyzers to use for SBOM collection.",

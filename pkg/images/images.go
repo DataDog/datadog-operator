@@ -229,7 +229,7 @@ func OverrideAgentImage(currentImage string, overrideImageSpec *v2alpha1.AgentIm
 	return image.ToString()
 }
 
-// String return the string representation of an image
+// ToString returns the string representation of an image.
 func (i *Image) ToString() string {
 	suffix := ""
 	// FIPS is a global setting, JMX is an override setting and Full is a feature setting.

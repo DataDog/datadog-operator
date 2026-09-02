@@ -28,7 +28,7 @@ const (
 // APM Telemetry
 const (
 	APMTelemetryConfigMapName  = "datadog-apm-telemetry-kpi"
-	APMTelemetryInstallIdKey   = "install_id"
+	APMTelemetryInstallIDKey   = "install_id"
 	APMTelemetryInstallTimeKey = "install_time"
 	APMTelemetryInstallTypeKey = "install_type"
 )
