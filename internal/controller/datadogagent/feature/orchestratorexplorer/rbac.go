@@ -142,6 +142,23 @@ func getRBACPolicyRules(logger logr.Logger, crs []string, collectKubernetesNetwo
 			APIGroups: []string{rbac.EKSAPIGroup},
 			Resources: []string{rbac.Wildcard},
 		},
+		{
+			APIGroups: []string{rbac.KServeAPIGroup},
+			Resources: []string{
+				rbac.ClusterStorageContainersResource,
+				rbac.LLMInferenceServiceConfigsResource,
+				rbac.LLMInferenceServicesResource,
+				rbac.LocalModelCachesResource,
+				rbac.LocalModelNamespaceCachesResource,
+				rbac.LocalModelNodeGroupsResource,
+				rbac.LocalModelNodesResource,
+				rbac.ClusterServingRuntimesResource,
+				rbac.InferenceGraphsResource,
+				rbac.InferenceServicesResource,
+				rbac.ServingRuntimesResource,
+				rbac.TrainedModelsResource,
+			},
+		},
 	}
 
 	if collectKubernetesNetworkResources {

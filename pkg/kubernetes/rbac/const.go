@@ -41,6 +41,7 @@ const (
 	KarpenterAPIGroup            = "karpenter.sh"
 	KarpenterAWSAPIGroup         = "karpenter.k8s.aws"
 	KarpenterAzureAPIGroup       = "karpenter.azure.com"
+	KServeAPIGroup               = "serving.kserve.io"
 
 	// Service Mesh API groups
 	IstioNetworkingAPIGroup = "networking.istio.io"
@@ -126,6 +127,18 @@ const (
 	Helmrepositories                                  = "helmrepositories"
 	Ocirepositories                                   = "ocirepositories"
 	Kustomizations                                    = "kustomizations"
+	ClusterStorageContainersResource                  = "clusterstoragecontainers"
+	LLMInferenceServiceConfigsResource                = "llminferenceserviceconfigs"
+	LLMInferenceServicesResource                      = "llminferenceservices"
+	LocalModelCachesResource                          = "localmodelcaches"
+	LocalModelNamespaceCachesResource                 = "localmodelnamespacecaches"
+	LocalModelNodeGroupsResource                      = "localmodelnodegroups"
+	LocalModelNodesResource                           = "localmodelnodes"
+	ClusterServingRuntimesResource                    = "clusterservingruntimes"
+	InferenceGraphsResource                           = "inferencegraphs"
+	InferenceServicesResource                         = "inferenceservices"
+	ServingRuntimesResource                           = "servingruntimes"
+	TrainedModelsResource                             = "trainedmodels"
 
 	// Gateway API resources
 	GatewaysResource     = "gateways"

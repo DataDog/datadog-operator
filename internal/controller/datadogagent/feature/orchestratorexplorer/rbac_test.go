@@ -41,6 +41,24 @@ func TestGetRBACPolicyRules(t *testing.T) {
 			Resources: []string{rbac.Wildcard},
 			Verbs:     []string{rbac.ListVerb, rbac.WatchVerb},
 		},
+		{
+			APIGroups: []string{rbac.KServeAPIGroup},
+			Resources: []string{
+				rbac.ClusterStorageContainersResource,
+				rbac.LLMInferenceServiceConfigsResource,
+				rbac.LLMInferenceServicesResource,
+				rbac.LocalModelCachesResource,
+				rbac.LocalModelNamespaceCachesResource,
+				rbac.LocalModelNodeGroupsResource,
+				rbac.LocalModelNodesResource,
+				rbac.ClusterServingRuntimesResource,
+				rbac.InferenceGraphsResource,
+				rbac.InferenceServicesResource,
+				rbac.ServingRuntimesResource,
+				rbac.TrainedModelsResource,
+			},
+			Verbs: []string{rbac.ListVerb, rbac.WatchVerb},
+		},
 	}
 
 	tests := []struct {
