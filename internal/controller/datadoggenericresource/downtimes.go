@@ -123,8 +123,8 @@ func updateDowntime(auth context.Context, client *datadogV2.DowntimesApi, instan
 	// ID is retrieved from the status and type is always downtime
 	var specData struct {
 		Data struct {
-			Attributes *datadogV2.DowntimeUpdateRequestAttributes
-		}
+			Attributes *datadogV2.DowntimeUpdateRequestAttributes `json:"attributes"`
+		} `json:"data"`
 	}
 	if err := json.Unmarshal([]byte(instance.Spec.JsonSpec), &specData); err != nil {
 		return datadogV2.DowntimeResponse{}, translateClientError(err, "error unmarshalling downtime spec")

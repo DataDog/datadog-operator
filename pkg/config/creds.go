@@ -445,8 +445,8 @@ func (cm *CredentialManager) getCredentialsFromDDA(dda *v2alpha1.DatadogAgent) (
 
 	defaultSecretName := secrets.GetDefaultCredentialsSecretName(dda)
 
-	apiKey := ""
-	err := error(nil)
+	var apiKey string
+	var err error
 	if dda.Spec.Global != nil && dda.Spec.Global.Credentials != nil && dda.Spec.Global.Credentials.APIKey != nil && *dda.Spec.Global.Credentials.APIKey != "" {
 		apiKey = *dda.Spec.Global.Credentials.APIKey
 	} else {

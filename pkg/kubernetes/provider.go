@@ -182,7 +182,7 @@ func splitProviderSuffix(provider string) (string, string) {
 // GetAgentNameWithProvider returns the agent name based on the ds name and provider
 func GetAgentNameWithProvider(overrideDSName, provider string) string {
 	if provider != "" && overrideDSName != "" {
-		return overrideDSName + "-" + strings.Replace(provider, "_", "-", -1)
+		return overrideDSName + "-" + strings.ReplaceAll(provider, "_", "-")
 	}
 	return overrideDSName
 }

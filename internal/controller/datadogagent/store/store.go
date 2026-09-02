@@ -361,7 +361,7 @@ func (ds *Store) DeleteAll(ctx context.Context, k8sClient client.Client) []error
 						gvk = gvks[0]
 					}
 				}
-				partialObj.TypeMeta.SetGroupVersionKind(gvk)
+				partialObj.SetGroupVersionKind(gvk)
 				objsToDelete = append(objsToDelete, partialObj)
 			}
 		}
@@ -420,7 +420,7 @@ func (ds *Store) listObjectToDelete(kind kubernetes.ObjectKind, objList client.O
 						}
 					}
 
-					partialObj.TypeMeta.SetGroupVersionKind(gvk)
+					partialObj.SetGroupVersionKind(gvk)
 					objsToDelete = append(objsToDelete, partialObj)
 				}
 			}

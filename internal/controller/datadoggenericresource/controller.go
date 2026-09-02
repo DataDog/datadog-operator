@@ -200,6 +200,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, instance *v1alpha1.DatadogGe
 	}
 
 	// If reconcile was successful and uneventful, requeue with the configured period.
+	// Requeue is needed here to distinguish an immediate requeue requested by the finalizer.
 	if !result.Requeue && result.RequeueAfter == 0 {
 		result.RequeueAfter = r.requeuePeriod
 	}

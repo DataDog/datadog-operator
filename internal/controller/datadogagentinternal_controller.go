@@ -25,7 +25,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
-	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
@@ -98,7 +97,7 @@ func (r *DatadogAgentInternalReconciler) SetupWithManager(mgr ctrl.Manager, metr
 	}
 
 	or := reconcile.AsReconciler[*v1alpha1.DatadogAgentInternal](r.Client, r)
-	if err := builder.For(&datadoghqv1alpha1.DatadogAgentInternal{}, builderOptions...).WithEventFilter(predicate.GenerationChangedPredicate{}).Complete(or); err != nil {
+	if err := builder.For(&v1alpha1.DatadogAgentInternal{}, builderOptions...).WithEventFilter(predicate.GenerationChangedPredicate{}).Complete(or); err != nil {
 		return err
 	}
 

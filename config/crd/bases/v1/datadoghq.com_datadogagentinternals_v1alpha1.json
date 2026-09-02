@@ -1821,7 +1821,7 @@
                                       "type": "boolean"
                                     },
                                     "path": {
-                                      "description": "Path is the path to to generate metric(s) for.",
+                                      "description": "Path is the path to generate metric(s) for.",
                                       "items": {
                                         "type": "string"
                                       },
@@ -1859,7 +1859,7 @@
                                       "type": "object"
                                     },
                                     "path": {
-                                      "description": "Path is the path to to generate metric(s) for.",
+                                      "description": "Path is the path to generate metric(s) for.",
                                       "items": {
                                         "type": "string"
                                       },
@@ -1897,7 +1897,7 @@
                                       "type": "array"
                                     },
                                     "path": {
-                                      "description": "Path is the path to to generate metric(s) for.",
+                                      "description": "Path is the path to generate metric(s) for.",
                                       "items": {
                                         "type": "string"
                                       },
@@ -10310,7 +10310,7 @@
                                           "type": "boolean"
                                         },
                                         "path": {
-                                          "description": "Path is the path to to generate metric(s) for.",
+                                          "description": "Path is the path to generate metric(s) for.",
                                           "items": {
                                             "type": "string"
                                           },
@@ -10348,7 +10348,7 @@
                                           "type": "object"
                                         },
                                         "path": {
-                                          "description": "Path is the path to to generate metric(s) for.",
+                                          "description": "Path is the path to generate metric(s) for.",
                                           "items": {
                                             "type": "string"
                                           },
@@ -10386,7 +10386,7 @@
                                           "type": "array"
                                         },
                                         "path": {
-                                          "description": "Path is the path to to generate metric(s) for.",
+                                          "description": "Path is the path to generate metric(s) for.",
                                           "items": {
                                             "type": "string"
                                           },

@@ -1129,7 +1129,7 @@ type MetricMeta struct {
 	// LabelsFromPath adds additional labels where the value of the label is taken from a field under Path.
 	// +optional
 	LabelsFromPath map[string][]string `json:"labelsFromPath,omitempty" yaml:"labelsFromPath,omitempty"`
-	// Path is the path to to generate metric(s) for.
+	// Path is the path to generate metric(s) for.
 	Path []string `json:"path" yaml:"path"`
 }
 
