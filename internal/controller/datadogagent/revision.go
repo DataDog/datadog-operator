@@ -48,10 +48,68 @@ func (r *Reconciler) manageRevision(ctx context.Context, instance *v2alpha1.Data
 	if err != nil {
 		return err
 	}
-	if err := r.gcOldRevisions(ctx, revName, revList); err != nil {
+	if err := r.gcOldRevisions(ctx, map[string]bool{revName: true}, revList); err != nil {
 		ctrl.LoggerFrom(ctx).Error(err, "Failed to garbage collect old ControllerRevisions, will retry on next reconcile")
 	}
 	return nil
+}
+
+// publishCurrentRevisionBarrier ensures a ControllerRevision exists for the
+// current raw spec plus Datadog-owned annotations, then durably publishes the
+// resulting pointer to status.currentRevision (plus its freshness fields) via
+// a dedicated status patch. This runs before experiment handling so Fleet
+// always reads a fresh, freshness-checkable baseline rather than waiting for
+// the terminal status update at the end of the reconcile.
+//
+// The patch target is a deep copy of instance, never instance itself: the API
+// server's response to the patch carries the persisted, undefaulted spec, and
+// decoding that response into instance would clobber the in-memory defaulting
+// already applied earlier in the reconcile.
+func (r *Reconciler) publishCurrentRevisionBarrier(
+	ctx context.Context,
+	instance *v2alpha1.DatadogAgent,
+	rawSpec v2alpha1.DatadogAgentSpec,
+	revList []appsv1.ControllerRevision,
+) (revName string, annotationsHash string, err error) {
+	revName, err = r.ensureRevision(ctx, instance, rawSpec, revList, false)
+	if err != nil {
+		return "", "", err
+	}
+
+	annotationsHash, err = v2alpha1.DatadogAnnotationsHash(instance.GetAnnotations())
+	if err != nil {
+		return "", "", fmt.Errorf("failed to hash Datadog annotations: %w", err)
+	}
+
+	if instance.Status.CurrentRevision == revName &&
+		instance.Status.CurrentRevisionObservedGeneration == instance.Generation &&
+		instance.Status.CurrentRevisionObservedAnnotationsHash == annotationsHash {
+		return revName, annotationsHash, nil
+	}
+
+	patchTarget := instance.DeepCopy()
+	original := patchTarget.DeepCopy()
+	patchTarget.Status.CurrentRevision = revName
+	patchTarget.Status.CurrentRevisionObservedGeneration = instance.Generation
+	patchTarget.Status.CurrentRevisionObservedAnnotationsHash = annotationsHash
+
+	if err := r.client.Status().Patch(ctx, patchTarget, client.MergeFrom(original)); err != nil {
+		return "", "", fmt.Errorf("failed to publish current revision pointer: %w", err)
+	}
+	instance.ResourceVersion = patchTarget.ResourceVersion
+
+	return revName, annotationsHash, nil
+}
+
+// applyCurrentRevisionPointer mirrors the barrier's published pointer onto a
+// status object. Called against instance.Status, newDDAStatus, and
+// ddaStatusCopy so that no downstream error path in reconcileInstance can
+// write the pointer back to empty by reusing a status copy captured before
+// the barrier ran.
+func applyCurrentRevisionPointer(status *v2alpha1.DatadogAgentStatus, revName string, observedGeneration int64, annotationsHash string) {
+	status.CurrentRevision = revName
+	status.CurrentRevisionObservedGeneration = observedGeneration
+	status.CurrentRevisionObservedAnnotationsHash = annotationsHash
 }
 
 func (r *Reconciler) listRevisions(ctx context.Context, instance *v2alpha1.DatadogAgent) ([]appsv1.ControllerRevision, error) {
@@ -237,23 +295,30 @@ func (r *Reconciler) recreateRevision(
 	return fresh.Name, nil
 }
 
-// gcOldRevisions deletes all but the two most recent ControllerRevisions:
-// the current and previous. Stale experiment revisions (marked with the
-// rollback annotation) are kept here — they are handled by ensureRevision
-// which recreates them with a fresh timestamp when the same spec is re-applied.
+// gcOldRevisions deletes all but the pinned revisions and the single most
+// recent unpinned one (kept as "previous"). Stale experiment revisions
+// (marked with the rollback annotation) are kept here — they are handled by
+// ensureRevision which recreates them with a fresh timestamp when the same
+// spec is re-applied.
+//
+// pins is a set of revision names that must never be deleted. Today it only
+// carries status.currentRevision; later commits add the active experiment
+// checkpoint's rollback target and a pending start signal's rollback-target
+// annotation, once those states exist, without needing to reshape this
+// signature again.
 func (r *Reconciler) gcOldRevisions(
 	ctx context.Context,
-	current string,
+	pins map[string]bool,
 	revList []appsv1.ControllerRevision,
 ) error {
 	logger := ctrl.LoggerFrom(ctx)
 
-	// Identify the most recent non-current revision to keep as previous.
+	// Identify the most recent unpinned revision to keep as previous.
 	previous := ""
 	previousRevision := int64(-1)
 	for i := range revList {
 		rev := &revList[i]
-		if rev.Name == current {
+		if pins[rev.Name] {
 			continue
 		}
 		if rev.Revision > previousRevision {
@@ -264,7 +329,7 @@ func (r *Reconciler) gcOldRevisions(
 
 	for i := range revList {
 		rev := &revList[i]
-		if rev.Name == current || rev.Name == previous {
+		if pins[rev.Name] || rev.Name == previous {
 			continue
 		}
 		objLogger := logger.WithValues(

@@ -413,6 +413,180 @@ func Test_ControllerRevisions_SnapshotStoresRawSpec(t *testing.T) {
 	assert.Len(t, listOwnedRevisions(t, c, ns, uid), 1, "defaulting recomputation alone must not create a new revision")
 }
 
+// -----------------------------------------------------------------------------
+// Reconcile barrier tests (Commit 2)
+// -----------------------------------------------------------------------------
+
+// Test_Barrier_PublishesCurrentRevisionOnFirstReconcile verifies that the
+// barrier publishes status.currentRevision (plus its freshness fields) on
+// the very first reconcile, before any experiment or Fleet logic can run.
+func Test_Barrier_PublishesCurrentRevisionOnFirstReconcile(t *testing.T) {
+	const ns, name = "default", "test-dda"
+	const uid = types.UID("uid-1")
+
+	r, c := newRevisionIntegrationReconciler(t)
+	dda := baseDDA(ns, name, uid)
+	createAndReconcile(t, r, dda)
+
+	var fetched v2alpha1.DatadogAgent
+	assert.NoError(t, c.Get(context.TODO(), types.NamespacedName{Namespace: ns, Name: name}, &fetched))
+	assert.NotEmpty(t, fetched.Status.CurrentRevision)
+	assert.Equal(t, fetched.Generation, fetched.Status.CurrentRevisionObservedGeneration)
+	assert.NotEmpty(t, fetched.Status.CurrentRevisionObservedAnnotationsHash)
+
+	revs := listOwnedRevisions(t, c, ns, uid)
+	assert.Len(t, revs, 1)
+	assert.Equal(t, revs[0].Name, fetched.Status.CurrentRevision)
+}
+
+// Test_Barrier_RepublishesOnSpecChange verifies that a spec change moves the
+// published pointer to the new ControllerRevision and refreshes the observed
+// generation.
+func Test_Barrier_RepublishesOnSpecChange(t *testing.T) {
+	const ns, name = "default", "test-dda"
+	const uid = types.UID("uid-1")
+
+	r, c := newRevisionIntegrationReconciler(t)
+	dda := baseDDA(ns, name, uid)
+	createAndReconcile(t, r, dda)
+
+	var fetched v2alpha1.DatadogAgent
+	assert.NoError(t, c.Get(context.TODO(), types.NamespacedName{Namespace: ns, Name: name}, &fetched))
+	firstRevision := fetched.Status.CurrentRevision
+	assert.NotEmpty(t, firstRevision)
+
+	assert.NoError(t, c.Get(context.TODO(), types.NamespacedName{Namespace: ns, Name: name}, dda))
+	dda.Spec.Global.Site = ptr.To("datadoghq.eu")
+	dda.Generation++
+	assert.NoError(t, c.Update(context.TODO(), dda))
+	_, err := r.Reconcile(context.TODO(), dda)
+	assert.NoError(t, err)
+
+	assert.NoError(t, c.Get(context.TODO(), types.NamespacedName{Namespace: ns, Name: name}, &fetched))
+	assert.NotEqual(t, firstRevision, fetched.Status.CurrentRevision, "spec change must publish a new revision pointer")
+	assert.Equal(t, fetched.Generation, fetched.Status.CurrentRevisionObservedGeneration)
+}
+
+// Test_Barrier_RepublishesOnDatadogAnnotationChange verifies that adding a
+// Datadog-owned annotation (e.g. a preview-feature annotation), with no spec
+// change, moves the pointer's observed-annotations hash. This guards the
+// annotation-only race: metadata.generation does not advance on an
+// annotation-only write, so freshness must be checkable independently of
+// generation.
+func Test_Barrier_RepublishesOnDatadogAnnotationChange(t *testing.T) {
+	const ns, name = "default", "test-dda"
+	const uid = types.UID("uid-1")
+
+	r, c := newRevisionIntegrationReconciler(t)
+	dda := baseDDA(ns, name, uid)
+	createAndReconcile(t, r, dda)
+
+	var fetched v2alpha1.DatadogAgent
+	assert.NoError(t, c.Get(context.TODO(), types.NamespacedName{Namespace: ns, Name: name}, &fetched))
+	firstHash := fetched.Status.CurrentRevisionObservedAnnotationsHash
+	assert.NotEmpty(t, firstHash)
+
+	assert.NoError(t, c.Get(context.TODO(), types.NamespacedName{Namespace: ns, Name: name}, dda))
+	dda.Annotations = map[string]string{
+		"preview.datadoghq.com/feature": "on",
+	}
+	assert.NoError(t, c.Update(context.TODO(), dda))
+	_, err := r.Reconcile(context.TODO(), dda)
+	assert.NoError(t, err)
+
+	assert.NoError(t, c.Get(context.TODO(), types.NamespacedName{Namespace: ns, Name: name}, &fetched))
+	assert.NotEqual(t, firstHash, fetched.Status.CurrentRevisionObservedAnnotationsHash,
+		"datadog-owned annotation change must republish the pointer's annotations hash")
+}
+
+// Test_Barrier_DoesNotRepublishOnNonDatadogAnnotationChange verifies that a
+// non-Datadog annotation (e.g. a kubectl management annotation) does not
+// move the published pointer at all.
+func Test_Barrier_DoesNotRepublishOnNonDatadogAnnotationChange(t *testing.T) {
+	const ns, name = "default", "test-dda"
+	const uid = types.UID("uid-1")
+
+	r, c := newRevisionIntegrationReconciler(t)
+	dda := baseDDA(ns, name, uid)
+	createAndReconcile(t, r, dda)
+
+	var fetched v2alpha1.DatadogAgent
+	assert.NoError(t, c.Get(context.TODO(), types.NamespacedName{Namespace: ns, Name: name}, &fetched))
+	firstRevision := fetched.Status.CurrentRevision
+	firstHash := fetched.Status.CurrentRevisionObservedAnnotationsHash
+
+	assert.NoError(t, c.Get(context.TODO(), types.NamespacedName{Namespace: ns, Name: name}, dda))
+	dda.Annotations = map[string]string{
+		"kubectl.kubernetes.io/last-applied-configuration": `{"apiVersion":"datadoghq.com/v2alpha1"}`,
+	}
+	assert.NoError(t, c.Update(context.TODO(), dda))
+	_, err := r.Reconcile(context.TODO(), dda)
+	assert.NoError(t, err)
+
+	assert.NoError(t, c.Get(context.TODO(), types.NamespacedName{Namespace: ns, Name: name}, &fetched))
+	assert.Equal(t, firstRevision, fetched.Status.CurrentRevision)
+	assert.Equal(t, firstHash, fetched.Status.CurrentRevisionObservedAnnotationsHash,
+		"non-datadog annotation change must not move the pointer's annotations hash")
+}
+
+// Test_Barrier_ErrorPathPreservesPointer verifies that when a later reconcile
+// step fails (here, a missing API key deep in dependency management) after
+// the barrier has already published a new pointer, the published pointer is
+// not written back to empty by the error-path status update. Regression test
+// for the barrier's pointer being carried on ddaStatusCopy/newDDAStatus
+// rather than a status object captured before the barrier ran.
+func Test_Barrier_ErrorPathPreservesPointer(t *testing.T) {
+	const ns, name = "default", "test-dda"
+	const uid = types.UID("uid-1")
+
+	r, c := newRevisionIntegrationReconciler(t)
+	dda := baseDDA(ns, name, uid)
+	createAndReconcile(t, r, dda)
+
+	var fetched v2alpha1.DatadogAgent
+	assert.NoError(t, c.Get(context.TODO(), types.NamespacedName{Namespace: ns, Name: name}, &fetched))
+	firstRevision := fetched.Status.CurrentRevision
+	assert.NotEmpty(t, firstRevision)
+
+	// Change the spec (so the barrier publishes a new pointer) while also
+	// breaking credentials in a way that only surfaces as an error later, in
+	// dependency management -- well after the barrier has already run.
+	assert.NoError(t, c.Get(context.TODO(), types.NamespacedName{Namespace: ns, Name: name}, dda))
+	dda.Spec.Global.Site = ptr.To("datadoghq.eu")
+	dda.Spec.Global.Credentials.APIKey = ptr.To("")
+	assert.NoError(t, c.Update(context.TODO(), dda))
+	_, err := r.Reconcile(context.TODO(), dda)
+	assert.Error(t, err, "expected a downstream failure from the missing API key")
+
+	assert.NoError(t, c.Get(context.TODO(), types.NamespacedName{Namespace: ns, Name: name}, &fetched))
+	assert.NotEmpty(t, fetched.Status.CurrentRevision)
+	assert.NotEqual(t, firstRevision, fetched.Status.CurrentRevision,
+		"barrier's new pointer must survive the later error-path status update")
+}
+
+// Test_Barrier_NoOpWhenRevisionsDisabled verifies that the barrier does
+// nothing -- publishes no pointer, creates no ControllerRevision -- when
+// CreateControllerRevisions is disabled. Guards the feature gate: without
+// this test the option could be silently removed and the barrier would
+// always run.
+func Test_Barrier_NoOpWhenRevisionsDisabled(t *testing.T) {
+	const ns, name = "default", "test-dda"
+	const uid = types.UID("uid-1")
+
+	r, c := newRevisionIntegrationReconciler(t)
+	r.options.CreateControllerRevisions = false
+
+	dda := baseDDA(ns, name, uid)
+	createAndReconcile(t, r, dda)
+
+	var fetched v2alpha1.DatadogAgent
+	assert.NoError(t, c.Get(context.TODO(), types.NamespacedName{Namespace: ns, Name: name}, &fetched))
+	assert.Empty(t, fetched.Status.CurrentRevision)
+	assert.Equal(t, int64(0), fetched.Status.CurrentRevisionObservedGeneration)
+	assert.Empty(t, fetched.Status.CurrentRevisionObservedAnnotationsHash)
+	assert.Empty(t, listOwnedRevisions(t, c, ns, uid))
+}
+
 // Test_ControllerRevisions_MigrationFromDefaultedSnapshot simulates upgrading
 // from the old (pre-fix) code, which snapshotted the in-memory defaulted spec,
 // to the current code, which snapshots the raw spec. A pre-existing revision

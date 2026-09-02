@@ -113,6 +113,17 @@ func (r *Reconciler) reconcileInstance(ctx context.Context, logger logr.Logger, 
 		if err != nil {
 			return r.updateStatusIfNeeded(logger, instance, ddaStatusCopy, result, err, now)
 		}
+
+		// Barrier: publish a durable, freshness-checkable status.currentRevision
+		// pointer before Fleet or experiment handling can consume it.
+		revName, annotationsHash, err := r.publishCurrentRevisionBarrier(ctx, instance, rawSpec, revList)
+		if err != nil {
+			return r.updateStatusIfNeeded(logger, instance, ddaStatusCopy, result, err, now)
+		}
+		applyCurrentRevisionPointer(newDDAStatus, revName, instance.Generation, annotationsHash)
+		applyCurrentRevisionPointer(ddaStatusCopy, revName, instance.Generation, annotationsHash)
+		applyCurrentRevisionPointer(&instance.Status, revName, instance.Generation, annotationsHash)
+
 		// Use user-submitted instance instead of defaulted instance
 		rawInstance := instance.DeepCopy()
 		rawInstance.Spec = rawSpec

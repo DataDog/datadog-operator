@@ -22,6 +22,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	v2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/defaults"
 )
 
 func newRevisionTestScheme(t *testing.T) *runtime.Scheme {
@@ -196,7 +197,7 @@ func TestGCOldRevisions_KeepsCurrentAndPrevious(t *testing.T) {
 		names[i] = name
 	}
 
-	err := r.gcOldRevisions(context.Background(), names[2], mustListRevisions(t, r, instances[2]))
+	err := r.gcOldRevisions(context.Background(), map[string]bool{names[2]: true}, mustListRevisions(t, r, instances[2]))
 	require.NoError(t, err)
 
 	revList := &appsv1.ControllerRevisionList{}
@@ -245,7 +246,7 @@ func TestGCOldRevisions_KeepsTwoRevisions(t *testing.T) {
 	name2, err := r.ensureRevision(context.Background(), instanceB, instanceB.Spec, mustListRevisions(t, r, instanceB), false)
 	require.NoError(t, err)
 
-	err = r.gcOldRevisions(context.Background(), name2, mustListRevisions(t, r, instanceB))
+	err = r.gcOldRevisions(context.Background(), map[string]bool{name2: true}, mustListRevisions(t, r, instanceB))
 	require.NoError(t, err)
 
 	revList := &appsv1.ControllerRevisionList{}
@@ -290,7 +291,7 @@ func TestGCOldRevisions_NoPreviousWhenOnlyCurrent(t *testing.T) {
 	revName, err := r.ensureRevision(context.Background(), instance, instance.Spec, mustListRevisions(t, r, instance), false)
 	require.NoError(t, err)
 
-	err = r.gcOldRevisions(context.Background(), revName, mustListRevisions(t, r, instance))
+	err = r.gcOldRevisions(context.Background(), map[string]bool{revName: true}, mustListRevisions(t, r, instance))
 	require.NoError(t, err)
 
 	revList := &appsv1.ControllerRevisionList{}
@@ -313,7 +314,7 @@ func TestGCOldRevisions_DeletesMultipleOld(t *testing.T) {
 	}
 
 	current := newRevisionTestOwner("test-dda", "default")
-	err := r.gcOldRevisions(context.Background(), names[4], mustListRevisions(t, r, current))
+	err := r.gcOldRevisions(context.Background(), map[string]bool{names[4]: true}, mustListRevisions(t, r, current))
 	require.NoError(t, err)
 
 	revList := &appsv1.ControllerRevisionList{}
@@ -509,7 +510,7 @@ func TestGCOldRevisions_AlwaysKeepsPrevious(t *testing.T) {
 	nameB, err := r.ensureRevision(context.Background(), instanceB, instanceB.Spec, mustListRevisions(t, r, instanceB), false)
 	require.NoError(t, err)
 
-	err = r.gcOldRevisions(context.Background(), nameB, mustListRevisions(t, r, instanceB))
+	err = r.gcOldRevisions(context.Background(), map[string]bool{nameB: true}, mustListRevisions(t, r, instanceB))
 	require.NoError(t, err)
 
 	revList := &appsv1.ControllerRevisionList{}
@@ -571,6 +572,42 @@ func TestEnsureRevision_CommonLabelsApplied(t *testing.T) {
 	assert.Equal(t, "ops", rev.Labels["cost-center"], "extraLabel cost-center must be on ControllerRevision")
 	// Operator-owned label must still be present and not overridden
 	assert.Equal(t, "datadog", rev.Labels["agent.datadoghq.com/datadogagent"])
+}
+
+// TestBarrier_StatusPatchDoesNotClobberDefaultedSpec guards against a
+// regression where publishCurrentRevisionBarrier's status patch is issued
+// against the defaulted `instance` directly instead of a throwaway deep
+// copy. The fake client's Patch response decodes the object as persisted on
+// the server (the raw, undefaulted spec); if that response were decoded into
+// `instance` itself, the caller's in-memory defaulting would be silently
+// clobbered immediately after the barrier runs.
+func TestBarrier_StatusPatchDoesNotClobberDefaultedSpec(t *testing.T) {
+	scheme := newRevisionTestScheme(t)
+	c := fake.NewClientBuilder().
+		WithScheme(scheme).
+		WithStatusSubresource(&v2alpha1.DatadogAgent{}).
+		Build()
+	r := &Reconciler{client: c, scheme: scheme}
+
+	raw := newRevisionTestOwner("test-dda", "default")
+	raw.Spec = v2alpha1.DatadogAgentSpec{}
+	require.NoError(t, c.Create(context.Background(), raw))
+
+	// Mirror reconcileInstance: rawSpec is captured before defaulting,
+	// instance carries the defaulted copy.
+	rawSpec := raw.Spec
+	instance := raw.DeepCopy()
+	defaults.DefaultDatadogAgentSpec(&instance.Spec)
+	require.NotNil(t, instance.Spec.Global)
+	require.NotNil(t, instance.Spec.Global.Registry, "defaulting must set a registry for this assertion to be meaningful")
+
+	revName, hash, err := r.publishCurrentRevisionBarrier(context.Background(), instance, rawSpec, nil)
+	require.NoError(t, err)
+	assert.NotEmpty(t, revName)
+	assert.NotEmpty(t, hash)
+
+	require.NotNil(t, instance.Spec.Global, "status patch response must not clobber in-memory defaulting")
+	assert.NotNil(t, instance.Spec.Global.Registry, "defaulted registry must survive the barrier's status patch")
 }
 
 func TestEnsureRevision_CommonLabels_CannotOverrideOperatorKey(t *testing.T) {
