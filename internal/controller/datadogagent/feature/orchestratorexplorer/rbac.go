@@ -163,6 +163,23 @@ func getRBACPolicyRules(logger logr.Logger, crs []string, collectKubernetesNetwo
 				rbac.DynamoWorkerMetadatasResource,
 			},
 		},
+		{
+			APIGroups: []string{rbac.KServeAPIGroup},
+			Resources: []string{
+				rbac.ClusterStorageContainersResource,
+				rbac.LLMInferenceServiceConfigsResource,
+				rbac.LLMInferenceServicesResource,
+				rbac.LocalModelCachesResource,
+				rbac.LocalModelNamespaceCachesResource,
+				rbac.LocalModelNodeGroupsResource,
+				rbac.LocalModelNodesResource,
+				rbac.ClusterServingRuntimesResource,
+				rbac.InferenceGraphsResource,
+				rbac.InferenceServicesResource,
+				rbac.ServingRuntimesResource,
+				rbac.TrainedModelsResource,
+			},
+		},
 	}
 
 	if collectKubernetesNetworkResources {
