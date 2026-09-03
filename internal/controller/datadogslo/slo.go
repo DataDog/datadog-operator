@@ -9,6 +9,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
 	"strconv"
 
@@ -16,6 +17,7 @@ import (
 	"github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	ctrutils "github.com/DataDog/datadog-operator/pkg/controller/utils"
 )
 
 func buildSLO(crdSLO *v1alpha1.DatadogSLO) (*datadogV1.ServiceLevelObjectiveRequest, *datadogV1.ServiceLevelObjective) {
@@ -125,18 +127,18 @@ func buildThreshold(sloSpec v1alpha1.DatadogSLOSpec) []datadogV1.SLOThreshold {
 
 func createSLO(auth context.Context, client *datadogV1.ServiceLevelObjectivesApi, crdSLO *v1alpha1.DatadogSLO) (datadogV1.ServiceLevelObjective, error) {
 	sloReq, _ := buildSLO(crdSLO)
-	slo, _, err := client.CreateSLO(auth, *sloReq)
+	slo, httpResp, err := client.CreateSLO(auth, *sloReq)
 	if err != nil {
-		return datadogV1.ServiceLevelObjective{}, translateClientError(err, "error creating SLO")
+		return datadogV1.ServiceLevelObjective{}, translateClientError(err, httpResp, "error creating SLO")
 	}
 
 	return slo.Data[0], nil
 }
 
 func getSLO(auth context.Context, client *datadogV1.ServiceLevelObjectivesApi, sloId string) (*datadogV1.SLOResponseData, error) {
-	slo, _, err := client.GetSLO(auth, sloId, datadogV1.GetSLOOptionalParameters{})
+	slo, httpResp, err := client.GetSLO(auth, sloId, datadogV1.GetSLOOptionalParameters{})
 	if err != nil {
-		return &datadogV1.SLOResponseData{}, translateClientError(err, "error getting SLO")
+		return &datadogV1.SLOResponseData{}, translateClientError(err, httpResp, "error getting SLO")
 	}
 
 	return slo.Data, nil
@@ -144,9 +146,9 @@ func getSLO(auth context.Context, client *datadogV1.ServiceLevelObjectivesApi, s
 
 func updateSLO(auth context.Context, client *datadogV1.ServiceLevelObjectivesApi, crdSLO *v1alpha1.DatadogSLO) (datadogV1.SLOListResponse, error) {
 	_, slo := buildSLO(crdSLO)
-	sloListResponse, _, err := client.UpdateSLO(auth, crdSLO.Status.ID, *slo)
+	sloListResponse, httpResp, err := client.UpdateSLO(auth, crdSLO.Status.ID, *slo)
 	if err != nil {
-		return datadogV1.SLOListResponse{}, translateClientError(err, "error updating SLO")
+		return datadogV1.SLOListResponse{}, translateClientError(err, httpResp, "error updating SLO")
 	}
 	return sloListResponse, nil
 }
@@ -158,12 +160,16 @@ func deleteSLO(auth context.Context, client *datadogV1.ServiceLevelObjectivesApi
 	}
 	_, localVarHTTPResponse, err := client.DeleteSLO(auth, sloID, optionalParams)
 	if err != nil {
-		return localVarHTTPResponse.StatusCode, translateClientError(err, "error deleting SLO")
+		return localVarHTTPResponse.StatusCode, translateClientError(err, localVarHTTPResponse, "error deleting SLO")
 	}
 	return localVarHTTPResponse.StatusCode, nil
 }
 
-func translateClientError(err error, msg string) error {
+// translateClientError formats err for logging and wraps it with the HTTP
+// status code from httpResp (nil for network-level failures), so callers can
+// classify the failure with ctrutils.IsPermanentAPIError without re-parsing
+// the error string.
+func translateClientError(err error, httpResp *http.Response, msg string) error {
 	if msg == "" {
 		msg = "an error occurred"
 	}
@@ -171,12 +177,12 @@ func translateClientError(err error, msg string) error {
 	var apiErr datadogapi.GenericOpenAPIError
 	var errURL *url.Error
 	if errors.As(err, &apiErr) {
-		return fmt.Errorf(msg+": %w: %s", err, apiErr.Body())
+		return ctrutils.NewAPIError(fmt.Errorf(msg+": %w: %s", err, apiErr.Body()), httpResp)
 	}
 
 	if errors.As(err, &errURL) {
-		return fmt.Errorf(msg+" (url.Error): %s", errURL)
+		return ctrutils.NewAPIError(fmt.Errorf(msg+" (url.Error): %s", errURL), httpResp)
 	}
 
-	return fmt.Errorf(msg+": %w", err)
+	return ctrutils.NewAPIError(fmt.Errorf(msg+": %w", err), httpResp)
 }

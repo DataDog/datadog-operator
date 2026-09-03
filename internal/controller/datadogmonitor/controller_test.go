@@ -265,6 +265,136 @@ func TestReconcileDatadogMonitor_CreateErrorUsesErrorRequeuePeriod(t *testing.T)
 	assert.Equal(t, ctrl.Result{RequeueAfter: defaultErrRequeuePeriod}, result)
 }
 
+func TestReconcileDatadogMonitor_PermanentCreateErrorUsesForceSyncBackstop(t *testing.T) {
+	logf.SetLogger(zap.New(zap.UseDevMode(true)))
+
+	httpServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		http.Error(w, `{"errors":["invalid query"]}`, http.StatusBadRequest)
+	}))
+	defer httpServer.Close()
+
+	t.Setenv("DD_URL", httpServer.URL)
+	t.Setenv("DD_API_KEY", "DUMMY_API_KEY")
+	t.Setenv("DD_APP_KEY", "DUMMY_APP_KEY")
+
+	s := scheme.Scheme
+	s.AddKnownTypes(datadoghqv1alpha1.GroupVersion, &datadoghqv1alpha1.DatadogMonitor{})
+	testConfig := datadogapi.NewConfiguration()
+	testConfig.HTTPClient = httpServer.Client()
+	ddClient := datadogV1.NewMonitorsApi(datadogapi.NewAPIClient(testConfig))
+	dm := &datadoghqv1alpha1.DatadogMonitor{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:       resourcesName,
+			Namespace:  resourcesNamespace,
+			Finalizers: []string{datadogMonitorFinalizer},
+		},
+		Spec: datadoghqv1alpha1.DatadogMonitorSpec{
+			Query:   "avg(last_5m):avg:system.load.1{*} > 100000",
+			Type:    datadoghqv1alpha1.DatadogMonitorTypeMetric,
+			Name:    "test monitor",
+			Message: "load test",
+			Tags:    []string{requiredTag},
+		},
+	}
+	kubeClient := fake.NewClientBuilder().WithScheme(s).WithStatusSubresource(&datadoghqv1alpha1.DatadogMonitor{}).WithObjects(dm).Build()
+	r := &Reconciler{
+		client:        kubeClient,
+		datadogClient: ddClient,
+		credsManager:  config.NewCredentialManager(fake.NewClientBuilder().Build()),
+		scheme:        s,
+		recorder:      record.NewFakeRecorder(1),
+		log:           logf.Log.WithName("permanent-create-error-backstop"),
+		requeuePeriod: 24 * time.Hour,
+	}
+
+	// A 400 (e.g. an invalid query) will never succeed without a spec change,
+	// so it should fall back to the much longer force-sync cadence instead of
+	// defaultErrRequeuePeriod.
+	result, err := r.Reconcile(context.Background(), dm)
+	assert.NoError(t, err)
+	assert.Equal(t, ctrl.Result{RequeueAfter: defaultForceSyncPeriod}, result)
+	assert.Equal(t, 0, dm.Status.ID, "the monitor must not be considered created")
+}
+
+func TestReconcileDatadogMonitor_SpecFixAfterPermanentErrorRetriesImmediately(t *testing.T) {
+	// Regression test for the concern that dropping the fast retry on a
+	// permanent (4xx) error could delay picking up a fix: a spec edit bumps
+	// .metadata.generation, which the controller's GenerationChangedPredicate
+	// watch turns into an immediate reconcile independent of whatever
+	// RequeueAfter the previous, failing reconcile scheduled. This test
+	// reconciles once against a server returning 400, then reconciles again
+	// right away (as the watch would do on a spec fix) against a server that
+	// now succeeds, without waiting for the scheduled RequeueAfter.
+	logf.SetLogger(zap.New(zap.UseDevMode(true)))
+
+	var succeed atomic.Bool
+	httpServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch {
+		case r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/validate"):
+			if succeed.Load() {
+				fmt.Fprint(w, `{}`)
+				return
+			}
+			http.Error(w, `{"errors":["invalid query"]}`, http.StatusBadRequest)
+		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/monitor":
+			fmt.Fprint(w, `{"id":5001,"name":"test monitor","query":"q","type":"metric alert","created":"2026-07-21T08:00:00Z","creator":{"email":"test@example.com"}}`)
+		default:
+			http.Error(w, "unexpected request", http.StatusNotFound)
+		}
+	}))
+	defer httpServer.Close()
+
+	t.Setenv("DD_URL", httpServer.URL)
+	t.Setenv("DD_API_KEY", "DUMMY_API_KEY")
+	t.Setenv("DD_APP_KEY", "DUMMY_APP_KEY")
+
+	s := scheme.Scheme
+	s.AddKnownTypes(datadoghqv1alpha1.GroupVersion, &datadoghqv1alpha1.DatadogMonitor{})
+	testConfig := datadogapi.NewConfiguration()
+	testConfig.HTTPClient = httpServer.Client()
+	ddClient := datadogV1.NewMonitorsApi(datadogapi.NewAPIClient(testConfig))
+	dm := &datadoghqv1alpha1.DatadogMonitor{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:       resourcesName,
+			Namespace:  resourcesNamespace,
+			Finalizers: []string{datadogMonitorFinalizer},
+		},
+		Spec: datadoghqv1alpha1.DatadogMonitorSpec{
+			Query:   "not a valid query",
+			Type:    datadoghqv1alpha1.DatadogMonitorTypeMetric,
+			Name:    "test monitor",
+			Message: "load test",
+			Tags:    []string{requiredTag},
+		},
+	}
+	kubeClient := fake.NewClientBuilder().WithScheme(s).WithStatusSubresource(&datadoghqv1alpha1.DatadogMonitor{}).WithObjects(dm).Build()
+	r := &Reconciler{
+		client:        kubeClient,
+		datadogClient: ddClient,
+		credsManager:  config.NewCredentialManager(fake.NewClientBuilder().Build()),
+		scheme:        s,
+		recorder:      record.NewFakeRecorder(1),
+		log:           logf.Log.WithName("spec-fix-after-permanent-error"),
+		requeuePeriod: 24 * time.Hour,
+	}
+
+	result, err := r.Reconcile(context.Background(), dm)
+	assert.NoError(t, err)
+	assert.Equal(t, ctrl.Result{RequeueAfter: defaultForceSyncPeriod}, result)
+	assert.Equal(t, 0, dm.Status.ID, "the monitor must not be considered created while the query is invalid")
+
+	// Simulate the user fixing the spec and the watch delivering a fresh
+	// reconcile immediately, well before the force-sync backstop would fire.
+	dm.Spec.Query = "avg(last_5m):avg:system.load.1{*} > 100000"
+	succeed.Store(true)
+
+	result, err = r.Reconcile(context.Background(), dm)
+	assert.NoError(t, err)
+	assert.Equal(t, 5001, dm.Status.ID, "the fixed spec must be created on the very next reconcile")
+	assert.NotEqual(t, ctrl.Result{RequeueAfter: defaultForceSyncPeriod}, result, "a successful reconcile must not stay on the error backstop cadence")
+}
+
 func TestReconcileDatadogMonitor_StatePollingUsesLowPriority(t *testing.T) {
 	logf.SetLogger(zap.New(zap.UseDevMode(true)))
 
@@ -699,7 +829,13 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 				},
 				firstReconcileCount: 2,
 			},
-			wantResult: reconcile.Result{RequeueAfter: defaultErrRequeuePeriod},
+			// An unsupported monitor type can never succeed without a spec
+			// change, so it's no longer retried on the fast error cadence.
+			// The first reconcile that records the error condition still gets
+			// one normal-cadence requeue as a safety net (in case the status
+			// write turns out to be a no-op); a spec fix triggers its own
+			// immediate reconcile via the watch regardless.
+			wantResult: reconcile.Result{RequeueAfter: defaultRequeuePeriod},
 			wantErr:    false,
 			wantFunc: func(c client.Client) error {
 				dm := &datadoghqv1alpha1.DatadogMonitor{}
