@@ -1558,12 +1558,12 @@ func TestConfigureGKEVersionGate(t *testing.T) {
 }
 
 // TestConfigureGKEGateUsesDefaultClusterAgentVersion pins the reality of an unpinned
-// cluster-agent: clusterAgentVersion falls back to images.AgentLatestVersion, which is
-// below ClusterAgentGKEMinVersion today, so a GKE configuration with no image override is
-// correctly gated off. This is intended behavior, not a bug.
+// cluster-agent: clusterAgentVersion falls back to images.AgentLatestVersion, which is now
+// at or above ClusterAgentGKEMinVersion, so a GKE configuration with no image override
+// clears the version gate by default. This is intended behavior, not a bug.
 func TestConfigureGKEGateUsesDefaultClusterAgentVersion(t *testing.T) {
-	require.False(t, utils.IsAboveMinVersion(images.AgentLatestVersion, ClusterAgentGKEMinVersion, nil),
-		"this test only means something while the default agent version is below %s", ClusterAgentGKEMinVersion)
+	require.True(t, utils.IsAboveMinVersion(images.AgentLatestVersion, ClusterAgentGKEMinVersion, nil),
+		"this test only means something while the default agent version is at or above %s", ClusterAgentGKEMinVersion)
 
 	dda := testutils.NewDatadogAgentBuilder().
 		WithAppsecInjector(gkeExternalInjector()).
@@ -1573,7 +1573,9 @@ func TestConfigureGKEGateUsesDefaultClusterAgentVersion(t *testing.T) {
 	f := buildAppsecFeature(nil).(*appsecFeature)
 	got := f.Configure(dda, &dda.Spec, nil)
 
-	assert.Nil(t, got.ClusterAgent.IsRequired)
+	require.NotNil(t, got.ClusterAgent.IsRequired)
+	assert.True(t, *got.ClusterAgent.IsRequired)
+	assert.Contains(t, got.ClusterAgent.Containers, apicommon.ClusterAgentContainerName)
 	assert.True(t, f.config.isEnabled())
 	assert.NoError(t, f.config.Validate())
 	assert.True(t, f.config.requiresGKESupport())
