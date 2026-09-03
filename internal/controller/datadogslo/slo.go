@@ -128,6 +128,9 @@ func buildThreshold(sloSpec v1alpha1.DatadogSLOSpec) []datadogV1.SLOThreshold {
 func createSLO(auth context.Context, client *datadogV1.ServiceLevelObjectivesApi, crdSLO *v1alpha1.DatadogSLO) (datadogV1.ServiceLevelObjective, error) {
 	sloReq, _ := buildSLO(crdSLO)
 	slo, httpResp, err := client.CreateSLO(auth, *sloReq)
+	if httpResp != nil {
+		defer httpResp.Body.Close()
+	}
 	if err != nil {
 		return datadogV1.ServiceLevelObjective{}, translateClientError(err, httpResp, "error creating SLO")
 	}
@@ -137,6 +140,9 @@ func createSLO(auth context.Context, client *datadogV1.ServiceLevelObjectivesApi
 
 func getSLO(auth context.Context, client *datadogV1.ServiceLevelObjectivesApi, sloId string) (*datadogV1.SLOResponseData, error) {
 	slo, httpResp, err := client.GetSLO(auth, sloId, datadogV1.GetSLOOptionalParameters{})
+	if httpResp != nil {
+		defer httpResp.Body.Close()
+	}
 	if err != nil {
 		return &datadogV1.SLOResponseData{}, translateClientError(err, httpResp, "error getting SLO")
 	}
@@ -147,6 +153,9 @@ func getSLO(auth context.Context, client *datadogV1.ServiceLevelObjectivesApi, s
 func updateSLO(auth context.Context, client *datadogV1.ServiceLevelObjectivesApi, crdSLO *v1alpha1.DatadogSLO) (datadogV1.SLOListResponse, error) {
 	_, slo := buildSLO(crdSLO)
 	sloListResponse, httpResp, err := client.UpdateSLO(auth, crdSLO.Status.ID, *slo)
+	if httpResp != nil {
+		defer httpResp.Body.Close()
+	}
 	if err != nil {
 		return datadogV1.SLOListResponse{}, translateClientError(err, httpResp, "error updating SLO")
 	}
@@ -159,6 +168,9 @@ func deleteSLO(auth context.Context, client *datadogV1.ServiceLevelObjectivesApi
 		Force: &force,
 	}
 	_, localVarHTTPResponse, err := client.DeleteSLO(auth, sloID, optionalParams)
+	if localVarHTTPResponse != nil {
+		defer localVarHTTPResponse.Body.Close()
+	}
 	if err != nil {
 		return localVarHTTPResponse.StatusCode, translateClientError(err, localVarHTTPResponse, "error deleting SLO")
 	}
