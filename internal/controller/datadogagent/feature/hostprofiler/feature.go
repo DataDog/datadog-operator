@@ -8,6 +8,7 @@ import (
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -28,6 +29,7 @@ type hostProfilerFeature struct {
 	seccompEnabled          bool
 	loggingSeccomp          bool
 	selinuxType             string
+	hostProfilerNonRoot     bool
 
 	logger logr.Logger
 }
@@ -75,6 +77,8 @@ func (o *hostProfilerFeature) Configure(dda metav1.Object, _ *v2alpha1.DatadogAg
 	if o.loggingSeccomp && !o.seccompEnabled {
 		o.logger.V(1).Info("host profiler: logging-seccomp annotation has no effect when seccomp is disabled")
 	}
+
+	o.hostProfilerNonRoot = featureutils.HasFeatureEnableAnnotation(dda, featureutils.HostProfilerRunAsNonRootAnnotation)
 
 	// SELinux type defaults to spc_t; override via the selinux-type annotation.
 	o.selinuxType = defaultSELinuxType
@@ -137,6 +141,10 @@ func (o *hostProfilerFeature) ManageNodeAgent(managers feature.PodTemplateManage
 	hostProfilerImage := resolveHostProfilerImage(o.owner, hostProfilerContainer.Image)
 
 	sc := hostProfilerContainer.SecurityContext
+	if o.hostProfilerNonRoot {
+		sc.RunAsUser = ptr.To(common.DDAgentID)
+		sc.RunAsGroup = ptr.To(common.DDAgentID)
+	}
 	sc.AllowPrivilegeEscalation = new(false)
 	sc.Capabilities = &corev1.Capabilities{
 		Drop: []corev1.Capability{"ALL"},

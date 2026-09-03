@@ -12,6 +12,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
+	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/override"
 	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
@@ -73,6 +74,31 @@ func Test_hostProfilerFeature_InvalidSeccompAnnotation(t *testing.T) {
 	hostProfilerFeat.Configure(dda, &dda.Spec, nil)
 
 	assert.True(t, hostProfilerFeat.seccompEnabled, "invalid seccomp annotation value should leave seccomp enabled (default)")
+}
+
+func Test_hostProfilerFeature_NonRootAnnotation(t *testing.T) {
+	dda := testutils.NewDatadogAgentBuilder().
+		WithAnnotations(map[string]string{
+			featureutils.EnableHostProfilerAnnotation:       "true",
+			featureutils.HostProfilerRunAsNonRootAnnotation: "true",
+		}).
+		Build()
+	manager := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
+		Spec: corev1.PodSpec{Containers: []corev1.Container{
+			{Name: string(apicommon.CoreAgentContainerName)},
+			{Name: string(apicommon.HostProfiler), SecurityContext: &corev1.SecurityContext{}},
+		}},
+	})
+
+	feat := buildHostProfilerFeature(nil).(*hostProfilerFeature)
+	feat.Configure(dda, &dda.Spec, nil)
+	require.NoError(t, feat.ManageNodeAgent(manager))
+
+	sc := manager.PodTemplateSpec().Spec.Containers[1].SecurityContext
+	require.NotNil(t, sc.RunAsUser)
+	require.NotNil(t, sc.RunAsGroup)
+	assert.Equal(t, int64(100), *sc.RunAsUser)
+	assert.Equal(t, int64(100), *sc.RunAsGroup)
 }
 
 func Test_hostProfilerFeature_SeccompDisabled(t *testing.T) {
