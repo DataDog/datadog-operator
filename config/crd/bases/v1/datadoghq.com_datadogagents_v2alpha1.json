@@ -1895,6 +1895,10 @@
               "additionalProperties": false,
               "description": "GPU monitoring",
               "properties": {
+                "collectXidKernelLogs": {
+                  "description": "CollectXidKernelLogs enables collection of the node's kernel ring buffer messages, where the\nNVIDIA driver reports Xid errors. Messages are tagged `source:kernel` so they match the\nout-of-the-box Xid log monitor and the GPU monitoring views.\nRequires `features.logCollection.enabled` to be true; it is a no-op otherwise.\nNote that this collects the full kernel transport rather than only Xid lines, because Xid\ntriage depends on surrounding kernel context (Xid lines alone are rarely conclusive).\nRequires Agent 7.39.0+ and a systemd journal on the node.\nDefault: false",
+                  "type": "boolean"
+                },
                 "enabled": {
                   "description": "Enabled enables GPU monitoring core check.\nDefault: false",
                   "type": "boolean"
@@ -10689,6 +10693,10 @@
                   "additionalProperties": false,
                   "description": "GPU monitoring",
                   "properties": {
+                    "collectXidKernelLogs": {
+                      "description": "CollectXidKernelLogs enables collection of the node's kernel ring buffer messages, where the\nNVIDIA driver reports Xid errors. Messages are tagged `source:kernel` so they match the\nout-of-the-box Xid log monitor and the GPU monitoring views.\nRequires `features.logCollection.enabled` to be true; it is a no-op otherwise.\nNote that this collects the full kernel transport rather than only Xid lines, because Xid\ntriage depends on surrounding kernel context (Xid lines alone are rarely conclusive).\nRequires Agent 7.39.0+ and a systemd journal on the node.\nDefault: false",
+                      "type": "boolean"
+                    },
                     "enabled": {
                       "description": "Enabled enables GPU monitoring core check.\nDefault: false",
                       "type": "boolean"

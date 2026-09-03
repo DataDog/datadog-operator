@@ -2,6 +2,7 @@ package gpu
 
 import (
 	"errors"
+	"fmt"
 	"path"
 
 	corev1 "k8s.io/api/core/v1"
@@ -37,6 +38,12 @@ type gpuFeature struct {
 	podResourcesSocketPath  string
 	isPrivilegedModeEnabled bool
 	patchCgroupPermissions  bool
+
+	// collectXidKernelLogs tails the kernel ring buffer so NVIDIA Xid errors are ingested as
+	// `source:kernel`. Only set when log collection is also enabled — the journald config is
+	// inert without the logs Agent.
+	collectXidKernelLogs bool
+	owner                metav1.Object
 }
 
 // ID returns the ID of the Feature
@@ -70,13 +77,21 @@ func (f *gpuFeature) NodeAgentProviderCapabilities() providercaps.ProviderCapabi
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
-func (f *gpuFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
+func (f *gpuFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
 	if ddaSpec.Features == nil || ddaSpec.Features.GPU == nil || !apiutils.BoolValue(ddaSpec.Features.GPU.Enabled) {
 		return reqComp
 	}
 
+	f.owner = dda
 	f.isPrivilegedModeEnabled = apiutils.BoolValue(ddaSpec.Features.GPU.PrivilegedMode)
 	f.patchCgroupPermissions = apiutils.BoolValue(ddaSpec.Features.GPU.PatchCgroupPermissions)
+
+	// Gated on log collection: mounting the host journal and shipping a journald config is
+	// pointless without the logs Agent, and silently enabling log ingestion from a metrics
+	// feature toggle would be a surprise.
+	logCollectionEnabled := ddaSpec.Features.LogCollection != nil &&
+		apiutils.BoolValue(ddaSpec.Features.LogCollection.Enabled)
+	f.collectXidKernelLogs = apiutils.BoolValue(ddaSpec.Features.GPU.CollectXidKernelLogs) && logCollectionEnabled
 
 	requiredContainers := []apicommon.AgentContainerName{apicommon.CoreAgentContainerName}
 	if f.isPrivilegedModeEnabled {
@@ -105,7 +120,35 @@ func (f *gpuFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.DatadogAgentSp
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
 func (f *gpuFeature) ManageDependencies(managers feature.ResourceManagers) error {
-	return nil
+	if !f.collectXidKernelLogs {
+		return nil
+	}
+
+	cm := buildXidKernelLogsConfigMap(f.owner.GetNamespace(), f.owner.GetName())
+	return managers.Store().AddOrUpdate(kubernetes.ConfigMapKind, cm)
+}
+
+// configureXidKernelLogs mounts the journald integration config plus the host journal it reads.
+func (f *gpuFeature) configureXidKernelLogs(managers feature.PodTemplateManagers) {
+	cmVol := volume.GetBasicVolume(getXidKernelLogsConfigMapName(f.owner.GetName()), xidKernelLogsVolumeName)
+	cmVolMount := corev1.VolumeMount{
+		Name:      xidKernelLogsVolumeName,
+		MountPath: fmt.Sprintf("%s%s/%s", common.ConfigVolumePath, common.ConfdVolumePath, xidKernelLogsConfigName),
+		ReadOnly:  true,
+	}
+	managers.Volume().AddVolume(&cmVol)
+	managers.VolumeMount().AddVolumeMountToContainer(&cmVolMount, apicommon.CoreAgentContainerName)
+
+	// The journald tailer reads the persistent journal. Deliberately not DirectoryOrCreate: on a
+	// node with a volatile-only journal, creating an empty /var/log/journal would make the tailer
+	// silently collect nothing instead of failing visibly.
+	journalVol, journalVolMount := volume.GetVolumes(journalVolumeName, journalHostPath, journalMountPath, true)
+	managers.Volume().AddVolume(&journalVol)
+	managers.VolumeMount().AddVolumeMountToContainer(&journalVolMount, apicommon.CoreAgentContainerName)
+
+	machineIDVol, machineIDVolMount := volume.GetVolumes(machineIDVolumeName, machineIDHostPath, machineIDMountPath, true)
+	managers.Volume().AddVolume(&machineIDVol)
+	managers.VolumeMount().AddVolumeMountToContainer(&machineIDVolMount, apicommon.CoreAgentContainerName)
 }
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
@@ -277,6 +320,10 @@ func (f *gpuFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error
 		if err := f.configureCgroupPermissions(managers); err != nil {
 			return err
 		}
+	}
+
+	if f.collectXidKernelLogs {
+		f.configureXidKernelLogs(managers)
 	}
 
 	// The agent check does not need to be manually enabled, the init config container will
