@@ -873,6 +873,11 @@ func (builder *DatadogAgentBuilder) WithASMEnabled(threats, sca, iast bool) *Dat
 	return builder
 }
 
+func (builder *DatadogAgentBuilder) WithAppsecInjector(cfg *v2alpha1.AppsecInjectorConfig) *DatadogAgentBuilder {
+	builder.datadogAgent.Spec.Features.Appsec = &v2alpha1.AppsecFeatureConfig{Injector: cfg}
+	return builder
+}
+
 // OTLP
 
 func (builder *DatadogAgentBuilder) initOTLP() {
