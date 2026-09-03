@@ -110,6 +110,12 @@ paths = [
   'examples$'
 ]
 
+# The E2E module runs with GOWORK=off to isolate its Kubernetes dependencies,
+# so its local replacements are required to test the current checkout.
+[[linters.exclusions.rules]]
+path = '^test/e2e/go\.mod$'
+linters = ['gomoddirectives']
+
 [issues]
 max-issues-per-linter = 0
 max-same-issues = 0
