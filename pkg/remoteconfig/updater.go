@@ -145,11 +145,12 @@ type DatadogProductRemoteConfig interface {
 
 // DatadogAgentRemoteConfig contains the struct used to update DatadogAgent object from RemoteConfig
 type DatadogAgentRemoteConfig struct {
-	ID            string                       `json:"id,omitempty"`
-	Name          string                       `json:"name,omitempty"`
-	CoreAgent     *CoreAgentFeaturesConfig     `json:"config,omitempty"`
-	SystemProbe   *SystemProbeFeaturesConfig   `json:"system_probe,omitempty"`
-	SecurityAgent *SecurityAgentFeaturesConfig `json:"security_agent,omitempty"`
+	ID               string                       `json:"id,omitempty"`
+	Name             string                       `json:"name,omitempty"`
+	CoreAgent        *CoreAgentFeaturesConfig     `json:"config,omitempty"`
+	SystemProbe      *SystemProbeFeaturesConfig   `json:"system_probe,omitempty"`
+	SecurityAgent    *SecurityAgentFeaturesConfig `json:"security_agent,omitempty"`
+	OtelAgentGateway *FeatureEnabledConfig        `json:"otel_agent_gateway,omitempty"`
 }
 
 // GetID returns the ID of the configuration
@@ -624,6 +625,16 @@ func mergeConfigs(dst, src *DatadogAgentRemoteConfig) {
 		}
 	}
 
+	// OtelAgentGateway
+	if src.OtelAgentGateway != nil {
+		if dst.OtelAgentGateway == nil {
+			dst.OtelAgentGateway = &FeatureEnabledConfig{}
+		}
+		if src.OtelAgentGateway.Enabled != nil {
+			dst.OtelAgentGateway.Enabled = src.OtelAgentGateway.Enabled
+		}
+	}
+
 }
 
 func (r *RemoteConfigUpdater) updateInstanceStatus(dda v2alpha1.DatadogAgent, config DatadogProductRemoteConfig) error {
@@ -718,6 +729,19 @@ func (r *RemoteConfigUpdater) updateInstanceStatus(dda v2alpha1.DatadogAgent, co
 		newddaStatus.RemoteConfigConfiguration.Features.USM.Enabled = cfg.SystemProbe.USM.Enabled
 	} else {
 		newddaStatus.RemoteConfigConfiguration.Features.USM = nil
+	}
+
+	// OtelAgentGateway
+	if cfg.OtelAgentGateway != nil {
+		if newddaStatus.RemoteConfigConfiguration.Features.OtelAgentGateway == nil {
+			newddaStatus.RemoteConfigConfiguration.Features.OtelAgentGateway = &v2alpha1.OtelAgentGatewayFeatureConfig{}
+		}
+		if newddaStatus.RemoteConfigConfiguration.Features.OtelAgentGateway.Enabled == nil {
+			newddaStatus.RemoteConfigConfiguration.Features.OtelAgentGateway.Enabled = new(bool)
+		}
+		newddaStatus.RemoteConfigConfiguration.Features.OtelAgentGateway.Enabled = cfg.OtelAgentGateway.Enabled
+	} else {
+		newddaStatus.RemoteConfigConfiguration.Features.OtelAgentGateway = nil
 	}
 
 	if !apiequality.Semantic.DeepEqual(&dda.Status, newddaStatus) {
