@@ -56,12 +56,12 @@ func VerifyAgentPods(t *testing.T, c *assert.CollectT, namespace string, k8sClie
 func VerifyCheck(c *assert.CollectT, collectorOutput string, checkName string) {
 	var runningChecks map[string]any
 
-	checksJson, ok := parseAgentStatusJSON(c, collectorOutput)
+	checksJSON, ok := parseAgentStatusJSON(c, collectorOutput)
 	if !ok {
 		return
 	}
 
-	runnerStats, runnerStatsOk := checksJson["runnerStats"].(map[string]any)
+	runnerStats, runnerStatsOk := checksJSON["runnerStats"].(map[string]any)
 	if !runnerStatsOk {
 		assert.Fail(c, "runnerStats field is not a map or is nil")
 		return
@@ -105,14 +105,14 @@ func VerifyCheck(c *assert.CollectT, collectorOutput string, checkName string) {
 
 func VerifyAgentPodLogs(c *assert.CollectT, collectorOutput string) {
 	var agentLogs []any
-	logsJson, ok := parseAgentStatusJSON(c, collectorOutput)
+	logsJSON, ok := parseAgentStatusJSON(c, collectorOutput)
 	if !ok {
 		return
 	}
 
 	tailedIntegrations := 0
 	var integrationsOk bool
-	logsStats, logsStatsOk := logsJson["logsStats"].(map[string]any)
+	logsStats, logsStatsOk := logsJSON["logsStats"].(map[string]any)
 	if !logsStatsOk {
 		assert.Fail(c, "logsStats field is not a map or is nil")
 		return
@@ -167,7 +167,7 @@ func isInternalTrafficPolicySupported() bool {
 }
 
 func VerifyAgentTraces(c *assert.CollectT, collectorOutput string) {
-	apmAgentJson, ok := parseAgentStatusJSON(c, collectorOutput)
+	apmAgentJSON, ok := parseAgentStatusJSON(c, collectorOutput)
 	if !ok {
 		return
 	}
@@ -184,7 +184,7 @@ func VerifyAgentTraces(c *assert.CollectT, collectorOutput string) {
 	// Track found services
 	foundServices := map[string]bool{}
 
-	apmStatsMap, apmStatsOk := apmAgentJson["apmStats"].(map[string]any)
+	apmStatsMap, apmStatsOk := apmAgentJSON["apmStats"].(map[string]any)
 	if !apmStatsOk {
 		assert.Fail(c, "apmStats field is not a map or is nil")
 		return
