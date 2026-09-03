@@ -27,6 +27,7 @@ func Test_createSLOCorrection_marshalling(t *testing.T) {
 		jsonSpec     string
 		wantErr      bool
 		wantSloID    string
+		wantSloQuery string
 		wantCategory string
 	}{
 		{
@@ -42,6 +43,21 @@ func Test_createSLOCorrection_marshalling(t *testing.T) {
 				}
 			}`,
 			wantSloID:    "slo-abc",
+			wantCategory: "Scheduled Maintenance",
+		},
+		{
+			name: "valid spec with slo_query",
+			jsonSpec: `{
+				"data": {
+					"type": "correction",
+					"attributes": {
+						"category": "Scheduled Maintenance",
+						"slo_query": "env:prod",
+						"start": 1735689600
+					}
+				}
+			}`,
+			wantSloQuery: "env:prod",
 			wantCategory: "Scheduled Maintenance",
 		},
 		{
@@ -91,6 +107,7 @@ func Test_createSLOCorrection_marshalling(t *testing.T) {
 			var sent datadogV1.SLOCorrectionCreateRequest
 			require.NoError(t, json.Unmarshal(capturedBody, &sent))
 			assert.Equal(t, tt.wantSloID, sent.Data.Attributes.GetSloId())
+			assert.Equal(t, tt.wantSloQuery, sent.Data.Attributes.GetSloQuery())
 			assert.Equal(t, tt.wantCategory, string(sent.Data.Attributes.GetCategory()))
 		})
 	}
@@ -103,6 +120,7 @@ func Test_updateSLOCorrection_marshalling(t *testing.T) {
 		jsonSpec     string
 		wantErr      bool
 		wantSentPath string
+		wantSloQuery string
 	}{
 		{
 			name:     "valid update",
@@ -115,6 +133,20 @@ func Test_updateSLOCorrection_marshalling(t *testing.T) {
 				}
 			}`,
 			wantSentPath: "/api/v1/slo/correction/correction-abc",
+		},
+		{
+			name:     "valid update with slo_query",
+			statusID: "correction-abc",
+			jsonSpec: `{
+				"data": {
+					"attributes": {
+						"category": "Deployment",
+						"slo_query": "env:staging"
+					}
+				}
+			}`,
+			wantSentPath: "/api/v1/slo/correction/correction-abc",
+			wantSloQuery: "env:staging",
 		},
 		{
 			name:     "empty status ID",
@@ -171,6 +203,8 @@ func Test_updateSLOCorrection_marshalling(t *testing.T) {
 			var sent datadogV1.SLOCorrectionUpdateRequest
 			require.NoError(t, json.Unmarshal(capturedBody, &sent))
 			assert.Equal(t, datadogV1.SLOCORRECTIONTYPE_CORRECTION, sent.Data.GetType())
+			attributes := sent.Data.GetAttributes()
+			assert.Equal(t, tt.wantSloQuery, attributes.GetSloQuery())
 		})
 	}
 }

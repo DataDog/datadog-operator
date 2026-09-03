@@ -141,8 +141,8 @@ func updateSLOCorrection(auth context.Context, client *datadogV1.ServiceLevelObj
 	// ID is retrieved from the status and travels only in the URL path.
 	var specData struct {
 		Data struct {
-			Attributes *datadogV1.SLOCorrectionUpdateRequestAttributes
-		}
+			Attributes *datadogV1.SLOCorrectionUpdateRequestAttributes `json:"attributes"`
+		} `json:"data"`
 	}
 	if err := json.Unmarshal([]byte(instance.Spec.JsonSpec), &specData); err != nil {
 		return datadogV1.SLOCorrectionResponse{}, translateClientError(err, "error unmarshalling SLO correction spec")

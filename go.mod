@@ -4,7 +4,7 @@ go 1.26.7
 
 require (
 	github.com/DataDog/datadog-agent/pkg/util/scrubber v0.63.0-rc.1 // indirect
-	github.com/DataDog/datadog-api-client-go/v2 v2.56.0
+	github.com/DataDog/datadog-api-client-go/v2 v2.61.0
 	github.com/Masterminds/semver/v3 v3.4.0
 	github.com/go-logr/logr v1.4.3
 	github.com/gobwas/glob v0.2.3

@@ -5,7 +5,8 @@ metadata:
 spec:
   type: slo_correction
   # This example excludes a scheduled maintenance window from the given SLO's error budget calculation.
-  # Replace slo_id with the ID of the SLO you want to correct.
+  # Replace slo_id with the ID of the SLO you want to correct, or use slo_query instead to target
+  # SLOs by tag query (exactly one of slo_id or slo_query must be set).
   jsonSpec: |-
     {
       "data": {
