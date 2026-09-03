@@ -41,6 +41,8 @@ const (
 	KarpenterAPIGroup            = "karpenter.sh"
 	KarpenterAWSAPIGroup         = "karpenter.k8s.aws"
 	KarpenterAzureAPIGroup       = "karpenter.azure.com"
+	KubeRayAPIGroup              = "ray.io"
+	DynamoAPIGroup               = "nvidia.com"
 
 	// Service Mesh API groups
 	IstioNetworkingAPIGroup = "networking.istio.io"
@@ -126,6 +128,17 @@ const (
 	Helmrepositories                                  = "helmrepositories"
 	Ocirepositories                                   = "ocirepositories"
 	Kustomizations                                    = "kustomizations"
+	RayClustersResource                               = "rayclusters"
+	RayCronJobsResource                               = "raycronjobs"
+	RayJobsResource                                   = "rayjobs"
+	RayServicesResource                               = "rayservices"
+	DynamoCheckpointsResource                         = "dynamocheckpoints"
+	DynamoComponentDeploymentsResource                = "dynamocomponentdeployments"
+	DynamoGraphDeploymentRequestsResource             = "dynamographdeploymentrequests"
+	DynamoGraphDeploymentsResource                    = "dynamographdeployments"
+	DynamoGraphDeploymentScalingAdaptersResource      = "dynamographdeploymentscalingadapters"
+	DynamoModelsResource                              = "dynamomodels"
+	DynamoWorkerMetadatasResource                     = "dynamoworkermetadatas"
 
 	// Gateway API resources
 	GatewaysResource     = "gateways"

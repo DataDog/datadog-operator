@@ -224,6 +224,8 @@ type DatadogAgentReconciler struct {
 // +kubebuilder:rbac:groups=karpenter.k8s.aws,resources="*",verbs=get;list;watch
 // +kubebuilder:rbac:groups=karpenter.azure.com,resources="*",verbs=list;watch
 // +kubebuilder:rbac:groups=eks.amazonaws.com,resources="*",verbs=get;list;watch
+// +kubebuilder:rbac:groups=ray.io,resources=rayclusters;raycronjobs;rayjobs;rayservices,verbs=list;watch
+// +kubebuilder:rbac:groups=nvidia.com,resources=dynamocheckpoints;dynamocomponentdeployments;dynamographdeploymentrequests;dynamographdeployments;dynamographdeploymentscalingadapters;dynamomodels;dynamoworkermetadatas,verbs=list;watch
 
 // Kubernetes_state_core
 // +kubebuilder:rbac:groups="",resources=configmaps,verbs=list;watch
