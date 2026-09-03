@@ -255,13 +255,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 			}
 			if err = r.create(auth, logger, instance, newStatus, now, instanceSpecHash); err != nil {
 				logger.Error(err, "error creating monitor")
-				// A permanent (4xx) API error means the create will keep failing
-				// until the spec changes. A spec edit triggers its own immediate
-				// reconcile via the watch, so there's no need to hammer the API
-				// every defaultErrRequeuePeriod in the meantime; fall back to the
-				// much longer force-sync cadence as a backstop in case the
-				// underlying condition changes without a spec edit (e.g. an org
-				// permission fix).
+				// Permanent errors won't succeed on retry; back off to forceSyncPeriod.
 				if ctrutils.IsPermanentAPIError(err) {
 					result.RequeueAfter = forceSyncPeriod
 				} else {
@@ -269,11 +263,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 				}
 			}
 		} else {
-			// The monitor type can never become supported without a spec change,
-			// so there's nothing to gain from retrying; the watch already
-			// triggers a reconcile as soon as the spec is fixed. Return early,
-			// like the IsValidDatadogMonitor check above, instead of falling
-			// through to the periodic requeue scheduled below.
+			// Unsupported type needs a spec change; don't schedule a retry.
 			err = fmt.Errorf("monitor type %v not supported", instance.Spec.Type)
 			logger.Error(err, "error creating monitor")
 			return r.updateStatusIfNeeded(logger, instance, now, newStatus, err, result)
@@ -293,10 +283,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 		}
 		if err = r.update(auth, logger, instance, newStatus, now, instanceSpecHash); err != nil {
 			logger.Error(err, "error updating monitor", "Monitor ID", instance.Status.ID)
-			// A permanent (4xx) API error means the update will keep failing
-			// until the spec changes; see the analogous comment in the create
-			// path above for why the force-sync cadence is used as a backstop
-			// instead of hammering the API every defaultErrRequeuePeriod.
+			// Permanent errors won't succeed on retry; back off to forceSyncPeriod.
 			if ctrutils.IsPermanentAPIError(err) {
 				result.RequeueAfter = forceSyncPeriod
 			} else {
@@ -304,8 +291,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 			}
 			// If the monitor was deleted between our existence check and this
 			// update (TOCTOU), clear status.ID so the next reconcile takes the
-			// create path and recreates the monitor. This isn't a spec problem,
-			// so it should retry soon rather than wait for the backstop above.
+			// create path and recreates the monitor.
 			if strings.Contains(err.Error(), ctrutils.NotFoundString) {
 				newStatus.ID = 0
 				result.RequeueAfter = defaultErrRequeuePeriod

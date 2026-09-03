@@ -175,13 +175,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 		}
 
 		if err != nil {
-			// A permanent (4xx) API error (e.g. an invalid query) will keep
-			// failing until the spec changes. A spec edit triggers its own
-			// immediate reconcile via the watch, so there's no need to hammer
-			// the API every defaultErrRequeuePeriod in the meantime; fall back
-			// to the much longer force-sync cadence as a backstop in case the
-			// underlying condition changes without a spec edit (e.g. an org
-			// permission fix).
+			// Permanent errors won't succeed on retry; back off to forceSyncPeriod.
 			if ctrutils.IsPermanentAPIError(err) {
 				result.RequeueAfter = forceSyncPeriod
 			} else {

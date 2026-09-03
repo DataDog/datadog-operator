@@ -307,9 +307,6 @@ func TestReconcileDatadogMonitor_PermanentCreateErrorUsesForceSyncBackstop(t *te
 		requeuePeriod: 24 * time.Hour,
 	}
 
-	// A 400 (e.g. an invalid query) will never succeed without a spec change,
-	// so it should fall back to the much longer force-sync cadence instead of
-	// defaultErrRequeuePeriod.
 	result, err := r.Reconcile(context.Background(), dm)
 	assert.NoError(t, err)
 	assert.Equal(t, ctrl.Result{RequeueAfter: defaultForceSyncPeriod}, result)
@@ -317,14 +314,8 @@ func TestReconcileDatadogMonitor_PermanentCreateErrorUsesForceSyncBackstop(t *te
 }
 
 func TestReconcileDatadogMonitor_SpecFixAfterPermanentErrorRetriesImmediately(t *testing.T) {
-	// Regression test for the concern that dropping the fast retry on a
-	// permanent (4xx) error could delay picking up a fix: a spec edit bumps
-	// .metadata.generation, which the controller's GenerationChangedPredicate
-	// watch turns into an immediate reconcile independent of whatever
-	// RequeueAfter the previous, failing reconcile scheduled. This test
-	// reconciles once against a server returning 400, then reconciles again
-	// right away (as the watch would do on a spec fix) against a server that
-	// now succeeds, without waiting for the scheduled RequeueAfter.
+	// A spec fix bumps .metadata.generation, so the watch reconciles
+	// immediately regardless of the previous RequeueAfter.
 	logf.SetLogger(zap.New(zap.UseDevMode(true)))
 
 	var succeed atomic.Bool
@@ -384,8 +375,7 @@ func TestReconcileDatadogMonitor_SpecFixAfterPermanentErrorRetriesImmediately(t 
 	assert.Equal(t, ctrl.Result{RequeueAfter: defaultForceSyncPeriod}, result)
 	assert.Equal(t, 0, dm.Status.ID, "the monitor must not be considered created while the query is invalid")
 
-	// Simulate the user fixing the spec and the watch delivering a fresh
-	// reconcile immediately, well before the force-sync backstop would fire.
+	// Simulate the spec fix + watch-triggered reconcile.
 	dm.Spec.Query = "avg(last_5m):avg:system.load.1{*} > 100000"
 	succeed.Store(true)
 
@@ -829,12 +819,7 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 				},
 				firstReconcileCount: 2,
 			},
-			// An unsupported monitor type can never succeed without a spec
-			// change, so it's no longer retried on the fast error cadence.
-			// The first reconcile that records the error condition still gets
-			// one normal-cadence requeue as a safety net (in case the status
-			// write turns out to be a no-op); a spec fix triggers its own
-			// immediate reconcile via the watch regardless.
+			// Unsupported type: no longer retried on the fast error cadence.
 			wantResult: reconcile.Result{RequeueAfter: defaultRequeuePeriod},
 			wantErr:    false,
 			wantFunc: func(c client.Client) error {

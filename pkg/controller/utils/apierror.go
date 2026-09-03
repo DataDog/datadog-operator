@@ -10,18 +10,14 @@ import (
 	"net/http"
 )
 
-// APIError wraps an error returned by a Datadog API client call together with
-// the HTTP status code of the response that produced it, so callers can
-// classify the failure without re-parsing error strings. StatusCode is 0 when
-// no response was ever received (e.g. a network-level failure or timeout).
+// APIError wraps a Datadog API client error with its HTTP status code.
+// StatusCode is 0 if no response was received (e.g. a network failure).
 type APIError struct {
 	err        error
 	StatusCode int
 }
 
-// NewAPIError wraps err with the status code from httpResp, if any. httpResp
-// may be nil, in which case the wrapped error carries no status code and is
-// treated as transient by IsPermanentAPIError. Returns nil if err is nil.
+// NewAPIError wraps err with httpResp's status code, if any. Returns nil if err is nil.
 func NewAPIError(err error, httpResp *http.Response) error {
 	if err == nil {
 		return nil
@@ -37,13 +33,8 @@ func (e *APIError) Error() string { return e.err.Error() }
 
 func (e *APIError) Unwrap() error { return e.err }
 
-// IsPermanentAPIError reports whether err is a client-side (4xx) Datadog API
-// error that will keep failing on retry until the resource's spec changes,
-// e.g. a validation failure on an invalid query or field. 429 (rate limited)
-// is treated as transient, since backing off resolves it without any spec
-// change. Errors that carry no status code (network failures, timeouts) and
-// errors that were never wrapped with a status code are treated as transient,
-// since there is no basis to conclude they are permanent.
+// IsPermanentAPIError reports whether err is a 4xx (client-side, non-retryable)
+// error, excluding 429 which is worth retrying after a backoff.
 func IsPermanentAPIError(err error) bool {
 	var apiErr *APIError
 	if !errors.As(err, &apiErr) {

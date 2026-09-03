@@ -304,10 +304,6 @@ func deleteMonitor(auth context.Context, client *datadogV1.MonitorsApi, monitorI
 	return nil
 }
 
-// translateClientError formats err for logging and wraps it with the HTTP
-// status code from httpResp (nil for network-level failures), so callers can
-// classify the failure with ctrutils.IsPermanentAPIError without re-parsing
-// the error string.
 func translateClientError(err error, httpResp *http.Response, msg string) error {
 	if msg == "" {
 		msg = "an error occurred"

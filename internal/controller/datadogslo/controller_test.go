@@ -104,11 +104,7 @@ func TestReconciler_Reconcile(t *testing.T) {
 			datadogClientHandler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, "invalid data", http.StatusBadRequest)
 			}),
-			// A 400 from the Datadog API is a permanent, spec-shaped failure:
-			// it will keep failing until the spec changes, and a spec edit
-			// triggers its own immediate reconcile via the watch. So instead
-			// of hammering the API on the fast error cadence forever, this
-			// falls back to the much longer force-sync cadence as a backstop.
+			// 400 is permanent: back off to the force-sync cadence.
 			expectedResult: ctrl.Result{Requeue: false, RequeueAfter: defaultForceSyncPeriod},
 		},
 		{
@@ -126,9 +122,7 @@ func TestReconciler_Reconcile(t *testing.T) {
 			datadogClientHandler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, "internal error", http.StatusInternalServerError)
 			}),
-			// A 5xx is transient: worth retrying soon, since it may well
-			// succeed next time without any spec change. Keeps the fast
-			// error cadence, unlike the permanent 400 case above.
+			// 5xx is transient: keeps the fast error cadence.
 			expectedResult: ctrl.Result{Requeue: false, RequeueAfter: defaultErrRequeuePeriod},
 		},
 		{
@@ -202,14 +196,8 @@ func TestReconciler_Reconcile(t *testing.T) {
 }
 
 func TestReconciler_SpecFixAfterPermanentErrorRetriesImmediately(t *testing.T) {
-	// Regression test for the concern that dropping the fast retry on a
-	// permanent (4xx) error could delay picking up a fix: a spec edit bumps
-	// .metadata.generation, which the controller's GenerationChangedPredicate
-	// watch turns into an immediate reconcile independent of whatever
-	// RequeueAfter the previous, failing reconcile scheduled. This test
-	// reconciles once against a server returning 400, then reconciles again
-	// right away (as the watch would do on a spec fix) against a server that
-	// now succeeds, without waiting for the scheduled RequeueAfter.
+	// A spec fix bumps .metadata.generation, so the watch reconciles
+	// immediately regardless of the previous RequeueAfter.
 	testLogger := zap.New(zap.UseDevMode(true))
 	s := scheme.Scheme
 	s.AddKnownTypes(v1alpha1.GroupVersion, &v1alpha1.DatadogSLO{})
@@ -246,10 +234,7 @@ func TestReconciler_SpecFixAfterPermanentErrorRetriesImmediately(t *testing.T) {
 
 	req := ctrl.Request{NamespacedName: types.NamespacedName{Namespace: resourceNamespace, Name: resourceName}}
 
-	// The first reconcile only adds the finalizer; the second is where the
-	// create attempt actually happens. A 400 (e.g. an invalid query) will
-	// never succeed without a spec change, so it should fall back to the
-	// much longer force-sync cadence instead of defaultErrRequeuePeriod.
+	// First reconcile only adds the finalizer; second attempts the create.
 	_, err := r.Reconcile(context.Background(), req)
 	assert.NoError(t, err)
 	result, err := r.Reconcile(context.Background(), req)
@@ -260,8 +245,7 @@ func TestReconciler_SpecFixAfterPermanentErrorRetriesImmediately(t *testing.T) {
 	assert.NoError(t, kubeClient.Get(context.TODO(), req.NamespacedName, got))
 	assert.Empty(t, got.Status.ID, "the SLO must not be considered created")
 
-	// Simulate the user fixing the spec and the watch delivering a fresh
-	// reconcile immediately, well before the force-sync backstop would fire.
+	// Simulate the spec fix + watch-triggered reconcile.
 	got.Spec.Query.Numerator = "sum:my.custom.count.metric{type:good_events,fixed:true}.as_count()"
 	assert.NoError(t, kubeClient.Update(context.TODO(), got))
 	succeed.Store(true)
