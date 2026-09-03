@@ -140,6 +140,7 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 			dda: func() *v2alpha1.DatadogAgent {
 				dda := testutils.NewDatadogAgentBuilder().
 					WithCredentials("apiKey", "appKey").
+					WithNodeAgentImage("agent:7.81.1").
 					BuildWithDefaults()
 				dda.Spec.Global.UseVSock = ptr.To(true)
 				return dda
