@@ -66,9 +66,12 @@ func getDowntime(auth context.Context, client *datadogV2.DowntimesApi, downtimeI
 	if downtimeID == "" {
 		return datadogV2.DowntimeResponse{}, fmt.Errorf("cannot get downtime: downtimeID is empty")
 	}
-	downtime, _, err := client.GetDowntime(auth, downtimeID)
+	downtime, httpResp, err := client.GetDowntime(auth, downtimeID)
+	if httpResp != nil {
+		defer httpResp.Body.Close()
+	}
 	if err != nil {
-		return datadogV2.DowntimeResponse{}, translateClientError(err, "error getting downtime")
+		return datadogV2.DowntimeResponse{}, translateClientError(err, httpResp, "error getting downtime")
 	}
 	return downtime, nil
 }
@@ -80,6 +83,9 @@ func deleteDowntime(auth context.Context, client *datadogV2.DowntimesApi, downti
 	// Note: Downtimes canceled through the API are no longer active, but are retained for approximately two days before being permanently removed.
 	// The downtime may still appear in search results until it is permanently removed.
 	httpResponse, err := client.CancelDowntime(auth, downtimeID)
+	if httpResponse != nil {
+		defer httpResponse.Body.Close()
+	}
 	if err != nil {
 		// Deletion is idempotent for finalization: if the downtime was already
 		// permanently removed in Datadog (post 2-day retention), allow the
@@ -87,7 +93,7 @@ func deleteDowntime(auth context.Context, client *datadogV2.DowntimesApi, downti
 		if httpResponse != nil && httpResponse.StatusCode == 404 {
 			return nil
 		}
-		return translateClientError(err, "error deleting downtime")
+		return translateClientError(err, httpResponse, "error deleting downtime")
 	}
 	return nil
 }
@@ -99,12 +105,15 @@ func createDowntime(auth context.Context, client *datadogV2.DowntimesApi, instan
 
 	downtimeBody := &datadogV2.DowntimeCreateRequest{}
 	if err := json.Unmarshal([]byte(instance.Spec.JsonSpec), downtimeBody); err != nil {
-		return datadogV2.DowntimeResponse{}, translateClientError(err, "error unmarshalling downtime spec")
+		return datadogV2.DowntimeResponse{}, translateClientError(err, nil, "error unmarshalling downtime spec")
 	}
 
-	downtime, _, err := client.CreateDowntime(auth, *downtimeBody)
+	downtime, httpResp, err := client.CreateDowntime(auth, *downtimeBody)
+	if httpResp != nil {
+		defer httpResp.Body.Close()
+	}
 	if err != nil {
-		return datadogV2.DowntimeResponse{}, translateClientError(err, "error creating downtime")
+		return datadogV2.DowntimeResponse{}, translateClientError(err, httpResp, "error creating downtime")
 	}
 	return downtime, nil
 }
@@ -127,7 +136,7 @@ func updateDowntime(auth context.Context, client *datadogV2.DowntimesApi, instan
 		} `json:"data"`
 	}
 	if err := json.Unmarshal([]byte(instance.Spec.JsonSpec), &specData); err != nil {
-		return datadogV2.DowntimeResponse{}, translateClientError(err, "error unmarshalling downtime spec")
+		return datadogV2.DowntimeResponse{}, translateClientError(err, nil, "error unmarshalling downtime spec")
 	}
 
 	if specData.Data.Attributes == nil {
@@ -141,9 +150,12 @@ func updateDowntime(auth context.Context, client *datadogV2.DowntimesApi, instan
 	updateReq := datadogV2.NewDowntimeUpdateRequest(*updateData)
 
 	// Call update using the status ID as the path parameter
-	downtimeUpdated, _, err := client.UpdateDowntime(auth, instance.Status.Id, *updateReq)
+	downtimeUpdated, httpResp, err := client.UpdateDowntime(auth, instance.Status.Id, *updateReq)
+	if httpResp != nil {
+		defer httpResp.Body.Close()
+	}
 	if err != nil {
-		return datadogV2.DowntimeResponse{}, translateClientError(err, "error updating downtime")
+		return datadogV2.DowntimeResponse{}, translateClientError(err, httpResp, "error updating downtime")
 	}
 	return downtimeUpdated, nil
 }

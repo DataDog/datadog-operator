@@ -3,12 +3,14 @@ package datadoggenericresource
 import (
 	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
 	"strconv"
 
 	datadogapi "github.com/DataDog/datadog-api-client-go/v2/api/datadog"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	ctrutils "github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/datadogclient"
 )
 
@@ -27,7 +29,7 @@ func buildHandlers(clients *datadogclient.GenericClients) map[v1alpha1.Supported
 	}
 }
 
-func translateClientError(err error, msg string) error {
+func translateClientError(err error, httpResp *http.Response, msg string) error {
 	if msg == "" {
 		msg = "an error occurred"
 	}
@@ -35,14 +37,14 @@ func translateClientError(err error, msg string) error {
 	var apiErr datadogapi.GenericOpenAPIError
 	var errURL *url.Error
 	if errors.As(err, &apiErr) {
-		return fmt.Errorf(msg+": %w: %s", err, apiErr.Body())
+		return ctrutils.NewAPIError(fmt.Errorf(msg+": %w: %s", err, apiErr.Body()), httpResp)
 	}
 
 	if errors.As(err, &errURL) {
-		return fmt.Errorf(msg+" (url.Error): %s", errURL)
+		return ctrutils.NewAPIError(fmt.Errorf(msg+" (url.Error): %s", errURL), httpResp)
 	}
 
-	return fmt.Errorf(msg+": %w", err)
+	return ctrutils.NewAPIError(fmt.Errorf(msg+": %w", err), httpResp)
 }
 
 func unsupportedInstanceType(resourceType v1alpha1.SupportedResourcesType) error {

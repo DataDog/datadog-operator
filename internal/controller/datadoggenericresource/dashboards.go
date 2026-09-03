@@ -51,9 +51,12 @@ func (h *DashboardHandler) refreshState(_ context.Context, _ *v1alpha1.DatadogGe
 }
 
 func getDashboard(auth context.Context, client *datadogV1.DashboardsApi, dashboardID string) (datadogV1.Dashboard, error) {
-	dashboard, _, err := client.GetDashboard(auth, dashboardID)
+	dashboard, httpResp, err := client.GetDashboard(auth, dashboardID)
+	if httpResp != nil {
+		defer httpResp.Body.Close()
+	}
 	if err != nil {
-		return datadogV1.Dashboard{}, translateClientError(err, "error getting dashboard")
+		return datadogV1.Dashboard{}, translateClientError(err, httpResp, "error getting dashboard")
 	}
 	return dashboard, nil
 }
@@ -61,11 +64,14 @@ func getDashboard(auth context.Context, client *datadogV1.DashboardsApi, dashboa
 func createDashboard(auth context.Context, client *datadogV1.DashboardsApi, instance *v1alpha1.DatadogGenericResource) (datadogV1.Dashboard, error) {
 	dashboardCreateData := &datadogV1.Dashboard{}
 	if err := json.Unmarshal([]byte(instance.Spec.JsonSpec), dashboardCreateData); err != nil {
-		return datadogV1.Dashboard{}, translateClientError(err, "error unmarshalling dashboard spec")
+		return datadogV1.Dashboard{}, translateClientError(err, nil, "error unmarshalling dashboard spec")
 	}
-	dashboard, _, err := client.CreateDashboard(auth, *dashboardCreateData)
+	dashboard, httpResp, err := client.CreateDashboard(auth, *dashboardCreateData)
+	if httpResp != nil {
+		defer httpResp.Body.Close()
+	}
 	if err != nil {
-		return datadogV1.Dashboard{}, translateClientError(err, "error creating dashboard")
+		return datadogV1.Dashboard{}, translateClientError(err, httpResp, "error creating dashboard")
 	}
 	return dashboard, nil
 }
@@ -73,17 +79,23 @@ func createDashboard(auth context.Context, client *datadogV1.DashboardsApi, inst
 func updateDashboard(auth context.Context, client *datadogV1.DashboardsApi, instance *v1alpha1.DatadogGenericResource) (datadogV1.Dashboard, error) {
 	dashboardUpdateData := &datadogV1.Dashboard{}
 	if err := json.Unmarshal([]byte(instance.Spec.JsonSpec), dashboardUpdateData); err != nil {
-		return datadogV1.Dashboard{}, translateClientError(err, "error unmarshalling dashboard spec")
+		return datadogV1.Dashboard{}, translateClientError(err, nil, "error unmarshalling dashboard spec")
 	}
-	dashboardUpdated, _, err := client.UpdateDashboard(auth, instance.Status.Id, *dashboardUpdateData)
+	dashboardUpdated, httpResp, err := client.UpdateDashboard(auth, instance.Status.Id, *dashboardUpdateData)
+	if httpResp != nil {
+		defer httpResp.Body.Close()
+	}
 	if err != nil {
-		return datadogV1.Dashboard{}, translateClientError(err, "error updating dashboard")
+		return datadogV1.Dashboard{}, translateClientError(err, httpResp, "error updating dashboard")
 	}
 	return dashboardUpdated, nil
 }
 
 func deleteDashboard(auth context.Context, client *datadogV1.DashboardsApi, dashboardID string) error {
 	_, httpResponse, err := client.DeleteDashboard(auth, dashboardID)
+	if httpResponse != nil {
+		defer httpResponse.Body.Close()
+	}
 	if err != nil {
 		// Deletion is idempotent for finalization: if the dashboard was already removed
 		// in Datadog (for example from the UI), allow the Kubernetes finalizer to clear.
@@ -91,7 +103,7 @@ func deleteDashboard(auth context.Context, client *datadogV1.DashboardsApi, dash
 		if httpResponse != nil && httpResponse.StatusCode == 404 {
 			return nil
 		}
-		return translateClientError(err, "error deleting dashboard")
+		return translateClientError(err, httpResponse, "error deleting dashboard")
 	}
 	return nil
 }
