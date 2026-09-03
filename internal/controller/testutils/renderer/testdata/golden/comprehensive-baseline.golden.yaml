@@ -2182,7 +2182,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: e5182e5df9f9aa5754b67d69dde750fe
+    agent.datadoghq.com/agentspechash: 3fdedc01b90a6cb61281b5418cdfff63
   labels:
     agent.datadoghq.com/component: cluster-checks-runner
     agent.datadoghq.com/name: datadog-agent
@@ -2302,7 +2302,7 @@ spec:
           value: "true"
         - name: DD_ORCHESTRATOR_EXPLORER_CONTAINER_SCRUBBING_ENABLED
           value: "true"
-        image: registry.datadoghq.com/agent:7.81.1
+        image: registry.datadoghq.com/agent:7.83.0
         livenessProbe:
           failureThreshold: 6
           httpGet:
@@ -2357,7 +2357,7 @@ spec:
         command:
         - bash
         - -c
-        image: registry.datadoghq.com/agent:7.81.1
+        image: registry.datadoghq.com/agent:7.83.0
         name: init-config
         resources: {}
         volumeMounts:
@@ -2386,7 +2386,7 @@ spec:
         command:
         - bash
         - -c
-        image: registry.datadoghq.com/agent:7.81.1
+        image: registry.datadoghq.com/agent:7.83.0
         name: init-copy-check-assets
         resources: {}
         securityContext:
