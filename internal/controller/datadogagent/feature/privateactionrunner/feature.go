@@ -73,9 +73,7 @@ func (f *privateActionRunnerFeature) Configure(dda metav1.Object, ddaSpec *v2alp
 		} else {
 			f.nodeConfigData = defaultConfigData
 		}
-		if splitEnabled, err := splitModeEnabledFromConfigData(f.nodeConfigData); err == nil {
-			f.nodeSplitEnabled = splitEnabled
-		}
+		f.nodeSplitEnabled = featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnablePrivateActionRunnerSplitModeAnnotation)
 
 		reqComp.Agent = feature.RequiredComponent{
 			IsRequired: new(true),
@@ -139,11 +137,6 @@ func (f *privateActionRunnerFeature) ManageDependencies(managers feature.Resourc
 				privateActionRunnerFileName: f.nodeConfigData,
 			},
 		}
-		if f.nodeSplitEnabled {
-			cm.Data[privateActionRunnerControlProcessFileName] = privateActionRunnerControlProcessConfig
-			cm.Data[privateActionRunnerExecutorProcessFileName] = privateActionRunnerExecutorProcessConfig
-		}
-
 		if err := managers.Store().AddOrUpdate(kubernetes.ConfigMapKind, cm); err != nil {
 			return err
 		}
@@ -277,35 +270,21 @@ func (f *privateActionRunnerFeature) ManageNodeAgent(managers feature.PodTemplat
 	managers.VolumeMount().AddVolumeMountToContainer(&volMount, apicommon.PrivateActionRunnerContainerName)
 
 	if f.nodeSplitEnabled {
-		processVolName := fmt.Sprintf("%s-%s", f.owner.GetName(), privateActionRunnerProcessVolumeNameSuffix)
-		processVol := volume.GetVolumeFromConfigMap(&v2alpha1.ConfigMapConfig{
-			Name: configMapName,
-			Items: []corev1.KeyToPath{
-				{Key: privateActionRunnerControlProcessFileName, Path: privateActionRunnerControlProcessFileName},
-				{Key: privateActionRunnerExecutorProcessFileName, Path: privateActionRunnerExecutorProcessFileName},
-			},
-		}, configMapName, processVolName)
-		managers.Volume().AddVolume(&processVol)
-		managers.VolumeMount().AddVolumeMountToContainer(&corev1.VolumeMount{
-			Name:      processVolName,
-			MountPath: privateActionRunnerProcessesPath,
-			ReadOnly:  true,
-		}, apicommon.PrivateActionRunnerContainerName)
 		runPathMount := common.GetVolumeMountForRunPath()
 		managers.VolumeMount().AddVolumeMountToContainer(&runPathMount, apicommon.PrivateActionRunnerContainerName)
 		managers.EnvVar().AddEnvVarToContainer(apicommon.PrivateActionRunnerContainerName, &corev1.EnvVar{
-			Name:  "DD_PM_SOCKET_PATH",
+			Name:  privateActionRunnerProcessManagerSocketEnvVar,
 			Value: privateActionRunnerProcessManagerSocketPath,
+		})
+		managers.EnvVar().AddEnvVarToContainer(apicommon.PrivateActionRunnerContainerName, &corev1.EnvVar{
+			Name:  privateActionRunnerProcessConfigPathEnvVar,
+			Value: privateActionRunnerProcessConfigPath,
 		})
 
 		for i := range managers.PodTemplateSpec().Spec.Containers {
 			container := &managers.PodTemplateSpec().Spec.Containers[i]
 			if container.Name == string(apicommon.PrivateActionRunnerContainerName) {
-				container.Command = []string{
-					privateActionRunnerPythonPath,
-					"-c",
-					privateActionRunnerProcessManagerBootstrap,
-				}
+				container.Command = []string{privateActionRunnerProcessManagerPath}
 				container.Args = nil
 				break
 			}

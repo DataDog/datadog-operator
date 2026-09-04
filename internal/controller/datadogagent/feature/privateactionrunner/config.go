@@ -112,20 +112,6 @@ func parsePrivateActionRunnerConfig(configData string) (*PrivateActionRunnerConf
 	return config.PrivateActionRunner, nil
 }
 
-// splitModeEnabledFromConfigData reads the experimental node-agent launch
-// switch without adding it to the Operator's higher-level PAR configuration.
-func splitModeEnabledFromConfigData(configData string) (bool, error) {
-	config := struct {
-		PrivateActionRunner struct {
-			SplitEnabled bool `yaml:"split_enabled"`
-		} `yaml:"private_action_runner"`
-	}{}
-	if err := yaml.Unmarshal([]byte(configData), &config); err != nil {
-		return false, fmt.Errorf("failed to unmarshal config data: %w", err)
-	}
-	return config.PrivateActionRunner.SplitEnabled, nil
-}
-
 // overrideEnabledValueInConfigData ensures that the enabled field in the config data YAML
 // matches the desired value.
 func overrideEnabledValueInConfigData(configData string, enabled bool) (string, error) {
