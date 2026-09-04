@@ -44,6 +44,7 @@ const (
 	KarpenterAzureAPIGroup       = "karpenter.azure.com"
 	KubeRayAPIGroup              = "ray.io"
 	DynamoAPIGroup               = "nvidia.com"
+	KServeAPIGroup               = "serving.kserve.io"
 
 	// Service Mesh API groups
 	IstioNetworkingAPIGroup = "networking.istio.io"
@@ -140,6 +141,18 @@ const (
 	DynamoGraphDeploymentScalingAdaptersResource      = "dynamographdeploymentscalingadapters"
 	DynamoModelsResource                              = "dynamomodels"
 	DynamoWorkerMetadatasResource                     = "dynamoworkermetadatas"
+	ClusterStorageContainersResource                  = "clusterstoragecontainers"
+	LLMInferenceServiceConfigsResource                = "llminferenceserviceconfigs"
+	LLMInferenceServicesResource                      = "llminferenceservices"
+	LocalModelCachesResource                          = "localmodelcaches"
+	LocalModelNamespaceCachesResource                 = "localmodelnamespacecaches"
+	LocalModelNodeGroupsResource                      = "localmodelnodegroups"
+	LocalModelNodesResource                           = "localmodelnodes"
+	ClusterServingRuntimesResource                    = "clusterservingruntimes"
+	InferenceGraphsResource                           = "inferencegraphs"
+	InferenceServicesResource                         = "inferenceservices"
+	ServingRuntimesResource                           = "servingruntimes"
+	TrainedModelsResource                             = "trainedmodels"
 
 	// GKE resources
 	GCPTrafficExtensionsResource = "gcptrafficextensions"
