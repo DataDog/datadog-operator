@@ -31,6 +31,7 @@ const (
 	ExternalMetricsAPIGroup      = "external.metrics.k8s.io"
 	GatewayAPIGroup              = "gateway.networking.k8s.io"
 	NetworkingAPIGroup           = "networking.k8s.io"
+	NetworkingGKEAPIGroup        = "networking.gke.io"
 	OpenShiftQuotaAPIGroup       = "quota.openshift.io"
 	PolicyAPIGroup               = "policy"
 	RbacAPIGroup                 = "rbac.authorization.k8s.io"
@@ -139,6 +140,9 @@ const (
 	DynamoGraphDeploymentScalingAdaptersResource      = "dynamographdeploymentscalingadapters"
 	DynamoModelsResource                              = "dynamomodels"
 	DynamoWorkerMetadatasResource                     = "dynamoworkermetadatas"
+
+	// GKE resources
+	GCPTrafficExtensionsResource = "gcptrafficextensions"
 
 	// Gateway API resources
 	GatewaysResource     = "gateways"
