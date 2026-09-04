@@ -13,6 +13,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/utils/ptr"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -149,6 +150,49 @@ func Test_privateActionRunnerFeature_ManageNodeAgent(t *testing.T) {
 	assert.Contains(t, capabilities, corev1.Capability("NET_RAW"))
 
 	assert.Empty(t, managers.AnnotationMgr.Annotations)
+}
+
+func Test_privateActionRunnerFeature_ManageNodeAgentSplitMode(t *testing.T) {
+	dda := &v2alpha1.DatadogAgent{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-dda",
+			Namespace: "default",
+			Annotations: map[string]string{
+				"agent.datadoghq.com/private-action-runner-enabled":       "true",
+				"agent.datadoghq.com/private-action-runner-split-enabled": "true",
+			},
+		},
+	}
+	f := buildPrivateActionRunnerFeature(nil)
+	f.Configure(dda, &v2alpha1.DatadogAgentSpec{}, nil)
+
+	podTmpl := corev1.PodTemplateSpec{
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{{
+				Name:    string(apicommon.PrivateActionRunnerContainerName),
+				Command: []string{"monolithic-command"},
+			}},
+		},
+	}
+	managers := fake.NewPodTemplateManagers(t, podTmpl)
+	require.NoError(t, f.ManageNodeAgent(managers))
+
+	require.Len(t, managers.Tpl.Spec.Containers, 1)
+	assert.Equal(t, []string{
+		privateActionRunnerProcessManagerPath,
+	}, managers.Tpl.Spec.Containers[0].Command)
+	assert.Nil(t, managers.Tpl.Spec.Containers[0].Args)
+
+	mounts := managers.VolumeMountMgr.VolumeMountsByC[apicommon.PrivateActionRunnerContainerName]
+	assert.Contains(t, mounts, ptr.To(common.GetVolumeMountForRunPath()))
+	assert.Contains(t, managers.EnvVarMgr.EnvVarsByC[apicommon.PrivateActionRunnerContainerName], &corev1.EnvVar{
+		Name:  privateActionRunnerProcessManagerSocketEnvVar,
+		Value: privateActionRunnerProcessManagerSocketPath,
+	})
+	assert.Contains(t, managers.EnvVarMgr.EnvVarsByC[apicommon.PrivateActionRunnerContainerName], &corev1.EnvVar{
+		Name:  privateActionRunnerProcessConfigPathEnvVar,
+		Value: privateActionRunnerProcessConfigPath,
+	})
 }
 
 // Test_privateActionRunnerFeature_ProfileDDAI_ConfigMapNames verifies that when PAR is

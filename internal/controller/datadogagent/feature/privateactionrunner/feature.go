@@ -41,6 +41,7 @@ type privateActionRunnerFeature struct {
 	owner                     metav1.Object
 	logger                    logr.Logger
 	nodeEnabled               bool
+	nodeSplitEnabled          bool
 	nodeConfigData            string
 	systemdConfig             systemdHostConfig
 	systemdConfigErr          error
@@ -72,6 +73,7 @@ func (f *privateActionRunnerFeature) Configure(dda metav1.Object, ddaSpec *v2alp
 		} else {
 			f.nodeConfigData = defaultConfigData
 		}
+		f.nodeSplitEnabled = featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnablePrivateActionRunnerSplitModeAnnotation)
 
 		reqComp.Agent = feature.RequiredComponent{
 			IsRequired: new(true),
@@ -135,7 +137,6 @@ func (f *privateActionRunnerFeature) ManageDependencies(managers feature.Resourc
 				privateActionRunnerFileName: f.nodeConfigData,
 			},
 		}
-
 		if err := managers.Store().AddOrUpdate(kubernetes.ConfigMapKind, cm); err != nil {
 			return err
 		}
@@ -267,6 +268,28 @@ func (f *privateActionRunnerFeature) ManageNodeAgent(managers feature.PodTemplat
 		ReadOnly:  true,
 	}
 	managers.VolumeMount().AddVolumeMountToContainer(&volMount, apicommon.PrivateActionRunnerContainerName)
+
+	if f.nodeSplitEnabled {
+		runPathMount := common.GetVolumeMountForRunPath()
+		managers.VolumeMount().AddVolumeMountToContainer(&runPathMount, apicommon.PrivateActionRunnerContainerName)
+		managers.EnvVar().AddEnvVarToContainer(apicommon.PrivateActionRunnerContainerName, &corev1.EnvVar{
+			Name:  privateActionRunnerProcessManagerSocketEnvVar,
+			Value: privateActionRunnerProcessManagerSocketPath,
+		})
+		managers.EnvVar().AddEnvVarToContainer(apicommon.PrivateActionRunnerContainerName, &corev1.EnvVar{
+			Name:  privateActionRunnerProcessConfigPathEnvVar,
+			Value: privateActionRunnerProcessConfigPath,
+		})
+
+		for i := range managers.PodTemplateSpec().Spec.Containers {
+			container := &managers.PodTemplateSpec().Spec.Containers[i]
+			if container.Name == string(apicommon.PrivateActionRunnerContainerName) {
+				container.Command = []string{privateActionRunnerProcessManagerPath}
+				container.Args = nil
+				break
+			}
+		}
+	}
 
 	// procdir volume mount
 	procdirVol, procdirVolMount := volume.GetVolumes(common.ProcdirVolumeName, common.ProcdirHostPath, common.ProcdirMountPath, true)

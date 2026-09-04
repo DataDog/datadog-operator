@@ -8,9 +8,14 @@ package privateactionrunner
 const (
 	PrivateActionRunnerConfigPath = "/etc/datadog-agent/privateactionrunner.yaml"
 
-	privateActionRunnerVolumeNameSuffix = "privateactionrunner-config"
-	privateActionRunnerFileName         = "privateactionrunner.yaml"
-	privateActionRunnerSuffix           = "private-action-runner"
+	privateActionRunnerVolumeNameSuffix           = "privateactionrunner-config"
+	privateActionRunnerFileName                   = "privateactionrunner.yaml"
+	privateActionRunnerProcessManagerPath         = "/opt/datadog-agent/embedded/bin/dd-procmgrd"
+	privateActionRunnerProcessManagerSocketPath   = "/opt/datadog-agent/run/dd-procmgrd.sock"
+	privateActionRunnerProcessConfigPath          = "/opt/datadog-agent/privateactionrunner/processes.d"
+	privateActionRunnerProcessConfigPathEnvVar    = "DD_PM_CONFIG_DIR"
+	privateActionRunnerProcessManagerSocketEnvVar = "DD_PM_SOCKET_PATH"
+	privateActionRunnerSuffix                     = "private-action-runner"
 
 	hostVarLogVolumeName = "host-varlog"
 	hostVarLogHostPath   = "/var/log"
