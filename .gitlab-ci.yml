@@ -507,6 +507,55 @@ test_publish_image_merge_strategy:
         return 1
       }
 
+# Integration coverage for the stacked test PR only. The destination is the
+# private Red Hat partner repository and the tag is unique to this pipeline.
+publish_merge_strategy_test_image:
+  stage: e2e
+  extends: .docker_publish_job_definition
+  needs: []
+  rules:
+    - if: '$DDR == "true"'
+      when: never
+    - changes:
+        paths:
+          - .gitlab-ci.yml
+        compare_to: refs/heads/main
+    - when: never
+  variables:
+    IMG_SOURCES: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:v1.30.0-rc.3-amd64,$BUILD_DOCKER_REGISTRY/$PROJECTNAME:v1.30.0-rc.3-arm64
+    IMG_DESTINATIONS: $RH_PARTNER_PROJECT_ID:merge-strategy-${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
+    IMG_REGISTRIES: redhat-operator
+    IMG_SIGNING: "false"
+    IMG_MERGE_STRATEGY: "index_oci"
+
+verify_merge_strategy_test_manifest:
+  stage: release
+  image: $JOB_DOCKER_IMAGE
+  tags: ["arch:amd64"]
+  needs:
+    - publish_merge_strategy_test_image
+  rules:
+    - if: '$DDR == "true"'
+      when: never
+    - changes:
+        paths:
+          - .gitlab-ci.yml
+        compare_to: refs/heads/main
+    - when: never
+  before_script:
+    - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$RH_PARTNER_REGISTRY_KEY_SSM_KEY --with-decryption --query "Parameter.Value" --out text | crane auth login "${RH_PARTNER_REGISTRY%%/*}" --username "$RH_PARTNER_REGISTRY_USER" --password-stdin
+  script:
+    - |
+      image="${RH_PARTNER_REGISTRY}/${RH_PARTNER_PROJECT_ID}:merge-strategy-${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}"
+      manifest=$(crane manifest "$image")
+      echo "$manifest" | jq .
+      echo "$manifest" | jq -e '
+        .mediaType == "application/vnd.oci.image.index.v1+json" and
+        all(.manifests[]; .mediaType == "application/vnd.oci.image.manifest.v1+json") and
+        ([.manifests[].platform.architecture] | index("amd64") != null) and
+        ([.manifests[].platform.architecture] | index("arm64") != null)
+      '
+
 trigger_e2e_operator_image:
   stage: e2e
   rules: !reference [.on_run_e2e_base]
