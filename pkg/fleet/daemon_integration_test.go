@@ -87,8 +87,9 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
-// createIntegrationDDA creates a DatadogAgent against the real envtest API
-// server and returns the live object (with a server-assigned resourceVersion).
+// createIntegrationDDA creates a fresh-baseline DatadogAgent against the real
+// envtest API server and returns the live object (with a server-assigned
+// resourceVersion).
 func createIntegrationDDA(t *testing.T, name string) *v2alpha1.DatadogAgent {
 	t.Helper()
 	dda := testDDAObject("")
@@ -96,10 +97,60 @@ func createIntegrationDDA(t *testing.T, name string) *v2alpha1.DatadogAgent {
 	dda.ResourceVersion = ""
 	require.NoError(t, integrationClient.Create(context.Background(), dda))
 
+	require.NoError(t, integrationClient.Get(context.Background(), types.NamespacedName{Namespace: dda.Namespace, Name: dda.Name}, dda))
+	stampFreshBaseline(dda)
+	require.NoError(t, integrationClient.Status().Update(context.Background(), dda))
+
 	t.Cleanup(func() {
 		_ = integrationClient.Delete(context.Background(), dda)
 	})
 	return dda
+}
+
+// TestApplyOperation_StaleResourceVersionConflictsAndReplans proves that a
+// merge patch naming a stale resourceVersion precondition is rejected by a
+// real API server with a 409, and that applyOperation's replan-once recovery
+// works against a live apiserver — not just the fake client, which does not
+// enforce the resourceVersion precondition embedded in a merge patch body.
+func TestApplyOperation_StaleResourceVersionConflictsAndReplans(t *testing.T) {
+	dda := createIntegrationDDA(t, "stale-rv-conflict")
+	nsn := types.NamespacedName{Namespace: dda.Namespace, Name: dda.Name}
+
+	staleResourceVersion := dda.ResourceVersion
+
+	// Advance the live object's resourceVersion out from under the plan, the
+	// same way a concurrent reconcile would.
+	live := &v2alpha1.DatadogAgent{}
+	require.NoError(t, integrationClient.Get(context.Background(), nsn, live))
+	live.Annotations = map[string]string{"unrelated.datadoghq.com/bump": "1"}
+	require.NoError(t, integrationClient.Update(context.Background(), live))
+	require.NotEqual(t, staleResourceVersion, live.ResourceVersion)
+
+	d := &Daemon{client: integrationClient}
+
+	calls := 0
+	plan := func(ctx context.Context) (planResult, error) {
+		calls++
+		resourceVersion := staleResourceVersion
+		if calls > 1 {
+			// Replan: read the live object's current resourceVersion.
+			current := &v2alpha1.DatadogAgent{}
+			if err := integrationClient.Get(ctx, nsn, current); err != nil {
+				return planResult{}, err
+			}
+			resourceVersion = current.ResourceVersion
+		}
+		return planResult{
+			pending:         &pendingOperation{taskID: "task-1", intent: pendingIntentStart, nsn: nsn, experimentID: testExperimentID},
+			patch:           []byte(`{}`),
+			resourceVersion: resourceVersion,
+		}, nil
+	}
+
+	pending, err := d.applyOperation(context.Background(), nsn, "test signal", plan)
+	require.NoError(t, err)
+	require.NotNil(t, pending)
+	assert.Equal(t, 2, calls, "the stale resourceVersion must produce exactly one real-apiserver conflict, recovered by one replan")
 }
 
 // TestExperimentCheckpoint_SchemaRejectsHalfCheckpoint proves that the CRD's

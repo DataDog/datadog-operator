@@ -19,20 +19,25 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/wait"
 	toolscache "k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
+	"k8s.io/utils/ptr"
 	ctrlcache "sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
+	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	v1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	v2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/pkg/remoteconfig"
@@ -48,6 +53,7 @@ func testFleetScheme() *runtime.Scheme {
 	_ = apiregistrationv1.AddToScheme(s)
 	_ = v1alpha1.AddToScheme(s)
 	_ = v2alpha1.AddToScheme(s)
+	_ = appsv1.AddToScheme(s)
 	return s
 }
 
@@ -55,7 +61,7 @@ func testDaemon(dda *v2alpha1.DatadogAgent, configs map[string]installerConfig) 
 	s := testFleetScheme()
 	b := fake.NewClientBuilder().WithScheme(s).WithStatusSubresource(&v2alpha1.DatadogAgent{})
 	if dda != nil {
-		b = b.WithObjects(dda)
+		b = b.WithObjects(dda, testBaselineRevisionObject(dda))
 	}
 	c := b.Build()
 	return &Daemon{
@@ -124,24 +130,107 @@ var testDDANSN = types.NamespacedName{Namespace: "datadog-agent", Name: "datadog
 
 const testExperimentID = "test-config"
 
+// testBaselineRevision is the fresh-baseline ControllerRevision name stamped
+// by testDDAObject and stampFreshBaseline. AnnotationExperimentID/Signal are
+// excluded by v2alpha1.DatadogAnnotations' prefix filter, so the filtered
+// annotation set (and therefore its hash) stays empty/nil across every
+// permutation of annotations these tests set — a single fixed hash is valid
+// for all of them.
+const testBaselineRevision = "test-baseline-revision"
+
+// stampFreshBaseline sets dda's current-revision barrier so it passes
+// checkBaselineFreshness as of dda's current Generation and Annotations.
+func stampFreshBaseline(dda *v2alpha1.DatadogAgent) {
+	hash, _ := v2alpha1.DatadogAnnotationsHash(dda.Annotations)
+	dda.Status.CurrentRevision = testBaselineRevision
+	dda.Status.CurrentRevisionObservedGeneration = dda.Generation
+	dda.Status.CurrentRevisionObservedAnnotationsHash = hash
+}
+
 func testDDAObject(phase v2alpha1.ExperimentPhase) *v2alpha1.DatadogAgent {
 	dda := &v2alpha1.DatadogAgent{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      testDDANSN.Name,
-			Namespace: testDDANSN.Namespace,
+			Name:        testDDANSN.Name,
+			Namespace:   testDDANSN.Namespace,
+			Annotations: map[string]string{},
 		},
 	}
 	if phase != "" {
 		dda.Status.Experiment = &v2alpha1.ExperimentStatus{Phase: phase, ID: testExperimentID}
-		// Set experiment annotations to match status — this is the state the daemon
-		// would see after the controller has processed the start signal.
-		if dda.Annotations == nil {
-			dda.Annotations = make(map[string]string)
+		if !isTerminalPhase(phase) {
+			// A non-terminal experiment still carries its start signal, and the
+			// signal Fleet wrote is well-formed: both pins present. Terminal
+			// phases carry no signal — the reconciler cleared it.
+			stampWellFormedStartSignal(dda)
 		}
-		dda.Annotations[v2alpha1.AnnotationExperimentID] = testExperimentID
-		dda.Annotations[v2alpha1.AnnotationExperimentSignal] = v2alpha1.ExperimentSignalStart
 	}
+	stampFreshBaseline(dda)
 	return dda
+}
+
+// stampWellFormedStartSignal puts a complete start signal on dda: both the
+// rollback-target and expected-spec-hash pins, with the hash matching what
+// planStart recomputes for a `{}` experiment config. This is the only shape
+// planStart accepts as a resend.
+func stampWellFormedStartSignal(dda *v2alpha1.DatadogAgent) {
+	if dda.Annotations == nil {
+		dda.Annotations = make(map[string]string)
+	}
+	dda.Annotations[v2alpha1.AnnotationExperimentID] = testExperimentID
+	dda.Annotations[v2alpha1.AnnotationExperimentSignal] = v2alpha1.ExperimentSignalStart
+	dda.Annotations[v2alpha1.AnnotationExperimentRollbackTargetRevision] = testBaselineRevision
+	hash, err := expectedSpecHashAfterMerge(dda, json.RawMessage(`{}`))
+	if err != nil {
+		panic(err)
+	}
+	dda.Annotations[v2alpha1.AnnotationExperimentExpectedSpecHash] = hash
+}
+
+// terminalPhases enumerates every phase isTerminalPhase accepts, so a guard
+// that covers only one of them fails the other two subtests instead of passing
+// on the single case its author had in mind.
+func terminalPhases() map[string]v2alpha1.ExperimentPhase {
+	return map[string]v2alpha1.ExperimentPhase{
+		"terminated": v2alpha1.ExperimentPhaseTerminated,
+		"aborted":    v2alpha1.ExperimentPhaseAborted,
+		"promoted":   v2alpha1.ExperimentPhasePromoted,
+	}
+}
+
+// testPriorExperimentID is a *different* experiment than testStartRequest
+// carries. Starting a new experiment after an old one ended is legal; re-sending
+// the ended experiment's own ID is not, and the two only stay distinguishable in
+// a fixture where the prior experiment's ID differs from the incoming request's.
+const testPriorExperimentID = "previous-config"
+
+// testDDAObjectAfterPriorExperiment builds a DDA whose status holds a *finished,
+// unrelated* experiment in the given terminal phase — the state a legitimate
+// fresh start arrives into.
+func testDDAObjectAfterPriorExperiment(phase v2alpha1.ExperimentPhase) *v2alpha1.DatadogAgent {
+	dda := testDDAObject(phase)
+	dda.Status.Experiment.ID = testPriorExperimentID
+	return dda
+}
+
+// testBaselineRevisionObject returns the ControllerRevision that dda's
+// rollback-target pin resolves to, owned by dda so it passes the ownership
+// check planStart's resend branch runs.
+func testBaselineRevisionObject(dda *v2alpha1.DatadogAgent) *appsv1.ControllerRevision {
+	return &appsv1.ControllerRevision{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      testBaselineRevision,
+			Namespace: dda.Namespace,
+			Labels:    map[string]string{apicommon.DatadogAgentNameLabelKey: dda.Name},
+			OwnerReferences: []metav1.OwnerReference{{
+				APIVersion: "datadoghq.com/v2alpha1",
+				Kind:       "DatadogAgent",
+				Name:       dda.Name,
+				UID:        dda.UID,
+				Controller: ptr.To(true),
+			}},
+		},
+		Revision: 1,
+	}
 }
 
 func syncTaskErr(op *pendingOperation, err error) error {
@@ -354,7 +443,7 @@ func TestStartDatadogAgentExperiment_RejectsDifferentPendingStart(t *testing.T) 
 }
 
 func TestStartDatadogAgentExperiment_Success_FromTerminated(t *testing.T) {
-	d, c := testDaemon(testDDAObject(v2alpha1.ExperimentPhaseTerminated), testInstallerConfigWithDDA())
+	d, c := testDaemon(testDDAObjectAfterPriorExperiment(v2alpha1.ExperimentPhaseTerminated), testInstallerConfigWithDDA())
 	req := testStartRequest()
 	requireStartQueued(t, d, req)
 
@@ -365,7 +454,7 @@ func TestStartDatadogAgentExperiment_Success_FromTerminated(t *testing.T) {
 }
 
 func TestStartDatadogAgentExperiment_Success_FromAborted(t *testing.T) {
-	d, c := testDaemon(testDDAObject(v2alpha1.ExperimentPhaseAborted), testInstallerConfigWithDDA())
+	d, c := testDaemon(testDDAObjectAfterPriorExperiment(v2alpha1.ExperimentPhaseAborted), testInstallerConfigWithDDA())
 	req := testStartRequest()
 	requireStartQueued(t, d, req)
 
@@ -376,9 +465,9 @@ func TestStartDatadogAgentExperiment_Success_FromAborted(t *testing.T) {
 }
 
 func TestStartDatadogAgentExperiment_Success_OverwritesPreviousExperiment(t *testing.T) {
-	// Start a new experiment when a previous one exists (e.g. after termination).
-	// The old experiment's annotations must be fully replaced.
-	d, c := testDaemon(testDDAObject(v2alpha1.ExperimentPhaseTerminated), testInstallerConfigWithDDA())
+	// Start a new experiment when a previous, different one exists (e.g. after
+	// termination). The old experiment's annotations must be fully replaced.
+	d, c := testDaemon(testDDAObjectAfterPriorExperiment(v2alpha1.ExperimentPhaseTerminated), testInstallerConfigWithDDA())
 	req := testStartRequest()
 	requireStartQueued(t, d, req)
 
@@ -596,30 +685,28 @@ func TestStopDatadogAgentExperiment_Success_Terminated(t *testing.T) {
 	assert.Empty(t, rc.state[0].ExperimentConfigVersion, "experiment config version should be cleared")
 }
 
-func TestStopDatadogAgentExperiment_Success_Promoted(t *testing.T) {
-	// Already in terminal phase — GET guard skips the patch, clears experiment config version.
+func TestStopDatadogAgentExperiment_Promoted_StateMismatch(t *testing.T) {
+	// Promoted is not a stop no-op: the experiment spec became the stable one,
+	// so rollback never happened. Dispatch must surface a state mismatch.
 	d, _ := testDaemon(testDDAObject(v2alpha1.ExperimentPhasePromoted), testInstallerConfigWithDDA())
-	rc := &mockRCClient{state: []*pbgo.PackageState{
+	d.rcClient = &mockRCClient{state: []*pbgo.PackageState{
 		{Package: "datadog-operator", StableConfigVersion: "stable-1", ExperimentConfigVersion: "exp-1"},
 	}}
-	d.rcClient = rc
-	op, err := d.stopDatadogAgentExperiment(context.Background(), testStopRequest())
-	requireSyncNoError(t, op, err)
-	assert.Equal(t, "stable-1", rc.state[0].StableConfigVersion)
-	assert.Empty(t, rc.state[0].ExperimentConfigVersion, "experiment config version should be cleared")
+	err := syncTaskErr(d.stopDatadogAgentExperiment(context.Background(), testStopRequest()))
+	var stateErr *stateDoesntMatchError
+	require.ErrorAs(t, err, &stateErr)
 }
 
-func TestStopDatadogAgentExperiment_Success_Aborted(t *testing.T) {
-	// Already in terminal phase — GET guard skips the patch, clears experiment config version.
+func TestStopDatadogAgentExperiment_Aborted_StateMismatch(t *testing.T) {
+	// Aborted may have left the experiment spec stranded live, so stop's
+	// revert-to-baseline intent was not achieved.
 	d, _ := testDaemon(testDDAObject(v2alpha1.ExperimentPhaseAborted), testInstallerConfigWithDDA())
-	rc := &mockRCClient{state: []*pbgo.PackageState{
+	d.rcClient = &mockRCClient{state: []*pbgo.PackageState{
 		{Package: "datadog-operator", StableConfigVersion: "stable-1", ExperimentConfigVersion: "exp-1"},
 	}}
-	d.rcClient = rc
-	op, err := d.stopDatadogAgentExperiment(context.Background(), testStopRequest())
-	requireSyncNoError(t, op, err)
-	assert.Equal(t, "stable-1", rc.state[0].StableConfigVersion)
-	assert.Empty(t, rc.state[0].ExperimentConfigVersion, "experiment config version should be cleared")
+	err := syncTaskErr(d.stopDatadogAgentExperiment(context.Background(), testStopRequest()))
+	var stateErr *stateDoesntMatchError
+	require.ErrorAs(t, err, &stateErr)
 }
 
 func TestStopDatadogAgentExperiment_UnexpectedPhase_Error(t *testing.T) {
@@ -926,19 +1013,6 @@ func TestVerifyExpectedState_NilClient(t *testing.T) {
 	assert.NoError(t, d.verifyExpectedState(req))
 }
 
-func TestHandleRemoteAPIRequest_InvalidState(t *testing.T) {
-	d, _ := testDaemon(testDDAObject(""), testInstallerConfigWithDDA())
-	d.rcClient = &mockRCClient{state: []*pbgo.PackageState{
-		{Package: "datadog-operator", StableConfigVersion: "1.0.0", ExperimentConfigVersion: ""},
-	}}
-	req := testStartRequest()
-	req.ExpectedState = expectedState{StableConfig: "stale", ExperimentConfig: ""}
-	_, err := d.handleRemoteAPIRequest(context.Background(), req)
-	require.Error(t, err)
-	var stateErr *stateDoesntMatchError
-	assert.True(t, errors.As(err, &stateErr))
-}
-
 // --- validateParams tests ---
 
 func TestValidateParams_Valid(t *testing.T) {
@@ -1027,10 +1101,7 @@ func TestBuildSignalPatch_WithoutConfig(t *testing.T) {
 
 func TestStartDatadogAgentExperiment_Idempotent_AnnotationAlreadyApplied(t *testing.T) {
 	dda := testDDAObject("")
-	dda.Annotations = map[string]string{
-		v2alpha1.AnnotationExperimentID:     testExperimentID,
-		v2alpha1.AnnotationExperimentSignal: v2alpha1.ExperimentSignalStart,
-	}
+	stampWellFormedStartSignal(dda)
 	d, c := testDaemon(dda, testInstallerConfigWithDDA())
 	req := testStartRequest()
 	op, err := d.startDatadogAgentExperiment(context.Background(), req)
@@ -2268,4 +2339,707 @@ func TestReconcileLocallyTerminatedExperiment_IgnoresPromoted(t *testing.T) {
 	assert.Equal(t, testExperimentID, rc.state[0].ExperimentConfigVersion,
 		"promoted is a Fleet-driven terminal phase; experimentConfigVersion must stay")
 	assert.Nil(t, rc.state[0].Task, "no task state report for promoted")
+}
+
+// --- checkBaselineFreshness / waitForBaselineFreshness tests ---
+
+func TestCheckBaselineFreshness_EmptyCurrentRevision(t *testing.T) {
+	dda := &v2alpha1.DatadogAgent{}
+	err := checkBaselineFreshness(dda)
+	assert.ErrorIs(t, err, errBaselineUninitialized)
+}
+
+func TestCheckBaselineFreshness_StaleObservedGeneration(t *testing.T) {
+	dda := &v2alpha1.DatadogAgent{}
+	dda.Generation = 2
+	dda.Status.CurrentRevision = "rev-1"
+	dda.Status.CurrentRevisionObservedGeneration = 1
+	err := checkBaselineFreshness(dda)
+	assert.ErrorIs(t, err, errBaselineNotReady)
+}
+
+func TestCheckBaselineFreshness_StaleAnnotationHash(t *testing.T) {
+	dda := &v2alpha1.DatadogAgent{}
+	dda.Annotations = map[string]string{"foo.datadoghq.com/bar": "baz"}
+	dda.Status.CurrentRevision = "rev-1"
+	dda.Status.CurrentRevisionObservedGeneration = dda.Generation
+	dda.Status.CurrentRevisionObservedAnnotationsHash = "stale-hash"
+	err := checkBaselineFreshness(dda)
+	assert.ErrorIs(t, err, errBaselineNotReady)
+}
+
+func TestCheckBaselineFreshness_Fresh(t *testing.T) {
+	dda := &v2alpha1.DatadogAgent{}
+	dda.Annotations = map[string]string{"foo.datadoghq.com/bar": "baz"}
+	hash, err := v2alpha1.DatadogAnnotationsHash(dda.Annotations)
+	require.NoError(t, err)
+	dda.Status.CurrentRevision = "rev-1"
+	dda.Status.CurrentRevisionObservedGeneration = dda.Generation
+	dda.Status.CurrentRevisionObservedAnnotationsHash = hash
+	assert.NoError(t, checkBaselineFreshness(dda))
+}
+
+// countingGetClient wraps a client.Client and lets a test observe (and mutate,
+// via onGet) each Get call's returned DatadogAgent, keyed by call number.
+type countingGetClient struct {
+	client.Client
+	mu    sync.Mutex
+	calls int
+	onGet func(callNumber int, dda *v2alpha1.DatadogAgent)
+}
+
+func (c *countingGetClient) Get(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+	if err := c.Client.Get(ctx, key, obj, opts...); err != nil {
+		return err
+	}
+	c.mu.Lock()
+	c.calls++
+	n := c.calls
+	c.mu.Unlock()
+	if dda, ok := obj.(*v2alpha1.DatadogAgent); ok && c.onGet != nil {
+		c.onGet(n, dda)
+	}
+	return nil
+}
+
+func TestWaitForBaselineFreshness_SucceedsAfterOneRetry(t *testing.T) {
+	originalInterval, originalBudget := baselineFreshnessPollInterval, baselineFreshnessBudget
+	baselineFreshnessPollInterval = 10 * time.Millisecond
+	baselineFreshnessBudget = 500 * time.Millisecond
+	defer func() { baselineFreshnessPollInterval, baselineFreshnessBudget = originalInterval, originalBudget }()
+
+	dda := testDDAObject("")
+	dda.Status.CurrentRevision = "" // stale on the first read
+	_, baseClient := testDaemon(dda, nil)
+	wrapped := &countingGetClient{Client: baseClient, onGet: func(n int, obj *v2alpha1.DatadogAgent) {
+		if n >= 2 {
+			stampFreshBaseline(obj)
+		}
+	}}
+	d := &Daemon{client: wrapped}
+
+	err := d.waitForBaselineFreshness(context.Background(), testDDANSN)
+	require.NoError(t, err)
+	assert.GreaterOrEqual(t, wrapped.calls, 2)
+}
+
+func TestWaitForBaselineFreshness_ReportsBaselineNotReadyAfterBudget(t *testing.T) {
+	originalInterval, originalBudget := baselineFreshnessPollInterval, baselineFreshnessBudget
+	baselineFreshnessPollInterval = 10 * time.Millisecond
+	baselineFreshnessBudget = 50 * time.Millisecond
+	defer func() { baselineFreshnessPollInterval, baselineFreshnessBudget = originalInterval, originalBudget }()
+
+	dda := testDDAObject("")
+	dda.Status.CurrentRevision = "" // never becomes fresh
+	d, _ := testDaemon(dda, nil)
+
+	err := d.waitForBaselineFreshness(context.Background(), testDDANSN)
+	assert.ErrorIs(t, err, errBaselineUninitialized)
+}
+
+func TestWaitForBaselineFreshness_ContextCanceled(t *testing.T) {
+	originalInterval, originalBudget := baselineFreshnessPollInterval, baselineFreshnessBudget
+	baselineFreshnessPollInterval = 200 * time.Millisecond
+	baselineFreshnessBudget = 5 * time.Second
+	defer func() { baselineFreshnessPollInterval, baselineFreshnessBudget = originalInterval, originalBudget }()
+
+	dda := testDDAObject("")
+	dda.Status.CurrentRevision = ""
+	d, _ := testDaemon(dda, nil)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() {
+		time.Sleep(20 * time.Millisecond)
+		cancel()
+	}()
+
+	err := d.waitForBaselineFreshness(ctx, testDDANSN)
+	assert.ErrorIs(t, err, context.Canceled)
+}
+
+// --- planStart baseline-freshness tests ---
+
+// testResolvedStartOperation mirrors what resolveOperation produces for
+// testStartRequest against testInstallerConfigWithDDA, so planStart can be
+// called directly without going through the dispatch layer.
+func testResolvedStartOperation() resolvedOperation {
+	return resolvedOperation{
+		NamespacedName: testDDANSN,
+		Config:         json.RawMessage(`{}`),
+	}
+}
+
+func TestPlanStart_RefusesStaleCheckpointOnItsOwnRead(t *testing.T) {
+	dda := testDDAObject("")
+	dda.Status.CurrentRevision = ""
+	d, _ := testDaemon(dda, testInstallerConfigWithDDA())
+
+	_, err := d.startDatadogAgentExperiment(context.Background(), testStartRequest())
+	require.Error(t, err)
+	assert.ErrorIs(t, err, errBaselineUninitialized)
+}
+
+func TestPlanStart_SkipsFreshnessOnAlreadyRunningIdempotency(t *testing.T) {
+	dda := testDDAObject(v2alpha1.ExperimentPhaseRunning)
+	dda.Status.CurrentRevision = "" // stale baseline; must not matter, already running
+	d, _ := testDaemon(dda, testInstallerConfigWithDDA())
+
+	op, err := d.startDatadogAgentExperiment(context.Background(), testStartRequest())
+	requireSyncNoError(t, op, err)
+}
+
+func TestPlanStart_SkipsFreshnessOnResendWithBothAnnotationsAndOwnedRevision(t *testing.T) {
+	dda := testDDAObject("")
+	stampWellFormedStartSignal(dda)
+	dda.Status.CurrentRevision = "" // stale baseline; must not matter for a resend
+
+	d, c := testDaemon(dda, testInstallerConfigWithDDA())
+	req := testStartRequest()
+	op, err := d.startDatadogAgentExperiment(context.Background(), req)
+	pending := requirePendingNoError(t, op, err)
+	assert.Equal(t, pendingIntentStart, pending.intent)
+
+	got := &v2alpha1.DatadogAgent{}
+	require.NoError(t, c.Get(context.Background(), testDDANSN, got))
+	assert.Equal(t, req.ID, got.Annotations[v2alpha1.AnnotationPendingTaskID])
+}
+
+func TestPlanStart_RefusesResendWithMissingRollbackTargetRevision(t *testing.T) {
+	// Both pins are present and matching, but the revision the rollback-target
+	// pin names is gone: there is no baseline left to skip freshness against.
+	dda := testDDAObject("")
+	stampWellFormedStartSignal(dda)
+	d, c := testDaemon(dda, testInstallerConfigWithDDA())
+	require.NoError(t, c.Delete(context.Background(), testBaselineRevisionObject(dda)))
+
+	res, err := d.planStart(context.Background(), testStartRequest(), testResolvedStartOperation())
+	assert.Equal(t, planResult{}, res)
+	var stateErr *stateDoesntMatchError
+	require.ErrorAs(t, err, &stateErr)
+}
+
+func TestPlanStart_RefusesResendWithForeignRollbackTargetRevision(t *testing.T) {
+	// The rollback-target annotation is user-writable, so each element of the
+	// ownership contract gets its own case: a regression that dropped any one
+	// of them would accept a foreign revision as this DDA's baseline.
+	tests := map[string]func(*appsv1.ControllerRevision){
+		"wrong name label": func(rev *appsv1.ControllerRevision) {
+			rev.Labels[apicommon.DatadogAgentNameLabelKey] = "some-other-dda"
+		},
+		"wrong owner uid": func(rev *appsv1.ControllerRevision) {
+			rev.OwnerReferences[0].UID = "00000000-0000-0000-0000-000000000000"
+		},
+		"not a controller ref": func(rev *appsv1.ControllerRevision) {
+			rev.OwnerReferences[0].Controller = ptr.To(false)
+		},
+		"no owner refs": func(rev *appsv1.ControllerRevision) {
+			rev.OwnerReferences = nil
+		},
+	}
+	for name, corrupt := range tests {
+		t.Run(name, func(t *testing.T) {
+			dda := testDDAObject("")
+			dda.UID = "11111111-1111-1111-1111-111111111111"
+			stampWellFormedStartSignal(dda)
+
+			rev := testBaselineRevisionObject(dda)
+			corrupt(rev)
+			s := testFleetScheme()
+			c := fake.NewClientBuilder().WithScheme(s).
+				WithStatusSubresource(&v2alpha1.DatadogAgent{}).
+				WithObjects(dda, rev).Build()
+			d := &Daemon{
+				client:           c,
+				apiReader:        c,
+				revisionsEnabled: true,
+				configs:          testInstallerConfigWithDDA(),
+				statusUpdates:    make(chan ddaStatusSnapshot, 32),
+			}
+
+			res, err := d.planStart(context.Background(), testStartRequest(), testResolvedStartOperation())
+			assert.Equal(t, planResult{}, res)
+			var stateErr *stateDoesntMatchError
+			require.ErrorAs(t, err, &stateErr)
+		})
+	}
+}
+
+// The next two tests assert only what planStart itself controls: the
+// planResult shape and the error *type*. Only *stateDoesntMatchError maps to
+// TaskState_INVALID_STATE in handleTask; a plain fmt.Errorf would map to
+// TaskState_ERROR and report a permanent state mismatch as transient. The
+// task-state and no-PATCH assertions live in the handleTask-level tests below,
+// where applyOperation, error dispatch, and setTaskState actually run.
+
+func TestPlanStart_ReturnsStateMismatch_MissingExpectedHash(t *testing.T) {
+	dda := testDDAObject("")
+	stampWellFormedStartSignal(dda)
+	delete(dda.Annotations, v2alpha1.AnnotationExperimentExpectedSpecHash)
+	d, _ := testDaemon(dda, testInstallerConfigWithDDA())
+
+	res, err := d.planStart(context.Background(), testStartRequest(), testResolvedStartOperation())
+	assert.Equal(t, planResult{}, res)
+	var stateErr *stateDoesntMatchError
+	require.ErrorAs(t, err, &stateErr)
+}
+
+func TestPlanStart_ReturnsStateMismatch_MissingRollbackTarget(t *testing.T) {
+	dda := testDDAObject("")
+	stampWellFormedStartSignal(dda)
+	delete(dda.Annotations, v2alpha1.AnnotationExperimentRollbackTargetRevision)
+	d, _ := testDaemon(dda, testInstallerConfigWithDDA())
+
+	res, err := d.planStart(context.Background(), testStartRequest(), testResolvedStartOperation())
+	assert.Equal(t, planResult{}, res)
+	var stateErr *stateDoesntMatchError
+	require.ErrorAs(t, err, &stateErr)
+}
+
+func TestPlanStart_ReturnsStateMismatch_MismatchedExpectedHash(t *testing.T) {
+	dda := testDDAObject("")
+	stampWellFormedStartSignal(dda)
+	dda.Annotations[v2alpha1.AnnotationExperimentExpectedSpecHash] = "a-different-intent"
+	d, _ := testDaemon(dda, testInstallerConfigWithDDA())
+
+	res, err := d.planStart(context.Background(), testStartRequest(), testResolvedStartOperation())
+	assert.Equal(t, planResult{}, res)
+	var stateErr *stateDoesntMatchError
+	require.ErrorAs(t, err, &stateErr)
+}
+
+// TestPlanStart_RejectsSameIDAgainstTerminalStatus covers the gap between the
+// Running short-circuit and the resend branch. A terminal experiment carries no
+// signal annotations — the reconciler clears them when it terminates — so a
+// re-sent start for the same ID matches neither guard and would fall through to
+// the fresh-start path, writing the experiment spec back over whatever is live
+// now while Status.Experiment stays frozen at the terminal phase.
+func TestPlanStart_RejectsSameIDAgainstTerminalStatus(t *testing.T) {
+	for name, phase := range terminalPhases() {
+		t.Run(name, func(t *testing.T) {
+			dda := testDDAObject(phase)
+			require.Empty(t, dda.Annotations[v2alpha1.AnnotationExperimentSignal],
+				"a terminal experiment carries no signal, which is why the resend branch cannot catch this")
+			d, _ := testDaemon(dda, testInstallerConfigWithDDA())
+
+			res, err := d.planStart(context.Background(), testStartRequest(), testResolvedStartOperation())
+			assert.Equal(t, planResult{}, res)
+			var stateErr *stateDoesntMatchError
+			require.ErrorAs(t, err, &stateErr)
+		})
+	}
+}
+
+// --- handleTask start-idempotency counterparts ---
+
+// requireStartTaskRejectedAsInvalidState dispatches a start task through the
+// full handleTask flow against a DDA whose same-ID start signal is malformed or
+// pinned to a different spec, and asserts the three things that must hold for
+// every such state: the task is reported INVALID_STATE (not ERROR, which FA
+// reads as transient, and not DONE), Fleet issued no PATCH against the DDA, and
+// the current task did not attach itself to the existing signal. Attachment is
+// asserted on the DDA annotations because that is where the worker observes
+// pending state from: attaching would let the reconciler's resolution of
+// someone else's signal complete this task.
+func requireStartTaskRejectedAsInvalidState(t *testing.T, dda *v2alpha1.DatadogAgent) {
+	t.Helper()
+	s := testFleetScheme()
+	base := fake.NewClientBuilder().WithScheme(s).
+		WithStatusSubresource(&v2alpha1.DatadogAgent{}).
+		WithObjects(dda, testBaselineRevisionObject(dda)).Build()
+	counter := &scriptedPatchClient{Client: base}
+	d := &Daemon{
+		client:           counter,
+		apiReader:        counter,
+		revisionsEnabled: true,
+		configs:          testInstallerConfigWithDDA(),
+		statusUpdates:    make(chan ddaStatusSnapshot, 32),
+		rcClient:         &mockRCClient{state: []*pbgo.PackageState{{Package: "datadog-operator", StableConfigVersion: "0.0.1"}}},
+	}
+	m := d.rcClient.(*mockRCClient)
+
+	req := testStartRequest()
+	req.ExpectedState = expectedState{StableConfig: "0.0.1"}
+	err := d.handleTask(context.Background(), req)
+
+	require.Error(t, err)
+	require.NotNil(t, m.state[0].Task)
+	assert.Equal(t, pbgo.TaskState_INVALID_STATE, m.state[0].Task.State)
+	assert.Zero(t, counter.patchCalls, "Fleet must not touch a DDA whose pending signal it does not own")
+
+	got := &v2alpha1.DatadogAgent{}
+	require.NoError(t, base.Get(context.Background(), testDDANSN, got))
+	assert.NotEqual(t, req.ID, got.Annotations[v2alpha1.AnnotationPendingTaskID],
+		"the current task must not attach to the existing pending signal")
+}
+
+func TestHandleStartTask_MalformedPinnedAnnotations_InvalidState(t *testing.T) {
+	dda := testDDAObject("")
+	stampWellFormedStartSignal(dda)
+	delete(dda.Annotations, v2alpha1.AnnotationExperimentExpectedSpecHash)
+	requireStartTaskRejectedAsInvalidState(t, dda)
+}
+
+func TestHandleStartTask_MissingRollbackTarget_InvalidState(t *testing.T) {
+	dda := testDDAObject("")
+	stampWellFormedStartSignal(dda)
+	delete(dda.Annotations, v2alpha1.AnnotationExperimentRollbackTargetRevision)
+	requireStartTaskRejectedAsInvalidState(t, dda)
+}
+
+func TestHandleStartTask_MismatchedExpectedHash_InvalidState(t *testing.T) {
+	dda := testDDAObject("")
+	stampWellFormedStartSignal(dda)
+	dda.Annotations[v2alpha1.AnnotationExperimentExpectedSpecHash] = "a-different-intent"
+	requireStartTaskRejectedAsInvalidState(t, dda)
+}
+
+func TestHandleStartTask_SameIDResendWithStalePointer_SucceedsWithoutBaselineNotReady(t *testing.T) {
+	// Exercises the request-aware preflight-skip rule: without it the outer
+	// freshness poll rejects a valid resend with TaskState_ERROR on
+	// baseline-not-ready before planStart ever gets to classify it.
+	dda := testDDAObject("")
+	stampWellFormedStartSignal(dda)
+	dda.Status.CurrentRevision = ""
+	rc := []*pbgo.PackageState{{Package: "datadog-operator", StableConfigVersion: "0.0.1"}}
+	d, c, m := testDaemonFull(dda, testInstallerConfigWithDDA(), rc)
+
+	req := testStartRequest()
+	req.ExpectedState = expectedState{StableConfig: "0.0.1"}
+	start := time.Now()
+	require.NoError(t, d.handleTask(context.Background(), req))
+
+	assert.Less(t, time.Since(start), 1*time.Second, "a resend must not wait on the baseline-freshness poll")
+	if m.state[0].Task != nil {
+		assert.NotEqual(t, pbgo.TaskState_ERROR, m.state[0].Task.State)
+	}
+	got := &v2alpha1.DatadogAgent{}
+	require.NoError(t, c.Get(context.Background(), testDDANSN, got))
+	assert.Equal(t, req.ID, got.Annotations[v2alpha1.AnnotationPendingTaskID])
+	assert.Equal(t, testBaselineRevision, got.Annotations[v2alpha1.AnnotationExperimentRollbackTargetRevision],
+		"a resend repairs pending annotations only; it must not re-pin a baseline")
+}
+
+// TestHandleStartTask_SameIDAgainstTerminalStatus_InvalidState is the task-level
+// counterpart: the rejection has to reach RC as INVALID_STATE and leave the DDA
+// untouched, or the drift the planStart guard prevents just moves one layer up.
+func TestHandleStartTask_SameIDAgainstTerminalStatus_InvalidState(t *testing.T) {
+	for name, phase := range terminalPhases() {
+		t.Run(name, func(t *testing.T) {
+			requireStartTaskRejectedAsInvalidState(t, testDDAObject(phase))
+		})
+	}
+}
+
+// --- planStop terminal-phase branching ---
+
+// testResolvedStopOperation mirrors what resolveOperation produces for
+// testStopRequest, so planStop can be called directly without going through
+// the dispatch layer. Stop carries no config: the rollback target comes from
+// the DDA's recorded checkpoint, not the request.
+func testResolvedStopOperation() resolvedOperation {
+	return resolvedOperation{NamespacedName: testDDANSN}
+}
+
+// terminalPhaseStopDaemon returns a daemon whose DDA sits in the given terminal
+// phase with the given termination reason, plus the RC client whose experiment
+// config version the stop path may or may not clear.
+func terminalPhaseStopDaemon(phase v2alpha1.ExperimentPhase, reason v2alpha1.ExperimentTerminationReason) (*Daemon, *mockRCClient) {
+	dda := testDDAObject(phase)
+	dda.Status.Experiment.TerminationReason = reason
+	d, _ := testDaemon(dda, testInstallerConfigWithDDA())
+	rc := &mockRCClient{state: []*pbgo.PackageState{
+		{Package: "datadog-operator", StableConfigVersion: "stable-1", ExperimentConfigVersion: "exp-1"},
+	}}
+	d.rcClient = rc
+	return d, rc
+}
+
+func TestPlanStop_TerminatedPhaseIsNoOpDone(t *testing.T) {
+	// Terminated is the one phase where a late stop is genuinely satisfied:
+	// rollback landed, so the baseline is what's live.
+	for name, reason := range map[string]v2alpha1.ExperimentTerminationReason{
+		"stopped":   v2alpha1.ExperimentTerminationReasonStopped,
+		"timed out": v2alpha1.ExperimentTerminationReasonTimedOut,
+	} {
+		t.Run(name, func(t *testing.T) {
+			d, rc := terminalPhaseStopDaemon(v2alpha1.ExperimentPhaseTerminated, reason)
+
+			res, err := d.planStop(context.Background(), testStopRequest(), testResolvedStopOperation())
+
+			require.NoError(t, err)
+			// A zero-value planResult with no error is what handleTask turns
+			// into TaskState_DONE.
+			assert.Equal(t, planResult{}, res)
+			assert.Equal(t, "stable-1", rc.state[0].StableConfigVersion)
+			assert.Empty(t, rc.state[0].ExperimentConfigVersion, "experiment config version should be cleared")
+		})
+	}
+}
+
+func TestPlanStop_AbortedPhaseReturnsStateMismatch(t *testing.T) {
+	// Aborted means the experiment ended without a rollback: the experiment
+	// spec may still be live on the DDA. Reporting the stop DONE would tell the
+	// backend the baseline was restored when it wasn't.
+	for name, reason := range map[string]v2alpha1.ExperimentTerminationReason{
+		"manual spec change": v2alpha1.ExperimentTerminationReasonManualSpecChange,
+		"baseline missing":   v2alpha1.ExperimentTerminationReasonBaselineMissing,
+		"baseline not found": v2alpha1.ExperimentTerminationReasonBaselineNotFound,
+	} {
+		t.Run(name, func(t *testing.T) {
+			d, _ := terminalPhaseStopDaemon(v2alpha1.ExperimentPhaseAborted, reason)
+
+			res, err := d.planStop(context.Background(), testStopRequest(), testResolvedStopOperation())
+
+			assert.Equal(t, planResult{}, res)
+			// Only *stateDoesntMatchError maps to TaskState_INVALID_STATE in
+			// handleTask; a plain fmt.Errorf would report this permanent
+			// mismatch as a transient TaskState_ERROR.
+			var stateErr *stateDoesntMatchError
+			require.ErrorAs(t, err, &stateErr)
+		})
+	}
+}
+
+func TestPlanStop_PromotedPhaseReturnsStateMismatch(t *testing.T) {
+	// Promoted means the experiment spec became the stable spec. Stop's
+	// revert-to-baseline intent is not achievable from here.
+	d, _ := terminalPhaseStopDaemon(v2alpha1.ExperimentPhasePromoted, "")
+
+	res, err := d.planStop(context.Background(), testStopRequest(), testResolvedStopOperation())
+
+	assert.Equal(t, planResult{}, res)
+	var stateErr *stateDoesntMatchError
+	require.ErrorAs(t, err, &stateErr)
+}
+
+func TestPlanStop_TerminalPhaseNoOpDoesNotClearRCOnMismatch(t *testing.T) {
+	// The RC state-clear belongs to the Terminated case only. If a regression
+	// widened the no-op back to isTerminalPhase, the experiment config version
+	// would be cleared for Aborted/Promoted too, and a later reconcile would
+	// evaluate the loop against RC state that no longer names the experiment.
+	for name, phase := range map[string]v2alpha1.ExperimentPhase{
+		"aborted":  v2alpha1.ExperimentPhaseAborted,
+		"promoted": v2alpha1.ExperimentPhasePromoted,
+	} {
+		t.Run(name, func(t *testing.T) {
+			d, rc := terminalPhaseStopDaemon(phase, v2alpha1.ExperimentTerminationReasonManualSpecChange)
+
+			_, err := d.planStop(context.Background(), testStopRequest(), testResolvedStopOperation())
+
+			require.Error(t, err)
+			assert.Equal(t, "stable-1", rc.state[0].StableConfigVersion)
+			assert.Equal(t, "exp-1", rc.state[0].ExperimentConfigVersion,
+				"experiment config version must survive a rejected stop")
+		})
+	}
+}
+
+// --- handleTask lock-scope and precedence tests ---
+
+func TestHandleTask_FreshnessPollDoesNotHoldTransitionMu(t *testing.T) {
+	dda1 := testDDAObject("")
+	dda1.Name = "dda-1"
+	dda2 := testDDAObject(v2alpha1.ExperimentPhaseRunning)
+	dda2.Name = "dda-2"
+
+	s := testFleetScheme()
+	fakeClient := fake.NewClientBuilder().WithScheme(s).WithStatusSubresource(&v2alpha1.DatadogAgent{}).WithObjects(dda1, dda2).Build()
+
+	blocked := make(chan struct{})
+	release := make(chan struct{})
+	var once sync.Once
+	wrapped := &managedAgentInstallationFaultClient{
+		Client: fakeClient,
+		getError: func(key client.ObjectKey, _ client.Object) error {
+			if key.Name == "dda-1" {
+				once.Do(func() {
+					close(blocked)
+					<-release
+				})
+			}
+			return nil
+		},
+	}
+
+	d := &Daemon{
+		client:           wrapped,
+		apiReader:        wrapped,
+		revisionsEnabled: true,
+		configs:          testInstallerConfigWithDDA(),
+		statusUpdates:    make(chan ddaStatusSnapshot, 32),
+		rcClient: &mockRCClient{state: []*pbgo.PackageState{
+			{Package: "datadog-operator", StableConfigVersion: "0.0.1", ExperimentConfigVersion: testExperimentID},
+		}},
+	}
+
+	req1 := testStartRequest()
+	req1.Params.NamespacedName = types.NamespacedName{Namespace: testDDANSN.Namespace, Name: "dda-1"}
+	req1.ExpectedState = expectedState{StableConfig: "0.0.1", ExperimentConfig: testExperimentID}
+
+	done1 := make(chan error, 1)
+	go func() {
+		done1 <- d.handleTask(context.Background(), req1)
+	}()
+
+	select {
+	case <-blocked:
+	case <-time.After(2 * time.Second):
+		t.Fatal("freshness poll never reached the blocking Get")
+	}
+
+	req2 := testStopRequest()
+	req2.Params.NamespacedName = types.NamespacedName{Namespace: testDDANSN.Namespace, Name: "dda-2"}
+	req2.ExpectedState = expectedState{StableConfig: "0.0.1", ExperimentConfig: testExperimentID}
+
+	done2 := make(chan error, 1)
+	go func() {
+		done2 <- d.handleTask(context.Background(), req2)
+	}()
+
+	select {
+	case err := <-done2:
+		require.NoError(t, err, "dda-2's stop task must complete while dda-1's freshness poll is blocked")
+	case <-time.After(2 * time.Second):
+		t.Fatal("dda-2's stop task did not complete; transitionMu/taskMu must be free while dda-1's freshness poll is blocked")
+	}
+
+	close(release)
+	select {
+	case err := <-done1:
+		require.NoError(t, err)
+	case <-time.After(2 * time.Second):
+		t.Fatal("dda-1's start task never completed after release")
+	}
+}
+
+func TestHandleTask_StaleTaskReportedAsInvalidState(t *testing.T) {
+	dda := testDDAObject("")
+	dda.Status.CurrentRevision = "" // stale baseline; must not matter, mismatch caught first
+	rc := []*pbgo.PackageState{{Package: "datadog-operator", StableConfigVersion: "0.0.1"}}
+	d, _, m := testDaemonFull(dda, testInstallerConfigWithDDA(), rc)
+
+	req := testStartRequest()
+	req.ExpectedState = expectedState{StableConfig: "wrong-version"}
+
+	start := time.Now()
+	err := d.handleTask(context.Background(), req)
+	elapsed := time.Since(start)
+
+	require.Error(t, err)
+	assert.Less(t, elapsed, 1*time.Second, "a stale task must be rejected before the baseline-freshness poll runs")
+	require.NotNil(t, m.state[0].Task)
+	assert.Equal(t, pbgo.TaskState_INVALID_STATE, m.state[0].Task.State)
+}
+
+// --- applyOperation conflict/retry tests ---
+
+// scriptedPatchClient returns patchErrs[i] (if non-nil) on the i-th Patch call
+// against a DatadogAgent, then delegates; once patchErrs is exhausted every
+// subsequent call delegates directly.
+type scriptedPatchClient struct {
+	client.Client
+	patchErrs  []error
+	patchCalls int
+}
+
+func (c *scriptedPatchClient) Patch(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
+	if _, ok := obj.(*v2alpha1.DatadogAgent); ok && c.patchCalls < len(c.patchErrs) {
+		err := c.patchErrs[c.patchCalls]
+		c.patchCalls++
+		if err != nil {
+			return err
+		}
+		return c.Client.Patch(ctx, obj, patch, opts...)
+	}
+	c.patchCalls++
+	return c.Client.Patch(ctx, obj, patch, opts...)
+}
+
+func testConflictErr() error {
+	return apierrors.NewConflict(schema.GroupResource{Group: v2alpha1.GroupVersion.Group, Resource: "datadogagents"}, testDDANSN.Name, errors.New("conflict"))
+}
+
+func testPlanFnFor(t *testing.T) (planFn, *int) {
+	t.Helper()
+	calls := 0
+	return func(ctx context.Context) (planResult, error) {
+		calls++
+		return planResult{
+			pending: &pendingOperation{taskID: "task-1", intent: pendingIntentStart, nsn: testDDANSN, experimentID: testExperimentID},
+			patch:   []byte(`{}`),
+		}, nil
+	}, &calls
+}
+
+func TestApplyOperation_RetriesOnConflict_ReplansOnce(t *testing.T) {
+	_, baseClient := testDaemon(testDDAObject(""), nil)
+	fc := &scriptedPatchClient{Client: baseClient, patchErrs: []error{testConflictErr()}}
+	d := &Daemon{client: fc}
+	plan, calls := testPlanFnFor(t)
+
+	pending, err := d.applyOperation(context.Background(), testDDANSN, "test signal", plan)
+	require.NoError(t, err)
+	require.NotNil(t, pending)
+	assert.Equal(t, 2, *calls, "plan must be recomputed exactly once after a conflict")
+	assert.Equal(t, 2, fc.patchCalls, "patch is retried once after the conflict")
+}
+
+func TestApplyOperation_TwoConflictsSurfaceBaselineConflict(t *testing.T) {
+	_, baseClient := testDaemon(testDDAObject(""), nil)
+	fc := &scriptedPatchClient{Client: baseClient, patchErrs: []error{testConflictErr(), testConflictErr()}}
+	d := &Daemon{client: fc}
+	plan, calls := testPlanFnFor(t)
+
+	pending, err := d.applyOperation(context.Background(), testDDANSN, "test signal", plan)
+	require.Error(t, err)
+	assert.Nil(t, pending)
+	assert.ErrorIs(t, err, errBaselineConflict)
+	assert.Equal(t, 2, *calls, "plan is only recomputed once; a second conflict is surfaced, not retried indefinitely")
+}
+
+func TestApplyOperation_TransientErrorRetriesWithBackoff(t *testing.T) {
+	original := experimentBackoff
+	experimentBackoff = wait.Backoff{Duration: time.Millisecond, Factor: 1.0, Steps: 100}
+	defer func() { experimentBackoff = original }()
+
+	_, baseClient := testDaemon(testDDAObject(""), nil)
+	fc := &scriptedPatchClient{Client: baseClient, patchErrs: []error{apierrors.NewServiceUnavailable("try again")}}
+	d := &Daemon{client: fc}
+	plan, calls := testPlanFnFor(t)
+
+	pending, err := d.applyOperation(context.Background(), testDDANSN, "test signal", plan)
+	require.NoError(t, err)
+	require.NotNil(t, pending)
+	assert.Equal(t, 1, *calls, "a transient error is retried by backoff, not by replanning")
+	assert.Equal(t, 2, fc.patchCalls)
+}
+
+func TestApplyOperation_NonRetryableErrorFailsFast(t *testing.T) {
+	_, baseClient := testDaemon(testDDAObject(""), nil)
+	fc := &scriptedPatchClient{Client: baseClient, patchErrs: []error{apierrors.NewForbidden(schema.GroupResource{Group: v2alpha1.GroupVersion.Group, Resource: "datadogagents"}, testDDANSN.Name, errors.New("forbidden"))}}
+	d := &Daemon{client: fc}
+	plan, calls := testPlanFnFor(t)
+
+	pending, err := d.applyOperation(context.Background(), testDDANSN, "test signal", plan)
+	require.Error(t, err)
+	assert.Nil(t, pending)
+	assert.NotErrorIs(t, err, errBaselineConflict)
+	assert.Equal(t, 1, *calls)
+	assert.Equal(t, 1, fc.patchCalls)
+}
+
+func TestIsRetryable_ConflictStaysRetryableForBackwardCompat(t *testing.T) {
+	err := testConflictErr()
+	assert.True(t, isRetryable(err), "isRetryable itself must still treat conflicts as retryable; only retryWithBackoffPreconditioned excludes them")
+}
+
+func TestRetryWithBackoffPreconditioned_DoesNotRetryConflict(t *testing.T) {
+	calls := 0
+	err := retryWithBackoffPreconditioned(context.Background(), func() error {
+		calls++
+		return testConflictErr()
+	})
+	require.Error(t, err)
+	assert.True(t, apierrors.IsConflict(err))
+	assert.Equal(t, 1, calls, "a conflict must not be retried by retryWithBackoffPreconditioned")
 }

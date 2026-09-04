@@ -14,6 +14,7 @@ import (
 	pbgo "github.com/DataDog/datadog-agent/pkg/proto/pbgo/core"
 	"github.com/DataDog/datadog-agent/pkg/remoteconfig/state"
 	"google.golang.org/protobuf/proto"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlcache "sigs.k8s.io/controller-runtime/pkg/cache"
@@ -176,6 +177,44 @@ func (d *Daemon) handleTask(ctx context.Context, req remoteAPIRequest) error {
 	// Incoming-edge event: emitted before processing so the timeline shows
 	// every task FA sent, including those that will be rejected below.
 	d.emitTaskReceivedEvent(ctx, req)
+
+	// Fast rejects that don't warrant waiting on the baseline. Both are re-checked
+	// below under transitionMu/taskMu as the authoritative check; this is only an
+	// optimization to skip the (up to baselineFreshnessBudget) wait below when the
+	// task would be rejected anyway.
+	d.taskMu.Lock()
+	busy := d.managedAgentInstallationActive || d.managedAgentInstallationTaskReserved
+	d.taskMu.Unlock()
+	if busy {
+		err := &stateDoesntMatchError{msg: "a DatadogAgent managed Agent installation transition is already in progress"}
+		d.emitTaskRejectedEvent(ctx, req.Params.NamespacedName, req, err.Error())
+		return err
+	}
+	if err := d.verifyExpectedState(req); err != nil {
+		d.setTaskState(req.Package, req.ID, pbgo.TaskState_INVALID_STATE, err)
+		d.emitTaskRejectedEvent(ctx, req.Params.NamespacedName, req, err.Error())
+		return err
+	}
+
+	// Wait for a fresh baseline before acquiring any lock. This can take up to
+	// baselineFreshnessBudget, and must not block other DDAs' tasks or the
+	// managed-Agent-installation transition path in the meantime.
+	//
+	// A start request whose signal is already on the DDA under the same
+	// experiment ID skips the poll entirely and lets planStart classify it. A
+	// stale current-revision pointer would otherwise fail all three
+	// same-ID paths with TaskState_ERROR before planStart ever ran: the clean
+	// resend must not fail on baseline-not-ready at all, and the malformed and
+	// mismatched paths must surface as INVALID_STATE, not ERROR. Skipping is
+	// safe because planStart still runs its own freshness check on its own read
+	// for the branch that actually pins a new baseline.
+	var baselineErr error
+	if req.Method == methodStartDatadogAgentExperiment && d.revisionsEnabled && req.Params.NamespacedName != (types.NamespacedName{}) {
+		if !d.hasStartSignalForExperiment(ctx, req.Params.NamespacedName, req.Params.Version) {
+			baselineErr = d.waitForBaselineFreshness(ctx, req.Params.NamespacedName)
+		}
+	}
+
 	d.transitionMu.Lock()
 	defer d.transitionMu.Unlock()
 	d.taskMu.Lock()
@@ -185,7 +224,21 @@ func (d *Daemon) handleTask(ctx context.Context, req remoteAPIRequest) error {
 		d.emitTaskRejectedEvent(ctx, req.Params.NamespacedName, req, err.Error())
 		return err
 	}
-	pending, err := d.handleRemoteAPIRequest(ctx, req)
+	// A stale task (expected state mismatch) is reported as INVALID_STATE even
+	// when the baseline is also stale, so FA sees the reason it can act on.
+	if err := d.verifyExpectedState(req); err != nil {
+		d.setTaskState(req.Package, req.ID, pbgo.TaskState_INVALID_STATE, err)
+		d.taskMu.Unlock()
+		d.emitTaskRejectedEvent(ctx, req.Params.NamespacedName, req, err.Error())
+		return err
+	}
+	if baselineErr != nil {
+		d.setTaskState(req.Package, req.ID, pbgo.TaskState_ERROR, baselineErr)
+		d.taskMu.Unlock()
+		d.emitTaskRejectedEvent(ctx, req.Params.NamespacedName, req, baselineErr.Error())
+		return baselineErr
+	}
+	pending, err := d.dispatchRemoteAPIRequest(ctx, req)
 	if err != nil {
 		// Expected and current stable/experiment configs don't match.
 		var stateErr *stateDoesntMatchError
@@ -267,16 +320,20 @@ func (d *Daemon) verifyExpectedState(req remoteAPIRequest) error {
 	return nil
 }
 
-// handleRemoteAPIRequest dispatches the incoming task to the appropriate handler.
-func (d *Daemon) handleRemoteAPIRequest(ctx context.Context, req remoteAPIRequest) (*pendingOperation, error) {
-	logger := ctrl.LoggerFrom(ctx).WithValues("id", req.ID, "package", req.Package, "method", req.Method)
-	logger.Info("Received remote API request")
-
-	if err := d.verifyExpectedState(req); err != nil {
-		logger.Error(err, "Expected state mismatch")
-		return nil, err
+// hasStartSignalForExperiment reports whether the DDA already carries a start
+// signal for experimentID, which is what makes a start request one of the
+// same-ID idempotency cases planStart classifies. A read failure reports false
+// so the caller falls back to polling freshness normally.
+func (d *Daemon) hasStartSignalForExperiment(ctx context.Context, nn types.NamespacedName, experimentID string) bool {
+	if experimentID == "" {
+		return false
 	}
-	return d.dispatchRemoteAPIRequest(ctx, req)
+	dda := &v2alpha1.DatadogAgent{}
+	if err := d.client.Get(ctx, nn, dda); err != nil {
+		return false
+	}
+	return dda.Annotations[v2alpha1.AnnotationExperimentSignal] == v2alpha1.ExperimentSignalStart &&
+		dda.Annotations[v2alpha1.AnnotationExperimentID] == experimentID
 }
 
 func (d *Daemon) dispatchRemoteAPIRequest(ctx context.Context, req remoteAPIRequest) (*pendingOperation, error) {
