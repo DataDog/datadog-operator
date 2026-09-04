@@ -423,6 +423,8 @@ func agentOptimizedContainers(dda metav1.Object, requiredContainers []apicommon.
 			containers = append(containers, agentDataPlaneContainer(dda))
 		case apicommon.FlightRecorderContainerName:
 			containers = append(containers, flightRecorderContainer(dda))
+		case apicommon.AgentCheckRunnerContainerName:
+			containers = append(containers, agentCheckRunnerContainer(dda))
 		}
 	}
 
@@ -606,6 +608,24 @@ func agentDataPlaneContainer(dda metav1.Object) corev1.Container {
 		VolumeMounts:   volumeMountsForAgentDataPlane(),
 		LivenessProbe:  constants.GetDefaultAgentDataPlaneLivenessProbe(),
 		ReadinessProbe: constants.GetDefaultAgentDataPlaneReadinessProbe(),
+		SecurityContext: &corev1.SecurityContext{
+			ReadOnlyRootFilesystem: new(true),
+		},
+	}
+}
+
+func agentCheckRunnerContainer(dda metav1.Object) corev1.Container {
+	return corev1.Container{
+		Name:  string(apicommon.AgentCheckRunnerContainerName),
+		Image: agentImage(),
+		Command: []string{
+			agentCheckRunnerBinaryPath,
+			"--config",
+			agentCustomConfigVolumePath,
+			"run",
+		},
+		Env:          commonEnvVars(dda),
+		VolumeMounts: volumeMountsForAgentCheckRunner(),
 		SecurityContext: &corev1.SecurityContext{
 			ReadOnlyRootFilesystem: new(true),
 		},
@@ -919,6 +939,26 @@ func volumeMountsForAgentDataPlane() []corev1.VolumeMount {
 		common.GetVolumeMountForRuntimeSocket(true),
 		common.GetVolumeMountForProc(),
 		common.GetVolumeMountForCgroups(),
+		common.GetVolumeMountForTmp(),
+	}
+}
+
+// volumeMountsForAgentCheckRunner returns the mounts the Check Runner needs. This is a
+// strict subset of the Data Plane's list: ACR reads datadog.yaml from the config volume and
+// authenticates to the Core Agent's IPC endpoint with the token and cert on the auth volume,
+// which is a pod-scoped emptyDir and therefore the only way to reach them from another
+// container. It talks to the kubelet over the projected service account token, so it needs
+// neither the runtime socket nor proc/cgroups.
+//
+// The tmp mount is not optional. The container runs with a read-only root filesystem, and the
+// Python checks ACR hosts allocate temporary files through the interpreter's own tempfile
+// module; without a writable /tmp the disk check fails every run with "No usable temporary
+// directory found".
+func volumeMountsForAgentCheckRunner() []corev1.VolumeMount {
+	return []corev1.VolumeMount{
+		common.GetVolumeMountForConfig(),
+		common.GetVolumeMountForAuth(true),
+		common.GetVolumeMountForLogs(),
 		common.GetVolumeMountForTmp(),
 	}
 }

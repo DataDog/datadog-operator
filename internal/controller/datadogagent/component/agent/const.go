@@ -9,4 +9,5 @@ const (
 	agentCustomConfigVolumePath = "/etc/datadog-agent/datadog.yaml"
 	systemProbeConfigVolumePath = "/etc/datadog-agent/system-probe.yaml"
 	otelCustomConfigVolumePath  = "/etc/datadog-agent/otel-config.yaml"
+	agentCheckRunnerBinaryPath  = "/opt/datadog-agent/embedded/bin/agent-check-runner/agent-check-runner"
 )
