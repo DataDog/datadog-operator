@@ -847,7 +847,7 @@ func TestManagedAgentInstallationFleetExperimentOperations(t *testing.T) {
 				Package:                 packageDatadogOperator,
 				StableConfigVersion:     testAddonInstallOperationID,
 				ExperimentConfigVersion: test.experiment,
-			}}, dda)
+			}}, dda, testBaselineRevisionObject(dda))
 			d.configs = testInstallerConfigWithDDA()
 
 			op, err := test.run(d)
@@ -1729,7 +1729,7 @@ func TestManagedAgentInstallationIntentsDisabledPreservesFleetUpdates(t *testing
 	d, kubeClient, rc := testManagedAgentInstallationDaemon([]*pbgo.PackageState{{
 		Package:             packageDatadogOperator,
 		StableConfigVersion: remoteconfig.InstallerStateUnknownConfigVersion,
-	}}, dda)
+	}}, dda, testBaselineRevisionObject(dda))
 	d.configs = testInstallerConfigWithDDA()
 	WithManagedAgentInstallation(testManagedAgentInstallationIdentity, testManagedAgentInstallationNamespace, false)(d)
 	d.revisionsEnabled = true
@@ -2676,7 +2676,7 @@ func TestWaitForBaselineFreshness_SucceedsAfterOneRetry(t *testing.T) {
 			stampFreshBaseline(obj)
 		}
 	}}
-	d := &Daemon{client: wrapped}
+	d := &Daemon{client: wrapped, apiReader: wrapped}
 
 	err := d.waitForBaselineFreshness(context.Background(), testDDANSN)
 	require.NoError(t, err)
@@ -2737,6 +2737,79 @@ func TestPlanStart_RefusesStaleCheckpointOnItsOwnRead(t *testing.T) {
 	_, err := d.startDatadogAgentExperiment(context.Background(), testStartRequest())
 	require.Error(t, err)
 	assert.ErrorIs(t, err, errBaselineUninitialized)
+}
+
+func TestPlanStart_RefusesFreshStartWithMissingCurrentRevisionTarget(t *testing.T) {
+	dda := testDDAObject("")
+	d, c := testDaemon(dda, testInstallerConfigWithDDA())
+	require.NoError(t, c.Delete(context.Background(), testBaselineRevisionObject(dda)))
+
+	res, err := d.planStart(context.Background(), testStartRequest(), testResolvedStartOperation())
+
+	assert.Equal(t, planResult{}, res)
+	assert.ErrorIs(t, err, errBaselineNotReady)
+}
+
+func TestPlanStart_RefusesFreshStartWithForeignCurrentRevisionTarget(t *testing.T) {
+	tests := map[string]func(*appsv1.ControllerRevision){
+		"wrong name label": func(rev *appsv1.ControllerRevision) {
+			rev.Labels[apicommon.DatadogAgentNameLabelKey] = "some-other-dda"
+		},
+		"wrong owner uid": func(rev *appsv1.ControllerRevision) {
+			rev.OwnerReferences[0].UID = "00000000-0000-0000-0000-000000000000"
+		},
+		"not a controller ref": func(rev *appsv1.ControllerRevision) {
+			rev.OwnerReferences[0].Controller = ptr.To(false)
+		},
+		"no owner refs": func(rev *appsv1.ControllerRevision) {
+			rev.OwnerReferences = nil
+		},
+	}
+	for name, corrupt := range tests {
+		t.Run(name, func(t *testing.T) {
+			dda := testDDAObject("")
+			dda.UID = "11111111-1111-1111-1111-111111111111"
+			rev := testBaselineRevisionObject(dda)
+			corrupt(rev)
+			s := testFleetScheme()
+			c := fake.NewClientBuilder().WithScheme(s).
+				WithStatusSubresource(&v2alpha1.DatadogAgent{}).
+				WithObjects(dda, rev).Build()
+			d := &Daemon{
+				client:           c,
+				apiReader:        c,
+				revisionsEnabled: true,
+				configs:          testInstallerConfigWithDDA(),
+				statusUpdates:    make(chan ddaStatusSnapshot, 32),
+			}
+
+			res, err := d.planStart(context.Background(), testStartRequest(), testResolvedStartOperation())
+
+			assert.Equal(t, planResult{}, res)
+			assert.ErrorIs(t, err, errBaselineNotReady)
+		})
+	}
+}
+
+func TestPlanStart_CurrentRevisionReadErrorDoesNotStart(t *testing.T) {
+	dda := testDDAObject("")
+	d, c := testDaemon(dda, testInstallerConfigWithDDA())
+	d.apiReader = &managedAgentInstallationFaultClient{
+		Client: c,
+		getError: func(_ client.ObjectKey, obj client.Object) error {
+			if _, ok := obj.(*appsv1.ControllerRevision); ok {
+				return apierrors.NewServiceUnavailable("try again")
+			}
+			return nil
+		},
+	}
+
+	res, err := d.planStart(context.Background(), testStartRequest(), testResolvedStartOperation())
+
+	assert.Equal(t, planResult{}, res)
+	require.Error(t, err)
+	assert.True(t, apierrors.IsServiceUnavailable(err), "transient API-reader errors must propagate instead of looking like a missing baseline")
+	assert.NotErrorIs(t, err, errBaselineNotReady)
 }
 
 func TestPlanStart_SkipsFreshnessOnAlreadyRunningIdempotency(t *testing.T) {
@@ -3103,7 +3176,7 @@ func TestHandleTask_FreshnessPollDoesNotHoldTransitionMu(t *testing.T) {
 	dda2.Name = "dda-2"
 
 	s := testFleetScheme()
-	fakeClient := fake.NewClientBuilder().WithScheme(s).WithStatusSubresource(&v2alpha1.DatadogAgent{}).WithObjects(dda1, dda2).Build()
+	fakeClient := fake.NewClientBuilder().WithScheme(s).WithStatusSubresource(&v2alpha1.DatadogAgent{}).WithObjects(dda1, dda2, testBaselineRevisionObject(dda1)).Build()
 
 	blocked := make(chan struct{})
 	release := make(chan struct{})

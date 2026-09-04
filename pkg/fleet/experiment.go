@@ -198,6 +198,13 @@ func (d *Daemon) rollbackTargetIsOwned(ctx context.Context, dda *v2alpha1.Datado
 	if err := d.client.Get(ctx, nn, rev); err != nil {
 		return false
 	}
+	return controllerRevisionOwnedByDDA(rev, dda)
+}
+
+func controllerRevisionOwnedByDDA(rev *appsv1.ControllerRevision, dda *v2alpha1.DatadogAgent) bool {
+	if rev.GetNamespace() != dda.GetNamespace() {
+		return false
+	}
 	if rev.Labels[apicommon.DatadogAgentNameLabelKey] != dda.GetName() {
 		return false
 	}
@@ -207,6 +214,36 @@ func (d *Daemon) rollbackTargetIsOwned(ctx context.Context, dda *v2alpha1.Datado
 		}
 	}
 	return false
+}
+
+func (d *Daemon) validateCurrentRevisionTarget(ctx context.Context, dda *v2alpha1.DatadogAgent) error {
+	name := dda.Status.CurrentRevision
+	if name == "" {
+		return errBaselineUninitialized
+	}
+	if d.apiReader == nil {
+		return fmt.Errorf("API reader is required to validate current revision %q", name)
+	}
+
+	rev := &appsv1.ControllerRevision{}
+	nn := types.NamespacedName{Namespace: dda.GetNamespace(), Name: name}
+	if err := d.apiReader.Get(ctx, nn, rev); err != nil {
+		if apierrors.IsNotFound(err) {
+			return errors.Join(errBaselineNotReady, fmt.Errorf("current revision %q does not resolve to a ControllerRevision", name))
+		}
+		return fmt.Errorf("failed to get current revision %q: %w", name, err)
+	}
+	if !controllerRevisionOwnedByDDA(rev, dda) {
+		return fmt.Errorf("%w: current revision %q is not owned by DatadogAgent %s/%s", errBaselineNotReady, name, dda.Namespace, dda.Name)
+	}
+	return nil
+}
+
+func (d *Daemon) checkBaselineReady(ctx context.Context, dda *v2alpha1.DatadogAgent) error {
+	if err := checkBaselineFreshness(dda); err != nil {
+		return err
+	}
+	return d.validateCurrentRevisionTarget(ctx, dda)
 }
 
 // checkBaselineFreshness returns nil when dda's current-revision barrier
@@ -261,15 +298,16 @@ func pollBaselineFreshness(ctx context.Context, interval, budget time.Duration, 
 }
 
 // waitForBaselineFreshness blocks (without holding any Daemon lock) until the
-// DDA identified by nsn has a fresh current-revision barrier, or the bounded
-// freshness budget is exhausted.
+// DDA identified by nsn has a fresh current-revision barrier whose target still
+// resolves to an owned ControllerRevision, or the bounded freshness budget is
+// exhausted.
 func (d *Daemon) waitForBaselineFreshness(ctx context.Context, nsn types.NamespacedName) error {
 	return pollBaselineFreshness(ctx, baselineFreshnessPollInterval, baselineFreshnessBudget, func() error {
 		dda := &v2alpha1.DatadogAgent{}
 		if err := d.client.Get(ctx, nsn, dda); err != nil {
 			return err
 		}
-		return checkBaselineFreshness(dda)
+		return d.checkBaselineReady(ctx, dda)
 	})
 }
 

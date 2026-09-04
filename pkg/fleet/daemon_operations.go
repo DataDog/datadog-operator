@@ -349,9 +349,10 @@ func (d *Daemon) planStart(ctx context.Context, req remoteAPIRequest, op resolve
 		return planResult{}, err
 	}
 	// Refuse to start a new experiment against a baseline the reconciler has not
-	// finished checkpointing yet; the rollback target recorded below must be the
-	// revision the reconciler will actually roll back to.
-	if err := checkBaselineFreshness(dda); err != nil {
+	// finished checkpointing yet. The rollback target recorded below must be the
+	// revision the reconciler will actually roll back to, and it must still resolve
+	// to a ControllerRevision owned by this DDA.
+	if err := d.checkBaselineReady(ctx, dda); err != nil {
 		return planResult{}, fmt.Errorf("start DatadogAgent experiment: %w", err)
 	}
 	patch, err := BuildStartPatch(dda, experimentID, op.Config, dda.Status.CurrentRevision)
