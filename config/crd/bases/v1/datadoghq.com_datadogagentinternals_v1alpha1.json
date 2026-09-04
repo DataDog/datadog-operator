@@ -790,6 +790,10 @@
                       "description": "LibVersions configures injection of specific tracing library versions with Single Step Instrumentation.\n\u003cLibrary\u003e: \u003cVersion\u003e\nex: \"java\": \"v1.18.0\"",
                       "type": "object"
                     },
+                    "onDemand": {
+                      "description": "OnDemand keeps the SSI admission webhook available for runtime workload\nselection (annotations and Remote Config APM_POLICIES) when cluster-wide\ninstrumentation is disabled. Matches the Agent and Helm chart default (true).\nDefault: true",
+                      "type": "boolean"
+                    },
                     "targets": {
                       "description": "Targets is a list of targets to apply the auto instrumentation to. The first target that matches the pod will be\nused. If no target matches, the auto instrumentation will not be applied.\n(Requires Cluster Agent 7.64.0+)",
                       "items": {
@@ -9480,6 +9484,10 @@
                           },
                           "description": "LibVersions configures injection of specific tracing library versions with Single Step Instrumentation.\n\u003cLibrary\u003e: \u003cVersion\u003e\nex: \"java\": \"v1.18.0\"",
                           "type": "object"
+                        },
+                        "onDemand": {
+                          "description": "OnDemand keeps the SSI admission webhook available for runtime workload\nselection (annotations and Remote Config APM_POLICIES) when cluster-wide\ninstrumentation is disabled. Matches the Agent and Helm chart default (true).\nDefault: true",
+                          "type": "boolean"
                         },
                         "targets": {
                           "description": "Targets is a list of targets to apply the auto instrumentation to. The first target that matches the pod will be\nused. If no target matches, the auto instrumentation will not be applied.\n(Requires Cluster Agent 7.64.0+)",
