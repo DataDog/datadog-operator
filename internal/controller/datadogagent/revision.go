@@ -13,7 +13,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -23,19 +22,6 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/controllerrevisions"
 )
 
-// skipRevisionBump returns true when the revision bump should be suppressed.
-// During experiment rollback the spec is restored to an older revision; bumping
-// its revision number to "latest" would make it appear newer than the experiment
-// revision, causing findRollbackTarget to return the experiment revision on the
-// next rollback attempt instead of the pre-experiment revision.
-func skipRevisionBump(newStatus *v2alpha1.DatadogAgentStatus) bool {
-	if newStatus == nil || newStatus.Experiment == nil {
-		return false
-	}
-	phase := newStatus.Experiment.Phase
-	return phase == v2alpha1.ExperimentPhaseTerminated
-}
-
 // manageRevision creates a ControllerRevision snapshot of the current spec and
 // garbage collects old revisions. Must be called after manageExperiment.
 //
@@ -44,11 +30,30 @@ func skipRevisionBump(newStatus *v2alpha1.DatadogAgentStatus) bool {
 // still used for labels, annotations, and object identity, which are
 // unaffected by defaulting.
 func (r *Reconciler) manageRevision(ctx context.Context, instance *v2alpha1.DatadogAgent, rawSpec v2alpha1.DatadogAgentSpec, revList []appsv1.ControllerRevision, newStatus *v2alpha1.DatadogAgentStatus) error {
-	revName, err := r.ensureRevision(ctx, instance, rawSpec, revList, skipRevisionBump(newStatus))
+	revName, err := r.ensureRevision(ctx, instance, rawSpec, revList)
 	if err != nil {
 		return err
 	}
-	if err := r.gcOldRevisions(ctx, map[string]bool{revName: true}, revList); err != nil {
+
+	pins := map[string]bool{revName: true}
+	var checkpoint *v2alpha1.ExperimentCheckpoint
+	var phase v2alpha1.ExperimentPhase
+	if newStatus != nil && newStatus.Experiment != nil {
+		checkpoint = newStatus.Experiment.Checkpoint
+		phase = newStatus.Experiment.Phase
+	}
+	if checkpoint != nil {
+		if !isTerminalPhase(phase) {
+			pins[checkpoint.RollbackTargetRevision] = true
+		}
+	} else if pending := instance.GetAnnotations()[v2alpha1.AnnotationExperimentRollbackTargetRevision]; pending != "" {
+		// A start or rollback signal is pending and status has not copied
+		// the checkpoint yet; keep the nominated baseline alive so it isn't
+		// GC'd out from under the in-flight signal.
+		pins[pending] = true
+	}
+
+	if err := r.gcOldRevisions(ctx, pins, revList); err != nil {
 		ctrl.LoggerFrom(ctx).Error(err, "Failed to garbage collect old ControllerRevisions, will retry on next reconcile")
 	}
 	return nil
@@ -90,7 +95,7 @@ func (r *Reconciler) publishCurrentRevisionBarrier(
 	rawSpec v2alpha1.DatadogAgentSpec,
 	revList []appsv1.ControllerRevision,
 ) (revName string, annotationsHash string, err error) {
-	revName, err = r.ensureRevision(ctx, instance, rawSpec, revList, false)
+	revName, err = r.ensureRevision(ctx, instance, rawSpec, revList)
 	if err != nil {
 		return "", "", err
 	}
@@ -160,14 +165,12 @@ func (r *Reconciler) listRevisions(ctx context.Context, instance *v2alpha1.Datad
 // rawSpec (not instance.Spec, which may carry in-memory defaults) is what
 // gets stored, so that revisions reflect only user-intended changes.
 //
-// The Revision field is a monotonic creation counter. If skipBump is true the
-// existing revision is returned as-is without bumping its Revision number.
+// The Revision field is a monotonic creation counter.
 func (r *Reconciler) ensureRevision(
 	ctx context.Context,
 	instance *v2alpha1.DatadogAgent,
 	rawSpec v2alpha1.DatadogAgentSpec,
 	revList []appsv1.ControllerRevision,
-	skipBump bool,
 ) (string, error) {
 	logger := ctrl.LoggerFrom(ctx)
 
@@ -218,17 +221,9 @@ func (r *Reconciler) ensureRevision(
 			"object.name", matchingRev.Name,
 		)
 
-		if revisionExperimentState(matchingRev) == experimentRevisionStateRolledBack && !skipBump {
-			return r.recreateRevision(ctx, matchingRev, instance, gvks[0], labels, data, maxRevision)
-		}
-
 		// Identical content already snapshotted. Bump Revision to max+1 if it
 		// has been superseded (e.g. after a revert) so ordering stays correct.
-		// Skip the bump during experiment rollback: bumping the pre-experiment
-		// revision above the experiment revision would cause findRollbackTarget
-		// to select the experiment revision as the rollback target on the next
-		// stopped signal, reversing the rollback.
-		if matchingRev.Revision < maxRevision && !skipBump {
+		if matchingRev.Revision < maxRevision {
 			objLogger.Info("Bumping ControllerRevision to latest")
 			patch := fmt.Appendf(nil, `{"revision":%d}`, maxRevision+1)
 			if err := r.client.Patch(ctx, matchingRev, client.RawPatch(types.MergePatchType, patch)); err != nil && !apierrors.IsConflict(err) {
@@ -271,57 +266,14 @@ func (r *Reconciler) ensureRevision(
 	return rev.Name, nil
 }
 
-// recreateRevision deletes a rolled-back ControllerRevision and creates a
-// fresh one with the same content but a new CreationTimestamp. This prevents
-// an immediate timeout when the same experiment spec is re-applied, since
-// CreationTimestamp is immutable in Kubernetes.
-//
-// Failure recovery:
-//   - Delete fails: error returned, next reconcile retries.
-//   - Delete succeeds, Create fails (or operator crashes): the revision is
-//     gone, so the next reconcile's ensureRevision takes the normal "no
-//     matching revision" path and creates a fresh one.
-func (r *Reconciler) recreateRevision(
-	ctx context.Context,
-	old *appsv1.ControllerRevision,
-	instance *v2alpha1.DatadogAgent,
-	gvk schema.GroupVersionKind,
-	labels map[string]string,
-	data runtime.RawExtension,
-	maxRevision int64,
-) (string, error) {
-	logger := ctrl.LoggerFrom(ctx).WithValues(
-		"object.kind", "ControllerRevision",
-		"object.namespace", old.Namespace,
-		"object.name", old.Name,
-	)
-	logger.Info("Recreating rolled-back ControllerRevision with fresh timestamp")
-
-	if err := r.client.Delete(ctx, old); err != nil && !apierrors.IsNotFound(err) {
-		return "", fmt.Errorf("failed to delete rolled-back ControllerRevision %s: %w", old.Name, err)
-	}
-
-	fresh := controllerrevisions.NewControllerRevision(instance, gvk, labels, data, maxRevision+1, nil)
-	if err := r.client.Create(ctx, fresh); err != nil {
-		if apierrors.IsAlreadyExists(err) {
-			return fresh.Name, nil
-		}
-		return "", fmt.Errorf("failed to recreate ControllerRevision %s: %w", fresh.Name, err)
-	}
-	return fresh.Name, nil
-}
-
 // gcOldRevisions deletes all but the pinned revisions and the single most
-// recent unpinned one (kept as "previous"). Stale experiment revisions
-// (marked with the rollback annotation) are kept here — they are handled by
-// ensureRevision which recreates them with a fresh timestamp when the same
-// spec is re-applied.
+// recent unpinned one (kept as "previous").
 //
-// pins is a set of revision names that must never be deleted. Today it only
-// carries status.currentRevision; later commits add the active experiment
-// checkpoint's rollback target and a pending start signal's rollback-target
-// annotation, once those states exist, without needing to reshape this
-// signature again.
+// pins is a set of revision names that must never be deleted: the caller
+// includes status.currentRevision, the active experiment checkpoint's
+// rollback target (while non-terminal), and a pending start/rollback
+// signal's rollback-target annotation before status has copied the
+// checkpoint.
 func (r *Reconciler) gcOldRevisions(
 	ctx context.Context,
 	pins map[string]bool,

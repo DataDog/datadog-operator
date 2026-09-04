@@ -27,6 +27,7 @@ package datadogagent
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"testing"
 	"time"
 
@@ -639,4 +640,224 @@ func Test_ControllerRevisions_MigrationFromDefaultedSnapshot(t *testing.T) {
 	_, err = r.Reconcile(context.TODO(), dda)
 	assert.NoError(t, err)
 	assert.Len(t, listOwnedRevisions(t, c, ns, uid), 2, "second reconcile after migration must not create additional revisions")
+}
+
+// -----------------------------------------------------------------------------
+// GC pinning tests (Commit 5)
+// -----------------------------------------------------------------------------
+
+// createRevisionWithSpec directly creates a ControllerRevision snapshotting
+// spec, bypassing ensureRevision so tests can construct exact fixtures (e.g.
+// an out-of-band baseline) without driving a full reconcile.
+func createRevisionWithSpec(t *testing.T, r *Reconciler, dda *v2alpha1.DatadogAgent, spec v2alpha1.DatadogAgentSpec, revision int64) *appsv1.ControllerRevision {
+	t.Helper()
+	raw, err := v2alpha1.BuildRevisionSnapshot(spec, dda.GetAnnotations())
+	assert.NoError(t, err)
+	gvks, _, err := r.scheme.ObjectKinds(dda)
+	assert.NoError(t, err)
+	rev := controllerrevisions.NewControllerRevision(
+		dda, gvks[0],
+		map[string]string{apicommon.DatadogAgentNameLabelKey: dda.GetName()},
+		runtime.RawExtension{Raw: raw},
+		revision, nil,
+	)
+	assert.NoError(t, r.client.Create(context.TODO(), rev))
+	return rev
+}
+
+// Test_GCOldRevisions_KeepsCurrentPointerPin verifies the baseline retention
+// rule directly: of N unpinned-except-one revisions, the pinned one plus the
+// single most-recent unpinned one ("previous") survive; everything else is
+// deleted.
+func Test_GCOldRevisions_KeepsCurrentPointerPin(t *testing.T) {
+	const ns, name = "default", "test-dda"
+	const uid = types.UID("uid-1")
+
+	r, c := newRevisionIntegrationReconciler(t)
+	dda := baseDDA(ns, name, uid)
+	assert.NoError(t, c.Create(context.TODO(), dda))
+
+	var revs []*appsv1.ControllerRevision
+	for i := int64(1); i <= 5; i++ {
+		spec := *dda.Spec.DeepCopy()
+		spec.Global.Site = ptr.To(fmt.Sprintf("site-%d.example.com", i))
+		revs = append(revs, createRevisionWithSpec(t, r, dda, spec, i))
+	}
+
+	pins := map[string]bool{revs[2].Name: true}
+	assert.NoError(t, r.gcOldRevisions(context.TODO(), pins, listOwnedRevisions(t, c, ns, uid)))
+
+	surviving := listOwnedRevisions(t, c, ns, uid)
+	names := map[string]bool{}
+	for _, rev := range surviving {
+		names[rev.Name] = true
+	}
+	assert.Len(t, surviving, 2)
+	assert.True(t, names[revs[2].Name], "pinned revision must survive")
+	assert.True(t, names[revs[4].Name], "most recent unpinned revision must survive as previous")
+}
+
+// Test_GCOldRevisions_KeepsActiveExperimentBaselinePin verifies that
+// manageRevision pins an active (non-terminal) experiment's checkpointed
+// rollback-target revision, protecting it from GC even though it is neither
+// the current pointer nor the most-recent unpinned ("previous") revision.
+func Test_GCOldRevisions_KeepsActiveExperimentBaselinePin(t *testing.T) {
+	const ns, name = "default", "test-dda"
+	const uid = types.UID("uid-1")
+
+	r, c := newRevisionIntegrationReconciler(t)
+	dda := baseDDA(ns, name, uid)
+	assert.NoError(t, c.Create(context.TODO(), dda))
+
+	baselineSpec := *dda.Spec.DeepCopy()
+	baselineSpec.Global.Site = ptr.To("baseline.example.com")
+	baseline := createRevisionWithSpec(t, r, dda, baselineSpec, 1)
+
+	middleSpec := *dda.Spec.DeepCopy()
+	middleSpec.Global.Site = ptr.To("middle.example.com")
+	createRevisionWithSpec(t, r, dda, middleSpec, 2)
+
+	currentSpec := *dda.Spec.DeepCopy()
+	currentSpec.Global.Site = ptr.To("current.example.com")
+	createRevisionWithSpec(t, r, dda, currentSpec, 3)
+
+	dda.Spec = currentSpec
+	newStatus := &v2alpha1.DatadogAgentStatus{
+		Experiment: &v2alpha1.ExperimentStatus{
+			Phase: v2alpha1.ExperimentPhaseRunning,
+			Checkpoint: &v2alpha1.ExperimentCheckpoint{
+				RollbackTargetRevision: baseline.Name,
+				ExpectedSpecHash:       "does-not-matter",
+			},
+		},
+	}
+
+	revList := listOwnedRevisions(t, c, ns, uid)
+	assert.NoError(t, r.manageRevision(context.TODO(), dda, currentSpec, revList, newStatus))
+
+	surviving := listOwnedRevisions(t, c, ns, uid)
+	names := map[string]bool{}
+	for _, rev := range surviving {
+		names[rev.Name] = true
+	}
+	assert.True(t, names[baseline.Name], "active experiment's checkpointed baseline must survive GC")
+}
+
+// Test_GCOldRevisions_ReleasesBaselinePinOnTerminalPhase verifies that once
+// the experiment reaches a terminal phase, manageRevision stops pinning the
+// checkpointed baseline, letting normal current+previous retention reclaim it.
+func Test_GCOldRevisions_ReleasesBaselinePinOnTerminalPhase(t *testing.T) {
+	const ns, name = "default", "test-dda"
+	const uid = types.UID("uid-1")
+
+	r, c := newRevisionIntegrationReconciler(t)
+	dda := baseDDA(ns, name, uid)
+	assert.NoError(t, c.Create(context.TODO(), dda))
+
+	baselineSpec := *dda.Spec.DeepCopy()
+	baselineSpec.Global.Site = ptr.To("baseline.example.com")
+	baseline := createRevisionWithSpec(t, r, dda, baselineSpec, 1)
+
+	middleSpec := *dda.Spec.DeepCopy()
+	middleSpec.Global.Site = ptr.To("middle.example.com")
+	createRevisionWithSpec(t, r, dda, middleSpec, 2)
+
+	currentSpec := *dda.Spec.DeepCopy()
+	currentSpec.Global.Site = ptr.To("current.example.com")
+	createRevisionWithSpec(t, r, dda, currentSpec, 3)
+
+	dda.Spec = currentSpec
+	newStatus := &v2alpha1.DatadogAgentStatus{
+		Experiment: &v2alpha1.ExperimentStatus{
+			Phase: v2alpha1.ExperimentPhaseTerminated,
+			Checkpoint: &v2alpha1.ExperimentCheckpoint{
+				RollbackTargetRevision: baseline.Name,
+				ExpectedSpecHash:       "does-not-matter",
+			},
+		},
+	}
+
+	revList := listOwnedRevisions(t, c, ns, uid)
+	assert.NoError(t, r.manageRevision(context.TODO(), dda, currentSpec, revList, newStatus))
+
+	surviving := listOwnedRevisions(t, c, ns, uid)
+	names := map[string]bool{}
+	for _, rev := range surviving {
+		names[rev.Name] = true
+	}
+	assert.False(t, names[baseline.Name], "terminal experiment's baseline must no longer be pinned")
+}
+
+// Test_GCOldRevisions_KeepsPendingSignalAnnotationPin verifies that
+// manageRevision pins the rollback-target-revision annotation's value even
+// before status has copied it into a checkpoint (the in-flight-signal race).
+func Test_GCOldRevisions_KeepsPendingSignalAnnotationPin(t *testing.T) {
+	const ns, name = "default", "test-dda"
+	const uid = types.UID("uid-1")
+
+	r, c := newRevisionIntegrationReconciler(t)
+	dda := baseDDA(ns, name, uid)
+	assert.NoError(t, c.Create(context.TODO(), dda))
+
+	baselineSpec := *dda.Spec.DeepCopy()
+	baselineSpec.Global.Site = ptr.To("baseline.example.com")
+	baseline := createRevisionWithSpec(t, r, dda, baselineSpec, 1)
+
+	middleSpec := *dda.Spec.DeepCopy()
+	middleSpec.Global.Site = ptr.To("middle.example.com")
+	createRevisionWithSpec(t, r, dda, middleSpec, 2)
+
+	currentSpec := *dda.Spec.DeepCopy()
+	currentSpec.Global.Site = ptr.To("current.example.com")
+	createRevisionWithSpec(t, r, dda, currentSpec, 3)
+
+	dda.Spec = currentSpec
+	dda.Annotations = map[string]string{
+		v2alpha1.AnnotationExperimentRollbackTargetRevision: baseline.Name,
+	}
+
+	revList := listOwnedRevisions(t, c, ns, uid)
+	assert.NoError(t, r.manageRevision(context.TODO(), dda, currentSpec, revList, nil))
+
+	surviving := listOwnedRevisions(t, c, ns, uid)
+	names := map[string]bool{}
+	for _, rev := range surviving {
+		names[rev.Name] = true
+	}
+	assert.True(t, names[baseline.Name], "pending signal's nominated baseline must survive GC before status catches up")
+}
+
+// Test_GCOldRevisions_UnpinnedRetentionUnchanged verifies that an extra pin
+// adds to retention rather than replacing the current+previous rule: with
+// two explicit pins (mirroring how manageRevision always includes the
+// current revision), the previous rule still keeps exactly one additional
+// most-recent-unpinned revision.
+func Test_GCOldRevisions_UnpinnedRetentionUnchanged(t *testing.T) {
+	const ns, name = "default", "test-dda"
+	const uid = types.UID("uid-1")
+
+	r, c := newRevisionIntegrationReconciler(t)
+	dda := baseDDA(ns, name, uid)
+	assert.NoError(t, c.Create(context.TODO(), dda))
+
+	var revs []*appsv1.ControllerRevision
+	for i := int64(1); i <= 4; i++ {
+		spec := *dda.Spec.DeepCopy()
+		spec.Global.Site = ptr.To(fmt.Sprintf("site-%d.example.com", i))
+		revs = append(revs, createRevisionWithSpec(t, r, dda, spec, i))
+	}
+
+	pins := map[string]bool{revs[3].Name: true, revs[0].Name: true}
+	assert.NoError(t, r.gcOldRevisions(context.TODO(), pins, listOwnedRevisions(t, c, ns, uid)))
+
+	surviving := listOwnedRevisions(t, c, ns, uid)
+	names := map[string]bool{}
+	for _, rev := range surviving {
+		names[rev.Name] = true
+	}
+	assert.Len(t, surviving, 3)
+	assert.True(t, names[revs[3].Name], "current pin must survive")
+	assert.True(t, names[revs[0].Name], "extra pin must survive")
+	assert.True(t, names[revs[2].Name], "most recent unpinned revision must survive as previous")
+	assert.False(t, names[revs[1].Name], "unpinned, non-previous revision must be deleted")
 }

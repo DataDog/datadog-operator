@@ -31,6 +31,7 @@ package datadogagent
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"testing"
@@ -42,6 +43,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	v2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -52,10 +54,19 @@ import (
 
 // simulateDaemonStart writes experiment start annotations on the DDA, simulating
 // what the fleet daemon does when starting an experiment. Uses the real daemon's
-// patch builder so both pinned baseline annotations (rollback target revision and
-// expected spec hash) are written atomically with the signal, matching production
-// seam fidelity.
-func simulateDaemonStart(t *testing.T, c client.Client, nsName types.NamespacedName, experimentID string) {
+// patch builder so both pinned baseline annotations (rollback target revision
+// and expected spec hash) carry exactly the values production would write.
+//
+// The daemon folds the pending annotations into that same patch via
+// buildFinalPatch; here they go in a follow-up patch, which reaches the same
+// end state because pending annotations are fleet.datadoghq.com/-prefixed and
+// therefore excluded from the spec hash. Atomicity of the real single patch is
+// covered by the envtest seam-contract test in pkg/fleet.
+//
+// The reconciler consumes only AnnotationPendingTaskID (into
+// Status.Experiment.StartTaskID); the rest are Fleet-worker-only and are
+// written so the annotation set matches the daemon's write shape.
+func simulateDaemonStart(t *testing.T, c client.Client, nsName types.NamespacedName, experimentID string, config ...json.RawMessage) {
 	t.Helper()
 	var dda v2alpha1.DatadogAgent
 	assert.NoError(t, c.Get(context.TODO(), nsName, &dda))
@@ -63,9 +74,22 @@ func simulateDaemonStart(t *testing.T, c client.Client, nsName types.NamespacedN
 	if rollbackTarget == "" {
 		rollbackTarget = "baseline-placeholder"
 	}
-	patch, err := fleet.BuildStartPatch(&dda, experimentID, nil, rollbackTarget)
+	var experimentConfig json.RawMessage
+	if len(config) > 0 {
+		experimentConfig = config[0]
+	}
+	patch, err := fleet.BuildStartPatch(&dda, experimentID, experimentConfig, rollbackTarget)
 	assert.NoError(t, err)
 	assert.NoError(t, c.Patch(context.TODO(), &dda, client.RawPatch(types.MergePatchType, patch)))
+
+	pending, err := json.Marshal(map[string]any{"metadata": map[string]any{"annotations": map[string]string{
+		v2alpha1.AnnotationPendingTaskID:       "test-task-" + experimentID,
+		v2alpha1.AnnotationPendingAction:       "start",
+		v2alpha1.AnnotationPendingExperimentID: experimentID,
+		v2alpha1.AnnotationPendingPackage:      "datadog-operator",
+	}}})
+	assert.NoError(t, err)
+	assert.NoError(t, c.Patch(context.TODO(), &dda, client.RawPatch(types.MergePatchType, pending)))
 }
 
 // simulateDaemonStartWithTaskID writes a well-formed start signal like
@@ -187,6 +211,61 @@ func Test_Experiment_StoppedRollback(t *testing.T) {
 	assert.NotNil(t, dda.Status.Experiment)
 	assert.Equal(t, v2alpha1.ExperimentPhaseTerminated, dda.Status.Experiment.Phase)
 	assert.Equal(t, v2alpha1.ExperimentTerminationReasonStopped, dda.Status.Experiment.TerminationReason)
+}
+
+// Test_Rollback_ReplacesDatadogAnnotationSetToBaseline verifies that rollback
+// restores the baseline's Datadog-filter annotation set exactly: keys the
+// baseline had come back with their baseline values, keys added after the
+// baseline are removed, and annotations outside the Datadog filter are left
+// alone. An overlay merge (copy snapshot annotations on top of live) would
+// leave the post-baseline Datadog key live on the DDA after rollback.
+func Test_Rollback_ReplacesDatadogAnnotationSetToBaseline(t *testing.T) {
+	const ns, name = "default", "test-dda"
+	const uid = types.UID("uid-1")
+	nsName := types.NamespacedName{Namespace: ns, Name: name}
+
+	r := newExperimentIntegrationReconciler(t, 0)
+
+	// Rev1 (baseline): A is the only Datadog-filter annotation.
+	dda := baseDDA(ns, name, uid)
+	if dda.Annotations == nil {
+		dda.Annotations = map[string]string{}
+	}
+	dda.Annotations["preview.datadoghq.com/A"] = "1"
+	createAndReconcile(t, r, dda)
+
+	// Rev2: the experiment changes the spec and adds a second Datadog-filter
+	// annotation. Both land before the start signal, so the hash Fleet pins
+	// covers them and the later rollback is not misread as a manual change.
+	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
+	dda.Spec.Global.Site = ptr.To("datadoghq.eu")
+	dda.Annotations["preview.datadoghq.com/B"] = "2"
+	assert.NoError(t, r.client.Update(context.TODO(), dda))
+	simulateDaemonStart(t, r.client, nsName, "exp-1")
+	reconcileN(t, r, ns, name, 1)
+	assert.Equal(t, v2alpha1.ExperimentPhaseRunning, mustGetExperimentPhase(t, r, ns, name))
+
+	// A user annotation outside the Datadog filter, added while the experiment
+	// runs. It is not part of the snapshot and must survive the rollback.
+	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
+	dda.Annotations["example.com/user"] = "keep"
+	assert.NoError(t, r.client.Update(context.TODO(), dda))
+
+	simulateDaemonRollback(t, r.client, nsName, "exp-1")
+	reconcileN(t, r, ns, name, 2)
+
+	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
+	assert.NotNil(t, dda.Status.Experiment)
+	assert.Equal(t, v2alpha1.ExperimentPhaseTerminated, dda.Status.Experiment.Phase)
+	assert.Equal(t, v2alpha1.ExperimentTerminationReasonStopped, dda.Status.Experiment.TerminationReason)
+	assert.Nil(t, dda.Spec.Global.Site, "spec should be restored to pre-experiment state")
+
+	assert.Equal(t, "1", dda.Annotations["preview.datadoghq.com/A"],
+		"a Datadog-filter annotation present in the baseline snapshot must be restored")
+	assert.NotContains(t, dda.Annotations, "preview.datadoghq.com/B",
+		"a Datadog-filter annotation added after the baseline must not survive rollback")
+	assert.Equal(t, "keep", dda.Annotations["example.com/user"],
+		"annotations outside the Datadog filter must be preserved")
 }
 
 // Test_Experiment_TimeoutRollback verifies that an experiment running past
@@ -457,181 +536,6 @@ func Test_Experiment_AbortDoesNotRollback(t *testing.T) {
 	_ = metav1.Now()
 }
 
-// Test_Experiment_Abort_AnnotatesOnlyExperimentRevision verifies that when an
-// experiment is aborted due to a manual spec change:
-//   - The experiment revision (highest at the time of abort) is annotated.
-//   - The new revision created by manageRevision for the manual-change spec
-//     is NOT annotated.
-//   - Subsequent reconciles do not re-annotate or spread the annotation.
-func Test_Experiment_Abort_AnnotatesOnlyExperimentRevision(t *testing.T) {
-	const ns, name = "default", "test-dda"
-	const uid = types.UID("uid-1")
-	nsName := types.NamespacedName{Namespace: ns, Name: name}
-
-	r := newExperimentIntegrationReconciler(t, 0)
-
-	// Rev1: baseline.
-	dda := baseDDA(ns, name, uid)
-	createAndReconcile(t, r, dda)
-
-	// Rev2: experiment spec.
-	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
-	dda.Spec.Global.Site = ptr.To("datadoghq.eu")
-	assert.NoError(t, r.client.Update(context.TODO(), dda))
-	reconcileN(t, r, ns, name, 1)
-	assert.Len(t, listOwnedRevisions(t, r.client, ns, uid), 2)
-
-	// Record the experiment revision name (highest Revision number).
-	var experimentRevName string
-	maxRev := int64(0)
-	for _, rev := range listOwnedRevisions(t, r.client, ns, uid) {
-		if rev.Revision > maxRev {
-			maxRev = rev.Revision
-			experimentRevName = rev.Name
-		}
-	}
-
-	// Daemon writes start annotations and reconcile processes them → running.
-	simulateDaemonStart(t, r.client, nsName, "exp-1")
-
-	// Patch timestamps so timeout doesn't fire before abort.
-	for _, rev := range listOwnedRevisions(t, r.client, ns, uid) {
-		rev.CreationTimestamp = metav1.Now()
-		assert.NoError(t, r.client.Update(context.TODO(), &rev))
-	}
-
-	reconcileN(t, r, ns, name, 1)
-	assert.Equal(t, v2alpha1.ExperimentPhaseRunning, mustGetExperimentPhase(t, r, ns, name))
-
-	// Patch timestamps again after reconcile so timeout doesn't fire before abort.
-	for _, rev := range listOwnedRevisions(t, r.client, ns, uid) {
-		rev.CreationTimestamp = metav1.Now()
-		assert.NoError(t, r.client.Update(context.TODO(), &rev))
-	}
-
-	// User manually changes the spec — triggers abort.
-	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
-	dda.Spec.Global.Site = ptr.To("manual-change.example.com")
-	assert.NoError(t, r.client.Update(context.TODO(), dda))
-
-	// First reconcile: abort fires (manageExperiment), then manageRevision
-	// creates rev3 for the manual-change spec.
-	reconcileN(t, r, ns, name, 1)
-	assert.Equal(t, v2alpha1.ExperimentPhaseAborted, mustGetExperimentPhase(t, r, ns, name))
-
-	// Verify: only the experiment revision is annotated, not the new one.
-	revs := listOwnedRevisions(t, r.client, ns, uid)
-	for _, rev := range revs {
-		if rev.Name == experimentRevName {
-			assert.Equal(t, experimentRevisionStateRolledBack, revisionExperimentState(&rev),
-				"experiment revision %s should be annotated", rev.Name)
-		} else {
-			assert.NotEqual(t, experimentRevisionStateRolledBack, revisionExperimentState(&rev),
-				"non-experiment revision %s should NOT be annotated", rev.Name)
-		}
-	}
-
-	// Run additional reconciles — annotation state must be stable.
-	reconcileN(t, r, ns, name, 3)
-
-	revs = listOwnedRevisions(t, r.client, ns, uid)
-	annotatedNames := []string{}
-	for _, rev := range revs {
-		if revisionExperimentState(&rev) == experimentRevisionStateRolledBack {
-			annotatedNames = append(annotatedNames, rev.Name)
-		}
-	}
-	assert.Equal(t, []string{experimentRevName}, annotatedNames,
-		"after multiple reconciles, only the original experiment revision should remain annotated")
-}
-
-// Test_Experiment_StopRollback_AnnotatesOnlyExperimentRevision verifies
-// that when an experiment is rolled back via rollback annotation:
-//   - The experiment revision is annotated with experiment-rollback.
-//   - The rollback target (baseline) revision is NOT annotated.
-//   - Subsequent reconciles do not spread or remove the annotation.
-func Test_Experiment_StopRollback_AnnotatesOnlyExperimentRevision(t *testing.T) {
-	const ns, name = "default", "test-dda"
-	const uid = types.UID("uid-1")
-	nsName := types.NamespacedName{Namespace: ns, Name: name}
-
-	r := newExperimentIntegrationReconciler(t, 0)
-
-	// Rev1: baseline.
-	dda := baseDDA(ns, name, uid)
-	createAndReconcile(t, r, dda)
-
-	// Record baseline revision name.
-	baselineRevName := listOwnedRevisions(t, r.client, ns, uid)[0].Name
-
-	// Rev2: experiment spec.
-	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
-	dda.Spec.Global.Site = ptr.To("datadoghq.eu")
-	assert.NoError(t, r.client.Update(context.TODO(), dda))
-	reconcileN(t, r, ns, name, 1)
-
-	// Identify experiment revision.
-	var experimentRevName string
-	for _, rev := range listOwnedRevisions(t, r.client, ns, uid) {
-		if rev.Name != baselineRevName {
-			experimentRevName = rev.Name
-		}
-	}
-	assert.NotEmpty(t, experimentRevName, "should have an experiment revision")
-
-	// Add a pre-existing annotation to the experiment revision to verify the
-	// merge patch preserves it when markRevisionState adds its own annotation.
-	for _, rev := range listOwnedRevisions(t, r.client, ns, uid) {
-		if rev.Name == experimentRevName {
-			rev := rev
-			if rev.Annotations == nil {
-				rev.Annotations = map[string]string{}
-			}
-			rev.Annotations["custom-annotation"] = "should-survive"
-			assert.NoError(t, r.client.Update(context.TODO(), &rev))
-			break
-		}
-	}
-
-	// Daemon writes start annotations → reconcile sets status to running.
-	simulateDaemonStart(t, r.client, nsName, "exp-1")
-	reconcileN(t, r, ns, name, 1)
-	assert.Equal(t, v2alpha1.ExperimentPhaseRunning, mustGetExperimentPhase(t, r, ns, name))
-
-	// Daemon writes rollback signal annotation with its own task ID → triggers rollback.
-	simulateDaemonRollback(t, r.client, nsName, "stop-1")
-	reconcileN(t, r, ns, name, 2)
-
-	assert.Equal(t, v2alpha1.ExperimentPhaseTerminated, mustGetExperimentPhase(t, r, ns, name))
-
-	// Verify: experiment revision annotated, baseline NOT annotated,
-	// and pre-existing annotations are preserved by the merge patch.
-	for _, rev := range listOwnedRevisions(t, r.client, ns, uid) {
-		if rev.Name == experimentRevName {
-			assert.Equal(t, experimentRevisionStateRolledBack, revisionExperimentState(&rev),
-				"experiment revision %s should be annotated after rollback", rev.Name)
-			assert.Equal(t, "should-survive", rev.Annotations["custom-annotation"],
-				"pre-existing annotation on experiment revision %s should be preserved", rev.Name)
-		} else {
-			assert.NotEqual(t, experimentRevisionStateRolledBack, revisionExperimentState(&rev),
-				"baseline revision %s should NOT be annotated", rev.Name)
-		}
-	}
-
-	// Run additional reconciles — annotation state must be stable.
-	reconcileN(t, r, ns, name, 3)
-
-	for _, rev := range listOwnedRevisions(t, r.client, ns, uid) {
-		if rev.Name == experimentRevName {
-			assert.Equal(t, experimentRevisionStateRolledBack, revisionExperimentState(&rev),
-				"experiment revision %s should still be annotated after extra reconciles", rev.Name)
-		} else {
-			assert.NotEqual(t, experimentRevisionStateRolledBack, revisionExperimentState(&rev),
-				"baseline revision %s should still NOT be annotated after extra reconciles", rev.Name)
-		}
-	}
-}
-
 // Test_Experiment_PromoteThenNewExperiment_NoImmediateTimeout verifies that
 // after an experiment is promoted, a subsequent new experiment does not
 // immediately timeout due to a stale revision timestamp.
@@ -689,71 +593,6 @@ func Test_Experiment_PromoteThenNewExperiment_NoImmediateTimeout(t *testing.T) {
 
 	assert.Equal(t, v2alpha1.ExperimentPhaseRunning, mustGetExperimentPhase(t, r, ns, name),
 		"new experiment should still be running — no false timeout after promotion")
-}
-
-// Test_Experiment_Promoted_DoesNotRecreateRevision verifies that a promoted
-// experiment's revision is annotated with experiment-promoted (not
-// experiment-rollback), and ensureRevision does NOT delete+recreate it.
-func Test_Experiment_Promoted_DoesNotRecreateRevision(t *testing.T) {
-	const ns, name = "default", "test-dda"
-	const uid = types.UID("uid-1")
-	nsName := types.NamespacedName{Namespace: ns, Name: name}
-
-	r := newExperimentIntegrationReconciler(t, 0)
-
-	// Rev1: baseline.
-	dda := baseDDA(ns, name, uid)
-	createAndReconcile(t, r, dda)
-
-	// Rev2: experiment spec.
-	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
-	dda.Spec.Global.Site = ptr.To("datadoghq.eu")
-	assert.NoError(t, r.client.Update(context.TODO(), dda))
-	simulateDaemonStart(t, r.client, nsName, "exp-1")
-	reconcileN(t, r, ns, name, 1)
-	assert.Len(t, listOwnedRevisions(t, r.client, ns, uid), 2)
-	assert.Equal(t, v2alpha1.ExperimentPhaseRunning, mustGetExperimentPhase(t, r, ns, name))
-
-	// Record the experiment revision name (highest Revision number).
-	var experimentRevName string
-	maxRev := int64(0)
-	for _, rev := range listOwnedRevisions(t, r.client, ns, uid) {
-		if rev.Revision > maxRev {
-			maxRev = rev.Revision
-			experimentRevName = rev.Name
-		}
-	}
-
-	// Daemon writes promote signal with its own task ID.
-	simulateDaemonPromote(t, r.client, nsName, "promote-1")
-
-	// First reconcile processes promote signal → sets newStatus.Phase=promoted.
-	// Second reconcile sees instance.Status.Phase=promoted → annotates revision.
-	reconcileN(t, r, ns, name, 2)
-
-	// The experiment revision should have the promoted annotation, NOT rollback.
-	revs := listOwnedRevisions(t, r.client, ns, uid)
-	for _, rev := range revs {
-		if rev.Name == experimentRevName {
-			assert.Equal(t, experimentRevisionStatePromoted, revisionExperimentState(&rev),
-				"experiment revision should have promoted annotation")
-			assert.NotEqual(t, experimentRevisionStateRolledBack, revisionExperimentState(&rev),
-				"experiment revision should NOT have rollback annotation")
-		}
-	}
-
-	// Run additional reconciles — the revision should NOT be recreated.
-	// If it were recreated, the name would stay the same but the promoted
-	// annotation would be cleared. Verify it persists.
-	reconcileN(t, r, ns, name, 3)
-
-	revs = listOwnedRevisions(t, r.client, ns, uid)
-	for _, rev := range revs {
-		if rev.Name == experimentRevName {
-			assert.Equal(t, experimentRevisionStatePromoted, revisionExperimentState(&rev),
-				"promoted annotation should persist — revision must not be recreated")
-		}
-	}
 }
 
 // Test_Experiment_StateTransitions verifies that after any terminal state,
@@ -886,16 +725,6 @@ func Test_Experiment_StateTransitions(t *testing.T) {
 				t.Helper()
 				r.options.ExperimentTimeout = 50 * time.Millisecond
 				staleTime := metav1.NewTime(time.Now().Add(-time.Minute))
-				// Only age unannotated revisions (the new experiment's revision).
-				// Annotated revisions belong to the old experiment and must not
-				// be touched — they're already handled by the fallback skip.
-				for _, rev := range listOwnedRevisions(t, r.client, ns, uid) {
-					if revisionExperimentState(&rev) != experimentRevisionStateRolledBack &&
-						revisionExperimentState(&rev) != experimentRevisionStatePromoted {
-						rev.CreationTimestamp = staleTime
-						assert.NoError(t, r.client.Update(context.TODO(), &rev))
-					}
-				}
 				// Backdate StartedAt so handleRollback's primary anchor
 				// exceeds the timeout.
 				fresh := &v2alpha1.DatadogAgent{}
@@ -999,9 +828,9 @@ func Test_Experiment_StateTransitions(t *testing.T) {
 //     the annotated revision is deleted+recreated with a fresh timestamp).
 //  5. A subsequent reconcile with phase=running does NOT immediately timeout.
 //
-// NOTE: The fake client doesn't set CreationTimestamp on Create (unlike the
-// real API server), so we manually patch timestamps to simulate fresh
-// revisions after the re-apply reconcile.
+// NOTE: timeout is anchored on Status.Experiment.StartedAt (not on any
+// ControllerRevision's CreationTimestamp), so re-applying the same spec for a
+// brand-new experiment cannot false-timeout regardless of sibling revision age.
 func Test_Experiment_ReapplySameSpec_NoImmediateTimeout(t *testing.T) {
 	const ns, name = "default", "test-dda"
 	const uid = types.UID("uid-1")
@@ -1037,16 +866,6 @@ func Test_Experiment_ReapplySameSpec_NoImmediateTimeout(t *testing.T) {
 	// Raw baseline never set Site, so it stays nil after rollback.
 	assert.Nil(t, dda.Spec.Global.Site, "spec should be rolled back")
 
-	// Verify the experiment revision is annotated as rolled back.
-	revs := listOwnedRevisions(t, r.client, ns, uid)
-	var annotatedCount int
-	for _, rev := range revs {
-		if revisionExperimentState(&rev) == experimentRevisionStateRolledBack {
-			annotatedCount++
-		}
-	}
-	assert.Equal(t, 1, annotatedCount, "exactly one revision should have the rollback annotation")
-
 	// Switch to a long timeout so the re-applied experiment doesn't timeout
 	// within the reconcile's own execution time.
 	r.options.ExperimentTimeout = longTimeout
@@ -1060,27 +879,12 @@ func Test_Experiment_ReapplySameSpec_NoImmediateTimeout(t *testing.T) {
 	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
 	dda.Spec.Global.Site = ptr.To("datadoghq.eu")
 	assert.NoError(t, r.client.Update(context.TODO(), dda))
-
-	// This reconcile triggers ensureRevision which either:
-	// - matches the annotated revision (same content hash) → delete+recreate, or
-	// - creates a new revision (different hash due to defaulting differences).
-	// Either way, the current revision for this spec has no rollback annotation.
 	reconcileN(t, r, ns, name, 1)
 
-	// Step 5: Start new experiment via annotations. Patch all revision timestamps
-	// to now so the timeout check works correctly with the fake client (which
-	// doesn't set CreationTimestamp on Create like the real API server).
-	revs = listOwnedRevisions(t, r.client, ns, uid)
-	assert.Len(t, revs, 2)
-	for i := range revs {
-		revs[i].CreationTimestamp = metav1.Now()
-		assert.NoError(t, r.client.Update(context.TODO(), &revs[i]))
-	}
-
+	// Step 5: Start new experiment via annotations. Should NOT timeout even
+	// though sibling revisions may still carry stale timestamps, because
+	// StartedAt was just set fresh by processStartSignal.
 	simulateDaemonStart(t, r.client, nsName, "exp-2")
-
-	// Reconcile processes start signal → status = {running, exp-2}.
-	// Should NOT timeout because the revision is fresh.
 	reconcileN(t, r, ns, name, 1)
 
 	assert.Equal(t, v2alpha1.ExperimentPhaseRunning, mustGetExperimentPhase(t, r, ns, name),
@@ -1764,4 +1568,603 @@ func Test_Experiment_StrandedConditionSurvivesAcrossReconciles(t *testing.T) {
 	assert.Equal(t, metav1.ConditionTrue, laterCond.Status)
 	assert.True(t, firstTransition.Equal(&laterCond.LastTransitionTime),
 		"LastTransitionTime should remain stable since nothing about the condition changed")
+}
+
+// -----------------------------------------------------------------------------
+// Checkpoint-driven rollback/promote/timeout/abort (Commit 5)
+// -----------------------------------------------------------------------------
+
+// Test_Experiment_StrandedConditionOnBaselineNotFound verifies that a rollback
+// signal whose checkpointed baseline ControllerRevision has been deleted
+// aborts (rather than erroring or hanging) with baseline_not_found, and flags
+// the ExperimentConfigStranded condition since the running config can no
+// longer be automatically restored.
+func Test_Experiment_StrandedConditionOnBaselineNotFound(t *testing.T) {
+	const ns, name = "default", "test-dda"
+	const uid = types.UID("uid-1")
+	nsName := types.NamespacedName{Namespace: ns, Name: name}
+
+	r := newExperimentIntegrationReconciler(t, 0)
+
+	dda := baseDDA(ns, name, uid)
+	createAndReconcile(t, r, dda)
+
+	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
+	dda.Spec.Global.Site = ptr.To("datadoghq.eu")
+	assert.NoError(t, r.client.Update(context.TODO(), dda))
+	simulateDaemonStart(t, r.client, nsName, "exp-1")
+	reconcileN(t, r, ns, name, 1)
+	assert.Equal(t, v2alpha1.ExperimentPhaseRunning, mustGetExperimentPhase(t, r, ns, name))
+
+	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
+	baselineRevName := dda.Status.Experiment.Checkpoint.RollbackTargetRevision
+	assert.NotEmpty(t, baselineRevName)
+
+	var baselineRev appsv1.ControllerRevision
+	assert.NoError(t, r.client.Get(context.TODO(), types.NamespacedName{Namespace: ns, Name: baselineRevName}, &baselineRev))
+	assert.NoError(t, r.client.Delete(context.TODO(), &baselineRev))
+
+	simulateDaemonRollback(t, r.client, nsName, "stop-1")
+	reconcileN(t, r, ns, name, 1)
+
+	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
+	assert.NotNil(t, dda.Status.Experiment)
+	assert.Equal(t, v2alpha1.ExperimentPhaseAborted, dda.Status.Experiment.Phase)
+	assert.Equal(t, v2alpha1.ExperimentTerminationReasonBaselineNotFound, dda.Status.Experiment.TerminationReason)
+
+	cond := condition.GetCondition(&dda.Status, common.ExperimentConfigStrandedConditionType)
+	assert.NotNil(t, cond, "ExperimentConfigStranded condition should be set")
+	assert.Equal(t, metav1.ConditionTrue, cond.Status)
+	assert.Equal(t, string(v2alpha1.ExperimentTerminationReasonBaselineNotFound), cond.Reason)
+}
+
+// decodeRevisionSnapshot fetches the named ControllerRevision and decodes its
+// stored spec/annotations snapshot.
+func decodeRevisionSnapshot(t *testing.T, r *Reconciler, ns, revName string) v2alpha1.RevisionSnapshot {
+	t.Helper()
+	var rev appsv1.ControllerRevision
+	assert.NoError(t, r.client.Get(context.TODO(), types.NamespacedName{Namespace: ns, Name: revName}, &rev))
+	var snap v2alpha1.RevisionSnapshot
+	assert.NoError(t, json.Unmarshal(rev.Data.Raw, &snap))
+	return snap
+}
+
+// Test_Experiment_RollbackSignalIdempotentAfterSpecRestore verifies that a
+// rollback signal arriving after the spec was already restored to the
+// baseline (e.g. a prior restore's status write was lost to a 409) still
+// completes as Terminated/stopped rather than misreporting a manual change —
+// the live spec matches the checkpointed rollback target exactly.
+func Test_Experiment_RollbackSignalIdempotentAfterSpecRestore(t *testing.T) {
+	const ns, name = "default", "test-dda"
+	const uid = types.UID("uid-1")
+	nsName := types.NamespacedName{Namespace: ns, Name: name}
+
+	r := newExperimentIntegrationReconciler(t, 0)
+
+	dda := baseDDA(ns, name, uid)
+	createAndReconcile(t, r, dda)
+
+	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
+	dda.Spec.Global.Site = ptr.To("datadoghq.eu")
+	assert.NoError(t, r.client.Update(context.TODO(), dda))
+	simulateDaemonStart(t, r.client, nsName, "exp-1")
+	reconcileN(t, r, ns, name, 1)
+	assert.Equal(t, v2alpha1.ExperimentPhaseRunning, mustGetExperimentPhase(t, r, ns, name))
+
+	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
+	baselineRevName := dda.Status.Experiment.Checkpoint.RollbackTargetRevision
+	snap := decodeRevisionSnapshot(t, r, ns, baselineRevName)
+
+	// Simulate an interrupted rollback: the spec restore Update succeeded but
+	// the subsequent status write was lost (e.g. a 409), so status is still
+	// Running even though the live spec already matches the baseline.
+	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
+	dda.Spec = snap.Spec
+	assert.NoError(t, r.client.Update(context.TODO(), dda))
+
+	simulateDaemonRollback(t, r.client, nsName, "stop-1")
+	reconcileN(t, r, ns, name, 1)
+
+	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
+	assert.NotNil(t, dda.Status.Experiment)
+	assert.Equal(t, v2alpha1.ExperimentPhaseTerminated, dda.Status.Experiment.Phase)
+	assert.Equal(t, v2alpha1.ExperimentTerminationReasonStopped, dda.Status.Experiment.TerminationReason)
+}
+
+// Test_Experiment_TimeoutIdempotentAfterSpecRestore verifies the same
+// interrupted-rollback scenario as above, but reached via timeout instead of
+// an explicit rollback signal.
+func Test_Experiment_TimeoutIdempotentAfterSpecRestore(t *testing.T) {
+	const ns, name = "default", "test-dda"
+	const uid = types.UID("uid-1")
+	const shortTimeout = 50 * time.Millisecond
+	nsName := types.NamespacedName{Namespace: ns, Name: name}
+
+	r := newExperimentIntegrationReconciler(t, shortTimeout)
+
+	dda := baseDDA(ns, name, uid)
+	createAndReconcile(t, r, dda)
+
+	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
+	dda.Spec.Global.Site = ptr.To("datadoghq.eu")
+	assert.NoError(t, r.client.Update(context.TODO(), dda))
+	simulateDaemonStart(t, r.client, nsName, "exp-1")
+	reconcileN(t, r, ns, name, 1)
+	assert.Equal(t, v2alpha1.ExperimentPhaseRunning, mustGetExperimentPhase(t, r, ns, name))
+
+	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
+	baselineRevName := dda.Status.Experiment.Checkpoint.RollbackTargetRevision
+	snap := decodeRevisionSnapshot(t, r, ns, baselineRevName)
+
+	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
+	dda.Spec = snap.Spec
+	assert.NoError(t, r.client.Update(context.TODO(), dda))
+
+	// Backdate StartedAt so handleRollback's timeout anchor has already elapsed.
+	staleTime := metav1.NewTime(time.Now().Add(-time.Minute))
+	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
+	dda.Status.Experiment.StartedAt = &staleTime
+	assert.NoError(t, r.client.Status().Update(context.TODO(), dda))
+
+	reconcileN(t, r, ns, name, 1)
+
+	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
+	assert.NotNil(t, dda.Status.Experiment)
+	assert.Equal(t, v2alpha1.ExperimentPhaseTerminated, dda.Status.Experiment.Phase)
+	assert.Equal(t, v2alpha1.ExperimentTerminationReasonTimedOut, dda.Status.Experiment.TerminationReason)
+}
+
+// Test_Experiment_TimeoutWithUserEditAborts is the C3 regression: a spec edit
+// that matches neither the experiment spec nor the baseline must abort as
+// manual_spec_change on timeout, not be silently rolled back or misreported.
+func Test_Experiment_TimeoutWithUserEditAborts(t *testing.T) {
+	const ns, name = "default", "test-dda"
+	const uid = types.UID("uid-1")
+	const shortTimeout = 50 * time.Millisecond
+	nsName := types.NamespacedName{Namespace: ns, Name: name}
+
+	r := newExperimentIntegrationReconciler(t, shortTimeout)
+
+	dda := baseDDA(ns, name, uid)
+	createAndReconcile(t, r, dda)
+
+	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
+	dda.Spec.Global.Site = ptr.To("datadoghq.eu")
+	assert.NoError(t, r.client.Update(context.TODO(), dda))
+	simulateDaemonStart(t, r.client, nsName, "exp-1")
+	reconcileN(t, r, ns, name, 1)
+	assert.Equal(t, v2alpha1.ExperimentPhaseRunning, mustGetExperimentPhase(t, r, ns, name))
+
+	// User edit matching neither the experiment spec nor the baseline.
+	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
+	dda.Spec.Global.Site = ptr.To("totally-different.example.com")
+	assert.NoError(t, r.client.Update(context.TODO(), dda))
+
+	staleTime := metav1.NewTime(time.Now().Add(-time.Minute))
+	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
+	dda.Status.Experiment.StartedAt = &staleTime
+	assert.NoError(t, r.client.Status().Update(context.TODO(), dda))
+
+	reconcileN(t, r, ns, name, 1)
+
+	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
+	assert.Equal(t, "totally-different.example.com", *dda.Spec.Global.Site, "manual edit must not be rolled back")
+	assert.NotNil(t, dda.Status.Experiment)
+	assert.Equal(t, v2alpha1.ExperimentPhaseAborted, dda.Status.Experiment.Phase)
+	assert.Equal(t, v2alpha1.ExperimentTerminationReasonManualSpecChange, dda.Status.Experiment.TerminationReason)
+}
+
+// Test_Experiment_PromoteAfterUserRevertToBaselineAborts verifies that
+// promote does not get the rollback-target exception: reverting to the exact
+// baseline spec and then promoting must still abort as manual_spec_change,
+// since promoting a reverted spec makes no sense.
+func Test_Experiment_PromoteAfterUserRevertToBaselineAborts(t *testing.T) {
+	const ns, name = "default", "test-dda"
+	const uid = types.UID("uid-1")
+	nsName := types.NamespacedName{Namespace: ns, Name: name}
+
+	r := newExperimentIntegrationReconciler(t, 0)
+
+	dda := baseDDA(ns, name, uid)
+	createAndReconcile(t, r, dda)
+
+	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
+	dda.Spec.Global.Site = ptr.To("datadoghq.eu")
+	assert.NoError(t, r.client.Update(context.TODO(), dda))
+	simulateDaemonStart(t, r.client, nsName, "exp-1")
+	reconcileN(t, r, ns, name, 1)
+	assert.Equal(t, v2alpha1.ExperimentPhaseRunning, mustGetExperimentPhase(t, r, ns, name))
+
+	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
+	baselineRevName := dda.Status.Experiment.Checkpoint.RollbackTargetRevision
+	snap := decodeRevisionSnapshot(t, r, ns, baselineRevName)
+
+	// User reverts to the exact baseline spec while the experiment is still running.
+	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
+	dda.Spec = snap.Spec
+	assert.NoError(t, r.client.Update(context.TODO(), dda))
+
+	simulateDaemonPromote(t, r.client, nsName, "promote-1")
+	reconcileN(t, r, ns, name, 1)
+
+	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
+	assert.NotNil(t, dda.Status.Experiment)
+	assert.Equal(t, v2alpha1.ExperimentPhaseAborted, dda.Status.Experiment.Phase)
+	assert.Equal(t, v2alpha1.ExperimentTerminationReasonManualSpecChange, dda.Status.Experiment.TerminationReason)
+}
+
+// Test_Experiment_StopSignalAtNilPhaseWithAnnotationRecovers verifies the
+// nil-phase ("Transition 6") recovery path: the daemon's start patch (spec +
+// all annotations, including rollback-target-revision) landed, but the
+// reconciler never processed it before the daemon retried with a stop
+// signal. The reconciler must reconstruct the checkpoint from the validated
+// annotation and complete the rollback rather than treating it as a no-op.
+func Test_Experiment_StopSignalAtNilPhaseWithAnnotationRecovers(t *testing.T) {
+	const ns, name = "default", "test-dda"
+	const uid = types.UID("uid-1")
+	nsName := types.NamespacedName{Namespace: ns, Name: name}
+
+	r := newExperimentIntegrationReconciler(t, 0)
+
+	dda := baseDDA(ns, name, uid)
+	createAndReconcile(t, r, dda)
+
+	// Daemon applies the experiment spec and writes the full start-signal
+	// annotation set, but the reconciler has not processed it yet (no
+	// reconcile in between).
+	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
+	dda.Spec.Global.Site = ptr.To("datadoghq.eu")
+	assert.NoError(t, r.client.Update(context.TODO(), dda))
+	simulateDaemonStart(t, r.client, nsName, "exp-1")
+
+	// Daemon retries with a stop instead, overwriting the signal/id
+	// annotations while leaving rollback-target-revision and the pending
+	// task id in place.
+	simulateDaemonRollback(t, r.client, nsName, "exp-1")
+
+	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
+	pinnedHash := dda.GetAnnotations()[v2alpha1.AnnotationExperimentExpectedSpecHash]
+	assert.NotEmpty(t, pinnedHash)
+
+	reconcileN(t, r, ns, name, 2)
+
+	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
+	assert.NotNil(t, dda.Status.Experiment)
+	assert.Equal(t, "exp-1", dda.Status.Experiment.ID)
+	assert.Equal(t, "test-task-exp-1", dda.Status.Experiment.StartTaskID)
+	assert.Equal(t, v2alpha1.ExperimentPhaseTerminated, dda.Status.Experiment.Phase)
+	assert.Equal(t, v2alpha1.ExperimentTerminationReasonStopped, dda.Status.Experiment.TerminationReason)
+	assert.Nil(t, dda.Spec.Global.Site, "spec should be restored to pre-experiment state")
+	assert.NotNil(t, dda.Status.Experiment.Checkpoint)
+	assert.Equal(t, pinnedHash, dda.Status.Experiment.Checkpoint.ExpectedSpecHash,
+		"recovery must synthesize the checkpoint from the pinned hash, not from hash(liveSpec)")
+}
+
+// Test_Experiment_StopSignalAtNilPhaseWithMismatchedExpectedHashAborts_ManualSpecChange
+// covers the other failure axis of nil-phase recovery: the rollback target is
+// a valid owned revision, but a user apply landed between Fleet's atomic start
+// patch and this reconcile, so the live spec no longer hashes to the pin. The
+// user's spec is what is live, so it stands — abort as manual_spec_change with
+// no stranded condition and no synthesized checkpoint, and leave the spec
+// alone.
+func Test_Experiment_StopSignalAtNilPhaseWithMismatchedExpectedHashAborts_ManualSpecChange(t *testing.T) {
+	const ns, name = "default", "test-dda"
+	nsName := types.NamespacedName{Namespace: ns, Name: name}
+
+	r := newExperimentIntegrationReconciler(t, 0)
+
+	dda := baseDDA(ns, name, types.UID("uid-1"))
+	createAndReconcile(t, r, dda)
+
+	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
+	dda.Spec.Global.Site = ptr.To("datadoghq.eu")
+	assert.NoError(t, r.client.Update(context.TODO(), dda))
+	simulateDaemonStart(t, r.client, nsName, "exp-1")
+
+	// User apply lands before the reconciler ever sees the start signal,
+	// invalidating the pinned hash.
+	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
+	dda.Spec.Global.LogLevel = ptr.To("debug")
+	assert.NoError(t, r.client.Update(context.TODO(), dda))
+
+	simulateDaemonRollback(t, r.client, nsName, "exp-1")
+
+	reconcileN(t, r, ns, name, 1)
+
+	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
+	assert.NotNil(t, dda.Status.Experiment)
+	assert.Equal(t, "exp-1", dda.Status.Experiment.ID)
+	assert.Equal(t, v2alpha1.ExperimentPhaseAborted, dda.Status.Experiment.Phase)
+	assert.Equal(t, v2alpha1.ExperimentTerminationReasonManualSpecChange, dda.Status.Experiment.TerminationReason)
+	assert.Nil(t, dda.Status.Experiment.Checkpoint,
+		"no checkpoint should be synthesized from a spec we cannot attribute to Fleet")
+	assert.Nil(t, condition.GetCondition(&dda.Status, common.ExperimentConfigStrandedConditionType),
+		"a manual spec change is not stranding: the user's own spec is live")
+	assert.Equal(t, "debug", *dda.Spec.Global.LogLevel, "the user's apply must stand")
+	assert.Equal(t, "datadoghq.eu", *dda.Spec.Global.Site, "the user's apply must stand")
+}
+
+// Test_Experiment_StopSignalAtNilPhaseWithForeignRevisionAborts verifies
+// that the nil-phase recovery path distinguishes "no rollback-target
+// annotation" from "annotation present but naming a revision this DDA does
+// not own" — the latter must abort as baseline_not_found rather than
+// silently no-op, since the annotation names something real that just isn't
+// a validated baseline.
+func Test_Experiment_StopSignalAtNilPhaseWithForeignRevisionAborts(t *testing.T) {
+	const ns, name = "default", "test-dda"
+	const uid = types.UID("uid-1")
+	const foreignUID = types.UID("uid-2")
+	nsName := types.NamespacedName{Namespace: ns, Name: name}
+
+	r := newExperimentIntegrationReconciler(t, 0)
+
+	foreignDDA := baseDDA(ns, "other-dda", foreignUID)
+	assert.NoError(t, r.client.Create(context.TODO(), foreignDDA))
+	foreignRev := createRevisionWithSpec(t, r, foreignDDA, foreignDDA.Spec, 1)
+
+	dda := baseDDA(ns, name, uid)
+	createAndReconcile(t, r, dda)
+
+	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
+	dda.Spec.Global.Site = ptr.To("datadoghq.eu")
+	assert.NoError(t, r.client.Update(context.TODO(), dda))
+
+	// Pin a hash matching the live experiment spec, so the only thing wrong
+	// with this signal is the foreign rollback target.
+	liveHash, err := v2alpha1.ComputeSpecHash(dda.Spec, dda.GetAnnotations())
+	assert.NoError(t, err)
+	extra := map[string]string{
+		v2alpha1.AnnotationExperimentRollbackTargetRevision: foreignRev.Name,
+		v2alpha1.AnnotationExperimentExpectedSpecHash:       liveHash,
+		v2alpha1.AnnotationPendingTaskID:                    "test-task-exp-1",
+	}
+	patch, err := fleet.BuildSignalPatchWithAnnotations(v2alpha1.ExperimentSignalStart, "exp-1", extra)
+	assert.NoError(t, err)
+	assert.NoError(t, r.client.Patch(context.TODO(), dda, client.RawPatch(types.MergePatchType, patch)))
+
+	// Daemon retries with a stop before the reconciler ever processes the
+	// start signal above (no reconcile in between).
+	simulateDaemonRollback(t, r.client, nsName, "exp-1")
+
+	reconcileN(t, r, ns, name, 1)
+
+	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
+	assert.NotNil(t, dda.Status.Experiment)
+	assert.Equal(t, "exp-1", dda.Status.Experiment.ID)
+	assert.Equal(t, "test-task-exp-1", dda.Status.Experiment.StartTaskID)
+	assert.Equal(t, v2alpha1.ExperimentPhaseAborted, dda.Status.Experiment.Phase)
+	assert.Equal(t, v2alpha1.ExperimentTerminationReasonBaselineNotFound, dda.Status.Experiment.TerminationReason)
+
+	cond := condition.GetCondition(&dda.Status, common.ExperimentConfigStrandedConditionType)
+	assert.NotNil(t, cond, "ExperimentConfigStranded condition should be set")
+	assert.Equal(t, metav1.ConditionTrue, cond.Status)
+}
+
+// Test_Experiment_StopSignalAtNilPhaseWithoutAnnotationNoOps verifies that a
+// rollback signal at nil phase with no rollback-target-revision annotation
+// is a true no-op: the signal is cleared and no status is written.
+func Test_Experiment_StopSignalAtNilPhaseWithoutAnnotationNoOps(t *testing.T) {
+	const ns, name = "default", "test-dda"
+	nsName := types.NamespacedName{Namespace: ns, Name: name}
+
+	r := newExperimentIntegrationReconciler(t, 0)
+
+	dda := baseDDA(ns, name, types.UID("uid-1"))
+	createAndReconcile(t, r, dda)
+
+	simulateDaemonRollback(t, r.client, nsName, "exp-1")
+	reconcileN(t, r, ns, name, 1)
+
+	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
+	assert.Nil(t, dda.Status.Experiment, "no status should be written for a no-op rollback signal")
+	annotations := dda.GetAnnotations()
+	assert.NotContains(t, annotations, v2alpha1.AnnotationExperimentSignal)
+	assert.NotContains(t, annotations, v2alpha1.AnnotationExperimentID)
+}
+
+// -----------------------------------------------------------------------------
+// ControllerRevision ownership hardening (Commit 5)
+// -----------------------------------------------------------------------------
+
+// Test_Rollback_RejectsForeignControllerRevisionByOwnerUID verifies that a
+// pinned ControllerRevision name that has been deleted and recreated with a
+// different owner UID is rejected: rollback treats it as baseline_not_found
+// rather than restoring a foreign snapshot.
+func Test_Rollback_RejectsForeignControllerRevisionByOwnerUID(t *testing.T) {
+	const ns, name = "default", "test-dda"
+	const uid = types.UID("uid-1")
+	nsName := types.NamespacedName{Namespace: ns, Name: name}
+
+	r := newExperimentIntegrationReconciler(t, 0)
+
+	dda := baseDDA(ns, name, uid)
+	createAndReconcile(t, r, dda)
+
+	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
+	dda.Spec.Global.Site = ptr.To("datadoghq.eu")
+	assert.NoError(t, r.client.Update(context.TODO(), dda))
+	simulateDaemonStart(t, r.client, nsName, "exp-1")
+	reconcileN(t, r, ns, name, 1)
+	assert.Equal(t, v2alpha1.ExperimentPhaseRunning, mustGetExperimentPhase(t, r, ns, name))
+
+	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
+	baselineRevName := dda.Status.Experiment.Checkpoint.RollbackTargetRevision
+
+	var baselineRev appsv1.ControllerRevision
+	assert.NoError(t, r.client.Get(context.TODO(), types.NamespacedName{Namespace: ns, Name: baselineRevName}, &baselineRev))
+	assert.NoError(t, r.client.Delete(context.TODO(), &baselineRev))
+
+	foreign := appsv1.ControllerRevision{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      baselineRevName,
+			Namespace: ns,
+			Labels:    map[string]string{apicommon.DatadogAgentNameLabelKey: name},
+			OwnerReferences: []metav1.OwnerReference{
+				{
+					APIVersion: "datadoghq.com/v2alpha1",
+					Kind:       "DatadogAgent",
+					Name:       "attacker-dda",
+					UID:        types.UID("attacker-uid"),
+					Controller: ptr.To(true),
+				},
+			},
+		},
+		Data:     baselineRev.Data,
+		Revision: baselineRev.Revision,
+	}
+	assert.NoError(t, r.client.Create(context.TODO(), &foreign))
+
+	simulateDaemonRollback(t, r.client, nsName, "stop-1")
+	reconcileN(t, r, ns, name, 1)
+
+	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
+	assert.NotNil(t, dda.Status.Experiment)
+	assert.Equal(t, v2alpha1.ExperimentPhaseAborted, dda.Status.Experiment.Phase)
+	assert.Equal(t, v2alpha1.ExperimentTerminationReasonBaselineNotFound, dda.Status.Experiment.TerminationReason)
+}
+
+// Test_Rollback_RejectsControllerRevisionInWrongNamespace verifies that a
+// ControllerRevision only reachable in a different namespace than the DDA is
+// treated the same as absent: getOwnedRevision scopes its lookup to the
+// instance's own namespace.
+func Test_Rollback_RejectsControllerRevisionInWrongNamespace(t *testing.T) {
+	const ns, name = "default", "test-dda"
+	const otherNS = "other-ns"
+	const uid = types.UID("uid-1")
+	nsName := types.NamespacedName{Namespace: ns, Name: name}
+
+	r := newExperimentIntegrationReconciler(t, 0)
+
+	dda := baseDDA(ns, name, uid)
+	createAndReconcile(t, r, dda)
+
+	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
+	dda.Spec.Global.Site = ptr.To("datadoghq.eu")
+	assert.NoError(t, r.client.Update(context.TODO(), dda))
+	simulateDaemonStart(t, r.client, nsName, "exp-1")
+	reconcileN(t, r, ns, name, 1)
+	assert.Equal(t, v2alpha1.ExperimentPhaseRunning, mustGetExperimentPhase(t, r, ns, name))
+
+	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
+	baselineRevName := dda.Status.Experiment.Checkpoint.RollbackTargetRevision
+
+	var baselineRev appsv1.ControllerRevision
+	assert.NoError(t, r.client.Get(context.TODO(), types.NamespacedName{Namespace: ns, Name: baselineRevName}, &baselineRev))
+	assert.NoError(t, r.client.Delete(context.TODO(), &baselineRev))
+
+	crossNS := appsv1.ControllerRevision{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      baselineRevName,
+			Namespace: otherNS,
+			Labels:    map[string]string{apicommon.DatadogAgentNameLabelKey: name},
+			OwnerReferences: []metav1.OwnerReference{
+				{
+					APIVersion: "datadoghq.com/v2alpha1",
+					Kind:       "DatadogAgent",
+					Name:       name,
+					UID:        uid,
+					Controller: ptr.To(true),
+				},
+			},
+		},
+		Data:     baselineRev.Data,
+		Revision: baselineRev.Revision,
+	}
+	assert.NoError(t, r.client.Create(context.TODO(), &crossNS))
+
+	simulateDaemonRollback(t, r.client, nsName, "stop-1")
+	reconcileN(t, r, ns, name, 1)
+
+	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
+	assert.NotNil(t, dda.Status.Experiment)
+	assert.Equal(t, v2alpha1.ExperimentPhaseAborted, dda.Status.Experiment.Phase)
+	assert.Equal(t, v2alpha1.ExperimentTerminationReasonBaselineNotFound, dda.Status.Experiment.TerminationReason)
+}
+
+// Test_Rollback_UsesAPIReaderForNotFound verifies that ControllerRevision
+// lookups for rollback go through the uncached APIReader rather than the
+// (potentially stale) informer-backed client: a revision missing from the
+// cache client but present via the APIReader must still be found.
+func Test_Rollback_UsesAPIReaderForNotFound(t *testing.T) {
+	const ns, name = "default", "test-dda"
+	const uid = types.UID("uid-1")
+	nsName := types.NamespacedName{Namespace: ns, Name: name}
+
+	r := newExperimentIntegrationReconciler(t, 0)
+
+	dda := baseDDA(ns, name, uid)
+	createAndReconcile(t, r, dda)
+
+	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
+	dda.Spec.Global.Site = ptr.To("datadoghq.eu")
+	assert.NoError(t, r.client.Update(context.TODO(), dda))
+	simulateDaemonStart(t, r.client, nsName, "exp-1")
+	reconcileN(t, r, ns, name, 1)
+	assert.Equal(t, v2alpha1.ExperimentPhaseRunning, mustGetExperimentPhase(t, r, ns, name))
+
+	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
+	baselineRevName := dda.Status.Experiment.Checkpoint.RollbackTargetRevision
+
+	var baselineRev appsv1.ControllerRevision
+	assert.NoError(t, r.client.Get(context.TODO(), types.NamespacedName{Namespace: ns, Name: baselineRevName}, &baselineRev))
+
+	// A separate, independent client stands in for the uncached API reader:
+	// it has the baseline revision. The reconciler's regular (cache-like)
+	// client has it deleted out from under it, simulating a lagging cache.
+	apiReaderClient := fake.NewClientBuilder().
+		WithScheme(r.scheme).
+		WithObjects(baselineRev.DeepCopy()).
+		Build()
+	r.options.APIReader = apiReaderClient
+
+	assert.NoError(t, r.client.Delete(context.TODO(), &baselineRev))
+
+	simulateDaemonRollback(t, r.client, nsName, "stop-1")
+	reconcileN(t, r, ns, name, 1)
+
+	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
+	assert.NotNil(t, dda.Status.Experiment)
+	assert.Equal(t, v2alpha1.ExperimentPhaseTerminated, dda.Status.Experiment.Phase)
+	assert.Equal(t, v2alpha1.ExperimentTerminationReasonStopped, dda.Status.Experiment.TerminationReason)
+	assert.Nil(t, dda.Spec.Global.Site, "spec should be restored via the revision found through the APIReader")
+}
+
+// -----------------------------------------------------------------------------
+// Preview carry-over guard (Commit 5)
+// -----------------------------------------------------------------------------
+
+// Test_Experiment_InFlightWithoutCheckpointAborts verifies that a Running
+// experiment with no checkpoint — a state that predates the checkpoint
+// contract, or a status write that never completed — is failed closed
+// instead of nil-dereferencing the checkpoint-dependent logic below it.
+func Test_Experiment_InFlightWithoutCheckpointAborts(t *testing.T) {
+	const ns, name = "default", "test-dda"
+	const uid = types.UID("uid-1")
+	nsName := types.NamespacedName{Namespace: ns, Name: name}
+
+	r := newExperimentIntegrationReconciler(t, 0)
+
+	dda := baseDDA(ns, name, uid)
+	createAndReconcile(t, r, dda)
+
+	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
+	dda.Status.Experiment = &v2alpha1.ExperimentStatus{
+		Phase:       v2alpha1.ExperimentPhaseRunning,
+		ID:          "exp-1",
+		StartTaskID: "task-1",
+		Checkpoint:  nil,
+	}
+	assert.NoError(t, r.client.Status().Update(context.TODO(), dda))
+
+	reconcileN(t, r, ns, name, 1)
+
+	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
+	assert.NotNil(t, dda.Status.Experiment)
+	assert.Equal(t, v2alpha1.ExperimentPhaseAborted, dda.Status.Experiment.Phase)
+	assert.Equal(t, v2alpha1.ExperimentTerminationReasonBaselineMissing, dda.Status.Experiment.TerminationReason)
+	assert.Equal(t, "task-1", dda.Status.Experiment.StartTaskID, "StartTaskID should be preserved through the abort")
+
+	cond := condition.GetCondition(&dda.Status, common.ExperimentConfigStrandedConditionType)
+	assert.NotNil(t, cond, "ExperimentConfigStranded condition should be set")
+	assert.Equal(t, metav1.ConditionTrue, cond.Status)
 }
