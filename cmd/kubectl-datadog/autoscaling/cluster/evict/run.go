@@ -51,7 +51,7 @@ func Run(ctx context.Context, streams genericclioptions.IOStreams, configFlags *
 		return fmt.Errorf("failed to check for an existing Karpenter installation: %w", err)
 	}
 	if k == nil {
-		return errors.New("Karpenter is not installed on this cluster; run `kubectl datadog autoscaling cluster install` first")
+		return errors.New("Karpenter is not installed on this cluster; run `kubectl datadog autoscaling cluster install` first") //nolint:staticcheck // Karpenter is a proper noun.
 	}
 	namespace := opts.KarpenterNamespace
 	if namespace == "" {

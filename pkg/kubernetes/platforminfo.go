@@ -104,10 +104,17 @@ func (platformInfo *PlatformInfo) IsResourceSupported(resource string) bool {
 	return false
 }
 
-func (platformInfo *PlatformInfo) GetApiVersions(name string) (preferred string, other string) {
+// GetAPIVersions returns the preferred and alternate API versions for a resource.
+func (platformInfo *PlatformInfo) GetAPIVersions(name string) (preferred string, other string) {
 	preferred = platformInfo.apiPreferredVersions[name]
 	other = platformInfo.apiOtherVersions[name]
 	return preferred, other
+}
+
+// GetApiVersions returns the preferred and alternate API versions for a resource.
+// Deprecated: use GetAPIVersions.
+func (platformInfo *PlatformInfo) GetApiVersions(name string) (preferred string, other string) { //nolint:staticcheck
+	return platformInfo.GetAPIVersions(name)
 }
 
 func (platformInfo *PlatformInfo) GetVersionInfo() *version.Info {

@@ -412,7 +412,7 @@ func (d *Daemon) refreshManagedAgentInstallationUpdaterTags(ctx context.Context)
 		RefreshUpdaterTags(context.Context) error
 	})
 	if !ok {
-		return fmt.Errorf("Remote Configuration client does not support updater tag refresh")
+		return fmt.Errorf("Remote Configuration client does not support updater tag refresh") //nolint:staticcheck // Remote Configuration is a product name.
 	}
 	if err := refresher.RefreshUpdaterTags(ctx); err != nil {
 		return fmt.Errorf("refresh Remote Configuration updater tags for managed Agent installation: %w", err)

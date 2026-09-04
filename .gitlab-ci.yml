@@ -452,7 +452,7 @@ go_e2e_deps:
     - export GOOGLE_APPLICATION_CREDENTIALS=~/gcp-credentials.json
 
 .docker_publish_job_definition:
-  image: registry.ddbuild.io/agent-delivery/dd-pkg:v0.9.0
+  image: registry.ddbuild.io/agent-delivery/dd-pkg@sha256:316a4ad7eba06e7db4c2ddc490d7ee61bd10a95c6c89bbf97c41ceec4b003701
   tags: ["arch:arm64"]
   variables:
     IMG_SIGNING: "false"
@@ -469,7 +469,43 @@ go_e2e_deps:
       if [[ -n "${IMG_DESTINATIONS_REGEX_REPL:-}" ]]; then args+=(--regex-replacement "${IMG_DESTINATIONS_REGEX_REPL}"); fi
       if [[ -n "${IMG_TAG_REFERENCE:-}" ]]; then args+=(--tag-reference "${IMG_TAG_REFERENCE}"); fi
       if [[ -n "${IMG_NEW_TAGS:-}" ]]; then args+=(--new-tags "${IMG_NEW_TAGS}"); fi
+      if [[ -n "${IMG_MERGE_STRATEGY:-}" ]]; then args+=(--merge-strategy "${IMG_MERGE_STRATEGY}"); fi
       dd-pkg "${args[@]}"
+
+# Exercise the shared argument builder without contacting a registry.
+test_publish_image_merge_strategy:
+  stage: test
+  extends: .docker_publish_job_definition
+  needs: []
+  rules:
+    - if: '$DDR == "true"'
+      when: never
+    - changes:
+        paths:
+          - .gitlab-ci.yml
+        compare_to: refs/heads/main
+    - when: never
+  variables:
+    IMG_MERGE_STRATEGY: "index_oci"
+  before_script:
+    - |
+      dd-pkg() {
+        if [[ "${1:-}" == "version" ]]; then
+          return 0
+        fi
+
+        local args=("$@")
+        local i
+        for ((i = 0; i < ${#args[@]} - 1; i++)); do
+          if [[ "${args[$i]}" == "--merge-strategy" && "${args[$((i + 1))]}" == "${IMG_MERGE_STRATEGY}" ]]; then
+            echo "merge strategy argument forwarded successfully"
+            return 0
+          fi
+        done
+
+        echo "missing --merge-strategy ${IMG_MERGE_STRATEGY} argument" >&2
+        return 1
+      }
 
 trigger_e2e_operator_image:
   stage: e2e

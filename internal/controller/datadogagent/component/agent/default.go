@@ -733,13 +733,13 @@ func envVarsForTraceAgent(dda metav1.Object) []corev1.EnvVar {
 	envs := make([]corev1.EnvVar, 0, 3+len(commonEnvs))
 	envs = append(envs,
 		corev1.EnvVar{
-			Name: common.DDAPMInstrumentationInstallId,
+			Name: common.DDAPMInstrumentationInstallID,
 			ValueFrom: &corev1.EnvVarSource{
 				ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
 					LocalObjectReference: corev1.LocalObjectReference{
 						Name: common.APMTelemetryConfigMapName,
 					},
-					Key: common.APMTelemetryInstallIdKey,
+					Key: common.APMTelemetryInstallIDKey,
 				},
 			},
 		},

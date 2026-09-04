@@ -355,9 +355,32 @@ rules:
   - list
   - watch
 - apiGroups:
+  - nvidia.com
+  resources:
+  - dynamocheckpoints
+  - dynamocomponentdeployments
+  - dynamographdeploymentrequests
+  - dynamographdeployments
+  - dynamographdeploymentscalingadapters
+  - dynamomodels
+  - dynamoworkermetadatas
+  verbs:
+  - list
+  - watch
+- apiGroups:
   - policy
   resources:
   - poddisruptionbudgets
+  verbs:
+  - list
+  - watch
+- apiGroups:
+  - ray.io
+  resources:
+  - rayclusters
+  - raycronjobs
+  - rayjobs
+  - rayservices
   verbs:
   - list
   - watch
@@ -368,6 +391,24 @@ rules:
   - clusterroles
   - rolebindings
   - roles
+  verbs:
+  - list
+  - watch
+- apiGroups:
+  - serving.kserve.io
+  resources:
+  - clusterservingruntimes
+  - clusterstoragecontainers
+  - inferencegraphs
+  - inferenceservices
+  - llminferenceserviceconfigs
+  - llminferenceservices
+  - localmodelcaches
+  - localmodelnamespacecaches
+  - localmodelnodegroups
+  - localmodelnodes
+  - servingruntimes
+  - trainedmodels
   verbs:
   - list
   - watch

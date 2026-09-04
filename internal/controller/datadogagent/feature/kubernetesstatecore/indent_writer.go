@@ -10,14 +10,14 @@ import (
 	"io"
 )
 
-// indentWriter wraps an io.Writer and adds indentation to each line
+// indentWriter wraps an io.Writer and adds indentation to each line.
 type indentWriter struct {
 	w          io.Writer
 	indent     []byte
 	needIndent bool
 }
 
-// newIndentWriter creates a new indentWriter with the specified number of spaces for indentation
+// newIndentWriter creates an indentWriter with the specified number of spaces.
 func newIndentWriter(w io.Writer, spaces int) *indentWriter {
 	return &indentWriter{
 		w:          w,
@@ -26,7 +26,7 @@ func newIndentWriter(w io.Writer, spaces int) *indentWriter {
 	}
 }
 
-// Write implements io.Writer interface, adding indentation at the start of each line
+// Write implements io.Writer, adding indentation at the start of each line.
 func (iw *indentWriter) Write(p []byte) (int, error) {
 	if len(p) == 0 {
 		return 0, nil
@@ -34,15 +34,13 @@ func (iw *indentWriter) Write(p []byte) (int, error) {
 
 	for _, b := range p {
 		if iw.needIndent && b != '\n' {
-			_, err := iw.w.Write(iw.indent)
-			if err != nil {
+			if _, err := iw.w.Write(iw.indent); err != nil {
 				return 0, err
 			}
 			iw.needIndent = false
 		}
 
-		_, err := iw.w.Write([]byte{b})
-		if err != nil {
+		if _, err := iw.w.Write([]byte{b}); err != nil {
 			return 0, err
 		}
 
@@ -51,6 +49,5 @@ func (iw *indentWriter) Write(p []byte) (int, error) {
 		}
 	}
 
-	// Return the original byte count to satisfy the io.Writer contract
 	return len(p), nil
 }

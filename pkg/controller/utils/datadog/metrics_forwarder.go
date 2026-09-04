@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"hash/fnv"
+	"maps"
 	"os"
 	"strings"
 	"sync"
@@ -107,8 +108,8 @@ func hashKeys(apiKey string) uint64 {
 type metricsForwarder struct {
 	id                  string
 	monitoredObjectKind string
-	datadogMetricsApi   *datadogV2.MetricsApi // metrics
-	datadogEventsApi    *datadogV1.EventsApi  // events
+	datadogMetricsAPI   *datadogV2.MetricsApi // metrics
+	datadogEventsAPI    *datadogV1.EventsApi  // events
 	k8sClient           client.Client
 
 	platformInfo *kubernetes.PlatformInfo
@@ -438,7 +439,7 @@ func (mf *metricsForwarder) forwardMetrics() error {
 	}
 
 	// send feature metrics
-	for _, featuresList := range mf.EnabledFeatures {
+	for _, featuresList := range mf.snapshotEnabledFeatures() {
 		for _, feature := range featuresList {
 			mf.sendFeatureMetric(ctx, feature)
 		}
@@ -447,6 +448,12 @@ func (mf *metricsForwarder) forwardMetrics() error {
 	mf.sendResourceCountMetric(ctx)
 
 	return nil
+}
+
+func (mf *metricsForwarder) snapshotEnabledFeatures() map[string][]string {
+	mf.RLock()
+	defer mf.RUnlock()
+	return maps.Clone(mf.EnabledFeatures)
 }
 
 // processReconcileError updates lastReconcileErr
@@ -542,9 +549,9 @@ func (mf *metricsForwarder) delegatedValidateCreds(apiKey string) error {
 
 	config := datadogapi.NewConfiguration()
 	apiClient := datadogapi.NewAPIClient(config)
-	authApi := datadogV1.NewAuthenticationApi(apiClient)
+	authAPI := datadogV1.NewAuthenticationApi(apiClient)
 
-	_, _, err := authApi.Validate(ctx)
+	_, _, err := authAPI.Validate(ctx)
 	if err != nil {
 		return fmt.Errorf("cannot validate datadog credentials: %w", err)
 	}
@@ -625,7 +632,7 @@ func (mf *metricsForwarder) tagsWithExtraTag(tagFormat, tag string) []string {
 
 // getDatadogAgentCRVersionTags returns DatadogAgent CRD version tags
 func (mf *metricsForwarder) getCRVersionTags() []string {
-	ddaPreferredVersion, ddaOtherVersion := mf.platformInfo.GetApiVersions(mf.monitoredObjectKind)
+	ddaPreferredVersion, ddaOtherVersion := mf.platformInfo.GetAPIVersions(mf.monitoredObjectKind)
 
 	versionTags := []string{}
 
@@ -687,8 +694,8 @@ func (mf *metricsForwarder) getCredentialsFromDDA(dda *v2alpha1.DatadogAgent) (s
 
 	defaultSecretName := secrets.GetDefaultCredentialsSecretName(dda)
 
+	var apiKey string
 	var err error
-	apiKey := ""
 
 	if dda.Spec.Global != nil && dda.Spec.Global.Credentials != nil && dda.Spec.Global.Credentials.APIKey != nil && *dda.Spec.Global.Credentials.APIKey != "" {
 		apiKey = *dda.Spec.Global.Credentials.APIKey
@@ -708,16 +715,12 @@ func (mf *metricsForwarder) getCredentialsFromDDA(dda *v2alpha1.DatadogAgent) (s
 }
 
 // getCredentialsFromDDAI retrieves the API key configured in the DatadogAgentInternal
-// DatadogAgentInternal are always stored in a secret, so we don't need to resolve secrets
+// credentials are always stored in a secret, so we don't need to resolve secrets.
 func (mf *metricsForwarder) getCredentialsFromDDAI(ddai *v1alpha1.DatadogAgentInternal) (string, error) {
-
-	var err error
-	apiKey := ""
-
 	defaultSecretName := secrets.GetDefaultCredentialsSecretName(ddai)
 
 	_, secretName, secretKeyName := secrets.GetAPIKeySecret(ddai.Spec.Global.Credentials, defaultSecretName)
-	apiKey, err = mf.getKeyFromSecret(ddai.Namespace, secretName, secretKeyName)
+	apiKey, err := mf.getKeyFromSecret(ddai.Namespace, secretName, secretKeyName)
 	if err != nil {
 		return "", err
 	}
@@ -844,7 +847,7 @@ func (mf *metricsForwarder) delegatedSendEvent(eventTitle string, eventType Even
 	}
 
 	ctx := mf.generateDatadogContext()
-	_, _, err := mf.datadogEventsApi.CreateEvent(ctx, eventRequest)
+	_, _, err := mf.datadogEventsAPI.CreateEvent(ctx, eventRequest)
 	return err
 }
 
@@ -911,11 +914,11 @@ func (mf *metricsForwarder) setUpDatadogAPIClient() {
 	// v2 client is used for metrics and events
 	configuration := datadogapi.NewConfiguration()
 	apiClient := datadogapi.NewAPIClient(configuration)
-	mf.datadogMetricsApi = datadogV2.NewMetricsApi(apiClient)
-	mf.datadogEventsApi = datadogV1.NewEventsApi(apiClient) // Initialize events API
+	mf.datadogMetricsAPI = datadogV2.NewMetricsApi(apiClient)
+	mf.datadogEventsAPI = datadogV1.NewEventsApi(apiClient) // Initialize events API
 }
 
-// API key set here. This and Get API from etc. etc.
+// generateDatadogContext configures the API key and endpoint used by API calls.
 func (mf *metricsForwarder) generateDatadogContext() context.Context {
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, datadogapi.ContextAPIKeys,
@@ -953,6 +956,6 @@ func (mf *metricsForwarder) sendMetric(ctx context.Context, metricName string, m
 			},
 		},
 	}
-	_, _, err := mf.datadogMetricsApi.SubmitMetrics(ctx, body, *datadogV2.NewSubmitMetricsOptionalParameters())
+	_, _, err := mf.datadogMetricsAPI.SubmitMetrics(ctx, body, *datadogV2.NewSubmitMetricsOptionalParameters())
 	return err
 }

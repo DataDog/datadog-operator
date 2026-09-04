@@ -70,6 +70,9 @@ type DatadogFeatures struct {
 	APM *APMFeatureConfig `json:"apm,omitempty"`
 	// ASM (Application Security Management) configuration.
 	ASM *ASMFeatureConfig `json:"asm,omitempty"`
+	// Appsec configuration.
+	// +optional
+	Appsec *AppsecFeatureConfig `json:"appsec,omitempty"`
 	// CSPM (Cloud Security Posture Management) configuration.
 	CSPM *CSPMFeatureConfig `json:"cspm,omitempty"`
 	// CWS (Cloud Workload Security) configuration.
@@ -172,6 +175,153 @@ type APMFeatureConfig struct {
 	// Feature is in preview.
 	// +optional
 	ErrorTrackingStandalone *ErrorTrackingStandalone `json:"errorTrackingStandalone,omitempty"`
+}
+
+// AppsecFeatureConfig contains AppSec proxy injector configuration.
+type AppsecFeatureConfig struct {
+	// Configures the AppSec injector.
+	// Setting this block replaces the deprecated `agent.datadoghq.com/appsec.*` annotations
+	// entirely: while it is present no annotation is read, so port the whole configuration
+	// rather than a single field.
+	// +optional
+	Injector *AppsecInjectorConfig `json:"injector,omitempty"`
+}
+
+// AppsecInjectorConfig contains AppSec proxy injector configuration.
+type AppsecInjectorConfig struct {
+	// Enables the AppSec injector.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// Controls automatic proxy detection.
+	// Default: true
+	// +optional
+	AutoDetect *bool `json:"autoDetect,omitempty"`
+
+	// The items:Enum marker below mirrors allowedProxyValues in
+	// internal/controller/datadogagent/feature/appsec/const.go, which is the source of
+	// truth for accepted proxy names. Keep the two lists in sync. This note sits outside
+	// the field doc comment on purpose, so it stays out of the generated CRD description.
+
+	// Lists proxies for AppSec injection.
+	// Default: []
+	// +kubebuilder:validation:items:Enum=envoy-gateway;istio;istio-gateway;ingress-nginx;gke-gateway
+	// +optional
+	Proxies []string `json:"proxies,omitempty"`
+
+	// Selects the AppSec injection mode.
+	// When unset, this uses the agent default sidecar.
+	// +kubebuilder:validation:Enum=sidecar;external
+	// +optional
+	Mode *string `json:"mode,omitempty"`
+
+	// Configures the external processor.
+	// +optional
+	Processor *AppsecInjectorProcessorConfig `json:"processor,omitempty"`
+
+	// Configures the injected sidecar.
+	// +optional
+	Sidecar *AppsecInjectorSidecarConfig `json:"sidecar,omitempty"`
+
+	// Configures nginx injection.
+	// +optional
+	Nginx *AppsecInjectorNginxConfig `json:"nginx,omitempty"`
+
+	// Configures GKE Gateway injection.
+	// +optional
+	GKE *AppsecInjectorGKEConfig `json:"gke,omitempty"`
+}
+
+// AppsecInjectorProcessorConfig contains AppSec external processor configuration.
+type AppsecInjectorProcessorConfig struct {
+	// Sets the processor address.
+	// +optional
+	Address *string `json:"address,omitempty"`
+
+	// Sets the processor port.
+	// Default: 443
+	// +kubebuilder:validation:Minimum=0
+	// +kubebuilder:validation:Maximum=65535
+	// +optional
+	Port *int32 `json:"port,omitempty"`
+
+	// Configures the processor Service.
+	// +optional
+	Service *AppsecInjectorProcessorServiceConfig `json:"service,omitempty"`
+}
+
+// AppsecInjectorProcessorServiceConfig contains AppSec external processor Service configuration.
+type AppsecInjectorProcessorServiceConfig struct {
+	// Sets the processor Service name.
+	// +optional
+	Name *string `json:"name,omitempty"`
+
+	// Sets the processor Service namespace.
+	// This is ignored for gke-gateway because the callout Service is resolved in each Gateway's own namespace; deploy the Service in every AppSec-enabled Gateway namespace.
+	// +optional
+	Namespace *string `json:"namespace,omitempty"`
+}
+
+// AppsecInjectorSidecarConfig contains AppSec injector sidecar configuration.
+type AppsecInjectorSidecarConfig struct {
+	// Sets the sidecar image.
+	// Default: ghcr.io/datadog/dd-trace-go/service-extensions-callout
+	// +optional
+	Image *string `json:"image,omitempty"`
+
+	// Sets the sidecar image tag.
+	// When unset, the tag defaults to a value determined by the cluster-agent image in use.
+	// +optional
+	ImageTag *string `json:"imageTag,omitempty"`
+
+	// Sets the sidecar port.
+	// Default: 8080
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=65535
+	// +optional
+	Port *int32 `json:"port,omitempty"`
+
+	// Sets the sidecar health port.
+	// Default: 8081
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=65535
+	// +optional
+	HealthPort *int32 `json:"healthPort,omitempty"`
+
+	// Sets the sidecar body parsing size limit.
+	// Default: 0
+	// +kubebuilder:validation:Minimum=0
+	// +optional
+	BodyParsingSizeLimit *int64 `json:"bodyParsingSizeLimit,omitempty"`
+
+	// Configures sidecar resources.
+	// Only requests and limits for cpu and memory are honored.
+	// +doc-gen:link=https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+	// +optional
+	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
+}
+
+// AppsecInjectorNginxConfig contains AppSec nginx injector configuration.
+type AppsecInjectorNginxConfig struct {
+	// Sets the nginx module mount path.
+	// Default: /modules_mount
+	// +optional
+	ModuleMountPath *string `json:"moduleMountPath,omitempty"`
+}
+
+// AppsecInjectorGKEConfig contains AppSec GKE Gateway injector configuration.
+type AppsecInjectorGKEConfig struct {
+	// Lists GKE GatewayClasses for AppSec injection.
+	// Configuration is create-only with no drift reconciliation, so deleting a GCPTrafficExtension while its Gateway still exists does not recreate it.
+	// The extension has no ownerReferences; if the cluster-agent is down or not leader when the Gateway is deleted, it can be orphaned.
+	// After disabling AppSec, teardown can take about 5-7 minutes and traffic remains inspected or blocked during that period.
+	// A pre-existing GCPTrafficExtension without the app.kubernetes.io/managed-by: datadog-cluster-agent label is left alone.
+	// A Gateway labeled appsec.datadoghq.com/enabled=false is skipped.
+	// GKE injection requires cluster-agent version 7.82.0 or later.
+	// The `mode: external` setting is required only when `gke-gateway` is explicitly listed in `proxies`; a `gatewayClasses`-only configuration relying on agent-side autoDetect remains valid in any mode.
+	// +optional
+	GatewayClasses []string `json:"gatewayClasses,omitempty"`
 }
 
 // ErrorTrackingStandalone contains the configuration for the Error Tracking standalone feature.
@@ -629,7 +779,7 @@ type SBOMFeatureConfig struct {
 	Enrichment     *SBOMEnrichmentConfig     `json:"enrichment,omitempty"`
 }
 
-// SBOMTypeConfig contains configuration for a SBOM collection type.
+// SBOMHostConfig contains configuration for host SBOM collection.
 type SBOMHostConfig struct {
 	// Enable this option to activate SBOM collection.
 	// Default: false
@@ -642,7 +792,7 @@ type SBOMHostConfig struct {
 	Analyzers []string `json:"analyzers,omitempty"`
 }
 
-// SBOMTypeConfig contains configuration for a SBOM collection type.
+// SBOMContainerImageConfig contains configuration for container image SBOM collection.
 type SBOMContainerImageConfig struct {
 	// Enable this option to activate SBOM collection.
 	// Default: false
@@ -971,6 +1121,43 @@ type KubeStateMetricsCoreFeatureConfig struct {
 	// +optional
 	Conf *CustomConfig `json:"conf,omitempty"`
 
+	// PodCollectionMode controls where the KSM check collects pod metrics.
+	//
+	// When set to "node_kubelet" the operator splits the kubernetes_state_core
+	// check into two: the cluster-side instance keeps every collector except
+	// scheduled pods (only unscheduled pods are kept on that side), and a
+	// dedicated pods-only instance is deployed on every node agent to read pods
+	// locally from its Kubelet via workloadmeta. In the generated agent check
+	// YAML this corresponds to the snake_case check options
+	// `pod_collection_mode: cluster_unassigned` on the cluster side and
+	// `pod_collection_mode: node_kubelet` (with `collectors: [pods]`) on the
+	// node side; this CRD field itself is the camelCase `podCollectionMode`
+	// per Kubernetes API convention.
+	//
+	// Useful in large clusters where a single KSM instance is a bottleneck.
+	// The cluster-aggregate `.total` metrics
+	// (kubernetes_state.{container,initcontainer}.<resource>_{requested,limit}.total)
+	// carry a reduced tag set with no host or node, so they cannot be collected
+	// correctly by every node agent independently without colliding at
+	// ingestion. To avoid this, the operator also enables
+	// `cluster_aggregates_enabled` on the cluster-side and node-side instances,
+	// which silences those aggregate metrics on both, and schedules a
+	// dedicated `cluster_aggregates_only` instance on the cluster-side
+	// component to collect them instead.
+	// Requires Agent / Cluster Agent 7.82+.
+	//
+	// When `features.kubeStateMetricsCore.conf` is also set, the operator
+	// deploys the node-side check but does NOT modify the user-supplied
+	// cluster-side config. To avoid double pod collection in that case, the
+	// user's cluster-side instance must either omit `pods` from its
+	// `collectors` list OR set the `pod_collection_mode: cluster_unassigned`
+	// check option themselves. Omitting `collectors` entirely falls back to
+	// upstream KSM defaults, which include `pods`.
+	//
+	// Default behavior is unchanged when this field is unset.
+	// +optional
+	PodCollectionMode *KSMPodCollectionMode `json:"podCollectionMode,omitempty"`
+
 	// `CollectCrMetrics` defines custom resources for the kube-state-metrics core check to collect.
 	//
 	// The datadog agent uses the same logic as upstream `kube-state-metrics`. So is its configuration.
@@ -981,6 +1168,21 @@ type KubeStateMetricsCoreFeatureConfig struct {
 	// +listType=atomic
 	CollectCrMetrics []Resource `json:"collectCrMetrics,omitempty"`
 }
+
+// KSMPodCollectionMode controls where the kubernetes_state_core check collects pod metrics.
+// +kubebuilder:validation:Enum=default;node_kubelet
+type KSMPodCollectionMode string
+
+const (
+	// KSMPodCollectionModeDefault collects pod metrics centrally from the Kubernetes
+	// API server (today's behavior, equivalent to omitting the field).
+	KSMPodCollectionModeDefault KSMPodCollectionMode = "default"
+
+	// KSMPodCollectionModeNodeKubelet shifts pod metric collection to every node
+	// agent (reading pods locally from its Kubelet) while the cluster-side instance
+	// switches to `pod_collection_mode: cluster_unassigned`.
+	KSMPodCollectionModeNodeKubelet KSMPodCollectionMode = "node_kubelet"
+)
 
 // Resource configures a custom resource for metric generation.
 type Resource struct {
@@ -1053,7 +1255,7 @@ type Metric struct {
 	Info *MetricInfo `json:"info,omitempty" yaml:"info,omitempty"`
 }
 
-// Type represents the type of the metric. See https://github.com/OpenObservability/OpenMetrics/blob/main/specification/OpenMetrics.md#metric-types.
+// MetricType represents the type of the metric. See https://github.com/OpenObservability/OpenMetrics/blob/main/specification/OpenMetrics.md#metric-types.
 type MetricType string
 
 // Supported metric types.
@@ -1077,7 +1279,7 @@ type MetricMeta struct {
 	// LabelsFromPath adds additional labels where the value of the label is taken from a field under Path.
 	// +optional
 	LabelsFromPath map[string][]string `json:"labelsFromPath,omitempty" yaml:"labelsFromPath,omitempty"`
-	// Path is the path to to generate metric(s) for.
+	// Path is the path to generate metric(s) for.
 	Path []string `json:"path" yaml:"path"`
 }
 
@@ -1322,7 +1524,7 @@ type AgentSidecarInjectionConfig struct {
 	ClusterAgentTLSVerification *AdmissionControllerClusterAgentTLSVerificationConfig `json:"clusterAgentTlsVerification,omitempty"`
 }
 
-// Selectors define a pod selector for sidecar injection.
+// Selector defines a pod selector for sidecar injection.
 type Selector struct {
 	// NamespaceSelector specifies the label selector for namespaces.
 	// +optional

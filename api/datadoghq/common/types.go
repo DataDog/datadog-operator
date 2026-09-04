@@ -9,7 +9,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
-// The deployment strategy to use to replace existing pods with new ones.
+// UpdateStrategy defines the deployment strategy used to replace existing pods with new ones.
 // +k8s:openapi-gen=true
 // +kubebuilder:object:generate=true
 type UpdateStrategy struct {

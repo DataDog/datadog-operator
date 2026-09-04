@@ -558,7 +558,7 @@ spec:
                                 selectors:
                                   description: Selectors define the pod selector for sidecar injection. Only one rule is supported.
                                   items:
-                                    description: Selectors define a pod selector for sidecar injection.
+                                    description: Selector defines a pod selector for sidecar injection.
                                     properties:
                                       namespaceSelector:
                                         description: NamespaceSelector specifies the label selector for namespaces.
@@ -1124,6 +1124,200 @@ spec:
                                 path:
                                   description: Path defines the socket path used when enabled.
                                   type: string
+                              type: object
+                          type: object
+                        appsec:
+                          description: Appsec configuration.
+                          properties:
+                            injector:
+                              description: |-
+                                Configures the AppSec injector.
+                                Setting this block replaces the deprecated `agent.datadoghq.com/appsec.*` annotations
+                                entirely: while it is present no annotation is read, so port the whole configuration
+                                rather than a single field.
+                              properties:
+                                autoDetect:
+                                  description: |-
+                                    Controls automatic proxy detection.
+                                    Default: true
+                                  type: boolean
+                                enabled:
+                                  description: |-
+                                    Enables the AppSec injector.
+                                    Default: false
+                                  type: boolean
+                                gke:
+                                  description: Configures GKE Gateway injection.
+                                  properties:
+                                    gatewayClasses:
+                                      description: |-
+                                        Lists GKE GatewayClasses for AppSec injection.
+                                        Configuration is create-only with no drift reconciliation, so deleting a GCPTrafficExtension while its Gateway still exists does not recreate it.
+                                        The extension has no ownerReferences; if the cluster-agent is down or not leader when the Gateway is deleted, it can be orphaned.
+                                        After disabling AppSec, teardown can take about 5-7 minutes and traffic remains inspected or blocked during that period.
+                                        A pre-existing GCPTrafficExtension without the app.kubernetes.io/managed-by: datadog-cluster-agent label is left alone.
+                                        A Gateway labeled appsec.datadoghq.com/enabled=false is skipped.
+                                        GKE injection requires cluster-agent version 7.82.0 or later.
+                                        The `mode: external` setting is required only when `gke-gateway` is explicitly listed in `proxies`; a `gatewayClasses`-only configuration relying on agent-side autoDetect remains valid in any mode.
+                                      items:
+                                        type: string
+                                      type: array
+                                  type: object
+                                mode:
+                                  description: |-
+                                    Selects the AppSec injection mode.
+                                    When unset, this uses the agent default sidecar.
+                                  enum:
+                                    - sidecar
+                                    - external
+                                  type: string
+                                nginx:
+                                  description: Configures nginx injection.
+                                  properties:
+                                    moduleMountPath:
+                                      description: |-
+                                        Sets the nginx module mount path.
+                                        Default: /modules_mount
+                                      type: string
+                                  type: object
+                                processor:
+                                  description: Configures the external processor.
+                                  properties:
+                                    address:
+                                      description: Sets the processor address.
+                                      type: string
+                                    port:
+                                      description: |-
+                                        Sets the processor port.
+                                        Default: 443
+                                      format: int32
+                                      maximum: 65535
+                                      minimum: 0
+                                      type: integer
+                                    service:
+                                      description: Configures the processor Service.
+                                      properties:
+                                        name:
+                                          description: Sets the processor Service name.
+                                          type: string
+                                        namespace:
+                                          description: |-
+                                            Sets the processor Service namespace.
+                                            This is ignored for gke-gateway because the callout Service is resolved in each Gateway's own namespace; deploy the Service in every AppSec-enabled Gateway namespace.
+                                          type: string
+                                      type: object
+                                  type: object
+                                proxies:
+                                  description: |-
+                                    Lists proxies for AppSec injection.
+                                    Default: []
+                                  items:
+                                    enum:
+                                      - envoy-gateway
+                                      - istio
+                                      - istio-gateway
+                                      - ingress-nginx
+                                      - gke-gateway
+                                    type: string
+                                  type: array
+                                sidecar:
+                                  description: Configures the injected sidecar.
+                                  properties:
+                                    bodyParsingSizeLimit:
+                                      description: |-
+                                        Sets the sidecar body parsing size limit.
+                                        Default: 0
+                                      format: int64
+                                      minimum: 0
+                                      type: integer
+                                    healthPort:
+                                      description: |-
+                                        Sets the sidecar health port.
+                                        Default: 8081
+                                      format: int32
+                                      maximum: 65535
+                                      minimum: 1
+                                      type: integer
+                                    image:
+                                      description: |-
+                                        Sets the sidecar image.
+                                        Default: ghcr.io/datadog/dd-trace-go/service-extensions-callout
+                                      type: string
+                                    imageTag:
+                                      description: |-
+                                        Sets the sidecar image tag.
+                                        When unset, the tag defaults to a value determined by the cluster-agent image in use.
+                                      type: string
+                                    port:
+                                      description: |-
+                                        Sets the sidecar port.
+                                        Default: 8080
+                                      format: int32
+                                      maximum: 65535
+                                      minimum: 1
+                                      type: integer
+                                    resources:
+                                      description: |-
+                                        Configures sidecar resources.
+                                        Only requests and limits for cpu and memory are honored.
+                                      properties:
+                                        claims:
+                                          description: |-
+                                            Claims lists the names of resources, defined in spec.resourceClaims,
+                                            that are used by this container.
+
+                                            This field depends on the
+                                            DynamicResourceAllocation feature gate.
+
+                                            This field is immutable. It can only be set for containers.
+                                          items:
+                                            description: ResourceClaim references one entry in PodSpec.ResourceClaims.
+                                            properties:
+                                              name:
+                                                description: |-
+                                                  Name must match the name of one entry in pod.spec.resourceClaims of
+                                                  the Pod where this field is used. It makes that resource available
+                                                  inside a container.
+                                                type: string
+                                              request:
+                                                description: |-
+                                                  Request is the name chosen for a request in the referenced claim.
+                                                  If empty, everything from the claim is made available, otherwise
+                                                  only the result of this request.
+                                                type: string
+                                            required:
+                                              - name
+                                            type: object
+                                          type: array
+                                          x-kubernetes-list-map-keys:
+                                            - name
+                                          x-kubernetes-list-type: map
+                                        limits:
+                                          additionalProperties:
+                                            anyOf:
+                                              - type: integer
+                                              - type: string
+                                            pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                            x-kubernetes-int-or-string: true
+                                          description: |-
+                                            Limits describes the maximum amount of compute resources allowed.
+                                            More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+                                          type: object
+                                        requests:
+                                          additionalProperties:
+                                            anyOf:
+                                              - type: integer
+                                              - type: string
+                                            pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                            x-kubernetes-int-or-string: true
+                                          description: |-
+                                            Requests describes the minimum amount of compute resources required.
+                                            If Requests is omitted for a container, it defaults to Limits if that is explicitly specified,
+                                            otherwise to an implementation-defined value. Requests cannot exceed Limits.
+                                            More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+                                          type: object
+                                      type: object
+                                  type: object
                               type: object
                           type: object
                         asm:
@@ -1804,7 +1998,7 @@ spec:
                                                   description: NilIsZero indicates that if a value is nil it will be treated as zero value.
                                                   type: boolean
                                                 path:
-                                                  description: Path is the path to to generate metric(s) for.
+                                                  description: Path is the path to generate metric(s) for.
                                                   items:
                                                     type: string
                                                   type: array
@@ -1830,7 +2024,7 @@ spec:
                                                   description: LabelsFromPath adds additional labels where the value of the label is taken from a field under Path.
                                                   type: object
                                                 path:
-                                                  description: Path is the path to to generate metric(s) for.
+                                                  description: Path is the path to generate metric(s) for.
                                                   items:
                                                     type: string
                                                   type: array
@@ -1856,7 +2050,7 @@ spec:
                                                     type: string
                                                   type: array
                                                 path:
-                                                  description: Path is the path to to generate metric(s) for.
+                                                  description: Path is the path to generate metric(s) for.
                                                   items:
                                                     type: string
                                                   type: array
@@ -1947,6 +2141,46 @@ spec:
                                 Enabled enables Kube State Metrics Core.
                                 Default: true
                               type: boolean
+                            podCollectionMode:
+                              description: |-
+                                PodCollectionMode controls where the KSM check collects pod metrics.
+
+                                When set to "node_kubelet" the operator splits the kubernetes_state_core
+                                check into two: the cluster-side instance keeps every collector except
+                                scheduled pods (only unscheduled pods are kept on that side), and a
+                                dedicated pods-only instance is deployed on every node agent to read pods
+                                locally from its Kubelet via workloadmeta. In the generated agent check
+                                YAML this corresponds to the snake_case check options
+                                `pod_collection_mode: cluster_unassigned` on the cluster side and
+                                `pod_collection_mode: node_kubelet` (with `collectors: [pods]`) on the
+                                node side; this CRD field itself is the camelCase `podCollectionMode`
+                                per Kubernetes API convention.
+
+                                Useful in large clusters where a single KSM instance is a bottleneck.
+                                The cluster-aggregate `.total` metrics
+                                (kubernetes_state.{container,initcontainer}.<resource>_{requested,limit}.total)
+                                carry a reduced tag set with no host or node, so they cannot be collected
+                                correctly by every node agent independently without colliding at
+                                ingestion. To avoid this, the operator also enables
+                                `cluster_aggregates_enabled` on the cluster-side and node-side instances,
+                                which silences those aggregate metrics on both, and schedules a
+                                dedicated `cluster_aggregates_only` instance on the cluster-side
+                                component to collect them instead.
+                                Requires Agent / Cluster Agent 7.82+.
+
+                                When `features.kubeStateMetricsCore.conf` is also set, the operator
+                                deploys the node-side check but does NOT modify the user-supplied
+                                cluster-side config. To avoid double pod collection in that case, the
+                                user's cluster-side instance must either omit `pods` from its
+                                `collectors` list OR set the `pod_collection_mode: cluster_unassigned`
+                                check option themselves. Omitting `collectors` entirely falls back to
+                                upstream KSM defaults, which include `pods`.
+
+                                Default behavior is unchanged when this field is unset.
+                              enum:
+                                - default
+                                - node_kubelet
+                              type: string
                           type: object
                         kubernetesActions:
                           description: KubernetesActions configuration.
@@ -2492,7 +2726,7 @@ spec:
                           description: SBOM collection configuration.
                           properties:
                             containerImage:
-                              description: SBOMTypeConfig contains configuration for a SBOM collection type.
+                              description: SBOMContainerImageConfig contains configuration for container image SBOM collection.
                               properties:
                                 analyzers:
                                   description: Analyzers to use for SBOM collection.
@@ -2536,7 +2770,7 @@ spec:
                                   type: object
                               type: object
                             host:
-                              description: SBOMTypeConfig contains configuration for a SBOM collection type.
+                              description: SBOMHostConfig contains configuration for host SBOM collection.
                               properties:
                                 analyzers:
                                   description: Analyzers to use for SBOM collection.

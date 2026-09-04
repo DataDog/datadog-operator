@@ -192,7 +192,7 @@ func UpdateDeploymentStatus(dep *appsv1.Deployment, depStatus *v2alpha1.Deployme
 
 	depStatus.State = fmt.Sprintf("%v", deploymentState)
 	depStatus.Status = fmt.Sprintf("%v (%d/%d/%d)", deploymentState, depStatus.Replicas, depStatus.ReadyReplicas, depStatus.UpdatedReplicas)
-	depStatus.DeploymentName = dep.ObjectMeta.Name
+	depStatus.DeploymentName = dep.Name
 	return depStatus
 }
 
@@ -212,7 +212,7 @@ func UpdateDaemonSetStatusDDAI(dsName string, ds *appsv1.DaemonSet, dsStatus *v2
 		dsStatus.Ready = ds.Status.NumberReady
 		dsStatus.Available = ds.Status.NumberAvailable
 		dsStatus.UpToDate = ds.Status.UpdatedNumberScheduled
-		dsStatus.DaemonsetName = ds.ObjectMeta.Name
+		dsStatus.DaemonsetName = ds.Name
 		if updateTime != nil {
 			dsStatus.LastUpdate = updateTime
 		}
