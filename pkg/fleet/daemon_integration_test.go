@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -24,12 +25,17 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/tools/record"
 	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 
 	v1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	v2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent"
+	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	"github.com/DataDog/datadog-operator/pkg/testutils"
 )
 
 // reconcilerScheme mirrors the production scheme built in cmd/main.go: the
@@ -175,4 +181,110 @@ func TestExperimentCheckpoint_SchemaRejectsHalfCheckpoint(t *testing.T) {
 	assert.True(t, apierrors.IsInvalid(err), "expected a schema validation error, got: %v", err)
 	assert.Contains(t, err.Error(), "expectedSpecHash",
 		"the rejection must name the missing checkpoint half, proving the ExperimentCheckpoint markers rejected it")
+}
+
+// noopMetricsForwardersManager satisfies datadog.MetricsForwardersManager
+// without wiring a real forwarder — the reconciler under test never inspects
+// forwarder state, it just needs a non-nil implementation.
+type noopMetricsForwardersManager struct{}
+
+func (noopMetricsForwardersManager) Register(client.Object)                    {}
+func (noopMetricsForwardersManager) Unregister(client.Object)                  {}
+func (noopMetricsForwardersManager) ProcessError(client.Object, error)         {}
+func (noopMetricsForwardersManager) ProcessEvent(client.Object, datadog.Event) {}
+func (noopMetricsForwardersManager) MetricsForwarderStatusForObj(client.Object) *datadog.ConditionCommon {
+	return nil
+}
+func (noopMetricsForwardersManager) SetEnabledFeatures(client.Object, []string) {}
+
+// TestPlanStartApplyOperation_ProducesReconcilerReadableCheckpoint drives the
+// real Fleet daemon (planStart via startDatadogAgentExperiment/applyOperation)
+// and the real DatadogAgent Reconciler together against one envtest apiserver,
+// to prove the two halves of the system agree on the annotation/status
+// contract instead of each being tested in isolation against hand-rolled
+// inputs.
+func TestPlanStartApplyOperation_ProducesReconcilerReadableCheckpoint(t *testing.T) {
+	dda := testutils.NewDatadogAgent(testDDANSN.Namespace, "seam-contract", nil)
+	require.NoError(t, integrationClient.Create(context.Background(), dda))
+	t.Cleanup(func() { _ = integrationClient.Delete(context.Background(), dda) })
+
+	nsn := types.NamespacedName{Namespace: dda.Namespace, Name: dda.Name}
+
+	// The full DDA reconcile path touches many built-in kinds (NetworkPolicy,
+	// PodDisruptionBudget, RBAC, ...) that testFleetScheme() (deliberately
+	// minimal — Fleet only ever touches DatadogAgent) does not register. Use
+	// the same scheme the reconciler's own integration tests use, against the
+	// same envtest apiserver, for the reconciler side of this test.
+	reconcilerClient, err := client.New(integrationTestEnv.Config, client.Options{Scheme: reconcilerScheme()})
+	require.NoError(t, err)
+
+	r, err := datadogagent.NewReconciler(
+		datadogagent.ReconcilerOptions{CreateControllerRevisions: true, APIReader: reconcilerClient},
+		reconcilerClient,
+		kubernetes.PlatformInfo{},
+		reconcilerScheme(),
+		logr.Discard(),
+		record.NewFakeRecorder(100),
+		noopMetricsForwardersManager{},
+	)
+	require.NoError(t, err)
+
+	// First reconcile: the controller publishes the real current-revision
+	// baseline (no stampFreshBaseline shortcut — this is the actual barrier
+	// planStart's checkBaselineFreshness will read).
+	live := &v2alpha1.DatadogAgent{}
+	require.NoError(t, reconcilerClient.Get(context.Background(), nsn, live))
+	_, err = r.Reconcile(context.Background(), live)
+	require.NoError(t, err)
+
+	require.NoError(t, integrationClient.Get(context.Background(), nsn, live))
+	require.NotEmpty(t, live.Status.CurrentRevision, "reconciler must publish a baseline before an experiment can start")
+	baselineRevision := live.Status.CurrentRevision
+
+	// Drive the real daemon start path against that baseline.
+	d := &Daemon{
+		client:           integrationClient,
+		apiReader:        integrationClient,
+		revisionsEnabled: true,
+		configs:          testInstallerConfigWithDDA(),
+		statusUpdates:    make(chan ddaStatusSnapshot, 32),
+	}
+	req := testStartRequest()
+	req.Params.NamespacedName = nsn
+
+	pending, err := d.startDatadogAgentExperiment(context.Background(), req)
+	require.NoError(t, err)
+	require.NotNil(t, pending)
+
+	afterFleet := &v2alpha1.DatadogAgent{}
+	require.NoError(t, integrationClient.Get(context.Background(), nsn, afterFleet))
+	assert.Equal(t, v2alpha1.ExperimentSignalStart, afterFleet.Annotations[v2alpha1.AnnotationExperimentSignal])
+	assert.Equal(t, testExperimentID, afterFleet.Annotations[v2alpha1.AnnotationExperimentID])
+	assert.Equal(t, baselineRevision, afterFleet.Annotations[v2alpha1.AnnotationExperimentRollbackTargetRevision],
+		"the rollback-target Fleet wrote must be the baseline the reconciler just published")
+	pinnedHash := afterFleet.Annotations[v2alpha1.AnnotationExperimentExpectedSpecHash]
+	mergedHash, err := v2alpha1.ComputeSpecHash(afterFleet.Spec, afterFleet.GetAnnotations())
+	require.NoError(t, err)
+	assert.Equal(t, mergedHash, pinnedHash,
+		"Fleet must pin the hash of the merged experiment spec it wrote, in the same patch")
+	assert.Equal(t, pending.taskID, afterFleet.Annotations[v2alpha1.AnnotationPendingTaskID])
+	assert.Equal(t, string(pendingIntentStart), afterFleet.Annotations[v2alpha1.AnnotationPendingAction])
+	assert.Equal(t, testExperimentID, afterFleet.Annotations[v2alpha1.AnnotationPendingExperimentID])
+	assert.Equal(t, req.Package, afterFleet.Annotations[v2alpha1.AnnotationPendingPackage])
+
+	// Second reconcile: the controller processes the start signal Fleet wrote.
+	_, err = r.Reconcile(context.Background(), afterFleet)
+	require.NoError(t, err)
+
+	afterReconcile := &v2alpha1.DatadogAgent{}
+	require.NoError(t, integrationClient.Get(context.Background(), nsn, afterReconcile))
+	require.NotNil(t, afterReconcile.Status.Experiment)
+	assert.Equal(t, v2alpha1.ExperimentPhaseRunning, afterReconcile.Status.Experiment.Phase)
+	assert.Equal(t, testExperimentID, afterReconcile.Status.Experiment.ID)
+	assert.Equal(t, pending.taskID, afterReconcile.Status.Experiment.StartTaskID)
+	require.NotNil(t, afterReconcile.Status.Experiment.Checkpoint)
+	assert.Equal(t, baselineRevision, afterReconcile.Status.Experiment.Checkpoint.RollbackTargetRevision,
+		"the reconciler's checkpoint must agree with the baseline Fleet wrote")
+	assert.Equal(t, pinnedHash, afterReconcile.Status.Experiment.Checkpoint.ExpectedSpecHash,
+		"the reconciler must copy the hash Fleet pinned, not recompute one of its own")
 }

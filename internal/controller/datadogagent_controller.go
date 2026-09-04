@@ -335,6 +335,8 @@ func (r *DatadogAgentReconciler) SetupWithManager(mgr ctrl.Manager, metricForwar
 		return err
 	}
 
+	r.Options.APIReader = mgr.GetAPIReader()
+
 	internal, err := datadogagent.NewReconciler(r.Options, r.Client, r.PlatformInfo, r.Scheme, r.Log, r.Recorder, metricForwardersMgr)
 	if err != nil {
 		return err

@@ -15,24 +15,19 @@ import (
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	v2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	"github.com/DataDog/datadog-operator/pkg/condition"
 )
 
 // ExperimentDefaultTimeout is the duration after which a running experiment is automatically rolled back.
 const ExperimentDefaultTimeout = 15 * time.Minute
-
-// Termination reasons for ExperimentPhaseTerminated.
-const (
-	// ExperimentTerminationReasonStopped indicates the experiment was explicitly rolled back via a rollback signal.
-	ExperimentTerminationReasonStopped v2alpha1.ExperimentTerminationReason = "stopped"
-	// ExperimentTerminationReasonTimedOut indicates the experiment exceeded the timeout and was auto-rolled back.
-	ExperimentTerminationReasonTimedOut v2alpha1.ExperimentTerminationReason = "timed_out"
-)
 
 // annotationExperimentState records the terminal outcome of an experiment
 // on a ControllerRevision. The value is one of experimentRevisionState.
@@ -62,6 +57,71 @@ func isTerminalPhase(phase v2alpha1.ExperimentPhase) bool {
 	}
 }
 
+// startSignalMatchesRecordedStatus reports whether a start signal's two pins
+// are the ones already reflected in exp, which is what makes a same-ID signal
+// against a terminal experiment a harmless leftover rather than a new write.
+//
+// On a successful start the pins are copied into the checkpoint verbatim, so
+// comparing them there is exact. A terminal experiment with no checkpoint got
+// there through a start-validation abort — the recorded verdict on these same
+// pins — and re-judging them would only reach the same conclusion.
+func startSignalMatchesRecordedStatus(
+	exp *v2alpha1.ExperimentStatus,
+	rollbackTargetRevision string,
+	expectedSpecHash string,
+) bool {
+	if exp == nil {
+		return false
+	}
+	if exp.Checkpoint != nil {
+		return exp.Checkpoint.RollbackTargetRevision == rollbackTargetRevision &&
+			exp.Checkpoint.ExpectedSpecHash == expectedSpecHash
+	}
+	if exp.Phase != v2alpha1.ExperimentPhaseAborted {
+		return false
+	}
+	switch exp.TerminationReason {
+	case v2alpha1.ExperimentTerminationReasonBaselineMissing,
+		v2alpha1.ExperimentTerminationReasonBaselineNotFound,
+		v2alpha1.ExperimentTerminationReasonManualSpecChange:
+		return true
+	default:
+		return false
+	}
+}
+
+// syncExperimentConfigStrandedCondition derives the ExperimentConfigStranded
+// condition from status.Experiment every reconcile. It is True only when the
+// experiment was aborted because its rollback baseline is unrecoverable
+// (baseline_missing: never had a checkpoint; baseline_not_found: the
+// checkpointed ControllerRevision is gone) — cases where the cluster is left
+// running a config the user never approved and cannot be automatically
+// restored. A manual-spec-change abort is not stranding: the user's own edit
+// is standing, so there's nothing to report here.
+//
+// Follows the write-True-only convention: status.Conditions is rebuilt from
+// scratch each reconcile (see generateNewStatusFromDDA), so there is no
+// existing entry to flip back to False — omitting the call when the
+// predicate is false is equivalent to a False write that's never appended.
+func syncExperimentConfigStrandedCondition(newStatus *v2alpha1.DatadogAgentStatus, now metav1.Time) {
+	exp := newStatus.Experiment
+	if exp == nil || exp.Phase != v2alpha1.ExperimentPhaseAborted {
+		return
+	}
+	switch exp.TerminationReason {
+	case v2alpha1.ExperimentTerminationReasonBaselineMissing:
+		condition.UpdateDatadogAgentStatusConditions(newStatus, now, common.ExperimentConfigStrandedConditionType,
+			metav1.ConditionTrue, string(exp.TerminationReason),
+			fmt.Sprintf("Experiment %q aborted with no recoverable rollback baseline; the running config was never approved and cannot be automatically restored", exp.ID),
+			false)
+	case v2alpha1.ExperimentTerminationReasonBaselineNotFound:
+		condition.UpdateDatadogAgentStatusConditions(newStatus, now, common.ExperimentConfigStrandedConditionType,
+			metav1.ConditionTrue, string(exp.TerminationReason),
+			fmt.Sprintf("Experiment %q aborted because its rollback baseline could not be found; the running config was never approved and cannot be automatically restored", exp.ID),
+			false)
+	}
+}
+
 // manageExperiment handles all experiment state transitions for a reconcile cycle.
 // Must be called before manageRevision.
 func (r *Reconciler) manageExperiment(
@@ -72,11 +132,17 @@ func (r *Reconciler) manageExperiment(
 	revList []appsv1.ControllerRevision,
 ) error {
 	// Snapshot the experiment status before processing to detect mutations.
+	// The reason is part of the snapshot because a transition can keep the
+	// phase and ID and change only the reason — aborting an already-aborted
+	// experiment for a new cause — and that still has to count as a mutation
+	// below, or the status write races the annotation clear.
 	var oldPhase v2alpha1.ExperimentPhase
 	var oldID string
+	var oldReason v2alpha1.ExperimentTerminationReason
 	if newStatus.Experiment != nil {
 		oldPhase = newStatus.Experiment.Phase
 		oldID = newStatus.Experiment.ID
+		oldReason = newStatus.Experiment.TerminationReason
 	}
 
 	// Process annotation-based signals first — they take priority over
@@ -127,11 +193,13 @@ func (r *Reconciler) manageExperiment(
 	if pendingClearID != "" {
 		newPhase := v2alpha1.ExperimentPhase("")
 		newID := ""
+		newReason := v2alpha1.ExperimentTerminationReason("")
 		if newStatus.Experiment != nil {
 			newPhase = newStatus.Experiment.Phase
 			newID = newStatus.Experiment.ID
+			newReason = newStatus.Experiment.TerminationReason
 		}
-		if newPhase == oldPhase && newID == oldID {
+		if newPhase == oldPhase && newID == oldID && newReason == oldReason {
 			logger := ctrl.LoggerFrom(ctx)
 			if clearErr := r.clearExperimentAnnotations(ctx, instance, pendingClearID); clearErr != nil {
 				logger.Error(clearErr, "Failed to clear experiment annotations, will retry on next reconcile")
@@ -184,7 +252,9 @@ func (r *Reconciler) processExperimentSignal(
 		// pending annotations being available later (the worker clears them when
 		// the start task completes).
 		pendingTaskID := annotations[v2alpha1.AnnotationPendingTaskID]
-		acted, err = r.processStartSignal(ctx, annotationID, currentPhase, currentID, newStatus, now, pendingTaskID)
+		rollbackTargetRevision := annotations[v2alpha1.AnnotationExperimentRollbackTargetRevision]
+		expectedSpecHash := annotations[v2alpha1.AnnotationExperimentExpectedSpecHash]
+		acted, err = r.processStartSignal(ctx, instance, annotationID, currentPhase, currentID, newStatus, now, pendingTaskID, rollbackTargetRevision, expectedSpecHash)
 
 	case v2alpha1.ExperimentSignalRollback:
 		acted, err = r.processRollbackSignal(ctx, instance, annotationID, currentPhase, newStatus, revisions)
@@ -220,19 +290,72 @@ func (r *Reconciler) processExperimentSignal(
 // TaskState_ERROR for the original task on local timeout. Persisting
 // it on Status keeps the value durable across daemon restarts (the
 // pending annotations get cleared once the start task completes).
+//
+// rollbackTargetRevision comes from the daemon's rollback-target-revision
+// annotation (planStart writes it from the pre-experiment status.currentRevision
+// barrier). If it's missing, there is no safe baseline to roll back to, so the
+// experiment is immediately aborted with baseline_missing instead of starting —
+// running an experiment nobody can roll back is worse than refusing to start it.
+// If it's present but no longer resolves to an owned ControllerRevision, the
+// abort reason is baseline_not_found: the difference matters because a name
+// that resolved once and no longer does means Fleet's spec may be live with no
+// way back, which is what ExperimentConfigStranded reports.
+//
+// instance must carry the raw (non-defaulted) spec — see rawInstance at the
+// manageExperiment call site — so the recorded ExpectedSpecHash matches the
+// same snapshot stored in ControllerRevisions.
 func (r *Reconciler) processStartSignal(
 	ctx context.Context,
+	instance *v2alpha1.DatadogAgent,
 	annotationID string,
 	currentPhase v2alpha1.ExperimentPhase,
 	currentID string,
 	newStatus *v2alpha1.DatadogAgentStatus,
 	now metav1.Time,
 	pendingTaskID string,
+	rollbackTargetRevision string,
+	expectedSpecHashAnnotation string,
 ) (bool, error) {
 	logger := ctrl.LoggerFrom(ctx)
-	// Already processed: same ID already in status.
+
+	startedAt := now
+	abort := func(reason v2alpha1.ExperimentTerminationReason) {
+		newStatus.Experiment = &v2alpha1.ExperimentStatus{
+			Phase:             v2alpha1.ExperimentPhaseAborted,
+			ID:                annotationID,
+			StartedAt:         &startedAt,
+			StartTaskID:       pendingTaskID,
+			TerminationReason: reason,
+		}
+	}
+
+	// A same-ID start signal is usually the very signal that produced the
+	// current status, still sitting on the object because clearing is deferred
+	// to a pass that does not mutate status (see manageExperiment). But it can
+	// also be a *new* start signal written against an experiment that already
+	// finished. Fleet's planStart refuses to make that write, so only a dropped
+	// guard or a hand-edited DDA produces it — and whatever wrote the signal
+	// wrote the experiment spec with it, leaving unapproved config live under a
+	// terminal status. Clearing that quietly would destroy the only evidence.
+	//
+	// The two cases are told apart by the pins, not the phase: the reconciler
+	// copies a start signal's pins into the checkpoint verbatim, so pins that
+	// still agree with the recorded status are the ones it already acted on.
 	if annotationID == currentID {
-		return true, nil // idempotent — clear annotations
+		if !isTerminalPhase(currentPhase) {
+			// Running, or the transitional empty phase. Already processed.
+			return true, nil // idempotent — clear annotations
+		}
+		if startSignalMatchesRecordedStatus(instance.Status.Experiment, rollbackTargetRevision, expectedSpecHashAnnotation) {
+			return true, nil // leftover from the start already processed
+		}
+		// Abort, which is what raises ExperimentConfigStranded: the operator
+		// needs to see that the live spec was never approved and that no
+		// baseline is recorded for getting back off it.
+		logger.Info("Aborting experiment start: start signal was re-written for an experiment that already completed",
+			"experimentID", annotationID, "terminalPhase", currentPhase)
+		abort(v2alpha1.ExperimentTerminationReasonBaselineMissing)
+		return true, nil
 	}
 
 	// Refuse to start a new experiment over a running one.
@@ -241,13 +364,67 @@ func (r *Reconciler) processStartSignal(
 		return true, nil // clear annotations — can't act on this
 	}
 
+	// Both pins are written atomically with the start signal, so either one
+	// missing means the write was malformed or landed partially: there is no
+	// trustworthy baseline to record.
+	if rollbackTargetRevision == "" || expectedSpecHashAnnotation == "" {
+		logger.Info("Aborting experiment start: start signal is missing a pinned baseline",
+			"hasRollbackTarget", rollbackTargetRevision != "",
+			"hasExpectedSpecHash", expectedSpecHashAnnotation != "")
+		abort(v2alpha1.ExperimentTerminationReasonBaselineMissing)
+		return true, nil
+	}
+
+	liveSpecHash, err := v2alpha1.ComputeSpecHash(instance.Spec, instance.GetAnnotations())
+	if err != nil {
+		return false, fmt.Errorf("failed to compute live spec hash: %w", err)
+	}
+	if liveSpecHash != expectedSpecHashAnnotation {
+		// Something wrote the spec between Fleet's atomic start write and this
+		// read. Recording the live hash here would enshrine that write as the
+		// approved experiment state, so abort instead. The user's config is
+		// what is live and it stands: this is not a stranded baseline.
+		logger.Info("Aborting experiment start: live spec does not match the hash Fleet pinned with the start signal")
+		abort(v2alpha1.ExperimentTerminationReasonManualSpecChange)
+		return true, nil
+	}
+
+	// Fleet pins the rollback target from status.currentRevision, which is
+	// owned by construction -- but the annotation is still a mutable name until
+	// it lands in status, and a concurrent GC or delete can invalidate it in the
+	// window before this read. Recording Running with an unverified target would
+	// let Fleet mark the start task DONE and defer the failure to the next
+	// rollback or timeout, by which point the config is stranded and RC already
+	// reported success.
+	rollbackTarget, err := r.getOwnedRevision(ctx, instance, rollbackTargetRevision)
+	if err != nil {
+		// Transient read failure: not proof the baseline is gone. Retry on the
+		// next reconcile with the pending signal still in place, rather than
+		// converting it into a permanent abort.
+		return false, err
+	}
+	if rollbackTarget == nil {
+		// The pin names something real but it does not resolve to an owned
+		// ControllerRevision -- deleted, or a spoofed/foreign name. Fleet's
+		// experiment spec is live and rollback cannot be proven safe.
+		logger.Info("Aborting experiment start: rollback-target-revision annotation does not resolve to an owned ControllerRevision",
+			"rollbackTargetRevision", rollbackTargetRevision)
+		abort(v2alpha1.ExperimentTerminationReasonBaselineNotFound)
+		return true, nil
+	}
+
 	logger.Info("Processing start signal")
-	startedAt := now
 	newStatus.Experiment = &v2alpha1.ExperimentStatus{
 		Phase:       v2alpha1.ExperimentPhaseRunning,
 		ID:          annotationID,
 		StartedAt:   &startedAt,
 		StartTaskID: pendingTaskID,
+		Checkpoint: &v2alpha1.ExperimentCheckpoint{
+			RollbackTargetRevision: rollbackTargetRevision,
+			// Copied, never re-derived: the pin is Fleet's statement of what it
+			// applied, and the equality check above is what makes copying safe.
+			ExpectedSpecHash: expectedSpecHashAnnotation,
+		},
 	}
 	return true, nil
 }
@@ -275,6 +452,7 @@ func (r *Reconciler) processRollbackSignal(
 		if len(revisions) >= 2 && findMostRecentMatchingRevision(revisions, instance) == nil {
 			logger.Info("Aborting experiment instead of rolling back: spec was manually changed")
 			newStatus.Experiment.Phase = v2alpha1.ExperimentPhaseAborted
+			newStatus.Experiment.TerminationReason = v2alpha1.ExperimentTerminationReasonManualSpecChange
 			if rev := highestRevision(revisions); rev != nil {
 				r.markRevisionState(ctx, rev, experimentRevisionStateRolledBack)
 			}
@@ -282,7 +460,7 @@ func (r *Reconciler) processRollbackSignal(
 		}
 
 		logger.Info("Processing rollback signal")
-		return true, r.restorePreviousSpec(ctx, instance, newStatus, revisions, ExperimentTerminationReasonStopped)
+		return true, r.restorePreviousSpec(ctx, instance, newStatus, revisions, v2alpha1.ExperimentTerminationReasonStopped)
 	}
 
 	// Transition 6: phase=nil but rollback annotation present.
@@ -298,7 +476,7 @@ func (r *Reconciler) processRollbackSignal(
 				newStatus.Experiment = &v2alpha1.ExperimentStatus{
 					ID: annotationID,
 				}
-				return true, r.restorePreviousSpec(ctx, instance, newStatus, revisions, ExperimentTerminationReasonStopped)
+				return true, r.restorePreviousSpec(ctx, instance, newStatus, revisions, v2alpha1.ExperimentTerminationReasonStopped)
 			}
 		}
 		logger.Info("Rollback signal at nil phase: nothing to roll back, clearing annotation")
@@ -336,6 +514,7 @@ func (r *Reconciler) processPromoteSignal(
 	if len(revisions) >= 2 && findMostRecentMatchingRevision(revisions, instance) == nil {
 		logger.Info("Aborting experiment instead of promoting: spec was manually changed")
 		newStatus.Experiment.Phase = v2alpha1.ExperimentPhaseAborted
+		newStatus.Experiment.TerminationReason = v2alpha1.ExperimentTerminationReasonManualSpecChange
 		if rev := highestRevision(revisions); rev != nil {
 			r.markRevisionState(ctx, rev, experimentRevisionStateRolledBack)
 		}
@@ -369,6 +548,20 @@ func (r *Reconciler) clearExperimentAnnotations(ctx context.Context, instance *v
 		{Op: "test", Path: annotationToJSONPatchPath(v2alpha1.AnnotationExperimentID), Value: expectedID},
 		{Op: "remove", Path: annotationToJSONPatchPath(v2alpha1.AnnotationExperimentSignal)},
 		{Op: "remove", Path: annotationToJSONPatchPath(v2alpha1.AnnotationExperimentID)},
+	}
+	// Only start signals carry the two pinned-baseline annotations, and a JSON
+	// Patch "remove" on an absent path 422s, so only queue each when present.
+	// Both are cleared together: leaving the hash behind would let a later
+	// start signal inherit a stale pin. The leading "test" op above still
+	// guards these removals against a signal written concurrently by the
+	// daemon, since the whole patch is atomic.
+	for _, key := range []string{
+		v2alpha1.AnnotationExperimentRollbackTargetRevision,
+		v2alpha1.AnnotationExperimentExpectedSpecHash,
+	} {
+		if _, ok := instance.GetAnnotations()[key]; ok {
+			ops = append(ops, jsonPatchOp{Op: "remove", Path: annotationToJSONPatchPath(key)})
+		}
 	}
 	patch, err := json.Marshal(ops)
 	if err != nil {
@@ -421,6 +614,7 @@ func (r *Reconciler) abortExperiment(
 	}
 	ctrl.LoggerFrom(ctx).Info("Aborting experiment due to manual spec change")
 	newStatus.Experiment.Phase = v2alpha1.ExperimentPhaseAborted
+	newStatus.Experiment.TerminationReason = v2alpha1.ExperimentTerminationReasonManualSpecChange
 	// Mark the experiment revision (highest-numbered) so its stale timestamp
 	// doesn't cause an immediate timeout if the same spec is re-applied.
 	if rev := highestRevision(revisions); rev != nil {
@@ -480,7 +674,7 @@ func (r *Reconciler) handleRollback(
 		elapsed := now.Sub(instance.Status.Experiment.StartedAt.Time)
 		if elapsed >= getExperimentTimeout(r.options.ExperimentTimeout) {
 			logger.Info("Experiment timed out, rolling back", "elapsed", elapsed.String())
-			return r.restorePreviousSpec(ctx, instance, newStatus, revisions, ExperimentTerminationReasonTimedOut)
+			return r.restorePreviousSpec(ctx, instance, newStatus, revisions, v2alpha1.ExperimentTerminationReasonTimedOut)
 		}
 	}
 
@@ -670,6 +864,34 @@ func (r *Reconciler) markRevisionState(ctx context.Context, rev *appsv1.Controll
 		return
 	}
 	logger.Info("Marked experiment revision state", "state", state)
+}
+
+// getOwnedRevision reads the named ControllerRevision through the uncached
+// API reader and verifies ownership with ownedByDDA. A cached/informer-backed
+// client's stale NotFound could be mistaken for a permanently-lost baseline,
+// and applying a revision by name alone (the name travels through a
+// user-writable annotation) without an ownership check would let a crafted
+// annotation apply an arbitrary revision's snapshot.
+//
+// Returns (nil, nil) — not an error — when the revision is absent or not
+// owned by instance; callers treat that as baseline_not_found. A transient
+// read failure is returned as an error so the caller can retry instead of
+// recording a terminal experiment status.
+func (r *Reconciler) getOwnedRevision(ctx context.Context, instance *v2alpha1.DatadogAgent, name string) (*appsv1.ControllerRevision, error) {
+	if name == "" {
+		return nil, nil
+	}
+	rev := &appsv1.ControllerRevision{}
+	if err := r.options.APIReader.Get(ctx, types.NamespacedName{Namespace: instance.Namespace, Name: name}, rev); err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to get ControllerRevision %s: %w", name, err)
+	}
+	if !ownedByDDA(rev, instance) {
+		return nil, nil
+	}
+	return rev, nil
 }
 
 func getExperimentTimeout(timeout time.Duration) time.Duration {

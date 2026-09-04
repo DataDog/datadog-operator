@@ -52,7 +52,7 @@ func newRevisionTestReconciler(t *testing.T) (*Reconciler, client.Client) {
 	t.Helper()
 	scheme := newRevisionTestScheme(t)
 	c := fake.NewClientBuilder().WithScheme(scheme).Build()
-	return &Reconciler{client: c, scheme: scheme}, c
+	return &Reconciler{client: c, scheme: scheme, options: ReconcilerOptions{APIReader: c}}, c
 }
 
 func mustListRevisions(t *testing.T, r *Reconciler, instance *v2alpha1.DatadogAgent) []appsv1.ControllerRevision {

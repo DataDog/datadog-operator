@@ -87,6 +87,7 @@ func newRevisionIntegrationReconciler(t *testing.T) (*Reconciler, client.Client)
 		forwarders:   dummyManager{},
 		options: ReconcilerOptions{
 			CreateControllerRevisions: true,
+			APIReader:                 c,
 		},
 	}
 	r.initializeComponentRegistry()

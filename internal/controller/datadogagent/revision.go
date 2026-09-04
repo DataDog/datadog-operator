@@ -54,6 +54,25 @@ func (r *Reconciler) manageRevision(ctx context.Context, instance *v2alpha1.Data
 	return nil
 }
 
+// ownedByDDA reports whether rev is a ControllerRevision owned by dda: same
+// namespace, the agent-name label matches, and a controller owner reference
+// points at dda's UID. A revision left behind by a deleted-and-recreated DDA
+// (same name, new UID) or a foreign/spoofed object fails this check.
+func ownedByDDA(rev *appsv1.ControllerRevision, dda *v2alpha1.DatadogAgent) bool {
+	if rev.Namespace != dda.GetNamespace() {
+		return false
+	}
+	if rev.Labels[apicommon.DatadogAgentNameLabelKey] != dda.GetName() {
+		return false
+	}
+	for _, ref := range rev.OwnerReferences {
+		if ref.Controller != nil && *ref.Controller && ref.UID == dda.GetUID() {
+			return true
+		}
+	}
+	return false
+}
+
 // publishCurrentRevisionBarrier ensures a ControllerRevision exists for the
 // current raw spec plus Datadog-owned annotations, then durably publishes the
 // resulting pointer to status.currentRevision (plus its freshness fields) via
@@ -127,11 +146,8 @@ func (r *Reconciler) listRevisions(ctx context.Context, instance *v2alpha1.Datad
 	// mistaken for the current owner's history.
 	owned := revList.Items[:0]
 	for i := range revList.Items {
-		for _, ref := range revList.Items[i].OwnerReferences {
-			if ref.Controller != nil && *ref.Controller && ref.UID == instance.GetUID() {
-				owned = append(owned, revList.Items[i])
-				break
-			}
+		if ownedByDDA(&revList.Items[i], instance) {
+			owned = append(owned, revList.Items[i])
 		}
 	}
 	revList.Items = owned

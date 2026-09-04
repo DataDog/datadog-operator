@@ -132,6 +132,7 @@ func (r *Reconciler) reconcileInstance(ctx context.Context, logger logr.Logger, 
 		if experimentErr != nil {
 			return r.updateStatusIfNeeded(logger, instance, newDDAStatus, result, experimentErr, now)
 		}
+		syncExperimentConfigStrandedCondition(newDDAStatus, now)
 		if err := r.manageRevision(ctx, instance, rawSpec, revList, newDDAStatus); err != nil {
 			return r.updateStatusIfNeeded(logger, instance, newDDAStatus, result, err, now)
 		}

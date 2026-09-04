@@ -22,6 +22,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -54,6 +55,7 @@ func testFleetScheme() *runtime.Scheme {
 	_ = v1alpha1.AddToScheme(s)
 	_ = v2alpha1.AddToScheme(s)
 	_ = appsv1.AddToScheme(s)
+	_ = apiextensionsv1.AddToScheme(s)
 	return s
 }
 
@@ -1926,6 +1928,94 @@ func TestRunPendingOperationWorker_CompletesStatusUpdateForNonDefaultPackage(t *
 	assert.Equal(t, testExperimentID, rc.state[0].ExperimentConfigVersion)
 }
 
+// runStopTaskToTerminalPhase drives a pending stop task against a DDA that has
+// already reached the given terminal phase and reason, and returns the RC task
+// the daemon reported for it.
+func runStopTaskToTerminalPhase(t *testing.T, phase v2alpha1.ExperimentPhase, reason v2alpha1.ExperimentTerminationReason) *pbgo.PackageStateTask {
+	t.Helper()
+
+	dda := testDDAObject(phase)
+	dda.Status.Experiment.TerminationReason = reason
+	dda.Annotations[v2alpha1.AnnotationPendingTaskID] = "stop-task-1"
+	dda.Annotations[v2alpha1.AnnotationPendingAction] = string(pendingIntentStop)
+	dda.Annotations[v2alpha1.AnnotationPendingExperimentID] = testExperimentID
+	dda.Annotations[v2alpha1.AnnotationPendingPackage] = "datadog-operator"
+
+	d, _ := testDaemon(dda, testInstallerConfigWithDDA())
+	d.rcClient = &mockRCClient{state: []*pbgo.PackageState{
+		{Package: "datadog-operator", StableConfigVersion: "stable-1", ExperimentConfigVersion: testExperimentID},
+	}}
+
+	tracker := newOperationTracker(d)
+	tracker.onStatusUpdate(context.Background(), newDDAStatusSnapshot(dda))
+
+	rc := d.rcClient.(*mockRCClient)
+	require.NotNil(t, rc.state[0].Task)
+	assert.Equal(t, "stop-task-1", rc.state[0].Task.Id)
+	return rc.state[0].Task
+}
+
+// requireStopTaskError asserts the stop task was reported as a failure whose
+// message names what FA needs to diagnose it. Reporting DONE here would tell FA
+// the cluster is back on its baseline when it is not.
+func requireStopTaskError(t *testing.T, phase v2alpha1.ExperimentPhase, reason v2alpha1.ExperimentTerminationReason, wantInMessage string) {
+	t.Helper()
+	task := runStopTaskToTerminalPhase(t, phase, reason)
+	assert.Equal(t, pbgo.TaskState_ERROR, task.State)
+	require.NotNil(t, task.Error)
+	assert.Contains(t, task.Error.Message, wantInMessage)
+}
+
+// TestStopTask_ReportsDoneOnTerminated verifies the only outcome that satisfies
+// a stop request: the experiment ended in Terminated, meaning the baseline spec
+// is live again. Both terminal reasons that land there qualify — an explicit
+// stop and a timeout both leave the cluster on its baseline.
+func TestStopTask_ReportsDoneOnTerminated(t *testing.T) {
+	for _, reason := range []v2alpha1.ExperimentTerminationReason{
+		v2alpha1.ExperimentTerminationReasonStopped,
+		v2alpha1.ExperimentTerminationReasonTimedOut,
+	} {
+		t.Run(string(reason), func(t *testing.T) {
+			task := runStopTaskToTerminalPhase(t, v2alpha1.ExperimentPhaseTerminated, reason)
+			assert.Equal(t, pbgo.TaskState_DONE, task.State)
+		})
+	}
+}
+
+// TestStopTask_ReportsErrorOnAbortedWithManualSpecChange verifies that a stop
+// superseded by a user edit is a failure: the user's spec is live, not the
+// baseline stop asked for.
+func TestStopTask_ReportsErrorOnAbortedWithManualSpecChange(t *testing.T) {
+	requireStopTaskError(t, v2alpha1.ExperimentPhaseAborted,
+		v2alpha1.ExperimentTerminationReasonManualSpecChange,
+		string(v2alpha1.ExperimentTerminationReasonManualSpecChange))
+}
+
+// TestStopTask_ReportsErrorOnAbortedWithBaselineMissing verifies that a stop
+// that could not run for lack of a checkpoint is a failure, and leaves the
+// experiment config stranded live.
+func TestStopTask_ReportsErrorOnAbortedWithBaselineMissing(t *testing.T) {
+	requireStopTaskError(t, v2alpha1.ExperimentPhaseAborted,
+		v2alpha1.ExperimentTerminationReasonBaselineMissing,
+		string(v2alpha1.ExperimentTerminationReasonBaselineMissing))
+}
+
+// TestStopTask_ReportsErrorOnAbortedWithBaselineNotFound verifies the same for
+// a checkpoint that named a revision the controller could not resolve.
+func TestStopTask_ReportsErrorOnAbortedWithBaselineNotFound(t *testing.T) {
+	requireStopTaskError(t, v2alpha1.ExperimentPhaseAborted,
+		v2alpha1.ExperimentTerminationReasonBaselineNotFound,
+		string(v2alpha1.ExperimentTerminationReasonBaselineNotFound))
+}
+
+// TestStopTask_ReportsErrorOnPromoted verifies that a promote landing ahead of
+// a stop fails the stop task. Promote carries no TerminationReason, so the
+// error has to name the phase instead.
+func TestStopTask_ReportsErrorOnPromoted(t *testing.T) {
+	requireStopTaskError(t, v2alpha1.ExperimentPhasePromoted, "",
+		string(v2alpha1.ExperimentPhasePromoted))
+}
+
 func TestRunPendingOperationWorker_RecoversStopFromAnnotations(t *testing.T) {
 	dda := testDDAObject(v2alpha1.ExperimentPhaseTerminated)
 	dda.Annotations[v2alpha1.AnnotationPendingTaskID] = "task-1"
@@ -2186,6 +2276,47 @@ func TestRehydrateInstallerState_TerminalPhasesSkipped(t *testing.T) {
 	}
 }
 
+// TestRehydrateInstallerState_WithStrandedExperiment verifies that a DDA whose
+// experiment was aborted is treated the same as any other terminal phase, for
+// every abort reason: the daemon reports no in-progress experiment rather than
+// resurrecting it as running. isTerminalPhase gates on Phase alone, so
+// TerminationReason never needs special-casing here — manual_spec_change is
+// carried as the non-stranded control that proves it.
+//
+// Rehydration only seeds Fleet's in-memory RC-tracked config from durable DDA
+// status at process start; reporting a terminal experiment's task outcome to RC
+// belongs to reconcileLocallyTerminatedExperiment. Doing it here as well would
+// double-report on the first post-restart reconcile and race the reconciler's
+// own repair, so the absence of a task report is asserted too.
+func TestRehydrateInstallerState_WithStrandedExperiment(t *testing.T) {
+	for _, reason := range []v2alpha1.ExperimentTerminationReason{
+		v2alpha1.ExperimentTerminationReasonBaselineMissing,
+		v2alpha1.ExperimentTerminationReasonBaselineNotFound,
+		v2alpha1.ExperimentTerminationReasonManualSpecChange,
+	} {
+		t.Run(string(reason), func(t *testing.T) {
+			dda := testDDAObject(v2alpha1.ExperimentPhaseAborted)
+			dda.Status.Experiment.TerminationReason = reason
+			// A task ID a reporting regression could latch onto; without one
+			// the no-report assertion below would hold for the wrong reason.
+			dda.Status.Experiment.StartTaskID = "task-original"
+			d, _ := testDaemon(dda, nil)
+			rc := &mockRCClient{state: []*pbgo.PackageState{{
+				Package:             packageDatadogOperator,
+				StableVersion:       "v1.27.0",
+				StableConfigVersion: "stable",
+			}}}
+			d.rcClient = rc
+
+			require.NoError(t, d.rehydrateInstallerState(context.Background()))
+
+			_, experiment := d.getPackageConfigVersions(packageDatadogOperator)
+			assert.Empty(t, experiment, "stranded (aborted) experiment must not be rehydrated as in-progress")
+			assert.Empty(t, rc.taskHistory, "rehydration seeds state; it does not report task outcomes")
+		})
+	}
+}
+
 // TestRehydrateInstallerState_NoDDA is a no-op: no DDAs in the cluster means
 // nothing to rehydrate. The installer state is left as-is.
 func TestRehydrateInstallerState_NoDDA(t *testing.T) {
@@ -2319,6 +2450,135 @@ func TestReconcileLocallyTerminatedExperiment_AbortClearsAndReports(t *testing.T
 		"error message references the aborted experiment id")
 	assert.Contains(t, rc.state[0].Task.Error.Message, "abort",
 		"error message indicates this was an abort, not a timeout")
+}
+
+// TestReconcileLocallyTerminatedExperiment_ReportsBaselineMissingDistinctly
+// verifies that an abort with TerminationReason=baseline_missing (the daemon
+// started an experiment with no recoverable rollback target) reports a
+// distinct error message from a plain manual-spec-change abort, so FA logs
+// don't conflate "the user changed the spec" with "we can't safely start."
+func TestReconcileLocallyTerminatedExperiment_ReportsBaselineMissingDistinctly(t *testing.T) {
+	const startTaskID = "task-uuid-from-start"
+	d, rc := testDaemonWithRC([]*pbgo.PackageState{
+		{Package: "datadog-operator", StableConfigVersion: "stable-1", ExperimentConfigVersion: testExperimentID},
+	})
+	dda := testDDAObject(v2alpha1.ExperimentPhaseAborted)
+	dda.Status.Experiment.TerminationReason = v2alpha1.ExperimentTerminationReasonBaselineMissing
+	dda.Status.Experiment.StartTaskID = startTaskID
+
+	d.reconcileLocallyTerminatedExperiment(context.Background(), newDDAStatusSnapshot(dda))
+
+	require.Len(t, rc.state, 1)
+	require.NotNil(t, rc.state[0].Task)
+	require.NotNil(t, rc.state[0].Task.Error)
+	assert.Contains(t, rc.state[0].Task.Error.Message, "rollback baseline missing")
+	assert.NotContains(t, rc.state[0].Task.Error.Message, "manual spec change")
+}
+
+// TestReconcileLocallyTerminatedExperiment_ReportsBaselineNotFoundDistinctly
+// mirrors the baseline_missing case for TerminationReason=baseline_not_found
+// (the checkpointed ControllerRevision was deleted or unresolvable).
+func TestReconcileLocallyTerminatedExperiment_ReportsBaselineNotFoundDistinctly(t *testing.T) {
+	const startTaskID = "task-uuid-from-start"
+	d, rc := testDaemonWithRC([]*pbgo.PackageState{
+		{Package: "datadog-operator", StableConfigVersion: "stable-1", ExperimentConfigVersion: testExperimentID},
+	})
+	dda := testDDAObject(v2alpha1.ExperimentPhaseAborted)
+	dda.Status.Experiment.TerminationReason = v2alpha1.ExperimentTerminationReasonBaselineNotFound
+	dda.Status.Experiment.StartTaskID = startTaskID
+
+	d.reconcileLocallyTerminatedExperiment(context.Background(), newDDAStatusSnapshot(dda))
+
+	require.Len(t, rc.state, 1)
+	require.NotNil(t, rc.state[0].Task)
+	require.NotNil(t, rc.state[0].Task.Error)
+	assert.Contains(t, rc.state[0].Task.Error.Message, "rollback baseline not found")
+	assert.NotContains(t, rc.state[0].Task.Error.Message, "manual spec change")
+}
+
+// TestReconcileLocallyTerminatedExperiment_ReportsManualChangeDistinctly
+// verifies the default (empty/manual_spec_change) reason keeps its original
+// "manual spec change" wording, distinct from the baseline_* messages above.
+func TestReconcileLocallyTerminatedExperiment_ReportsManualChangeDistinctly(t *testing.T) {
+	const startTaskID = "task-uuid-from-start"
+	d, rc := testDaemonWithRC([]*pbgo.PackageState{
+		{Package: "datadog-operator", StableConfigVersion: "stable-1", ExperimentConfigVersion: testExperimentID},
+	})
+	dda := testDDAObject(v2alpha1.ExperimentPhaseAborted)
+	dda.Status.Experiment.TerminationReason = v2alpha1.ExperimentTerminationReasonManualSpecChange
+	dda.Status.Experiment.StartTaskID = startTaskID
+
+	d.reconcileLocallyTerminatedExperiment(context.Background(), newDDAStatusSnapshot(dda))
+
+	require.Len(t, rc.state, 1)
+	require.NotNil(t, rc.state[0].Task)
+	require.NotNil(t, rc.state[0].Task.Error)
+	assert.Contains(t, rc.state[0].Task.Error.Message, "manual spec change")
+}
+
+// TestLocalTerminationReason_SwitchesOnConstants drives localTerminationReason
+// over every ExperimentTerminationReason value plus the non-terminal phases,
+// asserting the returned string is keyed off the typed API constant rather
+// than an ad hoc string comparison.
+func TestLocalTerminationReason_SwitchesOnConstants(t *testing.T) {
+	cases := []struct {
+		name      string
+		exp       *v2alpha1.ExperimentStatus
+		wantEmpty bool
+		wantInMsg string
+	}{
+		{
+			name:      "nil experiment",
+			exp:       nil,
+			wantEmpty: true,
+		},
+		{
+			name:      "Running is not terminal",
+			exp:       &v2alpha1.ExperimentStatus{Phase: v2alpha1.ExperimentPhaseRunning, ID: "exp-1"},
+			wantEmpty: true,
+		},
+		{
+			name:      "Promoted is Fleet-driven, not local",
+			exp:       &v2alpha1.ExperimentStatus{Phase: v2alpha1.ExperimentPhasePromoted, ID: "exp-1"},
+			wantEmpty: true,
+		},
+		{
+			name:      "Terminated/stopped is Fleet-driven, not local",
+			exp:       &v2alpha1.ExperimentStatus{Phase: v2alpha1.ExperimentPhaseTerminated, ID: "exp-1", TerminationReason: v2alpha1.ExperimentTerminationReasonStopped},
+			wantEmpty: true,
+		},
+		{
+			name:      "Terminated/timed_out",
+			exp:       &v2alpha1.ExperimentStatus{Phase: v2alpha1.ExperimentPhaseTerminated, ID: "exp-1", TerminationReason: v2alpha1.ExperimentTerminationReasonTimedOut},
+			wantInMsg: "timed out",
+		},
+		{
+			name:      "Aborted/manual_spec_change",
+			exp:       &v2alpha1.ExperimentStatus{Phase: v2alpha1.ExperimentPhaseAborted, ID: "exp-1", TerminationReason: v2alpha1.ExperimentTerminationReasonManualSpecChange},
+			wantInMsg: "manual spec change",
+		},
+		{
+			name:      "Aborted/baseline_missing",
+			exp:       &v2alpha1.ExperimentStatus{Phase: v2alpha1.ExperimentPhaseAborted, ID: "exp-1", TerminationReason: v2alpha1.ExperimentTerminationReasonBaselineMissing},
+			wantInMsg: "rollback baseline missing",
+		},
+		{
+			name:      "Aborted/baseline_not_found",
+			exp:       &v2alpha1.ExperimentStatus{Phase: v2alpha1.ExperimentPhaseAborted, ID: "exp-1", TerminationReason: v2alpha1.ExperimentTerminationReasonBaselineNotFound},
+			wantInMsg: "rollback baseline not found",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := localTerminationReason(tc.exp)
+			if tc.wantEmpty {
+				assert.Empty(t, got)
+				return
+			}
+			assert.Contains(t, got, tc.wantInMsg)
+		})
+	}
 }
 
 // TestReconcileLocallyTerminatedExperiment_IgnoresPromoted verifies the

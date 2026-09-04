@@ -7,6 +7,7 @@ package datadogagent
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -101,6 +102,10 @@ type ReconcilerOptions struct {
 	// ClusterProviderDetector supplies the detected cluster provider. Nil disables
 	// provider detection (reconcile behaves as before: empty provider).
 	ClusterProviderDetector ProviderReader
+	// APIReader is an uncached, direct-to-apiserver reader used to validate
+	// experiment rollback targets. A cached/informer-backed client's stale
+	// NotFound could be mistaken for a permanently-lost baseline revision.
+	APIReader client.Reader
 }
 
 // Reconciler is the internal reconciler for Datadog Agent
@@ -128,6 +133,10 @@ func (r *Reconciler) initializeComponentRegistry() {
 func NewReconciler(options ReconcilerOptions, client client.Client, platformInfo kubernetes.PlatformInfo,
 	scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder, metricForwardersMgr datadog.MetricsForwardersManager,
 ) (*Reconciler, error) {
+	if options.APIReader == nil {
+		return nil, fmt.Errorf("ReconcilerOptions.APIReader must not be nil")
+	}
+
 	r := &Reconciler{
 		options:      options,
 		client:       client,
