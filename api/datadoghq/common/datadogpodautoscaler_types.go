@@ -219,6 +219,7 @@ type DatadogPodAutoscalerTimeseriesFormulaRequest struct {
 	Queries []DatadogPodAutoscalerTimeseriesQuery `json:"queries"`
 }
 
+// DatadogPodAutoscalerMetricsDataSource identifies a timeseries query source.
 // +kubebuilder:validation:Enum:=Metrics;ApmMetrics
 type DatadogPodAutoscalerMetricsDataSource string
 
@@ -230,7 +231,7 @@ const (
 	DatadogPodAutoscalerMetricsDataSourceApmMetrics DatadogPodAutoscalerMetricsDataSource = "ApmMetrics"
 )
 
-// TimeseriesQuery is a discriminated union. Only Metrics and APMMetrics are supported for autoscaling.
+// DatadogPodAutoscalerTimeseriesQuery is a discriminated union. Only Metrics and APMMetrics are supported for autoscaling.
 // +kubebuilder:object:generate=true
 type DatadogPodAutoscalerTimeseriesQuery struct {
 	// Optional variable name ("a", "b", etc.) to reference in formulas.
@@ -249,6 +250,7 @@ type DatadogPodAutoscalerTimeseriesQuery struct {
 	ApmMetrics *DatadogPodAutoscalerApmMetricsTimeseriesQuery `json:"apmMetrics,omitempty"`
 }
 
+// DatadogPodAutoscalerMetricsTimeseriesQuery defines a standard Datadog metrics query.
 // +kubebuilder:object:generate=true
 type DatadogPodAutoscalerMetricsTimeseriesQuery struct {
 	// Classic Datadog metrics query, e.g. "avg:system.cpu.user{*} by {env}".
@@ -256,6 +258,7 @@ type DatadogPodAutoscalerMetricsTimeseriesQuery struct {
 	Query string `json:"query"`
 }
 
+// DatadogPodAutoscalerApmMetricsTimeseriesQuery defines an APM metrics query.
 // +kubebuilder:object:generate=true
 type DatadogPodAutoscalerApmMetricsTimeseriesQuery struct {
 	// Stat defines the statistic to compute for the APM metrics query.
@@ -611,6 +614,7 @@ type DatadogPodAutoscalerVerticalAction struct {
 	Type DatadogPodAutoscalerVerticalActionType `json:"type"`
 }
 
+// DatadogPodAutoscalerContainerResources defines resource values for a container.
 // +kubebuilder:object:generate=true
 type DatadogPodAutoscalerContainerResources struct {
 	// Name is the name of the container

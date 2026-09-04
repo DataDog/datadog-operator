@@ -34,7 +34,8 @@ type DatadogDashboardReconciler struct {
 //+kubebuilder:rbac:groups=datadoghq.com,resources=datadogdashboards/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=datadoghq.com,resources=datadogdashboards/finalizers,verbs=update
 
-// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.14.4/pkg/reconcile
+// Reconcile reconciles a DatadogDashboard resource.
+// See https://pkg.go.dev/sigs.k8s.io/controller-runtime/pkg/reconcile.
 func (r *DatadogDashboardReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	return r.internal.Reconcile(ctx, req)
 }

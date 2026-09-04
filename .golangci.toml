@@ -98,8 +98,8 @@ enable = [
 locale = 'US'
 
 [linters.settings.staticcheck]
-# Keep correctness and quick-fix checks while deferring the existing style and dependency-deprecation backlog.
-checks = ['all', '-ST*', '-SA1019']
+# Keep large or breaking style/deprecation backlogs deferred until dedicated migrations are planned.
+checks = ['all', '-ST1000', '-SA1019']
 
 [linters.exclusions]
 generated = 'lax'
@@ -115,6 +115,11 @@ paths = [
 [[linters.exclusions.rules]]
 path = '^test/e2e/go\.mod$'
 linters = ['gomoddirectives']
+
+[[linters.exclusions.rules]]
+path = '^api/datadoghq/(common/datadogpodautoscaler_types|v1alpha1/datadoggenericresource_types)\.go$'
+linters = ['staticcheck']
+text = 'ST1003:'
 
 [issues]
 max-issues-per-linter = 0

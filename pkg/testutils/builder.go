@@ -48,7 +48,7 @@ func NewDefaultDatadogAgentBuilder() *DatadogAgentBuilder {
 	}
 }
 
-// NewDefaultDatadogAgentBuilder initialized with name, namespace, creds and metadata
+// NewInitializedDatadogAgentBuilder returns a builder initialized with a name, namespace, credentials, and metadata.
 func NewInitializedDatadogAgentBuilder(ns, name string) *DatadogAgentBuilder {
 	dda := NewDatadogAgent(ns, name, nil)
 	dda.Spec.Features = &v2alpha1.DatadogFeatures{}
@@ -69,7 +69,7 @@ func (builder *DatadogAgentBuilder) BuildWithDefaults() *v2alpha1.DatadogAgent {
 	return &builder.datadogAgent
 }
 
-// Common
+// WithName sets the DatadogAgent name.
 func (builder *DatadogAgentBuilder) WithName(name string) *DatadogAgentBuilder {
 	builder.datadogAgent.Name = name
 	return builder
@@ -80,7 +80,7 @@ func (builder *DatadogAgentBuilder) WithAnnotations(annotations map[string]strin
 	return builder
 }
 
-// Global environment variable
+// WithEnvVars sets the global environment variables.
 func (builder *DatadogAgentBuilder) WithEnvVars(envs []corev1.EnvVar) *DatadogAgentBuilder {
 	builder.datadogAgent.Spec.Global.Env = envs
 	return builder
@@ -286,7 +286,7 @@ func (builder *DatadogAgentBuilder) WithAdmissionControllerProbeGracePeriod(grac
 	return builder
 }
 
-// sidecar Injection
+// WithSidecarInjectionEnabled enables or disables sidecar injection.
 func (builder *DatadogAgentBuilder) WithSidecarInjectionEnabled(enabled bool) *DatadogAgentBuilder {
 	// builder.initAdmissionController()
 	builder.initSidecarInjection()
@@ -703,9 +703,9 @@ func (builder *DatadogAgentBuilder) WithOrchestratorExplorerExtraTags(tags []str
 	return builder
 }
 
-func (builder *DatadogAgentBuilder) WithOrchestratorExplorerDDUrl(ddUrl string) *DatadogAgentBuilder {
+func (builder *DatadogAgentBuilder) WithOrchestratorExplorerDDUrl(ddURL string) *DatadogAgentBuilder {
 	builder.initOE()
-	builder.datadogAgent.Spec.Features.OrchestratorExplorer.DDUrl = new(ddUrl)
+	builder.datadogAgent.Spec.Features.OrchestratorExplorer.DDUrl = new(ddURL)
 	return builder
 }
 
@@ -1101,7 +1101,7 @@ func (builder *DatadogAgentBuilder) WithCredentialsFromSecret(apiSecretName, api
 	return builder
 }
 
-// Global DCA Token
+// WithDCAToken sets the global Cluster Agent token.
 func (builder *DatadogAgentBuilder) WithDCAToken(token string) *DatadogAgentBuilder {
 	builder.datadogAgent.Spec.Global.ClusterAgentToken = new(token)
 	return builder

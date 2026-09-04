@@ -558,7 +558,7 @@ spec:
                             selectors:
                               description: Selectors define the pod selector for sidecar injection. Only one rule is supported.
                               items:
-                                description: Selectors define a pod selector for sidecar injection.
+                                description: Selector defines a pod selector for sidecar injection.
                                 properties:
                                   namespaceSelector:
                                     description: NamespaceSelector specifies the label selector for namespaces.
@@ -2726,7 +2726,7 @@ spec:
                       description: SBOM collection configuration.
                       properties:
                         containerImage:
-                          description: SBOMTypeConfig contains configuration for a SBOM collection type.
+                          description: SBOMContainerImageConfig contains configuration for container image SBOM collection.
                           properties:
                             analyzers:
                               description: Analyzers to use for SBOM collection.
@@ -2770,7 +2770,7 @@ spec:
                               type: object
                           type: object
                         host:
-                          description: SBOMTypeConfig contains configuration for a SBOM collection type.
+                          description: SBOMHostConfig contains configuration for host SBOM collection.
                           properties:
                             analyzers:
                               description: Analyzers to use for SBOM collection.
@@ -9560,7 +9560,7 @@ spec:
                                 selectors:
                                   description: Selectors define the pod selector for sidecar injection. Only one rule is supported.
                                   items:
-                                    description: Selectors define a pod selector for sidecar injection.
+                                    description: Selector defines a pod selector for sidecar injection.
                                     properties:
                                       namespaceSelector:
                                         description: NamespaceSelector specifies the label selector for namespaces.
@@ -11728,7 +11728,7 @@ spec:
                           description: SBOM collection configuration.
                           properties:
                             containerImage:
-                              description: SBOMTypeConfig contains configuration for a SBOM collection type.
+                              description: SBOMContainerImageConfig contains configuration for container image SBOM collection.
                               properties:
                                 analyzers:
                                   description: Analyzers to use for SBOM collection.
@@ -11772,7 +11772,7 @@ spec:
                                   type: object
                               type: object
                             host:
-                              description: SBOMTypeConfig contains configuration for a SBOM collection type.
+                              description: SBOMHostConfig contains configuration for host SBOM collection.
                               properties:
                                 analyzers:
                                   description: Analyzers to use for SBOM collection.

@@ -779,7 +779,7 @@ type SBOMFeatureConfig struct {
 	Enrichment     *SBOMEnrichmentConfig     `json:"enrichment,omitempty"`
 }
 
-// SBOMTypeConfig contains configuration for a SBOM collection type.
+// SBOMHostConfig contains configuration for host SBOM collection.
 type SBOMHostConfig struct {
 	// Enable this option to activate SBOM collection.
 	// Default: false
@@ -792,7 +792,7 @@ type SBOMHostConfig struct {
 	Analyzers []string `json:"analyzers,omitempty"`
 }
 
-// SBOMTypeConfig contains configuration for a SBOM collection type.
+// SBOMContainerImageConfig contains configuration for container image SBOM collection.
 type SBOMContainerImageConfig struct {
 	// Enable this option to activate SBOM collection.
 	// Default: false
@@ -1255,7 +1255,7 @@ type Metric struct {
 	Info *MetricInfo `json:"info,omitempty" yaml:"info,omitempty"`
 }
 
-// Type represents the type of the metric. See https://github.com/OpenObservability/OpenMetrics/blob/main/specification/OpenMetrics.md#metric-types.
+// MetricType represents the type of the metric. See https://github.com/OpenObservability/OpenMetrics/blob/main/specification/OpenMetrics.md#metric-types.
 type MetricType string
 
 // Supported metric types.
@@ -1524,7 +1524,7 @@ type AgentSidecarInjectionConfig struct {
 	ClusterAgentTLSVerification *AdmissionControllerClusterAgentTLSVerificationConfig `json:"clusterAgentTlsVerification,omitempty"`
 }
 
-// Selectors define a pod selector for sidecar injection.
+// Selector defines a pod selector for sidecar injection.
 type Selector struct {
 	// NamespaceSelector specifies the label selector for namespaces.
 	// +optional
