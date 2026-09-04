@@ -64,6 +64,35 @@ func TestGetRBACPolicyRules(t *testing.T) {
 			},
 			Verbs: []string{rbac.ListVerb, rbac.WatchVerb},
 		},
+		{
+			APIGroups: []string{rbac.GatewayAPIGroup},
+			Resources: []string{
+				rbac.GatewayClassesResource,
+				rbac.GatewaysResource,
+				rbac.HTTPRoutesResource,
+				rbac.GRPCRoutesResource,
+				rbac.BackendTLSPoliciesResource,
+				rbac.ListenerSetsResource,
+				rbac.ReferenceGrantsResource,
+				rbac.TCPRoutesResource,
+				rbac.TLSRoutesResource,
+				rbac.UDPRoutesResource,
+			},
+			Verbs: []string{rbac.ListVerb, rbac.WatchVerb},
+		},
+		{
+			APIGroups: []string{rbac.InferenceAPIGroup},
+			Resources: []string{rbac.InferencePoolsResource},
+			Verbs:     []string{rbac.ListVerb, rbac.WatchVerb},
+		},
+		{
+			APIGroups: []string{rbac.InferenceExperimentalAPIGroup},
+			Resources: []string{
+				rbac.InferencePoolsResource,
+				rbac.InferencePoolImportsResource,
+			},
+			Verbs:     []string{rbac.ListVerb, rbac.WatchVerb},
+		},
 	}
 
 	tests := []struct {
@@ -166,12 +195,6 @@ func TestGetRBACPolicyRulesWithNetworkCRDs(t *testing.T) {
 	defaultVerbs := []string{rbac.ListVerb, rbac.WatchVerb}
 
 	expectedNetworkCRDRules := []rbacv1.PolicyRule{
-		// Gateway API
-		{
-			APIGroups: []string{rbac.GatewayAPIGroup},
-			Resources: []string{rbac.GatewaysResource, rbac.HTTPRoutesResource, rbac.GRPCRoutesResource, rbac.TLSRoutesResource, rbac.ListenerSetsResource},
-			Verbs:     defaultVerbs,
-		},
 		// Istio
 		{
 			APIGroups: []string{rbac.IstioNetworkingAPIGroup},
@@ -289,8 +312,8 @@ func TestGetRBACPolicyRulesWithNetworkCRDs(t *testing.T) {
 		foundNetworkRule := false
 		foundCustomRule := false
 		for _, rule := range rules {
-			if len(rule.APIGroups) > 0 && rule.APIGroups[0] == rbac.GatewayAPIGroup &&
-				slices.Equal(rule.Resources, []string{rbac.GatewaysResource, rbac.HTTPRoutesResource, rbac.GRPCRoutesResource, rbac.TLSRoutesResource, rbac.ListenerSetsResource}) {
+			if len(rule.APIGroups) > 0 && rule.APIGroups[0] == rbac.IstioNetworkingAPIGroup &&
+				slices.Equal(rule.Resources, []string{rbac.VirtualServicesResource, rbac.GatewaysResource, rbac.DestinationRulesResource, rbac.ServiceEntriesResource, rbac.SidecarsResource}) {
 				foundNetworkRule = true
 			}
 			if len(rule.APIGroups) > 0 && rule.APIGroups[0] == "monitoring.coreos.com" &&
@@ -298,7 +321,7 @@ func TestGetRBACPolicyRulesWithNetworkCRDs(t *testing.T) {
 				foundCustomRule = true
 			}
 		}
-		assert.True(t, foundNetworkRule, "Expected Gateway API network CRD rule not found")
+		assert.True(t, foundNetworkRule, "Expected opt-in network CRD rule not found")
 		assert.True(t, foundCustomRule, "Expected custom resource rule not found")
 	})
 }

@@ -163,21 +163,36 @@ func getRBACPolicyRules(logger logr.Logger, crs []string, collectKubernetesNetwo
 				rbac.DynamoWorkerMetadatasResource,
 			},
 		},
+		{
+			APIGroups: []string{rbac.GatewayAPIGroup},
+			Resources: []string{
+				rbac.GatewayClassesResource,
+				rbac.GatewaysResource,
+				rbac.HTTPRoutesResource,
+				rbac.GRPCRoutesResource,
+				rbac.BackendTLSPoliciesResource,
+				rbac.ListenerSetsResource,
+				rbac.ReferenceGrantsResource,
+				rbac.TCPRoutesResource,
+				rbac.TLSRoutesResource,
+				rbac.UDPRoutesResource,
+			},
+		},
+		{
+			APIGroups: []string{rbac.InferenceAPIGroup},
+			Resources: []string{rbac.InferencePoolsResource},
+		},
+		{
+			APIGroups: []string{rbac.InferenceExperimentalAPIGroup},
+			Resources: []string{
+				rbac.InferencePoolsResource,
+				rbac.InferencePoolImportsResource,
+			},
+		},
 	}
 
 	if collectKubernetesNetworkResources {
 		rbacRules = append(rbacRules,
-			// Gateway API — resource-specific
-			rbacv1.PolicyRule{
-				APIGroups: []string{rbac.GatewayAPIGroup},
-				Resources: []string{
-					rbac.GatewaysResource,
-					rbac.HTTPRoutesResource,
-					rbac.GRPCRoutesResource,
-					rbac.TLSRoutesResource,
-					rbac.ListenerSetsResource,
-				},
-			},
 			// Service Mesh — Istio: resource-specific
 			rbacv1.PolicyRule{
 				APIGroups: []string{rbac.IstioNetworkingAPIGroup},
