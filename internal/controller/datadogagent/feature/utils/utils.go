@@ -8,6 +8,7 @@ package utils
 import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -134,11 +135,14 @@ func IsDataPlaneEnabled(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, d
 }
 
 // AgentSupportsDefaultDataPlane returns whether the selected Agent image supports the Operator-level Data Plane default.
+// Unlike other version checks in this file, an unparseable version defaults to false: this gates an
+// implicit, Operator-level default rather than an explicit user opt-in, so an unknown Agent version
+// must not silently enable the Data Plane.
 func AgentSupportsDefaultDataPlane(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
 	if nodeAgent, ok := ddaSpec.Override[v2alpha1.NodeAgentComponentName]; ok && nodeAgent != nil && nodeAgent.Image != nil {
-		return utils.IsAboveMinVersion(common.GetAgentVersionFromImage(*nodeAgent.Image), DefaultDataPlaneMinAgentVersion, nil)
+		return utils.IsAboveMinVersion(common.GetAgentVersionFromImage(*nodeAgent.Image), DefaultDataPlaneMinAgentVersion, ptr.To(false))
 	}
-	return utils.IsAboveMinVersion(images.AgentLatestVersion, DefaultDataPlaneMinAgentVersion, nil)
+	return utils.IsAboveMinVersion(images.AgentLatestVersion, DefaultDataPlaneMinAgentVersion, ptr.To(false))
 }
 
 // IsDataPlaneDogstatsdEnabled returns true if the Data Plane should handle DogStatsD.
