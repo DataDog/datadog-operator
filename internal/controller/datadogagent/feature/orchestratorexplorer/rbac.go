@@ -152,6 +152,10 @@ func getRBACPolicyRules(logger logr.Logger, crs []string, collectKubernetesNetwo
 			},
 		},
 		{
+			APIGroups: []string{rbac.KubeAIAPIGroup},
+			Resources: []string{rbac.KubeAIModelsResource},
+		},
+		{
 			APIGroups: []string{rbac.DynamoAPIGroup},
 			Resources: []string{
 				rbac.DynamoCheckpointsResource,

@@ -359,6 +359,13 @@ rules:
   - list
   - watch
 - apiGroups:
+  - kubeai.org
+  resources:
+  - models
+  verbs:
+  - list
+  - watch
+- apiGroups:
   - kustomize.toolkit.fluxcd.io
   resources:
   - kustomizations

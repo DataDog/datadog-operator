@@ -43,6 +43,7 @@ const (
 	KarpenterAWSAPIGroup         = "karpenter.k8s.aws"
 	KarpenterAzureAPIGroup       = "karpenter.azure.com"
 	KubeRayAPIGroup              = "ray.io"
+	KubeAIAPIGroup               = "kubeai.org"
 	DynamoAPIGroup               = "nvidia.com"
 	KServeAPIGroup               = "serving.kserve.io"
 
@@ -134,6 +135,7 @@ const (
 	RayCronJobsResource                               = "raycronjobs"
 	RayJobsResource                                   = "rayjobs"
 	RayServicesResource                               = "rayservices"
+	KubeAIModelsResource                              = "models"
 	DynamoCheckpointsResource                         = "dynamocheckpoints"
 	DynamoComponentDeploymentsResource                = "dynamocomponentdeployments"
 	DynamoGraphDeploymentRequestsResource             = "dynamographdeploymentrequests"
