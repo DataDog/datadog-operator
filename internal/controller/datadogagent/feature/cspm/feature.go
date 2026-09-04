@@ -313,12 +313,17 @@ func (f *cspmFeature) ManageNodeAgent(managers feature.PodTemplateManagers) erro
 	VolMgr.AddVolume(&groupVol)
 
 	// env vars
+	// The compliance settings are added to every container of the pod, not only to the one
+	// actually running the checks. When config streaming is enabled, the consumer container
+	// drops its own env layer and replays the Core Agent's config snapshot; if the Core Agent
+	// doesn't carry these settings, they silently revert to their default values.
 	enabledEnvVar := &corev1.EnvVar{
 		Name:  DDComplianceConfigEnabled,
 		Value: "true",
 	}
 	managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.CoreAgentContainerName, targetContainer}, enabledEnvVar)
 
+	// HOST_ROOT is not a config setting, it only makes sense where the host root volume is mounted.
 	hostRootEnvVar := &corev1.EnvVar{
 		Name:  common.DDHostRootEnvVar,
 		Value: common.HostRootMountPath,
@@ -330,20 +335,20 @@ func (f *cspmFeature) ManageNodeAgent(managers feature.PodTemplateManagers) erro
 			Name:  DDComplianceConfigCheckInterval,
 			Value: f.checkInterval,
 		}
-		managers.EnvVar().AddEnvVarToContainer(targetContainer, intervalEnvVar)
+		managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.CoreAgentContainerName, targetContainer}, intervalEnvVar)
 	}
 
 	hostBenchmarksEnabledEnvVar := &corev1.EnvVar{
 		Name:  DDComplianceHostBenchmarksEnabled,
 		Value: apiutils.BoolToString(&f.hostBenchmarksEnabled),
 	}
-	managers.EnvVar().AddEnvVarToContainer(targetContainer, hostBenchmarksEnabledEnvVar)
+	managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.CoreAgentContainerName, targetContainer}, hostBenchmarksEnabledEnvVar)
 
 	runInSystemProbeEnvVar := &corev1.EnvVar{
 		Name:  DDComplianceConfigRunInSystemProbe,
 		Value: apiutils.BoolToString(&f.runInSystemProbe),
 	}
-	managers.EnvVar().AddEnvVarToContainer(targetContainer, runInSystemProbeEnvVar)
+	managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.CoreAgentContainerName, targetContainer}, runInSystemProbeEnvVar)
 
 	return nil
 }

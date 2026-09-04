@@ -163,7 +163,33 @@ func cspmAgentNodeWantFunc(runInSystemProbe bool) *test.ComponentTest {
 				targetContainer = apicommon.SystemProbeContainerName
 			}
 
-			want := []*corev1.EnvVar{
+			// The compliance settings are also added to the Core Agent container so that its
+			// config snapshot carries them when config streaming is enabled.
+			wantCoreAgent := []*corev1.EnvVar{
+				{
+					Name:  DDComplianceConfigEnabled,
+					Value: "true",
+				},
+				{
+					Name:  DDComplianceConfigCheckInterval,
+					Value: "1200000000000",
+				},
+				{
+					Name:  DDComplianceHostBenchmarksEnabled,
+					Value: "true",
+				},
+				{
+					Name:  DDComplianceConfigRunInSystemProbe,
+					Value: apiutils.BoolToString(&runInSystemProbe),
+				},
+			}
+
+			coreAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
+			assert.True(t, apiutils.IsEqualStruct(coreAgentEnvVars, wantCoreAgent), "Core Agent envvars \ndiff = %s", cmp.Diff(coreAgentEnvVars, wantCoreAgent))
+
+			// HOST_ROOT is only set on the container running the checks, since it is where the
+			// host root volume is mounted.
+			wantTargetContainer := []*corev1.EnvVar{
 				{
 					Name:  DDComplianceConfigEnabled,
 					Value: "true",
@@ -187,7 +213,7 @@ func cspmAgentNodeWantFunc(runInSystemProbe bool) *test.ComponentTest {
 			}
 
 			targetContainerEnvVars := mgr.EnvVarMgr.EnvVarsByC[targetContainer]
-			assert.True(t, apiutils.IsEqualStruct(targetContainerEnvVars, want), "Agent envvars \ndiff = %s", cmp.Diff(targetContainerEnvVars, want))
+			assert.True(t, apiutils.IsEqualStruct(targetContainerEnvVars, wantTargetContainer), "Agent envvars \ndiff = %s", cmp.Diff(targetContainerEnvVars, wantTargetContainer))
 
 			// check volume mounts
 			wantVolumeMounts := []corev1.VolumeMount{
