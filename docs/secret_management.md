@@ -116,7 +116,16 @@ The Datatog Operator is compatible with the [secret backend][1].
    RUN chmod 755 /my-secret-backend.sh
    ```
 
-   Then, run:
+```yaml
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: test-secret
+data:
+  api_key: <api-key>
+  app_key: <app-key>
+```
 
    ```shell
    docker build -t datadog-operator-with-secret-backend:latest .
