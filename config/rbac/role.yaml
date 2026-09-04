@@ -382,6 +382,18 @@ rules:
 - apiGroups:
   - gateway.networking.k8s.io
   resources:
+  - backendtlspolicies
+  - grpcroutes
+  - listenersets
+  - tcproutes
+  - tlsroutes
+  - udproutes
+  verbs:
+  - list
+  - watch
+- apiGroups:
+  - gateway.networking.k8s.io
+  resources:
   - gatewayclasses
   - gateways
   - httproutes
@@ -393,21 +405,29 @@ rules:
 - apiGroups:
   - gateway.networking.k8s.io
   resources:
-  - grpcroutes
-  - listenersets
-  - tlsroutes
-  verbs:
-  - list
-  - watch
-- apiGroups:
-  - gateway.networking.k8s.io
-  resources:
   - referencegrants
   verbs:
   - create
   - delete
   - get
+  - list
   - patch
+  - watch
+- apiGroups:
+  - inference.networking.k8s.io
+  resources:
+  - inferencepools
+  verbs:
+  - list
+  - watch
+- apiGroups:
+  - inference.networking.x-k8s.io
+  resources:
+  - inferencepoolimports
+  - inferencepools
+  verbs:
+  - list
+  - watch
 - apiGroups:
   - k8s.nginx.org
   resources:
