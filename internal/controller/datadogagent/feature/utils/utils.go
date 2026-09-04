@@ -8,7 +8,6 @@ package utils
 import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -140,9 +139,9 @@ func IsDataPlaneEnabled(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, d
 // must not silently enable the Data Plane.
 func AgentSupportsDefaultDataPlane(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
 	if nodeAgent, ok := ddaSpec.Override[v2alpha1.NodeAgentComponentName]; ok && nodeAgent != nil && nodeAgent.Image != nil {
-		return utils.IsAboveMinVersion(common.GetAgentVersionFromImage(*nodeAgent.Image), DefaultDataPlaneMinAgentVersion, ptr.To(false))
+		return utils.IsAboveMinVersion(common.GetAgentVersionFromImage(*nodeAgent.Image), DefaultDataPlaneMinAgentVersion, new(bool))
 	}
-	return utils.IsAboveMinVersion(images.AgentLatestVersion, DefaultDataPlaneMinAgentVersion, ptr.To(false))
+	return utils.IsAboveMinVersion(images.AgentLatestVersion, DefaultDataPlaneMinAgentVersion, new(bool))
 }
 
 // IsDataPlaneDogstatsdEnabled returns true if the Data Plane should handle DogStatsD.
