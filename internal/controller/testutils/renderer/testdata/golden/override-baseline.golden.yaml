@@ -395,6 +395,24 @@ rules:
   - list
   - watch
 - apiGroups:
+  - serving.kserve.io
+  resources:
+  - clusterservingruntimes
+  - clusterstoragecontainers
+  - inferencegraphs
+  - inferenceservices
+  - llminferenceserviceconfigs
+  - llminferenceservices
+  - localmodelcaches
+  - localmodelnamespacecaches
+  - localmodelnodegroups
+  - localmodelnodes
+  - servingruntimes
+  - trainedmodels
+  verbs:
+  - list
+  - watch
+- apiGroups:
   - source.toolkit.fluxcd.io
   resources:
   - buckets

@@ -29,7 +29,7 @@ type EnvFromVarManager interface {
 	AddEnvFromVarToContainerWithMergeFunc(containerName common.AgentContainerName, newEnvFromVar *corev1.EnvFromSource, mergeFunc EnvFromSourceFromMergeFunction) error
 }
 
-// NewEnvFromManager returns new instance of the EnvFromVarManager
+// NewEnvFromVarManager returns a new EnvFromVarManager instance.
 func NewEnvFromVarManager(podTmpl *corev1.PodTemplateSpec) EnvFromVarManager {
 	return &envFromVarManagerImpl{
 		podTmpl: podTmpl,

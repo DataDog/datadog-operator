@@ -48,7 +48,7 @@ func NewDefaultDatadogAgentInternalBuilder() *DatadogAgentInternalBuilder {
 	}
 }
 
-// NewDefaultDatadogAgentInternalBuilder initialized with name, namespace, creds and metadata
+// NewInitializedDatadogAgentInternalBuilder returns a builder initialized with a name, namespace, credentials, and metadata.
 func NewInitializedDatadogAgentInternalBuilder(ns, name string) *DatadogAgentInternalBuilder {
 	ddai := NewDatadogAgentInternal(ns, name, nil)
 	ddai.Spec.Features = &v2alpha1.DatadogFeatures{}
@@ -69,7 +69,7 @@ func (builder *DatadogAgentInternalBuilder) BuildWithDefaults() *v1alpha1.Datado
 	return &builder.datadogAgentInternal
 }
 
-// Common
+// WithName sets the DatadogAgentInternal name.
 func (builder *DatadogAgentInternalBuilder) WithName(name string) *DatadogAgentInternalBuilder {
 	builder.datadogAgentInternal.Name = name
 	return builder
@@ -80,7 +80,7 @@ func (builder *DatadogAgentInternalBuilder) WithAnnotations(annotations map[stri
 	return builder
 }
 
-// Global environment variable
+// WithEnvVars sets the global environment variables.
 func (builder *DatadogAgentInternalBuilder) WithEnvVars(envs []corev1.EnvVar) *DatadogAgentInternalBuilder {
 	builder.datadogAgentInternal.Spec.Global.Env = envs
 	return builder
@@ -281,7 +281,7 @@ func (builder *DatadogAgentInternalBuilder) WithAdmissionControllerProbeGracePer
 	return builder
 }
 
-// sidecar Injection
+// WithSidecarInjectionEnabled enables or disables sidecar injection.
 func (builder *DatadogAgentInternalBuilder) WithSidecarInjectionEnabled(enabled bool) *DatadogAgentInternalBuilder {
 	// builder.initAdmissionController()
 	builder.initSidecarInjection()
@@ -597,9 +597,9 @@ func (builder *DatadogAgentInternalBuilder) WithOrchestratorExplorerExtraTags(ta
 	return builder
 }
 
-func (builder *DatadogAgentInternalBuilder) WithOrchestratorExplorerDDUrl(ddUrl string) *DatadogAgentInternalBuilder {
+func (builder *DatadogAgentInternalBuilder) WithOrchestratorExplorerDDUrl(ddURL string) *DatadogAgentInternalBuilder {
 	builder.initOE()
-	builder.datadogAgentInternal.Spec.Features.OrchestratorExplorer.DDUrl = new(ddUrl)
+	builder.datadogAgentInternal.Spec.Features.OrchestratorExplorer.DDUrl = new(ddURL)
 	return builder
 }
 
@@ -951,7 +951,7 @@ func (builder *DatadogAgentInternalBuilder) WithCredentialsFromSecret(apiSecretN
 	return builder
 }
 
-// Global DCA Token
+// WithDCAToken sets the global Cluster Agent token.
 func (builder *DatadogAgentInternalBuilder) WithDCAToken(token string) *DatadogAgentInternalBuilder {
 	builder.datadogAgentInternal.Spec.Global.ClusterAgentToken = new(token)
 	return builder

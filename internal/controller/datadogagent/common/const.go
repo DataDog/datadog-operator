@@ -28,7 +28,7 @@ const (
 // APM Telemetry
 const (
 	APMTelemetryConfigMapName  = "datadog-apm-telemetry-kpi"
-	APMTelemetryInstallIdKey   = "install_id"
+	APMTelemetryInstallIDKey   = "install_id"
 	APMTelemetryInstallTimeKey = "install_time"
 	APMTelemetryInstallTypeKey = "install_type"
 )
@@ -61,6 +61,10 @@ const (
 	ClusterProviderDetectedConditionType = "ClusterProviderDetected"
 	// FeatureNotSupportedOnProviderConditionType reports that an enabled feature is not supported on the detected provider
 	FeatureNotSupportedOnProviderConditionType = "FeatureNotSupportedOnProvider"
+	// DeprecatedConfigInUseConditionType reports that the DatadogAgent still relies on a
+	// deprecated configuration surface, and names the replacement. It is informational:
+	// the deprecated configuration keeps working until the release that removes it.
+	DeprecatedConfigInUseConditionType = "DeprecatedConfigInUse"
 )
 
 const (

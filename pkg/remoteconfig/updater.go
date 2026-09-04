@@ -39,7 +39,7 @@ import (
 const (
 	defaultSite           = "datadoghq.com"
 	pollInterval          = 10 * time.Second
-	remoteConfigUrlPrefix = "https://config."
+	remoteConfigURLPrefix = "https://config."
 	// InstallerStateUnknownConfigVersion prevents Fleet from interpreting
 	// unverified startup state as an authoritative uninstalled state.
 	InstallerStateUnknownConfigVersion = "unknown"
@@ -316,7 +316,7 @@ func (r *RemoteConfigUpdater) RefreshUpdaterTags(ctx context.Context) error {
 	r.clientMu.Lock()
 	defer r.clientMu.Unlock()
 	if r.rcClient == nil || r.rcService == nil {
-		return errors.New("Remote Configuration client is not running")
+		return errors.New("Remote Configuration client is not running") //nolint:staticcheck // Remote Configuration is a product name.
 	}
 	if slices.Equal(r.updaterTags, updaterTags) {
 		return nil
@@ -388,7 +388,7 @@ func (r *RemoteConfigUpdater) configureService(apiKey, site, clusterName, direct
 	hostname, _ := os.Hostname()
 
 	if endpoint == "" {
-		endpoint = getEndpoint(remoteConfigUrlPrefix, site)
+		endpoint = getEndpoint(remoteConfigURLPrefix, site)
 	}
 
 	// TODO consider different dir

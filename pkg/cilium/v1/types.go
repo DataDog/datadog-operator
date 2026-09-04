@@ -31,8 +31,11 @@ const (
 	EntityRemoteNode Entity = "remote-node"
 	// EntityWorld is a world entity
 	EntityWorld Entity = "world"
-	// EntityKubeApiServer is a Kube Api Server
-	EntityKubeApiServer Entity = "kube-apiserver"
+	// EntityKubeAPIServer is a Kubernetes API server entity.
+	EntityKubeAPIServer Entity = "kube-apiserver"
+	// EntityKubeApiServer is retained for compatibility.
+	// Deprecated: use EntityKubeAPIServer.
+	EntityKubeApiServer = EntityKubeAPIServer //nolint:staticcheck
 )
 
 // NetworkPolicy is a Cilium network policy

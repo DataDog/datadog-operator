@@ -138,8 +138,8 @@ func createSLO(auth context.Context, client *datadogV1.ServiceLevelObjectivesApi
 	return slo.Data[0], nil
 }
 
-func getSLO(auth context.Context, client *datadogV1.ServiceLevelObjectivesApi, sloId string) (*datadogV1.SLOResponseData, error) {
-	slo, httpResp, err := client.GetSLO(auth, sloId, datadogV1.GetSLOOptionalParameters{})
+func getSLO(auth context.Context, client *datadogV1.ServiceLevelObjectivesApi, sloID string) (*datadogV1.SLOResponseData, error) {
+	slo, httpResp, err := client.GetSLO(auth, sloID, datadogV1.GetSLOOptionalParameters{})
 	if httpResp != nil {
 		defer httpResp.Body.Close()
 	}

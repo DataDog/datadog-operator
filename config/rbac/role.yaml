@@ -443,6 +443,14 @@ rules:
   verbs:
   - get
 - apiGroups:
+  - networking.gke.io
+  resources:
+  - gcptrafficextensions
+  verbs:
+  - create
+  - delete
+  - get
+- apiGroups:
   - networking.istio.io
   resources:
   - destinationrules
@@ -574,6 +582,24 @@ rules:
   - securitycontextconstraints
   verbs:
   - use
+- apiGroups:
+  - serving.kserve.io
+  resources:
+  - clusterservingruntimes
+  - clusterstoragecontainers
+  - inferencegraphs
+  - inferenceservices
+  - llminferenceserviceconfigs
+  - llminferenceservices
+  - localmodelcaches
+  - localmodelnamespacecaches
+  - localmodelnodegroups
+  - localmodelnodes
+  - servingruntimes
+  - trainedmodels
+  verbs:
+  - list
+  - watch
 - apiGroups:
   - source.toolkit.fluxcd.io
   resources:

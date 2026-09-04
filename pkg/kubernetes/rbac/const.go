@@ -31,6 +31,7 @@ const (
 	ExternalMetricsAPIGroup      = "external.metrics.k8s.io"
 	GatewayAPIGroup              = "gateway.networking.k8s.io"
 	NetworkingAPIGroup           = "networking.k8s.io"
+	NetworkingGKEAPIGroup        = "networking.gke.io"
 	OpenShiftQuotaAPIGroup       = "quota.openshift.io"
 	PolicyAPIGroup               = "policy"
 	RbacAPIGroup                 = "rbac.authorization.k8s.io"
@@ -43,6 +44,7 @@ const (
 	KarpenterAzureAPIGroup       = "karpenter.azure.com"
 	KubeRayAPIGroup              = "ray.io"
 	DynamoAPIGroup               = "nvidia.com"
+	KServeAPIGroup               = "serving.kserve.io"
 
 	// Service Mesh API groups
 	IstioNetworkingAPIGroup = "networking.istio.io"
@@ -139,6 +141,21 @@ const (
 	DynamoGraphDeploymentScalingAdaptersResource      = "dynamographdeploymentscalingadapters"
 	DynamoModelsResource                              = "dynamomodels"
 	DynamoWorkerMetadatasResource                     = "dynamoworkermetadatas"
+	ClusterStorageContainersResource                  = "clusterstoragecontainers"
+	LLMInferenceServiceConfigsResource                = "llminferenceserviceconfigs"
+	LLMInferenceServicesResource                      = "llminferenceservices"
+	LocalModelCachesResource                          = "localmodelcaches"
+	LocalModelNamespaceCachesResource                 = "localmodelnamespacecaches"
+	LocalModelNodeGroupsResource                      = "localmodelnodegroups"
+	LocalModelNodesResource                           = "localmodelnodes"
+	ClusterServingRuntimesResource                    = "clusterservingruntimes"
+	InferenceGraphsResource                           = "inferencegraphs"
+	InferenceServicesResource                         = "inferenceservices"
+	ServingRuntimesResource                           = "servingruntimes"
+	TrainedModelsResource                             = "trainedmodels"
+
+	// GKE resources
+	GCPTrafficExtensionsResource = "gcptrafficextensions"
 
 	// Gateway API resources
 	GatewaysResource     = "gateways"

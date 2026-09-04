@@ -112,6 +112,54 @@ spec:
 `features.apm.unixDomainSocketConfig.path`
 : Defines the socket path used when enabled.
 
+`features.appsec.injector.autoDetect`
+: Controls automatic proxy detection. Default: true
+
+`features.appsec.injector.enabled`
+: Enables the AppSec injector. Default: false
+
+`features.appsec.injector.gke.gatewayClasses`
+: Lists GKE GatewayClasses for AppSec injection. Configuration is create-only with no drift reconciliation, so deleting a GCPTrafficExtension while its Gateway still exists does not recreate it. The extension has no ownerReferences; if the cluster-agent is down or not leader when the Gateway is deleted, it can be orphaned. After disabling AppSec, teardown can take about 5-7 minutes and traffic remains inspected or blocked during that period. A pre-existing GCPTrafficExtension without the app.kubernetes.io/managed-by: datadog-cluster-agent label is left alone. A Gateway labeled appsec.datadoghq.com/enabled=false is skipped. GKE injection requires cluster-agent version 7.82.0 or later. The `mode: external` setting is required only when `gke-gateway` is explicitly listed in `proxies`; a `gatewayClasses`-only configuration relying on agent-side autoDetect remains valid in any mode.
+
+`features.appsec.injector.mode`
+: Selects the AppSec injection mode. When unset, this uses the agent default sidecar.
+
+`features.appsec.injector.nginx.moduleMountPath`
+: Sets the nginx module mount path. Default: /modules_mount
+
+`features.appsec.injector.processor.address`
+: Sets the processor address.
+
+`features.appsec.injector.processor.port`
+: Sets the processor port. Default: 443
+
+`features.appsec.injector.processor.service.name`
+: Sets the processor Service name.
+
+`features.appsec.injector.processor.service.namespace`
+: Sets the processor Service namespace. This is ignored for gke-gateway because the callout Service is resolved in each Gateway's own namespace; deploy the Service in every AppSec-enabled Gateway namespace.
+
+`features.appsec.injector.proxies`
+: Lists proxies for AppSec injection. Default: []
+
+`features.appsec.injector.sidecar.bodyParsingSizeLimit`
+: Sets the sidecar body parsing size limit. Default: 0
+
+`features.appsec.injector.sidecar.healthPort`
+: Sets the sidecar health port. Default: 8081
+
+`features.appsec.injector.sidecar.image`
+: Sets the sidecar image. Default: ghcr.io/datadog/dd-trace-go/service-extensions-callout
+
+`features.appsec.injector.sidecar.imageTag`
+: Sets the sidecar image tag. When unset, the tag defaults to a value determined by the cluster-agent image in use.
+
+`features.appsec.injector.sidecar.port`
+: Sets the sidecar port. Default: 8080
+
+`features.appsec.injector.sidecar.resources`
+: Configures sidecar resources. Only requests and limits for cpu and memory are honored. See [link](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/) for more information.
+
 `features.asm.iast.enabled`
 : Enables Interactive Application Security Testing (IAST). Default: false
 
