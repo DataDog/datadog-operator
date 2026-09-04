@@ -181,7 +181,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, instance *v1alpha1.DatadogGe
 		}
 
 		if err != nil {
-			result.RequeueAfter = defaultErrRequeuePeriod
+			// Permanent errors won't succeed on retry; back off to forceSyncPeriod.
+			if ctrutils.IsPermanentAPIError(err) {
+				result.RequeueAfter = r.forceSyncPeriod
+			} else {
+				result.RequeueAfter = defaultErrRequeuePeriod
+			}
 		}
 	} else if shouldRefreshStatus {
 		result.Priority = ptr.To(ctrlhandler.LowPriority)

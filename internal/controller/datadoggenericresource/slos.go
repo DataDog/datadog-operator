@@ -69,11 +69,14 @@ func (h *SLOHandler) refreshState(auth context.Context, instance *v1alpha1.Datad
 func createSLO(auth context.Context, client *datadogV1.ServiceLevelObjectivesApi, instance *v1alpha1.DatadogGenericResource) (datadogV1.ServiceLevelObjective, error) {
 	sloCreateData := &datadogV1.ServiceLevelObjectiveRequest{}
 	if err := json.Unmarshal([]byte(instance.Spec.JsonSpec), sloCreateData); err != nil {
-		return datadogV1.ServiceLevelObjective{}, translateClientError(err, "error unmarshalling SLO spec")
+		return datadogV1.ServiceLevelObjective{}, translateUnmarshalError(err, "error unmarshalling SLO spec")
 	}
-	slo, _, err := client.CreateSLO(auth, *sloCreateData)
+	slo, httpResp, err := client.CreateSLO(auth, *sloCreateData)
+	if httpResp != nil {
+		defer httpResp.Body.Close()
+	}
 	if err != nil {
-		return datadogV1.ServiceLevelObjective{}, translateClientError(err, "error creating SLO")
+		return datadogV1.ServiceLevelObjective{}, translateClientError(err, httpResp, "error creating SLO")
 	}
 
 	data := slo.GetData()
@@ -84,9 +87,12 @@ func createSLO(auth context.Context, client *datadogV1.ServiceLevelObjectivesApi
 }
 
 func getSLO(auth context.Context, client *datadogV1.ServiceLevelObjectivesApi, sloID string) (*datadogV1.SLOResponseData, error) {
-	slo, _, err := client.GetSLO(auth, sloID, datadogV1.GetSLOOptionalParameters{})
+	slo, httpResp, err := client.GetSLO(auth, sloID, datadogV1.GetSLOOptionalParameters{})
+	if httpResp != nil {
+		defer httpResp.Body.Close()
+	}
 	if err != nil {
-		return nil, translateClientError(err, "error getting SLO")
+		return nil, translateClientError(err, httpResp, "error getting SLO")
 	}
 	return slo.Data, nil
 }
@@ -94,11 +100,14 @@ func getSLO(auth context.Context, client *datadogV1.ServiceLevelObjectivesApi, s
 func updateSLO(auth context.Context, client *datadogV1.ServiceLevelObjectivesApi, instance *v1alpha1.DatadogGenericResource) (datadogV1.SLOListResponse, error) {
 	sloUpdateData := &datadogV1.ServiceLevelObjective{}
 	if err := json.Unmarshal([]byte(instance.Spec.JsonSpec), sloUpdateData); err != nil {
-		return datadogV1.SLOListResponse{}, translateClientError(err, "error unmarshalling SLO spec")
+		return datadogV1.SLOListResponse{}, translateUnmarshalError(err, "error unmarshalling SLO spec")
 	}
-	sloUpdated, _, err := client.UpdateSLO(auth, instance.Status.Id, *sloUpdateData)
+	sloUpdated, httpResp, err := client.UpdateSLO(auth, instance.Status.Id, *sloUpdateData)
+	if httpResp != nil {
+		defer httpResp.Body.Close()
+	}
 	if err != nil {
-		return datadogV1.SLOListResponse{}, translateClientError(err, "error updating SLO")
+		return datadogV1.SLOListResponse{}, translateClientError(err, httpResp, "error updating SLO")
 	}
 	return sloUpdated, nil
 }
@@ -109,6 +118,9 @@ func deleteSLO(auth context.Context, client *datadogV1.ServiceLevelObjectivesApi
 		Force: &force,
 	}
 	_, httpResponse, err := client.DeleteSLO(auth, sloID, optionalParams)
+	if httpResponse != nil {
+		defer httpResponse.Body.Close()
+	}
 	if err != nil {
 		// Deletion is idempotent for finalization: if the SLO was already removed
 		// in Datadog (for example from the UI), allow the Kubernetes finalizer to clear.
@@ -116,7 +128,7 @@ func deleteSLO(auth context.Context, client *datadogV1.ServiceLevelObjectivesApi
 		if httpResponse != nil && httpResponse.StatusCode == 404 {
 			return nil
 		}
-		return translateClientError(err, "error deleting SLO")
+		return translateClientError(err, httpResponse, "error deleting SLO")
 	}
 	return nil
 }
@@ -128,9 +140,12 @@ func getSLOState(auth context.Context, client *datadogV1.ServiceLevelObjectivesA
 		PageSize: &pageSize,
 	}
 
-	response, _, err := client.SearchSLO(auth, searchParams)
+	response, httpResp, err := client.SearchSLO(auth, searchParams)
+	if httpResp != nil {
+		defer httpResp.Body.Close()
+	}
 	if err != nil {
-		return nil, translateClientError(err, "error searching SLO")
+		return nil, translateClientError(err, httpResp, "error searching SLO")
 	}
 
 	state, err := extractSLOState(response, sloID)
@@ -172,7 +187,7 @@ func getSLONameFromSpec(instance *v1alpha1.DatadogGenericResource) (string, erro
 		Name string `json:"name"`
 	}{}
 	if err := json.Unmarshal([]byte(instance.Spec.JsonSpec), &sloSpec); err != nil {
-		return "", translateClientError(err, "error unmarshalling SLO spec")
+		return "", translateUnmarshalError(err, "error unmarshalling SLO spec")
 	}
 	if sloSpec.Name == "" {
 		return "", fmt.Errorf("error getting SLO state: SLO spec does not include name")
