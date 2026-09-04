@@ -168,13 +168,15 @@ func deleteSLO(auth context.Context, client *datadogV1.ServiceLevelObjectivesApi
 		Force: &force,
 	}
 	_, localVarHTTPResponse, err := client.DeleteSLO(auth, sloID, optionalParams)
+	statusCode := 0
 	if localVarHTTPResponse != nil {
 		defer localVarHTTPResponse.Body.Close()
+		statusCode = localVarHTTPResponse.StatusCode
 	}
 	if err != nil {
-		return localVarHTTPResponse.StatusCode, translateClientError(err, localVarHTTPResponse, "error deleting SLO")
+		return statusCode, translateClientError(err, localVarHTTPResponse, "error deleting SLO")
 	}
-	return localVarHTTPResponse.StatusCode, nil
+	return statusCode, nil
 }
 
 func translateClientError(err error, httpResp *http.Response, msg string) error {
