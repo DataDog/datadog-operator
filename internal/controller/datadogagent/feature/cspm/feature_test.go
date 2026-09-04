@@ -21,9 +21,12 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/providercaps"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func Test_cspmFeature_Configure(t *testing.T) {
@@ -294,4 +297,50 @@ func cspmAgentNodeWantFunc(runInSystemProbe bool) *test.ComponentTest {
 			assert.Empty(t, annotations)
 		},
 	)
+}
+
+func Test_cspmFeature_NodeAgentProviderCapabilities(t *testing.T) {
+	newPodTemplate := func() *corev1.PodTemplateSpec {
+		return &corev1.PodTemplateSpec{
+			ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{}},
+			Spec: corev1.PodSpec{
+				Containers: []corev1.Container{
+					{Name: string(apicommon.SecurityAgentContainerName)},
+					{Name: string(apicommon.SystemProbeContainerName)},
+				},
+			},
+		}
+	}
+
+	volumeNames := func(tmpl *corev1.PodTemplateSpec) []string {
+		names := make([]string, 0, len(tmpl.Spec.Volumes))
+		for _, v := range tmpl.Spec.Volumes {
+			names = append(names, v.Name)
+		}
+		return names
+	}
+
+	t.Run("talos strips passwd and group volumes", func(t *testing.T) {
+		f := &cspmFeature{}
+		tmpl := newPodTemplate()
+		mgr := feature.NewPodTemplateManagers(tmpl)
+		require.NoError(t, f.ManageNodeAgent(mgr))
+
+		providercaps.ApplyProviderCapabilities(mgr, kubernetes.TalosProvider, f.NodeAgentProviderCapabilities())
+
+		assert.NotContains(t, volumeNames(tmpl), common.PasswdVolumeName)
+		assert.NotContains(t, volumeNames(tmpl), common.GroupVolumeName)
+	})
+
+	t.Run("default provider keeps passwd and group volumes", func(t *testing.T) {
+		f := &cspmFeature{}
+		tmpl := newPodTemplate()
+		mgr := feature.NewPodTemplateManagers(tmpl)
+		require.NoError(t, f.ManageNodeAgent(mgr))
+
+		providercaps.ApplyProviderCapabilities(mgr, kubernetes.DefaultProvider, f.NodeAgentProviderCapabilities())
+
+		assert.Contains(t, volumeNames(tmpl), common.PasswdVolumeName)
+		assert.Contains(t, volumeNames(tmpl), common.GroupVolumeName)
+	})
 }
