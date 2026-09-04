@@ -105,7 +105,7 @@ func createDowntime(auth context.Context, client *datadogV2.DowntimesApi, instan
 
 	downtimeBody := &datadogV2.DowntimeCreateRequest{}
 	if err := json.Unmarshal([]byte(instance.Spec.JsonSpec), downtimeBody); err != nil {
-		return datadogV2.DowntimeResponse{}, translateClientError(err, nil, "error unmarshalling downtime spec")
+		return datadogV2.DowntimeResponse{}, translateUnmarshalError(err, "error unmarshalling downtime spec")
 	}
 
 	downtime, httpResp, err := client.CreateDowntime(auth, *downtimeBody)
@@ -136,7 +136,7 @@ func updateDowntime(auth context.Context, client *datadogV2.DowntimesApi, instan
 		} `json:"data"`
 	}
 	if err := json.Unmarshal([]byte(instance.Spec.JsonSpec), &specData); err != nil {
-		return datadogV2.DowntimeResponse{}, translateClientError(err, nil, "error unmarshalling downtime spec")
+		return datadogV2.DowntimeResponse{}, translateUnmarshalError(err, "error unmarshalling downtime spec")
 	}
 
 	if specData.Data.Attributes == nil {

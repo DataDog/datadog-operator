@@ -82,7 +82,7 @@ func deleteNotebook(auth context.Context, client *datadogV1.NotebooksApi, notebo
 func createNotebook(auth context.Context, client *datadogV1.NotebooksApi, instance *v1alpha1.DatadogGenericResource) (datadogV1.NotebookResponse, error) {
 	notebookCreateData := &datadogV1.NotebookCreateRequest{}
 	if err := json.Unmarshal([]byte(instance.Spec.JsonSpec), notebookCreateData); err != nil {
-		return datadogV1.NotebookResponse{}, translateClientError(err, nil, "error unmarshalling notebook spec")
+		return datadogV1.NotebookResponse{}, translateUnmarshalError(err, "error unmarshalling notebook spec")
 	}
 	notebook, httpResp, err := client.CreateNotebook(auth, *notebookCreateData)
 	if httpResp != nil {
@@ -97,7 +97,7 @@ func createNotebook(auth context.Context, client *datadogV1.NotebooksApi, instan
 func updateNotebook(auth context.Context, client *datadogV1.NotebooksApi, instance *v1alpha1.DatadogGenericResource) (datadogV1.NotebookResponse, error) {
 	notebookUpdateData := &datadogV1.NotebookUpdateRequest{}
 	if err := json.Unmarshal([]byte(instance.Spec.JsonSpec), notebookUpdateData); err != nil {
-		return datadogV1.NotebookResponse{}, translateClientError(err, nil, "error unmarshalling notebook spec")
+		return datadogV1.NotebookResponse{}, translateUnmarshalError(err, "error unmarshalling notebook spec")
 	}
 	notebookID, err := resourceStringToInt64ID(instance.Status.Id)
 	if err != nil {

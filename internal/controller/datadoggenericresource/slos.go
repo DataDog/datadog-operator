@@ -69,7 +69,7 @@ func (h *SLOHandler) refreshState(auth context.Context, instance *v1alpha1.Datad
 func createSLO(auth context.Context, client *datadogV1.ServiceLevelObjectivesApi, instance *v1alpha1.DatadogGenericResource) (datadogV1.ServiceLevelObjective, error) {
 	sloCreateData := &datadogV1.ServiceLevelObjectiveRequest{}
 	if err := json.Unmarshal([]byte(instance.Spec.JsonSpec), sloCreateData); err != nil {
-		return datadogV1.ServiceLevelObjective{}, translateClientError(err, nil, "error unmarshalling SLO spec")
+		return datadogV1.ServiceLevelObjective{}, translateUnmarshalError(err, "error unmarshalling SLO spec")
 	}
 	slo, httpResp, err := client.CreateSLO(auth, *sloCreateData)
 	if httpResp != nil {
@@ -100,7 +100,7 @@ func getSLO(auth context.Context, client *datadogV1.ServiceLevelObjectivesApi, s
 func updateSLO(auth context.Context, client *datadogV1.ServiceLevelObjectivesApi, instance *v1alpha1.DatadogGenericResource) (datadogV1.SLOListResponse, error) {
 	sloUpdateData := &datadogV1.ServiceLevelObjective{}
 	if err := json.Unmarshal([]byte(instance.Spec.JsonSpec), sloUpdateData); err != nil {
-		return datadogV1.SLOListResponse{}, translateClientError(err, nil, "error unmarshalling SLO spec")
+		return datadogV1.SLOListResponse{}, translateUnmarshalError(err, "error unmarshalling SLO spec")
 	}
 	sloUpdated, httpResp, err := client.UpdateSLO(auth, instance.Status.Id, *sloUpdateData)
 	if httpResp != nil {
@@ -187,7 +187,7 @@ func getSLONameFromSpec(instance *v1alpha1.DatadogGenericResource) (string, erro
 		Name string `json:"name"`
 	}{}
 	if err := json.Unmarshal([]byte(instance.Spec.JsonSpec), &sloSpec); err != nil {
-		return "", translateClientError(err, nil, "error unmarshalling SLO spec")
+		return "", translateUnmarshalError(err, "error unmarshalling SLO spec")
 	}
 	if sloSpec.Name == "" {
 		return "", fmt.Errorf("error getting SLO state: SLO spec does not include name")

@@ -103,6 +103,15 @@ func Test_translateClientError(t *testing.T) {
 	}
 }
 
+func Test_translateUnmarshalError(t *testing.T) {
+	err := translateUnmarshalError(errors.New("unexpected end of JSON input"), "error unmarshalling monitor spec")
+	assert.EqualError(t, err, "error unmarshalling monitor spec: unexpected end of JSON input")
+	// A spec that never parses will never succeed on retry, no HTTP request was
+	// made, so this must be classified as permanent rather than defaulting to
+	// transient the way a genuine network failure (nil response) would.
+	assert.True(t, ctrutils.IsPermanentAPIError(err))
+}
+
 func Test_resourceStringToInt64ID(t *testing.T) {
 	originalResourceID := "123"
 	expectedResourceID := int64(123)

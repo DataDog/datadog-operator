@@ -111,7 +111,7 @@ func createMonitorNotificationRule(auth context.Context, client *datadogV2.Monit
 
 	body := &datadogV2.MonitorNotificationRuleCreateRequest{}
 	if err := json.Unmarshal([]byte(instance.Spec.JsonSpec), body); err != nil {
-		return datadogV2.MonitorNotificationRuleResponse{}, translateClientError(err, nil, "error unmarshalling monitor notification rule spec")
+		return datadogV2.MonitorNotificationRuleResponse{}, translateUnmarshalError(err, "error unmarshalling monitor notification rule spec")
 	}
 
 	rule, httpResp, err := client.CreateMonitorNotificationRule(auth, *body)
@@ -139,7 +139,7 @@ func updateMonitorNotificationRule(auth context.Context, client *datadogV2.Monit
 		} `json:"data"`
 	}
 	if err := json.Unmarshal([]byte(instance.Spec.JsonSpec), &specData); err != nil {
-		return datadogV2.MonitorNotificationRuleResponse{}, translateClientError(err, nil, "error unmarshalling monitor notification rule spec")
+		return datadogV2.MonitorNotificationRuleResponse{}, translateUnmarshalError(err, "error unmarshalling monitor notification rule spec")
 	}
 
 	if specData.Data.Attributes == nil {
