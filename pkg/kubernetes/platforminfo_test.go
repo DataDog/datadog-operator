@@ -204,7 +204,7 @@ func Test_getDatadogAgentVersions(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			platformInfo := NewPlatformInfo(nil, tt.apiGroups, tt.apiResourceList)
-			preffered, other := platformInfo.GetApiVersions("DatadogAgent")
+			preffered, other := platformInfo.GetAPIVersions("DatadogAgent")
 			assert.Equal(t, tt.preferred, preffered)
 			assert.Equal(t, tt.other, other)
 		})

@@ -17,7 +17,7 @@ import (
 	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 )
 
-var errHostPIDDisabledManually = errors.New("Host PID is required for host profiler")
+var errHostPIDDisabledManually = errors.New("host PID is required for host profiler")
 
 // SELinux type applied to the host-profiler container unless overridden via the annotation.
 const defaultSELinuxType = "spc_t"

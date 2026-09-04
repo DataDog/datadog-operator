@@ -10,6 +10,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// DatadogSLOSpec defines the desired state of a Datadog service level objective.
 // +k8s:openapi-gen=true
 type DatadogSLOSpec struct {
 	// Name is the name of the service level objective.
@@ -59,6 +60,7 @@ type DatadogSLOSpec struct {
 	ControllerOptions *DatadogSLOControllerOptions `json:"controllerOptions,omitempty"`
 }
 
+// DatadogSLOQuery defines the numerator and denominator queries for a metric-based SLO.
 // +k8s:openapi-gen=true
 type DatadogSLOQuery struct {
 	// Numerator is a Datadog metric query for good events.

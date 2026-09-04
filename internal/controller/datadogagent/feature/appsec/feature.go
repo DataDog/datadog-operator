@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
@@ -73,14 +74,70 @@ func isAboveMinVersion(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
 	return utils.IsAboveMinVersion(clusterAgentVersion(ddaSpec), ClusterAgentMinVersion, nil)
 }
 
+// appsecAnnotationPrefix is the shared prefix of every AppSec annotation in const.go.
+const appsecAnnotationPrefix = "agent.datadoghq.com/appsec."
+
+// DeprecatedConfigReplacement is the CRD path that supersedes the `appsec.*` annotations.
+const DeprecatedConfigReplacement = "spec.features.appsec.injector"
+
+// HasDeprecatedAnnotations reports whether any AppSec annotation is present, whatever
+// its value. It is a local prefix scan on purpose: pkg/plugin/common.IsAnnotated would
+// drag the kubectl plugin and its dependencies into the controller.
+//
+// It is exported so the reconciler can surface the deprecation on the DatadogAgent
+// status without duplicating the annotation prefix.
+func HasDeprecatedAnnotations(annotations map[string]string) bool {
+	for key := range annotations {
+		if strings.HasPrefix(key, appsecAnnotationPrefix) {
+			return true
+		}
+	}
+	return false
+}
+
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *appsecFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, ddaSpecRC *v2alpha1.RemoteConfigConfiguration) feature.RequiredComponents {
-	var err error
-	f.config, err = FromAnnotations(dda.GetAnnotations())
-	if err != nil {
-		f.logger.Error(err, "failed to parse and validate AppSec configuration")
+	// Warn before anything else, including every early return below, so that users who
+	// disabled the feature or run a cluster-agent too old to support it still hear about
+	// the migration to spec.features.appsec.injector.
+	if HasDeprecatedAnnotations(dda.GetAnnotations()) {
+		f.logger.V(0).Info("appsec.* annotations are deprecated; migrate to spec.features.appsec.injector")
+	}
+
+	// Everything below reads ddaSpec, and constants.GetClusterAgentServiceAccount
+	// dereferences it unconditionally, so a nil spec can configure nothing.
+	if ddaSpec == nil {
 		return feature.RequiredComponents{}
 	}
+
+	var inj *v2alpha1.AppsecInjectorConfig
+	if ddaSpec.Features != nil && ddaSpec.Features.Appsec != nil {
+		inj = ddaSpec.Features.Appsec.Injector
+	}
+
+	// The CRD and the deprecated annotations are mutually exclusive sources, never
+	// merged: when spec.features.appsec.injector is present it defines the whole AppSec
+	// configuration and no annotation is read, so migrating means porting the entire
+	// configuration at once rather than field by field. Annotations that are being
+	// ignored this way are surfaced on the DatadogAgent through the
+	// DeprecatedConfigInUse status condition, not just the log line above.
+	var cfg Config
+	if inj != nil {
+		cfg = configFromInjector(inj)
+	} else {
+		annotationCfg, err := parseAnnotations(dda.GetAnnotations())
+		if err != nil {
+			f.logger.Error(err, "failed to parse AppSec annotations")
+			return feature.RequiredComponents{}
+		}
+		cfg = annotationCfg
+	}
+
+	if validateErr := cfg.Validate(); validateErr != nil {
+		f.logger.Error(validateErr, "invalid AppSec configuration")
+		return feature.RequiredComponents{}
+	}
+	f.config = cfg
 
 	if !isAboveMinVersion(ddaSpec) {
 		f.logger.V(1).Info("agent version is too low")
@@ -94,6 +151,11 @@ func (f *appsecFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAg
 
 	if f.config.requiresNginxSupport() && !utils.IsAboveMinVersion(clusterAgentVersion(ddaSpec), ClusterAgentNginxMinVersion, nil) {
 		f.logger.Info("ingress-nginx injection requires cluster-agent >= " + ClusterAgentNginxMinVersion)
+		return feature.RequiredComponents{}
+	}
+
+	if f.config.requiresGKESupport() && !utils.IsAboveMinVersion(clusterAgentVersion(ddaSpec), ClusterAgentGKEMinVersion, nil) {
+		f.logger.Info("gke-gateway injection requires cluster-agent >= " + ClusterAgentGKEMinVersion)
 		return feature.RequiredComponents{}
 	}
 
@@ -159,6 +221,18 @@ func (f *appsecFeature) ManageClusterAgent(managers feature.PodTemplateManagers)
 			return fmt.Errorf("could not marshal AppSec proxies list to JSON: %w", err)
 		}
 		if err := addEnvVar(DDAppsecProxyProxies, string(proxiesJSON)); err != nil {
+			return err
+		}
+	}
+
+	// Set GKE gateway classes if specified. An empty list is skipped rather than emitted as
+	// "[]", which the cluster-agent would read as "no GatewayClass is eligible".
+	if len(f.config.GatewayClasses) > 0 {
+		gatewayClassesJSON, err := json.Marshal(f.config.GatewayClasses)
+		if err != nil {
+			return fmt.Errorf("could not marshal AppSec GKE gateway classes list to JSON: %w", err)
+		}
+		if err := addEnvVar(DDAppsecProxyGKEGatewayClasses, string(gatewayClassesJSON)); err != nil {
 			return err
 		}
 	}

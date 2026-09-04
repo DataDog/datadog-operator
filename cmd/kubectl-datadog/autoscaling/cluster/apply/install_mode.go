@@ -32,6 +32,6 @@ func (i *InstallMode) Set(s string) error {
 }
 
 // Type returns the type name for pflag.
-func (_ *InstallMode) Type() string {
+func (*InstallMode) Type() string {
 	return "InstallMode"
 }
