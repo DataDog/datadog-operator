@@ -65,6 +65,15 @@ func TestOperatorManagedAgentInstallationEnabled(t *testing.T) {
 	}
 }
 
+func TestOptionsParse_DefaultDataPlaneLinuxEnabled(t *testing.T) {
+	resetCommandLine(t)
+
+	var opts options
+	opts.Parse()
+
+	require.False(t, opts.defaultDataPlaneLinuxEnabled)
+}
+
 func TestOptionsParse_EnvOverridesDefaults(t *testing.T) {
 	resetCommandLine(t)
 	t.Setenv("DD_METRICS_ADDR", ":9090")
@@ -81,6 +90,7 @@ func TestOptionsParse_EnvOverridesDefaults(t *testing.T) {
 	t.Setenv("DD_UNTAINT_CONTROLLER_WAIT_FOR_CSI_DRIVER", "true")
 	t.Setenv("DD_CREATE_CONTROLLER_REVISIONS", "true")
 	t.Setenv("DD_MANAGED_AGENT_INSTALLATION_ENABLED", "true")
+	t.Setenv("DD_DEFAULT_DATA_PLANE_LINUX_ENABLED", "true")
 
 	var opts options
 	opts.Parse()
@@ -99,6 +109,7 @@ func TestOptionsParse_EnvOverridesDefaults(t *testing.T) {
 	require.True(t, opts.untaintControllerWaitForCSIDriver)
 	require.True(t, opts.createControllerRevisions)
 	require.True(t, opts.managedAgentInstallationEnabled)
+	require.True(t, opts.defaultDataPlaneLinuxEnabled)
 }
 
 func TestOptionsParse_CLIOverridesEnv(t *testing.T) {
@@ -111,6 +122,7 @@ func TestOptionsParse_CLIOverridesEnv(t *testing.T) {
 		"-datadogGenericResourceRequeuePeriod=2m30s",
 		"-leader-election-lease-duration=2m",
 		"-untaintControllerWaitForCSIDriver=false",
+		"-defaultDataPlaneLinuxEnabled=false",
 	)
 	t.Setenv("DD_METRICS_ADDR", ":9090")
 	t.Setenv("DD_METRICS_SECURE", "true")
@@ -120,6 +132,7 @@ func TestOptionsParse_CLIOverridesEnv(t *testing.T) {
 	t.Setenv("DD_GENERIC_RESOURCE_REQUEUE_PERIOD", "5m")
 	t.Setenv("DD_LEADER_ELECTION_LEASE_DURATION", "90s")
 	t.Setenv("DD_UNTAINT_CONTROLLER_WAIT_FOR_CSI_DRIVER", "true")
+	t.Setenv("DD_DEFAULT_DATA_PLANE_LINUX_ENABLED", "true")
 
 	var opts options
 	opts.Parse()
@@ -132,6 +145,7 @@ func TestOptionsParse_CLIOverridesEnv(t *testing.T) {
 	require.Equal(t, 150*time.Second, opts.datadogGenericResourceRequeuePeriod)
 	require.Equal(t, 2*time.Minute, opts.leaderElectionLeaseDuration)
 	require.False(t, opts.untaintControllerWaitForCSIDriver)
+	require.False(t, opts.defaultDataPlaneLinuxEnabled)
 }
 
 func TestOptionsParse_InvalidEnvLeavesDefault(t *testing.T) {
@@ -141,6 +155,7 @@ func TestOptionsParse_InvalidEnvLeavesDefault(t *testing.T) {
 	t.Setenv("DD_GENERIC_RESOURCE_REQUEUE_PERIOD", "120")
 	t.Setenv("DD_LEADER_ELECTION_LEASE_DURATION", "not-a-duration")
 	t.Setenv("DD_MONITOR_CONTROLLER_ENABLED", "not-a-boolean-meaning-string")
+	t.Setenv("DD_DEFAULT_DATA_PLANE_LINUX_ENABLED", "not-a-boolean-meaning-string")
 
 	var opts options
 	opts.Parse()
@@ -150,6 +165,7 @@ func TestOptionsParse_InvalidEnvLeavesDefault(t *testing.T) {
 	require.Equal(t, defaultDatadogGenericResourceRequeuePeriod, opts.datadogGenericResourceRequeuePeriod)
 	require.Equal(t, 60*time.Second, opts.leaderElectionLeaseDuration)
 	require.False(t, opts.datadogMonitorEnabled)
+	require.False(t, opts.defaultDataPlaneLinuxEnabled)
 }
 
 func resetCommandLine(t *testing.T, args ...string) {

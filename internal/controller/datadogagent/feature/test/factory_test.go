@@ -68,6 +68,28 @@ func TestBuilder(t *testing.T) {
 			},
 		},
 		{
+			name: "Data Plane enabled by feature options with single container strategy, 1 single container",
+			dda: testutils.NewDatadogAgentBuilder().
+				WithSingleContainerStrategy(true).
+				WithNodeAgentImage("agent:7.83.0-rc.5").
+				BuildWithDefaults(),
+			featureOptions: feature.Options{
+				DefaultDataPlaneEnabled: true,
+			},
+			wantAgentContainer: map[common.AgentContainerName]bool{
+				common.UnprivilegedSingleAgentContainerName: true,
+				common.CoreAgentContainerName:               false,
+				common.ProcessAgentContainerName:            false,
+				common.TraceAgentContainerName:              false,
+				common.SystemProbeContainerName:             false,
+				common.SecurityAgentContainerName:           false,
+				common.OtelAgent:                            false,
+				common.HostProfiler:                         false,
+				common.AgentDataPlaneContainerName:          false,
+				common.PrivateActionRunnerContainerName:     false,
+			},
+		},
+		{
 			name: "APM enabled, 2 agents",
 			dda: testutils.NewDatadogAgentBuilder().
 				WithAPMEnabled(true).
