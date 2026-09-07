@@ -44,39 +44,74 @@ var _ manager.LeaderElectionRunnable = &Daemon{}
 // Daemon subscribes to fleet-specific RC products (installer configs and tasks)
 // and runs after leader election as a controller-runtime Runnable.
 //
-// The daemon is a pure RC adapter: it translates RC tasks into DDA annotation
-// writes and observes phase transitions to report outcomes back to RC. It never
-// reads or writes status.experiment.phase — that is the reconciler's exclusive
-// responsibility.
+// The daemon processes local managed Agent installation intents and translates
+// RC tasks into experiment annotation writes. It reports both outcomes through RC
+// and never writes status.experiment.phase, which belongs to the reconciler.
 type Daemon struct {
-	rcClient         remoteconfig.RCClient
-	client           client.Client
-	apiReader        client.Reader // bypasses the informer cache; used at startup before the cache is populated
-	cache            ctrlcache.Cache
-	recorder         record.EventRecorder // Kubernetes-event recorder for fleet-daemon-source events (gated by env var)
-	revisionsEnabled bool
-	mu               sync.RWMutex
-	configs          map[string]installerConfig // keyed by config ID; replaced on each RC update
-	taskMu           sync.Mutex                 // serializes task dispatch and package task-state updates
+	rcClient                                     remoteconfig.RCClient
+	client                                       client.Client
+	apiReader                                    client.Reader // bypasses the informer cache; used at startup before the cache is populated
+	cache                                        ctrlcache.Cache
+	recorder                                     record.EventRecorder // Kubernetes-event recorder for fleet-daemon-source events (gated by env var)
+	revisionsEnabled                             bool
+	managedAgentInstallationIdentity             ManagedAgentInstallationIdentity
+	managedAgentInstallationNamespace            string
+	managedAgentInstallationIntentsEnabled       bool
+	managedAgentInstallationTaskRunner           func(func())
+	mu                                           sync.RWMutex
+	configs                                      map[string]installerConfig // keyed by config ID; replaced on each RC update
+	taskMu                                       sync.Mutex                 // serializes package task-state updates
+	installerStateMu                             sync.Mutex                 // serializes RC installer-state read/modify/write operations
+	transitionMu                                 sync.Mutex                 // serializes DDA managed Agent installation and experiment state transitions
+	managedAgentInstallationActive               bool                       // reserves installer state while a managed Agent installation mutation is in progress
+	managedAgentInstallationOperationID          string
+	managedAgentInstallationCancel               context.CancelFunc
+	managedAgentInstallationDone                 chan struct{}
+	managedAgentInstallationTaskReserved         bool
+	managedAgentInstallationWaitingForFleet      bool
+	managedAgentInstallationCredentialRetryIndex int
 	// statusUpdates carries DDA informer events to the worker. The worker reads
 	// status.experiment and pending annotations to update RC task state.
-	statusUpdates chan ddaStatusSnapshot
+	statusUpdates                   chan ddaStatusSnapshot
+	managedAgentInstallationUpdates chan struct{}
+}
+
+// DaemonOption configures optional Fleet daemon transports.
+type DaemonOption func(*Daemon)
+
+// WithManagedAgentInstallation configures the identity used by managed DDAs and
+// optionally enables local install and uninstall intent processing.
+func WithManagedAgentInstallation(identity ManagedAgentInstallationIdentity, namespace string, intentsEnabled bool) DaemonOption {
+	return func(daemon *Daemon) {
+		daemon.managedAgentInstallationIdentity = identity
+		daemon.managedAgentInstallationNamespace = namespace
+		daemon.managedAgentInstallationIntentsEnabled = intentsEnabled
+		daemon.managedAgentInstallationTaskReserved = intentsEnabled
+	}
 }
 
 // NewDaemon creates a new Fleet Daemon. When revisionsEnabled is false, experiment
 // signals are rejected because the reconciler cannot process them without the
 // ControllerRevision machinery.
-func NewDaemon(rcClient remoteconfig.RCClient, mgr manager.Manager, revisionsEnabled bool) *Daemon {
-	return &Daemon{
+func NewDaemon(rcClient remoteconfig.RCClient, mgr manager.Manager, revisionsEnabled bool, options ...DaemonOption) *Daemon {
+	daemon := &Daemon{
 		rcClient:         rcClient,
 		client:           mgr.GetClient(),
 		apiReader:        mgr.GetAPIReader(),
 		cache:            mgr.GetCache(), // Informer cache
 		recorder:         mgr.GetEventRecorderFor("fleet-daemon"),
 		revisionsEnabled: revisionsEnabled,
-		configs:          make(map[string]installerConfig),
-		statusUpdates:    make(chan ddaStatusSnapshot, 128),
+		managedAgentInstallationTaskRunner: func(task func()) {
+			go task()
+		},
+		configs:                         make(map[string]installerConfig),
+		statusUpdates:                   make(chan ddaStatusSnapshot, 128),
+		managedAgentInstallationUpdates: make(chan struct{}, 1),
 	}
+	for _, option := range options {
+		option(daemon)
+	}
+	return daemon
 }
 
 // Start implements manager.Runnable. It subscribes to fleet RC products and
@@ -89,17 +124,33 @@ func (d *Daemon) Start(ctx context.Context) error {
 	if d.cache == nil {
 		return fmt.Errorf("fleet daemon requires a controller cache")
 	}
+	if d.managedAgentInstallationIdentity.Configured() && d.managedAgentInstallationNamespace == "" {
+		return fmt.Errorf("fleet daemon requires a managed Agent installation namespace")
+	}
 	if err := d.installDDAStatusForwarder(ctx); err != nil {
 		return err
 	}
-	logger.Info("DDA status worker initialized")
-
+	logger.Info("DDA status forwarder initialized")
 	if err := d.rehydrateInstallerState(ctx); err != nil {
-		// Best-effort: if List fails we continue with an empty installer
-		// state. The next reconcile-driven status update will retry the
-		// publication via reconcileTimedOutExperiment when the experiment
-		// reaches a terminal phase.
 		logger.Error(err, "Failed to rehydrate installer state from existing DatadogAgents")
+	}
+	if d.managedAgentInstallationIntentsEnabled {
+		if err := d.rehydrateManagedAgentInstallationState(ctx); err != nil {
+			logger.Error(err, "Failed to rehydrate managed Agent installation state")
+		}
+	}
+	go newOperationTracker(d).run(ctx)
+	logger.Info("DDA status worker initialized")
+	if d.managedAgentInstallationIntentsEnabled {
+		go d.runManagedAgentInstallationIntentWorker(ctx)
+		if err := d.installManagedAgentInstallationIntentForwarder(ctx); err != nil {
+			return err
+		}
+		if err := d.installManagedAgentInstallationCredentialForwarder(ctx); err != nil {
+			return err
+		}
+		d.requestManagedAgentInstallationRetry()
+		logger.Info("Managed Agent installation intent worker initialized", "provider", d.managedAgentInstallationIdentity.Provider())
 	}
 
 	d.rcClient.Subscribe(state.ProductInstallerConfig, handleInstallerConfigUpdate(ctx, func(configs map[string]installerConfig) error {
@@ -125,7 +176,15 @@ func (d *Daemon) handleTask(ctx context.Context, req remoteAPIRequest) error {
 	// Incoming-edge event: emitted before processing so the timeline shows
 	// every task FA sent, including those that will be rejected below.
 	d.emitTaskReceivedEvent(ctx, req)
+	d.transitionMu.Lock()
+	defer d.transitionMu.Unlock()
 	d.taskMu.Lock()
+	if d.managedAgentInstallationActive || d.managedAgentInstallationTaskReserved {
+		err := &stateDoesntMatchError{msg: "a DatadogAgent managed Agent installation transition is already in progress"}
+		d.taskMu.Unlock()
+		d.emitTaskRejectedEvent(ctx, req.Params.NamespacedName, req, err.Error())
+		return err
+	}
 	pending, err := d.handleRemoteAPIRequest(ctx, req)
 	if err != nil {
 		// Expected and current stable/experiment configs don't match.
@@ -175,7 +234,7 @@ func (d *Daemon) handleConfigs(ctx context.Context, configs map[string]installer
 		newConfigs[cfg.ID] = cfg
 	}
 	d.configs = newConfigs
-	logger.V(2).Info("Updated installer configs", "configs", d.configs)
+	logger.V(2).Info("Updated installer configs", "count", len(d.configs))
 	return nil
 }
 
@@ -213,21 +272,29 @@ func (d *Daemon) handleRemoteAPIRequest(ctx context.Context, req remoteAPIReques
 	logger := ctrl.LoggerFrom(ctx).WithValues("id", req.ID, "package", req.Package, "method", req.Method)
 	logger.Info("Received remote API request")
 
-	if !d.revisionsEnabled {
-		return nil, fmt.Errorf("experiment signals require the CreateControllerRevisions and DatadogAgentInternal feature gates")
-	}
-
 	if err := d.verifyExpectedState(req); err != nil {
 		logger.Error(err, "Expected state mismatch")
 		return nil, err
 	}
+	return d.dispatchRemoteAPIRequest(ctx, req)
+}
 
+func (d *Daemon) dispatchRemoteAPIRequest(ctx context.Context, req remoteAPIRequest) (*pendingOperation, error) {
 	switch req.Method {
 	case methodStartDatadogAgentExperiment:
+		if !d.revisionsEnabled {
+			return nil, fmt.Errorf("experiment signals require the CreateControllerRevisions and DatadogAgentInternal feature gates")
+		}
 		return d.startDatadogAgentExperiment(ctx, req)
 	case methodStopDatadogAgentExperiment:
+		if !d.revisionsEnabled {
+			return nil, fmt.Errorf("experiment signals require the CreateControllerRevisions and DatadogAgentInternal feature gates")
+		}
 		return d.stopDatadogAgentExperiment(ctx, req)
 	case methodPromoteDatadogAgentExperiment:
+		if !d.revisionsEnabled {
+			return nil, fmt.Errorf("experiment signals require the CreateControllerRevisions and DatadogAgentInternal feature gates")
+		}
 		return d.promoteDatadogAgentExperiment(ctx, req)
 	default:
 		return nil, fmt.Errorf("unknown method: %s", req.Method)
@@ -238,6 +305,9 @@ func (d *Daemon) handleRemoteAPIRequest(ctx context.Context, req remoteAPIReques
 // If the package is not yet present in the state, a new entry is added.
 // This is a no-op when rcClient is nil (e.g. in unit tests that construct Daemon directly).
 func (d *Daemon) setTaskState(pkgName, taskID string, taskState pbgo.TaskState, taskErr error) {
+	d.installerStateMu.Lock()
+	defer d.installerStateMu.Unlock()
+
 	if d.rcClient == nil {
 		return
 	}
@@ -246,7 +316,7 @@ func (d *Daemon) setTaskState(pkgName, taskID string, taskState pbgo.TaskState, 
 		State: taskState,
 	}
 	if taskErr != nil {
-		task.Error = &pbgo.TaskError{Message: taskErr.Error()}
+		task.Error = &pbgo.TaskError{Message: boundedTaskErrorMessage(taskErr)}
 	}
 
 	current := d.rcClient.GetInstallerState()
@@ -288,7 +358,97 @@ func (d *Daemon) setTaskState(pkgName, taskID string, taskState pbgo.TaskState, 
 // Reads go through the API reader (not the cache) because the informer
 // cache may not be populated yet at the moment Start runs.
 func (d *Daemon) rehydrateInstallerState(ctx context.Context) error {
-	if d.rcClient == nil || d.apiReader == nil {
+	if d.rcClient == nil {
+		return nil
+	}
+	if !d.managedAgentInstallationIdentity.Configured() {
+		return d.rehydrateLegacyInstallerState(ctx)
+	}
+	if d.apiReader == nil {
+		return fmt.Errorf("API reader is required to rehydrate installer state")
+	}
+	logger := ctrl.LoggerFrom(ctx)
+	ddas := &v2alpha1.DatadogAgentList{}
+	if err := d.apiReader.List(ctx, ddas); err != nil {
+		return fmt.Errorf("list DatadogAgents: %w", err)
+	}
+	target := d.managedAgentInstallationTarget()
+	var dda *v2alpha1.DatadogAgent
+	for i := range ddas.Items {
+		if client.ObjectKeyFromObject(&ddas.Items[i]) == target {
+			dda = &ddas.Items[i]
+			break
+		}
+	}
+	if dda == nil {
+		d.setPackageConfigVersions(packageDatadogOperator, "", "")
+		logger.Info("Rehydrated installer state with no Fleet-managed DatadogAgent")
+		return nil
+	}
+	owned, err := classifyFleetDatadogAgentOwnershipForRehydration(dda)
+	if err != nil {
+		return err
+	}
+	if !owned {
+		d.setPackageConfigVersions(packageDatadogOperator, fleetUnmanagedConfigVersion, "")
+		logger.Info("Rehydrated installer state with unmanaged DatadogAgent",
+			"namespace", dda.Namespace,
+			"name", dda.Name,
+		)
+		return nil
+	}
+	if err := d.validateFleetDatadogAgentInstallation(dda); err != nil {
+		return err
+	}
+	managedAgentInstallationConfigID := ""
+	if dda.Labels[fleetManagedByLabel] == fleetManagedByValue && dda.Labels[fleetConfigIDLabel] != "" {
+		managedAgentInstallationConfigID = dda.Labels[fleetConfigIDLabel]
+	}
+	stable := managedAgentInstallationConfigID
+	experiment := ""
+	experimentPhase := v2alpha1.ExperimentPhase("")
+	exp := dda.Status.Experiment
+	if managedAgentInstallationConfigID != "" {
+		if dda.Labels[fleetManagedAgentInstallationStateLabel] != fleetManagedAgentInstallationStateReady || dda.Annotations[fleetConfigHashAnnotation] == "" {
+			stable = fleetPartialConfigVersionPrefix + managedAgentInstallationConfigID
+		}
+	}
+	if exp != nil && exp.ID != "" && !isTerminalPhase(exp.Phase) {
+		experiment = exp.ID
+		experimentPhase = exp.Phase
+	} else if exp != nil && exp.ID != "" && exp.Phase == v2alpha1.ExperimentPhasePromoted && managedAgentInstallationConfigID != "" && managedAgentInstallationConfigID != exp.ID {
+		experiment = exp.ID
+		experimentPhase = exp.Phase
+	}
+	if stable == "" && experiment == "" {
+		d.setPackageConfigVersions(packageDatadogOperator, "", "")
+		logger.Info("Rehydrated installer state with no Fleet-managed DatadogAgent")
+		return nil
+	}
+	if stable == "" {
+		stable, _ = d.getPackageConfigVersions(packageDatadogOperator)
+		if stable == "empty" || stable == remoteconfig.InstallerStateUnknownConfigVersion {
+			stable = ""
+		}
+	}
+	d.setPackageConfigVersions(packageDatadogOperator, stable, experiment)
+	logger.Info("Rehydrated installer state from DatadogAgent",
+		"namespace", dda.Namespace,
+		"name", dda.Name,
+		"stableConfigVersion", stable,
+		"experimentConfigVersion", experiment,
+	)
+	if experiment != "" {
+		// Pass dda directly — apiReader returned a fully-populated object,
+		// and the informer cache may not be synced yet at this point so
+		// a cache-backed lookup would silently drop this event.
+		d.emitInstallerStateRehydratedEvent(ctx, dda, experiment, experimentPhase)
+	}
+	return nil
+}
+
+func (d *Daemon) rehydrateLegacyInstallerState(ctx context.Context) error {
+	if d.apiReader == nil {
 		return nil
 	}
 	logger := ctrl.LoggerFrom(ctx)
@@ -298,25 +458,19 @@ func (d *Daemon) rehydrateInstallerState(ctx context.Context) error {
 	}
 	for i := range ddas.Items {
 		dda := &ddas.Items[i]
-		exp := dda.Status.Experiment
-		if exp == nil || exp.ID == "" {
-			continue
-		}
-		if isTerminalPhase(exp.Phase) {
+		experiment := dda.Status.Experiment
+		if experiment == nil || experiment.ID == "" || isTerminalPhase(experiment.Phase) {
 			continue
 		}
 		stable, _ := d.getPackageConfigVersions(packageDatadogOperator)
-		d.setPackageConfigVersions(packageDatadogOperator, stable, exp.ID)
+		d.setPackageConfigVersions(packageDatadogOperator, stable, experiment.ID)
 		logger.Info("Rehydrated installer state from DatadogAgent",
 			"namespace", dda.Namespace,
 			"name", dda.Name,
-			"experimentID", exp.ID,
-			"phase", exp.Phase,
+			"experimentID", experiment.ID,
+			"phase", experiment.Phase,
 		)
-		// Pass dda directly — apiReader returned a fully-populated object,
-		// and the informer cache may not be synced yet at this point so
-		// a cache-backed lookup would silently drop this event.
-		d.emitInstallerStateRehydratedEvent(ctx, dda, exp.ID, exp.Phase)
+		d.emitInstallerStateRehydratedEvent(ctx, dda, experiment.ID, experiment.Phase)
 	}
 	return nil
 }
@@ -324,9 +478,14 @@ func (d *Daemon) rehydrateInstallerState(ctx context.Context) error {
 // packageDatadogOperator is the RC package name the daemon reports for itself.
 const packageDatadogOperator = "datadog-operator"
 
+const fleetUnmanagedConfigVersion = "unmanaged"
+
 // getPackageConfigVersions returns the current stable and experiment config versions
 // for the given package from the RC installer state.
 func (d *Daemon) getPackageConfigVersions(pkgName string) (stable, experiment string) {
+	d.installerStateMu.Lock()
+	defer d.installerStateMu.Unlock()
+
 	if d.rcClient == nil {
 		return "", ""
 	}
@@ -340,6 +499,9 @@ func (d *Daemon) getPackageConfigVersions(pkgName string) (stable, experiment st
 
 // setPackageConfigVersions updates only the config versions for one package.
 func (d *Daemon) setPackageConfigVersions(pkgName, stable, experiment string) {
+	d.installerStateMu.Lock()
+	defer d.installerStateMu.Unlock()
+
 	if d.rcClient == nil {
 		return
 	}

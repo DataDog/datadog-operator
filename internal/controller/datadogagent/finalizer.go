@@ -24,11 +24,11 @@ const (
 
 func (r *Reconciler) deleteResource(reqLogger logr.Logger) finalizer.ResourceDeleteFunc {
 	return func(ctx context.Context, k8sObj client.Object, datadogID string) error {
-		return r.finalizeDadV2(reqLogger, k8sObj)
+		return r.finalizeDad(reqLogger, k8sObj)
 	}
 }
 
-func (r *Reconciler) finalizeDadV2(reqLogger logr.Logger, obj client.Object) error {
+func (r *Reconciler) finalizeDad(reqLogger logr.Logger, obj client.Object) error {
 	if r.options.OperatorMetricsEnabled {
 		r.forwarders.Unregister(obj)
 	}

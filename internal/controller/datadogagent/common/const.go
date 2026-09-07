@@ -28,7 +28,7 @@ const (
 // APM Telemetry
 const (
 	APMTelemetryConfigMapName  = "datadog-apm-telemetry-kpi"
-	APMTelemetryInstallIdKey   = "install_id"
+	APMTelemetryInstallIDKey   = "install_id"
 	APMTelemetryInstallTimeKey = "install_time"
 	APMTelemetryInstallTypeKey = "install_type"
 )
@@ -61,6 +61,10 @@ const (
 	ClusterProviderDetectedConditionType = "ClusterProviderDetected"
 	// FeatureNotSupportedOnProviderConditionType reports that an enabled feature is not supported on the detected provider
 	FeatureNotSupportedOnProviderConditionType = "FeatureNotSupportedOnProvider"
+	// DeprecatedConfigInUseConditionType reports that the DatadogAgent still relies on a
+	// deprecated configuration surface, and names the replacement. It is informational:
+	// the deprecated configuration keeps working until the release that removes it.
+	DeprecatedConfigInUseConditionType = "DeprecatedConfigInUse"
 )
 
 const (
@@ -82,6 +86,15 @@ const (
 	ConfigVolumePath  = "/etc/datadog-agent"
 	ChecksdVolumeName = "checksd"
 	ChecksdVolumePath = "/checks.d"
+
+	// RmCorechecksVolumeName is the volume that overlays the agent's conf.d
+	// directory on the cluster checks runner to prevent default core checks
+	// from running there.
+	RmCorechecksVolumeName = "remove-corechecks"
+	// RmCorechecksConfdInitPath is the scratch mount path used by the init
+	// container that seeds the remove-corechecks overlay with the packaged
+	// conf.d assets (e.g. SNMP profiles) from the agent image.
+	RmCorechecksConfdInitPath = "/opt/conf.d-overlay"
 
 	HostRootVolumeName = "hostroot"
 	HostRootHostPath   = "/"

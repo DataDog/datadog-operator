@@ -1632,6 +1632,15 @@ spec:
                             type: string
                         type: object
                     type: object
+                  dynamicInstrumentation:
+                    description: DynamicInstrumentation configuration.
+                    properties:
+                      enabled:
+                        description: |-
+                          Enabled enables the Dynamic Instrumentation system probe module.
+                          Default: false
+                        type: boolean
+                    type: object
                   ebpfCheck:
                     description: EBPFCheck configuration.
                     properties:
@@ -2071,6 +2080,15 @@ spec:
                         description: |-
                           Enabled enables Kube State Metrics Core.
                           Default: true
+                        type: boolean
+                    type: object
+                  kubernetesActions:
+                    description: KubernetesActions configuration.
+                    properties:
+                      enabled:
+                        description: |-
+                          Enabled enables the Kubernetes Actions feature on the Cluster Agent.
+                          Default: false
                         type: boolean
                     type: object
                   liveContainerCollection:
@@ -2755,6 +2773,18 @@ spec:
                     description: ClusterName sets a unique cluster name for the deployment
                       to easily scope monitoring data in the Datadog app.
                     type: string
+                  commonLabels:
+                    additionalProperties:
+                      type: string
+                    description: |-
+                      CommonLabels specified labels to be added to all operator-managed Kubernetes resources
+                      (DaemonSets, Deployments, ConfigMaps, Services, ServiceAccounts, etc.).
+                      This is useful when external policy tools such as Kyverno enforce the presence of
+                      specific labels on all cluster resources.
+                      Labels defined here are merged with the operator's own default labels; operator labels
+                      take precedence on any key conflict.
+                    type: object
+                    x-kubernetes-map-type: granular
                   containerStrategy:
                     description: |-
                       ContainerStrategy determines whether agents run in a single or multiple containers.
@@ -2811,6 +2841,35 @@ spec:
                   csi:
                     description: CSI contains configuration for Datadog CSI Driver
                     properties:
+                      apm:
+                        description: APM configures APM/Single Step Instrumentation
+                          settings for the managed CSI driver.
+                        properties:
+                          pullSecrets:
+                            description: |-
+                              PullSecrets are kubernetes.io/dockerconfigjson Secrets used to download APM
+                              libraries from private registries. Propagated to the managed DatadogCSIDriver as
+                              spec.apm.pullSecrets. Restart the CSI DaemonSet after rotating these Secrets.
+                              Not supported on GKE Autopilot.
+                            items:
+                              description: |-
+                                LocalObjectReference contains enough information to let you locate the
+                                referenced object inside the same namespace.
+                              properties:
+                                name:
+                                  default: ""
+                                  description: |-
+                                    Name of the referent.
+                                    This field is effectively required, but due to backwards compatibility is
+                                    allowed to be empty. Instances of this type with an empty value here are
+                                    almost certainly wrong.
+                                    More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                  type: string
+                              type: object
+                              x-kubernetes-map-type: atomic
+                            type: array
+                            x-kubernetes-list-type: atomic
+                        type: object
                       autoManage:
                         description: |-
                           AutoManage controls whether the operator automatically manages the DatadogCSIDriver
@@ -3814,7 +3873,7 @@ spec:
                       Use 'eu.gcr.io/datadoghq' for Google Container Registry in the EU region.
                       Use 'asia.gcr.io/datadoghq' for Google Container Registry in the Asia region.
                       Use 'docker.io/datadog' for DockerHub.
-                      Default: 'gcr.io/datadoghq'
+                      Default: 'registry.datadoghq.com'
                     type: string
                   secretBackend:
                     description: |-
@@ -3832,7 +3891,7 @@ spec:
                         type: string
                       config:
                         additionalProperties:
-                          type: string
+                          x-kubernetes-preserve-unknown-fields: true
                         description: Additional configuration for the secret backend
                           type.
                         type: object
@@ -6075,9 +6134,9 @@ spec:
                             type: object
                         type: object
                       description: |-
-                        CustomConfiguration allows to specify custom configuration files for `datadog.yaml`, `datadog-cluster.yaml`, `security-agent.yaml`, and `system-probe.yaml`.
-                        The content is merged with configuration generated by the Datadog Operator, with priority given to custom configuration.
-                        WARNING: It is possible to override values set in the `DatadogAgent`.
+                        CustomConfigurations specifies custom contents for `datadog.yaml`, `datadog-cluster.yaml`, `security-agent.yaml`, and `system-probe.yaml`.
+                        Each provided file replaces the corresponding default file from the Agent image without merging.
+                        Agent settings provided through environment variables take precedence over these files.
                       type: object
                     disabled:
                       description: Disabled force disables a component.
@@ -10840,6 +10899,15 @@ spec:
                                 type: string
                             type: object
                         type: object
+                      dynamicInstrumentation:
+                        description: DynamicInstrumentation configuration.
+                        properties:
+                          enabled:
+                            description: |-
+                              Enabled enables the Dynamic Instrumentation system probe module.
+                              Default: false
+                            type: boolean
+                        type: object
                       ebpfCheck:
                         description: EBPFCheck configuration.
                         properties:
@@ -11286,6 +11354,15 @@ spec:
                             description: |-
                               Enabled enables Kube State Metrics Core.
                               Default: true
+                            type: boolean
+                        type: object
+                      kubernetesActions:
+                        description: KubernetesActions configuration.
+                        properties:
+                          enabled:
+                            description: |-
+                              Enabled enables the Kubernetes Actions feature on the Cluster Agent.
+                              Default: false
                             type: boolean
                         type: object
                       liveContainerCollection:

@@ -17,7 +17,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	componentagent "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 
@@ -90,7 +89,6 @@ type ProviderReader interface {
 
 // ReconcilerOptions provides options read from command line
 type ReconcilerOptions struct {
-	ExtendedDaemonsetOptions   componentagent.ExtendedDaemonsetOptions
 	SupportCilium              bool
 	OperatorMetricsEnabled     bool
 	IntrospectionEnabled       bool
@@ -151,7 +149,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, dda *v2alpha1.DatadogAgent) 
 	var resp reconcile.Result
 	var err error
 
-	resp, err = r.internalReconcileV2(ctx, dda)
+	resp, err = r.internalReconcile(ctx, dda)
 
 	r.metricsForwarderProcessError(dda, err)
 	return resp, err

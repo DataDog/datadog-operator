@@ -1,6 +1,6 @@
 {
   "additionalProperties": false,
-  "description": "DatadogPodAutoscaler is the Schema for the datadogpodautoscalers API",
+  "description": "DatadogPodAutoscaler is the Schema for the datadogpodautoscalers API.",
   "properties": {
     "apiVersion": {
       "description": "APIVersion defines the versioned schema of this representation of an object.\nServers should convert recognized schemas to the latest internal value, and\nmay reject unrecognized values.\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
@@ -488,7 +488,7 @@
                         "description": "Queries is a list of timeseries queries to use for the objective.\nAt least one query must be specified",
                         "items": {
                           "additionalProperties": false,
-                          "description": "TimeseriesQuery is a discriminated union. Only Metrics and APMMetrics are supported for autoscaling.",
+                          "description": "DatadogPodAutoscalerTimeseriesQuery is a discriminated union. Only Metrics and APMMetrics are supported for autoscaling.",
                           "properties": {
                             "apmMetrics": {
                               "additionalProperties": false,
@@ -924,6 +924,7 @@
                   "description": "DesiredResources is the desired resources for containers",
                   "items": {
                     "additionalProperties": false,
+                    "description": "DatadogPodAutoscalerContainerResources defines resource values for a container.",
                     "properties": {
                       "limits": {
                         "additionalProperties": false,
@@ -983,6 +984,17 @@
                               }
                             ],
                             "pattern": "^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$"
+                          }
+                        },
+                        "type": "object"
+                      },
+                      "runtime": {
+                        "additionalProperties": false,
+                        "description": "Runtime holds extensible runtime configuration for the container.",
+                        "properties": {
+                          "gomemlimit": {
+                            "description": "Gomemlimit is the GOMEMLIMIT environment variable value for the container.",
+                            "type": "string"
                           }
                         },
                         "type": "object"

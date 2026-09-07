@@ -16,13 +16,15 @@ import (
 )
 
 // baseKindCounts is the expected resource inventory for a minimal DatadogAgent
-// with no extra features enabled. The three Services are the Cluster Agent,
-// the admission controller, and the node Agent local service (rendered because
-// the simulated Kubernetes version is >= 1.22).
+// with no explicitly enabled features. Instrumentation CRD is enabled by
+// default because the default Agent versions meet its minimum version. The
+// three Services are the Cluster Agent, the admission controller, and the node
+// Agent local service (rendered because the simulated Kubernetes version is >=
+// 1.22).
 var baseKindCounts = map[string]int{
 	"ServiceAccount":       2,
-	"ClusterRole":          5,
-	"ClusterRoleBinding":   5,
+	"ClusterRole":          6,
+	"ClusterRoleBinding":   6,
 	"Role":                 1,
 	"RoleBinding":          1,
 	"Secret":               1,
@@ -37,8 +39,8 @@ var baseKindCounts = map[string]int{
 // reflecting the dependency-aware sort in kindOrder.
 var baseKindSeq = []string{
 	"ServiceAccount", "ServiceAccount",
-	"ClusterRole", "ClusterRole", "ClusterRole", "ClusterRole", "ClusterRole",
-	"ClusterRoleBinding", "ClusterRoleBinding", "ClusterRoleBinding", "ClusterRoleBinding", "ClusterRoleBinding",
+	"ClusterRole", "ClusterRole", "ClusterRole", "ClusterRole", "ClusterRole", "ClusterRole",
+	"ClusterRoleBinding", "ClusterRoleBinding", "ClusterRoleBinding", "ClusterRoleBinding", "ClusterRoleBinding", "ClusterRoleBinding",
 	"Role",
 	"RoleBinding",
 	"Secret",
@@ -93,8 +95,8 @@ func TestRender_WithDAP(t *testing.T) {
 
 	assert.Equal(t, map[string]int{
 		"ServiceAccount":       2,
-		"ClusterRole":          5,
-		"ClusterRoleBinding":   5,
+		"ClusterRole":          6,
+		"ClusterRoleBinding":   6,
 		"Role":                 1,
 		"RoleBinding":          1,
 		"Secret":               1,
@@ -109,8 +111,8 @@ func TestRender_WithDAP(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, []string{
 		"ServiceAccount", "ServiceAccount",
-		"ClusterRole", "ClusterRole", "ClusterRole", "ClusterRole", "ClusterRole",
-		"ClusterRoleBinding", "ClusterRoleBinding", "ClusterRoleBinding", "ClusterRoleBinding", "ClusterRoleBinding",
+		"ClusterRole", "ClusterRole", "ClusterRole", "ClusterRole", "ClusterRole", "ClusterRole",
+		"ClusterRoleBinding", "ClusterRoleBinding", "ClusterRoleBinding", "ClusterRoleBinding", "ClusterRoleBinding", "ClusterRoleBinding",
 		"Role",
 		"RoleBinding",
 		"Secret",

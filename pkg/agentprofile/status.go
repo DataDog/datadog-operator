@@ -6,13 +6,9 @@
 package agentprofile
 
 import (
-	"fmt"
-	"os"
-
 	"github.com/go-logr/logr"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/DataDog/datadog-operator/api/datadoghq/common"
 	v1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/pkg/condition"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
@@ -40,38 +36,6 @@ const (
 	// DDAIReconcileOKConditionReason is used when the profile's DatadogAgentInternal is reconciling successfully
 	DDAIReconcileOKConditionReason = "DatadogAgentInternal_reconcile_ok"
 )
-
-func UpdateProfileStatus(logger logr.Logger, profile *v1alpha1.DatadogAgentProfile, newStatus v1alpha1.DatadogAgentProfileStatus, now metav1.Time) {
-	if profile == nil || profile.Name == "" {
-		logger.Error(fmt.Errorf("empty profile"), "Unable to update profile status")
-		return
-	}
-
-	newStatus.LastUpdate = &now
-	if newStatus.Valid == "" {
-		newStatus.Valid = metav1.ConditionUnknown
-	}
-	if newStatus.Applied == "" {
-		newStatus.Applied = metav1.ConditionUnknown
-	}
-
-	if os.Getenv(common.CreateStrategyEnabled) == "true" {
-		if newStatus.CreateStrategy == nil {
-			logger.Error(fmt.Errorf("new create strategy status empty"), "Unable to update profile status")
-			return
-		}
-		if newStatus.CreateStrategy.Status == v1alpha1.InProgressStatus {
-			newStatus.CreateStrategy.Status = v1alpha1.WaitingStatus
-		}
-		if profile.Status.CreateStrategy == nil || profile.Status.CreateStrategy.Status == "" || profile.Status.CreateStrategy.Status != newStatus.CreateStrategy.Status {
-			newStatus.CreateStrategy.LastTransition = &now
-		}
-	} else {
-		newStatus.CreateStrategy = nil
-	}
-
-	profile.Status = newStatus
-}
 
 func GenerateProfileStatusFromConditions(logger logr.Logger, profile *v1alpha1.DatadogAgentProfile, now metav1.Time) {
 	if profile == nil {

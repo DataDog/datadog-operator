@@ -16,7 +16,14 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
+	"github.com/DataDog/datadog-operator/pkg/images"
+	"github.com/DataDog/datadog-operator/pkg/utils"
 )
+
+// remoteAgentRegistryVSockMinVersion is the first agent version where the Remote Agent Registry
+// supports AF_VSOCK. Below this version, RAR must stay disabled on vsock clusters to avoid
+// crash-looping system-probe/trace-agent/process-agent.
+const remoteAgentRegistryVSockMinVersion = "7.83.0-0"
 
 func applyNodeAgentResources(manager feature.PodTemplateManagers, ddaSpec *v2alpha1.DatadogAgentSpec, singleContainerStrategyEnabled bool) {
 	config := ddaSpec.Global
@@ -27,11 +34,16 @@ func applyNodeAgentResources(manager feature.PodTemplateManagers, ddaSpec *v2alp
 			Value: "host",
 		})
 
-		// Remote agent doesn't work with vsock yet.
-		manager.EnvVar().AddEnvVar(&corev1.EnvVar{
-			Name:  DDRemoteAgentRegistryEnabled,
-			Value: "false",
-		})
+		agentVersion := images.AgentLatestVersion
+		if override, ok := ddaSpec.Override[v2alpha1.NodeAgentComponentName]; ok && override.Image != nil {
+			agentVersion = common.GetAgentVersionFromImage(*override.Image)
+		}
+		if !utils.IsAboveMinVersion(agentVersion, remoteAgentRegistryVSockMinVersion, new(false)) {
+			manager.EnvVar().AddEnvVar(&corev1.EnvVar{
+				Name:  DDRemoteAgentRegistryEnabled,
+				Value: "false",
+			})
+		}
 
 		authVol := common.GetVolumeForAuth(true)
 		manager.Volume().AddVolume(&authVol)

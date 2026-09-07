@@ -1,9 +1,32 @@
 datadog-operator:
+  # apiKeyExistingSecret -- Use existing Secret which stores API key instead of creating a new one
+  apiKeyExistingSecret: # <DATADOG_API_KEY_SECRET>
+  # appKeyExistingSecret -- Use existing Secret which stores APP key instead of creating a new one
+  appKeyExistingSecret: # <DATADOG_APP_KEY_SECRET>
   toolVersion: eks-addon
   datadogCRDs:
     crds:
       datadogMonitors: false
   image:
     repository: 709825985650.dkr.ecr.us-east-1.amazonaws.com/datadog/operator
-    tag: 1.28.0
+    tag: 1.29.0
   operatorMetricsEnabled: false
+# credentialsSecretSync -- Syncs Datadog credentials from AWS Secrets Manager to a Kubernetes Secret on EKS
+
+## Requires EKS Pod Identity and Secrets Store CSI Driver secret sync.
+## A pod using EKS Pod Identity must mount a Secrets Store CSI volume that references `datadog-credentials`.
+## To have the Operator use this Secret, set its name in `datadog-operator.apiKeyExistingSecret`
+## and/or `datadog-operator.appKeyExistingSecret`.
+credentialsSecretSync:
+  # credentialsSecretSync.kubernetesSecretName -- Name of the Kubernetes Secret to create
+  kubernetesSecretName: datadog-secret
+  # credentialsSecretSync.apiKeySecretId -- AWS Secrets Manager ARN or name for the Datadog API key
+  apiKeySecretId:
+  # credentialsSecretSync.appKeySecretId -- AWS Secrets Manager ARN or name for the Datadog application key
+  appKeySecretId:
+
+# managedAgentInstallation -- Enables Datadog-managed Agent installation through the Operator EKS add-on
+## This lifecycle request is populated automatically by Datadog and is not intended for manual configuration.
+## The managed workflow uses `credentialsSecretSync`
+## to deliver credentials to a Kubernetes Secret in the add-on namespace.
+managedAgentInstallation: null

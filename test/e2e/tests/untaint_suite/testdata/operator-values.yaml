@@ -1,9 +1,15 @@
 # Helm values for the operator in the untaint suite (agent-only mode).
 # RBAC/CRDs come from the e2e kustomize; the operator uses the shared SA.
-# Controller flags are passed as operator-pod env vars (the chart-version-agnostic
-# path documented for the untaint controller). Timeouts are high with policy=keep
-# so the ONLY way the taint gets removed during the test is genuine Agent readiness
-# (a timeout firing would keep the taint and fail the test rather than mask a bug).
+#
+# Untaint must be enabled via the chart's `untaintController.*` knobs (which
+# render `-untaintControllerEnabled=...` CLI flags). Setting only the
+# DD_UNTAINT_* env vars is NOT enough: the operator applies env before
+# flag.Parse(), so an explicit `-untaintControllerEnabled=false` from the chart
+# wins and the controller never starts / never injects the startup toleration.
+#
+# Timeouts are high with policy=keep so the ONLY way the taint gets removed
+# during the test is genuine Agent readiness (a timeout firing would keep the
+# taint and fail the test rather than mask a bug).
 # ${NAMESPACE} is substituted with the operator/DDA namespace at load time.
 installCRDs: false
 rbac:
@@ -11,16 +17,12 @@ rbac:
 serviceAccount:
   create: false
   name: datadog-operator-e2e-controller-manager
+untaintController:
+  enabled: true
+  timeoutPolicy: keep
+  timeout: "30m"
+  schedulingTimeout: "30m"
+  eventsEnabled: true
 env:
-  - name: DD_UNTAINT_CONTROLLER_ENABLED
-    value: "true"
-  - name: DD_UNTAINT_CONTROLLER_TIMEOUT_POLICY
-    value: "keep"
-  - name: DD_UNTAINT_CONTROLLER_TIMEOUT
-    value: "30m"
-  - name: DD_UNTAINT_CONTROLLER_SCHEDULING_TIMEOUT
-    value: "30m"
-  - name: DD_UNTAINT_CONTROLLER_EVENTS_ENABLED
-    value: "true"
   - name: DD_AGENT_WATCH_NAMESPACE
     value: "${NAMESPACE}"

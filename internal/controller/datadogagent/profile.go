@@ -25,6 +25,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/experimental"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/metrics"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/condition"
@@ -53,7 +54,7 @@ func setProfileCondition(profile *v1alpha1.DatadogAgentProfile, conditionType st
 // - returns a list of profiles that should be applied (including the default profile)
 // - configures node labels based on the profiles that are applied
 // - applies profile status updates in k8s
-func (r *Reconciler) reconcileProfiles(ctx context.Context, dsNSName types.NamespacedName, ddaEDSMaxUnavailable intstr.IntOrString, defaultDDAI *v1alpha1.DatadogAgentInternal) ([]*v1alpha1.DatadogAgentProfile, error) {
+func (r *Reconciler) reconcileProfiles(ctx context.Context, dsNSName types.NamespacedName, ddaMaxUnavailable intstr.IntOrString, defaultDDAI *v1alpha1.DatadogAgentInternal) ([]*v1alpha1.DatadogAgentProfile, error) {
 	logger := ctrl.LoggerFrom(ctx)
 	now := metav1.Now()
 	// start with the default profile so that on error, at minimum the default profile is applied
@@ -136,7 +137,7 @@ func (r *Reconciler) reconcileProfiles(ctx context.Context, dsNSName types.Names
 	// render the default-profile DDAI object.
 	defaultDDAI.Spec = *accumulatedDefaultSpec
 
-	if err := r.enforceCreateStrategy(ctx, appliedProfiles, profilesByNode, csInfo, dsNSName, ddaEDSMaxUnavailable, len(nodeList)); err != nil {
+	if err := r.enforceCreateStrategy(ctx, appliedProfiles, profilesByNode, csInfo, dsNSName, ddaMaxUnavailable, len(nodeList)); err != nil {
 		return appliedProfiles, err
 	}
 
@@ -153,7 +154,7 @@ func (r *Reconciler) reconcileProfiles(ctx context.Context, dsNSName types.Names
 
 // enforceCreateStrategy updates create-strategy status for applied profiles and
 // prunes profilesByNode so only nodes allowed by the strategy are labeled.
-func (r *Reconciler) enforceCreateStrategy(ctx context.Context, appliedProfiles []*v1alpha1.DatadogAgentProfile, profilesByNode map[string]types.NamespacedName, csInfo map[types.NamespacedName]*agentprofile.CreateStrategyInfo, dsNSName types.NamespacedName, ddaEDSMaxUnavailable intstr.IntOrString, nodeCount int) error {
+func (r *Reconciler) enforceCreateStrategy(ctx context.Context, appliedProfiles []*v1alpha1.DatadogAgentProfile, profilesByNode map[string]types.NamespacedName, csInfo map[types.NamespacedName]*agentprofile.CreateStrategyInfo, dsNSName types.NamespacedName, ddaMaxUnavailable intstr.IntOrString, nodeCount int) error {
 	if !agentprofile.CreateStrategyEnabled() {
 		return nil
 	}
@@ -170,7 +171,7 @@ func (r *Reconciler) enforceCreateStrategy(ctx context.Context, appliedProfiles 
 		}
 
 		profileCopy := profile.DeepCopy()
-		agentprofile.ApplyCreateStrategy(logger, profilesByNode, csInfo[types.NamespacedName{Namespace: profile.Namespace, Name: profile.Name}], profileCopy, ddaEDSMaxUnavailable, nodeCount, &ds.Status)
+		agentprofile.ApplyCreateStrategy(logger, profilesByNode, csInfo[types.NamespacedName{Namespace: profile.Namespace, Name: profile.Name}], profileCopy, ddaMaxUnavailable, nodeCount, &ds.Status)
 		if !agentprofile.IsEqualStatus(&profile.Status, &profileCopy.Status) {
 			if err := r.client.Status().Update(ctx, profileCopy); err != nil {
 				logger.Error(err, "unable to update profile status", "datadogagentprofile", profileCopy.Name, "datadogagentprofile_namespace", profileCopy.Namespace)
@@ -192,7 +193,7 @@ func (r *Reconciler) syncProfileStatus(ctx context.Context, profile *v1alpha1.Da
 }
 
 func (r *Reconciler) getProfileDaemonSet(ctx context.Context, profile *v1alpha1.DatadogAgentProfile, dsName types.NamespacedName) (*appsv1.DaemonSet, error) {
-	validDaemonSetNames, _ := r.getValidDaemonSetNames(dsName.Name, map[string]struct{}{}, []v1alpha1.DatadogAgentProfile{*profile}, true)
+	validDaemonSetNames := r.getValidDaemonSetNames(dsName.Name, map[string]struct{}{}, []v1alpha1.DatadogAgentProfile{*profile}, true)
 	if len(validDaemonSetNames) != 1 {
 		return nil, fmt.Errorf("unexpected number of valid daemonset names: %d", len(validDaemonSetNames))
 	}
@@ -342,8 +343,7 @@ func setProfileDDAIMeta(ddai *v1alpha1.DatadogAgentInternal, profile *v1alpha1.D
 	// Managed fields needs to be nil for server-side apply
 	ddai.ManagedFields = nil
 	// Include the profile label in the DDAI metadata only for non-default profiles.
-	// This is used to determine whether or not the EDS should be created (only for default profile).
-	// This could possibly be used for GC of the profile DDAIs too.
+	// This distinguishes profile-specific DDAIs and can also support their garbage collection.
 	if !agentprofile.IsDefaultProfile(profile.Namespace, profile.Name) {
 		// This should not happen, as we add the DDA label upon creation of the DDAI.
 		if ddai.Labels == nil {
@@ -360,6 +360,19 @@ func setProfileDDAIMeta(ddai *v1alpha1.DatadogAgentInternal, profile *v1alpha1.D
 			ddai.Annotations = make(map[string]string)
 		}
 		ddai.Annotations[kubernetes.ProviderAnnotationKey] = v
+	}
+	// todo (mackjmr): Remove this once Host Profiler is moved to CRD/ annotation support is removed.
+	// Propagate the host-profiler experimental annotations from the profile onto the DDAI
+	// so a DAP can enable/configure host profiler only on the nodes it targets, independent
+	// of the DDA-level annotation.
+	imageOverrideAnnotationKey := fmt.Sprintf("%s/%s", experimental.ExperimentalAnnotationPrefix, experimental.ExperimentalImageOverrideConfigSubkey)
+	for _, annotationKey := range []string{featureutils.EnableHostProfilerAnnotation, featureutils.EnableHostProfilerSeccompAnnotation, featureutils.EnableHostProfilerLoggingSeccompAnnotation, featureutils.HostProfilerSELinuxTypeAnnotation, imageOverrideAnnotationKey} {
+		if v, ok := profile.GetAnnotations()[annotationKey]; ok {
+			if ddai.Annotations == nil {
+				ddai.Annotations = make(map[string]string)
+			}
+			ddai.Annotations[annotationKey] = v
+		}
 	}
 	return nil
 }

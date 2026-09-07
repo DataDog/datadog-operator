@@ -38,7 +38,7 @@ const (
 
 // emitExperimentTransitionEvent records a single Kubernetes event on the
 // DDA describing the experiment phase transition observed in this
-// reconcile, if any. Called from updateStatusIfNeededV2 after the status
+// reconcile, if any. Called from updateStatusIfNeeded after the status
 // write succeeds — emitting at the commit point guarantees we don't
 // announce a transition that then 409s and never lands.
 //

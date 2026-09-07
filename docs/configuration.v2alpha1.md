@@ -1,5 +1,39 @@
 # Configuration
 
+## Configuration inputs
+
+The Agent configuration the Operator generates is determined by two inputs: the
+`DatadogAgent` `spec` (the parameters documented on this page) and a small set of
+metadata annotations on the `DatadogAgent`.
+
+### Provider
+
+A *provider* identifies an environment or platform that needs a specific set of
+customizations to the Agent configuration. The Operator detects the cluster
+provider automatically, or you can declare it with the
+`agent.datadoghq.com/cluster-provider` annotation (mirroring the Helm chart's
+`providers.*` configuration):
+
+```yaml
+metadata:
+  annotations:
+    agent.datadoghq.com/cluster-provider: eks
+```
+
+For what a provider is, how it is resolved, the full list of values, and their
+Helm mappings, see the
+[providers documentation](https://github.com/DataDog/datadog-operator/blob/main/docs/providers.md).
+
+### Experimental annotations
+
+Some features are gated by *experimental* annotations under the
+`experimental.agent.datadoghq.com/` prefix rather than by the `spec` or a
+provider—for example, `experimental.agent.datadoghq.com/autopilot: "true"`
+enables GKE Autopilot handling. Experimental annotations are unstable and may
+change or be removed; prefer the stable equivalent where one exists (for GKE
+Autopilot, the `agent.datadoghq.com/cluster-provider: gke-autopilot` provider).
+They are documented with the features they control.
+
 ## Manifest Templates
 
 * [Manifest with Logs, APM, process, and metrics collection enabled.][1]
@@ -75,6 +109,24 @@ spec:
 | features.apm.instrumentation.targets | Is a list of targets to apply the auto instrumentation to. The first target that matches the pod will be used. If no target matches, the auto instrumentation will not be applied. (Requires Cluster Agent 7.64.0+) |
 | features.apm.unixDomainSocketConfig.enabled | Enables Unix Domain Socket. Default: true |
 | features.apm.unixDomainSocketConfig.path | Defines the socket path used when enabled. |
+| features.appsec.injector.autoDetect | Controls automatic proxy detection. Default: true |
+| features.appsec.injector.enabled | Enables the AppSec injector. Default: false |
+| features.appsec.injector.gke.gatewayClasses | Lists GKE GatewayClasses for AppSec injection. Configuration is create-only with no drift reconciliation, so deleting a GCPTrafficExtension while its Gateway still exists does not recreate it. The extension has no ownerReferences; if the cluster-agent is down or not leader when the Gateway is deleted, it can be orphaned. After disabling AppSec, teardown can take about 5-7 minutes and traffic remains inspected or blocked during that period. A pre-existing GCPTrafficExtension without the app.kubernetes.io/managed-by: datadog-cluster-agent label is left alone. A Gateway labeled appsec.datadoghq.com/enabled=false is skipped. GKE injection requires cluster-agent version 7.82.0 or later. The `mode: external` setting is required only when `gke-gateway` is explicitly listed in `proxies`; a `gatewayClasses`-only configuration relying on agent-side autoDetect remains valid in any mode. |
+| features.appsec.injector.mode | Selects the AppSec injection mode. When unset, this uses the agent default sidecar. |
+| features.appsec.injector.nginx.moduleMountPath | Sets the nginx module mount path. Default: /modules_mount |
+| features.appsec.injector.processor.address | Sets the processor address. |
+| features.appsec.injector.processor.port | Sets the processor port. Default: 443 |
+| features.appsec.injector.processor.service.name | Sets the processor Service name. |
+| features.appsec.injector.processor.service.namespace | Sets the processor Service namespace. This is ignored for gke-gateway because the callout Service is resolved in each Gateway's own namespace; deploy the Service in every AppSec-enabled Gateway namespace. |
+| features.appsec.injector.proxies | Lists proxies for AppSec injection. Default: [] |
+| features.appsec.injector.sidecar.bodyParsingSizeLimit | Sets the sidecar body parsing size limit. Default: 0 |
+| features.appsec.injector.sidecar.healthPort | Sets the sidecar health port. Default: 8081 |
+| features.appsec.injector.sidecar.image | Sets the sidecar image. Default: ghcr.io/datadog/dd-trace-go/service-extensions-callout |
+| features.appsec.injector.sidecar.imageTag | Sets the sidecar image tag. When unset, the tag defaults to a value determined by the cluster-agent image in use. |
+| features.appsec.injector.sidecar.port | Sets the sidecar port. Default: 8080 |
+| features.appsec.injector.sidecar.resources.claims | Lists the names of resources, defined in spec.resourceClaims, that are used by this container.  This field depends on the DynamicResourceAllocation feature gate.  This field is immutable. It can only be set for containers. |
+| features.appsec.injector.sidecar.resources.limits | Describes the maximum amount of compute resources allowed. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/ |
+| features.appsec.injector.sidecar.resources.requests | Describes the minimum amount of compute resources required. If Requests is omitted for a container, it defaults to Limits if that is explicitly specified, otherwise to an implementation-defined value. Requests cannot exceed Limits. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/ |
 | features.asm.iast.enabled | Enables Interactive Application Security Testing (IAST). Default: false |
 | features.asm.sca.enabled | Enables Software Composition Analysis (SCA). Default: false |
 | features.asm.threats.enabled | Enables ASM App & API Protection. Default: false |
@@ -133,7 +185,7 @@ spec:
 | features.externalMetricsServer.wpaController | WPAController enables the informer and controller of the Watermark Pod Autoscaler. NOTE: The Watermark Pod Autoscaler controller needs to be installed. See also: https://github.com/DataDog/watermarkpodautoscaler. Default: false |
 | features.gpu.enabled | Enables GPU monitoring core check. Default: false |
 | features.gpu.patchCgroupPermissions | PatchCgroupPermissions enables the patch of cgroup permissions for GPU monitoring, in case the container runtime is not properly configured and the Agent containers lose access to GPU devices. Default: false |
-| features.gpu.privilegedMode | PrivilegedMode enables GPU Probe module in System Probe. Default: false |
+| features.gpu.privilegedMode | PrivilegedMode enables GPU Probe module in System Probe. The module's eBPF probes are disabled; privileged mode is retained for cgroup permission patching. To re-enable the eBPF probes, set DD_GPU_MONITORING_ENABLE_EBPF_PROBES=true on the core agent and system-probe containers via spec.override.nodeAgent.containers. Default: false |
 | features.gpu.requiredRuntimeClassName | PodRuntimeClassName specifies the runtime class name required for the GPU monitoring feature. If the value is an empty string, the runtime class is not set. Default: nvidia |
 | features.helmCheck.collectEvents | CollectEvents set to `true` enables event collection in the Helm check (Requires Agent 7.36.0+ and Cluster Agent 1.20.0+) Default: false |
 | features.helmCheck.enabled | Enables the Helm check. Default: false |
@@ -143,6 +195,7 @@ spec:
 | features.kubeStateMetricsCore.conf.configMap.items | Maps a ConfigMap data `key` to a file `path` mount. |
 | features.kubeStateMetricsCore.conf.configMap.name | Is the name of the ConfigMap. |
 | features.kubeStateMetricsCore.enabled | Enables Kube State Metrics Core. Default: true |
+| features.kubeStateMetricsCore.podCollectionMode | PodCollectionMode controls where the KSM check collects pod metrics.  When set to "node_kubelet" the operator splits the kubernetes_state_core check into two: the cluster-side instance keeps every collector except scheduled pods (only unscheduled pods are kept on that side), and a dedicated pods-only instance is deployed on every node agent to read pods locally from its Kubelet via workloadmeta. In the generated agent check YAML this corresponds to the snake_case check options `pod_collection_mode: cluster_unassigned` on the cluster side and `pod_collection_mode: node_kubelet` (with `collectors: [pods]`) on the node side; this CRD field itself is the camelCase `podCollectionMode` per Kubernetes API convention.  Useful in large clusters where a single KSM instance is a bottleneck. The cluster-aggregate `.total` metrics (kubernetes_state.{container,initcontainer}.<resource>_{requested,limit}.total) carry a reduced tag set with no host or node, so they cannot be collected correctly by every node agent independently without colliding at ingestion. To avoid this, the operator also enables `cluster_aggregates_enabled` on the cluster-side and node-side instances, which silences those aggregate metrics on both, and schedules a dedicated `cluster_aggregates_only` instance on the cluster-side component to collect them instead. Requires Agent / Cluster Agent 7.82+.  When `features.kubeStateMetricsCore.conf` is also set, the operator deploys the node-side check but does NOT modify the user-supplied cluster-side config. To avoid double pod collection in that case, the user's cluster-side instance must either omit `pods` from its `collectors` list OR set the `pod_collection_mode: cluster_unassigned` check option themselves. Omitting `collectors` entirely falls back to upstream KSM defaults, which include `pods`.  Default behavior is unchanged when this field is unset. |
 | features.kubernetesActions.enabled | Enables the Kubernetes Actions feature on the Cluster Agent. Default: false |
 | features.liveContainerCollection.enabled | Enables container collection for the Live Container View. Default: true |
 | features.liveProcessCollection.enabled | Enables Process monitoring. Default: false |
@@ -222,6 +275,7 @@ spec:
 | global.credentials.appSecret.keyName | KeyName is the key of the secret to use. |
 | global.credentials.appSecret.secretName | SecretName is the name of the secret. |
 | global.criSocketPath | Path to the container runtime socket (if different from Docker). |
+| global.csi.apm.pullSecrets | PullSecrets are kubernetes.io/dockerconfigjson Secrets used to download APM libraries from private registries. Propagated to the managed DatadogCSIDriver as spec.apm.pullSecrets. Restart the CSI DaemonSet after rotating these Secrets. Not supported on GKE Autopilot. |
 | global.csi.autoManage | AutoManage controls whether the operator automatically manages the DatadogCSIDriver custom resource on behalf of this DatadogAgent. Set to false to hand ownership over to a DatadogCSIDriver CR that you maintain yourself (useful for migrations where you need customizations not exposed on the DatadogAgent spec). When toggled from true to false, the operator cleans up the DDA-owned DatadogCSIDriver CR; you are then responsible for providing a replacement so CSI continues to work. Default: true |
 | global.csi.enabled | Enables the usage of CSI driver in Datadog Agent. When the operator is started with `--datadogCSIDriverEnabled=true`, it will also install the driver by creating a DatadogCSIDriver custom resource, unless a cluster-scoped `k8s.csi.datadoghq.com` CSIDriver is already present, in which case it defers to the existing installation (e.g. from the Datadog CSI driver Helm chart). Default: false |
 | global.csi.nodeAffinity.preferredDuringSchedulingIgnoredDuringExecution | The scheduler will prefer to schedule pods to nodes that satisfy the affinity expressions specified by this field, but it may choose a node that violates one or more of the expressions. The node that is most preferred is the one with the greatest sum of weights, i.e. for each node that meets all of the scheduling requirements (resource request, requiredDuringScheduling affinity expressions, etc.), compute a sum by iterating through the elements of this field and adding "weight" to the sum if the node matches the corresponding matchExpressions; the node(s) with the highest sum are the most preferred. |
@@ -455,7 +509,7 @@ In the table, `spec.override.nodeAgent.image.name` and `spec.override.nodeAgent.
 | [key].name | Name overrides the default name for the resource |
 | [key].nodeSelector `map[string]string` | A map of key-value pairs. For this pod to run on a specific node, the node must have these key-value pairs as labels. See https://kubernetes.io/docs/concepts/configuration/assign-pod-node/ |
 | [key].priorityClassName | If specified, indicates the pod's priority. "system-node-critical" and "system-cluster-critical" are two special keywords which indicate the highest priorities with the former being the highest priority. Any other name must be defined by creating a PriorityClass object with that name. If not specified, the pod priority is default, or zero if there is no default. |
-| [key].replicas | Number of the replicas. Not applicable for a DaemonSet/ExtendedDaemonSet deployment |
+| [key].replicas | Number of the replicas. Not applicable for a DaemonSet deployment |
 | [key].runtimeClassName | If specified, indicates the pod's RuntimeClass kubelet should use to run the pod. If the named RuntimeClass does not exist, or the CRI cannot run the corresponding handler, the pod enters the Failed terminal phase. If no runtimeClassName is specified, the default RuntimeHandler is used, which is equivalent to the behavior when the RuntimeClass feature is disabled. |
 | [key].securityContext.appArmorProfile.localhostProfile | localhostProfile indicates a profile loaded on the node that should be used. The profile must be preconfigured on the node to work. Must match the loaded name of the profile. Must be set if and only if type is "Localhost". |
 | [key].securityContext.appArmorProfile.type | type indicates which kind of AppArmor profile will be applied. Valid options are:   Localhost - a profile pre-loaded on the node.   RuntimeDefault - the container runtime's default profile.   Unconfined - no AppArmor enforcement. |

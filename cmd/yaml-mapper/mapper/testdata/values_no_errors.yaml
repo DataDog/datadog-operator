@@ -27,9 +27,22 @@ agents:
   tolerations:
     - key: "node-role.kubernetes.io/master"
       effect: "NoSchedule"
+  customAgentConfig:
+    log_level: "debug"
+    jmx_use_container_support: true
 
 clusterAgent:
   replicas: 2
   image:
     name: "cluster-agent"
     tag: "7.50.0"
+  confd:
+    mysql.yaml: |-
+      cluster_check: true
+    kubernetes_state.yaml: |-
+      ad_identifiers:
+        - kube-state-metrics
+  datadog_cluster_yaml:
+    log_level: "debug"
+    cluster_checks:
+      enabled: true

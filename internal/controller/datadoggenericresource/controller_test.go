@@ -548,6 +548,83 @@ func TestReconcileGenericResource_ForceSyncPeriodTriggersRemoteUpdate(t *testing
 	assert.Equal(t, 1, mockUpdateCalls)
 }
 
+func TestReconcileGenericResource_ForceSyncFailureDoesNotDeferRetry(t *testing.T) {
+	resetMockHandlerState()
+	t.Setenv("DD_API_KEY", "DUMMY_API_KEY")
+	t.Setenv("DD_APP_KEY", "DUMMY_APP_KEY")
+	t.Setenv(ddGenericResourceForceSyncPeriodEnvVar, "1")
+
+	eventBroadcaster := record.NewBroadcaster()
+	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: "TestReconcileGenericResource_ForceSyncFailureDoesNotDeferRetry"})
+
+	logf.SetLogger(zap.New(zap.UseDevMode(true)))
+	logger := logf.Log.WithName("force-sync-failure-test")
+
+	s := scheme.Scheme
+	s.AddKnownTypes(datadoghqv1alpha1.GroupVersion, &datadoghqv1alpha1.DatadogGenericResource{})
+
+	r := NewReconciler(
+		fake.NewClientBuilder().WithScheme(s).WithStatusSubresource(&datadoghqv1alpha1.DatadogGenericResource{}).Build(),
+		config.NewCredentialManager(fake.NewClientBuilder().Build()),
+		s,
+		logger,
+		recorder,
+	)
+	r.handlers = map[datadoghqv1alpha1.SupportedResourcesType]ResourceHandler{
+		mockSubresource: &MockHandler{},
+	}
+
+	err := r.client.Create(context.TODO(), mockGenericResource())
+	assert.NoError(t, err)
+
+	req := newRequest(resourcesNamespace, resourcesName)
+
+	// Add finalizer, then create the Datadog resource.
+	_, err = reconcileRequest(r, context.TODO(), req)
+	assert.NoError(t, err)
+	_, err = reconcileRequest(r, context.TODO(), req)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, mockCreateCalls)
+
+	obj := &datadoghqv1alpha1.DatadogGenericResource{}
+	err = r.client.Get(context.TODO(), types.NamespacedName{Name: resourcesName, Namespace: resourcesNamespace}, obj)
+	assert.NoError(t, err)
+	obj.Status.LastForceSyncTime = ptr.To(metav1.NewTime(time.Now().Add(-2 * time.Minute)))
+	err = r.client.Status().Update(context.TODO(), obj)
+	assert.NoError(t, err)
+
+	// Read back the round-tripped (second-precision) value as our baseline, since
+	// metav1.Time truncates to seconds on serialization.
+	err = r.client.Get(context.TODO(), types.NamespacedName{Name: resourcesName, Namespace: resourcesNamespace}, obj)
+	assert.NoError(t, err)
+	staleLastForceSyncTime := *obj.Status.LastForceSyncTime
+
+	// Simulate a transient failure (e.g. a Datadog API timeout) on the force-synced update.
+	mockUpdateErr = fmt.Errorf("504 Gateway Timeout: stream timeout")
+
+	result, err := reconcileRequest(r, context.TODO(), req)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, mockGetCalls)
+	assert.Equal(t, 1, mockUpdateCalls)
+	assert.Equal(t, ctrl.Result{RequeueAfter: defaultErrRequeuePeriod}, result)
+
+	err = r.client.Get(context.TODO(), types.NamespacedName{Name: resourcesName, Namespace: resourcesNamespace}, obj)
+	assert.NoError(t, err)
+	// LastForceSyncTime must not advance on failure: advancing it would make the
+	// controller wait out a full forceSyncPeriod before retrying, instead of
+	// retrying on the fast error-requeue cadence.
+	assert.True(t, obj.Status.LastForceSyncTime.Equal(&staleLastForceSyncTime), "LastForceSyncTime should not advance when the force-synced update fails")
+
+	// The next reconcile should retry the force sync immediately rather than
+	// waiting out the (already-elapsed, but now-irrelevant) forceSyncPeriod window.
+	mockUpdateErr = nil
+	result, err = reconcileRequest(r, context.TODO(), req)
+	assert.NoError(t, err)
+	assert.Equal(t, 2, mockGetCalls)
+	assert.Equal(t, 2, mockUpdateCalls)
+	assert.Equal(t, reconcile.Result{RequeueAfter: defaultRequeuePeriod}, result)
+}
+
 func newRequest(ns, name string) reconcile.Request {
 	return reconcile.Request{
 		NamespacedName: types.NamespacedName{

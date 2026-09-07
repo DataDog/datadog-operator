@@ -4,6 +4,22 @@ title: Configure the Datadog Operator
 
 This page lists commonly-used configuration parameters for the Datadog Operator. For all configuration parameters, see the [configuration spec][1] in the [`DataDog/datadog-operator`][2] repo.
 
+## Configuration inputs
+
+The Agent configuration the Operator generates is determined by two inputs: the `DatadogAgent` `spec` (the parameters documented on this page) and a small set of metadata annotations on the `DatadogAgent`.
+
+### Provider
+
+A *provider* identifies an environment or platform that needs a specific set of customizations to the Agent configuration. The Operator detects the cluster provider automatically, or you can declare it with the `agent.datadoghq.com/cluster-provider` annotation (mirroring the Helm chart's `providers.*` configuration):
+
+{{< highlight yaml "hl_lines=3" >}}
+metadata:
+  annotations:
+    agent.datadoghq.com/cluster-provider: eks
+{{< /highlight >}}
+
+For what a provider is, how it is resolved, the full list of values, and their Helm mappings, see the [providers documentation][11].
+
 ### Example manifests
 
 * [Manifest with logs, APM, process, and metrics collection enabled][3]

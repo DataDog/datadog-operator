@@ -6,6 +6,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"net/http"
@@ -16,7 +17,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	edsdatadoghqv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 	"github.com/go-logr/logr"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -58,14 +58,17 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/version"
 
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
-	// nolint:gci
+	//nolint:gci // Keep the scaffold marker in its own import section.
 	// +kubebuilder:scaffold:imports
 )
 
 const (
-	defaultMaximumGoroutines                             = 400
+	defaultMaximumGoroutines                             = 500
+	defaultDatadogMonitorMaxConcurrentReconciles         = 1
+	defaultDatadogMonitorRequeuePeriod                   = 60 * time.Second
 	defaultDatadogGenericResourceMaxConcurrentReconciles = 1
 	defaultDatadogGenericResourceRequeuePeriod           = 60 * time.Second
+	podNamespaceEnvVar                                   = "POD_NAMESPACE"
 )
 
 var (
@@ -81,7 +84,6 @@ func init() {
 	utilruntime.Must(apiregistrationv1.AddToScheme(scheme))
 
 	utilruntime.Must(datadoghqv1alpha1.AddToScheme(scheme))
-	utilruntime.Must(edsdatadoghqv1alpha1.AddToScheme(scheme))
 	utilruntime.Must(datadoghqv2alpha1.AddToScheme(scheme))
 	utilruntime.Must(apiextensionsv1.AddToScheme(scheme))
 	utilruntime.Must(storagev1.AddToScheme(scheme))
@@ -100,16 +102,6 @@ func (ss *stringSlice) Set(value string) error {
 	return nil
 }
 
-const (
-	// ExtendedDaemonset default configuration values from https://github.com/DataDog/extendeddaemonset/blob/main/api/v1alpha1/extendeddaemonset_default.go
-	defaultCanaryAutoPauseEnabled = true
-	defaultCanaryAutoFailEnabled  = true
-	// default to 0, to use default value from EDS.
-	defaultCanaryAutoPauseMaxRestarts          = 0
-	defaultCanaryAutoFailMaxRestarts           = 0
-	defaultCanaryAutoPauseMaxSlowStartDuration = 0
-)
-
 type options struct {
 	// Observability options
 	metricsAddr      string
@@ -125,35 +117,28 @@ type options struct {
 	leaderElectionLeaseDuration time.Duration
 
 	// Controllers options
-	supportExtendedDaemonset               bool
-	edsMaxPodUnavailable                   string
-	edsMaxPodSchedulerFailure              string
-	edsCanaryDuration                      time.Duration
-	edsCanaryReplicas                      string
-	edsCanaryAutoPauseEnabled              bool
-	edsCanaryAutoPauseMaxRestarts          int
-	edsCanaryAutoFailEnabled               bool
-	edsCanaryAutoFailMaxRestarts           int
-	edsCanaryAutoPauseMaxSlowStartDuration time.Duration
-	edsSlowStartAdditiveIncrease           string
-	supportCilium                          bool
-	datadogAgentEnabled                    bool
-	createControllerRevisions              bool
-	datadogMonitorEnabled                  bool
-	datadogSLOEnabled                      bool
-	operatorMetricsEnabled                 bool
-	maximumGoroutines                      int
-	introspectionEnabled                   bool
-	datadogAgentProfileEnabled             bool
-	remoteConfigEnabled                    bool
-	remoteUpdatesEnabled                   bool
-	datadogDashboardEnabled                bool
-	datadogGenericResourceEnabled          bool
-	datadogGenericResourceMaxWorkers       int
-	datadogGenericResourceRequeuePeriod    time.Duration
-	datadogCSIDriverEnabled                bool
-	untaintControllerEnabled               bool
-	untaintControllerWaitForCSIDriver      bool
+	supportCilium                       bool
+	datadogAgentEnabled                 bool
+	createControllerRevisions           bool
+	datadogMonitorEnabled               bool
+	datadogMonitorMaxWorkers            int
+	datadogMonitorRequeuePeriod         time.Duration
+	datadogSLOEnabled                   bool
+	operatorMetricsEnabled              bool
+	maximumGoroutines                   int
+	introspectionEnabled                bool
+	datadogAgentProfileEnabled          bool
+	remoteConfigEnabled                 bool
+	remoteUpdatesEnabled                bool
+	managedAgentInstallationEnabled     bool
+	datadogDashboardEnabled             bool
+	datadogGenericResourceEnabled       bool
+	datadogGenericResourceMaxWorkers    int
+	datadogGenericResourceRequeuePeriod time.Duration
+	datadogCSIDriverEnabled             bool
+	untaintControllerEnabled            bool
+	untaintControllerWaitForCSIDriver   bool
+	rolloutOnConfigMapChangeEnabled     bool
 
 	// Secret Backend options
 	secretBackendCommand  string
@@ -183,6 +168,8 @@ func (opts *options) Parse() {
 	flag.BoolVar(&opts.supportCilium, "supportCilium", false, "Support usage of Cilium network policies.")
 	flag.BoolVar(&opts.datadogAgentEnabled, "datadogAgentEnabled", true, "Enable the DatadogAgent controller")
 	flag.BoolVar(&opts.datadogMonitorEnabled, "datadogMonitorEnabled", false, "Enable the DatadogMonitor controller")
+	flag.IntVar(&opts.datadogMonitorMaxWorkers, "datadogMonitorMaxConcurrentReconciles", defaultDatadogMonitorMaxConcurrentReconciles, "Maximum number of concurrent DatadogMonitor reconciles")
+	flag.DurationVar(&opts.datadogMonitorRequeuePeriod, "datadogMonitorRequeuePeriod", defaultDatadogMonitorRequeuePeriod, "DatadogMonitor status polling requeue period, for example 5m")
 	flag.BoolVar(&opts.datadogSLOEnabled, "datadogSLOEnabled", false, "Enable the DatadogSLO controller")
 	flag.BoolVar(&opts.operatorMetricsEnabled, "operatorMetricsEnabled", true, "Enable sending operator metrics to Datadog")
 	flag.IntVar(&opts.maximumGoroutines, "maximumGoroutines", defaultMaximumGoroutines, "Override health check threshold for maximum number of goroutines.")
@@ -190,6 +177,7 @@ func (opts *options) Parse() {
 	flag.BoolVar(&opts.datadogAgentProfileEnabled, "datadogAgentProfileEnabled", false, "Enable DatadogAgentProfile controller")
 	flag.BoolVar(&opts.remoteConfigEnabled, "remoteConfigEnabled", false, "Enable RemoteConfig capabilities in the Operator (beta)")
 	flag.BoolVar(&opts.remoteUpdatesEnabled, "remoteUpdatesEnabled", false, "Enable Remote Updates capabilities in the Operator (beta)")
+	flag.BoolVar(&opts.managedAgentInstallationEnabled, "managedAgentInstallationEnabled", false, "Enable managed Agent installation intents")
 	flag.BoolVar(&opts.datadogDashboardEnabled, "datadogDashboardEnabled", false, "Enable the DatadogDashboard controller")
 	flag.BoolVar(&opts.datadogGenericResourceEnabled, "datadogGenericResourceEnabled", false, "Enable the DatadogGenericResource controller")
 	flag.IntVar(&opts.datadogGenericResourceMaxWorkers, "datadogGenericResourceMaxConcurrentReconciles", defaultDatadogGenericResourceMaxConcurrentReconciles, "Maximum number of concurrent DatadogGenericResource reconciles")
@@ -198,22 +186,11 @@ func (opts *options) Parse() {
 	flag.BoolVar(&opts.untaintControllerEnabled, "untaintControllerEnabled", false, "Enable the Untaint controller")
 	flag.BoolVar(&opts.untaintControllerWaitForCSIDriver, "untaintControllerWaitForCSIDriver", false,
 		"When true (requires --untaintControllerEnabled), the Untaint controller removes the startup taint only after both the node Agent and Datadog CSI node-server pods are Ready. Requires Pod watch coverage of CSI namespaces (DD_CSIDRIVER_WATCH_NAMESPACE).")
+	flag.BoolVar(&opts.rolloutOnConfigMapChangeEnabled, "rolloutOnConfigMapChangeEnabled", true,
+		"Automatically roll out Agent, Cluster Agent, Cluster Check Runner, and OTel Agent Gateway workloads when a ConfigMap referenced by their pod template changes content out-of-band")
 
 	// DatadogAgentInternal
 	flag.BoolVar(&opts.createControllerRevisions, "createControllerRevisions", false, "Enable creation of ControllerRevision snapshots on each DDA spec change")
-
-	// ExtendedDaemonset configuration
-	flag.BoolVar(&opts.supportExtendedDaemonset, "supportExtendedDaemonset", false, "Support usage of Datadog ExtendedDaemonset CRD.")
-	flag.StringVar(&opts.edsMaxPodUnavailable, "edsMaxPodUnavailable", "", "ExtendedDaemonset number of max unavailable pods during the rolling update")
-	flag.StringVar(&opts.edsSlowStartAdditiveIncrease, "edsSlowStartAdditiveIncrease", "", "ExtendedDaemonset slow start additive increase")
-	flag.StringVar(&opts.edsMaxPodSchedulerFailure, "edsMaxPodSchedulerFailure", "", "ExtendedDaemonset number of max pod scheduler failures")
-	flag.DurationVar(&opts.edsCanaryDuration, "edsCanaryDuration", 10*time.Minute, "ExtendedDaemonset canary duration")
-	flag.StringVar(&opts.edsCanaryReplicas, "edsCanaryReplicas", "", "ExtendedDaemonset number of canary pods")
-	flag.BoolVar(&opts.edsCanaryAutoPauseEnabled, "edsCanaryAutoPauseEnabled", defaultCanaryAutoPauseEnabled, "ExtendedDaemonset canary auto pause enabled")
-	flag.IntVar(&opts.edsCanaryAutoPauseMaxRestarts, "edsCanaryAutoPauseMaxRestarts", defaultCanaryAutoPauseMaxRestarts, "ExtendedDaemonset canary auto pause max restart count")
-	flag.BoolVar(&opts.edsCanaryAutoFailEnabled, "edsCanaryAutoFailEnabled", defaultCanaryAutoFailEnabled, "ExtendedDaemonset canary auto fail enabled")
-	flag.IntVar(&opts.edsCanaryAutoFailMaxRestarts, "edsCanaryAutoFailMaxRestarts", defaultCanaryAutoFailMaxRestarts, "ExtendedDaemonset canary auto fail max restart count")
-	flag.DurationVar(&opts.edsCanaryAutoPauseMaxSlowStartDuration, "edsCanaryAutoPauseMaxSlowStartDuration", defaultCanaryAutoPauseMaxSlowStartDuration*time.Minute, "ExtendedDaemonset canary max slow start duration")
 
 	// Environment variable overrides applied before flag.Parse() so that
 	// explicit CLI flags take precedence (default < env < CLI).
@@ -227,6 +204,8 @@ func (opts *options) Parse() {
 		boolEnv(&opts.supportCilium, "DD_SUPPORT_CILIUM"),
 		boolEnv(&opts.datadogAgentEnabled, "DD_AGENT_CONTROLLER_ENABLED"),
 		boolEnv(&opts.datadogMonitorEnabled, "DD_MONITOR_CONTROLLER_ENABLED"),
+		intEnv(&opts.datadogMonitorMaxWorkers, "DD_MONITOR_MAX_CONCURRENT_RECONCILES"),
+		durationEnv(&opts.datadogMonitorRequeuePeriod, "DD_MONITOR_REQUEUE_PERIOD"),
 		boolEnv(&opts.datadogSLOEnabled, "DD_SLO_CONTROLLER_ENABLED"),
 		boolEnv(&opts.operatorMetricsEnabled, "DD_OPERATOR_METRICS_ENABLED"),
 		intEnv(&opts.maximumGoroutines, "DD_MAXIMUM_GOROUTINES"),
@@ -234,6 +213,7 @@ func (opts *options) Parse() {
 		boolEnv(&opts.datadogAgentProfileEnabled, "DD_AGENT_PROFILE_CONTROLLER_ENABLED"),
 		boolEnv(&opts.remoteConfigEnabled, "DD_REMOTE_CONFIG_ENABLED"),
 		boolEnv(&opts.remoteUpdatesEnabled, "DD_REMOTE_UPDATES_ENABLED"),
+		boolEnv(&opts.managedAgentInstallationEnabled, "DD_MANAGED_AGENT_INSTALLATION_ENABLED"),
 		boolEnv(&opts.datadogDashboardEnabled, "DD_DASHBOARD_CONTROLLER_ENABLED"),
 		boolEnv(&opts.datadogGenericResourceEnabled, "DD_GENERIC_RESOURCE_CONTROLLER_ENABLED"),
 		intEnv(&opts.datadogGenericResourceMaxWorkers, "DD_GENERIC_RESOURCE_MAX_CONCURRENT_RECONCILES"),
@@ -242,6 +222,7 @@ func (opts *options) Parse() {
 		boolEnv(&opts.untaintControllerEnabled, "DD_UNTAINT_CONTROLLER_ENABLED"),
 		boolEnv(&opts.untaintControllerWaitForCSIDriver, "DD_UNTAINT_CONTROLLER_WAIT_FOR_CSI_DRIVER"),
 		boolEnv(&opts.createControllerRevisions, "DD_CREATE_CONTROLLER_REVISIONS"),
+		boolEnv(&opts.rolloutOnConfigMapChangeEnabled, "DD_ROLLOUT_ON_CONFIGMAP_CHANGE_ENABLED"),
 	})
 
 	// Parsing flags
@@ -366,6 +347,34 @@ func run(opts *options) error {
 		metricsServerOptions.FilterProvider = filters.WithAuthenticationAndAuthorization
 	}
 
+	var (
+		managedAgentInstallationIdentity  fleet.ManagedAgentInstallationIdentity
+		managedAgentInstallationEnabled   bool
+		managedAgentInstallationNamespace string
+	)
+	if opts.remoteConfigEnabled {
+		var identityErr error
+		managedAgentInstallationIdentity, identityErr = fleet.ManagedAgentInstallationIdentityFromEnvironment()
+		if identityErr != nil {
+			setupLog.Error(identityErr, "Managed Agent installation identity is invalid; managed Agent installation support is disabled")
+			managedAgentInstallationIdentity = fleet.ManagedAgentInstallationIdentity{}
+		} else {
+			setupLog.Info("Configured managed Agent installation identity", "provider", managedAgentInstallationIdentity.Provider(), "enabled", managedAgentInstallationIdentity.Configured())
+		}
+		managedAgentInstallationEnabled = opts.operatorManagedAgentInstallationEnabled(managedAgentInstallationIdentity)
+		if !managedAgentInstallationEnabled {
+			if managedAgentInstallationIdentity.Configured() {
+				setupLog.Info("Managed Agent installation support is disabled because its feature flag or a required Operator controller is not enabled", "provider", managedAgentInstallationIdentity.Provider())
+			}
+			managedAgentInstallationIdentity = fleet.ManagedAgentInstallationIdentity{}
+		} else {
+			managedAgentInstallationNamespace = strings.TrimSpace(os.Getenv(podNamespaceEnvVar))
+			if managedAgentInstallationNamespace == "" {
+				return setupErrorf(setupLog, fmt.Errorf("%s is empty", podNamespaceEnvVar), "Unable to configure managed Agent installation namespace")
+			}
+		}
+	}
+
 	restConfig := ctrl.GetConfigOrDie()
 	restConfig.UserAgent = "datadog-operator/" + version.Version
 	mgr, err := ctrl.NewManager(restConfig, ctrl.Options{
@@ -389,6 +398,8 @@ func run(opts *options) error {
 			DatadogCSIDriverEnabled:           opts.datadogCSIDriverEnabled,
 			UntaintControllerEnabled:          opts.untaintControllerEnabled,
 			UntaintControllerWaitForCSIDriver: opts.untaintControllerWaitForCSIDriver,
+			ManagedAgentInstallationEnabled:   managedAgentInstallationEnabled,
+			ManagedAgentInstallationNamespace: managedAgentInstallationNamespace,
 		}),
 		// UsePriorityQueue makes all controllers use the priority queue, which
 		// directly registers workqueue metrics into controller-runtime's metrics
@@ -423,22 +434,40 @@ func run(opts *options) error {
 
 	// Custom setup
 	customSetupHealthChecks(setupLog, mgr, &opts.maximumGoroutines)
+	managerCtx, cancelManager := context.WithCancel(ctrl.SetupSignalHandler())
+	defer cancelManager()
 
 	if opts.remoteConfigEnabled {
-		rcUpdater := remoteconfig.NewRemoteConfigUpdater(mgr.GetClient(), ctrl.Log.WithName("remote_config"))
+		var rcUpdaterOptions []remoteconfig.RemoteConfigUpdaterOption
+		if managedAgentInstallationIdentity.Configured() {
+			identityTags, tagsErr := managedAgentInstallationIdentity.UpdaterTags()
+			if tagsErr != nil {
+				setupLog.Error(tagsErr, "Managed Agent installation updater identity is invalid; managed Agent installation support is disabled")
+				managedAgentInstallationIdentity = fleet.ManagedAgentInstallationIdentity{}
+				managedAgentInstallationEnabled = false
+			} else {
+				rcUpdaterOptions = append(rcUpdaterOptions,
+					remoteconfig.WithAdditionalUpdaterTags(identityTags...),
+					remoteconfig.WithDynamicUpdaterTags(func(ctx context.Context) ([]string, error) {
+						return fleet.ManagedAgentInstallationReadinessTags(ctx, mgr.GetAPIReader(), managedAgentInstallationIdentity, managedAgentInstallationNamespace)
+					}),
+					remoteconfig.WithInitialInstallerConfigVersion(remoteconfig.InstallerStateUnknownConfigVersion),
+				)
+			}
+		}
+		rcUpdater := remoteconfig.NewRemoteConfigUpdater(mgr.GetClient(), ctrl.Log.WithName("remote_config"), rcUpdaterOptions...)
 		go func() {
-			// Block until this controller manager is elected leader. We presume the
-			// entire process will terminate if we lose leadership, so we don't need
-			// to handle that.
-			<-mgr.Elected()
-
+			select {
+			case <-managerCtx.Done():
+				return
+			case <-mgr.Elected():
+			}
 			if rcErr := rcUpdater.Setup(creds); rcErr != nil {
 				setupErrorf(setupLog, rcErr, "Unable to set up Remote Config service")
 				return
 			}
-
 			if opts.remoteUpdatesEnabled {
-				if rcErr := setupFleetDaemon(setupLog, mgr, rcUpdater.Client(), opts.createControllerRevisions && opts.datadogAgentEnabled); rcErr != nil {
+				if rcErr := setupFleetDaemon(setupLog, mgr, rcUpdater.Client(), opts.createControllerRevisions && opts.datadogAgentEnabled, managedAgentInstallationIdentity, managedAgentInstallationNamespace, managedAgentInstallationEnabled); rcErr != nil {
 					setupErrorf(setupLog, rcErr, "Unable to setup Fleet daemon")
 				}
 			}
@@ -452,24 +481,13 @@ func run(opts *options) error {
 	}
 
 	options := controller.SetupOptions{
-		SupportExtendedDaemonset: controller.ExtendedDaemonsetOptions{
-			Enabled:                             opts.supportExtendedDaemonset,
-			MaxPodUnavailable:                   opts.edsMaxPodUnavailable,
-			SlowStartAdditiveIncrease:           opts.edsSlowStartAdditiveIncrease,
-			CanaryDuration:                      opts.edsCanaryDuration,
-			CanaryReplicas:                      opts.edsCanaryReplicas,
-			CanaryAutoPauseEnabled:              opts.edsCanaryAutoPauseEnabled,
-			CanaryAutoPauseMaxRestarts:          opts.edsCanaryAutoPauseMaxRestarts,
-			CanaryAutoFailEnabled:               opts.edsCanaryAutoFailEnabled,
-			CanaryAutoFailMaxRestarts:           opts.edsCanaryAutoFailMaxRestarts,
-			CanaryAutoPauseMaxSlowStartDuration: opts.edsCanaryAutoPauseMaxSlowStartDuration,
-			MaxPodSchedulerFailure:              opts.edsMaxPodSchedulerFailure,
-		},
 		SupportCilium:                     opts.supportCilium,
 		CredsManager:                      credsManager,
 		DatadogAgentEnabled:               opts.datadogAgentEnabled,
 		CreateControllerRevisions:         opts.createControllerRevisions && opts.datadogAgentEnabled,
 		DatadogMonitorEnabled:             opts.datadogMonitorEnabled,
+		DatadogMonitorMaxWorkers:          opts.datadogMonitorMaxWorkers,
+		DatadogMonitorRequeue:             opts.datadogMonitorRequeuePeriod,
 		DatadogSLOEnabled:                 opts.datadogSLOEnabled,
 		OperatorMetricsEnabled:            opts.operatorMetricsEnabled,
 		V2APIEnabled:                      true,
@@ -482,6 +500,7 @@ func run(opts *options) error {
 		DatadogCSIDriverEnabled:           opts.datadogCSIDriverEnabled,
 		UntaintControllerEnabled:          opts.untaintControllerEnabled,
 		UntaintControllerWaitForCSIDriver: opts.untaintControllerWaitForCSIDriver,
+		RolloutOnConfigMapChangeEnabled:   opts.rolloutOnConfigMapChangeEnabled,
 		ClusterProviderDetector:           providerDetector,
 	}
 
@@ -523,7 +542,7 @@ func run(opts *options) error {
 	// +kubebuilder:scaffold:builder
 
 	setupLog.Info("starting manager")
-	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+	if err := mgr.Start(managerCtx); err != nil {
 		return setupErrorf(setupLog, err, "Problem running manager")
 	}
 
@@ -726,7 +745,6 @@ func setupAndStartOperatorMetadataForwarder(logger logr.Logger, client client.Re
 		// Since v1.27, DDAI is always tied to DDA — no separate flag. Kept in telemetry for metric continuity.
 		DatadogAgentInternalEnabled: options.datadogAgentEnabled,
 		LeaderElectionEnabled:       options.enableLeaderElection,
-		ExtendedDaemonSetEnabled:    options.supportExtendedDaemonset,
 		RemoteConfigEnabled:         options.remoteConfigEnabled,
 		RemoteUpdatesEnabled:        options.remoteUpdatesEnabled,
 		IntrospectionEnabled:        options.introspectionEnabled,
@@ -761,9 +779,17 @@ func setupAndStartHelmMetadataForwarder(logger logr.Logger, mgr manager.Manager,
 	return mgr.Add(hmf)
 }
 
-func setupFleetDaemon(logger logr.Logger, mgr manager.Manager, rcClient remoteconfig.RCClient, revisionsEnabled bool) error {
-	daemon := fleet.NewDaemon(rcClient, mgr, revisionsEnabled)
+func setupFleetDaemon(logger logr.Logger, mgr manager.Manager, rcClient remoteconfig.RCClient, revisionsEnabled bool, managedAgentInstallationIdentity fleet.ManagedAgentInstallationIdentity, managedAgentInstallationNamespace string, managedAgentInstallationIntentsEnabled bool) error {
+	var options []fleet.DaemonOption
+	if managedAgentInstallationIdentity.Configured() {
+		options = append(options, fleet.WithManagedAgentInstallation(managedAgentInstallationIdentity, managedAgentInstallationNamespace, managedAgentInstallationIntentsEnabled))
+	}
+	daemon := fleet.NewDaemon(rcClient, mgr, revisionsEnabled, options...)
 	return mgr.Add(daemon)
+}
+
+func (opts *options) operatorManagedAgentInstallationEnabled(identity fleet.ManagedAgentInstallationIdentity) bool {
+	return identity.Configured() && identity.Validate() == nil && opts.managedAgentInstallationEnabled && opts.remoteConfigEnabled && opts.remoteUpdatesEnabled && opts.datadogAgentEnabled && opts.datadogAgentProfileEnabled && opts.createControllerRevisions
 }
 
 // setupAndStartProviderDetector registers the cluster-provider detector as a

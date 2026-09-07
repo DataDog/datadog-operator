@@ -17,6 +17,7 @@ import (
 
 	"k8s.io/utils/ptr"
 
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	v2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/constants"
@@ -457,6 +458,257 @@ func Test_setupFromDDA(t *testing.T) {
 			}
 			if !reflect.DeepEqual(mf.ccrStatus, tt.wantCcrStatus) {
 				t.Errorf("metricsForwarder.setupFromDDA() ccrStatus = %v, want %v", mf.ccrStatus, tt.wantCcrStatus)
+			}
+		})
+	}
+}
+
+func Test_setupFromDDAI(t *testing.T) {
+	apiVersion := fmt.Sprintf("%s/%s", v1alpha1.GroupVersion.Group, v1alpha1.GroupVersion.Version)
+	apiKey := "foundAPIKey"
+	labels := map[string]string{
+		"labelKey1": "labelValue1",
+	}
+
+	// DatadogAgentInternal credentials are always resolved via a Secret (never inline), so
+	// tests that expect the API key to be found must pre-create the backing Secret.
+	apiKeySecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "bar-secret",
+			Namespace: "foo",
+		},
+		Data: map[string][]byte{
+			v2alpha1.DefaultAPIKeyKey: []byte(apiKey),
+		},
+	}
+
+	type args struct {
+		ddai                 *v1alpha1.DatadogAgentInternal
+		credsSetFromOperator bool
+		loadFunc             func(*metricsForwarder)
+	}
+	tests := []struct {
+		name            string
+		args            args
+		wantLabels      map[string]string
+		wantClusterName string
+		wantBaseURL     string
+		wantAPIKey      string
+		wantAgentStatus *v2alpha1.DaemonSetStatus
+		wantDcaStatus   *v2alpha1.DeploymentStatus
+		wantCcrStatus   *v2alpha1.DeploymentStatus
+		wantErr         bool
+	}{
+		{
+			name: "base URL, cluster name and API key",
+			args: args{
+				ddai: &v1alpha1.DatadogAgentInternal{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "DatadogAgentInternal",
+						APIVersion: apiVersion,
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace:  "foo",
+						Name:       "bar",
+						Labels:     labels,
+						Finalizers: []string{"finalizer.agent.datadoghq.com"},
+					},
+					Spec: v2alpha1.DatadogAgentSpec{
+						Global: &v2alpha1.GlobalConfig{
+							ClusterName: ptr.To("test-cluster"),
+							Credentials: &v2alpha1.DatadogCredentials{
+								APIKey: ptr.To(apiKey),
+							},
+						},
+					},
+				},
+				credsSetFromOperator: false,
+				loadFunc: func(m *metricsForwarder) {
+					_ = m.k8sClient.Create(context.TODO(), apiKeySecret.DeepCopy())
+				},
+			},
+			wantLabels:      labels,
+			wantClusterName: "test-cluster",
+			wantBaseURL:     defaultbaseURL,
+			wantAPIKey:      "foundAPIKey",
+			wantErr:         false,
+		},
+		{
+			name: "creds set from operator, status and labels copied from DDAI",
+			args: args{
+				ddai: &v1alpha1.DatadogAgentInternal{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "DatadogAgentInternal",
+						APIVersion: apiVersion,
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace:  "foo",
+						Name:       "bar",
+						Labels:     labels,
+						Finalizers: []string{"finalizer.agent.datadoghq.com"},
+					},
+					Spec: v2alpha1.DatadogAgentSpec{
+						Global: &v2alpha1.GlobalConfig{
+							ClusterName: ptr.To("test-cluster"),
+							Credentials: &v2alpha1.DatadogCredentials{
+								APIKey: ptr.To(apiKey),
+							},
+						},
+					},
+					Status: v1alpha1.DatadogAgentInternalStatus{
+						Agent: &v2alpha1.DaemonSetStatus{
+							DaemonsetName: "datadog-agent",
+							State:         "Running",
+							Desired:       3,
+							Available:     3,
+						},
+						ClusterAgent: &v2alpha1.DeploymentStatus{
+							State:             "Running",
+							Replicas:          1,
+							AvailableReplicas: 1,
+						},
+						ClusterChecksRunner: &v2alpha1.DeploymentStatus{
+							State:             "Running",
+							Replicas:          2,
+							AvailableReplicas: 2,
+						},
+					},
+				},
+				credsSetFromOperator: true,
+			},
+			wantLabels:      labels,
+			wantClusterName: "test-cluster",
+			wantBaseURL:     "", // Should not be set when credsSetFromOperator is true
+			wantAPIKey:      "", // Should not be set when credsSetFromOperator is true
+			wantAgentStatus: &v2alpha1.DaemonSetStatus{
+				DaemonsetName: "datadog-agent",
+				State:         "Running",
+				Desired:       3,
+				Available:     3,
+			},
+			wantDcaStatus: &v2alpha1.DeploymentStatus{
+				State:             "Running",
+				Replicas:          1,
+				AvailableReplicas: 1,
+			},
+			wantCcrStatus: &v2alpha1.DeploymentStatus{
+				State:             "Running",
+				Replicas:          2,
+				AvailableReplicas: 2,
+			},
+			wantErr: false,
+		},
+		{
+			name: "creds not set from operator, status and labels copied from DDAI",
+			args: args{
+				ddai: &v1alpha1.DatadogAgentInternal{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "DatadogAgentInternal",
+						APIVersion: apiVersion,
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace:  "foo",
+						Name:       "bar",
+						Labels:     labels,
+						Finalizers: []string{"finalizer.agent.datadoghq.com"},
+					},
+					Spec: v2alpha1.DatadogAgentSpec{
+						Global: &v2alpha1.GlobalConfig{
+							ClusterName: ptr.To("test-cluster"),
+							Credentials: &v2alpha1.DatadogCredentials{
+								APIKey: ptr.To(apiKey),
+							},
+						},
+					},
+					Status: v1alpha1.DatadogAgentInternalStatus{
+						Agent: &v2alpha1.DaemonSetStatus{
+							DaemonsetName: "datadog-agent",
+							State:         "Pending",
+							Desired:       2,
+							Available:     1,
+						},
+						ClusterAgent: &v2alpha1.DeploymentStatus{
+							State:             "Pending",
+							Replicas:          1,
+							AvailableReplicas: 0,
+						},
+						ClusterChecksRunner: &v2alpha1.DeploymentStatus{
+							State:             "Running",
+							Replicas:          1,
+							AvailableReplicas: 1,
+						},
+					},
+				},
+				credsSetFromOperator: false,
+				loadFunc: func(m *metricsForwarder) {
+					_ = m.k8sClient.Create(context.TODO(), apiKeySecret.DeepCopy())
+				},
+			},
+			wantLabels:      labels,
+			wantClusterName: "test-cluster",
+			wantBaseURL:     defaultbaseURL,
+			wantAPIKey:      "foundAPIKey",
+			wantAgentStatus: &v2alpha1.DaemonSetStatus{
+				DaemonsetName: "datadog-agent",
+				State:         "Pending",
+				Desired:       2,
+				Available:     1,
+			},
+			wantDcaStatus: &v2alpha1.DeploymentStatus{
+				State:             "Pending",
+				Replicas:          1,
+				AvailableReplicas: 0,
+			},
+			wantCcrStatus: &v2alpha1.DeploymentStatus{
+				State:             "Running",
+				Replicas:          1,
+				AvailableReplicas: 1,
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			d := &secrets.DummyDecryptor{}
+			mf := &metricsForwarder{
+				k8sClient:    fake.NewFakeClient(),
+				decryptor:    d,
+				creds:        sync.Map{},
+				credsManager: config.NewCredentialManager(fake.NewFakeClient()),
+			}
+			if tt.args.loadFunc != nil {
+				tt.args.loadFunc(mf)
+			}
+
+			err := mf.setupFromDDAI(tt.args.ddai, tt.args.credsSetFromOperator)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("metricsForwarder.setupFromDDAI() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if mf.apiKey != tt.wantAPIKey {
+				t.Errorf("metricsForwarder.setupFromDDAI() apiKey = %v, want %v", mf.apiKey, tt.wantAPIKey)
+			}
+			if mf.baseURL != tt.wantBaseURL {
+				t.Errorf("metricsForwarder.setupFromDDAI() baseURL = %v, want %v", mf.baseURL, tt.wantBaseURL)
+			}
+			if mf.clusterName != tt.wantClusterName {
+				t.Errorf("metricsForwarder.setupFromDDAI() clusterName = %v, want %v", mf.clusterName, tt.wantClusterName)
+			}
+			for k, v := range mf.labels {
+				if tt.wantLabels[k] != v {
+					t.Errorf("metricsForwarder.setupFromDDAI() label value = %v, want %v", v, tt.wantLabels[k])
+				}
+			}
+
+			// Check status fields are copied over
+			if !reflect.DeepEqual(mf.agentStatus, tt.wantAgentStatus) {
+				t.Errorf("metricsForwarder.setupFromDDAI() agentStatus = %v, want %v", mf.agentStatus, tt.wantAgentStatus)
+			}
+			if !reflect.DeepEqual(mf.dcaStatus, tt.wantDcaStatus) {
+				t.Errorf("metricsForwarder.setupFromDDAI() dcaStatus = %v, want %v", mf.dcaStatus, tt.wantDcaStatus)
+			}
+			if !reflect.DeepEqual(mf.ccrStatus, tt.wantCcrStatus) {
+				t.Errorf("metricsForwarder.setupFromDDAI() ccrStatus = %v, want %v", mf.ccrStatus, tt.wantCcrStatus)
 			}
 		})
 	}

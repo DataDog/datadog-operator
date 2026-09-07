@@ -19,11 +19,9 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/otelcollector/defaultconfig"
 	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/configmap"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
 	"github.com/DataDog/datadog-operator/pkg/constants"
-	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/utils"
@@ -38,7 +36,7 @@ const (
 	otelAgentMinVersionForDisplay   = "7.67.0"
 )
 
-var errIncompatibleImage = errors.New("Incompatible OTel Agent image")
+var errIncompatibleImage = errors.New("incompatible OTel Agent image")
 
 func init() {
 	err := feature.Register(feature.OtelAgentIDType, buildOtelCollectorFeature)
@@ -68,9 +66,6 @@ type otelCollectorFeature struct {
 	ports           []*corev1.ContainerPort
 	coreAgentConfig coreAgentConfig
 
-	customConfigAnnotationKey   string
-	customConfigAnnotationValue string
-
 	incompatibleImage bool
 
 	otelGatewayEnabled bool
@@ -79,9 +74,9 @@ type otelCollectorFeature struct {
 }
 
 type coreAgentConfig struct {
-	extension_timeout *int
-	extension_url     *string
-	enabled           *bool
+	extensionTimeout *int
+	extensionURL     *string
+	enabled          *bool
 }
 
 func (o *otelCollectorFeature) ID() feature.IDType {
@@ -116,8 +111,8 @@ func (o *otelCollectorFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Da
 
 	if ddaSpec.Features.OtelCollector.CoreConfig != nil {
 		o.coreAgentConfig.enabled = ddaSpec.Features.OtelCollector.CoreConfig.Enabled
-		o.coreAgentConfig.extension_timeout = ddaSpec.Features.OtelCollector.CoreConfig.ExtensionTimeout
-		o.coreAgentConfig.extension_url = ddaSpec.Features.OtelCollector.CoreConfig.ExtensionURL
+		o.coreAgentConfig.extensionTimeout = ddaSpec.Features.OtelCollector.CoreConfig.ExtensionTimeout
+		o.coreAgentConfig.extensionURL = ddaSpec.Features.OtelCollector.CoreConfig.ExtensionURL
 	}
 
 	if len(ddaSpec.Features.OtelCollector.Ports) == 0 {
@@ -165,18 +160,6 @@ func (o *otelCollectorFeature) buildOTelAgentCoreConfigMap() (*corev1.ConfigMap,
 		cm, err := configmap.BuildConfigMapConfigData(o.owner.GetNamespace(), o.customConfig.ConfigData, o.configMapName, otelConfigFileName)
 		if err != nil {
 			return nil, err
-		}
-
-		// Add md5 hash annotation for configMap
-		o.customConfigAnnotationKey = object.GetChecksumAnnotationKey(feature.OtelAgentIDType)
-		o.customConfigAnnotationValue, err = comparison.GenerateMD5ForSpec(o.customConfig.ConfigData)
-		if err != nil {
-			return cm, err
-		}
-
-		if o.customConfigAnnotationKey != "" && o.customConfigAnnotationValue != "" {
-			annotations := object.MergeAnnotationsLabels(o.logger, cm.Annotations, map[string]string{o.customConfigAnnotationKey: o.customConfigAnnotationValue}, "*")
-			cm.SetAnnotations(annotations)
 		}
 
 		return cm, nil
@@ -237,7 +220,7 @@ func (o *otelCollectorFeature) ManageDependencies(managers feature.ResourceManag
 
 func applyOTelCollectorDDASharedDependencies(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ metav1.Object, ddaiSpec *v2alpha1.DatadogAgentSpec, managers feature.ResourceManagers) error {
 	ports := otelCollectorLocalAgentServicePorts(ddaiSpec)
-	if len(ports) == 0 || !featureutils.ShouldCreateLocalAgentService(ddaSpec, managers) {
+	if len(ports) == 0 || !featureutils.ShouldCreateLocalAgentService(ddaSpec, managers.Store().GetPlatformInfo()) {
 		return nil
 	}
 
@@ -374,11 +357,6 @@ func (o *otelCollectorFeature) ManageNodeAgent(managers feature.PodTemplateManag
 		}
 	}
 
-	// Add md5 hash annotation for configMap
-	if o.customConfigAnnotationKey != "" && o.customConfigAnnotationValue != "" {
-		managers.Annotation().AddAnnotation(o.customConfigAnnotationKey, o.customConfigAnnotationValue)
-	}
-
 	// add ports
 	for _, port := range o.ports {
 		// bind container port to host port.
@@ -422,16 +400,16 @@ func (o *otelCollectorFeature) ManageNodeAgent(managers feature.PodTemplateManag
 		})
 	}
 
-	if o.coreAgentConfig.extension_timeout != nil {
+	if o.coreAgentConfig.extensionTimeout != nil {
 		managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.CoreAgentContainerName}, &corev1.EnvVar{
 			Name:  DDOtelCollectorCoreConfigExtensionTimeout,
-			Value: strconv.Itoa(*o.coreAgentConfig.extension_timeout),
+			Value: strconv.Itoa(*o.coreAgentConfig.extensionTimeout),
 		})
 	}
-	if o.coreAgentConfig.extension_url != nil {
+	if o.coreAgentConfig.extensionURL != nil {
 		managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.CoreAgentContainerName}, &corev1.EnvVar{
 			Name:  DDOtelCollectorCoreConfigExtensionURL,
-			Value: *o.coreAgentConfig.extension_url,
+			Value: *o.coreAgentConfig.extensionURL,
 		})
 	}
 

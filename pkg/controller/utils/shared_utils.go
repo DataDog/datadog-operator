@@ -30,11 +30,6 @@ func GetDatadogAgentResourceNamespace(dda metav1.Object) string {
 	return dda.GetNamespace()
 }
 
-// GetDatadogTokenResourceName returns the name of the ConfigMap used by the cluster agent to store token
-func GetDatadogTokenResourceName(dda metav1.Object) string {
-	return fmt.Sprintf("%stoken", dda.GetName())
-}
-
 // GetDatadogAgentResourceUID returns the UID of the Datadog Agent Resource
 func GetDatadogAgentResourceUID(dda metav1.Object) string {
 	return string(dda.GetUID())

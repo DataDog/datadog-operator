@@ -37,7 +37,10 @@ Add `app-key` if you enable features that require a Datadog application key.
 
 ## Enable Autopilot mode
 
-Enable Autopilot mode by adding the experimental annotation to the `DatadogAgent` metadata:
+Enable Autopilot mode by setting the cluster-provider annotation to
+`gke-autopilot` on the `DatadogAgent` metadata. This is the same annotation used
+for other providers (see [Providers](../providers.md)) and is the preferred way
+to enable Autopilot:
 
 ```yaml
 apiVersion: datadoghq.com/v2alpha1
@@ -45,7 +48,7 @@ kind: DatadogAgent
 metadata:
   name: datadog
   annotations:
-    experimental.agent.datadoghq.com/autopilot: "true"
+    agent.datadoghq.com/cluster-provider: gke-autopilot
 spec:
   global:
     credentials:
@@ -60,7 +63,14 @@ Apply the manifest:
 kubectl apply -f datadog-agent.yaml
 ```
 
-The annotation is case-insensitive for the value `true`, but use the quoted string `"true"` in manifests.
+Unlike EKS, AKS, and OpenShift, GKE Autopilot is not auto-detected. It must be
+declared with this annotation.
+
+> [!NOTE]
+> The experimental annotation `experimental.agent.datadoghq.com/autopilot: "true"`
+> also enables Autopilot handling, but its use is discouraged: experimental
+> annotations are unstable and may change or be removed without notice. Use the
+> `agent.datadoghq.com/cluster-provider: gke-autopilot` annotation instead.
 
 ## Optional: select the WorkloadAllowlist version
 
@@ -71,7 +81,7 @@ By default, the Operator uses the built-in default allowlist version. To pin ano
 ```yaml
 metadata:
   annotations:
-    experimental.agent.datadoghq.com/autopilot: "true"
+    agent.datadoghq.com/cluster-provider: gke-autopilot
     experimental.agent.datadoghq.com/autopilot-allowlist-version: "v1.0.5"
 ```
 
@@ -87,7 +97,7 @@ kind: DatadogAgent
 metadata:
   name: datadog
   annotations:
-    experimental.agent.datadoghq.com/autopilot: "true"
+    agent.datadoghq.com/cluster-provider: gke-autopilot
 spec:
   global:
     credentials:
@@ -160,7 +170,7 @@ kind: DatadogAgent
 metadata:
   name: datadog
   annotations:
-    experimental.agent.datadoghq.com/autopilot: "true"
+    agent.datadoghq.com/cluster-provider: gke-autopilot
 spec:
   global:
     credentials:
@@ -186,7 +196,7 @@ kind: DatadogAgent
 metadata:
   name: datadog
   annotations:
-    experimental.agent.datadoghq.com/autopilot: "true"
+    agent.datadoghq.com/cluster-provider: gke-autopilot
 spec:
   global:
     credentials:

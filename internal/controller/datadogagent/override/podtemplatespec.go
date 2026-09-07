@@ -19,9 +19,7 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
-	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/images"
 )
 
@@ -121,43 +119,23 @@ func PodTemplateSpec(logger logr.Logger, manager feature.PodTemplateManagers, ov
 	}
 
 	// Override agent configurations such as datadog.yaml, system-probe.yaml, etc.
-	overrideCustomConfigVolumes(logger, manager, override.CustomConfigurations, componentName, ddaName)
+	overrideCustomConfigVolumes(manager, override.CustomConfigurations, componentName, ddaName)
 
 	// For ExtraConfd and ExtraChecksd, the ConfigMap contents to an init container. This allows use of
 	// the workaround to merge existing config and check files with custom ones. The VolumeMount is already
 	// defined in the init container; just overwrite the Volume to mount the ConfigMap instead of an EmptyDir.
 	// If both ConfigMap and ConfigData exist, ConfigMap has higher priority.
-	if override.ExtraConfd != nil {
+	if override.ExtraConfd != nil && (override.ExtraConfd.ConfigMap != nil || len(override.ExtraConfd.ConfigDataMap) > 0) {
 		cmName := fmt.Sprintf(extraConfdConfigMapName, strings.ToLower((string(componentName))))
 		vol := volume.GetVolumeFromMultiCustomConfig(override.ExtraConfd, common.ConfdVolumeName, cmName)
 		manager.Volume().AddVolume(&vol)
-
-		// Add md5 hash annotation for custom config
-		hash, err := comparison.GenerateMD5ForSpec(override.ExtraConfd)
-		if err != nil {
-			logger.Error(err, "couldn't generate hash for extra confd custom config")
-		} else {
-			logger.V(2).Info("built extra confd from custom config", "hash", hash)
-		}
-		annotationKey := object.GetChecksumAnnotationKey(cmName)
-		manager.Annotation().AddAnnotation(annotationKey, hash)
 	}
 
 	// If both ConfigMap and ConfigData exist, ConfigMap has higher priority.
-	if override.ExtraChecksd != nil {
+	if override.ExtraChecksd != nil && (override.ExtraChecksd.ConfigMap != nil || len(override.ExtraChecksd.ConfigDataMap) > 0) {
 		cmName := fmt.Sprintf(extraChecksdConfigMapName, strings.ToLower((string(componentName))))
 		vol := volume.GetVolumeFromMultiCustomConfig(override.ExtraChecksd, common.ChecksdVolumeName, cmName)
 		manager.Volume().AddVolume(&vol)
-
-		// Add md5 hash annotation for custom config
-		hash, err := comparison.GenerateMD5ForSpec(override.ExtraChecksd)
-		if err != nil {
-			logger.Error(err, "couldn't generate hash for extra checksd custom config")
-		} else {
-			logger.V(2).Info("built extra checksd from custom config", "hash", hash)
-		}
-		annotationKey := object.GetChecksumAnnotationKey(cmName)
-		manager.Annotation().AddAnnotation(annotationKey, hash)
 	}
 
 	for agentContainerName, containerOverride := range override.Containers {
@@ -228,7 +206,7 @@ func PodTemplateSpec(logger logr.Logger, manager feature.PodTemplateManagers, ov
 	manager.PodTemplateSpec().Spec.TopologySpreadConstraints = append(manager.PodTemplateSpec().Spec.TopologySpreadConstraints, override.TopologySpreadConstraints...)
 }
 
-func overrideCustomConfigVolumes(logger logr.Logger, manager feature.PodTemplateManagers, customConfs map[v2alpha1.AgentConfigFileName]v2alpha1.CustomConfig, componentName v2alpha1.ComponentName, ddaName string) {
+func overrideCustomConfigVolumes(manager feature.PodTemplateManagers, customConfs map[v2alpha1.AgentConfigFileName]v2alpha1.CustomConfig, componentName v2alpha1.ComponentName, ddaName string) {
 	sortedKeys := sortKeys(customConfs)
 	for _, fileName := range sortedKeys {
 		customConfig := customConfs[fileName]
@@ -260,16 +238,6 @@ func overrideCustomConfigVolumes(logger logr.Logger, manager feature.PodTemplate
 			)
 			manager.VolumeMount().AddVolumeMount(&volumeMount)
 		}
-
-		// Add md5 hash annotation for custom config
-		hash, err := comparison.GenerateMD5ForSpec(customConfig)
-		if err != nil {
-			logger.Error(err, "couldn't generate hash for custom config", "filename", fileName)
-		} else {
-			logger.V(2).Info("built file from custom config", "filename", fileName, "hash", hash)
-		}
-		annotationKey := object.GetChecksumAnnotationKey(string(fileName))
-		manager.Annotation().AddAnnotation(annotationKey, hash)
 	}
 }
 

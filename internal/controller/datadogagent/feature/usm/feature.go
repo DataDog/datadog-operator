@@ -60,7 +60,7 @@ func (f *usmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 			directSendEnabled = value == "true"
 		}
 		const directSendMinVersion = "7.81.0-0"
-		defaultIfVersionUnknown := false
+		defaultIfVersionUnknown := true
 		if !utils.IsAboveMinVersion(common.GetComponentVersion(dda, v2alpha1.NodeAgentComponentName), directSendMinVersion, &defaultIfVersionUnknown) {
 			directSendEnabled = false
 		}
@@ -187,6 +187,10 @@ func (f *usmFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error
 		Value: apiutils.BoolToString(&f.directSend),
 	}
 	managers.EnvVar().AddEnvVarToContainers(containersForEnvVars, cnmDirectSendEnvVar)
+
+	if f.directSend {
+		featureutils.EnableConfigSyncForDirectSend(managers, containersForEnvVars)
+	}
 
 	// env vars for Process Agent only
 	sysProbeExternalEnvVar := &corev1.EnvVar{

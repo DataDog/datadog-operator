@@ -24,6 +24,24 @@
             "enabled": {
               "description": "Enabled enables APM/Single Step Instrumentation support for the CSI driver.\nDefault: true",
               "type": "boolean"
+            },
+            "pullSecrets": {
+              "description": "PullSecrets are kubernetes.io/dockerconfigjson Secrets used to download APM\nlibraries from private registries. When empty, the CSI driver falls back to\ncsiDriverImage.pullSecrets; legacy kubernetes.io/dockercfg Secrets are ignored\nfor APM authentication in that fallback path. Restart the CSI DaemonSet after\nrotating these Secrets. Not supported on GKE Autopilot.",
+              "items": {
+                "additionalProperties": false,
+                "description": "LocalObjectReference contains enough information to let you locate the\nreferenced object inside the same namespace.",
+                "properties": {
+                  "name": {
+                    "default": "",
+                    "description": "Name of the referent.\nThis field is effectively required, but due to backwards compatibility is\nallowed to be empty. Instances of this type with an empty value here are\nalmost certainly wrong.\nMore info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names",
+                    "type": "string"
+                  }
+                },
+                "type": "object",
+                "x-kubernetes-map-type": "atomic"
+              },
+              "type": "array",
+              "x-kubernetes-list-type": "atomic"
             }
           },
           "type": "object"

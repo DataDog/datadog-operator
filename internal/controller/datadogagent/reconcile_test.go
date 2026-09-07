@@ -72,7 +72,6 @@ type testCase struct {
 // for flags shared with the DatadogAgent reconciler (e.g. UntaintControllerEnabled).
 func ddaiReconcilerOptionsFromDDA(opts ReconcilerOptions) datadogagentinternal.ReconcilerOptions {
 	return datadogagentinternal.ReconcilerOptions{
-		ExtendedDaemonsetOptions: opts.ExtendedDaemonsetOptions,
 		SupportCilium:            opts.SupportCilium,
 		OperatorMetricsEnabled:   opts.OperatorMetricsEnabled,
 		UntaintControllerEnabled: opts.UntaintControllerEnabled,
@@ -108,7 +107,7 @@ func runTestCases(t *testing.T, tests []testCase, testFunc func(t *testing.T, tt
 
 // runDDAReconcilerTest runs test case using both DDA and DDAI reconcilers.
 // Since DDAI is always enabled, the DDA controller delegates resource creation
-// to the DDAI controller via reconcileInstanceV3, so the DDAI reconciler must
+// to the DDAI controller via reconcileInstance, so the DDAI reconciler must
 // also run for resources (DaemonSets, Deployments, etc.) to be created.
 func runDDAReconcilerTest(t *testing.T, tt testCase, opts ReconcilerOptions) {
 	t.Helper()
@@ -633,10 +632,15 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			},
 		},
 		{
-			name: "DatadogAgent with Private Action Runner enabled on node, create Daemonset with core, trace, and private-action-runner containers",
+			name: "DatadogAgent with Private Action Runner systemd support, create DaemonSet with host mounts",
 			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
 				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
-					WithAnnotations(map[string]string{"agent.datadoghq.com/private-action-runner-enabled": "true"}).
+					WithAnnotations(map[string]string{
+						"agent.datadoghq.com/private-action-runner-enabled":                        "true",
+						"agent.datadoghq.com/private-action-runner-systemd-enabled":                "true",
+						"agent.datadoghq.com/private-action-runner-systemd-journal-storage":        "both",
+						"agent.datadoghq.com/private-action-runner-systemd-journal-vacuum-enabled": "true",
+					}).
 					Build()
 				_ = c.Create(context.TODO(), dda)
 				return dda
@@ -654,6 +658,7 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 				}
 
 				verifyDaemonsetContainers(t, c, resourcesNamespace, dsName, expectedContainers)
+				verifySystemdHostMounts(t, c, resourcesNamespace, dsName)
 			},
 		},
 		{
@@ -2036,6 +2041,53 @@ func verifyDaemonsetContainers(t *testing.T, c client.Client, resourcesNamespace
 	assert.Equal(t, expectedContainers, dsContainers, "Container names don't match")
 }
 
+func verifySystemdHostMounts(t *testing.T, c client.Client, resourcesNamespace, dsName string) {
+	expected := []struct {
+		name         string
+		hostPath     string
+		hostPathType corev1.HostPathType
+		readOnly     bool
+	}{
+		{"host-machine-id", "/etc/machine-id", corev1.HostPathFile, true},
+		{"host-manager-bus-socket", "/run/dbus/system_bus_socket", corev1.HostPathSocket, true},
+		{"host-journald-runtime", "/run/systemd/journal", corev1.HostPathDirectory, true},
+		{"host-persistent-journal", "/var/log/journal", corev1.HostPathDirectory, false},
+		{"host-volatile-journal", "/run/log/journal", corev1.HostPathDirectory, false},
+	}
+
+	ds := &appsv1.DaemonSet{}
+	err := c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: dsName}, ds)
+	assert.NoError(t, err, "Failed to get DaemonSet %s/%s", resourcesNamespace, dsName)
+
+	volumesByName := map[string]corev1.Volume{}
+	for _, volume := range ds.Spec.Template.Spec.Volumes {
+		volumesByName[volume.Name] = volume
+	}
+
+	containers := getDsContainers(c, resourcesNamespace, dsName)
+	privateActionRunner, found := containers[apicommon.PrivateActionRunnerContainerName]
+	assert.True(t, found, "private-action-runner container not found")
+	mountsByName := map[string]corev1.VolumeMount{}
+	for _, mount := range privateActionRunner.VolumeMounts {
+		mountsByName[mount.Name] = mount
+		assert.NotEqual(t, common.HostRunMountPath, mount.MountPath, "the broad host /run path must not be mounted")
+	}
+
+	for _, want := range expected {
+		volume, found := volumesByName[want.name]
+		assert.True(t, found, "volume %s not found", want.name)
+		assert.NotNil(t, volume.HostPath, "volume %s is not a HostPath", want.name)
+		assert.NotNil(t, volume.HostPath.Type, "volume %s has no HostPath type", want.name)
+		assert.Equal(t, want.hostPath, volume.HostPath.Path)
+		assert.Equal(t, want.hostPathType, *volume.HostPath.Type)
+
+		mount, found := mountsByName[want.name]
+		assert.True(t, found, "volume mount %s not found", want.name)
+		assert.Equal(t, "/host"+want.hostPath, mount.MountPath)
+		assert.Equal(t, want.readOnly, mount.ReadOnly)
+	}
+}
+
 func assertNoDanglingVolumeMounts(t *testing.T, podSpec corev1.PodSpec) {
 	t.Helper()
 
@@ -2105,7 +2157,7 @@ func verifyPDB(t *testing.T, c client.Client) {
 	assert.Equal(t, intstr.FromInt(1), *ccrPDB.Spec.MaxUnavailable)
 	assert.Nil(t, ccrPDB.Spec.MinAvailable)
 }
-func Test_DDAI_ReconcileV3(t *testing.T) {
+func Test_DDAI_Reconcile(t *testing.T) {
 	const resourcesName = "foo"
 	const resourcesNamespace = "bar"
 
@@ -2354,8 +2406,8 @@ func Test_DDAI_ReconcileV3(t *testing.T) {
 
 // Test_StaleAgentPodCleanup tests that agent pods whose profile assignment has changed are deleted.
 // It exercises both code paths:
-//   - DDA-only path via runDDAReconcilerTest: reconcileInstanceV3
-//   - Full path via runFullReconcilerTest (DDA + DDAI reconcilers): reconcileInstanceV3 → reconcileProfiles → cleanupPodsForProfilesThatNoLongerApply
+//   - DDA-only path via runDDAReconcilerTest: reconcileInstance
+//   - Full path via runFullReconcilerTest (DDA + DDAI reconcilers): reconcileInstance → reconcileProfiles → cleanupPodsForProfilesThatNoLongerApply
 func Test_StaleAgentPodCleanup(t *testing.T) {
 	const resourcesName = "foo"
 	const resourcesNamespace = "bar"

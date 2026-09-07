@@ -111,7 +111,7 @@ func Test_ensureSelectorInPodTemplateLabels(t *testing.T) {
 	}
 }
 
-func Test_updateStatusIfNeededV2_ReconcileErrorCondition(t *testing.T) {
+func Test_updateStatusIfNeeded_ReconcileErrorCondition(t *testing.T) {
 	sch := runtime.NewScheme()
 	_ = scheme.AddToScheme(sch)
 	_ = v1alpha1.AddToScheme(sch)
@@ -174,7 +174,7 @@ func Test_updateStatusIfNeededV2_ReconcileErrorCondition(t *testing.T) {
 				newStatus.Conditions = append(newStatus.Conditions, *tt.existingCondition)
 			}
 
-			_, err := r.updateStatusIfNeededV2(context.Background(), currentDDAI, newStatus, reconcile.Result{}, tt.currentError, now)
+			_, err := r.updateStatusIfNeeded(context.Background(), currentDDAI, newStatus, reconcile.Result{}, tt.currentError, now)
 			assert.Equal(t, tt.currentError, err)
 
 			cond := condition.GetDDAICondition(newStatus, common.DatadogAgentReconcileErrorConditionType)

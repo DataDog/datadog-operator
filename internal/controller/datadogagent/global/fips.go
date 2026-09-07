@@ -17,10 +17,8 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/configmap"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
-	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
@@ -81,16 +79,6 @@ func applyFIPSConfig(logger logr.Logger, manager feature.PodTemplateManagers, dd
 			SubPath:   FIPSProxyCustomConfigFileName,
 			ReadOnly:  true,
 		}
-		// Add md5 hash annotation to component for custom config
-		hash, err := comparison.GenerateMD5ForSpec(fipsConfig.CustomFIPSConfig)
-		if err != nil {
-			logger.Error(err, "couldn't generate hash for custom config", "filename", FIPSProxyCustomConfigFileName)
-		}
-		annotationKey := object.GetChecksumAnnotationKey(string(FIPSProxyCustomConfigFileName))
-		if annotationKey != "" && hash != "" {
-			manager.Annotation().AddAnnotation(annotationKey, hash)
-		}
-
 		// configMap takes priority over configData
 		if fipsConfig.CustomFIPSConfig.ConfigMap != nil {
 			vol = volume.GetVolumeFromConfigMap(
@@ -111,10 +99,6 @@ func applyFIPSConfig(logger logr.Logger, manager feature.PodTemplateManagers, dd
 			}
 
 			if cm != nil {
-				// Add custom config hash annotation to configMap
-				annotations := object.MergeAnnotationsLabels(logger, cm.GetAnnotations(), map[string]string{annotationKey: hash}, "*")
-				cm.SetAnnotations(annotations)
-
 				resourcesManager.Store().AddOrUpdate(kubernetes.ConfigMapKind, cm)
 			}
 		}

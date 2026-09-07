@@ -77,7 +77,7 @@ func getRBACPolicyRules(logger logr.Logger, crs []string, collectKubernetesNetwo
 		},
 		{
 			APIGroups: []string{rbac.NetworkingAPIGroup},
-			Resources: []string{rbac.IngressesResource},
+			Resources: []string{rbac.IngressesResource, rbac.NetworkPolicyResource},
 		},
 		{
 			APIGroups: []string{rbac.AutoscalingK8sIoAPIGroup},
@@ -141,6 +141,44 @@ func getRBACPolicyRules(logger logr.Logger, crs []string, collectKubernetesNetwo
 		{
 			APIGroups: []string{rbac.EKSAPIGroup},
 			Resources: []string{rbac.Wildcard},
+		},
+		{
+			APIGroups: []string{rbac.KubeRayAPIGroup},
+			Resources: []string{
+				rbac.RayClustersResource,
+				rbac.RayCronJobsResource,
+				rbac.RayJobsResource,
+				rbac.RayServicesResource,
+			},
+		},
+		{
+			APIGroups: []string{rbac.DynamoAPIGroup},
+			Resources: []string{
+				rbac.DynamoCheckpointsResource,
+				rbac.DynamoComponentDeploymentsResource,
+				rbac.DynamoGraphDeploymentRequestsResource,
+				rbac.DynamoGraphDeploymentsResource,
+				rbac.DynamoGraphDeploymentScalingAdaptersResource,
+				rbac.DynamoModelsResource,
+				rbac.DynamoWorkerMetadatasResource,
+			},
+		},
+		{
+			APIGroups: []string{rbac.KServeAPIGroup},
+			Resources: []string{
+				rbac.ClusterStorageContainersResource,
+				rbac.LLMInferenceServiceConfigsResource,
+				rbac.LLMInferenceServicesResource,
+				rbac.LocalModelCachesResource,
+				rbac.LocalModelNamespaceCachesResource,
+				rbac.LocalModelNodeGroupsResource,
+				rbac.LocalModelNodesResource,
+				rbac.ClusterServingRuntimesResource,
+				rbac.InferenceGraphsResource,
+				rbac.InferenceServicesResource,
+				rbac.ServingRuntimesResource,
+				rbac.TrainedModelsResource,
+			},
 		},
 	}
 

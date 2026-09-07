@@ -136,6 +136,142 @@ datadog:
 	}
 }
 
+// TestMapValuesMultiKeyTable covers two real-world helm2dda bug reports:
+//  1. clusterAgent.confd/datadog.confd with multiple files must map wholesale into
+//     their configDataMap destination, instead of being silently dropped.
+//  2. agents.customAgentConfig/clusterAgent.datadog_cluster_yaml with nested fields
+//     must not report the flattened nested keys as "not found in mapping" errors,
+//     since they're already fully consumed by the mapCustomConfigFile mapFunc.
+//
+// It also guards against regressing the fix for agents.podSecurity.seLinuxContext,
+// whose sub-fields (e.g. seLinuxOptions.level) have their own separate mapping
+// entries and must therefore NOT be copied wholesale as a multi-key table.
+// fileConfigDataCheck verifies the configData content of a single file entry within a
+// MultiCustomConfig/customConfigurations-style map, whose filename key may itself
+// contain literal dots (e.g. "datadog.yaml"), making PathValue/Table unusable for it.
+type fileConfigDataCheck struct {
+	fileName string
+	want     string
+}
+
+func TestMapValuesMultiKeyTable(t *testing.T) {
+	tempDir := t.TempDir()
+
+	tests := []struct {
+		name                string
+		inputValues         string
+		expectNoErrors      bool
+		expectedDDA         map[string]any
+		checkTables         map[string]map[string]any
+		checkFileConfigData map[string]fileConfigDataCheck
+		missingPaths        []string
+	}{
+		{
+			name: "clusterAgent.confd with multiple files maps wholesale",
+			inputValues: `clusterAgent:
+  confd:
+    mysql.yaml: |-
+      cluster_check: true
+    kubernetes_state.yaml: |-
+      ad_identifiers:
+        - kube-state-metrics
+`,
+			expectNoErrors: true,
+			checkTables: map[string]map[string]any{
+				"spec.override.clusterAgent.extraConfd.configDataMap": {
+					"mysql.yaml":            "cluster_check: true",
+					"kubernetes_state.yaml": "ad_identifiers:\n  - kube-state-metrics",
+				},
+			},
+		},
+		{
+			name: "customAgentConfig and datadog_cluster_yaml do not report spurious leaf errors",
+			inputValues: `agents:
+  customAgentConfig:
+    log_level: "debug"
+    jmx_use_container_support: true
+clusterAgent:
+  datadog_cluster_yaml:
+    log_level: "debug"
+    cluster_checks:
+      enabled: true
+`,
+			expectNoErrors: true,
+			checkFileConfigData: map[string]fileConfigDataCheck{
+				"spec.override.nodeAgent.customConfigurations": {
+					fileName: "datadog.yaml",
+					want:     "jmx_use_container_support: true\nlog_level: debug\n",
+				},
+				"spec.override.clusterAgent.customConfigurations": {
+					fileName: "datadog-cluster.yaml",
+					want:     "cluster_checks:\n  enabled: true\nlog_level: debug\n",
+				},
+			},
+		},
+		{
+			name: "seLinuxContext sub-fields stay individually mapped, not copied wholesale",
+			inputValues: `agents:
+  podSecurity:
+    seLinuxContext:
+      seLinuxOptions:
+        level: "s0:c123,c456"
+        role: "system_r"
+        type: "spc_t"
+        user: "system_u"
+`,
+			expectNoErrors: true,
+			expectedDDA: map[string]any{
+				"spec.override.nodeAgent.containers.agent.securityContext.seLinuxOptions.level": "s0:c123,c456",
+				"spec.override.nodeAgent.containers.agent.securityContext.seLinuxOptions.role":  "system_r",
+				"spec.override.nodeAgent.containers.agent.securityContext.seLinuxOptions.type":  "spc_t",
+				"spec.override.nodeAgent.containers.agent.securityContext.seLinuxOptions.user":  "system_u",
+			},
+			// seLinuxOptions itself must not also appear as a flat, wholesale-copied value.
+			missingPaths: []string{"spec.override.nodeAgent.containers.agent.securityContext.seLinuxOptions.rule"},
+		},
+	}
+
+	for i, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			valuesPath := filepath.Join(tempDir, fmt.Sprintf("multikey-values-%d.yaml", i+1))
+			ddaPath := filepath.Join(tempDir, fmt.Sprintf("multikey-dda-%d.yaml", i+1))
+			writeTestFile(t, valuesPath, tt.inputValues)
+
+			mapper := NewMapper(MapConfig{
+				MappingPath: "mapping_datadog_helm_to_datadogagent_crd.yaml",
+				SourcePath:  valuesPath,
+				DestPath:    ddaPath,
+			})
+			err := mapper.Run()
+			if tt.expectNoErrors {
+				require.NoError(t, err, "run %s failed", tt.name)
+			}
+
+			dda, err := chartutil.ReadValuesFile(ddaPath)
+			require.NoError(t, err, "run %s failed to read output", tt.name)
+
+			assertValues(t, dda, tt.expectedDDA)
+			for _, missingPath := range tt.missingPaths {
+				assertMissingPath(t, dda, missingPath, "run %s should not contain %s", tt.name, missingPath)
+			}
+			for path, want := range tt.checkTables {
+				got, tableErr := dda.Table(path)
+				require.NoError(t, tableErr, "run %s: expected table at path %q", tt.name, path)
+				for k, v := range want {
+					assert.Equal(t, v, got[k], "run %s: unexpected value at %q[%q]", tt.name, path, k)
+				}
+			}
+			for path, check := range tt.checkFileConfigData {
+				parent, tableErr := dda.Table(path)
+				require.NoError(t, tableErr, "run %s: expected table at path %q", tt.name, path)
+				fileEntry, ok := utils.GetPathMap(parent[check.fileName])
+				require.True(t, ok, "run %s: expected %q[%q] to be a map", tt.name, path, check.fileName)
+				assert.Equal(t, check.want, fileEntry["configData"], "run %s: unexpected configData at %q[%q]", tt.name, path, check.fileName)
+			}
+		})
+	}
+}
+
 func writeTestFile(t *testing.T, path, content string) {
 	t.Helper()
 	require.NoError(t, os.WriteFile(path, []byte(content), 0644))
@@ -1083,7 +1219,7 @@ func TestApplyDeprecationRules(t *testing.T) {
 func TestMappingProcessors(t *testing.T) {
 	// Test that all mapping processors are properly registered
 	t.Run("mapFuncRegistry_dict", func(t *testing.T) {
-		expectedFuncs := []string{"mapSecretKeyName", "mapSeccompProfile", "mapSystemProbeAppArmor", "mapLocalServiceName", "mapAppendEnvVar", "mapMergeEnvs", "mapOverrideType"}
+		expectedFuncs := []string{"mapSecretKeyName", "mapSeccompProfile", "mapSystemProbeAppArmor", "mapLocalServiceName", "mapAppendEnvVar", "mapMergeEnvs", "mapOverrideType", "mapCustomConfigFile"}
 		mapFuncs := mapFuncRegistry()
 
 		for _, funcName := range expectedFuncs {
@@ -1719,6 +1855,139 @@ func TestMappingProcessors(t *testing.T) {
 			pathVal: "8080",
 			expectedMap: map[string]any{
 				"spec.features.foo.bar": 8080,
+			},
+		},
+		// mapCustomConfigFile tests
+		{
+			name:     "mapCustomConfigFile_string_value",
+			funcName: "mapCustomConfigFile",
+			interim:  map[string]any{},
+			newPath:  "spec.override.nodeAgent.customConfigurations",
+			pathVal:  "log_level: debug\ntags:\n  - foo:bar\n",
+			mapFuncArgs: []any{
+				map[string]any{
+					"fileName": "datadog.yaml",
+				},
+			},
+			expectedMap: map[string]any{
+				"spec.override.nodeAgent.customConfigurations": map[string]any{
+					"datadog.yaml": map[string]any{
+						"configData": "log_level: debug\ntags:\n  - foo:bar\n",
+					},
+				},
+			},
+		},
+		{
+			name:     "mapCustomConfigFile_object_value_marshaled_to_yaml",
+			funcName: "mapCustomConfigFile",
+			interim:  map[string]any{},
+			newPath:  "spec.override.clusterAgent.customConfigurations",
+			pathVal: map[string]any{
+				"log_level": "debug",
+				"tags":      []any{"foo:bar"},
+			},
+			mapFuncArgs: []any{
+				map[string]any{
+					"fileName": "datadog-cluster.yaml",
+				},
+			},
+			expectedMap: map[string]any{
+				"spec.override.clusterAgent.customConfigurations": map[string]any{
+					"datadog-cluster.yaml": map[string]any{
+						"configData": "log_level: debug\ntags:\n- foo:bar\n",
+					},
+				},
+			},
+		},
+		{
+			name:     "mapCustomConfigFile_merges_with_existing_customConfigurations",
+			funcName: "mapCustomConfigFile",
+			interim: map[string]any{
+				"spec.override.nodeAgent.customConfigurations": map[string]any{
+					"other-file.yaml": map[string]any{
+						"configData": "foo: bar\n",
+					},
+				},
+			},
+			newPath: "spec.override.nodeAgent.customConfigurations",
+			pathVal: "log_level: debug\n",
+			mapFuncArgs: []any{
+				map[string]any{
+					"fileName": "datadog.yaml",
+				},
+			},
+			expectedMap: map[string]any{
+				"spec.override.nodeAgent.customConfigurations": map[string]any{
+					"other-file.yaml": map[string]any{
+						"configData": "foo: bar\n",
+					},
+					"datadog.yaml": map[string]any{
+						"configData": "log_level: debug\n",
+					},
+				},
+			},
+		},
+		{
+			name:     "mapCustomConfigFile_no_args_is_noop",
+			funcName: "mapCustomConfigFile",
+			interim: map[string]any{
+				"spec.global.site": "datadoghq.com",
+			},
+			newPath:     "spec.override.nodeAgent.customConfigurations",
+			pathVal:     "log_level: debug\n",
+			mapFuncArgs: []any{},
+			expectedMap: map[string]any{
+				"spec.global.site": "datadoghq.com",
+			},
+		},
+		{
+			name:     "mapCustomConfigFile_missing_fileName_is_noop",
+			funcName: "mapCustomConfigFile",
+			interim: map[string]any{
+				"spec.global.site": "datadoghq.com",
+			},
+			newPath: "spec.override.nodeAgent.customConfigurations",
+			pathVal: "log_level: debug\n",
+			mapFuncArgs: []any{
+				map[string]any{},
+			},
+			expectedMap: map[string]any{
+				"spec.global.site": "datadoghq.com",
+			},
+		},
+		{
+			name:     "mapCustomConfigFile_empty_fileName_is_noop",
+			funcName: "mapCustomConfigFile",
+			interim: map[string]any{
+				"spec.global.site": "datadoghq.com",
+			},
+			newPath: "spec.override.nodeAgent.customConfigurations",
+			pathVal: "log_level: debug\n",
+			mapFuncArgs: []any{
+				map[string]any{
+					"fileName": "",
+				},
+			},
+			expectedMap: map[string]any{
+				"spec.global.site": "datadoghq.com",
+			},
+		},
+		{
+			name:     "mapCustomConfigFile_unmarshalable_value_is_noop",
+			funcName: "mapCustomConfigFile",
+			interim: map[string]any{
+				"spec.global.site": "datadoghq.com",
+			},
+			newPath: "spec.override.nodeAgent.customConfigurations",
+			// funcs can't be marshaled to YAML/JSON, exercising the yaml.Marshal error branch.
+			pathVal: func() {},
+			mapFuncArgs: []any{
+				map[string]any{
+					"fileName": "datadog.yaml",
+				},
+			},
+			expectedMap: map[string]any{
+				"spec.global.site": "datadoghq.com",
 			},
 		},
 	}

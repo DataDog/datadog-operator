@@ -75,9 +75,7 @@ metadata:
             "config": {
               "checks": [
                 {
-                  "containerImage": [
-                    "sample-app"
-                  ],
+                  "containerName": "sample-app",
                   "initConfig": {},
                   "instances": [
                     {
@@ -92,19 +90,20 @@ metadata:
                       ]
                     }
                   ],
-                  "integration": "openmetrics",
-                  "logs": [
-                    {
-                      "path": "/var/log/sample-app/*.log",
-                      "service": "sample-app",
-                      "source": "sample-app",
-                      "tags": [
-                        "service:sample-app",
-                        "env:dev"
-                      ],
-                      "type": "file"
-                    }
-                  ]
+                  "integration": "openmetrics"
+                }
+              ],
+              "logs": [
+                {
+                  "containerName": "sample-app",
+                  "path": "/var/log/sample-app/*.log",
+                  "service": "sample-app",
+                  "source": "sample-app",
+                  "tags": [
+                    "service:sample-app",
+                    "env:dev"
+                  ],
+                  "type": "file"
                 }
               ]
             },
@@ -244,7 +243,7 @@ metadata:
       ]
     capabilities: Full Lifecycle
     categories: Monitoring, Logging & Tracing
-    createdAt: "2026-07-01 18:50:06"
+    createdAt: "2026-08-04 20:33:01"
     description: |-
       Datadog provides a modern monitoring and analytics platform. Gather metrics, logs and traces for full observability of your Kubernetes cluster with Datadog Operator.
 
@@ -252,7 +251,7 @@ metadata:
     operators.operatorframework.io/builder: operator-sdk-v1.34.1
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v4
     repository: https://github.com/DataDog/datadog-operator
-    containerImage: gcr.io/datadoghq/operator:1.28.0
+    containerImage: gcr.io/datadoghq/operator:1.29.0
     support: Datadog, Inc.
     features.operators.openshift.io/disconnected: "true"
     features.operators.openshift.io/fips-compliant: "false"
@@ -261,12 +260,12 @@ metadata:
     features.operators.openshift.io/token-auth-aws: "false"
     features.operators.openshift.io/token-auth-azure: "false"
     features.operators.openshift.io/token-auth-gcp: "false"
-    olm.skipRange: '>=1.7.0 <1.28.0'
+    olm.skipRange: '>=1.7.0 <1.29.0'
   labels:
     operatorframework.io/arch.amd64: supported
     operatorframework.io/arch.arm64: supported
     operatorframework.io/os.linux: supported
-  name: datadog-operator.v1.28.0
+  name: datadog-operator.v1.29.0
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -469,6 +468,12 @@ spec:
                 - patch
                 - update
                 - watch
+            - apiGroups:
+                - apps
+              resources:
+                - deployments/status
+              verbs:
+                - get
             - apiGroups:
                 - apps
               resources:
@@ -996,7 +1001,7 @@ spec:
                             fieldPath: metadata.namespace
                       - name: DD_TOOL_VERSION
                         value: redhat-community-operators
-                    image: gcr.io/datadoghq/operator:1.28.0
+                    image: gcr.io/datadoghq/operator:1.29.0
                     imagePullPolicy: IfNotPresent
                     livenessProbe:
                       httpGet:
@@ -1094,5 +1099,5 @@ spec:
   minKubeVersion: 1.16.0
   provider:
     name: Datadog
-  version: 1.28.0
-  replaces: datadog-operator.v1.27.1
+  version: 1.29.0
+  replaces: datadog-operator.v1.28.0

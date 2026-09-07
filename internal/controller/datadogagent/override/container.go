@@ -16,10 +16,8 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
-	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 )
 
 // Container use to override a corev1.Container with a v2alpha1.DatadogAgentGenericContainer.
@@ -221,13 +219,6 @@ func overrideSeccompProfile(containerName apicommon.AgentContainerName, manager 
 			// }
 		}
 
-		// Adds checksum annotation to DaemonSet when configData is used
-		if utils.UseCustomSeccompConfigData(override.SeccompConfig) {
-			annotationValue, _ := comparison.GenerateMD5ForSpec(map[string]string{
-				common.SystemProbeSeccompKey: *override.SeccompConfig.CustomProfile.ConfigData})
-			annotationKey := object.GetChecksumAnnotationKey(common.SystemProbeSeccompKey)
-			manager.Annotation().AddAnnotation(annotationKey, annotationValue)
-		}
 	}
 }
 

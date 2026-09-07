@@ -171,7 +171,7 @@ func (o *options) run(cmd *cobra.Command) error {
 
 	if err = o.uninstallHelmChart(ctx, karpenterNamespace); err != nil {
 		log.Printf("Warning: failed to uninstall Helm chart: %v", err)
-		errs = append(errs, fmt.Errorf("Helm uninstall: %w", err))
+		errs = append(errs, fmt.Errorf("Helm uninstall: %w", err)) //nolint:staticcheck // Helm is a proper noun.
 	}
 
 	if err = removeAwsAuthConfigMapRole(ctx, cli, clusterName); err != nil {

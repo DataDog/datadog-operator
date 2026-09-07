@@ -29,6 +29,10 @@ var update = flag.Bool("update", false, "update golden files")
 // plausible current semver since some rendering paths gate behavior on it.
 const goldenImageTag = "7.80.0"
 
+// goldenFIPSImageTag pins the FIPS proxy sidecar tag for the same reason as
+// goldenImageTag: decouple goldens from FIPSProxyLatestVersion bumps.
+const goldenFIPSImageTag = "1.1.29"
+
 // pinImageTags overrides image tags on the in-memory DDA before rendering,
 // rather than in the testdata fixtures, so the fixtures stay representative
 // of real user input. It merges into any existing per-component override
@@ -40,6 +44,16 @@ func pinImageTags(dda *datadoghqv2alpha1.DatadogAgent) {
 	}
 	setImageTag(dda, datadoghqv2alpha1.NodeAgentComponentName)
 	setImageTag(dda, datadoghqv2alpha1.ClusterAgentComponentName)
+	pinFIPSImageTag(dda)
+}
+
+// pinFIPSImageTag sets a fixed FIPS proxy tag when the fixture enables FIPS,
+// so goldens don't churn on FIPSProxyLatestVersion bumps.
+func pinFIPSImageTag(dda *datadoghqv2alpha1.DatadogAgent) {
+	if dda.Spec.Global == nil || dda.Spec.Global.FIPS == nil {
+		return
+	}
+	dda.Spec.Global.FIPS.Image = &datadoghqv2alpha1.AgentImageConfig{Tag: goldenFIPSImageTag}
 }
 
 func setImageTag(dda *datadoghqv2alpha1.DatadogAgent, component datadoghqv2alpha1.ComponentName) {

@@ -16,7 +16,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
-	componentagent "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
@@ -66,12 +65,12 @@ const (
 
 // ReconcilerOptions provides options read from command line
 type ReconcilerOptions struct {
-	ExtendedDaemonsetOptions componentagent.ExtendedDaemonsetOptions
-	SupportCilium            bool
-	OperatorMetricsEnabled   bool
-	UntaintControllerEnabled bool
-	DatadogCSIDriverEnabled  bool
-	APIReader                client.Reader
+	SupportCilium                   bool
+	OperatorMetricsEnabled          bool
+	UntaintControllerEnabled        bool
+	DatadogCSIDriverEnabled         bool
+	RolloutOnConfigMapChangeEnabled bool
+	APIReader                       client.Reader
 }
 
 // Reconciler is the internal reconciler for Datadog Agent
@@ -123,7 +122,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, ddai *v1alpha1.DatadogAgentI
 	var resp reconcile.Result
 	var err error
 
-	resp, err = r.internalReconcileV2(ctx, ddai)
+	resp, err = r.internalReconcile(ctx, ddai)
 
 	r.metricsForwarderProcessError(ddai, err)
 	return resp, err
@@ -133,6 +132,7 @@ func (r *Reconciler) reconcilerOptionsToFeatureOptions(ctx context.Context) *fea
 	return &feature.Options{
 		Logger:                  ctrl.LoggerFrom(ctx),
 		Client:                  r.apiReader,
+		PlatformInfo:            r.platformInfo,
 		DatadogCSIDriverEnabled: r.options.DatadogCSIDriverEnabled,
 	}
 }

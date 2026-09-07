@@ -34,7 +34,7 @@ The DAP spec has two main sections:
 * `profileAffinity` is used to target a subset of nodes. It accepts a list of [NodeSelectorRequirements](https://pkg.go.dev/k8s.io/api/core/v1#NodeSelectorRequirement).
 * `config` defines the configuration to override in the DDA. It follows the configuration formatting of the Operator's [DatadogAgentSpec](https://github.com/DataDog/datadog-operator/blob/98276c56ad824f81be6f75128d230d2c4eda4c0b/apis/datadoghq/v2alpha1/datadogagent_types.go#L28).
 
-When a DAP is applied, the Operator creates a new DaemonSet for that profile using the same name as the DAP. Even if the Operator is configured to use ExtendedDaemonSets, it will still create DaemonSets for any DAPs. It will also create a DaemonSet (or an ExtendedDaemonSet, if enabled) for a default profile. The default profile uses the same name as the DDA and applies to all nodes that are not targeted by a DAP.
+When a DAP is applied, the Operator creates a new DaemonSet for that profile using the same name as the DAP. It also creates a DaemonSet for the default profile. The default profile uses the same name as the DDA and applies to all nodes that are not targeted by a DAP.
 
 ```console
 $ kubectl get ds
@@ -57,6 +57,7 @@ Common scenarios:
 
 * Operator v1.5.0+
 * Tests were performed on Kubernetes versions >= `1.27.0`
+* The cluster must allow the Operator to `patch` nodes. Environments that block node modifications, such as GKE Autopilot, cannot use DAPs.
 
 ## Enabling DatadogAgentProfiles
 
@@ -76,6 +77,45 @@ config:
 > [!CAUTION]
 > Enabling DAP will increase the resource usage of the Operator. Please ensure the operator pod has enough resources allocated to it prior to enabling DAP.
 
+## Declaring a provider
+
+A DAP can declare a [provider][1] for the subset of nodes it targets by setting the `agent.datadoghq.com/cluster-provider` annotation on the profile. This is the supported way to apply provider-specific configuration (for example, a GKE COS node pool) to a subset of nodes.
+
+This is safe **only if the profile's `profileAffinity` correctly selects the nodes that actually match the declared provider**. The Operator does not verify that the selected nodes match the annotation; if the selector is too broad, the provider configuration is applied to nodes it does not fit.
+
+The node-scoped providers that make sense on a DAP are:
+
+| Provider | Applies to | Notes |
+| -------- | ---------- | ----- |
+| `gke-cos` | GKE Container-Optimized OS node pools | Drops the `/usr/src` volume for the OOM Kill, TCP Queue Length, and GPU checks |
+| `eks-ec2-use-hostname-from-file` | EKS EC2 node groups | Adds `DD_HOSTNAME_FILE` and the cloud-init instance-id mount |
+
+See the [providers documentation][1] for the full catalog, effects, and Helm mappings.
+
+```yaml
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgentProfile
+metadata:
+  name: gke-cos-profile
+  annotations:
+    agent.datadoghq.com/cluster-provider: gke-cos
+spec:
+  profileAffinity:
+    profileNodeAffinity:
+      - key: cloud.google.com/gke-os-distribution
+        operator: In
+        values:
+          - cos
+  config:
+    override:
+      nodeAgent:
+        containers:
+          agent:
+            resources:
+              requests:
+                cpu: 256m
+```
+
 ## Supported Settings
 
 | Setting | Operator Version |
@@ -88,3 +128,5 @@ config:
 | override.[nodeAgent].runtimeClassName | v1.12.0 |
 | override.[nodeAgent].volumes | v1.29.0 |
 | override.[nodeAgent].containers.[\*].volumeMounts | v1.29.0 |
+
+[1]: https://docs.datadoghq.com/containers/datadog_operator/providers

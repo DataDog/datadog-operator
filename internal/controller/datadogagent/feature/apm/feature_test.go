@@ -9,6 +9,11 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/stretchr/testify/assert"
+	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/utils/ptr"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
@@ -22,11 +27,6 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/testutils"
-
-	"github.com/google/go-cmp/cmp"
-	"github.com/stretchr/testify/assert"
-	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
@@ -130,8 +130,38 @@ func TestAPMFeature(t *testing.T) {
 				WithAPMHostPortEnabled(false, ptr.To[int32](8126)).
 				WithAPMUDSEnabled(true, apmSocketHostPath).
 				Build(),
+			FeatureOptions: &feature.Options{
+				PlatformInfo: kubernetes.NewPlatformInfoFromVersionMaps(&version.Info{GitVersion: "1.20.0"}, nil, nil),
+			},
 			WantConfigure: true,
 			Agent:         testAgentUDSOnly(apicommon.TraceAgentContainerName),
+		},
+		{
+			Name: "apm enabled, use uds and local service",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithAPMEnabled(true).
+				WithAPMHostPortEnabled(false, ptr.To[int32](8126)).
+				WithAPMUDSEnabled(true, apmSocketHostPath).
+				Build(),
+			FeatureOptions: &feature.Options{
+				PlatformInfo: kubernetes.NewPlatformInfoFromVersionMaps(&version.Info{GitVersion: "1.32.0"}, nil, nil),
+			},
+			WantConfigure: true,
+			Agent:         testAgentUDSWithNonLocalTraffic(apicommon.TraceAgentContainerName),
+		},
+		{
+			Name: "apm enabled, use uds, force local service on old k8s",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithAPMEnabled(true).
+				WithAPMHostPortEnabled(false, ptr.To[int32](8126)).
+				WithAPMUDSEnabled(true, apmSocketHostPath).
+				WithForceEnableLocalService(true).
+				Build(),
+			FeatureOptions: &feature.Options{
+				PlatformInfo: kubernetes.NewPlatformInfoFromVersionMaps(&version.Info{GitVersion: "1.21.0"}, nil, nil),
+			},
+			WantConfigure: true,
+			Agent:         testAgentUDSWithNonLocalTraffic(apicommon.TraceAgentContainerName),
 		},
 		{
 			Name: "apm enabled, use uds with single container strategy",
@@ -141,8 +171,55 @@ func TestAPMFeature(t *testing.T) {
 				WithAPMUDSEnabled(true, apmSocketHostPath).
 				WithSingleContainerStrategy(true).
 				Build(),
+			FeatureOptions: &feature.Options{
+				PlatformInfo: kubernetes.NewPlatformInfoFromVersionMaps(&version.Info{GitVersion: "1.20.0"}, nil, nil),
+			},
 			WantConfigure: true,
 			Agent:         testAgentUDSOnly(apicommon.UnprivilegedSingleAgentContainerName),
+		},
+		{
+			Name: "apm enabled, use uds and local service with single container strategy",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithAPMEnabled(true).
+				WithAPMHostPortEnabled(false, ptr.To[int32](8126)).
+				WithAPMUDSEnabled(true, apmSocketHostPath).
+				WithSingleContainerStrategy(true).
+				Build(),
+			FeatureOptions: &feature.Options{
+				PlatformInfo: kubernetes.NewPlatformInfoFromVersionMaps(&version.Info{GitVersion: "1.32.0"}, nil, nil),
+			},
+			WantConfigure: true,
+			Agent:         testAgentUDSWithNonLocalTraffic(apicommon.UnprivilegedSingleAgentContainerName),
+		},
+		{
+			Name: "apm enabled, tcp only with local service",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithAPMEnabled(true).
+				WithAPMHostPortEnabled(false, ptr.To[int32](8126)).
+				// WithAPMUDSEnabled is called with enabled=false to initialize the
+				// UnixDomainSocketConfig struct; Configure unconditionally dereferences
+				// its Path field, so the struct must be non-nil even when UDS is off.
+				WithAPMUDSEnabled(false, apmSocketHostPath).
+				Build(),
+			FeatureOptions: &feature.Options{
+				PlatformInfo: kubernetes.NewPlatformInfoFromVersionMaps(&version.Info{GitVersion: "1.32.0"}, nil, nil),
+			},
+			WantConfigure: true,
+			Agent:         testAgentTCPOnlyWithNonLocalTraffic(apicommon.TraceAgentContainerName),
+		},
+		{
+			Name: "apm enabled, tcp only, force local service on old k8s",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithAPMEnabled(true).
+				WithAPMHostPortEnabled(false, ptr.To[int32](8126)).
+				WithAPMUDSEnabled(false, apmSocketHostPath).
+				WithForceEnableLocalService(true).
+				Build(),
+			FeatureOptions: &feature.Options{
+				PlatformInfo: kubernetes.NewPlatformInfoFromVersionMaps(&version.Info{GitVersion: "1.21.0"}, nil, nil),
+			},
+			WantConfigure: true,
+			Agent:         testAgentTCPOnlyWithNonLocalTraffic(apicommon.TraceAgentContainerName),
 		},
 		{
 			Name: "apm enabled, use uds and host port",
@@ -594,7 +671,7 @@ func testAgentErrorTrackingStandalone() *test.ComponentTest {
 	)
 }
 
-func testAgentUDSOnly(agentContainerName apicommon.AgentContainerName) *test.ComponentTest {
+func testAgentTCPOnlyWithNonLocalTraffic(agentContainerName apicommon.AgentContainerName) *test.ComponentTest {
 	return test.NewDefaultComponentTest().WithWantFunc(
 		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 			mgr := mgrInterface.(*fake.PodTemplateManagers)
@@ -606,10 +683,72 @@ func testAgentUDSOnly(agentContainerName apicommon.AgentContainerName) *test.Com
 					Value: "true",
 				},
 				{
+					Name:  DDAPMNonLocalTraffic,
+					Value: "true",
+				},
+			}
+			assert.True(
+				t,
+				apiutils.IsEqualStruct(agentEnvs, expectedAgentEnvs),
+				"Trace Agent ENVs \ndiff = %s", cmp.Diff(agentEnvs, expectedAgentEnvs),
+			)
+
+			agentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[agentContainerName]
+			assert.Empty(t, agentVolumeMounts, "Trace Agent VolumeMounts should be empty for TCP-only")
+
+			agentVolumes := mgr.VolumeMgr.Volumes
+			assert.Empty(t, agentVolumes, "Trace Agent Volumes should be empty for TCP-only")
+
+			agentPorts := mgr.PortMgr.PortsByC[agentContainerName]
+			expectedPorts := []*corev1.ContainerPort{
+				{
+					Name:          constants.DefaultApmPortName,
+					ContainerPort: constants.DefaultApmPort,
+					Protocol:      corev1.ProtocolTCP,
+				},
+			}
+			assert.True(
+				t,
+				apiutils.IsEqualStruct(agentPorts, expectedPorts),
+				"Trace Agent Ports \ndiff = %s", cmp.Diff(agentPorts, expectedPorts),
+			)
+		},
+	)
+}
+
+func testAgentUDSOnly(agentContainerName apicommon.AgentContainerName) *test.ComponentTest {
+	return testAgentUDS(agentContainerName, false)
+}
+
+func testAgentUDSWithNonLocalTraffic(agentContainerName apicommon.AgentContainerName) *test.ComponentTest {
+	return testAgentUDS(agentContainerName, true)
+}
+
+func testAgentUDS(agentContainerName apicommon.AgentContainerName, nonLocalTraffic bool) *test.ComponentTest {
+	return test.NewDefaultComponentTest().WithWantFunc(
+		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+			mgr := mgrInterface.(*fake.PodTemplateManagers)
+
+			expectedAgentEnvs := []*corev1.EnvVar{
+				{
+					Name:  constants.DDAPMEnabled,
+					Value: "true",
+				},
+			}
+			if nonLocalTraffic {
+				expectedAgentEnvs = append(expectedAgentEnvs, &corev1.EnvVar{
+					Name:  DDAPMNonLocalTraffic,
+					Value: "true",
+				})
+			}
+			expectedAgentEnvs = append(expectedAgentEnvs,
+				&corev1.EnvVar{
 					Name:  DDAPMReceiverSocket,
 					Value: apmSocketLocalPath,
 				},
-			}
+			)
+
+			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[agentContainerName]
 			assert.True(
 				t,
 				apiutils.IsEqualStruct(agentEnvs, expectedAgentEnvs),

@@ -51,9 +51,13 @@ const (
 	csiSocketAddress = "/csi/csi.sock"
 
 	// Environment variable names
-	envNodeID        = "NODE_ID"
-	envAddress       = "ADDRESS"
-	envDriverRegSock = "DRIVER_REG_SOCK_PATH"
+	envNodeID                = "NODE_ID"
+	envAddress               = "ADDRESS"
+	envDriverRegSock         = "DRIVER_REG_SOCK_PATH"
+	envAPMRegistryAuthPrefix = "DD_APM_REGISTRY_AUTH_"
+
+	// dockerConfigJSONKey is the data key for kubernetes.io/dockerconfigjson Secrets.
+	dockerConfigJSONKey = ".dockerconfigjson"
 
 	// Container port
 	csiDriverPort = int32(5000)
