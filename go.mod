@@ -35,6 +35,7 @@ require (
 )
 
 require (
+	github.com/DataDog/datadog-agent/pkg/config/create v0.82.3
 	github.com/DataDog/datadog-agent/pkg/config/model v0.82.3
 	github.com/DataDog/datadog-agent/pkg/config/remote v0.82.3
 	github.com/DataDog/datadog-agent/pkg/proto v0.82.3
@@ -92,15 +93,17 @@ require (
 	github.com/DataDog/datadog-agent/pkg/collector/check/defaults v0.82.3 // indirect
 	github.com/DataDog/datadog-agent/pkg/config/basic v0.82.3 // indirect
 	github.com/DataDog/datadog-agent/pkg/config/buildschema v0.82.3 // indirect
-	github.com/DataDog/datadog-agent/pkg/config/create v0.82.3 // indirect
 	github.com/DataDog/datadog-agent/pkg/config/env v0.82.3 // indirect
 	github.com/DataDog/datadog-agent/pkg/config/helper v0.82.3 // indirect
 	github.com/DataDog/datadog-agent/pkg/config/nodetreemodel v0.82.3 // indirect
 	github.com/DataDog/datadog-agent/pkg/config/setup v0.82.3 // indirect
 	github.com/DataDog/datadog-agent/pkg/config/structure v0.82.3 // indirect
 	github.com/DataDog/datadog-agent/pkg/fips v0.82.3 // indirect
+	github.com/DataDog/datadog-agent/pkg/obfuscate v0.82.3 // indirect
 	github.com/DataDog/datadog-agent/pkg/template v0.82.3 // indirect
-	github.com/DataDog/datadog-agent/pkg/trace v0.67.0 // indirect
+	github.com/DataDog/datadog-agent/pkg/trace/log v0.82.3 // indirect
+	github.com/DataDog/datadog-agent/pkg/trace/stats v0.82.3 // indirect
+	github.com/DataDog/datadog-agent/pkg/trace/traceutil v0.82.3 // indirect
 	github.com/DataDog/datadog-agent/pkg/util/backoff v0.82.3 // indirect
 	github.com/DataDog/datadog-agent/pkg/util/cache v0.82.3 // indirect
 	github.com/DataDog/datadog-agent/pkg/util/defaultpaths v0.82.3 // indirect
@@ -114,12 +117,12 @@ require (
 	github.com/DataDog/datadog-agent/pkg/util/uuid v0.82.3 // indirect
 	github.com/DataDog/datadog-agent/pkg/util/winutil v0.82.3 // indirect
 	github.com/DataDog/datadog-agent/pkg/version v0.82.3 // indirect
-	github.com/DataDog/datadog-go/v5 v5.6.0 // indirect
+	github.com/DataDog/datadog-go/v5 v5.9.0 // indirect
 	github.com/DataDog/dd-trace-go/v2 v2.3.0 // indirect
 	github.com/DataDog/go-acl v1.0.1 // indirect
 	github.com/DataDog/go-tuf v1.1.1-0.5.2 // indirect
 	github.com/DataDog/gostackparse v0.7.0 // indirect
-	github.com/DataDog/zstd v1.5.6 // indirect
+	github.com/DataDog/zstd v1.5.8-0.20260421145859-31a7e515a571 // indirect
 	github.com/MakeNowJust/heredoc v1.0.0 // indirect
 	github.com/Masterminds/goutils v1.1.1 // indirect
 	github.com/Masterminds/sprig/v3 v3.3.0 // indirect
