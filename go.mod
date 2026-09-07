@@ -4,73 +4,73 @@ go 1.26.7
 
 require (
 	github.com/DataDog/datadog-agent/pkg/util/scrubber v0.63.0-rc.1 // indirect
-	github.com/DataDog/datadog-api-client-go/v2 v2.61.0
-	github.com/Masterminds/semver/v3 v3.4.0
-	github.com/go-logr/logr v1.4.3
+	github.com/DataDog/datadog-api-client-go/v2 v2.64.0
+	github.com/Masterminds/semver/v3 v3.5.0
+	github.com/go-logr/logr v1.4.4
 	github.com/gobwas/glob v0.2.3
 	github.com/google/go-cmp v0.7.0
 	github.com/google/uuid v1.6.0
 	github.com/hako/durafmt v0.0.0-20210608085754-5c1018a4e16b
 	github.com/mholt/archiver/v3 v3.5.1
-	github.com/olekukonko/tablewriter v1.1.3
-	github.com/onsi/gomega v1.39.1
+	github.com/olekukonko/tablewriter v1.1.4
+	github.com/onsi/gomega v1.43.0
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
-	github.com/stretchr/testify v1.11.1
-	go.uber.org/zap v1.27.1
-	gopkg.in/DataDog/dd-trace-go.v1 v1.68.0
+	github.com/stretchr/testify v1.12.1
+	go.uber.org/zap v1.28.0
+	gopkg.in/DataDog/dd-trace-go.v1 v1.74.8
 	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.1
-	k8s.io/api v0.35.3
-	k8s.io/apiextensions-apiserver v0.35.1
-	k8s.io/apimachinery v0.35.3
-	k8s.io/cli-runtime v0.35.3
-	k8s.io/client-go v0.35.3
+	k8s.io/api v0.37.0
+	k8s.io/apiextensions-apiserver v0.37.0
+	k8s.io/apimachinery v0.37.0
+	k8s.io/cli-runtime v0.37.0
+	k8s.io/client-go v0.37.0
 	k8s.io/klog/v2 v2.140.0
-	k8s.io/kube-aggregator v0.35.3
+	k8s.io/kube-aggregator v0.37.0
 	k8s.io/kube-openapi v0.0.0-20251125145642-4e65d59e963e
-	sigs.k8s.io/controller-runtime v0.23.3
+	sigs.k8s.io/controller-runtime v0.24.1
 	sigs.k8s.io/yaml v1.6.0
 )
 
 require (
-	github.com/DataDog/datadog-agent/pkg/config/model v0.59.0-rc.5
-	github.com/DataDog/datadog-agent/pkg/config/remote v0.59.0-rc.5
-	github.com/DataDog/datadog-agent/pkg/proto v0.63.0-rc.1
-	github.com/DataDog/datadog-agent/pkg/remoteconfig/state v0.77.3
+	github.com/DataDog/datadog-agent/pkg/config/model v0.82.3
+	github.com/DataDog/datadog-agent/pkg/config/remote v0.82.3
+	github.com/DataDog/datadog-agent/pkg/proto v0.82.3
+	github.com/DataDog/datadog-agent/pkg/remoteconfig/state v0.82.3
 	github.com/DataDog/datadog-operator/api v0.0.0-20250130131115-7f198adcc856
-	github.com/aws/aws-sdk-go-v2 v1.41.6
-	github.com/aws/aws-sdk-go-v2/config v1.32.7
-	github.com/aws/aws-sdk-go-v2/service/autoscaling v1.66.1
-	github.com/aws/aws-sdk-go-v2/service/cloudformation v1.68.3
-	github.com/aws/aws-sdk-go-v2/service/ec2 v1.279.2
-	github.com/aws/aws-sdk-go-v2/service/eks v1.77.0
-	github.com/aws/aws-sdk-go-v2/service/iam v1.53.2
-	github.com/aws/aws-sdk-go-v2/service/sts v1.41.6
-	github.com/aws/karpenter-provider-aws v1.9.0
+	github.com/aws/aws-sdk-go-v2 v1.45.1
+	github.com/aws/aws-sdk-go-v2/config v1.33.1
+	github.com/aws/aws-sdk-go-v2/service/autoscaling v1.75.1
+	github.com/aws/aws-sdk-go-v2/service/cloudformation v1.78.1
+	github.com/aws/aws-sdk-go-v2/service/ec2 v1.325.1
+	github.com/aws/aws-sdk-go-v2/service/eks v1.95.1
+	github.com/aws/aws-sdk-go-v2/service/iam v1.61.1
+	github.com/aws/aws-sdk-go-v2/service/sts v1.47.1
+	github.com/aws/karpenter-provider-aws v1.14.1
 	github.com/aws/smithy-go v1.25.0
 	github.com/cenkalti/backoff v2.2.1+incompatible
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc
-	github.com/fatih/color v1.18.0
+	github.com/fatih/color v1.19.0
 	github.com/go-logr/zapr v1.3.0
 	github.com/gobuffalo/flect v1.0.3
-	github.com/google/go-containerregistry v0.21.3
-	github.com/hashicorp/go-retryablehttp v0.7.7
-	github.com/mattn/go-runewidth v0.0.19
-	github.com/onsi/ginkgo/v2 v2.28.1
+	github.com/google/go-containerregistry v0.22.0
+	github.com/hashicorp/go-retryablehttp v0.7.8
+	github.com/mattn/go-runewidth v0.0.28
+	github.com/onsi/ginkgo/v2 v2.32.1
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c
-	github.com/prometheus/client_golang v1.23.2
-	github.com/samber/lo v1.52.0
-	go.etcd.io/bbolt v1.4.3
-	golang.org/x/exp v0.0.0-20250106191152-7588d65b2ba8
+	github.com/prometheus/client_golang v1.24.1
+	github.com/samber/lo v1.53.0
+	go.etcd.io/bbolt v1.5.0
+	golang.org/x/exp v0.0.0-20260824195058-e88cd73687aa
 	golang.org/x/text v0.41.0
-	google.golang.org/grpc v1.83.1
-	google.golang.org/protobuf v1.36.11
-	helm.sh/helm/v3 v3.20.2
-	k8s.io/kubectl v0.35.3
-	k8s.io/utils v0.0.0-20251222233032-718f0e51e6d2
-	sigs.k8s.io/karpenter v1.9.0
+	google.golang.org/grpc v1.83.2
+	google.golang.org/protobuf v1.36.12
+	helm.sh/helm/v3 v3.21.4
+	k8s.io/kubectl v0.37.0
+	k8s.io/utils v0.0.0-20260707023825-cf1189d6abe3
+	sigs.k8s.io/karpenter v1.14.1
 )
 
 require (
