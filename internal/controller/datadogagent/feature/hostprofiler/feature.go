@@ -8,7 +8,6 @@ import (
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -142,9 +141,9 @@ func (o *hostProfilerFeature) ManageNodeAgent(managers feature.PodTemplateManage
 
 	sc := hostProfilerContainer.SecurityContext
 	if o.hostProfilerNonRoot {
-		sc.RunAsUser = ptr.To(common.DDAgentUserID)
-		sc.RunAsGroup = ptr.To(common.DDAgentUserID)
-		sc.RunAsNonRoot = ptr.To(true)
+		sc.RunAsUser = new(common.DDAgentUserID)
+		sc.RunAsGroup = new(common.DDAgentUserID)
+		sc.RunAsNonRoot = new(true)
 	}
 	sc.AllowPrivilegeEscalation = new(false)
 	sc.Capabilities = &corev1.Capabilities{
