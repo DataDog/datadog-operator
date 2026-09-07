@@ -766,7 +766,7 @@ trigger_internal_operator_image:
     - if: $CI_COMMIT_TAG
     - when: never
   trigger:
-    project: DataDog/images
+    project: ddoghq/images
     branch: master
     strategy: depend
   variables:
@@ -790,7 +790,7 @@ trigger_internal_operator_check_image:
     - if: $CI_COMMIT_TAG
     - when: never
   trigger:
-    project: DataDog/images
+    project: ddoghq/images
     branch: master
     strategy: depend
   variables:
@@ -808,7 +808,7 @@ trigger_internal_operator_image_rc_latest:
     - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+-rc\.[0-9]+$/'
     - when: never
   trigger:
-    project: DataDog/images
+    project: ddoghq/images
     branch: master
     strategy: depend
   variables:
@@ -835,7 +835,7 @@ trigger_internal_operator_image_latest:
     - if: $CI_COMMIT_TAG
     - when: never
   trigger:
-    project: DataDog/images
+    project: ddoghq/images
     branch: master
     strategy: depend
   variables:
@@ -860,7 +860,7 @@ trigger_internal_operator_nightly_image:
       when: on_success
     - when: never
   trigger:
-    project: DataDog/images
+    project: ddoghq/images
     branch: master
     strategy: depend
   variables:
@@ -878,7 +878,7 @@ trigger_internal_operator_check_nightly_image:
       when: on_success
     - when: never
   trigger:
-    project: DataDog/images
+    project: ddoghq/images
     branch: master
     strategy: depend
   variables:
@@ -897,7 +897,7 @@ trigger_custom_operator_image_staging:
       when: manual
     - when: never
   trigger:
-    project: DataDog/images
+    project: ddoghq/images
     branch: master
     strategy: depend
   variables:
@@ -915,7 +915,7 @@ trigger_custom_operator_image_fips_staging:
       when: manual
     - when: never
   trigger:
-    project: DataDog/images
+    project: ddoghq/images
     branch: master
     strategy: depend
   variables:
@@ -933,7 +933,7 @@ trigger_custom_operator_check_image_staging:
       when: manual
     - when: never
   trigger:
-    project: DataDog/images
+    project: ddoghq/images
     branch: master
     strategy: depend
   variables:
