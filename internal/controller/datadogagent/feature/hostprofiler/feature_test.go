@@ -79,8 +79,8 @@ func Test_hostProfilerFeature_InvalidSeccompAnnotation(t *testing.T) {
 func Test_hostProfilerFeature_NonRootAnnotation(t *testing.T) {
 	dda := testutils.NewDatadogAgentBuilder().
 		WithAnnotations(map[string]string{
-			featureutils.EnableHostProfilerAnnotation:       "true",
-			featureutils.HostProfilerRunAsNonRootAnnotation: "true",
+			featureutils.EnableHostProfilerAnnotation:        "true",
+			featureutils.EnableHostProfilerNonRootAnnotation: "true",
 		}).
 		Build()
 	manager := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
@@ -97,8 +97,10 @@ func Test_hostProfilerFeature_NonRootAnnotation(t *testing.T) {
 	sc := manager.PodTemplateSpec().Spec.Containers[1].SecurityContext
 	require.NotNil(t, sc.RunAsUser)
 	require.NotNil(t, sc.RunAsGroup)
+	require.NotNil(t, sc.RunAsNonRoot)
 	assert.Equal(t, int64(100), *sc.RunAsUser)
 	assert.Equal(t, int64(100), *sc.RunAsGroup)
+	assert.True(t, *sc.RunAsNonRoot)
 }
 
 func Test_hostProfilerFeature_SeccompDisabled(t *testing.T) {

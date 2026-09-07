@@ -7,7 +7,8 @@ package common
 
 // This file tracks constants used in features, component default code
 
-const DDAgentID int64 = 100
+// DDAgentUserID is the UID/GID used by the Datadog Agent containers when running as non-root.
+const DDAgentUserID int64 = 100
 
 // Resource names
 const (

@@ -78,7 +78,7 @@ func (o *hostProfilerFeature) Configure(dda metav1.Object, _ *v2alpha1.DatadogAg
 		o.logger.V(1).Info("host profiler: logging-seccomp annotation has no effect when seccomp is disabled")
 	}
 
-	o.hostProfilerNonRoot = featureutils.HasFeatureEnableAnnotation(dda, featureutils.HostProfilerRunAsNonRootAnnotation)
+	o.hostProfilerNonRoot = featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnableHostProfilerNonRootAnnotation)
 
 	// SELinux type defaults to spc_t; override via the selinux-type annotation.
 	o.selinuxType = defaultSELinuxType
@@ -142,8 +142,9 @@ func (o *hostProfilerFeature) ManageNodeAgent(managers feature.PodTemplateManage
 
 	sc := hostProfilerContainer.SecurityContext
 	if o.hostProfilerNonRoot {
-		sc.RunAsUser = ptr.To(common.DDAgentID)
-		sc.RunAsGroup = ptr.To(common.DDAgentID)
+		sc.RunAsUser = ptr.To(common.DDAgentUserID)
+		sc.RunAsGroup = ptr.To(common.DDAgentUserID)
+		sc.RunAsNonRoot = ptr.To(true)
 	}
 	sc.AllowPrivilegeEscalation = new(false)
 	sc.Capabilities = &corev1.Capabilities{
