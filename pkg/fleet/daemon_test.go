@@ -1173,7 +1173,7 @@ type mockRCClient struct {
 func (m *mockRCClient) Subscribe(_ string, _ func(map[string]state.RawConfig, func(string, state.ApplyStatus))) {
 }
 
-func (m *mockRCClient) GetInstallerState() []*pbgo.PackageState {
+func (m *mockRCClient) GetInstallerPackages() []*pbgo.PackageState {
 	return m.state
 }
 
@@ -1206,7 +1206,7 @@ func (m *slowInstallerStateRCClient) RefreshUpdaterTags(context.Context) error {
 	return nil
 }
 
-func (m *slowInstallerStateRCClient) GetInstallerState() []*pbgo.PackageState {
+func (m *slowInstallerStateRCClient) GetInstallerPackages() []*pbgo.PackageState {
 	m.mu.Lock()
 	state := clonePackageStates(m.state)
 	m.mu.Unlock()
@@ -1214,7 +1214,7 @@ func (m *slowInstallerStateRCClient) GetInstallerState() []*pbgo.PackageState {
 	return state
 }
 
-func (m *slowInstallerStateRCClient) SetInstallerState(packages []*pbgo.PackageState) {
+func (m *slowInstallerStateRCClient) SetInstallerPackages(packages []*pbgo.PackageState) {
 	m.mu.Lock()
 	m.state = clonePackageStates(packages)
 	m.mu.Unlock()
@@ -1228,7 +1228,7 @@ func clonePackageStates(packages []*pbgo.PackageState) []*pbgo.PackageState {
 	return cloned
 }
 
-func (m *mockRCClient) SetInstallerState(packages []*pbgo.PackageState) {
+func (m *mockRCClient) SetInstallerPackages(packages []*pbgo.PackageState) {
 	m.state = packages
 	for _, pkg := range packages {
 		if pkg.GetTask() == nil {
@@ -1373,7 +1373,7 @@ func TestInstallerStateUpdatesAreSerialized(t *testing.T) {
 	close(start)
 	wg.Wait()
 
-	state := rcClient.GetInstallerState()
+	state := rcClient.GetInstallerPackages()
 	require.Len(t, state, 1)
 	require.NotNil(t, state[0].GetTask())
 	assert.Equal(t, "task-id", state[0].GetTask().GetId())
