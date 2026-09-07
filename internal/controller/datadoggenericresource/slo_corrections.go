@@ -167,7 +167,7 @@ func updateSLOCorrection(auth context.Context, client *datadogV1.ServiceLevelObj
 	var sloIDSpec struct {
 		Data struct {
 			Attributes struct {
-				SloId string `json:"slo_id"`
+				SloID string `json:"slo_id"`
 			} `json:"attributes"`
 		} `json:"data"`
 	}
@@ -175,14 +175,14 @@ func updateSLOCorrection(auth context.Context, client *datadogV1.ServiceLevelObj
 		return datadogV1.SLOCorrectionResponse{}, translateUnmarshalError(err, "error unmarshalling SLO correction spec")
 	}
 
-	if sloIDSpec.Data.Attributes.SloId != "" {
+	if sloIDSpec.Data.Attributes.SloID != "" {
 		current, err := getSLOCorrection(auth, client, instance.Status.Id)
 		if err != nil {
 			return datadogV1.SLOCorrectionResponse{}, err
 		}
 		if current.Data != nil && current.Data.Attributes != nil {
-			if currentSloID := current.Data.Attributes.GetSloId(); currentSloID != "" && currentSloID != sloIDSpec.Data.Attributes.SloId {
-				return datadogV1.SLOCorrectionResponse{}, fmt.Errorf("cannot update SLO correction: slo_id cannot be changed from %q to %q; delete and recreate the resource to target a different SLO", currentSloID, sloIDSpec.Data.Attributes.SloId)
+			if currentSloID := current.Data.Attributes.GetSloId(); currentSloID != "" && currentSloID != sloIDSpec.Data.Attributes.SloID {
+				return datadogV1.SLOCorrectionResponse{}, fmt.Errorf("cannot update SLO correction: slo_id cannot be changed from %q to %q; delete and recreate the resource to target a different SLO", currentSloID, sloIDSpec.Data.Attributes.SloID)
 			}
 		}
 	}
