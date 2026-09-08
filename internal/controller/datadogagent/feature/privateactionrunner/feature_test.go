@@ -284,6 +284,30 @@ func Test_privateActionRunnerFeature_RejectsSplitModeOnOldAgent(t *testing.T) {
 	require.ErrorContains(t, err, "split mode requires Agent >= 7.84.0-0")
 }
 
+func Test_privateActionRunnerFeature_RejectsSplitModeOnUnknownAgentVersion(t *testing.T) {
+	pullPolicy := corev1.PullAlways
+	dda := &v2alpha1.DatadogAgent{
+		ObjectMeta: metav1.ObjectMeta{
+			Annotations: map[string]string{
+				"agent.datadoghq.com/private-action-runner-enabled":       "true",
+				"agent.datadoghq.com/private-action-runner-split-enabled": "true",
+			},
+		},
+		Spec: v2alpha1.DatadogAgentSpec{
+			Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+				v2alpha1.NodeAgentComponentName: {
+					Image: &v2alpha1.AgentImageConfig{PullPolicy: &pullPolicy},
+				},
+			},
+		},
+	}
+	f := buildPrivateActionRunnerFeature(nil)
+	f.Configure(dda, &dda.Spec, nil)
+
+	err := f.ManageNodeAgent(fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{}))
+	require.ErrorContains(t, err, "split mode requires Agent >= 7.84.0-0")
+}
+
 // Test_privateActionRunnerFeature_ProfileDDAI_ConfigMapNames verifies that when PAR is
 // enabled on a profile DDAI (whose name differs from the parent DDA), the ConfigMaps are
 // named after the DDA (not the DDAI) so all profile DDAIs share the same ConfigMap.

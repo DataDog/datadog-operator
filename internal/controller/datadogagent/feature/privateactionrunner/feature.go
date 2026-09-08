@@ -70,7 +70,7 @@ func (f *privateActionRunnerFeature) Configure(dda metav1.Object, ddaSpec *v2alp
 		f.systemdConfig, f.systemdConfigErr = systemdHostConfigFromAnnotations(dda.GetAnnotations())
 		if featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnablePrivateActionRunnerSplitAnnotation) {
 			version := common.GetComponentVersion(dda, v2alpha1.NodeAgentComponentName)
-			if pkgutils.IsAboveMinVersion(version, privateActionRunnerSplitMinVersion, nil) {
+			if pkgutils.IsAboveMinVersion(version, privateActionRunnerSplitMinVersion, new(false)) {
 				f.splitEnabled = true
 			} else {
 				f.splitConfigErr = fmt.Errorf("private action runner split mode requires Agent >= %s, got %s", privateActionRunnerSplitMinVersion, version)
