@@ -143,32 +143,21 @@ func (r *Reconciler) cleanupPodsForProfilesThatNoLongerApply(ctx context.Context
 	return nil
 }
 
-// getValidDaemonSetNames generates a list of valid DS and EDS names
-func (r *Reconciler) getValidDaemonSetNames(dsName string, providerList map[string]struct{}, profiles []v1alpha1.DatadogAgentProfile, useV3Metadata bool) (map[string]struct{}, map[string]struct{}) {
+// getValidDaemonSetNames generates the list of valid DaemonSet names.
+func (r *Reconciler) getValidDaemonSetNames(dsName string, providerList map[string]struct{}, profiles []v1alpha1.DatadogAgentProfile, useV3Metadata bool) map[string]struct{} {
 	validDaemonSetNames := map[string]struct{}{}
-	validExtendedDaemonSetNames := map[string]struct{}{}
 
 	// Introspection includes names with a provider suffix
 	if r.options.IntrospectionEnabled {
 		if r.useDefaultDaemonset(providerList) {
-			// Legacy DaemonSet uses the base name without provider suffix
-			if r.options.ExtendedDaemonsetOptions.Enabled {
-				validExtendedDaemonSetNames[kubernetes.GetAgentNameWithProvider(dsName, kubernetes.DefaultProvider)] = struct{}{}
-			} else {
-				validDaemonSetNames[kubernetes.GetAgentNameWithProvider(dsName, kubernetes.DefaultProvider)] = struct{}{}
-			}
+			validDaemonSetNames[kubernetes.GetAgentNameWithProvider(dsName, kubernetes.DefaultProvider)] = struct{}{}
 		} else {
-			// Normal provider-specific DaemonSets
 			for provider := range providerList {
-				if r.options.ExtendedDaemonsetOptions.Enabled {
-					validExtendedDaemonSetNames[kubernetes.GetAgentNameWithProvider(dsName, provider)] = struct{}{}
-				} else {
-					validDaemonSetNames[kubernetes.GetAgentNameWithProvider(dsName, provider)] = struct{}{}
-				}
+				validDaemonSetNames[kubernetes.GetAgentNameWithProvider(dsName, provider)] = struct{}{}
 			}
 		}
 	}
-	// Profiles include names with the profile prefix and the DS/EDS name for the default profile
+	// Profiles include names with the profile prefix and the DaemonSet name for the default profile.
 	if r.options.DatadogAgentProfileEnabled {
 		for _, profile := range profiles {
 			name := types.NamespacedName{
@@ -177,25 +166,17 @@ func (r *Reconciler) getValidDaemonSetNames(dsName string, providerList map[stri
 			}
 			dsProfileName := agentprofile.DaemonSetName(name, useV3Metadata)
 
-			// The default profile can be a DS or an EDS and uses the DS/EDS name
+			// The default profile uses the base DaemonSet name.
 			if agentprofile.IsDefaultProfile(profile.Namespace, profile.Name) {
 				if r.options.IntrospectionEnabled {
 					for provider := range providerList {
-						if r.options.ExtendedDaemonsetOptions.Enabled {
-							validExtendedDaemonSetNames[kubernetes.GetAgentNameWithProvider(dsName, provider)] = struct{}{}
-						} else {
-							validDaemonSetNames[kubernetes.GetAgentNameWithProvider(dsName, provider)] = struct{}{}
-						}
+						validDaemonSetNames[kubernetes.GetAgentNameWithProvider(dsName, provider)] = struct{}{}
 					}
 				} else {
-					if r.options.ExtendedDaemonsetOptions.Enabled {
-						validExtendedDaemonSetNames[dsName] = struct{}{}
-					} else {
-						validDaemonSetNames[dsName] = struct{}{}
-					}
+					validDaemonSetNames[dsName] = struct{}{}
 				}
 			}
-			// Non-default profiles can only be DaemonSets
+			// Non-default profiles use profile-specific DaemonSet names.
 			if r.options.IntrospectionEnabled {
 				for provider := range providerList {
 					validDaemonSetNames[kubernetes.GetAgentNameWithProvider(dsProfileName, provider)] = struct{}{}
@@ -206,18 +187,12 @@ func (r *Reconciler) getValidDaemonSetNames(dsName string, providerList map[stri
 		}
 	}
 
-	// If neither introspection nor profiles are enabled, only the current DS/EDS name is valid
+	// If neither introspection nor profiles are enabled, only the current DaemonSet name is valid.
 	if !r.options.IntrospectionEnabled && !r.options.DatadogAgentProfileEnabled {
-		if r.options.ExtendedDaemonsetOptions.Enabled {
-			validExtendedDaemonSetNames = map[string]struct{}{
-				dsName: {},
-			}
-		} else {
-			validDaemonSetNames = map[string]struct{}{
-				dsName: {},
-			}
+		validDaemonSetNames = map[string]struct{}{
+			dsName: {},
 		}
 	}
 
-	return validDaemonSetNames, validExtendedDaemonSetNames
+	return validDaemonSetNames
 }

@@ -10,7 +10,6 @@ import (
 	"reflect"
 	"strings"
 
-	edsdatadoghqv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -110,16 +109,12 @@ type DatadogAgentReconciler struct {
 // +kubebuilder:rbac:groups=datadoghq.com,resources=datadoginstrumentations,verbs=get;list;watch
 // +kubebuilder:rbac:groups=datadoghq.com,resources=datadoginstrumentations/status,verbs=patch;update
 
-// Use ExtendedDaemonSet
-// +kubebuilder:rbac:groups=datadoghq.com,resources=extendeddaemonsets,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=datadoghq.com,resources=extendeddaemonsetreplicasets,verbs=get;list;watch;delete
-
 // Use CiliumNetworkPolicy
 // +kubebuilder:rbac:groups=cilium.io,resources=ciliumnetworkpolicies,verbs=get;list;watch;create;update;patch;delete
 
 // Configure Appsec Gateway Integration
 // +kubebuilder:rbac:groups=apiextensions.k8s.io,resources=customresourcedefinitions,verbs=get
-// +kubebuilder:rbac:groups="",resources=events,verbs=create
+// +kubebuilder:rbac:groups="",resources=events,verbs=create;patch
 // +kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch;create;update;delete
 // +kubebuilder:rbac:groups=networking.k8s.io,resources=ingresses,verbs=get;list;watch;patch
 // +kubebuilder:rbac:groups=networking.k8s.io,resources=ingressclasses,verbs=get;list;watch
@@ -128,6 +123,7 @@ type DatadogAgentReconciler struct {
 // +kubebuilder:rbac:groups=gateway.envoyproxy.io,resources=envoyextensionpolicies;envoypatchpolicies;backends,verbs=get;delete;create
 // +kubebuilder:rbac:groups=networking.istio.io,resources=envoyfilters,verbs=get;create;delete
 // +kubebuilder:rbac:groups=networking.istio.io,resources=gateways,verbs=get;list;watch
+// +kubebuilder:rbac:groups=networking.gke.io,resources=gcptrafficextensions,verbs=get;create;delete
 
 // Orchestrator Explorer — network CRD collection
 // +kubebuilder:rbac:groups=gateway.networking.k8s.io,resources=gateways;httproutes;grpcroutes;tlsroutes;listenersets,verbs=list;watch
@@ -229,6 +225,9 @@ type DatadogAgentReconciler struct {
 // +kubebuilder:rbac:groups=karpenter.k8s.aws,resources="*",verbs=get;list;watch
 // +kubebuilder:rbac:groups=karpenter.azure.com,resources="*",verbs=list;watch
 // +kubebuilder:rbac:groups=eks.amazonaws.com,resources="*",verbs=get;list;watch
+// +kubebuilder:rbac:groups=ray.io,resources=rayclusters;raycronjobs;rayjobs;rayservices,verbs=list;watch
+// +kubebuilder:rbac:groups=nvidia.com,resources=dynamocheckpoints;dynamocomponentdeployments;dynamographdeploymentrequests;dynamographdeployments;dynamographdeploymentscalingadapters;dynamomodels;dynamoworkermetadatas,verbs=list;watch
+// +kubebuilder:rbac:groups=serving.kserve.io,resources=clusterstoragecontainers;llminferenceserviceconfigs;llminferenceservices;localmodelcaches;localmodelnamespacecaches;localmodelnodegroups;localmodelnodes;clusterservingruntimes;inferencegraphs;inferenceservices;servingruntimes;trainedmodels,verbs=list;watch
 
 // Kubernetes_state_core
 // +kubebuilder:rbac:groups="",resources=configmaps,verbs=list;watch
@@ -313,10 +312,6 @@ func (r *DatadogAgentReconciler) SetupWithManager(mgr ctrl.Manager, metricForwar
 	handlerEnqueue := handler.EnqueueRequestsFromMapFunc(enqueueIfOwnedByDatadogAgent)
 	builder.Watches(&rbacv1.ClusterRole{}, handlerEnqueue)
 	builder.Watches(&rbacv1.ClusterRoleBinding{}, handlerEnqueue)
-
-	if r.Options.ExtendedDaemonsetOptions.Enabled {
-		builder = builder.Owns(&edsdatadoghqv1alpha1.ExtendedDaemonSet{})
-	}
 
 	if r.Options.SupportCilium {
 		policy := &unstructured.Unstructured{}

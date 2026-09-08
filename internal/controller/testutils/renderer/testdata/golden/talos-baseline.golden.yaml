@@ -389,9 +389,32 @@ rules:
   - list
   - watch
 - apiGroups:
+  - nvidia.com
+  resources:
+  - dynamocheckpoints
+  - dynamocomponentdeployments
+  - dynamographdeploymentrequests
+  - dynamographdeployments
+  - dynamographdeploymentscalingadapters
+  - dynamomodels
+  - dynamoworkermetadatas
+  verbs:
+  - list
+  - watch
+- apiGroups:
   - policy
   resources:
   - poddisruptionbudgets
+  verbs:
+  - list
+  - watch
+- apiGroups:
+  - ray.io
+  resources:
+  - rayclusters
+  - raycronjobs
+  - rayjobs
+  - rayservices
   verbs:
   - list
   - watch
@@ -402,6 +425,24 @@ rules:
   - clusterroles
   - rolebindings
   - roles
+  verbs:
+  - list
+  - watch
+- apiGroups:
+  - serving.kserve.io
+  resources:
+  - clusterservingruntimes
+  - clusterstoragecontainers
+  - inferencegraphs
+  - inferenceservices
+  - llminferenceserviceconfigs
+  - llminferenceservices
+  - localmodelcaches
+  - localmodelnamespacecaches
+  - localmodelnodegroups
+  - localmodelnodes
+  - servingruntimes
+  - trainedmodels
   verbs:
   - list
   - watch
@@ -552,12 +593,6 @@ rules:
   - get
   - list
   - watch
-- apiGroups:
-  - datadoghq.com
-  resources:
-  - extendeddaemonsetreplicasets
-  verbs:
-  - get
 - apiGroups:
   - discovery.k8s.io
   resources:
@@ -1253,7 +1288,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: 7255d086a10edab5038b37e162f327fa
+    agent.datadoghq.com/agentspechash: ed4067f708379e2da3a04fa33db898db
   labels:
     agent.datadoghq.com/component: agent
     agent.datadoghq.com/name: datadog-agent
@@ -1346,6 +1381,10 @@ spec:
           value: clusterchecks endpointschecks
         - name: DD_COMPLIANCE_CONFIG_ENABLED
           value: "true"
+        - name: DD_COMPLIANCE_CONFIG_HOST_BENCHMARKS_ENABLED
+          value: "true"
+        - name: DD_COMPLIANCE_CONFIG_RUN_IN_SYSTEM_PROBE
+          value: "false"
         - name: DD_RUNTIME_SECURITY_CONFIG_ENABLED
           value: "true"
         - name: DD_RUNTIME_SECURITY_CONFIG_SOCKET

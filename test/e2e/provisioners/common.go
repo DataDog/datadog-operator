@@ -82,7 +82,7 @@ func saveKustomization(path string, kustomization *types.Kustomization) error {
 	return nil
 }
 
-// updateKustomization Updates kustomization.yaml file in given kustomize directory with extra resources and image name and tag if `IMG` environment variable is set.
+// UpdateKustomization updates kustomization.yaml file in given kustomize directory with extra resources and image name and tag if `IMG` environment variable is set.
 func UpdateKustomization(kustomizeDirPath string, kustomizeResourcePaths []string) error {
 	var imgName, imgTag string
 

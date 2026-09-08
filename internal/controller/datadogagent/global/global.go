@@ -315,9 +315,8 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 }
 
 func updateContainerImages(config *v2alpha1.GlobalConfig, podTemplateManager feature.PodTemplateManagers) {
-	image := &images.Image{}
 	for i, container := range podTemplateManager.PodTemplateSpec().Spec.Containers {
-		image = images.FromString(container.Image).
+		image := images.FromString(container.Image).
 			WithRegistry(*config.Registry).
 			WithFIPS(*config.UseFIPSAgent)
 		// Note: if an image tag override is configured, this image tag will be overwritten
@@ -325,7 +324,7 @@ func updateContainerImages(config *v2alpha1.GlobalConfig, podTemplateManager fea
 	}
 
 	for i, container := range podTemplateManager.PodTemplateSpec().Spec.InitContainers {
-		image = images.FromString(container.Image).
+		image := images.FromString(container.Image).
 			WithRegistry(*config.Registry).
 			WithFIPS(*config.UseFIPSAgent)
 		// Note: if an image tag override is configured, this image tag will be overwritten

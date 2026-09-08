@@ -48,7 +48,7 @@ DatadogAgentInternal
   -> build configured/enabled features and required components
   -> manage global and feature dependencies
   -> reconcile Deployment-backed components
-  -> reconcile Node Agent DaemonSet or ExtendedDaemonSet
+  -> reconcile Node Agent DaemonSet
   -> cleanup stale resources
 ```
 

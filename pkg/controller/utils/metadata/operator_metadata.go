@@ -58,7 +58,6 @@ type OperatorMetadata struct {
 	DatadogAgentProfileEnabled    bool           `json:"datadogagentprofile_enabled"`
 	DatadogAgentInternalEnabled   bool           `json:"datadogagentinternal_enabled"`
 	LeaderElectionEnabled         bool           `json:"leader_election_enabled"`
-	ExtendedDaemonSetEnabled      bool           `json:"extendeddaemonset_enabled"`
 	RemoteConfigEnabled           bool           `json:"remote_config_enabled"`
 	RemoteUpdatesEnabled          bool           `json:"remote_updates_enabled"`
 	IntrospectionEnabled          bool           `json:"introspection_enabled"`

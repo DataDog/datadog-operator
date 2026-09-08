@@ -289,7 +289,7 @@ func findErrors(statusJSON string) ([]string, bool, error) {
 	for _, check := range status.RunnerStats.Checks {
 		for checkName, stat := range check {
 			if stat.LastError != "" {
-				errMessage := ""
+				var errMessage string
 				lastError := []Error{}
 				err := json.Unmarshal([]byte(stat.LastError), &lastError)
 				if err != nil {
