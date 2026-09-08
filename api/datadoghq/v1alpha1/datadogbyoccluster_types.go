@@ -15,10 +15,18 @@ import (
 
 // DatadogBYOCClusterSpec defines the desired state of DatadogBYOCCluster.
 // +k8s:openapi-gen=true
+// +kubebuilder:validation:XValidation:rule="has(self.release) || (has(self.imageOverrides) && has(self.imageOverrides.byoc) && has(self.imageOverrides.byoc.repository) && (has(self.imageOverrides.byoc.tag) || has(self.imageOverrides.byoc.digest)) && has(self.imageOverrides.observabilityPipelinesWorker) && has(self.imageOverrides.observabilityPipelinesWorker.repository) && (has(self.imageOverrides.observabilityPipelinesWorker.tag) || has(self.imageOverrides.observabilityPipelinesWorker.digest)))",message="release is required unless both image overrides specify repository and tag or digest"
 type DatadogBYOCClusterSpec struct {
 	// Release identifies the BYOC release artifact.
-	// +kubebuilder:validation:Required
+	// Required unless both image overrides specify a repository and tag or digest.
+	// When both images are fully specified, the release artifact is not fetched, even if Release is set.
+	// +optional
 	Release *DatadogBYOCClusterReleaseSpec `json:"release,omitempty"`
+
+	// ImageOverrides overrides the images selected by the release.
+	// Removing an override restores the image selected by the current release.
+	// +optional
+	ImageOverrides *DatadogBYOCClusterImageOverrides `json:"imageOverrides,omitempty"`
 
 	// Datadog configures the connection to Datadog.
 	// +optional
@@ -62,6 +70,54 @@ type DatadogBYOCClusterReleaseSpec struct {
 	// +optional
 	// +kubebuilder:validation:Pattern=`^sha256:[a-f0-9]{64}$`
 	Digest *string `json:"digest,omitempty"`
+}
+
+// DatadogBYOCClusterImageOverrides defines overrides for the images selected by a BYOC release.
+// +k8s:openapi-gen=true
+type DatadogBYOCClusterImageOverrides struct {
+	// BYOC overrides the image used by all enabled BYOC components.
+	// It does not override user-specified init container images.
+	// +optional
+	BYOC *DatadogBYOCClusterImageOverrideSpec `json:"byoc,omitempty"`
+
+	// ObservabilityPipelinesWorker overrides the Observability Pipelines Worker image.
+	// It participates in image resolution, but does not create a worker workload.
+	// Its pull secrets are not added to BYOC Pods.
+	// +optional
+	ObservabilityPipelinesWorker *DatadogBYOCClusterImageOverrideSpec `json:"observabilityPipelinesWorker,omitempty"`
+}
+
+// DatadogBYOCClusterImageOverrideSpec overrides a release image without modifying the release artifact.
+// +k8s:openapi-gen=true
+// +kubebuilder:validation:XValidation:rule="!(has(self.tag) && has(self.digest))",message="tag and digest are mutually exclusive"
+type DatadogBYOCClusterImageOverrideSpec struct {
+	// Repository replaces the image repository. When omitted, the release repository is used.
+	// If tag and digest are omitted, the release image's version is retained, preferring its digest.
+	// A mirror must therefore serve the same digest when the release image has a digest.
+	// +optional
+	// +kubebuilder:validation:MinLength=1
+	Repository *string `json:"repository,omitempty"`
+
+	// Tag replaces the release image's version, discarding any release digest.
+	// When Repository is omitted, the release image's repository is retained.
+	// Mutually exclusive with Digest.
+	// +optional
+	// +kubebuilder:validation:MinLength=1
+	Tag *string `json:"tag,omitempty"`
+
+	// Digest replaces the release image's version, discarding any release tag.
+	// When Repository is omitted, the release image's repository is retained.
+	// Mutually exclusive with Tag.
+	// +optional
+	// +kubebuilder:validation:MinLength=1
+	Digest *string `json:"digest,omitempty"`
+
+	// ImagePullSecrets references Secrets in the cluster's namespace used to pull this workload image.
+	// They are added only to Pods using this image and are not used to fetch the release artifact.
+	// +optional
+	// +listType=map
+	// +listMapKey=name
+	ImagePullSecrets []corev1.LocalObjectReference `json:"imagePullSecrets,omitempty"`
 }
 
 // DatadogBYOCClusterDatadogSpec defines the Datadog connection settings.

@@ -38,6 +38,8 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterEmbeddedPersistentVolumeClaim":                schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterEmbeddedPersistentVolumeClaim(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterGlobalSpec":                                   schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterGlobalSpec(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterIdentitySpec":                                 schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterIdentitySpec(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterImageOverrideSpec":                            schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterImageOverrideSpec(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterImageOverrides":                               schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterImageOverrides(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterMetastoreComponentSpec":                       schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterMetastoreComponentSpec(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec":                      schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterPodDisruptionBudgetSpec(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterProviderSpec":                                 schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterProviderSpec(ref),
@@ -1384,6 +1386,91 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterIdentitySp
 	}
 }
 
+func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterImageOverrideSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "DatadogBYOCClusterImageOverrideSpec overrides a release image without modifying the release artifact.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"repository": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Repository replaces the image repository. When omitted, the release repository is used. If tag and digest are omitted, the release image's version is retained, preferring its digest. A mirror must therefore serve the same digest when the release image has a digest.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"tag": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Tag replaces the release image's version, discarding any release digest. When Repository is omitted, the release image's repository is retained. Mutually exclusive with Digest.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"digest": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Digest replaces the release image's version, discarding any release tag. When Repository is omitted, the release image's repository is retained. Mutually exclusive with Tag.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"imagePullSecrets": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-map-keys": []interface{}{
+									"name",
+								},
+								"x-kubernetes-list-type": "map",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "ImagePullSecrets references Secrets in the cluster's namespace used to pull this workload image. They are added only to Pods using this image and are not used to fetch the release artifact.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("k8s.io/api/core/v1.LocalObjectReference"),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"k8s.io/api/core/v1.LocalObjectReference"},
+	}
+}
+
+func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterImageOverrides(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "DatadogBYOCClusterImageOverrides defines overrides for the images selected by a BYOC release.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"byoc": {
+						SchemaProps: spec.SchemaProps{
+							Description: "BYOC overrides the image used by all enabled BYOC components. It does not override user-specified init container images.",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterImageOverrideSpec"),
+						},
+					},
+					"observabilityPipelinesWorker": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ObservabilityPipelinesWorker overrides the Observability Pipelines Worker image. It participates in image resolution, but does not create a worker workload. Its pull secrets are not added to BYOC Pods.",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterImageOverrideSpec"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterImageOverrideSpec"},
+	}
+}
+
 func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterMetastoreComponentSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -1725,8 +1812,14 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterSpec(ref c
 				Properties: map[string]spec.Schema{
 					"release": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Release identifies the BYOC release artifact.",
+							Description: "Release identifies the BYOC release artifact. Required unless both image overrides specify a repository and tag or digest. When both images are fully specified, the release artifact is not fetched, even if Release is set.",
 							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterReleaseSpec"),
+						},
+					},
+					"imageOverrides": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ImageOverrides overrides the images selected by the release. Removing an override restores the image selected by the current release.",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterImageOverrides"),
 						},
 					},
 					"datadog": {
@@ -1770,7 +1863,7 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterSpec(ref c
 			},
 		},
 		Dependencies: []string{
-			"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterComponentsSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterDatadogSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterGlobalSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterIdentitySpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterProviderSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterReleaseSpec", "k8s.io/apimachinery/pkg/runtime.RawExtension"},
+			"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterComponentsSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterDatadogSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterGlobalSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterIdentitySpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterImageOverrides", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterProviderSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterReleaseSpec", "k8s.io/apimachinery/pkg/runtime.RawExtension"},
 	}
 }
 
