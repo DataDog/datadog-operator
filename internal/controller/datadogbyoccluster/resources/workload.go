@@ -18,13 +18,13 @@ import (
 	"k8s.io/utils/ptr"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
-	byocrelease "github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/release"
+	byocimage "github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/image"
 )
 
 // workloadInput contains the domain inputs used to resolve a component workload.
 type workloadInput struct {
 	Cluster  *datadoghqv1alpha1.DatadogBYOCCluster
-	Release  *byocrelease.ResolvedRelease
+	Image    byocimage.ResolvedImage
 	Checksum string
 	Name     string
 	Spec     *datadoghqv1alpha1.DatadogBYOCClusterComponentSpec
@@ -135,12 +135,13 @@ func resolvePodSpec(input workloadInput) (corev1.PodSpec, error) {
 
 	return corev1.PodSpec{
 		ServiceAccountName: serviceAccountName,
+		ImagePullSecrets:   slices.Clone(input.Image.ImagePullSecrets),
 		SecurityContext:    &corev1.PodSecurityContext{FSGroup: ptr.To[int64](1005)},
 		DNSConfig:          &corev1.PodDNSConfig{Options: []corev1.PodDNSConfigOption{{Name: "ndots", Value: new("1")}}},
 		InitContainers:     slices.Clone(input.Spec.InitContainers),
 		Containers: []corev1.Container{{
 			Name:            appName,
-			Image:           input.Release.Release.Images.Pomsky.ImageReference(),
+			Image:           input.Image.ImageReference(),
 			ImagePullPolicy: corev1.PullIfNotPresent,
 			Args:            slices.Clone(defaultContainer.Args),
 			Env:             resolveEnvironment(input, defaultContainer.Env),
@@ -221,7 +222,7 @@ func resolveEnvironment(input workloadInput, additional []corev1.EnvVar) []corev
 		env = append(env, corev1.EnvVar{Name: "DD_API_KEY", ValueFrom: &corev1.EnvVarSource{SecretKeyRef: datadog.APIKeySecretRef.DeepCopy()}})
 	}
 	if telemetry {
-		pomsky := input.Release.Release.Images.Pomsky
+		pomsky := input.Image
 		host := site
 		if site == "datadoghq.com" || site == "datadoghq.eu" || site == "ddog-gov.com" {
 			host = "app." + site

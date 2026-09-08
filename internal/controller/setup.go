@@ -18,7 +18,7 @@ import (
 
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal"
-	byocrelease "github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/release"
+	byocimage "github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/image"
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
@@ -53,7 +53,7 @@ type SetupOptions struct {
 	DatadogDashboardEnabled           bool
 	DatadogGenericResourceEnabled     bool
 	DatadogBYOCClusterEnabled         bool
-	BYOCReleaseResolver               byocrelease.ReleaseResolver
+	BYOCImageResolver                 byocimage.ImageResolver
 	DatadogGenericResourceMaxWorkers  int
 	DatadogGenericResourceRequeue     time.Duration
 	CreateControllerRevisions         bool
@@ -214,11 +214,11 @@ func startDatadogBYOCCluster(logger logr.Logger, mgr manager.Manager, _ kubernet
 	}
 
 	return (&DatadogBYOCClusterReconciler{
-		Client:          mgr.GetClient(),
-		Log:             ctrl.Log.WithName("controllers").WithName(byocClusterControllerName),
-		Scheme:          mgr.GetScheme(),
-		Recorder:        mgr.GetEventRecorderFor(byocClusterControllerName),
-		ReleaseResolver: options.BYOCReleaseResolver,
+		Client:        mgr.GetClient(),
+		Log:           ctrl.Log.WithName("controllers").WithName(byocClusterControllerName),
+		Scheme:        mgr.GetScheme(),
+		Recorder:      mgr.GetEventRecorderFor(byocClusterControllerName),
+		ImageResolver: options.BYOCImageResolver,
 	}).SetupWithManager(mgr)
 }
 

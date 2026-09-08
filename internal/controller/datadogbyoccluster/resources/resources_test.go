@@ -23,7 +23,7 @@ import (
 	"sigs.k8s.io/yaml"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
-	byocrelease "github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/release"
+	byocimage "github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/image"
 )
 
 func TestBuildResources_ConfigMap(t *testing.T) {
@@ -946,15 +946,15 @@ func testCluster() *datadoghqv1alpha1.DatadogBYOCCluster {
 	}
 }
 
-func testRelease() *byocrelease.ResolvedRelease {
-	return &byocrelease.ResolvedRelease{
-		Release: byocrelease.BYOCRelease{
-			Images: byocrelease.BYOCReleaseImages{
-				Pomsky: byocrelease.BYOCReleaseImage{
-					Repository: "registry.example.com/cloudprem",
-					Tag:        "v1.2.3",
-				},
-			},
+func testRelease() *byocimage.ResolvedImages {
+	return &byocimage.ResolvedImages{
+		Pomsky: byocimage.ResolvedImage{
+			Repository: "registry.example.com/cloudprem",
+			Tag:        "v1.2.3",
+		},
+		ObservabilityPipelinesWorker: byocimage.ResolvedImage{
+			Repository: "registry.example.com/observability-pipelines-worker",
+			Tag:        "2.10.0",
 		},
 	}
 }

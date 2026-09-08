@@ -28,7 +28,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
-	byocrelease "github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/release"
+	byocimage "github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/image"
 	byocresources "github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/resources"
 )
 
@@ -49,7 +49,7 @@ type DatadogBYOCClusterReconciler struct {
 	Scheme   *runtime.Scheme
 	Recorder record.EventRecorder
 
-	ReleaseResolver byocrelease.ReleaseResolver
+	ImageResolver byocimage.ImageResolver
 }
 
 // +kubebuilder:rbac:groups=datadoghq.com,resources=datadogbyocclusters,verbs=get;list;watch;create;update;patch;delete
@@ -78,20 +78,20 @@ func (r *DatadogBYOCClusterReconciler) Reconcile(ctx context.Context, request ct
 		return ctrl.Result{Requeue: true}, nil
 	}
 
-	if r.ReleaseResolver == nil {
-		err := errors.New("release resolver is not configured")
+	if r.ImageResolver == nil {
+		err := errors.New("image resolver is not configured")
 		return ctrl.Result{}, r.fail(ctx, cluster, conditionReleaseResolved, "ResolverNotConfigured", err)
 	}
-	resolvedRelease, err := r.ReleaseResolver.Resolve(ctx, cluster.Spec.Release)
+	images, err := r.ImageResolver.Resolve(ctx, cluster.Spec.Release, cluster.Spec.ImageOverrides)
 	if err != nil {
 		return ctrl.Result{}, r.fail(ctx, cluster, conditionReleaseResolved, "ResolutionFailed", err)
 	}
-	r.setCondition(cluster, conditionReleaseResolved, metav1.ConditionTrue, "Resolved", "Release artifact resolved successfully")
 
-	resources, err := byocresources.BuildResources(cluster, resolvedRelease)
+	resources, err := byocresources.BuildResources(cluster, images)
 	if err != nil {
 		return ctrl.Result{}, r.fail(ctx, cluster, conditionReconciled, "InvalidConfiguration", err)
 	}
+	r.setCondition(cluster, conditionReleaseResolved, metav1.ConditionTrue, "Resolved", "Workload images resolved successfully")
 	if err := r.applyResources(ctx, cluster, resources); err != nil {
 		return ctrl.Result{}, r.fail(ctx, cluster, conditionReconciled, "ApplyFailed", err)
 	}

@@ -11,6 +11,7 @@ package controller
 import (
 	"context"
 	"errors"
+	"slices"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -26,7 +27,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
-	byocrelease "github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/release"
+	byocimage "github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/image"
 )
 
 const (
@@ -301,32 +302,27 @@ var _ = Describe("DatadogBYOCCluster Controller", func() {
 	})
 })
 
-type fakeBYOCReleaseResolver struct {
-	results map[string]fakeBYOCReleaseResult
+type fakeBYOCImageResolver struct {
+	results map[string]fakeBYOCImageResult
 }
 
-type fakeBYOCReleaseResult struct {
-	release *byocrelease.ResolvedRelease
-	err     error
+type fakeBYOCImageResult struct {
+	images *byocimage.ResolvedImages
+	err    error
 }
 
-func newFakeBYOCReleaseResolver() byocrelease.ReleaseResolver {
-	return &fakeBYOCReleaseResolver{
-		results: map[string]fakeBYOCReleaseResult{
+func newFakeBYOCImageResolver() byocimage.ImageResolver {
+	return &fakeBYOCImageResolver{
+		results: map[string]fakeBYOCImageResult{
 			byocSuccessReleaseTag: {
-				release: &byocrelease.ResolvedRelease{
-					Digest: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-					Release: byocrelease.BYOCRelease{
-						Images: byocrelease.BYOCReleaseImages{
-							Pomsky: byocrelease.BYOCReleaseImage{
-								Repository: "registry.invalid/datadog/cloudprem",
-								Tag:        "envtest",
-							},
-							ObservabilityPipelinesWorker: byocrelease.BYOCReleaseImage{
-								Repository: "registry.invalid/datadog/observability-pipelines-worker",
-								Tag:        "envtest",
-							},
-						},
+				images: &byocimage.ResolvedImages{
+					Pomsky: byocimage.ResolvedImage{
+						Repository: "registry.invalid/datadog/cloudprem",
+						Tag:        "envtest",
+					},
+					ObservabilityPipelinesWorker: byocimage.ResolvedImage{
+						Repository: "registry.invalid/datadog/observability-pipelines-worker",
+						Tag:        "envtest",
 					},
 				},
 			},
@@ -335,10 +331,49 @@ func newFakeBYOCReleaseResolver() byocrelease.ReleaseResolver {
 	}
 }
 
-func (r *fakeBYOCReleaseResolver) Resolve(_ context.Context, spec *datadoghqv1alpha1.DatadogBYOCClusterReleaseSpec) (*byocrelease.ResolvedRelease, error) {
-	result, found := r.results[ptr.Deref(spec.Tag, "")]
+func (r *fakeBYOCImageResolver) Resolve(_ context.Context, spec *datadoghqv1alpha1.DatadogBYOCClusterReleaseSpec, overrides *datadoghqv1alpha1.DatadogBYOCClusterImageOverrides) (*byocimage.ResolvedImages, error) {
+	if overrides != nil && completeFakeImageOverride(overrides.BYOC) && completeFakeImageOverride(overrides.ObservabilityPipelinesWorker) {
+		return &byocimage.ResolvedImages{
+			Pomsky:                       fakeResolvedImage(byocimage.ResolvedImage{}, overrides.BYOC),
+			ObservabilityPipelinesWorker: fakeResolvedImage(byocimage.ResolvedImage{}, overrides.ObservabilityPipelinesWorker),
+		}, nil
+	}
+	var tag string
+	if spec != nil {
+		tag = ptr.Deref(spec.Tag, "")
+	}
+	result, found := r.results[tag]
 	if !found {
 		return nil, errors.New("unexpected release")
 	}
-	return result.release, result.err
+	if result.err != nil {
+		return nil, result.err
+	}
+	images := *result.images
+	if overrides != nil {
+		images.Pomsky = fakeResolvedImage(images.Pomsky, overrides.BYOC)
+		images.ObservabilityPipelinesWorker = fakeResolvedImage(images.ObservabilityPipelinesWorker, overrides.ObservabilityPipelinesWorker)
+	}
+	return &images, nil
+}
+
+func completeFakeImageOverride(override *datadoghqv1alpha1.DatadogBYOCClusterImageOverrideSpec) bool {
+	return override != nil && ptr.Deref(override.Repository, "") != "" &&
+		((ptr.Deref(override.Tag, "") != "") != (ptr.Deref(override.Digest, "") != ""))
+}
+
+func fakeResolvedImage(base byocimage.ResolvedImage, override *datadoghqv1alpha1.DatadogBYOCClusterImageOverrideSpec) byocimage.ResolvedImage {
+	if override == nil {
+		return base
+	}
+	if override.Repository != nil {
+		base.Repository = *override.Repository
+	}
+	if override.Tag != nil {
+		base.Tag, base.Digest = *override.Tag, ""
+	} else if override.Digest != nil {
+		base.Tag, base.Digest = "", *override.Digest
+	}
+	base.ImagePullSecrets = slices.Clone(override.ImagePullSecrets)
+	return base
 }

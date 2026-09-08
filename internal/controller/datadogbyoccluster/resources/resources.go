@@ -17,7 +17,7 @@ import (
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	byocdefaults "github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/defaults"
-	byocrelease "github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/release"
+	byocimage "github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/image"
 )
 
 // Resources is the complete set of Kubernetes resources managed for a cluster.
@@ -76,8 +76,8 @@ func (r *Resources) Compactor() *DeploymentResources {
 	return r.compactor
 }
 
-// BuildResources builds the deterministic Kubernetes resources for a resolved release.
-func BuildResources(cluster *datadoghqv1alpha1.DatadogBYOCCluster, release *byocrelease.ResolvedRelease) (*Resources, error) {
+// BuildResources builds deterministic Kubernetes resources using resolved images.
+func BuildResources(cluster *datadoghqv1alpha1.DatadogBYOCCluster, images *byocimage.ResolvedImages) (*Resources, error) {
 	cluster = byocdefaults.Apply(cluster)
 
 	configMap, err := newConfigMapBuilder(cluster).build()
@@ -89,7 +89,7 @@ func BuildResources(cluster *datadoghqv1alpha1.DatadogBYOCCluster, release *byoc
 	newWorkload := func(name string, spec *datadoghqv1alpha1.DatadogBYOCClusterComponentSpec, defaults workloadDefaults) workloadInput {
 		return workloadInput{
 			Cluster:  cluster,
-			Release:  release,
+			Image:    images.Pomsky,
 			Checksum: hex.EncodeToString(checksum[:]),
 			Name:     name,
 			Spec:     spec,

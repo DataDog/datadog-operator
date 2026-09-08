@@ -44,7 +44,7 @@ import (
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller"
-	byocrelease "github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/release"
+	byocimage "github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/image"
 	"github.com/DataDog/datadog-operator/internal/controller/metrics"
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/constants"
@@ -507,7 +507,7 @@ func run(opts *options) error {
 		UntaintControllerWaitForCSIDriver: opts.untaintControllerWaitForCSIDriver,
 		RolloutOnConfigMapChangeEnabled:   opts.rolloutOnConfigMapChangeEnabled,
 		ClusterProviderDetector:           providerDetector,
-		BYOCReleaseResolver:               byocrelease.NewOCIReleaseResolver(),
+		BYOCImageResolver:                 byocimage.NewOCIImageResolver(),
 	}
 
 	versionInfo, platformInfo, err := getVersionAndPlatformInfo(rest.CopyConfig(mgr.GetConfig()))
