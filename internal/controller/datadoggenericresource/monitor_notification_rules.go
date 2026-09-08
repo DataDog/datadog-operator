@@ -77,9 +77,12 @@ func getMonitorNotificationRule(auth context.Context, client *datadogV2.Monitors
 	if ruleID == "" {
 		return datadogV2.MonitorNotificationRuleResponse{}, fmt.Errorf("cannot get monitor notification rule: ruleID is empty")
 	}
-	rule, _, err := client.GetMonitorNotificationRule(auth, ruleID)
+	rule, httpResp, err := client.GetMonitorNotificationRule(auth, ruleID)
+	if httpResp != nil {
+		defer httpResp.Body.Close()
+	}
 	if err != nil {
-		return datadogV2.MonitorNotificationRuleResponse{}, translateClientError(err, "error getting monitor notification rule")
+		return datadogV2.MonitorNotificationRuleResponse{}, translateClientError(err, httpResp, "error getting monitor notification rule")
 	}
 	return rule, nil
 }
@@ -89,11 +92,14 @@ func deleteMonitorNotificationRule(auth context.Context, client *datadogV2.Monit
 		return fmt.Errorf("cannot delete monitor notification rule: ruleID is empty")
 	}
 	httpResponse, err := client.DeleteMonitorNotificationRule(auth, ruleID)
+	if httpResponse != nil {
+		defer httpResponse.Body.Close()
+	}
 	if err != nil {
 		if httpResponse != nil && httpResponse.StatusCode == 404 {
 			return nil
 		}
-		return translateClientError(err, "error deleting monitor notification rule")
+		return translateClientError(err, httpResponse, "error deleting monitor notification rule")
 	}
 	return nil
 }
@@ -105,12 +111,15 @@ func createMonitorNotificationRule(auth context.Context, client *datadogV2.Monit
 
 	body := &datadogV2.MonitorNotificationRuleCreateRequest{}
 	if err := json.Unmarshal([]byte(instance.Spec.JsonSpec), body); err != nil {
-		return datadogV2.MonitorNotificationRuleResponse{}, translateClientError(err, "error unmarshalling monitor notification rule spec")
+		return datadogV2.MonitorNotificationRuleResponse{}, translateUnmarshalError(err, "error unmarshalling monitor notification rule spec")
 	}
 
-	rule, _, err := client.CreateMonitorNotificationRule(auth, *body)
+	rule, httpResp, err := client.CreateMonitorNotificationRule(auth, *body)
+	if httpResp != nil {
+		defer httpResp.Body.Close()
+	}
 	if err != nil {
-		return datadogV2.MonitorNotificationRuleResponse{}, translateClientError(err, "error creating monitor notification rule")
+		return datadogV2.MonitorNotificationRuleResponse{}, translateClientError(err, httpResp, "error creating monitor notification rule")
 	}
 	return rule, nil
 }
@@ -130,7 +139,7 @@ func updateMonitorNotificationRule(auth context.Context, client *datadogV2.Monit
 		} `json:"data"`
 	}
 	if err := json.Unmarshal([]byte(instance.Spec.JsonSpec), &specData); err != nil {
-		return datadogV2.MonitorNotificationRuleResponse{}, translateClientError(err, "error unmarshalling monitor notification rule spec")
+		return datadogV2.MonitorNotificationRuleResponse{}, translateUnmarshalError(err, "error unmarshalling monitor notification rule spec")
 	}
 
 	if specData.Data.Attributes == nil {
@@ -140,9 +149,12 @@ func updateMonitorNotificationRule(auth context.Context, client *datadogV2.Monit
 	updateData := datadogV2.NewMonitorNotificationRuleUpdateRequestData(*specData.Data.Attributes, instance.Status.Id)
 	updateReq := datadogV2.NewMonitorNotificationRuleUpdateRequest(*updateData)
 
-	updated, _, err := client.UpdateMonitorNotificationRule(auth, instance.Status.Id, *updateReq)
+	updated, httpResp, err := client.UpdateMonitorNotificationRule(auth, instance.Status.Id, *updateReq)
+	if httpResp != nil {
+		defer httpResp.Body.Close()
+	}
 	if err != nil {
-		return datadogV2.MonitorNotificationRuleResponse{}, translateClientError(err, "error updating monitor notification rule")
+		return datadogV2.MonitorNotificationRuleResponse{}, translateClientError(err, httpResp, "error updating monitor notification rule")
 	}
 	return updated, nil
 }

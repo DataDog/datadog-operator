@@ -82,9 +82,12 @@ func getSLOCorrection(auth context.Context, client *datadogV1.ServiceLevelObject
 	if sloCorrectionID == "" {
 		return datadogV1.SLOCorrectionResponse{}, fmt.Errorf("cannot get SLO correction: sloCorrectionID is empty")
 	}
-	correction, _, err := client.GetSLOCorrection(auth, sloCorrectionID)
+	correction, httpResp, err := client.GetSLOCorrection(auth, sloCorrectionID)
+	if httpResp != nil {
+		defer httpResp.Body.Close()
+	}
 	if err != nil {
-		return datadogV1.SLOCorrectionResponse{}, translateClientError(err, "error getting SLO correction")
+		return datadogV1.SLOCorrectionResponse{}, translateClientError(err, httpResp, "error getting SLO correction")
 	}
 	return correction, nil
 }
@@ -95,6 +98,9 @@ func deleteSLOCorrection(auth context.Context, client *datadogV1.ServiceLevelObj
 		return fmt.Errorf("cannot delete SLO correction: sloCorrectionID is empty")
 	}
 	httpResponse, err := client.DeleteSLOCorrection(auth, sloCorrectionID)
+	if httpResponse != nil {
+		defer httpResponse.Body.Close()
+	}
 	if err != nil {
 		// Deletion is idempotent for finalization: if the correction was already
 		// removed in Datadog, allow the Kubernetes finalizer to clear.
@@ -102,7 +108,7 @@ func deleteSLOCorrection(auth context.Context, client *datadogV1.ServiceLevelObj
 		if httpResponse != nil && httpResponse.StatusCode == 404 {
 			return nil
 		}
-		return translateClientError(err, "error deleting SLO correction")
+		return translateClientError(err, httpResponse, "error deleting SLO correction")
 	}
 	return nil
 }
@@ -115,12 +121,15 @@ func createSLOCorrection(auth context.Context, client *datadogV1.ServiceLevelObj
 
 	body := &datadogV1.SLOCorrectionCreateRequest{}
 	if err := json.Unmarshal([]byte(instance.Spec.JsonSpec), body); err != nil {
-		return datadogV1.SLOCorrectionResponse{}, translateClientError(err, "error unmarshalling SLO correction spec")
+		return datadogV1.SLOCorrectionResponse{}, translateUnmarshalError(err, "error unmarshalling SLO correction spec")
 	}
 
-	correction, _, err := client.CreateSLOCorrection(auth, *body)
+	correction, httpResp, err := client.CreateSLOCorrection(auth, *body)
+	if httpResp != nil {
+		defer httpResp.Body.Close()
+	}
 	if err != nil {
-		return datadogV1.SLOCorrectionResponse{}, translateClientError(err, "error creating SLO correction")
+		return datadogV1.SLOCorrectionResponse{}, translateClientError(err, httpResp, "error creating SLO correction")
 	}
 	return correction, nil
 }
@@ -145,7 +154,7 @@ func updateSLOCorrection(auth context.Context, client *datadogV1.ServiceLevelObj
 		} `json:"data"`
 	}
 	if err := json.Unmarshal([]byte(instance.Spec.JsonSpec), &specData); err != nil {
-		return datadogV1.SLOCorrectionResponse{}, translateClientError(err, "error unmarshalling SLO correction spec")
+		return datadogV1.SLOCorrectionResponse{}, translateUnmarshalError(err, "error unmarshalling SLO correction spec")
 	}
 
 	if specData.Data.Attributes == nil {
@@ -158,22 +167,22 @@ func updateSLOCorrection(auth context.Context, client *datadogV1.ServiceLevelObj
 	var sloIDSpec struct {
 		Data struct {
 			Attributes struct {
-				SloId string `json:"slo_id"`
+				SloID string `json:"slo_id"`
 			} `json:"attributes"`
 		} `json:"data"`
 	}
 	if err := json.Unmarshal([]byte(instance.Spec.JsonSpec), &sloIDSpec); err != nil {
-		return datadogV1.SLOCorrectionResponse{}, translateClientError(err, "error unmarshalling SLO correction spec")
+		return datadogV1.SLOCorrectionResponse{}, translateUnmarshalError(err, "error unmarshalling SLO correction spec")
 	}
 
-	if sloIDSpec.Data.Attributes.SloId != "" {
+	if sloIDSpec.Data.Attributes.SloID != "" {
 		current, err := getSLOCorrection(auth, client, instance.Status.Id)
 		if err != nil {
 			return datadogV1.SLOCorrectionResponse{}, err
 		}
 		if current.Data != nil && current.Data.Attributes != nil {
-			if currentSloID := current.Data.Attributes.GetSloId(); currentSloID != "" && currentSloID != sloIDSpec.Data.Attributes.SloId {
-				return datadogV1.SLOCorrectionResponse{}, fmt.Errorf("cannot update SLO correction: slo_id cannot be changed from %q to %q; delete and recreate the resource to target a different SLO", currentSloID, sloIDSpec.Data.Attributes.SloId)
+			if currentSloID := current.Data.Attributes.GetSloId(); currentSloID != "" && currentSloID != sloIDSpec.Data.Attributes.SloID {
+				return datadogV1.SLOCorrectionResponse{}, fmt.Errorf("cannot update SLO correction: slo_id cannot be changed from %q to %q; delete and recreate the resource to target a different SLO", currentSloID, sloIDSpec.Data.Attributes.SloID)
 			}
 		}
 	}
@@ -183,9 +192,12 @@ func updateSLOCorrection(auth context.Context, client *datadogV1.ServiceLevelObj
 	updateReq := datadogV1.NewSLOCorrectionUpdateRequest()
 	updateReq.SetData(*updateData)
 
-	updated, _, err := client.UpdateSLOCorrection(auth, instance.Status.Id, *updateReq)
+	updated, httpResp, err := client.UpdateSLOCorrection(auth, instance.Status.Id, *updateReq)
+	if httpResp != nil {
+		defer httpResp.Body.Close()
+	}
 	if err != nil {
-		return datadogV1.SLOCorrectionResponse{}, translateClientError(err, "error updating SLO correction")
+		return datadogV1.SLOCorrectionResponse{}, translateClientError(err, httpResp, "error updating SLO correction")
 	}
 	return updated, nil
 }
