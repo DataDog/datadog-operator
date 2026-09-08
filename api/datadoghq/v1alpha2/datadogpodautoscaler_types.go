@@ -116,7 +116,6 @@ type DatadogPodAutoscalerSpec struct {
 	// Objectives are the objectives to reach and maintain for the target resource.
 	// Default to a single objective to maintain 80% POD CPU utilization.
 	// +listType=atomic
-	// +kubebuilder:validation:MinItems=1
 	Objectives []common.DatadogPodAutoscalerObjective `json:"objectives,omitempty"`
 
 	// Fallback defines how recommendations should be applied when in fallback mode.
@@ -218,6 +217,7 @@ type HorizontalFallbackTriggers struct {
 	StaleRecommendationThresholdSeconds int32 `json:"staleRecommendationThresholdSeconds,omitempty"`
 }
 
+// DatadogPodAutoscaler is the Schema for the datadogpodautoscalers API.
 // +kubebuilder:object:root=true
 // +kubebuilder:resource:shortName=dpa
 // +kubebuilder:subresource:status
@@ -234,7 +234,6 @@ type HorizontalFallbackTriggers struct {
 // +kubebuilder:printcolumn:name="Able to Apply",type="string",JSONPath=".status.conditions[?(@.type=='VerticalAbleToApply')].status"
 // +kubebuilder:printcolumn:name="Last Trigger",type="date",JSONPath=".status.vertical.lastAction.time"
 // +kubebuilder:storageversion
-// DatadogPodAutoscaler is the Schema for the datadogpodautoscalers API
 type DatadogPodAutoscaler struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

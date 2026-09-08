@@ -19,14 +19,14 @@ import (
 )
 
 const (
-	defaultHttpTimeout      = 5 * time.Second
-	defaultHttpMaxRetries   = 3
-	defaultHttpRetryWaitMin = 200 * time.Millisecond
-	defaultHttpRetryWaitMax = 2 * time.Second
+	defaultHTTPTimeout      = 5 * time.Second
+	defaultHTTPMaxRetries   = 3
+	defaultHTTPRetryWaitMin = 200 * time.Millisecond
+	defaultHTTPRetryWaitMax = 2 * time.Second
 )
 
 var httpClient = &http.Client{
-	Timeout: defaultHttpTimeout,
+	Timeout: defaultHTTPTimeout,
 }
 
 var (
@@ -38,9 +38,9 @@ func getRetryableClient() *retryablehttp.Client {
 	retryableClientOnce.Do(func() {
 		retryableClient = retryablehttp.NewClient()
 		retryableClient.HTTPClient = httpClient
-		retryableClient.RetryWaitMin = defaultHttpRetryWaitMin
-		retryableClient.RetryWaitMax = defaultHttpRetryWaitMax
-		retryableClient.RetryMax = defaultHttpMaxRetries
+		retryableClient.RetryWaitMin = defaultHTTPRetryWaitMin
+		retryableClient.RetryWaitMax = defaultHTTPRetryWaitMax
+		retryableClient.RetryMax = defaultHTTPMaxRetries
 		retryableClient.Logger = slog.NewLogLogger(slog.Default().Handler(), slog.LevelDebug)
 	})
 	return retryableClient
@@ -85,24 +85,24 @@ func fetchURL(url string) (*http.Response, error) {
 func FetchYAMLFile(url string, name string) (string, error) {
 	resp, err := fetchURL(url)
 	if err != nil {
-		return "", fmt.Errorf("error fetching yaml file: %w\n", err)
+		return "", fmt.Errorf("error fetching yaml file: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("failed to fetch yaml file %s: %v\n", url, resp.Status)
+		return "", fmt.Errorf("failed to fetch yaml file %s: %v", url, resp.Status)
 	}
 
 	tmpFile, err := os.CreateTemp("", fmt.Sprintf("%s.yaml.*", name))
 	if err != nil {
-		return "", fmt.Errorf("error creating temporary file: %w\n", err)
+		return "", fmt.Errorf("error creating temporary file: %w", err)
 
 	}
 	defer tmpFile.Close()
 
 	_, err = io.Copy(tmpFile, resp.Body)
 	if err != nil {
-		return "", fmt.Errorf("error saving file: %w\n", err)
+		return "", fmt.Errorf("error saving file: %w", err)
 	}
 
 	// log.Printf("File downloaded and saved to temporary file: %s\n", tmpFile.Name())

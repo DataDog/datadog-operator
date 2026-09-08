@@ -7,7 +7,7 @@ package common
 
 const (
 	DDAPMInstrumentationInstallTime       = "DD_INSTRUMENTATION_INSTALL_TIME"
-	DDAPMInstrumentationInstallId         = "DD_INSTRUMENTATION_INSTALL_ID"
+	DDAPMInstrumentationInstallID         = "DD_INSTRUMENTATION_INSTALL_ID"
 	DDAPMInstrumentationInstallType       = "DD_INSTRUMENTATION_INSTALL_TYPE"
 	DDAPMErrorTrackingStandaloneEnabled   = "DD_APM_ERROR_TRACKING_STANDALONE_ENABLED"
 	DDClusterAgentEnabled                 = "DD_CLUSTER_AGENT_ENABLED"

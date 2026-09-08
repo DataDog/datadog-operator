@@ -141,7 +141,7 @@ func (r *Reconciler) reconcileInstance(ctx context.Context, logger logr.Logger, 
 			Namespace: instance.Namespace,
 			Name:      dsName,
 		}
-		maxUnavailable := agentprofile.GetMaxUnavailableFromSpecAndEDS(&instance.Spec, &r.options.ExtendedDaemonsetOptions, nil)
+		maxUnavailable := agentprofile.GetMaxUnavailableFromSpec(&instance.Spec, nil)
 
 		// Profiles normally render their own DDAIs from the base DDAI. Shared
 		// component config contributed by profiles is accumulated on the default
@@ -197,6 +197,8 @@ func (r *Reconciler) updateStatusIfNeeded(logger logr.Logger, agentdeployment *d
 	} else {
 		condition.UpdateDatadogAgentStatusConditions(newStatus, now, common.DatadogAgentReconcileErrorConditionType, metav1.ConditionTrue, "DatadogAgent_reconcile_error", "DatadogAgent reconcile error", false)
 	}
+
+	setDeprecatedConfigStatus(agentdeployment, newStatus, now)
 
 	r.setMetricsForwarderStatus(logger, agentdeployment, newStatus)
 

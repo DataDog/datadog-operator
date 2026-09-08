@@ -12,14 +12,14 @@
 > [!WARNING]
 > ⚠️ If you are upgrading to **Operator v1.22.0+** from **<v1.18.0** or you haven't migrated Daemonset `matchLabels`, see the [migration guide][19].
 
-
+> [!WARNING]
+> ExtendedDaemonSet support has been removed. Before upgrading from an EDS-capable Operator release, follow the [ExtendedDaemonSet migration guide][21].
 
 The **Datadog Operator** aims to provide a new way of deploying the [Datadog Agent][1] on Kubernetes. Once deployed, the Datadog Operator provides:
 
 - Agent configuration validation that limits configuration mistakes.
 - Orchestration of creating/updating Datadog Agent resources.
 - Reporting of Agent configuration status in its Kubernetes CRD resource.
-- Optionally, use of an advanced `DaemonSet` deployment by leveraging the [ExtendedDaemonSet][2].
 - Many other features to come :).
 
 The **Datadog Operator** is [RedHat certified][10] and available on [operatorhub.io][11].
@@ -75,7 +75,6 @@ See the [deprecated configurations and migration guidelines][17] page.
 See the [How to Contribute page][9].
 
 [1]: https://github.com/DataDog/datadog-agent/
-[2]: https://github.com/DataDog/extendeddaemonset
 [3]: https://github.com/DataDog/helm-charts/tree/main/charts/datadog
 [4]: https://github.com/DataDog/datadog-agent/tree/6.15.0/Dockerfiles/manifests
 [5]: https://github.com/DataDog/datadog-operator/blob/main/docs/getting_started.md
@@ -94,6 +93,7 @@ See the [How to Contribute page][9].
 [18]: https://github.com/DataDog/datadog-operator/blob/main/docs/datadog_agent_profiles.md
 [19]: https://github.com/DataDog/datadog-operator/blob/main/docs/agent_metadata_changes.md
 [20]: https://github.com/DataDog/datadog-operator/blob/main/docs/datadog_agent_internal.md
+[21]: https://github.com/DataDog/datadog-operator/blob/main/docs/extendeddaemonset_migration.md
 
 ## Release
 

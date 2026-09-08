@@ -151,7 +151,7 @@ func AddAPMTelemetryDependencies(_ logr.Logger, dda metav1.Object, manager featu
 		},
 		Data: map[string]string{
 			common.APMTelemetryInstallTypeKey: common.DefaultAgentInstallType,
-			common.APMTelemetryInstallIdKey:   utils.GetDatadogAgentResourceUID(dda),
+			common.APMTelemetryInstallIDKey:   utils.GetDatadogAgentResourceUID(dda),
 			common.APMTelemetryInstallTimeKey: utils.GetDatadogAgentResourceCreationTime(dda),
 		},
 	}

@@ -31,6 +31,7 @@
             "monitor_notification_rule",
             "notebook",
             "slo",
+            "slo_correction",
             "synthetics_api_test",
             "synthetics_browser_test"
           ],

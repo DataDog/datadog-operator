@@ -87,6 +87,8 @@ To deploy a `DatadogMonitor` with the Datadog Operator, use the [`datadog-operat
 
 By default, the Operator ensures that the API monitor definition stays in sync with the DatadogMonitor resource every **60** minutes (per monitor). This interval can be adjusted using the environment variable `DD_MONITOR_FORCE_SYNC_PERIOD`, which specifies the number of minutes. For example, setting this variable to `"30"` changes the interval to 30 minutes.
 
+The controller requeues each `DatadogMonitor` every 60 seconds by default. Configure this interval with `--datadogMonitorRequeuePeriod` or `DD_MONITOR_REQUEUE_PERIOD`; both accept Go duration strings such as `30s` or `5m`. Configure the number of monitors reconciled concurrently with `--datadogMonitorMaxConcurrentReconciles` or `DD_MONITOR_MAX_CONCURRENT_RECONCILES` (default `1`). Increasing concurrency can improve throughput for large monitor collections, but increases Operator CPU usage and concurrent Datadog API requests. Scheduled status polling is lower priority than create, update, and delete work, so state fields are eventually consistent while the controller queue is busy.
+
 ## Cleanup
 
 The following commands delete the monitor from your Datadog account and all the Kubernetes resources created by the above instructions:

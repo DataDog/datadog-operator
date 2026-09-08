@@ -54,7 +54,7 @@ func (f *gpuFeature) NodeAgentProviderCapabilities() providercaps.ProviderCapabi
 	}
 
 	vol, volMount := volume.GetVolumes(gkeCOSNVIDIADriverLib64VolumeName, gkeCOSNVIDIADriverLib64HostPath, gkeCOSNVIDIADriverLib64MountPath, true)
-	vol.VolumeSource.HostPath.Type = ptr.To(corev1.HostPathDirectoryOrCreate)
+	vol.HostPath.Type = ptr.To(corev1.HostPathDirectoryOrCreate)
 
 	return providercaps.ProviderCapabilityMap{
 		kubernetes.GKECosProvider: {

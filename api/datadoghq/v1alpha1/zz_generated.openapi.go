@@ -342,7 +342,7 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogAgentInternalStatus(r
 					},
 					"agent": {
 						SchemaProps: spec.SchemaProps{
-							Description: "The actual state of the Agent as a daemonset or an extended daemonset.",
+							Description: "The actual state of the Agent as a DaemonSet.",
 							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.DaemonSetStatus"),
 						},
 					},
@@ -2353,7 +2353,8 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogSLOQuery(ref common.R
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Type: []string{"object"},
+				Description: "DatadogSLOQuery defines the numerator and denominator queries for a metric-based SLO.",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"numerator": {
 						SchemaProps: spec.SchemaProps{
@@ -2382,7 +2383,8 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogSLOSpec(ref common.Re
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Type: []string{"object"},
+				Description: "DatadogSLOSpec defines the desired state of a Datadog service level objective.",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"name": {
 						SchemaProps: spec.SchemaProps{

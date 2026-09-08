@@ -22,6 +22,8 @@ func TestAppsecRBACPolicyRules(t *testing.T) {
 	for _, rule := range rules {
 		if len(rule.Resources) > 0 && rule.Resources[0] == rbac.EventsResource {
 			assert.Contains(t, rule.Verbs, rbac.CreateVerb, "Events should have create permission")
+			assert.Contains(t, rule.Verbs, rbac.PatchVerb, "Events should have patch permission")
+			assert.Len(t, rule.Verbs, 2, "Events should have exactly create and patch permissions")
 			foundEventsRule = true
 		}
 	}
@@ -110,6 +112,18 @@ func TestAppsecRBACPolicyRules(t *testing.T) {
 		}
 	}
 	assert.True(t, foundEnvoyRule, "Should have Envoy Gateway permissions")
+
+	// Test GKE Traffic Extension permissions
+	var foundGCPTrafficExtensionsRule bool
+	for _, rule := range rules {
+		if len(rule.APIGroups) > 0 && rule.APIGroups[0] == rbac.NetworkingGKEAPIGroup {
+			assert.Equal(t, []string{rbac.NetworkingGKEAPIGroup}, rule.APIGroups)
+			assert.Equal(t, []string{rbac.GCPTrafficExtensionsResource}, rule.Resources)
+			assert.ElementsMatch(t, []string{rbac.GetVerb, rbac.CreateVerb, rbac.DeleteVerb}, rule.Verbs)
+			foundGCPTrafficExtensionsRule = true
+		}
+	}
+	assert.True(t, foundGCPTrafficExtensionsRule, "Should have GKE Traffic Extension permissions")
 
 	// Test IngressClasses watch permissions (new - ingress-nginx)
 	var foundIngressClassesRule bool

@@ -16,7 +16,7 @@ var (
 	}
 	managedAgentInstallationCredentialKey = types.NamespacedName{
 		Namespace: testManagedAgentInstallationNamespace,
-		Name:      fleetCredentialSecretName,
+		Name:      "datadog-managed-secret",
 	}
 	managedAgentInstallationIntentKey = types.NamespacedName{
 		Namespace: testManagedAgentInstallationNamespace,

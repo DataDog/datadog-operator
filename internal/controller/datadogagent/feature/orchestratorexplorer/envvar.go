@@ -42,7 +42,7 @@ func (f *orchestratorExplorerFeature) getEnvVars() []*corev1.EnvVar {
 	}
 
 	if len(f.extraTags) > 0 {
-		tags, _ := json.Marshal(f.extraTags)
+		tags, _ := json.Marshal(f.extraTags) //nolint:errchkjson // A string slice cannot fail JSON marshaling.
 		envVarsList = append(envVarsList, &corev1.EnvVar{
 			Name:  DDOrchestratorExplorerExtraTags,
 			Value: string(tags),

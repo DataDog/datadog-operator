@@ -254,7 +254,8 @@ func (o *options) createCRFiles(dir string, cmd *cobra.Command) error {
 	}
 
 	// Get custom resources yaml
-	template, err := yaml.Marshal(ddList.Items)
+	// Kubernetes API types use JSON tags, which this YAML marshaler honors.
+	template, err := yaml.Marshal(ddList.Items) //nolint:musttag
 	if err != nil {
 		return err
 	}
