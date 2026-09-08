@@ -11,7 +11,6 @@ import (
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -74,7 +73,7 @@ func (f *privateActionRunnerFeature) Configure(dda metav1.Object, ddaSpec *v2alp
 			if pkgutils.IsAboveMinVersion(version, privateActionRunnerSplitMinVersion, nil) {
 				f.splitEnabled = true
 			} else {
-				f.splitConfigErr = fmt.Errorf("Private Action Runner split mode requires Agent >= %s, got %s", privateActionRunnerSplitMinVersion, version)
+				f.splitConfigErr = fmt.Errorf("private action runner split mode requires Agent >= %s, got %s", privateActionRunnerSplitMinVersion, version)
 			}
 		}
 
@@ -306,7 +305,7 @@ func (f *privateActionRunnerFeature) ManageNodeAgent(managers feature.PodTemplat
 
 		podTemplate := managers.PodTemplateSpec()
 		if podTemplate.Spec.TerminationGracePeriodSeconds == nil || *podTemplate.Spec.TerminationGracePeriodSeconds < privateActionRunnerGracePeriod {
-			podTemplate.Spec.TerminationGracePeriodSeconds = ptr.To(privateActionRunnerGracePeriod)
+			podTemplate.Spec.TerminationGracePeriodSeconds = new(privateActionRunnerGracePeriod)
 		}
 		for i := range podTemplate.Spec.Containers {
 			if podTemplate.Spec.Containers[i].Name == string(apicommon.PrivateActionRunnerContainerName) {
