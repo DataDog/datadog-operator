@@ -255,12 +255,18 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 			}
 			if err = r.create(auth, logger, instance, newStatus, now, instanceSpecHash); err != nil {
 				logger.Error(err, "error creating monitor")
-				result.RequeueAfter = defaultErrRequeuePeriod
+				// Permanent errors won't succeed on retry; back off to forceSyncPeriod.
+				if ctrutils.IsPermanentAPIError(err) {
+					result.RequeueAfter = forceSyncPeriod
+				} else {
+					result.RequeueAfter = defaultErrRequeuePeriod
+				}
 			}
 		} else {
+			// Unsupported type needs a spec change; don't schedule a retry.
 			err = fmt.Errorf("monitor type %v not supported", instance.Spec.Type)
 			logger.Error(err, "error creating monitor")
-			result.RequeueAfter = defaultErrRequeuePeriod
+			return r.updateStatusIfNeeded(logger, instance, now, newStatus, err, result)
 		}
 	} else if shouldUpdate {
 		logger.V(1).Info("Updating monitor in Datadog")
@@ -277,7 +283,12 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 		}
 		if err = r.update(auth, logger, instance, newStatus, now, instanceSpecHash); err != nil {
 			logger.Error(err, "error updating monitor", "Monitor ID", instance.Status.ID)
-			result.RequeueAfter = defaultErrRequeuePeriod
+			// Permanent errors won't succeed on retry; back off to forceSyncPeriod.
+			if ctrutils.IsPermanentAPIError(err) {
+				result.RequeueAfter = forceSyncPeriod
+			} else {
+				result.RequeueAfter = defaultErrRequeuePeriod
+			}
 			// If the monitor was deleted between our existence check and this
 			// update (TOCTOU), clear status.ID so the next reconcile takes the
 			// create path and recreates the monitor.

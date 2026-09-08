@@ -108,8 +108,8 @@ func hashKeys(apiKey string) uint64 {
 type metricsForwarder struct {
 	id                  string
 	monitoredObjectKind string
-	datadogMetricsApi   *datadogV2.MetricsApi // metrics
-	datadogEventsApi    *datadogV1.EventsApi  // events
+	datadogMetricsAPI   *datadogV2.MetricsApi // metrics
+	datadogEventsAPI    *datadogV1.EventsApi  // events
 	k8sClient           client.Client
 
 	platformInfo *kubernetes.PlatformInfo
@@ -549,9 +549,9 @@ func (mf *metricsForwarder) delegatedValidateCreds(apiKey string) error {
 
 	config := datadogapi.NewConfiguration()
 	apiClient := datadogapi.NewAPIClient(config)
-	authApi := datadogV1.NewAuthenticationApi(apiClient)
+	authAPI := datadogV1.NewAuthenticationApi(apiClient)
 
-	_, _, err := authApi.Validate(ctx)
+	_, _, err := authAPI.Validate(ctx)
 	if err != nil {
 		return fmt.Errorf("cannot validate datadog credentials: %w", err)
 	}
@@ -632,7 +632,7 @@ func (mf *metricsForwarder) tagsWithExtraTag(tagFormat, tag string) []string {
 
 // getDatadogAgentCRVersionTags returns DatadogAgent CRD version tags
 func (mf *metricsForwarder) getCRVersionTags() []string {
-	ddaPreferredVersion, ddaOtherVersion := mf.platformInfo.GetApiVersions(mf.monitoredObjectKind)
+	ddaPreferredVersion, ddaOtherVersion := mf.platformInfo.GetAPIVersions(mf.monitoredObjectKind)
 
 	versionTags := []string{}
 
@@ -847,7 +847,7 @@ func (mf *metricsForwarder) delegatedSendEvent(eventTitle string, eventType Even
 	}
 
 	ctx := mf.generateDatadogContext()
-	_, _, err := mf.datadogEventsApi.CreateEvent(ctx, eventRequest)
+	_, _, err := mf.datadogEventsAPI.CreateEvent(ctx, eventRequest)
 	return err
 }
 
@@ -914,8 +914,8 @@ func (mf *metricsForwarder) setUpDatadogAPIClient() {
 	// v2 client is used for metrics and events
 	configuration := datadogapi.NewConfiguration()
 	apiClient := datadogapi.NewAPIClient(configuration)
-	mf.datadogMetricsApi = datadogV2.NewMetricsApi(apiClient)
-	mf.datadogEventsApi = datadogV1.NewEventsApi(apiClient) // Initialize events API
+	mf.datadogMetricsAPI = datadogV2.NewMetricsApi(apiClient)
+	mf.datadogEventsAPI = datadogV1.NewEventsApi(apiClient) // Initialize events API
 }
 
 // generateDatadogContext configures the API key and endpoint used by API calls.
@@ -956,6 +956,6 @@ func (mf *metricsForwarder) sendMetric(ctx context.Context, metricName string, m
 			},
 		},
 	}
-	_, _, err := mf.datadogMetricsApi.SubmitMetrics(ctx, body, *datadogV2.NewSubmitMetricsOptionalParameters())
+	_, _, err := mf.datadogMetricsAPI.SubmitMetrics(ctx, body, *datadogV2.NewSubmitMetricsOptionalParameters())
 	return err
 }

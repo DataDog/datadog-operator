@@ -50,7 +50,7 @@ type ksmFeature struct {
 	collectCrMetrics           []v2alpha1.Resource
 	collectAPIServiceMetrics   bool
 	collectControllerRevisions bool
-	useApiServerCache          bool
+	useAPIServerCache          bool
 
 	// podCollectionOnNode is true when PodCollectionMode=node_kubelet has
 	// been requested AND the agent version is compatible.
@@ -103,7 +103,7 @@ func (f *ksmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 		f.collectAPIServiceMetrics = true
 		f.collectCRDMetrics = true
 		f.collectCrMetrics = ddaSpec.Features.KubeStateMetricsCore.CollectCrMetrics
-		f.useApiServerCache = featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnableKSMApiServerCacheAnnotation)
+		f.useAPIServerCache = featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnableKSMApiServerCacheAnnotation)
 		f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda.GetName(), ddaSpec)
 
 		// Determine CollectControllerRevisions setting
@@ -230,7 +230,7 @@ type collectorOptions struct {
 	enableAPIService          bool
 	enableCRD                 bool
 	enableControllerRevisions bool
-	useApiServerCache         bool
+	useAPIServerCache         bool
 	customResources           []v2alpha1.Resource
 }
 
@@ -245,7 +245,7 @@ func (f *ksmFeature) ManageDependencies(managers feature.ResourceManagers) error
 		enableAPIService:          f.collectAPIServiceMetrics,
 		enableCRD:                 f.collectCRDMetrics,
 		enableControllerRevisions: f.collectControllerRevisions,
-		useApiServerCache:         f.useApiServerCache,
+		useAPIServerCache:         f.useAPIServerCache,
 		customResources:           f.collectCrMetrics,
 	}
 	configCM, err := f.buildKSMCoreConfigMap(collectorOpts)

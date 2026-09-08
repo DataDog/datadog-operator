@@ -82,7 +82,7 @@ func generateDoc(header []byte, crd apiextensions.CustomResourceDefinitionVersio
 
 	// Write prop content
 	var generator = map[string]func(*os.File, apiextensions.CustomResourceDefinitionVersion){
-		"v2alpha1": generateContent_v2alpha1,
+		"v2alpha1": generateContentV2alpha1,
 	}
 	generator[version](f, crd)
 
@@ -132,7 +132,7 @@ func generatePublicDoc(crd apiextensions.CustomResourceDefinitionVersion, versio
 	mustWrite(f, publicFooter)
 }
 
-func generateContent_v2alpha1(f *os.File, crd apiextensions.CustomResourceDefinitionVersion) {
+func generateContentV2alpha1(f *os.File, crd apiextensions.CustomResourceDefinitionVersion) {
 	nameToDescMap := loadJSONToMap(updatedDescriptionsFile)
 	writePropsTable(f, crd.Schema.OpenAPIV3Schema.Properties["spec"].Properties, nameToDescMap)
 

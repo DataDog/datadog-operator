@@ -217,6 +217,7 @@ type HorizontalFallbackTriggers struct {
 	StaleRecommendationThresholdSeconds int32 `json:"staleRecommendationThresholdSeconds,omitempty"`
 }
 
+// DatadogPodAutoscaler is the Schema for the datadogpodautoscalers API.
 // +kubebuilder:object:root=true
 // +kubebuilder:resource:shortName=dpa
 // +kubebuilder:subresource:status
@@ -233,7 +234,6 @@ type HorizontalFallbackTriggers struct {
 // +kubebuilder:printcolumn:name="Able to Apply",type="string",JSONPath=".status.conditions[?(@.type=='VerticalAbleToApply')].status"
 // +kubebuilder:printcolumn:name="Last Trigger",type="date",JSONPath=".status.vertical.lastAction.time"
 // +kubebuilder:storageversion
-// DatadogPodAutoscaler is the Schema for the datadogpodautoscalers API
 type DatadogPodAutoscaler struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

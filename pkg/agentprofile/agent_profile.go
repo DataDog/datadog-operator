@@ -293,11 +293,11 @@ func nodeSelectorOperatorToSelectionOperator(op v1.NodeSelectorOperator) selecti
 func validateProfileName(profileName string) error {
 	// Label values can be empty but a profile's name should not be empty
 	if profileName == "" {
-		return fmt.Errorf("Profile name cannot be empty")
+		return fmt.Errorf("profile name cannot be empty")
 	}
 	// We add the profile name as a label value, which can be 63 characters max
 	if len(profileName) > labelValueMaxLength {
-		return fmt.Errorf("Profile name must be no more than 63 characters")
+		return fmt.Errorf("profile name must be no more than 63 characters")
 	}
 
 	return nil

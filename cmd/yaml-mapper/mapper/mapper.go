@@ -35,7 +35,7 @@ var skipMappingKeys = []string{
 	`agents\.enabled`,
 }
 
-const defaultDDAMapUrl = "https://raw.githubusercontent.com/DataDog/helm-charts/main/tools/yaml-mapper/mapping_datadog_helm_to_datadogagent_crd.yaml"
+const defaultDDAMapURL = "https://raw.githubusercontent.com/DataDog/helm-charts/main/tools/yaml-mapper/mapping_datadog_helm_to_datadogagent_crd.yaml"
 
 // newDefaultFileHeader returns a new default file header for the mapped DDA custom resource output.
 func newDefaultFileHeader() map[string]any {
@@ -123,7 +123,7 @@ func (m *Mapper) loadInputs() (mappingValues chartutil.Values, sourceValues char
 		defer tmpFile.Close()
 
 		// Ignore error so we can fall back on embedded mapping
-		tmpMappingPath, _ = utils.FetchYAMLFile(defaultDDAMapUrl, tmpFile.Name())
+		tmpMappingPath, _ = utils.FetchYAMLFile(defaultDDAMapURL, tmpFile.Name())
 		m.MappingPath = tmpMappingPath
 	}
 

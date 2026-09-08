@@ -313,7 +313,7 @@ func (d *Daemon) reconcileLocallyTerminatedExperiment(ctx context.Context, snaps
 	d.taskMu.Lock()
 	defer d.taskMu.Unlock()
 
-	for _, pkg := range d.rcClient.GetInstallerState() {
+	for _, pkg := range d.rcClient.GetInstallerPackages() {
 		if pkg.GetExperimentConfigVersion() != snapshot.experiment.ID {
 			continue
 		}

@@ -22,9 +22,8 @@ const (
 	AppKubernetesVersionLabelKey = "app.kubernetes.io/version"
 )
 
-// ObjectKind type for kubernetes resource kind. These strings are plural because
+// ObjectKind identifies a Kubernetes resource kind. These strings are plural because
 // their list kind is used to query the Kubernetes API when cleaning up resources.
-
 // They are also used in the store for DatadogAgent dependencies.
 type ObjectKind string
 

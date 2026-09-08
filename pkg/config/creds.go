@@ -65,7 +65,7 @@ type CredentialManager struct {
 	ddaCredsMap  sync.Map
 }
 
-// NewCredentialManager returns a CredentialManager.
+// NewCredentialManagerWithDecryptor returns a CredentialManager using the provided decryptor.
 func NewCredentialManagerWithDecryptor(client client.Reader, decryptor secrets.Decryptor) *CredentialManager {
 	cm := &CredentialManager{
 		logger:        ctrl.Log.WithName("credentials-manager"),
@@ -88,8 +88,8 @@ func NewCredentialManagerWithDecryptor(client client.Reader, decryptor secrets.D
 	return cm
 }
 
-// TODO deprecate in favor of NewCredentialManagerWithDecryptor
-// NewCredentialManager returns a CredentialManager.
+// NewCredentialManager returns a CredentialManager with the default secret backend.
+// TODO deprecate in favor of NewCredentialManagerWithDecryptor.
 func NewCredentialManager(client client.Reader) *CredentialManager {
 	cm := &CredentialManager{
 		logger:        ctrl.Log.WithName("credentials-manager"),

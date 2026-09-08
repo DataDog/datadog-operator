@@ -198,6 +198,8 @@ func (r *Reconciler) updateStatusIfNeeded(logger logr.Logger, agentdeployment *d
 		condition.UpdateDatadogAgentStatusConditions(newStatus, now, common.DatadogAgentReconcileErrorConditionType, metav1.ConditionTrue, "DatadogAgent_reconcile_error", "DatadogAgent reconcile error", false)
 	}
 
+	setDeprecatedConfigStatus(agentdeployment, newStatus, now)
+
 	r.setMetricsForwarderStatus(logger, agentdeployment, newStatus)
 
 	if !IsEqualStatus(&agentdeployment.Status, newStatus) {
