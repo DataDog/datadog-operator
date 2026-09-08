@@ -151,6 +151,139 @@ func Test_privateActionRunnerFeature_ManageNodeAgent(t *testing.T) {
 	assert.Empty(t, managers.AnnotationMgr.Annotations)
 }
 
+func Test_privateActionRunnerFeature_ManageNodeAgentSplitMode(t *testing.T) {
+	dda := &v2alpha1.DatadogAgent{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-dda",
+			Namespace: "default",
+			Annotations: map[string]string{
+				"agent.datadoghq.com/private-action-runner-enabled":       "true",
+				"agent.datadoghq.com/private-action-runner-split-enabled": "true",
+			},
+		},
+		Spec: v2alpha1.DatadogAgentSpec{
+			Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+				v2alpha1.NodeAgentComponentName: {
+					Image: &v2alpha1.AgentImageConfig{Tag: "7.84.0"},
+				},
+			},
+		},
+	}
+	f := buildPrivateActionRunnerFeature(nil)
+	f.Configure(dda, &dda.Spec, nil)
+
+	gracePeriod := int64(30)
+	managers := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
+		Spec: corev1.PodSpec{
+			TerminationGracePeriodSeconds: &gracePeriod,
+			Containers: []corev1.Container{
+				{
+					Name:    string(apicommon.PrivateActionRunnerContainerName),
+					Command: []string{"privateactionrunner", "run"},
+					Args:    []string{"-c=/etc/datadog-agent/datadog.yaml"},
+				},
+			},
+		},
+	})
+
+	require.NoError(t, f.ManageNodeAgent(managers))
+
+	parContainer := managers.PodTemplateSpec().Spec.Containers[0]
+	assert.Equal(t, []string{privateActionRunnerEntrypoint}, parContainer.Command)
+	assert.Empty(t, parContainer.Args)
+	require.NotNil(t, parContainer.ReadinessProbe)
+	require.NotNil(t, parContainer.ReadinessProbe.Exec)
+	assert.Equal(t, []string{privateActionRunnerProbe}, parContainer.ReadinessProbe.Exec.Command)
+	assert.Equal(t, privateActionRunnerGracePeriod, *managers.PodTemplateSpec().Spec.TerminationGracePeriodSeconds)
+
+	var runVolumeFound bool
+	for _, volume := range managers.VolumeMgr.Volumes {
+		if volume.Name == privateActionRunnerRunVolumeName {
+			runVolumeFound = true
+			require.NotNil(t, volume.EmptyDir)
+		}
+	}
+	assert.True(t, runVolumeFound)
+
+	var runMountFound bool
+	for _, mount := range managers.VolumeMountMgr.VolumeMountsByC[apicommon.PrivateActionRunnerContainerName] {
+		if mount.Name == privateActionRunnerRunVolumeName {
+			runMountFound = true
+			assert.Equal(t, privateActionRunnerRunPath, mount.MountPath)
+		}
+	}
+	assert.True(t, runMountFound)
+
+	envs := managers.EnvVarMgr.EnvVarsByC[apicommon.PrivateActionRunnerContainerName]
+	assert.Contains(t, envs, &corev1.EnvVar{Name: "DD_PRIVATE_ACTION_RUNNER_SPLIT_ENABLED", Value: "true"})
+	assert.Contains(t, envs, &corev1.EnvVar{Name: "DD_PRIVATE_ACTION_RUNNER_EXTRA_CONFIG_PATH", Value: PrivateActionRunnerConfigPath})
+	assert.Contains(t, envs, &corev1.EnvVar{Name: "DD_PM_SOCKET_PATH", Value: privateActionRunnerSocketPath})
+}
+
+func Test_privateActionRunnerFeature_ManageNodeAgentMonolithicMode(t *testing.T) {
+	dda := &v2alpha1.DatadogAgent{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-dda",
+			Namespace: "default",
+			Annotations: map[string]string{
+				"agent.datadoghq.com/private-action-runner-enabled":       "true",
+				"agent.datadoghq.com/private-action-runner-split-enabled": "false",
+			},
+		},
+	}
+	f := buildPrivateActionRunnerFeature(nil)
+	f.Configure(dda, &dda.Spec, nil)
+
+	command := []string{"privateactionrunner", "run"}
+	args := []string{"-c=/etc/datadog-agent/datadog.yaml"}
+	gracePeriod := int64(30)
+	managers := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
+		Spec: corev1.PodSpec{
+			TerminationGracePeriodSeconds: &gracePeriod,
+			Containers: []corev1.Container{{
+				Name:    string(apicommon.PrivateActionRunnerContainerName),
+				Command: command,
+				Args:    args,
+			}},
+		},
+	})
+
+	require.NoError(t, f.ManageNodeAgent(managers))
+
+	parContainer := managers.PodTemplateSpec().Spec.Containers[0]
+	assert.Equal(t, command, parContainer.Command)
+	assert.Equal(t, args, parContainer.Args)
+	assert.Nil(t, parContainer.ReadinessProbe)
+	assert.Equal(t, gracePeriod, *managers.PodTemplateSpec().Spec.TerminationGracePeriodSeconds)
+	assert.Empty(t, managers.EnvVarMgr.EnvVarsByC[apicommon.PrivateActionRunnerContainerName])
+	for _, volume := range managers.VolumeMgr.Volumes {
+		assert.NotEqual(t, privateActionRunnerRunVolumeName, volume.Name)
+	}
+}
+
+func Test_privateActionRunnerFeature_RejectsSplitModeOnOldAgent(t *testing.T) {
+	dda := &v2alpha1.DatadogAgent{
+		ObjectMeta: metav1.ObjectMeta{
+			Annotations: map[string]string{
+				"agent.datadoghq.com/private-action-runner-enabled":       "true",
+				"agent.datadoghq.com/private-action-runner-split-enabled": "true",
+			},
+		},
+		Spec: v2alpha1.DatadogAgentSpec{
+			Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+				v2alpha1.NodeAgentComponentName: {
+					Image: &v2alpha1.AgentImageConfig{Tag: "7.83.0"},
+				},
+			},
+		},
+	}
+	f := buildPrivateActionRunnerFeature(nil)
+	f.Configure(dda, &dda.Spec, nil)
+
+	err := f.ManageNodeAgent(fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{}))
+	require.ErrorContains(t, err, "split mode requires Agent >= 7.84.0-0")
+}
+
 // Test_privateActionRunnerFeature_ProfileDDAI_ConfigMapNames verifies that when PAR is
 // enabled on a profile DDAI (whose name differs from the parent DDA), the ConfigMaps are
 // named after the DDA (not the DDAI) so all profile DDAIs share the same ConfigMap.

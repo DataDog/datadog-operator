@@ -13,6 +13,8 @@ metadata:
   annotations:
     # Enable Private Action Runner for Node Agent
     agent.datadoghq.com/private-action-runner-enabled: "true"
+    # Opt into split mode (Agent 7.84+)
+    agent.datadoghq.com/private-action-runner-split-enabled: "false"
     # Grant PAR access to host systemd and select persistent, volatile, or both journal stores
     agent.datadoghq.com/private-action-runner-systemd-enabled: "true"
     agent.datadoghq.com/private-action-runner-systemd-journal-storage: "persistent"
