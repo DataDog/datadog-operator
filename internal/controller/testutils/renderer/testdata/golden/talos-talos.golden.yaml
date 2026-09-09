@@ -1291,7 +1291,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: d51455eb1b1f79916a446302f3839682
+    agent.datadoghq.com/agentspechash: 04ecc82f0e94960cbfdd6ffd071b220a
   labels:
     agent.datadoghq.com/component: agent
     agent.datadoghq.com/name: datadog-agent
