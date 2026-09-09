@@ -1291,7 +1291,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: a96ea7bf5b521a555e0129844db87d9a
+    agent.datadoghq.com/agentspechash: d51455eb1b1f79916a446302f3839682
   labels:
     agent.datadoghq.com/component: agent
     agent.datadoghq.com/name: datadog-agent
@@ -1826,6 +1826,8 @@ spec:
         - mountPath: /host/root
           name: hostroot
           readOnly: true
+        - mountPath: /sys/kernel/tracing
+          name: tracefs
       - command:
         - process-agent
         - --cfgpath=/etc/datadog-agent/datadog.yaml
@@ -2055,6 +2057,9 @@ spec:
       - hostPath:
           path: /etc/os-release
         name: host-osrelease
+      - hostPath:
+          path: /sys/kernel/tracing
+        name: tracefs
   updateStrategy: {}
 ---
 apiVersion: apps/v1

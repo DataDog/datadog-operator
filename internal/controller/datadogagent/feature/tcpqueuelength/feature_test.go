@@ -197,7 +197,20 @@ func Test_tcpQueueLengthFeature_NodeAgentProviderCapabilities(t *testing.T) {
 		assert.NotContains(t, volumeNames(tmpl), common.ModulesVolumeName)
 	})
 
-	t.Run("default provider keeps src and modules volumes", func(t *testing.T) {
+	t.Run("talos adds the tracefs volume", func(t *testing.T) {
+		f := &tcpQueueLengthFeature{}
+		tmpl := newPodTemplate()
+		mgr := feature.NewPodTemplateManagers(tmpl)
+		require.NoError(t, f.ManageNodeAgent(mgr))
+
+		providercaps.ApplyProviderCapabilities(mgr, kubernetes.TalosProvider, f.NodeAgentProviderCapabilities())
+
+		assert.Contains(t, volumeNames(tmpl), common.TracefsVolumeName)
+		// debugfs must remain: tracefs is an addition, not a replacement.
+		assert.Contains(t, volumeNames(tmpl), common.DebugfsVolumeName)
+	})
+
+	t.Run("default provider keeps src and modules volumes and adds no tracefs", func(t *testing.T) {
 		f := &tcpQueueLengthFeature{}
 		tmpl := newPodTemplate()
 		mgr := feature.NewPodTemplateManagers(tmpl)
@@ -207,5 +220,6 @@ func Test_tcpQueueLengthFeature_NodeAgentProviderCapabilities(t *testing.T) {
 
 		assert.Contains(t, volumeNames(tmpl), common.SrcVolumeName)
 		assert.Contains(t, volumeNames(tmpl), common.ModulesVolumeName)
+		assert.NotContains(t, volumeNames(tmpl), common.TracefsVolumeName)
 	})
 }

@@ -65,11 +65,16 @@ func (f *cwsFeature) ID() feature.IDType {
 
 // NodeAgentProviderCapabilities returns provider-conditional pod-template
 // mutations for the node agent. Talos has no host user/group database, so
-// the passwd and group volumes this feature adds are stripped.
+// the passwd and group volumes this feature adds are stripped. Talos also
+// exposes tracefs as a standalone mount rather than nesting it under the
+// debugfs mount this feature already adds, so it must be mounted explicitly.
 func (f *cwsFeature) NodeAgentProviderCapabilities() providercaps.ProviderCapabilityMap {
 	return providercaps.ProviderCapabilityMap{
 		kubernetes.TalosProvider: {
 			RemoveVolumes: []string{common.PasswdVolumeName, common.GroupVolumeName},
+			Volumes: []providercaps.VolumeAndMount{
+				providercaps.HostPathVolumeAndMount(common.TracefsVolumeName, common.TracefsPath, false, apicommon.SystemProbeContainerName),
+			},
 		},
 	}
 }

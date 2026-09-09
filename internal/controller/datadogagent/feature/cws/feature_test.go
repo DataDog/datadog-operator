@@ -409,7 +409,20 @@ func Test_cwsFeature_NodeAgentProviderCapabilities(t *testing.T) {
 		assert.NotContains(t, volumeNames(tmpl), common.GroupVolumeName)
 	})
 
-	t.Run("default provider keeps passwd and group volumes", func(t *testing.T) {
+	t.Run("talos adds the tracefs volume", func(t *testing.T) {
+		f := &cwsFeature{}
+		tmpl := newPodTemplate()
+		mgr := feature.NewPodTemplateManagers(tmpl)
+		require.NoError(t, f.ManageNodeAgent(mgr))
+
+		providercaps.ApplyProviderCapabilities(mgr, kubernetes.TalosProvider, f.NodeAgentProviderCapabilities())
+
+		assert.Contains(t, volumeNames(tmpl), common.TracefsVolumeName)
+		// debugfs must remain: tracefs is an addition, not a replacement.
+		assert.Contains(t, volumeNames(tmpl), common.DebugfsVolumeName)
+	})
+
+	t.Run("default provider keeps passwd and group volumes and adds no tracefs", func(t *testing.T) {
 		f := &cwsFeature{}
 		tmpl := newPodTemplate()
 		mgr := feature.NewPodTemplateManagers(tmpl)
@@ -419,5 +432,6 @@ func Test_cwsFeature_NodeAgentProviderCapabilities(t *testing.T) {
 
 		assert.Contains(t, volumeNames(tmpl), common.PasswdVolumeName)
 		assert.Contains(t, volumeNames(tmpl), common.GroupVolumeName)
+		assert.NotContains(t, volumeNames(tmpl), common.TracefsVolumeName)
 	})
 }

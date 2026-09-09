@@ -194,6 +194,14 @@ func Test_oomKillFeature_NodeAgentProviderCapabilities(t *testing.T) {
 		return names
 	}
 
+	mountNames := func(c corev1.Container) []string {
+		names := make([]string, 0, len(c.VolumeMounts))
+		for _, m := range c.VolumeMounts {
+			names = append(names, m.Name)
+		}
+		return names
+	}
+
 	t.Run("talos strips src and modules volumes", func(t *testing.T) {
 		f := &oomKillFeature{}
 		tmpl := newPodTemplate()
@@ -211,7 +219,21 @@ func Test_oomKillFeature_NodeAgentProviderCapabilities(t *testing.T) {
 		}
 	})
 
-	t.Run("default provider keeps src and modules volumes", func(t *testing.T) {
+	t.Run("talos adds the tracefs volume to system probe", func(t *testing.T) {
+		f := &oomKillFeature{}
+		tmpl := newPodTemplate()
+		mgr := feature.NewPodTemplateManagers(tmpl)
+		require.NoError(t, f.ManageNodeAgent(mgr))
+
+		providercaps.ApplyProviderCapabilities(mgr, kubernetes.TalosProvider, f.NodeAgentProviderCapabilities())
+
+		assert.Contains(t, volumeNames(tmpl), common.TracefsVolumeName)
+		assert.Contains(t, mountNames(getContainer(tmpl, apicommon.SystemProbeContainerName)), common.TracefsVolumeName)
+		// debugfs must remain: tracefs is an addition, not a replacement.
+		assert.Contains(t, mountNames(getContainer(tmpl, apicommon.SystemProbeContainerName)), common.DebugfsVolumeName)
+	})
+
+	t.Run("default provider keeps src and modules volumes and adds no tracefs", func(t *testing.T) {
 		f := &oomKillFeature{}
 		tmpl := newPodTemplate()
 		mgr := feature.NewPodTemplateManagers(tmpl)
@@ -221,5 +243,6 @@ func Test_oomKillFeature_NodeAgentProviderCapabilities(t *testing.T) {
 
 		assert.Contains(t, volumeNames(tmpl), common.SrcVolumeName)
 		assert.Contains(t, volumeNames(tmpl), common.ModulesVolumeName)
+		assert.NotContains(t, volumeNames(tmpl), common.TracefsVolumeName)
 	})
 }
