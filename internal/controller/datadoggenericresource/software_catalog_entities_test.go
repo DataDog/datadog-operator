@@ -182,6 +182,66 @@ func Test_deleteSoftwareCatalogEntity_idempotent(t *testing.T) {
 	}
 }
 
+func Test_updateResource_rejectsIdentityChange(t *testing.T) {
+	tests := []struct {
+		name        string
+		newJsonSpec string
+		wantErr     bool
+	}{
+		{
+			name:        "same identity, update proceeds",
+			newJsonSpec: `{"apiVersion":"v3","kind":"service","metadata":{"name":"test-service","namespace":"default","owner":"new-team"}}`,
+		},
+		{
+			name:        "name changed, rejected",
+			newJsonSpec: `{"apiVersion":"v3","kind":"service","metadata":{"name":"renamed-service","namespace":"default"}}`,
+			wantErr:     true,
+		},
+		{
+			name:        "kind changed, rejected",
+			newJsonSpec: `{"apiVersion":"v3","kind":"datastore","metadata":{"name":"test-service","namespace":"default"}}`,
+			wantErr:     true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var upsertCalled bool
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusOK)
+				if r.Method == http.MethodGet {
+					_, _ = w.Write([]byte(`{"data":[{"id":"entity-abc","type":"entity","attributes":{"kind":"service","name":"test-service","namespace":"default"}}]}`))
+					return
+				}
+				upsertCalled = true
+				_, _ = w.Write([]byte(`{"data":[{"id":"entity-abc","type":"entity","attributes":{"kind":"service","name":"test-service","namespace":"default"}}]}`))
+			}))
+			defer server.Close()
+
+			cfg := datadogapi.NewConfiguration()
+			cfg.HTTPClient = server.Client()
+			client := datadogV2.NewSoftwareCatalogApi(datadogapi.NewAPIClient(cfg))
+			auth := setupTestAuth(server.URL)
+
+			handler := &SoftwareCatalogEntityHandler{client: client}
+			instance := &v1alpha1.DatadogGenericResource{
+				Spec:   v1alpha1.DatadogGenericResourceSpec{JsonSpec: tt.newJsonSpec},
+				Status: v1alpha1.DatadogGenericResourceStatus{Id: "entity-abc"},
+			}
+
+			err := handler.updateResource(auth, instance)
+			if tt.wantErr {
+				assert.Error(t, err)
+				assert.False(t, upsertCalled, "upsert must not be called when the identity would change")
+				return
+			}
+			assert.NoError(t, err)
+			assert.True(t, upsertCalled)
+		})
+	}
+}
+
 func Test_softwareCatalogEntityHandler_refreshState(t *testing.T) {
 	handler := &SoftwareCatalogEntityHandler{}
 	state, err := handler.refreshState(nil, &v1alpha1.DatadogGenericResource{})

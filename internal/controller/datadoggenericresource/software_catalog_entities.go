@@ -17,6 +17,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	ctrutils "github.com/DataDog/datadog-operator/pkg/controller/utils"
 )
 
 // SoftwareCatalogEntityHandler manages Software Catalog entities (services,
@@ -64,8 +65,60 @@ func (h *SoftwareCatalogEntityHandler) getResource(auth context.Context, instanc
 }
 
 func (h *SoftwareCatalogEntityHandler) updateResource(auth context.Context, instance *v1alpha1.DatadogGenericResource) error {
-	_, err := upsertSoftwareCatalogEntity(auth, h.client, instance)
+	// UpsertCatalogEntity is keyed by kind/namespace/name, not by instance.Status.Id: if the
+	// spec's identity fields changed, the upsert would create a second entity under the new
+	// identity rather than update the one we're tracking, orphaning the old entity and leaving
+	// the new one unmanaged. Reject identity changes instead of silently leaking a duplicate.
+	current, err := getSoftwareCatalogEntity(auth, h.client, instance.Status.Id)
+	if err != nil {
+		return err
+	}
+
+	newIdentity, err := parseEntityIdentity(instance.Spec.JsonSpec)
+	if err != nil {
+		return translateUnmarshalError(err, "error parsing software catalog entity identity")
+	}
+
+	currentAttrs := current.GetAttributes()
+	if newIdentity.kind != currentAttrs.GetKind() || newIdentity.name != currentAttrs.GetName() || newIdentity.namespace != currentAttrs.GetNamespace() {
+		// Not a live API error, but treated as one of the same shape (permanent, 400-equivalent) so the
+		// reconciler backs off to forceSyncPeriod instead of retrying every few seconds forever: this
+		// condition never resolves on its own until the user edits the spec back or deletes the CR.
+		err := fmt.Errorf("cannot update software catalog entity: identity fields kind/metadata.name/metadata.namespace are immutable (was %s/%s/%s, spec now has %s/%s/%s); delete and recreate the resource instead",
+			currentAttrs.GetNamespace(), currentAttrs.GetKind(), currentAttrs.GetName(), newIdentity.namespace, newIdentity.kind, newIdentity.name)
+		return ctrutils.NewAPIError(err, &http.Response{StatusCode: http.StatusBadRequest})
+	}
+
+	_, err = upsertSoftwareCatalogEntity(auth, h.client, instance)
 	return err
+}
+
+// entityIdentity is the kind/namespace/name tuple that UpsertCatalogEntity uses to key an
+// entity; it is read generically off spec.jsonSpec since Entity V3's oneOf kinds (service,
+// datastore, queue, system, api) all share this same top-level shape.
+type entityIdentity struct {
+	kind      string
+	name      string
+	namespace string
+}
+
+func parseEntityIdentity(jsonSpec string) (entityIdentity, error) {
+	var parsed struct {
+		Kind     string `json:"kind"`
+		Metadata struct {
+			Name      string `json:"name"`
+			Namespace string `json:"namespace"`
+		} `json:"metadata"`
+	}
+	if err := json.Unmarshal([]byte(jsonSpec), &parsed); err != nil {
+		return entityIdentity{}, err
+	}
+
+	namespace := parsed.Metadata.Namespace
+	if namespace == "" {
+		namespace = "default"
+	}
+	return entityIdentity{kind: parsed.Kind, name: parsed.Metadata.Name, namespace: namespace}, nil
 }
 
 func (h *SoftwareCatalogEntityHandler) deleteResource(auth context.Context, instance *v1alpha1.DatadogGenericResource) error {
