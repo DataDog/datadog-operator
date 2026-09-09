@@ -8,6 +8,7 @@ package privateactionrunner
 import (
 	"testing"
 
+	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -17,10 +18,13 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/experimental"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
+	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	pkgutils "github.com/DataDog/datadog-operator/pkg/utils"
 )
 
 func Test_privateActionRunnerFeature_Configure(t *testing.T) {
@@ -149,6 +153,269 @@ func Test_privateActionRunnerFeature_ManageNodeAgent(t *testing.T) {
 	assert.Contains(t, capabilities, corev1.Capability("NET_RAW"))
 
 	assert.Empty(t, managers.AnnotationMgr.Annotations)
+}
+
+func Test_privateActionRunnerFeature_ManageNodeAgentSplitMode(t *testing.T) {
+	dda := &v2alpha1.DatadogAgent{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-dda",
+			Namespace: "default",
+			Annotations: map[string]string{
+				"agent.datadoghq.com/private-action-runner-enabled":       "true",
+				"agent.datadoghq.com/private-action-runner-split-enabled": "true",
+			},
+		},
+		Spec: v2alpha1.DatadogAgentSpec{
+			Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+				v2alpha1.NodeAgentComponentName: {
+					Image: &v2alpha1.AgentImageConfig{Tag: "7.84.0"},
+				},
+			},
+		},
+	}
+	f := buildPrivateActionRunnerFeature(nil)
+	f.Configure(dda, &dda.Spec, nil)
+
+	gracePeriod := int64(30)
+	managers := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
+		Spec: corev1.PodSpec{
+			TerminationGracePeriodSeconds: &gracePeriod,
+			Containers: []corev1.Container{
+				{
+					Name:    string(apicommon.PrivateActionRunnerContainerName),
+					Command: []string{"privateactionrunner", "run"},
+					Args:    []string{"-c=/etc/datadog-agent/datadog.yaml"},
+				},
+			},
+		},
+	})
+
+	require.NoError(t, f.ManageNodeAgent(managers))
+
+	parContainer := managers.PodTemplateSpec().Spec.Containers[0]
+	assert.Equal(t, []string{privateActionRunnerEntrypoint}, parContainer.Command)
+	assert.Empty(t, parContainer.Args)
+	require.NotNil(t, parContainer.ReadinessProbe)
+	require.NotNil(t, parContainer.ReadinessProbe.Exec)
+	assert.Equal(t, []string{privateActionRunnerProbe}, parContainer.ReadinessProbe.Exec.Command)
+	assert.Equal(t, privateActionRunnerGracePeriod, *managers.PodTemplateSpec().Spec.TerminationGracePeriodSeconds)
+
+	var runVolumeFound bool
+	for _, volume := range managers.VolumeMgr.Volumes {
+		if volume.Name == privateActionRunnerRunVolumeName {
+			runVolumeFound = true
+			require.NotNil(t, volume.EmptyDir)
+		}
+	}
+	assert.True(t, runVolumeFound)
+
+	var runMountFound bool
+	for _, mount := range managers.VolumeMountMgr.VolumeMountsByC[apicommon.PrivateActionRunnerContainerName] {
+		if mount.Name == privateActionRunnerRunVolumeName {
+			runMountFound = true
+			assert.Equal(t, privateActionRunnerRunPath, mount.MountPath)
+		}
+	}
+	assert.True(t, runMountFound)
+
+	envs := managers.EnvVarMgr.EnvVarsByC[apicommon.PrivateActionRunnerContainerName]
+	assert.Contains(t, envs, &corev1.EnvVar{Name: "DD_PRIVATE_ACTION_RUNNER_SPLIT_ENABLED", Value: "true"})
+	assert.Contains(t, envs, &corev1.EnvVar{Name: "DD_PRIVATE_ACTION_RUNNER_EXTRA_CONFIG_PATH", Value: PrivateActionRunnerConfigPath})
+	assert.Contains(t, envs, &corev1.EnvVar{Name: "DD_PM_SOCKET_PATH", Value: privateActionRunnerSocketPath})
+}
+
+func Test_privateActionRunnerFeature_ManageNodeAgentMonolithicMode(t *testing.T) {
+	dda := &v2alpha1.DatadogAgent{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-dda",
+			Namespace: "default",
+			Annotations: map[string]string{
+				"agent.datadoghq.com/private-action-runner-enabled":       "true",
+				"agent.datadoghq.com/private-action-runner-split-enabled": "false",
+			},
+		},
+	}
+	f := buildPrivateActionRunnerFeature(nil)
+	f.Configure(dda, &dda.Spec, nil)
+
+	command := []string{"privateactionrunner", "run"}
+	args := []string{"-c=/etc/datadog-agent/datadog.yaml"}
+	gracePeriod := int64(30)
+	managers := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
+		Spec: corev1.PodSpec{
+			TerminationGracePeriodSeconds: &gracePeriod,
+			Containers: []corev1.Container{{
+				Name:    string(apicommon.PrivateActionRunnerContainerName),
+				Command: command,
+				Args:    args,
+			}},
+		},
+	})
+
+	require.NoError(t, f.ManageNodeAgent(managers))
+
+	parContainer := managers.PodTemplateSpec().Spec.Containers[0]
+	assert.Equal(t, command, parContainer.Command)
+	assert.Equal(t, args, parContainer.Args)
+	assert.Nil(t, parContainer.ReadinessProbe)
+	assert.Equal(t, gracePeriod, *managers.PodTemplateSpec().Spec.TerminationGracePeriodSeconds)
+	assert.Empty(t, managers.EnvVarMgr.EnvVarsByC[apicommon.PrivateActionRunnerContainerName])
+	for _, volume := range managers.VolumeMgr.Volumes {
+		assert.NotEqual(t, privateActionRunnerRunVolumeName, volume.Name)
+	}
+}
+
+func Test_privateActionRunnerFeature_RejectsSplitModeOnOldAgent(t *testing.T) {
+	dda := &v2alpha1.DatadogAgent{
+		ObjectMeta: metav1.ObjectMeta{
+			Annotations: map[string]string{
+				"agent.datadoghq.com/private-action-runner-enabled":       "true",
+				"agent.datadoghq.com/private-action-runner-split-enabled": "true",
+			},
+		},
+		Spec: v2alpha1.DatadogAgentSpec{
+			Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+				v2alpha1.NodeAgentComponentName: {
+					Image: &v2alpha1.AgentImageConfig{Tag: "7.83.0"},
+				},
+			},
+		},
+	}
+	f := buildPrivateActionRunnerFeature(nil)
+	f.Configure(dda, &dda.Spec, nil)
+
+	err := f.ManageNodeAgent(fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{}))
+	require.ErrorContains(t, err, "split mode requires Agent >= 7.84.0-0")
+}
+
+func Test_privateActionRunnerFeature_RejectsSplitModeOnUnknownAgentVersion(t *testing.T) {
+	dda := &v2alpha1.DatadogAgent{
+		ObjectMeta: metav1.ObjectMeta{
+			Annotations: map[string]string{
+				"agent.datadoghq.com/private-action-runner-enabled":       "true",
+				"agent.datadoghq.com/private-action-runner-split-enabled": "true",
+			},
+		},
+		Spec: v2alpha1.DatadogAgentSpec{
+			Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+				v2alpha1.NodeAgentComponentName: {
+					Image: &v2alpha1.AgentImageConfig{Tag: "dev"},
+				},
+			},
+		},
+	}
+	f := buildPrivateActionRunnerFeature(nil)
+	f.Configure(dda, &dda.Spec, nil)
+
+	err := f.ManageNodeAgent(fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{}))
+	require.ErrorContains(t, err, "split mode requires Agent >= 7.84.0-0")
+}
+
+func Test_privateActionRunnerFeature_SplitModeImageOverrides(t *testing.T) {
+	tests := []struct {
+		name         string
+		image        v2alpha1.AgentImageConfig
+		experimental string
+		wantVersion  string
+		wantError    bool
+	}{
+		{
+			name:         "older PAR override",
+			image:        v2alpha1.AgentImageConfig{Tag: "7.84.0"},
+			experimental: `{"private-action-runner":{"tag":"7.83.0"}}`,
+			wantVersion:  "7.83.0", wantError: true,
+		},
+		{
+			name:         "newer PAR override",
+			image:        v2alpha1.AgentImageConfig{Tag: "7.83.0"},
+			experimental: `{"private-action-runner":{"tag":"7.84.0"}}`,
+			wantVersion:  "7.84.0",
+		},
+		{
+			name:         "full image name takes precedence over tag",
+			image:        v2alpha1.AgentImageConfig{Tag: "7.84.0"},
+			experimental: `{"private-action-runner":{"name":"example.com/agent:7.83.0","tag":"7.84.0"}}`,
+			wantVersion:  "7.83.0", wantError: true,
+		},
+		{
+			name:         "name-only override inherits component tag",
+			image:        v2alpha1.AgentImageConfig{Tag: "7.84.0"},
+			experimental: `{"private-action-runner":{"name":"custom-agent"}}`,
+			wantVersion:  "7.84.0",
+		},
+		{
+			name:         "unrelated container override",
+			image:        v2alpha1.AgentImageConfig{Tag: "7.83.0"},
+			experimental: `{"agent":{"tag":"7.84.0"}}`,
+			wantVersion:  "7.83.0", wantError: true,
+		},
+		{
+			name:         "malformed override is ignored",
+			image:        v2alpha1.AgentImageConfig{Tag: "7.84.0"},
+			experimental: `not-json`,
+			wantVersion:  "7.84.0",
+		},
+		{
+			name:         "unknown PAR version is rejected",
+			image:        v2alpha1.AgentImageConfig{Tag: "7.84.0"},
+			experimental: `{"private-action-runner":{"tag":"dev"}}`,
+			wantVersion:  "dev", wantError: true,
+		},
+		{
+			name:        "partial component override inherits default version",
+			image:       v2alpha1.AgentImageConfig{PullPolicy: new(corev1.PullAlways)},
+			wantVersion: images.AgentLatestVersion,
+			wantError:   !pkgutils.IsAboveMinVersion(images.AgentLatestVersion, privateActionRunnerSplitMinVersion, new(false)),
+		},
+		{
+			name:         "partial component override with newer PAR",
+			image:        v2alpha1.AgentImageConfig{PullPolicy: new(corev1.PullAlways)},
+			experimental: `{"private-action-runner":{"tag":"7.84.0"}}`,
+			wantVersion:  "7.84.0",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dda := &v2alpha1.DatadogAgent{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-dda",
+					Annotations: map[string]string{
+						"agent.datadoghq.com/private-action-runner-enabled":       "true",
+						"agent.datadoghq.com/private-action-runner-split-enabled": "true",
+						"experimental.agent.datadoghq.com/image-override-config":  tt.experimental,
+					},
+				},
+				Spec: v2alpha1.DatadogAgentSpec{
+					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+						v2alpha1.NodeAgentComponentName: {Image: &tt.image},
+					},
+				},
+			}
+			f := buildPrivateActionRunnerFeature(nil)
+			f.Configure(dda, &dda.Spec, nil)
+			managers := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{Containers: []corev1.Container{{
+					Name:  string(apicommon.PrivateActionRunnerContainerName),
+					Image: images.GetLatestAgentImage(),
+				}}},
+			})
+
+			err := f.ManageNodeAgent(managers)
+			if tt.wantError {
+				require.ErrorContains(t, err, "split mode requires Agent >= 7.84.0-0")
+				require.ErrorContains(t, err, "got "+tt.wantVersion)
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, []string{privateActionRunnerEntrypoint}, managers.PodTemplateSpec().Spec.Containers[0].Command)
+			}
+
+			container := &managers.PodTemplateSpec().Spec.Containers[0]
+			container.Image = images.OverrideAgentImage(container.Image, &tt.image)
+			experimental.ApplyExperimentalOverrides(logr.Discard(), dda, managers)
+			assert.Equal(t, tt.wantVersion, common.GetAgentVersionFromImage(v2alpha1.AgentImageConfig{Name: container.Image}))
+		})
+	}
 }
 
 // Test_privateActionRunnerFeature_ProfileDDAI_ConfigMapNames verifies that when PAR is
