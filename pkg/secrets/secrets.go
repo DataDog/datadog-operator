@@ -40,7 +40,7 @@ const (
 	sgcPayloadVersion = "1.1"
 
 	// defaultSGCBinaryPath is the embedded secret-generic-connector binary shipped in the operator image.
-	defaultSGCBinaryPath = "/opt/datadog-agent/bin/secret-generic-connector"
+	defaultSGCBinaryPath = "/usr/local/bin/secret-generic-connector"
 )
 
 // SetSecretBackendCommand set the secretBackendCommand var
@@ -69,16 +69,25 @@ func SetSecretBackendConfig(config map[string]any) {
 // NewSecretBackend returns a new SecretBackend instance
 func NewSecretBackend() *SecretBackend {
 	cmd := secretBackendCommand
-	// When a backend type is set without an explicit command, resolve secrets
-	// through the embedded secret-generic-connector binary.
-	if cmd == "" && secretBackendType != "" {
+	cmdArgs := secretBackendArgs
+	backendType := secretBackendType
+	backendConfig := secretBackendConfig
+
+	if cmd != "" {
+		// An explicit command uses the legacy secret-backend protocol.
+		backendType = ""
+		backendConfig = nil
+	} else if backendType != "" {
+		// A backend type without a command uses the embedded SGC binary.
 		cmd = defaultSGCBinaryPath
+		cmdArgs = nil
 	}
+
 	return &SecretBackend{
 		cmd:              cmd,
-		cmdArgs:          secretBackendArgs,
-		backendType:      secretBackendType,
-		backendConfig:    secretBackendConfig,
+		cmdArgs:          cmdArgs,
+		backendType:      backendType,
+		backendConfig:    backendConfig,
 		cmdOutputMaxSize: defaultCmdOutputMaxSize,
 		cmdTimeout:       defaultCmdTimeout,
 	}

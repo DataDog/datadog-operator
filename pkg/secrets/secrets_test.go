@@ -161,17 +161,23 @@ func TestSecretBackend_buildPayload(t *testing.T) {
 
 func TestNewSecretBackend_embeddedSGC(t *testing.T) {
 	defer func() {
-		secretBackendCommand = ""
-		secretBackendType = ""
-		secretBackendConfig = map[string]any{}
+		SetSecretBackendCommand("")
+		SetSecretBackendArgs([]string{})
+		SetSecretBackendType("")
+		SetSecretBackendConfig(map[string]any{})
 	}()
 
 	// Backend type set without an explicit command -> use the embedded SGC binary.
-	secretBackendCommand = ""
-	secretBackendType = "hashicorp.vault"
+	SetSecretBackendCommand("")
+	SetSecretBackendArgs([]string{"--legacy-arg"})
+	SetSecretBackendType("hashicorp.vault")
+	SetSecretBackendConfig(map[string]any{"vault_session": map[string]any{"vault_auth_type": "kubernetes"}})
 	sb := NewSecretBackend()
 	if sb.cmd != defaultSGCBinaryPath {
 		t.Errorf("cmd = %q, want embedded SGC path %q", sb.cmd, defaultSGCBinaryPath)
+	}
+	if len(sb.cmdArgs) != 0 {
+		t.Errorf("embedded SGC args = %v, want none", sb.cmdArgs)
 	}
 	// The timeout is sent to SGC as secret_backend_timeout, so it must not be shorter
 	// than SGC's own 30s default
@@ -180,9 +186,21 @@ func TestNewSecretBackend_embeddedSGC(t *testing.T) {
 	}
 
 	// An explicit command always wins over the embedded default.
-	secretBackendCommand = "/custom/secret-backend"
-	if sb := NewSecretBackend(); sb.cmd != "/custom/secret-backend" {
+	SetSecretBackendCommand("/custom/secret-backend")
+	sb = NewSecretBackend()
+	if sb.cmd != "/custom/secret-backend" {
 		t.Errorf("cmd = %q, want /custom/secret-backend", sb.cmd)
+	}
+	if !reflect.DeepEqual(sb.cmdArgs, secretBackendArgs) {
+		t.Errorf("explicit command args = %v, want %v", sb.cmdArgs, secretBackendArgs)
+	}
+	if sb.backendType != "" || sb.backendConfig != nil {
+		t.Errorf("explicit command must use the legacy payload; got type %q and config %v", sb.backendType, sb.backendConfig)
+	}
+	for _, key := range []string{"type", "config", "secret_backend_timeout"} {
+		if _, found := sb.buildPayload([]string{"api_key"})[key]; found {
+			t.Errorf("explicit command payload must not include %q", key)
+		}
 	}
 }
 

@@ -342,8 +342,8 @@ func run(opts *options) error {
 	secrets.SetSecretBackendArgs(opts.secretBackendArgs)
 	secrets.SetSecretBackendType(opts.secretBackendType)
 	if opts.secretBackendConfig != "" {
-		var backendConfig map[string]any
-		if err := json.Unmarshal([]byte(opts.secretBackendConfig), &backendConfig); err != nil {
+		backendConfig, err := parseSecretBackendConfig(opts.secretBackendConfig)
+		if err != nil {
 			setupLog.Error(err, "Invalid -secretBackendConfig JSON, ignoring")
 		} else {
 			secrets.SetSecretBackendConfig(backendConfig)
@@ -566,6 +566,12 @@ func run(opts *options) error {
 	}
 
 	return nil
+}
+
+func parseSecretBackendConfig(raw string) (map[string]any, error) {
+	var config map[string]any
+	err := json.Unmarshal([]byte(raw), &config)
+	return config, err
 }
 
 func getVersionAndPlatformInfo(configCopy *rest.Config) (*apimversion.Info, kubernetes.PlatformInfo, error) {
