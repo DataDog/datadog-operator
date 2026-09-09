@@ -148,6 +148,30 @@ func TestOptionsParse_CLIOverridesEnv(t *testing.T) {
 	require.False(t, opts.defaultDataPlaneLinuxEnabled)
 }
 
+func TestOptionsParse_SecretBackendSGC(t *testing.T) {
+	resetCommandLine(t,
+		"-secretBackendType=hashicorp.vault",
+		`-secretBackendConfig={"vault_session":{"vault_auth_type":"kubernetes"}}`,
+	)
+
+	var opts options
+	opts.Parse()
+
+	require.Equal(t, "hashicorp.vault", opts.secretBackendType)
+	require.JSONEq(t, `{"vault_session":{"vault_auth_type":"kubernetes"}}`, opts.secretBackendConfig)
+}
+
+func TestParseSecretBackendConfig(t *testing.T) {
+	config, err := parseSecretBackendConfig(`{"vault_session":{"vault_auth_type":"kubernetes"}}`)
+	require.NoError(t, err)
+	require.Equal(t, map[string]any{
+		"vault_session": map[string]any{"vault_auth_type": "kubernetes"},
+	}, config)
+
+	_, err = parseSecretBackendConfig("not-json")
+	require.Error(t, err)
+}
+
 func TestOptionsParse_InvalidEnvLeavesDefault(t *testing.T) {
 	resetCommandLine(t)
 	t.Setenv("DD_MAXIMUM_GOROUTINES", "not-an-int")
