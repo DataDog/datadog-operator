@@ -15,10 +15,12 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/experimental"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
 	"github.com/DataDog/datadog-operator/pkg/constants"
+	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	pkgutils "github.com/DataDog/datadog-operator/pkg/utils"
 )
@@ -69,7 +71,12 @@ func (f *privateActionRunnerFeature) Configure(dda metav1.Object, ddaSpec *v2alp
 		f.nodeEnabled = true
 		f.systemdConfig, f.systemdConfigErr = systemdHostConfigFromAnnotations(dda.GetAnnotations())
 		if featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnablePrivateActionRunnerSplitAnnotation) {
-			version := common.GetComponentVersion(dda, v2alpha1.NodeAgentComponentName)
+			image := images.GetLatestAgentImage()
+			if override := ddaSpec.Override[v2alpha1.NodeAgentComponentName]; override != nil && override.Image != nil {
+				image = images.OverrideAgentImage(image, override.Image)
+			}
+			image, _ = experimental.ResolveImageOverride(dda, string(apicommon.PrivateActionRunnerContainerName), image)
+			version := common.GetAgentVersionFromImage(v2alpha1.AgentImageConfig{Name: image})
 			if pkgutils.IsAboveMinVersion(version, privateActionRunnerSplitMinVersion, new(false)) {
 				f.splitEnabled = true
 			} else {

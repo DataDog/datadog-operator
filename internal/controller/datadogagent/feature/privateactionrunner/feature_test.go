@@ -8,6 +8,7 @@ package privateactionrunner
 import (
 	"testing"
 
+	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -17,10 +18,13 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/experimental"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
+	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	pkgutils "github.com/DataDog/datadog-operator/pkg/utils"
 )
 
 func Test_privateActionRunnerFeature_Configure(t *testing.T) {
@@ -285,7 +289,6 @@ func Test_privateActionRunnerFeature_RejectsSplitModeOnOldAgent(t *testing.T) {
 }
 
 func Test_privateActionRunnerFeature_RejectsSplitModeOnUnknownAgentVersion(t *testing.T) {
-	pullPolicy := corev1.PullAlways
 	dda := &v2alpha1.DatadogAgent{
 		ObjectMeta: metav1.ObjectMeta{
 			Annotations: map[string]string{
@@ -296,7 +299,7 @@ func Test_privateActionRunnerFeature_RejectsSplitModeOnUnknownAgentVersion(t *te
 		Spec: v2alpha1.DatadogAgentSpec{
 			Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 				v2alpha1.NodeAgentComponentName: {
-					Image: &v2alpha1.AgentImageConfig{PullPolicy: &pullPolicy},
+					Image: &v2alpha1.AgentImageConfig{Tag: "dev"},
 				},
 			},
 		},
@@ -306,6 +309,113 @@ func Test_privateActionRunnerFeature_RejectsSplitModeOnUnknownAgentVersion(t *te
 
 	err := f.ManageNodeAgent(fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{}))
 	require.ErrorContains(t, err, "split mode requires Agent >= 7.84.0-0")
+}
+
+func Test_privateActionRunnerFeature_SplitModeImageOverrides(t *testing.T) {
+	tests := []struct {
+		name         string
+		image        v2alpha1.AgentImageConfig
+		experimental string
+		wantVersion  string
+		wantError    bool
+	}{
+		{
+			name:         "older PAR override",
+			image:        v2alpha1.AgentImageConfig{Tag: "7.84.0"},
+			experimental: `{"private-action-runner":{"tag":"7.83.0"}}`,
+			wantVersion:  "7.83.0", wantError: true,
+		},
+		{
+			name:         "newer PAR override",
+			image:        v2alpha1.AgentImageConfig{Tag: "7.83.0"},
+			experimental: `{"private-action-runner":{"tag":"7.84.0"}}`,
+			wantVersion:  "7.84.0",
+		},
+		{
+			name:         "full image name takes precedence over tag",
+			image:        v2alpha1.AgentImageConfig{Tag: "7.84.0"},
+			experimental: `{"private-action-runner":{"name":"example.com/agent:7.83.0","tag":"7.84.0"}}`,
+			wantVersion:  "7.83.0", wantError: true,
+		},
+		{
+			name:         "name-only override inherits component tag",
+			image:        v2alpha1.AgentImageConfig{Tag: "7.84.0"},
+			experimental: `{"private-action-runner":{"name":"custom-agent"}}`,
+			wantVersion:  "7.84.0",
+		},
+		{
+			name:         "unrelated container override",
+			image:        v2alpha1.AgentImageConfig{Tag: "7.83.0"},
+			experimental: `{"agent":{"tag":"7.84.0"}}`,
+			wantVersion:  "7.83.0", wantError: true,
+		},
+		{
+			name:         "malformed override is ignored",
+			image:        v2alpha1.AgentImageConfig{Tag: "7.84.0"},
+			experimental: `not-json`,
+			wantVersion:  "7.84.0",
+		},
+		{
+			name:         "unknown PAR version is rejected",
+			image:        v2alpha1.AgentImageConfig{Tag: "7.84.0"},
+			experimental: `{"private-action-runner":{"tag":"dev"}}`,
+			wantVersion:  "dev", wantError: true,
+		},
+		{
+			name:        "partial component override inherits default version",
+			image:       v2alpha1.AgentImageConfig{PullPolicy: new(corev1.PullAlways)},
+			wantVersion: images.AgentLatestVersion,
+			wantError:   !pkgutils.IsAboveMinVersion(images.AgentLatestVersion, privateActionRunnerSplitMinVersion, new(false)),
+		},
+		{
+			name:         "partial component override with newer PAR",
+			image:        v2alpha1.AgentImageConfig{PullPolicy: new(corev1.PullAlways)},
+			experimental: `{"private-action-runner":{"tag":"7.84.0"}}`,
+			wantVersion:  "7.84.0",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dda := &v2alpha1.DatadogAgent{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-dda",
+					Annotations: map[string]string{
+						"agent.datadoghq.com/private-action-runner-enabled":       "true",
+						"agent.datadoghq.com/private-action-runner-split-enabled": "true",
+						"experimental.agent.datadoghq.com/image-override-config":  tt.experimental,
+					},
+				},
+				Spec: v2alpha1.DatadogAgentSpec{
+					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+						v2alpha1.NodeAgentComponentName: {Image: &tt.image},
+					},
+				},
+			}
+			f := buildPrivateActionRunnerFeature(nil)
+			f.Configure(dda, &dda.Spec, nil)
+			managers := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{Containers: []corev1.Container{{
+					Name:  string(apicommon.PrivateActionRunnerContainerName),
+					Image: images.GetLatestAgentImage(),
+				}}},
+			})
+
+			err := f.ManageNodeAgent(managers)
+			if tt.wantError {
+				require.ErrorContains(t, err, "split mode requires Agent >= 7.84.0-0")
+				require.ErrorContains(t, err, "got "+tt.wantVersion)
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, []string{privateActionRunnerEntrypoint}, managers.PodTemplateSpec().Spec.Containers[0].Command)
+			}
+
+			container := &managers.PodTemplateSpec().Spec.Containers[0]
+			container.Image = images.OverrideAgentImage(container.Image, &tt.image)
+			experimental.ApplyExperimentalOverrides(logr.Discard(), dda, managers)
+			assert.Equal(t, tt.wantVersion, common.GetAgentVersionFromImage(v2alpha1.AgentImageConfig{Name: container.Image}))
+		})
+	}
 }
 
 // Test_privateActionRunnerFeature_ProfileDDAI_ConfigMapNames verifies that when PAR is
