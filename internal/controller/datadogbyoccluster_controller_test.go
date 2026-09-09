@@ -114,7 +114,7 @@ var _ = Describe("DatadogBYOCCluster Controller", func() {
 							Status:             metav1.ConditionTrue,
 							ObservedGeneration: 1,
 							Reason:             "Resolved",
-							Message:            "Release artifact resolved successfully",
+							Message:            "Workload images resolved successfully",
 						},
 						{
 							Type:               conditionReconciled,
