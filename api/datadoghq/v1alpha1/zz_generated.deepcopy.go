@@ -753,7 +753,7 @@ func (in *DatadogBYOCClusterEmbeddedObjectMetadata) DeepCopy() *DatadogBYOCClust
 func (in *DatadogBYOCClusterEmbeddedPersistentVolumeClaim) DeepCopyInto(out *DatadogBYOCClusterEmbeddedPersistentVolumeClaim) {
 	*out = *in
 	out.TypeMeta = in.TypeMeta
-	in.DatadogBYOCClusterEmbeddedObjectMetadata.DeepCopyInto(&out.DatadogBYOCClusterEmbeddedObjectMetadata)
+	in.Metadata.DeepCopyInto(&out.Metadata)
 	in.Spec.DeepCopyInto(&out.Spec)
 }
 

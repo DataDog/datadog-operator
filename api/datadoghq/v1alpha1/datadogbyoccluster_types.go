@@ -436,7 +436,7 @@ type DatadogBYOCClusterEmbeddedPersistentVolumeClaim struct {
 
 	// Metadata contains metadata relevant to the embedded PersistentVolumeClaim.
 	// +optional
-	DatadogBYOCClusterEmbeddedObjectMetadata `json:"metadata,omitempty"`
+	Metadata DatadogBYOCClusterEmbeddedObjectMetadata `json:"metadata,omitempty"`
 
 	// Spec defines the desired characteristics of the persistent volume claim.
 	// +optional
