@@ -220,6 +220,7 @@ spec:
                             value is the version to use. If omitted, all default supported SDKs will be added to the application runtime.
                           type: object
                         enabled:
+                          default: true
                           description: |-
                             Enabled turns on APM via Single Step Instrumentation to automatically install the Datadog SDKs for supported
                             languages with no additional configuration required.

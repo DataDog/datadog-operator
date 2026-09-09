@@ -195,6 +195,7 @@
                   "type": "object"
                 },
                 "enabled": {
+                  "default": true,
                   "description": "Enabled turns on APM via Single Step Instrumentation to automatically install the Datadog SDKs for supported\nlanguages with no additional configuration required.",
                   "type": "boolean"
                 }

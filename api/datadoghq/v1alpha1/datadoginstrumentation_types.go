@@ -42,7 +42,9 @@ type DatadogInstrumentationConfig struct {
 type DatadogInstrumentationAPMConfig struct {
 	// Enabled turns on APM via Single Step Instrumentation to automatically install the Datadog SDKs for supported
 	// languages with no additional configuration required.
-	Enabled bool `json:"enabled,omitempty"`
+	// +optional
+	// +kubebuilder:default=true
+	Enabled bool `json:"enabled"`
 	// TracerVersions is a map of SDK versions to install for target workload. The key is the language name and the
 	// value is the version to use. If omitted, all default supported SDKs will be added to the application runtime.
 	// +optional
