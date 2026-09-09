@@ -1,0 +1,26 @@
+apiVersion: datadoghq.com/v2alpha1
+kind: DatadogAgent
+metadata:
+  namespace: e2e-operator
+  labels:
+    agent.datadoghq.com/e2e-test: datadog-agent-dsd-udp-single-adp-default
+spec:
+  global:
+    containerStrategy: single
+    registry: public.ecr.aws/datadog
+    kubelet:
+      tlsVerify: false
+  override:
+    nodeAgent:
+      image:
+        tag: 7.83.0-rc.5
+  features:
+    # Service Discovery requires the privileged System Probe container, which is incompatible with this strategy.
+    serviceDiscovery:
+      enabled: false
+    dogstatsd:
+      hostPortConfig:
+        enabled: true
+        hostPort: 8125
+      unixDomainSocketConfig:
+        enabled: false

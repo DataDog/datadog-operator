@@ -8,7 +8,11 @@ package dataplane
 import (
 	"testing"
 
+	"github.com/go-logr/zapr"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
+	"go.uber.org/zap/zaptest/observer"
 	corev1 "k8s.io/api/core/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
@@ -29,6 +33,14 @@ func Test_dataPlaneFeature(t *testing.T) {
 		Name:  common.DDDataPlaneDogstatsdEnabled,
 		Value: "true",
 	}
+	dataPlaneRemoteAgentEnabledEnvVar := &corev1.EnvVar{
+		Name:  common.DDDataPlaneRemoteAgentEnabled,
+		Value: "true",
+	}
+	dataPlaneUseNewConfigStreamEndpointEnvVar := &corev1.EnvVar{
+		Name:  common.DDDataPlaneUseNewConfigStreamEndpoint,
+		Value: "true",
+	}
 
 	tests := test.FeatureTestSuite{
 		{
@@ -46,18 +58,109 @@ func Test_dataPlaneFeature(t *testing.T) {
 			),
 		},
 		{
-			Name: "data plane disabled (forced via annotation)",
+			Name: "data plane enabled by feature default",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithNodeAgentImage("agent:7.83.0-rc.5").
+				BuildWithDefaults(),
+			FeatureOptions: &feature.Options{
+				DefaultDataPlaneEnabled: true,
+			},
+			WantConfigure: true,
+			Agent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+					mgr := mgrInterface.(*fake.PodTemplateManagers)
+					agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
+					assert.Contains(t, agentEnvVars, dataPlaneEnabledEnvVar, "DD_DATA_PLANE_ENABLED should be set when Data Plane is enabled by the feature default")
+
+					adpEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.AgentDataPlaneContainerName]
+					assert.Contains(t, adpEnvVars, dataPlaneRemoteAgentEnabledEnvVar, "DD_DATA_PLANE_REMOTE_AGENT_ENABLED should be set on Agent Data Plane when Data Plane is enabled by the feature default")
+					assert.Contains(t, adpEnvVars, dataPlaneUseNewConfigStreamEndpointEnvVar, "DD_DATA_PLANE_USE_NEW_CONFIG_STREAM_ENDPOINT should be set on Agent Data Plane when Data Plane is enabled by the feature default")
+
+					dda := testutils.NewDatadogAgentBuilder().WithNodeAgentImage("agent:7.83.0-rc.5").BuildWithDefaults()
+					requiredComponents := buildDataPlaneFeature(&feature.Options{DefaultDataPlaneEnabled: true}).Configure(dda, &dda.Spec, dda.Status.RemoteConfigConfiguration)
+					assert.Contains(t, requiredComponents.Agent.Containers, apicommon.AgentDataPlaneContainerName, "Agent Data Plane should be a required Agent component when Data Plane is enabled by the feature default")
+				},
+			),
+		},
+		{
+			Name: "data plane enabled by feature default with single container strategy",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithSingleContainerStrategy(true).
+				WithDataPlaneDogstatsdEnabled(true).
+				WithNodeAgentImage("agent:7.83.0-rc.5").
+				BuildWithDefaults(),
+			FeatureOptions: &feature.Options{
+				DefaultDataPlaneEnabled: true,
+			},
+			WantConfigure: true,
+			Agent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+					mgr := mgrInterface.(*fake.PodTemplateManagers)
+					singleAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.UnprivilegedSingleAgentContainerName]
+					assert.ElementsMatch(t, []*corev1.EnvVar{
+						dataPlaneEnabledEnvVar,
+						dataPlaneDogstatsdEnabledEnvVar,
+						dataPlaneRemoteAgentEnabledEnvVar,
+						dataPlaneUseNewConfigStreamEndpointEnvVar,
+					}, singleAgentEnvVars, "all Data Plane interaction flags should be set on the shared single Agent container")
+					assert.Empty(t, mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName], "single container strategy should not mutate the Core Agent container")
+					assert.Empty(t, mgr.EnvVarMgr.EnvVarsByC[apicommon.AgentDataPlaneContainerName], "single container strategy should not mutate the Agent Data Plane container")
+				},
+			),
+		},
+		{
+			Name: "data plane explicitly disabled via CRD overrides feature default",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithDataPlaneEnabled(false).
+				BuildWithDefaults(),
+			FeatureOptions: &feature.Options{
+				DefaultDataPlaneEnabled: true,
+			},
+			WantConfigure: false,
+			Agent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+					mgr := mgrInterface.(*fake.PodTemplateManagers)
+					agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
+					assert.NotContains(t, agentEnvVars, dataPlaneEnabledEnvVar, "DD_DATA_PLANE_ENABLED should not be set when the CRD explicitly disables Data Plane")
+				},
+			),
+		},
+		{
+			Name: "data plane disabled via legacy annotation overrides feature default",
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithAnnotations(map[string]string{
 					utils.EnableADPAnnotation: "false",
 				}).
 				BuildWithDefaults(),
+			FeatureOptions: &feature.Options{
+				DefaultDataPlaneEnabled: true,
+			},
 			WantConfigure: false,
 			Agent: test.NewDefaultComponentTest().WithWantFunc(
 				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					mgr := mgrInterface.(*fake.PodTemplateManagers)
 					agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
 					assert.NotContains(t, agentEnvVars, dataPlaneEnabledEnvVar, "DD_DATA_PLANE_ENABLED should not be set when Data Plane is not enabled")
+				},
+			),
+		},
+		{
+			Name: "data plane CRD enable overrides legacy disable annotation",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithDataPlaneEnabled(true).
+				WithAnnotations(map[string]string{
+					utils.EnableADPAnnotation: "false",
+				}).
+				BuildWithDefaults(),
+			FeatureOptions: &feature.Options{
+				DefaultDataPlaneEnabled: true,
+			},
+			WantConfigure: true,
+			Agent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+					mgr := mgrInterface.(*fake.PodTemplateManagers)
+					agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
+					assert.Contains(t, agentEnvVars, dataPlaneEnabledEnvVar, "DD_DATA_PLANE_ENABLED should be set when the CRD explicitly enables Data Plane")
 				},
 			),
 		},
@@ -127,4 +230,38 @@ func Test_dataPlaneFeature(t *testing.T) {
 	}
 
 	tests.Run(t, buildDataPlaneFeature)
+}
+
+func TestDataPlaneFeatureManageSingleContainerNodeAgent(t *testing.T) {
+	managers := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{})
+	feature := &dataPlaneFeature{enabled: true, dogstatsdEnabled: true}
+
+	assert.NoError(t, feature.ManageSingleContainerNodeAgent(managers))
+	assert.ElementsMatch(t, []*corev1.EnvVar{
+		{Name: common.DDDataPlaneEnabled, Value: "true"},
+		{Name: common.DDDataPlaneRemoteAgentEnabled, Value: "true"},
+		{Name: common.DDDataPlaneUseNewConfigStreamEndpoint, Value: "true"},
+		{Name: common.DDDataPlaneDogstatsdEnabled, Value: "true"},
+	}, managers.EnvVarMgr.EnvVarsByC[apicommon.UnprivilegedSingleAgentContainerName])
+
+	disabledManagers := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{})
+	disabledFeature := &dataPlaneFeature{}
+	assert.NoError(t, disabledFeature.ManageSingleContainerNodeAgent(disabledManagers))
+	assert.Empty(t, disabledManagers.EnvVarMgr.EnvVarsByC[apicommon.UnprivilegedSingleAgentContainerName])
+}
+
+func TestDataPlaneFeatureLogsLegacyAnnotationDeprecation(t *testing.T) {
+	for _, annotationValue := range []string{"true", "false"} {
+		t.Run(annotationValue, func(t *testing.T) {
+			core, logs := observer.New(zapcore.InfoLevel)
+			feature := buildDataPlaneFeature(&feature.Options{Logger: zapr.NewLogger(zap.New(core))}).(*dataPlaneFeature)
+			dda := testutils.NewDatadogAgentBuilder().
+				WithAnnotations(map[string]string{utils.EnableADPAnnotation: annotationValue}).
+				BuildWithDefaults()
+
+			feature.Configure(dda, &dda.Spec, nil)
+
+			assert.Len(t, logs.FilterMessage("DEPRECATION WARNING: annotation 'agent.datadoghq.com/adp-enabled' is deprecated; use 'spec.features.dataPlane.enabled' instead").All(), 1)
+		})
+	}
 }

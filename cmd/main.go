@@ -139,6 +139,7 @@ type options struct {
 	untaintControllerEnabled            bool
 	untaintControllerWaitForCSIDriver   bool
 	rolloutOnConfigMapChangeEnabled     bool
+	defaultDataPlaneLinuxEnabled        bool
 
 	// Secret Backend options
 	secretBackendCommand  string
@@ -188,6 +189,7 @@ func (opts *options) Parse() {
 		"When true (requires --untaintControllerEnabled), the Untaint controller removes the startup taint only after both the node Agent and Datadog CSI node-server pods are Ready. Requires Pod watch coverage of CSI namespaces (DD_CSIDRIVER_WATCH_NAMESPACE).")
 	flag.BoolVar(&opts.rolloutOnConfigMapChangeEnabled, "rolloutOnConfigMapChangeEnabled", true,
 		"Automatically roll out Agent, Cluster Agent, Cluster Check Runner, and OTel Agent Gateway workloads when a ConfigMap referenced by their pod template changes content out-of-band")
+	flag.BoolVar(&opts.defaultDataPlaneLinuxEnabled, "defaultDataPlaneLinuxEnabled", false, "Enable the Agent Data Plane by default on Linux")
 
 	// DatadogAgentInternal
 	flag.BoolVar(&opts.createControllerRevisions, "createControllerRevisions", false, "Enable creation of ControllerRevision snapshots on each DDA spec change")
@@ -223,6 +225,7 @@ func (opts *options) Parse() {
 		boolEnv(&opts.untaintControllerWaitForCSIDriver, "DD_UNTAINT_CONTROLLER_WAIT_FOR_CSI_DRIVER"),
 		boolEnv(&opts.createControllerRevisions, "DD_CREATE_CONTROLLER_REVISIONS"),
 		boolEnv(&opts.rolloutOnConfigMapChangeEnabled, "DD_ROLLOUT_ON_CONFIGMAP_CHANGE_ENABLED"),
+		boolEnv(&opts.defaultDataPlaneLinuxEnabled, "DD_DEFAULT_DATA_PLANE_LINUX_ENABLED"),
 	})
 
 	// Parsing flags
@@ -501,6 +504,7 @@ func run(opts *options) error {
 		UntaintControllerEnabled:          opts.untaintControllerEnabled,
 		UntaintControllerWaitForCSIDriver: opts.untaintControllerWaitForCSIDriver,
 		RolloutOnConfigMapChangeEnabled:   opts.rolloutOnConfigMapChangeEnabled,
+		DefaultDataPlaneLinuxEnabled:      opts.defaultDataPlaneLinuxEnabled,
 		ClusterProviderDetector:           providerDetector,
 	}
 

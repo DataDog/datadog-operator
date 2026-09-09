@@ -477,6 +477,56 @@ serviceAccount:
 		}, 3*time.Minute, 10*time.Second, "DSD UDP with ADP: metrics not received by fakeintake")
 	})
 
+	// --- Subtest: DSD UDP, single-container ADP enabled by the Operator default ---
+	s.T().Run("Single-container DSD UDP uses the Operator ADP default", func(t *testing.T) {
+		ddaConfigPath, err := common.GetAbsPath(filepath.Join(common.ManifestsPath, "dogstatsd", "datadog-agent-dsd-udp-single-adp-default.yaml"))
+		assert.NoError(s.T(), err)
+		senderPath, err := common.GetAbsPath(filepath.Join(common.ManifestsPath, "dogstatsd", "dsd-udp-sender.yaml"))
+		assert.NoError(s.T(), err)
+
+		ddaOpts := append([]agentwithoperatorparams.Option{
+			agentwithoperatorparams.WithDDAConfig(agentwithoperatorparams.DDAConfig{
+				Name:         "dda-dsd-udp-single-adp-default",
+				YamlFilePath: ddaConfigPath,
+			}),
+		}, defaultDDAOpts...)
+
+		operatorOpts := append([]operatorparams.Option{}, defaultOperatorOpts...)
+		operatorOpts = append(operatorOpts, operatorparams.WithHelmValues(`env:
+  - name: DD_DEFAULT_DATA_PLANE_LINUX_ENABLED
+    value: "true"
+`))
+
+		provisionerOpts := []provisioners.KubernetesProvisionerOption{
+			provisioners.WithTestName("e2e-operator-dsd-udp-single-adp-default"),
+			provisioners.WithOperatorOptions(operatorOpts...),
+			provisioners.WithDDAOptions(ddaOpts...),
+			provisioners.WithYAMLWorkload(provisioners.YAMLWorkload{Name: "dsd-udp-sender", Path: senderPath}),
+			provisioners.WithLocal(s.local),
+		}
+		applyDDA("e2e-operator-dsd-udp-single-adp-default", provisionerOpts)
+
+		err = s.Env().FakeIntake.Client().FlushServerAndResetAggregators()
+		s.Assert().NoError(err)
+
+		agentSelector := common.NodeAgentSelector + ",agent.datadoghq.com/name=dda-dsd-udp-single-adp-default"
+
+		s.Assert().EventuallyWithTf(func(c *assert.CollectT) {
+			utils.VerifyAgentPods(s.T(), c, common.NamespaceName, s.Env().KubernetesCluster.Client(), agentSelector)
+
+			pods, err := s.Env().KubernetesCluster.Client().CoreV1().Pods(common.NamespaceName).List(
+				context.TODO(), metav1.ListOptions{LabelSelector: agentSelector})
+			if !assert.NoError(c, err) || !assert.Len(c, pods.Items, 1, "expected one single-container Agent pod") {
+				return
+			}
+			s.assertSingleContainerADPRuntime(c, pods.Items[0])
+		}, 5*time.Minute, 15*time.Second, "single-container DSD UDP ADP default runtime verification failed")
+
+		s.Assert().EventuallyWithTf(func(c *assert.CollectT) {
+			s.verifyDSDMetrics(c, "e2e.dsd.udp.counter")
+		}, 3*time.Minute, 10*time.Second, "single-container DSD UDP ADP default metrics not received by fakeintake")
+	})
+
 	// --- Subtest: DSD UDS, ADP disabled ---
 	s.T().Run("DSD UDS without ADP", func(t *testing.T) {
 		ddaConfigPath, err := common.GetAbsPath(filepath.Join(common.ManifestsPath, "dogstatsd", "datadog-agent-dsd-uds.yaml"))
@@ -664,6 +714,33 @@ func assertContainerDoesNotHaveHostPort(c *assert.CollectT, pod corev1.Pod, cont
 			return
 		}
 	}
+}
+
+func (s *k8sSuite) assertSingleContainerADPRuntime(c *assert.CollectT, pod corev1.Pod) {
+	if !assert.Len(c, pod.Spec.Containers, 1, "expected one Agent container") {
+		return
+	}
+
+	const containerName = "unprivileged-single-agent"
+	assertContainerPresent(c, pod, containerName)
+	for _, env := range []string{
+		"DD_DATA_PLANE_ENABLED",
+		"DD_DATA_PLANE_DOGSTATSD_ENABLED",
+		"DD_DATA_PLANE_REMOTE_AGENT_ENABLED",
+		"DD_DATA_PLANE_USE_NEW_CONFIG_STREAM_ENDPOINT",
+	} {
+		assertContainerHasEnvVar(c, pod, containerName, env, "true")
+	}
+	assertContainerHasUDPHostPort(c, pod, containerName, dsdPort)
+
+	socketOutput, socketErr, err := s.Env().KubernetesCluster.KubernetesClient.PodExec(
+		common.NamespaceName, pod.Name, containerName, []string{"sh", "-c", "ss -lunp 'sport = :8125'"})
+	if !assert.NoErrorf(c, err, "could not inspect UDP/8125 with ss: %s", strings.TrimSpace(strings.Join([]string{socketOutput, socketErr}, "\n"))) {
+		return
+	}
+	socketDetails := strings.TrimSpace(strings.Join([]string{socketOutput, socketErr}, "\n"))
+	assert.Contains(c, socketDetails, ":8125", "ss did not report UDP/8125")
+	assert.Contains(c, socketDetails, "agent-data-plan", "ss did not identify agent-data-plane as the UDP/8125 owner")
 }
 
 func assertContainerHasEnvVar(c *assert.CollectT, pod corev1.Pod, containerName, envName, envValue string) {
