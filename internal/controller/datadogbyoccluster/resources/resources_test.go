@@ -479,7 +479,7 @@ func TestBuildResources_Indexer(t *testing.T) {
 				Storage: &datadoghqv1alpha1.DatadogBYOCClusterStorageSpec{
 					VolumeClaimTemplate: &datadoghqv1alpha1.DatadogBYOCClusterEmbeddedPersistentVolumeClaim{
 						TypeMeta: metav1.TypeMeta{APIVersion: "v1", Kind: "PersistentVolumeClaim"},
-						DatadogBYOCClusterEmbeddedObjectMetadata: datadoghqv1alpha1.DatadogBYOCClusterEmbeddedObjectMetadata{
+						Metadata: datadoghqv1alpha1.DatadogBYOCClusterEmbeddedObjectMetadata{
 							Labels:      map[string]string{"storage": "indexer"},
 							Annotations: map[string]string{"example.com/storage": "indexer"},
 						},
@@ -530,7 +530,7 @@ func TestBuildResources_Indexer(t *testing.T) {
 			indexer: &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{
 				Storage: &datadoghqv1alpha1.DatadogBYOCClusterStorageSpec{
 					VolumeClaimTemplate: &datadoghqv1alpha1.DatadogBYOCClusterEmbeddedPersistentVolumeClaim{
-						DatadogBYOCClusterEmbeddedObjectMetadata: datadoghqv1alpha1.DatadogBYOCClusterEmbeddedObjectMetadata{
+						Metadata: datadoghqv1alpha1.DatadogBYOCClusterEmbeddedObjectMetadata{
 							Annotations: map[string]string{"example.com/defaulted": "true"},
 						},
 					},

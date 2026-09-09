@@ -150,7 +150,7 @@ func TestApplyIndexerDefaults(t *testing.T) {
 	}
 	customStorage := &datadoghqv1alpha1.DatadogBYOCClusterStorageSpec{
 		VolumeClaimTemplate: &datadoghqv1alpha1.DatadogBYOCClusterEmbeddedPersistentVolumeClaim{
-			DatadogBYOCClusterEmbeddedObjectMetadata: datadoghqv1alpha1.DatadogBYOCClusterEmbeddedObjectMetadata{
+			Metadata: datadoghqv1alpha1.DatadogBYOCClusterEmbeddedObjectMetadata{
 				Annotations: map[string]string{"example.com/storage": "custom"},
 			},
 			Spec: corev1.PersistentVolumeClaimSpec{

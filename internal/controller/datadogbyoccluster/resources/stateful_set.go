@@ -92,8 +92,8 @@ func (b statefulSetBuilder) values() (serviceValues, statefulSetValues, *hpaValu
 			TypeMeta: template.TypeMeta,
 			ObjectMeta: metav1.ObjectMeta{
 				Name:        "data",
-				Labels:      maps.Clone(template.Labels),
-				Annotations: maps.Clone(template.Annotations),
+				Labels:      maps.Clone(template.Metadata.Labels),
+				Annotations: maps.Clone(template.Metadata.Annotations),
 			},
 			Spec: *template.Spec.DeepCopy(),
 		}
