@@ -56,8 +56,13 @@ sed -i '' '/{{- define "policy.poddisruptionbudget.apiVersion" -}}/,/{{- end -}}
 # presence of gcr.io/datadoghq/operator in values.yaml may cause issues with add-on validation
 sed -i '' 's#gcr.io/datadoghq/operator#709825985650.dkr.ecr.us-east-1.amazonaws.com/datadog/operator#g' ./charts/operator-eks-addon/charts/datadog-operator/values.yaml
 
-# remove Helm lookup function usage
-sed -i '' 's#{{- \$list := lookup "v1" "ConfigMap" \$ns "" -}}#{{- $list := "" -}}#' ./charts/operator-eks-addon/charts/datadog-operator/templates/_helpers.tpl
+# remove Helm lookup function usage by replacing assignments to any variable with empty values
+OPERATOR_HELPERS="$CHART_DIR/charts/datadog-operator/templates/_helpers.tpl"
+sed -E -i '' 's#\{\{-[[:space:]]+(\$[[:alnum:]_]+)[[:space:]]+:=[[:space:]]+lookup[[:space:]][^}]+[[:space:]]+-\}\}#{{- \1 := "" -}}#g' "$OPERATOR_HELPERS"
+if grep -Eq '\{\{[^}]*[[:space:]]lookup[[:space:]]' "$OPERATOR_HELPERS"; then
+    echo "ERROR: Helm lookup function usage remains in $OPERATOR_HELPERS"
+    exit 1
+fi
 
 # template the chart with default values
 helm template operator-eks-addon ./charts/operator-eks-addon -n datadog-agent > addon_manifest.yaml
