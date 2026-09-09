@@ -28,6 +28,9 @@ spec:
       enabled: true
     tcpQueueLength:
       enabled: true
+    # system-probe container + debugfs volume
+    npm:
+      enabled: true
     # system-probe container + passwd/group/os-release volumes
     cws:
       enabled: true

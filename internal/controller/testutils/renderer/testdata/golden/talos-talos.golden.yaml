@@ -1123,7 +1123,7 @@ kind: DatadogAgentInternal
 metadata:
   annotations:
     agent.datadoghq.com/cluster-provider: talos
-    agent.datadoghq.com/ddaispechash: 786a2fc145d078289f3a2f641b4ef987
+    agent.datadoghq.com/ddaispechash: 20d067d3e296140be10e6836103e018e
   finalizers:
   - finalizer.datadoghq.com/datadogagentinternal
   labels:
@@ -1223,7 +1223,9 @@ spec:
     logCollection:
       enabled: false
     npm:
-      enabled: false
+      collectDNSStats: true
+      enableConntrack: true
+      enabled: true
     oomKill:
       enabled: true
     orchestratorExplorer:
@@ -1289,7 +1291,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: 791633150458499946625a867ac52ee2
+    agent.datadoghq.com/agentspechash: a96ea7bf5b521a555e0129844db87d9a
   labels:
     agent.datadoghq.com/component: agent
     agent.datadoghq.com/name: datadog-agent
@@ -1402,10 +1404,20 @@ spec:
           value: "true"
         - name: DD_PROCESS_CONFIG_PROCESS_COLLECTION_ENABLED
           value: "true"
-        - name: DD_SYSTEM_PROBE_CONFIG_ENABLE_OOM_KILL
+        - name: DD_SYSTEM_PROBE_NETWORK_ENABLED
+          value: "true"
+        - name: DD_SYSTEM_PROBE_ENABLED
           value: "true"
         - name: DD_SYSPROBE_SOCKET
           value: /var/run/sysprobe/sysprobe.sock
+        - name: DD_COLLECT_DNS_STATS
+          value: "true"
+        - name: DD_SYSTEM_PROBE_CONFIG_ENABLE_CONNTRACK
+          value: "true"
+        - name: DD_NETWORK_CONFIG_DIRECT_SEND
+          value: "false"
+        - name: DD_SYSTEM_PROBE_CONFIG_ENABLE_OOM_KILL
+          value: "true"
         - name: DD_ORCHESTRATOR_EXPLORER_ENABLED
           value: "true"
         - name: DD_ORCHESTRATOR_EXPLORER_CONTAINER_SCRUBBING_ENABLED
@@ -1742,10 +1754,20 @@ spec:
           value: /etc/datadog-agent/runtime-security.d
         - name: DD_DOGSTATSD_SOCKET
           value: /var/run/datadog/dsd.socket
-        - name: DD_SYSTEM_PROBE_CONFIG_ENABLE_OOM_KILL
+        - name: DD_SYSTEM_PROBE_NETWORK_ENABLED
+          value: "true"
+        - name: DD_SYSTEM_PROBE_ENABLED
           value: "true"
         - name: DD_SYSPROBE_SOCKET
           value: /var/run/sysprobe/sysprobe.sock
+        - name: DD_COLLECT_DNS_STATS
+          value: "true"
+        - name: DD_SYSTEM_PROBE_CONFIG_ENABLE_CONNTRACK
+          value: "true"
+        - name: DD_NETWORK_CONFIG_DIRECT_SEND
+          value: "false"
+        - name: DD_SYSTEM_PROBE_CONFIG_ENABLE_OOM_KILL
+          value: "true"
         - name: DD_REMOTE_CONFIGURATION_ENABLED
           value: "true"
         - name: DD_DISCOVERY_ENABLED
@@ -1803,6 +1825,99 @@ spec:
           readOnly: true
         - mountPath: /host/root
           name: hostroot
+          readOnly: true
+      - command:
+        - process-agent
+        - --cfgpath=/etc/datadog-agent/datadog.yaml
+        - --sysprobe-config=/etc/datadog-agent/system-probe.yaml
+        env:
+        - name: KUBERNETES
+          value: "yes"
+        - name: DD_CLUSTER_AGENT_ENABLED
+          value: "true"
+        - name: DD_CLUSTER_AGENT_KUBERNETES_SERVICE_NAME
+          value: datadog-agent-cluster-agent
+        - name: DD_KUBERNETES_USE_ENDPOINT_SLICES
+          value: "true"
+        - name: DD_CLUSTER_AGENT_TOKEN_NAME
+          value: datadog-agent-token
+        - name: DD_AUTH_TOKEN_FILE_PATH
+          value: /etc/datadog-agent/auth/token
+        - name: DD_KUBERNETES_KUBELET_HOST
+          valueFrom:
+            fieldRef:
+              fieldPath: status.hostIP
+        - name: DD_CLUSTER_NAME
+          value: test-cluster
+        - name: DD_SITE
+          value: datadoghq.com
+        - name: DD_LOG_LEVEL
+          value: info
+        - name: DD_API_KEY
+          valueFrom:
+            secretKeyRef:
+              key: api-key
+              name: datadog-secret
+        - name: DD_APP_KEY
+          valueFrom:
+            secretKeyRef:
+              key: app-key
+              name: datadog-secret
+        - name: DD_CLUSTER_AGENT_AUTH_TOKEN
+          valueFrom:
+            secretKeyRef:
+              key: token
+              name: datadog-agent-token
+        - name: DD_KUBELET_TLS_VERIFY
+          value: "false"
+        - name: DD_DOGSTATSD_SOCKET
+          value: /var/run/datadog/dsd.socket
+        - name: DD_PROCESS_CONFIG_RUN_IN_CORE_AGENT_ENABLED
+          value: "true"
+        - name: DD_SYSTEM_PROBE_NETWORK_ENABLED
+          value: "true"
+        - name: DD_SYSTEM_PROBE_ENABLED
+          value: "true"
+        - name: DD_SYSPROBE_SOCKET
+          value: /var/run/sysprobe/sysprobe.sock
+        - name: DD_COLLECT_DNS_STATS
+          value: "true"
+        - name: DD_SYSTEM_PROBE_CONFIG_ENABLE_CONNTRACK
+          value: "true"
+        - name: DD_NETWORK_CONFIG_DIRECT_SEND
+          value: "false"
+        - name: DD_SYSTEM_PROBE_EXTERNAL
+          value: "true"
+        - name: DD_REMOTE_CONFIGURATION_ENABLED
+          value: "true"
+        image: registry.datadoghq.com/agent:7.80.0
+        name: process-agent
+        resources: {}
+        securityContext:
+          readOnlyRootFilesystem: true
+        volumeMounts:
+        - mountPath: /var/log/datadog
+          name: logdatadog
+        - mountPath: /etc/datadog-agent/auth
+          name: datadog-agent-auth
+          readOnly: true
+        - mountPath: /etc/datadog-agent
+          name: config
+        - mountPath: /var/run/datadog
+          name: dsdsocket
+        - mountPath: /host/var/run
+          name: runtimesocketdir
+          readOnly: true
+        - mountPath: /host/proc
+          name: procdir
+          readOnly: true
+        - mountPath: /tmp
+          name: tmpdir
+        - mountPath: /host/sys/fs/cgroup
+          name: cgroups
+          readOnly: true
+        - mountPath: /var/run/sysprobe
+          name: sysprobe-socket-dir
           readOnly: true
       hostPID: true
       initContainers:
