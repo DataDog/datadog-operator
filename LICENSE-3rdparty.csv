@@ -148,6 +148,7 @@ core,github.com/hashicorp/go-cleanhttp,MPL-2.0
 core,github.com/hashicorp/go-multierror,MPL-2.0
 core,github.com/hashicorp/go-retryablehttp,MPL-2.0
 core,github.com/huandu/xstrings,MIT
+core,github.com/imdario/mergo,BSD-3-Clause
 core,github.com/inconshreveable/mousetrap,Apache-2.0
 core,github.com/jmoiron/sqlx,MIT
 core,github.com/json-iterator/go,MIT
