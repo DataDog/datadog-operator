@@ -25,6 +25,7 @@ func buildHandlers(clients *datadogclient.GenericClients) map[v1alpha1.Supported
 		v1alpha1.Notebook:                &NotebookHandler{client: clients.NotebooksClient},
 		v1alpha1.SLO:                     &SLOHandler{client: clients.SLOsClient},
 		v1alpha1.SLOCorrection:           &SLOCorrectionHandler{client: clients.SLOCorrectionsClient},
+		v1alpha1.SoftwareCatalogEntity:   &SoftwareCatalogEntityHandler{client: clients.SoftwareCatalogClient},
 		v1alpha1.SyntheticsAPITest:       &SyntheticsAPITestHandler{client: clients.SyntheticsClient},
 		v1alpha1.SyntheticsBrowserTest:   &SyntheticsBrowserTestHandler{client: clients.SyntheticsClient},
 	}
