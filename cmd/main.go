@@ -338,16 +338,8 @@ func run(opts *options) error {
 	}
 
 	// Dispatch CLI flags to each package
-	secrets.SetSecretBackendCommand(opts.secretBackendCommand)
-	secrets.SetSecretBackendArgs(opts.secretBackendArgs)
-	secrets.SetSecretBackendType(opts.secretBackendType)
-	if opts.secretBackendConfig != "" {
-		backendConfig, err := parseSecretBackendConfig(opts.secretBackendConfig)
-		if err != nil {
-			setupLog.Error(err, "Invalid -secretBackendConfig JSON, ignoring")
-		} else {
-			secrets.SetSecretBackendConfig(backendConfig)
-		}
+	if err := configureSecretBackend(opts); err != nil {
+		setupLog.Error(err, "Invalid -secretBackendConfig JSON, ignoring")
 	}
 
 	renewDeadline := opts.leaderElectionLeaseDuration / 2
@@ -572,6 +564,22 @@ func parseSecretBackendConfig(raw string) (map[string]any, error) {
 	var config map[string]any
 	err := json.Unmarshal([]byte(raw), &config)
 	return config, err
+}
+
+func configureSecretBackend(opts *options) error {
+	secrets.SetSecretBackendCommand(opts.secretBackendCommand)
+	secrets.SetSecretBackendArgs(opts.secretBackendArgs)
+	secrets.SetSecretBackendType(opts.secretBackendType)
+	if opts.secretBackendConfig == "" {
+		return nil
+	}
+
+	backendConfig, err := parseSecretBackendConfig(opts.secretBackendConfig)
+	if err != nil {
+		return err
+	}
+	secrets.SetSecretBackendConfig(backendConfig)
+	return nil
 }
 
 func getVersionAndPlatformInfo(configCopy *rest.Config) (*apimversion.Info, kubernetes.PlatformInfo, error) {
