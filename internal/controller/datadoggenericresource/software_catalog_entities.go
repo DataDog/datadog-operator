@@ -84,7 +84,7 @@ func (h *SoftwareCatalogEntityHandler) updateResource(auth context.Context, inst
 		// Not a live API error, but treated as one of the same shape (permanent, 400-equivalent) so the
 		// reconciler backs off to forceSyncPeriod instead of retrying every few seconds forever: this
 		// condition never resolves on its own until the user edits the spec back or deletes the CR.
-		immutableErr := fmt.Errorf("cannot update software catalog entity: identity fields kind/metadata.name/metadata.namespace are immutable (was %s/%s/%s, spec now has %s/%s/%s); delete and recreate the resource instead",
+		immutableErr := fmt.Errorf("cannot update software catalog entity: identity fields metadata.namespace/kind/metadata.name are immutable (was %s/%s/%s, spec now has %s/%s/%s); delete and recreate the resource instead",
 			currentAttrs.GetNamespace(), currentAttrs.GetKind(), currentAttrs.GetName(), newIdentity.namespace, newIdentity.kind, newIdentity.name)
 		return ctrutils.NewAPIError(immutableErr, &http.Response{StatusCode: http.StatusBadRequest})
 	}
