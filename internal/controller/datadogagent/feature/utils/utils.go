@@ -46,6 +46,7 @@ const (
 	EnableNetworkCRDsAnnotation    = "agent.datadoghq.com/network-crds-enabled"
 
 	EnablePrivateActionRunnerAnnotation                     = "agent.datadoghq.com/private-action-runner-enabled"
+	EnablePrivateActionRunnerSplitAnnotation                = "agent.datadoghq.com/private-action-runner-split-enabled"
 	PrivateActionRunnerConfigDataAnnotation                 = "agent.datadoghq.com/private-action-runner-configdata"
 	EnablePrivateActionRunnerSystemdAnnotation              = "agent.datadoghq.com/private-action-runner-systemd-enabled"
 	PrivateActionRunnerSystemdJournalStorageAnnotation      = "agent.datadoghq.com/private-action-runner-systemd-journal-storage"

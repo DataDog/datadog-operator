@@ -126,7 +126,9 @@ type DatadogAgentReconciler struct {
 // +kubebuilder:rbac:groups=networking.gke.io,resources=gcptrafficextensions,verbs=get;create;delete
 
 // Orchestrator Explorer — network CRD collection
-// +kubebuilder:rbac:groups=gateway.networking.k8s.io,resources=gateways;httproutes;grpcroutes;tlsroutes;listenersets,verbs=list;watch
+// +kubebuilder:rbac:groups=gateway.networking.k8s.io,resources=gatewayclasses;gateways;httproutes;grpcroutes;backendtlspolicies;listenersets;referencegrants;tcproutes;tlsroutes;udproutes,verbs=list;watch
+// +kubebuilder:rbac:groups=inference.networking.k8s.io,resources=inferencepools,verbs=list;watch
+// +kubebuilder:rbac:groups=inference.networking.x-k8s.io,resources=inferencepools;inferencepoolimports,verbs=list;watch
 // +kubebuilder:rbac:groups=networking.istio.io,resources=virtualservices;gateways;destinationrules;serviceentries;sidecars,verbs=list;watch
 // +kubebuilder:rbac:groups=gateway.envoyproxy.io,resources=*,verbs=list;watch
 // +kubebuilder:rbac:groups=traefik.containo.us,resources=*,verbs=list;watch
