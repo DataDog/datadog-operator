@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/DataDog/datadog-operator/pkg/fleet"
+	"github.com/DataDog/datadog-operator/pkg/secrets"
 	"github.com/go-logr/zapr"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
@@ -170,6 +171,22 @@ func TestParseSecretBackendConfig(t *testing.T) {
 
 	_, err = parseSecretBackendConfig("not-json")
 	require.Error(t, err)
+}
+
+func TestConfigureSecretBackend(t *testing.T) {
+	t.Cleanup(func() {
+		secrets.SetSecretBackendCommand("")
+		secrets.SetSecretBackendArgs(nil)
+		secrets.SetSecretBackendType("")
+		secrets.SetSecretBackendConfig(map[string]any{})
+	})
+
+	require.NoError(t, configureSecretBackend(&options{}))
+	require.NoError(t, configureSecretBackend(&options{
+		secretBackendType:   "hashicorp.vault",
+		secretBackendConfig: `{"vault_session":{"vault_auth_type":"kubernetes"}}`,
+	}))
+	require.Error(t, configureSecretBackend(&options{secretBackendConfig: "not-json"}))
 }
 
 func TestOptionsParse_InvalidEnvLeavesDefault(t *testing.T) {
