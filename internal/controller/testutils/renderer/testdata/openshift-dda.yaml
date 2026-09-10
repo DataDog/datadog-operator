@@ -1,0 +1,36 @@
+apiVersion: datadoghq.com/v2alpha1
+kind: DatadogAgent
+metadata:
+  name: datadog-agent
+spec:
+  global:
+    credentials:
+      apiSecret:
+        secretName: datadog-secret
+        keyName: api-key
+      appSecret:
+        secretName: datadog-secret
+        keyName: app-key
+    clusterName: test-cluster
+    # Fixed so the generated cluster-agent token Secret is deterministic for golden files.
+    clusterAgentToken: golden-fixed-cluster-agent-token-0000000000
+    # NOTE: kubelet.tlsVerify is deliberately NOT set here. On OpenShift the operator
+    # is expected to default it to false (kubelet serving certs are often not signed
+    # by the cluster CA). Leaving it unset is what makes that injection visible in
+    # the golden diff.
+  features:
+    # APM and DogStatsD deliberately omit unixDomainSocketConfig/hostPortConfig so the
+    # defaults apply. On OpenShift the operator is expected to default UDS off and
+    # hostPort on, because UDS requires elevated SCC/SELinux on the *application*
+    # pods too and can block them from scheduling.
+    apm:
+      enabled: true
+    dogstatsd:
+      originDetectionEnabled: true
+    # log collection is what makes the SELinux spc_t injection necessary: the agent
+    # cannot read /var/log/pods under enforcing SELinux without it.
+    logCollection:
+      enabled: true
+      containerCollectAll: true
+    liveProcessCollection:
+      enabled: true
