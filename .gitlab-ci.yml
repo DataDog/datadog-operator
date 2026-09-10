@@ -1083,9 +1083,6 @@ publish_community_operators:
     - export GITHUB_TOKEN=$(cat token.txt)
     - git config --global user.email $GITLAB_USER_EMAIL
     - gh auth setup-git
-  script:
-    # Set version
-    - export VERSION=${CI_COMMIT_TAG:1} # vX.Y.Z => X.Y.Z
     # Build skopeo and install (needed for make bundle-redhat)
     # Note: skopeo apt package is only available in for ubuntu 20.10+
     # https://github.com/containers/skopeo/blob/main/install.md#ubuntu
@@ -1094,11 +1091,14 @@ publish_community_operators:
     - cd /tmp/skopeo && DISABLE_DOCS=1 make bin/skopeo
     - DISABLE_DOCS=1 make install
     - skopeo --version
+    - cd $CI_PROJECT_DIR
+  script:
+    # Set version
+    - export VERSION=${CI_COMMIT_TAG:1} # vX.Y.Z => X.Y.Z
     # Set up redhat registry access to generate bundle-redhat
     - mkdir ~/.redhat
     - aws ssm get-parameter --region us-east-1 --name
       ci.datadog-operator.redhat-registry-token --with-decryption --query "Parameter.Value" --out text > ~/.redhat/auths.json
-    - cd $CI_PROJECT_DIR
     - make bundle-redhat
     # push the updated bundle branches to the DataDog forks for each marketplace repo.
     # PRs against the upstream repos are not created here since our token only has
