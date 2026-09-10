@@ -1069,15 +1069,23 @@ publish_community_operators:
       aud: dd-octo-sts
   before_script:
     - make install-tools
-  script:
-    # Set version
-    - export VERSION=${CI_COMMIT_TAG:1} # vX.Y.Z => X.Y.Z
     # Install github-cli and skopeo deps
     - curl -fsSL "https://cli.github.com/packages/githubcli-archive-keyring.gpg" -o /usr/share/keyrings/githubcli-archive-keyring.gpg
     - echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" > /etc/apt/sources.list.d/github-cli.list
     - apt-get update -y
     - apt-get install -y gh libgpgme-dev libassuan-dev libbtrfs-dev libdevmapper-dev pkg-config
     - rm -rf /var/lib/apt/lists/*
+
+    # Setup github token for pushing to community operators
+    - dd-octo-sts version
+    - dd-octo-sts debug --scope DataDog --policy datadog-operator.publish-community-bundles
+    - dd-octo-sts token --scope DataDog --policy datadog-operator.publish-community-bundles > token.txt
+    - export GITHUB_TOKEN=$(cat token.txt)
+    - git config --global user.email $GITLAB_USER_EMAIL
+    - gh auth setup-git
+  script:
+    # Set version
+    - export VERSION=${CI_COMMIT_TAG:1} # vX.Y.Z => X.Y.Z
     # Build skopeo and install (needed for make bundle-redhat)
     # Note: skopeo apt package is only available in for ubuntu 20.10+
     # https://github.com/containers/skopeo/blob/main/install.md#ubuntu
@@ -1092,17 +1100,10 @@ publish_community_operators:
       ci.datadog-operator.redhat-registry-token --with-decryption --query "Parameter.Value" --out text > ~/.redhat/auths.json
     - cd $CI_PROJECT_DIR
     - make bundle-redhat
-
-    # Configure github-cli
-    - git config --global user.email $GITLAB_USER_EMAIL
-    # Use dd-octo-sts to get GitHub token
-    - dd-octo-sts version
-    - dd-octo-sts debug --scope DataDog --policy datadog-operator.publish-community-bundles
-    - dd-octo-sts token --scope DataDog --policy datadog-operator.publish-community-bundles > token.txt
-    - export GITHUB_TOKEN=$(cat token.txt)
-    - gh auth login --with-token < token.txt
-    - gh auth setup-git
-    # create pull request for each marketplace repo
+    # push the updated bundle branches to the DataDog forks for each marketplace repo.
+    # PRs against the upstream repos are not created here since our token only has
+    # perms scoped to the DataDog org; open those manually with CREATE_PR=true locally
+    # (see hack/publish-community-bundles.sh), or set CREATE_PR=true here once perms allow it.
     - make publish-community-bundles
   after_script:
     # Revoke the token after usage
