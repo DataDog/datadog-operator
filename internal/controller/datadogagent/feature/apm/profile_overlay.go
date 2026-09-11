@@ -181,6 +181,9 @@ func mergeSSI(dst, src *v2alpha1.SingleStepInstrumentation) error {
 	if err := mergeInjectionMode(dst, src); err != nil {
 		return err
 	}
+	if err := mergeOnDemand(dst, src); err != nil {
+		return err
+	}
 	if err := mergeSSITargets(&dst.Targets, src.Targets); err != nil {
 		return err
 	}
@@ -255,6 +258,13 @@ func mergeInjector(dst, src *v2alpha1.SingleStepInstrumentation) error {
 
 func mergeInjectionMode(dst, src *v2alpha1.SingleStepInstrumentation) error {
 	return mergeStringLikeField(&dst.InjectionMode, src.InjectionMode, "features.apm.instrumentation.injectionMode")
+}
+
+func mergeOnDemand(dst, src *v2alpha1.SingleStepInstrumentation) error {
+	if src.OnDemand == nil {
+		return nil
+	}
+	return mergeBoolPtr(&dst.OnDemand, src.OnDemand, "features.apm.instrumentation.onDemand")
 }
 
 // mergeBoolPtr copies an explicit profile bool into the shared config and
