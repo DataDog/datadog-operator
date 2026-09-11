@@ -77,8 +77,7 @@ func (f *checkRunnerFeature) ManageSingleContainerNodeAgent(managers feature.Pod
 		return nil
 	}
 
-	f.addCoreAgentEnv(managers, apicommon.UnprivilegedSingleAgentContainerName)
-	f.addCheckRunnerEnv(managers, apicommon.UnprivilegedSingleAgentContainerName)
+	f.configureNodeAgent(managers, apicommon.UnprivilegedSingleAgentContainerName, apicommon.UnprivilegedSingleAgentContainerName)
 
 	return nil
 }
@@ -89,34 +88,35 @@ func (f *checkRunnerFeature) ManageNodeAgent(managers feature.PodTemplateManager
 		return nil
 	}
 
-	f.addCoreAgentEnv(managers, apicommon.CoreAgentContainerName)
-	f.addCheckRunnerEnv(managers, apicommon.AgentCheckRunnerContainerName)
+	f.configureNodeAgent(managers, apicommon.CoreAgentContainerName, apicommon.AgentCheckRunnerContainerName)
 
 	return nil
 }
 
-// Enable the Check Runner by setting the DD_CHECK_RUNNER_ENABLED environment variable, which is then
-// retrived by ACR over RAR.
-func (f *checkRunnerFeature) addCoreAgentEnv(managers feature.PodTemplateManagers, container apicommon.AgentContainerName) {
-	managers.EnvVar().AddEnvVarToContainer(container, &corev1.EnvVar{
+// configureNodeAgent configures the Core Agent and Check Runner (ACR) containers of the Node Agent.
+// In SingleContainerStrategy, coreAgentContainer and checkRunnerContainer are the same container.
+func (f *checkRunnerFeature) configureNodeAgent(managers feature.PodTemplateManagers, coreAgentContainer, checkRunnerContainer apicommon.AgentContainerName) {
+	// Core Agent envs
+	// Enable the Check Runner by setting the DD_CHECK_RUNNER_ENABLED environment variable, which is then
+	// retrieved by ACR over RAR.
+	managers.EnvVar().AddEnvVarToContainer(coreAgentContainer, &corev1.EnvVar{
 		Name:  ddCheckRunnerEnabled,
 		Value: "true",
 	})
-}
 
-// Force sub-agent of the Core Agent mode and configure communication with the Data Plane.
-func (f *checkRunnerFeature) addCheckRunnerEnv(managers feature.PodTemplateManagers, container apicommon.AgentContainerName) {
-	managers.EnvVar().AddEnvVarToContainer(container, &corev1.EnvVar{
+	// ACR envs
+	// Force sub-agent of the Core Agent mode and configure communication with the Data Plane.
+	managers.EnvVar().AddEnvVarToContainer(checkRunnerContainer, &corev1.EnvVar{
 		Name:  ddCheckRunnerStandaloneMode,
 		Value: "false",
 	})
 
-	managers.EnvVar().AddEnvVarToContainer(container, &corev1.EnvVar{
+	managers.EnvVar().AddEnvVarToContainer(checkRunnerContainer, &corev1.EnvVar{
 		Name:  ddCheckRunnerEndpointsIPCEnabled,
 		Value: "true",
 	})
 
-	managers.EnvVar().AddEnvVarToContainer(container, &corev1.EnvVar{
+	managers.EnvVar().AddEnvVarToContainer(checkRunnerContainer, &corev1.EnvVar{
 		Name:  ddCheckRunnerEndpointsIPCEndpoint,
 		Value: "http://localhost:5105",
 	})
