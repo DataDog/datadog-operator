@@ -135,7 +135,7 @@ fi
 
 # Run go work sync
 echo "Running go work sync..."
-go work sync
+"$SCRIPTS_DIR/sync-go-work.sh"
 
 # Keep every module's go.sum valid when tested outside the workspace.
 echo "Running go mod tidy for root module..."
