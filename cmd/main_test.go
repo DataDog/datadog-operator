@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/DataDog/datadog-operator/pkg/fleet"
+	"github.com/DataDog/datadog-operator/pkg/secrets"
 	"github.com/go-logr/zapr"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
@@ -146,6 +147,46 @@ func TestOptionsParse_CLIOverridesEnv(t *testing.T) {
 	require.Equal(t, 2*time.Minute, opts.leaderElectionLeaseDuration)
 	require.False(t, opts.untaintControllerWaitForCSIDriver)
 	require.False(t, opts.defaultDataPlaneLinuxEnabled)
+}
+
+func TestOptionsParse_SecretBackendSGC(t *testing.T) {
+	resetCommandLine(t,
+		"-secretBackendType=hashicorp.vault",
+		`-secretBackendConfig={"vault_session":{"vault_auth_type":"kubernetes"}}`,
+	)
+
+	var opts options
+	opts.Parse()
+
+	require.Equal(t, "hashicorp.vault", opts.secretBackendType)
+	require.JSONEq(t, `{"vault_session":{"vault_auth_type":"kubernetes"}}`, opts.secretBackendConfig)
+}
+
+func TestParseSecretBackendConfig(t *testing.T) {
+	config, err := parseSecretBackendConfig(`{"vault_session":{"vault_auth_type":"kubernetes"}}`)
+	require.NoError(t, err)
+	require.Equal(t, map[string]any{
+		"vault_session": map[string]any{"vault_auth_type": "kubernetes"},
+	}, config)
+
+	_, err = parseSecretBackendConfig("not-json")
+	require.Error(t, err)
+}
+
+func TestConfigureSecretBackend(t *testing.T) {
+	t.Cleanup(func() {
+		secrets.SetSecretBackendCommand("")
+		secrets.SetSecretBackendArgs(nil)
+		secrets.SetSecretBackendType("")
+		secrets.SetSecretBackendConfig(map[string]any{})
+	})
+
+	require.NoError(t, configureSecretBackend(&options{}))
+	require.NoError(t, configureSecretBackend(&options{
+		secretBackendType:   "hashicorp.vault",
+		secretBackendConfig: `{"vault_session":{"vault_auth_type":"kubernetes"}}`,
+	}))
+	require.Error(t, configureSecretBackend(&options{secretBackendConfig: "not-json"}))
 }
 
 func TestOptionsParse_InvalidEnvLeavesDefault(t *testing.T) {
