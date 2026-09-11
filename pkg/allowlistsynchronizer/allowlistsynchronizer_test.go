@@ -27,8 +27,8 @@ func TestResolveWorkloadAllowlistVersion(t *testing.T) {
 	}{
 		{name: "empty falls back to default", input: "", expected: DefaultWorkloadAllowlistVersion},
 		{name: "well-formed override is preserved", input: "v2.5.0", expected: "v2.5.0"},
-		{name: "malformed falls back to default (no v prefix)", input: "1.0.5", expected: DefaultWorkloadAllowlistVersion},
-		{name: "malformed falls back to default (extra suffix)", input: "v1.0.5-alpha", expected: DefaultWorkloadAllowlistVersion},
+		{name: "malformed falls back to default (no v prefix)", input: "1.0.6", expected: DefaultWorkloadAllowlistVersion},
+		{name: "malformed falls back to default (extra suffix)", input: "v1.0.6-alpha", expected: DefaultWorkloadAllowlistVersion},
 		{name: "malformed falls back to default (random)", input: "garbage", expected: DefaultWorkloadAllowlistVersion},
 	}
 	for _, tt := range tests {
@@ -57,7 +57,7 @@ func TestResolveCSIWorkloadAllowlistVersion(t *testing.T) {
 
 func TestDefaultWorkloadAllowlistVersion(t *testing.T) {
 	// Sanity check — locks the default to a known value so a silent bump is caught.
-	assert.Equal(t, "v1.0.5", DefaultWorkloadAllowlistVersion)
+	assert.Equal(t, "v1.0.6", DefaultWorkloadAllowlistVersion)
 }
 
 func TestDefaultCSIWorkloadAllowlistVersion(t *testing.T) {
@@ -77,7 +77,7 @@ func TestApplyAllowlistSynchronizerResource_AllowlistPath(t *testing.T) {
 		{
 			name:       "default version",
 			version:    DefaultWorkloadAllowlistVersion,
-			expectPath: "Datadog/datadog/datadog-datadog-daemonset-exemption-v1.0.5.yaml",
+			expectPath: "Datadog/datadog/datadog-datadog-daemonset-exemption-v1.0.6.yaml",
 		},
 		{
 			name:       "user override",
@@ -177,12 +177,12 @@ func TestApplyAllowlistSynchronizerResource_UpdatesExistingResource(t *testing.T
 	}
 	c := fake.NewClientBuilder().WithScheme(scheme).WithObjects(existing).Build()
 
-	require.NoError(t, applyAllowlistSynchronizerResource(c, "v1.0.5", "default-foo", nil))
+	require.NoError(t, applyAllowlistSynchronizerResource(c, "v1.0.6", "default-foo", nil))
 
 	got := &AllowlistSynchronizer{}
 	require.NoError(t, c.Get(context.TODO(), client.ObjectKey{Name: "datadog-synchronizer"}, got))
 	require.Len(t, got.Spec.AllowlistPaths, 1)
-	assert.Equal(t, "Datadog/datadog/datadog-datadog-daemonset-exemption-v1.0.5.yaml", got.Spec.AllowlistPaths[0])
+	assert.Equal(t, "Datadog/datadog/datadog-datadog-daemonset-exemption-v1.0.6.yaml", got.Spec.AllowlistPaths[0])
 	assert.Equal(t, "default-foo", got.Labels[kubernetes.AppKubernetesPartOfLabelKey])
 	assert.Equal(t, "datadog-operator", got.Labels[kubernetes.AppKubernetesManageByLabelKey])
 	assert.Equal(t, "datadog-allowlist-synchronizer", got.Labels[kubernetes.AppKubernetesNameLabelKey])
@@ -233,7 +233,7 @@ func TestApplyAllowlistSynchronizerResource_CommonLabels(t *testing.T) {
 		"team":        "platform",
 		"cost-center": "ops",
 	}
-	require.NoError(t, applyAllowlistSynchronizerResource(c, "v1.0.5", "default-foo", commonLabels))
+	require.NoError(t, applyAllowlistSynchronizerResource(c, "v1.0.6", "default-foo", commonLabels))
 
 	got := &AllowlistSynchronizer{}
 	require.NoError(t, c.Get(context.TODO(), client.ObjectKey{Name: agentAllowlistSynchronizerName}, got))
@@ -254,7 +254,7 @@ func TestApplyAllowlistSynchronizerResource_CommonLabels_CannotOverrideOperatorK
 		kubernetes.AppKubernetesManageByLabelKey: "my-operator", // attempt override
 		"team":                                   "platform",
 	}
-	require.NoError(t, applyAllowlistSynchronizerResource(c, "v1.0.5", "default-foo", commonLabels))
+	require.NoError(t, applyAllowlistSynchronizerResource(c, "v1.0.6", "default-foo", commonLabels))
 
 	got := &AllowlistSynchronizer{}
 	require.NoError(t, c.Get(context.TODO(), client.ObjectKey{Name: agentAllowlistSynchronizerName}, got))

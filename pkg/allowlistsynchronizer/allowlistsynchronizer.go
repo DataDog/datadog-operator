@@ -18,9 +18,9 @@ import (
 )
 
 // DefaultWorkloadAllowlistVersion is the default version of the Datadog
-// daemonset WorkloadAllowlist. v1.0.5 includes the system-probe / NPM
+// daemonset WorkloadAllowlist. v1.0.6 includes the system-probe / NPM
 // exemptions required by the NPM feature on GKE Autopilot.
-const DefaultWorkloadAllowlistVersion = "v1.0.5"
+const DefaultWorkloadAllowlistVersion = "v1.0.6"
 
 // DefaultCSIWorkloadAllowlistVersion is the default version of the Datadog CSI
 // driver daemonset WorkloadAllowlist. v1.1.1 allows the registrar image from
