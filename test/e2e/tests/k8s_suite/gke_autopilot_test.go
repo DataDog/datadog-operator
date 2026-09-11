@@ -49,9 +49,6 @@ rbac:
 serviceAccount:
   create: false
   name: datadog-operator-e2e-controller-manager
-env:
-  - name: DD_DEFAULT_DATA_PLANE_LINUX_ENABLED
-    value: "true"
 `),
 	}
 

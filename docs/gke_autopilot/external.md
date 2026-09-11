@@ -82,7 +82,7 @@ By default, the Operator uses the built-in default allowlist version. To pin ano
 metadata:
   annotations:
     agent.datadoghq.com/cluster-provider: gke-autopilot
-    experimental.agent.datadoghq.com/autopilot-allowlist-version: "v1.0.5"
+    experimental.agent.datadoghq.com/autopilot-allowlist-version: "v1.0.6"
 ```
 
 The value must use the `vX.Y.Z` format. Malformed values are ignored and the default version is used.
