@@ -200,6 +200,12 @@ properties:
           - apiGroups:
             - apps
             resources:
+            - deployments/status
+            verbs:
+            - get
+          - apiGroups:
+            - apps
+            resources:
             - replicasets
             verbs:
             - get
@@ -382,7 +388,6 @@ properties:
             - datadoghq.com
             resources:
             - datadoginstrumentations
-            - extendeddaemonsetreplicasets
             - watermarkpodautoscalers
             verbs:
             - get
@@ -414,6 +419,15 @@ properties:
             - datadogpodautoscalers/status
             verbs:
             - '*'
+          - apiGroups:
+            - datadoghq.com
+            resources:
+            - extendeddaemonsetreplicasets
+            verbs:
+            - delete
+            - get
+            - list
+            - watch
           - apiGroups:
             - discovery.k8s.io
             resources:
