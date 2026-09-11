@@ -943,22 +943,20 @@ func volumeMountsForAgentDataPlane() []corev1.VolumeMount {
 	}
 }
 
-// volumeMountsForAgentCheckRunner returns the mounts the Check Runner needs. This is a
-// strict subset of the Data Plane's list: ACR reads datadog.yaml from the config volume and
-// authenticates to the Core Agent's IPC endpoint with the token and cert on the auth volume,
-// which is a pod-scoped emptyDir and therefore the only way to reach them from another
-// container. It talks to the kubelet over the projected service account token, so it needs
-// neither the runtime socket nor proc/cgroups.
-//
-// The tmp mount is not optional. The container runs with a read-only root filesystem, and the
-// Python checks ACR hosts allocate temporary files through the interpreter's own tempfile
-// module; without a writable /tmp the disk check fails every run with "No usable temporary
-// directory found".
+// volumeMountsForAgentCheckRunner returns the mounts the Check Runner needs, a subset of
+// the Data Plane's. ACR talks to the kubelet over the projected service account token, so
+// it needs neither the runtime socket nor proc/cgroups.
 func volumeMountsForAgentCheckRunner() []corev1.VolumeMount {
 	return []corev1.VolumeMount{
+		// Source of datadog.yaml.
 		common.GetVolumeMountForConfig(),
+		// Token and cert to authenticate to the Core Agent's IPC endpoint. The auth volume is a
+		// pod-scoped emptyDir, the only way to share them between containers.
 		common.GetVolumeMountForAuth(true),
 		common.GetVolumeMountForLogs(),
+		// Python checks allocate temporary files via tempfile and the root filesystem is
+		// read-only; without a writable /tmp the disk check fails with "No usable temporary
+		// directory found".
 		common.GetVolumeMountForTmp(),
 	}
 }
