@@ -8,6 +8,14 @@ package privateactionrunner
 const (
 	PrivateActionRunnerConfigPath = "/etc/datadog-agent/privateactionrunner.yaml"
 
+	privateActionRunnerSplitMinVersion = "7.84.0-0"
+	privateActionRunnerEntrypoint      = "/opt/entrypoints/privateactionrunner"
+	privateActionRunnerProbe           = "/par-probe.sh"
+	privateActionRunnerRunPath         = "/opt/datadog-agent/run"
+	privateActionRunnerSocketPath      = privateActionRunnerRunPath + "/dd-procmgrd.sock"
+	privateActionRunnerRunVolumeName   = "private-action-runner-run"
+	privateActionRunnerGracePeriod     = int64(190)
+
 	privateActionRunnerVolumeNameSuffix = "privateactionrunner-config"
 	privateActionRunnerFileName         = "privateactionrunner.yaml"
 	privateActionRunnerSuffix           = "private-action-runner"

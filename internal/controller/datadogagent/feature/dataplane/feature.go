@@ -29,6 +29,7 @@ func buildDataPlaneFeature(options *feature.Options) feature.Feature {
 
 	if options != nil {
 		f.logger = options.Logger
+		f.defaultEnabled = options.DefaultDataPlaneEnabled
 	}
 
 	return f
@@ -37,6 +38,7 @@ func buildDataPlaneFeature(options *feature.Options) feature.Feature {
 type dataPlaneFeature struct {
 	logger logr.Logger
 
+	defaultEnabled   bool
 	enabled          bool
 	dogstatsdEnabled bool
 }
@@ -49,11 +51,12 @@ func (f *dataPlaneFeature) ID() feature.IDType {
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *dataPlaneFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) feature.RequiredComponents {
 	// Check if the deprecated annotation is being used, and log a warning if so.
-	if featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnableADPAnnotation) {
+	if featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnableADPAnnotation) ||
+		featureutils.HasFeatureDisableAnnotation(dda, featureutils.EnableADPAnnotation) {
 		f.logger.Info("DEPRECATION WARNING: annotation 'agent.datadoghq.com/adp-enabled' is deprecated; use 'spec.features.dataPlane.enabled' instead")
 	}
 
-	f.enabled = featureutils.IsDataPlaneEnabled(dda, ddaSpec)
+	f.enabled = featureutils.IsDataPlaneEnabled(dda, ddaSpec, f.defaultEnabled)
 	f.dogstatsdEnabled = featureutils.IsDataPlaneDogstatsdEnabled(ddaSpec)
 
 	var reqComp feature.RequiredComponents
@@ -84,40 +87,40 @@ func (f *dataPlaneFeature) ManageClusterAgent(managers feature.PodTemplateManage
 // if SingleContainerStrategy is enabled and can be used with the configured feature set.
 // It should do nothing if the feature doesn't need to configure it.
 func (f *dataPlaneFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers) error {
-	return f.ManageNodeAgent(managers)
+	return f.manageNodeAgent(managers, apicommon.UnprivilegedSingleAgentContainerName, apicommon.UnprivilegedSingleAgentContainerName)
 }
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *dataPlaneFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
-	// We set the relevant configuration on the Core Agent specifically, which trickles down to the Data Plane when it
-	// queries the Core Agent for its configuration.
-	//
-	// It is also used to influence the Core Agent in terms of what it chooses to run itself or allow to be delegated to
-	// the data plane.
-	if f.enabled {
-		// When Data Plane is enabled, we signal this to the Core Agent by setting an environment variable.
-		managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
-			Name:  common.DDDataPlaneEnabled,
-			Value: "true",
-		})
+	return f.manageNodeAgent(managers, apicommon.CoreAgentContainerName, apicommon.AgentDataPlaneContainerName)
+}
 
-		// Configure the ADP container to fetch configuration from the Core Agent.
-		managers.EnvVar().AddEnvVarToContainer(apicommon.AgentDataPlaneContainerName, &corev1.EnvVar{
-			Name:  common.DDDataPlaneRemoteAgentEnabled,
-			Value: "true",
-		})
-		managers.EnvVar().AddEnvVarToContainer(apicommon.AgentDataPlaneContainerName, &corev1.EnvVar{
-			Name:  common.DDDataPlaneUseNewConfigStreamEndpoint,
-			Value: "true",
-		})
+func (f *dataPlaneFeature) manageNodeAgent(managers feature.PodTemplateManagers, coreContainer, dataPlaneContainer apicommon.AgentContainerName) error {
+	if !f.enabled {
+		return nil
+	}
 
-		if f.dogstatsdEnabled {
-			managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
-				Name:  common.DDDataPlaneDogstatsdEnabled,
-				Value: "true",
-			})
-		}
+	// Core Agent delegates the selected pipelines to ADP. In the single-container strategy,
+	// both processes inherit these settings from the shared container environment.
+	managers.EnvVar().AddEnvVarToContainer(coreContainer, &corev1.EnvVar{
+		Name:  common.DDDataPlaneEnabled,
+		Value: "true",
+	})
+	managers.EnvVar().AddEnvVarToContainer(dataPlaneContainer, &corev1.EnvVar{
+		Name:  common.DDDataPlaneRemoteAgentEnabled,
+		Value: "true",
+	})
+	managers.EnvVar().AddEnvVarToContainer(dataPlaneContainer, &corev1.EnvVar{
+		Name:  common.DDDataPlaneUseNewConfigStreamEndpoint,
+		Value: "true",
+	})
+
+	if f.dogstatsdEnabled {
+		managers.EnvVar().AddEnvVarToContainer(coreContainer, &corev1.EnvVar{
+			Name:  common.DDDataPlaneDogstatsdEnabled,
+			Value: "true",
+		})
 	}
 
 	return nil

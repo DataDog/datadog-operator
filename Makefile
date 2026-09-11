@@ -400,9 +400,11 @@ yaml-mapper: fmt lint
 check-operator: fmt lint
 	go build -ldflags '${LDFLAGS}' -o bin/check-operator ./cmd/check-operator/main.go
 
+CREATE_PR ?= false
+
 .PHONY: publish-community-bundles
-publish-community-bundles: ## Publish bundles to community repositories
-	hack/publish-community-bundles.sh
+publish-community-bundles: ## Publish bundles to community repositories (set CREATE_PR=true to also open PRs upstream)
+	CREATE_PR=$(CREATE_PR) hack/publish-community-bundles.sh
 
 .PHONY: annotate-gcp-manifest
 annotate-gcp-manifest: ## Annotate manifest for GCP marketplace

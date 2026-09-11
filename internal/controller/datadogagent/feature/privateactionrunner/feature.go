@@ -15,11 +15,14 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/experimental"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
 	"github.com/DataDog/datadog-operator/pkg/constants"
+	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	pkgutils "github.com/DataDog/datadog-operator/pkg/utils"
 )
 
 func init() {
@@ -42,6 +45,8 @@ type privateActionRunnerFeature struct {
 	logger                    logr.Logger
 	nodeEnabled               bool
 	nodeConfigData            string
+	splitEnabled              bool
+	splitConfigErr            error
 	systemdConfig             systemdHostConfig
 	systemdConfigErr          error
 	clusterConfig             *PrivateActionRunnerConfig
@@ -65,6 +70,19 @@ func (f *privateActionRunnerFeature) Configure(dda metav1.Object, ddaSpec *v2alp
 	if featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnablePrivateActionRunnerAnnotation) {
 		f.nodeEnabled = true
 		f.systemdConfig, f.systemdConfigErr = systemdHostConfigFromAnnotations(dda.GetAnnotations())
+		if featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnablePrivateActionRunnerSplitAnnotation) {
+			image := images.GetLatestAgentImage()
+			if override := ddaSpec.Override[v2alpha1.NodeAgentComponentName]; override != nil && override.Image != nil {
+				image = images.OverrideAgentImage(image, override.Image)
+			}
+			image, _ = experimental.ResolveImageOverride(dda, string(apicommon.PrivateActionRunnerContainerName), image)
+			version := common.GetAgentVersionFromImage(v2alpha1.AgentImageConfig{Name: image})
+			if pkgutils.IsAboveMinVersion(version, privateActionRunnerSplitMinVersion, new(false)) {
+				f.splitEnabled = true
+			} else {
+				f.splitConfigErr = fmt.Errorf("private action runner split mode requires Agent >= %s, got %s", privateActionRunnerSplitMinVersion, version)
+			}
+		}
 
 		// Use config data from annotation directly, or fall back to default
 		if configData, ok := featureutils.GetFeatureConfigAnnotation(dda, featureutils.PrivateActionRunnerConfigDataAnnotation); ok {
@@ -250,6 +268,9 @@ func (f *privateActionRunnerFeature) ManageNodeAgent(managers feature.PodTemplat
 	if f.systemdConfigErr != nil {
 		return fmt.Errorf("invalid Private Action Runner systemd configuration: %w", f.systemdConfigErr)
 	}
+	if f.splitConfigErr != nil {
+		return f.splitConfigErr
+	}
 
 	configMapName := f.getConfigMapName()
 
@@ -267,6 +288,45 @@ func (f *privateActionRunnerFeature) ManageNodeAgent(managers feature.PodTemplat
 		ReadOnly:  true,
 	}
 	managers.VolumeMount().AddVolumeMountToContainer(&volMount, apicommon.PrivateActionRunnerContainerName)
+
+	if f.splitEnabled {
+		runVolume := corev1.Volume{
+			Name: privateActionRunnerRunVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
+			},
+		}
+		managers.Volume().AddVolume(&runVolume)
+		managers.VolumeMount().AddVolumeMountToContainer(&corev1.VolumeMount{
+			Name:      privateActionRunnerRunVolumeName,
+			MountPath: privateActionRunnerRunPath,
+		}, apicommon.PrivateActionRunnerContainerName)
+
+		for _, env := range []*corev1.EnvVar{
+			{Name: "DD_PRIVATE_ACTION_RUNNER_SPLIT_ENABLED", Value: "true"},
+			{Name: "DD_PRIVATE_ACTION_RUNNER_EXTRA_CONFIG_PATH", Value: PrivateActionRunnerConfigPath},
+			{Name: "DD_PM_SOCKET_PATH", Value: privateActionRunnerSocketPath},
+		} {
+			managers.EnvVar().AddEnvVarToContainer(apicommon.PrivateActionRunnerContainerName, env)
+		}
+
+		podTemplate := managers.PodTemplateSpec()
+		if podTemplate.Spec.TerminationGracePeriodSeconds == nil || *podTemplate.Spec.TerminationGracePeriodSeconds < privateActionRunnerGracePeriod {
+			podTemplate.Spec.TerminationGracePeriodSeconds = new(privateActionRunnerGracePeriod)
+		}
+		for i := range podTemplate.Spec.Containers {
+			if podTemplate.Spec.Containers[i].Name == string(apicommon.PrivateActionRunnerContainerName) {
+				podTemplate.Spec.Containers[i].Command = []string{privateActionRunnerEntrypoint}
+				podTemplate.Spec.Containers[i].Args = nil
+				podTemplate.Spec.Containers[i].ReadinessProbe = &corev1.Probe{
+					ProbeHandler: corev1.ProbeHandler{
+						Exec: &corev1.ExecAction{Command: []string{privateActionRunnerProbe}},
+					},
+				}
+				break
+			}
+		}
+	}
 
 	// procdir volume mount
 	procdirVol, procdirVolMount := volume.GetVolumes(common.ProcdirVolumeName, common.ProcdirHostPath, common.ProcdirMountPath, true)
