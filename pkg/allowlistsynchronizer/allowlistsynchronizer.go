@@ -86,6 +86,13 @@ func resolveCSIWorkloadAllowlistVersion(version string) string {
 	return resolveWorkloadAllowlistVersionWithDefault(version, DefaultCSIWorkloadAllowlistVersion)
 }
 
+// WorkloadAllowlistName returns the GKE WorkloadAllowlist resource name for a
+// requested Agent allowlist version. Empty or malformed versions resolve to the
+// Operator default.
+func WorkloadAllowlistName(version string) string {
+	return fmt.Sprintf("datadog-datadog-daemonset-exemption-%s", resolveWorkloadAllowlistVersion(version))
+}
+
 func resolveWorkloadAllowlistVersionWithDefault(version, defaultVersion string) string {
 	if version == "" {
 		return defaultVersion
@@ -103,7 +110,7 @@ func applyAllowlistSynchronizerResource(k8sClient client.Client, version, partOf
 		k8sClient,
 		agentAllowlistSynchronizerName,
 		agentAllowlistAppNameLabel,
-		[]string{fmt.Sprintf("Datadog/datadog/datadog-datadog-daemonset-exemption-%s.yaml", version)},
+		[]string{fmt.Sprintf("Datadog/datadog/%s.yaml", WorkloadAllowlistName(version))},
 		partOfLabel,
 		commonLabels,
 	)

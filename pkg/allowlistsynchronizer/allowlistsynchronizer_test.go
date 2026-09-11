@@ -60,6 +60,23 @@ func TestDefaultWorkloadAllowlistVersion(t *testing.T) {
 	assert.Equal(t, "v1.0.6", DefaultWorkloadAllowlistVersion)
 }
 
+func TestWorkloadAllowlistName(t *testing.T) {
+	tests := []struct {
+		name    string
+		version string
+		want    string
+	}{
+		{name: "default version", want: "datadog-datadog-daemonset-exemption-v1.0.6"},
+		{name: "valid override", version: "v1.2.3", want: "datadog-datadog-daemonset-exemption-v1.2.3"},
+		{name: "malformed override falls back to default", version: "not-a-version", want: "datadog-datadog-daemonset-exemption-v1.0.6"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, WorkloadAllowlistName(tt.version))
+		})
+	}
+}
+
 func TestDefaultCSIWorkloadAllowlistVersion(t *testing.T) {
 	// Sanity check — locks the default to a known value so a silent bump is caught.
 	assert.Equal(t, "v1.1.1", DefaultCSIWorkloadAllowlistVersion)
