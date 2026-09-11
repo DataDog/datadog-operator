@@ -50,10 +50,7 @@ const (
 	// OpenshiftProvider is the OpenShift Provider name
 	OpenshiftProvider = "openshift"
 
-	// TalosProvider is the provider string for Talos Linux clusters. It has no
-	// stable node label, so like GKEAutopilotProvider it is only ever set via
-	// the datadoghq.com/provider annotation (on the DDA for cluster-scope, or
-	// on a DatadogAgentProfile for node-scope).
+	// TalosProvider is the provider string for Talos Linux clusters.
 	TalosProvider = "talos"
 
 	// OpenShiftProviderLabel is the OpenShift node label used to determine the node's provider
@@ -83,6 +80,12 @@ const (
 	// AKS cluster, including virtual (ACI) nodes, so any label under this
 	// prefix is a reliable cluster-level AKS signal.
 	aksLabelPrefix = "kubernetes.azure.com/"
+
+	// talosOSImagePrefix detects Talos from Node.Status.NodeInfo.OSImage (kubelet's
+	// PRETTY_NAME from /etc/os-release); Talos exposes no default node label. Matched
+	// case-sensitively, the trailing " (" is intentional to match "<name> (<version>)"
+	// format, should not be changed or relaxed to strings.Contains.
+	talosOSImagePrefix = "Talos ("
 )
 
 // ProviderValue allowlist
@@ -112,6 +115,10 @@ func isAKSProvider(labels map[string]string) bool {
 	}
 
 	return false
+}
+
+func isTalosProvider(node *corev1.Node) bool {
+	return node != nil && strings.HasPrefix(node.Status.NodeInfo.OSImage, talosOSImagePrefix)
 }
 
 // ShouldUseDefaultDaemonset checks if the provider list contains providers that don't support
@@ -223,11 +230,24 @@ func ClusterProviderFromNodeLabels(labels map[string]string) string {
 	return DefaultProvider
 }
 
+// ClusterProviderFromNode maps a single node to the cluster-level provider. Most
+// providers are label-derived; Talos is detected from osImage because Talos does
+// not expose a default stable node label.
+func ClusterProviderFromNode(node *corev1.Node) string {
+	if isTalosProvider(node) {
+		return TalosProvider
+	}
+	if node == nil {
+		return DefaultProvider
+	}
+	return ClusterProviderFromNodeLabels(node.Labels)
+}
+
 // GetClusterProviderFromNodeList returns the cluster-level provider for a node
 // list, preferring a specific provider over the default (first match wins).
 func GetClusterProviderFromNodeList(nodeList []corev1.Node) string {
 	for i := range nodeList {
-		if provider := ClusterProviderFromNodeLabels(nodeList[i].Labels); provider != DefaultProvider {
+		if provider := ClusterProviderFromNode(&nodeList[i]); provider != DefaultProvider {
 			return provider
 		}
 	}
