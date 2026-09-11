@@ -18,6 +18,7 @@ import (
 
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal"
+	byocimage "github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/image"
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
@@ -31,6 +32,7 @@ const (
 	profileControllerName         = "DatadogAgentProfile"
 	dashboardControllerName       = "DatadogDashboard"
 	genericResourceControllerName = "DatadogGenericResource"
+	byocClusterControllerName     = "DatadogBYOCCluster"
 	csiDriverControllerName       = "DatadogCSIDriver"
 )
 
@@ -50,6 +52,8 @@ type SetupOptions struct {
 	OtelAgentEnabled                  bool
 	DatadogDashboardEnabled           bool
 	DatadogGenericResourceEnabled     bool
+	DatadogBYOCClusterEnabled         bool
+	BYOCImageResolver                 byocimage.ImageResolver
 	DatadogGenericResourceMaxWorkers  int
 	DatadogGenericResourceRequeue     time.Duration
 	CreateControllerRevisions         bool
@@ -71,6 +75,7 @@ var controllerStarters = map[string]starterFunc{
 	profileControllerName:         startDatadogAgentProfiles,
 	dashboardControllerName:       startDatadogDashboard,
 	genericResourceControllerName: startDatadogGenericResource,
+	byocClusterControllerName:     startDatadogBYOCCluster,
 	csiDriverControllerName:       startDatadogCSIDriver,
 	untaintControllerName:         startUntaint,
 }
@@ -202,6 +207,21 @@ func startDatadogGenericResource(logger logr.Logger, mgr manager.Manager, pInfo 
 	}
 
 	return genericResourceReconciler.SetupWithManager(mgr)
+}
+
+func startDatadogBYOCCluster(logger logr.Logger, mgr manager.Manager, _ kubernetes.PlatformInfo, options SetupOptions, _ datadog.MetricsForwardersManager) error {
+	if !options.DatadogBYOCClusterEnabled {
+		logger.Info("Feature disabled, not starting the controller", "controller", byocClusterControllerName)
+		return nil
+	}
+
+	return (&DatadogBYOCClusterReconciler{
+		Client:        mgr.GetClient(),
+		Log:           ctrl.Log.WithName("controllers").WithName(byocClusterControllerName),
+		Scheme:        mgr.GetScheme(),
+		Recorder:      mgr.GetEventRecorderFor(byocClusterControllerName),
+		ImageResolver: options.BYOCImageResolver,
+	}).SetupWithManager(mgr)
 }
 
 func startDatadogSLO(logger logr.Logger, mgr manager.Manager, pInfo kubernetes.PlatformInfo, options SetupOptions, metricForwardersMgr datadog.MetricsForwardersManager) error {

@@ -11,6 +11,7 @@ require (
 	github.com/google/go-cmp v0.7.0
 	github.com/google/uuid v1.6.0
 	github.com/hako/durafmt v0.0.0-20210608085754-5c1018a4e16b
+	github.com/imdario/mergo v0.3.16
 	github.com/mholt/archiver/v3 v3.5.1
 	github.com/olekukonko/tablewriter v1.1.4
 	github.com/onsi/gomega v1.43.0
@@ -59,6 +60,8 @@ require (
 	github.com/google/go-containerregistry v0.22.0
 	github.com/hashicorp/go-retryablehttp v0.7.8
 	github.com/mattn/go-runewidth v0.0.28
+	github.com/opencontainers/go-digest v1.0.0
+	github.com/opencontainers/image-spec v1.1.1
 	github.com/onsi/ginkgo/v2 v2.32.1
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c
 	github.com/prometheus/client_golang v1.24.1
@@ -71,6 +74,7 @@ require (
 	helm.sh/helm/v3 v3.21.4
 	k8s.io/kubectl v0.37.0
 	k8s.io/utils v0.0.0-20260707023825-cf1189d6abe3
+	oras.land/oras-go/v2 v2.6.2
 	sigs.k8s.io/karpenter v1.14.1
 )
 
@@ -305,7 +309,6 @@ require (
 	k8s.io/csi-translation-lib v0.35.0 // indirect
 	k8s.io/gengo/v2 v2.0.0-20260408192533-25e2208e0dc3 // indirect
 	k8s.io/streaming v0.37.0 // indirect
-	oras.land/oras-go/v2 v2.6.2 // indirect
 	sigs.k8s.io/apiserver-network-proxy/konnectivity-client v0.36.0 // indirect
 	sigs.k8s.io/json v0.0.0-20250730193827-2d320260d730 // indirect
 	sigs.k8s.io/kustomize/api v0.21.1 // indirect
