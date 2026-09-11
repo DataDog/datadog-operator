@@ -20,4 +20,20 @@ const (
 
 	// defaultGPURuntimeClass default runtime class for GPU pods
 	defaultGPURuntimeClass = "nvidia"
+
+	// Kernel log collection for Xid errors. The journald tailer needs the host journal and
+	// /etc/machine-id to resolve which journal to read.
+	xidKernelLogsVolumeName = "gpu-xid-kernel-logs-config"
+	xidKernelLogsConfigName = "journald.d"
+	journalVolumeName       = "journald-log-path"
+	journalHostPath         = "/var/log/journal"
+	journalMountPath        = "/var/log/journal"
+	machineIDVolumeName     = "gpu-machine-id"
+	machineIDHostPath       = "/etc/machine-id"
+	machineIDMountPath      = "/etc/machine-id"
+
+	// xidKernelLogsConfigID is the journald `config_id`. The Agent's journald launcher keys its
+	// tailers on `journald:<config_id>`, so any other kernel journald config MUST reuse this exact
+	// value or the same messages get tailed twice. See the Helm chart companion change.
+	xidKernelLogsConfigID = "kernel"
 )
