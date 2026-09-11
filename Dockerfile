@@ -1,12 +1,9 @@
 #
 ARG FIPS_ENABLED=false
+ARG SGC_VERSION=7.84.0-rc.2
+ARG SGC_TAG_SUFFIX
 
-# Pin SGC by digest so released operator images cannot change without review.
-# hadolint ignore=DL3026
-FROM docker.io/datadog/secret-generic-connector:7.84.0-rc.2@sha256:00a3a7f53ddeaeac7864c41009c8d36c25fe5babeab2498e02c111e83ab27860 AS sgc-false
-# hadolint ignore=DL3026
-FROM docker.io/datadog/secret-generic-connector:7.84.0-rc.2-fips@sha256:f79d4d94e7c43bfc1152f4b19c9d64a9d6caea9ae64da2bbb8d7dd2483673e6e AS sgc-true
-FROM sgc-${FIPS_ENABLED} AS sgc
+FROM datadog/secret-generic-connector:${SGC_VERSION}${SGC_TAG_SUFFIX} AS sgc
 
 # Build the manager binary
 FROM golang:1.26.7 AS builder
