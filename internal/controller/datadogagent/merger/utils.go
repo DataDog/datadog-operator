@@ -18,6 +18,7 @@ var AllAgentContainers = map[common.AgentContainerName]struct{}{
 	common.OtelAgent:                        {},
 	common.HostProfiler:                     {},
 	common.AgentDataPlaneContainerName:      {},
+	common.AgentCheckRunnerContainerName:    {},
 	common.PrivateActionRunnerContainerName: {},
 	common.FlightRecorderContainerName:      {},
 	// DCA containers

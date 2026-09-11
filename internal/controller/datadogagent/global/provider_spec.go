@@ -89,6 +89,7 @@ var NodeAgentProviderSpec = providercaps.ProviderCapabilityMap{
 					apicommon.SystemProbeContainerName,
 					apicommon.SecurityAgentContainerName,
 					apicommon.AgentDataPlaneContainerName,
+					apicommon.AgentCheckRunnerContainerName,
 					apicommon.OtelAgent,
 					apicommon.UnprivilegedSingleAgentContainerName,
 				},

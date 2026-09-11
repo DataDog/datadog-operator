@@ -66,6 +66,8 @@ const (
 	HostProfiler AgentContainerName = "host-profiler"
 	// AgentDataPlaneContainerName is the name of the Agent Data Plane container
 	AgentDataPlaneContainerName AgentContainerName = "agent-data-plane"
+	// AgentCheckRunnerContainerName is the name of the Agent Check Runner container
+	AgentCheckRunnerContainerName AgentContainerName = "agent-check-runner"
 	// FlightRecorderContainerName is the name of the Flight Recorder container
 	FlightRecorderContainerName AgentContainerName = "flightrecorder"
 	// PrivateActionRunnerContainerName is the name of the Private Action Runner container

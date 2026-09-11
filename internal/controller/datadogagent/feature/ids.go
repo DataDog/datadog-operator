@@ -93,4 +93,6 @@ const (
 	KubernetesActionsIDType = "kubernetes_actions"
 	// DynamicInstrumentationIDType Dynamic Instrumentation feature.
 	DynamicInstrumentationIDType = "dynamic_instrumentation"
+	// CheckRunnerIDType Agent Check Runner feature.
+	CheckRunnerIDType = "check_runner"
 )
