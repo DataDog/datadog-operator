@@ -52,6 +52,11 @@ func TestGetRBACPolicyRules(t *testing.T) {
 			Verbs: []string{rbac.ListVerb, rbac.WatchVerb},
 		},
 		{
+			APIGroups: []string{rbac.KubeAIAPIGroup},
+			Resources: []string{rbac.KubeAIModelsResource},
+			Verbs:     []string{rbac.ListVerb, rbac.WatchVerb},
+		},
+		{
 			APIGroups: []string{rbac.DynamoAPIGroup},
 			Resources: []string{
 				rbac.DynamoCheckpointsResource,
