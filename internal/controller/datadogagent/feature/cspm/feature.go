@@ -19,6 +19,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/configmap"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/providercaps"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
@@ -57,6 +58,17 @@ type cspmFeature struct {
 // ID returns the ID of the Feature
 func (f *cspmFeature) ID() feature.IDType {
 	return feature.CSPMIDType
+}
+
+// NodeAgentProviderCapabilities returns provider-conditional pod-template
+// mutations for the node agent. Talos has no host user/group database, so
+// the passwd and group volumes this feature adds are stripped.
+func (f *cspmFeature) NodeAgentProviderCapabilities() providercaps.ProviderCapabilityMap {
+	return providercaps.ProviderCapabilityMap{
+		kubernetes.TalosProvider: {
+			RemoveVolumes: []string{common.PasswdVolumeName, common.GroupVolumeName},
+		},
+	}
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.

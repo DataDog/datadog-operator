@@ -34,6 +34,25 @@ type VolumeAndMount struct {
 	Containers []apicommon.AgentContainerName
 }
 
+// HostPathVolumeAndMount builds a VolumeAndMount for a hostPath volume mounted
+// at the same path inside the listed containers.
+func HostPathVolumeAndMount(name, path string, readOnly bool, containers ...apicommon.AgentContainerName) VolumeAndMount {
+	return VolumeAndMount{
+		Volume: corev1.Volume{
+			Name: name,
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{Path: path},
+			},
+		},
+		Mount: corev1.VolumeMount{
+			Name:      name,
+			MountPath: path,
+			ReadOnly:  readOnly,
+		},
+		Containers: containers,
+	}
+}
+
 // EnvVarSet groups an env var with its target containers.
 // Empty Containers means the env var is added to all agent containers.
 // InitContainers lists init containers that should also receive the env var

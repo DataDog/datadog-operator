@@ -16,10 +16,13 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/providercaps"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/testutils"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -148,4 +151,47 @@ func testExpectedAgent(agentContainerName apicommon.AgentContainerName, runInCor
 			assert.True(t, apiutils.IsEqualStruct(agentEnvVars, wantEnvVars), "%s envvars \ndiff = %s", agentContainerName, cmp.Diff(agentEnvVars, wantEnvVars))
 		},
 	)
+}
+
+func Test_processDiscoveryFeature_NodeAgentProviderCapabilities(t *testing.T) {
+	newPodTemplate := func() *corev1.PodTemplateSpec {
+		return &corev1.PodTemplateSpec{
+			Spec: corev1.PodSpec{
+				Containers: []corev1.Container{
+					{Name: string(apicommon.CoreAgentContainerName)},
+					{Name: string(apicommon.ProcessAgentContainerName)},
+				},
+			},
+		}
+	}
+
+	volumeNames := func(tmpl *corev1.PodTemplateSpec) []string {
+		names := make([]string, 0, len(tmpl.Spec.Volumes))
+		for _, v := range tmpl.Spec.Volumes {
+			names = append(names, v.Name)
+		}
+		return names
+	}
+
+	t.Run("talos strips passwd volume", func(t *testing.T) {
+		p := &processDiscoveryFeature{}
+		tmpl := newPodTemplate()
+		mgr := feature.NewPodTemplateManagers(tmpl)
+		require.NoError(t, p.ManageNodeAgent(mgr))
+
+		providercaps.ApplyProviderCapabilities(mgr, kubernetes.TalosProvider, p.NodeAgentProviderCapabilities())
+
+		assert.NotContains(t, volumeNames(tmpl), common.PasswdVolumeName)
+	})
+
+	t.Run("default provider keeps passwd volume", func(t *testing.T) {
+		p := &processDiscoveryFeature{}
+		tmpl := newPodTemplate()
+		mgr := feature.NewPodTemplateManagers(tmpl)
+		require.NoError(t, p.ManageNodeAgent(mgr))
+
+		providercaps.ApplyProviderCapabilities(mgr, kubernetes.DefaultProvider, p.NodeAgentProviderCapabilities())
+
+		assert.Contains(t, volumeNames(tmpl), common.PasswdVolumeName)
+	})
 }
