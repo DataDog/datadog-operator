@@ -41,6 +41,7 @@ type ResolvedImage struct {
 	Repository       string
 	Tag              string
 	Digest           string
+	PullPolicy       corev1.PullPolicy
 	ImagePullSecrets []corev1.LocalObjectReference
 }
 
@@ -50,6 +51,14 @@ func (i ResolvedImage) ImageReference() string {
 		return i.Repository + "@" + i.Digest
 	}
 	return i.Repository + ":" + i.Tag
+}
+
+// EffectivePullPolicy returns the configured pull policy or the BYOC default.
+func (i ResolvedImage) EffectivePullPolicy() corev1.PullPolicy {
+	if i.PullPolicy == "" {
+		return corev1.PullIfNotPresent
+	}
+	return i.PullPolicy
 }
 
 // ImageResolver resolves the effective images for a DatadogBYOCCluster.
@@ -249,7 +258,7 @@ func overrideImages(release *byocRelease, overrides *datadoghqv1alpha1.DatadogBY
 }
 
 func overrideImage(base releaseImage, override *datadoghqv1alpha1.DatadogBYOCClusterImageOverrideSpec) ResolvedImage {
-	image := ResolvedImage{Repository: base.Repository, Tag: base.Tag, Digest: base.Digest}
+	image := ResolvedImage{Repository: base.Repository, Tag: base.Tag, Digest: base.Digest, PullPolicy: corev1.PullIfNotPresent}
 	if override == nil {
 		return image
 	}
@@ -261,6 +270,9 @@ func overrideImage(base releaseImage, override *datadoghqv1alpha1.DatadogBYOCClu
 		image.Tag, image.Digest = *override.Tag, ""
 	} else if override.Digest != nil {
 		image.Tag, image.Digest = "", *override.Digest
+	}
+	if override.PullPolicy != nil {
+		image.PullPolicy = *override.PullPolicy
 	}
 	image.ImagePullSecrets = slices.Clone(override.ImagePullSecrets)
 	return image

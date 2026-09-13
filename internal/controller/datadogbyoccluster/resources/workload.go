@@ -142,7 +142,7 @@ func resolvePodSpec(input workloadInput) (corev1.PodSpec, error) {
 		Containers: []corev1.Container{{
 			Name:            appName,
 			Image:           input.Image.ImageReference(),
-			ImagePullPolicy: corev1.PullIfNotPresent,
+			ImagePullPolicy: input.Image.EffectivePullPolicy(),
 			Args:            slices.Clone(defaultContainer.Args),
 			Env:             resolveEnvironment(input, defaultContainer.Env),
 			EnvFrom:         append(slices.Clone(global.EnvFrom), slices.Clone(input.Spec.EnvFrom)...),

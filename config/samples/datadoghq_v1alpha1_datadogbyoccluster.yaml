@@ -12,10 +12,12 @@ spec:
   # imageOverrides:
   #   byoc:
   #     repository: registry.example.com/datadog/byoc
+  #     pullPolicy: IfNotPresent
   #     imagePullSecrets:
   #       - name: workload-registry-credentials
   #   observabilityPipelinesWorker:
   #     repository: registry.example.com/datadog/observability-pipelines-worker
+  #     pullPolicy: IfNotPresent
   #     imagePullSecrets:
   #       - name: workload-registry-credentials
   datadog:
@@ -23,6 +25,9 @@ spec:
     apiKeySecretRef:
       name: datadog-secret
       key: api-key
+    appKeySecretRef:
+      name: datadog-secret
+      key: app-key
     byocTelemetry: true
     dogstatsdServer:
       host: dogstatsd.monitoring.svc
@@ -107,6 +112,23 @@ spec:
             resources:
               requests:
                 storage: 50Gi
+    pipeline:
+      replicas: 2
+      resources:
+        requests:
+          cpu: "2"
+          memory: 4Gi
+        limits:
+          memory: 4Gi
+      storage:
+        volumeClaimTemplate:
+          spec:
+            accessModes:
+              - ReadWriteOnce
+            storageClassName: gp3
+            resources:
+              requests:
+                storage: 10Gi
     controlPlane:
       resources:
         requests:
