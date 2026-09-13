@@ -74,11 +74,13 @@ func TestOCIImageResolver_Resolve(t *testing.T) {
 					Repository: "public.ecr.aws/datadog/cloudprem",
 					Tag:        "v0.1.32",
 					Digest:     "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+					PullPolicy: corev1.PullIfNotPresent,
 				},
 				ObservabilityPipelinesWorker: ResolvedImage{
 					Repository: "public.ecr.aws/datadog/observability-pipelines-worker",
 					Tag:        "2.10.0",
 					Digest:     "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+					PullPolicy: corev1.PullIfNotPresent,
 				},
 			},
 		},
@@ -91,11 +93,13 @@ func TestOCIImageResolver_Resolve(t *testing.T) {
 					Repository: "public.ecr.aws/datadog/cloudprem",
 					Tag:        "v0.1.32",
 					Digest:     "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+					PullPolicy: corev1.PullIfNotPresent,
 				},
 				ObservabilityPipelinesWorker: ResolvedImage{
 					Repository: "public.ecr.aws/datadog/observability-pipelines-worker",
 					Tag:        "2.10.0",
 					Digest:     "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+					PullPolicy: corev1.PullIfNotPresent,
 				},
 			},
 		},
@@ -116,10 +120,12 @@ func TestOCIImageResolver_Resolve(t *testing.T) {
 				Pomsky: ResolvedImage{
 					Repository: "public.ecr.aws/datadog/cloudprem",
 					Tag:        "v0.1.32",
+					PullPolicy: corev1.PullIfNotPresent,
 				},
 				ObservabilityPipelinesWorker: ResolvedImage{
 					Repository: "public.ecr.aws/datadog/observability-pipelines-worker",
 					Tag:        "2.10.0",
+					PullPolicy: corev1.PullIfNotPresent,
 				},
 			},
 		},
@@ -130,10 +136,12 @@ func TestOCIImageResolver_Resolve(t *testing.T) {
 				BYOC: &datadoghqv1alpha1.DatadogBYOCClusterImageOverrideSpec{
 					Repository:       ptr.To("private.example.com/pomsky"),
 					Tag:              ptr.To("hotfix"),
+					PullPolicy:       ptr.To(corev1.PullAlways),
 					ImagePullSecrets: []corev1.LocalObjectReference{{Name: "registry-credentials"}},
 				},
 				ObservabilityPipelinesWorker: &datadoghqv1alpha1.DatadogBYOCClusterImageOverrideSpec{
-					Digest: ptr.To("sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"),
+					Digest:     ptr.To("sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"),
+					PullPolicy: ptr.To(corev1.PullNever),
 				},
 			},
 			payload: validReleasePayload,
@@ -141,11 +149,13 @@ func TestOCIImageResolver_Resolve(t *testing.T) {
 				Pomsky: ResolvedImage{
 					Repository:       "private.example.com/pomsky",
 					Tag:              "hotfix",
+					PullPolicy:       corev1.PullAlways,
 					ImagePullSecrets: []corev1.LocalObjectReference{{Name: "registry-credentials"}},
 				},
 				ObservabilityPipelinesWorker: ResolvedImage{
 					Repository: "public.ecr.aws/datadog/observability-pipelines-worker",
 					Digest:     "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+					PullPolicy: corev1.PullNever,
 				},
 			},
 		},
@@ -165,10 +175,12 @@ func TestOCIImageResolver_Resolve(t *testing.T) {
 				Pomsky: ResolvedImage{
 					Repository: "private.example.com/pomsky",
 					Tag:        "hotfix",
+					PullPolicy: corev1.PullIfNotPresent,
 				},
 				ObservabilityPipelinesWorker: ResolvedImage{
 					Repository: "private.example.com/worker",
 					Digest:     "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+					PullPolicy: corev1.PullIfNotPresent,
 				},
 			},
 		},
@@ -264,6 +276,32 @@ func TestResolvedImage_ImageReference(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := tt.image.ImageReference(); got != tt.want {
 				t.Errorf("ImageReference() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestResolvedImage_EffectivePullPolicy(t *testing.T) {
+	tests := []struct {
+		name  string
+		image ResolvedImage
+		want  corev1.PullPolicy
+	}{
+		{
+			name: "default",
+			want: corev1.PullIfNotPresent,
+		},
+		{
+			name:  "configured",
+			image: ResolvedImage{PullPolicy: corev1.PullAlways},
+			want:  corev1.PullAlways,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.image.EffectivePullPolicy(); got != tt.want {
+				t.Errorf("EffectivePullPolicy() = %q, want %q", got, tt.want)
 			}
 		})
 	}
