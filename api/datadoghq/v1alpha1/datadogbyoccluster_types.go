@@ -29,8 +29,7 @@ type DatadogBYOCClusterSpec struct {
 	ImageOverrides *DatadogBYOCClusterImageOverrides `json:"imageOverrides,omitempty"`
 
 	// Datadog configures the connection to Datadog.
-	// +optional
-	// +kubebuilder:default={}
+	// +kubebuilder:validation:Required
 	Datadog *DatadogBYOCClusterDatadogSpec `json:"datadog,omitempty"`
 
 	// Provider configures the cloud provider used by the BYOC cluster.
@@ -90,27 +89,32 @@ type DatadogBYOCClusterImageOverrides struct {
 // DatadogBYOCClusterImageOverrideSpec overrides a release image without modifying the release artifact.
 // +k8s:openapi-gen=true
 // +kubebuilder:validation:XValidation:rule="!(has(self.tag) && has(self.digest))",message="tag and digest are mutually exclusive"
-type DatadogBYOCClusterImageOverrideSpec struct {
-	// Repository replaces the image repository. When omitted, the release repository is used.
-	// If tag and digest are omitted, the release image's version is retained, preferring its digest.
-	// A mirror must therefore serve the same digest when the release image has a digest.
+type DatadogBYOCClusterImageOverrideSpec DatadogBYOCImageSpec
+
+// DatadogBYOCImageSpec defines common BYOC workload image settings.
+// For an image override, omitted repository and version fields retain values from the release.
+// +k8s:openapi-gen=true
+type DatadogBYOCImageSpec struct {
+	// Repository is the complete image repository, including the image name.
 	// +optional
 	// +kubebuilder:validation:MinLength=1
 	Repository *string `json:"repository,omitempty"`
 
-	// Tag replaces the release image's version, discarding any release digest.
-	// When Repository is omitted, the release image's repository is retained.
-	// Mutually exclusive with Digest.
+	// Tag is the image tag.
 	// +optional
 	// +kubebuilder:validation:MinLength=1
 	Tag *string `json:"tag,omitempty"`
 
-	// Digest replaces the release image's version, discarding any release tag.
-	// When Repository is omitted, the release image's repository is retained.
-	// Mutually exclusive with Tag.
+	// Digest is the image digest.
 	// +optional
-	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:Pattern=`^sha256:[a-f0-9]{64}$`
 	Digest *string `json:"digest,omitempty"`
+
+	// PullPolicy is the image pull policy used by the workload container.
+	// +optional
+	// +kubebuilder:default=IfNotPresent
+	// +kubebuilder:validation:Enum=Always;Never;IfNotPresent
+	PullPolicy *corev1.PullPolicy `json:"pullPolicy,omitempty"`
 
 	// ImagePullSecrets references Secrets in the cluster's namespace used to pull this workload image.
 	// They are added only to Pods using this image and are not used to fetch the release artifact.
@@ -129,7 +133,12 @@ type DatadogBYOCClusterDatadogSpec struct {
 	Site *string `json:"site,omitempty"`
 
 	// APIKeySecretRef references the Kubernetes Secret containing the Datadog API key.
+	// +kubebuilder:validation:Required
 	APIKeySecretRef *corev1.SecretKeySelector `json:"apiKeySecretRef,omitempty"`
+
+	// AppKeySecretRef references the Kubernetes Secret containing the Datadog application key.
+	// +kubebuilder:validation:Required
+	AppKeySecretRef *corev1.SecretKeySelector `json:"appKeySecretRef,omitempty"`
 
 	// BYOCTelemetry controls the export of BYOC product telemetry.
 	// +optional
@@ -184,7 +193,9 @@ type DatadogBYOCClusterAWSSpec struct {
 // DatadogBYOCClusterIdentitySpec defines the Kubernetes identity configuration.
 // +k8s:openapi-gen=true
 type DatadogBYOCClusterIdentitySpec struct {
-	// ServiceAccountName is the ServiceAccount used by the BYOC workloads.
+	// ServiceAccountName is the name of an existing ServiceAccount used by the managed workload.
+	// +optional
+	// +kubebuilder:validation:MinLength=1
 	ServiceAccountName *string `json:"serviceAccountName,omitempty"`
 }
 
@@ -264,6 +275,10 @@ type DatadogBYOCClusterComponentsSpec struct {
 	// +kubebuilder:validation:Required
 	Searcher *DatadogBYOCClusterStatefulComponentSpec `json:"searcher,omitempty"`
 
+	// Pipeline configures the Observability Pipelines Worker workload.
+	// +kubebuilder:validation:Required
+	Pipeline *DatadogBYOCClusterPipelineComponentSpec `json:"pipeline,omitempty"`
+
 	// ControlPlane configures the Control Plane workload.
 	// +kubebuilder:validation:Required
 	ControlPlane *DatadogBYOCClusterComponentSpec `json:"controlPlane,omitempty"`
@@ -275,6 +290,19 @@ type DatadogBYOCClusterComponentsSpec struct {
 	// Janitor configures the Janitor workload.
 	// +kubebuilder:validation:Required
 	Janitor *DatadogBYOCClusterComponentSpec `json:"janitor,omitempty"`
+}
+
+// DatadogBYOCClusterPipelineComponentSpec defines settings for the Observability Pipelines Worker workload.
+// When Resources is specified, its memory limit is required for worker buffer sizing.
+// +k8s:openapi-gen=true
+type DatadogBYOCClusterPipelineComponentSpec struct {
+	DatadogBYOCClusterStatefulComponentSpec `json:",inline"`
+
+	// PipelineID identifies an existing Observability Pipeline to use.
+	// When omitted, the Operator creates a pipeline and records its ID on the child resource.
+	// +optional
+	// +kubebuilder:validation:MinLength=1
+	PipelineID *string `json:"pipelineID,omitempty"`
 }
 
 // DatadogBYOCClusterComponentSpec defines common workload settings.
@@ -479,6 +507,10 @@ type DatadogBYOCClusterStatus struct {
 	// +optional
 	Searcher *DatadogBYOCClusterStatefulSetStatus `json:"searcher,omitempty"`
 
+	// Pipeline contains the observed state of the Observability Pipelines Worker StatefulSet.
+	// +optional
+	Pipeline *DatadogBYOCClusterStatefulSetStatus `json:"pipeline,omitempty"`
+
 	// Metastore contains the observed state of the primary Metastore Deployment.
 	// +optional
 	Metastore *DatadogBYOCClusterDeploymentStatus `json:"metastore,omitempty"`
@@ -545,6 +577,7 @@ type DatadogBYOCCluster struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
+	// +kubebuilder:validation:Required
 	Spec   DatadogBYOCClusterSpec   `json:"spec,omitempty"`
 	Status DatadogBYOCClusterStatus `json:"status,omitempty"`
 }

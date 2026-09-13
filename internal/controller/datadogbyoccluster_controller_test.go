@@ -51,10 +51,21 @@ var _ = Describe("DatadogBYOCCluster Controller", func() {
 			ObjectMeta: metav1.ObjectMeta{Name: "byoc", Namespace: namespace.Name},
 			Spec: datadoghqv1alpha1.DatadogBYOCClusterSpec{
 				Release: &datadoghqv1alpha1.DatadogBYOCClusterReleaseSpec{},
+				Datadog: &datadoghqv1alpha1.DatadogBYOCClusterDatadogSpec{
+					APIKeySecretRef: &corev1.SecretKeySelector{
+						LocalObjectReference: corev1.LocalObjectReference{Name: "datadog-secret"},
+						Key:                  "api-key",
+					},
+					AppKeySecretRef: &corev1.SecretKeySelector{
+						LocalObjectReference: corev1.LocalObjectReference{Name: "datadog-secret"},
+						Key:                  "app-key",
+					},
+				},
 				Components: &datadoghqv1alpha1.DatadogBYOCClusterComponentsSpec{
 					Metastore:         &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{},
 					Indexer:           &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{Autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{}},
 					Searcher:          &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{Autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{}},
+					Pipeline:          &datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{},
 					ControlPlane:      &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
 					Janitor:           &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
 					ReadOnlyMetastore: &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{},
@@ -93,6 +104,14 @@ var _ = Describe("DatadogBYOCCluster Controller", func() {
 					Datadog: &datadoghqv1alpha1.DatadogBYOCClusterDatadogSpec{
 						Site:          ptr.To("datadoghq.com"),
 						BYOCTelemetry: ptr.To(true),
+						APIKeySecretRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{Name: "datadog-secret"},
+							Key:                  "api-key",
+						},
+						AppKeySecretRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{Name: "datadog-secret"},
+							Key:                  "app-key",
+						},
 						DogstatsdServer: &datadoghqv1alpha1.DatadogBYOCClusterDogstatsdServerSpec{
 							Port: ptr.To[int32](8125),
 						},
@@ -101,6 +120,7 @@ var _ = Describe("DatadogBYOCCluster Controller", func() {
 						Metastore:         &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{},
 						Indexer:           &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{Autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{}},
 						Searcher:          &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{Autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{}},
+						Pipeline:          &datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{},
 						ControlPlane:      &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
 						Janitor:           &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
 						ReadOnlyMetastore: &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{},
@@ -244,6 +264,14 @@ var _ = Describe("DatadogBYOCCluster Controller", func() {
 					Datadog: &datadoghqv1alpha1.DatadogBYOCClusterDatadogSpec{
 						Site:          ptr.To("datadoghq.com"),
 						BYOCTelemetry: ptr.To(true),
+						APIKeySecretRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{Name: "datadog-secret"},
+							Key:                  "api-key",
+						},
+						AppKeySecretRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{Name: "datadog-secret"},
+							Key:                  "app-key",
+						},
 						DogstatsdServer: &datadoghqv1alpha1.DatadogBYOCClusterDogstatsdServerSpec{
 							Port: ptr.To[int32](8125),
 						},
@@ -252,6 +280,7 @@ var _ = Describe("DatadogBYOCCluster Controller", func() {
 						Metastore:         &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{},
 						Indexer:           &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{Autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{}},
 						Searcher:          &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{Autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{}},
+						Pipeline:          &datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{},
 						ControlPlane:      &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
 						Janitor:           &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
 						ReadOnlyMetastore: &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{},
@@ -373,6 +402,9 @@ func fakeResolvedImage(base byocimage.ResolvedImage, override *datadoghqv1alpha1
 		base.Tag, base.Digest = *override.Tag, ""
 	} else if override.Digest != nil {
 		base.Tag, base.Digest = "", *override.Digest
+	}
+	if override.PullPolicy != nil {
+		base.PullPolicy = *override.PullPolicy
 	}
 	base.ImagePullSecrets = slices.Clone(override.ImagePullSecrets)
 	return base

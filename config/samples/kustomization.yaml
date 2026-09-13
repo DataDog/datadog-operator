@@ -10,5 +10,6 @@ resources:
 - datadoghq_v1alpha1_datadogdashboard.yaml
 - datadoghq_v1alpha1_datadoggenericresource.yaml
 - datadoghq_v1alpha1_datadogbyoccluster.yaml
+- datadoghq_v1alpha1_datadogobservabilitypipelinesworker.yaml
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization

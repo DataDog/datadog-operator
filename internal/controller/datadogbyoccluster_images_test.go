@@ -39,13 +39,25 @@ var _ = Describe("DatadogBYOCCluster image overrides", func() {
 			ObjectMeta: metav1.ObjectMeta{Name: "byoc", Namespace: namespace.Name},
 			Spec: datadoghqv1alpha1.DatadogBYOCClusterSpec{
 				Release: &datadoghqv1alpha1.DatadogBYOCClusterReleaseSpec{Tag: ptr.To(byocSuccessReleaseTag)},
+				Datadog: &datadoghqv1alpha1.DatadogBYOCClusterDatadogSpec{
+					APIKeySecretRef: &corev1.SecretKeySelector{
+						LocalObjectReference: corev1.LocalObjectReference{Name: "datadog-secret"},
+						Key:                  "api-key",
+					},
+					AppKeySecretRef: &corev1.SecretKeySelector{
+						LocalObjectReference: corev1.LocalObjectReference{Name: "datadog-secret"},
+						Key:                  "app-key",
+					},
+				},
 				ImageOverrides: &datadoghqv1alpha1.DatadogBYOCClusterImageOverrides{
 					BYOC: &datadoghqv1alpha1.DatadogBYOCClusterImageOverrideSpec{
 						Repository: ptr.To(repository), Tag: ptr.To(hotfix),
+						PullPolicy:       ptr.To(corev1.PullAlways),
 						ImagePullSecrets: []corev1.LocalObjectReference{{Name: "pomsky-registry"}},
 					},
 					ObservabilityPipelinesWorker: &datadoghqv1alpha1.DatadogBYOCClusterImageOverrideSpec{
 						Repository: ptr.To("private.example.com/worker"), Digest: ptr.To(digest),
+						PullPolicy:       ptr.To(corev1.PullNever),
 						ImagePullSecrets: []corev1.LocalObjectReference{{Name: "worker-registry"}},
 					},
 				},
@@ -53,6 +65,7 @@ var _ = Describe("DatadogBYOCCluster image overrides", func() {
 					Metastore:    &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{},
 					Indexer:      &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{},
 					Searcher:     &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{},
+					Pipeline:     &datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{},
 					ControlPlane: &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
 					Janitor:      &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
 				},
@@ -83,6 +96,7 @@ var _ = Describe("DatadogBYOCCluster image overrides", func() {
 				statefulSet := &appsv1.StatefulSet{}
 				g.Expect(k8sClient.Get(context.Background(), client.ObjectKey{Name: "byoc-indexer", Namespace: namespace.Name}, statefulSet)).To(Succeed())
 				g.Expect(statefulSet.Spec.Template.Spec.Containers[0].Image).To(Equal(repository + ":" + hotfix))
+				g.Expect(statefulSet.Spec.Template.Spec.Containers[0].ImagePullPolicy).To(Equal(corev1.PullAlways))
 				g.Expect(statefulSet.Spec.Template.Spec.ImagePullSecrets).To(Equal([]corev1.LocalObjectReference{{Name: "pomsky-registry"}}))
 			}, timeout, interval).Should(Succeed())
 		},
@@ -136,6 +150,19 @@ var _ = Describe("DatadogBYOCCluster image overrides", func() {
 		Expect(statefulSet.Spec.Template.Spec.ImagePullSecrets).To(BeEmpty())
 	})
 
+	It("allows pipelineID to be set, changed, and removed", func() {
+		createKubernetesObject(k8sClient, cluster)
+		for _, pipelineID := range []*string{ptr.To("pipeline-1"), ptr.To("pipeline-2"), nil} {
+			Eventually(func() error {
+				if err := k8sClient.Get(context.Background(), client.ObjectKeyFromObject(cluster), cluster); err != nil {
+					return err
+				}
+				cluster.Spec.Components.Pipeline.PipelineID = pipelineID
+				return k8sClient.Update(context.Background(), cluster)
+			}, timeout, interval).Should(Succeed())
+		}
+	})
+
 	DescribeTable("rejects invalid image configuration at admission",
 		func(mutate func(*datadoghqv1alpha1.DatadogBYOCClusterSpec)) {
 			mutate(&cluster.Spec)
@@ -163,9 +190,20 @@ var _ = Describe("DatadogBYOCCluster image overrides", func() {
 			spec.ImageOverrides.BYOC.Repository = ptr.To("")
 		}),
 		Entry("empty tag", func(spec *datadoghqv1alpha1.DatadogBYOCClusterSpec) { spec.ImageOverrides.BYOC.Tag = ptr.To("") }),
+		Entry("invalid pull policy", func(spec *datadoghqv1alpha1.DatadogBYOCClusterSpec) {
+			spec.ImageOverrides.BYOC.PullPolicy = ptr.To(corev1.PullPolicy("Sometimes"))
+		}),
 		Entry("invalid release even when bypassed", func(spec *datadoghqv1alpha1.DatadogBYOCClusterSpec) { spec.Release.Digest = ptr.To(digest) }),
 		Entry("duplicate pull secrets", func(spec *datadoghqv1alpha1.DatadogBYOCClusterSpec) {
 			spec.ImageOverrides.BYOC.ImagePullSecrets = []corev1.LocalObjectReference{{Name: "duplicate"}, {Name: "duplicate"}}
+		}),
+		Entry("missing Datadog configuration", func(spec *datadoghqv1alpha1.DatadogBYOCClusterSpec) { spec.Datadog = nil }),
+		Entry("missing API key reference", func(spec *datadoghqv1alpha1.DatadogBYOCClusterSpec) { spec.Datadog.APIKeySecretRef = nil }),
+		Entry("missing application key reference", func(spec *datadoghqv1alpha1.DatadogBYOCClusterSpec) { spec.Datadog.AppKeySecretRef = nil }),
+		Entry("missing pipeline component", func(spec *datadoghqv1alpha1.DatadogBYOCClusterSpec) { spec.Components.Pipeline = nil }),
+		Entry("empty pipeline ID", func(spec *datadoghqv1alpha1.DatadogBYOCClusterSpec) { spec.Components.Pipeline.PipelineID = ptr.To("") }),
+		Entry("pipeline resources without a memory limit", func(spec *datadoghqv1alpha1.DatadogBYOCClusterSpec) {
+			spec.Components.Pipeline.Resources = &corev1.ResourceRequirements{}
 		}),
 	)
 })
