@@ -28,6 +28,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	byocdefaults "github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/defaults"
 	byocimage "github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/image"
 	byocresources "github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/resources"
 )
@@ -55,6 +56,7 @@ type DatadogBYOCClusterReconciler struct {
 // +kubebuilder:rbac:groups=datadoghq.com,resources=datadogbyocclusters,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=datadoghq.com,resources=datadogbyocclusters/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=datadoghq.com,resources=datadogbyocclusters/finalizers,verbs=update
+// +kubebuilder:rbac:groups=datadoghq.com,resources=datadogobservabilitypipelinesworkers,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="",resources=configmaps;serviceaccounts;services,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=apps,resources=deployments;statefulsets,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=autoscaling,resources=horizontalpodautoscalers,verbs=get;list;watch;create;update;patch;delete
@@ -86,8 +88,13 @@ func (r *DatadogBYOCClusterReconciler) Reconcile(ctx context.Context, request ct
 	if err != nil {
 		return ctrl.Result{}, r.fail(ctx, cluster, conditionReleaseResolved, "ResolutionFailed", err)
 	}
+	cluster = byocdefaults.Apply(cluster)
 
 	resources, err := byocresources.BuildResources(cluster, images)
+	if err != nil {
+		return ctrl.Result{}, r.fail(ctx, cluster, conditionReconciled, "InvalidConfiguration", err)
+	}
+	worker, err := byocresources.BuildObservabilityPipelinesWorker(cluster, images.ObservabilityPipelinesWorker)
 	if err != nil {
 		return ctrl.Result{}, r.fail(ctx, cluster, conditionReconciled, "InvalidConfiguration", err)
 	}
@@ -95,12 +102,19 @@ func (r *DatadogBYOCClusterReconciler) Reconcile(ctx context.Context, request ct
 	if err := r.applyResources(ctx, cluster, resources); err != nil {
 		return ctrl.Result{}, r.fail(ctx, cluster, conditionReconciled, "ApplyFailed", err)
 	}
+	if err := r.applyObject(ctx, cluster, worker); err != nil {
+		return ctrl.Result{}, r.fail(ctx, cluster, conditionReconciled, "ApplyFailed", err)
+	}
+	currentWorker := &datadoghqv1alpha1.DatadogObservabilityPipelinesWorker{}
+	if err := r.Client.Get(ctx, client.ObjectKeyFromObject(worker), currentWorker); err != nil {
+		return ctrl.Result{}, r.fail(ctx, cluster, conditionReconciled, "ReadChildStatusFailed", err)
+	}
 	if err := r.deleteObsoleteResources(ctx, cluster, resources); err != nil {
 		return ctrl.Result{}, r.fail(ctx, cluster, conditionReconciled, "CleanupFailed", err)
 	}
 	r.setCondition(cluster, conditionReconciled, metav1.ConditionTrue, "Reconciled", "Managed resources match the desired state")
 
-	available := updateComponentStatus(cluster, resources)
+	available := updateComponentStatus(cluster, resources, currentWorker)
 	if available {
 		r.setCondition(cluster, conditionAvailable, metav1.ConditionTrue, "Available", "All workloads are available")
 	} else {
@@ -282,11 +296,13 @@ func (r *DatadogBYOCClusterReconciler) updateStatus(ctx context.Context, cluster
 	return nil
 }
 
-func updateComponentStatus(cluster *datadoghqv1alpha1.DatadogBYOCCluster, resources *byocresources.Resources) bool {
+func updateComponentStatus(cluster *datadoghqv1alpha1.DatadogBYOCCluster, resources *byocresources.Resources, worker *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker) bool {
 	indexerStatus, indexerAvailable := statefulSetStatus(resources.Indexer().StatefulSet)
 	cluster.Status.Indexer = indexerStatus
 	searcherStatus, searcherAvailable := statefulSetStatus(resources.Searcher().StatefulSet)
 	cluster.Status.Searcher = searcherStatus
+	pipelineStatus, pipelineAvailable := observabilityPipelinesWorkerStatus(worker)
+	cluster.Status.Pipeline = pipelineStatus
 	metastoreStatus, metastoreAvailable := deploymentStatus(resources.Metastore().Deployment)
 	cluster.Status.Metastore = metastoreStatus
 	controlPlaneStatus, controlPlaneAvailable := deploymentStatus(resources.ControlPlane().Deployment)
@@ -310,7 +326,20 @@ func updateComponentStatus(cluster *datadoghqv1alpha1.DatadogBYOCCluster, resour
 		compactorAvailable = available
 	}
 
-	return indexerAvailable && searcherAvailable && metastoreAvailable && controlPlaneAvailable && janitorAvailable && readOnlyMetastoreAvailable && compactorAvailable
+	return indexerAvailable && searcherAvailable && pipelineAvailable && metastoreAvailable && controlPlaneAvailable && janitorAvailable && readOnlyMetastoreAvailable && compactorAvailable
+}
+
+func observabilityPipelinesWorkerStatus(worker *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker) (*datadoghqv1alpha1.DatadogBYOCClusterStatefulSetStatus, bool) {
+	observedGeneration := ptr.Deref(worker.Status.ObservedGeneration, int64(0))
+	replicas := ptr.Deref(worker.Status.Replicas, int32(0))
+	readyReplicas := ptr.Deref(worker.Status.ReadyReplicas, int32(0))
+	status := &datadoghqv1alpha1.DatadogBYOCClusterStatefulSetStatus{
+		ObservedGeneration: new(observedGeneration),
+		Replicas:           new(replicas),
+		ReadyReplicas:      new(readyReplicas),
+	}
+	available := observedGeneration >= worker.Generation && readyReplicas >= ptr.Deref(worker.Spec.Replicas, int32(1))
+	return status, available
 }
 
 func statefulSetStatus(statefulSet *appsv1.StatefulSet) (*datadoghqv1alpha1.DatadogBYOCClusterStatefulSetStatus, bool) {
@@ -361,6 +390,7 @@ func wrapApplyError(object client.Object, err error) error {
 func (r *DatadogBYOCClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&datadoghqv1alpha1.DatadogBYOCCluster{}).
+		Owns(&datadoghqv1alpha1.DatadogObservabilityPipelinesWorker{}).
 		Owns(&corev1.ConfigMap{}).
 		Owns(&corev1.ServiceAccount{}).
 		Owns(&corev1.Service{}).

@@ -161,6 +161,11 @@ var _ = Describe("DatadogBYOCCluster Controller", func() {
 						Replicas:           ptr.To[int32](0),
 						ReadyReplicas:      ptr.To[int32](0),
 					},
+					Pipeline: &datadoghqv1alpha1.DatadogBYOCClusterStatefulSetStatus{
+						ObservedGeneration: ptr.To[int64](0),
+						Replicas:           ptr.To[int32](0),
+						ReadyReplicas:      ptr.To[int32](0),
+					},
 					Metastore: &datadoghqv1alpha1.DatadogBYOCClusterDeploymentStatus{
 						Replicas:            ptr.To[int32](0),
 						ReadyReplicas:       ptr.To[int32](0),
@@ -205,7 +210,9 @@ var _ = Describe("DatadogBYOCCluster Controller", func() {
 				)
 			}, timeout, interval).Should(BeEmpty())
 
+			worker := &datadoghqv1alpha1.DatadogObservabilityPipelinesWorker{ObjectMeta: metav1.ObjectMeta{Name: "byoc-pipeline", Namespace: namespace.Name}}
 			resources := []client.Object{
+				worker,
 				&corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "byoc", Namespace: namespace.Name}},
 				&corev1.ServiceAccount{ObjectMeta: metav1.ObjectMeta{Name: "byoc", Namespace: namespace.Name}},
 				&corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: "byoc-headless", Namespace: namespace.Name}},
@@ -236,6 +243,29 @@ var _ = Describe("DatadogBYOCCluster Controller", func() {
 			for _, resource := range resources {
 				Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(resource), resource)).Should(Succeed())
 			}
+			Expect(metav1.IsControlledBy(worker, cluster)).To(BeTrue())
+		})
+
+		It("copies the worker status to the parent", func() {
+			worker := &datadoghqv1alpha1.DatadogObservabilityPipelinesWorker{}
+			Eventually(func() error {
+				return k8sClient.Get(context.Background(), client.ObjectKey{Name: "byoc-pipeline", Namespace: namespace.Name}, worker)
+			}, timeout, interval).Should(Succeed())
+
+			worker.Status.ObservedGeneration = ptr.To(worker.Generation)
+			worker.Status.Replicas = ptr.To[int32](2)
+			worker.Status.ReadyReplicas = ptr.To[int32](2)
+			Expect(k8sClient.Status().Update(context.Background(), worker)).To(Succeed())
+
+			Eventually(func(g Gomega) {
+				current := &datadoghqv1alpha1.DatadogBYOCCluster{}
+				g.Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(cluster), current)).To(Succeed())
+				g.Expect(current.Status.Pipeline).To(Equal(&datadoghqv1alpha1.DatadogBYOCClusterStatefulSetStatus{
+					ObservedGeneration: ptr.To(worker.Generation),
+					Replicas:           ptr.To[int32](2),
+					ReadyReplicas:      ptr.To[int32](2),
+				}))
+			}, timeout, interval).Should(Succeed())
 		})
 	})
 
@@ -404,7 +434,7 @@ func fakeResolvedImage(base byocimage.ResolvedImage, override *datadoghqv1alpha1
 		base.Tag, base.Digest = "", *override.Digest
 	}
 	if override.PullPolicy != nil {
-		base.PullPolicy = *override.PullPolicy
+		base.ImagePullPolicy = *override.PullPolicy
 	}
 	base.ImagePullSecrets = slices.Clone(override.ImagePullSecrets)
 	return base

@@ -23,6 +23,7 @@ import (
 	"sigs.k8s.io/yaml"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	byocdefaults "github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/defaults"
 	byocimage "github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/image"
 )
 
@@ -174,7 +175,7 @@ ingest_api:
 		t.Run(tt.name, func(t *testing.T) {
 			cluster := testCluster()
 			tt.clusterFunc(cluster)
-			resources, err := BuildResources(cluster, testRelease())
+			resources, err := buildResources(cluster, testRelease())
 			if err != nil {
 				t.Fatalf("BuildResources() unexpected error: %v", err)
 			}
@@ -217,7 +218,7 @@ func TestBuildResources_HeadlessService(t *testing.T) {
 		},
 	}
 
-	resources, err := BuildResources(cluster, testRelease())
+	resources, err := buildResources(cluster, testRelease())
 	if err != nil {
 		t.Fatalf("BuildResources() unexpected error: %v", err)
 	}
@@ -283,7 +284,7 @@ func TestBuildResources_ServiceAccount(t *testing.T) {
 			cluster.Spec.Identity = tt.identity
 			cluster.Spec.Provider = tt.provider
 
-			resources, err := BuildResources(cluster, testRelease())
+			resources, err := buildResources(cluster, testRelease())
 			if err != nil {
 				t.Fatalf("BuildResources() unexpected error: %v", err)
 			}
@@ -549,7 +550,7 @@ func TestBuildResources_Indexer(t *testing.T) {
 			cluster := testCluster()
 			cluster.Spec.Components.Indexer = tt.indexer
 
-			resources, err := BuildResources(cluster, testRelease())
+			resources, err := buildResources(cluster, testRelease())
 			if err != nil {
 				t.Fatalf("BuildResources() unexpected error: %v", err)
 			}
@@ -643,7 +644,7 @@ func TestBuildResources_Searcher(t *testing.T) {
 			cluster := testCluster()
 			cluster.Spec.Components.Searcher = tt.searcher
 
-			resources, err := BuildResources(cluster, testRelease())
+			resources, err := buildResources(cluster, testRelease())
 			if err != nil {
 				t.Fatalf("BuildResources() unexpected error: %v", err)
 			}
@@ -707,7 +708,7 @@ func TestBuildResources_Metastore(t *testing.T) {
 			cluster := testCluster()
 			cluster.Spec.Components.Metastore = tt.metastore
 
-			resources, err := BuildResources(cluster, testRelease())
+			resources, err := buildResources(cluster, testRelease())
 			if err != nil {
 				t.Fatalf("BuildResources() unexpected error: %v", err)
 			}
@@ -744,7 +745,7 @@ func TestBuildResources_ControlPlane(t *testing.T) {
 			cluster := testCluster()
 			cluster.Spec.Components.ControlPlane = tt.controlPlane
 
-			resources, err := BuildResources(cluster, testRelease())
+			resources, err := buildResources(cluster, testRelease())
 			if err != nil {
 				t.Fatalf("BuildResources() unexpected error: %v", err)
 			}
@@ -781,7 +782,7 @@ func TestBuildResources_Janitor(t *testing.T) {
 			cluster := testCluster()
 			cluster.Spec.Components.Janitor = tt.janitor
 
-			resources, err := BuildResources(cluster, testRelease())
+			resources, err := buildResources(cluster, testRelease())
 			if err != nil {
 				t.Fatalf("BuildResources() unexpected error: %v", err)
 			}
@@ -849,7 +850,7 @@ func TestBuildResources_ReadOnlyMetastore(t *testing.T) {
 			cluster := testCluster()
 			cluster.Spec.Components.ReadOnlyMetastore = tt.readOnlyMetastore
 
-			resources, err := BuildResources(cluster, testRelease())
+			resources, err := buildResources(cluster, testRelease())
 			if err != nil {
 				t.Fatalf("BuildResources() unexpected error: %v", err)
 			}
@@ -909,7 +910,7 @@ func TestBuildResources_Compactor(t *testing.T) {
 			cluster := testCluster()
 			cluster.Spec.Components.Compactor = tt.compactor
 
-			resources, err := BuildResources(cluster, testRelease())
+			resources, err := buildResources(cluster, testRelease())
 			if err != nil {
 				t.Fatalf("BuildResources() unexpected error: %v", err)
 			}
@@ -939,11 +940,16 @@ func testCluster() *datadoghqv1alpha1.DatadogBYOCCluster {
 				Metastore:    &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{},
 				Indexer:      &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{},
 				Searcher:     &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{},
+				Pipeline:     &datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{},
 				ControlPlane: &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
 				Janitor:      &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
 			},
 		},
 	}
+}
+
+func buildResources(cluster *datadoghqv1alpha1.DatadogBYOCCluster, images *byocimage.ResolvedImages) (*Resources, error) {
+	return BuildResources(byocdefaults.Apply(cluster), images)
 }
 
 func testRelease() *byocimage.ResolvedImages {

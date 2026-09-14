@@ -16,7 +16,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
-	byocdefaults "github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/defaults"
 	byocimage "github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/image"
 )
 
@@ -76,10 +75,8 @@ func (r *Resources) Compactor() *DeploymentResources {
 	return r.compactor
 }
 
-// BuildResources builds deterministic Kubernetes resources using resolved images.
+// BuildResources builds deterministic Kubernetes resources from a defaulted cluster and resolved images.
 func BuildResources(cluster *datadoghqv1alpha1.DatadogBYOCCluster, images *byocimage.ResolvedImages) (*Resources, error) {
-	cluster = byocdefaults.Apply(cluster)
-
 	configMap, err := newConfigMapBuilder(cluster).build()
 	if err != nil {
 		return nil, err
