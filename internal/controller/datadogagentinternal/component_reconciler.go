@@ -21,6 +21,7 @@ import (
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	componentagent "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/global"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/override"
@@ -222,6 +223,21 @@ func (r *ComponentRegistry) reconcileComponent(ctx context.Context, params *Reco
 	if componentOverride, ok := params.DDAI.Spec.Override[component.Name()]; ok {
 		override.PodTemplateSpec(objLogger, podManagers, componentOverride, component.Name(), params.DDAI.Name)
 		override.Deployment(deployment, componentOverride)
+	}
+
+	// When the untaint controller is enabled, nodes register with the agent-not-ready
+	// startup taint until the node Agent becomes Ready. The Cluster Agent and Cluster
+	// Checks Runner are Operator-managed Deployments that would otherwise stay Pending on a
+	// cold cluster until the first node is untainted, so add the matching toleration here,
+	// mirroring the node Agent DaemonSet (see reconcile_agent.go). Applied after overrides so
+	// a user-supplied toleration is respected (EnsureAgentNotReadyStartupToleration is a
+	// no-op if already tolerated). Gating on UntaintControllerEnabled is safe because the
+	// Operator owns these PodSpecs and knows its own flag.
+	if r.reconciler.options.UntaintControllerEnabled {
+		switch component.Name() {
+		case datadoghqv2alpha1.ClusterAgentComponentName, datadoghqv2alpha1.ClusterChecksRunnerComponentName:
+			componentagent.EnsureAgentNotReadyStartupToleration(objLogger, &podManagers.PodTemplateSpec().Spec)
+		}
 	}
 
 	if errs := global.ValidateFIPSVersions(podManagers); len(errs) > 0 {
