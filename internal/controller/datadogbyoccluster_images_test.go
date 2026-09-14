@@ -141,12 +141,12 @@ var _ = Describe("DatadogBYOCCluster image overrides", func() {
 		Expect(err).NotTo(HaveOccurred())
 		mirroredImage := images.Pomsky
 		mirroredImage.Repository = repository
-		Expect(statefulSet.Spec.Template.Spec.Containers[0].Image).To(Equal(mirroredImage.ImageReference()))
+		Expect(statefulSet.Spec.Template.Spec.Containers[0].Image).To(Equal(mirroredImage.GetImageReference()))
 
 		updateSpec(func(spec *datadoghqv1alpha1.DatadogBYOCClusterSpec) { spec.ImageOverrides = nil })
 		waitForReason("Resolved")
 		Expect(k8sClient.Get(context.Background(), client.ObjectKey{Name: "byoc-indexer", Namespace: namespace.Name}, statefulSet)).To(Succeed())
-		Expect(statefulSet.Spec.Template.Spec.Containers[0].Image).To(Equal(images.Pomsky.ImageReference()))
+		Expect(statefulSet.Spec.Template.Spec.Containers[0].Image).To(Equal(images.Pomsky.GetImageReference()))
 		Expect(statefulSet.Spec.Template.Spec.ImagePullSecrets).To(BeEmpty())
 	})
 

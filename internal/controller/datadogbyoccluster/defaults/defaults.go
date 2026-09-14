@@ -22,6 +22,7 @@ func Apply(cluster *datadoghqv1alpha1.DatadogBYOCCluster) *datadoghqv1alpha1.Dat
 	components := defaulted.Spec.Components
 	applyIndexerDefaults(components.Indexer)
 	applySearcherDefaults(components.Searcher)
+	applyPipelineDefaults(components.Pipeline)
 	applyMetastoreDefaults(components.Metastore)
 	applyComponentDefaults(components.ControlPlane, 1, deploymentResources())
 	applyComponentDefaults(components.Janitor, 1, deploymentResources())
@@ -32,6 +33,34 @@ func Apply(cluster *datadoghqv1alpha1.DatadogBYOCCluster) *datadoghqv1alpha1.Dat
 		applyCompactorDefaults(components.Compactor)
 	}
 	return defaulted
+}
+
+func applyPipelineDefaults(pipeline *datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec) {
+	applyComponentDefaults(&pipeline.DatadogBYOCClusterComponentSpec, 2, pipelineResources())
+	if pipeline.TerminationGracePeriodSeconds == nil {
+		pipeline.TerminationGracePeriodSeconds = ptr.To[int64](70)
+	}
+	applyAutoscalingDefaults(pipeline.Autoscaling, 70, 0, 300)
+
+	if pipeline.Storage == nil {
+		pipeline.Storage = &datadoghqv1alpha1.DatadogBYOCClusterStorageSpec{
+			VolumeClaimTemplate: &datadoghqv1alpha1.DatadogBYOCClusterEmbeddedPersistentVolumeClaim{},
+		}
+	}
+	if pipeline.Storage.VolumeClaimTemplate == nil {
+		return
+	}
+
+	claimSpec := &pipeline.Storage.VolumeClaimTemplate.Spec
+	if claimSpec.AccessModes == nil {
+		claimSpec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce}
+	}
+	if claimSpec.Resources.Requests == nil {
+		claimSpec.Resources.Requests = corev1.ResourceList{}
+	}
+	if _, found := claimSpec.Resources.Requests[corev1.ResourceStorage]; !found {
+		claimSpec.Resources.Requests[corev1.ResourceStorage] = resource.MustParse("10Gi")
+	}
 }
 
 func applyIndexerDefaults(indexer *datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec) {
@@ -135,6 +164,18 @@ func statefulResources() *corev1.ResourceRequirements {
 }
 
 func deploymentResources() *corev1.ResourceRequirements {
+	return &corev1.ResourceRequirements{
+		Limits: corev1.ResourceList{
+			corev1.ResourceMemory: resource.MustParse("4Gi"),
+		},
+		Requests: corev1.ResourceList{
+			corev1.ResourceCPU:    resource.MustParse("2"),
+			corev1.ResourceMemory: resource.MustParse("4Gi"),
+		},
+	}
+}
+
+func pipelineResources() *corev1.ResourceRequirements {
 	return &corev1.ResourceRequirements{
 		Limits: corev1.ResourceList{
 			corev1.ResourceMemory: resource.MustParse("4Gi"),

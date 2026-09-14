@@ -10,10 +10,8 @@ import (
 	"maps"
 	"slices"
 
-	"github.com/imdario/mergo"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/ptr"
 
@@ -53,15 +51,15 @@ func resolveWorkloadValues(input workloadInput) (workloadValues, error) {
 	}
 
 	selector := selectorLabels(input.Cluster, input.Name)
-	componentLabel := map[string]string{"app.kubernetes.io/component": input.Name}
-	componentLabels := labels(input.Cluster, componentLabel, input.Spec.Labels)
+	appComponentLabel := componentLabel(input.Name)
+	componentLabels := labels(input.Cluster, appComponentLabel, input.Spec.Labels)
 	resourceName := ComponentResourceName(input.Cluster.Name, input.Name)
 
 	return workloadValues{
 		Metadata: metav1.ObjectMeta{
 			Name:        resourceName,
 			Namespace:   input.Cluster.Namespace,
-			Labels:      labels(input.Cluster, componentLabel, input.Spec.Labels, selector),
+			Labels:      labels(input.Cluster, appComponentLabel, input.Spec.Labels, selector),
 			Annotations: annotations(input.Cluster, input.Spec.Annotations),
 		},
 		Replicas: *input.Spec.Replicas,
@@ -86,10 +84,9 @@ func resolvePodTemplateSpec(input workloadInput) (corev1.PodTemplateSpec, error)
 		return corev1.PodTemplateSpec{}, err
 	}
 
-	componentLabel := map[string]string{"app.kubernetes.io/component": input.Name}
 	return corev1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
-			Labels:      labels(input.Cluster, componentLabel, input.Spec.Labels, selectorLabels(input.Cluster, input.Name)),
+			Labels:      labels(input.Cluster, componentLabel(input.Name), input.Spec.Labels, selectorLabels(input.Cluster, input.Name)),
 			Annotations: annotations(input.Cluster, input.Spec.Annotations, map[string]string{configChecksumAnnotation: input.Checksum}),
 		},
 		Spec: podSpec,
@@ -115,13 +112,11 @@ func resolvePodSpec(input workloadInput) (corev1.PodSpec, error) {
 	volumes := make([]corev1.Volume, 0, 1+len(input.Defaults.PodSpec.Volumes)+len(global.Volumes)+len(input.Spec.Volumes))
 	volumes = append(volumes, corev1.Volume{Name: "config", VolumeSource: corev1.VolumeSource{ConfigMap: &corev1.ConfigMapVolumeSource{LocalObjectReference: corev1.LocalObjectReference{Name: input.Cluster.Name}, Items: []corev1.KeyToPath{{Key: nodeConfigFileName, Path: nodeConfigFileName}}}}})
 	volumes = append(volumes, slices.Clone(input.Defaults.PodSpec.Volumes)...)
-	volumes = append(volumes, slices.Clone(global.Volumes)...)
-	volumes = append(volumes, slices.Clone(input.Spec.Volumes)...)
+	volumes = append(volumes, mergeVolumes(global.Volumes, input.Spec.Volumes)...)
 
 	defaultContainer := input.Defaults.PodSpec.Containers[0].DeepCopy()
 	volumeMounts := append(slices.Clone(defaultContainer.VolumeMounts), corev1.VolumeMount{Name: "data", MountPath: defaultDataPath})
-	volumeMounts = append(volumeMounts, slices.Clone(global.VolumeMounts)...)
-	volumeMounts = append(volumeMounts, slices.Clone(input.Spec.VolumeMounts)...)
+	volumeMounts = append(volumeMounts, mergeVolumeMounts(global.VolumeMounts, input.Spec.VolumeMounts)...)
 
 	resources := defaultContainer.Resources
 	if input.Spec.Resources != nil {
@@ -141,8 +136,8 @@ func resolvePodSpec(input workloadInput) (corev1.PodSpec, error) {
 		InitContainers:     slices.Clone(input.Spec.InitContainers),
 		Containers: []corev1.Container{{
 			Name:            appName,
-			Image:           input.Image.ImageReference(),
-			ImagePullPolicy: input.Image.EffectivePullPolicy(),
+			Image:           input.Image.GetImageReference(),
+			ImagePullPolicy: input.Image.GetImagePullPolicy(),
 			Args:            slices.Clone(defaultContainer.Args),
 			Env:             resolveEnvironment(input, defaultContainer.Env),
 			EnvFrom:         append(slices.Clone(global.EnvFrom), slices.Clone(input.Spec.EnvFrom)...),
@@ -168,7 +163,7 @@ func resolvePodSpec(input workloadInput) (corev1.PodSpec, error) {
 		NodeSelector:                  maps.Clone(input.Spec.NodeSelector),
 		Affinity:                      affinity,
 		Tolerations:                   append(slices.Clone(global.Tolerations), slices.Clone(input.Spec.Tolerations)...),
-		TopologySpreadConstraints:     append(slices.Clone(global.TopologySpreadConstraints), slices.Clone(input.Spec.TopologySpreadConstraints)...),
+		TopologySpreadConstraints:     mergeTopologySpreadConstraints(global.TopologySpreadConstraints, input.Spec.TopologySpreadConstraints),
 		TerminationGracePeriodSeconds: terminationGracePeriodSeconds,
 	}, nil
 }
@@ -258,11 +253,10 @@ func resolveEnvironment(input workloadInput, additional []corev1.EnvVar) []corev
 }
 
 func selectorLabels(cluster *datadoghqv1alpha1.DatadogBYOCCluster, componentName string) map[string]string {
-	return map[string]string{
-		"app.kubernetes.io/name":      appName,
-		"app.kubernetes.io/instance":  cluster.Name,
-		"app.kubernetes.io/component": componentName,
-	}
+	return mergeStringMaps(map[string]string{
+		"app.kubernetes.io/name":     appName,
+		"app.kubernetes.io/instance": cluster.Name,
+	}, componentLabel(componentName))
 }
 
 func resolveAffinity(cluster *datadoghqv1alpha1.DatadogBYOCCluster, componentName string, global, component *corev1.Affinity) (*corev1.Affinity, error) {
@@ -280,48 +274,6 @@ func resolveAffinity(cluster *datadoghqv1alpha1.DatadogBYOCCluster, componentNam
 		}, nil
 	}
 	return mergeAffinity(global, component)
-}
-
-func mergeAffinity(global, component *corev1.Affinity) (*corev1.Affinity, error) {
-	if global == nil {
-		return component.DeepCopy(), nil
-	}
-	if component == nil {
-		return global.DeepCopy(), nil
-	}
-	base, err := runtime.DefaultUnstructuredConverter.ToUnstructured(global)
-	if err != nil {
-		return nil, err
-	}
-	override, err := runtime.DefaultUnstructuredConverter.ToUnstructured(component)
-	if err != nil {
-		return nil, err
-	}
-	if err := mergo.Merge(&base, override, mergo.WithOverride); err != nil {
-		return nil, err
-	}
-	result := &corev1.Affinity{}
-	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(base, result); err != nil {
-		return nil, err
-	}
-	return result, nil
-}
-
-func mergeEnv(base, override []corev1.EnvVar) []corev1.EnvVar {
-	result := slices.Clone(base)
-	positions := make(map[string]int, len(result))
-	for index := range result {
-		positions[result[index].Name] = index
-	}
-	for _, env := range override {
-		if index, found := positions[env.Name]; found {
-			result[index] = *env.DeepCopy()
-			continue
-		}
-		positions[env.Name] = len(result)
-		result = append(result, *env.DeepCopy())
-	}
-	return result
 }
 
 func healthProbeHandler(path string) corev1.ProbeHandler {

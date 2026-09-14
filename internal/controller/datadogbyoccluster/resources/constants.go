@@ -13,7 +13,10 @@ const (
 	JanitorComponentName           = "janitor"
 	ReadOnlyMetastoreComponentName = "read-only-metastore"
 	CompactorComponentName         = "compactor"
+	PipelineComponentName          = "pipeline"
 )
+
+const pipelineDestinationEndpointEnvName = "DD_OP_DESTINATION_CLOUDPREM_ENDPOINT_URL"
 
 const (
 	quickwitIndexerServiceName            = "indexer"
