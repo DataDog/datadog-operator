@@ -5,7 +5,10 @@
 
 package resources
 
-import datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+import (
+	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	controllerutils "github.com/DataDog/datadog-operator/internal/controller/utils"
+)
 
 // ComponentResourceName returns the Kubernetes resource name for a BYOC component.
 func ComponentResourceName(clusterName, componentName string) string {
@@ -37,14 +40,14 @@ func labels(cluster *datadoghqv1alpha1.DatadogBYOCCluster, overrides ...map[stri
 		"app.kubernetes.io/managed-by": "datadog-operator",
 	}, cluster.Spec.Global.Labels)
 	values = append(values, overrides...)
-	return mergeStringMaps(values...)
+	return controllerutils.MergeStringMaps(values...)
 }
 
 func annotations(cluster *datadoghqv1alpha1.DatadogBYOCCluster, overrides ...map[string]string) map[string]string {
 	values := make([]map[string]string, 0, 1+len(overrides))
 	values = append(values, cluster.Spec.Global.Annotations)
 	values = append(values, overrides...)
-	result := mergeStringMaps(values...)
+	result := controllerutils.MergeStringMaps(values...)
 	if result == nil {
 		return map[string]string{}
 	}

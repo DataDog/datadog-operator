@@ -3,7 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-package resources
+package utils
 
 import (
 	"maps"
@@ -14,7 +14,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
-func mergeStringMaps(values ...map[string]string) map[string]string {
+// MergeStringMaps merges maps in order, with later values taking precedence.
+func MergeStringMaps(values ...map[string]string) map[string]string {
 	var result map[string]string
 	for _, value := range values {
 		if len(value) == 0 {
@@ -28,25 +29,29 @@ func mergeStringMaps(values ...map[string]string) map[string]string {
 	return result
 }
 
-func mergeEnv(base, override []corev1.EnvVar) []corev1.EnvVar {
+// MergeEnv merges environment variables by name, with override values taking precedence.
+func MergeEnv(base, override []corev1.EnvVar) []corev1.EnvVar {
 	return mergeSlicesByKey(base, override, func(env corev1.EnvVar) string {
 		return env.Name
 	})
 }
 
-func mergeVolumes(base, override []corev1.Volume) []corev1.Volume {
+// MergeVolumes merges volumes by name, with override values taking precedence.
+func MergeVolumes(base, override []corev1.Volume) []corev1.Volume {
 	return mergeSlicesByKey(base, override, func(volume corev1.Volume) string {
 		return volume.Name
 	})
 }
 
-func mergeVolumeMounts(base, override []corev1.VolumeMount) []corev1.VolumeMount {
+// MergeVolumeMounts merges volume mounts by mount path, with override values taking precedence.
+func MergeVolumeMounts(base, override []corev1.VolumeMount) []corev1.VolumeMount {
 	return mergeSlicesByKey(base, override, func(mount corev1.VolumeMount) string {
 		return mount.MountPath
 	})
 }
 
-func mergeTopologySpreadConstraints(base, override []corev1.TopologySpreadConstraint) []corev1.TopologySpreadConstraint {
+// MergeTopologySpreadConstraints merges topology spread constraints by topology key and action.
+func MergeTopologySpreadConstraints(base, override []corev1.TopologySpreadConstraint) []corev1.TopologySpreadConstraint {
 	type topologySpreadConstraintKey struct {
 		topologyKey       string
 		whenUnsatisfiable corev1.UnsatisfiableConstraintAction
@@ -59,7 +64,8 @@ func mergeTopologySpreadConstraints(base, override []corev1.TopologySpreadConstr
 	})
 }
 
-func mergeAffinity(base, override *corev1.Affinity) (*corev1.Affinity, error) {
+// MergeAffinity merges affinity fields, with override fields taking precedence.
+func MergeAffinity(base, override *corev1.Affinity) (*corev1.Affinity, error) {
 	if base == nil {
 		return override.DeepCopy(), nil
 	}

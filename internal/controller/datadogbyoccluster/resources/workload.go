@@ -17,6 +17,7 @@ import (
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	byocimage "github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/image"
+	controllerutils "github.com/DataDog/datadog-operator/internal/controller/utils"
 )
 
 // workloadInput contains the domain inputs used to resolve a component workload.
@@ -112,11 +113,11 @@ func resolvePodSpec(input workloadInput) (corev1.PodSpec, error) {
 	volumes := make([]corev1.Volume, 0, 1+len(input.Defaults.PodSpec.Volumes)+len(global.Volumes)+len(input.Spec.Volumes))
 	volumes = append(volumes, corev1.Volume{Name: "config", VolumeSource: corev1.VolumeSource{ConfigMap: &corev1.ConfigMapVolumeSource{LocalObjectReference: corev1.LocalObjectReference{Name: input.Cluster.Name}, Items: []corev1.KeyToPath{{Key: nodeConfigFileName, Path: nodeConfigFileName}}}}})
 	volumes = append(volumes, slices.Clone(input.Defaults.PodSpec.Volumes)...)
-	volumes = append(volumes, mergeVolumes(global.Volumes, input.Spec.Volumes)...)
+	volumes = append(volumes, controllerutils.MergeVolumes(global.Volumes, input.Spec.Volumes)...)
 
 	defaultContainer := input.Defaults.PodSpec.Containers[0].DeepCopy()
 	volumeMounts := append(slices.Clone(defaultContainer.VolumeMounts), corev1.VolumeMount{Name: "data", MountPath: defaultDataPath})
-	volumeMounts = append(volumeMounts, mergeVolumeMounts(global.VolumeMounts, input.Spec.VolumeMounts)...)
+	volumeMounts = append(volumeMounts, controllerutils.MergeVolumeMounts(global.VolumeMounts, input.Spec.VolumeMounts)...)
 
 	resources := defaultContainer.Resources
 	if input.Spec.Resources != nil {
@@ -163,7 +164,7 @@ func resolvePodSpec(input workloadInput) (corev1.PodSpec, error) {
 		NodeSelector:                  maps.Clone(input.Spec.NodeSelector),
 		Affinity:                      affinity,
 		Tolerations:                   append(slices.Clone(global.Tolerations), slices.Clone(input.Spec.Tolerations)...),
-		TopologySpreadConstraints:     mergeTopologySpreadConstraints(global.TopologySpreadConstraints, input.Spec.TopologySpreadConstraints),
+		TopologySpreadConstraints:     controllerutils.MergeTopologySpreadConstraints(global.TopologySpreadConstraints, input.Spec.TopologySpreadConstraints),
 		TerminationGracePeriodSeconds: terminationGracePeriodSeconds,
 	}, nil
 }
@@ -248,12 +249,12 @@ func resolveEnvironment(input workloadInput, additional []corev1.EnvVar) []corev
 		corev1.EnvVar{Name: "QW_LOG_FORMAT", Value: "DDG"},
 		corev1.EnvVar{Name: "QW_RANDOM_SPLIT_PREFIX", Value: "true"},
 	)
-	env = mergeEnv(env, input.Cluster.Spec.Global.Env)
-	return mergeEnv(env, input.Spec.Env)
+	env = controllerutils.MergeEnv(env, input.Cluster.Spec.Global.Env)
+	return controllerutils.MergeEnv(env, input.Spec.Env)
 }
 
 func selectorLabels(cluster *datadoghqv1alpha1.DatadogBYOCCluster, componentName string) map[string]string {
-	return mergeStringMaps(map[string]string{
+	return controllerutils.MergeStringMaps(map[string]string{
 		"app.kubernetes.io/name":     appName,
 		"app.kubernetes.io/instance": cluster.Name,
 	}, componentLabel(componentName))
@@ -273,7 +274,7 @@ func resolveAffinity(cluster *datadoghqv1alpha1.DatadogBYOCCluster, componentNam
 			},
 		}, nil
 	}
-	return mergeAffinity(global, component)
+	return controllerutils.MergeAffinity(global, component)
 }
 
 func healthProbeHandler(path string) corev1.ProbeHandler {
