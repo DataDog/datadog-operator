@@ -11,6 +11,7 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/apm"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/checkrunner"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/cspm"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/dataplane"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/enabledefault"

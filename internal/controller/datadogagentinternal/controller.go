@@ -26,6 +26,7 @@ import (
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/appsec"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/asm"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/autoscaling"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/checkrunner"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/clusterchecks"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/cspm"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/cws"
