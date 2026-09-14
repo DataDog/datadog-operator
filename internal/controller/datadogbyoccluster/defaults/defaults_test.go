@@ -89,6 +89,25 @@ func TestApply(t *testing.T) {
 			},
 			Storage: &datadoghqv1alpha1.DatadogBYOCClusterStorageSpec{EmptyDir: &corev1.EmptyDirVolumeSource{}},
 		},
+		Pipeline: &datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{
+			DatadogBYOCClusterStatefulComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{
+				DatadogBYOCClusterComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
+					Replicas:                      ptr.To[int32](2),
+					Resources:                     pipelineResources(),
+					TerminationGracePeriodSeconds: ptr.To[int64](70),
+				},
+				Storage: &datadoghqv1alpha1.DatadogBYOCClusterStorageSpec{
+					VolumeClaimTemplate: &datadoghqv1alpha1.DatadogBYOCClusterEmbeddedPersistentVolumeClaim{
+						Spec: corev1.PersistentVolumeClaimSpec{
+							AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+							Resources: corev1.VolumeResourceRequirements{
+								Requests: corev1.ResourceList{corev1.ResourceStorage: resource.MustParse("10Gi")},
+							},
+						},
+					},
+				},
+			},
+		},
 		ControlPlane: &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
 			Replicas: ptr.To[int32](1),
 			Resources: &corev1.ResourceRequirements{
@@ -129,6 +148,63 @@ func TestApply(t *testing.T) {
 	}
 	if diff := cmp.Diff(got, Apply(got)); diff != "" {
 		t.Errorf("Apply() is not idempotent (-want +got):\n%s", diff)
+	}
+}
+
+func TestApplyPipelineDefaults(t *testing.T) {
+	custom := &datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{
+		DatadogBYOCClusterStatefulComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{
+			DatadogBYOCClusterComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
+				Replicas:                      ptr.To[int32](4),
+				Resources:                     &corev1.ResourceRequirements{},
+				TerminationGracePeriodSeconds: ptr.To[int64](120),
+			},
+			Storage: &datadoghqv1alpha1.DatadogBYOCClusterStorageSpec{EmptyDir: &corev1.EmptyDirVolumeSource{}},
+		},
+		PipelineID: ptr.To("existing-pipeline"),
+	}
+	tests := []struct {
+		name     string
+		pipeline *datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec
+		want     *datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec
+	}{
+		{
+			name:     "defaults",
+			pipeline: &datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{},
+			want: &datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{
+				DatadogBYOCClusterStatefulComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{
+					DatadogBYOCClusterComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
+						Replicas:                      ptr.To[int32](2),
+						Resources:                     pipelineResources(),
+						TerminationGracePeriodSeconds: ptr.To[int64](70),
+					},
+					Storage: &datadoghqv1alpha1.DatadogBYOCClusterStorageSpec{
+						VolumeClaimTemplate: &datadoghqv1alpha1.DatadogBYOCClusterEmbeddedPersistentVolumeClaim{
+							Spec: corev1.PersistentVolumeClaimSpec{
+								AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+								Resources: corev1.VolumeResourceRequirements{
+									Requests: corev1.ResourceList{corev1.ResourceStorage: resource.MustParse("10Gi")},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name:     "preserves custom values",
+			pipeline: custom.DeepCopy(),
+			want:     custom.DeepCopy(),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			applyPipelineDefaults(tt.pipeline)
+			if diff := cmp.Diff(tt.want, tt.pipeline); diff != "" {
+				t.Errorf("applyPipelineDefaults() mismatch (-want +got):\n%s", diff)
+			}
+		})
 	}
 }
 
@@ -418,6 +494,7 @@ func testCluster() *datadoghqv1alpha1.DatadogBYOCCluster {
 				ReadOnlyMetastore: &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{},
 				Indexer:           &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{},
 				Searcher:          &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{},
+				Pipeline:          &datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{},
 				ControlPlane:      &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
 				Compactor:         &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
 				Janitor:           &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
