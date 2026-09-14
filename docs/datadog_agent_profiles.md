@@ -126,10 +126,10 @@ spec:
 | override.[nodeAgent].labels | v1.8.0 |  |
 | override.[nodeAgent].updateStrategy | v1.9.0 |  |
 | override.[nodeAgent].runtimeClassName | v1.12.0 |  |
-| features.gpu | v1.20.0 | See [GPU Monitoring Guide][2] |
+| features.gpu.\* | v1.20.0 | See [GPU Monitoring Guide][2] |
 | override.[nodeAgent].volumes | v1.29.0 |  |
 | override.[nodeAgent].containers.[\*].volumeMounts | v1.29.0 |  |
-| features.apm | v1.29.0 | Admission controller must be enabled in DatadogAgent resource, if profile enables Single Step Instrumentation |
+| features.apm.\* | v1.29.0 | Admission controller must be enabled in DatadogAgent resource, if profile enables Single Step Instrumentation |
 
 [1]: https://docs.datadoghq.com/containers/datadog_operator/providers
 [2]: https://docs.datadoghq.com/gpu_monitoring/setup/?tab=datadogoperator#set-up-gpu-monitoring-on-a-mixed-kubernetes-cluster
