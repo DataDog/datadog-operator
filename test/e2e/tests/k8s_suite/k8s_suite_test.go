@@ -477,39 +477,33 @@ serviceAccount:
 		}, 3*time.Minute, 10*time.Second, "DSD UDP with ADP: metrics not received by fakeintake")
 	})
 
-	// --- Subtest: DSD UDP, single-container ADP enabled by the Operator default ---
-	s.T().Run("Single-container DSD UDP uses the Operator ADP default", func(t *testing.T) {
-		ddaConfigPath, err := common.GetAbsPath(filepath.Join(common.ManifestsPath, "dogstatsd", "datadog-agent-dsd-udp-single-adp-default.yaml"))
+	// --- Subtest: DSD UDP with explicitly enabled ADP, single-container strategy ---
+	s.T().Run("Single-container DSD UDP with ADP", func(t *testing.T) {
+		ddaConfigPath, err := common.GetAbsPath(filepath.Join(common.ManifestsPath, "dogstatsd", "datadog-agent-dsd-udp-single-adp.yaml"))
 		assert.NoError(s.T(), err)
 		senderPath, err := common.GetAbsPath(filepath.Join(common.ManifestsPath, "dogstatsd", "dsd-udp-sender.yaml"))
 		assert.NoError(s.T(), err)
 
 		ddaOpts := append([]agentwithoperatorparams.Option{
 			agentwithoperatorparams.WithDDAConfig(agentwithoperatorparams.DDAConfig{
-				Name:         "dda-dsd-udp-single-adp-default",
+				Name:         "dda-dsd-udp-single-adp",
 				YamlFilePath: ddaConfigPath,
 			}),
 		}, defaultDDAOpts...)
 
-		operatorOpts := append([]operatorparams.Option{}, defaultOperatorOpts...)
-		operatorOpts = append(operatorOpts, operatorparams.WithHelmValues(`env:
-  - name: DD_DEFAULT_DATA_PLANE_LINUX_ENABLED
-    value: "true"
-`))
-
 		provisionerOpts := []provisioners.KubernetesProvisionerOption{
-			provisioners.WithTestName("e2e-operator-dsd-udp-single-adp-default"),
-			provisioners.WithOperatorOptions(operatorOpts...),
+			provisioners.WithTestName("e2e-operator-dsd-udp-single-adp"),
+			provisioners.WithOperatorOptions(defaultOperatorOpts...),
 			provisioners.WithDDAOptions(ddaOpts...),
 			provisioners.WithYAMLWorkload(provisioners.YAMLWorkload{Name: "dsd-udp-sender", Path: senderPath}),
 			provisioners.WithLocal(s.local),
 		}
-		applyDDA("e2e-operator-dsd-udp-single-adp-default", provisionerOpts)
+		applyDDA("e2e-operator-dsd-udp-single-adp", provisionerOpts)
 
 		err = s.Env().FakeIntake.Client().FlushServerAndResetAggregators()
 		s.Assert().NoError(err)
 
-		agentSelector := common.NodeAgentSelector + ",agent.datadoghq.com/name=dda-dsd-udp-single-adp-default"
+		agentSelector := common.NodeAgentSelector + ",agent.datadoghq.com/name=dda-dsd-udp-single-adp"
 
 		s.Assert().EventuallyWithTf(func(c *assert.CollectT) {
 			utils.VerifyAgentPods(s.T(), c, common.NamespaceName, s.Env().KubernetesCluster.Client(), agentSelector)
@@ -520,11 +514,11 @@ serviceAccount:
 				return
 			}
 			s.assertSingleContainerADPRuntime(c, pods.Items[0])
-		}, 5*time.Minute, 15*time.Second, "single-container DSD UDP ADP default runtime verification failed")
+		}, 5*time.Minute, 15*time.Second, "single-container DSD UDP ADP runtime verification failed")
 
 		s.Assert().EventuallyWithTf(func(c *assert.CollectT) {
 			s.verifyDSDMetrics(c, "e2e.dsd.udp.counter")
-		}, 3*time.Minute, 10*time.Second, "single-container DSD UDP ADP default metrics not received by fakeintake")
+		}, 3*time.Minute, 10*time.Second, "single-container DSD UDP ADP metrics not received by fakeintake")
 	})
 
 	// --- Subtest: DSD UDS, ADP disabled ---
