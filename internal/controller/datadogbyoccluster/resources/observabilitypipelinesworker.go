@@ -17,6 +17,7 @@ import (
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	byocimage "github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/image"
+	controllerutils "github.com/DataDog/datadog-operator/internal/controller/utils"
 )
 
 // BuildObservabilityPipelinesWorker builds the child worker resource from a defaulted BYOC cluster.
@@ -62,19 +63,19 @@ func applyGlobalPipelineSettings(cluster *datadoghqv1alpha1.DatadogBYOCCluster, 
 
 	component.Labels = labels(cluster, componentLabel(PipelineComponentName), component.Labels)
 	component.Annotations = annotations(cluster, component.Annotations)
-	component.Env = mergeEnv(global.Env, component.Env)
-	component.Env = mergeEnv(component.Env, []corev1.EnvVar{{
+	component.Env = controllerutils.MergeEnv(global.Env, component.Env)
+	component.Env = controllerutils.MergeEnv(component.Env, []corev1.EnvVar{{
 		Name:  pipelineDestinationEndpointEnvName,
 		Value: "http://" + net.JoinHostPort(ComponentResourceName(cluster.Name, IndexerComponentName), strconv.Itoa(int(restPort))),
 	}})
 	component.EnvFrom = slices.Concat(global.EnvFrom, component.EnvFrom)
-	component.Volumes = mergeVolumes(global.Volumes, component.Volumes)
-	component.VolumeMounts = mergeVolumeMounts(global.VolumeMounts, component.VolumeMounts)
+	component.Volumes = controllerutils.MergeVolumes(global.Volumes, component.Volumes)
+	component.VolumeMounts = controllerutils.MergeVolumeMounts(global.VolumeMounts, component.VolumeMounts)
 	component.Tolerations = slices.Concat(global.Tolerations, component.Tolerations)
-	component.TopologySpreadConstraints = mergeTopologySpreadConstraints(global.TopologySpreadConstraints, component.TopologySpreadConstraints)
+	component.TopologySpreadConstraints = controllerutils.MergeTopologySpreadConstraints(global.TopologySpreadConstraints, component.TopologySpreadConstraints)
 	if global.Affinity != nil {
 		var err error
-		component.Affinity, err = mergeAffinity(global.Affinity, component.Affinity)
+		component.Affinity, err = controllerutils.MergeAffinity(global.Affinity, component.Affinity)
 		if err != nil {
 			return fmt.Errorf("merge pipeline affinity: %w", err)
 		}
