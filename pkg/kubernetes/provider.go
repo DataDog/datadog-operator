@@ -50,6 +50,12 @@ const (
 	// OpenshiftProvider is the OpenShift Provider name
 	OpenshiftProvider = "openshift"
 
+	// TalosProvider is the provider string for Talos Linux clusters. It has no
+	// stable node label, so like GKEAutopilotProvider it is only ever set via
+	// the datadoghq.com/provider annotation (on the DDA for cluster-scope, or
+	// on a DatadogAgentProfile for node-scope).
+	TalosProvider = "talos"
+
 	// OpenShiftProviderLabel is the OpenShift node label used to determine the node's provider
 	OpenShiftProviderLabel = "node.openshift.io/os_id"
 

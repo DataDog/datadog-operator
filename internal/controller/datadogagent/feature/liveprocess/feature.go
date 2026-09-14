@@ -16,6 +16,8 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	featutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/providercaps"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 func init() {
@@ -39,6 +41,17 @@ type liveProcessFeature struct {
 // ID returns the ID of the Feature
 func (f *liveProcessFeature) ID() feature.IDType {
 	return feature.LiveProcessIDType
+}
+
+// NodeAgentProviderCapabilities returns provider-conditional pod-template
+// mutations for the node agent. Talos has no host user database, so the
+// passwd volume this feature adds is stripped.
+func (f *liveProcessFeature) NodeAgentProviderCapabilities() providercaps.ProviderCapabilityMap {
+	return providercaps.ProviderCapabilityMap{
+		kubernetes.TalosProvider: {
+			RemoveVolumes: []string{common.PasswdVolumeName},
+		},
+	}
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.

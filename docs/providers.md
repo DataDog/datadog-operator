@@ -4,9 +4,10 @@ A *provider* identifies an environment or platform that needs a specific set of
 customizations to the Agent configuration. A provider is warranted when the
 environment imposes requirements or restrictions the defaults do not satisfy: a
 managed Kubernetes service (`eks`, `aks`), a Kubernetes distribution
-(`openshift`), a node OS without kernel sources (`gke-cos`), a restricted managed
-environment with a workload allowlist and a fixed node OS (`gke-autopilot`), or a
-platform-specific Agent behavior (`eks-ec2-use-hostname-from-file`).
+(`openshift`), a node OS without kernel sources or a host user/group database
+(`gke-cos`, `talos`), a restricted managed environment with a workload
+allowlist and a fixed node OS (`gke-autopilot`), or a platform-specific Agent
+behavior (`eks-ec2-use-hostname-from-file`).
 
 Setting a provider applies that set of customizations to the Agents it covers,
 whether across the whole cluster or only the nodes a
@@ -151,9 +152,12 @@ values are the value of the `agent.datadoghq.com/cluster-provider` annotation.
 | `aks`                            | Cluster (DDA)               | Detection or annotation | Sets the mandatory `DD_ADMISSION_CONTROLLER_ADD_AKS_SELECTORS=true` environment variable on the Cluster Agent                                                                                                                          | `providers.aks.enabled`                      |
 | `gke-autopilot`                  | Cluster (DDA)               | Annotation only         | Full GKE Autopilot workload adaptation (volume, env var, path, image, and PriorityClass changes). See [Datadog Operator on GKE Autopilot][3]                                                                   | `providers.gke.autopilot`                    |
 | `windows`                        | Node (DAP)                  | Annotation only         | Builds a Windows-compatible node Agent DaemonSet on the targeted Windows nodes: Linux-only containers, mounts, and security context are stripped, and a Windows base image and init config are applied. Available in Operator v1.30.0+ | None                                         |
+| `talos`                          | Cluster (DDA)[^talos-scope] | Annotation only         | Drops host volumes that don't exist on Talos Linux nodes: `/usr/src` and `/lib/modules` (OOM Kill, TCP Queue Length), and `/etc/passwd`/`/etc/group` (Live Process Collection, Process Discovery, CWS, CSPM)                          | `providers.talos.enabled`                    |
 
 
  Cluster scope applies the provider to every node, so use it only when all nodes match the provider (for example, a cluster where every node runs Container-Optimized OS). Otherwise, set the provider on a DAP that targets the matching nodes.
+
+[^talos-scope]: Talos Linux is normally the OS for every node in the cluster (control plane and workers alike), so the `DatadogAgent` annotation is the expected way to set it. The same annotation is also honored on a DatadogAgentProfile, which only matters for the uncommon case of a cluster with a mix of Talos and non-Talos nodes.
 
 ## Examples
 

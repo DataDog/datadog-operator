@@ -10,7 +10,9 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
@@ -22,6 +24,8 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
 	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/providercaps"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 func Test_npmFeature_Configure(t *testing.T) {
@@ -360,4 +364,52 @@ func assertNoConfigSyncEnvVars(t testing.TB, envVars []*corev1.EnvVar) {
 	for _, envVar := range configSyncEnvVars() {
 		assert.NotContains(t, envVars, envVar)
 	}
+}
+
+func Test_npmFeature_NodeAgentProviderCapabilities(t *testing.T) {
+	newPodTemplate := func() *corev1.PodTemplateSpec {
+		return &corev1.PodTemplateSpec{
+			ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{}},
+			Spec: corev1.PodSpec{
+				Containers: []corev1.Container{
+					{Name: string(apicommon.CoreAgentContainerName)},
+					{Name: string(apicommon.ProcessAgentContainerName)},
+					{Name: string(apicommon.SystemProbeContainerName)},
+				},
+			},
+		}
+	}
+
+	volumeNames := func(tmpl *corev1.PodTemplateSpec) []string {
+		names := make([]string, 0, len(tmpl.Spec.Volumes))
+		for _, v := range tmpl.Spec.Volumes {
+			names = append(names, v.Name)
+		}
+		return names
+	}
+
+	t.Run("talos adds the tracefs volume", func(t *testing.T) {
+		f := &npmFeature{}
+		tmpl := newPodTemplate()
+		mgr := feature.NewPodTemplateManagers(tmpl)
+		require.NoError(t, f.ManageNodeAgent(mgr))
+
+		providercaps.ApplyProviderCapabilities(mgr, kubernetes.TalosProvider, f.NodeAgentProviderCapabilities())
+
+		assert.Contains(t, volumeNames(tmpl), common.TracefsVolumeName)
+		// debugfs must remain: tracefs is an addition, not a replacement.
+		assert.Contains(t, volumeNames(tmpl), common.DebugfsVolumeName)
+	})
+
+	t.Run("default provider adds no tracefs volume", func(t *testing.T) {
+		f := &npmFeature{}
+		tmpl := newPodTemplate()
+		mgr := feature.NewPodTemplateManagers(tmpl)
+		require.NoError(t, f.ManageNodeAgent(mgr))
+
+		providercaps.ApplyProviderCapabilities(mgr, kubernetes.DefaultProvider, f.NodeAgentProviderCapabilities())
+
+		assert.NotContains(t, volumeNames(tmpl), common.TracefsVolumeName)
+		assert.Contains(t, volumeNames(tmpl), common.DebugfsVolumeName)
+	})
 }

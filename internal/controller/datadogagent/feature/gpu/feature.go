@@ -47,6 +47,8 @@ func (f *gpuFeature) ID() feature.IDType {
 // NodeAgentProviderCapabilities returns provider-conditional pod-template mutations.
 // On GKE COS, the NVIDIA driver libraries are not available at the standard path used
 // by the nvidia-container-runtime; mount them from the host location.
+// On Talos, tracefs is a standalone mount rather than nested under the debugfs
+// mount privileged mode adds, so system-probe needs it explicitly.
 func (f *gpuFeature) NodeAgentProviderCapabilities() providercaps.ProviderCapabilityMap {
 	containers := []apicommon.AgentContainerName{apicommon.CoreAgentContainerName}
 	if f.isPrivilegedModeEnabled {
@@ -56,7 +58,7 @@ func (f *gpuFeature) NodeAgentProviderCapabilities() providercaps.ProviderCapabi
 	vol, volMount := volume.GetVolumes(gkeCOSNVIDIADriverLib64VolumeName, gkeCOSNVIDIADriverLib64HostPath, gkeCOSNVIDIADriverLib64MountPath, true)
 	vol.HostPath.Type = ptr.To(corev1.HostPathDirectoryOrCreate)
 
-	return providercaps.ProviderCapabilityMap{
+	caps := providercaps.ProviderCapabilityMap{
 		kubernetes.GKECosProvider: {
 			Volumes: []providercaps.VolumeAndMount{
 				{
@@ -67,6 +69,16 @@ func (f *gpuFeature) NodeAgentProviderCapabilities() providercaps.ProviderCapabi
 			},
 		},
 	}
+
+	if f.isPrivilegedModeEnabled {
+		caps[kubernetes.TalosProvider] = providercaps.ProviderCapabilities{
+			Volumes: []providercaps.VolumeAndMount{
+				providercaps.HostPathVolumeAndMount(common.TracefsVolumeName, common.TracefsPath, false, apicommon.SystemProbeContainerName),
+			},
+		}
+	}
+
+	return caps
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.

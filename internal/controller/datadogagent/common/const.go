@@ -127,6 +127,13 @@ const (
 	// same path on host and container
 	DebugfsPath = "/sys/kernel/debug"
 
+	TracefsVolumeName = "tracefs"
+	// same path on host and container. Only mounted for providers whose kernel
+	// exposes tracefs as a standalone mount instead of nesting it under
+	// DebugfsPath (a hostPath mount of debugfs does not pull in a sibling
+	// tracefs mount).
+	TracefsPath = "/sys/kernel/tracing"
+
 	ModulesVolumeName = "modules"
 	// same path on host and container
 	ModulesVolumePath = "/lib/modules"
