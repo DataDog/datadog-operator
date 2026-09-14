@@ -7,7 +7,7 @@ require (
 	github.com/DataDog/datadog-api-client-go/v2 v2.64.0
 	github.com/Masterminds/semver/v3 v3.5.0
 	github.com/go-logr/logr v1.4.4
-	github.com/gobwas/glob v0.2.3
+	github.com/gobwas/glob v1.0.0
 	github.com/google/go-cmp v0.7.0
 	github.com/google/uuid v1.6.0
 	github.com/hako/durafmt v0.0.0-20210608085754-5c1018a4e16b
@@ -19,8 +19,8 @@ require (
 	github.com/spf13/pflag v1.0.10
 	github.com/stretchr/testify v1.12.1
 	go.uber.org/zap v1.28.0
-	gopkg.in/DataDog/dd-trace-go.v1 v1.74.8
-	gopkg.in/yaml.v2 v2.4.0
+	gopkg.in/DataDog/dd-trace-go.v2 v2.10.1
+	gopkg.in/yaml.v3 v3.0.1
 	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/api v0.37.0
 	k8s.io/apiextensions-apiserver v0.37.0
@@ -68,7 +68,7 @@ require (
 	golang.org/x/text v0.41.0
 	google.golang.org/grpc v1.83.2
 	google.golang.org/protobuf v1.36.12
-	helm.sh/helm/v3 v3.21.4
+	helm.sh/helm/v4 v4.2.4
 	k8s.io/kubectl v0.37.0
 	k8s.io/utils v0.0.0-20260707023825-cf1189d6abe3
 	sigs.k8s.io/karpenter v1.14.1
