@@ -2555,6 +2555,7 @@ func Test_defaultFeatures(t *testing.T) {
 						HostBenchmarks: &v2alpha1.CSPMHostBenchmarksConfig{
 							Enabled: ptr.To(defaultCSPMHostBenchmarksEnabled),
 						},
+						RunInSystemProbe: ptr.To(defaultCSPMRunInSystemProbe),
 					},
 					CWS: &v2alpha1.CWSFeatureConfig{
 						Enabled:                   ptr.To(valueTrue),
@@ -2868,6 +2869,88 @@ func Test_defaultFeatures_ServiceDiscoveryEnabledRemainsUnsetWhenOmitted(t *test
 			} else {
 				assert.NotNil(t, tt.ddaSpec.Features.ServiceDiscovery.Enabled)
 			}
+		})
+	}
+}
+
+func Test_defaultFeatures_SecurityFeaturesRunInSystemProbe(t *testing.T) {
+	securitySpec := func(agentTag string) *v2alpha1.DatadogAgentSpec {
+		spec := &v2alpha1.DatadogAgentSpec{
+			Features: &v2alpha1.DatadogFeatures{
+				CSPM: &v2alpha1.CSPMFeatureConfig{Enabled: ptr.To(true)},
+				CWS:  &v2alpha1.CWSFeatureConfig{Enabled: ptr.To(true)},
+			},
+		}
+		if agentTag != "" {
+			spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+				v2alpha1.NodeAgentComponentName: {
+					Image: &v2alpha1.AgentImageConfig{Tag: agentTag},
+				},
+			}
+		}
+		return spec
+	}
+
+	tests := []struct {
+		name                          string
+		ddaSpec                       *v2alpha1.DatadogAgentSpec
+		wantCSPMRunInSystemProbe      bool
+		wantCWSDirectSendFromSysProbe bool
+	}{
+		{
+			name:                          "no Agent image override, both default to the system-probe",
+			ddaSpec:                       securitySpec(""),
+			wantCSPMRunInSystemProbe:      true,
+			wantCWSDirectSendFromSysProbe: true,
+		},
+		{
+			name:                          "Agent too old for either setting",
+			ddaSpec:                       securitySpec("7.62.0"),
+			wantCSPMRunInSystemProbe:      false,
+			wantCWSDirectSendFromSysProbe: false,
+		},
+		{
+			name:                          "Agent only old enough for CWS direct send",
+			ddaSpec:                       securitySpec("7.76.0"),
+			wantCSPMRunInSystemProbe:      false,
+			wantCWSDirectSendFromSysProbe: true,
+		},
+		{
+			name:                          "unparsable Agent tag is assumed recent enough",
+			ddaSpec:                       securitySpec("latest"),
+			wantCSPMRunInSystemProbe:      true,
+			wantCWSDirectSendFromSysProbe: true,
+		},
+		{
+			name: "explicit false wins",
+			ddaSpec: func() *v2alpha1.DatadogAgentSpec {
+				spec := securitySpec("")
+				spec.Features.CSPM.RunInSystemProbe = ptr.To(false)
+				spec.Features.CWS.DirectSendFromSystemProbe = ptr.To(false)
+				return spec
+			}(),
+			wantCSPMRunInSystemProbe:      false,
+			wantCWSDirectSendFromSysProbe: false,
+		},
+		{
+			name: "explicit true wins on an older Agent",
+			ddaSpec: func() *v2alpha1.DatadogAgentSpec {
+				spec := securitySpec("7.62.0")
+				spec.Features.CSPM.RunInSystemProbe = ptr.To(true)
+				spec.Features.CWS.DirectSendFromSystemProbe = ptr.To(true)
+				return spec
+			}(),
+			wantCSPMRunInSystemProbe:      true,
+			wantCWSDirectSendFromSysProbe: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			defaultFeaturesConfig(tt.ddaSpec)
+
+			assert.Equal(t, tt.wantCSPMRunInSystemProbe, *tt.ddaSpec.Features.CSPM.RunInSystemProbe)
+			assert.Equal(t, tt.wantCWSDirectSendFromSysProbe, *tt.ddaSpec.Features.CWS.DirectSendFromSystemProbe)
 		})
 	}
 }

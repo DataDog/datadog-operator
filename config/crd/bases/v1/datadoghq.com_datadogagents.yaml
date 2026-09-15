@@ -1515,9 +1515,10 @@ spec:
                           type: object
                         runInSystemProbe:
                           description: |-
-                            RunInSystemProbe configures CSPM to send payloads directly from the system-probe, without using the security-agent.
-                            This is an experimental feature. Contact support before using.
-                            Default: false
+                            RunInSystemProbe configures CSPM to run the compliance checks in the system-probe and send
+                            payloads directly, without using the security-agent.
+                            Requires Agent 7.77.0 or above; on older Agents this defaults to false.
+                            Default: true
                           type: boolean
                       type: object
                     cws:
@@ -1583,8 +1584,8 @@ spec:
                         directSendFromSystemProbe:
                           description: |-
                             DirectSendFromSystemProbe configures CWS to send payloads directly from the system-probe, without using the security-agent.
-                            This is an experimental feature. Contact support before using.
-                            Default: false
+                            Requires Agent 7.63.0 or above; on older Agents this defaults to false.
+                            Default: true
                           type: boolean
                         enabled:
                           description: |-
@@ -10850,9 +10851,10 @@ spec:
                               type: object
                             runInSystemProbe:
                               description: |-
-                                RunInSystemProbe configures CSPM to send payloads directly from the system-probe, without using the security-agent.
-                                This is an experimental feature. Contact support before using.
-                                Default: false
+                                RunInSystemProbe configures CSPM to run the compliance checks in the system-probe and send
+                                payloads directly, without using the security-agent.
+                                Requires Agent 7.77.0 or above; on older Agents this defaults to false.
+                                Default: true
                               type: boolean
                           type: object
                         cws:
@@ -10918,8 +10920,8 @@ spec:
                             directSendFromSystemProbe:
                               description: |-
                                 DirectSendFromSystemProbe configures CWS to send payloads directly from the system-probe, without using the security-agent.
-                                This is an experimental feature. Contact support before using.
-                                Default: false
+                                Requires Agent 7.63.0 or above; on older Agents this defaults to false.
+                                Default: true
                               type: boolean
                             enabled:
                               description: |-

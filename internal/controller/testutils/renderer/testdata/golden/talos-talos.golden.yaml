@@ -1161,7 +1161,7 @@ kind: DatadogAgentInternal
 metadata:
   annotations:
     agent.datadoghq.com/cluster-provider: talos
-    agent.datadoghq.com/ddaispechash: 20d067d3e296140be10e6836103e018e
+    agent.datadoghq.com/ddaispechash: ac12fe25e42f57a5c5370e927070d56d
   finalizers:
   - finalizer.datadoghq.com/datadogagentinternal
   labels:
@@ -1219,8 +1219,9 @@ spec:
       enabled: true
       hostBenchmarks:
         enabled: true
+      runInSystemProbe: true
     cws:
-      directSendFromSystemProbe: false
+      directSendFromSystemProbe: true
       enabled: true
       enforcement:
         enabled: true
@@ -1329,7 +1330,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: 04ecc82f0e94960cbfdd6ffd071b220a
+    agent.datadoghq.com/agentspechash: d76cc7b79f5c1c7a03722844eec57c78
   labels:
     agent.datadoghq.com/component: agent
     agent.datadoghq.com/name: datadog-agent
@@ -1425,7 +1426,11 @@ spec:
         - name: DD_COMPLIANCE_CONFIG_HOST_BENCHMARKS_ENABLED
           value: "true"
         - name: DD_COMPLIANCE_CONFIG_RUN_IN_SYSTEM_PROBE
-          value: "false"
+          value: "true"
+        - name: DD_AGENT_IPC_PORT
+          value: "5009"
+        - name: DD_AGENT_IPC_CONFIG_REFRESH_INTERVAL
+          value: "60"
         - name: DD_RUNTIME_SECURITY_CONFIG_ENABLED
           value: "true"
         - name: DD_RUNTIME_SECURITY_CONFIG_SOCKET
@@ -1640,102 +1645,6 @@ spec:
         - mountPath: /tmp
           name: tmpdir
       - command:
-        - security-agent
-        - start
-        - -c=/etc/datadog-agent/datadog.yaml
-        env:
-        - name: HOST_ROOT
-          value: /host/root
-        - name: KUBERNETES
-          value: "yes"
-        - name: DD_CLUSTER_AGENT_ENABLED
-          value: "true"
-        - name: DD_CLUSTER_AGENT_KUBERNETES_SERVICE_NAME
-          value: datadog-agent-cluster-agent
-        - name: DD_KUBERNETES_USE_ENDPOINT_SLICES
-          value: "true"
-        - name: DD_CLUSTER_AGENT_TOKEN_NAME
-          value: datadog-agent-token
-        - name: DD_AUTH_TOKEN_FILE_PATH
-          value: /etc/datadog-agent/auth/token
-        - name: DD_KUBERNETES_KUBELET_HOST
-          valueFrom:
-            fieldRef:
-              fieldPath: status.hostIP
-        - name: DD_CLUSTER_NAME
-          value: test-cluster
-        - name: DD_SITE
-          value: datadoghq.com
-        - name: DD_LOG_LEVEL
-          value: info
-        - name: DD_API_KEY
-          valueFrom:
-            secretKeyRef:
-              key: api-key
-              name: datadog-secret
-        - name: DD_APP_KEY
-          valueFrom:
-            secretKeyRef:
-              key: app-key
-              name: datadog-secret
-        - name: DD_CLUSTER_AGENT_AUTH_TOKEN
-          valueFrom:
-            secretKeyRef:
-              key: token
-              name: datadog-agent-token
-        - name: DD_KUBELET_TLS_VERIFY
-          value: "false"
-        - name: DD_COMPLIANCE_CONFIG_ENABLED
-          value: "true"
-        - name: DD_COMPLIANCE_CONFIG_HOST_BENCHMARKS_ENABLED
-          value: "true"
-        - name: DD_COMPLIANCE_CONFIG_RUN_IN_SYSTEM_PROBE
-          value: "false"
-        - name: DD_RUNTIME_SECURITY_CONFIG_ENABLED
-          value: "true"
-        - name: DD_RUNTIME_SECURITY_CONFIG_SOCKET
-          value: /var/run/sysprobe/runtime-security.sock
-        - name: DD_DOGSTATSD_SOCKET
-          value: /var/run/datadog/dsd.socket
-        - name: DD_REMOTE_CONFIGURATION_ENABLED
-          value: "true"
-        image: registry.datadoghq.com/agent:7.80.0
-        name: security-agent
-        resources: {}
-        securityContext:
-          capabilities:
-            add:
-            - AUDIT_CONTROL
-            - AUDIT_READ
-            - KILL
-          readOnlyRootFilesystem: true
-        volumeMounts:
-        - mountPath: /var/log/datadog
-          name: logdatadog
-        - mountPath: /etc/datadog-agent/auth
-          name: datadog-agent-auth
-          readOnly: true
-        - mountPath: /etc/datadog-agent
-          name: config
-        - mountPath: /var/run/datadog
-          name: dsdsocket
-        - mountPath: /host/var/run
-          name: runtimesocketdir
-          readOnly: true
-        - mountPath: /tmp
-          name: tmpdir
-        - mountPath: /host/sys/fs/cgroup
-          name: cgroups
-          readOnly: true
-        - mountPath: /host/proc
-          name: procdir
-          readOnly: true
-        - mountPath: /host/root
-          name: hostroot
-          readOnly: true
-        - mountPath: /var/run/sysprobe
-          name: sysprobe-socket-dir
-      - command:
         - system-probe
         - --config=/etc/datadog-agent/system-probe.yaml
         env:
@@ -1778,10 +1687,24 @@ spec:
               name: datadog-agent-token
         - name: DD_KUBELET_TLS_VERIFY
           value: "false"
+        - name: DD_COMPLIANCE_CONFIG_ENABLED
+          value: "true"
+        - name: HOST_ROOT
+          value: /host/root
+        - name: DD_COMPLIANCE_CONFIG_HOST_BENCHMARKS_ENABLED
+          value: "true"
+        - name: DD_COMPLIANCE_CONFIG_RUN_IN_SYSTEM_PROBE
+          value: "true"
+        - name: DD_AGENT_IPC_PORT
+          value: "5009"
+        - name: DD_AGENT_IPC_CONFIG_REFRESH_INTERVAL
+          value: "60"
         - name: DD_RUNTIME_SECURITY_CONFIG_ENABLED
           value: "true"
         - name: DD_RUNTIME_SECURITY_CONFIG_SOCKET
           value: /var/run/sysprobe/runtime-security.sock
+        - name: DD_RUNTIME_SECURITY_CONFIG_DIRECT_SEND_FROM_SYSTEM_PROBE
+          value: "true"
         - name: DD_RUNTIME_SECURITY_CONFIG_NETWORK_ENABLED
           value: "true"
         - name: DD_RUNTIME_SECURITY_CONFIG_ACTIVITY_DUMP_ENABLED
@@ -1820,6 +1743,8 @@ spec:
         securityContext:
           capabilities:
             add:
+            - AUDIT_CONTROL
+            - AUDIT_READ
             - CHOWN
             - DAC_READ_SEARCH
             - IPC_LOCK
@@ -1851,18 +1776,18 @@ spec:
           name: tmpdir
         - mountPath: /var/run/datadog
           name: dsdsocket
+        - mountPath: /host/sys/fs/cgroup
+          name: cgroups
+          readOnly: true
+        - mountPath: /host/root
+          name: hostroot
+          readOnly: true
         - mountPath: /sys/kernel/debug
           name: debugfs
         - mountPath: /var/run/sysprobe
           name: sysprobe-socket-dir
         - mountPath: /host/etc/os-release
           name: host-osrelease
-          readOnly: true
-        - mountPath: /host/sys/fs/cgroup
-          name: cgroups
-          readOnly: true
-        - mountPath: /host/root
-          name: hostroot
           readOnly: true
         - mountPath: /sys/kernel/tracing
           name: tracefs
