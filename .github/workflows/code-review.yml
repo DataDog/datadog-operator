@@ -27,5 +27,5 @@ jobs:
       review_event: COMMENT_ONLY
     secrets:
       openai_api_key: ${{ secrets.OPENAI_API_KEY }}
-      claude_api_key: ${{ secrets.CLAUDE_API_KEY }}
+      anthropic_api_key: ${{ secrets.CLAUDE_API_KEY }}
       gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
