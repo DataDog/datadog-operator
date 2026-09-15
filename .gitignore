@@ -104,6 +104,8 @@ errors
 .cursor/*
 ### Claude ###
 .claude/*
+# ...except shared skills, which are checked in for the whole team
+!.claude/skills/
 ### Codex ###
 .codex/*
 
