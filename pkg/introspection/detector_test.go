@@ -31,6 +31,12 @@ func node(name string, labels map[string]string) *corev1.Node {
 	return &corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: name, Labels: labels}}
 }
 
+func nodeWithOSImage(name string, osImage string) *corev1.Node {
+	n := node(name, nil)
+	n.Status.NodeInfo.OSImage = osImage
+	return n
+}
+
 func clientWith(objs ...client.Object) client.Client {
 	return fake.NewClientBuilder().WithScheme(testScheme()).WithObjects(objs...).Build()
 }
@@ -57,6 +63,14 @@ func TestDetector_detect(t *testing.T) {
 			wantSource:   sourceOwnNode,
 		},
 		{
+			name:         "stage 1 operator-node Talos is authoritative",
+			nodeName:     "self",
+			apiReader:    clientWith(nodeWithOSImage("self", "Talos (v1.13.7)")),
+			nodeClient:   clientWith(node("n1", ocpLabels)),
+			wantProvider: kubernetes.TalosProvider,
+			wantSource:   sourceOwnNode,
+		},
+		{
 			name:         "stage 1 operator-node default published even when unlabeled",
 			nodeName:     "self",
 			apiReader:    clientWith(node("self", nil)),
@@ -69,6 +83,14 @@ func TestDetector_detect(t *testing.T) {
 			apiReader:    clientWith(), // own node absent -> Get NotFound
 			nodeClient:   clientWith(node("n1", ocpLabels)),
 			wantProvider: "openshift-rhcos",
+			wantSource:   sourceNodeList,
+		},
+		{
+			name:         "stage 2 fallback detects Talos when operator-node read fails",
+			nodeName:     "missing",
+			apiReader:    clientWith(), // own node absent -> Get NotFound
+			nodeClient:   clientWith(nodeWithOSImage("n1", "Talos (abcdef0)")),
+			wantProvider: kubernetes.TalosProvider,
 			wantSource:   sourceNodeList,
 		},
 		{
