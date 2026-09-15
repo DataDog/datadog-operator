@@ -163,6 +163,10 @@ func Test_privateActionRunnerFeature_ManageNodeAgentSplitMode(t *testing.T) {
 			Annotations: map[string]string{
 				"agent.datadoghq.com/private-action-runner-enabled":       "true",
 				"agent.datadoghq.com/private-action-runner-split-enabled": "true",
+				"agent.datadoghq.com/private-action-runner-configdata": `private_action_runner:
+  enabled: true
+  task_concurrency: 7
+`,
 			},
 		},
 		Spec: v2alpha1.DatadogAgentSpec{
@@ -217,6 +221,11 @@ func Test_privateActionRunnerFeature_ManageNodeAgentSplitMode(t *testing.T) {
 		}
 	}
 	assert.True(t, runMountFound)
+
+	coreEnvs := managers.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
+	assert.Contains(t, coreEnvs, &corev1.EnvVar{Name: DDPAREnabled, Value: "true"})
+	assert.Contains(t, coreEnvs, &corev1.EnvVar{Name: "DD_PRIVATE_ACTION_RUNNER_SPLIT_ENABLED", Value: "true"})
+	assert.Contains(t, coreEnvs, &corev1.EnvVar{Name: DDPARTaskConcurrency, Value: "7"})
 
 	envs := managers.EnvVarMgr.EnvVarsByC[apicommon.PrivateActionRunnerContainerName]
 	assert.Contains(t, envs, &corev1.EnvVar{Name: "DD_PRIVATE_ACTION_RUNNER_SPLIT_ENABLED", Value: "true"})
