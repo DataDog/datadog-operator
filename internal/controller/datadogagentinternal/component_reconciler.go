@@ -225,19 +225,12 @@ func (r *ComponentRegistry) reconcileComponent(ctx context.Context, params *Reco
 		override.Deployment(deployment, componentOverride)
 	}
 
-	// When the untaint controller is enabled, nodes register with the agent-not-ready
-	// startup taint until the node Agent becomes Ready. The Cluster Agent and Cluster
-	// Checks Runner are Operator-managed Deployments that would otherwise stay Pending on a
-	// cold cluster until the first node is untainted, so add the matching toleration here,
-	// mirroring the node Agent DaemonSet (see reconcile_agent.go). Applied after overrides so
-	// a user-supplied toleration is respected (EnsureAgentNotReadyStartupToleration is a
-	// no-op if already tolerated). Gating on UntaintControllerEnabled is safe because the
-	// Operator owns these PodSpecs and knows its own flag.
+	// When the untaint controller is enabled, tolerate the agent-not-ready startup taint on
+	// these Operator-managed Deployments so they can schedule on a cold cluster before the
+	// first node Agent is Ready, mirroring the node Agent DaemonSet. Applied after overrides
+	// so a user-supplied toleration wins (this is a no-op if already tolerated).
 	if r.reconciler.options.UntaintControllerEnabled {
-		switch component.Name() {
-		case datadoghqv2alpha1.ClusterAgentComponentName, datadoghqv2alpha1.ClusterChecksRunnerComponentName:
-			componentagent.EnsureAgentNotReadyStartupToleration(objLogger, &podManagers.PodTemplateSpec().Spec)
-		}
+		componentagent.EnsureAgentNotReadyStartupToleration(objLogger, &podManagers.PodTemplateSpec().Spec)
 	}
 
 	if errs := global.ValidateFIPSVersions(podManagers); len(errs) > 0 {

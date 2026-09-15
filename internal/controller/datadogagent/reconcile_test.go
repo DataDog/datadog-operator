@@ -425,6 +425,37 @@ func TestReconcileDDA_UntaintController_injectsAgentNotReadyTolerationClusterChe
 	runDDAReconcilerTest(t, tt, ReconcilerOptions{UntaintControllerEnabled: true})
 }
 
+func TestReconcileDDA_UntaintController_injectsAgentNotReadyTolerationOtelAgentGateway(t *testing.T) {
+	const resourcesName = "foo"
+	const resourcesNamespace = "bar"
+	const gatewayName = "foo-otel-agent-gateway"
+	defaultRequeueDuration := 15 * time.Second
+
+	wantTol := untaint.AgentNotReadyEqualToleration()
+	tt := testCase{
+		name: "untaint controller enabled injects agent-not-ready toleration on otel agent gateway deployment",
+		loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
+			dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+				WithOTelAgentGatewayEnabled(true).
+				WithOTelAgentGatewayConfig().
+				Build()
+			_ = c.Create(context.TODO(), dda)
+			return dda
+		},
+		want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
+		wantErr: false,
+		wantFunc: func(t *testing.T, c client.Client) {
+			deployment := &appsv1.Deployment{}
+			err := c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: gatewayName}, deployment)
+			assert.NoError(t, err)
+			assert.True(t, slices.ContainsFunc(deployment.Spec.Template.Spec.Tolerations, func(tol corev1.Toleration) bool {
+				return reflect.DeepEqual(tol, wantTol)
+			}), "expected injected toleration %+v in %+v", wantTol, deployment.Spec.Template.Spec.Tolerations)
+		},
+	}
+	runDDAReconcilerTest(t, tt, ReconcilerOptions{UntaintControllerEnabled: true})
+}
+
 func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 	const resourcesName = "foo"
 	const resourcesNamespace = "bar"
