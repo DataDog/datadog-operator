@@ -7,6 +7,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"net/http"
@@ -144,6 +145,8 @@ type options struct {
 	// Secret Backend options
 	secretBackendCommand  string
 	secretBackendArgs     stringSlice
+	secretBackendType     string
+	secretBackendConfig   string
 	secretRefreshInterval time.Duration
 }
 
@@ -165,6 +168,8 @@ func (opts *options) Parse() {
 	// Custom flags
 	flag.StringVar(&opts.secretBackendCommand, "secretBackendCommand", "", "Secret backend command")
 	flag.Var(&opts.secretBackendArgs, "secretBackendArgs", "Space separated arguments of the secret backend command")
+	flag.StringVar(&opts.secretBackendType, "secretBackendType", "", "Secret backend type for the embedded secret-generic-connector")
+	flag.StringVar(&opts.secretBackendConfig, "secretBackendConfig", "", "JSON object of secret backend config for the secret-generic-connector")
 	flag.DurationVar(&opts.secretRefreshInterval, "secretRefreshInterval", 0, "Interval for refreshing secrets from secret backend")
 	flag.BoolVar(&opts.supportCilium, "supportCilium", false, "Support usage of Cilium network policies.")
 	flag.BoolVar(&opts.datadogAgentEnabled, "datadogAgentEnabled", true, "Enable the DatadogAgent controller")
@@ -333,8 +338,9 @@ func run(opts *options) error {
 	}
 
 	// Dispatch CLI flags to each package
-	secrets.SetSecretBackendCommand(opts.secretBackendCommand)
-	secrets.SetSecretBackendArgs(opts.secretBackendArgs)
+	if err := configureSecretBackend(opts); err != nil {
+		setupLog.Error(err, "Invalid -secretBackendConfig JSON, ignoring")
+	}
 
 	renewDeadline := opts.leaderElectionLeaseDuration / 2
 	retryPeriod := opts.leaderElectionLeaseDuration / 4
@@ -429,9 +435,10 @@ func run(opts *options) error {
 		setupLog.Error(err, "Unable to get credentials")
 	}
 
-	if opts.secretRefreshInterval > 0 && opts.secretBackendCommand == "" {
-		setupLog.Error(nil, "secretRefreshInterval is set but secretBackendCommand is not configured")
-	} else if opts.secretBackendCommand != "" && opts.secretRefreshInterval > 0 {
+	secretBackendConfigured := opts.secretBackendCommand != "" || opts.secretBackendType != ""
+	if opts.secretRefreshInterval > 0 && !secretBackendConfigured {
+		setupLog.Error(nil, "secretRefreshInterval is set but no secret backend is configured")
+	} else if secretBackendConfigured && opts.secretRefreshInterval > 0 {
 		go credsManager.StartCredentialRefreshRoutine(opts.secretRefreshInterval, setupLog)
 	}
 
@@ -550,6 +557,28 @@ func run(opts *options) error {
 		return setupErrorf(setupLog, err, "Problem running manager")
 	}
 
+	return nil
+}
+
+func parseSecretBackendConfig(raw string) (map[string]any, error) {
+	var config map[string]any
+	err := json.Unmarshal([]byte(raw), &config)
+	return config, err
+}
+
+func configureSecretBackend(opts *options) error {
+	secrets.SetSecretBackendCommand(opts.secretBackendCommand)
+	secrets.SetSecretBackendArgs(opts.secretBackendArgs)
+	secrets.SetSecretBackendType(opts.secretBackendType)
+	if opts.secretBackendConfig == "" {
+		return nil
+	}
+
+	backendConfig, err := parseSecretBackendConfig(opts.secretBackendConfig)
+	if err != nil {
+		return err
+	}
+	secrets.SetSecretBackendConfig(backendConfig)
 	return nil
 }
 
