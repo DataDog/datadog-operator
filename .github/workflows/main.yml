@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Set up Go
-        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
         with:
           go-version: ${{ env.GO_VERSION }}
         id: go
@@ -22,7 +22,7 @@ jobs:
         with:
           apt-get: mercurial jq build-essential
       - name: Check out code into the Go module directory
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
       - name: install tools
         run: |
           make install-tools
@@ -35,13 +35,13 @@ jobs:
       - name: Get Datadog credentials
         id: dd-sts
         continue-on-error: true
-        uses: DataDog/dd-sts-action@2e8187910199bd93129520183c093e19aa585c75 # v1.0.0
+        uses: DataDog/dd-sts-action@639d841c72f15e4e77747bd726ef8105ce971da2 # v1.0.5
         with:
           policy: datadog-operator
       - name: Upload coverage to Datadog
         if: steps.dd-sts.outputs.api_key != ''
         continue-on-error: true
-        uses: DataDog/coverage-upload-github-action@d2cf302a39c05e0ad22063360a2bf6ce0cc4906c # v1.0.1
+        uses: DataDog/coverage-upload-github-action@d9548b1c3c4ab639d5d3ab29a1508af188975f77 # v1.0.5
         with:
           api_key: ${{ steps.dd-sts.outputs.api_key }}
           files: .
