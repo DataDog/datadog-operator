@@ -8,6 +8,7 @@ package experimental
 import (
 	"testing"
 
+	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -68,6 +69,57 @@ func TestGetAutopilotAllowlistVersionAnnotation(t *testing.T) {
 			assert.Equal(t, tt.want, got)
 		})
 	}
+}
+
+func TestApplyExperimentalOverridesSelectsDefaultAutopilotWorkloadAllowlist(t *testing.T) {
+	originalCreateAllowlistSynchronizer := createAllowlistSynchronizer
+	t.Cleanup(func() {
+		createAllowlistSynchronizer = originalCreateAllowlistSynchronizer
+	})
+
+	called := false
+	var gotVersion string
+	var gotCommonLabels map[string]string
+	createAllowlistSynchronizer = func(version, _ string, commonLabels map[string]string) {
+		called = true
+		gotVersion = version
+		gotCommonLabels = commonLabels
+	}
+
+	dda := &v2alpha1.DatadogAgent{
+		ObjectMeta: metav1.ObjectMeta{
+			Annotations: map[string]string{kubernetes.ProviderAnnotationKey: kubernetes.GKEAutopilotProvider},
+		},
+		Spec: v2alpha1.DatadogAgentSpec{
+			Global: &v2alpha1.GlobalConfig{CommonLabels: map[string]string{"team": "autopilot"}},
+		},
+	}
+	manager := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{})
+
+	ApplyExperimentalOverrides(logr.Discard(), dda, manager)
+
+	assert.True(t, called)
+	assert.Empty(t, gotVersion)
+	assert.Equal(t, map[string]string{"team": "autopilot"}, gotCommonLabels)
+	assert.Equal(t, "datadog-datadog-daemonset-exemption-v1.0.6", manager.PodTemplateSpec().Labels["cloud.google.com/matching-allowlist"])
+}
+
+func TestApplyExperimentalOverridesDoesNotSelectAllowlistOutsideAutopilot(t *testing.T) {
+	originalCreateAllowlistSynchronizer := createAllowlistSynchronizer
+	t.Cleanup(func() {
+		createAllowlistSynchronizer = originalCreateAllowlistSynchronizer
+	})
+
+	called := false
+	createAllowlistSynchronizer = func(string, string, map[string]string) {
+		called = true
+	}
+	manager := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{})
+
+	ApplyExperimentalOverrides(logr.Discard(), &v2alpha1.DatadogAgent{}, manager)
+
+	assert.False(t, called)
+	assert.Empty(t, manager.PodTemplateSpec().Labels)
 }
 
 func TestApplyAutopilotWorkloadAllowlistLabel(t *testing.T) {

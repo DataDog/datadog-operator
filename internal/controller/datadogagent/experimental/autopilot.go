@@ -18,6 +18,8 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
+var createAllowlistSynchronizer = allowlistsynchronizer.CreateAllowlistSynchronizer
+
 // IsAutopilotEnabled reports whether GKE Autopilot handling should apply, via
 // either the provider annotation (datadoghq.com/provider: gke-autopilot — the
 // value the DDA controller stamps onto the DDAI) or the experimental opt-in
@@ -49,7 +51,7 @@ func applyExperimentalAutopilotOverrides(dda metav1.Object, manager feature.PodT
 
 	version := getExperimentalAnnotation(dda, ExperimentalAutopilotAllowlistVersionSubkey)
 	applyAutopilotWorkloadAllowlistLabel(manager, version)
-	allowlistsynchronizer.CreateAllowlistSynchronizer(
+	createAllowlistSynchronizer(
 		version,
 		object.NewPartOfLabelValue(dda).String(),
 		commonLabelsFromObject(dda),
