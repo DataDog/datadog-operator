@@ -64,6 +64,7 @@ func Test_CacheConfig(t *testing.T) {
 			wantObjectConfig: map[client.Object]objectConfig{
 				agentObj:           {configured: true, namespaces: []string{"agentNs"}},
 				byocClusterObj:     {configured: true, namespaces: []string{"datadog"}},
+				workerObj:          {configured: true, namespaces: []string{"datadog"}},
 				dashboardObj:       {configured: true, namespaces: []string{"dashboardNs"}},
 				genericResourceObj: {configured: true, namespaces: []string{"genericNs"}},
 				monitorObj:         {configured: true, namespaces: []string{"monitorNs", "monitorNs2"}},

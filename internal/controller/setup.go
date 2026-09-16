@@ -33,6 +33,7 @@ const (
 	dashboardControllerName       = "DatadogDashboard"
 	genericResourceControllerName = "DatadogGenericResource"
 	byocClusterControllerName     = "DatadogBYOCCluster"
+	workerControllerName          = "DatadogObservabilityPipelinesWorker"
 	csiDriverControllerName       = "DatadogCSIDriver"
 )
 
@@ -76,6 +77,7 @@ var controllerStarters = map[string]starterFunc{
 	dashboardControllerName:       startDatadogDashboard,
 	genericResourceControllerName: startDatadogGenericResource,
 	byocClusterControllerName:     startDatadogBYOCCluster,
+	workerControllerName:          startDatadogObservabilityPipelinesWorker,
 	csiDriverControllerName:       startDatadogCSIDriver,
 	untaintControllerName:         startUntaint,
 }
@@ -221,6 +223,20 @@ func startDatadogBYOCCluster(logger logr.Logger, mgr manager.Manager, _ kubernet
 		Scheme:        mgr.GetScheme(),
 		Recorder:      mgr.GetEventRecorderFor(byocClusterControllerName),
 		ImageResolver: options.BYOCImageResolver,
+	}).SetupWithManager(mgr)
+}
+
+func startDatadogObservabilityPipelinesWorker(logger logr.Logger, mgr manager.Manager, _ kubernetes.PlatformInfo, options SetupOptions, _ datadog.MetricsForwardersManager) error {
+	if !options.DatadogBYOCClusterEnabled {
+		logger.Info("Feature disabled, not starting the controller", "controller", workerControllerName)
+		return nil
+	}
+
+	return (&DatadogObservabilityPipelinesWorkerReconciler{
+		Client:   mgr.GetClient(),
+		Log:      ctrl.Log.WithName("controllers").WithName(workerControllerName),
+		Scheme:   mgr.GetScheme(),
+		Recorder: mgr.GetEventRecorderFor(workerControllerName),
 	}).SetupWithManager(mgr)
 }
 

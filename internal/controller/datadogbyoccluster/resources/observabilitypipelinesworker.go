@@ -13,6 +13,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/ptr"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
@@ -87,8 +88,13 @@ func applyGlobalPipelineSettings(cluster *datadoghqv1alpha1.DatadogBYOCCluster, 
 			return fmt.Errorf("merge pipeline affinity: %w", err)
 		}
 	}
-	if component.PodDisruptionBudget == nil && global.PodDisruptionBudget != nil {
+	if component.PodDisruptionBudget == nil {
 		component.PodDisruptionBudget = global.PodDisruptionBudget
+		if component.PodDisruptionBudget == nil {
+			component.PodDisruptionBudget = &datadoghqv1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec{
+				MaxUnavailable: new(intstr.FromInt32(1)),
+			}
+		}
 	}
 	return nil
 }
