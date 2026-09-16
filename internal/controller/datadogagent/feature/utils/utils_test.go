@@ -18,7 +18,40 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
+
+func TestShouldRunProcessChecksInCoreAgent(t *testing.T) {
+	withNodeAgentImage := func(tag string) *v2alpha1.DatadogAgentSpec {
+		return &v2alpha1.DatadogAgentSpec{
+			Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+				v2alpha1.NodeAgentComponentName: {
+					Image: &v2alpha1.AgentImageConfig{Name: "agent", Tag: tag},
+				},
+			},
+		}
+	}
+
+	for _, tt := range []struct {
+		name        string
+		annotations map[string]string
+		spec        *v2alpha1.DatadogAgentSpec
+		want        bool
+	}{
+		{name: "supported Agent version", spec: withNodeAgentImage("7.60.0"), want: true},
+		{name: "unsupported Agent version", spec: withNodeAgentImage("7.59.0")},
+		{
+			name:        "Windows provider",
+			annotations: map[string]string{kubernetes.ProviderAnnotationKey: kubernetes.WindowsProvider},
+			spec:        withNodeAgentImage("7.83.1"),
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			dda := &v2alpha1.DatadogAgent{ObjectMeta: metav1.ObjectMeta{Annotations: tt.annotations}}
+			assert.Equal(t, tt.want, ShouldRunProcessChecksInCoreAgent(dda, tt.spec))
+		})
+	}
+}
 
 func TestIsDataPlaneEnabled(t *testing.T) {
 	withDataPlaneEnabled := func(enabled bool) *v2alpha1.DatadogAgentSpec {

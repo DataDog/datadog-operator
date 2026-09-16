@@ -50,14 +50,14 @@ func (p *processDiscoveryFeature) NodeAgentProviderCapabilities() providercaps.P
 	}
 }
 
-func (p *processDiscoveryFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) feature.RequiredComponents {
+func (p *processDiscoveryFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) feature.RequiredComponents {
 	var reqComp feature.RequiredComponents
 	if ddaSpec.Features.ProcessDiscovery == nil || apiutils.BoolValue(ddaSpec.Features.ProcessDiscovery.Enabled) {
 		reqContainers := []apicommon.AgentContainerName{
 			apicommon.CoreAgentContainerName,
 		}
 
-		p.runInCoreAgent = featutils.ShouldRunProcessChecksInCoreAgent(ddaSpec)
+		p.runInCoreAgent = featutils.ShouldRunProcessChecksInCoreAgent(dda, ddaSpec)
 
 		if !p.runInCoreAgent {
 			reqContainers = append(reqContainers, apicommon.ProcessAgentContainerName)
