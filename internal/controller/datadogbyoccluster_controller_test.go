@@ -33,6 +33,7 @@ import (
 const (
 	byocSuccessReleaseTag = "success"
 	byocFailureReleaseTag = "failure"
+	byocPipelineID        = "pipeline-id"
 )
 
 var _ = Describe("DatadogBYOCCluster Controller", func() {
@@ -56,16 +57,12 @@ var _ = Describe("DatadogBYOCCluster Controller", func() {
 						LocalObjectReference: corev1.LocalObjectReference{Name: "datadog-secret"},
 						Key:                  "api-key",
 					},
-					AppKeySecretRef: &corev1.SecretKeySelector{
-						LocalObjectReference: corev1.LocalObjectReference{Name: "datadog-secret"},
-						Key:                  "app-key",
-					},
 				},
 				Components: &datadoghqv1alpha1.DatadogBYOCClusterComponentsSpec{
 					Metastore:         &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{},
 					Indexer:           &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{Autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{}},
 					Searcher:          &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{Autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{}},
-					Pipeline:          &datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{},
+					Pipeline:          &datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{PipelineID: ptr.To(byocPipelineID)},
 					ControlPlane:      &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
 					Janitor:           &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
 					ReadOnlyMetastore: &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{},
@@ -108,10 +105,6 @@ var _ = Describe("DatadogBYOCCluster Controller", func() {
 							LocalObjectReference: corev1.LocalObjectReference{Name: "datadog-secret"},
 							Key:                  "api-key",
 						},
-						AppKeySecretRef: &corev1.SecretKeySelector{
-							LocalObjectReference: corev1.LocalObjectReference{Name: "datadog-secret"},
-							Key:                  "app-key",
-						},
 						DogstatsdServer: &datadoghqv1alpha1.DatadogBYOCClusterDogstatsdServerSpec{
 							Port: ptr.To[int32](8125),
 						},
@@ -120,7 +113,7 @@ var _ = Describe("DatadogBYOCCluster Controller", func() {
 						Metastore:         &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{},
 						Indexer:           &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{Autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{}},
 						Searcher:          &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{Autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{}},
-						Pipeline:          &datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{},
+						Pipeline:          &datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{PipelineID: ptr.To(byocPipelineID)},
 						ControlPlane:      &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
 						Janitor:           &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
 						ReadOnlyMetastore: &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{},
@@ -298,10 +291,6 @@ var _ = Describe("DatadogBYOCCluster Controller", func() {
 							LocalObjectReference: corev1.LocalObjectReference{Name: "datadog-secret"},
 							Key:                  "api-key",
 						},
-						AppKeySecretRef: &corev1.SecretKeySelector{
-							LocalObjectReference: corev1.LocalObjectReference{Name: "datadog-secret"},
-							Key:                  "app-key",
-						},
 						DogstatsdServer: &datadoghqv1alpha1.DatadogBYOCClusterDogstatsdServerSpec{
 							Port: ptr.To[int32](8125),
 						},
@@ -310,7 +299,7 @@ var _ = Describe("DatadogBYOCCluster Controller", func() {
 						Metastore:         &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{},
 						Indexer:           &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{Autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{}},
 						Searcher:          &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{Autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{}},
-						Pipeline:          &datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{},
+						Pipeline:          &datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{PipelineID: ptr.To(byocPipelineID)},
 						ControlPlane:      &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
 						Janitor:           &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
 						ReadOnlyMetastore: &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{},

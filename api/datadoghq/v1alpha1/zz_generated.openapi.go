@@ -82,6 +82,8 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogObservabilityPipelinesWorker":                            schema_datadog_operator_api_datadoghq_v1alpha1_DatadogObservabilityPipelinesWorker(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogObservabilityPipelinesWorkerDatadogSpec":                 schema_datadog_operator_api_datadoghq_v1alpha1_DatadogObservabilityPipelinesWorkerDatadogSpec(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogObservabilityPipelinesWorkerImageSpec":                   schema_datadog_operator_api_datadoghq_v1alpha1_DatadogObservabilityPipelinesWorkerImageSpec(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogObservabilityPipelinesWorkerPort":                        schema_datadog_operator_api_datadoghq_v1alpha1_DatadogObservabilityPipelinesWorkerPort(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogObservabilityPipelinesWorkerServiceSpec":                 schema_datadog_operator_api_datadoghq_v1alpha1_DatadogObservabilityPipelinesWorkerServiceSpec(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogObservabilityPipelinesWorkerSpec":                        schema_datadog_operator_api_datadoghq_v1alpha1_DatadogObservabilityPipelinesWorkerSpec(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogObservabilityPipelinesWorkerStatus":                      schema_datadog_operator_api_datadoghq_v1alpha1_DatadogObservabilityPipelinesWorkerStatus(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogSLO":                                                     schema_datadog_operator_api_datadoghq_v1alpha1_DatadogSLO(ref),
@@ -1013,12 +1015,6 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterDatadogSpe
 					"apiKeySecretRef": {
 						SchemaProps: spec.SchemaProps{
 							Description: "APIKeySecretRef references the Kubernetes Secret containing the Datadog API key.",
-							Ref:         ref("k8s.io/api/core/v1.SecretKeySelector"),
-						},
-					},
-					"appKeySecretRef": {
-						SchemaProps: spec.SchemaProps{
-							Description: "AppKeySecretRef references the Kubernetes Secret containing the Datadog application key.",
 							Ref:         ref("k8s.io/api/core/v1.SecretKeySelector"),
 						},
 					},
@@ -1997,7 +1993,7 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterPipelineCo
 					},
 					"pipelineID": {
 						SchemaProps: spec.SchemaProps{
-							Description: "PipelineID identifies an existing Observability Pipeline to use. When omitted, the Operator creates a pipeline and records its ID on the child resource.",
+							Description: "PipelineID identifies an existing Observability Pipeline to use.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -4466,7 +4462,7 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogObservabilityPipeline
 				Properties: map[string]spec.Schema{
 					"site": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Site is the Datadog site used to manage the Observability Pipeline.",
+							Description: "Site is the Datadog site used by the Observability Pipelines Worker.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -4474,12 +4470,6 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogObservabilityPipeline
 					"apiKeySecretRef": {
 						SchemaProps: spec.SchemaProps{
 							Description: "APIKeySecretRef references the Kubernetes Secret containing the Datadog API key.",
-							Ref:         ref("k8s.io/api/core/v1.SecretKeySelector"),
-						},
-					},
-					"appKeySecretRef": {
-						SchemaProps: spec.SchemaProps{
-							Description: "AppKeySecretRef references the Kubernetes Secret containing the Datadog application key.",
 							Ref:         ref("k8s.io/api/core/v1.SecretKeySelector"),
 						},
 					},
@@ -4553,6 +4543,63 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogObservabilityPipeline
 		},
 		Dependencies: []string{
 			"k8s.io/api/core/v1.LocalObjectReference"},
+	}
+}
+
+func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogObservabilityPipelinesWorkerPort(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "DatadogObservabilityPipelinesWorkerPort defines a network port exposed by the worker.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Name identifies the port.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"port": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Port is the port number exposed by the worker container and Service.",
+							Default:     0,
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"protocol": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Protocol is the network protocol for the port.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"name", "port"},
+			},
+		},
+	}
+}
+
+func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogObservabilityPipelinesWorkerServiceSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "DatadogObservabilityPipelinesWorkerServiceSpec configures the Service exposing the worker.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"type": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Type determines how the Service is exposed.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
 	}
 }
 
@@ -4806,14 +4853,14 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogObservabilityPipeline
 					},
 					"pipelineID": {
 						SchemaProps: spec.SchemaProps{
-							Description: "PipelineID identifies an existing Observability Pipeline to use. When omitted, the Operator creates a pipeline and records its ID on the child resource.",
+							Description: "PipelineID identifies an existing Observability Pipeline to use.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
 					"datadog": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Datadog configures the connection used to manage the Observability Pipeline.",
+							Description: "Datadog configures the connection used by the Observability Pipelines Worker.",
 							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogObservabilityPipelinesWorkerDatadogSpec"),
 						},
 					},
@@ -4829,11 +4876,39 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogObservabilityPipeline
 							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterIdentitySpec"),
 						},
 					},
+					"ports": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-map-keys": []interface{}{
+									"name",
+								},
+								"x-kubernetes-list-type": "map",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "Ports contains the network ports exposed by the worker. The same ports are declared on the worker container and its Services.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogObservabilityPipelinesWorkerPort"),
+									},
+								},
+							},
+						},
+					},
+					"service": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Service configures the Service exposing the worker ports.",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogObservabilityPipelinesWorkerServiceSpec"),
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterAutoscalingSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterIdentitySpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterStorageSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogObservabilityPipelinesWorkerDatadogSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogObservabilityPipelinesWorkerImageSpec", "k8s.io/api/core/v1.Affinity", "k8s.io/api/core/v1.Container", "k8s.io/api/core/v1.EnvFromSource", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.Toleration", "k8s.io/api/core/v1.TopologySpreadConstraint", "k8s.io/api/core/v1.Volume", "k8s.io/api/core/v1.VolumeMount"},
+			"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterAutoscalingSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterIdentitySpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterStorageSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogObservabilityPipelinesWorkerDatadogSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogObservabilityPipelinesWorkerImageSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogObservabilityPipelinesWorkerPort", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogObservabilityPipelinesWorkerServiceSpec", "k8s.io/api/core/v1.Affinity", "k8s.io/api/core/v1.Container", "k8s.io/api/core/v1.EnvFromSource", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.Toleration", "k8s.io/api/core/v1.TopologySpreadConstraint", "k8s.io/api/core/v1.Volume", "k8s.io/api/core/v1.VolumeMount"},
 	}
 }
 
@@ -4844,13 +4919,6 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogObservabilityPipeline
 				Description: "DatadogObservabilityPipelinesWorkerStatus defines the observed state of DatadogObservabilityPipelinesWorker.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
-					"generatedPipelineID": {
-						SchemaProps: spec.SchemaProps{
-							Description: "GeneratedPipelineID is the ID of the pipeline created by the controller. It is not populated when spec.pipelineID selects an existing pipeline.",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
 					"observedGeneration": {
 						SchemaProps: spec.SchemaProps{
 							Description: "ObservedGeneration is the most recent generation observed by the controller.",

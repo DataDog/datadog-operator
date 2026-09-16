@@ -29,8 +29,8 @@ func TestBuildObservabilityPipelinesWorker(t *testing.T) {
 		want     *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker
 	}{
 		{
-			name:     "generated pipeline with defaults",
-			pipeline: &datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{},
+			name:     "pipeline with defaults",
+			pipeline: &datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{PipelineID: ptr.To("existing-pipeline")},
 			image: byocimage.ResolvedImage{
 				Repository: "registry.example.com/observability-pipelines-worker",
 				Tag:        "2.10.0",
@@ -44,75 +44,8 @@ func TestBuildObservabilityPipelinesWorker(t *testing.T) {
 								Replicas: ptr.To[int32](2),
 								Env: []corev1.EnvVar{
 									{Name: pipelineDestinationEndpointEnvName, Value: "http://byoc-indexer:7280"},
-								},
-								Resources: &corev1.ResourceRequirements{
-									Limits: corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("4Gi")},
-									Requests: corev1.ResourceList{
-										corev1.ResourceCPU:    resource.MustParse("2"),
-										corev1.ResourceMemory: resource.MustParse("4Gi"),
-									},
-								},
-								Labels: map[string]string{
-									"app.kubernetes.io/name":       "cloudprem",
-									"app.kubernetes.io/instance":   "byoc",
-									"app.kubernetes.io/component":  PipelineComponentName,
-									"app.kubernetes.io/managed-by": "datadog-operator",
-								},
-								Annotations:                   map[string]string{},
-								TerminationGracePeriodSeconds: ptr.To[int64](70),
-							},
-							Storage: &datadoghqv1alpha1.DatadogBYOCClusterStorageSpec{
-								VolumeClaimTemplate: &datadoghqv1alpha1.DatadogBYOCClusterEmbeddedPersistentVolumeClaim{
-									Spec: corev1.PersistentVolumeClaimSpec{
-										AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
-										Resources: corev1.VolumeResourceRequirements{
-											Requests: corev1.ResourceList{corev1.ResourceStorage: resource.MustParse("10Gi")},
-										},
-									},
-								},
-							},
-						},
-					},
-					Datadog: &datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerDatadogSpec{
-						Site: ptr.To("datadoghq.eu"),
-						APIKeySecretRef: &corev1.SecretKeySelector{
-							LocalObjectReference: corev1.LocalObjectReference{Name: "datadog-secret"},
-							Key:                  "api-key",
-						},
-						AppKeySecretRef: &corev1.SecretKeySelector{
-							LocalObjectReference: corev1.LocalObjectReference{Name: "datadog-secret"},
-							Key:                  "app-key",
-						},
-					},
-					Image: &datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerImageSpec{
-						Repository: ptr.To("registry.example.com/observability-pipelines-worker"),
-						Tag:        ptr.To("2.10.0"),
-						PullPolicy: ptr.To(corev1.PullIfNotPresent),
-					},
-				},
-			},
-		},
-		{
-			name: "existing pipeline with resolved image configuration",
-			pipeline: &datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{
-				PipelineID: ptr.To("existing-pipeline"),
-			},
-			image: byocimage.ResolvedImage{
-				Repository:       "registry.example.com/observability-pipelines-worker",
-				Tag:              "ignored-tag",
-				Digest:           digest,
-				ImagePullPolicy:  corev1.PullAlways,
-				ImagePullSecrets: []corev1.LocalObjectReference{{Name: "registry-credentials"}},
-			},
-			want: &datadoghqv1alpha1.DatadogObservabilityPipelinesWorker{
-				ObjectMeta: metav1.ObjectMeta{Name: "byoc-pipeline", Namespace: "testing"},
-				Spec: datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerSpec{
-					DatadogBYOCClusterPipelineComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{
-						DatadogBYOCClusterStatefulComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{
-							DatadogBYOCClusterComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
-								Replicas: ptr.To[int32](2),
-								Env: []corev1.EnvVar{
-									{Name: pipelineDestinationEndpointEnvName, Value: "http://byoc-indexer:7280"},
+									{Name: pipelineSourceOTLPGRPCAddressEnvName, Value: "0.0.0.0:4317"},
+									{Name: pipelineSourceOTLPHTTPAddressEnvName, Value: "0.0.0.0:4318"},
 								},
 								Resources: &corev1.ResourceRequirements{
 									Limits: corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("4Gi")},
@@ -149,9 +82,77 @@ func TestBuildObservabilityPipelinesWorker(t *testing.T) {
 							LocalObjectReference: corev1.LocalObjectReference{Name: "datadog-secret"},
 							Key:                  "api-key",
 						},
-						AppKeySecretRef: &corev1.SecretKeySelector{
+					},
+					Image: &datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerImageSpec{
+						Repository: ptr.To("registry.example.com/observability-pipelines-worker"),
+						Tag:        ptr.To("2.10.0"),
+						PullPolicy: ptr.To(corev1.PullIfNotPresent),
+					},
+					Ports: []datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerPort{
+						{Name: "otlp-grpc", Port: 4317, Protocol: corev1.ProtocolTCP},
+						{Name: "otlp-http", Port: 4318, Protocol: corev1.ProtocolTCP},
+					},
+				},
+			},
+		},
+		{
+			name: "existing pipeline with resolved image configuration",
+			pipeline: &datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{
+				PipelineID: ptr.To("existing-pipeline"),
+			},
+			image: byocimage.ResolvedImage{
+				Repository:       "registry.example.com/observability-pipelines-worker",
+				Tag:              "ignored-tag",
+				Digest:           digest,
+				ImagePullPolicy:  corev1.PullAlways,
+				ImagePullSecrets: []corev1.LocalObjectReference{{Name: "registry-credentials"}},
+			},
+			want: &datadoghqv1alpha1.DatadogObservabilityPipelinesWorker{
+				ObjectMeta: metav1.ObjectMeta{Name: "byoc-pipeline", Namespace: "testing"},
+				Spec: datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerSpec{
+					DatadogBYOCClusterPipelineComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{
+						DatadogBYOCClusterStatefulComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{
+							DatadogBYOCClusterComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
+								Replicas: ptr.To[int32](2),
+								Env: []corev1.EnvVar{
+									{Name: pipelineDestinationEndpointEnvName, Value: "http://byoc-indexer:7280"},
+									{Name: pipelineSourceOTLPGRPCAddressEnvName, Value: "0.0.0.0:4317"},
+									{Name: pipelineSourceOTLPHTTPAddressEnvName, Value: "0.0.0.0:4318"},
+								},
+								Resources: &corev1.ResourceRequirements{
+									Limits: corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("4Gi")},
+									Requests: corev1.ResourceList{
+										corev1.ResourceCPU:    resource.MustParse("2"),
+										corev1.ResourceMemory: resource.MustParse("4Gi"),
+									},
+								},
+								Labels: map[string]string{
+									"app.kubernetes.io/name":       "cloudprem",
+									"app.kubernetes.io/instance":   "byoc",
+									"app.kubernetes.io/component":  PipelineComponentName,
+									"app.kubernetes.io/managed-by": "datadog-operator",
+								},
+								Annotations:                   map[string]string{},
+								TerminationGracePeriodSeconds: ptr.To[int64](70),
+							},
+							Storage: &datadoghqv1alpha1.DatadogBYOCClusterStorageSpec{
+								VolumeClaimTemplate: &datadoghqv1alpha1.DatadogBYOCClusterEmbeddedPersistentVolumeClaim{
+									Spec: corev1.PersistentVolumeClaimSpec{
+										AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+										Resources: corev1.VolumeResourceRequirements{
+											Requests: corev1.ResourceList{corev1.ResourceStorage: resource.MustParse("10Gi")},
+										},
+									},
+								},
+							},
+						},
+						PipelineID: ptr.To("existing-pipeline"),
+					},
+					Datadog: &datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerDatadogSpec{
+						Site: ptr.To("datadoghq.eu"),
+						APIKeySecretRef: &corev1.SecretKeySelector{
 							LocalObjectReference: corev1.LocalObjectReference{Name: "datadog-secret"},
-							Key:                  "app-key",
+							Key:                  "api-key",
 						},
 					},
 					Image: &datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerImageSpec{
@@ -159,6 +160,10 @@ func TestBuildObservabilityPipelinesWorker(t *testing.T) {
 						Digest:           ptr.To(digest),
 						PullPolicy:       ptr.To(corev1.PullAlways),
 						ImagePullSecrets: []corev1.LocalObjectReference{{Name: "registry-credentials"}},
+					},
+					Ports: []datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerPort{
+						{Name: "otlp-grpc", Port: 4317, Protocol: corev1.ProtocolTCP},
+						{Name: "otlp-http", Port: 4318, Protocol: corev1.ProtocolTCP},
 					},
 				},
 			},
@@ -192,6 +197,8 @@ func TestBuildObservabilityPipelinesWorker(t *testing.T) {
 						Env: []corev1.EnvVar{
 							{Name: "SHARED_SETTING", Value: "pipeline"},
 							{Name: pipelineDestinationEndpointEnvName, Value: "replaced"},
+							{Name: pipelineSourceOTLPGRPCAddressEnvName, Value: "replaced"},
+							{Name: pipelineSourceOTLPHTTPAddressEnvName, Value: "replaced"},
 						},
 						Volumes: []corev1.Volume{
 							{Name: "shared", VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: "pipeline"}}},
@@ -220,6 +227,8 @@ func TestBuildObservabilityPipelinesWorker(t *testing.T) {
 									{Name: "SHARED_SETTING", Value: "pipeline"},
 									{Name: "GLOBAL_SETTING", Value: "global"},
 									{Name: pipelineDestinationEndpointEnvName, Value: "http://byoc-indexer:7280"},
+									{Name: pipelineSourceOTLPGRPCAddressEnvName, Value: "0.0.0.0:4317"},
+									{Name: pipelineSourceOTLPHTTPAddressEnvName, Value: "0.0.0.0:4318"},
 								},
 								Volumes: []corev1.Volume{
 									{Name: "shared", VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: "pipeline"}}},
@@ -267,15 +276,15 @@ func TestBuildObservabilityPipelinesWorker(t *testing.T) {
 							LocalObjectReference: corev1.LocalObjectReference{Name: "datadog-secret"},
 							Key:                  "api-key",
 						},
-						AppKeySecretRef: &corev1.SecretKeySelector{
-							LocalObjectReference: corev1.LocalObjectReference{Name: "datadog-secret"},
-							Key:                  "app-key",
-						},
 					},
 					Image: &datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerImageSpec{
 						Repository: ptr.To("registry.example.com/observability-pipelines-worker"),
 						Tag:        ptr.To("2.10.0"),
 						PullPolicy: ptr.To(corev1.PullIfNotPresent),
+					},
+					Ports: []datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerPort{
+						{Name: "otlp-grpc", Port: 4317, Protocol: corev1.ProtocolTCP},
+						{Name: "otlp-http", Port: 4318, Protocol: corev1.ProtocolTCP},
 					},
 				},
 			},
@@ -292,10 +301,6 @@ func TestBuildObservabilityPipelinesWorker(t *testing.T) {
 						APIKeySecretRef: &corev1.SecretKeySelector{
 							LocalObjectReference: corev1.LocalObjectReference{Name: "datadog-secret"},
 							Key:                  "api-key",
-						},
-						AppKeySecretRef: &corev1.SecretKeySelector{
-							LocalObjectReference: corev1.LocalObjectReference{Name: "datadog-secret"},
-							Key:                  "app-key",
 						},
 					},
 					Global: tt.global,

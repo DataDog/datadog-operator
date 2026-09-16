@@ -16,7 +16,7 @@ import (
 type DatadogObservabilityPipelinesWorkerSpec struct {
 	DatadogBYOCClusterPipelineComponentSpec `json:",inline"`
 
-	// Datadog configures the connection used to manage the Observability Pipeline.
+	// Datadog configures the connection used by the Observability Pipelines Worker.
 	// +kubebuilder:validation:Required
 	Datadog *DatadogObservabilityPipelinesWorkerDatadogSpec `json:"datadog,omitempty"`
 
@@ -28,12 +28,54 @@ type DatadogObservabilityPipelinesWorkerSpec struct {
 	// When omitted, the controller creates and owns a dedicated worker ServiceAccount.
 	// +optional
 	Identity *DatadogBYOCClusterIdentitySpec `json:"identity,omitempty"`
+
+	// Ports contains the network ports exposed by the worker.
+	// The same ports are declared on the worker container and its Services.
+	// +optional
+	// +listType=map
+	// +listMapKey=name
+	// +kubebuilder:validation:XValidation:rule="self.all(port, port.name != 'api')",message="port name api is reserved for the worker API"
+	Ports []DatadogObservabilityPipelinesWorkerPort `json:"ports,omitempty"`
+
+	// Service configures the Service exposing the worker ports.
+	// +optional
+	Service *DatadogObservabilityPipelinesWorkerServiceSpec `json:"service,omitempty"`
+}
+
+// DatadogObservabilityPipelinesWorkerPort defines a network port exposed by the worker.
+// +k8s:openapi-gen=true
+type DatadogObservabilityPipelinesWorkerPort struct {
+	// Name identifies the port.
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=15
+	Name string `json:"name"`
+
+	// Port is the port number exposed by the worker container and Service.
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=65535
+	Port int32 `json:"port"`
+
+	// Protocol is the network protocol for the port.
+	// +kubebuilder:default=TCP
+	// +kubebuilder:validation:Enum=TCP;UDP;SCTP
+	// +optional
+	Protocol corev1.Protocol `json:"protocol,omitempty"`
+}
+
+// DatadogObservabilityPipelinesWorkerServiceSpec configures the Service exposing the worker.
+// +k8s:openapi-gen=true
+type DatadogObservabilityPipelinesWorkerServiceSpec struct {
+	// Type determines how the Service is exposed.
+	// +kubebuilder:default=ClusterIP
+	// +kubebuilder:validation:Enum=ClusterIP;NodePort;LoadBalancer
+	// +optional
+	Type corev1.ServiceType `json:"type,omitempty"`
 }
 
 // DatadogObservabilityPipelinesWorkerDatadogSpec defines the Datadog connection settings.
 // +k8s:openapi-gen=true
 type DatadogObservabilityPipelinesWorkerDatadogSpec struct {
-	// Site is the Datadog site used to manage the Observability Pipeline.
+	// Site is the Datadog site used by the Observability Pipelines Worker.
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:MinLength=1
 	Site *string `json:"site,omitempty"`
@@ -41,10 +83,6 @@ type DatadogObservabilityPipelinesWorkerDatadogSpec struct {
 	// APIKeySecretRef references the Kubernetes Secret containing the Datadog API key.
 	// +kubebuilder:validation:Required
 	APIKeySecretRef *corev1.SecretKeySelector `json:"apiKeySecretRef,omitempty"`
-
-	// AppKeySecretRef references the Kubernetes Secret containing the Datadog application key.
-	// +kubebuilder:validation:Required
-	AppKeySecretRef *corev1.SecretKeySelector `json:"appKeySecretRef,omitempty"`
 }
 
 // DatadogObservabilityPipelinesWorkerImageSpec defines a fully resolved container image.
@@ -56,11 +94,6 @@ type DatadogObservabilityPipelinesWorkerImageSpec DatadogBYOCImageSpec
 // DatadogObservabilityPipelinesWorkerStatus defines the observed state of DatadogObservabilityPipelinesWorker.
 // +k8s:openapi-gen=true
 type DatadogObservabilityPipelinesWorkerStatus struct {
-	// GeneratedPipelineID is the ID of the pipeline created by the controller.
-	// It is not populated when spec.pipelineID selects an existing pipeline.
-	// +optional
-	GeneratedPipelineID *string `json:"generatedPipelineID,omitempty"`
-
 	// ObservedGeneration is the most recent generation observed by the controller.
 	// +optional
 	ObservedGeneration *int64 `json:"observedGeneration,omitempty"`

@@ -136,10 +136,6 @@ type DatadogBYOCClusterDatadogSpec struct {
 	// +kubebuilder:validation:Required
 	APIKeySecretRef *corev1.SecretKeySelector `json:"apiKeySecretRef,omitempty"`
 
-	// AppKeySecretRef references the Kubernetes Secret containing the Datadog application key.
-	// +kubebuilder:validation:Required
-	AppKeySecretRef *corev1.SecretKeySelector `json:"appKeySecretRef,omitempty"`
-
 	// BYOCTelemetry controls the export of BYOC product telemetry.
 	// +optional
 	// +kubebuilder:default=true
@@ -299,8 +295,7 @@ type DatadogBYOCClusterPipelineComponentSpec struct {
 	DatadogBYOCClusterStatefulComponentSpec `json:",inline"`
 
 	// PipelineID identifies an existing Observability Pipeline to use.
-	// When omitted, the Operator creates a pipeline and records its ID on the child resource.
-	// +optional
+	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:MinLength=1
 	PipelineID *string `json:"pipelineID,omitempty"`
 }

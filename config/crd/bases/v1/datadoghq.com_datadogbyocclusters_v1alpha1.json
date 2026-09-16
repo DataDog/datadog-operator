@@ -23662,6 +23662,9 @@
                   "x-kubernetes-list-type": "map"
                 }
               },
+              "required": [
+                "pipelineID"
+              ],
               "type": "object",
               "x-kubernetes-validations": [
                 {
@@ -31868,26 +31871,6 @@
               "type": "object",
               "x-kubernetes-map-type": "atomic"
             },
-            "appKeySecretRef": {
-              "additionalProperties": false,
-              "properties": {
-                "key": {
-                  "type": "string"
-                },
-                "name": {
-                  "default": "",
-                  "type": "string"
-                },
-                "optional": {
-                  "type": "boolean"
-                }
-              },
-              "required": [
-                "key"
-              ],
-              "type": "object",
-              "x-kubernetes-map-type": "atomic"
-            },
             "byocTelemetry": {
               "default": true,
               "type": "boolean"
@@ -31913,8 +31896,7 @@
             }
           },
           "required": [
-            "apiKeySecretRef",
-            "appKeySecretRef"
+            "apiKeySecretRef"
           ],
           "type": "object"
         },

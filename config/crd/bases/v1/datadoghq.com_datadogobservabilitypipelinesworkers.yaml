@@ -1509,7 +1509,7 @@ spec:
                       type: integer
                   type: object
                 datadog:
-                  description: Datadog configures the connection used to manage the Observability Pipeline.
+                  description: Datadog configures the connection used by the Observability Pipelines Worker.
                   properties:
                     apiKeySecretRef:
                       description: APIKeySecretRef references the Kubernetes Secret containing the Datadog API key.
@@ -1533,35 +1533,12 @@ spec:
                         - key
                       type: object
                       x-kubernetes-map-type: atomic
-                    appKeySecretRef:
-                      description: AppKeySecretRef references the Kubernetes Secret containing the Datadog application key.
-                      properties:
-                        key:
-                          description: The key of the secret to select from.  Must be a valid secret key.
-                          type: string
-                        name:
-                          default: ""
-                          description: |-
-                            Name of the referent.
-                            This field is effectively required, but due to backwards compatibility is
-                            allowed to be empty. Instances of this type with an empty value here are
-                            almost certainly wrong.
-                            More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                          type: string
-                        optional:
-                          description: Specify whether the Secret or its key must be defined
-                          type: boolean
-                      required:
-                        - key
-                      type: object
-                      x-kubernetes-map-type: atomic
                     site:
-                      description: Site is the Datadog site used to manage the Observability Pipeline.
+                      description: Site is the Datadog site used by the Observability Pipelines Worker.
                       minLength: 1
                       type: string
                   required:
                     - apiKeySecretRef
-                    - appKeySecretRef
                     - site
                   type: object
                 env:
@@ -3361,9 +3338,7 @@ spec:
                   description: NodeSelector selects nodes on which the component Pods may run.
                   type: object
                 pipelineID:
-                  description: |-
-                    PipelineID identifies an existing Observability Pipeline to use.
-                    When omitted, the Operator creates a pipeline and records its ID on the child resource.
+                  description: PipelineID identifies an existing Observability Pipeline to use.
                   minLength: 1
                   type: string
                 podDisruptionBudget:
@@ -3388,6 +3363,43 @@ spec:
                   x-kubernetes-validations:
                     - message: minAvailable and maxUnavailable are mutually exclusive
                       rule: '!(has(self.minAvailable) && has(self.maxUnavailable))'
+                ports:
+                  description: |-
+                    Ports contains the network ports exposed by the worker.
+                    The same ports are declared on the worker container and its Services.
+                  items:
+                    description: DatadogObservabilityPipelinesWorkerPort defines a network port exposed by the worker.
+                    properties:
+                      name:
+                        description: Name identifies the port.
+                        maxLength: 15
+                        minLength: 1
+                        type: string
+                      port:
+                        description: Port is the port number exposed by the worker container and Service.
+                        format: int32
+                        maximum: 65535
+                        minimum: 1
+                        type: integer
+                      protocol:
+                        default: TCP
+                        description: Protocol is the network protocol for the port.
+                        enum:
+                          - TCP
+                          - UDP
+                          - SCTP
+                        type: string
+                    required:
+                      - name
+                      - port
+                    type: object
+                  type: array
+                  x-kubernetes-list-map-keys:
+                    - name
+                  x-kubernetes-list-type: map
+                  x-kubernetes-validations:
+                    - message: port name api is reserved for the worker API
+                      rule: self.all(port, port.name != 'api')
                 replicas:
                   description: Replicas is the desired replica count.
                   format: int32
@@ -3450,6 +3462,18 @@ spec:
                         otherwise to an implementation-defined value. Requests cannot exceed Limits.
                         More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                       type: object
+                  type: object
+                service:
+                  description: Service configures the Service exposing the worker ports.
+                  properties:
+                    type:
+                      default: ClusterIP
+                      description: Type determines how the Service is exposed.
+                      enum:
+                        - ClusterIP
+                        - NodePort
+                        - LoadBalancer
+                      type: string
                   type: object
                 storage:
                   description: |-
@@ -5938,6 +5962,7 @@ spec:
               required:
                 - datadog
                 - image
+                - pipelineID
               type: object
               x-kubernetes-validations:
                 - message: resources.limits.memory must be specified when resources is set
@@ -6004,11 +6029,6 @@ spec:
                   x-kubernetes-list-map-keys:
                     - type
                   x-kubernetes-list-type: map
-                generatedPipelineID:
-                  description: |-
-                    GeneratedPipelineID is the ID of the pipeline created by the controller.
-                    It is not populated when spec.pipelineID selects an existing pipeline.
-                  type: string
                 observedGeneration:
                   description: ObservedGeneration is the most recent generation observed by the controller.
                   format: int64

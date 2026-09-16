@@ -70,70 +70,72 @@ func TestBuildResources_ServiceAccount(t *testing.T) {
 }
 
 func TestBuildResources_Services(t *testing.T) {
-	resources, err := BuildResources(testWorker(), "pipeline-id")
-	if err != nil {
-		t.Fatalf("BuildResources() unexpected error: %v", err)
+	tests := []struct {
+		name               string
+		workerFunc         func(*datadoghqv1alpha1.DatadogObservabilityPipelinesWorker)
+		wantService        *corev1.Service
+		wantContainerPorts []corev1.ContainerPort
+	}{
+		{
+			name: "exposed ports",
+			workerFunc: func(worker *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker) {
+				worker.Spec.Service = &datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerServiceSpec{Type: corev1.ServiceTypeLoadBalancer}
+			},
+			wantService: &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "byoc-pipeline",
+					Namespace: "testing",
+					Labels: map[string]string{
+						"app.kubernetes.io/name":       "observability-pipelines-worker",
+						"app.kubernetes.io/instance":   "byoc-pipeline",
+						"app.kubernetes.io/managed-by": "datadog-operator",
+						"app.kubernetes.io/component":  "pipeline",
+						"team":                         "logs",
+					},
+					Annotations: map[string]string{"example.com/owner": "operator"},
+				},
+				Spec: corev1.ServiceSpec{
+					Type: corev1.ServiceTypeLoadBalancer,
+					Selector: map[string]string{
+						"app.kubernetes.io/name":     "observability-pipelines-worker",
+						"app.kubernetes.io/instance": "byoc-pipeline",
+					},
+					Ports: []corev1.ServicePort{
+						{Name: "otlp-grpc", Port: 4317, Protocol: corev1.ProtocolTCP, TargetPort: intstr.FromInt32(4317)},
+						{Name: "otlp-http", Port: 4318, Protocol: corev1.ProtocolTCP, TargetPort: intstr.FromInt32(4318)},
+					},
+				},
+			},
+			wantContainerPorts: []corev1.ContainerPort{
+				{Name: "otlp-grpc", ContainerPort: 4317, Protocol: corev1.ProtocolTCP},
+				{Name: "otlp-http", ContainerPort: 4318, Protocol: corev1.ProtocolTCP},
+				{Name: "api", ContainerPort: 8686, Protocol: corev1.ProtocolTCP},
+			},
+		},
+		{
+			name: "no exposed ports",
+			workerFunc: func(worker *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker) {
+				worker.Spec.Ports = nil
+			},
+			wantContainerPorts: []corev1.ContainerPort{{Name: "api", ContainerPort: 8686, Protocol: corev1.ProtocolTCP}},
+		},
 	}
 
-	wantService := &corev1.Service{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "byoc-pipeline",
-			Namespace: "testing",
-			Labels: map[string]string{
-				"app.kubernetes.io/name":       "observability-pipelines-worker",
-				"app.kubernetes.io/instance":   "byoc-pipeline",
-				"app.kubernetes.io/managed-by": "datadog-operator",
-				"app.kubernetes.io/component":  "pipeline",
-				"team":                         "logs",
-			},
-			Annotations: map[string]string{"example.com/owner": "operator"},
-		},
-		Spec: corev1.ServiceSpec{
-			Type: corev1.ServiceTypeClusterIP,
-			Selector: map[string]string{
-				"app.kubernetes.io/name":     "observability-pipelines-worker",
-				"app.kubernetes.io/instance": "byoc-pipeline",
-			},
-			Ports: []corev1.ServicePort{
-				{Name: "otlp-grpc", Port: 4317, Protocol: corev1.ProtocolTCP, TargetPort: intstr.FromInt32(4317)},
-				{Name: "otlp-http", Port: 4318, Protocol: corev1.ProtocolTCP, TargetPort: intstr.FromInt32(4318)},
-				{Name: "api", Port: 8686, Protocol: corev1.ProtocolTCP, TargetPort: intstr.FromInt32(8686)},
-			},
-		},
-	}
-	if diff := cmp.Diff(wantService, resources.Service); diff != "" {
-		t.Errorf("Service mismatch (-want +got):\n%s", diff)
-	}
-
-	wantHeadlessService := &corev1.Service{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "byoc-pipeline-headless",
-			Namespace: "testing",
-			Labels: map[string]string{
-				"app.kubernetes.io/name":       "observability-pipelines-worker",
-				"app.kubernetes.io/instance":   "byoc-pipeline",
-				"app.kubernetes.io/managed-by": "datadog-operator",
-				"app.kubernetes.io/component":  "pipeline",
-				"team":                         "logs",
-			},
-			Annotations: map[string]string{"example.com/owner": "operator"},
-		},
-		Spec: corev1.ServiceSpec{
-			Type:      corev1.ServiceTypeClusterIP,
-			ClusterIP: corev1.ClusterIPNone,
-			Selector: map[string]string{
-				"app.kubernetes.io/name":     "observability-pipelines-worker",
-				"app.kubernetes.io/instance": "byoc-pipeline",
-			},
-			Ports: []corev1.ServicePort{
-				{Name: "otlp-grpc", Port: 4317, Protocol: corev1.ProtocolTCP, TargetPort: intstr.FromInt32(4317)},
-				{Name: "otlp-http", Port: 4318, Protocol: corev1.ProtocolTCP, TargetPort: intstr.FromInt32(4318)},
-				{Name: "api", Port: 8686, Protocol: corev1.ProtocolTCP, TargetPort: intstr.FromInt32(8686)},
-			},
-		},
-	}
-	if diff := cmp.Diff(wantHeadlessService, resources.HeadlessService); diff != "" {
-		t.Errorf("HeadlessService mismatch (-want +got):\n%s", diff)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			worker := testWorker()
+			tt.workerFunc(worker)
+			resources, err := BuildResources(worker, "pipeline-id")
+			if err != nil {
+				t.Fatalf("BuildResources() unexpected error: %v", err)
+			}
+			if diff := cmp.Diff(tt.wantService, resources.Service); diff != "" {
+				t.Errorf("Service mismatch (-want +got):\n%s", diff)
+			}
+			if diff := cmp.Diff(tt.wantContainerPorts, resources.StatefulSet.Spec.Template.Spec.Containers[0].Ports); diff != "" {
+				t.Errorf("Container ports mismatch (-want +got):\n%s", diff)
+			}
+		})
 	}
 }
 
@@ -163,7 +165,7 @@ func TestBuildResources_StatefulSet(t *testing.T) {
 				},
 				Spec: appsv1.StatefulSetSpec{
 					Replicas:            ptr.To[int32](2),
-					ServiceName:         "byoc-pipeline-headless",
+					ServiceName:         "byoc-pipeline",
 					PodManagementPolicy: appsv1.ParallelPodManagement,
 					Selector: &metav1.LabelSelector{MatchLabels: map[string]string{
 						"app.kubernetes.io/name":     "observability-pipelines-worker",
@@ -192,14 +194,14 @@ func TestBuildResources_StatefulSet(t *testing.T) {
 								Args:            []string{"run"},
 								Env: []corev1.EnvVar{
 									{Name: "DD_OP_DESTINATION_CLOUDPREM_ENDPOINT_URL", Value: "http://byoc-indexer:7280"},
+									{Name: "DD_OP_SOURCE_OTEL_GRPC_ADDRESS", Value: "0.0.0.0:4317"},
+									{Name: "DD_OP_SOURCE_OTEL_HTTP_ADDRESS", Value: "0.0.0.0:4318"},
 									{Name: "DD_SITE", Value: "datadoghq.com"},
 									{Name: "DD_API_KEY", ValueFrom: &corev1.EnvVarSource{SecretKeyRef: &corev1.SecretKeySelector{LocalObjectReference: corev1.LocalObjectReference{Name: "datadog-secret"}, Key: "api-key"}}},
 									{Name: "DD_OP_PIPELINE_ID", Value: pipelineID},
 									{Name: "DD_OP_DATA_DIR", Value: "/var/lib/observability-pipelines-worker"},
 									{Name: "DD_OP_API_ENABLED", Value: "true"},
 									{Name: "DD_OP_API_ADDRESS", Value: "0.0.0.0:8686"},
-									{Name: "DD_OP_SOURCE_OTEL_GRPC_ADDRESS", Value: "0.0.0.0:4317"},
-									{Name: "DD_OP_SOURCE_OTEL_HTTP_ADDRESS", Value: "0.0.0.0:4318"},
 									{Name: "DD_OP_GRACEFUL_SHUTDOWN_LIMIT_SECS", Value: "60"},
 								},
 								EnvFrom: []corev1.EnvFromSource{{ConfigMapRef: &corev1.ConfigMapEnvSource{LocalObjectReference: corev1.LocalObjectReference{Name: "worker-env"}}}},
@@ -286,7 +288,7 @@ func TestBuildResources_StatefulSet(t *testing.T) {
 					Annotations: map[string]string{"example.com/owner": "operator"},
 				},
 				Spec: appsv1.StatefulSetSpec{
-					ServiceName:         "byoc-pipeline-headless",
+					ServiceName:         "byoc-pipeline",
 					PodManagementPolicy: appsv1.ParallelPodManagement,
 					Selector: &metav1.LabelSelector{MatchLabels: map[string]string{
 						"app.kubernetes.io/name":     "observability-pipelines-worker",
@@ -314,14 +316,14 @@ func TestBuildResources_StatefulSet(t *testing.T) {
 								Args:            []string{"run"},
 								Env: []corev1.EnvVar{
 									{Name: "DD_OP_DESTINATION_CLOUDPREM_ENDPOINT_URL", Value: "http://byoc-indexer:7280"},
+									{Name: "DD_OP_SOURCE_OTEL_GRPC_ADDRESS", Value: "0.0.0.0:4317"},
+									{Name: "DD_OP_SOURCE_OTEL_HTTP_ADDRESS", Value: "0.0.0.0:4318"},
 									{Name: "DD_SITE", Value: "datadoghq.com"},
 									{Name: "DD_API_KEY", ValueFrom: &corev1.EnvVarSource{SecretKeyRef: &corev1.SecretKeySelector{LocalObjectReference: corev1.LocalObjectReference{Name: "datadog-secret"}, Key: "api-key"}}},
 									{Name: "DD_OP_PIPELINE_ID", Value: pipelineID},
 									{Name: "DD_OP_DATA_DIR", Value: "/var/lib/observability-pipelines-worker"},
 									{Name: "DD_OP_API_ENABLED", Value: "true"},
 									{Name: "DD_OP_API_ADDRESS", Value: "0.0.0.0:8686"},
-									{Name: "DD_OP_SOURCE_OTEL_GRPC_ADDRESS", Value: "0.0.0.0:4317"},
-									{Name: "DD_OP_SOURCE_OTEL_HTTP_ADDRESS", Value: "0.0.0.0:4318"},
 									{Name: "DD_OP_GRACEFUL_SHUTDOWN_LIMIT_SECS", Value: "10"},
 								},
 								EnvFrom: []corev1.EnvFromSource{{ConfigMapRef: &corev1.ConfigMapEnvSource{LocalObjectReference: corev1.LocalObjectReference{Name: "worker-env"}}}},
@@ -592,6 +594,8 @@ func testWorker() *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker {
 						Replicas: ptr.To[int32](2),
 						Env: []corev1.EnvVar{
 							{Name: "DD_OP_DESTINATION_CLOUDPREM_ENDPOINT_URL", Value: "http://byoc-indexer:7280"},
+							{Name: "DD_OP_SOURCE_OTEL_GRPC_ADDRESS", Value: "0.0.0.0:4317"},
+							{Name: "DD_OP_SOURCE_OTEL_HTTP_ADDRESS", Value: "0.0.0.0:4318"},
 							{Name: "DD_SITE", Value: "invalid.example.com"},
 						},
 						EnvFrom:                       []corev1.EnvFromSource{{ConfigMapRef: &corev1.ConfigMapEnvSource{LocalObjectReference: corev1.LocalObjectReference{Name: "worker-env"}}}},
@@ -622,9 +626,12 @@ func testWorker() *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker {
 			Datadog: &datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerDatadogSpec{
 				Site:            ptr.To("datadoghq.com"),
 				APIKeySecretRef: &corev1.SecretKeySelector{LocalObjectReference: corev1.LocalObjectReference{Name: "datadog-secret"}, Key: "api-key"},
-				AppKeySecretRef: &corev1.SecretKeySelector{LocalObjectReference: corev1.LocalObjectReference{Name: "datadog-secret"}, Key: "app-key"},
 			},
 			Image: &image,
+			Ports: []datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerPort{
+				{Name: "otlp-grpc", Port: 4317, Protocol: corev1.ProtocolTCP},
+				{Name: "otlp-http", Port: 4318, Protocol: corev1.ProtocolTCP},
+			},
 		},
 	}
 }

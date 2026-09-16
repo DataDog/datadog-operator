@@ -50,9 +50,12 @@ func BuildObservabilityPipelinesWorker(cluster *datadoghqv1alpha1.DatadogBYOCClu
 			Datadog: &datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerDatadogSpec{
 				Site:            new(site),
 				APIKeySecretRef: cluster.Spec.Datadog.APIKeySecretRef,
-				AppKeySecretRef: cluster.Spec.Datadog.AppKeySecretRef,
 			},
 			Image: &resolvedImage,
+			Ports: []datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerPort{
+				{Name: "otlp-grpc", Port: otlpGRPCPort, Protocol: corev1.ProtocolTCP},
+				{Name: "otlp-http", Port: otlpHTTPPort, Protocol: corev1.ProtocolTCP},
+			},
 		},
 	}, nil
 }
@@ -64,10 +67,14 @@ func applyGlobalPipelineSettings(cluster *datadoghqv1alpha1.DatadogBYOCCluster, 
 	component.Labels = labels(cluster, componentLabel(PipelineComponentName), component.Labels)
 	component.Annotations = annotations(cluster, component.Annotations)
 	component.Env = controllerutils.MergeEnv(global.Env, component.Env)
-	component.Env = controllerutils.MergeEnv(component.Env, []corev1.EnvVar{{
-		Name:  pipelineDestinationEndpointEnvName,
-		Value: "http://" + net.JoinHostPort(ComponentResourceName(cluster.Name, IndexerComponentName), strconv.Itoa(int(restPort))),
-	}})
+	component.Env = controllerutils.MergeEnv(component.Env, []corev1.EnvVar{
+		{
+			Name:  pipelineDestinationEndpointEnvName,
+			Value: "http://" + net.JoinHostPort(ComponentResourceName(cluster.Name, IndexerComponentName), strconv.Itoa(int(restPort))),
+		},
+		{Name: pipelineSourceOTLPGRPCAddressEnvName, Value: "0.0.0.0:" + strconv.Itoa(int(otlpGRPCPort))},
+		{Name: pipelineSourceOTLPHTTPAddressEnvName, Value: "0.0.0.0:" + strconv.Itoa(int(otlpHTTPPort))},
+	})
 	component.EnvFrom = slices.Concat(global.EnvFrom, component.EnvFrom)
 	component.Volumes = controllerutils.MergeVolumes(global.Volumes, component.Volumes)
 	component.VolumeMounts = controllerutils.MergeVolumeMounts(global.VolumeMounts, component.VolumeMounts)
