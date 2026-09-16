@@ -75,11 +75,17 @@ func BuildFeatures(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, ddaRCS
 	// Enabled features the instance's provider does not fully support (Rejected or Degraded),
 	// read from the provider annotation. Only enabled features are considered — a
 	// configured-but-disabled feature does not restrict the provider.
-	unsupportedFeatures := EvaluateProviderSupport(enabledFeatures, dda.GetAnnotations()[kubernetes.ProviderAnnotationKey])
+	provider := dda.GetAnnotations()[kubernetes.ProviderAnnotationKey]
+	unsupportedFeatures := EvaluateProviderSupport(enabledFeatures, provider)
+	windowsRequiresProcessAgent := provider == kubernetes.WindowsProvider &&
+		slices.Contains(requiredComponents.Agent.Containers, common.ProcessAgentContainerName)
 
 	if ddaSpec.Global != nil &&
 		ddaSpec.Global.ContainerStrategy != nil &&
 		*ddaSpec.Global.ContainerStrategy == v2alpha1.SingleContainerStrategy &&
+		// The Windows single container runs only the core Agent. Preserve the standalone
+		// process-agent when a process feature requires it.
+		!windowsRequiresProcessAgent &&
 		// All features that need the NodeAgent must include it in their RequiredComponents;
 		// otherwise tests will fail when checking `requiredComponents.Agent.IsPrivileged()`.
 		requiredComponents.Agent.IsEnabled() &&

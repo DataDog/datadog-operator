@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/testutils"
 	"github.com/stretchr/testify/assert"
 
@@ -60,6 +61,26 @@ func TestBuilder(t *testing.T) {
 				common.CoreAgentContainerName:               false,
 				common.ProcessAgentContainerName:            false,
 				common.TraceAgentContainerName:              false,
+				common.SystemProbeContainerName:             false,
+				common.SecurityAgentContainerName:           false,
+				common.OtelAgent:                            false,
+				common.HostProfiler:                         false,
+				common.AgentDataPlaneContainerName:          false,
+				common.PrivateActionRunnerContainerName:     false,
+			},
+		},
+		{
+			name: "Windows live container collection with single container strategy keeps process agent",
+			dda: testutils.NewDatadogAgentBuilder().
+				WithAnnotations(map[string]string{kubernetes.ProviderAnnotationKey: kubernetes.WindowsProvider}).
+				WithSingleContainerStrategy(true).
+				WithLiveContainerCollectionEnabled(true).
+				BuildWithDefaults(),
+			wantAgentContainer: map[common.AgentContainerName]bool{
+				common.UnprivilegedSingleAgentContainerName: false,
+				common.CoreAgentContainerName:               true,
+				common.ProcessAgentContainerName:            true,
+				common.TraceAgentContainerName:              true,
 				common.SystemProbeContainerName:             false,
 				common.SecurityAgentContainerName:           false,
 				common.OtelAgent:                            false,
