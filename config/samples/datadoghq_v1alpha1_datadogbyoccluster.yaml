@@ -91,7 +91,7 @@ spec:
             storageClassName: gp3
             resources:
               requests:
-                storage: 250Gi
+                storage: 30Gi
     searcher:
       replicas: 2
       resources:
@@ -126,7 +126,7 @@ spec:
             storageClassName: gp3
             resources:
               requests:
-                storage: 10Gi
+                storage: 30Gi
     controlPlane:
       resources:
         requests:

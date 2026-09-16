@@ -59,7 +59,7 @@ func applyPipelineDefaults(pipeline *datadoghqv1alpha1.DatadogBYOCClusterPipelin
 		claimSpec.Resources.Requests = corev1.ResourceList{}
 	}
 	if _, found := claimSpec.Resources.Requests[corev1.ResourceStorage]; !found {
-		claimSpec.Resources.Requests[corev1.ResourceStorage] = resource.MustParse("10Gi")
+		claimSpec.Resources.Requests[corev1.ResourceStorage] = resource.MustParse("30Gi")
 	}
 }
 
@@ -87,7 +87,7 @@ func applyIndexerDefaults(indexer *datadoghqv1alpha1.DatadogBYOCClusterStatefulC
 		claimSpec.Resources.Requests = corev1.ResourceList{}
 	}
 	if _, found := claimSpec.Resources.Requests[corev1.ResourceStorage]; !found {
-		claimSpec.Resources.Requests[corev1.ResourceStorage] = resource.MustParse("250Gi")
+		claimSpec.Resources.Requests[corev1.ResourceStorage] = resource.MustParse("30Gi")
 	}
 }
 
