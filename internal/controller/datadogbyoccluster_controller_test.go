@@ -155,7 +155,7 @@ var _ = Describe("DatadogBYOCCluster Controller", func() {
 						ReadyReplicas:      ptr.To[int32](0),
 					},
 					Pipeline: &datadoghqv1alpha1.DatadogBYOCClusterStatefulSetStatus{
-						ObservedGeneration: ptr.To[int64](0),
+						ObservedGeneration: ptr.To[int64](1),
 						Replicas:           ptr.To[int32](0),
 						ReadyReplicas:      ptr.To[int32](0),
 					},
@@ -245,10 +245,16 @@ var _ = Describe("DatadogBYOCCluster Controller", func() {
 				return k8sClient.Get(context.Background(), client.ObjectKey{Name: "byoc-pipeline", Namespace: namespace.Name}, worker)
 			}, timeout, interval).Should(Succeed())
 
-			worker.Status.ObservedGeneration = ptr.To(worker.Generation)
-			worker.Status.Replicas = ptr.To[int32](2)
-			worker.Status.ReadyReplicas = ptr.To[int32](2)
-			Expect(k8sClient.Status().Update(context.Background(), worker)).To(Succeed())
+			statefulSet := &appsv1.StatefulSet{}
+			Eventually(func() error {
+				if err := k8sClient.Get(context.Background(), client.ObjectKey{Name: worker.Name, Namespace: worker.Namespace}, statefulSet); err != nil {
+					return err
+				}
+				statefulSet.Status.ObservedGeneration = statefulSet.Generation
+				statefulSet.Status.Replicas = 2
+				statefulSet.Status.ReadyReplicas = 2
+				return k8sClient.Status().Update(context.Background(), statefulSet)
+			}, timeout, interval).Should(Succeed())
 
 			Eventually(func(g Gomega) {
 				current := &datadoghqv1alpha1.DatadogBYOCCluster{}

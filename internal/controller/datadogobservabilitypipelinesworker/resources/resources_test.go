@@ -58,7 +58,7 @@ func TestBuildResources_ServiceAccount(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			worker := testWorker()
 			tt.workerFunc(worker)
-			resources, err := BuildResources(worker, "pipeline-id")
+			resources, err := BuildResources(worker)
 			if err != nil {
 				t.Fatalf("BuildResources() unexpected error: %v", err)
 			}
@@ -125,7 +125,7 @@ func TestBuildResources_Services(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			worker := testWorker()
 			tt.workerFunc(worker)
-			resources, err := BuildResources(worker, "pipeline-id")
+			resources, err := BuildResources(worker)
 			if err != nil {
 				t.Fatalf("BuildResources() unexpected error: %v", err)
 			}
@@ -390,7 +390,7 @@ func TestBuildResources_StatefulSet(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			worker := testWorker()
 			tt.workerFunc(worker)
-			resources, err := BuildResources(worker, pipelineID)
+			resources, err := BuildResources(worker)
 			if err != nil {
 				if err.Error() != tt.wantError {
 					t.Errorf("BuildResources() error = %q, want %q", err, tt.wantError)
@@ -480,7 +480,7 @@ func TestBuildResources_HPA(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			worker := testWorker()
 			tt.workerFunc(worker)
-			resources, err := BuildResources(worker, "pipeline-id")
+			resources, err := BuildResources(worker)
 			if err != nil {
 				if err.Error() != tt.wantError {
 					t.Errorf("BuildResources() error = %q, want %q", err, tt.wantError)
@@ -531,9 +531,8 @@ func TestBuildResources_PodDisruptionBudget(t *testing.T) {
 		wantError  string
 	}{
 		{
-			name:       "operator default",
+			name:       "Helm default",
 			workerFunc: func(*datadoghqv1alpha1.DatadogObservabilityPipelinesWorker) {},
-			want:       podDisruptionBudget(nil, ptr.To(intstr.FromInt32(1))),
 		},
 		{
 			name: "configured",
@@ -561,7 +560,7 @@ func TestBuildResources_PodDisruptionBudget(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			worker := testWorker()
 			tt.workerFunc(worker)
-			resources, err := BuildResources(worker, "pipeline-id")
+			resources, err := BuildResources(worker)
 			if err != nil {
 				if err.Error() != tt.wantError {
 					t.Errorf("BuildResources() error = %q, want %q", err, tt.wantError)
@@ -589,6 +588,7 @@ func testWorker() *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker {
 		ObjectMeta: metav1.ObjectMeta{Name: "byoc-pipeline", Namespace: "testing"},
 		Spec: datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerSpec{
 			DatadogBYOCClusterPipelineComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{
+				PipelineID: ptr.To("pipeline-id"),
 				DatadogBYOCClusterStatefulComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{
 					DatadogBYOCClusterComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
 						Replicas: ptr.To[int32](2),

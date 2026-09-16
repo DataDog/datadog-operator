@@ -62,9 +62,27 @@ func (r *Resources) Objects() []client.Object {
 	return objects
 }
 
-// BuildResources builds deterministic Kubernetes resources for a Worker after
-// the remote pipeline phase has resolved a pipeline ID.
-func BuildResources(worker *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker, pipelineID string) (*Resources, error) {
+// ObsoleteObjects returns optional resources that are no longer desired.
+func (r *Resources) ObsoleteObjects() []client.Object {
+	metadata := metav1.ObjectMeta{Name: r.StatefulSet.Name, Namespace: r.StatefulSet.Namespace}
+	objects := make([]client.Object, 0, 4)
+	if r.Service == nil {
+		objects = append(objects, &corev1.Service{ObjectMeta: metadata})
+	}
+	if r.ServiceAccount == nil {
+		objects = append(objects, &corev1.ServiceAccount{ObjectMeta: metadata})
+	}
+	if r.HPA == nil {
+		objects = append(objects, &autoscalingv2.HorizontalPodAutoscaler{ObjectMeta: metadata})
+	}
+	if r.PodDisruptionBudget == nil {
+		objects = append(objects, &policyv1.PodDisruptionBudget{ObjectMeta: metadata})
+	}
+	return objects
+}
+
+// BuildResources builds deterministic Kubernetes resources for a Worker.
+func BuildResources(worker *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker) (*Resources, error) {
 	image, pullPolicy, pullSecrets, err := resolveImage(worker.Spec.Image)
 	if err != nil {
 		return nil, err
@@ -103,14 +121,14 @@ func BuildResources(worker *datadoghqv1alpha1.DatadogObservabilityPipelinesWorke
 		service = newService(metadata, selector, ports, serviceType)
 	}
 
-	replicas := ptr.Deref(worker.Spec.Replicas, int32(2))
-	terminationGracePeriodSeconds := ptr.Deref(worker.Spec.TerminationGracePeriodSeconds, int64(70))
+	replicas := *worker.Spec.Replicas
+	terminationGracePeriodSeconds := *worker.Spec.TerminationGracePeriodSeconds
 	podSpec := corev1.PodSpec{
 		ServiceAccountName:            serviceAccountName,
 		DNSPolicy:                     corev1.DNSClusterFirst,
 		ImagePullSecrets:              pullSecrets,
 		InitContainers:                worker.Spec.InitContainers,
-		Containers:                    []corev1.Container{newWorkerContainer(worker, pipelineID, image, pullPolicy, terminationGracePeriodSeconds)},
+		Containers:                    []corev1.Container{newWorkerContainer(worker, image, pullPolicy, terminationGracePeriodSeconds)},
 		Volumes:                       dataVolumes(worker.Spec.Storage, worker.Spec.Volumes),
 		NodeSelector:                  maps.Clone(worker.Spec.NodeSelector),
 		Affinity:                      worker.Spec.Affinity.DeepCopy(),
@@ -218,10 +236,10 @@ func containerPorts(ports []datadoghqv1alpha1.DatadogObservabilityPipelinesWorke
 	return append(result, corev1.ContainerPort{Name: "api", ContainerPort: workerAPIPort, Protocol: corev1.ProtocolTCP})
 }
 
-func newWorkerContainer(worker *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker, pipelineID, image string, pullPolicy corev1.PullPolicy, terminationGracePeriodSeconds int64) corev1.Container {
+func newWorkerContainer(worker *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker, image string, pullPolicy corev1.PullPolicy, terminationGracePeriodSeconds int64) corev1.Container {
 	requiredEnvironment := []corev1.EnvVar{
 		{Name: "DD_API_KEY", ValueFrom: &corev1.EnvVarSource{SecretKeyRef: worker.Spec.Datadog.APIKeySecretRef.DeepCopy()}},
-		{Name: "DD_OP_PIPELINE_ID", Value: pipelineID},
+		{Name: "DD_OP_PIPELINE_ID", Value: *worker.Spec.PipelineID},
 		{Name: "DD_SITE", Value: *worker.Spec.Datadog.Site},
 		{Name: "DD_OP_DATA_DIR", Value: dataDirectory},
 		{Name: "DD_OP_API_ENABLED", Value: "true"},
@@ -299,10 +317,10 @@ func newHPA(metadata metav1.ObjectMeta, autoscaling *datadoghqv1alpha1.DatadogBY
 }
 
 func newPodDisruptionBudget(metadata metav1.ObjectMeta, selector map[string]string, spec *datadoghqv1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec) (*policyv1.PodDisruptionBudget, error) {
-	if spec != nil && spec.MinAvailable == nil && spec.MaxUnavailable == nil {
+	if spec == nil || spec.MinAvailable == nil && spec.MaxUnavailable == nil {
 		return nil, nil
 	}
-	if spec != nil && spec.MinAvailable != nil && spec.MaxUnavailable != nil {
+	if spec.MinAvailable != nil && spec.MaxUnavailable != nil {
 		return nil, fmt.Errorf("worker pod disruption budget minAvailable and maxUnavailable are mutually exclusive")
 	}
 	budget := &policyv1.PodDisruptionBudget{
@@ -311,12 +329,8 @@ func newPodDisruptionBudget(metadata metav1.ObjectMeta, selector map[string]stri
 			Selector: &metav1.LabelSelector{MatchLabels: maps.Clone(selector)},
 		},
 	}
-	if spec == nil {
-		budget.Spec.MaxUnavailable = new(intstr.FromInt32(1))
-	} else {
-		budget.Spec.MinAvailable = spec.MinAvailable
-		budget.Spec.MaxUnavailable = spec.MaxUnavailable
-	}
+	budget.Spec.MinAvailable = spec.MinAvailable
+	budget.Spec.MaxUnavailable = spec.MaxUnavailable
 	return budget, nil
 }
 

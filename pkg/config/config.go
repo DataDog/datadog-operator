@@ -55,6 +55,7 @@ var (
 	dashboardObj       = &datadoghqv1alpha1.DatadogDashboard{}
 	genericResourceObj = &datadoghqv1alpha1.DatadogGenericResource{}
 	byocClusterObj     = &datadoghqv1alpha1.DatadogBYOCCluster{}
+	workerObj          = &datadoghqv1alpha1.DatadogObservabilityPipelinesWorker{}
 	monitorObj         = &datadoghqv1alpha1.DatadogMonitor{}
 	sloObj             = &datadoghqv1alpha1.DatadogSLO{}
 	profileObj         = &datadoghqv1alpha1.DatadogAgentProfile{}
@@ -117,6 +118,7 @@ func CacheOptions(logger logr.Logger, opts WatchOptions) cache.Options {
 		byocClusterNamespaces := GetWatchNamespacesFromEnv(logger, WatchNamespaceEnvVar)
 		logger.Info("DatadogBYOCCluster Enabled", "watching namespaces", slices.Collect(maps.Keys(byocClusterNamespaces)))
 		byObject[byocClusterObj] = cache.ByObject{Namespaces: byocClusterNamespaces}
+		byObject[workerObj] = cache.ByObject{Namespaces: byocClusterNamespaces}
 	}
 
 	if opts.DatadogMonitorEnabled {

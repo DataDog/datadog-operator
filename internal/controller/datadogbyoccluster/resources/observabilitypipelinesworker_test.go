@@ -12,6 +12,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/ptr"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
@@ -60,7 +61,10 @@ func TestBuildObservabilityPipelinesWorker(t *testing.T) {
 									"app.kubernetes.io/component":  PipelineComponentName,
 									"app.kubernetes.io/managed-by": "datadog-operator",
 								},
-								Annotations:                   map[string]string{},
+								Annotations: map[string]string{},
+								PodDisruptionBudget: &datadoghqv1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec{
+									MaxUnavailable: ptr.To(intstr.FromInt32(1)),
+								},
 								TerminationGracePeriodSeconds: ptr.To[int64](70),
 							},
 							Storage: &datadoghqv1alpha1.DatadogBYOCClusterStorageSpec{
@@ -132,7 +136,10 @@ func TestBuildObservabilityPipelinesWorker(t *testing.T) {
 									"app.kubernetes.io/component":  PipelineComponentName,
 									"app.kubernetes.io/managed-by": "datadog-operator",
 								},
-								Annotations:                   map[string]string{},
+								Annotations: map[string]string{},
+								PodDisruptionBudget: &datadoghqv1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec{
+									MaxUnavailable: ptr.To(intstr.FromInt32(1)),
+								},
 								TerminationGracePeriodSeconds: ptr.To[int64](70),
 							},
 							Storage: &datadoghqv1alpha1.DatadogBYOCClusterStorageSpec{
@@ -253,6 +260,9 @@ func TestBuildObservabilityPipelinesWorker(t *testing.T) {
 									"team":                         "pipeline",
 								},
 								Annotations: map[string]string{"example.com/owner": "pipeline"},
+								PodDisruptionBudget: &datadoghqv1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec{
+									MaxUnavailable: ptr.To(intstr.FromInt32(1)),
+								},
 								TopologySpreadConstraints: []corev1.TopologySpreadConstraint{
 									{TopologyKey: "zone", WhenUnsatisfiable: corev1.DoNotSchedule, MaxSkew: 1},
 								},
