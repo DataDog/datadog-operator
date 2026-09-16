@@ -12,6 +12,7 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 )
@@ -28,6 +29,7 @@ func buildCheckRunnerFeature(options *feature.Options) feature.Feature {
 
 	if options != nil {
 		f.logger = options.Logger
+		f.defaultDataPlaneEnabled = options.DefaultDataPlaneEnabled
 	}
 
 	return f
@@ -36,7 +38,8 @@ func buildCheckRunnerFeature(options *feature.Options) feature.Feature {
 type checkRunnerFeature struct {
 	logger logr.Logger
 
-	enabled bool
+	enabled                 bool
+	defaultDataPlaneEnabled bool
 }
 
 // ID returns the ID of the Feature
@@ -45,7 +48,7 @@ func (f *checkRunnerFeature) ID() feature.IDType {
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
-func (f *checkRunnerFeature) Configure(dda metav1.Object, _ *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) feature.RequiredComponents {
+func (f *checkRunnerFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) feature.RequiredComponents {
 	f.enabled = featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnableCheckRunnerAnnotation)
 
 	var reqComp feature.RequiredComponents
@@ -54,6 +57,10 @@ func (f *checkRunnerFeature) Configure(dda metav1.Object, _ *v2alpha1.DatadogAge
 		reqComp.Agent = feature.RequiredComponent{
 			IsRequired: &f.enabled,
 			Containers: []apicommon.AgentContainerName{apicommon.AgentCheckRunnerContainerName},
+		}
+
+		if !featureutils.IsDataPlaneEnabled(dda, ddaSpec, f.defaultDataPlaneEnabled) {
+			f.logger.Info("The checkrunner feature requires the dataPlane feature.")
 		}
 	}
 
@@ -77,7 +84,7 @@ func (f *checkRunnerFeature) ManageSingleContainerNodeAgent(managers feature.Pod
 		return nil
 	}
 
-	f.configureNodeAgent(managers, apicommon.UnprivilegedSingleAgentContainerName, apicommon.UnprivilegedSingleAgentContainerName)
+	f.configureNodeAgent(managers, apicommon.UnprivilegedSingleAgentContainerName, apicommon.UnprivilegedSingleAgentContainerName, apicommon.UnprivilegedSingleAgentContainerName)
 
 	return nil
 }
@@ -88,14 +95,14 @@ func (f *checkRunnerFeature) ManageNodeAgent(managers feature.PodTemplateManager
 		return nil
 	}
 
-	f.configureNodeAgent(managers, apicommon.CoreAgentContainerName, apicommon.AgentCheckRunnerContainerName)
+	f.configureNodeAgent(managers, apicommon.CoreAgentContainerName, apicommon.AgentCheckRunnerContainerName, apicommon.AgentDataPlaneContainerName)
 
 	return nil
 }
 
-// configureNodeAgent configures the Core Agent and Check Runner (ACR) containers of the Node Agent.
-// In SingleContainerStrategy, coreAgentContainer and checkRunnerContainer are the same container.
-func (f *checkRunnerFeature) configureNodeAgent(managers feature.PodTemplateManagers, coreAgentContainer, checkRunnerContainer apicommon.AgentContainerName) {
+// configureNodeAgent configures the Core Agent, Check Runner (ACR) and Agent Data Plane (ADP)
+// containers of the Node Agent. In SingleContainerStrategy, all three containers are the same container.
+func (f *checkRunnerFeature) configureNodeAgent(managers feature.PodTemplateManagers, coreAgentContainer, checkRunnerContainer, dataPlaneContainer apicommon.AgentContainerName) {
 	// Core Agent envs
 	// Enable the Check Runner by setting the DD_CHECK_RUNNER_ENABLED environment variable, which is then
 	// retrieved by ACR over RAR.
@@ -119,6 +126,13 @@ func (f *checkRunnerFeature) configureNodeAgent(managers feature.PodTemplateMana
 	managers.EnvVar().AddEnvVarToContainer(checkRunnerContainer, &corev1.EnvVar{
 		Name:  ddCheckRunnerEndpointsIPCEndpoint,
 		Value: "http://localhost:5105",
+	})
+
+	// ADP envs
+	// Enable Checks IPC source (the endpoint ACR sends events to)
+	managers.EnvVar().AddEnvVarToContainer(dataPlaneContainer, &corev1.EnvVar{
+		Name:  common.DDDataPlaneChecksEnabled,
+		Value: "true",
 	})
 }
 

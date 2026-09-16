@@ -12,6 +12,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
@@ -39,6 +40,11 @@ func Test_checkRunnerFeature(t *testing.T) {
 		Value: "http://localhost:5105",
 	}
 	checkRunnerEnvVars := []*corev1.EnvVar{standaloneModeEnvVar, ipcEnabledEnvVar, ipcEndpointEnvVar}
+	// ADP-side counterpart: without this ADP never serves the Checks IPC endpoint ACR sends to.
+	dataPlaneChecksEnabledEnvVar := &corev1.EnvVar{
+		Name:  common.DDDataPlaneChecksEnabled,
+		Value: "true",
+	}
 
 	tests := test.FeatureTestSuite{
 		{
@@ -80,6 +86,11 @@ func Test_checkRunnerFeature(t *testing.T) {
 					}
 					assert.NotContains(t, crEnvVars, checkRunnerEnabledEnvVar, "DD_CHECK_RUNNER_ENABLED is a core agent setting and should not be set on the check runner")
 
+					// ADP must serve the Checks IPC endpoint ACR is pointed at.
+					adpEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.AgentDataPlaneContainerName]
+					assert.Contains(t, adpEnvVars, dataPlaneChecksEnabledEnvVar, "DD_DATA_PLANE_CHECKS_ENABLED should be set on the agent data plane so it serves the Checks IPC source")
+					assert.NotContains(t, agentEnvVars, dataPlaneChecksEnabledEnvVar, "DD_DATA_PLANE_CHECKS_ENABLED is an ADP setting and should not be set on the core agent")
+
 					// No adapter is configured by the operator: which adapters ACR loads is
 					// left to spec.override.nodeAgent.containers.agent-check-runner.env so it
 					// can be flipped without an operator release.
@@ -112,6 +123,7 @@ func Test_checkRunnerFeature(t *testing.T) {
 					for _, e := range checkRunnerEnvVars {
 						assert.Contains(t, singleEnvVars, e, "%s should be set on the single agent container", e.Name)
 					}
+					assert.Contains(t, singleEnvVars, dataPlaneChecksEnabledEnvVar, "DD_DATA_PLANE_CHECKS_ENABLED should be set on the single agent container")
 				},
 			),
 		},
