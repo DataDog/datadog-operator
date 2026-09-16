@@ -133,8 +133,17 @@ func (r *DatadogBYOCClusterReconciler) finalize(ctx context.Context, cluster *da
 	if !controllerutil.ContainsFinalizer(cluster, datadogBYOCClusterFinalizer) {
 		return ctrl.Result{}, nil
 	}
+	worker := &datadoghqv1alpha1.DatadogObservabilityPipelinesWorker{ObjectMeta: metav1.ObjectMeta{Name: byocresources.ComponentResourceName(cluster.Name, byocresources.PipelineComponentName), Namespace: cluster.Namespace}}
+	foreground := metav1.DeletePropagationForeground
+	err := r.Client.Delete(ctx, worker, &client.DeleteOptions{PropagationPolicy: &foreground})
+	if err != nil && !apierrors.IsNotFound(err) {
+		return ctrl.Result{}, fmt.Errorf("delete DatadogObservabilityPipelinesWorker: %w", err)
+	}
+	if err == nil {
+		return ctrl.Result{RequeueAfter: time.Second}, nil
+	}
 	indexer := &appsv1.StatefulSet{ObjectMeta: metav1.ObjectMeta{Name: byocresources.ComponentResourceName(cluster.Name, byocresources.IndexerComponentName), Namespace: cluster.Namespace}}
-	err := r.Client.Delete(ctx, indexer)
+	err = r.Client.Delete(ctx, indexer)
 	if err != nil && !apierrors.IsNotFound(err) {
 		return ctrl.Result{}, fmt.Errorf("delete indexer StatefulSet: %w", err)
 	}

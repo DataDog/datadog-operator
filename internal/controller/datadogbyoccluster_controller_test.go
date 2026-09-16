@@ -12,6 +12,7 @@ import (
 	"context"
 	"errors"
 	"slices"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -34,6 +35,7 @@ const (
 	byocSuccessReleaseTag = "success"
 	byocFailureReleaseTag = "failure"
 	byocPipelineID        = "pipeline-id"
+	testDeletionFinalizer = "test.datadoghq.com/deletion"
 )
 
 var _ = Describe("DatadogBYOCCluster Controller", func() {
@@ -265,6 +267,103 @@ var _ = Describe("DatadogBYOCCluster Controller", func() {
 					ReadyReplicas:      ptr.To[int32](2),
 				}))
 			}, timeout, interval).Should(Succeed())
+		})
+	})
+
+	Context("when the cluster is deleted", func() {
+		BeforeEach(func() {
+			cluster.Spec.Release.Tag = ptr.To(byocSuccessReleaseTag)
+			createKubernetesObject(k8sClient, cluster)
+		})
+
+		It("deletes the worker before the indexer and the indexer before the parent", func() {
+			worker := &datadoghqv1alpha1.DatadogObservabilityPipelinesWorker{ObjectMeta: metav1.ObjectMeta{Name: "byoc-pipeline", Namespace: namespace.Name}}
+			indexer := &appsv1.StatefulSet{ObjectMeta: metav1.ObjectMeta{Name: "byoc-indexer", Namespace: namespace.Name}}
+			for _, object := range []client.Object{worker, indexer} {
+				Eventually(func() error {
+					return k8sClient.Get(context.Background(), client.ObjectKeyFromObject(object), object)
+				}, timeout, interval).Should(Succeed())
+			}
+
+			By("holding both resources so each deletion phase can be observed")
+			addTestFinalizer := func(object client.Object) {
+				Eventually(func() error {
+					current := object.DeepCopyObject().(client.Object)
+					if err := k8sClient.Get(context.Background(), client.ObjectKeyFromObject(object), current); err != nil {
+						return err
+					}
+					if slices.Contains(current.GetFinalizers(), testDeletionFinalizer) {
+						return nil
+					}
+					current.SetFinalizers(append(current.GetFinalizers(), testDeletionFinalizer))
+					return k8sClient.Update(context.Background(), current)
+				}, timeout, interval).Should(Succeed())
+			}
+			addTestFinalizer(worker)
+			addTestFinalizer(indexer)
+
+			By("deleting the parent")
+			currentCluster := &datadoghqv1alpha1.DatadogBYOCCluster{}
+			Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(cluster), currentCluster)).To(Succeed())
+			Expect(k8sClient.Delete(context.Background(), currentCluster)).To(Succeed())
+
+			By("verifying that worker deletion starts before indexer deletion")
+			Eventually(func(g Gomega) {
+				currentWorker := &datadoghqv1alpha1.DatadogObservabilityPipelinesWorker{}
+				g.Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(worker), currentWorker)).To(Succeed())
+				g.Expect(currentWorker.DeletionTimestamp.IsZero()).To(BeFalse())
+
+				currentIndexer := &appsv1.StatefulSet{}
+				g.Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(indexer), currentIndexer)).To(Succeed())
+				g.Expect(currentIndexer.DeletionTimestamp.IsZero()).To(BeTrue())
+			}, timeout, interval).Should(Succeed())
+
+			Consistently(func(g Gomega) {
+				current := &appsv1.StatefulSet{}
+				g.Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(indexer), current)).To(Succeed())
+				g.Expect(current.DeletionTimestamp.IsZero()).To(BeTrue())
+			}, 2*time.Second, interval).Should(Succeed())
+
+			By("allowing worker deletion to finish")
+			// envtest does not run the Kubernetes garbage collector, so remove its
+			// foreground-deletion finalizer along with the test finalizer.
+			removeTestFinalizers := func(object client.Object, finalizers ...string) {
+				Eventually(func() error {
+					current := object.DeepCopyObject().(client.Object)
+					if err := k8sClient.Get(context.Background(), client.ObjectKeyFromObject(object), current); err != nil {
+						return err
+					}
+					current.SetFinalizers(slices.DeleteFunc(current.GetFinalizers(), func(finalizer string) bool {
+						return slices.Contains(finalizers, finalizer)
+					}))
+					return k8sClient.Update(context.Background(), current)
+				}, timeout, interval).Should(Succeed())
+			}
+			removeTestFinalizers(worker, testDeletionFinalizer, metav1.FinalizerDeleteDependents)
+
+			waitForDeletion := func(object client.Object) {
+				Eventually(func() bool {
+					err := k8sClient.Get(context.Background(), client.ObjectKeyFromObject(object), object.DeepCopyObject().(client.Object))
+					return apierrors.IsNotFound(err)
+				}, timeout, interval).Should(BeTrue())
+			}
+			waitForDeletion(worker)
+
+			By("verifying that indexer deletion starts before parent deletion finishes")
+			Eventually(func(g Gomega) {
+				currentIndexer := &appsv1.StatefulSet{}
+				g.Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(indexer), currentIndexer)).To(Succeed())
+				g.Expect(currentIndexer.DeletionTimestamp.IsZero()).To(BeFalse())
+
+				currentCluster := &datadoghqv1alpha1.DatadogBYOCCluster{}
+				g.Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(cluster), currentCluster)).To(Succeed())
+				g.Expect(currentCluster.Finalizers).To(ContainElement(datadogBYOCClusterFinalizer))
+			}, timeout, interval).Should(Succeed())
+
+			By("allowing indexer and parent deletion to finish")
+			removeTestFinalizers(indexer, testDeletionFinalizer)
+			waitForDeletion(indexer)
+			waitForDeletion(cluster)
 		})
 	})
 
