@@ -72,7 +72,7 @@ func TestBuildObservabilityPipelinesWorker(t *testing.T) {
 									Spec: corev1.PersistentVolumeClaimSpec{
 										AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 										Resources: corev1.VolumeResourceRequirements{
-											Requests: corev1.ResourceList{corev1.ResourceStorage: resource.MustParse("10Gi")},
+											Requests: corev1.ResourceList{corev1.ResourceStorage: resource.MustParse("30Gi")},
 										},
 									},
 								},
@@ -147,7 +147,7 @@ func TestBuildObservabilityPipelinesWorker(t *testing.T) {
 									Spec: corev1.PersistentVolumeClaimSpec{
 										AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 										Resources: corev1.VolumeResourceRequirements{
-											Requests: corev1.ResourceList{corev1.ResourceStorage: resource.MustParse("10Gi")},
+											Requests: corev1.ResourceList{corev1.ResourceStorage: resource.MustParse("30Gi")},
 										},
 									},
 								},
@@ -273,7 +273,7 @@ func TestBuildObservabilityPipelinesWorker(t *testing.T) {
 									Spec: corev1.PersistentVolumeClaimSpec{
 										AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 										Resources: corev1.VolumeResourceRequirements{
-											Requests: corev1.ResourceList{corev1.ResourceStorage: resource.MustParse("10Gi")},
+											Requests: corev1.ResourceList{corev1.ResourceStorage: resource.MustParse("30Gi")},
 										},
 									},
 								},

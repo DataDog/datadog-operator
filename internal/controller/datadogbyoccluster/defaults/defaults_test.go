@@ -68,7 +68,7 @@ func TestApply(t *testing.T) {
 					Spec: corev1.PersistentVolumeClaimSpec{
 						AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 						Resources: corev1.VolumeResourceRequirements{
-							Requests: corev1.ResourceList{corev1.ResourceStorage: resource.MustParse("250Gi")},
+							Requests: corev1.ResourceList{corev1.ResourceStorage: resource.MustParse("30Gi")},
 						},
 					},
 				},
@@ -101,7 +101,7 @@ func TestApply(t *testing.T) {
 						Spec: corev1.PersistentVolumeClaimSpec{
 							AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 							Resources: corev1.VolumeResourceRequirements{
-								Requests: corev1.ResourceList{corev1.ResourceStorage: resource.MustParse("10Gi")},
+								Requests: corev1.ResourceList{corev1.ResourceStorage: resource.MustParse("30Gi")},
 							},
 						},
 					},
@@ -183,7 +183,7 @@ func TestApplyPipelineDefaults(t *testing.T) {
 							Spec: corev1.PersistentVolumeClaimSpec{
 								AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 								Resources: corev1.VolumeResourceRequirements{
-									Requests: corev1.ResourceList{corev1.ResourceStorage: resource.MustParse("10Gi")},
+									Requests: corev1.ResourceList{corev1.ResourceStorage: resource.MustParse("30Gi")},
 								},
 							},
 						},
@@ -219,7 +219,7 @@ func TestApplyIndexerDefaults(t *testing.T) {
 			Spec: corev1.PersistentVolumeClaimSpec{
 				AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 				Resources: corev1.VolumeResourceRequirements{
-					Requests: corev1.ResourceList{corev1.ResourceStorage: resource.MustParse("250Gi")},
+					Requests: corev1.ResourceList{corev1.ResourceStorage: resource.MustParse("30Gi")},
 				},
 			},
 		},
