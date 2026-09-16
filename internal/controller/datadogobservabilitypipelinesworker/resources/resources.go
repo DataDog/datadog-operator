@@ -31,15 +31,12 @@ const (
 	dataVolumeName      = "data"
 	dataDirectory       = "/var/lib/observability-pipelines-worker"
 
-	otlpGRPCPort  int32 = 4317
-	otlpHTTPPort  int32 = 4318
 	workerAPIPort int32 = 8686
 )
 
 // Resources is the complete set of Kubernetes resources rendered for a Worker.
 type Resources struct {
 	Service             *corev1.Service
-	HeadlessService     *corev1.Service
 	ServiceAccount      *corev1.ServiceAccount
 	StatefulSet         *appsv1.StatefulSet
 	HPA                 *autoscalingv2.HorizontalPodAutoscaler
@@ -48,11 +45,14 @@ type Resources struct {
 
 // Objects returns the resources in apply order.
 func (r *Resources) Objects() []client.Object {
-	objects := make([]client.Object, 0, 6)
+	objects := make([]client.Object, 0, 5)
 	if r.ServiceAccount != nil {
 		objects = append(objects, r.ServiceAccount)
 	}
-	objects = append(objects, r.Service, r.HeadlessService, r.StatefulSet)
+	if r.Service != nil {
+		objects = append(objects, r.Service)
+	}
+	objects = append(objects, r.StatefulSet)
 	if r.HPA != nil {
 		objects = append(objects, r.HPA)
 	}
@@ -91,11 +91,17 @@ func BuildResources(worker *datadoghqv1alpha1.DatadogObservabilityPipelinesWorke
 		}
 	}
 
-	ports := servicePorts()
-	service := newService(metadata, selector, ports, false)
-	headlessMetadata := *metadata.DeepCopy()
-	headlessMetadata.Name = name + "-headless"
-	headlessService := newService(headlessMetadata, selector, ports, true)
+	ports := servicePorts(worker.Spec.Ports)
+	var service *corev1.Service
+	if len(ports) > 0 {
+		serviceType := corev1.ServiceTypeClusterIP
+		if worker.Spec.Service != nil {
+			if worker.Spec.Service.Type != "" {
+				serviceType = worker.Spec.Service.Type
+			}
+		}
+		service = newService(metadata, selector, ports, serviceType)
+	}
 
 	replicas := ptr.Deref(worker.Spec.Replicas, int32(2))
 	terminationGracePeriodSeconds := ptr.Deref(worker.Spec.TerminationGracePeriodSeconds, int64(70))
@@ -117,7 +123,7 @@ func BuildResources(worker *datadoghqv1alpha1.DatadogObservabilityPipelinesWorke
 		ObjectMeta: *metadata.DeepCopy(),
 		Spec: appsv1.StatefulSetSpec{
 			Replicas:            new(replicas),
-			ServiceName:         headlessMetadata.Name,
+			ServiceName:         name,
 			PodManagementPolicy: appsv1.ParallelPodManagement,
 			Selector:            &metav1.LabelSelector{MatchLabels: maps.Clone(selector)},
 			Template: corev1.PodTemplateSpec{
@@ -137,7 +143,6 @@ func BuildResources(worker *datadoghqv1alpha1.DatadogObservabilityPipelinesWorke
 
 	resources := &Resources{
 		Service:             service,
-		HeadlessService:     headlessService,
 		ServiceAccount:      serviceAccount,
 		StatefulSet:         statefulSet,
 		PodDisruptionBudget: podDisruptionBudget,
@@ -173,27 +178,44 @@ func resolveImage(spec *datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerIma
 	return reference, ptr.Deref(image.PullPolicy, corev1.PullIfNotPresent), slices.Clone(image.ImagePullSecrets), nil
 }
 
-func newService(metadata metav1.ObjectMeta, selector map[string]string, ports []corev1.ServicePort, headless bool) *corev1.Service {
-	service := &corev1.Service{
+func newService(metadata metav1.ObjectMeta, selector map[string]string, ports []corev1.ServicePort, serviceType corev1.ServiceType) *corev1.Service {
+	return &corev1.Service{
 		ObjectMeta: *metadata.DeepCopy(),
 		Spec: corev1.ServiceSpec{
-			Type:     corev1.ServiceTypeClusterIP,
+			Type:     serviceType,
 			Selector: maps.Clone(selector),
 			Ports:    slices.Clone(ports),
 		},
 	}
-	if headless {
-		service.Spec.ClusterIP = corev1.ClusterIPNone
-	}
-	return service
 }
 
-func servicePorts() []corev1.ServicePort {
-	return []corev1.ServicePort{
-		{Name: "otlp-grpc", Port: otlpGRPCPort, Protocol: corev1.ProtocolTCP, TargetPort: intstr.FromInt32(otlpGRPCPort)},
-		{Name: "otlp-http", Port: otlpHTTPPort, Protocol: corev1.ProtocolTCP, TargetPort: intstr.FromInt32(otlpHTTPPort)},
-		{Name: "api", Port: workerAPIPort, Protocol: corev1.ProtocolTCP, TargetPort: intstr.FromInt32(workerAPIPort)},
+func servicePorts(ports []datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerPort) []corev1.ServicePort {
+	result := make([]corev1.ServicePort, 0, len(ports))
+	for _, port := range ports {
+		protocol := port.Protocol
+		if protocol == "" {
+			protocol = corev1.ProtocolTCP
+		}
+		result = append(result, corev1.ServicePort{
+			Name:       port.Name,
+			Port:       port.Port,
+			Protocol:   protocol,
+			TargetPort: intstr.FromInt32(port.Port),
+		})
 	}
+	return result
+}
+
+func containerPorts(ports []datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerPort) []corev1.ContainerPort {
+	result := make([]corev1.ContainerPort, 0, len(ports)+1)
+	for _, port := range ports {
+		protocol := port.Protocol
+		if protocol == "" {
+			protocol = corev1.ProtocolTCP
+		}
+		result = append(result, corev1.ContainerPort{Name: port.Name, ContainerPort: port.Port, Protocol: protocol})
+	}
+	return append(result, corev1.ContainerPort{Name: "api", ContainerPort: workerAPIPort, Protocol: corev1.ProtocolTCP})
 }
 
 func newWorkerContainer(worker *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker, pipelineID, image string, pullPolicy corev1.PullPolicy, terminationGracePeriodSeconds int64) corev1.Container {
@@ -204,8 +226,6 @@ func newWorkerContainer(worker *datadoghqv1alpha1.DatadogObservabilityPipelinesW
 		{Name: "DD_OP_DATA_DIR", Value: dataDirectory},
 		{Name: "DD_OP_API_ENABLED", Value: "true"},
 		{Name: "DD_OP_API_ADDRESS", Value: "0.0.0.0:" + strconv.Itoa(int(workerAPIPort))},
-		{Name: "DD_OP_SOURCE_OTEL_GRPC_ADDRESS", Value: "0.0.0.0:" + strconv.Itoa(int(otlpGRPCPort))},
-		{Name: "DD_OP_SOURCE_OTEL_HTTP_ADDRESS", Value: "0.0.0.0:" + strconv.Itoa(int(otlpHTTPPort))},
 		{Name: "DD_OP_GRACEFUL_SHUTDOWN_LIMIT_SECS", Value: strconv.FormatInt(max(10, terminationGracePeriodSeconds-10), 10)},
 	}
 	return corev1.Container{
@@ -215,15 +235,11 @@ func newWorkerContainer(worker *datadoghqv1alpha1.DatadogObservabilityPipelinesW
 		Args:            []string{"run"},
 		Env:             controllerutils.MergeEnv(worker.Spec.Env, requiredEnvironment),
 		EnvFrom:         slices.Clone(worker.Spec.EnvFrom),
-		Ports: []corev1.ContainerPort{
-			{Name: "otlp-grpc", ContainerPort: otlpGRPCPort, Protocol: corev1.ProtocolTCP},
-			{Name: "otlp-http", ContainerPort: otlpHTTPPort, Protocol: corev1.ProtocolTCP},
-			{Name: "api", ContainerPort: workerAPIPort, Protocol: corev1.ProtocolTCP},
-		},
-		Resources:      ptr.Deref(worker.Spec.Resources, corev1.ResourceRequirements{}),
-		VolumeMounts:   dataVolumeMounts(worker.Spec.VolumeMounts),
-		LivenessProbe:  workerProbe(5),
-		ReadinessProbe: workerProbe(3),
+		Ports:           containerPorts(worker.Spec.Ports),
+		Resources:       ptr.Deref(worker.Spec.Resources, corev1.ResourceRequirements{}),
+		VolumeMounts:    dataVolumeMounts(worker.Spec.VolumeMounts),
+		LivenessProbe:   workerProbe(5),
+		ReadinessProbe:  workerProbe(3),
 	}
 }
 

@@ -14919,6 +14919,8 @@ spec:
                           x-kubernetes-list-map-keys:
                             - name
                           x-kubernetes-list-type: map
+                      required:
+                        - pipelineID
                       type: object
                       x-kubernetes-validations:
                         - message: resources.limits.memory must be specified when resources is set
@@ -20078,19 +20080,6 @@ spec:
                         - key
                       type: object
                       x-kubernetes-map-type: atomic
-                    appKeySecretRef:
-                      properties:
-                        key:
-                          type: string
-                        name:
-                          default: ""
-                          type: string
-                        optional:
-                          type: boolean
-                      required:
-                        - key
-                      type: object
-                      x-kubernetes-map-type: atomic
                     byocTelemetry:
                       default: true
                       type: boolean
@@ -20109,7 +20098,6 @@ spec:
                       type: string
                   required:
                     - apiKeySecretRef
-                    - appKeySecretRef
                   type: object
                 global:
                   properties:

@@ -33,21 +33,22 @@ var _ = Describe("DatadogObservabilityPipelinesWorker API", func() {
 		worker = &datadoghqv1alpha1.DatadogObservabilityPipelinesWorker{
 			ObjectMeta: metav1.ObjectMeta{Name: "worker", Namespace: namespace.Name},
 			Spec: datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerSpec{
+				DatadogBYOCClusterPipelineComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{
+					PipelineID: ptr.To("pipeline-1"),
+				},
 				Datadog: &datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerDatadogSpec{
 					Site: ptr.To("datadoghq.com"),
 					APIKeySecretRef: &corev1.SecretKeySelector{
 						LocalObjectReference: corev1.LocalObjectReference{Name: "datadog-secret"},
 						Key:                  "api-key",
 					},
-					AppKeySecretRef: &corev1.SecretKeySelector{
-						LocalObjectReference: corev1.LocalObjectReference{Name: "datadog-secret"},
-						Key:                  "app-key",
-					},
 				},
 				Image: &datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerImageSpec{
 					Repository: ptr.To("registry.invalid/datadog/observability-pipelines-worker"),
 					Digest:     ptr.To("sha256:" + strings.Repeat("a", 64)),
 				},
+				Ports:   []datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerPort{{Name: "source", Port: 8080}},
+				Service: &datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerServiceSpec{},
 			},
 		}
 	})
@@ -56,9 +57,9 @@ var _ = Describe("DatadogObservabilityPipelinesWorker API", func() {
 		deleteKubernetesObject(k8sClient, namespace)
 	})
 
-	It("allows pipelineID to be set, changed, and removed", func() {
+	It("allows pipelineID to be changed", func() {
 		createKubernetesObject(k8sClient, worker)
-		for _, pipelineID := range []*string{ptr.To("pipeline-1"), ptr.To("pipeline-2"), nil} {
+		for _, pipelineID := range []*string{ptr.To("pipeline-2"), ptr.To("pipeline-3")} {
 			worker.Spec.PipelineID = pipelineID
 			Expect(k8sClient.Update(context.Background(), worker)).To(Succeed())
 		}
@@ -76,9 +77,7 @@ var _ = Describe("DatadogObservabilityPipelinesWorker API", func() {
 		Entry("missing API key reference", func(spec *datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerSpec) {
 			spec.Datadog.APIKeySecretRef = nil
 		}),
-		Entry("missing application key reference", func(spec *datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerSpec) {
-			spec.Datadog.AppKeySecretRef = nil
-		}),
+		Entry("missing pipeline ID", func(spec *datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerSpec) { spec.PipelineID = nil }),
 		Entry("missing image", func(spec *datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerSpec) { spec.Image = nil }),
 		Entry("image without repository", func(spec *datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerSpec) {
 			spec.Image.Repository = nil
@@ -97,11 +96,25 @@ var _ = Describe("DatadogObservabilityPipelinesWorker API", func() {
 		Entry("resources without a memory limit", func(spec *datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerSpec) {
 			spec.Resources = &corev1.ResourceRequirements{}
 		}),
+		Entry("reserved worker API port name", func(spec *datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerSpec) {
+			spec.Ports = []datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerPort{{Name: "api", Port: 8686}}
+		}),
+		Entry("invalid port number", func(spec *datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerSpec) {
+			spec.Ports = []datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerPort{{Name: "source", Port: 0}}
+		}),
+		Entry("invalid port protocol", func(spec *datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerSpec) {
+			spec.Ports = []datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerPort{{Name: "source", Port: 8080, Protocol: "HTTP"}}
+		}),
+		Entry("invalid Service type", func(spec *datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerSpec) {
+			spec.Service.Type = corev1.ServiceTypeExternalName
+		}),
 	)
 
 	It("is discoverable through the typed client", func() {
 		createKubernetesObject(k8sClient, worker)
 		got := &datadoghqv1alpha1.DatadogObservabilityPipelinesWorker{}
 		Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(worker), got)).To(Succeed())
+		Expect(got.Spec.Ports[0].Protocol).To(Equal(corev1.ProtocolTCP))
+		Expect(got.Spec.Service.Type).To(Equal(corev1.ServiceTypeClusterIP))
 	})
 })

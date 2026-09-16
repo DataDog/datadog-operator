@@ -44,10 +44,6 @@ var _ = Describe("DatadogBYOCCluster image overrides", func() {
 						LocalObjectReference: corev1.LocalObjectReference{Name: "datadog-secret"},
 						Key:                  "api-key",
 					},
-					AppKeySecretRef: &corev1.SecretKeySelector{
-						LocalObjectReference: corev1.LocalObjectReference{Name: "datadog-secret"},
-						Key:                  "app-key",
-					},
 				},
 				ImageOverrides: &datadoghqv1alpha1.DatadogBYOCClusterImageOverrides{
 					BYOC: &datadoghqv1alpha1.DatadogBYOCClusterImageOverrideSpec{
@@ -65,7 +61,7 @@ var _ = Describe("DatadogBYOCCluster image overrides", func() {
 					Metastore:    &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{},
 					Indexer:      &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{},
 					Searcher:     &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{},
-					Pipeline:     &datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{},
+					Pipeline:     &datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{PipelineID: ptr.To("pipeline-1")},
 					ControlPlane: &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
 					Janitor:      &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
 				},
@@ -150,9 +146,9 @@ var _ = Describe("DatadogBYOCCluster image overrides", func() {
 		Expect(statefulSet.Spec.Template.Spec.ImagePullSecrets).To(BeEmpty())
 	})
 
-	It("allows pipelineID to be set, changed, and removed", func() {
+	It("allows pipelineID to be changed", func() {
 		createKubernetesObject(k8sClient, cluster)
-		for _, pipelineID := range []*string{ptr.To("pipeline-1"), ptr.To("pipeline-2"), nil} {
+		for _, pipelineID := range []*string{ptr.To("pipeline-2"), ptr.To("pipeline-3")} {
 			Eventually(func() error {
 				if err := k8sClient.Get(context.Background(), client.ObjectKeyFromObject(cluster), cluster); err != nil {
 					return err
@@ -199,8 +195,8 @@ var _ = Describe("DatadogBYOCCluster image overrides", func() {
 		}),
 		Entry("missing Datadog configuration", func(spec *datadoghqv1alpha1.DatadogBYOCClusterSpec) { spec.Datadog = nil }),
 		Entry("missing API key reference", func(spec *datadoghqv1alpha1.DatadogBYOCClusterSpec) { spec.Datadog.APIKeySecretRef = nil }),
-		Entry("missing application key reference", func(spec *datadoghqv1alpha1.DatadogBYOCClusterSpec) { spec.Datadog.AppKeySecretRef = nil }),
 		Entry("missing pipeline component", func(spec *datadoghqv1alpha1.DatadogBYOCClusterSpec) { spec.Components.Pipeline = nil }),
+		Entry("missing pipeline ID", func(spec *datadoghqv1alpha1.DatadogBYOCClusterSpec) { spec.Components.Pipeline.PipelineID = nil }),
 		Entry("empty pipeline ID", func(spec *datadoghqv1alpha1.DatadogBYOCClusterSpec) { spec.Components.Pipeline.PipelineID = ptr.To("") }),
 		Entry("pipeline resources without a memory limit", func(spec *datadoghqv1alpha1.DatadogBYOCClusterSpec) {
 			spec.Components.Pipeline.Resources = &corev1.ResourceRequirements{}
