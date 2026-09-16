@@ -1078,7 +1078,7 @@ spec:
                           fieldRef:
                             fieldPath: metadata.namespace
                       - name: DD_TOOL_VERSION
-                        value: redhat-community-operators
+                        value: operatorhub
                     image: gcr.io/datadoghq/operator:1.31.0-rc.1
                     imagePullPolicy: IfNotPresent
                     livenessProbe:
@@ -1183,4 +1183,3 @@ spec:
   provider:
     name: Datadog
   version: 1.31.0-rc.1
-  replaces: datadog-operator.v1.30.0
