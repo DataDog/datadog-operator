@@ -290,6 +290,18 @@ func buildFleetDatadogAgentSpec(raw json.RawMessage) (*v2alpha1.DatadogAgentSpec
 			KeyName:    fleetCredentialAPIKey,
 		},
 	}
+	if config.Spec.Features == nil {
+		config.Spec.Features = &v2alpha1.DatadogFeatures{}
+	}
+	if config.Spec.Features.APM == nil {
+		config.Spec.Features.APM = &v2alpha1.APMFeatureConfig{}
+	}
+	if config.Spec.Features.APM.SingleStepInstrumentation == nil {
+		config.Spec.Features.APM.SingleStepInstrumentation = &v2alpha1.SingleStepInstrumentation{}
+	}
+	if config.Spec.Features.APM.SingleStepInstrumentation.Enabled == nil {
+		config.Spec.Features.APM.SingleStepInstrumentation.Enabled = new(true)
+	}
 	return config.Spec, nil
 }
 

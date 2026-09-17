@@ -188,6 +188,12 @@ func TestManagedAgentInstallationConfigAllowsAgentConfiguration(t *testing.T) {
 	}
 }
 
+func TestManagedAgentInstallationConfigPreservesExplicitAPMSSIDisablement(t *testing.T) {
+	spec, err := buildFleetDatadogAgentSpec(json.RawMessage(`{"spec":{"features":{"apm":{"instrumentation":{"enabled":false}}}}}`))
+	require.NoError(t, err)
+	assert.Equal(t, new(false), spec.Features.APM.SingleStepInstrumentation.Enabled)
+}
+
 func TestManagedAgentInstallationConfigRejectsInvalidDocument(t *testing.T) {
 	for _, raw := range []json.RawMessage{
 		json.RawMessage(`{"spec":null}`),
@@ -210,6 +216,7 @@ func TestManagedAgentInstallationRevalidatesExistingResources(t *testing.T) {
 	dda := &v2alpha1.DatadogAgent{}
 	require.NoError(t, kubeClient.Get(ctx, managedAgentInstallationTarget, dda))
 	assert.Equal(t, fleetManagedAgentInstallationStateReady, dda.Labels[fleetManagedAgentInstallationStateLabel])
+	assert.Equal(t, new(true), dda.Spec.Features.APM.SingleStepInstrumentation.Enabled)
 	profile := &v1alpha1.DatadogAgentProfile{}
 	require.NoError(t, kubeClient.Get(ctx, managedAgentInstallationWindowsProfileKey, profile))
 	require.NoError(t, daemon.validateManagedAgentInstallationWindowsProfile(profile, dda))
