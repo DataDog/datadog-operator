@@ -75,3 +75,33 @@ There is no separate `ImageOverridesActive` condition. Image resolution does not
 Overrides persist when `spec.release` changes. To return to release-managed images, remove the overrides and ensure a valid `spec.release` is present. Removing an override also removes its explicitly configured Pod pull secrets. Restore the intended release version before removing overrides if the release reference changed during the incident.
 
 Image changes use the existing Deployment and StatefulSet rollout strategies; they do not guarantee zero downtime or safe rollback across incompatible data-format changes. Hotfix images must support the existing arguments, configuration, probes, and security settings. Use immutable digests or unique tags: the pull policy remains `IfNotPresent`, and pushing a new image under an unchanged tag does not itself trigger a rollout.
+
+## Indexer split store sizing
+
+The split store is a local cache. With PVC storage, the Operator generates
+`indexer.split_store_max_num_bytes` as 70% of the requested PVC capacity minus
+the Operator-calculated default `ingest_api.max_queue_disk_usage`, in integer
+bytes. Overrides in `spec.nodeConfig` are passed through without parsing their
+byte-size values; overriding the queue does not recalculate the split store
+size. If the result is zero or negative, the Operator sets the cache capacity to
+zero. This prevents split caching on that PVC; it does not reduce the queue size.
+
+The default PVC capacity is 30Gi. With the default Indexer memory limit of 16Gi,
+the queue uses approximately 9.6Gi, leaving approximately 11.4Gi for the split
+store. With a 3Gi memory limit, the queue uses approximately 1.8Gi and the split
+store receives approximately 19.2Gi.
+
+With `emptyDir` storage, intended for testing, the Operator omits
+`split_store_max_num_bytes` regardless of `sizeLimit`, leaving Pomsky's default of
+100GiB in effect. The Operator keeps `split_store_max_num_splits` at 10000 unless
+overridden; it does not disable the split store for `emptyDir`.
+
+An explicit `spec.nodeConfig.indexer.split_store_max_num_bytes` takes precedence
+for either storage type and overrides the automatically calculated value. For example:
+
+```yaml
+spec:
+  nodeConfig:
+    indexer:
+      split_store_max_num_bytes: 10GiB
+```
