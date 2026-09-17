@@ -1275,7 +1275,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: a7ecd949579bc5e539f172707c537607
+    agent.datadoghq.com/agentspechash: 8ae26412c3f59a8ff3bcc683bfb42b67
   labels:
     admission.datadoghq.com/enabled: "false"
     agent.datadoghq.com/component: agent
@@ -1286,6 +1286,7 @@ metadata:
     app.kubernetes.io/name: datadog-agent-deployment
     app.kubernetes.io/part-of: -datadog--agent
     app.kubernetes.io/version: ""
+    cloud.google.com/matching-allowlist: datadog-datadog-daemonset-exemption-v1.0.6
     env.datadoghq.com/kind: gke-autopilot
   name: datadog-agent-agent
   ownerReferences:
@@ -1316,6 +1317,7 @@ spec:
         app.kubernetes.io/name: datadog-agent-deployment
         app.kubernetes.io/part-of: -datadog--agent
         app.kubernetes.io/version: ""
+        cloud.google.com/matching-allowlist: datadog-datadog-daemonset-exemption-v1.0.6
         env.datadoghq.com/kind: gke-autopilot
     spec:
       containers:
