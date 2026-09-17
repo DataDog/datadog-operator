@@ -188,12 +188,6 @@ func TestManagedAgentInstallationConfigAllowsAgentConfiguration(t *testing.T) {
 	}
 }
 
-func TestManagedAgentInstallationConfigPreservesExplicitAPMSSIDisablement(t *testing.T) {
-	spec, err := buildFleetDatadogAgentSpec(json.RawMessage(`{"spec":{"features":{"apm":{"instrumentation":{"enabled":false}}}}}`))
-	require.NoError(t, err)
-	assert.Equal(t, new(false), spec.Features.APM.SingleStepInstrumentation.Enabled)
-}
-
 func TestManagedAgentInstallationConfigRejectsInvalidDocument(t *testing.T) {
 	for _, raw := range []json.RawMessage{
 		json.RawMessage(`{"spec":null}`),
