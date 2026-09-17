@@ -444,6 +444,11 @@ func managedAgentInstallationBootstrapConfig(bootstrap managedAgentInstallationB
 	site := bootstrap.Site
 	linuxSelector := map[string]string{corev1.LabelOSStable: string(corev1.Linux)}
 	config := datadogAgentManagedAgentInstallationConfig{Spec: &v2alpha1.DatadogAgentSpec{
+		Features: &v2alpha1.DatadogFeatures{
+			APM: &v2alpha1.APMFeatureConfig{
+				SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{Enabled: new(true)},
+			},
+		},
 		Global: &v2alpha1.GlobalConfig{
 			ClusterName: &clusterName,
 			Site:        &site,
