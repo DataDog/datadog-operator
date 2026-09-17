@@ -871,6 +871,8 @@ trigger_internal_operator_check_image:
 
 trigger_internal_operator_image_rc_latest:
   stage: release-latest
+  needs:
+    - trigger_internal_operator_image
   rules:
     - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+-rc\.[0-9]+$/'
     - when: never
@@ -888,6 +890,8 @@ trigger_internal_operator_image_rc_latest:
 
 trigger_internal_operator_image_fips_rc_latest:
   extends: trigger_internal_operator_image_rc_latest
+  needs:
+    - trigger_internal_operator_image_fips
   variables:
     TMPL_SRC_IMAGE: v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-fips
     RELEASE_TAG: rc-latest-fips
