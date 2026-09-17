@@ -295,6 +295,90 @@ func TestBuildResources_ServiceAccount(t *testing.T) {
 	}
 }
 
+func TestBuildResources_Environment(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   func(*datadoghqv1alpha1.DatadogBYOCCluster)
+		wantEnv []corev1.EnvVar
+	}{
+		{
+			name: "AWS provider without region",
+			input: func(cluster *datadoghqv1alpha1.DatadogBYOCCluster) {
+				cluster.Spec.Provider = &datadoghqv1alpha1.DatadogBYOCClusterProviderSpec{
+					AWS: &datadoghqv1alpha1.DatadogBYOCClusterAWSSpec{},
+				}
+			},
+		},
+		{
+			name: "AWS provider with region",
+			input: func(cluster *datadoghqv1alpha1.DatadogBYOCCluster) {
+				cluster.Spec.Provider = &datadoghqv1alpha1.DatadogBYOCClusterProviderSpec{AWS: &datadoghqv1alpha1.DatadogBYOCClusterAWSSpec{
+					Region: ptr.To("eu-west-1"),
+				}}
+			},
+			wantEnv: []corev1.EnvVar{{Name: "AWS_REGION", Value: "eu-west-1"}},
+		},
+		{
+			name: "global environment overrides AWS provider region",
+			input: func(cluster *datadoghqv1alpha1.DatadogBYOCCluster) {
+				cluster.Spec.Provider = &datadoghqv1alpha1.DatadogBYOCClusterProviderSpec{AWS: &datadoghqv1alpha1.DatadogBYOCClusterAWSSpec{
+					Region: ptr.To("eu-west-1"),
+				}}
+				cluster.Spec.Global.Env = []corev1.EnvVar{{Name: "AWS_REGION", Value: "us-east-1"}}
+			},
+			wantEnv: []corev1.EnvVar{{Name: "AWS_REGION", Value: "us-east-1"}},
+		},
+		{
+			name: "component environment overrides AWS provider region",
+			input: func(cluster *datadoghqv1alpha1.DatadogBYOCCluster) {
+				cluster.Spec.Provider = &datadoghqv1alpha1.DatadogBYOCClusterProviderSpec{AWS: &datadoghqv1alpha1.DatadogBYOCClusterAWSSpec{
+					Region: ptr.To("eu-west-1"),
+				}}
+				cluster.Spec.Global.Env = []corev1.EnvVar{{Name: "AWS_REGION", Value: "us-east-1"}}
+				cluster.Spec.Components.Metastore.Env = []corev1.EnvVar{{Name: "AWS_REGION", Value: "ap-northeast-1"}}
+			},
+			wantEnv: []corev1.EnvVar{{Name: "AWS_REGION", Value: "ap-northeast-1"}},
+		},
+		{
+			name: "global and component environment variables",
+			input: func(cluster *datadoghqv1alpha1.DatadogBYOCCluster) {
+				cluster.Spec.Global.Env = []corev1.EnvVar{
+					{Name: "SHARED_SETTING", Value: "global"},
+					{Name: "GLOBAL_SETTING", Value: "global"},
+				}
+				cluster.Spec.Components.Metastore.Env = []corev1.EnvVar{
+					{Name: "SHARED_SETTING", Value: "component"},
+					{Name: "COMPONENT_SETTING", Value: "component"},
+				}
+			},
+			wantEnv: []corev1.EnvVar{
+				{Name: "SHARED_SETTING", Value: "component"},
+				{Name: "GLOBAL_SETTING", Value: "global"},
+				{Name: "COMPONENT_SETTING", Value: "component"},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cluster := testCluster()
+			tt.input(cluster)
+
+			resources, err := buildResources(cluster, testRelease())
+			if err != nil {
+				t.Fatalf("BuildResources() unexpected error: %v", err)
+			}
+
+			want := wantDefaultEnvironment(tt.wantEnv)
+			got := resources.metastore.Deployment.Spec.Template.Spec.Containers[0].Env
+			sortEnv := cmpopts.SortSlices(func(a, b corev1.EnvVar) bool { return a.Name < b.Name })
+			if diff := cmp.Diff(want, got, sortEnv); diff != "" {
+				t.Errorf("environment mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
 func TestResolveAffinity(t *testing.T) {
 	cluster := testCluster()
 	customAffinity := &corev1.Affinity{
@@ -1070,19 +1154,7 @@ type wantWorkload struct {
 	template corev1.PodTemplateSpec
 }
 
-func wantDefaultWorkload(options wantWorkloadOptions) wantWorkload {
-	selector := map[string]string{
-		"app.kubernetes.io/name":      "cloudprem",
-		"app.kubernetes.io/instance":  "byoc",
-		"app.kubernetes.io/component": options.component,
-	}
-	labels := map[string]string{
-		"app.kubernetes.io/name":       "cloudprem",
-		"app.kubernetes.io/instance":   "byoc",
-		"app.kubernetes.io/component":  options.component,
-		"app.kubernetes.io/managed-by": "datadog-operator",
-		"team":                         "search",
-	}
+func wantDefaultEnvironment(additional []corev1.EnvVar) []corev1.EnvVar {
 	field := func(fieldPath string) *corev1.EnvVarSource {
 		return &corev1.EnvVarSource{FieldRef: &corev1.ObjectFieldSelector{FieldPath: fieldPath}}
 	}
@@ -1125,14 +1197,30 @@ func wantDefaultWorkload(options wantWorkloadOptions) wantWorkload {
 		{Name: "IMAGE_NAME", Value: "registry.example.com/cloudprem"},
 		{Name: "IMAGE_TAG", Value: "v1.2.3"},
 	}
-	env = append(env, options.additionalEnv...)
-	env = append(env,
+	env = append(env, additional...)
+	return append(env,
 		corev1.EnvVar{Name: "NO_COLOR", Value: "true"},
 		corev1.EnvVar{Name: "QW_DISABLE_INGEST_V1", Value: "true"},
 		corev1.EnvVar{Name: "QW_DISABLE_TELEMETRY", Value: "true"},
 		corev1.EnvVar{Name: "QW_LOG_FORMAT", Value: "DDG"},
 		corev1.EnvVar{Name: "QW_RANDOM_SPLIT_PREFIX", Value: "true"},
 	)
+}
+
+func wantDefaultWorkload(options wantWorkloadOptions) wantWorkload {
+	selector := map[string]string{
+		"app.kubernetes.io/name":      "cloudprem",
+		"app.kubernetes.io/instance":  "byoc",
+		"app.kubernetes.io/component": options.component,
+	}
+	labels := map[string]string{
+		"app.kubernetes.io/name":       "cloudprem",
+		"app.kubernetes.io/instance":   "byoc",
+		"app.kubernetes.io/component":  options.component,
+		"app.kubernetes.io/managed-by": "datadog-operator",
+		"team":                         "search",
+	}
+	env := wantDefaultEnvironment(options.additionalEnv)
 	resourceName := "byoc-" + options.component
 	servicePorts := []corev1.ServicePort{
 		{Name: "rest", Port: 7280, Protocol: corev1.ProtocolTCP, TargetPort: intstr.FromString("rest")},
