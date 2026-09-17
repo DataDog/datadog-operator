@@ -18,6 +18,7 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
@@ -34,6 +35,7 @@ func TestShouldRunProcessChecksInCoreAgent(t *testing.T) {
 
 	for _, tt := range []struct {
 		name        string
+		labels      map[string]string
 		annotations map[string]string
 		spec        *v2alpha1.DatadogAgentSpec
 		want        bool
@@ -41,13 +43,20 @@ func TestShouldRunProcessChecksInCoreAgent(t *testing.T) {
 		{name: "supported Agent version", spec: withNodeAgentImage("7.60.0"), want: true},
 		{name: "unsupported Agent version", spec: withNodeAgentImage("7.59.0")},
 		{
-			name:        "Windows provider",
+			name:        "unprofiled Windows annotation",
+			annotations: map[string]string{kubernetes.ProviderAnnotationKey: kubernetes.WindowsProvider},
+			spec:        withNodeAgentImage("7.83.1"),
+			want:        true,
+		},
+		{
+			name:        "Windows profile",
+			labels:      map[string]string{constants.ProfileLabelKey: "windows"},
 			annotations: map[string]string{kubernetes.ProviderAnnotationKey: kubernetes.WindowsProvider},
 			spec:        withNodeAgentImage("7.83.1"),
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			dda := &v2alpha1.DatadogAgent{ObjectMeta: metav1.ObjectMeta{Annotations: tt.annotations}}
+			dda := &v2alpha1.DatadogAgent{ObjectMeta: metav1.ObjectMeta{Labels: tt.labels, Annotations: tt.annotations}}
 			assert.Equal(t, tt.want, ShouldRunProcessChecksInCoreAgent(dda, tt.spec))
 		})
 	}
