@@ -66,6 +66,8 @@ func Build(ctx context.Context, configFlags *genericclioptions.ConfigFlags, k8sC
 		schema.GroupVersion{Group: "karpenter.sh", Version: "v1"},
 		&karpv1.NodePool{},
 		&karpv1.NodePoolList{},
+		&karpv1.NodeClaim{},
+		&karpv1.NodeClaimList{},
 	)
 	metav1.AddToGroupVersion(sch, schema.GroupVersion{Group: "karpenter.sh", Version: "v1"})
 
