@@ -903,6 +903,17 @@ type GPUFeatureConfig struct {
 	// Default: false
 	// +optional
 	PatchCgroupPermissions *bool `json:"patchCgroupPermissions,omitempty"`
+
+	// CollectXidKernelLogs enables collection of the node's kernel ring buffer messages, where the
+	// NVIDIA driver reports Xid errors. Messages are tagged `source:kernel` so they match the
+	// out-of-the-box Xid log monitor and the GPU monitoring views.
+	// Requires `features.logCollection.enabled` to be true; it is a no-op otherwise.
+	// Note that this collects the full kernel transport rather than only Xid lines, because Xid
+	// triage depends on surrounding kernel context (Xid lines alone are rarely conclusive).
+	// Requires Agent 7.39.0+ and a systemd journal on the node.
+	// Default: false
+	// +optional
+	CollectXidKernelLogs *bool `json:"collectXidKernelLogs,omitempty"`
 }
 
 // DataPlaneFeatureConfig contains the Data Plane configuration.
