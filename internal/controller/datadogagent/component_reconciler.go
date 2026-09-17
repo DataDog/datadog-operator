@@ -212,6 +212,18 @@ func (r *ComponentRegistry) reconcileComponent(ctx context.Context, params *Reco
 		override.Deployment(deployment, componentOverride)
 	}
 
+	// The host-profiler container cannot run on Windows nodes, and a node-agent
+	// override could otherwise repoint the DaemonSet to them.
+	for _, feat := range params.Features {
+		if feat.ID() == feature.HostProfilerIDType {
+			if podManagers.PodTemplateSpec().Spec.NodeSelector == nil {
+				podManagers.PodTemplateSpec().Spec.NodeSelector = map[string]string{}
+			}
+			podManagers.PodTemplateSpec().Spec.NodeSelector["kubernetes.io/os"] = "linux"
+			break
+		}
+	}
+
 	if errs := global.ValidateFIPSVersions(podManagers); len(errs) > 0 {
 		err := utilerrors.NewAggregate(errs)
 		component.UpdateStatus(deployment, params.Status, now, metav1.ConditionFalse, fmt.Sprintf("%s FIPS version error", component.Name()), err.Error())
