@@ -221,8 +221,6 @@ func testExpectedAgent(agentContainerName apicommon.AgentContainerName, expected
 
 				assert.Equal(t, true, mgr.Tpl.Spec.HostPID)
 
-				assert.Equal(t, "linux", mgr.Tpl.Spec.NodeSelector["kubernetes.io/os"])
-
 				// IPC env vars
 				coreEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
 				assert.True(t, apiutils.IsEqualStruct(coreEnvVars, wantIpcEnvVars), "Core agent IPC env vars \ndiff = %s", cmp.Diff(coreEnvVars, wantIpcEnvVars))
@@ -526,4 +524,12 @@ func TestDefaultCapabilities(t *testing.T) {
 	assert.True(t, capSet["PERFMON"], "host-profiler requires PERFMON for perf_event_open")
 	assert.True(t, capSet["CHECKPOINT_RESTORE"], "host-profiler requires CHECKPOINT_RESTORE for /proc/<pid>/map_files access")
 	assert.True(t, capSet["SYS_PTRACE"], "host-profiler requires SYS_PTRACE for process tracing")
+}
+
+func Test_SetLinuxNodeSelector(t *testing.T) {
+	tmpl := &corev1.PodTemplateSpec{}
+
+	SetLinuxNodeSelector([]feature.Feature{buildHostProfilerFeature(&feature.Options{})}, tmpl)
+
+	assert.Equal(t, map[string]string{"kubernetes.io/os": "linux"}, tmpl.Spec.NodeSelector)
 }

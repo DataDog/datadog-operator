@@ -20,6 +20,7 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/hostprofiler"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/global"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/override"
 	"github.com/DataDog/datadog-operator/pkg/condition"
@@ -214,15 +215,7 @@ func (r *ComponentRegistry) reconcileComponent(ctx context.Context, params *Reco
 
 	// The host-profiler container cannot run on Windows nodes, and a node-agent
 	// override could otherwise repoint the DaemonSet to them.
-	for _, feat := range params.Features {
-		if feat.ID() == feature.HostProfilerIDType {
-			if podManagers.PodTemplateSpec().Spec.NodeSelector == nil {
-				podManagers.PodTemplateSpec().Spec.NodeSelector = map[string]string{}
-			}
-			podManagers.PodTemplateSpec().Spec.NodeSelector["kubernetes.io/os"] = "linux"
-			break
-		}
-	}
+	hostprofiler.SetLinuxNodeSelector(params.Features, podManagers.PodTemplateSpec())
 
 	if errs := global.ValidateFIPSVersions(podManagers); len(errs) > 0 {
 		err := utilerrors.NewAggregate(errs)
