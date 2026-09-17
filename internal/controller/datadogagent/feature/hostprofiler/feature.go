@@ -112,6 +112,12 @@ func (o *hostProfilerFeature) ManageNodeAgent(managers feature.PodTemplateManage
 	// Host PID
 	managers.PodTemplateSpec().Spec.HostPID = true
 
+	// The host-profiler is only supported on Linux nodes.
+	if managers.PodTemplateSpec().Spec.NodeSelector == nil {
+		managers.PodTemplateSpec().Spec.NodeSelector = map[string]string{}
+	}
+	managers.PodTemplateSpec().Spec.NodeSelector["kubernetes.io/os"] = "linux"
+
 	// Security context: drop all caps, add only what host-profiler needs, lock down privilege escalation,
 	// and apply a localhost seccomp profile. AllowPrivilegeEscalation must be explicitly false so that
 	// runc applies the seccomp filter before its own setuid/setgid/capset calls during container setup.

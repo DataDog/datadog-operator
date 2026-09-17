@@ -221,6 +221,8 @@ func testExpectedAgent(agentContainerName apicommon.AgentContainerName, expected
 
 				assert.Equal(t, true, mgr.Tpl.Spec.HostPID)
 
+				assert.Equal(t, "linux", mgr.Tpl.Spec.NodeSelector["kubernetes.io/os"])
+
 				// IPC env vars
 				coreEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
 				assert.True(t, apiutils.IsEqualStruct(coreEnvVars, wantIpcEnvVars), "Core agent IPC env vars \ndiff = %s", cmp.Diff(coreEnvVars, wantIpcEnvVars))
