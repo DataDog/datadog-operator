@@ -214,6 +214,7 @@ func resolveEnvironment(input workloadInput, additional []corev1.EnvVar) []corev
 		env[len(env)-5].ValueFrom = nil
 		env[len(env)-5].Value = *dogstatsdServer.Host
 	}
+	env = append(env, providerEnvironment(input.Cluster)...)
 	if datadog.APIKeySecretRef != nil {
 		env = append(env, corev1.EnvVar{Name: "DD_API_KEY", ValueFrom: &corev1.EnvVarSource{SecretKeyRef: datadog.APIKeySecretRef.DeepCopy()}})
 	}
@@ -251,6 +252,14 @@ func resolveEnvironment(input workloadInput, additional []corev1.EnvVar) []corev
 	)
 	env = controllerutils.MergeEnv(env, input.Cluster.Spec.Global.Env)
 	return controllerutils.MergeEnv(env, input.Spec.Env)
+}
+
+func providerEnvironment(cluster *datadoghqv1alpha1.DatadogBYOCCluster) []corev1.EnvVar {
+	provider := cluster.Spec.Provider
+	if provider == nil || provider.AWS == nil || provider.AWS.Region == nil || *provider.AWS.Region == "" {
+		return nil
+	}
+	return []corev1.EnvVar{{Name: "AWS_REGION", Value: *provider.AWS.Region}}
 }
 
 func selectorLabels(cluster *datadoghqv1alpha1.DatadogBYOCCluster, componentName string) map[string]string {

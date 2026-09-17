@@ -40,9 +40,6 @@ spec:
   global:
     labels:
       team: byoc-logs
-    env:
-    - name: AWS_REGION
-      value: us-east-1
   components:
     metastore:
       database:
