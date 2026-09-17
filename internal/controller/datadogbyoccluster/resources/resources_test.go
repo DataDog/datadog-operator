@@ -29,6 +29,7 @@ import (
 
 func TestBuildResources_ConfigMap(t *testing.T) {
 	type nodeConfigValues struct {
+		splitStoreMaxNumBytes         int64
 		maxQueueDiskUsage             any
 		maxQueueMemoryUsage           any
 		aggregationMemoryLimit        any
@@ -59,7 +60,7 @@ func TestBuildResources_ConfigMap(t *testing.T) {
 				map[string]any{"fingerprint": []any{map[string]any{"kind": "raw", "path": "status"}}},
 				map[string]any{"fingerprint": []any{map[string]any{"kind": "tokenized", "path": "message"}}},
 			},
-			"indexer": map[string]any{"split_store_max_num_bytes": "200G", "split_store_max_num_splits": 10000},
+			"indexer": map[string]any{"split_store_max_num_bytes": values.splitStoreMaxNumBytes, "split_store_max_num_splits": 10000},
 			"ingest_api": map[string]any{
 				"max_queue_disk_usage":   values.maxQueueDiskUsage,
 				"max_queue_memory_usage": values.maxQueueMemoryUsage,
@@ -101,6 +102,7 @@ func TestBuildResources_ConfigMap(t *testing.T) {
 			name:        "default",
 			clusterFunc: func(*datadoghqv1alpha1.DatadogBYOCCluster) {},
 			want: nodeConfigValues{
+				splitStoreMaxNumBytes:         12240656794,
 				maxQueueDiskUsage:             int64(10307921510),
 				maxQueueMemoryUsage:           int64(5153960755),
 				aggregationMemoryLimit:        "500M",
@@ -120,6 +122,7 @@ ingest_api:
   max_queue_memory_usage: 1GiB`)}
 			},
 			want: nodeConfigValues{
+				splitStoreMaxNumBytes:         12240656794,
 				maxQueueDiskUsage:             int64(10307921510),
 				maxQueueMemoryUsage:           "1GiB",
 				aggregationMemoryLimit:        "1G",
@@ -140,6 +143,7 @@ ingest_api:
 				}
 			},
 			want: nodeConfigValues{
+				splitStoreMaxNumBytes:         17394617549,
 				maxQueueDiskUsage:             int64(5153960755),
 				maxQueueMemoryUsage:           int64(2576980377),
 				aggregationMemoryLimit:        "500M",
@@ -160,6 +164,7 @@ ingest_api:
 				}
 			},
 			want: nodeConfigValues{
+				splitStoreMaxNumBytes:         15784004813,
 				maxQueueDiskUsage:             int64(6764573491),
 				maxQueueMemoryUsage:           int64(3382286745),
 				aggregationMemoryLimit:        "500M",

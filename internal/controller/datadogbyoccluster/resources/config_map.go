@@ -6,12 +6,14 @@
 package resources
 
 import (
+	"encoding/json"
 	"fmt"
 	"math"
 	"strings"
 
 	"github.com/imdario/mergo"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/yaml"
 
@@ -31,6 +33,7 @@ func (b configMapBuilder) build() (*corev1.ConfigMap, error) {
 	searcherMemoryLimit := b.cluster.Spec.Components.Searcher.Resources.Limits[corev1.ResourceMemory]
 	indexerMemoryBytes := indexerMemoryLimit.Value()
 	searcherMemoryBytes := searcherMemoryLimit.Value()
+	maxQueueDiskUsage := indexerMemoryBytes * 3 / 5
 
 	config := map[string]any{
 		"version":               0.8,
@@ -53,10 +56,10 @@ func (b configMapBuilder) build() (*corev1.ConfigMap, error) {
 			map[string]any{"fingerprint": []any{map[string]any{"kind": "raw", "path": "status"}}},
 			map[string]any{"fingerprint": []any{map[string]any{"kind": "tokenized", "path": "message"}}},
 		},
-		quickwitIndexerServiceName: map[string]any{"split_store_max_num_bytes": "200G", "split_store_max_num_splits": 10000},
+		quickwitIndexerServiceName: map[string]any{"split_store_max_num_splits": 10000},
 		"ingest_api": map[string]any{
 			// ByteSize accepts integer byte counts, so no unit conversion is needed.
-			"max_queue_disk_usage":   indexerMemoryBytes * 3 / 5,
+			"max_queue_disk_usage":   maxQueueDiskUsage,
 			"max_queue_memory_usage": indexerMemoryBytes * 3 / 10,
 		},
 		quickwitSearcherServiceName: map[string]any{
@@ -70,9 +73,18 @@ func (b configMapBuilder) build() (*corev1.ConfigMap, error) {
 	if b.cluster.Spec.Components.ReadOnlyMetastore != nil {
 		config[quickwitSearcherServiceName].(map[string]any)[quickwitUseReadOnlyMetastoreConfigKey] = true
 	}
+	storage := b.cluster.Spec.Components.Indexer.Storage
+	if storage != nil && storage.VolumeClaimTemplate != nil {
+		indexer := config[quickwitIndexerServiceName].(map[string]any)
+		capacity := storage.VolumeClaimTemplate.Spec.Resources.Requests[corev1.ResourceStorage]
+		indexer["split_store_max_num_bytes"] = calculateSplitStoreMaxNumBytes(capacity, maxQueueDiskUsage)
+	}
 	if b.cluster.Spec.NodeConfig != nil && len(b.cluster.Spec.NodeConfig.Raw) != 0 {
 		var override map[string]any
-		if err := yaml.Unmarshal(b.cluster.Spec.NodeConfig.Raw, &override); err != nil {
+		if err := yaml.Unmarshal(b.cluster.Spec.NodeConfig.Raw, &override, func(d *json.Decoder) *json.Decoder {
+			d.UseNumber()
+			return d
+		}); err != nil {
 			return nil, fmt.Errorf("decode spec.nodeConfig: %w", err)
 		}
 		if err := mergo.Merge(&config, override, mergo.WithOverride); err != nil {
@@ -93,4 +105,12 @@ func (b configMapBuilder) build() (*corev1.ConfigMap, error) {
 		},
 		Data: map[string]string{nodeConfigFileName: strings.TrimSuffix(string(nodeConfig), "\n")},
 	}, nil
+}
+
+func calculateSplitStoreMaxNumBytes(capacity resource.Quantity, maxQueueDiskUsage int64) int64 {
+	capacityBytes := capacity.Value()
+	// Divide before multiplying to avoid overflowing large PVC capacities.
+	budgetBytes := capacityBytes/10*7 + capacityBytes%10*7/10
+	// The split store is a local cache; skip caching when no disk budget remains.
+	return max(0, budgetBytes-maxQueueDiskUsage)
 }
