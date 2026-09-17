@@ -236,7 +236,7 @@ func resolveHostProfilerImage(dda metav1.Object, baseImage string) string {
 	return hostProfilerImage
 }
 
-// setLinuxNodeSelector applies the host-profiler Linux OS constraint.
+// SetLinuxNodeSelector applies the host-profiler Linux OS constraint.
 func SetLinuxNodeSelector(features []feature.Feature, tmpl *corev1.PodTemplateSpec) {
 	for _, feat := range features {
 		if feat.ID() != feature.HostProfilerIDType {
