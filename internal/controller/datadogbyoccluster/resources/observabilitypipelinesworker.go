@@ -15,6 +15,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/ptr"
+	"sigs.k8s.io/yaml"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	byocimage "github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/image"
@@ -62,6 +63,11 @@ func BuildObservabilityPipelinesWorker(cluster *datadoghqv1alpha1.DatadogBYOCClu
 }
 
 func applyGlobalPipelineSettings(cluster *datadoghqv1alpha1.DatadogBYOCCluster, pipeline *datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec) error {
+	scheme, err := indexerEndpointScheme(cluster)
+	if err != nil {
+		return err
+	}
+
 	global := cluster.Spec.Global
 	component := &pipeline.DatadogBYOCClusterComponentSpec
 
@@ -71,7 +77,7 @@ func applyGlobalPipelineSettings(cluster *datadoghqv1alpha1.DatadogBYOCCluster, 
 	component.Env = controllerutils.MergeEnv(component.Env, []corev1.EnvVar{
 		{
 			Name:  pipelineDestinationEndpointEnvName,
-			Value: "http://" + net.JoinHostPort(ComponentResourceName(cluster.Name, IndexerComponentName), strconv.Itoa(int(restPort))),
+			Value: scheme + "://" + net.JoinHostPort(ComponentResourceName(cluster.Name, IndexerComponentName), strconv.Itoa(int(restPort))),
 		},
 		{Name: pipelineSourceOTLPGRPCAddressEnvName, Value: "0.0.0.0:" + strconv.Itoa(int(otlpGRPCPort))},
 		{Name: pipelineSourceOTLPHTTPAddressEnvName, Value: "0.0.0.0:" + strconv.Itoa(int(otlpHTTPPort))},
@@ -97,4 +103,28 @@ func applyGlobalPipelineSettings(cluster *datadoghqv1alpha1.DatadogBYOCCluster, 
 		}
 	}
 	return nil
+}
+
+func indexerEndpointScheme(cluster *datadoghqv1alpha1.DatadogBYOCCluster) (string, error) {
+	const (
+		httpScheme  = "http"
+		httpsScheme = "https"
+	)
+
+	if cluster.Spec.NodeConfig == nil || len(cluster.Spec.NodeConfig.Raw) == 0 {
+		return httpScheme, nil
+	}
+
+	var nodeConfig struct {
+		REST struct {
+			TLS map[string]any `json:"tls"`
+		} `json:"rest"`
+	}
+	if err := yaml.Unmarshal(cluster.Spec.NodeConfig.Raw, &nodeConfig); err != nil {
+		return "", fmt.Errorf("decode spec.nodeConfig: %w", err)
+	}
+	if nodeConfig.REST.TLS != nil {
+		return httpsScheme, nil
+	}
+	return httpScheme, nil
 }
