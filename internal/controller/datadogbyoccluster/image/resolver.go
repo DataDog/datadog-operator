@@ -10,16 +10,17 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"slices"
 	"strings"
 
+	"github.com/google/go-containerregistry/pkg/authn"
+	"github.com/google/go-containerregistry/pkg/name"
+	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/utils/ptr"
-	"oras.land/oras-go/v2"
-	"oras.land/oras-go/v2/content"
-	"oras.land/oras-go/v2/registry/remote"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 )
@@ -84,7 +85,17 @@ type releaseImage struct {
 	Digest     string `json:"digest,omitempty"`
 }
 
-type targetFactory func(context.Context, string) (oras.ReadOnlyTarget, error)
+type releaseTarget interface {
+	Resolve(context.Context, string) (ocispec.Descriptor, []byte, error)
+	Fetch(context.Context, ocispec.Descriptor) ([]byte, error)
+}
+
+type targetFactory func(context.Context, string) (releaseTarget, error)
+
+type remoteReleaseTarget struct {
+	repository string
+	puller     *remote.Puller
+}
 
 type ociImageResolver struct {
 	repository    string
@@ -93,9 +104,56 @@ type ociImageResolver struct {
 
 // NewOCIImageResolver returns an image resolver backed by the Datadog public OCI repository.
 func NewOCIImageResolver() ImageResolver {
-	return newOCIImageResolver(defaultReleaseRepository, func(_ context.Context, repository string) (oras.ReadOnlyTarget, error) {
-		return remote.NewRepository(repository)
-	})
+	return newOCIImageResolver(defaultReleaseRepository, newRemoteTargetFactory())
+}
+
+func newRemoteTargetFactory(options ...remote.Option) targetFactory {
+	return func(_ context.Context, repository string) (releaseTarget, error) {
+		pullerOptions := append([]remote.Option{remote.WithAuth(authn.Anonymous)}, options...)
+		puller, err := remote.NewPuller(pullerOptions...)
+		if err != nil {
+			return nil, err
+		}
+		return &remoteReleaseTarget{repository: repository, puller: puller}, nil
+	}
+}
+
+func (t *remoteReleaseTarget) Resolve(ctx context.Context, reference string) (ocispec.Descriptor, []byte, error) {
+	separator := ":"
+	if _, err := digest.Parse(reference); err == nil {
+		separator = "@"
+	}
+	parsedReference, err := name.ParseReference(t.repository + separator + reference)
+	if err != nil {
+		return ocispec.Descriptor{}, nil, err
+	}
+	descriptor, err := t.puller.Get(ctx, parsedReference)
+	if err != nil {
+		return ocispec.Descriptor{}, nil, err
+	}
+	return ocispec.Descriptor{
+		MediaType: string(descriptor.MediaType),
+		Digest:    digest.Digest(descriptor.Digest.String()),
+		Size:      descriptor.Size,
+	}, descriptor.Manifest, nil
+}
+
+func (t *remoteReleaseTarget) Fetch(ctx context.Context, descriptor ocispec.Descriptor) ([]byte, error) {
+	reference, err := name.NewDigest(t.repository + "@" + descriptor.Digest.String())
+	if err != nil {
+		return nil, err
+	}
+	layer, err := t.puller.Layer(ctx, reference)
+	if err != nil {
+		return nil, err
+	}
+	reader, err := layer.Compressed()
+	if err != nil {
+		return nil, err
+	}
+	defer reader.Close()
+
+	return io.ReadAll(reader)
 }
 
 func newOCIImageResolver(repository string, factory targetFactory) *ociImageResolver {
@@ -152,16 +210,12 @@ func (r *ociImageResolver) resolveRelease(ctx context.Context, spec *datadoghqv1
 	if tag != "" {
 		reference = tag
 	}
-	descriptor, err := target.Resolve(ctx, reference)
+	descriptor, manifestBytes, err := target.Resolve(ctx, reference)
 	if err != nil {
 		return nil, fmt.Errorf("resolve release %q: %w", reference, err)
 	}
 	if requestedDigest != "" && descriptor.Digest.String() != requestedDigest {
 		return nil, fmt.Errorf("release tag %q resolved to digest %q, expected %q", tag, descriptor.Digest, requestedDigest)
-	}
-	manifestBytes, err := content.FetchAll(ctx, target, descriptor)
-	if err != nil {
-		return nil, fmt.Errorf("fetch release manifest %q: %w", descriptor.Digest, err)
 	}
 	var manifest ocispec.Manifest
 	if decodeErr := json.Unmarshal(manifestBytes, &manifest); decodeErr != nil {
@@ -172,7 +226,7 @@ func (r *ociImageResolver) resolveRelease(ctx context.Context, spec *datadoghqv1
 	}
 
 	layer := manifest.Layers[0]
-	layerBytes, err := content.FetchAll(ctx, target, layer)
+	layerBytes, err := target.Fetch(ctx, layer)
 	if err != nil {
 		return nil, fmt.Errorf("fetch release layer %q: %w", layer.Digest, err)
 	}

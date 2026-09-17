@@ -6,11 +6,8 @@
 package image
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
-	"io"
 	"strings"
 	"testing"
 
@@ -20,7 +17,6 @@ import (
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/utils/ptr"
-	"oras.land/oras-go/v2"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 )
@@ -225,7 +221,7 @@ func TestOCIImageResolver_Resolve(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			artifact := newFakeArtifact(t, tt.payload)
-			resolver := newOCIImageResolver(defaultReleaseRepository, func(_ context.Context, _ string) (oras.ReadOnlyTarget, error) {
+			resolver := newOCIImageResolver(defaultReleaseRepository, func(_ context.Context, _ string) (releaseTarget, error) {
 				return artifact, nil
 			})
 
@@ -343,21 +339,10 @@ func newFakeArtifact(t *testing.T, payload string) *fakeArtifact {
 	}
 }
 
-func (a *fakeArtifact) Resolve(_ context.Context, _ string) (ocispec.Descriptor, error) {
-	return a.manifestDescriptor, nil
+func (a *fakeArtifact) Resolve(_ context.Context, _ string) (ocispec.Descriptor, []byte, error) {
+	return a.manifestDescriptor, a.manifest, nil
 }
 
-func (a *fakeArtifact) Fetch(_ context.Context, descriptor ocispec.Descriptor) (io.ReadCloser, error) {
-	switch descriptor.Digest {
-	case a.manifestDescriptor.Digest:
-		return io.NopCloser(bytes.NewReader(a.manifest)), nil
-	case a.layerDescriptor.Digest:
-		return io.NopCloser(bytes.NewReader(a.payload)), nil
-	default:
-		return nil, errors.New("content not found")
-	}
-}
-
-func (a *fakeArtifact) Exists(_ context.Context, descriptor ocispec.Descriptor) (bool, error) {
-	return descriptor.Digest == a.manifestDescriptor.Digest || descriptor.Digest == a.layerDescriptor.Digest, nil
+func (a *fakeArtifact) Fetch(_ context.Context, _ ocispec.Descriptor) ([]byte, error) {
+	return a.payload, nil
 }
