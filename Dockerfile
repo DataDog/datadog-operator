@@ -1,6 +1,6 @@
 #
 ARG FIPS_ENABLED=false
-ARG SGC_VERSION=7.84.0-rc.2
+ARG SGC_VERSION=7.84.0
 ARG SGC_TAG_SUFFIX
 
 FROM datadog/secret-generic-connector:${SGC_VERSION}${SGC_TAG_SUFFIX} AS sgc
