@@ -14,6 +14,7 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/utils"
@@ -77,11 +78,17 @@ func agentSupportsRunInCoreAgent(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
 }
 
 // ShouldRunProcessChecksInCoreAgent determines whether process checks should run in the core agent
-// based on the agent version. Agents >= 7.60.0 support running process checks in the core agent.
-// Note: As of Agent 7.78, process checks always run in the core agent on Linux and the
+// based on the provider and agent version. Windows agents always run process checks in the
+// standalone process-agent. Agents >= 7.60.0 support running process checks in the core agent on
+// Linux. As of Agent 7.78, process checks always run in the core agent on Linux and the
 // DD_PROCESS_CONFIG_RUN_IN_CORE_AGENT_ENABLED envvar is no longer recognized.
-func ShouldRunProcessChecksInCoreAgent(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
-	return agentSupportsRunInCoreAgent(ddaSpec)
+func ShouldRunProcessChecksInCoreAgent(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec) bool {
+	return !isWindowsProfile(dda) && agentSupportsRunInCoreAgent(ddaSpec)
+}
+
+func isWindowsProfile(obj metav1.Object) bool {
+	return obj.GetLabels()[constants.ProfileLabelKey] != "" &&
+		obj.GetAnnotations()[kubernetes.ProviderAnnotationKey] == kubernetes.WindowsProvider
 }
 
 func HasFeatureEnableAnnotation(dda metav1.Object, annotation string) bool {
