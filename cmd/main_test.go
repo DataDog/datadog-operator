@@ -174,19 +174,31 @@ func TestParseSecretBackendConfig(t *testing.T) {
 }
 
 func TestConfigureSecretBackend(t *testing.T) {
-	t.Cleanup(func() {
+	resetSecretBackend := func() {
 		secrets.SetSecretBackendCommand("")
 		secrets.SetSecretBackendArgs(nil)
 		secrets.SetSecretBackendType("")
 		secrets.SetSecretBackendConfig(map[string]any{})
-	})
+	}
+	resetSecretBackend()
+	t.Cleanup(resetSecretBackend)
 
 	require.NoError(t, configureSecretBackend(&options{}))
 	require.NoError(t, configureSecretBackend(&options{
 		secretBackendType:   "hashicorp.vault",
 		secretBackendConfig: `{"vault_session":{"vault_auth_type":"kubernetes"}}`,
 	}))
+
+	resetSecretBackend()
 	require.Error(t, configureSecretBackend(&options{secretBackendConfig: "not-json"}))
+
+	resetSecretBackend()
+	require.Error(t, configureSecretBackend(&options{
+		secretBackendType:   "hashicorp.vault",
+		secretBackendConfig: "not-json",
+	}))
+	_, err := secrets.NewSecretBackend().Decrypt([]string{"ENC[vault://test]"})
+	require.EqualError(t, err, "secret backend command not configured")
 }
 
 func TestOptionsParse_InvalidEnvLeavesDefault(t *testing.T) {

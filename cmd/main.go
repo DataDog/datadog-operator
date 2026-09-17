@@ -567,17 +567,18 @@ func parseSecretBackendConfig(raw string) (map[string]any, error) {
 }
 
 func configureSecretBackend(opts *options) error {
+	backendConfig := map[string]any{}
+	if opts.secretBackendConfig != "" {
+		var err error
+		backendConfig, err = parseSecretBackendConfig(opts.secretBackendConfig)
+		if err != nil {
+			return err
+		}
+	}
+
 	secrets.SetSecretBackendCommand(opts.secretBackendCommand)
 	secrets.SetSecretBackendArgs(opts.secretBackendArgs)
 	secrets.SetSecretBackendType(opts.secretBackendType)
-	if opts.secretBackendConfig == "" {
-		return nil
-	}
-
-	backendConfig, err := parseSecretBackendConfig(opts.secretBackendConfig)
-	if err != nil {
-		return err
-	}
 	secrets.SetSecretBackendConfig(backendConfig)
 	return nil
 }
