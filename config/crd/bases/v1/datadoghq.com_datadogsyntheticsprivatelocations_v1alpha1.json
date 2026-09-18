@@ -3479,10 +3479,6 @@
           "format": "date-time",
           "type": "string"
         },
-        "creator": {
-          "description": "Creator is the identity of the private location creator.",
-          "type": "string"
-        },
         "currentHash": {
           "description": "CurrentHash tracks the hash of the current spec to know if the spec has\nchanged and needs an update.",
           "type": "string"

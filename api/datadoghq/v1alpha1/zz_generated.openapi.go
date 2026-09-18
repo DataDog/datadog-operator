@@ -3346,13 +3346,6 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogSyntheticsPrivateLoca
 							Format:      "",
 						},
 					},
-					"creator": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Creator is the identity of the private location creator.",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
 					"created": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Created is the time the private location was created.",

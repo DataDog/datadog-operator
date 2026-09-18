@@ -255,9 +255,6 @@ type DatadogSyntheticsPrivateLocationStatus struct {
 	// SyncStatus shows the health of syncing the private location state to Datadog.
 	// +optional
 	SyncStatus DatadogSyntheticsPrivateLocationSyncStatus `json:"syncStatus,omitempty"`
-	// Creator is the identity of the private location creator.
-	// +optional
-	Creator string `json:"creator,omitempty"`
 	// Created is the time the private location was created.
 	// +optional
 	Created *metav1.Time `json:"created,omitempty"`
