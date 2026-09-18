@@ -84,8 +84,7 @@ func (f *checkRunnerFeature) ManageSingleContainerNodeAgent(managers feature.Pod
 		return nil
 	}
 
-	f.configureNodeAgent(managers, apicommon.UnprivilegedSingleAgentContainerName, apicommon.UnprivilegedSingleAgentContainerName, apicommon.UnprivilegedSingleAgentContainerName)
-
+	f.configureNodeAgent(managers, apicommon.UnprivilegedSingleAgentContainerName)
 	return nil
 }
 
@@ -95,42 +94,40 @@ func (f *checkRunnerFeature) ManageNodeAgent(managers feature.PodTemplateManager
 		return nil
 	}
 
-	f.configureNodeAgent(managers, apicommon.CoreAgentContainerName, apicommon.AgentCheckRunnerContainerName, apicommon.AgentDataPlaneContainerName)
-
+	f.configureNodeAgent(managers, apicommon.CoreAgentContainerName)
 	return nil
 }
 
 // configureNodeAgent configures the Core Agent, Check Runner (ACR) and Agent Data Plane (ADP)
 // containers of the Node Agent. In SingleContainerStrategy, all three containers are the same container.
-func (f *checkRunnerFeature) configureNodeAgent(managers feature.PodTemplateManagers, coreAgentContainer, checkRunnerContainer, dataPlaneContainer apicommon.AgentContainerName) {
-	// Core Agent envs
-	// Enable the Check Runner by setting the DD_CHECK_RUNNER_ENABLED environment variable, which is then
-	// retrieved by ACR over RAR.
+func (f *checkRunnerFeature) configureNodeAgent(managers feature.PodTemplateManagers, coreAgentContainer apicommon.AgentContainerName) {
+	// ACR configuration
+	// Enable the Check Runner.
 	managers.EnvVar().AddEnvVarToContainer(coreAgentContainer, &corev1.EnvVar{
 		Name:  ddCheckRunnerEnabled,
 		Value: "true",
 	})
-
-	// ACR envs
 	// Force sub-agent of the Core Agent mode and configure communication with the Data Plane.
-	managers.EnvVar().AddEnvVarToContainer(checkRunnerContainer, &corev1.EnvVar{
+	managers.EnvVar().AddEnvVarToContainer(coreAgentContainer, &corev1.EnvVar{
 		Name:  ddCheckRunnerStandaloneMode,
 		Value: "false",
 	})
-
-	managers.EnvVar().AddEnvVarToContainer(checkRunnerContainer, &corev1.EnvVar{
+	managers.EnvVar().AddEnvVarToContainer(coreAgentContainer, &corev1.EnvVar{
 		Name:  ddCheckRunnerEndpointsIPCEnabled,
 		Value: "true",
 	})
-
-	managers.EnvVar().AddEnvVarToContainer(checkRunnerContainer, &corev1.EnvVar{
+	managers.EnvVar().AddEnvVarToContainer(coreAgentContainer, &corev1.EnvVar{
 		Name:  ddCheckRunnerEndpointsIPCEndpoint,
 		Value: "http://localhost:5105",
 	})
 
-	// ADP envs
+	// ADP configuration
 	// Enable Checks IPC source (the endpoint ACR sends events to)
-	managers.EnvVar().AddEnvVarToContainer(dataPlaneContainer, &corev1.EnvVar{
+	managers.EnvVar().AddEnvVarToContainer(coreAgentContainer, &corev1.EnvVar{
+		Name:  common.DDDataPlaneEnabled,
+		Value: "true",
+	})
+	managers.EnvVar().AddEnvVarToContainer(coreAgentContainer, &corev1.EnvVar{
 		Name:  common.DDDataPlaneChecksEnabled,
 		Value: "true",
 	})
