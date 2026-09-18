@@ -52,7 +52,7 @@ func buildDaemonSet(instance *datadoghqv1alpha1.DatadogCSIDriver) *appsv1.Daemon
 	volumes := buildVolumes(apmSocketDir, dsdSocketDir)
 	csiDriverContainer := buildCSIDriverContainer(instance, apmSocketPath, dsdSocketPath, apmSocketDir, dsdSocketDir)
 	registrarContainer := buildRegistrarContainer(instance)
-	imagePullSecrets := getCSIDriverImagePullSecrets(instance)
+	imagePullSecrets := buildImagePullSecrets(instance)
 
 	revisionHistoryLimit := int32(10)
 	ds := &appsv1.DaemonSet{
@@ -129,8 +129,9 @@ func buildCSIDriverContainer(instance *datadoghqv1alpha1.DatadogCSIDriver, apmSo
 	}
 
 	return corev1.Container{
-		Name:  datadoghqv1alpha1.CSINodeDriverContainerName,
-		Image: resolveCSIDriverImage(instance),
+		Name:            datadoghqv1alpha1.CSINodeDriverContainerName,
+		Image:           resolveCSIDriverImage(instance),
+		ImagePullPolicy: imagePullPolicy(instance.Spec.CSIDriverImage),
 		Args: []string{
 			fmt.Sprintf("--apm-host-socket-path=%s", apmSocketPath),
 			fmt.Sprintf("--dsd-host-socket-path=%s", dsdSocketPath),
@@ -165,8 +166,9 @@ func buildCSIDriverContainer(instance *datadoghqv1alpha1.DatadogCSIDriver, apmSo
 
 func buildRegistrarContainer(instance *datadoghqv1alpha1.DatadogCSIDriver) corev1.Container {
 	return corev1.Container{
-		Name:  datadoghqv1alpha1.CSINodeDriverRegistrarContainerName,
-		Image: resolveRegistrarImage(instance),
+		Name:            datadoghqv1alpha1.CSINodeDriverRegistrarContainerName,
+		Image:           resolveRegistrarImage(instance),
+		ImagePullPolicy: imagePullPolicy(instance.Spec.RegistrarImage),
 		Args: []string{
 			fmt.Sprintf("--csi-address=$(%s)", envAddress),
 			fmt.Sprintf("--kubelet-registration-path=$(%s)", envDriverRegSock),
@@ -491,6 +493,32 @@ func mergePortsByContainerPort(base, overrides []corev1.ContainerPort) []corev1.
 	return result
 }
 
+// unionLocalObjectReferences returns the references of both lists in first-seen order,
+// without duplicate names.
+func unionLocalObjectReferences(lists ...[]corev1.LocalObjectReference) []corev1.LocalObjectReference {
+	var result []corev1.LocalObjectReference
+	seen := map[string]struct{}{}
+	for _, refs := range lists {
+		for _, ref := range refs {
+			if _, duplicate := seen[ref.Name]; duplicate {
+				continue
+			}
+			seen[ref.Name] = struct{}{}
+			result = append(result, ref)
+		}
+	}
+	return result
+}
+
+// imagePullPolicy returns the pull policy configured on an image spec, or "" to leave the
+// field unset so the API server applies the Kubernetes default.
+func imagePullPolicy(imageConfig *v2alpha1.AgentImageConfig) corev1.PullPolicy {
+	if imageConfig == nil {
+		return ""
+	}
+	return ptr.Deref(imageConfig.PullPolicy, "")
+}
+
 // Image resolution: uses the same pattern as the DatadogAgent controller via
 // pkg/images. Users can specify just a tag (uses default registry/name), a
 // name:tag (uses as-is), or a full registry/name:tag.
@@ -500,11 +528,18 @@ func resolveCSIDriverImage(instance *datadoghqv1alpha1.DatadogCSIDriver) string 
 		Name: defaultCSIDriverImageName,
 		Tag:  images.CSILatestImageVersion,
 	}
+	// spec.registry is propagated from the DDA's spec.global.registry; empty falls back to
+	// images.DefaultImageRegistry. GKE Autopilot only admits GCR for Datadog images, the same
+	// constraint ensureGCRAutopilotRegistry applies on the DatadogAgent side.
+	registry := ptr.Deref(instance.Spec.Registry, "")
+	if experimental.IsAutopilotEnabled(instance) && !images.IsGCRRegistry(registry) {
+		registry = images.GCRContainerRegistry
+	}
 	if instance.Spec.CSIDriverImage == nil {
-		return images.AssembleImage(defaultImage, images.GCRContainerRegistry)
+		return images.AssembleImage(defaultImage, registry)
 	}
 	return images.OverrideAgentImage(
-		images.AssembleImage(defaultImage, images.GCRContainerRegistry),
+		images.AssembleImage(defaultImage, registry),
 		instance.Spec.CSIDriverImage,
 	)
 }
@@ -550,11 +585,21 @@ func getAPMEnabledString(instance *datadoghqv1alpha1.DatadogCSIDriver) string {
 	return strconv.FormatBool(getAPMEnabled(instance))
 }
 
-func getCSIDriverImagePullSecrets(instance *datadoghqv1alpha1.DatadogCSIDriver) []corev1.LocalObjectReference {
-	if instance.Spec.CSIDriverImage == nil || instance.Spec.CSIDriverImage.PullSecrets == nil {
+// pullSecretsFromImageConfig returns a copy of the pull secrets configured on an image spec.
+func pullSecretsFromImageConfig(imageConfig *v2alpha1.AgentImageConfig) []corev1.LocalObjectReference {
+	if imageConfig == nil || imageConfig.PullSecrets == nil {
 		return nil
 	}
-	return append([]corev1.LocalObjectReference(nil), (*instance.Spec.CSIDriverImage.PullSecrets)...)
+	return append([]corev1.LocalObjectReference(nil), (*imageConfig.PullSecrets)...)
+}
+
+// buildImagePullSecrets returns the Secrets the pod needs to pull its images. Either image can
+// live in a private registry, so the pod needs the union of both.
+func buildImagePullSecrets(instance *datadoghqv1alpha1.DatadogCSIDriver) []corev1.LocalObjectReference {
+	return unionLocalObjectReferences(
+		pullSecretsFromImageConfig(instance.Spec.CSIDriverImage),
+		pullSecretsFromImageConfig(instance.Spec.RegistrarImage),
+	)
 }
 
 // registryAuthSecrets returns the Secrets used for APM library registry authentication
@@ -566,7 +611,7 @@ func registryAuthSecrets(instance *datadoghqv1alpha1.DatadogCSIDriver) (secrets 
 	if instance.Spec.APM != nil && len(instance.Spec.APM.PullSecrets) > 0 {
 		return append([]corev1.LocalObjectReference(nil), instance.Spec.APM.PullSecrets...), false
 	}
-	return getCSIDriverImagePullSecrets(instance), true
+	return pullSecretsFromImageConfig(instance.Spec.CSIDriverImage), true
 }
 
 // buildRegistryAuthEnvVars emits DD_APM_REGISTRY_AUTH_<n> secret references, matching the

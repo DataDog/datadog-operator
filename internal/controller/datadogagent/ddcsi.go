@@ -131,12 +131,24 @@ func (r *Reconciler) buildDesiredDatadogCSIDriver(instance *v2alpha1.DatadogAgen
 		maps.Copy(ddcsi.Spec.CommonLabels, instance.Spec.Global.CommonLabels)
 	}
 
+	// `instance` is the defaulted DDA copy (see reconcile.go), so Registry is set here -
+	// including the GCR value ensureGCRAutopilotRegistry forces on GKE Autopilot.
+	if instance.Spec.Global != nil && instance.Spec.Global.Registry != nil {
+		registry := *instance.Spec.Global.Registry
+		ddcsi.Spec.Registry = &registry
+	}
+
 	csiConfig := instance.Spec.Global.CSI
 	if csiConfig != nil {
 		if csiConfig.APM != nil && len(csiConfig.APM.PullSecrets) > 0 {
 			ddcsi.Spec.APM = &v1alpha1.DatadogCSIDriverAPMConfig{
 				PullSecrets: append([]corev1.LocalObjectReference(nil), csiConfig.APM.PullSecrets...),
 			}
+		}
+
+		// Tag, pull policy and pull secrets for the driver container.
+		if csiConfig.Image != nil {
+			ddcsi.Spec.CSIDriverImage = csiDriverImageConfig(csiConfig.Image)
 		}
 
 		override := &v1alpha1.DatadogCSIDriverOverride{}
@@ -154,6 +166,21 @@ func (r *Reconciler) buildDesiredDatadogCSIDriver(instance *v2alpha1.DatadogAgen
 		return nil, fmt.Errorf("failed to set owner reference on DatadogCSIDriver: %w", err)
 	}
 	return ddcsi, nil
+}
+
+// csiDriverImageConfig maps the DDA's CSI image configuration onto the AgentImageConfig the
+// DatadogCSIDriver spec takes, leaving JMXEnabled unset (see CSIImageConfig).
+func csiDriverImageConfig(image *v2alpha1.CSIImageConfig) *v2alpha1.AgentImageConfig {
+	imageConfig := &v2alpha1.AgentImageConfig{
+		Name:       image.Name,
+		Tag:        image.Tag,
+		PullPolicy: image.PullPolicy,
+	}
+	if len(image.PullSecrets) > 0 {
+		pullSecrets := append([]corev1.LocalObjectReference(nil), image.PullSecrets...)
+		imageConfig.PullSecrets = &pullSecrets
+	}
+	return imageConfig
 }
 
 // apmSocketPathFromDDA returns the APM UDS path configured on the DDA, or nil if unset.
