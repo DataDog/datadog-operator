@@ -235,3 +235,16 @@ func resolveHostProfilerImage(dda metav1.Object, baseImage string) string {
 	}
 	return hostProfilerImage
 }
+
+// SetLinuxNodeSelector applies the host-profiler Linux OS constraint.
+func SetLinuxNodeSelector(features []feature.Feature, tmpl *corev1.PodTemplateSpec) {
+	for _, feat := range features {
+		if feat.ID() == feature.HostProfilerIDType {
+			if tmpl.Spec.NodeSelector == nil {
+				tmpl.Spec.NodeSelector = map[string]string{}
+			}
+			tmpl.Spec.NodeSelector["kubernetes.io/os"] = "linux"
+			return
+		}
+	}
+}

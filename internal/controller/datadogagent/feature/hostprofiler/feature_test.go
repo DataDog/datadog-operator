@@ -525,3 +525,11 @@ func TestDefaultCapabilities(t *testing.T) {
 	assert.True(t, capSet["CHECKPOINT_RESTORE"], "host-profiler requires CHECKPOINT_RESTORE for /proc/<pid>/map_files access")
 	assert.True(t, capSet["SYS_PTRACE"], "host-profiler requires SYS_PTRACE for process tracing")
 }
+
+func Test_SetLinuxNodeSelector(t *testing.T) {
+	tmpl := &corev1.PodTemplateSpec{}
+
+	SetLinuxNodeSelector([]feature.Feature{buildHostProfilerFeature(&feature.Options{})}, tmpl)
+
+	assert.Equal(t, map[string]string{"kubernetes.io/os": "linux"}, tmpl.Spec.NodeSelector)
+}
