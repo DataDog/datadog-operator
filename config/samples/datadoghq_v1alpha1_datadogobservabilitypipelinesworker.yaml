@@ -1,0 +1,39 @@
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogObservabilityPipelinesWorker
+metadata:
+  name: datadogobservabilitypipelinesworker-sample
+  namespace: byoc
+spec:
+  datadog:
+    site: datadoghq.com
+    apiKeySecretRef:
+      name: datadog-secret
+      key: api-key
+  pipelineID: 11111111-2222-3333-4444-555555555555
+  image:
+    repository: public.ecr.aws/datadog/observability-pipelines-worker
+    tag: latest
+    pullPolicy: IfNotPresent
+  env:
+    - name: DD_OP_DESTINATION_CLOUDPREM_ENDPOINT_URL
+      value: http://datadogbyoccluster-sample-indexer:7280
+  ports:
+    - name: otlp-grpc
+      port: 4317
+    - name: otlp-http
+      port: 4318
+  replicas: 2
+  resources:
+    requests:
+      cpu: "2"
+      memory: 4Gi
+    limits:
+      memory: 4Gi
+  storage:
+    volumeClaimTemplate:
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 10Gi

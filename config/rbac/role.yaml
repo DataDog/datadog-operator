@@ -149,9 +149,12 @@ rules:
   resources:
   - statefulsets
   verbs:
+  - create
+  - delete
   - get
   - list
   - patch
+  - update
   - watch
 - apiGroups:
   - argoproj.io
@@ -201,7 +204,12 @@ rules:
   resources:
   - horizontalpodautoscalers
   verbs:
+  - create
+  - delete
+  - get
   - list
+  - patch
+  - update
   - watch
 - apiGroups:
   - autoscaling.k8s.io
@@ -277,6 +285,7 @@ rules:
   - datadogagentprofiles/finalizers
   - datadogagents
   - datadogagents/finalizers
+  - datadogbyocclusters
   - datadogcsidrivers
   - datadogcsidrivers/finalizers
   - datadogdashboards
@@ -284,6 +293,7 @@ rules:
   - datadoggenericresources/finalizers
   - datadogmonitors
   - datadogmonitors/finalizers
+  - datadogobservabilitypipelinesworkers
   - datadogslos
   - datadogslos/finalizers
   verbs:
@@ -300,10 +310,12 @@ rules:
   - datadogagentinternals/status
   - datadogagentprofiles/status
   - datadogagents/status
+  - datadogbyocclusters/status
   - datadogcsidrivers/status
   - datadogdashboards/status
   - datadoggenericresources/status
   - datadogmonitors/status
+  - datadogobservabilitypipelinesworkers/status
   - datadogslos/status
   verbs:
   - get
@@ -312,6 +324,7 @@ rules:
 - apiGroups:
   - datadoghq.com
   resources:
+  - datadogbyocclusters/finalizers
   - datadogdashboards/finalizers
   - datadogmetrics/status
   verbs:

@@ -11,6 +11,7 @@ require (
 	github.com/google/go-cmp v0.7.0
 	github.com/google/uuid v1.6.0
 	github.com/hako/durafmt v0.0.0-20210608085754-5c1018a4e16b
+	github.com/imdario/mergo v0.3.16
 	github.com/mholt/archiver/v3 v3.5.1
 	github.com/olekukonko/tablewriter v1.1.4
 	github.com/onsi/gomega v1.43.0
@@ -60,6 +61,8 @@ require (
 	github.com/hashicorp/go-retryablehttp v0.7.8
 	github.com/mattn/go-runewidth v0.0.28
 	github.com/onsi/ginkgo/v2 v2.32.1
+	github.com/opencontainers/go-digest v1.0.0
+	github.com/opencontainers/image-spec v1.1.1
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c
 	github.com/prometheus/client_golang v1.24.1
 	github.com/samber/lo v1.53.0
@@ -233,8 +236,6 @@ require (
 	github.com/olekukonko/cat v0.0.0-20250911104152-50322a0618f6 // indirect
 	github.com/olekukonko/errors v1.2.0 // indirect
 	github.com/olekukonko/ll v0.1.6 // indirect
-	github.com/opencontainers/go-digest v1.0.0 // indirect
-	github.com/opencontainers/image-spec v1.1.1 // indirect
 	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
 	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
 	github.com/philhofer/fwd v1.2.0 // indirect
