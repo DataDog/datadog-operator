@@ -3367,6 +3367,7 @@ spec:
                   description: |-
                     Ports contains the network ports exposed by the worker.
                     The same ports are declared on the worker container and its Services.
+                    At least one source port must be explicitly specified.
                   items:
                     description: DatadogObservabilityPipelinesWorkerPort defines a network port exposed by the worker.
                     properties:
@@ -3393,13 +3394,11 @@ spec:
                       - name
                       - port
                     type: object
+                  minItems: 1
                   type: array
                   x-kubernetes-list-map-keys:
                     - name
                   x-kubernetes-list-type: map
-                  x-kubernetes-validations:
-                    - message: port name api is reserved for the worker API
-                      rule: self.all(port, port.name != 'api')
                 replicas:
                   description: Replicas is the desired replica count.
                   format: int32
@@ -5963,6 +5962,7 @@ spec:
                 - datadog
                 - image
                 - pipelineID
+                - ports
               type: object
               x-kubernetes-validations:
                 - message: resources.limits.memory must be specified when resources is set

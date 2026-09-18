@@ -3298,7 +3298,7 @@
           ]
         },
         "ports": {
-          "description": "Ports contains the network ports exposed by the worker.\nThe same ports are declared on the worker container and its Services.",
+          "description": "Ports contains the network ports exposed by the worker.\nThe same ports are declared on the worker container and its Services.\nAt least one source port must be explicitly specified.",
           "items": {
             "additionalProperties": false,
             "description": "DatadogObservabilityPipelinesWorkerPort defines a network port exposed by the worker.",
@@ -3333,17 +3333,12 @@
             ],
             "type": "object"
           },
+          "minItems": 1,
           "type": "array",
           "x-kubernetes-list-map-keys": [
             "name"
           ],
-          "x-kubernetes-list-type": "map",
-          "x-kubernetes-validations": [
-            {
-              "message": "port name api is reserved for the worker API",
-              "rule": "self.all(port, port.name != 'api')"
-            }
-          ]
+          "x-kubernetes-list-type": "map"
         },
         "replicas": {
           "description": "Replicas is the desired replica count.",
@@ -5486,7 +5481,8 @@
       "required": [
         "datadog",
         "image",
-        "pipelineID"
+        "pipelineID",
+        "ports"
       ],
       "type": "object",
       "x-kubernetes-validations": [

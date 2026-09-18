@@ -55,6 +55,7 @@ var _ = Describe("DatadogObservabilityPipelinesWorker Controller", func() {
 						Autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{},
 					},
 					PipelineID: ptr.To("pipeline-id"),
+					Ports:      []datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerPort{{Name: "otlp-grpc", Port: 4317}},
 				},
 				Datadog: &datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerDatadogSpec{
 					Site: ptr.To("datadoghq.com"),
@@ -64,7 +65,6 @@ var _ = Describe("DatadogObservabilityPipelinesWorker Controller", func() {
 					},
 				},
 				Image: &image,
-				Ports: []datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerPort{{Name: "otlp-grpc", Port: 4317}},
 			},
 		}
 		createKubernetesObject(k8sClient, worker)
@@ -135,13 +135,13 @@ var _ = Describe("DatadogObservabilityPipelinesWorker Controller", func() {
 
 	It("deletes obsolete optional resources", func() {
 		statefulSet := &appsv1.StatefulSet{ObjectMeta: metav1.ObjectMeta{Name: worker.Name, Namespace: worker.Namespace}}
+		service := &corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: worker.Name, Namespace: worker.Namespace}}
 		obsolete := []client.Object{
-			&corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: worker.Name, Namespace: worker.Namespace}},
 			&corev1.ServiceAccount{ObjectMeta: metav1.ObjectMeta{Name: worker.Name, Namespace: worker.Namespace}},
 			&autoscalingv2.HorizontalPodAutoscaler{ObjectMeta: metav1.ObjectMeta{Name: worker.Name, Namespace: worker.Namespace}},
 			&policyv1.PodDisruptionBudget{ObjectMeta: metav1.ObjectMeta{Name: worker.Name, Namespace: worker.Namespace}},
 		}
-		for _, object := range append(obsolete, statefulSet) {
+		for _, object := range append(obsolete, statefulSet, service) {
 			Eventually(func() error {
 				return k8sClient.Get(context.Background(), client.ObjectKeyFromObject(object), object)
 			}, timeout, interval).Should(Succeed())
@@ -152,7 +152,6 @@ var _ = Describe("DatadogObservabilityPipelinesWorker Controller", func() {
 			if err := k8sClient.Get(context.Background(), client.ObjectKeyFromObject(worker), current); err != nil {
 				return err
 			}
-			current.Spec.Ports = nil
 			current.Spec.Identity = &datadoghqv1alpha1.DatadogBYOCClusterIdentitySpec{ServiceAccountName: ptr.To("existing-worker")}
 			current.Spec.Autoscaling = nil
 			current.Spec.PodDisruptionBudget = &datadoghqv1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec{}
@@ -170,5 +169,6 @@ var _ = Describe("DatadogObservabilityPipelinesWorker Controller", func() {
 			current := &appsv1.StatefulSet{}
 			return k8sClient.Get(context.Background(), client.ObjectKeyFromObject(statefulSet), current)
 		}, timeout, interval).Should(Succeed())
+		Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(service), service)).To(Succeed())
 	})
 })

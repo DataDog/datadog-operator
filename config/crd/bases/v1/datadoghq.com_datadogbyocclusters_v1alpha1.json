@@ -21894,6 +21894,44 @@
                     }
                   ]
                 },
+                "ports": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "name": {
+                        "maxLength": 15,
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "port": {
+                        "format": "int32",
+                        "maximum": 65535,
+                        "minimum": 1,
+                        "type": "integer"
+                      },
+                      "protocol": {
+                        "default": "TCP",
+                        "enum": [
+                          "TCP",
+                          "UDP",
+                          "SCTP"
+                        ],
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "name",
+                      "port"
+                    ],
+                    "type": "object"
+                  },
+                  "minItems": 1,
+                  "type": "array",
+                  "x-kubernetes-list-map-keys": [
+                    "name"
+                  ],
+                  "x-kubernetes-list-type": "map"
+                },
                 "replicas": {
                   "format": "int32",
                   "type": "integer"
@@ -23663,7 +23701,8 @@
                 }
               },
               "required": [
-                "pipelineID"
+                "pipelineID",
+                "ports"
               ],
               "type": "object",
               "x-kubernetes-validations": [

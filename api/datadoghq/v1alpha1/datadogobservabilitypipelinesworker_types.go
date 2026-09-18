@@ -29,14 +29,6 @@ type DatadogObservabilityPipelinesWorkerSpec struct {
 	// +optional
 	Identity *DatadogBYOCClusterIdentitySpec `json:"identity,omitempty"`
 
-	// Ports contains the network ports exposed by the worker.
-	// The same ports are declared on the worker container and its Services.
-	// +optional
-	// +listType=map
-	// +listMapKey=name
-	// +kubebuilder:validation:XValidation:rule="self.all(port, port.name != 'api')",message="port name api is reserved for the worker API"
-	Ports []DatadogObservabilityPipelinesWorkerPort `json:"ports,omitempty"`
-
 	// Service configures the Service exposing the worker ports.
 	// +optional
 	Service *DatadogObservabilityPipelinesWorkerServiceSpec `json:"service,omitempty"`

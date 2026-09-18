@@ -72,6 +72,10 @@ func TestBuildObservabilityPipelinesWorker(t *testing.T) {
 						},
 					},
 					PipelineID: ptr.To("existing-pipeline"),
+					Ports: []datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerPort{
+						{Name: "otlp-grpc", Port: 4317, Protocol: corev1.ProtocolTCP},
+						{Name: "otlp-http", Port: 4318, Protocol: corev1.ProtocolTCP},
+					},
 				},
 				Datadog: &datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerDatadogSpec{
 					Site: ptr.To("datadoghq.eu"),
@@ -84,10 +88,6 @@ func TestBuildObservabilityPipelinesWorker(t *testing.T) {
 					Repository: ptr.To("registry.example.com/observability-pipelines-worker"),
 					Tag:        ptr.To("2.10.0"),
 					PullPolicy: ptr.To(corev1.PullIfNotPresent),
-				},
-				Ports: []datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerPort{
-					{Name: "otlp-grpc", Port: 4317, Protocol: corev1.ProtocolTCP},
-					{Name: "otlp-http", Port: 4318, Protocol: corev1.ProtocolTCP},
 				},
 			},
 		}
@@ -103,15 +103,51 @@ func TestBuildObservabilityPipelinesWorker(t *testing.T) {
 		wantErr    string
 	}{
 		{
+			name: "single custom port without implicit OTLP ports",
+			pipeline: &datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{
+				PipelineID: ptr.To("existing-pipeline"),
+				Ports: []datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerPort{
+					{Name: "splunk-tcp", Port: 9998},
+				},
+			},
+			image: defaultImage,
+			want: func() *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker {
+				want := wantDefaultWorker()
+				want.Spec.Ports = []datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerPort{
+					{Name: "splunk-tcp", Port: 9998},
+				}
+				return want
+			}(),
+		},
+		{
+			name: "multiple custom ports preserve protocol and order",
+			pipeline: &datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{
+				PipelineID: ptr.To("existing-pipeline"),
+				Ports: []datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerPort{
+					{Name: "syslog", Port: 1514, Protocol: corev1.ProtocolUDP},
+					{Name: "http-server", Port: 8080, Protocol: corev1.ProtocolTCP},
+				},
+			},
+			image: defaultImage,
+			want: func() *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker {
+				want := wantDefaultWorker()
+				want.Spec.Ports = []datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerPort{
+					{Name: "syslog", Port: 1514, Protocol: corev1.ProtocolUDP},
+					{Name: "http-server", Port: 8080, Protocol: corev1.ProtocolTCP},
+				}
+				return want
+			}(),
+		},
+		{
 			name:     "pipeline with defaults",
-			pipeline: &datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{PipelineID: ptr.To("existing-pipeline")},
+			pipeline: &datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{PipelineID: ptr.To("existing-pipeline"), Ports: testPipelinePorts()},
 			image:    defaultImage,
 			want:     wantDefaultWorker(),
 		},
 		{
 			name:       "REST TLS uses HTTPS",
 			nodeConfig: &runtime.RawExtension{Raw: []byte(`{"rest":{"tls":{"cert_path":"/etc/tls/tls.crt","key_path":"/etc/tls/tls.key"}}}`)},
-			pipeline:   &datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{PipelineID: ptr.To("existing-pipeline")},
+			pipeline:   &datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{PipelineID: ptr.To("existing-pipeline"), Ports: testPipelinePorts()},
 			image:      defaultImage,
 			global: datadoghqv1alpha1.DatadogBYOCClusterGlobalSpec{
 				Env: []corev1.EnvVar{{Name: pipelineDestinationEndpointEnvName, Value: "http://global-override:7280"}},
@@ -129,13 +165,14 @@ func TestBuildObservabilityPipelinesWorker(t *testing.T) {
     cert_path: /etc/tls/tls.crt
     key_path: /etc/tls/tls.key
 `)},
-			pipeline: &datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{PipelineID: ptr.To("existing-pipeline")},
+			pipeline: &datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{PipelineID: ptr.To("existing-pipeline"), Ports: testPipelinePorts()},
 			image:    defaultImage,
 			want:     wantDefaultWorker(),
 		},
 		{
 			name: "existing pipeline with resolved image configuration",
 			pipeline: &datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{
+				Ports:      testPipelinePorts(),
 				PipelineID: ptr.To("existing-pipeline"),
 			},
 			image: byocimage.ResolvedImage{
@@ -188,6 +225,10 @@ func TestBuildObservabilityPipelinesWorker(t *testing.T) {
 							},
 						},
 						PipelineID: ptr.To("existing-pipeline"),
+						Ports: []datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerPort{
+							{Name: "otlp-grpc", Port: 4317, Protocol: corev1.ProtocolTCP},
+							{Name: "otlp-http", Port: 4318, Protocol: corev1.ProtocolTCP},
+						},
 					},
 					Datadog: &datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerDatadogSpec{
 						Site: ptr.To("datadoghq.eu"),
@@ -201,10 +242,6 @@ func TestBuildObservabilityPipelinesWorker(t *testing.T) {
 						Digest:           ptr.To(digest),
 						PullPolicy:       ptr.To(corev1.PullAlways),
 						ImagePullSecrets: []corev1.LocalObjectReference{{Name: "registry-credentials"}},
-					},
-					Ports: []datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerPort{
-						{Name: "otlp-grpc", Port: 4317, Protocol: corev1.ProtocolTCP},
-						{Name: "otlp-http", Port: 4318, Protocol: corev1.ProtocolTCP},
 					},
 				},
 			},
@@ -231,6 +268,7 @@ func TestBuildObservabilityPipelinesWorker(t *testing.T) {
 				},
 			},
 			pipeline: &datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{
+				Ports: testPipelinePorts(),
 				DatadogBYOCClusterStatefulComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{
 					DatadogBYOCClusterComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
 						Labels:      map[string]string{"team": "pipeline"},
@@ -310,6 +348,10 @@ func TestBuildObservabilityPipelinesWorker(t *testing.T) {
 								},
 							},
 						},
+						Ports: []datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerPort{
+							{Name: "otlp-grpc", Port: 4317, Protocol: corev1.ProtocolTCP},
+							{Name: "otlp-http", Port: 4318, Protocol: corev1.ProtocolTCP},
+						},
 					},
 					Datadog: &datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerDatadogSpec{
 						Site: ptr.To("datadoghq.eu"),
@@ -323,17 +365,13 @@ func TestBuildObservabilityPipelinesWorker(t *testing.T) {
 						Tag:        ptr.To("2.10.0"),
 						PullPolicy: ptr.To(corev1.PullIfNotPresent),
 					},
-					Ports: []datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerPort{
-						{Name: "otlp-grpc", Port: 4317, Protocol: corev1.ProtocolTCP},
-						{Name: "otlp-http", Port: 4318, Protocol: corev1.ProtocolTCP},
-					},
 				},
 			},
 		},
 		{
 			name:       "invalid node config",
 			nodeConfig: &runtime.RawExtension{Raw: []byte("rest: [")},
-			pipeline:   &datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{PipelineID: ptr.To("existing-pipeline")},
+			pipeline:   &datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{PipelineID: ptr.To("existing-pipeline"), Ports: testPipelinePorts()},
 			image:      defaultImage,
 			wantErr:    "decode spec.nodeConfig:",
 		},
@@ -378,5 +416,12 @@ func TestBuildObservabilityPipelinesWorker(t *testing.T) {
 				t.Errorf("BuildObservabilityPipelinesWorker() mismatch (-want +got):\n%s", diff)
 			}
 		})
+	}
+}
+
+func testPipelinePorts() []datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerPort {
+	return []datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerPort{
+		{Name: "otlp-grpc", Port: 4317, Protocol: corev1.ProtocolTCP},
+		{Name: "otlp-http", Port: 4318, Protocol: corev1.ProtocolTCP},
 	}
 }

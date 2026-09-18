@@ -298,6 +298,15 @@ type DatadogBYOCClusterPipelineComponentSpec struct {
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:MinLength=1
 	PipelineID *string `json:"pipelineID,omitempty"`
+
+	// Ports contains the network ports exposed by the worker.
+	// The same ports are declared on the worker container and its Services.
+	// At least one source port must be explicitly specified.
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinItems=1
+	// +listType=map
+	// +listMapKey=name
+	Ports []DatadogObservabilityPipelinesWorkerPort `json:"ports,omitempty"`
 }
 
 // DatadogBYOCClusterComponentSpec defines common workload settings.

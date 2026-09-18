@@ -108,6 +108,11 @@ spec:
                 storage: 50Gi
     pipeline:
       pipelineID: 11111111-2222-3333-4444-555555555555
+      ports:
+        - name: otlp-grpc
+          port: 4317
+        - name: otlp-http
+          port: 4318
       replicas: 2
       resources:
         requests:
