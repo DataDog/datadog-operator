@@ -38,8 +38,6 @@ func TestBuildObservabilityPipelinesWorker(t *testing.T) {
 							Replicas: ptr.To[int32](2),
 							Env: []corev1.EnvVar{
 								{Name: pipelineDestinationEndpointEnvName, Value: "http://byoc-indexer:7280"},
-								{Name: pipelineSourceOTLPGRPCAddressEnvName, Value: "0.0.0.0:4317"},
-								{Name: pipelineSourceOTLPHTTPAddressEnvName, Value: "0.0.0.0:4318"},
 							},
 							Resources: &corev1.ResourceRequirements{
 								Limits: corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("4Gi")},
@@ -191,8 +189,6 @@ func TestBuildObservabilityPipelinesWorker(t *testing.T) {
 								Replicas: ptr.To[int32](2),
 								Env: []corev1.EnvVar{
 									{Name: pipelineDestinationEndpointEnvName, Value: "http://byoc-indexer:7280"},
-									{Name: pipelineSourceOTLPGRPCAddressEnvName, Value: "0.0.0.0:4317"},
-									{Name: pipelineSourceOTLPHTTPAddressEnvName, Value: "0.0.0.0:4318"},
 								},
 								Resources: &corev1.ResourceRequirements{
 									Limits: corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("4Gi")},
@@ -276,8 +272,8 @@ func TestBuildObservabilityPipelinesWorker(t *testing.T) {
 						Env: []corev1.EnvVar{
 							{Name: "SHARED_SETTING", Value: "pipeline"},
 							{Name: pipelineDestinationEndpointEnvName, Value: "replaced"},
-							{Name: pipelineSourceOTLPGRPCAddressEnvName, Value: "replaced"},
-							{Name: pipelineSourceOTLPHTTPAddressEnvName, Value: "replaced"},
+							{Name: "DD_OP_SOURCE_OTEL_GRPC_ADDRESS", Value: "0.0.0.0:14317"},
+							{Name: "DD_OP_SOURCE_OTEL_HTTP_ADDRESS", Value: "0.0.0.0:14318"},
 						},
 						Volumes: []corev1.Volume{
 							{Name: "shared", VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: "pipeline"}}},
@@ -303,8 +299,8 @@ func TestBuildObservabilityPipelinesWorker(t *testing.T) {
 									{Name: "SHARED_SETTING", Value: "pipeline"},
 									{Name: "GLOBAL_SETTING", Value: "global"},
 									{Name: pipelineDestinationEndpointEnvName, Value: "http://byoc-indexer:7280"},
-									{Name: pipelineSourceOTLPGRPCAddressEnvName, Value: "0.0.0.0:4317"},
-									{Name: pipelineSourceOTLPHTTPAddressEnvName, Value: "0.0.0.0:4318"},
+									{Name: "DD_OP_SOURCE_OTEL_GRPC_ADDRESS", Value: "0.0.0.0:14317"},
+									{Name: "DD_OP_SOURCE_OTEL_HTTP_ADDRESS", Value: "0.0.0.0:14318"},
 								},
 								Volumes: []corev1.Volume{
 									{Name: "shared", VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: "pipeline"}}},

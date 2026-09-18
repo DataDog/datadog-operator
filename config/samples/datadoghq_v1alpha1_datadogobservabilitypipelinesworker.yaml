@@ -17,10 +17,6 @@ spec:
   env:
     - name: DD_OP_DESTINATION_CLOUDPREM_ENDPOINT_URL
       value: http://datadogbyoccluster-sample-indexer:7280
-    - name: DD_OP_SOURCE_OTEL_GRPC_ADDRESS
-      value: 0.0.0.0:4317
-    - name: DD_OP_SOURCE_OTEL_HTTP_ADDRESS
-      value: 0.0.0.0:4318
   ports:
     - name: otlp-grpc
       port: 4317

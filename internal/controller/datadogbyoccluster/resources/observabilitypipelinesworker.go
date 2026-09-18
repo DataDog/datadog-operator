@@ -75,8 +75,6 @@ func applyGlobalPipelineSettings(cluster *datadoghqv1alpha1.DatadogBYOCCluster, 
 			Name:  pipelineDestinationEndpointEnvName,
 			Value: scheme + "://" + net.JoinHostPort(ComponentResourceName(cluster.Name, IndexerComponentName), strconv.Itoa(int(restPort))),
 		},
-		{Name: pipelineSourceOTLPGRPCAddressEnvName, Value: "0.0.0.0:" + strconv.Itoa(int(otlpGRPCPort))},
-		{Name: pipelineSourceOTLPHTTPAddressEnvName, Value: "0.0.0.0:" + strconv.Itoa(int(otlpHTTPPort))},
 	})
 	component.EnvFrom = slices.Concat(global.EnvFrom, component.EnvFrom)
 	component.Volumes = controllerutils.MergeVolumes(global.Volumes, component.Volumes)
