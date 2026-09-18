@@ -22,7 +22,19 @@ const (
 // DatadogCSIDriverSpec defines the desired state of DatadogCSIDriver
 // +k8s:openapi-gen=true
 type DatadogCSIDriverSpec struct {
+	// Registry is the image registry to use for the Datadog CSI driver image.
+	// Propagated from spec.global.registry on the parent DatadogAgent when the operator
+	// manages this resource. It does not apply to the csi-node-driver-registrar sidecar,
+	// which is an upstream Kubernetes image always pulled from registry.k8s.io/sig-storage;
+	// set spec.registrarImage.name to a full registry/name:tag to relocate that one.
+	// On GKE Autopilot this is forced to a GCR registry, the only kind the WorkloadAllowlist
+	// admits; set spec.csiDriverImage.name to a full registry/name:tag to override that.
+	// Default: 'registry.datadoghq.com'
+	// +optional
+	Registry *string `json:"registry,omitempty"`
+
 	// CSIDriverImage is the image configuration for the main CSI node driver container.
+	// A full registry/name:tag in `name` takes precedence over spec.registry.
 	// +optional
 	CSIDriverImage *v2alpha1.AgentImageConfig `json:"csiDriverImage,omitempty"`
 

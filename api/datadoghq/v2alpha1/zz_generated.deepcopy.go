@@ -696,6 +696,11 @@ func (in *CSIConfig) DeepCopyInto(out *CSIConfig) {
 		*out = new(CSIAPMConfig)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.Image != nil {
+		in, out := &in.Image, &out.Image
+		*out = new(AgentImageConfig)
+		(*in).DeepCopyInto(*out)
+	}
 	if in.Tolerations != nil {
 		in, out := &in.Tolerations, &out.Tolerations
 		*out = make([]v1.Toleration, len(*in))

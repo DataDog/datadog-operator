@@ -62,24 +62,16 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 	return r.reconcileInstance(ctx, reqLogger, instanceCopy, rawSpec)
 }
 
-// Force GCR registry if not set to avoid defaulting to Datadog registry
-// Required by GKE Autopilot workloadallowlist
+// Force the GCR registry, the only one the GKE Autopilot workloadallowlist admits for Datadog
+// images. See images.RegistryForAutopilot for the rule; the CSI driver controller applies the
+// same one to DatadogCSIDriver resources it manages on its own.
 func ensureGCRAutopilotRegistry(spec *datadoghqv2alpha1.DatadogAgentSpec) {
 	// Should never happen as credentials are configured under `spec.global`
 	if spec.Global == nil {
 		spec.Global = &datadoghqv2alpha1.GlobalConfig{}
 	}
-	// No registry set
-	if spec.Global.Registry == nil {
-		spec.Global.Registry = ptr.To(images.GCRContainerRegistry)
-		return
-	}
-	// Registry set to a GCR variation, allowed in workloadallowlist
-	if images.IsGCRRegistry(*spec.Global.Registry) {
-		return
-	}
-	// Registry set outside GCR, not allowed in workloadallowlist, force back GCR
-	spec.Global.Registry = ptr.To(images.GCRContainerRegistry)
+	registry := images.RegistryForAutopilot(ptr.Deref(spec.Global.Registry, ""))
+	spec.Global.Registry = &registry
 }
 
 func (r *Reconciler) reconcileInstance(ctx context.Context, logger logr.Logger, instance *datadoghqv2alpha1.DatadogAgent, rawSpec datadoghqv2alpha1.DatadogAgentSpec) (reconcile.Result, error) {

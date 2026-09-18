@@ -60,7 +60,7 @@
         },
         "csiDriverImage": {
           "additionalProperties": false,
-          "description": "CSIDriverImage is the image configuration for the main CSI node driver container.",
+          "description": "CSIDriverImage is the image configuration for the main CSI node driver container.\nA full registry/name:tag in `name` takes precedence over spec.registry.",
           "properties": {
             "jmxEnabled": {
               "description": "Define whether the Agent image should support JMX.\nTo be used if the `Name` field does not correspond to a full image string.",
@@ -4036,6 +4036,10 @@
             }
           },
           "type": "object"
+        },
+        "registry": {
+          "description": "Registry is the image registry to use for the Datadog CSI driver image.\nPropagated from spec.global.registry on the parent DatadogAgent when the operator\nmanages this resource. It does not apply to the csi-node-driver-registrar sidecar,\nwhich is an upstream Kubernetes image always pulled from registry.k8s.io/sig-storage;\nset spec.registrarImage.name to a full registry/name:tag to relocate that one.\nOn GKE Autopilot this is forced to a GCR registry, the only kind the WorkloadAllowlist\nadmits; set spec.csiDriverImage.name to a full registry/name:tag to override that.\nDefault: 'registry.datadoghq.com'",
+          "type": "string"
         }
       },
       "type": "object"

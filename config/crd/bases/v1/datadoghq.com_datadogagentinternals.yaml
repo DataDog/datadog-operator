@@ -3007,6 +3007,63 @@ spec:
                             (e.g. from the Datadog CSI driver Helm chart).
                             Default: false
                           type: boolean
+                        image:
+                          description: |-
+                            Image overrides the container image configuration of the managed CSI driver container
+                            (tag, pull policy, pull secrets, or a full registry/name:tag). Propagated to the managed
+                            DatadogCSIDriver as spec.csiDriverImage. The registry defaults to `global.registry`.
+                            It does not apply to the csi-node-driver-registrar sidecar.
+                            `jmxEnabled` is not supported here: the CSI driver publishes no JMX image variant.
+                            When `global.csi.apm.pullSecrets` is empty, the pull secrets set here are also used to
+                            authenticate APM library downloads.
+                          properties:
+                            jmxEnabled:
+                              description: |-
+                                Define whether the Agent image should support JMX.
+                                To be used if the `Name` field does not correspond to a full image string.
+                              type: boolean
+                            name:
+                              description: |-
+                                Defines the Agent image name for the pod. You can provide this as:
+                                * `<NAME>` - Use `agent` for the Datadog Agent, `cluster-agent` for the Datadog Cluster Agent, or `dogstatsd`
+                                for DogStatsD. The full image string is derived from `global.registry`, `[key].image.tag`, and `[key].image.jmxEnabled`.
+                                * `<NAME>:<TAG>` - For example, `agent:latest`. The registry is derived from `global.registry`. `[key].image.tag`
+                                and `[key].image.jmxEnabled` are ignored.
+                                * `<REGISTRY>/<NAME>:<TAG>` - For example, `gcr.io/datadoghq/agent:latest`. If the full image string is specified
+                                  like this, then `global.registry`, `[key].image.tag`, and `[key].image.jmxEnabled` are ignored.
+                              type: string
+                            pullPolicy:
+                              description: |-
+                                The Kubernetes pull policy:
+                                Use `Always`, `Never`, or `IfNotPresent`.
+                              type: string
+                            pullSecrets:
+                              description: |-
+                                It is possible to specify Docker registry credentials.
+                                See https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod
+                              items:
+                                description: |-
+                                  LocalObjectReference contains enough information to let you locate the
+                                  referenced object inside the same namespace.
+                                properties:
+                                  name:
+                                    default: ""
+                                    description: |-
+                                      Name of the referent.
+                                      This field is effectively required, but due to backwards compatibility is
+                                      allowed to be empty. Instances of this type with an empty value here are
+                                      almost certainly wrong.
+                                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                    type: string
+                                type: object
+                                x-kubernetes-map-type: atomic
+                              type: array
+                            tag:
+                              description: |-
+                                Define the image tag to use.
+                                To be used if the `Name` field does not correspond to a full image string.
+                              type: string
+                          type: object
                         nodeAffinity:
                           description: NodeAffinity specifies node affinity scheduling rules for CSI driver DaemonSet pods.
                           properties:
@@ -3944,7 +4001,10 @@ spec:
                       type: object
                     registry:
                       description: |-
-                        Registry is the image registry to use for all Agent images.
+                        Registry is the image registry to use for all Datadog images: the Agent images, the
+                        Single Step Instrumentation injection images, and the Datadog CSI driver image.
+                        It does not apply to third-party images the operator deploys, such as the upstream
+                        csi-node-driver-registrar sidecar.
                         Use 'public.ecr.aws/datadog' for AWS ECR.
                         Use 'datadoghq.azurecr.io' for Azure Container Registry.
                         Use 'gcr.io/datadoghq' for Google Container Registry.

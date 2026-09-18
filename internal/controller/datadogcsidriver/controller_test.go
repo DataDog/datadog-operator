@@ -119,7 +119,7 @@ func TestReconcile_CreatesResources(t *testing.T) {
 	require.Len(t, ds.Spec.Template.Spec.Containers, 2)
 	csiContainer := ds.Spec.Template.Spec.Containers[0]
 	assert.Equal(t, v1alpha1.CSINodeDriverContainerName, csiContainer.Name)
-	assert.Equal(t, fmt.Sprintf("%s/%s:%s", images.GCRContainerRegistry, defaultCSIDriverImageName, images.CSILatestImageVersion), csiContainer.Image)
+	assert.Equal(t, fmt.Sprintf("%s/%s:%s", images.DefaultImageRegistry, defaultCSIDriverImageName, images.CSILatestImageVersion), csiContainer.Image)
 	assert.Contains(t, csiContainer.Env, corev1.EnvVar{
 		Name:  constants.DDAPMEnabled,
 		Value: "true",
@@ -250,6 +250,30 @@ func TestBuildDaemonSet_APMPullSecrets(t *testing.T) {
 		},
 	})
 	assert.NotContains(t, envNames(csiContainer.Env), "DD_APM_REGISTRY_AUTH_1")
+}
+
+func TestBuildDaemonSet_RegistrarImagePullSecrets(t *testing.T) {
+	driverSecrets := []corev1.LocalObjectReference{{Name: "shared-registry"}, {Name: "driver-registry"}}
+	registrarSecrets := []corev1.LocalObjectReference{{Name: "shared-registry"}, {Name: "registrar-registry"}}
+
+	instance := defaultCSIDriverCR()
+	instance.Spec.CSIDriverImage = &v2alpha1.AgentImageConfig{PullSecrets: &driverSecrets}
+	instance.Spec.RegistrarImage = &v2alpha1.AgentImageConfig{PullSecrets: &registrarSecrets}
+
+	ds := buildDaemonSet(instance)
+
+	// Both images can be relocated to a private registry: the pod needs the union of the
+	// Secrets configured on each, without duplicates.
+	assert.Equal(t, []corev1.LocalObjectReference{
+		{Name: "shared-registry"},
+		{Name: "driver-registry"},
+		{Name: "registrar-registry"},
+	}, ds.Spec.Template.Spec.ImagePullSecrets)
+
+	// The APM registry auth fallback keeps using csiDriverImage.pullSecrets only.
+	csiContainer := ds.Spec.Template.Spec.Containers[0]
+	assert.Contains(t, envNames(csiContainer.Env), "DD_APM_REGISTRY_AUTH_1")
+	assert.NotContains(t, envNames(csiContainer.Env), "DD_APM_REGISTRY_AUTH_2")
 }
 
 func TestBuildDaemonSet_FallbackImagePullSecretsOptional(t *testing.T) {
@@ -656,6 +680,124 @@ func TestReconcile_DaemonSetOmitsStartupTolerationWhenUntaintCoordinationOff(t *
 	require.NoError(t, c.Get(ctx, types.NamespacedName{Name: csiDsName, Namespace: testNamespace}, ds))
 	want := untaint.AgentNotReadyEqualToleration()
 	assert.False(t, tolerationListContains(ds.Spec.Template.Spec.Tolerations, want))
+}
+
+func TestResolveImages_Registry(t *testing.T) {
+	defaultDriverImage := fmt.Sprintf("%s/%s:%s", images.DefaultImageRegistry, defaultCSIDriverImageName, images.CSILatestImageVersion)
+	gcrDriverImage := fmt.Sprintf("%s/%s:%s", images.GCRContainerRegistry, defaultCSIDriverImageName, images.CSILatestImageVersion)
+	privateDriverImage := fmt.Sprintf("private.example.com/datadog/%s:%s", defaultCSIDriverImageName, images.CSILatestImageVersion)
+	defaultRegistrarImage := fmt.Sprintf("%s/%s:%s", images.SIGStorageRegistry, defaultRegistrarImageName, images.DefaultRegistrarImageVersion)
+
+	tests := []struct {
+		name          string
+		annotations   map[string]string
+		spec          v1alpha1.DatadogCSIDriverSpec
+		wantDriver    string
+		wantRegistrar string
+	}{
+		{
+			name:          "empty spec uses the default Datadog registry",
+			wantDriver:    defaultDriverImage,
+			wantRegistrar: defaultRegistrarImage,
+		},
+		{
+			name:          "registry redirects the driver but not the registrar",
+			spec:          v1alpha1.DatadogCSIDriverSpec{Registry: ptr.To("private.example.com/datadog")},
+			wantDriver:    privateDriverImage,
+			wantRegistrar: defaultRegistrarImage,
+		},
+		{
+			name:          "empty registry falls back to the default Datadog registry",
+			spec:          v1alpha1.DatadogCSIDriverSpec{Registry: ptr.To("")},
+			wantDriver:    defaultDriverImage,
+			wantRegistrar: defaultRegistrarImage,
+		},
+		{
+			name: "registry applies to a tag-only image override",
+			spec: v1alpha1.DatadogCSIDriverSpec{
+				Registry:       ptr.To("private.example.com/datadog"),
+				CSIDriverImage: &v2alpha1.AgentImageConfig{Tag: "9.9.9"},
+			},
+			wantDriver:    "private.example.com/datadog/csi-driver:9.9.9",
+			wantRegistrar: defaultRegistrarImage,
+		},
+		{
+			name: "a full image override wins over the registry",
+			spec: v1alpha1.DatadogCSIDriverSpec{
+				Registry:       ptr.To("private.example.com/datadog"),
+				CSIDriverImage: &v2alpha1.AgentImageConfig{Name: "other.example.com/dd/csi-driver:9.9.9"},
+			},
+			wantDriver:    "other.example.com/dd/csi-driver:9.9.9",
+			wantRegistrar: defaultRegistrarImage,
+		},
+		{
+			name: "the registrar is relocated through registrarImage only",
+			spec: v1alpha1.DatadogCSIDriverSpec{
+				Registry:       ptr.To("private.example.com/datadog"),
+				RegistrarImage: &v2alpha1.AgentImageConfig{Name: "private.example.com/sig-storage/csi-node-driver-registrar:v2.0.1"},
+			},
+			wantDriver:    privateDriverImage,
+			wantRegistrar: "private.example.com/sig-storage/csi-node-driver-registrar:v2.0.1",
+		},
+		{
+			// GKE Autopilot only admits what its WorkloadAllowlist covers, so the driver is
+			// forced onto GCR there — matching ensureGCRAutopilotRegistry on the DDA side.
+			name:          "autopilot forces GCR when no registry is set",
+			annotations:   map[string]string{kubernetes.ProviderAnnotationKey: kubernetes.GKEAutopilotProvider},
+			wantDriver:    gcrDriverImage,
+			wantRegistrar: defaultRegistrarImage,
+		},
+		{
+			name:          "autopilot forces GCR over a non-GCR registry",
+			annotations:   map[string]string{kubernetes.ProviderAnnotationKey: kubernetes.GKEAutopilotProvider},
+			spec:          v1alpha1.DatadogCSIDriverSpec{Registry: ptr.To("private.example.com/datadog")},
+			wantDriver:    gcrDriverImage,
+			wantRegistrar: defaultRegistrarImage,
+		},
+		{
+			name:          "autopilot keeps a regional GCR registry",
+			annotations:   map[string]string{kubernetes.ProviderAnnotationKey: kubernetes.GKEAutopilotProvider},
+			spec:          v1alpha1.DatadogCSIDriverSpec{Registry: ptr.To(images.DefaultEuropeImageRegistry)},
+			wantDriver:    fmt.Sprintf("%s/%s:%s", images.DefaultEuropeImageRegistry, defaultCSIDriverImageName, images.CSILatestImageVersion),
+			wantRegistrar: defaultRegistrarImage,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			instance := defaultCSIDriverCR()
+			instance.Annotations = tt.annotations
+			instance.Spec = tt.spec
+
+			assert.Equal(t, tt.wantDriver, resolveCSIDriverImage(instance))
+			assert.Equal(t, tt.wantRegistrar, resolveRegistrarImage(instance))
+		})
+	}
+
+	// The resolved images reach the DaemonSet containers.
+	instance := defaultCSIDriverCR()
+	instance.Spec.Registry = ptr.To("private.example.com/datadog")
+	ds := buildDaemonSet(instance)
+	require.Len(t, ds.Spec.Template.Spec.Containers, 2)
+	assert.Equal(t, privateDriverImage, ds.Spec.Template.Spec.Containers[0].Image)
+	assert.Equal(t, defaultRegistrarImage, ds.Spec.Template.Spec.Containers[1].Image)
+}
+
+func TestBuildDaemonSet_ImagePullPolicy(t *testing.T) {
+	instance := defaultCSIDriverCR()
+	ds := buildDaemonSet(instance)
+	require.Len(t, ds.Spec.Template.Spec.Containers, 2)
+	// Unset: leave the field empty so the API server applies the Kubernetes default.
+	assert.Empty(t, ds.Spec.Template.Spec.Containers[0].ImagePullPolicy)
+	assert.Empty(t, ds.Spec.Template.Spec.Containers[1].ImagePullPolicy)
+
+	instance = defaultCSIDriverCR()
+	instance.Spec.CSIDriverImage = &v2alpha1.AgentImageConfig{PullPolicy: ptr.To(corev1.PullAlways)}
+	instance.Spec.RegistrarImage = &v2alpha1.AgentImageConfig{PullPolicy: ptr.To(corev1.PullNever)}
+	ds = buildDaemonSet(instance)
+	require.Len(t, ds.Spec.Template.Spec.Containers, 2)
+	assert.Equal(t, corev1.PullAlways, ds.Spec.Template.Spec.Containers[0].ImagePullPolicy)
+	assert.Equal(t, corev1.PullNever, ds.Spec.Template.Spec.Containers[1].ImagePullPolicy)
 }
 
 func tolerationListContains(tols []corev1.Toleration, want corev1.Toleration) bool {

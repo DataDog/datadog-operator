@@ -131,12 +131,26 @@ func (r *Reconciler) buildDesiredDatadogCSIDriver(instance *v2alpha1.DatadogAgen
 		maps.Copy(ddcsi.Spec.CommonLabels, instance.Spec.Global.CommonLabels)
 	}
 
+	// Propagate the registry so the CSI driver image follows spec.global.registry, as every
+	// other Datadog image does. `instance` is the defaulted copy of the DDA (see reconcile.go),
+	// so Registry is set here, including the GCR value ensureGCRAutopilotRegistry forces on GKE
+	// Autopilot. Copied rather than aliased so the built object never shares the DDA's pointer.
+	if instance.Spec.Global != nil && instance.Spec.Global.Registry != nil {
+		registry := *instance.Spec.Global.Registry
+		ddcsi.Spec.Registry = &registry
+	}
+
 	csiConfig := instance.Spec.Global.CSI
 	if csiConfig != nil {
 		if csiConfig.APM != nil && len(csiConfig.APM.PullSecrets) > 0 {
 			ddcsi.Spec.APM = &v1alpha1.DatadogCSIDriverAPMConfig{
 				PullSecrets: append([]corev1.LocalObjectReference(nil), csiConfig.APM.PullSecrets...),
 			}
+		}
+
+		// Tag, pull policy and pull secrets for the driver container.
+		if csiConfig.Image != nil {
+			ddcsi.Spec.CSIDriverImage = csiConfig.Image.DeepCopy()
 		}
 
 		override := &v1alpha1.DatadogCSIDriverOverride{}

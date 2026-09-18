@@ -468,6 +468,16 @@ type CSIConfig struct {
 	// +optional
 	APM *CSIAPMConfig `json:"apm,omitempty"`
 
+	// Image overrides the container image configuration of the managed CSI driver container
+	// (tag, pull policy, pull secrets, or a full registry/name:tag). Propagated to the managed
+	// DatadogCSIDriver as spec.csiDriverImage. The registry defaults to `global.registry`.
+	// It does not apply to the csi-node-driver-registrar sidecar.
+	// `jmxEnabled` is not supported here: the CSI driver publishes no JMX image variant.
+	// When `global.csi.apm.pullSecrets` is empty, the pull secrets set here are also used to
+	// authenticate APM library downloads.
+	// +optional
+	Image *AgentImageConfig `json:"image,omitempty"`
+
 	// Tolerations configure the CSI driver DaemonSet pod tolerations.
 	// +optional
 	// +listType=atomic
@@ -2027,7 +2037,10 @@ type GlobalConfig struct {
 	// +optional
 	Endpoint *Endpoint `json:"endpoint,omitempty"`
 
-	// Registry is the image registry to use for all Agent images.
+	// Registry is the image registry to use for all Datadog images: the Agent images, the
+	// Single Step Instrumentation injection images, and the Datadog CSI driver image.
+	// It does not apply to third-party images the operator deploys, such as the upstream
+	// csi-node-driver-registrar sidecar.
 	// Use 'public.ecr.aws/datadog' for AWS ECR.
 	// Use 'datadoghq.azurecr.io' for Azure Container Registry.
 	// Use 'gcr.io/datadoghq' for Google Container Registry.
