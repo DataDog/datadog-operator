@@ -286,6 +286,7 @@ rules:
   - datadogmonitors/finalizers
   - datadogslos
   - datadogslos/finalizers
+  - datadogsyntheticsprivatelocations
   verbs:
   - create
   - delete
@@ -305,6 +306,7 @@ rules:
   - datadoggenericresources/status
   - datadogmonitors/status
   - datadogslos/status
+  - datadogsyntheticsprivatelocations/status
   verbs:
   - get
   - patch
@@ -314,6 +316,7 @@ rules:
   resources:
   - datadogdashboards/finalizers
   - datadogmetrics/status
+  - datadogsyntheticsprivatelocations/finalizers
   verbs:
   - update
 - apiGroups:

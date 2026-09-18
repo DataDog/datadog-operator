@@ -136,6 +136,7 @@ type options struct {
 	datadogGenericResourceMaxWorkers    int
 	datadogGenericResourceRequeuePeriod time.Duration
 	datadogCSIDriverEnabled             bool
+	datadogSPLControllerEnabled         bool
 	untaintControllerEnabled            bool
 	untaintControllerWaitForCSIDriver   bool
 	rolloutOnConfigMapChangeEnabled     bool
@@ -184,6 +185,7 @@ func (opts *options) Parse() {
 	flag.IntVar(&opts.datadogGenericResourceMaxWorkers, "datadogGenericResourceMaxConcurrentReconciles", defaultDatadogGenericResourceMaxConcurrentReconciles, "Maximum number of concurrent DatadogGenericResource reconciles")
 	flag.DurationVar(&opts.datadogGenericResourceRequeuePeriod, "datadogGenericResourceRequeuePeriod", defaultDatadogGenericResourceRequeuePeriod, "DatadogGenericResource status polling requeue period, for example 5m")
 	flag.BoolVar(&opts.datadogCSIDriverEnabled, "datadogCSIDriverEnabled", false, "Enable the DatadogCSIDriver controller")
+	flag.BoolVar(&opts.datadogSPLControllerEnabled, "datadogSyntheticsPrivateLocationEnabled", false, "Enable the DatadogSyntheticsPrivateLocation controller")
 	flag.BoolVar(&opts.untaintControllerEnabled, "untaintControllerEnabled", false, "Enable the Untaint controller")
 	flag.BoolVar(&opts.untaintControllerWaitForCSIDriver, "untaintControllerWaitForCSIDriver", false,
 		"When true (requires --untaintControllerEnabled), the Untaint controller removes the startup taint only after both the node Agent and Datadog CSI node-server pods are Ready. Requires Pod watch coverage of CSI namespaces (DD_CSIDRIVER_WATCH_NAMESPACE).")
@@ -221,6 +223,7 @@ func (opts *options) Parse() {
 		intEnv(&opts.datadogGenericResourceMaxWorkers, "DD_GENERIC_RESOURCE_MAX_CONCURRENT_RECONCILES"),
 		durationEnv(&opts.datadogGenericResourceRequeuePeriod, "DD_GENERIC_RESOURCE_REQUEUE_PERIOD"),
 		boolEnv(&opts.datadogCSIDriverEnabled, "DD_CSI_DRIVER_CONTROLLER_ENABLED"),
+		boolEnv(&opts.datadogSPLControllerEnabled, "DD_SYNTHETICS_PRIVATE_LOCATION_CONTROLLER_ENABLED"),
 		boolEnv(&opts.untaintControllerEnabled, "DD_UNTAINT_CONTROLLER_ENABLED"),
 		boolEnv(&opts.untaintControllerWaitForCSIDriver, "DD_UNTAINT_CONTROLLER_WAIT_FOR_CSI_DRIVER"),
 		boolEnv(&opts.createControllerRevisions, "DD_CREATE_CONTROLLER_REVISIONS"),
@@ -391,18 +394,19 @@ func run(opts *options) error {
 		RenewDeadline:              &renewDeadline,
 		RetryPeriod:                &retryPeriod,
 		Cache: config.CacheOptions(setupLog, config.WatchOptions{
-			DatadogAgentEnabled:               opts.datadogAgentEnabled,
-			DatadogMonitorEnabled:             opts.datadogMonitorEnabled,
-			DatadogSLOEnabled:                 opts.datadogSLOEnabled,
-			DatadogAgentProfileEnabled:        opts.datadogAgentProfileEnabled,
-			IntrospectionEnabled:              opts.introspectionEnabled,
-			DatadogDashboardEnabled:           opts.datadogDashboardEnabled,
-			DatadogGenericResourceEnabled:     opts.datadogGenericResourceEnabled,
-			DatadogCSIDriverEnabled:           opts.datadogCSIDriverEnabled,
-			UntaintControllerEnabled:          opts.untaintControllerEnabled,
-			UntaintControllerWaitForCSIDriver: opts.untaintControllerWaitForCSIDriver,
-			ManagedAgentInstallationEnabled:   managedAgentInstallationEnabled,
-			ManagedAgentInstallationNamespace: managedAgentInstallationNamespace,
+			DatadogAgentEnabled:                     opts.datadogAgentEnabled,
+			DatadogMonitorEnabled:                   opts.datadogMonitorEnabled,
+			DatadogSLOEnabled:                       opts.datadogSLOEnabled,
+			DatadogAgentProfileEnabled:              opts.datadogAgentProfileEnabled,
+			IntrospectionEnabled:                    opts.introspectionEnabled,
+			DatadogDashboardEnabled:                 opts.datadogDashboardEnabled,
+			DatadogGenericResourceEnabled:           opts.datadogGenericResourceEnabled,
+			DatadogCSIDriverEnabled:                 opts.datadogCSIDriverEnabled,
+			DatadogSyntheticsPrivateLocationEnabled: opts.datadogSPLControllerEnabled,
+			UntaintControllerEnabled:                opts.untaintControllerEnabled,
+			UntaintControllerWaitForCSIDriver:       opts.untaintControllerWaitForCSIDriver,
+			ManagedAgentInstallationEnabled:         managedAgentInstallationEnabled,
+			ManagedAgentInstallationNamespace:       managedAgentInstallationNamespace,
 		}),
 		// UsePriorityQueue makes all controllers use the priority queue, which
 		// directly registers workqueue metrics into controller-runtime's metrics
@@ -484,28 +488,29 @@ func run(opts *options) error {
 	}
 
 	options := controller.SetupOptions{
-		SupportCilium:                     opts.supportCilium,
-		CredsManager:                      credsManager,
-		DatadogAgentEnabled:               opts.datadogAgentEnabled,
-		CreateControllerRevisions:         opts.createControllerRevisions && opts.datadogAgentEnabled,
-		DatadogMonitorEnabled:             opts.datadogMonitorEnabled,
-		DatadogMonitorMaxWorkers:          opts.datadogMonitorMaxWorkers,
-		DatadogMonitorRequeue:             opts.datadogMonitorRequeuePeriod,
-		DatadogSLOEnabled:                 opts.datadogSLOEnabled,
-		OperatorMetricsEnabled:            opts.operatorMetricsEnabled,
-		V2APIEnabled:                      true,
-		IntrospectionEnabled:              opts.introspectionEnabled,
-		DatadogAgentProfileEnabled:        opts.datadogAgentProfileEnabled,
-		DatadogDashboardEnabled:           opts.datadogDashboardEnabled,
-		DatadogGenericResourceEnabled:     opts.datadogGenericResourceEnabled,
-		DatadogGenericResourceMaxWorkers:  opts.datadogGenericResourceMaxWorkers,
-		DatadogGenericResourceRequeue:     opts.datadogGenericResourceRequeuePeriod,
-		DatadogCSIDriverEnabled:           opts.datadogCSIDriverEnabled,
-		UntaintControllerEnabled:          opts.untaintControllerEnabled,
-		UntaintControllerWaitForCSIDriver: opts.untaintControllerWaitForCSIDriver,
-		RolloutOnConfigMapChangeEnabled:   opts.rolloutOnConfigMapChangeEnabled,
-		DefaultDataPlaneLinuxEnabled:      opts.defaultDataPlaneLinuxEnabled,
-		ClusterProviderDetector:           providerDetector,
+		SupportCilium:                           opts.supportCilium,
+		CredsManager:                            credsManager,
+		DatadogAgentEnabled:                     opts.datadogAgentEnabled,
+		CreateControllerRevisions:               opts.createControllerRevisions && opts.datadogAgentEnabled,
+		DatadogMonitorEnabled:                   opts.datadogMonitorEnabled,
+		DatadogMonitorMaxWorkers:                opts.datadogMonitorMaxWorkers,
+		DatadogMonitorRequeue:                   opts.datadogMonitorRequeuePeriod,
+		DatadogSLOEnabled:                       opts.datadogSLOEnabled,
+		OperatorMetricsEnabled:                  opts.operatorMetricsEnabled,
+		V2APIEnabled:                            true,
+		IntrospectionEnabled:                    opts.introspectionEnabled,
+		DatadogAgentProfileEnabled:              opts.datadogAgentProfileEnabled,
+		DatadogDashboardEnabled:                 opts.datadogDashboardEnabled,
+		DatadogGenericResourceEnabled:           opts.datadogGenericResourceEnabled,
+		DatadogGenericResourceMaxWorkers:        opts.datadogGenericResourceMaxWorkers,
+		DatadogGenericResourceRequeue:           opts.datadogGenericResourceRequeuePeriod,
+		DatadogCSIDriverEnabled:                 opts.datadogCSIDriverEnabled,
+		DatadogSyntheticsPrivateLocationEnabled: opts.datadogSPLControllerEnabled,
+		UntaintControllerEnabled:                opts.untaintControllerEnabled,
+		UntaintControllerWaitForCSIDriver:       opts.untaintControllerWaitForCSIDriver,
+		RolloutOnConfigMapChangeEnabled:         opts.rolloutOnConfigMapChangeEnabled,
+		DefaultDataPlaneLinuxEnabled:            opts.defaultDataPlaneLinuxEnabled,
+		ClusterProviderDetector:                 providerDetector,
 	}
 
 	versionInfo, platformInfo, err := getVersionAndPlatformInfo(rest.CopyConfig(mgr.GetConfig()))

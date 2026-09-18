@@ -48,6 +48,8 @@ const (
 	sloWatchNamespaceEnvVar = "DD_SLO_WATCH_NAMESPACE"
 	// CSIDriverWatchNamespaceEnvVar is a comma-separated list of namespaces watched by the DatadogCSIDriver controller.
 	csiDriverWatchNamespaceEnvVar = "DD_CSIDRIVER_WATCH_NAMESPACE"
+	// SPLWatchNamespaceEnvVar is a comma-separated list of namespaces watched by the DatadogSyntheticsPrivateLocation controller.
+	splWatchNamespaceEnvVar = "DD_SPL_WATCH_NAMESPACE"
 )
 
 var (
@@ -59,24 +61,26 @@ var (
 	profileObj         = &datadoghqv1alpha1.DatadogAgentProfile{}
 	agentInternalObj   = &datadoghqv1alpha1.DatadogAgentInternal{}
 	csiDriverObj       = &datadoghqv1alpha1.DatadogCSIDriver{}
+	splObj             = &datadoghqv1alpha1.DatadogSyntheticsPrivateLocation{}
 	csiDaemonSetObj    = &appsv1.DaemonSet{}
 	podObj             = &corev1.Pod{}
 	nodeObj            = &corev1.Node{}
 )
 
 type WatchOptions struct {
-	DatadogAgentEnabled               bool
-	DatadogMonitorEnabled             bool
-	DatadogSLOEnabled                 bool
-	DatadogAgentProfileEnabled        bool
-	IntrospectionEnabled              bool
-	DatadogDashboardEnabled           bool
-	DatadogGenericResourceEnabled     bool
-	DatadogCSIDriverEnabled           bool
-	UntaintControllerEnabled          bool
-	UntaintControllerWaitForCSIDriver bool
-	ManagedAgentInstallationEnabled   bool
-	ManagedAgentInstallationNamespace string
+	DatadogAgentEnabled                     bool
+	DatadogMonitorEnabled                   bool
+	DatadogSLOEnabled                       bool
+	DatadogAgentProfileEnabled              bool
+	IntrospectionEnabled                    bool
+	DatadogDashboardEnabled                 bool
+	DatadogGenericResourceEnabled           bool
+	DatadogCSIDriverEnabled                 bool
+	DatadogSyntheticsPrivateLocationEnabled bool
+	UntaintControllerEnabled                bool
+	UntaintControllerWaitForCSIDriver       bool
+	ManagedAgentInstallationEnabled         bool
+	ManagedAgentInstallationNamespace       string
 }
 
 // CacheOptions function configures Controller Runtime cache options on a resource level (supported in v0.16+).
@@ -253,6 +257,14 @@ func CacheOptions(logger logr.Logger, opts WatchOptions) cache.Options {
 		maps.Copy(daemonSetNamespaces, csiDriverNamespaces)
 		byObject[csiDaemonSetObj] = cache.ByObject{
 			Namespaces: daemonSetNamespaces,
+		}
+	}
+
+	if opts.DatadogSyntheticsPrivateLocationEnabled {
+		splNamespaces := GetWatchNamespacesFromEnv(logger, splWatchNamespaceEnvVar)
+		logger.Info("DatadogSyntheticsPrivateLocation Enabled", "watching namespaces", slices.Collect(maps.Keys(splNamespaces)))
+		byObject[splObj] = cache.ByObject{
+			Namespaces: splNamespaces,
 		}
 	}
 

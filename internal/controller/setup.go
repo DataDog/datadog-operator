@@ -32,33 +32,35 @@ const (
 	dashboardControllerName       = "DatadogDashboard"
 	genericResourceControllerName = "DatadogGenericResource"
 	csiDriverControllerName       = "DatadogCSIDriver"
+	splControllerName             = "DatadogSyntheticsPrivateLocation"
 )
 
 // SetupOptions defines options for setting up controllers to ease testing
 type SetupOptions struct {
-	SupportCilium                     bool
-	CredsManager                      *config.CredentialManager
-	DatadogAgentEnabled               bool
-	DatadogMonitorEnabled             bool
-	DatadogMonitorMaxWorkers          int
-	DatadogMonitorRequeue             time.Duration
-	DatadogSLOEnabled                 bool
-	OperatorMetricsEnabled            bool
-	V2APIEnabled                      bool
-	IntrospectionEnabled              bool
-	DatadogAgentProfileEnabled        bool
-	OtelAgentEnabled                  bool
-	DatadogDashboardEnabled           bool
-	DatadogGenericResourceEnabled     bool
-	DatadogGenericResourceMaxWorkers  int
-	DatadogGenericResourceRequeue     time.Duration
-	CreateControllerRevisions         bool
-	DatadogCSIDriverEnabled           bool
-	UntaintControllerEnabled          bool
-	UntaintControllerWaitForCSIDriver bool
-	RolloutOnConfigMapChangeEnabled   bool
-	DefaultDataPlaneLinuxEnabled      bool
-	ClusterProviderDetector           datadogagent.ProviderReader
+	SupportCilium                           bool
+	CredsManager                            *config.CredentialManager
+	DatadogAgentEnabled                     bool
+	DatadogMonitorEnabled                   bool
+	DatadogMonitorMaxWorkers                int
+	DatadogMonitorRequeue                   time.Duration
+	DatadogSLOEnabled                       bool
+	OperatorMetricsEnabled                  bool
+	V2APIEnabled                            bool
+	IntrospectionEnabled                    bool
+	DatadogAgentProfileEnabled              bool
+	OtelAgentEnabled                        bool
+	DatadogDashboardEnabled                 bool
+	DatadogGenericResourceEnabled           bool
+	DatadogGenericResourceMaxWorkers        int
+	DatadogGenericResourceRequeue           time.Duration
+	CreateControllerRevisions               bool
+	DatadogCSIDriverEnabled                 bool
+	DatadogSyntheticsPrivateLocationEnabled bool
+	UntaintControllerEnabled                bool
+	UntaintControllerWaitForCSIDriver       bool
+	RolloutOnConfigMapChangeEnabled         bool
+	DefaultDataPlaneLinuxEnabled            bool
+	ClusterProviderDetector                 datadogagent.ProviderReader
 }
 
 type starterFunc func(logr.Logger, manager.Manager, kubernetes.PlatformInfo, SetupOptions, datadog.MetricsForwardersManager) error
@@ -72,6 +74,7 @@ var controllerStarters = map[string]starterFunc{
 	dashboardControllerName:       startDatadogDashboard,
 	genericResourceControllerName: startDatadogGenericResource,
 	csiDriverControllerName:       startDatadogCSIDriver,
+	splControllerName:             startDatadogSyntheticsPrivateLocation,
 	untaintControllerName:         startUntaint,
 }
 
@@ -219,6 +222,22 @@ func startDatadogSLO(logger logr.Logger, mgr manager.Manager, pInfo kubernetes.P
 	}
 
 	return sloReconciler.SetupWithManager(mgr)
+}
+
+func startDatadogSyntheticsPrivateLocation(logger logr.Logger, mgr manager.Manager, _ kubernetes.PlatformInfo, options SetupOptions, _ datadog.MetricsForwardersManager) error {
+	if !options.DatadogSyntheticsPrivateLocationEnabled {
+		logger.Info("Feature disabled, not starting the controller", "controller", splControllerName)
+		return nil
+	}
+
+	splReconciler := &DatadogSyntheticsPrivateLocationReconciler{
+		Client:       mgr.GetClient(),
+		CredsManager: options.CredsManager,
+		Scheme:       mgr.GetScheme(),
+		Recorder:     mgr.GetEventRecorderFor(splControllerName),
+	}
+
+	return splReconciler.SetupWithManager(mgr)
 }
 
 func startUntaint(logger logr.Logger, mgr manager.Manager, _ kubernetes.PlatformInfo, options SetupOptions, _ datadog.MetricsForwardersManager) error {
