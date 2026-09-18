@@ -17,9 +17,7 @@ const (
 )
 
 const (
-	pipelineDestinationEndpointEnvName   = "DD_OP_DESTINATION_CLOUDPREM_ENDPOINT_URL"
-	pipelineSourceOTLPGRPCAddressEnvName = "DD_OP_SOURCE_OTEL_GRPC_ADDRESS"
-	pipelineSourceOTLPHTTPAddressEnvName = "DD_OP_SOURCE_OTEL_HTTP_ADDRESS"
+	pipelineDestinationEndpointEnvName = "DD_OP_DESTINATION_CLOUDPREM_ENDPOINT_URL"
 )
 
 const (
@@ -47,8 +45,6 @@ const (
 	gossipPort    int32 = 7282
 	cloudpremPort int32 = 7283
 	healthPort    int32 = 7284
-	otlpGRPCPort  int32 = 4317
-	otlpHTTPPort  int32 = 4318
 )
 
 const (

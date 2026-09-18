@@ -34,6 +34,24 @@ const (
 	workerAPIPort int32 = 8686
 )
 
+// Names fit Kubernetes' 15-character limit for container ports.
+var sourceAddressEnvNames = map[string]string{
+	"otlp-grpc":      "DD_OP_SOURCE_OTEL_GRPC_ADDRESS",
+	"otlp-http":      "DD_OP_SOURCE_OTEL_HTTP_ADDRESS",
+	"datadog-agent":  "DD_OP_SOURCE_DATADOG_AGENT_ADDRESS",
+	"splunk-tcp":     "DD_OP_SOURCE_SPLUNK_TCP_ADDRESS",
+	"splunk-hec":     "DD_OP_SOURCE_SPLUNK_HEC_ADDRESS",
+	"http-server":    "DD_OP_SOURCE_HTTP_SERVER_ADDRESS",
+	"fluent":         "DD_OP_SOURCE_FLUENT_ADDRESS",
+	"logstash":       "DD_OP_SOURCE_LOGSTASH_ADDRESS",
+	"syslog":         "DD_OP_SOURCE_SYSLOG_ADDRESS",
+	"socket":         "DD_OP_SOURCE_SOCKET_ADDRESS",
+	"aws-firehose":   "DD_OP_SOURCE_AWS_DATA_FIREHOSE_ADDRESS",
+	"sumo-logic":     "DD_OP_SOURCE_SUMO_LOGIC_ADDRESS",
+	"prom-pushgw":    "DD_OP_SOURCE_PROMETHEUS_PUSHGATEWAY_ADDRESS",
+	"prom-rem-write": "DD_OP_SOURCE_PROMETHEUS_REMOTE_WRITE_ADDRESS",
+}
+
 // Resources is the complete set of Kubernetes resources rendered for a Worker.
 type Resources struct {
 	Service             *corev1.Service
@@ -246,12 +264,13 @@ func newWorkerContainer(worker *datadoghqv1alpha1.DatadogObservabilityPipelinesW
 		{Name: "DD_OP_API_ADDRESS", Value: "0.0.0.0:" + strconv.Itoa(int(workerAPIPort))},
 		{Name: "DD_OP_GRACEFUL_SHUTDOWN_LIMIT_SECS", Value: strconv.FormatInt(max(10, terminationGracePeriodSeconds-10), 10)},
 	}
+	environment := controllerutils.MergeEnv(sourceEnvironment(worker.Spec.Ports), worker.Spec.Env)
 	return corev1.Container{
 		Name:            workerContainerName,
 		Image:           image,
 		ImagePullPolicy: pullPolicy,
 		Args:            []string{"run"},
-		Env:             controllerutils.MergeEnv(worker.Spec.Env, requiredEnvironment),
+		Env:             controllerutils.MergeEnv(environment, requiredEnvironment),
 		EnvFrom:         slices.Clone(worker.Spec.EnvFrom),
 		Ports:           containerPorts(worker.Spec.Ports),
 		Resources:       ptr.Deref(worker.Spec.Resources, corev1.ResourceRequirements{}),
@@ -259,6 +278,16 @@ func newWorkerContainer(worker *datadoghqv1alpha1.DatadogObservabilityPipelinesW
 		LivenessProbe:   workerProbe(5),
 		ReadinessProbe:  workerProbe(3),
 	}
+}
+
+func sourceEnvironment(ports []datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerPort) []corev1.EnvVar {
+	var env []corev1.EnvVar
+	for _, port := range ports {
+		if name, ok := sourceAddressEnvNames[port.Name]; ok {
+			env = append(env, corev1.EnvVar{Name: name, Value: "0.0.0.0:" + strconv.Itoa(int(port.Port))})
+		}
+	}
+	return env
 }
 
 func workerProbe(failureThreshold int32) *corev1.Probe {

@@ -1,5 +1,8 @@
 # DatadogBYOCCluster image overrides
 
+For pipeline ports and automatically generated source addresses, see
+[Observability Pipelines Worker ports](observability_pipelines_worker.md).
+
 By default, `spec.release` selects an OCI release artifact containing the BYOC and Observability Pipelines Worker images. Use `spec.imageOverrides` to mirror images into private registries or deploy compatible hotfix images without publishing a new release artifact.
 
 The examples below are partial specifications; retain your existing component and other cluster settings. See the [complete sample](../config/samples/datadoghq_v1alpha1_datadogbyoccluster.yaml).

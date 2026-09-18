@@ -193,9 +193,9 @@ func TestBuildResources_StatefulSet(t *testing.T) {
 								ImagePullPolicy: corev1.PullAlways,
 								Args:            []string{"run"},
 								Env: []corev1.EnvVar{
-									{Name: "DD_OP_DESTINATION_CLOUDPREM_ENDPOINT_URL", Value: "http://byoc-indexer:7280"},
 									{Name: "DD_OP_SOURCE_OTEL_GRPC_ADDRESS", Value: "0.0.0.0:4317"},
 									{Name: "DD_OP_SOURCE_OTEL_HTTP_ADDRESS", Value: "0.0.0.0:4318"},
+									{Name: "DD_OP_DESTINATION_CLOUDPREM_ENDPOINT_URL", Value: "http://byoc-indexer:7280"},
 									{Name: "DD_SITE", Value: "datadoghq.com"},
 									{Name: "DD_API_KEY", ValueFrom: &corev1.EnvVarSource{SecretKeyRef: &corev1.SecretKeySelector{LocalObjectReference: corev1.LocalObjectReference{Name: "datadog-secret"}, Key: "api-key"}}},
 									{Name: "DD_OP_PIPELINE_ID", Value: pipelineID},
@@ -315,9 +315,9 @@ func TestBuildResources_StatefulSet(t *testing.T) {
 								ImagePullPolicy: corev1.PullIfNotPresent,
 								Args:            []string{"run"},
 								Env: []corev1.EnvVar{
-									{Name: "DD_OP_DESTINATION_CLOUDPREM_ENDPOINT_URL", Value: "http://byoc-indexer:7280"},
 									{Name: "DD_OP_SOURCE_OTEL_GRPC_ADDRESS", Value: "0.0.0.0:4317"},
 									{Name: "DD_OP_SOURCE_OTEL_HTTP_ADDRESS", Value: "0.0.0.0:4318"},
+									{Name: "DD_OP_DESTINATION_CLOUDPREM_ENDPOINT_URL", Value: "http://byoc-indexer:7280"},
 									{Name: "DD_SITE", Value: "datadoghq.com"},
 									{Name: "DD_API_KEY", ValueFrom: &corev1.EnvVarSource{SecretKeyRef: &corev1.SecretKeySelector{LocalObjectReference: corev1.LocalObjectReference{Name: "datadog-secret"}, Key: "api-key"}}},
 									{Name: "DD_OP_PIPELINE_ID", Value: pipelineID},
