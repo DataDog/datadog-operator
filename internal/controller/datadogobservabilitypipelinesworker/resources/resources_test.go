@@ -622,16 +622,16 @@ func testWorker() *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker {
 						},
 					},
 				},
+				Ports: []datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerPort{
+					{Name: "otlp-grpc", Port: 4317, Protocol: corev1.ProtocolTCP},
+					{Name: "otlp-http", Port: 4318, Protocol: corev1.ProtocolTCP},
+				},
 			},
 			Datadog: &datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerDatadogSpec{
 				Site:            ptr.To("datadoghq.com"),
 				APIKeySecretRef: &corev1.SecretKeySelector{LocalObjectReference: corev1.LocalObjectReference{Name: "datadog-secret"}, Key: "api-key"},
 			},
 			Image: &image,
-			Ports: []datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerPort{
-				{Name: "otlp-grpc", Port: 4317, Protocol: corev1.ProtocolTCP},
-				{Name: "otlp-http", Port: 4318, Protocol: corev1.ProtocolTCP},
-			},
 		},
 	}
 }

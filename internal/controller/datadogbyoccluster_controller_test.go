@@ -64,7 +64,7 @@ var _ = Describe("DatadogBYOCCluster Controller", func() {
 					Metastore:         &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{},
 					Indexer:           &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{Autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{}},
 					Searcher:          &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{Autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{}},
-					Pipeline:          &datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{PipelineID: ptr.To(byocPipelineID)},
+					Pipeline:          byocTestPipeline(),
 					ControlPlane:      &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
 					Janitor:           &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
 					ReadOnlyMetastore: &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{},
@@ -115,7 +115,7 @@ var _ = Describe("DatadogBYOCCluster Controller", func() {
 						Metastore:         &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{},
 						Indexer:           &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{Autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{}},
 						Searcher:          &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{Autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{}},
-						Pipeline:          &datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{PipelineID: ptr.To(byocPipelineID)},
+						Pipeline:          byocTestPipeline(),
 						ControlPlane:      &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
 						Janitor:           &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
 						ReadOnlyMetastore: &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{},
@@ -239,6 +239,7 @@ var _ = Describe("DatadogBYOCCluster Controller", func() {
 				Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(resource), resource)).Should(Succeed())
 			}
 			Expect(metav1.IsControlledBy(worker, cluster)).To(BeTrue())
+			Expect(cmp.Diff(cluster.Spec.Components.Pipeline.Ports, worker.Spec.Ports)).To(BeEmpty())
 		})
 
 		It("copies the worker status to the parent", func() {
@@ -404,7 +405,7 @@ var _ = Describe("DatadogBYOCCluster Controller", func() {
 						Metastore:         &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{},
 						Indexer:           &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{Autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{}},
 						Searcher:          &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{Autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{}},
-						Pipeline:          &datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{PipelineID: ptr.To(byocPipelineID)},
+						Pipeline:          byocTestPipeline(),
 						ControlPlane:      &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
 						Janitor:           &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
 						ReadOnlyMetastore: &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{},
@@ -532,4 +533,14 @@ func fakeResolvedImage(base byocimage.ResolvedImage, override *datadoghqv1alpha1
 	}
 	base.ImagePullSecrets = slices.Clone(override.ImagePullSecrets)
 	return base
+}
+
+func byocTestPipeline() *datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec {
+	return &datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{
+		PipelineID: ptr.To(byocPipelineID),
+		Ports: []datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerPort{
+			{Name: "otlp-grpc", Port: 4317, Protocol: corev1.ProtocolTCP},
+			{Name: "otlp-http", Port: 4318, Protocol: corev1.ProtocolTCP},
+		},
+	}
 }

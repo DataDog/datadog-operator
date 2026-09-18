@@ -48,16 +48,12 @@ func BuildObservabilityPipelinesWorker(cluster *datadoghqv1alpha1.DatadogBYOCClu
 			Namespace: cluster.Namespace,
 		},
 		Spec: datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerSpec{
-			DatadogBYOCClusterPipelineComponentSpec: *pipeline,
+			DatadogBYOCClusterPipelineComponentSpec: *pipeline.DeepCopy(),
 			Datadog: &datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerDatadogSpec{
 				Site:            new(site),
 				APIKeySecretRef: cluster.Spec.Datadog.APIKeySecretRef,
 			},
 			Image: &resolvedImage,
-			Ports: []datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerPort{
-				{Name: "otlp-grpc", Port: otlpGRPCPort, Protocol: corev1.ProtocolTCP},
-				{Name: "otlp-http", Port: otlpHTTPPort, Protocol: corev1.ProtocolTCP},
-			},
 		},
 	}, nil
 }
