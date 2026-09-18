@@ -58,10 +58,10 @@ stages:
 #
 # The second clause covers the mergequeue: once queued, the pipeline runs on
 # `mq-working-branch-*` and the original branch name is gone, so match the
-# squashed commit title instead. The bot always produces
-# `chore(bundle): regenerate for vX.Y.Z`.
+# squashed commit title instead. The bot always titles these PRs
+# `[datadog-operator] Release vX.Y.Z` (see operatorrelease/worker/buildtag.go).
 .skip_e2e_on_release_bundle_branch: &skip_e2e_on_release_bundle_branch
-  if: '$CI_COMMIT_BRANCH =~ /^operator-release\// || ($CI_COMMIT_BRANCH =~ /^mq-working-branch-/ && $CI_COMMIT_TITLE =~ /^chore\(bundle\): regenerate for v/)'
+  if: '$CI_COMMIT_BRANCH =~ /^operator-release\// || ($CI_COMMIT_BRANCH =~ /^mq-working-branch-/ && $CI_COMMIT_TITLE =~ /^\[datadog-operator\] Release v/)'
   when: never
 
 build:
