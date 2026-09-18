@@ -131,10 +131,8 @@ func (r *Reconciler) buildDesiredDatadogCSIDriver(instance *v2alpha1.DatadogAgen
 		maps.Copy(ddcsi.Spec.CommonLabels, instance.Spec.Global.CommonLabels)
 	}
 
-	// Propagate the registry so the CSI driver image follows spec.global.registry, as every
-	// other Datadog image does. `instance` is the defaulted copy of the DDA (see reconcile.go),
-	// so Registry is set here, including the GCR value ensureGCRAutopilotRegistry forces on GKE
-	// Autopilot. Copied rather than aliased so the built object never shares the DDA's pointer.
+	// `instance` is the defaulted DDA copy (see reconcile.go), so Registry is set here -
+	// including the GCR value ensureGCRAutopilotRegistry forces on GKE Autopilot.
 	if instance.Spec.Global != nil && instance.Spec.Global.Registry != nil {
 		registry := *instance.Spec.Global.Registry
 		ddcsi.Spec.Registry = &registry
@@ -171,8 +169,7 @@ func (r *Reconciler) buildDesiredDatadogCSIDriver(instance *v2alpha1.DatadogAgen
 }
 
 // csiDriverImageConfig maps the DDA's CSI image configuration onto the AgentImageConfig the
-// DatadogCSIDriver spec takes. JMXEnabled is intentionally left at its zero value: only the
-// Agent image is published in a JMX flavor, so CSIImageConfig does not expose the knob.
+// DatadogCSIDriver spec takes, leaving JMXEnabled unset (see CSIImageConfig).
 func csiDriverImageConfig(image *v2alpha1.CSIImageConfig) *v2alpha1.AgentImageConfig {
 	imageConfig := &v2alpha1.AgentImageConfig{
 		Name:       image.Name,

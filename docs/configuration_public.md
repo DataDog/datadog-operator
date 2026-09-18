@@ -632,7 +632,7 @@ spec:
 : Provide a mapping of Kubernetes Labels to Datadog Tags. <KUBERNETES_LABEL>: <DATADOG_TAG_KEY>
 
 `global.registry`
-: Is the image registry to use for all Datadog images: the Agent images, the Single Step Instrumentation injection images, and the Datadog CSI driver image. It does not apply to third-party images the operator deploys, such as the upstream csi-node-driver-registrar sidecar. Use 'public.ecr.aws/datadog' for AWS ECR. Use 'datadoghq.azurecr.io' for Azure Container Registry. Use 'gcr.io/datadoghq' for Google Container Registry. Use 'eu.gcr.io/datadoghq' for Google Container Registry in the EU region. Use 'asia.gcr.io/datadoghq' for Google Container Registry in the Asia region. Use 'docker.io/datadog' for DockerHub. Default: 'registry.datadoghq.com'
+: Is the image registry to use for all Datadog images: the Agent images, the Single Step Instrumentation injection images, and the Datadog CSI driver image. Use 'public.ecr.aws/datadog' for AWS ECR. Use 'datadoghq.azurecr.io' for Azure Container Registry. Use 'gcr.io/datadoghq' for Google Container Registry. Use 'eu.gcr.io/datadoghq' for Google Container Registry in the EU region. Use 'asia.gcr.io/datadoghq' for Google Container Registry in the Asia region. Use 'docker.io/datadog' for DockerHub. Default: 'registry.datadoghq.com'
 
 `global.secretBackend.args`
 : List of arguments to pass to the command (space-separated strings).

@@ -764,7 +764,7 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogCSIDriverSpec(ref com
 				Properties: map[string]spec.Schema{
 					"registry": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Registry is the image registry to use for the Datadog CSI driver image. Propagated from spec.global.registry on the parent DatadogAgent when the operator manages this resource. It does not apply to the csi-node-driver-registrar sidecar, which is an upstream Kubernetes image always pulled from registry.k8s.io/sig-storage; set spec.registrarImage.name to a full registry/name:tag to relocate that one. On GKE Autopilot this is forced to a GCR registry, the only kind the WorkloadAllowlist admits; set spec.csiDriverImage.name to a full registry/name:tag to override that. Default: 'registry.datadoghq.com'",
+							Description: "Registry is the image registry to use for the Datadog CSI driver image, propagated from spec.global.registry on the parent DatadogAgent. It does not apply to the csi-node-driver-registrar sidecar, an upstream Kubernetes image always pulled from registry.k8s.io/sig-storage. Forced to GCR on GKE Autopilot. Default: 'registry.datadoghq.com'",
 							Type:        []string{"string"},
 							Format:      "",
 						},

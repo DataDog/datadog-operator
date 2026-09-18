@@ -70,18 +70,6 @@ func IsGCRRegistry(registry string) bool {
 		registry == DefaultAsiaImageRegistry
 }
 
-// RegistryForAutopilot returns the registry to pull Datadog images from on a GKE Autopilot
-// cluster, whose WorkloadAllowlist only admits them from GCR. A registry that is already a GCR
-// variant is kept as-is; anything else, including an empty registry, becomes the default GCR
-// registry. Callers that need an image outside GCR on Autopilot must configure a full
-// registry/name:tag image name and extend their allowlist accordingly.
-func RegistryForAutopilot(registry string) string {
-	if IsGCRRegistry(registry) {
-		return registry
-	}
-	return GCRContainerRegistry
-}
-
 // imageHasTag identifies whether an image string contains a tag suffix
 // Ref: https://github.com/distribution/distribution/blob/v2.7.1/reference/reference.go
 var imageHasTag = regexp.MustCompile(`.+:[\w][\w.-]{0,127}$`)

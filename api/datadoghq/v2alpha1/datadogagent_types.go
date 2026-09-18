@@ -490,11 +490,9 @@ type CSIConfig struct {
 	NodeAffinity *corev1.NodeAffinity `json:"nodeAffinity,omitempty"`
 }
 
-// CSIImageConfig defines the image configuration of the CSI driver container.
-//
-// This deliberately does not embed AgentImageConfig: `jmxEnabled` only applies to the Agent
-// image, the single Datadog image published in a JMX flavor. Offering it here could only
-// resolve to a `csi-driver:<tag>-jmx` tag that does not exist.
+// CSIImageConfig defines the image configuration of the CSI driver container. It deliberately
+// does not reuse AgentImageConfig, whose `jmxEnabled` only applies to the Agent image: there is
+// no `csi-driver:<tag>-jmx`.
 // +k8s:openapi-gen=true
 // +kubebuilder:object:generate=true
 type CSIImageConfig struct {
@@ -2069,8 +2067,6 @@ type GlobalConfig struct {
 
 	// Registry is the image registry to use for all Datadog images: the Agent images, the
 	// Single Step Instrumentation injection images, and the Datadog CSI driver image.
-	// It does not apply to third-party images the operator deploys, such as the upstream
-	// csi-node-driver-registrar sidecar.
 	// Use 'public.ecr.aws/datadog' for AWS ECR.
 	// Use 'datadoghq.azurecr.io' for Azure Container Registry.
 	// Use 'gcr.io/datadoghq' for Google Container Registry.

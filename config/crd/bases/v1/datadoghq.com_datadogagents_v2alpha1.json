@@ -4077,7 +4077,7 @@
               "type": "object"
             },
             "registry": {
-              "description": "Registry is the image registry to use for all Datadog images: the Agent images, the\nSingle Step Instrumentation injection images, and the Datadog CSI driver image.\nIt does not apply to third-party images the operator deploys, such as the upstream\ncsi-node-driver-registrar sidecar.\nUse 'public.ecr.aws/datadog' for AWS ECR.\nUse 'datadoghq.azurecr.io' for Azure Container Registry.\nUse 'gcr.io/datadoghq' for Google Container Registry.\nUse 'eu.gcr.io/datadoghq' for Google Container Registry in the EU region.\nUse 'asia.gcr.io/datadoghq' for Google Container Registry in the Asia region.\nUse 'docker.io/datadog' for DockerHub.\nDefault: 'registry.datadoghq.com'",
+              "description": "Registry is the image registry to use for all Datadog images: the Agent images, the\nSingle Step Instrumentation injection images, and the Datadog CSI driver image.\nUse 'public.ecr.aws/datadog' for AWS ECR.\nUse 'datadoghq.azurecr.io' for Azure Container Registry.\nUse 'gcr.io/datadoghq' for Google Container Registry.\nUse 'eu.gcr.io/datadoghq' for Google Container Registry in the EU region.\nUse 'asia.gcr.io/datadoghq' for Google Container Registry in the Asia region.\nUse 'docker.io/datadog' for DockerHub.\nDefault: 'registry.datadoghq.com'",
               "type": "string"
             },
             "secretBackend": {

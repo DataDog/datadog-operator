@@ -208,26 +208,6 @@ func Test_IsGCRRegistry(t *testing.T) {
 	}
 }
 
-func Test_RegistryForAutopilot(t *testing.T) {
-	cases := map[string]string{
-		// Already a GCR variant the WorkloadAllowlist admits: kept as-is.
-		"gcr.io/datadoghq":      "gcr.io/datadoghq",
-		"eu.gcr.io/datadoghq":   "eu.gcr.io/datadoghq",
-		"asia.gcr.io/datadoghq": "asia.gcr.io/datadoghq",
-		// Anything else, including an unset registry, is forced back to GCR.
-		"":                        GCRContainerRegistry,
-		"registry.datadoghq.com":  GCRContainerRegistry,
-		"public.ecr.aws/datadog":  GCRContainerRegistry,
-		"datadoghq.azurecr.io":    GCRContainerRegistry,
-		"private.example.com/dd":  GCRContainerRegistry,
-		"notgcr.io/datadoghq":     GCRContainerRegistry,
-		"custom/gcr.io/datadoghq": GCRContainerRegistry,
-	}
-	for registry, expected := range cases {
-		assert.Equal(t, expected, RegistryForAutopilot(registry), registry)
-	}
-}
-
 func Test_AssembleImage(t *testing.T) {
 	tests := []struct {
 		name      string
