@@ -3078,14 +3078,10 @@
                     },
                     "image": {
                       "additionalProperties": false,
-                      "description": "Image overrides the container image configuration of the managed CSI driver container\n(tag, pull policy, pull secrets, or a full registry/name:tag). Propagated to the managed\nDatadogCSIDriver as spec.csiDriverImage. The registry defaults to `global.registry`.\nIt does not apply to the csi-node-driver-registrar sidecar.\n`jmxEnabled` is not supported here: the CSI driver publishes no JMX image variant.\nWhen `global.csi.apm.pullSecrets` is empty, the pull secrets set here are also used to\nauthenticate APM library downloads.",
+                      "description": "Image overrides the container image configuration of the managed CSI driver container.\nPropagated to the managed DatadogCSIDriver as spec.csiDriverImage. The registry defaults\nto `global.registry`. It does not apply to the csi-node-driver-registrar sidecar.\nWhen `global.csi.apm.pullSecrets` is empty, the pull secrets set here are also used to\nauthenticate APM library downloads.",
                       "properties": {
-                        "jmxEnabled": {
-                          "description": "Define whether the Agent image should support JMX.\nTo be used if the `Name` field does not correspond to a full image string.",
-                          "type": "boolean"
-                        },
                         "name": {
-                          "description": "Defines the Agent image name for the pod. You can provide this as:\n* `\u003cNAME\u003e` - Use `agent` for the Datadog Agent, `cluster-agent` for the Datadog Cluster Agent, or `dogstatsd`\nfor DogStatsD. The full image string is derived from `global.registry`, `[key].image.tag`, and `[key].image.jmxEnabled`.\n* `\u003cNAME\u003e:\u003cTAG\u003e` - For example, `agent:latest`. The registry is derived from `global.registry`. `[key].image.tag`\nand `[key].image.jmxEnabled` are ignored.\n* `\u003cREGISTRY\u003e/\u003cNAME\u003e:\u003cTAG\u003e` - For example, `gcr.io/datadoghq/agent:latest`. If the full image string is specified\n  like this, then `global.registry`, `[key].image.tag`, and `[key].image.jmxEnabled` are ignored.",
+                          "description": "Defines the CSI driver image name. You can provide this as:\n* `\u003cNAME\u003e` - The registry is derived from `global.registry` and the tag from `tag`.\n* `\u003cNAME\u003e:\u003cTAG\u003e` - The registry is derived from `global.registry`. `tag` is ignored.\n* `\u003cREGISTRY\u003e/\u003cNAME\u003e:\u003cTAG\u003e` - Used as-is; `global.registry` and `tag` are ignored.",
                           "type": "string"
                         },
                         "pullPolicy": {
@@ -3107,7 +3103,8 @@
                             "type": "object",
                             "x-kubernetes-map-type": "atomic"
                           },
-                          "type": "array"
+                          "type": "array",
+                          "x-kubernetes-list-type": "atomic"
                         },
                         "tag": {
                           "description": "Define the image tag to use.\nTo be used if the `Name` field does not correspond to a full image string.",

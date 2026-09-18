@@ -188,10 +188,10 @@ func TestReconcileDatadogCSIDriver_ImageConfigPropagated(t *testing.T) {
 		{
 			name: "global.csi.image is propagated",
 			mutate: func(dda *v2alpha1.DatadogAgent) {
-				dda.Spec.Global.CSI.Image = &v2alpha1.AgentImageConfig{
+				dda.Spec.Global.CSI.Image = &v2alpha1.CSIImageConfig{
 					Tag:         "9.9.9",
 					PullPolicy:  ptr.To(corev1.PullAlways),
-					PullSecrets: &[]corev1.LocalObjectReference{{Name: "private-registry"}},
+					PullSecrets: []corev1.LocalObjectReference{{Name: "private-registry"}},
 				}
 			},
 			assert: func(t *testing.T, spec v1alpha1.DatadogCSIDriverSpec) {
@@ -231,7 +231,7 @@ func TestReconcileDatadogCSIDriver_ImageConfigIsCopied(t *testing.T) {
 	r := newTestReconcilerForDDCSI(testScheme(), platformInfoWithDDCSI())
 	dda := newDDAForDDCSI("test-dda", "default", true)
 	dda.Spec.Global.Registry = ptr.To("private.example.com/datadog")
-	dda.Spec.Global.CSI.Image = &v2alpha1.AgentImageConfig{Tag: "9.9.9"}
+	dda.Spec.Global.CSI.Image = &v2alpha1.CSIImageConfig{Tag: "9.9.9"}
 
 	ddcsi, err := r.buildDesiredDatadogCSIDriver(dda)
 	require.NoError(t, err)

@@ -468,15 +468,13 @@ type CSIConfig struct {
 	// +optional
 	APM *CSIAPMConfig `json:"apm,omitempty"`
 
-	// Image overrides the container image configuration of the managed CSI driver container
-	// (tag, pull policy, pull secrets, or a full registry/name:tag). Propagated to the managed
-	// DatadogCSIDriver as spec.csiDriverImage. The registry defaults to `global.registry`.
-	// It does not apply to the csi-node-driver-registrar sidecar.
-	// `jmxEnabled` is not supported here: the CSI driver publishes no JMX image variant.
+	// Image overrides the container image configuration of the managed CSI driver container.
+	// Propagated to the managed DatadogCSIDriver as spec.csiDriverImage. The registry defaults
+	// to `global.registry`. It does not apply to the csi-node-driver-registrar sidecar.
 	// When `global.csi.apm.pullSecrets` is empty, the pull secrets set here are also used to
 	// authenticate APM library downloads.
 	// +optional
-	Image *AgentImageConfig `json:"image,omitempty"`
+	Image *CSIImageConfig `json:"image,omitempty"`
 
 	// Tolerations configure the CSI driver DaemonSet pod tolerations.
 	// +optional
@@ -490,6 +488,38 @@ type CSIConfig struct {
 	// NodeAffinity specifies node affinity scheduling rules for CSI driver DaemonSet pods.
 	// +optional
 	NodeAffinity *corev1.NodeAffinity `json:"nodeAffinity,omitempty"`
+}
+
+// CSIImageConfig defines the image configuration of the CSI driver container.
+//
+// This deliberately does not embed AgentImageConfig: `jmxEnabled` only applies to the Agent
+// image, the single Datadog image published in a JMX flavor. Offering it here could only
+// resolve to a `csi-driver:<tag>-jmx` tag that does not exist.
+// +k8s:openapi-gen=true
+// +kubebuilder:object:generate=true
+type CSIImageConfig struct {
+	// Defines the CSI driver image name. You can provide this as:
+	// * `<NAME>` - The registry is derived from `global.registry` and the tag from `tag`.
+	// * `<NAME>:<TAG>` - The registry is derived from `global.registry`. `tag` is ignored.
+	// * `<REGISTRY>/<NAME>:<TAG>` - Used as-is; `global.registry` and `tag` are ignored.
+	// +optional
+	Name string `json:"name,omitempty"`
+
+	// Define the image tag to use.
+	// To be used if the `Name` field does not correspond to a full image string.
+	// +optional
+	Tag string `json:"tag,omitempty"`
+
+	// The Kubernetes pull policy:
+	// Use `Always`, `Never`, or `IfNotPresent`.
+	// +optional
+	PullPolicy *corev1.PullPolicy `json:"pullPolicy,omitempty"`
+
+	// It is possible to specify Docker registry credentials.
+	// See https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod
+	// +optional
+	// +listType=atomic
+	PullSecrets []corev1.LocalObjectReference `json:"pullSecrets,omitempty"`
 }
 
 // CSIAPMConfig configures APM/SSI-related settings for the CSI driver managed by the Operator.
