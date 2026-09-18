@@ -1,0 +1,25 @@
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogSyntheticsPrivateLocation
+metadata:
+  name: my-private-location
+spec:
+  name: my private location
+  description: Private location managed by the Datadog Operator
+  tags:
+    - env:staging
+    - team:my-team
+  worker:
+    replicas: 2
+    config:
+      concurrency: 10
+      enableStatusProbes: true
+      statusProbesPort: 8080
+    resources:
+      requests:
+        cpu: 200m
+        memory: 256Mi
+      limits:
+        memory: 512Mi
+    podDisruptionBudget:
+      enabled: true
+      minAvailable: 1
