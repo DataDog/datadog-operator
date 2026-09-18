@@ -24,6 +24,13 @@ const (
 	reasonConfigMissing          = "ConfigMissing"
 )
 
+// Condition reasons for success states.
+const (
+	reasonSynced        = "Synced"
+	reasonWorkerReady   = "WorkerReady"
+	reasonWorkerPending = "WorkerPending"
+)
+
 // applyStatusPatch server-side-applies the instance status. Callers run it in
 // a defer so the status is persisted even when a reconcile step fails; the
 // returned error joins any reconcile error.
@@ -51,16 +58,16 @@ func setErrorCondition(instance *datadoghqv1alpha1.DatadogSyntheticsPrivateLocat
 }
 
 func setSuccessConditions(instance *datadoghqv1alpha1.DatadogSyntheticsPrivateLocation, now metav1.Time) {
-	ctrutils.UpdateStatusConditions(&instance.Status.Conditions, now, ctrutils.DatadogConditionTypeError, metav1.ConditionFalse, "", "")
-	ctrutils.UpdateStatusConditions(&instance.Status.Conditions, now, ctrutils.DatadogConditionTypeActive, metav1.ConditionTrue, "", "DatadogSyntheticsPrivateLocation ready")
+	ctrutils.UpdateStatusConditions(&instance.Status.Conditions, now, ctrutils.DatadogConditionTypeError, metav1.ConditionFalse, reasonSynced, "")
+	ctrutils.UpdateStatusConditions(&instance.Status.Conditions, now, ctrutils.DatadogConditionTypeActive, metav1.ConditionTrue, reasonSynced, "DatadogSyntheticsPrivateLocation ready")
 }
 
 // setSyncedConditions records a successful remote operation of the given kind
 // (Created or Updated) and clears the Error condition.
 func setSyncedConditions(instance *datadoghqv1alpha1.DatadogSyntheticsPrivateLocation, now metav1.Time, conditionType ctrutils.Type, msg string) {
-	ctrutils.UpdateStatusConditions(&instance.Status.Conditions, now, ctrutils.DatadogConditionTypeError, metav1.ConditionFalse, "", "")
-	ctrutils.UpdateStatusConditions(&instance.Status.Conditions, now, ctrutils.DatadogConditionTypeActive, metav1.ConditionTrue, "", msg)
-	ctrutils.UpdateStatusConditions(&instance.Status.Conditions, now, conditionType, metav1.ConditionTrue, "", msg)
+	ctrutils.UpdateStatusConditions(&instance.Status.Conditions, now, ctrutils.DatadogConditionTypeError, metav1.ConditionFalse, reasonSynced, "")
+	ctrutils.UpdateStatusConditions(&instance.Status.Conditions, now, ctrutils.DatadogConditionTypeActive, metav1.ConditionTrue, reasonSynced, msg)
+	ctrutils.UpdateStatusConditions(&instance.Status.Conditions, now, conditionType, metav1.ConditionTrue, string(conditionType), msg)
 }
 
 // setReadyCondition summarizes remote and worker Deployment health. A worker
@@ -71,8 +78,8 @@ func setReadyCondition(instance *datadoghqv1alpha1.DatadogSyntheticsPrivateLocat
 		instance.Status.Deployment.UnavailableReplicas == 0
 
 	if ready {
-		ctrutils.UpdateStatusConditions(&instance.Status.Conditions, now, ctrutils.DatadogConditionTypeActive, metav1.ConditionTrue, "", "private location is synced and the worker is available")
+		ctrutils.UpdateStatusConditions(&instance.Status.Conditions, now, ctrutils.DatadogConditionTypeActive, metav1.ConditionTrue, reasonWorkerReady, "private location is synced and the worker is available")
 	} else {
-		ctrutils.UpdateStatusConditions(&instance.Status.Conditions, now, ctrutils.DatadogConditionTypeActive, metav1.ConditionFalse, "", "waiting for the worker Deployment to become available")
+		ctrutils.UpdateStatusConditions(&instance.Status.Conditions, now, ctrutils.DatadogConditionTypeActive, metav1.ConditionFalse, reasonWorkerPending, "waiting for the worker Deployment to become available")
 	}
 }

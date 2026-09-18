@@ -112,6 +112,7 @@ var _ = BeforeSuite(func(ctx context.Context) {
 		DatadogAgentProfileEnabled: true,
 		V2APIEnabled:               true,
 		UntaintControllerEnabled:   true,
+		DatadogSyntheticsPrivateLocationEnabled: true,
 	}
 
 	dummyPlatformInfo := kubernetes.PlatformInfo{}
