@@ -7,7 +7,11 @@ package utils
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
+	"net/url"
+
+	datadogapi "github.com/DataDog/datadog-api-client-go/v2/api/datadog"
 )
 
 // APIError wraps a Datadog API client error with its HTTP status code.
@@ -41,4 +45,32 @@ func IsPermanentAPIError(err error) bool {
 		return false
 	}
 	return apiErr.StatusCode >= 400 && apiErr.StatusCode < 500 && apiErr.StatusCode != http.StatusTooManyRequests
+}
+
+// TranslateClientError wraps a Datadog API client error in an APIError,
+// unwrapping GenericOpenAPIError and url.Error into a readable message.
+func TranslateClientError(err error, httpResp *http.Response, msg string) error {
+	if msg == "" {
+		msg = "an error occurred"
+	}
+
+	var apiErr datadogapi.GenericOpenAPIError
+	var errURL *url.Error
+	if errors.As(err, &apiErr) {
+		return NewAPIError(fmt.Errorf(msg+": %w: %s", err, apiErr.Body()), httpResp)
+	}
+
+	if errors.As(err, &errURL) {
+		return NewAPIError(fmt.Errorf(msg+" (url.Error): %s", errURL), httpResp)
+	}
+
+	return NewAPIError(fmt.Errorf(msg+": %w", err), httpResp)
+}
+
+// TranslateUnmarshalError wraps a failure to unmarshal a spec as a permanent,
+// bad-request-equivalent error: no HTTP request was made, and the spec will
+// never parse until it's fixed, so it's classified the same way a 400 from
+// the API would be instead of being treated as transient.
+func TranslateUnmarshalError(err error, msg string) error {
+	return TranslateClientError(err, &http.Response{StatusCode: http.StatusBadRequest}, msg)
 }

@@ -16,6 +16,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	ctrutils "github.com/DataDog/datadog-operator/pkg/controller/utils"
 )
 
 // SLOCorrectionHandler manages SLO Corrections through the datadogV1 SLO Corrections API.
@@ -87,7 +88,7 @@ func getSLOCorrection(auth context.Context, client *datadogV1.ServiceLevelObject
 		defer httpResp.Body.Close()
 	}
 	if err != nil {
-		return datadogV1.SLOCorrectionResponse{}, translateClientError(err, httpResp, "error getting SLO correction")
+		return datadogV1.SLOCorrectionResponse{}, ctrutils.TranslateClientError(err, httpResp, "error getting SLO correction")
 	}
 	return correction, nil
 }
@@ -108,7 +109,7 @@ func deleteSLOCorrection(auth context.Context, client *datadogV1.ServiceLevelObj
 		if httpResponse != nil && httpResponse.StatusCode == 404 {
 			return nil
 		}
-		return translateClientError(err, httpResponse, "error deleting SLO correction")
+		return ctrutils.TranslateClientError(err, httpResponse, "error deleting SLO correction")
 	}
 	return nil
 }
@@ -121,7 +122,7 @@ func createSLOCorrection(auth context.Context, client *datadogV1.ServiceLevelObj
 
 	body := &datadogV1.SLOCorrectionCreateRequest{}
 	if err := json.Unmarshal([]byte(instance.Spec.JsonSpec), body); err != nil {
-		return datadogV1.SLOCorrectionResponse{}, translateUnmarshalError(err, "error unmarshalling SLO correction spec")
+		return datadogV1.SLOCorrectionResponse{}, ctrutils.TranslateUnmarshalError(err, "error unmarshalling SLO correction spec")
 	}
 
 	correction, httpResp, err := client.CreateSLOCorrection(auth, *body)
@@ -129,7 +130,7 @@ func createSLOCorrection(auth context.Context, client *datadogV1.ServiceLevelObj
 		defer httpResp.Body.Close()
 	}
 	if err != nil {
-		return datadogV1.SLOCorrectionResponse{}, translateClientError(err, httpResp, "error creating SLO correction")
+		return datadogV1.SLOCorrectionResponse{}, ctrutils.TranslateClientError(err, httpResp, "error creating SLO correction")
 	}
 	return correction, nil
 }
@@ -154,7 +155,7 @@ func updateSLOCorrection(auth context.Context, client *datadogV1.ServiceLevelObj
 		} `json:"data"`
 	}
 	if err := json.Unmarshal([]byte(instance.Spec.JsonSpec), &specData); err != nil {
-		return datadogV1.SLOCorrectionResponse{}, translateUnmarshalError(err, "error unmarshalling SLO correction spec")
+		return datadogV1.SLOCorrectionResponse{}, ctrutils.TranslateUnmarshalError(err, "error unmarshalling SLO correction spec")
 	}
 
 	if specData.Data.Attributes == nil {
@@ -172,7 +173,7 @@ func updateSLOCorrection(auth context.Context, client *datadogV1.ServiceLevelObj
 		} `json:"data"`
 	}
 	if err := json.Unmarshal([]byte(instance.Spec.JsonSpec), &sloIDSpec); err != nil {
-		return datadogV1.SLOCorrectionResponse{}, translateUnmarshalError(err, "error unmarshalling SLO correction spec")
+		return datadogV1.SLOCorrectionResponse{}, ctrutils.TranslateUnmarshalError(err, "error unmarshalling SLO correction spec")
 	}
 
 	if sloIDSpec.Data.Attributes.SloID != "" {
@@ -197,7 +198,7 @@ func updateSLOCorrection(auth context.Context, client *datadogV1.ServiceLevelObj
 		defer httpResp.Body.Close()
 	}
 	if err != nil {
-		return datadogV1.SLOCorrectionResponse{}, translateClientError(err, httpResp, "error updating SLO correction")
+		return datadogV1.SLOCorrectionResponse{}, ctrutils.TranslateClientError(err, httpResp, "error updating SLO correction")
 	}
 	return updated, nil
 }

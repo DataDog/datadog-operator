@@ -1,16 +1,10 @@
 package datadoggenericresource
 
 import (
-	"errors"
 	"fmt"
-	"net/http"
-	"net/url"
 	"strconv"
 
-	datadogapi "github.com/DataDog/datadog-api-client-go/v2/api/datadog"
-
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
-	ctrutils "github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/datadogclient"
 )
 
@@ -29,32 +23,6 @@ func buildHandlers(clients *datadogclient.GenericClients) map[v1alpha1.Supported
 		v1alpha1.SyntheticsAPITest:       &SyntheticsAPITestHandler{client: clients.SyntheticsClient},
 		v1alpha1.SyntheticsBrowserTest:   &SyntheticsBrowserTestHandler{client: clients.SyntheticsClient},
 	}
-}
-
-func translateClientError(err error, httpResp *http.Response, msg string) error {
-	if msg == "" {
-		msg = "an error occurred"
-	}
-
-	var apiErr datadogapi.GenericOpenAPIError
-	var errURL *url.Error
-	if errors.As(err, &apiErr) {
-		return ctrutils.NewAPIError(fmt.Errorf(msg+": %w: %s", err, apiErr.Body()), httpResp)
-	}
-
-	if errors.As(err, &errURL) {
-		return ctrutils.NewAPIError(fmt.Errorf(msg+" (url.Error): %s", errURL), httpResp)
-	}
-
-	return ctrutils.NewAPIError(fmt.Errorf(msg+": %w", err), httpResp)
-}
-
-// translateUnmarshalError wraps a failure to unmarshal spec.jsonSpec as a
-// permanent, bad-request-equivalent error: no HTTP request was made, and the
-// spec will never parse until it's fixed, so it's classified the same way a
-// 400 from the API would be instead of being treated as transient.
-func translateUnmarshalError(err error, msg string) error {
-	return translateClientError(err, &http.Response{StatusCode: http.StatusBadRequest}, msg)
 }
 
 func unsupportedInstanceType(resourceType v1alpha1.SupportedResourcesType) error {

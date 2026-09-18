@@ -10,6 +10,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	ctrutils "github.com/DataDog/datadog-operator/pkg/controller/utils"
 )
 
 type DowntimeHandler struct {
@@ -71,7 +72,7 @@ func getDowntime(auth context.Context, client *datadogV2.DowntimesApi, downtimeI
 		defer httpResp.Body.Close()
 	}
 	if err != nil {
-		return datadogV2.DowntimeResponse{}, translateClientError(err, httpResp, "error getting downtime")
+		return datadogV2.DowntimeResponse{}, ctrutils.TranslateClientError(err, httpResp, "error getting downtime")
 	}
 	return downtime, nil
 }
@@ -93,7 +94,7 @@ func deleteDowntime(auth context.Context, client *datadogV2.DowntimesApi, downti
 		if httpResponse != nil && httpResponse.StatusCode == 404 {
 			return nil
 		}
-		return translateClientError(err, httpResponse, "error deleting downtime")
+		return ctrutils.TranslateClientError(err, httpResponse, "error deleting downtime")
 	}
 	return nil
 }
@@ -105,7 +106,7 @@ func createDowntime(auth context.Context, client *datadogV2.DowntimesApi, instan
 
 	downtimeBody := &datadogV2.DowntimeCreateRequest{}
 	if err := json.Unmarshal([]byte(instance.Spec.JsonSpec), downtimeBody); err != nil {
-		return datadogV2.DowntimeResponse{}, translateUnmarshalError(err, "error unmarshalling downtime spec")
+		return datadogV2.DowntimeResponse{}, ctrutils.TranslateUnmarshalError(err, "error unmarshalling downtime spec")
 	}
 
 	downtime, httpResp, err := client.CreateDowntime(auth, *downtimeBody)
@@ -113,7 +114,7 @@ func createDowntime(auth context.Context, client *datadogV2.DowntimesApi, instan
 		defer httpResp.Body.Close()
 	}
 	if err != nil {
-		return datadogV2.DowntimeResponse{}, translateClientError(err, httpResp, "error creating downtime")
+		return datadogV2.DowntimeResponse{}, ctrutils.TranslateClientError(err, httpResp, "error creating downtime")
 	}
 	return downtime, nil
 }
@@ -136,7 +137,7 @@ func updateDowntime(auth context.Context, client *datadogV2.DowntimesApi, instan
 		} `json:"data"`
 	}
 	if err := json.Unmarshal([]byte(instance.Spec.JsonSpec), &specData); err != nil {
-		return datadogV2.DowntimeResponse{}, translateUnmarshalError(err, "error unmarshalling downtime spec")
+		return datadogV2.DowntimeResponse{}, ctrutils.TranslateUnmarshalError(err, "error unmarshalling downtime spec")
 	}
 
 	if specData.Data.Attributes == nil {
@@ -155,7 +156,7 @@ func updateDowntime(auth context.Context, client *datadogV2.DowntimesApi, instan
 		defer httpResp.Body.Close()
 	}
 	if err != nil {
-		return datadogV2.DowntimeResponse{}, translateClientError(err, httpResp, "error updating downtime")
+		return datadogV2.DowntimeResponse{}, ctrutils.TranslateClientError(err, httpResp, "error updating downtime")
 	}
 	return downtimeUpdated, nil
 }

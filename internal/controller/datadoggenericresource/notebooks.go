@@ -8,6 +8,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	ctrutils "github.com/DataDog/datadog-operator/pkg/controller/utils"
 )
 
 type NotebookHandler struct {
@@ -53,7 +54,7 @@ func getNotebook(auth context.Context, client *datadogV1.NotebooksApi, notebookS
 		defer httpResp.Body.Close()
 	}
 	if err != nil {
-		return datadogV1.NotebookResponse{}, translateClientError(err, httpResp, "error getting notebook")
+		return datadogV1.NotebookResponse{}, ctrutils.TranslateClientError(err, httpResp, "error getting notebook")
 	}
 	return notebook, nil
 }
@@ -74,7 +75,7 @@ func deleteNotebook(auth context.Context, client *datadogV1.NotebooksApi, notebo
 		if httpResponse != nil && httpResponse.StatusCode == 404 {
 			return nil
 		}
-		return translateClientError(err, httpResponse, "error deleting notebook")
+		return ctrutils.TranslateClientError(err, httpResponse, "error deleting notebook")
 	}
 	return nil
 }
@@ -82,14 +83,14 @@ func deleteNotebook(auth context.Context, client *datadogV1.NotebooksApi, notebo
 func createNotebook(auth context.Context, client *datadogV1.NotebooksApi, instance *v1alpha1.DatadogGenericResource) (datadogV1.NotebookResponse, error) {
 	notebookCreateData := &datadogV1.NotebookCreateRequest{}
 	if err := json.Unmarshal([]byte(instance.Spec.JsonSpec), notebookCreateData); err != nil {
-		return datadogV1.NotebookResponse{}, translateUnmarshalError(err, "error unmarshalling notebook spec")
+		return datadogV1.NotebookResponse{}, ctrutils.TranslateUnmarshalError(err, "error unmarshalling notebook spec")
 	}
 	notebook, httpResp, err := client.CreateNotebook(auth, *notebookCreateData)
 	if httpResp != nil {
 		defer httpResp.Body.Close()
 	}
 	if err != nil {
-		return datadogV1.NotebookResponse{}, translateClientError(err, httpResp, "error creating notebook")
+		return datadogV1.NotebookResponse{}, ctrutils.TranslateClientError(err, httpResp, "error creating notebook")
 	}
 	return notebook, nil
 }
@@ -97,7 +98,7 @@ func createNotebook(auth context.Context, client *datadogV1.NotebooksApi, instan
 func updateNotebook(auth context.Context, client *datadogV1.NotebooksApi, instance *v1alpha1.DatadogGenericResource) (datadogV1.NotebookResponse, error) {
 	notebookUpdateData := &datadogV1.NotebookUpdateRequest{}
 	if err := json.Unmarshal([]byte(instance.Spec.JsonSpec), notebookUpdateData); err != nil {
-		return datadogV1.NotebookResponse{}, translateUnmarshalError(err, "error unmarshalling notebook spec")
+		return datadogV1.NotebookResponse{}, ctrutils.TranslateUnmarshalError(err, "error unmarshalling notebook spec")
 	}
 	notebookID, err := resourceStringToInt64ID(instance.Status.Id)
 	if err != nil {
@@ -108,7 +109,7 @@ func updateNotebook(auth context.Context, client *datadogV1.NotebooksApi, instan
 		defer httpResp.Body.Close()
 	}
 	if err != nil {
-		return datadogV1.NotebookResponse{}, translateClientError(err, httpResp, "error updating notebook")
+		return datadogV1.NotebookResponse{}, ctrutils.TranslateClientError(err, httpResp, "error updating notebook")
 	}
 	return notebookUpdated, nil
 }

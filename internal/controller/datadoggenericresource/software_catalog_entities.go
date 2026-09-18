@@ -76,7 +76,7 @@ func (h *SoftwareCatalogEntityHandler) updateResource(auth context.Context, inst
 
 	newIdentity, err := parseEntityIdentity(instance.Spec.JsonSpec)
 	if err != nil {
-		return translateUnmarshalError(err, "error parsing software catalog entity identity")
+		return ctrutils.TranslateUnmarshalError(err, "error parsing software catalog entity identity")
 	}
 
 	currentAttrs := current.GetAttributes()
@@ -140,11 +140,11 @@ func getSoftwareCatalogEntity(auth context.Context, client *datadogV2.SoftwareCa
 		defer httpResp.Body.Close()
 	}
 	if err != nil {
-		return datadogV2.EntityData{}, translateClientError(err, httpResp, "error getting software catalog entity")
+		return datadogV2.EntityData{}, ctrutils.TranslateClientError(err, httpResp, "error getting software catalog entity")
 	}
 
 	if len(resp.Data) == 0 {
-		return datadogV2.EntityData{}, translateClientError(errors.New("404 Not Found"), &http.Response{StatusCode: http.StatusNotFound}, "error getting software catalog entity")
+		return datadogV2.EntityData{}, ctrutils.TranslateClientError(errors.New("404 Not Found"), &http.Response{StatusCode: http.StatusNotFound}, "error getting software catalog entity")
 	}
 
 	return resp.Data[0], nil
@@ -162,7 +162,7 @@ func deleteSoftwareCatalogEntity(auth context.Context, client *datadogV2.Softwar
 		if httpResponse != nil && httpResponse.StatusCode == 404 {
 			return nil
 		}
-		return translateClientError(err, httpResponse, "error deleting software catalog entity")
+		return ctrutils.TranslateClientError(err, httpResponse, "error deleting software catalog entity")
 	}
 	return nil
 }
@@ -174,7 +174,7 @@ func upsertSoftwareCatalogEntity(auth context.Context, client *datadogV2.Softwar
 
 	body := &datadogV2.UpsertCatalogEntityRequest{}
 	if err := json.Unmarshal([]byte(instance.Spec.JsonSpec), body); err != nil {
-		return datadogV2.UpsertCatalogEntityResponse{}, translateUnmarshalError(err, "error unmarshalling software catalog entity spec")
+		return datadogV2.UpsertCatalogEntityResponse{}, ctrutils.TranslateUnmarshalError(err, "error unmarshalling software catalog entity spec")
 	}
 
 	upserted, httpResp, err := client.UpsertCatalogEntity(auth, *body)
@@ -182,7 +182,7 @@ func upsertSoftwareCatalogEntity(auth context.Context, client *datadogV2.Softwar
 		defer httpResp.Body.Close()
 	}
 	if err != nil {
-		return datadogV2.UpsertCatalogEntityResponse{}, translateClientError(err, httpResp, "error upserting software catalog entity")
+		return datadogV2.UpsertCatalogEntityResponse{}, ctrutils.TranslateClientError(err, httpResp, "error upserting software catalog entity")
 	}
 	return upserted, nil
 }

@@ -30,7 +30,7 @@ func Test_getHandler(t *testing.T) {
 	})
 }
 
-func Test_translateClientError(t *testing.T) {
+func Test_TranslateClientError(t *testing.T) {
 	var ErrGeneric = errors.New("generic error")
 
 	testCases := []struct {
@@ -84,7 +84,7 @@ func Test_translateClientError(t *testing.T) {
 	}
 	for _, test := range testCases {
 		t.Run(test.name, func(t *testing.T) {
-			result := translateClientError(test.error, test.httpResp, test.message)
+			result := ctrutils.TranslateClientError(test.error, test.httpResp, test.message)
 
 			if test.expectedErrorType != nil {
 				assert.True(t, errors.Is(result, test.expectedErrorType))
@@ -103,8 +103,8 @@ func Test_translateClientError(t *testing.T) {
 	}
 }
 
-func Test_translateUnmarshalError(t *testing.T) {
-	err := translateUnmarshalError(errors.New("unexpected end of JSON input"), "error unmarshalling monitor spec")
+func Test_TranslateUnmarshalError(t *testing.T) {
+	err := ctrutils.TranslateUnmarshalError(errors.New("unexpected end of JSON input"), "error unmarshalling monitor spec")
 	assert.EqualError(t, err, "error unmarshalling monitor spec: unexpected end of JSON input")
 	// A spec that never parses will never succeed on retry, no HTTP request was
 	// made, so this must be classified as permanent rather than defaulting to

@@ -8,6 +8,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	ctrutils "github.com/DataDog/datadog-operator/pkg/controller/utils"
 )
 
 type MonitorHandler struct {
@@ -64,7 +65,7 @@ func getMonitor(auth context.Context, client *datadogV1.MonitorsApi, monitorStri
 		defer httpResp.Body.Close()
 	}
 	if err != nil {
-		return datadogV1.Monitor{}, translateClientError(err, httpResp, "error getting monitor")
+		return datadogV1.Monitor{}, ctrutils.TranslateClientError(err, httpResp, "error getting monitor")
 	}
 	return monitor, nil
 }
@@ -85,7 +86,7 @@ func deleteMonitor(auth context.Context, client *datadogV1.MonitorsApi, monitorS
 		if httpResponse != nil && httpResponse.StatusCode == 404 {
 			return nil
 		}
-		return translateClientError(err, httpResponse, "error deleting monitor")
+		return ctrutils.TranslateClientError(err, httpResponse, "error deleting monitor")
 	}
 	return nil
 }
@@ -93,14 +94,14 @@ func deleteMonitor(auth context.Context, client *datadogV1.MonitorsApi, monitorS
 func createMonitor(auth context.Context, client *datadogV1.MonitorsApi, instance *v1alpha1.DatadogGenericResource) (datadogV1.Monitor, error) {
 	monitorBody := &datadogV1.Monitor{}
 	if err := json.Unmarshal([]byte(instance.Spec.JsonSpec), monitorBody); err != nil {
-		return datadogV1.Monitor{}, translateUnmarshalError(err, "error unmarshalling monitor spec")
+		return datadogV1.Monitor{}, ctrutils.TranslateUnmarshalError(err, "error unmarshalling monitor spec")
 	}
 	monitor, httpResp, err := client.CreateMonitor(auth, *monitorBody)
 	if httpResp != nil {
 		defer httpResp.Body.Close()
 	}
 	if err != nil {
-		return datadogV1.Monitor{}, translateClientError(err, httpResp, "error creating monitor")
+		return datadogV1.Monitor{}, ctrutils.TranslateClientError(err, httpResp, "error creating monitor")
 	}
 	return monitor, nil
 }
@@ -108,7 +109,7 @@ func createMonitor(auth context.Context, client *datadogV1.MonitorsApi, instance
 func updateMonitor(auth context.Context, client *datadogV1.MonitorsApi, instance *v1alpha1.DatadogGenericResource) (datadogV1.Monitor, error) {
 	monitorUpdateData := &datadogV1.MonitorUpdateRequest{}
 	if err := json.Unmarshal([]byte(instance.Spec.JsonSpec), monitorUpdateData); err != nil {
-		return datadogV1.Monitor{}, translateUnmarshalError(err, "error unmarshalling monitor spec")
+		return datadogV1.Monitor{}, ctrutils.TranslateUnmarshalError(err, "error unmarshalling monitor spec")
 	}
 	monitorID, err := resourceStringToInt64ID(instance.Status.Id)
 	if err != nil {
@@ -119,7 +120,7 @@ func updateMonitor(auth context.Context, client *datadogV1.MonitorsApi, instance
 		defer httpResp.Body.Close()
 	}
 	if err != nil {
-		return datadogV1.Monitor{}, translateClientError(err, httpResp, "error updating monitor")
+		return datadogV1.Monitor{}, ctrutils.TranslateClientError(err, httpResp, "error updating monitor")
 	}
 	return monitorUpdated, nil
 }

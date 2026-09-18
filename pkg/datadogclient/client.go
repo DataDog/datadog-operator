@@ -32,6 +32,14 @@ func InitDashboardClient() *datadogV1.DashboardsApi {
 	return datadogV1.NewDashboardsApi(apiClient)
 }
 
+// InitSyntheticsPrivateLocationClient creates a stateless Datadog Synthetics API client
+// for private location operations.
+func InitSyntheticsPrivateLocationClient() *datadogV1.SyntheticsApi {
+	configV1 := datadogapi.NewConfiguration()
+	apiClient := datadogapi.NewAPIClient(configV1)
+	return datadogV1.NewSyntheticsApi(apiClient)
+}
+
 // GenericClients holds the stateless API clients for generic resource operations.
 type GenericClients struct {
 	DashboardsClient               *datadogV1.DashboardsApi
