@@ -682,9 +682,10 @@ type CSPMFeatureConfig struct {
 	// +optional
 	HostBenchmarks *CSPMHostBenchmarksConfig `json:"hostBenchmarks,omitempty"`
 
-	// RunInSystemProbe configures CSPM to send payloads directly from the system-probe, without using the security-agent.
-	// This is an experimental feature. Contact support before using.
-	// Default: false
+	// RunInSystemProbe configures CSPM to run the compliance checks in the system-probe and send
+	// payloads directly, without using the security-agent.
+	// Requires Agent 7.77.0 or above; on older Agents this defaults to false.
+	// Default: true
 	// +optional
 	RunInSystemProbe *bool `json:"runInSystemProbe,omitempty"`
 }
@@ -699,7 +700,8 @@ type CSPMHostBenchmarksConfig struct {
 }
 
 // CWSFeatureConfig contains CWS (Cloud Workload Security) configuration.
-// CWS runs in the Security Agent.
+// CWS runs in the System Probe, which also sends the events unless
+// DirectSendFromSystemProbe is disabled, in which case the Security Agent sends them.
 type CWSFeatureConfig struct {
 	// Enabled enables Cloud Workload Security.
 	// Default: false
@@ -712,8 +714,8 @@ type CWSFeatureConfig struct {
 	SyscallMonitorEnabled *bool `json:"syscallMonitorEnabled,omitempty"`
 
 	// DirectSendFromSystemProbe configures CWS to send payloads directly from the system-probe, without using the security-agent.
-	// This is an experimental feature. Contact support before using.
-	// Default: false
+	// Requires Agent 7.63.0 or above; on older Agents this defaults to false.
+	// Default: true
 	// +optional
 	DirectSendFromSystemProbe *bool `json:"directSendFromSystemProbe,omitempty"`
 

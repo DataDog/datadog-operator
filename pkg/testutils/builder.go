@@ -943,6 +943,12 @@ func (builder *DatadogAgentBuilder) WithCSPMEnabled(enabled bool) *DatadogAgentB
 	return builder
 }
 
+func (builder *DatadogAgentBuilder) WithCSPMRunInSystemProbe(enabled bool) *DatadogAgentBuilder {
+	builder.initCSPM()
+	builder.datadogAgent.Spec.Features.CSPM.RunInSystemProbe = new(enabled)
+	return builder
+}
+
 // CWS
 
 func (builder *DatadogAgentBuilder) initCWS() {
@@ -954,6 +960,12 @@ func (builder *DatadogAgentBuilder) initCWS() {
 func (builder *DatadogAgentBuilder) WithCWSEnabled(enabled bool) *DatadogAgentBuilder {
 	builder.initCWS()
 	builder.datadogAgent.Spec.Features.CWS.Enabled = new(enabled)
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithCWSDirectSendFromSystemProbe(enabled bool) *DatadogAgentBuilder {
+	builder.initCWS()
+	builder.datadogAgent.Spec.Features.CWS.DirectSendFromSystemProbe = new(enabled)
 	return builder
 }
 
