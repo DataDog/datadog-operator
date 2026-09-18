@@ -8,6 +8,7 @@ package datadogsyntheticsprivatelocation
 import (
 	"context"
 	"net/http"
+	"slices"
 	"sort"
 
 	"github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
@@ -24,10 +25,8 @@ func applyRequiredTags(instance *datadoghqv1alpha1.DatadogSyntheticsPrivateLocat
 	}
 	tags := make([]string, 0, len(instance.Spec.Tags)+1)
 	tags = append(tags, instance.Spec.Tags...)
-	for _, tag := range tags {
-		if tag == datadoghqv1alpha1.DatadogSPLRequiredTag {
-			return tags
-		}
+	if slices.Contains(tags, datadoghqv1alpha1.DatadogSPLRequiredTag) {
+		return tags
 	}
 	return append(tags, datadoghqv1alpha1.DatadogSPLRequiredTag)
 }

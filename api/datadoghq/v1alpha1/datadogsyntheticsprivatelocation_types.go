@@ -275,8 +275,8 @@ type DatadogSyntheticsPrivateLocationStatus struct {
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 }
 
-// DatadogSyntheticsPrivateLocationSyncStatusMessage is the message reflecting
-// the health of private location syncs to Datadog.
+// DatadogSyntheticsPrivateLocationSyncStatus is the message reflecting the
+// health of private location syncs to Datadog.
 // +kubebuilder:validation:Enum=OK;error syncing private location;error creating private location;error updating private location;private location deleted
 type DatadogSyntheticsPrivateLocationSyncStatus string
 
