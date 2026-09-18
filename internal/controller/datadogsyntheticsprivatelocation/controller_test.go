@@ -14,6 +14,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-logr/logr"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
@@ -147,6 +149,27 @@ func getCondition(instance *datadoghqv1alpha1.DatadogSyntheticsPrivateLocation, 
 		}
 	}
 	return nil
+}
+
+func TestForceSyncPeriodFromEnv(t *testing.T) {
+	tests := []struct {
+		name  string
+		value string
+		want  time.Duration
+	}{
+		{"empty uses default", "", defaultForceSyncPeriod},
+		{"valid override", "10m", 10 * time.Minute},
+		{"invalid falls back", "banana", defaultForceSyncPeriod},
+		{"negative falls back", "-5m", defaultForceSyncPeriod},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("DD_SYNTHETICS_PRIVATE_LOCATION_FORCE_SYNC_PERIOD", tt.value)
+			if got := forceSyncPeriodFromEnv(logr.Discard(), defaultForceSyncPeriod); got != tt.want {
+				t.Errorf("forceSyncPeriodFromEnv() = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }
 
 func TestReconciler_Reconcile_create(t *testing.T) {

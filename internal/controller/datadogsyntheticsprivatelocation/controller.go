@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"time"
 
 	datadogV1 "github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
@@ -37,6 +38,8 @@ const (
 	defaultRequeuePeriod    = 60 * time.Second
 	defaultErrRequeuePeriod = 5 * time.Second
 	defaultForceSyncPeriod  = 60 * time.Minute
+
+	forceSyncPeriodEnvVar = "DD_SYNTHETICS_PRIVATE_LOCATION_FORCE_SYNC_PERIOD"
 
 	eventReasonPrefix = "DatadogSyntheticsPrivateLocation"
 )
@@ -73,7 +76,7 @@ func NewReconciler(client client.Client, credsManager *config.CredentialManager,
 	}
 	forceSyncPeriod := options.ForceSyncPeriod
 	if forceSyncPeriod <= 0 {
-		forceSyncPeriod = defaultForceSyncPeriod
+		forceSyncPeriod = forceSyncPeriodFromEnv(log, defaultForceSyncPeriod)
 	}
 
 	return &Reconciler{
@@ -345,6 +348,21 @@ func (r *Reconciler) handleOutBandDeletion(logger logr.Logger, instance *datadog
 func (r *Reconciler) handleConfigMissing(logger logr.Logger, instance *datadoghqv1alpha1.DatadogSyntheticsPrivateLocation, now metav1.Time, err error) {
 	logger.Error(err, "worker config is missing and cannot be recovered")
 	setErrorCondition(instance, now, reasonConfigMissing, errors.New("the worker config Secret is missing its Datadog-provided data and cannot be recovered; recreate the DatadogSyntheticsPrivateLocation"))
+}
+
+// forceSyncPeriodFromEnv returns the force-sync period configured via
+// DD_SYNTHETICS_PRIVATE_LOCATION_FORCE_SYNC_PERIOD, or def when unset or invalid.
+func forceSyncPeriodFromEnv(logger logr.Logger, def time.Duration) time.Duration {
+	value := os.Getenv(forceSyncPeriodEnvVar)
+	if value == "" {
+		return def
+	}
+	parsed, err := time.ParseDuration(value)
+	if err != nil || parsed <= 0 {
+		logger.Error(err, "invalid force sync period, using default", "env", forceSyncPeriodEnvVar, "value", value, "default", def.String())
+		return def
+	}
+	return parsed
 }
 
 // validateSpec checks spec invariants that the CRD schema cannot express.
