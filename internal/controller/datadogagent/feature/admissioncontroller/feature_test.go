@@ -37,25 +37,14 @@ func Test_admissionControllerFeature_Configure(t *testing.T) {
 			WantConfigure: false,
 		},
 		{
-			Name: "Admission Controller enabled with basic setup",
-			DDA: testutils.NewDatadogAgentBuilder().
-				WithAdmissionControllerEnabled(true).
-				Build(),
-			FeatureOptions: &feature.Options{DatadogCSIDriverEnabled: true},
-			WantConfigure:  true,
-			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
-				admissionControllerWantFunc(false, false, "", "", false)),
-			WantDependenciesFunc: assertCSIDriverRBAC,
-		},
-		{
-			Name: "Admission Controller enabled with CSI driver disabled",
+			Name: "Admission Controller enabled grants CSI driver RBAC unconditionally",
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithAdmissionControllerEnabled(true).
 				Build(),
 			WantConfigure: true,
 			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
 				admissionControllerWantFunc(false, false, "", "", false)),
-			WantDependenciesFunc: assertNoCSIDriverRBAC,
+			WantDependenciesFunc: assertCSIDriverRBAC,
 		},
 		{
 			Name: "Admission Controller enabled with validation and mutation enabled",
@@ -285,20 +274,6 @@ func assertCSIDriverRBAC(t testing.TB, sc store.StoreClient) {
 			rbac.GetVerb,
 		},
 	})
-}
-
-func assertNoCSIDriverRBAC(t testing.TB, sc store.StoreClient) {
-	crObj, found := sc.Get(kubernetes.ClusterRolesKind, "", "-cluster-agent")
-	assert.True(t, found, "Cluster Agent ClusterRole should be created")
-
-	cr, ok := crObj.(*rbacv1.ClusterRole)
-	assert.True(t, ok, "Cluster Agent ClusterRole should have the expected type")
-
-	for _, rule := range cr.Rules {
-		for _, resource := range rule.Resources {
-			assert.NotEqual(t, rbac.CSIDriversResource, resource, "Cluster Agent ClusterRole should not grant csidrivers RBAC when CSI driver is disabled")
-		}
-	}
 }
 
 func testDCAResources(acm string, registry string, cwsInstrumentationEnabled bool) *test.ComponentTest {
