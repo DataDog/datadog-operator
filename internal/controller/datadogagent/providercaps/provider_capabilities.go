@@ -14,6 +14,7 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/merger"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 // PodTemplateManager is the minimal interface ApplyProviderCapabilities needs
@@ -134,12 +135,27 @@ func ApplyProviderCapabilities(mgr PodTemplateManager, provider string, caps Pro
 	if baseline, ok := caps[""]; ok {
 		applyAdditions(baseline)
 	}
-	if provider != "" {
-		if providerCaps, ok := caps[provider]; ok {
-			applyRemovals(providerCaps)
-			applyAdditions(providerCaps)
+	if providerCaps, ok := lookupProvider(caps, provider); ok {
+		applyRemovals(providerCaps)
+		applyAdditions(providerCaps)
+	}
+}
+
+// lookupProvider resolves the entry for provider: an exact key, else the family key
+// (kubernetes.ProviderFamily). Exact wins, so a variant can override a family rule.
+func lookupProvider(caps ProviderCapabilityMap, provider string) (ProviderCapabilities, bool) {
+	if provider == "" {
+		return ProviderCapabilities{}, false
+	}
+	if c, ok := caps[provider]; ok {
+		return c, true
+	}
+	if family := kubernetes.ProviderFamily(provider); family != provider {
+		if c, ok := caps[family]; ok {
+			return c, true
 		}
 	}
+	return ProviderCapabilities{}, false
 }
 
 // stripVolume removes a named volume from the pod spec and all its mounts

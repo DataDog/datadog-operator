@@ -37,6 +37,10 @@ func ApplyGlobalNodeAgentSpec(mgr feature.PodTemplateManagers, provider string) 
 func applyProviderPodLabels(mgr feature.PodTemplateManagers, provider string) {
 	labels := nodeAgentProviderPodLabels[provider]
 	if len(labels) == 0 {
+		// Fall back to the family so an OpenShift rule matches every openshift-<os_id>.
+		labels = nodeAgentProviderPodLabels[kubernetes.ProviderFamily(provider)]
+	}
+	if len(labels) == 0 {
 		return
 	}
 	tmpl := mgr.PodTemplateSpec()
