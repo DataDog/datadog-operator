@@ -148,6 +148,56 @@ func TestDecodeManagedAgentInstallationIntent(t *testing.T) {
 	assert.Equal(t, digest, repeatedDigest)
 }
 
+func TestDecodeManagedAgentInstallationIntentWithDatadogAgentConfig(t *testing.T) {
+	registry := "registry.example"
+	payload := eksManagedAgentInstallationIntent{
+		Version:        managedAgentInstallationVersionV2,
+		InstallationID: testManagedAgentInstallationIdentity.InstallationID(),
+		EKSARNSHA256:   testManagedAgentInstallationTargetHash,
+		OperationID:    testAddonInstallOperationID,
+		DesiredState:   managedAgentInstallationDesiredStateInstalled,
+		Bootstrap: managedAgentInstallationBootstrap{
+			ClusterName: "test-cluster",
+			Site:        "datadoghq.com",
+		},
+		DatadogAgent: &datadogAgentManagedAgentInstallationConfig{Spec: &v2alpha1.DatadogAgentSpec{
+			Features: &v2alpha1.DatadogFeatures{APM: &v2alpha1.APMFeatureConfig{Enabled: new(true)}},
+			Global:   &v2alpha1.GlobalConfig{Registry: &registry},
+			Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+				v2alpha1.NodeAgentComponentName: {NodeSelector: map[string]string{"node-pool": "observability"}},
+			},
+		}},
+	}
+	raw, err := json.Marshal(payload)
+	require.NoError(t, err)
+
+	_, config, digest, err := decodeManagedAgentInstallationIntent(raw, testManagedAgentInstallationIdentity)
+
+	require.NoError(t, err)
+	var decoded datadogAgentManagedAgentInstallationConfig
+	require.NoError(t, json.Unmarshal(config, &decoded))
+	require.NotNil(t, decoded.Spec)
+	require.NotNil(t, decoded.Spec.Global)
+	assert.Equal(t, "test-cluster", *decoded.Spec.Global.ClusterName)
+	assert.Equal(t, "datadoghq.com", *decoded.Spec.Global.Site)
+	assert.Equal(t, registry, *decoded.Spec.Global.Registry)
+	require.NotNil(t, decoded.Spec.Features)
+	require.NotNil(t, decoded.Spec.Features.APM)
+	assert.Equal(t, new(true), decoded.Spec.Features.APM.Enabled)
+	assert.Equal(t, "observability", decoded.Spec.Override[v2alpha1.NodeAgentComponentName].NodeSelector["node-pool"])
+	assert.Equal(t, string(corev1.Linux), decoded.Spec.Override[v2alpha1.NodeAgentComponentName].NodeSelector[corev1.LabelOSStable])
+	assert.Equal(t, string(corev1.Linux), decoded.Spec.Override[v2alpha1.ClusterAgentComponentName].NodeSelector[corev1.LabelOSStable])
+	assert.Len(t, digest, 64)
+
+	otherRegistry := "other.example"
+	payload.DatadogAgent.Spec.Global.Registry = &otherRegistry
+	otherRaw, err := json.Marshal(payload)
+	require.NoError(t, err)
+	_, _, otherDigest, err := decodeManagedAgentInstallationIntent(otherRaw, testManagedAgentInstallationIdentity)
+	require.NoError(t, err)
+	assert.NotEqual(t, digest, otherDigest)
+}
+
 func TestDecodeManagedAgentInstallationIntentRejectsUnsafeInput(t *testing.T) {
 	valid := fmt.Sprintf(`{"version":"v1","installationID":"%s","eksARNSHA256":"%s","operationID":"%s","desiredState":"installed","bootstrap":{"clusterName":"test-cluster","site":"datadoghq.com"}}`, testManagedAgentInstallationIdentity.InstallationID(), testManagedAgentInstallationTargetHash, testAddonInstallOperationID)
 	tests := []struct {
@@ -177,8 +227,63 @@ func TestDecodeManagedAgentInstallationIntentRejectsUnsafeInput(t *testing.T) {
 		},
 		{
 			name:      "unsupported version",
-			raw:       []byte(strings.Replace(valid, `"version":"v1"`, `"version":"v2"`, 1)),
+			raw:       []byte(strings.Replace(valid, `"version":"v1"`, `"version":"v3"`, 1)),
 			wantError: "unsupported EKS managed Agent installation version",
+		},
+		{
+			name:      "DatadogAgent config with v1",
+			raw:       []byte(strings.Replace(valid, `"version":"v1"`, `"version":"v1","datadogAgent":{"spec":{}}`, 1)),
+			wantError: "does not support DatadogAgent config",
+		},
+		{
+			name:      "DatadogAgent config without spec",
+			raw:       []byte(strings.Replace(valid, `"version":"v1"`, `"version":"v2","datadogAgent":{}`, 1)),
+			wantError: "must contain spec",
+		},
+		{
+			name:      "DatadogAgent credentials",
+			raw:       []byte(strings.Replace(valid, `"version":"v1"`, `"version":"v2","datadogAgent":{"spec":{"global":{"credentials":{"apiSecret":{"secretName":"other"}}}}}`, 1)),
+			wantError: "must not contain spec.global.credentials",
+		},
+		{
+			name:      "DatadogAgent cluster name",
+			raw:       []byte(strings.Replace(valid, `"version":"v1"`, `"version":"v2","datadogAgent":{"spec":{"global":{"clusterName":"other"}}}`, 1)),
+			wantError: "must not contain spec.global.clusterName",
+		},
+		{
+			name:      "DatadogAgent site",
+			raw:       []byte(strings.Replace(valid, `"version":"v1"`, `"version":"v2","datadogAgent":{"spec":{"global":{"site":"datadoghq.eu"}}}`, 1)),
+			wantError: "must not contain spec.global.site",
+		},
+		{
+			name:      "DatadogAgent endpoint",
+			raw:       []byte(strings.Replace(valid, `"version":"v1"`, `"version":"v2","datadogAgent":{"spec":{"global":{"endpoint":{"url":"https://example.com"}}}}`, 1)),
+			wantError: "must not contain spec.global.endpoint",
+		},
+		{
+			name:      "DatadogAgent global managed environment variable",
+			raw:       []byte(strings.Replace(valid, `"version":"v1"`, `"version":"v2","datadogAgent":{"spec":{"global":{"env":[{"name":"DD_SITE","value":"datadoghq.eu"}]}}}`, 1)),
+			wantError: `must not contain spec.global.env entry "DD_SITE"`,
+		},
+		{
+			name:      "DatadogAgent component managed environment variable",
+			raw:       []byte(strings.Replace(valid, `"version":"v1"`, `"version":"v2","datadogAgent":{"spec":{"override":{"nodeAgent":{"env":[{"name":"DD_CLUSTER_AGENT_AUTH_TOKEN","value":"token"}]}}}}`, 1)),
+			wantError: `must not contain spec.override.nodeAgent.env entry "DD_CLUSTER_AGENT_AUTH_TOKEN"`,
+		},
+		{
+			name:      "DatadogAgent container managed environment variable",
+			raw:       []byte(strings.Replace(valid, `"version":"v1"`, `"version":"v2","datadogAgent":{"spec":{"override":{"nodeAgent":{"containers":{"agent":{"env":[{"name":"DD_API_KEY","value":"key"}]}}}}}}`, 1)),
+			wantError: `must not contain spec.override.nodeAgent.containers.agent.env entry "DD_API_KEY"`,
+		},
+		{
+			name:      "unknown DatadogAgent spec field",
+			raw:       []byte(strings.Replace(valid, `"version":"v1"`, `"version":"v2","datadogAgent":{"spec":{"unknown":true}}`, 1)),
+			wantError: "unknown field",
+		},
+		{
+			name:      "DatadogAgent config on uninstall",
+			raw:       []byte(strings.NewReplacer(`"version":"v1"`, `"version":"v2","datadogAgent":{"spec":{}}`, `"desiredState":"installed"`, `"desiredState":"absent"`).Replace(valid)),
+			wantError: "uninstall intent must not contain DatadogAgent config",
 		},
 		{
 			name:      "invalid installation ID",
@@ -943,7 +1048,7 @@ func TestManagedAgentInstallationResultCannotOverwriteNewerOperation(t *testing.
 	}))
 
 	oldCommand := newManagedAgentInstallationCommand(managedAgentInstallationIntent{
-		Version:        managedAgentInstallationVersion,
+		Version:        managedAgentInstallationVersionV1,
 		Provider:       testManagedAgentInstallationIdentity.Provider(),
 		InstallationID: testManagedAgentInstallationIdentity.InstallationID(),
 		TargetID:       testManagedAgentInstallationIdentity.TargetID(),
@@ -962,7 +1067,7 @@ func TestManagedAgentInstallationResultCannotOverwriteNewerOperation(t *testing.
 
 func TestValidateManagedAgentInstallationProgress(t *testing.T) {
 	install := managedAgentInstallationIntent{
-		Version:        managedAgentInstallationVersion,
+		Version:        managedAgentInstallationVersionV1,
 		Provider:       testManagedAgentInstallationIdentity.Provider(),
 		InstallationID: testManagedAgentInstallationIdentity.InstallationID(),
 		TargetID:       testManagedAgentInstallationIdentity.TargetID(),
@@ -990,7 +1095,7 @@ func TestValidateManagedAgentInstallationProgress(t *testing.T) {
 	require.Error(t, validateManagedAgentInstallationProgress(current, install, "install-digest"))
 
 	uninstall := managedAgentInstallationIntent{
-		Version:                 managedAgentInstallationVersion,
+		Version:                 managedAgentInstallationVersionV1,
 		Provider:                testManagedAgentInstallationIdentity.Provider(),
 		InstallationID:          testManagedAgentInstallationIdentity.InstallationID(),
 		TargetID:                testManagedAgentInstallationIdentity.TargetID(),
@@ -1746,7 +1851,7 @@ func TestDecodeManagedAgentInstallationIntentRejectsUnsupportedProvider(t *testi
 func testManagedAgentInstallationIntent(t *testing.T, operationID string, desiredState managedAgentInstallationDesiredState, acknowledgedOperationID ...string) []byte {
 	t.Helper()
 	payload := eksManagedAgentInstallationIntent{
-		Version:        managedAgentInstallationVersion,
+		Version:        managedAgentInstallationVersionV1,
 		InstallationID: testManagedAgentInstallationIdentity.InstallationID(),
 		EKSARNSHA256:   testManagedAgentInstallationTargetHash,
 		OperationID:    operationID,
