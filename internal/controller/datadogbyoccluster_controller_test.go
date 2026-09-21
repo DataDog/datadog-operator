@@ -1,0 +1,546 @@
+// Unless explicitly stated otherwise all files in this repository are licensed
+// under the Apache License Version 2.0.
+// This product includes software developed at Datadog (https://www.datadoghq.com/).
+// Copyright 2016-present Datadog, Inc.
+
+//go:build integration
+// +build integration
+
+package controller
+
+import (
+	"context"
+	"errors"
+	"slices"
+	"time"
+
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
+	appsv1 "k8s.io/api/apps/v1"
+	autoscalingv2 "k8s.io/api/autoscaling/v2"
+	corev1 "k8s.io/api/core/v1"
+	policyv1 "k8s.io/api/policy/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	byocimage "github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/image"
+)
+
+const (
+	byocSuccessReleaseTag = "success"
+	byocFailureReleaseTag = "failure"
+	byocPipelineID        = "pipeline-id"
+	testDeletionFinalizer = "test.datadoghq.com/deletion"
+)
+
+var _ = Describe("DatadogBYOCCluster Controller", func() {
+	var (
+		cluster   *datadoghqv1alpha1.DatadogBYOCCluster
+		namespace *corev1.Namespace
+	)
+
+	BeforeEach(func() {
+		namespace = &corev1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{GenerateName: "byoc-test-"},
+		}
+		createKubernetesObject(k8sClient, namespace)
+
+		cluster = &datadoghqv1alpha1.DatadogBYOCCluster{
+			ObjectMeta: metav1.ObjectMeta{Name: "byoc", Namespace: namespace.Name},
+			Spec: datadoghqv1alpha1.DatadogBYOCClusterSpec{
+				Release: &datadoghqv1alpha1.DatadogBYOCClusterReleaseSpec{},
+				Datadog: &datadoghqv1alpha1.DatadogBYOCClusterDatadogSpec{
+					APIKeySecretRef: &corev1.SecretKeySelector{
+						LocalObjectReference: corev1.LocalObjectReference{Name: "datadog-secret"},
+						Key:                  "api-key",
+					},
+				},
+				Components: &datadoghqv1alpha1.DatadogBYOCClusterComponentsSpec{
+					Metastore:         &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{},
+					Indexer:           &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{Autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{}},
+					Searcher:          &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{Autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{}},
+					Pipeline:          byocTestPipeline(),
+					ControlPlane:      &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
+					Janitor:           &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
+					ReadOnlyMetastore: &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{},
+					Compactor:         &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
+				},
+			},
+		}
+	})
+
+	AfterEach(func() {
+		deleteKubernetesObject(k8sClient, namespace)
+	})
+
+	Context("when release resolution succeeds", func() {
+		BeforeEach(func() {
+			cluster.Spec.Release.Tag = ptr.To(byocSuccessReleaseTag)
+			createKubernetesObject(k8sClient, cluster)
+		})
+
+		AfterEach(func() {
+			deleteKubernetesObject(k8sClient, cluster)
+		})
+
+		It("creates the managed resources and reports their status", func() {
+			want := &datadoghqv1alpha1.DatadogBYOCCluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:       "byoc",
+					Namespace:  namespace.Name,
+					Generation: 1,
+					Finalizers: []string{datadogBYOCClusterFinalizer},
+				},
+				Spec: datadoghqv1alpha1.DatadogBYOCClusterSpec{
+					Release: &datadoghqv1alpha1.DatadogBYOCClusterReleaseSpec{
+						Tag: ptr.To(byocSuccessReleaseTag),
+					},
+					Datadog: &datadoghqv1alpha1.DatadogBYOCClusterDatadogSpec{
+						Site:          ptr.To("datadoghq.com"),
+						BYOCTelemetry: ptr.To(true),
+						APIKeySecretRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{Name: "datadog-secret"},
+							Key:                  "api-key",
+						},
+						DogstatsdServer: &datadoghqv1alpha1.DatadogBYOCClusterDogstatsdServerSpec{
+							Port: ptr.To[int32](8125),
+						},
+					},
+					Components: &datadoghqv1alpha1.DatadogBYOCClusterComponentsSpec{
+						Metastore:         &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{},
+						Indexer:           &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{Autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{}},
+						Searcher:          &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{Autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{}},
+						Pipeline:          byocTestPipeline(),
+						ControlPlane:      &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
+						Janitor:           &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
+						ReadOnlyMetastore: &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{},
+						Compactor:         &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
+					},
+				},
+				Status: datadoghqv1alpha1.DatadogBYOCClusterStatus{
+					Conditions: []metav1.Condition{
+						{
+							Type:               conditionReleaseResolved,
+							Status:             metav1.ConditionTrue,
+							ObservedGeneration: 1,
+							Reason:             "Resolved",
+							Message:            "Workload images resolved successfully",
+						},
+						{
+							Type:               conditionReconciled,
+							Status:             metav1.ConditionTrue,
+							ObservedGeneration: 1,
+							Reason:             "Reconciled",
+							Message:            "Managed resources match the desired state",
+						},
+						{
+							Type:               conditionAvailable,
+							Status:             metav1.ConditionFalse,
+							ObservedGeneration: 1,
+							Reason:             "WorkloadsUnavailable",
+							Message:            "One or more workloads are not yet available",
+						},
+					},
+					Indexer: &datadoghqv1alpha1.DatadogBYOCClusterStatefulSetStatus{
+						ObservedGeneration: ptr.To[int64](0),
+						Replicas:           ptr.To[int32](0),
+						ReadyReplicas:      ptr.To[int32](0),
+					},
+					Searcher: &datadoghqv1alpha1.DatadogBYOCClusterStatefulSetStatus{
+						ObservedGeneration: ptr.To[int64](0),
+						Replicas:           ptr.To[int32](0),
+						ReadyReplicas:      ptr.To[int32](0),
+					},
+					Pipeline: &datadoghqv1alpha1.DatadogBYOCClusterStatefulSetStatus{
+						ObservedGeneration: ptr.To[int64](1),
+						Replicas:           ptr.To[int32](0),
+						ReadyReplicas:      ptr.To[int32](0),
+					},
+					Metastore: &datadoghqv1alpha1.DatadogBYOCClusterDeploymentStatus{
+						Replicas:            ptr.To[int32](0),
+						ReadyReplicas:       ptr.To[int32](0),
+						UnavailableReplicas: ptr.To[int32](0),
+						AvailableReplicas:   ptr.To[int32](0),
+					},
+					ControlPlane: &datadoghqv1alpha1.DatadogBYOCClusterDeploymentStatus{
+						Replicas:            ptr.To[int32](0),
+						ReadyReplicas:       ptr.To[int32](0),
+						UnavailableReplicas: ptr.To[int32](0),
+						AvailableReplicas:   ptr.To[int32](0),
+					},
+					Janitor: &datadoghqv1alpha1.DatadogBYOCClusterDeploymentStatus{
+						Replicas:            ptr.To[int32](0),
+						ReadyReplicas:       ptr.To[int32](0),
+						UnavailableReplicas: ptr.To[int32](0),
+						AvailableReplicas:   ptr.To[int32](0),
+					},
+					ReadOnlyMetastore: &datadoghqv1alpha1.DatadogBYOCClusterDeploymentStatus{
+						Replicas:            ptr.To[int32](0),
+						ReadyReplicas:       ptr.To[int32](0),
+						UnavailableReplicas: ptr.To[int32](0),
+						AvailableReplicas:   ptr.To[int32](0),
+					},
+					Compactor: &datadoghqv1alpha1.DatadogBYOCClusterDeploymentStatus{
+						Replicas:            ptr.To[int32](0),
+						ReadyReplicas:       ptr.To[int32](0),
+						UnavailableReplicas: ptr.To[int32](0),
+						AvailableReplicas:   ptr.To[int32](0),
+					},
+				},
+			}
+
+			Eventually(func() string {
+				got := &datadoghqv1alpha1.DatadogBYOCCluster{}
+				if err := k8sClient.Get(context.Background(), client.ObjectKeyFromObject(cluster), got); err != nil {
+					return err.Error()
+				}
+				return cmp.Diff(want, got,
+					cmpopts.IgnoreFields(metav1.ObjectMeta{}, "ResourceVersion", "UID", "CreationTimestamp", "ManagedFields"),
+					cmpopts.IgnoreFields(metav1.Condition{}, "LastTransitionTime"),
+				)
+			}, timeout, interval).Should(BeEmpty())
+
+			worker := &datadoghqv1alpha1.DatadogObservabilityPipelinesWorker{ObjectMeta: metav1.ObjectMeta{Name: "byoc-pipeline", Namespace: namespace.Name}}
+			resources := []client.Object{
+				worker,
+				&corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "byoc", Namespace: namespace.Name}},
+				&corev1.ServiceAccount{ObjectMeta: metav1.ObjectMeta{Name: "byoc", Namespace: namespace.Name}},
+				&corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: "byoc-headless", Namespace: namespace.Name}},
+				&corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: "byoc-indexer", Namespace: namespace.Name}},
+				&corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: "byoc-searcher", Namespace: namespace.Name}},
+				&corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: "byoc-metastore", Namespace: namespace.Name}},
+				&corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: "byoc-control-plane", Namespace: namespace.Name}},
+				&corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: "byoc-janitor", Namespace: namespace.Name}},
+				&corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: "byoc-read-only-metastore", Namespace: namespace.Name}},
+				&corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: "byoc-compactor", Namespace: namespace.Name}},
+				&appsv1.StatefulSet{ObjectMeta: metav1.ObjectMeta{Name: "byoc-indexer", Namespace: namespace.Name}},
+				&appsv1.StatefulSet{ObjectMeta: metav1.ObjectMeta{Name: "byoc-searcher", Namespace: namespace.Name}},
+				&appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "byoc-metastore", Namespace: namespace.Name}},
+				&appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "byoc-control-plane", Namespace: namespace.Name}},
+				&appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "byoc-janitor", Namespace: namespace.Name}},
+				&appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "byoc-read-only-metastore", Namespace: namespace.Name}},
+				&appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "byoc-compactor", Namespace: namespace.Name}},
+				&autoscalingv2.HorizontalPodAutoscaler{ObjectMeta: metav1.ObjectMeta{Name: "byoc-indexer", Namespace: namespace.Name}},
+				&autoscalingv2.HorizontalPodAutoscaler{ObjectMeta: metav1.ObjectMeta{Name: "byoc-searcher", Namespace: namespace.Name}},
+				&policyv1.PodDisruptionBudget{ObjectMeta: metav1.ObjectMeta{Name: "byoc-indexer", Namespace: namespace.Name}},
+				&policyv1.PodDisruptionBudget{ObjectMeta: metav1.ObjectMeta{Name: "byoc-searcher", Namespace: namespace.Name}},
+				&policyv1.PodDisruptionBudget{ObjectMeta: metav1.ObjectMeta{Name: "byoc-metastore", Namespace: namespace.Name}},
+				&policyv1.PodDisruptionBudget{ObjectMeta: metav1.ObjectMeta{Name: "byoc-control-plane", Namespace: namespace.Name}},
+				&policyv1.PodDisruptionBudget{ObjectMeta: metav1.ObjectMeta{Name: "byoc-janitor", Namespace: namespace.Name}},
+				&policyv1.PodDisruptionBudget{ObjectMeta: metav1.ObjectMeta{Name: "byoc-read-only-metastore", Namespace: namespace.Name}},
+				&policyv1.PodDisruptionBudget{ObjectMeta: metav1.ObjectMeta{Name: "byoc-compactor", Namespace: namespace.Name}},
+			}
+			for _, resource := range resources {
+				Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(resource), resource)).Should(Succeed())
+			}
+			Expect(metav1.IsControlledBy(worker, cluster)).To(BeTrue())
+			Expect(cmp.Diff(cluster.Spec.Components.Pipeline.Ports, worker.Spec.Ports)).To(BeEmpty())
+		})
+
+		It("copies the worker status to the parent", func() {
+			worker := &datadoghqv1alpha1.DatadogObservabilityPipelinesWorker{}
+			Eventually(func() error {
+				return k8sClient.Get(context.Background(), client.ObjectKey{Name: "byoc-pipeline", Namespace: namespace.Name}, worker)
+			}, timeout, interval).Should(Succeed())
+
+			statefulSet := &appsv1.StatefulSet{}
+			Eventually(func() error {
+				if err := k8sClient.Get(context.Background(), client.ObjectKey{Name: worker.Name, Namespace: worker.Namespace}, statefulSet); err != nil {
+					return err
+				}
+				statefulSet.Status.ObservedGeneration = statefulSet.Generation
+				statefulSet.Status.Replicas = 2
+				statefulSet.Status.ReadyReplicas = 2
+				return k8sClient.Status().Update(context.Background(), statefulSet)
+			}, timeout, interval).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				current := &datadoghqv1alpha1.DatadogBYOCCluster{}
+				g.Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(cluster), current)).To(Succeed())
+				g.Expect(current.Status.Pipeline).To(Equal(&datadoghqv1alpha1.DatadogBYOCClusterStatefulSetStatus{
+					ObservedGeneration: ptr.To(worker.Generation),
+					Replicas:           ptr.To[int32](2),
+					ReadyReplicas:      ptr.To[int32](2),
+				}))
+			}, timeout, interval).Should(Succeed())
+		})
+	})
+
+	Context("when the cluster is deleted", func() {
+		BeforeEach(func() {
+			cluster.Spec.Release.Tag = ptr.To(byocSuccessReleaseTag)
+			createKubernetesObject(k8sClient, cluster)
+		})
+
+		It("deletes the worker before the indexer and the indexer before the parent", func() {
+			worker := &datadoghqv1alpha1.DatadogObservabilityPipelinesWorker{ObjectMeta: metav1.ObjectMeta{Name: "byoc-pipeline", Namespace: namespace.Name}}
+			indexer := &appsv1.StatefulSet{ObjectMeta: metav1.ObjectMeta{Name: "byoc-indexer", Namespace: namespace.Name}}
+			for _, object := range []client.Object{worker, indexer} {
+				Eventually(func() error {
+					return k8sClient.Get(context.Background(), client.ObjectKeyFromObject(object), object)
+				}, timeout, interval).Should(Succeed())
+			}
+
+			By("holding both resources so each deletion phase can be observed")
+			addTestFinalizer := func(object client.Object) {
+				Eventually(func() error {
+					current := object.DeepCopyObject().(client.Object)
+					if err := k8sClient.Get(context.Background(), client.ObjectKeyFromObject(object), current); err != nil {
+						return err
+					}
+					if slices.Contains(current.GetFinalizers(), testDeletionFinalizer) {
+						return nil
+					}
+					current.SetFinalizers(append(current.GetFinalizers(), testDeletionFinalizer))
+					return k8sClient.Update(context.Background(), current)
+				}, timeout, interval).Should(Succeed())
+			}
+			addTestFinalizer(worker)
+			addTestFinalizer(indexer)
+
+			By("deleting the parent")
+			currentCluster := &datadoghqv1alpha1.DatadogBYOCCluster{}
+			Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(cluster), currentCluster)).To(Succeed())
+			Expect(k8sClient.Delete(context.Background(), currentCluster)).To(Succeed())
+
+			By("verifying that worker deletion starts before indexer deletion")
+			Eventually(func(g Gomega) {
+				currentWorker := &datadoghqv1alpha1.DatadogObservabilityPipelinesWorker{}
+				g.Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(worker), currentWorker)).To(Succeed())
+				g.Expect(currentWorker.DeletionTimestamp.IsZero()).To(BeFalse())
+
+				currentIndexer := &appsv1.StatefulSet{}
+				g.Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(indexer), currentIndexer)).To(Succeed())
+				g.Expect(currentIndexer.DeletionTimestamp.IsZero()).To(BeTrue())
+			}, timeout, interval).Should(Succeed())
+
+			Consistently(func(g Gomega) {
+				current := &appsv1.StatefulSet{}
+				g.Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(indexer), current)).To(Succeed())
+				g.Expect(current.DeletionTimestamp.IsZero()).To(BeTrue())
+			}, 2*time.Second, interval).Should(Succeed())
+
+			By("allowing worker deletion to finish")
+			// envtest does not run the Kubernetes garbage collector, so remove its
+			// foreground-deletion finalizer along with the test finalizer.
+			removeTestFinalizers := func(object client.Object, finalizers ...string) {
+				Eventually(func() error {
+					current := object.DeepCopyObject().(client.Object)
+					if err := k8sClient.Get(context.Background(), client.ObjectKeyFromObject(object), current); err != nil {
+						return err
+					}
+					current.SetFinalizers(slices.DeleteFunc(current.GetFinalizers(), func(finalizer string) bool {
+						return slices.Contains(finalizers, finalizer)
+					}))
+					return k8sClient.Update(context.Background(), current)
+				}, timeout, interval).Should(Succeed())
+			}
+			removeTestFinalizers(worker, testDeletionFinalizer, metav1.FinalizerDeleteDependents)
+
+			waitForDeletion := func(object client.Object) {
+				Eventually(func() bool {
+					err := k8sClient.Get(context.Background(), client.ObjectKeyFromObject(object), object.DeepCopyObject().(client.Object))
+					return apierrors.IsNotFound(err)
+				}, timeout, interval).Should(BeTrue())
+			}
+			waitForDeletion(worker)
+
+			By("verifying that indexer deletion starts before parent deletion finishes")
+			Eventually(func(g Gomega) {
+				currentIndexer := &appsv1.StatefulSet{}
+				g.Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(indexer), currentIndexer)).To(Succeed())
+				g.Expect(currentIndexer.DeletionTimestamp.IsZero()).To(BeFalse())
+
+				currentCluster := &datadoghqv1alpha1.DatadogBYOCCluster{}
+				g.Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(cluster), currentCluster)).To(Succeed())
+				g.Expect(currentCluster.Finalizers).To(ContainElement(datadogBYOCClusterFinalizer))
+			}, timeout, interval).Should(Succeed())
+
+			By("allowing indexer and parent deletion to finish")
+			removeTestFinalizers(indexer, testDeletionFinalizer)
+			waitForDeletion(indexer)
+			waitForDeletion(cluster)
+		})
+	})
+
+	Context("when release resolution fails", func() {
+		BeforeEach(func() {
+			cluster.Spec.Release.Tag = ptr.To(byocFailureReleaseTag)
+			createKubernetesObject(k8sClient, cluster)
+		})
+
+		AfterEach(func() {
+			deleteKubernetesObject(k8sClient, cluster)
+		})
+
+		It("reports the failure without creating managed resources", func() {
+			want := &datadoghqv1alpha1.DatadogBYOCCluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:       "byoc",
+					Namespace:  namespace.Name,
+					Generation: 1,
+					Finalizers: []string{datadogBYOCClusterFinalizer},
+				},
+				Spec: datadoghqv1alpha1.DatadogBYOCClusterSpec{
+					Release: &datadoghqv1alpha1.DatadogBYOCClusterReleaseSpec{
+						Tag: ptr.To(byocFailureReleaseTag),
+					},
+					Datadog: &datadoghqv1alpha1.DatadogBYOCClusterDatadogSpec{
+						Site:          ptr.To("datadoghq.com"),
+						BYOCTelemetry: ptr.To(true),
+						APIKeySecretRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{Name: "datadog-secret"},
+							Key:                  "api-key",
+						},
+						DogstatsdServer: &datadoghqv1alpha1.DatadogBYOCClusterDogstatsdServerSpec{
+							Port: ptr.To[int32](8125),
+						},
+					},
+					Components: &datadoghqv1alpha1.DatadogBYOCClusterComponentsSpec{
+						Metastore:         &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{},
+						Indexer:           &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{Autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{}},
+						Searcher:          &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{Autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{}},
+						Pipeline:          byocTestPipeline(),
+						ControlPlane:      &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
+						Janitor:           &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
+						ReadOnlyMetastore: &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{},
+						Compactor:         &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
+					},
+				},
+				Status: datadoghqv1alpha1.DatadogBYOCClusterStatus{
+					Conditions: []metav1.Condition{
+						{
+							Type:               conditionReleaseResolved,
+							Status:             metav1.ConditionFalse,
+							ObservedGeneration: 1,
+							Reason:             "ResolutionFailed",
+							Message:            "release unavailable",
+						},
+						{
+							Type:               conditionReconciled,
+							Status:             metav1.ConditionFalse,
+							ObservedGeneration: 1,
+							Reason:             "ResolutionFailed",
+							Message:            "release unavailable",
+						},
+						{
+							Type:               conditionAvailable,
+							Status:             metav1.ConditionFalse,
+							ObservedGeneration: 1,
+							Reason:             "ResolutionFailed",
+							Message:            "release unavailable",
+						},
+					},
+				},
+			}
+
+			Eventually(func() string {
+				got := &datadoghqv1alpha1.DatadogBYOCCluster{}
+				if err := k8sClient.Get(context.Background(), client.ObjectKeyFromObject(cluster), got); err != nil {
+					return err.Error()
+				}
+				return cmp.Diff(want, got,
+					cmpopts.IgnoreFields(metav1.ObjectMeta{}, "ResourceVersion", "UID", "CreationTimestamp", "ManagedFields"),
+					cmpopts.IgnoreFields(metav1.Condition{}, "LastTransitionTime"),
+				)
+			}, timeout, interval).Should(BeEmpty())
+
+			err := k8sClient.Get(context.Background(), client.ObjectKey{Name: "byoc", Namespace: namespace.Name}, &corev1.ConfigMap{})
+			Expect(apierrors.IsNotFound(err)).Should(BeTrue())
+		})
+	})
+})
+
+type fakeBYOCImageResolver struct {
+	results map[string]fakeBYOCImageResult
+}
+
+type fakeBYOCImageResult struct {
+	images *byocimage.ResolvedImages
+	err    error
+}
+
+func newFakeBYOCImageResolver() byocimage.ImageResolver {
+	return &fakeBYOCImageResolver{
+		results: map[string]fakeBYOCImageResult{
+			byocSuccessReleaseTag: {
+				images: &byocimage.ResolvedImages{
+					Pomsky: byocimage.ResolvedImage{
+						Repository: "registry.invalid/datadog/cloudprem",
+						Tag:        "envtest",
+					},
+					ObservabilityPipelinesWorker: byocimage.ResolvedImage{
+						Repository: "registry.invalid/datadog/observability-pipelines-worker",
+						Tag:        "envtest",
+					},
+				},
+			},
+			byocFailureReleaseTag: {err: errors.New("release unavailable")},
+		},
+	}
+}
+
+func (r *fakeBYOCImageResolver) Resolve(_ context.Context, spec *datadoghqv1alpha1.DatadogBYOCClusterReleaseSpec, overrides *datadoghqv1alpha1.DatadogBYOCClusterImageOverrides) (*byocimage.ResolvedImages, error) {
+	if overrides != nil && completeFakeImageOverride(overrides.BYOC) && completeFakeImageOverride(overrides.ObservabilityPipelinesWorker) {
+		return &byocimage.ResolvedImages{
+			Pomsky:                       fakeResolvedImage(byocimage.ResolvedImage{}, overrides.BYOC),
+			ObservabilityPipelinesWorker: fakeResolvedImage(byocimage.ResolvedImage{}, overrides.ObservabilityPipelinesWorker),
+		}, nil
+	}
+	var tag string
+	if spec != nil {
+		tag = ptr.Deref(spec.Tag, "")
+	}
+	result, found := r.results[tag]
+	if !found {
+		return nil, errors.New("unexpected release")
+	}
+	if result.err != nil {
+		return nil, result.err
+	}
+	images := *result.images
+	if overrides != nil {
+		images.Pomsky = fakeResolvedImage(images.Pomsky, overrides.BYOC)
+		images.ObservabilityPipelinesWorker = fakeResolvedImage(images.ObservabilityPipelinesWorker, overrides.ObservabilityPipelinesWorker)
+	}
+	return &images, nil
+}
+
+func completeFakeImageOverride(override *datadoghqv1alpha1.DatadogBYOCClusterImageOverrideSpec) bool {
+	return override != nil && ptr.Deref(override.Repository, "") != "" &&
+		((ptr.Deref(override.Tag, "") != "") != (ptr.Deref(override.Digest, "") != ""))
+}
+
+func fakeResolvedImage(base byocimage.ResolvedImage, override *datadoghqv1alpha1.DatadogBYOCClusterImageOverrideSpec) byocimage.ResolvedImage {
+	if override == nil {
+		return base
+	}
+	if override.Repository != nil {
+		base.Repository = *override.Repository
+	}
+	if override.Tag != nil {
+		base.Tag, base.Digest = *override.Tag, ""
+	} else if override.Digest != nil {
+		base.Tag, base.Digest = "", *override.Digest
+	}
+	if override.PullPolicy != nil {
+		base.ImagePullPolicy = *override.PullPolicy
+	}
+	base.ImagePullSecrets = slices.Clone(override.ImagePullSecrets)
+	return base
+}
+
+func byocTestPipeline() *datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec {
+	return &datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{
+		PipelineID: ptr.To(byocPipelineID),
+		Ports: []datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerPort{
+			{Name: "otlp-grpc", Port: 4317, Protocol: corev1.ProtocolTCP},
+			{Name: "otlp-http", Port: 4318, Protocol: corev1.ProtocolTCP},
+		},
+	}
+}

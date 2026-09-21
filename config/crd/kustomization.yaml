@@ -16,6 +16,8 @@ resources:
   - bases/v1/datadoghq.com_datadoggenericresources.yaml
   - bases/v1/datadoghq.com_datadogagentinternals.yaml
   - bases/v1/datadoghq.com_datadogcsidrivers.yaml
+  - bases/v1/datadoghq.com_datadogbyocclusters.yaml
+  - bases/v1/datadoghq.com_datadogobservabilitypipelinesworkers.yaml
 # +kubebuilder:scaffold:crdkustomizeresource
 
 #patches:
