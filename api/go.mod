@@ -1,21 +1,19 @@
 module github.com/DataDog/datadog-operator/api
 
-go 1.26.0
-
-toolchain go1.26.7
+go 1.27.0
 
 require (
-	github.com/DataDog/datadog-api-client-go/v2 v2.64.0
+	github.com/DataDog/datadog-api-client-go/v2 v2.65.0
 	github.com/google/go-cmp v0.7.0
 	github.com/stretchr/testify v1.12.1
 	// Keep these Kubernetes dependencies compatible with datadog-agent. Any bump
 	// must be coordinated with a matching dependency bump in datadog-agent.
-	k8s.io/api v0.35.3
-	k8s.io/apiextensions-apiserver v0.35.1
-	k8s.io/apimachinery v0.35.3
-	k8s.io/kube-openapi v0.0.0-20251125145642-4e65d59e963e
-	k8s.io/utils v0.0.0-20251222233032-718f0e51e6d2
-	sigs.k8s.io/controller-runtime v0.23.3
+	k8s.io/api v0.37.0
+	k8s.io/apiextensions-apiserver v0.37.0
+	k8s.io/apimachinery v0.37.0
+	k8s.io/kube-openapi v0.0.0-20260911184034-7970a1e230da
+	k8s.io/utils v0.0.0-20260707023825-cf1189d6abe3
+	sigs.k8s.io/controller-runtime v0.25.1
 	sigs.k8s.io/yaml v1.6.0
 )
 
