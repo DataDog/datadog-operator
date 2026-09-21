@@ -1353,7 +1353,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: 08695c8855388f06936c199f26c730c2
+    agent.datadoghq.com/agentspechash: 76895b8044350602bd37eea3206d4286
   labels:
     agent.datadoghq.com/component: agent
     agent.datadoghq.com/name: datadog-agent
@@ -1438,6 +1438,8 @@ spec:
             secretKeyRef:
               key: token
               name: datadog-agent-token
+        - name: DD_KUBELET_TLS_VERIFY
+          value: "false"
         - name: DD_LANGUAGE_DETECTION_REPORTING_ENABLED
           value: "false"
         - name: DD_EXTRA_CONFIG_PROVIDERS
@@ -1613,6 +1615,8 @@ spec:
             secretKeyRef:
               key: token
               name: datadog-agent-token
+        - name: DD_KUBELET_TLS_VERIFY
+          value: "false"
         - name: DD_APM_ENABLED
           value: "true"
         - name: DD_APM_NON_LOCAL_TRAFFIC
@@ -1700,6 +1704,8 @@ spec:
             secretKeyRef:
               key: token
               name: datadog-agent-token
+        - name: DD_KUBELET_TLS_VERIFY
+          value: "false"
         - name: DD_DOGSTATSD_SOCKET
           value: /var/run/datadog/dsd.socket
         - name: DD_REMOTE_CONFIGURATION_ENABLED
