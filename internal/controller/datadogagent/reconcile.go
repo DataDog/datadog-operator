@@ -25,6 +25,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/defaults"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/experimental"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/openshift"
 	"github.com/DataDog/datadog-operator/internal/controller/finalizer"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/condition"
@@ -107,6 +108,13 @@ func (r *Reconciler) reconcileInstance(ctx context.Context, logger logr.Logger, 
 		return reconcile.Result{RequeueAfter: clusterProviderGateRequeue}, nil
 	}
 	setClusterProviderStatus(newDDAStatus, provider, providerSource, now)
+
+	// On OpenShift the node agent cannot be admitted under the default ServiceAccount:
+	// it mounts hostPath volumes and runs as UID 0, which no SCC available to an
+	// ordinary ServiceAccount permits. Resolve (and always verify) the ServiceAccount
+	// before generating the DDAI, so the pod spec and the RBAC binding both pick the
+	// value up through constants.GetAgentServiceAccount.
+	r.reconcileOpenShiftSCC(ctx, logger, instance, provider, newDDAStatus, now)
 
 	if r.options.CreateControllerRevisions {
 		revList, err := r.listRevisions(ctx, instance)
@@ -308,6 +316,63 @@ func (r *Reconciler) resolveClusterProvider(instance *datadoghqv2alpha1.DatadogA
 		return "", "", true
 	}
 	return "", clusterProviderSourceNone, false
+}
+
+// reconcileOpenShiftSCC resolves and verifies the node agent's ServiceAccount on
+// OpenShift, recording the verdict on the OpenShiftSCC condition.
+//
+// It mutates instance.Spec only to fill in an unset serviceAccountName, and only
+// when the account was verified: a user's choice is never overwritten, and an
+// unverified account is never written, since a wrong ServiceAccount fails admission
+// exactly like a missing one but is harder to diagnose.
+//
+// The verification runs against whichever ServiceAccount will actually be used,
+// including a user-supplied one. Reporting healthy purely because the user chose the
+// value would put a green condition next to a DaemonSet whose pods are being
+// rejected.
+func (r *Reconciler) reconcileOpenShiftSCC(
+	ctx context.Context,
+	logger logr.Logger,
+	instance *datadoghqv2alpha1.DatadogAgent,
+	provider string,
+	status *datadoghqv2alpha1.DatadogAgentStatus,
+	now metav1.Time,
+) {
+	if !kubernetes.IsOpenShiftProvider(provider) || r.options.SCCAuthorizer == nil {
+		return
+	}
+
+	outcome := openshift.ReconcileAgentServiceAccount(
+		ctx, r.options.SCCAuthorizer, instance.GetNamespace(), &instance.Spec, wasSCCServiceAccountConfigured(instance))
+	conditionStatus, reason, message := outcome.Condition()
+
+	switch {
+	case outcome.Retained:
+		logger.Info("Kept the previously verified node agent ServiceAccount; this round could not confirm it",
+			"serviceAccount", outcome.ServiceAccount, "scc", openshift.RequiredSCCName, "error", outcome.Err)
+	case outcome.Err != nil:
+		logger.Error(outcome.Err, "Unable to verify OpenShift SecurityContextConstraints access",
+			"serviceAccount", outcome.ServiceAccount, "scc", openshift.RequiredSCCName)
+	case !outcome.Allowed:
+		logger.Info("Node agent ServiceAccount cannot use the required SecurityContextConstraints; "+
+			"its pods will be rejected by SCC admission",
+			"serviceAccount", outcome.ServiceAccount, "scc", openshift.RequiredSCCName, "userManaged", outcome.UserManaged)
+		r.recorder.Event(instance, corev1.EventTypeWarning, reason, message)
+	case outcome.Applied:
+		logger.Info("Set node agent ServiceAccount for OpenShift",
+			"serviceAccount", outcome.ServiceAccount, "scc", openshift.RequiredSCCName)
+	}
+
+	condition.UpdateDatadogAgentStatusConditions(status, now, common.OpenShiftSCCConditionType, conditionStatus, reason, message, true)
+}
+
+// wasSCCServiceAccountConfigured reports whether an earlier reconcile already
+// resolved the node agent to the OpenShift bundle ServiceAccount, read from the
+// OpenShiftSCC condition reason. Same approach as wasProviderDetected: the condition
+// already carries the fact, so no API status field is added for it.
+func wasSCCServiceAccountConfigured(instance *datadoghqv2alpha1.DatadogAgent) bool {
+	cond := meta.FindStatusCondition(instance.Status.Conditions, common.OpenShiftSCCConditionType)
+	return cond != nil && openshift.WasServiceAccountConfigured(cond.Reason)
 }
 
 // wasProviderDetected reports whether the persisted status.ClusterProvider was set

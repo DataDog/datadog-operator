@@ -8,7 +8,7 @@ metadata:
     app.kubernetes.io/part-of: -datadog--agent
     app.kubernetes.io/version: ""
     operator.datadoghq.com/managed-by-store: "true"
-  name: datadog-agent-agent
+  name: datadog-agent-cluster-agent
   ownerReferences:
   - apiVersion: datadoghq.com/v1alpha1
     blockOwnerDeletion: true
@@ -27,7 +27,7 @@ metadata:
     app.kubernetes.io/part-of: -datadog--agent
     app.kubernetes.io/version: ""
     operator.datadoghq.com/managed-by-store: "true"
-  name: datadog-agent-cluster-agent
+  name: datadog-agent-scc
   ownerReferences:
   - apiVersion: datadoghq.com/v1alpha1
     blockOwnerDeletion: true
@@ -708,7 +708,7 @@ roleRef:
   name: datadog-agent-agent
 subjects:
 - kind: ServiceAccount
-  name: datadog-agent-agent
+  name: datadog-agent-scc
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -1191,7 +1191,7 @@ kind: DatadogAgentInternal
 metadata:
   annotations:
     agent.datadoghq.com/cluster-provider: openshift-rhcos
-    agent.datadoghq.com/ddaispechash: 16210323470087d8a41cf87eee734fe5
+    agent.datadoghq.com/ddaispechash: 9336c45591b8712b4d7460b7b2f81080
   finalizers:
   - finalizer.datadoghq.com/datadogagentinternal
   labels:
@@ -1347,12 +1347,13 @@ spec:
         checksum/dca-token-custom-config: 3f6998966e6de63b16d45512e01ccc84
       image:
         tag: 7.80.0
+      serviceAccountName: datadog-agent-scc
 ---
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: c70db89b2b97cfc2c5142cc37ae738a8
+    agent.datadoghq.com/agentspechash: c7a8402a5758cf04d4712145b69609aa
   labels:
     agent.datadoghq.com/component: agent
     agent.datadoghq.com/name: datadog-agent
@@ -1829,7 +1830,7 @@ spec:
           name: seccomp-root
       securityContext:
         runAsUser: 0
-      serviceAccountName: datadog-agent-agent
+      serviceAccountName: datadog-agent-scc
       volumes:
       - emptyDir: {}
         name: logdatadog
