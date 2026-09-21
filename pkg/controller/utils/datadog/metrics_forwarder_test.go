@@ -16,6 +16,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-logr/logr"
 	"k8s.io/utils/ptr"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
@@ -80,6 +81,69 @@ func TestJitteredDelay(t *testing.T) {
 		assert.GreaterOrEqual(t, got, time.Duration(0))
 		assert.Less(t, got, d)
 	}
+}
+
+// TestMetricsForwarder_start_timerFiresAndResets exercises the start() goroutine
+// loop end-to-end with a very short sendMetricsInterval, and asserts that the
+// periodic metrics send fires more than once. Since start() now uses a
+// time.Timer that must be explicitly Reset after each fire (instead of a
+// self-repeating time.Ticker), a single observed tick wouldn't tell us much,
+// but a second tick proves metricsTimer.Reset is correctly rescheduling the
+// next send after the previous one completes.
+func TestMetricsForwarder_start_timerFiresAndResets(t *testing.T) {
+	platformInfo := kubernetes.NewPlatformInfoFromVersionMaps(
+		nil,
+		map[string]string{},
+		map[string]string{},
+	)
+
+	f := &fakeMetricsForwarder{}
+	tickCh := make(chan struct{}, 10)
+	f.On("delegatedValidateCreds", "").Once()
+	f.On("delegatedSendEvent", mock.Anything, mock.Anything)
+	f.On("delegatedSendReconcileMetric", mock.Anything, mock.Anything, mock.Anything).
+		Run(func(args mock.Arguments) { tickCh <- struct{}{} })
+
+	mf := &metricsForwarder{
+		namespacedName:      types.NamespacedName{Namespace: "foo", Name: "bar"},
+		platformInfo:        &platformInfo,
+		retryInterval:       5 * time.Millisecond,
+		sendMetricsInterval: 10 * time.Millisecond,
+		stopChan:            make(chan struct{}),
+		errorChan:           make(chan error, 100),
+		eventChan:           make(chan Event, 10),
+		lastReconcileErr:    errInitValue,
+		logger:              logr.Discard(),
+		delegator:           f,
+	}
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go mf.start(&wg)
+
+	timeout := time.After(2 * time.Second)
+	for i := 0; i < 2; i++ {
+		select {
+		case <-tickCh:
+		case <-timeout:
+			t.Fatal("timed out waiting for periodic metrics tick(s); metricsTimer may not be firing/resetting")
+		}
+	}
+
+	mf.stop()
+
+	done := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for start() to return after stop()")
+	}
+
+	f.AssertExpectations(t)
 }
 
 func TestMetricsForwarder_updateCredsIfNeeded(t *testing.T) {
