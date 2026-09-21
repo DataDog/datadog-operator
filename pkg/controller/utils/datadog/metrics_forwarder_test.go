@@ -9,7 +9,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/http"
 	"os"
 	"reflect"
 	"strings"
@@ -81,16 +80,6 @@ func TestJitteredDelay(t *testing.T) {
 		assert.GreaterOrEqual(t, got, time.Duration(0))
 		assert.Less(t, got, d)
 	}
-}
-
-func TestNewMetricsForwarder_SetsSharedHTTPClient(t *testing.T) {
-	httpClient := &http.Client{}
-	dda := &v2alpha1.DatadogAgent{ObjectMeta: metav1.ObjectMeta{Name: "foo", Namespace: "bar"}}
-
-	mf := newMetricsForwarder(fake.NewClientBuilder().Build(), nil, dda, nil, nil, httpClient)
-
-	// Forwarder must reuse the manager's shared client, not build its own.
-	assert.Same(t, httpClient, mf.httpClient)
 }
 
 func TestMetricsForwarder_updateCredsIfNeeded(t *testing.T) {

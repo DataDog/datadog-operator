@@ -12,7 +12,6 @@ import (
 	"hash/fnv"
 	"maps"
 	"math/rand/v2"
-	"net/http"
 	"os"
 	"strings"
 	"sync"
@@ -152,12 +151,11 @@ type metricsForwarder struct {
 	baseURL             string
 	status              *ConditionCommon
 	credsManager        *config.CredentialManager
-	httpClient          *http.Client
 	sync.RWMutex
 }
 
 // newMetricsForwarder returns a new Datadog MetricsForwarder instance
-func newMetricsForwarder(k8sClient client.Client, decryptor secrets.Decryptor, obj client.Object, platforminfo *kubernetes.PlatformInfo, credsManager *config.CredentialManager, httpClient *http.Client) *metricsForwarder {
+func newMetricsForwarder(k8sClient client.Client, decryptor secrets.Decryptor, obj client.Object, platforminfo *kubernetes.PlatformInfo, credsManager *config.CredentialManager) *metricsForwarder {
 	objKind := getObjKind(obj)
 	logger := log.WithValues("kind", objKind, "namespace", obj.GetNamespace(), "name", obj.GetName())
 
@@ -179,7 +177,6 @@ func newMetricsForwarder(k8sClient client.Client, decryptor secrets.Decryptor, o
 		baseURL:             defaultbaseURL,
 		logger:              logger,
 		credsManager:        credsManager,
-		httpClient:          httpClient,
 		EnabledFeatures:     make(map[string][]string),
 	}
 }
@@ -567,7 +564,6 @@ func (mf *metricsForwarder) delegatedValidateCreds(apiKey string) error {
 	ctx := mf.generateDatadogContext()
 
 	config := datadogapi.NewConfiguration()
-	config.HTTPClient = mf.httpClient // reuse shared pool instead of stdlib's 2-idle-conns-per-host default
 	apiClient := datadogapi.NewAPIClient(config)
 	authAPI := datadogV1.NewAuthenticationApi(apiClient)
 
@@ -933,7 +929,6 @@ func (mf *metricsForwarder) setEnabledFeatures(features []string) {
 func (mf *metricsForwarder) setUpDatadogAPIClient() {
 	// v2 client is used for metrics and events
 	configuration := datadogapi.NewConfiguration()
-	configuration.HTTPClient = mf.httpClient // reuse shared pool instead of stdlib's 2-idle-conns-per-host default
 	apiClient := datadogapi.NewAPIClient(configuration)
 	mf.datadogMetricsAPI = datadogV2.NewMetricsApi(apiClient)
 	mf.datadogEventsAPI = datadogV1.NewEventsApi(apiClient) // Initialize events API
