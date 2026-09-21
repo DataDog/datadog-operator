@@ -9,7 +9,9 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/utils/ptr"
 
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	mergerfake "github.com/DataDog/datadog-operator/internal/controller/datadogagent/merger/fake"
@@ -88,4 +90,85 @@ func TestApplyProviderCapabilities_FamilyFallback(t *testing.T) {
 			assert.Equal(t, tt.want, got)
 		})
 	}
+}
+
+// TestApplyProviderCapabilities_PodLevel covers the pod-scoped fields, which the
+// volume and env managers cannot reach.
+func TestApplyProviderCapabilities_PodLevel(t *testing.T) {
+	spcT := &corev1.SELinuxOptions{User: "system_u", Role: "system_r", Type: "spc_t", Level: "s0"}
+	masterToleration := corev1.Toleration{
+		Key: "node-role.kubernetes.io/master", Operator: corev1.TolerationOpExists, Effect: corev1.TaintEffectNoSchedule,
+	}
+
+	t.Run("SELinux options are set on an empty security context", func(t *testing.T) {
+		manager := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{})
+
+		ApplyProviderCapabilities(manager, kubernetes.OpenshiftProvider,
+			ProviderCapabilityMap{kubernetes.OpenshiftProvider: {SELinuxOptions: spcT}})
+
+		assert.Equal(t, spcT, manager.PodTemplateSpec().Spec.SecurityContext.SELinuxOptions)
+	})
+
+	t.Run("RunAsUser set by the default builder survives", func(t *testing.T) {
+		// The regression this field's narrow type exists to prevent: the node agent
+		// pod spec carries RunAsUser: 0, and assigning a whole PodSecurityContext
+		// would drop it, leaving the Agent unable to read host paths.
+		manager := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
+			Spec: corev1.PodSpec{SecurityContext: &corev1.PodSecurityContext{RunAsUser: ptr.To(int64(0))}},
+		})
+
+		ApplyProviderCapabilities(manager, kubernetes.OpenshiftProvider,
+			ProviderCapabilityMap{kubernetes.OpenshiftProvider: {SELinuxOptions: spcT}})
+
+		sc := manager.PodTemplateSpec().Spec.SecurityContext
+		assert.Equal(t, spcT, sc.SELinuxOptions)
+		require.NotNil(t, sc.RunAsUser, "RunAsUser must not be dropped")
+		assert.Equal(t, int64(0), *sc.RunAsUser)
+	})
+
+	t.Run("existing SELinux options are not overwritten", func(t *testing.T) {
+		existing := &corev1.SELinuxOptions{Type: "container_t"}
+		manager := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
+			Spec: corev1.PodSpec{SecurityContext: &corev1.PodSecurityContext{SELinuxOptions: existing}},
+		})
+
+		ApplyProviderCapabilities(manager, kubernetes.OpenshiftProvider,
+			ProviderCapabilityMap{kubernetes.OpenshiftProvider: {SELinuxOptions: spcT}})
+
+		assert.Equal(t, existing, manager.PodTemplateSpec().Spec.SecurityContext.SELinuxOptions)
+	})
+
+	t.Run("tolerations are appended alongside existing ones", func(t *testing.T) {
+		userToleration := corev1.Toleration{Key: "user-taint", Operator: corev1.TolerationOpExists}
+		manager := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
+			Spec: corev1.PodSpec{Tolerations: []corev1.Toleration{userToleration}},
+		})
+
+		ApplyProviderCapabilities(manager, kubernetes.OpenshiftProvider,
+			ProviderCapabilityMap{kubernetes.OpenshiftProvider: {Tolerations: []corev1.Toleration{masterToleration}}})
+
+		assert.Equal(t, []corev1.Toleration{userToleration, masterToleration},
+			manager.PodTemplateSpec().Spec.Tolerations)
+	})
+
+	t.Run("an already-present toleration is not duplicated", func(t *testing.T) {
+		manager := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
+			Spec: corev1.PodSpec{Tolerations: []corev1.Toleration{masterToleration}},
+		})
+
+		ApplyProviderCapabilities(manager, kubernetes.OpenshiftProvider,
+			ProviderCapabilityMap{kubernetes.OpenshiftProvider: {Tolerations: []corev1.Toleration{masterToleration}}})
+
+		assert.Len(t, manager.PodTemplateSpec().Spec.Tolerations, 1)
+	})
+
+	t.Run("pod-level fields are untouched for a non-matching provider", func(t *testing.T) {
+		manager := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{})
+
+		ApplyProviderCapabilities(manager, kubernetes.EKSCloudProvider,
+			ProviderCapabilityMap{kubernetes.OpenshiftProvider: {SELinuxOptions: spcT, Tolerations: []corev1.Toleration{masterToleration}}})
+
+		assert.Nil(t, manager.PodTemplateSpec().Spec.SecurityContext)
+		assert.Empty(t, manager.PodTemplateSpec().Spec.Tolerations)
+	})
 }

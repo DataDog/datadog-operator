@@ -117,6 +117,9 @@ func (f *logCollectionFeature) ManageNodeAgent(managers feature.PodTemplateManag
 // On GKE Autopilot the run-path (pointer) volume this feature adds in manageNodeAgent
 // must use the only hostPath the WorkloadAllowlist permits; override it in place.
 // Colocated here because this feature owns the pointer volume.
+//
+// The OpenShift SELinux type is NOT here: it is required by the node agent generally,
+// not just for reading pod logs. See NodeAgentProviderSpec in the global package.
 func (f *logCollectionFeature) NodeAgentProviderCapabilities() providercaps.ProviderCapabilityMap {
 	// Empty when log collection is disabled (no pointer volume was added).
 	if f.tempStoragePath == "" {

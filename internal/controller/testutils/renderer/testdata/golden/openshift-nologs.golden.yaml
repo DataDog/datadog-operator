@@ -1347,7 +1347,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: 5050f9dd16fbebd44039bf30c30cb714
+    agent.datadoghq.com/agentspechash: 4346d708a0741ad2e2c3fd18a260af86
   labels:
     agent.datadoghq.com/component: agent
     agent.datadoghq.com/name: datadog-agent
@@ -1809,7 +1809,19 @@ spec:
           name: seccomp-root
       securityContext:
         runAsUser: 0
+        seLinuxOptions:
+          level: s0
+          role: system_r
+          type: spc_t
+          user: system_u
       serviceAccountName: datadog-agent-scc
+      tolerations:
+      - effect: NoSchedule
+        key: node-role.kubernetes.io/master
+        operator: Exists
+      - effect: NoSchedule
+        key: node-role.kubernetes.io/infra
+        operator: Exists
       volumes:
       - emptyDir: {}
         name: logdatadog

@@ -19,11 +19,18 @@ spec:
       enabled: true
     dogstatsd:
       originDetectionEnabled: true
-    # Log collection explicitly DISABLED. The SELinux spc_t injection exists solely so
-    # the agent can read /var/log/pods under enforcing SELinux, so with logs off it
-    # must NOT be applied. This fixture is the control that keeps that conditional
-    # honest — the other OpenShift injections (tolerations, UDS, tlsVerify) should
-    # still appear here.
+    # Log collection explicitly DISABLED.
+    #
+    # This fixture originally asserted the opposite of what it now pins. The SELinux
+    # spc_t options were first scoped to log collection, following Datadog's
+    # distributions page, which frames the override as log-collection-specific. That
+    # is wrong: the node agent needs the super-privileged type to reach /proc,
+    # /sys/fs/cgroup and the runtime socket, and to write the system-probe profile
+    # into /var/lib/kubelet/seccomp. With logs off and spc_t absent, the seccomp-setup
+    # init container fails with "Permission denied" and the pod crash-loops before any
+    # agent container starts — reproduced on a DatadogAgent with no features at all.
+    #
+    # So spc_t must appear here, with logs disabled. That is what this fixture guards.
     logCollection:
       enabled: false
     liveProcessCollection:

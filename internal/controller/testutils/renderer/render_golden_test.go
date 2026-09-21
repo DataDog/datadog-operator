@@ -190,7 +190,8 @@ func TestRender_Golden(t *testing.T) {
 			golden:     "testdata/golden/openshift-rhcos.golden.yaml",
 		},
 		{
-			// Log collection off: spc_t must NOT be injected, everything else still is.
+			// Log collection off. spc_t must still be injected: the node agent needs it
+			// for host paths and the system-probe seccomp profile, not only pod logs.
 			name:       "openshift dda, log collection disabled",
 			ddaFile:    "testdata/openshift-nologs-dda.yaml",
 			provider:   "openshift-rhcos",

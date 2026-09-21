@@ -1363,7 +1363,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: b130376b4f80cde6754c250b9c262f4b
+    agent.datadoghq.com/agentspechash: 1794f32800135d27527e6639630332e5
   labels:
     agent.datadoghq.com/component: agent
     agent.datadoghq.com/name: datadog-agent
@@ -1850,6 +1850,12 @@ spec:
           type: container_t
       serviceAccountName: my-own-agent-sa
       tolerations:
+      - effect: NoSchedule
+        key: node-role.kubernetes.io/master
+        operator: Exists
+      - effect: NoSchedule
+        key: node-role.kubernetes.io/infra
+        operator: Exists
       - effect: NoSchedule
         key: my-own-taint
         operator: Exists
