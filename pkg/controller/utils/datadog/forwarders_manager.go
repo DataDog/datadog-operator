@@ -8,6 +8,7 @@ package datadog
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"sync"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -18,6 +19,21 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/secrets"
 )
+
+// forwarderMaxIdleConnsPerHost raises the stdlib's default of 2 idle conns/host,
+// which is far too low once many metricsForwarders share one Datadog host.
+const forwarderMaxIdleConnsPerHost = 100
+
+// newForwarderHTTPClient builds one shared HTTP client for all metricsForwarders.
+// Cloning http.DefaultTransport keeps its other defaults (dial/TLS timeouts)
+// and only raises the per-host idle pool so concurrent forwarders reuse
+// connections instead of dialing fresh ones every tick.
+func newForwarderHTTPClient() *http.Client {
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.MaxIdleConnsPerHost = forwarderMaxIdleConnsPerHost
+	transport.MaxIdleConns = forwarderMaxIdleConnsPerHost * 2
+	return &http.Client{Transport: transport}
+}
 
 // MetricsForwardersManager defines interface for metrics forwarding
 type MetricsForwardersManager interface {
@@ -38,6 +54,7 @@ type ForwardersManager struct {
 	// TODO expand this to include a metadataForwarder
 	decryptor    secrets.Decryptor
 	credsManager *config.CredentialManager
+	httpClient   *http.Client
 	wg           sync.WaitGroup
 	sync.Mutex
 }
@@ -52,6 +69,7 @@ func NewForwardersManager(k8sClient client.Client, platformInfo *kubernetes.Plat
 		decryptor:         secrets.NewSecretBackend(),
 		wg:                sync.WaitGroup{},
 		credsManager:      credsManager,
+		httpClient:        newForwarderHTTPClient(),
 	}
 }
 
@@ -69,7 +87,7 @@ func (f *ForwardersManager) Register(obj client.Object) {
 	defer f.Unlock()
 	id := getObjID(obj)
 	if _, found := f.metricsForwarders[id]; !found {
-		f.metricsForwarders[id] = newMetricsForwarder(f.k8sClient, f.decryptor, obj, f.platformInfo, f.credsManager)
+		f.metricsForwarders[id] = newMetricsForwarder(f.k8sClient, f.decryptor, obj, f.platformInfo, f.credsManager, f.httpClient)
 		f.wg.Add(1)
 		go f.metricsForwarders[id].start(&f.wg)
 	}

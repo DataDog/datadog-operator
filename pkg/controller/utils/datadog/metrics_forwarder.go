@@ -11,6 +11,8 @@ import (
 	"fmt"
 	"hash/fnv"
 	"maps"
+	"math/rand/v2"
+	"net/http"
 	"os"
 	"strings"
 	"sync"
@@ -103,6 +105,15 @@ func hashKeys(apiKey string) uint64 {
 	return h.Sum64()
 }
 
+// jitteredDelay returns a random duration in [0, d), used to stagger forwarder
+// start times so a bulk-created batch of CRs doesn't tick in lockstep.
+func jitteredDelay(d time.Duration) time.Duration {
+	if d <= 0 {
+		return 0
+	}
+	return rand.N(d)
+}
+
 // metricsForwarder sends metrics directly to Datadog using the public API
 // its lifecycle must be handled by a ForwardersManager
 type metricsForwarder struct {
@@ -141,11 +152,12 @@ type metricsForwarder struct {
 	baseURL             string
 	status              *ConditionCommon
 	credsManager        *config.CredentialManager
+	httpClient          *http.Client
 	sync.RWMutex
 }
 
 // newMetricsForwarder returns a new Datadog MetricsForwarder instance
-func newMetricsForwarder(k8sClient client.Client, decryptor secrets.Decryptor, obj client.Object, platforminfo *kubernetes.PlatformInfo, credsManager *config.CredentialManager) *metricsForwarder {
+func newMetricsForwarder(k8sClient client.Client, decryptor secrets.Decryptor, obj client.Object, platforminfo *kubernetes.PlatformInfo, credsManager *config.CredentialManager, httpClient *http.Client) *metricsForwarder {
 	objKind := getObjKind(obj)
 	logger := log.WithValues("kind", objKind, "namespace", obj.GetNamespace(), "name", obj.GetName())
 
@@ -167,6 +179,7 @@ func newMetricsForwarder(k8sClient client.Client, decryptor secrets.Decryptor, o
 		baseURL:             defaultbaseURL,
 		logger:              logger,
 		credsManager:        credsManager,
+		httpClient:          httpClient,
 		EnabledFeatures:     make(map[string][]string),
 	}
 }
@@ -205,8 +218,13 @@ func (mf *metricsForwarder) start(wg *sync.WaitGroup) {
 		mf.logger.Error(err, "an error occurred while sending event")
 	}
 
-	metricsTicker := time.NewTicker(mf.sendMetricsInterval)
-	defer metricsTicker.Stop()
+	// First fire is jittered so a batch of CRs created together don't all hit
+	// the Datadog API in lockstep; Reset (rather than a Ticker) also means the
+	// next send is scheduled only after the previous one finishes, so a slow
+	// call can't cause sends to pile up.
+	metricsTimer := time.NewTimer(jitteredDelay(mf.sendMetricsInterval))
+	defer metricsTimer.Stop()
+
 	for {
 		select {
 		case <-mf.stopChan:
@@ -221,10 +239,11 @@ func (mf *metricsForwarder) start(wg *sync.WaitGroup) {
 			}
 			mf.logger.Info("Datadog metrics forwarder shut down after sending final metrics")
 			return
-		case <-metricsTicker.C:
+		case <-metricsTimer.C:
 			if err := mf.forwardMetrics(); err != nil {
 				mf.logger.Error(err, "an error occurred while sending metrics")
 			}
+			metricsTimer.Reset(mf.sendMetricsInterval)
 		case reconcileErr := <-mf.errorChan:
 			if err := mf.processReconcileError(reconcileErr); err != nil {
 				mf.logger.Error(err, "an error occurred while processing reconcile metrics")
@@ -548,6 +567,7 @@ func (mf *metricsForwarder) delegatedValidateCreds(apiKey string) error {
 	ctx := mf.generateDatadogContext()
 
 	config := datadogapi.NewConfiguration()
+	config.HTTPClient = mf.httpClient // reuse shared pool instead of stdlib's 2-idle-conns-per-host default
 	apiClient := datadogapi.NewAPIClient(config)
 	authAPI := datadogV1.NewAuthenticationApi(apiClient)
 
@@ -913,6 +933,7 @@ func (mf *metricsForwarder) setEnabledFeatures(features []string) {
 func (mf *metricsForwarder) setUpDatadogAPIClient() {
 	// v2 client is used for metrics and events
 	configuration := datadogapi.NewConfiguration()
+	configuration.HTTPClient = mf.httpClient // reuse shared pool instead of stdlib's 2-idle-conns-per-host default
 	apiClient := datadogapi.NewAPIClient(configuration)
 	mf.datadogMetricsAPI = datadogV2.NewMetricsApi(apiClient)
 	mf.datadogEventsAPI = datadogV1.NewEventsApi(apiClient) // Initialize events API

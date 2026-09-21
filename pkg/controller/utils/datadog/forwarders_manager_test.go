@@ -5,7 +5,38 @@
 
 package datadog
 
-import "testing"
+import (
+	"net/http"
+	"testing"
+)
+
+func TestNewForwarderHTTPClient_RaisesIdleConnPool(t *testing.T) {
+	c := newForwarderHTTPClient()
+
+	transport, ok := c.Transport.(*http.Transport)
+	if !ok {
+		t.Fatalf("expected *http.Transport, got %T", c.Transport)
+	}
+
+	// Stdlib default is 2 per host — far too low for many forwarders sharing one Datadog host.
+	if transport.MaxIdleConnsPerHost != forwarderMaxIdleConnsPerHost {
+		t.Errorf("MaxIdleConnsPerHost = %d, want %d", transport.MaxIdleConnsPerHost, forwarderMaxIdleConnsPerHost)
+	}
+
+	// Must not mutate the global default transport shared by other stdlib/library callers.
+	defaultTransport := http.DefaultTransport.(*http.Transport)
+	if defaultTransport.MaxIdleConnsPerHost == forwarderMaxIdleConnsPerHost {
+		t.Errorf("http.DefaultTransport was mutated, want it untouched")
+	}
+}
+
+func TestNewForwardersManager_BuildsSharedHTTPClient(t *testing.T) {
+	fm := NewForwardersManager(nil, nil, nil)
+
+	if fm.httpClient == nil {
+		t.Fatal("expected NewForwardersManager to set a shared httpClient, got nil")
+	}
+}
 
 func TestForwardersManager_unregisterForwarder_Idempotent(t *testing.T) {
 	t.Parallel()

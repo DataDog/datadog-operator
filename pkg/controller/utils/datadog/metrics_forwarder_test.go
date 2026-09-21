@@ -9,11 +9,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"reflect"
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"k8s.io/utils/ptr"
 
@@ -65,6 +67,30 @@ func (c *fakeMetricsForwarder) delegatedValidateCreds(apiKey string) error {
 		return errors.New("invalid creds")
 	}
 	return nil
+}
+
+func TestJitteredDelay(t *testing.T) {
+	// Zero/negative durations shouldn't jitter.
+	assert.Equal(t, time.Duration(0), jitteredDelay(0))
+	assert.Equal(t, time.Duration(0), jitteredDelay(-time.Second))
+
+	// Result must always land in [0, d), across many samples (catches off-by-one/negative bugs).
+	const d = 15 * time.Second
+	for i := 0; i < 1000; i++ {
+		got := jitteredDelay(d)
+		assert.GreaterOrEqual(t, got, time.Duration(0))
+		assert.Less(t, got, d)
+	}
+}
+
+func TestNewMetricsForwarder_SetsSharedHTTPClient(t *testing.T) {
+	httpClient := &http.Client{}
+	dda := &v2alpha1.DatadogAgent{ObjectMeta: metav1.ObjectMeta{Name: "foo", Namespace: "bar"}}
+
+	mf := newMetricsForwarder(fake.NewClientBuilder().Build(), nil, dda, nil, nil, httpClient)
+
+	// Forwarder must reuse the manager's shared client, not build its own.
+	assert.Same(t, httpClient, mf.httpClient)
 }
 
 func TestMetricsForwarder_updateCredsIfNeeded(t *testing.T) {
