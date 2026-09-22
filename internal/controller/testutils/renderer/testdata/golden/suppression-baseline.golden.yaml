@@ -1279,7 +1279,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: 93e72e5661f9348d6cd3dd03f2623465
+    agent.datadoghq.com/agentspechash: 60c22658395305bbefb37112e5b7c8d0
   labels:
     agent.datadoghq.com/component: agent
     agent.datadoghq.com/name: datadog-agent
@@ -1618,8 +1618,6 @@ spec:
         - mountPath: /host/var/run
           name: runtimesocketdir
           readOnly: true
-        - mountPath: /opt/datadog-agent/run
-          name: datadogrun
         - mountPath: /tmp
           name: tmpdir
       - command:
@@ -1925,7 +1923,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: 7c1a95cba0d4bea5ceb4b3c08194eb13
+    agent.datadoghq.com/agentspechash: 213f10c811c401893367317e36fe443f
   labels:
     agent.datadoghq.com/component: cluster-agent
     agent.datadoghq.com/name: datadog-agent
@@ -2153,14 +2151,14 @@ spec:
           name: datadog-agent-auth
         - mountPath: /tmp
           name: tmpdir
-        - mountPath: /opt/datadog-agent/run/
-          name: datadogrun
         - mountPath: /etc/datadog-agent/conf.d/kubernetes_state_core.d
           name: ksm-core-config
           readOnly: true
         - mountPath: /etc/datadog-agent/conf.d/orchestrator.d
           name: orchestrator-explorer-config
           readOnly: true
+        - mountPath: /opt/datadog-agent/run/
+          name: datadogrun
       - env:
         - name: DD_FIPS_LOCAL_ADDRESS
           value: 127.0.0.1
@@ -2229,8 +2227,6 @@ spec:
         name: datadog-agent-auth
       - emptyDir: {}
         name: tmpdir
-      - emptyDir: {}
-        name: datadogrun
       - configMap:
           items:
           - key: datadog-fips-proxy.cfg
@@ -2243,3 +2239,5 @@ spec:
       - configMap:
           name: datadog-agent-orchestrator-explorer-config
         name: orchestrator-explorer-config
+      - emptyDir: {}
+        name: datadogrun

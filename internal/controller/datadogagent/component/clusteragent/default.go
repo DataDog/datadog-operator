@@ -87,7 +87,6 @@ func NewDefaultClusterAgentPodTemplateSpec(ddaMeta metav1.Object, ddaSpec *v2alp
 		// not have permissions to write on /tmp, that's why we need to mount
 		// it with write perms.
 		common.GetVolumeForTmp(),
-		common.GetVolumeForRunPath(),
 	}
 
 	volumeMounts := []corev1.VolumeMount{
@@ -97,7 +96,6 @@ func NewDefaultClusterAgentPodTemplateSpec(ddaMeta metav1.Object, ddaSpec *v2alp
 		common.GetVolumeMountForCertificates(),
 		common.GetVolumeMountForAuth(false),
 		common.GetVolumeMountForTmp(),
-		common.GetVolumeMountForRunPath(),
 	}
 
 	podTemplate := &corev1.PodTemplateSpec{

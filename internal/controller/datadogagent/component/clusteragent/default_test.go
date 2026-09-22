@@ -99,7 +99,6 @@ func clusterAgentDefaultPodSpec(dda *datadoghqv2alpha1.DatadogAgent) corev1.PodS
 					{Name: "tmpdir", ReadOnly: false, MountPath: "/tmp"},
 					{Name: "certificates", ReadOnly: false, MountPath: "/etc/datadog-agent/certificates"},
 					{Name: "datadog-agent-auth", MountPath: "/etc/datadog-agent/auth"},
-					{Name: "datadogrun", ReadOnly: false, MountPath: "/opt/datadog-agent/run"},
 				},
 				LivenessProbe:  defaultLivenessProbe(),
 				ReadinessProbe: defaultReadinessProbe(),
@@ -145,12 +144,6 @@ func clusterAgentDefaultPodSpec(dda *datadoghqv2alpha1.DatadogAgent) corev1.PodS
 			},
 			{
 				Name: "datadog-agent-auth",
-				VolumeSource: corev1.VolumeSource{
-					EmptyDir: &corev1.EmptyDirVolumeSource{},
-				},
-			},
-			{
-				Name: "datadogrun",
 				VolumeSource: corev1.VolumeSource{
 					EmptyDir: &corev1.EmptyDirVolumeSource{},
 				},
