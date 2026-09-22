@@ -1126,7 +1126,7 @@ publish_nightly_workflow:
     - trigger_internal_operator_nightly_image
     - trigger_internal_operator_check_nightly_image
   trigger:
-    project: DataDog/k8s-datadog-agent-ops
+    project: ddoghq/k8s-datadog-agent-ops
     branch: main
     strategy: depend
   variables:
@@ -1143,7 +1143,7 @@ publish_release_candidate_workflow:
     - trigger_internal_operator_image
     - trigger_internal_operator_check_image
   trigger:
-    project: DataDog/k8s-datadog-agent-ops
+    project: ddoghq/k8s-datadog-agent-ops
     branch: main
     strategy: depend
     forward:
