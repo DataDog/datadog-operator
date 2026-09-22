@@ -534,6 +534,7 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 				WithSingleContainerStrategy(true).
 				WithDataPlaneDogstatsdEnabled(true).
 				WithDogstatsdHostPortEnabled(true).
+				WithNodeAgentImage("agent:7.83.0-rc.5").
 				BuildWithDefaults(),
 			FeatureOptions: &feature.Options{
 				DefaultDataPlaneEnabled: true,

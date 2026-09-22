@@ -18,8 +18,6 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
-var createAllowlistSynchronizer = allowlistsynchronizer.CreateAllowlistSynchronizer
-
 // IsAutopilotEnabled reports whether GKE Autopilot handling should apply, via
 // either the provider annotation (datadoghq.com/provider: gke-autopilot — the
 // value the DDA controller stamps onto the DDAI) or the experimental opt-in
@@ -41,29 +39,16 @@ func IsAutopilotEnabled(obj metav1.Object) bool {
 }
 
 // applyExperimentalAutopilotOverrides creates the GKE Autopilot WorkloadAllowlist
-// synchronizer and selects its resolved allowlist on the node Agent pod template.
-// Other Autopilot pod-template mutations are handled by the provider-capabilities
-// framework (see IsAutopilotEnabled doc).
-func applyExperimentalAutopilotOverrides(dda metav1.Object, manager feature.PodTemplateManagers) {
-	if !IsAutopilotEnabled(dda) {
-		return
+// synchronizer when Autopilot is enabled. Pod-template mutations are handled by
+// the provider-capabilities framework (see IsAutopilotEnabled doc).
+func applyExperimentalAutopilotOverrides(dda metav1.Object, _ feature.PodTemplateManagers) {
+	if IsAutopilotEnabled(dda) {
+		allowlistsynchronizer.CreateAllowlistSynchronizer(
+			getExperimentalAnnotation(dda, ExperimentalAutopilotAllowlistVersionSubkey),
+			object.NewPartOfLabelValue(dda).String(),
+			commonLabelsFromObject(dda),
+		)
 	}
-
-	version := getExperimentalAnnotation(dda, ExperimentalAutopilotAllowlistVersionSubkey)
-	applyAutopilotWorkloadAllowlistLabel(manager, version)
-	createAllowlistSynchronizer(
-		version,
-		object.NewPartOfLabelValue(dda).String(),
-		commonLabelsFromObject(dda),
-	)
-}
-
-func applyAutopilotWorkloadAllowlistLabel(manager feature.PodTemplateManagers, version string) {
-	template := manager.PodTemplateSpec()
-	if template.Labels == nil {
-		template.Labels = map[string]string{}
-	}
-	template.Labels["cloud.google.com/matching-allowlist"] = allowlistsynchronizer.WorkloadAllowlistName(version)
 }
 
 // CreateDatadogCSIAllowlistSynchronizer creates the Datadog CSI driver
