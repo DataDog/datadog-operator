@@ -219,6 +219,14 @@ func CacheOptions(logger logr.Logger, opts WatchOptions) cache.Options {
 					newNode.CreationTimestamp = node.CreationTimestamp
 				}
 
+				// Provider detection needs Status.NodeInfo.OSImage: Talos exposes no
+				// default node label, so it is identified from osImage alone. Kept
+				// unconditionally because the detector's node-list fallback is wired
+				// whenever this node cache exists (see setupAndStartProviderDetector),
+				// not only when introspection is enabled; gating it any narrower makes
+				// that fallback silently resolve to the default provider on Talos.
+				newNode.Status.NodeInfo.OSImage = node.Status.NodeInfo.OSImage
+
 				return newNode, nil
 			},
 		}

@@ -20,6 +20,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/configmap"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/providercaps"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
@@ -60,6 +61,22 @@ type cwsFeature struct {
 // ID returns the ID of the Feature
 func (f *cwsFeature) ID() feature.IDType {
 	return feature.CWSIDType
+}
+
+// NodeAgentProviderCapabilities returns provider-conditional pod-template
+// mutations for the node agent. Talos has no host user/group database, so
+// the passwd and group volumes this feature adds are stripped. Talos also
+// exposes tracefs as a standalone mount rather than nesting it under the
+// debugfs mount this feature already adds, so it must be mounted explicitly.
+func (f *cwsFeature) NodeAgentProviderCapabilities() providercaps.ProviderCapabilityMap {
+	return providercaps.ProviderCapabilityMap{
+		kubernetes.TalosProvider: {
+			RemoveVolumes: []string{common.PasswdVolumeName, common.GroupVolumeName},
+			Volumes: []providercaps.VolumeAndMount{
+				providercaps.HostPathVolumeAndMount(common.TracefsVolumeName, common.TracefsPath, false, apicommon.SystemProbeContainerName),
+			},
+		},
+	}
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.

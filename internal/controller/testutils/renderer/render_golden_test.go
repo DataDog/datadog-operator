@@ -150,6 +150,19 @@ func TestRender_Golden(t *testing.T) {
 			autopilot: true,
 			golden:    "testdata/golden/suppression-autopilot.golden.yaml",
 		},
+		{
+			// oomKill, tcpQueueLength, cws and cspm each strip host volumes
+			// (src/modules/passwd/group) that don't exist on Talos.
+			name:    "talos dda, baseline (no provider)",
+			ddaFile: "testdata/talos-dda.yaml",
+			golden:  "testdata/golden/talos-baseline.golden.yaml",
+		},
+		{
+			name:     "talos dda, talos",
+			ddaFile:  "testdata/talos-dda.yaml",
+			provider: kubernetes.TalosProvider,
+			golden:   "testdata/golden/talos-talos.golden.yaml",
+		},
 	}
 
 	for _, tt := range tests {

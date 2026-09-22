@@ -386,7 +386,7 @@ update-golang: bin/$(PLATFORM)/jq bin/$(PLATFORM)/yq ensure-gsed
 
 .PHONY: sync
 sync: ## Run go work sync
-	go work sync
+	hack/sync-go-work.sh
 
 .PHONY: kubectl-datadog
 kubectl-datadog: lint

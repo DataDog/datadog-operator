@@ -7,6 +7,9 @@ package common
 
 // This file tracks constants used in features, component default code
 
+// DDAgentUserID is the UID/GID used by the Datadog Agent containers when running as non-root.
+const DDAgentUserID int64 = 100
+
 // Resource names
 const (
 	DatadogTokenOldResourceName          = "datadogtoken"            // Kept for backward compatibility with agent <7.37.0
@@ -126,6 +129,13 @@ const (
 	DebugfsVolumeName = "debugfs"
 	// same path on host and container
 	DebugfsPath = "/sys/kernel/debug"
+
+	TracefsVolumeName = "tracefs"
+	// same path on host and container. Only mounted for providers whose kernel
+	// exposes tracefs as a standalone mount instead of nesting it under
+	// DebugfsPath (a hostPath mount of debugfs does not pull in a sibling
+	// tracefs mount).
+	TracefsPath = "/sys/kernel/tracing"
 
 	ModulesVolumeName = "modules"
 	// same path on host and container

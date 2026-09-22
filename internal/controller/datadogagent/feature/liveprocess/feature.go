@@ -16,6 +16,8 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	featutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/providercaps"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 func init() {
@@ -41,8 +43,19 @@ func (f *liveProcessFeature) ID() feature.IDType {
 	return feature.LiveProcessIDType
 }
 
+// NodeAgentProviderCapabilities returns provider-conditional pod-template
+// mutations for the node agent. Talos has no host user database, so the
+// passwd volume this feature adds is stripped.
+func (f *liveProcessFeature) NodeAgentProviderCapabilities() providercaps.ProviderCapabilityMap {
+	return providercaps.ProviderCapabilityMap{
+		kubernetes.TalosProvider: {
+			RemoveVolumes: []string{common.PasswdVolumeName},
+		},
+	}
+}
+
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
-func (f *liveProcessFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
+func (f *liveProcessFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
 	if ddaSpec.Features.LiveProcessCollection != nil && apiutils.BoolValue(ddaSpec.Features.LiveProcessCollection.Enabled) {
 		if ddaSpec.Features.LiveProcessCollection.ScrubProcessArguments != nil {
 			f.scrubArgs = new(*ddaSpec.Features.LiveProcessCollection.ScrubProcessArguments)
@@ -55,7 +68,7 @@ func (f *liveProcessFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.Datado
 			apicommon.CoreAgentContainerName,
 		}
 
-		f.runInCoreAgent = featutils.ShouldRunProcessChecksInCoreAgent(ddaSpec)
+		f.runInCoreAgent = featutils.ShouldRunProcessChecksInCoreAgent(dda, ddaSpec)
 
 		if !f.runInCoreAgent {
 			reqContainers = append(reqContainers, apicommon.ProcessAgentContainerName)

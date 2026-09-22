@@ -18,6 +18,8 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/providercaps"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 func init() {
@@ -53,6 +55,22 @@ type sbomFeature struct {
 // ID returns the ID of the Feature
 func (f *sbomFeature) ID() feature.IDType {
 	return feature.SBOMIDType
+}
+
+// NodeAgentProviderCapabilities mounts tracefs on Talos, where it is a standalone
+// mount rather than nested under the debugfs mount enrichment adds.
+func (f *sbomFeature) NodeAgentProviderCapabilities() providercaps.ProviderCapabilityMap {
+	if !f.enrichmentUsageEnabled {
+		return nil
+	}
+
+	return providercaps.ProviderCapabilityMap{
+		kubernetes.TalosProvider: {
+			Volumes: []providercaps.VolumeAndMount{
+				providercaps.HostPathVolumeAndMount(common.TracefsVolumeName, common.TracefsPath, false, apicommon.SystemProbeContainerName),
+			},
+		},
+	}
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.

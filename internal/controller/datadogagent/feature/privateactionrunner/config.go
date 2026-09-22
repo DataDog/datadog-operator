@@ -109,6 +109,9 @@ func parsePrivateActionRunnerConfig(configData string) (*PrivateActionRunnerConf
 	if err := yaml.Unmarshal([]byte(configData), &config); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal config data: %w", err)
 	}
+	if config.PrivateActionRunner == nil {
+		config.PrivateActionRunner = &PrivateActionRunnerConfig{}
+	}
 	return config.PrivateActionRunner, nil
 }
 

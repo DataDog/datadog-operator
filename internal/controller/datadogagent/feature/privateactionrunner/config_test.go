@@ -106,6 +106,22 @@ func TestParsePrivateActionRunnerConfig(t *testing.T) {
 			},
 		},
 		{
+			name:       "null private_action_runner config",
+			configData: `private_action_runner: null`,
+			wantErr:    false,
+			expectedConfig: &PrivateActionRunnerConfig{
+				Enabled: false,
+			},
+		},
+		{
+			name:       "empty private_action_runner config",
+			configData: "private_action_runner:\n",
+			wantErr:    false,
+			expectedConfig: &PrivateActionRunnerConfig{
+				Enabled: false,
+			},
+		},
+		{
 			name:       "missing private_action_runner key",
 			configData: `some_other_key: value`,
 			wantErr:    false,
