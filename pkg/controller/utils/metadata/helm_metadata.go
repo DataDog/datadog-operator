@@ -76,8 +76,8 @@ type ReleaseSnapshot struct {
 	ChartVersion   string
 	AppVersion     string
 	ConfigMapUID   string
-	ProvidedValues json.RawMessage
-	FullValues     json.RawMessage
+	ProvidedValues string
+	FullValues     string
 	Revision       int
 	Status         string
 }
@@ -95,14 +95,14 @@ type HelmMetadata struct {
 	KubernetesVersion string `json:"kubernetes_version"`
 	ClusterID         string `json:"cluster_id"`
 
-	ChartName                 string          `json:"chart_name"`
-	ChartReleaseName          string          `json:"chart_release_name"`
-	ChartAppVersion           string          `json:"chart_app_version"`
-	ChartVersion              string          `json:"chart_version"`
-	ChartNamespace            string          `json:"chart_namespace"`
-	ChartConfigMapUID         string          `json:"chart_configmap_uid"`
-	HelmProvidedConfiguration json.RawMessage `json:"helm_provided_configuration"` // User-provided values only
-	HelmFullConfiguration     json.RawMessage `json:"helm_full_configuration"`     // Includes defaults
+	ChartName                 string `json:"chart_name"`
+	ChartReleaseName          string `json:"chart_release_name"`
+	ChartAppVersion           string `json:"chart_app_version"`
+	ChartVersion              string `json:"chart_version"`
+	ChartNamespace            string `json:"chart_namespace"`
+	ChartConfigMapUID         string `json:"chart_configmap_uid"`
+	HelmProvidedConfiguration string `json:"helm_provided_configuration"` // User-provided values only
+	HelmFullConfiguration     string `json:"helm_full_configuration"`     // Includes defaults
 }
 
 // HelmReleaseData contains all data for a single Helm release
@@ -113,8 +113,8 @@ type HelmReleaseData struct {
 	ChartVersion   string
 	AppVersion     string
 	ConfigMapUID   string
-	ProvidedValues json.RawMessage // User-provided values only
-	FullValues     json.RawMessage // Includes defaults
+	ProvidedValues string // User-provided values only
+	FullValues     string // Includes defaults
 	Revision       int
 	Status         string
 }
@@ -323,8 +323,8 @@ func (hmf *HelmMetadataForwarder) buildSnapshot(
 		ChartVersion:   release.Chart.Metadata.Version,
 		AppVersion:     release.Chart.Metadata.AppVersion,
 		ConfigMapUID:   uid,
-		ProvidedValues: json.RawMessage(providedValues),
-		FullValues:     json.RawMessage(fullValuesJSON),
+		ProvidedValues: string(providedValues),
+		FullValues:     string(fullValuesJSON),
 		Revision:       revision,
 		Status:         release.Info.Status,
 	}
