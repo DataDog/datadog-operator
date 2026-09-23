@@ -90,6 +90,14 @@ A few notes on this configuration:
 - In OpenShift 4.0+, set the `hostNetwork` parameter to allow access to your cloud provider metadata (IMDS) API endpoint for host tags and aliases.
 - If using APM or DogStatsD, disable the Unix Domain Socket (UDS) method, as this requires highly elevated privileges on your APM application pods. Disabling it also ensures that the Admission Controller does not inject this configuration. To disable APM entirely, set `features.apm.enabled` to false.
 
+**Note**: In Datadog Operator 1.31 and later, most of the above is applied automatically. The Operator detects OpenShift from the node labels — or you can declare it with the `agent.datadoghq.com/cluster-provider: openshift-rhcos` annotation on the `DatadogAgent` — and then configures the node Agent's `serviceAccountName` (after verifying that `datadog-agent-scc` may use the `privileged` SCC), the SELinux `spc_t` type it needs to read host paths and write the system-probe seccomp profile, the `master` and `infra` tolerations, and `kubelet.tlsVerify: false`. Any value you set explicitly is left alone, so the manifest above keeps working unchanged. Still set yourself:
+
+- `global.clusterName`, which cannot be auto-discovered.
+- The APM and DogStatsD transport. The Operator does not change it, and a Unix Domain Socket makes the Admission Controller inject a `hostPath` volume into instrumented application pods that the default `restricted-v2` SCC rejects.
+- `hostNetwork`, if you need cloud provider metadata (IMDS).
+
+The `clusterAgent` `serviceAccountName` is not set automatically: the Cluster Agent mounts no host paths and runs under `restricted-v2` without it. See [Providers][9] for the full provider reference.
+
 3. Apply the Datadog Agent manifest:
    ```shell
    oc apply -f path/to/your/datadog-agent.yaml
@@ -166,3 +174,4 @@ oc get customresourcedefinitions datadogagents.datadoghq.com -osjon | jq .status
 [6]: https://app.datadoghq.com/organization-settings/application-keys
 [7]: https://www.datadoghq.com/support/
 [8]: https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definition-versioning/
+[9]: https://github.com/DataDog/datadog-operator/blob/main/docs/providers.md
