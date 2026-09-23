@@ -57,7 +57,7 @@ func TestResolveCSIWorkloadAllowlistVersion(t *testing.T) {
 
 func TestDefaultWorkloadAllowlistVersion(t *testing.T) {
 	// Sanity check — locks the default to a known value so a silent bump is caught.
-	assert.Equal(t, "v1.0.5", DefaultWorkloadAllowlistVersion)
+	assert.Equal(t, "v1.0.6", DefaultWorkloadAllowlistVersion)
 }
 
 func TestDefaultCSIWorkloadAllowlistVersion(t *testing.T) {
@@ -77,7 +77,7 @@ func TestApplyAllowlistSynchronizerResource_AllowlistPath(t *testing.T) {
 		{
 			name:       "default version",
 			version:    DefaultWorkloadAllowlistVersion,
-			expectPath: "Datadog/datadog/datadog-datadog-daemonset-exemption-v1.0.5.yaml",
+			expectPath: "Datadog/datadog/datadog-datadog-daemonset-exemption-v1.0.6.yaml",
 		},
 		{
 			name:       "user override",
