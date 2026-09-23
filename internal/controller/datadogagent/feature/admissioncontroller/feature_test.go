@@ -44,7 +44,10 @@ func Test_admissionControllerFeature_Configure(t *testing.T) {
 			WantConfigure: true,
 			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
 				admissionControllerWantFunc(false, false, "", "", false)),
-			WantDependenciesFunc: assertCSIDriverRBAC,
+			WantDependenciesFunc: func(t testing.TB, sc store.StoreClient) {
+				assertCSIDriverRBAC(t, sc)
+				assertSidecarSecretRBAC(t, sc, false)
+			},
 		},
 		{
 			Name: "Admission Controller enabled with validation and mutation enabled",
@@ -119,6 +122,9 @@ func Test_admissionControllerFeature_Configure(t *testing.T) {
 			WantConfigure: true,
 			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
 				sidecarInjectionWantFunc("", "", "", "agent", images.AgentLatestVersion, false, false, nil, nil)),
+			WantDependenciesFunc: func(t testing.TB, sc store.StoreClient) {
+				assertSidecarSecretRBAC(t, sc, true)
+			},
 		},
 		{
 			Name: "Admission Controller enabled with sidecar injection adding global registry",
@@ -274,6 +280,26 @@ func assertCSIDriverRBAC(t testing.TB, sc store.StoreClient) {
 			rbac.GetVerb,
 		},
 	})
+}
+
+func assertSidecarSecretRBAC(t testing.TB, sc store.StoreClient, expected bool) {
+	crObj, found := sc.Get(kubernetes.ClusterRolesKind, "", "-cluster-agent")
+	assert.True(t, found, "Cluster Agent ClusterRole should be created")
+
+	cr, ok := crObj.(*rbacv1.ClusterRole)
+	assert.True(t, ok, "Cluster Agent ClusterRole should have the expected type")
+
+	rule := rbacv1.PolicyRule{
+		APIGroups:     []string{rbac.CoreAPIGroup},
+		Resources:     []string{rbac.SecretsResource},
+		ResourceNames: []string{defaultAgentSidecarSecretName},
+		Verbs:         []string{rbac.GetVerb},
+	}
+	if expected {
+		assert.Contains(t, cr.Rules, rule)
+	} else {
+		assert.NotContains(t, cr.Rules, rule)
+	}
 }
 
 func testDCAResources(acm string, registry string, cwsInstrumentationEnabled bool) *test.ComponentTest {
