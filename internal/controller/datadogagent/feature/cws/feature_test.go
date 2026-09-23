@@ -12,6 +12,7 @@ import (
 
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/defaults"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -455,4 +456,32 @@ func Test_cwsFeature_NodeAgentProviderCapabilities(t *testing.T) {
 		assert.Contains(t, volumeNames(tmpl), common.GroupVolumeName)
 		assert.NotContains(t, volumeNames(tmpl), common.TracefsVolumeName)
 	})
+}
+
+// Remote Configuration can enable CWS after the defaulting pass has run, so the feature has to
+// re-apply the defaults itself. Without that, a remotely enabled CWS keeps a nil (false)
+// DirectSendFromSystemProbe and falls back to the security-agent topology.
+func Test_cwsFeature_ConfigureFromRemoteConfig(t *testing.T) {
+	dda := &v2alpha1.DatadogAgent{
+		Status: v2alpha1.DatadogAgentStatus{
+			RemoteConfigConfiguration: &v2alpha1.RemoteConfigConfiguration{
+				Features: &v2alpha1.DatadogFeatures{
+					CWS: &v2alpha1.CWSFeatureConfig{Enabled: ptr.To(true)},
+				},
+			},
+		},
+	}
+	defaults.DefaultDatadogAgentSpec(&dda.Spec)
+	require.False(t, *dda.Spec.Features.CWS.Enabled, "CWS is off in the spec before the merge")
+
+	f := &cwsFeature{}
+	reqComp := f.Configure(dda, &dda.Spec, dda.Status.RemoteConfigConfiguration)
+
+	assert.True(t, f.directSendFromSystemProbe)
+	assert.Equal(t, []apicommon.AgentContainerName{apicommon.SystemProbeContainerName}, reqComp.Agent.Containers)
+
+	// the rest of the CWS defaults apply too, as they would for a spec enabled CWS
+	assert.True(t, f.networkEnabled)
+	assert.True(t, f.activityDumpEnabled)
+	assert.True(t, f.enforcementEnabled)
 }

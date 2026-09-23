@@ -16,6 +16,7 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/defaults"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/configmap"
@@ -141,6 +142,11 @@ func mergeConfigs(ddaSpec *v2alpha1.DatadogAgentSpec, ddaRCStatus *v2alpha1.Remo
 	if ddaRCStatus.Features.CSPM.Enabled != nil {
 		ddaSpec.Features.CSPM.Enabled = ddaRCStatus.Features.CSPM.Enabled
 	}
+
+	// Defaulting ran before this merge, and skipped everything below Enabled because the feature
+	// was off at the time. Re-apply the defaults now that Remote Configuration has turned it on,
+	// so a remotely enabled feature is configured like a spec enabled one.
+	defaults.DefaultCSPMFeature(ddaSpec)
 }
 
 // ManageDependencies allows a feature to manage its dependencies.

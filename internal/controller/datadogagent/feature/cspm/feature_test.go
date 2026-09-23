@@ -18,6 +18,7 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/defaults"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
@@ -389,4 +390,30 @@ func configSyncEnvVars() []*corev1.EnvVar {
 		{Name: common.DDAgentIpcPort, Value: featureutils.DefaultAgentIpcPort},
 		{Name: common.DDAgentIpcConfigRefreshInterval, Value: featureutils.DefaultAgentIpcConfigRefreshInterval},
 	}
+}
+
+// Remote Configuration can enable CSPM after the defaulting pass has run, so the feature has to
+// re-apply the defaults itself. Without that, a remotely enabled CSPM keeps a nil (false)
+// RunInSystemProbe and falls back to the security-agent topology.
+func Test_cspmFeature_ConfigureFromRemoteConfig(t *testing.T) {
+	dda := &v2alpha1.DatadogAgent{
+		Status: v2alpha1.DatadogAgentStatus{
+			RemoteConfigConfiguration: &v2alpha1.RemoteConfigConfiguration{
+				Features: &v2alpha1.DatadogFeatures{
+					CSPM: &v2alpha1.CSPMFeatureConfig{Enabled: ptr.To(true)},
+				},
+			},
+		},
+	}
+	defaults.DefaultDatadogAgentSpec(&dda.Spec)
+	require.False(t, *dda.Spec.Features.CSPM.Enabled, "CSPM is off in the spec before the merge")
+
+	f := &cspmFeature{}
+	reqComp := f.Configure(dda, &dda.Spec, dda.Status.RemoteConfigConfiguration)
+
+	assert.True(t, f.runInSystemProbe)
+	assert.Equal(t, []apicommon.AgentContainerName{apicommon.SystemProbeContainerName}, reqComp.Agent.Containers)
+
+	// the host benchmarks default applies too, as it would for a spec enabled CSPM
+	assert.True(t, f.hostBenchmarksEnabled)
 }
