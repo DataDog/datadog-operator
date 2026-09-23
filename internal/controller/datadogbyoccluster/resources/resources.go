@@ -9,9 +9,13 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"slices"
 
 	appsv1 "k8s.io/api/apps/v1"
+	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	corev1 "k8s.io/api/core/v1"
+	policyv1 "k8s.io/api/policy/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -35,13 +39,64 @@ type Resources struct {
 	compactor         *DeploymentResources
 }
 
-// Shared returns the cluster-wide resources in apply order.
-func (r *Resources) Shared() []client.Object {
+// Objects returns the resources in apply order.
+func (r *Resources) Objects() []client.Object {
 	objects := []client.Object{r.configMap}
 	if r.serviceAccount != nil {
 		objects = append(objects, r.serviceAccount)
 	}
-	return append(objects, r.headlessService)
+	objects = append(objects, r.headlessService)
+	return slices.Concat(objects,
+		r.metastore.Objects(),
+		r.indexer.Objects(),
+		r.searcher.Objects(),
+		r.controlPlane.Objects(),
+		r.janitor.Objects(),
+		r.readOnlyMetastore.Objects(),
+		r.compactor.Objects(),
+	)
+}
+
+// ObsoleteObjects returns optional resources that are no longer desired.
+func (r *Resources) ObsoleteObjects() []client.Object {
+	metadata := func(component string) metav1.ObjectMeta {
+		return metav1.ObjectMeta{
+			Name:      ComponentResourceName(r.configMap.Name, component),
+			Namespace: r.configMap.Namespace,
+		}
+	}
+	var objects []client.Object
+	if r.readOnlyMetastore == nil {
+		objects = append(objects,
+			&corev1.Service{ObjectMeta: metadata(ReadOnlyMetastoreComponentName)},
+			&appsv1.Deployment{ObjectMeta: metadata(ReadOnlyMetastoreComponentName)},
+		)
+	}
+	if r.compactor == nil {
+		objects = append(objects,
+			&corev1.Service{ObjectMeta: metadata(CompactorComponentName)},
+			&appsv1.Deployment{ObjectMeta: metadata(CompactorComponentName)},
+		)
+	}
+	if r.indexer.HPA == nil {
+		objects = append(objects, &autoscalingv2.HorizontalPodAutoscaler{ObjectMeta: metadata(IndexerComponentName)})
+	}
+	if r.searcher.HPA == nil {
+		objects = append(objects, &autoscalingv2.HorizontalPodAutoscaler{ObjectMeta: metadata(SearcherComponentName)})
+	}
+	desiredPodDisruptionBudgets := map[string]bool{}
+	for _, object := range r.Objects() {
+		if _, ok := object.(*policyv1.PodDisruptionBudget); ok {
+			desiredPodDisruptionBudgets[object.GetName()] = true
+		}
+	}
+	for _, component := range ComponentNames() {
+		meta := metadata(component)
+		if !desiredPodDisruptionBudgets[meta.Name] {
+			objects = append(objects, &policyv1.PodDisruptionBudget{ObjectMeta: meta})
+		}
+	}
+	return objects
 }
 
 // Indexer returns the indexer resources.

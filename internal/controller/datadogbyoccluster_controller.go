@@ -99,8 +99,10 @@ func (r *DatadogBYOCClusterReconciler) Reconcile(ctx context.Context, request ct
 		return ctrl.Result{}, r.fail(ctx, cluster, conditionReconciled, "InvalidConfiguration", err)
 	}
 	r.setCondition(cluster, conditionReleaseResolved, metav1.ConditionTrue, "Resolved", "Workload images resolved successfully")
-	if err := r.applyResources(ctx, cluster, resources); err != nil {
-		return ctrl.Result{}, r.fail(ctx, cluster, conditionReconciled, "ApplyFailed", err)
+	for _, object := range resources.Objects() {
+		if err := r.applyObject(ctx, cluster, object); err != nil {
+			return ctrl.Result{}, r.fail(ctx, cluster, conditionReconciled, "ApplyFailed", err)
+		}
 	}
 	if err := r.applyObject(ctx, cluster, worker); err != nil {
 		return ctrl.Result{}, r.fail(ctx, cluster, conditionReconciled, "ApplyFailed", err)
@@ -157,43 +159,6 @@ func (r *DatadogBYOCClusterReconciler) finalize(ctx context.Context, cluster *da
 	return ctrl.Result{}, nil
 }
 
-func (r *DatadogBYOCClusterReconciler) applyResources(ctx context.Context, cluster *datadoghqv1alpha1.DatadogBYOCCluster, resources *byocresources.Resources) error {
-	if err := r.applyObjects(ctx, cluster, resources.Shared()); err != nil {
-		return err
-	}
-	if err := r.applyObjects(ctx, cluster, resources.Metastore().Objects()); err != nil {
-		return err
-	}
-	if err := r.applyObjects(ctx, cluster, resources.Indexer().Objects()); err != nil {
-		return err
-	}
-	if err := r.applyObjects(ctx, cluster, resources.Searcher().Objects()); err != nil {
-		return err
-	}
-	if err := r.applyObjects(ctx, cluster, resources.ControlPlane().Objects()); err != nil {
-		return err
-	}
-	if err := r.applyObjects(ctx, cluster, resources.Janitor().Objects()); err != nil {
-		return err
-	}
-	if err := r.applyObjects(ctx, cluster, resources.ReadOnlyMetastore().Objects()); err != nil {
-		return err
-	}
-	if err := r.applyObjects(ctx, cluster, resources.Compactor().Objects()); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (r *DatadogBYOCClusterReconciler) applyObjects(ctx context.Context, owner *datadoghqv1alpha1.DatadogBYOCCluster, objects []client.Object) error {
-	for _, object := range objects {
-		if err := r.applyObject(ctx, owner, object); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 func (r *DatadogBYOCClusterReconciler) applyObject(ctx context.Context, owner *datadoghqv1alpha1.DatadogBYOCCluster, desired client.Object) error {
 	if err := controllerutil.SetControllerReference(owner, desired, r.Scheme); err != nil {
 		return wrapApplyError(desired, err)
@@ -210,68 +175,12 @@ func (r *DatadogBYOCClusterReconciler) applyObject(ctx context.Context, owner *d
 }
 
 func (r *DatadogBYOCClusterReconciler) deleteObsoleteResources(ctx context.Context, cluster *datadoghqv1alpha1.DatadogBYOCCluster, resources *byocresources.Resources) error {
-	if resources.ReadOnlyMetastore() == nil {
-		if err := r.deleteDeploymentComponent(ctx, cluster, byocresources.ReadOnlyMetastoreComponentName); err != nil {
+	for _, object := range resources.ObsoleteObjects() {
+		if err := deleteOwnedIfExists(ctx, r.Client, cluster, object); err != nil {
 			return err
-		}
-	}
-	if resources.Compactor() == nil {
-		if err := r.deleteDeploymentComponent(ctx, cluster, byocresources.CompactorComponentName); err != nil {
-			return err
-		}
-	}
-	if resources.Indexer().HPA == nil {
-		if err := r.deleteHPA(ctx, cluster, byocresources.IndexerComponentName); err != nil {
-			return err
-		}
-	}
-	if resources.Searcher().HPA == nil {
-		if err := r.deleteHPA(ctx, cluster, byocresources.SearcherComponentName); err != nil {
-			return err
-		}
-	}
-	desiredPodDisruptionBudgets := map[string]*policyv1.PodDisruptionBudget{
-		byocresources.IndexerComponentName:      resources.Indexer().PodDisruptionBudget,
-		byocresources.SearcherComponentName:     resources.Searcher().PodDisruptionBudget,
-		byocresources.MetastoreComponentName:    resources.Metastore().PodDisruptionBudget,
-		byocresources.ControlPlaneComponentName: resources.ControlPlane().PodDisruptionBudget,
-		byocresources.JanitorComponentName:      resources.Janitor().PodDisruptionBudget,
-	}
-	if resources.ReadOnlyMetastore() != nil {
-		desiredPodDisruptionBudgets[byocresources.ReadOnlyMetastoreComponentName] = resources.ReadOnlyMetastore().PodDisruptionBudget
-	}
-	if resources.Compactor() != nil {
-		desiredPodDisruptionBudgets[byocresources.CompactorComponentName] = resources.Compactor().PodDisruptionBudget
-	}
-	for _, component := range byocresources.ComponentNames() {
-		if desiredPodDisruptionBudgets[component] == nil {
-			if err := r.deletePodDisruptionBudget(ctx, cluster, component); err != nil {
-				return err
-			}
 		}
 	}
 	return nil
-}
-
-func (r *DatadogBYOCClusterReconciler) deleteDeploymentComponent(ctx context.Context, cluster *datadoghqv1alpha1.DatadogBYOCCluster, component string) error {
-	name := byocresources.ComponentResourceName(cluster.Name, component)
-	if err := deleteOwnedIfExists(ctx, r.Client, cluster, &corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: cluster.Namespace}}); err != nil {
-		return err
-	}
-	return deleteOwnedIfExists(ctx, r.Client, cluster, &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: cluster.Namespace}})
-}
-
-func (r *DatadogBYOCClusterReconciler) deleteHPA(ctx context.Context, cluster *datadoghqv1alpha1.DatadogBYOCCluster, component string) error {
-	name := byocresources.ComponentResourceName(cluster.Name, component)
-	return deleteOwnedIfExists(ctx, r.Client, cluster, &autoscalingv2.HorizontalPodAutoscaler{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: cluster.Namespace}})
-}
-
-func (r *DatadogBYOCClusterReconciler) deletePodDisruptionBudget(ctx context.Context, cluster *datadoghqv1alpha1.DatadogBYOCCluster, component string) error {
-	podDisruptionBudget := &policyv1.PodDisruptionBudget{ObjectMeta: metav1.ObjectMeta{
-		Name:      byocresources.ComponentResourceName(cluster.Name, component),
-		Namespace: cluster.Namespace,
-	}}
-	return deleteOwnedIfExists(ctx, r.Client, cluster, podDisruptionBudget)
 }
 
 func (r *DatadogBYOCClusterReconciler) fail(ctx context.Context, cluster *datadoghqv1alpha1.DatadogBYOCCluster, conditionType, reason string, reconcileErr error) error {

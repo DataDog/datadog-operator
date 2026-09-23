@@ -6,6 +6,7 @@
 package resources
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -20,12 +21,209 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/ptr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/yaml"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	byocdefaults "github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/defaults"
 	byocimage "github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/image"
 )
+
+func TestResources_Objects(t *testing.T) {
+	tests := []struct {
+		name                string
+		identity            *datadoghqv1alpha1.DatadogBYOCClusterIdentitySpec
+		globalBudget        *datadoghqv1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec
+		indexerAutoscaling  *datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec
+		searcherAutoscaling *datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec
+		readOnlyMetastore   *datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec
+		compactor           *datadoghqv1alpha1.DatadogBYOCClusterComponentSpec
+		want                []string
+	}{
+		{
+			name: "default resources in apply order",
+			want: []string{
+				"*v1.ConfigMap/byoc", "*v1.ServiceAccount/byoc", "*v1.Service/byoc-headless",
+				"*v1.Service/byoc-metastore", "*v1.Deployment/byoc-metastore", "*v1.PodDisruptionBudget/byoc-metastore",
+				"*v1.Service/byoc-indexer", "*v1.StatefulSet/byoc-indexer", "*v1.PodDisruptionBudget/byoc-indexer",
+				"*v1.Service/byoc-searcher", "*v1.StatefulSet/byoc-searcher", "*v1.PodDisruptionBudget/byoc-searcher",
+				"*v1.Service/byoc-control-plane", "*v1.Deployment/byoc-control-plane", "*v1.PodDisruptionBudget/byoc-control-plane",
+				"*v1.Service/byoc-janitor", "*v1.Deployment/byoc-janitor", "*v1.PodDisruptionBudget/byoc-janitor",
+			},
+		},
+		{
+			name:                "all optional resources in apply order",
+			indexerAutoscaling:  &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{},
+			searcherAutoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{},
+			readOnlyMetastore:   &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{},
+			compactor:           &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
+			want: []string{
+				"*v1.ConfigMap/byoc", "*v1.ServiceAccount/byoc", "*v1.Service/byoc-headless",
+				"*v1.Service/byoc-metastore", "*v1.Deployment/byoc-metastore", "*v1.PodDisruptionBudget/byoc-metastore",
+				"*v1.Service/byoc-indexer", "*v1.StatefulSet/byoc-indexer", "*v2.HorizontalPodAutoscaler/byoc-indexer", "*v1.PodDisruptionBudget/byoc-indexer",
+				"*v1.Service/byoc-searcher", "*v1.StatefulSet/byoc-searcher", "*v2.HorizontalPodAutoscaler/byoc-searcher", "*v1.PodDisruptionBudget/byoc-searcher",
+				"*v1.Service/byoc-control-plane", "*v1.Deployment/byoc-control-plane", "*v1.PodDisruptionBudget/byoc-control-plane",
+				"*v1.Service/byoc-janitor", "*v1.Deployment/byoc-janitor", "*v1.PodDisruptionBudget/byoc-janitor",
+				"*v1.Service/byoc-read-only-metastore", "*v1.Deployment/byoc-read-only-metastore", "*v1.PodDisruptionBudget/byoc-read-only-metastore",
+				"*v1.Service/byoc-compactor", "*v1.Deployment/byoc-compactor", "*v1.PodDisruptionBudget/byoc-compactor",
+			},
+		},
+		{
+			name:         "existing service account and disabled budgets",
+			identity:     &datadoghqv1alpha1.DatadogBYOCClusterIdentitySpec{ServiceAccountName: ptr.To("existing")},
+			globalBudget: &datadoghqv1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec{},
+			want: []string{
+				"*v1.ConfigMap/byoc", "*v1.Service/byoc-headless",
+				"*v1.Service/byoc-metastore", "*v1.Deployment/byoc-metastore",
+				"*v1.Service/byoc-indexer", "*v1.StatefulSet/byoc-indexer",
+				"*v1.Service/byoc-searcher", "*v1.StatefulSet/byoc-searcher",
+				"*v1.Service/byoc-control-plane", "*v1.Deployment/byoc-control-plane",
+				"*v1.Service/byoc-janitor", "*v1.Deployment/byoc-janitor",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cluster := testCluster()
+			cluster.Spec.Identity = tt.identity
+			cluster.Spec.Global.PodDisruptionBudget = tt.globalBudget
+			cluster.Spec.Components.Indexer.Autoscaling = tt.indexerAutoscaling
+			cluster.Spec.Components.Searcher.Autoscaling = tt.searcherAutoscaling
+			cluster.Spec.Components.ReadOnlyMetastore = tt.readOnlyMetastore
+			cluster.Spec.Components.Compactor = tt.compactor
+			resources, err := buildResources(cluster, testRelease())
+			if err != nil {
+				t.Fatalf("BuildResources() unexpected error: %v", err)
+			}
+
+			objects := resources.Objects()
+			var got []string
+			for _, object := range objects {
+				got = append(got, fmt.Sprintf("%T/%s", object, object.GetName()))
+				if object.GetNamespace() != cluster.Namespace {
+					t.Errorf("%T %s namespace = %q, want %q", object, object.GetName(), object.GetNamespace(), cluster.Namespace)
+				}
+			}
+			if diff := cmp.Diff(tt.want, got); diff != "" {
+				t.Errorf("Objects() mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestResources_ObsoleteObjects(t *testing.T) {
+	metadata := func(component string) metav1.ObjectMeta {
+		return metav1.ObjectMeta{Name: "byoc-" + component, Namespace: "testing"}
+	}
+	tests := []struct {
+		name                string
+		globalBudget        *datadoghqv1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec
+		indexerBudget       *datadoghqv1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec
+		indexerAutoscaling  *datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec
+		searcherAutoscaling *datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec
+		readOnlyMetastore   *datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec
+		compactor           *datadoghqv1alpha1.DatadogBYOCClusterComponentSpec
+		want                []client.Object
+	}{
+		{
+			name: "disabled components and autoscaling",
+			want: []client.Object{
+				&corev1.Service{ObjectMeta: metadata("read-only-metastore")},
+				&appsv1.Deployment{ObjectMeta: metadata("read-only-metastore")},
+				&corev1.Service{ObjectMeta: metadata("compactor")},
+				&appsv1.Deployment{ObjectMeta: metadata("compactor")},
+				&autoscalingv2.HorizontalPodAutoscaler{ObjectMeta: metadata("indexer")},
+				&autoscalingv2.HorizontalPodAutoscaler{ObjectMeta: metadata("searcher")},
+				&policyv1.PodDisruptionBudget{ObjectMeta: metadata("read-only-metastore")},
+				&policyv1.PodDisruptionBudget{ObjectMeta: metadata("compactor")},
+			},
+		},
+		{
+			name:                "all optional resources enabled",
+			indexerAutoscaling:  &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{},
+			searcherAutoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{},
+			readOnlyMetastore:   &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{},
+			compactor:           &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
+		},
+		{
+			name:               "retain read-only metastore and indexer autoscaling",
+			indexerAutoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{},
+			readOnlyMetastore:  &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{},
+			want: []client.Object{
+				&corev1.Service{ObjectMeta: metadata("compactor")},
+				&appsv1.Deployment{ObjectMeta: metadata("compactor")},
+				&autoscalingv2.HorizontalPodAutoscaler{ObjectMeta: metadata("searcher")},
+				&policyv1.PodDisruptionBudget{ObjectMeta: metadata("compactor")},
+			},
+		},
+		{
+			name:                "retain compactor and searcher autoscaling",
+			searcherAutoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{},
+			compactor:           &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
+			want: []client.Object{
+				&corev1.Service{ObjectMeta: metadata("read-only-metastore")},
+				&appsv1.Deployment{ObjectMeta: metadata("read-only-metastore")},
+				&autoscalingv2.HorizontalPodAutoscaler{ObjectMeta: metadata("indexer")},
+				&policyv1.PodDisruptionBudget{ObjectMeta: metadata("read-only-metastore")},
+			},
+		},
+		{
+			name:                "disable budgets for enabled components",
+			globalBudget:        &datadoghqv1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec{},
+			indexerAutoscaling:  &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{},
+			searcherAutoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{},
+			readOnlyMetastore:   &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{},
+			compactor:           &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
+			want: []client.Object{
+				&policyv1.PodDisruptionBudget{ObjectMeta: metadata("indexer")},
+				&policyv1.PodDisruptionBudget{ObjectMeta: metadata("searcher")},
+				&policyv1.PodDisruptionBudget{ObjectMeta: metadata("metastore")},
+				&policyv1.PodDisruptionBudget{ObjectMeta: metadata("control-plane")},
+				&policyv1.PodDisruptionBudget{ObjectMeta: metadata("janitor")},
+				&policyv1.PodDisruptionBudget{ObjectMeta: metadata("read-only-metastore")},
+				&policyv1.PodDisruptionBudget{ObjectMeta: metadata("compactor")},
+			},
+		},
+		{
+			name:                "retain component budget overrides",
+			globalBudget:        &datadoghqv1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec{},
+			indexerBudget:       &datadoghqv1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec{MaxUnavailable: ptr.To(intstr.FromInt32(1))},
+			indexerAutoscaling:  &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{},
+			searcherAutoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{},
+			readOnlyMetastore:   &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{},
+			compactor: &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
+				PodDisruptionBudget: &datadoghqv1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec{MaxUnavailable: ptr.To(intstr.FromInt32(1))},
+			},
+			want: []client.Object{
+				&policyv1.PodDisruptionBudget{ObjectMeta: metadata("searcher")},
+				&policyv1.PodDisruptionBudget{ObjectMeta: metadata("metastore")},
+				&policyv1.PodDisruptionBudget{ObjectMeta: metadata("control-plane")},
+				&policyv1.PodDisruptionBudget{ObjectMeta: metadata("janitor")},
+				&policyv1.PodDisruptionBudget{ObjectMeta: metadata("read-only-metastore")},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cluster := testCluster()
+			cluster.Spec.Global.PodDisruptionBudget = tt.globalBudget
+			cluster.Spec.Components.Indexer.PodDisruptionBudget = tt.indexerBudget
+			cluster.Spec.Components.Indexer.Autoscaling = tt.indexerAutoscaling
+			cluster.Spec.Components.Searcher.Autoscaling = tt.searcherAutoscaling
+			cluster.Spec.Components.ReadOnlyMetastore = tt.readOnlyMetastore
+			cluster.Spec.Components.Compactor = tt.compactor
+			resources, err := buildResources(cluster, testRelease())
+			if err != nil {
+				t.Fatalf("BuildResources() unexpected error: %v", err)
+			}
+			if diff := cmp.Diff(tt.want, resources.ObsoleteObjects()); diff != "" {
+				t.Errorf("ObsoleteObjects() mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
 
 func TestBuildResources_ConfigMap(t *testing.T) {
 	type nodeConfigValues struct {
