@@ -10248,6 +10248,8 @@ spec:
                                 - key
                               type: object
                               x-kubernetes-map-type: atomic
+                          required:
+                            - uriSecretRef
                           type: object
                         env:
                           items:
@@ -12124,6 +12126,8 @@ spec:
                           x-kubernetes-list-map-keys:
                             - name
                           x-kubernetes-list-type: map
+                      required:
+                        - database
                       type: object
                     pipeline:
                       properties:
@@ -15414,6 +15418,8 @@ spec:
                                 - key
                               type: object
                               x-kubernetes-map-type: atomic
+                          required:
+                            - uriSecretRef
                           type: object
                         env:
                           items:
@@ -17290,6 +17296,8 @@ spec:
                           x-kubernetes-list-map-keys:
                             - name
                           x-kubernetes-list-type: map
+                      required:
+                        - database
                       type: object
                     searcher:
                       properties:

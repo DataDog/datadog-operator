@@ -440,6 +440,7 @@ type DatadogBYOCClusterMetastoreComponentSpec struct {
 	DatadogBYOCClusterComponentSpec `json:",inline"`
 
 	// Database configures the PostgreSQL database used by the Metastore.
+	// +kubebuilder:validation:Required
 	Database *DatadogBYOCClusterDatabaseSpec `json:"database,omitempty"`
 }
 
@@ -507,6 +508,7 @@ type DatadogBYOCClusterEmbeddedObjectMetadata struct {
 // +k8s:openapi-gen=true
 type DatadogBYOCClusterDatabaseSpec struct {
 	// URISecretRef references the Kubernetes Secret containing the database URI.
+	// +kubebuilder:validation:Required
 	URISecretRef *corev1.SecretKeySelector `json:"uriSecretRef,omitempty"`
 }
 

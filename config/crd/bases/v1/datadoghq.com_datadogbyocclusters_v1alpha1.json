@@ -16209,6 +16209,9 @@
                       "x-kubernetes-map-type": "atomic"
                     }
                   },
+                  "required": [
+                    "uriSecretRef"
+                  ],
                   "type": "object"
                 },
                 "env": {
@@ -19200,6 +19203,9 @@
                   "x-kubernetes-list-type": "map"
                 }
               },
+              "required": [
+                "database"
+              ],
               "type": "object"
             },
             "pipeline": {
@@ -24419,6 +24425,9 @@
                       "x-kubernetes-map-type": "atomic"
                     }
                   },
+                  "required": [
+                    "uriSecretRef"
+                  ],
                   "type": "object"
                 },
                 "env": {
@@ -27410,6 +27419,9 @@
                   "x-kubernetes-list-type": "map"
                 }
               },
+              "required": [
+                "database"
+              ],
               "type": "object"
             },
             "searcher": {
