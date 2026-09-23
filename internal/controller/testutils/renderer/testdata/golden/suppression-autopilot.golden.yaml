@@ -542,14 +542,6 @@ rules:
 - apiGroups:
   - ""
   resourceNames:
-  - datadog-secret
-  resources:
-  - secrets
-  verbs:
-  - get
-- apiGroups:
-  - ""
-  resourceNames:
   - kube-system
   resources:
   - namespaces

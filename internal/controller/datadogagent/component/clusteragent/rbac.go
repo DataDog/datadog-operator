@@ -128,12 +128,6 @@ func GetDefaultClusterAgentClusterRolePolicyRules(_ metav1.Object) []rbacv1.Poli
 			},
 			Verbs: []string{rbac.GetVerb},
 		},
-		{
-			APIGroups:     []string{rbac.CoreAPIGroup},
-			Resources:     []string{rbac.SecretsResource},
-			ResourceNames: []string{defaultAgentSidecarSecretName},
-			Verbs:         []string{rbac.GetVerb},
-		},
 	}
 }
 

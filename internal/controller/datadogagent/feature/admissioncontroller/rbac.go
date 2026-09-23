@@ -105,6 +105,15 @@ func (f *admissionControllerFeature) getRBACClusterPolicyRules() []rbacv1.Policy
 		})
 	}
 
+	if f.agentSidecarConfig != nil && f.agentSidecarConfig.enabled {
+		clusterPolicyRules = append(clusterPolicyRules, rbacv1.PolicyRule{
+			APIGroups:     []string{rbac.CoreAPIGroup},
+			Resources:     []string{rbac.SecretsResource},
+			ResourceNames: []string{defaultAgentSidecarSecretName},
+			Verbs:         []string{rbac.GetVerb},
+		})
+	}
+
 	if f.agentSidecarConfig != nil && apiutils.BoolValue(f.agentSidecarConfig.tlsVerificationEnabled) && apiutils.BoolValue(f.agentSidecarConfig.tlsVerificationCopyCaConfigMap) {
 		clusterPolicyRules = append(clusterPolicyRules, rbacv1.PolicyRule{
 			APIGroups: []string{rbac.CoreAPIGroup},
