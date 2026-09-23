@@ -231,7 +231,11 @@ func TestReconcileDatadogCSIDriver_ImageConfigIsCopied(t *testing.T) {
 	r := newTestReconcilerForDDCSI(testScheme(), platformInfoWithDDCSI())
 	dda := newDDAForDDCSI("test-dda", "default", true)
 	dda.Spec.Global.Registry = ptr.To("private.example.com/datadog")
-	dda.Spec.Global.CSI.Image = &v2alpha1.CSIImageConfig{Tag: "9.9.9"}
+	dda.Spec.Global.CSI.Image = &v2alpha1.CSIImageConfig{
+		Tag:         "9.9.9",
+		PullPolicy:  ptr.To(corev1.PullAlways),
+		PullSecrets: []corev1.LocalObjectReference{{Name: "private-registry"}},
+	}
 
 	ddcsi, err := r.buildDesiredDatadogCSIDriver(dda)
 	require.NoError(t, err)
@@ -239,11 +243,17 @@ func TestReconcileDatadogCSIDriver_ImageConfigIsCopied(t *testing.T) {
 	// Mutating the DDA afterwards must not reach the built object.
 	*dda.Spec.Global.Registry = "mutated"
 	dda.Spec.Global.CSI.Image.Tag = "mutated"
+	*dda.Spec.Global.CSI.Image.PullPolicy = corev1.PullNever
+	dda.Spec.Global.CSI.Image.PullSecrets[0].Name = "mutated"
 
 	require.NotNil(t, ddcsi.Spec.Registry)
 	assert.Equal(t, "private.example.com/datadog", *ddcsi.Spec.Registry)
 	require.NotNil(t, ddcsi.Spec.CSIDriverImage)
 	assert.Equal(t, "9.9.9", ddcsi.Spec.CSIDriverImage.Tag)
+	require.NotNil(t, ddcsi.Spec.CSIDriverImage.PullPolicy)
+	assert.Equal(t, corev1.PullAlways, *ddcsi.Spec.CSIDriverImage.PullPolicy)
+	require.NotNil(t, ddcsi.Spec.CSIDriverImage.PullSecrets)
+	assert.Equal(t, []corev1.LocalObjectReference{{Name: "private-registry"}}, *ddcsi.Spec.CSIDriverImage.PullSecrets)
 }
 
 func TestReconcileDatadogCSIDriver_SpecFromDDA(t *testing.T) {

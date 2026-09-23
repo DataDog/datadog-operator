@@ -169,16 +169,17 @@ func (r *Reconciler) buildDesiredDatadogCSIDriver(instance *v2alpha1.DatadogAgen
 }
 
 // csiDriverImageConfig maps the DDA's CSI image configuration onto the AgentImageConfig the
-// DatadogCSIDriver spec takes, leaving JMXEnabled unset (see CSIImageConfig).
+// DatadogCSIDriver spec takes, leaving JMXEnabled unset (see CSIImageConfig). DeepCopy detaches
+// the pointer/slice fields from the DDA spec so the built object never aliases it.
 func csiDriverImageConfig(image *v2alpha1.CSIImageConfig) *v2alpha1.AgentImageConfig {
+	copied := image.DeepCopy()
 	imageConfig := &v2alpha1.AgentImageConfig{
-		Name:       image.Name,
-		Tag:        image.Tag,
-		PullPolicy: image.PullPolicy,
+		Name:       copied.Name,
+		Tag:        copied.Tag,
+		PullPolicy: copied.PullPolicy,
 	}
-	if len(image.PullSecrets) > 0 {
-		pullSecrets := append([]corev1.LocalObjectReference(nil), image.PullSecrets...)
-		imageConfig.PullSecrets = &pullSecrets
+	if len(copied.PullSecrets) > 0 {
+		imageConfig.PullSecrets = &copied.PullSecrets
 	}
 	return imageConfig
 }
