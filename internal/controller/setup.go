@@ -135,7 +135,6 @@ func startDatadogAgentInternal(logger logr.Logger, mgr manager.Manager, pInfo ku
 			SupportCilium:                   options.SupportCilium,
 			OperatorMetricsEnabled:          options.OperatorMetricsEnabled,
 			UntaintControllerEnabled:        options.UntaintControllerEnabled,
-			DatadogCSIDriverEnabled:         options.DatadogCSIDriverEnabled,
 			RolloutOnConfigMapChangeEnabled: options.RolloutOnConfigMapChangeEnabled,
 			DefaultDataPlaneLinuxEnabled:    options.DefaultDataPlaneLinuxEnabled,
 			APIReader:                       mgr.GetAPIReader(),
