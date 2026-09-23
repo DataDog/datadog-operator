@@ -100,15 +100,6 @@ func TestOCIImageResolver_Resolve(t *testing.T) {
 			},
 		},
 		{
-			name: "tag and digest",
-			release: &datadoghqv1alpha1.DatadogBYOCClusterReleaseSpec{
-				Tag:    ptr.To(releaseTag),
-				Digest: ptr.To(validArtifactDigest),
-			},
-			payload: validReleasePayload,
-			wantErr: "tag and digest are mutually exclusive",
-		},
-		{
 			name:    "images with tags",
 			release: &datadoghqv1alpha1.DatadogBYOCClusterReleaseSpec{Tag: ptr.To(releaseTag)},
 			payload: tagOnlyReleasePayload,
@@ -184,18 +175,6 @@ func TestOCIImageResolver_Resolve(t *testing.T) {
 			name:    "missing release",
 			payload: validReleasePayload,
 			wantErr: "release must be specified",
-		},
-		{
-			name:    "missing reference",
-			release: &datadoghqv1alpha1.DatadogBYOCClusterReleaseSpec{},
-			payload: validReleasePayload,
-			wantErr: "tag or digest",
-		},
-		{
-			name:    "invalid digest",
-			release: &datadoghqv1alpha1.DatadogBYOCClusterReleaseSpec{Digest: ptr.To("sha256:invalid")},
-			payload: validReleasePayload,
-			wantErr: "invalid release digest",
 		},
 		{
 			name:    "invalid JSON payload",

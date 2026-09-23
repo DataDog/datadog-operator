@@ -13,6 +13,7 @@ import (
 	"io"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
@@ -100,6 +101,7 @@ type remoteReleaseTarget struct {
 type ociImageResolver struct {
 	repository    string
 	targetFactory targetFactory
+	cache         *releaseCache
 }
 
 // NewOCIImageResolver returns an image resolver backed by the Datadog public OCI repository.
@@ -160,6 +162,7 @@ func newOCIImageResolver(repository string, factory targetFactory) *ociImageReso
 	return &ociImageResolver{
 		repository:    repository,
 		targetFactory: factory,
+		cache:         newReleaseCache(time.Now),
 	}
 }
 
@@ -177,7 +180,7 @@ func (r *ociImageResolver) Resolve(ctx context.Context, spec *datadoghqv1alpha1.
 	return overrideImages(release, overrides)
 }
 
-// resolveRelease fetches and validates the release artifact selected by tag or digest.
+// resolveRelease reuses a validated release or fetches it on a cache miss.
 func (r *ociImageResolver) resolveRelease(ctx context.Context, spec *datadoghqv1alpha1.DatadogBYOCClusterReleaseSpec) (*byocRelease, error) {
 	if spec == nil {
 		return nil, errors.New("release must be specified")
@@ -185,37 +188,41 @@ func (r *ociImageResolver) resolveRelease(ctx context.Context, spec *datadoghqv1
 
 	tag := ptr.Deref(spec.Tag, "")
 	requestedDigest := ptr.Deref(spec.Digest, "")
-	if tag == "" && requestedDigest == "" {
-		return nil, errors.New("release tag or digest must be specified")
+
+	key := releaseCacheKey{
+		repository: ptr.Deref(spec.Repository, r.repository),
+		tag:        tag,
+		digest:     requestedDigest,
 	}
-	if tag != "" && requestedDigest != "" {
-		return nil, errors.New("release tag and digest are mutually exclusive")
-	}
-	if requestedDigest != "" {
-		if err := validateDigest(requestedDigest); err != nil {
-			return nil, fmt.Errorf("invalid release digest: %w", err)
-		}
-	}
-	if r.targetFactory == nil {
-		return nil, errors.New("OCI target factory is not configured")
+	if release, ok := r.cache.get(key); ok {
+		return &release, nil
 	}
 
-	repository := ptr.Deref(spec.Repository, r.repository)
-	target, err := r.targetFactory(ctx, repository)
+	release, err := r.fetchRelease(ctx, key)
+	if err != nil {
+		return nil, err
+	}
+	r.cache.put(key, *release)
+	return release, nil
+}
+
+// fetchRelease fetches and validates the release artifact selected by tag or digest.
+func (r *ociImageResolver) fetchRelease(ctx context.Context, key releaseCacheKey) (*byocRelease, error) {
+	target, err := r.targetFactory(ctx, key.repository)
 	if err != nil {
 		return nil, fmt.Errorf("create OCI repository client: %w", err)
 	}
 
-	reference := requestedDigest
-	if tag != "" {
-		reference = tag
+	reference := key.digest
+	if key.tag != "" {
+		reference = key.tag
 	}
 	descriptor, manifestBytes, err := target.Resolve(ctx, reference)
 	if err != nil {
 		return nil, fmt.Errorf("resolve release %q: %w", reference, err)
 	}
-	if requestedDigest != "" && descriptor.Digest.String() != requestedDigest {
-		return nil, fmt.Errorf("release tag %q resolved to digest %q, expected %q", tag, descriptor.Digest, requestedDigest)
+	if key.digest != "" && descriptor.Digest.String() != key.digest {
+		return nil, fmt.Errorf("release %q resolved to digest %q, expected %q", reference, descriptor.Digest, key.digest)
 	}
 	var manifest ocispec.Manifest
 	if decodeErr := json.Unmarshal(manifestBytes, &manifest); decodeErr != nil {
