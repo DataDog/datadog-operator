@@ -72,27 +72,27 @@ func (f *admissionControllerFeature) getRBACClusterPolicyRules() []rbacv1.Policy
 				rbac.GetVerb,
 			},
 		},
-	}
-
-	if f.csiDriverEnabled {
-		clusterPolicyRules = append(clusterPolicyRules,
-			rbacv1.PolicyRule{
-				APIGroups: []string{rbac.StorageAPIGroup},
-				Resources: []string{rbac.CSIDriversResource},
-				Verbs: []string{
-					rbac.ListVerb,
-					rbac.WatchVerb,
-				},
+		// CSIDrivers, for the Cluster Agent to detect the Datadog CSI driver.
+		// Intentionally ungated: the operator's own ClusterRole must hold these
+		// read verbs at all times, or the API server rejects this grant. If that
+		// happens, fix the operator ClusterRole (helm-charts
+		// charts/datadog-operator), not here.
+		{
+			APIGroups: []string{rbac.StorageAPIGroup},
+			Resources: []string{rbac.CSIDriversResource},
+			Verbs: []string{
+				rbac.ListVerb,
+				rbac.WatchVerb,
 			},
-			rbacv1.PolicyRule{
-				APIGroups:     []string{rbac.StorageAPIGroup},
-				Resources:     []string{rbac.CSIDriversResource},
-				ResourceNames: []string{datadogCSIDriverName},
-				Verbs: []string{
-					rbac.GetVerb,
-				},
+		},
+		{
+			APIGroups:     []string{rbac.StorageAPIGroup},
+			Resources:     []string{rbac.CSIDriversResource},
+			ResourceNames: []string{datadogCSIDriverName},
+			Verbs: []string{
+				rbac.GetVerb,
 			},
-		)
+		},
 	}
 
 	if f.cwsInstrumentationEnabled && f.cwsInstrumentationMode == "remote_copy" {
