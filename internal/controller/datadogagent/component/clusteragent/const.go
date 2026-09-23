@@ -10,7 +10,8 @@ const (
 	// DefaultMetricsServerResourceSuffix use as suffix for cluster-agent metrics-server resource naming
 	defaultMetricsServerResourceSuffix = "cluster-agent-metrics-server"
 	// DefaultClusterAgentReplicas default cluster-agent deployment replicas
-	defaultClusterAgentReplicas int32 = 1
+	defaultClusterAgentReplicas   int32 = 1
+	defaultAgentSidecarSecretName       = "datadog-secret"
 
 	externalMetricsAPIServiceName = "v1beta1.external.metrics.k8s.io"
 )
