@@ -20,11 +20,6 @@ type serviceAccountBuilder struct {
 }
 
 func newServiceAccountBuilder(cluster *datadoghqv1alpha1.DatadogBYOCCluster) serviceAccountBuilder {
-	name := cluster.Name
-	if identity := cluster.Spec.Identity; identity != nil && identity.ServiceAccountName != nil && *identity.ServiceAccountName != "" {
-		name = *identity.ServiceAccountName
-	}
-
 	var additionalAnnotations map[string]string
 	if provider := cluster.Spec.Provider; provider != nil && provider.AWS != nil && provider.AWS.IRSARoleARN != nil && *provider.AWS.IRSARoleARN != "" {
 		additionalAnnotations = map[string]string{
@@ -33,7 +28,7 @@ func newServiceAccountBuilder(cluster *datadoghqv1alpha1.DatadogBYOCCluster) ser
 		}
 	}
 	return serviceAccountBuilder{
-		name:        name,
+		name:        cluster.Name,
 		namespace:   cluster.Namespace,
 		labels:      labels(cluster),
 		annotations: annotations(cluster, additionalAnnotations),

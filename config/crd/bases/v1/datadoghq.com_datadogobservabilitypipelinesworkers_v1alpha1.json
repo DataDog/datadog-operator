@@ -1730,10 +1730,10 @@
         },
         "identity": {
           "additionalProperties": false,
-          "description": "Identity configures an existing ServiceAccount used by the worker.\nWhen omitted, the controller creates and owns a dedicated worker ServiceAccount.",
+          "description": "Identity configures an existing ServiceAccount used by the worker.\nWhen ServiceAccountName is omitted, the controller creates and owns a dedicated worker ServiceAccount.",
           "properties": {
             "serviceAccountName": {
-              "description": "ServiceAccountName is the name of an existing ServiceAccount used by the managed workload.",
+              "description": "ServiceAccountName is the name of an existing ServiceAccount used by the managed workload.\nThe ServiceAccount must be in the same namespace as the workload and is not created or updated by the controller.\nWhen omitted, the controller creates and owns a dedicated ServiceAccount.",
               "minLength": 1,
               "type": "string"
             }

@@ -4,6 +4,9 @@ metadata:
   name: datadogobservabilitypipelinesworker-sample
   namespace: byoc
 spec:
+  # Optional: use an existing ServiceAccount instead of creating one named after this worker.
+  # identity:
+  #   serviceAccountName: pipeline-worker
   datadog:
     site: datadoghq.com
     apiKeySecretRef:

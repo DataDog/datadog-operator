@@ -605,7 +605,7 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterAWSSpec(re
 					},
 					"irsaRoleARN": {
 						SchemaProps: spec.SchemaProps{
-							Description: "IRSARoleARN is the ARN of the IAM role associated with the BYOC ServiceAccount through IRSA.",
+							Description: "IRSARoleARN is the ARN of the IAM role associated with the BYOC ServiceAccount through IRSA. Only applied to the ServiceAccount created by the controller. Existing ServiceAccounts are not modified.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -1390,7 +1390,7 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterIdentitySp
 				Properties: map[string]spec.Schema{
 					"serviceAccountName": {
 						SchemaProps: spec.SchemaProps{
-							Description: "ServiceAccountName is the name of an existing ServiceAccount used by the managed workload.",
+							Description: "ServiceAccountName is the name of an existing ServiceAccount used by the managed workload. The ServiceAccount must be in the same namespace as the workload and is not created or updated by the controller. When omitted, the controller creates and owns a dedicated ServiceAccount.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -2143,7 +2143,7 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterSpec(ref c
 					},
 					"identity": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Identity configures the Kubernetes identity used by the BYOC workloads.",
+							Description: "Identity configures an existing ServiceAccount used by the BYOC workloads, excluding the pipeline. When ServiceAccountName is omitted, the controller creates and owns a ServiceAccount named after the cluster.",
 							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterIdentitySpec"),
 						},
 					},
@@ -4916,7 +4916,7 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogObservabilityPipeline
 					},
 					"identity": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Identity configures an existing ServiceAccount used by the worker. When omitted, the controller creates and owns a dedicated worker ServiceAccount.",
+							Description: "Identity configures an existing ServiceAccount used by the worker. When ServiceAccountName is omitted, the controller creates and owns a dedicated worker ServiceAccount.",
 							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterIdentitySpec"),
 						},
 					},

@@ -1,4 +1,29 @@
-# Observability Pipelines Worker ports
+# Observability Pipelines Worker
+
+## ServiceAccount identity
+
+By default, the controller creates and owns a dedicated ServiceAccount with the
+same name and namespace as the worker, with `automountServiceAccountToken: false`.
+To use an existing ServiceAccount, set `spec.identity.serviceAccountName` on a
+standalone `DatadogObservabilityPipelinesWorker`:
+
+```yaml
+spec:
+  identity:
+    serviceAccountName: pipeline-worker
+```
+
+This example is a partial specification. Create the referenced ServiceAccount
+in the CR's namespace before using it, including any required IAM annotations
+or RBAC bindings. The controller does not create, update, or take ownership of
+referenced ServiceAccounts. An omitted identity, or an identity without
+`serviceAccountName`, uses the automatically managed account.
+
+For a worker managed by `DatadogBYOCCluster`, the controller automatically creates
+a dedicated account named `<cluster-name>-pipeline`. The worker does not inherit
+`spec.identity` or `spec.provider.aws.irsaRoleARN` from the BYOC cluster.
+
+## Ports
 
 Configure worker ports using `spec.ports` on a `DatadogObservabilityPipelinesWorker`,
 or `spec.components.pipeline.ports` on a `DatadogBYOCCluster`. At least one port

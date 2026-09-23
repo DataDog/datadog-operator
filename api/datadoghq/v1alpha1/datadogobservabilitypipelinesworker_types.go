@@ -25,7 +25,7 @@ type DatadogObservabilityPipelinesWorkerSpec struct {
 	Image *DatadogObservabilityPipelinesWorkerImageSpec `json:"image,omitempty"`
 
 	// Identity configures an existing ServiceAccount used by the worker.
-	// When omitted, the controller creates and owns a dedicated worker ServiceAccount.
+	// When ServiceAccountName is omitted, the controller creates and owns a dedicated worker ServiceAccount.
 	// +optional
 	Identity *DatadogBYOCClusterIdentitySpec `json:"identity,omitempty"`
 

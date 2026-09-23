@@ -35,7 +35,9 @@ type DatadogBYOCClusterSpec struct {
 	// Provider configures the cloud provider used by the BYOC cluster.
 	Provider *DatadogBYOCClusterProviderSpec `json:"provider,omitempty"`
 
-	// Identity configures the Kubernetes identity used by the BYOC workloads.
+	// Identity configures an existing ServiceAccount used by the BYOC workloads, excluding the pipeline.
+	// When ServiceAccountName is omitted, the controller creates and owns a ServiceAccount named after the cluster.
+	// +optional
 	Identity *DatadogBYOCClusterIdentitySpec `json:"identity,omitempty"`
 
 	// Global configures settings shared by all BYOC workloads.
@@ -182,6 +184,7 @@ type DatadogBYOCClusterAWSSpec struct {
 	Partition *string `json:"partition,omitempty"`
 
 	// IRSARoleARN is the ARN of the IAM role associated with the BYOC ServiceAccount through IRSA.
+	// Only applied to the ServiceAccount created by the controller. Existing ServiceAccounts are not modified.
 	// +optional
 	IRSARoleARN *string `json:"irsaRoleARN,omitempty"`
 }
@@ -190,6 +193,8 @@ type DatadogBYOCClusterAWSSpec struct {
 // +k8s:openapi-gen=true
 type DatadogBYOCClusterIdentitySpec struct {
 	// ServiceAccountName is the name of an existing ServiceAccount used by the managed workload.
+	// The ServiceAccount must be in the same namespace as the workload and is not created or updated by the controller.
+	// When omitted, the controller creates and owns a dedicated ServiceAccount.
 	// +optional
 	// +kubebuilder:validation:MinLength=1
 	ServiceAccountName *string `json:"serviceAccountName,omitempty"`

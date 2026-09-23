@@ -37,7 +37,11 @@ type Resources struct {
 
 // Shared returns the cluster-wide resources in apply order.
 func (r *Resources) Shared() []client.Object {
-	return []client.Object{r.configMap, r.serviceAccount, r.headlessService}
+	objects := []client.Object{r.configMap}
+	if r.serviceAccount != nil {
+		objects = append(objects, r.serviceAccount)
+	}
+	return append(objects, r.headlessService)
 }
 
 // Indexer returns the indexer resources.
@@ -105,8 +109,10 @@ func BuildResources(cluster *datadoghqv1alpha1.DatadogBYOCCluster, images *byoci
 
 	resources := &Resources{
 		configMap:       configMap,
-		serviceAccount:  newServiceAccountBuilder(cluster).build(),
 		headlessService: newHeadlessServiceBuilder(cluster).build(),
+	}
+	if identity := cluster.Spec.Identity; identity == nil || identity.ServiceAccountName == nil {
+		resources.serviceAccount = newServiceAccountBuilder(cluster).build()
 	}
 
 	resources.indexer, err = newStatefulSetBuilder(

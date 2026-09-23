@@ -1,4 +1,25 @@
-# DatadogBYOCCluster image overrides
+# DatadogBYOCCluster
+
+## ServiceAccount identity
+
+By default, the controller creates and owns a ServiceAccount with the same name
+and namespace as the cluster, with `automountServiceAccountToken: false`. BYOC
+workloads use this account; the Observability Pipelines Worker uses its own
+dedicated account named `<cluster-name>-pipeline`.
+
+Set `spec.identity.serviceAccountName` to use an existing ServiceAccount for the
+BYOC workloads. The controller references it without creating, updating, or
+taking ownership of it. The account must already exist in the cluster's
+namespace. `spec.provider.aws.irsaRoleARN` only configures the automatically
+created BYOC account; configure IAM annotations on an existing account yourself.
+
+The pipeline keeps its dedicated, automatically managed account and does not
+inherit the BYOC identity or IRSA role. A standalone worker can use an existing
+account through its own `spec.identity.serviceAccountName`; see
+[ServiceAccount identity](observability_pipelines_worker.md#serviceaccount-identity).
+Omitting the account name keeps automatic ServiceAccount creation.
+
+## Image overrides
 
 For pipeline ports and automatically generated source addresses, see
 [Observability Pipelines Worker ports](observability_pipelines_worker.md).

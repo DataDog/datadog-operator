@@ -35,8 +35,10 @@ spec:
       region: us-east-1
       partition: aws
       irsaRoleARN: arn:aws:iam::123456789012:role/byoclogs
-  identity:
-    serviceAccountName: byoclogs
+  # Optional: use an existing ServiceAccount instead of creating one.
+  # Configure IRSA on the existing account yourself; irsaRoleARN above only applies to generated accounts.
+  # identity:
+  #   serviceAccountName: byoclogs
   global:
     labels:
       team: byoc-logs

@@ -1743,10 +1743,13 @@ spec:
                 identity:
                   description: |-
                     Identity configures an existing ServiceAccount used by the worker.
-                    When omitted, the controller creates and owns a dedicated worker ServiceAccount.
+                    When ServiceAccountName is omitted, the controller creates and owns a dedicated worker ServiceAccount.
                   properties:
                     serviceAccountName:
-                      description: ServiceAccountName is the name of an existing ServiceAccount used by the managed workload.
+                      description: |-
+                        ServiceAccountName is the name of an existing ServiceAccount used by the managed workload.
+                        The ServiceAccount must be in the same namespace as the workload and is not created or updated by the controller.
+                        When omitted, the controller creates and owns a dedicated ServiceAccount.
                       minLength: 1
                       type: string
                   type: object

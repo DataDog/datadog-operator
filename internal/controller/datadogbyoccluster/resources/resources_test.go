@@ -262,24 +262,7 @@ func TestBuildResources_ServiceAccount(t *testing.T) {
 			provider: &datadoghqv1alpha1.DatadogBYOCClusterProviderSpec{AWS: &datadoghqv1alpha1.DatadogBYOCClusterAWSSpec{
 				IRSARoleARN: ptr.To("arn:aws:iam::123456789012:role/byoc"),
 			}},
-			want: &corev1.ServiceAccount{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "custom",
-					Namespace: "testing",
-					Labels: map[string]string{
-						"app.kubernetes.io/name":       "cloudprem",
-						"app.kubernetes.io/instance":   "byoc",
-						"app.kubernetes.io/managed-by": "datadog-operator",
-						"team":                         "search",
-					},
-					Annotations: map[string]string{
-						"example.com/owner":                        "operator",
-						"eks.amazonaws.com/role-arn":               "arn:aws:iam::123456789012:role/byoc",
-						"eks.amazonaws.com/sts-regional-endpoints": "true",
-					},
-				},
-				AutomountServiceAccountToken: ptr.To(false),
-			},
+			want: nil,
 		},
 	}
 

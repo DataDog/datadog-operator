@@ -87,7 +87,11 @@ func (r *Resources) ObsoleteObjects() []client.Object {
 	if r.Service == nil {
 		objects = append(objects, &corev1.Service{ObjectMeta: metadata})
 	}
-	if r.ServiceAccount == nil {
+	// If identity.serviceAccountName changes from unset to the name of the
+	// auto-created account (the Worker name), r.ServiceAccount becomes nil because
+	// explicit references skip account creation. The Pods still use that account,
+	// so only delete the old managed account when they reference a different name.
+	if r.ServiceAccount == nil && r.StatefulSet.Spec.Template.Spec.ServiceAccountName != metadata.Name {
 		objects = append(objects, &corev1.ServiceAccount{ObjectMeta: metadata})
 	}
 	if r.HPA == nil {
