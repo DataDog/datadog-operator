@@ -146,6 +146,54 @@ func TestMetricsForwarder_start_timerFiresAndResets(t *testing.T) {
 	f.AssertExpectations(t)
 }
 
+// TestMetricsForwarder_start_stopDuringStartupJitter verifies that closing
+// stopChan while start() is waiting out its jittered startup delay causes it
+// to return immediately, without ever contacting the Datadog API. This
+// covers the fix for the initial connectToDatadogAPI call (and CR-detected
+// event), which previously fired unjittered for every forwarder as soon as a
+// batch of CRs was registered, before the periodic-send jitter ever kicked
+// in.
+func TestMetricsForwarder_start_stopDuringStartupJitter(t *testing.T) {
+	f := &fakeMetricsForwarder{}
+
+	mf := &metricsForwarder{
+		// A long interval means jitteredDelay draws from a wide range, so
+		// stopChan winning the race below isn't flaky: the startup timer has
+		// no realistic chance of firing within the short window before stop.
+		sendMetricsInterval: time.Hour,
+		stopChan:            make(chan struct{}),
+		errorChan:           make(chan error, 100),
+		eventChan:           make(chan Event, 10),
+		lastReconcileErr:    errInitValue,
+		logger:              logr.Discard(),
+		delegator:           f,
+	}
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go mf.start(&wg)
+
+	// Give start() a moment to reach the startup select, then stop it.
+	time.Sleep(10 * time.Millisecond)
+	mf.stop()
+
+	done := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for start() to return after stop() during startup jitter")
+	}
+
+	// The forwarder should never have reached connectToDatadogAPI/initAPIClient
+	// or sent the CR-detected event.
+	f.AssertNotCalled(t, "delegatedValidateCreds", mock.Anything)
+	f.AssertNotCalled(t, "delegatedSendEvent", mock.Anything, mock.Anything)
+}
+
 func TestMetricsForwarder_updateCredsIfNeeded(t *testing.T) {
 	tests := []struct {
 		name     string

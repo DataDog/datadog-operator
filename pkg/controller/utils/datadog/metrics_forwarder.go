@@ -189,6 +189,21 @@ func (mf *metricsForwarder) start(wg *sync.WaitGroup) {
 
 	mf.logger.Info("Starting Datadog metrics forwarder")
 
+	// Delay initialization by a random amount so a batch of CRs created
+	// together don't all issue their credential-validation call and
+	// CR-detected event to the Datadog API in the same instant; the
+	// periodic-send jitter below only takes effect afterward, once this
+	// initial connection has already succeeded.
+	startupTimer := time.NewTimer(jitteredDelay(mf.sendMetricsInterval))
+	defer startupTimer.Stop()
+	select {
+	case <-startupTimer.C:
+	case <-mf.stopChan:
+		// stopChan was closed while waiting to start initializing
+		mf.logger.Info("Datadog metrics forwarder shut down before initialization started")
+		return
+	}
+
 	// Create a context that gets cancelled when stopChan is closed
 	ctx := wait.ContextForChannel(mf.stopChan)
 
