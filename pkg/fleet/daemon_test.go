@@ -2962,6 +2962,66 @@ func TestPlanStart_RejectsSameIDAgainstTerminalStatus(t *testing.T) {
 	}
 }
 
+// TestPlanStart_RejectsNewIDWhileStranded exercises the pr3443 Finding 3 gate:
+// a stranded prior experiment (Aborted with baseline_missing or
+// baseline_not_found) has left an unapproved live spec on the DDA. Admitting
+// any new experiment — a different ID, not a resend — would let
+// publishCurrentRevisionBarrier snapshot the unapproved spec as a fresh
+// Status.CurrentRevision and hand it to BuildStartPatch as the new
+// experiment's rollback baseline. That laundering path must be blocked at
+// planStart with *stateDoesntMatchError → INVALID_STATE.
+func TestPlanStart_RejectsNewIDWhileStranded(t *testing.T) {
+	strandedReasons := map[string]v2alpha1.ExperimentTerminationReason{
+		"baseline_missing":   v2alpha1.ExperimentTerminationReasonBaselineMissing,
+		"baseline_not_found": v2alpha1.ExperimentTerminationReasonBaselineNotFound,
+	}
+	for name, reason := range strandedReasons {
+		t.Run(name, func(t *testing.T) {
+			// Prior experiment finished stranded with a *different* ID than the
+			// incoming start. Same-ID-vs-terminal would otherwise fire first
+			// and hide whether the stranded gate is doing its job.
+			dda := testDDAObjectAfterPriorExperiment(v2alpha1.ExperimentPhaseAborted)
+			dda.Status.Experiment.TerminationReason = reason
+			require.NotEqual(t, dda.Status.Experiment.ID, testExperimentID,
+				"prior experiment must differ from the incoming start so the stranded gate, not same-ID-vs-terminal, is what rejects")
+			d, _ := testDaemon(dda, testInstallerConfigWithDDA())
+
+			res, err := d.planStart(context.Background(), testStartRequest(), testResolvedStartOperation())
+			assert.Equal(t, planResult{}, res)
+			var stateErr *stateDoesntMatchError
+			require.ErrorAs(t, err, &stateErr, "stranded rejection must map to INVALID_STATE, not ERROR")
+			assert.Contains(t, err.Error(), "stranded")
+		})
+	}
+}
+
+// TestPlanStart_AdmitsNewIDAfterNonStrandedTerminal is the negative pair to the
+// stranded test: a prior experiment that ended cleanly (Terminated/stopped,
+// Promoted, or Aborted with manual_spec_change) must not block a subsequent
+// different-ID start. Only the two baseline-* reasons trigger the gate.
+func TestPlanStart_AdmitsNewIDAfterNonStrandedTerminal(t *testing.T) {
+	nonStranded := map[string]struct {
+		phase  v2alpha1.ExperimentPhase
+		reason v2alpha1.ExperimentTerminationReason
+	}{
+		"terminated_stopped":         {v2alpha1.ExperimentPhaseTerminated, v2alpha1.ExperimentTerminationReasonStopped},
+		"terminated_timed_out":       {v2alpha1.ExperimentPhaseTerminated, v2alpha1.ExperimentTerminationReasonTimedOut},
+		"promoted":                   {v2alpha1.ExperimentPhasePromoted, ""},
+		"aborted_manual_spec_change": {v2alpha1.ExperimentPhaseAborted, v2alpha1.ExperimentTerminationReasonManualSpecChange},
+	}
+	for name, tc := range nonStranded {
+		t.Run(name, func(t *testing.T) {
+			dda := testDDAObjectAfterPriorExperiment(tc.phase)
+			dda.Status.Experiment.TerminationReason = tc.reason
+			d, _ := testDaemon(dda, testInstallerConfigWithDDA())
+
+			res, err := d.planStart(context.Background(), testStartRequest(), testResolvedStartOperation())
+			require.NoError(t, err, "non-stranded terminal outcome must not block a different-ID start")
+			assert.NotEqual(t, planResult{}, res, "planStart must produce a real patch for a legitimate new start")
+		})
+	}
+}
+
 // --- handleTask start-idempotency counterparts ---
 
 // requireStartTaskRejectedAsInvalidState dispatches a start task through the

@@ -84,6 +84,37 @@ func experimentHasPhase(dda *v2alpha1.DatadogAgent, experimentID string, phase v
 		dda.Status.Experiment.Phase == phase
 }
 
+// experimentConfigIsStranded reports whether Status.Experiment records an
+// unrecoverable-baseline abort. The two reasons here are the same ones that
+// derive ExperimentConfigStranded=True in the reconciler: baseline_missing
+// (no checkpoint was ever recorded) and baseline_not_found (the checkpointed
+// revision is gone). In both cases the DDA's live spec is what the previous
+// experiment applied but was never approved as an ongoing state; a subsequent
+// start would pin that unapproved spec as the next experiment's rollback
+// baseline via publishCurrentRevisionBarrier -> Status.CurrentRevision.
+//
+// The predicate reads Status.Experiment (durable workflow record) rather than
+// the derived ExperimentConfigStranded condition, which is rebuilt from
+// scratch each reconcile and is presentation state.
+//
+// Stranded state is intentionally not self-healing: the operator cannot infer
+// whether the user wants to restore the previous approved spec or accept the
+// live experiment spec, so all new starts remain blocked until an explicit
+// recovery is recorded.
+func experimentConfigIsStranded(dda *v2alpha1.DatadogAgent) bool {
+	exp := dda.Status.Experiment
+	if exp == nil || exp.Phase != v2alpha1.ExperimentPhaseAborted {
+		return false
+	}
+	switch exp.TerminationReason {
+	case v2alpha1.ExperimentTerminationReasonBaselineMissing,
+		v2alpha1.ExperimentTerminationReasonBaselineNotFound:
+		return true
+	default:
+		return false
+	}
+}
+
 func runningExperimentID(dda *v2alpha1.DatadogAgent) string {
 	if dda.Status.Experiment != nil && dda.Status.Experiment.Phase == v2alpha1.ExperimentPhaseRunning {
 		return dda.Status.Experiment.ID
@@ -334,6 +365,26 @@ func (d *Daemon) planStart(ctx context.Context, req remoteAPIRequest, op resolve
 		// RC its premise is wrong rather than accepting the drift.
 		return planResult{}, &stateDoesntMatchError{msg: fmt.Sprintf(
 			"DatadogAgent %s/%s already completed experiment %q: phase %q (reason %q)",
+			dda.Namespace, dda.Name, experimentID,
+			dda.Status.Experiment.Phase, dda.Status.Experiment.TerminationReason)}
+	}
+	// Refuse a new start (any experiment ID, including a different one) while a
+	// prior experiment left the DDA in a stranded-baseline state. The next
+	// revision barrier would snapshot the live unapproved spec into
+	// Status.CurrentRevision, and BuildStartPatch would then pin that
+	// unapproved spec as the new experiment's rollback baseline -- silently
+	// laundering stranded config into "approved" as far as any future rollback
+	// is concerned. The reconciler surfaces the same status via the derived
+	// ExperimentConfigStranded condition, but that condition is presentation
+	// state; the safety gate reads the durable Status.Experiment record.
+	//
+	// This rejection returns INVALID_STATE via *stateDoesntMatchError. The
+	// task-state contract still holds because the pending-task annotations
+	// have not been written yet -- we're rejecting before newPendingOperation's
+	// annotations reach the DDA. Nothing to clean up.
+	if experimentConfigIsStranded(dda) {
+		return planResult{}, &stateDoesntMatchError{msg: fmt.Sprintf(
+			"DatadogAgent %s/%s cannot admit experiment %q while a prior experiment is stranded: phase %q (reason %q); manual recovery required before another start can be admitted",
 			dda.Namespace, dda.Name, experimentID,
 			dda.Status.Experiment.Phase, dda.Status.Experiment.TerminationReason)}
 	}
