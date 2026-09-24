@@ -37,6 +37,13 @@ const ExperimentDefaultTimeout = 15 * time.Minute
 // instead of just requeuing on error.
 var errBaselineNotFound = errors.New("rollback target ControllerRevision not found or not owned by this DatadogAgent")
 
+// errManualSpecChange indicates rollback observed a fresh DDA whose live spec
+// is neither the checkpointed experiment spec nor the validated rollback
+// target — a user edit landed after the reconcile started. Distinct from a
+// generic error so callers can record TerminationReasonManualSpecChange
+// instead of overwriting the user's edit with the baseline snapshot.
+var errManualSpecChange = errors.New("live spec does not match experiment or rollback baseline; manual change detected")
+
 // isTerminalPhase returns true if the phase is a terminal state (terminated, promoted, aborted).
 func isTerminalPhase(phase v2alpha1.ExperimentPhase) bool {
 	switch phase {
@@ -466,24 +473,11 @@ func (r *Reconciler) processRollbackSignal(
 	}
 
 	if currentPhase == v2alpha1.ExperimentPhaseRunning {
-		// manageExperiment aborts a running experiment with a nil checkpoint
-		// before signals are processed, so checkpoint is guaranteed non-nil here.
-		checkpoint := instance.Status.Experiment.Checkpoint
-		rollbackTarget, err := r.getOwnedRevision(ctx, instance, checkpoint.RollbackTargetRevision)
-		if err != nil {
-			return false, false, err
-		}
-		blocked, err := r.rollbackBlockedByManualChange(instance, checkpoint, rollbackTarget)
-		if err != nil {
-			return false, false, err
-		}
-		if blocked {
-			logger.Info("Aborting experiment instead of rolling back: spec was manually changed")
-			newStatus.Experiment.Phase = v2alpha1.ExperimentPhaseAborted
-			newStatus.Experiment.TerminationReason = v2alpha1.ExperimentTerminationReasonManualSpecChange
-			return true, false, nil
-		}
-
+		// The manual-change check runs inside restorePreviousSpec -> rollback,
+		// against the DDA re-fetched at update time. Running the check here on
+		// the reconcile's stale read would let a user edit that lands after
+		// the reconcile started slip through: the guard passes on the stale
+		// object, then rollback re-fetches and overwrites the edit.
 		logger.Info("Processing rollback signal")
 		updated, err := r.restorePreviousSpec(ctx, instance, newStatus, v2alpha1.ExperimentTerminationReasonStopped)
 		return true, updated, err
@@ -773,24 +767,10 @@ func (r *Reconciler) handleRollback(
 
 	logger := ctrl.LoggerFrom(ctx)
 
-	// manageExperiment aborts a running experiment with a nil checkpoint
-	// before this is reached, so Checkpoint is guaranteed non-nil here.
-	checkpoint := instance.Status.Experiment.Checkpoint
-	rollbackTarget, err := r.getOwnedRevision(ctx, instance, checkpoint.RollbackTargetRevision)
-	if err != nil {
-		return false, err
-	}
-	blocked, err := r.rollbackBlockedByManualChange(instance, checkpoint, rollbackTarget)
-	if err != nil {
-		return false, err
-	}
-	if blocked {
-		logger.Info("Timeout elapsed but spec was manually changed; aborting instead of rolling back", "elapsed", elapsed.String())
-		newStatus.Experiment.Phase = v2alpha1.ExperimentPhaseAborted
-		newStatus.Experiment.TerminationReason = v2alpha1.ExperimentTerminationReasonManualSpecChange
-		return false, nil
-	}
-
+	// Manual-change detection runs inside restorePreviousSpec -> rollback
+	// against the DDA re-fetched at update time. Checking here against the
+	// reconcile's stale instance would race a user edit that lands after the
+	// reconcile started but before the rollback Update.
 	logger.Info("Experiment timed out, rolling back", "elapsed", elapsed.String())
 	return r.restorePreviousSpec(ctx, instance, newStatus, v2alpha1.ExperimentTerminationReasonTimedOut)
 }
@@ -815,12 +795,22 @@ func (r *Reconciler) restorePreviousSpec(
 		return false, fmt.Errorf("cannot restore previous spec: experiment has no checkpoint")
 	}
 
-	updated, err := r.rollback(ctx, instance, checkpoint.RollbackTargetRevision)
+	updated, err := r.rollback(ctx, instance, checkpoint)
 	if err != nil {
 		if errors.Is(err, errBaselineNotFound) {
 			ctrl.LoggerFrom(ctx).Info("Aborting experiment: rollback baseline not found", "error", err.Error())
 			newStatus.Experiment.Phase = v2alpha1.ExperimentPhaseAborted
 			newStatus.Experiment.TerminationReason = v2alpha1.ExperimentTerminationReasonBaselineNotFound
+			return false, nil
+		}
+		if errors.Is(err, errManualSpecChange) {
+			// The fresh-read guard inside rollback detected a live spec that
+			// is neither the checkpointed experiment nor the rollback target.
+			// Record the abort without touching the DDA spec so the user's
+			// edit stands.
+			ctrl.LoggerFrom(ctx).Info("Aborting experiment instead of rolling back: spec was manually changed", "error", err.Error())
+			newStatus.Experiment.Phase = v2alpha1.ExperimentPhaseAborted
+			newStatus.Experiment.TerminationReason = v2alpha1.ExperimentTerminationReasonManualSpecChange
 			return false, nil
 		}
 		return false, err
@@ -830,12 +820,20 @@ func (r *Reconciler) restorePreviousSpec(
 	return updated, nil
 }
 
-// rollback restores the DDA spec from the named ControllerRevision. The
-// rollback target name is selected by Fleet but travels through a
+// rollback restores the DDA spec from the checkpoint's named ControllerRevision.
+// The rollback target name is selected by Fleet but travels through a
 // user-writable annotation before the reconciler copies it into the
 // checkpoint, so it is treated as untrusted input: the revision is read
 // through the uncached API reader and validated with ownedByDDA rather than
 // applied by name alone.
+//
+// Manual-change detection runs here, against the freshly-fetched DDA, so a
+// user edit that lands after the reconcile started is caught before the
+// rollback overwrites it. Callers must not pre-check against the reconcile's
+// stale instance — that would silently pass while the fresh object has the
+// edit; rollback would then overwrite it. errManualSpecChange is returned in
+// that case so restorePreviousSpec records ManualSpecChange without mutating
+// spec.
 //
 // Returns whether the spec was actually updated. false means there was no
 // target, or the live spec already matched it (idempotent rollback). After a
@@ -844,19 +842,19 @@ func (r *Reconciler) restorePreviousSpec(
 func (r *Reconciler) rollback(
 	ctx context.Context,
 	instance *v2alpha1.DatadogAgent,
-	rollbackTarget string,
+	checkpoint *v2alpha1.ExperimentCheckpoint,
 ) (bool, error) {
-	if rollbackTarget == "" {
+	if checkpoint == nil || checkpoint.RollbackTargetRevision == "" {
 		ctrl.LoggerFrom(ctx).Info("No previous revision to roll back to, skipping spec restore")
 		return false, nil
 	}
 
-	cr, err := r.getOwnedRevision(ctx, instance, rollbackTarget)
+	cr, err := r.getOwnedRevision(ctx, instance, checkpoint.RollbackTargetRevision)
 	if err != nil {
 		return false, err
 	}
 	if cr == nil {
-		return false, fmt.Errorf("%w: %s", errBaselineNotFound, rollbackTarget)
+		return false, fmt.Errorf("%w: %s", errBaselineNotFound, checkpoint.RollbackTargetRevision)
 	}
 
 	var snapshot v2alpha1.RevisionSnapshot
@@ -864,8 +862,12 @@ func (r *Reconciler) rollback(
 		return false, fmt.Errorf("failed to decode ControllerRevision data: %w", err)
 	}
 
-	// Re-fetch for the latest ResourceVersion and to check whether the spec is
-	// rolled back already. If it is, skip the update.
+	// Re-fetch for the latest ResourceVersion, to check whether the spec is
+	// rolled back already, and to validate manual-change status against the
+	// object that will actually be updated. Any concurrent write after this
+	// Get bumps ResourceVersion and the toUpdate.Update below 409s -- caller
+	// retries and the whole flow (including this manual-change check) reruns
+	// on the newer object.
 	nsn := types.NamespacedName{Namespace: instance.Namespace, Name: instance.Name}
 	current := &v2alpha1.DatadogAgent{}
 	if err = r.client.Get(ctx, nsn, current); err != nil {
@@ -876,11 +878,23 @@ func (r *Reconciler) rollback(
 		return false, fmt.Errorf("failed to marshal current snapshot for comparison: %w", err)
 	}
 	if bytes.Equal(currentSnap, cr.Data.Raw) {
-		ctrl.LoggerFrom(ctx).Info("Rollback spec already matches target, skipping update", "rollbackTarget", rollbackTarget)
+		ctrl.LoggerFrom(ctx).Info("Rollback spec already matches target, skipping update", "rollbackTarget", checkpoint.RollbackTargetRevision)
 		// No update happened, but still sync the re-fetched ResourceVersion so
 		// the caller's status update doesn't 409 against a concurrent write.
 		instance.ResourceVersion = current.ResourceVersion
 		return false, nil
+	}
+
+	// Guard runs on current, not on the caller's instance: the reconcile
+	// started with a stale read, so a user edit that landed since then is
+	// only visible on current. Blocking here surfaces as
+	// TerminationReasonManualSpecChange in restorePreviousSpec.
+	blocked, err := r.rollbackBlockedByManualChange(current, checkpoint, cr)
+	if err != nil {
+		return false, err
+	}
+	if blocked {
+		return false, errManualSpecChange
 	}
 
 	// Restore the baseline's Datadog-filter annotation set. This is a

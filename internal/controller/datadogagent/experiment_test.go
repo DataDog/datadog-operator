@@ -157,8 +157,16 @@ func TestRollback_RestoresSpec(t *testing.T) {
 	// rollback fetches the current DDA to compare specs; it must exist in the fake client.
 	require.NoError(t, c.Create(context.Background(), instanceB))
 
-	// Rollback from instanceB to prevRevision (specA).
-	updated, err := r.rollback(context.Background(), instanceB, prevRevision)
+	// Rollback from instanceB to prevRevision (specA). The manual-change guard
+	// inside rollback compares hash(current.Spec, annotations) against
+	// ExpectedSpecHash; pin it to instanceB's live spec so rollback proceeds
+	// rather than aborting as manual_spec_change.
+	expectedHash, err := v2alpha1.ComputeSpecHash(instanceB.Spec, instanceB.GetAnnotations())
+	require.NoError(t, err)
+	updated, err := r.rollback(context.Background(), instanceB, &v2alpha1.ExperimentCheckpoint{
+		RollbackTargetRevision: prevRevision,
+		ExpectedSpecHash:       expectedHash,
+	})
 	require.NoError(t, err)
 	assert.True(t, updated)
 }
@@ -183,7 +191,10 @@ func TestRollback_SkipsUpdateWhenSpecAlreadyMatchesTarget(t *testing.T) {
 	require.NoError(t, c.Create(context.Background(), current))
 	rvBefore := current.ResourceVersion
 
-	updated, err := r.rollback(context.Background(), current, target)
+	// The idempotent short-circuit fires before the manual-change guard, so
+	// the checkpoint's ExpectedSpecHash is not consulted here; pass an empty
+	// value.
+	updated, err := r.rollback(context.Background(), current, &v2alpha1.ExperimentCheckpoint{RollbackTargetRevision: target})
 	require.NoError(t, err)
 	assert.False(t, updated)
 
@@ -197,7 +208,7 @@ func TestRollback_NoPreviousRevision(t *testing.T) {
 	r, _ := newRevisionTestReconciler(t)
 	instance := newRevisionTestOwner("test-dda", "default")
 
-	updated, err := r.rollback(context.Background(), instance, "")
+	updated, err := r.rollback(context.Background(), instance, nil)
 	require.NoError(t, err)
 	assert.False(t, updated)
 }
@@ -206,7 +217,7 @@ func TestRollback_NoOwnedRevision(t *testing.T) {
 	r, _ := newRevisionTestReconciler(t)
 	instance := newRevisionTestOwner("test-dda", "default")
 
-	_, err := r.rollback(context.Background(), instance, "does-not-exist")
+	_, err := r.rollback(context.Background(), instance, &v2alpha1.ExperimentCheckpoint{RollbackTargetRevision: "does-not-exist"})
 	require.ErrorIs(t, err, errBaselineNotFound)
 }
 
@@ -277,7 +288,12 @@ func TestRollback_PreservesNonDatadogAnnotations(t *testing.T) {
 	}
 	require.NoError(t, c.Create(context.Background(), instanceB))
 
-	_, err := r.rollback(context.Background(), instanceB, prevRevision)
+	expectedHash, err := v2alpha1.ComputeSpecHash(instanceB.Spec, instanceB.GetAnnotations())
+	require.NoError(t, err)
+	_, err = r.rollback(context.Background(), instanceB, &v2alpha1.ExperimentCheckpoint{
+		RollbackTargetRevision: prevRevision,
+		ExpectedSpecHash:       expectedHash,
+	})
 	require.NoError(t, err)
 
 	updated := &v2alpha1.DatadogAgent{}
@@ -301,14 +317,22 @@ func TestRestorePreviousSpec_PhaseSetOnlyOnSuccess(t *testing.T) {
 
 	instanceB := newRevisionTestOwner("test-dda", "default")
 	instanceB.Spec = v2alpha1.DatadogAgentSpec{Global: &v2alpha1.GlobalConfig{}}
+	// Pin ExpectedSpecHash to instanceB's live spec so rollback's manual-change
+	// guard passes (live matches expected) rather than aborting the rollback
+	// as manual_spec_change.
+	expectedHash, err := v2alpha1.ComputeSpecHash(instanceB.Spec, instanceB.GetAnnotations())
+	require.NoError(t, err)
 
 	newStatus := &v2alpha1.DatadogAgentStatus{Experiment: &v2alpha1.ExperimentStatus{
-		Phase:      v2alpha1.ExperimentPhaseRunning,
-		Checkpoint: &v2alpha1.ExperimentCheckpoint{RollbackTargetRevision: target},
+		Phase: v2alpha1.ExperimentPhaseRunning,
+		Checkpoint: &v2alpha1.ExperimentCheckpoint{
+			RollbackTargetRevision: target,
+			ExpectedSpecHash:       expectedHash,
+		},
 	}}
 
 	// rollback requires the DDA to exist in the fake client; don't create it so it errors.
-	_, err := r.restorePreviousSpec(context.Background(), instanceB, newStatus, v2alpha1.ExperimentTerminationReasonStopped)
+	_, err = r.restorePreviousSpec(context.Background(), instanceB, newStatus, v2alpha1.ExperimentTerminationReasonStopped)
 	require.Error(t, err)
 	// Phase must NOT have been set since rollback failed.
 	assert.Equal(t, v2alpha1.ExperimentPhaseRunning, newStatus.Experiment.Phase)
@@ -319,6 +343,95 @@ func TestRestorePreviousSpec_PhaseSetOnlyOnSuccess(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, v2alpha1.ExperimentPhaseTerminated, newStatus.Experiment.Phase)
 	assert.Equal(t, v2alpha1.ExperimentTerminationReasonStopped, newStatus.Experiment.TerminationReason)
+}
+
+// TestRollback_AbortsWhenManualEditLandsBeforeFreshRead is the pr3443 Finding 5
+// reproduction: reconcile reads instance, and a user apply lands on the live
+// object before rollback issues its own fresh Get. The stale instance still
+// looks clean (its hash matches ExpectedSpecHash), but the live object no
+// longer does. Rollback must catch the drift against the fresh read and
+// return errManualSpecChange so restorePreviousSpec records the abort
+// without overwriting the user's edit.
+func TestRollback_AbortsWhenManualEditLandsBeforeFreshRead(t *testing.T) {
+	r, c := newRevisionTestReconciler(t)
+
+	// Baseline revision.
+	instanceA := newRevisionTestOwner("test-dda", "default")
+	require.NoError(t, r.manageRevision(context.Background(), instanceA, instanceA.Spec, mustListRevisions(t, r, instanceA), nil))
+	revListA := mustListRevisions(t, r, instanceA)
+	require.Len(t, revListA, 1)
+	baselineRevision := revListA[0].Name
+
+	// Reconcile's stale instance has the experiment spec.
+	staleInstance := newRevisionTestOwner("test-dda", "default")
+	staleInstance.Spec = v2alpha1.DatadogAgentSpec{Global: &v2alpha1.GlobalConfig{}}
+	expectedHash, err := v2alpha1.ComputeSpecHash(staleInstance.Spec, staleInstance.GetAnnotations())
+	require.NoError(t, err)
+	require.NoError(t, c.Create(context.Background(), staleInstance))
+
+	// User apply mutates the live object between reconcile-read and
+	// rollback's fresh Get: change a spec field so live no longer hashes to
+	// ExpectedSpecHash and does not match the baseline snapshot either.
+	live := mustGetDDA(t, c, staleInstance.Name)
+	live.Spec.Global.Site = ptr.To("user-manual-edit.example.com")
+	require.NoError(t, c.Update(context.Background(), live))
+
+	checkpoint := &v2alpha1.ExperimentCheckpoint{
+		RollbackTargetRevision: baselineRevision,
+		ExpectedSpecHash:       expectedHash,
+	}
+	updated, err := r.rollback(context.Background(), staleInstance, checkpoint)
+	require.ErrorIs(t, err, errManualSpecChange, "rollback must detect the drift against the fresh read")
+	assert.False(t, updated, "rollback must not have written a spec update when it detected manual change")
+
+	// The user's edit must survive: rollback must not have overwritten it.
+	after := mustGetDDA(t, c, staleInstance.Name)
+	require.NotNil(t, after.Spec.Global.Site)
+	assert.Equal(t, "user-manual-edit.example.com", *after.Spec.Global.Site,
+		"the user's manual edit must not be overwritten by the rollback baseline")
+}
+
+// TestRestorePreviousSpec_ManualChangeSurfacesAsAbort wraps the same fresh-read
+// race through restorePreviousSpec: errManualSpecChange from rollback must be
+// translated into Phase=Aborted / Reason=ManualSpecChange, not propagated as
+// a hard error that just requeues.
+func TestRestorePreviousSpec_ManualChangeSurfacesAsAbort(t *testing.T) {
+	r, c := newRevisionTestReconciler(t)
+
+	instanceA := newRevisionTestOwner("test-dda", "default")
+	require.NoError(t, r.manageRevision(context.Background(), instanceA, instanceA.Spec, mustListRevisions(t, r, instanceA), nil))
+	revListA := mustListRevisions(t, r, instanceA)
+	require.Len(t, revListA, 1)
+	baselineRevision := revListA[0].Name
+
+	staleInstance := newRevisionTestOwner("test-dda", "default")
+	staleInstance.Spec = v2alpha1.DatadogAgentSpec{Global: &v2alpha1.GlobalConfig{}}
+	expectedHash, err := v2alpha1.ComputeSpecHash(staleInstance.Spec, staleInstance.GetAnnotations())
+	require.NoError(t, err)
+	require.NoError(t, c.Create(context.Background(), staleInstance))
+
+	live := mustGetDDA(t, c, staleInstance.Name)
+	live.Spec.Global.Site = ptr.To("user-manual-edit.example.com")
+	require.NoError(t, c.Update(context.Background(), live))
+
+	newStatus := &v2alpha1.DatadogAgentStatus{Experiment: &v2alpha1.ExperimentStatus{
+		Phase: v2alpha1.ExperimentPhaseRunning,
+		ID:    "exp-1",
+		Checkpoint: &v2alpha1.ExperimentCheckpoint{
+			RollbackTargetRevision: baselineRevision,
+			ExpectedSpecHash:       expectedHash,
+		},
+	}}
+	updated, err := r.restorePreviousSpec(context.Background(), staleInstance, newStatus, v2alpha1.ExperimentTerminationReasonStopped)
+	require.NoError(t, err, "restorePreviousSpec must translate errManualSpecChange into an abort, not propagate it")
+	assert.False(t, updated)
+	assert.Equal(t, v2alpha1.ExperimentPhaseAborted, newStatus.Experiment.Phase)
+	assert.Equal(t, v2alpha1.ExperimentTerminationReasonManualSpecChange, newStatus.Experiment.TerminationReason)
+
+	// The user's edit must survive.
+	after := mustGetDDA(t, c, staleInstance.Name)
+	require.NotNil(t, after.Spec.Global.Site)
+	assert.Equal(t, "user-manual-edit.example.com", *after.Spec.Global.Site)
 }
 
 // TestRestorePreviousSpec_BaselineNotFoundAborts verifies that when the
