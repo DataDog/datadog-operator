@@ -424,7 +424,7 @@ bin/$(PLATFORM)/operator-sdk: Makefile
 
 bin/$(PLATFORM)/go-licenses:
 	mkdir -p $(ROOT)/bin/$(PLATFORM)
-	GOBIN=$(ROOT)/bin/$(PLATFORM) go install github.com/google/go-licenses@v1.5.0
+	GOBIN=$(ROOT)/bin/$(PLATFORM) go install github.com/google/go-licenses/v2@latest
 
 bin/$(PLATFORM)/operator-manifest-tools: Makefile
 	hack/install-operator-manifest-tools.sh 0.6.0
