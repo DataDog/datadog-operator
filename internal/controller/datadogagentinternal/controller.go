@@ -69,7 +69,6 @@ type ReconcilerOptions struct {
 	SupportCilium                   bool
 	OperatorMetricsEnabled          bool
 	UntaintControllerEnabled        bool
-	DatadogCSIDriverEnabled         bool
 	RolloutOnConfigMapChangeEnabled bool
 	DefaultDataPlaneLinuxEnabled    bool
 	APIReader                       client.Reader
@@ -137,7 +136,6 @@ func (r *Reconciler) reconcilerOptionsToFeatureOptions(ctx context.Context, ddai
 		Logger:                  ctrl.LoggerFrom(ctx),
 		Client:                  r.apiReader,
 		PlatformInfo:            r.platformInfo,
-		DatadogCSIDriverEnabled: r.options.DatadogCSIDriverEnabled,
 		DefaultDataPlaneEnabled: r.options.DefaultDataPlaneLinuxEnabled && !windowsProfile,
 	}
 }

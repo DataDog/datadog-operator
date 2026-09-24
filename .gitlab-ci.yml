@@ -539,6 +539,7 @@ e2e:
           - "1.29"
           - "1.30"
           - "1.32"
+          - "1.36"
   variables:
     TARGET_IMAGE: $E2E_DOCKER_REGISTRY:${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
   script:
@@ -1126,7 +1127,7 @@ publish_nightly_workflow:
     - trigger_internal_operator_nightly_image
     - trigger_internal_operator_check_nightly_image
   trigger:
-    project: DataDog/k8s-datadog-agent-ops
+    project: ddoghq/k8s-datadog-agent-ops
     branch: main
     strategy: depend
   variables:
@@ -1143,7 +1144,7 @@ publish_release_candidate_workflow:
     - trigger_internal_operator_image
     - trigger_internal_operator_check_image
   trigger:
-    project: DataDog/k8s-datadog-agent-ops
+    project: ddoghq/k8s-datadog-agent-ops
     branch: main
     strategy: depend
     forward:
