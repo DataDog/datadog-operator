@@ -113,6 +113,21 @@ func jitteredDelay(d time.Duration) time.Duration {
 	return rand.N(d)
 }
 
+// jitteredInterval returns a duration in [90% of d, 110% of d), keeping the
+// average send cadence close to d while preventing forwarders that complete at
+// the same time from remaining in lockstep.
+func jitteredInterval(d time.Duration) time.Duration {
+	if d <= 0 {
+		return 0
+	}
+
+	spread := d / 10
+	if spread == 0 {
+		return d
+	}
+	return d - spread + rand.N(2*spread)
+}
+
 // metricsForwarder sends metrics directly to Datadog using the public API
 // its lifecycle must be handled by a ForwardersManager
 type metricsForwarder struct {
@@ -185,6 +200,12 @@ func newMetricsForwarder(k8sClient client.Client, decryptor secrets.Decryptor, o
 // it starts sending deployment metrics once the connection is validated
 // designed to run a separate goroutine and stopped using the stop method
 func (mf *metricsForwarder) start(wg *sync.WaitGroup) {
+	mf.startWithDelays(wg, jitteredDelay, jitteredInterval)
+}
+
+// startWithDelays contains the forwarder run loop. Delay functions are passed
+// in so timer behavior can be tested deterministically with a fake clock.
+func (mf *metricsForwarder) startWithDelays(wg *sync.WaitGroup, initialDelay, recurringDelay func(time.Duration) time.Duration) {
 	defer wg.Done()
 
 	mf.logger.Info("Starting Datadog metrics forwarder")
@@ -194,7 +215,7 @@ func (mf *metricsForwarder) start(wg *sync.WaitGroup) {
 	// CR-detected event to the Datadog API in the same instant; the
 	// periodic-send jitter below only takes effect afterward, once this
 	// initial connection has already succeeded.
-	startupTimer := time.NewTimer(jitteredDelay(mf.sendMetricsInterval))
+	startupTimer := time.NewTimer(initialDelay(mf.sendMetricsInterval))
 	defer startupTimer.Stop()
 	select {
 	case <-startupTimer.C:
@@ -230,11 +251,11 @@ func (mf *metricsForwarder) start(wg *sync.WaitGroup) {
 		mf.logger.Error(err, "an error occurred while sending event")
 	}
 
-	// First fire is jittered so a batch of CRs created together don't all hit
-	// the Datadog API in lockstep; Reset (rather than a Ticker) also means the
-	// next send is scheduled only after the previous one finishes, so a slow
-	// call can't cause sends to pile up.
-	metricsTimer := time.NewTimer(jitteredDelay(mf.sendMetricsInterval))
+	// The first send is spread across the full interval. Subsequent sends use a
+	// slightly jittered interval and are scheduled only after the previous send
+	// finishes, avoiding the immediate catch-up send that a queued ticker tick
+	// can cause after a slow request.
+	metricsTimer := time.NewTimer(initialDelay(mf.sendMetricsInterval))
 	defer metricsTimer.Stop()
 
 	for {
@@ -255,7 +276,7 @@ func (mf *metricsForwarder) start(wg *sync.WaitGroup) {
 			if err := mf.forwardMetrics(); err != nil {
 				mf.logger.Error(err, "an error occurred while sending metrics")
 			}
-			metricsTimer.Reset(mf.sendMetricsInterval)
+			metricsTimer.Reset(recurringDelay(mf.sendMetricsInterval))
 		case reconcileErr := <-mf.errorChan:
 			if err := mf.processReconcileError(reconcileErr); err != nil {
 				mf.logger.Error(err, "an error occurred while processing reconcile metrics")
