@@ -156,7 +156,7 @@ func (r *Reconciler) manageExperiment(
 
 	// Process annotation-based signals first — they take priority over
 	// automatic timeout since they represent explicit human/RC intent.
-	pendingClearID, signalUpdated, err := r.processExperimentSignal(ctx, instance, newStatus, now)
+	pendingClearToken, signalUpdated, err := r.processExperimentSignal(ctx, instance, newStatus, now)
 	if err != nil {
 		return false, err
 	}
@@ -171,8 +171,8 @@ func (r *Reconciler) manageExperiment(
 		// actually mutated status (e.g. a start signal that created an
 		// experiment) — annotations will be cleared on the next reconcile
 		// after the status update succeeds.
-		if pendingClearID != "" && newStatus.Experiment == nil {
-			if clearErr := r.clearExperimentAnnotations(ctx, instance, pendingClearID); clearErr != nil {
+		if pendingClearToken != nil && newStatus.Experiment == nil {
+			if clearErr := r.clearExperimentAnnotations(ctx, instance, *pendingClearToken); clearErr != nil {
 				ctrl.LoggerFrom(ctx).Error(clearErr, "Failed to clear experiment annotations, will retry on next reconcile")
 			}
 		}
@@ -197,7 +197,7 @@ func (r *Reconciler) manageExperiment(
 	// When status IS mutated, annotations are left for the next reconcile —
 	// the idempotent path will detect the signal was already processed and
 	// clear them then.
-	if pendingClearID != "" {
+	if pendingClearToken != nil {
 		newPhase := v2alpha1.ExperimentPhase("")
 		newID := ""
 		newReason := v2alpha1.ExperimentTerminationReason("")
@@ -208,7 +208,7 @@ func (r *Reconciler) manageExperiment(
 		}
 		if newPhase == oldPhase && newID == oldID && newReason == oldReason {
 			logger := ctrl.LoggerFrom(ctx)
-			if clearErr := r.clearExperimentAnnotations(ctx, instance, pendingClearID); clearErr != nil {
+			if clearErr := r.clearExperimentAnnotations(ctx, instance, *pendingClearToken); clearErr != nil {
 				logger.Error(clearErr, "Failed to clear experiment annotations, will retry on next reconcile")
 			}
 		}
@@ -230,13 +230,13 @@ func (r *Reconciler) processExperimentSignal(
 	instance *v2alpha1.DatadogAgent,
 	newStatus *v2alpha1.DatadogAgentStatus,
 	now metav1.Time,
-) (pendingClearID string, specUpdated bool, err error) {
+) (pendingClearToken *experimentSignalClearToken, specUpdated bool, err error) {
 	annotations := instance.GetAnnotations()
 	signal := annotations[v2alpha1.AnnotationExperimentSignal]
 	annotationID := annotations[v2alpha1.AnnotationExperimentID]
 
 	if signal == "" || annotationID == "" {
-		return "", false, nil
+		return nil, false, nil
 	}
 
 	ctx = ctrl.LoggerInto(ctx, ctrl.LoggerFrom(ctx).WithValues("signal", signal, "annotationID", annotationID))
@@ -250,6 +250,13 @@ func (r *Reconciler) processExperimentSignal(
 		currentID = experiment.ID
 	}
 
+	// Snapshot the fields clearExperimentAnnotations will test against.
+	// Reading them from the same annotation map we're about to hand to the
+	// signal handlers keeps the token in sync with what got processed even
+	// if a signal handler mutates instance later.
+	rollbackTargetRevision := annotations[v2alpha1.AnnotationExperimentRollbackTargetRevision]
+	expectedSpecHash := annotations[v2alpha1.AnnotationExperimentExpectedSpecHash]
+
 	var acted bool
 
 	switch signal {
@@ -259,8 +266,6 @@ func (r *Reconciler) processExperimentSignal(
 		// pending annotations being available later (the worker clears them when
 		// the start task completes).
 		pendingTaskID := annotations[v2alpha1.AnnotationPendingTaskID]
-		rollbackTargetRevision := annotations[v2alpha1.AnnotationExperimentRollbackTargetRevision]
-		expectedSpecHash := annotations[v2alpha1.AnnotationExperimentExpectedSpecHash]
 		acted, err = r.processStartSignal(ctx, instance, annotationID, currentPhase, currentID, newStatus, now, pendingTaskID, rollbackTargetRevision, expectedSpecHash)
 
 	case v2alpha1.ExperimentSignalRollback:
@@ -275,13 +280,19 @@ func (r *Reconciler) processExperimentSignal(
 	}
 
 	if err != nil {
-		return "", specUpdated, err
+		return nil, specUpdated, err
 	}
 
-	if acted {
-		return annotationID, specUpdated, nil
+	if !acted {
+		return nil, specUpdated, nil
 	}
-	return "", specUpdated, nil
+	return &experimentSignalClearToken{
+		resourceVersion:        instance.ResourceVersion,
+		id:                     annotationID,
+		signal:                 signal,
+		rollbackTargetRevision: rollbackTargetRevision,
+		expectedSpecHash:       expectedSpecHash,
+	}, specUpdated, nil
 }
 
 // processStartSignal handles the start annotation signal.
@@ -608,29 +619,74 @@ type jsonPatchOp struct {
 	Value string `json:"value,omitempty"`
 }
 
+// experimentSignalClearToken captures the DDA state that processExperimentSignal
+// observed, so a later clearExperimentAnnotations call can prove it is clearing
+// the same signal it processed. A concurrent write of any kind — including a
+// new signal for the same experiment ID — bumps metadata.resourceVersion, so
+// testing on it makes the clear fail closed rather than wipe the newer state.
+// The per-field tests on signal / id / pins make the intended signal identity
+// explicit and defend against a caller that supplies an incorrect resource
+// version.
+type experimentSignalClearToken struct {
+	// resourceVersion is metadata.resourceVersion of the DDA at process time.
+	resourceVersion string
+	// id and signal are the values of AnnotationExperimentID and
+	// AnnotationExperimentSignal at process time.
+	id     string
+	signal string
+	// rollbackTargetRevision and expectedSpecHash are the pinned start
+	// annotations at process time. Empty means the pin was absent (only
+	// start signals carry them), and the clear patch neither tests nor
+	// removes an absent pin.
+	rollbackTargetRevision string
+	expectedSpecHash       string
+}
+
 // clearExperimentAnnotations removes the experiment signal annotations from the
-// DDA using a conditional JSON Patch. The patch asserts the annotation ID matches
-// the one we just processed, preventing accidental removal of a newer signal
-// written concurrently by the daemon.
-func (r *Reconciler) clearExperimentAnnotations(ctx context.Context, instance *v2alpha1.DatadogAgent, expectedID string) error {
+// DDA using a conditional JSON Patch. The patch asserts, atomically:
+//   - metadata.resourceVersion is unchanged since processing (any concurrent
+//     write fails the test, so the newer state is not wiped);
+//   - AnnotationExperimentID still matches the token;
+//   - AnnotationExperimentSignal still matches the token (start / rollback /
+//     promote reuse the same ID by design, so ID alone can't distinguish them);
+//   - each pinned start annotation that was present at process time still
+//     holds the same value.
+//
+// On any test failure the whole patch is rejected and no annotation is
+// removed. Callers treat a returned error as "retry on next reconcile," not
+// as evidence the annotations were cleared.
+func (r *Reconciler) clearExperimentAnnotations(ctx context.Context, instance *v2alpha1.DatadogAgent, token experimentSignalClearToken) error {
 	ops := []jsonPatchOp{
-		{Op: "test", Path: annotationToJSONPatchPath(v2alpha1.AnnotationExperimentID), Value: expectedID},
-		{Op: "remove", Path: annotationToJSONPatchPath(v2alpha1.AnnotationExperimentSignal)},
-		{Op: "remove", Path: annotationToJSONPatchPath(v2alpha1.AnnotationExperimentID)},
+		{Op: "test", Path: "/metadata/resourceVersion", Value: token.resourceVersion},
+		{Op: "test", Path: annotationToJSONPatchPath(v2alpha1.AnnotationExperimentID), Value: token.id},
+		{Op: "test", Path: annotationToJSONPatchPath(v2alpha1.AnnotationExperimentSignal), Value: token.signal},
 	}
-	// Only start signals carry the two pinned-baseline annotations, and a JSON
-	// Patch "remove" on an absent path 422s, so only queue each when present.
-	// Both are cleared together: leaving the hash behind would let a later
-	// start signal inherit a stale pin. The leading "test" op above still
-	// guards these removals against a signal written concurrently by the
-	// daemon, since the whole patch is atomic.
-	for _, key := range []string{
-		v2alpha1.AnnotationExperimentRollbackTargetRevision,
-		v2alpha1.AnnotationExperimentExpectedSpecHash,
-	} {
-		if _, ok := instance.GetAnnotations()[key]; ok {
-			ops = append(ops, jsonPatchOp{Op: "remove", Path: annotationToJSONPatchPath(key)})
-		}
+	// Only start signals carry the two pinned-baseline annotations. Test each
+	// that was present at process time so a rewritten start with the same ID
+	// but different pins fails the test rather than getting its pins wiped.
+	// A JSON Patch "remove" on an absent path 422s, so gate the removes on
+	// presence too.
+	if token.rollbackTargetRevision != "" {
+		ops = append(ops,
+			jsonPatchOp{Op: "test", Path: annotationToJSONPatchPath(v2alpha1.AnnotationExperimentRollbackTargetRevision), Value: token.rollbackTargetRevision},
+		)
+	}
+	if token.expectedSpecHash != "" {
+		ops = append(ops,
+			jsonPatchOp{Op: "test", Path: annotationToJSONPatchPath(v2alpha1.AnnotationExperimentExpectedSpecHash), Value: token.expectedSpecHash},
+		)
+	}
+	// Removes come after all tests so the patch is atomic: any test failure
+	// aborts the whole operation before any annotation is deleted.
+	ops = append(ops,
+		jsonPatchOp{Op: "remove", Path: annotationToJSONPatchPath(v2alpha1.AnnotationExperimentSignal)},
+		jsonPatchOp{Op: "remove", Path: annotationToJSONPatchPath(v2alpha1.AnnotationExperimentID)},
+	)
+	if token.rollbackTargetRevision != "" {
+		ops = append(ops, jsonPatchOp{Op: "remove", Path: annotationToJSONPatchPath(v2alpha1.AnnotationExperimentRollbackTargetRevision)})
+	}
+	if token.expectedSpecHash != "" {
+		ops = append(ops, jsonPatchOp{Op: "remove", Path: annotationToJSONPatchPath(v2alpha1.AnnotationExperimentExpectedSpecHash)})
 	}
 	patch, err := json.Marshal(ops)
 	if err != nil {

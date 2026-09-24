@@ -898,3 +898,144 @@ func TestProcessRollbackSignal_NilPhaseWithoutAnnotationNoOps(t *testing.T) {
 	assert.False(t, specUpdated)
 	assert.Nil(t, newStatus.Experiment)
 }
+
+// startSignalDDA builds a DDA carrying a live start signal for the given ID,
+// plus valid pin annotations. Callers Create() it and use its RV as the token
+// baseline in clearExperimentAnnotations tests.
+func startSignalDDA(t *testing.T, name string) *v2alpha1.DatadogAgent {
+	t.Helper()
+	dda := newRevisionTestOwner(name, "default")
+	dda.Annotations = map[string]string{
+		v2alpha1.AnnotationExperimentSignal:                 v2alpha1.ExperimentSignalStart,
+		v2alpha1.AnnotationExperimentID:                     "exp-1",
+		v2alpha1.AnnotationExperimentRollbackTargetRevision: "rev-baseline",
+		v2alpha1.AnnotationExperimentExpectedSpecHash:       "abc123",
+	}
+	return dda
+}
+
+func mustGetDDA(t *testing.T, c client.Client, name string) *v2alpha1.DatadogAgent {
+	t.Helper()
+	got := &v2alpha1.DatadogAgent{}
+	require.NoError(t, c.Get(context.Background(), types.NamespacedName{Namespace: "default", Name: name}, got))
+	return got
+}
+
+// TestClearExperimentAnnotations_SucceedsOnMatchingToken exercises the happy
+// path: the token captured at process time still matches the live object, and
+// every experiment annotation is removed together.
+func TestClearExperimentAnnotations_SucceedsOnMatchingToken(t *testing.T) {
+	r, c := newRevisionTestReconciler(t)
+	dda := startSignalDDA(t, "test-dda")
+	require.NoError(t, c.Create(context.Background(), dda))
+	live := mustGetDDA(t, c, dda.Name)
+
+	token := experimentSignalClearToken{
+		resourceVersion:        live.ResourceVersion,
+		id:                     "exp-1",
+		signal:                 v2alpha1.ExperimentSignalStart,
+		rollbackTargetRevision: "rev-baseline",
+		expectedSpecHash:       "abc123",
+	}
+	require.NoError(t, r.clearExperimentAnnotations(context.Background(), live, token))
+
+	after := mustGetDDA(t, c, dda.Name)
+	for _, key := range []string{
+		v2alpha1.AnnotationExperimentSignal,
+		v2alpha1.AnnotationExperimentID,
+		v2alpha1.AnnotationExperimentRollbackTargetRevision,
+		v2alpha1.AnnotationExperimentExpectedSpecHash,
+	} {
+		_, present := after.Annotations[key]
+		assert.False(t, present, "annotation %s should be removed", key)
+	}
+}
+
+// TestClearExperimentAnnotations_FailsIfSignalChangedConcurrently is the
+// reproduction from pr3443 Finding 4: reconciler processes start/exp-1, Fleet
+// writes rollback/exp-1 in the race window, the old clear must not wipe the
+// newer rollback signal. Signal reuse under one ID is by design, so an
+// ID-only test op would incorrectly pass here.
+func TestClearExperimentAnnotations_FailsIfSignalChangedConcurrently(t *testing.T) {
+	r, c := newRevisionTestReconciler(t)
+	dda := startSignalDDA(t, "test-dda")
+	require.NoError(t, c.Create(context.Background(), dda))
+	processed := mustGetDDA(t, c, dda.Name)
+	token := experimentSignalClearToken{
+		resourceVersion:        processed.ResourceVersion,
+		id:                     "exp-1",
+		signal:                 v2alpha1.ExperimentSignalStart,
+		rollbackTargetRevision: "rev-baseline",
+		expectedSpecHash:       "abc123",
+	}
+
+	// Fleet's rollback lands: same ID, new signal + fresh pins.
+	updated := processed.DeepCopy()
+	updated.Annotations[v2alpha1.AnnotationExperimentSignal] = v2alpha1.ExperimentSignalRollback
+	require.NoError(t, c.Update(context.Background(), updated))
+
+	err := r.clearExperimentAnnotations(context.Background(), processed, token)
+	require.Error(t, err, "clear must fail-closed rather than wipe the newer rollback signal")
+
+	after := mustGetDDA(t, c, dda.Name)
+	assert.Equal(t, v2alpha1.ExperimentSignalRollback, after.Annotations[v2alpha1.AnnotationExperimentSignal],
+		"the rollback signal must remain so the next reconcile can process it")
+	assert.Equal(t, "exp-1", after.Annotations[v2alpha1.AnnotationExperimentID])
+}
+
+// TestClearExperimentAnnotations_FailsIfResourceVersionChanged proves the
+// resourceVersion test op is the concurrency boundary. Any write of any kind
+// between processing and clearing bumps RV and must reject the clear even
+// when signal / id / pins still look right.
+func TestClearExperimentAnnotations_FailsIfResourceVersionChanged(t *testing.T) {
+	r, c := newRevisionTestReconciler(t)
+	dda := startSignalDDA(t, "test-dda")
+	require.NoError(t, c.Create(context.Background(), dda))
+	processed := mustGetDDA(t, c, dda.Name)
+	token := experimentSignalClearToken{
+		resourceVersion:        processed.ResourceVersion,
+		id:                     "exp-1",
+		signal:                 v2alpha1.ExperimentSignalStart,
+		rollbackTargetRevision: "rev-baseline",
+		expectedSpecHash:       "abc123",
+	}
+
+	// A no-op annotation update bumps only RV.
+	updated := processed.DeepCopy()
+	updated.Annotations["unrelated"] = "touched"
+	require.NoError(t, c.Update(context.Background(), updated))
+
+	err := r.clearExperimentAnnotations(context.Background(), processed, token)
+	require.Error(t, err, "clear must reject when RV moved even if the signal/pins still match")
+
+	after := mustGetDDA(t, c, dda.Name)
+	assert.Equal(t, v2alpha1.ExperimentSignalStart, after.Annotations[v2alpha1.AnnotationExperimentSignal])
+}
+
+// TestClearExperimentAnnotations_FailsIfPinChanged covers the rewritten-start
+// variant: same ID, same signal, new pin values (e.g. Fleet re-planned with a
+// new rollback target). The stale clear must fail-closed to protect the new pins.
+func TestClearExperimentAnnotations_FailsIfPinChanged(t *testing.T) {
+	r, c := newRevisionTestReconciler(t)
+	dda := startSignalDDA(t, "test-dda")
+	require.NoError(t, c.Create(context.Background(), dda))
+	processed := mustGetDDA(t, c, dda.Name)
+	token := experimentSignalClearToken{
+		resourceVersion:        processed.ResourceVersion,
+		id:                     "exp-1",
+		signal:                 v2alpha1.ExperimentSignalStart,
+		rollbackTargetRevision: "rev-baseline",
+		expectedSpecHash:       "abc123",
+	}
+
+	updated := processed.DeepCopy()
+	updated.Annotations[v2alpha1.AnnotationExperimentExpectedSpecHash] = "def456"
+	require.NoError(t, c.Update(context.Background(), updated))
+
+	err := r.clearExperimentAnnotations(context.Background(), processed, token)
+	require.Error(t, err, "clear must reject when a pin was rewritten by a fresh start plan")
+
+	after := mustGetDDA(t, c, dda.Name)
+	assert.Equal(t, "def456", after.Annotations[v2alpha1.AnnotationExperimentExpectedSpecHash],
+		"the fresh pin must survive the failed clear so the next reconcile picks it up")
+}
