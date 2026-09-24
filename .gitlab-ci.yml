@@ -49,7 +49,7 @@ stages:
 .on_build_images:
   - if: "$CI_COMMIT_BRANCH =~ /^mq-working-branch-/"
     when: never
-  - when: always
+  - when: on_success
 
 # Release-bundle PRs are opened by the operator-release bot on `operator-release/*`
 # branches and only ever contain the regenerated bundle manifests plus
@@ -64,82 +64,17 @@ stages:
   if: '$CI_COMMIT_BRANCH =~ /^operator-release\// || ($CI_COMMIT_BRANCH =~ /^mq-working-branch-/ && $CI_COMMIT_TITLE =~ /^\[datadog-operator\] Release v/)'
   when: never
 
+# Keep the core checks in one pod so each step reuses modules, tools, and
+# compilation from the previous steps. ci-check stops at the first failure
+# and gives each check its own timed section in the GitLab job log.
 build:
   stage: build
   tags: ["arch:amd64"]
   variables:
     <<: *resource_variables
-  before_script:
-    - make install-tools
   script:
-    - make build
-
-unit_tests:
-  stage: test
-  tags: ["arch:amd64"]
-  rules:
-    - if: '$DDR == "true"'
-      when: never
-    - when: on_success
-  variables:
-    <<: *resource_variables
-  before_script:
-    - make install-tools
-  script:
-    - make ci-test
-
-verify_licenses:
-  stage: test
-  tags: ["arch:amd64"]
-  rules:
-    - if: '$DDR == "true"'
-      when: never
-    - when: on_success
-  before_script:
-    - make install-tools
-  script:
-    - make verify-licenses
-
-check-golang-version:
-  stage: build
-  tags: ["arch:amd64"]
-  rules:
-    - if: '$DDR == "true"'
-      when: never
-    - when: on_success
-  before_script:
-    - make install-tools
-  script:
-    - make update-golang
-    - git diff --exit-code
-
-generate_code:
-  stage: test
-  tags: ["arch:amd64"]
-  rules:
-    - if: '$DDR == "true"'
-      when: never
-    - when: on_success
-  before_script:
-    - make install-tools
-  script:
-    - make generate manifests
-    - git diff --exit-code
-
-check_formatting:
-  stage: test
-  tags: ["arch:amd64"]
-  rules:
-    - if: '$DDR == "true"'
-      when: never
-    - when: on_success
-  variables:
-    <<: *resource_variables
-  before_script:
-    - make install-tools
-  script:
-    - make fmt
-    - git diff --exit-code
+    # DDR historically runs build/generation/lint, without the other checks.
+    - if [ "$DDR" = "true" ]; then make build; else make ci-check; fi
 
 lint_e2e:
   stage: test
@@ -158,8 +93,6 @@ lint_e2e:
     - when: never
   variables:
     <<: *resource_variables
-  before_script:
-    - make install-tools
   script:
     - make lint-e2e
 
@@ -571,6 +504,9 @@ e2e_autoscaling:
   stage: e2e
   needs:
     - "go_e2e_deps"
+    # Reuse the successful core checks instead of running lint/vet again in E2E.
+    - job: "build"
+      artifacts: false
   timeout: 150m
   id_tokens:
     DDOCTOSTS_ID_TOKEN:
