@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
@@ -196,6 +197,25 @@ func Test_otelAgentGatewayFeature_Configure(t *testing.T) {
 				defaultVolumeMounts,
 				defaultVolumes(defaultLocalObjectReferenceName),
 			),
+		},
+		{
+			Name: "otel agent gateway enabled via remote config",
+			DDA: func() *v2alpha1.DatadogAgent {
+				dda := testutils.NewDatadogAgentBuilder().
+					WithOTelAgentGatewayEnabled(false).
+					Build()
+				dda.Status.RemoteConfigConfiguration = &v2alpha1.RemoteConfigConfiguration{
+					Features: &v2alpha1.DatadogFeatures{
+						OtelAgentGateway: &v2alpha1.OtelAgentGatewayFeatureConfig{
+							Enabled: ptr.To(true),
+						},
+					},
+				}
+				return dda
+			}(),
+			WantConfigure:        true,
+			WantDependenciesFunc: testExpectedDepsCreatedCM,
+			OtelAgentGateway:     testExpectedOtelAgentGateway(apicommon.OtelAgent, defaultExpectedPorts, defaultAnnotations, defaultVolumeMounts, defaultVolumes(defaultLocalObjectReferenceName)),
 		},
 		{
 			Name: "otel agent gateway enabled with featureGates",
