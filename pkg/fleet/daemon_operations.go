@@ -406,7 +406,18 @@ func (d *Daemon) planStart(ctx context.Context, req remoteAPIRequest, op resolve
 	if err := d.checkBaselineReady(ctx, dda); err != nil {
 		return planResult{}, fmt.Errorf("start DatadogAgent experiment: %w", err)
 	}
-	patch, err := BuildStartPatch(dda, experimentID, op.Config, dda.Status.CurrentRevision)
+	// Derive the expected-spec-hash pin from a real apiserver dry-run, not
+	// an in-memory merge. The reconciler hashes the persisted spec after
+	// admission (including CRD structural defaults like ContainerPort.protocol
+	// -> TCP), so the pin must equal that shape or a defaulted field would
+	// look like a manual spec change and trip the abort path. Any dry-run
+	// failure (rejected shape, admission webhook denial, context cancel) is
+	// surfaced as-is; we deliberately do not fall back to an in-memory hash.
+	expectedHash, err := d.planExpectedSpecHash(ctx, dda, experimentID, op.Config, dda.Status.CurrentRevision)
+	if err != nil {
+		return planResult{}, fmt.Errorf("start DatadogAgent experiment: %w", err)
+	}
+	patch, err := BuildStartPatch(dda, experimentID, op.Config, dda.Status.CurrentRevision, expectedHash)
 	if err != nil {
 		return planResult{}, fmt.Errorf("start DatadogAgent experiment: %w", err)
 	}
@@ -447,7 +458,11 @@ func (d *Daemon) planStartResend(
 			"DatadogAgent %s/%s pins rollback target %q, which does not resolve to an owned ControllerRevision",
 			dda.Namespace, dda.Name, rollbackTarget)}
 	}
-	expectedHash, err := expectedSpecHashAfterMerge(dda, op.Config)
+	// Resend validation uses the same dry-run path as the pin was computed
+	// with. An in-memory recompute would diverge from the pinned value
+	// whenever the config introduces a CRD-defaulted field, and a legitimate
+	// resend would be misclassified as different-intent.
+	expectedHash, err := d.planExpectedSpecHash(ctx, dda, req.Params.Version, op.Config, rollbackTarget)
 	if err != nil {
 		return planResult{}, fmt.Errorf("start DatadogAgent experiment: %w", err)
 	}

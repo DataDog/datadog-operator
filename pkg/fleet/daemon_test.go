@@ -181,7 +181,7 @@ func stampWellFormedStartSignal(dda *v2alpha1.DatadogAgent) {
 	dda.Annotations[v2alpha1.AnnotationExperimentID] = testExperimentID
 	dda.Annotations[v2alpha1.AnnotationExperimentSignal] = v2alpha1.ExperimentSignalStart
 	dda.Annotations[v2alpha1.AnnotationExperimentRollbackTargetRevision] = testBaselineRevision
-	hash, err := expectedSpecHashAfterMerge(dda, json.RawMessage(`{}`))
+	hash, err := ExpectedSpecHashAfterInMemoryMerge(dda, json.RawMessage(`{}`))
 	if err != nil {
 		panic(err)
 	}
@@ -3328,15 +3328,22 @@ func TestHandleTask_StaleTaskReportedAsInvalidState(t *testing.T) {
 
 // scriptedPatchClient returns patchErrs[i] (if non-nil) on the i-th Patch call
 // against a DatadogAgent, then delegates; once patchErrs is exhausted every
-// subsequent call delegates directly.
+// subsequent call delegates directly. patchCalls counts writes only —
+// client.DryRunAll patches (used by planExpectedSpecHash to ask apiserver for
+// the admitted shape) are counted separately as dryRunCalls, since they do
+// not mutate the object.
 type scriptedPatchClient struct {
 	client.Client
-	patchErrs  []error
-	patchCalls int
+	patchErrs    []error
+	patchCalls   int
+	dryRunCalls  int
 }
 
 func (c *scriptedPatchClient) Patch(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
-	if _, ok := obj.(*v2alpha1.DatadogAgent); ok && c.patchCalls < len(c.patchErrs) {
+	options := client.PatchOptions{}
+	options.ApplyOptions(opts)
+	isDryRun := len(options.DryRun) == 1 && options.DryRun[0] == metav1.DryRunAll
+	if _, ok := obj.(*v2alpha1.DatadogAgent); ok && !isDryRun && c.patchCalls < len(c.patchErrs) {
 		err := c.patchErrs[c.patchCalls]
 		c.patchCalls++
 		if err != nil {
@@ -3344,7 +3351,11 @@ func (c *scriptedPatchClient) Patch(ctx context.Context, obj client.Object, patc
 		}
 		return c.Client.Patch(ctx, obj, patch, opts...)
 	}
-	c.patchCalls++
+	if isDryRun {
+		c.dryRunCalls++
+	} else {
+		c.patchCalls++
+	}
 	return c.Client.Patch(ctx, obj, patch, opts...)
 }
 

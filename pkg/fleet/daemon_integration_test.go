@@ -9,6 +9,7 @@ package fleet
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -30,6 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 
+	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	v1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	v2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent"
@@ -287,4 +289,71 @@ func TestPlanStartApplyOperation_ProducesReconcilerReadableCheckpoint(t *testing
 		"the reconciler's checkpoint must agree with the baseline Fleet wrote")
 	assert.Equal(t, pinnedHash, afterReconcile.Status.Experiment.Checkpoint.ExpectedSpecHash,
 		"the reconciler must copy the hash Fleet pinned, not recompute one of its own")
+}
+
+// TestPlanExpectedSpecHash_AccountsForApiserverDefaulting is the pr3443
+// Finding 2 regression test. An experiment config that introduces a struct
+// with a CRD-defaulted field the caller omitted (here: a container port with
+// no protocol, which apiserver defaults to "TCP") makes an in-memory merge
+// diverge from the persisted spec. The reconciler hashes the persisted spec,
+// so an in-memory pin becomes a false ManualSpecChange abort on the first
+// reconcile.
+//
+// This test asserts the dry-run path in planExpectedSpecHash agrees with the
+// hash of the post-apply persisted object. Under the old in-memory design
+// (expectedSpecHashAfterMerge on a plain json.Unmarshal) the two would
+// differ, and the test would fail.
+func TestPlanExpectedSpecHash_AccountsForApiserverDefaulting(t *testing.T) {
+	dda := createIntegrationDDA(t, "structural-defaulting")
+	nsn := types.NamespacedName{Namespace: dda.Namespace, Name: dda.Name}
+
+	// A config that adds a container port without a protocol -- apiserver's
+	// structural defaulting fills in "TCP" during admission.
+	config := json.RawMessage(`{"spec":{"override":{"nodeAgent":{"containers":{"agent":{"ports":[{"containerPort":8126,"name":"trace-agent"}]}}}}}}`)
+
+	d := &Daemon{
+		client:        integrationClient,
+		apiReader:     integrationClient,
+		statusUpdates: make(chan ddaStatusSnapshot, 1),
+	}
+	pinned, err := d.planExpectedSpecHash(context.Background(), dda, testExperimentID, config, "rev-placeholder")
+	require.NoError(t, err)
+
+	// Now actually apply the same config so we can compare Fleet's dry-run
+	// derived pin against the hash of the persisted object.
+	patch, err := BuildStartPatch(dda, testExperimentID, config, "rev-placeholder", pinned)
+	require.NoError(t, err)
+	require.NoError(t, integrationClient.Patch(context.Background(), dda.DeepCopy(), client.RawPatch(types.MergePatchType, patch)))
+
+	persisted := &v2alpha1.DatadogAgent{}
+	require.NoError(t, integrationClient.Get(context.Background(), nsn, persisted))
+
+	// The port must have been TCP-defaulted by apiserver, otherwise this
+	// scenario doesn't exercise the bug it claims to.
+	require.Len(t, persisted.Spec.Override, 1)
+	nodeAgent := persisted.Spec.Override["nodeAgent"]
+	require.NotNil(t, nodeAgent)
+	require.Contains(t, nodeAgent.Containers, apicommon.CoreAgentContainerName)
+	require.Len(t, nodeAgent.Containers["agent"].Ports, 1)
+	require.NotNil(t, nodeAgent.Containers["agent"].Ports[0].Protocol,
+		"apiserver should have defaulted containerPort.protocol; otherwise this fixture is wrong")
+	assert.Equal(t, corev1.ProtocolTCP, nodeAgent.Containers["agent"].Ports[0].Protocol)
+
+	// Reconciler-equivalent computation over the persisted spec + filtered
+	// annotations. Fleet's dry-run pin must match this exactly; an in-memory
+	// hash would omit the TCP default and fail.
+	reconcilerHash, err := v2alpha1.ComputeSpecHash(persisted.Spec, persisted.GetAnnotations())
+	require.NoError(t, err)
+	assert.Equal(t, reconcilerHash, pinned,
+		"dry-run pin must equal the hash the reconciler computes from the persisted (post-defaulting) spec")
+
+	// Confirm the old in-memory helper would have diverged. This locks in
+	// the fact that structural defaulting is what matters here -- if this
+	// assertion ever inverts, the CRD stopped defaulting protocol or the
+	// in-memory helper started reproducing admission, and the whole
+	// scenario needs a fresh look.
+	inMemory, err := ExpectedSpecHashAfterInMemoryMerge(dda, config)
+	require.NoError(t, err)
+	assert.NotEqual(t, inMemory, reconcilerHash,
+		"scenario invariant: in-memory hash must diverge from the persisted-spec hash, otherwise this test isn't exercising the bug")
 }

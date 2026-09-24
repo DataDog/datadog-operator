@@ -78,7 +78,13 @@ func simulateDaemonStart(t *testing.T, c client.Client, nsName types.NamespacedN
 	if len(config) > 0 {
 		experimentConfig = config[0]
 	}
-	patch, err := fleet.BuildStartPatch(&dda, experimentID, experimentConfig, rollbackTarget)
+	// Fake-client fixtures do not run apiserver structural defaulting, so the
+	// in-memory hash and the reconciler's later ComputeSpecHash agree here.
+	// Production Fleet uses the dry-run path (planExpectedSpecHash); envtest
+	// seam tests exercise that.
+	expectedHash, err := fleet.ExpectedSpecHashAfterInMemoryMerge(&dda, experimentConfig)
+	assert.NoError(t, err)
+	patch, err := fleet.BuildStartPatch(&dda, experimentID, experimentConfig, rollbackTarget, expectedHash)
 	assert.NoError(t, err)
 	assert.NoError(t, c.Patch(context.TODO(), &dda, client.RawPatch(types.MergePatchType, patch)))
 
@@ -991,7 +997,9 @@ func Test_Experiment_StartWithMismatchedExpectedHash_ManualSpecChange(t *testing
 	assert.NoError(t, r.client.Update(context.TODO(), dda))
 
 	assert.NoError(t, r.client.Get(context.TODO(), nsName, dda))
-	patch, err := fleet.BuildStartPatch(dda, "exp-1", nil, dda.Status.CurrentRevision)
+	expectedHash, err := fleet.ExpectedSpecHashAfterInMemoryMerge(dda, nil)
+	assert.NoError(t, err)
+	patch, err := fleet.BuildStartPatch(dda, "exp-1", nil, dda.Status.CurrentRevision, expectedHash)
 	assert.NoError(t, err)
 	assert.NoError(t, r.client.Patch(context.TODO(), dda, client.RawPatch(types.MergePatchType, patch)))
 

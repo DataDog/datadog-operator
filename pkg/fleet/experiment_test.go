@@ -17,12 +17,41 @@ import (
 	v2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 )
 
-// TestBuildStartPatch_PinsHashOfPostMergeSpec is the load-bearing assertion
-// behind the expected-spec-hash pin: the value Fleet writes must equal what the
-// reconciler computes from the live object after the patch lands. Hashing the
-// raw config fragment or the un-merged spec would produce a different shape and
-// silently defeat the pin.
-func TestBuildStartPatch_PinsHashOfPostMergeSpec(t *testing.T) {
+// TestBuildStartPatch_EmbedsProvidedHash verifies BuildStartPatch is a pure
+// builder: whatever expectedHash the caller supplies is what lands in the
+// annotation. The pin's correctness against apiserver-admitted state is the
+// responsibility of planExpectedSpecHash (dry-run path), covered separately
+// against envtest.
+func TestBuildStartPatch_EmbedsProvidedHash(t *testing.T) {
+	dda := &v2alpha1.DatadogAgent{
+		ObjectMeta: metav1.ObjectMeta{Name: "dda", Namespace: "ns"},
+		Spec: v2alpha1.DatadogAgentSpec{
+			Global: &v2alpha1.GlobalConfig{ClusterName: ptr.To("before")},
+		},
+	}
+	config := json.RawMessage(`{"spec":{"global":{"clusterName":"after"}}}`)
+	const providedHash = "1111111111111111111111111111111111111111111111111111111111111111"
+
+	patch, err := BuildStartPatch(dda, "exp-1", config, "rev-7", providedHash)
+	require.NoError(t, err)
+
+	var got struct {
+		Metadata struct {
+			Annotations map[string]string `json:"annotations"`
+		} `json:"metadata"`
+	}
+	require.NoError(t, json.Unmarshal(patch, &got))
+	assert.Equal(t, "rev-7", got.Metadata.Annotations[v2alpha1.AnnotationExperimentRollbackTargetRevision])
+	assert.Equal(t, providedHash, got.Metadata.Annotations[v2alpha1.AnnotationExperimentExpectedSpecHash])
+}
+
+// TestExpectedSpecHashAfterInMemoryMerge_MatchesReconcilerComputationWithoutAdmission
+// documents the boundary of the in-memory hash helper: when no CRD structural
+// defaults or admission webhooks would rewrite the spec (i.e. every path that
+// runs under a fake client), the in-memory hash and the reconciler's later
+// ComputeSpecHash agree. Production callers must use the dry-run path
+// instead; this helper stays for test fixtures.
+func TestExpectedSpecHashAfterInMemoryMerge_MatchesReconcilerComputationWithoutAdmission(t *testing.T) {
 	dda := &v2alpha1.DatadogAgent{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "dda",
@@ -38,25 +67,12 @@ func TestBuildStartPatch_PinsHashOfPostMergeSpec(t *testing.T) {
 	}
 	config := json.RawMessage(`{"spec":{"global":{"clusterName":"after"}}}`)
 
-	patch, err := BuildStartPatch(dda, "exp-1", config, "rev-7")
+	hash, err := ExpectedSpecHashAfterInMemoryMerge(dda, config)
 	require.NoError(t, err)
 
-	var got struct {
-		Metadata struct {
-			Annotations map[string]string `json:"annotations"`
-		} `json:"metadata"`
-	}
-	require.NoError(t, json.Unmarshal(patch, &got))
-	assert.Equal(t, "rev-7", got.Metadata.Annotations[v2alpha1.AnnotationExperimentRollbackTargetRevision])
-
-	// What the reconciler will compute once the patch has landed.
 	landed := dda.DeepCopy()
 	landed.Spec.Global.ClusterName = ptr.To("after")
-	for k, v := range got.Metadata.Annotations {
-		landed.Annotations[k] = v
-	}
 	want, err := v2alpha1.ComputeSpecHash(landed.Spec, landed.Annotations)
 	require.NoError(t, err)
-
-	assert.Equal(t, want, got.Metadata.Annotations[v2alpha1.AnnotationExperimentExpectedSpecHash])
+	assert.Equal(t, want, hash)
 }

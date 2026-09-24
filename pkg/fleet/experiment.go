@@ -20,6 +20,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/util/retry"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	v2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -144,30 +145,35 @@ func BuildSignalPatchWithAnnotations(signal, id string, extra map[string]string,
 	return json.Marshal(patch)
 }
 
+// dryRunPlaceholderExpectedSpecHash is a valid-shape SHA-256 hex string used
+// as a placeholder in the dry-run provisional patch so admission does not
+// reject the annotation on Pattern validation. DatadogAnnotations filters the
+// experiment.datadoghq.com/* keys out of the hash input, so the placeholder
+// value never contributes to the final expected-spec-hash we compute from the
+// dry-run response.
+const dryRunPlaceholderExpectedSpecHash = "0000000000000000000000000000000000000000000000000000000000000000"
+
 // BuildStartPatch builds the whole start patch: the signal, ID, rollback-target
 // and expected-spec-hash annotations plus the experiment spec, all in one
-// atomic JSON MergePatch.
-//
-// config is Fleet's whole-resource MergePatch (RC delivers `{"spec": {...}}`),
-// so the expected-spec-hash has to be computed over the *post-merge* spec: the
-// pin must equal what the reconciler will later compute from the live object
-// once the patch has landed. Hashing the raw config fragment or the un-merged
-// dda.Spec would produce a different shape and silently defeat the pin, so the
-// merge is reproduced here in memory rather than approximated.
-func BuildStartPatch(dda *v2alpha1.DatadogAgent, experimentID string, config json.RawMessage, rollbackTarget string) ([]byte, error) {
-	expectedHash, err := expectedSpecHashAfterMerge(dda, config)
-	if err != nil {
-		return nil, err
-	}
+// atomic JSON MergePatch. The caller supplies expectedHash so this stays a
+// pure builder — the hash comes either from an apiserver dry-run
+// (planExpectedSpecHash, the production path) or from an in-memory merge
+// (ExpectedSpecHashAfterInMemoryMerge, the test-fixture path).
+func BuildStartPatch(dda *v2alpha1.DatadogAgent, experimentID string, config json.RawMessage, rollbackTarget, expectedHash string) ([]byte, error) {
 	return BuildSignalPatchWithAnnotations(v2alpha1.ExperimentSignalStart, experimentID, map[string]string{
 		v2alpha1.AnnotationExperimentRollbackTargetRevision: rollbackTarget,
 		v2alpha1.AnnotationExperimentExpectedSpecHash:       expectedHash,
 	}, config)
 }
 
-// expectedSpecHashAfterMerge applies config onto a copy of dda in memory and
-// hashes the result through the same helper the reconciler validates with.
-func expectedSpecHashAfterMerge(dda *v2alpha1.DatadogAgent, config json.RawMessage) (string, error) {
+// ExpectedSpecHashAfterInMemoryMerge applies config onto a copy of dda in
+// memory and hashes the result. It does NOT invoke apiserver structural
+// defaulting, so its output diverges from what the reconciler will compute
+// against the persisted object whenever the patch introduces a struct with a
+// CRD-declared default the caller omitted (e.g. ContainerPort.protocol -> TCP).
+// Production code must use planExpectedSpecHash instead; this helper exists
+// for test fixtures that drive fake-client scenarios where no admission runs.
+func ExpectedSpecHashAfterInMemoryMerge(dda *v2alpha1.DatadogAgent, config json.RawMessage) (string, error) {
 	merged := dda.DeepCopy()
 	if len(config) > 0 {
 		base, err := json.Marshal(merged)
@@ -184,6 +190,41 @@ func expectedSpecHashAfterMerge(dda *v2alpha1.DatadogAgent, config json.RawMessa
 		}
 	}
 	return v2alpha1.ComputeSpecHash(merged.Spec, merged.GetAnnotations())
+}
+
+// planExpectedSpecHash asks apiserver what the DDA will look like once the
+// start patch lands (structural defaults applied, admission webhooks run) and
+// hashes the admitted spec plus filtered annotations. This is the only correct
+// way to derive the expected-spec-hash pin: the reconciler hashes the *persisted*
+// object, so the pin must match apiserver's own output, not the daemon's
+// in-memory guess.
+//
+// The provisional patch carries a placeholder expected-spec-hash annotation
+// only so admission accepts the shape; DatadogAnnotations excludes the
+// experiment.datadoghq.com/* keys from the hash input, so the placeholder
+// value is filtered out of the final result and does not need to match the
+// value the real patch will carry.
+//
+// A dry-run failure (apiserver rejects the shape, admission webhook denies,
+// context canceled) is returned as-is; the caller must not fall back to an
+// in-memory hash, since that would defeat the whole point of asking apiserver.
+func (d *Daemon) planExpectedSpecHash(ctx context.Context, dda *v2alpha1.DatadogAgent, experimentID string, config json.RawMessage, rollbackTarget string) (string, error) {
+	provisional, err := BuildSignalPatchWithAnnotations(v2alpha1.ExperimentSignalStart, experimentID, map[string]string{
+		v2alpha1.AnnotationExperimentRollbackTargetRevision: rollbackTarget,
+		v2alpha1.AnnotationExperimentExpectedSpecHash:       dryRunPlaceholderExpectedSpecHash,
+	}, config)
+	if err != nil {
+		return "", fmt.Errorf("dry-run: build provisional patch: %w", err)
+	}
+	// Use a fresh target object so the caller's dda is not mutated by the
+	// patch response (which contains the admitted spec + annotations).
+	target := &v2alpha1.DatadogAgent{}
+	target.Name = dda.Name
+	target.Namespace = dda.Namespace
+	if err := d.client.Patch(ctx, target, client.RawPatch(types.MergePatchType, provisional), client.DryRunAll, client.FieldOwner("fleet-daemon")); err != nil {
+		return "", fmt.Errorf("dry-run start patch: %w", err)
+	}
+	return v2alpha1.ComputeSpecHash(target.Spec, target.GetAnnotations())
 }
 
 // rollbackTargetIsOwned reports whether name resolves to a ControllerRevision
