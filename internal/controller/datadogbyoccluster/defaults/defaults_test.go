@@ -89,25 +89,28 @@ func TestApply(t *testing.T) {
 			},
 			Storage: &datadoghqv1alpha1.DatadogBYOCClusterStorageSpec{EmptyDir: &corev1.EmptyDirVolumeSource{}},
 		},
-		Pipeline: &datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{
-			DatadogBYOCClusterStatefulComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{
-				DatadogBYOCClusterComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
-					Replicas:                      ptr.To[int32](2),
-					Resources:                     pipelineResources(),
-					TerminationGracePeriodSeconds: ptr.To[int64](70),
-				},
-				Storage: &datadoghqv1alpha1.DatadogBYOCClusterStorageSpec{
-					VolumeClaimTemplate: &datadoghqv1alpha1.DatadogBYOCClusterEmbeddedPersistentVolumeClaim{
-						Spec: corev1.PersistentVolumeClaimSpec{
-							AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
-							Resources: corev1.VolumeResourceRequirements{
-								Requests: corev1.ResourceList{corev1.ResourceStorage: resource.MustParse("30Gi")},
+		Pipelines: []datadoghqv1alpha1.DatadogBYOCClusterPipelineSpec{{
+			Name: "logs",
+			DatadogBYOCClusterPipelineComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{
+				DatadogBYOCClusterStatefulComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{
+					DatadogBYOCClusterComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
+						Replicas:                      ptr.To[int32](2),
+						Resources:                     pipelineResources(),
+						TerminationGracePeriodSeconds: ptr.To[int64](70),
+					},
+					Storage: &datadoghqv1alpha1.DatadogBYOCClusterStorageSpec{
+						VolumeClaimTemplate: &datadoghqv1alpha1.DatadogBYOCClusterEmbeddedPersistentVolumeClaim{
+							Spec: corev1.PersistentVolumeClaimSpec{
+								AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+								Resources: corev1.VolumeResourceRequirements{
+									Requests: corev1.ResourceList{corev1.ResourceStorage: resource.MustParse("30Gi")},
+								},
 							},
 						},
 					},
 				},
 			},
-		},
+		}},
 		ControlPlane: &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
 			Replicas: ptr.To[int32](1),
 			Resources: &corev1.ResourceRequirements{
@@ -494,7 +497,7 @@ func testCluster() *datadoghqv1alpha1.DatadogBYOCCluster {
 				ReadOnlyMetastore: &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{},
 				Indexer:           &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{},
 				Searcher:          &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{},
-				Pipeline:          &datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{},
+				Pipelines:         []datadoghqv1alpha1.DatadogBYOCClusterPipelineSpec{{Name: "logs"}},
 				ControlPlane:      &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
 				Compactor:         &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
 				Janitor:           &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},

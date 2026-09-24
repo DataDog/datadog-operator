@@ -30,7 +30,7 @@ func TestBuildObservabilityPipelinesWorker(t *testing.T) {
 	}
 	wantDefaultWorker := func() *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker {
 		return &datadoghqv1alpha1.DatadogObservabilityPipelinesWorker{
-			ObjectMeta: metav1.ObjectMeta{Name: "byoc-pipeline", Namespace: "testing"},
+			ObjectMeta: metav1.ObjectMeta{Name: "byoc-pipeline-logs", Namespace: "testing"},
 			Spec: datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerSpec{
 				DatadogBYOCClusterPipelineComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{
 					DatadogBYOCClusterStatefulComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{
@@ -181,7 +181,7 @@ func TestBuildObservabilityPipelinesWorker(t *testing.T) {
 				ImagePullSecrets: []corev1.LocalObjectReference{{Name: "registry-credentials"}},
 			},
 			want: &datadoghqv1alpha1.DatadogObservabilityPipelinesWorker{
-				ObjectMeta: metav1.ObjectMeta{Name: "byoc-pipeline", Namespace: "testing"},
+				ObjectMeta: metav1.ObjectMeta{Name: "byoc-pipeline-logs", Namespace: "testing"},
 				Spec: datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerSpec{
 					DatadogBYOCClusterPipelineComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{
 						DatadogBYOCClusterStatefulComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{
@@ -289,7 +289,7 @@ func TestBuildObservabilityPipelinesWorker(t *testing.T) {
 			},
 			image: defaultImage,
 			want: &datadoghqv1alpha1.DatadogObservabilityPipelinesWorker{
-				ObjectMeta: metav1.ObjectMeta{Name: "byoc-pipeline", Namespace: "testing"},
+				ObjectMeta: metav1.ObjectMeta{Name: "byoc-pipeline-logs", Namespace: "testing"},
 				Spec: datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerSpec{
 					DatadogBYOCClusterPipelineComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{
 						DatadogBYOCClusterStatefulComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{
@@ -391,14 +391,18 @@ func TestBuildObservabilityPipelinesWorker(t *testing.T) {
 						Metastore:    &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{},
 						Indexer:      &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{},
 						Searcher:     &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{},
-						Pipeline:     tt.pipeline,
+						Pipelines:    []datadoghqv1alpha1.DatadogBYOCClusterPipelineSpec{{Name: "logs", DatadogBYOCClusterPipelineComponentSpec: *tt.pipeline}},
 						ControlPlane: &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
 						Janitor:      &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
 					},
 				},
 			})
 
-			got, err := BuildObservabilityPipelinesWorker(cluster, tt.image)
+			originalCluster := cluster.DeepCopy()
+			got, err := BuildObservabilityPipelinesWorker(cluster, &cluster.Spec.Components.Pipelines[0], tt.image)
+			if diff := cmp.Diff(originalCluster, cluster); diff != "" {
+				t.Errorf("BuildObservabilityPipelinesWorker() modified the cluster (-want +got):\n%s", diff)
+			}
 			if tt.wantErr != "" {
 				if err == nil || !strings.Contains(err.Error(), tt.wantErr) {
 					t.Fatalf("BuildObservabilityPipelinesWorker() error = %v, want error containing %q", err, tt.wantErr)

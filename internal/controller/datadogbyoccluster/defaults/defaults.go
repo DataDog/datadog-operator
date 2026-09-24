@@ -22,7 +22,9 @@ func Apply(cluster *datadoghqv1alpha1.DatadogBYOCCluster) *datadoghqv1alpha1.Dat
 	components := defaulted.Spec.Components
 	applyIndexerDefaults(components.Indexer)
 	applySearcherDefaults(components.Searcher)
-	applyPipelineDefaults(components.Pipeline)
+	for i := range components.Pipelines {
+		applyPipelineDefaults(&components.Pipelines[i].DatadogBYOCClusterPipelineComponentSpec)
+	}
 	applyMetastoreDefaults(components.Metastore)
 	applyComponentDefaults(components.ControlPlane, 1, deploymentResources())
 	applyComponentDefaults(components.Janitor, 1, deploymentResources())

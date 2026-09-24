@@ -108,29 +108,36 @@ spec:
             resources:
               requests:
                 storage: 50Gi
-    pipeline:
-      pipelineID: 11111111-2222-3333-4444-555555555555
-      ports:
-        - name: otlp-grpc
-          port: 4317
-        - name: otlp-http
-          port: 4318
-      replicas: 2
-      resources:
-        requests:
-          cpu: "2"
-          memory: 4Gi
-        limits:
-          memory: 4Gi
-      storage:
-        volumeClaimTemplate:
-          spec:
-            accessModes:
-              - ReadWriteOnce
-            storageClassName: gp3
-            resources:
-              requests:
-                storage: 30Gi
+    pipelines:
+      - name: logs
+        pipelineID: 11111111-2222-3333-4444-555555555555
+        ports:
+          - name: otlp-grpc
+            port: 4317
+          - name: otlp-http
+            port: 4318
+        replicas: 2
+        resources:
+          requests:
+            cpu: "2"
+            memory: 4Gi
+          limits:
+            memory: 4Gi
+        storage:
+          volumeClaimTemplate:
+            spec:
+              accessModes:
+                - ReadWriteOnce
+              storageClassName: gp3
+              resources:
+                requests:
+                  storage: 30Gi
+      - name: audit
+        pipelineID: 66666666-7777-8888-9999-000000000000
+        ports:
+          - name: http
+            port: 8080
+        replicas: 1
     controlPlane:
       resources:
         requests:

@@ -20,13 +20,13 @@ referenced ServiceAccounts. An omitted identity, or an identity without
 `serviceAccountName`, uses the automatically managed account.
 
 For a worker managed by `DatadogBYOCCluster`, the controller automatically creates
-a dedicated account named `<cluster-name>-pipeline`. The worker does not inherit
+a dedicated account named `<cluster-name>-pipeline-<pipeline-name>`. The worker does not inherit
 `spec.identity` or `spec.provider.aws.irsaRoleARN` from the BYOC cluster.
 
 ## Ports
 
 Configure worker ports using `spec.ports` on a `DatadogObservabilityPipelinesWorker`,
-or `spec.components.pipeline.ports` on a `DatadogBYOCCluster`. At least one port
+or `spec.components.pipelines[].ports` on a `DatadogBYOCCluster`. At least one port
 must be specified, and each entry requires an explicit port number.
 
 The OP Controller exposes these ports on the worker container and Service. For
@@ -89,7 +89,7 @@ Kubernetes gives `env` precedence over `envFrom`. A generated address therefore
 takes precedence over the same variable supplied through `envFrom`. To override
 it with a ConfigMap or Secret value, use an explicit `env` entry with `valueFrom`.
 
-For a BYOC cluster, configure overrides through `spec.components.pipeline.env`;
+For a BYOC cluster, configure overrides through `spec.components.pipelines[].env`;
 the corresponding field is `spec.env` on a standalone worker. Keep any
 overridden listening port consistent with the
 declared port. For example, use `[::]:14317` to change the binding address for

@@ -73,18 +73,14 @@ func (r *DatadogObservabilityPipelinesWorkerReconciler) Reconcile(ctx context.Co
 		return ctrl.Result{}, r.fail(ctx, statusBase, worker, "CleanupFailed", err)
 	}
 
-	statefulSet := &appsv1.StatefulSet{}
-	if err := r.Client.Get(ctx, client.ObjectKeyFromObject(resources.StatefulSet), statefulSet); err != nil {
-		return ctrl.Result{}, r.fail(ctx, statusBase, worker, "ReadStatefulSetFailed", err)
-	}
-
+	// Use the apply response so availability reflects the current generation and HPA replica target.
+	statefulSet := resources.StatefulSet
 	worker.Status.ObservedGeneration = new(worker.Generation)
 	worker.Status.Replicas = new(statefulSet.Status.Replicas)
 	worker.Status.ReadyReplicas = new(statefulSet.Status.ReadyReplicas)
 	r.setCondition(worker, conditionReconciled, metav1.ConditionTrue, "Reconciled", "Managed resources match the desired state")
 
-	desiredReplicas := *defaulted.Spec.Replicas
-	available := statefulSet.Status.ObservedGeneration >= statefulSet.Generation && statefulSet.Status.ReadyReplicas >= desiredReplicas
+	_, available := statefulSetStatus(statefulSet)
 	if available {
 		r.setCondition(worker, conditionAvailable, metav1.ConditionTrue, "Available", "Worker workload is available")
 	} else {

@@ -1,11 +1,45 @@
 # DatadogBYOCCluster
 
+## Pipelines
+
+Configure one or more workers in `spec.components.pipelines`. Each entry requires
+a unique DNS label `name`, a `pipelineID`, and source `ports`. Replica counts,
+autoscaling, resources, storage, and environment variables are configured per entry.
+The controller creates a `DatadogObservabilityPipelinesWorker` named
+`<cluster-name>-pipeline-<pipeline-name>` for each entry. The resulting resource
+name must be a valid Service name of at most 63 characters.
+
+The [complete sample](../config/samples/datadoghq_v1alpha1_datadogbyoccluster.yaml)
+defines `logs` and `audit` pipelines with different source ports and replica counts.
+
+Reordering the list preserves the workers. Removing an entry deletes its worker;
+changing its name creates a new worker and deletes the previous one. Changing
+`pipelineID` with the same name updates the existing worker. The image selected
+by the release or image override applies to every worker.
+
+`status.pipelines` maps each entry's `name` to its `workerName`. Refer to the
+worker resource for replica counts, conditions, and failure details.
+The cluster's `Reconciled` condition reports whether the shared resources and
+worker resources have been applied and obsolete resources have been removed.
+The cluster's `Available` condition requires the shared BYOC workloads to be
+available and every worker to report `Available=True` for its current generation.
+Workers with a missing or outdated availability condition, or pending deletion,
+are treated as unavailable. The Worker controller determines worker availability,
+including the StatefulSet's current replica target when autoscaling is enabled.
+
+If a worker resource cannot be applied, the controller continues processing the
+others and reports `Reconciled=False` with reason `WorkerReconcileFailed` on the
+cluster. A failure within the Worker controller affects the cluster's `Available`
+condition without changing its `Reconciled` condition. Obsolete-worker cleanup
+waits until all desired workers have been successfully applied. Cluster deletion
+waits for all owned workers to be deleted before deleting the Indexer.
+
 ## ServiceAccount identity
 
 By default, the controller creates and owns a ServiceAccount with the same name
 and namespace as the cluster, with `automountServiceAccountToken: false`. BYOC
-workloads use this account; the Observability Pipelines Worker uses its own
-dedicated account named `<cluster-name>-pipeline`.
+workloads use this account; each Observability Pipelines Worker uses its own
+dedicated account named `<cluster-name>-pipeline-<pipeline-name>`.
 
 Set `spec.identity.serviceAccountName` to use an existing ServiceAccount for the
 BYOC workloads. The controller references it without creating, updating, or
@@ -13,7 +47,7 @@ taking ownership of it. The account must already exist in the cluster's
 namespace. `spec.provider.aws.irsaRoleARN` only configures the automatically
 created BYOC account; configure IAM annotations on an existing account yourself.
 
-The pipeline keeps its dedicated, automatically managed account and does not
+Each pipeline keeps its dedicated, automatically managed account and does not
 inherit the BYOC identity or IRSA role. A standalone worker can use an existing
 account through its own `spec.identity.serviceAccountName`; see
 [ServiceAccount identity](observability_pipelines_worker.md#serviceaccount-identity).
@@ -83,7 +117,7 @@ An empty override object is a no-op. A secrets-only override is allowed and reta
 
 The BYOC override applies to all enabled BYOC components, including the optional read-only Metastore and Compactor. It does not replace user-specified init container images. Pull secrets are Kubernetes Pod-level settings, so they can also be used for init containers in those Pods.
 
-The Observability Pipelines Worker override participates in image resolution and the release-skip decision. The Operator does not currently generate a worker workload, so this setting does not change any running container. Worker pull secrets are not added to BYOC Pods.
+The Observability Pipelines Worker override applies to every pipeline worker and participates in image resolution and the release-skip decision. Worker pull secrets are not added to BYOC Pods.
 
 ## Status and recovery
 

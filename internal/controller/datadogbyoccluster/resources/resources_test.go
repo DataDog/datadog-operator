@@ -1079,7 +1079,7 @@ func testCluster() *datadoghqv1alpha1.DatadogBYOCCluster {
 				Metastore:    &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{},
 				Indexer:      &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{},
 				Searcher:     &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{},
-				Pipeline:     &datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{},
+				Pipelines:    []datadoghqv1alpha1.DatadogBYOCClusterPipelineSpec{{Name: "logs"}},
 				ControlPlane: &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
 				Janitor:      &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
 			},

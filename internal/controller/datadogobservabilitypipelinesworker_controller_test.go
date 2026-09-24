@@ -48,6 +48,7 @@ var _ = Describe("DatadogObservabilityPipelinesWorker Controller", func() {
 				DatadogBYOCClusterPipelineComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{
 					DatadogBYOCClusterStatefulComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{
 						DatadogBYOCClusterComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
+							Replicas: ptr.To[int32](3),
 							PodDisruptionBudget: &datadoghqv1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec{
 								MinAvailable: ptr.To(intstr.FromInt32(1)),
 							},
@@ -132,6 +133,52 @@ var _ = Describe("DatadogObservabilityPipelinesWorker Controller", func() {
 			g.Expect(cmp.Diff(want, current.Status, cmpopts.IgnoreFields(metav1.Condition{}, "LastTransitionTime"))).To(BeEmpty())
 		}, timeout, interval).Should(Succeed())
 	})
+
+	DescribeTable("uses the StatefulSet replica target for autoscaled availability", func(replicas, readyReplicas int32, observedGenerationLag int64, wantStatus metav1.ConditionStatus, wantReason, wantMessage string) {
+		By("updating the replica target as an HPA would")
+		Eventually(func() error {
+			current := &appsv1.StatefulSet{}
+			if err := k8sClient.Get(context.Background(), client.ObjectKeyFromObject(worker), current); err != nil {
+				return err
+			}
+			current.Spec.Replicas = ptr.To(replicas)
+			return k8sClient.Update(context.Background(), current, client.FieldOwner("test-hpa"))
+		}, timeout, interval).Should(Succeed())
+
+		// envtest does not run the StatefulSet controller.
+		Eventually(func() error {
+			current := &appsv1.StatefulSet{}
+			if err := k8sClient.Get(context.Background(), client.ObjectKeyFromObject(worker), current); err != nil {
+				return err
+			}
+			current.Status = appsv1.StatefulSetStatus{
+				ObservedGeneration: current.Generation - observedGenerationLag,
+				Replicas:           replicas,
+				ReadyReplicas:      readyReplicas,
+			}
+			return k8sClient.Status().Update(context.Background(), current)
+		}, timeout, interval).Should(Succeed())
+
+		want := datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerStatus{
+			ObservedGeneration: ptr.To[int64](1),
+			Replicas:           ptr.To(replicas),
+			ReadyReplicas:      ptr.To(readyReplicas),
+			Conditions: []metav1.Condition{
+				{Type: conditionReconciled, Status: metav1.ConditionTrue, ObservedGeneration: 1, Reason: "Reconciled", Message: "Managed resources match the desired state"},
+				{Type: conditionAvailable, Status: wantStatus, ObservedGeneration: 1, Reason: wantReason, Message: wantMessage},
+			},
+		}
+		Eventually(func(g Gomega) {
+			current := &datadoghqv1alpha1.DatadogObservabilityPipelinesWorker{}
+			g.Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(worker), current)).To(Succeed())
+			g.Expect(cmp.Diff(want, current.Status, cmpopts.IgnoreFields(metav1.Condition{}, "LastTransitionTime"))).To(BeEmpty())
+		}, timeout, interval).Should(Succeed())
+	},
+		Entry("scaled below the configured replicas", int32(1), int32(1), int64(0), metav1.ConditionTrue, "Available", "Worker workload is available"),
+		Entry("waiting for the additional replica", int32(4), int32(3), int64(0), metav1.ConditionFalse, "WorkloadUnavailable", "Worker workload is not yet available"),
+		Entry("all scaled replicas are ready", int32(4), int32(4), int64(0), metav1.ConditionTrue, "Available", "Worker workload is available"),
+		Entry("waiting for the StatefulSet generation", int32(4), int32(4), int64(1), metav1.ConditionFalse, "WorkloadUnavailable", "Worker workload is not yet available"),
+	)
 
 	It("deletes obsolete optional resources", func() {
 		statefulSet := &appsv1.StatefulSet{ObjectMeta: metav1.ObjectMeta{Name: worker.Name, Namespace: worker.Namespace}}
