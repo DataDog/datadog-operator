@@ -33,7 +33,7 @@ const (
 	// ReasonServiceAccountRetained: a previously verified ServiceAccount was kept even
 	// though this round could not confirm it. Counts as "previously configured" for
 	// WasServiceAccountConfigured, so the decision stays stable across reconciles
-	// instead of alternating.
+	// instead of alternating. A restored grant is picked up on the next reconcile.
 	ReasonServiceAccountRetained = "ServiceAccountRetained"
 )
 
@@ -80,10 +80,18 @@ type Outcome struct {
 //
 // Nothing is written when the check cannot confirm authorization: an unverified
 // ServiceAccount is as broken as none, and harder to debug.
-// previouslyConfigured makes the decision durable: once verified, an unverified round
-// keeps the ServiceAccount rather than reverting. Reverting would change
-// serviceAccountName, roll the DaemonSet, and start the replacement pods under an
-// account without SCC access — so a transient API error would take the Agent down.
+// previouslyConfigured makes the decision durable: once an account has been verified,
+// a round that cannot confirm it keeps it rather than reverting.
+//
+// The operator fills a gap; it does not revise a decision. A failed check is either a
+// transient error, where reverting would take the Agent down over a blip, or a grant
+// the cluster owner deliberately removed — in which case the configuration change is
+// theirs to make, not ours to infer. Either way the account stands and the condition
+// reports it.
+//
+// This is not the reasoning behind the provider no-downgrade guard, which rests on the
+// provider being immutable. SCC access is mutable, so a denial may well be accurate;
+// the point is that acting on it is not the operator's call.
 func ReconcileAgentServiceAccount(ctx context.Context, auth SCCAuthorizer, namespace string, spec *v2alpha1.DatadogAgentSpec, previouslyConfigured bool) Outcome {
 	userSA := nodeAgentServiceAccount(spec)
 
@@ -129,9 +137,10 @@ func (o Outcome) Condition() (metav1.ConditionStatus, string, string) {
 
 	case o.Retained:
 		return metav1.ConditionFalse, ReasonServiceAccountRetained, fmt.Sprintf(
-			"ServiceAccount %q may no longer use the %q SecurityContextConstraints. Kept, because "+
-				"reverting would restart the node agent under an account that also cannot be "+
-				"admitted. Grant it, or set spec.override.nodeAgent.serviceAccountName.",
+			"ServiceAccount %q may no longer use the %q SecurityContextConstraints. It was kept: "+
+				"changing an account that was previously verified is a decision for the cluster "+
+				"owner. Restore the grant, or set spec.override.nodeAgent.serviceAccountName to an "+
+				"account that has it.",
 			o.ServiceAccount, RequiredSCCName)
 
 	case o.Err != nil:
