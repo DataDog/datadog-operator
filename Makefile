@@ -79,10 +79,6 @@ build: manager kubectl-datadog build-renderer ## Builds manager + kubectl plugin
 .PHONY: ci-build
 ci-build: managergobuild kubectl-datadog-gobuild build-renderer ## Build binaries only (no generation/lint)
 
-.PHONY: ci-check
-ci-check: ## Run ordered CI checks in one checkout, stopping at the first failure
-	bash hack/ci-checks.sh "$(MAKE)"
-
 .PHONY: fmt
 fmt: ## Run gofmt against code (use lint-fix for import formatting and lint fixes)
 	go fmt ./...

@@ -93,28 +93,6 @@ If the golang version is used in a new file (for example in a new `Dockefile`) t
 
 ## Tests
 
-### Internal CI checks
-
-The GitLab `build` job runs `make ci-check` in a single pod. It builds the three
-binaries, checks Go versions/module files and licenses, checks generated
-code/manifests/docs and formatting, runs lint/vet, then runs unit and integration
-tests. Each check has a named, timed log section, and a failure stops subsequent
-checks. Generation and formatting are checked for diffs immediately so a later
-step cannot conceal an earlier change.
-
-The steps share downloaded modules, installed tools and Go compilation results
-within the job; they do not upload or restore a CI cache. Only tools required by
-each Make target are installed. The conditional E2E lint job and existing E2E
-dependency caches remain separate. DDR pipelines retain their build-only policy
-(including generation and lint, without the other checks).
-
-`make ci-check` is intended for a clean checkout: version checks, generation and
-formatting can modify tracked files, and any resulting diff is a failure. Use
-`make ci-build` for compilation only or `make ci-test` for unit/integration tests
-without the other checks. Locally, `make fmt` runs gofmt; use `make lint-fix`
-for import formatting and fixes suggested by linters. `make lint` checks the
-configured import formatting along with the linters, without modifying files.
-
 ### Unit and Integration Tests
 
 ```shell

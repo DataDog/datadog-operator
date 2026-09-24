@@ -65,8 +65,8 @@ stages:
   when: never
 
 # Keep the core checks in one pod so each step reuses modules, tools, and
-# compilation from the previous steps. ci-check stops at the first failure
-# and gives each check its own timed section in the GitLab job log.
+# compilation from the previous steps. Check generated diffs immediately so
+# later steps cannot hide changes; GitLab stops on the first failed command.
 build:
   stage: build
   tags: ["arch:amd64"]
@@ -74,18 +74,37 @@ build:
     <<: *resource_variables
   script:
     # DDR historically runs build/generation/lint, without the other checks.
-    - if [ "$DDR" = "true" ]; then make build; else make ci-check; fi
+    - if [ "$DDR" = "true" ]; then make build; exit $?; fi
+    - make ci-build
+    - make update-golang
+    - git diff --exit-code
+    - make verify-licenses
+    - make generate
+    - git diff --exit-code
+    - make fmt
+    - git diff --exit-code
+    - make lint
+    - make ci-test
 
 lint_e2e:
-  stage: test
+  # Start as soon as deps are ready, without waiting for core checks or images.
+  # Keeping this in the e2e stage also lets image builds proceed during lint.
+  stage: e2e
+  image: registry.ddbuild.io/ci/datadog-agent-buildimages/linux$CI_IMAGE_LINUX_SUFFIX:$CI_IMAGE_LINUX
   tags: ["arch:amd64"]
+  needs:
+    - job: go_e2e_deps
+      artifacts: false
   rules:
+    - *skip_e2e_on_release_bundle_branch
     - if: '$DDR == "true"'
       when: never
     - if: $CI_COMMIT_BRANCH
       changes:
         paths:
           - "test/e2e/**/*"
+          - ".gitlab-ci.yml"
+          - "Makefile"
         compare_to: "refs/heads/main"
       when: on_success
     - if: '$CI_COMMIT_BRANCH == "main"'
@@ -93,6 +112,15 @@ lint_e2e:
     - when: never
   variables:
     <<: *resource_variables
+  # Reuse the Go cache uploaded by go_e2e_deps, without uploading it again.
+  cache:
+    - key: e2e-go-${CI_COMMIT_REF_SLUG}
+      fallback_keys:
+        - e2e-go-${CI_DEFAULT_BRANCH}
+      paths:
+        - .go/pkg/mod
+        - .cache/go-build
+      policy: pull
   script:
     - make lint-e2e
 
