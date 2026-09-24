@@ -118,6 +118,7 @@ lint_e2e:
 build_operator_image_amd64:
   stage: image
   retry: 2
+  timeout: 20m
   tags:
     - "arch:amd64"
   image: $JOB_DOCKER_IMAGE
@@ -145,6 +146,7 @@ build_operator_image_fips_amd64:
 build_operator_image_arm64:
   stage: image
   retry: 2
+  timeout: 20m
   rules: !reference [.on_build_images]
   tags:
     - "arch:arm64"
@@ -172,6 +174,7 @@ build_operator_image_fips_arm64:
 build_operator_check_image_amd64:
   stage: image
   retry: 2
+  timeout: 20m
   rules: !reference [.on_build_images]
   tags:
     - "arch:amd64"
@@ -191,6 +194,7 @@ build_operator_check_image_amd64:
 build_operator_check_image_arm64:
   stage: image
   retry: 2
+  timeout: 20m
   rules: !reference [.on_build_images]
   tags:
     - "arch:arm64"
@@ -209,6 +213,7 @@ build_operator_check_image_arm64:
 build_bundle_image:
   stage: image
   retry: 2
+  timeout: 20m
   rules: !reference [.on_build_images]
   tags:
     - "arch:amd64"
