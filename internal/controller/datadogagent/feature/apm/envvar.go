@@ -10,6 +10,7 @@ const (
 	DDAPMReceiverPort                      = "DD_APM_RECEIVER_PORT"
 	DDAPMReceiverSocket                    = "DD_APM_RECEIVER_SOCKET"
 	DDAPMInstrumentationEnabled            = "DD_APM_INSTRUMENTATION_ENABLED"
+	DDAPMInstrumentationOnDemand           = "DD_APM_INSTRUMENTATION_ON_DEMAND"
 	DDAPMInstrumentationInjectorImageTag   = "DD_APM_INSTRUMENTATION_INJECTOR_IMAGE_TAG"
 	DDAPMInstrumentationInjectionMode      = "DD_APM_INSTRUMENTATION_INJECTION_MODE"
 	DDAPMInstrumentationEnabledNamespaces  = "DD_APM_INSTRUMENTATION_ENABLED_NAMESPACES"
