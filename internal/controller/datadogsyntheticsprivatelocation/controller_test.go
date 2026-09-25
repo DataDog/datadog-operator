@@ -357,11 +357,11 @@ func TestReconciler_Reconcile_missingConfigSecretSkipsDeployment(t *testing.T) {
 	assert.Equal(t, reasonConfigMissing, errCond.Reason)
 
 	// No new Deployment is created without a usable config.
-	pdbList := &appsv1.DeploymentList{}
-	require.NoError(t, k8sClient.List(context.TODO(), pdbList))
+	deployments := &appsv1.DeploymentList{}
+	require.NoError(t, k8sClient.List(context.TODO(), deployments))
 	// The Deployment created during createInstance is still there; nothing
 	// new is added.
-	assert.Len(t, pdbList.Items, 1)
+	assert.Len(t, deployments.Items, 1)
 }
 
 func TestReconciler_Reconcile_invalidSpec(t *testing.T) {
@@ -370,13 +370,9 @@ func TestReconciler_Reconcile_invalidSpec(t *testing.T) {
 		mutate func(*datadoghqv1alpha1.DatadogSyntheticsPrivateLocation)
 	}{
 		{
-			name: "pdb without minAvailable or maxUnavailable",
+			name: "description is empty",
 			mutate: func(instance *datadoghqv1alpha1.DatadogSyntheticsPrivateLocation) {
-				instance.Spec.Worker = &datadoghqv1alpha1.DatadogSPLWorker{
-					PodDisruptionBudget: &datadoghqv1alpha1.DatadogSPLPodDisruptionBudget{
-						Enabled: true,
-					},
-				}
+				instance.Spec.Description = ""
 			},
 		},
 		{

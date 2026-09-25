@@ -20,6 +20,3 @@ spec:
         memory: 256Mi
       limits:
         memory: 512Mi
-    podDisruptionBudget:
-      enabled: true
-      minAvailable: 1

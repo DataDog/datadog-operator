@@ -8,7 +8,6 @@ package v1alpha1
 import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 )
@@ -82,9 +81,6 @@ type DatadogSPLWorker struct {
 	// ServiceAccount configures the worker ServiceAccount.
 	// +optional
 	ServiceAccount *DatadogSPLServiceAccount `json:"serviceAccount,omitempty"`
-	// PodDisruptionBudget optionally creates a PodDisruptionBudget for the worker.
-	// +optional
-	PodDisruptionBudget *DatadogSPLPodDisruptionBudget `json:"podDisruptionBudget,omitempty"`
 	// NodeSelector is a map of key-value pairs. For the worker pod to run on a
 	// specific node, the node must have these key-value pairs as labels.
 	// +optional
@@ -117,7 +113,7 @@ type DatadogSPLWorker struct {
 	// +optional
 	PodLabels map[string]string `json:"podLabels,omitempty"`
 	// CommonLabels are labels applied to all resources managed for this
-	// private location (Deployment, Secret, ServiceAccount, PodDisruptionBudget).
+	// private location (Deployment, Secret, ServiceAccount).
 	// +optional
 	CommonLabels map[string]string `json:"commonLabels,omitempty"`
 	// ExtraVolumes are additional volumes added to the worker pod.
@@ -196,20 +192,6 @@ type DatadogSPLServiceAccount struct {
 	// Annotations are annotations applied to the ServiceAccount when created.
 	// +optional
 	Annotations map[string]string `json:"annotations,omitempty"`
-}
-
-// DatadogSPLPodDisruptionBudget configures an optional PodDisruptionBudget for the worker.
-// +k8s:openapi-gen=true
-type DatadogSPLPodDisruptionBudget struct {
-	// Enabled creates a PodDisruptionBudget for the worker Deployment.
-	// +optional
-	Enabled bool `json:"enabled"`
-	// MinAvailable is the minimum number of pods that must be available.
-	// +optional
-	MinAvailable *intstr.IntOrString `json:"minAvailable,omitempty"`
-	// MaxUnavailable is the maximum number of pods that can be unavailable.
-	// +optional
-	MaxUnavailable *intstr.IntOrString `json:"maxUnavailable,omitempty"`
 }
 
 // DatadogSyntheticsPrivateLocationStatus defines the observed state of DatadogSyntheticsPrivateLocation

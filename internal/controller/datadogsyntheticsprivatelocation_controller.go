@@ -10,7 +10,6 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	policyv1 "k8s.io/api/policy/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -44,7 +43,6 @@ type DatadogSyntheticsPrivateLocationReconciler struct {
 // +kubebuilder:rbac:groups="",resources=serviceaccounts,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=policy,resources=poddisruptionbudgets,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile loop for DatadogSyntheticsPrivateLocation.
 func (r *DatadogSyntheticsPrivateLocationReconciler) Reconcile(ctx context.Context, instance *datadoghqv1alpha1.DatadogSyntheticsPrivateLocation) (ctrl.Result, error) {
@@ -64,6 +62,5 @@ func (r *DatadogSyntheticsPrivateLocationReconciler) SetupWithManager(mgr ctrl.M
 		Owns(&corev1.ServiceAccount{}).
 		Owns(&corev1.Secret{}).
 		Owns(&appsv1.Deployment{}).
-		Owns(&policyv1.PodDisruptionBudget{}).
 		Complete(or)
 }

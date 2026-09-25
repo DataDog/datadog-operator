@@ -955,7 +955,7 @@ spec:
                         type: string
                       description: |-
                         CommonLabels are labels applied to all resources managed for this
-                        private location (Deployment, Secret, ServiceAccount, PodDisruptionBudget).
+                        private location (Deployment, Secret, ServiceAccount).
                       type: object
                     config:
                       description: |-
@@ -3301,25 +3301,6 @@ spec:
                       additionalProperties:
                         type: string
                       description: PodAnnotations are annotations applied to the worker pod template.
-                      type: object
-                    podDisruptionBudget:
-                      description: PodDisruptionBudget optionally creates a PodDisruptionBudget for the worker.
-                      properties:
-                        enabled:
-                          description: Enabled creates a PodDisruptionBudget for the worker Deployment.
-                          type: boolean
-                        maxUnavailable:
-                          anyOf:
-                            - type: integer
-                            - type: string
-                          description: MaxUnavailable is the maximum number of pods that can be unavailable.
-                          x-kubernetes-int-or-string: true
-                        minAvailable:
-                          anyOf:
-                            - type: integer
-                            - type: string
-                          description: MinAvailable is the minimum number of pods that must be available.
-                          x-kubernetes-int-or-string: true
                       type: object
                     podLabels:
                       additionalProperties:

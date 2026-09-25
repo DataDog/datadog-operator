@@ -246,8 +246,8 @@ func (r *Reconciler) create(auth context.Context, kubeCtx context.Context, logge
 	return nil
 }
 
-// ownedResourcesAndRequeue reconciles the owned ServiceAccount, Secret,
-// Deployment and PodDisruptionBudget, then computes the next requeue.
+// ownedResourcesAndRequeue reconciles the owned ServiceAccount, Secret and
+// Deployment, then computes the next requeue.
 func (r *Reconciler) ownedResourcesAndRequeue(ctx context.Context, logger logr.Logger, instance *datadoghqv1alpha1.DatadogSyntheticsPrivateLocation, now metav1.Time, remoteOK bool) (ctrl.Result, error) {
 	configOK := true
 
@@ -271,7 +271,7 @@ func (r *Reconciler) ownedResourcesAndRequeue(ctx context.Context, logger logr.L
 	}
 
 	// The Deployment mounts the config Secret; if the write-once config is
-	// missing the worker cannot run, so skip Deployment/PDB instead of
+	// missing the worker cannot run, so skip the Deployment instead of
 	// crash-looping pods on an unusable config.
 	if configOK {
 		if statusProbesRequested(instance) && !statusProbesSupported(instance) {
@@ -286,11 +286,6 @@ func (r *Reconciler) ownedResourcesAndRequeue(ctx context.Context, logger logr.L
 			return r.errorResult(instance, now, err)
 		}
 		instance.Status.Deployment = depStatus
-
-		if err := reconcilePodDisruptionBudget(ctx, r.client, r.scheme, instance); err != nil {
-			logger.Error(err, "error reconciling pod disruption budget")
-			return r.errorResult(instance, now, err)
-		}
 	}
 
 	instance.Status.ObservedGeneration = instance.Generation
@@ -376,16 +371,6 @@ func validateSpec(instance *datadoghqv1alpha1.DatadogSyntheticsPrivateLocation) 
 	if instance.Spec.Name == "" || instance.Spec.Description == "" {
 		return errors.New("spec.name and spec.description are required")
 	}
-	if _, err := parseConfigOverride(instance.GetAnnotations()[datadoghqv1alpha1.DatadogSPLWorkerConfigOverrideAnnotation]); err != nil {
-		return err
-	}
-	if instance.Spec.Worker != nil && instance.Spec.Worker.PodDisruptionBudget != nil {
-		pdb := instance.Spec.Worker.PodDisruptionBudget
-		if pdb.Enabled {
-			if (pdb.MinAvailable != nil) == (pdb.MaxUnavailable != nil) {
-				return errors.New("spec.worker.podDisruptionBudget requires exactly one of minAvailable, maxUnavailable")
-			}
-		}
-	}
-	return nil
+	_, err := parseConfigOverride(instance.GetAnnotations()[datadoghqv1alpha1.DatadogSPLWorkerConfigOverrideAnnotation])
+	return err
 }

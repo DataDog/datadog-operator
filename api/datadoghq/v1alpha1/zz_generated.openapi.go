@@ -61,7 +61,6 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogSLOTimeSlice":                                            schema_datadog_operator_api_datadoghq_v1alpha1_DatadogSLOTimeSlice(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogSPLControllerOptions":                                    schema_datadog_operator_api_datadoghq_v1alpha1_DatadogSPLControllerOptions(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogSPLImage":                                                schema_datadog_operator_api_datadoghq_v1alpha1_DatadogSPLImage(ref),
-		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogSPLPodDisruptionBudget":                                  schema_datadog_operator_api_datadoghq_v1alpha1_DatadogSPLPodDisruptionBudget(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogSPLServiceAccount":                                       schema_datadog_operator_api_datadoghq_v1alpha1_DatadogSPLServiceAccount(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogSPLWorker":                                               schema_datadog_operator_api_datadoghq_v1alpha1_DatadogSPLWorker(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogSPLWorkerConfig":                                         schema_datadog_operator_api_datadoghq_v1alpha1_DatadogSPLWorkerConfig(ref),
@@ -2715,41 +2714,6 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogSPLImage(ref common.R
 	}
 }
 
-func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogSPLPodDisruptionBudget(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Description: "DatadogSPLPodDisruptionBudget configures an optional PodDisruptionBudget for the worker.",
-				Type:        []string{"object"},
-				Properties: map[string]spec.Schema{
-					"enabled": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Enabled creates a PodDisruptionBudget for the worker Deployment.",
-							Default:     false,
-							Type:        []string{"boolean"},
-							Format:      "",
-						},
-					},
-					"minAvailable": {
-						SchemaProps: spec.SchemaProps{
-							Description: "MinAvailable is the minimum number of pods that must be available.",
-							Ref:         ref("k8s.io/apimachinery/pkg/util/intstr.IntOrString"),
-						},
-					},
-					"maxUnavailable": {
-						SchemaProps: spec.SchemaProps{
-							Description: "MaxUnavailable is the maximum number of pods that can be unavailable.",
-							Ref:         ref("k8s.io/apimachinery/pkg/util/intstr.IntOrString"),
-						},
-					},
-				},
-			},
-		},
-		Dependencies: []string{
-			"k8s.io/apimachinery/pkg/util/intstr.IntOrString"},
-	}
-}
-
 func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogSPLServiceAccount(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -2824,12 +2788,6 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogSPLWorker(ref common.
 						SchemaProps: spec.SchemaProps{
 							Description: "ServiceAccount configures the worker ServiceAccount.",
 							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogSPLServiceAccount"),
-						},
-					},
-					"podDisruptionBudget": {
-						SchemaProps: spec.SchemaProps{
-							Description: "PodDisruptionBudget optionally creates a PodDisruptionBudget for the worker.",
-							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogSPLPodDisruptionBudget"),
 						},
 					},
 					"nodeSelector": {
@@ -2946,7 +2904,7 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogSPLWorker(ref common.
 					},
 					"commonLabels": {
 						SchemaProps: spec.SchemaProps{
-							Description: "CommonLabels are labels applied to all resources managed for this private location (Deployment, Secret, ServiceAccount, PodDisruptionBudget).",
+							Description: "CommonLabels are labels applied to all resources managed for this private location (Deployment, Secret, ServiceAccount).",
 							Type:        []string{"object"},
 							AdditionalProperties: &spec.SchemaOrBool{
 								Allows: true,
@@ -3087,7 +3045,7 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogSPLWorker(ref common.
 			},
 		},
 		Dependencies: []string{
-			"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogSPLImage", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogSPLPodDisruptionBudget", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogSPLServiceAccount", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogSPLWorkerConfig", "k8s.io/api/core/v1.Affinity", "k8s.io/api/core/v1.EnvFromSource", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.HostAlias", "k8s.io/api/core/v1.LocalObjectReference", "k8s.io/api/core/v1.PodDNSConfig", "k8s.io/api/core/v1.PodSecurityContext", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.SecurityContext", "k8s.io/api/core/v1.Toleration", "k8s.io/api/core/v1.Volume", "k8s.io/api/core/v1.VolumeMount"},
+			"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogSPLImage", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogSPLServiceAccount", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogSPLWorkerConfig", "k8s.io/api/core/v1.Affinity", "k8s.io/api/core/v1.EnvFromSource", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.HostAlias", "k8s.io/api/core/v1.LocalObjectReference", "k8s.io/api/core/v1.PodDNSConfig", "k8s.io/api/core/v1.PodSecurityContext", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.SecurityContext", "k8s.io/api/core/v1.Toleration", "k8s.io/api/core/v1.Volume", "k8s.io/api/core/v1.VolumeMount"},
 	}
 }
 

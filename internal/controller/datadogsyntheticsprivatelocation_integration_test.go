@@ -20,12 +20,10 @@ import (
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	policyv1 "k8s.io/api/policy/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/ptr"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
@@ -115,10 +113,6 @@ func newSPLIntegrationInstance(name string) *datadoghqv1alpha1.DatadogSynthetics
 						corev1.ResourceMemory: resource.MustParse("256Mi"),
 					},
 				},
-				PodDisruptionBudget: &datadoghqv1alpha1.DatadogSPLPodDisruptionBudget{
-					Enabled:      true,
-					MinAvailable: ptr.To(intstr.FromInt(1)),
-				},
 			},
 		},
 	}
@@ -185,13 +179,6 @@ var _ = Describe("DatadogSyntheticsPrivateLocation Controller", func() {
 		Expect(deployment.OwnerReferences).To(HaveLen(1))
 		Expect(deployment.Spec.Template.Spec.Containers[0].LivenessProbe).NotTo(BeNil())
 		Expect(deployment.Spec.Template.Spec.Containers[0].ReadinessProbe).NotTo(BeNil())
-
-		By("creating the PodDisruptionBudget when enabled")
-		pdb := &policyv1.PodDisruptionBudget{}
-		Eventually(func() error {
-			return k8sClient.Get(ctx, splKey, pdb)
-		}, splTimeout, splPollingInterval).Should(Succeed())
-		Expect(pdb.OwnerReferences).To(HaveLen(1))
 	})
 
 	It("should update the worker Deployment when the spec changes", func() {
