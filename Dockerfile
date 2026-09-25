@@ -58,10 +58,10 @@ COPY --from=certs /etc/pki/tls/certs/ca-bundle.crt /etc/ssl/certs/ca-bundle.crt
 WORKDIR /
 COPY --from=builder /workspace/manager .
 
-COPY --from=builder --chmod=550 /workspace/helpers .
+COPY --from=builder --chmod=555 /workspace/helpers .
 COPY --chmod=550 scripts/readsecret.sh .
 
-COPY --from=builder --chmod=550 /workspace/yaml-mapper .
+COPY --from=builder --chmod=555 /workspace/yaml-mapper .
 
 COPY --chmod=755 ./LICENSE ./LICENSE-3rdparty.csv /licenses/
 
