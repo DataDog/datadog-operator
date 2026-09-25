@@ -35,10 +35,29 @@ var apiManagedConfigKeys = map[string]struct{}{
 	"id":              {},
 }
 
+// parseConfigOverride parses the worker config override annotation and
+// rejects Datadog-managed keys.
+func parseConfigOverride(overrideJSON string) (map[string]any, error) {
+	if overrideJSON == "" {
+		return nil, nil
+	}
+	var raw map[string]any
+	if err := json.Unmarshal([]byte(overrideJSON), &raw); err != nil {
+		return nil, fmt.Errorf("invalid %s annotation: %w", datadoghqv1alpha1.DatadogSPLWorkerConfigOverrideAnnotation, err)
+	}
+	for k := range raw {
+		if _, managed := apiManagedConfigKeys[k]; managed {
+			return nil, fmt.Errorf("invalid %s annotation: key %q is Datadog-managed and cannot be overridden", datadoghqv1alpha1.DatadogSPLWorkerConfigOverrideAnnotation, k)
+		}
+	}
+	return raw, nil
+}
+
 // mergeWorkerConfig merges the Datadog-provided config skeleton with user
 // overrides: base (the creation response config or the existing Secret data)
-// is merged with spec.worker.config, then spec.worker.configOverrideJSON (last
-// wins). The operator-managed site is always forced from the credentials.
+// is merged with spec.worker.config, then the worker config override
+// annotation (last wins). The operator-managed site is always forced from the
+// credentials.
 func mergeWorkerConfig(baseJSON []byte, config *datadoghqv1alpha1.DatadogSPLWorkerConfig, overrideJSON, site string) ([]byte, error) {
 	var cfg map[string]any
 	if err := json.Unmarshal(baseJSON, &cfg); err != nil {
@@ -78,20 +97,11 @@ func mergeWorkerConfig(baseJSON []byte, config *datadoghqv1alpha1.DatadogSPLWork
 		}
 	}
 
-	if overrideJSON != "" {
-		var raw map[string]any
-		if err := json.Unmarshal([]byte(overrideJSON), &raw); err != nil {
-			return nil, ctrutils.TranslateUnmarshalError(fmt.Errorf("invalid configOverrideJSON: %w", err), "invalid spec.worker.configOverrideJSON")
-		}
-		for k := range raw {
-			if _, managed := apiManagedConfigKeys[k]; managed {
-				return nil, ctrutils.TranslateUnmarshalError(
-					fmt.Errorf("key %q is Datadog-managed and cannot be overridden", k),
-					"invalid spec.worker.configOverrideJSON")
-			}
-		}
-		maps.Copy(cfg, raw)
+	raw, err := parseConfigOverride(overrideJSON)
+	if err != nil {
+		return nil, ctrutils.TranslateUnmarshalError(err, "invalid worker config override")
 	}
+	maps.Copy(cfg, raw)
 
 	cfg["site"] = site
 
@@ -139,11 +149,10 @@ func reconcileConfigSecret(ctx context.Context, kubeClient client.Client, scheme
 	}
 
 	var config *datadoghqv1alpha1.DatadogSPLWorkerConfig
-	var overrideJSON string
 	if instance.Spec.Worker != nil {
 		config = instance.Spec.Worker.Config
-		overrideJSON = instance.Spec.Worker.ConfigOverrideJSON
 	}
+	overrideJSON := instance.GetAnnotations()[datadoghqv1alpha1.DatadogSPLWorkerConfigOverrideAnnotation]
 	merged, err := mergeWorkerConfig(baseConfig, config, overrideJSON, site)
 	if err != nil {
 		return err

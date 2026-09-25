@@ -137,6 +137,31 @@ func Test_reconcileConfigSecretUpdateKeepsManagedKeys(t *testing.T) {
 	assert.Equal(t, "ak", cfg["accessKey"])
 }
 
+func Test_reconcileConfigSecretOverrideAnnotation(t *testing.T) {
+	s := newSchemeWithSPL(t)
+	c := fake.NewClientBuilder().WithScheme(s).WithObjects(newTestSecretWithData(testBaseConfig)).Build()
+	instance := newTestInstance()
+	instance.Spec.Worker = &datadoghqv1alpha1.DatadogSPLWorker{
+		Config: &datadoghqv1alpha1.DatadogSPLWorkerConfig{
+			Concurrency: ptr.To(int32(7)),
+		},
+	}
+	instance.Annotations = map[string]string{
+		datadoghqv1alpha1.DatadogSPLWorkerConfigOverrideAnnotation: `{"concurrency": 12, "logFormat": "json"}`,
+	}
+
+	err := reconcileConfigSecret(context.Background(), c, s, instance, nil, "datadoghq.com")
+	require.NoError(t, err)
+
+	updated := &corev1.Secret{}
+	require.NoError(t, c.Get(context.Background(), client.ObjectKey{Name: "my-pl-config", Namespace: "default"}, updated))
+	var cfg map[string]interface{}
+	require.NoError(t, json.Unmarshal(updated.Data[datadoghqv1alpha1.DatadogSPLConfigSecretDataKey], &cfg))
+	assert.Equal(t, float64(12), cfg["concurrency"])
+	assert.Equal(t, "json", cfg["logFormat"])
+	assert.Equal(t, "ak", cfg["accessKey"])
+}
+
 func Test_reconcileConfigSecretMissingAndNoBase(t *testing.T) {
 	s := newSchemeWithSPL(t)
 	c := fake.NewClientBuilder().WithScheme(s).Build()

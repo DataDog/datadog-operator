@@ -15,7 +15,6 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
@@ -333,30 +332,57 @@ func TestReconciler_Reconcile_missingConfigSecretSkipsDeployment(t *testing.T) {
 }
 
 func TestReconciler_Reconcile_invalidSpec(t *testing.T) {
-	mock := newDDMock(t)
-	r, k8sClient := newTestReconciler(t, mock)
-
-	instance := newTestInstance()
-	instance.Spec.Worker = &datadoghqv1alpha1.DatadogSPLWorker{
-		PodDisruptionBudget: &datadoghqv1alpha1.DatadogSPLPodDisruptionBudget{
-			Enabled: true,
+	tests := []struct {
+		name   string
+		mutate func(*datadoghqv1alpha1.DatadogSyntheticsPrivateLocation)
+	}{
+		{
+			name: "pdb without minAvailable or maxUnavailable",
+			mutate: func(instance *datadoghqv1alpha1.DatadogSyntheticsPrivateLocation) {
+				instance.Spec.Worker = &datadoghqv1alpha1.DatadogSPLWorker{
+					PodDisruptionBudget: &datadoghqv1alpha1.DatadogSPLPodDisruptionBudget{
+						Enabled: true,
+					},
+				}
+			},
+		},
+		{
+			name: "config override annotation is not valid JSON",
+			mutate: func(instance *datadoghqv1alpha1.DatadogSyntheticsPrivateLocation) {
+				instance.Annotations = map[string]string{datadoghqv1alpha1.DatadogSPLWorkerConfigOverrideAnnotation: `{invalid`}
+			},
+		},
+		{
+			name: "config override annotation sets a Datadog-managed key",
+			mutate: func(instance *datadoghqv1alpha1.DatadogSyntheticsPrivateLocation) {
+				instance.Annotations = map[string]string{datadoghqv1alpha1.DatadogSPLWorkerConfigOverrideAnnotation: `{"accessKey": "hacked"}`}
+			},
 		},
 	}
-	require.NoError(t, k8sClient.Create(context.TODO(), instance))
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mock := newDDMock(t)
+			r, k8sClient := newTestReconciler(t, mock)
 
-	var result ctrl.Result
-	var err error
-	for i := 0; i < 2; i++ {
-		result, err = r.Reconcile(context.TODO(), instance)
-		require.NoError(t, err)
+			instance := newTestInstance()
+			tt.mutate(instance)
+			require.NoError(t, k8sClient.Create(context.TODO(), instance))
+
+			var result ctrl.Result
+			var err error
+			for i := 0; i < 2; i++ {
+				result, err = r.Reconcile(context.TODO(), instance)
+				require.NoError(t, err)
+			}
+			assert.Empty(t, result.RequeueAfter, "invalid spec is not retried")
+
+			assert.Zero(t, mock.callCount(http.MethodPost))
+			persisted := getInstance(t, k8sClient)
+			errCond := getCondition(persisted, "Error")
+			require.NotNil(t, errCond)
+			assert.Equal(t, "InvalidSpec", errCond.Reason)
+		})
 	}
-	assert.Empty(t, result.RequeueAfter, "invalid spec is not retried")
-
-	assert.Zero(t, mock.callCount(http.MethodPost))
-	persisted := getInstance(t, k8sClient)
-	errCond := getCondition(persisted, "Error")
-	require.NotNil(t, errCond)
-	assert.Equal(t, "InvalidSpec", errCond.Reason)
 }
 
 func TestReconciler_Reconcile_delete(t *testing.T) {

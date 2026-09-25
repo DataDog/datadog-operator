@@ -960,8 +960,8 @@ spec:
                     config:
                       description: |-
                         Config holds worker config overrides merged into the Datadog-provided
-                        worker configuration. Datadog-managed keys (accessKey, secretAccessKey,
-                        publicKey, privateKey, id) cannot be overridden.
+                        worker configuration. Set other worker options with the
+                        synthetics.datadoghq.com/worker-config-override annotation.
                       properties:
                         concurrency:
                           description: Concurrency is the number of tests the worker runs in parallel.
@@ -1003,11 +1003,6 @@ spec:
                           minimum: 1
                           type: integer
                       type: object
-                    configOverrideJSON:
-                      description: |-
-                        ConfigOverrideJSON is raw JSON merged last into the worker configuration.
-                        Same Datadog-managed key restrictions as Config.
-                      type: string
                     dnsConfig:
                       description: DNSConfig specifies the DNS parameters of the worker pods.
                       properties:

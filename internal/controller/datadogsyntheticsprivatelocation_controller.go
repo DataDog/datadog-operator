@@ -56,11 +56,11 @@ func (r *DatadogSyntheticsPrivateLocationReconciler) SetupWithManager(mgr ctrl.M
 	r.internal = datadogsyntheticsprivatelocation.NewReconciler(r.Client, r.CredsManager, r.Scheme, ctrl.Log.WithName("controllers").WithName("DatadogSyntheticsPrivateLocation"), r.Recorder)
 
 	or := reconcile.AsReconciler[*datadoghqv1alpha1.DatadogSyntheticsPrivateLocation](r.Client, r)
-	// GenerationChangedPredicate on For() only: spec-only changes on the
+	// Predicates on For() only: spec and Datadog annotation changes on the
 	// primary resource trigger reconciliation, while owned objects (notably
 	// the worker Deployment) still reconcile on status changes.
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&datadoghqv1alpha1.DatadogSyntheticsPrivateLocation{}, ctrlbuilder.WithPredicates(predicate.GenerationChangedPredicate{})).
+		For(&datadoghqv1alpha1.DatadogSyntheticsPrivateLocation{}, ctrlbuilder.WithPredicates(predicate.Or(predicate.GenerationChangedPredicate{}, datadogAnnotationChangedPredicate()))).
 		Owns(&corev1.ServiceAccount{}).
 		Owns(&corev1.Secret{}).
 		Owns(&appsv1.Deployment{}).

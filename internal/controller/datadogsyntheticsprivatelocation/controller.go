@@ -370,6 +370,9 @@ func validateSpec(instance *datadoghqv1alpha1.DatadogSyntheticsPrivateLocation) 
 	if instance.Spec.Name == "" || instance.Spec.Description == "" {
 		return errors.New("spec.name and spec.description are required")
 	}
+	if _, err := parseConfigOverride(instance.GetAnnotations()[datadoghqv1alpha1.DatadogSPLWorkerConfigOverrideAnnotation]); err != nil {
+		return err
+	}
 	if instance.Spec.Worker != nil && instance.Spec.Worker.PodDisruptionBudget != nil {
 		pdb := instance.Spec.Worker.PodDisruptionBudget
 		if pdb.Enabled {

@@ -2816,15 +2816,8 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogSPLWorker(ref common.
 					},
 					"config": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Config holds worker config overrides merged into the Datadog-provided worker configuration. Datadog-managed keys (accessKey, secretAccessKey, publicKey, privateKey, id) cannot be overridden.",
+							Description: "Config holds worker config overrides merged into the Datadog-provided worker configuration. Set other worker options with the synthetics.datadoghq.com/worker-config-override annotation.",
 							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogSPLWorkerConfig"),
-						},
-					},
-					"configOverrideJSON": {
-						SchemaProps: spec.SchemaProps{
-							Description: "ConfigOverrideJSON is raw JSON merged last into the worker configuration. Same Datadog-managed key restrictions as Config.",
-							Type:        []string{"string"},
-							Format:      "",
 						},
 					},
 					"serviceAccount": {

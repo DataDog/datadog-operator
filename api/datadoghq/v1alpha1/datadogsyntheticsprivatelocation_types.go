@@ -21,6 +21,11 @@ const (
 	// DatadogSPLRequiredTag is appended to every private location created by the
 	// operator to mark it as Kubernetes-managed.
 	DatadogSPLRequiredTag = "generated:kubernetes"
+
+	// DatadogSPLWorkerConfigOverrideAnnotation holds raw JSON merged last into
+	// the worker configuration. Datadog-managed keys (accessKey,
+	// secretAccessKey, publicKey, privateKey, id) cannot be overridden.
+	DatadogSPLWorkerConfigOverrideAnnotation = "synthetics.datadoghq.com/worker-config-override"
 )
 
 // DatadogSyntheticsPrivateLocationSpec defines the desired state of DatadogSyntheticsPrivateLocation
@@ -63,14 +68,10 @@ type DatadogSPLWorker struct {
 	// +optional
 	Replicas *int32 `json:"replicas,omitempty"`
 	// Config holds worker config overrides merged into the Datadog-provided
-	// worker configuration. Datadog-managed keys (accessKey, secretAccessKey,
-	// publicKey, privateKey, id) cannot be overridden.
+	// worker configuration. Set other worker options with the
+	// synthetics.datadoghq.com/worker-config-override annotation.
 	// +optional
 	Config *DatadogSPLWorkerConfig `json:"config,omitempty"`
-	// ConfigOverrideJSON is raw JSON merged last into the worker configuration.
-	// Same Datadog-managed key restrictions as Config.
-	// +optional
-	ConfigOverrideJSON string `json:"configOverrideJSON,omitempty"`
 	// ServiceAccount configures the worker ServiceAccount.
 	// +optional
 	ServiceAccount *DatadogSPLServiceAccount `json:"serviceAccount,omitempty"`

@@ -848,7 +848,7 @@
             },
             "config": {
               "additionalProperties": false,
-              "description": "Config holds worker config overrides merged into the Datadog-provided\nworker configuration. Datadog-managed keys (accessKey, secretAccessKey,\npublicKey, privateKey, id) cannot be overridden.",
+              "description": "Config holds worker config overrides merged into the Datadog-provided\nworker configuration. Set other worker options with the\nsynthetics.datadoghq.com/worker-config-override annotation.",
               "properties": {
                 "concurrency": {
                   "description": "Concurrency is the number of tests the worker runs in parallel.",
@@ -900,10 +900,6 @@
                 }
               },
               "type": "object"
-            },
-            "configOverrideJSON": {
-              "description": "ConfigOverrideJSON is raw JSON merged last into the worker configuration.\nSame Datadog-managed key restrictions as Config.",
-              "type": "string"
             },
             "dnsConfig": {
               "additionalProperties": false,
