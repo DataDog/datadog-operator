@@ -35,41 +35,16 @@ func configSecretName(instance *datadoghqv1alpha1.DatadogSyntheticsPrivateLocati
 	return instance.Name + configSecretNameSuffix
 }
 
-// selectorLabels returns the immutable Deployment selector labels. They include
-// the instance name so multiple private locations can coexist in a namespace.
-func selectorLabels(instance *datadoghqv1alpha1.DatadogSyntheticsPrivateLocation) map[string]string {
+// splLabels returns the labels applied to all resources owned by the
+// DatadogSyntheticsPrivateLocation instance, which are also the immutable
+// Deployment selector. They include the instance name so multiple private
+// locations can coexist in a namespace.
+func splLabels(instance *datadoghqv1alpha1.DatadogSyntheticsPrivateLocation) map[string]string {
 	return map[string]string{
 		appLabelKey:       workerAppLabelValue,
 		instanceLabelKey:  instance.Name,
 		managedByLabelKey: managedByLabelValue,
 	}
-}
-
-// splLabels returns the labels applied to all resources owned by the
-// DatadogSyntheticsPrivateLocation instance. spec.worker.commonLabels can add
-// labels but never override operator-owned keys.
-func splLabels(instance *datadoghqv1alpha1.DatadogSyntheticsPrivateLocation) map[string]string {
-	labels := selectorLabels(instance)
-	if instance.Spec.Worker != nil {
-		for k, v := range instance.Spec.Worker.CommonLabels {
-			if _, exists := labels[k]; !exists {
-				labels[k] = v
-			}
-		}
-	}
-	return labels
-}
-
-func podLabels(instance *datadoghqv1alpha1.DatadogSyntheticsPrivateLocation) map[string]string {
-	labels := splLabels(instance)
-	if instance.Spec.Worker != nil {
-		for k, v := range instance.Spec.Worker.PodLabels {
-			if _, exists := labels[k]; !exists {
-				labels[k] = v
-			}
-		}
-	}
-	return labels
 }
 
 // resolveSite returns the site the worker should report to, derived from the

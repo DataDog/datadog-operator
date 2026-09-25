@@ -92,56 +92,10 @@ type DatadogSPLWorker struct {
 	// PriorityClassName indicates the pod's priority.
 	// +optional
 	PriorityClassName *string `json:"priorityClassName,omitempty"`
-	// HostAliases are hosts appended to /etc/hosts.
-	// +optional
-	// +listType=atomic
-	HostAliases []corev1.HostAlias `json:"hostAliases,omitempty"`
-	// DNSPolicy defines the DNS policy for the worker pods.
-	// Default: ClusterFirst
-	// +optional
-	DNSPolicy *corev1.DNSPolicy `json:"dnsPolicy,omitempty"`
-	// DNSConfig specifies the DNS parameters of the worker pods.
-	// +optional
-	DNSConfig *corev1.PodDNSConfig `json:"dnsConfig,omitempty"`
-	// PodAnnotations are annotations applied to the worker pod template.
-	// +optional
-	PodAnnotations map[string]string `json:"podAnnotations,omitempty"`
-	// PodLabels are labels applied to the worker pod template.
-	// +optional
-	PodLabels map[string]string `json:"podLabels,omitempty"`
-	// CommonLabels are labels applied to all resources managed for this
-	// private location (Deployment, Secret, ServiceAccount).
-	// +optional
-	CommonLabels map[string]string `json:"commonLabels,omitempty"`
-	// ExtraVolumes are additional volumes added to the worker pod.
-	// +optional
-	// +listType=map
-	// +listMapKey=name
-	ExtraVolumes []corev1.Volume `json:"extraVolumes,omitempty"`
-	// ExtraVolumeMounts are additional volume mounts added to the worker container.
-	// +optional
-	// +listType=map
-	// +listMapKey=name
-	ExtraVolumeMounts []corev1.VolumeMount `json:"extraVolumeMounts,omitempty"`
-	// Env are additional environment variables for the worker container.
-	// +optional
-	// +listType=map
-	// +listMapKey=name
-	Env []corev1.EnvVar `json:"env,omitempty"`
-	// EnvFrom are envFrom sources for the worker container.
-	// +optional
-	// +listType=atomic
-	EnvFrom []corev1.EnvFromSource `json:"envFrom,omitempty"`
 	// ImagePullSecrets are secrets used to pull the worker image.
 	// +optional
 	// +listType=atomic
 	ImagePullSecrets []corev1.LocalObjectReference `json:"imagePullSecrets,omitempty"`
-	// PodSecurityContext holds pod-level security attributes.
-	// +optional
-	PodSecurityContext *corev1.PodSecurityContext `json:"podSecurityContext,omitempty"`
-	// SecurityContext holds container-level security attributes for the worker container.
-	// +optional
-	SecurityContext *corev1.SecurityContext `json:"securityContext,omitempty"`
 	// Resources are compute resources for the worker container.
 	// +optional
 	Resources corev1.ResourceRequirements `json:"resources,omitempty"`
@@ -161,10 +115,6 @@ type DatadogSPLImage struct {
 	// PullPolicy of the worker image.
 	// +optional
 	PullPolicy corev1.PullPolicy `json:"pullPolicy,omitempty"`
-	// PullSecrets are secrets used to pull the worker image.
-	// +optional
-	// +listType=atomic
-	PullSecrets []corev1.LocalObjectReference `json:"pullSecrets,omitempty"`
 }
 
 // DatadogSPLWorkerConfig holds worker config overrides merged into the

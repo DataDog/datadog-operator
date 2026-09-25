@@ -2686,30 +2686,9 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogSPLImage(ref common.R
 							Format:      "",
 						},
 					},
-					"pullSecrets": {
-						VendorExtensible: spec.VendorExtensible{
-							Extensions: spec.Extensions{
-								"x-kubernetes-list-type": "atomic",
-							},
-						},
-						SchemaProps: spec.SchemaProps{
-							Description: "PullSecrets are secrets used to pull the worker image.",
-							Type:        []string{"array"},
-							Items: &spec.SchemaOrArray{
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Default: map[string]interface{}{},
-										Ref:     ref("k8s.io/api/core/v1.LocalObjectReference"),
-									},
-								},
-							},
-						},
-					},
 				},
 			},
 		},
-		Dependencies: []string{
-			"k8s.io/api/core/v1.LocalObjectReference"},
 	}
 }
 
@@ -2787,171 +2766,6 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogSPLWorker(ref common.
 							Format:      "",
 						},
 					},
-					"hostAliases": {
-						VendorExtensible: spec.VendorExtensible{
-							Extensions: spec.Extensions{
-								"x-kubernetes-list-type": "atomic",
-							},
-						},
-						SchemaProps: spec.SchemaProps{
-							Description: "HostAliases are hosts appended to /etc/hosts.",
-							Type:        []string{"array"},
-							Items: &spec.SchemaOrArray{
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Default: map[string]interface{}{},
-										Ref:     ref("k8s.io/api/core/v1.HostAlias"),
-									},
-								},
-							},
-						},
-					},
-					"dnsPolicy": {
-						SchemaProps: spec.SchemaProps{
-							Description: "DNSPolicy defines the DNS policy for the worker pods. Default: ClusterFirst",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"dnsConfig": {
-						SchemaProps: spec.SchemaProps{
-							Description: "DNSConfig specifies the DNS parameters of the worker pods.",
-							Ref:         ref("k8s.io/api/core/v1.PodDNSConfig"),
-						},
-					},
-					"podAnnotations": {
-						SchemaProps: spec.SchemaProps{
-							Description: "PodAnnotations are annotations applied to the worker pod template.",
-							Type:        []string{"object"},
-							AdditionalProperties: &spec.SchemaOrBool{
-								Allows: true,
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Default: "",
-										Type:    []string{"string"},
-										Format:  "",
-									},
-								},
-							},
-						},
-					},
-					"podLabels": {
-						SchemaProps: spec.SchemaProps{
-							Description: "PodLabels are labels applied to the worker pod template.",
-							Type:        []string{"object"},
-							AdditionalProperties: &spec.SchemaOrBool{
-								Allows: true,
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Default: "",
-										Type:    []string{"string"},
-										Format:  "",
-									},
-								},
-							},
-						},
-					},
-					"commonLabels": {
-						SchemaProps: spec.SchemaProps{
-							Description: "CommonLabels are labels applied to all resources managed for this private location (Deployment, Secret, ServiceAccount).",
-							Type:        []string{"object"},
-							AdditionalProperties: &spec.SchemaOrBool{
-								Allows: true,
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Default: "",
-										Type:    []string{"string"},
-										Format:  "",
-									},
-								},
-							},
-						},
-					},
-					"extraVolumes": {
-						VendorExtensible: spec.VendorExtensible{
-							Extensions: spec.Extensions{
-								"x-kubernetes-list-map-keys": []interface{}{
-									"name",
-								},
-								"x-kubernetes-list-type": "map",
-							},
-						},
-						SchemaProps: spec.SchemaProps{
-							Description: "ExtraVolumes are additional volumes added to the worker pod.",
-							Type:        []string{"array"},
-							Items: &spec.SchemaOrArray{
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Default: map[string]interface{}{},
-										Ref:     ref("k8s.io/api/core/v1.Volume"),
-									},
-								},
-							},
-						},
-					},
-					"extraVolumeMounts": {
-						VendorExtensible: spec.VendorExtensible{
-							Extensions: spec.Extensions{
-								"x-kubernetes-list-map-keys": []interface{}{
-									"name",
-								},
-								"x-kubernetes-list-type": "map",
-							},
-						},
-						SchemaProps: spec.SchemaProps{
-							Description: "ExtraVolumeMounts are additional volume mounts added to the worker container.",
-							Type:        []string{"array"},
-							Items: &spec.SchemaOrArray{
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Default: map[string]interface{}{},
-										Ref:     ref("k8s.io/api/core/v1.VolumeMount"),
-									},
-								},
-							},
-						},
-					},
-					"env": {
-						VendorExtensible: spec.VendorExtensible{
-							Extensions: spec.Extensions{
-								"x-kubernetes-list-map-keys": []interface{}{
-									"name",
-								},
-								"x-kubernetes-list-type": "map",
-							},
-						},
-						SchemaProps: spec.SchemaProps{
-							Description: "Env are additional environment variables for the worker container.",
-							Type:        []string{"array"},
-							Items: &spec.SchemaOrArray{
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Default: map[string]interface{}{},
-										Ref:     ref("k8s.io/api/core/v1.EnvVar"),
-									},
-								},
-							},
-						},
-					},
-					"envFrom": {
-						VendorExtensible: spec.VendorExtensible{
-							Extensions: spec.Extensions{
-								"x-kubernetes-list-type": "atomic",
-							},
-						},
-						SchemaProps: spec.SchemaProps{
-							Description: "EnvFrom are envFrom sources for the worker container.",
-							Type:        []string{"array"},
-							Items: &spec.SchemaOrArray{
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Default: map[string]interface{}{},
-										Ref:     ref("k8s.io/api/core/v1.EnvFromSource"),
-									},
-								},
-							},
-						},
-					},
 					"imagePullSecrets": {
 						VendorExtensible: spec.VendorExtensible{
 							Extensions: spec.Extensions{
@@ -2971,18 +2785,6 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogSPLWorker(ref common.
 							},
 						},
 					},
-					"podSecurityContext": {
-						SchemaProps: spec.SchemaProps{
-							Description: "PodSecurityContext holds pod-level security attributes.",
-							Ref:         ref("k8s.io/api/core/v1.PodSecurityContext"),
-						},
-					},
-					"securityContext": {
-						SchemaProps: spec.SchemaProps{
-							Description: "SecurityContext holds container-level security attributes for the worker container.",
-							Ref:         ref("k8s.io/api/core/v1.SecurityContext"),
-						},
-					},
 					"resources": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Resources are compute resources for the worker container.",
@@ -2994,7 +2796,7 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogSPLWorker(ref common.
 			},
 		},
 		Dependencies: []string{
-			"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogSPLImage", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogSPLWorkerConfig", "k8s.io/api/core/v1.Affinity", "k8s.io/api/core/v1.EnvFromSource", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.HostAlias", "k8s.io/api/core/v1.LocalObjectReference", "k8s.io/api/core/v1.PodDNSConfig", "k8s.io/api/core/v1.PodSecurityContext", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.SecurityContext", "k8s.io/api/core/v1.Toleration", "k8s.io/api/core/v1.Volume", "k8s.io/api/core/v1.VolumeMount"},
+			"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogSPLImage", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogSPLWorkerConfig", "k8s.io/api/core/v1.Affinity", "k8s.io/api/core/v1.LocalObjectReference", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.Toleration"},
 	}
 }
 

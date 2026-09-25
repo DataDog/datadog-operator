@@ -66,9 +66,8 @@ func buildDeployment(instance *datadoghqv1alpha1.DatadogSyntheticsPrivateLocatio
 
 	image, pullPolicy := workerImage(instance)
 
-	volumes := make([]corev1.Volume, 0, 2+len(w.ExtraVolumes))
-	volumes = append(volumes,
-		corev1.Volume{
+	volumes := []corev1.Volume{
+		{
 			Name: configVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				Secret: &corev1.SecretVolumeSource{
@@ -76,26 +75,21 @@ func buildDeployment(instance *datadoghqv1alpha1.DatadogSyntheticsPrivateLocatio
 				},
 			},
 		},
-		corev1.Volume{
+		{
 			Name: runVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				// /run is required by s6-overlay and must always be writable.
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},
 		},
-	)
-	volumes = append(volumes, w.ExtraVolumes...)
+	}
 
-	volumeMounts := make([]corev1.VolumeMount, 0, 2+len(w.ExtraVolumeMounts))
-	volumeMounts = append(volumeMounts,
-		corev1.VolumeMount{Name: configVolumeName, MountPath: configVolumeMountPath},
-		corev1.VolumeMount{Name: runVolumeName, MountPath: runVolumeMountPath},
-	)
-	volumeMounts = append(volumeMounts, w.ExtraVolumeMounts...)
+	volumeMounts := []corev1.VolumeMount{
+		{Name: configVolumeName, MountPath: configVolumeMountPath},
+		{Name: runVolumeName, MountPath: runVolumeMountPath},
+	}
 
-	env := make([]corev1.EnvVar, 0, len(w.Env)+2)
-	env = append(env, w.Env...)
-
+	var env []corev1.EnvVar
 	probesEnabled := statusProbesEnabled(instance)
 	if probesEnabled {
 		// The worker only opens the status endpoints when this env var is set,
@@ -141,17 +135,6 @@ func buildDeployment(instance *datadoghqv1alpha1.DatadogSyntheticsPrivateLocatio
 		}
 	}
 
-	var imagePullSecrets []corev1.LocalObjectReference
-	if w.Image != nil {
-		imagePullSecrets = append(imagePullSecrets, w.Image.PullSecrets...)
-	}
-	imagePullSecrets = append(imagePullSecrets, w.ImagePullSecrets...)
-
-	dnsPolicy := corev1.DNSClusterFirst
-	if w.DNSPolicy != nil {
-		dnsPolicy = *w.DNSPolicy
-	}
-
 	priorityClassName := ""
 	if w.PriorityClassName != nil {
 		priorityClassName = *w.PriorityClassName
@@ -166,12 +149,11 @@ func buildDeployment(instance *datadoghqv1alpha1.DatadogSyntheticsPrivateLocatio
 		Spec: appsv1.DeploymentSpec{
 			Replicas: ptr.To[int32](1),
 			Selector: &metav1.LabelSelector{
-				MatchLabels: selectorLabels(instance),
+				MatchLabels: splLabels(instance),
 			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels:      podLabels(instance),
-					Annotations: w.PodAnnotations,
+					Labels: splLabels(instance),
 				},
 				Spec: corev1.PodSpec{
 					ServiceAccountName: saName,
@@ -179,21 +161,16 @@ func buildDeployment(instance *datadoghqv1alpha1.DatadogSyntheticsPrivateLocatio
 					Affinity:           w.Affinity,
 					Tolerations:        w.Tolerations,
 					PriorityClassName:  priorityClassName,
-					HostAliases:        w.HostAliases,
-					DNSPolicy:          dnsPolicy,
-					DNSConfig:          w.DNSConfig,
-					ImagePullSecrets:   imagePullSecrets,
-					SecurityContext:    w.PodSecurityContext,
+					DNSPolicy:          corev1.DNSClusterFirst,
+					ImagePullSecrets:   w.ImagePullSecrets,
 					Containers: []corev1.Container{
 						{
 							Name:            workerContainerName,
 							Image:           image,
 							ImagePullPolicy: pullPolicy,
 							Env:             env,
-							EnvFrom:         w.EnvFrom,
 							VolumeMounts:    volumeMounts,
 							Resources:       w.Resources,
-							SecurityContext: w.SecurityContext,
 							LivenessProbe:   livenessProbe,
 							ReadinessProbe:  readinessProbe,
 						},

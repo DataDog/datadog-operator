@@ -47,7 +47,7 @@ func Test_buildDeploymentDefaults(t *testing.T) {
 	require.NotNil(t, d.Spec.Template.Spec.Volumes[0].Secret)
 	assert.Equal(t, "my-pl-config", d.Spec.Template.Spec.Volumes[0].Secret.SecretName)
 
-	// /run is always an emptyDir, even without extra volumes.
+	// /run is always an emptyDir.
 	assert.Equal(t, runVolumeName, d.Spec.Template.Spec.Containers[0].VolumeMounts[1].Name)
 	assert.Equal(t, "/run", d.Spec.Template.Spec.Containers[0].VolumeMounts[1].MountPath)
 	require.NotNil(t, d.Spec.Template.Spec.Volumes[1].EmptyDir)
@@ -135,11 +135,11 @@ func Test_buildDeploymentCustomization(t *testing.T) {
 	instance.Spec.Worker = &datadoghqv1alpha1.DatadogSPLWorker{
 		Replicas: ptr.To[int32](3),
 		Image: &datadoghqv1alpha1.DatadogSPLImage{
-			Repository:  "example.com/worker",
-			Tag:         "2.0.0",
-			PullPolicy:  corev1.PullAlways,
-			PullSecrets: []corev1.LocalObjectReference{{Name: "regcred"}},
+			Repository: "example.com/worker",
+			Tag:        "2.0.0",
+			PullPolicy: corev1.PullAlways,
 		},
+		ImagePullSecrets: []corev1.LocalObjectReference{{Name: "regcred"}},
 		Resources: corev1.ResourceRequirements{
 			Requests: corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("100m")},
 		},
@@ -152,30 +152,6 @@ func Test_buildDeploymentCustomization(t *testing.T) {
 	assert.Equal(t, "my-sa", d.Spec.Template.Spec.ServiceAccountName)
 	assert.Equal(t, []corev1.LocalObjectReference{{Name: "regcred"}}, d.Spec.Template.Spec.ImagePullSecrets)
 	assert.Equal(t, resource.MustParse("100m"), d.Spec.Template.Spec.Containers[0].Resources.Requests[corev1.ResourceCPU])
-}
-
-func Test_buildDeploymentCommonLabels(t *testing.T) {
-	instance := newTestInstance()
-	instance.Spec.Worker = &datadoghqv1alpha1.DatadogSPLWorker{
-		CommonLabels: map[string]string{
-			"team":           "synthetics",
-			appLabelKey:      "override-attempt",
-			instanceLabelKey: "override-attempt",
-		},
-		PodLabels: map[string]string{"pod-only": "yes", "team": "override"},
-	}
-	d := buildDeployment(instance, instance.Name)
-
-	// Operator-owned keys cannot be overridden.
-	assert.Equal(t, workerAppLabelValue, d.Labels[appLabelKey])
-	assert.Equal(t, "my-pl", d.Labels[instanceLabelKey])
-	// Extra labels are added to both resource and pod labels.
-	assert.Equal(t, "synthetics", d.Labels["team"])
-	assert.Equal(t, "synthetics", d.Spec.Template.Labels["team"])
-	// Pod labels appear only on the pod template; conflicts resolve in favor
-	// of the operator-set value.
-	assert.Equal(t, "yes", d.Spec.Template.Labels["pod-only"])
-	assert.NotContains(t, d.Labels, "pod-only")
 }
 
 func Test_reconcileDeploymentCreateAndUpdate(t *testing.T) {
