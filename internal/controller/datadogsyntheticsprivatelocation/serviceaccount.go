@@ -8,7 +8,6 @@ package datadogsyntheticsprivatelocation
 import (
 	"context"
 	"fmt"
-	"maps"
 
 	corev1 "k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
@@ -22,45 +21,19 @@ import (
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 )
 
-// serviceAccountName returns the ServiceAccount name for the worker pods:
-// a user-provided name when referencing an existing one, or the CR name by
-// default.
-func serviceAccountName(instance *datadoghqv1alpha1.DatadogSyntheticsPrivateLocation) string {
-	if instance.Spec.Worker != nil && instance.Spec.Worker.ServiceAccount != nil && instance.Spec.Worker.ServiceAccount.Name != "" {
-		return instance.Spec.Worker.ServiceAccount.Name
-	}
-	return instance.Name
-}
-
-// reconcileServiceAccount creates the worker ServiceAccount when
-// spec.worker.serviceAccount.create is set (the default when a serviceAccount
-// block is absent is to manage the "<cr-name>" ServiceAccount), or simply
-// returns the referenced name when the user brings their own. It returns the
-// ServiceAccount name to use in the Deployment.
+// reconcileServiceAccount creates the worker ServiceAccount, named after the
+// DatadogSyntheticsPrivateLocation, and returns its name. Only the labels are
+// managed, so annotations added by users (for example for workload identity)
+// are kept.
 func reconcileServiceAccount(ctx context.Context, kubeClient client.Client, scheme *runtime.Scheme, instance *datadoghqv1alpha1.DatadogSyntheticsPrivateLocation) (string, error) {
 	logger := ctrl.LoggerFrom(ctx)
 
-	var saConfig *datadoghqv1alpha1.DatadogSPLServiceAccount
-	if instance.Spec.Worker != nil {
-		saConfig = instance.Spec.Worker.ServiceAccount
-	}
-	if saConfig != nil && !saConfig.Create && saConfig.Name != "" {
-		// Reference an existing ServiceAccount managed elsewhere.
-		return saConfig.Name, nil
-	}
-
-	name := serviceAccountName(instance)
-	annotations := map[string]string{}
-	if saConfig != nil {
-		maps.Copy(annotations, saConfig.Annotations)
-	}
-
+	name := instance.Name
 	desired := &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        name,
-			Namespace:   instance.Namespace,
-			Labels:      splLabels(instance),
-			Annotations: annotations,
+			Name:      name,
+			Namespace: instance.Namespace,
+			Labels:    splLabels(instance),
 		},
 	}
 	if refErr := controllerutil.SetControllerReference(instance, desired, scheme); refErr != nil {
@@ -78,11 +51,9 @@ func reconcileServiceAccount(ctx context.Context, kubeClient client.Client, sche
 	case err != nil:
 		return "", fmt.Errorf("getting service account: %w", err)
 	default:
-		if !apiequality.Semantic.DeepEqual(current.Labels, desired.Labels) ||
-			!apiequality.Semantic.DeepEqual(current.Annotations, desired.Annotations) {
+		if !apiequality.Semantic.DeepEqual(current.Labels, desired.Labels) {
 			logger.Info("Updating service account", "serviceaccount", name)
 			current.Labels = desired.Labels
-			current.Annotations = desired.Annotations
 			if updateErr := kubeClient.Update(ctx, current); updateErr != nil {
 				return "", fmt.Errorf("updating service account: %w", updateErr)
 			}

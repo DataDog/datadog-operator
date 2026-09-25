@@ -78,9 +78,6 @@ type DatadogSPLWorker struct {
 	// annotation.
 	// +optional
 	Config *DatadogSPLWorkerConfig `json:"config,omitempty"`
-	// ServiceAccount configures the worker ServiceAccount.
-	// +optional
-	ServiceAccount *DatadogSPLServiceAccount `json:"serviceAccount,omitempty"`
 	// NodeSelector is a map of key-value pairs. For the worker pod to run on a
 	// specific node, the node must have these key-value pairs as labels.
 	// +optional
@@ -177,21 +174,6 @@ type DatadogSPLWorkerConfig struct {
 	// Concurrency is the number of tests the worker runs in parallel.
 	// +optional
 	Concurrency *int32 `json:"concurrency,omitempty"`
-}
-
-// DatadogSPLServiceAccount configures the worker ServiceAccount.
-// +k8s:openapi-gen=true
-type DatadogSPLServiceAccount struct {
-	// Create creates a ServiceAccount for the worker Deployment. Default: true.
-	// +optional
-	Create bool `json:"create"`
-	// Name is the name of the ServiceAccount to use or create. Default: the
-	// DatadogSyntheticsPrivateLocation name.
-	// +optional
-	Name string `json:"name,omitempty"`
-	// Annotations are annotations applied to the ServiceAccount when created.
-	// +optional
-	Annotations map[string]string `json:"annotations,omitempty"`
 }
 
 // DatadogSyntheticsPrivateLocationStatus defines the observed state of DatadogSyntheticsPrivateLocation

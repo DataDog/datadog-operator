@@ -3782,23 +3782,6 @@ spec:
                               type: string
                           type: object
                       type: object
-                    serviceAccount:
-                      description: ServiceAccount configures the worker ServiceAccount.
-                      properties:
-                        annotations:
-                          additionalProperties:
-                            type: string
-                          description: Annotations are annotations applied to the ServiceAccount when created.
-                          type: object
-                        create:
-                          description: 'Create creates a ServiceAccount for the worker Deployment. Default: true.'
-                          type: boolean
-                        name:
-                          description: |-
-                            Name is the name of the ServiceAccount to use or create. Default: the
-                            DatadogSyntheticsPrivateLocation name.
-                          type: string
-                      type: object
                     tolerations:
                       description: Tolerations configure the worker pod tolerations.
                       items:

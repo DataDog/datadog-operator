@@ -61,7 +61,6 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogSLOTimeSlice":                                            schema_datadog_operator_api_datadoghq_v1alpha1_DatadogSLOTimeSlice(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogSPLControllerOptions":                                    schema_datadog_operator_api_datadoghq_v1alpha1_DatadogSPLControllerOptions(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogSPLImage":                                                schema_datadog_operator_api_datadoghq_v1alpha1_DatadogSPLImage(ref),
-		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogSPLServiceAccount":                                       schema_datadog_operator_api_datadoghq_v1alpha1_DatadogSPLServiceAccount(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogSPLWorker":                                               schema_datadog_operator_api_datadoghq_v1alpha1_DatadogSPLWorker(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogSPLWorkerConfig":                                         schema_datadog_operator_api_datadoghq_v1alpha1_DatadogSPLWorkerConfig(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogSyntheticsPrivateLocation":                               schema_datadog_operator_api_datadoghq_v1alpha1_DatadogSyntheticsPrivateLocation(ref),
@@ -2714,50 +2713,6 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogSPLImage(ref common.R
 	}
 }
 
-func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogSPLServiceAccount(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Description: "DatadogSPLServiceAccount configures the worker ServiceAccount.",
-				Type:        []string{"object"},
-				Properties: map[string]spec.Schema{
-					"create": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Create creates a ServiceAccount for the worker Deployment. Default: true.",
-							Default:     false,
-							Type:        []string{"boolean"},
-							Format:      "",
-						},
-					},
-					"name": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Name is the name of the ServiceAccount to use or create. Default: the DatadogSyntheticsPrivateLocation name.",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"annotations": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Annotations are annotations applied to the ServiceAccount when created.",
-							Type:        []string{"object"},
-							AdditionalProperties: &spec.SchemaOrBool{
-								Allows: true,
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Default: "",
-										Type:    []string{"string"},
-										Format:  "",
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-		},
-	}
-}
-
 func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogSPLWorker(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -2782,12 +2737,6 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogSPLWorker(ref common.
 						SchemaProps: spec.SchemaProps{
 							Description: "Config holds worker config overrides merged into the Datadog-provided worker configuration. Set other worker options with the synthetics.datadoghq.com/worker-config-override annotation. Enable the status probes with the synthetics.datadoghq.com/status-probes-enabled annotation.",
 							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogSPLWorkerConfig"),
-						},
-					},
-					"serviceAccount": {
-						SchemaProps: spec.SchemaProps{
-							Description: "ServiceAccount configures the worker ServiceAccount.",
-							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogSPLServiceAccount"),
 						},
 					},
 					"nodeSelector": {
@@ -3045,7 +2994,7 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogSPLWorker(ref common.
 			},
 		},
 		Dependencies: []string{
-			"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogSPLImage", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogSPLServiceAccount", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogSPLWorkerConfig", "k8s.io/api/core/v1.Affinity", "k8s.io/api/core/v1.EnvFromSource", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.HostAlias", "k8s.io/api/core/v1.LocalObjectReference", "k8s.io/api/core/v1.PodDNSConfig", "k8s.io/api/core/v1.PodSecurityContext", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.SecurityContext", "k8s.io/api/core/v1.Toleration", "k8s.io/api/core/v1.Volume", "k8s.io/api/core/v1.VolumeMount"},
+			"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogSPLImage", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogSPLWorkerConfig", "k8s.io/api/core/v1.Affinity", "k8s.io/api/core/v1.EnvFromSource", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.HostAlias", "k8s.io/api/core/v1.LocalObjectReference", "k8s.io/api/core/v1.PodDNSConfig", "k8s.io/api/core/v1.PodSecurityContext", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.SecurityContext", "k8s.io/api/core/v1.Toleration", "k8s.io/api/core/v1.Volume", "k8s.io/api/core/v1.VolumeMount"},
 	}
 }
 
