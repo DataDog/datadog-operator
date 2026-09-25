@@ -12,6 +12,7 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/pkg/images"
+	"github.com/DataDog/datadog-operator/pkg/utils"
 )
 
 // Default configuration values. These are the recommended settings for monitoring with Datadog in Kubernetes.
@@ -50,9 +51,10 @@ const (
 	defaultLanguageDetectionEnabled     bool   = true
 	defaultCSPMEnabled                  bool   = false
 	defaultCSPMHostBenchmarksEnabled    bool   = true
+	defaultCSPMRunInSystemProbe         bool   = true
 	defaultCWSEnabled                   bool   = false
 	defaultCWSSyscallMonitorEnabled     bool   = false
-	defaultCWSDirectSendFromSystemProbe bool   = false
+	defaultCWSDirectSendFromSystemProbe bool   = true
 	defaultCWSNetworkEnabled            bool   = true
 	defaultCWSSecurityProfilesEnabled   bool   = true
 	defaultCWSEnforcementEnabled        bool   = true
@@ -211,6 +213,32 @@ func defaultGlobalConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
 	}
 }
 
+// Minimum Agent versions for the settings that move a security feature out of the
+// security-agent and into the system-probe. Defaulting these on an Agent that does not
+// know the setting would drop the security-agent container with nothing taking over, so
+// the defaults below are only applied from these versions on.
+const (
+	// cspmRunInSystemProbeMinVersion is the first Agent release shipping
+	// compliance_config.run_in_system_probe.
+	cspmRunInSystemProbeMinVersion = "7.77.0-0"
+	// cwsDirectSendFromSystemProbeMinVersion is the first Agent release shipping
+	// runtime_security_config.direct_send_from_system_probe.
+	cwsDirectSendFromSystemProbeMinVersion = "7.63.0-0"
+)
+
+// nodeAgentSupports reports whether the node Agent image is at least minVersion. A tag the
+// Operator cannot parse (a digest, or a custom tag) is treated as recent enough, matching how
+// the CNM direct send default is gated.
+func nodeAgentSupports(ddaSpec *v2alpha1.DatadogAgentSpec, minVersion string) bool {
+	version := images.AgentLatestVersion
+	if nodeAgent, ok := ddaSpec.Override[v2alpha1.NodeAgentComponentName]; ok && nodeAgent.Image != nil {
+		version = common.GetAgentVersionFromImage(*nodeAgent.Image)
+	}
+
+	defaultIfVersionUnknown := true
+	return utils.IsAboveMinVersion(version, minVersion, &defaultIfVersionUnknown)
+}
+
 // defaultFeaturesConfig sets default values in DatadogAgentSpec.Features.
 // Note: many default values are set in the Datadog Agent code and are not set here.
 func defaultFeaturesConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
@@ -367,6 +395,9 @@ func defaultFeaturesConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
 			ddaSpec.Features.CSPM.HostBenchmarks = &v2alpha1.CSPMHostBenchmarksConfig{}
 		}
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.CSPM.HostBenchmarks.Enabled, defaultCSPMHostBenchmarksEnabled)
+
+		runInSystemProbe := defaultCSPMRunInSystemProbe && nodeAgentSupports(ddaSpec, cspmRunInSystemProbeMinVersion)
+		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.CSPM.RunInSystemProbe, runInSystemProbe)
 	}
 
 	// CWS (Cloud Workload Security) Feature
@@ -389,7 +420,8 @@ func defaultFeaturesConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.CWS.SyscallMonitorEnabled, defaultCWSSyscallMonitorEnabled)
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.CWS.Network.Enabled, defaultCWSNetworkEnabled)
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.CWS.SecurityProfiles.Enabled, defaultCWSSecurityProfilesEnabled)
-		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.CWS.DirectSendFromSystemProbe, defaultCWSDirectSendFromSystemProbe)
+		directSendFromSystemProbe := defaultCWSDirectSendFromSystemProbe && nodeAgentSupports(ddaSpec, cwsDirectSendFromSystemProbeMinVersion)
+		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.CWS.DirectSendFromSystemProbe, directSendFromSystemProbe)
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.CWS.Enforcement.Enabled, defaultCWSEnforcementEnabled)
 	}
 

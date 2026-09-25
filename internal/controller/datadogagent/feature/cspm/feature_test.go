@@ -21,6 +21,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
+	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/providercaps"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 
@@ -187,6 +188,11 @@ func cspmAgentNodeWantFunc(runInSystemProbe bool) *test.ComponentTest {
 				},
 			}
 
+			if runInSystemProbe {
+				// config sync is served by the core agent, so it needs the same env vars
+				wantCoreAgent = append(wantCoreAgent, configSyncEnvVars()...)
+			}
+
 			coreAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
 			assert.True(t, apiutils.IsEqualStruct(coreAgentEnvVars, wantCoreAgent), "Core Agent envvars \ndiff = %s", cmp.Diff(coreAgentEnvVars, wantCoreAgent))
 
@@ -213,6 +219,10 @@ func cspmAgentNodeWantFunc(runInSystemProbe bool) *test.ComponentTest {
 					Name:  DDComplianceConfigRunInSystemProbe,
 					Value: apiutils.BoolToString(&runInSystemProbe),
 				},
+			}
+
+			if runInSystemProbe {
+				wantTargetContainer = append(wantTargetContainer, configSyncEnvVars()...)
 			}
 
 			targetContainerEnvVars := mgr.EnvVarMgr.EnvVarsByC[targetContainer]
@@ -369,4 +379,14 @@ func Test_cspmFeature_NodeAgentProviderCapabilities(t *testing.T) {
 		assert.Contains(t, volumeNames(tmpl), common.PasswdVolumeName)
 		assert.Contains(t, volumeNames(tmpl), common.GroupVolumeName)
 	})
+}
+
+// configSyncEnvVars are the env vars the system-probe needs when it runs the compliance checks
+// and submits the payloads itself: it cannot resolve secret handles, so the resolved api_key has
+// to come from the core agent.
+func configSyncEnvVars() []*corev1.EnvVar {
+	return []*corev1.EnvVar{
+		{Name: common.DDAgentIpcPort, Value: featureutils.DefaultAgentIpcPort},
+		{Name: common.DDAgentIpcConfigRefreshInterval, Value: featureutils.DefaultAgentIpcConfigRefreshInterval},
+	}
 }

@@ -1496,7 +1496,7 @@
                   "type": "object"
                 },
                 "runInSystemProbe": {
-                  "description": "RunInSystemProbe configures CSPM to send payloads directly from the system-probe, without using the security-agent.\nThis is an experimental feature. Contact support before using.\nDefault: false",
+                  "description": "RunInSystemProbe configures CSPM to run the compliance checks in the system-probe and send\npayloads directly, without using the security-agent.\nRequires Agent 7.77.0 or above; on older Agents this defaults to false.\nDefault: true",
                   "type": "boolean"
                 }
               },
@@ -1566,7 +1566,7 @@
                   "type": "object"
                 },
                 "directSendFromSystemProbe": {
-                  "description": "DirectSendFromSystemProbe configures CWS to send payloads directly from the system-probe, without using the security-agent.\nThis is an experimental feature. Contact support before using.\nDefault: false",
+                  "description": "DirectSendFromSystemProbe configures CWS to send payloads directly from the system-probe, without using the security-agent.\nRequires Agent 7.63.0 or above; on older Agents this defaults to false.\nDefault: true",
                   "type": "boolean"
                 },
                 "enabled": {
@@ -10489,7 +10489,7 @@
                       "type": "object"
                     },
                     "runInSystemProbe": {
-                      "description": "RunInSystemProbe configures CSPM to send payloads directly from the system-probe, without using the security-agent.\nThis is an experimental feature. Contact support before using.\nDefault: false",
+                      "description": "RunInSystemProbe configures CSPM to run the compliance checks in the system-probe and send\npayloads directly, without using the security-agent.\nRequires Agent 7.77.0 or above; on older Agents this defaults to false.\nDefault: true",
                       "type": "boolean"
                     }
                   },
@@ -10559,7 +10559,7 @@
                       "type": "object"
                     },
                     "directSendFromSystemProbe": {
-                      "description": "DirectSendFromSystemProbe configures CWS to send payloads directly from the system-probe, without using the security-agent.\nThis is an experimental feature. Contact support before using.\nDefault: false",
+                      "description": "DirectSendFromSystemProbe configures CWS to send payloads directly from the system-probe, without using the security-agent.\nRequires Agent 7.63.0 or above; on older Agents this defaults to false.\nDefault: true",
                       "type": "boolean"
                     },
                     "enabled": {
