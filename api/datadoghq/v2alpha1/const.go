@@ -21,6 +21,18 @@ const (
 	AnnotationExperimentID = "experiment.datadoghq.com/id"
 	// AnnotationExperimentSignal is the annotation key for the experiment signal type.
 	AnnotationExperimentSignal = "experiment.datadoghq.com/signal"
+	// AnnotationExperimentRollbackTargetRevision is the annotation key for the
+	// pre-experiment baseline ControllerRevision name. Fleet writes this only
+	// with the start signal; the reconciler clears it with the signal annotations.
+	AnnotationExperimentRollbackTargetRevision = "experiment.datadoghq.com/rollback-target-revision"
+	// AnnotationExperimentExpectedSpecHash pins ComputeSpecHash over the spec
+	// Fleet is about to apply, written atomically with the start signal. It is
+	// an integrity pin, not an authentication mechanism: it detects a user
+	// apply, a third-party controller write, or a partially-landed Fleet patch
+	// in the window between Fleet's write and the reconciler's read, so the
+	// reconciler never records someone else's spec as the expected experiment
+	// state. The reconciler clears it with the signal annotations.
+	AnnotationExperimentExpectedSpecHash = "experiment.datadoghq.com/expected-spec-hash"
 )
 
 // Fleet pending-operation annotations. The fleet daemon writes these

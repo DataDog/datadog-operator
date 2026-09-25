@@ -36,6 +36,9 @@ func generateNewStatusFromDDA(ddaStatus *datadoghqv2alpha1.DatadogAgentStatus) *
 			status.RemoteConfigConfiguration = ddaStatus.RemoteConfigConfiguration
 		}
 		status.Experiment = ddaStatus.Experiment.DeepCopy()
+		status.CurrentRevision = ddaStatus.CurrentRevision
+		status.CurrentRevisionObservedGeneration = ddaStatus.CurrentRevisionObservedGeneration
+		status.CurrentRevisionObservedAnnotationsHash = ddaStatus.CurrentRevisionObservedAnnotationsHash
 	}
 	return status
 }

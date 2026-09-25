@@ -68,6 +68,10 @@ const (
 	// deprecated configuration surface, and names the replacement. It is informational:
 	// the deprecated configuration keeps working until the release that removes it.
 	DeprecatedConfigInUseConditionType = "DeprecatedConfigInUse"
+	// ExperimentConfigStrandedConditionType reports that a running experiment
+	// was aborted because its rollback baseline could not be proven safe
+	// (TerminationReason baseline_missing or baseline_not_found).
+	ExperimentConfigStrandedConditionType = "ExperimentConfigStranded"
 )
 
 const (

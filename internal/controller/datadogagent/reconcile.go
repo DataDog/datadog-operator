@@ -113,13 +113,33 @@ func (r *Reconciler) reconcileInstance(ctx context.Context, logger logr.Logger, 
 		if err != nil {
 			return r.updateStatusIfNeeded(logger, instance, ddaStatusCopy, result, err, now)
 		}
+
+		// Barrier: publish a durable, freshness-checkable status.currentRevision
+		// pointer before Fleet or experiment handling can consume it.
+		revName, annotationsHash, err := r.publishCurrentRevisionBarrier(ctx, instance, rawSpec, revList)
+		if err != nil {
+			return r.updateStatusIfNeeded(logger, instance, ddaStatusCopy, result, err, now)
+		}
+		applyCurrentRevisionPointer(newDDAStatus, revName, instance.Generation, annotationsHash)
+		applyCurrentRevisionPointer(ddaStatusCopy, revName, instance.Generation, annotationsHash)
+		applyCurrentRevisionPointer(&instance.Status, revName, instance.Generation, annotationsHash)
+
 		// Use user-submitted instance instead of defaulted instance
 		rawInstance := instance.DeepCopy()
 		rawInstance.Spec = rawSpec
-		experimentErr := r.manageExperiment(ctx, rawInstance, newDDAStatus, now, revList)
+		specUpdated, experimentErr := r.manageExperiment(ctx, rawInstance, newDDAStatus, now)
 		instance.ResourceVersion = rawInstance.ResourceVersion
 		if experimentErr != nil {
 			return r.updateStatusIfNeeded(logger, instance, newDDAStatus, result, experimentErr, now)
+		}
+		syncExperimentConfigStrandedCondition(newDDAStatus, now)
+		if specUpdated {
+			// A rollback restored the DDA spec via Update. instance still holds
+			// the pre-rollback defaulted spec, so rendering DDAI/dependencies
+			// from it below would apply stale config. Publish the terminal
+			// experiment status now and let the Update's watch event trigger a
+			// fresh reconcile against the restored spec.
+			return r.updateStatusIfNeeded(logger, instance, newDDAStatus, result, nil, now)
 		}
 		if err := r.manageRevision(ctx, instance, rawSpec, revList, newDDAStatus); err != nil {
 			return r.updateStatusIfNeeded(logger, instance, newDDAStatus, result, err, now)

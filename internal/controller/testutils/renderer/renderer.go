@@ -192,6 +192,7 @@ func Render(opts Options) ([]client.Object, *runtime.Scheme, error) {
 	ddaOpts := datadogagent.ReconcilerOptions{
 		DatadogAgentProfileEnabled: opts.ProfileEnabled,
 		SupportCilium:              opts.SupportCilium,
+		APIReader:                  fakeClient,
 	}
 	ddaReconciler, err := datadogagent.NewReconciler(ddaOpts, fakeClient, platformInfo, scheme, log, recorder, noopForwarder{})
 	if err != nil {
