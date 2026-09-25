@@ -41,17 +41,12 @@ func Test_checkRunnerFeature(t *testing.T) {
 	}
 	checkRunnerEnvVars := []*corev1.EnvVar{checkRunnerEnabledEnvVar, standaloneModeEnvVar, ipcEnabledEnvVar, ipcEndpointEnvVar}
 	// ADP-side counterpart: without this ADP never serves the Checks IPC endpoint ACR sends to.
-	dataPlaneEnabledEnvVar := &corev1.EnvVar{
-		Name:  common.DDDataPlaneEnabled,
-		Value: "true",
-	}
 	dataPlaneChecksEnabledEnvVar := &corev1.EnvVar{
 		Name:  common.DDDataPlaneChecksEnabled,
 		Value: "true",
 	}
-	dataPlaneEnvVars := []*corev1.EnvVar{dataPlaneEnabledEnvVar, dataPlaneChecksEnabledEnvVar}
 
-	allEnvVars := append(append([]*corev1.EnvVar{}, checkRunnerEnvVars...), dataPlaneEnvVars...)
+	allEnvVars := append(append([]*corev1.EnvVar{}, checkRunnerEnvVars...), dataPlaneChecksEnabledEnvVar)
 
 	tests := test.FeatureTestSuite{
 		{
@@ -70,11 +65,33 @@ func Test_checkRunnerFeature(t *testing.T) {
 			),
 		},
 		{
+			Name: "check runner enabled via annotation, data plane disabled (default)",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithAnnotations(map[string]string{
+					featureutils.EnableCheckRunnerAnnotation: "true",
+				}).
+				BuildWithDefaults(),
+			WantConfigure:             true,
+			WantManageDependenciesErr: true,
+		},
+		{
+			Name: "check runner enabled via annotation, data plane explicitly disabled",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithAnnotations(map[string]string{
+					featureutils.EnableCheckRunnerAnnotation: "true",
+				}).
+				WithDataPlaneEnabled(false).
+				BuildWithDefaults(),
+			WantConfigure:             true,
+			WantManageDependenciesErr: true,
+		},
+		{
 			Name: "check runner enabled via annotation",
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithAnnotations(map[string]string{
 					featureutils.EnableCheckRunnerAnnotation: "true",
 				}).
+				WithDataPlaneEnabled(true).
 				BuildWithDefaults(),
 			WantConfigure: true,
 			Agent: test.NewDefaultComponentTest().WithWantFunc(
@@ -103,6 +120,7 @@ func Test_checkRunnerFeature(t *testing.T) {
 				WithAnnotations(map[string]string{
 					featureutils.EnableCheckRunnerAnnotation: "true",
 				}).
+				WithDataPlaneEnabled(true).
 				WithSingleContainerStrategy(true).
 				BuildWithDefaults(),
 			WantConfigure: true,

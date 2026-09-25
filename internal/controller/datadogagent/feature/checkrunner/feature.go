@@ -6,6 +6,8 @@
 package checkrunner
 
 import (
+	"errors"
+
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -40,6 +42,7 @@ type checkRunnerFeature struct {
 
 	enabled                 bool
 	defaultDataPlaneEnabled bool
+	dataPlaneEnabled        bool
 }
 
 // ID returns the ID of the Feature
@@ -59,9 +62,7 @@ func (f *checkRunnerFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Data
 			Containers: []apicommon.AgentContainerName{apicommon.AgentCheckRunnerContainerName},
 		}
 
-		if !featureutils.IsDataPlaneEnabled(dda, ddaSpec, f.defaultDataPlaneEnabled) {
-			f.logger.Info("The checkrunner feature requires the dataPlane feature.")
-		}
+		f.dataPlaneEnabled = featureutils.IsDataPlaneEnabled(dda, ddaSpec, f.defaultDataPlaneEnabled)
 	}
 
 	return reqComp
@@ -69,6 +70,12 @@ func (f *checkRunnerFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Data
 
 // ManageDependencies allows a feature to manage its dependencies.
 func (f *checkRunnerFeature) ManageDependencies(_ feature.ResourceManagers) error {
+	// ACR sends check events to the Data Plane Checks IPC endpoint. Without the
+	// agent-data-plane container nothing serves it.
+	if f.enabled && !f.dataPlaneEnabled {
+		f.logger.Info("The checkrunner feature requires the dataPlane feature: set spec.features.dataPlane.enabled=true.")
+		return errors.New("checkrunner feature requires the dataPlane feature")
+	}
 	return nil
 }
 
@@ -123,10 +130,6 @@ func (f *checkRunnerFeature) configureNodeAgent(managers feature.PodTemplateMana
 
 	// ADP configuration
 	// Enable Checks IPC source (the endpoint ACR sends events to)
-	managers.EnvVar().AddEnvVarToContainer(coreAgentContainer, &corev1.EnvVar{
-		Name:  common.DDDataPlaneEnabled,
-		Value: "true",
-	})
 	managers.EnvVar().AddEnvVarToContainer(coreAgentContainer, &corev1.EnvVar{
 		Name:  common.DDDataPlaneChecksEnabled,
 		Value: "true",
