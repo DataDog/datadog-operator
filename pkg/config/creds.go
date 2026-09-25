@@ -174,6 +174,19 @@ func (cm *CredentialManager) GetAuth() (context.Context, error) {
 	return auth, nil
 }
 
+// Site returns the Datadog site from DD_SITE, or else from the host of the
+// parsed API URL without its "api." prefix. It returns an empty string when
+// neither is configured.
+func (cm *CredentialManager) Site() string {
+	if site := strings.TrimSpace(os.Getenv(constants.DDSite)); site != "" {
+		return site
+	}
+	if cm.apiURL != nil {
+		return strings.TrimPrefix(cm.apiURL.Host, "api.")
+	}
+	return ""
+}
+
 // GetCredentials returns the API and APP keys respectively from the operator configurations.
 // This function tries to decrypt the secrets using the secret backend if needed.
 // It returns an error if the creds aren't configured or if the secret backend fails to decrypt.

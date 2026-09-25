@@ -8,6 +8,7 @@ package datadogsyntheticsprivatelocation
 import (
 	"context"
 	"encoding/json"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -19,6 +20,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/pkg/config"
 	ctrutils "github.com/DataDog/datadog-operator/pkg/controller/utils"
 )
 
@@ -59,6 +61,50 @@ func Test_mergeWorkerConfigRawOverrideLastWins(t *testing.T) {
 func Test_mergeWorkerConfigRawOverrideCannotTouchSite(t *testing.T) {
 	cfg := configWithInstance(t, nil, `{"site": "evil.example.com"}`)
 	assert.Equal(t, "datadoghq.com", cfg["site"])
+}
+
+func Test_resolveSite(t *testing.T) {
+	tests := []struct {
+		name     string
+		envVars  map[string]string
+		wantSite string
+	}{
+		{
+			name:     "defaults to datadoghq.com",
+			envVars:  map[string]string{},
+			wantSite: "datadoghq.com",
+		},
+		{
+			name:     "uses DD_SITE",
+			envVars:  map[string]string{"DD_SITE": "datad0g.com"},
+			wantSite: "datad0g.com",
+		},
+		{
+			name:     "strips the scheme from DD_SITE",
+			envVars:  map[string]string{"DD_SITE": "https://datadoghq.eu"},
+			wantSite: "datadoghq.eu",
+		},
+		{
+			name:     "uses the DD_URL host",
+			envVars:  map[string]string{"DD_URL": "https://api.datad0g.com"},
+			wantSite: "datad0g.com",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			for _, k := range []string{"DD_DD_URL", "DD_URL", "DD_SITE"} {
+				t.Setenv(k, "")
+				os.Unsetenv(k)
+			}
+			for k, v := range tt.envVars {
+				t.Setenv(k, v)
+			}
+
+			credsManager := config.NewCredentialManager(fake.NewClientBuilder().Build())
+			assert.Equal(t, tt.wantSite, resolveSite(credsManager))
+		})
+	}
 }
 
 func Test_mergeWorkerConfigApiManagedKeysRejected(t *testing.T) {

@@ -226,12 +226,7 @@ func (r *Reconciler) create(auth context.Context, kubeCtx context.Context, logge
 		return fmt.Errorf("marshalling private location config: %w", err)
 	}
 
-	creds, credErr := r.credsManager.GetCredentials()
-	if credErr != nil {
-		return credErr
-	}
-
-	if err := reconcileConfigSecret(kubeCtx, r.client, r.scheme, instance, configJSON, resolveSite(creds)); err != nil {
+	if err := reconcileConfigSecret(kubeCtx, r.client, r.scheme, instance, configJSON, resolveSite(r.credsManager)); err != nil {
 		return err
 	}
 
@@ -257,14 +252,10 @@ func (r *Reconciler) ownedResourcesAndRequeue(ctx context.Context, logger logr.L
 		return r.errorResult(instance, now, err)
 	}
 
-	creds, credErr := r.credsManager.GetCredentials()
-	if credErr != nil {
-		return r.errorResult(instance, now, credErr)
-	}
 	// Re-merge the worker config over the existing Secret in case
 	// spec.worker changed. On the create path this is a no-op: the Secret was
 	// just persisted with the same merged content.
-	if configErr := reconcileConfigSecret(ctx, r.client, r.scheme, instance, nil, resolveSite(creds)); configErr != nil {
+	if configErr := reconcileConfigSecret(ctx, r.client, r.scheme, instance, nil, resolveSite(r.credsManager)); configErr != nil {
 		logger.Error(configErr, "error reconciling config secret")
 		r.handleConfigMissing(logger, instance, now, configErr)
 		configOK = false

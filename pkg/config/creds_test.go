@@ -761,6 +761,69 @@ func Test_parseAPIURL(t *testing.T) {
 	}
 }
 
+func Test_Site(t *testing.T) {
+	tests := []struct {
+		name     string
+		envVars  map[string]string
+		wantSite string
+	}{
+		{
+			name:     "no env vars set returns empty",
+			envVars:  map[string]string{},
+			wantSite: "",
+		},
+		{
+			name:     "DD_SITE is returned",
+			envVars:  map[string]string{"DD_SITE": "datad0g.com"},
+			wantSite: "datad0g.com",
+		},
+		{
+			name:     "DD_SITE trims whitespace",
+			envVars:  map[string]string{"DD_SITE": "  datadoghq.eu  "},
+			wantSite: "datadoghq.eu",
+		},
+		{
+			name: "DD_SITE takes precedence over DD_URL",
+			envVars: map[string]string{
+				"DD_URL":  "https://api.datadoghq.eu",
+				"DD_SITE": "datad0g.com",
+			},
+			wantSite: "datad0g.com",
+		},
+		{
+			name:     "DD_URL host without api prefix",
+			envVars:  map[string]string{"DD_URL": "https://api.datad0g.com"},
+			wantSite: "datad0g.com",
+		},
+		{
+			name:     "DD_DD_URL host without api prefix",
+			envVars:  map[string]string{"DD_DD_URL": "https://api.us5.datadoghq.com"},
+			wantSite: "us5.datadoghq.com",
+		},
+		{
+			name:     "DD_URL host without api prefix is returned as is",
+			envVars:  map[string]string{"DD_URL": "https://custom.example.com"},
+			wantSite: "custom.example.com",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			for _, k := range []string{"DD_DD_URL", "DD_URL", "DD_SITE"} {
+				t.Setenv(k, "")
+				os.Unsetenv(k)
+			}
+			for k, v := range tt.envVars {
+				t.Setenv(k, v)
+			}
+
+			cm := &CredentialManager{}
+			assert.NoError(t, cm.parseAPIURL())
+			assert.Equal(t, tt.wantSite, cm.Site())
+		})
+	}
+}
+
 func Test_GetAuth(t *testing.T) {
 	t.Run("returns error when credentials missing", func(t *testing.T) {
 		os.Unsetenv("DD_API_KEY")

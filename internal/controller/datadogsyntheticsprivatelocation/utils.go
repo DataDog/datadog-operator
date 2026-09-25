@@ -47,11 +47,12 @@ func splLabels(instance *datadoghqv1alpha1.DatadogSyntheticsPrivateLocation) map
 	}
 }
 
-// resolveSite returns the site the worker should report to, derived from the
-// operator credentials (DD_SITE / DD_URL) rather than the API response.
-func resolveSite(creds config.Creds) string {
-	if creds.Site != nil {
-		return strings.TrimPrefix(strings.TrimPrefix(*creds.Site, "https://"), "http://")
+// resolveSite returns the site the worker should report to. It is the site of
+// the API endpoint that created the private location, so the worker keys are
+// valid for it.
+func resolveSite(credsManager *config.CredentialManager) string {
+	if site := credsManager.Site(); site != "" {
+		return strings.TrimPrefix(strings.TrimPrefix(site, "https://"), "http://")
 	}
 	return defaultSite
 }

@@ -92,6 +92,7 @@ func newTestReconciler(t *testing.T, mock *ddMock) (*Reconciler, client.Client) 
 	t.Helper()
 
 	t.Setenv("DD_URL", mock.server.URL)
+	t.Setenv("DD_SITE", "datad0g.com")
 	t.Setenv("DD_API_KEY", "DUMMY_API_KEY")
 	t.Setenv("DD_APP_KEY", "DUMMY_APP_KEY")
 
@@ -196,7 +197,7 @@ func TestReconciler_Reconcile_create(t *testing.T) {
 	require.NoError(t, k8sClient.Get(context.TODO(),
 		types.NamespacedName{Name: "my-pl-config", Namespace: "default"}, secret))
 	assertOwnedByInstance(t, secret, instance)
-	assert.Contains(t, string(secret.Data[datadoghqv1alpha1.DatadogSPLConfigSecretDataKey]), `"site":"datadoghq.com"`)
+	assert.Contains(t, string(secret.Data[datadoghqv1alpha1.DatadogSPLConfigSecretDataKey]), `"site":"datad0g.com"`)
 
 	sa := &corev1.ServiceAccount{}
 	require.NoError(t, k8sClient.Get(context.TODO(),
