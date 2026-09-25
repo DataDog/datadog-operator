@@ -112,6 +112,15 @@ func (o *hostProfilerFeature) ManageNodeAgent(managers feature.PodTemplateManage
 	// Host PID
 	managers.PodTemplateSpec().Spec.HostPID = true
 
+	// Host-profiler is Linux-only. This runs only on the node-agent pod that includes
+	// the container. Windows profiles skip this hook (the feature is Excluded) and
+	// set kubernetes.io/os=windows themselves after overrides.
+	spec := &managers.PodTemplateSpec().Spec
+	if spec.NodeSelector == nil {
+		spec.NodeSelector = map[string]string{}
+	}
+	spec.NodeSelector[corev1.LabelOSStable] = string(corev1.Linux)
+
 	// Security context: drop all caps, add only what host-profiler needs, lock down privilege escalation,
 	// and apply a localhost seccomp profile. AllowPrivilegeEscalation must be explicitly false so that
 	// runc applies the seccomp filter before its own setuid/setgid/capset calls during container setup.
@@ -234,17 +243,4 @@ func resolveHostProfilerImage(dda metav1.Object, baseImage string) string {
 		return baseImage
 	}
 	return hostProfilerImage
-}
-
-// SetLinuxNodeSelector applies the host-profiler Linux OS constraint.
-func SetLinuxNodeSelector(features []feature.Feature, tmpl *corev1.PodTemplateSpec) {
-	for _, feat := range features {
-		if feat.ID() == feature.HostProfilerIDType {
-			if tmpl.Spec.NodeSelector == nil {
-				tmpl.Spec.NodeSelector = map[string]string{}
-			}
-			tmpl.Spec.NodeSelector["kubernetes.io/os"] = "linux"
-			return
-		}
-	}
 }

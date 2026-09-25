@@ -220,6 +220,7 @@ func testExpectedAgent(agentContainerName apicommon.AgentContainerName, expected
 				assert.True(t, apiutils.IsEqualStruct(agentMounts, expectedVolumeMount), "%s volume mounts \ndiff = %s", agentContainerName, cmp.Diff(agentMounts, expectedVolumeMount))
 
 				assert.Equal(t, true, mgr.Tpl.Spec.HostPID)
+				assert.Equal(t, map[string]string{corev1.LabelOSStable: string(corev1.Linux)}, mgr.Tpl.Spec.NodeSelector)
 
 				// IPC env vars
 				coreEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
@@ -526,10 +527,30 @@ func TestDefaultCapabilities(t *testing.T) {
 	assert.True(t, capSet["SYS_PTRACE"], "host-profiler requires SYS_PTRACE for process tracing")
 }
 
-func Test_SetLinuxNodeSelector(t *testing.T) {
-	tmpl := &corev1.PodTemplateSpec{}
+func Test_ManageNodeAgent_LinuxNodeSelectorPreservesExistingKeys(t *testing.T) {
+	dda := testutils.NewDatadogAgentBuilder().
+		WithName("datadog-agent").
+		WithAnnotations(map[string]string{
+			"agent.datadoghq.com/host-profiler-enabled": "true",
+		}).
+		Build()
 
-	SetLinuxNodeSelector([]feature.Feature{buildHostProfilerFeature(&feature.Options{})}, tmpl)
+	manager := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
+		Spec: corev1.PodSpec{
+			NodeSelector: map[string]string{"disk": "ssd"},
+			Containers: []corev1.Container{
+				{Name: string(apicommon.CoreAgentContainerName), Image: images.GetLatestAgentImage()},
+				{Name: string(apicommon.HostProfiler), Image: "gcr.io/datadoghq/agent:7.99.0"},
+			},
+		},
+	})
 
-	assert.Equal(t, map[string]string{"kubernetes.io/os": "linux"}, tmpl.Spec.NodeSelector)
+	feat := buildHostProfilerFeature(nil).(*hostProfilerFeature)
+	feat.Configure(dda, &dda.Spec, nil)
+	require.NoError(t, feat.ManageNodeAgent(manager))
+
+	assert.Equal(t, map[string]string{
+		"disk":               "ssd",
+		corev1.LabelOSStable: string(corev1.Linux),
+	}, manager.PodTemplateSpec().Spec.NodeSelector)
 }
