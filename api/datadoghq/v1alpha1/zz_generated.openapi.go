@@ -3105,68 +3105,6 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogSPLWorkerConfig(ref c
 							Format:      "int32",
 						},
 					},
-					"proxyDatadog": {
-						SchemaProps: spec.SchemaProps{
-							Description: "ProxyDatadog is the proxy used for Datadog traffic.",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"proxyTestRequests": {
-						SchemaProps: spec.SchemaProps{
-							Description: "ProxyTestRequests is the proxy used for test requests.",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"proxyTestRequestsBypassList": {
-						VendorExtensible: spec.VendorExtensible{
-							Extensions: spec.Extensions{
-								"x-kubernetes-list-type": "atomic",
-							},
-						},
-						SchemaProps: spec.SchemaProps{
-							Description: "ProxyTestRequestsBypassList is the bypass list for the test requests proxy.",
-							Type:        []string{"array"},
-							Items: &spec.SchemaOrArray{
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Default: "",
-										Type:    []string{"string"},
-										Format:  "",
-									},
-								},
-							},
-						},
-					},
-					"proxyEnableConnectTunnel": {
-						SchemaProps: spec.SchemaProps{
-							Description: "ProxyEnableConnectTunnel enables the HTTP CONNECT tunnel through the proxy.",
-							Type:        []string{"boolean"},
-							Format:      "",
-						},
-					},
-					"proxyIgnoreSSLErrors": {
-						SchemaProps: spec.SchemaProps{
-							Description: "ProxyIgnoreSSLErrors ignores SSL errors for proxied test requests.",
-							Type:        []string{"boolean"},
-							Format:      "",
-						},
-					},
-					"reportConfigTelemetry": {
-						SchemaProps: spec.SchemaProps{
-							Description: "ReportConfigTelemetry enables reporting config telemetry.",
-							Type:        []string{"boolean"},
-							Format:      "",
-						},
-					},
-					"reportMetrics": {
-						SchemaProps: spec.SchemaProps{
-							Description: "ReportMetrics enables reporting metrics about the worker.",
-							Type:        []string{"boolean"},
-							Format:      "",
-						},
-					},
 				},
 			},
 		},

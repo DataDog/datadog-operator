@@ -181,28 +181,6 @@ type DatadogSPLWorkerConfig struct {
 	// Concurrency is the number of tests the worker runs in parallel.
 	// +optional
 	Concurrency *int32 `json:"concurrency,omitempty"`
-	// ProxyDatadog is the proxy used for Datadog traffic.
-	// +optional
-	ProxyDatadog *string `json:"proxyDatadog,omitempty"`
-	// ProxyTestRequests is the proxy used for test requests.
-	// +optional
-	ProxyTestRequests *string `json:"proxyTestRequests,omitempty"`
-	// ProxyTestRequestsBypassList is the bypass list for the test requests proxy.
-	// +optional
-	// +listType=atomic
-	ProxyTestRequestsBypassList []string `json:"proxyTestRequestsBypassList,omitempty"`
-	// ProxyEnableConnectTunnel enables the HTTP CONNECT tunnel through the proxy.
-	// +optional
-	ProxyEnableConnectTunnel *bool `json:"proxyEnableConnectTunnel,omitempty"`
-	// ProxyIgnoreSSLErrors ignores SSL errors for proxied test requests.
-	// +optional
-	ProxyIgnoreSSLErrors *bool `json:"proxyIgnoreSSLErrors,omitempty"`
-	// ReportConfigTelemetry enables reporting config telemetry.
-	// +optional
-	ReportConfigTelemetry *bool `json:"reportConfigTelemetry,omitempty"`
-	// ReportMetrics enables reporting metrics about the worker.
-	// +optional
-	ReportMetrics *bool `json:"reportMetrics,omitempty"`
 }
 
 // DatadogSPLServiceAccount configures the worker ServiceAccount.

@@ -854,38 +854,6 @@
                   "description": "Concurrency is the number of tests the worker runs in parallel.",
                   "format": "int32",
                   "type": "integer"
-                },
-                "proxyDatadog": {
-                  "description": "ProxyDatadog is the proxy used for Datadog traffic.",
-                  "type": "string"
-                },
-                "proxyEnableConnectTunnel": {
-                  "description": "ProxyEnableConnectTunnel enables the HTTP CONNECT tunnel through the proxy.",
-                  "type": "boolean"
-                },
-                "proxyIgnoreSSLErrors": {
-                  "description": "ProxyIgnoreSSLErrors ignores SSL errors for proxied test requests.",
-                  "type": "boolean"
-                },
-                "proxyTestRequests": {
-                  "description": "ProxyTestRequests is the proxy used for test requests.",
-                  "type": "string"
-                },
-                "proxyTestRequestsBypassList": {
-                  "description": "ProxyTestRequestsBypassList is the bypass list for the test requests proxy.",
-                  "items": {
-                    "type": "string"
-                  },
-                  "type": "array",
-                  "x-kubernetes-list-type": "atomic"
-                },
-                "reportConfigTelemetry": {
-                  "description": "ReportConfigTelemetry enables reporting config telemetry.",
-                  "type": "boolean"
-                },
-                "reportMetrics": {
-                  "description": "ReportMetrics enables reporting metrics about the worker.",
-                  "type": "boolean"
                 }
               },
               "type": "object"

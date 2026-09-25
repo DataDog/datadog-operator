@@ -42,14 +42,10 @@ func Test_mergeWorkerConfigBase(t *testing.T) {
 
 func Test_mergeWorkerConfigTypedOverrides(t *testing.T) {
 	config := &datadoghqv1alpha1.DatadogSPLWorkerConfig{
-		Concurrency:                 ptr.To(int32(5)),
-		ProxyTestRequestsBypassList: []string{"example.com"},
-		ReportMetrics:               ptr.To(false),
+		Concurrency: ptr.To(int32(5)),
 	}
 	cfg := configWithInstance(t, config, "")
 	assert.Equal(t, float64(5), cfg["concurrency"])
-	assert.Equal(t, []interface{}{"example.com"}, cfg["proxyTestRequestsBypassList"])
-	assert.Equal(t, false, cfg["reportMetrics"])
 	// API-managed keys are untouched.
 	assert.Equal(t, "ak", cfg["accessKey"])
 }

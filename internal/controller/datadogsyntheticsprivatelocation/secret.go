@@ -74,31 +74,8 @@ func mergeWorkerConfig(baseJSON []byte, config *datadoghqv1alpha1.DatadogSPLWork
 		return nil, ctrutils.TranslateUnmarshalError(fmt.Errorf("invalid config returned by Datadog API: %w", err), "invalid config")
 	}
 
-	if config != nil {
-		if config.Concurrency != nil {
-			cfg["concurrency"] = *config.Concurrency
-		}
-		if config.ProxyDatadog != nil {
-			cfg["proxyDatadog"] = *config.ProxyDatadog
-		}
-		if config.ProxyTestRequests != nil {
-			cfg["proxyTestRequests"] = *config.ProxyTestRequests
-		}
-		if config.ProxyTestRequestsBypassList != nil {
-			cfg["proxyTestRequestsBypassList"] = config.ProxyTestRequestsBypassList
-		}
-		if config.ProxyEnableConnectTunnel != nil {
-			cfg["proxyEnableConnectTunnel"] = *config.ProxyEnableConnectTunnel
-		}
-		if config.ProxyIgnoreSSLErrors != nil {
-			cfg["proxyIgnoreSSLErrors"] = *config.ProxyIgnoreSSLErrors
-		}
-		if config.ReportConfigTelemetry != nil {
-			cfg["reportConfigTelemetry"] = *config.ReportConfigTelemetry
-		}
-		if config.ReportMetrics != nil {
-			cfg["reportMetrics"] = *config.ReportMetrics
-		}
+	if config != nil && config.Concurrency != nil {
+		cfg["concurrency"] = *config.Concurrency
 	}
 
 	raw, err := parseConfigOverride(overrideJSON)
