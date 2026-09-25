@@ -2413,16 +2413,6 @@ func (in *DatadogSPLWorkerConfig) DeepCopyInto(out *DatadogSPLWorkerConfig) {
 		*out = new(int32)
 		**out = **in
 	}
-	if in.EnableStatusProbes != nil {
-		in, out := &in.EnableStatusProbes, &out.EnableStatusProbes
-		*out = new(bool)
-		**out = **in
-	}
-	if in.StatusProbesPort != nil {
-		in, out := &in.StatusProbesPort, &out.StatusProbesPort
-		*out = new(int32)
-		**out = **in
-	}
 	if in.ProxyDatadog != nil {
 		in, out := &in.ProxyDatadog, &out.ProxyDatadog
 		*out = new(string)

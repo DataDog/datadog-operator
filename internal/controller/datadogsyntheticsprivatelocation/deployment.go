@@ -24,10 +24,11 @@ import (
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 )
 
 const (
-	statusProbesPortDefault int32 = 8080
+	statusProbesPort int32 = 8080
 
 	configVolumeName      = "worker-config"
 	configVolumeMountPath = "/etc/datadog"
@@ -35,20 +36,11 @@ const (
 	runVolumeMountPath    = "/run"
 
 	enableStatusProbesEnvVar = "DATADOG_WORKER_ENABLE_STATUS_PROBES"
+	statusProbesPortEnvVar   = "DATADOG_WORKER_STATUS_PROBES_PORT"
 )
 
-func statusProbesPort(instance *datadoghqv1alpha1.DatadogSyntheticsPrivateLocation) int32 {
-	if w := instance.Spec.Worker; w != nil && w.Config != nil && w.Config.StatusProbesPort != nil {
-		return *w.Config.StatusProbesPort
-	}
-	return statusProbesPortDefault
-}
-
 func statusProbesEnabled(instance *datadoghqv1alpha1.DatadogSyntheticsPrivateLocation) bool {
-	if w := instance.Spec.Worker; w != nil && w.Config != nil && w.Config.EnableStatusProbes != nil {
-		return *w.Config.EnableStatusProbes
-	}
-	return false
+	return featureutils.HasFeatureEnableAnnotation(instance, datadoghqv1alpha1.DatadogSPLStatusProbesEnabledAnnotation)
 }
 
 func buildDeployment(instance *datadoghqv1alpha1.DatadogSyntheticsPrivateLocation, saName string) *appsv1.Deployment {
@@ -86,22 +78,28 @@ func buildDeployment(instance *datadoghqv1alpha1.DatadogSyntheticsPrivateLocatio
 	)
 	volumeMounts = append(volumeMounts, w.ExtraVolumeMounts...)
 
-	env := make([]corev1.EnvVar, 0, len(w.Env)+1)
+	env := make([]corev1.EnvVar, 0, len(w.Env)+2)
 	env = append(env, w.Env...)
 
 	probesEnabled := statusProbesEnabled(instance)
 	if probesEnabled {
 		// The worker only opens the status endpoints when this env var is set,
 		// so the env var and the probes must stay in sync.
-		env = append(env, corev1.EnvVar{
-			Name:  enableStatusProbesEnvVar,
-			Value: strconv.FormatBool(true),
-		})
+		env = append(env,
+			corev1.EnvVar{
+				Name:  enableStatusProbesEnvVar,
+				Value: strconv.FormatBool(true),
+			},
+			corev1.EnvVar{
+				Name:  statusProbesPortEnvVar,
+				Value: strconv.Itoa(int(statusProbesPort)),
+			},
+		)
 	}
 
 	var livenessProbe, readinessProbe *corev1.Probe
 	if probesEnabled {
-		port := intstr.FromInt32(statusProbesPort(instance))
+		port := intstr.FromInt32(statusProbesPort)
 		livenessProbe = &corev1.Probe{
 			ProbeHandler: corev1.ProbeHandler{
 				HTTPGet: &corev1.HTTPGetAction{

@@ -43,15 +43,11 @@ func Test_mergeWorkerConfigBase(t *testing.T) {
 func Test_mergeWorkerConfigTypedOverrides(t *testing.T) {
 	config := &datadoghqv1alpha1.DatadogSPLWorkerConfig{
 		Concurrency:                 ptr.To(int32(5)),
-		EnableStatusProbes:          ptr.To(true),
-		StatusProbesPort:            ptr.To(int32(8081)),
 		ProxyTestRequestsBypassList: []string{"example.com"},
 		ReportMetrics:               ptr.To(false),
 	}
 	cfg := configWithInstance(t, config, "")
 	assert.Equal(t, float64(5), cfg["concurrency"])
-	assert.Equal(t, true, cfg["enableStatusProbes"])
-	assert.Equal(t, float64(8081), cfg["statusProbesPort"])
 	assert.Equal(t, []interface{}{"example.com"}, cfg["proxyTestRequestsBypassList"])
 	assert.Equal(t, false, cfg["reportMetrics"])
 	// API-managed keys are untouched.
@@ -72,6 +68,14 @@ func Test_mergeWorkerConfigRawOverrideCannotTouchSite(t *testing.T) {
 func Test_mergeWorkerConfigApiManagedKeysRejected(t *testing.T) {
 	for _, key := range []string{"accessKey", "secretAccessKey", "publicKey", "privateKey", "id"} {
 		_, err := mergeWorkerConfig([]byte(testBaseConfig), nil, `{"`+key+`": "hacked"}`, "datadoghq.com")
+		assert.Error(t, err, key)
+		assert.True(t, ctrutils.IsPermanentAPIError(err), key)
+	}
+}
+
+func Test_mergeWorkerConfigOperatorManagedKeysRejected(t *testing.T) {
+	for _, key := range []string{"enableStatusProbes", "statusProbesPort"} {
+		_, err := mergeWorkerConfig([]byte(testBaseConfig), nil, `{"`+key+`": 1}`, "datadoghq.com")
 		assert.Error(t, err, key)
 		assert.True(t, ctrutils.IsPermanentAPIError(err), key)
 	}

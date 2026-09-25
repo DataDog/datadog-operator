@@ -961,17 +961,14 @@ spec:
                       description: |-
                         Config holds worker config overrides merged into the Datadog-provided
                         worker configuration. Set other worker options with the
-                        synthetics.datadoghq.com/worker-config-override annotation.
+                        synthetics.datadoghq.com/worker-config-override annotation. Enable the
+                        status probes with the synthetics.datadoghq.com/status-probes-enabled
+                        annotation.
                       properties:
                         concurrency:
                           description: Concurrency is the number of tests the worker runs in parallel.
                           format: int32
                           type: integer
-                        enableStatusProbes:
-                          description: |-
-                            EnableStatusProbes enables the worker's status endpoints (/liveness,
-                            /readiness on the status probes port) and the corresponding Deployment probes.
-                          type: boolean
                         proxyDatadog:
                           description: ProxyDatadog is the proxy used for Datadog traffic.
                           type: string
@@ -996,12 +993,6 @@ spec:
                         reportMetrics:
                           description: ReportMetrics enables reporting metrics about the worker.
                           type: boolean
-                        statusProbesPort:
-                          description: StatusProbesPort is the port the worker's status endpoints listen on.
-                          format: int32
-                          maximum: 65535
-                          minimum: 1
-                          type: integer
                       type: object
                     dnsConfig:
                       description: DNSConfig specifies the DNS parameters of the worker pods.

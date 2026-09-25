@@ -24,8 +24,8 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/ptr"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
@@ -95,7 +95,11 @@ func (m *splDDMockServer) callCount(method string) int {
 
 func newSPLIntegrationInstance(name string) *datadoghqv1alpha1.DatadogSyntheticsPrivateLocation {
 	return &datadoghqv1alpha1.DatadogSyntheticsPrivateLocation{
-		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: splIntegrationNS},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        name,
+			Namespace:   splIntegrationNS,
+			Annotations: map[string]string{datadoghqv1alpha1.DatadogSPLStatusProbesEnabledAnnotation: "true"},
+		},
 		Spec: datadoghqv1alpha1.DatadogSyntheticsPrivateLocationSpec{
 			Name:        "my private location",
 			Description: "integration test",
@@ -103,9 +107,7 @@ func newSPLIntegrationInstance(name string) *datadoghqv1alpha1.DatadogSynthetics
 			Worker: &datadoghqv1alpha1.DatadogSPLWorker{
 				Replicas: ptr.To(int32(2)),
 				Config: &datadoghqv1alpha1.DatadogSPLWorkerConfig{
-					Concurrency:       ptr.To(int32(10)),
-					EnableStatusProbes: ptr.To(true),
-					StatusProbesPort:   ptr.To(int32(8080)),
+					Concurrency: ptr.To(int32(10)),
 				},
 				Resources: corev1.ResourceRequirements{
 					Requests: corev1.ResourceList{
@@ -181,6 +183,8 @@ var _ = Describe("DatadogSyntheticsPrivateLocation Controller", func() {
 		Expect(int32PtrValue(deployment.Spec.Replicas)).To(Equal(int32(2)))
 		Expect(deployment.Spec.Template.Spec.Containers[0].Image).To(Equal("gcr.io/datadoghq/synthetics-private-location-worker:1.73.0"))
 		Expect(deployment.OwnerReferences).To(HaveLen(1))
+		Expect(deployment.Spec.Template.Spec.Containers[0].LivenessProbe).NotTo(BeNil())
+		Expect(deployment.Spec.Template.Spec.Containers[0].ReadinessProbe).NotTo(BeNil())
 
 		By("creating the PodDisruptionBudget when enabled")
 		pdb := &policyv1.PodDisruptionBudget{}

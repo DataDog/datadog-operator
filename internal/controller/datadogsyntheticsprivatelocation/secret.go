@@ -35,8 +35,15 @@ var apiManagedConfigKeys = map[string]struct{}{
 	"id":              {},
 }
 
+// operatorManagedConfigKeys must match the worker Deployment probes, which
+// the status probes annotation controls.
+var operatorManagedConfigKeys = map[string]struct{}{
+	"enableStatusProbes": {},
+	"statusProbesPort":   {},
+}
+
 // parseConfigOverride parses the worker config override annotation and
-// rejects Datadog-managed keys.
+// rejects Datadog-managed and operator-managed keys.
 func parseConfigOverride(overrideJSON string) (map[string]any, error) {
 	if overrideJSON == "" {
 		return nil, nil
@@ -48,6 +55,9 @@ func parseConfigOverride(overrideJSON string) (map[string]any, error) {
 	for k := range raw {
 		if _, managed := apiManagedConfigKeys[k]; managed {
 			return nil, fmt.Errorf("invalid %s annotation: key %q is Datadog-managed and cannot be overridden", datadoghqv1alpha1.DatadogSPLWorkerConfigOverrideAnnotation, k)
+		}
+		if _, managed := operatorManagedConfigKeys[k]; managed {
+			return nil, fmt.Errorf("invalid %s annotation: key %q is managed by the operator, use the %s annotation", datadoghqv1alpha1.DatadogSPLWorkerConfigOverrideAnnotation, k, datadoghqv1alpha1.DatadogSPLStatusProbesEnabledAnnotation)
 		}
 	}
 	return raw, nil
@@ -67,12 +77,6 @@ func mergeWorkerConfig(baseJSON []byte, config *datadoghqv1alpha1.DatadogSPLWork
 	if config != nil {
 		if config.Concurrency != nil {
 			cfg["concurrency"] = *config.Concurrency
-		}
-		if config.EnableStatusProbes != nil {
-			cfg["enableStatusProbes"] = *config.EnableStatusProbes
-		}
-		if config.StatusProbesPort != nil {
-			cfg["statusProbesPort"] = *config.StatusProbesPort
 		}
 		if config.ProxyDatadog != nil {
 			cfg["proxyDatadog"] = *config.ProxyDatadog

@@ -26,6 +26,11 @@ const (
 	// the worker configuration. Datadog-managed keys (accessKey,
 	// secretAccessKey, publicKey, privateKey, id) cannot be overridden.
 	DatadogSPLWorkerConfigOverrideAnnotation = "synthetics.datadoghq.com/worker-config-override"
+
+	// DatadogSPLStatusProbesEnabledAnnotation enables the worker status
+	// endpoints and the matching Deployment liveness and readiness probes when
+	// set to "true".
+	DatadogSPLStatusProbesEnabledAnnotation = "synthetics.datadoghq.com/status-probes-enabled"
 )
 
 // DatadogSyntheticsPrivateLocationSpec defines the desired state of DatadogSyntheticsPrivateLocation
@@ -69,7 +74,9 @@ type DatadogSPLWorker struct {
 	Replicas *int32 `json:"replicas,omitempty"`
 	// Config holds worker config overrides merged into the Datadog-provided
 	// worker configuration. Set other worker options with the
-	// synthetics.datadoghq.com/worker-config-override annotation.
+	// synthetics.datadoghq.com/worker-config-override annotation. Enable the
+	// status probes with the synthetics.datadoghq.com/status-probes-enabled
+	// annotation.
 	// +optional
 	Config *DatadogSPLWorkerConfig `json:"config,omitempty"`
 	// ServiceAccount configures the worker ServiceAccount.
@@ -174,15 +181,6 @@ type DatadogSPLWorkerConfig struct {
 	// Concurrency is the number of tests the worker runs in parallel.
 	// +optional
 	Concurrency *int32 `json:"concurrency,omitempty"`
-	// EnableStatusProbes enables the worker's status endpoints (/liveness,
-	// /readiness on the status probes port) and the corresponding Deployment probes.
-	// +optional
-	EnableStatusProbes *bool `json:"enableStatusProbes,omitempty"`
-	// StatusProbesPort is the port the worker's status endpoints listen on.
-	// +kubebuilder:validation:Minimum=1
-	// +kubebuilder:validation:Maximum=65535
-	// +optional
-	StatusProbesPort *int32 `json:"statusProbesPort,omitempty"`
 	// ProxyDatadog is the proxy used for Datadog traffic.
 	// +optional
 	ProxyDatadog *string `json:"proxyDatadog,omitempty"`

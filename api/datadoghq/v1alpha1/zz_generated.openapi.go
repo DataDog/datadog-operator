@@ -2816,7 +2816,7 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogSPLWorker(ref common.
 					},
 					"config": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Config holds worker config overrides merged into the Datadog-provided worker configuration. Set other worker options with the synthetics.datadoghq.com/worker-config-override annotation.",
+							Description: "Config holds worker config overrides merged into the Datadog-provided worker configuration. Set other worker options with the synthetics.datadoghq.com/worker-config-override annotation. Enable the status probes with the synthetics.datadoghq.com/status-probes-enabled annotation.",
 							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogSPLWorkerConfig"),
 						},
 					},
@@ -3101,20 +3101,6 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogSPLWorkerConfig(ref c
 					"concurrency": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Concurrency is the number of tests the worker runs in parallel.",
-							Type:        []string{"integer"},
-							Format:      "int32",
-						},
-					},
-					"enableStatusProbes": {
-						SchemaProps: spec.SchemaProps{
-							Description: "EnableStatusProbes enables the worker's status endpoints (/liveness, /readiness on the status probes port) and the corresponding Deployment probes.",
-							Type:        []string{"boolean"},
-							Format:      "",
-						},
-					},
-					"statusProbesPort": {
-						SchemaProps: spec.SchemaProps{
-							Description: "StatusProbesPort is the port the worker's status endpoints listen on.",
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},

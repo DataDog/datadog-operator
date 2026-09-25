@@ -60,32 +60,34 @@ func Test_buildDeploymentDefaults(t *testing.T) {
 
 func Test_buildDeploymentStatusProbesSync(t *testing.T) {
 	instance := newTestInstance()
-	instance.Spec.Worker = &datadoghqv1alpha1.DatadogSPLWorker{
-		Config: &datadoghqv1alpha1.DatadogSPLWorkerConfig{
-			EnableStatusProbes: ptr.To(true),
-			StatusProbesPort:   ptr.To(int32(9095)),
-		},
-	}
+	instance.Annotations = map[string]string{datadoghqv1alpha1.DatadogSPLStatusProbesEnabledAnnotation: "true"}
 	d := buildDeployment(instance, instance.Name)
 
 	c := d.Spec.Template.Spec.Containers[0]
 	require.NotNil(t, c.LivenessProbe)
 	require.NotNil(t, c.LivenessProbe.HTTPGet)
 	assert.Equal(t, "/liveness", c.LivenessProbe.HTTPGet.Path)
-	assert.Equal(t, int32(9095), c.LivenessProbe.HTTPGet.Port.IntVal)
+	assert.Equal(t, int32(8080), c.LivenessProbe.HTTPGet.Port.IntVal)
 	require.NotNil(t, c.ReadinessProbe)
 	require.NotNil(t, c.ReadinessProbe.HTTPGet)
 	assert.Equal(t, "/readiness", c.ReadinessProbe.HTTPGet.Path)
-	assert.Equal(t, int32(9095), c.ReadinessProbe.HTTPGet.Port.IntVal)
+	assert.Equal(t, int32(8080), c.ReadinessProbe.HTTPGet.Port.IntVal)
 
-	found := false
+	assert.Contains(t, c.Env, corev1.EnvVar{Name: enableStatusProbesEnvVar, Value: "true"})
+	assert.Contains(t, c.Env, corev1.EnvVar{Name: statusProbesPortEnvVar, Value: "8080"})
+}
+
+func Test_buildDeploymentStatusProbesAnnotationNotTrue(t *testing.T) {
+	instance := newTestInstance()
+	instance.Annotations = map[string]string{datadoghqv1alpha1.DatadogSPLStatusProbesEnabledAnnotation: "false"}
+	d := buildDeployment(instance, instance.Name)
+
+	c := d.Spec.Template.Spec.Containers[0]
+	assert.Nil(t, c.LivenessProbe)
+	assert.Nil(t, c.ReadinessProbe)
 	for _, env := range c.Env {
-		if env.Name == enableStatusProbesEnvVar {
-			found = true
-			assert.Equal(t, "true", env.Value)
-		}
+		assert.NotEqual(t, enableStatusProbesEnvVar, env.Name)
 	}
-	assert.True(t, found, "probe env var must be set when probes are enabled")
 }
 
 func Test_buildDeploymentCustomization(t *testing.T) {

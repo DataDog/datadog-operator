@@ -848,16 +848,12 @@
             },
             "config": {
               "additionalProperties": false,
-              "description": "Config holds worker config overrides merged into the Datadog-provided\nworker configuration. Set other worker options with the\nsynthetics.datadoghq.com/worker-config-override annotation.",
+              "description": "Config holds worker config overrides merged into the Datadog-provided\nworker configuration. Set other worker options with the\nsynthetics.datadoghq.com/worker-config-override annotation. Enable the\nstatus probes with the synthetics.datadoghq.com/status-probes-enabled\nannotation.",
               "properties": {
                 "concurrency": {
                   "description": "Concurrency is the number of tests the worker runs in parallel.",
                   "format": "int32",
                   "type": "integer"
-                },
-                "enableStatusProbes": {
-                  "description": "EnableStatusProbes enables the worker's status endpoints (/liveness,\n/readiness on the status probes port) and the corresponding Deployment probes.",
-                  "type": "boolean"
                 },
                 "proxyDatadog": {
                   "description": "ProxyDatadog is the proxy used for Datadog traffic.",
@@ -890,13 +886,6 @@
                 "reportMetrics": {
                   "description": "ReportMetrics enables reporting metrics about the worker.",
                   "type": "boolean"
-                },
-                "statusProbesPort": {
-                  "description": "StatusProbesPort is the port the worker's status endpoints listen on.",
-                  "format": "int32",
-                  "maximum": 65535,
-                  "minimum": 1,
-                  "type": "integer"
                 }
               },
               "type": "object"
