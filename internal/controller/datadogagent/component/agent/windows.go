@@ -463,7 +463,7 @@ func ApplyWindowsPodTransformation(tmpl *corev1.PodTemplateSpec, dda metav1.Obje
 	// config dir C:/ProgramData/Datadog, seeded by the init container), and the trace/process
 	// agents use the "foreground" form so they run in the foreground rather than as a Windows
 	// service. `trace-agent run --foreground` is verified live (reaches "Trace agent running",
-	// :8126). process-agent only exists on older (<7.60) pinned agents; normally checks run in-core.
+	// :8126). Process checks always run in the standalone process-agent on Windows.
 	for i := range spec.Containers {
 		c := &spec.Containers[i]
 		switch c.Name {

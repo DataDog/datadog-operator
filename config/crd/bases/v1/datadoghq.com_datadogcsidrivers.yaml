@@ -99,7 +99,9 @@ spec:
                   type: object
                   x-kubernetes-map-type: granular
                 csiDriverImage:
-                  description: CSIDriverImage is the image configuration for the main CSI node driver container.
+                  description: |-
+                    CSIDriverImage is the image configuration for the main CSI node driver container.
+                    A full registry/name:tag in `name` takes precedence over spec.registry.
                   properties:
                     jmxEnabled:
                       description: |-
@@ -4571,6 +4573,14 @@ spec:
                         To be used if the `Name` field does not correspond to a full image string.
                       type: string
                   type: object
+                registry:
+                  description: |-
+                    Registry is the image registry to use for the Datadog CSI driver image, propagated from
+                    spec.global.registry on the parent DatadogAgent. It does not apply to the
+                    csi-node-driver-registrar sidecar, an upstream Kubernetes image always pulled from
+                    registry.k8s.io/sig-storage. Forced to GCR on GKE Autopilot.
+                    Default: 'registry.datadoghq.com'
+                  type: string
               type: object
             status:
               description: DatadogCSIDriverStatus defines the observed state of DatadogCSIDriver

@@ -58,10 +58,10 @@ stages:
 #
 # The second clause covers the mergequeue: once queued, the pipeline runs on
 # `mq-working-branch-*` and the original branch name is gone, so match the
-# squashed commit title instead. The bot always produces
-# `chore(bundle): regenerate for vX.Y.Z`.
+# squashed commit title instead. The bot always titles these PRs
+# `[datadog-operator] Release vX.Y.Z` (see operatorrelease/worker/buildtag.go).
 .skip_e2e_on_release_bundle_branch: &skip_e2e_on_release_bundle_branch
-  if: '$CI_COMMIT_BRANCH =~ /^operator-release\// || ($CI_COMMIT_BRANCH =~ /^mq-working-branch-/ && $CI_COMMIT_TITLE =~ /^chore\(bundle\): regenerate for v/)'
+  if: '$CI_COMMIT_BRANCH =~ /^operator-release\// || ($CI_COMMIT_BRANCH =~ /^mq-working-branch-/ && $CI_COMMIT_TITLE =~ /^\[datadog-operator\] Release v/)'
   when: never
 
 build:
@@ -539,6 +539,7 @@ e2e:
           - "1.29"
           - "1.30"
           - "1.32"
+          - "1.36"
   variables:
     TARGET_IMAGE: $E2E_DOCKER_REGISTRY:${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
   script:
@@ -833,7 +834,7 @@ trigger_internal_operator_image:
     - if: $CI_COMMIT_TAG
     - when: never
   trigger:
-    project: DataDog/images
+    project: ddoghq/images
     branch: master
     strategy: depend
   variables:
@@ -857,7 +858,7 @@ trigger_internal_operator_check_image:
     - if: $CI_COMMIT_TAG
     - when: never
   trigger:
-    project: DataDog/images
+    project: ddoghq/images
     branch: master
     strategy: depend
   variables:
@@ -871,11 +872,13 @@ trigger_internal_operator_check_image:
 
 trigger_internal_operator_image_rc_latest:
   stage: release-latest
+  needs:
+    - trigger_internal_operator_image
   rules:
     - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+-rc\.[0-9]+$/'
     - when: never
   trigger:
-    project: DataDog/images
+    project: ddoghq/images
     branch: master
     strategy: depend
   variables:
@@ -888,6 +891,8 @@ trigger_internal_operator_image_rc_latest:
 
 trigger_internal_operator_image_fips_rc_latest:
   extends: trigger_internal_operator_image_rc_latest
+  needs:
+    - trigger_internal_operator_image_fips
   variables:
     TMPL_SRC_IMAGE: v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-fips
     RELEASE_TAG: rc-latest-fips
@@ -902,7 +907,7 @@ trigger_internal_operator_image_latest:
     - if: $CI_COMMIT_TAG
     - when: never
   trigger:
-    project: DataDog/images
+    project: ddoghq/images
     branch: master
     strategy: depend
   variables:
@@ -927,7 +932,7 @@ trigger_internal_operator_nightly_image:
       when: on_success
     - when: never
   trigger:
-    project: DataDog/images
+    project: ddoghq/images
     branch: master
     strategy: depend
   variables:
@@ -945,7 +950,7 @@ trigger_internal_operator_check_nightly_image:
       when: on_success
     - when: never
   trigger:
-    project: DataDog/images
+    project: ddoghq/images
     branch: master
     strategy: depend
   variables:
@@ -964,7 +969,7 @@ trigger_custom_operator_image_staging:
       when: manual
     - when: never
   trigger:
-    project: DataDog/images
+    project: ddoghq/images
     branch: master
     strategy: depend
   variables:
@@ -982,7 +987,7 @@ trigger_custom_operator_image_fips_staging:
       when: manual
     - when: never
   trigger:
-    project: DataDog/images
+    project: ddoghq/images
     branch: master
     strategy: depend
   variables:
@@ -1000,7 +1005,7 @@ trigger_custom_operator_check_image_staging:
       when: manual
     - when: never
   trigger:
-    project: DataDog/images
+    project: ddoghq/images
     branch: master
     strategy: depend
   variables:
@@ -1122,7 +1127,7 @@ publish_nightly_workflow:
     - trigger_internal_operator_nightly_image
     - trigger_internal_operator_check_nightly_image
   trigger:
-    project: DataDog/k8s-datadog-agent-ops
+    project: ddoghq/k8s-datadog-agent-ops
     branch: main
     strategy: depend
   variables:
@@ -1139,7 +1144,7 @@ publish_release_candidate_workflow:
     - trigger_internal_operator_image
     - trigger_internal_operator_check_image
   trigger:
-    project: DataDog/k8s-datadog-agent-ops
+    project: ddoghq/k8s-datadog-agent-ops
     branch: main
     strategy: depend
     forward:

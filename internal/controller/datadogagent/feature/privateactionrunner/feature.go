@@ -7,6 +7,7 @@ package privateactionrunner
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
@@ -302,6 +303,20 @@ func (f *privateActionRunnerFeature) ManageNodeAgent(managers feature.PodTemplat
 			MountPath: privateActionRunnerRunPath,
 		}, apicommon.PrivateActionRunnerContainerName)
 
+		coreEnvs := []*corev1.EnvVar{
+			{Name: DDPAREnabled, Value: "true"},
+			{Name: "DD_PRIVATE_ACTION_RUNNER_SPLIT_ENABLED", Value: "true"},
+		}
+		nodeConfig, err := parsePrivateActionRunnerConfig(f.nodeConfigData)
+		if err != nil {
+			return fmt.Errorf("invalid Private Action Runner configuration: %w", err)
+		}
+		if nodeConfig.TaskConcurrency != nil {
+			coreEnvs = append(coreEnvs, &corev1.EnvVar{Name: DDPARTaskConcurrency, Value: strconv.FormatInt(int64(*nodeConfig.TaskConcurrency), 10)})
+		}
+		for _, env := range coreEnvs {
+			managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, env)
+		}
 		for _, env := range []*corev1.EnvVar{
 			{Name: "DD_PRIVATE_ACTION_RUNNER_SPLIT_ENABLED", Value: "true"},
 			{Name: "DD_PRIVATE_ACTION_RUNNER_EXTRA_CONFIG_PATH", Value: PrivateActionRunnerConfigPath},

@@ -157,7 +157,7 @@ func (f *apmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 
 	f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda.GetName(), ddaSpec)
 	f.nodeAPMEnabled = shouldEnableAPM(apm)
-	f.processCheckRunsInCoreAgent = featutils.ShouldRunProcessChecksInCoreAgent(ddaSpec)
+	f.processCheckRunsInCoreAgent = featutils.ShouldRunProcessChecksInCoreAgent(dda, ddaSpec)
 
 	// Node APM controls trace-agent configuration and node-scoped dependencies.
 	if f.nodeAPMEnabled {

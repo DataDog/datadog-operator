@@ -9,6 +9,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var (
@@ -339,5 +341,84 @@ func TestClusterProviderFromNodeLabels(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			assert.Equal(t, tt.want, ClusterProviderFromNodeLabels(tt.labels))
 		})
+	}
+}
+
+func TestClusterProviderFromNode(t *testing.T) {
+	tests := []struct {
+		name string
+		node *corev1.Node
+		want string
+	}{
+		{name: "nil node", node: nil, want: DefaultProvider},
+		{
+			name: "talos os image",
+			node: providerNode(nil, "Talos (v1.13.7)"),
+			want: TalosProvider,
+		},
+		{
+			name: "talos dev os image without semver",
+			node: providerNode(nil, "Talos (abcdef0)"),
+			want: TalosProvider,
+		},
+		{
+			name: "non-talos os image containing talos elsewhere does not match",
+			node: providerNode(nil, "Debian GNU/Linux with talos tooling"),
+			want: DefaultProvider,
+		},
+		{
+			name: "label-derived provider still works",
+			node: providerNode(map[string]string{EKSProviderLabel: "ami-x"}, ""),
+			want: EKSCloudProvider,
+		},
+		{
+			name: "talos os image takes precedence over labels",
+			node: providerNode(map[string]string{EKSProviderLabel: "ami-x"}, "Talos (v1.13.7)"),
+			want: TalosProvider,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, ClusterProviderFromNode(tt.node))
+		})
+	}
+}
+
+func TestGetClusterProviderFromNodeListDetectsTalos(t *testing.T) {
+	tests := []struct {
+		name  string
+		nodes []corev1.Node
+		want  string
+	}{
+		{name: "empty", nodes: nil, want: DefaultProvider},
+		{
+			name: "first match talos",
+			nodes: []corev1.Node{
+				*providerNode(nil, "Debian GNU/Linux 12 (bookworm)"),
+				*providerNode(nil, "Talos (v1.13.7)"),
+			},
+			want: TalosProvider,
+		},
+		{
+			name: "no talos",
+			nodes: []corev1.Node{
+				*providerNode(nil, "Debian GNU/Linux 12 (bookworm)"),
+			},
+			want: DefaultProvider,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, GetClusterProviderFromNodeList(tt.nodes))
+		})
+	}
+}
+
+func providerNode(labels map[string]string, osImage string) *corev1.Node {
+	return &corev1.Node{
+		ObjectMeta: metav1.ObjectMeta{Labels: labels},
+		Status: corev1.NodeStatus{
+			NodeInfo: corev1.NodeSystemInfo{OSImage: osImage},
+		},
 	}
 }

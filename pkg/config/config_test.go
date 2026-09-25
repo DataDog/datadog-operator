@@ -13,6 +13,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
+
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 type objectConfig struct {
@@ -342,4 +344,42 @@ func TestCacheConfigStripsManagedFields(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Same(t, obj, transformed)
 	assert.Nil(t, obj.ManagedFields)
+}
+
+func TestCacheConfigNodeTransform(t *testing.T) {
+	node := func() *corev1.Node {
+		return &corev1.Node{
+			ObjectMeta: metav1.ObjectMeta{Name: "node-1", Labels: map[string]string{"kubernetes.io/os": "linux"}},
+			Status:     corev1.NodeStatus{NodeInfo: corev1.NodeSystemInfo{OSImage: "Talos (v1.13.7)"}},
+		}
+	}
+
+	transformNode := func(t *testing.T, opts WatchOptions) *corev1.Node {
+		t.Helper()
+		byObject, ok := CacheOptions(logf.Log.WithName(t.Name()), opts).ByObject[nodeObj]
+		if !assert.True(t, ok) || !assert.NotNil(t, byObject.Transform) {
+			return nil
+		}
+		transformed, err := byObject.Transform(node())
+		assert.NoError(t, err)
+		return transformed.(*corev1.Node)
+	}
+
+	// Provider detection identifies Talos from osImage alone, and its node-list
+	// fallback is wired whenever this cache exists — for any of the three options
+	// below, not just introspection. So every one of them must keep osImage.
+	for name, opts := range map[string]WatchOptions{
+		"introspection":      {IntrospectionEnabled: true},
+		"profiles":           {DatadogAgentProfileEnabled: true},
+		"untaint controller": {UntaintControllerEnabled: true},
+	} {
+		t.Run(name+" keeps Status.NodeInfo.OSImage", func(t *testing.T) {
+			got := transformNode(t, opts)
+			if got == nil {
+				return
+			}
+			assert.Equal(t, "Talos (v1.13.7)", got.Status.NodeInfo.OSImage)
+			assert.Equal(t, kubernetes.TalosProvider, kubernetes.ClusterProviderFromNode(got))
+		})
+	}
 }
