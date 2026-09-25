@@ -3334,9 +3334,9 @@ func TestHandleTask_StaleTaskReportedAsInvalidState(t *testing.T) {
 // not mutate the object.
 type scriptedPatchClient struct {
 	client.Client
-	patchErrs    []error
-	patchCalls   int
-	dryRunCalls  int
+	patchErrs   []error
+	patchCalls  int
+	dryRunCalls int
 }
 
 func (c *scriptedPatchClient) Patch(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
