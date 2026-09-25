@@ -21,6 +21,7 @@ import (
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	componentagent "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/global"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/override"
@@ -222,6 +223,14 @@ func (r *ComponentRegistry) reconcileComponent(ctx context.Context, params *Reco
 	if componentOverride, ok := params.DDAI.Spec.Override[component.Name()]; ok {
 		override.PodTemplateSpec(objLogger, podManagers, componentOverride, component.Name(), params.DDAI.Name)
 		override.Deployment(deployment, componentOverride)
+	}
+
+	// When the untaint controller is enabled, tolerate the agent-not-ready startup taint on
+	// these Operator-managed Deployments so they can schedule on a cold cluster before the
+	// first node Agent is Ready, mirroring the node Agent DaemonSet. Applied after overrides
+	// so a user-supplied toleration wins (this is a no-op if already tolerated).
+	if r.reconciler.options.UntaintControllerEnabled {
+		componentagent.EnsureAgentNotReadyStartupToleration(objLogger, &podManagers.PodTemplateSpec().Spec)
 	}
 
 	if errs := global.ValidateFIPSVersions(podManagers); len(errs) > 0 {

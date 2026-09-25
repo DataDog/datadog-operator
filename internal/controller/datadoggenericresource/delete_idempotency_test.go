@@ -175,6 +175,27 @@ func Test_deleteDowntime_idempotent(t *testing.T) {
 	}
 }
 
+func Test_deleteSLOCorrection_idempotent(t *testing.T) {
+	for _, tc := range defaultDeleteCases {
+		t.Run(tc.name, func(t *testing.T) {
+			server := newTestHTTPServer(tc.statusCode, tc.body)
+			defer server.Close()
+
+			cfg := datadogapi.NewConfiguration()
+			cfg.HTTPClient = server.Client()
+			client := datadogV1.NewServiceLevelObjectiveCorrectionsApi(datadogapi.NewAPIClient(cfg))
+			auth := setupTestAuth(server.URL)
+
+			err := deleteSLOCorrection(auth, client, "correction-123")
+			if tc.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
 func Test_deleteMonitorNotificationRule_idempotent(t *testing.T) {
 	for _, tc := range defaultDeleteCases {
 		t.Run(tc.name, func(t *testing.T) {

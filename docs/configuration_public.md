@@ -112,6 +112,54 @@ spec:
 `features.apm.unixDomainSocketConfig.path`
 : Defines the socket path used when enabled.
 
+`features.appsec.injector.autoDetect`
+: Controls automatic proxy detection. Default: true
+
+`features.appsec.injector.enabled`
+: Enables the AppSec injector. Default: false
+
+`features.appsec.injector.gke.gatewayClasses`
+: Lists GKE GatewayClasses for AppSec injection. Configuration is create-only with no drift reconciliation, so deleting a GCPTrafficExtension while its Gateway still exists does not recreate it. The extension has no ownerReferences; if the cluster-agent is down or not leader when the Gateway is deleted, it can be orphaned. After disabling AppSec, teardown can take about 5-7 minutes and traffic remains inspected or blocked during that period. A pre-existing GCPTrafficExtension without the app.kubernetes.io/managed-by: datadog-cluster-agent label is left alone. A Gateway labeled appsec.datadoghq.com/enabled=false is skipped. GKE injection requires cluster-agent version 7.82.0 or later. The `mode: external` setting is required only when `gke-gateway` is explicitly listed in `proxies`; a `gatewayClasses`-only configuration relying on agent-side autoDetect remains valid in any mode.
+
+`features.appsec.injector.mode`
+: Selects the AppSec injection mode. When unset, this uses the agent default sidecar.
+
+`features.appsec.injector.nginx.moduleMountPath`
+: Sets the nginx module mount path. Default: /modules_mount
+
+`features.appsec.injector.processor.address`
+: Sets the processor address.
+
+`features.appsec.injector.processor.port`
+: Sets the processor port. Default: 443
+
+`features.appsec.injector.processor.service.name`
+: Sets the processor Service name.
+
+`features.appsec.injector.processor.service.namespace`
+: Sets the processor Service namespace. This is ignored for gke-gateway because the callout Service is resolved in each Gateway's own namespace; deploy the Service in every AppSec-enabled Gateway namespace.
+
+`features.appsec.injector.proxies`
+: Lists proxies for AppSec injection. Default: []
+
+`features.appsec.injector.sidecar.bodyParsingSizeLimit`
+: Sets the sidecar body parsing size limit. Default: 0
+
+`features.appsec.injector.sidecar.healthPort`
+: Sets the sidecar health port. Default: 8081
+
+`features.appsec.injector.sidecar.image`
+: Sets the sidecar image. Default: ghcr.io/datadog/dd-trace-go/service-extensions-callout
+
+`features.appsec.injector.sidecar.imageTag`
+: Sets the sidecar image tag. When unset, the tag defaults to a value determined by the cluster-agent image in use.
+
+`features.appsec.injector.sidecar.port`
+: Sets the sidecar port. Default: 8080
+
+`features.appsec.injector.sidecar.resources`
+: Configures sidecar resources. Only requests and limits for cpu and memory are honored. See [link](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/) for more information.
+
 `features.asm.iast.enabled`
 : Enables Interactive Application Security Testing (IAST). Default: false
 
@@ -472,6 +520,18 @@ spec:
 `global.csi.enabled`
 : Enables the usage of CSI driver in Datadog Agent. When the operator is started with `--datadogCSIDriverEnabled=true`, it will also install the driver by creating a DatadogCSIDriver custom resource, unless a cluster-scoped `k8s.csi.datadoghq.com` CSIDriver is already present, in which case it defers to the existing installation (e.g. from the Datadog CSI driver Helm chart). Default: false
 
+`global.csi.image.name`
+: Defines the CSI driver image name. You can provide this as: * `<NAME>` - The registry is derived from `global.registry` and the tag from `tag`. * `<NAME>:<TAG>` - The registry is derived from `global.registry`. `tag` is ignored. * `<REGISTRY>/<NAME>:<TAG>` - Used as-is; `global.registry` and `tag` are ignored.
+
+`global.csi.image.pullPolicy`
+: The Kubernetes pull policy: Use `Always`, `Never`, or `IfNotPresent`.
+
+`global.csi.image.pullSecrets`
+: It is possible to specify Docker registry credentials. See https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod
+
+`global.csi.image.tag`
+: Define the image tag to use. To be used if the `Name` field does not correspond to a full image string.
+
 `global.csi.nodeAffinity.preferredDuringSchedulingIgnoredDuringExecution`
 : The scheduler will prefer to schedule pods to nodes that satisfy the affinity expressions specified by this field, but it may choose a node that violates one or more of the expressions. The node that is most preferred is the one with the greatest sum of weights, i.e. for each node that meets all of the scheduling requirements (resource request, requiredDuringScheduling affinity expressions, etc.), compute a sum by iterating through the elements of this field and adding "weight" to the sum if the node matches the corresponding matchExpressions; the node(s) with the highest sum are the most preferred.
 
@@ -572,7 +632,7 @@ spec:
 : Provide a mapping of Kubernetes Labels to Datadog Tags. <KUBERNETES_LABEL>: <DATADOG_TAG_KEY>
 
 `global.registry`
-: Is the image registry to use for all Agent images. Use 'public.ecr.aws/datadog' for AWS ECR. Use 'datadoghq.azurecr.io' for Azure Container Registry. Use 'gcr.io/datadoghq' for Google Container Registry. Use 'eu.gcr.io/datadoghq' for Google Container Registry in the EU region. Use 'asia.gcr.io/datadoghq' for Google Container Registry in the Asia region. Use 'docker.io/datadog' for DockerHub. Default: 'registry.datadoghq.com'
+: Is the image registry to use for all Datadog images: the Agent images, the Single Step Instrumentation injection images, and the Datadog CSI driver image. Use 'public.ecr.aws/datadog' for AWS ECR. Use 'datadoghq.azurecr.io' for Azure Container Registry. Use 'gcr.io/datadoghq' for Google Container Registry. Use 'eu.gcr.io/datadoghq' for Google Container Registry in the EU region. Use 'asia.gcr.io/datadoghq' for Google Container Registry in the Asia region. Use 'docker.io/datadog' for DockerHub. Default: 'registry.datadoghq.com'
 
 `global.secretBackend.args`
 : List of arguments to pass to the command (space-separated strings).

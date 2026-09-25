@@ -178,13 +178,13 @@ func defaultEnvVars(ddaMeta metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec) [
 			Value: strconv.Itoa(int(constants.DefaultAgentHealthPort)),
 		},
 		{
-			Name: common.DDAPMInstrumentationInstallId,
+			Name: common.DDAPMInstrumentationInstallID,
 			ValueFrom: &corev1.EnvVarSource{
 				ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
 					LocalObjectReference: corev1.LocalObjectReference{
 						Name: common.APMTelemetryConfigMapName,
 					},
-					Key: common.APMTelemetryInstallIdKey,
+					Key: common.APMTelemetryInstallIDKey,
 				},
 			},
 		},

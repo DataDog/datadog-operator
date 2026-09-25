@@ -376,7 +376,7 @@ func (d *Daemon) setTaskState(pkgName, taskID string, taskState pbgo.TaskState, 
 		task.Error = &pbgo.TaskError{Message: boundedTaskErrorMessage(taskErr)}
 	}
 
-	current := d.rcClient.GetInstallerState()
+	current := d.rcClient.GetInstallerPackages()
 	updated := make([]*pbgo.PackageState, 0, len(current)+1)
 	found := false
 	for _, pkg := range current {
@@ -400,7 +400,7 @@ func (d *Daemon) setTaskState(pkgName, taskID string, taskState pbgo.TaskState, 
 			Task:    task,
 		})
 	}
-	d.rcClient.SetInstallerState(updated)
+	d.rcClient.SetInstallerPackages(updated)
 	d.logInstallerState("setTaskState")
 }
 
@@ -546,7 +546,7 @@ func (d *Daemon) getPackageConfigVersions(pkgName string) (stable, experiment st
 	if d.rcClient == nil {
 		return "", ""
 	}
-	for _, pkg := range d.rcClient.GetInstallerState() {
+	for _, pkg := range d.rcClient.GetInstallerPackages() {
 		if pkg.GetPackage() == pkgName {
 			return pkg.GetStableConfigVersion(), pkg.GetExperimentConfigVersion()
 		}
@@ -562,7 +562,7 @@ func (d *Daemon) setPackageConfigVersions(pkgName, stable, experiment string) {
 	if d.rcClient == nil {
 		return
 	}
-	current := d.rcClient.GetInstallerState()
+	current := d.rcClient.GetInstallerPackages()
 	updated := make([]*pbgo.PackageState, 0, len(current)+1)
 	found := false
 	for _, pkg := range current {
@@ -583,7 +583,7 @@ func (d *Daemon) setPackageConfigVersions(pkgName, stable, experiment string) {
 			ExperimentConfigVersion: experiment,
 		})
 	}
-	d.rcClient.SetInstallerState(updated)
+	d.rcClient.SetInstallerPackages(updated)
 	d.logInstallerState("setPackageConfigVersions")
 }
 
@@ -593,7 +593,7 @@ func (d *Daemon) logInstallerState(caller string) {
 		return
 	}
 	logger := ctrl.Log.WithName("fleet-daemon")
-	for _, pkg := range d.rcClient.GetInstallerState() {
+	for _, pkg := range d.rcClient.GetInstallerPackages() {
 		var taskID string
 		var taskState pbgo.TaskState
 		if pkg.GetTask() != nil {

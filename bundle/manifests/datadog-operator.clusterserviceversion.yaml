@@ -1022,6 +1022,11 @@ spec:
                         memory: 250Mi
                 serviceAccountName: datadog-operator-controller-manager
                 terminationGracePeriodSeconds: 10
+                tolerations:
+                  - effect: NoSchedule
+                    key: agent.datadoghq.com/not-ready
+                    operator: Equal
+                    value: presence
       permissions:
         - rules:
             - apiGroups:

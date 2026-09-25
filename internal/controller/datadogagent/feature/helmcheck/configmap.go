@@ -44,17 +44,17 @@ func helmCheckConfig(clusterCheck bool, collectEvents bool, valuesAsTags map[str
 	collectEventsVal := strconv.FormatBool(collectEvents)
 	sortedTagsKeys := sortTagsKeys(valuesAsTags)
 	var config strings.Builder
-	config.WriteString(fmt.Sprintf(`---
+	fmt.Fprintf(&config, `---
 cluster_check: %s
 init_config:
 instances:
   - collect_events: %s
-`, clusterChecksVal, collectEventsVal))
+`, clusterChecksVal, collectEventsVal)
 
 	if len(valuesAsTags) > 0 {
 		config.WriteString("    helm_values_as_tags:\n")
 		for _, key := range sortedTagsKeys {
-			config.WriteString(fmt.Sprintf("      %s: %s\n", key, valuesAsTags[key]))
+			fmt.Fprintf(&config, "      %s: %s\n", key, valuesAsTags[key])
 		}
 	}
 

@@ -114,7 +114,7 @@ type DatadogAgentReconciler struct {
 
 // Configure Appsec Gateway Integration
 // +kubebuilder:rbac:groups=apiextensions.k8s.io,resources=customresourcedefinitions,verbs=get
-// +kubebuilder:rbac:groups="",resources=events,verbs=create
+// +kubebuilder:rbac:groups="",resources=events,verbs=create;patch
 // +kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch;create;update;delete
 // +kubebuilder:rbac:groups=networking.k8s.io,resources=ingresses,verbs=get;list;watch;patch
 // +kubebuilder:rbac:groups=networking.k8s.io,resources=ingressclasses,verbs=get;list;watch
@@ -123,9 +123,12 @@ type DatadogAgentReconciler struct {
 // +kubebuilder:rbac:groups=gateway.envoyproxy.io,resources=envoyextensionpolicies;envoypatchpolicies;backends,verbs=get;delete;create
 // +kubebuilder:rbac:groups=networking.istio.io,resources=envoyfilters,verbs=get;create;delete
 // +kubebuilder:rbac:groups=networking.istio.io,resources=gateways,verbs=get;list;watch
+// +kubebuilder:rbac:groups=networking.gke.io,resources=gcptrafficextensions,verbs=get;create;delete
 
 // Orchestrator Explorer — network CRD collection
-// +kubebuilder:rbac:groups=gateway.networking.k8s.io,resources=gateways;httproutes;grpcroutes;tlsroutes;listenersets,verbs=list;watch
+// +kubebuilder:rbac:groups=gateway.networking.k8s.io,resources=gatewayclasses;gateways;httproutes;grpcroutes;backendtlspolicies;listenersets;referencegrants;tcproutes;tlsroutes;udproutes,verbs=list;watch
+// +kubebuilder:rbac:groups=inference.networking.k8s.io,resources=inferencepools,verbs=list;watch
+// +kubebuilder:rbac:groups=inference.networking.x-k8s.io,resources=inferencepools;inferencepoolimports,verbs=list;watch
 // +kubebuilder:rbac:groups=networking.istio.io,resources=virtualservices;gateways;destinationrules;serviceentries;sidecars,verbs=list;watch
 // +kubebuilder:rbac:groups=gateway.envoyproxy.io,resources=*,verbs=list;watch
 // +kubebuilder:rbac:groups=traefik.containo.us,resources=*,verbs=list;watch
@@ -224,6 +227,10 @@ type DatadogAgentReconciler struct {
 // +kubebuilder:rbac:groups=karpenter.k8s.aws,resources="*",verbs=get;list;watch
 // +kubebuilder:rbac:groups=karpenter.azure.com,resources="*",verbs=list;watch
 // +kubebuilder:rbac:groups=eks.amazonaws.com,resources="*",verbs=get;list;watch
+// +kubebuilder:rbac:groups=ray.io,resources=rayclusters;raycronjobs;rayjobs;rayservices,verbs=list;watch
+// +kubebuilder:rbac:groups=kubeai.org,resources=models,verbs=list;watch
+// +kubebuilder:rbac:groups=nvidia.com,resources=dynamocheckpoints;dynamocomponentdeployments;dynamographdeploymentrequests;dynamographdeployments;dynamographdeploymentscalingadapters;dynamomodels;dynamoworkermetadatas,verbs=list;watch
+// +kubebuilder:rbac:groups=serving.kserve.io,resources=clusterstoragecontainers;llminferenceserviceconfigs;llminferenceservices;localmodelcaches;localmodelnamespacecaches;localmodelnodegroups;localmodelnodes;clusterservingruntimes;inferencegraphs;inferenceservices;servingruntimes;trainedmodels,verbs=list;watch
 
 // Kubernetes_state_core
 // +kubebuilder:rbac:groups="",resources=configmaps,verbs=list;watch

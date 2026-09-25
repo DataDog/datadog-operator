@@ -82,7 +82,7 @@ type CRDInstance struct {
 	Annotations map[string]string `json:"annotations,omitempty"`
 }
 
-// EnabledCRDsConfig specifies which CRD kinds are enabled for metadata collection
+// EnabledCRDKindsConfig specifies which CRD kinds are enabled for metadata collection.
 type EnabledCRDKindsConfig struct {
 	DatadogAgentEnabled         bool
 	DatadogAgentInternalEnabled bool

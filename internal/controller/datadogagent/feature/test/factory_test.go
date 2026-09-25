@@ -11,6 +11,7 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/apm"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/checkrunner"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/cspm"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/dataplane"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/enabledefault"
@@ -54,6 +55,28 @@ func TestBuilder(t *testing.T) {
 			dda: testutils.NewDatadogAgentBuilder().
 				WithSingleContainerStrategy(true).
 				BuildWithDefaults(),
+			wantAgentContainer: map[common.AgentContainerName]bool{
+				common.UnprivilegedSingleAgentContainerName: true,
+				common.CoreAgentContainerName:               false,
+				common.ProcessAgentContainerName:            false,
+				common.TraceAgentContainerName:              false,
+				common.SystemProbeContainerName:             false,
+				common.SecurityAgentContainerName:           false,
+				common.OtelAgent:                            false,
+				common.HostProfiler:                         false,
+				common.AgentDataPlaneContainerName:          false,
+				common.PrivateActionRunnerContainerName:     false,
+			},
+		},
+		{
+			name: "Data Plane enabled by feature options with single container strategy, 1 single container",
+			dda: testutils.NewDatadogAgentBuilder().
+				WithSingleContainerStrategy(true).
+				WithNodeAgentImage("agent:7.83.0-rc.5").
+				BuildWithDefaults(),
+			featureOptions: feature.Options{
+				DefaultDataPlaneEnabled: true,
+			},
 			wantAgentContainer: map[common.AgentContainerName]bool{
 				common.UnprivilegedSingleAgentContainerName: true,
 				common.CoreAgentContainerName:               false,

@@ -19,6 +19,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/configmap"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/providercaps"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
@@ -57,6 +58,17 @@ type cspmFeature struct {
 // ID returns the ID of the Feature
 func (f *cspmFeature) ID() feature.IDType {
 	return feature.CSPMIDType
+}
+
+// NodeAgentProviderCapabilities returns provider-conditional pod-template
+// mutations for the node agent. Talos has no host user/group database, so
+// the passwd and group volumes this feature adds are stripped.
+func (f *cspmFeature) NodeAgentProviderCapabilities() providercaps.ProviderCapabilityMap {
+	return providercaps.ProviderCapabilityMap{
+		kubernetes.TalosProvider: {
+			RemoveVolumes: []string{common.PasswdVolumeName, common.GroupVolumeName},
+		},
+	}
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
@@ -313,12 +325,17 @@ func (f *cspmFeature) ManageNodeAgent(managers feature.PodTemplateManagers) erro
 	VolMgr.AddVolume(&groupVol)
 
 	// env vars
+	// The compliance settings are added to every container of the pod, not only to the one
+	// actually running the checks. When config streaming is enabled, the consumer container
+	// drops its own env layer and replays the Core Agent's config snapshot; if the Core Agent
+	// doesn't carry these settings, they silently revert to their default values.
 	enabledEnvVar := &corev1.EnvVar{
 		Name:  DDComplianceConfigEnabled,
 		Value: "true",
 	}
 	managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.CoreAgentContainerName, targetContainer}, enabledEnvVar)
 
+	// HOST_ROOT is not a config setting, it only makes sense where the host root volume is mounted.
 	hostRootEnvVar := &corev1.EnvVar{
 		Name:  common.DDHostRootEnvVar,
 		Value: common.HostRootMountPath,
@@ -330,20 +347,20 @@ func (f *cspmFeature) ManageNodeAgent(managers feature.PodTemplateManagers) erro
 			Name:  DDComplianceConfigCheckInterval,
 			Value: f.checkInterval,
 		}
-		managers.EnvVar().AddEnvVarToContainer(targetContainer, intervalEnvVar)
+		managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.CoreAgentContainerName, targetContainer}, intervalEnvVar)
 	}
 
 	hostBenchmarksEnabledEnvVar := &corev1.EnvVar{
 		Name:  DDComplianceHostBenchmarksEnabled,
 		Value: apiutils.BoolToString(&f.hostBenchmarksEnabled),
 	}
-	managers.EnvVar().AddEnvVarToContainer(targetContainer, hostBenchmarksEnabledEnvVar)
+	managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.CoreAgentContainerName, targetContainer}, hostBenchmarksEnabledEnvVar)
 
 	runInSystemProbeEnvVar := &corev1.EnvVar{
 		Name:  DDComplianceConfigRunInSystemProbe,
 		Value: apiutils.BoolToString(&f.runInSystemProbe),
 	}
-	managers.EnvVar().AddEnvVarToContainer(targetContainer, runInSystemProbeEnvVar)
+	managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.CoreAgentContainerName, targetContainer}, runInSystemProbeEnvVar)
 
 	return nil
 }

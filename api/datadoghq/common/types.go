@@ -9,7 +9,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
-// The deployment strategy to use to replace existing pods with new ones.
+// UpdateStrategy defines the deployment strategy used to replace existing pods with new ones.
 // +k8s:openapi-gen=true
 // +kubebuilder:object:generate=true
 type UpdateStrategy struct {
@@ -66,6 +66,8 @@ const (
 	HostProfiler AgentContainerName = "host-profiler"
 	// AgentDataPlaneContainerName is the name of the Agent Data Plane container
 	AgentDataPlaneContainerName AgentContainerName = "agent-data-plane"
+	// AgentCheckRunnerContainerName is the name of the Agent Check Runner container
+	AgentCheckRunnerContainerName AgentContainerName = "agent-check-runner"
 	// FlightRecorderContainerName is the name of the Flight Recorder container
 	FlightRecorderContainerName AgentContainerName = "flightrecorder"
 	// PrivateActionRunnerContainerName is the name of the Private Action Runner container

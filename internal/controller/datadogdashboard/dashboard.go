@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
 	"sort"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/go-logr/logr"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	ctrutils "github.com/DataDog/datadog-operator/pkg/controller/utils"
 )
 
 // Transform v1alpha1 dashboard into a datadogV1 Dashboard
@@ -58,18 +60,24 @@ func buildDashboard(logger logr.Logger, ddb *v1alpha1.DatadogDashboard) *datadog
 }
 
 func getDashboard(auth context.Context, client *datadogV1.DashboardsApi, dashboardID string) (datadogV1.Dashboard, error) {
-	dashboard, _, err := client.GetDashboard(auth, dashboardID)
+	dashboard, httpResp, err := client.GetDashboard(auth, dashboardID)
+	if httpResp != nil {
+		defer httpResp.Body.Close()
+	}
 	if err != nil {
-		return datadogV1.Dashboard{}, translateClientError(err, "error creating Dashboard")
+		return datadogV1.Dashboard{}, translateClientError(err, httpResp, "error creating Dashboard")
 	}
 	return dashboard, nil
 }
 
 func createDashboard(auth context.Context, logger logr.Logger, client *datadogV1.DashboardsApi, ddb *v1alpha1.DatadogDashboard) (datadogV1.Dashboard, error) {
 	db := buildDashboard(logger, ddb)
-	dbCreated, _, err := client.CreateDashboard(auth, *db)
+	dbCreated, httpResp, err := client.CreateDashboard(auth, *db)
+	if httpResp != nil {
+		defer httpResp.Body.Close()
+	}
 	if err != nil {
-		return datadogV1.Dashboard{}, translateClientError(err, "error creating dashboard")
+		return datadogV1.Dashboard{}, translateClientError(err, httpResp, "error creating dashboard")
 	}
 
 	return dbCreated, nil
@@ -77,23 +85,30 @@ func createDashboard(auth context.Context, logger logr.Logger, client *datadogV1
 
 func updateDashboard(auth context.Context, logger logr.Logger, client *datadogV1.DashboardsApi, ddb *v1alpha1.DatadogDashboard) (datadogV1.Dashboard, error) {
 	dashboard := buildDashboard(logger, ddb)
-	dbUpdated, _, err := client.UpdateDashboard(auth, ddb.Status.ID, *dashboard)
+	dbUpdated, httpResp, err := client.UpdateDashboard(auth, ddb.Status.ID, *dashboard)
+	if httpResp != nil {
+		defer httpResp.Body.Close()
+	}
 	if err != nil {
-		return datadogV1.Dashboard{}, translateClientError(err, "error updating dashboard")
+		return datadogV1.Dashboard{}, translateClientError(err, httpResp, "error updating dashboard")
 	}
 
 	return dbUpdated, nil
 }
 
 func deleteDashboard(auth context.Context, client *datadogV1.DashboardsApi, dashboardID string) error {
-	if _, _, err := client.DeleteDashboard(auth, dashboardID); err != nil {
-		return translateClientError(err, "error deleting Dashboard")
+	_, httpResp, err := client.DeleteDashboard(auth, dashboardID)
+	if httpResp != nil {
+		defer httpResp.Body.Close()
+	}
+	if err != nil {
+		return translateClientError(err, httpResp, "error deleting Dashboard")
 	}
 
 	return nil
 }
 
-func translateClientError(err error, msg string) error {
+func translateClientError(err error, httpResp *http.Response, msg string) error {
 	if msg == "" {
 		msg = "an error occurred"
 	}
@@ -101,14 +116,14 @@ func translateClientError(err error, msg string) error {
 	var apiErr datadogapi.GenericOpenAPIError
 	var errURL *url.Error
 	if errors.As(err, &apiErr) {
-		return fmt.Errorf(msg+": %w: %s", err, apiErr.Body())
+		return ctrutils.NewAPIError(fmt.Errorf(msg+": %w: %s", err, apiErr.Body()), httpResp)
 	}
 
 	if errors.As(err, &errURL) {
-		return fmt.Errorf(msg+" (url.Error): %s", errURL)
+		return ctrutils.NewAPIError(fmt.Errorf(msg+" (url.Error): %s", errURL), httpResp)
 	}
 
-	return fmt.Errorf(msg+": %w", err)
+	return ctrutils.NewAPIError(fmt.Errorf(msg+": %w", err), httpResp)
 }
 
 func convertTempVarPresets(tempVarPresets []v1alpha1.DashboardTemplateVariablePreset) []datadogV1.DashboardTemplateVariablePreset {

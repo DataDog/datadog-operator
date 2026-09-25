@@ -160,6 +160,102 @@ func TestReconcileDatadogCSIDriver_APMPullSecretsPropagated(t *testing.T) {
 	}, ddcsi.Spec.APM.PullSecrets)
 }
 
+func TestReconcileDatadogCSIDriver_ImageConfigPropagated(t *testing.T) {
+	tests := []struct {
+		name   string
+		mutate func(dda *v2alpha1.DatadogAgent)
+		assert func(t *testing.T, spec v1alpha1.DatadogCSIDriverSpec)
+	}{
+		{
+			name: "global.registry is propagated",
+			mutate: func(dda *v2alpha1.DatadogAgent) {
+				dda.Spec.Global.Registry = ptr.To("private.example.com/datadog")
+			},
+			assert: func(t *testing.T, spec v1alpha1.DatadogCSIDriverSpec) {
+				require.NotNil(t, spec.Registry)
+				assert.Equal(t, "private.example.com/datadog", *spec.Registry)
+			},
+		},
+		{
+			// In production `instance` is the defaulted DDA, so Registry is always set. Callers
+			// that skip defaulting must not end up with a bogus empty registry on the CR.
+			name:   "an unset global.registry leaves spec.registry nil",
+			mutate: func(dda *v2alpha1.DatadogAgent) {},
+			assert: func(t *testing.T, spec v1alpha1.DatadogCSIDriverSpec) {
+				assert.Nil(t, spec.Registry)
+			},
+		},
+		{
+			name: "global.csi.image is propagated",
+			mutate: func(dda *v2alpha1.DatadogAgent) {
+				dda.Spec.Global.CSI.Image = &v2alpha1.CSIImageConfig{
+					Tag:         "9.9.9",
+					PullPolicy:  ptr.To(corev1.PullAlways),
+					PullSecrets: []corev1.LocalObjectReference{{Name: "private-registry"}},
+				}
+			},
+			assert: func(t *testing.T, spec v1alpha1.DatadogCSIDriverSpec) {
+				require.NotNil(t, spec.CSIDriverImage)
+				assert.Equal(t, "9.9.9", spec.CSIDriverImage.Tag)
+				require.NotNil(t, spec.CSIDriverImage.PullPolicy)
+				assert.Equal(t, corev1.PullAlways, *spec.CSIDriverImage.PullPolicy)
+				require.NotNil(t, spec.CSIDriverImage.PullSecrets)
+				assert.Equal(t, []corev1.LocalObjectReference{{Name: "private-registry"}}, *spec.CSIDriverImage.PullSecrets)
+			},
+		},
+		{
+			name:   "no image configuration leaves spec.csiDriverImage nil",
+			mutate: func(dda *v2alpha1.DatadogAgent) {},
+			assert: func(t *testing.T, spec v1alpha1.DatadogCSIDriverSpec) {
+				assert.Nil(t, spec.CSIDriverImage)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := newTestReconcilerForDDCSI(testScheme(), platformInfoWithDDCSI())
+			dda := newDDAForDDCSI("test-dda", "default", true)
+			tt.mutate(dda)
+
+			require.NoError(t, r.reconcileDatadogCSIDriver(context.Background(), r.log, dda))
+
+			ddcsi := &v1alpha1.DatadogCSIDriver{}
+			require.NoError(t, r.client.Get(context.Background(), types.NamespacedName{Name: "test-dda", Namespace: "default"}, ddcsi))
+			tt.assert(t, ddcsi.Spec)
+		})
+	}
+}
+
+func TestReconcileDatadogCSIDriver_ImageConfigIsCopied(t *testing.T) {
+	r := newTestReconcilerForDDCSI(testScheme(), platformInfoWithDDCSI())
+	dda := newDDAForDDCSI("test-dda", "default", true)
+	dda.Spec.Global.Registry = ptr.To("private.example.com/datadog")
+	dda.Spec.Global.CSI.Image = &v2alpha1.CSIImageConfig{
+		Tag:         "9.9.9",
+		PullPolicy:  ptr.To(corev1.PullAlways),
+		PullSecrets: []corev1.LocalObjectReference{{Name: "private-registry"}},
+	}
+
+	ddcsi, err := r.buildDesiredDatadogCSIDriver(dda)
+	require.NoError(t, err)
+
+	// Mutating the DDA afterwards must not reach the built object.
+	*dda.Spec.Global.Registry = "mutated"
+	dda.Spec.Global.CSI.Image.Tag = "mutated"
+	*dda.Spec.Global.CSI.Image.PullPolicy = corev1.PullNever
+	dda.Spec.Global.CSI.Image.PullSecrets[0].Name = "mutated"
+
+	require.NotNil(t, ddcsi.Spec.Registry)
+	assert.Equal(t, "private.example.com/datadog", *ddcsi.Spec.Registry)
+	require.NotNil(t, ddcsi.Spec.CSIDriverImage)
+	assert.Equal(t, "9.9.9", ddcsi.Spec.CSIDriverImage.Tag)
+	require.NotNil(t, ddcsi.Spec.CSIDriverImage.PullPolicy)
+	assert.Equal(t, corev1.PullAlways, *ddcsi.Spec.CSIDriverImage.PullPolicy)
+	require.NotNil(t, ddcsi.Spec.CSIDriverImage.PullSecrets)
+	assert.Equal(t, []corev1.LocalObjectReference{{Name: "private-registry"}}, *ddcsi.Spec.CSIDriverImage.PullSecrets)
+}
+
 func TestReconcileDatadogCSIDriver_SpecFromDDA(t *testing.T) {
 	r := newTestReconcilerForDDCSI(testScheme(), platformInfoWithDDCSI())
 	dda := newDDAForDDCSI("test-dda", "default", true)

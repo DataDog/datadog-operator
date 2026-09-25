@@ -19,6 +19,7 @@ import (
 	datadogapi "github.com/DataDog/datadog-api-client-go/v2/api/datadog"
 	"github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
 	v1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	ctrutils "github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -282,10 +283,12 @@ func Test_translateClientError(t *testing.T) {
 	testCases := []struct {
 		name                   string
 		error                  error
+		httpResp               *http.Response
 		message                string
 		expectedErrorType      error
-		expectedError          error
+		expectedErrorString    string
 		expectedErrorInterface any
+		wantPermanent          bool
 	}{
 		{
 			name:              "no message, generic error",
@@ -306,15 +309,29 @@ func Test_translateClientError(t *testing.T) {
 			expectedErrorInterface: &datadogapi.GenericOpenAPIError{},
 		},
 		{
-			name:          "generic message, error type *url.Error",
-			error:         &url.Error{Err: fmt.Errorf("generic url error")},
-			message:       "generic message",
-			expectedError: fmt.Errorf("generic message (url.Error):  \"\": generic url error"),
+			name:                "generic message, error type *url.Error",
+			error:               &url.Error{Err: fmt.Errorf("generic url error")},
+			message:             "generic message",
+			expectedErrorString: "generic message (url.Error):  \"\": generic url error",
+		},
+		{
+			name:          "400 response is classified as a permanent error",
+			error:         datadogapi.GenericOpenAPIError{},
+			httpResp:      &http.Response{StatusCode: http.StatusBadRequest},
+			message:       "error creating dashboard",
+			wantPermanent: true,
+		},
+		{
+			name:          "500 response is classified as a transient error",
+			error:         datadogapi.GenericOpenAPIError{},
+			httpResp:      &http.Response{StatusCode: http.StatusInternalServerError},
+			message:       "error creating dashboard",
+			wantPermanent: false,
 		},
 	}
 	for _, test := range testCases {
 		t.Run(test.name, func(t *testing.T) {
-			result := translateClientError(test.error, test.message)
+			result := translateClientError(test.error, test.httpResp, test.message)
 
 			if test.expectedErrorType != nil {
 				assert.True(t, errors.Is(result, test.expectedErrorType))
@@ -324,9 +341,11 @@ func Test_translateClientError(t *testing.T) {
 				assert.True(t, errors.As(result, test.expectedErrorInterface))
 			}
 
-			if test.expectedError != nil {
-				assert.Equal(t, test.expectedError, result)
+			if test.expectedErrorString != "" {
+				assert.EqualError(t, result, test.expectedErrorString)
 			}
+
+			assert.Equal(t, test.wantPermanent, ctrutils.IsPermanentAPIError(result))
 		})
 	}
 }

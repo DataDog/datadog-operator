@@ -68,11 +68,11 @@ type managedAgentInstallationRCClientWithoutRefresh struct {
 func (*managedAgentInstallationRCClientWithoutRefresh) Subscribe(string, func(map[string]state.RawConfig, func(string, state.ApplyStatus))) {
 }
 
-func (c *managedAgentInstallationRCClientWithoutRefresh) GetInstallerState() []*pbgo.PackageState {
+func (c *managedAgentInstallationRCClientWithoutRefresh) GetInstallerPackages() []*pbgo.PackageState {
 	return c.state
 }
 
-func (c *managedAgentInstallationRCClientWithoutRefresh) SetInstallerState(installerState []*pbgo.PackageState) {
+func (c *managedAgentInstallationRCClientWithoutRefresh) SetInstallerPackages(installerState []*pbgo.PackageState) {
 	c.state = installerState
 }
 

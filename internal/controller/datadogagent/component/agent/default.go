@@ -423,6 +423,8 @@ func agentOptimizedContainers(dda metav1.Object, requiredContainers []apicommon.
 			containers = append(containers, agentDataPlaneContainer(dda))
 		case apicommon.FlightRecorderContainerName:
 			containers = append(containers, flightRecorderContainer(dda))
+		case apicommon.AgentCheckRunnerContainerName:
+			containers = append(containers, agentCheckRunnerContainer(dda))
 		}
 	}
 
@@ -612,6 +614,24 @@ func agentDataPlaneContainer(dda metav1.Object) corev1.Container {
 	}
 }
 
+func agentCheckRunnerContainer(dda metav1.Object) corev1.Container {
+	return corev1.Container{
+		Name:  string(apicommon.AgentCheckRunnerContainerName),
+		Image: agentImage(),
+		Command: []string{
+			agentCheckRunnerBinaryPath,
+			"--config",
+			agentCustomConfigVolumePath,
+			"run",
+		},
+		Env:          commonEnvVars(dda),
+		VolumeMounts: volumeMountsForAgentCheckRunner(),
+		SecurityContext: &corev1.SecurityContext{
+			ReadOnlyRootFilesystem: new(true),
+		},
+	}
+}
+
 func flightRecorderContainer(dda metav1.Object) corev1.Container {
 	return corev1.Container{
 		Name:  string(apicommon.FlightRecorderContainerName),
@@ -733,13 +753,13 @@ func envVarsForTraceAgent(dda metav1.Object) []corev1.EnvVar {
 	envs := make([]corev1.EnvVar, 0, 3+len(commonEnvs))
 	envs = append(envs,
 		corev1.EnvVar{
-			Name: common.DDAPMInstrumentationInstallId,
+			Name: common.DDAPMInstrumentationInstallID,
 			ValueFrom: &corev1.EnvVarSource{
 				ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
 					LocalObjectReference: corev1.LocalObjectReference{
 						Name: common.APMTelemetryConfigMapName,
 					},
-					Key: common.APMTelemetryInstallIdKey,
+					Key: common.APMTelemetryInstallIDKey,
 				},
 			},
 		},
@@ -919,6 +939,24 @@ func volumeMountsForAgentDataPlane() []corev1.VolumeMount {
 		common.GetVolumeMountForRuntimeSocket(true),
 		common.GetVolumeMountForProc(),
 		common.GetVolumeMountForCgroups(),
+		common.GetVolumeMountForTmp(),
+	}
+}
+
+// volumeMountsForAgentCheckRunner returns the mounts the Check Runner needs, a subset of
+// the Data Plane's. ACR talks to the kubelet over the projected service account token, so
+// it needs neither the runtime socket nor proc/cgroups.
+func volumeMountsForAgentCheckRunner() []corev1.VolumeMount {
+	return []corev1.VolumeMount{
+		// Source of datadog.yaml.
+		common.GetVolumeMountForConfig(),
+		// Token and cert to authenticate to the Core Agent's IPC endpoint. The auth volume is a
+		// pod-scoped emptyDir, the only way to share them between containers.
+		common.GetVolumeMountForAuth(true),
+		common.GetVolumeMountForLogs(),
+		// Python checks allocate temporary files via tempfile and the root filesystem is
+		// read-only; without a writable /tmp the disk check fails with "No usable temporary
+		// directory found".
 		common.GetVolumeMountForTmp(),
 	}
 }

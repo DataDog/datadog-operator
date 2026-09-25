@@ -214,7 +214,7 @@ func Test_validateProfileName(t *testing.T) {
 		{
 			name:          "empty profile name",
 			profileName:   "",
-			expectedError: fmt.Errorf("Profile name cannot be empty"),
+			expectedError: fmt.Errorf("profile name cannot be empty"),
 		},
 		{
 			name:          "valid profile name",
@@ -224,7 +224,7 @@ func Test_validateProfileName(t *testing.T) {
 		{
 			name:          "profile name too long",
 			profileName:   "foo123456789012345678901234567890123456789012345678901234567890bar",
-			expectedError: fmt.Errorf("Profile name must be no more than 63 characters"),
+			expectedError: fmt.Errorf("profile name must be no more than 63 characters"),
 		},
 	}
 

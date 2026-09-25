@@ -5,6 +5,7 @@ if [ -z "$VERSION" ]; then
     exit 1
 fi
 
+CREATE_PR="${CREATE_PR:-false}"
 OPERATOR_SUBPATH="datadog-operator"
 BUNDLE_NAME="bundle"
 WORKING_DIR=$PWD
@@ -37,13 +38,18 @@ update_bundle() {
   cp -R "$CI_PROJECT_DIR"/$BUNDLE_NAME/* "$dest_path"
 }
 
+push_branch() {
+  echo "Pushing branch $PR_BRANCH_NAME to DataDog/$repo"
+  message="operator $OPERATOR_SUBPATH ($VERSION)"
+  git add -A
+  git commit -s -m "$message"
+  git push -f --set-upstream origin "$PR_BRANCH_NAME"
+}
+
 create_pr() {
   echo "Creating pull request for repo: $ORG/$repo"
   message="operator $OPERATOR_SUBPATH ($VERSION)"
   body="Update operator $OPERATOR_SUBPATH ($VERSION).<br><br>Pull request triggered by $GITLAB_USER_EMAIL."
-  git add -A
-  git commit -s -m "$message"
-  git push -f --set-upstream origin "$PR_BRANCH_NAME"
   curl -L \
     -X POST \
     -H "Accept: application/vnd.github+json" \
@@ -84,7 +90,13 @@ do
 
   clone_and_sync_fork
   update_bundle
-  create_pr
+  push_branch
+
+  if [ "$CREATE_PR" = "true" ]; then
+    create_pr
+  else
+    echo "Skipping PR creation for $ORG/$repo (CREATE_PR=$CREATE_PR)."
+  fi
 
 done
 

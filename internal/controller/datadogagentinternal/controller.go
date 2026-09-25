@@ -26,6 +26,7 @@ import (
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/appsec"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/asm"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/autoscaling"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/checkrunner"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/clusterchecks"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/cspm"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/cws"
@@ -68,8 +69,8 @@ type ReconcilerOptions struct {
 	SupportCilium                   bool
 	OperatorMetricsEnabled          bool
 	UntaintControllerEnabled        bool
-	DatadogCSIDriverEnabled         bool
 	RolloutOnConfigMapChangeEnabled bool
+	DefaultDataPlaneLinuxEnabled    bool
 	APIReader                       client.Reader
 }
 
@@ -128,12 +129,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, ddai *v1alpha1.DatadogAgentI
 	return resp, err
 }
 
-func (r *Reconciler) reconcilerOptionsToFeatureOptions(ctx context.Context) *feature.Options {
+func (r *Reconciler) reconcilerOptionsToFeatureOptions(ctx context.Context, ddai *v1alpha1.DatadogAgentInternal) *feature.Options {
+	windowsProfile := isDDAILabeledWithProfile(ddai) && ddai.GetAnnotations()[kubernetes.ProviderAnnotationKey] == kubernetes.WindowsProvider
+
 	return &feature.Options{
 		Logger:                  ctrl.LoggerFrom(ctx),
 		Client:                  r.apiReader,
 		PlatformInfo:            r.platformInfo,
-		DatadogCSIDriverEnabled: r.options.DatadogCSIDriverEnabled,
+		DefaultDataPlaneEnabled: r.options.DefaultDataPlaneLinuxEnabled && !windowsProfile,
 	}
 }
 

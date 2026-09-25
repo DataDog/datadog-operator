@@ -68,6 +68,7 @@ type DatadogPodAutoscalerProfileStatus struct {
 	ControlledAutoscalers int32 `json:"controlledAutoscalers"`
 }
 
+// DatadogPodAutoscalerClusterProfile is the Schema for the datadogpodautoscalerclusterprofiles API.
 // +kubebuilder:object:root=true
 // +kubebuilder:resource:shortName=dpacp,scope=Cluster
 // +kubebuilder:subresource:status
@@ -77,7 +78,6 @@ type DatadogPodAutoscalerProfileStatus struct {
 // +kubebuilder:printcolumn:name="Min Replicas",type="integer",JSONPath=".spec.template.constraints.minReplicas"
 // +kubebuilder:printcolumn:name="Max Replicas",type="integer",JSONPath=".spec.template.constraints.maxReplicas"
 // +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
-// DatadogPodAutoscalerClusterProfile is the Schema for the datadogpodautoscalerclusterprofiles API
 type DatadogPodAutoscalerClusterProfile struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -86,8 +86,8 @@ type DatadogPodAutoscalerClusterProfile struct {
 	Status DatadogPodAutoscalerProfileStatus `json:"status,omitempty"`
 }
 
+// DatadogPodAutoscalerClusterProfileList contains a list of DatadogPodAutoscalerClusterProfiles.
 // +kubebuilder:object:root=true
-// DatadogPodAutoscalerClusterProfileList contains a list of DatadogPodAutoscalerClusterProfiles
 type DatadogPodAutoscalerClusterProfileList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`

@@ -157,7 +157,7 @@ func (f *apmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 
 	f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda.GetName(), ddaSpec)
 	f.nodeAPMEnabled = shouldEnableAPM(apm)
-	f.processCheckRunsInCoreAgent = featutils.ShouldRunProcessChecksInCoreAgent(ddaSpec)
+	f.processCheckRunsInCoreAgent = featutils.ShouldRunProcessChecksInCoreAgent(dda, ddaSpec)
 
 	// Node APM controls trace-agent configuration and node-scoped dependencies.
 	if f.nodeAPMEnabled {
@@ -586,7 +586,7 @@ func (f *apmFeature) manageNodeAgent(agentContainerName apicommon.AgentContainer
 		})
 		socketVol, socketVolMount := volume.GetVolumes(apmSocketVolumeName, udsHostFolder, apmSocketVolumeLocalPath, false)
 		volType := corev1.HostPathDirectoryOrCreate // We need to create the directory on the host if it does not exist.
-		socketVol.VolumeSource.HostPath.Type = &volType
+		socketVol.HostPath.Type = &volType
 		managers.VolumeMount().AddVolumeMountToContainerWithMergeFunc(&socketVolMount, agentContainerName, merger.OverrideCurrentVolumeMountMergeFunction)
 		managers.Volume().AddVolume(&socketVol)
 	}

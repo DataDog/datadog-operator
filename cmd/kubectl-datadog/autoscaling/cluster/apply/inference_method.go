@@ -32,6 +32,6 @@ func (i *InferenceMethod) Set(s string) error {
 }
 
 // Type returns the type name for pflag
-func (_ *InferenceMethod) Type() string {
+func (*InferenceMethod) Type() string {
 	return "InferenceMethod"
 }

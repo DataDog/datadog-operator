@@ -191,7 +191,7 @@ func Test_setup(t *testing.T) {
 
 			_, err := omf.createRequest([]byte("test"))
 			assert.Nil(t, err)
-			apiKey, requestURL, err := omf.getApiKeyAndURL()
+			apiKey, requestURL, err := omf.getAPIKeyAndURL()
 
 			assert.Nil(t, err)
 			assert.Equal(t, tt.wantAPIKey, *apiKey)

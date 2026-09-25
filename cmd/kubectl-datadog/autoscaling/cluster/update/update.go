@@ -156,6 +156,7 @@ func (o *options) run() error {
 		return fmt.Errorf("failed to read CloudFormation stack %s: %w", ddStackName, err)
 	}
 	if ddStack == nil {
+		//nolint:staticcheck // Karpenter is a proper noun.
 		return fmt.Errorf("Karpenter Deployment %s/%s exists but its CloudFormation stack %s was not found; install state is inconsistent — re-run 'install' to recover",
 			k.Namespace, k.Name, ddStackName)
 	}

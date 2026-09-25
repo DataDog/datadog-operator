@@ -191,6 +191,7 @@ Other operator startup options can also be configured via environment variable:
 | DDGR max concurrent reconciles | `--datadogGenericResourceMaxConcurrentReconciles` | `DD_GENERIC_RESOURCE_MAX_CONCURRENT_RECONCILES` | `1` |
 | DDGR requeue period        | `--datadogGenericResourceRequeuePeriod` | `DD_GENERIC_RESOURCE_REQUEUE_PERIOD` | `60s`   |
 | Controller revisions       | `--createControllerRevisions`        | `DD_CREATE_CONTROLLER_REVISIONS`      | `false` |
+| Linux Data Plane default   | `--defaultDataPlaneLinuxEnabled`     | `DD_DEFAULT_DATA_PLANE_LINUX_ENABLED` | `false` |
 
 The leader election toggle (`--enable-leader-election`), pprof (`--pprof`),
 log options (`--loglevel`, `--logEncoder`), secret backend options

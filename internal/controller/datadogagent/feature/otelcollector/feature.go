@@ -36,7 +36,7 @@ const (
 	otelAgentMinVersionForDisplay   = "7.67.0"
 )
 
-var errIncompatibleImage = errors.New("Incompatible OTel Agent image")
+var errIncompatibleImage = errors.New("incompatible OTel Agent image")
 
 func init() {
 	err := feature.Register(feature.OtelAgentIDType, buildOtelCollectorFeature)
@@ -74,9 +74,9 @@ type otelCollectorFeature struct {
 }
 
 type coreAgentConfig struct {
-	extension_timeout *int
-	extension_url     *string
-	enabled           *bool
+	extensionTimeout *int
+	extensionURL     *string
+	enabled          *bool
 }
 
 func (o *otelCollectorFeature) ID() feature.IDType {
@@ -111,8 +111,8 @@ func (o *otelCollectorFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Da
 
 	if ddaSpec.Features.OtelCollector.CoreConfig != nil {
 		o.coreAgentConfig.enabled = ddaSpec.Features.OtelCollector.CoreConfig.Enabled
-		o.coreAgentConfig.extension_timeout = ddaSpec.Features.OtelCollector.CoreConfig.ExtensionTimeout
-		o.coreAgentConfig.extension_url = ddaSpec.Features.OtelCollector.CoreConfig.ExtensionURL
+		o.coreAgentConfig.extensionTimeout = ddaSpec.Features.OtelCollector.CoreConfig.ExtensionTimeout
+		o.coreAgentConfig.extensionURL = ddaSpec.Features.OtelCollector.CoreConfig.ExtensionURL
 	}
 
 	if len(ddaSpec.Features.OtelCollector.Ports) == 0 {
@@ -400,16 +400,16 @@ func (o *otelCollectorFeature) ManageNodeAgent(managers feature.PodTemplateManag
 		})
 	}
 
-	if o.coreAgentConfig.extension_timeout != nil {
+	if o.coreAgentConfig.extensionTimeout != nil {
 		managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.CoreAgentContainerName}, &corev1.EnvVar{
 			Name:  DDOtelCollectorCoreConfigExtensionTimeout,
-			Value: strconv.Itoa(*o.coreAgentConfig.extension_timeout),
+			Value: strconv.Itoa(*o.coreAgentConfig.extensionTimeout),
 		})
 	}
-	if o.coreAgentConfig.extension_url != nil {
+	if o.coreAgentConfig.extensionURL != nil {
 		managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.CoreAgentContainerName}, &corev1.EnvVar{
 			Name:  DDOtelCollectorCoreConfigExtensionURL,
-			Value: *o.coreAgentConfig.extension_url,
+			Value: *o.coreAgentConfig.extensionURL,
 		})
 	}
 

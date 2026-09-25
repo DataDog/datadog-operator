@@ -70,6 +70,9 @@ type DatadogFeatures struct {
 	APM *APMFeatureConfig `json:"apm,omitempty"`
 	// ASM (Application Security Management) configuration.
 	ASM *ASMFeatureConfig `json:"asm,omitempty"`
+	// Appsec configuration.
+	// +optional
+	Appsec *AppsecFeatureConfig `json:"appsec,omitempty"`
 	// CSPM (Cloud Security Posture Management) configuration.
 	CSPM *CSPMFeatureConfig `json:"cspm,omitempty"`
 	// CWS (Cloud Workload Security) configuration.
@@ -172,6 +175,153 @@ type APMFeatureConfig struct {
 	// Feature is in preview.
 	// +optional
 	ErrorTrackingStandalone *ErrorTrackingStandalone `json:"errorTrackingStandalone,omitempty"`
+}
+
+// AppsecFeatureConfig contains AppSec proxy injector configuration.
+type AppsecFeatureConfig struct {
+	// Configures the AppSec injector.
+	// Setting this block replaces the deprecated `agent.datadoghq.com/appsec.*` annotations
+	// entirely: while it is present no annotation is read, so port the whole configuration
+	// rather than a single field.
+	// +optional
+	Injector *AppsecInjectorConfig `json:"injector,omitempty"`
+}
+
+// AppsecInjectorConfig contains AppSec proxy injector configuration.
+type AppsecInjectorConfig struct {
+	// Enables the AppSec injector.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// Controls automatic proxy detection.
+	// Default: true
+	// +optional
+	AutoDetect *bool `json:"autoDetect,omitempty"`
+
+	// The items:Enum marker below mirrors allowedProxyValues in
+	// internal/controller/datadogagent/feature/appsec/const.go, which is the source of
+	// truth for accepted proxy names. Keep the two lists in sync. This note sits outside
+	// the field doc comment on purpose, so it stays out of the generated CRD description.
+
+	// Lists proxies for AppSec injection.
+	// Default: []
+	// +kubebuilder:validation:items:Enum=envoy-gateway;istio;istio-gateway;ingress-nginx;gke-gateway
+	// +optional
+	Proxies []string `json:"proxies,omitempty"`
+
+	// Selects the AppSec injection mode.
+	// When unset, this uses the agent default sidecar.
+	// +kubebuilder:validation:Enum=sidecar;external
+	// +optional
+	Mode *string `json:"mode,omitempty"`
+
+	// Configures the external processor.
+	// +optional
+	Processor *AppsecInjectorProcessorConfig `json:"processor,omitempty"`
+
+	// Configures the injected sidecar.
+	// +optional
+	Sidecar *AppsecInjectorSidecarConfig `json:"sidecar,omitempty"`
+
+	// Configures nginx injection.
+	// +optional
+	Nginx *AppsecInjectorNginxConfig `json:"nginx,omitempty"`
+
+	// Configures GKE Gateway injection.
+	// +optional
+	GKE *AppsecInjectorGKEConfig `json:"gke,omitempty"`
+}
+
+// AppsecInjectorProcessorConfig contains AppSec external processor configuration.
+type AppsecInjectorProcessorConfig struct {
+	// Sets the processor address.
+	// +optional
+	Address *string `json:"address,omitempty"`
+
+	// Sets the processor port.
+	// Default: 443
+	// +kubebuilder:validation:Minimum=0
+	// +kubebuilder:validation:Maximum=65535
+	// +optional
+	Port *int32 `json:"port,omitempty"`
+
+	// Configures the processor Service.
+	// +optional
+	Service *AppsecInjectorProcessorServiceConfig `json:"service,omitempty"`
+}
+
+// AppsecInjectorProcessorServiceConfig contains AppSec external processor Service configuration.
+type AppsecInjectorProcessorServiceConfig struct {
+	// Sets the processor Service name.
+	// +optional
+	Name *string `json:"name,omitempty"`
+
+	// Sets the processor Service namespace.
+	// This is ignored for gke-gateway because the callout Service is resolved in each Gateway's own namespace; deploy the Service in every AppSec-enabled Gateway namespace.
+	// +optional
+	Namespace *string `json:"namespace,omitempty"`
+}
+
+// AppsecInjectorSidecarConfig contains AppSec injector sidecar configuration.
+type AppsecInjectorSidecarConfig struct {
+	// Sets the sidecar image.
+	// Default: ghcr.io/datadog/dd-trace-go/service-extensions-callout
+	// +optional
+	Image *string `json:"image,omitempty"`
+
+	// Sets the sidecar image tag.
+	// When unset, the tag defaults to a value determined by the cluster-agent image in use.
+	// +optional
+	ImageTag *string `json:"imageTag,omitempty"`
+
+	// Sets the sidecar port.
+	// Default: 8080
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=65535
+	// +optional
+	Port *int32 `json:"port,omitempty"`
+
+	// Sets the sidecar health port.
+	// Default: 8081
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=65535
+	// +optional
+	HealthPort *int32 `json:"healthPort,omitempty"`
+
+	// Sets the sidecar body parsing size limit.
+	// Default: 0
+	// +kubebuilder:validation:Minimum=0
+	// +optional
+	BodyParsingSizeLimit *int64 `json:"bodyParsingSizeLimit,omitempty"`
+
+	// Configures sidecar resources.
+	// Only requests and limits for cpu and memory are honored.
+	// +doc-gen:link=https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+	// +optional
+	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
+}
+
+// AppsecInjectorNginxConfig contains AppSec nginx injector configuration.
+type AppsecInjectorNginxConfig struct {
+	// Sets the nginx module mount path.
+	// Default: /modules_mount
+	// +optional
+	ModuleMountPath *string `json:"moduleMountPath,omitempty"`
+}
+
+// AppsecInjectorGKEConfig contains AppSec GKE Gateway injector configuration.
+type AppsecInjectorGKEConfig struct {
+	// Lists GKE GatewayClasses for AppSec injection.
+	// Configuration is create-only with no drift reconciliation, so deleting a GCPTrafficExtension while its Gateway still exists does not recreate it.
+	// The extension has no ownerReferences; if the cluster-agent is down or not leader when the Gateway is deleted, it can be orphaned.
+	// After disabling AppSec, teardown can take about 5-7 minutes and traffic remains inspected or blocked during that period.
+	// A pre-existing GCPTrafficExtension without the app.kubernetes.io/managed-by: datadog-cluster-agent label is left alone.
+	// A Gateway labeled appsec.datadoghq.com/enabled=false is skipped.
+	// GKE injection requires cluster-agent version 7.82.0 or later.
+	// The `mode: external` setting is required only when `gke-gateway` is explicitly listed in `proxies`; a `gatewayClasses`-only configuration relying on agent-side autoDetect remains valid in any mode.
+	// +optional
+	GatewayClasses []string `json:"gatewayClasses,omitempty"`
 }
 
 // ErrorTrackingStandalone contains the configuration for the Error Tracking standalone feature.
@@ -318,6 +468,14 @@ type CSIConfig struct {
 	// +optional
 	APM *CSIAPMConfig `json:"apm,omitempty"`
 
+	// Image overrides the container image configuration of the managed CSI driver container.
+	// Propagated to the managed DatadogCSIDriver as spec.csiDriverImage. The registry defaults
+	// to `global.registry`. It does not apply to the csi-node-driver-registrar sidecar.
+	// When `global.csi.apm.pullSecrets` is empty, the pull secrets set here are also used to
+	// authenticate APM library downloads.
+	// +optional
+	Image *CSIImageConfig `json:"image,omitempty"`
+
 	// Tolerations configure the CSI driver DaemonSet pod tolerations.
 	// +optional
 	// +listType=atomic
@@ -330,6 +488,36 @@ type CSIConfig struct {
 	// NodeAffinity specifies node affinity scheduling rules for CSI driver DaemonSet pods.
 	// +optional
 	NodeAffinity *corev1.NodeAffinity `json:"nodeAffinity,omitempty"`
+}
+
+// CSIImageConfig defines the image configuration of the CSI driver container. It deliberately
+// does not reuse AgentImageConfig, whose `jmxEnabled` only applies to the Agent image: there is
+// no `csi-driver:<tag>-jmx`.
+// +k8s:openapi-gen=true
+// +kubebuilder:object:generate=true
+type CSIImageConfig struct {
+	// Defines the CSI driver image name. You can provide this as:
+	// * `<NAME>` - The registry is derived from `global.registry` and the tag from `tag`.
+	// * `<NAME>:<TAG>` - The registry is derived from `global.registry`. `tag` is ignored.
+	// * `<REGISTRY>/<NAME>:<TAG>` - Used as-is; `global.registry` and `tag` are ignored.
+	// +optional
+	Name string `json:"name,omitempty"`
+
+	// Define the image tag to use.
+	// To be used if the `Name` field does not correspond to a full image string.
+	// +optional
+	Tag string `json:"tag,omitempty"`
+
+	// The Kubernetes pull policy:
+	// Use `Always`, `Never`, or `IfNotPresent`.
+	// +optional
+	PullPolicy *corev1.PullPolicy `json:"pullPolicy,omitempty"`
+
+	// It is possible to specify Docker registry credentials.
+	// See https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod
+	// +optional
+	// +listType=atomic
+	PullSecrets []corev1.LocalObjectReference `json:"pullSecrets,omitempty"`
 }
 
 // CSIAPMConfig configures APM/SSI-related settings for the CSI driver managed by the Operator.
@@ -629,7 +817,7 @@ type SBOMFeatureConfig struct {
 	Enrichment     *SBOMEnrichmentConfig     `json:"enrichment,omitempty"`
 }
 
-// SBOMTypeConfig contains configuration for a SBOM collection type.
+// SBOMHostConfig contains configuration for host SBOM collection.
 type SBOMHostConfig struct {
 	// Enable this option to activate SBOM collection.
 	// Default: false
@@ -642,7 +830,7 @@ type SBOMHostConfig struct {
 	Analyzers []string `json:"analyzers,omitempty"`
 }
 
-// SBOMTypeConfig contains configuration for a SBOM collection type.
+// SBOMContainerImageConfig contains configuration for container image SBOM collection.
 type SBOMContainerImageConfig struct {
 	// Enable this option to activate SBOM collection.
 	// Default: false
@@ -1105,7 +1293,7 @@ type Metric struct {
 	Info *MetricInfo `json:"info,omitempty" yaml:"info,omitempty"`
 }
 
-// Type represents the type of the metric. See https://github.com/OpenObservability/OpenMetrics/blob/main/specification/OpenMetrics.md#metric-types.
+// MetricType represents the type of the metric. See https://github.com/OpenObservability/OpenMetrics/blob/main/specification/OpenMetrics.md#metric-types.
 type MetricType string
 
 // Supported metric types.
@@ -1129,7 +1317,7 @@ type MetricMeta struct {
 	// LabelsFromPath adds additional labels where the value of the label is taken from a field under Path.
 	// +optional
 	LabelsFromPath map[string][]string `json:"labelsFromPath,omitempty" yaml:"labelsFromPath,omitempty"`
-	// Path is the path to to generate metric(s) for.
+	// Path is the path to generate metric(s) for.
 	Path []string `json:"path" yaml:"path"`
 }
 
@@ -1374,7 +1562,7 @@ type AgentSidecarInjectionConfig struct {
 	ClusterAgentTLSVerification *AdmissionControllerClusterAgentTLSVerificationConfig `json:"clusterAgentTlsVerification,omitempty"`
 }
 
-// Selectors define a pod selector for sidecar injection.
+// Selector defines a pod selector for sidecar injection.
 type Selector struct {
 	// NamespaceSelector specifies the label selector for namespaces.
 	// +optional
@@ -1877,7 +2065,8 @@ type GlobalConfig struct {
 	// +optional
 	Endpoint *Endpoint `json:"endpoint,omitempty"`
 
-	// Registry is the image registry to use for all Agent images.
+	// Registry is the image registry to use for all Datadog images: the Agent images, the
+	// Single Step Instrumentation injection images, and the Datadog CSI driver image.
 	// Use 'public.ecr.aws/datadog' for AWS ECR.
 	// Use 'datadoghq.azurecr.io' for Azure Container Registry.
 	// Use 'gcr.io/datadoghq' for Google Container Registry.

@@ -8,7 +8,7 @@ import (
 )
 
 type testEvent struct {
-	Output string
+	Output string `json:"Output"`
 }
 
 func main() {

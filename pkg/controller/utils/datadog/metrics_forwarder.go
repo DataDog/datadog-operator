@@ -10,6 +10,8 @@ import (
 	"errors"
 	"fmt"
 	"hash/fnv"
+	"maps"
+	"math/rand/v2"
 	"os"
 	"strings"
 	"sync"
@@ -102,13 +104,37 @@ func hashKeys(apiKey string) uint64 {
 	return h.Sum64()
 }
 
+// jitteredDelay returns a random duration in [0, d), used to stagger forwarder
+// start times so a bulk-created batch of CRs doesn't tick in lockstep.
+func jitteredDelay(d time.Duration) time.Duration {
+	if d <= 0 {
+		return 0
+	}
+	return rand.N(d)
+}
+
+// jitteredInterval returns a duration in [90% of d, 110% of d), keeping the
+// average send cadence close to d while preventing forwarders that complete at
+// the same time from remaining in lockstep.
+func jitteredInterval(d time.Duration) time.Duration {
+	if d <= 0 {
+		return 0
+	}
+
+	spread := d / 10
+	if spread == 0 {
+		return d
+	}
+	return d - spread + rand.N(2*spread)
+}
+
 // metricsForwarder sends metrics directly to Datadog using the public API
 // its lifecycle must be handled by a ForwardersManager
 type metricsForwarder struct {
 	id                  string
 	monitoredObjectKind string
-	datadogMetricsApi   *datadogV2.MetricsApi // metrics
-	datadogEventsApi    *datadogV1.EventsApi  // events
+	datadogMetricsAPI   *datadogV2.MetricsApi // metrics
+	datadogEventsAPI    *datadogV1.EventsApi  // events
 	k8sClient           client.Client
 
 	platformInfo *kubernetes.PlatformInfo
@@ -174,9 +200,30 @@ func newMetricsForwarder(k8sClient client.Client, decryptor secrets.Decryptor, o
 // it starts sending deployment metrics once the connection is validated
 // designed to run a separate goroutine and stopped using the stop method
 func (mf *metricsForwarder) start(wg *sync.WaitGroup) {
+	mf.startWithDelays(wg, jitteredDelay, jitteredInterval)
+}
+
+// startWithDelays contains the forwarder run loop. Delay functions are passed
+// in so timer behavior can be tested deterministically with a fake clock.
+func (mf *metricsForwarder) startWithDelays(wg *sync.WaitGroup, initialDelay, recurringDelay func(time.Duration) time.Duration) {
 	defer wg.Done()
 
 	mf.logger.Info("Starting Datadog metrics forwarder")
+
+	// Delay initialization by a random amount so a batch of CRs created
+	// together don't all issue their credential-validation call and
+	// CR-detected event to the Datadog API in the same instant; the
+	// periodic-send jitter below only takes effect afterward, once this
+	// initial connection has already succeeded.
+	startupTimer := time.NewTimer(initialDelay(mf.sendMetricsInterval))
+	defer startupTimer.Stop()
+	select {
+	case <-startupTimer.C:
+	case <-mf.stopChan:
+		// stopChan was closed while waiting to start initializing
+		mf.logger.Info("Datadog metrics forwarder shut down before initialization started")
+		return
+	}
 
 	// Create a context that gets cancelled when stopChan is closed
 	ctx := wait.ContextForChannel(mf.stopChan)
@@ -204,8 +251,13 @@ func (mf *metricsForwarder) start(wg *sync.WaitGroup) {
 		mf.logger.Error(err, "an error occurred while sending event")
 	}
 
-	metricsTicker := time.NewTicker(mf.sendMetricsInterval)
-	defer metricsTicker.Stop()
+	// The first send is spread across the full interval. Subsequent sends use a
+	// slightly jittered interval and are scheduled only after the previous send
+	// finishes, avoiding the immediate catch-up send that a queued ticker tick
+	// can cause after a slow request.
+	metricsTimer := time.NewTimer(initialDelay(mf.sendMetricsInterval))
+	defer metricsTimer.Stop()
+
 	for {
 		select {
 		case <-mf.stopChan:
@@ -220,10 +272,11 @@ func (mf *metricsForwarder) start(wg *sync.WaitGroup) {
 			}
 			mf.logger.Info("Datadog metrics forwarder shut down after sending final metrics")
 			return
-		case <-metricsTicker.C:
+		case <-metricsTimer.C:
 			if err := mf.forwardMetrics(); err != nil {
 				mf.logger.Error(err, "an error occurred while sending metrics")
 			}
+			metricsTimer.Reset(recurringDelay(mf.sendMetricsInterval))
 		case reconcileErr := <-mf.errorChan:
 			if err := mf.processReconcileError(reconcileErr); err != nil {
 				mf.logger.Error(err, "an error occurred while processing reconcile metrics")
@@ -438,7 +491,7 @@ func (mf *metricsForwarder) forwardMetrics() error {
 	}
 
 	// send feature metrics
-	for _, featuresList := range mf.EnabledFeatures {
+	for _, featuresList := range mf.snapshotEnabledFeatures() {
 		for _, feature := range featuresList {
 			mf.sendFeatureMetric(ctx, feature)
 		}
@@ -447,6 +500,12 @@ func (mf *metricsForwarder) forwardMetrics() error {
 	mf.sendResourceCountMetric(ctx)
 
 	return nil
+}
+
+func (mf *metricsForwarder) snapshotEnabledFeatures() map[string][]string {
+	mf.RLock()
+	defer mf.RUnlock()
+	return maps.Clone(mf.EnabledFeatures)
 }
 
 // processReconcileError updates lastReconcileErr
@@ -542,9 +601,9 @@ func (mf *metricsForwarder) delegatedValidateCreds(apiKey string) error {
 
 	config := datadogapi.NewConfiguration()
 	apiClient := datadogapi.NewAPIClient(config)
-	authApi := datadogV1.NewAuthenticationApi(apiClient)
+	authAPI := datadogV1.NewAuthenticationApi(apiClient)
 
-	_, _, err := authApi.Validate(ctx)
+	_, _, err := authAPI.Validate(ctx)
 	if err != nil {
 		return fmt.Errorf("cannot validate datadog credentials: %w", err)
 	}
@@ -625,7 +684,7 @@ func (mf *metricsForwarder) tagsWithExtraTag(tagFormat, tag string) []string {
 
 // getDatadogAgentCRVersionTags returns DatadogAgent CRD version tags
 func (mf *metricsForwarder) getCRVersionTags() []string {
-	ddaPreferredVersion, ddaOtherVersion := mf.platformInfo.GetApiVersions(mf.monitoredObjectKind)
+	ddaPreferredVersion, ddaOtherVersion := mf.platformInfo.GetAPIVersions(mf.monitoredObjectKind)
 
 	versionTags := []string{}
 
@@ -687,8 +746,8 @@ func (mf *metricsForwarder) getCredentialsFromDDA(dda *v2alpha1.DatadogAgent) (s
 
 	defaultSecretName := secrets.GetDefaultCredentialsSecretName(dda)
 
+	var apiKey string
 	var err error
-	apiKey := ""
 
 	if dda.Spec.Global != nil && dda.Spec.Global.Credentials != nil && dda.Spec.Global.Credentials.APIKey != nil && *dda.Spec.Global.Credentials.APIKey != "" {
 		apiKey = *dda.Spec.Global.Credentials.APIKey
@@ -708,16 +767,12 @@ func (mf *metricsForwarder) getCredentialsFromDDA(dda *v2alpha1.DatadogAgent) (s
 }
 
 // getCredentialsFromDDAI retrieves the API key configured in the DatadogAgentInternal
-// DatadogAgentInternal are always stored in a secret, so we don't need to resolve secrets
+// credentials are always stored in a secret, so we don't need to resolve secrets.
 func (mf *metricsForwarder) getCredentialsFromDDAI(ddai *v1alpha1.DatadogAgentInternal) (string, error) {
-
-	var err error
-	apiKey := ""
-
 	defaultSecretName := secrets.GetDefaultCredentialsSecretName(ddai)
 
 	_, secretName, secretKeyName := secrets.GetAPIKeySecret(ddai.Spec.Global.Credentials, defaultSecretName)
-	apiKey, err = mf.getKeyFromSecret(ddai.Namespace, secretName, secretKeyName)
+	apiKey, err := mf.getKeyFromSecret(ddai.Namespace, secretName, secretKeyName)
 	if err != nil {
 		return "", err
 	}
@@ -844,7 +899,7 @@ func (mf *metricsForwarder) delegatedSendEvent(eventTitle string, eventType Even
 	}
 
 	ctx := mf.generateDatadogContext()
-	_, _, err := mf.datadogEventsApi.CreateEvent(ctx, eventRequest)
+	_, _, err := mf.datadogEventsAPI.CreateEvent(ctx, eventRequest)
 	return err
 }
 
@@ -911,11 +966,11 @@ func (mf *metricsForwarder) setUpDatadogAPIClient() {
 	// v2 client is used for metrics and events
 	configuration := datadogapi.NewConfiguration()
 	apiClient := datadogapi.NewAPIClient(configuration)
-	mf.datadogMetricsApi = datadogV2.NewMetricsApi(apiClient)
-	mf.datadogEventsApi = datadogV1.NewEventsApi(apiClient) // Initialize events API
+	mf.datadogMetricsAPI = datadogV2.NewMetricsApi(apiClient)
+	mf.datadogEventsAPI = datadogV1.NewEventsApi(apiClient) // Initialize events API
 }
 
-// API key set here. This and Get API from etc. etc.
+// generateDatadogContext configures the API key and endpoint used by API calls.
 func (mf *metricsForwarder) generateDatadogContext() context.Context {
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, datadogapi.ContextAPIKeys,
@@ -953,6 +1008,6 @@ func (mf *metricsForwarder) sendMetric(ctx context.Context, metricName string, m
 			},
 		},
 	}
-	_, _, err := mf.datadogMetricsApi.SubmitMetrics(ctx, body, *datadogV2.NewSubmitMetricsOptionalParameters())
+	_, _, err := mf.datadogMetricsAPI.SubmitMetrics(ctx, body, *datadogV2.NewSubmitMetricsOptionalParameters())
 	return err
 }

@@ -52,7 +52,7 @@ func (o *Options) Init(cmd *cobra.Command) error {
 	if err != nil {
 		return fmt.Errorf("unable to create APIExtensionClient, err:%w", err)
 	}
-	o.SetApiExtensionClient(apiextClient)
+	o.SetAPIExtensionClient(apiextClient)
 
 	discoveryClient, err := discovery.NewDiscoveryClientForConfig(restConfig)
 	if err != nil {
@@ -93,9 +93,15 @@ func (o *Options) SetClientset(clientset *kubernetes.Clientset) {
 	o.Clientset = clientset
 }
 
-// SetApiExtensionClient configures the APIExtClient
-func (o *Options) SetApiExtensionClient(client *apiextensionclient.Clientset) {
+// SetAPIExtensionClient configures the API extension client.
+func (o *Options) SetAPIExtensionClient(client *apiextensionclient.Clientset) {
 	o.APIExtClient = client
+}
+
+// SetApiExtensionClient configures the API extension client.
+// Deprecated: use SetAPIExtensionClient.
+func (o *Options) SetApiExtensionClient(client *apiextensionclient.Clientset) { //nolint:staticcheck
+	o.SetAPIExtensionClient(client)
 }
 
 // SetDiscoveryClient configures the DiscoveryClient

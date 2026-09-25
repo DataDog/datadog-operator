@@ -13,7 +13,6 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
-	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component"
 	componentccr "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusterchecksrunner"
@@ -31,7 +30,7 @@ import (
 // STEP 2 of the reconcile loop: reconcile 3 components
 
 // setupDependencies initializes the store and resource managers.
-func (r *Reconciler) setupDependencies(ctx context.Context, instance *datadoghqv1alpha1.DatadogAgentInternal) (*store.Store, feature.ResourceManagers) {
+func (r *Reconciler) setupDependencies(ctx context.Context, instance *v1alpha1.DatadogAgentInternal) (*store.Store, feature.ResourceManagers) {
 	storeOptions := &store.StoreOptions{
 		SupportCilium: r.options.SupportCilium,
 		PlatformInfo:  r.platformInfo,
@@ -44,7 +43,7 @@ func (r *Reconciler) setupDependencies(ctx context.Context, instance *datadoghqv
 }
 
 // manageGlobalDependencies manages the global dependencies for a component.
-func (r *Reconciler) manageGlobalDependencies(ctx context.Context, ddai *datadoghqv1alpha1.DatadogAgentInternal, resourceManagers feature.ResourceManagers, requiredComponents feature.RequiredComponents) error {
+func (r *Reconciler) manageGlobalDependencies(ctx context.Context, ddai *v1alpha1.DatadogAgentInternal, resourceManagers feature.ResourceManagers, requiredComponents feature.RequiredComponents) error {
 	logger := ctrl.LoggerFrom(ctx)
 	var errs []error
 	// Non component specific dependencies
@@ -87,7 +86,7 @@ func (r *Reconciler) manageFeatureDependencies(features []feature.Feature, resou
 }
 
 // overrideDependencies wraps the dependency override logic.
-func (r *Reconciler) overrideDependencies(ctx context.Context, resourceManagers feature.ResourceManagers, instance *datadoghqv1alpha1.DatadogAgentInternal) error {
+func (r *Reconciler) overrideDependencies(ctx context.Context, resourceManagers feature.ResourceManagers, instance *v1alpha1.DatadogAgentInternal) error {
 	errs := override.Dependencies(ctrl.LoggerFrom(ctx), resourceManagers, instance.GetObjectMeta(), &instance.Spec)
 	if len(errs) > 0 {
 		return errors.NewAggregate(errs)
@@ -100,7 +99,7 @@ func (r *Reconciler) overrideDependencies(ctx context.Context, resourceManagers 
 // *************************************
 
 // cleanupExtraneousResources groups the cleanup calls for old components.
-func (r *Reconciler) cleanupExtraneousResources(ctx context.Context, instance *datadoghqv1alpha1.DatadogAgentInternal, newStatus *datadoghqv1alpha1.DatadogAgentInternalStatus, resourceManagers feature.ResourceManagers) error {
+func (r *Reconciler) cleanupExtraneousResources(ctx context.Context, instance *v1alpha1.DatadogAgentInternal, newStatus *v1alpha1.DatadogAgentInternalStatus, resourceManagers feature.ResourceManagers) error {
 	logger := ctrl.LoggerFrom(ctx)
 	var errs []error
 	// Cleanup old DaemonSets, DCA and CCR deployments.

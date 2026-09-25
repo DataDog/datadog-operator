@@ -43,7 +43,8 @@ func newVersionJSON() []byte {
 		Error:     "",
 	})
 	if err != nil {
-		bytes, _ = json.Marshal(JSON{Error: fmt.Sprintf("cannot get version: %v", err)})
+		// JSON contains only string fields, so marshaling this fallback cannot fail.
+		bytes, _ = json.Marshal(JSON{Error: fmt.Sprintf("cannot get version: %v", err)}) //nolint:errchkjson
 	}
 
 	return bytes

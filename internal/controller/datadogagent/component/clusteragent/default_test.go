@@ -247,7 +247,7 @@ func clusterAgentDefaultEnvVars(dda *datadoghqv2alpha1.DatadogAgent) []corev1.En
 					LocalObjectReference: corev1.LocalObjectReference{
 						Name: common.APMTelemetryConfigMapName,
 					},
-					Key: common.APMTelemetryInstallIdKey,
+					Key: common.APMTelemetryInstallIDKey,
 				},
 			},
 		},

@@ -142,21 +142,78 @@ func getRBACPolicyRules(logger logr.Logger, crs []string, collectKubernetesNetwo
 			APIGroups: []string{rbac.EKSAPIGroup},
 			Resources: []string{rbac.Wildcard},
 		},
+		{
+			APIGroups: []string{rbac.KubeRayAPIGroup},
+			Resources: []string{
+				rbac.RayClustersResource,
+				rbac.RayCronJobsResource,
+				rbac.RayJobsResource,
+				rbac.RayServicesResource,
+			},
+		},
+		{
+			APIGroups: []string{rbac.KubeAIAPIGroup},
+			Resources: []string{rbac.KubeAIModelsResource},
+		},
+		{
+			APIGroups: []string{rbac.DynamoAPIGroup},
+			Resources: []string{
+				rbac.DynamoCheckpointsResource,
+				rbac.DynamoComponentDeploymentsResource,
+				rbac.DynamoGraphDeploymentRequestsResource,
+				rbac.DynamoGraphDeploymentsResource,
+				rbac.DynamoGraphDeploymentScalingAdaptersResource,
+				rbac.DynamoModelsResource,
+				rbac.DynamoWorkerMetadatasResource,
+			},
+		},
+		{
+			APIGroups: []string{rbac.KServeAPIGroup},
+			Resources: []string{
+				rbac.ClusterStorageContainersResource,
+				rbac.LLMInferenceServiceConfigsResource,
+				rbac.LLMInferenceServicesResource,
+				rbac.LocalModelCachesResource,
+				rbac.LocalModelNamespaceCachesResource,
+				rbac.LocalModelNodeGroupsResource,
+				rbac.LocalModelNodesResource,
+				rbac.ClusterServingRuntimesResource,
+				rbac.InferenceGraphsResource,
+				rbac.InferenceServicesResource,
+				rbac.ServingRuntimesResource,
+				rbac.TrainedModelsResource,
+			},
+		},
+		{
+			APIGroups: []string{rbac.GatewayAPIGroup},
+			Resources: []string{
+				rbac.GatewayClassesResource,
+				rbac.GatewaysResource,
+				rbac.HTTPRoutesResource,
+				rbac.GRPCRoutesResource,
+				rbac.BackendTLSPoliciesResource,
+				rbac.ListenerSetsResource,
+				rbac.ReferenceGrantsResource,
+				rbac.TCPRoutesResource,
+				rbac.TLSRoutesResource,
+				rbac.UDPRoutesResource,
+			},
+		},
+		{
+			APIGroups: []string{rbac.InferenceAPIGroup},
+			Resources: []string{rbac.InferencePoolsResource},
+		},
+		{
+			APIGroups: []string{rbac.InferenceExperimentalAPIGroup},
+			Resources: []string{
+				rbac.InferencePoolsResource,
+				rbac.InferencePoolImportsResource,
+			},
+		},
 	}
 
 	if collectKubernetesNetworkResources {
 		rbacRules = append(rbacRules,
-			// Gateway API — resource-specific
-			rbacv1.PolicyRule{
-				APIGroups: []string{rbac.GatewayAPIGroup},
-				Resources: []string{
-					rbac.GatewaysResource,
-					rbac.HTTPRoutesResource,
-					rbac.GRPCRoutesResource,
-					rbac.TLSRoutesResource,
-					rbac.ListenerSetsResource,
-				},
-			},
 			// Service Mesh — Istio: resource-specific
 			rbacv1.PolicyRule{
 				APIGroups: []string{rbac.IstioNetworkingAPIGroup},

@@ -387,7 +387,7 @@ update-golang: bin/$(PLATFORM)/jq bin/$(PLATFORM)/yq ensure-gsed
 
 .PHONY: sync
 sync: ## Run go work sync
-	go work sync
+	hack/sync-go-work.sh
 
 .PHONY: kubectl-datadog
 kubectl-datadog: lint
@@ -401,9 +401,11 @@ yaml-mapper: fmt lint
 check-operator: fmt lint
 	go build -ldflags '${LDFLAGS}' -o bin/check-operator ./cmd/check-operator/main.go
 
+CREATE_PR ?= false
+
 .PHONY: publish-community-bundles
-publish-community-bundles: ## Publish bundles to community repositories
-	hack/publish-community-bundles.sh
+publish-community-bundles: ## Publish bundles to community repositories (set CREATE_PR=true to also open PRs upstream)
+	CREATE_PR=$(CREATE_PR) hack/publish-community-bundles.sh
 
 .PHONY: annotate-gcp-manifest
 annotate-gcp-manifest: ## Annotate manifest for GCP marketplace
@@ -423,7 +425,7 @@ bin/$(PLATFORM)/operator-sdk: Makefile
 
 bin/$(PLATFORM)/go-licenses:
 	mkdir -p $(ROOT)/bin/$(PLATFORM)
-	GOBIN=$(ROOT)/bin/$(PLATFORM) go install github.com/google/go-licenses@v1.5.0
+	GOBIN=$(ROOT)/bin/$(PLATFORM) go install github.com/google/go-licenses/v2@v2.0.1
 
 bin/$(PLATFORM)/operator-manifest-tools: Makefile
 	hack/install-operator-manifest-tools.sh 0.6.0
