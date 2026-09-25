@@ -274,6 +274,12 @@ func (r *Reconciler) ownedResourcesAndRequeue(ctx context.Context, logger logr.L
 	// missing the worker cannot run, so skip Deployment/PDB instead of
 	// crash-looping pods on an unusable config.
 	if configOK {
+		if statusProbesRequested(instance) && !statusProbesSupported(instance) {
+			logger.Info("Worker version does not support status probes, not enabling them", "tag", workerImageTag(instance), "minVersion", statusProbesMinWorkerVersion)
+			r.recorder.Eventf(instance, corev1.EventTypeWarning, eventReasonPrefix+"StatusProbesUnsupported",
+				"Status probes need worker version %s or later, image tag is %s: the probes are not enabled", statusProbesMinWorkerVersion, workerImageTag(instance))
+		}
+
 		depStatus, err := reconcileDeployment(ctx, r.client, r.scheme, instance, saName)
 		if err != nil {
 			logger.Error(err, "error reconciling deployment")

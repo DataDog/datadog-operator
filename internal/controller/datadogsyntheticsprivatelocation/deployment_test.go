@@ -77,16 +77,56 @@ func Test_buildDeploymentStatusProbesSync(t *testing.T) {
 	assert.Contains(t, c.Env, corev1.EnvVar{Name: statusProbesPortEnvVar, Value: "8080"})
 }
 
-func Test_buildDeploymentStatusProbesAnnotationNotTrue(t *testing.T) {
-	instance := newTestInstance()
-	instance.Annotations = map[string]string{datadoghqv1alpha1.DatadogSPLStatusProbesEnabledAnnotation: "false"}
-	d := buildDeployment(instance, instance.Name)
+func Test_buildDeploymentStatusProbesDisabled(t *testing.T) {
+	tests := []struct {
+		name       string
+		annotation string
+		tag        string
+	}{
+		{name: "annotation is not true", annotation: "false"},
+		{name: "worker version is too old", annotation: "true", tag: "1.11.0"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			instance := newTestInstance()
+			instance.Annotations = map[string]string{datadoghqv1alpha1.DatadogSPLStatusProbesEnabledAnnotation: tt.annotation}
+			if tt.tag != "" {
+				instance.Spec.Worker = &datadoghqv1alpha1.DatadogSPLWorker{
+					Image: &datadoghqv1alpha1.DatadogSPLImage{Tag: tt.tag},
+				}
+			}
+			d := buildDeployment(instance, instance.Name)
 
-	c := d.Spec.Template.Spec.Containers[0]
-	assert.Nil(t, c.LivenessProbe)
-	assert.Nil(t, c.ReadinessProbe)
-	for _, env := range c.Env {
-		assert.NotEqual(t, enableStatusProbesEnvVar, env.Name)
+			c := d.Spec.Template.Spec.Containers[0]
+			assert.Nil(t, c.LivenessProbe)
+			assert.Nil(t, c.ReadinessProbe)
+			for _, env := range c.Env {
+				assert.NotEqual(t, enableStatusProbesEnvVar, env.Name)
+			}
+		})
+	}
+}
+
+func Test_statusProbesSupported(t *testing.T) {
+	tests := []struct {
+		tag  string
+		want bool
+	}{
+		{tag: "", want: true},
+		{tag: "1.11.9", want: false},
+		{tag: "1.12.0", want: true},
+		{tag: "1.12.0-rc.1", want: true},
+		{tag: "1.73.0", want: true},
+		{tag: "latest", want: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.tag, func(t *testing.T) {
+			instance := newTestInstance()
+			instance.Spec.Worker = &datadoghqv1alpha1.DatadogSPLWorker{
+				Image: &datadoghqv1alpha1.DatadogSPLImage{Tag: tt.tag},
+			}
+			assert.Equal(t, tt.want, statusProbesSupported(instance))
+		})
 	}
 }
 

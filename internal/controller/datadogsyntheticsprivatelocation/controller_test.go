@@ -214,6 +214,39 @@ func TestReconciler_Reconcile_create(t *testing.T) {
 	assert.Contains(t, instance.Finalizers, datadogSyntheticsPrivateLocationFinalizerName)
 }
 
+func TestReconciler_Reconcile_statusProbesUnsupportedWorkerVersion(t *testing.T) {
+	mock := newDDMock(t)
+	r, k8sClient := newTestReconciler(t, mock)
+
+	instance := newTestInstance()
+	instance.Annotations = map[string]string{datadoghqv1alpha1.DatadogSPLStatusProbesEnabledAnnotation: "true"}
+	instance.Spec.Worker = &datadoghqv1alpha1.DatadogSPLWorker{
+		Image: &datadoghqv1alpha1.DatadogSPLImage{Tag: "1.11.0"},
+	}
+	require.NoError(t, k8sClient.Create(context.TODO(), instance))
+	for i := 0; i < 2; i++ {
+		_, err := r.Reconcile(context.TODO(), getInstance(t, k8sClient))
+		require.NoError(t, err)
+	}
+
+	deployment := &appsv1.Deployment{}
+	require.NoError(t, k8sClient.Get(context.TODO(),
+		types.NamespacedName{Name: "my-pl", Namespace: "default"}, deployment))
+	assert.Nil(t, deployment.Spec.Template.Spec.Containers[0].LivenessProbe)
+	assert.Nil(t, deployment.Spec.Template.Spec.Containers[0].ReadinessProbe)
+
+	recorder, ok := r.recorder.(*record.FakeRecorder)
+	require.True(t, ok)
+	close(recorder.Events)
+	var warnings []string
+	for event := range recorder.Events {
+		if strings.HasPrefix(event, corev1.EventTypeWarning+" "+eventReasonPrefix+"StatusProbesUnsupported") {
+			warnings = append(warnings, event)
+		}
+	}
+	assert.NotEmpty(t, warnings)
+}
+
 func TestReconciler_Reconcile_noChangeRefreshesOnly(t *testing.T) {
 	mock := newDDMock(t)
 	r, k8sClient := newTestReconciler(t, mock)

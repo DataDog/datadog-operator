@@ -25,10 +25,14 @@ import (
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
+	"github.com/DataDog/datadog-operator/pkg/utils"
 )
 
 const (
 	statusProbesPort int32 = 8080
+	// statusProbesMinWorkerVersion is the first worker release with the
+	// status endpoints.
+	statusProbesMinWorkerVersion = "1.12.0"
 
 	configVolumeName      = "worker-config"
 	configVolumeMountPath = "/etc/datadog"
@@ -39,8 +43,19 @@ const (
 	statusProbesPortEnvVar   = "DATADOG_WORKER_STATUS_PROBES_PORT"
 )
 
-func statusProbesEnabled(instance *datadoghqv1alpha1.DatadogSyntheticsPrivateLocation) bool {
+func statusProbesRequested(instance *datadoghqv1alpha1.DatadogSyntheticsPrivateLocation) bool {
 	return featureutils.HasFeatureEnableAnnotation(instance, datadoghqv1alpha1.DatadogSPLStatusProbesEnabledAnnotation)
+}
+
+// statusProbesSupported reports whether the worker image has the status
+// endpoints. Tags that are not semver (for example "latest") are assumed to
+// support them.
+func statusProbesSupported(instance *datadoghqv1alpha1.DatadogSyntheticsPrivateLocation) bool {
+	return utils.IsAboveMinVersion(workerImageTag(instance), statusProbesMinWorkerVersion+"-0", nil)
+}
+
+func statusProbesEnabled(instance *datadoghqv1alpha1.DatadogSyntheticsPrivateLocation) bool {
+	return statusProbesRequested(instance) && statusProbesSupported(instance)
 }
 
 func buildDeployment(instance *datadoghqv1alpha1.DatadogSyntheticsPrivateLocation, saName string) *appsv1.Deployment {

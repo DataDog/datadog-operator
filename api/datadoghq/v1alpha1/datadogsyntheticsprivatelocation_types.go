@@ -29,7 +29,7 @@ const (
 
 	// DatadogSPLStatusProbesEnabledAnnotation enables the worker status
 	// endpoints and the matching Deployment liveness and readiness probes when
-	// set to "true".
+	// set to "true". The worker must be version 1.12.0 or later.
 	DatadogSPLStatusProbesEnabledAnnotation = "synthetics.datadoghq.com/status-probes-enabled"
 )
 

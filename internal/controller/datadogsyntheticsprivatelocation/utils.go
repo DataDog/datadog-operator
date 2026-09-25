@@ -83,18 +83,21 @@ func resolveSite(creds config.Creds) string {
 
 func workerImage(instance *datadoghqv1alpha1.DatadogSyntheticsPrivateLocation) (string, corev1.PullPolicy) {
 	repository := defaultWorkerImageRepo
-	tag := images.SyntheticsPrivateLocationWorkerLatestVersion
 	pullPolicy := corev1.PullIfNotPresent
 	if w := instance.Spec.Worker; w != nil && w.Image != nil {
 		if w.Image.Repository != "" {
 			repository = w.Image.Repository
 		}
-		if w.Image.Tag != "" {
-			tag = w.Image.Tag
-		}
 		if w.Image.PullPolicy != "" {
 			pullPolicy = w.Image.PullPolicy
 		}
 	}
-	return repository + ":" + tag, pullPolicy
+	return repository + ":" + workerImageTag(instance), pullPolicy
+}
+
+func workerImageTag(instance *datadoghqv1alpha1.DatadogSyntheticsPrivateLocation) string {
+	if w := instance.Spec.Worker; w != nil && w.Image != nil && w.Image.Tag != "" {
+		return w.Image.Tag
+	}
+	return images.SyntheticsPrivateLocationWorkerLatestVersion
 }
