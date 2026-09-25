@@ -17,6 +17,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/openshift"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 
@@ -102,6 +103,11 @@ type ReconcilerOptions struct {
 	// ClusterProviderDetector supplies the detected cluster provider. Nil disables
 	// provider detection (reconcile behaves as before: empty provider).
 	ClusterProviderDetector ProviderReader
+	// SCCAuthorizer answers whether a ServiceAccount may use a SecurityContextConstraints,
+	// for the OpenShift node-agent ServiceAccount wiring. Nil installs the live
+	// SubjectAccessReview implementation; tests and the golden renderer inject a stub so
+	// they never issue a real authorization call.
+	SCCAuthorizer openshift.SCCAuthorizer
 }
 
 // Reconciler is the internal reconciler for Datadog Agent
@@ -137,6 +143,12 @@ func NewReconciler(options ReconcilerOptions, client client.Client, platformInfo
 		log:          log,
 		recorder:     recorder,
 		forwarders:   metricForwardersMgr,
+	}
+
+	// Default to the live SubjectAccessReview authorizer. Tests and the golden renderer
+	// inject a stub instead, so they never issue a real authorization call.
+	if r.options.SCCAuthorizer == nil {
+		r.options.SCCAuthorizer = openshift.NewSARAuthorizer(client)
 	}
 
 	// Initialize component registry

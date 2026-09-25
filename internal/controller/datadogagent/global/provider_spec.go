@@ -40,6 +40,21 @@ const (
 	autopilotInitVolumeName = "init-volume"
 )
 
+// OpenShift node-role taints the node agent must tolerate to run cluster-wide.
+// Control plane and infra nodes carry these with NoSchedule.
+const (
+	openshiftMasterNodeRoleTaint = "node-role.kubernetes.io/master"
+	openshiftInfraNodeRoleTaint  = "node-role.kubernetes.io/infra"
+)
+
+// OpenShift super-privileged container SELinux context for the node agent.
+const (
+	openshiftSELinuxUser  = "system_u"
+	openshiftSELinuxRole  = "system_r"
+	openshiftSELinuxType  = "spc_t"
+	openshiftSELinuxLevel = "s0"
+)
+
 // NodeAgentProviderSpec is the provider-keyed capabilities map for the node
 // agent pod template. The "" baseline applies to all providers; provider-keyed
 // entries are applied on top (removals first, then additions).
@@ -127,6 +142,47 @@ var NodeAgentProviderSpec = providercaps.ProviderCapabilityMap{
 		},
 		// The auth token file path env var is meaningless once the auth volume is gone.
 		RemoveEnvVars: []string{common.DDAuthTokenFilePath},
+	},
+
+	// OpenShift. Keyed on the family so it matches every detected openshift-<os_id>
+	// (openshift-rhcos in production, openshift-rhel on CRC).
+	//
+	// Control plane and infra nodes carry NoSchedule taints, so without these the
+	// DaemonSet silently skips them and those nodes go unmonitored. Tolerations are
+	// appended, so user tolerations from spec.override still apply alongside.
+	//
+	// The super-privileged container SELinux type is required by the node agent as a
+	// whole, not just for reading pod logs. Under enforcing SELinux the default
+	// container type cannot reach the host paths the agent mounts — /proc,
+	// /sys/fs/cgroup, the container runtime socket — nor write the system-probe
+	// profile into /var/lib/kubelet/seccomp, which makes the seccomp-setup init
+	// container fail with "Permission denied" and the pod crash-loop before any agent
+	// container starts.
+	//
+	// Datadog's distributions page frames this override as log-collection-specific,
+	// but the OpenShift integration page attributes spc_t to proc/cgroup/socket
+	// access, and a DatadogAgent with no features at all reproduces the seccomp
+	// failure. Scoping it to log collection leaves a bare DatadogAgent broken, so it
+	// is applied for every OpenShift node agent.
+	kubernetes.OpenshiftProvider: {
+		SELinuxOptions: &corev1.SELinuxOptions{
+			User:  openshiftSELinuxUser,
+			Role:  openshiftSELinuxRole,
+			Type:  openshiftSELinuxType,
+			Level: openshiftSELinuxLevel,
+		},
+		Tolerations: []corev1.Toleration{
+			{
+				Key:      openshiftMasterNodeRoleTaint,
+				Operator: corev1.TolerationOpExists,
+				Effect:   corev1.TaintEffectNoSchedule,
+			},
+			{
+				Key:      openshiftInfraNodeRoleTaint,
+				Operator: corev1.TolerationOpExists,
+				Effect:   corev1.TaintEffectNoSchedule,
+			},
+		},
 	},
 }
 

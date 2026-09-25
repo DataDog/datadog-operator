@@ -11,9 +11,11 @@ package providercaps
 
 import (
 	corev1 "k8s.io/api/core/v1"
+	apiequality "k8s.io/apimachinery/pkg/api/equality"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/merger"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 // PodTemplateManager is the minimal interface ApplyProviderCapabilities needs
@@ -70,11 +72,17 @@ type ContainerMountRef struct {
 	Containers []apicommon.AgentContainerName
 }
 
-// ProviderCapabilities holds the volumes, env vars, and removals for a
-// specific provider entry in a ProviderCapabilityMap.
+// ProviderCapabilities holds the volumes, env vars, pod-level settings, and removals
+// for a specific provider entry in a ProviderCapabilityMap.
 type ProviderCapabilities struct {
 	Volumes []VolumeAndMount
 	EnvVars []EnvVarSet
+	// SELinuxOptions sets pod-level SELinux options when unset. Narrower than a whole
+	// PodSecurityContext on purpose: the default builder sets RunAsUser: 0 there, and
+	// assigning a fresh struct would drop it.
+	SELinuxOptions *corev1.SELinuxOptions
+	// Tolerations are appended, skipping any already present.
+	Tolerations []corev1.Toleration
 	// RemoveVolumes strips named volumes (vol + all mounts) before provider additions run.
 	RemoveVolumes []string
 	// RemoveMounts strips specific container-volume mount pairs before provider additions run.
@@ -116,6 +124,7 @@ func ApplyProviderCapabilities(mgr PodTemplateManager, provider string, caps Pro
 				mgr.EnvVar().AddEnvVarToInitContainer(ic, &ev.EnvVar)
 			}
 		}
+		applyPodLevel(mgr.PodTemplateSpec(), c)
 	}
 
 	applyRemovals := func(c ProviderCapabilities) {
@@ -134,12 +143,59 @@ func ApplyProviderCapabilities(mgr PodTemplateManager, provider string, caps Pro
 	if baseline, ok := caps[""]; ok {
 		applyAdditions(baseline)
 	}
-	if provider != "" {
-		if providerCaps, ok := caps[provider]; ok {
-			applyRemovals(providerCaps)
-			applyAdditions(providerCaps)
+	if providerCaps, ok := lookupProvider(caps, provider); ok {
+		applyRemovals(providerCaps)
+		applyAdditions(providerCaps)
+	}
+}
+
+// applyPodLevel applies the pod-scoped settings of a capabilities entry: fields on the
+// pod spec that the volume and env managers cannot reach.
+func applyPodLevel(tmpl *corev1.PodTemplateSpec, c ProviderCapabilities) {
+	if c.SELinuxOptions != nil {
+		if tmpl.Spec.SecurityContext == nil {
+			tmpl.Spec.SecurityContext = &corev1.PodSecurityContext{}
+		}
+		// Only fill a gap: a value already set came from the default builder or an
+		// earlier entry.
+		if tmpl.Spec.SecurityContext.SELinuxOptions == nil {
+			tmpl.Spec.SecurityContext.SELinuxOptions = c.SELinuxOptions.DeepCopy()
 		}
 	}
+
+	for _, tol := range c.Tolerations {
+		if !hasToleration(tmpl.Spec.Tolerations, tol) {
+			tmpl.Spec.Tolerations = append(tmpl.Spec.Tolerations, tol)
+		}
+	}
+}
+
+// hasToleration reports whether an equivalent toleration is already present, so global
+// and feature entries declaring the same one do not duplicate it.
+func hasToleration(existing []corev1.Toleration, want corev1.Toleration) bool {
+	for _, t := range existing {
+		if apiequality.Semantic.DeepEqual(t, want) {
+			return true
+		}
+	}
+	return false
+}
+
+// lookupProvider resolves the entry for provider: an exact key, else the family key
+// (kubernetes.ProviderFamily). Exact wins, so a variant can override a family rule.
+func lookupProvider(caps ProviderCapabilityMap, provider string) (ProviderCapabilities, bool) {
+	if provider == "" {
+		return ProviderCapabilities{}, false
+	}
+	if c, ok := caps[provider]; ok {
+		return c, true
+	}
+	if family := kubernetes.ProviderFamily(provider); family != provider {
+		if c, ok := caps[family]; ok {
+			return c, true
+		}
+	}
+	return ProviderCapabilities{}, false
 }
 
 // stripVolume removes a named volume from the pod spec and all its mounts

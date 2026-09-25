@@ -46,8 +46,12 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *v1alpha1.D
 	}
 
 	// 3. Set default values for GlobalConfig and Features
+	// Provider-specific defaults run here, not in the DatadogAgent controller: the
+	// provider annotation is already on the DDAI, whereas the DDA controller does not
+	// resolve the provider until later in its reconcile.
 	instanceCopy := instance.DeepCopy()
 	defaults.DefaultDatadogAgentSpec(&instanceCopy.Spec)
+	defaults.DefaultProviderSpecificConfig(&instanceCopy.Spec, instance.GetAnnotations()[kubernetes.ProviderAnnotationKey])
 
 	// 4. Delegate to the main reconcile function.
 	return r.reconcileInstance(ctx, instanceCopy)

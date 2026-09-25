@@ -63,6 +63,21 @@ type Options struct {
 	// It gates version-dependent resources such as the local agent service
 	// (k8s >= 1.22). Empty defaults to DefaultKubernetesVersion.
 	KubernetesVersion string
+	// SCCAllowed is the canned verdict for the OpenShift SecurityContextConstraints
+	// authorization check. It only has an effect on an OpenShift provider. Default
+	// false renders as if the ServiceAccount were not authorized, so the OpenShift
+	// ServiceAccount wiring stays inert.
+	SCCAllowed bool
+}
+
+// StaticSCCAuthorizer is an openshift.SCCAuthorizer returning a fixed verdict.
+// The fake client performs no authorization of its own, so rendering tests supply
+// the answer directly rather than seeding RBAC objects.
+type StaticSCCAuthorizer bool
+
+// CanUseSCC returns the canned verdict.
+func (a StaticSCCAuthorizer) CanUseSCC(_ context.Context, _, _, _ string) (bool, error) {
+	return bool(a), nil
 }
 
 // DefaultKubernetesVersion is the simulated server version used when
@@ -192,6 +207,11 @@ func Render(opts Options) ([]client.Object, *runtime.Scheme, error) {
 	ddaOpts := datadogagent.ReconcilerOptions{
 		DatadogAgentProfileEnabled: opts.ProfileEnabled,
 		SupportCilium:              opts.SupportCilium,
+		// Always a stub: the fake client does not evaluate authorization, so a real
+		// SubjectAccessReview against it would be meaningless (and it has no name, so
+		// the fake client would reject the Create outright). Defaults to denying,
+		// which keeps rendering inert unless a case opts in.
+		SCCAuthorizer: StaticSCCAuthorizer(opts.SCCAllowed),
 	}
 	ddaReconciler, err := datadogagent.NewReconciler(ddaOpts, fakeClient, platformInfo, scheme, log, recorder, noopForwarder{})
 	if err != nil {

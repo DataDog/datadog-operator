@@ -121,6 +121,27 @@ func isTalosProvider(node *corev1.Node) bool {
 	return node != nil && strings.HasPrefix(node.Status.NodeInfo.OSImage, talosOSImagePrefix)
 }
 
+// IsOpenShiftProvider reports whether p is OpenShift in either documented spelling
+// (docs/providers.md): a bare "openshift" from the provider annotation, or the
+// detected "openshift-<os_id>". The "-" stops "openshiftfoo" matching.
+func IsOpenShiftProvider(p string) bool {
+	return p == OpenshiftProvider || strings.HasPrefix(p, OpenshiftProvider+"-")
+}
+
+// ProviderFamily collapses a provider to the key its configuration is shared under,
+// returning p unchanged when it has no family. Provider-keyed tables are exact-match,
+// but OpenShift is detected as "openshift-<os_id>", so a platform-wide rule would
+// otherwise have no key to live under.
+//
+// Only OpenShift has a family: gke-cos and eks-ec2-use-hostname-from-file name node
+// variants whose config is specific to the variant, not the cloud provider.
+func ProviderFamily(p string) string {
+	if IsOpenShiftProvider(p) {
+		return OpenshiftProvider
+	}
+	return p
+}
+
 // ShouldUseDefaultDaemonset checks if the provider list contains providers that don't support
 // provider-specific daemonsets and should use a single default daemonset without node affinity.
 // Currently applies to EKS and OpenShift providers.
@@ -130,8 +151,7 @@ func ShouldUseDefaultDaemonset(providerList map[string]struct{}) bool {
 		if provider == EKSCloudProvider {
 			return true
 		}
-		// Check for OpenShift (has format "openshift-{value}")
-		if strings.HasPrefix(provider, OpenshiftProvider+"-") {
+		if IsOpenShiftProvider(provider) {
 			return true
 		}
 	}
