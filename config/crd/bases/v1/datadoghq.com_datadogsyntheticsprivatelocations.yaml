@@ -3298,12 +3298,14 @@ spec:
                           type: array
                           x-kubernetes-list-type: atomic
                         repository:
-                          default: gcr.io/datadoghq/synthetics-private-location-worker
-                          description: Repository of the worker image.
+                          description: |-
+                            Repository of the worker image.
+                            Default: gcr.io/datadoghq/synthetics-private-location-worker
                           type: string
                         tag:
-                          default: 1.73.0
-                          description: Tag of the worker image.
+                          description: |-
+                            Tag of the worker image.
+                            Default: the latest worker version supported by the operator.
                           type: string
                       type: object
                     imagePullSecrets:

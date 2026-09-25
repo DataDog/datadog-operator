@@ -150,11 +150,11 @@ type DatadogSPLWorker struct {
 // +k8s:openapi-gen=true
 type DatadogSPLImage struct {
 	// Repository of the worker image.
-	// +kubebuilder:default="gcr.io/datadoghq/synthetics-private-location-worker"
+	// Default: gcr.io/datadoghq/synthetics-private-location-worker
 	// +optional
 	Repository string `json:"repository,omitempty"`
 	// Tag of the worker image.
-	// +kubebuilder:default="1.73.0"
+	// Default: the latest worker version supported by the operator.
 	// +optional
 	Tag string `json:"tag,omitempty"`
 	// PullPolicy of the worker image.

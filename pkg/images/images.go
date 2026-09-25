@@ -29,6 +29,8 @@ const (
 	DDOTFIPSMinimumVersion = "7.78.0-0"
 	// CSILatestImageVersion corresponds to the latest stable Datadog CSIDriver release
 	CSILatestImageVersion = "1.4.0"
+	// SyntheticsPrivateLocationWorkerLatestVersion corresponds to the latest stable Synthetics private location worker release
+	SyntheticsPrivateLocationWorkerLatestVersion = "1.73.0"
 	// DefaultRegistrarImageVersion corresponds to the default CSI registrar image used
 	DefaultRegistrarImageVersion = "v2.0.1"
 	// Datadog container registry
@@ -60,6 +62,8 @@ const (
 	DefaultAgentImageName         string = "agent"
 	DefaultClusterAgentImageName  string = "cluster-agent"
 	DefaultDdotCollectorImageName string = "ddot-collector"
+	// DefaultSyntheticsPrivateLocationWorkerImageName is the Synthetics private location worker image name
+	DefaultSyntheticsPrivateLocationWorkerImageName string = "synthetics-private-location-worker"
 )
 
 // IsGCRRegistry reports whether registry points to a Datadog GCR registry,

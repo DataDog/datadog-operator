@@ -12,6 +12,7 @@ import (
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/pkg/config"
+	"github.com/DataDog/datadog-operator/pkg/images"
 )
 
 const (
@@ -25,9 +26,9 @@ const (
 	managedByLabelValue    = "datadog-operator"
 	configSecretNameSuffix = "-config"
 
-	defaultSite            = "datadoghq.com"
-	defaultWorkerImageRepo = "gcr.io/datadoghq/synthetics-private-location-worker"
-	defaultWorkerImageTag  = "1.73.0"
+	defaultSite = "datadoghq.com"
+
+	defaultWorkerImageRepo = images.GCRContainerRegistry + "/" + images.DefaultSyntheticsPrivateLocationWorkerImageName
 )
 
 func configSecretName(instance *datadoghqv1alpha1.DatadogSyntheticsPrivateLocation) string {
@@ -82,7 +83,7 @@ func resolveSite(creds config.Creds) string {
 
 func workerImage(instance *datadoghqv1alpha1.DatadogSyntheticsPrivateLocation) (string, corev1.PullPolicy) {
 	repository := defaultWorkerImageRepo
-	tag := defaultWorkerImageTag
+	tag := images.SyntheticsPrivateLocationWorkerLatestVersion
 	pullPolicy := corev1.PullIfNotPresent
 	if w := instance.Spec.Worker; w != nil && w.Image != nil {
 		if w.Image.Repository != "" {

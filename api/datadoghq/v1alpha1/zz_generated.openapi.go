@@ -2669,14 +2669,14 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogSPLImage(ref common.R
 				Properties: map[string]spec.Schema{
 					"repository": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Repository of the worker image.",
+							Description: "Repository of the worker image. Default: gcr.io/datadoghq/synthetics-private-location-worker",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
 					"tag": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Tag of the worker image.",
+							Description: "Tag of the worker image. Default: the latest worker version supported by the operator.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
