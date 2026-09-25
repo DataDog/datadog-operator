@@ -32,6 +32,8 @@ import (
 const (
 	gkeAutopilotDDAName       = "datadog-agent-gke-autopilot"
 	gkeAutopilotAgentSelector = common.NodeAgentSelector + ",agent.datadoghq.com/name=" + gkeAutopilotDDAName
+	gkeAllowlistSynchronizer  = "datadog-synchronizer"
+	gkeMatchingAllowlistLabel = "cloud.google.com/matching-allowlist"
 	systemProbeContainerName  = "system-probe"
 )
 
@@ -49,9 +51,6 @@ rbac:
 serviceAccount:
   create: false
   name: datadog-operator-e2e-controller-manager
-env:
-  - name: DD_DEFAULT_DATA_PLANE_LINUX_ENABLED
-    value: "true"
 `),
 	}
 
@@ -100,6 +99,59 @@ func (s *gkeAutopilotSuite) TestAutopilotDDA() {
 
 		s.logClusterAndNodeVersions()
 	})
+
+	var workloadAllowlistName string
+	s.Run("Verify Autopilot WorkloadAllowlist", func() {
+		client, err := dynamic.NewForConfig(s.Env().KubernetesCluster.KubernetesClient.K8sConfig)
+		require.NoError(s.T(), err)
+
+		s.Assert().EventuallyWithT(func(c *assert.CollectT) {
+			synchronizer, err := client.Resource(schema.GroupVersionResource{
+				Group: "auto.gke.io", Version: "v1", Resource: "allowlistsynchronizers",
+			}).Get(context.TODO(), gkeAllowlistSynchronizer, metav1.GetOptions{})
+			if !assert.NoError(c, err) {
+				return
+			}
+
+			conditions, found, err := unstructured.NestedSlice(synchronizer.Object, "status", "conditions")
+			if !assert.NoError(c, err) || !assert.True(c, found, "AllowlistSynchronizer has no status conditions") {
+				return
+			}
+			ready := false
+			for _, rawCondition := range conditions {
+				condition, ok := rawCondition.(map[string]interface{})
+				if ok && condition["type"] == "Ready" && condition["status"] == "True" {
+					ready = true
+					break
+				}
+			}
+			if !assert.True(c, ready, "AllowlistSynchronizer is not Ready: %v", conditions) {
+				return
+			}
+
+			paths, found, err := unstructured.NestedStringSlice(synchronizer.Object, "spec", "allowlistPaths")
+			if !assert.NoError(c, err) || !assert.True(c, found, "AllowlistSynchronizer has no allowlist paths") ||
+				!assert.Len(c, paths, 1, "expected one Agent allowlist path") {
+				return
+			}
+
+			name := strings.TrimSuffix(filepath.Base(paths[0]), filepath.Ext(paths[0]))
+			_, err = client.Resource(schema.GroupVersionResource{
+				Group: "auto.gke.io", Version: "v1", Resource: "workloadallowlists",
+			}).Get(context.TODO(), name, metav1.GetOptions{})
+			if assert.NoError(c, err, "referenced WorkloadAllowlist %q is not installed", name) {
+				workloadAllowlistName = name
+			}
+		}, 2*time.Minute, 10*time.Second, "GKE did not install the Agent WorkloadAllowlist")
+	})
+	if s.T().Failed() {
+		s.logADPWorkloadDiagnostics(gkeAutopilotDDAName, gkeAutopilotAgentSelector)
+		return
+	}
+	require.NotEmpty(s.T(), workloadAllowlistName)
+	// Selecting the installed allowlist makes GKE Warden report exact workload
+	// mismatches without racing the asynchronous allowlist synchronization.
+	require.NoError(s.T(), s.setDDANodeAgentLabel(gkeAutopilotDDAName, gkeMatchingAllowlistLabel, workloadAllowlistName))
 
 	s.Run("Verify Autopilot Agent DaemonSet creation", func() {
 		s.Assert().EventuallyWithT(func(c *assert.CollectT) {
@@ -245,6 +297,32 @@ func (s *gkeAutopilotSuite) setDDADataPlaneEnabled(ddaName string, enabled bool)
 	return err
 }
 
+func (s *gkeAutopilotSuite) setDDANodeAgentLabel(ddaName, key, value string) error {
+	client, err := dynamic.NewForConfig(s.Env().KubernetesCluster.KubernetesClient.K8sConfig)
+	if err != nil {
+		return err
+	}
+
+	resource := client.Resource(schema.GroupVersionResource{Group: "datadoghq.com", Version: "v2alpha1", Resource: "datadogagents"}).Namespace(common.NamespaceName)
+	dda, err := resource.Get(context.TODO(), ddaName, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+	labels, _, err := unstructured.NestedStringMap(dda.Object, "spec", "override", "nodeAgent", "labels")
+	if err != nil {
+		return err
+	}
+	if labels == nil {
+		labels = map[string]string{}
+	}
+	labels[key] = value
+	if err := unstructured.SetNestedStringMap(dda.Object, labels, "spec", "override", "nodeAgent", "labels"); err != nil {
+		return err
+	}
+	_, err = resource.Update(context.TODO(), dda, metav1.UpdateOptions{})
+	return err
+}
+
 func (s *gkeAutopilotSuite) logADPWorkloadDiagnostics(ddaName, agentSelector string) {
 	pods, err := s.Env().KubernetesCluster.Client().CoreV1().Pods(common.NamespaceName).List(context.TODO(), metav1.ListOptions{LabelSelector: agentSelector})
 	if err != nil {
@@ -262,6 +340,20 @@ func (s *gkeAutopilotSuite) logADPWorkloadDiagnostics(ddaName, agentSelector str
 		s.T().Logf("could not create dynamic client for %s: %v", ddaName, err)
 		return
 	}
+	synchronizer, err := client.Resource(schema.GroupVersionResource{
+		Group: "auto.gke.io", Version: "v1", Resource: "allowlistsynchronizers",
+	}).Get(context.TODO(), gkeAllowlistSynchronizer, metav1.GetOptions{})
+	if err != nil {
+		s.T().Logf("could not get AllowlistSynchronizer %s: %v", gkeAllowlistSynchronizer, err)
+	} else {
+		status, _, statusErr := unstructured.NestedMap(synchronizer.Object, "status")
+		if statusErr != nil {
+			s.T().Logf("could not read AllowlistSynchronizer %s status: %v", gkeAllowlistSynchronizer, statusErr)
+		} else {
+			s.T().Logf("AllowlistSynchronizer %s status: %v", gkeAllowlistSynchronizer, status)
+		}
+	}
+
 	ddai, err := client.Resource(schema.GroupVersionResource{Group: "datadoghq.com", Version: "v1alpha1", Resource: "datadogagentinternals"}).Namespace(common.NamespaceName).Get(context.TODO(), ddaName, metav1.GetOptions{})
 	if err != nil {
 		s.T().Logf("could not get DatadogAgentInternal for %s: %v", ddaName, err)

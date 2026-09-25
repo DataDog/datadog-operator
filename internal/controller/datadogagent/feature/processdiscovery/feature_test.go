@@ -17,6 +17,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/providercaps"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/testutils"
 
@@ -27,6 +28,12 @@ import (
 )
 
 func Test_processDiscoveryFeature_Configure(t *testing.T) {
+	windowsProfile := testutils.NewDatadogAgentBuilder().
+		WithAnnotations(map[string]string{kubernetes.ProviderAnnotationKey: kubernetes.WindowsProvider}).
+		WithProcessDiscoveryEnabled(true).
+		Build()
+	windowsProfile.Labels = map[string]string{constants.ProfileLabelKey: "windows"}
+
 	tests := test.FeatureTestSuite{
 		{
 			Name: "process discovery enabled",
@@ -72,6 +79,12 @@ func Test_processDiscoveryFeature_Configure(t *testing.T) {
 				Build(),
 			WantConfigure: true,
 			Agent:         testExpectedAgent(apicommon.UnprivilegedSingleAgentContainerName, true),
+		},
+		{
+			Name:          "process discovery on Windows",
+			DDA:           windowsProfile,
+			WantConfigure: true,
+			Agent:         testExpectedAgent(apicommon.ProcessAgentContainerName, false),
 		},
 	}
 	tests.Run(t, buildProcessDiscoveryFeature)

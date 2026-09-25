@@ -187,11 +187,7 @@ type Options struct {
 	Client client.Reader
 	// PlatformInfo contains Kubernetes version and API discovery data for feature
 	// code that needs cluster capabilities while configuring pod templates.
-	PlatformInfo kubernetes.PlatformInfo
-	// DatadogCSIDriverEnabled mirrors the operator's --datadogCSIDriverEnabled flag.
-	// The operator's own ClusterRole only holds csidrivers permissions when this is
-	// true, so features must not grant permissions to other components unless it is set.
-	DatadogCSIDriverEnabled bool
+	PlatformInfo            kubernetes.PlatformInfo
 	DefaultDataPlaneEnabled bool
 }
 
