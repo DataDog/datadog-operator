@@ -56,14 +56,14 @@ LABEL maintainer="Datadog Inc."
 COPY --from=certs /etc/pki/tls/certs/ca-bundle.crt /etc/ssl/certs/ca-bundle.crt
 
 WORKDIR /
-COPY --from=builder /workspace/manager .
+COPY --from=builder --chown=:0 /workspace/manager .
 
-COPY --from=builder /workspace/helpers .
+COPY --from=builder --chown=:0 /workspace/helpers .
 COPY --chmod=550 scripts/readsecret.sh .
 
-COPY --from=builder /workspace/yaml-mapper .
+COPY --from=builder --chown=:0 /workspace/yaml-mapper .
 
-COPY --chmod=755 ./LICENSE ./LICENSE-3rdparty.csv /licenses/
+COPY --chmod=755 --chown=:0 ./LICENSE ./LICENSE-3rdparty.csv /licenses/
 
 USER 1001
 
