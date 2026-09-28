@@ -66,15 +66,32 @@ var _ = Describe("DatadogBYOCCluster Controller", func() {
 						Key:                  "api-key",
 					},
 				},
+				Provider: &datadoghqv1alpha1.DatadogBYOCClusterProviderSpec{
+					AWS: &datadoghqv1alpha1.DatadogBYOCClusterAWSSpec{},
+				},
 				Components: &datadoghqv1alpha1.DatadogBYOCClusterComponentsSpec{
-					Metastore:         &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{},
-					Indexer:           &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{Autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{}},
-					Searcher:          &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{Autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{}},
-					Pipelines:         []datadoghqv1alpha1.DatadogBYOCClusterPipelineSpec{{Name: "logs", DatadogBYOCClusterPipelineComponentSpec: *byocTestPipeline()}},
-					ControlPlane:      &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
-					Janitor:           &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
-					ReadOnlyMetastore: &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{},
-					Compactor:         &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
+					Metastore: &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{
+						Database: &datadoghqv1alpha1.DatadogBYOCClusterDatabaseSpec{
+							URISecretRef: &corev1.SecretKeySelector{
+								LocalObjectReference: corev1.LocalObjectReference{Name: "byoc-postgres"},
+								Key:                  "primary-uri",
+							},
+						},
+					},
+					Indexer:      &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{Autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{}},
+					Searcher:     &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{Autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{}},
+					Pipelines:    []datadoghqv1alpha1.DatadogBYOCClusterPipelineSpec{{Name: "logs", DatadogBYOCClusterPipelineComponentSpec: *byocTestPipeline()}},
+					ControlPlane: &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
+					Janitor:      &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
+					ReadOnlyMetastore: &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{
+						Database: &datadoghqv1alpha1.DatadogBYOCClusterDatabaseSpec{
+							URISecretRef: &corev1.SecretKeySelector{
+								LocalObjectReference: corev1.LocalObjectReference{Name: "byoc-postgres"},
+								Key:                  "read-only-metastore-uri",
+							},
+						},
+					},
+					Compactor: &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
 				},
 			},
 		}
@@ -116,15 +133,32 @@ var _ = Describe("DatadogBYOCCluster Controller", func() {
 							Port: ptr.To[int32](8125),
 						},
 					},
+					Provider: &datadoghqv1alpha1.DatadogBYOCClusterProviderSpec{
+						AWS: &datadoghqv1alpha1.DatadogBYOCClusterAWSSpec{},
+					},
 					Components: &datadoghqv1alpha1.DatadogBYOCClusterComponentsSpec{
-						Metastore:         &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{},
-						Indexer:           &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{Autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{}},
-						Searcher:          &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{Autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{}},
-						Pipelines:         []datadoghqv1alpha1.DatadogBYOCClusterPipelineSpec{{Name: "logs", DatadogBYOCClusterPipelineComponentSpec: *byocTestPipeline()}},
-						ControlPlane:      &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
-						Janitor:           &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
-						ReadOnlyMetastore: &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{},
-						Compactor:         &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
+						Metastore: &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{
+							Database: &datadoghqv1alpha1.DatadogBYOCClusterDatabaseSpec{
+								URISecretRef: &corev1.SecretKeySelector{
+									LocalObjectReference: corev1.LocalObjectReference{Name: "byoc-postgres"},
+									Key:                  "primary-uri",
+								},
+							},
+						},
+						Indexer:      &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{Autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{}},
+						Searcher:     &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{Autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{}},
+						Pipelines:    []datadoghqv1alpha1.DatadogBYOCClusterPipelineSpec{{Name: "logs", DatadogBYOCClusterPipelineComponentSpec: *byocTestPipeline()}},
+						ControlPlane: &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
+						Janitor:      &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
+						ReadOnlyMetastore: &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{
+							Database: &datadoghqv1alpha1.DatadogBYOCClusterDatabaseSpec{
+								URISecretRef: &corev1.SecretKeySelector{
+									LocalObjectReference: corev1.LocalObjectReference{Name: "byoc-postgres"},
+									Key:                  "read-only-metastore-uri",
+								},
+							},
+						},
+						Compactor: &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
 					},
 				},
 				Status: datadoghqv1alpha1.DatadogBYOCClusterStatus{
@@ -687,15 +721,32 @@ var _ = Describe("DatadogBYOCCluster Controller", func() {
 							Port: ptr.To[int32](8125),
 						},
 					},
+					Provider: &datadoghqv1alpha1.DatadogBYOCClusterProviderSpec{
+						AWS: &datadoghqv1alpha1.DatadogBYOCClusterAWSSpec{},
+					},
 					Components: &datadoghqv1alpha1.DatadogBYOCClusterComponentsSpec{
-						Metastore:         &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{},
-						Indexer:           &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{Autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{}},
-						Searcher:          &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{Autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{}},
-						Pipelines:         []datadoghqv1alpha1.DatadogBYOCClusterPipelineSpec{{Name: "logs", DatadogBYOCClusterPipelineComponentSpec: *byocTestPipeline()}},
-						ControlPlane:      &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
-						Janitor:           &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
-						ReadOnlyMetastore: &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{},
-						Compactor:         &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
+						Metastore: &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{
+							Database: &datadoghqv1alpha1.DatadogBYOCClusterDatabaseSpec{
+								URISecretRef: &corev1.SecretKeySelector{
+									LocalObjectReference: corev1.LocalObjectReference{Name: "byoc-postgres"},
+									Key:                  "primary-uri",
+								},
+							},
+						},
+						Indexer:      &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{Autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{}},
+						Searcher:     &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{Autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{}},
+						Pipelines:    []datadoghqv1alpha1.DatadogBYOCClusterPipelineSpec{{Name: "logs", DatadogBYOCClusterPipelineComponentSpec: *byocTestPipeline()}},
+						ControlPlane: &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
+						Janitor:      &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
+						ReadOnlyMetastore: &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{
+							Database: &datadoghqv1alpha1.DatadogBYOCClusterDatabaseSpec{
+								URISecretRef: &corev1.SecretKeySelector{
+									LocalObjectReference: corev1.LocalObjectReference{Name: "byoc-postgres"},
+									Key:                  "read-only-metastore-uri",
+								},
+							},
+						},
+						Compactor: &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
 					},
 				},
 				Status: datadoghqv1alpha1.DatadogBYOCClusterStatus{
@@ -809,12 +860,12 @@ func (r *fakeBYOCImageResolver) Resolve(_ context.Context, spec *datadoghqv1alph
 	return &images, nil
 }
 
-func completeFakeImageOverride(override *datadoghqv1alpha1.DatadogBYOCClusterImageOverrideSpec) bool {
+func completeFakeImageOverride(override *datadoghqv1alpha1.DatadogBYOCImageSpec) bool {
 	return override != nil && ptr.Deref(override.Repository, "") != "" &&
 		((ptr.Deref(override.Tag, "") != "") != (ptr.Deref(override.Digest, "") != ""))
 }
 
-func fakeResolvedImage(base byocimage.ResolvedImage, override *datadoghqv1alpha1.DatadogBYOCClusterImageOverrideSpec) byocimage.ResolvedImage {
+func fakeResolvedImage(base byocimage.ResolvedImage, override *datadoghqv1alpha1.DatadogBYOCImageSpec) byocimage.ResolvedImage {
 	if override == nil {
 		return base
 	}

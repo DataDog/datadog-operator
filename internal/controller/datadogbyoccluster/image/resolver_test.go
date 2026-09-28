@@ -120,13 +120,13 @@ func TestOCIImageResolver_Resolve(t *testing.T) {
 			name:    "release with image overrides",
 			release: &datadoghqv1alpha1.DatadogBYOCClusterReleaseSpec{Tag: ptr.To(releaseTag)},
 			overrides: &datadoghqv1alpha1.DatadogBYOCClusterImageOverrides{
-				BYOC: &datadoghqv1alpha1.DatadogBYOCClusterImageOverrideSpec{
+				BYOC: &datadoghqv1alpha1.DatadogBYOCImageSpec{
 					Repository:       ptr.To("private.example.com/pomsky"),
 					Tag:              ptr.To("hotfix"),
 					PullPolicy:       ptr.To(corev1.PullAlways),
 					ImagePullSecrets: []corev1.LocalObjectReference{{Name: "registry-credentials"}},
 				},
-				ObservabilityPipelinesWorker: &datadoghqv1alpha1.DatadogBYOCClusterImageOverrideSpec{
+				ObservabilityPipelinesWorker: &datadoghqv1alpha1.DatadogBYOCImageSpec{
 					Digest:     ptr.To("sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"),
 					PullPolicy: ptr.To(corev1.PullNever),
 				},
@@ -149,11 +149,11 @@ func TestOCIImageResolver_Resolve(t *testing.T) {
 		{
 			name: "complete image overrides without release",
 			overrides: &datadoghqv1alpha1.DatadogBYOCClusterImageOverrides{
-				BYOC: &datadoghqv1alpha1.DatadogBYOCClusterImageOverrideSpec{
+				BYOC: &datadoghqv1alpha1.DatadogBYOCImageSpec{
 					Repository: ptr.To("private.example.com/pomsky"),
 					Tag:        ptr.To("hotfix"),
 				},
-				ObservabilityPipelinesWorker: &datadoghqv1alpha1.DatadogBYOCClusterImageOverrideSpec{
+				ObservabilityPipelinesWorker: &datadoghqv1alpha1.DatadogBYOCImageSpec{
 					Repository: ptr.To("private.example.com/worker"),
 					Digest:     ptr.To("sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"),
 				},

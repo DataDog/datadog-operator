@@ -1354,9 +1354,6 @@ spec:
                                 - type: string
                               x-kubernetes-int-or-string: true
                           type: object
-                          x-kubernetes-validations:
-                            - message: minAvailable and maxUnavailable are mutually exclusive
-                              rule: '!(has(self.minAvailable) && has(self.maxUnavailable))'
                         replicas:
                           format: int32
                           type: integer
@@ -3675,9 +3672,6 @@ spec:
                                 - type: string
                               x-kubernetes-int-or-string: true
                           type: object
-                          x-kubernetes-validations:
-                            - message: minAvailable and maxUnavailable are mutually exclusive
-                              rule: '!(has(self.minAvailable) && has(self.maxUnavailable))'
                         replicas:
                           format: int32
                           type: integer
@@ -6341,9 +6335,6 @@ spec:
                                 - type: string
                               x-kubernetes-int-or-string: true
                           type: object
-                          x-kubernetes-validations:
-                            - message: minAvailable and maxUnavailable are mutually exclusive
-                              rule: '!(has(self.minAvailable) && has(self.maxUnavailable))'
                         replicas:
                           format: int32
                           type: integer
@@ -6503,9 +6494,6 @@ spec:
                                   type: object
                               type: object
                           type: object
-                          x-kubernetes-validations:
-                            - message: exactly one storage type must be specified
-                              rule: has(self.emptyDir) != has(self.volumeClaimTemplate)
                         terminationGracePeriodSeconds:
                           format: int64
                           type: integer
@@ -7464,9 +7452,6 @@ spec:
                             - name
                           x-kubernetes-list-type: map
                       type: object
-                      x-kubernetes-validations:
-                        - message: resources.limits.memory must be specified when resources is set
-                          rule: '!has(self.resources) || (has(self.resources.limits) && ''memory'' in self.resources.limits)'
                     janitor:
                       properties:
                         affinity:
@@ -8791,9 +8776,6 @@ spec:
                                 - type: string
                               x-kubernetes-int-or-string: true
                           type: object
-                          x-kubernetes-validations:
-                            - message: minAvailable and maxUnavailable are mutually exclusive
-                              rule: '!(has(self.minAvailable) && has(self.maxUnavailable))'
                         replicas:
                           format: int32
                           type: integer
@@ -10248,6 +10230,8 @@ spec:
                                 - key
                               type: object
                               x-kubernetes-map-type: atomic
+                          required:
+                            - uriSecretRef
                           type: object
                         env:
                           items:
@@ -11128,9 +11112,6 @@ spec:
                                 - type: string
                               x-kubernetes-int-or-string: true
                           type: object
-                          x-kubernetes-validations:
-                            - message: minAvailable and maxUnavailable are mutually exclusive
-                              rule: '!(has(self.minAvailable) && has(self.maxUnavailable))'
                         replicas:
                           format: int32
                           type: integer
@@ -12124,6 +12105,8 @@ spec:
                           x-kubernetes-list-map-keys:
                             - name
                           x-kubernetes-list-type: map
+                      required:
+                        - database
                       type: object
                     pipelines:
                       items:
@@ -13803,9 +13786,6 @@ spec:
                                   - type: string
                                 x-kubernetes-int-or-string: true
                             type: object
-                            x-kubernetes-validations:
-                              - message: minAvailable and maxUnavailable are mutually exclusive
-                                rule: '!(has(self.minAvailable) && has(self.maxUnavailable))'
                           ports:
                             items:
                               properties:
@@ -13993,9 +13973,6 @@ spec:
                                     type: object
                                 type: object
                             type: object
-                            x-kubernetes-validations:
-                              - message: exactly one storage type must be specified
-                                rule: has(self.emptyDir) != has(self.volumeClaimTemplate)
                           terminationGracePeriodSeconds:
                             format: int64
                             type: integer
@@ -14958,9 +14935,6 @@ spec:
                           - pipelineID
                           - ports
                         type: object
-                        x-kubernetes-validations:
-                          - message: resources.limits.memory must be specified when resources is set
-                            rule: '!has(self.resources) || (has(self.resources.limits) && ''memory'' in self.resources.limits)'
                       minItems: 1
                       type: array
                       x-kubernetes-list-map-keys:
@@ -15426,6 +15400,8 @@ spec:
                                 - key
                               type: object
                               x-kubernetes-map-type: atomic
+                          required:
+                            - uriSecretRef
                           type: object
                         env:
                           items:
@@ -16306,9 +16282,6 @@ spec:
                                 - type: string
                               x-kubernetes-int-or-string: true
                           type: object
-                          x-kubernetes-validations:
-                            - message: minAvailable and maxUnavailable are mutually exclusive
-                              rule: '!(has(self.minAvailable) && has(self.maxUnavailable))'
                         replicas:
                           format: int32
                           type: integer
@@ -17302,6 +17275,8 @@ spec:
                           x-kubernetes-list-map-keys:
                             - name
                           x-kubernetes-list-type: map
+                      required:
+                        - database
                       type: object
                     searcher:
                       properties:
@@ -18972,9 +18947,6 @@ spec:
                                 - type: string
                               x-kubernetes-int-or-string: true
                           type: object
-                          x-kubernetes-validations:
-                            - message: minAvailable and maxUnavailable are mutually exclusive
-                              rule: '!(has(self.minAvailable) && has(self.maxUnavailable))'
                         replicas:
                           format: int32
                           type: integer
@@ -19134,9 +19106,6 @@ spec:
                                   type: object
                               type: object
                           type: object
-                          x-kubernetes-validations:
-                            - message: exactly one storage type must be specified
-                              rule: has(self.emptyDir) != has(self.volumeClaimTemplate)
                         terminationGracePeriodSeconds:
                           format: int64
                           type: integer
@@ -20095,9 +20064,6 @@ spec:
                             - name
                           x-kubernetes-list-type: map
                       type: object
-                      x-kubernetes-validations:
-                        - message: resources.limits.memory must be specified when resources is set
-                          rule: '!has(self.resources) || (has(self.resources.limits) && ''memory'' in self.resources.limits)'
                   required:
                     - controlPlane
                     - indexer
@@ -20714,9 +20680,6 @@ spec:
                             - type: string
                           x-kubernetes-int-or-string: true
                       type: object
-                      x-kubernetes-validations:
-                        - message: minAvailable and maxUnavailable are mutually exclusive
-                          rule: '!(has(self.minAvailable) && has(self.maxUnavailable))'
                     tolerations:
                       items:
                         properties:
@@ -21683,7 +21646,6 @@ spec:
                     byoc:
                       properties:
                         digest:
-                          pattern: ^sha256:[a-f0-9]{64}$
                           type: string
                         imagePullSecrets:
                           items:
@@ -21711,13 +21673,9 @@ spec:
                           minLength: 1
                           type: string
                       type: object
-                      x-kubernetes-validations:
-                        - message: tag and digest are mutually exclusive
-                          rule: '!(has(self.tag) && has(self.digest))'
                     observabilityPipelinesWorker:
                       properties:
                         digest:
-                          pattern: ^sha256:[a-f0-9]{64}$
                           type: string
                         imagePullSecrets:
                           items:
@@ -21745,11 +21703,8 @@ spec:
                           minLength: 1
                           type: string
                       type: object
-                      x-kubernetes-validations:
-                        - message: tag and digest are mutually exclusive
-                          rule: '!(has(self.tag) && has(self.digest))'
                   type: object
-                nodeConfig:
+                nodeConfigOverrides:
                   type: object
                   x-kubernetes-preserve-unknown-fields: true
                 provider:
@@ -21769,23 +21724,17 @@ spec:
                 release:
                   properties:
                     digest:
-                      pattern: ^sha256:[a-f0-9]{64}$
                       type: string
                     repository:
                       type: string
                     tag:
                       type: string
                   type: object
-                  x-kubernetes-validations:
-                    - message: exactly one of tag or digest must be specified
-                      rule: has(self.tag) != has(self.digest)
               required:
                 - components
                 - datadog
+                - provider
               type: object
-              x-kubernetes-validations:
-                - message: release is required unless both image overrides specify repository and tag or digest
-                  rule: has(self.release) || (has(self.imageOverrides) && has(self.imageOverrides.byoc) && has(self.imageOverrides.byoc.repository) && (has(self.imageOverrides.byoc.tag) || has(self.imageOverrides.byoc.digest)) && has(self.imageOverrides.observabilityPipelinesWorker) && has(self.imageOverrides.observabilityPipelinesWorker.repository) && (has(self.imageOverrides.observabilityPipelinesWorker.tag) || has(self.imageOverrides.observabilityPipelinesWorker.digest)))
             status:
               properties:
                 compactor:

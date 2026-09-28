@@ -291,7 +291,7 @@ func requiresResolution(overrides *datadoghqv1alpha1.DatadogBYOCClusterImageOver
 	return overrides == nil || !completeImageOverride(overrides.BYOC) || !completeImageOverride(overrides.ObservabilityPipelinesWorker)
 }
 
-func completeImageOverride(override *datadoghqv1alpha1.DatadogBYOCClusterImageOverrideSpec) bool {
+func completeImageOverride(override *datadoghqv1alpha1.DatadogBYOCImageSpec) bool {
 	return override != nil && ptr.Deref(override.Repository, "") != "" &&
 		((ptr.Deref(override.Tag, "") != "") != (ptr.Deref(override.Digest, "") != ""))
 }
@@ -299,7 +299,7 @@ func completeImageOverride(override *datadoghqv1alpha1.DatadogBYOCClusterImageOv
 // overrideImages applies local overrides to release images without mutating either input.
 // A nil release is allowed only when both images are fully specified by overrides.
 func overrideImages(release *byocRelease, overrides *datadoghqv1alpha1.DatadogBYOCClusterImageOverrides) (*ResolvedImages, error) {
-	var byoc, worker *datadoghqv1alpha1.DatadogBYOCClusterImageOverrideSpec
+	var byoc, worker *datadoghqv1alpha1.DatadogBYOCImageSpec
 	if overrides != nil {
 		byoc, worker = overrides.BYOC, overrides.ObservabilityPipelinesWorker
 	}
@@ -318,7 +318,7 @@ func overrideImages(release *byocRelease, overrides *datadoghqv1alpha1.DatadogBY
 	return images, nil
 }
 
-func overrideImage(base releaseImage, override *datadoghqv1alpha1.DatadogBYOCClusterImageOverrideSpec) ResolvedImage {
+func overrideImage(base releaseImage, override *datadoghqv1alpha1.DatadogBYOCImageSpec) ResolvedImage {
 	image := ResolvedImage{Repository: base.Repository, Tag: base.Tag, Digest: base.Digest, ImagePullPolicy: corev1.PullIfNotPresent}
 	if override == nil {
 		return image

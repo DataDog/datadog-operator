@@ -15,10 +15,8 @@ import (
 
 // DatadogBYOCClusterSpec defines the desired state of DatadogBYOCCluster.
 // +k8s:openapi-gen=true
-// +kubebuilder:validation:XValidation:rule="has(self.release) || (has(self.imageOverrides) && has(self.imageOverrides.byoc) && has(self.imageOverrides.byoc.repository) && (has(self.imageOverrides.byoc.tag) || has(self.imageOverrides.byoc.digest)) && has(self.imageOverrides.observabilityPipelinesWorker) && has(self.imageOverrides.observabilityPipelinesWorker.repository) && (has(self.imageOverrides.observabilityPipelinesWorker.tag) || has(self.imageOverrides.observabilityPipelinesWorker.digest)))",message="release is required unless both image overrides specify repository and tag or digest"
 type DatadogBYOCClusterSpec struct {
 	// Release identifies the BYOC release artifact.
-	// Required unless both image overrides specify a repository and tag or digest.
 	// When both images are fully specified, the release artifact is not fetched, even if Release is set.
 	// +optional
 	Release *DatadogBYOCClusterReleaseSpec `json:"release,omitempty"`
@@ -33,6 +31,7 @@ type DatadogBYOCClusterSpec struct {
 	Datadog *DatadogBYOCClusterDatadogSpec `json:"datadog,omitempty"`
 
 	// Provider configures the cloud provider used by the BYOC cluster.
+	// +kubebuilder:validation:Required
 	Provider *DatadogBYOCClusterProviderSpec `json:"provider,omitempty"`
 
 	// Identity configures an existing ServiceAccount used by the BYOC workloads, excluding the pipelines.
@@ -48,15 +47,14 @@ type DatadogBYOCClusterSpec struct {
 	// +kubebuilder:validation:Required
 	Components *DatadogBYOCClusterComponentsSpec `json:"components,omitempty"`
 
-	// NodeConfig contains the Quickwit node configuration.
+	// NodeConfigOverrides contains overrides merged into the default Quickwit node configuration.
 	// +optional
 	// +kubebuilder:pruning:PreserveUnknownFields
-	NodeConfig *runtime.RawExtension `json:"nodeConfig,omitempty"`
+	NodeConfigOverrides *runtime.RawExtension `json:"nodeConfigOverrides,omitempty"`
 }
 
 // DatadogBYOCClusterReleaseSpec identifies a BYOC release artifact.
 // +k8s:openapi-gen=true
-// +kubebuilder:validation:XValidation:rule="has(self.tag) != has(self.digest)",message="exactly one of tag or digest must be specified"
 type DatadogBYOCClusterReleaseSpec struct {
 	// Repository is the OCI repository containing BYOC release artifacts.
 	// The public Datadog BYOC release repository is used when this field is omitted.
@@ -69,7 +67,6 @@ type DatadogBYOCClusterReleaseSpec struct {
 
 	// Digest is the OCI digest of the BYOC release artifact.
 	// +optional
-	// +kubebuilder:validation:Pattern=`^sha256:[a-f0-9]{64}$`
 	Digest *string `json:"digest,omitempty"`
 }
 
@@ -79,19 +76,14 @@ type DatadogBYOCClusterImageOverrides struct {
 	// BYOC overrides the image used by all enabled BYOC components.
 	// It does not override user-specified init container images.
 	// +optional
-	BYOC *DatadogBYOCClusterImageOverrideSpec `json:"byoc,omitempty"`
+	BYOC *DatadogBYOCImageSpec `json:"byoc,omitempty"`
 
 	// ObservabilityPipelinesWorker overrides the Observability Pipelines Worker image.
 	// It participates in image resolution, but does not create a worker workload.
 	// Its pull secrets are not added to BYOC Pods.
 	// +optional
-	ObservabilityPipelinesWorker *DatadogBYOCClusterImageOverrideSpec `json:"observabilityPipelinesWorker,omitempty"`
+	ObservabilityPipelinesWorker *DatadogBYOCImageSpec `json:"observabilityPipelinesWorker,omitempty"`
 }
-
-// DatadogBYOCClusterImageOverrideSpec overrides a release image without modifying the release artifact.
-// +k8s:openapi-gen=true
-// +kubebuilder:validation:XValidation:rule="!(has(self.tag) && has(self.digest))",message="tag and digest are mutually exclusive"
-type DatadogBYOCClusterImageOverrideSpec DatadogBYOCImageSpec
 
 // DatadogBYOCImageSpec defines common BYOC workload image settings.
 // For an image override, omitted repository and version fields retain values from the release.
@@ -109,7 +101,6 @@ type DatadogBYOCImageSpec struct {
 
 	// Digest is the image digest.
 	// +optional
-	// +kubebuilder:validation:Pattern=`^sha256:[a-f0-9]{64}$`
 	Digest *string `json:"digest,omitempty"`
 
 	// PullPolicy is the image pull policy used by the workload container.
@@ -163,6 +154,7 @@ type DatadogBYOCClusterDogstatsdServerSpec struct {
 }
 
 // DatadogBYOCClusterProviderSpec defines the cloud provider configuration.
+// At least one provider must be specified.
 // +k8s:openapi-gen=true
 type DatadogBYOCClusterProviderSpec struct {
 	// AWS configures an AWS-hosted BYOC cluster.
@@ -411,7 +403,6 @@ type DatadogBYOCClusterComponentSpec struct {
 
 // DatadogBYOCClusterPodDisruptionBudgetSpec defines the availability constraint for voluntary Pod disruptions.
 // +k8s:openapi-gen=true
-// +kubebuilder:validation:XValidation:rule="!(has(self.minAvailable) && has(self.maxUnavailable))",message="minAvailable and maxUnavailable are mutually exclusive"
 type DatadogBYOCClusterPodDisruptionBudgetSpec struct {
 	// MinAvailable is the minimum number or percentage of Pods that must remain available after an eviction.
 	// +optional
@@ -425,7 +416,6 @@ type DatadogBYOCClusterPodDisruptionBudgetSpec struct {
 // DatadogBYOCClusterStatefulComponentSpec defines settings for a stateful BYOC workload.
 // When Resources is specified, its memory limit is required for Quickwit node configuration sizing.
 // +k8s:openapi-gen=true
-// +kubebuilder:validation:XValidation:rule="!has(self.resources) || (has(self.resources.limits) && 'memory' in self.resources.limits)",message="resources.limits.memory must be specified when resources is set"
 type DatadogBYOCClusterStatefulComponentSpec struct {
 	DatadogBYOCClusterComponentSpec `json:",inline"`
 
@@ -445,6 +435,7 @@ type DatadogBYOCClusterMetastoreComponentSpec struct {
 	DatadogBYOCClusterComponentSpec `json:",inline"`
 
 	// Database configures the PostgreSQL database used by the Metastore.
+	// +kubebuilder:validation:Required
 	Database *DatadogBYOCClusterDatabaseSpec `json:"database,omitempty"`
 }
 
@@ -471,7 +462,6 @@ type DatadogBYOCClusterAutoscalingSpec struct {
 
 // DatadogBYOCClusterStorageSpec defines storage for a stateful BYOC workload.
 // +k8s:openapi-gen=true
-// +kubebuilder:validation:XValidation:rule="has(self.emptyDir) != has(self.volumeClaimTemplate)",message="exactly one storage type must be specified"
 type DatadogBYOCClusterStorageSpec struct {
 	// EmptyDir configures an emptyDir volume for the component.
 	// +optional
@@ -512,6 +502,7 @@ type DatadogBYOCClusterEmbeddedObjectMetadata struct {
 // +k8s:openapi-gen=true
 type DatadogBYOCClusterDatabaseSpec struct {
 	// URISecretRef references the Kubernetes Secret containing the database URI.
+	// +kubebuilder:validation:Required
 	URISecretRef *corev1.SecretKeySelector `json:"uriSecretRef,omitempty"`
 }
 
@@ -605,7 +596,9 @@ type DatadogBYOCClusterDeploymentStatus struct {
 	AvailableReplicas *int32 `json:"availableReplicas,omitempty"`
 }
 
-// DatadogBYOCCluster is the Schema for the datadogbyocclusters API.
+// DatadogBYOCCluster represents a Datadog Bring Your Own Cloud (BYOC)
+// deployment running in a customer's Kubernetes cluster. Its spec configures
+// the BYOC workloads that process telemetry.
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:path=datadogbyocclusters,scope=Namespaced,shortName=ddbyoc

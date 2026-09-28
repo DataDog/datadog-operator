@@ -1,5 +1,15 @@
 # DatadogBYOCCluster
 
+## Provider and Metastore database
+
+`spec.provider` is required. Configure AWS through `spec.provider.aws` as shown
+in the [complete sample](../config/samples/datadoghq_v1alpha1_datadogbyoccluster.yaml).
+
+The Metastore requires `spec.components.metastore.database.uriSecretRef` to
+reference a Secret containing its PostgreSQL connection URI. When
+`spec.components.readOnlyMetastore` is configured, its `database.uriSecretRef`
+is also required.
+
 ## Pipelines
 
 Configure one or more workers in `spec.components.pipelines`. Each entry requires
@@ -98,7 +108,7 @@ spec:
         - name: workload-registry-credentials
 ```
 
-When **both** images specify a repository and either a tag or digest, the Operator does not fetch the release artifact. `spec.release` may be omitted or left in place for later recovery. If present, its fields must still pass CRD validation. This mode works even when the release repository is unavailable.
+When **both** images specify a repository and either a tag or digest, the Operator does not fetch the release artifact. `spec.release` may be omitted or left in place for later recovery. This mode works even when the release repository is unavailable.
 
 Both logical images must be fully specified to skip release resolution, regardless of which workloads are currently enabled. If either image needs values from a release, `spec.release` is required and must resolve successfully. There is no implicit fallback on resolution failure.
 
@@ -139,7 +149,7 @@ Image changes use the existing Deployment and StatefulSet rollout strategies; th
 The split store is a local cache. With PVC storage, the Operator generates
 `indexer.split_store_max_num_bytes` as 70% of the requested PVC capacity minus
 the Operator-calculated default `ingest_api.max_queue_disk_usage`, in integer
-bytes. Overrides in `spec.nodeConfig` are passed through without parsing their
+bytes. Overrides in `spec.nodeConfigOverrides` are passed through without parsing their
 byte-size values; overriding the queue does not recalculate the split store
 size. If the result is zero or negative, the Operator sets the cache capacity to
 zero. This prevents split caching on that PVC; it does not reduce the queue size.
@@ -154,12 +164,12 @@ With `emptyDir` storage, intended for testing, the Operator omits
 100GiB in effect. The Operator keeps `split_store_max_num_splits` at 10000 unless
 overridden; it does not disable the split store for `emptyDir`.
 
-An explicit `spec.nodeConfig.indexer.split_store_max_num_bytes` takes precedence
+An explicit `spec.nodeConfigOverrides.indexer.split_store_max_num_bytes` takes precedence
 for either storage type and overrides the automatically calculated value. For example:
 
 ```yaml
 spec:
-  nodeConfig:
+  nodeConfigOverrides:
     indexer:
       split_store_max_num_bytes: 10GiB
 ```

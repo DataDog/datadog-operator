@@ -1746,7 +1746,6 @@
           "properties": {
             "digest": {
               "description": "Digest is the image digest.",
-              "pattern": "^sha256:[a-f0-9]{64}$",
               "type": "string"
             },
             "imagePullSecrets": {
@@ -3289,13 +3288,7 @@
               "x-kubernetes-int-or-string": true
             }
           },
-          "type": "object",
-          "x-kubernetes-validations": [
-            {
-              "message": "minAvailable and maxUnavailable are mutually exclusive",
-              "rule": "!(has(self.minAvailable) \u0026\u0026 has(self.maxUnavailable))"
-            }
-          ]
+          "type": "object"
         },
         "ports": {
           "description": "Ports contains the network ports exposed by the worker.\nThe same ports are declared on the worker container and its Services.\nAt least one source port must be explicitly specified.",
@@ -3665,13 +3658,7 @@
               "type": "object"
             }
           },
-          "type": "object",
-          "x-kubernetes-validations": [
-            {
-              "message": "exactly one storage type must be specified",
-              "rule": "has(self.emptyDir) != has(self.volumeClaimTemplate)"
-            }
-          ]
+          "type": "object"
         },
         "terminationGracePeriodSeconds": {
           "description": "TerminationGracePeriodSeconds is the grace period before a component Pod is forcibly terminated.",
@@ -5484,13 +5471,7 @@
         "pipelineID",
         "ports"
       ],
-      "type": "object",
-      "x-kubernetes-validations": [
-        {
-          "message": "resources.limits.memory must be specified when resources is set",
-          "rule": "!has(self.resources) || (has(self.resources.limits) \u0026\u0026 'memory' in self.resources.limits)"
-        }
-      ]
+      "type": "object"
     },
     "status": {
       "additionalProperties": false,

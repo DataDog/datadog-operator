@@ -313,7 +313,7 @@ func TestBuildResources_ConfigMap(t *testing.T) {
 		{
 			name: "with node config override",
 			clusterFunc: func(cluster *datadoghqv1alpha1.DatadogBYOCCluster) {
-				cluster.Spec.NodeConfig = &runtime.RawExtension{Raw: []byte(`searcher:
+				cluster.Spec.NodeConfigOverrides = &runtime.RawExtension{Raw: []byte(`searcher:
   aggregation_memory_limit: 1G
   fast_field_cache_capacity: 2G
 ingest_api:

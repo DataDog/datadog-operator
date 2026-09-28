@@ -92,13 +92,13 @@ func TestBuildObservabilityPipelinesWorker(t *testing.T) {
 	}
 
 	tests := []struct {
-		name       string
-		nodeConfig *runtime.RawExtension
-		global     datadoghqv1alpha1.DatadogBYOCClusterGlobalSpec
-		pipeline   *datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec
-		image      byocimage.ResolvedImage
-		want       *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker
-		wantErr    string
+		name                string
+		nodeConfigOverrides *runtime.RawExtension
+		global              datadoghqv1alpha1.DatadogBYOCClusterGlobalSpec
+		pipeline            *datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec
+		image               byocimage.ResolvedImage
+		want                *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker
+		wantErr             string
 	}{
 		{
 			name: "single custom port without implicit OTLP ports",
@@ -143,10 +143,10 @@ func TestBuildObservabilityPipelinesWorker(t *testing.T) {
 			want:     wantDefaultWorker(),
 		},
 		{
-			name:       "REST TLS uses HTTPS",
-			nodeConfig: &runtime.RawExtension{Raw: []byte(`{"rest":{"tls":{"cert_path":"/etc/tls/tls.crt","key_path":"/etc/tls/tls.key"}}}`)},
-			pipeline:   &datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{PipelineID: ptr.To("existing-pipeline"), Ports: testPipelinePorts()},
-			image:      defaultImage,
+			name:                "REST TLS uses HTTPS",
+			nodeConfigOverrides: &runtime.RawExtension{Raw: []byte(`{"rest":{"tls":{"cert_path":"/etc/tls/tls.crt","key_path":"/etc/tls/tls.key"}}}`)},
+			pipeline:            &datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{PipelineID: ptr.To("existing-pipeline"), Ports: testPipelinePorts()},
+			image:               defaultImage,
 			global: datadoghqv1alpha1.DatadogBYOCClusterGlobalSpec{
 				Env: []corev1.EnvVar{{Name: pipelineDestinationEndpointEnvName, Value: "http://global-override:7280"}},
 			},
@@ -158,7 +158,7 @@ func TestBuildObservabilityPipelinesWorker(t *testing.T) {
 		},
 		{
 			name: "gRPC TLS only",
-			nodeConfig: &runtime.RawExtension{Raw: []byte(`grpc:
+			nodeConfigOverrides: &runtime.RawExtension{Raw: []byte(`grpc:
   tls:
     cert_path: /etc/tls/tls.crt
     key_path: /etc/tls/tls.key
@@ -365,11 +365,11 @@ func TestBuildObservabilityPipelinesWorker(t *testing.T) {
 			},
 		},
 		{
-			name:       "invalid node config",
-			nodeConfig: &runtime.RawExtension{Raw: []byte("rest: [")},
-			pipeline:   &datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{PipelineID: ptr.To("existing-pipeline"), Ports: testPipelinePorts()},
-			image:      defaultImage,
-			wantErr:    "decode spec.nodeConfig:",
+			name:                "invalid node config",
+			nodeConfigOverrides: &runtime.RawExtension{Raw: []byte("rest: [")},
+			pipeline:            &datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{PipelineID: ptr.To("existing-pipeline"), Ports: testPipelinePorts()},
+			image:               defaultImage,
+			wantErr:             "decode spec.nodeConfigOverrides:",
 		},
 	}
 
@@ -385,8 +385,8 @@ func TestBuildObservabilityPipelinesWorker(t *testing.T) {
 							Key:                  "api-key",
 						},
 					},
-					NodeConfig: tt.nodeConfig,
-					Global:     tt.global,
+					NodeConfigOverrides: tt.nodeConfigOverrides,
+					Global:              tt.global,
 					Components: &datadoghqv1alpha1.DatadogBYOCClusterComponentsSpec{
 						Metastore:    &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{},
 						Indexer:      &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{},

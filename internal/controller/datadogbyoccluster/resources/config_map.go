@@ -79,16 +79,16 @@ func (b configMapBuilder) build() (*corev1.ConfigMap, error) {
 		capacity := storage.VolumeClaimTemplate.Spec.Resources.Requests[corev1.ResourceStorage]
 		indexer["split_store_max_num_bytes"] = calculateSplitStoreMaxNumBytes(capacity, maxQueueDiskUsage)
 	}
-	if b.cluster.Spec.NodeConfig != nil && len(b.cluster.Spec.NodeConfig.Raw) != 0 {
+	if b.cluster.Spec.NodeConfigOverrides != nil && len(b.cluster.Spec.NodeConfigOverrides.Raw) != 0 {
 		var override map[string]any
-		if err := yaml.Unmarshal(b.cluster.Spec.NodeConfig.Raw, &override, func(d *json.Decoder) *json.Decoder {
+		if err := yaml.Unmarshal(b.cluster.Spec.NodeConfigOverrides.Raw, &override, func(d *json.Decoder) *json.Decoder {
 			d.UseNumber()
 			return d
 		}); err != nil {
-			return nil, fmt.Errorf("decode spec.nodeConfig: %w", err)
+			return nil, fmt.Errorf("decode spec.nodeConfigOverrides: %w", err)
 		}
 		if err := mergo.Merge(&config, override, mergo.WithOverride); err != nil {
-			return nil, fmt.Errorf("merge spec.nodeConfig: %w", err)
+			return nil, fmt.Errorf("merge spec.nodeConfigOverrides: %w", err)
 		}
 	}
 	nodeConfig, err := yaml.Marshal(config)

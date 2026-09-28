@@ -2122,13 +2122,7 @@
                       "x-kubernetes-int-or-string": true
                     }
                   },
-                  "type": "object",
-                  "x-kubernetes-validations": [
-                    {
-                      "message": "minAvailable and maxUnavailable are mutually exclusive",
-                      "rule": "!(has(self.minAvailable) \u0026\u0026 has(self.maxUnavailable))"
-                    }
-                  ]
+                  "type": "object"
                 },
                 "replicas": {
                   "format": "int32",
@@ -5796,13 +5790,7 @@
                       "x-kubernetes-int-or-string": true
                     }
                   },
-                  "type": "object",
-                  "x-kubernetes-validations": [
-                    {
-                      "message": "minAvailable and maxUnavailable are mutually exclusive",
-                      "rule": "!(has(self.minAvailable) \u0026\u0026 has(self.maxUnavailable))"
-                    }
-                  ]
+                  "type": "object"
                 },
                 "replicas": {
                   "format": "int32",
@@ -10044,13 +10032,7 @@
                       "x-kubernetes-int-or-string": true
                     }
                   },
-                  "type": "object",
-                  "x-kubernetes-validations": [
-                    {
-                      "message": "minAvailable and maxUnavailable are mutually exclusive",
-                      "rule": "!(has(self.minAvailable) \u0026\u0026 has(self.maxUnavailable))"
-                    }
-                  ]
+                  "type": "object"
                 },
                 "replicas": {
                   "format": "int32",
@@ -10316,13 +10298,7 @@
                       "type": "object"
                     }
                   },
-                  "type": "object",
-                  "x-kubernetes-validations": [
-                    {
-                      "message": "exactly one storage type must be specified",
-                      "rule": "has(self.emptyDir) != has(self.volumeClaimTemplate)"
-                    }
-                  ]
+                  "type": "object"
                 },
                 "terminationGracePeriodSeconds": {
                   "format": "int64",
@@ -11820,13 +11796,7 @@
                   "x-kubernetes-list-type": "map"
                 }
               },
-              "type": "object",
-              "x-kubernetes-validations": [
-                {
-                  "message": "resources.limits.memory must be specified when resources is set",
-                  "rule": "!has(self.resources) || (has(self.resources.limits) \u0026\u0026 'memory' in self.resources.limits)"
-                }
-              ]
+              "type": "object"
             },
             "janitor": {
               "additionalProperties": false,
@@ -13934,13 +13904,7 @@
                       "x-kubernetes-int-or-string": true
                     }
                   },
-                  "type": "object",
-                  "x-kubernetes-validations": [
-                    {
-                      "message": "minAvailable and maxUnavailable are mutually exclusive",
-                      "rule": "!(has(self.minAvailable) \u0026\u0026 has(self.maxUnavailable))"
-                    }
-                  ]
+                  "type": "object"
                 },
                 "replicas": {
                   "format": "int32",
@@ -16209,6 +16173,9 @@
                       "x-kubernetes-map-type": "atomic"
                     }
                   },
+                  "required": [
+                    "uriSecretRef"
+                  ],
                   "type": "object"
                 },
                 "env": {
@@ -17634,13 +17601,7 @@
                       "x-kubernetes-int-or-string": true
                     }
                   },
-                  "type": "object",
-                  "x-kubernetes-validations": [
-                    {
-                      "message": "minAvailable and maxUnavailable are mutually exclusive",
-                      "rule": "!(has(self.minAvailable) \u0026\u0026 has(self.maxUnavailable))"
-                    }
-                  ]
+                  "type": "object"
                 },
                 "replicas": {
                   "format": "int32",
@@ -19200,6 +19161,9 @@
                   "x-kubernetes-list-type": "map"
                 }
               },
+              "required": [
+                "database"
+              ],
               "type": "object"
             },
             "pipelines": {
@@ -21893,13 +21857,7 @@
                         "x-kubernetes-int-or-string": true
                       }
                     },
-                    "type": "object",
-                    "x-kubernetes-validations": [
-                      {
-                        "message": "minAvailable and maxUnavailable are mutually exclusive",
-                        "rule": "!(has(self.minAvailable) \u0026\u0026 has(self.maxUnavailable))"
-                      }
-                    ]
+                    "type": "object"
                   },
                   "ports": {
                     "items": {
@@ -22203,13 +22161,7 @@
                         "type": "object"
                       }
                     },
-                    "type": "object",
-                    "x-kubernetes-validations": [
-                      {
-                        "message": "exactly one storage type must be specified",
-                        "rule": "has(self.emptyDir) != has(self.volumeClaimTemplate)"
-                      }
-                    ]
+                    "type": "object"
                   },
                   "terminationGracePeriodSeconds": {
                     "format": "int64",
@@ -23712,13 +23664,7 @@
                   "pipelineID",
                   "ports"
                 ],
-                "type": "object",
-                "x-kubernetes-validations": [
-                  {
-                    "message": "resources.limits.memory must be specified when resources is set",
-                    "rule": "!has(self.resources) || (has(self.resources.limits) \u0026\u0026 'memory' in self.resources.limits)"
-                  }
-                ]
+                "type": "object"
               },
               "minItems": 1,
               "type": "array",
@@ -24434,6 +24380,9 @@
                       "x-kubernetes-map-type": "atomic"
                     }
                   },
+                  "required": [
+                    "uriSecretRef"
+                  ],
                   "type": "object"
                 },
                 "env": {
@@ -25859,13 +25808,7 @@
                       "x-kubernetes-int-or-string": true
                     }
                   },
-                  "type": "object",
-                  "x-kubernetes-validations": [
-                    {
-                      "message": "minAvailable and maxUnavailable are mutually exclusive",
-                      "rule": "!(has(self.minAvailable) \u0026\u0026 has(self.maxUnavailable))"
-                    }
-                  ]
+                  "type": "object"
                 },
                 "replicas": {
                   "format": "int32",
@@ -27425,6 +27368,9 @@
                   "x-kubernetes-list-type": "map"
                 }
               },
+              "required": [
+                "database"
+              ],
               "type": "object"
             },
             "searcher": {
@@ -30107,13 +30053,7 @@
                       "x-kubernetes-int-or-string": true
                     }
                   },
-                  "type": "object",
-                  "x-kubernetes-validations": [
-                    {
-                      "message": "minAvailable and maxUnavailable are mutually exclusive",
-                      "rule": "!(has(self.minAvailable) \u0026\u0026 has(self.maxUnavailable))"
-                    }
-                  ]
+                  "type": "object"
                 },
                 "replicas": {
                   "format": "int32",
@@ -30379,13 +30319,7 @@
                       "type": "object"
                     }
                   },
-                  "type": "object",
-                  "x-kubernetes-validations": [
-                    {
-                      "message": "exactly one storage type must be specified",
-                      "rule": "has(self.emptyDir) != has(self.volumeClaimTemplate)"
-                    }
-                  ]
+                  "type": "object"
                 },
                 "terminationGracePeriodSeconds": {
                   "format": "int64",
@@ -31883,13 +31817,7 @@
                   "x-kubernetes-list-type": "map"
                 }
               },
-              "type": "object",
-              "x-kubernetes-validations": [
-                {
-                  "message": "resources.limits.memory must be specified when resources is set",
-                  "rule": "!has(self.resources) || (has(self.resources.limits) \u0026\u0026 'memory' in self.resources.limits)"
-                }
-              ]
+              "type": "object"
             }
           },
           "required": [
@@ -32847,13 +32775,7 @@
                   "x-kubernetes-int-or-string": true
                 }
               },
-              "type": "object",
-              "x-kubernetes-validations": [
-                {
-                  "message": "minAvailable and maxUnavailable are mutually exclusive",
-                  "rule": "!(has(self.minAvailable) \u0026\u0026 has(self.maxUnavailable))"
-                }
-              ]
+              "type": "object"
             },
             "tolerations": {
               "items": {
@@ -34366,7 +34288,6 @@
               "additionalProperties": false,
               "properties": {
                 "digest": {
-                  "pattern": "^sha256:[a-f0-9]{64}$",
                   "type": "string"
                 },
                 "imagePullSecrets": {
@@ -34405,19 +34326,12 @@
                   "type": "string"
                 }
               },
-              "type": "object",
-              "x-kubernetes-validations": [
-                {
-                  "message": "tag and digest are mutually exclusive",
-                  "rule": "!(has(self.tag) \u0026\u0026 has(self.digest))"
-                }
-              ]
+              "type": "object"
             },
             "observabilityPipelinesWorker": {
               "additionalProperties": false,
               "properties": {
                 "digest": {
-                  "pattern": "^sha256:[a-f0-9]{64}$",
                   "type": "string"
                 },
                 "imagePullSecrets": {
@@ -34456,18 +34370,12 @@
                   "type": "string"
                 }
               },
-              "type": "object",
-              "x-kubernetes-validations": [
-                {
-                  "message": "tag and digest are mutually exclusive",
-                  "rule": "!(has(self.tag) \u0026\u0026 has(self.digest))"
-                }
-              ]
+              "type": "object"
             }
           },
           "type": "object"
         },
-        "nodeConfig": {
+        "nodeConfigOverrides": {
           "type": "object",
           "x-kubernetes-preserve-unknown-fields": true
         },
@@ -34499,7 +34407,6 @@
           "additionalProperties": false,
           "properties": {
             "digest": {
-              "pattern": "^sha256:[a-f0-9]{64}$",
               "type": "string"
             },
             "repository": {
@@ -34509,26 +34416,15 @@
               "type": "string"
             }
           },
-          "type": "object",
-          "x-kubernetes-validations": [
-            {
-              "message": "exactly one of tag or digest must be specified",
-              "rule": "has(self.tag) != has(self.digest)"
-            }
-          ]
+          "type": "object"
         }
       },
       "required": [
         "components",
-        "datadog"
+        "datadog",
+        "provider"
       ],
-      "type": "object",
-      "x-kubernetes-validations": [
-        {
-          "message": "release is required unless both image overrides specify repository and tag or digest",
-          "rule": "has(self.release) || (has(self.imageOverrides) \u0026\u0026 has(self.imageOverrides.byoc) \u0026\u0026 has(self.imageOverrides.byoc.repository) \u0026\u0026 (has(self.imageOverrides.byoc.tag) || has(self.imageOverrides.byoc.digest)) \u0026\u0026 has(self.imageOverrides.observabilityPipelinesWorker) \u0026\u0026 has(self.imageOverrides.observabilityPipelinesWorker.repository) \u0026\u0026 (has(self.imageOverrides.observabilityPipelinesWorker.tag) || has(self.imageOverrides.observabilityPipelinesWorker.digest)))"
-        }
-      ]
+      "type": "object"
     },
     "status": {
       "additionalProperties": false,

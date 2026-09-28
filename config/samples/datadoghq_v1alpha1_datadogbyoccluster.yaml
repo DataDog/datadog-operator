@@ -154,7 +154,7 @@ spec:
         requests:
           cpu: "1"
           memory: 2Gi
-  nodeConfig:
+  nodeConfigOverrides:
     version: 0.8
     default_index_root_uri: s3://byoc-logs/indexes
     indexer:

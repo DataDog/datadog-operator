@@ -1758,7 +1758,6 @@ spec:
                   properties:
                     digest:
                       description: Digest is the image digest.
-                      pattern: ^sha256:[a-f0-9]{64}$
                       type: string
                     imagePullSecrets:
                       description: |-
@@ -3363,9 +3362,6 @@ spec:
                       description: MinAvailable is the minimum number or percentage of Pods that must remain available after an eviction.
                       x-kubernetes-int-or-string: true
                   type: object
-                  x-kubernetes-validations:
-                    - message: minAvailable and maxUnavailable are mutually exclusive
-                      rule: '!(has(self.minAvailable) && has(self.maxUnavailable))'
                 ports:
                   description: |-
                     Ports contains the network ports exposed by the worker.
@@ -3742,9 +3738,6 @@ spec:
                           type: object
                       type: object
                   type: object
-                  x-kubernetes-validations:
-                    - message: exactly one storage type must be specified
-                      rule: has(self.emptyDir) != has(self.volumeClaimTemplate)
                 terminationGracePeriodSeconds:
                   description: TerminationGracePeriodSeconds is the grace period before a component Pod is forcibly terminated.
                   format: int64
@@ -5967,9 +5960,6 @@ spec:
                 - pipelineID
                 - ports
               type: object
-              x-kubernetes-validations:
-                - message: resources.limits.memory must be specified when resources is set
-                  rule: '!has(self.resources) || (has(self.resources.limits) && ''memory'' in self.resources.limits)'
             status:
               description: DatadogObservabilityPipelinesWorkerStatus defines the observed state of DatadogObservabilityPipelinesWorker.
               properties:

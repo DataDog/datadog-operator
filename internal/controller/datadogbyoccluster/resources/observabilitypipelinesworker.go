@@ -113,7 +113,7 @@ func indexerEndpointScheme(cluster *datadoghqv1alpha1.DatadogBYOCCluster) (strin
 		httpsScheme = "https"
 	)
 
-	if cluster.Spec.NodeConfig == nil || len(cluster.Spec.NodeConfig.Raw) == 0 {
+	if cluster.Spec.NodeConfigOverrides == nil || len(cluster.Spec.NodeConfigOverrides.Raw) == 0 {
 		return httpScheme, nil
 	}
 
@@ -122,8 +122,8 @@ func indexerEndpointScheme(cluster *datadoghqv1alpha1.DatadogBYOCCluster) (strin
 			TLS map[string]any `json:"tls"`
 		} `json:"rest"`
 	}
-	if err := yaml.Unmarshal(cluster.Spec.NodeConfig.Raw, &nodeConfig); err != nil {
-		return "", fmt.Errorf("decode spec.nodeConfig: %w", err)
+	if err := yaml.Unmarshal(cluster.Spec.NodeConfigOverrides.Raw, &nodeConfig); err != nil {
+		return "", fmt.Errorf("decode spec.nodeConfigOverrides: %w", err)
 	}
 	if nodeConfig.REST.TLS != nil {
 		return httpsScheme, nil
