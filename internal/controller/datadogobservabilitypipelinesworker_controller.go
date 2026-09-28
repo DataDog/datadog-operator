@@ -29,6 +29,7 @@ import (
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	workerdefaults "github.com/DataDog/datadog-operator/internal/controller/datadogobservabilitypipelinesworker/defaults"
 	workerresources "github.com/DataDog/datadog-operator/internal/controller/datadogobservabilitypipelinesworker/resources"
+	workervalidation "github.com/DataDog/datadog-operator/internal/controller/datadogobservabilitypipelinesworker/validation"
 )
 
 const datadogObservabilityPipelinesWorkerFieldOwner = "datadog-observability-pipelines-worker-controller"
@@ -58,6 +59,9 @@ func (r *DatadogObservabilityPipelinesWorkerReconciler) Reconcile(ctx context.Co
 		return ctrl.Result{}, nil
 	}
 	statusBase := worker.DeepCopy()
+	if err := workervalidation.ValidateWorkerSpec(&worker.Spec).ToAggregate(); err != nil {
+		return ctrl.Result{}, r.fail(ctx, statusBase, worker, "InvalidConfiguration", err)
+	}
 	defaulted := workerdefaults.Apply(worker)
 
 	resources, err := workerresources.BuildResources(defaulted)

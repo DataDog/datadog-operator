@@ -79,8 +79,6 @@ type DatadogObservabilityPipelinesWorkerDatadogSpec struct {
 
 // DatadogObservabilityPipelinesWorkerImageSpec defines a fully resolved container image.
 // +k8s:openapi-gen=true
-// +kubebuilder:validation:XValidation:rule="has(self.repository)",message="repository must be specified"
-// +kubebuilder:validation:XValidation:rule="has(self.tag) != has(self.digest)",message="exactly one of tag or digest must be specified"
 type DatadogObservabilityPipelinesWorkerImageSpec DatadogBYOCImageSpec
 
 // DatadogObservabilityPipelinesWorkerStatus defines the observed state of DatadogObservabilityPipelinesWorker.

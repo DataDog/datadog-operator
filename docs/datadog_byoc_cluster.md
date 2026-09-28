@@ -10,6 +10,29 @@ reference a Secret containing its PostgreSQL connection URI. When
 `spec.components.readOnlyMetastore` is configured, its `database.uriSecretRef`
 is also required.
 
+## Configuration validation
+
+The controller checks cross-field configuration before resolving images or
+applying resources. Invalid configurations are stored by Kubernetes but report
+`Reconciled=False` and `Available=False` with reason `InvalidConfiguration`.
+The condition message lists the affected field paths. Existing resources remain
+unchanged until the configuration is corrected; cluster deletion still proceeds.
+
+Specify `release` or `imageOverrides`, and configure `provider.aws`. A release
+requires exactly one of `tag` or `digest`, even when fully specified image
+overrides allow release fetching to be skipped. Each image override permits
+at most one of `tag` or `digest`. When `release` is omitted, both the BYOC and
+Worker image overrides must specify a non-empty `repository` and exactly one
+non-empty `tag` or `digest`. Missing or incomplete overrides are reported as
+`InvalidConfiguration` before image resolution. Partial overrides remain valid
+when a release supplies the missing image settings.
+
+Global and component Pod disruption budgets permit at most one of `minAvailable`
+or `maxUnavailable`; an empty object disables the budget. For the Indexer,
+Searcher, and each Pipeline, setting `resources` requires `resources.limits.memory`,
+and setting `storage` requires exactly one of `emptyDir` or `volumeClaimTemplate`.
+Omitting `resources` or `storage` retains the component defaults.
+
 ## Pipelines
 
 Configure one or more workers in `spec.components.pipelines`. Each entry requires
@@ -123,7 +146,7 @@ Each image override supports:
 | `digest` | Replaces the release version and clears its tag. If `repository` is omitted, the release repository is retained. Mutually exclusive with `tag`. |
 | `imagePullSecrets` | Names of Secrets in the DatadogBYOCCluster namespace, added to Pods that use this workload image. |
 
-An empty override object is a no-op. A secrets-only override is allowed and retains the release-selected image reference. Secret entries are unique by name. Workload pull secrets are not used for fetching the release artifact; `spec.release.imagePullSecrets` is not supported.
+When a release is provided, an empty override object is a no-op. A secrets-only override is allowed and retains the release-selected image reference. Secret entries are unique by name. Workload pull secrets are not used for fetching the release artifact; `spec.release.imagePullSecrets` is not supported.
 
 The BYOC override applies to all enabled BYOC components, including the optional read-only Metastore and Compactor. It does not replace user-specified init container images. Pull secrets are Kubernetes Pod-level settings, so they can also be used for init containers in those Pods.
 

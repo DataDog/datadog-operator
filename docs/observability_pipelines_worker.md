@@ -1,5 +1,19 @@
 # Observability Pipelines Worker
 
+## Configuration validation
+
+Before applying defaults or resources, the controller checks that `spec.image`
+specifies `repository` and exactly one of `tag` or `digest`.
+It also checks that `spec.resources` includes
+`limits.memory` when specified, `spec.storage` selects exactly one of `emptyDir`
+or `volumeClaimTemplate` when specified, and `spec.podDisruptionBudget` does not
+set both `minAvailable` and `maxUnavailable`. Omitted resources and storage use
+the Worker defaults; an empty Pod disruption budget disables the budget.
+
+Invalid configurations report `Reconciled=False` and `Available=False` with
+reason `InvalidConfiguration` and the affected field paths in the condition
+message. Correcting the configuration resumes reconciliation.
+
 ## ServiceAccount identity
 
 By default, the controller creates and owns a dedicated ServiceAccount with the

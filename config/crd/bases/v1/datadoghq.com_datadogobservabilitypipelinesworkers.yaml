@@ -1800,11 +1800,6 @@ spec:
                       minLength: 1
                       type: string
                   type: object
-                  x-kubernetes-validations:
-                    - message: repository must be specified
-                      rule: has(self.repository)
-                    - message: exactly one of tag or digest must be specified
-                      rule: has(self.tag) != has(self.digest)
                 initContainers:
                   description: InitContainers are added to the component Pods.
                   items:

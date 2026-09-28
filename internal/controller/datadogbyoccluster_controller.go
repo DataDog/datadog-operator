@@ -31,6 +31,7 @@ import (
 	byocdefaults "github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/defaults"
 	byocimage "github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/image"
 	byocresources "github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/resources"
+	byocvalidation "github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/validation"
 )
 
 const (
@@ -80,6 +81,9 @@ func (r *DatadogBYOCClusterReconciler) Reconcile(ctx context.Context, request ct
 		return ctrl.Result{Requeue: true}, nil
 	}
 
+	if err := byocvalidation.ValidateClusterSpec(&cluster.Spec).ToAggregate(); err != nil {
+		return ctrl.Result{}, r.fail(ctx, cluster, conditionReconciled, "InvalidConfiguration", err)
+	}
 	if r.ImageResolver == nil {
 		err := errors.New("image resolver is not configured")
 		return ctrl.Result{}, r.fail(ctx, cluster, conditionReleaseResolved, "ResolverNotConfigured", err)
