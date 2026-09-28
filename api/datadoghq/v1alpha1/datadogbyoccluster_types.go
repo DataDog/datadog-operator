@@ -15,7 +15,6 @@ import (
 
 // DatadogBYOCClusterSpec defines the desired state of DatadogBYOCCluster.
 // +k8s:openapi-gen=true
-// +kubebuilder:validation:XValidation:rule="has(self.release) || has(self.imageOverrides)",message="release or imageOverrides must be specified"
 type DatadogBYOCClusterSpec struct {
 	// Release identifies the BYOC release artifact.
 	// When both images are fully specified, the release artifact is not fetched, even if Release is set.
@@ -54,7 +53,6 @@ type DatadogBYOCClusterSpec struct {
 
 // DatadogBYOCClusterReleaseSpec identifies a BYOC release artifact.
 // +k8s:openapi-gen=true
-// +kubebuilder:validation:XValidation:rule="has(self.tag) != has(self.digest)",message="exactly one of tag or digest must be specified"
 type DatadogBYOCClusterReleaseSpec struct {
 	// Repository is the OCI repository containing BYOC release artifacts.
 	// The public Datadog BYOC release repository is used when this field is omitted.
@@ -88,7 +86,6 @@ type DatadogBYOCClusterImageOverrides struct {
 // DatadogBYOCImageSpec defines common BYOC workload image settings.
 // For an image override, omitted repository and version fields retain values from the release.
 // +k8s:openapi-gen=true
-// +kubebuilder:validation:XValidation:rule="!(has(self.tag) && has(self.digest))",message="tag and digest are mutually exclusive"
 type DatadogBYOCImageSpec struct {
 	// Repository is the complete image repository, including the image name.
 	// +optional
@@ -157,7 +154,6 @@ type DatadogBYOCClusterDogstatsdServerSpec struct {
 // DatadogBYOCClusterProviderSpec defines the cloud provider configuration.
 // At least one provider must be specified.
 // +k8s:openapi-gen=true
-// +kubebuilder:validation:XValidation:rule="has(self.aws)",message="at least one provider must be specified"
 type DatadogBYOCClusterProviderSpec struct {
 	// AWS configures an AWS-hosted BYOC cluster.
 	// +optional
@@ -406,7 +402,6 @@ type DatadogBYOCClusterComponentSpec struct {
 
 // DatadogBYOCClusterPodDisruptionBudgetSpec defines the availability constraint for voluntary Pod disruptions.
 // +k8s:openapi-gen=true
-// +kubebuilder:validation:XValidation:rule="!(has(self.minAvailable) && has(self.maxUnavailable))",message="minAvailable and maxUnavailable are mutually exclusive"
 type DatadogBYOCClusterPodDisruptionBudgetSpec struct {
 	// MinAvailable is the minimum number or percentage of Pods that must remain available after an eviction.
 	// +optional
@@ -420,7 +415,6 @@ type DatadogBYOCClusterPodDisruptionBudgetSpec struct {
 // DatadogBYOCClusterStatefulComponentSpec defines settings for a stateful BYOC workload.
 // When Resources is specified, its memory limit is required for Quickwit node configuration sizing.
 // +k8s:openapi-gen=true
-// +kubebuilder:validation:XValidation:rule="!has(self.resources) || (has(self.resources.limits) && 'memory' in self.resources.limits)",message="resources.limits.memory must be specified when resources is set"
 type DatadogBYOCClusterStatefulComponentSpec struct {
 	DatadogBYOCClusterComponentSpec `json:",inline"`
 
@@ -467,7 +461,6 @@ type DatadogBYOCClusterAutoscalingSpec struct {
 
 // DatadogBYOCClusterStorageSpec defines storage for a stateful BYOC workload.
 // +k8s:openapi-gen=true
-// +kubebuilder:validation:XValidation:rule="has(self.emptyDir) != has(self.volumeClaimTemplate)",message="exactly one storage type must be specified"
 type DatadogBYOCClusterStorageSpec struct {
 	// EmptyDir configures an emptyDir volume for the component.
 	// +optional
