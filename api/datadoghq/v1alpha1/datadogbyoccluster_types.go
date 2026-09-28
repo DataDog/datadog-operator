@@ -583,7 +583,9 @@ type DatadogBYOCClusterDeploymentStatus struct {
 	AvailableReplicas *int32 `json:"availableReplicas,omitempty"`
 }
 
-// DatadogBYOCCluster is the Schema for the datadogbyocclusters API.
+// DatadogBYOCCluster represents a Datadog Bring Your Own Cloud (BYOC)
+// deployment running in a customer's Kubernetes cluster. Its spec configures
+// the BYOC workloads that process telemetry.
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:path=datadogbyocclusters,scope=Namespaced,shortName=ddbyoc

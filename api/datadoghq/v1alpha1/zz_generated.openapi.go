@@ -525,7 +525,7 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCCluster(ref commo
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "DatadogBYOCCluster is the Schema for the datadogbyocclusters API.",
+				Description: "DatadogBYOCCluster represents a Datadog Bring Your Own Cloud (BYOC) deployment running in a customer's Kubernetes cluster. Its spec configures the BYOC workloads that process telemetry.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"kind": {
