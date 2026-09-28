@@ -463,3 +463,57 @@ func TestReconcileClusterChecksRunnerGroups_KnobOnWithRunnersOn(t *testing.T) {
 	}
 	assert.ElementsMatch(t, []string{"foo-cluster-checks-runner-kube", "foo-cluster-checks-runner-kafka"}, names)
 }
+
+func TestReconcileClusterChecksRunnerGroups_ComponentOverrideApplied(t *testing.T) {
+	sch := runtime.NewScheme()
+	_ = scheme.AddToScheme(sch)
+	_ = datadoghqv1alpha1.AddToScheme(sch)
+	ctx := context.Background()
+
+	// The component-level override (spec.override.clusterChecksRunner, e.g.
+	// the image) must reach group Deployments, not only the default CCR
+	// Deployment. The group's own Override is applied after and wins on
+	// conflicts.
+	ddai := newTestDDAIWithKubeKnob("foo", nil, true)
+	ddai.Spec.Override = map[datadoghqv2alpha1.ComponentName]*datadoghqv2alpha1.DatadogAgentComponentOverride{
+		datadoghqv2alpha1.ClusterChecksRunnerComponentName: {
+			Image: &datadoghqv2alpha1.AgentImageConfig{
+				Name: "registry.datadoghq.com/datadog-agent",
+				Tag:  "component-override-tag",
+			},
+		},
+	}
+
+	r := newTestReconciler(sch)
+	_, resourceManagers := r.setupDependencies(ctx, ddai)
+
+	params := &ReconcileComponentParams{
+		DDAI: ddai,
+		RequiredComponents: feature.RequiredComponents{
+			ClusterAgent: feature.RequiredComponent{IsRequired: ptr.To(true)},
+		},
+		ResourceManagers: resourceManagers,
+		Status:           &datadoghqv1alpha1.DatadogAgentInternalStatus{},
+	}
+
+	result, err := r.ReconcileClusterChecksRunnerGroups(ctx, params)
+	require.NoError(t, err)
+	assert.True(t, result.IsZero())
+
+	deploymentList := &appsv1.DeploymentList{}
+	require.NoError(t, r.client.List(ctx, deploymentList))
+	require.Len(t, deploymentList.Items, 1)
+
+	deployment := deploymentList.Items[0]
+	assert.Equal(t, "foo-cluster-checks-runner-kube", deployment.Name)
+
+	// The component-level image override lands on the runner container.
+	var runnerImage string
+	for _, container := range deployment.Spec.Template.Spec.Containers {
+		if container.Name == string(apicommon.ClusterChecksRunnersContainerName) {
+			runnerImage = container.Image
+		}
+	}
+	assert.Contains(t, runnerImage, "registry.datadoghq.com/datadog-agent", "expected the component-level image override on the runner container, got %q", runnerImage)
+	assert.Contains(t, runnerImage, "component-override-tag", "expected the component-level image tag override on the runner container, got %q", runnerImage)
+}

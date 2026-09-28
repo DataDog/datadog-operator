@@ -115,6 +115,17 @@ func (r *Reconciler) reconcileClusterChecksRunnerGroup(ctx context.Context, para
 
 	applyClusterChecksRunnerGroupCompatibility(podManagers, group)
 
+	// Apply the component-level override (spec.override.clusterChecksRunner,
+	// e.g. the image) to group Deployments as well: the default CCR Deployment
+	// receives it via the component reconciler, and a group Deployment must not
+	// silently diverge from the component-level settings. The group's own
+	// Override is applied after and wins on conflicts (e.g. the built-in kube
+	// group's replicas).
+	if componentOverride := ddai.Spec.Override[datadoghqv2alpha1.ClusterChecksRunnerComponentName]; componentOverride != nil {
+		override.PodTemplateSpec(objLogger, podManagers, componentOverride, datadoghqv2alpha1.ClusterChecksRunnerComponentName, ddai.Name)
+		override.Deployment(deployment, componentOverride)
+	}
+
 	if componentOverride := group.Override; componentOverride != nil {
 		override.PodTemplateSpec(objLogger, podManagers, componentOverride, datadoghqv2alpha1.ClusterChecksRunnerComponentName, ddai.Name)
 		override.Deployment(deployment, componentOverride)
