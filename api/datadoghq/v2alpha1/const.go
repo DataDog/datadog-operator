@@ -31,6 +31,19 @@ const (
 // GetExperimentalClusterChecksRunnerGroups.
 const AnnotationExperimentalClusterChecksRunnerGroups = "agent.datadoghq.com/experimental-cluster-checks-runner-groups"
 
+// AnnotationExperimentalKubeChecksRunnerDefault opts in to the experimental
+// kube Checks Runner default group: when set to "true", a built-in runner
+// group named "kube" (see KubeChecksRunnerGroupName) is materialized even
+// when features.clusterChecks.useClusterChecksRunners is false, so the
+// kube-family checks (KSM core, orchestrator, control-plane monitoring) get
+// a dedicated runner Deployment while node agents keep serving general
+// cluster checks. This is an experimental feature configured out-of-band via
+// annotation rather than a typed CRD field; it has no validation, versioning
+// or conversion-webhook support and may change at any time. See
+// IsExperimentalKubeChecksRunnerDefaultEnabled and
+// GetEffectiveClusterChecksRunnerGroups.
+const AnnotationExperimentalKubeChecksRunnerDefault = "agent.datadoghq.com/experimental-kube-checks-runner-default"
+
 // Fleet pending-operation annotations. The fleet daemon writes these
 // annotations to durably track the single in-flight async operation for a DDA
 // so it can recover after restarts.

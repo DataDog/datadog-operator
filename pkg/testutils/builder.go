@@ -768,6 +768,23 @@ func (builder *DatadogAgentBuilder) WithClusterChecksRunnerGroups(groups []v2alp
 	return builder
 }
 
+// WithKubeChecksRunnerDefault sets or clears the experimental
+// kube-checks-runner-default annotation (see
+// v2alpha1.IsExperimentalKubeChecksRunnerDefaultEnabled), which materializes
+// the built-in kube runner group even when useClusterChecksRunners is false.
+func (builder *DatadogAgentBuilder) WithKubeChecksRunnerDefault(enabled bool) *DatadogAgentBuilder {
+	builder.initCC()
+	if builder.datadogAgent.Annotations == nil {
+		builder.datadogAgent.Annotations = map[string]string{}
+	}
+	if enabled {
+		builder.datadogAgent.Annotations[v2alpha1.AnnotationExperimentalKubeChecksRunnerDefault] = "true"
+	} else {
+		delete(builder.datadogAgent.Annotations, v2alpha1.AnnotationExperimentalKubeChecksRunnerDefault)
+	}
+	return builder
+}
+
 // Prometheus Scrape
 
 func (builder *DatadogAgentBuilder) initPrometheusScrape() {

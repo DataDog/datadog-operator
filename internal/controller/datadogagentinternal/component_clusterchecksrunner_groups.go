@@ -49,10 +49,19 @@ func (r *Reconciler) ReconcileClusterChecksRunnerGroups(ctx context.Context, par
 	ddai := params.DDAI
 
 	var groups []datadoghqv2alpha1.ClusterChecksRunnerGroup
-	// Dedicated runner groups require the Cluster Agent (same precondition as the default CCR).
-	if ddai.Spec.Features != nil && ddai.Spec.Features.ClusterChecks != nil && params.RequiredComponents.ClusterAgent.IsEnabled() {
+	// Dedicated runner groups require the Cluster Agent (same precondition as
+	// the default CCR) and are only materialized when a CCR-family Deployment
+	// is active: the default CCR (useClusterChecksRunners) or the experimental
+	// kube-checks-runner-default knob (mixed mode, where node agents keep
+	// serving general cluster checks and the kube group runs the kube family).
+	// With both off, a groups annotation is ignored entirely.
+	if params.RequiredComponents.ClusterAgent.IsEnabled() && constants.IsCCRComponentRequired(ddai, &ddai.Spec) {
 		var err error
-		groups, err = datadoghqv2alpha1.GetExperimentalClusterChecksRunnerGroups(ddai)
+		// Effective groups = annotation groups + the built-in kube group when
+		// the kube-checks-runner-default knob is on. The clusterchecks feature
+		// uses the same derivation for the default runners' exclude list, so
+		// the materialized set and the exclude list can never disagree.
+		groups, err = datadoghqv2alpha1.GetEffectiveClusterChecksRunnerGroups(ddai)
 		if err != nil {
 			ctrl.LoggerFrom(ctx).Error(err, "ignoring malformed experimental cluster checks runner groups annotation")
 			groups = nil

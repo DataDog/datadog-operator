@@ -97,6 +97,26 @@ func IsCCREnabled(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
 	return ddaSpec.Features.ClusterChecks != nil && apiutils.BoolValue(ddaSpec.Features.ClusterChecks.UseClusterChecksRunners)
 }
 
+// IsCCRComponentRequired returns whether any Cluster Checks Runner-family
+// Deployment exists for this instance: the default CCR Deployment
+// (features.clusterChecks.useClusterChecksRunners) and/or dedicated runner
+// groups (the experimental kube-checks-runner-default annotation, which
+// materializes a built-in kube group even when useClusterChecksRunners is
+// false). Cluster checks must be enabled for either to exist.
+//
+// Features that configure their checks for runner pods (e.g. attaching
+// runner-side RBAC or env vars) should gate on this rather than on
+// IsCCREnabled, so their configuration also reaches dedicated runner groups
+// in mixed mode. Note that runner groups declared via the experimental
+// annotation alone (knob off AND useClusterChecksRunners off) do not count:
+// they are not materialized in that configuration.
+func IsCCRComponentRequired(obj metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec) bool {
+	if !IsClusterChecksEnabled(ddaSpec) {
+		return false
+	}
+	return IsCCREnabled(ddaSpec) || v2alpha1.IsExperimentalKubeChecksRunnerDefaultEnabled(obj)
+}
+
 // GetLocalAgentServiceName returns the name used for the local agent service
 func GetLocalAgentServiceName(objName string, ddaSpec *v2alpha1.DatadogAgentSpec) string {
 	if ddaSpec.Global.LocalService != nil && ddaSpec.Global.LocalService.NameOverride != nil {

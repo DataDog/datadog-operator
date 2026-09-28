@@ -7,6 +7,7 @@ package clusterchecks
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 	"testing"
 
@@ -116,6 +117,53 @@ func TestClusterChecksFeature(t *testing.T) {
 			ClusterAgent:        test.NewDefaultComponentTest().WithWantFunc(wantClusterAgentHasExpectedEnvsAndChecksum),
 			ClusterChecksRunner: testClusterChecksRunnerHasExpectedEnvsWithExclude([]string{"kubernetes_state_core"}),
 			Agent:               testAgentHasExpectedEnvsWithRunners(apicommon.CoreAgentContainerName),
+		},
+		{
+			Name: "mixed mode: knob on, runners off, node agents keep cluster checks",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithClusterChecksEnabled(true).
+				WithClusterChecksUseCLCEnabled(false).
+				WithKubeChecksRunnerDefault(true).
+				Build(),
+			WantConfigure: true,
+			ClusterAgent:  test.NewDefaultComponentTest().WithWantFunc(wantClusterAgentHasExpectedEnvsAndChecksum),
+			// Node agents keep the clusterchecks provider: general cluster checks
+			// keep running on them; only the kube family moves to the kube group.
+			Agent: testAgentHasExpectedEnvsWithNoRunners(apicommon.CoreAgentContainerName),
+			// Runner pods exist (the kube group): base runner envs apply, and the
+			// union exclude contains the kube family (it is meant for the default
+			// CCR; the DDAI reconciler overwrites it on group Deployments with the
+			// group's own include/exclude lists).
+			ClusterChecksRunner: testClusterChecksRunnerHasExpectedEnvsWithExclude(kubeChecksRunnerGroupChecksIncludeSorted()),
+		},
+		{
+			Name: "knob on and runners on: kube group joins the default runners' exclude union",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithClusterChecksEnabled(true).
+				WithClusterChecksUseCLCEnabled(true).
+				WithKubeChecksRunnerDefault(true).
+				WithClusterChecksRunnerGroups([]v2alpha1.ClusterChecksRunnerGroup{
+					{Name: "kafka", ChecksInclude: []string{"kafka_consumer"}},
+				}).
+				Build(),
+			WantConfigure:       true,
+			ClusterAgent:        test.NewDefaultComponentTest().WithWantFunc(wantClusterAgentHasExpectedEnvsAndChecksum),
+			ClusterChecksRunner: testClusterChecksRunnerHasExpectedEnvsWithExclude(append([]string{"kafka_consumer"}, kubeChecksRunnerGroupChecksIncludeSorted()...)),
+			Agent:               testAgentHasExpectedEnvsWithRunners(apicommon.CoreAgentContainerName),
+		},
+		{
+			Name: "runners off and knob off: groups annotation is ignored",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithClusterChecksEnabled(true).
+				WithClusterChecksUseCLCEnabled(false).
+				WithClusterChecksRunnerGroups([]v2alpha1.ClusterChecksRunnerGroup{
+					{Name: "ksm", ChecksInclude: []string{"kubernetes_state_core"}},
+				}).
+				Build(),
+			WantConfigure:       true,
+			ClusterAgent:        test.NewDefaultComponentTest().WithWantFunc(wantClusterAgentHasExpectedEnvsAndChecksum),
+			ClusterChecksRunner: testClusterChecksRunnerHasNoEnvs(),
+			Agent:               testAgentHasExpectedEnvsWithNoRunners(apicommon.CoreAgentContainerName),
 		},
 	}
 
@@ -302,6 +350,32 @@ func testClusterChecksRunnerHasExpectedEnvsWithExclude(exclude []string) *test.C
 				t,
 				apiutils.IsEqualStruct(clusterRunnerEnvs, expectedClusterRunnerEnvs),
 				"Cluster Runner ENVs \ndiff = %s", cmp.Diff(clusterRunnerEnvs, expectedClusterRunnerEnvs),
+			)
+		},
+	)
+}
+
+// kubeChecksRunnerGroupChecksIncludeSorted returns the built-in kube group's
+// include list in the sorted order the defaultRunnerChecksExclude union uses,
+// since the exclude env value is joined from that sorted list.
+func kubeChecksRunnerGroupChecksIncludeSorted() []string {
+	sorted := append([]string(nil), v2alpha1.KubeChecksRunnerGroupChecksInclude...)
+	sort.Strings(sorted)
+	return sorted
+}
+
+// testClusterChecksRunnerHasNoEnvs asserts the feature configured no env vars
+// on runner pods (no CCR-family Deployment exists at all).
+func testClusterChecksRunnerHasNoEnvs() *test.ComponentTest {
+	return test.NewDefaultComponentTest().WithWantFunc(
+		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+			mgr := mgrInterface.(*fake.PodTemplateManagers)
+
+			clusterRunnerEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommon.ClusterChecksRunnersContainerName]
+			assert.Empty(
+				t,
+				clusterRunnerEnvs,
+				"Cluster Runner ENVs should be empty, got diff = %s", cmp.Diff(clusterRunnerEnvs, []*corev1.EnvVar{}),
 			)
 		},
 	)

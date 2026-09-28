@@ -36,7 +36,13 @@ func init() {
 
 type clusterChecksFeature struct {
 	useClusterCheckRunners bool
-	owner                  metav1.Object
+	// kubeChecksRunnerDefaultEnabled mirrors the experimental
+	// kube-checks-runner-default annotation: when set, dedicated runner-group
+	// Deployments (starting with the built-in kube group) exist even when the
+	// default CCR Deployment does not ("mixed mode": node agents keep serving
+	// general cluster checks).
+	kubeChecksRunnerDefaultEnabled bool
+	owner                          metav1.Object
 
 	createKubernetesNetworkPolicy bool
 	createCiliumNetworkPolicy     bool
@@ -81,9 +87,18 @@ func (f *clusterChecksFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Da
 		}
 
 		f.useClusterCheckRunners = apiutils.BoolValue(ddaSpec.Features.ClusterChecks.UseClusterChecksRunners)
-		runnerGroups, err := v2alpha1.GetExperimentalClusterChecksRunnerGroups(dda)
+		f.kubeChecksRunnerDefaultEnabled = v2alpha1.IsExperimentalKubeChecksRunnerDefaultEnabled(dda)
+		// Effective groups = annotation groups + the built-in kube group when
+		// the experimental kube-checks-runner-default knob is on. The same
+		// derivation is used by the DDAI reconciler to materialize the group
+		// Deployments, so the exclude union below and the materialized set can
+		// never disagree.
+		runnerGroups, err := v2alpha1.GetEffectiveClusterChecksRunnerGroups(dda)
 		if err != nil {
 			f.logger.Error(err, "ignoring malformed experimental cluster checks runner groups annotation")
+		}
+		if !f.useClusterCheckRunners && !f.kubeChecksRunnerDefaultEnabled && len(runnerGroups) > 0 {
+			f.logger.Info("ignoring experimental cluster checks runner groups: they are only materialized when features.clusterChecks.useClusterChecksRunners is true or the experimental-kube-checks-runner-default annotation is set to true")
 		}
 		f.defaultRunnerChecksExclude = defaultRunnerChecksExclude(runnerGroups)
 		reqComp = feature.RequiredComponents{
@@ -96,6 +111,14 @@ func (f *clusterChecksFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Da
 				Containers: []apicommon.AgentContainerName{apicommon.ClusterAgentContainerName},
 			},
 			ClusterChecksRunner: feature.RequiredComponent{
+				// Deliberately NOT OR-ed with kubeChecksRunnerDefaultEnabled:
+				// when only the knob is on (mixed mode), the default CCR Deployment
+				// must NOT be created — the dedicated runner-group Deployments are
+				// materialized by the DDAI reconciler
+				// (ReconcileClusterChecksRunnerGroups) instead, and the CCR
+				// ServiceAccount/RBAC dependencies are separately gated on the
+				// knob there. Node agents keep their cluster-checks providers in
+				// that mode, so general cluster checks keep running on them.
 				IsRequired: &f.useClusterCheckRunners,
 				Containers: []apicommon.AgentContainerName{apicommon.CoreAgentContainerName},
 			},
@@ -230,7 +253,14 @@ func (f *clusterChecksFeature) manageNodeAgent(agentContainerName apicommon.Agen
 }
 
 func (f *clusterChecksFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
-	if f.useClusterCheckRunners {
+	// Runner pods exist when the default CCR Deployment is created
+	// (useClusterCheckRunners) OR when dedicated runner groups are materialized
+	// via the experimental kube-checks-runner-default knob (mixed mode). The
+	// base envs below apply to all of them. On dedicated group Deployments,
+	// the auto-derived DD_CLC_RUNNER_CHECKS_EXCLUDE (meant for the default CCR)
+	// is subsequently overwritten with the group's own include/exclude lists by
+	// applyClusterChecksRunnerGroupCompatibility in the DDAI reconciler.
+	if f.useClusterCheckRunners || f.kubeChecksRunnerDefaultEnabled {
 		managers.EnvVar().AddEnvVarToContainer(
 			apicommon.ClusterChecksRunnersContainerName,
 			&corev1.EnvVar{

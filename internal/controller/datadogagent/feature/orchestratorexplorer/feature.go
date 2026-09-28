@@ -123,13 +123,16 @@ func (f *orchestratorExplorerFeature) Configure(dda metav1.Object, ddaSpec *v2al
 		slices.Sort(f.customResources)
 		f.customResources = slices.Compact(f.customResources)
 
-		if constants.IsClusterChecksEnabled(ddaSpec) {
-			if constants.IsCCREnabled(ddaSpec) {
-				f.runInClusterChecksRunner = true
-				f.rbacSuffix = common.ChecksRunnerSuffix
-				f.serviceAccountName = constants.GetClusterChecksRunnerServiceAccount(dda.GetName(), ddaSpec)
-				reqComp.ClusterChecksRunner.IsRequired = new(true)
-			}
+		if constants.IsCCRComponentRequired(dda, ddaSpec) {
+			// Any CCR-family Deployment exists: the default CCR
+			// (useClusterChecksRunners) and/or dedicated runner groups (the
+			// experimental kube-checks-runner-default knob). The orchestrator
+			// check's RBAC and env must target the runner ServiceAccount in all
+			// of those modes.
+			f.runInClusterChecksRunner = true
+			f.rbacSuffix = common.ChecksRunnerSuffix
+			f.serviceAccountName = constants.GetClusterChecksRunnerServiceAccount(dda.GetName(), ddaSpec)
+			reqComp.ClusterChecksRunner.IsRequired = new(true)
 		}
 	}
 

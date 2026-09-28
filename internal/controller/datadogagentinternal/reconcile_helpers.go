@@ -58,7 +58,18 @@ func (r *Reconciler) manageGlobalDependencies(ctx context.Context, ddai *v1alpha
 	if err := global.ApplyGlobalComponentDependencies(logger, ddai.GetObjectMeta(), &ddai.Spec, nil, resourceManagers, datadoghqv2alpha1.NodeAgentComponentName, requiredComponents.Agent, true); len(err) > 0 {
 		errs = append(errs, err...)
 	}
-	if err := global.ApplyGlobalComponentDependencies(logger, ddai.GetObjectMeta(), &ddai.Spec, nil, resourceManagers, datadoghqv2alpha1.ClusterChecksRunnerComponentName, requiredComponents.ClusterChecksRunner, true); len(err) > 0 {
+	// The CCR ServiceAccount and ClusterRole are needed when the default CCR
+	// Deployment is required OR when dedicated runner groups are materialized
+	// in mixed mode (kube-checks-runner-default knob on, useClusterChecksRunners
+	// off): group pods share the CCR ServiceAccount. The merged
+	// RequiredComponents intentionally leaves the CCR component disabled in
+	// mixed mode (so the default Deployment is NOT created), so OR the knob in
+	// here for the dependency gate only.
+	ccrRequiredComponents := requiredComponents.ClusterChecksRunner
+	if !ccrRequiredComponents.IsEnabled() && requiredComponents.ClusterAgent.IsEnabled() && datadoghqv2alpha1.IsExperimentalKubeChecksRunnerDefaultEnabled(ddai) {
+		ccrRequiredComponents = feature.RequiredComponent{IsRequired: new(true)}
+	}
+	if err := global.ApplyGlobalComponentDependencies(logger, ddai.GetObjectMeta(), &ddai.Spec, nil, resourceManagers, datadoghqv2alpha1.ClusterChecksRunnerComponentName, ccrRequiredComponents, true); len(err) > 0 {
 		errs = append(errs, err...)
 	}
 	if err := global.ApplyGlobalComponentDependencies(logger, ddai.GetObjectMeta(), &ddai.Spec, nil, resourceManagers, datadoghqv2alpha1.OtelAgentGatewayComponentName, requiredComponents.OtelAgentGateway, true); len(err) > 0 {

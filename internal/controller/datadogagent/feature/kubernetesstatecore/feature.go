@@ -110,8 +110,12 @@ func (f *ksmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 		// Default to true, then check version requirements
 		f.collectControllerRevisions = true
 
-		// This check will only run in the Cluster Checks Runners or Cluster Agent (not the Node Agent)
-		if ddaSpec.Features.ClusterChecks != nil && apiutils.BoolValue(ddaSpec.Features.ClusterChecks.Enabled) && apiutils.BoolValue(ddaSpec.Features.ClusterChecks.UseClusterChecksRunners) {
+		// This check will only run in the Cluster Checks Runners or Cluster Agent (not the Node Agent).
+		// Any CCR-family Deployment counts: the default CCR
+		// (useClusterChecksRunners) and/or dedicated runner groups (the
+		// experimental kube-checks-runner-default knob), so the KSM check's
+		// RBAC and env target the runner ServiceAccount in mixed mode too.
+		if constants.IsCCRComponentRequired(dda, ddaSpec) {
 			f.runInClusterChecksRunner = true
 			f.rbacSuffix = common.ChecksRunnerSuffix
 			f.serviceAccountName = constants.GetClusterChecksRunnerServiceAccount(dda.GetName(), ddaSpec)
