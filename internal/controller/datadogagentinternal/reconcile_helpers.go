@@ -220,6 +220,12 @@ func (r *Reconciler) cleanupOldCCRDeployments(ctx context.Context, ddai *v1alpha
 		return err
 	}
 	for _, deployment := range deploymentList.Items {
+		if _, isGroupDeployment := deployment.Labels[clusterChecksRunnerGroupLabelKey]; isGroupDeployment {
+			// Dedicated runner group Deployments are managed by
+			// ReconcileClusterChecksRunnerGroups/cleanupOrphanedClusterChecksRunnerGroups,
+			// not by this default-CCR rename cleanup.
+			continue
+		}
 		if deploymentName != deployment.Name {
 			if _, err := r.deleteDeploymentWithEvent(ctx, ddai, &deployment); err != nil {
 				return err

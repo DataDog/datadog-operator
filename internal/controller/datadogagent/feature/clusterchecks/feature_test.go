@@ -7,6 +7,7 @@ package clusterchecks
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	corev1 "k8s.io/api/core/v1"
@@ -102,9 +103,65 @@ func TestClusterChecksFeature(t *testing.T) {
 			ClusterChecksRunner: testClusterChecksRunnerHasExpectedEnvs(),
 			Agent:               testAgentHasExpectedEnvsWithRunners(apicommon.UnprivilegedSingleAgentContainerName),
 		},
+		{
+			Name: "cluster checks enabled, runners enabled, and a dedicated runner group",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithClusterChecksEnabled(true).
+				WithClusterChecksUseCLCEnabled(true).
+				WithClusterChecksRunnerGroups([]v2alpha1.ClusterChecksRunnerGroup{
+					{Name: "ksm", ChecksInclude: []string{"kubernetes_state_core"}},
+				}).
+				Build(),
+			WantConfigure:       true,
+			ClusterAgent:        test.NewDefaultComponentTest().WithWantFunc(wantClusterAgentHasExpectedEnvsAndChecksum),
+			ClusterChecksRunner: testClusterChecksRunnerHasExpectedEnvsWithExclude([]string{"kubernetes_state_core"}),
+			Agent:               testAgentHasExpectedEnvsWithRunners(apicommon.CoreAgentContainerName),
+		},
 	}
 
 	tests.Run(t, buildClusterChecksFeature)
+}
+
+func TestDefaultRunnerChecksExclude(t *testing.T) {
+	tests := []struct {
+		name    string
+		runners []v2alpha1.ClusterChecksRunnerGroup
+		want    []string
+	}{
+		{
+			name:    "no runner groups",
+			runners: nil,
+			want:    nil,
+		},
+		{
+			name: "single runner group",
+			runners: []v2alpha1.ClusterChecksRunnerGroup{
+				{Name: "ksm", ChecksInclude: []string{"kubernetes_state_core"}},
+			},
+			want: []string{"kubernetes_state_core"},
+		},
+		{
+			name: "multiple runner groups, deduplicated and sorted",
+			runners: []v2alpha1.ClusterChecksRunnerGroup{
+				{Name: "ksm", ChecksInclude: []string{"kubernetes_state_core", "http_check"}},
+				{Name: "other", ChecksInclude: []string{"http_check"}},
+			},
+			want: []string{"http_check", "kubernetes_state_core"},
+		},
+		{
+			name: "runner group with no ChecksInclude",
+			runners: []v2alpha1.ClusterChecksRunnerGroup{
+				{Name: "unrestricted"},
+			},
+			want: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, defaultRunnerChecksExclude(tt.runners))
+		})
+	}
 }
 
 func TestClusterAgentChecksumsDifferentForDifferentConfig(t *testing.T) {
@@ -208,6 +265,36 @@ func testClusterChecksRunnerHasExpectedEnvs() *test.ComponentTest {
 				{
 					Name:  DDExtraConfigProviders,
 					Value: clusterChecksConfigProvider,
+				},
+			}
+
+			assert.True(
+				t,
+				apiutils.IsEqualStruct(clusterRunnerEnvs, expectedClusterRunnerEnvs),
+				"Cluster Runner ENVs \ndiff = %s", cmp.Diff(clusterRunnerEnvs, expectedClusterRunnerEnvs),
+			)
+		},
+	)
+}
+
+func testClusterChecksRunnerHasExpectedEnvsWithExclude(exclude []string) *test.ComponentTest {
+	return test.NewDefaultComponentTest().WithWantFunc(
+		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+			mgr := mgrInterface.(*fake.PodTemplateManagers)
+
+			clusterRunnerEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommon.ClusterChecksRunnersContainerName]
+			expectedClusterRunnerEnvs := []*corev1.EnvVar{
+				{
+					Name:  DDClusterChecksEnabled,
+					Value: "true",
+				},
+				{
+					Name:  DDExtraConfigProviders,
+					Value: clusterChecksConfigProvider,
+				},
+				{
+					Name:  DDCLCRunnerChecksExclude,
+					Value: strings.Join(exclude, ","),
 				},
 			}
 

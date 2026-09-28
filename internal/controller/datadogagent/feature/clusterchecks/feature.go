@@ -6,6 +6,9 @@
 package clusterchecks
 
 import (
+	"sort"
+	"strings"
+
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	netv1 "k8s.io/api/networking/v1"
@@ -41,6 +44,13 @@ type clusterChecksFeature struct {
 	customConfigAnnotationKey   string
 	customConfigAnnotationValue string
 
+	// defaultRunnerChecksExclude is the auto-derived list of check names the
+	// default Cluster Checks Runner Deployment refuses to run: the union of
+	// every dedicated runner group's ChecksInclude, so a check exclusively
+	// claimed by a group is kept off the default runners without requiring
+	// matching config on the default group itself.
+	defaultRunnerChecksExclude []string
+
 	logger logr.Logger
 }
 
@@ -71,6 +81,11 @@ func (f *clusterChecksFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Da
 		}
 
 		f.useClusterCheckRunners = apiutils.BoolValue(ddaSpec.Features.ClusterChecks.UseClusterChecksRunners)
+		runnerGroups, err := v2alpha1.GetExperimentalClusterChecksRunnerGroups(dda)
+		if err != nil {
+			f.logger.Error(err, "ignoring malformed experimental cluster checks runner groups annotation")
+		}
+		f.defaultRunnerChecksExclude = defaultRunnerChecksExclude(runnerGroups)
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
 				IsRequired: new(true),
@@ -231,9 +246,44 @@ func (f *clusterChecksFeature) ManageClusterChecksRunner(managers feature.PodTem
 				Value: clusterChecksConfigProvider,
 			},
 		)
+
+		if len(f.defaultRunnerChecksExclude) > 0 {
+			managers.EnvVar().AddEnvVarToContainer(
+				apicommon.ClusterChecksRunnersContainerName,
+				&corev1.EnvVar{
+					Name:  DDCLCRunnerChecksExclude,
+					Value: strings.Join(f.defaultRunnerChecksExclude, ","),
+				},
+			)
+		}
 	}
 
 	return nil
+}
+
+// defaultRunnerChecksExclude returns the sorted, de-duplicated union of every
+// runner group's ChecksInclude. This is what the default Cluster Checks
+// Runner Deployment must refuse to run, so that a check exclusively claimed
+// by a dedicated group doesn't also get scheduled on the default runners.
+func defaultRunnerChecksExclude(runners []v2alpha1.ClusterChecksRunnerGroup) []string {
+	seen := make(map[string]struct{})
+	for _, runner := range runners {
+		for _, check := range runner.ChecksInclude {
+			seen[check] = struct{}{}
+		}
+	}
+
+	if len(seen) == 0 {
+		return nil
+	}
+
+	excludes := make([]string, 0, len(seen))
+	for check := range seen {
+		excludes = append(excludes, check)
+	}
+	sort.Strings(excludes)
+
+	return excludes
 }
 
 func (f *clusterChecksFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers) error {

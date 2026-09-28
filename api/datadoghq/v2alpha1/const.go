@@ -23,6 +23,14 @@ const (
 	AnnotationExperimentSignal = "experiment.datadoghq.com/signal"
 )
 
+// AnnotationExperimentalClusterChecksRunnerGroups holds a JSON-encoded
+// []ClusterChecksRunnerGroup declaring additional, dedicated Cluster Checks
+// Runner Deployments, each restricted to a subset of checks. This is an
+// experimental feature configured out-of-band via annotation rather than a
+// typed CRD field — see ClusterChecksRunnerGroup and
+// GetExperimentalClusterChecksRunnerGroups.
+const AnnotationExperimentalClusterChecksRunnerGroups = "agent.datadoghq.com/experimental-cluster-checks-runner-groups"
+
 // Fleet pending-operation annotations. The fleet daemon writes these
 // annotations to durably track the single in-flight async operation for a DDA
 // so it can recover after restarts.

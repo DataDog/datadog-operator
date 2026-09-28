@@ -6,6 +6,8 @@
 package testutils
 
 import (
+	"encoding/json"
+
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -747,6 +749,22 @@ func (builder *DatadogAgentBuilder) WithClusterChecks(enabled bool, useRunners b
 	builder.initCC()
 	builder.datadogAgent.Spec.Features.ClusterChecks.Enabled = new(enabled)
 	builder.datadogAgent.Spec.Features.ClusterChecks.UseClusterChecksRunners = new(useRunners)
+	return builder
+}
+
+// WithClusterChecksRunnerGroups sets the experimental cluster checks runner
+// groups annotation (see v2alpha1.GetExperimentalClusterChecksRunnerGroups)
+// rather than a typed CRD field.
+func (builder *DatadogAgentBuilder) WithClusterChecksRunnerGroups(groups []v2alpha1.ClusterChecksRunnerGroup) *DatadogAgentBuilder {
+	builder.initCC()
+	raw, err := json.Marshal(groups)
+	if err != nil {
+		panic(err)
+	}
+	if builder.datadogAgent.Annotations == nil {
+		builder.datadogAgent.Annotations = map[string]string{}
+	}
+	builder.datadogAgent.Annotations[v2alpha1.AnnotationExperimentalClusterChecksRunnerGroups] = string(raw)
 	return builder
 }
 

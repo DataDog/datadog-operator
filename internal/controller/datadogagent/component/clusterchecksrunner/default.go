@@ -37,6 +37,29 @@ func GetCCRRbacResourcesName(dda metav1.Object) string {
 	return fmt.Sprintf("%s-%s", dda.GetName(), constants.DefaultClusterChecksRunnerResourceSuffix)
 }
 
+// GetClusterChecksRunnerGroupName returns the Deployment name for a dedicated
+// Cluster Checks Runner group, distinct from the default CCR Deployment name.
+func GetClusterChecksRunnerGroupName(dda metav1.Object, groupName string) string {
+	return fmt.Sprintf("%s-%s", GetClusterChecksRunnerName(dda), groupName)
+}
+
+// NewClusterChecksRunnerGroupDeployment returns a new dedicated Cluster Checks
+// Runner Deployment for the given runner group name. It shares the default
+// CCR pod template and gets its own name/selector so it doesn't collide with
+// the default CCR Deployment or with other groups.
+func NewClusterChecksRunnerGroupDeployment(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, groupName string) *appsv1.Deployment {
+	deployment := common.NewDeployment(dda, constants.DefaultClusterChecksRunnerResourceSuffix, GetClusterChecksRunnerGroupName(dda, groupName), common.GetAgentVersion(dda), nil)
+
+	podTemplate := NewDefaultClusterChecksRunnerPodTemplateSpec(dda, ddaSpec)
+	maps.Copy(podTemplate.Labels, deployment.GetLabels())
+
+	maps.Copy(podTemplate.Annotations, deployment.GetAnnotations())
+
+	deployment.Spec.Template = *podTemplate
+
+	return deployment
+}
+
 // NewDefaultClusterChecksRunnerDeployment return a new default cluster-checks-runner deployment
 func NewDefaultClusterChecksRunnerDeployment(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec) *appsv1.Deployment {
 	deployment := common.NewDeployment(dda, constants.DefaultClusterChecksRunnerResourceSuffix, GetClusterChecksRunnerName(dda), common.GetAgentVersion(dda), nil)
