@@ -22,6 +22,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/secrets"
+	"github.com/DataDog/datadog-operator/pkg/trace"
 )
 
 // setupDDADependenciesStore initializes a store specifically for DDA controller dependencies.
@@ -40,7 +41,10 @@ func (r *Reconciler) setupDDADependenciesStore(instance *v2alpha1.DatadogAgent, 
 	return depsStore, resourceManagers
 }
 
-func (r *Reconciler) manageDDADependenciesWithDDAI(ctx context.Context, logger logr.Logger, instance *v2alpha1.DatadogAgent, newDDAStatus *v2alpha1.DatadogAgentStatus, ddais []*v1alpha1.DatadogAgentInternal) error {
+func (r *Reconciler) manageDDADependenciesWithDDAI(ctx context.Context, logger logr.Logger, instance *v2alpha1.DatadogAgent, newDDAStatus *v2alpha1.DatadogAgentStatus, ddais []*v1alpha1.DatadogAgentInternal) (err error) {
+	span, ctx := startDDASpan(ctx)
+	defer trace.FinishSpan(span, &err)
+
 	// Use a store marked as DDA controller store so resources are labeled
 	// with ManagedByDDAControllerLabelKey and won't be cleaned up by DDAI controller.
 	depsStore, resourceManagers := r.setupDDADependenciesStore(instance, logger)

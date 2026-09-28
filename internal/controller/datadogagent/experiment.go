@@ -21,6 +21,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	v2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/pkg/trace"
 )
 
 // ExperimentDefaultTimeout is the duration after which a running experiment is automatically rolled back.
@@ -70,7 +71,10 @@ func (r *Reconciler) manageExperiment(
 	newStatus *v2alpha1.DatadogAgentStatus,
 	now metav1.Time,
 	revList []appsv1.ControllerRevision,
-) error {
+) (err error) {
+	span, ctx := startDDASpan(ctx)
+	defer trace.FinishSpan(span, &err)
+
 	// Snapshot the experiment status before processing to detect mutations.
 	var oldPhase v2alpha1.ExperimentPhase
 	var oldID string

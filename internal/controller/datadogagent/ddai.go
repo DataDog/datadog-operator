@@ -28,6 +28,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	"github.com/DataDog/datadog-operator/pkg/trace"
 )
 
 func (r *Reconciler) generateDDAIFromDDA(dda *v2alpha1.DatadogAgent, provider string) (*v1alpha1.DatadogAgentInternal, error) {
@@ -115,7 +116,10 @@ func getDDAILabels(dda *v2alpha1.DatadogAgent) map[string]string {
 	return labels
 }
 
-func (r *Reconciler) cleanUpUnusedDDAIs(ctx context.Context, validDDAIs []*v1alpha1.DatadogAgentInternal) error {
+func (r *Reconciler) cleanUpUnusedDDAIs(ctx context.Context, validDDAIs []*v1alpha1.DatadogAgentInternal) (err error) {
+	span, ctx := startDDASpan(ctx)
+	defer trace.FinishSpan(span, &err)
+
 	validDDAIMap := make(map[string]struct{}, len(validDDAIs))
 	for _, ddai := range validDDAIs {
 		validDDAIMap[fmt.Sprintf("%s/%s", ddai.Namespace, ddai.Name)] = struct{}{}
@@ -138,7 +142,7 @@ func (r *Reconciler) cleanUpUnusedDDAIs(ctx context.Context, validDDAIs []*v1alp
 
 func (r *Reconciler) addRemoteConfigStatusToDDAIStatus(ctx context.Context, ddaStatus *v2alpha1.DatadogAgentStatus, ddaiMeta metav1.ObjectMeta) (reconcile.Result, error) {
 	ddai := &v1alpha1.DatadogAgentInternal{}
-	if err := r.client.Get(context.TODO(), types.NamespacedName{Name: ddaiMeta.Name, Namespace: ddaiMeta.Namespace}, ddai); err != nil {
+	if err := r.client.Get(ctx, types.NamespacedName{Name: ddaiMeta.Name, Namespace: ddaiMeta.Namespace}, ddai); err != nil {
 		return reconcile.Result{}, err
 	}
 	// check equality

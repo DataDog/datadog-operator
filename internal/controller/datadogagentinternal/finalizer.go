@@ -8,18 +8,29 @@ package datadogagentinternal
 import (
 	"context"
 
+	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
 	"github.com/DataDog/datadog-operator/internal/controller/finalizer"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	"github.com/DataDog/datadog-operator/pkg/trace"
 )
+
+func (r *Reconciler) handleFinalizer(ctx context.Context, logger logr.Logger, instance *v1alpha1.DatadogAgentInternal) (result reconcile.Result, err error) {
+	span, ctx := startDDAISpan(ctx)
+	defer trace.FinishSpan(span, &err)
+	final := finalizer.NewFinalizer(logger, r.client, r.deleteResource(), defaultRequeuePeriod, defaultErrRequeuePeriod)
+	return final.HandleFinalizer(ctx, instance, "", constants.DatadogAgentInternalFinalizer)
+}
 
 func (r *Reconciler) deleteResource() finalizer.ResourceDeleteFunc {
 	return func(ctx context.Context, k8sObj client.Object, datadogID string) error {

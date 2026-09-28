@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/DataDog/dd-trace-go/v2/ddtrace/tracer"
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -27,6 +28,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/override"
 	"github.com/DataDog/datadog-operator/pkg/condition"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
+	"github.com/DataDog/datadog-operator/pkg/trace"
 )
 
 // checkComponentEnabledWithOverride is a helper function that determines if a component is enabled
@@ -132,8 +134,9 @@ func (r *ComponentRegistry) Register(component ComponentReconciler) {
 }
 
 // ReconcileComponents reconciles all registered components in order
-func (r *ComponentRegistry) ReconcileComponents(ctx context.Context, params *ReconcileComponentParams) (reconcile.Result, error) {
-	var result reconcile.Result
+func (r *ComponentRegistry) ReconcileComponents(ctx context.Context, params *ReconcileComponentParams) (result reconcile.Result, err error) {
+	span, ctx := startDDAISpan(ctx)
+	defer trace.FinishSpan(span, &err)
 	now := metav1.NewTime(time.Now())
 	hasConflict := false
 
@@ -185,8 +188,9 @@ func (r *ComponentRegistry) ReconcileComponents(ctx context.Context, params *Rec
 }
 
 // reconcileComponent reconciles a single component
-func (r *ComponentRegistry) reconcileComponent(ctx context.Context, params *ReconcileComponentParams, component ComponentReconciler) (reconcile.Result, error) {
-	var result reconcile.Result
+func (r *ComponentRegistry) reconcileComponent(ctx context.Context, params *ReconcileComponentParams, component ComponentReconciler) (result reconcile.Result, err error) {
+	span, ctx := startDDAISpan(ctx, tracer.Tag("component", string(component.Name())))
+	defer trace.FinishSpan(span, &err)
 	now := metav1.NewTime(time.Now())
 
 	// Start by creating the Default deployment
@@ -209,7 +213,7 @@ func (r *ComponentRegistry) reconcileComponent(ctx context.Context, params *Reco
 		}
 	}
 	if len(featErrors) > 0 {
-		err := utilerrors.NewAggregate(featErrors)
+		err = utilerrors.NewAggregate(featErrors)
 		component.UpdateStatus(deployment, params.Status, now, metav1.ConditionFalse, fmt.Sprintf("%s feature error", component.Name()), err.Error())
 		return result, err
 	}
@@ -234,13 +238,13 @@ func (r *ComponentRegistry) reconcileComponent(ctx context.Context, params *Reco
 	}
 
 	if errs := global.ValidateFIPSVersions(podManagers); len(errs) > 0 {
-		err := utilerrors.NewAggregate(errs)
+		err = utilerrors.NewAggregate(errs)
 		component.UpdateStatus(deployment, params.Status, now, metav1.ConditionFalse, fmt.Sprintf("%s FIPS version error", component.Name()), err.Error())
 		return result, err
 	}
 
 	if r.reconciler.options.RolloutOnConfigMapChangeEnabled {
-		if err := r.reconciler.annotateConfigMapsChecksum(ctx, deployment.Namespace, &deployment.Spec.Template); err != nil {
+		if err = r.reconciler.annotateConfigMapsChecksum(ctx, deployment.Namespace, &deployment.Spec.Template); err != nil {
 			component.UpdateStatus(deployment, params.Status, now, metav1.ConditionFalse, fmt.Sprintf("%s configmap checksum error", component.Name()), err.Error())
 			return result, err
 		}
@@ -265,7 +269,9 @@ func (r *ComponentRegistry) reconcileComponent(ctx context.Context, params *Reco
 }
 
 // Cleanup removes the component deployment, associated resources and updates status
-func (r *ComponentRegistry) Cleanup(ctx context.Context, params *ReconcileComponentParams, component ComponentReconciler) (reconcile.Result, error) {
+func (r *ComponentRegistry) Cleanup(ctx context.Context, params *ReconcileComponentParams, component ComponentReconciler) (_ reconcile.Result, err error) {
+	span, ctx := startDDAISpan(ctx, tracer.Tag("component", string(component.Name())))
+	defer trace.FinishSpan(span, &err)
 	deployment := component.GetNewDeploymentFunc()(params.DDAI, &params.DDAI.Spec)
 
 	// Apply the name override so we delete the correct deployment

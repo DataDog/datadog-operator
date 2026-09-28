@@ -23,6 +23,7 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	v2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/pkg/controllerrevisions"
+	"github.com/DataDog/datadog-operator/pkg/trace"
 )
 
 // revisionSnapshot is the payload stored in a ControllerRevision.
@@ -60,7 +61,10 @@ func skipRevisionBump(newStatus *v2alpha1.DatadogAgentStatus) bool {
 // and is what gets stored in the ControllerRevision snapshot; instance is
 // still used for labels, annotations, and object identity, which are
 // unaffected by defaulting.
-func (r *Reconciler) manageRevision(ctx context.Context, instance *v2alpha1.DatadogAgent, rawSpec v2alpha1.DatadogAgentSpec, revList []appsv1.ControllerRevision, newStatus *v2alpha1.DatadogAgentStatus) error {
+func (r *Reconciler) manageRevision(ctx context.Context, instance *v2alpha1.DatadogAgent, rawSpec v2alpha1.DatadogAgentSpec, revList []appsv1.ControllerRevision, newStatus *v2alpha1.DatadogAgentStatus) (err error) {
+	span, ctx := startDDASpan(ctx)
+	defer trace.FinishSpan(span, &err)
+
 	revName, err := r.ensureRevision(ctx, instance, rawSpec, revList, skipRevisionBump(newStatus))
 	if err != nil {
 		return err

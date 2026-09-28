@@ -19,6 +19,7 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	"github.com/DataDog/datadog-operator/pkg/trace"
 
 	// Use to register features
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/admissioncontroller"
@@ -149,6 +150,9 @@ func NewReconciler(options ReconcilerOptions, client client.Client, platformInfo
 func (r *Reconciler) Reconcile(ctx context.Context, dda *v2alpha1.DatadogAgent) (reconcile.Result, error) {
 	var resp reconcile.Result
 	var err error
+
+	span, ctx := trace.StartReconcileSpan(ctx, "DatadogAgent", ddaOperationName, dda)
+	defer trace.FinishSpan(span, &err)
 
 	resp, err = r.internalReconcile(ctx, dda)
 

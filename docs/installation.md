@@ -183,6 +183,7 @@ Other operator startup options can also be configured via environment variable:
 | Metrics address            | `--metrics-addr`                     | `DD_METRICS_ADDR`                     | `:8080` |
 | Secure metrics             | `--metrics-secure`                   | `DD_METRICS_SECURE`                   | `false` |
 | Profiling                  | `--profiling-enabled`                | `DD_PROFILING_ENABLED`                | `false` |
+| APM tracing (DatadogAgent and DatadogAgentInternal reconciles) | `--tracing-enabled` | `DD_OPERATOR_TRACING_ENABLED` | `false` |
 | Leader election lease      | `--leader-election-lease-duration`   | `DD_LEADER_ELECTION_LEASE_DURATION`   | `60s`   |
 | Cilium network policies    | `--supportCilium`                    | `DD_SUPPORT_CILIUM`                   | `false` |
 | Maximum goroutines         | `--maximumGoroutines`                | `DD_MAXIMUM_GOROUTINES`               | `500`   |
@@ -197,6 +198,10 @@ The leader election toggle (`--enable-leader-election`), pprof (`--pprof`),
 log options (`--loglevel`, `--logEncoder`), secret backend options
 (`--secretBackend*`, `--secretRefreshInterval`), and `--version` are only
 configurable using CLI flags in the shipped manifests.
+
+When tracing or profiling is enabled, the operator reports under the `DD_SERVICE`
+service name (default `datadog-operator`) and sends data to the Agent configured by
+the standard `DD_AGENT_HOST` / `DD_TRACE_AGENT_URL` environment variables.
 
 ExtendedDaemonSet flags were removed. If they are present in a custom
 Deployment manifest, remove them before upgrading. See the
