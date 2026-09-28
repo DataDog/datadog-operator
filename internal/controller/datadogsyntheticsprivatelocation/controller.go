@@ -16,6 +16,7 @@ import (
 	datadogV1 "github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -48,6 +49,7 @@ const (
 // the remote Datadog private location and the in-cluster worker Deployment.
 type Reconciler struct {
 	client       client.Client
+	apiReader    client.Reader
 	scheme       *runtime.Scheme
 	log          logr.Logger
 	recorder     record.EventRecorder
@@ -62,6 +64,9 @@ type Reconciler struct {
 type ReconcilerOptions struct {
 	RequeuePeriod   time.Duration
 	ForceSyncPeriod time.Duration
+	// APIReader reads the instance without the informer cache. It defaults
+	// to the client.
+	APIReader client.Reader
 }
 
 func NewReconciler(client client.Client, credsManager *config.CredentialManager, scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder, opts ...ReconcilerOptions) *Reconciler {
@@ -78,9 +83,14 @@ func NewReconciler(client client.Client, credsManager *config.CredentialManager,
 	if forceSyncPeriod <= 0 {
 		forceSyncPeriod = forceSyncPeriodFromEnv(log, defaultForceSyncPeriod)
 	}
+	apiReader := options.APIReader
+	if apiReader == nil {
+		apiReader = client
+	}
 
 	return &Reconciler{
 		client:             client,
+		apiReader:          apiReader,
 		credsManager:       credsManager,
 		scheme:             scheme,
 		log:                log,
@@ -92,9 +102,21 @@ func NewReconciler(client client.Client, credsManager *config.CredentialManager,
 }
 
 // Reconcile is the entry point called by the controller wrapper with the
-// freshly fetched instance.
-func (r *Reconciler) Reconcile(ctx context.Context, instance *datadoghqv1alpha1.DatadogSyntheticsPrivateLocation) (ctrl.Result, error) {
-	logger := r.log.WithValues("datadogsyntheticsprivatelocation", types.NamespacedName{Name: instance.Name, Namespace: instance.Namespace})
+// instance from the informer cache.
+func (r *Reconciler) Reconcile(ctx context.Context, cached *datadoghqv1alpha1.DatadogSyntheticsPrivateLocation) (ctrl.Result, error) {
+	logger := r.log.WithValues("datadogsyntheticsprivatelocation", types.NamespacedName{Name: cached.Name, Namespace: cached.Namespace})
+
+	// The cache can lag behind the status patch of the previous reconcile,
+	// for example when the owned Secret write queued this one. A stale empty
+	// status.id creates a second private location and orphans the first, so
+	// read the live instance.
+	instance := &datadoghqv1alpha1.DatadogSyntheticsPrivateLocation{}
+	if err := r.apiReader.Get(ctx, client.ObjectKeyFromObject(cached), instance); err != nil {
+		if apierrors.IsNotFound(err) {
+			return ctrl.Result{}, nil
+		}
+		return ctrl.Result{}, fmt.Errorf("reading live DatadogSyntheticsPrivateLocation: %w", err)
+	}
 
 	result, err := r.internalReconcile(ctx, logger, instance)
 	// No status to persist on deletion: the finalizer has already removed the

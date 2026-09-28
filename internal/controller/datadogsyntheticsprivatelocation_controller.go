@@ -26,6 +26,7 @@ import (
 // DatadogSyntheticsPrivateLocationReconciler reconciles a DatadogSyntheticsPrivateLocation object.
 type DatadogSyntheticsPrivateLocationReconciler struct {
 	Client       client.Client
+	APIReader    client.Reader
 	CredsManager *config.CredentialManager
 	Scheme       *runtime.Scheme
 	Recorder     record.EventRecorder
@@ -51,7 +52,8 @@ func (r *DatadogSyntheticsPrivateLocationReconciler) Reconcile(ctx context.Conte
 
 // SetupWithManager creates a new DatadogSyntheticsPrivateLocation controller.
 func (r *DatadogSyntheticsPrivateLocationReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	r.internal = datadogsyntheticsprivatelocation.NewReconciler(r.Client, r.CredsManager, r.Scheme, ctrl.Log.WithName("controllers").WithName("DatadogSyntheticsPrivateLocation"), r.Recorder)
+	r.internal = datadogsyntheticsprivatelocation.NewReconciler(r.Client, r.CredsManager, r.Scheme, ctrl.Log.WithName("controllers").WithName("DatadogSyntheticsPrivateLocation"), r.Recorder,
+		datadogsyntheticsprivatelocation.ReconcilerOptions{APIReader: r.APIReader})
 
 	or := reconcile.AsReconciler[*datadoghqv1alpha1.DatadogSyntheticsPrivateLocation](r.Client, r)
 	// Predicates on For() only: spec and Datadog annotation changes on the

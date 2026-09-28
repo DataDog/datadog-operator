@@ -232,6 +232,7 @@ func startDatadogSyntheticsPrivateLocation(logger logr.Logger, mgr manager.Manag
 
 	splReconciler := &DatadogSyntheticsPrivateLocationReconciler{
 		Client:       mgr.GetClient(),
+		APIReader:    mgr.GetAPIReader(),
 		CredsManager: options.CredsManager,
 		Scheme:       mgr.GetScheme(),
 		Recorder:     mgr.GetEventRecorderFor(splControllerName),

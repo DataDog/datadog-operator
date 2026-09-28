@@ -104,6 +104,7 @@ func newTestReconciler(t *testing.T, mock *ddMock) (*Reconciler, client.Client) 
 
 	return &Reconciler{
 		client:             k8sClient,
+		apiReader:          k8sClient,
 		scheme:             s,
 		log:                ctrl.Log.WithName("test"),
 		recorder:           record.NewFakeRecorder(100),
@@ -215,6 +216,26 @@ func TestReconciler_Reconcile_create(t *testing.T) {
 	assert.Contains(t, instance.Finalizers, datadogSyntheticsPrivateLocationFinalizerName)
 }
 
+func TestReconciler_Reconcile_staleCachedInstanceDoesNotCreateTwice(t *testing.T) {
+	mock := newDDMock(t)
+	r, k8sClient := newTestReconciler(t, mock)
+
+	require.NoError(t, k8sClient.Create(context.TODO(), newTestInstance()))
+	_, err := r.Reconcile(context.TODO(), getInstance(t, k8sClient))
+	require.NoError(t, err)
+
+	stale := getInstance(t, k8sClient)
+	require.Empty(t, stale.Status.ID)
+
+	_, err = r.Reconcile(context.TODO(), getInstance(t, k8sClient))
+	require.NoError(t, err)
+	_, err = r.Reconcile(context.TODO(), stale)
+	require.NoError(t, err)
+
+	assert.Equal(t, 1, mock.callCount(http.MethodPost))
+	assert.Equal(t, testPLID, getInstance(t, k8sClient).Status.ID)
+}
+
 func TestReconciler_Reconcile_statusProbesUnsupportedWorkerVersion(t *testing.T) {
 	mock := newDDMock(t)
 	r, k8sClient := newTestReconciler(t, mock)
@@ -265,9 +286,10 @@ func TestReconciler_Reconcile_noChangeRefreshesOnly(t *testing.T) {
 	assert.Equal(t, 1, mock.callCount(http.MethodPost), "must not re-create")
 	assert.Zero(t, mock.callCount(http.MethodPut), "must not update")
 	assert.Equal(t, 1, mock.callCount(http.MethodGet))
-	assert.Equal(t, datadoghqv1alpha1.DatadogSyntheticsPrivateLocationSyncStatusOK, instance.Status.SyncStatus)
+	persisted := getInstance(t, k8sClient)
+	assert.Equal(t, datadoghqv1alpha1.DatadogSyntheticsPrivateLocationSyncStatusOK, persisted.Status.SyncStatus)
 	// The worker Deployment status is now reported.
-	assert.NotNil(t, instance.Status.Deployment)
+	assert.NotNil(t, persisted.Status.Deployment)
 }
 
 func TestReconciler_Reconcile_specChangeTriggersUpdate(t *testing.T) {
