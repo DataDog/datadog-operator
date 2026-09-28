@@ -34,6 +34,7 @@ const (
 	DDDataPlaneOTLPEnabled                = "DD_DATA_PLANE_OTLP_ENABLED"
 	DDDataPlaneRemoteAgentEnabled         = "DD_DATA_PLANE_REMOTE_AGENT_ENABLED"
 	DDDataPlaneUseNewConfigStreamEndpoint = "DD_DATA_PLANE_USE_NEW_CONFIG_STREAM_ENDPOINT"
+	DDDataPlaneChecksEnabled              = "DD_DATA_PLANE_CHECKS_ENABLED"
 	DDKubernetesPodResourcesSocket        = "DD_KUBERNETES_KUBELET_PODRESOURCES_SOCKET"
 	DDKubernetesUseEndpointSlices         = "DD_KUBERNETES_USE_ENDPOINT_SLICES"
 	DDCELWorkloadExclude                  = "DD_CEL_WORKLOAD_EXCLUDE"
