@@ -2088,9 +2088,9 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterSpec(ref c
 							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterComponentsSpec"),
 						},
 					},
-					"nodeConfig": {
+					"nodeConfigOverrides": {
 						SchemaProps: spec.SchemaProps{
-							Description: "NodeConfig contains the Quickwit node configuration.",
+							Description: "NodeConfigOverrides contains overrides merged into the default Quickwit node configuration.",
 							Ref:         ref("k8s.io/apimachinery/pkg/runtime.RawExtension"),
 						},
 					},

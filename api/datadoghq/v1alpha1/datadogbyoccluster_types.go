@@ -45,10 +45,10 @@ type DatadogBYOCClusterSpec struct {
 	// +kubebuilder:validation:Required
 	Components *DatadogBYOCClusterComponentsSpec `json:"components,omitempty"`
 
-	// NodeConfig contains the Quickwit node configuration.
+	// NodeConfigOverrides contains overrides merged into the default Quickwit node configuration.
 	// +optional
 	// +kubebuilder:pruning:PreserveUnknownFields
-	NodeConfig *runtime.RawExtension `json:"nodeConfig,omitempty"`
+	NodeConfigOverrides *runtime.RawExtension `json:"nodeConfigOverrides,omitempty"`
 }
 
 // DatadogBYOCClusterReleaseSpec identifies a BYOC release artifact.

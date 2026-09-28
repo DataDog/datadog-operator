@@ -1086,8 +1086,8 @@ func (in *DatadogBYOCClusterSpec) DeepCopyInto(out *DatadogBYOCClusterSpec) {
 		*out = new(DatadogBYOCClusterComponentsSpec)
 		(*in).DeepCopyInto(*out)
 	}
-	if in.NodeConfig != nil {
-		in, out := &in.NodeConfig, &out.NodeConfig
+	if in.NodeConfigOverrides != nil {
+		in, out := &in.NodeConfigOverrides, &out.NodeConfigOverrides
 		*out = new(runtime.RawExtension)
 		(*in).DeepCopyInto(*out)
 	}

@@ -34360,7 +34360,7 @@
           },
           "type": "object"
         },
-        "nodeConfig": {
+        "nodeConfigOverrides": {
           "type": "object",
           "x-kubernetes-preserve-unknown-fields": true
         },
