@@ -10,12 +10,12 @@ require (
 	github.com/stretchr/testify v1.12.1
 	// Keep these Kubernetes dependencies compatible with datadog-agent. Any bump
 	// must be coordinated with a matching dependency bump in datadog-agent.
-	k8s.io/api v0.37.0
-	k8s.io/apiextensions-apiserver v0.37.0
-	k8s.io/apimachinery v0.37.0
-	k8s.io/kube-openapi v0.0.0-20260721132016-d427ff9ee9ad
-	k8s.io/utils v0.0.0-20260707023825-cf1189d6abe3
-	sigs.k8s.io/controller-runtime v0.25.1
+	k8s.io/api v0.35.3
+	k8s.io/apiextensions-apiserver v0.35.1
+	k8s.io/apimachinery v0.35.3
+	k8s.io/kube-openapi v0.0.0-20251125145642-4e65d59e963e
+	k8s.io/utils v0.0.0-20251222233032-718f0e51e6d2
+	sigs.k8s.io/controller-runtime v0.23.3
 	sigs.k8s.io/yaml v1.6.0
 )
 
@@ -45,16 +45,15 @@ require (
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.3-0.20250322232337-35a7c28c31ee // indirect
-	github.com/onsi/ginkgo/v2 v2.32.1 // indirect
-	github.com/onsi/gomega v1.43.0 // indirect
+	github.com/onsi/ginkgo/v2 v2.33.0 // indirect
+	github.com/onsi/gomega v1.43.1 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	go.yaml.in/yaml/v2 v2.4.4 // indirect
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
-	golang.org/x/mod v0.40.0 // indirect
-	golang.org/x/net v0.58.0 // indirect
+	golang.org/x/net v0.59.0 // indirect
 	golang.org/x/oauth2 v0.36.0 // indirect
-	golang.org/x/text v0.41.0 // indirect
-	golang.org/x/tools v0.49.0 // indirect
+	golang.org/x/text v0.42.0 // indirect
+	golang.org/x/tools v0.50.0 // indirect
 	google.golang.org/protobuf v1.36.12 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	k8s.io/klog/v2 v2.140.0 // indirect
