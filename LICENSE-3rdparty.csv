@@ -20,6 +20,7 @@ core,github.com/DataDog/datadog-agent/pkg/config/model,Apache-2.0
 core,github.com/DataDog/datadog-agent/pkg/config/nodetreemodel,Apache-2.0
 core,github.com/DataDog/datadog-agent/pkg/config/remote,Apache-2.0
 core,github.com/DataDog/datadog-agent/pkg/config/setup,Apache-2.0
+core,github.com/DataDog/datadog-agent/pkg/config/setup/constants,Apache-2.0
 core,github.com/DataDog/datadog-agent/pkg/config/structure,Apache-2.0
 core,github.com/DataDog/datadog-agent/pkg/fips,Apache-2.0
 core,github.com/DataDog/datadog-agent/pkg/proto,Apache-2.0
@@ -53,7 +54,6 @@ core,github.com/DataDog/go-acl,MIT
 core,github.com/DataDog/go-tuf,BSD-3-Clause
 core,github.com/DataDog/gostackparse,Apache-2.0
 core,github.com/DataDog/gostackparse,BSD-3-Clause
-core,github.com/DataDog/zstd,BSD-3-Clause
 core,github.com/MakeNowJust/heredoc,MIT
 core,github.com/Masterminds/goutils,Apache-2.0
 core,github.com/Masterminds/semver/v3,MIT
@@ -144,7 +144,7 @@ core,github.com/google/uuid,BSD-3-Clause
 core,github.com/gorilla/websocket,BSD-2-Clause
 core,github.com/gosuri/uitable,MIT
 core,github.com/gosuri/uitable/util/wordwrap,MIT
-core,github.com/grpc-ecosystem/go-grpc-middleware,Apache-2.0
+core,github.com/grpc-ecosystem/go-grpc-middleware/v2,Apache-2.0
 core,github.com/grpc-ecosystem/grpc-gateway/v2,BSD-3-Clause
 core,github.com/hako/durafmt,MIT
 core,github.com/hashicorp/errwrap,MPL-2.0
