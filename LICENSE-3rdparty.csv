@@ -54,6 +54,7 @@ core,github.com/DataDog/go-acl,MIT
 core,github.com/DataDog/go-tuf,BSD-3-Clause
 core,github.com/DataDog/gostackparse,Apache-2.0
 core,github.com/DataDog/gostackparse,BSD-3-Clause
+core,github.com/DataDog/zstd,BSD-3-Clause
 core,github.com/MakeNowJust/heredoc,MIT
 core,github.com/Masterminds/goutils,Apache-2.0
 core,github.com/Masterminds/semver/v3,MIT
