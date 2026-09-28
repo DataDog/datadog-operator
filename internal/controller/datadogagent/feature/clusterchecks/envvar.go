@@ -6,9 +6,9 @@
 package clusterchecks
 
 const (
-	DDClusterChecksEnabled   = "DD_CLUSTER_CHECKS_ENABLED"
-	DDExtraConfigProviders   = "DD_EXTRA_CONFIG_PROVIDERS"
-	DDExtraListeners         = "DD_EXTRA_LISTENERS"
+	DDClusterChecksEnabled = "DD_CLUSTER_CHECKS_ENABLED"
+	DDExtraConfigProviders = "DD_EXTRA_CONFIG_PROVIDERS"
+	DDExtraListeners       = "DD_EXTRA_LISTENERS"
 	// DD_EXPERIMENTAL_* names: the agent-side config keys are experimental
 	// (experimental.clc_runner_checks_*), not yet stable API.
 	DDCLCRunnerChecksInclude = "DD_EXPERIMENTAL_CLC_RUNNER_CHECKS_INCLUDE"

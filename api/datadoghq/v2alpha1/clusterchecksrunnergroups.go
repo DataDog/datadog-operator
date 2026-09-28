@@ -15,10 +15,9 @@ import (
 	"k8s.io/utils/ptr"
 )
 
-// GetExperimentalClusterChecksRunnerGroups reads and decodes the
-// AnnotationExperimentalClusterChecksRunnerGroups annotation off obj. It
-// returns (nil, nil) when the annotation is absent or empty, so callers don't
-// need to special-case the common no-groups case.
+// GetExperimentalClusterChecksRunnerGroups decodes the
+// AnnotationExperimentalClusterChecksRunnerGroups annotation.
+// Returns (nil, nil) when absent or empty.
 func GetExperimentalClusterChecksRunnerGroups(obj metav1.Object) ([]ClusterChecksRunnerGroup, error) {
 	raw, ok := obj.GetAnnotations()[AnnotationExperimentalClusterChecksRunnerGroups]
 	if !ok || raw == "" {
@@ -33,18 +32,12 @@ func GetExperimentalClusterChecksRunnerGroups(obj metav1.Object) ([]ClusterCheck
 	return groups, nil
 }
 
-// KubeChecksRunnerGroupName is the reserved name of the built-in kube runner
-// group materialized when the AnnotationExperimentalKubeChecksRunnerDefault
-// annotation is set to "true". A user-declared group with this name in the
-// AnnotationExperimentalClusterChecksRunnerGroups annotation replaces the
-// built-in, so the kube family and its Deployment can be fully customized
-// (replicas, resources, checks) like any other group.
+// KubeChecksRunnerGroupName is the reserved name of the built-in kube
+// runner group. A user-declared group with this name replaces the built-in.
 const KubeChecksRunnerGroupName = "kube"
 
-// KubeChecksRunnerGroupChecksInclude is the curated list of kube-family
-// checks the built-in kube runner group claims: KSM core, the orchestrator
-// check, and the control-plane monitoring checks. It is the single source of
-// truth for the built-in group; do not mutate it.
+// KubeChecksRunnerGroupChecksInclude is the list of kube-family checks the
+// built-in group claims. Single source of truth; do not mutate.
 var KubeChecksRunnerGroupChecksInclude = []string{
 	"kubernetes_state_core",
 	"orchestrator",
@@ -53,19 +46,13 @@ var KubeChecksRunnerGroupChecksInclude = []string{
 	"kube_scheduler",
 }
 
-// defaultKubeChecksRunnerGroupReplicas is the replica count applied to the
-// built-in kube runner group's Deployment by default. Two is the minimum
-// high-availability floor: kube checks are single-owner-per-digest, so a
-// second replica is failover capacity for the whole kube family rather than
-// throughput, and one replica would make every runner restart briefly move
-// the kube checks onto node agents.
+// defaultKubeChecksRunnerGroupReplicas is the built-in group's default
+// replica count: 2 is the HA floor (failover capacity, not throughput).
 const defaultKubeChecksRunnerGroupReplicas int32 = 2
 
-// IsExperimentalKubeChecksRunnerDefaultEnabled returns whether the
-// AnnotationExperimentalKubeChecksRunnerDefault annotation opts this object
-// in to the built-in kube runner group. Only strict boolean values (as
-// parsed by strconv.ParseBool) count; an absent, empty or unparseable value
-// means disabled.
+// IsExperimentalKubeChecksRunnerDefaultEnabled reports whether the
+// AnnotationExperimentalKubeChecksRunnerDefault annotation is a strict
+// boolean "true". Absent, empty or unparseable means disabled.
 func IsExperimentalKubeChecksRunnerDefaultEnabled(obj metav1.Object) bool {
 	raw, ok := obj.GetAnnotations()[AnnotationExperimentalKubeChecksRunnerDefault]
 	if !ok || raw == "" {
@@ -80,18 +67,10 @@ func IsExperimentalKubeChecksRunnerDefaultEnabled(obj metav1.Object) bool {
 	return enabled
 }
 
-// GetEffectiveClusterChecksRunnerGroups returns the runner groups that must
-// be materialized as dedicated Cluster Checks Runner Deployments: the groups
-// declared in the AnnotationExperimentalClusterChecksRunnerGroups annotation,
-// plus the built-in kube group (KubeChecksRunnerGroupName, restricted to
-// KubeChecksRunnerGroupChecksInclude, 2 replicas by default) prepended when
-// the AnnotationExperimentalKubeChecksRunnerDefault annotation is enabled —
-// unless the user declared their own group named "kube", which replaces the
-// built-in entirely.
-//
-// Both the clusterchecks feature (to derive the default runners' exclude
-// list) and the DDAI reconciler (to materialize the group Deployments) call
-// this, so the two can never disagree on which groups exist.
+// GetEffectiveClusterChecksRunnerGroups returns the groups to materialize:
+// the annotation groups plus the built-in kube group when the knob is on
+// (skipped when the user declared their own "kube" group). Shared by the
+// clusterchecks feature and the DDAI reconciler so both agree.
 func GetEffectiveClusterChecksRunnerGroups(obj metav1.Object) ([]ClusterChecksRunnerGroup, error) {
 	groups, err := GetExperimentalClusterChecksRunnerGroups(obj)
 	if err != nil {
@@ -102,8 +81,7 @@ func GetEffectiveClusterChecksRunnerGroups(obj metav1.Object) ([]ClusterChecksRu
 		return groups, nil
 	}
 
-	// The "kube" name is reserved: a user-declared group with that name takes
-	// over the built-in so it can be fully customized.
+	// "kube" is reserved: a user-declared group takes over the built-in.
 	for _, group := range groups {
 		if group.Name == KubeChecksRunnerGroupName {
 			return groups, nil

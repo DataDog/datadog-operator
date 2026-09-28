@@ -97,19 +97,12 @@ func IsCCREnabled(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
 	return ddaSpec.Features.ClusterChecks != nil && apiutils.BoolValue(ddaSpec.Features.ClusterChecks.UseClusterChecksRunners)
 }
 
-// IsCCRComponentRequired returns whether any Cluster Checks Runner-family
-// Deployment exists for this instance: the default CCR Deployment
-// (features.clusterChecks.useClusterChecksRunners) and/or dedicated runner
-// groups (the experimental kube-checks-runner-default annotation, which
-// materializes a built-in kube group even when useClusterChecksRunners is
-// false). Cluster checks must be enabled for either to exist.
-//
-// Features that configure their checks for runner pods (e.g. attaching
-// runner-side RBAC or env vars) should gate on this rather than on
-// IsCCREnabled, so their configuration also reaches dedicated runner groups
-// in mixed mode. Note that runner groups declared via the experimental
-// annotation alone (knob off AND useClusterChecksRunners off) do not count:
-// they are not materialized in that configuration.
+// IsCCRComponentRequired reports whether any CCR-family Deployment exists:
+// the default CCR (useClusterChecksRunners) and/or runner groups (the
+// experimental kube-checks-runner-default knob). Features configuring their
+// checks for runner pods should gate on this instead of IsCCREnabled so they
+// also apply in mixed mode. Groups declared by annotation alone (both off)
+// do not count: they are not materialized.
 func IsCCRComponentRequired(obj metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec) bool {
 	if !IsClusterChecksEnabled(ddaSpec) {
 		return false

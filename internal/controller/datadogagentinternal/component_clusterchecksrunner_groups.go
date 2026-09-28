@@ -49,18 +49,10 @@ func (r *Reconciler) ReconcileClusterChecksRunnerGroups(ctx context.Context, par
 	ddai := params.DDAI
 
 	var groups []datadoghqv2alpha1.ClusterChecksRunnerGroup
-	// Dedicated runner groups require the Cluster Agent (same precondition as
-	// the default CCR) and are only materialized when a CCR-family Deployment
-	// is active: the default CCR (useClusterChecksRunners) or the experimental
-	// kube-checks-runner-default knob (mixed mode, where node agents keep
-	// serving general cluster checks and the kube group runs the kube family).
-	// With both off, a groups annotation is ignored entirely.
+	// Groups are materialized when a CCR-family Deployment is active (default
+	// CCR or the kube-checks-runner-default knob); otherwise ignored.
 	if params.RequiredComponents.ClusterAgent.IsEnabled() && constants.IsCCRComponentRequired(ddai, &ddai.Spec) {
 		var err error
-		// Effective groups = annotation groups + the built-in kube group when
-		// the kube-checks-runner-default knob is on. The clusterchecks feature
-		// uses the same derivation for the default runners' exclude list, so
-		// the materialized set and the exclude list can never disagree.
 		groups, err = datadoghqv2alpha1.GetEffectiveClusterChecksRunnerGroups(ddai)
 		if err != nil {
 			ctrl.LoggerFrom(ctx).Error(err, "ignoring malformed experimental cluster checks runner groups annotation")
@@ -115,12 +107,8 @@ func (r *Reconciler) reconcileClusterChecksRunnerGroup(ctx context.Context, para
 
 	applyClusterChecksRunnerGroupCompatibility(podManagers, group)
 
-	// Apply the component-level override (spec.override.clusterChecksRunner,
-	// e.g. the image) to group Deployments as well: the default CCR Deployment
-	// receives it via the component reconciler, and a group Deployment must not
-	// silently diverge from the component-level settings. The group's own
-	// Override is applied after and wins on conflicts (e.g. the built-in kube
-	// group's replicas).
+	// Component-level override first; the group's own Override is applied
+	// after and wins on conflicts.
 	if componentOverride := ddai.Spec.Override[datadoghqv2alpha1.ClusterChecksRunnerComponentName]; componentOverride != nil {
 		override.PodTemplateSpec(objLogger, podManagers, componentOverride, datadoghqv2alpha1.ClusterChecksRunnerComponentName, ddai.Name)
 		override.Deployment(deployment, componentOverride)
@@ -145,17 +133,10 @@ func (r *Reconciler) reconcileClusterChecksRunnerGroup(ctx context.Context, para
 }
 
 // applyClusterChecksRunnerGroupCompatibility injects the group's check
-// include/exclude lists as env vars on the runner container, following the
-// wire contract read by comp/core/autodiscovery/providers/clusterchecks.go
-// in datadog-agent (clc_runner_checks_include / clc_runner_checks_exclude).
-//
-// The exclude env is always set (even to an empty value), because
-// the generic per-feature ManageClusterChecksRunner hook run earlier in
-// reconcileClusterChecksRunnerGroup unconditionally injects the auto-derived
-// default-group exclude list onto every runner Deployment's pod template,
-// including dedicated groups. That auto-derived value only makes sense for
-// the default CCR Deployment, so it must be overwritten here with the
-// group's own (possibly empty) ChecksExclude rather than left in place.
+// include/exclude lists as env vars on the runner container (the agent-side
+// compat contract). The exclude env is always set, even empty: the feature
+// hook run earlier injects the default CCR's auto-derived exclude onto every
+// runner template, which must be overwritten with the group's own list.
 func applyClusterChecksRunnerGroupCompatibility(podManagers feature.PodTemplateManagers, group datadoghqv2alpha1.ClusterChecksRunnerGroup) {
 	if len(group.ChecksInclude) > 0 {
 		podManagers.EnvVar().AddEnvVarToContainer(

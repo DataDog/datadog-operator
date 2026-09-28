@@ -1752,15 +1752,10 @@ type ClusterChecksFeatureConfig struct {
 	UseClusterChecksRunners *bool `json:"useClusterChecksRunners,omitempty"`
 }
 
-// ClusterChecksRunnerGroup declares an additional, dedicated Cluster Checks Runner
-// Deployment restricted to a subset of checks.
-//
-// This is an experimental feature and is intentionally NOT part of the
-// DatadogAgent CRD schema yet: it has no CRD validation, versioning, or
-// conversion-webhook support. It is configured out-of-band via a JSON-encoded
-// list under the AnnotationExperimentalClusterChecksRunnerGroups annotation
-// (see GetExperimentalClusterChecksRunnerGroups) so that it can be iterated on
-// freely before committing to a stable API shape.
+// ClusterChecksRunnerGroup declares an additional, dedicated Cluster Checks
+// Runner Deployment restricted to a subset of checks. Experimental, not part
+// of the CRD schema: configured out-of-band via the
+// AnnotationExperimentalClusterChecksRunnerGroups annotation.
 type ClusterChecksRunnerGroup struct {
 	// Name uniquely identifies this runner group and is used to derive its Deployment name.
 	Name string `json:"name"`
