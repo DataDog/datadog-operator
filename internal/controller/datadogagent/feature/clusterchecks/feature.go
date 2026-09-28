@@ -257,7 +257,7 @@ func (f *clusterChecksFeature) ManageClusterChecksRunner(managers feature.PodTem
 	// (useClusterCheckRunners) OR when dedicated runner groups are materialized
 	// via the experimental kube-checks-runner-default knob (mixed mode). The
 	// base envs below apply to all of them. On dedicated group Deployments,
-	// the auto-derived DD_CLC_RUNNER_CHECKS_EXCLUDE (meant for the default CCR)
+	// the auto-derived exclude env (meant for the default CCR)
 	// is subsequently overwritten with the group's own include/exclude lists by
 	// applyClusterChecksRunnerGroupCompatibility in the DDAI reconciler.
 	if f.useClusterCheckRunners || f.kubeChecksRunnerDefaultEnabled {

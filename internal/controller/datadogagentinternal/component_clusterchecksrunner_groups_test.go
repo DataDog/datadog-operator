@@ -192,7 +192,7 @@ func TestReconcileClusterChecksRunnerGroups(t *testing.T) {
 			}
 		}
 	}
-	assert.True(t, found, "expected DD_CLC_RUNNER_CHECKS_INCLUDE env var on the runner container")
+	assert.True(t, found, "expected include env var on the runner container")
 }
 
 func TestReconcileClusterChecksRunnerGroups_NoClusterAgent(t *testing.T) {
@@ -340,7 +340,7 @@ func TestReconcileClusterChecksRunnerGroups_MixedMode(t *testing.T) {
 			}
 		}
 	}
-	assert.True(t, includeFound, "expected DD_CLC_RUNNER_CHECKS_INCLUDE env var on the runner container")
+	assert.True(t, includeFound, "expected include env var on the runner container")
 	assert.Equal(t, strings.Join(datadoghqv2alpha1.KubeChecksRunnerGroupChecksInclude, ","), includeEnv)
 	assert.Equal(t, "", excludeEnv)
 }

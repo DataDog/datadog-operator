@@ -149,7 +149,7 @@ func (r *Reconciler) reconcileClusterChecksRunnerGroup(ctx context.Context, para
 // wire contract read by comp/core/autodiscovery/providers/clusterchecks.go
 // in datadog-agent (clc_runner_checks_include / clc_runner_checks_exclude).
 //
-// DD_CLC_RUNNER_CHECKS_EXCLUDE is always set (even to an empty value), because
+// The exclude env is always set (even to an empty value), because
 // the generic per-feature ManageClusterChecksRunner hook run earlier in
 // reconcileClusterChecksRunnerGroup unconditionally injects the auto-derived
 // default-group exclude list onto every runner Deployment's pod template,
