@@ -341,7 +341,7 @@ func TestReconcileClusterChecksRunnerGroups_MixedMode(t *testing.T) {
 		}
 	}
 	assert.True(t, includeFound, "expected include env var on the runner container")
-	assert.Equal(t, strings.Join(datadoghqv2alpha1.KubeChecksRunnerGroupChecksInclude, ","), includeEnv)
+	assert.Equal(t, strings.Join(datadoghqv2alpha1.KubeChecksRunnerGroupChecksInclude, " "), includeEnv)
 	assert.Equal(t, "", excludeEnv)
 }
 

@@ -247,7 +247,7 @@ func (f *clusterChecksFeature) manageNodeAgent(agentContainerName apicommon.Agen
 			agentContainerName,
 			&corev1.EnvVar{
 				Name:  DDCLCRunnerChecksExclude,
-				Value: strings.Join(f.defaultRunnerChecksExclude, ","),
+				Value: strings.Join(f.defaultRunnerChecksExclude, " "),
 			},
 		)
 	}
@@ -281,7 +281,7 @@ func (f *clusterChecksFeature) ManageClusterChecksRunner(managers feature.PodTem
 				apicommon.ClusterChecksRunnersContainerName,
 				&corev1.EnvVar{
 					Name:  DDCLCRunnerChecksExclude,
-					Value: strings.Join(f.defaultRunnerChecksExclude, ","),
+					Value: strings.Join(f.defaultRunnerChecksExclude, " "),
 				},
 			)
 		}

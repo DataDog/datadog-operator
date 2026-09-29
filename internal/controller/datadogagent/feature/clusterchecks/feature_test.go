@@ -342,7 +342,7 @@ func testClusterChecksRunnerHasExpectedEnvsWithExclude(exclude []string) *test.C
 				},
 				{
 					Name:  DDCLCRunnerChecksExclude,
-					Value: strings.Join(exclude, ","),
+					Value: strings.Join(exclude, " "),
 				},
 			}
 
@@ -391,7 +391,7 @@ func testAgentHasExpectedEnvsWithRunners(agentContainerName apicommon.AgentConta
 	if len(checksExclude) > 0 {
 		expectedAgentEnvs = append(expectedAgentEnvs, &corev1.EnvVar{
 			Name:  DDCLCRunnerChecksExclude,
-			Value: strings.Join(checksExclude, ","),
+			Value: strings.Join(checksExclude, " "),
 		})
 	}
 	return test.NewDefaultComponentTest().WithWantFunc(
@@ -419,7 +419,7 @@ func testAgentHasExpectedEnvsWithNoRunners(agentContainerName apicommon.AgentCon
 	if len(checksExclude) > 0 {
 		expectedAgentEnvs = append(expectedAgentEnvs, &corev1.EnvVar{
 			Name:  DDCLCRunnerChecksExclude,
-			Value: strings.Join(checksExclude, ","),
+			Value: strings.Join(checksExclude, " "),
 		})
 	}
 	return test.NewDefaultComponentTest().WithWantFunc(

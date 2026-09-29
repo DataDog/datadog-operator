@@ -143,7 +143,7 @@ func applyClusterChecksRunnerGroupCompatibility(podManagers feature.PodTemplateM
 			apicommon.ClusterChecksRunnersContainerName,
 			&corev1.EnvVar{
 				Name:  clusterchecksfeature.DDCLCRunnerChecksInclude,
-				Value: strings.Join(group.ChecksInclude, ","),
+				Value: strings.Join(group.ChecksInclude, " "),
 			},
 		)
 	}
@@ -151,7 +151,7 @@ func applyClusterChecksRunnerGroupCompatibility(podManagers feature.PodTemplateM
 		apicommon.ClusterChecksRunnersContainerName,
 		&corev1.EnvVar{
 			Name:  clusterchecksfeature.DDCLCRunnerChecksExclude,
-			Value: strings.Join(group.ChecksExclude, ","),
+			Value: strings.Join(group.ChecksExclude, " "),
 		},
 	)
 }
