@@ -333,7 +333,7 @@ func getWantFunc(wantSystemProbeLite bool) func(t testing.TB, mgrInterface featu
 		// check env vars
 		wantAgentEnvVars := []*corev1.EnvVar{
 			{
-				Name:  DDServiceDiscoveryEnabled,
+				Name:  common.DDServiceDiscoveryEnabled,
 				Value: "true",
 			},
 			{
@@ -344,7 +344,7 @@ func getWantFunc(wantSystemProbeLite bool) func(t testing.TB, mgrInterface featu
 
 		wantSPEnvVars := []*corev1.EnvVar{
 			{
-				Name:  DDServiceDiscoveryEnabled,
+				Name:  common.DDServiceDiscoveryEnabled,
 				Value: "true",
 			},
 		}
