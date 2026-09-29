@@ -6,7 +6,7 @@
 package clusterchecks
 
 import (
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/go-logr/logr"
@@ -36,11 +36,10 @@ func init() {
 
 type clusterChecksFeature struct {
 	useClusterCheckRunners bool
-	// kubeChecksRunnerDefaultEnabled mirrors the experimental
-	// kube-checks-runner-default annotation (mixed mode: runner groups exist
-	// without the default CCR Deployment).
-	kubeChecksRunnerDefaultEnabled bool
-	owner                          metav1.Object
+	// ccrFamilyEnabled is true when any runner Deployment exists: the default
+	// CCR and/or experimental runner groups (which don't need the default CCR).
+	ccrFamilyEnabled bool
+	owner            metav1.Object
 
 	createKubernetesNetworkPolicy bool
 	createCiliumNetworkPolicy     bool
@@ -48,9 +47,9 @@ type clusterChecksFeature struct {
 	customConfigAnnotationKey   string
 	customConfigAnnotationValue string
 
-	// defaultRunnerChecksExclude is the union of every runner group's
-	// ChecksInclude: checks claimed by a group stay off the default runners.
-	defaultRunnerChecksExclude []string
+	// defaultRunnerChecksExclude is the space-joined union of every runner
+	// group's ChecksInclude: claimed checks stay off node agents and the default CCR.
+	defaultRunnerChecksExclude string
 
 	logger logr.Logger
 }
@@ -82,20 +81,12 @@ func (f *clusterChecksFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Da
 		}
 
 		f.useClusterCheckRunners = apiutils.BoolValue(ddaSpec.Features.ClusterChecks.UseClusterChecksRunners)
-		f.kubeChecksRunnerDefaultEnabled = v2alpha1.IsExperimentalKubeChecksRunnerDefaultEnabled(dda)
 		runnerGroups, err := v2alpha1.GetEffectiveClusterChecksRunnerGroups(dda)
 		if err != nil {
-			f.logger.Error(err, "ignoring malformed experimental cluster checks runner groups annotation")
+			f.logger.Error(err, "ignoring experimental cluster checks runner groups")
 		}
-		if !f.useClusterCheckRunners && !f.kubeChecksRunnerDefaultEnabled && len(runnerGroups) > 0 {
-			f.logger.Info("ignoring experimental cluster checks runner groups: they require useClusterChecksRunners or the experimental-kube-checks-runner-default annotation")
-		}
-		// The exclude union only covers MATERIALIZED groups: with both
-		// useClusterCheckRunners and the knob off, groups are ignored and must
-		// not restrict node agents.
-		if f.useClusterCheckRunners || f.kubeChecksRunnerDefaultEnabled {
-			f.defaultRunnerChecksExclude = defaultRunnerChecksExclude(runnerGroups)
-		}
+		f.ccrFamilyEnabled = f.useClusterCheckRunners || len(runnerGroups) > 0
+		f.defaultRunnerChecksExclude = defaultRunnerChecksExclude(runnerGroups)
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
 				IsRequired: new(true),
@@ -237,29 +228,27 @@ func (f *clusterChecksFeature) manageNodeAgent(agentContainerName apicommon.Agen
 				Value: clusterAndEndpointsConfigProviders,
 			},
 		)
-	}
 
-	// Strict isolation: node agents refuse the checks claimed by runner
-	// groups (same exclude union as the default CCR), so group-claimed checks
-	// only ever run on their group — no fallback if the group is down.
-	if len(f.defaultRunnerChecksExclude) > 0 {
-		managers.EnvVar().AddEnvVarToContainer(
-			agentContainerName,
-			&corev1.EnvVar{
-				Name:  DDCLCRunnerChecksExclude,
-				Value: strings.Join(f.defaultRunnerChecksExclude, " "),
-			},
-		)
+		// Node agents run cluster checks here: strict isolation keeps the
+		// group-claimed checks on their group only.
+		if f.defaultRunnerChecksExclude != "" {
+			managers.EnvVar().AddEnvVarToContainer(
+				agentContainerName,
+				&corev1.EnvVar{
+					Name:  DDCLCRunnerChecksExclude,
+					Value: f.defaultRunnerChecksExclude,
+				},
+			)
+		}
 	}
 
 	return nil
 }
 
 func (f *clusterChecksFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
-	// Base runner envs: apply to the default CCR and dedicated groups alike.
-	// Group Deployments later overwrite the exclude env with their own
-	// include/exclude lists (applyClusterChecksRunnerGroupCompatibility).
-	if f.useClusterCheckRunners || f.kubeChecksRunnerDefaultEnabled {
+	// Applies to the default CCR and runner groups alike: group Deployments
+	// then overwrite the exclude env (applyClusterChecksRunnerGroupCompatibility).
+	if f.ccrFamilyEnabled {
 		managers.EnvVar().AddEnvVarToContainer(
 			apicommon.ClusterChecksRunnersContainerName,
 			&corev1.EnvVar{
@@ -276,12 +265,12 @@ func (f *clusterChecksFeature) ManageClusterChecksRunner(managers feature.PodTem
 			},
 		)
 
-		if len(f.defaultRunnerChecksExclude) > 0 {
+		if f.defaultRunnerChecksExclude != "" {
 			managers.EnvVar().AddEnvVarToContainer(
 				apicommon.ClusterChecksRunnersContainerName,
 				&corev1.EnvVar{
 					Name:  DDCLCRunnerChecksExclude,
-					Value: strings.Join(f.defaultRunnerChecksExclude, " "),
+					Value: f.defaultRunnerChecksExclude,
 				},
 			)
 		}
@@ -290,27 +279,15 @@ func (f *clusterChecksFeature) ManageClusterChecksRunner(managers feature.PodTem
 	return nil
 }
 
-// defaultRunnerChecksExclude returns the sorted, de-duplicated union of
-// every runner group's ChecksInclude: what the default CCR must refuse to run.
-func defaultRunnerChecksExclude(runners []v2alpha1.ClusterChecksRunnerGroup) []string {
-	seen := make(map[string]struct{})
-	for _, runner := range runners {
-		for _, check := range runner.ChecksInclude {
-			seen[check] = struct{}{}
-		}
+// defaultRunnerChecksExclude returns the sorted, de-duplicated, space-joined
+// union of every runner group's ChecksInclude.
+func defaultRunnerChecksExclude(groups []v2alpha1.ClusterChecksRunnerGroup) string {
+	var checks []string
+	for _, group := range groups {
+		checks = append(checks, group.ChecksInclude...)
 	}
-
-	if len(seen) == 0 {
-		return nil
-	}
-
-	excludes := make([]string, 0, len(seen))
-	for check := range seen {
-		excludes = append(excludes, check)
-	}
-	sort.Strings(excludes)
-
-	return excludes
+	slices.Sort(checks)
+	return strings.Join(slices.Compact(checks), " ")
 }
 
 func (f *clusterChecksFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers) error {

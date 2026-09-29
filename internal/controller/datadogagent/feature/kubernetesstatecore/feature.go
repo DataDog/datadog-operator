@@ -110,9 +110,8 @@ func (f *ksmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 		// Default to true, then check version requirements
 		f.collectControllerRevisions = true
 
-		// This check runs on the CCR family (default CCR or runner groups),
-		// not the Node Agent: target the runner ServiceAccount in all modes.
-		if constants.IsCCRComponentRequired(dda, ddaSpec) {
+		// This check will only run in the Cluster Checks Runners or Cluster Agent (not the Node Agent)
+		if constants.RunsOnCCR(dda, ddaSpec, "kubernetes_state_core") {
 			f.runInClusterChecksRunner = true
 			f.rbacSuffix = common.ChecksRunnerSuffix
 			f.serviceAccountName = constants.GetClusterChecksRunnerServiceAccount(dda.GetName(), ddaSpec)

@@ -61,78 +61,45 @@ func TestServiceAccountNameOverride(t *testing.T) {
 	}
 }
 
-func TestIsCCRComponentRequired(t *testing.T) {
-	dda := func(clusterChecksEnabled, useRunners *bool, kubeKnob string) *v2alpha1.DatadogAgent {
+func TestCCRPlacement(t *testing.T) {
+	dda := func(clusterChecksEnabled, useRunners bool, annotations map[string]string) *v2alpha1.DatadogAgent {
 		return &v2alpha1.DatadogAgent{
-			ObjectMeta: v1.ObjectMeta{
-				Name: "test-dda",
-				Annotations: map[string]string{
-					v2alpha1.AnnotationExperimentalKubeChecksRunnerDefault: kubeKnob,
-				},
-			},
+			ObjectMeta: v1.ObjectMeta{Name: "test-dda", Annotations: annotations},
 			Spec: v2alpha1.DatadogAgentSpec{
 				Features: &v2alpha1.DatadogFeatures{
 					ClusterChecks: &v2alpha1.ClusterChecksFeatureConfig{
-						Enabled:                 clusterChecksEnabled,
-						UseClusterChecksRunners: useRunners,
+						Enabled:                 new(clusterChecksEnabled),
+						UseClusterChecksRunners: new(useRunners),
 					},
 				},
 			},
 		}
 	}
+	knob := map[string]string{v2alpha1.AnnotationExperimentalKubeChecksRunnerDefault: "true"}
+	httpGroup := map[string]string{v2alpha1.AnnotationExperimentalClusterChecksRunnerGroups: `[{"name":"http","checksInclude":["http_check"]}]`}
 
 	tests := []struct {
-		name string
-		dda  *v2alpha1.DatadogAgent
-		want bool
+		name         string
+		dda          *v2alpha1.DatadogAgent
+		wantRequired bool
+		wantKSMOnCCR bool
 	}{
-		{
-			name: "cluster checks disabled, knob on",
-			dda:  dda(new(false), new(false), "true"),
-			want: false,
-		},
-		{
-			name: "runners off, knob off",
-			dda:  dda(new(true), new(false), "false"),
-			want: false,
-		},
-		{
-			name: "runners on, knob off",
-			dda:  dda(new(true), new(true), "false"),
-			want: true,
-		},
-		{
-			name: "runners off, knob on (mixed mode)",
-			dda:  dda(new(true), new(false), "true"),
-			want: true,
-		},
-		{
-			name: "runners on, knob on",
-			dda:  dda(new(true), new(true), "true"),
-			want: true,
-		},
-		{
-			name: "no cluster checks feature at all, knob on",
-			dda: func() *v2alpha1.DatadogAgent {
-				return &v2alpha1.DatadogAgent{
-					ObjectMeta: v1.ObjectMeta{
-						Name: "test-dda",
-						Annotations: map[string]string{
-							v2alpha1.AnnotationExperimentalKubeChecksRunnerDefault: "true",
-						},
-					},
-					Spec: v2alpha1.DatadogAgentSpec{
-						Features: &v2alpha1.DatadogFeatures{},
-					},
-				}
-			}(),
-			want: false,
-		},
+		{"cluster checks disabled, knob on", dda(false, false, knob), false, false},
+		{"runners off, no groups", dda(true, false, nil), false, false},
+		{"runners on, no groups", dda(true, true, nil), true, true},
+		{"runners off, knob on (mixed mode)", dda(true, false, knob), true, true},
+		{"runners off, unrelated user group", dda(true, false, httpGroup), true, false},
+		{"runners off, malformed groups", dda(true, false, map[string]string{v2alpha1.AnnotationExperimentalClusterChecksRunnerGroups: "not-json"}), false, false},
+		{"no cluster checks feature, knob on", &v2alpha1.DatadogAgent{
+			ObjectMeta: v1.ObjectMeta{Name: "test-dda", Annotations: knob},
+			Spec:       v2alpha1.DatadogAgentSpec{Features: &v2alpha1.DatadogFeatures{}},
+		}, false, false},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, IsCCRComponentRequired(tt.dda, &tt.dda.Spec))
+			assert.Equal(t, tt.wantRequired, IsCCRComponentRequired(tt.dda, &tt.dda.Spec))
+			assert.Equal(t, tt.wantKSMOnCCR, RunsOnCCR(tt.dda, &tt.dda.Spec, "kubernetes_state_core"))
 		})
 	}
 }

@@ -753,35 +753,25 @@ func (builder *DatadogAgentBuilder) WithClusterChecks(enabled bool, useRunners b
 }
 
 // WithClusterChecksRunnerGroups sets the experimental cluster checks runner
-// groups annotation (see v2alpha1.GetExperimentalClusterChecksRunnerGroups)
-// rather than a typed CRD field.
+// groups annotation (see v2alpha1.GetEffectiveClusterChecksRunnerGroups).
 func (builder *DatadogAgentBuilder) WithClusterChecksRunnerGroups(groups []v2alpha1.ClusterChecksRunnerGroup) *DatadogAgentBuilder {
-	builder.initCC()
 	raw, err := json.Marshal(groups)
 	if err != nil {
 		panic(err)
 	}
-	if builder.datadogAgent.Annotations == nil {
-		builder.datadogAgent.Annotations = map[string]string{}
-	}
-	builder.datadogAgent.Annotations[v2alpha1.AnnotationExperimentalClusterChecksRunnerGroups] = string(raw)
-	return builder
+	return builder.withAnnotation(v2alpha1.AnnotationExperimentalClusterChecksRunnerGroups, string(raw))
 }
 
-// WithKubeChecksRunnerDefault sets or clears the experimental
-// kube-checks-runner-default annotation (see
-// v2alpha1.IsExperimentalKubeChecksRunnerDefaultEnabled), which materializes
-// the built-in kube runner group even when useClusterChecksRunners is false.
-func (builder *DatadogAgentBuilder) WithKubeChecksRunnerDefault(enabled bool) *DatadogAgentBuilder {
-	builder.initCC()
+// WithKubeChecksRunnerDefault enables the experimental built-in kube runner group.
+func (builder *DatadogAgentBuilder) WithKubeChecksRunnerDefault() *DatadogAgentBuilder {
+	return builder.withAnnotation(v2alpha1.AnnotationExperimentalKubeChecksRunnerDefault, "true")
+}
+
+func (builder *DatadogAgentBuilder) withAnnotation(key, value string) *DatadogAgentBuilder {
 	if builder.datadogAgent.Annotations == nil {
 		builder.datadogAgent.Annotations = map[string]string{}
 	}
-	if enabled {
-		builder.datadogAgent.Annotations[v2alpha1.AnnotationExperimentalKubeChecksRunnerDefault] = "true"
-	} else {
-		delete(builder.datadogAgent.Annotations, v2alpha1.AnnotationExperimentalKubeChecksRunnerDefault)
-	}
+	builder.datadogAgent.Annotations[key] = value
 	return builder
 }
 

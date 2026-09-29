@@ -19,13 +19,13 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/record"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	componentccr "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusterchecksrunner"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/defaults"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	clusterchecksfeature "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/clusterchecks"
@@ -45,22 +45,16 @@ func newTestReconciler(sch *runtime.Scheme, objects ...client.Object) *Reconcile
 	}
 }
 
-func newTestDDAI(name string, runners []datadoghqv2alpha1.ClusterChecksRunnerGroup) *datadoghqv1alpha1.DatadogAgentInternal {
-	return newTestDDAIWithKubeKnob(name, runners, false)
-}
-
-// newTestDDAIWithKubeKnob is newTestDDAI with the experimental
-// kube-checks-runner-default annotation set to "true" when knob is set.
-func newTestDDAIWithKubeKnob(name string, runners []datadoghqv2alpha1.ClusterChecksRunnerGroup, knob bool) *datadoghqv1alpha1.DatadogAgentInternal {
+func newTestDDAI(name string, groups []datadoghqv2alpha1.ClusterChecksRunnerGroup, kubeKnob bool) *datadoghqv1alpha1.DatadogAgentInternal {
 	annotations := map[string]string{}
-	if len(runners) > 0 {
-		raw, err := json.Marshal(runners)
+	if len(groups) > 0 {
+		raw, err := json.Marshal(groups)
 		if err != nil {
 			panic(err)
 		}
 		annotations[datadoghqv2alpha1.AnnotationExperimentalClusterChecksRunnerGroups] = string(raw)
 	}
-	if knob {
+	if kubeKnob {
 		annotations[datadoghqv2alpha1.AnnotationExperimentalKubeChecksRunnerDefault] = "true"
 	}
 
@@ -76,14 +70,10 @@ func newTestDDAIWithKubeKnob(name string, runners []datadoghqv2alpha1.ClusterChe
 		},
 		Spec: datadoghqv2alpha1.DatadogAgentSpec{
 			Global: &datadoghqv2alpha1.GlobalConfig{
-				Credentials: &datadoghqv2alpha1.DatadogCredentials{
-					APIKey: ptr.To("test-api-key"),
-				},
+				Credentials: &datadoghqv2alpha1.DatadogCredentials{APIKey: new("test-api-key")},
 			},
 			Features: &datadoghqv2alpha1.DatadogFeatures{
-				ClusterChecks: &datadoghqv2alpha1.ClusterChecksFeatureConfig{
-					Enabled: ptr.To(true),
-				},
+				ClusterChecks: &datadoghqv2alpha1.ClusterChecksFeatureConfig{Enabled: new(true)},
 			},
 		},
 	}
@@ -91,79 +81,21 @@ func newTestDDAIWithKubeKnob(name string, runners []datadoghqv2alpha1.ClusterChe
 	return ddai
 }
 
-func TestApplyClusterChecksRunnerGroupCompatibility(t *testing.T) {
-	tests := []struct {
-		name  string
-		group datadoghqv2alpha1.ClusterChecksRunnerGroup
-		want  []corev1.EnvVar
-	}{
-		{
-			name:  "no include or exclude",
-			group: datadoghqv2alpha1.ClusterChecksRunnerGroup{Name: "default"},
-			want: []corev1.EnvVar{
-				{Name: clusterchecksfeature.DDCLCRunnerChecksExclude, Value: ""},
-			},
-		},
-		{
-			name:  "include only",
-			group: datadoghqv2alpha1.ClusterChecksRunnerGroup{Name: "ksm", ChecksInclude: []string{"kubernetes_state_core"}},
-			want: []corev1.EnvVar{
-				{Name: clusterchecksfeature.DDCLCRunnerChecksInclude, Value: "kubernetes_state_core"},
-				{Name: clusterchecksfeature.DDCLCRunnerChecksExclude, Value: ""},
-			},
-		},
-		{
-			name:  "include and exclude",
-			group: datadoghqv2alpha1.ClusterChecksRunnerGroup{Name: "ksm", ChecksInclude: []string{"kubernetes_state_core"}, ChecksExclude: []string{"http_check"}},
-			want: []corev1.EnvVar{
-				{Name: clusterchecksfeature.DDCLCRunnerChecksInclude, Value: "kubernetes_state_core"},
-				{Name: clusterchecksfeature.DDCLCRunnerChecksExclude, Value: "http_check"},
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			podTemplate := &corev1.PodTemplateSpec{
-				Spec: corev1.PodSpec{
-					Containers: []corev1.Container{
-						{Name: string(apicommon.ClusterChecksRunnersContainerName)},
-					},
-				},
-			}
-			podManagers := feature.NewPodTemplateManagers(podTemplate)
-
-			applyClusterChecksRunnerGroupCompatibility(podManagers, tt.group)
-
-			container := podManagers.PodTemplateSpec().Spec.Containers[0]
-			assert.Equal(t, tt.want, container.Env)
-		})
-	}
-}
-
-func TestReconcileClusterChecksRunnerGroups(t *testing.T) {
+// reconcileGroups runs ReconcileClusterChecksRunnerGroups on a fresh fake
+// client and returns the resulting Deployments keyed by name.
+func reconcileGroups(t *testing.T, ddai *datadoghqv1alpha1.DatadogAgentInternal, clusterAgentEnabled bool) map[string]appsv1.Deployment {
+	t.Helper()
 	sch := runtime.NewScheme()
 	_ = scheme.AddToScheme(sch)
 	_ = datadoghqv1alpha1.AddToScheme(sch)
 	ctx := context.Background()
 
-	ddai := newTestDDAI("foo", []datadoghqv2alpha1.ClusterChecksRunnerGroup{
-		{Name: "ksm", ChecksInclude: []string{"kubernetes_state_core"}},
-	})
-	// Groups materialize when a CCR-family Deployment is active: enable the
-	// default CCR (useClusterChecksRunners), the standard runner-groups
-	// configuration. (With both useClusterChecksRunners and the kube knob off,
-	// the groups annotation is ignored — see
-	// TestReconcileClusterChecksRunnerGroups_IgnoredWithoutRunnersOrKnob.)
-	ddai.Spec.Features.ClusterChecks.UseClusterChecksRunners = ptr.To(true)
-
 	r := newTestReconciler(sch)
 	_, resourceManagers := r.setupDependencies(ctx, ddai)
-
 	params := &ReconcileComponentParams{
 		DDAI: ddai,
 		RequiredComponents: feature.RequiredComponents{
-			ClusterAgent: feature.RequiredComponent{IsRequired: ptr.To(true)},
+			ClusterAgent: feature.RequiredComponent{IsRequired: new(clusterAgentEnabled)},
 		},
 		ResourceManagers: resourceManagers,
 		Status:           &datadoghqv1alpha1.DatadogAgentInternalStatus{},
@@ -175,50 +107,149 @@ func TestReconcileClusterChecksRunnerGroups(t *testing.T) {
 
 	deploymentList := &appsv1.DeploymentList{}
 	require.NoError(t, r.client.List(ctx, deploymentList))
-	require.Len(t, deploymentList.Items, 1)
-
-	deployment := deploymentList.Items[0]
-	assert.Equal(t, "ksm", deployment.Labels[clusterChecksRunnerGroupLabelKey])
-
-	found := false
-	for _, container := range deployment.Spec.Template.Spec.Containers {
-		if container.Name != string(apicommon.ClusterChecksRunnersContainerName) {
-			continue
-		}
-		for _, env := range container.Env {
-			if env.Name == clusterchecksfeature.DDCLCRunnerChecksInclude {
-				assert.Equal(t, "kubernetes_state_core", env.Value)
-				found = true
-			}
-		}
+	deployments := make(map[string]appsv1.Deployment, len(deploymentList.Items))
+	for _, d := range deploymentList.Items {
+		deployments[d.Name] = d
 	}
-	assert.True(t, found, "expected include env var on the runner container")
+	return deployments
 }
 
-func TestReconcileClusterChecksRunnerGroups_NoClusterAgent(t *testing.T) {
-	sch := runtime.NewScheme()
-	_ = scheme.AddToScheme(sch)
-	_ = datadoghqv1alpha1.AddToScheme(sch)
-	ctx := context.Background()
+// runnerContainer returns the runner container of a Deployment.
+func runnerContainer(t *testing.T, deployment appsv1.Deployment) corev1.Container {
+	t.Helper()
+	for _, container := range deployment.Spec.Template.Spec.Containers {
+		if container.Name == string(apicommon.ClusterChecksRunnersContainerName) {
+			return container
+		}
+	}
+	t.Fatalf("no runner container in Deployment %s", deployment.Name)
+	return corev1.Container{}
+}
 
-	ddai := newTestDDAI("foo", []datadoghqv2alpha1.ClusterChecksRunnerGroup{
-		{Name: "ksm", ChecksInclude: []string{"kubernetes_state_core"}},
+// runnerEnv returns the value of the named env var on the runner container.
+func runnerEnv(t *testing.T, deployment appsv1.Deployment, name string) (string, bool) {
+	t.Helper()
+	for _, env := range runnerContainer(t, deployment).Env {
+		if env.Name == name {
+			return env.Value, true
+		}
+	}
+	return "", false
+}
+
+func TestApplyClusterChecksRunnerGroupCompatibility(t *testing.T) {
+	podManagers := feature.NewPodTemplateManagers(&corev1.PodTemplateSpec{
+		Spec: corev1.PodSpec{Containers: []corev1.Container{{Name: string(apicommon.ClusterChecksRunnersContainerName)}}},
 	})
 
-	r := newTestReconciler(sch)
+	applyClusterChecksRunnerGroupCompatibility(podManagers, datadoghqv2alpha1.ClusterChecksRunnerGroup{
+		Name: "ksm", ChecksInclude: []string{"kubernetes_state_core", "orchestrator"},
+	})
 
-	params := &ReconcileComponentParams{
-		DDAI:               ddai,
-		RequiredComponents: feature.RequiredComponents{},
-		Status:             &datadoghqv1alpha1.DatadogAgentInternalStatus{},
+	assert.Equal(t, []corev1.EnvVar{
+		{Name: clusterchecksfeature.DDCLCRunnerChecksInclude, Value: "kubernetes_state_core orchestrator"},
+		{Name: clusterchecksfeature.DDCLCRunnerChecksExclude, Value: ""},
+	}, podManagers.PodTemplateSpec().Spec.Containers[0].Env)
+}
+
+func TestReconcileClusterChecksRunnerGroups(t *testing.T) {
+	type wantGroup struct {
+		replicas *int32
+		include  string
+	}
+	kubeInclude := strings.Join(datadoghqv2alpha1.KubeChecksRunnerGroupChecksInclude, " ")
+	ksm := []datadoghqv2alpha1.ClusterChecksRunnerGroup{{Name: "ksm", ChecksInclude: []string{"kubernetes_state_core"}}}
+
+	tests := []struct {
+		name         string
+		groups       []datadoghqv2alpha1.ClusterChecksRunnerGroup
+		kubeKnob     bool
+		useRunners   bool
+		clusterAgent bool
+		want         map[string]wantGroup
+	}{
+		{
+			name:         "runners on, user group",
+			groups:       ksm,
+			useRunners:   true,
+			clusterAgent: true,
+			want:         map[string]wantGroup{"foo-cluster-checks-runner-ksm": {include: "kubernetes_state_core"}},
+		},
+		{
+			name:         "runners off, user group is still materialized",
+			groups:       ksm,
+			clusterAgent: true,
+			want:         map[string]wantGroup{"foo-cluster-checks-runner-ksm": {include: "kubernetes_state_core"}},
+		},
+		{
+			name:         "no cluster agent: nothing materialized",
+			groups:       ksm,
+			useRunners:   true,
+			clusterAgent: false,
+			want:         map[string]wantGroup{},
+		},
+		{
+			name:         "mixed mode: built-in kube group with 2 replicas",
+			kubeKnob:     true,
+			clusterAgent: true,
+			want:         map[string]wantGroup{"foo-cluster-checks-runner-kube": {replicas: new(int32(2)), include: kubeInclude}},
+		},
+		{
+			name: "user kube group replaces the built-in",
+			groups: []datadoghqv2alpha1.ClusterChecksRunnerGroup{
+				{Name: "kube", ChecksInclude: []string{"kubernetes_state_core"}, Override: &datadoghqv2alpha1.DatadogAgentComponentOverride{Replicas: new(int32(5))}},
+			},
+			kubeKnob:     true,
+			clusterAgent: true,
+			want:         map[string]wantGroup{"foo-cluster-checks-runner-kube": {replicas: new(int32(5)), include: "kubernetes_state_core"}},
+		},
+		{
+			name:         "knob and runners on: kube group alongside user groups",
+			groups:       []datadoghqv2alpha1.ClusterChecksRunnerGroup{{Name: "kafka", ChecksInclude: []string{"kafka_consumer"}}},
+			kubeKnob:     true,
+			useRunners:   true,
+			clusterAgent: true,
+			want: map[string]wantGroup{
+				"foo-cluster-checks-runner-kube":  {replicas: new(int32(2)), include: kubeInclude},
+				"foo-cluster-checks-runner-kafka": {include: "kafka_consumer"},
+			},
+		},
+		{
+			name:         "overlapping claims: groups are ignored",
+			groups:       []datadoghqv2alpha1.ClusterChecksRunnerGroup{{Name: "ksm", ChecksInclude: []string{"kubernetes_state_core"}}},
+			kubeKnob:     true,
+			clusterAgent: true,
+			want:         map[string]wantGroup{},
+		},
 	}
 
-	_, err := r.ReconcileClusterChecksRunnerGroups(ctx, params)
-	require.NoError(t, err)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ddai := newTestDDAI("foo", tt.groups, tt.kubeKnob)
+			ddai.Spec.Features.ClusterChecks.UseClusterChecksRunners = new(tt.useRunners)
 
-	deploymentList := &appsv1.DeploymentList{}
-	require.NoError(t, r.client.List(ctx, deploymentList))
-	assert.Len(t, deploymentList.Items, 0)
+			deployments := reconcileGroups(t, ddai, tt.clusterAgent)
+			require.Len(t, deployments, len(tt.want))
+			for name, want := range tt.want {
+				deployment, found := deployments[name]
+				require.True(t, found, "missing Deployment %s", name)
+
+				groupName := strings.TrimPrefix(name, "foo-cluster-checks-runner-")
+				assert.Equal(t, groupName, deployment.Labels[componentccr.ClusterChecksRunnerGroupLabelKey])
+				assert.Equal(t, groupName, deployment.Spec.Selector.MatchLabels[componentccr.ClusterChecksRunnerGroupLabelKey])
+				if want.replicas != nil {
+					require.NotNil(t, deployment.Spec.Replicas)
+					assert.Equal(t, *want.replicas, *deployment.Spec.Replicas)
+				}
+
+				include, _ := runnerEnv(t, deployment, clusterchecksfeature.DDCLCRunnerChecksInclude)
+				assert.Equal(t, want.include, include)
+				// The default CCR's exclude union is overwritten on group Deployments.
+				exclude, _ := runnerEnv(t, deployment, clusterchecksfeature.DDCLCRunnerChecksExclude)
+				assert.Empty(t, exclude)
+			}
+		})
+	}
 }
 
 func TestCleanupOrphanedClusterChecksRunnerGroups(t *testing.T) {
@@ -227,17 +258,17 @@ func TestCleanupOrphanedClusterChecksRunnerGroups(t *testing.T) {
 	_ = datadoghqv1alpha1.AddToScheme(sch)
 	ctx := context.Background()
 
-	ddai := newTestDDAI("foo", nil)
+	ddai := newTestDDAI("foo", nil, false)
 
 	existingKept := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "foo-cluster-checks-runner-ksm",
 			Namespace: "ns-1",
 			Labels: map[string]string{
-				apicommon.AgentDeploymentComponentLabelKey: constants.DefaultClusterChecksRunnerResourceSuffix,
-				kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
-				kubernetes.AppKubernetesPartOfLabelKey:     object.NewPartOfLabelValue(ddai).String(),
-				clusterChecksRunnerGroupLabelKey:           "ksm",
+				apicommon.AgentDeploymentComponentLabelKey:    constants.DefaultClusterChecksRunnerResourceSuffix,
+				kubernetes.AppKubernetesManageByLabelKey:      "datadog-operator",
+				kubernetes.AppKubernetesPartOfLabelKey:        object.NewPartOfLabelValue(ddai).String(),
+				componentccr.ClusterChecksRunnerGroupLabelKey: "ksm",
 			},
 		},
 	}
@@ -246,10 +277,10 @@ func TestCleanupOrphanedClusterChecksRunnerGroups(t *testing.T) {
 			Name:      "foo-cluster-checks-runner-removed",
 			Namespace: "ns-1",
 			Labels: map[string]string{
-				apicommon.AgentDeploymentComponentLabelKey: constants.DefaultClusterChecksRunnerResourceSuffix,
-				kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
-				kubernetes.AppKubernetesPartOfLabelKey:     object.NewPartOfLabelValue(ddai).String(),
-				clusterChecksRunnerGroupLabelKey:           "removed",
+				apicommon.AgentDeploymentComponentLabelKey:    constants.DefaultClusterChecksRunnerResourceSuffix,
+				kubernetes.AppKubernetesManageByLabelKey:      "datadog-operator",
+				kubernetes.AppKubernetesPartOfLabelKey:        object.NewPartOfLabelValue(ddai).String(),
+				componentccr.ClusterChecksRunnerGroupLabelKey: "removed",
 			},
 		},
 	}
@@ -282,199 +313,10 @@ func TestCleanupOrphanedClusterChecksRunnerGroups(t *testing.T) {
 	assert.ElementsMatch(t, []string{"foo-cluster-checks-runner-ksm", "foo-cluster-checks-runner"}, names)
 }
 
-func TestReconcileClusterChecksRunnerGroups_MixedMode(t *testing.T) {
-	sch := runtime.NewScheme()
-	_ = scheme.AddToScheme(sch)
-	_ = datadoghqv1alpha1.AddToScheme(sch)
-	ctx := context.Background()
-
-	// Mixed mode: kube-checks-runner-default knob on, useClusterChecksRunners
-	// off (the default after DefaultDatadogAgentSpec). The built-in kube group
-	// must be materialized even though the default CCR Deployment is not
-	// created in this mode.
-	ddai := newTestDDAIWithKubeKnob("foo", nil, true)
-
-	r := newTestReconciler(sch)
-	_, resourceManagers := r.setupDependencies(ctx, ddai)
-
-	params := &ReconcileComponentParams{
-		DDAI: ddai,
-		RequiredComponents: feature.RequiredComponents{
-			ClusterAgent: feature.RequiredComponent{IsRequired: ptr.To(true)},
-		},
-		ResourceManagers: resourceManagers,
-		Status:           &datadoghqv1alpha1.DatadogAgentInternalStatus{},
-	}
-
-	result, err := r.ReconcileClusterChecksRunnerGroups(ctx, params)
-	require.NoError(t, err)
-	assert.True(t, result.IsZero())
-
-	deploymentList := &appsv1.DeploymentList{}
-	require.NoError(t, r.client.List(ctx, deploymentList))
-	require.Len(t, deploymentList.Items, 1)
-
-	deployment := deploymentList.Items[0]
-	// Built-in kube group: dedicated Deployment name and group label.
-	assert.Equal(t, "foo-cluster-checks-runner-kube", deployment.Name)
-	assert.Equal(t, datadoghqv2alpha1.KubeChecksRunnerGroupName, deployment.Labels[clusterChecksRunnerGroupLabelKey])
-	// Default replicas 2 from the built-in group's Override.
-	require.NotNil(t, deployment.Spec.Replicas)
-	assert.Equal(t, int32(2), *deployment.Spec.Replicas)
-	// Kube family include env; the union exclude set by the clusterchecks
-	// feature for the default CCR is overwritten with the group's own
-	// (empty) exclude.
-	var includeEnv, excludeEnv string
-	var includeFound bool
-	for _, container := range deployment.Spec.Template.Spec.Containers {
-		if container.Name != string(apicommon.ClusterChecksRunnersContainerName) {
-			continue
-		}
-		for _, env := range container.Env {
-			switch env.Name {
-			case clusterchecksfeature.DDCLCRunnerChecksInclude:
-				includeEnv = env.Value
-				includeFound = true
-			case clusterchecksfeature.DDCLCRunnerChecksExclude:
-				excludeEnv = env.Value
-			}
-		}
-	}
-	assert.True(t, includeFound, "expected include env var on the runner container")
-	assert.Equal(t, strings.Join(datadoghqv2alpha1.KubeChecksRunnerGroupChecksInclude, " "), includeEnv)
-	assert.Equal(t, "", excludeEnv)
-}
-
-func TestReconcileClusterChecksRunnerGroups_MixedModeUserKubeGroupReplacesBuiltin(t *testing.T) {
-	sch := runtime.NewScheme()
-	_ = scheme.AddToScheme(sch)
-	_ = datadoghqv1alpha1.AddToScheme(sch)
-	ctx := context.Background()
-
-	// A user-declared group named "kube" replaces the built-in entirely, so
-	// its own include list and replicas override are used.
-	ddai := newTestDDAIWithKubeKnob("foo", []datadoghqv2alpha1.ClusterChecksRunnerGroup{
-		{Name: "kube", ChecksInclude: []string{"kubernetes_state_core"}, Override: &datadoghqv2alpha1.DatadogAgentComponentOverride{Replicas: ptr.To(int32(5))}},
-	}, true)
-
-	r := newTestReconciler(sch)
-	_, resourceManagers := r.setupDependencies(ctx, ddai)
-
-	params := &ReconcileComponentParams{
-		DDAI: ddai,
-		RequiredComponents: feature.RequiredComponents{
-			ClusterAgent: feature.RequiredComponent{IsRequired: ptr.To(true)},
-		},
-		ResourceManagers: resourceManagers,
-		Status:           &datadoghqv1alpha1.DatadogAgentInternalStatus{},
-	}
-
-	_, err := r.ReconcileClusterChecksRunnerGroups(ctx, params)
-	require.NoError(t, err)
-
-	deploymentList := &appsv1.DeploymentList{}
-	require.NoError(t, r.client.List(ctx, deploymentList))
-	require.Len(t, deploymentList.Items, 1)
-
-	deployment := deploymentList.Items[0]
-	require.NotNil(t, deployment.Spec.Replicas)
-	assert.Equal(t, int32(5), *deployment.Spec.Replicas)
-
-	var includeEnv string
-	for _, container := range deployment.Spec.Template.Spec.Containers {
-		if container.Name != string(apicommon.ClusterChecksRunnersContainerName) {
-			continue
-		}
-		for _, env := range container.Env {
-			if env.Name == clusterchecksfeature.DDCLCRunnerChecksInclude {
-				includeEnv = env.Value
-			}
-		}
-	}
-	assert.Equal(t, "kubernetes_state_core", includeEnv)
-}
-
-func TestReconcileClusterChecksRunnerGroups_IgnoredWithoutRunnersOrKnob(t *testing.T) {
-	sch := runtime.NewScheme()
-	_ = scheme.AddToScheme(sch)
-	_ = datadoghqv1alpha1.AddToScheme(sch)
-	ctx := context.Background()
-
-	// Groups annotation set but neither useClusterChecksRunners nor the kube
-	// knob: groups are ignored, nothing is materialized.
-	ddai := newTestDDAI("foo", []datadoghqv2alpha1.ClusterChecksRunnerGroup{
-		{Name: "ksm", ChecksInclude: []string{"kubernetes_state_core"}},
-	})
-
-	r := newTestReconciler(sch)
-	_, resourceManagers := r.setupDependencies(ctx, ddai)
-
-	params := &ReconcileComponentParams{
-		DDAI: ddai,
-		RequiredComponents: feature.RequiredComponents{
-			ClusterAgent: feature.RequiredComponent{IsRequired: ptr.To(true)},
-		},
-		ResourceManagers: resourceManagers,
-		Status:           &datadoghqv1alpha1.DatadogAgentInternalStatus{},
-	}
-
-	_, err := r.ReconcileClusterChecksRunnerGroups(ctx, params)
-	require.NoError(t, err)
-
-	deploymentList := &appsv1.DeploymentList{}
-	require.NoError(t, r.client.List(ctx, deploymentList))
-	assert.Len(t, deploymentList.Items, 0)
-}
-
-func TestReconcileClusterChecksRunnerGroups_KnobOnWithRunnersOn(t *testing.T) {
-	sch := runtime.NewScheme()
-	_ = scheme.AddToScheme(sch)
-	_ = datadoghqv1alpha1.AddToScheme(sch)
-	ctx := context.Background()
-
-	// Runner-only mode with the knob on: the kube group materializes
-	// alongside the user groups (the default CCR Deployment is handled by the
-	// component registry, not by this reconcile).
-	ddai := newTestDDAIWithKubeKnob("foo", []datadoghqv2alpha1.ClusterChecksRunnerGroup{
-		{Name: "kafka", ChecksInclude: []string{"kafka_consumer"}},
-	}, true)
-	ddai.Spec.Features.ClusterChecks.UseClusterChecksRunners = ptr.To(true)
-
-	r := newTestReconciler(sch)
-	_, resourceManagers := r.setupDependencies(ctx, ddai)
-
-	params := &ReconcileComponentParams{
-		DDAI: ddai,
-		RequiredComponents: feature.RequiredComponents{
-			ClusterAgent: feature.RequiredComponent{IsRequired: ptr.To(true)},
-		},
-		ResourceManagers: resourceManagers,
-		Status:           &datadoghqv1alpha1.DatadogAgentInternalStatus{},
-	}
-
-	_, err := r.ReconcileClusterChecksRunnerGroups(ctx, params)
-	require.NoError(t, err)
-
-	deploymentList := &appsv1.DeploymentList{}
-	require.NoError(t, r.client.List(ctx, deploymentList))
-	var names []string
-	for _, d := range deploymentList.Items {
-		names = append(names, d.Name)
-	}
-	assert.ElementsMatch(t, []string{"foo-cluster-checks-runner-kube", "foo-cluster-checks-runner-kafka"}, names)
-}
-
 func TestReconcileClusterChecksRunnerGroups_ComponentOverrideApplied(t *testing.T) {
-	sch := runtime.NewScheme()
-	_ = scheme.AddToScheme(sch)
-	_ = datadoghqv1alpha1.AddToScheme(sch)
-	ctx := context.Background()
-
 	// The component-level override (spec.override.clusterChecksRunner, e.g.
-	// the image) must reach group Deployments, not only the default CCR
-	// Deployment. The group's own Override is applied after and wins on
-	// conflicts.
-	ddai := newTestDDAIWithKubeKnob("foo", nil, true)
+	// the image) must reach group Deployments, not only the default CCR.
+	ddai := newTestDDAI("foo", nil, true)
 	ddai.Spec.Override = map[datadoghqv2alpha1.ComponentName]*datadoghqv2alpha1.DatadogAgentComponentOverride{
 		datadoghqv2alpha1.ClusterChecksRunnerComponentName: {
 			Image: &datadoghqv2alpha1.AgentImageConfig{
@@ -484,36 +326,11 @@ func TestReconcileClusterChecksRunnerGroups_ComponentOverrideApplied(t *testing.
 		},
 	}
 
-	r := newTestReconciler(sch)
-	_, resourceManagers := r.setupDependencies(ctx, ddai)
+	deployments := reconcileGroups(t, ddai, true)
+	deployment, found := deployments["foo-cluster-checks-runner-kube"]
+	require.True(t, found)
 
-	params := &ReconcileComponentParams{
-		DDAI: ddai,
-		RequiredComponents: feature.RequiredComponents{
-			ClusterAgent: feature.RequiredComponent{IsRequired: ptr.To(true)},
-		},
-		ResourceManagers: resourceManagers,
-		Status:           &datadoghqv1alpha1.DatadogAgentInternalStatus{},
-	}
-
-	result, err := r.ReconcileClusterChecksRunnerGroups(ctx, params)
-	require.NoError(t, err)
-	assert.True(t, result.IsZero())
-
-	deploymentList := &appsv1.DeploymentList{}
-	require.NoError(t, r.client.List(ctx, deploymentList))
-	require.Len(t, deploymentList.Items, 1)
-
-	deployment := deploymentList.Items[0]
-	assert.Equal(t, "foo-cluster-checks-runner-kube", deployment.Name)
-
-	// The component-level image override lands on the runner container.
-	var runnerImage string
-	for _, container := range deployment.Spec.Template.Spec.Containers {
-		if container.Name == string(apicommon.ClusterChecksRunnersContainerName) {
-			runnerImage = container.Image
-		}
-	}
-	assert.Contains(t, runnerImage, "registry.datadoghq.com/datadog-agent", "expected the component-level image override on the runner container, got %q", runnerImage)
-	assert.Contains(t, runnerImage, "component-override-tag", "expected the component-level image tag override on the runner container, got %q", runnerImage)
+	runnerImage := runnerContainer(t, deployment).Image
+	assert.Contains(t, runnerImage, "registry.datadoghq.com/datadog-agent")
+	assert.Contains(t, runnerImage, "component-override-tag")
 }

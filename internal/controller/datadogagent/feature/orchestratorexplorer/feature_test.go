@@ -22,7 +22,6 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
-	rbacv1 "k8s.io/api/rbac/v1"
 )
 
 var customConfData = `cluster_check: false
@@ -161,30 +160,14 @@ instances:
 				WithOrchestratorExplorerCustomConfigData(customConfData).
 				WithClusterChecksEnabled(true).
 				WithClusterChecksUseCLCEnabled(false).
-				WithKubeChecksRunnerDefault(true).
+				WithKubeChecksRunnerDefault().
 				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{Image: &v2alpha1.AgentImageConfig{Tag: "7.51.0"}}).
 				Build(),
 			WantConfigure:       true,
 			ClusterAgent:        orchestratorExplorerClusterAgentWantFunc(),
 			Agent:               test.NewDefaultComponentTest().WithWantFunc(orchestratorExplorerNodeAgentNoProcessAgentWantFunc),
 			ClusterChecksRunner: test.NewDefaultComponentTest().WithWantFunc(orchestratorExplorerClusterChecksRunnerWantFunc),
-			WantDependenciesFunc: func(t testing.TB, store store.StoreClient) {
-				obj, found := store.Get(kubernetes.ClusterRoleBindingKind, "", "-datadog-orch-exp-ccr")
-				if !found {
-					t.Fatal("expected the orchestrator explorer ClusterRoleBinding with the checks-runner suffix in mixed mode")
-				}
-				binding, ok := obj.(*rbacv1.ClusterRoleBinding)
-				if !ok {
-					t.Fatalf("expected a ClusterRoleBinding, got %T", obj)
-				}
-				foundSA := false
-				for _, sub := range binding.Subjects {
-					if sub.Name == "datadog-cluster-checks-runner" {
-						foundSA = true
-					}
-				}
-				assert.True(t, foundSA, "orchestrator explorer RBAC must bind to the Cluster Checks Runner ServiceAccount in mixed mode, subjects: %v", binding.Subjects)
-			},
+			WantDependenciesFunc: test.WantClusterRoleBindingSubject("-datadog-orch-exp-ccr", "datadog-cluster-checks-runner"),
 		},
 		{
 			Name: "orchestrator explorer enabled on version requiring process agent",

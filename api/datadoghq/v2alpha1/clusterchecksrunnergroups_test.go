@@ -12,7 +12,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
 )
 
 func newTestObjectWithAnnotations(annotations map[string]string) *DatadogAgent {
@@ -22,56 +21,6 @@ func newTestObjectWithAnnotations(annotations map[string]string) *DatadogAgent {
 			Namespace:   "default",
 			Annotations: annotations,
 		},
-	}
-}
-
-func TestIsExperimentalKubeChecksRunnerDefaultEnabled(t *testing.T) {
-	tests := []struct {
-		name        string
-		annotations map[string]string
-		want        bool
-	}{
-		{
-			name:        "no annotation",
-			annotations: nil,
-			want:        false,
-		},
-		{
-			name:        "empty value",
-			annotations: map[string]string{AnnotationExperimentalKubeChecksRunnerDefault: ""},
-			want:        false,
-		},
-		{
-			name:        "true",
-			annotations: map[string]string{AnnotationExperimentalKubeChecksRunnerDefault: "true"},
-			want:        true,
-		},
-		{
-			name:        "TRUE (strconv.ParseBool accepts)",
-			annotations: map[string]string{AnnotationExperimentalKubeChecksRunnerDefault: "TRUE"},
-			want:        true,
-		},
-		{
-			name:        "1",
-			annotations: map[string]string{AnnotationExperimentalKubeChecksRunnerDefault: "1"},
-			want:        true,
-		},
-		{
-			name:        "false",
-			annotations: map[string]string{AnnotationExperimentalKubeChecksRunnerDefault: "false"},
-			want:        false,
-		},
-		{
-			name:        "invalid value means disabled",
-			annotations: map[string]string{AnnotationExperimentalKubeChecksRunnerDefault: "maybe"},
-			want:        false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, IsExperimentalKubeChecksRunnerDefaultEnabled(newTestObjectWithAnnotations(tt.annotations)))
-		})
 	}
 }
 
@@ -110,7 +59,7 @@ func TestGetEffectiveClusterChecksRunnerGroups(t *testing.T) {
 					Name:          KubeChecksRunnerGroupName,
 					ChecksInclude: KubeChecksRunnerGroupChecksInclude,
 					Override: &DatadogAgentComponentOverride{
-						Replicas: ptr.To(int32(2)),
+						Replicas: new(int32(2)),
 					},
 				},
 			},
@@ -126,7 +75,7 @@ func TestGetEffectiveClusterChecksRunnerGroups(t *testing.T) {
 					Name:          KubeChecksRunnerGroupName,
 					ChecksInclude: KubeChecksRunnerGroupChecksInclude,
 					Override: &DatadogAgentComponentOverride{
-						Replicas: ptr.To(int32(2)),
+						Replicas: new(int32(2)),
 					},
 				},
 			}, annotationGroups...),
@@ -142,7 +91,7 @@ func TestGetEffectiveClusterChecksRunnerGroups(t *testing.T) {
 					Name:          "kube",
 					ChecksInclude: []string{"kubernetes_state_core"},
 					Override: &DatadogAgentComponentOverride{
-						Replicas: ptr.To(int32(5)),
+						Replicas: new(int32(5)),
 					},
 				},
 			},
@@ -151,6 +100,34 @@ func TestGetEffectiveClusterChecksRunnerGroups(t *testing.T) {
 			name: "malformed groups annotation errors",
 			annotations: map[string]string{
 				AnnotationExperimentalClusterChecksRunnerGroups: "not-json",
+			},
+			wantErr: true,
+		},
+		{
+			name:        "invalid group name errors",
+			annotations: map[string]string{AnnotationExperimentalClusterChecksRunnerGroups: `[{"name":"Not_DNS","checksInclude":["a"]}]`},
+			wantErr:     true,
+		},
+		{
+			name:        "duplicate group names error",
+			annotations: map[string]string{AnnotationExperimentalClusterChecksRunnerGroups: `[{"name":"a","checksInclude":["x"]},{"name":"a","checksInclude":["y"]}]`},
+			wantErr:     true,
+		},
+		{
+			name:        "group without checksInclude errors",
+			annotations: map[string]string{AnnotationExperimentalClusterChecksRunnerGroups: `[{"name":"a"}]`},
+			wantErr:     true,
+		},
+		{
+			name:        "check claimed by two groups errors",
+			annotations: map[string]string{AnnotationExperimentalClusterChecksRunnerGroups: `[{"name":"a","checksInclude":["x"]},{"name":"b","checksInclude":["x"]}]`},
+			wantErr:     true,
+		},
+		{
+			name: "user group overlapping the built-in kube group errors",
+			annotations: map[string]string{
+				AnnotationExperimentalKubeChecksRunnerDefault:   "true",
+				AnnotationExperimentalClusterChecksRunnerGroups: `[{"name":"ksm","checksInclude":["kubernetes_state_core"]}]`,
 			},
 			wantErr: true,
 		},
@@ -174,16 +151,4 @@ func TestGetEffectiveClusterChecksRunnerGroups(t *testing.T) {
 			assert.Equal(t, tt.want, got)
 		})
 	}
-}
-
-func TestKubeChecksRunnerGroupChecksIncludeContents(t *testing.T) {
-	// The kube family is the single source of truth for the built-in group;
-	// lock its contents so additions are deliberate.
-	assert.Equal(t, []string{
-		"kubernetes_state_core",
-		"orchestrator",
-		"kube_apiserver_metrics",
-		"kube_controller_manager",
-		"kube_scheduler",
-	}, KubeChecksRunnerGroupChecksInclude)
 }

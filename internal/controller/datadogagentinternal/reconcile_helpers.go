@@ -58,11 +58,10 @@ func (r *Reconciler) manageGlobalDependencies(ctx context.Context, ddai *v1alpha
 	if err := global.ApplyGlobalComponentDependencies(logger, ddai.GetObjectMeta(), &ddai.Spec, nil, resourceManagers, datadoghqv2alpha1.NodeAgentComponentName, requiredComponents.Agent, true); len(err) > 0 {
 		errs = append(errs, err...)
 	}
-	// Group pods share the CCR ServiceAccount: the dependency gate must also
-	// cover mixed mode, where the CCR component itself stays disabled (no
-	// default Deployment) and only the knob materializes groups.
+	// Group pods share the CCR ServiceAccount: also create the CCR
+	// dependencies when only runner groups exist (no default CCR Deployment).
 	ccrRequiredComponents := requiredComponents.ClusterChecksRunner
-	if !ccrRequiredComponents.IsEnabled() && requiredComponents.ClusterAgent.IsEnabled() && datadoghqv2alpha1.IsExperimentalKubeChecksRunnerDefaultEnabled(ddai) {
+	if !ccrRequiredComponents.IsEnabled() && requiredComponents.ClusterAgent.IsEnabled() && constants.IsCCRComponentRequired(ddai, &ddai.Spec) {
 		ccrRequiredComponents = feature.RequiredComponent{IsRequired: new(true)}
 	}
 	if err := global.ApplyGlobalComponentDependencies(logger, ddai.GetObjectMeta(), &ddai.Spec, nil, resourceManagers, datadoghqv2alpha1.ClusterChecksRunnerComponentName, ccrRequiredComponents, true); len(err) > 0 {
@@ -227,7 +226,7 @@ func (r *Reconciler) cleanupOldCCRDeployments(ctx context.Context, ddai *v1alpha
 		return err
 	}
 	for _, deployment := range deploymentList.Items {
-		if _, isGroupDeployment := deployment.Labels[clusterChecksRunnerGroupLabelKey]; isGroupDeployment {
+		if _, isGroupDeployment := deployment.Labels[componentccr.ClusterChecksRunnerGroupLabelKey]; isGroupDeployment {
 			// Dedicated runner group Deployments are managed by
 			// ReconcileClusterChecksRunnerGroups/cleanupOrphanedClusterChecksRunnerGroups,
 			// not by this default-CCR rename cleanup.

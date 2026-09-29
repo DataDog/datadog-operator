@@ -123,9 +123,7 @@ func (f *orchestratorExplorerFeature) Configure(dda metav1.Object, ddaSpec *v2al
 		slices.Sort(f.customResources)
 		f.customResources = slices.Compact(f.customResources)
 
-		if constants.IsCCRComponentRequired(dda, ddaSpec) {
-			// Any CCR-family Deployment (default CCR or runner groups): the
-			// check's RBAC and env target the runner ServiceAccount in all modes.
+		if constants.RunsOnCCR(dda, ddaSpec, "orchestrator") {
 			f.runInClusterChecksRunner = true
 			f.rbacSuffix = common.ChecksRunnerSuffix
 			f.serviceAccountName = constants.GetClusterChecksRunnerServiceAccount(dda.GetName(), ddaSpec)

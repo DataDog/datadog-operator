@@ -1100,11 +1100,6 @@ func (in *ClusterChecksRunnerGroup) DeepCopyInto(out *ClusterChecksRunnerGroup) 
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
-	if in.ChecksExclude != nil {
-		in, out := &in.ChecksExclude, &out.ChecksExclude
-		*out = make([]string, len(*in))
-		copy(*out, *in)
-	}
 	if in.Override != nil {
 		in, out := &in.Override, &out.Override
 		*out = new(DatadogAgentComponentOverride)

@@ -1752,29 +1752,6 @@ type ClusterChecksFeatureConfig struct {
 	UseClusterChecksRunners *bool `json:"useClusterChecksRunners,omitempty"`
 }
 
-// ClusterChecksRunnerGroup declares an additional, dedicated Cluster Checks
-// Runner Deployment restricted to a subset of checks. Experimental, not part
-// of the CRD schema: configured out-of-band via the
-// AnnotationExperimentalClusterChecksRunnerGroups annotation.
-type ClusterChecksRunnerGroup struct {
-	// Name uniquely identifies this runner group and is used to derive its Deployment name.
-	Name string `json:"name"`
-
-	// ChecksInclude is the exclusive list of check names this group is willing to run.
-	// If empty, the group is unrestricted (subject to ChecksExclude).
-	// +optional
-	ChecksInclude []string `json:"checksInclude,omitempty"`
-
-	// ChecksExclude is a list of check names this group refuses to run, subtracted after
-	// ChecksInclude is applied.
-	// +optional
-	ChecksExclude []string `json:"checksExclude,omitempty"`
-
-	// Override allows customization of this runner group's Deployment.
-	// +optional
-	Override *DatadogAgentComponentOverride `json:"override,omitempty"`
-}
-
 // PrometheusScrapeFeatureConfig allows configuration of the Prometheus Autodiscovery feature.
 // +k8s:openapi-gen=true
 type PrometheusScrapeFeatureConfig struct {

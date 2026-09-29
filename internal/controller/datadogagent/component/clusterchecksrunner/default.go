@@ -25,6 +25,7 @@ import (
 	componentdca "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusteragent"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/images"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 // GetClusterChecksRunnerName return the Cluster-Checks-Runner name based on the DatadogAgent name
@@ -37,6 +38,10 @@ func GetCCRRbacResourcesName(dda metav1.Object) string {
 	return fmt.Sprintf("%s-%s", dda.GetName(), constants.DefaultClusterChecksRunnerResourceSuffix)
 }
 
+// ClusterChecksRunnerGroupLabelKey labels a dedicated runner group's
+// Deployment and pods with the group name.
+const ClusterChecksRunnerGroupLabelKey = "agent.datadoghq.com/clusterchecksrunner-group"
+
 // GetClusterChecksRunnerGroupName returns the Deployment name for a dedicated
 // Cluster Checks Runner group, distinct from the default CCR Deployment name.
 func GetClusterChecksRunnerGroupName(dda metav1.Object, groupName string) string {
@@ -44,25 +49,26 @@ func GetClusterChecksRunnerGroupName(dda metav1.Object, groupName string) string
 }
 
 // NewClusterChecksRunnerGroupDeployment returns a new dedicated Cluster Checks
-// Runner Deployment for the given runner group name. It shares the default
-// CCR pod template and gets its own name/selector so it doesn't collide with
-// the default CCR Deployment or with other groups.
+// Runner Deployment for the given runner group. Its explicit selector includes
+// the group label, so it never overlaps the default CCR or other groups (even
+// when the default selector would fall back to DDA name + component).
 func NewClusterChecksRunnerGroupDeployment(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, groupName string) *appsv1.Deployment {
-	deployment := common.NewDeployment(dda, constants.DefaultClusterChecksRunnerResourceSuffix, GetClusterChecksRunnerGroupName(dda, groupName), common.GetAgentVersion(dda), nil)
-
-	podTemplate := NewDefaultClusterChecksRunnerPodTemplateSpec(dda, ddaSpec)
-	maps.Copy(podTemplate.Labels, deployment.GetLabels())
-
-	maps.Copy(podTemplate.Annotations, deployment.GetAnnotations())
-
-	deployment.Spec.Template = *podTemplate
-
-	return deployment
+	name := GetClusterChecksRunnerGroupName(dda, groupName)
+	selector := &metav1.LabelSelector{MatchLabels: map[string]string{
+		kubernetes.AppKubernetesInstanceLabelKey:   name,
+		apicommon.AgentDeploymentComponentLabelKey: constants.DefaultClusterChecksRunnerResourceSuffix,
+		ClusterChecksRunnerGroupLabelKey:           groupName,
+	}}
+	return newClusterChecksRunnerDeployment(dda, ddaSpec, name, selector)
 }
 
 // NewDefaultClusterChecksRunnerDeployment return a new default cluster-checks-runner deployment
 func NewDefaultClusterChecksRunnerDeployment(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec) *appsv1.Deployment {
-	deployment := common.NewDeployment(dda, constants.DefaultClusterChecksRunnerResourceSuffix, GetClusterChecksRunnerName(dda), common.GetAgentVersion(dda), nil)
+	return newClusterChecksRunnerDeployment(dda, ddaSpec, GetClusterChecksRunnerName(dda), nil)
+}
+
+func newClusterChecksRunnerDeployment(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, name string, selector *metav1.LabelSelector) *appsv1.Deployment {
+	deployment := common.NewDeployment(dda, constants.DefaultClusterChecksRunnerResourceSuffix, name, common.GetAgentVersion(dda), selector)
 
 	podTemplate := NewDefaultClusterChecksRunnerPodTemplateSpec(dda, ddaSpec)
 	maps.Copy(podTemplate.Labels, deployment.GetLabels())
