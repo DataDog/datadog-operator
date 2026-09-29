@@ -9,5 +9,6 @@ const (
 	DDClcRunnerEnabled         = "DD_CLC_RUNNER_ENABLED"
 	DDClcRunnerHost            = "DD_CLC_RUNNER_HOST"
 	DDClcRunnerID              = "DD_CLC_RUNNER_ID"
+	DDDiscoveryEnabled         = "DD_DISCOVERY_ENABLED"
 	DDEnableMetadataCollection = "DD_ENABLE_METADATA_COLLECTION"
 )
