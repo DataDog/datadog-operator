@@ -90,7 +90,12 @@ func (f *clusterChecksFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Da
 		if !f.useClusterCheckRunners && !f.kubeChecksRunnerDefaultEnabled && len(runnerGroups) > 0 {
 			f.logger.Info("ignoring experimental cluster checks runner groups: they require useClusterChecksRunners or the experimental-kube-checks-runner-default annotation")
 		}
-		f.defaultRunnerChecksExclude = defaultRunnerChecksExclude(runnerGroups)
+		// The exclude union only covers MATERIALIZED groups: with both
+		// useClusterCheckRunners and the knob off, groups are ignored and must
+		// not restrict node agents.
+		if f.useClusterCheckRunners || f.kubeChecksRunnerDefaultEnabled {
+			f.defaultRunnerChecksExclude = defaultRunnerChecksExclude(runnerGroups)
+		}
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
 				IsRequired: new(true),
@@ -230,6 +235,19 @@ func (f *clusterChecksFeature) manageNodeAgent(agentContainerName apicommon.Agen
 			&corev1.EnvVar{
 				Name:  DDExtraConfigProviders,
 				Value: clusterAndEndpointsConfigProviders,
+			},
+		)
+	}
+
+	// Strict isolation: node agents refuse the checks claimed by runner
+	// groups (same exclude union as the default CCR), so group-claimed checks
+	// only ever run on their group — no fallback if the group is down.
+	if len(f.defaultRunnerChecksExclude) > 0 {
+		managers.EnvVar().AddEnvVarToContainer(
+			agentContainerName,
+			&corev1.EnvVar{
+				Name:  DDCLCRunnerChecksExclude,
+				Value: strings.Join(f.defaultRunnerChecksExclude, ","),
 			},
 		)
 	}
