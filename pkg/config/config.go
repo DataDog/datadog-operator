@@ -220,11 +220,14 @@ func CacheOptions(logger logr.Logger, opts WatchOptions) cache.Options {
 				// Component health monitoring derives issues from the managed components'
 				// pod status: container statuses (restart counts, OOMKill/crash reasons,
 				// waiting reasons like ImagePullBackOff), scheduling conditions, phase, and
-				// termination context. Retaining these fields is what increases cache memory,
-				// which is why this is gated behind ComponentHealthEnabled and restricted to
-				// the managed component pods (DCA/CLC), even when the wait-for-CSI branch
-				// above widened the informer to cache every Pod in the merged namespaces.
+				// termination context, plus DeletionTimestamp so the reconciler can treat a
+				// pod that is terminating (but not yet gone from the API) like a gone pod.
+				// Retaining these fields is what increases cache memory, which is why this is
+				// gated behind ComponentHealthEnabled and restricted to the managed component
+				// pods (DCA/CLC), even when the wait-for-CSI branch above widened the
+				// informer to cache every Pod in the merged namespaces.
 				if opts.ComponentHealthEnabled && isManagedComponentHealthPod(pod) {
+					newPod.DeletionTimestamp = pod.DeletionTimestamp
 					newPod.Status.Phase = pod.Status.Phase
 					newPod.Status.Reason = pod.Status.Reason
 					newPod.Status.Message = pod.Status.Message

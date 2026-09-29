@@ -407,10 +407,12 @@ func TestCacheConfigPodTransformComponentHealthGating(t *testing.T) {
 		return
 	}
 
+	now := metav1.Now()
 	podWithStatus := func(component string) *corev1.Pod {
 		return &corev1.Pod{
 			ObjectMeta: metav1.ObjectMeta{
-				Labels: map[string]string{common.AgentDeploymentComponentLabelKey: component},
+				Labels:            map[string]string{common.AgentDeploymentComponentLabelKey: component},
+				DeletionTimestamp: &now,
 			},
 			Status: corev1.PodStatus{
 				Phase:             corev1.PodRunning,
@@ -422,6 +424,7 @@ func TestCacheConfigPodTransformComponentHealthGating(t *testing.T) {
 	dca, err := byObject.Transform(podWithStatus(constants.DefaultClusterAgentResourceSuffix))
 	assert.NoError(t, err)
 	assert.NotEmpty(t, dca.(*corev1.Pod).Status.ContainerStatuses, "DCA pod should keep container statuses")
+	assert.NotNil(t, dca.(*corev1.Pod).DeletionTimestamp, "DCA pod should keep DeletionTimestamp so the reconciler can detect terminating pods")
 
 	csi, err := byObject.Transform(podWithStatus("datadog-csi-driver-node-server"))
 	assert.NoError(t, err)

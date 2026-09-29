@@ -19,8 +19,8 @@ var (
 	// at which new problems surface.
 	ComponentHealthIssuesDetected = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
-			Subsystem: datadogAgentSubsystem,
-			Name:      "component_health_issues_detected_total",
+			Subsystem: componentHealthSubsystem,
+			Name:      "issues_detected_total",
 			Help:      "Number of component-level health issues detected for managed cluster-level components, by component and issue type.",
 		},
 		[]string{"component", "issue_type"},
@@ -34,8 +34,8 @@ var (
 	// cardinality — the affected pods live in the emitted issue, not in tags.
 	ComponentHealthIssuesActive = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
-			Subsystem: datadogAgentSubsystem,
-			Name:      "component_health_issues_active",
+			Subsystem: componentHealthSubsystem,
+			Name:      "issues_active",
 			Help:      "Number of pods currently exhibiting each health issue type per managed cluster-level component.",
 		},
 		[]string{"component", "issue_type"},
