@@ -100,6 +100,15 @@ func TestOCIImageResolver_Resolve(t *testing.T) {
 			},
 		},
 		{
+			name: "digest mismatch",
+			release: &datadoghqv1alpha1.DatadogBYOCClusterReleaseSpec{
+				Tag:    ptr.To(releaseTag),
+				Digest: ptr.To("sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"),
+			},
+			payload: validReleasePayload,
+			wantErr: "expected \"sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\"",
+		},
+		{
 			name:    "images with tags",
 			release: &datadoghqv1alpha1.DatadogBYOCClusterReleaseSpec{Tag: ptr.To(releaseTag)},
 			payload: tagOnlyReleasePayload,

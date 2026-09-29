@@ -194,6 +194,10 @@ func (r *ociImageResolver) resolveRelease(ctx context.Context, spec *datadoghqv1
 		tag:        tag,
 		digest:     requestedDigest,
 	}
+	if key.digest != "" {
+		// Digest-pinned releases are immutable and share a cache entry regardless of tag.
+		key.tag = ""
+	}
 	if release, ok := r.cache.get(key); ok {
 		return &release, nil
 	}
@@ -206,16 +210,16 @@ func (r *ociImageResolver) resolveRelease(ctx context.Context, spec *datadoghqv1
 	return release, nil
 }
 
-// fetchRelease fetches and validates the release artifact selected by tag or digest.
+// fetchRelease fetches and validates the release artifact, preferring digest over tag.
 func (r *ociImageResolver) fetchRelease(ctx context.Context, key releaseCacheKey) (*byocRelease, error) {
 	target, err := r.targetFactory(ctx, key.repository)
 	if err != nil {
 		return nil, fmt.Errorf("create OCI repository client: %w", err)
 	}
 
-	reference := key.digest
-	if key.tag != "" {
-		reference = key.tag
+	reference := key.tag
+	if key.digest != "" {
+		reference = key.digest
 	}
 	descriptor, manifestBytes, err := target.Resolve(ctx, reference)
 	if err != nil {
