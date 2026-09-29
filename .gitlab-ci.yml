@@ -746,7 +746,7 @@ publish_redhat_public_tag:
     IMG_DESTINATIONS: $RH_PARTNER_PROJECT_ID:$CI_COMMIT_TAG
     IMG_DESTINATIONS_REGEX: ":v"
     IMG_DESTINATIONS_REGEX_REPL: ":"
-    IMG_REGISTRIES: redhat-operator
+    IMG_REGISTRIES: redhat
     IMG_SIGNING: "false"
     IMG_MERGE_STRATEGY: "index_oci"
 
@@ -824,7 +824,7 @@ publish_redhat_public_latest:
   variables:
     IMG_SOURCES: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-amd64,$BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-arm64
     IMG_DESTINATIONS: $RH_PARTNER_PROJECT_ID:latest
-    IMG_REGISTRIES: redhat-operator
+    IMG_REGISTRIES: redhat
     IMG_SIGNING: "false"
     IMG_MERGE_STRATEGY: "index_oci"
 
