@@ -53,6 +53,7 @@ require (
 	github.com/aws/smithy-go v1.28.1
 	github.com/cenkalti/backoff v2.2.1+incompatible
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc
+	github.com/distribution/reference v0.6.0
 	github.com/fatih/color v1.19.0
 	github.com/go-logr/zapr v1.3.0
 	github.com/gobuffalo/flect v1.0.3

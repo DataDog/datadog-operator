@@ -204,6 +204,37 @@ func TestOCIImageResolver_Resolve(t *testing.T) {
 			}`,
 			wantErr: "images.observabilityPipelinesWorker.repository",
 		},
+		{
+			name:    "invalid image repository",
+			release: &datadoghqv1alpha1.DatadogBYOCClusterReleaseSpec{Tag: ptr.To(releaseTag)},
+			payload: `{"images": {
+				"pomsky": {"repository": "example.com//pomsky", "tag": "1.0.0"},
+				"observabilityPipelinesWorker": {"repository": "example.com/worker", "tag": "2.0.0"}
+			}}`,
+			wantErr: "images.pomsky.repository is invalid",
+		},
+		{
+			name:    "invalid worker image tag",
+			release: &datadoghqv1alpha1.DatadogBYOCClusterReleaseSpec{Tag: ptr.To(releaseTag)},
+			payload: `{"images": {
+				"pomsky": {"repository": "example.com/pomsky", "tag": "1.0.0"},
+				"observabilityPipelinesWorker": {"repository": "example.com/worker", "tag": "bad tag"}
+			}}`,
+			wantErr: "images.observabilityPipelinesWorker.tag is invalid",
+		},
+		{
+			name:    "invalid image tag with valid digest",
+			release: &datadoghqv1alpha1.DatadogBYOCClusterReleaseSpec{Tag: ptr.To(releaseTag)},
+			payload: `{"images": {
+				"pomsky": {
+					"repository": "example.com/pomsky",
+					"tag": "-invalid",
+					"digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+				},
+				"observabilityPipelinesWorker": {"repository": "example.com/worker", "tag": "2.0.0"}
+			}}`,
+			wantErr: "images.pomsky.tag is invalid",
+		},
 	}
 
 	for _, tt := range tests {
@@ -220,6 +251,9 @@ func TestOCIImageResolver_Resolve(t *testing.T) {
 				}
 				if !strings.Contains(err.Error(), tt.wantErr) {
 					t.Errorf("Resolve() error = %q, want an error containing %q", err, tt.wantErr)
+				}
+				if got := len(resolver.cache.entries); got != 0 {
+					t.Errorf("cache contains %d entries after failed resolution, want 0", got)
 				}
 				return
 			}

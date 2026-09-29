@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/distribution/reference"
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
@@ -269,6 +270,15 @@ func validateReleaseImage(image releaseImage, field string) error {
 	}
 	if image.Tag == "" && image.Digest == "" {
 		return fmt.Errorf("%s.tag or %s.digest must be specified", field, field)
+	}
+	repository, err := reference.WithName(image.Repository)
+	if err != nil {
+		return fmt.Errorf("%s.repository is invalid: %w", field, err)
+	}
+	if image.Tag != "" {
+		if _, err := reference.WithTag(repository, image.Tag); err != nil {
+			return fmt.Errorf("%s.tag is invalid: %w", field, err)
+		}
 	}
 	if image.Digest != "" {
 		if err := validateDigest(image.Digest); err != nil {
