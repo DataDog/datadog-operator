@@ -40,6 +40,7 @@ type DatadogObservabilityPipelinesWorkerPort struct {
 	// Name identifies the port.
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=15
+	// +kubebuilder:validation:Pattern=`^([0-9]+-)*[0-9]*[a-z][a-z0-9]*(-[a-z0-9]+)*$`
 	Name string `json:"name"`
 
 	// Port is the port number exposed by the worker container and Service.
