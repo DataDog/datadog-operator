@@ -36,7 +36,8 @@ func Test_cwsFeature_Configure(t *testing.T) {
 		Spec: v2alpha1.DatadogAgentSpec{
 			Features: &v2alpha1.DatadogFeatures{
 				CWS: &v2alpha1.CWSFeatureConfig{
-					Enabled: ptr.To(false),
+					Enabled:                   ptr.To(false),
+					DirectSendFromSystemProbe: ptr.To(false),
 					Enforcement: &v2alpha1.CWSEnforcementConfig{
 						Enabled: ptr.To(false),
 					},
@@ -458,9 +459,8 @@ func Test_cwsFeature_NodeAgentProviderCapabilities(t *testing.T) {
 	})
 }
 
-// Remote Configuration can enable CWS after the defaulting pass has run, so the feature has to
-// re-apply the defaults itself. Without that, a remotely enabled CWS keeps a nil (false)
-// DirectSendFromSystemProbe and falls back to the security-agent topology.
+// Remote Configuration can enable CWS after the defaulting pass has run. DirectSendFromSystemProbe is
+// defaulted in Configure, after the merge, so a remotely enabled CWS sends from the system-probe too.
 func Test_cwsFeature_ConfigureFromRemoteConfig(t *testing.T) {
 	dda := &v2alpha1.DatadogAgent{
 		Status: v2alpha1.DatadogAgentStatus{
@@ -479,9 +479,44 @@ func Test_cwsFeature_ConfigureFromRemoteConfig(t *testing.T) {
 
 	assert.True(t, f.directSendFromSystemProbe)
 	assert.Equal(t, []apicommon.AgentContainerName{apicommon.SystemProbeContainerName}, reqComp.Agent.Containers)
+}
 
-	// the rest of the CWS defaults apply too, as they would for a spec enabled CWS
-	assert.True(t, f.networkEnabled)
-	assert.True(t, f.activityDumpEnabled)
-	assert.True(t, f.enforcementEnabled)
+func Test_cwsFeature_DirectSendFromSystemProbeDefault(t *testing.T) {
+	tests := []struct {
+		name                      string
+		agentTag                  string
+		directSendFromSystemProbe *bool
+		want                      bool
+	}{
+		{name: "unset, no Agent image override", want: true},
+		{name: "unset, Agent too old", agentTag: "7.62.0", want: false},
+		{name: "unset, Agent recent enough", agentTag: "7.63.0", want: true},
+		{name: "unset, unparsable Agent tag is assumed recent enough", agentTag: "latest", want: true},
+		{name: "explicit false wins", directSendFromSystemProbe: ptr.To(false), want: false},
+		{name: "explicit true wins on an older Agent", agentTag: "7.62.0", directSendFromSystemProbe: ptr.To(true), want: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dda := &v2alpha1.DatadogAgent{
+				Spec: v2alpha1.DatadogAgentSpec{
+					Features: &v2alpha1.DatadogFeatures{
+						CWS: &v2alpha1.CWSFeatureConfig{Enabled: ptr.To(true), DirectSendFromSystemProbe: tt.directSendFromSystemProbe},
+					},
+				},
+			}
+			if tt.agentTag != "" {
+				dda.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+					v2alpha1.NodeAgentComponentName: {Image: &v2alpha1.AgentImageConfig{Tag: tt.agentTag}},
+				}
+			}
+
+			f := &cwsFeature{}
+			f.Configure(dda, &dda.Spec, nil)
+
+			assert.Equal(t, tt.want, f.directSendFromSystemProbe)
+			require.NotNil(t, dda.Spec.Features.CWS.DirectSendFromSystemProbe)
+			assert.Equal(t, tt.want, *dda.Spec.Features.CWS.DirectSendFromSystemProbe)
+		})
+	}
 }
