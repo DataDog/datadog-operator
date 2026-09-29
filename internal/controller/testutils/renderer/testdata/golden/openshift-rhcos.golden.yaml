@@ -17,25 +17,6 @@ metadata:
     name: datadog-agent
     uid: ""
 ---
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  labels:
-    app.kubernetes.io/instance: datadog-agent
-    app.kubernetes.io/managed-by: datadog-operator
-    app.kubernetes.io/name: datadog-agent-deployment
-    app.kubernetes.io/part-of: -datadog--agent
-    app.kubernetes.io/version: ""
-    operator.datadoghq.com/managed-by-store: "true"
-  name: datadog-agent-scc
-  ownerReferences:
-  - apiVersion: datadoghq.com/v1alpha1
-    blockOwnerDeletion: true
-    controller: true
-    kind: DatadogAgentInternal
-    name: datadog-agent
-    uid: ""
----
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:

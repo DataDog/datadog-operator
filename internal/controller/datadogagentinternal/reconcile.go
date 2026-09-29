@@ -91,7 +91,7 @@ func (r *Reconciler) reconcileInstance(ctx context.Context, instance *v1alpha1.D
 			return r.updateStatusIfNeeded(ctx, instance, newStatus, reconcile.Result{}, err, now)
 		}
 		// 1. Apply and cleanup dependencies before reconciling components to ensure deps exist at reconciliation time.
-		if err = r.applyAndCleanupDependencies(ctx, depsStore); err != nil {
+		if err = r.applyAndCleanupDependencies(ctx, instance, depsStore); err != nil {
 			return r.updateStatusIfNeeded(ctx, instance, newStatus, reconcile.Result{}, err, now)
 		}
 	}

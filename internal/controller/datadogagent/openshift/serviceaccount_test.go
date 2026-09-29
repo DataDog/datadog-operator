@@ -12,10 +12,16 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 // stubAuthorizer returns a fixed verdict and records what it was asked about.
@@ -297,4 +303,86 @@ func TestReconcileAgentServiceAccount_RetentionIsStable(t *testing.T) {
 	assert.False(t, out.Retained)
 	assert.Equal(t, ReasonServiceAccountConfigured, reason)
 	assert.Equal(t, SCCServiceAccountName, nodeAgentServiceAccount(spec))
+}
+
+const testOwnerUID = types.UID("owner-uid")
+
+func TestIsBundleManagedServiceAccount(t *testing.T) {
+	tests := []struct {
+		name     string
+		provider string
+		saName   string
+		want     bool
+	}{
+		{"detected openshift, bundle account", "openshift-rhcos", SCCServiceAccountName, true},
+		{"bare openshift, bundle account", kubernetes.OpenshiftProvider, SCCServiceAccountName, true},
+		{"openshift, operator-created account", "openshift-rhcos", "datadog-agent-agent", false},
+		{"other provider reusing the name", kubernetes.GKECosProvider, SCCServiceAccountName, false},
+		{"no provider", "", SCCServiceAccountName, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, IsBundleManagedServiceAccount(tt.provider, tt.saName))
+		})
+	}
+}
+
+func TestDisownBundleServiceAccount(t *testing.T) {
+	scheme := runtime.NewScheme()
+	require.NoError(t, corev1.AddToScheme(scheme))
+
+	adopted := func() *corev1.ServiceAccount {
+		return &corev1.ServiceAccount{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      SCCServiceAccountName,
+				Namespace: "ns",
+				Labels: map[string]string{
+					store.OperatorStoreLabelKey:            "true",
+					kubernetes.AppKubernetesPartOfLabelKey: "dd",
+				},
+				OwnerReferences: []metav1.OwnerReference{
+					{Kind: "DatadogAgentInternal", Name: "dd", UID: testOwnerUID},
+				},
+			},
+		}
+	}
+
+	t.Run("adopted account loses both markers", func(t *testing.T) {
+		c := fake.NewClientBuilder().WithScheme(scheme).WithObjects(adopted()).Build()
+		require.NoError(t, DisownBundleServiceAccount(context.Background(), c, "ns", testOwnerUID))
+
+		got := &corev1.ServiceAccount{}
+		require.NoError(t, c.Get(context.Background(), types.NamespacedName{Namespace: "ns", Name: SCCServiceAccountName}, got))
+		assert.NotContains(t, got.Labels, store.OperatorStoreLabelKey)
+		assert.Empty(t, got.OwnerReferences)
+		// Unrelated labels are left alone.
+		assert.Equal(t, "dd", got.Labels[kubernetes.AppKubernetesPartOfLabelKey])
+	})
+
+	t.Run("another owner's reference is kept", func(t *testing.T) {
+		sa := adopted()
+		sa.OwnerReferences = append(sa.OwnerReferences, metav1.OwnerReference{Kind: "ClusterServiceVersion", Name: "csv", UID: "csv-uid"})
+		c := fake.NewClientBuilder().WithScheme(scheme).WithObjects(sa).Build()
+		require.NoError(t, DisownBundleServiceAccount(context.Background(), c, "ns", testOwnerUID))
+
+		got := &corev1.ServiceAccount{}
+		require.NoError(t, c.Get(context.Background(), types.NamespacedName{Namespace: "ns", Name: SCCServiceAccountName}, got))
+		require.Len(t, got.OwnerReferences, 1)
+		assert.Equal(t, "ClusterServiceVersion", got.OwnerReferences[0].Kind)
+	})
+
+	t.Run("unmarked account is untouched", func(t *testing.T) {
+		sa := &corev1.ServiceAccount{ObjectMeta: metav1.ObjectMeta{Name: SCCServiceAccountName, Namespace: "ns"}}
+		c := fake.NewClientBuilder().WithScheme(scheme).WithObjects(sa).Build()
+		require.NoError(t, DisownBundleServiceAccount(context.Background(), c, "ns", testOwnerUID))
+
+		got := &corev1.ServiceAccount{}
+		require.NoError(t, c.Get(context.Background(), types.NamespacedName{Namespace: "ns", Name: SCCServiceAccountName}, got))
+		assert.Equal(t, sa.ResourceVersion, got.ResourceVersion)
+	})
+
+	t.Run("absent account is not an error", func(t *testing.T) {
+		c := fake.NewClientBuilder().WithScheme(scheme).Build()
+		assert.NoError(t, DisownBundleServiceAccount(context.Background(), c, "ns", testOwnerUID))
+	})
 }

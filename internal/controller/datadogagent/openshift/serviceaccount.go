@@ -8,10 +8,16 @@ package openshift
 import (
 	"context"
 	"fmt"
+	"slices"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 // Condition reasons for the OpenShiftSCC condition.
@@ -171,6 +177,47 @@ func (o Outcome) Condition() (metav1.ConditionStatus, string, string) {
 				"spec.override.nodeAgent.serviceAccountName.",
 			o.ServiceAccount, RequiredSCCName)
 	}
+}
+
+// IsBundleManagedServiceAccount reports whether the named ServiceAccount is the one the
+// OpenShift bundle vends. OLM creates it from the CSV's clusterPermissions and tracks it
+// as an install requirement, so the operator binds RBAC to it but leaves its lifecycle
+// alone: owning it would let a DatadogAgentInternal deletion garbage collect an account
+// OLM still expects, leaving the CSV in RequirementsNotMet.
+//
+// Gated on the provider so a cluster that happens to reuse the name still gets the
+// account created for it.
+func IsBundleManagedServiceAccount(provider, name string) bool {
+	return name == SCCServiceAccountName && kubernetes.IsOpenShiftProvider(provider)
+}
+
+// DisownBundleServiceAccount removes the operator's ownerReference and store label from
+// the bundle-managed ServiceAccount, for accounts adopted before the operator stopped
+// managing them.
+//
+// Both markers have to go, and before Store.Cleanup runs: the label makes Cleanup delete
+// the account now that it is no longer a dependency, and the ownerReference makes the
+// garbage collector delete it when the owner goes away.
+//
+// A no-op when the account is absent or carries neither marker.
+func DisownBundleServiceAccount(ctx context.Context, c client.Client, namespace string, owner types.UID) error {
+	sa := &corev1.ServiceAccount{}
+	if err := c.Get(ctx, types.NamespacedName{Namespace: namespace, Name: SCCServiceAccountName}, sa); err != nil {
+		return client.IgnoreNotFound(err)
+	}
+
+	_, labelled := sa.Labels[store.OperatorStoreLabelKey]
+	ownerIdx := slices.IndexFunc(sa.OwnerReferences, func(o metav1.OwnerReference) bool { return o.UID == owner })
+	if !labelled && ownerIdx < 0 {
+		return nil
+	}
+
+	patch := client.MergeFrom(sa.DeepCopy())
+	delete(sa.Labels, store.OperatorStoreLabelKey)
+	if ownerIdx >= 0 {
+		sa.OwnerReferences = slices.Delete(sa.OwnerReferences, ownerIdx, ownerIdx+1)
+	}
+	return c.Patch(ctx, sa, patch)
 }
 
 // nodeAgentServiceAccount returns the user-specified node agent ServiceAccount, or
