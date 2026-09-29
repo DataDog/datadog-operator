@@ -78,7 +78,7 @@ func (f *privateActionRunnerFeature) Configure(dda metav1.Object, ddaSpec *v2alp
 			}
 			image, _ = experimental.ResolveImageOverride(dda, string(apicommon.PrivateActionRunnerContainerName), image)
 			version := common.GetAgentVersionFromImage(v2alpha1.AgentImageConfig{Name: image})
-			if pkgutils.IsAboveMinVersion(version, privateActionRunnerSplitMinVersion, new(false)) {
+			if pkgutils.IsAboveMinVersion(version, privateActionRunnerSplitMinVersion, new(true)) {
 				f.splitEnabled = true
 			} else {
 				f.splitConfigErr = fmt.Errorf("private action runner split mode requires Agent >= %s, got %s", privateActionRunnerSplitMinVersion, version)

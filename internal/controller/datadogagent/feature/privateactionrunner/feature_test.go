@@ -297,7 +297,7 @@ func Test_privateActionRunnerFeature_RejectsSplitModeOnOldAgent(t *testing.T) {
 	require.ErrorContains(t, err, "split mode requires Agent >= 7.84.0-0")
 }
 
-func Test_privateActionRunnerFeature_RejectsSplitModeOnUnknownAgentVersion(t *testing.T) {
+func Test_privateActionRunnerFeature_AllowsSplitModeOnUnknownAgentVersion(t *testing.T) {
 	dda := &v2alpha1.DatadogAgent{
 		ObjectMeta: metav1.ObjectMeta{
 			Annotations: map[string]string{
@@ -308,7 +308,7 @@ func Test_privateActionRunnerFeature_RejectsSplitModeOnUnknownAgentVersion(t *te
 		Spec: v2alpha1.DatadogAgentSpec{
 			Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 				v2alpha1.NodeAgentComponentName: {
-					Image: &v2alpha1.AgentImageConfig{Tag: "dev"},
+					Image: &v2alpha1.AgentImageConfig{Tag: "dev-private-action-runner-5705e0d8"},
 				},
 			},
 		},
@@ -317,7 +317,7 @@ func Test_privateActionRunnerFeature_RejectsSplitModeOnUnknownAgentVersion(t *te
 	f.Configure(dda, &dda.Spec, nil)
 
 	err := f.ManageNodeAgent(fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{}))
-	require.ErrorContains(t, err, "split mode requires Agent >= 7.84.0-0")
+	require.NoError(t, err)
 }
 
 func Test_privateActionRunnerFeature_SplitModeImageOverrides(t *testing.T) {
@@ -365,10 +365,10 @@ func Test_privateActionRunnerFeature_SplitModeImageOverrides(t *testing.T) {
 			wantVersion:  "7.84.0",
 		},
 		{
-			name:         "unknown PAR version is rejected",
+			name:         "unknown PAR version is allowed",
 			image:        v2alpha1.AgentImageConfig{Tag: "7.84.0"},
 			experimental: `{"private-action-runner":{"tag":"dev"}}`,
-			wantVersion:  "dev", wantError: true,
+			wantVersion:  "dev",
 		},
 		{
 			name:        "partial component override inherits default version",
