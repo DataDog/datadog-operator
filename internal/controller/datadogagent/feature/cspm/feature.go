@@ -16,7 +16,6 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/defaults"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/configmap"
@@ -24,7 +23,13 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/providercaps"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	"github.com/DataDog/datadog-operator/pkg/utils"
 )
+
+// runInSystemProbeMinVersion is the first Agent release shipping compliance_config.run_in_system_probe.
+// RunInSystemProbe only defaults to true from this version on: on an older Agent the security-agent
+// would be dropped with nothing taking over the compliance checks.
+const runInSystemProbeMinVersion = "7.77.0-0"
 
 func init() {
 	err := feature.Register(feature.CSPMIDType, buildCSPMFeature)
@@ -99,7 +104,11 @@ func (f *cspmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgen
 			f.hostBenchmarksEnabled = true
 		}
 
-		f.runInSystemProbe = apiutils.BoolValue(cspmConfig.RunInSystemProbe)
+		if cspmConfig.RunInSystemProbe == nil {
+			// Written back to the spec, as the system-probe seccomp profile reads it from there.
+			cspmConfig.RunInSystemProbe = new(agentSupportsRunInSystemProbe(dda))
+		}
+		f.runInSystemProbe = *cspmConfig.RunInSystemProbe
 
 		// Determine which container to use for CSPM on the node
 		var nodeContainer apicommon.AgentContainerName
@@ -142,11 +151,13 @@ func mergeConfigs(ddaSpec *v2alpha1.DatadogAgentSpec, ddaRCStatus *v2alpha1.Remo
 	if ddaRCStatus.Features.CSPM.Enabled != nil {
 		ddaSpec.Features.CSPM.Enabled = ddaRCStatus.Features.CSPM.Enabled
 	}
+}
 
-	// Defaulting ran before this merge, and skipped everything below Enabled because the feature
-	// was off at the time. Re-apply the defaults now that Remote Configuration has turned it on,
-	// so a remotely enabled feature is configured like a spec enabled one.
-	defaults.DefaultCSPMFeature(ddaSpec)
+// agentSupportsRunInSystemProbe reports whether the node Agent is recent enough to run the compliance
+// checks in the system-probe. A version the Operator cannot parse is assumed recent enough.
+func agentSupportsRunInSystemProbe(dda metav1.Object) bool {
+	defaultIfVersionUnknown := true
+	return utils.IsAboveMinVersion(common.GetComponentVersion(dda, v2alpha1.NodeAgentComponentName), runInSystemProbeMinVersion, &defaultIfVersionUnknown)
 }
 
 // ManageDependencies allows a feature to manage its dependencies.

@@ -1176,7 +1176,7 @@ kind: DatadogAgentInternal
 metadata:
   annotations:
     agent.datadoghq.com/cluster-provider: talos
-    agent.datadoghq.com/ddaispechash: ac12fe25e42f57a5c5370e927070d56d
+    agent.datadoghq.com/ddaispechash: c0dc7ca712c3b44c3d5d5dbb7b5a4115
   finalizers:
   - finalizer.datadoghq.com/datadogagentinternal
   labels:
@@ -1234,9 +1234,7 @@ spec:
       enabled: true
       hostBenchmarks:
         enabled: true
-      runInSystemProbe: true
     cws:
-      directSendFromSystemProbe: true
       enabled: true
       enforcement:
         enabled: true
