@@ -19,16 +19,14 @@ spec:
     # by the cluster CA). Leaving it unset is what makes that injection visible in
     # the golden diff.
   features:
-    # APM and DogStatsD deliberately omit unixDomainSocketConfig/hostPortConfig so the
-    # defaults apply. On OpenShift the operator is expected to default UDS off and
-    # hostPort on, because UDS requires elevated SCC/SELinux on the *application*
-    # pods too and can block them from scheduling.
+    # APM and DogStatsD omit unixDomainSocketConfig/hostPortConfig so the defaults
+    # apply. The operator does not change the transport on OpenShift; this pins that.
     apm:
       enabled: true
     dogstatsd:
       originDetectionEnabled: true
-    # log collection is what makes the SELinux spc_t injection necessary: the agent
-    # cannot read /var/log/pods under enforcing SELinux without it.
+    # Enabled to exercise the log paths; spc_t is injected regardless of this feature
+    # (see openshift-nologs-dda.yaml).
     logCollection:
       enabled: true
       containerCollectAll: true

@@ -359,7 +359,8 @@ func (r *Reconciler) reconcileOpenShiftSCC(
 			"serviceAccount", outcome.ServiceAccount, "scc", openshift.RequiredSCCName, "userManaged", outcome.UserManaged)
 		r.recorder.Event(instance, corev1.EventTypeWarning, reason, message)
 	case outcome.Applied:
-		logger.Info("Set node agent ServiceAccount for OpenShift",
+		// V(1): re-applied on every reconcile, so it is noise at the default level.
+		logger.V(1).Info("Set node agent ServiceAccount for OpenShift",
 			"serviceAccount", outcome.ServiceAccount, "scc", openshift.RequiredSCCName)
 	}
 

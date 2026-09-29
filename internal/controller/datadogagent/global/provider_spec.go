@@ -146,31 +146,22 @@ var NodeAgentProviderSpec = providercaps.ProviderCapabilityMap{
 
 	// OpenShift. Keyed on the family so it matches every detected openshift-<os_id>
 	// (openshift-rhcos in production, openshift-rhel on CRC).
-	//
-	// Control plane and infra nodes carry NoSchedule taints, so without these the
-	// DaemonSet silently skips them and those nodes go unmonitored. Tolerations are
-	// appended, so user tolerations from spec.override still apply alongside.
-	//
-	// The super-privileged container SELinux type is required by the node agent as a
-	// whole, not just for reading pod logs. Under enforcing SELinux the default
-	// container type cannot reach the host paths the agent mounts — /proc,
-	// /sys/fs/cgroup, the container runtime socket — nor write the system-probe
-	// profile into /var/lib/kubelet/seccomp, which makes the seccomp-setup init
-	// container fail with "Permission denied" and the pod crash-loop before any agent
-	// container starts.
-	//
-	// Datadog's distributions page frames this override as log-collection-specific,
-	// but the OpenShift integration page attributes spc_t to proc/cgroup/socket
-	// access, and a DatadogAgent with no features at all reproduces the seccomp
-	// failure. Scoping it to log collection leaves a bare DatadogAgent broken, so it
-	// is applied for every OpenShift node agent.
 	kubernetes.OpenshiftProvider: {
+		// Under enforcing SELinux the default container type cannot reach the host
+		// paths the node agent mounts (/proc, /sys/fs/cgroup, the runtime socket), nor
+		// write the system-probe profile into /var/lib/kubelet/seccomp. Without the
+		// super-privileged type the seccomp-setup init container fails with
+		// "Permission denied" and the pod crash-loops, so it applies to every
+		// OpenShift node agent rather than to any single feature.
 		SELinuxOptions: &corev1.SELinuxOptions{
 			User:  openshiftSELinuxUser,
 			Role:  openshiftSELinuxRole,
 			Type:  openshiftSELinuxType,
 			Level: openshiftSELinuxLevel,
 		},
+		// Control plane and infra nodes carry NoSchedule taints; without these the
+		// DaemonSet skips them and those nodes go unmonitored. Appended, so user
+		// tolerations from spec.override still apply alongside.
 		Tolerations: []corev1.Toleration{
 			{
 				Key:      openshiftMasterNodeRoleTaint,

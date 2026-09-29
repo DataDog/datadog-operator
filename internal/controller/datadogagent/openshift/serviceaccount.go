@@ -28,7 +28,7 @@ const (
 	// ReasonUserManaged: the user supplied a ServiceAccount and it verified.
 	ReasonUserManaged = "UserManaged"
 	// ReasonServiceAccountCannotUseSCC: the user supplied a ServiceAccount that cannot
-	// use the required SCC. Left in place, but the node agent will not be admitted.
+	// use the required SCC. Left in place; the node agent will not be admitted.
 	ReasonServiceAccountCannotUseSCC = "ServiceAccountCannotUseSCC"
 	// ReasonNoAuthorizedServiceAccount: no user value, and the bundle ServiceAccount
 	// could not be verified. Nothing was set.
@@ -37,36 +37,28 @@ const (
 	// unknown and the spec was left untouched.
 	ReasonSCCCheckFailed = "SCCCheckFailed"
 	// ReasonServiceAccountRetained: a previously verified ServiceAccount was kept even
-	// though this round could not confirm it. Counts as "previously configured" for
-	// WasServiceAccountConfigured, so the decision stays stable across reconciles
-	// instead of alternating. A restored grant is picked up on the next reconcile.
+	// though this round could not confirm it.
 	ReasonServiceAccountRetained = "ServiceAccountRetained"
 )
 
 // WasServiceAccountConfigured reports whether an earlier reconcile resolved the node
-// agent to the bundle ServiceAccount, read from the OpenShiftSCC condition reason —
-// the same trick wasProviderDetected uses, so no status field is needed.
-//
-// Retained counts alongside Configured: otherwise the first retained reconcile erases
-// the memory that made it retain, and the next one reverts.
+// agent to the bundle ServiceAccount. Retained counts alongside Configured, otherwise
+// the first retained reconcile forgets and the next one reverts.
 func WasServiceAccountConfigured(reason string) bool {
 	return reason == ReasonServiceAccountConfigured || reason == ReasonServiceAccountRetained
 }
 
 // Outcome is the result of the node-agent ServiceAccount / SCC reconciliation.
 type Outcome struct {
-	// ServiceAccount is the account that was checked: the user's if they set one,
-	// otherwise the bundle default.
+	// ServiceAccount is the account that was checked: the user's if set, else the bundle one.
 	ServiceAccount string
-	// UserManaged reports that ServiceAccount came from spec.override rather than
-	// from this package.
+	// UserManaged reports that ServiceAccount came from spec.override.
 	UserManaged bool
 	// Allowed is the authorization verdict. Meaningless when Err is set.
 	Allowed bool
-	// Applied reports that this package wrote the ServiceAccount into the spec after
-	// verifying it.
+	// Applied reports that the ServiceAccount was written into the spec.
 	Applied bool
-	// Retained reports that a previously verified ServiceAccount was kept even though
+	// Retained reports that a previously verified ServiceAccount was kept although
 	// this round could not confirm it.
 	Retained bool
 	// Err is a failure of the check itself, not a denial.
@@ -77,27 +69,11 @@ type Outcome struct {
 // ServiceAccount permitted to use the required SCC, and fills in the bundle
 // ServiceAccount when the user has not chosen one.
 //
-// Two rules that are easy to conflate are kept separate here:
-//
-//  1. A user-supplied ServiceAccount is never overwritten.
-//  2. Whichever ServiceAccount will be used is always verified. Reporting healthy just
-//     because the user chose the value would sit a green condition next to a DaemonSet
-//     whose pods are being rejected.
-//
-// Nothing is written when the check cannot confirm authorization: an unverified
-// ServiceAccount is as broken as none, and harder to debug.
-// previouslyConfigured makes the decision durable: once an account has been verified,
-// a round that cannot confirm it keeps it rather than reverting.
-//
-// The operator fills a gap; it does not revise a decision. A failed check is either a
-// transient error, where reverting would take the Agent down over a blip, or a grant
-// the cluster owner deliberately removed — in which case the configuration change is
-// theirs to make, not ours to infer. Either way the account stands and the condition
-// reports it.
-//
-// This is not the reasoning behind the provider no-downgrade guard, which rests on the
-// provider being immutable. SCC access is mutable, so a denial may well be accurate;
-// the point is that acting on it is not the operator's call.
+// A user-supplied account is verified but never overwritten, so the condition cannot
+// report healthy while pods are being rejected. Nothing is written when the check
+// cannot confirm authorization. previouslyConfigured keeps an already-verified account
+// through a round that cannot confirm it: the check may be failing transiently, and a
+// grant the cluster owner removed is theirs to restore.
 func ReconcileAgentServiceAccount(ctx context.Context, auth SCCAuthorizer, namespace string, spec *v2alpha1.DatadogAgentSpec, previouslyConfigured bool) Outcome {
 	userSA := nodeAgentServiceAccount(spec)
 
@@ -179,27 +155,19 @@ func (o Outcome) Condition() (metav1.ConditionStatus, string, string) {
 	}
 }
 
-// IsBundleManagedServiceAccount reports whether the named ServiceAccount is the one the
-// OpenShift bundle vends. OLM creates it from the CSV's clusterPermissions and tracks it
-// as an install requirement, so the operator binds RBAC to it but leaves its lifecycle
-// alone: owning it would let a DatadogAgentInternal deletion garbage collect an account
-// OLM still expects, leaving the CSV in RequirementsNotMet.
-//
-// Gated on the provider so a cluster that happens to reuse the name still gets the
-// account created for it.
+// IsBundleManagedServiceAccount reports whether the named ServiceAccount is the one OLM
+// creates from the bundle CSV. Those are bound but never created or owned by the
+// operator: OLM tracks the account as an install requirement, so garbage collecting it
+// would leave the CSV in RequirementsNotMet.
 func IsBundleManagedServiceAccount(provider, name string) bool {
 	return name == SCCServiceAccountName && kubernetes.IsOpenShiftProvider(provider)
 }
 
 // DisownBundleServiceAccount removes the operator's ownerReference and store label from
 // the bundle-managed ServiceAccount, for accounts adopted before the operator stopped
-// managing them.
-//
-// Both markers have to go, and before Store.Cleanup runs: the label makes Cleanup delete
-// the account now that it is no longer a dependency, and the ownerReference makes the
-// garbage collector delete it when the owner goes away.
-//
-// A no-op when the account is absent or carries neither marker.
+// managing them. Both have to go, and before Store.Cleanup runs: the label makes Cleanup
+// delete the account now that it is not a dependency, the ownerReference makes the
+// garbage collector delete it with its owner. A no-op if neither is present.
 func DisownBundleServiceAccount(ctx context.Context, c client.Client, namespace string, owner types.UID) error {
 	sa := &corev1.ServiceAccount{}
 	if err := c.Get(ctx, types.NamespacedName{Namespace: namespace, Name: SCCServiceAccountName}, sa); err != nil {
@@ -232,8 +200,7 @@ func nodeAgentServiceAccount(spec *v2alpha1.DatadogAgentSpec) string {
 
 // setNodeAgentServiceAccount writes the node agent ServiceAccount into the spec.
 // Downstream this is read back through constants.GetAgentServiceAccount, so the pod
-// spec and the RBAC binding stay consistent without either needing to know about
-// OpenShift.
+// spec and the RBAC binding stay consistent.
 func setNodeAgentServiceAccount(spec *v2alpha1.DatadogAgentSpec, name string) {
 	if spec.Override == nil {
 		spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{}

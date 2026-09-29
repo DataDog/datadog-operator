@@ -167,10 +167,7 @@ func TestRender_Golden(t *testing.T) {
 			provider: kubernetes.TalosProvider,
 			golden:   "testdata/golden/talos-talos.golden.yaml",
 		},
-		// OpenShift cases. Committed against current (pre-change) behavior first, so
-		// the diff these goldens show in the follow-up commit IS the OpenShift support
-		// delta — same safety-net approach this file already uses for the Autopilot
-		// refactor. Provider strings are the real node-label-derived values: OpenShift
+		// OpenShift cases. Provider strings are the real node-label-derived values:
 		// detection yields "openshift-<os_id>", never a bare "openshift".
 		{
 			// Control: identical fixture with no provider. Diffing this against the
@@ -181,8 +178,7 @@ func TestRender_Golden(t *testing.T) {
 		},
 		{
 			// The common real-world value (production OpenShift nodes report rhcos).
-			// Expected to gain: SELinux spc_t, master/infra tolerations, UDS off +
-			// hostPort on, kubelet tlsVerify false.
+			// Gains SELinux spc_t, master/infra tolerations and kubelet tlsVerify false.
 			name:       "openshift dda, openshift-rhcos",
 			ddaFile:    "testdata/openshift-dda.yaml",
 			provider:   "openshift-rhcos",
@@ -199,9 +195,9 @@ func TestRender_Golden(t *testing.T) {
 			golden:     "testdata/golden/openshift-nologs.golden.yaml",
 		},
 		{
-			// Every injectable field explicitly user-set to the OPPOSITE value. The
-			// operator fills gaps and must not overwrite intent, so this golden should
-			// be unchanged by the OpenShift work except for additive tolerations.
+			// Every injectable field explicitly user-set to the opposite value: the
+			// operator fills gaps and must not overwrite intent. Only tolerations
+			// differ, since those are appended.
 			name:       "openshift user-set dda, openshift-rhcos",
 			ddaFile:    "testdata/openshift-userset-dda.yaml",
 			provider:   "openshift-rhcos",
