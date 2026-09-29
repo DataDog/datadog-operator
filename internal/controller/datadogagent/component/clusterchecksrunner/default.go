@@ -260,7 +260,7 @@ func defaultEnvVars(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec) []cor
 			Value: "false",
 		},
 		{
-			Name:  DDDiscoveryEnabled,
+			Name:  common.DDServiceDiscoveryEnabled,
 			Value: "false",
 		},
 		{

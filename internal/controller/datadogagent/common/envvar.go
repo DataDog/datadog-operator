@@ -25,6 +25,7 @@ const (
 	DDLogsEnabled                         = "DD_LOGS_ENABLED"
 	DDProcessCollectionEnabled            = "DD_PROCESS_CONFIG_PROCESS_COLLECTION_ENABLED"
 	DDProcessConfigRunInCoreAgent         = "DD_PROCESS_CONFIG_RUN_IN_CORE_AGENT_ENABLED"
+	DDServiceDiscoveryEnabled             = "DD_DISCOVERY_ENABLED"
 	DDSystemProbeEnabled                  = "DD_SYSTEM_PROBE_ENABLED"
 	DDSystemProbeExternal                 = "DD_SYSTEM_PROBE_EXTERNAL"
 	DDSystemProbeSocket                   = "DD_SYSPROBE_SOCKET"
