@@ -36,7 +36,7 @@ variables:
   GOMAXPROCS: 4
 
 stages:
-  - build
+  - build_and_test
   - test
   - image
   - deps_fetch
@@ -49,7 +49,7 @@ stages:
 .on_build_images:
   - if: "$CI_COMMIT_BRANCH =~ /^mq-working-branch-/"
     when: never
-  - when: always
+  - when: on_success
 
 # Release-bundle PRs are opened by the operator-release bot on `operator-release/*`
 # branches and only ever contain the regenerated bundle manifests plus
@@ -64,93 +64,47 @@ stages:
   if: '$CI_COMMIT_BRANCH =~ /^operator-release\// || ($CI_COMMIT_BRANCH =~ /^mq-working-branch-/ && $CI_COMMIT_TITLE =~ /^\[datadog-operator\] Release v/)'
   when: never
 
-build:
-  stage: build
+# Keep the core checks in one pod so each step reuses modules, tools, and
+# compilation from the previous steps. Check generated diffs immediately so
+# later steps cannot hide changes; GitLab stops on the first failed command.
+build_and_test:
+  stage: build_and_test
+  retry: 2
   tags: ["arch:amd64"]
   variables:
     <<: *resource_variables
-  before_script:
-    - make install-tools
   script:
-    - make build
-
-unit_tests:
-  stage: test
-  tags: ["arch:amd64"]
-  rules:
-    - if: '$DDR == "true"'
-      when: never
-    - when: on_success
-  variables:
-    <<: *resource_variables
-  before_script:
-    - make install-tools
-  script:
-    - make ci-test
-
-verify_licenses:
-  stage: test
-  tags: ["arch:amd64"]
-  rules:
-    - if: '$DDR == "true"'
-      when: never
-    - when: on_success
-  before_script:
-    - make install-tools
-  script:
-    - make verify-licenses
-
-check-golang-version:
-  stage: build
-  tags: ["arch:amd64"]
-  rules:
-    - if: '$DDR == "true"'
-      when: never
-    - when: on_success
-  before_script:
-    - make install-tools
-  script:
+    # DDR historically runs build/generation/lint, without the other checks.
+    - if [ "$DDR" = "true" ]; then make build; exit $?; fi
+    - make ci-build
     - make update-golang
     - git diff --exit-code
-
-generate_code:
-  stage: test
-  tags: ["arch:amd64"]
-  rules:
-    - if: '$DDR == "true"'
-      when: never
-    - when: on_success
-  before_script:
-    - make install-tools
-  script:
-    - make generate manifests
+    - make verify-licenses
+    - make generate
     - git diff --exit-code
-
-check_formatting:
-  stage: test
-  tags: ["arch:amd64"]
-  rules:
-    - if: '$DDR == "true"'
-      when: never
-    - when: on_success
-  variables:
-    <<: *resource_variables
-  before_script:
-    - make install-tools
-  script:
     - make fmt
     - git diff --exit-code
+    - make lint
+    - make ci-test
 
 lint_e2e:
-  stage: test
+  # Download modules in this pod; without a shared cache there is no deps gate.
+  # Keeping this in the e2e stage also lets image builds proceed during lint.
+  stage: e2e
+  retry: 2
+  image: registry.ddbuild.io/ci/datadog-agent-buildimages/linux$CI_IMAGE_LINUX_SUFFIX:$CI_IMAGE_LINUX
   tags: ["arch:amd64"]
+  needs: []
   rules:
+    - *skip_e2e_on_release_bundle_branch
     - if: '$DDR == "true"'
       when: never
     - if: $CI_COMMIT_BRANCH
       changes:
         paths:
           - "test/e2e/**/*"
+          - ".gitlab-ci.yml"
+          - "Makefile"
         compare_to: "refs/heads/main"
       when: on_success
     - if: '$CI_COMMIT_BRANCH == "main"'
@@ -158,13 +112,13 @@ lint_e2e:
     - when: never
   variables:
     <<: *resource_variables
-  before_script:
-    - make install-tools
   script:
     - make lint-e2e
 
 build_operator_image_amd64:
   stage: image
+  retry: 2
+  timeout: 20m
   tags:
     - "arch:amd64"
   image: $JOB_DOCKER_IMAGE
@@ -191,6 +145,8 @@ build_operator_image_fips_amd64:
 
 build_operator_image_arm64:
   stage: image
+  retry: 2
+  timeout: 20m
   rules: !reference [.on_build_images]
   tags:
     - "arch:arm64"
@@ -217,6 +173,8 @@ build_operator_image_fips_arm64:
 
 build_operator_check_image_amd64:
   stage: image
+  retry: 2
+  timeout: 20m
   rules: !reference [.on_build_images]
   tags:
     - "arch:amd64"
@@ -235,6 +193,8 @@ build_operator_check_image_amd64:
 
 build_operator_check_image_arm64:
   stage: image
+  retry: 2
+  timeout: 20m
   rules: !reference [.on_build_images]
   tags:
     - "arch:arm64"
@@ -252,6 +212,8 @@ build_operator_check_image_arm64:
 
 build_bundle_image:
   stage: image
+  retry: 2
+  timeout: 20m
   rules: !reference [.on_build_images]
   tags:
     - "arch:amd64"
@@ -263,8 +225,9 @@ build_bundle_image:
     - BUNDLE_IMG=$TARGET_IMAGE make bundle-build-push
     - if [ -n "$CI_COMMIT_TAG" ]; then docker buildx imagetools create $TARGET_IMAGE --tag $RELEASE_IMAGE; fi
 
-go_e2e_deps:
+prepare_e2e_plugins:
   stage: deps_fetch
+  retry: 2
   image: registry.ddbuild.io/ci/datadog-agent-buildimages/linux$CI_IMAGE_LINUX_SUFFIX:$CI_IMAGE_LINUX
   tags: ["arch:amd64"]
   variables:
@@ -276,12 +239,7 @@ go_e2e_deps:
     GOMAXPROCS: 4
   rules:
     - *skip_e2e_on_release_bundle_branch
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
-      variables:
-        POLICY: pull-push
-    - if: $CI_COMMIT_BRANCH != $CI_DEFAULT_BRANCH
-      variables:
-        POLICY: pull
+    - when: on_success
   id_tokens:
     DDOCTOSTS_ID_TOKEN:
       aud: dd-octo-sts
@@ -290,38 +248,17 @@ go_e2e_deps:
     - export GITHUB_TOKEN=$(dd-octo-sts token --scope DataDog/datadog-operator --policy self.gitlab.deps-fetch)
   script:
     - |
-      # Pre-warm Go module and build caches before the e2e matrix starts.
+      # Resolve the Go program's dependencies so Pulumi can discover plugins.
+      # Go modules/build outputs stay in this pod; only plugins are artifacts.
       pushd test/e2e
       GOWORK=off go mod download
-      GOWORK=off go test -p 4 ./... -count=1 --tags=e2e -run '^$'
+      GOWORK=off PULUMI_CONFIG_PASSPHRASE=dummy pulumi --non-interactive plugin install
       popd
-    - |
-      if [ ! -f pulumi_plugins.tar.xz ]; then
-        # Pre-download Pulumi plugins used by e2e scenarios and components
-        pushd test/e2e
-        GOWORK=off PULUMI_CONFIG_PASSPHRASE=dummy pulumi --non-interactive plugin install
-        popd
-        tar c -I "xz -T${KUBERNETES_CPU_REQUEST}" -f $CI_PROJECT_DIR/pulumi_plugins.tar.xz -C ~/.pulumi plugins
-      fi
+      tar c -I "xz -T${KUBERNETES_CPU_REQUEST}" -f $CI_PROJECT_DIR/pulumi_plugins.tar.xz -C ~/.pulumi plugins
   artifacts:
     expire_in: 1 day
     paths:
       - $CI_PROJECT_DIR/pulumi_plugins.tar.xz
-  cache:
-    - key: e2e-go-${CI_COMMIT_REF_SLUG}
-      fallback_keys:
-        - e2e-go-${CI_DEFAULT_BRANCH}
-      paths:
-        - .go/pkg/mod
-        - .cache/go-build
-      policy: pull-push
-    - key:
-        files:
-          - ./test/e2e/go.mod
-          - .gitlab-ci.yml
-        prefix: "pulumi_plugins"
-      paths:
-        - pulumi_plugins.tar.xz
 
 .on_run_e2e_base:
   - *skip_e2e_on_release_bundle_branch
@@ -381,16 +318,8 @@ go_e2e_deps:
     E2E_AWS_PRIVATE_KEY_PATH: /tmp/agent-qa-ssh-key
     E2E_KEY_PAIR_NAME: ci.datadog-operator
   image: registry.ddbuild.io/ci/datadog-agent-buildimages/linux$CI_IMAGE_LINUX_SUFFIX:$CI_IMAGE_LINUX
-  cache:
-    - key: e2e-go-${CI_COMMIT_REF_SLUG}
-      fallback_keys:
-        - e2e-go-${CI_DEFAULT_BRANCH}
-      paths:
-        - .go/pkg/mod
-        - .cache/go-build
-      policy: pull
   before_script:
-    # Extract cached Pulumi plugins
+    # Extract the plugins artifact prepared once for this pipeline.
     - mkdir -p ~/.pulumi && tar xJf pulumi_plugins.tar.xz -C ~/.pulumi
     - rm -f pulumi_plugins.tar.xz
     # Generate GitHub token to avoid rate limiting when downloading Pulumi plugins
@@ -420,16 +349,8 @@ go_e2e_deps:
     E2E_GCP_PRIVATE_KEY_PATH: /tmp/agent-qa-gcp-ssh-key
     E2E_KEY_PAIR_NAME: ci.datadog-operator
   image: registry.ddbuild.io/ci/datadog-agent-buildimages/linux$CI_IMAGE_LINUX_SUFFIX:$CI_IMAGE_LINUX
-  cache:
-    - key: e2e-go-${CI_COMMIT_REF_SLUG}
-      fallback_keys:
-        - e2e-go-${CI_DEFAULT_BRANCH}
-      paths:
-        - .go/pkg/mod
-        - .cache/go-build
-      policy: pull
   before_script:
-    # Extract cached Pulumi plugins
+    # Extract the plugins artifact prepared once for this pipeline.
     - mkdir -p ~/.pulumi && tar xJf pulumi_plugins.tar.xz -C ~/.pulumi
     - rm -f pulumi_plugins.tar.xz
     # Generate GitHub token to avoid rate limiting when downloading Pulumi plugins
@@ -475,6 +396,7 @@ go_e2e_deps:
 # Exercise the shared argument builder without contacting a registry.
 test_publish_image_merge_strategy:
   stage: test
+  retry: 2
   extends: .docker_publish_job_definition
   needs: []
   rules:
@@ -509,6 +431,7 @@ test_publish_image_merge_strategy:
 
 trigger_e2e_operator_image:
   stage: e2e
+  retry: 2
   rules: !reference [.on_run_e2e_base]
   needs:
     - build_operator_image_amd64
@@ -523,7 +446,7 @@ e2e:
   stage: e2e
   needs:
     - "trigger_e2e_operator_image"
-    - "go_e2e_deps"
+    - "prepare_e2e_plugins"
   rules: !reference [.on_run_e2e]
   id_tokens:
     DDOCTOSTS_ID_TOKEN:
@@ -550,7 +473,6 @@ e2e:
 e2e_mq:
   extends: e2e
   timeout: 60m
-  retry: 0
   rules:
     - *skip_e2e_on_release_bundle_branch
     # Skip if only .md files are changed
@@ -570,7 +492,10 @@ e2e_autoscaling:
   extends: .e2e_aws_base
   stage: e2e
   needs:
-    - "go_e2e_deps"
+    - "prepare_e2e_plugins"
+    # Reuse the successful core checks instead of running lint/vet again in E2E.
+    - job: "build_and_test"
+      artifacts: false
   timeout: 150m
   id_tokens:
     DDOCTOSTS_ID_TOKEN:
@@ -605,7 +530,7 @@ e2e_gke_autopilot:
   stage: e2e
   needs:
     - "trigger_e2e_operator_image"
-    - "go_e2e_deps"
+    - "prepare_e2e_plugins"
   timeout: 120m
   id_tokens:
     DDOCTOSTS_ID_TOKEN:
@@ -639,7 +564,7 @@ e2e_untaint:
   needs:
     # Needs the operator image (unlike autoscaling, which exercises the CLI).
     - "trigger_e2e_operator_image"
-    - "go_e2e_deps"
+    - "prepare_e2e_plugins"
   timeout: 100m
   id_tokens:
     DDOCTOSTS_ID_TOKEN:
