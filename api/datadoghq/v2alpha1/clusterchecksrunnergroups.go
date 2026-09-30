@@ -38,14 +38,13 @@ type ClusterChecksRunnerGroup struct {
 // runner group. A user-declared group with this name replaces the built-in.
 const KubeChecksRunnerGroupName = "kube"
 
-// KubeChecksRunnerGroupChecksInclude is the list of kube-family checks the
-// built-in group claims. Single source of truth; do not mutate.
+// KubeChecksRunnerGroupChecksInclude is the default list of checks the
+// built-in group claims: KSM core and the orchestrator check. Single source
+// of truth; do not mutate. Control-plane monitoring checks stay in the
+// general pool unless added via checksInclude.
 var KubeChecksRunnerGroupChecksInclude = []string{
 	"kubernetes_state_core",
 	"orchestrator",
-	"kube_apiserver_metrics",
-	"kube_controller_manager",
-	"kube_scheduler",
 }
 
 // defaultKubeChecksRunnerGroupReplicas is the built-in group's default
