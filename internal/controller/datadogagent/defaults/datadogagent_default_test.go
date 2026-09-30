@@ -2871,3 +2871,86 @@ func Test_defaultFeatures_ServiceDiscoveryEnabledRemainsUnsetWhenOmitted(t *test
 		})
 	}
 }
+
+func Test_DefaultProviderSpecificConfig_KubeletTLSVerify(t *testing.T) {
+	tests := []struct {
+		name     string
+		provider string
+		// userTLSVerify is spec.global.kubelet.tlsVerify as submitted; nil means unset.
+		userTLSVerify *bool
+		want          *bool
+	}{
+		{
+			// The value detection produces on a production OpenShift cluster.
+			name:     "openshift-rhcos, unset: defaults to false",
+			provider: "openshift-rhcos",
+			want:     ptr.To(false),
+		},
+		{
+			// The value CRC reports.
+			name:     "openshift-rhel, unset: defaults to false",
+			provider: "openshift-rhel",
+			want:     ptr.To(false),
+		},
+		{
+			// Documented provider annotation value; must behave like the detected form.
+			name:     "bare openshift, unset: defaults to false",
+			provider: "openshift",
+			want:     ptr.To(false),
+		},
+		{
+			// The operator fills gaps, it does not overrule intent.
+			name:          "openshift, user set true: preserved",
+			provider:      "openshift-rhcos",
+			userTLSVerify: ptr.To(true),
+			want:          ptr.To(true),
+		},
+		{
+			name:          "openshift, user set false: preserved",
+			provider:      "openshift-rhcos",
+			userTLSVerify: ptr.To(false),
+			want:          ptr.To(false),
+		},
+		{
+			// Off OpenShift the field stays nil, which emits no DD_KUBELET_TLS_VERIFY
+			// at all rather than an explicit "true".
+			name:     "eks: left unset",
+			provider: "eks",
+			want:     nil,
+		},
+		{
+			name:     "no provider: left unset",
+			provider: "",
+			want:     nil,
+		},
+		{
+			// Guards the trailing "-" in the provider prefix test.
+			name:     "provider merely sharing the prefix: left unset",
+			provider: "openshiftfoo",
+			want:     nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ddaSpec := &v2alpha1.DatadogAgentSpec{}
+			if tt.userTLSVerify != nil {
+				ddaSpec.Global = &v2alpha1.GlobalConfig{
+					Kubelet: &v2alpha1.KubeletConfig{TLSVerify: tt.userTLSVerify},
+				}
+			}
+
+			// DefaultProviderSpecificConfig documents that it runs after this.
+			DefaultDatadogAgentSpec(ddaSpec)
+			DefaultProviderSpecificConfig(ddaSpec, tt.provider)
+
+			got := ddaSpec.Global.Kubelet.TLSVerify
+			if tt.want == nil {
+				assert.Nil(t, got)
+				return
+			}
+			assert.NotNil(t, got)
+			assert.Equal(t, *tt.want, *got)
+		})
+	}
+}
