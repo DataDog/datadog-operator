@@ -2221,7 +2221,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: 1ac0bc4ac5a5686c6c6632c10abbb26c
+    agent.datadoghq.com/agentspechash: 9e6bad8bf0cb0258bfa8e4210f4c778b
   labels:
     agent.datadoghq.com/component: cluster-checks-runner
     agent.datadoghq.com/name: datadog-agent
@@ -2297,6 +2297,8 @@ spec:
             fieldRef:
               fieldPath: metadata.name
         - name: DD_USE_DOGSTATSD
+          value: "false"
+        - name: DD_DISCOVERY_ENABLED
           value: "false"
         - name: DD_PROCESS_CONFIG_PROCESS_COLLECTION_ENABLED
           value: "false"
