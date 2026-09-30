@@ -9,6 +9,7 @@ import (
 	"context"
 	"sort"
 	"sync"
+	"time"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
@@ -18,6 +19,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/common"
@@ -33,32 +35,32 @@ const (
 	// above which a component container is flagged as crash-looping even when it
 	// is not currently backing off.
 	defaultRestartThreshold = 5
+
+	// defaultSnapshotInterval is the cadence at which the current active-issue
+	// set is handed to the emitter.
+	defaultSnapshotInterval = 60 * time.Second
 )
+
+var _ manager.LeaderElectionRunnable = &ComponentHealthReconciler{}
 
 // +kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch
 
-// componentHealthEmitter reports state transitions of component-level issues:
-// Emit when an issue type first appears on a component (its first affected pod),
-// Resolve when the last affected pod recovers. The controller only calls these
-// on transitions, so callers receive edges (appeared/cleared), not the full
-// state on every reconcile.
+// componentHealthEmitter reports the current set of active component-level
+// issues. It is snapshot-based: the controller periodically walks its
+// active-issue map (see ComponentHealthReconciler.Start) and hands the full
+// current state to Snapshot on a fixed cadence, so callers receive the complete
+// picture every tick rather than per-issue edges.
 //
-// The default implementation logs and increments a Prometheus counter. A backend
-// implementation that ships issues to the health-platform intake can be added
-// behind this interface without changing the controller.
+// Snapshot is always called outside r.mu: the reconciler copies its state under
+// the lock and releases it before calling Snapshot, so implementations may do
+// blocking network I/O without serializing reconciliation of unrelated pods
+// behind a slow or retrying intake call.
 //
-// TODO(componentHealth): Emit/Resolve are currently called synchronously while
-// r.mu is held (see addPod/dropPod), and are transition-based only. That's fine
-// for the in-process log/metric emitter, but the production backend emitter is
-// expected to be snapshot-based (periodically walk the active-issue map and POST
-// the full current state) rather than transition-based, and must not do network
-// I/O while holding r.mu — that would serialize/block reconciliation of
-// unrelated pods behind a slow or retrying intake call. Reshape this interface
-// (e.g. a Snapshot(ctx, []ComponentIssue) called outside the lock on a ticker)
-// before wiring in a backend emitter.
+// The default implementation (logEmitter) logs the snapshot. The production
+// implementation (snapshotEmitter) POSTs a HealthReport to the agenthealth
+// intake.
 type componentHealthEmitter interface {
-	Emit(ctx context.Context, issue componenthealth.ComponentIssue)
-	Resolve(ctx context.Context, issue componenthealth.ComponentIssue)
+	Snapshot(ctx context.Context, issues []componenthealth.ComponentIssue)
 }
 
 // componentIssueKey identifies a component-level issue instance.
@@ -93,6 +95,7 @@ type ComponentHealthReconciler struct {
 	log              logr.Logger
 	restartThreshold int32
 	emitter          componentHealthEmitter
+	snapshotInterval time.Duration
 
 	// mu guards reported. reported holds every currently-active component-level
 	// issue and the set of pods exhibiting it, so the controller emits only on
@@ -110,6 +113,7 @@ func NewComponentHealthReconciler(c client.Client, log logr.Logger) *ComponentHe
 		log:              log,
 		restartThreshold: defaultRestartThreshold,
 		emitter:          &logEmitter{log: log},
+		snapshotInterval: defaultSnapshotInterval,
 		reported:         map[componentIssueKey]*componentIssueState{},
 	}
 }
@@ -121,7 +125,7 @@ func (r *ComponentHealthReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 	if err := r.client.Get(ctx, req.NamespacedName, pod); err != nil {
 		if apierrors.IsNotFound(err) {
 			// Pod is gone: drop it from every component issue it contributed to.
-			r.forgetPod(ctx, req.NamespacedName)
+			r.forgetPod(req.NamespacedName)
 			return ctrl.Result{}, nil
 		}
 		return ctrl.Result{}, err
@@ -129,13 +133,13 @@ func (r *ComponentHealthReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 
 	// A pod being deleted is treated like a gone pod.
 	if !pod.DeletionTimestamp.IsZero() {
-		r.forgetPod(ctx, req.NamespacedName)
+		r.forgetPod(req.NamespacedName)
 		return ctrl.Result{}, nil
 	}
 
 	component := componenthealth.ManagedComponent(pod)
 	issues := componenthealth.DetectPodIssues(pod, r.restartThreshold)
-	r.reconcilePod(ctx, req.NamespacedName, component, issues)
+	r.reconcilePod(req.NamespacedName, component, issues)
 	return ctrl.Result{}, nil
 }
 
@@ -143,7 +147,7 @@ func (r *ComponentHealthReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 // state: it registers the pod on the issues it now exhibits and removes it from
 // the component issues it no longer does, emitting Emit/Resolve on the component's
 // presence transitions.
-func (r *ComponentHealthReconciler) reconcilePod(ctx context.Context, pod types.NamespacedName, component string, issues []componenthealth.DetectedIssue) {
+func (r *ComponentHealthReconciler) reconcilePod(pod types.NamespacedName, component string, issues []componenthealth.DetectedIssue) {
 	// A pod can carry the same issue type on more than one container (e.g. two
 	// crash-looping containers)
 	current := make(map[string]struct{}, len(issues))
@@ -163,19 +167,21 @@ func (r *ComponentHealthReconciler) reconcilePod(ctx context.Context, pod types.
 		if _, still := current[key.issueType]; still {
 			continue
 		}
-		r.dropPod(ctx, key, state, pod.Name)
+		r.dropPod(key, state, pod.Name)
 	}
 
 	// Register the pod on every issue it currently exhibits.
 	for issueType := range current {
 		key := componentIssueKey{namespace: pod.Namespace, component: component, issueType: issueType}
-		r.addPod(ctx, key, pod.Name)
+		r.addPod(key, pod.Name)
 	}
 }
 
-// addPod records that a pod exhibits a component issue, emitting Emit if this is
-// the first affected pod (the issue transitioning to active). Caller holds mu.
-func (r *ComponentHealthReconciler) addPod(ctx context.Context, key componentIssueKey, pod string) {
+// addPod records that a pod exhibits a component issue. On the transition from
+// absent to present on a component (the first affected pod), it counts the issue
+// and logs the edge; the active set itself is reported to the emitter on the
+// snapshot cadence (see Start), not here. Caller holds mu.
+func (r *ComponentHealthReconciler) addPod(key componentIssueKey, pod string) {
 	state := r.reported[key]
 	if state == nil {
 		state = &componentIssueState{pods: map[string]struct{}{}}
@@ -185,20 +191,32 @@ func (r *ComponentHealthReconciler) addPod(ctx context.Context, key componentIss
 	state.pods[pod] = struct{}{}
 
 	if firstPod {
-		r.emitter.Emit(ctx, r.issueFor(key, state))
+		metrics.ComponentHealthIssuesDetected.WithLabelValues(key.component, key.issueType).Inc()
+		issue := r.issueFor(key, state)
+		r.log.Info("component health issue detected",
+			"component", issue.Component,
+			"issue_type", issue.IssueType,
+			"severity", issue.Severity,
+			"namespace", issue.Namespace,
+			"affected_pods", issue.AffectedPods,
+		)
 	}
 	r.setActiveGauge(key)
 }
 
-// dropPod removes a pod from a component issue, emitting Resolve and clearing the
+// dropPod removes a pod from a component issue, logging the edge and clearing the
 // state when the last affected pod is gone. Caller holds mu.
-func (r *ComponentHealthReconciler) dropPod(ctx context.Context, key componentIssueKey, state *componentIssueState, pod string) {
+func (r *ComponentHealthReconciler) dropPod(key componentIssueKey, state *componentIssueState, pod string) {
 	if _, ok := state.pods[pod]; !ok {
 		return
 	}
 	delete(state.pods, pod)
 	if len(state.pods) == 0 {
-		r.emitter.Resolve(ctx, r.issueFor(key, state))
+		r.log.Info("component health issue resolved",
+			"component", key.component,
+			"issue_type", key.issueType,
+			"namespace", key.namespace,
+		)
 		delete(r.reported, key)
 		r.setActiveGauge(key)
 		return
@@ -207,8 +225,8 @@ func (r *ComponentHealthReconciler) dropPod(ctx context.Context, key componentIs
 }
 
 // forgetPod removes a pod from every component issue it contributed to (used when
-// the pod disappears), resolving any issue whose last pod it was.
-func (r *ComponentHealthReconciler) forgetPod(ctx context.Context, pod types.NamespacedName) {
+// the pod disappears), clearing any issue whose last pod it was.
+func (r *ComponentHealthReconciler) forgetPod(pod types.NamespacedName) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -216,9 +234,62 @@ func (r *ComponentHealthReconciler) forgetPod(ctx context.Context, pod types.Nam
 		if key.namespace != pod.Namespace {
 			continue
 		}
-		r.dropPod(ctx, key, state, pod.Name)
+		r.dropPod(key, state, pod.Name)
 	}
 }
+
+// snapshot returns the current set of active component-level issues. It briefly
+// holds r.mu to copy the state and returns before any emission happens, so the
+// emitter is never called while the lock is held.
+func (r *ComponentHealthReconciler) snapshot() []componenthealth.ComponentIssue {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	issues := make([]componenthealth.ComponentIssue, 0, len(r.reported))
+	for key, state := range r.reported {
+		issues = append(issues, r.issueFor(key, state))
+	}
+	sort.Slice(issues, func(i, j int) bool {
+		if issues[i].Component != issues[j].Component {
+			return issues[i].Component < issues[j].Component
+		}
+		if issues[i].Namespace != issues[j].Namespace {
+			return issues[i].Namespace < issues[j].Namespace
+		}
+		return issues[i].IssueType < issues[j].IssueType
+	})
+	return issues
+}
+
+// emitSnapshot hands the current active-issue set to the emitter. The snapshot is
+// computed (and the lock released) before the emitter call, so no lock is held
+// during emission.
+func (r *ComponentHealthReconciler) emitSnapshot(ctx context.Context) {
+	r.emitter.Snapshot(ctx, r.snapshot())
+}
+
+// Start runs the snapshot loop: on a fixed cadence it hands the current
+// active-issue set to the emitter. It implements manager.Runnable and is
+// registered with the manager in SetupWithManager.
+func (r *ComponentHealthReconciler) Start(ctx context.Context) error {
+	ticker := time.NewTicker(r.snapshotInterval)
+	defer ticker.Stop()
+
+	r.log.Info("Starting component health snapshot loop", "interval", r.snapshotInterval)
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		case <-ticker.C:
+			r.emitSnapshot(ctx)
+		}
+	}
+}
+
+// NeedLeaderElection implements manager.LeaderElectionRunnable so the snapshot
+// loop only runs on the leader, preventing multiple operator replicas from
+// double-reporting the same cluster's issues.
+func (r *ComponentHealthReconciler) NeedLeaderElection() bool { return true }
 
 // issueFor builds the component-level issue payload from the current state.
 func (r *ComponentHealthReconciler) issueFor(key componentIssueKey, state *componentIssueState) componenthealth.ComponentIssue {
@@ -269,33 +340,29 @@ func (r *ComponentHealthReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		return err
 	}
 
-	return ctrl.NewControllerManagedBy(mgr).
+	if err := ctrl.NewControllerManagedBy(mgr).
 		Named(componentHealthControllerName).
 		For(&corev1.Pod{}, builder.WithPredicates(pred)).
-		Complete(r)
+		Complete(r); err != nil {
+		return err
+	}
+
+	// Register the snapshot loop as a leader-elected runnable so it ticks
+	// independently of pod reconciles and only on the leader.
+	return mgr.Add(r)
 }
 
-// logEmitter is the default componentHealthEmitter: it logs each component-level
-// transition and increments the issues-detected counter on Emit.
+// logEmitter is the default componentHealthEmitter: it logs the current
+// active-issue snapshot. It is used when the agenthealth intake emitter is not
+// enabled.
 type logEmitter struct {
 	log logr.Logger
 }
 
-func (e *logEmitter) Emit(_ context.Context, issue componenthealth.ComponentIssue) {
-	e.log.Info("component health issue detected",
-		"component", issue.Component,
-		"issue_type", issue.IssueType,
-		"severity", issue.Severity,
-		"namespace", issue.Namespace,
-		"affected_pods", issue.AffectedPods,
-	)
-	metrics.ComponentHealthIssuesDetected.WithLabelValues(issue.Component, issue.IssueType).Inc()
-}
-
-func (e *logEmitter) Resolve(_ context.Context, issue componenthealth.ComponentIssue) {
-	e.log.Info("component health issue resolved",
-		"component", issue.Component,
-		"issue_type", issue.IssueType,
-		"namespace", issue.Namespace,
-	)
+func (e *logEmitter) Snapshot(_ context.Context, issues []componenthealth.ComponentIssue) {
+	if len(issues) == 0 {
+		e.log.V(1).Info("component health snapshot: no active issues")
+		return
+	}
+	e.log.V(1).Info("component health snapshot", "active_issues", len(issues), "issues", issues)
 }

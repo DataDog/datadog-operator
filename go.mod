@@ -35,6 +35,7 @@ require (
 )
 
 require (
+	github.com/DataDog/agent-payload/v5 v5.0.207
 	github.com/DataDog/datadog-agent/pkg/config/create v0.83.2
 	github.com/DataDog/datadog-agent/pkg/config/model v0.83.2
 	github.com/DataDog/datadog-agent/pkg/config/remote v0.83.2
@@ -86,7 +87,6 @@ require (
 	dario.cat/mergo v1.0.2 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20250102033503-faa5f7b0171c // indirect
 	github.com/BurntSushi/toml v1.6.0 // indirect
-	github.com/DataDog/agent-payload/v5 v5.0.207 // indirect
 	github.com/DataDog/datadog-agent/comp/core/delegatedauth v0.83.2 // indirect
 	github.com/DataDog/datadog-agent/comp/core/flare/builder v0.83.2 // indirect
 	github.com/DataDog/datadog-agent/comp/core/flare/types v0.83.2 // indirect

@@ -59,6 +59,8 @@ type SetupOptions struct {
 	RolloutOnConfigMapChangeEnabled   bool
 	DefaultDataPlaneLinuxEnabled      bool
 	ComponentHealthEnabled            bool
+	ComponentHealthIntakeEnabled      bool
+	ComponentHealthSnapshotInterval   time.Duration
 	ClusterProviderDetector           datadogagent.ProviderReader
 }
 
@@ -244,10 +246,28 @@ func startComponentHealth(logger logr.Logger, mgr manager.Manager, _ kubernetes.
 		logger.Info("Feature disabled, not starting the controller", "controller", componentHealthControllerName)
 		return nil
 	}
-	return NewComponentHealthReconciler(
-		mgr.GetClient(),
-		ctrl.Log.WithName("controllers").WithName(componentHealthControllerName),
-	).SetupWithManager(mgr)
+
+	log := ctrl.Log.WithName("controllers").WithName(componentHealthControllerName)
+	reconciler := NewComponentHealthReconciler(mgr.GetClient(), log)
+
+	// Override the default snapshot cadence when configured; a non-positive value
+	// keeps the built-in default.
+	if options.ComponentHealthSnapshotInterval > 0 {
+		reconciler.snapshotInterval = options.ComponentHealthSnapshotInterval
+	}
+
+	// When the intake is enabled, swap the default logging emitter for the
+	// production emitter that POSTs current-state HealthReport snapshots to the
+	// agenthealth intake.
+	if options.ComponentHealthIntakeEnabled {
+		if options.CredsManager == nil {
+			return fmt.Errorf("%s: intake emitter requires a credentials manager", componentHealthControllerName)
+		}
+		reconciler.emitter = newSnapshotEmitter(log.WithName("snapshot-emitter"), mgr.GetClient(), options.CredsManager)
+		logger.Info("ComponentHealth intake emitter enabled: reporting snapshots to the agenthealth intake", "controller", componentHealthControllerName)
+	}
+
+	return reconciler.SetupWithManager(mgr)
 }
 
 func startDatadogAgentProfiles(logger logr.Logger, mgr manager.Manager, pInfo kubernetes.PlatformInfo, options SetupOptions, metricForwardersMgr datadog.MetricsForwardersManager) error {
