@@ -7,7 +7,6 @@ package datadogagentinternal
 
 import (
 	"context"
-	"strings"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -93,7 +92,12 @@ func (r *Reconciler) reconcileClusterChecksRunnerGroup(ctx context.Context, para
 		return reconcile.Result{}, utilerrors.NewAggregate(featErrors)
 	}
 
-	applyClusterChecksRunnerGroupCompatibility(podManagers, group)
+	// The group name is all the pod declares: the Cluster Agent maps it to
+	// the checks the group claims.
+	podManagers.EnvVar().AddEnvVarToContainer(apicommon.ClusterChecksRunnersContainerName, &corev1.EnvVar{
+		Name:  clusterchecksfeature.DDCLCRunnerGroup,
+		Value: group.Name,
+	})
 
 	// Component-level override first; the group's own Override wins on conflicts.
 	for _, componentOverride := range []*datadoghqv2alpha1.DatadogAgentComponentOverride{ddai.Spec.Override[datadoghqv2alpha1.ClusterChecksRunnerComponentName], group.Override} {
@@ -114,18 +118,6 @@ func (r *Reconciler) reconcileClusterChecksRunnerGroup(ctx context.Context, para
 	}
 
 	return r.createOrUpdateDeployment(ctx, ddai, deployment, params.Status, noopComponentUpdateStatus)
-}
-
-// applyClusterChecksRunnerGroupCompatibility sets the group's include list on
-// the runner container, and clears the exclude env that the clusterchecks
-// feature injects on every runner template for the default CCR.
-func applyClusterChecksRunnerGroupCompatibility(podManagers feature.PodTemplateManagers, group datadoghqv2alpha1.ClusterChecksRunnerGroup) {
-	for _, env := range []*corev1.EnvVar{
-		{Name: clusterchecksfeature.DDCLCRunnerChecksInclude, Value: strings.Join(group.ChecksInclude, " ")},
-		{Name: clusterchecksfeature.DDCLCRunnerChecksExclude, Value: ""},
-	} {
-		podManagers.EnvVar().AddEnvVarToContainer(apicommon.ClusterChecksRunnersContainerName, env)
-	}
 }
 
 // cleanupOrphanedClusterChecksRunnerGroups deletes group Deployments whose

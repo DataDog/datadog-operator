@@ -25,8 +25,8 @@ type ClusterChecksRunnerGroup struct {
 	Name string `json:"name"`
 
 	// ChecksInclude is the exclusive, non-empty list of check names this group runs.
-	// A check can be claimed by at most one group; node agents and the default
-	// runners are configured to exclude every claimed check.
+	// A check can be claimed by at most one group: the Cluster Agent only dispatches
+	// it to this group, and never to node agents or the default runners.
 	ChecksInclude []string `json:"checksInclude"`
 
 	// Override allows customization of this runner group's Deployment.

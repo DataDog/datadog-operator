@@ -6,8 +6,7 @@
 package clusterchecks
 
 import (
-	"slices"
-	"strings"
+	"encoding/json"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
@@ -47,9 +46,9 @@ type clusterChecksFeature struct {
 	customConfigAnnotationKey   string
 	customConfigAnnotationValue string
 
-	// defaultRunnerChecksExclude is the space-joined union of every runner
-	// group's ChecksInclude: claimed checks stay off node agents and the default CCR.
-	defaultRunnerChecksExclude string
+	// runnerGroups is the Cluster Agent's experimental.clc_runner_groups value:
+	// the JSON map of each runner group to the checks it claims.
+	runnerGroups string
 
 	logger logr.Logger
 }
@@ -86,7 +85,7 @@ func (f *clusterChecksFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Da
 			f.logger.Error(err, "ignoring experimental cluster checks runner groups")
 		}
 		f.ccrFamilyEnabled = f.useClusterCheckRunners || len(runnerGroups) > 0
-		f.defaultRunnerChecksExclude = defaultRunnerChecksExclude(runnerGroups)
+		f.runnerGroups = runnerGroupsJSON(runnerGroups)
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
 				IsRequired: new(true),
@@ -191,6 +190,19 @@ func (f *clusterChecksFeature) ManageClusterAgent(managers feature.PodTemplateMa
 		},
 	)
 
+	// The Cluster Agent dispatches each claimed check only to its group, and
+	// every other check only to general workers (node agents, default CCR).
+	// Changing the groups rolls the Cluster Agent, not the node agents.
+	if f.runnerGroups != "" {
+		managers.EnvVar().AddEnvVarToContainer(
+			apicommon.ClusterAgentContainerName,
+			&corev1.EnvVar{
+				Name:  DDCLCRunnerGroups,
+				Value: f.runnerGroups,
+			},
+		)
+	}
+
 	if f.customConfigAnnotationKey != "" && f.customConfigAnnotationValue != "" {
 		managers.Annotation().AddAnnotation(f.customConfigAnnotationKey, f.customConfigAnnotationValue)
 	}
@@ -228,26 +240,13 @@ func (f *clusterChecksFeature) manageNodeAgent(agentContainerName apicommon.Agen
 				Value: clusterAndEndpointsConfigProviders,
 			},
 		)
-
-		// Node agents run cluster checks here: strict isolation keeps the
-		// group-claimed checks on their group only.
-		if f.defaultRunnerChecksExclude != "" {
-			managers.EnvVar().AddEnvVarToContainer(
-				agentContainerName,
-				&corev1.EnvVar{
-					Name:  DDCLCRunnerChecksExclude,
-					Value: f.defaultRunnerChecksExclude,
-				},
-			)
-		}
 	}
 
 	return nil
 }
 
 func (f *clusterChecksFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
-	// Applies to the default CCR and runner groups alike: group Deployments
-	// then overwrite the exclude env (applyClusterChecksRunnerGroupCompatibility).
+	// Applies to the default CCR and runner groups alike.
 	if f.ccrFamilyEnabled {
 		managers.EnvVar().AddEnvVarToContainer(
 			apicommon.ClusterChecksRunnersContainerName,
@@ -264,30 +263,25 @@ func (f *clusterChecksFeature) ManageClusterChecksRunner(managers feature.PodTem
 				Value: clusterChecksConfigProvider,
 			},
 		)
-
-		if f.defaultRunnerChecksExclude != "" {
-			managers.EnvVar().AddEnvVarToContainer(
-				apicommon.ClusterChecksRunnersContainerName,
-				&corev1.EnvVar{
-					Name:  DDCLCRunnerChecksExclude,
-					Value: f.defaultRunnerChecksExclude,
-				},
-			)
-		}
 	}
 
 	return nil
 }
 
-// defaultRunnerChecksExclude returns the sorted, de-duplicated, space-joined
-// union of every runner group's ChecksInclude.
-func defaultRunnerChecksExclude(groups []v2alpha1.ClusterChecksRunnerGroup) string {
-	var checks []string
-	for _, group := range groups {
-		checks = append(checks, group.ChecksInclude...)
+// runnerGroupsJSON returns the groups as the Cluster Agent's
+// experimental.clc_runner_groups value: a JSON object mapping each group to
+// the checks it claims, or "" without groups. Map keys are marshalled sorted,
+// so the value is stable across reconciles.
+func runnerGroupsJSON(groups []v2alpha1.ClusterChecksRunnerGroup) string {
+	if len(groups) == 0 {
+		return ""
 	}
-	slices.Sort(checks)
-	return strings.Join(slices.Compact(checks), " ")
+	claims := make(map[string][]string, len(groups))
+	for _, group := range groups {
+		claims[group.Name] = group.ChecksInclude
+	}
+	raw, _ := json.Marshal(claims) // a map of string slices always marshals
+	return string(raw)
 }
 
 func (f *clusterChecksFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers) error {

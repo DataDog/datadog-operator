@@ -137,27 +137,10 @@ func runnerEnv(t *testing.T, deployment appsv1.Deployment, name string) (string,
 	return "", false
 }
 
-func TestApplyClusterChecksRunnerGroupCompatibility(t *testing.T) {
-	podManagers := feature.NewPodTemplateManagers(&corev1.PodTemplateSpec{
-		Spec: corev1.PodSpec{Containers: []corev1.Container{{Name: string(apicommon.ClusterChecksRunnersContainerName)}}},
-	})
-
-	applyClusterChecksRunnerGroupCompatibility(podManagers, datadoghqv2alpha1.ClusterChecksRunnerGroup{
-		Name: "ksm", ChecksInclude: []string{"kubernetes_state_core", "orchestrator"},
-	})
-
-	assert.Equal(t, []corev1.EnvVar{
-		{Name: clusterchecksfeature.DDCLCRunnerChecksInclude, Value: "kubernetes_state_core orchestrator"},
-		{Name: clusterchecksfeature.DDCLCRunnerChecksExclude, Value: ""},
-	}, podManagers.PodTemplateSpec().Spec.Containers[0].Env)
-}
-
 func TestReconcileClusterChecksRunnerGroups(t *testing.T) {
 	type wantGroup struct {
 		replicas *int32
-		include  string
 	}
-	kubeInclude := strings.Join(datadoghqv2alpha1.KubeChecksRunnerGroupChecksInclude, " ")
 	ksm := []datadoghqv2alpha1.ClusterChecksRunnerGroup{{Name: "ksm", ChecksInclude: []string{"kubernetes_state_core"}}}
 
 	tests := []struct {
@@ -173,13 +156,13 @@ func TestReconcileClusterChecksRunnerGroups(t *testing.T) {
 			groups:       ksm,
 			useRunners:   true,
 			clusterAgent: true,
-			want:         map[string]wantGroup{"foo-cluster-checks-runner-ksm": {include: "kubernetes_state_core"}},
+			want:         map[string]wantGroup{"foo-cluster-checks-runner-ksm": {}},
 		},
 		{
 			name:         "runners off, user group is still materialized",
 			groups:       ksm,
 			clusterAgent: true,
-			want:         map[string]wantGroup{"foo-cluster-checks-runner-ksm": {include: "kubernetes_state_core"}},
+			want:         map[string]wantGroup{"foo-cluster-checks-runner-ksm": {}},
 		},
 		{
 			name:         "no cluster agent: nothing materialized",
@@ -192,7 +175,7 @@ func TestReconcileClusterChecksRunnerGroups(t *testing.T) {
 			name:         "mixed mode: built-in kube group with 2 replicas",
 			kubeKnob:     true,
 			clusterAgent: true,
-			want:         map[string]wantGroup{"foo-cluster-checks-runner-kube": {replicas: new(int32(2)), include: kubeInclude}},
+			want:         map[string]wantGroup{"foo-cluster-checks-runner-kube": {replicas: new(int32(2))}},
 		},
 		{
 			name: "user kube group replaces the built-in",
@@ -201,7 +184,7 @@ func TestReconcileClusterChecksRunnerGroups(t *testing.T) {
 			},
 			kubeKnob:     true,
 			clusterAgent: true,
-			want:         map[string]wantGroup{"foo-cluster-checks-runner-kube": {replicas: new(int32(5)), include: "kubernetes_state_core"}},
+			want:         map[string]wantGroup{"foo-cluster-checks-runner-kube": {replicas: new(int32(5))}},
 		},
 		{
 			name:         "knob and runners on: kube group alongside user groups",
@@ -210,8 +193,8 @@ func TestReconcileClusterChecksRunnerGroups(t *testing.T) {
 			useRunners:   true,
 			clusterAgent: true,
 			want: map[string]wantGroup{
-				"foo-cluster-checks-runner-kube":  {replicas: new(int32(2)), include: kubeInclude},
-				"foo-cluster-checks-runner-kafka": {include: "kafka_consumer"},
+				"foo-cluster-checks-runner-kube":  {replicas: new(int32(2))},
+				"foo-cluster-checks-runner-kafka": {},
 			},
 		},
 		{
@@ -242,11 +225,9 @@ func TestReconcileClusterChecksRunnerGroups(t *testing.T) {
 					assert.Equal(t, *want.replicas, *deployment.Spec.Replicas)
 				}
 
-				include, _ := runnerEnv(t, deployment, clusterchecksfeature.DDCLCRunnerChecksInclude)
-				assert.Equal(t, want.include, include)
-				// The default CCR's exclude union is overwritten on group Deployments.
-				exclude, _ := runnerEnv(t, deployment, clusterchecksfeature.DDCLCRunnerChecksExclude)
-				assert.Empty(t, exclude)
+				// The pod only declares its group; the Cluster Agent owns the claims.
+				group, _ := runnerEnv(t, deployment, clusterchecksfeature.DDCLCRunnerGroup)
+				assert.Equal(t, groupName, group)
 			}
 		})
 	}
