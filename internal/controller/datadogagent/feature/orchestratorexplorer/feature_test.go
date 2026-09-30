@@ -163,10 +163,10 @@ instances:
 				WithKubeChecksRunnerDefault().
 				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{Image: &v2alpha1.AgentImageConfig{Tag: "7.51.0"}}).
 				Build(),
-			WantConfigure:       true,
-			ClusterAgent:        orchestratorExplorerClusterAgentWantFunc(),
-			Agent:               test.NewDefaultComponentTest().WithWantFunc(orchestratorExplorerNodeAgentNoProcessAgentWantFunc),
-			ClusterChecksRunner: test.NewDefaultComponentTest().WithWantFunc(orchestratorExplorerClusterChecksRunnerWantFunc),
+			WantConfigure:        true,
+			ClusterAgent:         orchestratorExplorerClusterAgentWantFunc(),
+			Agent:                test.NewDefaultComponentTest().WithWantFunc(orchestratorExplorerNodeAgentNoProcessAgentWantFunc),
+			ClusterChecksRunner:  test.NewDefaultComponentTest().WithWantFunc(orchestratorExplorerClusterChecksRunnerWantFunc),
 			WantDependenciesFunc: test.WantClusterRoleBindingSubject("-datadog-orch-exp-ccr", "datadog-cluster-checks-runner"),
 		},
 		{
