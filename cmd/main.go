@@ -140,6 +140,7 @@ type options struct {
 	untaintControllerWaitForCSIDriver   bool
 	rolloutOnConfigMapChangeEnabled     bool
 	defaultDataPlaneLinuxEnabled        bool
+	componentHealthEnabled              bool
 
 	// Secret Backend options
 	secretBackendCommand  string
@@ -190,6 +191,8 @@ func (opts *options) Parse() {
 	flag.BoolVar(&opts.rolloutOnConfigMapChangeEnabled, "rolloutOnConfigMapChangeEnabled", true,
 		"Automatically roll out Agent, Cluster Agent, Cluster Check Runner, and OTel Agent Gateway workloads when a ConfigMap referenced by their pod template changes content out-of-band")
 	flag.BoolVar(&opts.defaultDataPlaneLinuxEnabled, "defaultDataPlaneLinuxEnabled", false, "Enable the Agent Data Plane by default on Linux")
+	flag.BoolVar(&opts.componentHealthEnabled, "componentHealthEnabled", false,
+		"Enable the ComponentHealth controller, which monitors the managed cluster-level components (cluster-agent, cluster-checks-runner) for Kubernetes health issues (OOMKills, crash loops, scheduling failures, image-pull failures) (beta). Retains Pod status in the cache, increasing the operator's memory usage.")
 
 	// DatadogAgentInternal
 	flag.BoolVar(&opts.createControllerRevisions, "createControllerRevisions", false, "Enable creation of ControllerRevision snapshots on each DDA spec change")
@@ -223,6 +226,7 @@ func (opts *options) Parse() {
 		boolEnv(&opts.datadogCSIDriverEnabled, "DD_CSI_DRIVER_CONTROLLER_ENABLED"),
 		boolEnv(&opts.untaintControllerEnabled, "DD_UNTAINT_CONTROLLER_ENABLED"),
 		boolEnv(&opts.untaintControllerWaitForCSIDriver, "DD_UNTAINT_CONTROLLER_WAIT_FOR_CSI_DRIVER"),
+		boolEnv(&opts.componentHealthEnabled, "DD_COMPONENT_HEALTH_ENABLED"),
 		boolEnv(&opts.createControllerRevisions, "DD_CREATE_CONTROLLER_REVISIONS"),
 		boolEnv(&opts.rolloutOnConfigMapChangeEnabled, "DD_ROLLOUT_ON_CONFIGMAP_CHANGE_ENABLED"),
 		boolEnv(&opts.defaultDataPlaneLinuxEnabled, "DD_DEFAULT_DATA_PLANE_LINUX_ENABLED"),
@@ -403,6 +407,7 @@ func run(opts *options) error {
 			UntaintControllerWaitForCSIDriver: opts.untaintControllerWaitForCSIDriver,
 			ManagedAgentInstallationEnabled:   managedAgentInstallationEnabled,
 			ManagedAgentInstallationNamespace: managedAgentInstallationNamespace,
+			ComponentHealthEnabled:            opts.componentHealthEnabled,
 		}),
 		// UsePriorityQueue makes all controllers use the priority queue, which
 		// directly registers workqueue metrics into controller-runtime's metrics
@@ -505,6 +510,7 @@ func run(opts *options) error {
 		UntaintControllerWaitForCSIDriver: opts.untaintControllerWaitForCSIDriver,
 		RolloutOnConfigMapChangeEnabled:   opts.rolloutOnConfigMapChangeEnabled,
 		DefaultDataPlaneLinuxEnabled:      opts.defaultDataPlaneLinuxEnabled,
+		ComponentHealthEnabled:            opts.componentHealthEnabled,
 		ClusterProviderDetector:           providerDetector,
 	}
 
