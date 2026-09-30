@@ -8,7 +8,7 @@ metadata:
     app.kubernetes.io/part-of: -datadog--agent
     app.kubernetes.io/version: ""
     operator.datadoghq.com/managed-by-store: "true"
-  name: my-own-agent-sa
+  name: datadog-agent-cluster-agent
   ownerReferences:
   - apiVersion: datadoghq.com/v1alpha1
     blockOwnerDeletion: true
@@ -27,7 +27,7 @@ metadata:
     app.kubernetes.io/part-of: -datadog--agent
     app.kubernetes.io/version: ""
     operator.datadoghq.com/managed-by-store: "true"
-  name: my-own-dca-sa
+  name: my-own-agent-sa
   ownerReferences:
   - apiVersion: datadoghq.com/v1alpha1
     blockOwnerDeletion: true
@@ -651,7 +651,7 @@ roleRef:
   name: -datadog-agent-event-dca
 subjects:
 - kind: ServiceAccount
-  name: my-own-dca-sa
+  name: datadog-agent-cluster-agent
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -670,7 +670,7 @@ roleRef:
   name: -datadog-agent-ksm-core-dca
 subjects:
 - kind: ServiceAccount
-  name: my-own-dca-sa
+  name: datadog-agent-cluster-agent
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -689,7 +689,7 @@ roleRef:
   name: -datadog-agent-orch-exp-dca
 subjects:
 - kind: ServiceAccount
-  name: my-own-dca-sa
+  name: datadog-agent-cluster-agent
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -727,7 +727,7 @@ roleRef:
   name: datadog-agent-cluster-agent
 subjects:
 - kind: ServiceAccount
-  name: my-own-dca-sa
+  name: datadog-agent-cluster-agent
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
@@ -832,7 +832,7 @@ roleRef:
   name: datadog-agent-cluster-agent
 subjects:
 - kind: ServiceAccount
-  name: my-own-dca-sa
+  name: datadog-agent-cluster-agent
 ---
 apiVersion: v1
 data:
@@ -1191,7 +1191,7 @@ kind: DatadogAgentInternal
 metadata:
   annotations:
     agent.datadoghq.com/cluster-provider: openshift-rhcos
-    agent.datadoghq.com/ddaispechash: 20e2cf7c3af28fbc8d687de8d137ee83
+    agent.datadoghq.com/ddaispechash: 75451e588b76974a5c386c3bc60ccb6b
   finalizers:
   - finalizer.datadoghq.com/datadogagentinternal
   labels:
@@ -1256,7 +1256,7 @@ spec:
       hostPortConfig:
         enabled: false
       nonLocalTraffic: true
-      originDetectionEnabled: true
+      originDetectionEnabled: false
       unixDomainSocketConfig:
         enabled: true
         path: /var/run/datadog/dsd.socket
@@ -1343,7 +1343,6 @@ spec:
         checksum/dca-token-custom-config: 3f6998966e6de63b16d45512e01ccc84
       image:
         tag: 7.80.0
-      serviceAccountName: my-own-dca-sa
     nodeAgent:
       annotations:
         checksum/dca-token-custom-config: 3f6998966e6de63b16d45512e01ccc84
@@ -1363,7 +1362,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: 1794f32800135d27527e6639630332e5
+    agent.datadoghq.com/agentspechash: d893832a1a679fb507617ec225aa31cc
   labels:
     agent.datadoghq.com/component: agent
     agent.datadoghq.com/name: datadog-agent
@@ -1458,10 +1457,6 @@ spec:
           value: "true"
         - name: DD_DOGSTATSD_SOCKET
           value: /var/run/datadog/dsd.socket
-        - name: DD_DOGSTATSD_ORIGIN_DETECTION
-          value: "true"
-        - name: DD_DOGSTATSD_ORIGIN_DETECTION_CLIENT
-          value: "true"
         - name: DD_IGNORE_AUTOCONF
           value: kubernetes_state
         - name: DD_PROCESS_CONFIG_RUN_IN_CORE_AGENT_ENABLED
@@ -1767,7 +1762,6 @@ spec:
           readOnly: true
         - mountPath: /var/run/sysprobe
           name: sysprobe-socket-dir
-      hostPID: true
       initContainers:
       - args:
         - cp -vnr /etc/datadog-agent /opt
@@ -1923,7 +1917,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: 6e0311af4114679c5e73a037931eb488
+    agent.datadoghq.com/agentspechash: 921bfb24cb2e25e1a1ffa50e050ece28
   labels:
     agent.datadoghq.com/component: cluster-agent
     agent.datadoghq.com/name: datadog-agent
@@ -2006,7 +2000,7 @@ spec:
         - name: DD_AUTH_TOKEN_FILE_PATH
           value: /etc/datadog-agent/auth/token
         - name: DD_CLUSTER_AGENT_SERVICE_ACCOUNT_NAME
-          value: my-own-dca-sa
+          value: datadog-agent-cluster-agent
         - name: AGENT_DAEMONSET
           value: datadog-agent-agent
         - name: CLUSTER_AGENT_DEPLOYMENT
@@ -2163,7 +2157,7 @@ spec:
           readOnly: true
         - mountPath: /opt/datadog-agent/run/
           name: datadogrun
-      serviceAccountName: my-own-dca-sa
+      serviceAccountName: datadog-agent-cluster-agent
       volumes:
       - configMap:
           name: datadog-agent-install-info

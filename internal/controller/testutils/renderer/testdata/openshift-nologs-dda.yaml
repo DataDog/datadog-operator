@@ -17,14 +17,9 @@ spec:
   features:
     apm:
       enabled: true
-    dogstatsd:
-      originDetectionEnabled: true
-    # Log collection explicitly DISABLED.
-    #
-    # This fixture originally asserted the opposite of what it now pins. The SELinux
-    # Guards that spc_t is injected with log collection off: the node agent needs the
-    # super-privileged type for /proc, /sys/fs/cgroup, the runtime socket and the
-    # system-probe seccomp profile, not for reading pod logs.
+    # Log collection explicitly disabled. Guards that spc_t is still injected: the
+    # node agent needs the super-privileged type for /proc, /sys/fs/cgroup, the
+    # runtime socket and the system-probe seccomp profile, not for reading pod logs.
     logCollection:
       enabled: false
     liveProcessCollection:

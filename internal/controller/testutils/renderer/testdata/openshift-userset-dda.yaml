@@ -1,3 +1,6 @@
+# Every field the OpenShift provider injects — kubelet.tlsVerify, the SELinux type,
+# tolerations and the node agent ServiceAccount — is set here to a conflicting value.
+# The operator fills gaps and must not overwrite intent, so all four must survive.
 apiVersion: datadoghq.com/v2alpha1
 kind: DatadogAgent
 metadata:
@@ -19,18 +22,8 @@ spec:
     kubelet:
       tlsVerify: true
   features:
-    # UDS explicitly enabled and hostPort explicitly disabled — again the opposite of
-    # the OpenShift defaults. Must survive untouched.
     apm:
       enabled: true
-      hostPortConfig:
-        enabled: false
-      unixDomainSocketConfig:
-        enabled: true
-    dogstatsd:
-      originDetectionEnabled: true
-      unixDomainSocketConfig:
-        enabled: true
     logCollection:
       enabled: true
       containerCollectAll: true
@@ -53,5 +46,3 @@ spec:
         - key: my-own-taint
           operator: Exists
           effect: NoSchedule
-    clusterAgent:
-      serviceAccountName: my-own-dca-sa

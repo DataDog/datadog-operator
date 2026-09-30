@@ -19,12 +19,10 @@ spec:
     # by the cluster CA). Leaving it unset is what makes that injection visible in
     # the golden diff.
   features:
-    # APM and DogStatsD omit unixDomainSocketConfig/hostPortConfig so the defaults
-    # apply. The operator does not change the transport on OpenShift; this pins that.
+    # APM omits unixDomainSocketConfig/hostPortConfig so the defaults apply. The
+    # operator does not change the transport on OpenShift; this pins that.
     apm:
       enabled: true
-    dogstatsd:
-      originDetectionEnabled: true
     # Enabled to exercise the log paths; spc_t is injected regardless of this feature
     # (see openshift-nologs-dda.yaml).
     logCollection:

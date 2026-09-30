@@ -1172,7 +1172,7 @@ kind: DatadogAgentInternal
 metadata:
   annotations:
     agent.datadoghq.com/cluster-provider: openshift-rhcos
-    agent.datadoghq.com/ddaispechash: 9336c45591b8712b4d7460b7b2f81080
+    agent.datadoghq.com/ddaispechash: 0da030547ef44a2b885d0abe28fcf868
   finalizers:
   - finalizer.datadoghq.com/datadogagentinternal
   labels:
@@ -1237,7 +1237,7 @@ spec:
       hostPortConfig:
         enabled: false
       nonLocalTraffic: true
-      originDetectionEnabled: true
+      originDetectionEnabled: false
       unixDomainSocketConfig:
         enabled: true
         path: /var/run/datadog/dsd.socket
@@ -1334,7 +1334,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: 76895b8044350602bd37eea3206d4286
+    agent.datadoghq.com/agentspechash: 285ad8c616f4659168d9c7724f279aeb
   labels:
     agent.datadoghq.com/component: agent
     agent.datadoghq.com/name: datadog-agent
@@ -1429,10 +1429,6 @@ spec:
           value: "true"
         - name: DD_DOGSTATSD_SOCKET
           value: /var/run/datadog/dsd.socket
-        - name: DD_DOGSTATSD_ORIGIN_DETECTION
-          value: "true"
-        - name: DD_DOGSTATSD_ORIGIN_DETECTION_CLIENT
-          value: "true"
         - name: DD_IGNORE_AUTOCONF
           value: kubernetes_state
         - name: DD_PROCESS_CONFIG_RUN_IN_CORE_AGENT_ENABLED
@@ -1738,7 +1734,6 @@ spec:
           readOnly: true
         - mountPath: /var/run/sysprobe
           name: sysprobe-socket-dir
-      hostPID: true
       initContainers:
       - args:
         - cp -vnr /etc/datadog-agent /opt
