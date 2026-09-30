@@ -16,7 +16,9 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/defaults"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/configmap"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/providercaps"
@@ -140,6 +142,11 @@ func mergeConfigs(ddaSpec *v2alpha1.DatadogAgentSpec, ddaRCStatus *v2alpha1.Remo
 	if ddaRCStatus.Features.CSPM.Enabled != nil {
 		ddaSpec.Features.CSPM.Enabled = ddaRCStatus.Features.CSPM.Enabled
 	}
+
+	// Defaulting ran before this merge, and skipped everything below Enabled because the feature
+	// was off at the time. Re-apply the defaults now that Remote Configuration has turned it on,
+	// so a remotely enabled feature is configured like a spec enabled one.
+	defaults.DefaultCSPMFeature(ddaSpec)
 }
 
 // ManageDependencies allows a feature to manage its dependencies.
@@ -361,6 +368,15 @@ func (f *cspmFeature) ManageNodeAgent(managers feature.PodTemplateManagers) erro
 		Value: apiutils.BoolToString(&f.runInSystemProbe),
 	}
 	managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.CoreAgentContainerName, targetContainer}, runInSystemProbeEnvVar)
+
+	if f.runInSystemProbe {
+		// The system-probe submits the compliance payloads itself and cannot resolve a
+		// secret-backed api_key on its own, so it needs config sync to get the resolved value.
+		featureutils.EnableConfigSyncForDirectSend(managers, []apicommon.AgentContainerName{
+			apicommon.CoreAgentContainerName,
+			apicommon.SystemProbeContainerName,
+		})
+	}
 
 	return nil
 }

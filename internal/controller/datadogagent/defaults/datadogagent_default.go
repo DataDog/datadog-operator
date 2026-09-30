@@ -12,6 +12,7 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/pkg/images"
+	"github.com/DataDog/datadog-operator/pkg/utils"
 )
 
 // Default configuration values. These are the recommended settings for monitoring with Datadog in Kubernetes.
@@ -50,9 +51,10 @@ const (
 	defaultLanguageDetectionEnabled     bool   = true
 	defaultCSPMEnabled                  bool   = false
 	defaultCSPMHostBenchmarksEnabled    bool   = true
+	defaultCSPMRunInSystemProbe         bool   = true
 	defaultCWSEnabled                   bool   = false
 	defaultCWSSyscallMonitorEnabled     bool   = false
-	defaultCWSDirectSendFromSystemProbe bool   = false
+	defaultCWSDirectSendFromSystemProbe bool   = true
 	defaultCWSNetworkEnabled            bool   = true
 	defaultCWSSecurityProfilesEnabled   bool   = true
 	defaultCWSEnforcementEnabled        bool   = true
@@ -211,6 +213,75 @@ func defaultGlobalConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
 	}
 }
 
+// Minimum Agent versions for the settings that move a security feature out of the
+// security-agent and into the system-probe. Defaulting these on an Agent that does not
+// know the setting would drop the security-agent container with nothing taking over, so
+// the defaults below are only applied from these versions on.
+const (
+	// cspmRunInSystemProbeMinVersion is the first Agent release shipping
+	// compliance_config.run_in_system_probe.
+	cspmRunInSystemProbeMinVersion = "7.77.0-0"
+	// cwsDirectSendFromSystemProbeMinVersion is the first Agent release shipping
+	// runtime_security_config.direct_send_from_system_probe.
+	cwsDirectSendFromSystemProbeMinVersion = "7.63.0-0"
+)
+
+// nodeAgentSupports reports whether the node Agent image is at least minVersion. A tag the
+// Operator cannot parse (a digest, or a custom tag) is treated as recent enough, matching how
+// the CNM direct send default is gated.
+func nodeAgentSupports(ddaSpec *v2alpha1.DatadogAgentSpec, minVersion string) bool {
+	version := images.AgentLatestVersion
+	if nodeAgent, ok := ddaSpec.Override[v2alpha1.NodeAgentComponentName]; ok && nodeAgent.Image != nil {
+		version = common.GetAgentVersionFromImage(*nodeAgent.Image)
+	}
+
+	defaultIfVersionUnknown := true
+	return utils.IsAboveMinVersion(version, minVersion, &defaultIfVersionUnknown)
+}
+
+// DefaultCSPMFeature and DefaultCWSFeature set the defaults that only apply once their feature is
+// enabled. They are split out of defaultFeaturesConfig, and safe to call more than once, because
+// Remote Configuration can enable either feature after the defaulting pass has already run: the
+// features call these again from their mergeConfigs, once the Remote Configuration status has been
+// merged into the spec. Without that second call a remotely enabled feature keeps a nil (so false)
+// value for every setting below, and would not get the topology the CRD documents.
+func DefaultCSPMFeature(ddaSpec *v2alpha1.DatadogAgentSpec) {
+	if ddaSpec.Features == nil || ddaSpec.Features.CSPM == nil || !apiutils.BoolValue(ddaSpec.Features.CSPM.Enabled) {
+		return
+	}
+
+	if ddaSpec.Features.CSPM.HostBenchmarks == nil {
+		ddaSpec.Features.CSPM.HostBenchmarks = &v2alpha1.CSPMHostBenchmarksConfig{}
+	}
+	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.CSPM.HostBenchmarks.Enabled, defaultCSPMHostBenchmarksEnabled)
+
+	runInSystemProbe := defaultCSPMRunInSystemProbe && nodeAgentSupports(ddaSpec, cspmRunInSystemProbeMinVersion)
+	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.CSPM.RunInSystemProbe, runInSystemProbe)
+}
+
+func DefaultCWSFeature(ddaSpec *v2alpha1.DatadogAgentSpec) {
+	if ddaSpec.Features == nil || ddaSpec.Features.CWS == nil || !apiutils.BoolValue(ddaSpec.Features.CWS.Enabled) {
+		return
+	}
+
+	if ddaSpec.Features.CWS.Network == nil {
+		ddaSpec.Features.CWS.Network = &v2alpha1.CWSNetworkConfig{}
+	}
+	if ddaSpec.Features.CWS.SecurityProfiles == nil {
+		ddaSpec.Features.CWS.SecurityProfiles = &v2alpha1.CWSSecurityProfilesConfig{}
+	}
+	if ddaSpec.Features.CWS.Enforcement == nil {
+		ddaSpec.Features.CWS.Enforcement = &v2alpha1.CWSEnforcementConfig{}
+	}
+
+	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.CWS.SyscallMonitorEnabled, defaultCWSSyscallMonitorEnabled)
+	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.CWS.Network.Enabled, defaultCWSNetworkEnabled)
+	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.CWS.SecurityProfiles.Enabled, defaultCWSSecurityProfilesEnabled)
+	directSendFromSystemProbe := defaultCWSDirectSendFromSystemProbe && nodeAgentSupports(ddaSpec, cwsDirectSendFromSystemProbeMinVersion)
+	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.CWS.DirectSendFromSystemProbe, directSendFromSystemProbe)
+	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.CWS.Enforcement.Enabled, defaultCWSEnforcementEnabled)
+}
+
 // defaultFeaturesConfig sets default values in DatadogAgentSpec.Features.
 // Note: many default values are set in the Datadog Agent code and are not set here.
 func defaultFeaturesConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
@@ -361,37 +432,14 @@ func defaultFeaturesConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
 		ddaSpec.Features.CSPM = &v2alpha1.CSPMFeatureConfig{}
 	}
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.CSPM.Enabled, defaultCSPMEnabled)
-
-	if *ddaSpec.Features.CSPM.Enabled {
-		if ddaSpec.Features.CSPM.HostBenchmarks == nil {
-			ddaSpec.Features.CSPM.HostBenchmarks = &v2alpha1.CSPMHostBenchmarksConfig{}
-		}
-		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.CSPM.HostBenchmarks.Enabled, defaultCSPMHostBenchmarksEnabled)
-	}
+	DefaultCSPMFeature(ddaSpec)
 
 	// CWS (Cloud Workload Security) Feature
 	if ddaSpec.Features.CWS == nil {
 		ddaSpec.Features.CWS = &v2alpha1.CWSFeatureConfig{}
 	}
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.CWS.Enabled, defaultCWSEnabled)
-
-	if *ddaSpec.Features.CWS.Enabled {
-		if ddaSpec.Features.CWS.Network == nil {
-			ddaSpec.Features.CWS.Network = &v2alpha1.CWSNetworkConfig{}
-		}
-		if ddaSpec.Features.CWS.SecurityProfiles == nil {
-			ddaSpec.Features.CWS.SecurityProfiles = &v2alpha1.CWSSecurityProfilesConfig{}
-		}
-		if ddaSpec.Features.CWS.Enforcement == nil {
-			ddaSpec.Features.CWS.Enforcement = &v2alpha1.CWSEnforcementConfig{}
-		}
-
-		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.CWS.SyscallMonitorEnabled, defaultCWSSyscallMonitorEnabled)
-		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.CWS.Network.Enabled, defaultCWSNetworkEnabled)
-		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.CWS.SecurityProfiles.Enabled, defaultCWSSecurityProfilesEnabled)
-		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.CWS.DirectSendFromSystemProbe, defaultCWSDirectSendFromSystemProbe)
-		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.CWS.Enforcement.Enabled, defaultCWSEnforcementEnabled)
-	}
+	DefaultCWSFeature(ddaSpec)
 
 	// NPM (Network Performance Monitoring) Feature
 	if ddaSpec.Features.NPM == nil {

@@ -17,7 +17,9 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/defaults"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/configmap"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/providercaps"
@@ -152,6 +154,11 @@ func mergeConfigs(ddaSpec *v2alpha1.DatadogAgentSpec, ddaRCStatus *v2alpha1.Remo
 	if ddaRCStatus.Features.CWS.Enabled != nil {
 		ddaSpec.Features.CWS.Enabled = ddaRCStatus.Features.CWS.Enabled
 	}
+
+	// Defaulting ran before this merge, and skipped everything below Enabled because the feature
+	// was off at the time. Re-apply the defaults now that Remote Configuration has turned it on,
+	// so a remotely enabled feature is configured like a spec enabled one.
+	defaults.DefaultCWSFeature(ddaSpec)
 }
 
 // ManageDependencies allows a feature to manage its dependencies.
@@ -250,6 +257,13 @@ func (f *cwsFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error
 			Value: "true",
 		}
 		managers.EnvVar().AddEnvVarToContainer(apicommon.SystemProbeContainerName, directSendEnvVar)
+
+		// The system-probe submits the events itself and cannot resolve a secret-backed
+		// api_key on its own, so it needs config sync to get the resolved value.
+		featureutils.EnableConfigSyncForDirectSend(managers, []apicommon.AgentContainerName{
+			apicommon.CoreAgentContainerName,
+			apicommon.SystemProbeContainerName,
+		})
 	}
 
 	if f.networkEnabled {
