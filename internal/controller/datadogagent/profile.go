@@ -71,7 +71,7 @@ func (r *Reconciler) reconcileProfiles(ctx context.Context, dsNSName types.Names
 
 	// list and sort profiles
 	profilesList := v1alpha1.DatadogAgentProfileList{}
-	if err = r.client.List(ctx, &profilesList); err != nil {
+	if err := r.client.List(ctx, &profilesList); err != nil {
 		return appliedProfiles, fmt.Errorf("unable to list DatadogAgentProfiles: %w", err)
 	}
 	sortedProfiles := agentprofile.SortProfiles(profilesList.Items)
