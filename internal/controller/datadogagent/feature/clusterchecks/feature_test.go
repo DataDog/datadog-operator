@@ -247,7 +247,7 @@ func wantClusterAgentHasExpectedEnvsAndChecksum(t testing.TB, mgrInterface featu
 // the runner groups env var, and the checksum annotation.
 func wantClusterAgentWithRunnerGroups(runnerGroups string) func(testing.TB, feature.PodTemplateManagers) {
 	return func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
-		wantClusterAgentHasExpectedEnvs(t, mgrInterface, &corev1.EnvVar{Name: DDCLCRunnerGroups, Value: runnerGroups})
+		wantClusterAgentHasExpectedEnvs(t, mgrInterface, &corev1.EnvVar{Name: DDClusterChecksRunnerGroups, Value: runnerGroups})
 		wantClusterAgentHasNonEmptyChecksumAnnotation(t, mgrInterface)
 	}
 }

@@ -9,10 +9,9 @@ const (
 	DDClusterChecksEnabled = "DD_CLUSTER_CHECKS_ENABLED"
 	DDExtraConfigProviders = "DD_EXTRA_CONFIG_PROVIDERS"
 	DDExtraListeners       = "DD_EXTRA_LISTENERS"
-	// DD_EXPERIMENTAL_* names: the agent-side config keys are experimental
-	// (experimental.clc_runner_group[s]), not yet stable API.
-	// DDCLCRunnerGroup is a runner group pod's group name.
-	DDCLCRunnerGroup = "DD_EXPERIMENTAL_CLC_RUNNER_GROUP"
-	// DDCLCRunnerGroups is the Cluster Agent's JSON map of group -> claimed checks.
-	DDCLCRunnerGroups = "DD_EXPERIMENTAL_CLC_RUNNER_GROUPS"
+	// DDCLCRunnerGroup is a runner group pod's group name (clc_runner_group).
+	DDCLCRunnerGroup = "DD_CLC_RUNNER_GROUP"
+	// DDClusterChecksRunnerGroups is the Cluster Agent's JSON map of each
+	// runner group to the checks it claims (cluster_checks.runner_groups).
+	DDClusterChecksRunnerGroups = "DD_CLUSTER_CHECKS_RUNNER_GROUPS"
 )

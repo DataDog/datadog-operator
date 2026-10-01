@@ -46,7 +46,7 @@ type clusterChecksFeature struct {
 	customConfigAnnotationKey   string
 	customConfigAnnotationValue string
 
-	// runnerGroups is the Cluster Agent's experimental.clc_runner_groups value:
+	// runnerGroups is the Cluster Agent's cluster_checks.runner_groups value:
 	// the JSON map of each runner group to the checks it claims.
 	runnerGroups string
 
@@ -197,7 +197,7 @@ func (f *clusterChecksFeature) ManageClusterAgent(managers feature.PodTemplateMa
 		managers.EnvVar().AddEnvVarToContainer(
 			apicommon.ClusterAgentContainerName,
 			&corev1.EnvVar{
-				Name:  DDCLCRunnerGroups,
+				Name:  DDClusterChecksRunnerGroups,
 				Value: f.runnerGroups,
 			},
 		)
@@ -269,7 +269,7 @@ func (f *clusterChecksFeature) ManageClusterChecksRunner(managers feature.PodTem
 }
 
 // runnerGroupsJSON returns the groups as the Cluster Agent's
-// experimental.clc_runner_groups value: a JSON object mapping each group to
+// cluster_checks.runner_groups value: a JSON object mapping each group to
 // the checks it claims, or "" without groups. Map keys are marshalled sorted,
 // so the value is stable across reconciles.
 func runnerGroupsJSON(groups []v2alpha1.ClusterChecksRunnerGroup) string {
