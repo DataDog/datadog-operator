@@ -188,7 +188,7 @@ func (r *ComponentRegistry) ReconcileComponents(ctx context.Context, params *Rec
 
 // reconcileComponent reconciles a single component
 func (r *ComponentRegistry) reconcileComponent(ctx context.Context, params *ReconcileComponentParams, component ComponentReconciler) (result reconcile.Result, err error) {
-	span, ctx := startDDAISpan(ctx, tracer.Tag("component", string(component.Name())))
+	span, ctx := trace.StartSpan(ctx, tracer.Tag(trace.TagAgentComponent, string(component.Name())))
 	defer trace.FinishSpan(span, &err)
 	now := metav1.NewTime(time.Now())
 
@@ -212,7 +212,7 @@ func (r *ComponentRegistry) reconcileComponent(ctx context.Context, params *Reco
 		}
 	}
 	if len(featErrors) > 0 {
-		err = utilerrors.NewAggregate(featErrors)
+		err := utilerrors.NewAggregate(featErrors)
 		component.UpdateStatus(deployment, params.Status, now, metav1.ConditionFalse, fmt.Sprintf("%s feature error", component.Name()), err.Error())
 		return result, err
 	}
@@ -237,7 +237,7 @@ func (r *ComponentRegistry) reconcileComponent(ctx context.Context, params *Reco
 	}
 
 	if errs := global.ValidateFIPSVersions(podManagers); len(errs) > 0 {
-		err = utilerrors.NewAggregate(errs)
+		err := utilerrors.NewAggregate(errs)
 		component.UpdateStatus(deployment, params.Status, now, metav1.ConditionFalse, fmt.Sprintf("%s FIPS version error", component.Name()), err.Error())
 		return result, err
 	}
@@ -269,7 +269,7 @@ func (r *ComponentRegistry) reconcileComponent(ctx context.Context, params *Reco
 
 // Cleanup removes the component deployment, associated resources and updates status
 func (r *ComponentRegistry) Cleanup(ctx context.Context, params *ReconcileComponentParams, component ComponentReconciler) (_ reconcile.Result, err error) {
-	span, ctx := startDDAISpan(ctx, tracer.Tag("component", string(component.Name())))
+	span, ctx := trace.StartSpan(ctx, tracer.Tag(trace.TagAgentComponent, string(component.Name())))
 	defer trace.FinishSpan(span, &err)
 	deployment := component.GetNewDeploymentFunc()(params.DDAI, &params.DDAI.Spec)
 

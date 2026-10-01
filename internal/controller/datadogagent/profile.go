@@ -56,7 +56,7 @@ func setProfileCondition(profile *v1alpha1.DatadogAgentProfile, conditionType st
 // - configures node labels based on the profiles that are applied
 // - applies profile status updates in k8s
 func (r *Reconciler) reconcileProfiles(ctx context.Context, dsNSName types.NamespacedName, ddaMaxUnavailable intstr.IntOrString, defaultDDAI *v1alpha1.DatadogAgentInternal) (_ []*v1alpha1.DatadogAgentProfile, err error) {
-	span, ctx := startDDASpan(ctx)
+	span, ctx := trace.StartSpan(ctx)
 	defer trace.FinishSpan(span, &err)
 
 	logger := ctrl.LoggerFrom(ctx)

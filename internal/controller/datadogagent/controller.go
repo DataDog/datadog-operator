@@ -78,6 +78,8 @@ const (
 	// clusterProviderGateRequeue is how often the reconcile re-checks while the
 	// provider gate is holding.
 	clusterProviderGateRequeue = 2 * time.Second
+
+	ddaOperationName = "datadogagent.reconcile"
 )
 
 // ProviderReader exposes the cluster-provider detection result to the reconciler

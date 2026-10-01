@@ -18,6 +18,7 @@ import (
 	"github.com/go-logr/logr/funcr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func startMockTracer(t *testing.T) mocktracer.Tracer {
@@ -31,23 +32,29 @@ func startMockTracer(t *testing.T) mocktracer.Tracer {
 	return mt
 }
 
-func TestStartControllerSpan_Disabled(t *testing.T) {
-	ctx := WithControllerContext(context.Background(), "dda", "ns", "id", "DatadogAgent", "")
-	span, spanCtx := StartControllerSpan(ctx, "Reconcile")
-
-	assert.Nil(t, span)
-	assert.Equal(t, ctx, spanCtx)
-	// nil spans must be safe to finish
-	var err error
-	FinishSpan(span, &err)
+func testDDA() *metav1.ObjectMeta {
+	return &metav1.ObjectMeta{Name: "dda", Namespace: "ns"}
 }
 
-func TestStartControllerSpan_Tags(t *testing.T) {
+func TestStartSpan_Disabled(t *testing.T) {
+	ctx := context.Background()
+	root, rootCtx := StartReconcileSpan(ctx, "DatadogAgent", "datadogagent.reconcile", testDDA())
+	child, childCtx := StartSpan(ctx)
+
+	assert.Nil(t, root)
+	assert.Nil(t, child)
+	assert.Equal(t, ctx, rootCtx)
+	assert.Equal(t, ctx, childCtx)
+	// nil spans must be safe to finish
+	var err error
+	FinishSpan(root, &err)
+}
+
+func TestStartSpan_Tags(t *testing.T) {
 	mt := startMockTracer(t)
 
-	ctx := WithControllerContext(context.Background(), "dda", "ns", "rid", "DatadogAgent", "datadogagent.reconcile")
-	parent, ctx := StartControllerSpan(ctx, "Reconcile")
-	child, _ := StartControllerSpan(ctx, "child", tracer.Tag("component", "clusterAgent"))
+	parent, ctx := StartReconcileSpan(context.Background(), "DatadogAgent", "datadogagent.reconcile", testDDA())
+	child, _ := StartSpan(ctx, tracer.Tag(TagAgentComponent, "clusterAgent"))
 	err := errors.New("boom")
 	FinishSpan(child, &err)
 	FinishSpan(parent, nil)
@@ -61,30 +68,32 @@ func TestStartControllerSpan_Tags(t *testing.T) {
 	assert.Equal(t, "DatadogAgent", p.Tag("kind"))
 	assert.Equal(t, "dda", p.Tag("name"))
 	assert.Equal(t, "ns", p.Tag("namespace"))
-	assert.Equal(t, "rid", p.Tag("reconcileID"))
+	assert.Nil(t, p.Tag("reconcileID"), "empty tags are omitted")
 	assert.Nil(t, p.Tag(ext.ErrorMsg))
 
 	assert.Equal(t, p.SpanID(), c.ParentID())
-	assert.Equal(t, "child", c.Tag(ext.ResourceName))
-	assert.Equal(t, "clusterAgent", c.Tag("component"))
+	assert.Equal(t, "datadogagent.reconcile", c.OperationName())
+	assert.Equal(t, "TestStartSpan_Tags", c.Tag(ext.ResourceName))
+	assert.Equal(t, "dda", c.Tag("name"))
+	assert.Equal(t, "clusterAgent", c.Tag(TagAgentComponent))
 	assert.Equal(t, "boom", c.Tag(ext.ErrorMsg))
 }
 
-func TestStartControllerSpan_DefaultOperationName(t *testing.T) {
+func TestStartSpan_OutsideReconcile(t *testing.T) {
 	mt := startMockTracer(t)
 
-	span, _ := StartControllerSpan(context.Background(), "Reconcile")
+	span, _ := StartSpan(context.Background())
 	span.Finish()
 
 	spans := mt.FinishedSpans()
 	require.Len(t, spans, 1)
-	assert.Equal(t, DefaultOperationName, spans[0].OperationName())
+	assert.Equal(t, defaultOperationName, spans[0].OperationName())
 	assert.Nil(t, spans[0].Tag("kind"))
 }
 
 func TestCallerFuncName(t *testing.T) {
-	assert.Equal(t, "TestCallerFuncName", CallerFuncName(0))
-	assert.Equal(t, "TestCallerFuncName", func() string { return CallerFuncName(1) }())
+	assert.Equal(t, "TestCallerFuncName", callerFuncName(0))
+	assert.Equal(t, "TestCallerFuncName", func() string { return callerFuncName(1) }())
 }
 
 func TestLoggerWithSpan(t *testing.T) {
@@ -92,15 +101,15 @@ func TestLoggerWithSpan(t *testing.T) {
 	logger := funcr.New(func(_, args string) { logged = args }, funcr.Options{})
 
 	LoggerWithSpan(context.Background(), logger).Info("no span")
-	assert.NotContains(t, logged, LogKeyTraceID)
+	assert.NotContains(t, logged, ext.LogKeyTraceID)
 
 	startMockTracer(t)
-	span, ctx := StartControllerSpan(context.Background(), "Reconcile")
+	span, ctx := StartSpan(context.Background())
 	defer span.Finish()
 
 	LoggerWithSpan(ctx, logger).Info("with span")
-	assert.Contains(t, logged, `"`+LogKeyTraceID+`"="`+span.Context().TraceID()+`"`)
-	assert.Contains(t, logged, `"`+LogKeySpanID+`"=`)
+	assert.Contains(t, logged, `"`+ext.LogKeyTraceID+`"="`+span.Context().TraceID()+`"`)
+	assert.Contains(t, logged, `"`+ext.LogKeySpanID+`"=`)
 }
 
 func TestWrapTransport(t *testing.T) {
@@ -129,7 +138,7 @@ func TestWrapTransport(t *testing.T) {
 	get(context.Background(), "/api/v1/watch/namespaces/ns/pods")
 	assert.Empty(t, mt.FinishedSpans())
 
-	parent, ctx := StartControllerSpan(context.Background(), "Reconcile")
+	parent, ctx := StartSpan(context.Background())
 	get(ctx, "/api/v1/namespaces/ns/pods/missing")
 	get(ctx, "/api/v1/namespaces/ns/pods/broken")
 	parent.Finish()

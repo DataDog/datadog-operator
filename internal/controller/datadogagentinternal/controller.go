@@ -63,6 +63,8 @@ import (
 const (
 	defaultRequeuePeriod    = 15 * time.Second
 	defaultErrRequeuePeriod = 5 * time.Second
+
+	ddaiOperationName = "datadogagentinternal.reconcile"
 )
 
 // ReconcilerOptions provides options read from command line

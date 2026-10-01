@@ -9,14 +9,9 @@ import (
 	"context"
 	"strconv"
 
+	"github.com/DataDog/dd-trace-go/v2/ddtrace/ext"
 	"github.com/DataDog/dd-trace-go/v2/ddtrace/tracer"
 	"github.com/go-logr/logr"
-)
-
-// Log keys used by Datadog for log/trace correlation.
-const (
-	LogKeyTraceID = "dd.trace_id"
-	LogKeySpanID  = "dd.span_id"
 )
 
 // LoggerWithSpan returns logger annotated with the trace and span IDs of the
@@ -28,7 +23,7 @@ func LoggerWithSpan(ctx context.Context, logger logr.Logger) logr.Logger {
 	}
 	sc := span.Context()
 	return logger.WithValues(
-		LogKeyTraceID, sc.TraceID(),
-		LogKeySpanID, strconv.FormatUint(sc.SpanID(), 10),
+		ext.LogKeyTraceID, sc.TraceID(),
+		ext.LogKeySpanID, strconv.FormatUint(sc.SpanID(), 10),
 	)
 }

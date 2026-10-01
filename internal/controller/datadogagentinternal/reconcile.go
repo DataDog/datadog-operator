@@ -184,7 +184,7 @@ func (r *Reconciler) providerSupportBlocks(logger logr.Logger, instance *v1alpha
 }
 
 func (r *Reconciler) updateStatusIfNeeded(ctx context.Context, agentdeployment *v1alpha1.DatadogAgentInternal, newStatus *v1alpha1.DatadogAgentInternalStatus, result reconcile.Result, currentError error, now metav1.Time) (reconcile.Result, error) {
-	span, ctx := startDDAISpan(ctx)
+	span, ctx := trace.StartSpan(ctx)
 	var updateErr error
 	defer trace.FinishSpan(span, &updateErr)
 

@@ -102,7 +102,7 @@ func (r *Reconciler) overrideDependencies(ctx context.Context, resourceManagers 
 
 // cleanupExtraneousResources groups the cleanup calls for old components.
 func (r *Reconciler) cleanupExtraneousResources(ctx context.Context, instance *v1alpha1.DatadogAgentInternal, newStatus *v1alpha1.DatadogAgentInternalStatus, resourceManagers feature.ResourceManagers) (err error) {
-	span, ctx := startDDAISpan(ctx)
+	span, ctx := trace.StartSpan(ctx)
 	defer trace.FinishSpan(span, &err)
 	logger := ctrl.LoggerFrom(ctx)
 	var errs []error
@@ -144,7 +144,7 @@ func (r *Reconciler) cleanupExtraneousResources(ctx context.Context, instance *v
 // It excludes DDA-managed resources from cleanup to avoid competition between the DDA
 // and DDAI controllers.
 func (r *Reconciler) applyAndCleanupDependencies(ctx context.Context, ddai *v1alpha1.DatadogAgentInternal, depsStore *store.Store) (err error) {
-	span, ctx := startDDAISpan(ctx)
+	span, ctx := trace.StartSpan(ctx)
 	defer trace.FinishSpan(span, &err)
 	logger := ctrl.LoggerFrom(ctx)
 	logger.V(1).Info("Applying pending dependencies and cleaning up unused dependencies")

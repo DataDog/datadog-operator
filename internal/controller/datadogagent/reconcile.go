@@ -201,7 +201,7 @@ func (r *Reconciler) reconcileInstance(ctx context.Context, logger logr.Logger, 
 }
 
 func (r *Reconciler) updateStatusIfNeeded(ctx context.Context, logger logr.Logger, agentdeployment *datadoghqv2alpha1.DatadogAgent, newStatus *datadoghqv2alpha1.DatadogAgentStatus, result reconcile.Result, currentError error, now metav1.Time) (reconcile.Result, error) {
-	span, ctx := startDDASpan(ctx)
+	span, ctx := trace.StartSpan(ctx)
 	var updateErr error
 	defer trace.FinishSpan(span, &updateErr)
 

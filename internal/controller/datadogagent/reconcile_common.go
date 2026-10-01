@@ -163,7 +163,7 @@ func (r *Reconciler) createOrUpdateDeployment(parentLogger logr.Logger, dda *v2a
 }
 
 func (r *Reconciler) createOrUpdateDDAI(ctx context.Context, ddai *v1alpha1.DatadogAgentInternal) (err error) {
-	span, ctx := startDDASpan(ctx, tracer.Tag("object.name", ddai.Name))
+	span, ctx := trace.StartSpan(ctx, tracer.Tag("object.name", ddai.Name))
 	defer trace.FinishSpan(span, &err)
 
 	currentDDAI := &v1alpha1.DatadogAgentInternal{}

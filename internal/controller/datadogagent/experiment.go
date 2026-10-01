@@ -72,7 +72,7 @@ func (r *Reconciler) manageExperiment(
 	now metav1.Time,
 	revList []appsv1.ControllerRevision,
 ) (err error) {
-	span, ctx := startDDASpan(ctx)
+	span, ctx := trace.StartSpan(ctx)
 	defer trace.FinishSpan(span, &err)
 
 	// Snapshot the experiment status before processing to detect mutations.

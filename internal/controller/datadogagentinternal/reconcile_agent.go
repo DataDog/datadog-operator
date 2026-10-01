@@ -37,7 +37,7 @@ import (
 
 func (r *Reconciler) reconcileV2Agent(ctx context.Context, requiredComponents feature.RequiredComponents, features []feature.Feature,
 	ddai *datadoghqv1alpha1.DatadogAgentInternal, resourcesManager feature.ResourceManagers, newStatus *datadoghqv1alpha1.DatadogAgentInternalStatus, provider string) (result reconcile.Result, err error) {
-	span, ctx := startDDAISpan(ctx, tracer.Tag("component", string(datadoghqv2alpha1.NodeAgentComponentName)))
+	span, ctx := trace.StartSpan(ctx, tracer.Tag(trace.TagAgentComponent, string(datadoghqv2alpha1.NodeAgentComponentName)))
 	defer trace.FinishSpan(span, &err)
 	var daemonset *appsv1.DaemonSet
 	var podManagers feature.PodTemplateManagers
