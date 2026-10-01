@@ -176,6 +176,7 @@ core,github.com/klauspost/compress,MIT
 core,github.com/klauspost/compress/internal/snapref,BSD-3-Clause
 core,github.com/klauspost/compress/s2,BSD-3-Clause
 core,github.com/klauspost/compress/zstd/internal/xxhash,MIT
+core,github.com/klauspost/cpuid/v2,MIT
 core,github.com/klauspost/pgzip,MIT
 core,github.com/lann/builder,MIT
 core,github.com/lann/ps,MIT
