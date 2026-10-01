@@ -12,26 +12,15 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/finalizer"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/constants"
-	"github.com/DataDog/datadog-operator/pkg/trace"
 )
 
 const (
 	datadogAgentFinalizer = "finalizer.agent.datadoghq.com"
 )
-
-func (r *Reconciler) handleFinalizer(ctx context.Context, reqLogger logr.Logger, instance *v2alpha1.DatadogAgent) (result reconcile.Result, err error) {
-	span, ctx := startDDASpan(ctx)
-	defer trace.FinishSpan(span, &err)
-
-	final := finalizer.NewFinalizer(reqLogger, r.client, r.deleteResource(reqLogger), defaultRequeuePeriod, defaultErrRequeuePeriod)
-	return final.HandleFinalizer(ctx, instance, "", datadogAgentFinalizer)
-}
 
 func (r *Reconciler) deleteResource(reqLogger logr.Logger) finalizer.ResourceDeleteFunc {
 	return func(ctx context.Context, k8sObj client.Object, datadogID string) error {

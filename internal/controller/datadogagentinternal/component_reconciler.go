@@ -134,9 +134,8 @@ func (r *ComponentRegistry) Register(component ComponentReconciler) {
 }
 
 // ReconcileComponents reconciles all registered components in order
-func (r *ComponentRegistry) ReconcileComponents(ctx context.Context, params *ReconcileComponentParams) (result reconcile.Result, err error) {
-	span, ctx := startDDAISpan(ctx)
-	defer trace.FinishSpan(span, &err)
+func (r *ComponentRegistry) ReconcileComponents(ctx context.Context, params *ReconcileComponentParams) (reconcile.Result, error) {
+	var result reconcile.Result
 	now := metav1.NewTime(time.Now())
 	hasConflict := false
 

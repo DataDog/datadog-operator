@@ -28,7 +28,6 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
-	"github.com/DataDog/datadog-operator/pkg/trace"
 )
 
 func (r *Reconciler) generateDDAIFromDDA(dda *v2alpha1.DatadogAgent, provider string) (*v1alpha1.DatadogAgentInternal, error) {
@@ -116,10 +115,7 @@ func getDDAILabels(dda *v2alpha1.DatadogAgent) map[string]string {
 	return labels
 }
 
-func (r *Reconciler) cleanUpUnusedDDAIs(ctx context.Context, validDDAIs []*v1alpha1.DatadogAgentInternal) (err error) {
-	span, ctx := startDDASpan(ctx)
-	defer trace.FinishSpan(span, &err)
-
+func (r *Reconciler) cleanUpUnusedDDAIs(ctx context.Context, validDDAIs []*v1alpha1.DatadogAgentInternal) error {
 	validDDAIMap := make(map[string]struct{}, len(validDDAIs))
 	for _, ddai := range validDDAIs {
 		validDDAIMap[fmt.Sprintf("%s/%s", ddai.Namespace, ddai.Name)] = struct{}{}

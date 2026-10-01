@@ -11,7 +11,6 @@ import (
 	"maps"
 	"time"
 
-	"github.com/DataDog/dd-trace-go/v2/ddtrace/tracer"
 	appsv1 "k8s.io/api/apps/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -30,7 +29,6 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
-	"github.com/DataDog/datadog-operator/pkg/trace"
 )
 
 const (
@@ -42,14 +40,10 @@ const (
 type updateDepStatusComponentFunc func(deployment *appsv1.Deployment, newStatus *v1alpha1.DatadogAgentInternalStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string)
 type updateDSStatusComponentFunc func(daemonsetName string, daemonset *appsv1.DaemonSet, newStatus *v1alpha1.DatadogAgentInternalStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string)
 
-func (r *Reconciler) createOrUpdateDeployment(ctx context.Context, ddai *v1alpha1.DatadogAgentInternal, deployment *appsv1.Deployment, newStatus *v1alpha1.DatadogAgentInternalStatus, updateStatusFunc updateDepStatusComponentFunc) (result reconcile.Result, err error) {
-	span, ctx := startDDAISpan(ctx,
-		tracer.Tag("object.kind", "Deployment"),
-		tracer.Tag("object.name", deployment.Name),
-		tracer.Tag("object.namespace", deployment.Namespace),
-	)
-	defer trace.FinishSpan(span, &err)
+func (r *Reconciler) createOrUpdateDeployment(ctx context.Context, ddai *v1alpha1.DatadogAgentInternal, deployment *appsv1.Deployment, newStatus *v1alpha1.DatadogAgentInternalStatus, updateStatusFunc updateDepStatusComponentFunc) (reconcile.Result, error) {
 	logger := ctrl.LoggerFrom(ctx).WithValues("object.kind", "Deployment", "object.namespace", deployment.Namespace, "object.name", deployment.Name)
+	var result reconcile.Result
+	var err error
 
 	// Set DatadogAgentInternal instance as the owner and controller
 	if err = controllerutil.SetControllerReference(ddai, deployment, r.scheme); err != nil {
@@ -161,14 +155,10 @@ func (r *Reconciler) createOrUpdateDeployment(ctx context.Context, ddai *v1alpha
 	return result, err
 }
 
-func (r *Reconciler) createOrUpdateDaemonset(ctx context.Context, ddai *v1alpha1.DatadogAgentInternal, daemonset *appsv1.DaemonSet, newStatus *v1alpha1.DatadogAgentInternalStatus, updateStatusFunc updateDSStatusComponentFunc) (result reconcile.Result, err error) {
-	span, ctx := startDDAISpan(ctx,
-		tracer.Tag("object.kind", "DaemonSet"),
-		tracer.Tag("object.name", daemonset.Name),
-		tracer.Tag("object.namespace", daemonset.Namespace),
-	)
-	defer trace.FinishSpan(span, &err)
+func (r *Reconciler) createOrUpdateDaemonset(ctx context.Context, ddai *v1alpha1.DatadogAgentInternal, daemonset *appsv1.DaemonSet, newStatus *v1alpha1.DatadogAgentInternalStatus, updateStatusFunc updateDSStatusComponentFunc) (reconcile.Result, error) {
 	logger := ctrl.LoggerFrom(ctx).WithValues("object.kind", "DaemonSet", "object.namespace", daemonset.Namespace, "object.name", daemonset.Name)
+	var result reconcile.Result
+	var err error
 
 	// Set DatadogAgent instance as the owner and controller
 	if err = controllerutil.SetControllerReference(ddai, daemonset, r.scheme); err != nil {

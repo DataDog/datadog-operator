@@ -63,11 +63,10 @@ func TestReconcileTracing(t *testing.T) {
 	assert.Equal(t, "DatadogAgentInternal", ddaiRoot.Tag("kind"))
 
 	assert.Subset(t, resources[ddaOperationName], []string{
-		"handleFinalizer", "manageDDADependenciesWithDDAI", "createOrUpdateDDAI", "updateStatusIfNeeded",
+		"manageDDADependenciesWithDDAI", "createOrUpdateDDAI", "updateStatusIfNeeded",
 	})
 	assert.Subset(t, resources["datadogagentinternal.reconcile"], []string{
-		"handleFinalizer", "applyAndCleanupDependencies", "ReconcileComponents", "reconcileComponent",
-		"reconcileV2Agent", "createOrUpdateDaemonset", "createOrUpdateDeployment",
+		"applyAndCleanupDependencies", "reconcileComponent", "reconcileV2Agent",
 		"cleanupExtraneousResources", "updateStatusIfNeeded",
 	})
 
