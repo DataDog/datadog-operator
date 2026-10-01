@@ -7,6 +7,7 @@ package trace
 
 import (
 	"context"
+	"os"
 	"strconv"
 
 	"github.com/DataDog/dd-trace-go/v2/ddtrace/ext"
@@ -22,7 +23,20 @@ func LoggerWithSpan(ctx context.Context, logger logr.Logger) logr.Logger {
 	}
 	sc := span.Context()
 	return logger.WithValues(
-		ext.LogKeyTraceID, sc.TraceID(),
+		ext.LogKeyTraceID, logTraceID(sc),
 		ext.LogKeySpanID, strconv.FormatUint(sc.SpanID(), 10),
 	)
+}
+
+// logTraceID matches dd-trace-go's log trace ID format.
+func logTraceID(sc *tracer.SpanContext) string {
+	if sc.TraceIDUpper() != 0 && log128BitTraceID() {
+		return sc.TraceID()
+	}
+	return strconv.FormatUint(sc.TraceIDLower(), 10)
+}
+
+func log128BitTraceID() bool {
+	v, err := strconv.ParseBool(os.Getenv("DD_TRACE_128_BIT_TRACEID_LOGGING_ENABLED"))
+	return err != nil || v
 }

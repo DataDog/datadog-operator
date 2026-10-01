@@ -108,8 +108,28 @@ func TestLoggerWithSpan(t *testing.T) {
 	defer span.Finish()
 
 	LoggerWithSpan(ctx, logger).Info("with span")
-	assert.Contains(t, logged, `"`+ext.LogKeyTraceID+`"="`+span.Context().TraceID()+`"`)
+	assert.Contains(t, logged, `"`+ext.LogKeyTraceID+`"="`+logTraceID(span.Context())+`"`)
 	assert.Contains(t, logged, `"`+ext.LogKeySpanID+`"=`)
+}
+
+func TestLogTraceID(t *testing.T) {
+	extract := func(traceID string) *tracer.SpanContext {
+		t.Helper()
+		t.Setenv("DD_TRACE_PROPAGATION_STYLE", "tracecontext")
+		sc, err := tracer.NewPropagator(nil).Extract(tracer.TextMapCarrier{
+			"traceparent": "00-" + traceID + "-0000000000000001-01",
+		})
+		require.NoError(t, err)
+		return sc
+	}
+	sc128 := extract("0123456789abcdef0000000000000002")
+	sc64 := extract("00000000000000000000000000000002")
+
+	assert.Equal(t, "0123456789abcdef0000000000000002", logTraceID(sc128))
+	assert.Equal(t, "2", logTraceID(sc64))
+
+	t.Setenv("DD_TRACE_128_BIT_TRACEID_LOGGING_ENABLED", "false")
+	assert.Equal(t, "2", logTraceID(sc128))
 }
 
 func TestWrapTransport(t *testing.T) {
