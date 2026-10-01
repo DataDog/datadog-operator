@@ -1334,12 +1334,14 @@ func wantDefaultWorkload(options wantWorkloadOptions) wantWorkload {
 						{Name: "data", MountPath: "/quickwit/qwdata"},
 					},
 					StartupProbe: &corev1.Probe{
-						ProbeHandler:     corev1.ProbeHandler{HTTPGet: &corev1.HTTPGetAction{Path: "/health/livez", Port: intstr.FromString("health")}},
+						ProbeHandler:     corev1.ProbeHandler{HTTPGet: &corev1.HTTPGetAction{Path: "/health/readyz", Port: intstr.FromString("health")}},
 						FailureThreshold: 12,
 						PeriodSeconds:    5,
 					},
-					LivenessProbe:  &corev1.Probe{ProbeHandler: corev1.ProbeHandler{HTTPGet: &corev1.HTTPGetAction{Path: "/health/livez", Port: intstr.FromString("health")}}},
-					ReadinessProbe: &corev1.Probe{ProbeHandler: corev1.ProbeHandler{HTTPGet: &corev1.HTTPGetAction{Path: "/health/readyz", Port: intstr.FromString("health")}}},
+					LivenessProbe: &corev1.Probe{
+						ProbeHandler:   corev1.ProbeHandler{HTTPGet: &corev1.HTTPGetAction{Path: "/health/livez", Port: intstr.FromString("health")}},
+						TimeoutSeconds: 5,
+					},
 					SecurityContext: &corev1.SecurityContext{
 						RunAsNonRoot:           ptr.To(true),
 						RunAsUser:              ptr.To[int64](1005),
