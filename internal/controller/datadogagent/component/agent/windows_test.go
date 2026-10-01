@@ -237,7 +237,7 @@ func TestStripLinuxOnly_RemovesAllAppArmorAnnotations(t *testing.T) {
 			Annotations: map[string]string{
 				"container.apparmor.security.beta.kubernetes.io/system-probe": "localhost/system-probe",
 				"container.apparmor.security.beta.kubernetes.io/agent":        "runtime/default",
-				"ad.datadoghq.com/tags": "{}",
+				"ad.datadoghq.com/tags":                                       "{}",
 			},
 		},
 		Spec: corev1.PodSpec{
