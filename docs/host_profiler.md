@@ -8,8 +8,8 @@ be enabled and configured through annotations on a `DatadogAgent`.
 | Annotation | Default | Description |
 | --------- | ------- | ----------- |
 | `agent.datadoghq.com/host-profiler-enabled` | `false` | Enables Host Profiler when set to `"true"`. |
-| `agent.datadoghq.com/host-profiler-seccomp-enabled` | `true` | Enables the Host Profiler seccomp profile and its setup init container. Set to `"false"` to disable both. |
-| `agent.datadoghq.com/host-profiler-logging-seccomp-enabled` | `false` | Enables the logging seccomp profile. Has no effect when the Host Profiler seccomp profile is disabled. |
+| `agent.datadoghq.com/host-profiler-seccomp-enabled` | `true` | Enables the Host Profiler seccomp profile and its setup init container. Set to `"false"` to disable both. A custom `securityContext` on the `host-profiler` container keeps this profile unless it sets its own `seccompProfile`. |
+| `agent.datadoghq.com/host-profiler-logging-seccomp-enabled` | `false` | Enables the logging seccomp profile instead of the default one. Has no effect when the Host Profiler seccomp profile is disabled or when the `host-profiler` `securityContext` sets its own `seccompProfile`. |
 | `agent.datadoghq.com/host-profiler-non-root-enabled` | `false` | Runs the Host Profiler container as UID/GID `100` with `runAsNonRoot: true` when set to `"true"`. |
 | `agent.datadoghq.com/host-profiler-selinux-type` | `spc_t` | Sets the SELinux type for the Host Profiler container and its setup init container. |
 
