@@ -16,13 +16,7 @@ import (
 
 const clientErrorStatusesEnvVar = "DD_TRACE_HTTP_CLIENT_ERROR_STATUSES"
 
-// WrapTransport returns an http.RoundTripper that traces Kubernetes API requests
-// made within an active span. Requests without a parent span (informer list/watch,
-// leader election) are not traced. Only 5xx responses are flagged as errors, since
-// 404 and 409 are expected during reconciliation; DD_TRACE_HTTP_CLIENT_ERROR_STATUSES
-// overrides this. Pass to rest.Config.Wrap:
-//
-//	restConfig.Wrap(trace.WrapTransport)
+// WrapTransport traces Kubernetes API requests made within an active span.
 func WrapTransport(rt http.RoundTripper) http.RoundTripper {
 	opts := []httptrace.RoundTripperOption{
 		httptrace.WithIgnoreRequest(hasNoParentSpan),

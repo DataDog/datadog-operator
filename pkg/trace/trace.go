@@ -3,7 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-// Package trace provides shared APM tracing utilities for Datadog Operator controllers.
+// Package trace provides APM tracing helpers for controllers.
 package trace
 
 import (
@@ -35,7 +35,6 @@ func Enabled() bool {
 }
 
 // SetEnabled toggles controller spans without starting the tracer.
-// Intended for tests that install a mocktracer.
 func SetEnabled(v bool) {
 	enabled.Store(v)
 }

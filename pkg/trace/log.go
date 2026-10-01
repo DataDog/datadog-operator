@@ -14,8 +14,7 @@ import (
 	"github.com/go-logr/logr"
 )
 
-// LoggerWithSpan returns logger annotated with the trace and span IDs of the
-// active span in ctx, or logger unchanged when there is no active span.
+// LoggerWithSpan adds the active span's trace and span IDs to logger.
 func LoggerWithSpan(ctx context.Context, logger logr.Logger) logr.Logger {
 	span, ok := tracer.SpanFromContext(ctx)
 	if !ok || span == nil {

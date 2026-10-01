@@ -17,7 +17,6 @@ import (
 )
 
 // TagAgentComponent is the span tag for the Agent component being reconciled.
-// The "component" tag is reserved by dd-trace-go for the instrumentation library.
 const TagAgentComponent = "agent.component"
 
 // defaultOperationName is used when a span is started outside a reconcile.
@@ -30,8 +29,7 @@ type controllerContext struct {
 	tags          [][2]string
 }
 
-// StartReconcileSpan starts the root span of a reconcile for obj, stores the controller
-// identity in ctx for child spans, and annotates the ctx logger with the trace IDs.
+// StartReconcileSpan starts the root span of a reconcile.
 func StartReconcileSpan(ctx context.Context, kind, operationName string, obj metav1.Object) (*tracer.Span, context.Context) {
 	if !Enabled() {
 		return nil, ctx
@@ -50,9 +48,7 @@ func StartReconcileSpan(ctx context.Context, kind, operationName string, obj met
 	return span, ctx
 }
 
-// StartSpan starts a child span of the current reconcile, named after the calling
-// function. Returns a nil span and ctx unchanged when tracing is disabled;
-// *tracer.Span methods are nil-safe.
+// StartSpan starts a child span named after the calling function.
 func StartSpan(ctx context.Context, extraTags ...tracer.StartSpanOption) (*tracer.Span, context.Context) {
 	if !Enabled() {
 		return nil, ctx
@@ -61,7 +57,6 @@ func StartSpan(ctx context.Context, extraTags ...tracer.StartSpanOption) (*trace
 }
 
 // FinishSpan finishes span, recording *errp as the span error.
-// Intended to be deferred with a named error return: defer trace.FinishSpan(span, &err).
 func FinishSpan(span *tracer.Span, errp *error) {
 	var err error
 	if errp != nil {
@@ -87,8 +82,7 @@ func startSpan(ctx context.Context, resourceName string, extraTags ...tracer.Sta
 	return tracer.StartSpanFromContext(ctx, operationName, opts...)
 }
 
-// callerFuncName returns the unqualified name of the function depth frames above
-// its caller: depth=0 is the caller of callerFuncName, depth=1 its caller, etc.
+// callerFuncName returns the name of the function depth frames above its caller.
 func callerFuncName(depth int) string {
 	if pc, _, _, ok := runtime.Caller(depth + 1); ok {
 		if fn := runtime.FuncForPC(pc); fn != nil {
