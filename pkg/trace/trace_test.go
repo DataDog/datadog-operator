@@ -133,42 +133,50 @@ func TestLogTraceID(t *testing.T) {
 }
 
 func TestWrapTransport(t *testing.T) {
-	mt := startMockTracer(t)
+	// An empty error-statuses env var behaves like an unset one.
+	for name, setEnv := range map[string]bool{"unset": false, "empty": true} {
+		t.Run(name, func(t *testing.T) {
+			if setEnv {
+				t.Setenv(clientErrorStatusesEnvVar, "")
+			}
+			mt := startMockTracer(t)
 
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case "/api/v1/namespaces/ns/pods/missing":
-			w.WriteHeader(http.StatusNotFound)
-		case "/api/v1/namespaces/ns/pods/broken":
-			w.WriteHeader(http.StatusInternalServerError)
-		}
-	}))
-	defer srv.Close()
-	client := &http.Client{Transport: WrapTransport(http.DefaultTransport)}
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				switch r.URL.Path {
+				case "/api/v1/namespaces/ns/pods/missing":
+					w.WriteHeader(http.StatusNotFound)
+				case "/api/v1/namespaces/ns/pods/broken":
+					w.WriteHeader(http.StatusInternalServerError)
+				}
+			}))
+			defer srv.Close()
+			client := &http.Client{Transport: WrapTransport(http.DefaultTransport)}
 
-	get := func(ctx context.Context, path string) {
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, srv.URL+path, nil)
-		require.NoError(t, err)
-		resp, err := client.Do(req)
-		require.NoError(t, err)
-		resp.Body.Close()
+			get := func(ctx context.Context, path string) {
+				req, err := http.NewRequestWithContext(ctx, http.MethodGet, srv.URL+path, nil)
+				require.NoError(t, err)
+				resp, err := client.Do(req)
+				require.NoError(t, err)
+				resp.Body.Close()
+			}
+
+			// No parent span: not traced.
+			get(context.Background(), "/api/v1/watch/namespaces/ns/pods")
+			assert.Empty(t, mt.FinishedSpans())
+
+			parent, ctx := StartSpan(context.Background())
+			get(ctx, "/api/v1/namespaces/ns/pods/missing")
+			get(ctx, "/api/v1/namespaces/ns/pods/broken")
+			parent.Finish()
+
+			spans := mt.FinishedSpans()
+			require.Len(t, spans, 3)
+			notFound, serverErr := spans[0], spans[1]
+
+			assert.Equal(t, parent.Context().SpanID(), notFound.ParentID())
+			assert.Equal(t, "GET namespaces/{namespace}/pods/{name}", notFound.Tag(ext.ResourceName))
+			assert.Nil(t, notFound.Tag(ext.ErrorMsg), "404 should not be flagged as an error")
+			assert.NotNil(t, serverErr.Tag(ext.ErrorMsg), "5xx should be flagged as an error")
+		})
 	}
-
-	// No parent span: not traced.
-	get(context.Background(), "/api/v1/watch/namespaces/ns/pods")
-	assert.Empty(t, mt.FinishedSpans())
-
-	parent, ctx := StartSpan(context.Background())
-	get(ctx, "/api/v1/namespaces/ns/pods/missing")
-	get(ctx, "/api/v1/namespaces/ns/pods/broken")
-	parent.Finish()
-
-	spans := mt.FinishedSpans()
-	require.Len(t, spans, 3)
-	notFound, serverErr := spans[0], spans[1]
-
-	assert.Equal(t, parent.Context().SpanID(), notFound.ParentID())
-	assert.Equal(t, "GET namespaces/{namespace}/pods/{name}", notFound.Tag(ext.ResourceName))
-	assert.Nil(t, notFound.Tag(ext.ErrorMsg), "404 should not be flagged as an error")
-	assert.NotNil(t, serverErr.Tag(ext.ErrorMsg), "5xx should be flagged as an error")
 }

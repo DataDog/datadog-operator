@@ -183,7 +183,7 @@ Other operator startup options can also be configured via environment variable:
 | Metrics address            | `--metrics-addr`                     | `DD_METRICS_ADDR`                     | `:8080` |
 | Secure metrics             | `--metrics-secure`                   | `DD_METRICS_SECURE`                   | `false` |
 | Profiling                  | `--profiling-enabled`                | `DD_PROFILING_ENABLED`                | `false` |
-| APM tracing (DatadogAgent and DatadogAgentInternal reconciles) | `--tracing-enabled` | `DD_OPERATOR_TRACING_ENABLED` | `false` |
+| APM tracing                | `--tracing-enabled`                  | `DD_TRACING_ENABLED`                  | `false` |
 | Leader election lease      | `--leader-election-lease-duration`   | `DD_LEADER_ELECTION_LEASE_DURATION`   | `60s`   |
 | Cilium network policies    | `--supportCilium`                    | `DD_SUPPORT_CILIUM`                   | `false` |
 | Maximum goroutines         | `--maximumGoroutines`                | `DD_MAXIMUM_GOROUTINES`               | `500`   |
@@ -199,7 +199,7 @@ log options (`--loglevel`, `--logEncoder`), secret backend options
 (`--secretBackend*`, `--secretRefreshInterval`), and `--version` are only
 configurable using CLI flags in the shipped manifests.
 
-When tracing is enabled, the Datadog Operator reports traces under the service name specified by `DD_SERVICE` (default: `datadog-operator`). Configure `DD_AGENT_HOST` or `DD_TRACE_AGENT_URL` in the Operator environment to point to a Datadog Agent with APM enabled.
+When tracing is enabled, the Datadog Operator reports traces of DatadogAgent and DatadogAgentInternal reconciles under the service name specified by `DD_SERVICE` (default: `datadog-operator`). Configure `DD_AGENT_HOST` or `DD_TRACE_AGENT_URL` in the Operator environment to point to a Datadog Agent with APM enabled.
 
 ExtendedDaemonSet flags were removed. If they are present in a custom
 Deployment manifest, remove them before upgrading. See the

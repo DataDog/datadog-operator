@@ -48,7 +48,7 @@ func StartReconcileSpan(ctx context.Context, kind, operationName string, obj met
 	return span, ctx
 }
 
-// StartSpan starts a child span named after the calling function.
+// StartSpan starts a span whose resource name is the calling function.
 func StartSpan(ctx context.Context, extraTags ...tracer.StartSpanOption) (*tracer.Span, context.Context) {
 	if !Enabled() {
 		return nil, ctx

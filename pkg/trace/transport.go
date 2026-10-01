@@ -21,7 +21,7 @@ func WrapTransport(rt http.RoundTripper) http.RoundTripper {
 	opts := []httptrace.RoundTripperOption{
 		httptrace.WithIgnoreRequest(hasNoParentSpan),
 	}
-	if _, found := os.LookupEnv(clientErrorStatusesEnvVar); !found {
+	if os.Getenv(clientErrorStatusesEnvVar) == "" {
 		opts = append(opts, httptrace.WithStatusCheck(isServerError))
 	}
 	return kubetrace.WrapRoundTripperFunc(opts...)(rt)

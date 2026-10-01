@@ -29,7 +29,7 @@ func Stop() {
 	tracer.Stop()
 }
 
-// Enabled reports whether the tracer was started with Start.
+// Enabled reports whether controller spans are enabled.
 func Enabled() bool {
 	return enabled.Load()
 }

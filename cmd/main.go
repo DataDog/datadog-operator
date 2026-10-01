@@ -207,7 +207,7 @@ func (opts *options) Parse() {
 		stringEnv(&opts.metricsAddr, "DD_METRICS_ADDR"),
 		boolEnv(&opts.secureMetrics, "DD_METRICS_SECURE"),
 		boolEnv(&opts.profilingEnabled, "DD_PROFILING_ENABLED"),
-		boolEnv(&opts.tracingEnabled, "DD_OPERATOR_TRACING_ENABLED"),
+		boolEnv(&opts.tracingEnabled, "DD_TRACING_ENABLED"),
 		boolEnv(&opts.pprofActive, "DD_PPROF_ENABLED"),
 		boolEnv(&opts.enableLeaderElection, "DD_LEADER_ELECTION_ENABLED"),
 		durationEnv(&opts.leaderElectionLeaseDuration, "DD_LEADER_ELECTION_LEASE_DURATION"),
