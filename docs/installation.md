@@ -199,9 +199,7 @@ log options (`--loglevel`, `--logEncoder`), secret backend options
 (`--secretBackend*`, `--secretRefreshInterval`), and `--version` are only
 configurable using CLI flags in the shipped manifests.
 
-When tracing is enabled, the operator reports under the `DD_SERVICE` service name
-(default `datadog-operator`) and sends data to the Agent configured by the standard
-`DD_AGENT_HOST` / `DD_TRACE_AGENT_URL` environment variables.
+When tracing is enabled, the Datadog Operator reports traces under the service name specified by `DD_SERVICE` (default: `datadog-operator`). Configure `DD_AGENT_HOST` or `DD_TRACE_AGENT_URL` in the Operator environment to point to a Datadog Agent with APM enabled.
 
 ExtendedDaemonSet flags were removed. If they are present in a custom
 Deployment manifest, remove them before upgrading. See the
