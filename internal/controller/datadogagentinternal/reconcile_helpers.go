@@ -20,6 +20,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/global"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/openshift"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/override"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
 	"github.com/DataDog/datadog-operator/pkg/constants"
@@ -142,7 +143,7 @@ func (r *Reconciler) cleanupExtraneousResources(ctx context.Context, instance *v
 // applyAndCleanupDependencies applies pending changes and cleans up unused dependencies.
 // It excludes DDA-managed resources from cleanup to avoid competition between the DDA
 // and DDAI controllers.
-func (r *Reconciler) applyAndCleanupDependencies(ctx context.Context, depsStore *store.Store) (err error) {
+func (r *Reconciler) applyAndCleanupDependencies(ctx context.Context, ddai *v1alpha1.DatadogAgentInternal, depsStore *store.Store) (err error) {
 	span, ctx := startDDAISpan(ctx)
 	defer trace.FinishSpan(span, &err)
 	logger := ctrl.LoggerFrom(ctx)
@@ -152,6 +153,16 @@ func (r *Reconciler) applyAndCleanupDependencies(ctx context.Context, depsStore 
 	if len(errs) > 0 {
 		logger.V(2).Info("Dependencies apply error", "errs", errs)
 		return errors.NewAggregate(errs)
+	}
+
+	// Disown the bundle-managed ServiceAccount before cleanup. It is no longer part of
+	// the dependency set, so a store label left by an earlier version would make Cleanup
+	// delete it. Only on OpenShift, where the account is never ours: elsewhere the same
+	// name may be an account the operator legitimately owns.
+	if kubernetes.IsOpenShiftProvider(ddai.GetAnnotations()[kubernetes.ProviderAnnotationKey]) {
+		if err := openshift.DisownBundleServiceAccount(ctx, r.client, ddai.GetNamespace(), ddai.GetUID()); err != nil {
+			return err
+		}
 	}
 
 	// Cleanup unused dependencies, excluding resources managed by the DDA controller.

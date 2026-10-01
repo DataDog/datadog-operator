@@ -12,6 +12,7 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/pkg/images"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 // Default configuration values. These are the recommended settings for monitoring with Datadog in Kubernetes.
@@ -123,6 +124,10 @@ const (
 	// defaultKubeletAgentCAPathHostPathSet = "/var/run/host-kubelet-ca.crt"
 	defaultKubeletPodResourcesSocketDir = "/var/lib/kubelet/pod-resources/"
 
+	// defaultOpenShiftKubeletTLSVerify applies only on OpenShift; elsewhere the field
+	// stays unset, which emits no DD_KUBELET_TLS_VERIFY at all (see global/agent.go).
+	defaultOpenShiftKubeletTLSVerify = false
+
 	defaultContainerStrategy = v2alpha1.OptimizedContainerStrategy
 
 	defaultHelmCheckEnabled       bool = false
@@ -147,6 +152,23 @@ func DefaultDatadogAgentSpec(ddaSpec *v2alpha1.DatadogAgentSpec) {
 	defaultGlobalConfig(ddaSpec)
 
 	defaultFeaturesConfig(ddaSpec)
+}
+
+// DefaultProviderSpecificConfig applies provider-dependent defaults. Must run after
+// DefaultDatadogAgentSpec, which guarantees the Global sub-structs are non-nil. Like
+// the rest of this package it only fills unset values.
+func DefaultProviderSpecificConfig(ddaSpec *v2alpha1.DatadogAgentSpec, provider string) {
+	if kubernetes.IsOpenShiftProvider(provider) {
+		defaultOpenShiftConfig(ddaSpec)
+	}
+}
+
+// defaultOpenShiftConfig applies the OpenShift-specific global defaults.
+func defaultOpenShiftConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
+	// OpenShift kubelet serving certs are commonly signed by a per-node signer rather
+	// than the cluster CA, so verification fails and the Agent cannot scrape the
+	// kubelet. Datadog documents disabling it on OpenShift for this reason.
+	apiutils.DefaultBooleanIfUnset(&ddaSpec.Global.Kubelet.TLSVerify, defaultOpenShiftKubeletTLSVerify)
 }
 
 // defaultGlobalConfig sets default values in DatadogAgentSpec.Global.

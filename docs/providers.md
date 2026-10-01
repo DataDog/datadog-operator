@@ -68,6 +68,12 @@ label, and among labels the order is `openshift`, then `eks`, then `aks`.
 The detected provider is recorded in `status.clusterProvider` on the
 `DatadogAgent` (see [Effective provider resolution](#effective-provider-resolution)).
 
+OpenShift is detected as `openshift-<os_id>` (for example `openshift-rhcos`). The
+`<os_id>` value itself carries no meaning — `openshift-rhcos` and `openshift-rhel`
+behave identically — but the suffix must be present for [control plane
+monitoring][2] to be enabled. Prefer the detected value, or an explicit
+`openshift-<os_id>`, over a bare `openshift`.
+
 `gke-cos`, `eks-ec2-use-hostname-from-file`, and `gke-autopilot` are **not**
 auto-detected; they must be declared explicitly.
 
@@ -158,7 +164,7 @@ values are the value of the `agent.datadoghq.com/cluster-provider` annotation.
 | `gke-cos`                        | v1.29.0+     | Cluster (DDA) or Node (DAP) | Annotation only         | Drops the `/usr/src` volume from the OOM Kill, TCP Queue Length, and GPU checks (node OS has no kernel sources)                                                                                                                                                                                                                | `providers.gke.cos`                          |
 | `eks-ec2-use-hostname-from-file` | v1.29.0+     | Cluster (DDA) or Node (DAP) | Annotation only         | Adds `DD_HOSTNAME_FILE` and a host mount of the cloud-init instance-id file so the Agent derives a stable hostname                                                                                                                                                                                                             | `providers.eks.ec2.useHostnameFromFile`      |
 | `eks`                            | v1.29.0+     | Cluster (DDA)               | Detection or annotation | Enables [control plane monitoring][2]: API Server, Controller Manager, Scheduler                                                                                                                                                                                                                                               | `providers.eks.controlPlaneMonitoring`       |
-| `openshift` (`openshift-<os>`)   | v1.29.0+     | Cluster (DDA)               | Detection or annotation | Enables [control plane monitoring][2]: API Server, Controller Manager, Scheduler, and etcd                                                                                                                                                                                                                                     | `providers.openshift.controlPlaneMonitoring` |
+| `openshift` (`openshift-<os>`)   | v1.29.0+     | Cluster (DDA)               | Detection or annotation | Enables [control plane monitoring][2]: API Server, Controller Manager, Scheduler, and etcd. Operator v1.31.0+ also configures the node Agent for OpenShift: the `datadog-agent-scc` ServiceAccount (when it is authorized to use the `privileged` SCC), SELinux type `spc_t`, `master` and `infra` tolerations, and `kubelet.tlsVerify: false`. See [Install on OpenShift][6]                                                                                                                                                                                                                                     | `providers.openshift.controlPlaneMonitoring` |
 | `aks`                            | v1.29.0+     | Cluster (DDA)               | Detection or annotation | Sets the mandatory `DD_ADMISSION_CONTROLLER_ADD_AKS_SELECTORS=true` environment variable on the Cluster Agent                                                                                                                                                                                                                  | `providers.aks.enabled`                      |
 | `gke-autopilot`                  | v1.29.0+     | Cluster (DDA)               | Annotation only         | Full GKE Autopilot workload adaptation (volume, env var, path, image, and PriorityClass changes). See [Datadog Operator on GKE Autopilot][3]                                                                                                                                                                                   | `providers.gke.autopilot`                    |
 | `windows`                        | v1.30.0+     | Node (DAP)                  | Annotation only         | Builds a Windows-compatible node Agent DaemonSet on the targeted Windows nodes: Linux-only containers, mounts, and security context are stripped, and a Windows base image and init config are applied                                                                                                                         | None                                         |
@@ -172,6 +178,15 @@ Cluster scope applies the provider to every node, so use it only when all nodes 
 [^talos-tracefs]: Attaching an eBPF probe writes to `kprobe_events`, which lives in tracefs. Mainline kernels auto-mount tracefs under debugfs at `/sys/kernel/debug/tracing`, so the `/sys/kernel/debug` host mount these features already use is enough there. Talos exposes tracefs only as a standalone mount at `/sys/kernel/tracing`, so without this mount probe attachment fails while the pod still reports `Running`/`Ready`. Applies to NPM, USM, CWS, OOM Kill, TCP Queue Length, eBPF Check, Dynamic Instrumentation, SBOM, and GPU (privileged mode only).
 
 [^talos-scope]: Talos detection assumes the normal Talos deployment model: the cluster is uniform and every Kubernetes node runs Talos Linux. If detection sees a Talos `osImage` on a single node, it treats the cluster as Talos. Opt out with `agent.datadoghq.com/cluster-provider: default` on the `DatadogAgent`. On mixed clusters, target the Talos nodes with a [DatadogAgentProfile][4] instead; features that mount absent Talos host paths such as `/etc/passwd`, `/etc/group`, `/usr/src`, or `/lib/modules` can otherwise fail to start on those nodes.
+
+**OpenShift and Unix Domain Sockets**: the provider does not change the APM or
+DogStatsD transport. If either uses a Unix Domain Socket, the Admission Controller
+injects a `hostPath` volume into instrumented application pods, which the default
+`restricted-v2` SCC forbids — those pods are rejected at admission, while the Agent
+itself keeps running. Set
+`features.apm.unixDomainSocketConfig.enabled: false` with
+`features.apm.hostPortConfig.enabled: true`, and
+`features.dogstatsd.unixDomainSocketConfig.enabled: false`.
 
 ## Examples
 
@@ -195,3 +210,4 @@ an Autopilot cluster (see the [GKE Autopilot guide][3]).
 [3]: https://docs.datadoghq.com/containers/kubernetes/distributions/?tab=datadogoperator#autopilot
 [4]: https://docs.datadoghq.com/containers/datadog_operator/datadog_agent_profiles
 [5]: https://docs.datadoghq.com/containers/datadog_operator/datadog_agent_profiles#declaring-a-provider
+[6]: https://github.com/DataDog/datadog-operator/blob/main/docs/install-openshift.md
