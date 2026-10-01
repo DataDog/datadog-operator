@@ -87,7 +87,7 @@ func ensureGCRAutopilotRegistry(spec *datadoghqv2alpha1.DatadogAgentSpec) {
 func (r *Reconciler) reconcileInstance(ctx context.Context, logger logr.Logger, instance *datadoghqv2alpha1.DatadogAgent, rawSpec datadoghqv2alpha1.DatadogAgentSpec) (reconcile.Result, error) {
 	// Set up field manager for crd apply
 	if r.fieldManager == nil {
-		f, err := newFieldManager(r.client, r.scheme, getDDAIGVK())
+		f, err := newFieldManager(ctx, r.client, r.scheme, getDDAIGVK())
 		if err != nil {
 			return reconcile.Result{}, err
 		}
