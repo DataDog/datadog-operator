@@ -24,6 +24,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestClusterChecksFeature(t *testing.T) {
@@ -181,12 +182,16 @@ func TestClusterChecksFeature(t *testing.T) {
 }
 
 func TestRunnerGroupsJSON(t *testing.T) {
-	assert.Empty(t, runnerGroupsJSON(nil))
+	raw, err := runnerGroupsJSON(nil)
+	require.NoError(t, err)
+	assert.Empty(t, raw)
 	// Keys are sorted, so the Cluster Agent env var is stable across reconciles.
-	assert.Equal(t, `{"a":["x"],"b":["y","z"]}`, runnerGroupsJSON([]v2alpha1.ClusterChecksRunnerGroup{
+	raw, err = runnerGroupsJSON([]v2alpha1.ClusterChecksRunnerGroup{
 		{Name: "b", ChecksInclude: []string{"y", "z"}},
 		{Name: "a", ChecksInclude: []string{"x"}},
-	}))
+	})
+	require.NoError(t, err)
+	assert.Equal(t, `{"a":["x"],"b":["y","z"]}`, raw)
 }
 
 func TestClusterAgentChecksumsDifferentForDifferentConfig(t *testing.T) {

@@ -7,6 +7,7 @@ package clusterchecks
 
 import (
 	"encoding/json"
+	"fmt"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
@@ -85,7 +86,9 @@ func (f *clusterChecksFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Da
 			f.logger.Error(err, "ignoring experimental cluster checks runner groups")
 		}
 		f.ccrFamilyEnabled = f.useClusterCheckRunners || len(runnerGroups) > 0
-		f.runnerGroups = runnerGroupsJSON(runnerGroups)
+		if f.runnerGroups, err = runnerGroupsJSON(runnerGroups); err != nil {
+			f.logger.Error(err, "cannot pass the cluster checks runner groups to the Cluster Agent")
+		}
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
 				IsRequired: new(true),
@@ -272,16 +275,19 @@ func (f *clusterChecksFeature) ManageClusterChecksRunner(managers feature.PodTem
 // cluster_checks.runner_groups value: a JSON object mapping each group to
 // the checks it claims, or "" without groups. Map keys are marshalled sorted,
 // so the value is stable across reconciles.
-func runnerGroupsJSON(groups []v2alpha1.ClusterChecksRunnerGroup) string {
+func runnerGroupsJSON(groups []v2alpha1.ClusterChecksRunnerGroup) (string, error) {
 	if len(groups) == 0 {
-		return ""
+		return "", nil
 	}
 	claims := make(map[string][]string, len(groups))
 	for _, group := range groups {
 		claims[group.Name] = group.ChecksInclude
 	}
-	raw, _ := json.Marshal(claims) // a map of string slices always marshals
-	return string(raw)
+	raw, err := json.Marshal(claims)
+	if err != nil {
+		return "", fmt.Errorf("cannot encode cluster checks runner groups: %w", err)
+	}
+	return string(raw), nil
 }
 
 func (f *clusterChecksFeature) ManageOtelAgentGateway(managers feature.PodTemplateManagers) error {
