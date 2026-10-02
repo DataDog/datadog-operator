@@ -79,6 +79,10 @@ func startSpan(ctx context.Context, resourceName string, extraTags ...tracer.Sta
 	}
 	opts = append(opts, extraTags...)
 	span, ctx := tracer.StartSpanFromContext(ctx, operationName, opts...)
+	if span == nil {
+		// Tracer isn't running (e.g. DD_TRACE_ENABLED=false).
+		return nil, ctx
+	}
 	return span, log.IntoContext(ctx, loggerWithSpan(log.FromContext(ctx), span))
 }
 

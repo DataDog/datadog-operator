@@ -122,6 +122,21 @@ func TestStartSpan_Logger(t *testing.T) {
 	assert.Contains(t, logged, `"key"="value"`, "values added after the parent span are kept")
 }
 
+func TestStartSpan_TracerNotRunning(t *testing.T) {
+	// Enabled but the global tracer is a no-op, e.g. DD_TRACE_ENABLED=false.
+	enabled.Store(true)
+	t.Cleanup(func() { enabled.Store(false) })
+
+	var logged string
+	logger := funcr.New(func(_, args string) { logged = args }, funcr.Options{})
+	ctx := log.IntoContext(context.Background(), logger)
+
+	span, ctx := StartSpan(ctx)
+	assert.Nil(t, span)
+	log.FromContext(ctx).Info("no tracer")
+	assert.NotContains(t, logged, ext.LogKeyTraceID)
+}
+
 func TestLogTraceID(t *testing.T) {
 	extract := func(traceID string) *tracer.SpanContext {
 		t.Helper()
