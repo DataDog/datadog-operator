@@ -43,12 +43,11 @@ func StartReconcileSpan(ctx context.Context, kind, operationName string, obj met
 			{"reconcileID", string(controller.ReconcileIDFromContext(ctx))},
 		},
 	})
-	span, ctx := startSpan(ctx, "Reconcile")
-	ctx = log.IntoContext(ctx, LoggerWithSpan(ctx, log.FromContext(ctx)))
-	return span, ctx
+	return startSpan(ctx, "Reconcile")
 }
 
-// StartSpan starts a span whose resource name is the calling function.
+// StartSpan starts a span whose resource name is the calling function, and
+// tags the context logger with its IDs.
 func StartSpan(ctx context.Context, extraTags ...tracer.StartSpanOption) (*tracer.Span, context.Context) {
 	if !Enabled() {
 		return nil, ctx
@@ -79,7 +78,8 @@ func startSpan(ctx context.Context, resourceName string, extraTags ...tracer.Sta
 		}
 	}
 	opts = append(opts, extraTags...)
-	return tracer.StartSpanFromContext(ctx, operationName, opts...)
+	span, ctx := tracer.StartSpanFromContext(ctx, operationName, opts...)
+	return span, log.IntoContext(ctx, loggerWithSpan(log.FromContext(ctx), span))
 }
 
 // callerFuncName returns the name of the function depth frames above its caller.

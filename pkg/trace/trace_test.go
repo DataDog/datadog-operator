@@ -10,6 +10,8 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/DataDog/dd-trace-go/v2/ddtrace/ext"
@@ -19,6 +21,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 func startMockTracer(t *testing.T) mocktracer.Tracer {
@@ -96,20 +99,27 @@ func TestCallerFuncName(t *testing.T) {
 	assert.Equal(t, "TestCallerFuncName", func() string { return callerFuncName(1) }())
 }
 
-func TestLoggerWithSpan(t *testing.T) {
+func TestStartSpan_Logger(t *testing.T) {
 	var logged string
 	logger := funcr.New(func(_, args string) { logged = args }, funcr.Options{})
+	ctx := log.IntoContext(context.Background(), logger)
 
-	LoggerWithSpan(context.Background(), logger).Info("no span")
+	log.FromContext(ctx).Info("no span")
 	assert.NotContains(t, logged, ext.LogKeyTraceID)
 
 	startMockTracer(t)
-	span, ctx := StartSpan(context.Background())
-	defer span.Finish()
+	root, ctx := StartReconcileSpan(ctx, "DatadogAgent", "datadogagent.reconcile", testDDA())
+	defer root.Finish()
+	ctx = log.IntoContext(ctx, log.FromContext(ctx).WithValues("key", "value"))
+	child, ctx := StartSpan(ctx)
+	defer child.Finish()
 
-	LoggerWithSpan(ctx, logger).Info("with span")
-	assert.Contains(t, logged, `"`+ext.LogKeyTraceID+`"="`+logTraceID(span.Context())+`"`)
-	assert.Contains(t, logged, `"`+ext.LogKeySpanID+`"=`)
+	log.FromContext(ctx).Info("with span")
+	assert.Contains(t, logged, `"`+ext.LogKeyTraceID+`"="`+logTraceID(child.Context())+`"`)
+	spanID := `"` + ext.LogKeySpanID + `"="` + strconv.FormatUint(child.Context().SpanID(), 10) + `"`
+	assert.Contains(t, logged, spanID)
+	assert.Equal(t, 1, strings.Count(logged, ext.LogKeySpanID), "parent span ID should be replaced")
+	assert.Contains(t, logged, `"key"="value"`, "values added after the parent span are kept")
 }
 
 func TestLogTraceID(t *testing.T) {

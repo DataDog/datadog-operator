@@ -6,8 +6,8 @@
 package trace
 
 import (
-	"context"
 	"os"
+	"slices"
 	"strconv"
 
 	"github.com/DataDog/dd-trace-go/v2/ddtrace/ext"
@@ -15,17 +15,60 @@ import (
 	"github.com/go-logr/logr"
 )
 
-// LoggerWithSpan adds the active span's trace and span IDs to logger.
-func LoggerWithSpan(ctx context.Context, logger logr.Logger) logr.Logger {
-	span, ok := tracer.SpanFromContext(ctx)
-	if !ok || span == nil {
+// spanSink adds a span's trace and span IDs to every log entry.
+type spanSink struct {
+	logr.LogSink
+	ids []any
+}
+
+var _ logr.CallDepthLogSink = spanSink{}
+
+// loggerWithSpan returns logger tagged with span's IDs, replacing any IDs from a parent span.
+func loggerWithSpan(logger logr.Logger, span *tracer.Span) logr.Logger {
+	sink := logger.GetSink()
+	if sink == nil {
 		return logger
 	}
+	if s, ok := sink.(spanSink); ok {
+		sink = s.LogSink
+	} else if cd, ok := sink.(logr.CallDepthLogSink); ok {
+		// Skip the spanSink frame when reporting the caller.
+		sink = cd.WithCallDepth(1)
+	}
 	sc := span.Context()
-	return logger.WithValues(
-		ext.LogKeyTraceID, logTraceID(sc),
-		ext.LogKeySpanID, strconv.FormatUint(sc.SpanID(), 10),
-	)
+	return logger.WithSink(spanSink{
+		LogSink: sink,
+		ids: []any{
+			ext.LogKeyTraceID, logTraceID(sc),
+			ext.LogKeySpanID, strconv.FormatUint(sc.SpanID(), 10),
+		},
+	})
+}
+
+// Init is a no-op: the wrapped sink is already initialized.
+func (s spanSink) Init(logr.RuntimeInfo) {}
+
+func (s spanSink) Info(level int, msg string, keysAndValues ...any) {
+	s.LogSink.Info(level, msg, slices.Concat(s.ids, keysAndValues)...)
+}
+
+func (s spanSink) Error(err error, msg string, keysAndValues ...any) {
+	s.LogSink.Error(err, msg, slices.Concat(s.ids, keysAndValues)...)
+}
+
+func (s spanSink) WithValues(keysAndValues ...any) logr.LogSink {
+	return spanSink{LogSink: s.LogSink.WithValues(keysAndValues...), ids: s.ids}
+}
+
+func (s spanSink) WithName(name string) logr.LogSink {
+	return spanSink{LogSink: s.LogSink.WithName(name), ids: s.ids}
+}
+
+func (s spanSink) WithCallDepth(depth int) logr.LogSink {
+	if cd, ok := s.LogSink.(logr.CallDepthLogSink); ok {
+		return spanSink{LogSink: cd.WithCallDepth(depth), ids: s.ids}
+	}
+	return s
 }
 
 // logTraceID matches dd-trace-go's log trace ID format.
