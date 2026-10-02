@@ -65,6 +65,12 @@ func (f *helmCheckFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Datado
 	f.owner = dda
 	helmCheck := ddaSpec.Features.HelmCheck
 
+	// The helm check only ever runs inside the Cluster Agent (or Cluster Check Runners it
+	// dispatches to); without one there's no RBAC to create.
+	if clusterAgent, ok := ddaSpec.Override[v2alpha1.ClusterAgentComponentName]; ok && apiutils.BoolValue(clusterAgent.Disabled) {
+		return reqComp
+	}
+
 	if helmCheck != nil && apiutils.BoolValue(helmCheck.Enabled) {
 		reqComp.ClusterAgent.IsRequired = new(true)
 		reqComp.ClusterAgent.Containers = []apicommon.AgentContainerName{apicommon.ClusterAgentContainerName}
