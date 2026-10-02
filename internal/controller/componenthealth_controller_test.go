@@ -21,13 +21,26 @@ import (
 
 const testComponent = constants.DefaultClusterAgentResourceSuffix
 
-// recordingEmitter captures the snapshots handed to the emitter.
-type recordingEmitter struct {
-	snapshots [][]componenthealth.ComponentIssue
+// recordedSnapshot captures one Snapshot call.
+type recordedSnapshot struct {
+	active   []componenthealth.ComponentIssue
+	resolved []componenthealth.ComponentIssue
 }
 
-func (e *recordingEmitter) Snapshot(_ context.Context, issues []componenthealth.ComponentIssue) {
-	e.snapshots = append(e.snapshots, issues)
+// recordingEmitter captures the snapshots handed to the emitter. When err is set,
+// Snapshot returns it so the controller treats the snapshot as undelivered.
+type recordingEmitter struct {
+	snapshots []recordedSnapshot
+	err       error
+}
+
+func (e *recordingEmitter) Snapshot(_ context.Context, active, resolved []componenthealth.ComponentIssue) error {
+	e.snapshots = append(e.snapshots, recordedSnapshot{active: active, resolved: resolved})
+	return e.err
+}
+
+func (e *recordingEmitter) lastSnapshot() recordedSnapshot {
+	return e.snapshots[len(e.snapshots)-1]
 }
 
 func newTestReconciler(e componentHealthEmitter) *ComponentHealthReconciler {
@@ -37,6 +50,7 @@ func newTestReconciler(e componentHealthEmitter) *ComponentHealthReconciler {
 		emitter:          e,
 		snapshotInterval: defaultSnapshotInterval,
 		reported:         map[componentIssueKey]*componentIssueState{},
+		resolved:         map[componentIssueKey]struct{}{},
 	}
 }
 
@@ -54,10 +68,16 @@ func podKey(name string) types.NamespacedName {
 	return types.NamespacedName{Namespace: "datadog", Name: name}
 }
 
+// activeSnapshot returns the active issues from the reconciler's current snapshot.
+func activeSnapshot(r *ComponentHealthReconciler) []componenthealth.ComponentIssue {
+	active, _ := r.collectSnapshot()
+	return active
+}
+
 // activeIssue returns the active component-level issue of the given type from the
 // reconciler's current snapshot, or nil if none is active.
 func activeIssue(r *ComponentHealthReconciler, issueType string) *componenthealth.ComponentIssue {
-	for _, issue := range r.snapshot() {
+	for _, issue := range activeSnapshot(r) {
 		if issue.IssueType == issueType {
 			return &issue
 		}
@@ -89,7 +109,7 @@ func TestComponentHealth_AggregatesAcrossPods(t *testing.T) {
 
 	// pod-b hits the same issue: already active -> still one issue, both pods.
 	r.reconcilePod(podKey("pod-b"), testComponent, []componenthealth.DetectedIssue{detected(componenthealth.IssueOOMKilled, "pod-b")})
-	assert.Len(t, r.snapshot(), 1, "second affected pod must not create a second component issue")
+	assert.Len(t, activeSnapshot(r), 1, "second affected pod must not create a second component issue")
 	assert.ElementsMatch(t, []string{"pod-a", "pod-b"}, activeIssue(r, componenthealth.IssueOOMKilled).AffectedPods)
 	assert.Equal(t, float64(1), detectedCount(t, componenthealth.IssueOOMKilled), "second affected pod must not re-count")
 
@@ -116,7 +136,7 @@ func TestComponentHealth_DistinctIssueTypes(t *testing.T) {
 		detected(componenthealth.IssueOOMKilled, "pod-a"),
 		detected(componenthealth.IssueCrashLooping, "pod-a"),
 	})
-	assert.Len(t, r.snapshot(), 2, "distinct issue types should each be tracked")
+	assert.Len(t, activeSnapshot(r), 2, "distinct issue types should each be tracked")
 
 	// Only the crash loop clears -> OOM stays active.
 	r.reconcilePod(podKey("pod-a"), testComponent, []componenthealth.DetectedIssue{
@@ -152,7 +172,7 @@ func TestComponentHealth_SameIssueTypeMultipleContainers(t *testing.T) {
 		detected(componenthealth.IssueCrashLooping, "pod-a"),
 		detected(componenthealth.IssueCrashLooping, "pod-a"),
 	})
-	assert.Len(t, r.snapshot(), 1)
+	assert.Len(t, activeSnapshot(r), 1)
 
 	// Only one of the two containers still reports the issue: the pod is still
 	// affected, so the component issue must stay active.
@@ -183,7 +203,7 @@ func TestComponentHealth_ForgetPodResolves(t *testing.T) {
 func TestComponentHealth_Snapshot(t *testing.T) {
 	r := newTestReconciler(&recordingEmitter{})
 
-	assert.Empty(t, r.snapshot(), "no issues -> empty snapshot")
+	assert.Empty(t, activeSnapshot(r), "no issues -> empty snapshot")
 
 	r.reconcilePod(podKey("pod-a"), testComponent, []componenthealth.DetectedIssue{
 		detected(componenthealth.IssueOOMKilled, "pod-a"),
@@ -193,7 +213,7 @@ func TestComponentHealth_Snapshot(t *testing.T) {
 		detected(componenthealth.IssueOOMKilled, "pod-b"),
 	})
 
-	snap := r.snapshot()
+	snap := activeSnapshot(r)
 	assert.Len(t, snap, 2)
 	// Sorted by (component, namespace, issue_type): component_crash_looping < component_oomkilled.
 	assert.Equal(t, componenthealth.IssueCrashLooping, snap[0].IssueType)
@@ -211,15 +231,86 @@ func TestComponentHealth_EmitSnapshot(t *testing.T) {
 	// No active issues: still emits (empty snapshot doubles as the liveness signal).
 	r.emitSnapshot(context.Background())
 	if assert.Len(t, e.snapshots, 1) {
-		assert.Empty(t, e.snapshots[0])
+		assert.Empty(t, e.snapshots[0].active)
+		assert.Empty(t, e.snapshots[0].resolved)
 	}
 
 	r.reconcilePod(podKey("pod-a"), testComponent, []componenthealth.DetectedIssue{detected(componenthealth.IssueOOMKilled, "pod-a")})
 	r.emitSnapshot(context.Background())
 	if assert.Len(t, e.snapshots, 2) {
-		assert.Len(t, e.snapshots[1], 1)
-		assert.Equal(t, componenthealth.IssueOOMKilled, e.snapshots[1][0].IssueType)
+		assert.Len(t, e.lastSnapshot().active, 1)
+		assert.Empty(t, e.lastSnapshot().resolved)
+		assert.Equal(t, componenthealth.IssueOOMKilled, e.lastSnapshot().active[0].IssueType)
 	}
+}
+
+// TestComponentHealth_EmitResolveSignal verifies that when an issue clears, the
+// next snapshot carries it as a resolved issue, and that the resolve is sent only
+// once (after which it is acknowledged and dropped from the pending set).
+func TestComponentHealth_EmitResolveSignal(t *testing.T) {
+	e := &recordingEmitter{}
+	r := newTestReconciler(e)
+
+	// Issue appears, then clears.
+	r.reconcilePod(podKey("pod-a"), testComponent, []componenthealth.DetectedIssue{detected(componenthealth.IssueOOMKilled, "pod-a")})
+	r.reconcilePod(podKey("pod-a"), testComponent, nil)
+
+	// Next snapshot carries no active issues but one explicit resolve.
+	r.emitSnapshot(context.Background())
+	snap := e.lastSnapshot()
+	assert.Empty(t, snap.active)
+	if assert.Len(t, snap.resolved, 1) {
+		assert.Equal(t, componenthealth.IssueOOMKilled, snap.resolved[0].IssueType)
+		assert.Equal(t, testComponent, snap.resolved[0].Component)
+	}
+
+	// The resolve was acknowledged: it is not repeated on subsequent snapshots.
+	r.emitSnapshot(context.Background())
+	assert.Empty(t, e.lastSnapshot().resolved, "resolve must not be re-sent once acknowledged")
+}
+
+// TestComponentHealth_ResolveRetriedUntilDelivered verifies a resolve stays
+// pending (and is retried) until a snapshot is delivered successfully.
+func TestComponentHealth_ResolveRetriedUntilDelivered(t *testing.T) {
+	e := &recordingEmitter{err: assert.AnError}
+	r := newTestReconciler(e)
+
+	r.reconcilePod(podKey("pod-a"), testComponent, []componenthealth.DetectedIssue{detected(componenthealth.IssueOOMKilled, "pod-a")})
+	r.reconcilePod(podKey("pod-a"), testComponent, nil)
+
+	// Delivery fails: the resolve is presented but not acknowledged.
+	r.emitSnapshot(context.Background())
+	assert.Len(t, e.lastSnapshot().resolved, 1)
+
+	// Still failing: it is retried.
+	r.emitSnapshot(context.Background())
+	assert.Len(t, e.lastSnapshot().resolved, 1, "unacknowledged resolve must be retried")
+
+	// Delivery succeeds: it is acknowledged and then no longer sent.
+	e.err = nil
+	r.emitSnapshot(context.Background())
+	assert.Len(t, e.lastSnapshot().resolved, 1, "resolve is delivered on the successful send")
+
+	r.emitSnapshot(context.Background())
+	assert.Empty(t, e.lastSnapshot().resolved, "acknowledged resolve is not re-sent")
+}
+
+// TestComponentHealth_ReactivationCancelsResolve verifies that an issue which
+// clears and then recurs before the next snapshot is reported as active, not
+// resolved — no stale resolve signal is sent.
+func TestComponentHealth_ReactivationCancelsResolve(t *testing.T) {
+	e := &recordingEmitter{}
+	r := newTestReconciler(e)
+
+	r.reconcilePod(podKey("pod-a"), testComponent, []componenthealth.DetectedIssue{detected(componenthealth.IssueOOMKilled, "pod-a")})
+	r.reconcilePod(podKey("pod-a"), testComponent, nil)
+	// Recurs before any snapshot is taken.
+	r.reconcilePod(podKey("pod-a"), testComponent, []componenthealth.DetectedIssue{detected(componenthealth.IssueOOMKilled, "pod-a")})
+
+	r.emitSnapshot(context.Background())
+	snap := e.lastSnapshot()
+	assert.Len(t, snap.active, 1, "issue is active again")
+	assert.Empty(t, snap.resolved, "no stale resolve for a re-activated issue")
 }
 
 // TestComponentHealth_ActiveGauge verifies the active gauge tracks the number of

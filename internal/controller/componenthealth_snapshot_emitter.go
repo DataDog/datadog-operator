@@ -37,11 +37,11 @@ import (
 const (
 	// healthReportSchemaVersion is the schema version stamped on every report.
 	healthReportSchemaVersion = "v1"
-	// healthReportEventType marks these reports as full current-state snapshots
-	// (as opposed to per-issue edges), which is what the backend reconciles.
+	// healthReportEventType marks these reports as periodic snapshots of the
+	// current state (active issues, plus RESOLVED entries for ones that just
+	// cleared), which is what the backend reconciles.
 	healthReportEventType = "snapshot"
-	// healthReportService identifies the operator as the reporting flavor, the
-	// operator-side analogue of the agent "Service = agent flavor" field.
+	// healthReportService identifies the operator as the reporting flavor
 	healthReportService = "datadog-operator"
 	// healthReportSource identifies the operator as the issue source.
 	healthReportSource = "datadog-operator"
@@ -64,7 +64,7 @@ const (
 )
 
 // issueTitles maps each detected issue type to a human-readable title carried on
-// the payload. Values mirror the signal catalog in the RFC.
+// the payload.
 var issueTitles = map[string]string{
 	componenthealth.IssueOOMKilled:        "Component OOMKilled",
 	componenthealth.IssueCrashLooping:     "Component Crash Looping",
@@ -72,8 +72,11 @@ var issueTitles = map[string]string{
 	componenthealth.IssueImagePullFailure: "Image Pull Failure",
 }
 
-// issueRemediations maps each issue type to its step-1 diagnostic remediation,
-// from the RFC signal catalog. The backend may override or enrich these.
+// issueRemediations maps each issue type to its step-1 diagnostic remediation.
+// The backend may override or enrich these.
+//
+// TODO: use backend-based remediation once available instead of hardcoding
+// remediations in the operator code.
 var issueRemediations = map[string]string{
 	componenthealth.IssueOOMKilled:        "Run `kubectl describe pod` on the affected pods, then raise the memory limit or investigate a memory leak.",
 	componenthealth.IssueCrashLooping:     "Run `kubectl logs --previous` on the affected pods to inspect the crash cause.",
@@ -86,10 +89,16 @@ type ddaGetter func() (*v2alpha1.DatadogAgent, error)
 
 // snapshotEmitter is the production componentHealthEmitter. On each snapshot it
 // resolves credentials and site (operator config first, DatadogAgent CR as
-// fallback), builds a HealthReport of the current active component-level issues,
-// and POSTs it as protobuf to the agenthealth intake. It keeps no local state:
-// the backend owns the ACTIVE/RESOLVED lifecycle, dedup, and first_seen/last_seen
-// tracking, so the operator only ships raw current-state snapshots.
+// fallback), builds a HealthReport of the current active component-level issues
+// plus explicit RESOLVED entries for the issues that just cleared, and POSTs it as
+// protobuf to the agenthealth intake.
+//
+// The emitter itself is stateless; the active-issue set and the pending-resolve
+// set it serializes live in the ComponentHealthReconciler. The backend remains the
+// authoritative owner of issue lifecycle — dedup and first_seen/last_seen
+// tracking, and auto-resolution via TTL as a backstop — but the operator sends
+// explicit resolve signals so a cleared issue is closed promptly instead of
+// waiting for that TTL to expire.
 type snapshotEmitter struct {
 	log          logr.Logger
 	k8sClient    client.Reader
@@ -113,34 +122,36 @@ func newSnapshotEmitter(log logr.Logger, k8sClient client.Reader, credsManager *
 	return e
 }
 
-// Snapshot builds and POSTs a HealthReport of the current active issues. An empty
-// snapshot is still sent: it is how the backend learns that previously-active
-// issues have cleared, and it doubles as the liveness signal the backend uses to
+// Snapshot builds and POSTs a HealthReport containing the current active issues
+// (as current-state) and the recently-resolved issues (carrying an explicit
+// RESOLVED state). It returns an error when the report was not delivered, so the
+// controller can retry the resolve signals on the next tick. An otherwise-empty
+// report is still sent: it doubles as the liveness signal the backend uses to
 // distinguish "healthy" from "stale/unknown".
-func (e *snapshotEmitter) Snapshot(ctx context.Context, issues []componenthealth.ComponentIssue) {
+func (e *snapshotEmitter) Snapshot(ctx context.Context, active, resolved []componenthealth.ComponentIssue) error {
 	creds, err := e.credsManager.GetCredsWithDDAFallback(e.getDDA)
 	if err != nil {
 		e.log.V(1).Info("skipping component health snapshot: no credentials", "error", err)
-		return
+		return err
 	}
 
-	report := buildHealthReport(issues, os.Getenv(constants.DDClusterName))
+	report := buildHealthReport(active, resolved, os.Getenv(constants.DDClusterName))
 	payload, err := proto.Marshal(report)
 	if err != nil {
 		e.log.Error(err, "failed to marshal component health report")
-		return
+		return err
 	}
 
 	req, err := e.newRequest(ctx, creds, payload)
 	if err != nil {
 		e.log.V(1).Info("failed to build component health request", "error", err)
-		return
+		return err
 	}
 
 	resp, err := e.httpClient.Do(req)
 	if err != nil {
 		e.log.V(1).Info("failed to send component health snapshot", "error", err)
-		return
+		return err
 	}
 	defer resp.Body.Close()
 
@@ -148,10 +159,12 @@ func (e *snapshotEmitter) Snapshot(ctx context.Context, issues []componenthealth
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
 		e.log.V(1).Info("component health intake returned non-success status",
 			"status", resp.StatusCode, "body", string(body))
-		return
+		return fmt.Errorf("agenthealth intake returned status %d", resp.StatusCode)
 	}
 
-	e.log.V(2).Info("sent component health snapshot", "issues", len(issues), "status", resp.StatusCode)
+	e.log.V(2).Info("sent component health snapshot",
+		"active", len(active), "resolved", len(resolved), "status", resp.StatusCode)
+	return nil
 }
 
 // newRequest builds the POST request to the agenthealth intake for the given
@@ -208,9 +221,12 @@ func agenthealthURL(creds config.Creds) string {
 	return u.String()
 }
 
-// buildHealthReport turns the current active component-level issues into a
-// HealthReport envelope keyed by stable issue id.
-func buildHealthReport(issues []componenthealth.ComponentIssue, clusterName string) *healthplatform.HealthReport {
+// buildHealthReport turns the current active and recently-resolved component-level
+// issues into a HealthReport envelope keyed by stable issue id. Active issues
+// carry no explicit lifecycle state (the backend treats their presence as
+// active/ongoing); resolved issues carry an explicit RESOLVED state so the backend
+// closes them immediately instead of waiting for TTL expiry.
+func buildHealthReport(active, resolved []componenthealth.ComponentIssue, clusterName string) *healthplatform.HealthReport {
 	now := time.Now().UTC().Format(time.RFC3339)
 
 	report := &healthplatform.HealthReport{
@@ -219,19 +235,25 @@ func buildHealthReport(issues []componenthealth.ComponentIssue, clusterName stri
 		EmittedAt:     now,
 		Service:       healthReportService,
 		Host:          &healthplatform.HostInfo{Hostname: clusterName},
-		Issues:        make(map[string]*healthplatform.Issue, len(issues)),
+		Issues:        make(map[string]*healthplatform.Issue, len(active)+len(resolved)),
 	}
 
-	for _, issue := range issues {
+	for _, issue := range active {
 		id := issueID(issue)
-		report.Issues[id] = buildIssue(id, issue, now)
+		report.Issues[id] = buildIssue(id, issue, now, false)
+	}
+	for _, issue := range resolved {
+		id := issueID(issue)
+		report.Issues[id] = buildIssue(id, issue, now, true)
 	}
 
 	return report
 }
 
 // buildIssue maps one component-level issue onto the health-platform Issue proto.
-func buildIssue(id string, issue componenthealth.ComponentIssue, detectedAt string) *healthplatform.Issue {
+// When resolved is true it stamps an explicit RESOLVED lifecycle state so the
+// backend closes the issue.
+func buildIssue(id string, issue componenthealth.ComponentIssue, now string, resolved bool) *healthplatform.Issue {
 	out := &healthplatform.Issue{
 		Id:          id,
 		IssueName:   issue.IssueType,
@@ -240,7 +262,7 @@ func buildIssue(id string, issue componenthealth.ComponentIssue, detectedAt stri
 		Description: issueDescription(issue),
 		Severity:    toProtoSeverity(issue.Severity),
 		Source:      healthReportSource,
-		DetectedAt:  detectedAt,
+		DetectedAt:  now,
 		Tags: []string{
 			"kube_namespace:" + issue.Namespace,
 			"component:" + issue.Component,
@@ -249,6 +271,12 @@ func buildIssue(id string, issue componenthealth.ComponentIssue, detectedAt stri
 	}
 	if summary, ok := issueRemediations[issue.IssueType]; ok {
 		out.Remediation = &healthplatform.Remediation{Summary: summary}
+	}
+	if resolved {
+		out.PersistedIssue = &healthplatform.PersistedIssue{
+			State:      healthplatform.IssueState_ISSUE_STATE_RESOLVED,
+			ResolvedAt: &now,
+		}
 	}
 	return out
 }

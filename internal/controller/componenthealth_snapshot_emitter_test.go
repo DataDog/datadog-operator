@@ -81,7 +81,16 @@ func TestBuildHealthReport(t *testing.T) {
 		},
 	}
 
-	report := buildHealthReport(issues, "my-cluster")
+	resolvedIssues := []componenthealth.ComponentIssue{
+		{
+			Component: constants.DefaultClusterAgentResourceSuffix,
+			IssueType: componenthealth.IssueCrashLooping,
+			Severity:  componenthealth.SeverityHigh,
+			Namespace: "datadog",
+		},
+	}
+
+	report := buildHealthReport(issues, resolvedIssues, "my-cluster")
 
 	assert.Equal(t, healthReportSchemaVersion, report.SchemaVersion)
 	assert.Equal(t, healthReportEventType, report.EventType)
@@ -89,7 +98,7 @@ func TestBuildHealthReport(t *testing.T) {
 	assert.NotEmpty(t, report.EmittedAt)
 	require.NotNil(t, report.Host)
 	assert.Equal(t, "my-cluster", report.Host.Hostname)
-	require.Len(t, report.Issues, 2)
+	require.Len(t, report.Issues, 3)
 
 	oomID := "datadog/" + constants.DefaultClusterAgentResourceSuffix + "/" + componenthealth.IssueOOMKilled
 	oom := report.Issues[oomID]
@@ -107,11 +116,19 @@ func TestBuildHealthReport(t *testing.T) {
 	}, oom.Tags)
 	require.NotNil(t, oom.Remediation)
 	assert.NotEmpty(t, oom.Remediation.Summary)
+	assert.Nil(t, oom.PersistedIssue, "active issues carry no explicit lifecycle state")
 
 	clcID := "datadog/" + constants.DefaultClusterChecksRunnerResourceSuffix + "/" + componenthealth.IssueImagePullFailure
 	clc := report.Issues[clcID]
 	require.NotNil(t, clc)
 	assert.Equal(t, healthplatform.IssueSeverity_ISSUE_SEVERITY_MEDIUM, clc.Severity)
+
+	resolvedID := "datadog/" + constants.DefaultClusterAgentResourceSuffix + "/" + componenthealth.IssueCrashLooping
+	resolved := report.Issues[resolvedID]
+	require.NotNil(t, resolved, "resolved issue is included in the report")
+	require.NotNil(t, resolved.PersistedIssue, "resolved issue carries an explicit lifecycle state")
+	assert.Equal(t, healthplatform.IssueState_ISSUE_STATE_RESOLVED, resolved.PersistedIssue.State)
+	assert.NotNil(t, resolved.PersistedIssue.ResolvedAt)
 }
 
 func TestToProtoSeverity(t *testing.T) {
@@ -150,15 +167,21 @@ func TestSnapshotEmitter_PostsProtobuf(t *testing.T) {
 	emitter := newSnapshotEmitter(logr.Discard(), fakeClient, config.NewCredentialManager(fakeClient))
 	emitter.httpClient = srv.Client()
 
-	issues := []componenthealth.ComponentIssue{{
+	active := []componenthealth.ComponentIssue{{
 		Component:    constants.DefaultClusterAgentResourceSuffix,
 		IssueType:    componenthealth.IssueOOMKilled,
 		Severity:     componenthealth.SeverityHigh,
 		Namespace:    "datadog",
 		AffectedPods: []string{"dca-1"},
 	}}
+	resolved := []componenthealth.ComponentIssue{{
+		Component: constants.DefaultClusterChecksRunnerResourceSuffix,
+		IssueType: componenthealth.IssueCrashLooping,
+		Severity:  componenthealth.SeverityHigh,
+		Namespace: "datadog",
+	}}
 
-	emitter.Snapshot(context.Background(), issues)
+	require.NoError(t, emitter.Snapshot(context.Background(), active, resolved))
 
 	assert.Equal(t, http.MethodPost, gotMethod)
 	assert.Equal(t, "/"+agenthealthPath, gotPath)
@@ -168,10 +191,16 @@ func TestSnapshotEmitter_PostsProtobuf(t *testing.T) {
 	var report healthplatform.HealthReport
 	require.NoError(t, proto.Unmarshal(gotBody, &report))
 	assert.Equal(t, "test-cluster", report.Host.GetHostname())
-	require.Len(t, report.Issues, 1)
-	for _, issue := range report.Issues {
-		assert.Equal(t, componenthealth.IssueOOMKilled, issue.IssueType)
-	}
+	require.Len(t, report.Issues, 2)
+
+	activeID := "datadog/" + constants.DefaultClusterAgentResourceSuffix + "/" + componenthealth.IssueOOMKilled
+	require.NotNil(t, report.Issues[activeID])
+	assert.Nil(t, report.Issues[activeID].PersistedIssue)
+
+	resolvedID := "datadog/" + constants.DefaultClusterChecksRunnerResourceSuffix + "/" + componenthealth.IssueCrashLooping
+	require.NotNil(t, report.Issues[resolvedID])
+	require.NotNil(t, report.Issues[resolvedID].PersistedIssue)
+	assert.Equal(t, healthplatform.IssueState_ISSUE_STATE_RESOLVED, report.Issues[resolvedID].PersistedIssue.State)
 }
 
 // TestSnapshotEmitter_SkipsWithoutCredentials verifies the emitter does not POST
@@ -191,6 +220,7 @@ func TestSnapshotEmitter_SkipsWithoutCredentials(t *testing.T) {
 	emitter := newSnapshotEmitter(logr.Discard(), fakeClient, config.NewCredentialManager(fakeClient))
 	emitter.httpClient = srv.Client()
 
-	emitter.Snapshot(context.Background(), nil)
+	err := emitter.Snapshot(context.Background(), nil, nil)
+	assert.Error(t, err, "must return an error when credentials are missing")
 	assert.False(t, posted, "must not POST when credentials are missing")
 }
