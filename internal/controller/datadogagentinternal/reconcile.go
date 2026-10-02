@@ -46,8 +46,12 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *v1alpha1.D
 	}
 
 	// 3. Set default values for GlobalConfig and Features
+	// Provider-specific defaults run here, not in the DatadogAgent controller: the
+	// provider annotation is already on the DDAI, whereas the DDA controller does not
+	// resolve the provider until later in its reconcile.
 	instanceCopy := instance.DeepCopy()
 	defaults.DefaultDatadogAgentSpec(&instanceCopy.Spec)
+	defaults.DefaultProviderSpecificConfig(&instanceCopy.Spec, instance.GetAnnotations()[kubernetes.ProviderAnnotationKey])
 
 	// 4. Delegate to the main reconcile function.
 	return r.reconcileInstance(ctx, instanceCopy)
@@ -87,7 +91,7 @@ func (r *Reconciler) reconcileInstance(ctx context.Context, instance *v1alpha1.D
 			return r.updateStatusIfNeeded(ctx, instance, newStatus, reconcile.Result{}, err, now)
 		}
 		// 1. Apply and cleanup dependencies before reconciling components to ensure deps exist at reconciliation time.
-		if err = r.applyAndCleanupDependencies(ctx, depsStore); err != nil {
+		if err = r.applyAndCleanupDependencies(ctx, instance, depsStore); err != nil {
 			return r.updateStatusIfNeeded(ctx, instance, newStatus, reconcile.Result{}, err, now)
 		}
 	}

@@ -64,6 +64,9 @@ const (
 	ClusterProviderDetectedConditionType = "ClusterProviderDetected"
 	// FeatureNotSupportedOnProviderConditionType reports that an enabled feature is not supported on the detected provider
 	FeatureNotSupportedOnProviderConditionType = "FeatureNotSupportedOnProvider"
+	// OpenShiftSCCConditionType reports whether the node agent's ServiceAccount may use the
+	// SecurityContextConstraints it needs to be admitted on OpenShift. Only set on OpenShift.
+	OpenShiftSCCConditionType = "OpenShiftSCC"
 	// DeprecatedConfigInUseConditionType reports that the DatadogAgent still relies on a
 	// deprecated configuration surface, and names the replacement. It is informational:
 	// the deprecated configuration keeps working until the release that removes it.
