@@ -30,14 +30,20 @@ type recordedSnapshot struct {
 }
 
 // recordingEmitter captures the snapshots handed to the emitter. When err is set,
-// Snapshot returns it so the controller treats the snapshot as undelivered.
+// Snapshot returns it so the controller treats the snapshot as undelivered. onSend,
+// if set, runs during Snapshot (before it returns) to simulate state changing while
+// a send is in flight.
 type recordingEmitter struct {
 	snapshots []recordedSnapshot
 	err       error
+	onSend    func()
 }
 
 func (e *recordingEmitter) Snapshot(_ context.Context, active, resolved []componenthealth.ComponentIssue) error {
 	e.snapshots = append(e.snapshots, recordedSnapshot{active: active, resolved: resolved})
+	if e.onSend != nil {
+		e.onSend()
+	}
 	return e.err
 }
 
@@ -314,6 +320,43 @@ func TestComponentHealth_ReactivationCancelsResolve(t *testing.T) {
 	snap := e.lastSnapshot()
 	assert.Len(t, snap.active, 1, "issue is active again")
 	assert.Empty(t, snap.resolved, "no stale resolve for a re-activated issue")
+}
+
+// TestComponentHealth_InFlightResolveRetained verifies that if an issue reappears
+// and clears again while a snapshot is being delivered (producing a newer
+// tombstone), acknowledging the sent snapshot does not drop that newer tombstone —
+// its RESOLVED signal is retried on the next tick instead of being lost to TTL.
+func TestComponentHealth_InFlightResolveRetained(t *testing.T) {
+	e := &recordingEmitter{}
+	r := newTestReconciler(e)
+
+	t0 := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	now := t0
+	r.clock = func() time.Time { return now }
+
+	// Issue appears, then clears -> tombstone T1 (resolvedAt = t0+1m).
+	r.reconcilePod(podKey("pod-a"), testComponent, []componenthealth.DetectedIssue{detected(componenthealth.IssueOOMKilled, "pod-a")})
+	now = t0.Add(time.Minute)
+	r.reconcilePod(podKey("pod-a"), testComponent, nil)
+
+	// During the (slow) send of T1, the issue reappears and clears again, replacing
+	// the tombstone with T2 (resolvedAt = t0+3m).
+	e.onSend = func() {
+		now = t0.Add(2 * time.Minute)
+		r.reconcilePod(podKey("pod-a"), testComponent, []componenthealth.DetectedIssue{detected(componenthealth.IssueOOMKilled, "pod-a")})
+		now = t0.Add(3 * time.Minute)
+		r.reconcilePod(podKey("pod-a"), testComponent, nil)
+	}
+
+	r.emitSnapshot(context.Background())
+	// The sent snapshot carried T1.
+	require.Len(t, e.lastSnapshot().resolved, 1)
+	assert.Equal(t, t0.Add(time.Minute), e.lastSnapshot().resolved[0].ResolvedAt)
+
+	// T2 must survive the ack of T1 and still be pending.
+	_, resolved := r.collectSnapshot()
+	require.Len(t, resolved, 1, "newer tombstone formed during the in-flight send must be retained")
+	assert.Equal(t, t0.Add(3*time.Minute), resolved[0].ResolvedAt)
 }
 
 // TestComponentHealth_LifecycleTimestamps verifies first_seen is stamped once and

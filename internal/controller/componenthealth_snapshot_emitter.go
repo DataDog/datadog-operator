@@ -133,7 +133,7 @@ func (e *snapshotEmitter) Snapshot(ctx context.Context, active, resolved []compo
 		return err
 	}
 
-	report := buildHealthReport(active, resolved, os.Getenv(constants.DDClusterName))
+	report := buildHealthReport(active, resolved, e.clusterName())
 	payload, err := json.Marshal(report)
 	if err != nil {
 		e.log.Error(err, "failed to marshal component health report")
@@ -163,6 +163,23 @@ func (e *snapshotEmitter) Snapshot(ctx context.Context, active, resolved []compo
 	e.log.V(2).Info("sent component health snapshot",
 		"active", len(active), "resolved", len(resolved), "status", resp.StatusCode)
 	return nil
+}
+
+// clusterName resolves the cluster identity stamped on the report host: the
+// operator config (DD_CLUSTER_NAME) takes precedence, falling back to the
+// DatadogAgent's spec.global.clusterName when the operator environment does not
+// set it (the same CR used for the credential fallback). Returns "" if neither is
+// available.
+func (e *snapshotEmitter) clusterName() string {
+	if name := os.Getenv(constants.DDClusterName); name != "" {
+		return name
+	}
+	if e.getDDA != nil {
+		if dda, err := e.getDDA(); err == nil && dda != nil && dda.Spec.Global != nil && dda.Spec.Global.ClusterName != nil {
+			return *dda.Spec.Global.ClusterName
+		}
+	}
+	return ""
 }
 
 // newRequest builds the POST request to the agenthealth intake for the given

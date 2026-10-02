@@ -18,8 +18,11 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/pkg/componenthealth"
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/constants"
@@ -142,6 +145,29 @@ func TestBuildHealthReport(t *testing.T) {
 	require.NotNil(t, resolved.PersistedIssue, "resolved issue carries an explicit lifecycle state")
 	assert.Equal(t, healthplatform.IssueState_ISSUE_STATE_RESOLVED, resolved.PersistedIssue.State)
 	assert.NotNil(t, resolved.PersistedIssue.ResolvedAt)
+}
+
+func TestSnapshotEmitter_ClusterName(t *testing.T) {
+	ddaClusterName := "dda-cluster"
+	dda := &v2alpha1.DatadogAgent{
+		ObjectMeta: metav1.ObjectMeta{Name: "datadog", Namespace: "system"},
+		Spec: v2alpha1.DatadogAgentSpec{
+			Global: &v2alpha1.GlobalConfig{ClusterName: &ddaClusterName},
+		},
+	}
+	scheme := runtime.NewScheme()
+	require.NoError(t, v2alpha1.AddToScheme(scheme))
+	c := fake.NewClientBuilder().WithScheme(scheme).WithObjects(dda).Build()
+	emitter := newSnapshotEmitter(logr.Discard(), c, config.NewCredentialManager(c))
+
+	// No DD_CLUSTER_NAME in the operator env -> fall back to the DatadogAgent's
+	// spec.global.clusterName.
+	t.Setenv(constants.DDClusterName, "")
+	assert.Equal(t, ddaClusterName, emitter.clusterName())
+
+	// Operator env takes precedence when set.
+	t.Setenv(constants.DDClusterName, "env-cluster")
+	assert.Equal(t, "env-cluster", emitter.clusterName())
 }
 
 func TestToProtoSeverity(t *testing.T) {

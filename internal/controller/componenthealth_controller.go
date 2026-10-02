@@ -310,8 +310,13 @@ func (r *ComponentHealthReconciler) collectSnapshot() (active, resolved []compon
 }
 
 // ackResolved drops the given resolved issues from the pending set once a snapshot
-// carrying them has been delivered. Issues that became active again in the
-// meantime were already removed by addPod, so deleting them here is a no-op.
+// carrying them has been delivered. It only drops a tombstone whose resolvedAt
+// still matches the one that was sent: while a slow send is in flight, an issue
+// can reappear and clear again, replacing the tombstone with a newer one that was
+// never sent. Deleting by key alone would ack that newer tombstone and drop its
+// RESOLVED signal, so it is retained (and retried next tick) when its resolvedAt
+// differs. Issues that became active again and stayed active were already removed
+// by addPod, so they are simply absent here.
 func (r *ComponentHealthReconciler) ackResolved(resolved []componenthealth.ComponentIssue) {
 	if len(resolved) == 0 {
 		return
@@ -319,7 +324,10 @@ func (r *ComponentHealthReconciler) ackResolved(resolved []componenthealth.Compo
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	for _, issue := range resolved {
-		delete(r.resolved, componentIssueKey{namespace: issue.Namespace, component: issue.Component, issueType: issue.IssueType})
+		key := componentIssueKey{namespace: issue.Namespace, component: issue.Component, issueType: issue.IssueType}
+		if ri, ok := r.resolved[key]; ok && ri.resolvedAt.Equal(issue.ResolvedAt) {
+			delete(r.resolved, key)
+		}
 	}
 }
 
