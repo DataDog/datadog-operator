@@ -280,6 +280,9 @@ func overrideSecurityContext(container *corev1.Container, securityContext *corev
 	// if host profiler annotations enabled a seccomp profile and override doesn't provide one, carry it over
 	if container.Name == string(apicommon.HostProfiler) && securityContext.SeccompProfile == nil && container.SecurityContext != nil {
 		securityContext.SeccompProfile = container.SecurityContext.SeccompProfile
+		if securityContext.AllowPrivilegeEscalation == nil {
+			securityContext.AllowPrivilegeEscalation = new(false)
+		}
 	}
 	return securityContext
 }

@@ -902,8 +902,9 @@ func TestContainer(t *testing.T) {
 				assertContainerMatch(t, manager.PodTemplateSpec().Spec.Containers, containerName, func(container corev1.Container) bool {
 					return reflect.DeepEqual(
 						&corev1.SecurityContext{
-							RunAsUser:              ptr.To[int64](12345),
-							ReadOnlyRootFilesystem: ptr.To(true),
+							RunAsUser:                ptr.To[int64](12345),
+							ReadOnlyRootFilesystem:   ptr.To(true),
+							AllowPrivilegeEscalation: ptr.To(false),
 							SeccompProfile: &corev1.SeccompProfile{
 								Type:             corev1.SeccompProfileTypeLocalhost,
 								LocalhostProfile: ptr.To("host-profiler-seccomp"),
