@@ -114,6 +114,14 @@ func (r *Reconciler) reconcileInstance(ctx context.Context, instance *v1alpha1.D
 		if utils.ShouldReturn(result, err) {
 			return r.updateStatusIfNeeded(ctx, instance, newStatus, result, err, now)
 		}
+
+		// 2.a. Reconcile the experimental dedicated Cluster Checks Runner groups
+		// (annotation-declared). These are additional Deployments outside the
+		// one-component-to-one-Deployment ComponentRegistry contract.
+		result, err = r.ReconcileClusterChecksRunnerGroups(ctx, params)
+		if utils.ShouldReturn(result, err) {
+			return r.updateStatusIfNeeded(ctx, instance, newStatus, result, err, now)
+		}
 	}
 
 	// 2.b. Node Agent. provider is read from the DDAI annotation above — the DDA

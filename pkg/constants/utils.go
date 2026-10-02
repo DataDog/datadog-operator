@@ -7,6 +7,7 @@ package constants
 
 import (
 	"fmt"
+	"slices"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -95,6 +96,34 @@ func IsClusterChecksEnabled(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
 // IsCCREnabled returns whether the DDA should use Cluster Checks Runners
 func IsCCREnabled(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
 	return ddaSpec.Features.ClusterChecks != nil && apiutils.BoolValue(ddaSpec.Features.ClusterChecks.UseClusterChecksRunners)
+}
+
+// IsCCRComponentRequired reports whether any CCR-family Deployment exists:
+// the default CCR (useClusterChecksRunners) and/or experimental runner groups
+// (annotation groups or the kube-checks-runner-default knob). A malformed
+// groups annotation counts as no groups.
+func IsCCRComponentRequired(obj metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec) bool {
+	if !IsClusterChecksEnabled(ddaSpec) {
+		return false
+	}
+	groups, _ := v2alpha1.GetEffectiveClusterChecksRunnerGroups(obj)
+	return IsCCREnabled(ddaSpec) || len(groups) > 0
+}
+
+// RunsOnCCR reports whether the given cluster check runs on the CCR family:
+// on the default CCR (useClusterChecksRunners), or on the runner group that
+// claims it. Otherwise it runs on node agents.
+func RunsOnCCR(obj metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, checkName string) bool {
+	if !IsClusterChecksEnabled(ddaSpec) {
+		return false
+	}
+	if IsCCREnabled(ddaSpec) {
+		return true
+	}
+	groups, _ := v2alpha1.GetEffectiveClusterChecksRunnerGroups(obj)
+	return slices.ContainsFunc(groups, func(g v2alpha1.ClusterChecksRunnerGroup) bool {
+		return slices.Contains(g.ChecksInclude, checkName)
+	})
 }
 
 // GetLocalAgentServiceName returns the name used for the local agent service

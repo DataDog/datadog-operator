@@ -24,6 +24,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestClusterChecksFeature(t *testing.T) {
@@ -102,9 +103,95 @@ func TestClusterChecksFeature(t *testing.T) {
 			ClusterChecksRunner: testClusterChecksRunnerHasExpectedEnvs(),
 			Agent:               testAgentHasExpectedEnvsWithRunners(apicommon.UnprivilegedSingleAgentContainerName),
 		},
+		{
+			Name: "cluster checks enabled, runners enabled, and a dedicated runner group",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithClusterChecksEnabled(true).
+				WithClusterChecksUseCLCEnabled(true).
+				WithClusterChecksRunnerGroups([]v2alpha1.ClusterChecksRunnerGroup{
+					{Name: "ksm", ChecksInclude: []string{"kubernetes_state_core"}},
+				}).
+				Build(),
+			WantConfigure:       true,
+			ClusterAgent:        test.NewDefaultComponentTest().WithWantFunc(wantClusterAgentWithRunnerGroups(`{"ksm":["kubernetes_state_core"]}`)),
+			ClusterChecksRunner: testClusterChecksRunnerHasExpectedEnvs(),
+			Agent:               testAgentHasExpectedEnvsWithRunners(apicommon.CoreAgentContainerName),
+		},
+		{
+			Name: "mixed mode: knob on, runners off, node agents keep cluster checks",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithClusterChecksEnabled(true).
+				WithClusterChecksUseCLCEnabled(false).
+				WithKubeChecksRunnerDefault().
+				Build(),
+			WantConfigure: true,
+			// The Cluster Agent learns the kube group's claims; node agents keep
+			// the clusterchecks provider and need no change.
+			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(wantClusterAgentWithRunnerGroups(`{"kube":["kubernetes_state_core","orchestrator"]}`)),
+			Agent:        testAgentHasExpectedEnvsWithNoRunners(apicommon.CoreAgentContainerName),
+			// Runner pods exist (the kube group): base runner envs apply.
+			ClusterChecksRunner: testClusterChecksRunnerHasExpectedEnvs(),
+		},
+		{
+			Name: "knob on and runners on: the Cluster Agent learns both groups",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithClusterChecksEnabled(true).
+				WithClusterChecksUseCLCEnabled(true).
+				WithKubeChecksRunnerDefault().
+				WithClusterChecksRunnerGroups([]v2alpha1.ClusterChecksRunnerGroup{
+					{Name: "kafka", ChecksInclude: []string{"kafka_consumer"}},
+				}).
+				Build(),
+			WantConfigure:       true,
+			ClusterAgent:        test.NewDefaultComponentTest().WithWantFunc(wantClusterAgentWithRunnerGroups(`{"kafka":["kafka_consumer"],"kube":["kubernetes_state_core","orchestrator"]}`)),
+			ClusterChecksRunner: testClusterChecksRunnerHasExpectedEnvs(),
+			Agent:               testAgentHasExpectedEnvsWithRunners(apicommon.CoreAgentContainerName),
+		},
+		{
+			Name: "runners off and knob off: user-declared groups are still materialized",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithClusterChecksEnabled(true).
+				WithClusterChecksUseCLCEnabled(false).
+				WithClusterChecksRunnerGroups([]v2alpha1.ClusterChecksRunnerGroup{
+					{Name: "ksm", ChecksInclude: []string{"kubernetes_state_core"}},
+				}).
+				Build(),
+			WantConfigure:       true,
+			ClusterAgent:        test.NewDefaultComponentTest().WithWantFunc(wantClusterAgentWithRunnerGroups(`{"ksm":["kubernetes_state_core"]}`)),
+			ClusterChecksRunner: testClusterChecksRunnerHasExpectedEnvs(),
+			Agent:               testAgentHasExpectedEnvsWithNoRunners(apicommon.CoreAgentContainerName),
+		},
+		{
+			Name: "runners off, invalid (overlapping) groups: groups are ignored",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithClusterChecksEnabled(true).
+				WithClusterChecksUseCLCEnabled(false).
+				WithClusterChecksRunnerGroups([]v2alpha1.ClusterChecksRunnerGroup{
+					{Name: "a", ChecksInclude: []string{"kubernetes_state_core"}},
+					{Name: "b", ChecksInclude: []string{"kubernetes_state_core"}},
+				}).
+				Build(),
+			WantConfigure:       true,
+			ClusterAgent:        test.NewDefaultComponentTest().WithWantFunc(wantClusterAgentHasExpectedEnvsAndChecksum),
+			ClusterChecksRunner: testClusterChecksRunnerHasNoEnvs(),
+			Agent:               testAgentHasExpectedEnvsWithNoRunners(apicommon.CoreAgentContainerName),
+		},
 	}
 
 	tests.Run(t, buildClusterChecksFeature)
+}
+
+func TestRunnerGroupsJSON(t *testing.T) {
+	raw, err := runnerGroupsJSON(nil)
+	require.NoError(t, err)
+	assert.Empty(t, raw)
+	// Keys are sorted, so the Cluster Agent env var is stable across reconciles.
+	raw, err = runnerGroupsJSON([]v2alpha1.ClusterChecksRunnerGroup{
+		{Name: "b", ChecksInclude: []string{"y", "z"}},
+		{Name: "a", ChecksInclude: []string{"x"}},
+	})
+	require.NoError(t, err)
+	assert.Equal(t, `{"a":["x"],"b":["y","z"]}`, raw)
 }
 
 func TestClusterAgentChecksumsDifferentForDifferentConfig(t *testing.T) {
@@ -161,7 +248,16 @@ func wantClusterAgentHasExpectedEnvsAndChecksum(t testing.TB, mgrInterface featu
 	wantClusterAgentHasNonEmptyChecksumAnnotation(t, mgrInterface)
 }
 
-func wantClusterAgentHasExpectedEnvs(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+// wantClusterAgentWithRunnerGroups asserts the Cluster Agent envs, including
+// the runner groups env var, and the checksum annotation.
+func wantClusterAgentWithRunnerGroups(runnerGroups string) func(testing.TB, feature.PodTemplateManagers) {
+	return func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+		wantClusterAgentHasExpectedEnvs(t, mgrInterface, &corev1.EnvVar{Name: DDClusterChecksRunnerGroups, Value: runnerGroups})
+		wantClusterAgentHasNonEmptyChecksumAnnotation(t, mgrInterface)
+	}
+}
+
+func wantClusterAgentHasExpectedEnvs(t testing.TB, mgrInterface feature.PodTemplateManagers, extraEnvs ...*corev1.EnvVar) {
 	mgr := mgrInterface.(*fake.PodTemplateManagers)
 
 	clusterAgentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommon.ClusterAgentContainerName]
@@ -179,6 +275,7 @@ func wantClusterAgentHasExpectedEnvs(t testing.TB, mgrInterface feature.PodTempl
 			Value: kubeServicesAndEndpointsListeners,
 		},
 	}
+	expectedClusterAgentEnvs = append(expectedClusterAgentEnvs, extraEnvs...)
 
 	assert.True(
 		t,
@@ -215,6 +312,23 @@ func testClusterChecksRunnerHasExpectedEnvs() *test.ComponentTest {
 				t,
 				apiutils.IsEqualStruct(clusterRunnerEnvs, expectedClusterRunnerEnvs),
 				"Cluster Runner ENVs \ndiff = %s", cmp.Diff(clusterRunnerEnvs, expectedClusterRunnerEnvs),
+			)
+		},
+	)
+}
+
+// testClusterChecksRunnerHasNoEnvs asserts the feature configured no env vars
+// on runner pods (no CCR-family Deployment exists at all).
+func testClusterChecksRunnerHasNoEnvs() *test.ComponentTest {
+	return test.NewDefaultComponentTest().WithWantFunc(
+		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+			mgr := mgrInterface.(*fake.PodTemplateManagers)
+
+			clusterRunnerEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommon.ClusterChecksRunnersContainerName]
+			assert.Empty(
+				t,
+				clusterRunnerEnvs,
+				"Cluster Runner ENVs should be empty, got diff = %s", cmp.Diff(clusterRunnerEnvs, []*corev1.EnvVar{}),
 			)
 		},
 	)
