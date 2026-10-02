@@ -670,6 +670,14 @@
                   "description": "Registry defines an image registry for the admission controller.",
                   "type": "string"
                 },
+                "registryAllowList": {
+                  "description": "RegistryAllowList restricts which registries can be used for APM library injection.\nWhen non-empty, the admission controller only injects libraries from the listed\nregistries, for all injection modes. It is also enforced by the DatadogCSIDriver managed\nby the operator (except on GKE Autopilot). An empty list allows all registries.\n(Requires Cluster Agent 7.80.0+ and Datadog CSI Driver 1.3.0+)",
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array",
+                  "x-kubernetes-list-type": "set"
+                },
                 "serviceName": {
                   "description": "ServiceName corresponds to the webhook service name.",
                   "type": "string"
@@ -9559,6 +9567,14 @@
                     "registry": {
                       "description": "Registry defines an image registry for the admission controller.",
                       "type": "string"
+                    },
+                    "registryAllowList": {
+                      "description": "RegistryAllowList restricts which registries can be used for APM library injection.\nWhen non-empty, the admission controller only injects libraries from the listed\nregistries, for all injection modes. It is also enforced by the DatadogCSIDriver managed\nby the operator (except on GKE Autopilot). An empty list allows all registries.\n(Requires Cluster Agent 7.80.0+ and Datadog CSI Driver 1.3.0+)",
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array",
+                      "x-kubernetes-list-type": "set"
                     },
                     "serviceName": {
                       "description": "ServiceName corresponds to the webhook service name.",

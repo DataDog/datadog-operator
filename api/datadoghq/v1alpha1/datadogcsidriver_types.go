@@ -83,6 +83,14 @@ type DatadogCSIDriverAPMConfig struct {
 	// +optional
 	// +listType=atomic
 	PullSecrets []corev1.LocalObjectReference `json:"pullSecrets,omitempty"`
+
+	// RegistryAllowList restricts which registries can be used for DatadogLibrary volumes.
+	// An empty list allows all registries. When managed by a DatadogAgent, it is set from
+	// spec.features.admissionController.registryAllowList.
+	// Not supported on GKE Autopilot. (Requires Datadog CSI Driver 1.3.0+)
+	// +optional
+	// +listType=set
+	RegistryAllowList []string `json:"registryAllowList,omitempty"`
 }
 
 // DatadogCSIDriverOverride provides override capabilities for the CSI driver DaemonSet.

@@ -92,6 +92,7 @@ spec:
 | features.admissionController.probe.gracePeriod | GracePeriod is the number of seconds to wait at startup before the first probe. Default: 60 |
 | features.admissionController.probe.interval | Is the number of seconds between probe executions. Default: 60 |
 | features.admissionController.registry | Defines an image registry for the admission controller. |
+| features.admissionController.registryAllowList | RegistryAllowList restricts which registries can be used for APM library injection. When non-empty, the admission controller only injects libraries from the listed registries, for all injection modes. It is also enforced by the DatadogCSIDriver managed by the operator (except on GKE Autopilot). An empty list allows all registries. (Requires Cluster Agent 7.80.0+ and Datadog CSI Driver 1.3.0+) |
 | features.admissionController.serviceName | ServiceName corresponds to the webhook service name. |
 | features.admissionController.validation.enabled | Enables the Admission Controller validation webhook. Default: true |
 | features.admissionController.webhookName | WebhookName is a custom name for the MutatingWebhookConfiguration. Default: "datadog-webhook" |

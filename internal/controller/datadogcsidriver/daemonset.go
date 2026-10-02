@@ -9,7 +9,9 @@ import (
 	"fmt"
 	"maps"
 	"path/filepath"
+	"slices"
 	"strconv"
+	"strings"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -136,7 +138,7 @@ func buildCSIDriverContainer(instance *datadoghqv1alpha1.DatadogCSIDriver, apmSo
 			fmt.Sprintf("--apm-host-socket-path=%s", apmSocketPath),
 			fmt.Sprintf("--dsd-host-socket-path=%s", dsdSocketPath),
 		},
-		Env: append([]corev1.EnvVar{
+		Env: slices.Concat([]corev1.EnvVar{
 			{
 				Name: envNodeID,
 				ValueFrom: &corev1.EnvVarSource{
@@ -149,7 +151,7 @@ func buildCSIDriverContainer(instance *datadoghqv1alpha1.DatadogCSIDriver, apmSo
 				Name:  constants.DDAPMEnabled,
 				Value: getAPMEnabledString(instance),
 			},
-		}, buildRegistryAuthEnvVars(instance)...),
+		}, buildRegistryAllowListEnvVars(instance), buildRegistryAuthEnvVars(instance)),
 		Ports: []corev1.ContainerPort{
 			{
 				ContainerPort: csiDriverPort,
@@ -612,6 +614,19 @@ func registryAuthSecrets(instance *datadoghqv1alpha1.DatadogCSIDriver) (secrets 
 		return append([]corev1.LocalObjectReference(nil), instance.Spec.APM.PullSecrets...), false
 	}
 	return pullSecretsFromImageConfig(instance.Spec.CSIDriverImage), true
+}
+
+// buildRegistryAllowListEnvVars emits DD_REGISTRY_ALLOW_LIST, matching the Helm chart.
+// Skipped on GKE Autopilot (not covered by the published WorkloadAllowlist).
+func buildRegistryAllowListEnvVars(instance *datadoghqv1alpha1.DatadogCSIDriver) []corev1.EnvVar {
+	if instance.Spec.APM == nil || len(instance.Spec.APM.RegistryAllowList) == 0 ||
+		experimental.IsAutopilotEnabled(instance) {
+		return nil
+	}
+	return []corev1.EnvVar{{
+		Name:  envRegistryAllowList,
+		Value: strings.Join(instance.Spec.APM.RegistryAllowList, ","),
+	}}
 }
 
 // buildRegistryAuthEnvVars emits DD_APM_REGISTRY_AUTH_<n> secret references, matching the

@@ -160,6 +160,29 @@ func TestReconcileDatadogCSIDriver_APMPullSecretsPropagated(t *testing.T) {
 	}, ddcsi.Spec.APM.PullSecrets)
 }
 
+func TestReconcileDatadogCSIDriver_RegistryAllowListPropagated(t *testing.T) {
+	r := newTestReconcilerForDDCSI(testScheme(), platformInfoWithDDCSI())
+	dda := newDDAForDDCSI("test-dda", "default", true)
+	dda.Spec.Features = &v2alpha1.DatadogFeatures{
+		AdmissionController: &v2alpha1.AdmissionControllerFeatureConfig{
+			RegistryAllowList: []string{"public.ecr.aws/datadog", "gcr.io/datadoghq"},
+		},
+	}
+	dda.Spec.Global.CSI.APM = &v2alpha1.CSIAPMConfig{
+		PullSecrets: []corev1.LocalObjectReference{{Name: "apm-registry"}},
+	}
+
+	ddcsi, err := r.buildDesiredDatadogCSIDriver(dda)
+	require.NoError(t, err)
+
+	// Mutating the DDA afterwards must not reach the built object.
+	dda.Spec.Features.AdmissionController.RegistryAllowList[0] = "mutated"
+
+	require.NotNil(t, ddcsi.Spec.APM)
+	assert.Equal(t, []string{"public.ecr.aws/datadog", "gcr.io/datadoghq"}, ddcsi.Spec.APM.RegistryAllowList)
+	assert.Equal(t, []corev1.LocalObjectReference{{Name: "apm-registry"}}, ddcsi.Spec.APM.PullSecrets)
+}
+
 func TestReconcileDatadogCSIDriver_ImageConfigPropagated(t *testing.T) {
 	tests := []struct {
 		name   string

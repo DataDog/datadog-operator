@@ -42,6 +42,14 @@
               },
               "type": "array",
               "x-kubernetes-list-type": "atomic"
+            },
+            "registryAllowList": {
+              "description": "RegistryAllowList restricts which registries can be used for DatadogLibrary volumes.\nAn empty list allows all registries. When managed by a DatadogAgent, it is set from\nspec.features.admissionController.registryAllowList.\nNot supported on GKE Autopilot. (Requires Datadog CSI Driver 1.3.0+)",
+              "items": {
+                "type": "string"
+              },
+              "type": "array",
+              "x-kubernetes-list-type": "set"
             }
           },
           "type": "object"
