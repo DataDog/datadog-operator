@@ -22,12 +22,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	v2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	operatorconstants "github.com/DataDog/datadog-operator/pkg/constants"
 )
 
 const (
 	managedAgentInstallationIntentConfigMapName = "datadog-agent-managed-installation-intent"
 	managedAgentInstallationIntentDataKey       = "intent.json"
-	managedAgentInstallationVersion             = "v1"
+	managedAgentInstallationVersionV1           = "v1"
+	managedAgentInstallationVersionV2           = "v2"
 	managedAgentInstallationMaxIntentSize       = 256 * 1024
 )
 
@@ -65,13 +67,14 @@ type managedAgentInstallationIntent struct {
 }
 
 type normalizedManagedAgentInstallationIntent struct {
-	Version        string                               `json:"version"`
-	Provider       ManagedAgentInstallationProvider     `json:"provider"`
-	InstallationID string                               `json:"installationID"`
-	TargetID       string                               `json:"targetID"`
-	OperationID    string                               `json:"operationID"`
-	DesiredState   managedAgentInstallationDesiredState `json:"desiredState"`
-	Bootstrap      managedAgentInstallationBootstrap    `json:"bootstrap"`
+	Version        string                                      `json:"version"`
+	Provider       ManagedAgentInstallationProvider            `json:"provider"`
+	InstallationID string                                      `json:"installationID"`
+	TargetID       string                                      `json:"targetID"`
+	OperationID    string                                      `json:"operationID"`
+	DesiredState   managedAgentInstallationDesiredState        `json:"desiredState"`
+	Bootstrap      managedAgentInstallationBootstrap           `json:"bootstrap"`
+	DatadogAgent   *datadogAgentManagedAgentInstallationConfig `json:"datadogAgent,omitempty"`
 }
 
 type managedAgentInstallationIntentSnapshot struct {
@@ -439,25 +442,98 @@ func validateManagedAgentInstallationBootstrap(bootstrap managedAgentInstallatio
 	return nil
 }
 
-func managedAgentInstallationBootstrapConfig(bootstrap managedAgentInstallationBootstrap) (json.RawMessage, error) {
+func managedAgentInstallationConfig(bootstrap managedAgentInstallationBootstrap, config *datadogAgentManagedAgentInstallationConfig) (json.RawMessage, error) {
+	if config != nil && config.Spec == nil {
+		return nil, fmt.Errorf("managed Agent installation DatadogAgent config must contain spec")
+	}
+	if config == nil {
+		config = &datadogAgentManagedAgentInstallationConfig{Spec: &v2alpha1.DatadogAgentSpec{}}
+	} else {
+		config = &datadogAgentManagedAgentInstallationConfig{Spec: config.Spec.DeepCopy()}
+	}
+	if err := rejectRemoteManagedAgentInstallationCredentialFields(config); err != nil {
+		return nil, err
+	}
+	if err := rejectManagedAgentInstallationOwnedEnvVars(config); err != nil {
+		return nil, err
+	}
+	if config.Spec.Global == nil {
+		config.Spec.Global = &v2alpha1.GlobalConfig{}
+	}
+	if config.Spec.Global.ClusterName != nil {
+		return nil, fmt.Errorf("managed Agent installation DatadogAgent config must not contain spec.global.clusterName")
+	}
+	if config.Spec.Global.Site != nil {
+		return nil, fmt.Errorf("managed Agent installation DatadogAgent config must not contain spec.global.site")
+	}
+	if config.Spec.Global.Endpoint != nil {
+		return nil, fmt.Errorf("managed Agent installation DatadogAgent config must not contain spec.global.endpoint")
+	}
 	clusterName := bootstrap.ClusterName
 	site := bootstrap.Site
-	linuxSelector := map[string]string{corev1.LabelOSStable: string(corev1.Linux)}
-	config := datadogAgentManagedAgentInstallationConfig{Spec: &v2alpha1.DatadogAgentSpec{
-		Global: &v2alpha1.GlobalConfig{
-			ClusterName: &clusterName,
-			Site:        &site,
-		},
-		Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
-			v2alpha1.NodeAgentComponentName:    {NodeSelector: linuxSelector},
-			v2alpha1.ClusterAgentComponentName: {NodeSelector: linuxSelector},
-		},
-	}}
+	config.Spec.Global.ClusterName = &clusterName
+	config.Spec.Global.Site = &site
+
+	if config.Spec.Override == nil {
+		config.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{}
+	}
+	for _, component := range []v2alpha1.ComponentName{v2alpha1.NodeAgentComponentName, v2alpha1.ClusterAgentComponentName} {
+		override := config.Spec.Override[component]
+		if override == nil {
+			override = &v2alpha1.DatadogAgentComponentOverride{}
+			config.Spec.Override[component] = override
+		}
+		if override.NodeSelector == nil {
+			override.NodeSelector = map[string]string{}
+		}
+		override.NodeSelector[corev1.LabelOSStable] = string(corev1.Linux)
+	}
+
 	encoded, err := json.Marshal(config)
 	if err != nil {
-		return nil, fmt.Errorf("encode managed Agent installation bootstrap config: %w", err)
+		return nil, fmt.Errorf("encode managed Agent installation DatadogAgent config: %w", err)
 	}
 	return encoded, nil
+}
+
+func rejectManagedAgentInstallationOwnedEnvVars(config *datadogAgentManagedAgentInstallationConfig) error {
+	if config.Spec.Global != nil {
+		if err := rejectManagedAgentInstallationOwnedEnvVarsAt("spec.global.env", config.Spec.Global.Env); err != nil {
+			return err
+		}
+	}
+	for componentName, override := range config.Spec.Override {
+		if override == nil {
+			continue
+		}
+		if err := rejectManagedAgentInstallationOwnedEnvVarsAt(fmt.Sprintf("spec.override.%s.env", componentName), override.Env); err != nil {
+			return err
+		}
+		for containerName, container := range override.Containers {
+			if container == nil {
+				continue
+			}
+			if err := rejectManagedAgentInstallationOwnedEnvVarsAt(fmt.Sprintf("spec.override.%s.containers.%s.env", componentName, containerName), container.Env); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func rejectManagedAgentInstallationOwnedEnvVarsAt(field string, envVars []corev1.EnvVar) error {
+	for _, envVar := range envVars {
+		switch envVar.Name {
+		case operatorconstants.DDAPIKey,
+			operatorconstants.DDAppKey,
+			operatorconstants.DDClusterName,
+			operatorconstants.DDSite,
+			operatorconstants.DDddURL,
+			"DD_CLUSTER_AGENT_AUTH_TOKEN":
+			return fmt.Errorf("managed Agent installation DatadogAgent config must not contain %s entry %q", field, envVar.Name)
+		}
+	}
+	return nil
 }
 
 func validateCanonicalUUID(field, value string) error {

@@ -214,7 +214,8 @@
         "version": {
           "type": "string",
           "enum": [
-            "v1"
+            "v1",
+            "v2"
           ]
         },
         "installationID": {
@@ -264,6 +265,19 @@
           "required": [
             "clusterName",
             "site"
+          ],
+          "additionalProperties": false
+        },
+        "datadogAgent": {
+          "type": "object",
+          "properties": {
+            "spec": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          },
+          "required": [
+            "spec"
           ],
           "additionalProperties": false
         }
