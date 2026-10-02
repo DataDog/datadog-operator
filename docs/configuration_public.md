@@ -203,7 +203,7 @@ spec:
 : Enables Linux host benchmarks. Requires `features.cspm.enabled` to be set to `true`. Default: true
 
 `features.cspm.runInSystemProbe`
-: RunInSystemProbe configures CSPM to send payloads directly from the system-probe, without using the security-agent. This is an experimental feature. Contact support before using. Default: false
+: RunInSystemProbe configures CSPM to run the compliance checks in the system-probe and send payloads directly, without using the security-agent. Requires Agent 7.77.0 or above; on older Agents this defaults to false. Default: true
 
 `features.cws.customPolicies.configData`
 : ConfigData corresponds to the configuration file content.
@@ -215,7 +215,7 @@ spec:
 : Is the name of the ConfigMap.
 
 `features.cws.directSendFromSystemProbe`
-: DirectSendFromSystemProbe configures CWS to send payloads directly from the system-probe, without using the security-agent. This is an experimental feature. Contact support before using. Default: false
+: DirectSendFromSystemProbe configures CWS to send payloads directly from the system-probe, without using the security-agent. Requires Agent 7.63.0 or above; on older Agents this defaults to false. Default: true
 
 `features.cws.enabled`
 : Enables Cloud Workload Security. Default: false

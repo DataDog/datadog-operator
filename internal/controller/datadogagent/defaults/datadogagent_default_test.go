@@ -2557,9 +2557,8 @@ func Test_defaultFeatures(t *testing.T) {
 						},
 					},
 					CWS: &v2alpha1.CWSFeatureConfig{
-						Enabled:                   ptr.To(valueTrue),
-						SyscallMonitorEnabled:     ptr.To(defaultCWSSyscallMonitorEnabled),
-						DirectSendFromSystemProbe: ptr.To(defaultCWSDirectSendFromSystemProbe),
+						Enabled:               ptr.To(valueTrue),
+						SyscallMonitorEnabled: ptr.To(defaultCWSSyscallMonitorEnabled),
 						Network: &v2alpha1.CWSNetworkConfig{
 							Enabled: ptr.To(defaultCWSNetworkEnabled),
 						},
