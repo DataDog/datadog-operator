@@ -26,6 +26,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	"github.com/DataDog/datadog-operator/pkg/trace"
 )
 
 // STEP 2 of the reconcile loop: reconcile 3 components
@@ -100,7 +101,9 @@ func (r *Reconciler) overrideDependencies(ctx context.Context, resourceManagers 
 // *************************************
 
 // cleanupExtraneousResources groups the cleanup calls for old components.
-func (r *Reconciler) cleanupExtraneousResources(ctx context.Context, instance *v1alpha1.DatadogAgentInternal, newStatus *v1alpha1.DatadogAgentInternalStatus, resourceManagers feature.ResourceManagers) error {
+func (r *Reconciler) cleanupExtraneousResources(ctx context.Context, instance *v1alpha1.DatadogAgentInternal, newStatus *v1alpha1.DatadogAgentInternalStatus, resourceManagers feature.ResourceManagers) (err error) {
+	span, ctx := trace.StartSpan(ctx)
+	defer trace.FinishSpan(span, &err)
 	logger := ctrl.LoggerFrom(ctx)
 	var errs []error
 	// Cleanup old DaemonSets, DCA and CCR deployments.
@@ -140,7 +143,9 @@ func (r *Reconciler) cleanupExtraneousResources(ctx context.Context, instance *v
 // applyAndCleanupDependencies applies pending changes and cleans up unused dependencies.
 // It excludes DDA-managed resources from cleanup to avoid competition between the DDA
 // and DDAI controllers.
-func (r *Reconciler) applyAndCleanupDependencies(ctx context.Context, ddai *v1alpha1.DatadogAgentInternal, depsStore *store.Store) error {
+func (r *Reconciler) applyAndCleanupDependencies(ctx context.Context, ddai *v1alpha1.DatadogAgentInternal, depsStore *store.Store) (err error) {
+	span, ctx := trace.StartSpan(ctx)
+	defer trace.FinishSpan(span, &err)
 	logger := ctrl.LoggerFrom(ctx)
 	logger.V(1).Info("Applying pending dependencies and cleaning up unused dependencies")
 	var errs []error

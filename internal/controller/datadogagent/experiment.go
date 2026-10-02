@@ -25,6 +25,7 @@ import (
 	v2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/pkg/condition"
+	"github.com/DataDog/datadog-operator/pkg/trace"
 )
 
 // ExperimentDefaultTimeout is the duration after which a running experiment is automatically rolled back.
@@ -132,6 +133,9 @@ func (r *Reconciler) manageExperiment(
 	newStatus *v2alpha1.DatadogAgentStatus,
 	now metav1.Time,
 ) (specUpdated bool, err error) {
+	span, ctx := trace.StartSpan(ctx)
+	defer trace.FinishSpan(span, &err)
+
 	if experiment := instance.Status.Experiment; experiment != nil &&
 		experiment.Phase == v2alpha1.ExperimentPhaseRunning &&
 		experiment.Checkpoint == nil {

@@ -13,12 +13,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/DataDog/dd-trace-go/v2/ddtrace/tracer"
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -33,6 +35,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/helm"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	"github.com/DataDog/datadog-operator/pkg/trace"
 )
 
 const (
@@ -160,16 +163,21 @@ func (r *Reconciler) createOrUpdateDeployment(parentLogger logr.Logger, dda *v2a
 	return result, err
 }
 
-func (r *Reconciler) createOrUpdateDDAI(ddai *v1alpha1.DatadogAgentInternal) error {
+func (r *Reconciler) createOrUpdateDDAI(ctx context.Context, ddai *v1alpha1.DatadogAgentInternal) (err error) {
+	span, ctx := trace.StartSpan(ctx, tracer.Tag("object.name", ddai.Name))
+	defer trace.FinishSpan(span, &err)
+
+	logger := ctrl.LoggerFrom(ctx)
+
 	currentDDAI := &v1alpha1.DatadogAgentInternal{}
-	if err := r.client.Get(context.TODO(), types.NamespacedName{Name: ddai.Name, Namespace: ddai.Namespace}, currentDDAI); err != nil {
+	if err := r.client.Get(ctx, types.NamespacedName{Name: ddai.Name, Namespace: ddai.Namespace}, currentDDAI); err != nil {
 		if !apierrors.IsNotFound(err) {
-			r.log.Error(err, "unexpected error during DDAI get")
+			logger.Error(err, "unexpected error during DDAI get")
 			return err
 		}
 		// Create the DDAI object if it doesn't exist
-		r.log.Info("creating DatadogAgentInternal", "ns", ddai.Namespace, "name", ddai.Name)
-		if err := r.client.Create(context.TODO(), ddai); err != nil {
+		logger.Info("creating DatadogAgentInternal", "ns", ddai.Namespace, "name", ddai.Name)
+		if err := r.client.Create(ctx, ddai); err != nil {
 			return err
 		}
 		return nil
@@ -178,8 +186,8 @@ func (r *Reconciler) createOrUpdateDDAI(ddai *v1alpha1.DatadogAgentInternal) err
 	// By comparing annotations, we reconcile either instantly if the spec annotation changed or after the reconcile period
 	// if only the annotations changed.
 	if !maps.Equal(currentDDAI.Annotations, ddai.Annotations) {
-		r.log.Info("updating DatadogAgentInternal", "ns", ddai.Namespace, "name", ddai.Name)
-		if err := kubernetes.UpdateFromObject(context.TODO(), r.client, ddai, currentDDAI.ObjectMeta); err != nil {
+		logger.Info("updating DatadogAgentInternal", "ns", ddai.Namespace, "name", ddai.Name)
+		if err := kubernetes.UpdateFromObject(ctx, r.client, ddai, currentDDAI.ObjectMeta); err != nil {
 			return err
 		}
 	}
@@ -187,11 +195,12 @@ func (r *Reconciler) createOrUpdateDDAI(ddai *v1alpha1.DatadogAgentInternal) err
 	return nil
 }
 
-func (r *Reconciler) addDDAIStatusToDDAStatus(status *v2alpha1.DatadogAgentStatus, ddai metav1.ObjectMeta, now metav1.Time) error {
+func (r *Reconciler) addDDAIStatusToDDAStatus(ctx context.Context, status *v2alpha1.DatadogAgentStatus, ddai metav1.ObjectMeta, now metav1.Time) error {
+	logger := ctrl.LoggerFrom(ctx)
 	currentDDAI := &v1alpha1.DatadogAgentInternal{}
-	if err := r.client.Get(context.TODO(), types.NamespacedName{Name: ddai.Name, Namespace: ddai.Namespace}, currentDDAI); err != nil {
+	if err := r.client.Get(ctx, types.NamespacedName{Name: ddai.Name, Namespace: ddai.Namespace}, currentDDAI); err != nil {
 		if !apierrors.IsNotFound(err) {
-			r.log.Error(err, "unexpected error during DDAI get")
+			logger.Error(err, "unexpected error during DDAI get")
 			return err
 		}
 		// DDAI not yet created
