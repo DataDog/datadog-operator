@@ -68,6 +68,7 @@ const (
 	defaultDatadogMonitorRequeuePeriod                   = 60 * time.Second
 	defaultDatadogGenericResourceMaxConcurrentReconciles = 1
 	defaultDatadogGenericResourceRequeuePeriod           = 60 * time.Second
+	defaultComponentHealthSnapshotInterval               = 60 * time.Second
 	podNamespaceEnvVar                                   = "POD_NAMESPACE"
 )
 
@@ -141,6 +142,8 @@ type options struct {
 	rolloutOnConfigMapChangeEnabled     bool
 	defaultDataPlaneLinuxEnabled        bool
 	componentHealthEnabled              bool
+	componentHealthIntakeEnabled        bool
+	componentHealthSnapshotInterval     time.Duration
 
 	// Secret Backend options
 	secretBackendCommand  string
@@ -193,6 +196,10 @@ func (opts *options) Parse() {
 	flag.BoolVar(&opts.defaultDataPlaneLinuxEnabled, "defaultDataPlaneLinuxEnabled", false, "Enable the Agent Data Plane by default on Linux")
 	flag.BoolVar(&opts.componentHealthEnabled, "componentHealthEnabled", false,
 		"Enable the ComponentHealth controller, which monitors the managed cluster-level components (cluster-agent, cluster-checks-runner) for Kubernetes health issues (OOMKills, crash loops, scheduling failures, image-pull failures) (beta). Retains Pod status in the cache, increasing the operator's memory usage.")
+	flag.BoolVar(&opts.componentHealthIntakeEnabled, "componentHealthIntakeEnabled", false,
+		"Requires --componentHealthEnabled. When set, the ComponentHealth controller reports current-state HealthReport snapshots to the Datadog agenthealth intake on a fixed cadence, instead of only logging them.")
+	flag.DurationVar(&opts.componentHealthSnapshotInterval, "componentHealthSnapshotInterval", defaultComponentHealthSnapshotInterval,
+		"Cadence at which the ComponentHealth controller emits current-state snapshots (log or intake), for example 60s.")
 
 	// DatadogAgentInternal
 	flag.BoolVar(&opts.createControllerRevisions, "createControllerRevisions", false, "Enable creation of ControllerRevision snapshots on each DDA spec change")
@@ -227,6 +234,8 @@ func (opts *options) Parse() {
 		boolEnv(&opts.untaintControllerEnabled, "DD_UNTAINT_CONTROLLER_ENABLED"),
 		boolEnv(&opts.untaintControllerWaitForCSIDriver, "DD_UNTAINT_CONTROLLER_WAIT_FOR_CSI_DRIVER"),
 		boolEnv(&opts.componentHealthEnabled, "DD_COMPONENT_HEALTH_ENABLED"),
+		boolEnv(&opts.componentHealthIntakeEnabled, "DD_COMPONENT_HEALTH_INTAKE_ENABLED"),
+		durationEnv(&opts.componentHealthSnapshotInterval, "DD_COMPONENT_HEALTH_SNAPSHOT_INTERVAL"),
 		boolEnv(&opts.createControllerRevisions, "DD_CREATE_CONTROLLER_REVISIONS"),
 		boolEnv(&opts.rolloutOnConfigMapChangeEnabled, "DD_ROLLOUT_ON_CONFIGMAP_CHANGE_ENABLED"),
 		boolEnv(&opts.defaultDataPlaneLinuxEnabled, "DD_DEFAULT_DATA_PLANE_LINUX_ENABLED"),
@@ -511,6 +520,8 @@ func run(opts *options) error {
 		RolloutOnConfigMapChangeEnabled:   opts.rolloutOnConfigMapChangeEnabled,
 		DefaultDataPlaneLinuxEnabled:      opts.defaultDataPlaneLinuxEnabled,
 		ComponentHealthEnabled:            opts.componentHealthEnabled,
+		ComponentHealthIntakeEnabled:      opts.componentHealthIntakeEnabled,
+		ComponentHealthSnapshotInterval:   opts.componentHealthSnapshotInterval,
 		ClusterProviderDetector:           providerDetector,
 	}
 
