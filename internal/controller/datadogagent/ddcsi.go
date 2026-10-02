@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 	"maps"
+	"slices"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
@@ -138,12 +139,19 @@ func (r *Reconciler) buildDesiredDatadogCSIDriver(instance *v2alpha1.DatadogAgen
 		ddcsi.Spec.Registry = &registry
 	}
 
+	if registryAllowList := registryAllowListFromDDA(instance); len(registryAllowList) > 0 {
+		ddcsi.Spec.APM = &v1alpha1.DatadogCSIDriverAPMConfig{
+			RegistryAllowList: slices.Clone(registryAllowList),
+		}
+	}
+
 	csiConfig := instance.Spec.Global.CSI
 	if csiConfig != nil {
 		if csiConfig.APM != nil && len(csiConfig.APM.PullSecrets) > 0 {
-			ddcsi.Spec.APM = &v1alpha1.DatadogCSIDriverAPMConfig{
-				PullSecrets: append([]corev1.LocalObjectReference(nil), csiConfig.APM.PullSecrets...),
+			if ddcsi.Spec.APM == nil {
+				ddcsi.Spec.APM = &v1alpha1.DatadogCSIDriverAPMConfig{}
 			}
+			ddcsi.Spec.APM.PullSecrets = append([]corev1.LocalObjectReference(nil), csiConfig.APM.PullSecrets...)
 		}
 
 		// Tag, pull policy and pull secrets for the driver container.
@@ -191,6 +199,15 @@ func apmSocketPathFromDDA(instance *v2alpha1.DatadogAgent) *string {
 		return nil
 	}
 	return instance.Spec.Features.APM.UnixDomainSocketConfig.Path
+}
+
+// registryAllowListFromDDA returns the admission controller registry allow list configured on
+// the DDA, or nil if unset.
+func registryAllowListFromDDA(instance *v2alpha1.DatadogAgent) []string {
+	if instance.Spec.Features == nil || instance.Spec.Features.AdmissionController == nil {
+		return nil
+	}
+	return instance.Spec.Features.AdmissionController.RegistryAllowList
 }
 
 // dsdSocketPathFromDDA returns the DogStatsD UDS path configured on the DDA, or nil if unset.

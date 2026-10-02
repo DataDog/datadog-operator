@@ -2649,6 +2649,26 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogCSIDriverAPMConfig(re
 							},
 						},
 					},
+					"registryAllowList": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "set",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "RegistryAllowList restricts which registries can be used for DatadogLibrary volumes. An empty list allows all registries. When managed by a DatadogAgent, it is set from spec.features.admissionController.registryAllowList. Not supported on GKE Autopilot. (Requires Datadog CSI Driver 1.3.0+)",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
 				},
 			},
 		},

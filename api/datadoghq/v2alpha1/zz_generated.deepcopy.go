@@ -225,6 +225,11 @@ func (in *AdmissionControllerFeatureConfig) DeepCopyInto(out *AdmissionControlle
 		*out = new(string)
 		**out = **in
 	}
+	if in.RegistryAllowList != nil {
+		in, out := &in.RegistryAllowList, &out.RegistryAllowList
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	if in.KubernetesAdmissionEvents != nil {
 		in, out := &in.KubernetesAdmissionEvents, &out.KubernetesAdmissionEvents
 		*out = new(KubernetesAdmissionEventsConfig)

@@ -329,6 +329,60 @@ func TestBuildDaemonSet_SkipRegistryAuthOnAutopilot(t *testing.T) {
 	assert.NotContains(t, envNames(ds.Spec.Template.Spec.Containers[0].Env), "DD_APM_REGISTRY_AUTH_0")
 }
 
+func TestBuildDaemonSet_RegistryAllowList(t *testing.T) {
+	instance := defaultCSIDriverCR()
+	instance.Spec.APM = &v1alpha1.DatadogCSIDriverAPMConfig{
+		RegistryAllowList: []string{"public.ecr.aws/datadog", "gcr.io/datadoghq"},
+	}
+
+	ds := buildDaemonSet(instance)
+
+	assert.Contains(t, ds.Spec.Template.Spec.Containers[0].Env, corev1.EnvVar{
+		Name:  "DD_REGISTRY_ALLOW_LIST",
+		Value: "public.ecr.aws/datadog,gcr.io/datadoghq",
+	})
+}
+
+func TestBuildDaemonSet_SkipRegistryAllowList(t *testing.T) {
+	tests := []struct {
+		name     string
+		instance func() *v1alpha1.DatadogCSIDriver
+	}{
+		{
+			name:     "no APM config",
+			instance: defaultCSIDriverCR,
+		},
+		{
+			name: "empty list",
+			instance: func() *v1alpha1.DatadogCSIDriver {
+				instance := defaultCSIDriverCR()
+				instance.Spec.APM = &v1alpha1.DatadogCSIDriverAPMConfig{RegistryAllowList: []string{}}
+				return instance
+			},
+		},
+		{
+			name: "GKE Autopilot",
+			instance: func() *v1alpha1.DatadogCSIDriver {
+				instance := defaultCSIDriverCR()
+				instance.Annotations = map[string]string{
+					kubernetes.ProviderAnnotationKey: kubernetes.GKEAutopilotProvider,
+				}
+				instance.Spec.APM = &v1alpha1.DatadogCSIDriverAPMConfig{
+					RegistryAllowList: []string{"gcr.io/datadoghq"},
+				}
+				return instance
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ds := buildDaemonSet(tt.instance())
+
+			assert.NotContains(t, envNames(ds.Spec.Template.Spec.Containers[0].Env), "DD_REGISTRY_ALLOW_LIST")
+		})
+	}
+}
+
 func envNames(envVars []corev1.EnvVar) []string {
 	names := make([]string, 0, len(envVars))
 	for _, env := range envVars {
