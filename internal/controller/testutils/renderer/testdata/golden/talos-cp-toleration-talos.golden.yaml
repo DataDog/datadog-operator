@@ -46,40 +46,6 @@ metadata:
     app.kubernetes.io/part-of: -datadog--agent
     app.kubernetes.io/version: ""
     operator.datadoghq.com/managed-by-store: "true"
-  name: -datadog-agent-cspm-cluster-agent
-rules:
-- apiGroups:
-  - ""
-  resources:
-  - namespaces
-  - serviceaccounts
-  verbs:
-  - list
-- apiGroups:
-  - networking.k8s.io
-  resources:
-  - networkpolicies
-  verbs:
-  - list
-- apiGroups:
-  - rbac.authorization.k8s.io
-  resources:
-  - clusterrolebindings
-  - rolebindings
-  verbs:
-  - list
-  - watch
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  labels:
-    app.kubernetes.io/instance: datadog-agent
-    app.kubernetes.io/managed-by: datadog-operator
-    app.kubernetes.io/name: datadog-agent-deployment
-    app.kubernetes.io/part-of: -datadog--agent
-    app.kubernetes.io/version: ""
-    operator.datadoghq.com/managed-by-store: "true"
   name: -datadog-agent-event-dca
 rules:
 - apiGroups:
@@ -678,25 +644,6 @@ metadata:
     app.kubernetes.io/part-of: -datadog--agent
     app.kubernetes.io/version: ""
     operator.datadoghq.com/managed-by-store: "true"
-  name: -datadog-agent-cspm-cluster-agent
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: -datadog-agent-cspm-cluster-agent
-subjects:
-- kind: ServiceAccount
-  name: datadog-agent-cluster-agent
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  labels:
-    app.kubernetes.io/instance: datadog-agent
-    app.kubernetes.io/managed-by: datadog-operator
-    app.kubernetes.io/name: datadog-agent-deployment
-    app.kubernetes.io/part-of: -datadog--agent
-    app.kubernetes.io/version: ""
-    operator.datadoghq.com/managed-by-store: "true"
   name: -datadog-agent-event-dca
 roleRef:
   apiGroup: rbac.authorization.k8s.io
@@ -1024,7 +971,7 @@ metadata:
 apiVersion: v1
 data:
   system-probe-seccomp.json: "{\n\t\t\t\"defaultAction\": \"SCMP_ACT_ERRNO\",\n\t\t\t\"syscalls\":
-    [\n\t\t\t\t{\n\t\t\t\t\"names\": [\"accept4\",\"access\",\"arch_prctl\",\"bind\",\"bpf\",\"brk\",\"capget\",\"capset\",\"chdir\",\"chmod\",\"chown\",\"clock_gettime\",\"clone\",\"clone3\",\"close\",\"close_range\",\"connect\",\"copy_file_range\",\"creat\",\"dup\",\"dup2\",\"dup3\",\"epoll_create\",\"epoll_create1\",\"epoll_ctl\",\"epoll_ctl_old\",\"epoll_pwait\",\"epoll_wait\",\"epoll_wait_old\",\"eventfd\",\"eventfd2\",\"execve\",\"execveat\",\"exit\",\"exit_group\",\"faccessat\",\"faccessat2\",\"fchmod\",\"fchmodat\",\"fchown\",\"fchown32\",\"fchownat\",\"fcntl\",\"fcntl64\",\"fdatasync\",\"flock\",\"fstat\",\"fstat64\",\"fstatfs\",\"fsync\",\"ftruncate\",\"futex\",\"futimens\",\"getcwd\",\"getdents\",\"getdents64\",\"getegid\",\"geteuid\",\"getgid\",\"getgroups\",\"getpeername\",\"getpgid\",\"getpgrp\",\"getpid\",\"getppid\",\"getpriority\",\"getrandom\",\"getresgid\",\"getresgid32\",\"getresuid\",\"getresuid32\",\"getrlimit\",\"getrusage\",\"getsid\",\"getsockname\",\"getsockopt\",\"gettid\",\"gettimeofday\",\"getuid\",\"getxattr\",\"inotify_add_watch\",\"inotify_init\",\"inotify_init1\",\"inotify_rm_watch\",\"ioctl\",\"ipc\",\"listen\",\"lseek\",\"lstat\",\"lstat64\",\"madvise\",\"memfd_create\",\"mkdir\",\"mkdirat\",\"mknod\",\"mknodat\",\"mmap\",\"mmap2\",\"mprotect\",\"mremap\",\"munmap\",\"nanosleep\",\"newfstatat\",\"open\",\"openat\",\"openat2\",\"pause\",\"perf_event_open\",\"pidfd_open\",\"pidfd_send_signal\",\"pipe\",\"pipe2\",\"poll\",\"ppoll\",\"prctl\",\"pread64\",\"prlimit64\",\"pselect6\",\"pwrite64\",\"read\",\"readlink\",\"readlinkat\",\"recvfrom\",\"recvmmsg\",\"recvmsg\",\"rename\",\"renameat\",\"renameat2\",\"restart_syscall\",\"rmdir\",\"rseq\",\"rt_sigaction\",\"rt_sigpending\",\"rt_sigprocmask\",\"rt_sigqueueinfo\",\"rt_sigreturn\",\"rt_sigsuspend\",\"rt_sigtimedwait\",\"rt_tgsigqueueinfo\",\"sched_getaffinity\",\"sched_yield\",\"seccomp\",\"select\",\"semtimedop\",\"send\",\"sendmmsg\",\"sendmsg\",\"sendto\",\"set_robust_list\",\"set_tid_address\",\"setgid\",\"setgid32\",\"setgroups\",\"setgroups32\",\"setitimer\",\"setns\",\"setpgid\",\"setresgid\",\"setresuid\",\"setrlimit\",\"setsid\",\"setsockopt\",\"setuid\",\"setuid32\",\"shutdown\",\"sigaltstack\",\"socket\",\"socketcall\",\"socketpair\",\"stat\",\"stat64\",\"statfs\",\"statx\",\"symlinkat\",\"sysinfo\",\"tgkill\",\"tkill\",\"umask\",\"uname\",\"unlink\",\"unlinkat\",\"utime\",\"utimensat\",\"utimes\",\"wait4\",\"waitid\",\"waitpid\",\"write\",\"writev\",\"kill\"],\n\t\t\t\t\"action\":
+    [\n\t\t\t\t{\n\t\t\t\t\"names\": [\"accept4\",\"access\",\"arch_prctl\",\"bind\",\"bpf\",\"brk\",\"capget\",\"capset\",\"chdir\",\"chmod\",\"chown\",\"clock_gettime\",\"clone\",\"clone3\",\"close\",\"close_range\",\"connect\",\"copy_file_range\",\"creat\",\"dup\",\"dup2\",\"dup3\",\"epoll_create\",\"epoll_create1\",\"epoll_ctl\",\"epoll_ctl_old\",\"epoll_pwait\",\"epoll_wait\",\"epoll_wait_old\",\"eventfd\",\"eventfd2\",\"execve\",\"execveat\",\"exit\",\"exit_group\",\"faccessat\",\"faccessat2\",\"fchmod\",\"fchmodat\",\"fchown\",\"fchown32\",\"fchownat\",\"fcntl\",\"fcntl64\",\"fdatasync\",\"flock\",\"fstat\",\"fstat64\",\"fstatfs\",\"fsync\",\"ftruncate\",\"futex\",\"futimens\",\"getcwd\",\"getdents\",\"getdents64\",\"getegid\",\"geteuid\",\"getgid\",\"getgroups\",\"getpeername\",\"getpgid\",\"getpgrp\",\"getpid\",\"getppid\",\"getpriority\",\"getrandom\",\"getresgid\",\"getresgid32\",\"getresuid\",\"getresuid32\",\"getrlimit\",\"getrusage\",\"getsid\",\"getsockname\",\"getsockopt\",\"gettid\",\"gettimeofday\",\"getuid\",\"getxattr\",\"inotify_add_watch\",\"inotify_init\",\"inotify_init1\",\"inotify_rm_watch\",\"ioctl\",\"ipc\",\"listen\",\"lseek\",\"lstat\",\"lstat64\",\"madvise\",\"memfd_create\",\"mkdir\",\"mkdirat\",\"mknod\",\"mknodat\",\"mmap\",\"mmap2\",\"mprotect\",\"mremap\",\"munmap\",\"nanosleep\",\"newfstatat\",\"open\",\"openat\",\"openat2\",\"pause\",\"perf_event_open\",\"pidfd_open\",\"pidfd_send_signal\",\"pipe\",\"pipe2\",\"poll\",\"ppoll\",\"prctl\",\"pread64\",\"prlimit64\",\"pselect6\",\"pwrite64\",\"read\",\"readlink\",\"readlinkat\",\"recvfrom\",\"recvmmsg\",\"recvmsg\",\"rename\",\"renameat\",\"renameat2\",\"restart_syscall\",\"rmdir\",\"rseq\",\"rt_sigaction\",\"rt_sigpending\",\"rt_sigprocmask\",\"rt_sigqueueinfo\",\"rt_sigreturn\",\"rt_sigsuspend\",\"rt_sigtimedwait\",\"rt_tgsigqueueinfo\",\"sched_getaffinity\",\"sched_yield\",\"seccomp\",\"select\",\"semtimedop\",\"send\",\"sendmmsg\",\"sendmsg\",\"sendto\",\"set_robust_list\",\"set_tid_address\",\"setgid\",\"setgid32\",\"setgroups\",\"setgroups32\",\"setitimer\",\"setns\",\"setpgid\",\"setresgid\",\"setresuid\",\"setrlimit\",\"setsid\",\"setsockopt\",\"setuid\",\"setuid32\",\"shutdown\",\"sigaltstack\",\"socket\",\"socketcall\",\"socketpair\",\"stat\",\"stat64\",\"statfs\",\"statx\",\"symlinkat\",\"sysinfo\",\"tgkill\",\"tkill\",\"umask\",\"uname\",\"unlink\",\"unlinkat\",\"utime\",\"utimensat\",\"utimes\",\"wait4\",\"waitid\",\"waitpid\",\"write\",\"writev\"],\n\t\t\t\t\"action\":
     \"SCMP_ACT_ALLOW\",\n\t\t\t\t\"args\": null\n\t\t\t\t},\n\t\t\t\t{\n\t\t\t\t\"names\":
     [\n\t\t\t\t\t\"setns\"\n\t\t\t\t],\n\t\t\t\t\"action\": \"SCMP_ACT_ALLOW\",\n\t\t\t\t\"args\":
     [\n\t\t\t\t\t{\n\t\t\t\t\t\"index\": 1,\n\t\t\t\t\t\"value\": 1073741824,\n\t\t\t\t\t\"valueTwo\":
@@ -1240,7 +1187,7 @@ kind: DatadogAgentInternal
 metadata:
   annotations:
     agent.datadoghq.com/cluster-provider: talos
-    agent.datadoghq.com/ddaispechash: 20d067d3e296140be10e6836103e018e
+    agent.datadoghq.com/ddaispechash: 8cbe8f09764655d218b83d87c44f4bc7
   finalizers:
   - finalizer.datadoghq.com/datadogagentinternal
   labels:
@@ -1295,19 +1242,9 @@ spec:
     controlPlaneMonitoring:
       enabled: true
     cspm:
-      enabled: true
-      hostBenchmarks:
-        enabled: true
+      enabled: false
     cws:
-      directSendFromSystemProbe: false
-      enabled: true
-      enforcement:
-        enabled: true
-      network:
-        enabled: true
-      securityProfiles:
-        enabled: true
-      syscallMonitorEnabled: false
+      enabled: false
     dataPlane:
       dogstatsd:
         enabled: true
@@ -1340,11 +1277,9 @@ spec:
     logCollection:
       enabled: false
     npm:
-      collectDNSStats: true
-      enableConntrack: true
-      enabled: true
+      enabled: false
     oomKill:
-      enabled: true
+      enabled: false
     orchestratorExplorer:
       enabled: true
       scrubContainers: true
@@ -1367,7 +1302,7 @@ spec:
       enabled: true
     serviceDiscovery: {}
     tcpQueueLength:
-      enabled: true
+      enabled: false
     usm:
       enabled: false
   global:
@@ -1403,12 +1338,16 @@ spec:
         checksum/dca-token-custom-config: 3f6998966e6de63b16d45512e01ccc84
       image:
         tag: 7.80.0
+      tolerations:
+      - effect: NoSchedule
+        key: node-role.kubernetes.io/control-plane
+        operator: Exists
 ---
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: 932264f8f1df88dbd2481033fe015731
+    agent.datadoghq.com/agentspechash: 5042d711862344ef395c9ff1cb641710
   labels:
     agent.datadoghq.com/component: agent
     agent.datadoghq.com/name: datadog-agent
@@ -1434,7 +1373,7 @@ spec:
   template:
     metadata:
       annotations:
-        agent.datadoghq.com/configmapshash: 86aa488ba25b848b
+        agent.datadoghq.com/configmapshash: 0d4b65b893068054
         checksum/dca-token-custom-config: 3f6998966e6de63b16d45512e01ccc84
         container.apparmor.security.beta.kubernetes.io/system-probe: unconfined
       labels:
@@ -1499,16 +1438,6 @@ spec:
           value: "false"
         - name: DD_EXTRA_CONFIG_PROVIDERS
           value: clusterchecks endpointschecks
-        - name: DD_COMPLIANCE_CONFIG_ENABLED
-          value: "true"
-        - name: DD_COMPLIANCE_CONFIG_HOST_BENCHMARKS_ENABLED
-          value: "true"
-        - name: DD_COMPLIANCE_CONFIG_RUN_IN_SYSTEM_PROBE
-          value: "false"
-        - name: DD_RUNTIME_SECURITY_CONFIG_ENABLED
-          value: "true"
-        - name: DD_RUNTIME_SECURITY_CONFIG_SOCKET
-          value: /var/run/sysprobe/runtime-security.sock
         - name: DD_DOGSTATSD_NON_LOCAL_TRAFFIC
           value: "true"
         - name: DD_DOGSTATSD_SOCKET
@@ -1521,20 +1450,6 @@ spec:
           value: "true"
         - name: DD_PROCESS_CONFIG_PROCESS_COLLECTION_ENABLED
           value: "true"
-        - name: DD_SYSTEM_PROBE_NETWORK_ENABLED
-          value: "true"
-        - name: DD_SYSTEM_PROBE_ENABLED
-          value: "true"
-        - name: DD_SYSPROBE_SOCKET
-          value: /var/run/sysprobe/sysprobe.sock
-        - name: DD_COLLECT_DNS_STATS
-          value: "true"
-        - name: DD_SYSTEM_PROBE_CONFIG_ENABLE_CONNTRACK
-          value: "true"
-        - name: DD_NETWORK_CONFIG_DIRECT_SEND
-          value: "false"
-        - name: DD_SYSTEM_PROBE_CONFIG_ENABLE_OOM_KILL
-          value: "true"
         - name: DD_ORCHESTRATOR_EXPLORER_ENABLED
           value: "true"
         - name: DD_ORCHESTRATOR_EXPLORER_CONTAINER_SCRUBBING_ENABLED
@@ -1545,8 +1460,8 @@ spec:
           value: "true"
         - name: DD_DISCOVERY_ENABLED
           value: "true"
-        - name: DD_SYSTEM_PROBE_CONFIG_ENABLE_TCP_QUEUE_LENGTH
-          value: "true"
+        - name: DD_SYSPROBE_SOCKET
+          value: /var/run/sysprobe/sysprobe.sock
         image: registry.datadoghq.com/agent:7.80.0
         livenessProbe:
           failureThreshold: 6
@@ -1615,6 +1530,12 @@ spec:
           name: disable-kube-controller-manager-autoconf
         - mountPath: /etc/datadog-agent/conf.d/kube_scheduler.d
           name: disable-kube-scheduler-autoconf
+        - mountPath: /etc/datadog-agent/conf.d/etcd.d
+          name: etcd-config
+          readOnly: true
+        - mountPath: /host/etc/kubernetes/pki/etcd
+          name: etcd-certs
+          readOnly: true
         - mountPath: /var/run/sysprobe
           name: sysprobe-socket-dir
           readOnly: true
@@ -1725,102 +1646,6 @@ spec:
         - mountPath: /tmp
           name: tmpdir
       - command:
-        - security-agent
-        - start
-        - -c=/etc/datadog-agent/datadog.yaml
-        env:
-        - name: HOST_ROOT
-          value: /host/root
-        - name: KUBERNETES
-          value: "yes"
-        - name: DD_CLUSTER_AGENT_ENABLED
-          value: "true"
-        - name: DD_CLUSTER_AGENT_KUBERNETES_SERVICE_NAME
-          value: datadog-agent-cluster-agent
-        - name: DD_KUBERNETES_USE_ENDPOINT_SLICES
-          value: "true"
-        - name: DD_CLUSTER_AGENT_TOKEN_NAME
-          value: datadog-agent-token
-        - name: DD_AUTH_TOKEN_FILE_PATH
-          value: /etc/datadog-agent/auth/token
-        - name: DD_KUBERNETES_KUBELET_HOST
-          valueFrom:
-            fieldRef:
-              fieldPath: status.hostIP
-        - name: DD_CLUSTER_NAME
-          value: test-cluster
-        - name: DD_SITE
-          value: datadoghq.com
-        - name: DD_LOG_LEVEL
-          value: info
-        - name: DD_API_KEY
-          valueFrom:
-            secretKeyRef:
-              key: api-key
-              name: datadog-secret
-        - name: DD_APP_KEY
-          valueFrom:
-            secretKeyRef:
-              key: app-key
-              name: datadog-secret
-        - name: DD_CLUSTER_AGENT_AUTH_TOKEN
-          valueFrom:
-            secretKeyRef:
-              key: token
-              name: datadog-agent-token
-        - name: DD_KUBELET_TLS_VERIFY
-          value: "false"
-        - name: DD_COMPLIANCE_CONFIG_ENABLED
-          value: "true"
-        - name: DD_COMPLIANCE_CONFIG_HOST_BENCHMARKS_ENABLED
-          value: "true"
-        - name: DD_COMPLIANCE_CONFIG_RUN_IN_SYSTEM_PROBE
-          value: "false"
-        - name: DD_RUNTIME_SECURITY_CONFIG_ENABLED
-          value: "true"
-        - name: DD_RUNTIME_SECURITY_CONFIG_SOCKET
-          value: /var/run/sysprobe/runtime-security.sock
-        - name: DD_DOGSTATSD_SOCKET
-          value: /var/run/datadog/dsd.socket
-        - name: DD_REMOTE_CONFIGURATION_ENABLED
-          value: "true"
-        image: registry.datadoghq.com/agent:7.80.0
-        name: security-agent
-        resources: {}
-        securityContext:
-          capabilities:
-            add:
-            - AUDIT_CONTROL
-            - AUDIT_READ
-            - KILL
-          readOnlyRootFilesystem: true
-        volumeMounts:
-        - mountPath: /var/log/datadog
-          name: logdatadog
-        - mountPath: /etc/datadog-agent/auth
-          name: datadog-agent-auth
-          readOnly: true
-        - mountPath: /etc/datadog-agent
-          name: config
-        - mountPath: /var/run/datadog
-          name: dsdsocket
-        - mountPath: /host/var/run
-          name: runtimesocketdir
-          readOnly: true
-        - mountPath: /tmp
-          name: tmpdir
-        - mountPath: /host/sys/fs/cgroup
-          name: cgroups
-          readOnly: true
-        - mountPath: /host/proc
-          name: procdir
-          readOnly: true
-        - mountPath: /host/root
-          name: hostroot
-          readOnly: true
-        - mountPath: /var/run/sysprobe
-          name: sysprobe-socket-dir
-      - command:
         - system-probe
         - --config=/etc/datadog-agent/system-probe.yaml
         env:
@@ -1863,42 +1688,16 @@ spec:
               name: datadog-agent-token
         - name: DD_KUBELET_TLS_VERIFY
           value: "false"
-        - name: DD_RUNTIME_SECURITY_CONFIG_ENABLED
-          value: "true"
-        - name: DD_RUNTIME_SECURITY_CONFIG_SOCKET
-          value: /var/run/sysprobe/runtime-security.sock
-        - name: DD_RUNTIME_SECURITY_CONFIG_NETWORK_ENABLED
-          value: "true"
-        - name: DD_RUNTIME_SECURITY_CONFIG_ACTIVITY_DUMP_ENABLED
-          value: "true"
-        - name: DD_RUNTIME_SECURITY_CONFIG_REMOTE_CONFIGURATION_ENABLED
-          value: "true"
-        - name: DD_RUNTIME_SECURITY_CONFIG_POLICIES_DIR
-          value: /etc/datadog-agent/runtime-security.d
         - name: DD_DOGSTATSD_SOCKET
           value: /var/run/datadog/dsd.socket
-        - name: DD_SYSTEM_PROBE_NETWORK_ENABLED
-          value: "true"
-        - name: DD_SYSTEM_PROBE_ENABLED
-          value: "true"
-        - name: DD_SYSPROBE_SOCKET
-          value: /var/run/sysprobe/sysprobe.sock
-        - name: DD_COLLECT_DNS_STATS
-          value: "true"
-        - name: DD_SYSTEM_PROBE_CONFIG_ENABLE_CONNTRACK
-          value: "true"
-        - name: DD_NETWORK_CONFIG_DIRECT_SEND
-          value: "false"
-        - name: DD_SYSTEM_PROBE_CONFIG_ENABLE_OOM_KILL
-          value: "true"
         - name: DD_REMOTE_CONFIGURATION_ENABLED
           value: "true"
         - name: DD_DISCOVERY_ENABLED
           value: "true"
         - name: DD_DISCOVERY_USE_SYSTEM_PROBE_LITE
           value: "true"
-        - name: DD_SYSTEM_PROBE_CONFIG_ENABLE_TCP_QUEUE_LENGTH
-          value: "true"
+        - name: DD_SYSPROBE_SOCKET
+          value: /var/run/sysprobe/sysprobe.sock
         image: registry.datadoghq.com/agent:7.80.0
         name: system-probe
         resources: {}
@@ -1908,7 +1707,6 @@ spec:
             - CHOWN
             - DAC_READ_SEARCH
             - IPC_LOCK
-            - KILL
             - NET_ADMIN
             - NET_BROADCAST
             - NET_RAW
@@ -1936,115 +1734,11 @@ spec:
           name: tmpdir
         - mountPath: /var/run/datadog
           name: dsdsocket
-        - mountPath: /sys/kernel/debug
-          name: debugfs
-        - mountPath: /var/run/sysprobe
-          name: sysprobe-socket-dir
-        - mountPath: /host/etc/os-release
-          name: host-osrelease
-          readOnly: true
-        - mountPath: /host/sys/fs/cgroup
-          name: cgroups
-          readOnly: true
-        - mountPath: /host/root
-          name: hostroot
-          readOnly: true
-        - mountPath: /sys/kernel/tracing
-          name: tracefs
-      - command:
-        - process-agent
-        - --cfgpath=/etc/datadog-agent/datadog.yaml
-        - --sysprobe-config=/etc/datadog-agent/system-probe.yaml
-        env:
-        - name: KUBERNETES
-          value: "yes"
-        - name: DD_CLUSTER_AGENT_ENABLED
-          value: "true"
-        - name: DD_CLUSTER_AGENT_KUBERNETES_SERVICE_NAME
-          value: datadog-agent-cluster-agent
-        - name: DD_KUBERNETES_USE_ENDPOINT_SLICES
-          value: "true"
-        - name: DD_CLUSTER_AGENT_TOKEN_NAME
-          value: datadog-agent-token
-        - name: DD_AUTH_TOKEN_FILE_PATH
-          value: /etc/datadog-agent/auth/token
-        - name: DD_KUBERNETES_KUBELET_HOST
-          valueFrom:
-            fieldRef:
-              fieldPath: status.hostIP
-        - name: DD_CLUSTER_NAME
-          value: test-cluster
-        - name: DD_SITE
-          value: datadoghq.com
-        - name: DD_LOG_LEVEL
-          value: info
-        - name: DD_API_KEY
-          valueFrom:
-            secretKeyRef:
-              key: api-key
-              name: datadog-secret
-        - name: DD_APP_KEY
-          valueFrom:
-            secretKeyRef:
-              key: app-key
-              name: datadog-secret
-        - name: DD_CLUSTER_AGENT_AUTH_TOKEN
-          valueFrom:
-            secretKeyRef:
-              key: token
-              name: datadog-agent-token
-        - name: DD_KUBELET_TLS_VERIFY
-          value: "false"
-        - name: DD_DOGSTATSD_SOCKET
-          value: /var/run/datadog/dsd.socket
-        - name: DD_PROCESS_CONFIG_RUN_IN_CORE_AGENT_ENABLED
-          value: "true"
-        - name: DD_SYSTEM_PROBE_NETWORK_ENABLED
-          value: "true"
-        - name: DD_SYSTEM_PROBE_ENABLED
-          value: "true"
-        - name: DD_SYSPROBE_SOCKET
-          value: /var/run/sysprobe/sysprobe.sock
-        - name: DD_COLLECT_DNS_STATS
-          value: "true"
-        - name: DD_SYSTEM_PROBE_CONFIG_ENABLE_CONNTRACK
-          value: "true"
-        - name: DD_NETWORK_CONFIG_DIRECT_SEND
-          value: "false"
-        - name: DD_SYSTEM_PROBE_EXTERNAL
-          value: "true"
-        - name: DD_REMOTE_CONFIGURATION_ENABLED
-          value: "true"
-        image: registry.datadoghq.com/agent:7.80.0
-        name: process-agent
-        resources: {}
-        securityContext:
-          readOnlyRootFilesystem: true
-        volumeMounts:
-        - mountPath: /var/log/datadog
-          name: logdatadog
-        - mountPath: /etc/datadog-agent/auth
-          name: datadog-agent-auth
-          readOnly: true
-        - mountPath: /etc/datadog-agent
-          name: config
-        - mountPath: /var/run/datadog
-          name: dsdsocket
-        - mountPath: /host/var/run
-          name: runtimesocketdir
-          readOnly: true
-        - mountPath: /host/proc
-          name: procdir
-          readOnly: true
-        - mountPath: /tmp
-          name: tmpdir
         - mountPath: /host/sys/fs/cgroup
           name: cgroups
           readOnly: true
         - mountPath: /var/run/sysprobe
           name: sysprobe-socket-dir
-          readOnly: true
-      hostPID: true
       initContainers:
       - args:
         - cp -vnr /etc/datadog-agent /opt
@@ -2084,11 +1778,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: status.hostIP
-        - name: DD_SYSTEM_PROBE_CONFIG_ENABLE_OOM_KILL
-          value: "true"
         - name: DD_DISCOVERY_ENABLED
-          value: "true"
-        - name: DD_SYSTEM_PROBE_CONFIG_ENABLE_TCP_QUEUE_LENGTH
           value: "true"
         image: registry.datadoghq.com/agent:7.80.0
         name: init-config
@@ -2128,6 +1818,10 @@ spec:
       securityContext:
         runAsUser: 0
       serviceAccountName: datadog-agent-agent
+      tolerations:
+      - effect: NoSchedule
+        key: node-role.kubernetes.io/control-plane
+        operator: Exists
       volumes:
       - emptyDir: {}
         name: logdatadog
@@ -2175,27 +1869,24 @@ spec:
         name: disable-kube-controller-manager-autoconf
       - emptyDir: {}
         name: disable-kube-scheduler-autoconf
+      - configMap:
+          items:
+          - key: etcd.yaml
+            path: etcd.yaml
+          name: datadog-controlplane-monitoring-talos
+        name: etcd-config
       - hostPath:
-          path: /
-        name: hostroot
-      - hostPath:
-          path: /sys/kernel/debug
-        name: debugfs
+          path: /system/secrets/etcd
+        name: etcd-certs
       - emptyDir: {}
         name: sysprobe-socket-dir
-      - hostPath:
-          path: /etc/os-release
-        name: host-osrelease
-      - hostPath:
-          path: /sys/kernel/tracing
-        name: tracefs
   updateStrategy: {}
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: 663caba7147ce1c11c9918fc0147bb70
+    agent.datadoghq.com/agentspechash: 88baf5e420a7297b355c89165bff1141
   labels:
     agent.datadoghq.com/component: cluster-agent
     agent.datadoghq.com/name: datadog-agent
@@ -2342,8 +2033,6 @@ spec:
           value: kube_services kube_endpoints
         - name: DD_EXTRA_LISTENERS
           value: kube_services kube_endpoints
-        - name: DD_COMPLIANCE_CONFIG_ENABLED
-          value: "true"
         - name: DD_DOGSTATSD_HOST_SOCKET_PATH
           value: /var/run/datadog
         - name: DD_DOGSTATSD_SOCKET
