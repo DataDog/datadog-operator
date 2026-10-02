@@ -8,6 +8,7 @@ package controller
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -19,7 +20,6 @@ import (
 
 	"github.com/DataDog/agent-payload/v5/healthplatform"
 	"github.com/go-logr/logr"
-	"google.golang.org/protobuf/proto"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -37,10 +37,14 @@ import (
 const (
 	// healthReportSchemaVersion is the schema version stamped on every report.
 	healthReportSchemaVersion = "v1"
-	// healthReportEventType marks these reports as periodic snapshots of the
-	// current state (active issues, plus RESOLVED entries for ones that just
-	// cleared), which is what the backend reconciles.
-	healthReportEventType = "snapshot"
+	// healthReportEventType categorizes the report envelope for the intake. It
+	// reuses the value the Datadog Agent's health platform sends
+	// (comp/healthplatform), which is the proven-accepted contract on
+	// /api/v2/agenthealth.
+	//
+	// TODO(CONTP-2137): confirm with #fleet-remediation that the operator should
+	// reuse "agent-health-issues" rather than an operator-specific event type.
+	healthReportEventType = "agent-health-issues"
 	// healthReportService identifies the operator as the reporting flavor
 	healthReportService = "datadog-operator"
 	// healthReportSource identifies the operator as the issue source.
@@ -57,7 +61,7 @@ const (
 	apiKeyHeaderKey      = "Dd-Api-Key"
 	contentTypeHeaderKey = "Content-Type"
 	userAgentHeaderKey   = "User-Agent"
-	protobufContentType  = "application/x-protobuf"
+	jsonContentType      = "application/json"
 
 	// snapshotHTTPTimeout bounds a single intake POST.
 	snapshotHTTPTimeout = 10 * time.Second
@@ -91,7 +95,8 @@ type ddaGetter func() (*v2alpha1.DatadogAgent, error)
 // resolves credentials and site (operator config first, DatadogAgent CR as
 // fallback), builds a HealthReport of the current active component-level issues
 // plus explicit RESOLVED entries for the issues that just cleared, and POSTs it as
-// protobuf to the agenthealth intake.
+// JSON to the agenthealth intake (matching the Datadog Agent's health platform,
+// which sends encoding/json on the same endpoint).
 //
 // The emitter itself is stateless; the active-issue set and the pending-resolve
 // set it serializes live in the ComponentHealthReconciler. The backend remains the
@@ -136,7 +141,7 @@ func (e *snapshotEmitter) Snapshot(ctx context.Context, active, resolved []compo
 	}
 
 	report := buildHealthReport(active, resolved, os.Getenv(constants.DDClusterName))
-	payload, err := proto.Marshal(report)
+	payload, err := json.Marshal(report)
 	if err != nil {
 		e.log.Error(err, "failed to marshal component health report")
 		return err
@@ -175,7 +180,7 @@ func (e *snapshotEmitter) newRequest(ctx context.Context, creds config.Creds, pa
 		return nil, err
 	}
 	req.Header.Set(apiKeyHeaderKey, creds.APIKey)
-	req.Header.Set(contentTypeHeaderKey, protobufContentType)
+	req.Header.Set(contentTypeHeaderKey, jsonContentType)
 	req.Header.Set(userAgentHeaderKey, fmt.Sprintf("Datadog Operator/%s", version.GetVersion()))
 	return req, nil
 }

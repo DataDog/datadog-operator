@@ -7,6 +7,7 @@ package controller
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -16,7 +17,6 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/proto"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"github.com/DataDog/datadog-operator/pkg/componenthealth"
@@ -138,10 +138,10 @@ func TestToProtoSeverity(t *testing.T) {
 	assert.Equal(t, healthplatform.IssueSeverity_ISSUE_SEVERITY_UNSPECIFIED, toProtoSeverity(componenthealth.Severity("bogus")))
 }
 
-// TestSnapshotEmitter_PostsProtobuf verifies the emitter resolves credentials,
-// builds a protobuf HealthReport, and POSTs it to the agenthealth intake with the
-// expected headers.
-func TestSnapshotEmitter_PostsProtobuf(t *testing.T) {
+// TestSnapshotEmitter_PostsJSON verifies the emitter resolves credentials, builds
+// a JSON HealthReport, and POSTs it to the agenthealth intake with the expected
+// headers.
+func TestSnapshotEmitter_PostsJSON(t *testing.T) {
 	var (
 		gotAPIKey      string
 		gotContentType string
@@ -186,10 +186,10 @@ func TestSnapshotEmitter_PostsProtobuf(t *testing.T) {
 	assert.Equal(t, http.MethodPost, gotMethod)
 	assert.Equal(t, "/"+agenthealthPath, gotPath)
 	assert.Equal(t, "test-api-key", gotAPIKey)
-	assert.Equal(t, protobufContentType, gotContentType)
+	assert.Equal(t, jsonContentType, gotContentType)
 
 	var report healthplatform.HealthReport
-	require.NoError(t, proto.Unmarshal(gotBody, &report))
+	require.NoError(t, json.Unmarshal(gotBody, &report))
 	assert.Equal(t, "test-cluster", report.Host.GetHostname())
 	require.Len(t, report.Issues, 2)
 
