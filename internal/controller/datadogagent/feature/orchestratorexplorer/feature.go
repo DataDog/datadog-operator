@@ -51,6 +51,7 @@ func buildOrchestratorExplorerFeature(options *feature.Options) feature.Feature 
 
 type orchestratorExplorerFeature struct {
 	enabled                           bool
+	clusterAgentDisabled              bool
 	runInClusterChecksRunner          bool
 	scrubContainers                   bool
 	collectKubernetesNetworkResources bool
@@ -82,9 +83,18 @@ func (f *orchestratorExplorerFeature) Configure(dda metav1.Object, ddaSpec *v2al
 	// Merge configuration from Status.RemoteConfigConfiguration into the Spec
 	f.mergeConfigs(ddaSpec, ddaRCStatus)
 
+	// This check only ever runs inside the Cluster Agent (or Cluster Check Runners it
+	// dispatches to) — without a live Cluster Agent there's no code path for it to run at
+	// all, so treat it as disabled and skip requiring/configuring the Cluster Agent side
+	// (ManageDependencies also no-ops below) to avoid creating RBAC bound to a nonexistent
+	// ServiceAccount. The node agent still gets the explicit disable env var below.
+	if clusterAgent, ok := ddaSpec.Override[v2alpha1.ClusterAgentComponentName]; ok && apiutils.BoolValue(clusterAgent.Disabled) {
+		f.clusterAgentDisabled = true
+	}
+
 	orchestratorExplorer := ddaSpec.Features.OrchestratorExplorer
 
-	if orchestratorExplorer != nil && apiutils.BoolValue(orchestratorExplorer.Enabled) {
+	if !f.clusterAgentDisabled && orchestratorExplorer != nil && apiutils.BoolValue(orchestratorExplorer.Enabled) {
 		f.enabled = true
 		reqComp.ClusterAgent.IsRequired = new(true)
 		reqComp.Agent.IsRequired = new(true)
@@ -133,7 +143,9 @@ func (f *orchestratorExplorerFeature) Configure(dda metav1.Object, ddaSpec *v2al
 		}
 	}
 
-	reqComp.ClusterAgent.Containers = []apicommon.AgentContainerName{apicommon.ClusterAgentContainerName}
+	if !f.clusterAgentDisabled {
+		reqComp.ClusterAgent.Containers = []apicommon.AgentContainerName{apicommon.ClusterAgentContainerName}
+	}
 	reqContainers := []apicommon.AgentContainerName{apicommon.CoreAgentContainerName}
 	// Process Agent is not required as of agent version 7.51.0
 	if nodeAgent, ok := ddaSpec.Override[v2alpha1.NodeAgentComponentName]; ok {
@@ -173,6 +185,10 @@ func (f *orchestratorExplorerFeature) mergeConfigs(ddaSpec *v2alpha1.DatadogAgen
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
 func (f *orchestratorExplorerFeature) ManageDependencies(managers feature.ResourceManagers) error {
+	if f.clusterAgentDisabled {
+		return nil
+	}
+
 	// Create a configMap if CustomConfig.ConfigData is provided and CustomConfig.ConfigMap == nil,
 	// OR if the default configMap is needed.
 	configCM, err := f.buildOrchestratorExplorerConfigMap()
