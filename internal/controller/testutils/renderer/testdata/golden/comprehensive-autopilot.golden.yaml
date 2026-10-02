@@ -1427,7 +1427,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: 3d559495a5d61788e11fc24c7cc24829
+    agent.datadoghq.com/agentspechash: 1fc4ee5dcd519c601ac67361f2774522
   labels:
     admission.datadoghq.com/enabled: "false"
     agent.datadoghq.com/component: agent
@@ -1730,6 +1730,8 @@ spec:
           name: logdatadog
         - mountPath: /etc/datadog-agent
           name: config
+        - mountPath: /opt/datadog-agent/run
+          name: datadogrun
         - mountPath: /tmp
           name: tmpdir
       - command:
@@ -1971,7 +1973,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: 8a31a7295887debaf6b7dcd2b916b306
+    agent.datadoghq.com/agentspechash: 2518576abae53750128baf14b3b6aeb9
   labels:
     agent.datadoghq.com/component: cluster-agent
     agent.datadoghq.com/name: datadog-agent
@@ -2185,14 +2187,14 @@ spec:
           name: datadog-agent-auth
         - mountPath: /tmp
           name: tmpdir
+        - mountPath: /opt/datadog-agent/run/
+          name: datadogrun
         - mountPath: /etc/datadog-agent/conf.d/kubernetes_state_core.d
           name: ksm-core-config
           readOnly: true
         - mountPath: /etc/datadog-agent/conf.d/orchestrator.d
           name: orchestrator-explorer-config
           readOnly: true
-        - mountPath: /opt/datadog-agent/run/
-          name: datadogrun
       serviceAccountName: datadog-agent-cluster-agent
       volumes:
       - configMap:
@@ -2208,14 +2210,14 @@ spec:
         name: datadog-agent-auth
       - emptyDir: {}
         name: tmpdir
+      - emptyDir: {}
+        name: datadogrun
       - configMap:
           name: datadog-agent-kube-state-metrics-core-config
         name: ksm-core-config
       - configMap:
           name: datadog-agent-orchestrator-explorer-config
         name: orchestrator-explorer-config
-      - emptyDir: {}
-        name: datadogrun
 ---
 apiVersion: apps/v1
 kind: Deployment
