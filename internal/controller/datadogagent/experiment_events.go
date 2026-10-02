@@ -70,19 +70,35 @@ func (r *Reconciler) emitExperimentTransitionEvent(dda client.Object, oldStatus,
 	case oldPhase == v2alpha1.ExperimentPhaseRunning && newStatus.Phase == v2alpha1.ExperimentPhasePromoted:
 		r.recorder.Eventf(dda, corev1.EventTypeNormal, eventReasonExperimentPromoted,
 			"Experiment %q promoted", newStatus.ID)
-	case oldPhase == v2alpha1.ExperimentPhaseRunning && newStatus.Phase == v2alpha1.ExperimentPhaseAborted:
-		r.recorder.Eventf(dda, corev1.EventTypeWarning, eventReasonExperimentAborted,
-			"Experiment %q aborted: manual spec change detected", newStatus.ID)
+	// Aborted can be reached either from Running (manual spec change,
+	// detected by abortExperiment/processRollbackSignal/processPromoteSignal)
+	// or directly from a non-Running phase (processStartSignal aborts
+	// immediately when the start signal lacks a recoverable baseline).
+	case newStatus.Phase == v2alpha1.ExperimentPhaseAborted:
+		switch newStatus.TerminationReason {
+		case v2alpha1.ExperimentTerminationReasonManualSpecChange:
+			r.recorder.Eventf(dda, corev1.EventTypeWarning, eventReasonExperimentAborted,
+				"Experiment %q aborted: manual spec change detected", newStatus.ID)
+		case v2alpha1.ExperimentTerminationReasonBaselineMissing:
+			r.recorder.Eventf(dda, corev1.EventTypeWarning, eventReasonExperimentAborted,
+				"Experiment %q aborted: rollback baseline missing, cannot safely start", newStatus.ID)
+		case v2alpha1.ExperimentTerminationReasonBaselineNotFound:
+			r.recorder.Eventf(dda, corev1.EventTypeWarning, eventReasonExperimentAborted,
+				"Experiment %q aborted: rollback baseline not found", newStatus.ID)
+		default:
+			r.recorder.Eventf(dda, corev1.EventTypeWarning, eventReasonExperimentAborted,
+				"Experiment %q aborted (reason %q)", newStatus.ID, newStatus.TerminationReason)
+		}
 	// Running → Terminated and the "transition 6" recovery path (nil →
 	// Terminated/stopped) in processRollbackSignal — when a rollback
 	// signal arrives at nil phase with the spec matching the experiment
 	// revision, restorePreviousSpec commits Phase=Terminated directly.
 	case newStatus.Phase == v2alpha1.ExperimentPhaseTerminated && (oldPhase == v2alpha1.ExperimentPhaseRunning || oldPhase == ""):
 		switch newStatus.TerminationReason {
-		case ExperimentTerminationReasonTimedOut:
+		case v2alpha1.ExperimentTerminationReasonTimedOut:
 			r.recorder.Eventf(dda, corev1.EventTypeWarning, eventReasonExperimentTimedOut,
 				"Experiment %q timed out", newStatus.ID)
-		case ExperimentTerminationReasonStopped:
+		case v2alpha1.ExperimentTerminationReasonStopped:
 			r.recorder.Eventf(dda, corev1.EventTypeNormal, eventReasonExperimentRolledBack,
 				"Experiment %q rolled back", newStatus.ID)
 		}
