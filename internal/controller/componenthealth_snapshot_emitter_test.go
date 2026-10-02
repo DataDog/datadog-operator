@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/DataDog/agent-payload/v5/healthplatform"
 	"github.com/go-logr/logr"
@@ -64,6 +65,7 @@ func TestAgenthealthURL(t *testing.T) {
 }
 
 func TestBuildHealthReport(t *testing.T) {
+	seen := time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC)
 	issues := []componenthealth.ComponentIssue{
 		{
 			Component:    constants.DefaultClusterAgentResourceSuffix,
@@ -71,6 +73,8 @@ func TestBuildHealthReport(t *testing.T) {
 			Severity:     componenthealth.SeverityHigh,
 			Namespace:    "datadog",
 			AffectedPods: []string{"dca-1", "dca-2"},
+			FirstSeen:    seen,
+			LastSeen:     seen.Add(time.Minute),
 		},
 		{
 			Component:    constants.DefaultClusterChecksRunnerResourceSuffix,
@@ -78,15 +82,20 @@ func TestBuildHealthReport(t *testing.T) {
 			Severity:     componenthealth.SeverityMedium,
 			Namespace:    "datadog",
 			AffectedPods: []string{"clc-1"},
+			FirstSeen:    seen,
+			LastSeen:     seen,
 		},
 	}
 
 	resolvedIssues := []componenthealth.ComponentIssue{
 		{
-			Component: constants.DefaultClusterAgentResourceSuffix,
-			IssueType: componenthealth.IssueCrashLooping,
-			Severity:  componenthealth.SeverityHigh,
-			Namespace: "datadog",
+			Component:  constants.DefaultClusterAgentResourceSuffix,
+			IssueType:  componenthealth.IssueCrashLooping,
+			Severity:   componenthealth.SeverityHigh,
+			Namespace:  "datadog",
+			FirstSeen:  seen,
+			LastSeen:   seen.Add(time.Minute),
+			ResolvedAt: seen.Add(2 * time.Minute),
 		},
 	}
 
@@ -116,7 +125,11 @@ func TestBuildHealthReport(t *testing.T) {
 	}, oom.Tags)
 	require.NotNil(t, oom.Remediation)
 	assert.NotEmpty(t, oom.Remediation.Summary)
-	assert.Nil(t, oom.PersistedIssue, "active issues carry no explicit lifecycle state")
+	require.NotNil(t, oom.PersistedIssue, "active issues carry lifecycle state")
+	assert.Equal(t, healthplatform.IssueState_ISSUE_STATE_ACTIVE, oom.PersistedIssue.State)
+	assert.NotEmpty(t, oom.PersistedIssue.FirstSeen)
+	assert.NotEmpty(t, oom.PersistedIssue.LastSeen)
+	assert.Nil(t, oom.PersistedIssue.ResolvedAt, "active issues have no resolved_at")
 
 	clcID := "datadog/" + constants.DefaultClusterChecksRunnerResourceSuffix + "/" + componenthealth.IssueImagePullFailure
 	clc := report.Issues[clcID]
@@ -195,7 +208,8 @@ func TestSnapshotEmitter_PostsJSON(t *testing.T) {
 
 	activeID := "datadog/" + constants.DefaultClusterAgentResourceSuffix + "/" + componenthealth.IssueOOMKilled
 	require.NotNil(t, report.Issues[activeID])
-	assert.Nil(t, report.Issues[activeID].PersistedIssue)
+	require.NotNil(t, report.Issues[activeID].PersistedIssue)
+	assert.Equal(t, healthplatform.IssueState_ISSUE_STATE_ACTIVE, report.Issues[activeID].PersistedIssue.State)
 
 	resolvedID := "datadog/" + constants.DefaultClusterChecksRunnerResourceSuffix + "/" + componenthealth.IssueCrashLooping
 	require.NotNil(t, report.Issues[resolvedID])

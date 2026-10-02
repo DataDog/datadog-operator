@@ -8,10 +8,12 @@ package controller
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/go-logr/logr"
 	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/DataDog/datadog-operator/internal/controller/metrics"
@@ -49,8 +51,9 @@ func newTestReconciler(e componentHealthEmitter) *ComponentHealthReconciler {
 		restartThreshold: defaultRestartThreshold,
 		emitter:          e,
 		snapshotInterval: defaultSnapshotInterval,
+		clock:            time.Now,
 		reported:         map[componentIssueKey]*componentIssueState{},
-		resolved:         map[componentIssueKey]struct{}{},
+		resolved:         map[componentIssueKey]resolvedIssue{},
 	}
 }
 
@@ -311,6 +314,42 @@ func TestComponentHealth_ReactivationCancelsResolve(t *testing.T) {
 	snap := e.lastSnapshot()
 	assert.Len(t, snap.active, 1, "issue is active again")
 	assert.Empty(t, snap.resolved, "no stale resolve for a re-activated issue")
+}
+
+// TestComponentHealth_LifecycleTimestamps verifies first_seen is stamped once and
+// stable across re-observations, last_seen advances, and a clear carries first_seen
+// forward with a resolved_at.
+func TestComponentHealth_LifecycleTimestamps(t *testing.T) {
+	e := &recordingEmitter{}
+	r := newTestReconciler(e)
+
+	t0 := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	now := t0
+	r.clock = func() time.Time { return now }
+
+	// First detection: first_seen = last_seen = t0.
+	r.reconcilePod(podKey("pod-a"), testComponent, []componenthealth.DetectedIssue{detected(componenthealth.IssueOOMKilled, "pod-a")})
+	issue := activeIssue(r, componenthealth.IssueOOMKilled)
+	require.NotNil(t, issue)
+	assert.Equal(t, t0, issue.FirstSeen)
+	assert.Equal(t, t0, issue.LastSeen)
+
+	// Re-observed later: first_seen stable, last_seen advances.
+	now = t0.Add(5 * time.Minute)
+	r.reconcilePod(podKey("pod-a"), testComponent, []componenthealth.DetectedIssue{detected(componenthealth.IssueOOMKilled, "pod-a")})
+	issue = activeIssue(r, componenthealth.IssueOOMKilled)
+	require.NotNil(t, issue)
+	assert.Equal(t, t0, issue.FirstSeen, "first_seen is stable across re-observations")
+	assert.Equal(t, t0.Add(5*time.Minute), issue.LastSeen, "last_seen advances")
+
+	// Clear: resolved tombstone carries first_seen/last_seen forward + resolved_at.
+	now = t0.Add(10 * time.Minute)
+	r.reconcilePod(podKey("pod-a"), testComponent, nil)
+	_, resolved := r.collectSnapshot()
+	require.Len(t, resolved, 1)
+	assert.Equal(t, t0, resolved[0].FirstSeen)
+	assert.Equal(t, t0.Add(5*time.Minute), resolved[0].LastSeen)
+	assert.Equal(t, t0.Add(10*time.Minute), resolved[0].ResolvedAt)
 }
 
 // TestComponentHealth_ActiveGauge verifies the active gauge tracks the number of

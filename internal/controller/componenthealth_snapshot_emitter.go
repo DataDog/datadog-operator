@@ -30,20 +30,14 @@ import (
 )
 
 // The following values describe the payload/transport contract with the
-// agenthealth intake. The RFC fixes the proto shape (agent-payload/v5/
-// healthplatform) but the exact envelope values and endpoint are still being
-// confirmed with #fleet-remediation (CONTP-2137); they are centralized here so a
-// later tweak is a one-line change.
+// agenthealth intake. The proto shape (agent-payload/v5/healthplatform) is fixed,
+// but the exact envelope values and endpoint are still being confirmed with
+// #fleet-remediation (CONTP-2137); they are centralized here so a later tweak is a
+// one-line change.
 const (
 	// healthReportSchemaVersion is the schema version stamped on every report.
 	healthReportSchemaVersion = "v1"
-	// healthReportEventType categorizes the report envelope for the intake. It
-	// reuses the value the Datadog Agent's health platform sends
-	// (comp/healthplatform), which is the proven-accepted contract on
-	// /api/v2/agenthealth.
-	//
-	// TODO(CONTP-2137): confirm with #fleet-remediation that the operator should
-	// reuse "agent-health-issues" rather than an operator-specific event type.
+	// healthReportEventType categorizes the report envelope for the intake.
 	healthReportEventType = "agent-health-issues"
 	// healthReportService identifies the operator as the reporting flavor
 	healthReportService = "datadog-operator"
@@ -95,8 +89,7 @@ type ddaGetter func() (*v2alpha1.DatadogAgent, error)
 // resolves credentials and site (operator config first, DatadogAgent CR as
 // fallback), builds a HealthReport of the current active component-level issues
 // plus explicit RESOLVED entries for the issues that just cleared, and POSTs it as
-// JSON to the agenthealth intake (matching the Datadog Agent's health platform,
-// which sends encoding/json on the same endpoint).
+// JSON to the agenthealth intake.
 //
 // The emitter itself is stateless; the active-issue set and the pending-resolve
 // set it serializes live in the ComponentHealthReconciler. The backend remains the
@@ -187,8 +180,7 @@ func (e *snapshotEmitter) newRequest(ctx context.Context, creds config.Creds, pa
 
 // getDatadogAgent returns a DatadogAgent to source credentials from when the
 // operator config does not carry them. It assumes a single DCA/CLC set per
-// cluster (the RFC's current-state assumption); if several DatadogAgents exist it
-// uses the first and warns.
+// cluster; if several DatadogAgents exist it uses the first and warns.
 func (e *snapshotEmitter) getDatadogAgent() (*v2alpha1.DatadogAgent, error) {
 	ddaList := v2alpha1.DatadogAgentList{}
 	if err := e.k8sClient.List(context.TODO(), &ddaList); err != nil {
@@ -227,10 +219,10 @@ func agenthealthURL(creds config.Creds) string {
 }
 
 // buildHealthReport turns the current active and recently-resolved component-level
-// issues into a HealthReport envelope keyed by stable issue id. Active issues
-// carry no explicit lifecycle state (the backend treats their presence as
-// active/ongoing); resolved issues carry an explicit RESOLVED state so the backend
-// closes them immediately instead of waiting for TTL expiry.
+// issues into a HealthReport envelope keyed by stable issue id. Every issue carries
+// a PersistedIssue with its lifecycle state (ACTIVE or RESOLVED) and first_seen /
+// last_seen timestamps; resolved issues additionally carry resolved_at so the
+// backend closes them immediately instead of waiting for TTL expiry.
 func buildHealthReport(active, resolved []componenthealth.ComponentIssue, clusterName string) *healthplatform.HealthReport {
 	now := time.Now().UTC().Format(time.RFC3339)
 
@@ -256,8 +248,9 @@ func buildHealthReport(active, resolved []componenthealth.ComponentIssue, cluste
 }
 
 // buildIssue maps one component-level issue onto the health-platform Issue proto.
-// When resolved is true it stamps an explicit RESOLVED lifecycle state so the
-// backend closes the issue.
+// It attaches a PersistedIssue carrying the lifecycle state and timestamps: ACTIVE
+// with first_seen/last_seen for active issues, RESOLVED with resolved_at as well
+// for resolved ones.
 func buildIssue(id string, issue componenthealth.ComponentIssue, now string, resolved bool) *healthplatform.Issue {
 	out := &healthplatform.Issue{
 		Id:          id,
@@ -277,13 +270,28 @@ func buildIssue(id string, issue componenthealth.ComponentIssue, now string, res
 	if summary, ok := issueRemediations[issue.IssueType]; ok {
 		out.Remediation = &healthplatform.Remediation{Summary: summary}
 	}
-	if resolved {
-		out.PersistedIssue = &healthplatform.PersistedIssue{
-			State:      healthplatform.IssueState_ISSUE_STATE_RESOLVED,
-			ResolvedAt: &now,
-		}
+
+	persisted := &healthplatform.PersistedIssue{
+		State:     healthplatform.IssueState_ISSUE_STATE_ACTIVE,
+		FirstSeen: formatTime(issue.FirstSeen),
+		LastSeen:  formatTime(issue.LastSeen),
 	}
+	if resolved {
+		persisted.State = healthplatform.IssueState_ISSUE_STATE_RESOLVED
+		resolvedAt := formatTime(issue.ResolvedAt)
+		persisted.ResolvedAt = &resolvedAt
+	}
+	out.PersistedIssue = persisted
 	return out
+}
+
+// formatTime renders a timestamp in the RFC3339/UTC form the intake expects, or ""
+// for a zero time.
+func formatTime(t time.Time) string {
+	if t.IsZero() {
+		return ""
+	}
+	return t.UTC().Format(time.RFC3339)
 }
 
 // issueID is the stable identity of a component-level issue across pod churn:

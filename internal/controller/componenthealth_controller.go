@@ -78,10 +78,21 @@ type componentIssueKey struct {
 }
 
 // componentIssueState is the live state of one component-level issue: the pods
-// currently exhibiting it, keyed by pod name. The issue is active while pods
-// is non-empty.
+// currently exhibiting it, keyed by pod name, plus its lifecycle timestamps. The
+// issue is active while pods is non-empty.
 type componentIssueState struct {
-	pods map[string]struct{}
+	pods      map[string]struct{}
+	firstSeen time.Time // when the issue first appeared on the component
+	lastSeen  time.Time // last time the issue was observed active
+}
+
+// resolvedIssue is a tombstone for a component-level issue that has cleared: it
+// carries the lifecycle timestamps needed to report an explicit RESOLVED signal.
+// It is held until a snapshot carrying it is acknowledged.
+type resolvedIssue struct {
+	firstSeen  time.Time
+	lastSeen   time.Time
+	resolvedAt time.Time
 }
 
 // ComponentHealthReconciler watches the managed cluster-level component pods
@@ -102,6 +113,7 @@ type ComponentHealthReconciler struct {
 	restartThreshold int32
 	emitter          componentHealthEmitter
 	snapshotInterval time.Duration
+	clock            func() time.Time // overridable for tests; defaults to time.Now
 
 	// mu guards reported and resolved. reported holds every currently-active
 	// component-level issue and the set of pods exhibiting it. resolved holds the
@@ -112,7 +124,7 @@ type ComponentHealthReconciler struct {
 	// issue becomes active again.
 	mu       sync.Mutex
 	reported map[componentIssueKey]*componentIssueState
-	resolved map[componentIssueKey]struct{}
+	resolved map[componentIssueKey]resolvedIssue
 }
 
 // NewComponentHealthReconciler builds a ComponentHealthReconciler with the
@@ -124,8 +136,9 @@ func NewComponentHealthReconciler(c client.Client, log logr.Logger) *ComponentHe
 		restartThreshold: defaultRestartThreshold,
 		emitter:          &logEmitter{log: log},
 		snapshotInterval: defaultSnapshotInterval,
+		clock:            time.Now,
 		reported:         map[componentIssueKey]*componentIssueState{},
-		resolved:         map[componentIssueKey]struct{}{},
+		resolved:         map[componentIssueKey]resolvedIssue{},
 	}
 }
 
@@ -193,6 +206,7 @@ func (r *ComponentHealthReconciler) reconcilePod(pod types.NamespacedName, compo
 // and logs the edge; the active set itself is reported to the emitter on the
 // snapshot cadence (see Start), not here. Caller holds mu.
 func (r *ComponentHealthReconciler) addPod(key componentIssueKey, pod string) {
+	now := r.clock()
 	state := r.reported[key]
 	if state == nil {
 		state = &componentIssueState{pods: map[string]struct{}{}}
@@ -200,8 +214,12 @@ func (r *ComponentHealthReconciler) addPod(key componentIssueKey, pod string) {
 	}
 	firstPod := len(state.pods) == 0
 	state.pods[pod] = struct{}{}
+	// lastSeen advances on every observation of the issue; firstSeen is stamped
+	// once, when it first appears.
+	state.lastSeen = now
 
 	if firstPod {
+		state.firstSeen = now
 		// The issue is active again: drop any pending resolve so we don't send a
 		// stale RESOLVED signal for something that is currently broken.
 		delete(r.resolved, key)
@@ -233,8 +251,13 @@ func (r *ComponentHealthReconciler) dropPod(key componentIssueKey, state *compon
 		)
 		delete(r.reported, key)
 		// Remember the clear so the next snapshot carries an explicit RESOLVED
-		// signal for it; it is dropped once that snapshot is acknowledged.
-		r.resolved[key] = struct{}{}
+		// signal for it, carrying the lifecycle timestamps; it is dropped once that
+		// snapshot is acknowledged.
+		r.resolved[key] = resolvedIssue{
+			firstSeen:  state.firstSeen,
+			lastSeen:   state.lastSeen,
+			resolvedAt: r.clock(),
+		}
 		r.setActiveGauge(key)
 		return
 	}
@@ -270,12 +293,15 @@ func (r *ComponentHealthReconciler) collectSnapshot() (active, resolved []compon
 	sortIssues(active)
 
 	resolved = make([]componenthealth.ComponentIssue, 0, len(r.resolved))
-	for key := range r.resolved {
+	for key, ri := range r.resolved {
 		resolved = append(resolved, componenthealth.ComponentIssue{
-			Component: key.component,
-			IssueType: key.issueType,
-			Severity:  componenthealth.SeverityForIssueType(key.issueType),
-			Namespace: key.namespace,
+			Component:  key.component,
+			IssueType:  key.issueType,
+			Severity:   componenthealth.SeverityForIssueType(key.issueType),
+			Namespace:  key.namespace,
+			FirstSeen:  ri.firstSeen,
+			LastSeen:   ri.lastSeen,
+			ResolvedAt: ri.resolvedAt,
 		})
 	}
 	sortIssues(resolved)
@@ -327,6 +353,16 @@ func sortIssues(issues []componenthealth.ComponentIssue) {
 // Start runs the snapshot loop: on a fixed cadence it hands the current
 // active-issue set to the emitter. It implements manager.Runnable and is
 // registered with the manager in SetupWithManager.
+//
+// TODO(CONTP-2137): close the restart resolve-gap. State is in-memory, so if an
+// issue was active before an operator restart and clears while the operator is
+// down (or before it re-observes the pods), no present->absent transition occurs
+// and no RESOLVED signal is sent — the backend only clears it via TTL. Once
+// detection has stabilized on startup, emit explicit RESOLVED signals for the
+// catalog issue types not currently active on each managed component, so the
+// backend reconciles any issue left stuck from before the restart. (Pending the
+// backend decision on whether a full operator snapshot can instead be treated as
+// authoritative, which would close this gap without a startup sweep.)
 func (r *ComponentHealthReconciler) Start(ctx context.Context) error {
 	ticker := time.NewTicker(r.snapshotInterval)
 	defer ticker.Stop()
@@ -360,6 +396,8 @@ func (r *ComponentHealthReconciler) issueFor(key componentIssueKey, state *compo
 		Severity:     componenthealth.SeverityForIssueType(key.issueType),
 		Namespace:    key.namespace,
 		AffectedPods: pods,
+		FirstSeen:    state.firstSeen,
+		LastSeen:     state.lastSeen,
 	}
 }
 
