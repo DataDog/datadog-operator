@@ -12,6 +12,7 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
@@ -58,6 +59,13 @@ func (f *instrumentationCRDFeature) Configure(dda metav1.Object, ddaSpec *v2alph
 
 	// The feature is enabled by default; opt out via the annotation set to "false".
 	if featureutils.HasFeatureDisableAnnotation(dda, featureutils.EnableInstrumentationCRDAnnotation) {
+		return feature.RequiredComponents{}
+	}
+
+	// The instrumentation-checks autodiscovery provider requires a live Cluster Agent to serve
+	// configs to the node agent; without one the node agent just spams connection errors trying
+	// to reach a Cluster Agent Kubernetes Service that doesn't exist.
+	if clusterAgent, ok := ddaSpec.Override[v2alpha1.ClusterAgentComponentName]; ok && apiutils.BoolValue(clusterAgent.Disabled) {
 		return feature.RequiredComponents{}
 	}
 

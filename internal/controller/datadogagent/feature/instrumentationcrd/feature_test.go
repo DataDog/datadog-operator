@@ -97,6 +97,17 @@ func Test_instrumentationCRDFeature_Configure(t *testing.T) {
 			ClusterAgent:  instrumentationCRDClusterAgentFunc(false),
 			Agent:         instrumentationCRDAgentFunc(false),
 		},
+		{
+			Name: "InstrumentationCRD disabled when cluster agent is disabled, even if versions meet minimum",
+			DDA: testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+				WithClusterAgentImage("cluster-agent:7.82.0").
+				WithNodeAgentImage("agent:7.82.0").
+				WithClusterAgentDisabled(true).
+				Build(),
+			WantConfigure: false,
+			ClusterAgent:  instrumentationCRDClusterAgentFunc(false),
+			Agent:         instrumentationCRDAgentFunc(false),
+		},
 	}
 
 	tests.Run(t, buildInstrumentationCRDFeature)
