@@ -118,7 +118,7 @@ func TestEvictASG(t *testing.T) {
 	}
 	stuckPod := func() *corev1.Pod {
 		return &corev1.Pod{
-			ObjectMeta: metav1.ObjectMeta{Name: "blocker", Namespace: "default"},
+			ObjectMeta: metav1.ObjectMeta{Name: "blocker", Namespace: "default", OwnerReferences: controllerOwnerRefs()},
 			Spec:       corev1.PodSpec{NodeName: "ip-stuck"},
 		}
 	}
