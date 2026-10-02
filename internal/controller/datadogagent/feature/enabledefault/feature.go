@@ -7,10 +7,13 @@ package enabledefault
 
 import (
 	"github.com/go-logr/logr"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 )
 
@@ -32,8 +35,9 @@ func buildDefaultFeature(options *feature.Options) feature.Feature {
 }
 
 type defaultFeature struct {
-	owner  metav1.Object
-	logger logr.Logger
+	owner                metav1.Object
+	clusterAgentDisabled bool
+	logger               logr.Logger
 }
 
 // ID returns the ID of the Feature
@@ -44,6 +48,10 @@ func (f *defaultFeature) ID() feature.IDType {
 func (f *defaultFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) feature.RequiredComponents {
 	trueValue := true
 	f.owner = dda
+
+	if clusterAgent, ok := ddaSpec.Override[v2alpha1.ClusterAgentComponentName]; ok {
+		f.clusterAgentDisabled = apiutils.BoolValue(clusterAgent.Disabled)
+	}
 
 	return feature.RequiredComponents{
 		ClusterAgent: feature.RequiredComponent{
@@ -73,12 +81,30 @@ func (f *defaultFeature) ManageClusterAgent(managers feature.PodTemplateManagers
 // if SingleContainerStrategy is enabled and can be used with the configured feature set.
 // It should do nothing if the feature doesn't need to configure it.
 func (f *defaultFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers) error {
-	return nil
+	return f.overrideClusterAgentEnabledEnvVar(managers)
 }
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *defaultFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
+	return f.overrideClusterAgentEnabledEnvVar(managers)
+}
+
+// overrideClusterAgentEnabledEnvVar corrects DD_CLUSTER_AGENT_ENABLED, which the default pod
+// template scaffolding (component/agent/default.go) hardcodes to "true" on every agent
+// container regardless of whether a Cluster Agent is actually being deployed.
+func (f *defaultFeature) overrideClusterAgentEnabledEnvVar(managers feature.PodTemplateManagers) error {
+	if !f.clusterAgentDisabled {
+		return nil
+	}
+	envVar := &corev1.EnvVar{
+		Name:  common.DDClusterAgentEnabled,
+		Value: "false",
+	}
+	managers.EnvVar().AddEnvVar(envVar)
+	// AddEnvVar only reaches regular containers; the init-config init container builds its
+	// env vars from the same hardcoded-true default and needs the override too.
+	managers.EnvVar().AddEnvVarToInitContainer(apicommon.InitConfigContainerName, envVar)
 	return nil
 }
 
