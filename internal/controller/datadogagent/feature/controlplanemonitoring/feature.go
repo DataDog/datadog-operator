@@ -67,6 +67,12 @@ func (f *controlPlaneMonitoringFeature) Configure(dda metav1.Object, ddaSpec *v2
 
 	controlPlaneMonitoring := ddaSpec.Features.ControlPlaneMonitoring
 
+	// Control plane monitoring is driven by the Cluster Agent; without one there's no RBAC
+	// or ConfigMap to create.
+	if clusterAgent, ok := ddaSpec.Override[v2alpha1.ClusterAgentComponentName]; ok && apiutils.BoolValue(clusterAgent.Disabled) {
+		return reqComp
+	}
+
 	if controlPlaneMonitoring != nil && apiutils.BoolValue(controlPlaneMonitoring.Enabled) {
 		f.enabled = true
 		reqComp.ClusterAgent.IsRequired = new(true)
