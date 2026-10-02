@@ -119,6 +119,18 @@ func TestAutoscalingFeature(t *testing.T) {
 	tests.Run(t, buildAutoscalingFeature)
 }
 
+func TestAutoscalingFeature_ClusterAgentDisabled(t *testing.T) {
+	dda := newAgent(true, true, true, false, false)
+	dda.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+		v2alpha1.ClusterAgentComponentName: {Disabled: ptr.To(true)},
+	}
+
+	f := buildAutoscalingFeature(nil)
+	reqComp := f.Configure(dda, &dda.Spec, nil)
+
+	assert.False(t, reqComp.IsEnabled(), "autoscaling should not be enabled when the cluster agent is disabled")
+}
+
 func newAgent(workloadEnabled, clusterEnabled, admissionEnabled, clusterSpotEnabled, workloadInPlaceVerticalScalingEnabled bool) *v2alpha1.DatadogAgent {
 	return &v2alpha1.DatadogAgent{
 		ObjectMeta: metav1.ObjectMeta{
