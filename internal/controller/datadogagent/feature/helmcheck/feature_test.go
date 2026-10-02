@@ -41,6 +41,14 @@ func Test_helmCheckFeature_Configure(t *testing.T) {
 			WantConfigure: false,
 		},
 		{
+			Name: "Helm check enabled but cluster agent disabled",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithHelmCheckEnabled(true).
+				WithClusterAgentDisabled(true).
+				Build(),
+			WantConfigure: false,
+		},
+		{
 			Name: "Helm check enabled",
 			DDA: testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 				WithHelmCheckEnabled(true).

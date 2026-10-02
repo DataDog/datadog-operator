@@ -110,7 +110,15 @@ func (f *admissionControllerFeature) Configure(dda metav1.Object, ddaSpec *v2alp
 
 	ac := ddaSpec.Features.AdmissionController
 
-	if ac != nil && apiutils.BoolValue(ac.Enabled) {
+	// The admission controller webhook server runs inside the Cluster Agent; without one
+	// there's nothing to back the webhook Service, and the API server would block pod
+	// creation trying to reach it.
+	clusterAgentDisabled := false
+	if clusterAgent, ok := ddaSpec.Override[v2alpha1.ClusterAgentComponentName]; ok {
+		clusterAgentDisabled = apiutils.BoolValue(clusterAgent.Disabled)
+	}
+
+	if !clusterAgentDisabled && ac != nil && apiutils.BoolValue(ac.Enabled) {
 		if ac.Validation != nil && ac.Validation.Enabled != nil {
 			f.validationWebhookConfig = &ValidationConfig{enabled: apiutils.BoolValue(ac.Validation.Enabled)}
 		}

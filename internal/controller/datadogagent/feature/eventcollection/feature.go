@@ -62,6 +62,12 @@ func (f *eventCollectionFeature) ID() feature.IDType {
 func (f *eventCollectionFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
 	f.owner = dda
 
+	// Event collection is configured using the Cluster Agent only; without one there's no
+	// RBAC to create.
+	if clusterAgent, ok := ddaSpec.Override[v2alpha1.ClusterAgentComponentName]; ok && apiutils.BoolValue(clusterAgent.Disabled) {
+		return reqComp
+	}
+
 	// v2alpha1 configures event collection using the cluster agent only
 	// leader election is enabled by default
 	if ddaSpec.Features != nil && ddaSpec.Features.EventCollection != nil && apiutils.BoolValue(ddaSpec.Features.EventCollection.CollectKubernetesEvents) {

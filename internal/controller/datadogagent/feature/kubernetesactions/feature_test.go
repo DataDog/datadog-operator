@@ -36,6 +36,14 @@ func Test_kubernetesActionsFeature_Configure(t *testing.T) {
 			WantConfigure: false,
 		},
 		{
+			Name: "KubernetesActions enabled but cluster agent disabled",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithKubernetesActionsEnabled(true).
+				WithClusterAgentDisabled(true).
+				Build(),
+			WantConfigure: false,
+		},
+		{
 			Name: "KubernetesActions enabled but cluster agent version too low",
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithName("ddaDCA").

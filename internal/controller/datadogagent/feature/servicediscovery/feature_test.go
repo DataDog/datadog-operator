@@ -50,7 +50,8 @@ func Test_serviceDiscoveryFeature_Configure(t *testing.T) {
 		{
 			Name:          "service discovery not enabled",
 			DDA:           ddaServiceDiscoveryDisabled.DeepCopy(),
-			WantConfigure: false,
+			WantConfigure: true,
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(getDisabledWantFunc()),
 		},
 		{
 			Name:          "service discovery enabled",
@@ -253,6 +254,29 @@ func Test_serviceDiscoveryFeature_resolveEnabled_InheritsDefaultVersionWhenImage
 
 func serviceDiscoveryEnabledForVersion(version string) bool {
 	return pkgutils.IsAboveMinVersion(version, serviceDiscoveryAutoEnableMinVersion, nil)
+}
+
+// getDisabledWantFunc asserts that, when service discovery is explicitly disabled, the core
+// agent container still receives an explicit DD_DISCOVERY_ENABLED="false" env var instead of
+// omitting it entirely (which would let the agent's own >= 7.78.0 auto-on default win), and
+// that none of the system-probe-specific configuration is applied.
+func getDisabledWantFunc() func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+	return func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+		mgr := mgrInterface.(*fake.PodTemplateManagers)
+
+		wantAgentEnvVars := []*corev1.EnvVar{
+			{
+				Name:  common.DDServiceDiscoveryEnabled,
+				Value: "false",
+			},
+		}
+		agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
+		assert.True(t, apiutils.IsEqualStruct(agentEnvVars, wantAgentEnvVars), "Agent env vars \ndiff = %s", cmp.Diff(agentEnvVars, wantAgentEnvVars))
+
+		assert.Empty(t, mgr.EnvVarMgr.EnvVarsByC[apicommon.SystemProbeContainerName])
+		assert.Empty(t, mgr.VolumeMountMgr.VolumeMountsByC[apicommon.SystemProbeContainerName])
+		assert.Empty(t, mgr.VolumeMgr.Volumes)
+	}
 }
 
 func getWantFunc(wantSystemProbeLite bool) func(t testing.TB, mgrInterface feature.PodTemplateManagers) {

@@ -33,6 +33,7 @@ func buildFeature(*feature.Options) feature.Feature {
 }
 
 type serviceDiscoveryFeature struct {
+	enabled            bool
 	useSystemProbeLite bool
 }
 
@@ -43,12 +44,21 @@ func (f *serviceDiscoveryFeature) ID() feature.IDType {
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *serviceDiscoveryFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
+	f.enabled = resolveEnabled(ddaSpec)
 	f.useSystemProbeLite = false
-	if resolveEnabled(ddaSpec) {
+
+	if f.enabled {
 		f.useSystemProbeLite = shouldEnableServiceDiscoveryByDefault(ddaSpec)
 		reqComp.Agent = feature.RequiredComponent{
 			IsRequired: new(true),
 			Containers: []apicommon.AgentContainerName{apicommon.CoreAgentContainerName, apicommon.SystemProbeContainerName},
+		}
+	} else {
+		// Not required, but still needs the core agent container configured so that
+		// DD_DISCOVERY_ENABLED is explicitly written as "false" instead of being omitted
+		// (the agent defaults service discovery to on for versions >= 7.78.0).
+		reqComp.Agent = feature.RequiredComponent{
+			Containers: []apicommon.AgentContainerName{apicommon.CoreAgentContainerName},
 		}
 	}
 
@@ -98,6 +108,16 @@ func (f *serviceDiscoveryFeature) ManageClusterAgent(managers feature.PodTemplat
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *serviceDiscoveryFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
+	// Add the env var to explicitly reflect the resolved enabled state.
+	// Otherwise, this feature defaults to enabled in the Agent code for versions >= 7.78.0.
+	managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
+		Name:  common.DDServiceDiscoveryEnabled,
+		Value: apiutils.BoolToString(&f.enabled),
+	})
+	if !f.enabled {
+		return nil
+	}
+
 	// annotations
 	managers.Annotation().AddAnnotation(common.SystemProbeAppArmorAnnotationKey, common.SystemProbeAppArmorAnnotationValue)
 
@@ -127,7 +147,7 @@ func (f *serviceDiscoveryFeature) ManageNodeAgent(managers feature.PodTemplateMa
 		Value: "true",
 	}
 
-	managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.CoreAgentContainerName, apicommon.SystemProbeContainerName}, enableEnvVar)
+	managers.EnvVar().AddEnvVarToContainer(apicommon.SystemProbeContainerName, enableEnvVar)
 	managers.EnvVar().AddEnvVarToInitContainer(apicommon.InitConfigContainerName, enableEnvVar)
 
 	if f.useSystemProbeLite {

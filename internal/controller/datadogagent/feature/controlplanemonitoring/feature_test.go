@@ -39,6 +39,14 @@ func Test_controlPlaneMonitoringFeature_Configure(t *testing.T) {
 			WantConfigure: false,
 		},
 		{
+			Name: "Control Plane Monitoring enabled but cluster agent disabled",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithControlPlaneMonitoring(true).
+				WithClusterAgentDisabled(true).
+				Build(),
+			WantConfigure: false,
+		},
+		{
 			Name: "Control Plane Monitoring enabled with default provider",
 			DDA: testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 				WithControlPlaneMonitoring(true).

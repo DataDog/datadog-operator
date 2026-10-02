@@ -71,6 +71,12 @@ func (f *autoscalingFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Data
 		return feature.RequiredComponents{}
 	}
 
+	// Autoscaling decisions are computed and served by the Cluster Agent; without one
+	// there's no RBAC to create.
+	if clusterAgent, ok := ddaSpec.Override[v2alpha1.ClusterAgentComponentName]; ok && apiutils.BoolValue(clusterAgent.Disabled) {
+		return feature.RequiredComponents{}
+	}
+
 	if autoscaling.Workload != nil && apiutils.BoolValue(autoscaling.Workload.Enabled) {
 		f.workloadEnabled = true
 		if autoscaling.Workload.InPlaceVerticalScaling != nil {
