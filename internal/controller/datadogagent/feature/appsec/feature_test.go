@@ -786,6 +786,21 @@ func TestAppsecFeatureConfigure(t *testing.T) {
 	}
 }
 
+func TestAppsecFeatureConfigureClusterAgentDisabled(t *testing.T) {
+	dda := testutils.NewDatadogAgentBuilder().
+		WithClusterAgentTag("7.76.0").
+		WithClusterAgentDisabled(true).
+		WithAnnotations(map[string]string{
+			AnnotationInjectorEnabled: "true",
+		}).
+		Build()
+
+	f := buildAppsecFeature(nil).(*appsecFeature)
+	reqComp := f.Configure(dda, &dda.Spec, nil)
+
+	assert.False(t, reqComp.IsEnabled(), "AppSec should not be enabled when the cluster agent is disabled")
+}
+
 func TestAppsecFeatureManageClusterAgentDisabled(t *testing.T) {
 	// Test that ManageClusterAgent does nothing when feature is disabled
 	dda := testutils.NewDatadogAgentBuilder().
