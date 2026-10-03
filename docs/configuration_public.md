@@ -765,6 +765,21 @@ Use an integer value for `limits.cpu` so the runtime can read it directly. If yo
 `[component].containers.[container].healthPort`
 : HealthPort of the container for the internal liveness probe. Must be the same as the Liveness/Readiness probes.
 
+`[component].containers.[container].image.jmxEnabled`
+: Define whether the Agent image should support JMX. To be used if the `Name` field does not correspond to a full image string.
+
+`[component].containers.[container].image.name`
+: Defines the Agent image name for the pod. You can provide this as: * `<NAME>` - Use `agent` for the Datadog Agent, `cluster-agent` for the Datadog Cluster Agent, or `dogstatsd` for DogStatsD. The full image string is derived from `global.registry`, `[key].image.tag`, and `[key].image.jmxEnabled`. * `<NAME>:<TAG>` - For example, `agent:latest`. The registry is derived from `global.registry`. `[key].image.tag` and `[key].image.jmxEnabled` are ignored. * `<REGISTRY>/<NAME>:<TAG>` - For example, `gcr.io/datadoghq/agent:latest`. If the full image string is specified   like this, then `global.registry`, `[key].image.tag`, and `[key].image.jmxEnabled` are ignored.
+
+`[component].containers.[container].image.pullPolicy`
+: The Kubernetes pull policy: Use `Always`, `Never`, or `IfNotPresent`.
+
+`[component].containers.[container].image.pullSecrets`
+: It is possible to specify Docker registry credentials. See https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod
+
+`[component].containers.[container].image.tag`
+: Define the image tag to use. To be used if the `Name` field does not correspond to a full image string.
+
 `[component].containers.[container].livenessProbe`
 : Configure the Liveness Probe of the container See [link](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/) for more information.
 
