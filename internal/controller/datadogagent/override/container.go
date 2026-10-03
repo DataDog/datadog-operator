@@ -18,6 +18,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
+	"github.com/DataDog/datadog-operator/pkg/images"
 )
 
 // Container use to override a corev1.Container with a v2alpha1.DatadogAgentGenericContainer.
@@ -117,6 +118,17 @@ func addHealthPort(containerName apicommon.AgentContainerName, manager feature.P
 func overrideContainer(container *corev1.Container, override *v2alpha1.DatadogAgentGenericContainer) {
 	if override.Name != nil {
 		container.Name = *override.Name
+	}
+
+	// Applied here (after the component-level image override in
+	// PodTemplateSpec) so a container-level image always wins for this
+	// container — e.g. keep otel-agent on ddot-collector while the rest of
+	// the pod runs a custom Agent image.
+	if override.Image != nil {
+		container.Image = images.OverrideAgentImage(container.Image, override.Image)
+		if override.Image.PullPolicy != nil {
+			container.ImagePullPolicy = *override.Image.PullPolicy
+		}
 	}
 
 	if override.Resources != nil {
