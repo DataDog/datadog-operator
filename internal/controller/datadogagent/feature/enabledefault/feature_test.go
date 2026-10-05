@@ -93,3 +93,39 @@ func Test_defaultFeature_ClusterAgentEnabledEnvVar(t *testing.T) {
 		})
 	}
 }
+
+// Test_defaultFeature_Configure_ClusterAgentRequired verifies that, when the Cluster Agent is
+// disabled via override, Configure resolves ClusterAgent.IsRequired to an explicit false rather
+// than leaving it true (or nil). An explicit false merges with any other feature's requirement
+// as "component is disabled" rather than "feature wants it but override disables it", so
+// checkComponentEnabledWithOverride resolves this as a clean disable instead of persisting an
+// OverrideReconcileConflict status condition on an otherwise legitimate no-Cluster-Agent setup.
+func Test_defaultFeature_Configure_ClusterAgentRequired(t *testing.T) {
+	tests := []struct {
+		name                 string
+		clusterAgentDisabled bool
+		wantIsEnabled        bool
+	}{
+		{name: "cluster agent enabled (default)", clusterAgentDisabled: false, wantIsEnabled: true},
+		{name: "cluster agent disabled", clusterAgentDisabled: true, wantIsEnabled: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			builder := testutils.NewDatadogAgentBuilder()
+			if tt.clusterAgentDisabled {
+				builder = builder.WithClusterAgentDisabled(true)
+			}
+			dda := builder.Build()
+
+			f := buildDefaultFeature(nil)
+			reqComp := f.Configure(dda, &dda.Spec, nil)
+
+			assert.Equal(t, tt.wantIsEnabled, reqComp.ClusterAgent.IsEnabled())
+			if tt.clusterAgentDisabled {
+				assert.NotNil(t, reqComp.ClusterAgent.IsRequired)
+				assert.False(t, *reqComp.ClusterAgent.IsRequired)
+			}
+		})
+	}
+}

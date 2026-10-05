@@ -53,11 +53,20 @@ func (f *defaultFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogA
 		f.clusterAgentDisabled = apiutils.BoolValue(clusterAgent.Disabled)
 	}
 
+	// IsRequired: false (rather than nil) tells the merge that the Cluster Agent is
+	// explicitly disabled via override, so checkComponentEnabledWithOverride resolves
+	// this as a clean disable instead of an override/feature conflict, as long as no
+	// other feature still requires it.
+	clusterAgentRequired := feature.RequiredComponent{
+		IsRequired: &trueValue,
+		Containers: []apicommon.AgentContainerName{apicommon.ClusterAgentContainerName},
+	}
+	if f.clusterAgentDisabled {
+		clusterAgentRequired = feature.RequiredComponent{IsRequired: new(false)}
+	}
+
 	return feature.RequiredComponents{
-		ClusterAgent: feature.RequiredComponent{
-			IsRequired: &trueValue,
-			Containers: []apicommon.AgentContainerName{apicommon.ClusterAgentContainerName},
-		},
+		ClusterAgent: clusterAgentRequired,
 		Agent: feature.RequiredComponent{
 			IsRequired: &trueValue,
 			Containers: []apicommon.AgentContainerName{},
