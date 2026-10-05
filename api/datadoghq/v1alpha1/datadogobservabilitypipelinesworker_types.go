@@ -11,7 +11,6 @@ import (
 )
 
 // DatadogObservabilityPipelinesWorkerSpec defines the desired state of DatadogObservabilityPipelinesWorker.
-// When Resources is specified, its memory limit is required for worker buffer sizing.
 // +k8s:openapi-gen=true
 type DatadogObservabilityPipelinesWorkerSpec struct {
 	DatadogBYOCClusterPipelineComponentSpec `json:",inline"`
