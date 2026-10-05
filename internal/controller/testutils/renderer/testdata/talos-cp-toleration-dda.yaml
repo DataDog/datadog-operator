@@ -1,0 +1,33 @@
+apiVersion: datadoghq.com/v2alpha1
+kind: DatadogAgent
+metadata:
+  name: datadog-agent
+spec:
+  global:
+    credentials:
+      apiSecret:
+        secretName: datadog-secret
+        keyName: api-key
+      appSecret:
+        secretName: datadog-secret
+        keyName: app-key
+    clusterName: test-cluster
+    # Fixed so the generated cluster-agent token Secret is deterministic for golden files.
+    clusterAgentToken: golden-fixed-cluster-agent-token-0000000000
+    kubelet:
+      tlsVerify: false
+  override:
+    nodeAgent:
+      # The user tolerating the control-plane taint is what unlocks the etcd tier
+      # of control plane monitoring on Talos: etcd's client certs exist only on
+      # control-plane nodes, so the check has nowhere to run otherwise. The
+      # operator never adds this toleration itself.
+      tolerations:
+        - key: node-role.kubernetes.io/control-plane
+          operator: Exists
+          effect: NoSchedule
+  features:
+    # controlPlaneMonitoring is enabled by default, so it is deliberately not
+    # listed here - this fixture exercises the default-on path.
+    liveProcessCollection:
+      enabled: true
