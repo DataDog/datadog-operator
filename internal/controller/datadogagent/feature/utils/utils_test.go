@@ -89,8 +89,9 @@ func TestIsDataPlaneEnabled(t *testing.T) {
 	}{
 		{name: "runtime default disabled", spec: &v2alpha1.DatadogAgentSpec{}},
 		{name: "runtime default enables current default Agent image at or above minimum version", spec: &v2alpha1.DatadogAgentSpec{}, defaultEnabled: true, want: true},
-		{name: "runtime default does not enable older pinned Agent image", spec: withNodeAgentImage("7.81.0"), defaultEnabled: true},
-		{name: "runtime default enables compatible pinned Agent image", spec: withNodeAgentImage("7.83.0"), defaultEnabled: true, want: true},
+		{name: "runtime default does not enable older pinned Agent image", spec: withNodeAgentImage("7.83.0"), defaultEnabled: true},
+		{name: "runtime default enables compatible pinned Agent image", spec: withNodeAgentImage("7.84.0"), defaultEnabled: true, want: true},
+		{name: "runtime default enables compatible pinned Agent RC image", spec: withNodeAgentImage("7.84.0-rc.1"), defaultEnabled: true, want: true},
 		{name: "explicit CRD enable overrides incompatible pinned Agent image", spec: func() *v2alpha1.DatadogAgentSpec {
 			spec := withNodeAgentImage("7.81.0")
 			spec.Features = &v2alpha1.DatadogFeatures{DataPlane: &v2alpha1.DataPlaneFeatureConfig{Enabled: ptr.To(true)}}
