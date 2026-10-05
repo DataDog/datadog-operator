@@ -21646,6 +21646,7 @@ spec:
                     byoc:
                       properties:
                         digest:
+                          pattern: ^sha256:[a-f0-9]{64}$
                           type: string
                         imagePullSecrets:
                           items:
@@ -21676,6 +21677,7 @@ spec:
                     observabilityPipelinesWorker:
                       properties:
                         digest:
+                          pattern: ^sha256:[a-f0-9]{64}$
                           type: string
                         imagePullSecrets:
                           items:
@@ -21724,10 +21726,13 @@ spec:
                 release:
                   properties:
                     digest:
+                      pattern: ^sha256:[a-f0-9]{64}$
                       type: string
                     repository:
+                      minLength: 1
                       type: string
                     tag:
+                      minLength: 1
                       type: string
                   type: object
               required:

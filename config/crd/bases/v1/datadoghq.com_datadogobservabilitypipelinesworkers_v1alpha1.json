@@ -1746,6 +1746,7 @@
           "properties": {
             "digest": {
               "description": "Digest is the image digest.",
+              "pattern": "^sha256:[a-f0-9]{64}$",
               "type": "string"
             },
             "imagePullSecrets": {

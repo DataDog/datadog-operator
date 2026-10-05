@@ -413,7 +413,7 @@ func TestValidateImageOverride(t *testing.T) {
 			image:           &datadoghqv1alpha1.DatadogBYOCImageSpec{},
 			requireComplete: true,
 			want: []string{
-				"spec.imageOverrides.byoc.repository: repository must be non-empty when release is omitted",
+				"spec.imageOverrides.byoc.repository: repository must be specified when release is omitted",
 				"spec.imageOverrides.byoc: tag or digest must be specified when release is omitted",
 			},
 		},
@@ -424,7 +424,7 @@ func TestValidateImageOverride(t *testing.T) {
 			},
 			requireComplete: true,
 			want: []string{
-				"spec.imageOverrides.byoc.repository: repository must be non-empty when release is omitted",
+				"spec.imageOverrides.byoc.repository: repository must be specified when release is omitted",
 				"spec.imageOverrides.byoc: tag or digest must be specified when release is omitted",
 			},
 		},
@@ -432,31 +432,13 @@ func TestValidateImageOverride(t *testing.T) {
 			name:            "missing repository",
 			image:           &datadoghqv1alpha1.DatadogBYOCImageSpec{Tag: ptr.To("v1")},
 			requireComplete: true,
-			want:            []string{"spec.imageOverrides.byoc.repository: repository must be non-empty when release is omitted"},
-		},
-		{
-			name:            "empty repository",
-			image:           &datadoghqv1alpha1.DatadogBYOCImageSpec{Repository: ptr.To(""), Tag: ptr.To("v1")},
-			requireComplete: true,
-			want:            []string{"spec.imageOverrides.byoc.repository: repository must be non-empty when release is omitted"},
+			want:            []string{"spec.imageOverrides.byoc.repository: repository must be specified when release is omitted"},
 		},
 		{
 			name:            "missing version",
 			image:           &datadoghqv1alpha1.DatadogBYOCImageSpec{Repository: ptr.To("registry.example/byoc")},
 			requireComplete: true,
 			want:            []string{"spec.imageOverrides.byoc: tag or digest must be specified when release is omitted"},
-		},
-		{
-			name:            "empty tag",
-			image:           &datadoghqv1alpha1.DatadogBYOCImageSpec{Repository: ptr.To("registry.example/byoc"), Tag: ptr.To("")},
-			requireComplete: true,
-			want:            []string{"spec.imageOverrides.byoc.tag: tag must be non-empty when release is omitted"},
-		},
-		{
-			name:            "empty digest",
-			image:           &datadoghqv1alpha1.DatadogBYOCImageSpec{Repository: ptr.To("registry.example/byoc"), Digest: ptr.To("")},
-			requireComplete: true,
-			want:            []string{"spec.imageOverrides.byoc.digest: digest must be non-empty when release is omitted"},
 		},
 		{
 			name: "tag and digest together",

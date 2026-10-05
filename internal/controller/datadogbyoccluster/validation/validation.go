@@ -73,17 +73,11 @@ func validateImageOverride(image *datadoghqv1alpha1.DatadogBYOCImageSpec, requir
 		errs = append(errs, field.Forbidden(path, "tag and digest are mutually exclusive"))
 	}
 	if requireComplete {
-		if image.Repository == nil || *image.Repository == "" {
-			errs = append(errs, field.Required(path.Child("repository"), "repository must be non-empty when release is omitted"))
+		if image.Repository == nil {
+			errs = append(errs, field.Required(path.Child("repository"), "repository must be specified when release is omitted"))
 		}
 		if image.Tag == nil && image.Digest == nil {
 			errs = append(errs, field.Required(path, "tag or digest must be specified when release is omitted"))
-		}
-		if image.Tag != nil && *image.Tag == "" {
-			errs = append(errs, field.Required(path.Child("tag"), "tag must be non-empty when release is omitted"))
-		}
-		if image.Digest != nil && *image.Digest == "" {
-			errs = append(errs, field.Required(path.Child("digest"), "digest must be non-empty when release is omitted"))
 		}
 	}
 	return errs

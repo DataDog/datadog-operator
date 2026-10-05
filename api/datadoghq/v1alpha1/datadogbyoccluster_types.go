@@ -59,14 +59,17 @@ type DatadogBYOCClusterReleaseSpec struct {
 	// Repository is the OCI repository containing BYOC release artifacts.
 	// The public Datadog BYOC release repository is used when this field is omitted.
 	// +optional
+	// +kubebuilder:validation:MinLength=1
 	Repository *string `json:"repository,omitempty"`
 
 	// Tag is the OCI tag of the BYOC release artifact.
 	// +optional
+	// +kubebuilder:validation:MinLength=1
 	Tag *string `json:"tag,omitempty"`
 
 	// Digest is the OCI digest of the BYOC release artifact.
 	// +optional
+	// +kubebuilder:validation:Pattern=`^sha256:[a-f0-9]{64}$`
 	Digest *string `json:"digest,omitempty"`
 }
 
@@ -101,6 +104,7 @@ type DatadogBYOCImageSpec struct {
 
 	// Digest is the image digest.
 	// +optional
+	// +kubebuilder:validation:Pattern=`^sha256:[a-f0-9]{64}$`
 	Digest *string `json:"digest,omitempty"`
 
 	// PullPolicy is the image pull policy used by the workload container.

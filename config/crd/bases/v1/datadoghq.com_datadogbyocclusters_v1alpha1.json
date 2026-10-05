@@ -34288,6 +34288,7 @@
               "additionalProperties": false,
               "properties": {
                 "digest": {
+                  "pattern": "^sha256:[a-f0-9]{64}$",
                   "type": "string"
                 },
                 "imagePullSecrets": {
@@ -34332,6 +34333,7 @@
               "additionalProperties": false,
               "properties": {
                 "digest": {
+                  "pattern": "^sha256:[a-f0-9]{64}$",
                   "type": "string"
                 },
                 "imagePullSecrets": {
@@ -34407,12 +34409,15 @@
           "additionalProperties": false,
           "properties": {
             "digest": {
+              "pattern": "^sha256:[a-f0-9]{64}$",
               "type": "string"
             },
             "repository": {
+              "minLength": 1,
               "type": "string"
             },
             "tag": {
+              "minLength": 1,
               "type": "string"
             }
           },
