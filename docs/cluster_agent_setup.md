@@ -73,3 +73,27 @@ datadog-agent-hjlbg                          1/1     Running   0          33s
 ```
 
 [1]: https://github.com/DataDog/datadog-operator/blob/main/examples/datadogagent/datadog-agent-with-clusteragent.yaml
+
+## Running without the Cluster Agent
+
+The Cluster Agent is optional. If you don't need cluster-level features (Kubernetes State Metrics Core, Admission Controller, Cluster Checks, External Metrics Server, Orchestrator Explorer, etc.), you can disable it and run the node Agent on its own, for example: [`datadog-agent-without-clusteragent.yaml` file][2]:
+
+```yaml
+apiVersion: datadoghq.com/v2alpha1
+kind: DatadogAgent
+metadata:
+  name: datadog
+spec:
+  global:
+    clusterName: my-example-cluster
+    credentials:
+      apiKey: "<DATADOG_API_KEY>"
+
+  override:
+    clusterAgent:
+      disabled: true
+```
+
+With `spec.override.clusterAgent.disabled: true`, no Cluster Agent `Deployment`, `Service`, or RBAC is created, and the node Agent is configured to run without one (`DD_CLUSTER_AGENT_ENABLED` is set to `false`). Any feature under `spec.features` that requires the Cluster Agent (for example `kubeStateMetricsCore`, `admissionController`, `clusterChecks`, `externalMetricsServer`, or `orchestratorExplorer`) is automatically left disabled rather than producing a broken, half-configured deployment — remove `override.clusterAgent.disabled` if you later need any of those features.
+
+[2]: https://github.com/DataDog/datadog-operator/blob/main/examples/datadogagent/datadog-agent-without-clusteragent.yaml
