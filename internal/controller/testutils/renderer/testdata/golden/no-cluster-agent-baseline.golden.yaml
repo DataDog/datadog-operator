@@ -356,7 +356,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: 947c9e5b6e63dfdd3c4425c3298515fa
+    agent.datadoghq.com/agentspechash: 7dbf4e66d49f08443630eacf98a5245d
   labels:
     agent.datadoghq.com/component: agent
     agent.datadoghq.com/name: datadog-agent
@@ -436,11 +436,6 @@ spec:
             secretKeyRef:
               key: app-key
               name: datadog-secret
-        - name: DD_CLUSTER_AGENT_AUTH_TOKEN
-          valueFrom:
-            secretKeyRef:
-              key: token
-              name: datadog-agent-token
         - name: DD_KUBELET_TLS_VERIFY
           value: "false"
         - name: DD_ORCHESTRATOR_EXPLORER_ENABLED
@@ -586,11 +581,6 @@ spec:
             secretKeyRef:
               key: app-key
               name: datadog-secret
-        - name: DD_CLUSTER_AGENT_AUTH_TOKEN
-          valueFrom:
-            secretKeyRef:
-              key: token
-              name: datadog-agent-token
         - name: DD_KUBELET_TLS_VERIFY
           value: "false"
         - name: DD_APM_ENABLED
@@ -675,11 +665,6 @@ spec:
             secretKeyRef:
               key: app-key
               name: datadog-secret
-        - name: DD_CLUSTER_AGENT_AUTH_TOKEN
-          valueFrom:
-            secretKeyRef:
-              key: token
-              name: datadog-agent-token
         - name: DD_KUBELET_TLS_VERIFY
           value: "false"
         - name: DD_DOGSTATSD_SOCKET
