@@ -17,6 +17,7 @@ import (
 	"github.com/DataDog/dd-trace-go/v2/ddtrace/ext"
 	"github.com/DataDog/dd-trace-go/v2/ddtrace/mocktracer"
 	"github.com/DataDog/dd-trace-go/v2/ddtrace/tracer"
+	"github.com/go-logr/logr"
 	"github.com/go-logr/logr/funcr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -135,6 +136,39 @@ func TestStartSpan_TracerNotRunning(t *testing.T) {
 	assert.Nil(t, span)
 	log.FromContext(ctx).Info("no tracer")
 	assert.NotContains(t, logged, ext.LogKeyTraceID)
+}
+
+// plainSink hides the wrapped sink's logr.CallDepthLogSink implementation.
+type plainSink struct{ logr.LogSink }
+
+func TestLoggerWithSpan_Sink(t *testing.T) {
+	startMockTracer(t)
+	span, _ := StartSpan(context.Background())
+	defer span.Finish()
+	traceID := `"` + ext.LogKeyTraceID + `"="` + logTraceID(span.Context()) + `"`
+
+	var prefix, logged string
+	funcLogger := funcr.New(func(p, args string) { prefix, logged = p, args }, funcr.Options{})
+
+	logger := loggerWithSpan(funcLogger, span).WithName("ctrl").WithCallDepth(1)
+	logger.Error(errors.New("boom"), "failed")
+	assert.Equal(t, "ctrl", prefix)
+	assert.Contains(t, logged, traceID)
+	assert.Contains(t, logged, `"error"="boom"`)
+
+	plain := logr.New(plainSink{funcLogger.GetSink()})
+	loggerWithSpan(plain, span).WithCallDepth(1).Info("plain")
+	assert.Contains(t, logged, traceID)
+
+	assert.Nil(t, loggerWithSpan(logr.Discard(), span).GetSink(), "nil sink is left as is")
+}
+
+func TestStartStop(t *testing.T) {
+	t.Setenv("DD_TRACE_ENABLED", "false")
+	require.NoError(t, Start())
+	assert.True(t, Enabled())
+	Stop()
+	assert.False(t, Enabled())
 }
 
 func TestLogTraceID(t *testing.T) {
