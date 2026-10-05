@@ -145,6 +145,10 @@ func TestValidateWorkerSpec(t *testing.T) {
 								MaxUnavailable: ptr.To(intstr.FromInt32(1)),
 							},
 						},
+						Autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{
+							MinReplicas: ptr.To[int32](5),
+							MaxReplicas: ptr.To[int32](2),
+						},
 						Storage: &datadoghqv1alpha1.DatadogBYOCClusterStorageSpec{},
 					},
 				},
@@ -152,7 +156,7 @@ func TestValidateWorkerSpec(t *testing.T) {
 			},
 			want: []string{
 				"spec.podDisruptionBudget: minAvailable and maxUnavailable are mutually exclusive",
-				"spec.resources.limits.memory: resources.limits.memory must be specified when resources is set",
+				"spec.autoscaling.maxReplicas: must be greater than or equal to minReplicas (5)",
 				"spec.storage: exactly one storage type must be specified",
 				"spec.image.repository: repository must be specified",
 				"spec.image: exactly one of tag or digest must be specified",

@@ -13,13 +13,16 @@
 package validation
 
 import (
+	"fmt"
+
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 )
 
-// ValidateClusterSpec checks the cross-field rules before defaults or image resolution.
+// ValidateClusterSpec checks the cross-field rules after defaults and before image resolution.
+// Validating the defaulted spec catches conflicts between explicit and default values.
 // Required fields and single-field constraints are enforced by the CRD schema.
 func ValidateClusterSpec(spec *datadoghqv1alpha1.DatadogBYOCClusterSpec) field.ErrorList {
 	path := field.NewPath("spec")
@@ -43,8 +46,8 @@ func ValidateClusterSpec(spec *datadoghqv1alpha1.DatadogBYOCClusterSpec) field.E
 	errs = append(errs, validatePodDisruptionBudget(spec.Global.PodDisruptionBudget, path.Child("global", "podDisruptionBudget"))...)
 	if components := spec.Components; components != nil {
 		componentPath := path.Child("components")
-		errs = append(errs, ValidateStatefulComponent(components.Indexer, componentPath.Child("indexer"))...)
-		errs = append(errs, ValidateStatefulComponent(components.Searcher, componentPath.Child("searcher"))...)
+		errs = append(errs, validateQuickwitStatefulComponent(components.Indexer, componentPath.Child("indexer"))...)
+		errs = append(errs, validateQuickwitStatefulComponent(components.Searcher, componentPath.Child("searcher"))...)
 		for i := range components.Pipelines {
 			errs = append(errs, ValidateStatefulComponent(&components.Pipelines[i].DatadogBYOCClusterStatefulComponentSpec, componentPath.Child("pipelines").Index(i))...)
 		}
@@ -95,13 +98,40 @@ func ValidateStatefulComponent(component *datadoghqv1alpha1.DatadogBYOCClusterSt
 		return nil
 	}
 	errs := validateComponent(&component.DatadogBYOCClusterComponentSpec, path)
+	errs = append(errs, validateAutoscaling(component.Autoscaling, path.Child("autoscaling"))...)
+	if storage := component.Storage; storage != nil && (storage.EmptyDir == nil) == (storage.VolumeClaimTemplate == nil) {
+		errs = append(errs, field.Invalid(path.Child("storage"), nil, "exactly one storage type must be specified"))
+	}
+	return errs
+}
+
+// validateQuickwitStatefulComponent also requires the memory limit used to size the Quickwit node configuration.
+func validateQuickwitStatefulComponent(component *datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec, path *field.Path) field.ErrorList {
+	if component == nil {
+		return nil
+	}
+	errs := ValidateStatefulComponent(component, path)
 	if component.Resources != nil {
 		if _, ok := component.Resources.Limits[corev1.ResourceMemory]; !ok {
 			errs = append(errs, field.Required(path.Child("resources", "limits", "memory"), "resources.limits.memory must be specified when resources is set"))
 		}
 	}
-	if storage := component.Storage; storage != nil && (storage.EmptyDir == nil) == (storage.VolumeClaimTemplate == nil) {
-		errs = append(errs, field.Invalid(path.Child("storage"), nil, "exactly one storage type must be specified"))
+	return errs
+}
+
+func validateAutoscaling(autoscaling *datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec, path *field.Path) field.ErrorList {
+	if autoscaling == nil {
+		return nil
+	}
+	var errs field.ErrorList
+	if autoscaling.MinReplicas != nil && *autoscaling.MinReplicas < 1 {
+		errs = append(errs, field.Invalid(path.Child("minReplicas"), *autoscaling.MinReplicas, "must be greater than or equal to 1"))
+	}
+	if autoscaling.MaxReplicas != nil && *autoscaling.MaxReplicas < 1 {
+		errs = append(errs, field.Invalid(path.Child("maxReplicas"), *autoscaling.MaxReplicas, "must be greater than or equal to 1"))
+	}
+	if autoscaling.MinReplicas != nil && autoscaling.MaxReplicas != nil && *autoscaling.MinReplicas > *autoscaling.MaxReplicas {
+		errs = append(errs, field.Invalid(path.Child("maxReplicas"), *autoscaling.MaxReplicas, fmt.Sprintf("must be greater than or equal to minReplicas (%d)", *autoscaling.MinReplicas)))
 	}
 	return errs
 }

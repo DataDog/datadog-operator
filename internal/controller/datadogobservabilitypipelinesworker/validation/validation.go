@@ -19,7 +19,7 @@ import (
 	byocvalidation "github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/validation"
 )
 
-// ValidateWorkerSpec checks image and component rules before defaults are applied.
+// ValidateWorkerSpec checks image and component rules after defaults are applied.
 // Single-field constraints, such as minimum lengths, remain in the CRD schema.
 func ValidateWorkerSpec(spec *datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerSpec) field.ErrorList {
 	path := field.NewPath("spec")
