@@ -308,7 +308,6 @@ type DatadogBYOCClusterPipelineSpec struct {
 }
 
 // DatadogBYOCClusterPipelineComponentSpec defines settings for the Observability Pipelines Worker workload.
-// When Resources is specified, its memory limit is required for worker buffer sizing.
 // +k8s:openapi-gen=true
 type DatadogBYOCClusterPipelineComponentSpec struct {
 	DatadogBYOCClusterStatefulComponentSpec `json:",inline"`

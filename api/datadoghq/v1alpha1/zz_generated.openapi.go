@@ -1699,7 +1699,7 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterPipelineCo
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "DatadogBYOCClusterPipelineComponentSpec defines settings for the Observability Pipelines Worker workload. When Resources is specified, its memory limit is required for worker buffer sizing.",
+				Description: "DatadogBYOCClusterPipelineComponentSpec defines settings for the Observability Pipelines Worker workload.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"replicas": {
@@ -4921,7 +4921,7 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogObservabilityPipeline
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "DatadogObservabilityPipelinesWorkerSpec defines the desired state of DatadogObservabilityPipelinesWorker. When Resources is specified, its memory limit is required for worker buffer sizing.",
+				Description: "DatadogObservabilityPipelinesWorkerSpec defines the desired state of DatadogObservabilityPipelinesWorker.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"replicas": {

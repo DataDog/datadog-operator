@@ -15,7 +15,7 @@
     },
     "spec": {
       "additionalProperties": false,
-      "description": "DatadogObservabilityPipelinesWorkerSpec defines the desired state of DatadogObservabilityPipelinesWorker.\nWhen Resources is specified, its memory limit is required for worker buffer sizing.",
+      "description": "DatadogObservabilityPipelinesWorkerSpec defines the desired state of DatadogObservabilityPipelinesWorker.",
       "properties": {
         "affinity": {
           "additionalProperties": false,

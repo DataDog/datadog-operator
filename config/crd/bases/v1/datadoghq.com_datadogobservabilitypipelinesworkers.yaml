@@ -39,9 +39,7 @@ spec:
             metadata:
               type: object
             spec:
-              description: |-
-                DatadogObservabilityPipelinesWorkerSpec defines the desired state of DatadogObservabilityPipelinesWorker.
-                When Resources is specified, its memory limit is required for worker buffer sizing.
+              description: DatadogObservabilityPipelinesWorkerSpec defines the desired state of DatadogObservabilityPipelinesWorker.
               properties:
                 affinity:
                   description: Affinity is applied to the component Pods.
