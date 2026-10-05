@@ -494,6 +494,12 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_DatadogAgentGenericContainer
 							Format:      "",
 						},
 					},
+					"image": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Image overrides the image of this container only. Applied after any component-level image override, so a container-level image always wins for this container. This makes it possible, for example, to run a custom Agent image while keeping the otel-agent container on the ddot-collector image. PullSecrets are pod-level and are not applied per container.",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.AgentImageConfig"),
+						},
+					},
 					"logLevel": {
 						SchemaProps: spec.SchemaProps{
 							Description: "LogLevel sets logging verbosity (overrides global setting). Valid log levels are: trace, debug, info, warn, error, critical, and off. Default: 'info'",
@@ -659,7 +665,7 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_DatadogAgentGenericContainer
 			},
 		},
 		Dependencies: []string{
-			"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.SeccompConfig", "k8s.io/api/core/v1.ContainerPort", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.Probe", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.SecurityContext", "k8s.io/api/core/v1.VolumeMount"},
+			"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.AgentImageConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.SeccompConfig", "k8s.io/api/core/v1.ContainerPort", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.Probe", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.SecurityContext", "k8s.io/api/core/v1.VolumeMount"},
 	}
 }
 

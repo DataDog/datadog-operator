@@ -2584,6 +2584,15 @@ type DatadogAgentGenericContainer struct {
 	//+optional
 	Name *string `json:"name,omitempty"`
 
+	// Image overrides the image of this container only.
+	// Applied after any component-level image override, so a container-level
+	// image always wins for this container. This makes it possible, for
+	// example, to run a custom Agent image while keeping the otel-agent
+	// container on the ddot-collector image.
+	// PullSecrets are pod-level and are not applied per container.
+	// +optional
+	Image *AgentImageConfig `json:"image,omitempty"`
+
 	// LogLevel sets logging verbosity (overrides global setting).
 	// Valid log levels are: trace, debug, info, warn, error, critical, and off.
 	// Default: 'info'

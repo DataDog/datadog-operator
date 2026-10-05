@@ -1218,6 +1218,51 @@ func TestPodTemplateSpec(t *testing.T) {
 	}
 }
 
+// A container-level image override must win over the component-level one for
+// that container: with a component-level override.nodeAgent.image applied to
+// every agent container, pinning otel-agent back to ddot-collector keeps the
+// collector working while the rest of the pod moves to a custom image.
+func TestPodTemplateSpecContainerImageOverride(t *testing.T) {
+	manager := fake.NewPodTemplateManagers(t, v1.PodTemplateSpec{
+		Spec: v1.PodSpec{
+			Containers: []v1.Container{
+				{Name: string(apicommon.CoreAgentContainerName), Image: "someregistry.com/datadog/agent:7.38.0"},
+				{Name: string(apicommon.TraceAgentContainerName), Image: "someregistry.com/datadog/agent:7.38.0"},
+				{Name: string(apicommon.OtelAgent), Image: "registry.datadoghq.com/ddot-collector:7.78.1"},
+			},
+		},
+	})
+
+	override := v2alpha1.DatadogAgentComponentOverride{
+		Image: &v2alpha1.AgentImageConfig{
+			Name: "custom-agent",
+			Tag:  "latest",
+		},
+		Containers: map[apicommon.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
+			apicommon.OtelAgent: {
+				// Full image string form (<REGISTRY>/<NAME>:<TAG>): the registry
+				// is parsed from Name only when the tag is embedded in it.
+				Image: &v2alpha1.AgentImageConfig{
+					Name: "registry.datadoghq.com/ddot-collector:7.78.1",
+				},
+			},
+		},
+	}
+
+	testLogger := zap.New(zap.UseDevMode(true))
+	logger := testLogger.WithValues("test", t.Name())
+
+	PodTemplateSpec(logger, manager, &override, v2alpha1.NodeAgentComponentName, "datadog-agent")
+
+	images := map[string]string{}
+	for _, container := range manager.PodTemplateSpec().Spec.Containers {
+		images[container.Name] = container.Image
+	}
+	assert.Equal(t, "someregistry.com/datadog/custom-agent:latest", images[string(apicommon.CoreAgentContainerName)])
+	assert.Equal(t, "someregistry.com/datadog/custom-agent:latest", images[string(apicommon.TraceAgentContainerName)])
+	assert.Equal(t, "registry.datadoghq.com/ddot-collector:7.78.1", images[string(apicommon.OtelAgent)])
+}
+
 type containerImageOptions struct {
 	name           string
 	pullPolicy     string

@@ -64,6 +64,30 @@ func TestContainer(t *testing.T) {
 			},
 		},
 		{
+			name:          "override container image",
+			containerName: apicommon.CoreAgentContainerName,
+			existingManager: func() *fake.PodTemplateManagers {
+				return fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{{Name: string(apicommon.CoreAgentContainerName), Image: "someregistry.com/datadog/agent:7.38.0"}},
+					},
+				})
+			},
+			override: v2alpha1.DatadogAgentGenericContainer{
+				Image: &v2alpha1.AgentImageConfig{
+					// Full image string form (<REGISTRY>/<NAME>:<TAG>): with a
+					// separate Tag, Name is treated as the image name only.
+					Name:       "docker.io/datadog/agent-dev:custom-tag",
+					PullPolicy: ptr.To(corev1.PullAlways),
+				},
+			},
+			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers, containerName string) {
+				assertContainerMatch(t, manager.PodTemplateSpec().Spec.Containers, string(apicommon.CoreAgentContainerName), func(container corev1.Container) bool {
+					return container.Image == "docker.io/datadog/agent-dev:custom-tag" && container.ImagePullPolicy == corev1.PullAlways
+				})
+			},
+		},
+		{
 			name:          "override log level",
 			containerName: apicommon.CoreAgentContainerName,
 			existingManager: func() *fake.PodTemplateManagers {
