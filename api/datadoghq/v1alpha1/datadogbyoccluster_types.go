@@ -296,7 +296,7 @@ type DatadogBYOCClusterPipelineSpec struct {
 	// Name identifies the pipeline within the cluster and is used in the worker resource name.
 	// Changing Name creates a new worker and deletes the previous one.
 	// +kubebuilder:validation:MinLength=1
-	// +kubebuilder:validation:MaxLength=63
+	// +kubebuilder:validation:MaxLength=10
 	// +kubebuilder:validation:Pattern=`^[a-z0-9]([-a-z0-9]*[a-z0-9])?$`
 	Name string `json:"name"`
 
