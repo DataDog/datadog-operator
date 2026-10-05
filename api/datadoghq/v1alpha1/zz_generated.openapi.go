@@ -936,13 +936,13 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterComponents
 					},
 					"indexer": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Indexer configures the Indexer workload.",
+							Description: "Indexer configures the Indexer workload. When Resources is specified, its memory limit is required for Quickwit node configuration sizing.",
 							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterStatefulComponentSpec"),
 						},
 					},
 					"searcher": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Searcher configures the Searcher workload.",
+							Description: "Searcher configures the Searcher workload. When Resources is specified, its memory limit is required for Quickwit node configuration sizing.",
 							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterStatefulComponentSpec"),
 						},
 					},
@@ -2454,7 +2454,7 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterStatefulCo
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "DatadogBYOCClusterStatefulComponentSpec defines settings for a stateful BYOC workload. When Resources is specified, its memory limit is required for Quickwit node configuration sizing.",
+				Description: "DatadogBYOCClusterStatefulComponentSpec defines settings for a stateful BYOC workload.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"replicas": {

@@ -265,10 +265,12 @@ type DatadogBYOCClusterComponentsSpec struct {
 	ReadOnlyMetastore *DatadogBYOCClusterMetastoreComponentSpec `json:"readOnlyMetastore,omitempty"`
 
 	// Indexer configures the Indexer workload.
+	// When Resources is specified, its memory limit is required for Quickwit node configuration sizing.
 	// +kubebuilder:validation:Required
 	Indexer *DatadogBYOCClusterStatefulComponentSpec `json:"indexer,omitempty"`
 
 	// Searcher configures the Searcher workload.
+	// When Resources is specified, its memory limit is required for Quickwit node configuration sizing.
 	// +kubebuilder:validation:Required
 	Searcher *DatadogBYOCClusterStatefulComponentSpec `json:"searcher,omitempty"`
 
@@ -418,7 +420,6 @@ type DatadogBYOCClusterPodDisruptionBudgetSpec struct {
 }
 
 // DatadogBYOCClusterStatefulComponentSpec defines settings for a stateful BYOC workload.
-// When Resources is specified, its memory limit is required for Quickwit node configuration sizing.
 // +k8s:openapi-gen=true
 type DatadogBYOCClusterStatefulComponentSpec struct {
 	DatadogBYOCClusterComponentSpec `json:",inline"`

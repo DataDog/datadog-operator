@@ -252,6 +252,59 @@ func TestValidateClusterSpec(t *testing.T) {
 		},
 
 		{
+			name: "searcher resources without memory limit",
+			spec: datadoghqv1alpha1.DatadogBYOCClusterSpec{
+				Release: &datadoghqv1alpha1.DatadogBYOCClusterReleaseSpec{
+					Tag: ptr.To("v1"),
+				},
+				Provider: &datadoghqv1alpha1.DatadogBYOCClusterProviderSpec{
+					AWS: &datadoghqv1alpha1.DatadogBYOCClusterAWSSpec{},
+				},
+				Components: &datadoghqv1alpha1.DatadogBYOCClusterComponentsSpec{
+					Searcher: &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{
+						DatadogBYOCClusterComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
+							Resources: &corev1.ResourceRequirements{
+								Requests: corev1.ResourceList{
+									corev1.ResourceMemory: resource.MustParse("1Gi"),
+								},
+								Limits: corev1.ResourceList{
+									corev1.ResourceCPU: resource.MustParse("1"),
+								},
+							},
+						},
+					},
+				},
+			},
+			want: []string{
+				"spec.components.searcher.resources.limits.memory: resources.limits.memory must be specified when resources is set",
+			},
+		},
+
+		{
+			name: "zero memory limit is present",
+			spec: datadoghqv1alpha1.DatadogBYOCClusterSpec{
+				Release: &datadoghqv1alpha1.DatadogBYOCClusterReleaseSpec{
+					Tag: ptr.To("v1"),
+				},
+				Provider: &datadoghqv1alpha1.DatadogBYOCClusterProviderSpec{
+					AWS: &datadoghqv1alpha1.DatadogBYOCClusterAWSSpec{},
+				},
+				Components: &datadoghqv1alpha1.DatadogBYOCClusterComponentsSpec{
+					Indexer: &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{
+						DatadogBYOCClusterComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
+							Resources: &corev1.ResourceRequirements{
+								Limits: corev1.ResourceList{
+									corev1.ResourceMemory: resource.MustParse("0"),
+								},
+							},
+						},
+					},
+				},
+			},
+			want: nil,
+		},
+
+		{
 			name: "all component paths are validated and errors are aggregated",
 			spec: datadoghqv1alpha1.DatadogBYOCClusterSpec{
 
@@ -368,16 +421,14 @@ func TestValidateClusterSpec(t *testing.T) {
 			want: []string{
 				"spec.global.podDisruptionBudget: minAvailable and maxUnavailable are mutually exclusive",
 				"spec.components.indexer.podDisruptionBudget: minAvailable and maxUnavailable are mutually exclusive",
-				"spec.components.indexer.resources.limits.memory: resources.limits.memory must be specified when resources is set",
 				"spec.components.indexer.storage: exactly one storage type must be specified",
+				"spec.components.indexer.resources.limits.memory: resources.limits.memory must be specified when resources is set",
 				"spec.components.searcher.podDisruptionBudget: minAvailable and maxUnavailable are mutually exclusive",
-				"spec.components.searcher.resources.limits.memory: resources.limits.memory must be specified when resources is set",
 				"spec.components.searcher.storage: exactly one storage type must be specified",
+				"spec.components.searcher.resources.limits.memory: resources.limits.memory must be specified when resources is set",
 				"spec.components.pipelines[0].podDisruptionBudget: minAvailable and maxUnavailable are mutually exclusive",
-				"spec.components.pipelines[0].resources.limits.memory: resources.limits.memory must be specified when resources is set",
 				"spec.components.pipelines[0].storage: exactly one storage type must be specified",
 				"spec.components.pipelines[1].podDisruptionBudget: minAvailable and maxUnavailable are mutually exclusive",
-				"spec.components.pipelines[1].resources.limits.memory: resources.limits.memory must be specified when resources is set",
 				"spec.components.pipelines[1].storage: exactly one storage type must be specified",
 				"spec.components.metastore.podDisruptionBudget: minAvailable and maxUnavailable are mutually exclusive",
 				"spec.components.readOnlyMetastore.podDisruptionBudget: minAvailable and maxUnavailable are mutually exclusive",
@@ -503,75 +554,59 @@ func TestValidateStatefulComponent(t *testing.T) {
 		},
 
 		{
-			name: "empty resources",
+			name: "resources without memory limit",
 			component: &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{
 				DatadogBYOCClusterComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
 					Resources: &corev1.ResourceRequirements{},
 				},
 			},
-			want: []string{
-				"spec.resources.limits.memory: resources.limits.memory must be specified when resources is set",
-			},
+			want: nil,
 		},
 
 		{
-			name: "requests alone",
+			name: "autoscaling without bounds",
 			component: &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{
-				DatadogBYOCClusterComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
-					Resources: &corev1.ResourceRequirements{
-						Requests: corev1.ResourceList{
-							corev1.ResourceMemory: resource.MustParse("1Gi"),
-						},
-					},
-				},
+				Autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{},
 			},
-			want: []string{
-				"spec.resources.limits.memory: resources.limits.memory must be specified when resources is set",
-			},
+			want: nil,
 		},
 
 		{
-			name: "limits without memory",
+			name: "autoscaling with equal bounds",
 			component: &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{
-				DatadogBYOCClusterComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
-					Resources: &corev1.ResourceRequirements{
-						Limits: corev1.ResourceList{
-							corev1.ResourceCPU: resource.MustParse("1"),
-						},
-					},
-				},
-			},
-			want: []string{
-				"spec.resources.limits.memory: resources.limits.memory must be specified when resources is set",
-			},
-		},
-
-		{
-			name: "memory limit",
-			component: &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{
-				DatadogBYOCClusterComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
-					Resources: &corev1.ResourceRequirements{
-						Limits: corev1.ResourceList{
-							corev1.ResourceMemory: resource.MustParse("1Gi"),
-						},
-					},
+				Autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{
+					MinReplicas: ptr.To[int32](3),
+					MaxReplicas: ptr.To[int32](3),
 				},
 			},
 			want: nil,
 		},
 
 		{
-			name: "zero memory is present",
+			name: "autoscaling minimum above maximum",
 			component: &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{
-				DatadogBYOCClusterComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
-					Resources: &corev1.ResourceRequirements{
-						Limits: corev1.ResourceList{
-							corev1.ResourceMemory: resource.MustParse("0"),
-						},
-					},
+				Autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{
+					MinReplicas: ptr.To[int32](5),
+					MaxReplicas: ptr.To[int32](2),
 				},
 			},
-			want: nil,
+			want: []string{
+				"spec.autoscaling.maxReplicas: must be greater than or equal to minReplicas (5)",
+			},
+		},
+
+		{
+			name: "autoscaling zero bounds",
+			component: &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{
+				Autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{
+					MinReplicas: ptr.To[int32](0),
+					MaxReplicas: ptr.To[int32](0),
+				},
+			},
+			want: []string{
+				"spec.autoscaling.minReplicas: must be greater than or equal to 1",
+				"spec.autoscaling.maxReplicas: must be greater than or equal to 1",
+			},
 		},
 
 		{

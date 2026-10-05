@@ -81,6 +81,7 @@ func (r *DatadogBYOCClusterReconciler) Reconcile(ctx context.Context, request ct
 		return ctrl.Result{Requeue: true}, nil
 	}
 
+	cluster = byocdefaults.Apply(cluster)
 	if err := byocvalidation.ValidateClusterSpec(&cluster.Spec).ToAggregate(); err != nil {
 		return ctrl.Result{}, r.fail(ctx, cluster, conditionReconciled, "InvalidConfiguration", err)
 	}
@@ -92,7 +93,6 @@ func (r *DatadogBYOCClusterReconciler) Reconcile(ctx context.Context, request ct
 	if err != nil {
 		return ctrl.Result{}, r.fail(ctx, cluster, conditionReleaseResolved, "ResolutionFailed", err)
 	}
-	cluster = byocdefaults.Apply(cluster)
 
 	resources, err := byocresources.BuildResources(cluster, images)
 	if err != nil {

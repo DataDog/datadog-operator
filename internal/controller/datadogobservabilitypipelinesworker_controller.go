@@ -59,10 +59,10 @@ func (r *DatadogObservabilityPipelinesWorkerReconciler) Reconcile(ctx context.Co
 		return ctrl.Result{}, nil
 	}
 	statusBase := worker.DeepCopy()
-	if err := workervalidation.ValidateWorkerSpec(&worker.Spec).ToAggregate(); err != nil {
+	defaulted := workerdefaults.Apply(worker)
+	if err := workervalidation.ValidateWorkerSpec(&defaulted.Spec).ToAggregate(); err != nil {
 		return ctrl.Result{}, r.fail(ctx, statusBase, worker, "InvalidConfiguration", err)
 	}
-	defaulted := workerdefaults.Apply(worker)
 
 	resources, err := workerresources.BuildResources(defaulted)
 	if err != nil {
