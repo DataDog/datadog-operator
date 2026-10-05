@@ -69,6 +69,14 @@ func TestClusterChecksFeature(t *testing.T) {
 			Agent:         testAgentHasExpectedEnvsWithNoRunners(apicommon.CoreAgentContainerName),
 		},
 		{
+			Name: "cluster checks enabled but cluster agent disabled",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithClusterChecksEnabled(true).
+				WithClusterAgentDisabled(true).
+				Build(),
+			WantConfigure: false,
+		},
+		{
 			Name: "cluster checks enabled and runners not enabled with single container strategy",
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithClusterChecksEnabled(true).
