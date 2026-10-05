@@ -269,6 +269,8 @@ type DatadogBYOCClusterComponentsSpec struct {
 	Searcher *DatadogBYOCClusterStatefulComponentSpec `json:"searcher,omitempty"`
 
 	// Pipelines configures the named Observability Pipelines Worker workloads.
+	// Each entry creates a DatadogObservabilityPipelinesWorker owned by this cluster; direct edits are reverted,
+	// and a same-name worker not owned by this cluster is reported as a conflict.
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:MinItems=1
 	// +listType=map

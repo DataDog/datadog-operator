@@ -956,7 +956,7 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterComponents
 							},
 						},
 						SchemaProps: spec.SchemaProps{
-							Description: "Pipelines configures the named Observability Pipelines Worker workloads.",
+							Description: "Pipelines configures the named Observability Pipelines Worker workloads. Each entry creates a DatadogObservabilityPipelinesWorker owned by this cluster; direct edits are reverted, and a same-name worker not owned by this cluster is reported as a conflict.",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
