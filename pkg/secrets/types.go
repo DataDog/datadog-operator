@@ -63,6 +63,8 @@ type Decryptor interface {
 type SecretBackend struct {
 	cmd              string
 	cmdArgs          []string
+	backendType      string
+	backendConfig    map[string]any
 	cmdOutputMaxSize int
 	cmdTimeout       time.Duration
 }
