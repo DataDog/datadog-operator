@@ -201,7 +201,6 @@ func Test_defaultFeatures(t *testing.T) {
 						},
 						SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
 							Enabled:           ptr.To(defaultAPMSingleStepInstrEnabled),
-							OnDemand:          ptr.To(defaultAPMOnDemandEnabled),
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: ptr.To(defaultLanguageDetectionEnabled)},
 							Injector:          &v2alpha1.InjectorConfig{},
 						},
@@ -586,7 +585,6 @@ func Test_defaultFeatures(t *testing.T) {
 						},
 						SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
 							Enabled:           ptr.To(defaultAPMSingleStepInstrEnabled),
-							OnDemand:          ptr.To(defaultAPMOnDemandEnabled),
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: ptr.To(defaultLanguageDetectionEnabled)},
 							Injector:          &v2alpha1.InjectorConfig{},
 						},
@@ -749,7 +747,6 @@ func Test_defaultFeatures(t *testing.T) {
 						},
 						SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
 							Enabled:           ptr.To(defaultAPMSingleStepInstrEnabled),
-							OnDemand:          ptr.To(defaultAPMOnDemandEnabled),
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: ptr.To(defaultLanguageDetectionEnabled)},
 							Injector:          &v2alpha1.InjectorConfig{},
 						},
@@ -907,7 +904,6 @@ func Test_defaultFeatures(t *testing.T) {
 						},
 						SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
 							Enabled:           ptr.To(defaultAPMSingleStepInstrEnabled),
-							OnDemand:          ptr.To(defaultAPMOnDemandEnabled),
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: ptr.To(defaultLanguageDetectionEnabled)},
 							Injector:          &v2alpha1.InjectorConfig{},
 						},
@@ -1065,7 +1061,6 @@ func Test_defaultFeatures(t *testing.T) {
 						},
 						SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
 							Enabled:           ptr.To(defaultAPMSingleStepInstrEnabled),
-							OnDemand:          ptr.To(defaultAPMOnDemandEnabled),
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: ptr.To(defaultLanguageDetectionEnabled)},
 							Injector:          &v2alpha1.InjectorConfig{},
 						},
@@ -1225,7 +1220,6 @@ func Test_defaultFeatures(t *testing.T) {
 						},
 						SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
 							Enabled:           ptr.To(defaultAPMSingleStepInstrEnabled),
-							OnDemand:          ptr.To(defaultAPMOnDemandEnabled),
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: ptr.To(defaultLanguageDetectionEnabled)},
 							Injector:          &v2alpha1.InjectorConfig{},
 						},
@@ -1390,7 +1384,6 @@ func Test_defaultFeatures(t *testing.T) {
 						},
 						SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
 							Enabled:           ptr.To(defaultAPMSingleStepInstrEnabled),
-							OnDemand:          ptr.To(defaultAPMOnDemandEnabled),
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: ptr.To(defaultLanguageDetectionEnabled)},
 							Injector:          &v2alpha1.InjectorConfig{},
 						},
@@ -1548,7 +1541,6 @@ func Test_defaultFeatures(t *testing.T) {
 						},
 						SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
 							Enabled:           ptr.To(defaultAPMSingleStepInstrEnabled),
-							OnDemand:          ptr.To(defaultAPMOnDemandEnabled),
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: ptr.To(defaultLanguageDetectionEnabled)},
 							Injector:          &v2alpha1.InjectorConfig{},
 						},
@@ -1709,7 +1701,6 @@ func Test_defaultFeatures(t *testing.T) {
 						},
 						SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
 							Enabled:           ptr.To(defaultAPMSingleStepInstrEnabled),
-							OnDemand:          ptr.To(defaultAPMOnDemandEnabled),
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: ptr.To(defaultLanguageDetectionEnabled)},
 							Injector:          &v2alpha1.InjectorConfig{},
 						},
@@ -1861,7 +1852,6 @@ func Test_defaultFeatures(t *testing.T) {
 						},
 						SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
 							Enabled:           ptr.To(defaultAPMSingleStepInstrEnabled),
-							OnDemand:          ptr.To(defaultAPMOnDemandEnabled),
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: ptr.To(defaultLanguageDetectionEnabled)},
 							Injector:          &v2alpha1.InjectorConfig{},
 						},
@@ -2040,7 +2030,6 @@ func Test_defaultFeatures(t *testing.T) {
 						},
 						SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
 							Enabled:           ptr.To(defaultAPMSingleStepInstrEnabled),
-							OnDemand:          ptr.To(defaultAPMOnDemandEnabled),
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: ptr.To(defaultLanguageDetectionEnabled)},
 							Injector:          &v2alpha1.InjectorConfig{},
 						},
@@ -2199,7 +2188,6 @@ func Test_defaultFeatures(t *testing.T) {
 						},
 						SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
 							Enabled:           ptr.To(defaultAPMSingleStepInstrEnabled),
-							OnDemand:          ptr.To(defaultAPMOnDemandEnabled),
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: ptr.To(defaultLanguageDetectionEnabled)},
 							Injector:          &v2alpha1.InjectorConfig{},
 						},
@@ -2381,7 +2369,6 @@ func Test_defaultFeatures(t *testing.T) {
 						},
 						SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
 							Enabled:           ptr.To(defaultAPMSingleStepInstrEnabled),
-							OnDemand:          ptr.To(defaultAPMOnDemandEnabled),
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: ptr.To(defaultLanguageDetectionEnabled)},
 							Injector:          &v2alpha1.InjectorConfig{},
 						},
@@ -2542,7 +2529,6 @@ func Test_defaultFeatures(t *testing.T) {
 						},
 						SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
 							Enabled:           ptr.To(defaultAPMSingleStepInstrEnabled),
-							OnDemand:          ptr.To(defaultAPMOnDemandEnabled),
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: ptr.To(defaultLanguageDetectionEnabled)},
 							Injector:          &v2alpha1.InjectorConfig{},
 						},
@@ -2718,7 +2704,6 @@ func Test_defaultFeatures(t *testing.T) {
 						},
 						SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
 							Enabled:           ptr.To(defaultAPMSingleStepInstrEnabled),
-							OnDemand:          ptr.To(defaultAPMOnDemandEnabled),
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: ptr.To(defaultLanguageDetectionEnabled)},
 							Injector:          &v2alpha1.InjectorConfig{},
 						},

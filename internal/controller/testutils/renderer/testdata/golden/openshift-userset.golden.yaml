@@ -1191,7 +1191,7 @@ kind: DatadogAgentInternal
 metadata:
   annotations:
     agent.datadoghq.com/cluster-provider: openshift-rhcos
-    agent.datadoghq.com/ddaispechash: a47f66ae45d18957b019c8f6156b1380
+    agent.datadoghq.com/ddaispechash: 75451e588b76974a5c386c3bc60ccb6b
   finalizers:
   - finalizer.datadoghq.com/datadogagentinternal
   labels:
@@ -1230,7 +1230,6 @@ spec:
         injector: {}
         languageDetection:
           enabled: true
-        onDemand: true
       unixDomainSocketConfig:
         enabled: true
         path: /var/run/datadog/apm.socket

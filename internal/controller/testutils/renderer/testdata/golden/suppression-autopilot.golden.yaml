@@ -1133,7 +1133,7 @@ kind: DatadogAgentInternal
 metadata:
   annotations:
     agent.datadoghq.com/cluster-provider: gke-autopilot
-    agent.datadoghq.com/ddaispechash: d540556a052cf8a848aee34831d50f01
+    agent.datadoghq.com/ddaispechash: d13d3f79908ea4001e0e3301265738d6
     experimental.agent.datadoghq.com/autopilot: "true"
   finalizers:
   - finalizer.datadoghq.com/datadogagentinternal
@@ -1173,7 +1173,6 @@ spec:
         injector: {}
         languageDetection:
           enabled: true
-        onDemand: true
       unixDomainSocketConfig:
         enabled: true
         path: /var/run/datadog/apm.socket

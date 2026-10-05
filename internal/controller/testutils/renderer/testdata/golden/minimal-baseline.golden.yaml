@@ -1122,7 +1122,7 @@ apiVersion: datadoghq.com/v1alpha1
 kind: DatadogAgentInternal
 metadata:
   annotations:
-    agent.datadoghq.com/ddaispechash: 8ab943f9bb818248a2512d687ce95cff
+    agent.datadoghq.com/ddaispechash: 213e774cbfb2ee5dccded3cdc0672609
   finalizers:
   - finalizer.datadoghq.com/datadogagentinternal
   labels:
@@ -1161,7 +1161,6 @@ spec:
         injector: {}
         languageDetection:
           enabled: true
-        onDemand: true
       unixDomainSocketConfig:
         enabled: true
         path: /var/run/datadog/apm.socket

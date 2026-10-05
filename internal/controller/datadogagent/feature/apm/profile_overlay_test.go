@@ -6,6 +6,7 @@
 package apm
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -16,6 +17,7 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/defaults"
 	featurefake "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 )
 
@@ -513,6 +515,29 @@ func TestAPMProfileSharedConfigOverlay(t *testing.T) {
 				return
 			}
 			assert.Equal(t, tt.want, dst.Features.APM.SingleStepInstrumentation)
+		})
+	}
+}
+
+func TestAPMProfileSharedConfigOverlayDefaultedBaseOnDemand(t *testing.T) {
+	for _, baseSSIEnabled := range []bool{false, true} {
+		t.Run(fmt.Sprintf("base SSI enabled=%t", baseSSIEnabled), func(t *testing.T) {
+			base := &v2alpha1.DatadogAgentSpec{
+				Features: &v2alpha1.DatadogFeatures{
+					APM: &v2alpha1.APMFeatureConfig{
+						SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{Enabled: ptr.To(baseSSIEnabled)},
+					},
+				},
+			}
+			defaults.DefaultDatadogAgentSpec(base)
+
+			dst := base.DeepCopy()
+			profile := testProfileOverlayProfileSpec(&v2alpha1.SingleStepInstrumentation{
+				Enabled:  ptr.To(true),
+				OnDemand: ptr.To(false),
+			})
+			require.NoError(t, applyAPMProfileSharedConfigOverlay(dst, base, profile))
+			assert.Equal(t, ptr.To(false), dst.Features.APM.SingleStepInstrumentation.OnDemand)
 		})
 	}
 }
