@@ -108,12 +108,7 @@ func (f *serviceDiscoveryFeature) ManageClusterAgent(managers feature.PodTemplat
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *serviceDiscoveryFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
-	// Add the env var to explicitly reflect the resolved enabled state.
-	// Otherwise, this feature defaults to enabled in the Agent code for versions >= 7.78.0.
-	managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
-		Name:  common.DDServiceDiscoveryEnabled,
-		Value: apiutils.BoolToString(&f.enabled),
-	})
+	f.writeEnabledEnvVar(apicommon.CoreAgentContainerName, managers)
 	if !f.enabled {
 		return nil
 	}
@@ -171,8 +166,18 @@ func (f *serviceDiscoveryFeature) ManageNodeAgent(managers feature.PodTemplateMa
 // ManageSingleContainerNodeAgent allows a feature to configure the Agent container for the Node Agent's corev1.PodTemplateSpec
 // if SingleContainerStrategy is enabled and can be used with the configured feature set.
 // It should do nothing if the feature doesn't need to configure it.
-func (f *serviceDiscoveryFeature) ManageSingleContainerNodeAgent(feature.PodTemplateManagers) error {
+func (f *serviceDiscoveryFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers) error {
+	f.writeEnabledEnvVar(apicommon.UnprivilegedSingleAgentContainerName, managers)
 	return nil
+}
+
+// writeEnabledEnvVar explicitly reflects the resolved enabled state on the given container.
+// Otherwise, this feature defaults to enabled in the Agent code for versions >= 7.78.0.
+func (f *serviceDiscoveryFeature) writeEnabledEnvVar(containerName apicommon.AgentContainerName, managers feature.PodTemplateManagers) {
+	managers.EnvVar().AddEnvVarToContainer(containerName, &corev1.EnvVar{
+		Name:  common.DDServiceDiscoveryEnabled,
+		Value: apiutils.BoolToString(&f.enabled),
+	})
 }
 
 // ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunner's corev1.PodTemplateSpec

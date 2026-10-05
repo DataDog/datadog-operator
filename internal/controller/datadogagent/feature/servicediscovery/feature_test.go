@@ -252,6 +252,50 @@ func Test_serviceDiscoveryFeature_resolveEnabled_InheritsDefaultVersionWhenImage
 	}
 }
 
+// Test_serviceDiscoveryFeature_ManageSingleContainerNodeAgent verifies that the resolved enabled
+// state is also written to the unprivileged single-agent container when SingleContainerStrategy
+// is used, since reconciliation calls ManageSingleContainerNodeAgent instead of ManageNodeAgent
+// in that mode. Without this, a disabled service-discovery feature would omit
+// DD_DISCOVERY_ENABLED=false from that container, letting the Agent's own >= 7.78.0 auto-on
+// default re-enable it.
+func Test_serviceDiscoveryFeature_ManageSingleContainerNodeAgent(t *testing.T) {
+	tests := []struct {
+		name    string
+		enabled bool
+		want    string
+	}{
+		{name: "disabled", enabled: false, want: "false"},
+		{name: "enabled", enabled: true, want: "true"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := &serviceDiscoveryFeature{enabled: tt.enabled}
+
+			newPTS := corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{Name: string(apicommon.UnprivilegedSingleAgentContainerName)},
+					},
+				},
+			}
+			mgr := fake.NewPodTemplateManagers(t, newPTS)
+
+			err := f.ManageSingleContainerNodeAgent(mgr)
+			assert.NoError(t, err)
+
+			wantEnvVars := []*corev1.EnvVar{
+				{
+					Name:  common.DDServiceDiscoveryEnabled,
+					Value: tt.want,
+				},
+			}
+			gotEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.UnprivilegedSingleAgentContainerName]
+			assert.True(t, apiutils.IsEqualStruct(gotEnvVars, wantEnvVars), "single-agent container env vars \ndiff = %s", cmp.Diff(gotEnvVars, wantEnvVars))
+		})
+	}
+}
+
 func serviceDiscoveryEnabledForVersion(version string) bool {
 	return pkgutils.IsAboveMinVersion(version, serviceDiscoveryAutoEnableMinVersion, nil)
 }
