@@ -437,6 +437,89 @@ func TestValidateClusterSpec(t *testing.T) {
 				"spec.components.janitor.podDisruptionBudget: minAvailable and maxUnavailable are mutually exclusive",
 			},
 		},
+
+		{
+			name: "additional volumes and mounts",
+			spec: datadoghqv1alpha1.DatadogBYOCClusterSpec{
+				Release: &datadoghqv1alpha1.DatadogBYOCClusterReleaseSpec{
+					Tag: ptr.To("v1"),
+				},
+				Provider: &datadoghqv1alpha1.DatadogBYOCClusterProviderSpec{
+					AWS: &datadoghqv1alpha1.DatadogBYOCClusterAWSSpec{},
+				},
+				Global: datadoghqv1alpha1.DatadogBYOCClusterGlobalSpec{
+					Volumes:      []corev1.Volume{{Name: "certificates"}},
+					VolumeMounts: []corev1.VolumeMount{{Name: "certificates", MountPath: "/quickwit/certificates"}},
+				},
+				Components: &datadoghqv1alpha1.DatadogBYOCClusterComponentsSpec{
+					Janitor: &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
+						Volumes:      []corev1.Volume{{Name: "scratch"}},
+						VolumeMounts: []corev1.VolumeMount{{Name: "scratch", MountPath: "/tmp"}},
+					},
+				},
+			},
+			want: nil,
+		},
+
+		{
+			name: "reserved volumes and mounts",
+			spec: datadoghqv1alpha1.DatadogBYOCClusterSpec{
+				Release: &datadoghqv1alpha1.DatadogBYOCClusterReleaseSpec{
+					Tag: ptr.To("v1"),
+				},
+				Provider: &datadoghqv1alpha1.DatadogBYOCClusterProviderSpec{
+					AWS: &datadoghqv1alpha1.DatadogBYOCClusterAWSSpec{},
+				},
+				Global: datadoghqv1alpha1.DatadogBYOCClusterGlobalSpec{
+					Volumes:      []corev1.Volume{{Name: "config"}},
+					VolumeMounts: []corev1.VolumeMount{{Name: "custom", MountPath: "/quickwit/qwdata/"}},
+				},
+				Components: &datadoghqv1alpha1.DatadogBYOCClusterComponentsSpec{
+					Indexer: &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{
+						DatadogBYOCClusterComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
+							Volumes:      []corev1.Volume{{Name: "data"}},
+							VolumeMounts: []corev1.VolumeMount{{Name: "custom", MountPath: "/quickwit/node.yaml"}},
+						},
+					},
+					Searcher: &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{
+						DatadogBYOCClusterComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
+							VolumeMounts: []corev1.VolumeMount{{Name: "custom", MountPath: "/quickwit"}},
+						},
+					},
+					Metastore: &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{
+						DatadogBYOCClusterComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
+							Volumes: []corev1.Volume{{Name: "data"}},
+						},
+					},
+					ReadOnlyMetastore: &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{
+						DatadogBYOCClusterComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
+							Volumes: []corev1.Volume{{Name: "data"}},
+						},
+					},
+					ControlPlane: &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
+						Volumes: []corev1.Volume{{Name: "data"}},
+					},
+					Compactor: &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
+						Volumes: []corev1.Volume{{Name: "data"}},
+					},
+					Janitor: &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
+						Volumes: []corev1.Volume{{Name: "data"}},
+					},
+				},
+			},
+			want: []string{
+				"spec.global.volumes[0].name: is reserved for a built-in volume",
+				"spec.global.volumeMounts[0].mountPath: is reserved for a built-in volume mount",
+				"spec.components.indexer.volumes[0].name: is reserved for a built-in volume",
+				"spec.components.indexer.volumeMounts[0].mountPath: is reserved for a built-in volume mount",
+				"spec.components.searcher.volumeMounts[0].mountPath: is reserved for a built-in volume mount",
+				"spec.components.metastore.volumes[0].name: is reserved for a built-in volume",
+				"spec.components.readOnlyMetastore.volumes[0].name: is reserved for a built-in volume",
+				"spec.components.controlPlane.volumes[0].name: is reserved for a built-in volume",
+				"spec.components.compactor.volumes[0].name: is reserved for a built-in volume",
+				"spec.components.janitor.volumes[0].name: is reserved for a built-in volume",
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
