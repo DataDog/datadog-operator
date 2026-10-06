@@ -583,6 +583,11 @@ e2e_autoscaling:
     # Disable on manual pipelines to test staging images
     - if: $PUSH_IMAGES_TO_STAGING == 'true'
       when: never
+    # Skip on mergequeue branches: the suite takes ~2h (EKS cluster setup and
+    # repeated install/uninstall cycles), which exceeds the mergequeue 2h timeout
+    # and cancels the whole queue pipeline. It still runs on the PR pipeline.
+    - if: "$CI_COMMIT_BRANCH =~ /^mq-working-branch-/"
+      when: never
     # Run automatically on changes to autoscaling code
     - if: $CI_COMMIT_BRANCH
       changes:
