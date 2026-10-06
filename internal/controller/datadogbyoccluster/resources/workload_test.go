@@ -8,8 +8,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func TestResolveAffinity(t *testing.T) {
-	cluster := testCluster()
+func TestBuildResources_Affinity(t *testing.T) {
 	customAffinity := &corev1.Affinity{
 		NodeAffinity: &corev1.NodeAffinity{
 			PreferredDuringSchedulingIgnoredDuringExecution: []corev1.PreferredSchedulingTerm{{
@@ -31,8 +30,12 @@ func TestResolveAffinity(t *testing.T) {
 					PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{{
 						Weight: 100,
 						PodAffinityTerm: corev1.PodAffinityTerm{
-							LabelSelector: &metav1.LabelSelector{MatchLabels: selectorLabels(cluster, "indexer")},
-							TopologyKey:   corev1.LabelHostname,
+							LabelSelector: &metav1.LabelSelector{MatchLabels: map[string]string{
+								"app.kubernetes.io/name":      "cloudprem",
+								"app.kubernetes.io/instance":  "byoc",
+								"app.kubernetes.io/component": "indexer",
+							}},
+							TopologyKey: corev1.LabelHostname,
 						},
 					}},
 				},
@@ -57,12 +60,17 @@ func TestResolveAffinity(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := resolveAffinity(cluster, "indexer", tt.global, tt.component)
+			cluster := testCluster()
+			cluster.Spec.Global.Affinity = tt.global
+			cluster.Spec.Components.Indexer.Affinity = tt.component
+
+			resources, err := buildResources(cluster, testRelease())
 			if err != nil {
-				t.Fatalf("resolveAffinity() unexpected error: %v", err)
+				t.Fatalf("BuildResources() unexpected error: %v", err)
 			}
+			got := resources.Component(IndexerComponentName).StatefulSet.Spec.Template.Spec.Affinity
 			if diff := cmp.Diff(tt.want, got); diff != "" {
-				t.Errorf("resolveAffinity() mismatch (-want +got):\n%s", diff)
+				t.Errorf("affinity mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}

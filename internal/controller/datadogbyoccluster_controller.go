@@ -309,20 +309,20 @@ func (r *DatadogBYOCClusterReconciler) updateStatus(ctx context.Context, cluster
 }
 
 func updateComponentStatus(cluster *datadoghqv1alpha1.DatadogBYOCCluster, resources *byocresources.Resources) bool {
-	indexerStatus, indexerAvailable := statefulSetStatus(resources.Indexer().StatefulSet)
+	indexerStatus, indexerAvailable := statefulSetStatus(resources.Component(byocresources.IndexerComponentName).StatefulSet)
 	cluster.Status.Indexer = indexerStatus
-	searcherStatus, searcherAvailable := statefulSetStatus(resources.Searcher().StatefulSet)
+	searcherStatus, searcherAvailable := statefulSetStatus(resources.Component(byocresources.SearcherComponentName).StatefulSet)
 	cluster.Status.Searcher = searcherStatus
-	metastoreStatus, metastoreAvailable := deploymentStatus(resources.Metastore().Deployment)
+	metastoreStatus, metastoreAvailable := deploymentStatus(resources.Component(byocresources.MetastoreComponentName).Deployment)
 	cluster.Status.Metastore = metastoreStatus
-	controlPlaneStatus, controlPlaneAvailable := deploymentStatus(resources.ControlPlane().Deployment)
+	controlPlaneStatus, controlPlaneAvailable := deploymentStatus(resources.Component(byocresources.ControlPlaneComponentName).Deployment)
 	cluster.Status.ControlPlane = controlPlaneStatus
-	janitorStatus, janitorAvailable := deploymentStatus(resources.Janitor().Deployment)
+	janitorStatus, janitorAvailable := deploymentStatus(resources.Component(byocresources.JanitorComponentName).Deployment)
 	cluster.Status.Janitor = janitorStatus
 
 	readOnlyMetastoreAvailable := true
 	cluster.Status.ReadOnlyMetastore = nil
-	if readOnlyMetastore := resources.ReadOnlyMetastore(); readOnlyMetastore != nil {
+	if readOnlyMetastore := resources.Component(byocresources.ReadOnlyMetastoreComponentName); readOnlyMetastore != nil {
 		readOnlyMetastoreStatus, available := deploymentStatus(readOnlyMetastore.Deployment)
 		cluster.Status.ReadOnlyMetastore = readOnlyMetastoreStatus
 		readOnlyMetastoreAvailable = available
@@ -330,7 +330,7 @@ func updateComponentStatus(cluster *datadoghqv1alpha1.DatadogBYOCCluster, resour
 
 	compactorAvailable := true
 	cluster.Status.Compactor = nil
-	if compactor := resources.Compactor(); compactor != nil {
+	if compactor := resources.Component(byocresources.CompactorComponentName); compactor != nil {
 		compactorStatus, available := deploymentStatus(compactor.Deployment)
 		cluster.Status.Compactor = compactorStatus
 		compactorAvailable = available

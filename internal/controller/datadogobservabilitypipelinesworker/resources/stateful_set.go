@@ -6,6 +6,8 @@
 package resources
 
 import (
+	"fmt"
+
 	appsv1 "k8s.io/api/apps/v1"
 	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	corev1 "k8s.io/api/core/v1"
@@ -24,7 +26,7 @@ func newStatefulSet(metadata metav1.ObjectMeta, selector map[string]string, temp
 		Spec: appsv1.StatefulSetSpec{
 			Replicas:             replicas,
 			ServiceName:          serviceName,
-			PodManagementPolicy:  appsv1.OrderedReadyPodManagement,
+			PodManagementPolicy:  appsv1.ParallelPodManagement,
 			Selector:             &metav1.LabelSelector{MatchLabels: selector},
 			Template:             template,
 			VolumeClaimTemplates: newVolumeClaimTemplates(spec.Storage),
@@ -48,7 +50,10 @@ func newVolumeClaimTemplates(storage *datadoghqv1alpha1.DatadogBYOCClusterStorag
 	}}
 }
 
-func newHPA(metadata metav1.ObjectMeta, autoscaling *datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec) *autoscalingv2.HorizontalPodAutoscaler {
+func newHPA(metadata metav1.ObjectMeta, autoscaling *datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec) (*autoscalingv2.HorizontalPodAutoscaler, error) {
+	if autoscaling.MaxReplicas == nil {
+		return nil, fmt.Errorf("worker autoscaling maxReplicas is required")
+	}
 	return &autoscalingv2.HorizontalPodAutoscaler{
 		ObjectMeta: metadata,
 		Spec: autoscalingv2.HorizontalPodAutoscalerSpec{
@@ -58,5 +63,5 @@ func newHPA(metadata metav1.ObjectMeta, autoscaling *datadoghqv1alpha1.DatadogBY
 			Metrics:        autoscaling.Metrics,
 			Behavior:       autoscaling.Behavior,
 		},
-	}
+	}, nil
 }

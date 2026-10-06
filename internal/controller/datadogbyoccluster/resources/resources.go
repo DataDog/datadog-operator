@@ -8,15 +8,12 @@ package resources
 import (
 	"crypto/sha256"
 	"encoding/hex"
-	"fmt"
-	"slices"
 
 	appsv1 "k8s.io/api/apps/v1"
 	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	corev1 "k8s.io/api/core/v1"
 	policyv1 "k8s.io/api/policy/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
@@ -28,323 +25,113 @@ type Resources struct {
 	configMap       *corev1.ConfigMap
 	serviceAccount  *corev1.ServiceAccount
 	headlessService *corev1.Service
+	components      map[string]*ComponentResources
+	objects         []client.Object
+	obsoleteObjects []client.Object
+}
 
-	indexer   *StatefulSetResources
-	searcher  *StatefulSetResources
-	metastore *DeploymentResources
-
-	controlPlane      *DeploymentResources
-	janitor           *DeploymentResources
-	readOnlyMetastore *DeploymentResources
-	compactor         *DeploymentResources
+// ComponentResources contains the resources managed for a component.
+// Exactly one of Deployment and StatefulSet is set.
+type ComponentResources struct {
+	Service             *corev1.Service
+	Deployment          *appsv1.Deployment
+	StatefulSet         *appsv1.StatefulSet
+	HPA                 *autoscalingv2.HorizontalPodAutoscaler
+	PodDisruptionBudget *policyv1.PodDisruptionBudget
 }
 
 // Objects returns the resources in apply order.
 func (r *Resources) Objects() []client.Object {
-	objects := []client.Object{r.configMap}
-	if r.serviceAccount != nil {
-		objects = append(objects, r.serviceAccount)
-	}
-	objects = append(objects, r.headlessService)
-	return slices.Concat(objects,
-		r.metastore.Objects(),
-		r.indexer.Objects(),
-		r.searcher.Objects(),
-		r.controlPlane.Objects(),
-		r.janitor.Objects(),
-		r.readOnlyMetastore.Objects(),
-		r.compactor.Objects(),
-	)
+	return r.objects
 }
 
 // ObsoleteObjects returns optional resources that are no longer desired.
 func (r *Resources) ObsoleteObjects() []client.Object {
-	metadata := func(component string) metav1.ObjectMeta {
-		return metav1.ObjectMeta{
-			Name:      ComponentResourceName(r.configMap.Name, component),
-			Namespace: r.configMap.Namespace,
-		}
-	}
-	var objects []client.Object
-	if r.readOnlyMetastore == nil {
-		objects = append(objects,
-			&corev1.Service{ObjectMeta: metadata(ReadOnlyMetastoreComponentName)},
-			&appsv1.Deployment{ObjectMeta: metadata(ReadOnlyMetastoreComponentName)},
-		)
-	}
-	if r.compactor == nil {
-		objects = append(objects,
-			&corev1.Service{ObjectMeta: metadata(CompactorComponentName)},
-			&appsv1.Deployment{ObjectMeta: metadata(CompactorComponentName)},
-		)
-	}
-	if r.indexer.HPA == nil {
-		objects = append(objects, &autoscalingv2.HorizontalPodAutoscaler{ObjectMeta: metadata(IndexerComponentName)})
-	}
-	if r.searcher.HPA == nil {
-		objects = append(objects, &autoscalingv2.HorizontalPodAutoscaler{ObjectMeta: metadata(SearcherComponentName)})
-	}
-	desiredPodDisruptionBudgets := map[string]bool{}
-	for _, object := range r.Objects() {
-		if _, ok := object.(*policyv1.PodDisruptionBudget); ok {
-			desiredPodDisruptionBudgets[object.GetName()] = true
-		}
-	}
-	for _, component := range ComponentNames() {
-		meta := metadata(component)
-		if !desiredPodDisruptionBudgets[meta.Name] {
-			objects = append(objects, &policyv1.PodDisruptionBudget{ObjectMeta: meta})
-		}
-	}
-	return objects
+	return r.obsoleteObjects
 }
 
-// Indexer returns the indexer resources.
-func (r *Resources) Indexer() *StatefulSetResources {
-	return r.indexer
-}
-
-// Searcher returns the searcher resources.
-func (r *Resources) Searcher() *StatefulSetResources {
-	return r.searcher
-}
-
-// Metastore returns the metastore resources.
-func (r *Resources) Metastore() *DeploymentResources {
-	return r.metastore
-}
-
-// ControlPlane returns the control plane resources.
-func (r *Resources) ControlPlane() *DeploymentResources {
-	return r.controlPlane
-}
-
-// Janitor returns the janitor resources.
-func (r *Resources) Janitor() *DeploymentResources {
-	return r.janitor
-}
-
-// ReadOnlyMetastore returns the read-only metastore resources when enabled.
-func (r *Resources) ReadOnlyMetastore() *DeploymentResources {
-	return r.readOnlyMetastore
-}
-
-// Compactor returns the compactor resources when enabled.
-func (r *Resources) Compactor() *DeploymentResources {
-	return r.compactor
+// Component returns the resources of an enabled component, or nil when the component is disabled.
+func (r *Resources) Component(name string) *ComponentResources {
+	return r.components[name]
 }
 
 // BuildResources builds deterministic Kubernetes resources from a defaulted cluster and resolved images.
 func BuildResources(cluster *datadoghqv1alpha1.DatadogBYOCCluster, images *byocimage.ResolvedImages) (*Resources, error) {
-	configMap, err := newConfigMapBuilder(cluster).build()
+	cluster = cluster.DeepCopy()
+
+	configMap, err := newConfigMap(cluster)
 	if err != nil {
 		return nil, err
 	}
+	r := &Resources{
+		configMap:       configMap,
+		headlessService: newHeadlessService(cluster),
+		components:      map[string]*ComponentResources{},
+	}
+	r.objects = append(r.objects, r.configMap)
+	if _, managed := serviceAccountName(cluster); managed {
+		r.serviceAccount = newServiceAccount(cluster)
+		r.objects = append(r.objects, r.serviceAccount)
+	}
+	r.objects = append(r.objects, r.headlessService)
 
 	checksum := sha256.Sum256([]byte(configMap.Data[nodeConfigFileName]))
-	newWorkload := func(name string, spec *datadoghqv1alpha1.DatadogBYOCClusterComponentSpec, defaults workloadDefaults) workloadInput {
-		return workloadInput{
-			Cluster:  cluster,
-			Image:    images.Pomsky,
-			Checksum: hex.EncodeToString(checksum[:]),
-			Name:     name,
-			Spec:     spec,
-			Defaults: defaults,
+	pod := podInput{cluster: cluster, image: images.Pomsky, checksum: hex.EncodeToString(checksum[:])}
+	for _, c := range components(cluster) {
+		if !c.enabled() {
+			r.obsoleteObjects = append(r.obsoleteObjects, disabledComponentObjects(cluster, c)...)
+			continue
 		}
-	}
-
-	components := cluster.Spec.Components
-	indexerStatefulSpec := components.Indexer
-	searcherStatefulSpec := components.Searcher
-	indexerSpec := indexerStatefulSpec.DatadogBYOCClusterComponentSpec.DeepCopy()
-	searcherSpec := searcherStatefulSpec.DatadogBYOCClusterComponentSpec.DeepCopy()
-	metastoreSpec := components.Metastore.DatadogBYOCClusterComponentSpec.DeepCopy()
-	controlPlaneSpec := components.ControlPlane.DeepCopy()
-	janitorSpec := components.Janitor.DeepCopy()
-
-	resources := &Resources{
-		configMap:       configMap,
-		headlessService: newHeadlessServiceBuilder(cluster).build(),
-	}
-	if identity := cluster.Spec.Identity; identity == nil || identity.ServiceAccountName == nil {
-		resources.serviceAccount = newServiceAccountBuilder(cluster).build()
-	}
-
-	resources.indexer, err = newStatefulSetBuilder(
-		newWorkload(IndexerComponentName, indexerSpec, workloadDefaults{
-			ServicePorts: componentServicePorts(),
-			PodSpec: corev1.PodSpec{
-				Volumes: statefulDataVolumes(indexerStatefulSpec),
-				Containers: []corev1.Container{{
-					Args:         []string{"run", "--service", quickwitIndexerServiceName},
-					Env:          decommissionTimeoutEnvironment("QW_INGEST_DECOMMISSION_TIMEOUT", *indexerSpec.TerminationGracePeriodSeconds),
-					VolumeMounts: []corev1.VolumeMount{{Name: "config", MountPath: quickwitDirectory}},
-				}},
-			},
-		}),
-		indexerStatefulSpec,
-		statefulSetDefaults{
-			PodManagementPolicy: appsv1.OrderedReadyPodManagement,
-		},
-	).build()
-	if err != nil {
-		return nil, err
-	}
-
-	resources.searcher, err = newStatefulSetBuilder(
-		newWorkload(SearcherComponentName, searcherSpec, workloadDefaults{
-			ServicePorts: componentServicePorts(corev1.ServicePort{Name: "cloudprem", Port: cloudpremPort, Protocol: corev1.ProtocolTCP, TargetPort: intstr.FromString("cloudprem")}),
-			PodSpec: corev1.PodSpec{
-				Containers: []corev1.Container{{
-					Args:         []string{"run", "--service", quickwitSearcherServiceName},
-					VolumeMounts: []corev1.VolumeMount{{Name: "config", MountPath: nodeConfigPath, SubPath: nodeConfigFileName}},
-				}},
-				Volumes: statefulDataVolumes(searcherStatefulSpec),
-			},
-		}),
-		searcherStatefulSpec,
-		statefulSetDefaults{
-			PodManagementPolicy: appsv1.OrderedReadyPodManagement,
-		},
-	).build()
-	if err != nil {
-		return nil, err
-	}
-
-	resources.metastore, err = newDeploymentBuilder(
-		newWorkload(MetastoreComponentName, metastoreSpec, workloadDefaults{
-			ServicePorts: componentServicePorts(),
-			PodSpec: corev1.PodSpec{
-				Volumes: []corev1.Volume{defaultDataVolume()},
-				Containers: []corev1.Container{{
-					Args:         []string{"run", "--service", quickwitMetastoreServiceName},
-					Env:          databaseEnvironment("QW_METASTORE_URI", metastoreDatabase(components.Metastore)),
-					VolumeMounts: []corev1.VolumeMount{defaultConfigVolumeMount()},
-				}},
-			},
-		}),
-		deploymentDefaults{},
-	).build()
-	if err != nil {
-		return nil, err
-	}
-
-	resources.controlPlane, err = newDeploymentBuilder(
-		newWorkload(ControlPlaneComponentName, controlPlaneSpec, workloadDefaults{
-			ServicePorts: componentServicePorts(),
-			PodSpec: corev1.PodSpec{
-				Volumes: []corev1.Volume{defaultDataVolume()},
-				Containers: []corev1.Container{{
-					Args:         []string{"run", "--service", quickwitControlPlaneServiceName},
-					VolumeMounts: []corev1.VolumeMount{defaultConfigVolumeMount()},
-				}},
-			},
-		}),
-		deploymentDefaults{Strategy: appsv1.DeploymentStrategy{Type: appsv1.RecreateDeploymentStrategyType}},
-	).build()
-	if err != nil {
-		return nil, err
-	}
-
-	resources.janitor, err = newDeploymentBuilder(
-		newWorkload(JanitorComponentName, janitorSpec, workloadDefaults{
-			ServicePorts: componentServicePorts(),
-			PodSpec: corev1.PodSpec{
-				Volumes: []corev1.Volume{defaultDataVolume()},
-				Containers: []corev1.Container{{
-					Args:         []string{"run", "--service", quickwitJanitorServiceName},
-					VolumeMounts: []corev1.VolumeMount{defaultConfigVolumeMount()},
-				}},
-			},
-		}),
-		deploymentDefaults{Strategy: appsv1.DeploymentStrategy{Type: appsv1.RecreateDeploymentStrategyType}},
-	).build()
-	if err != nil {
-		return nil, err
-	}
-
-	if components.ReadOnlyMetastore != nil {
-		readOnlyMetastoreSpec := components.ReadOnlyMetastore.DatadogBYOCClusterComponentSpec.DeepCopy()
-		resources.readOnlyMetastore, err = newDeploymentBuilder(
-			newWorkload(ReadOnlyMetastoreComponentName, readOnlyMetastoreSpec, workloadDefaults{
-				ServicePorts: componentServicePorts(),
-				PodSpec: corev1.PodSpec{
-					Volumes: []corev1.Volume{defaultDataVolume()},
-					Containers: []corev1.Container{{
-						Args:         []string{"run", "--service", quickwitReadOnlyMetastoreServiceName},
-						Env:          databaseEnvironment(quickwitReadOnlyMetastoreURIEnvName, metastoreDatabase(components.ReadOnlyMetastore)),
-						VolumeMounts: []corev1.VolumeMount{defaultConfigVolumeMount()},
-					}},
-				},
-			}),
-			deploymentDefaults{},
-		).build()
+		resources, err := newComponentResources(pod, c)
 		if err != nil {
 			return nil, err
 		}
+		r.components[c.name] = resources
+		r.objects = append(r.objects, resources.objects()...)
+		r.obsoleteObjects = append(r.obsoleteObjects, resources.obsoleteObjects(cluster, c)...)
 	}
+	return r, nil
+}
 
-	if components.Compactor != nil {
-		compactorSpec := components.Compactor.DeepCopy()
-		resources.compactor, err = newDeploymentBuilder(
-			newWorkload(CompactorComponentName, compactorSpec, workloadDefaults{
-				ServicePorts: componentServicePorts(),
-				PodSpec: corev1.PodSpec{
-					Volumes: []corev1.Volume{defaultDataVolume()},
-					Containers: []corev1.Container{{
-						Args:         []string{"run", "--service", quickwitCompactorServiceName},
-						Env:          decommissionTimeoutEnvironment("QW_COMPACTOR_DECOMMISSION_TIMEOUT", *compactorSpec.TerminationGracePeriodSeconds),
-						VolumeMounts: []corev1.VolumeMount{defaultConfigVolumeMount()},
-					}},
-				},
-			}),
-			deploymentDefaults{},
-		).build()
-		if err != nil {
-			return nil, err
-		}
+func (r *ComponentResources) objects() []client.Object {
+	objects := []client.Object{r.Service}
+	if r.Deployment != nil {
+		objects = append(objects, r.Deployment)
 	}
-	return resources, nil
-}
-
-func metastoreDatabase(spec *datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec) *datadoghqv1alpha1.DatadogBYOCClusterDatabaseSpec {
-	return spec.Database
-}
-
-func decommissionTimeoutEnvironment(name string, terminationGracePeriod int64) []corev1.EnvVar {
-	return []corev1.EnvVar{{Name: name, Value: fmt.Sprintf("%ds", terminationGracePeriod*9/10)}}
-}
-
-func databaseEnvironment(name string, database *datadoghqv1alpha1.DatadogBYOCClusterDatabaseSpec) []corev1.EnvVar {
-	if database == nil || database.URISecretRef == nil {
-		return nil
+	if r.StatefulSet != nil {
+		objects = append(objects, r.StatefulSet)
 	}
-	return []corev1.EnvVar{{Name: name, ValueFrom: &corev1.EnvVarSource{SecretKeyRef: database.URISecretRef.DeepCopy()}}}
-}
-
-func componentServicePorts(additional ...corev1.ServicePort) []corev1.ServicePort {
-	ports := []corev1.ServicePort{
-		{Name: "rest", Port: restPort, Protocol: corev1.ProtocolTCP, TargetPort: intstr.FromString("rest")},
-		{Name: "grpc", Port: grpcPort, Protocol: corev1.ProtocolTCP, TargetPort: intstr.FromString("grpc")},
+	if r.HPA != nil {
+		objects = append(objects, r.HPA)
 	}
-	ports = append(ports, additional...)
-	return append(ports, corev1.ServicePort{Name: "health", Port: healthPort, Protocol: corev1.ProtocolTCP, TargetPort: intstr.FromString("health")})
-}
-
-func defaultConfigVolumeMount() corev1.VolumeMount {
-	return corev1.VolumeMount{Name: "config", MountPath: nodeConfigPath, SubPath: nodeConfigFileName}
-}
-
-func defaultDataVolume() corev1.Volume {
-	return corev1.Volume{Name: "data", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}}}
-}
-
-func statefulDataVolumes(spec *datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec) []corev1.Volume {
-	if spec.Storage.VolumeClaimTemplate != nil {
-		return nil
+	if r.PodDisruptionBudget != nil {
+		objects = append(objects, r.PodDisruptionBudget)
 	}
-	if spec.Storage.EmptyDir != nil {
-		return []corev1.Volume{{Name: "data", VolumeSource: corev1.VolumeSource{EmptyDir: spec.Storage.EmptyDir.DeepCopy()}}}
+	return objects
+}
+
+func (r *ComponentResources) obsoleteObjects(cluster *datadoghqv1alpha1.DatadogBYOCCluster, c component) []client.Object {
+	metadata := componentObjectMeta(cluster, c.name)
+	var objects []client.Object
+	if c.stateful != nil && r.HPA == nil {
+		objects = append(objects, &autoscalingv2.HorizontalPodAutoscaler{ObjectMeta: metadata})
 	}
-	return nil
+	if r.PodDisruptionBudget == nil {
+		objects = append(objects, &policyv1.PodDisruptionBudget{ObjectMeta: metadata})
+	}
+	return objects
+}
+
+// disabledComponentObjects returns the resources of a disabled component. Only Deployment components are optional.
+func disabledComponentObjects(cluster *datadoghqv1alpha1.DatadogBYOCCluster, c component) []client.Object {
+	metadata := componentObjectMeta(cluster, c.name)
+	return []client.Object{
+		&corev1.Service{ObjectMeta: metadata},
+		&appsv1.Deployment{ObjectMeta: metadata},
+		&policyv1.PodDisruptionBudget{ObjectMeta: metadata},
+	}
+}
+
+func componentObjectMeta(cluster *datadoghqv1alpha1.DatadogBYOCCluster, componentName string) metav1.ObjectMeta {
+	return metav1.ObjectMeta{Name: ComponentResourceName(cluster.Name, componentName), Namespace: cluster.Namespace}
 }

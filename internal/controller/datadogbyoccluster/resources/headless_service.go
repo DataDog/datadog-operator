@@ -12,40 +12,19 @@ import (
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 )
 
-type headlessServiceBuilder struct {
-	name        string
-	namespace   string
-	labels      map[string]string
-	annotations map[string]string
-	selector    map[string]string
-}
-
-func newHeadlessServiceBuilder(cluster *datadoghqv1alpha1.DatadogBYOCCluster) headlessServiceBuilder {
-	return headlessServiceBuilder{
-		name:        headlessServiceName(cluster.Name),
-		namespace:   cluster.Namespace,
-		labels:      labels(cluster),
-		annotations: annotations(cluster),
-		selector: map[string]string{
-			"app.kubernetes.io/name":     appName,
-			"app.kubernetes.io/instance": cluster.Name,
-		},
-	}
-}
-
-func (b headlessServiceBuilder) build() *corev1.Service {
+func newHeadlessService(cluster *datadoghqv1alpha1.DatadogBYOCCluster) *corev1.Service {
 	return &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        b.name,
-			Namespace:   b.namespace,
-			Labels:      b.labels,
-			Annotations: b.annotations,
+			Name:        headlessServiceName(cluster.Name),
+			Namespace:   cluster.Namespace,
+			Labels:      labels(cluster),
+			Annotations: annotations(cluster),
 		},
 		Spec: corev1.ServiceSpec{
 			Type:                     corev1.ServiceTypeClusterIP,
 			ClusterIP:                corev1.ClusterIPNone,
 			PublishNotReadyAddresses: true,
-			Selector:                 b.selector,
+			Selector:                 instanceSelectorLabels(cluster),
 			Ports: []corev1.ServicePort{
 				{Name: "tcp-http", Port: restPort, Protocol: corev1.ProtocolTCP},
 				{Name: "tcp-grpc", Port: grpcPort, Protocol: corev1.ProtocolTCP},

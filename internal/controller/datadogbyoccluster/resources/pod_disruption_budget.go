@@ -7,7 +7,6 @@ package resources
 
 import (
 	"fmt"
-	"maps"
 
 	policyv1 "k8s.io/api/policy/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -16,33 +15,15 @@ import (
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 )
 
-type podDisruptionBudgetBuilder struct {
-	metadata      metav1.ObjectMeta
-	selector      map[string]string
-	globalSpec    *datadoghqv1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec
-	componentSpec *datadoghqv1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec
-}
-
-func newPodDisruptionBudgetBuilder(
+// newPodDisruptionBudget returns nil when the effective budget is explicitly empty.
+func newPodDisruptionBudget(
 	metadata metav1.ObjectMeta,
 	selector map[string]string,
-	globalSpec, componentSpec *datadoghqv1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec,
-) podDisruptionBudgetBuilder {
-	return podDisruptionBudgetBuilder{
-		metadata:      metadata,
-		selector:      selector,
-		globalSpec:    globalSpec,
-		componentSpec: componentSpec,
-	}
-}
-
-func (b podDisruptionBudgetBuilder) build() (*policyv1.PodDisruptionBudget, error) {
-	spec := b.componentSpec
+	global, component *datadoghqv1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec,
+) (*policyv1.PodDisruptionBudget, error) {
+	spec := component
 	if spec == nil {
-		spec = b.globalSpec
-	}
-	if spec != nil && spec.MinAvailable == nil && spec.MaxUnavailable == nil {
-		return nil, nil
+		spec = global
 	}
 
 	var minAvailable, maxUnavailable *intstr.IntOrString
@@ -50,20 +31,21 @@ func (b podDisruptionBudgetBuilder) build() (*policyv1.PodDisruptionBudget, erro
 	case spec == nil:
 		maxUnavailable = new(intstr.FromInt32(1))
 	case spec.MinAvailable != nil && spec.MaxUnavailable != nil:
-		return nil, fmt.Errorf("%s pod disruption budget: minAvailable and maxUnavailable are mutually exclusive", b.metadata.Name)
+		return nil, fmt.Errorf("%s pod disruption budget: minAvailable and maxUnavailable are mutually exclusive", metadata.Name)
 	case spec.MinAvailable != nil:
-		minAvailable = new(*spec.MinAvailable)
+		minAvailable = spec.MinAvailable
+	case spec.MaxUnavailable != nil:
+		maxUnavailable = spec.MaxUnavailable
 	default:
-		maxUnavailable = new(*spec.MaxUnavailable)
+		return nil, nil
 	}
 
-	metadata := b.metadata.DeepCopy()
 	return &policyv1.PodDisruptionBudget{
-		ObjectMeta: *metadata,
+		ObjectMeta: metadata,
 		Spec: policyv1.PodDisruptionBudgetSpec{
 			MinAvailable:   minAvailable,
 			MaxUnavailable: maxUnavailable,
-			Selector:       &metav1.LabelSelector{MatchLabels: maps.Clone(b.selector)},
+			Selector:       &metav1.LabelSelector{MatchLabels: selector},
 		},
 	}, nil
 }

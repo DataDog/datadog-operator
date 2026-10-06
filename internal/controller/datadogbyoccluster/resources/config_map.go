@@ -20,17 +20,9 @@ import (
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 )
 
-type configMapBuilder struct {
-	cluster *datadoghqv1alpha1.DatadogBYOCCluster
-}
-
-func newConfigMapBuilder(cluster *datadoghqv1alpha1.DatadogBYOCCluster) configMapBuilder {
-	return configMapBuilder{cluster: cluster}
-}
-
-func (b configMapBuilder) build() (*corev1.ConfigMap, error) {
-	indexerMemoryLimit := b.cluster.Spec.Components.Indexer.Resources.Limits[corev1.ResourceMemory]
-	searcherMemoryLimit := b.cluster.Spec.Components.Searcher.Resources.Limits[corev1.ResourceMemory]
+func newConfigMap(cluster *datadoghqv1alpha1.DatadogBYOCCluster) (*corev1.ConfigMap, error) {
+	indexerMemoryLimit := cluster.Spec.Components.Indexer.Resources.Limits[corev1.ResourceMemory]
+	searcherMemoryLimit := cluster.Spec.Components.Searcher.Resources.Limits[corev1.ResourceMemory]
 	indexerMemoryBytes := indexerMemoryLimit.Value()
 	searcherMemoryBytes := searcherMemoryLimit.Value()
 	maxQueueDiskUsage := indexerMemoryBytes * 3 / 5
@@ -70,18 +62,18 @@ func (b configMapBuilder) build() (*corev1.ConfigMap, error) {
 			"split_footer_cache_capacity":       searcherMemoryBytes / 32,
 		},
 	}
-	if b.cluster.Spec.Components.ReadOnlyMetastore != nil {
+	if cluster.Spec.Components.ReadOnlyMetastore != nil {
 		config[quickwitSearcherServiceName].(map[string]any)[quickwitUseReadOnlyMetastoreConfigKey] = true
 	}
-	storage := b.cluster.Spec.Components.Indexer.Storage
+	storage := cluster.Spec.Components.Indexer.Storage
 	if storage != nil && storage.VolumeClaimTemplate != nil {
 		indexer := config[quickwitIndexerServiceName].(map[string]any)
 		capacity := storage.VolumeClaimTemplate.Spec.Resources.Requests[corev1.ResourceStorage]
 		indexer["split_store_max_num_bytes"] = calculateSplitStoreMaxNumBytes(capacity, maxQueueDiskUsage)
 	}
-	if b.cluster.Spec.NodeConfigOverrides != nil && len(b.cluster.Spec.NodeConfigOverrides.Raw) != 0 {
+	if cluster.Spec.NodeConfigOverrides != nil && len(cluster.Spec.NodeConfigOverrides.Raw) != 0 {
 		var override map[string]any
-		if err := yaml.Unmarshal(b.cluster.Spec.NodeConfigOverrides.Raw, &override, func(d *json.Decoder) *json.Decoder {
+		if err := yaml.Unmarshal(cluster.Spec.NodeConfigOverrides.Raw, &override, func(d *json.Decoder) *json.Decoder {
 			d.UseNumber()
 			return d
 		}); err != nil {
@@ -98,10 +90,10 @@ func (b configMapBuilder) build() (*corev1.ConfigMap, error) {
 
 	return &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        b.cluster.Name,
-			Namespace:   b.cluster.Namespace,
-			Labels:      labels(b.cluster),
-			Annotations: annotations(b.cluster),
+			Name:        cluster.Name,
+			Namespace:   cluster.Namespace,
+			Labels:      labels(cluster),
+			Annotations: annotations(cluster),
 		},
 		Data: map[string]string{nodeConfigFileName: strings.TrimSuffix(string(nodeConfig), "\n")},
 	}, nil

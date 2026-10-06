@@ -118,6 +118,7 @@ func TestResources_ObsoleteObjects(t *testing.T) {
 	}
 	tests := []struct {
 		name                string
+		identity            *datadoghqv1alpha1.DatadogBYOCClusterIdentitySpec
 		globalBudget        *datadoghqv1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec
 		indexerBudget       *datadoghqv1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec
 		indexerAutoscaling  *datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec
@@ -129,13 +130,13 @@ func TestResources_ObsoleteObjects(t *testing.T) {
 		{
 			name: "disabled components and autoscaling",
 			want: []client.Object{
-				&corev1.Service{ObjectMeta: metadata("read-only-metastore")},
-				&appsv1.Deployment{ObjectMeta: metadata("read-only-metastore")},
-				&corev1.Service{ObjectMeta: metadata("compactor")},
-				&appsv1.Deployment{ObjectMeta: metadata("compactor")},
 				&autoscalingv2.HorizontalPodAutoscaler{ObjectMeta: metadata("indexer")},
 				&autoscalingv2.HorizontalPodAutoscaler{ObjectMeta: metadata("searcher")},
+				&corev1.Service{ObjectMeta: metadata("read-only-metastore")},
+				&appsv1.Deployment{ObjectMeta: metadata("read-only-metastore")},
 				&policyv1.PodDisruptionBudget{ObjectMeta: metadata("read-only-metastore")},
+				&corev1.Service{ObjectMeta: metadata("compactor")},
+				&appsv1.Deployment{ObjectMeta: metadata("compactor")},
 				&policyv1.PodDisruptionBudget{ObjectMeta: metadata("compactor")},
 			},
 		},
@@ -151,9 +152,9 @@ func TestResources_ObsoleteObjects(t *testing.T) {
 			indexerAutoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{},
 			readOnlyMetastore:  &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{},
 			want: []client.Object{
+				&autoscalingv2.HorizontalPodAutoscaler{ObjectMeta: metadata("searcher")},
 				&corev1.Service{ObjectMeta: metadata("compactor")},
 				&appsv1.Deployment{ObjectMeta: metadata("compactor")},
-				&autoscalingv2.HorizontalPodAutoscaler{ObjectMeta: metadata("searcher")},
 				&policyv1.PodDisruptionBudget{ObjectMeta: metadata("compactor")},
 			},
 		},
@@ -162,9 +163,9 @@ func TestResources_ObsoleteObjects(t *testing.T) {
 			searcherAutoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{},
 			compactor:           &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
 			want: []client.Object{
+				&autoscalingv2.HorizontalPodAutoscaler{ObjectMeta: metadata("indexer")},
 				&corev1.Service{ObjectMeta: metadata("read-only-metastore")},
 				&appsv1.Deployment{ObjectMeta: metadata("read-only-metastore")},
-				&autoscalingv2.HorizontalPodAutoscaler{ObjectMeta: metadata("indexer")},
 				&policyv1.PodDisruptionBudget{ObjectMeta: metadata("read-only-metastore")},
 			},
 		},
@@ -176,9 +177,9 @@ func TestResources_ObsoleteObjects(t *testing.T) {
 			readOnlyMetastore:   &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{},
 			compactor:           &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
 			want: []client.Object{
+				&policyv1.PodDisruptionBudget{ObjectMeta: metadata("metastore")},
 				&policyv1.PodDisruptionBudget{ObjectMeta: metadata("indexer")},
 				&policyv1.PodDisruptionBudget{ObjectMeta: metadata("searcher")},
-				&policyv1.PodDisruptionBudget{ObjectMeta: metadata("metastore")},
 				&policyv1.PodDisruptionBudget{ObjectMeta: metadata("control-plane")},
 				&policyv1.PodDisruptionBudget{ObjectMeta: metadata("janitor")},
 				&policyv1.PodDisruptionBudget{ObjectMeta: metadata("read-only-metastore")},
@@ -196,18 +197,27 @@ func TestResources_ObsoleteObjects(t *testing.T) {
 				PodDisruptionBudget: &datadoghqv1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec{MaxUnavailable: ptr.To(intstr.FromInt32(1))},
 			},
 			want: []client.Object{
-				&policyv1.PodDisruptionBudget{ObjectMeta: metadata("searcher")},
 				&policyv1.PodDisruptionBudget{ObjectMeta: metadata("metastore")},
+				&policyv1.PodDisruptionBudget{ObjectMeta: metadata("searcher")},
 				&policyv1.PodDisruptionBudget{ObjectMeta: metadata("control-plane")},
 				&policyv1.PodDisruptionBudget{ObjectMeta: metadata("janitor")},
 				&policyv1.PodDisruptionBudget{ObjectMeta: metadata("read-only-metastore")},
 			},
+		},
+		{
+			name:                "existing ServiceAccount named after the cluster",
+			identity:            &datadoghqv1alpha1.DatadogBYOCClusterIdentitySpec{ServiceAccountName: ptr.To("byoc")},
+			indexerAutoscaling:  &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{},
+			searcherAutoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{},
+			readOnlyMetastore:   &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{},
+			compactor:           &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cluster := testCluster()
+			cluster.Spec.Identity = tt.identity
 			cluster.Spec.Global.PodDisruptionBudget = tt.globalBudget
 			cluster.Spec.Components.Indexer.PodDisruptionBudget = tt.indexerBudget
 			cluster.Spec.Components.Indexer.Autoscaling = tt.indexerAutoscaling
@@ -556,7 +566,7 @@ func TestBuildResources_Environment(t *testing.T) {
 			}
 
 			want := wantDefaultEnvironment(tt.wantEnv)
-			got := resources.metastore.Deployment.Spec.Template.Spec.Containers[0].Env
+			got := resources.Component(MetastoreComponentName).Deployment.Spec.Template.Spec.Containers[0].Env
 			sortEnv := cmpopts.SortSlices(func(a, b corev1.EnvVar) bool { return a.Name < b.Name })
 			if diff := cmp.Diff(want, got, sortEnv); diff != "" {
 				t.Errorf("environment mismatch (-want +got):\n%s", diff)
@@ -566,7 +576,7 @@ func TestBuildResources_Environment(t *testing.T) {
 }
 
 func TestBuildResources_Indexer(t *testing.T) {
-	wantDefault := func() *StatefulSetResources {
+	wantDefault := func() *ComponentResources {
 		want := wantDefaultStatefulSet(wantStatefulSetOptions{
 			component:                     "indexer",
 			configVolumeMount:             corev1.VolumeMount{Name: "config", MountPath: "/quickwit/"},
@@ -589,7 +599,7 @@ func TestBuildResources_Indexer(t *testing.T) {
 	tests := []struct {
 		name    string
 		indexer *datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec
-		want    func() *StatefulSetResources
+		want    func() *ComponentResources
 	}{
 		{
 			name:    "defaults",
@@ -601,7 +611,7 @@ func TestBuildResources_Indexer(t *testing.T) {
 			indexer: &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{
 				Autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{},
 			},
-			want: func() *StatefulSetResources {
+			want: func() *ComponentResources {
 				want := wantDefault()
 				want.StatefulSet.Spec.Replicas = nil
 				want.HPA = wantAutoscaling(wantAutoscalingOptions{
@@ -633,7 +643,7 @@ func TestBuildResources_Indexer(t *testing.T) {
 					},
 				},
 			},
-			want: func() *StatefulSetResources {
+			want: func() *ComponentResources {
 				want := wantDefault()
 				want.StatefulSet.Spec.VolumeClaimTemplates = []corev1.PersistentVolumeClaim{{
 					TypeMeta: metav1.TypeMeta{APIVersion: "v1", Kind: "PersistentVolumeClaim"},
@@ -658,10 +668,10 @@ func TestBuildResources_Indexer(t *testing.T) {
 			indexer: &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{
 				Storage: &datadoghqv1alpha1.DatadogBYOCClusterStorageSpec{EmptyDir: &corev1.EmptyDirVolumeSource{}},
 			},
-			want: func() *StatefulSetResources {
+			want: func() *ComponentResources {
 				want := wantDefault()
 				want.StatefulSet.Spec.VolumeClaimTemplates = nil
-				want.StatefulSet.Spec.Template.Spec.Volumes = append(want.StatefulSet.Spec.Template.Spec.Volumes, defaultDataVolume())
+				want.StatefulSet.Spec.Template.Spec.Volumes = append(want.StatefulSet.Spec.Template.Spec.Volumes, corev1.Volume{Name: "data", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}}})
 				return want
 			},
 		},
@@ -676,7 +686,7 @@ func TestBuildResources_Indexer(t *testing.T) {
 					},
 				},
 			},
-			want: func() *StatefulSetResources {
+			want: func() *ComponentResources {
 				want := wantDefault()
 				want.StatefulSet.Spec.VolumeClaimTemplates[0].Annotations = map[string]string{"example.com/defaulted": "true"}
 				return want
@@ -693,7 +703,7 @@ func TestBuildResources_Indexer(t *testing.T) {
 			if err != nil {
 				t.Fatalf("BuildResources() unexpected error: %v", err)
 			}
-			if diff := cmp.Diff(tt.want(), resources.indexer, ignoreConfigChecksum); diff != "" {
+			if diff := cmp.Diff(tt.want(), resources.Component(IndexerComponentName), ignoreConfigChecksum); diff != "" {
 				t.Errorf("indexer mismatch (-want +got):\n%s", diff)
 			}
 		})
@@ -701,7 +711,7 @@ func TestBuildResources_Indexer(t *testing.T) {
 }
 
 func TestBuildResources_Searcher(t *testing.T) {
-	wantDefault := func() *StatefulSetResources {
+	wantDefault := func() *ComponentResources {
 		return wantDefaultStatefulSet(wantStatefulSetOptions{
 			component: "searcher",
 			additionalServicePorts: []corev1.ServicePort{{
@@ -721,7 +731,7 @@ func TestBuildResources_Searcher(t *testing.T) {
 	tests := []struct {
 		name     string
 		searcher *datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec
-		want     func() *StatefulSetResources
+		want     func() *ComponentResources
 	}{
 		{
 			name:     "defaults",
@@ -733,7 +743,7 @@ func TestBuildResources_Searcher(t *testing.T) {
 			searcher: &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{
 				Autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{},
 			},
-			want: func() *StatefulSetResources {
+			want: func() *ComponentResources {
 				want := wantDefault()
 				want.StatefulSet.Spec.Replicas = nil
 				want.HPA = wantAutoscaling(wantAutoscalingOptions{
@@ -760,7 +770,7 @@ func TestBuildResources_Searcher(t *testing.T) {
 					},
 				},
 			},
-			want: func() *StatefulSetResources {
+			want: func() *ComponentResources {
 				want := wantDefault()
 				want.StatefulSet.Spec.Template.Spec.Volumes = want.StatefulSet.Spec.Template.Spec.Volumes[:1]
 				want.StatefulSet.Spec.VolumeClaimTemplates = []corev1.PersistentVolumeClaim{{
@@ -787,7 +797,7 @@ func TestBuildResources_Searcher(t *testing.T) {
 			if err != nil {
 				t.Fatalf("BuildResources() unexpected error: %v", err)
 			}
-			if diff := cmp.Diff(tt.want(), resources.searcher, ignoreConfigChecksum); diff != "" {
+			if diff := cmp.Diff(tt.want(), resources.Component(SearcherComponentName), ignoreConfigChecksum); diff != "" {
 				t.Errorf("searcher mismatch (-want +got):\n%s", diff)
 			}
 		})
@@ -795,7 +805,7 @@ func TestBuildResources_Searcher(t *testing.T) {
 }
 
 func TestBuildResources_Metastore(t *testing.T) {
-	wantDefault := func() *DeploymentResources {
+	wantDefault := func() *ComponentResources {
 		return wantDefaultDeployment(wantDeploymentOptions{
 			component: "metastore",
 			service:   "metastore",
@@ -807,7 +817,7 @@ func TestBuildResources_Metastore(t *testing.T) {
 	tests := []struct {
 		name      string
 		metastore *datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec
-		want      func() *DeploymentResources
+		want      func() *ComponentResources
 	}{
 		{
 			name:      "defaults",
@@ -824,7 +834,7 @@ func TestBuildResources_Metastore(t *testing.T) {
 					},
 				},
 			},
-			want: func() *DeploymentResources {
+			want: func() *ComponentResources {
 				return wantDefaultDeployment(wantDeploymentOptions{
 					component: "metastore",
 					service:   "metastore",
@@ -851,7 +861,7 @@ func TestBuildResources_Metastore(t *testing.T) {
 			if err != nil {
 				t.Fatalf("BuildResources() unexpected error: %v", err)
 			}
-			if diff := cmp.Diff(tt.want(), resources.metastore, ignoreConfigChecksum); diff != "" {
+			if diff := cmp.Diff(tt.want(), resources.Component(MetastoreComponentName), ignoreConfigChecksum); diff != "" {
 				t.Errorf("metastore mismatch (-want +got):\n%s", diff)
 			}
 		})
@@ -862,12 +872,12 @@ func TestBuildResources_ControlPlane(t *testing.T) {
 	tests := []struct {
 		name         string
 		controlPlane *datadoghqv1alpha1.DatadogBYOCClusterComponentSpec
-		want         func() *DeploymentResources
+		want         func() *ComponentResources
 	}{
 		{
 			name:         "defaults",
 			controlPlane: &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
-			want: func() *DeploymentResources {
+			want: func() *ComponentResources {
 				return wantDefaultDeployment(wantDeploymentOptions{
 					component: "control-plane",
 					service:   "control_plane",
@@ -888,7 +898,7 @@ func TestBuildResources_ControlPlane(t *testing.T) {
 			if err != nil {
 				t.Fatalf("BuildResources() unexpected error: %v", err)
 			}
-			if diff := cmp.Diff(tt.want(), resources.controlPlane, ignoreConfigChecksum); diff != "" {
+			if diff := cmp.Diff(tt.want(), resources.Component(ControlPlaneComponentName), ignoreConfigChecksum); diff != "" {
 				t.Errorf("controlPlane mismatch (-want +got):\n%s", diff)
 			}
 		})
@@ -899,12 +909,12 @@ func TestBuildResources_Janitor(t *testing.T) {
 	tests := []struct {
 		name    string
 		janitor *datadoghqv1alpha1.DatadogBYOCClusterComponentSpec
-		want    func() *DeploymentResources
+		want    func() *ComponentResources
 	}{
 		{
 			name:    "defaults",
 			janitor: &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
-			want: func() *DeploymentResources {
+			want: func() *ComponentResources {
 				return wantDefaultDeployment(wantDeploymentOptions{
 					component: "janitor",
 					service:   "janitor",
@@ -925,7 +935,7 @@ func TestBuildResources_Janitor(t *testing.T) {
 			if err != nil {
 				t.Fatalf("BuildResources() unexpected error: %v", err)
 			}
-			if diff := cmp.Diff(tt.want(), resources.janitor, ignoreConfigChecksum); diff != "" {
+			if diff := cmp.Diff(tt.want(), resources.Component(JanitorComponentName), ignoreConfigChecksum); diff != "" {
 				t.Errorf("janitor mismatch (-want +got):\n%s", diff)
 			}
 		})
@@ -936,18 +946,18 @@ func TestBuildResources_ReadOnlyMetastore(t *testing.T) {
 	tests := []struct {
 		name              string
 		readOnlyMetastore *datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec
-		want              func() *DeploymentResources
+		want              func() *ComponentResources
 	}{
 		{
 			name: "disabled",
-			want: func() *DeploymentResources {
+			want: func() *ComponentResources {
 				return nil
 			},
 		},
 		{
 			name:              "defaults",
 			readOnlyMetastore: &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{},
-			want: func() *DeploymentResources {
+			want: func() *ComponentResources {
 				return wantDefaultDeployment(wantDeploymentOptions{
 					component: "read-only-metastore",
 					service:   "metastore_read_replica",
@@ -966,7 +976,7 @@ func TestBuildResources_ReadOnlyMetastore(t *testing.T) {
 					},
 				},
 			},
-			want: func() *DeploymentResources {
+			want: func() *ComponentResources {
 				return wantDefaultDeployment(wantDeploymentOptions{
 					component: "read-only-metastore",
 					service:   "metastore_read_replica",
@@ -993,7 +1003,7 @@ func TestBuildResources_ReadOnlyMetastore(t *testing.T) {
 			if err != nil {
 				t.Fatalf("BuildResources() unexpected error: %v", err)
 			}
-			if diff := cmp.Diff(tt.want(), resources.readOnlyMetastore, ignoreConfigChecksum); diff != "" {
+			if diff := cmp.Diff(tt.want(), resources.Component(ReadOnlyMetastoreComponentName), ignoreConfigChecksum); diff != "" {
 				t.Errorf("readOnlyMetastore mismatch (-want +got):\n%s", diff)
 			}
 		})
@@ -1001,7 +1011,7 @@ func TestBuildResources_ReadOnlyMetastore(t *testing.T) {
 }
 
 func TestBuildResources_Compactor(t *testing.T) {
-	wantDefault := func(terminationGracePeriodSeconds int64, decommissionTimeout string) *DeploymentResources {
+	wantDefault := func(terminationGracePeriodSeconds int64, decommissionTimeout string) *ComponentResources {
 		return wantDefaultDeployment(wantDeploymentOptions{
 			component:                     "compactor",
 			service:                       "compactor",
@@ -1018,18 +1028,18 @@ func TestBuildResources_Compactor(t *testing.T) {
 	tests := []struct {
 		name      string
 		compactor *datadoghqv1alpha1.DatadogBYOCClusterComponentSpec
-		want      func() *DeploymentResources
+		want      func() *ComponentResources
 	}{
 		{
 			name: "disabled",
-			want: func() *DeploymentResources {
+			want: func() *ComponentResources {
 				return nil
 			},
 		},
 		{
 			name:      "defaults",
 			compactor: &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{},
-			want: func() *DeploymentResources {
+			want: func() *ComponentResources {
 				return wantDefault(60, "54s")
 			},
 		},
@@ -1038,7 +1048,7 @@ func TestBuildResources_Compactor(t *testing.T) {
 			compactor: &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
 				TerminationGracePeriodSeconds: ptr.To[int64](120),
 			},
-			want: func() *DeploymentResources {
+			want: func() *ComponentResources {
 				return wantDefault(120, "108s")
 			},
 		},
@@ -1053,7 +1063,7 @@ func TestBuildResources_Compactor(t *testing.T) {
 			if err != nil {
 				t.Fatalf("BuildResources() unexpected error: %v", err)
 			}
-			if diff := cmp.Diff(tt.want(), resources.compactor, ignoreConfigChecksum); diff != "" {
+			if diff := cmp.Diff(tt.want(), resources.Component(CompactorComponentName), ignoreConfigChecksum); diff != "" {
 				t.Errorf("compactor mismatch (-want +got):\n%s", diff)
 			}
 		})
@@ -1123,7 +1133,7 @@ type wantStatefulSetOptions struct {
 	terminationGracePeriodSeconds *int64
 }
 
-func wantDefaultStatefulSet(options wantStatefulSetOptions) *StatefulSetResources {
+func wantDefaultStatefulSet(options wantStatefulSetOptions) *ComponentResources {
 	workload := wantDefaultWorkload(wantWorkloadOptions{
 		component:              options.component,
 		service:                options.component,
@@ -1138,7 +1148,7 @@ func wantDefaultStatefulSet(options wantStatefulSetOptions) *StatefulSetResource
 		terminationGracePeriodSeconds: options.terminationGracePeriodSeconds,
 	})
 
-	return &StatefulSetResources{
+	return &ComponentResources{
 		Service: workload.service,
 		StatefulSet: &appsv1.StatefulSet{
 			ObjectMeta: workload.metadata,
@@ -1164,18 +1174,18 @@ type wantDeploymentOptions struct {
 	terminationGracePeriodSeconds *int64
 }
 
-func wantDefaultDeployment(options wantDeploymentOptions) *DeploymentResources {
+func wantDefaultDeployment(options wantDeploymentOptions) *ComponentResources {
 	workload := wantDefaultWorkload(wantWorkloadOptions{
 		component:                     options.component,
 		service:                       options.service,
 		replicas:                      options.replicas,
-		configVolumeMount:             defaultConfigVolumeMount(),
+		configVolumeMount:             corev1.VolumeMount{Name: "config", MountPath: "/quickwit/node.yaml", SubPath: "node.yaml"},
 		additionalEnv:                 options.additionalEnv,
 		resources:                     options.resources,
 		terminationGracePeriodSeconds: options.terminationGracePeriodSeconds,
 	})
 
-	return &DeploymentResources{
+	return &ComponentResources{
 		Service: workload.service,
 		Deployment: &appsv1.Deployment{
 			ObjectMeta: workload.metadata,
@@ -1406,6 +1416,7 @@ func wantAutoscaling(options wantAutoscalingOptions) *autoscalingv2.HorizontalPo
 				"app.kubernetes.io/managed-by": "datadog-operator",
 				"team":                         "search",
 			},
+			Annotations: map[string]string{"example.com/owner": "operator"},
 		},
 		Spec: autoscalingv2.HorizontalPodAutoscalerSpec{
 			ScaleTargetRef: autoscalingv2.CrossVersionObjectReference{APIVersion: "apps/v1", Kind: "StatefulSet", Name: resourceName},

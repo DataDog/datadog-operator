@@ -37,6 +37,8 @@ const (
 	nodeConfigFileName = "node.yaml"
 	nodeConfigPath     = quickwitDirectory + nodeConfigFileName
 	defaultDataPath    = quickwitDirectory + "qwdata"
+	configVolumeName   = "config"
+	dataVolumeName     = "data"
 )
 
 const (

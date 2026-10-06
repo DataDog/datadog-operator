@@ -6,26 +6,17 @@
 package resources
 
 import (
-	"maps"
-	"slices"
-
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-type serviceValues struct {
-	Metadata metav1.ObjectMeta
-	Selector map[string]string
-	Ports    []corev1.ServicePort
-}
-
-func createService(values serviceValues) *corev1.Service {
+func newService(metadata metav1.ObjectMeta, selector map[string]string, ports []corev1.ServicePort) *corev1.Service {
 	return &corev1.Service{
-		ObjectMeta: *values.Metadata.DeepCopy(),
+		ObjectMeta: metadata,
 		Spec: corev1.ServiceSpec{
 			Type:     corev1.ServiceTypeClusterIP,
-			Selector: maps.Clone(values.Selector),
-			Ports:    slices.Clone(values.Ports),
+			Selector: selector,
+			Ports:    ports,
 		},
 	}
 }

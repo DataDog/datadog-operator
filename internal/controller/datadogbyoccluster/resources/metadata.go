@@ -15,17 +15,16 @@ func ComponentResourceName(clusterName, componentName string) string {
 	return clusterName + "-" + componentName
 }
 
-// ComponentNames returns all BYOC Kubernetes component names.
-func ComponentNames() []string {
-	return []string{
-		IndexerComponentName,
-		SearcherComponentName,
-		MetastoreComponentName,
-		ControlPlaneComponentName,
-		JanitorComponentName,
-		ReadOnlyMetastoreComponentName,
-		CompactorComponentName,
+// instanceSelectorLabels selects every pod of the cluster.
+func instanceSelectorLabels(cluster *datadoghqv1alpha1.DatadogBYOCCluster) map[string]string {
+	return map[string]string{
+		"app.kubernetes.io/name":     appName,
+		"app.kubernetes.io/instance": cluster.Name,
 	}
+}
+
+func selectorLabels(cluster *datadoghqv1alpha1.DatadogBYOCCluster, componentName string) map[string]string {
+	return controllerutils.MergeStringMaps(instanceSelectorLabels(cluster), componentLabel(componentName))
 }
 
 func componentLabel(componentName string) map[string]string {

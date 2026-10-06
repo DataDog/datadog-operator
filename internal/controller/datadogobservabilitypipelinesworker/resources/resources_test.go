@@ -6,6 +6,7 @@
 package resources
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -17,9 +18,127 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/ptr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 )
+
+func TestResources_Objects(t *testing.T) {
+	ports := testWorker().Spec.Ports
+	tests := []struct {
+		name        string
+		ports       []datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerPort
+		identity    *datadoghqv1alpha1.DatadogBYOCClusterIdentitySpec
+		autoscaling *datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec
+		budget      *datadoghqv1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec
+		want        []string
+	}{
+		{
+			name:  "default resources in apply order",
+			ports: ports,
+			want:  []string{"*v1.ServiceAccount/byoc-pipeline", "*v1.Service/byoc-pipeline", "*v1.StatefulSet/byoc-pipeline"},
+		},
+		{
+			name:        "all optional resources in apply order",
+			ports:       ports,
+			autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{MaxReplicas: ptr.To[int32](10)},
+			budget:      &datadoghqv1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec{MaxUnavailable: ptr.To(intstr.FromInt32(1))},
+			want: []string{
+				"*v1.ServiceAccount/byoc-pipeline", "*v1.Service/byoc-pipeline", "*v1.StatefulSet/byoc-pipeline",
+				"*v2.HorizontalPodAutoscaler/byoc-pipeline", "*v1.PodDisruptionBudget/byoc-pipeline",
+			},
+		},
+		{
+			name:     "existing ServiceAccount without ports",
+			identity: &datadoghqv1alpha1.DatadogBYOCClusterIdentitySpec{ServiceAccountName: ptr.To("existing-worker")},
+			want:     []string{"*v1.StatefulSet/byoc-pipeline"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			worker := testWorker()
+			worker.Spec.Ports = tt.ports
+			worker.Spec.Identity = tt.identity
+			worker.Spec.Autoscaling = tt.autoscaling
+			worker.Spec.PodDisruptionBudget = tt.budget
+			resources, err := BuildResources(worker)
+			if err != nil {
+				t.Fatalf("BuildResources() unexpected error: %v", err)
+			}
+
+			var got []string
+			for _, object := range resources.Objects() {
+				got = append(got, fmt.Sprintf("%T/%s", object, object.GetName()))
+			}
+			if diff := cmp.Diff(tt.want, got); diff != "" {
+				t.Errorf("Objects() mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestResources_ObsoleteObjects(t *testing.T) {
+	ports := testWorker().Spec.Ports
+	metadata := metav1.ObjectMeta{Name: "byoc-pipeline", Namespace: "testing"}
+	tests := []struct {
+		name        string
+		ports       []datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerPort
+		identity    *datadoghqv1alpha1.DatadogBYOCClusterIdentitySpec
+		autoscaling *datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec
+		budget      *datadoghqv1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec
+		want        []client.Object
+	}{
+		{
+			name:  "disabled autoscaling and budget",
+			ports: ports,
+			want: []client.Object{
+				&autoscalingv2.HorizontalPodAutoscaler{ObjectMeta: metadata},
+				&policyv1.PodDisruptionBudget{ObjectMeta: metadata},
+			},
+		},
+		{
+			name:        "all optional resources enabled",
+			ports:       ports,
+			autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{MaxReplicas: ptr.To[int32](10)},
+			budget:      &datadoghqv1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec{MaxUnavailable: ptr.To(intstr.FromInt32(1))},
+		},
+		{
+			name:        "no ports and existing ServiceAccount",
+			identity:    &datadoghqv1alpha1.DatadogBYOCClusterIdentitySpec{ServiceAccountName: ptr.To("existing-worker")},
+			autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{MaxReplicas: ptr.To[int32](10)},
+			budget:      &datadoghqv1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec{MaxUnavailable: ptr.To(intstr.FromInt32(1))},
+			want: []client.Object{
+				&corev1.Service{ObjectMeta: metadata},
+				&corev1.ServiceAccount{ObjectMeta: metadata},
+			},
+		},
+		{
+			name:        "existing ServiceAccount named after the Worker",
+			ports:       ports,
+			identity:    &datadoghqv1alpha1.DatadogBYOCClusterIdentitySpec{ServiceAccountName: ptr.To("byoc-pipeline")},
+			autoscaling: &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{MaxReplicas: ptr.To[int32](10)},
+			budget:      &datadoghqv1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec{MaxUnavailable: ptr.To(intstr.FromInt32(1))},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			worker := testWorker()
+			worker.Spec.Ports = tt.ports
+			worker.Spec.Identity = tt.identity
+			worker.Spec.Autoscaling = tt.autoscaling
+			worker.Spec.PodDisruptionBudget = tt.budget
+			resources, err := BuildResources(worker)
+			if err != nil {
+				t.Fatalf("BuildResources() unexpected error: %v", err)
+			}
+			if diff := cmp.Diff(tt.want, resources.ObsoleteObjects()); diff != "" {
+				t.Errorf("ObsoleteObjects() mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
 
 func TestBuildResources_ServiceAccount(t *testing.T) {
 	tests := []struct {
