@@ -919,3 +919,35 @@ func TestAPMProfileSharedConfigOverlayDefaultedBaseOnDemand(t *testing.T) {
 		}
 	}
 }
+
+func TestAPMProfileSharedConfigOverlayProfileEnablesAPM(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		apm  *v2alpha1.APMFeatureConfig
+	}{
+		{name: "SSI", apm: &v2alpha1.APMFeatureConfig{SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{Enabled: ptr.To(true)}}},
+		{name: "standalone error tracking", apm: &v2alpha1.APMFeatureConfig{ErrorTrackingStandalone: &v2alpha1.ErrorTrackingStandalone{Enabled: ptr.To(true)}}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			validationSpec := testProfileOverlayBaseSpec(false)
+			defaultDDAISpec := validationSpec.DeepCopy()
+			defaults.DefaultDatadogAgentSpec(defaultDDAISpec)
+			base := defaultDDAISpec.DeepCopy()
+			profile := &v2alpha1.DatadogAgentSpec{Features: &v2alpha1.DatadogFeatures{APM: tc.apm.DeepCopy()}}
+			profile.Features.APM.HostPortConfig = &v2alpha1.HostPortConfig{Enabled: ptr.To(true), Port: ptr.To[int32](9126)}
+
+			require.NoError(t, applyAPMProfileSharedConfigOverlay(validationSpec, defaultDDAISpec, base, profile))
+			require.NotNil(t, validationSpec.Features.APM.HostPortConfig)
+			assert.Equal(t, ptr.To[int32](9126), validationSpec.Features.APM.HostPortConfig.Port)
+			require.NotNil(t, defaultDDAISpec.Features.APM.HostPortConfig)
+			assert.Equal(t, ptr.To[int32](9126), defaultDDAISpec.Features.APM.HostPortConfig.Port)
+			assert.Equal(t, ptr.To(false), defaultDDAISpec.Features.APM.Enabled)
+			assert.Nil(t, profile.Features.APM.Enabled)
+
+			conflicting := profile.DeepCopy()
+			conflicting.Features.APM.HostPortConfig.Port = ptr.To[int32](10126)
+			err := applyAPMProfileSharedConfigOverlay(validationSpec.DeepCopy(), defaultDDAISpec.DeepCopy(), base, conflicting)
+			require.ErrorContains(t, err, "conflicts with existing port")
+		})
+	}
+}

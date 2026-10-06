@@ -1092,17 +1092,24 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 	})
 
 	Context("with APM shared profile overlays", func() {
-		It("should use an explicit profile Service port instead of the default and reject a later conflict", func() {
+		DescribeTable("should reject conflicting profile Service ports", func(baseAPMEnabled bool, profileAPMEnabled *bool, profileSSIEnabled bool) {
 			agent := newAPMSharedOverlayAgent(namespace, randomKubernetesObjectName())
-			agent.Spec.Features.APM.Enabled = ptr.To(true)
+			agent.Spec.Features.APM.Enabled = ptr.To(baseAPMEnabled)
 			agent.Spec.Global.LocalService = &v2alpha1.LocalService{ForceEnableLocalService: ptr.To(true)}
 			profiles := []*v1alpha1.DatadogAgentProfile{
-				newAPMSharedOverlayProfile(namespace, "a-"+randomKubernetesObjectName(), "a", &v2alpha1.APMFeatureConfig{Enabled: ptr.To(true)}),
+				newAPMSharedOverlayProfile(namespace, "a-"+randomKubernetesObjectName(), "a", &v2alpha1.APMFeatureConfig{
+					Enabled:                   profileAPMEnabled,
+					SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{Enabled: ptr.To(profileSSIEnabled)},
+				}),
 				newAPMSharedOverlayProfile(namespace, "b-"+randomKubernetesObjectName(), "b", &v2alpha1.APMFeatureConfig{
-					Enabled: ptr.To(true), HostPortConfig: &v2alpha1.HostPortConfig{Enabled: ptr.To(true), Port: ptr.To[int32](9126)},
+					Enabled:                   profileAPMEnabled,
+					SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{Enabled: ptr.To(profileSSIEnabled)},
+					HostPortConfig:            &v2alpha1.HostPortConfig{Enabled: ptr.To(true), Port: ptr.To[int32](9126)},
 				}),
 				newAPMSharedOverlayProfile(namespace, "c-"+randomKubernetesObjectName(), "c", &v2alpha1.APMFeatureConfig{
-					Enabled: ptr.To(true), HostPortConfig: &v2alpha1.HostPortConfig{Enabled: ptr.To(true), Port: ptr.To[int32](10126)},
+					Enabled:                   profileAPMEnabled,
+					SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{Enabled: ptr.To(profileSSIEnabled)},
+					HostPortConfig:            &v2alpha1.HostPortConfig{Enabled: ptr.To(true), Port: ptr.To[int32](10126)},
 				}),
 			}
 			DeferCleanup(cleanupAPMSharedOverlayObjects, agent, profiles)
@@ -1111,6 +1118,15 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 			checkProfileAppliedStatus(namespace, profiles[1].Name, metav1.ConditionTrue, "")
 			checkProfileAppliedStatus(namespace, profiles[2].Name, metav1.ConditionFalse, "conflicts with existing port")
 
+			ddai := &v1alpha1.DatadogAgentInternal{}
+			getObjectAndCheck(ddai, types.NamespacedName{Namespace: namespace, Name: agent.Name}, func() bool {
+				apm := ddai.Spec.Features.APM
+				return apm.HostPortConfig != nil && ptr.Deref(apm.HostPortConfig.Port, 0) == 9126
+			})
+			if profileAPMEnabled == nil {
+				// Node APM still inherits false; check the shared port independently.
+				return
+			}
 			service := &v1.Service{}
 			Eventually(func(g Gomega) {
 				g.Expect(k8sClient.Get(context.Background(), types.NamespacedName{Namespace: namespace, Name: constants.GetLocalAgentServiceName(agent.Name, &agent.Spec)}, service)).To(Succeed())
@@ -1120,7 +1136,10 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 					HaveField("TargetPort.IntVal", int32(constants.DefaultApmPort)),
 				)))
 			}, timeout, interval).Should(Succeed())
-		})
+		},
+			Entry("explicit APM enablement", true, ptr.To(true), false),
+			Entry("base APM disabled, profile SSI enables APM", false, nil, true),
+		)
 
 		DescribeTable("should distinguish defaults from explicit shared settings",
 			func(ddaValue, profileValue *bool, want bool, conflict bool) {

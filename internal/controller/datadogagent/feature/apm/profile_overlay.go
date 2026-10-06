@@ -67,7 +67,8 @@ func mergeProfileLocalAgentServicePort(validationSpec, defaultDDAISpec, original
 		baseAPM = originalDefaultDDAISpec.Features.APM
 	}
 	effectiveAPM := *profileAPM
-	if effectiveAPM.Enabled == nil && baseAPM != nil {
+	// SSI and standalone error tracking can enable APM without an explicit flag.
+	if effectiveAPM.Enabled == nil && !shouldEnableAPM(profileAPM) && baseAPM != nil {
 		effectiveAPM.Enabled = baseAPM.Enabled
 	}
 	if !shouldEnableAPM(&effectiveAPM) {
