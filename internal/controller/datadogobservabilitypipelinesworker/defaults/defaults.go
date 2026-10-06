@@ -35,7 +35,7 @@ func Apply(worker *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker) *datad
 	component := &defaulted.Spec.DatadogBYOCClusterPipelineComponentSpec
 
 	if component.Replicas == nil {
-		component.Replicas = ptr.To(defaultReplicas)
+		component.Replicas = new(defaultReplicas)
 	}
 	if component.Resources == nil {
 		component.Resources = &corev1.ResourceRequirements{
@@ -46,7 +46,7 @@ func Apply(worker *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker) *datad
 		}
 	}
 	if component.TerminationGracePeriodSeconds == nil {
-		component.TerminationGracePeriodSeconds = ptr.To(defaultTerminationGracePeriodSeconds)
+		component.TerminationGracePeriodSeconds = new(defaultTerminationGracePeriodSeconds)
 	}
 	applyAutoscalingDefaults(component.Autoscaling)
 
@@ -76,7 +76,7 @@ func applyAutoscalingDefaults(autoscaling *datadoghqv1alpha1.DatadogBYOCClusterA
 				Name: corev1.ResourceCPU,
 				Target: autoscalingv2.MetricTarget{
 					Type:               autoscalingv2.UtilizationMetricType,
-					AverageUtilization: ptr.To(defaultTargetCPUUtilization),
+					AverageUtilization: new(defaultTargetCPUUtilization),
 				},
 			},
 		}}

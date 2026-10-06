@@ -80,7 +80,7 @@ func Apply(cluster *datadoghqv1alpha1.DatadogBYOCCluster) *datadoghqv1alpha1.Dat
 func applyPipelineDefaults(pipeline *datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec) {
 	applyComponentDefaults(&pipeline.DatadogBYOCClusterComponentSpec, defaultPipelineReplicas, pipelineResources())
 	if pipeline.TerminationGracePeriodSeconds == nil {
-		pipeline.TerminationGracePeriodSeconds = ptr.To(defaultPipelineTerminationGracePeriodSeconds)
+		pipeline.TerminationGracePeriodSeconds = new(defaultPipelineTerminationGracePeriodSeconds)
 	}
 	applyAutoscalingDefaults(pipeline.Autoscaling, defaultPipelineTargetCPUUtilization, defaultPipelineScaleUpWindowSeconds, defaultPipelineScaleDownWindowSeconds)
 
@@ -108,7 +108,7 @@ func applyPipelineDefaults(pipeline *datadoghqv1alpha1.DatadogBYOCClusterPipelin
 func applyIndexerDefaults(indexer *datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec) {
 	applyComponentDefaults(&indexer.DatadogBYOCClusterComponentSpec, defaultIndexerReplicas, statefulResources())
 	if indexer.TerminationGracePeriodSeconds == nil {
-		indexer.TerminationGracePeriodSeconds = ptr.To(defaultIndexerTerminationGracePeriodSeconds)
+		indexer.TerminationGracePeriodSeconds = new(defaultIndexerTerminationGracePeriodSeconds)
 	}
 	applyAutoscalingDefaults(indexer.Autoscaling, defaultIndexerTargetCPUUtilization, defaultIndexerScaleUpWindowSeconds, defaultIndexerScaleDownWindowSeconds)
 
@@ -150,7 +150,7 @@ func applyMetastoreDefaults(metastore *datadoghqv1alpha1.DatadogBYOCClusterMetas
 func applyCompactorDefaults(compactor *datadoghqv1alpha1.DatadogBYOCClusterComponentSpec) {
 	applyComponentDefaults(compactor, defaultCompactorReplicas, nil)
 	if compactor.TerminationGracePeriodSeconds == nil {
-		compactor.TerminationGracePeriodSeconds = ptr.To(defaultCompactorTerminationGracePeriodSeconds)
+		compactor.TerminationGracePeriodSeconds = new(defaultCompactorTerminationGracePeriodSeconds)
 	}
 }
 
