@@ -14,6 +14,46 @@ import (
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 )
 
+const (
+	// Replicas
+	defaultIndexerReplicas      int32 = 2
+	defaultSearcherReplicas     int32 = 2
+	defaultPipelineReplicas     int32 = 2
+	defaultMetastoreReplicas    int32 = 2
+	defaultControlPlaneReplicas int32 = 1
+	defaultJanitorReplicas      int32 = 1
+	defaultCompactorReplicas    int32 = 1
+
+	// Termination grace periods
+	defaultIndexerTerminationGracePeriodSeconds   int64 = 300
+	defaultPipelineTerminationGracePeriodSeconds  int64 = 70
+	defaultCompactorTerminationGracePeriodSeconds int64 = 60
+
+	// Autoscaling
+	defaultAutoscalingMinReplicas         int32 = 2
+	defaultAutoscalingMaxReplicas         int32 = 10
+	defaultIndexerTargetCPUUtilization    int32 = 70
+	defaultIndexerScaleUpWindowSeconds    int32 = 0
+	defaultIndexerScaleDownWindowSeconds  int32 = 300
+	defaultPipelineTargetCPUUtilization   int32 = 70
+	defaultPipelineScaleUpWindowSeconds   int32 = 0
+	defaultPipelineScaleDownWindowSeconds int32 = 300
+	defaultSearcherTargetCPUUtilization   int32 = 50
+	defaultSearcherScaleUpWindowSeconds   int32 = 60
+	defaultSearcherScaleDownWindowSeconds int32 = 300
+
+	// Storage
+	defaultStorageSize = "30Gi"
+
+	// Resources
+	defaultStatefulCPURequest   = "4"
+	defaultStatefulMemory       = "16Gi"
+	defaultDeploymentCPURequest = "2"
+	defaultDeploymentMemory     = "4Gi"
+	defaultPipelineCPURequest   = "2"
+	defaultPipelineMemory       = "4Gi"
+)
+
 // Apply returns a deep copy of the cluster with reconciliation-time defaults applied.
 // DatadogBYOCCluster does not use a mutating admission webhook, so defaults that cannot be
 // expressed in the shared CRD schema are applied here instead.
@@ -26,8 +66,8 @@ func Apply(cluster *datadoghqv1alpha1.DatadogBYOCCluster) *datadoghqv1alpha1.Dat
 		applyPipelineDefaults(&components.Pipelines[i].DatadogBYOCClusterPipelineComponentSpec)
 	}
 	applyMetastoreDefaults(components.Metastore)
-	applyComponentDefaults(components.ControlPlane, 1, deploymentResources())
-	applyComponentDefaults(components.Janitor, 1, deploymentResources())
+	applyComponentDefaults(components.ControlPlane, defaultControlPlaneReplicas, deploymentResources())
+	applyComponentDefaults(components.Janitor, defaultJanitorReplicas, deploymentResources())
 	if components.ReadOnlyMetastore != nil {
 		applyMetastoreDefaults(components.ReadOnlyMetastore)
 	}
@@ -38,11 +78,11 @@ func Apply(cluster *datadoghqv1alpha1.DatadogBYOCCluster) *datadoghqv1alpha1.Dat
 }
 
 func applyPipelineDefaults(pipeline *datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec) {
-	applyComponentDefaults(&pipeline.DatadogBYOCClusterComponentSpec, 2, pipelineResources())
+	applyComponentDefaults(&pipeline.DatadogBYOCClusterComponentSpec, defaultPipelineReplicas, pipelineResources())
 	if pipeline.TerminationGracePeriodSeconds == nil {
-		pipeline.TerminationGracePeriodSeconds = ptr.To[int64](70)
+		pipeline.TerminationGracePeriodSeconds = ptr.To(defaultPipelineTerminationGracePeriodSeconds)
 	}
-	applyAutoscalingDefaults(pipeline.Autoscaling, 70, 0, 300)
+	applyAutoscalingDefaults(pipeline.Autoscaling, defaultPipelineTargetCPUUtilization, defaultPipelineScaleUpWindowSeconds, defaultPipelineScaleDownWindowSeconds)
 
 	if pipeline.Storage == nil {
 		pipeline.Storage = &datadoghqv1alpha1.DatadogBYOCClusterStorageSpec{
@@ -61,16 +101,16 @@ func applyPipelineDefaults(pipeline *datadoghqv1alpha1.DatadogBYOCClusterPipelin
 		claimSpec.Resources.Requests = corev1.ResourceList{}
 	}
 	if _, found := claimSpec.Resources.Requests[corev1.ResourceStorage]; !found {
-		claimSpec.Resources.Requests[corev1.ResourceStorage] = resource.MustParse("30Gi")
+		claimSpec.Resources.Requests[corev1.ResourceStorage] = resource.MustParse(defaultStorageSize)
 	}
 }
 
 func applyIndexerDefaults(indexer *datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec) {
-	applyComponentDefaults(&indexer.DatadogBYOCClusterComponentSpec, 2, statefulResources())
+	applyComponentDefaults(&indexer.DatadogBYOCClusterComponentSpec, defaultIndexerReplicas, statefulResources())
 	if indexer.TerminationGracePeriodSeconds == nil {
-		indexer.TerminationGracePeriodSeconds = ptr.To[int64](300)
+		indexer.TerminationGracePeriodSeconds = ptr.To(defaultIndexerTerminationGracePeriodSeconds)
 	}
-	applyAutoscalingDefaults(indexer.Autoscaling, 70, 0, 300)
+	applyAutoscalingDefaults(indexer.Autoscaling, defaultIndexerTargetCPUUtilization, defaultIndexerScaleUpWindowSeconds, defaultIndexerScaleDownWindowSeconds)
 
 	if indexer.Storage == nil {
 		indexer.Storage = &datadoghqv1alpha1.DatadogBYOCClusterStorageSpec{
@@ -89,13 +129,13 @@ func applyIndexerDefaults(indexer *datadoghqv1alpha1.DatadogBYOCClusterStatefulC
 		claimSpec.Resources.Requests = corev1.ResourceList{}
 	}
 	if _, found := claimSpec.Resources.Requests[corev1.ResourceStorage]; !found {
-		claimSpec.Resources.Requests[corev1.ResourceStorage] = resource.MustParse("30Gi")
+		claimSpec.Resources.Requests[corev1.ResourceStorage] = resource.MustParse(defaultStorageSize)
 	}
 }
 
 func applySearcherDefaults(searcher *datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec) {
-	applyComponentDefaults(&searcher.DatadogBYOCClusterComponentSpec, 2, statefulResources())
-	applyAutoscalingDefaults(searcher.Autoscaling, 50, 60, 300)
+	applyComponentDefaults(&searcher.DatadogBYOCClusterComponentSpec, defaultSearcherReplicas, statefulResources())
+	applyAutoscalingDefaults(searcher.Autoscaling, defaultSearcherTargetCPUUtilization, defaultSearcherScaleUpWindowSeconds, defaultSearcherScaleDownWindowSeconds)
 	if searcher.Storage == nil {
 		searcher.Storage = &datadoghqv1alpha1.DatadogBYOCClusterStorageSpec{
 			EmptyDir: &corev1.EmptyDirVolumeSource{},
@@ -104,13 +144,13 @@ func applySearcherDefaults(searcher *datadoghqv1alpha1.DatadogBYOCClusterStatefu
 }
 
 func applyMetastoreDefaults(metastore *datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec) {
-	applyComponentDefaults(&metastore.DatadogBYOCClusterComponentSpec, 2, deploymentResources())
+	applyComponentDefaults(&metastore.DatadogBYOCClusterComponentSpec, defaultMetastoreReplicas, deploymentResources())
 }
 
 func applyCompactorDefaults(compactor *datadoghqv1alpha1.DatadogBYOCClusterComponentSpec) {
-	applyComponentDefaults(compactor, 1, nil)
+	applyComponentDefaults(compactor, defaultCompactorReplicas, nil)
 	if compactor.TerminationGracePeriodSeconds == nil {
-		compactor.TerminationGracePeriodSeconds = ptr.To[int64](60)
+		compactor.TerminationGracePeriodSeconds = ptr.To(defaultCompactorTerminationGracePeriodSeconds)
 	}
 }
 
@@ -129,10 +169,10 @@ func applyAutoscalingDefaults(autoscaling *datadoghqv1alpha1.DatadogBYOCClusterA
 	}
 	// Keep an omitted bound consistent with the configured bound.
 	if autoscaling.MinReplicas == nil {
-		autoscaling.MinReplicas = new(min(int32(2), ptr.Deref(autoscaling.MaxReplicas, int32(2))))
+		autoscaling.MinReplicas = new(min(defaultAutoscalingMinReplicas, ptr.Deref(autoscaling.MaxReplicas, defaultAutoscalingMinReplicas)))
 	}
 	if autoscaling.MaxReplicas == nil {
-		autoscaling.MaxReplicas = new(max(int32(10), *autoscaling.MinReplicas))
+		autoscaling.MaxReplicas = new(max(defaultAutoscalingMaxReplicas, *autoscaling.MinReplicas))
 	}
 	if len(autoscaling.Metrics) == 0 {
 		autoscaling.Metrics = []autoscalingv2.MetricSpec{{
@@ -157,11 +197,11 @@ func applyAutoscalingDefaults(autoscaling *datadoghqv1alpha1.DatadogBYOCClusterA
 func statefulResources() *corev1.ResourceRequirements {
 	return &corev1.ResourceRequirements{
 		Limits: corev1.ResourceList{
-			corev1.ResourceMemory: resource.MustParse("16Gi"),
+			corev1.ResourceMemory: resource.MustParse(defaultStatefulMemory),
 		},
 		Requests: corev1.ResourceList{
-			corev1.ResourceCPU:    resource.MustParse("4"),
-			corev1.ResourceMemory: resource.MustParse("16Gi"),
+			corev1.ResourceCPU:    resource.MustParse(defaultStatefulCPURequest),
+			corev1.ResourceMemory: resource.MustParse(defaultStatefulMemory),
 		},
 	}
 }
@@ -169,11 +209,11 @@ func statefulResources() *corev1.ResourceRequirements {
 func deploymentResources() *corev1.ResourceRequirements {
 	return &corev1.ResourceRequirements{
 		Limits: corev1.ResourceList{
-			corev1.ResourceMemory: resource.MustParse("4Gi"),
+			corev1.ResourceMemory: resource.MustParse(defaultDeploymentMemory),
 		},
 		Requests: corev1.ResourceList{
-			corev1.ResourceCPU:    resource.MustParse("2"),
-			corev1.ResourceMemory: resource.MustParse("4Gi"),
+			corev1.ResourceCPU:    resource.MustParse(defaultDeploymentCPURequest),
+			corev1.ResourceMemory: resource.MustParse(defaultDeploymentMemory),
 		},
 	}
 }
@@ -181,11 +221,11 @@ func deploymentResources() *corev1.ResourceRequirements {
 func pipelineResources() *corev1.ResourceRequirements {
 	return &corev1.ResourceRequirements{
 		Limits: corev1.ResourceList{
-			corev1.ResourceMemory: resource.MustParse("4Gi"),
+			corev1.ResourceMemory: resource.MustParse(defaultPipelineMemory),
 		},
 		Requests: corev1.ResourceList{
-			corev1.ResourceCPU:    resource.MustParse("2"),
-			corev1.ResourceMemory: resource.MustParse("4Gi"),
+			corev1.ResourceCPU:    resource.MustParse(defaultPipelineCPURequest),
+			corev1.ResourceMemory: resource.MustParse(defaultPipelineMemory),
 		},
 	}
 }
