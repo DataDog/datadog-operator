@@ -329,6 +329,7 @@ type DatadogBYOCClusterPipelineComponentSpec struct {
 // +k8s:openapi-gen=true
 type DatadogBYOCClusterComponentSpec struct {
 	// Replicas is the desired replica count.
+	// Ignored when autoscaling is set; the HorizontalPodAutoscaler manages the replica count instead.
 	// +optional
 	Replicas *int32 `json:"replicas,omitempty"`
 

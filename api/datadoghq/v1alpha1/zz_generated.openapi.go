@@ -680,7 +680,7 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterComponentS
 				Properties: map[string]spec.Schema{
 					"replicas": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Replicas is the desired replica count.",
+							Description: "Replicas is the desired replica count. Ignored when autoscaling is set; the HorizontalPodAutoscaler manages the replica count instead.",
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},
@@ -1454,7 +1454,7 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterMetastoreC
 				Properties: map[string]spec.Schema{
 					"replicas": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Replicas is the desired replica count.",
+							Description: "Replicas is the desired replica count. Ignored when autoscaling is set; the HorizontalPodAutoscaler manages the replica count instead.",
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},
@@ -1704,7 +1704,7 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterPipelineCo
 				Properties: map[string]spec.Schema{
 					"replicas": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Replicas is the desired replica count.",
+							Description: "Replicas is the desired replica count. Ignored when autoscaling is set; the HorizontalPodAutoscaler manages the replica count instead.",
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},
@@ -1997,7 +1997,7 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterPipelineSp
 					},
 					"replicas": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Replicas is the desired replica count.",
+							Description: "Replicas is the desired replica count. Ignored when autoscaling is set; the HorizontalPodAutoscaler manages the replica count instead.",
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},
@@ -2459,7 +2459,7 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterStatefulCo
 				Properties: map[string]spec.Schema{
 					"replicas": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Replicas is the desired replica count.",
+							Description: "Replicas is the desired replica count. Ignored when autoscaling is set; the HorizontalPodAutoscaler manages the replica count instead.",
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},
@@ -4933,7 +4933,7 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogObservabilityPipeline
 				Properties: map[string]spec.Schema{
 					"replicas": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Replicas is the desired replica count.",
+							Description: "Replicas is the desired replica count. Ignored when autoscaling is set; the HorizontalPodAutoscaler manages the replica count instead.",
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},
