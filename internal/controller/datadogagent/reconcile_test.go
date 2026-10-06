@@ -2175,6 +2175,33 @@ func Test_ProfileAPMOverrideAddsDDAOwnedLocalAgentServicePort(t *testing.T) {
 		},
 	}
 
+	// Reuse the conflict assertions with profiles that derive APM enablement from SSI.
+	derivedA, derivedB := conflictingProfileA.DeepCopy(), conflictingProfileB.DeepCopy()
+	for _, profile := range []*v1alpha1.DatadogAgentProfile{derivedA, derivedB} {
+		profile.Spec.Config.Features.APM.Enabled = nil
+		profile.Spec.Config.Features.APM.SingleStepInstrumentation = &v2alpha1.SingleStepInstrumentation{Enabled: ptr.To(true)}
+	}
+	derivedTest := tests[len(tests)-1]
+	derivedTest.name = "SSI-derived APM rejects conflicting profile ports without failing DDA reconciliation"
+	derivedTest.clientBuilder = fake.NewClientBuilder().
+		WithStatusSubresource(&v2alpha1.DatadogAgent{}, &v1alpha1.DatadogAgentProfile{}, &v1alpha1.DatadogAgentInternal{}).
+		WithObjects(derivedA, derivedB)
+	derivedTest.wantFunc = func(t *testing.T, c client.Client) {
+		defaultDDAI := &v1alpha1.DatadogAgentInternal{}
+		assert.NoError(t, c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: resourcesName}, defaultDDAI))
+		assert.NotNil(t, defaultDDAI.Spec.Features.APM.HostPortConfig)
+		assert.Equal(t, ptr.To[int32](8126), defaultDDAI.Spec.Features.APM.HostPortConfig.Port)
+		for name, status := range map[string]metav1.ConditionStatus{"apm-profile-a": metav1.ConditionTrue, "apm-profile-b": metav1.ConditionFalse} {
+			profile := &v1alpha1.DatadogAgentProfile{}
+			assert.NoError(t, c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: name}, profile))
+			assert.Equal(t, status, profile.Status.Applied)
+		}
+		conflictingDDAI := &v1alpha1.DatadogAgentInternal{}
+		err := c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: "apm-profile-b"}, conflictingDDAI)
+		assert.True(t, apierrors.IsNotFound(err), "conflicting profile DDAI should not be rendered")
+	}
+	tests = append(tests, derivedTest)
+
 	runTestCases(t, tests, runFullReconcilerTest)
 }
 

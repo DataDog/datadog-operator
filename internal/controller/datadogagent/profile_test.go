@@ -1736,7 +1736,8 @@ func Test_reconcileProfiles_APMSharedOverlayMatrix(t *testing.T) {
 			},
 			wantProfileMessages: map[string]string{"rejected": `libVersions["java"] has conflicting values`},
 			assertAPM: func(t *testing.T, apm *v2alpha1.APMFeatureConfig) {
-				assert.Nil(t, apm.HostPortConfig, "rejected profile must not contribute its service port")
+				require.NotNil(t, apm.HostPortConfig)
+				assert.Equal(t, ptr.To[int32](8126), apm.HostPortConfig.Port, "keep the accepted SSI profile's default port, not the rejected profile's port")
 			},
 			assertSSI: func(t *testing.T, ssi *v2alpha1.SingleStepInstrumentation) {
 				require.NotNil(t, ssi)
