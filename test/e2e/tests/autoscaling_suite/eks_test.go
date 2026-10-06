@@ -12,19 +12,12 @@ import (
 
 	"github.com/DataDog/datadog-agent/test/e2e-framework/testing/e2e"
 	"github.com/DataDog/datadog-agent/test/e2e-framework/testing/runner"
+	clustercommon "github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common"
 	"github.com/DataDog/datadog-operator/test/e2e/provisioners"
 )
 
-// maxSupportedClusterNameLength is the longest cluster name the Karpenter
-// CloudFormation templates support: KarpenterNodeRole-${ClusterName} is an
-// IAM role name (64-char limit) and the prefix takes 18 chars — tracked in
-// CASCL-1646. The suite runs on a cluster of exactly this length so that a
-// regression in any ${ClusterName}-derived resource name (e.g. the IAM
-// policy document size, CASCL-1645) is caught.
-const maxSupportedClusterNameLength = 46
-
 // longClusterStackName returns a stack name such that the EKS cluster name the
-// e2e framework derives from it is exactly maxSupportedClusterNameLength characters long.
+// e2e framework derives from it is exactly [clustercommon.MaxClusterNameLength] characters long.
 func longClusterStackName() string {
 	// The cluster name is the Pulumi stack name, <profile prefix>-<stack name>,
 	// and the profile prefix depends on the environment (local username or CI
@@ -33,9 +26,9 @@ func longClusterStackName() string {
 	const stackNamePrefix = "eks-autoscaling"
 
 	prefix := runner.GetProfile().NamePrefix()
-	padding := maxSupportedClusterNameLength - len(prefix) - len("-") - len(stackNamePrefix)
+	padding := clustercommon.MaxClusterNameLength - len(prefix) - len("-") - len(stackNamePrefix)
 	if padding < 0 {
-		panic(fmt.Sprintf("profile name prefix %q is too long to build a %d-char cluster name", prefix, maxSupportedClusterNameLength))
+		panic(fmt.Sprintf("profile name prefix %q is too long to build a %d-char cluster name", prefix, clustercommon.MaxClusterNameLength))
 	}
 	return stackNamePrefix + strings.Repeat("x", padding)
 }

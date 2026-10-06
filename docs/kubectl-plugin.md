@@ -112,6 +112,8 @@ Installs Karpenter on an EKS cluster and configures it for use with Datadog Clus
 
 If something goes wrong, those CloudFormation stacks and that Helm release are the two places to look. The command installs nothing and exits with an explanatory message when EKS auto-mode is active, or when the cluster already runs a Karpenter installation `kubectl-datadog` does not manage in the requested namespace. Re-running it over its own installation is not a no-op: with the default `--create-karpenter-resources=all` it re-creates the `EC2NodeClass` and `NodePool`, discarding manual edits — use `update` for that.
 
+The cluster name must not be longer than 46 characters: the `autoscaling cluster` commands refuse a longer name up front, before creating or changing anything.
+
 ```console
 $ kubectl datadog autoscaling cluster install --help
 Install autoscaling on an EKS cluster
@@ -138,7 +140,6 @@ Flags:
 #### `autoscaling cluster update`
 
 Refreshes an autoscaling installation previously created by `kubectl datadog`: it updates the CloudFormation stacks and upgrades the Karpenter Helm release in place. The command refuses to touch a Karpenter installation it did not create.
-
 The parameters that cannot change after the initial install — Karpenter namespace, install mode, and Fargate subnets — are read back from the CloudFormation stack `install` created, and are therefore not exposed as flags.
 
 Unlike `install`, `--create-karpenter-resources` defaults to `none`, so that manual edits to the `EC2NodeClass` and `NodePool` resources survive an update. Pass `ec2nodeclass` to regenerate the `EC2NodeClass` alone, or `all` to regenerate both.

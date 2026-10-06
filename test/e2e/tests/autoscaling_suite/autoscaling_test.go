@@ -16,6 +16,7 @@ import (
 
 	"github.com/DataDog/datadog-agent/test/e2e-framework/testing/e2e"
 	"github.com/DataDog/datadog-agent/test/e2e-framework/testing/environments"
+	clustercommon "github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/aws"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling/cluster/common/helm"
 	"github.com/DataDog/datadog-operator/test/e2e/common"
@@ -90,7 +91,7 @@ func (s *autoscalingSuite) extractClusterInfo() {
 	s.kubeconfigPath = kubeconfigFile.Name()
 
 	s.clusterName = s.Env().KubernetesCluster.ClusterName
-	require.Lenf(t, s.clusterName, maxSupportedClusterNameLength,
+	require.Lenf(t, s.clusterName, clustercommon.MaxClusterNameLength,
 		"cluster name %q is not the longest supported length; check longClusterStackName()", s.clusterName)
 
 	cfg, err := config.LoadDefaultConfig(t.Context())
