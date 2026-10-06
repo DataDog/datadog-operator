@@ -126,8 +126,8 @@ github.com/DataDog/datadog-api-client-go/v2 v2.65.0 h1:OBrsv4NJXJZO7YbVBeNZqb/OJ
 github.com/DataDog/datadog-api-client-go/v2 v2.65.0/go.mod h1:d3tOEgUd2kfsr9uuHQdY+nXrWp4uikgTgVCPdKNK30U=
 github.com/DataDog/datadog-go/v5 v5.9.0 h1:0rhs5wBov9Iz+xLXLk4maaReHvOANM1ijSm2IKWtKFs=
 github.com/DataDog/datadog-go/v5 v5.9.0/go.mod h1:2SBt8zJu6r7sRQHZFMQ8oCukWTKj0ymwulmNgQzJ1JM=
-github.com/DataDog/datadog-operator/api v0.0.0-20250130131115-7f198adcc856 h1:zHq/clXi0DJQsZj2WD3WTqlg/WXGicNH3DjXa0ARpWk=
-github.com/DataDog/datadog-operator/api v0.0.0-20250130131115-7f198adcc856/go.mod h1:Ef4llzn4c4p6FPZNjeYgIQFHa2va2JPC8Wf/kivrF2E=
+github.com/DataDog/datadog-operator/api v0.0.0-20261006112143-44b22e409ab9 h1:O5/GXKuBtdvcj6smNm/3/Iv6MfqJ7pPx+fQKHm9jCPk=
+github.com/DataDog/datadog-operator/api v0.0.0-20261006112143-44b22e409ab9/go.mod h1:QVHJwTn0Kf7BGjFULw5mJkQjjCSOF7eWFmwHBiX9sKk=
 github.com/DataDog/dd-trace-go/v2 v2.3.0 h1:0Y5kx+Wbod0z8moY0vUbKl6OM0oIV4zAynsVmsq+XT8=
 github.com/DataDog/dd-trace-go/v2 v2.3.0/go.mod h1:yFomJ/rqKNLDbS9ohIDibdz8q9GK0MUSSkBdVDCibGA=
 github.com/DataDog/go-acl v1.0.1 h1:uRbp98YmlVZYqNNyTBFNI3Y6bnziBLyCIR4nRu0bIpU=

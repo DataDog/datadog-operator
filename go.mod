@@ -40,7 +40,7 @@ require (
 	github.com/DataDog/datadog-agent/pkg/config/remote v0.83.2
 	github.com/DataDog/datadog-agent/pkg/proto v0.83.2
 	github.com/DataDog/datadog-agent/pkg/remoteconfig/state v0.83.2
-	github.com/DataDog/datadog-operator/api v0.0.0-20250130131115-7f198adcc856
+	github.com/DataDog/datadog-operator/api v0.0.0-20261006112143-44b22e409ab9
 	github.com/aws/aws-sdk-go-v2 v1.47.0
 	github.com/aws/aws-sdk-go-v2/config v1.33.5
 	github.com/aws/aws-sdk-go-v2/service/autoscaling v1.78.0
