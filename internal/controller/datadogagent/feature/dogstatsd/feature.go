@@ -137,7 +137,7 @@ func (f *dogstatsdFeature) ManageDependencies(managers feature.ResourceManagers)
 	return nil
 }
 
-func applyDogstatsdDDASharedDependencies(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, ddai metav1.Object, ddaiSpec *v2alpha1.DatadogAgentSpec, managers feature.ResourceManagers) error {
+func applyDogstatsdDDASharedDependencies(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, ddai metav1.Object, ddaiSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.DatadogAgentSpec, managers feature.ResourceManagers) error {
 	ports := dogstatsdLocalAgentServicePorts(ddai, ddaiSpec)
 	if len(ports) == 0 || !featureutils.ShouldCreateLocalAgentService(ddaSpec, managers.Store().GetPlatformInfo()) {
 		return nil

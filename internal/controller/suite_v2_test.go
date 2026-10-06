@@ -21,6 +21,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
@@ -114,9 +115,13 @@ var _ = BeforeSuite(func(ctx context.Context) {
 		UntaintControllerEnabled:   true,
 	}
 
-	dummyPlatformInfo := kubernetes.PlatformInfo{}
+	// Use the server version so version-dependent resources, such as local
+	// Agent Services, are exercised by integration tests.
+	serverVersion, err := discovery.NewDiscoveryClientForConfigOrDie(cfg).ServerVersion()
+	Expect(err).NotTo(HaveOccurred())
+	testPlatformInfo := kubernetes.NewPlatformInfo(serverVersion, nil, nil)
 
-	err = SetupControllers(logger, mgr, dummyPlatformInfo, options)
+	err = SetupControllers(logger, mgr, testPlatformInfo, options)
 	Expect(err).ToNot(HaveOccurred())
 
 	var mgrCtx context.Context

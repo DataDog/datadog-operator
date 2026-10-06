@@ -15,63 +15,106 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/constants"
 )
 
-func applyAPMProfileSharedConfigOverlay(dst, base *v2alpha1.DatadogAgentSpec, profileSpec *v2alpha1.DatadogAgentSpec) error {
-	if err := applyProfileLocalAgentServicePort(dst, base, profileSpec); err != nil {
-		return err
-	}
-
-	// Only profiles that explicitly enable SSI contribute shared Cluster Agent
-	// config. SSI enabled=false is treated as "no shared overlay".
-	profileSSI, ok := profileSSIOverlayConfig(profileSpec)
-	if !ok {
+// applyAPMProfileSharedConfigOverlay checks explicit values in validationSpec
+// and applies shared settings to defaultDDAISpec. Only the DDAI gets defaults.
+func applyAPMProfileSharedConfigOverlay(validationSpec, defaultDDAISpec, originalDefaultDDAISpec, profileSpec *v2alpha1.DatadogAgentSpec) error {
+	if profileSpec == nil || profileSpec.Features == nil || profileSpec.Features.APM == nil {
 		return nil
 	}
-
-	if profileSpec.Features.APM.Enabled != nil && !ptr.Deref(profileSpec.Features.APM.Enabled, false) {
-		return fmt.Errorf("features.apm.enabled must be true or unset when features.apm.instrumentation.enabled is true")
-	}
-	if err := validateSSISharedComponentPrerequisites(dst); err != nil {
+	profileAPM := profileSpec.Features.APM
+	if err := mergeProfileLocalAgentServicePort(validationSpec, defaultDDAISpec, originalDefaultDDAISpec, profileAPM); err != nil {
 		return err
 	}
-	if len(profileSSI.Targets) > 0 && !supportsInstrumentationTargets(dst) {
+	profileSSI := profileAPM.SingleStepInstrumentation
+	if profileSSI == nil || !ptr.Deref(profileSSI.Enabled, false) {
+		return nil
+	}
+	if profileAPM.Enabled != nil && !ptr.Deref(profileAPM.Enabled, false) {
+		return fmt.Errorf("features.apm.enabled must be true or unset when features.apm.instrumentation.enabled is true")
+	}
+	if err := validateSSISharedComponentPrerequisites(originalDefaultDDAISpec); err != nil {
+		return err
+	}
+	if len(profileSSI.Targets) > 0 && !supportsInstrumentationTargets(originalDefaultDDAISpec) {
 		return fmt.Errorf("features.apm.instrumentation.targets requires Cluster Agent version >= %s", minInstrumentationTargetsVersion)
 	}
 
-	dstSSI := baseSSIForProfileOverlay(dst)
-	if err := mergeSSI(dstSSI, profileSSI); err != nil {
+	rawSSI := baseSSIForProfileOverlay(validationSpec)
+	ssi := baseSSIForProfileOverlay(defaultDDAISpec)
+	if err := mergeSSI(rawSSI, ssi, profileSSI); err != nil {
 		return err
 	}
-	dstSSI.Enabled = new(true)
-	defaultLanguageDetection(dstSSI)
-
+	rawSSI.Enabled = new(true)
+	ssi.Enabled = new(true)
 	return nil
 }
 
-func applyProfileLocalAgentServicePort(dst, base, profileSpec *v2alpha1.DatadogAgentSpec) error {
-	profilePort, ok := profileLocalAgentServicePort(profileSpec)
-	if !ok {
+func sharedAPMConfig(spec *v2alpha1.DatadogAgentSpec) *v2alpha1.APMFeatureConfig {
+	if spec.Features == nil {
+		spec.Features = &v2alpha1.DatadogFeatures{}
+	}
+	if spec.Features.APM == nil {
+		spec.Features.APM = &v2alpha1.APMFeatureConfig{}
+	}
+	return spec.Features.APM
+}
+
+// profileAPM is non-nil; the overlay entry point checks it once.
+func mergeProfileLocalAgentServicePort(validationSpec, defaultDDAISpec, originalDefaultDDAISpec *v2alpha1.DatadogAgentSpec, profileAPM *v2alpha1.APMFeatureConfig) error {
+	// Inherit APM enablement without changing the profile's explicit settings.
+	var baseAPM *v2alpha1.APMFeatureConfig
+	if originalDefaultDDAISpec != nil && originalDefaultDDAISpec.Features != nil {
+		baseAPM = originalDefaultDDAISpec.Features.APM
+	}
+	effectiveAPM := *profileAPM
+	if effectiveAPM.Enabled == nil && baseAPM != nil {
+		effectiveAPM.Enabled = baseAPM.Enabled
+	}
+	if !shouldEnableAPM(&effectiveAPM) {
 		return nil
 	}
-
-	existingPort, ok := existingLocalAgentServicePort(dst, base)
-	if ok && existingPort != profilePort {
+	port := configuredServicePort(profileAPM)
+	var existing *int32
+	if validationSpec.Features != nil {
+		existing = configuredServicePort(validationSpec.Features.APM)
+	}
+	basePort, baseHasService := profileLocalAgentServicePort(originalDefaultDDAISpec)
+	if port != nil && existing != nil && *port != *existing {
 		return fmt.Errorf("local Agent Service port %q conflicts with existing port", constants.DefaultApmPortName)
 	}
-	if ok {
+	if port == nil && (existing != nil || baseHasService) {
 		return nil
 	}
-
-	if dst.Features == nil {
-		dst.Features = &v2alpha1.DatadogFeatures{}
+	hostPort := &v2alpha1.HostPortConfig{Enabled: new(true)}
+	if port != nil {
+		// Preserve disabled host ports when the Service already uses this port.
+		if baseHasService && basePort == *port && baseAPM.HostPortConfig != nil {
+			hostPort.Enabled = new(ptr.Deref(baseAPM.HostPortConfig.Enabled, false))
+		}
+		hostPort.Port = new(*port)
 	}
-	if dst.Features.APM == nil {
-		dst.Features.APM = &v2alpha1.APMFeatureConfig{}
+	sharedAPMConfig(validationSpec).HostPortConfig = hostPort
+	// Resolve the Service port on the DDAI only; omitted ports in validationSpec stay unset.
+	resolved := hostPort.DeepCopy()
+	if resolved.Port == nil {
+		resolved.Port = new(int32(constants.DefaultApmPort))
 	}
-	dst.Features.APM.HostPortConfig = &v2alpha1.HostPortConfig{
-		Enabled: new(true),
-		Port:    new(profilePort),
-	}
+	sharedAPMConfig(defaultDDAISpec).HostPortConfig = resolved
 	return nil
+}
+
+// configuredServicePort reads a configured Service port, without adding defaults.
+// APM may be disabled on the DDA while profiles use the shared Service.
+func configuredServicePort(apm *v2alpha1.APMFeatureConfig) *int32 {
+	if apm == nil || apm.HostPortConfig == nil {
+		return nil
+	}
+	hostPort := apm.HostPortConfig
+	// With host ports disabled, only 8126 is used by the Service.
+	if !ptr.Deref(hostPort.Enabled, false) && (!ptr.Deref(apm.Enabled, true) || ptr.Deref(hostPort.Port, int32(0)) != constants.DefaultApmPort) {
+		return nil
+	}
+	return hostPort.Port
 }
 
 func profileLocalAgentServicePort(spec *v2alpha1.DatadogAgentSpec) (int32, bool) {
@@ -82,116 +125,61 @@ func profileLocalAgentServicePort(spec *v2alpha1.DatadogAgentSpec) (int32, bool)
 	return ports[0].Port, true
 }
 
-// existingLocalAgentServicePort returns the local service port already present
-// in the immutable base spec or contributed by an earlier profile overlay.
-func existingLocalAgentServicePort(dst, base *v2alpha1.DatadogAgentSpec) (int32, bool) {
-	if port, ok := profileLocalAgentServicePort(base); ok {
-		return port, true
-	}
-	if dst != nil && dst.Features != nil && dst.Features.APM != nil {
-		hostPort := dst.Features.APM.HostPortConfig
-		if hostPort != nil && ptr.Deref(hostPort.Enabled, false) && hostPort.Port != nil {
-			return *hostPort.Port, true
-		}
-	}
-	return 0, false
-}
-
-// profileSSIOverlayConfig extracts the only APM profile config that affects a
-// shared component. Other APM fields stay on the profile DDAI.
-func profileSSIOverlayConfig(profileSpec *v2alpha1.DatadogAgentSpec) (*v2alpha1.SingleStepInstrumentation, bool) {
-	if profileSpec == nil ||
-		profileSpec.Features == nil ||
-		profileSpec.Features.APM == nil ||
-		profileSpec.Features.APM.SingleStepInstrumentation == nil {
-		return nil, false
-	}
-
-	ssi := profileSpec.Features.APM.SingleStepInstrumentation
-	if !ptr.Deref(ssi.Enabled, false) {
-		return nil, false
-	}
-
-	return ssi, true
-}
-
 func validateSSISharedComponentPrerequisites(spec *v2alpha1.DatadogAgentSpec) error {
-	// SSI is rendered on the Cluster Agent admission controller path, so
-	// profile-contributed SSI is only valid when that shared path exists.
-	if !admissionControllerEnabled(spec) {
+	// SSI requires the Cluster Agent and admission controller.
+	if spec == nil || spec.Features == nil || spec.Features.AdmissionController == nil || !ptr.Deref(spec.Features.AdmissionController.Enabled, false) {
 		return fmt.Errorf("features.admissionController.enabled must be true on the base DatadogAgent when APM instrumentation is configured")
 	}
-	if defaultClusterAgentDisabled(spec) {
+	if clusterAgent := spec.Override[v2alpha1.ClusterAgentComponentName]; clusterAgent != nil && ptr.Deref(clusterAgent.Disabled, false) {
 		return fmt.Errorf("clusterAgent cannot be disabled on the base DatadogAgent when APM instrumentation is configured")
 	}
 	return nil
 }
 
-func admissionControllerEnabled(spec *v2alpha1.DatadogAgentSpec) bool {
-	return spec != nil &&
-		spec.Features != nil &&
-		spec.Features.AdmissionController != nil &&
-		ptr.Deref(spec.Features.AdmissionController.Enabled, false)
-}
-
-func defaultClusterAgentDisabled(spec *v2alpha1.DatadogAgentSpec) bool {
-	if spec == nil || spec.Override == nil || spec.Override[v2alpha1.ClusterAgentComponentName] == nil {
-		return false
-	}
-	return ptr.Deref(spec.Override[v2alpha1.ClusterAgentComponentName].Disabled, false)
-}
-
-// baseSSIForProfileOverlay returns the SSI config that profile overlays should
-// merge into. When base instrumentation is absent or explicitly disabled, the
-// profile's enabled instrumentation is the first active SSI config, so discard
-// the inactive base block before merging. OnDemand is kept because it applies
-// to the Cluster Agent even when base instrumentation is disabled.
+// baseSSIForProfileOverlay clears inactive SSI settings before merging
+// the first profile that enables SSI.
 func baseSSIForProfileOverlay(dst *v2alpha1.DatadogAgentSpec) *v2alpha1.SingleStepInstrumentation {
-	if dst.Features == nil {
-		dst.Features = &v2alpha1.DatadogFeatures{}
-	}
-	if dst.Features.APM == nil {
-		dst.Features.APM = &v2alpha1.APMFeatureConfig{}
-	}
-	if base := dst.Features.APM.SingleStepInstrumentation; base == nil || !ptr.Deref(base.Enabled, false) {
-		ssi := &v2alpha1.SingleStepInstrumentation{}
-		if base != nil {
-			ssi.OnDemand = base.OnDemand
+	apm := sharedAPMConfig(dst)
+	if apm.SingleStepInstrumentation == nil || !ptr.Deref(apm.SingleStepInstrumentation.Enabled, false) {
+		// On-demand applies even when cluster-wide SSI is disabled.
+		var onDemand *bool
+		if apm.SingleStepInstrumentation != nil {
+			onDemand = apm.SingleStepInstrumentation.OnDemand
 		}
-		dst.Features.APM.SingleStepInstrumentation = ssi
+		apm.SingleStepInstrumentation = &v2alpha1.SingleStepInstrumentation{OnDemand: onDemand}
 	}
-	return dst.Features.APM.SingleStepInstrumentation
+	return apm.SingleStepInstrumentation
 }
 
-// mergeSSI applies the profile SSI union rules used for shared Cluster Agent
-// config. Fields that describe sets are unioned; singleton fields reject
-// conflicting values.
-func mergeSSI(dst, src *v2alpha1.SingleStepInstrumentation) error {
-	dst.EnabledNamespaces = appendDeduplicateStrings(dst.EnabledNamespaces, src.EnabledNamespaces)
-	dst.DisabledNamespaces = appendDeduplicateStrings(dst.DisabledNamespaces, src.DisabledNamespaces)
-	if len(dst.EnabledNamespaces) > 0 && len(dst.DisabledNamespaces) > 0 {
+// mergeSSI checks raw values and writes accepted fields to both SSI configs.
+func mergeSSI(raw, dst, src *v2alpha1.SingleStepInstrumentation) error {
+	if err := mergeOnDemand(raw, dst, src); err != nil {
+		return err
+	}
+	raw.EnabledNamespaces = appendDeduplicateStrings(raw.EnabledNamespaces, src.EnabledNamespaces)
+	raw.DisabledNamespaces = appendDeduplicateStrings(raw.DisabledNamespaces, src.DisabledNamespaces)
+	if len(raw.EnabledNamespaces) > 0 && len(raw.DisabledNamespaces) > 0 {
 		return fmt.Errorf("features.apm.instrumentation.enabledNamespaces and features.apm.instrumentation.disabledNamespaces cannot both be set")
 	}
-
-	if err := mergeStringMap(&dst.LibVersions, src.LibVersions, "features.apm.instrumentation.libVersions"); err != nil {
+	dst.EnabledNamespaces = slices.Clone(raw.EnabledNamespaces)
+	dst.DisabledNamespaces = slices.Clone(raw.DisabledNamespaces)
+	if err := mergeStringMap(&raw.LibVersions, &dst.LibVersions, src.LibVersions, "features.apm.instrumentation.libVersions"); err != nil {
 		return err
 	}
-	if err := mergeLanguageDetection(dst, src); err != nil {
+	if err := mergeLanguageDetection(raw, dst, src); err != nil {
 		return err
 	}
-	if err := mergeInjector(dst, src); err != nil {
+	if err := mergeInjector(raw, dst, src); err != nil {
 		return err
 	}
-	if err := mergeInjectionMode(dst, src); err != nil {
+	if err := mergeStringLikeField(&raw.InjectionMode, &dst.InjectionMode, src.InjectionMode, "features.apm.instrumentation.injectionMode"); err != nil {
 		return err
 	}
-	if err := mergeOnDemand(dst, src); err != nil {
-		return err
+	// Preserve target order because the first matching target wins.
+	for _, target := range src.Targets {
+		raw.Targets = append(raw.Targets, *target.DeepCopy())
+		dst.Targets = append(dst.Targets, *target.DeepCopy())
 	}
-	if err := mergeSSITargets(&dst.Targets, src.Targets); err != nil {
-		return err
-	}
-
 	return nil
 }
 
@@ -200,107 +188,111 @@ func appendDeduplicateStrings(dst []string, src []string) []string {
 		return dst
 	}
 	out := make([]string, 0, len(dst)+len(src))
-	for _, value := range dst {
-		if !slices.Contains(out, value) {
-			out = append(out, value)
-		}
-	}
-	for _, value := range src {
-		if !slices.Contains(out, value) {
-			out = append(out, value)
+	seen := make(map[string]bool, len(dst)+len(src))
+	for _, values := range [][]string{dst, src} {
+		for _, value := range values {
+			if !seen[value] {
+				seen[value] = true
+				out = append(out, value)
+			}
 		}
 	}
 	return out
 }
 
-// mergeStringMap copies profile keys into the shared config and rejects a key
-// that is already set to a different value.
-func mergeStringMap(dst *map[string]string, src map[string]string, field string) error {
+// mergeStringMap checks raw keys, then copies each value to both maps.
+func mergeStringMap(raw, dst *map[string]string, src map[string]string, field string) error {
 	if len(src) == 0 {
 		return nil
+	}
+	if *raw == nil {
+		*raw = map[string]string{}
 	}
 	if *dst == nil {
 		*dst = map[string]string{}
 	}
 	for key, value := range src {
-		if existing, ok := (*dst)[key]; ok && existing != value {
+		if existing, ok := (*raw)[key]; ok && existing != value {
 			return fmt.Errorf("%s[%q] has conflicting values %q and %q", field, key, existing, value)
 		}
+		(*raw)[key] = value
 		(*dst)[key] = value
 	}
 	return nil
 }
 
-func mergeLanguageDetection(dst, src *v2alpha1.SingleStepInstrumentation) error {
-	if src.LanguageDetection == nil || src.LanguageDetection.Enabled == nil {
-		return nil
+// mergeLanguageDetection checks explicit values and defaults only the DDAI.
+func mergeLanguageDetection(raw, dst, src *v2alpha1.SingleStepInstrumentation) error {
+	if config := src.LanguageDetection; config != nil && config.Enabled != nil {
+		if existing := raw.LanguageDetection; existing != nil && existing.Enabled != nil && *existing.Enabled != *config.Enabled {
+			return fmt.Errorf("features.apm.instrumentation.languageDetection.enabled has conflicting values")
+		}
+		raw.LanguageDetection = config.DeepCopy()
+		dst.LanguageDetection = config.DeepCopy()
 	}
-	if dst.LanguageDetection == nil {
-		dst.LanguageDetection = &v2alpha1.LanguageDetectionConfig{}
-	}
-	return mergeBoolPtr(&dst.LanguageDetection.Enabled, src.LanguageDetection.Enabled, "features.apm.instrumentation.languageDetection.enabled")
-}
-
-func defaultLanguageDetection(dst *v2alpha1.SingleStepInstrumentation) {
 	if dst.LanguageDetection == nil {
 		dst.LanguageDetection = &v2alpha1.LanguageDetectionConfig{}
 	}
 	if dst.LanguageDetection.Enabled == nil {
 		dst.LanguageDetection.Enabled = new(true)
 	}
+	return nil
 }
 
-func mergeInjector(dst, src *v2alpha1.SingleStepInstrumentation) error {
+func mergeInjector(raw, dst, src *v2alpha1.SingleStepInstrumentation) error {
 	if src.Injector == nil {
 		return nil
+	}
+	if raw.Injector == nil {
+		raw.Injector = &v2alpha1.InjectorConfig{}
 	}
 	if dst.Injector == nil {
 		dst.Injector = &v2alpha1.InjectorConfig{}
 	}
-	return mergeStringLikeField(&dst.Injector.ImageTag, src.Injector.ImageTag, "features.apm.instrumentation.injector.imageTag")
+	return mergeStringLikeField(&raw.Injector.ImageTag, &dst.Injector.ImageTag, src.Injector.ImageTag, "features.apm.instrumentation.injector.imageTag")
 }
 
-func mergeInjectionMode(dst, src *v2alpha1.SingleStepInstrumentation) error {
-	return mergeStringLikeField(&dst.InjectionMode, src.InjectionMode, "features.apm.instrumentation.injectionMode")
-}
-
-func mergeOnDemand(dst, src *v2alpha1.SingleStepInstrumentation) error {
+// mergeOnDemand checks explicit values before updating both configs.
+func mergeOnDemand(raw, dst, src *v2alpha1.SingleStepInstrumentation) error {
 	if src.OnDemand == nil {
 		return nil
 	}
-	return mergeBoolPtr(&dst.OnDemand, src.OnDemand, "features.apm.instrumentation.onDemand")
-}
-
-// mergeBoolPtr copies an explicit profile bool into the shared config and
-// rejects an already-set bool with the opposite value.
-func mergeBoolPtr(dst **bool, src *bool, field string) error {
-	srcValue := ptr.Deref(src, false)
-	if *dst != nil && ptr.Deref(*dst, false) != srcValue {
-		return fmt.Errorf("%s has conflicting values", field)
+	if raw.OnDemand != nil && *raw.OnDemand != *src.OnDemand {
+		return fmt.Errorf("features.apm.instrumentation.onDemand has conflicting values")
 	}
-	*dst = new(srcValue)
+	raw.OnDemand = new(*src.OnDemand)
+	dst.OnDemand = new(*src.OnDemand)
 	return nil
 }
 
-// mergeStringLikeField copies a non-empty profile scalar into the shared config
-// and rejects an already-set scalar with a different value.
-func mergeStringLikeField[T ~string](dst *T, src T, field string) error {
+// mergeStringLikeField checks a non-empty value and copies it to both configs.
+func mergeStringLikeField[T ~string](raw, dst *T, src T, field string) error {
 	var zero T
 	if src == zero {
 		return nil
 	}
-	if *dst != zero && *dst != src {
-		return fmt.Errorf("%s has conflicting values %q and %q", field, *dst, src)
+	if *raw != zero && *raw != src {
+		return fmt.Errorf("%s has conflicting values %q and %q", field, *raw, src)
 	}
+	*raw = src
 	*dst = src
 	return nil
 }
 
-// mergeSSITargets appends profile targets in profile order. The Cluster Agent
-// uses first-match semantics when evaluating the final target list.
-func mergeSSITargets(dst *[]v2alpha1.SSITarget, src []v2alpha1.SSITarget) error {
-	for _, target := range src {
-		*dst = append(*dst, *target.DeepCopy())
+// withSharedServicePort copies the DDAI spec with the chosen shared Service port.
+// The original node Agent settings stay unchanged.
+func withSharedServicePort(spec, shared *v2alpha1.DatadogAgentSpec) *v2alpha1.DatadogAgentSpec {
+	if shared == nil || shared.Features == nil {
+		return spec
 	}
-	return nil
+	port := configuredServicePort(shared.Features.APM)
+	if port == nil {
+		return spec
+	}
+	dependencySpec := spec.DeepCopy()
+	sharedAPMConfig(dependencySpec).HostPortConfig = &v2alpha1.HostPortConfig{
+		Enabled: new(true),
+		Port:    new(*port),
+	}
+	return dependencySpec
 }
