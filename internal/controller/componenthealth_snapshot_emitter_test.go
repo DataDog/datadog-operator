@@ -18,8 +18,10 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	ktypes "k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -39,12 +41,12 @@ func TestAgenthealthURL(t *testing.T) {
 		want  string
 	}{
 		{
-			name:  "default host when no site or url",
+			name:  "default host when no site",
 			creds: config.Creds{},
 			want:  "https://agenthealth-intake.datadoghq.com/api/v2/agenthealth",
 		},
 		{
-			name:  "site overrides host",
+			name:  "site selects the intake subdomain",
 			creds: config.Creds{Site: &site},
 			want:  "https://agenthealth-intake.datadoghq.eu/api/v2/agenthealth",
 		},
@@ -54,9 +56,16 @@ func TestAgenthealthURL(t *testing.T) {
 			want:  "https://agenthealth-intake.datadoghq.com/api/v2/agenthealth",
 		},
 		{
-			name:  "url overrides host and scheme",
+			// DD_URL names the metrics/API endpoint, not the agenthealth intake, so
+			// it is deliberately ignored here: the host still derives from the site.
+			name:  "url is ignored, site still used",
+			creds: config.Creds{URL: &customURL, Site: &site},
+			want:  "https://agenthealth-intake.datadoghq.eu/api/v2/agenthealth",
+		},
+		{
+			name:  "url without site falls back to default host",
 			creds: config.Creds{URL: &customURL},
-			want:  "https://custom.example.com:8443/api/v2/agenthealth",
+			want:  "https://agenthealth-intake.datadoghq.com/api/v2/agenthealth",
 		},
 	}
 
@@ -102,14 +111,14 @@ func TestBuildHealthReport(t *testing.T) {
 		},
 	}
 
-	report := buildHealthReport(issues, resolvedIssues, "my-cluster")
+	report := buildHealthReport(issues, resolvedIssues, "cluster-uid-123", "my-cluster")
 
 	assert.Equal(t, healthReportSchemaVersion, report.SchemaVersion)
 	assert.Equal(t, healthReportEventType, report.EventType)
 	assert.Equal(t, healthReportService, report.Service)
 	assert.NotEmpty(t, report.EmittedAt)
 	require.NotNil(t, report.Host)
-	assert.Equal(t, "my-cluster", report.Host.Hostname)
+	assert.Equal(t, "cluster-uid-123", report.Host.Hostname, "host identity is the cluster ID")
 	require.Len(t, report.Issues, 3)
 
 	oomID := "datadog/" + constants.DefaultClusterAgentResourceSuffix + "/" + componenthealth.IssueOOMKilled
@@ -125,6 +134,7 @@ func TestBuildHealthReport(t *testing.T) {
 		"kube_namespace:datadog",
 		"component:" + constants.DefaultClusterAgentResourceSuffix,
 		"issue_type:" + componenthealth.IssueOOMKilled,
+		"kube_cluster_name:my-cluster",
 	}, oom.Tags)
 	require.NotNil(t, oom.Remediation)
 	assert.NotEmpty(t, oom.Remediation.Summary)
@@ -170,6 +180,22 @@ func TestSnapshotEmitter_ClusterName(t *testing.T) {
 	assert.Equal(t, "env-cluster", emitter.clusterName())
 }
 
+func TestBuildHealthReport_NoClusterNameTag(t *testing.T) {
+	active := []componenthealth.ComponentIssue{{
+		Component: constants.DefaultClusterAgentResourceSuffix,
+		IssueType: componenthealth.IssueOOMKilled,
+		Severity:  componenthealth.SeverityHigh,
+		Namespace: "datadog",
+	}}
+	report := buildHealthReport(active, nil, "cluster-uid", "")
+	require.Len(t, report.Issues, 1)
+	for _, issue := range report.Issues {
+		for _, tag := range issue.Tags {
+			assert.NotContains(t, tag, clusterNameTagKey+":", "no cluster name tag when name is empty")
+		}
+	}
+}
+
 func TestToProtoSeverity(t *testing.T) {
 	assert.Equal(t, healthplatform.IssueSeverity_ISSUE_SEVERITY_HIGH, toProtoSeverity(componenthealth.SeverityHigh))
 	assert.Equal(t, healthplatform.IssueSeverity_ISSUE_SEVERITY_MEDIUM, toProtoSeverity(componenthealth.SeverityMedium))
@@ -199,12 +225,17 @@ func TestSnapshotEmitter_PostsJSON(t *testing.T) {
 	defer srv.Close()
 
 	t.Setenv(constants.DDAPIKey, "test-api-key")
-	t.Setenv(constants.DDURL, srv.URL)
 	t.Setenv(constants.DDClusterName, "test-cluster")
 
-	fakeClient := fake.NewClientBuilder().Build()
+	kubeSystem := &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{Name: "kube-system", UID: ktypes.UID("cluster-uid-xyz")},
+	}
+	fakeClient := fake.NewClientBuilder().WithObjects(kubeSystem).Build()
 	emitter := newSnapshotEmitter(logr.Discard(), fakeClient, config.NewCredentialManager(fakeClient))
 	emitter.httpClient = srv.Client()
+	// DD_URL is intentionally not honored for the intake; point the emitter at the
+	// test server explicitly.
+	emitter.intakeURL = srv.URL + "/" + agenthealthPath
 
 	active := []componenthealth.ComponentIssue{{
 		Component:    constants.DefaultClusterAgentResourceSuffix,
@@ -229,13 +260,14 @@ func TestSnapshotEmitter_PostsJSON(t *testing.T) {
 
 	var report healthplatform.HealthReport
 	require.NoError(t, json.Unmarshal(gotBody, &report))
-	assert.Equal(t, "test-cluster", report.Host.GetHostname())
+	assert.Equal(t, "cluster-uid-xyz", report.Host.GetHostname(), "host identity is the kube-system UID")
 	require.Len(t, report.Issues, 2)
 
 	activeID := "datadog/" + constants.DefaultClusterAgentResourceSuffix + "/" + componenthealth.IssueOOMKilled
 	require.NotNil(t, report.Issues[activeID])
 	require.NotNil(t, report.Issues[activeID].PersistedIssue)
 	assert.Equal(t, healthplatform.IssueState_ISSUE_STATE_ACTIVE, report.Issues[activeID].PersistedIssue.State)
+	assert.Contains(t, report.Issues[activeID].Tags, "kube_cluster_name:test-cluster", "cluster name is an optional tag")
 
 	resolvedID := "datadog/" + constants.DefaultClusterChecksRunnerResourceSuffix + "/" + componenthealth.IssueCrashLooping
 	require.NotNil(t, report.Issues[resolvedID])

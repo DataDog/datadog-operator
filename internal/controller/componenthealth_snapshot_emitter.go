@@ -20,6 +20,8 @@ import (
 
 	"github.com/DataDog/agent-payload/v5/healthplatform"
 	"github.com/go-logr/logr"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -59,6 +61,13 @@ const (
 
 	// snapshotHTTPTimeout bounds a single intake POST.
 	snapshotHTTPTimeout = 10 * time.Second
+
+	// kubeSystemNamespace holds the UID used as the cluster identity
+	kubeSystemNamespace = "kube-system"
+
+	// clusterNameTagKey tags each issue with the human-readable cluster name when
+	// one is configured (optional; the cluster ID is the reliable identifier).
+	clusterNameTagKey = "kube_cluster_name"
 )
 
 // issueTitles maps each detected issue type to a human-readable title carried on
@@ -103,6 +112,14 @@ type snapshotEmitter struct {
 	credsManager *config.CredentialManager
 	httpClient   *http.Client
 	getDDA       ddaGetter
+
+	// cachedClusterID memoizes the kube-system UID (immutable for a cluster). Only
+	// accessed from the single snapshot-loop goroutine.
+	cachedClusterID string
+
+	// intakeURL, when set, overrides the computed agenthealth URL. Used by tests to
+	// target a local server; empty in production (the URL is derived from the site).
+	intakeURL string
 }
 
 var _ componentHealthEmitter = &snapshotEmitter{}
@@ -133,7 +150,7 @@ func (e *snapshotEmitter) Snapshot(ctx context.Context, active, resolved []compo
 		return err
 	}
 
-	report := buildHealthReport(active, resolved, e.clusterName())
+	report := buildHealthReport(active, resolved, e.clusterID(ctx), e.clusterName())
 	payload, err := json.Marshal(report)
 	if err != nil {
 		e.log.Error(err, "failed to marshal component health report")
@@ -165,11 +182,30 @@ func (e *snapshotEmitter) Snapshot(ctx context.Context, active, resolved []compo
 	return nil
 }
 
-// clusterName resolves the cluster identity stamped on the report host: the
-// operator config (DD_CLUSTER_NAME) takes precedence, falling back to the
+// clusterID resolves the cluster's stable identity: the UID of the kube-system
+// namespace.
+//
+// It is memoized since it is immutable for the lifetime of a cluster. Returns ""
+// if it cannot be read (the report is still sent; the backend degrades to its
+// other signals).
+func (e *snapshotEmitter) clusterID(ctx context.Context) string {
+	if e.cachedClusterID != "" {
+		return e.cachedClusterID
+	}
+	ns := &corev1.Namespace{}
+	if err := e.k8sClient.Get(ctx, types.NamespacedName{Name: kubeSystemNamespace}, ns); err != nil {
+		e.log.V(1).Info("could not resolve cluster ID (kube-system UID)", "error", err)
+		return ""
+	}
+	e.cachedClusterID = string(ns.UID)
+	return e.cachedClusterID
+}
+
+// clusterName resolves the optional, human-readable cluster name reported as a
+// tag: the operator config (DD_CLUSTER_NAME) takes precedence, falling back to the
 // DatadogAgent's spec.global.clusterName when the operator environment does not
 // set it (the same CR used for the credential fallback). Returns "" if neither is
-// available.
+// available. Unlike the cluster ID, the name is optional and not the identity key.
 func (e *snapshotEmitter) clusterName() string {
 	if name := os.Getenv(constants.DDClusterName); name != "" {
 		return name
@@ -185,7 +221,11 @@ func (e *snapshotEmitter) clusterName() string {
 // newRequest builds the POST request to the agenthealth intake for the given
 // payload.
 func (e *snapshotEmitter) newRequest(ctx context.Context, creds config.Creds, payload []byte) (*http.Request, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, agenthealthURL(creds), bytes.NewReader(payload))
+	target := e.intakeURL
+	if target == "" {
+		target = agenthealthURL(creds)
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, target, bytes.NewReader(payload))
 	if err != nil {
 		return nil, err
 	}
@@ -213,10 +253,8 @@ func (e *snapshotEmitter) getDatadogAgent() (*v2alpha1.DatadogAgent, error) {
 	return &ddaList.Items[0], nil
 }
 
-// agenthealthURL builds the agenthealth intake URL from the resolved credentials,
-// mirroring the metadata forwarder: default to the US1 intake host, override the
-// host from the configured site, and fully override host+scheme from an explicit
-// DD_URL when set.
+// agenthealthURL builds the agenthealth intake URL from the configured site:
+// agenthealth-intake.<site> (defaulting to the US1 site).
 func agenthealthURL(creds config.Creds) string {
 	u := url.URL{
 		Scheme: agenthealthScheme,
@@ -226,21 +264,17 @@ func agenthealthURL(creds config.Creds) string {
 	if creds.Site != nil && strings.TrimSpace(*creds.Site) != "" {
 		u.Host = agenthealthHostPrefix + strings.TrimSpace(*creds.Site)
 	}
-	if creds.URL != nil && strings.TrimSpace(*creds.URL) != "" {
-		if parsed, err := url.Parse(strings.TrimSpace(*creds.URL)); err == nil && parsed.Host != "" {
-			u.Host = parsed.Host
-			u.Scheme = parsed.Scheme
-		}
-	}
 	return u.String()
 }
 
 // buildHealthReport turns the current active and recently-resolved component-level
-// issues into a HealthReport envelope keyed by stable issue id. Every issue carries
-// a PersistedIssue with its lifecycle state (ACTIVE or RESOLVED) and first_seen /
-// last_seen timestamps; resolved issues additionally carry resolved_at so the
-// backend closes them immediately instead of waiting for TTL expiry.
-func buildHealthReport(active, resolved []componenthealth.ComponentIssue, clusterName string) *healthplatform.HealthReport {
+// issues into a HealthReport envelope keyed by stable issue id. clusterID (the
+// kube-system UID) is the host identity; clusterName, when set, is attached to each
+// issue as an optional kube_cluster_name tag. Every issue carries a PersistedIssue
+// with its lifecycle state (ACTIVE or RESOLVED) and first_seen / last_seen
+// timestamps; resolved issues additionally carry resolved_at so the backend closes
+// them immediately instead of waiting for TTL expiry.
+func buildHealthReport(active, resolved []componenthealth.ComponentIssue, clusterID, clusterName string) *healthplatform.HealthReport {
 	now := time.Now().UTC().Format(time.RFC3339)
 
 	report := &healthplatform.HealthReport{
@@ -248,7 +282,7 @@ func buildHealthReport(active, resolved []componenthealth.ComponentIssue, cluste
 		EventType:     healthReportEventType,
 		EmittedAt:     now,
 		Service:       healthReportService,
-		Host:          &healthplatform.HostInfo{Hostname: clusterName},
+		Host:          &healthplatform.HostInfo{Hostname: clusterID},
 		Issues:        make(map[string]*healthplatform.Issue, len(active)+len(resolved)),
 	}
 
@@ -259,6 +293,13 @@ func buildHealthReport(active, resolved []componenthealth.ComponentIssue, cluste
 	for _, issue := range resolved {
 		id := issueID(issue)
 		report.Issues[id] = buildIssue(id, issue, now, true)
+	}
+
+	if clusterName != "" {
+		tag := clusterNameTagKey + ":" + clusterName
+		for _, issue := range report.GetIssues() {
+			issue.Tags = append(issue.Tags, tag)
+		}
 	}
 
 	return report
