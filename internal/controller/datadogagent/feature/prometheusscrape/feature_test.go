@@ -211,9 +211,49 @@ func Test_prometheusScrapeFeature_Configure(t *testing.T) {
 				},
 			),
 		},
+		{
+			Name: "Prometheus scrape enabled but cluster agent disabled",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithPrometheusScrapeEnabled(true).
+				WithClusterAgentDisabled(true).
+				Build(),
+			WantConfigure: true,
+			Agent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+					wantEnvVars := []*corev1.EnvVar{
+						{
+							Name:  DDPrometheusScrapeEnabled,
+							Value: "true",
+						},
+						{
+							Name:  DDPrometheusScrapeServiceEndpoints,
+							Value: "false",
+						},
+					}
+					assertContainerEnvVars(t, mgrInterface, apicommon.CoreAgentContainerName, wantEnvVars)
+				},
+			),
+		},
 	}
 
 	tests.Run(t, buildPrometheusScrapeFeature)
+}
+
+// Test_prometheusScrapeFeature_Configure_ClusterAgentDisabled verifies that, when the cluster
+// agent is disabled via override, Configure does not require it or declare it configured, even
+// though Prometheus scrape is enabled and still runs node-side.
+func Test_prometheusScrapeFeature_Configure_ClusterAgentDisabled(t *testing.T) {
+	dda := testutils.NewDatadogAgentBuilder().
+		WithPrometheusScrapeEnabled(true).
+		WithClusterAgentDisabled(true).
+		Build()
+
+	f := buildPrometheusScrapeFeature(nil)
+	reqComp := f.Configure(dda, &dda.Spec, nil)
+
+	assert.False(t, reqComp.ClusterAgent.IsEnabled())
+	assert.Empty(t, reqComp.ClusterAgent.Containers)
+	assert.True(t, reqComp.Agent.IsEnabled())
 }
 
 func assertContainerEnvVars(t testing.TB, mgrInterface feature.PodTemplateManagers, containerName apicommon.AgentContainerName, wantEnvVars []*corev1.EnvVar) {
