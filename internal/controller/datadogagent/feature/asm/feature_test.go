@@ -69,6 +69,15 @@ func TestASMFeature(t *testing.T) {
 			ClusterAgent:  assertEnv(envVar{name: DDAdmissionControllerAppsecEnabled, value: "true", present: true}),
 		},
 		{
+			Name: "ASM Threats enabled but cluster agent disabled",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithAdmissionControllerEnabled(true).
+				WithASMEnabled(true, false, false).
+				WithClusterAgentDisabled(true).
+				Build(),
+			WantConfigure: false,
+		},
+		{
 			Name: "ASM Threats enabled, admission controller not enabled",
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithAdmissionControllerEnabled(false).

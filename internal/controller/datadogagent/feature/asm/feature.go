@@ -56,16 +56,15 @@ func (f *asmFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.DatadogAgentSp
 		return feature.RequiredComponents{}
 	}
 
+	if clusterAgent, ok := ddaSpec.Override[v2alpha1.ClusterAgentComponentName]; ok && apiutils.BoolValue(clusterAgent.Disabled) {
+		return feature.RequiredComponents{}
+	}
+
 	f.threatsEnabled = apiutils.BoolValue(asm.Threats.Enabled)
 	f.iastEnabled = apiutils.BoolValue(asm.IAST.Enabled)
 	f.scaEnabled = apiutils.BoolValue(asm.SCA.Enabled)
 
 	// The cluster agent and the admission controller are required for the ASM feature.
-	// This is not gated on override.clusterAgent.disabled: it's safe only because
-	// enabledefault's explicit false wins over this true in the merge (see
-	// feature/types.go's merge()) when the Cluster Agent is disabled. ManageDependencies
-	// is a no-op and ManageClusterAgent only writes env vars to a pod template that's
-	// never deployed, so there's nothing to orphan.
 	return feature.RequiredComponents{
 		ClusterAgent: feature.RequiredComponent{
 			IsRequired: new(true),
