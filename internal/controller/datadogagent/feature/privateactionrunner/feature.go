@@ -15,6 +15,7 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/experimental"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
@@ -101,8 +102,14 @@ func (f *privateActionRunnerFeature) Configure(dda metav1.Object, ddaSpec *v2alp
 		}
 	}
 
-	// Check for Cluster Agent configuration (annotation-based)
-	if featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnableClusterAgentPrivateActionRunnerAnnotation) {
+	// Check for Cluster Agent configuration (annotation-based). Skipped when the Cluster Agent
+	// is disabled via override: otherwise this would still require a Cluster Agent and create
+	// its ConfigMap/RBAC with nothing to deploy them onto.
+	clusterAgentDisabled := false
+	if override, ok := ddaSpec.Override[v2alpha1.ClusterAgentComponentName]; ok {
+		clusterAgentDisabled = apiutils.BoolValue(override.Disabled)
+	}
+	if !clusterAgentDisabled && featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnableClusterAgentPrivateActionRunnerAnnotation) {
 		// Use config data from annotation directly, or fall back to default
 		if configData, ok := featureutils.GetFeatureConfigAnnotation(dda, featureutils.ClusterAgentPrivateActionRunnerConfigDataAnnotation); ok {
 			f.clusterConfigData = configData
