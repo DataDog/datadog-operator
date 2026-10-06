@@ -73,6 +73,11 @@ func (f *rcFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpe
 		// Ref: https://github.com/DataDog/datadog-operator/blob/c4b6e498048a11fbe99d1ea51d2870c6be578799/internal/controller/datadogagent/feature/types.go#L37
 		if f.enabled {
 			reqComp.Agent.IsRequired = ddaSpec.Features.RemoteConfiguration.Enabled
+			// Not gated on override.clusterAgent.disabled: the Agent requirement above must
+			// stay set regardless (remote config still runs node-side), and this is
+			// otherwise safe only because enabledefault's explicit false wins over this
+			// true in the merge (see feature/types.go's merge()). ManageDependencies is a
+			// no-op, so there's nothing to orphan.
 			reqComp.ClusterAgent.IsRequired = ddaSpec.Features.RemoteConfiguration.Enabled
 		}
 	}

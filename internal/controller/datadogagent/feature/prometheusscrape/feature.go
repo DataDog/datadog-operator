@@ -64,6 +64,12 @@ func (f *prometheusScrapeFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.D
 					apicommon.CoreAgentContainerName,
 				},
 			},
+			// Not gated on override.clusterAgent.disabled: the Agent requirement above must
+			// stay set regardless (Prometheus scrape still runs node-side), and this is
+			// otherwise safe only because enabledefault's explicit false wins over this
+			// true in the merge (see feature/types.go's merge()). ManageDependencies is a
+			// no-op and ManageClusterAgent only writes an env var to a pod template that's
+			// never deployed, so there's nothing to orphan.
 			ClusterAgent: feature.RequiredComponent{
 				IsRequired: new(true),
 				Containers: []apicommon.AgentContainerName{

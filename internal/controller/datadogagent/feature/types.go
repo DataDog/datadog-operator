@@ -99,6 +99,14 @@ func (rc *RequiredComponent) Merge(in *RequiredComponent) *RequiredComponent {
 	return rc
 }
 
+// merge priority: false > true > nil.
+//
+// This is relied upon for the no-Cluster-Agent configuration (override.clusterAgent.disabled):
+// the enabledefault feature resolves its ClusterAgent.IsRequired to an explicit false in that
+// case, which wins here over any other feature that still unconditionally requires the Cluster
+// Agent (e.g. asm, prometheusscrape, remoteconfig), keeping the merged result correctly
+// "not required" even for features that don't individually check the override. Those features
+// are only safe because of this merge order — if it changes, re-audit them.
 func merge(a, b *bool) *bool {
 	if a == nil && b == nil {
 		return nil
