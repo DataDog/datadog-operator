@@ -2087,6 +2087,48 @@ func Test_ProfileAPMOverrideAddsDDAOwnedLocalAgentServicePort(t *testing.T) {
 			},
 		},
 		{
+			name: "explicit profile port overrides defaulted DDA and profile ports",
+			clientBuilder: fake.NewClientBuilder().
+				WithStatusSubresource(&v2alpha1.DatadogAgent{}, &v1alpha1.DatadogAgentProfile{}, &v1alpha1.DatadogAgentInternal{}).
+				WithObjects(
+					newAPMProfile("a-port-omitted", &v2alpha1.APMFeatureConfig{Enabled: ptr.To(true)}),
+					newAPMProfile("b-port-explicit", &v2alpha1.APMFeatureConfig{Enabled: ptr.To(true), HostPortConfig: &v2alpha1.HostPortConfig{Enabled: ptr.To(true), Port: ptr.To[int32](9126)}}),
+				),
+			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
+				ddaCopy := dda.DeepCopy()
+				ddaCopy.Spec.Features.APM = nil
+				_ = c.Create(context.TODO(), ddaCopy)
+				return ddaCopy
+			},
+			profilesEnabled: true,
+			platformInfo:    &platformInfo,
+			want:            reconcile.Result{RequeueAfter: defaultRequeueDuration},
+			wantFunc: func(t *testing.T, c client.Client) {
+				service := &corev1.Service{}
+				assert.NoError(t, c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: localAgentServiceName}, service))
+				port := findServicePortByName(service.Spec.Ports, constants.DefaultApmPortName)
+				assert.NotNil(t, port)
+				assert.Equal(t, int32(9126), port.Port)
+				defaultDDAI := &v1alpha1.DatadogAgentInternal{}
+				assert.NoError(t, c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: resourcesName}, defaultDDAI))
+				assert.True(t, *defaultDDAI.Spec.Features.APM.Enabled)
+				assert.Nil(t, defaultDDAI.Spec.Global.Credentials.APIKey)
+				assert.NotNil(t, defaultDDAI.Spec.Global.Credentials.APISecret)
+				assert.Nil(t, defaultDDAI.Spec.Global.ClusterAgentToken)
+				assert.NotNil(t, defaultDDAI.Spec.Global.ClusterAgentTokenSecret)
+				hash, err := comparison.GenerateMD5ForSpec(defaultDDAI.Spec)
+				assert.NoError(t, err)
+				assert.Equal(t, hash, defaultDDAI.Annotations[constants.MD5DDAIDeploymentAnnotationKey])
+				assert.Equal(t, intstr.FromInt(int(constants.DefaultApmPort)), port.TargetPort)
+				for _, name := range []string{"a-port-omitted", "b-port-explicit"} {
+					profile := &v1alpha1.DatadogAgentProfile{}
+					assert.NoError(t, c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: name}, profile))
+					assert.Equal(t, metav1.ConditionTrue, profile.Status.Applied)
+				}
+			},
+		},
+
+		{
 			name: "conflicting profile APM override rejects conflicting profile and reconciles accepted profile",
 			clientBuilder: fake.NewClientBuilder().
 				WithStatusSubresource(&v2alpha1.DatadogAgent{}, &v1alpha1.DatadogAgentProfile{}, &v1alpha1.DatadogAgentInternal{}).

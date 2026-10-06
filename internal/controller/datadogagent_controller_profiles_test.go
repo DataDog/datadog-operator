@@ -9,6 +9,7 @@
 package controller
 
 import (
+	"context"
 	"sort"
 	"strings"
 	"time"
@@ -1091,6 +1092,83 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 	})
 
 	Context("with APM shared profile overlays", func() {
+		It("should use an explicit profile Service port instead of the default and reject a later conflict", func() {
+			agent := newAPMSharedOverlayAgent(namespace, randomKubernetesObjectName())
+			agent.Spec.Features.APM.Enabled = ptr.To(true)
+			agent.Spec.Global.LocalService = &v2alpha1.LocalService{ForceEnableLocalService: ptr.To(true)}
+			profiles := []*v1alpha1.DatadogAgentProfile{
+				newAPMSharedOverlayProfile(namespace, "a-"+randomKubernetesObjectName(), "a", &v2alpha1.APMFeatureConfig{Enabled: ptr.To(true)}),
+				newAPMSharedOverlayProfile(namespace, "b-"+randomKubernetesObjectName(), "b", &v2alpha1.APMFeatureConfig{
+					Enabled: ptr.To(true), HostPortConfig: &v2alpha1.HostPortConfig{Enabled: ptr.To(true), Port: ptr.To[int32](9126)},
+				}),
+				newAPMSharedOverlayProfile(namespace, "c-"+randomKubernetesObjectName(), "c", &v2alpha1.APMFeatureConfig{
+					Enabled: ptr.To(true), HostPortConfig: &v2alpha1.HostPortConfig{Enabled: ptr.To(true), Port: ptr.To[int32](10126)},
+				}),
+			}
+			DeferCleanup(cleanupAPMSharedOverlayObjects, agent, profiles)
+			createAPMSharedOverlayObjects(agent, profiles)
+			checkProfileAppliedStatus(namespace, profiles[0].Name, metav1.ConditionTrue, "")
+			checkProfileAppliedStatus(namespace, profiles[1].Name, metav1.ConditionTrue, "")
+			checkProfileAppliedStatus(namespace, profiles[2].Name, metav1.ConditionFalse, "conflicts with existing port")
+
+			service := &v1.Service{}
+			Eventually(func(g Gomega) {
+				g.Expect(k8sClient.Get(context.Background(), types.NamespacedName{Namespace: namespace, Name: constants.GetLocalAgentServiceName(agent.Name, &agent.Spec)}, service)).To(Succeed())
+				g.Expect(service.Spec.Ports).To(ContainElement(SatisfyAll(
+					HaveField("Name", constants.DefaultApmPortName),
+					HaveField("Port", int32(9126)),
+					HaveField("TargetPort.IntVal", int32(constants.DefaultApmPort)),
+				)))
+			}, timeout, interval).Should(Succeed())
+		})
+
+		DescribeTable("should distinguish defaults from explicit shared settings",
+			func(ddaValue, profileValue *bool, want bool, conflict bool) {
+				agent := newAPMSharedOverlayAgent(namespace, randomKubernetesObjectName())
+				agent.Spec.Features.APM.Enabled = ptr.To(true)
+				agent.Spec.Features.APM.SingleStepInstrumentation.Enabled = ptr.To(true)
+				agent.Spec.Features.APM.SingleStepInstrumentation.LanguageDetection = &v2alpha1.LanguageDetectionConfig{Enabled: ddaValue}
+				profiles := []*v1alpha1.DatadogAgentProfile{
+					// An earlier profile that omits the field must not claim its default.
+					newAPMSharedOverlayProfile(namespace, "a-"+randomKubernetesObjectName(), "a", &v2alpha1.APMFeatureConfig{
+						SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{Enabled: ptr.To(true)},
+					}),
+					newAPMSharedOverlayProfile(namespace, "b-"+randomKubernetesObjectName(), "b", &v2alpha1.APMFeatureConfig{
+						SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
+							Enabled: ptr.To(true), LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: profileValue},
+						},
+					}),
+				}
+				DeferCleanup(cleanupAPMSharedOverlayObjects, agent, profiles)
+				createAPMSharedOverlayObjects(agent, profiles)
+				checkProfileAppliedStatus(namespace, profiles[0].Name, metav1.ConditionTrue, "")
+				if conflict {
+					checkProfileAppliedStatus(namespace, profiles[1].Name, metav1.ConditionFalse, "languageDetection.enabled has conflicting values")
+				} else {
+					checkProfileAppliedStatus(namespace, profiles[1].Name, metav1.ConditionTrue, "")
+				}
+				checkDefaultDDAIInstrumentation(namespace, agent.Name, func(ssi *v2alpha1.SingleStepInstrumentation) bool {
+					return ssi.LanguageDetection != nil && ssi.LanguageDetection.Enabled != nil && *ssi.LanguageDetection.Enabled == want
+				})
+				deployment := &appsv1.Deployment{}
+				getObjectAndCheck(deployment, types.NamespacedName{Namespace: namespace, Name: agent.Name + "-cluster-agent"}, func() bool {
+					for _, container := range deployment.Spec.Template.Spec.Containers {
+						for _, env := range container.Env {
+							if env.Name == "DD_LANGUAGE_DETECTION_ENABLED" {
+								return (env.Value == "true") == want
+							}
+						}
+					}
+					return !want
+				})
+			},
+			Entry("both unset", nil, nil, true, false),
+			Entry("DDA set, profile unset", ptr.To(false), nil, false, false),
+			Entry("DDA unset, profile set", nil, ptr.To(false), false, false),
+			Entry("same explicit values", ptr.To(false), ptr.To(false), false, false),
+			Entry("different explicit values", ptr.To(true), ptr.To(false), true, true),
+		)
+
 		It("should merge accepted profile instrumentation into the default DDAI", func() {
 			agent := newAPMSharedOverlayAgent(namespace, randomKubernetesObjectName())
 			profiles := []*v1alpha1.DatadogAgentProfile{
