@@ -33,23 +33,20 @@ jobs:
               return;
             }
 
-            const milestones = await github.paginate(github.rest.issues.listMilestones, {
-              owner, repo, state: 'open', per_page: 100,
+            const { data: milestones } = await github.rest.issues.listMilestones({
+              owner, repo, state: 'open', per_page: 10,
             });
 
-            // Only consider semver-like titles (e.g. v1.32.0) and pick the highest.
-            const semver = /^v?(\d+)\.(\d+)\.(\d+)$/;
+            // Numeric compare so v1.32.0 sorts above v1.9.0.
             const latest = milestones
-              .map(m => ({ m, v: (m.title.match(semver) || []).slice(1).map(Number) }))
-              .filter(({ v }) => v.length === 3)
-              .sort((a, b) => b.v[0] - a.v[0] || b.v[1] - a.v[1] || b.v[2] - a.v[2])[0];
+              .sort((a, b) => b.title.localeCompare(a.title, undefined, { numeric: true }))[0];
 
             if (!latest) {
-              core.warning('No open semver milestone found, skipping.');
+              core.warning('No open milestone found, skipping.');
               return;
             }
 
-            core.info(`Setting milestone ${latest.m.title} on PR #${prNumber}`);
+            core.info(`Setting milestone ${latest.title} on PR #${prNumber}`);
             await github.rest.issues.update({
-              owner, repo, issue_number: prNumber, milestone: latest.m.number,
+              owner, repo, issue_number: prNumber, milestone: latest.number,
             });
