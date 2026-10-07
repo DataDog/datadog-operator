@@ -122,6 +122,8 @@ type DatadogFeatures struct {
 	PrometheusScrape *PrometheusScrapeFeatureConfig `json:"prometheusScrape,omitempty"`
 	// HelmCheck configuration.
 	HelmCheck *HelmCheckFeatureConfig `json:"helmCheck,omitempty"`
+	// Kueue configuration.
+	Kueue *KueueFeatureConfig `json:"kueue,omitempty"`
 	// ControlPlaneMonitoring configuration.
 	ControlPlaneMonitoring *ControlPlaneMonitoringFeatureConfig `json:"controlPlaneMonitoring,omitempty"`
 	// KubernetesActions configuration.
@@ -1801,6 +1803,51 @@ type HelmCheckFeatureConfig struct {
 	// Default: {}
 	// +optional
 	ValuesAsTags map[string]string `json:"valuesAsTags,omitempty"`
+}
+
+// KueueFeatureConfig allows configuration of the Kueue feature.
+// +k8s:openapi-gen=true
+type KueueFeatureConfig struct {
+	// Enabled enables Kueue metadata collection in the Cluster Agent and the Kueue check,
+	// which runs as an endpoints check against each Kueue controller pod.
+	// The check requires `features.clusterChecks.enabled` and a node Agent scheduled on the Kueue controller nodes.
+	// (Requires Agent and Cluster Agent 7.82.0+. Kueue with more than one replica requires Agent 7.86.0+.)
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// CollectWorkloadEvents enables the collection of Kueue Workload lifecycle events.
+	// Default: true
+	// +optional
+	CollectWorkloadEvents *bool `json:"collectWorkloadEvents,omitempty"`
+
+	// MetricsService identifies the Service exposing the Kueue controller metrics.
+	// +optional
+	MetricsService *KueueMetricsServiceConfig `json:"metricsService,omitempty"`
+
+	// Conf overrides the configuration for the Kueue check. It replaces the generated configuration,
+	// so it must keep `advanced_ad_identifiers.kube_endpoints` and `cluster_check: true` to scrape every Kueue replica.
+	// Ignored when cluster checks are disabled.
+	// +optional
+	Conf *CustomConfig `json:"conf,omitempty"`
+}
+
+// KueueMetricsServiceConfig identifies the Service exposing the Kueue controller metrics.
+// +k8s:openapi-gen=true
+type KueueMetricsServiceConfig struct {
+	// Name is the name of the Kueue metrics Service.
+	// Default: kueue-controller-manager-metrics-service
+	// +optional
+	// +kubebuilder:validation:MaxLength=63
+	// +kubebuilder:validation:Pattern=`^[a-z0-9]([-a-z0-9]*[a-z0-9])?$`
+	Name *string `json:"name,omitempty"`
+
+	// Namespace is the namespace of the Kueue metrics Service.
+	// Default: kueue-system
+	// +optional
+	// +kubebuilder:validation:MaxLength=63
+	// +kubebuilder:validation:Pattern=`^[a-z0-9]([-a-z0-9]*[a-z0-9])?$`
+	Namespace *string `json:"namespace,omitempty"`
 }
 
 // Generic support structs
