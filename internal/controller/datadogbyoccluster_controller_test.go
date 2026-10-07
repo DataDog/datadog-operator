@@ -351,6 +351,44 @@ var _ = Describe("DatadogBYOCCluster Controller", func() {
 		})
 	})
 
+	Context("when an unowned indexer exists", func() {
+		var indexer *appsv1.StatefulSet
+
+		BeforeEach(func() {
+			// An invalid configuration keeps the controller from applying its own indexer.
+			cluster.Spec.Provider.AWS = nil
+			indexer = &appsv1.StatefulSet{
+				ObjectMeta: metav1.ObjectMeta{Name: "byoc-indexer", Namespace: namespace.Name},
+				Spec: appsv1.StatefulSetSpec{
+					Selector: &metav1.LabelSelector{MatchLabels: map[string]string{"app": "unrelated"}},
+					Template: corev1.PodTemplateSpec{
+						ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"app": "unrelated"}},
+						Spec:       corev1.PodSpec{Containers: []corev1.Container{{Name: "app", Image: "registry.invalid/app"}}},
+					},
+				},
+			}
+			createKubernetesObject(k8sClient, indexer)
+			createKubernetesObject(k8sClient, cluster)
+		})
+
+		It("keeps the indexer when the cluster is deleted", func() {
+			By("waiting for the finalizer")
+			Eventually(func(g Gomega) {
+				current := &datadoghqv1alpha1.DatadogBYOCCluster{}
+				g.Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(cluster), current)).To(Succeed())
+				g.Expect(current.Finalizers).To(ContainElement(datadogBYOCClusterFinalizer))
+			}, timeout, interval).Should(Succeed())
+
+			By("deleting the cluster")
+			deleteKubernetesObject(k8sClient, cluster)
+
+			By("verifying that the indexer is kept")
+			current := &appsv1.StatefulSet{}
+			Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(indexer), current)).To(Succeed())
+			Expect(current.DeletionTimestamp.IsZero()).To(BeTrue())
+		})
+	})
+
 	Context("when the configuration is invalid", func() {
 		BeforeEach(func() {
 			cluster.Spec.Provider.AWS = nil

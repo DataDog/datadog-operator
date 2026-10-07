@@ -121,7 +121,7 @@ func (r *DatadogBYOCClusterReconciler) reconcileResources(ctx context.Context, c
 		}
 	}
 	for _, object := range resources.ObsoleteObjects() {
-		if err := r.deleteIfControlled(ctx, cluster, object); err != nil {
+		if _, err := r.deleteIfControlled(ctx, cluster, object); err != nil {
 			return false, &reconcileFailure{conditionType: conditionReconciled, reason: "CleanupFailed", err: err}
 		}
 	}
@@ -134,13 +134,13 @@ func (r *DatadogBYOCClusterReconciler) finalize(ctx context.Context, cluster *da
 		return nil
 	}
 	indexer := &appsv1.StatefulSet{ObjectMeta: metav1.ObjectMeta{Name: byocresources.ComponentResourceName(cluster.Name, byocresources.IndexerComponentName), Namespace: cluster.Namespace}}
-	err := r.Client.Delete(ctx, indexer)
-	if err == nil {
+	deleted, err := r.deleteIfControlled(ctx, cluster, indexer)
+	if err != nil {
+		return err
+	}
+	if deleted {
 		// The indexer deletion event requeues the cluster once the StatefulSet is gone.
 		return nil
-	}
-	if !apierrors.IsNotFound(err) {
-		return fmt.Errorf("delete indexer StatefulSet: %w", err)
 	}
 	controllerutil.RemoveFinalizer(cluster, datadogBYOCClusterFinalizer)
 	if err := r.Client.Update(ctx, cluster); err != nil {
@@ -161,21 +161,25 @@ func (r *DatadogBYOCClusterReconciler) applyObject(ctx context.Context, owner *d
 	return r.Client.Patch(ctx, desired, client.Apply, client.ForceOwnership, client.FieldOwner(datadogBYOCClusterFieldOwner))
 }
 
-func (r *DatadogBYOCClusterReconciler) deleteIfControlled(ctx context.Context, owner client.Object, object client.Object) error {
+// deleteIfControlled deletes the object when it is controlled by owner and reports whether a deletion was requested.
+func (r *DatadogBYOCClusterReconciler) deleteIfControlled(ctx context.Context, owner client.Object, object client.Object) (bool, error) {
 	key := client.ObjectKeyFromObject(object)
 	if err := r.Client.Get(ctx, key, object); err != nil {
 		if apierrors.IsNotFound(err) {
-			return nil
+			return false, nil
 		}
-		return fmt.Errorf("get %T %s: %w", object, key, err)
+		return false, fmt.Errorf("get %T %s: %w", object, key, err)
 	}
 	if !metav1.IsControlledBy(object, owner) {
-		return nil
+		return false, nil
 	}
-	if err := client.IgnoreNotFound(r.Client.Delete(ctx, object)); err != nil {
-		return fmt.Errorf("delete %T %s: %w", object, key, err)
+	if err := r.Client.Delete(ctx, object); err != nil {
+		if apierrors.IsNotFound(err) {
+			return false, nil
+		}
+		return false, fmt.Errorf("delete %T %s: %w", object, key, err)
 	}
-	return nil
+	return true, nil
 }
 
 func setConditions(cluster *datadoghqv1alpha1.DatadogBYOCCluster, available bool, failure *reconcileFailure) {
