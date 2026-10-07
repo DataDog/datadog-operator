@@ -66,6 +66,21 @@ type DatadogInstrumentationCheckConfig struct {
 	// +optional
 	ContainerName string `json:"containerName,omitempty"`
 
+	// IgnoreAutodiscoveryTags suppresses container and pod tags automatically attached by Autodiscovery.
+	// +optional
+	// +kubebuilder:default=false
+	IgnoreAutodiscoveryTags bool `json:"ignoreAutodiscoveryTags,omitempty"`
+
+	// CheckTagCardinality overrides the Agent's check tag cardinality. If omitted, the Agent setting is used.
+	// +optional
+	// +kubebuilder:validation:Enum=low;orchestrator;high
+	CheckTagCardinality string `json:"checkTagCardinality,omitempty"`
+
+	// JMXMetrics contains integration-specific jmx_metrics definitions.
+	// +optional
+	// +listType=atomic
+	JMXMetrics []runtime.RawExtension `json:"jmxMetrics,omitempty"`
+
 	// InitConfig is the integration-specific Autodiscovery init_config payload.
 	// +optional
 	// +kubebuilder:pruning:PreserveUnknownFields
