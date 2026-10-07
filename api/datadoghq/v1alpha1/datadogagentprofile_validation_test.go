@@ -247,6 +247,25 @@ func TestIsValidDatadogAgentProfile(t *testing.T) {
 			spec:    invalidDataPlaneFeature,
 			wantErr: "dataPlane override is not supported",
 		},
+		{
+			name: "dap with config rollout strategy",
+			spec: &DatadogAgentProfileSpec{
+				ProfileAffinity: basicProfileAffinity,
+				Config: &v2alpha1.DatadogAgentSpec{
+					Override:        basicNodeAgentOverride,
+					RolloutStrategy: &v2alpha1.RolloutStrategy{Priority: ptr.To[int32](1)},
+				},
+			},
+			wantErr: "config.rolloutStrategy is not supported, use spec.rollout",
+		},
+		{
+			name: "dap with spec rollout",
+			spec: &DatadogAgentProfileSpec{
+				ProfileAffinity: basicProfileAffinity,
+				Config:          &v2alpha1.DatadogAgentSpec{Override: basicNodeAgentOverride},
+				Rollout:         &v2alpha1.RolloutStrategy{Priority: ptr.To[int32](1)},
+			},
+		},
 	}
 	for _, test := range testCases {
 		t.Run(test.name, func(t *testing.T) {

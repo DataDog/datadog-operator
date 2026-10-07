@@ -40,6 +40,11 @@ type DatadogAgentSpec struct {
 	// Override the default configurations of the agents
 	// +optional
 	Override map[ComponentName]*DatadogAgentComponentOverride `json:"override,omitempty"`
+
+	// RolloutStrategy configures the ordered rollout of the default DatadogAgentInternal
+	// and the defaults inherited by DatadogAgentProfile rollout steps.
+	// +optional
+	RolloutStrategy *RolloutStrategy `json:"rolloutStrategy,omitempty"`
 }
 
 // DatadogFeatures are features running on the Agent and Cluster Agent.
@@ -2872,6 +2877,9 @@ type DatadogAgentStatus struct {
 	// +optional
 	// +kubebuilder:validation:Pattern=`^[a-f0-9]{64}$`
 	CurrentRevisionObservedAnnotationsHash string `json:"currentRevisionObservedAnnotationsHash,omitempty"`
+	// Rollout is the state of the ordered rollout of DatadogAgentInternal updates.
+	// +optional
+	Rollout *RolloutStatus `json:"rollout,omitempty"`
 }
 
 // DatadogAgent defines Agent configuration, see reference https://github.com/DataDog/datadog-operator/blob/main/docs/configuration.v2alpha1.md
@@ -2884,6 +2892,8 @@ type DatadogAgentStatus struct {
 // +kubebuilder:printcolumn:name="cluster-checks-runner",type="string",JSONPath=".status.clusterChecksRunner.status"
 // +kubebuilder:printcolumn:name="age",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:printcolumn:name="experiment-phase",type="string",JSONPath=".status.experiment.phase",priority=1
+// +kubebuilder:printcolumn:name="rollout",type="string",JSONPath=".status.rollout.phase",priority=1
+// +kubebuilder:printcolumn:name="rollout-priority",type="integer",JSONPath=".status.rollout.currentPriority",priority=1
 // +k8s:openapi-gen=true
 // +genclient
 type DatadogAgent struct {
