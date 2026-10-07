@@ -196,6 +196,9 @@ spec:
 `features.cspm.customBenchmarks`
 : CustomBenchmarks contains CSPM benchmarks. The content of the ConfigMap will be merged with the benchmarks bundled with the agent. Any benchmarks with the same name as those existing in the agent will take precedence.
 
+`features.cspm.databaseBenchmarks.enabled`
+: Enables database benchmarks. Requires `features.cspm.enabled` to be set to `true`. Default: false
+
 `features.cspm.enabled`
 : Enables Cloud Security Posture Management, including Docker and Kubernetes benchmarks. Default: false
 

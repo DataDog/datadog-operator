@@ -19,6 +19,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 	return map[string]common.OpenAPIDefinition{
 		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.CSIAPMConfig":                        schema_datadog_operator_api_datadoghq_v2alpha1_CSIAPMConfig(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.CSIImageConfig":                      schema_datadog_operator_api_datadoghq_v2alpha1_CSIImageConfig(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.CSPMDatabaseBenchmarksConfig":        schema_datadog_operator_api_datadoghq_v2alpha1_CSPMDatabaseBenchmarksConfig(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.CSPMHostBenchmarksConfig":            schema_datadog_operator_api_datadoghq_v2alpha1_CSPMHostBenchmarksConfig(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.CelWorkloadExcludeConfig":            schema_datadog_operator_api_datadoghq_v2alpha1_CelWorkloadExcludeConfig(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.ControlPlaneMonitoringFeatureConfig": schema_datadog_operator_api_datadoghq_v2alpha1_ControlPlaneMonitoringFeatureConfig(ref),
@@ -149,6 +150,26 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_CSIImageConfig(ref common.Re
 		},
 		Dependencies: []string{
 			"k8s.io/api/core/v1.LocalObjectReference"},
+	}
+}
+
+func schema_datadog_operator_api_datadoghq_v2alpha1_CSPMDatabaseBenchmarksConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "CSPMDatabaseBenchmarksConfig contains configuration for database benchmarks.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"enabled": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Enabled enables database benchmarks. Requires `features.cspm.enabled` to be set to `true`. Default: false",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
 	}
 }
 

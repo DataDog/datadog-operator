@@ -1488,6 +1488,17 @@
                       },
                       "type": "object"
                     },
+                    "databaseBenchmarks": {
+                      "additionalProperties": false,
+                      "description": "DatabaseBenchmarks contains configuration for database benchmarks.",
+                      "properties": {
+                        "enabled": {
+                          "description": "Enabled enables database benchmarks. Requires `features.cspm.enabled` to be set to `true`.\nDefault: false",
+                          "type": "boolean"
+                        }
+                      },
+                      "type": "object"
+                    },
                     "enabled": {
                       "description": "Enabled enables Cloud Security Posture Management, including Docker and Kubernetes benchmarks.\nDefault: false",
                       "type": "boolean"

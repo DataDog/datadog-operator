@@ -1506,6 +1506,15 @@ spec:
                                   type: string
                               type: object
                           type: object
+                        databaseBenchmarks:
+                          description: DatabaseBenchmarks contains configuration for database benchmarks.
+                          properties:
+                            enabled:
+                              description: |-
+                                Enabled enables database benchmarks. Requires `features.cspm.enabled` to be set to `true`.
+                                Default: false
+                              type: boolean
+                          type: object
                         enabled:
                           description: |-
                             Enabled enables Cloud Security Posture Management, including Docker and Kubernetes benchmarks.
@@ -10941,6 +10950,15 @@ spec:
                                       description: Name is the name of the ConfigMap.
                                       type: string
                                   type: object
+                              type: object
+                            databaseBenchmarks:
+                              description: DatabaseBenchmarks contains configuration for database benchmarks.
+                              properties:
+                                enabled:
+                                  description: |-
+                                    Enabled enables database benchmarks. Requires `features.cspm.enabled` to be set to `true`.
+                                    Default: false
+                                  type: boolean
                               type: object
                             enabled:
                               description: |-
