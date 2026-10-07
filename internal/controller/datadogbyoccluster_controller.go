@@ -39,6 +39,16 @@ const (
 	conditionReconciled      = "Reconciled"
 	conditionAvailable       = "Available"
 
+	reasonResolved             = "Resolved"
+	reasonResolutionFailed     = "ResolutionFailed"
+	reasonInvalidConfiguration = "InvalidConfiguration"
+	reasonConflict             = "Conflict"
+	reasonApplyFailed          = "ApplyFailed"
+	reasonCleanupFailed        = "CleanupFailed"
+	reasonReconciled           = "Reconciled"
+	reasonAvailable            = "Available"
+	reasonWorkloadsUnavailable = "WorkloadsUnavailable"
+
 	datadogBYOCClusterFieldOwner = "datadog-byoccluster-controller"
 )
 
@@ -51,6 +61,9 @@ type DatadogBYOCClusterReconciler struct {
 
 	ImageResolver byocimage.ImageResolver
 }
+
+// errObjectConflict reports an existing object with a managed name that the cluster does not control.
+var errObjectConflict = errors.New("exists and is not controlled by this DatadogBYOCCluster")
 
 // reconcileFailure is the condition reported as False when reconciliation fails.
 type reconcileFailure struct {
@@ -105,26 +118,30 @@ func (r *DatadogBYOCClusterReconciler) Reconcile(ctx context.Context, request ct
 // reconcileResources converges the managed resources and reports whether all workloads are available.
 func (r *DatadogBYOCClusterReconciler) reconcileResources(ctx context.Context, cluster *datadoghqv1alpha1.DatadogBYOCCluster) (bool, *reconcileFailure) {
 	if err := byocvalidation.ValidateClusterSpec(&cluster.Spec).ToAggregate(); err != nil {
-		return false, &reconcileFailure{conditionType: conditionReconciled, reason: "InvalidConfiguration", err: err, terminal: true}
+		return false, &reconcileFailure{conditionType: conditionReconciled, reason: reasonInvalidConfiguration, err: err, terminal: true}
 	}
 	images, err := r.ImageResolver.Resolve(ctx, cluster.Spec.Release, cluster.Spec.ImageOverrides)
 	if err != nil {
-		return false, &reconcileFailure{conditionType: conditionReleaseResolved, reason: "ResolutionFailed", err: err}
+		return false, &reconcileFailure{conditionType: conditionReleaseResolved, reason: reasonResolutionFailed, err: err}
 	}
-	setCondition(cluster, conditionReleaseResolved, metav1.ConditionTrue, "Resolved", "Workload images resolved successfully")
+	setCondition(cluster, conditionReleaseResolved, metav1.ConditionTrue, reasonResolved, "Workload images resolved successfully")
 
 	resources, err := byocresources.BuildResources(cluster, images)
 	if err != nil {
-		return false, &reconcileFailure{conditionType: conditionReconciled, reason: "InvalidConfiguration", err: err, terminal: true}
+		return false, &reconcileFailure{conditionType: conditionReconciled, reason: reasonInvalidConfiguration, err: err, terminal: true}
 	}
 	for _, object := range resources.Objects() {
 		if err := r.applyObject(ctx, cluster, object); err != nil {
-			return false, &reconcileFailure{conditionType: conditionReconciled, reason: "ApplyFailed", err: fmt.Errorf("apply %T %s: %w", object, client.ObjectKeyFromObject(object), err)}
+			reason := reasonApplyFailed
+			if errors.Is(err, errObjectConflict) {
+				reason = reasonConflict
+			}
+			return false, &reconcileFailure{conditionType: conditionReconciled, reason: reason, err: fmt.Errorf("apply %T %s: %w", object, client.ObjectKeyFromObject(object), err)}
 		}
 	}
 	for _, object := range resources.ObsoleteObjects() {
 		if _, err := r.deleteIfControlled(ctx, r.Client, cluster, object); err != nil {
-			return false, &reconcileFailure{conditionType: conditionReconciled, reason: "CleanupFailed", err: err}
+			return false, &reconcileFailure{conditionType: conditionReconciled, reason: reasonCleanupFailed, err: err}
 		}
 	}
 	// The applied objects hold the live status returned by the server-side apply.
@@ -153,6 +170,15 @@ func (r *DatadogBYOCClusterReconciler) finalize(ctx context.Context, cluster *da
 }
 
 func (r *DatadogBYOCClusterReconciler) applyObject(ctx context.Context, owner *datadoghqv1alpha1.DatadogBYOCCluster, desired client.Object) error {
+	current := desired.DeepCopyObject().(client.Object)
+	switch err := r.Client.Get(ctx, client.ObjectKeyFromObject(desired), current); {
+	case apierrors.IsNotFound(err):
+	case err != nil:
+		return err
+	case !metav1.IsControlledBy(current, owner):
+		// The forced apply would otherwise overwrite the object and adopt it.
+		return errObjectConflict
+	}
 	if err := controllerutil.SetControllerReference(owner, desired, r.Scheme); err != nil {
 		return err
 	}
@@ -196,11 +222,11 @@ func setConditions(cluster *datadoghqv1alpha1.DatadogBYOCCluster, available bool
 		}
 		setCondition(cluster, conditionAvailable, metav1.ConditionFalse, failure.reason, message)
 	case available:
-		setCondition(cluster, conditionReconciled, metav1.ConditionTrue, "Reconciled", "Managed resources match the desired state")
-		setCondition(cluster, conditionAvailable, metav1.ConditionTrue, "Available", "All workloads are available")
+		setCondition(cluster, conditionReconciled, metav1.ConditionTrue, reasonReconciled, "Managed resources match the desired state")
+		setCondition(cluster, conditionAvailable, metav1.ConditionTrue, reasonAvailable, "All workloads are available")
 	default:
-		setCondition(cluster, conditionReconciled, metav1.ConditionTrue, "Reconciled", "Managed resources match the desired state")
-		setCondition(cluster, conditionAvailable, metav1.ConditionFalse, "WorkloadsUnavailable", "One or more workloads are not yet available")
+		setCondition(cluster, conditionReconciled, metav1.ConditionTrue, reasonReconciled, "Managed resources match the desired state")
+		setCondition(cluster, conditionAvailable, metav1.ConditionFalse, reasonWorkloadsUnavailable, "One or more workloads are not yet available")
 	}
 }
 

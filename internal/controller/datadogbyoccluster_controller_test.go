@@ -351,6 +351,39 @@ var _ = Describe("DatadogBYOCCluster Controller", func() {
 		})
 	})
 
+	Context("when an unowned object has a managed name", func() {
+		var configMap *corev1.ConfigMap
+
+		BeforeEach(func() {
+			configMap = &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{Name: "byoc", Namespace: namespace.Name},
+				Data:       map[string]string{"key": "value"},
+			}
+			createKubernetesObject(k8sClient, configMap)
+			createKubernetesObject(k8sClient, cluster)
+		})
+
+		AfterEach(func() {
+			deleteKubernetesObject(k8sClient, cluster)
+		})
+
+		It("reports a conflict without changing the object", func() {
+			By("reporting Reconciled=False with reason Conflict")
+			Eventually(func(g Gomega) {
+				current := &datadoghqv1alpha1.DatadogBYOCCluster{}
+				g.Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(cluster), current)).To(Succeed())
+				g.Expect(meta.IsStatusConditionFalse(current.Status.Conditions, conditionReconciled)).To(BeTrue())
+				g.Expect(meta.FindStatusCondition(current.Status.Conditions, conditionReconciled).Reason).To(Equal("Conflict"))
+			}, timeout, interval).Should(Succeed())
+
+			By("keeping the unowned ConfigMap unchanged")
+			current := &corev1.ConfigMap{}
+			Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(configMap), current)).To(Succeed())
+			Expect(current.Data).To(Equal(map[string]string{"key": "value"}))
+			Expect(current.OwnerReferences).To(BeEmpty())
+		})
+	})
+
 	Context("when an unowned indexer exists", func() {
 		var indexer *appsv1.StatefulSet
 
