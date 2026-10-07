@@ -101,6 +101,9 @@ func (r *Reconciler) buildRolloutPlan(ctx context.Context, instance *v2alpha1.Da
 		step.Live = live.facts
 		if live.ddai != nil {
 			plan.live[step.Key()] = live.ddai
+			if v, ok := live.ddai.Annotations[orderedrollout.StartedAtAnnotation]; ok && live.facts.TargetHash == target {
+				ddai.Annotations[orderedrollout.StartedAtAnnotation] = v
+			}
 		}
 		plan.rendered[step.Key()] = ddai
 		plan.inputs.Steps = append(plan.inputs.Steps, step)
@@ -152,6 +155,11 @@ func (r *Reconciler) getRolloutLiveFacts(ctx context.Context, rendered *v1alpha1
 		AnnotationsDiffer:      !maps.Equal(live.Annotations, rendered.Annotations),
 		InertAnnotationsDiffer: orderedrollout.InertAnnotationPatch(rendered.Annotations, live.Annotations) != nil,
 	}
+	if v := live.Annotations[orderedrollout.StartedAtAnnotation]; v != "" && liveHash == live.Annotations[orderedrollout.TargetHashAnnotation] {
+		if t, err := time.Parse(time.RFC3339, v); err == nil {
+			facts.StartedAt = &metav1.Time{Time: t}
+		}
+	}
 	if c := condition.GetDDAICondition(&live.Status, common.DatadogAgentReconcileErrorConditionType); c != nil && c.Status == metav1.ConditionTrue {
 		facts.ReconcileError = true
 	}
@@ -186,12 +194,19 @@ func (r *Reconciler) getRolloutLiveFacts(ctx context.Context, rendered *v1alpha1
 // next reconcile recomputes.
 func (r *Reconciler) actRollout(ctx context.Context, plan *rolloutPlan, decisions orderedrollout.Decisions) (*v2alpha1.RolloutStatus, error) {
 	status := decisions.Status.DeepCopy()
+	startedAt := map[string]*metav1.Time{}
+	for _, s := range decisions.Steps {
+		startedAt[s.Key] = s.Status.StartedAt
+	}
 	var errs []error
 	for _, w := range decisions.Writes {
 		rendered := plan.rendered[w.Key]
 		var err error
 		switch w.Kind {
 		case orderedrollout.WriteCreate, orderedrollout.WriteUpdate:
+			if t := startedAt[w.Key]; t != nil {
+				rendered.Annotations[orderedrollout.StartedAtAnnotation] = t.UTC().Format(time.RFC3339)
+			}
 			err = r.createOrUpdateDDAI(rendered)
 		case orderedrollout.WritePatchMetadata:
 			err = r.patchDDAIAnnotations(ctx, plan.live[w.Key], rendered, w.SyncHashes)

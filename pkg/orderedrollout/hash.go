@@ -27,10 +27,10 @@ func IsControlAnnotation(key string) bool {
 	return false
 }
 
-// isHashAnnotation reports whether key holds a hash computed by the operator
-// from the DatadogAgentInternal itself.
+// isHashAnnotation reports whether key holds a value computed by the operator
+// for the DatadogAgentInternal itself.
 func isHashAnnotation(key string) bool {
-	return key == TargetHashAnnotation || key == constants.MD5DDAIDeploymentAnnotationKey
+	return key == TargetHashAnnotation || key == StartedAtAnnotation || key == constants.MD5DDAIDeploymentAnnotationKey
 }
 
 // IsInertAnnotation reports whether a DatadogAgentInternal annotation does not

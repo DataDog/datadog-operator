@@ -67,6 +67,9 @@ type LiveFacts struct {
 	AnnotationsDiffer bool
 	// InertAnnotationsDiffer reports whether InertAnnotationPatch is not empty.
 	InertAnnotationsDiffer bool
+	// StartedAt is read from StartedAtAnnotation. It covers a persisted status
+	// that lags behind the write that started the step.
+	StartedAt *metav1.Time
 }
 
 // StepFacts describe one rollout step.
@@ -349,6 +352,9 @@ func evaluateStep(s StepFacts, p *v2alpha1.RolloutStepStatus, now metav1.Time) (
 		st.StartedAt = p.StartedAt
 		st.CompletedAt = p.CompletedAt
 		st.SoakStartedAt = p.SoakStartedAt
+	}
+	if st.StartedAt == nil && s.Live != nil {
+		st.StartedAt = s.Live.StartedAt
 	}
 
 	switch {

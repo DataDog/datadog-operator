@@ -26,6 +26,8 @@ const (
 	BypassAnnotation = "agent.datadoghq.com/rollout-bypass"
 	// TargetHashAnnotation stores the rollout target hash on a DatadogAgentInternal.
 	TargetHashAnnotation = "agent.datadoghq.com/rollout-target-hash"
+	// StartedAtAnnotation records, in the same write as the spec, when the gate started a step's target.
+	StartedAtAnnotation = "agent.datadoghq.com/rollout-started-at"
 )
 
 // Config is the resolved rollout configuration of one step.

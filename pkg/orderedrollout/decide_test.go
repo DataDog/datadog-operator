@@ -630,6 +630,19 @@ func TestDecide_Warnings(t *testing.T) {
 	assert.NotContains(t, d.Status.Warnings, WarningDefaultNotFirst)
 }
 
+func TestDecide_StartedAtFromLiveMarker(t *testing.T) {
+	// The persisted status lags behind the write that started "a": the live
+	// marker keeps "a" in progress, so the next wave does not start.
+	in := scenario(dflt(10, stNotStarted), dap("a", 0, stUnchanged), dap("b", 5, stNotStarted))
+	in.Steps[1].Live.StartedAt = ago(time.Second)
+	in.Steps[1].Live.DaemonSet = unhealthyDS()
+	d := Decide(in)
+	assert.Equal(t, v2alpha1.RolloutPhaseInProgress, stepStatus(d, "ns/a").Phase)
+	assert.True(t, stepStatus(d, "ns/a").StartedAt.Equal(ago(time.Second)))
+	assert.Empty(t, specWrites(d))
+	assert.Equal(t, v2alpha1.RolloutPhasePending, stepStatus(d, "ns/b").Phase)
+}
+
 func TestDecide_ProgressPredicates(t *testing.T) {
 	d := Decide(scenario(dflt(0, stWrittenUnacked), dap("b", 10, stNotStarted)))
 	assert.Equal(t, ReasonSpecApplying, stepStatus(d, "default").Reason)
