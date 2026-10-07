@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -394,4 +395,17 @@ func TestGenerateProfileStatusFromConditions(t *testing.T) {
 			assert.Equal(t, tt.expectedProfileStatus, tt.profile.Status)
 		})
 	}
+}
+
+func TestRolloutStatusPreservedAndCompared(t *testing.T) {
+	rollout := &v2alpha1.RolloutStepStatus{Name: "p", Phase: v2alpha1.RolloutPhaseHeld}
+	profile := &datadoghqv1alpha1.DatadogAgentProfile{Status: datadoghqv1alpha1.DatadogAgentProfileStatus{Rollout: rollout}}
+	GenerateProfileStatusFromConditions(logf.Log, profile, metav1.Now())
+	assert.Equal(t, rollout, profile.Status.Rollout)
+
+	current := profile.Status.DeepCopy()
+	next := current.DeepCopy()
+	assert.True(t, IsEqualStatus(current, next))
+	next.Rollout.Phase = v2alpha1.RolloutPhaseCompleted
+	assert.False(t, IsEqualStatus(current, next))
 }

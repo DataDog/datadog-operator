@@ -28,6 +28,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	"github.com/DataDog/datadog-operator/pkg/orderedrollout"
 )
 
 func (r *Reconciler) generateDDAIFromDDA(dda *v2alpha1.DatadogAgent, provider string) (*v1alpha1.DatadogAgentInternal, error) {
@@ -59,6 +60,8 @@ func generateObjMetaFromDDA(dda *v2alpha1.DatadogAgent, ddai *v1alpha1.DatadogAg
 	// Moreover, the applied configuration is the one for DDA, not DDAI, so it doesn't make sense.
 	ddaiAnnotations := maps.Clone(dda.Annotations)
 	delete(ddaiAnnotations, "kubectl.kubernetes.io/last-applied-configuration")
+	// Rollout control annotations are read from the DDA and DAP only.
+	orderedrollout.StripControlAnnotations(ddaiAnnotations)
 
 	// Resolve the provider from the DDA annotations and stamp it on the DDAI so the
 	// DDAI reconciler picks it up. GKE Autopilot can be enabled via either the experimental
@@ -91,6 +94,8 @@ func generateObjMetaFromDDA(dda *v2alpha1.DatadogAgent, ddai *v1alpha1.DatadogAg
 
 func generateSpecFromDDA(dda *v2alpha1.DatadogAgent, ddai *v1alpha1.DatadogAgentInternal) error {
 	ddai.Spec = *dda.Spec.DeepCopy()
+	// The rollout strategy is consumed by the DDA controller only.
+	ddai.Spec.RolloutStrategy = nil
 	global.SetGlobalFromDDA(dda, ddai.Spec.Global)
 	override.SetOverrideFromDDA(dda, &ddai.Spec)
 	return nil

@@ -39,6 +39,7 @@ func generateNewStatusFromDDA(ddaStatus *datadoghqv2alpha1.DatadogAgentStatus) *
 		status.CurrentRevision = ddaStatus.CurrentRevision
 		status.CurrentRevisionObservedGeneration = ddaStatus.CurrentRevisionObservedGeneration
 		status.CurrentRevisionObservedAnnotationsHash = ddaStatus.CurrentRevisionObservedAnnotationsHash
+		status.Rollout = ddaStatus.Rollout.DeepCopy()
 	}
 	return status
 }

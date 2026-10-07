@@ -33,6 +33,7 @@ import (
 	pkgutils "github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	"github.com/DataDog/datadog-operator/pkg/orderedrollout"
 )
 
 func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv2alpha1.DatadogAgent) (reconcile.Result, error) {
@@ -162,6 +163,7 @@ func (r *Reconciler) reconcileInstance(ctx context.Context, logger logr.Logger, 
 	ddais = append(ddais, ddai)
 
 	// Profiles
+	var appliedProfiles []*datadoghqv1alpha1.DatadogAgentProfile
 	sendProfileEnabledMetric(r.options.DatadogAgentProfileEnabled)
 	if r.options.DatadogAgentProfileEnabled {
 		dsName := component.GetDaemonSetNameFromDatadogAgent(instance, &instance.Spec)
@@ -175,7 +177,8 @@ func (r *Reconciler) reconcileInstance(ctx context.Context, logger logr.Logger, 
 		// component config contributed by profiles is accumulated on the default
 		// DDAI, because there is only one Cluster Agent/CCR for the cluster.
 		defaultDDAI := ddai.DeepCopy()
-		appliedProfiles, e := r.reconcileProfiles(ctx, dsNSName, maxUnavailable, defaultDDAI)
+		var e error
+		appliedProfiles, e = r.reconcileProfiles(ctx, dsNSName, maxUnavailable, defaultDDAI)
 		if e != nil {
 			return r.updateStatusIfNeeded(logger, instance, ddaStatusCopy, result, e, now)
 		}
@@ -192,12 +195,23 @@ func (r *Reconciler) reconcileInstance(ctx context.Context, logger logr.Logger, 
 		return r.updateStatusIfNeeded(logger, instance, ddaStatusCopy, result, err, now)
 	}
 
-	// Create or update the DDAI object in k8s
-	for _, ddai := range ddais {
-		if e := r.createOrUpdateDDAI(ddai); e != nil {
-			return r.updateStatusIfNeeded(logger, instance, ddaStatusCopy, result, e, now)
-		}
+	// Gate DDAI writes through the ordered rollout, then create or update them.
+	plan, err := r.buildRolloutPlan(ctx, instance, appliedProfiles, ddais, now.Truncate(time.Second))
+	if err != nil {
+		return r.updateStatusIfNeeded(logger, instance, ddaStatusCopy, result, err, now)
+	}
+	decisions := orderedrollout.Decide(plan.inputs)
+	rolloutStatus, err := r.actRollout(ctx, plan, decisions)
+	r.emitRolloutEvents(instance, plan, decisions, ddaStatusCopy.Rollout, rolloutStatus)
+	r.syncProfileRolloutStatus(ctx, plan, rolloutStatus)
+	if err != nil {
+		ddaStatusCopy.Rollout = rolloutStatus
+		return r.updateStatusIfNeeded(logger, instance, ddaStatusCopy, result, err, now)
+	}
+	newDDAStatus.Rollout = rolloutStatus
+	setRolloutConditions(newDDAStatus, now)
 
+	for _, ddai := range ddais {
 		// Add DDAI status to DDA status
 		if e := r.addDDAIStatusToDDAStatus(newDDAStatus, ddai.ObjectMeta, now); e != nil {
 			return r.updateStatusIfNeeded(logger, instance, ddaStatusCopy, result, e, now)

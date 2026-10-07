@@ -47,6 +47,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	"github.com/DataDog/datadog-operator/pkg/orderedrollout"
 	"github.com/DataDog/datadog-operator/pkg/testutils"
 	"github.com/DataDog/datadog-operator/pkg/untaint"
 	pkgutils "github.com/DataDog/datadog-operator/pkg/utils"
@@ -2743,8 +2744,9 @@ func getDefaultDDAI(dda *v2alpha1.DatadogAgent) v1alpha1.DatadogAgentInternal {
 func setDDAIHash(t *testing.T, ddai *v1alpha1.DatadogAgentInternal) {
 	t.Helper()
 
-	_, err := comparison.SetMD5GenerationAnnotation(&ddai.ObjectMeta, ddai.Spec, constants.MD5DDAIDeploymentAnnotationKey)
+	specHash, err := comparison.SetMD5GenerationAnnotation(&ddai.ObjectMeta, ddai.Spec, constants.MD5DDAIDeploymentAnnotationKey)
 	assert.NoError(t, err, "failed to compute DDAI spec hash")
+	ddai.Annotations[orderedrollout.TargetHashAnnotation] = orderedrollout.TargetHash(specHash, ddai.Annotations)
 }
 
 func serviceDiscoveryEnabledForInheritedDefaultImage() bool {
