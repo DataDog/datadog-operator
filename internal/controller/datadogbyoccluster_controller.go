@@ -23,6 +23,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	byocdefaults "github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/defaults"
@@ -54,6 +55,8 @@ type reconcileFailure struct {
 	conditionType string
 	reason        string
 	err           error
+	// terminal is set when retrying cannot succeed until the spec changes.
+	terminal bool
 }
 
 // +kubebuilder:rbac:groups=datadoghq.com,resources=datadogbyocclusters,verbs=get;list;watch;create;update;patch;delete
@@ -91,32 +94,35 @@ func (r *DatadogBYOCClusterReconciler) Reconcile(ctx context.Context, request ct
 	if statusErr := r.Client.Status().Update(ctx, cluster); statusErr != nil {
 		return ctrl.Result{}, errors.Join(err, fmt.Errorf("update DatadogBYOCCluster status: %w", statusErr))
 	}
+	if failure != nil && failure.terminal {
+		return ctrl.Result{}, reconcile.TerminalError(err)
+	}
 	return ctrl.Result{}, err
 }
 
 // reconcileResources converges the managed resources and reports whether all workloads are available.
 func (r *DatadogBYOCClusterReconciler) reconcileResources(ctx context.Context, cluster *datadoghqv1alpha1.DatadogBYOCCluster) (bool, *reconcileFailure) {
 	if err := byocvalidation.ValidateClusterSpec(&cluster.Spec).ToAggregate(); err != nil {
-		return false, &reconcileFailure{conditionReconciled, "InvalidConfiguration", err}
+		return false, &reconcileFailure{conditionType: conditionReconciled, reason: "InvalidConfiguration", err: err, terminal: true}
 	}
 	images, err := r.ImageResolver.Resolve(ctx, cluster.Spec.Release, cluster.Spec.ImageOverrides)
 	if err != nil {
-		return false, &reconcileFailure{conditionReleaseResolved, "ResolutionFailed", err}
+		return false, &reconcileFailure{conditionType: conditionReleaseResolved, reason: "ResolutionFailed", err: err}
 	}
 	setCondition(cluster, conditionReleaseResolved, metav1.ConditionTrue, "Resolved", "Workload images resolved successfully")
 
 	resources, err := byocresources.BuildResources(cluster, images)
 	if err != nil {
-		return false, &reconcileFailure{conditionReconciled, "InvalidConfiguration", err}
+		return false, &reconcileFailure{conditionType: conditionReconciled, reason: "InvalidConfiguration", err: err, terminal: true}
 	}
 	for _, object := range resources.Objects() {
 		if err := r.applyObject(ctx, cluster, object); err != nil {
-			return false, &reconcileFailure{conditionReconciled, "ApplyFailed", fmt.Errorf("apply %T %s: %w", object, client.ObjectKeyFromObject(object), err)}
+			return false, &reconcileFailure{conditionType: conditionReconciled, reason: "ApplyFailed", err: fmt.Errorf("apply %T %s: %w", object, client.ObjectKeyFromObject(object), err)}
 		}
 	}
 	for _, object := range resources.ObsoleteObjects() {
 		if err := r.deleteIfControlled(ctx, cluster, object); err != nil {
-			return false, &reconcileFailure{conditionReconciled, "CleanupFailed", err}
+			return false, &reconcileFailure{conditionType: conditionReconciled, reason: "CleanupFailed", err: err}
 		}
 	}
 	// The applied objects hold the live status returned by the server-side apply.

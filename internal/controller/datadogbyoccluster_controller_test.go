@@ -26,6 +26,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/metrics"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	byocimage "github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/image"
@@ -350,6 +351,30 @@ var _ = Describe("DatadogBYOCCluster Controller", func() {
 		})
 	})
 
+	Context("when the configuration is invalid", func() {
+		BeforeEach(func() {
+			cluster.Spec.Provider.AWS = nil
+		})
+
+		AfterEach(func() {
+			deleteKubernetesObject(k8sClient, cluster)
+		})
+
+		It("reports the failure without retrying", func() {
+			terminalErrorsBefore := byocTerminalReconcileErrors()
+			createKubernetesObject(k8sClient, cluster)
+
+			Eventually(func(g Gomega) {
+				current := &datadoghqv1alpha1.DatadogBYOCCluster{}
+				g.Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(cluster), current)).To(Succeed())
+				g.Expect(meta.IsStatusConditionFalse(current.Status.Conditions, conditionReconciled)).To(BeTrue())
+				g.Expect(meta.FindStatusCondition(current.Status.Conditions, conditionReconciled).Reason).To(Equal("InvalidConfiguration"))
+				g.Expect(meta.IsStatusConditionFalse(current.Status.Conditions, conditionAvailable)).To(BeTrue())
+				g.Expect(byocTerminalReconcileErrors()).To(BeNumerically(">", terminalErrorsBefore))
+			}, timeout, interval).Should(Succeed())
+		})
+	})
+
 	Context("when release resolution fails", func() {
 		BeforeEach(func() {
 			cluster.Spec.Release.Tag = ptr.To(byocFailureReleaseTag)
@@ -588,4 +613,23 @@ func waitForBYOCTestDeletion(object client.Object) {
 		err := k8sClient.Get(context.Background(), client.ObjectKeyFromObject(object), object.DeepCopyObject().(client.Object))
 		return apierrors.IsNotFound(err)
 	}, timeout, interval).Should(BeTrue())
+}
+
+// byocTerminalReconcileErrors returns the number of reconcile errors that controller-runtime did not retry.
+func byocTerminalReconcileErrors() float64 {
+	families, err := metrics.Registry.Gather()
+	Expect(err).NotTo(HaveOccurred())
+	for _, family := range families {
+		if family.GetName() != "controller_runtime_terminal_reconcile_errors_total" {
+			continue
+		}
+		for _, metric := range family.GetMetric() {
+			for _, label := range metric.GetLabel() {
+				if label.GetName() == "controller" && label.GetValue() == "datadogbyoccluster" {
+					return metric.GetCounter().GetValue()
+				}
+			}
+		}
+	}
+	return 0
 }
