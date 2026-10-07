@@ -204,8 +204,9 @@ func (r *Reconciler) reconcileInstance(ctx context.Context, logger logr.Logger, 
 	rolloutStatus, err := r.actRollout(ctx, plan, decisions)
 	r.emitRolloutEvents(instance, plan, decisions, ddaStatusCopy.Rollout, rolloutStatus)
 	r.syncProfileRolloutStatus(ctx, plan, rolloutStatus)
+	// Later error returns persist ddaStatusCopy, which must not lose the steps just written.
+	ddaStatusCopy.Rollout = rolloutStatus
 	if err != nil {
-		ddaStatusCopy.Rollout = rolloutStatus
 		return r.updateStatusIfNeeded(logger, instance, ddaStatusCopy, result, err, now)
 	}
 	newDDAStatus.Rollout = rolloutStatus

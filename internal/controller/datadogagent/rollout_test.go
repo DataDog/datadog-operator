@@ -7,6 +7,7 @@ package datadogagent
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -21,6 +22,7 @@ import (
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
@@ -65,12 +67,17 @@ func newRolloutProfile(name string, priority *int32, annotations map[string]stri
 }
 
 func newRolloutEnv(t *testing.T, dda *v2alpha1.DatadogAgent, objs ...client.Object) *rolloutEnv {
+	return newRolloutEnvWithInterceptor(t, interceptor.Funcs{}, dda, objs...)
+}
+
+func newRolloutEnvWithInterceptor(t *testing.T, funcs interceptor.Funcs, dda *v2alpha1.DatadogAgent, objs ...client.Object) *rolloutEnv {
 	t.Helper()
 	s := agenttestutils.TestScheme()
 	crd, err := getDDAICRDFromConfig(s)
 	require.NoError(t, err)
 	c := fake.NewClientBuilder().
 		WithScheme(s).
+		WithInterceptorFuncs(funcs).
 		WithStatusSubresource(&v2alpha1.DatadogAgent{}, &v1alpha1.DatadogAgentProfile{}, &v1alpha1.DatadogAgentInternal{}, &appsv1.DaemonSet{}).
 		WithObjects(append(objs, crd, dda)...).
 		Build()
@@ -307,6 +314,39 @@ func TestRollout_GatedStepGetsInertAnnotationsOnly(t *testing.T) {
 	}
 	assert.Equal(t, "datadog", e.ddai(rolloutTestDDA).Annotations["meta.helm.sh/release-name"])
 	assert.Contains(t, e.events(), "RolloutStepHeld")
+}
+
+func TestRollout_PartialWriteFailure(t *testing.T) {
+	failA := false
+	funcs := interceptor.Funcs{
+		Update: func(ctx context.Context, c client.WithWatch, obj client.Object, opts ...client.UpdateOption) error {
+			if _, ok := obj.(*v1alpha1.DatadogAgentInternal); ok && failA && obj.GetName() == "a" {
+				return errors.New("injected")
+			}
+			return c.Update(ctx, obj, opts...)
+		},
+	}
+	e := newRolloutEnvWithInterceptor(t, funcs, rolloutTestDDAObject(),
+		newRolloutProfile("a", nil, nil),
+		newRolloutProfile("b", ptr.To[int32](10), nil))
+	e.reconcile()
+	oldA := e.specHash("a")
+
+	failA = true
+	e.updateDDA(setTags("v2"))
+	_, err := e.r.Reconcile(context.TODO(), e.dda())
+	require.Error(t, err)
+	status := e.dda().Status.Rollout
+	assert.Equal(t, oldA, e.specHash("a"))
+	assert.Equal(t, v2alpha1.RolloutPhaseBlocked, stepByName(status, "a").Phase)
+	assert.Nil(t, stepByName(status, "a").StartedAt)
+	assert.NotNil(t, stepByName(status, "default").StartedAt, "the written step stays started")
+	assert.Equal(t, v2alpha1.RolloutPhasePending, stepByName(status, "b").Phase)
+
+	failA = false
+	e.reconcile()
+	assert.NotEqual(t, oldA, e.specHash("a"))
+	assert.Equal(t, v2alpha1.RolloutPhaseInProgress, stepByName(e.dda().Status.Rollout, "a").Phase)
 }
 
 func TestRollout_ControlAnnotationsDoNotRewriteDDAIs(t *testing.T) {
