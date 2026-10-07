@@ -45,7 +45,9 @@ const (
 // DatadogBYOCClusterReconciler reconciles a DatadogBYOCCluster object.
 type DatadogBYOCClusterReconciler struct {
 	Client client.Client
-	Scheme *runtime.Scheme
+	// APIReader reads directly from the API server for decisions that a stale cache must not drive.
+	APIReader client.Reader
+	Scheme    *runtime.Scheme
 
 	ImageResolver byocimage.ImageResolver
 }
@@ -121,7 +123,7 @@ func (r *DatadogBYOCClusterReconciler) reconcileResources(ctx context.Context, c
 		}
 	}
 	for _, object := range resources.ObsoleteObjects() {
-		if _, err := r.deleteIfControlled(ctx, cluster, object); err != nil {
+		if _, err := r.deleteIfControlled(ctx, r.Client, cluster, object); err != nil {
 			return false, &reconcileFailure{conditionType: conditionReconciled, reason: "CleanupFailed", err: err}
 		}
 	}
@@ -134,7 +136,8 @@ func (r *DatadogBYOCClusterReconciler) finalize(ctx context.Context, cluster *da
 		return nil
 	}
 	indexer := &appsv1.StatefulSet{ObjectMeta: metav1.ObjectMeta{Name: byocresources.ComponentResourceName(cluster.Name, byocresources.IndexerComponentName), Namespace: cluster.Namespace}}
-	deleted, err := r.deleteIfControlled(ctx, cluster, indexer)
+	// The cache may not have observed a recently created indexer yet.
+	deleted, err := r.deleteIfControlled(ctx, r.APIReader, cluster, indexer)
 	if err != nil {
 		return err
 	}
@@ -162,9 +165,10 @@ func (r *DatadogBYOCClusterReconciler) applyObject(ctx context.Context, owner *d
 }
 
 // deleteIfControlled deletes the object when it is controlled by owner and reports whether a deletion was requested.
-func (r *DatadogBYOCClusterReconciler) deleteIfControlled(ctx context.Context, owner client.Object, object client.Object) (bool, error) {
+// The ownership check reads the object through reader.
+func (r *DatadogBYOCClusterReconciler) deleteIfControlled(ctx context.Context, reader client.Reader, owner client.Object, object client.Object) (bool, error) {
 	key := client.ObjectKeyFromObject(object)
-	if err := r.Client.Get(ctx, key, object); err != nil {
+	if err := reader.Get(ctx, key, object); err != nil {
 		if apierrors.IsNotFound(err) {
 			return false, nil
 		}
