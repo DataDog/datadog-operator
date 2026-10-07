@@ -230,9 +230,16 @@ func expectedWarnings(in Inputs, d Decisions) []string {
 			}
 		}
 	}
+	defaultPending := false
+	for _, sd := range d.Steps {
+		if kinds[sd.Key] == v2alpha1.RolloutStepKindDefault {
+			defaultPending = !orderingComplete(&sd.Status, cfg[sd.Key])
+		}
+	}
 	for _, sd := range d.Steps {
 		c := cfg[sd.Key]
-		if kinds[sd.Key] == v2alpha1.RolloutStepKindProfile && defaultPriority >= 0 && c.Priority < defaultPriority && !orderingComplete(&sd.Status, c) {
+		if defaultPending && kinds[sd.Key] == v2alpha1.RolloutStepKindProfile && defaultPriority >= 0 && c.Priority < defaultPriority &&
+			(sd.Status.StartedAt != nil || !orderingComplete(&sd.Status, c)) {
 			out = append(out, WarningDefaultNotFirst)
 			break
 		}
@@ -608,6 +615,19 @@ func TestDecide_Warnings(t *testing.T) {
 	// Default after a pending profile.
 	d = Decide(scenario(dflt(10, stNotStarted), dap("a", 0, stNotStarted)))
 	assert.ElementsMatch(t, []string{WarningNoStepTimeout, WarningDefaultNotFirst}, d.Status.Warnings)
+
+	// The earlier profile completed but the default is still pending: the risk
+	// window is open, so DefaultNotFirst stays.
+	d = Decide(scenario(dflt(10, stNotStarted), dap("a", 0, stCompleted)))
+	assert.Contains(t, d.Status.Warnings, WarningDefaultNotFirst)
+
+	// Default completed for its target: warning clears.
+	d = Decide(scenario(dflt(10, stCompleted), dap("a", 0, stCompleted)))
+	assert.NotContains(t, d.Status.Warnings, WarningDefaultNotFirst)
+
+	// Default unchanged: no new default-owned dependencies, no warning.
+	d = Decide(scenario(dflt(10, stUnchanged), dap("a", 0, stNotStarted)))
+	assert.NotContains(t, d.Status.Warnings, WarningDefaultNotFirst)
 }
 
 func TestDecide_ProgressPredicates(t *testing.T) {

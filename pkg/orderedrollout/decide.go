@@ -443,10 +443,11 @@ func lowestIncompleteWave(steps []StepFacts, statuses []v2alpha1.RolloutStepStat
 
 func warnings(steps []StepFacts, statuses []v2alpha1.RolloutStepStatus) []string {
 	waves := map[int32]bool{}
-	defaultPriority, hasDefault := int32(0), false
+	defaultPriority, hasDefault, defaultPending := int32(0), false, false
 	for i, s := range steps {
 		if s.Kind == v2alpha1.RolloutStepKindDefault {
 			defaultPriority, hasDefault = s.Config.Priority, true
+			defaultPending = !orderingComplete(&statuses[i], s.Config)
 		}
 		if !orderingComplete(&statuses[i], s.Config) {
 			waves[s.Config.Priority] = true
@@ -462,9 +463,12 @@ func warnings(steps []StepFacts, statuses []v2alpha1.RolloutStepStatus) []string
 			}
 		}
 	}
-	if hasDefault {
+	// The default DDAI owns shared dependencies, so profiles that roll ahead of a
+	// pending default step run the new config without them until it completes.
+	if hasDefault && defaultPending {
 		for i, s := range steps {
-			if s.Kind == v2alpha1.RolloutStepKindProfile && s.Config.Priority < defaultPriority && !orderingComplete(&statuses[i], s.Config) {
+			if s.Kind == v2alpha1.RolloutStepKindProfile && s.Config.Priority < defaultPriority &&
+				(statuses[i].StartedAt != nil || !orderingComplete(&statuses[i], s.Config)) {
 				out = append(out, WarningDefaultNotFirst)
 				break
 			}

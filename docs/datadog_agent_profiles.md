@@ -161,7 +161,7 @@ Progress is reported in `status.rollout` on the DatadogAgent and the DatadogAgen
 Limits:
 
 - `maxUnavailable: 0` is strict: on large fleets, one persistently unavailable pod blocks later priorities until it recovers or you skip, bypass or set a timeout. Status shows a `NoStepTimeout` warning when a blocking step has no timeout.
-- The default DatadogAgentInternal also owns shared dependencies and the Cluster Agent, Cluster Checks Runner and OTel Agent Gateway. Keep the default at priority `0`; if profiles roll first, their Agents can start before those are updated. Status shows a `DefaultNotFirst` warning in that case.
+- The default DatadogAgentInternal also owns shared dependencies and the Cluster Agent, Cluster Checks Runner and OTel Agent Gateway. Keep the default at priority `0`; if profiles roll first, their Agents can start before those are updated. Status shows a `DefaultNotFirst` warning from the moment such a profile starts rolling until the default step completes.
 - New profile DaemonSets are created immediately. Only updates are ordered.
 - DatadogAgent-level dependencies (secrets, Cluster Agent token, install info) are applied before the rollout gate. ConfigMap checksum rollouts, node relabeling, profile creation strategy and profile deletion move pods independently of the ordering.
 - Fleet Automation experiments are not special-cased: their spec changes and restores roll through the same ordering and holds. An experiment may only reach the priorities that complete before it times out or is promoted. To restore urgently under a hold, remove the hold or use the bypass annotation.
