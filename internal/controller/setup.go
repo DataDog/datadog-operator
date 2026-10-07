@@ -219,9 +219,8 @@ func startDatadogBYOCCluster(logger logr.Logger, mgr manager.Manager, _ kubernet
 
 	return (&DatadogBYOCClusterReconciler{
 		Client:        mgr.GetClient(),
-		Log:           ctrl.Log.WithName("controllers").WithName(byocClusterControllerName),
+		APIReader:     mgr.GetAPIReader(),
 		Scheme:        mgr.GetScheme(),
-		Recorder:      mgr.GetEventRecorderFor(byocClusterControllerName),
 		ImageResolver: options.BYOCImageResolver,
 	}).SetupWithManager(mgr)
 }
@@ -233,10 +232,9 @@ func startDatadogObservabilityPipelinesWorker(logger logr.Logger, mgr manager.Ma
 	}
 
 	return (&DatadogObservabilityPipelinesWorkerReconciler{
-		Client:   mgr.GetClient(),
-		Log:      ctrl.Log.WithName("controllers").WithName(workerControllerName),
-		Scheme:   mgr.GetScheme(),
-		Recorder: mgr.GetEventRecorderFor(workerControllerName),
+		Client:    mgr.GetClient(),
+		APIReader: mgr.GetAPIReader(),
+		Scheme:    mgr.GetScheme(),
 	}).SetupWithManager(mgr)
 }
 

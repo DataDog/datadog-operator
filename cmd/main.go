@@ -223,6 +223,7 @@ func (opts *options) Parse() {
 		boolEnv(&opts.datadogGenericResourceEnabled, "DD_GENERIC_RESOURCE_CONTROLLER_ENABLED"),
 		intEnv(&opts.datadogGenericResourceMaxWorkers, "DD_GENERIC_RESOURCE_MAX_CONCURRENT_RECONCILES"),
 		durationEnv(&opts.datadogGenericResourceRequeuePeriod, "DD_GENERIC_RESOURCE_REQUEUE_PERIOD"),
+		boolEnv(&opts.datadogBYOCClusterEnabled, "DD_BYOC_CLUSTER_CONTROLLER_ENABLED"),
 		boolEnv(&opts.datadogCSIDriverEnabled, "DD_CSI_DRIVER_CONTROLLER_ENABLED"),
 		boolEnv(&opts.untaintControllerEnabled, "DD_UNTAINT_CONTROLLER_ENABLED"),
 		boolEnv(&opts.untaintControllerWaitForCSIDriver, "DD_UNTAINT_CONTROLLER_WAIT_FOR_CSI_DRIVER"),

@@ -332,6 +332,7 @@ type DatadogBYOCClusterPipelineComponentSpec struct {
 type DatadogBYOCClusterComponentSpec struct {
 	// Replicas is the desired replica count.
 	// +optional
+	// +kubebuilder:validation:Minimum=0
 	Replicas *int32 `json:"replicas,omitempty"`
 
 	// Env contains additional environment variables for the component container.

@@ -9,9 +9,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
-	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	corev1 "k8s.io/api/core/v1"
@@ -20,11 +18,9 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	workerdefaults "github.com/DataDog/datadog-operator/internal/controller/datadogobservabilitypipelinesworker/defaults"
@@ -32,14 +28,18 @@ import (
 	workervalidation "github.com/DataDog/datadog-operator/internal/controller/datadogobservabilitypipelinesworker/validation"
 )
 
-const datadogObservabilityPipelinesWorkerFieldOwner = "datadog-observability-pipelines-worker-controller"
+const (
+	reasonWorkloadUnavailable = "WorkloadUnavailable"
+
+	datadogObservabilityPipelinesWorkerFieldOwner = "datadog-observability-pipelines-worker-controller"
+)
 
 // DatadogObservabilityPipelinesWorkerReconciler reconciles a DatadogObservabilityPipelinesWorker object.
 type DatadogObservabilityPipelinesWorkerReconciler struct {
-	Client   client.Client
-	Log      logr.Logger
-	Scheme   *runtime.Scheme
-	Recorder record.EventRecorder
+	Client client.Client
+	// APIReader reads directly from the API server for decisions that a stale cache must not drive.
+	APIReader client.Reader
+	Scheme    *runtime.Scheme
 }
 
 // +kubebuilder:rbac:groups=datadoghq.com,resources=datadogobservabilitypipelinesworkers,verbs=get;list;watch
@@ -58,89 +58,60 @@ func (r *DatadogObservabilityPipelinesWorkerReconciler) Reconcile(ctx context.Co
 	if !worker.DeletionTimestamp.IsZero() {
 		return ctrl.Result{}, nil
 	}
+
 	statusBase := worker.DeepCopy()
+	available, failure := r.reconcileResources(ctx, worker)
+	worker.Status.ObservedGeneration = new(worker.Generation)
+	setWorkerConditions(worker, available, failure)
+
+	var err error
+	if failure != nil {
+		err = failure.err
+	}
+	if statusErr := r.updateStatus(ctx, statusBase, worker); statusErr != nil {
+		return ctrl.Result{}, errors.Join(err, statusErr)
+	}
+	if failure != nil && failure.terminal {
+		return ctrl.Result{}, reconcile.TerminalError(err)
+	}
+	return ctrl.Result{}, err
+}
+
+// reconcileResources converges the managed resources and reports whether the Worker workload is available.
+func (r *DatadogObservabilityPipelinesWorkerReconciler) reconcileResources(ctx context.Context, worker *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker) (bool, *reconcileFailure) {
+	// Keep the defaults out of worker so that the status patch contains only status changes.
 	defaulted := workerdefaults.Apply(worker)
 	if err := workervalidation.ValidateWorkerSpec(&defaulted.Spec).ToAggregate(); err != nil {
-		return ctrl.Result{}, r.fail(ctx, statusBase, worker, "InvalidConfiguration", err)
+		return false, &reconcileFailure{conditionType: conditionReconciled, reason: reasonInvalidConfiguration, err: err, terminal: true}
 	}
-
 	resources, err := workerresources.BuildResources(defaulted)
 	if err != nil {
-		return ctrl.Result{}, r.fail(ctx, statusBase, worker, "InvalidConfiguration", err)
+		return false, &reconcileFailure{conditionType: conditionReconciled, reason: reasonInvalidConfiguration, err: err, terminal: true}
 	}
 	for _, object := range resources.Objects() {
 		if err := r.applyObject(ctx, worker, object); err != nil {
-			return ctrl.Result{}, r.fail(ctx, statusBase, worker, "ApplyFailed", err)
+			return false, applyFailure(object, err)
 		}
 	}
-	if err := r.deleteObsoleteResources(ctx, worker, resources); err != nil {
-		return ctrl.Result{}, r.fail(ctx, statusBase, worker, "CleanupFailed", err)
+	for _, object := range resources.ObsoleteObjects() {
+		if _, err := deleteIfControlled(ctx, r.Client, r.Client, worker, object); err != nil {
+			return false, &reconcileFailure{conditionType: conditionReconciled, reason: reasonCleanupFailed, err: err}
+		}
 	}
 
-	// Use the apply response so availability reflects the current generation and HPA replica target.
+	// The applied StatefulSet holds the live status, so availability reflects the current generation and HPA replica target.
 	statefulSet := resources.StatefulSet
-	worker.Status.ObservedGeneration = new(worker.Generation)
 	worker.Status.Replicas = new(statefulSet.Status.Replicas)
 	worker.Status.ReadyReplicas = new(statefulSet.Status.ReadyReplicas)
-	r.setCondition(worker, conditionReconciled, metav1.ConditionTrue, "Reconciled", "Managed resources match the desired state")
-
 	_, available := statefulSetStatus(statefulSet)
-	if available {
-		r.setCondition(worker, conditionAvailable, metav1.ConditionTrue, "Available", "Worker workload is available")
-	} else {
-		r.setCondition(worker, conditionAvailable, metav1.ConditionFalse, "WorkloadUnavailable", "Worker workload is not yet available")
-	}
-	if err := r.updateStatus(ctx, statusBase, worker); err != nil {
-		return ctrl.Result{}, err
-	}
-	if !available {
-		return ctrl.Result{RequeueAfter: 15 * time.Second}, nil
-	}
-	return ctrl.Result{}, nil
+	return available, nil
 }
 
 func (r *DatadogObservabilityPipelinesWorkerReconciler) applyObject(ctx context.Context, owner *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker, desired client.Object) error {
-	if err := controllerutil.SetControllerReference(owner, desired, r.Scheme); err != nil {
-		return wrapApplyError(desired, err)
+	if err := checkOwnership(ctx, r.Client, r.APIReader, owner, desired); err != nil {
+		return err
 	}
-	gvk, err := apiutil.GVKForObject(desired, r.Scheme)
-	if err != nil {
-		return wrapApplyError(desired, err)
-	}
-	desired.GetObjectKind().SetGroupVersionKind(gvk)
-	if err := r.Client.Patch(ctx, desired, client.Apply, client.ForceOwnership, client.FieldOwner(datadogObservabilityPipelinesWorkerFieldOwner)); err != nil {
-		return wrapApplyError(desired, err)
-	}
-	return nil
-}
-
-func (r *DatadogObservabilityPipelinesWorkerReconciler) deleteObsoleteResources(ctx context.Context, worker *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker, resources *workerresources.Resources) error {
-	for _, object := range resources.ObsoleteObjects() {
-		if err := deleteOwnedIfExists(ctx, r.Client, worker, object); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (r *DatadogObservabilityPipelinesWorkerReconciler) fail(ctx context.Context, statusBase, worker *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker, reason string, reconcileErr error) error {
-	worker.Status.ObservedGeneration = new(worker.Generation)
-	r.setCondition(worker, conditionReconciled, metav1.ConditionFalse, reason, reconcileErr.Error())
-	r.setCondition(worker, conditionAvailable, metav1.ConditionFalse, reason, reconcileErr.Error())
-	if statusErr := r.updateStatus(ctx, statusBase, worker); statusErr != nil {
-		return errors.Join(reconcileErr, statusErr)
-	}
-	return reconcileErr
-}
-
-func (r *DatadogObservabilityPipelinesWorkerReconciler) setCondition(worker *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker, conditionType string, status metav1.ConditionStatus, reason, message string) {
-	meta.SetStatusCondition(&worker.Status.Conditions, metav1.Condition{
-		Type:               conditionType,
-		Status:             status,
-		Reason:             reason,
-		Message:            message,
-		ObservedGeneration: worker.Generation,
-	})
+	return forceApply(ctx, r.Client, r.Scheme, owner, desired, datadogObservabilityPipelinesWorkerFieldOwner)
 }
 
 func (r *DatadogObservabilityPipelinesWorkerReconciler) updateStatus(ctx context.Context, base, worker *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker) error {
@@ -151,6 +122,31 @@ func (r *DatadogObservabilityPipelinesWorkerReconciler) updateStatus(ctx context
 		return fmt.Errorf("update DatadogObservabilityPipelinesWorker status: %w", err)
 	}
 	return nil
+}
+
+func setWorkerConditions(worker *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker, available bool, failure *reconcileFailure) {
+	switch {
+	case failure != nil:
+		message := failure.err.Error()
+		setWorkerCondition(worker, conditionReconciled, metav1.ConditionFalse, failure.reason, message)
+		setWorkerCondition(worker, conditionAvailable, metav1.ConditionFalse, failure.reason, message)
+	case available:
+		setWorkerCondition(worker, conditionReconciled, metav1.ConditionTrue, reasonReconciled, "Managed resources match the desired state")
+		setWorkerCondition(worker, conditionAvailable, metav1.ConditionTrue, reasonAvailable, "Worker workload is available")
+	default:
+		setWorkerCondition(worker, conditionReconciled, metav1.ConditionTrue, reasonReconciled, "Managed resources match the desired state")
+		setWorkerCondition(worker, conditionAvailable, metav1.ConditionFalse, reasonWorkloadUnavailable, "Worker workload is not yet available")
+	}
+}
+
+func setWorkerCondition(worker *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker, conditionType string, status metav1.ConditionStatus, reason, message string) {
+	meta.SetStatusCondition(&worker.Status.Conditions, metav1.Condition{
+		Type:               conditionType,
+		Status:             status,
+		Reason:             reason,
+		Message:            message,
+		ObservedGeneration: worker.Generation,
+	})
 }
 
 // SetupWithManager creates the DatadogObservabilityPipelinesWorker controller and its owned-resource watches.

@@ -29,6 +29,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/metrics"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	byocimage "github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/image"
@@ -604,8 +605,8 @@ var _ = Describe("DatadogBYOCCluster Controller", func() {
 			condition := meta.FindStatusCondition(current.Status.Conditions, conditionReconciled)
 			g.Expect(condition).NotTo(BeNil())
 			g.Expect(condition.Status).To(Equal(metav1.ConditionFalse))
-			g.Expect(condition.Reason).To(Equal("WorkerReconcileFailed"))
-			g.Expect(condition.Message).To(ContainSubstring("worker is not controlled by DatadogBYOCCluster"))
+			g.Expect(condition.Reason).To(Equal("Conflict"))
+			g.Expect(condition.Message).To(ContainSubstring("exists and is not controlled by the reconciled resource"))
 		}, timeout, interval).Should(Succeed())
 
 		Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(worker), worker)).To(Succeed())
@@ -685,6 +686,101 @@ var _ = Describe("DatadogBYOCCluster Controller", func() {
 			removeBYOCTestFinalizers(indexer, testDeletionFinalizer)
 			waitForBYOCTestDeletion(indexer)
 			waitForBYOCTestDeletion(cluster)
+		})
+	})
+
+	Context("when an unowned object has a managed name", func() {
+		var configMap *corev1.ConfigMap
+
+		BeforeEach(func() {
+			configMap = &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{Name: "byoc", Namespace: namespace.Name},
+				Data:       map[string]string{"key": "value"},
+			}
+			createKubernetesObject(k8sClient, configMap)
+			createKubernetesObject(k8sClient, cluster)
+		})
+
+		AfterEach(func() {
+			deleteKubernetesObject(k8sClient, cluster)
+		})
+
+		It("reports a conflict without changing the object", func() {
+			By("reporting Reconciled=False with reason Conflict")
+			Eventually(func(g Gomega) {
+				current := &datadoghqv1alpha1.DatadogBYOCCluster{}
+				g.Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(cluster), current)).To(Succeed())
+				g.Expect(meta.IsStatusConditionFalse(current.Status.Conditions, conditionReconciled)).To(BeTrue())
+				g.Expect(meta.FindStatusCondition(current.Status.Conditions, conditionReconciled).Reason).To(Equal("Conflict"))
+			}, timeout, interval).Should(Succeed())
+
+			By("keeping the unowned ConfigMap unchanged")
+			current := &corev1.ConfigMap{}
+			Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(configMap), current)).To(Succeed())
+			Expect(current.Data).To(Equal(map[string]string{"key": "value"}))
+			Expect(current.OwnerReferences).To(BeEmpty())
+		})
+	})
+
+	Context("when an unowned indexer exists", func() {
+		var indexer *appsv1.StatefulSet
+
+		BeforeEach(func() {
+			// An invalid configuration keeps the controller from applying its own indexer.
+			cluster.Spec.Provider.AWS = nil
+			indexer = &appsv1.StatefulSet{
+				ObjectMeta: metav1.ObjectMeta{Name: "byoc-indexer", Namespace: namespace.Name},
+				Spec: appsv1.StatefulSetSpec{
+					Selector: &metav1.LabelSelector{MatchLabels: map[string]string{"app": "unrelated"}},
+					Template: corev1.PodTemplateSpec{
+						ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"app": "unrelated"}},
+						Spec:       corev1.PodSpec{Containers: []corev1.Container{{Name: "app", Image: "registry.invalid/app"}}},
+					},
+				},
+			}
+			createKubernetesObject(k8sClient, indexer)
+			createKubernetesObject(k8sClient, cluster)
+		})
+
+		It("keeps the indexer when the cluster is deleted", func() {
+			By("waiting for the finalizer")
+			Eventually(func(g Gomega) {
+				current := &datadoghqv1alpha1.DatadogBYOCCluster{}
+				g.Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(cluster), current)).To(Succeed())
+				g.Expect(current.Finalizers).To(ContainElement(datadogBYOCClusterFinalizer))
+			}, timeout, interval).Should(Succeed())
+
+			By("deleting the cluster")
+			deleteKubernetesObject(k8sClient, cluster)
+
+			By("verifying that the indexer is kept")
+			current := &appsv1.StatefulSet{}
+			Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(indexer), current)).To(Succeed())
+			Expect(current.DeletionTimestamp.IsZero()).To(BeTrue())
+		})
+	})
+
+	Context("when the configuration is invalid", func() {
+		BeforeEach(func() {
+			cluster.Spec.Provider.AWS = nil
+		})
+
+		AfterEach(func() {
+			deleteKubernetesObject(k8sClient, cluster)
+		})
+
+		It("reports the failure without retrying", func() {
+			terminalErrorsBefore := byocTerminalReconcileErrors()
+			createKubernetesObject(k8sClient, cluster)
+
+			Eventually(func(g Gomega) {
+				current := &datadoghqv1alpha1.DatadogBYOCCluster{}
+				g.Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(cluster), current)).To(Succeed())
+				g.Expect(meta.IsStatusConditionFalse(current.Status.Conditions, conditionReconciled)).To(BeTrue())
+				g.Expect(meta.FindStatusCondition(current.Status.Conditions, conditionReconciled).Reason).To(Equal("InvalidConfiguration"))
+				g.Expect(meta.IsStatusConditionFalse(current.Status.Conditions, conditionAvailable)).To(BeTrue())
+				g.Expect(byocTerminalReconcileErrors()).To(BeNumerically(">", terminalErrorsBefore))
+			}, timeout, interval).Should(Succeed())
 		})
 	})
 
@@ -926,4 +1022,23 @@ func waitForBYOCTestDeletion(object client.Object) {
 		err := k8sClient.Get(context.Background(), client.ObjectKeyFromObject(object), object.DeepCopyObject().(client.Object))
 		return apierrors.IsNotFound(err)
 	}, timeout, interval).Should(BeTrue())
+}
+
+// byocTerminalReconcileErrors returns the number of reconcile errors that controller-runtime did not retry.
+func byocTerminalReconcileErrors() float64 {
+	families, err := metrics.Registry.Gather()
+	Expect(err).NotTo(HaveOccurred())
+	for _, family := range families {
+		if family.GetName() != "controller_runtime_terminal_reconcile_errors_total" {
+			continue
+		}
+		for _, metric := range family.GetMetric() {
+			for _, label := range metric.GetLabel() {
+				if label.GetName() == "controller" && label.GetValue() == "datadogbyoccluster" {
+					return metric.GetCounter().GetValue()
+				}
+			}
+		}
+	}
+	return 0
 }

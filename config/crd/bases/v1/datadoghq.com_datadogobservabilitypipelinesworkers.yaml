@@ -3395,6 +3395,7 @@ spec:
                 replicas:
                   description: Replicas is the desired replica count.
                   format: int32
+                  minimum: 0
                   type: integer
                 resources:
                   description: Resources defines CPU and memory requirements for the component.

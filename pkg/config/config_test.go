@@ -8,7 +8,10 @@ import (
 	"golang.org/x/exp/maps"
 
 	"github.com/stretchr/testify/assert"
+	appsv1 "k8s.io/api/apps/v1"
+	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	corev1 "k8s.io/api/core/v1"
+	policyv1 "k8s.io/api/policy/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -62,18 +65,46 @@ func Test_CacheConfig(t *testing.T) {
 			wantDefaultNamepsace: objectConfig{configured: true, namespaces: []string{"agentNs"}},
 
 			wantObjectConfig: map[client.Object]objectConfig{
-				agentObj:           {configured: true, namespaces: []string{"agentNs"}},
-				byocClusterObj:     {configured: true, namespaces: []string{"datadog"}},
-				workerObj:          {configured: true, namespaces: []string{"datadog"}},
-				dashboardObj:       {configured: true, namespaces: []string{"dashboardNs"}},
-				genericResourceObj: {configured: true, namespaces: []string{"genericNs"}},
-				monitorObj:         {configured: true, namespaces: []string{"monitorNs", "monitorNs2"}},
-				sloObj:             {configured: true, namespaces: []string{"nsWithSpace"}},
-				profileObj:         {configured: true, namespaces: []string{"profileNs"}},
-				podObj:             {configured: true, namespaces: []string{"agentNs"}},
-				nodeObj:            {configured: true, namespaces: nil},
-				csiDriverObj:       {configured: true, namespaces: []string{"csiDriverNs"}},
-				csiDaemonSetObj:    {configured: true, namespaces: []string{"csiDriverNs", "agentNs"}},
+				agentObj:              {configured: true, namespaces: []string{"agentNs"}},
+				byocClusterObj:        {configured: true, namespaces: []string{"datadog"}},
+				workerObj:             {configured: true, namespaces: []string{"datadog"}},
+				dashboardObj:          {configured: true, namespaces: []string{"dashboardNs"}},
+				genericResourceObj:    {configured: true, namespaces: []string{"genericNs"}},
+				monitorObj:            {configured: true, namespaces: []string{"monitorNs", "monitorNs2"}},
+				sloObj:                {configured: true, namespaces: []string{"nsWithSpace"}},
+				profileObj:            {configured: true, namespaces: []string{"profileNs"}},
+				podObj:                {configured: true, namespaces: []string{"agentNs"}},
+				nodeObj:               {configured: true, namespaces: nil},
+				csiDriverObj:          {configured: true, namespaces: []string{"csiDriverNs"}},
+				csiDaemonSetObj:       {configured: true, namespaces: []string{"csiDriverNs", "agentNs"}},
+				&appsv1.StatefulSet{}: {configured: true, namespaces: []string{"datadog", "agentNs"}},
+			},
+		},
+		{
+			name: "BYOCCluster in different namespace than Agent; owned resources cached in both",
+			watchOptions: WatchOptions{
+				DatadogAgentEnabled:       true,
+				DatadogBYOCClusterEnabled: true,
+			},
+
+			envConfig: map[string]string{
+				WatchNamespaceEnvVar:      "byocNs",
+				AgentWatchNamespaceEnvVar: "agentNs",
+			},
+
+			wantDefaultNamepsace: objectConfig{configured: true, namespaces: []string{"agentNs"}},
+
+			wantObjectConfig: map[client.Object]objectConfig{
+				agentObj:                                 {configured: true, namespaces: []string{"agentNs"}},
+				byocClusterObj:                           {configured: true, namespaces: []string{"byocNs"}},
+				workerObj:                                {configured: true, namespaces: []string{"byocNs"}},
+				&corev1.ConfigMap{}:                      {configured: true, namespaces: []string{"agentNs", "byocNs"}},
+				&corev1.ServiceAccount{}:                 {configured: true, namespaces: []string{"agentNs", "byocNs"}},
+				&corev1.Service{}:                        {configured: true, namespaces: []string{"agentNs", "byocNs"}},
+				&appsv1.Deployment{}:                     {configured: true, namespaces: []string{"agentNs", "byocNs"}},
+				&appsv1.StatefulSet{}:                    {configured: true, namespaces: []string{"agentNs", "byocNs"}},
+				&autoscalingv2.HorizontalPodAutoscaler{}: {configured: true, namespaces: []string{"agentNs", "byocNs"}},
+				&policyv1.PodDisruptionBudget{}:          {configured: true, namespaces: []string{"agentNs", "byocNs"}},
 			},
 		},
 		{
@@ -318,7 +349,13 @@ func TestIncludeWatchNamespacePreservesClusterWideWatch(t *testing.T) {
 }
 
 func verifyResourceNamespace(t *testing.T, resource client.Object, wantConfig objectConfig, cacheOptions cache.Options) {
-	byObjectOptions, ok := cacheOptions.ByObject[resource]
+	var byObjectOptions cache.ByObject
+	var ok bool
+	for obj, options := range cacheOptions.ByObject {
+		if reflect.TypeOf(obj) == reflect.TypeOf(resource) {
+			byObjectOptions, ok = options, true
+		}
+	}
 	assert.Equal(t, wantConfig.configured, ok)
 	if wantConfig.configured {
 		if wantConfig.namespaces == nil {
