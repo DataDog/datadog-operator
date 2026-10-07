@@ -12,7 +12,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
-	rbacv1 "k8s.io/api/rbac/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -75,7 +74,7 @@ func Test_kueueFeature_Configure(t *testing.T) {
 				WithNodeAgentImage("gcr.io/datadoghq/agent:7.82.0-rc.1").
 				Build(),
 			WantConfigure:        true,
-			WantDependenciesFunc: checkDepsWantFunc(defaultConfigMapName, kueueCheckConfig(defaultMetricsServiceName, defaultMetricsServiceNamespace, true)),
+			WantDependenciesFunc: checkDepsWantFunc(defaultConfigMapName, kueueCheckConfig(defaultMetricsServiceName, defaultMetricsServiceNamespace, true), true),
 			ClusterAgent:         clusterAgentWantFunc(basicVolume(defaultConfigMapName)),
 		},
 		{
@@ -95,7 +94,7 @@ func Test_kueueFeature_Configure(t *testing.T) {
 				WithClusterChecksEnabled(true).
 				Build(),
 			WantConfigure:        true,
-			WantDependenciesFunc: checkDepsWantFunc(defaultConfigMapName, kueueCheckConfig(defaultMetricsServiceName, defaultMetricsServiceNamespace, true)),
+			WantDependenciesFunc: checkDepsWantFunc(defaultConfigMapName, kueueCheckConfig(defaultMetricsServiceName, defaultMetricsServiceNamespace, true), true),
 			ClusterAgent:         clusterAgentWantFunc(basicVolume(defaultConfigMapName)),
 		},
 		{
@@ -105,7 +104,7 @@ func Test_kueueFeature_Configure(t *testing.T) {
 				WithClusterChecks(true, true).
 				Build(),
 			WantConfigure:        true,
-			WantDependenciesFunc: checkDepsWantFunc(defaultConfigMapName, kueueCheckConfig(defaultMetricsServiceName, defaultMetricsServiceNamespace, true)),
+			WantDependenciesFunc: checkDepsWantFunc(defaultConfigMapName, kueueCheckConfig(defaultMetricsServiceName, defaultMetricsServiceNamespace, true), true),
 			ClusterAgent:         clusterAgentWantFunc(basicVolume(defaultConfigMapName)),
 		},
 		{
@@ -117,7 +116,7 @@ func Test_kueueFeature_Configure(t *testing.T) {
 				WithClusterChecksEnabled(true).
 				Build(),
 			WantConfigure:        true,
-			WantDependenciesFunc: checkDepsWantFunc(defaultConfigMapName, kueueCheckConfig("my-kueue-metrics", "my-kueue", false)),
+			WantDependenciesFunc: checkDepsWantFunc(defaultConfigMapName, kueueCheckConfig("my-kueue-metrics", "my-kueue", false), false),
 			ClusterAgent:         clusterAgentWantFunc(basicVolume(defaultConfigMapName)),
 		},
 		{
@@ -128,7 +127,7 @@ func Test_kueueFeature_Configure(t *testing.T) {
 				WithClusterChecksEnabled(true).
 				Build(),
 			WantConfigure:        true,
-			WantDependenciesFunc: checkDepsWantFunc(defaultConfigMapName, customConfigData),
+			WantDependenciesFunc: checkDepsWantFunc(defaultConfigMapName, customConfigData, true),
 			ClusterAgent:         clusterAgentWantFunc(basicVolume(defaultConfigMapName)),
 		},
 		{
@@ -140,8 +139,7 @@ func Test_kueueFeature_Configure(t *testing.T) {
 				Build(),
 			WantConfigure: true,
 			WantDependenciesFunc: func(t testing.TB, s store.StoreClient) {
-				assertClusterRole(t, s, dcaRBACName, kueueClusterAgentRBACPolicyRules)
-				assertClusterRole(t, s, nodeRBACName, kueueNodeAgentRBACPolicyRules)
+				assertClusterRoles(t, s, true)
 				_, found := s.Get(kubernetes.ConfigMapKind, resourcesNamespace, defaultConfigMapName)
 				assert.False(t, found, "operator ConfigMap should not be created")
 				_, found = s.Get(kubernetes.ConfigMapKind, resourcesNamespace, "user-kueue")
@@ -166,32 +164,29 @@ func basicVolume(cmName string) *corev1.Volume {
 }
 
 func metadataOnlyDepsWantFunc(t testing.TB, s store.StoreClient) {
-	assertClusterRole(t, s, dcaRBACName, kueueClusterAgentRBACPolicyRules)
-	_, found := s.Get(kubernetes.ClusterRolesKind, "", nodeRBACName)
-	assert.False(t, found, "node Agent ClusterRole should not be created")
-	_, found = s.Get(kubernetes.ConfigMapKind, resourcesNamespace, defaultConfigMapName)
+	assertClusterRoles(t, s, false)
+	_, found := s.Get(kubernetes.ConfigMapKind, resourcesNamespace, defaultConfigMapName)
 	assert.False(t, found, "check ConfigMap should not be created")
 }
 
-func checkDepsWantFunc(cmName, wantConfig string) func(testing.TB, store.StoreClient) {
+func checkDepsWantFunc(cmName, wantConfig string, wantNodeRole bool) func(testing.TB, store.StoreClient) {
 	return func(t testing.TB, s store.StoreClient) {
 		obj, found := s.Get(kubernetes.ConfigMapKind, resourcesNamespace, cmName)
 		require.True(t, found, "should have created the check ConfigMap")
 		assert.Equal(t, map[string]string{kueueConfFileName: wantConfig}, obj.(*corev1.ConfigMap).Data)
 
-		assertClusterRole(t, s, dcaRBACName, kueueClusterAgentRBACPolicyRules)
-		assertClusterRole(t, s, nodeRBACName, kueueNodeAgentRBACPolicyRules)
+		assertClusterRoles(t, s, wantNodeRole)
 	}
 }
 
-func assertClusterRole(t testing.TB, s store.StoreClient, name string, wantRules []rbacv1.PolicyRule) {
-	crObj, found := s.Get(kubernetes.ClusterRolesKind, "", name)
-	require.True(t, found, "should have created ClusterRole %s", name)
-	assert.Equal(t, wantRules, crObj.(*rbacv1.ClusterRole).Rules)
-
-	crbObj, found := s.Get(kubernetes.ClusterRoleBindingKind, "", name)
-	require.True(t, found, "should have created ClusterRoleBinding %s", name)
-	assert.Equal(t, rbacv1.RoleRef{APIGroup: "rbac.authorization.k8s.io", Kind: "ClusterRole", Name: name}, crbObj.(*rbacv1.ClusterRoleBinding).RoleRef)
+// assertClusterRoles checks that the Cluster Agent role is always bound, and the node Agent role only when wanted.
+func assertClusterRoles(t testing.TB, s store.StoreClient, wantNodeRole bool) {
+	for name, want := range map[string]bool{dcaRBACName: true, nodeRBACName: wantNodeRole} {
+		_, foundRole := s.Get(kubernetes.ClusterRolesKind, "", name)
+		_, foundBinding := s.Get(kubernetes.ClusterRoleBindingKind, "", name)
+		assert.Equal(t, want, foundRole, "ClusterRole %s", name)
+		assert.Equal(t, want, foundBinding, "ClusterRoleBinding %s", name)
+	}
 }
 
 // clusterAgentWantFunc checks the Cluster Agent env var, and the check volume when wantVolume is set.

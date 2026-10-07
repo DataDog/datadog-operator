@@ -1905,7 +1905,7 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_KueueFeatureConfig(ref commo
 					},
 					"collectWorkloadEvents": {
 						SchemaProps: spec.SchemaProps{
-							Description: "CollectWorkloadEvents enables the collection of Kueue Workload lifecycle events. Default: true",
+							Description: "CollectWorkloadEvents enables the collection of Kueue Workload lifecycle events, and grants the node Agent read access to Kueue Workloads. Also applies when `conf` is set. Default: true",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},

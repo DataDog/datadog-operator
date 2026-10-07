@@ -2267,7 +2267,7 @@
               "description": "Kueue configuration.",
               "properties": {
                 "collectWorkloadEvents": {
-                  "description": "CollectWorkloadEvents enables the collection of Kueue Workload lifecycle events.\nDefault: true",
+                  "description": "CollectWorkloadEvents enables the collection of Kueue Workload lifecycle events,\nand grants the node Agent read access to Kueue Workloads. Also applies when `conf` is set.\nDefault: true",
                   "type": "boolean"
                 },
                 "conf": {
@@ -11254,7 +11254,7 @@
                   "description": "Kueue configuration.",
                   "properties": {
                     "collectWorkloadEvents": {
-                      "description": "CollectWorkloadEvents enables the collection of Kueue Workload lifecycle events.\nDefault: true",
+                      "description": "CollectWorkloadEvents enables the collection of Kueue Workload lifecycle events,\nand grants the node Agent read access to Kueue Workloads. Also applies when `conf` is set.\nDefault: true",
                       "type": "boolean"
                     },
                     "conf": {

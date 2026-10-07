@@ -326,7 +326,7 @@ spec:
 : Enables the Kubernetes Actions feature on the Cluster Agent. Default: false
 
 `features.kueue.collectWorkloadEvents`
-: CollectWorkloadEvents enables the collection of Kueue Workload lifecycle events. Default: true
+: CollectWorkloadEvents enables the collection of Kueue Workload lifecycle events, and grants the node Agent read access to Kueue Workloads. Also applies when `conf` is set. Default: true
 
 `features.kueue.conf.configData`
 : ConfigData corresponds to the configuration file content.

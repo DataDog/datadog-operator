@@ -137,6 +137,10 @@ func (f *kueueFeature) ManageDependencies(managers feature.ResourceManagers) err
 		}
 	}
 
+	if !f.collectWorkloadEvents {
+		return nil
+	}
+
 	if err := managers.RBACManager().AddClusterPolicyRules(ns, getKueueRBACResourceName(f.owner, common.NodeAgentSuffix), f.agentServiceAccountName, kueueNodeAgentRBACPolicyRules); err != nil {
 		return fmt.Errorf("failed to add Kueue node Agent RBAC: %w", err)
 	}

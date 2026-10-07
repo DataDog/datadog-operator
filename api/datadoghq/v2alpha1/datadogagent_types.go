@@ -1816,7 +1816,8 @@ type KueueFeatureConfig struct {
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 
-	// CollectWorkloadEvents enables the collection of Kueue Workload lifecycle events.
+	// CollectWorkloadEvents enables the collection of Kueue Workload lifecycle events,
+	// and grants the node Agent read access to Kueue Workloads. Also applies when `conf` is set.
 	// Default: true
 	// +optional
 	CollectWorkloadEvents *bool `json:"collectWorkloadEvents,omitempty"`
