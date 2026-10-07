@@ -119,7 +119,7 @@ func newPodSpec(in podInput, c component) (corev1.PodSpec, error) {
 	return corev1.PodSpec{
 		ServiceAccountName: serviceAccountName,
 		ImagePullSecrets:   slices.Clone(in.image.ImagePullSecrets),
-		SecurityContext:    &corev1.PodSecurityContext{FSGroup: ptr.To[int64](1005)},
+		SecurityContext:    &corev1.PodSecurityContext{FSGroup: new(pomskyUserID)},
 		DNSConfig:          &corev1.PodDNSConfig{Options: []corev1.PodDNSConfigOption{{Name: "ndots", Value: new("1")}}},
 		InitContainers:     spec.InitContainers,
 		Containers: []corev1.Container{{
@@ -138,11 +138,11 @@ func newPodSpec(in podInput, c component) (corev1.PodSpec, error) {
 			},
 			Resources:     ptr.Deref(spec.Resources, corev1.ResourceRequirements{}),
 			VolumeMounts:  volumeMounts,
-			StartupProbe:  &corev1.Probe{ProbeHandler: healthProbeHandler("/health/readyz"), FailureThreshold: 12, PeriodSeconds: 5},
-			LivenessProbe: &corev1.Probe{ProbeHandler: healthProbeHandler("/health/livez"), TimeoutSeconds: 5},
+			StartupProbe:  &corev1.Probe{ProbeHandler: healthProbeHandler(startupProbePath), FailureThreshold: startupProbeFailureThreshold, PeriodSeconds: startupProbePeriodSeconds},
+			LivenessProbe: &corev1.Probe{ProbeHandler: healthProbeHandler(livenessProbePath), TimeoutSeconds: livenessProbeTimeoutSeconds},
 			SecurityContext: &corev1.SecurityContext{
 				RunAsNonRoot:           new(true),
-				RunAsUser:              ptr.To[int64](1005),
+				RunAsUser:              new(pomskyUserID),
 				ReadOnlyRootFilesystem: new(true),
 			},
 		}},
@@ -166,54 +166,54 @@ func newEnvironment(in podInput, c component) []corev1.EnvVar {
 	field := func(fieldPath string) *corev1.EnvVarSource {
 		return &corev1.EnvVarSource{FieldRef: &corev1.ObjectFieldSelector{FieldPath: fieldPath}}
 	}
-	dogstatsdHost := corev1.EnvVar{Name: "CP_DOGSTATSD_SERVER_HOST", ValueFrom: field("status.hostIP")}
+	dogstatsdHost := corev1.EnvVar{Name: envCloudPremDogstatsdHost, ValueFrom: field("status.hostIP")}
 	if host := datadog.DogstatsdServer.Host; host != nil && *host != "" {
-		dogstatsdHost = corev1.EnvVar{Name: "CP_DOGSTATSD_SERVER_HOST", Value: *host}
+		dogstatsdHost = corev1.EnvVar{Name: envCloudPremDogstatsdHost, Value: *host}
 	}
 
 	env := []corev1.EnvVar{
-		{Name: "KUBERNETES_NAMESPACE", ValueFrom: field("metadata.namespace")},
-		{Name: "KUBERNETES_COMPONENT", ValueFrom: field("metadata.labels['app.kubernetes.io/component']")},
-		{Name: "KUBERNETES_POD_NAME", ValueFrom: field("metadata.name")},
-		{Name: "KUBERNETES_NODE_NAME", ValueFrom: field("spec.nodeName")},
-		{Name: "KUBERNETES_POD_IP", ValueFrom: field("status.podIP")},
-		{Name: "KUBERNETES_LIMITS_CPU", ValueFrom: resourceField("limits.cpu")},
-		{Name: "KUBERNETES_LIMITS_MEMORY", ValueFrom: resourceField("limits.memory")},
-		{Name: "KUBERNETES_REQUESTS_CPU", ValueFrom: resourceField("requests.cpu")},
-		{Name: "QW_NUM_CPUS", ValueFrom: resourceField("requests.cpu")},
-		{Name: "KUBERNETES_REQUESTS_MEMORY", ValueFrom: resourceField("requests.memory")},
-		{Name: "QW_CONFIG", Value: nodeConfigPath},
-		{Name: "QW_CLUSTER_ID", Value: clusterID},
-		{Name: "QW_NODE_ID", Value: "$(KUBERNETES_POD_NAME)"},
-		{Name: "QW_AVAILABILITY_ZONE", ValueFrom: field("metadata.labels['topology.kubernetes.io/zone']")},
-		{Name: "QW_PEER_SEEDS", Value: headlessServiceName(cluster.Name)},
-		{Name: "QW_ADVERTISE_ADDRESS", Value: "$(KUBERNETES_POD_IP)"},
-		{Name: "QW_CLUSTER_ENDPOINT", Value: fmt.Sprintf("http://%s.%s.svc.%s:%d", ComponentResourceName(cluster.Name, MetastoreComponentName), cluster.Namespace, defaultClusterDomain, restPort)},
+		{Name: envKubernetesNamespace, ValueFrom: field("metadata.namespace")},
+		{Name: envKubernetesComponent, ValueFrom: field("metadata.labels['app.kubernetes.io/component']")},
+		{Name: envKubernetesPodName, ValueFrom: field("metadata.name")},
+		{Name: envKubernetesNodeName, ValueFrom: field("spec.nodeName")},
+		{Name: envKubernetesPodIP, ValueFrom: field("status.podIP")},
+		{Name: envKubernetesLimitsCPU, ValueFrom: resourceField("limits.cpu")},
+		{Name: envKubernetesLimitsMemory, ValueFrom: resourceField("limits.memory")},
+		{Name: envKubernetesRequestsCPU, ValueFrom: resourceField("requests.cpu")},
+		{Name: envQuickwitNumCPUs, ValueFrom: resourceField("requests.cpu")},
+		{Name: envKubernetesRequestsMemory, ValueFrom: resourceField("requests.memory")},
+		{Name: envQuickwitConfig, Value: nodeConfigPath},
+		{Name: envQuickwitClusterID, Value: clusterID},
+		{Name: envQuickwitNodeID, Value: "$(KUBERNETES_POD_NAME)"},
+		{Name: envQuickwitAvailabilityZone, ValueFrom: field("metadata.labels['topology.kubernetes.io/zone']")},
+		{Name: envQuickwitPeerSeeds, Value: headlessServiceName(cluster.Name)},
+		{Name: envQuickwitAdvertiseAddress, Value: "$(KUBERNETES_POD_IP)"},
+		{Name: envQuickwitClusterEndpoint, Value: fmt.Sprintf("http://%s.%s.svc.%s:%d", ComponentResourceName(cluster.Name, MetastoreComponentName), cluster.Namespace, defaultClusterDomain, restPort)},
 		dogstatsdHost,
-		{Name: "CP_DOGSTATSD_SERVER_PORT", Value: fmt.Sprint(*datadog.DogstatsdServer.Port)},
-		{Name: "CP_ENABLE_REVERSE_CONNECTION", Value: "true"},
-		{Name: "CP_MIN_SHARDS", Value: "12"},
-		{Name: "DD_SITE", Value: site},
+		{Name: envCloudPremDogstatsdPort, Value: fmt.Sprint(*datadog.DogstatsdServer.Port)},
+		{Name: envCloudPremReverseConnection, Value: "true"},
+		{Name: envCloudPremMinShards, Value: cloudPremMinShards},
+		{Name: envDatadogSite, Value: site},
 	}
 	if provider := cluster.Spec.Provider; provider != nil && provider.AWS != nil && provider.AWS.Region != nil && *provider.AWS.Region != "" {
-		env = append(env, corev1.EnvVar{Name: "AWS_REGION", Value: *provider.AWS.Region})
+		env = append(env, corev1.EnvVar{Name: envAWSRegion, Value: *provider.AWS.Region})
 	}
 	if datadog.APIKeySecretRef != nil {
-		env = append(env, corev1.EnvVar{Name: "DD_API_KEY", ValueFrom: &corev1.EnvVarSource{SecretKeyRef: datadog.APIKeySecretRef}})
+		env = append(env, corev1.EnvVar{Name: envDatadogAPIKey, ValueFrom: &corev1.EnvVarSource{SecretKeyRef: datadog.APIKeySecretRef}})
 	}
 	if *datadog.BYOCTelemetry {
 		env = append(env, telemetryEnvironment(clusterID, site, in.image)...)
 	}
 	if cluster.Spec.Components.Compactor != nil {
-		env = append(env, corev1.EnvVar{Name: "QW_ENABLE_STANDALONE_COMPACTORS", Value: "true"})
+		env = append(env, corev1.EnvVar{Name: envQuickwitStandaloneCompactors, Value: "true"})
 	}
 	env = append(env, c.env()...)
 	env = append(env,
-		corev1.EnvVar{Name: "NO_COLOR", Value: "true"},
-		corev1.EnvVar{Name: "QW_DISABLE_INGEST_V1", Value: "true"},
-		corev1.EnvVar{Name: "QW_DISABLE_TELEMETRY", Value: "true"},
-		corev1.EnvVar{Name: "QW_LOG_FORMAT", Value: "DDG"},
-		corev1.EnvVar{Name: "QW_RANDOM_SPLIT_PREFIX", Value: "true"},
+		corev1.EnvVar{Name: envNoColor, Value: "true"},
+		corev1.EnvVar{Name: envQuickwitDisableIngestV1, Value: "true"},
+		corev1.EnvVar{Name: envQuickwitDisableTelemetry, Value: "true"},
+		corev1.EnvVar{Name: envQuickwitLogFormat, Value: quickwitLogFormat},
+		corev1.EnvVar{Name: envQuickwitRandomSplitPrefix, Value: "true"},
 	)
 	env = controllerutils.MergeEnv(env, cluster.Spec.Global.Env)
 	return controllerutils.MergeEnv(env, c.spec.Env)
@@ -224,20 +224,20 @@ func telemetryEnvironment(clusterID, site string, image byocimage.ResolvedImage)
 	if site == "datadoghq.com" || site == "datadoghq.eu" || site == "ddog-gov.com" {
 		host = "app." + site
 	}
-	intake := "https://" + host + "/api/unstable/byoc-telemetry-intake/v1/"
+	intake := "https://" + host + telemetryIntakePath
 	return []corev1.EnvVar{
-		{Name: "QW_ENABLE_OPENTELEMETRY_OTLP_EXPORTER", Value: "true"},
-		{Name: "BYOC_TELEMETRY_ENABLED", Value: "true"},
-		{Name: "OTEL_RESOURCE_ATTRIBUTES", Value: "cluster_id=" + clusterID + ",node_id=$(QW_NODE_ID),host.name=$(KUBERNETES_NODE_NAME)"},
-		{Name: "OTEL_EXPORTER_OTLP_PROTOCOL", Value: "http/protobuf"},
-		{Name: "OTEL_EXPORTER_OTLP_LOGS_ENDPOINT", Value: intake + "logs"},
-		{Name: "OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE", Value: "delta"},
-		{Name: "OTEL_EXPORTER_OTLP_METRICS_ENDPOINT", Value: intake + "metrics"},
-		{Name: "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", Value: intake + "traces"},
-		{Name: "OTEL_TRACES_SAMPLER", Value: "parentbased_traceidratio"},
-		{Name: "OTEL_TRACES_SAMPLER_ARG", Value: "0.2"},
-		{Name: "IMAGE_NAME", Value: image.Repository},
-		{Name: "IMAGE_TAG", Value: image.Tag},
+		{Name: envQuickwitOpenTelemetryExporter, Value: "true"},
+		{Name: envBYOCTelemetryEnabled, Value: "true"},
+		{Name: envOTelResourceAttributes, Value: "cluster_id=" + clusterID + ",node_id=$(QW_NODE_ID),host.name=$(KUBERNETES_NODE_NAME)"},
+		{Name: envOTelExporterProtocol, Value: telemetryExporterProtocol},
+		{Name: envOTelExporterLogsEndpoint, Value: intake + "logs"},
+		{Name: envOTelExporterMetricsTemporality, Value: telemetryMetricsTemporality},
+		{Name: envOTelExporterMetricsEndpoint, Value: intake + "metrics"},
+		{Name: envOTelExporterTracesEndpoint, Value: intake + "traces"},
+		{Name: envOTelTracesSampler, Value: telemetryTracesSampler},
+		{Name: envOTelTracesSamplerArg, Value: telemetryTracesSamplerRatio},
+		{Name: envImageName, Value: image.Repository},
+		{Name: envImageTag, Value: image.Tag},
 	}
 }
 

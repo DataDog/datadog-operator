@@ -38,14 +38,14 @@ type component struct {
 func components(cluster *datadoghqv1alpha1.DatadogBYOCCluster) []component {
 	spec := cluster.Spec.Components
 	return []component{
-		metastoreComponent(MetastoreComponentName, quickwitMetastoreServiceName, "QW_METASTORE_URI", spec.Metastore),
+		metastoreComponent(MetastoreComponentName, quickwitMetastoreServiceName, envQuickwitMetastoreURI, spec.Metastore),
 		{
 			name:                   IndexerComponentName,
 			spec:                   &spec.Indexer.DatadogBYOCClusterComponentSpec,
 			stateful:               spec.Indexer,
 			quickwitService:        quickwitIndexerServiceName,
 			configVolumeMount:      corev1.VolumeMount{Name: configVolumeName, MountPath: quickwitDirectory},
-			decommissionTimeoutEnv: "QW_INGEST_DECOMMISSION_TIMEOUT",
+			decommissionTimeoutEnv: envQuickwitIngestDecommissionTimeout,
 		},
 		{
 			name:              SearcherComponentName,
@@ -69,13 +69,13 @@ func components(cluster *datadoghqv1alpha1.DatadogBYOCCluster) []component {
 			configVolumeMount: configFileVolumeMount(),
 			strategy:          appsv1.RecreateDeploymentStrategyType,
 		},
-		metastoreComponent(ReadOnlyMetastoreComponentName, quickwitReadOnlyMetastoreServiceName, quickwitReadOnlyMetastoreURIEnvName, spec.ReadOnlyMetastore),
+		metastoreComponent(ReadOnlyMetastoreComponentName, quickwitReadOnlyMetastoreServiceName, envQuickwitReadOnlyMetastoreURI, spec.ReadOnlyMetastore),
 		{
 			name:                   CompactorComponentName,
 			spec:                   spec.Compactor,
 			quickwitService:        quickwitCompactorServiceName,
 			configVolumeMount:      configFileVolumeMount(),
-			decommissionTimeoutEnv: "QW_COMPACTOR_DECOMMISSION_TIMEOUT",
+			decommissionTimeoutEnv: envQuickwitCompactorDecommissionTimeout,
 		},
 	}
 }

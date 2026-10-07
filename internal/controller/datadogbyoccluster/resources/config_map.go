@@ -27,43 +27,19 @@ func newConfigMap(cluster *datadoghqv1alpha1.DatadogBYOCCluster) (*corev1.Config
 	searcherMemoryBytes := searcherMemoryLimit.Value()
 	maxQueueDiskUsage := indexerMemoryBytes * 3 / 5
 
-	config := map[string]any{
-		"version":               0.8,
-		"listen_address":        "0.0.0.0",
-		"gossip_listen_port":    gossipPort,
-		"cloudprem_listen_port": cloudpremPort,
-		"data_dir":              defaultDataPath,
-		"grpc":                  map[string]any{"keep_alive": map[string]any{"interval": "30s", "timeout": "10s"}},
-		"health":                map[string]any{"listen_port": healthPort},
-		"cloudprem": map[string]any{
-			"mtls_header":              "X-Amzn-Mtls-Clientcert",
-			"create_dd_logs_index":     true,
-			"create_dd_metrics_index":  false,
-			"create_dd_sketches_index": false,
-			"create_dd_traces_index":   false,
-		},
-		"docs_clustering": []any{
-			map[string]any{"fingerprint": []any{map[string]any{"kind": "structure"}}},
-			map[string]any{"fingerprint": []any{map[string]any{"kind": "raw", "path": "source"}}},
-			map[string]any{"fingerprint": []any{map[string]any{"kind": "raw", "path": "status"}}},
-			map[string]any{"fingerprint": []any{map[string]any{"kind": "tokenized", "path": "message"}}},
-		},
-		quickwitIndexerServiceName: map[string]any{"split_store_max_num_splits": 10000},
-		"ingest_api": map[string]any{
-			// ByteSize accepts integer byte counts, so no unit conversion is needed.
-			"max_queue_disk_usage":   maxQueueDiskUsage,
-			"max_queue_memory_usage": indexerMemoryBytes * 3 / 10,
-		},
-		quickwitSearcherServiceName: map[string]any{
-			"aggregation_memory_limit":          "500M",
-			"fast_field_cache_capacity":         searcherMemoryBytes * 13 / 32,
-			"max_num_concurrent_split_searches": int64(math.Ceil(float64(searcherMemoryBytes) / bytesPerGiB * 3.125)),
-			"partial_request_cache_capacity":    searcherMemoryBytes / 64,
-			"split_footer_cache_capacity":       searcherMemoryBytes / 32,
-		},
+	config := defaultNodeConfig()
+	config["ingest_api"] = map[string]any{
+		// ByteSize accepts integer byte counts, so no unit conversion is needed.
+		"max_queue_disk_usage":   maxQueueDiskUsage,
+		"max_queue_memory_usage": indexerMemoryBytes * 3 / 10,
 	}
+	searcher := config[quickwitSearcherServiceName].(map[string]any)
+	searcher["fast_field_cache_capacity"] = searcherMemoryBytes * 13 / 32
+	searcher["max_num_concurrent_split_searches"] = int64(math.Ceil(float64(searcherMemoryBytes) / bytesPerGiB * 3.125))
+	searcher["partial_request_cache_capacity"] = searcherMemoryBytes / 64
+	searcher["split_footer_cache_capacity"] = searcherMemoryBytes / 32
 	if cluster.Spec.Components.ReadOnlyMetastore != nil {
-		config[quickwitSearcherServiceName].(map[string]any)[quickwitUseReadOnlyMetastoreConfigKey] = true
+		searcher[quickwitUseReadOnlyMetastoreConfigKey] = true
 	}
 	storage := cluster.Spec.Components.Indexer.Storage
 	if storage != nil && storage.VolumeClaimTemplate != nil {
