@@ -218,9 +218,7 @@ func startDatadogBYOCCluster(logger logr.Logger, mgr manager.Manager, _ kubernet
 
 	return (&DatadogBYOCClusterReconciler{
 		Client:        mgr.GetClient(),
-		Log:           ctrl.Log.WithName("controllers").WithName(byocClusterControllerName),
 		Scheme:        mgr.GetScheme(),
-		Recorder:      mgr.GetEventRecorderFor(byocClusterControllerName),
 		ImageResolver: options.BYOCImageResolver,
 	}).SetupWithManager(mgr)
 }
