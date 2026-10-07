@@ -60,6 +60,6 @@ jobs:
               owner, repo, issue_number: pr.number,
               body: `@${pr.user.login}, the current milestone has already been cutoff and is being tested for release. ` +
                 `If your PR resolves a newly introduced bug, please set the \`${label}\` label on your PR ` +
-                `so that it gets included in the next release candidate. ` +
+                `so that a backport PR is created to be included in the next release candidate. ` +
                 `Otherwise, please bump your targeted milestone to \`${nextMilestone}\`.`,
             });
