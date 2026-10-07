@@ -2,14 +2,11 @@
 name: PR Milestone Cutoff
 
 on:
-  pull_request_target:
+  pull_request:
     # Re-check on merge, since a release branch may have been cut during review.
     types: [milestoned, closed]
     branches: [main]
 
-# pull_request_target runs in the base-branch context, so GITHUB_TOKEN can
-# comment on fork PRs. Safe here because no code from the PR branch is
-# checked out or executed.
 permissions:
   contents: read
   pull-requests: write
