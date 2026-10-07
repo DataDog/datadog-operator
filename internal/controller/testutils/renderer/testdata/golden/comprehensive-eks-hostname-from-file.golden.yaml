@@ -1251,6 +1251,7 @@ metadata:
   annotations:
     agent.datadoghq.com/cluster-provider: eks-ec2-use-hostname-from-file
     agent.datadoghq.com/ddaispechash: 4aa209cbf559d486dc4dfdf461eaba01
+    agent.datadoghq.com/rollout-target-hash: 519809e9a1969b219eea2a4d5e28c19a86b5fea4d9d3c42a7b0331d7a053530a
   finalizers:
   - finalizer.datadoghq.com/datadogagentinternal
   labels:
