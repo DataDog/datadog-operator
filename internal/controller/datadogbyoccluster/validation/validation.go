@@ -14,6 +14,8 @@ package validation
 
 import (
 	"fmt"
+	"path"
+	"slices"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
@@ -44,22 +46,23 @@ func ValidateClusterSpec(spec *datadoghqv1alpha1.DatadogBYOCClusterSpec) field.E
 	}
 	// Validate the global setting even if every component overrides it.
 	errs = append(errs, validatePodDisruptionBudget(spec.Global.PodDisruptionBudget, path.Child("global", "podDisruptionBudget"))...)
+	errs = append(errs, validateReservedVolumes(spec.Global.Volumes, spec.Global.VolumeMounts, path.Child("global"))...)
 	if components := spec.Components; components != nil {
 		componentPath := path.Child("components")
-		errs = append(errs, validateQuickwitStatefulComponent(components.Indexer, componentPath.Child("indexer"))...)
-		errs = append(errs, validateQuickwitStatefulComponent(components.Searcher, componentPath.Child("searcher"))...)
+		errs = append(errs, validatePomskyStatefulComponent(components.Indexer, componentPath.Child("indexer"))...)
+		errs = append(errs, validatePomskyStatefulComponent(components.Searcher, componentPath.Child("searcher"))...)
 		for i := range components.Pipelines {
 			errs = append(errs, ValidateStatefulComponent(&components.Pipelines[i].DatadogBYOCClusterStatefulComponentSpec, componentPath.Child("pipelines").Index(i))...)
 		}
 		if components.Metastore != nil {
-			errs = append(errs, validateComponent(&components.Metastore.DatadogBYOCClusterComponentSpec, componentPath.Child("metastore"))...)
+			errs = append(errs, validatePomskyComponent(&components.Metastore.DatadogBYOCClusterComponentSpec, componentPath.Child("metastore"))...)
 		}
 		if components.ReadOnlyMetastore != nil {
-			errs = append(errs, validateComponent(&components.ReadOnlyMetastore.DatadogBYOCClusterComponentSpec, componentPath.Child("readOnlyMetastore"))...)
+			errs = append(errs, validatePomskyComponent(&components.ReadOnlyMetastore.DatadogBYOCClusterComponentSpec, componentPath.Child("readOnlyMetastore"))...)
 		}
-		errs = append(errs, validateComponent(components.ControlPlane, componentPath.Child("controlPlane"))...)
-		errs = append(errs, validateComponent(components.Compactor, componentPath.Child("compactor"))...)
-		errs = append(errs, validateComponent(components.Janitor, componentPath.Child("janitor"))...)
+		errs = append(errs, validatePomskyComponent(components.ControlPlane, componentPath.Child("controlPlane"))...)
+		errs = append(errs, validatePomskyComponent(components.Compactor, componentPath.Child("compactor"))...)
+		errs = append(errs, validatePomskyComponent(components.Janitor, componentPath.Child("janitor"))...)
 	}
 	return errs
 }
@@ -105,15 +108,60 @@ func ValidateStatefulComponent(component *datadoghqv1alpha1.DatadogBYOCClusterSt
 	return errs
 }
 
-// validateQuickwitStatefulComponent also requires the memory limit used to size the Quickwit node configuration.
-func validateQuickwitStatefulComponent(component *datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec, path *field.Path) field.ErrorList {
+// validatePomskyStatefulComponent also requires the memory limit used to size the Pomsky node configuration.
+func validatePomskyStatefulComponent(component *datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec, path *field.Path) field.ErrorList {
 	if component == nil {
 		return nil
 	}
 	errs := ValidateStatefulComponent(component, path)
+	errs = append(errs, validateReservedVolumes(component.Volumes, component.VolumeMounts, path)...)
 	if component.Resources != nil {
 		if _, ok := component.Resources.Limits[corev1.ResourceMemory]; !ok {
 			errs = append(errs, field.Required(path.Child("resources", "limits", "memory"), "resources.limits.memory must be specified when resources is set"))
+		}
+	}
+	return append(errs, validatePomskyCPU(component.Resources, path)...)
+}
+
+func validatePomskyComponent(component *datadoghqv1alpha1.DatadogBYOCClusterComponentSpec, path *field.Path) field.ErrorList {
+	if component == nil {
+		return nil
+	}
+	errs := validateComponent(component, path)
+	errs = append(errs, validateReservedVolumes(component.Volumes, component.VolumeMounts, path)...)
+	return append(errs, validatePomskyCPU(component.Resources, path)...)
+}
+
+// validatePomskyCPU requires a CPU request or limit because QW_NUM_CPUS is read from the CPU request,
+// which resolves to 0 when neither is set, and Pomsky then sizes its runtime to zero CPUs.
+func validatePomskyCPU(resources *corev1.ResourceRequirements, path *field.Path) field.ErrorList {
+	if resources == nil {
+		return nil
+	}
+	_, hasRequest := resources.Requests[corev1.ResourceCPU]
+	_, hasLimit := resources.Limits[corev1.ResourceCPU]
+	if !hasRequest && !hasLimit {
+		return field.ErrorList{field.Required(path.Child("resources", "requests", "cpu"), "resources.requests.cpu or resources.limits.cpu must be specified when resources is set")}
+	}
+	return nil
+}
+
+var (
+	// reservedVolumeNames and reservedMountPaths mirror the volumes and mounts that every Pomsky workload defines.
+	reservedVolumeNames = []string{"config", "data"}
+	reservedMountPaths  = []string{"/quickwit", "/quickwit/node.yaml", "/quickwit/qwdata"}
+)
+
+func validateReservedVolumes(volumes []corev1.Volume, volumeMounts []corev1.VolumeMount, fieldPath *field.Path) field.ErrorList {
+	var errs field.ErrorList
+	for i, volume := range volumes {
+		if slices.Contains(reservedVolumeNames, volume.Name) {
+			errs = append(errs, field.Invalid(fieldPath.Child("volumes").Index(i).Child("name"), volume.Name, "is reserved for a built-in volume"))
+		}
+	}
+	for i, volumeMount := range volumeMounts {
+		if slices.Contains(reservedMountPaths, path.Clean(volumeMount.MountPath)) {
+			errs = append(errs, field.Invalid(fieldPath.Child("volumeMounts").Index(i).Child("mountPath"), volumeMount.MountPath, "is reserved for a built-in volume mount"))
 		}
 	}
 	return errs

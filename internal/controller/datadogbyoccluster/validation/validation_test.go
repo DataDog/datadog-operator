@@ -294,8 +294,31 @@ func TestValidateClusterSpec(t *testing.T) {
 						DatadogBYOCClusterComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
 							Resources: &corev1.ResourceRequirements{
 								Limits: corev1.ResourceList{
+									corev1.ResourceCPU:    resource.MustParse("1"),
 									corev1.ResourceMemory: resource.MustParse("0"),
 								},
+							},
+						},
+					},
+				},
+			},
+			want: nil,
+		},
+
+		{
+			name: "CPU request satisfies the CPU requirement",
+			spec: datadoghqv1alpha1.DatadogBYOCClusterSpec{
+				Release: &datadoghqv1alpha1.DatadogBYOCClusterReleaseSpec{
+					Tag: ptr.To("v1"),
+				},
+				Provider: &datadoghqv1alpha1.DatadogBYOCClusterProviderSpec{
+					AWS: &datadoghqv1alpha1.DatadogBYOCClusterAWSSpec{},
+				},
+				Components: &datadoghqv1alpha1.DatadogBYOCClusterComponentsSpec{
+					ControlPlane: &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
+						Resources: &corev1.ResourceRequirements{
+							Requests: corev1.ResourceList{
+								corev1.ResourceCPU: resource.MustParse("500m"),
 							},
 						},
 					},
@@ -386,6 +409,7 @@ func TestValidateClusterSpec(t *testing.T) {
 								MinAvailable:   ptr.To(intstr.FromInt32(0)),
 								MaxUnavailable: ptr.To(intstr.FromInt32(0)),
 							},
+							Resources: &corev1.ResourceRequirements{},
 						},
 					},
 
@@ -395,6 +419,7 @@ func TestValidateClusterSpec(t *testing.T) {
 								MinAvailable:   ptr.To(intstr.FromInt32(0)),
 								MaxUnavailable: ptr.To(intstr.FromInt32(0)),
 							},
+							Resources: &corev1.ResourceRequirements{},
 						},
 					},
 
@@ -403,18 +428,21 @@ func TestValidateClusterSpec(t *testing.T) {
 							MinAvailable:   ptr.To(intstr.FromInt32(0)),
 							MaxUnavailable: ptr.To(intstr.FromInt32(0)),
 						},
+						Resources: &corev1.ResourceRequirements{},
 					},
 					Compactor: &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
 						PodDisruptionBudget: &datadoghqv1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec{
 							MinAvailable:   ptr.To(intstr.FromInt32(0)),
 							MaxUnavailable: ptr.To(intstr.FromInt32(0)),
 						},
+						Resources: &corev1.ResourceRequirements{},
 					},
 					Janitor: &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
 						PodDisruptionBudget: &datadoghqv1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec{
 							MinAvailable:   ptr.To(intstr.FromInt32(0)),
 							MaxUnavailable: ptr.To(intstr.FromInt32(0)),
 						},
+						Resources: &corev1.ResourceRequirements{},
 					},
 				},
 			},
@@ -423,18 +451,108 @@ func TestValidateClusterSpec(t *testing.T) {
 				"spec.components.indexer.podDisruptionBudget: minAvailable and maxUnavailable are mutually exclusive",
 				"spec.components.indexer.storage: exactly one storage type must be specified",
 				"spec.components.indexer.resources.limits.memory: resources.limits.memory must be specified when resources is set",
+				"spec.components.indexer.resources.requests.cpu: resources.requests.cpu or resources.limits.cpu must be specified when resources is set",
 				"spec.components.searcher.podDisruptionBudget: minAvailable and maxUnavailable are mutually exclusive",
 				"spec.components.searcher.storage: exactly one storage type must be specified",
 				"spec.components.searcher.resources.limits.memory: resources.limits.memory must be specified when resources is set",
+				"spec.components.searcher.resources.requests.cpu: resources.requests.cpu or resources.limits.cpu must be specified when resources is set",
 				"spec.components.pipelines[0].podDisruptionBudget: minAvailable and maxUnavailable are mutually exclusive",
 				"spec.components.pipelines[0].storage: exactly one storage type must be specified",
 				"spec.components.pipelines[1].podDisruptionBudget: minAvailable and maxUnavailable are mutually exclusive",
 				"spec.components.pipelines[1].storage: exactly one storage type must be specified",
 				"spec.components.metastore.podDisruptionBudget: minAvailable and maxUnavailable are mutually exclusive",
+				"spec.components.metastore.resources.requests.cpu: resources.requests.cpu or resources.limits.cpu must be specified when resources is set",
 				"spec.components.readOnlyMetastore.podDisruptionBudget: minAvailable and maxUnavailable are mutually exclusive",
+				"spec.components.readOnlyMetastore.resources.requests.cpu: resources.requests.cpu or resources.limits.cpu must be specified when resources is set",
 				"spec.components.controlPlane.podDisruptionBudget: minAvailable and maxUnavailable are mutually exclusive",
+				"spec.components.controlPlane.resources.requests.cpu: resources.requests.cpu or resources.limits.cpu must be specified when resources is set",
 				"spec.components.compactor.podDisruptionBudget: minAvailable and maxUnavailable are mutually exclusive",
+				"spec.components.compactor.resources.requests.cpu: resources.requests.cpu or resources.limits.cpu must be specified when resources is set",
 				"spec.components.janitor.podDisruptionBudget: minAvailable and maxUnavailable are mutually exclusive",
+				"spec.components.janitor.resources.requests.cpu: resources.requests.cpu or resources.limits.cpu must be specified when resources is set",
+			},
+		},
+
+		{
+			name: "additional volumes and mounts",
+			spec: datadoghqv1alpha1.DatadogBYOCClusterSpec{
+				Release: &datadoghqv1alpha1.DatadogBYOCClusterReleaseSpec{
+					Tag: ptr.To("v1"),
+				},
+				Provider: &datadoghqv1alpha1.DatadogBYOCClusterProviderSpec{
+					AWS: &datadoghqv1alpha1.DatadogBYOCClusterAWSSpec{},
+				},
+				Global: datadoghqv1alpha1.DatadogBYOCClusterGlobalSpec{
+					Volumes:      []corev1.Volume{{Name: "certificates"}},
+					VolumeMounts: []corev1.VolumeMount{{Name: "certificates", MountPath: "/quickwit/certificates"}},
+				},
+				Components: &datadoghqv1alpha1.DatadogBYOCClusterComponentsSpec{
+					Janitor: &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
+						Volumes:      []corev1.Volume{{Name: "scratch"}},
+						VolumeMounts: []corev1.VolumeMount{{Name: "scratch", MountPath: "/tmp"}},
+					},
+				},
+			},
+			want: nil,
+		},
+
+		{
+			name: "reserved volumes and mounts",
+			spec: datadoghqv1alpha1.DatadogBYOCClusterSpec{
+				Release: &datadoghqv1alpha1.DatadogBYOCClusterReleaseSpec{
+					Tag: ptr.To("v1"),
+				},
+				Provider: &datadoghqv1alpha1.DatadogBYOCClusterProviderSpec{
+					AWS: &datadoghqv1alpha1.DatadogBYOCClusterAWSSpec{},
+				},
+				Global: datadoghqv1alpha1.DatadogBYOCClusterGlobalSpec{
+					Volumes:      []corev1.Volume{{Name: "config"}},
+					VolumeMounts: []corev1.VolumeMount{{Name: "custom", MountPath: "/quickwit/qwdata/"}},
+				},
+				Components: &datadoghqv1alpha1.DatadogBYOCClusterComponentsSpec{
+					Indexer: &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{
+						DatadogBYOCClusterComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
+							Volumes:      []corev1.Volume{{Name: "data"}},
+							VolumeMounts: []corev1.VolumeMount{{Name: "custom", MountPath: "/quickwit/node.yaml"}},
+						},
+					},
+					Searcher: &datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{
+						DatadogBYOCClusterComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
+							VolumeMounts: []corev1.VolumeMount{{Name: "custom", MountPath: "/quickwit"}},
+						},
+					},
+					Metastore: &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{
+						DatadogBYOCClusterComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
+							Volumes: []corev1.Volume{{Name: "data"}},
+						},
+					},
+					ReadOnlyMetastore: &datadoghqv1alpha1.DatadogBYOCClusterMetastoreComponentSpec{
+						DatadogBYOCClusterComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
+							Volumes: []corev1.Volume{{Name: "data"}},
+						},
+					},
+					ControlPlane: &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
+						Volumes: []corev1.Volume{{Name: "data"}},
+					},
+					Compactor: &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
+						Volumes: []corev1.Volume{{Name: "data"}},
+					},
+					Janitor: &datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
+						Volumes: []corev1.Volume{{Name: "data"}},
+					},
+				},
+			},
+			want: []string{
+				"spec.global.volumes[0].name: is reserved for a built-in volume",
+				"spec.global.volumeMounts[0].mountPath: is reserved for a built-in volume mount",
+				"spec.components.indexer.volumes[0].name: is reserved for a built-in volume",
+				"spec.components.indexer.volumeMounts[0].mountPath: is reserved for a built-in volume mount",
+				"spec.components.searcher.volumeMounts[0].mountPath: is reserved for a built-in volume mount",
+				"spec.components.metastore.volumes[0].name: is reserved for a built-in volume",
+				"spec.components.readOnlyMetastore.volumes[0].name: is reserved for a built-in volume",
+				"spec.components.controlPlane.volumes[0].name: is reserved for a built-in volume",
+				"spec.components.compactor.volumes[0].name: is reserved for a built-in volume",
+				"spec.components.janitor.volumes[0].name: is reserved for a built-in volume",
 			},
 		},
 	}
