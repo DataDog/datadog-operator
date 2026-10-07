@@ -120,7 +120,7 @@ func validatePomskyStatefulComponent(component *datadoghqv1alpha1.DatadogBYOCClu
 			errs = append(errs, field.Required(path.Child("resources", "limits", "memory"), "resources.limits.memory must be specified when resources is set"))
 		}
 	}
-	return errs
+	return append(errs, validatePomskyCPU(component.Resources, path)...)
 }
 
 func validatePomskyComponent(component *datadoghqv1alpha1.DatadogBYOCClusterComponentSpec, path *field.Path) field.ErrorList {
@@ -128,7 +128,22 @@ func validatePomskyComponent(component *datadoghqv1alpha1.DatadogBYOCClusterComp
 		return nil
 	}
 	errs := validateComponent(component, path)
-	return append(errs, validateReservedVolumes(component.Volumes, component.VolumeMounts, path)...)
+	errs = append(errs, validateReservedVolumes(component.Volumes, component.VolumeMounts, path)...)
+	return append(errs, validatePomskyCPU(component.Resources, path)...)
+}
+
+// validatePomskyCPU requires a CPU request or limit because QW_NUM_CPUS is read from the CPU request,
+// which resolves to 0 when neither is set, and Pomsky then sizes its runtime to zero CPUs.
+func validatePomskyCPU(resources *corev1.ResourceRequirements, path *field.Path) field.ErrorList {
+	if resources == nil {
+		return nil
+	}
+	_, hasRequest := resources.Requests[corev1.ResourceCPU]
+	_, hasLimit := resources.Limits[corev1.ResourceCPU]
+	if !hasRequest && !hasLimit {
+		return field.ErrorList{field.Required(path.Child("resources", "requests", "cpu"), "resources.requests.cpu or resources.limits.cpu must be specified when resources is set")}
+	}
+	return nil
 }
 
 var (
