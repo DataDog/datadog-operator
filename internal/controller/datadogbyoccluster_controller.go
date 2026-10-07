@@ -169,9 +169,20 @@ func (r *DatadogBYOCClusterReconciler) finalize(ctx context.Context, cluster *da
 	return nil
 }
 
+// getFresh reads the object from the cache, and from the API server when the cache does not have it.
+func (r *DatadogBYOCClusterReconciler) getFresh(ctx context.Context, object client.Object) error {
+	key := client.ObjectKeyFromObject(object)
+	err := r.Client.Get(ctx, key, object)
+	if !apierrors.IsNotFound(err) {
+		return err
+	}
+	// The cache may not have observed an object that was just created.
+	return r.APIReader.Get(ctx, key, object)
+}
+
 func (r *DatadogBYOCClusterReconciler) applyObject(ctx context.Context, owner *datadoghqv1alpha1.DatadogBYOCCluster, desired client.Object) error {
 	current := desired.DeepCopyObject().(client.Object)
-	switch err := r.Client.Get(ctx, client.ObjectKeyFromObject(desired), current); {
+	switch err := r.getFresh(ctx, current); {
 	case apierrors.IsNotFound(err):
 	case err != nil:
 		return err
