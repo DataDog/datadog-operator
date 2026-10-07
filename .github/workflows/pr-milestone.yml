@@ -3,7 +3,7 @@ name: PR Milestone
 
 on:
   pull_request_target:
-    types: [opened]
+    types: [opened, ready_for_review]
     branches: [main]
 
 # pull_request_target runs in the base-branch context, so GITHUB_TOKEN has
@@ -16,6 +16,8 @@ permissions:
 jobs:
   milestone:
     name: Set latest milestone
+    # Drafts get a milestone once they are marked ready for review.
+    if: ${{ !github.event.pull_request.draft }}
     runs-on: ubuntu-latest
     steps:
       - name: Apply highest open milestone
