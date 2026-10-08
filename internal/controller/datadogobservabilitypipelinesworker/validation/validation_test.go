@@ -169,6 +169,7 @@ func TestValidateWorkerSpec(t *testing.T) {
 					Ports: []datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerPort{
 						{Name: "api", Port: 9000},
 						{Name: "otlp-http", Port: 8686},
+						{Name: "syslog", Port: 8686, Protocol: corev1.ProtocolUDP},
 					},
 					DatadogBYOCClusterStatefulComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{
 						DatadogBYOCClusterComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{

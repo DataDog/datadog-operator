@@ -59,10 +59,10 @@ func validatePorts(ports []datadoghqv1alpha1.DatadogObservabilityPipelinesWorker
 		if port.Name == workerresources.APIPortName {
 			errs = append(errs, field.Invalid(fieldPath.Index(i).Child("name"), port.Name, "is reserved for the Worker API port"))
 		}
-		if port.Port == workerresources.APIPort {
+		key := portKey{port: port.Port, protocol: cmp.Or(port.Protocol, corev1.ProtocolTCP)}
+		if key == (portKey{port: workerresources.APIPort, protocol: corev1.ProtocolTCP}) {
 			errs = append(errs, field.Invalid(fieldPath.Index(i).Child("port"), port.Port, "is reserved for the Worker API port"))
 		}
-		key := portKey{port: port.Port, protocol: cmp.Or(port.Protocol, corev1.ProtocolTCP)}
 		if seen[key] {
 			errs = append(errs, field.Invalid(fieldPath.Index(i).Child("port"), port.Port, "duplicates the port and protocol of another port"))
 		}
