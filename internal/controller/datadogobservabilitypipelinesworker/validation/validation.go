@@ -13,8 +13,10 @@
 package validation
 
 import (
+	"cmp"
 	"path"
 
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
@@ -27,6 +29,7 @@ import (
 func ValidateWorkerSpec(spec *datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerSpec) field.ErrorList {
 	path := field.NewPath("spec")
 	errs := byocvalidation.ValidateStatefulComponent(&spec.DatadogBYOCClusterStatefulComponentSpec, path)
+	errs = append(errs, validatePorts(spec.Ports, path.Child("ports"))...)
 	errs = append(errs, validateReservedNames(spec, path)...)
 	imagePath := path.Child("image")
 	if spec.Image == nil {
@@ -43,16 +46,33 @@ func ValidateWorkerSpec(spec *datadoghqv1alpha1.DatadogObservabilityPipelinesWor
 	return errs
 }
 
-func validateReservedNames(spec *datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerSpec, fieldPath *field.Path) field.ErrorList {
+// validatePorts rejects ports that collide with the Worker API port or with each other,
+// since the Worker cannot bind two listeners to the same address.
+func validatePorts(ports []datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerPort, fieldPath *field.Path) field.ErrorList {
+	type portKey struct {
+		port     int32
+		protocol corev1.Protocol
+	}
 	var errs field.ErrorList
-	for i, port := range spec.Ports {
+	seen := map[portKey]bool{}
+	for i, port := range ports {
 		if port.Name == workerresources.APIPortName {
-			errs = append(errs, field.Invalid(fieldPath.Child("ports").Index(i).Child("name"), port.Name, "is reserved for the Worker API port"))
+			errs = append(errs, field.Invalid(fieldPath.Index(i).Child("name"), port.Name, "is reserved for the Worker API port"))
 		}
 		if port.Port == workerresources.APIPort {
-			errs = append(errs, field.Invalid(fieldPath.Child("ports").Index(i).Child("port"), port.Port, "is reserved for the Worker API port"))
+			errs = append(errs, field.Invalid(fieldPath.Index(i).Child("port"), port.Port, "is reserved for the Worker API port"))
 		}
+		key := portKey{port: port.Port, protocol: cmp.Or(port.Protocol, corev1.ProtocolTCP)}
+		if seen[key] {
+			errs = append(errs, field.Invalid(fieldPath.Index(i).Child("port"), port.Port, "duplicates the port and protocol of another port"))
+		}
+		seen[key] = true
 	}
+	return errs
+}
+
+func validateReservedNames(spec *datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerSpec, fieldPath *field.Path) field.ErrorList {
+	var errs field.ErrorList
 	for i, container := range spec.InitContainers {
 		if container.Name == workerresources.ContainerName {
 			errs = append(errs, field.Invalid(fieldPath.Child("initContainers").Index(i).Child("name"), container.Name, "is reserved for the Worker container"))

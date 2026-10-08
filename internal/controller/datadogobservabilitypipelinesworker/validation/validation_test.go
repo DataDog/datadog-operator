@@ -192,6 +192,23 @@ func TestValidateWorkerSpec(t *testing.T) {
 			},
 		},
 		{
+			name: "duplicate ports",
+			spec: datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerSpec{
+				DatadogBYOCClusterPipelineComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{
+					Ports: []datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerPort{
+						{Name: "splunk-tcp", Port: 9000},
+						{Name: "logstash", Port: 9000, Protocol: corev1.ProtocolTCP},
+						{Name: "syslog", Port: 9000, Protocol: corev1.ProtocolUDP},
+					},
+				},
+				Image: &datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerImageSpec{
+					Repository: ptr.To("registry.example.com/worker"),
+					Tag:        ptr.To("v1"),
+				},
+			},
+			want: []string{"spec.ports[1].port: duplicates the port and protocol of another port"},
+		},
+		{
 			name: "missing image preserves component errors",
 			spec: datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerSpec{
 				DatadogBYOCClusterPipelineComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{
