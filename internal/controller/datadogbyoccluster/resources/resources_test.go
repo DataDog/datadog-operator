@@ -410,6 +410,40 @@ ingest_api:
 	}
 }
 
+func TestNewConfigMapClusterType(t *testing.T) {
+	tests := []struct {
+		name      string
+		override  string
+		wantIndex bool
+	}{
+		{name: "traces", wantIndex: true},
+		{name: "traces with override", override: "cloudprem:\n  create_dd_traces_index: false", wantIndex: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cluster := testCluster()
+			cluster.Spec.Type = ptr.To(datadoghqv1alpha1.DatadogBYOCClusterTypeTraces)
+			if tt.override != "" {
+				cluster.Spec.NodeConfigOverrides = &runtime.RawExtension{Raw: []byte(tt.override)}
+			}
+			resources, err := buildResources(cluster, testRelease())
+			if err != nil {
+				t.Fatalf("BuildResources() unexpected error: %v", err)
+			}
+			var config struct {
+				CloudPrem map[string]any `json:"cloudprem"`
+			}
+			if err := yaml.Unmarshal([]byte(resources.configMap.Data[nodeConfigFileName]), &config); err != nil {
+				t.Fatalf("decode node config: %v", err)
+			}
+			if got := config.CloudPrem["create_dd_traces_index"]; got != tt.wantIndex {
+				t.Errorf("create_dd_traces_index = %v, want %v", got, tt.wantIndex)
+			}
+		})
+	}
+}
+
 func TestBuildResources_HeadlessService(t *testing.T) {
 	cluster := testCluster()
 	want := &corev1.Service{
