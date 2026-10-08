@@ -157,7 +157,8 @@ manifests: generate-manifests patch-crds ## Generate manifests e.g. CRD, RBAC et
 
 .PHONY: generate-manifests
 generate-manifests: $(CONTROLLER_GEN)
-	$(CONTROLLER_GEN) crd:crdVersions=v1 rbac:roleName=manager-role paths="./api/..." paths="./internal/controller/..." output:crd:artifacts:config=config/crd/bases/v1
+	$(CONTROLLER_GEN) crd:crdVersions=v1 rbac:roleName=manager-role paths="./api/..." $(foreach pkg,$(shell go list ./internal/controller/... | grep -v /internal/controller/datadogbyoccluster),paths="$(pkg)") output:crd:artifacts:config=config/crd/bases/v1
+	$(CONTROLLER_GEN) rbac:roleName=manager-byoc-role paths="./internal/controller/datadogbyoccluster/..." output:rbac:artifacts:config=config/rbac/byoc
 
 .PHONY: generate
 generate: $(CONTROLLER_GEN) generate-openapi generate-docs ## Generate code
