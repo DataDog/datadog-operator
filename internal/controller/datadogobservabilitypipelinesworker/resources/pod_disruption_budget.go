@@ -20,7 +20,7 @@ func newPodDisruptionBudget(metadata metav1.ObjectMeta, selector map[string]stri
 	case spec == nil || spec.MinAvailable == nil && spec.MaxUnavailable == nil:
 		return nil, nil
 	case spec.MinAvailable != nil && spec.MaxUnavailable != nil:
-		return nil, fmt.Errorf("worker pod disruption budget minAvailable and maxUnavailable are mutually exclusive")
+		return nil, fmt.Errorf("%s pod disruption budget: minAvailable and maxUnavailable are mutually exclusive", metadata.Name)
 	}
 	return &policyv1.PodDisruptionBudget{
 		ObjectMeta: metadata,

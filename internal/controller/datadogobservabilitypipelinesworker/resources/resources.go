@@ -74,9 +74,7 @@ func BuildResources(worker *datadoghqv1alpha1.DatadogObservabilityPipelinesWorke
 		PodDisruptionBudget: podDisruptionBudget,
 	}
 	if autoscaling := worker.Spec.Autoscaling; autoscaling != nil {
-		if r.HPA, err = newHPA(objectMeta(worker), autoscaling); err != nil {
-			return nil, err
-		}
+		r.HPA = newHPA(objectMeta(worker), autoscaling)
 	}
 	if ports := servicePorts(worker.Spec.Ports); len(ports) > 0 {
 		r.Service = newService(objectMeta(worker), selectorLabels(worker), ports, serviceType(worker))

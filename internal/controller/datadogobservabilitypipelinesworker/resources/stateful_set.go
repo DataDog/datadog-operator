@@ -6,8 +6,6 @@
 package resources
 
 import (
-	"fmt"
-
 	appsv1 "k8s.io/api/apps/v1"
 	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	corev1 "k8s.io/api/core/v1"
@@ -50,10 +48,7 @@ func newVolumeClaimTemplates(storage *datadoghqv1alpha1.DatadogBYOCClusterStorag
 	}}
 }
 
-func newHPA(metadata metav1.ObjectMeta, autoscaling *datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec) (*autoscalingv2.HorizontalPodAutoscaler, error) {
-	if autoscaling.MaxReplicas == nil {
-		return nil, fmt.Errorf("worker autoscaling maxReplicas is required")
-	}
+func newHPA(metadata metav1.ObjectMeta, autoscaling *datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec) *autoscalingv2.HorizontalPodAutoscaler {
 	return &autoscalingv2.HorizontalPodAutoscaler{
 		ObjectMeta: metadata,
 		Spec: autoscalingv2.HorizontalPodAutoscalerSpec{
@@ -63,5 +58,5 @@ func newHPA(metadata metav1.ObjectMeta, autoscaling *datadoghqv1alpha1.DatadogBY
 			Metrics:        autoscaling.Metrics,
 			Behavior:       autoscaling.Behavior,
 		},
-	}, nil
+	}
 }

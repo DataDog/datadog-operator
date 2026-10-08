@@ -552,7 +552,6 @@ func TestBuildResources_HPA(t *testing.T) {
 		name       string
 		workerFunc func(*datadoghqv1alpha1.DatadogObservabilityPipelinesWorker)
 		want       *autoscalingv2.HorizontalPodAutoscaler
-		wantError  string
 	}{
 		{
 			name:       "disabled",
@@ -607,13 +606,6 @@ func TestBuildResources_HPA(t *testing.T) {
 				},
 			},
 		},
-		{
-			name: "missing maximum",
-			workerFunc: func(worker *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker) {
-				worker.Spec.Autoscaling = &datadoghqv1alpha1.DatadogBYOCClusterAutoscalingSpec{}
-			},
-			wantError: "worker autoscaling maxReplicas is required",
-		},
 	}
 
 	for _, tt := range tests {
@@ -622,13 +614,7 @@ func TestBuildResources_HPA(t *testing.T) {
 			tt.workerFunc(worker)
 			resources, err := BuildResources(worker)
 			if err != nil {
-				if err.Error() != tt.wantError {
-					t.Errorf("BuildResources() error = %q, want %q", err, tt.wantError)
-				}
-				return
-			}
-			if tt.wantError != "" {
-				t.Fatalf("BuildResources() expected error %q", tt.wantError)
+				t.Fatalf("BuildResources() error = %v", err)
 			}
 			if diff := cmp.Diff(tt.want, resources.HPA); diff != "" {
 				t.Errorf("HPA mismatch (-want +got):\n%s", diff)
@@ -692,7 +678,7 @@ func TestBuildResources_PodDisruptionBudget(t *testing.T) {
 			workerFunc: func(worker *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker) {
 				worker.Spec.PodDisruptionBudget = &datadoghqv1alpha1.DatadogBYOCClusterPodDisruptionBudgetSpec{MinAvailable: &minAvailable, MaxUnavailable: &maxUnavailable}
 			},
-			wantError: "worker pod disruption budget minAvailable and maxUnavailable are mutually exclusive",
+			wantError: "byoc-pipeline pod disruption budget: minAvailable and maxUnavailable are mutually exclusive",
 		},
 	}
 
