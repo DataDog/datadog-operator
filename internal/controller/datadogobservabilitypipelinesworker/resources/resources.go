@@ -8,6 +8,9 @@
 package resources
 
 import (
+	"fmt"
+	"slices"
+
 	appsv1 "k8s.io/api/apps/v1"
 	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	corev1 "k8s.io/api/core/v1"
@@ -59,6 +62,9 @@ func BuildResources(worker *datadoghqv1alpha1.DatadogObservabilityPipelinesWorke
 	if err != nil {
 		return nil, err
 	}
+	if err = checkReservedNames(&worker.Spec); err != nil {
+		return nil, err
+	}
 	podDisruptionBudget, err := newPodDisruptionBudget(objectMeta(worker), selectorLabels(worker), worker.Spec.PodDisruptionBudget)
 	if err != nil {
 		return nil, err
@@ -94,4 +100,20 @@ func BuildResources(worker *datadoghqv1alpha1.DatadogObservabilityPipelinesWorke
 		r.obsoleteObjects = append(r.obsoleteObjects, &policyv1.PodDisruptionBudget{ObjectMeta: metadata})
 	}
 	return r, nil
+}
+
+// checkReservedNames rejects user-provided names that collide with the names the Worker workload uses.
+func checkReservedNames(spec *datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerSpec) error {
+	if slices.ContainsFunc(spec.Ports, func(port datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerPort) bool {
+		return port.Name == workerAPIPortName
+	}) {
+		return fmt.Errorf("worker port name %q is reserved", workerAPIPortName)
+	}
+	if slices.ContainsFunc(spec.InitContainers, func(container corev1.Container) bool { return container.Name == workerContainerName }) {
+		return fmt.Errorf("worker init container name %q is reserved", workerContainerName)
+	}
+	if slices.ContainsFunc(spec.Volumes, func(volume corev1.Volume) bool { return volume.Name == dataVolumeName }) {
+		return fmt.Errorf("worker volume name %q is reserved", dataVolumeName)
+	}
+	return nil
 }
