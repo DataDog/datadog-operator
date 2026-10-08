@@ -71,7 +71,7 @@ func startSpan(ctx context.Context, resourceName string, extraTags ...tracer.Sta
 		operationName = defaultOperationName
 	}
 
-	opts := []tracer.StartSpanOption{tracer.ResourceName(resourceName), tracer.Measured()}
+	opts := []tracer.StartSpanOption{tracer.ResourceName(resourceName)}
 	for _, tag := range cc.tags {
 		if tag[1] != "" {
 			opts = append(opts, tracer.Tag(tag[0], tag[1]))

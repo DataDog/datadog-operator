@@ -81,6 +81,7 @@ func TestStartSpan_Tags(t *testing.T) {
 	assert.Equal(t, "dda", c.Tag("name"))
 	assert.Equal(t, "clusterAgent", c.Tag(TagAgentComponent))
 	assert.Equal(t, "boom", c.Tag(ext.ErrorMsg))
+	assert.Nil(t, c.Tag("_dd.measured"), "child spans shouldn't add to the reconcile trace metrics")
 }
 
 func TestStartSpan_OutsideReconcile(t *testing.T) {
