@@ -1,0 +1,26 @@
+[1mkubectl datadog dashboard[m[2m · [m[2mctx[m kind-ddtui[2m · [m[2mns[m datadog[2m · [m[2mk8s[m v1.35.1
+  [2mplugin[m v1.22.0-test[2m · [m[2mprovider[m none[2m · [m[2moperator[m [2mnot found[m[2m · [m[2mrefreshed[m 12:00:00
+┌─ [1mDatadogAgent datadog/datadog-agent[m[2m · [m[2mage[m 4d3h ──────────────────────────────┐
+│                                                                              │
+│ [33m⚠ Degraded[m[2m · [m[2magents[m 7/7 ready[2m · [m7/7 up-to-date[2m · [m0 unavailable               │
+│   [2mrollout[m [32m██████████[m 100% [32mComplete[m                                           │
+│                                                                              │
+│ [2m                                   READY  UPD  UNAV  ROLLOUT[m                 │
+│ [33m⚠[m [2mDDA[m datadog-agent                                                          │
+│ ├─ [32m✓[m [2mDDAI[m datadog-agent (default)                                            │
+│ │  ├─ [32m✓[m [2magent[m datadog-agent-agent    3/3  3/3     0  [32m█████████[m 100% [32mComplete[m │
+│ │  ├─ [2m– DCA not enabled[m                                                      │
+│ │  ├─ [2m– CCR not enabled[m                                                      │
+│ │  └─ [2m– OTel not enabled[m                                                     │
+│ ├─ [33m⚠[m [2mDAP[m datadog/dup[2m · [mvalid [32m✓[m applied [1;31m✗[m                                     │
+│ │  └─ [2m– no DDAI[m                                                              │
+│ ├─ [33m⚠[m [2mDAP[m datadog/web[2m · [mvalid [32m✓[m applied [32m✓[m                                     │
+│ │  └─ [33m⚠[m [2mDDAI[m web                                                             │
+│ │     └─ [32m✓[m [2magent[m web-agent           4/4  4/4     0  [32m█████████[m 100% [32mComplete[m │
+│ └─ [2m– 7 hidden: 2 no warnings · 5 with warnings · --hide-empty-force[m          │
+│                                                                              │
+│ [33m⚠ Warn [m  [2mDDAI[m web  OverrideReconcileConflict (OverrideConflict): clusterChe… │
+│ [33m⚠ Warn [m  [2mDAP[m dup  Applied=False (Conflict): conflict with existing profile … │
+│ [2m• Info [m  [2mDDA[m datadog-agent  DatadogAgentReconcileSuccess (ReconcileSucceede… │
+└──────────────────────────────────────────────────────────────────────────────┘
+[2m█ updated+ready  ▒ updated, not ready  ░ not updated   % = updated+ready/desired[m

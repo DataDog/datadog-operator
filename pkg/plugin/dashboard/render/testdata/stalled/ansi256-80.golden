@@ -1,0 +1,28 @@
+[1mkubectl datadog dashboard[m[2m · [m[2mctx[m kind-ddtui[2m · [m[2mns[m datadog[2m · [m[2mk8s[m v1.35.1
+  [2mplugin[m v1.22.0-test[2m · [m[2mprovider[m none[2m · [m[2moperator[m [2mnot found[m[2m · [m[2mrefreshed[m 12:00:00
+┌─ [1mDatadogAgent datadog/datadog-agent[m[2m · [m[2mage[m 4d3h ──────────────────────────────┐
+│                                                                              │
+│ [1;31m✗ Error[m[2m · [m[2magents[m 3/5 ready[2m · [m2/5 up-to-date[2m · [m[33m2 unavailable[m                  │
+│   [2mrollout[m [36m▒▒▒▒[m[2m░░░░░░[m   0% [1;31mFailed 120m[m[2m · [m[2mlast progress 59m ago[m                │
+│   [2mdeadline 49m ago[m                                                           │
+│   [2mexperiment[m [36mrunning exp-42 (65m)[m                                            │
+│                                                                              │
+│ [2m                                   READY  UPD  UNAV  ROLLOUT[m                 │
+│ [1;31m✗[m [2mDDA[m datadog-agent                                                          │
+│ ├─ [1;31m✗[m [2mDDAI[m datadog-agent (default)                                            │
+│ │  ├─ [33m⚠[m [2magent[m datadog-agent-agent    2/3  1/3     [33m1[m  [36m▒[m[2m░░░░[m   0% [33mStalled 60m[m  │
+│ │  │     [1;31m✗[m pod datadog-agent-agent-a1 on worker-1: CrashLoopBackOff          │
+│ │  ├─ [1;31m✗[m [2mDCA[m datadog-agent-cluste…    2/2  1/2     [33m1[m  [36m▒▒[m[2m░░░[m   0% [1;31mFailed 60m[m   │
+│ │  │     [1;31m✗[m pod datadog-agent-cluster-agent-77aa-x1: ImagePullBackOff         │
+│ │  ├─ [2m– CCR not enabled[m                                                      │
+│ │  └─ [2m– OTel not enabled[m                                                     │
+│ └─ [36m↻[m [2mDAP[m datadog/legacy-nodes[2m · [mvalid [32m✓[m applied [32m✓[m                            │
+│    └─ [36m↻[m [2mDDAI[m legacy-nodes                                                    │
+│       └─ [36m↻[m [2magent[m legacy-nodes-ag…    1/2  1/2     [33m1[m  [36m▒▒[m[2m░░░[m   0% [36mRolling 120m[m │
+│             [1;31m✗[m pod legacy-nodes-agent-z9: Unschedulable                       │
+│                                                                              │
+│ [1;31m✗ Error[m  [2mDeploy[m datadog-agent-cluster-agent  Rollout (Failed): ProgressDead… │
+│ [33m⚠ Warn [m  [2mDS[m datadog-agent-agent  Rollout (Stalled): NoProgress: 1 pod Crash… │
+│ [2m• Info [m  [2mDeploy[m datadog-agent-cluster-agent  Progressing=False (ProgressDea… │
+└──────────────────────────────────────────────────────────────────────────────┘
+[2m█ updated+ready  ▒ updated, not ready  ░ not updated   % = updated+ready/desired[m

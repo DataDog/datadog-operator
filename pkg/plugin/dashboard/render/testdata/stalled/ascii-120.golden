@@ -1,0 +1,27 @@
+kubectl datadog dashboard - ctx kind-ddtui - ns datadog - k8s v1.35.1 - plugin v1.22.0-test - provider none
+  operator not found - refreshed 12:00:00
++- DatadogAgent datadog/datadog-agent - age 4d3h ----------------------------------------------------------------------+
+|                                                                                                                      |
+| x Error - agents 3/5 ready - 2/5 up-to-date - 2 unavailable - rollout [++++......]   0% Failed 120m                  |
+|   last progress 59m ago - deadline 49m ago                                                                           |
+|   experiment running exp-42 (65m)                                                                                    |
+|                                                                                                                      |
+|                                          READY  UPD  UNAV  ROLLOUT                                                   |
+| x DDA datadog-agent                                                                                                  |
+| |- x DDAI datadog-agent (default)                                                                                    |
+| |  |- ! agent datadog-agent-agent          2/3  1/3     1  [+++.......]   0% Stalled 60m - last progress 59m ago     |
+| |  |     x pod datadog-agent-agent-a1 on worker-1: CrashLoopBackOff                                                  |
+| |  |- x DCA datadog-agent-cluster-agent    2/2  1/2     1  [+++++.....]   0% Failed 60m                              |
+| |  |     x pod datadog-agent-cluster-agent-77aa-x1: ImagePullBackOff                                                 |
+| |  |- - CCR not enabled                                                                                              |
+| |  `- - OTel not enabled                                                                                             |
+| `- ~ DAP datadog/legacy-nodes - valid + applied +                                                                    |
+|    `- ~ DDAI legacy-nodes                                                                                            |
+|       `- ~ agent legacy-nodes-agent        1/2  1/2     1  [+++++.....]   0% Rolling 120m (OnDelete)                 |
+|             x pod legacy-nodes-agent-z9: Unschedulable                                                               |
+|                                                                                                                      |
+| x Error  Deploy datadog-agent-cluster-agent  Rollout (Failed): ProgressDeadlineExceeded                              |
+| ! Warn   DS datadog-agent-agent  Rollout (Stalled): NoProgress: 1 pod CrashLoopBackOff                               |
+| i Info   Deploy datadog-agent-cluster-agent  Progressing=False (ProgressDeadlineExceeded): ReplicaSet "datadog-ag... |
++----------------------------------------------------------------------------------------------------------------------+
+# updated+ready  + updated, not ready  . not updated   % = updated+ready / desired

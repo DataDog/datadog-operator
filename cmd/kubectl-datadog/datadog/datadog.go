@@ -12,6 +12,7 @@ import (
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/agent/agent"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/autoscaling"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/clusteragent/clusteragent"
+	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/dashboard"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/flare"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/get"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/helm2dda"
@@ -41,6 +42,7 @@ func NewCmd(streams genericclioptions.IOStreams) *cobra.Command {
 
 	// Operator commands
 	cmd.AddCommand(get.New(streams))
+	cmd.AddCommand(dashboard.New(streams))
 	cmd.AddCommand(flare.New(streams))
 	cmd.AddCommand(validate.New(streams))
 

@@ -1,0 +1,31 @@
+kubectl datadog dashboard · ctx kind-ddtui · ns datadog · k8s v1.35.1
+  plugin v1.22.0-test · provider gke-cos (user-set) · operator not found
+  refreshed 12:00:00
+┌─ DatadogAgent datadog/datadog-agent · age 4d3h ──────────────────────────────┐
+│                                                                              │
+│ ⚠ Degraded · agents 6/7 ready · 4/7 up-to-date · 1 unavailable               │
+│   rollout ████▒░░░░░  42% Rolling 10m                                        │
+│                                                                              │
+│                                    READY  UPD  UNAV  ROLLOUT                 │
+│ ⚠ DDA datadog-agent                                                          │
+│ ├─ ✓ DDAI datadog-agent (default)                                            │
+│ │  ├─ ✓ agent datadog-agent-agent    2/2  2/2     0  ██████ 100% Complete    │
+│ │  ├─ – DCA not enabled                                                      │
+│ │  ├─ – CCR not enabled                                                      │
+│ │  └─ – OTel not enabled                                                     │
+│ ├─ ↻ DAP datadog/canary · valid ✓ applied ✓ · provider gke-cos (user-set)    │
+│ │  └─ ↻ DDAI canary                                                          │
+│ │     └─ ↻ agent canary-agent        3/4  1/4     1  ▒░░░░░   0% Rolling 10m │
+│ ├─ ⚠ DAP datadog/dup · valid ✓ applied ✗                                     │
+│ │  └─ – no DDAI                                                              │
+│ └─ ✓ DAP team-a/gpu · valid ✓ applied ✓                                      │
+│    └─ ✓ DDAI gpu                                                             │
+│       └─ ✓ agent gpu-agent           1/1  1/1     0  ██████ 100% Complete    │
+│ ⚠ Unattached                                                                 │
+│ ├─ ✓ DDAI ghost                                                              │
+│ │  └─ ✓ agent ghost-agent            1/1  1/1     0  ██████ 100% Complete    │
+│ └─ ✓ DS stray-agent                  0/0  0/0     0  ██████ 100% Complete    │
+│                                                                              │
+│ ⚠ Warn   DAP dup  Applied=False (Conflict): conflict with existing profile … │
+└──────────────────────────────────────────────────────────────────────────────┘
+█ updated+ready  ▒ updated, not ready  ░ not updated   % = updated+ready/desired

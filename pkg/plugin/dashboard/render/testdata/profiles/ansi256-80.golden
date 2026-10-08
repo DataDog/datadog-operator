@@ -1,0 +1,31 @@
+[1mkubectl datadog dashboard[m[2m · [m[2mctx[m kind-ddtui[2m · [m[2mns[m datadog[2m · [m[2mk8s[m v1.35.1
+  [2mplugin[m v1.22.0-test[2m · [m[2mprovider[m gke-cos (user-set)[2m · [m[2moperator[m [2mnot found[m
+  [2mrefreshed[m 12:00:00
+┌─ [1mDatadogAgent datadog/datadog-agent[m[2m · [m[2mage[m 4d3h ──────────────────────────────┐
+│                                                                              │
+│ [33m⚠ Degraded[m[2m · [m[2magents[m 6/7 ready[2m · [m4/7 up-to-date[2m · [m[33m1 unavailable[m               │
+│   [2mrollout[m [32m████[m[36m▒[m[2m░░░░░[m  42% [36mRolling 10m[m                                        │
+│                                                                              │
+│ [2m                                   READY  UPD  UNAV  ROLLOUT[m                 │
+│ [33m⚠[m [2mDDA[m datadog-agent                                                          │
+│ ├─ [32m✓[m [2mDDAI[m datadog-agent (default)                                            │
+│ │  ├─ [32m✓[m [2magent[m datadog-agent-agent    2/2  2/2     0  [32m██████[m 100% [32mComplete[m    │
+│ │  ├─ [2m– DCA not enabled[m                                                      │
+│ │  ├─ [2m– CCR not enabled[m                                                      │
+│ │  └─ [2m– OTel not enabled[m                                                     │
+│ ├─ [36m↻[m [2mDAP[m datadog/canary[2m · [mvalid [32m✓[m applied [32m✓[m[2m · [m[2mprovider[m gke-cos (user-set)    │
+│ │  └─ [36m↻[m [2mDDAI[m canary                                                          │
+│ │     └─ [36m↻[m [2magent[m canary-agent        3/4  1/4     [33m1[m  [36m▒[m[2m░░░░░[m   0% [36mRolling 10m[m │
+│ ├─ [33m⚠[m [2mDAP[m datadog/dup[2m · [mvalid [32m✓[m applied [1;31m✗[m                                     │
+│ │  └─ [2m– no DDAI[m                                                              │
+│ └─ [32m✓[m [2mDAP[m team-a/gpu[2m · [mvalid [32m✓[m applied [32m✓[m                                      │
+│    └─ [32m✓[m [2mDDAI[m gpu                                                             │
+│       └─ [32m✓[m [2magent[m gpu-agent           1/1  1/1     0  [32m██████[m 100% [32mComplete[m    │
+│ [33m⚠ Unattached[m                                                                 │
+│ ├─ [32m✓[m [2mDDAI[m ghost                                                              │
+│ │  └─ [32m✓[m [2magent[m ghost-agent            1/1  1/1     0  [32m██████[m 100% [32mComplete[m    │
+│ └─ [32m✓[m [2mDS[m stray-agent                  0/0  0/0     0  [32m██████[m 100% [32mComplete[m    │
+│                                                                              │
+│ [33m⚠ Warn [m  [2mDAP[m dup  Applied=False (Conflict): conflict with existing profile … │
+└──────────────────────────────────────────────────────────────────────────────┘
+[2m█ updated+ready  ▒ updated, not ready  ░ not updated   % = updated+ready/desired[m

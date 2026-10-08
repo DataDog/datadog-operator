@@ -35,6 +35,7 @@ Available Commands:
   autoscaling  Manage autoscaling features
   clusteragent
   completion   Generate the autocompletion script for the specified shell
+  dashboard    Show the health of the DatadogAgent, its profiles and its workloads
   flare        Collect a Datadog's Operator flare and send it to Datadog
   get          Get DatadogAgent deployment(s)
   helm2dda     Map Datadog Helm values to DatadogAgent CRD schema
@@ -43,6 +44,85 @@ Available Commands:
   validate
 
 ```
+
+### Dashboard
+
+`kubectl datadog dashboard` (alias `dash`) shows the state of the DatadogAgent in one view:
+- the DatadogAgent, its DatadogAgentProfiles and their DatadogAgentInternal objects;
+- the Agent DaemonSet and the Cluster Agent, Cluster Checks Runner and OTel Agent Gateway Deployments, with ready, up-to-date and unavailable counts and rollout progress;
+- deduplicated errors and warnings;
+- a summary of the other Datadog resources (monitors, dashboards, SLOs, …).
+
+**Output.** The command prints one snapshot and exits: styled text on a terminal, plain text when the output is not a terminal (for example a pipe), or JSON with `-o json`.
+
+**Requirements.**
+- Datadog Operator 1.21 or later: the DatadogAgentInternal CRD is required. The DatadogAgentProfile CRD is optional.
+- The command expects one DatadogAgent in scope. With several, it lists them and exits non-zero unless you pass a name.
+
+**Permissions.** The command is read-only: it only uses `get` and `list`.
+- A missing permission degrades only the affected panel, which shows `no access`.
+- Helm release history is read from the release Secrets when the DatadogAgent is Helm-managed. Only chart name, version, revision, status and time are used. Pass `--no-helm` to skip it.
+
+**Reading the view.**
+- **Badges:** `✓` healthy, `↻` progressing, `⚠` degraded, `✗` error, `?` unknown. A row's badge is the worst of its own conditions and its children.
+- **Rollout bar:** `█` updated and ready, `▒` updated but not ready, `░` not updated. The percentage is updated-and-ready pods out of desired.
+- **Rollout phase:**
+  - `Rolling` while pods are being updated (`Stalled` with `--pods` when there's no progress for `--stall-after`).
+  - `Complete` once every pod is updated.
+  - When every pod is updated but more than `--max-unavailable` pods are unavailable, the row shows `Settling` for 5 minutes, then `Complete` with a Degraded badge and an `N unavailable (> T allowed)` warning.
+
+```console
+$ kubectl datadog dashboard --help
+Show the health of the DatadogAgent, its profiles, internals and workloads, with rollout progress, errors and a summary of the other Datadog resources. The command is read-only.
+
+Usage:
+  datadog dashboard [DatadogAgent name] [flags]
+
+Aliases:
+  dashboard, dash
+
+Examples:
+
+  # show the DatadogAgent of the current namespace
+  kubectl datadog dashboard
+
+  # look for the DatadogAgent in all namespaces, and show failing agent pods
+  kubectl datadog dashboard -A --pods
+
+  # emit the dashboard as JSON
+  kubectl datadog dashboard -n datadog -o json
+
+  # hide the healthy profiles with no agent pods, largest profiles first
+  kubectl datadog dashboard --hide-empty --sort=desired
+
+  # also hide the profiles with no agent pods that carry stale warnings
+  kubectl datadog dashboard --hide-empty-force
+
+  # tolerate 1% unavailable agent pods per DaemonSet once a rollout converged
+  kubectl datadog dashboard --max-unavailable=1%
+
+Flags:
+  -A, --all-namespaces           Look for the DatadogAgent in all namespaces
+      --ascii                    Use ASCII characters only
+  -h, --help                     help for dashboard
+      --hide-empty               Hide the healthy profiles whose agent DaemonSet has 0 desired pods; profiles with an issue, a rollout or no DaemonSet stay shown
+      --hide-empty-force         Like --hide-empty, but also hide the profiles with 0 desired pods that have warnings or errors, and their issues; profiles with a rollout in progress, no status, no DDAI or no DaemonSet stay shown
+      --max-unavailable string   Unavailable agent pods tolerated per DaemonSet or Deployment once its rollout converged, as a count or a percentage of desired pods rounded down (e.g. 2 or 1%); more show Settling for 5 minutes after the rollout, then Degraded with a warning (default "0")
+  -n, --namespace string         If present, the namespace scope for this CLI request
+      --no-color                 Disable colors (also set by the NO_COLOR environment variable)
+      --no-helm                  Skip the Helm release history lookup (no Secret access)
+  -o, --output string            Output format: "" (styled text) or "json"
+      --pods                     Read the agent pods: enables Stalled detection and shows failing pods and their nodes
+      --sort string              Profile order: "name" or "desired" (agent DaemonSet desired pods, most first; profiles without a DaemonSet last) (default "name")
+      --stall-after duration     Time without progress before a rollout is Stalled; only with --pods (default 10m0s)
+```
+
+The command also accepts the standard kubeconfig flags (`--kubeconfig`, `--context`, `--as`, …).
+
+**Notes.**
+- **Stale profiles:** on clusters with many unused profiles, `--hide-empty` hides healthy profiles with 0 desired pods. `--hide-empty-force` also hides those carrying warnings, together with their issues. Either way the view ends with a line counting what was hidden, and the totals and DatadogAgent health still include hidden profiles.
+- **`--max-unavailable`** is a runtime health threshold, separate from the DaemonSet's `rollingUpdate.maxUnavailable` rollout budget. The default `0` reports any unavailable pod once the rollout has settled.
+- **`--pods`** also lists the Agent pods (label-selected, in the DatadogAgent namespace). Leave it off on very large clusters if API load matters.
 
 ### Agent sub-commands
 
