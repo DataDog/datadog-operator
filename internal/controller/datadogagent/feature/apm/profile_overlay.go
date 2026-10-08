@@ -144,7 +144,8 @@ func defaultClusterAgentDisabled(spec *v2alpha1.DatadogAgentSpec) bool {
 // baseSSIForProfileOverlay returns the SSI config that profile overlays should
 // merge into. When base instrumentation is absent or explicitly disabled, the
 // profile's enabled instrumentation is the first active SSI config, so discard
-// the inactive base block before merging.
+// the inactive base block before merging. OnDemand is kept because it applies
+// to the Cluster Agent even when base instrumentation is disabled.
 func baseSSIForProfileOverlay(dst *v2alpha1.DatadogAgentSpec) *v2alpha1.SingleStepInstrumentation {
 	if dst.Features == nil {
 		dst.Features = &v2alpha1.DatadogFeatures{}
@@ -152,9 +153,12 @@ func baseSSIForProfileOverlay(dst *v2alpha1.DatadogAgentSpec) *v2alpha1.SingleSt
 	if dst.Features.APM == nil {
 		dst.Features.APM = &v2alpha1.APMFeatureConfig{}
 	}
-	if dst.Features.APM.SingleStepInstrumentation == nil ||
-		!ptr.Deref(dst.Features.APM.SingleStepInstrumentation.Enabled, false) {
-		dst.Features.APM.SingleStepInstrumentation = &v2alpha1.SingleStepInstrumentation{}
+	if base := dst.Features.APM.SingleStepInstrumentation; base == nil || !ptr.Deref(base.Enabled, false) {
+		ssi := &v2alpha1.SingleStepInstrumentation{}
+		if base != nil {
+			ssi.OnDemand = base.OnDemand
+		}
+		dst.Features.APM.SingleStepInstrumentation = ssi
 	}
 	return dst.Features.APM.SingleStepInstrumentation
 }
@@ -179,6 +183,9 @@ func mergeSSI(dst, src *v2alpha1.SingleStepInstrumentation) error {
 		return err
 	}
 	if err := mergeInjectionMode(dst, src); err != nil {
+		return err
+	}
+	if err := mergeOnDemand(dst, src); err != nil {
 		return err
 	}
 	if err := mergeSSITargets(&dst.Targets, src.Targets); err != nil {
@@ -255,6 +262,13 @@ func mergeInjector(dst, src *v2alpha1.SingleStepInstrumentation) error {
 
 func mergeInjectionMode(dst, src *v2alpha1.SingleStepInstrumentation) error {
 	return mergeStringLikeField(&dst.InjectionMode, src.InjectionMode, "features.apm.instrumentation.injectionMode")
+}
+
+func mergeOnDemand(dst, src *v2alpha1.SingleStepInstrumentation) error {
+	if src.OnDemand == nil {
+		return nil
+	}
+	return mergeBoolPtr(&dst.OnDemand, src.OnDemand, "features.apm.instrumentation.onDemand")
 }
 
 // mergeBoolPtr copies an explicit profile bool into the shared config and

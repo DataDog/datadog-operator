@@ -62,6 +62,7 @@ require (
 	github.com/gobuffalo/flect v1.0.3
 	github.com/google/go-containerregistry v0.22.1
 	github.com/hashicorp/go-retryablehttp v0.7.8
+	github.com/imdario/mergo v0.3.16
 	github.com/mattn/go-runewidth v0.0.30
 	github.com/onsi/ginkgo/v2 v2.33.0
 	github.com/opencontainers/go-digest v1.0.0

@@ -1997,7 +1997,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: fd950d2f8911d79cd148f6229fd41897
+    agent.datadoghq.com/agentspechash: 02ff6b53885359e7a2b505c739faffec
   labels:
     agent.datadoghq.com/component: cluster-agent
     agent.datadoghq.com/name: datadog-agent
@@ -2138,6 +2138,8 @@ spec:
           value: /var/run/datadog/apm.socket
         - name: DD_APM_INSTRUMENTATION_ENABLED
           value: "false"
+        - name: DD_APM_INSTRUMENTATION_ON_DEMAND
+          value: "true"
         - name: DD_CLUSTER_CHECKS_ENABLED
           value: "true"
         - name: DD_EXTRA_CONFIG_PROVIDERS

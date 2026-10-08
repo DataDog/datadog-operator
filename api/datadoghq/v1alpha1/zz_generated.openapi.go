@@ -680,7 +680,7 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterComponentS
 				Properties: map[string]spec.Schema{
 					"replicas": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Replicas is the desired replica count.",
+							Description: "Replicas is the desired replica count. Ignored when autoscaling is set; the HorizontalPodAutoscaler manages the replica count instead.",
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},
@@ -936,13 +936,13 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterComponents
 					},
 					"indexer": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Indexer configures the Indexer workload.",
+							Description: "Indexer configures the Indexer workload. When Resources is specified, its memory limit is required for node configuration sizing.",
 							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterStatefulComponentSpec"),
 						},
 					},
 					"searcher": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Searcher configures the Searcher workload.",
+							Description: "Searcher configures the Searcher workload. When Resources is specified, its memory limit is required for node configuration sizing.",
 							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogBYOCClusterStatefulComponentSpec"),
 						},
 					},
@@ -1454,7 +1454,7 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterMetastoreC
 				Properties: map[string]spec.Schema{
 					"replicas": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Replicas is the desired replica count.",
+							Description: "Replicas is the desired replica count. Ignored when autoscaling is set; the HorizontalPodAutoscaler manages the replica count instead.",
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},
@@ -1699,12 +1699,12 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterPipelineCo
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "DatadogBYOCClusterPipelineComponentSpec defines settings for the Observability Pipelines Worker workload. When Resources is specified, its memory limit is required for worker buffer sizing.",
+				Description: "DatadogBYOCClusterPipelineComponentSpec defines settings for the Observability Pipelines Worker workload.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"replicas": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Replicas is the desired replica count.",
+							Description: "Replicas is the desired replica count. Ignored when autoscaling is set; the HorizontalPodAutoscaler manages the replica count instead.",
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},
@@ -1997,7 +1997,7 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterPipelineSp
 					},
 					"replicas": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Replicas is the desired replica count.",
+							Description: "Replicas is the desired replica count. Ignored when autoscaling is set; the HorizontalPodAutoscaler manages the replica count instead.",
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},
@@ -2454,12 +2454,12 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterStatefulCo
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "DatadogBYOCClusterStatefulComponentSpec defines settings for a stateful BYOC workload. When Resources is specified, its memory limit is required for Quickwit node configuration sizing.",
+				Description: "DatadogBYOCClusterStatefulComponentSpec defines settings for a stateful BYOC workload.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"replicas": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Replicas is the desired replica count.",
+							Description: "Replicas is the desired replica count. Ignored when autoscaling is set; the HorizontalPodAutoscaler manages the replica count instead.",
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},
@@ -4928,12 +4928,12 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogObservabilityPipeline
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "DatadogObservabilityPipelinesWorkerSpec defines the desired state of DatadogObservabilityPipelinesWorker. When Resources is specified, its memory limit is required for worker buffer sizing.",
+				Description: "DatadogObservabilityPipelinesWorkerSpec defines the desired state of DatadogObservabilityPipelinesWorker.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"replicas": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Replicas is the desired replica count.",
+							Description: "Replicas is the desired replica count. Ignored when autoscaling is set; the HorizontalPodAutoscaler manages the replica count instead.",
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},
