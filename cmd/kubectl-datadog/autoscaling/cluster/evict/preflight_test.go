@@ -21,7 +21,7 @@ func newKarpenterScheme(t *testing.T) *runtime.Scheme {
 	sch := runtime.NewScheme()
 	require.NoError(t, scheme.AddToScheme(sch))
 	gv := schema.GroupVersion{Group: "karpenter.sh", Version: "v1"}
-	sch.AddKnownTypes(gv, &karpv1.NodePool{}, &karpv1.NodePoolList{})
+	sch.AddKnownTypes(gv, &karpv1.NodePool{}, &karpv1.NodePoolList{}, &karpv1.NodeClaim{}, &karpv1.NodeClaimList{})
 	metav1.AddToGroupVersion(sch, gv)
 	return sch
 }
