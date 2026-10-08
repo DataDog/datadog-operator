@@ -10,16 +10,17 @@ package resources
 // defaults package.
 
 const (
-	appName             = "observability-pipelines-worker"
-	workerContainerName = "worker"
-	dataVolumeName      = "data"
-	dataDirectory       = "/var/lib/observability-pipelines-worker"
-	listenAddress       = "0.0.0.0"
+	appName       = "observability-pipelines-worker"
+	listenAddress = "0.0.0.0"
 )
 
+// The Worker workload defines these names; the validation package rejects user settings that collide with them.
 const (
-	workerAPIPortName       = "api"
-	workerAPIPort     int32 = 8686
+	ContainerName        = "worker"
+	APIPortName          = "api"
+	APIPort        int32 = 8686
+	DataVolumeName       = "data"
+	DataDirectory        = "/var/lib/observability-pipelines-worker"
 )
 
 const (

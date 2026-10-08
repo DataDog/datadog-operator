@@ -40,7 +40,7 @@ func newVolumeClaimTemplates(storage *datadoghqv1alpha1.DatadogBYOCClusterStorag
 	return []corev1.PersistentVolumeClaim{{
 		TypeMeta: template.TypeMeta,
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        dataVolumeName,
+			Name:        DataVolumeName,
 			Labels:      template.Metadata.Labels,
 			Annotations: template.Metadata.Annotations,
 		},

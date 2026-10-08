@@ -19,6 +19,7 @@ import (
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	byocvalidation "github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/validation"
+	workerresources "github.com/DataDog/datadog-operator/internal/controller/datadogobservabilitypipelinesworker/resources"
 )
 
 // ValidateWorkerSpec checks image, component and reserved name rules after defaults are applied.
@@ -42,37 +43,28 @@ func ValidateWorkerSpec(spec *datadoghqv1alpha1.DatadogObservabilityPipelinesWor
 	return errs
 }
 
-// These names mirror the container, port, volume and mount that every Worker workload defines.
-const (
-	reservedContainerName       = "worker"
-	reservedPortName            = "api"
-	reservedPort          int32 = 8686
-	reservedVolumeName          = "data"
-	reservedMountPath           = "/var/lib/observability-pipelines-worker"
-)
-
 func validateReservedNames(spec *datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerSpec, fieldPath *field.Path) field.ErrorList {
 	var errs field.ErrorList
 	for i, port := range spec.Ports {
-		if port.Name == reservedPortName {
+		if port.Name == workerresources.APIPortName {
 			errs = append(errs, field.Invalid(fieldPath.Child("ports").Index(i).Child("name"), port.Name, "is reserved for the Worker API port"))
 		}
-		if port.Port == reservedPort {
+		if port.Port == workerresources.APIPort {
 			errs = append(errs, field.Invalid(fieldPath.Child("ports").Index(i).Child("port"), port.Port, "is reserved for the Worker API port"))
 		}
 	}
 	for i, container := range spec.InitContainers {
-		if container.Name == reservedContainerName {
+		if container.Name == workerresources.ContainerName {
 			errs = append(errs, field.Invalid(fieldPath.Child("initContainers").Index(i).Child("name"), container.Name, "is reserved for the Worker container"))
 		}
 	}
 	for i, volume := range spec.Volumes {
-		if volume.Name == reservedVolumeName {
+		if volume.Name == workerresources.DataVolumeName {
 			errs = append(errs, field.Invalid(fieldPath.Child("volumes").Index(i).Child("name"), volume.Name, "is reserved for a built-in volume"))
 		}
 	}
 	for i, volumeMount := range spec.VolumeMounts {
-		if path.Clean(volumeMount.MountPath) == reservedMountPath {
+		if path.Clean(volumeMount.MountPath) == workerresources.DataDirectory {
 			errs = append(errs, field.Invalid(fieldPath.Child("volumeMounts").Index(i).Child("mountPath"), volumeMount.MountPath, "is reserved for a built-in volume mount"))
 		}
 	}
