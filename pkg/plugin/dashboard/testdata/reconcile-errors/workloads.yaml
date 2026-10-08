@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: datadog-agent-agent
+  namespace: datadog
+  ownerReferences:
+    - kind: DatadogAgentInternal
+      name: datadog-agent
+      uid: ddai-default-uid
+status:
+  desiredNumberScheduled: 2
+  numberReady: 2
+  numberAvailable: 2
+  updatedNumberScheduled: 2
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: canary-agent
+  namespace: datadog
+  ownerReferences:
+    - kind: DatadogAgentInternal
+      name: canary
+      uid: ddai-canary-uid
+status:
+  desiredNumberScheduled: 1
+  numberReady: 1
+  numberAvailable: 1
+  updatedNumberScheduled: 1
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: legacy-agent
+  namespace: datadog
+  ownerReferences:
+    - kind: DatadogAgentInternal
+      name: legacy
+      uid: ddai-legacy-uid
+status:
+  desiredNumberScheduled: 1
+  numberReady: 1
+  numberAvailable: 1
+  updatedNumberScheduled: 1

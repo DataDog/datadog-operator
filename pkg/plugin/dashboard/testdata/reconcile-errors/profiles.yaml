@@ -1,0 +1,51 @@
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgentProfile
+metadata:
+  name: canary
+  namespace: datadog
+status:
+  valid: "True"
+  applied: "True"
+  conditions:
+    # (b) mirror of the profile DDAI error: dropped.
+    - type: DatadogAgentInternalReconcileError
+      status: "True"
+      reason: DatadogAgentInternalReconcileError
+      message: "canary: invalid override: image tag 7.99.0 not found"
+      lastTransitionTime: "2026-10-05T11:30:00Z"
+---
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgentProfile
+metadata:
+  name: legacy
+  namespace: datadog
+status:
+  valid: "True"
+  applied: "True"
+  conditions:
+    # Unknown mirror format: falls through and shows as a duplicate.
+    - type: DatadogAgentInternalReconcileError
+      status: "True"
+      reason: DatadogAgentInternalReconcileError
+      message: "DDAI legacy failed with boom"
+      lastTransitionTime: "2026-10-05T11:40:00Z"
+---
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgentProfile
+metadata:
+  name: badspec
+  namespace: datadog
+status:
+  valid: "False"
+  applied: "False"
+  conditions:
+    - type: Valid
+      status: "False"
+      reason: Invalid
+      message: "profileAffinity must be set"
+      lastTransitionTime: "2026-10-05T11:20:00Z"
+    - type: Applied
+      status: "False"
+      reason: Invalid
+      message: "profile is invalid"
+      lastTransitionTime: "2026-10-05T11:20:00Z"

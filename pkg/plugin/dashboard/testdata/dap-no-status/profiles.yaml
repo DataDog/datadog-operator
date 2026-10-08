@@ -1,0 +1,22 @@
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgentProfile
+metadata:
+  name: canary
+  namespace: datadog
+spec:
+  profileAffinity:
+    profileNodeAffinity:
+      - key: pool
+        operator: In
+        values: [canary]
+---
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgentProfile
+metadata:
+  name: gpu
+  namespace: team-a
+spec:
+  profileAffinity:
+    profileNodeAffinity:
+      - key: accelerator
+        operator: Exists

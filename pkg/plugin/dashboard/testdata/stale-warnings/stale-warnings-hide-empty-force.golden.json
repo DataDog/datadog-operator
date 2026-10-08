@@ -1,0 +1,308 @@
+{
+  "schemaVersion": "dashboard.datadoghq.com/v1",
+  "generatedAt": "2026-10-05T12:00:00Z",
+  "header": {
+    "context": "kind-ddtui",
+    "namespace": "datadog",
+    "serverVersion": "v1.35.1",
+    "pluginVersion": "v1.22.0-test",
+    "refreshedAt": "2026-10-05T12:00:00Z",
+    "provider": {}
+  },
+  "dda": {
+    "namespace": "datadog",
+    "name": "datadog-agent",
+    "created": "2026-10-01T09:00:00Z",
+    "health": "Degraded",
+    "agents": {
+      "desired": 7,
+      "ready": 7,
+      "upToDate": 7,
+      "available": 7,
+      "unavailable": 0
+    },
+    "rollout": {
+      "phase": "Complete",
+      "updated": 7,
+      "desired": 7,
+      "updatedReady": 7,
+      "percent": 100,
+      "percentBasis": "updatedReady",
+      "source": "heuristic"
+    },
+    "conditions": [
+      {
+        "severity": "Info",
+        "object": {
+          "kind": "DatadogAgent",
+          "namespace": "datadog",
+          "name": "datadog-agent"
+        },
+        "type": "DatadogAgentReconcileSuccess",
+        "status": "True",
+        "reason": "ReconcileSucceeded",
+        "lastTransitionTime": "2026-10-01T09:00:10Z"
+      }
+    ],
+    "default": {
+      "name": "datadog-agent",
+      "health": "Healthy",
+      "rollout": {
+        "phase": "Complete",
+        "updated": 3,
+        "desired": 3,
+        "updatedReady": 3,
+        "percent": 100,
+        "percentBasis": "updatedReady",
+        "source": "heuristic"
+      },
+      "agent": {
+        "kind": "DaemonSet",
+        "name": "datadog-agent-agent",
+        "component": "agent",
+        "health": "Healthy",
+        "counts": {
+          "desired": 3,
+          "ready": 3,
+          "upToDate": 3,
+          "available": 3,
+          "unavailable": 0
+        },
+        "strategy": "RollingUpdate",
+        "rollout": {
+          "phase": "Complete",
+          "updated": 3,
+          "desired": 3,
+          "updatedReady": 3,
+          "percent": 100,
+          "percentBasis": "updatedReady",
+          "availabilityThreshold": 0,
+          "source": "heuristic"
+        }
+      }
+    },
+    "profiles": [
+      {
+        "namespace": "datadog",
+        "name": "dup",
+        "valid": "True",
+        "applied": "False",
+        "health": "Degraded",
+        "conditions": [
+          {
+            "severity": "Warning",
+            "object": {
+              "kind": "DatadogAgentProfile",
+              "namespace": "datadog",
+              "name": "dup"
+            },
+            "type": "Applied",
+            "status": "False",
+            "reason": "Conflict",
+            "message": "conflict with existing profile web",
+            "lastTransitionTime": "2026-10-05T11:00:00Z"
+          }
+        ]
+      },
+      {
+        "namespace": "datadog",
+        "name": "web",
+        "valid": "True",
+        "applied": "True",
+        "health": "Degraded",
+        "ddai": {
+          "name": "web",
+          "profile": "web",
+          "health": "Degraded",
+          "rollout": {
+            "phase": "Complete",
+            "updated": 4,
+            "desired": 4,
+            "updatedReady": 4,
+            "percent": 100,
+            "percentBasis": "updatedReady",
+            "source": "heuristic"
+          },
+          "conditions": [
+            {
+              "severity": "Warning",
+              "object": {
+                "kind": "DatadogAgentInternal",
+                "namespace": "datadog",
+                "name": "web"
+              },
+              "type": "OverrideReconcileConflict",
+              "status": "True",
+              "reason": "OverrideConflict",
+              "message": "clusterChecksRunner component is set to disabled",
+              "lastTransitionTime": "2026-09-21T15:22:20Z"
+            }
+          ],
+          "agent": {
+            "kind": "DaemonSet",
+            "name": "web-agent",
+            "component": "agent",
+            "health": "Healthy",
+            "counts": {
+              "desired": 4,
+              "ready": 4,
+              "upToDate": 4,
+              "available": 4,
+              "unavailable": 0
+            },
+            "strategy": "RollingUpdate",
+            "rollout": {
+              "phase": "Complete",
+              "updated": 4,
+              "desired": 4,
+              "updatedReady": 4,
+              "percent": 100,
+              "percentBasis": "updatedReady",
+              "availabilityThreshold": 0,
+              "source": "heuristic"
+            }
+          }
+        }
+      }
+    ],
+    "hiddenProfiles": 7,
+    "hiddenProfileNames": [
+      "datadog/batch",
+      "datadog/cache",
+      "datadog/edge",
+      "datadog/gpu",
+      "datadog/ingest",
+      "datadog/legacy",
+      "datadog/spot"
+    ],
+    "hiddenBy": "hide-empty-force",
+    "hiddenProfilesWithoutWarnings": 2,
+    "hiddenProfilesWithWarnings": 5,
+    "hiddenIssues": 5
+  },
+  "summary": [],
+  "issues": [
+    {
+      "severity": "Warning",
+      "object": {
+        "kind": "DatadogAgentInternal",
+        "namespace": "datadog",
+        "name": "web"
+      },
+      "type": "OverrideReconcileConflict",
+      "status": "True",
+      "reason": "OverrideConflict",
+      "message": "clusterChecksRunner component is set to disabled",
+      "lastTransitionTime": "2026-09-21T15:22:20Z"
+    },
+    {
+      "severity": "Warning",
+      "object": {
+        "kind": "DatadogAgentProfile",
+        "namespace": "datadog",
+        "name": "dup"
+      },
+      "type": "Applied",
+      "status": "False",
+      "reason": "Conflict",
+      "message": "conflict with existing profile web",
+      "lastTransitionTime": "2026-10-05T11:00:00Z"
+    }
+  ],
+  "sources": [
+    {
+      "key": "crev",
+      "state": "OK",
+      "mode": "Once",
+      "lastOK": "2026-10-05T12:00:00Z"
+    },
+    {
+      "key": "dap",
+      "state": "OK",
+      "mode": "Once",
+      "lastOK": "2026-10-05T12:00:00Z"
+    },
+    {
+      "key": "dda",
+      "state": "OK",
+      "mode": "Once",
+      "lastOK": "2026-10-05T12:00:00Z"
+    },
+    {
+      "key": "ddai",
+      "state": "OK",
+      "mode": "Once",
+      "lastOK": "2026-10-05T12:00:00Z"
+    },
+    {
+      "key": "deploy",
+      "state": "OK",
+      "mode": "Once",
+      "lastOK": "2026-10-05T12:00:00Z"
+    },
+    {
+      "key": "ds",
+      "state": "OK",
+      "mode": "Once",
+      "lastOK": "2026-10-05T12:00:00Z"
+    },
+    {
+      "key": "lease",
+      "state": "OK",
+      "mode": "Once",
+      "lastOK": "2026-10-05T12:00:00Z"
+    },
+    {
+      "key": "operator",
+      "state": "OK",
+      "mode": "Once",
+      "lastOK": "2026-10-05T12:00:00Z"
+    },
+    {
+      "key": "rs",
+      "state": "OK",
+      "mode": "Once",
+      "lastOK": "2026-10-05T12:00:00Z"
+    },
+    {
+      "key": "sum/DatadogBYOCCluster",
+      "state": "NotInstalled",
+      "mode": "Once"
+    },
+    {
+      "key": "sum/DatadogCSIDriver",
+      "state": "NotInstalled",
+      "mode": "Once"
+    },
+    {
+      "key": "sum/DatadogDashboard",
+      "state": "NotInstalled",
+      "mode": "Once"
+    },
+    {
+      "key": "sum/DatadogGenericResource",
+      "state": "NotInstalled",
+      "mode": "Once"
+    },
+    {
+      "key": "sum/DatadogInstrumentation",
+      "state": "NotInstalled",
+      "mode": "Once"
+    },
+    {
+      "key": "sum/DatadogMetric",
+      "state": "NotInstalled",
+      "mode": "Once"
+    },
+    {
+      "key": "sum/DatadogMonitor",
+      "state": "NotInstalled",
+      "mode": "Once"
+    },
+    {
+      "key": "sum/DatadogSLO",
+      "state": "NotInstalled",
+      "mode": "Once"
+    }
+  ]
+}

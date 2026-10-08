@@ -1,0 +1,10 @@
+# Rollouts evaluated with pods watched (--pods): a stalled DaemonSet with a
+# crash-looping pod, a Deployment past its progress deadline, and an OnDelete
+# DaemonSet that never stalls.
+apiVersion: fixture.dashboard.datadoghq.com/v1
+kind: Fixture
+taken: "2026-10-05T12:00:00Z"
+cluster:
+  context: kind-ddtui
+  serverVersion: v1.35.1
+  pluginVersion: v1.22.0-test

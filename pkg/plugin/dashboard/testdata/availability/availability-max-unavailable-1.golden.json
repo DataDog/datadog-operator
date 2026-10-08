@@ -1,0 +1,332 @@
+{
+  "schemaVersion": "dashboard.datadoghq.com/v1",
+  "generatedAt": "2026-10-05T12:00:00Z",
+  "header": {
+    "context": "kind-ddtui",
+    "namespace": "datadog",
+    "serverVersion": "v1.35.1",
+    "pluginVersion": "v1.22.0-test",
+    "refreshedAt": "2026-10-05T12:00:00Z",
+    "provider": {
+      "name": "eks",
+      "source": "detected",
+      "reason": "ProviderDetected"
+    },
+    "operator": {
+      "namespace": "datadog",
+      "name": "datadog-operator",
+      "version": "1.22.0",
+      "image": "gcr.io/datadoghq/operator:1.22.0",
+      "ready": 1,
+      "desired": 1,
+      "leaseHolder": "datadog-operator-7c9d_1a2b",
+      "leaseRenew": "2026-10-05T11:59:50Z"
+    }
+  },
+  "dda": {
+    "namespace": "datadog",
+    "name": "datadog-agent",
+    "created": "2026-10-01T09:00:00Z",
+    "health": "Degraded",
+    "agents": {
+      "desired": 812,
+      "ready": 803,
+      "upToDate": 812,
+      "available": 803,
+      "unavailable": 9
+    },
+    "rollout": {
+      "phase": "Complete",
+      "updated": 814,
+      "desired": 814,
+      "updatedReady": 804,
+      "percent": 98,
+      "percentBasis": "updatedReady",
+      "source": "heuristic"
+    },
+    "default": {
+      "name": "datadog-agent",
+      "health": "Healthy",
+      "rollout": {
+        "phase": "Complete",
+        "updated": 4,
+        "desired": 4,
+        "updatedReady": 2,
+        "percent": 50,
+        "percentBasis": "updatedReady",
+        "source": "heuristic"
+      },
+      "agent": {
+        "kind": "DaemonSet",
+        "name": "datadog-agent-agent",
+        "component": "agent",
+        "health": "Healthy",
+        "counts": {
+          "desired": 2,
+          "ready": 1,
+          "upToDate": 2,
+          "available": 1,
+          "unavailable": 1
+        },
+        "strategy": "RollingUpdate maxUnavailable=50%",
+        "rollout": {
+          "phase": "Complete",
+          "updated": 2,
+          "desired": 2,
+          "updatedReady": 1,
+          "percent": 50,
+          "percentBasis": "updatedReady",
+          "since": "2026-10-05T07:00:00Z",
+          "availabilityThreshold": 1,
+          "source": "heuristic"
+        }
+      },
+      "clusterAgent": {
+        "kind": "Deployment",
+        "name": "datadog-agent-cluster-agent",
+        "component": "cluster-agent",
+        "health": "Healthy",
+        "counts": {
+          "desired": 2,
+          "ready": 1,
+          "upToDate": 2,
+          "available": 1,
+          "unavailable": 1
+        },
+        "strategy": "RollingUpdate maxUnavailable=1 maxSurge=1",
+        "rollout": {
+          "phase": "Complete",
+          "updated": 2,
+          "desired": 2,
+          "updatedReady": 1,
+          "percent": 50,
+          "percentBasis": "updatedReady",
+          "since": "2026-10-05T11:58:00Z",
+          "availabilityThreshold": 1,
+          "source": "heuristic"
+        }
+      }
+    },
+    "profiles": [
+      {
+        "namespace": "datadog",
+        "name": "large",
+        "valid": "True",
+        "applied": "True",
+        "health": "Degraded",
+        "ddai": {
+          "name": "large",
+          "profile": "large",
+          "health": "Degraded",
+          "rollout": {
+            "phase": "Complete",
+            "reason": "AvailabilityBelowThreshold",
+            "updated": 807,
+            "desired": 807,
+            "updatedReady": 799,
+            "percent": 99,
+            "percentBasis": "updatedReady",
+            "source": "heuristic"
+          },
+          "agent": {
+            "kind": "DaemonSet",
+            "name": "large-agent",
+            "component": "agent",
+            "health": "Degraded",
+            "counts": {
+              "desired": 807,
+              "ready": 799,
+              "upToDate": 807,
+              "available": 799,
+              "unavailable": 8
+            },
+            "strategy": "RollingUpdate maxUnavailable=10%",
+            "rollout": {
+              "phase": "Complete",
+              "reason": "AvailabilityBelowThreshold",
+              "updated": 807,
+              "desired": 807,
+              "updatedReady": 799,
+              "percent": 99,
+              "percentBasis": "updatedReady",
+              "since": "2026-10-05T09:00:00Z",
+              "availabilityThreshold": 1,
+              "source": "heuristic"
+            },
+            "conditions": [
+              {
+                "severity": "Warning",
+                "object": {
+                  "kind": "DaemonSet",
+                  "namespace": "datadog",
+                  "name": "large-agent"
+                },
+                "type": "Unavailable",
+                "status": "True",
+                "reason": "AvailabilityBelowThreshold",
+                "message": "8 unavailable (\u003e 1 allowed)"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "namespace": "datadog",
+        "name": "small",
+        "valid": "True",
+        "applied": "True",
+        "health": "Healthy",
+        "ddai": {
+          "name": "small",
+          "profile": "small",
+          "health": "Healthy",
+          "rollout": {
+            "phase": "Complete",
+            "updated": 3,
+            "desired": 3,
+            "updatedReady": 3,
+            "percent": 100,
+            "percentBasis": "updatedReady",
+            "source": "heuristic"
+          },
+          "agent": {
+            "kind": "DaemonSet",
+            "name": "small-agent",
+            "component": "agent",
+            "health": "Healthy",
+            "counts": {
+              "desired": 3,
+              "ready": 3,
+              "upToDate": 3,
+              "available": 3,
+              "unavailable": 0
+            },
+            "strategy": "RollingUpdate",
+            "rollout": {
+              "phase": "Complete",
+              "updated": 3,
+              "desired": 3,
+              "updatedReady": 3,
+              "percent": 100,
+              "percentBasis": "updatedReady",
+              "since": "2026-10-04T09:00:00Z",
+              "availabilityThreshold": 1,
+              "source": "heuristic"
+            }
+          }
+        }
+      }
+    ]
+  },
+  "summary": [],
+  "issues": [
+    {
+      "severity": "Warning",
+      "object": {
+        "kind": "DaemonSet",
+        "namespace": "datadog",
+        "name": "large-agent"
+      },
+      "type": "Unavailable",
+      "status": "True",
+      "reason": "AvailabilityBelowThreshold",
+      "message": "8 unavailable (\u003e 1 allowed)"
+    }
+  ],
+  "sources": [
+    {
+      "key": "crev",
+      "state": "OK",
+      "mode": "Once",
+      "lastOK": "2026-10-05T12:00:00Z"
+    },
+    {
+      "key": "dap",
+      "state": "OK",
+      "mode": "Once",
+      "lastOK": "2026-10-05T12:00:00Z"
+    },
+    {
+      "key": "dda",
+      "state": "OK",
+      "mode": "Once",
+      "lastOK": "2026-10-05T12:00:00Z"
+    },
+    {
+      "key": "ddai",
+      "state": "OK",
+      "mode": "Once",
+      "lastOK": "2026-10-05T12:00:00Z"
+    },
+    {
+      "key": "deploy",
+      "state": "OK",
+      "mode": "Once",
+      "lastOK": "2026-10-05T12:00:00Z"
+    },
+    {
+      "key": "ds",
+      "state": "OK",
+      "mode": "Once",
+      "lastOK": "2026-10-05T12:00:00Z"
+    },
+    {
+      "key": "lease",
+      "state": "OK",
+      "mode": "Once",
+      "lastOK": "2026-10-05T12:00:00Z"
+    },
+    {
+      "key": "operator",
+      "state": "OK",
+      "mode": "Once",
+      "lastOK": "2026-10-05T12:00:00Z"
+    },
+    {
+      "key": "rs",
+      "state": "OK",
+      "mode": "Once",
+      "lastOK": "2026-10-05T12:00:00Z"
+    },
+    {
+      "key": "sum/DatadogBYOCCluster",
+      "state": "NotInstalled",
+      "mode": "Once"
+    },
+    {
+      "key": "sum/DatadogCSIDriver",
+      "state": "NotInstalled",
+      "mode": "Once"
+    },
+    {
+      "key": "sum/DatadogDashboard",
+      "state": "NotInstalled",
+      "mode": "Once"
+    },
+    {
+      "key": "sum/DatadogGenericResource",
+      "state": "NotInstalled",
+      "mode": "Once"
+    },
+    {
+      "key": "sum/DatadogInstrumentation",
+      "state": "NotInstalled",
+      "mode": "Once"
+    },
+    {
+      "key": "sum/DatadogMetric",
+      "state": "NotInstalled",
+      "mode": "Once"
+    },
+    {
+      "key": "sum/DatadogMonitor",
+      "state": "NotInstalled",
+      "mode": "Once"
+    },
+    {
+      "key": "sum/DatadogSLO",
+      "state": "NotInstalled",
+      "mode": "Once"
+    }
+  ]
+}

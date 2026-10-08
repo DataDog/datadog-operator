@@ -1,0 +1,107 @@
+apiVersion: datadoghq.com/v2alpha1
+kind: DatadogAgent
+metadata:
+  name: datadog-agent
+  namespace: datadog
+  uid: dda-uid
+  creationTimestamp: "2026-10-01T09:00:00Z"
+status:
+  conditions:
+    # (c) constant rollup of DDAI errors: dropped.
+    - type: DatadogAgentReconcileError
+      status: "True"
+      reason: DatadogAgent_reconcile_error
+      message: DatadogAgent reconcile error
+      lastTransitionTime: "2026-10-05T11:00:00Z"
+    # (a) mirror of the default DDAI error: dropped.
+    - type: DatadogAgentInternalReconcileError
+      status: "True"
+      reason: DatadogAgentInternal_reconcile_error
+      message: "datadog-agent: failed to create ClusterRole: forbidden"
+      lastTransitionTime: "2026-10-05T11:00:00Z"
+    # Exact duplicate of the DDAI condition: kept on the DDAI only.
+    - type: OverrideReconcileConflict
+      status: "True"
+      reason: OverrideConflict
+      message: nodeAgent override conflicts with feature npm
+      lastTransitionTime: "2026-10-05T11:00:00Z"
+    # Only on the DDA: kept there.
+    - type: DeprecatedConfigInUse
+      status: "True"
+      reason: DeprecatedField
+      message: spec.global.kubelet.hostCAPath is deprecated, use spec.global.kubelet.agentCAPath
+      lastTransitionTime: "2026-10-01T09:00:10Z"
+---
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgentInternal
+metadata:
+  name: datadog-agent
+  namespace: datadog
+  uid: ddai-default-uid
+  ownerReferences:
+    - kind: DatadogAgent
+      name: datadog-agent
+      uid: dda-uid
+status:
+  conditions:
+    - type: DatadogAgentReconcileError
+      status: "True"
+      reason: DatadogAgent_reconcile_error
+      message: "failed to create ClusterRole: forbidden"
+      lastTransitionTime: "2026-10-05T11:00:00Z"
+    - type: AgentReconcile
+      status: "False"
+      reason: agent feature error
+      message: "npm: system-probe requires a privileged security context"
+      lastTransitionTime: "2026-10-05T11:00:00Z"
+    - type: OverrideReconcileConflict
+      status: "True"
+      reason: OverrideConflict
+      message: nodeAgent override conflicts with feature npm
+      lastTransitionTime: "2026-10-05T11:00:00Z"
+  agent:
+    daemonsetName: datadog-agent-agent
+---
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgentInternal
+metadata:
+  name: canary
+  namespace: datadog
+  uid: ddai-canary-uid
+  labels:
+    agent.datadoghq.com/datadogagentprofile: canary
+  ownerReferences:
+    - kind: DatadogAgent
+      name: datadog-agent
+      uid: dda-uid
+status:
+  conditions:
+    - type: DatadogAgentReconcileError
+      status: "True"
+      reason: DatadogAgent_reconcile_error
+      message: "invalid override: image tag 7.99.0 not found"
+      lastTransitionTime: "2026-10-05T11:30:00Z"
+  agent:
+    daemonsetName: canary-agent
+---
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgentInternal
+metadata:
+  name: legacy
+  namespace: datadog
+  uid: ddai-legacy-uid
+  labels:
+    agent.datadoghq.com/datadogagentprofile: legacy
+  ownerReferences:
+    - kind: DatadogAgent
+      name: datadog-agent
+      uid: dda-uid
+status:
+  conditions:
+    - type: DatadogAgentReconcileError
+      status: "True"
+      reason: DatadogAgent_reconcile_error
+      message: boom
+      lastTransitionTime: "2026-10-05T11:40:00Z"
+  agent:
+    daemonsetName: legacy-agent

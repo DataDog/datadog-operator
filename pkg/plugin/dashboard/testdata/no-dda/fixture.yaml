@@ -1,0 +1,4 @@
+# No DDA in scope.
+apiVersion: fixture.dashboard.datadoghq.com/v1
+kind: Fixture
+taken: "2026-10-05T12:00:00Z"

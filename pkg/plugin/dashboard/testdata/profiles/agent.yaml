@@ -1,0 +1,120 @@
+apiVersion: datadoghq.com/v2alpha1
+kind: DatadogAgent
+metadata:
+  name: datadog-agent
+  namespace: datadog
+  uid: dda-uid
+  creationTimestamp: "2026-10-01T09:00:00Z"
+  annotations:
+    # User-set provider wins over the detected one.
+    agent.datadoghq.com/cluster-provider: gke-cos
+status:
+  clusterProvider: gke-cos
+  conditions:
+    - type: ClusterProviderDetected
+      status: "True"
+      reason: UserSpecified
+      message: gke-cos
+      lastTransitionTime: "2026-10-01T09:00:10Z"
+---
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgentInternal
+metadata:
+  name: datadog-agent
+  namespace: datadog
+  uid: ddai-default-uid
+  ownerReferences:
+    - apiVersion: datadoghq.com/v2alpha1
+      kind: DatadogAgent
+      name: datadog-agent
+      uid: dda-uid
+      controller: true
+status:
+  conditions:
+    - type: AgentReconcile
+      status: "True"
+      reason: AgentReconcileOK
+      lastTransitionTime: "2026-10-01T09:00:10Z"
+  agent:
+    desired: 2
+    ready: 2
+    upToDate: 2
+    daemonsetName: datadog-agent-agent
+---
+# Profile DDAI: linked to its DAP by label, owned by the DDA, no ownerRef to
+# the DAP.
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgentInternal
+metadata:
+  name: canary
+  namespace: datadog
+  uid: ddai-canary-uid
+  labels:
+    agent.datadoghq.com/datadogagentprofile: canary
+  annotations:
+    agent.datadoghq.com/cluster-provider: gke-cos
+  ownerReferences:
+    - apiVersion: datadoghq.com/v2alpha1
+      kind: DatadogAgent
+      name: datadog-agent
+      uid: dda-uid
+      controller: true
+status:
+  conditions:
+    - type: AgentReconcile
+      status: "True"
+      reason: AgentReconcileOK
+      lastTransitionTime: "2026-10-05T11:50:00Z"
+  agent:
+    desired: 4
+    ready: 3
+    upToDate: 1
+    # No daemonsetName yet: the DS is found by owner reference.
+---
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgentInternal
+metadata:
+  name: gpu
+  namespace: datadog
+  uid: ddai-gpu-uid
+  labels:
+    agent.datadoghq.com/datadogagentprofile: gpu
+  ownerReferences:
+    - apiVersion: datadoghq.com/v2alpha1
+      kind: DatadogAgent
+      name: datadog-agent
+      uid: dda-uid
+      controller: true
+status:
+  conditions:
+    - type: AgentReconcile
+      status: "True"
+      reason: AgentReconcileOK
+      lastTransitionTime: "2026-10-03T08:00:00Z"
+  agent:
+    desired: 1
+    ready: 1
+    upToDate: 1
+    daemonsetName: gpu-agent
+---
+# Profile DDAI whose DAP is gone: unattached.
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgentInternal
+metadata:
+  name: ghost
+  namespace: datadog
+  uid: ddai-ghost-uid
+  labels:
+    agent.datadoghq.com/datadogagentprofile: ghost
+  ownerReferences:
+    - apiVersion: datadoghq.com/v2alpha1
+      kind: DatadogAgent
+      name: datadog-agent
+      uid: dda-uid
+      controller: true
+status:
+  agent:
+    desired: 1
+    ready: 1
+    upToDate: 1
+    daemonsetName: ghost-agent
