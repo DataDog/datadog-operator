@@ -1,0 +1,31 @@
+# Two DDAs in scope.
+apiVersion: datadoghq.com/v2alpha1
+kind: DatadogAgent
+metadata: {name: datadog-agent, namespace: datadog, uid: dda-1}
+---
+apiVersion: datadoghq.com/v2alpha1
+kind: DatadogAgent
+metadata: {name: second, namespace: datadog, uid: dda-2}
+---
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgentInternal
+metadata:
+  name: datadog-agent
+  namespace: datadog
+  ownerReferences: [{kind: DatadogAgent, name: datadog-agent, uid: dda-1}]
+---
+# Belongs to the other DDA: never unattached.
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgentInternal
+metadata:
+  name: second
+  namespace: datadog
+  ownerReferences: [{kind: DatadogAgent, name: second, uid: dda-2}]
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: second-agent
+  namespace: datadog
+  labels: {agent.datadoghq.com/name: second}
+  ownerReferences: [{kind: DatadogAgentInternal, name: second}]

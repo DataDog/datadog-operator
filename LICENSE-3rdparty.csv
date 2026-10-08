@@ -1,5 +1,7 @@
 Component,Origin,License
 core,cel.dev/expr,Apache-2.0
+core,charm.land/bubbletea/v2,MIT
+core,charm.land/lipgloss/v2,MIT
 core,dario.cat/mergo,BSD-3-Clause
 core,github.com/Azure/go-ansiterm,MIT
 core,github.com/BurntSushi/toml,MIT
@@ -95,6 +97,12 @@ core,github.com/cenkalti/backoff,MIT
 core,github.com/cenkalti/backoff/v5,MIT
 core,github.com/cespare/xxhash/v2,MIT
 core,github.com/chai2010/gettext-go,BSD-3-Clause
+core,github.com/charmbracelet/colorprofile,MIT
+core,github.com/charmbracelet/ultraviolet,MIT
+core,github.com/charmbracelet/x/ansi,MIT
+core,github.com/charmbracelet/x/term,MIT
+core,github.com/charmbracelet/x/termios,MIT
+core,github.com/charmbracelet/x/windows,MIT
 core,github.com/clipperhouse/displaywidth,MIT
 core,github.com/clipperhouse/uax29/v2/graphemes,MIT
 core,github.com/cloudflare/circl,BSD-3-Clause
@@ -167,6 +175,7 @@ core,github.com/lann/builder,MIT
 core,github.com/lann/ps,MIT
 core,github.com/lib/pq,MIT
 core,github.com/liggitt/tabwriter,BSD-3-Clause
+core,github.com/lucasb-eyer/go-colorful,MIT
 core,github.com/mattn/go-colorable,MIT
 core,github.com/mattn/go-isatty,MIT
 core,github.com/mattn/go-runewidth,MIT
@@ -184,6 +193,7 @@ core,github.com/modern-go/concurrent,Apache-2.0
 core,github.com/modern-go/reflect2,Apache-2.0
 core,github.com/mohae/deepcopy,MIT
 core,github.com/monochromegane/go-gitignore,MIT
+core,github.com/muesli/cancelreader,MIT
 core,github.com/munnerz/goautoneg,BSD-3-Clause
 core,github.com/nwaples/rardecode,BSD-2-Clause
 core,github.com/olekukonko/cat,MIT
@@ -208,6 +218,7 @@ core,github.com/puzpuzpuz/xsync/v3,Apache-2.0
 core,github.com/richardartoul/molecule,MIT
 core,github.com/richardartoul/molecule/src/codec,Apache-2.0
 core,github.com/richardartoul/molecule/src/protowire,BSD-3-Clause
+core,github.com/rivo/uniseg,MIT
 core,github.com/robfig/cron/v3,MIT
 core,github.com/rubenv/sql-migrate,MIT
 core,github.com/rubenv/sql-migrate/sqlparse,MIT
@@ -232,6 +243,7 @@ core,github.com/ulikunitz/xz,BSD-3-Clause
 core,github.com/x448/float16,MIT
 core,github.com/xi2/xz,XZ
 core,github.com/xlab/treeprint,MIT
+core,github.com/xo/terminfo,MIT
 core,go.etcd.io/bbolt,MIT
 core,go.opentelemetry.io/auto/sdk,Apache-2.0
 core,go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp,Apache-2.0

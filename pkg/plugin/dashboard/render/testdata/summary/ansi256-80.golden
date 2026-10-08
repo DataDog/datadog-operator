@@ -1,0 +1,27 @@
+[1mkubectl datadog dashboard[m[2m · [m[2mctx[m kind-ddtui[2m · [m[2mns[m datadog[2m · [m[2mk8s[m v1.35.1
+  [2mplugin[m v1.22.0-test[2m · [m[2mprovider[m none[2m · [m[2moperator[m [2mnot found[m[2m · [m[2mrefreshed[m 12:00:00
+  [2mnext poll in[m 20s
+┌─ [1mDatadogAgent datadog/datadog-agent[m ─────────────────────────────────────────┐
+│                                                                              │
+│ [32m✓ Healthy[m[2m · [m[2magents[m 1/1 ready[2m · [m1/1 up-to-date[2m · [m0 unavailable                │
+│   [2mrollout[m [32m██████████[m 100% [32mComplete[m                                           │
+│                                                                              │
+│ [2m                                   READY  UPD  UNAV  ROLLOUT[m                 │
+│ [32m✓[m [2mDDA[m datadog-agent                                                          │
+│ └─ [32m✓[m [2mDDAI[m datadog-agent (default)                                            │
+│    ├─ [32m✓[m [2magent[m datadog-agent-agent    1/1  1/1     0  [32m█████████[m 100% [32mComplete[m │
+│    ├─ [2m– DCA not enabled[m                                                      │
+│    ├─ [2m– CCR not enabled[m                                                      │
+│    └─ [2m– OTel not enabled[m                                                     │
+│                                                                              │
+│ [32m✓ no issues[m                                                                  │
+└──────────────────────────────────────────────────────────────────────────────┘
+[2m█ updated+ready  ▒ updated, not ready  ░ not updated   % = updated+ready/desired[m
+[1mOther resources[m[2m · [mMonitors 5 (OK 1 Alert 1 Other 1 [1;31m✗ 1[m [2m? 1[m)[2m · [mDashboards 2 ([1;31m✗ 1[m)
+  SLOs [33m⚠ no access[m[2m · [mGeneric resources 2 (downtime 1 monitor 1 [1;31m✗ 1[m)
+  DatadogMetrics 2 ([1;31m✗ 1[m)[2m · [mInstrumentations 2 ([2m? 1[m)[2m · [mCSI drivers 1
+  [1;31m✗[m Monitors app/m-error: 400 Bad Request: invalid query
+  [1;31m✗[m Dashboards app/d-error: error creating dashboard
+  [1;31m✗[m Generic resources app/g-downtime: 404 Not Found
+  [1;31m✗[m DatadogMetrics app/dm-invalid: invalid metric query
+[2m•[m DatadogAgentProfiles: listed in the DDA namespace only

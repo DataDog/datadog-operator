@@ -1,0 +1,26 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: datadog-operator
+  namespace: datadog
+  labels:
+    app.kubernetes.io/name: datadog-operator
+spec:
+  replicas: 1
+  template:
+    spec:
+      containers:
+        - name: manager
+          image: gcr.io/datadoghq/operator:1.22.0
+status:
+  replicas: 1
+  readyReplicas: 1
+---
+apiVersion: coordination.k8s.io/v1
+kind: Lease
+metadata:
+  name: datadog-operator-lock
+  namespace: datadog
+spec:
+  holderIdentity: datadog-operator-7c9d_1a2b
+  renewTime: "2026-10-05T11:59:50.000000Z"

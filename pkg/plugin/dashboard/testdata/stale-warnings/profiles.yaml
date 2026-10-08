@@ -1,0 +1,588 @@
+# 0 desired with a stale warning: hidden by --hide-empty-force only.
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgentProfile
+metadata:
+  name: batch
+  namespace: datadog
+status:
+  valid: "True"
+  applied: "True"
+  conditions:
+    - type: Valid
+      status: "True"
+      reason: Valid
+      lastTransitionTime: "2026-09-20T08:00:00Z"
+    - type: Applied
+      status: "True"
+      reason: Applied
+      lastTransitionTime: "2026-09-20T08:00:00Z"
+---
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgentInternal
+metadata:
+  name: batch
+  namespace: datadog
+  uid: ddai-batch-uid
+  labels:
+    agent.datadoghq.com/datadogagentprofile: batch
+  ownerReferences:
+    - apiVersion: datadoghq.com/v2alpha1
+      kind: DatadogAgent
+      name: datadog-agent
+      uid: dda-uid
+      controller: true
+status:
+  conditions:
+    - type: AgentReconcile
+      status: "True"
+      reason: AgentReconcileOK
+      lastTransitionTime: "2026-09-20T08:00:00Z"
+    - type: OverrideReconcileConflict
+      status: "True"
+      reason: OverrideConflict
+      message: clusterChecksRunner component is set to disabled
+      lastTransitionTime: "2026-09-21T15:22:20Z"
+  agent:
+    desired: 0
+    ready: 0
+    upToDate: 0
+    daemonsetName: batch-agent
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: batch-agent
+  namespace: datadog
+  uid: ds-batch-uid
+  generation: 1
+  labels:
+    agent.datadoghq.com/name: datadog-agent
+  ownerReferences:
+    - kind: DatadogAgentInternal
+      name: batch
+      uid: ddai-batch-uid
+spec:
+  updateStrategy:
+    type: RollingUpdate
+status:
+  observedGeneration: 1
+  desiredNumberScheduled: 0
+  numberReady: 0
+  numberAvailable: 0
+  updatedNumberScheduled: 0
+---
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgentProfile
+metadata:
+  name: cache
+  namespace: datadog
+status:
+  valid: "True"
+  applied: "True"
+  conditions:
+    - type: Valid
+      status: "True"
+      reason: Valid
+      lastTransitionTime: "2026-09-20T08:00:00Z"
+    - type: Applied
+      status: "True"
+      reason: Applied
+      lastTransitionTime: "2026-09-20T08:00:00Z"
+---
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgentInternal
+metadata:
+  name: cache
+  namespace: datadog
+  uid: ddai-cache-uid
+  labels:
+    agent.datadoghq.com/datadogagentprofile: cache
+  ownerReferences:
+    - apiVersion: datadoghq.com/v2alpha1
+      kind: DatadogAgent
+      name: datadog-agent
+      uid: dda-uid
+      controller: true
+status:
+  conditions:
+    - type: AgentReconcile
+      status: "True"
+      reason: AgentReconcileOK
+      lastTransitionTime: "2026-09-20T08:00:00Z"
+    - type: OverrideReconcileConflict
+      status: "True"
+      reason: OverrideConflict
+      message: clusterChecksRunner component is set to disabled
+      lastTransitionTime: "2026-09-21T15:22:20Z"
+  agent:
+    desired: 0
+    ready: 0
+    upToDate: 0
+    daemonsetName: cache-agent
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: cache-agent
+  namespace: datadog
+  uid: ds-cache-uid
+  generation: 1
+  labels:
+    agent.datadoghq.com/name: datadog-agent
+  ownerReferences:
+    - kind: DatadogAgentInternal
+      name: cache
+      uid: ddai-cache-uid
+spec:
+  updateStrategy:
+    type: RollingUpdate
+status:
+  observedGeneration: 1
+  desiredNumberScheduled: 0
+  numberReady: 0
+  numberAvailable: 0
+  updatedNumberScheduled: 0
+---
+# Conflict: no DDAI, never hidden.
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgentProfile
+metadata:
+  name: dup
+  namespace: datadog
+status:
+  valid: "True"
+  applied: "False"
+  conditions:
+    - type: Valid
+      status: "True"
+      reason: Valid
+      lastTransitionTime: "2026-10-05T11:00:00Z"
+    - type: Applied
+      status: "False"
+      reason: Conflict
+      message: conflict with existing profile web
+      lastTransitionTime: "2026-10-05T11:00:00Z"
+---
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgentProfile
+metadata:
+  name: edge
+  namespace: datadog
+status:
+  valid: "True"
+  applied: "True"
+  conditions:
+    - type: Valid
+      status: "True"
+      reason: Valid
+      lastTransitionTime: "2026-09-20T08:00:00Z"
+    - type: Applied
+      status: "True"
+      reason: Applied
+      lastTransitionTime: "2026-09-20T08:00:00Z"
+---
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgentInternal
+metadata:
+  name: edge
+  namespace: datadog
+  uid: ddai-edge-uid
+  labels:
+    agent.datadoghq.com/datadogagentprofile: edge
+  ownerReferences:
+    - apiVersion: datadoghq.com/v2alpha1
+      kind: DatadogAgent
+      name: datadog-agent
+      uid: dda-uid
+      controller: true
+status:
+  conditions:
+    - type: AgentReconcile
+      status: "True"
+      reason: AgentReconcileOK
+      lastTransitionTime: "2026-09-20T08:00:00Z"
+    - type: OverrideReconcileConflict
+      status: "True"
+      reason: OverrideConflict
+      message: clusterChecksRunner component is set to disabled
+      lastTransitionTime: "2026-09-21T15:22:20Z"
+  agent:
+    desired: 0
+    ready: 0
+    upToDate: 0
+    daemonsetName: edge-agent
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: edge-agent
+  namespace: datadog
+  uid: ds-edge-uid
+  generation: 1
+  labels:
+    agent.datadoghq.com/name: datadog-agent
+  ownerReferences:
+    - kind: DatadogAgentInternal
+      name: edge
+      uid: ddai-edge-uid
+spec:
+  updateStrategy:
+    type: RollingUpdate
+status:
+  observedGeneration: 1
+  desiredNumberScheduled: 0
+  numberReady: 0
+  numberAvailable: 0
+  updatedNumberScheduled: 0
+---
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgentProfile
+metadata:
+  name: gpu
+  namespace: datadog
+status:
+  valid: "True"
+  applied: "True"
+  conditions:
+    - type: Valid
+      status: "True"
+      reason: Valid
+      lastTransitionTime: "2026-09-20T08:00:00Z"
+    - type: Applied
+      status: "True"
+      reason: Applied
+      lastTransitionTime: "2026-09-20T08:00:00Z"
+---
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgentInternal
+metadata:
+  name: gpu
+  namespace: datadog
+  uid: ddai-gpu-uid
+  labels:
+    agent.datadoghq.com/datadogagentprofile: gpu
+  ownerReferences:
+    - apiVersion: datadoghq.com/v2alpha1
+      kind: DatadogAgent
+      name: datadog-agent
+      uid: dda-uid
+      controller: true
+status:
+  conditions:
+    - type: AgentReconcile
+      status: "True"
+      reason: AgentReconcileOK
+      lastTransitionTime: "2026-09-20T08:00:00Z"
+    - type: OverrideReconcileConflict
+      status: "True"
+      reason: OverrideConflict
+      message: clusterChecksRunner component is set to disabled
+      lastTransitionTime: "2026-09-21T15:22:20Z"
+  agent:
+    desired: 0
+    ready: 0
+    upToDate: 0
+    daemonsetName: gpu-agent
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: gpu-agent
+  namespace: datadog
+  uid: ds-gpu-uid
+  generation: 1
+  labels:
+    agent.datadoghq.com/name: datadog-agent
+  ownerReferences:
+    - kind: DatadogAgentInternal
+      name: gpu
+      uid: ddai-gpu-uid
+spec:
+  updateStrategy:
+    type: RollingUpdate
+status:
+  observedGeneration: 1
+  desiredNumberScheduled: 0
+  numberReady: 0
+  numberAvailable: 0
+  updatedNumberScheduled: 0
+---
+# Healthy and empty: hidden by --hide-empty too.
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgentProfile
+metadata:
+  name: ingest
+  namespace: datadog
+status:
+  valid: "True"
+  applied: "True"
+  conditions:
+    - type: Valid
+      status: "True"
+      reason: Valid
+      lastTransitionTime: "2026-09-20T08:00:00Z"
+    - type: Applied
+      status: "True"
+      reason: Applied
+      lastTransitionTime: "2026-09-20T08:00:00Z"
+---
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgentInternal
+metadata:
+  name: ingest
+  namespace: datadog
+  uid: ddai-ingest-uid
+  labels:
+    agent.datadoghq.com/datadogagentprofile: ingest
+  ownerReferences:
+    - apiVersion: datadoghq.com/v2alpha1
+      kind: DatadogAgent
+      name: datadog-agent
+      uid: dda-uid
+      controller: true
+status:
+  conditions:
+    - type: AgentReconcile
+      status: "True"
+      reason: AgentReconcileOK
+      lastTransitionTime: "2026-09-20T08:00:00Z"
+  agent:
+    desired: 0
+    ready: 0
+    upToDate: 0
+    daemonsetName: ingest-agent
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: ingest-agent
+  namespace: datadog
+  uid: ds-ingest-uid
+  generation: 1
+  labels:
+    agent.datadoghq.com/name: datadog-agent
+  ownerReferences:
+    - kind: DatadogAgentInternal
+      name: ingest
+      uid: ddai-ingest-uid
+spec:
+  updateStrategy:
+    type: RollingUpdate
+status:
+  observedGeneration: 1
+  desiredNumberScheduled: 0
+  numberReady: 0
+  numberAvailable: 0
+  updatedNumberScheduled: 0
+---
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgentProfile
+metadata:
+  name: legacy
+  namespace: datadog
+status:
+  valid: "True"
+  applied: "True"
+  conditions:
+    - type: Valid
+      status: "True"
+      reason: Valid
+      lastTransitionTime: "2026-09-20T08:00:00Z"
+    - type: Applied
+      status: "True"
+      reason: Applied
+      lastTransitionTime: "2026-09-20T08:00:00Z"
+---
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgentInternal
+metadata:
+  name: legacy
+  namespace: datadog
+  uid: ddai-legacy-uid
+  labels:
+    agent.datadoghq.com/datadogagentprofile: legacy
+  ownerReferences:
+    - apiVersion: datadoghq.com/v2alpha1
+      kind: DatadogAgent
+      name: datadog-agent
+      uid: dda-uid
+      controller: true
+status:
+  conditions:
+    - type: AgentReconcile
+      status: "True"
+      reason: AgentReconcileOK
+      lastTransitionTime: "2026-09-20T08:00:00Z"
+    - type: OverrideReconcileConflict
+      status: "True"
+      reason: OverrideConflict
+      message: clusterChecksRunner component is set to disabled
+      lastTransitionTime: "2026-09-21T15:22:20Z"
+  agent:
+    desired: 0
+    ready: 0
+    upToDate: 0
+    daemonsetName: legacy-agent
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: legacy-agent
+  namespace: datadog
+  uid: ds-legacy-uid
+  generation: 1
+  labels:
+    agent.datadoghq.com/name: datadog-agent
+  ownerReferences:
+    - kind: DatadogAgentInternal
+      name: legacy
+      uid: ddai-legacy-uid
+spec:
+  updateStrategy:
+    type: RollingUpdate
+status:
+  observedGeneration: 1
+  desiredNumberScheduled: 0
+  numberReady: 0
+  numberAvailable: 0
+  updatedNumberScheduled: 0
+---
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgentProfile
+metadata:
+  name: spot
+  namespace: datadog
+status:
+  valid: "True"
+  applied: "True"
+  conditions:
+    - type: Valid
+      status: "True"
+      reason: Valid
+      lastTransitionTime: "2026-09-20T08:00:00Z"
+    - type: Applied
+      status: "True"
+      reason: Applied
+      lastTransitionTime: "2026-09-20T08:00:00Z"
+---
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgentInternal
+metadata:
+  name: spot
+  namespace: datadog
+  uid: ddai-spot-uid
+  labels:
+    agent.datadoghq.com/datadogagentprofile: spot
+  ownerReferences:
+    - apiVersion: datadoghq.com/v2alpha1
+      kind: DatadogAgent
+      name: datadog-agent
+      uid: dda-uid
+      controller: true
+status:
+  conditions:
+    - type: AgentReconcile
+      status: "True"
+      reason: AgentReconcileOK
+      lastTransitionTime: "2026-09-20T08:00:00Z"
+  agent:
+    desired: 0
+    ready: 0
+    upToDate: 0
+    daemonsetName: spot-agent
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: spot-agent
+  namespace: datadog
+  uid: ds-spot-uid
+  generation: 1
+  labels:
+    agent.datadoghq.com/name: datadog-agent
+  ownerReferences:
+    - kind: DatadogAgentInternal
+      name: spot
+      uid: ddai-spot-uid
+spec:
+  updateStrategy:
+    type: RollingUpdate
+status:
+  observedGeneration: 1
+  desiredNumberScheduled: 0
+  numberReady: 0
+  numberAvailable: 0
+  updatedNumberScheduled: 0
+---
+# Agent pods and a warning: never hidden.
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgentProfile
+metadata:
+  name: web
+  namespace: datadog
+status:
+  valid: "True"
+  applied: "True"
+  conditions:
+    - type: Valid
+      status: "True"
+      reason: Valid
+      lastTransitionTime: "2026-09-20T08:00:00Z"
+    - type: Applied
+      status: "True"
+      reason: Applied
+      lastTransitionTime: "2026-09-20T08:00:00Z"
+---
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgentInternal
+metadata:
+  name: web
+  namespace: datadog
+  uid: ddai-web-uid
+  labels:
+    agent.datadoghq.com/datadogagentprofile: web
+  ownerReferences:
+    - apiVersion: datadoghq.com/v2alpha1
+      kind: DatadogAgent
+      name: datadog-agent
+      uid: dda-uid
+      controller: true
+status:
+  conditions:
+    - type: AgentReconcile
+      status: "True"
+      reason: AgentReconcileOK
+      lastTransitionTime: "2026-09-20T08:00:00Z"
+    - type: OverrideReconcileConflict
+      status: "True"
+      reason: OverrideConflict
+      message: clusterChecksRunner component is set to disabled
+      lastTransitionTime: "2026-09-21T15:22:20Z"
+  agent:
+    desired: 4
+    ready: 4
+    upToDate: 4
+    daemonsetName: web-agent
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: web-agent
+  namespace: datadog
+  uid: ds-web-uid
+  generation: 1
+  labels:
+    agent.datadoghq.com/name: datadog-agent
+  ownerReferences:
+    - kind: DatadogAgentInternal
+      name: web
+      uid: ddai-web-uid
+spec:
+  updateStrategy:
+    type: RollingUpdate
+status:
+  observedGeneration: 1
+  desiredNumberScheduled: 4
+  numberReady: 4
+  numberAvailable: 4
+  updatedNumberScheduled: 4

@@ -1,0 +1,118 @@
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogMonitor
+metadata: {name: m-ok, namespace: app}
+status:
+  monitorState: OK
+  monitorStateSyncStatus: OK
+---
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogMonitor
+metadata: {name: m-alert, namespace: app}
+status:
+  monitorState: Alert
+  monitorStateSyncStatus: OK
+---
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogMonitor
+metadata: {name: m-error, namespace: app}
+status:
+  monitorStateSyncStatus: error validating monitor
+  conditions:
+    - type: Error
+      status: "True"
+      lastTransitionTime: "2026-10-05T11:00:00Z"
+      lastUpdateTime: "2026-10-05T11:00:00Z"
+      message: "400 Bad Request: invalid query"
+---
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogMonitor
+metadata: {name: m-skipped, namespace: app}
+status:
+  monitorState: Skipped
+  conditions:
+    - type: Active
+      status: "True"
+---
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogMonitor
+metadata: {name: m-new, namespace: datadog}
+---
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogDashboard
+metadata: {name: d-ok, namespace: app}
+status:
+  syncStatus: OK
+---
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogDashboard
+metadata: {name: d-error, namespace: app}
+status:
+  syncStatus: error creating dashboard
+---
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogGenericResource
+metadata: {name: g-monitor, namespace: app}
+spec:
+  type: monitor
+status:
+  syncStatus: OK
+---
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogGenericResource
+metadata: {name: g-downtime, namespace: app}
+spec:
+  type: downtime
+status:
+  conditions:
+    - type: StateSynced
+      status: "False"
+      reason: GetError
+      message: "404 Not Found"
+      lastTransitionTime: "2026-10-05T11:00:00Z"
+---
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogMetric
+metadata: {name: dm-ok, namespace: app}
+status:
+  currentValue: "12"
+  conditions:
+    - type: Valid
+      status: "True"
+    - type: Active
+      status: "True"
+---
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogMetric
+metadata: {name: dm-invalid, namespace: app}
+status:
+  currentValue: "0"
+  conditions:
+    - type: Valid
+      status: "False"
+      reason: Unable to fetch data from Datadog
+      message: "invalid metric query"
+---
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogInstrumentation
+metadata: {name: inst-pending, namespace: app}
+---
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogInstrumentation
+metadata: {name: inst-ready, namespace: app}
+status:
+  conditions:
+    - type: ChecksReady
+      status: "True"
+      reason: Ready
+      lastTransitionTime: "2026-10-05T11:00:00Z"
+---
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogCSIDriver
+metadata: {name: datadog-csi, namespace: datadog}
+status:
+  observedGeneration: 1
+  conditions:
+    - type: Ready
+      status: "True"
+      reason: ReconcileSucceeded
+      lastTransitionTime: "2026-10-05T11:00:00Z"

@@ -1,0 +1,20 @@
+kubectl datadog dashboard - ctx kind-ddtui - ns datadog - k8s v1.35.1
+  plugin v1.22.0-test - provider eks (detected)
+  operator 1.22.0 + 1/1 ready leader datadog-operator-7c9d_1a2b (10s ago)
+  refreshed 12:00:00
++- DatadogAgent datadog/datadog-agent - age 4d3h ------------------------------+
+|                                                                              |
+| + Healthy - agents 3/3 ready - 3/3 up-to-date - 0 unavailable                |
+|   rollout [##########] 100% Complete                                         |
+|                                                                              |
+|                                      READY  UPD  UNAV  ROLLOUT               |
+| + DDA datadog-agent                                                          |
+| `- + DDAI datadog-agent (default)                                            |
+|    |- + agent datadog-agent-agent      3/3  3/3     0  [#####] 100% Complete |
+|    |- + DCA datadog-agent-cluste...    1/1  1/1     0  [#####] 100% Complete |
+|    |- + CCR datadog-agent-cluste...    2/2  2/2     0  [#####] 100% Complete |
+|    `- - OTel not enabled                                                     |
+|                                                                              |
+| + no issues                                                                  |
++------------------------------------------------------------------------------+
+# updated+ready  + updated, not ready  . not updated   % = updated+ready/desired

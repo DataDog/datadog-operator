@@ -1,0 +1,24 @@
+kubectl datadog dashboard · ctx kind-ddtui · ns datadog · k8s v1.35.1 · plugin v1.22.0-test · provider none
+  operator not found · refreshed 12:00:00 · next poll in 20s
+┌─ DatadogAgent datadog/datadog-agent ─────────────────────────────────────────────────────────────────────────────────┐
+│                                                                                                                      │
+│ ✓ Healthy · agents 1/1 ready · 1/1 up-to-date · 0 unavailable · rollout ██████████ 100% Complete                     │
+│                                                                                                                      │
+│                                    READY  UPD  UNAV  ROLLOUT                                                         │
+│ ✓ DDA datadog-agent                                                                                                  │
+│ └─ ✓ DDAI datadog-agent (default)                                                                                    │
+│    ├─ ✓ agent datadog-agent-agent    1/1  1/1     0  ██████████ 100% Complete (RollingUpdate)                        │
+│    ├─ – DCA not enabled                                                                                              │
+│    ├─ – CCR not enabled                                                                                              │
+│    └─ – OTel not enabled                                                                                             │
+│                                                                                                                      │
+│ ✓ no issues                                                                                                          │
+└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+█ updated+ready  ▒ updated, not ready  ░ not updated   % = updated+ready / desired
+Other resources · Monitors 5 (OK 1 Alert 1 Other 1 ✗ 1 ? 1) · Dashboards 2 (✗ 1) · SLOs ⚠ no access
+  Generic resources 2 (downtime 1 monitor 1 ✗ 1) · DatadogMetrics 2 (✗ 1) · Instrumentations 2 (? 1) · CSI drivers 1
+  ✗ Monitors app/m-error: 400 Bad Request: invalid query
+  ✗ Dashboards app/d-error: error creating dashboard
+  ✗ Generic resources app/g-downtime: 404 Not Found
+  ✗ DatadogMetrics app/dm-invalid: invalid metric query
+• DatadogAgentProfiles: listed in the DDA namespace only

@@ -1,0 +1,43 @@
+kubectl datadog dashboard - ctx kind-ddtui - ns datadog - k8s v1.35.1
+  plugin v1.22.0-test - provider none - operator not found - refreshed 12:00:00
++- DatadogAgent datadog/datadog-agent - age 4d3h ------------------------------+
+|                                                                              |
+| x Error - agents 12/12 ready - 12/12 up-to-date - 0 unavailable              |
+|   rollout [##########] 100% Rolling                                          |
+|                                                                              |
+|                                    READY  UPD  UNAV  ROLLOUT                 |
+| x DDA datadog-agent                                                          |
+| |- + DDAI datadog-agent (default)                                            |
+| |  |- + agent datadog-agent-agent    3/3  3/3     0  [#######] 100% Complete |
+| |  |- - DCA not enabled                                                      |
+| |  |- - CCR not enabled                                                      |
+| |  `- - OTel not enabled                                                     |
+| |- + DAP datadog/beta - valid + applied +                                    |
+| |  `- + DDAI beta                                                            |
+| |     `- + agent beta-agent          5/5  5/5     0  [#######] 100% Complete |
+| |- x DAP datadog/broken - valid + applied +                                  |
+| |  `- x DDAI broken                                                          |
+| |     `- + agent broken-agent        0/0  0/0     0  [#######] 100% Complete |
+| |- ! DAP datadog/conflict - valid + applied x                                |
+| |  `- - no DDAI                                                              |
+| |- + DAP datadog/gamma - valid + applied +                                   |
+| |  `- + DDAI gamma                                                           |
+| |     `- + agent gamma-agent         2/2  2/2     0  [#######] 100% Complete |
+| |- ? DAP datadog/nostatus - status unknown (profiles controller not runni... |
+| |  `- - no DDAI                                                              |
+| |- ? DAP datadog/pending - valid + applied +                                 |
+| |  `- ? DDAI pending                                                         |
+| |     `- - agent none                                                        |
+| |- ~ DAP datadog/rolling - valid + applied +                                 |
+| |  `- ~ DDAI rolling                                                         |
+| |     `- ~ agent rolling-agent       0/0  0/0     0  [#######] 100% Rolling  |
+| |- + DAP datadog/zeta - valid + applied +                                    |
+| |  `- + DDAI zeta                                                            |
+| |     `- + agent zeta-agent          2/2  2/2     0  [#######] 100% Complete |
+| `- - 2 profiles hidden (0 desired) - --hide-empty                            |
+|                                                                              |
+| x Error  DDAI broken  AgentReconcile=False (AgentReconcileError): failed ... |
+| ! Warn   DAP conflict  Applied=False (Conflict): conflict with existing p... |
+| i Info   DDA datadog-agent  DatadogAgentReconcileSuccess (ReconcileSuccee... |
++------------------------------------------------------------------------------+
+# updated+ready  + updated, not ready  . not updated   % = updated+ready/desired

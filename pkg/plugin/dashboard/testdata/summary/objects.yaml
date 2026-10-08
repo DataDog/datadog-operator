@@ -1,0 +1,30 @@
+apiVersion: datadoghq.com/v2alpha1
+kind: DatadogAgent
+metadata:
+  name: datadog-agent
+  namespace: datadog
+  uid: dda-uid
+---
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgentInternal
+metadata:
+  name: datadog-agent
+  namespace: datadog
+  ownerReferences:
+    - kind: DatadogAgent
+      name: datadog-agent
+      uid: dda-uid
+status:
+  agent:
+    daemonsetName: datadog-agent-agent
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: datadog-agent-agent
+  namespace: datadog
+status:
+  desiredNumberScheduled: 1
+  numberReady: 1
+  numberAvailable: 1
+  updatedNumberScheduled: 1

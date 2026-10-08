@@ -1,0 +1,12 @@
+# Converged workloads with unavailable pods: the default agent DaemonSet
+# converged hours ago with 1 of 2 pods unavailable (Degraded), the Cluster
+# Agent converged 2 minutes ago with 1 of 2 unavailable (Settling), a large
+# profile with 8 of 807 unavailable (Degraded; Healthy with
+# --max-unavailable=1%) and a fully available profile.
+apiVersion: fixture.dashboard.datadoghq.com/v1
+kind: Fixture
+taken: "2026-10-05T12:00:00Z"
+cluster:
+  context: kind-ddtui
+  serverVersion: v1.35.1
+  pluginVersion: v1.22.0-test

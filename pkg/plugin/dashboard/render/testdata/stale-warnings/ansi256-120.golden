@@ -1,0 +1,50 @@
+[1mkubectl datadog dashboard[m[2m · [m[2mctx[m kind-ddtui[2m · [m[2mns[m datadog[2m · [m[2mk8s[m v1.35.1[2m · [m[2mplugin[m v1.22.0-test[2m · [m[2mprovider[m none
+  [2moperator[m [2mnot found[m[2m · [m[2mrefreshed[m 12:00:00
+┌─ [1mDatadogAgent datadog/datadog-agent[m[2m · [m[2mage[m 4d3h ──────────────────────────────────────────────────────────────────────┐
+│                                                                                                                      │
+│ [33m⚠ Degraded[m[2m · [m[2magents[m 7/7 ready[2m · [m7/7 up-to-date[2m · [m0 unavailable[2m · [m[2mrollout[m [32m██████████[m 100% [32mComplete[m                    │
+│                                                                                                                      │
+│ [2m                                   READY  UPD  UNAV  ROLLOUT[m                                                         │
+│ [33m⚠[m [2mDDA[m datadog-agent                                                                                                  │
+│ ├─ [32m✓[m [2mDDAI[m datadog-agent (default)                                                                                    │
+│ │  ├─ [32m✓[m [2magent[m datadog-agent-agent    3/3  3/3     0  [32m██████████[m 100% [32mComplete[m [2m(RollingUpdate)[m                        │
+│ │  ├─ [2m– DCA not enabled[m                                                                                              │
+│ │  ├─ [2m– CCR not enabled[m                                                                                              │
+│ │  └─ [2m– OTel not enabled[m                                                                                             │
+│ ├─ [33m⚠[m [2mDAP[m datadog/batch[2m · [mvalid [32m✓[m applied [32m✓[m                                                                           │
+│ │  └─ [33m⚠[m [2mDDAI[m batch                                                                                                   │
+│ │     └─ [32m✓[m [2magent[m batch-agent         0/0  0/0     0  [32m██████████[m 100% [32mComplete[m [2m(RollingUpdate)[m                        │
+│ ├─ [33m⚠[m [2mDAP[m datadog/cache[2m · [mvalid [32m✓[m applied [32m✓[m                                                                           │
+│ │  └─ [33m⚠[m [2mDDAI[m cache                                                                                                   │
+│ │     └─ [32m✓[m [2magent[m cache-agent         0/0  0/0     0  [32m██████████[m 100% [32mComplete[m [2m(RollingUpdate)[m                        │
+│ ├─ [33m⚠[m [2mDAP[m datadog/dup[2m · [mvalid [32m✓[m applied [1;31m✗[m                                                                             │
+│ │  └─ [2m– no DDAI[m                                                                                                      │
+│ ├─ [33m⚠[m [2mDAP[m datadog/edge[2m · [mvalid [32m✓[m applied [32m✓[m                                                                            │
+│ │  └─ [33m⚠[m [2mDDAI[m edge                                                                                                    │
+│ │     └─ [32m✓[m [2magent[m edge-agent          0/0  0/0     0  [32m██████████[m 100% [32mComplete[m [2m(RollingUpdate)[m                        │
+│ ├─ [33m⚠[m [2mDAP[m datadog/gpu[2m · [mvalid [32m✓[m applied [32m✓[m                                                                             │
+│ │  └─ [33m⚠[m [2mDDAI[m gpu                                                                                                     │
+│ │     └─ [32m✓[m [2magent[m gpu-agent           0/0  0/0     0  [32m██████████[m 100% [32mComplete[m [2m(RollingUpdate)[m                        │
+│ ├─ [32m✓[m [2mDAP[m datadog/ingest[2m · [mvalid [32m✓[m applied [32m✓[m                                                                          │
+│ │  └─ [32m✓[m [2mDDAI[m ingest                                                                                                  │
+│ │     └─ [32m✓[m [2magent[m ingest-agent        0/0  0/0     0  [32m██████████[m 100% [32mComplete[m [2m(RollingUpdate)[m                        │
+│ ├─ [33m⚠[m [2mDAP[m datadog/legacy[2m · [mvalid [32m✓[m applied [32m✓[m                                                                          │
+│ │  └─ [33m⚠[m [2mDDAI[m legacy                                                                                                  │
+│ │     └─ [32m✓[m [2magent[m legacy-agent        0/0  0/0     0  [32m██████████[m 100% [32mComplete[m [2m(RollingUpdate)[m                        │
+│ ├─ [32m✓[m [2mDAP[m datadog/spot[2m · [mvalid [32m✓[m applied [32m✓[m                                                                            │
+│ │  └─ [32m✓[m [2mDDAI[m spot                                                                                                    │
+│ │     └─ [32m✓[m [2magent[m spot-agent          0/0  0/0     0  [32m██████████[m 100% [32mComplete[m [2m(RollingUpdate)[m                        │
+│ └─ [33m⚠[m [2mDAP[m datadog/web[2m · [mvalid [32m✓[m applied [32m✓[m                                                                             │
+│    └─ [33m⚠[m [2mDDAI[m web                                                                                                     │
+│       └─ [32m✓[m [2magent[m web-agent           4/4  4/4     0  [32m██████████[m 100% [32mComplete[m [2m(RollingUpdate)[m                        │
+│                                                                                                                      │
+│ [33m⚠ Warn [m  [2mDDAI[m batch  OverrideReconcileConflict (OverrideConflict): clusterChecksRunner component is set to disabled  │
+│ [33m⚠ Warn [m  [2mDDAI[m cache  OverrideReconcileConflict (OverrideConflict): clusterChecksRunner component is set to disabled  │
+│ [33m⚠ Warn [m  [2mDDAI[m edge  OverrideReconcileConflict (OverrideConflict): clusterChecksRunner component is set to disabled   │
+│ [33m⚠ Warn [m  [2mDDAI[m gpu  OverrideReconcileConflict (OverrideConflict): clusterChecksRunner component is set to disabled    │
+│ [33m⚠ Warn [m  [2mDDAI[m legacy  OverrideReconcileConflict (OverrideConflict): clusterChecksRunner component is set to disabled │
+│ [33m⚠ Warn [m  [2mDDAI[m web  OverrideReconcileConflict (OverrideConflict): clusterChecksRunner component is set to disabled    │
+│ [33m⚠ Warn [m  [2mDAP[m dup  Applied=False (Conflict): conflict with existing profile web                                       │
+│ [2m• Info [m  [2mDDA[m datadog-agent  DatadogAgentReconcileSuccess (ReconcileSucceeded)                                        │
+└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+[2m█ updated+ready  ▒ updated, not ready  ░ not updated   % = updated+ready / desired[m

@@ -1,0 +1,23 @@
+kubectl datadog dashboard · ctx kind-ddtui · ns datadog · k8s v1.35.1 · plugin v1.22.0-test · provider eks (detected)
+  operator 1.22.0 ✓ 1/1 ready leader datadog-operator-7c9d_1a2b (10s ago) · refreshed 12:00:00
+┌─ DatadogAgent datadog/datadog-agent · age 4d3h ──────────────────────────────────────────────────────────────────────┐
+│                                                                                                                      │
+│ ⚠ Degraded · agents 803/812 ready · 812/812 up-to-date · 9 unavailable · rollout █████████▒  98% Settling 3m left    │
+│                                                                                                                      │
+│                                            READY      UPD  UNAV  ROLLOUT                                             │
+│ ⚠ DDA datadog-agent                                                                                                  │
+│ ├─ ⚠ DDAI datadog-agent (default)                                                                                    │
+│ │  ├─ ⚠ agent datadog-agent-agent            1/2      2/2     1  █████▒▒▒▒▒  50% Complete                            │
+│ │  ├─ ↻ DCA datadog-agent-cluster-agent      1/2      2/2     1  █████▒▒▒▒▒  50% Settling 3m left                    │
+│ │  ├─ – CCR not enabled                                                                                              │
+│ │  └─ – OTel not enabled                                                                                             │
+│ ├─ ✓ DAP datadog/large · valid ✓ applied ✓                                                                           │
+│ │  └─ ✓ DDAI large                                                                                                   │
+│ │     └─ ✓ agent large-agent             799/807  807/807     8  █████████▒  99% Complete                            │
+│ └─ ✓ DAP datadog/small · valid ✓ applied ✓                                                                           │
+│    └─ ✓ DDAI small                                                                                                   │
+│       └─ ✓ agent small-agent                 3/3      3/3     0  ██████████ 100% Complete (RollingUpdate)            │
+│                                                                                                                      │
+│ ⚠ Warn   DS datadog-agent-agent  Unavailable (AvailabilityBelowThreshold): 1 unavailable (> 0 allowed)               │
+└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+█ updated+ready  ▒ updated, not ready  ░ not updated   % = updated+ready / desired

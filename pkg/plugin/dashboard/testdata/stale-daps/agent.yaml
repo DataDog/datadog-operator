@@ -1,0 +1,60 @@
+apiVersion: datadoghq.com/v2alpha1
+kind: DatadogAgent
+metadata:
+  name: datadog-agent
+  namespace: datadog
+  uid: dda-uid
+  creationTimestamp: "2026-10-01T09:00:00Z"
+status:
+  conditions:
+    - type: DatadogAgentReconcileSuccess
+      status: "True"
+      reason: ReconcileSucceeded
+      lastTransitionTime: "2026-10-01T09:00:10Z"
+---
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgentInternal
+metadata:
+  name: datadog-agent
+  namespace: datadog
+  uid: ddai-default-uid
+  ownerReferences:
+    - apiVersion: datadoghq.com/v2alpha1
+      kind: DatadogAgent
+      name: datadog-agent
+      uid: dda-uid
+      controller: true
+status:
+  conditions:
+    - type: AgentReconcile
+      status: "True"
+      reason: AgentReconcileOK
+      lastTransitionTime: "2026-10-01T09:00:10Z"
+  agent:
+    desired: 3
+    ready: 3
+    upToDate: 3
+    daemonsetName: datadog-agent-agent
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: datadog-agent-agent
+  namespace: datadog
+  uid: ds-default-uid
+  generation: 1
+  labels:
+    agent.datadoghq.com/name: datadog-agent
+  ownerReferences:
+    - kind: DatadogAgentInternal
+      name: datadog-agent
+      uid: ddai-default-uid
+spec:
+  updateStrategy:
+    type: RollingUpdate
+status:
+  observedGeneration: 1
+  desiredNumberScheduled: 3
+  numberReady: 3
+  numberAvailable: 3
+  updatedNumberScheduled: 3
