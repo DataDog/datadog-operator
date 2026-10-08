@@ -5,12 +5,46 @@
 
 package resources
 
+// This file collects the names, ports, probe settings and environment variables used to render
+// Observability Pipelines Worker workloads. Replica, resource and storage defaults live in the
+// defaults package.
+
 const (
+	appName             = "observability-pipelines-worker"
 	workerContainerName = "worker"
 	dataVolumeName      = "data"
 	dataDirectory       = "/var/lib/observability-pipelines-worker"
+	listenAddress       = "0.0.0.0"
+)
 
-	workerAPIPort int32 = 8686
+const (
+	workerAPIPortName       = "api"
+	workerAPIPort     int32 = 8686
+)
+
+const (
+	probeInitialDelaySeconds       int32 = 15
+	probeTimeoutSeconds            int32 = 15
+	probePeriodSeconds             int32 = 10
+	probeSuccessThreshold          int32 = 1
+	livenessProbeFailureThreshold  int32 = 5
+	readinessProbeFailureThreshold int32 = 3
+)
+
+// The graceful shutdown limit leaves a margin before the termination grace period ends.
+const (
+	minGracefulShutdownLimitSeconds int64 = 10
+	gracefulShutdownMarginSeconds   int64 = 10
+)
+
+const (
+	envDatadogAPIKey                = "DD_API_KEY"
+	envDatadogSite                  = "DD_SITE"
+	envPipelineID                   = "DD_OP_PIPELINE_ID"
+	envDataDirectory                = "DD_OP_DATA_DIR"
+	envAPIEnabled                   = "DD_OP_API_ENABLED"
+	envAPIAddress                   = "DD_OP_API_ADDRESS"
+	envGracefulShutdownLimitSeconds = "DD_OP_GRACEFUL_SHUTDOWN_LIMIT_SECS"
 )
 
 // Names fit Kubernetes' 15-character limit for container ports.

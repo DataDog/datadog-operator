@@ -58,8 +58,8 @@ func newWorkerContainer(worker *datadoghqv1alpha1.DatadogObservabilityPipelinesW
 		Ports:           containerPorts(spec.Ports),
 		Resources:       ptr.Deref(spec.Resources, corev1.ResourceRequirements{}),
 		VolumeMounts:    controllerutils.MergeVolumeMounts(spec.VolumeMounts, []corev1.VolumeMount{{Name: dataVolumeName, MountPath: dataDirectory}}),
-		LivenessProbe:   workerProbe(5),
-		ReadinessProbe:  workerProbe(3),
+		LivenessProbe:   workerProbe(livenessProbeFailureThreshold),
+		ReadinessProbe:  workerProbe(readinessProbeFailureThreshold),
 	}
 }
 
@@ -69,17 +69,17 @@ func newEnvironment(worker *datadoghqv1alpha1.DatadogObservabilityPipelinesWorke
 	var sources []corev1.EnvVar
 	for _, port := range spec.Ports {
 		if name, ok := sourceAddressEnvNames[port.Name]; ok {
-			sources = append(sources, corev1.EnvVar{Name: name, Value: "0.0.0.0:" + strconv.Itoa(int(port.Port))})
+			sources = append(sources, corev1.EnvVar{Name: name, Value: listenAddress + ":" + strconv.Itoa(int(port.Port))})
 		}
 	}
 	required := []corev1.EnvVar{
-		{Name: "DD_API_KEY", ValueFrom: &corev1.EnvVarSource{SecretKeyRef: spec.Datadog.APIKeySecretRef}},
-		{Name: "DD_OP_PIPELINE_ID", Value: *spec.PipelineID},
-		{Name: "DD_SITE", Value: *spec.Datadog.Site},
-		{Name: "DD_OP_DATA_DIR", Value: dataDirectory},
-		{Name: "DD_OP_API_ENABLED", Value: "true"},
-		{Name: "DD_OP_API_ADDRESS", Value: "0.0.0.0:" + strconv.Itoa(int(workerAPIPort))},
-		{Name: "DD_OP_GRACEFUL_SHUTDOWN_LIMIT_SECS", Value: strconv.FormatInt(max(10, *spec.TerminationGracePeriodSeconds-10), 10)},
+		{Name: envDatadogAPIKey, ValueFrom: &corev1.EnvVarSource{SecretKeyRef: spec.Datadog.APIKeySecretRef}},
+		{Name: envPipelineID, Value: *spec.PipelineID},
+		{Name: envDatadogSite, Value: *spec.Datadog.Site},
+		{Name: envDataDirectory, Value: dataDirectory},
+		{Name: envAPIEnabled, Value: "true"},
+		{Name: envAPIAddress, Value: listenAddress + ":" + strconv.Itoa(int(workerAPIPort))},
+		{Name: envGracefulShutdownLimitSeconds, Value: strconv.FormatInt(max(minGracefulShutdownLimitSeconds, *spec.TerminationGracePeriodSeconds-gracefulShutdownMarginSeconds), 10)},
 	}
 	return controllerutils.MergeEnv(controllerutils.MergeEnv(sources, spec.Env), required)
 }
@@ -89,16 +89,16 @@ func containerPorts(ports []datadoghqv1alpha1.DatadogObservabilityPipelinesWorke
 	for _, port := range ports {
 		result = append(result, corev1.ContainerPort{Name: port.Name, ContainerPort: port.Port, Protocol: portProtocol(port)})
 	}
-	return append(result, corev1.ContainerPort{Name: "api", ContainerPort: workerAPIPort, Protocol: corev1.ProtocolTCP})
+	return append(result, corev1.ContainerPort{Name: workerAPIPortName, ContainerPort: workerAPIPort, Protocol: corev1.ProtocolTCP})
 }
 
 func workerProbe(failureThreshold int32) *corev1.Probe {
 	return &corev1.Probe{
 		ProbeHandler:        corev1.ProbeHandler{TCPSocket: &corev1.TCPSocketAction{Port: intstr.FromInt32(workerAPIPort)}},
-		InitialDelaySeconds: 15,
-		TimeoutSeconds:      15,
-		PeriodSeconds:       10,
-		SuccessThreshold:    1,
+		InitialDelaySeconds: probeInitialDelaySeconds,
+		TimeoutSeconds:      probeTimeoutSeconds,
+		PeriodSeconds:       probePeriodSeconds,
+		SuccessThreshold:    probeSuccessThreshold,
 		FailureThreshold:    failureThreshold,
 	}
 }

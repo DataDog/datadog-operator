@@ -35,7 +35,7 @@ func podLabels(worker *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker) ma
 
 func selectorLabels(worker *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker) map[string]string {
 	return map[string]string{
-		"app.kubernetes.io/name":     "observability-pipelines-worker",
+		"app.kubernetes.io/name":     appName,
 		"app.kubernetes.io/instance": worker.Name,
 	}
 }
