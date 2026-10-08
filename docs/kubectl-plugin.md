@@ -53,13 +53,15 @@ Available Commands:
 - deduplicated errors and warnings;
 - a summary of the other Datadog resources (monitors, dashboards, SLOs, …).
 
-**Output.** The command prints one snapshot and exits: styled text on a terminal, plain text when the output is not a terminal (for example a pipe), or JSON with `-o json`.
+**Modes.**
+- **Live (default on a terminal):** a full-screen view that updates from watches until `q` or `Ctrl-C`.
+- **Static:** with `--once`, with `-o json`, or when the output is not a terminal (for example a pipe), it prints one snapshot and exits.
 
 **Requirements.**
 - Datadog Operator 1.21 or later: the DatadogAgentInternal CRD is required. The DatadogAgentProfile CRD is optional.
 - The command expects one DatadogAgent in scope. With several, it lists them and exits non-zero unless you pass a name.
 
-**Permissions.** The command is read-only: it only uses `get` and `list`.
+**Permissions.** The command is read-only: it only uses `get`, `list` and `watch`.
 - A missing permission degrades only the affected panel, which shows `no access`.
 - Helm release history is read from the release Secrets when the DatadogAgent is Helm-managed. Only chart name, version, revision, status and time are used. Pass `--no-helm` to skip it.
 
@@ -73,7 +75,7 @@ Available Commands:
 
 ```console
 $ kubectl datadog dashboard --help
-Show the health of the DatadogAgent, its profiles, internals and workloads, with rollout progress, errors and a summary of the other Datadog resources. The command is read-only.
+Show the health of the DatadogAgent, its profiles, internals and workloads, with rollout progress, errors and a summary of the other Datadog resources. On a terminal the view is live and updates from watches until q or Ctrl-C; with --once, -o or when the output is not a terminal it prints one snapshot. The command is read-only.
 
 Usage:
   datadog dashboard [DatadogAgent name] [flags]
@@ -83,8 +85,11 @@ Aliases:
 
 Examples:
 
-  # show the DatadogAgent of the current namespace
+  # watch the DatadogAgent of the current namespace (live on a terminal)
   kubectl datadog dashboard
+
+  # print a static snapshot and exit
+  kubectl datadog dashboard --once
 
   # look for the DatadogAgent in all namespaces, and show failing agent pods
   kubectl datadog dashboard -A --pods
@@ -107,11 +112,14 @@ Flags:
   -h, --help                     help for dashboard
       --hide-empty               Hide the healthy profiles whose agent DaemonSet has 0 desired pods; profiles with an issue, a rollout or no DaemonSet stay shown
       --hide-empty-force         Like --hide-empty, but also hide the profiles with 0 desired pods that have warnings or errors, and their issues; profiles with a rollout in progress, no status, no DDAI or no DaemonSet stay shown
+      --log-file string          Live view only: write the client logs and warnings to this file instead of discarding them
       --max-unavailable string   Unavailable agent pods tolerated per DaemonSet or Deployment once its rollout converged, as a count or a percentage of desired pods rounded down (e.g. 2 or 1%); more show Settling for 5 minutes after the rollout, then Degraded with a warning (default "0")
   -n, --namespace string         If present, the namespace scope for this CLI request
       --no-color                 Disable colors (also set by the NO_COLOR environment variable)
       --no-helm                  Skip the Helm release history lookup (no Secret access)
+      --once                     Print a static snapshot and exit instead of the live view
   -o, --output string            Output format: "" (styled text) or "json"
+      --poll-interval duration   Live view only: how often the polled sources (other Datadog resources, operator and its lease) refresh; watched resources update immediately (minimum 5s) (default 30s)
       --pods                     Read the agent pods: enables Stalled detection and shows failing pods and their nodes
       --sort string              Profile order: "name" or "desired" (agent DaemonSet desired pods, most first; profiles without a DaemonSet last) (default "name")
       --stall-after duration     Time without progress before a rollout is Stalled; only with --pods (default 10m0s)
@@ -122,7 +130,8 @@ The command also accepts the standard kubeconfig flags (`--kubeconfig`, `--conte
 **Notes.**
 - **Stale profiles:** on clusters with many unused profiles, `--hide-empty` hides healthy profiles with 0 desired pods. `--hide-empty-force` also hides those carrying warnings, together with their issues. Either way the view ends with a line counting what was hidden, and the totals and DatadogAgent health still include hidden profiles.
 - **`--max-unavailable`** is a runtime health threshold, separate from the DaemonSet's `rollingUpdate.maxUnavailable` rollout budget. The default `0` reports any unavailable pod once the rollout has settled.
-- **`--pods`** also lists the Agent pods (label-selected, in the DatadogAgent namespace). Leave it off on very large clusters if API load matters.
+- **Refresh:** the DatadogAgent, profiles, internals and workloads are watched and update immediately. The other Datadog resources and the operator are polled every `--poll-interval` (default 30s), and the header counts down to the next poll.
+- **`--pods`** adds a watch on the Agent pods (label-selected, in the DatadogAgent namespace). Leave it off on very large clusters if memory or API load matters.
 
 ### Agent sub-commands
 

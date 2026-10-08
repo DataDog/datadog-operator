@@ -1,5 +1,6 @@
 Component,Origin,License
 core,cel.dev/expr,Apache-2.0
+core,charm.land/bubbletea/v2,MIT
 core,charm.land/lipgloss/v2,MIT
 core,dario.cat/mergo,BSD-3-Clause
 core,github.com/Azure/go-ansiterm,MIT

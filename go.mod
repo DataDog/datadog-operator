@@ -35,6 +35,7 @@ require (
 )
 
 require (
+	charm.land/bubbletea/v2 v2.0.10
 	charm.land/lipgloss/v2 v2.0.6
 	github.com/DataDog/datadog-agent/pkg/config/create v0.83.2
 	github.com/DataDog/datadog-agent/pkg/config/model v0.83.2

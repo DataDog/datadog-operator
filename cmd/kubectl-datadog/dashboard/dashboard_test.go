@@ -99,7 +99,7 @@ func TestDashboardPlainOutput(t *testing.T) {
 }
 
 func TestDashboardOptionsReachRenderer(t *testing.T) {
-	out, _, err := runFixture(t, "stalled", "--ascii", "--pods", "--stall-after=10m")
+	out, _, err := runFixture(t, "stalled", "--once", "--ascii", "--pods", "--stall-after=10m")
 	require.NoError(t, err)
 	snap, err := dash.LoadFixture(filepath.Join(fixtures, "stalled"))
 	require.NoError(t, err)
@@ -181,6 +181,8 @@ func TestDashboardFlagValidation(t *testing.T) {
 		"max-unav fraction":  {"--max-unavailable=1.5"},
 		"max-unav word":      {"--max-unavailable=some"},
 		"empty max-unav":     {"--max-unavailable="},
+		"poll too fast":      {"--poll-interval=4s"},
+		"zero poll":          {"--poll-interval=0"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			_, _, err := runFixture(t, "steady", args...)
@@ -191,6 +193,31 @@ func TestDashboardFlagValidation(t *testing.T) {
 	assert.ErrorContains(t, err, `invalid --sort: unsupported profile sort "ready": use "name" or "desired"`)
 	_, _, err = runFixture(t, "steady", "--max-unavailable=101%")
 	assert.ErrorContains(t, err, `invalid --max-unavailable: "101%" is not a non-negative integer or a percentage from 0% to 100%`)
+	_, _, err = runFixture(t, "steady", "--poll-interval=1s")
+	assert.ErrorContains(t, err, "--poll-interval must be at least 5s")
+}
+
+// --poll-interval sets the live store poll interval; the forbidden-watch
+// fallback never polls slower than it.
+func TestDashboardPollInterval(t *testing.T) {
+	for name, tt := range map[string]struct {
+		args           []string
+		poll, fallback time.Duration
+	}{
+		"default": {nil, dash.DefaultPollInterval, dash.DefaultFallbackInterval},
+		"slower":  {[]string{"--poll-interval=2m"}, 2 * time.Minute, dash.DefaultFallbackInterval},
+		"faster":  {[]string{"--poll-interval=5s"}, 5 * time.Second, 5 * time.Second},
+	} {
+		t.Run(name, func(t *testing.T) {
+			o := newOptions(genericclioptions.NewTestIOStreamsDiscard())
+			cmd := newCmd(o)
+			require.NoError(t, cmd.ParseFlags(tt.args))
+			require.NoError(t, o.validate())
+			cfg := o.informerConfig(dash.ListConfig{}, nil)
+			assert.Equal(t, tt.poll, cfg.PollInterval)
+			assert.Equal(t, tt.fallback, cfg.FallbackInterval)
+		})
+	}
 }
 
 // --max-unavailable reaches Build in the static text and JSON modes; it
@@ -210,7 +237,7 @@ func TestDashboardMaxUnavailable(t *testing.T) {
 		t.Run(tc.flag, func(t *testing.T) {
 			want, err := dash.Build(snap, dash.BuildConfig{StallAfter: defaultStallAfter, MaxUnavailable: tc.max}, nil, testNow)
 			require.NoError(t, err)
-			var args []string
+			args := []string{"--once"}
 			if tc.flag != "" {
 				args = append(args, tc.flag)
 			}
@@ -243,7 +270,7 @@ func TestDashboardProfileFlags(t *testing.T) {
 	want, err := dash.Build(snap, cfg, nil, testNow)
 	require.NoError(t, err)
 
-	out, _, err := runFixture(t, "stale-daps", "--hide-empty", "--sort=desired")
+	out, _, err := runFixture(t, "stale-daps", "--once", "--hide-empty", "--sort=desired")
 	require.NoError(t, err)
 	assert.Equal(t, render.Text(want, render.Theme{Width: render.DefaultWidth}, testNow), out)
 	assert.Contains(t, out, "2 profiles hidden (0 desired)")
@@ -257,7 +284,7 @@ func TestDashboardProfileFlags(t *testing.T) {
 	require.NotEmpty(t, v.DDA.Profiles)
 	assert.Equal(t, "beta", v.DDA.Profiles[0].Name)
 
-	out, _, err = runFixture(t, "stale-daps", "--sort=name")
+	out, _, err = runFixture(t, "stale-daps", "--once", "--sort=name")
 	require.NoError(t, err)
 	assert.NotContains(t, out, "hidden")
 }
@@ -269,7 +296,7 @@ func TestDashboardHideEmptyForce(t *testing.T) {
 	want, err := dash.Build(snap, dash.BuildConfig{StallAfter: defaultStallAfter, HideEmptyForce: true}, nil, testNow)
 	require.NoError(t, err)
 
-	out, _, err := runFixture(t, "stale-warnings", "--hide-empty-force")
+	out, _, err := runFixture(t, "stale-warnings", "--once", "--hide-empty-force")
 	require.NoError(t, err)
 	assert.Equal(t, render.Text(want, render.Theme{Width: render.DefaultWidth}, testNow), out)
 	assert.Contains(t, out, "7 hidden: 2 no warnings · 5 with warnings · --hide-empty-force")
@@ -286,7 +313,7 @@ func TestDashboardHideEmptyForce(t *testing.T) {
 	assert.Equal(t, 5, v.DDA.HiddenIssues)
 	assert.Len(t, v.Issues, 2)
 
-	out, _, err = runFixture(t, "stale-warnings", "--hide-empty")
+	out, _, err = runFixture(t, "stale-warnings", "--once", "--hide-empty")
 	require.NoError(t, err)
 	assert.Contains(t, out, "2 profiles hidden (0 desired) · --hide-empty")
 }
@@ -294,7 +321,7 @@ func TestDashboardHideEmptyForce(t *testing.T) {
 func TestDashboardAlias(t *testing.T) {
 	cmd := New(genericclioptions.NewTestIOStreamsDiscard())
 	assert.Equal(t, []string{"dash"}, cmd.Aliases)
-	for _, f := range []string{"namespace", "all-namespaces", "context", "output", "ascii", "no-color", "pods", "stall-after", "no-helm", "hide-empty", "hide-empty-force", "sort", "max-unavailable"} {
+	for _, f := range []string{"namespace", "all-namespaces", "context", "output", "once", "ascii", "no-color", "pods", "stall-after", "no-helm", "hide-empty", "hide-empty-force", "sort", "max-unavailable"} {
 		assert.NotNil(t, cmd.Flags().Lookup(f), f)
 	}
 }

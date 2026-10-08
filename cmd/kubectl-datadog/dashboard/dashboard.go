@@ -13,7 +13,9 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/signal"
 	"strconv"
+	"syscall"
 	"time"
 
 	"github.com/charmbracelet/colorprofile"
@@ -27,14 +29,18 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/plugin/common"
 	dash "github.com/DataDog/datadog-operator/pkg/plugin/dashboard"
 	"github.com/DataDog/datadog-operator/pkg/plugin/dashboard/render"
+	"github.com/DataDog/datadog-operator/pkg/plugin/dashboard/tui"
 	"github.com/DataDog/datadog-operator/pkg/plugin/helm"
 	"github.com/DataDog/datadog-operator/pkg/rollout"
 	"github.com/DataDog/datadog-operator/pkg/version"
 )
 
 var dashboardExample = `
-  # show the DatadogAgent of the current namespace
+  # watch the DatadogAgent of the current namespace (live on a terminal)
   %[1]s dashboard
+
+  # print a static snapshot and exit
+  %[1]s dashboard --once
 
   # look for the DatadogAgent in all namespaces, and show failing agent pods
   %[1]s dashboard -A --pods
@@ -56,9 +62,14 @@ const (
 	outputJSON = "json"
 
 	defaultStallAfter = 10 * time.Minute
+	// minPollInterval bounds --poll-interval to keep the API load low.
+	minPollInterval = 5 * time.Second
 
 	clientQPS   = 50
 	clientBurst = 100
+
+	// liveCloseTimeout bounds the wait for the live store to stop on exit.
+	liveCloseTimeout = 2 * time.Second
 )
 
 // options provides information required by the dashboard command.
@@ -70,11 +81,14 @@ type options struct {
 	ddaName       string
 	allNamespaces bool
 	output        string
+	once          bool
 	ascii         bool
 	noColor       bool
 	pods          bool
 	stallAfter    time.Duration
+	pollInterval  time.Duration
 	noHelm        bool
+	logFile       string
 	hideEmpty     bool
 	hideForce     bool
 	sort          string
@@ -83,8 +97,15 @@ type options struct {
 	maxUnav        string
 	maxUnavailable rollout.MaxUnavailable
 
-	// newStore builds the store; tests replace it.
+	// newStore builds the store of the static mode; tests replace it.
 	newStore func(o *options) (dash.Store, error)
+	// newLiveStore builds the store of the live mode; its goroutines are
+	// started with goFunc. Tests replace it.
+	newLiveStore func(o *options, goFunc func(func())) (dash.Store, error)
+	// runTUI runs the live view; tests replace it.
+	runTUI func(ctx context.Context, cfg tui.Config) error
+	// closeTimeout bounds the wait for the live store to stop.
+	closeTimeout time.Duration
 	// isTerminal reports whether w is a terminal.
 	isTerminal func(w io.Writer) bool
 	// now is the clock.
@@ -96,12 +117,16 @@ type options struct {
 // newOptions provides an instance of options with default values.
 func newOptions(streams genericclioptions.IOStreams) *options {
 	o := &options{
-		IOStreams:  streams,
-		stallAfter: defaultStallAfter,
-		newStore:   newListStore,
-		isTerminal: isTerminal,
-		now:        time.Now,
-		getenv:     os.Getenv,
+		IOStreams:    streams,
+		stallAfter:   defaultStallAfter,
+		pollInterval: dash.DefaultPollInterval,
+		newStore:     newListStore,
+		newLiveStore: newInformerStore,
+		runTUI:       tui.Run,
+		closeTimeout: liveCloseTimeout,
+		isTerminal:   isTerminal,
+		now:          time.Now,
+		getenv:       os.Getenv,
 	}
 	o.SetConfigFlags()
 	return o
@@ -117,7 +142,7 @@ func newCmd(o *options) *cobra.Command {
 		Use:          "dashboard [DatadogAgent name]",
 		Aliases:      []string{"dash"},
 		Short:        "Show the health of the DatadogAgent, its profiles and its workloads",
-		Long:         "Show the health of the DatadogAgent, its profiles, internals and workloads, with rollout progress, errors and a summary of the other Datadog resources. The command is read-only.",
+		Long:         "Show the health of the DatadogAgent, its profiles, internals and workloads, with rollout progress, errors and a summary of the other Datadog resources. On a terminal the view is live and updates from watches until q or Ctrl-C; with --once, -o or when the output is not a terminal it prints one snapshot. The command is read-only.",
 		Example:      fmt.Sprintf(dashboardExample, "kubectl datadog"),
 		SilenceUsage: true,
 		RunE: func(c *cobra.Command, args []string) error {
@@ -134,11 +159,14 @@ func newCmd(o *options) *cobra.Command {
 	o.ConfigFlags.AddFlags(cmd.Flags())
 	cmd.Flags().BoolVarP(&o.allNamespaces, "all-namespaces", "A", false, "Look for the DatadogAgent in all namespaces")
 	cmd.Flags().StringVarP(&o.output, "output", "o", "", `Output format: "" (styled text) or "json"`)
+	cmd.Flags().BoolVar(&o.once, "once", false, "Print a static snapshot and exit instead of the live view")
 	cmd.Flags().BoolVar(&o.ascii, "ascii", false, "Use ASCII characters only")
 	cmd.Flags().BoolVar(&o.noColor, "no-color", false, "Disable colors (also set by the NO_COLOR environment variable)")
 	cmd.Flags().BoolVar(&o.pods, "pods", false, "Read the agent pods: enables Stalled detection and shows failing pods and their nodes")
 	cmd.Flags().DurationVar(&o.stallAfter, "stall-after", defaultStallAfter, "Time without progress before a rollout is Stalled; only with --pods")
+	cmd.Flags().DurationVar(&o.pollInterval, "poll-interval", dash.DefaultPollInterval, "Live view only: how often the polled sources (other Datadog resources, operator and its lease) refresh; watched resources update immediately (minimum 5s)")
 	cmd.Flags().BoolVar(&o.noHelm, "no-helm", false, "Skip the Helm release history lookup (no Secret access)")
+	cmd.Flags().StringVar(&o.logFile, "log-file", "", "Live view only: write the client logs and warnings to this file instead of discarding them")
 	cmd.Flags().BoolVar(&o.hideEmpty, "hide-empty", false, "Hide the healthy profiles whose agent DaemonSet has 0 desired pods; profiles with an issue, a rollout or no DaemonSet stay shown")
 	cmd.Flags().BoolVar(&o.hideForce, "hide-empty-force", false, "Like --hide-empty, but also hide the profiles with 0 desired pods that have warnings or errors, and their issues; profiles with a rollout in progress, no status, no DDAI or no DaemonSet stay shown")
 	cmd.Flags().StringVar(&o.maxUnav, "max-unavailable", "0", "Unavailable agent pods tolerated per DaemonSet or Deployment once its rollout converged, as a count or a percentage of desired pods rounded down (e.g. 2 or 1%); more show Settling for 5 minutes after the rollout, then Degraded with a warning")
@@ -172,6 +200,9 @@ func (o *options) validate() error {
 	if o.stallAfter <= 0 {
 		return errors.New("--stall-after must be positive")
 	}
+	if o.pollInterval < minPollInterval {
+		return fmt.Errorf("--poll-interval must be at least %s", minPollInterval)
+	}
 	sort, err := dash.ParseProfileSort(o.sort)
 	if err != nil {
 		return fmt.Errorf("invalid --sort: %w", err)
@@ -185,11 +216,25 @@ func (o *options) validate() error {
 	return nil
 }
 
-// run reads the cluster once and renders the dashboard.
+// live reports whether the dashboard runs live: the default on a terminal,
+// unless --once or -o is set.
+func (o *options) live() bool {
+	return !o.once && o.output == "" && o.isTerminal(o.Out)
+}
+
+// run renders the dashboard, live or once.
 func (o *options) run(ctx context.Context) error {
 	if ctx == nil {
 		ctx = context.Background()
 	}
+	if o.live() {
+		return o.runLive(ctx)
+	}
+	return o.runOnce(ctx)
+}
+
+// runOnce reads the cluster once and renders the dashboard.
+func (o *options) runOnce(ctx context.Context) error {
 	store, err := o.newStore(o)
 	if err != nil {
 		return err
@@ -213,6 +258,62 @@ func (o *options) run(ctx context.Context) error {
 	}
 	_, err = io.WriteString(o.Out, render.Text(v, o.theme(), now))
 	return err
+}
+
+// runLive runs the live view until the user quits or a signal arrives.
+// Logging is silenced before any client is built, since nothing may write
+// to the terminal the view owns. Panics in the store and client-go
+// goroutines quit the view, and the error is printed once the terminal is
+// restored. On exit the signal handler is released first, so a second
+// signal kills a slow shutdown, and the wait for the store is bounded.
+func (o *options) runLive(ctx context.Context) error {
+	ctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
+	defer stop()
+	restoreLogs, err := dash.SilenceLogging(o.logFile)
+	if err != nil {
+		return err
+	}
+	defer restoreLogs()
+	fatal := tui.NewFatal()
+	defer tui.RoutePanics(fatal)()
+
+	store, err := o.newLiveStore(o, fatal.Go)
+	if err != nil {
+		return err
+	}
+	defer closeWithin(store, o.closeTimeout)
+	defer stop()
+	if err = store.Start(ctx); err != nil {
+		if ctx.Err() != nil {
+			// Interrupted while starting.
+			return nil
+		}
+		return o.buildError(err)
+	}
+	return o.runTUI(ctx, tui.Config{
+		Store:         store,
+		Build:         o.buildConfig(),
+		Fatal:         fatal,
+		Namespace:     o.UserNamespace,
+		AllNamespaces: o.allNamespaces,
+		Color:         o.theme().Color,
+		ASCII:         o.ascii,
+		Now:           o.now,
+	})
+}
+
+// closeWithin closes the store and waits for it at most timeout; the
+// process is exiting, so goroutines still blocked are left behind.
+func closeWithin(store dash.Store, timeout time.Duration) {
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		store.Close()
+	}()
+	select {
+	case <-done:
+	case <-time.After(timeout):
+	}
 }
 
 func (o *options) buildConfig() dash.BuildConfig {
@@ -270,6 +371,26 @@ func newListStore(o *options) (dash.Store, error) {
 		return nil, err
 	}
 	return dash.NewListStore(clients, cfg), nil
+}
+
+// newInformerStore builds the live store watching the cluster.
+func newInformerStore(o *options, goFunc func(func())) (dash.Store, error) {
+	clients, cfg, err := o.storeConfig()
+	if err != nil {
+		return nil, err
+	}
+	return dash.NewInformerStore(clients, o.informerConfig(cfg, goFunc)), nil
+}
+
+// informerConfig is the live store configuration. A source whose watch is
+// forbidden is polled at most as slowly as --poll-interval.
+func (o *options) informerConfig(cfg dash.ListConfig, goFunc func(func())) dash.InformerConfig {
+	return dash.InformerConfig{
+		ListConfig:       cfg,
+		Go:               goFunc,
+		PollInterval:     o.pollInterval,
+		FallbackInterval: min(dash.DefaultFallbackInterval, o.pollInterval),
+	}
 }
 
 // storeConfig builds the clients and the configuration of the stores.
