@@ -13,17 +13,20 @@
 package validation
 
 import (
+	"path"
+
 	"k8s.io/apimachinery/pkg/util/validation/field"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	byocvalidation "github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/validation"
 )
 
-// ValidateWorkerSpec checks image and component rules after defaults are applied.
+// ValidateWorkerSpec checks image, component and reserved name rules after defaults are applied.
 // Single-field constraints, such as minimum lengths, remain in the CRD schema.
 func ValidateWorkerSpec(spec *datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerSpec) field.ErrorList {
 	path := field.NewPath("spec")
 	errs := byocvalidation.ValidateStatefulComponent(&spec.DatadogBYOCClusterStatefulComponentSpec, path)
+	errs = append(errs, validateReservedNames(spec, path)...)
 	imagePath := path.Child("image")
 	if spec.Image == nil {
 		return append(errs, field.Required(imagePath, "image must be specified"))
@@ -35,6 +38,43 @@ func ValidateWorkerSpec(spec *datadoghqv1alpha1.DatadogObservabilityPipelinesWor
 		errs = append(errs, field.Invalid(imagePath, nil, "exactly one of tag or digest must be specified"))
 	} else if spec.Image.Digest != nil && *spec.Image.Digest == "" {
 		errs = append(errs, field.Required(imagePath.Child("digest"), "digest must be non-empty"))
+	}
+	return errs
+}
+
+// These names mirror the container, port, volume and mount that every Worker workload defines.
+const (
+	reservedContainerName       = "worker"
+	reservedPortName            = "api"
+	reservedPort          int32 = 8686
+	reservedVolumeName          = "data"
+	reservedMountPath           = "/var/lib/observability-pipelines-worker"
+)
+
+func validateReservedNames(spec *datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerSpec, fieldPath *field.Path) field.ErrorList {
+	var errs field.ErrorList
+	for i, port := range spec.Ports {
+		if port.Name == reservedPortName {
+			errs = append(errs, field.Invalid(fieldPath.Child("ports").Index(i).Child("name"), port.Name, "is reserved for the Worker API port"))
+		}
+		if port.Port == reservedPort {
+			errs = append(errs, field.Invalid(fieldPath.Child("ports").Index(i).Child("port"), port.Port, "is reserved for the Worker API port"))
+		}
+	}
+	for i, container := range spec.InitContainers {
+		if container.Name == reservedContainerName {
+			errs = append(errs, field.Invalid(fieldPath.Child("initContainers").Index(i).Child("name"), container.Name, "is reserved for the Worker container"))
+		}
+	}
+	for i, volume := range spec.Volumes {
+		if volume.Name == reservedVolumeName {
+			errs = append(errs, field.Invalid(fieldPath.Child("volumes").Index(i).Child("name"), volume.Name, "is reserved for a built-in volume"))
+		}
+	}
+	for i, volumeMount := range spec.VolumeMounts {
+		if path.Clean(volumeMount.MountPath) == reservedMountPath {
+			errs = append(errs, field.Invalid(fieldPath.Child("volumeMounts").Index(i).Child("mountPath"), volumeMount.MountPath, "is reserved for a built-in volume mount"))
+		}
 	}
 	return errs
 }

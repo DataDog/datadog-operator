@@ -503,27 +503,6 @@ func TestBuildResources_StatefulSet(t *testing.T) {
 			},
 			wantError: "worker image must specify exactly one of tag or digest",
 		},
-		{
-			name: "reserved port name",
-			workerFunc: func(worker *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker) {
-				worker.Spec.Ports = append(worker.Spec.Ports, datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerPort{Name: "api", Port: 9000})
-			},
-			wantError: `worker port name "api" is reserved`,
-		},
-		{
-			name: "reserved init container name",
-			workerFunc: func(worker *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker) {
-				worker.Spec.InitContainers = []corev1.Container{{Name: "worker", Image: "busybox"}}
-			},
-			wantError: `worker init container name "worker" is reserved`,
-		},
-		{
-			name: "reserved volume name",
-			workerFunc: func(worker *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker) {
-				worker.Spec.Volumes = append(worker.Spec.Volumes, corev1.Volume{Name: "data", VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: "data"}}})
-			},
-			wantError: `worker volume name "data" is reserved`,
-		},
 	}
 
 	for _, tt := range tests {

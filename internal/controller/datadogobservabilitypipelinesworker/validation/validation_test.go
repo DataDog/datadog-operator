@@ -163,6 +163,35 @@ func TestValidateWorkerSpec(t *testing.T) {
 			},
 		},
 		{
+			name: "reserved names",
+			spec: datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerSpec{
+				DatadogBYOCClusterPipelineComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{
+					Ports: []datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerPort{
+						{Name: "api", Port: 9000},
+						{Name: "otlp-http", Port: 8686},
+					},
+					DatadogBYOCClusterStatefulComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{
+						DatadogBYOCClusterComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
+							InitContainers: []corev1.Container{{Name: "worker"}},
+							Volumes:        []corev1.Volume{{Name: "data"}},
+							VolumeMounts:   []corev1.VolumeMount{{Name: "certificates", MountPath: "/var/lib/observability-pipelines-worker/"}},
+						},
+					},
+				},
+				Image: &datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerImageSpec{
+					Repository: ptr.To("registry.example.com/worker"),
+					Tag:        ptr.To("v1"),
+				},
+			},
+			want: []string{
+				"spec.ports[0].name: is reserved for the Worker API port",
+				"spec.ports[1].port: is reserved for the Worker API port",
+				"spec.initContainers[0].name: is reserved for the Worker container",
+				"spec.volumes[0].name: is reserved for a built-in volume",
+				"spec.volumeMounts[0].mountPath: is reserved for a built-in volume mount",
+			},
+		},
+		{
 			name: "missing image preserves component errors",
 			spec: datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerSpec{
 				DatadogBYOCClusterPipelineComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{
