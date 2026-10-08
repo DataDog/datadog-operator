@@ -46,8 +46,9 @@ func ValidateWorkerSpec(spec *datadoghqv1alpha1.DatadogObservabilityPipelinesWor
 	return errs
 }
 
-// validatePorts rejects ports that collide with the Worker API port or with each other,
-// since the Worker cannot bind two listeners to the same address.
+// validatePorts rejects ports that collide with the Worker API port or with each other.
+// The Worker cannot bind two listeners to the same address, and the Service exposing every port
+// rejects two ports with the same number and protocol even when their names differ.
 func validatePorts(ports []datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerPort, fieldPath *field.Path) field.ErrorList {
 	type portKey struct {
 		port     int32
