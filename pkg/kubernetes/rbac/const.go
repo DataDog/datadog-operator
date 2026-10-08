@@ -48,6 +48,7 @@ const (
 	KubeAIAPIGroup                = "kubeai.org"
 	DynamoAPIGroup                = "nvidia.com"
 	KServeAPIGroup                = "serving.kserve.io"
+	KueueAPIGroup                 = "kueue.x-k8s.io"
 
 	// Service Mesh API groups
 	IstioNetworkingAPIGroup = "networking.istio.io"
@@ -157,6 +158,10 @@ const (
 	InferenceServicesResource                         = "inferenceservices"
 	ServingRuntimesResource                           = "servingruntimes"
 	TrainedModelsResource                             = "trainedmodels"
+	KueueClusterQueuesResource                        = "clusterqueues"
+	KueueLocalQueuesResource                          = "localqueues"
+	KueueResourceFlavorsResource                      = "resourceflavors"
+	KueueWorkloadsResource                            = "workloads"
 
 	// GKE resources
 	GCPTrafficExtensionsResource = "gcptrafficextensions"

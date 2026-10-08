@@ -42,6 +42,7 @@ import (
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/helmcheck"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/kubernetesactions"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/kubernetesstatecore"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/kueue"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/livecontainer"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/liveprocess"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/logcollection"

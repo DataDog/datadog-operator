@@ -105,6 +105,9 @@ type DatadogAgentReconciler struct {
 // +kubebuilder:rbac:groups=karpenter.k8s.aws,resources=*,verbs=get;list;watch
 // +kubebuilder:rbac:groups=eks.amazonaws.com,resources=*,verbs=get;list;watch
 
+// Kueue
+// +kubebuilder:rbac:groups=kueue.x-k8s.io,resources=clusterqueues;localqueues;resourceflavors;workloads,verbs=get;list;watch
+
 // Configure Datadog Intrumentation
 // +kubebuilder:rbac:groups=datadoghq.com,resources=datadoginstrumentations,verbs=get;list;watch
 // +kubebuilder:rbac:groups=datadoghq.com,resources=datadoginstrumentations/status,verbs=patch;update

@@ -1017,6 +1017,41 @@ func (builder *DatadogAgentBuilder) WithHelmCheckValuesAsTags(valuesAsTags map[s
 	return builder
 }
 
+// Kueue
+
+func (builder *DatadogAgentBuilder) initKueue() {
+	if builder.datadogAgent.Spec.Features.Kueue == nil {
+		builder.datadogAgent.Spec.Features.Kueue = &v2alpha1.KueueFeatureConfig{}
+	}
+}
+
+func (builder *DatadogAgentBuilder) WithKueueEnabled(enabled bool) *DatadogAgentBuilder {
+	builder.initKueue()
+	builder.datadogAgent.Spec.Features.Kueue.Enabled = new(enabled)
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithKueueCollectWorkloadEvents(enabled bool) *DatadogAgentBuilder {
+	builder.initKueue()
+	builder.datadogAgent.Spec.Features.Kueue.CollectWorkloadEvents = new(enabled)
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithKueueMetricsService(name, namespace string) *DatadogAgentBuilder {
+	builder.initKueue()
+	builder.datadogAgent.Spec.Features.Kueue.MetricsService = &v2alpha1.KueueMetricsServiceConfig{
+		Name:      new(name),
+		Namespace: new(namespace),
+	}
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithKueueCustomConf(conf *v2alpha1.CustomConfig) *DatadogAgentBuilder {
+	builder.initKueue()
+	builder.datadogAgent.Spec.Features.Kueue.Conf = conf
+	return builder
+}
+
 func (builder *DatadogAgentBuilder) initKubernetesActions() {
 	if builder.datadogAgent.Spec.Features.KubernetesActions == nil {
 		builder.datadogAgent.Spec.Features.KubernetesActions = &v2alpha1.KubernetesActionsFeatureConfig{}

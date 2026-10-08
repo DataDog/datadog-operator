@@ -2233,6 +2233,99 @@ spec:
                             Default: false
                           type: boolean
                       type: object
+                    kueue:
+                      description: Kueue configuration.
+                      properties:
+                        collectWorkloadEvents:
+                          description: |-
+                            CollectWorkloadEvents enables the collection of Kueue Workload lifecycle events,
+                            and grants the node Agent read access to Kueue Workloads. Also applies when `conf` is set.
+                            Default: true
+                          type: boolean
+                        conf:
+                          description: |-
+                            Conf overrides the configuration for the Kueue check. It replaces the generated configuration,
+                            so it must keep `advanced_ad_identifiers.kube_endpoints` and `cluster_check: true` to scrape every Kueue replica.
+                            Ignored when cluster checks are disabled.
+                          properties:
+                            configData:
+                              description: ConfigData corresponds to the configuration file content.
+                              type: string
+                            configMap:
+                              description: ConfigMap references an existing ConfigMap with the configuration file content.
+                              properties:
+                                items:
+                                  description: Items maps a ConfigMap data `key` to a file `path` mount.
+                                  items:
+                                    description: Maps a string key to a path within a volume.
+                                    properties:
+                                      key:
+                                        description: key is the key to project.
+                                        type: string
+                                      mode:
+                                        description: |-
+                                          mode is Optional: mode bits used to set permissions on this file.
+                                          Must be an octal value between 0000 and 0777 or a decimal value between 0 and 511.
+                                          YAML accepts both octal and decimal values, JSON requires decimal values for mode bits.
+                                          If not specified, the volume defaultMode will be used.
+                                          This might be in conflict with other options that affect the file
+                                          mode, like fsGroup, and the result can be other mode bits set.
+                                        format: int32
+                                        type: integer
+                                      path:
+                                        description: |-
+                                          path is the relative path of the file to map the key to.
+                                          May not be an absolute path.
+                                          May not contain the path element '..'.
+                                          May not start with the string '..'.
+                                        type: string
+                                      user:
+                                        description: |-
+                                          user is Optional: The owner UID of the created file.
+                                          If specified, the item-level user field takes precedence over defaultUser.
+                                          (Alpha) This field requires the AtomicWriteVolumeUserFields feature gate to be enabled.
+                                        format: int64
+                                        type: integer
+                                    required:
+                                      - key
+                                      - path
+                                    type: object
+                                  type: array
+                                  x-kubernetes-list-map-keys:
+                                    - key
+                                  x-kubernetes-list-type: map
+                                name:
+                                  description: Name is the name of the ConfigMap.
+                                  type: string
+                              type: object
+                          type: object
+                        enabled:
+                          description: |-
+                            Enabled enables Kueue metadata collection in the Cluster Agent and the Kueue check,
+                            which runs as an endpoints check against each Kueue controller pod.
+                            The check requires `features.clusterChecks.enabled` and a node Agent scheduled on the Kueue controller nodes.
+                            (Requires Agent and Cluster Agent 7.82.0+. Kueue with more than one replica requires Agent 7.86.0+.)
+                            Default: false
+                          type: boolean
+                        metricsService:
+                          description: MetricsService identifies the Service exposing the Kueue controller metrics.
+                          properties:
+                            name:
+                              description: |-
+                                Name is the name of the Kueue metrics Service.
+                                Default: kueue-controller-manager-metrics-service
+                              maxLength: 63
+                              pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
+                              type: string
+                            namespace:
+                              description: |-
+                                Namespace is the namespace of the Kueue metrics Service.
+                                Default: kueue-system
+                              maxLength: 63
+                              pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
+                              type: string
+                          type: object
+                      type: object
                     liveContainerCollection:
                       description: LiveContainerCollection configuration.
                       properties:
@@ -11668,6 +11761,99 @@ spec:
                                 Enabled enables the Kubernetes Actions feature on the Cluster Agent.
                                 Default: false
                               type: boolean
+                          type: object
+                        kueue:
+                          description: Kueue configuration.
+                          properties:
+                            collectWorkloadEvents:
+                              description: |-
+                                CollectWorkloadEvents enables the collection of Kueue Workload lifecycle events,
+                                and grants the node Agent read access to Kueue Workloads. Also applies when `conf` is set.
+                                Default: true
+                              type: boolean
+                            conf:
+                              description: |-
+                                Conf overrides the configuration for the Kueue check. It replaces the generated configuration,
+                                so it must keep `advanced_ad_identifiers.kube_endpoints` and `cluster_check: true` to scrape every Kueue replica.
+                                Ignored when cluster checks are disabled.
+                              properties:
+                                configData:
+                                  description: ConfigData corresponds to the configuration file content.
+                                  type: string
+                                configMap:
+                                  description: ConfigMap references an existing ConfigMap with the configuration file content.
+                                  properties:
+                                    items:
+                                      description: Items maps a ConfigMap data `key` to a file `path` mount.
+                                      items:
+                                        description: Maps a string key to a path within a volume.
+                                        properties:
+                                          key:
+                                            description: key is the key to project.
+                                            type: string
+                                          mode:
+                                            description: |-
+                                              mode is Optional: mode bits used to set permissions on this file.
+                                              Must be an octal value between 0000 and 0777 or a decimal value between 0 and 511.
+                                              YAML accepts both octal and decimal values, JSON requires decimal values for mode bits.
+                                              If not specified, the volume defaultMode will be used.
+                                              This might be in conflict with other options that affect the file
+                                              mode, like fsGroup, and the result can be other mode bits set.
+                                            format: int32
+                                            type: integer
+                                          path:
+                                            description: |-
+                                              path is the relative path of the file to map the key to.
+                                              May not be an absolute path.
+                                              May not contain the path element '..'.
+                                              May not start with the string '..'.
+                                            type: string
+                                          user:
+                                            description: |-
+                                              user is Optional: The owner UID of the created file.
+                                              If specified, the item-level user field takes precedence over defaultUser.
+                                              (Alpha) This field requires the AtomicWriteVolumeUserFields feature gate to be enabled.
+                                            format: int64
+                                            type: integer
+                                        required:
+                                          - key
+                                          - path
+                                        type: object
+                                      type: array
+                                      x-kubernetes-list-map-keys:
+                                        - key
+                                      x-kubernetes-list-type: map
+                                    name:
+                                      description: Name is the name of the ConfigMap.
+                                      type: string
+                                  type: object
+                              type: object
+                            enabled:
+                              description: |-
+                                Enabled enables Kueue metadata collection in the Cluster Agent and the Kueue check,
+                                which runs as an endpoints check against each Kueue controller pod.
+                                The check requires `features.clusterChecks.enabled` and a node Agent scheduled on the Kueue controller nodes.
+                                (Requires Agent and Cluster Agent 7.82.0+. Kueue with more than one replica requires Agent 7.86.0+.)
+                                Default: false
+                              type: boolean
+                            metricsService:
+                              description: MetricsService identifies the Service exposing the Kueue controller metrics.
+                              properties:
+                                name:
+                                  description: |-
+                                    Name is the name of the Kueue metrics Service.
+                                    Default: kueue-controller-manager-metrics-service
+                                  maxLength: 63
+                                  pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
+                                  type: string
+                                namespace:
+                                  description: |-
+                                    Namespace is the namespace of the Kueue metrics Service.
+                                    Default: kueue-system
+                                  maxLength: 63
+                                  pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
+                                  type: string
+                              type: object
                           type: object
                         liveContainerCollection:
                           description: LiveContainerCollection configuration.
