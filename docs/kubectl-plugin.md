@@ -54,7 +54,7 @@ Available Commands:
 - a summary of the other Datadog resources (monitors, dashboards, SLOs, …).
 
 **Modes.**
-- **Live (default on a terminal):** a full-screen view that updates from watches until `q` or `Ctrl-C`.
+- **Live (default on a terminal):** a full-screen view that updates from watches until `q` or `Ctrl-C`. When it is taller than the terminal, scroll with `↑`/`↓` (`k`/`j`), `PgUp`/`PgDn` (`b`, `f` or space) and `Home`/`End` (`g`/`G`); the footer shows the visible lines.
 - **Static:** with `--once`, with `-o json`, or when the output is not a terminal (for example a pipe), it prints one snapshot and exits.
 
 **Requirements.**

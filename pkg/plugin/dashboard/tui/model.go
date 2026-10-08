@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"slices"
 	"strings"
 	"time"
@@ -51,6 +52,10 @@ type model struct {
 	tickBusy bool
 	err      error
 	content  string
+	// offset is the first body line shown; render clamps it to the body.
+	offset int
+	// page is the number of body lines that fit, set by render.
+	page int
 }
 
 func newModel(ctx context.Context, cfg Config, b *builder, fatal *Fatal) *model {
@@ -69,8 +74,21 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.String() {
 		case "q", "ctrl+c":
 			return m, tea.Quit
+		case "up", "k":
+			m.offset--
+		case "down", "j":
+			m.offset++
+		case "pgup", "b":
+			m.offset -= max(m.page, 1)
+		case "pgdown", "f", "space":
+			m.offset += max(m.page, 1)
+		case "home", "g":
+			m.offset = 0
+		case "end", "G":
+			m.offset = math.MaxInt / 2
+		default:
+			return m, nil
 		}
-		return m, nil
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
 	case viewMsg:
@@ -136,10 +154,14 @@ func (m *model) render() string {
 		body = strings.Split(strings.TrimSuffix(text, "\n"), "\n")
 	}
 
-	room := h - 2 // status line and footer
-	if len(body) > room {
-		hidden := len(body) - room + 1
-		body = append(body[:room-1], m.paint(dim, fmt.Sprintf("%s %d more lines; enlarge the terminal to see them", m.g().ellipsis, hidden)))
+	// The body scrolls between the fixed status line and footer. The offset
+	// is kept across rebuilds and clamped to the current body.
+	m.page = h - 2
+	m.offset = min(max(m.offset, 0), max(len(body)-m.page, 0))
+	position := ""
+	if len(body) > m.page {
+		position = fmt.Sprintf("%s scroll %d-%d/%d", m.g().scroll, m.offset+1, min(m.offset+m.page, len(body)), len(body))
+		body = body[m.offset:min(m.offset+m.page, len(body))]
 	}
 	lines := make([]string, 0, h)
 	lines = append(lines, m.status())
@@ -147,7 +169,7 @@ func (m *model) render() string {
 	for len(lines) < h-1 {
 		lines = append(lines, "")
 	}
-	lines = append(lines, m.footer(w, legend))
+	lines = append(lines, m.footer(w, legend, position))
 	return m.finish(lines, w)
 }
 
@@ -250,9 +272,13 @@ func (m *model) errorBody(f *frame) []string {
 	return []string{m.paint(bold, head), "", m.paint(warn, m.g().warn+" "+msg)}
 }
 
-// footer is the bar legend and the keys.
-func (m *model) footer(w int, legend bool) string {
+// footer is the bar legend, the scroll position when the body overflows,
+// and the keys.
+func (m *model) footer(w int, legend bool, position string) string {
 	keys := "q quit"
+	if position != "" {
+		keys = position + "   " + keys
+	}
 	if !legend {
 		return m.paint(dim, keys)
 	}
@@ -283,13 +309,13 @@ func (m *model) paint(t tone, s string) string {
 	return styles[t].Render(s)
 }
 
-type glyphs struct{ live, loading, warn, sep, ellipsis string }
+type glyphs struct{ live, loading, warn, sep, ellipsis, scroll string }
 
 func (m *model) g() glyphs {
 	if m.cfg.ASCII {
-		return glyphs{live: "*", loading: "~", warn: "!", sep: "-", ellipsis: "..."}
+		return glyphs{live: "*", loading: "~", warn: "!", sep: "-", ellipsis: "...", scroll: "j/k"}
 	}
-	return glyphs{live: "●", loading: "◌", warn: "⚠", sep: "·", ellipsis: "…"}
+	return glyphs{live: "●", loading: "◌", warn: "⚠", sep: "·", ellipsis: "…", scroll: "↑↓"}
 }
 
 func plural(n int, s string) string {

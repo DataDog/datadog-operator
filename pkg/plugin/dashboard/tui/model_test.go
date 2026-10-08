@@ -8,6 +8,7 @@ package tui
 import (
 	"context"
 	"errors"
+	"fmt"
 	"maps"
 	"path/filepath"
 	"strings"
@@ -298,8 +299,67 @@ func TestModelTooSmall(t *testing.T) {
 	assert.NotContains(t, m.content, "terminal too small")
 	lines := strings.Split(m.content, "\n")
 	assert.Len(t, lines, 20)
-	assert.Contains(t, lines[18], "more lines", "a tall body is cut")
+	assert.Contains(t, lines[19], "scroll 1-18/", "a tall body scrolls")
 	assert.Contains(t, lines[19], "q quit")
+}
+
+// The body scrolls between the fixed status line and footer, and keeps its
+// position across rebuilds.
+func TestModelScroll(t *testing.T) {
+	store := newFakeStore(fixture(t, "profiles"))
+	m, _, _ := testModel(t, store, Config{})
+	changeFrame(t, m)
+	m.Update(tea.WindowSizeMsg{Width: 120, Height: 20})
+	total := len(strings.Split(m.content, "\n"))
+	require.Equal(t, 20, total)
+
+	footer := func() string { l := strings.Split(m.content, "\n"); return l[len(l)-1] }
+	body := func() []string { l := strings.Split(m.content, "\n"); return l[1 : len(l)-1] }
+	var n int
+	_, err := fmt.Sscanf(footer()[strings.Index(footer(), "scroll 1-18/"):], "scroll 1-18/%d", &n)
+	require.NoError(t, err)
+	require.Greater(t, n, 18, "the profiles body overflows 18 lines")
+	assert.Contains(t, m.content, "live", "the status line stays")
+
+	first := body()
+	m.Update(tea.KeyPressMsg{Code: tea.KeyDown})
+	assert.Contains(t, footer(), fmt.Sprintf("scroll 2-19/%d", n))
+	assert.Equal(t, first[1], body()[0], "one line down")
+
+	m.Update(tea.KeyPressMsg{Code: 'k', Text: "k"})
+	assert.Contains(t, footer(), fmt.Sprintf("scroll 1-18/%d", n))
+	m.Update(tea.KeyPressMsg{Code: tea.KeyUp})
+	assert.Contains(t, footer(), fmt.Sprintf("scroll 1-18/%d", n), "the top is a bound")
+
+	m.Update(tea.KeyPressMsg{Code: 'G', Text: "G"})
+	assert.Contains(t, footer(), fmt.Sprintf("scroll %d-%d/%d", n-17, n, n))
+	m.Update(tea.KeyPressMsg{Code: tea.KeyDown})
+	assert.Contains(t, footer(), fmt.Sprintf("scroll %d-%d/%d", n-17, n, n), "the bottom is a bound")
+
+	m.Update(tea.KeyPressMsg{Code: 'g', Text: "g"})
+	m.Update(tea.KeyPressMsg{Code: tea.KeyPgDown})
+	assert.Contains(t, footer(), fmt.Sprintf("scroll %d-", min(19, n-17)))
+	m.Update(tea.KeyPressMsg{Code: tea.KeyPgUp})
+	assert.Contains(t, footer(), fmt.Sprintf("scroll 1-18/%d", n))
+	for _, k := range []tea.KeyPressMsg{{Code: tea.KeySpace, Text: " "}, {Code: 'f', Text: "f"}} {
+		m.Update(tea.KeyPressMsg{Code: 'g', Text: "g"})
+		m.Update(k)
+		assert.NotContains(t, footer(), "scroll 1-18/", "%s pages down", k.String())
+	}
+	m.Update(tea.KeyPressMsg{Code: 'b', Text: "b"})
+	m.Update(tea.KeyPressMsg{Code: tea.KeyHome})
+	assert.Contains(t, footer(), fmt.Sprintf("scroll 1-18/%d", n))
+
+	// A rebuild keeps the position.
+	m.Update(tea.KeyPressMsg{Code: 'j', Text: "j"})
+	store.set(fixture(t, "profiles"))
+	changeFrame(t, m)
+	assert.Contains(t, footer(), fmt.Sprintf("scroll 2-19/%d", n))
+
+	// A terminal tall enough shows everything, with no position.
+	m.Update(tea.WindowSizeMsg{Width: 120, Height: n + 2})
+	assert.NotContains(t, footer(), "scroll")
+	assert.Equal(t, first[0], body()[0])
 }
 
 func TestModelQuitKeys(t *testing.T) {
@@ -309,7 +369,7 @@ func TestModelQuitKeys(t *testing.T) {
 		require.NotNil(t, cmd, k.String())
 		assert.IsType(t, tea.QuitMsg{}, cmd(), k.String())
 	}
-	assert.Nil(t, update(t, m, tea.KeyPressMsg{Code: 'x', Text: "x"}), "no other key does anything (NG6)")
+	assert.Nil(t, update(t, m, tea.KeyPressMsg{Code: 'x', Text: "x"}), "other keys do nothing")
 }
 
 func TestModelDisconnected(t *testing.T) {
