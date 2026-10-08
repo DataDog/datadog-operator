@@ -1177,6 +1177,7 @@ metadata:
   annotations:
     agent.datadoghq.com/cluster-provider: talos
     agent.datadoghq.com/ddaispechash: 20d067d3e296140be10e6836103e018e
+    agent.datadoghq.com/rollout-target-hash: d3f9dac03e9404798847534889bd5154e3c6b7b9700680ed547413cca309c8af
   finalizers:
   - finalizer.datadoghq.com/datadogagentinternal
   labels:

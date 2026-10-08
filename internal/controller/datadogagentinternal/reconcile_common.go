@@ -347,6 +347,9 @@ func ensureSelectorInPodTemplateLabels(ctx context.Context, selector *metav1.Lab
 }
 
 func IsEqualStatus(current *v1alpha1.DatadogAgentInternalStatus, newStatus *v1alpha1.DatadogAgentInternalStatus) bool {
+	if current.ObservedGeneration != newStatus.ObservedGeneration {
+		return false
+	}
 	if !condition.IsEqualDaemonSetStatus(current.Agent, newStatus.Agent) ||
 		!apiequality.Semantic.DeepEqual(current.RemoteConfigConfiguration, newStatus.RemoteConfigConfiguration) {
 		return false

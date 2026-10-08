@@ -1123,6 +1123,7 @@ kind: DatadogAgentInternal
 metadata:
   annotations:
     agent.datadoghq.com/ddaispechash: 5eba754bd6a44be78e2dfde7b71c0aff
+    agent.datadoghq.com/rollout-target-hash: a95256f32dd83a9714ad91be7f20ec3de1d94ab186ac0a448ff91db32f11ee40
   finalizers:
   - finalizer.datadoghq.com/datadogagentinternal
   labels:

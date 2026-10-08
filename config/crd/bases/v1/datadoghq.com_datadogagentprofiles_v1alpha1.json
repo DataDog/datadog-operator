@@ -8612,6 +8612,47 @@
               },
               "description": "Override the default configurations of the agents",
               "type": "object"
+            },
+            "rolloutStrategy": {
+              "additionalProperties": false,
+              "description": "RolloutStrategy configures the ordered rollout of the default DatadogAgentInternal\nand the defaults inherited by DatadogAgentProfile rollout steps.",
+              "properties": {
+                "maxUnavailable": {
+                  "anyOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "string"
+                    }
+                  ],
+                  "description": "MaxUnavailable is the number or percentage of unavailable Agent pods tolerated for a step to be complete.\nDefaults to 0, which is strict: one persistently unavailable pod blocks later priorities.",
+                  "x-kubernetes-int-or-string": true
+                },
+                "onStepTimeout": {
+                  "description": "OnStepTimeout is the action taken when a step times out: Continue or Halt. Defaults to Continue.",
+                  "enum": [
+                    "Continue",
+                    "Halt"
+                  ],
+                  "type": "string"
+                },
+                "priority": {
+                  "description": "Priority orders rollout steps. Lower values roll earlier; equal values roll in parallel. Defaults to 0.",
+                  "format": "int32",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "stepSoak": {
+                  "description": "StepSoak is how long a step must stay within the completion threshold before later priorities may start.\nZero or omitted means no soak.",
+                  "type": "string"
+                },
+                "stepTimeout": {
+                  "description": "StepTimeout is the maximum time a step may take to complete. Zero or omitted means no timeout.",
+                  "type": "string"
+                }
+              },
+              "type": "object"
             }
           },
           "type": "object"
@@ -8648,6 +8689,47 @@
                 "type": "object"
               },
               "type": "array"
+            }
+          },
+          "type": "object"
+        },
+        "rollout": {
+          "additionalProperties": false,
+          "description": "Rollout configures the ordered rollout of this profile's DatadogAgentInternal.\nUnset fields other than priority inherit from the DatadogAgent rolloutStrategy.",
+          "properties": {
+            "maxUnavailable": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "string"
+                }
+              ],
+              "description": "MaxUnavailable is the number or percentage of unavailable Agent pods tolerated for a step to be complete.\nDefaults to 0, which is strict: one persistently unavailable pod blocks later priorities.",
+              "x-kubernetes-int-or-string": true
+            },
+            "onStepTimeout": {
+              "description": "OnStepTimeout is the action taken when a step times out: Continue or Halt. Defaults to Continue.",
+              "enum": [
+                "Continue",
+                "Halt"
+              ],
+              "type": "string"
+            },
+            "priority": {
+              "description": "Priority orders rollout steps. Lower values roll earlier; equal values roll in parallel. Defaults to 0.",
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "stepSoak": {
+              "description": "StepSoak is how long a step must stay within the completion threshold before later priorities may start.\nZero or omitted means no soak.",
+              "type": "string"
+            },
+            "stepTimeout": {
+              "description": "StepTimeout is the maximum time a step may take to complete. Zero or omitted means no timeout.",
+              "type": "string"
             }
           },
           "type": "object"
@@ -8762,6 +8844,111 @@
           "description": "LastUpdate is the last time the status was updated.",
           "format": "date-time",
           "type": "string"
+        },
+        "rollout": {
+          "additionalProperties": false,
+          "description": "Rollout is the ordered rollout state of this profile's DatadogAgentInternal.",
+          "properties": {
+            "completedAt": {
+              "description": "CompletedAt is when the step completed for TargetHash.",
+              "format": "date-time",
+              "type": "string"
+            },
+            "currentHash": {
+              "description": "CurrentHash is the rollout target hash of the live DatadogAgentInternal.",
+              "type": "string"
+            },
+            "deadline": {
+              "description": "Deadline is when the step times out.",
+              "format": "date-time",
+              "type": "string"
+            },
+            "kind": {
+              "description": "Kind of the step: Default or DatadogAgentProfile.",
+              "type": "string"
+            },
+            "lastTransitionTime": {
+              "description": "LastTransitionTime is the last time the phase or reason changed.",
+              "format": "date-time",
+              "type": "string"
+            },
+            "message": {
+              "description": "Message is a human-readable description of the step state.",
+              "type": "string"
+            },
+            "name": {
+              "description": "Name of the step: \"default\" or the DatadogAgentProfile name.",
+              "type": "string"
+            },
+            "namespace": {
+              "description": "Namespace of the DatadogAgentProfile, empty for the default step.",
+              "type": "string"
+            },
+            "phase": {
+              "description": "Phase of the step.",
+              "type": "string"
+            },
+            "priority": {
+              "description": "Priority of the step.",
+              "format": "int32",
+              "type": "integer"
+            },
+            "progress": {
+              "additionalProperties": false,
+              "description": "Progress reports the Agent DaemonSet rollout progress.",
+              "properties": {
+                "desiredNumberScheduled": {
+                  "format": "int32",
+                  "type": "integer"
+                },
+                "generation": {
+                  "format": "int64",
+                  "type": "integer"
+                },
+                "maxUnavailable": {
+                  "description": "MaxUnavailable is the resolved unavailable tolerance.",
+                  "format": "int32",
+                  "type": "integer"
+                },
+                "numberUnavailable": {
+                  "format": "int32",
+                  "type": "integer"
+                },
+                "observedGeneration": {
+                  "format": "int64",
+                  "type": "integer"
+                },
+                "updatedNumberScheduled": {
+                  "format": "int32",
+                  "type": "integer"
+                }
+              },
+              "type": "object"
+            },
+            "reason": {
+              "description": "Reason is a machine-readable reason for the phase.",
+              "type": "string"
+            },
+            "soakStartedAt": {
+              "description": "SoakStartedAt is when the step entered the completion threshold.",
+              "format": "date-time",
+              "type": "string"
+            },
+            "source": {
+              "description": "Source is the object whose rollout configuration applies to this step.",
+              "type": "string"
+            },
+            "startedAt": {
+              "description": "StartedAt is when the step was written for TargetHash.",
+              "format": "date-time",
+              "type": "string"
+            },
+            "targetHash": {
+              "description": "TargetHash is the rollout target hash of the desired DatadogAgentInternal.",
+              "type": "string"
+            }
+          },
+          "type": "object"
         },
         "valid": {
           "description": "Valid shows if the DatadogAgentProfile has a valid config spec.",

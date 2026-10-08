@@ -9094,6 +9094,39 @@ spec:
                     type: object
                   description: Override the default configurations of the agents
                   type: object
+                rolloutStrategy:
+                  description: |-
+                    RolloutStrategy configures the ordered rollout of the default DatadogAgentInternal
+                    and the defaults inherited by DatadogAgentProfile rollout steps.
+                  properties:
+                    maxUnavailable:
+                      anyOf:
+                        - type: integer
+                        - type: string
+                      description: |-
+                        MaxUnavailable is the number or percentage of unavailable Agent pods tolerated for a step to be complete.
+                        Defaults to 0, which is strict: one persistently unavailable pod blocks later priorities.
+                      x-kubernetes-int-or-string: true
+                    onStepTimeout:
+                      description: 'OnStepTimeout is the action taken when a step times out: Continue or Halt. Defaults to Continue.'
+                      enum:
+                        - Continue
+                        - Halt
+                      type: string
+                    priority:
+                      description: Priority orders rollout steps. Lower values roll earlier; equal values roll in parallel. Defaults to 0.
+                      format: int32
+                      minimum: 0
+                      type: integer
+                    stepSoak:
+                      description: |-
+                        StepSoak is how long a step must stay within the completion threshold before later priorities may start.
+                        Zero or omitted means no soak.
+                      type: string
+                    stepTimeout:
+                      description: StepTimeout is the maximum time a step may take to complete. Zero or omitted means no timeout.
+                      type: string
+                  type: object
               type: object
             status:
               description: DatadogAgentInternalStatus defines the observed state of DatadogAgentInternal
@@ -9299,6 +9332,10 @@ spec:
                   x-kubernetes-list-map-keys:
                     - type
                   x-kubernetes-list-type: map
+                observedGeneration:
+                  description: ObservedGeneration is the most recent generation successfully reconciled.
+                  format: int64
+                  type: integer
                 otelAgentGateway:
                   description: The actual state of the OTel Agent Gateway as a deployment.
                   properties:

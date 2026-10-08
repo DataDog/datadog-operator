@@ -673,6 +673,21 @@ spec:
 `override`
 : The default configurations of the agents
 
+`rolloutStrategy.maxUnavailable`
+: MaxUnavailable is the number or percentage of unavailable Agent pods tolerated for a step to be complete. Defaults to 0, which is strict: one persistently unavailable pod blocks later priorities.
+
+`rolloutStrategy.onStepTimeout`
+: OnStepTimeout is the action taken when a step times out: Continue or Halt. Defaults to Continue.
+
+`rolloutStrategy.priority`
+: Orders rollout steps. Lower values roll earlier; equal values roll in parallel. Defaults to 0.
+
+`rolloutStrategy.stepSoak`
+: StepSoak is how long a step must stay within the completion threshold before later priorities may start. Zero or omitted means no soak.
+
+`rolloutStrategy.stepTimeout`
+: StepTimeout is the maximum time a step may take to complete. Zero or omitted means no timeout.
+
 {{% /collapse-content %}}
 
 For a complete list of parameters, see the [Operator configuration spec][8].
