@@ -233,9 +233,20 @@ spec:
                       items:
                         description: DatadogInstrumentationCheckConfig defines an Autodiscovery check configuration.
                         properties:
+                          checkTagCardinality:
+                            description: CheckTagCardinality overrides the Agent's check tag cardinality. If omitted, the Agent setting is used.
+                            enum:
+                              - low
+                              - orchestrator
+                              - high
+                            type: string
                           containerName:
                             description: ContainerName identifies the container name this check applies to.
                             type: string
+                          ignoreAutodiscoveryTags:
+                            default: false
+                            description: IgnoreAutodiscoveryTags suppresses container and pod tags automatically attached by Autodiscovery.
+                            type: boolean
                           initConfig:
                             description: InitConfig is the integration-specific Autodiscovery init_config payload.
                             type: object
@@ -250,6 +261,13 @@ spec:
                           integration:
                             description: Integration is the Datadog integration name, for example redisdb.
                             type: string
+                          jmxMetrics:
+                            description: JMXMetrics contains integration-specific jmx_metrics definitions.
+                            items:
+                              type: object
+                              x-kubernetes-preserve-unknown-fields: true
+                            type: array
+                            x-kubernetes-list-type: atomic
                         required:
                           - integration
                         type: object
