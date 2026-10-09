@@ -305,10 +305,9 @@ func setProfileSpec(ddai *v1alpha1.DatadogAgentInternal, profile *v1alpha1.Datad
 			}
 		}
 
-		// DCA, CCR, and OtelAgentGateway are auto disabled for user created profiles
-		disableComponent(ddai, v2alpha1.ClusterAgentComponentName)
-		disableComponent(ddai, v2alpha1.ClusterChecksRunnerComponentName)
-		disableComponent(ddai, v2alpha1.OtelAgentGatewayComponentName)
+		// DCA, CCR, and OtelAgentGateway are not deployed from user created profile DDAIs.
+		// The DDAI controller skips them based on the profile label (set in setProfileDDAIMeta),
+		// so component overrides keep reflecting the user's DDA config.
 		setProfileNodeAgentOverride(ddai, profile)
 	}
 	ensureOverrideExists(ddai, v2alpha1.NodeAgentComponentName)
@@ -322,11 +321,6 @@ func ensureOverrideExists(ddai *v1alpha1.DatadogAgentInternal, componentName v2a
 	if ddai.Spec.Override[componentName] == nil {
 		ddai.Spec.Override[componentName] = &v2alpha1.DatadogAgentComponentOverride{}
 	}
-}
-
-func disableComponent(ddai *v1alpha1.DatadogAgentInternal, componentName v2alpha1.ComponentName) {
-	ensureOverrideExists(ddai, componentName)
-	ddai.Spec.Override[componentName].Disabled = new(true)
 }
 
 func setProfileDDAIAffinity(ddai *v1alpha1.DatadogAgentInternal, profile *v1alpha1.DatadogAgentProfile) *corev1.Affinity {
