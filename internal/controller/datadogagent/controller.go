@@ -19,6 +19,7 @@ import (
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/openshift"
+	"github.com/DataDog/datadog-operator/pkg/celvalidation"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 
@@ -109,6 +110,12 @@ type ReconcilerOptions struct {
 	// SubjectAccessReview implementation; tests and the golden renderer inject a stub so
 	// they never issue a real authorization call.
 	SCCAuthorizer openshift.SCCAuthorizer
+	// DatadogAgentValidationRules and DatadogAgentProfileValidationRules are the
+	// CEL rule sets, compiled once at startup and passed in rather than reached
+	// for globally. A nil set validates nothing, which is what a compile failure
+	// at startup leaves behind: one bad rule must not stop every reconcile.
+	DatadogAgentValidationRules        *celvalidation.CompiledRules
+	DatadogAgentProfileValidationRules *celvalidation.CompiledRules
 	// APIReader is an uncached, direct-to-apiserver reader used to validate
 	// experiment rollback targets. A cached/informer-backed client's stale
 	// NotFound could be mistaken for a permanently-lost baseline revision.

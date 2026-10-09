@@ -3,24 +3,28 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-package v1alpha1
+package celvalidation
 
 import (
+	"context"
 	"reflect"
 	"testing"
 
 	"k8s.io/utils/ptr"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 )
 
 func TestIsValidDatadogAgentProfile(t *testing.T) {
-	basicProfileAffinity := &ProfileAffinity{
+	basicProfileAffinity := &v1alpha1.ProfileAffinity{
 		ProfileNodeAffinity: []corev1.NodeSelectorRequirement{
 			{
 				Key:      "foo",
@@ -42,13 +46,13 @@ func TestIsValidDatadogAgentProfile(t *testing.T) {
 			},
 		},
 	}
-	valid := &DatadogAgentProfileSpec{
+	valid := &v1alpha1.DatadogAgentProfileSpec{
 		ProfileAffinity: basicProfileAffinity,
 		Config: &v2alpha1.DatadogAgentSpec{
 			Override: basicNodeAgentOverride,
 		},
 	}
-	validResourceOverrideInOneContainerOnly := &DatadogAgentProfileSpec{
+	validResourceOverrideInOneContainerOnly := &v1alpha1.DatadogAgentProfileSpec{
 		ProfileAffinity: basicProfileAffinity,
 		Config: &v2alpha1.DatadogAgentSpec{
 			Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
@@ -67,7 +71,7 @@ func TestIsValidDatadogAgentProfile(t *testing.T) {
 			},
 		},
 	}
-	invalidComponentOverride := &DatadogAgentProfileSpec{
+	invalidComponentOverride := &v1alpha1.DatadogAgentProfileSpec{
 		ProfileAffinity: basicProfileAffinity,
 		Config: &v2alpha1.DatadogAgentSpec{
 			Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
@@ -89,7 +93,7 @@ func TestIsValidDatadogAgentProfile(t *testing.T) {
 			},
 		},
 	}
-	invalidContainerOverride := &DatadogAgentProfileSpec{
+	invalidContainerOverride := &v1alpha1.DatadogAgentProfileSpec{
 		ProfileAffinity: basicProfileAffinity,
 		Config: &v2alpha1.DatadogAgentSpec{
 			Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
@@ -109,23 +113,23 @@ func TestIsValidDatadogAgentProfile(t *testing.T) {
 			},
 		},
 	}
-	missingOverride := &DatadogAgentProfileSpec{
+	missingOverride := &v1alpha1.DatadogAgentProfileSpec{
 		ProfileAffinity: basicProfileAffinity,
 		Config:          &v2alpha1.DatadogAgentSpec{},
 	}
-	missingConfig := &DatadogAgentProfileSpec{
+	missingConfig := &v1alpha1.DatadogAgentProfileSpec{
 		ProfileAffinity: basicProfileAffinity,
 	}
-	missingNSR := &DatadogAgentProfileSpec{
-		ProfileAffinity: &ProfileAffinity{
+	missingNSR := &v1alpha1.DatadogAgentProfileSpec{
+		ProfileAffinity: &v1alpha1.ProfileAffinity{
 			ProfileNodeAffinity: []corev1.NodeSelectorRequirement{},
 		},
 	}
-	missingNodeAffinity := &DatadogAgentProfileSpec{
-		ProfileAffinity: &ProfileAffinity{},
+	missingNodeAffinity := &v1alpha1.DatadogAgentProfileSpec{
+		ProfileAffinity: &v1alpha1.ProfileAffinity{},
 	}
-	missingProfileAffinity := &DatadogAgentProfileSpec{}
-	validGPUFeature := &DatadogAgentProfileSpec{
+	missingProfileAffinity := &v1alpha1.DatadogAgentProfileSpec{}
+	validGPUFeature := &v1alpha1.DatadogAgentProfileSpec{
 		ProfileAffinity: basicProfileAffinity,
 		Config: &v2alpha1.DatadogAgentSpec{
 			Features: &v2alpha1.DatadogFeatures{
@@ -135,7 +139,7 @@ func TestIsValidDatadogAgentProfile(t *testing.T) {
 			},
 		},
 	}
-	validFeaturesNoOverride := &DatadogAgentProfileSpec{
+	validFeaturesNoOverride := &v1alpha1.DatadogAgentProfileSpec{
 		ProfileAffinity: basicProfileAffinity,
 		Config: &v2alpha1.DatadogAgentSpec{
 			Features: &v2alpha1.DatadogFeatures{
@@ -146,7 +150,7 @@ func TestIsValidDatadogAgentProfile(t *testing.T) {
 			},
 		},
 	}
-	validAPMFeature := &DatadogAgentProfileSpec{
+	validAPMFeature := &v1alpha1.DatadogAgentProfileSpec{
 		ProfileAffinity: basicProfileAffinity,
 		Config: &v2alpha1.DatadogAgentSpec{
 			Features: &v2alpha1.DatadogFeatures{
@@ -160,7 +164,7 @@ func TestIsValidDatadogAgentProfile(t *testing.T) {
 			},
 		},
 	}
-	invalidFeatures := &DatadogAgentProfileSpec{
+	invalidFeatures := &v1alpha1.DatadogAgentProfileSpec{
 		ProfileAffinity: basicProfileAffinity,
 		Config: &v2alpha1.DatadogAgentSpec{
 			Features: &v2alpha1.DatadogFeatures{
@@ -170,7 +174,7 @@ func TestIsValidDatadogAgentProfile(t *testing.T) {
 			},
 		},
 	}
-	invalidDataPlaneFeature := &DatadogAgentProfileSpec{
+	invalidDataPlaneFeature := &v1alpha1.DatadogAgentProfileSpec{
 		ProfileAffinity: basicProfileAffinity,
 		Config: &v2alpha1.DatadogAgentSpec{
 			Features: &v2alpha1.DatadogFeatures{
@@ -180,7 +184,7 @@ func TestIsValidDatadogAgentProfile(t *testing.T) {
 	}
 	testCases := []struct {
 		name    string
-		spec    *DatadogAgentProfileSpec
+		spec    *v1alpha1.DatadogAgentProfileSpec
 		wantErr string
 	}{
 		{
@@ -211,19 +215,27 @@ func TestIsValidDatadogAgentProfile(t *testing.T) {
 			wantErr: "config must be defined",
 		},
 		{
-			name:    "missing node selector requirement",
-			spec:    missingNSR,
-			wantErr: "profileNodeAffinity must have at least 1 requirement",
+			name: "missing node selector requirement",
+			spec: missingNSR,
+			// This fixture omits config too, so both rules fail. The Go
+			// validator returned on the first; every failure is reported now,
+			// so that the operator and the API server say the same thing.
+			wantErr: "profileNodeAffinity must have at least 1 requirement\nconfig must be defined",
 		},
 		{
-			name:    "missing profile node affinity",
-			spec:    missingNodeAffinity,
-			wantErr: "profileNodeAffinity must be defined",
+			name: "missing profile node affinity",
+			spec: missingNodeAffinity,
+			// One rule covers an absent and an empty profileNodeAffinity. The
+			// field is omitempty, so an empty list reaches the API server as
+			// `profileNodeAffinity: []` but reaches the operator as an absent
+			// field; a rule that told them apart would disagree with itself
+			// between the two evaluators.
+			wantErr: "profileNodeAffinity must have at least 1 requirement\nconfig must be defined",
 		},
 		{
 			name:    "missing profile affinity",
 			spec:    missingProfileAffinity,
-			wantErr: "profileAffinity must be defined",
+			wantErr: "profileAffinity must be defined\nconfig must be defined",
 		},
 		{
 			name: "gpu feature override",
@@ -250,7 +262,7 @@ func TestIsValidDatadogAgentProfile(t *testing.T) {
 	}
 	for _, test := range testCases {
 		t.Run(test.name, func(t *testing.T) {
-			result := ValidateDatadogAgentProfileSpec(test.spec)
+			result := validateSpec(t, test.spec)
 			if test.wantErr != "" {
 				assert.EqualError(t, result, test.wantErr)
 			} else {
@@ -277,14 +289,14 @@ func TestValidateDatadogAgentProfileFeaturesAllowlist(t *testing.T) {
 			features := &v2alpha1.DatadogFeatures{}
 			reflect.ValueOf(features).Elem().FieldByName(field.Name).Set(reflect.New(field.Type.Elem()))
 
-			spec := &DatadogAgentProfileSpec{
+			spec := &v1alpha1.DatadogAgentProfileSpec{
 				ProfileAffinity: validProfileAffinity(),
 				Config: &v2alpha1.DatadogAgentSpec{
 					Features: features,
 				},
 			}
 
-			result := ValidateDatadogAgentProfileSpec(spec)
+			result := validateSpec(t, spec)
 			if _, ok := allowedFeatureFields[field.Name]; ok {
 				assert.NoError(t, result)
 			} else {
@@ -310,10 +322,11 @@ func TestValidateDatadogAgentProfileComponentOverrideAllowlist(t *testing.T) {
 	for i := 0; i < overrideType.NumField(); i++ {
 		field := overrideType.Field(i)
 		t.Run(field.Name, func(t *testing.T) {
+			_, allowed := allowedComponentOverrideFields[field.Name]
 			override := &v2alpha1.DatadogAgentComponentOverride{}
-			setConfiguredField(t, reflect.ValueOf(override).Elem().FieldByName(field.Name))
+			setConfiguredField(t, reflect.ValueOf(override).Elem().FieldByName(field.Name), !allowed)
 
-			spec := &DatadogAgentProfileSpec{
+			spec := &v1alpha1.DatadogAgentProfileSpec{
 				ProfileAffinity: validProfileAffinity(),
 				Config: &v2alpha1.DatadogAgentSpec{
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
@@ -322,8 +335,8 @@ func TestValidateDatadogAgentProfileComponentOverrideAllowlist(t *testing.T) {
 				},
 			}
 
-			result := ValidateDatadogAgentProfileSpec(spec)
-			if _, ok := allowedComponentOverrideFields[field.Name]; ok {
+			result := validateSpec(t, spec)
+			if allowed {
 				assert.NoError(t, result)
 			} else {
 				if assert.Error(t, result) {
@@ -345,10 +358,11 @@ func TestValidateDatadogAgentProfileContainerOverrideAllowlist(t *testing.T) {
 	for i := 0; i < containerType.NumField(); i++ {
 		field := containerType.Field(i)
 		t.Run(field.Name, func(t *testing.T) {
+			_, allowed := allowedContainerOverrideFields[field.Name]
 			containerOverride := &v2alpha1.DatadogAgentGenericContainer{}
-			setConfiguredField(t, reflect.ValueOf(containerOverride).Elem().FieldByName(field.Name))
+			setConfiguredField(t, reflect.ValueOf(containerOverride).Elem().FieldByName(field.Name), !allowed)
 
-			spec := &DatadogAgentProfileSpec{
+			spec := &v1alpha1.DatadogAgentProfileSpec{
 				ProfileAffinity: validProfileAffinity(),
 				Config: &v2alpha1.DatadogAgentSpec{
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
@@ -361,8 +375,8 @@ func TestValidateDatadogAgentProfileContainerOverrideAllowlist(t *testing.T) {
 				},
 			}
 
-			result := ValidateDatadogAgentProfileSpec(spec)
-			if _, ok := allowedContainerOverrideFields[field.Name]; ok {
+			result := validateSpec(t, spec)
+			if allowed {
 				assert.NoError(t, result)
 			} else {
 				if assert.Error(t, result) {
@@ -373,8 +387,8 @@ func TestValidateDatadogAgentProfileContainerOverrideAllowlist(t *testing.T) {
 	}
 }
 
-func validProfileAffinity() *ProfileAffinity {
-	return &ProfileAffinity{
+func validProfileAffinity() *v1alpha1.ProfileAffinity {
+	return &v1alpha1.ProfileAffinity{
 		ProfileNodeAffinity: []corev1.NodeSelectorRequirement{
 			{
 				Key:      "foo",
@@ -385,17 +399,99 @@ func validProfileAffinity() *ProfileAffinity {
 	}
 }
 
-func setConfiguredField(t *testing.T, fieldValue reflect.Value) {
+// setConfiguredField marks a field as set. populate gives maps and slices an
+// entry: every field here is omitempty, so an empty map or slice is dropped
+// before the rules see it and the field reads as unset. Allowlisted fields are
+// left empty, both because an empty value is valid for them and because
+// populating a typed map key (container names) with a zero value would not be.
+// See TestEmptyDisallowedFieldIsAdmissionOnly.
+func setConfiguredField(t *testing.T, fieldValue reflect.Value, populate bool) {
 	t.Helper()
 
+	entries := 0
+	if populate {
+		entries = 1
+	}
 	switch fieldValue.Kind() {
 	case reflect.Map:
-		fieldValue.Set(reflect.MakeMap(fieldValue.Type()))
+		m := reflect.MakeMap(fieldValue.Type())
+		if populate {
+			m.SetMapIndex(reflect.New(fieldValue.Type().Key()).Elem(), reflect.New(fieldValue.Type().Elem()).Elem())
+		}
+		fieldValue.Set(m)
 	case reflect.Ptr:
 		fieldValue.Set(reflect.New(fieldValue.Type().Elem()))
 	case reflect.Slice:
-		fieldValue.Set(reflect.MakeSlice(fieldValue.Type(), 0, 0))
+		fieldValue.Set(reflect.MakeSlice(fieldValue.Type(), entries, entries))
 	default:
 		t.Fatalf("unsupported field kind %q", fieldValue.Kind())
 	}
 }
+
+// validateSpec wraps a bare spec so the table tests can keep their shape. The
+// rules are expressed over the whole object, because that is what the API
+// server evaluates them against.
+func validateSpec(t *testing.T, spec *v1alpha1.DatadogAgentProfileSpec) error {
+	t.Helper()
+	profile := &v1alpha1.DatadogAgentProfile{Spec: *spec}
+	if err := dapRules(t).ValidateObject(context.Background(), profile, profile.Namespace, profile.Name); err != nil {
+		return err
+	}
+	// Not a CEL rule; see ValidateOverridesDefined.
+	return v1alpha1.ValidateOverridesDefined(profile)
+}
+
+// TestEmptyDisallowedFieldIsAdmissionOnly pins down where the two evaluation
+// points differ, and it is the one user-visible change from validating in Go.
+//
+// Every field in these structs is omitempty. The API server evaluates the rules
+// against the request body, so `nodeSelector: {}` is present and the rule fires.
+// The operator evaluates them against the stored object converted from Go, and
+// that conversion drops an empty map, so the same spec reads as unset and the
+// rule does not fire. The Go validator this replaced used reflect.IsNil and
+// caught both.
+//
+// The practical effect is that an explicitly empty disallowed field is reported
+// at kubectl apply and ignored at reconcile. An empty override has nothing to
+// apply, so nothing is misconfigured as a result.
+func TestEmptyDisallowedFieldIsAdmissionOnly(t *testing.T) {
+	rules := dapRules(t)
+
+	const message = "component node selector override is not supported"
+
+	// What the API server sees: the field is in the request body.
+	asSubmitted := &unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": "datadoghq.com/v1alpha1",
+		"kind":       "DatadogAgentProfile",
+		"spec": map[string]any{
+			"profileAffinity": map[string]any{
+				"profileNodeAffinity": []any{
+					map[string]any{"key": "app", "operator": "In", "values": []any{"dd"}},
+				},
+			},
+			"config": map[string]any{
+				"override": map[string]any{
+					"nodeAgent": map[string]any{"nodeSelector": map[string]any{}},
+				},
+			},
+		},
+	}}
+	failures, err := rules.Evaluate(context.Background(), asSubmitted, "", "")
+	require.NoError(t, err)
+	assert.Contains(t, failures, message)
+
+	// What the operator sees: omitempty dropped the empty map.
+	asStored := &v1alpha1.DatadogAgentProfile{Spec: v1alpha1.DatadogAgentProfileSpec{
+		ProfileAffinity: validProfileAffinity(),
+		Config: &v2alpha1.DatadogAgentSpec{
+			Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+				v2alpha1.NodeAgentComponentName: {NodeSelector: map[string]string{}},
+			},
+		},
+	}}
+	failures, err = rules.Evaluate(context.Background(), asStored, "", "")
+	require.NoError(t, err)
+	assert.NotContains(t, failures, message)
+}
+
+// TestRulesCompile lives in rules_test.go, alongside the other rule safeguards.

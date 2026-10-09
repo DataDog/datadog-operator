@@ -93,7 +93,7 @@ func (r *Reconciler) reconcileProfiles(ctx context.Context, dsNSName types.Names
 
 		r.addDDAIStatusToProfileStatus(ctx, &profile, defaultDDAI.Name, defaultDDAI.Namespace, now)
 
-		requirements, err := agentprofile.ValidateProfileAndReturnRequirements(&profile)
+		requirements, err := agentprofile.ValidateProfileAndReturnRequirements(ctx, &profile, r.options.DatadogAgentProfileValidationRules)
 		if err != nil {
 			metrics.DAPValid.With(prometheus.Labels{"datadogagentprofile": profile.Name}).Set(metrics.FalseValue)
 			setProfileCondition(&profile, agentprofile.ValidConditionType, metav1.ConditionFalse, now, agentprofile.InvalidConditionReason, err.Error())

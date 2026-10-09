@@ -26,6 +26,7 @@ import (
 
 	v1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	v2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/pkg/celvalidation"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
@@ -922,7 +923,7 @@ func TestManagedAgentInstallationWindowsProfileValidation(t *testing.T) {
 	dda := testFleetManagedDatadogAgent(t, "", testAddonInstallOperationID)
 	daemon, _, _ := testManagedAgentInstallationDaemon(nil)
 	valid := daemon.managedAgentInstallationWindowsProfile(dda)
-	require.NoError(t, v1alpha1.ValidateDatadogAgentProfileSpec(&valid.Spec))
+	require.NoError(t, validateProfileRules(t, valid))
 	require.NoError(t, daemon.validateManagedAgentInstallationWindowsProfile(valid, dda))
 
 	for _, test := range []struct {
@@ -1233,4 +1234,17 @@ func testFleetCredentialSecret() *corev1.Secret {
 		ObjectMeta: metav1.ObjectMeta{Name: fleetCredentialSecretName, Namespace: testManagedAgentInstallationNamespace},
 		Data:       map[string][]byte{fleetCredentialAPIKey: []byte("api-key-value")},
 	}
+}
+
+// validateProfileRules runs the DatadogAgentProfile CEL rules against a
+// profile, the way the profile controller does.
+func validateProfileRules(t *testing.T, profile *v1alpha1.DatadogAgentProfile) error {
+	t.Helper()
+	rules, err := celvalidation.CompileRules(
+		v1alpha1.DatadogAgentProfileValidationRules(),
+		v1alpha1.GroupVersion.WithKind("DatadogAgentProfile"),
+		v1alpha1.GroupVersion.WithResource("datadogagentprofiles"),
+	)
+	require.NoError(t, err)
+	return rules.ValidateObject(context.Background(), profile, profile.Namespace, profile.Name)
 }
