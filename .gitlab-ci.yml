@@ -1062,10 +1062,11 @@ publish_community_operators:
     - if: $CI_COMMIT_TAG
       when: manual
     - when: never
-  # Allow the job to be run manually even if submit_preflight_redhat_image fails, so that
-  # preflight submission can be retried locally followed by this manual job trigger in the pipeline
-  # needs:
-  #   - "submit_preflight_redhat_image"
+  # Intentionally does not depend on submit_preflight_redhat_image, so that the job can be run
+  # manually even if preflight submission fails (and is retried locally).
+  needs:
+    - "publish_redhat_public_tag"
+    - "check_preflight_redhat_image"
   tags:
     - "docker-in-docker:amd64"
   image: $OCTO_JOB_DOCKER_IMAGE
