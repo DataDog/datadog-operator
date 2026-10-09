@@ -1062,11 +1062,11 @@ publish_community_operators:
     - if: $CI_COMMIT_TAG
       when: manual
     - when: never
-  # Intentionally does not depend on submit_preflight_redhat_image, so that the job can be run
-  # manually even if preflight submission fails (and is retried locally).
+  # Only needs the Red Hat image to be published (bundle-redhat resolves it via skopeo). Intentionally
+  # does not depend on the preflight jobs (which can be flaky) or on unrelated earlier-stage jobs, so
+  # it can be run manually even if those fail (e.g. preflight submission retried locally).
   needs:
     - "publish_redhat_public_tag"
-    - "check_preflight_redhat_image"
   tags:
     - "docker-in-docker:amd64"
   image: $OCTO_JOB_DOCKER_IMAGE
