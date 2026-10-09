@@ -88,9 +88,11 @@ const (
 // for it automatically. Hand-maintaining that inverted list is the one way this
 // single copy could silently go stale.
 func DatadogAgentProfileValidationRules() []common.ValidationRule {
-	rules := []common.ValidationRule{
+	// Three fixed rules, then one per disallowed field of each of the three structs.
+	rules := make([]common.ValidationRule, 0, 3)
+	rules = append(rules,
 		// validateProfileAffinity: profileAffinity must be defined.
-		{
+		common.ValidationRule{
 			Expression: fmt.Sprintf("has(%s) && has(%s)", pathSpec, pathProfAffinity),
 			Message:    "profileAffinity must be defined",
 		},
@@ -101,7 +103,7 @@ func DatadogAgentProfileValidationRules() []common.ValidationRule {
 		// both evaluators: the field is omitempty, so an empty list reaches the
 		// API server as `profileNodeAffinity: []` but reaches the operator's
 		// evaluator as an absent field.
-		{
+		common.ValidationRule{
 			Expression: common.ValidationOr(
 				common.ValidationGuard(pathSpec, pathProfAffinity),
 				fmt.Sprintf("(has(%s) && size(%s) >= 1)", pathNodeAffinity, pathNodeAffinity),
@@ -109,15 +111,15 @@ func DatadogAgentProfileValidationRules() []common.ValidationRule {
 			Message: "profileNodeAffinity must have at least 1 requirement",
 		},
 		// validateConfig: config must be defined.
-		{
+		common.ValidationRule{
 			Expression: fmt.Sprintf("has(%s) && has(%s)", pathSpec, pathConfig),
 			Message:    "config must be defined",
 		},
-	}
+	)
 
 	// validateFeatures: only allowlisted features may be set.
 	featureGuard := common.ValidationGuard(pathSpec, pathConfig, pathFeatures)
-	for _, field := range disallowedFields(reflect.TypeOf(v2alpha1.DatadogFeatures{}), DatadogAgentProfileFeatureAllowlist) {
+	for _, field := range disallowedFields(reflect.TypeFor[v2alpha1.DatadogFeatures](), DatadogAgentProfileFeatureAllowlist) {
 		rules = append(rules, common.ValidationRule{
 			Expression: common.ValidationOr(featureGuard, common.ValidationAbsent(pathFeatures, field.jsonName)),
 			Message:    unsupportedMessage(field.jsonName),
@@ -142,7 +144,7 @@ func DatadogAgentProfileValidationRules() []common.ValidationRule {
 
 	// validateOverride: only allowlisted component override fields may be set.
 	componentGuard := common.ValidationGuard(pathSpec, pathConfig, pathOverride, pathNodeAgent)
-	for _, field := range disallowedFields(reflect.TypeOf(v2alpha1.DatadogAgentComponentOverride{}), DatadogAgentProfileComponentOverrideAllowlist) {
+	for _, field := range disallowedFields(reflect.TypeFor[v2alpha1.DatadogAgentComponentOverride](), DatadogAgentProfileComponentOverrideAllowlist) {
 		rules = append(rules, common.ValidationRule{
 			Expression: common.ValidationOr(componentGuard, common.ValidationAbsent(pathNodeAgent, field.jsonName)),
 			Message:    unsupportedMessage("component " + field.splitName),
@@ -165,7 +167,7 @@ func DatadogAgentProfileValidationRules() []common.ValidationRule {
 	})
 
 	// validateContainerOverride: only allowlisted container override fields may be set.
-	for _, field := range disallowedFields(reflect.TypeOf(v2alpha1.DatadogAgentGenericContainer{}), DatadogAgentProfileContainerOverrideAllowlist) {
+	for _, field := range disallowedFields(reflect.TypeFor[v2alpha1.DatadogAgentGenericContainer](), DatadogAgentProfileContainerOverrideAllowlist) {
 		rules = append(rules, common.ValidationRule{
 			Expression: common.ValidationOr(
 				containerGuard,
@@ -191,9 +193,8 @@ func disallowedFields(t reflect.Type, allowlist map[string]struct{}) []fieldName
 	for t.Kind() == reflect.Ptr {
 		t = t.Elem()
 	}
-	var out []fieldName
-	for i := 0; i < t.NumField(); i++ {
-		f := t.Field(i)
+	out := make([]fieldName, 0, t.NumField())
+	for f := range t.Fields() {
 		if f.PkgPath != "" {
 			continue // unexported, never serialized
 		}

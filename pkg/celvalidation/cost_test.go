@@ -15,7 +15,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	celconfig "k8s.io/apiserver/pkg/apis/cel"
-	"k8s.io/apiserver/pkg/cel/environment"
 	"k8s.io/utils/ptr"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
@@ -93,19 +92,7 @@ func assertRuleCosts(t *testing.T, rules []apicommon.ValidationRule, obj runtime
 func measureRuleCosts(t *testing.T, rules []apicommon.ValidationRule, obj runtime.Object) []uint64 {
 	t.Helper()
 
-	base, err := envSet()
-	require.NoError(t, err)
-	// Declare `object` the way the API server's compiler declares it. Only
-	// `object` is declared here, so this doubles as the check that no rule
-	// reaches for oldObject, request or namespaceObject, which the validating
-	// code does declare but leaves empty in the operator.
-	extended, err := base.Extend(environment.VersionedOptions{
-		IntroducedVersion: CompatibilityVersion,
-		EnvOptions:        []cel.EnvOption{cel.Variable("object", cel.DynType)},
-	})
-	require.NoError(t, err)
-	env, err := extended.Env(environment.NewExpressions)
-	require.NoError(t, err)
+	env := objectOnlyEnv(t)
 
 	asMap, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
 	require.NoError(t, err)

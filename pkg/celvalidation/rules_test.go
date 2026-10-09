@@ -13,10 +13,12 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/cel-go/cel"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apiserver/pkg/cel/environment"
 	"sigs.k8s.io/yaml"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
@@ -197,4 +199,73 @@ func loadExamples(t *testing.T, kind string) map[string]runtime.Object {
 		}
 	}
 	return out
+}
+
+// objectOnlyEnv builds a CEL environment at the pinned version declaring only
+// `object`.
+//
+// The API server's compiler declares `oldObject`, `request` and
+// `namespaceObject` as well (plugin/cel/compile.go:254-257), and gives no way
+// to turn that off, so CompileRules cannot reject a rule that reaches for one.
+// This environment can.
+func objectOnlyEnv(t *testing.T) *cel.Env {
+	t.Helper()
+
+	base, err := envSet()
+	require.NoError(t, err)
+	extended, err := base.Extend(environment.VersionedOptions{
+		IntroducedVersion: CompatibilityVersion,
+		EnvOptions:        []cel.EnvOption{cel.Variable("object", cel.DynType)},
+	})
+	require.NoError(t, err)
+	env, err := extended.Env(environment.NewExpressions)
+	require.NoError(t, err)
+	return env
+}
+
+// TestRulesDeclareOnlyObject fails a rule that references any variable other
+// than `object`.
+//
+// This is the doc's agreed safeguard, and under option C it is the only one.
+// The operator binds no old object, no admission request and no namespace, so
+// a rule mentioning one of those compiles cleanly, evaluates against an empty
+// value and returns a wrong answer rather than an error - which the policy and
+// the operator would both report as a plain rule failure. Catching it at
+// compile time here makes it a red CI check instead.
+func TestRulesDeclareOnlyObject(t *testing.T) {
+	env := objectOnlyEnv(t)
+
+	cases := []struct {
+		kind  string
+		rules []apicommon.ValidationRule
+	}{
+		{"DatadogAgent", v2alpha1.DatadogAgentValidationRules()},
+		{"DatadogAgentProfile", v1alpha1.DatadogAgentProfileValidationRules()},
+	}
+
+	// Prove the environment rejects what it is here to catch, so that a change
+	// making it permissive shows up as a failure rather than a silent pass.
+	t.Run("guard works", func(t *testing.T) {
+		for _, expression := range []string{
+			"has(oldObject.spec)",
+			"request.operation == 'CREATE'",
+			"has(namespaceObject.metadata)",
+		} {
+			_, issues := env.Compile(expression)
+			assert.Errorf(t, issues.Err(), "%q should not compile here", expression)
+		}
+	})
+
+	for _, tc := range cases {
+		t.Run(tc.kind, func(t *testing.T) {
+			require.NotEmpty(t, tc.rules)
+			for _, rule := range tc.rules {
+				// Reported by rule message, never by index: the rule sets are
+				// generated, so an index moves when a field is added.
+				_, issues := env.Compile(rule.Expression)
+				assert.NoErrorf(t, issues.Err(),
+					"rule %q must reference only `object`", rule.Message)
+			}
+		})
+	}
 }

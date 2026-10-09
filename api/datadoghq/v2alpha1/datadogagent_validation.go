@@ -41,12 +41,12 @@ const (
 // defaulted value cannot be a rule here, because the API server never sees that
 // value.
 func DatadogAgentValidationRules() []common.ValidationRule {
-	rules := []common.ValidationRule{
-		{
-			Expression: fmt.Sprintf("has(%s) && has(%s) && has(%s)", pathSpec, pathGlobal, pathCredentials),
-			Message:    "credentials not configured in the DatadogAgent, can't reconcile",
-		},
-	}
+	// The credentials rule, then one per reserved prefix.
+	rules := make([]common.ValidationRule, 0, 1+len(reservedExtraLabelPrefixes))
+	rules = append(rules, common.ValidationRule{
+		Expression: fmt.Sprintf("has(%s) && has(%s) && has(%s)", pathSpec, pathGlobal, pathCredentials),
+		Message:    "credentials not configured in the DatadogAgent, can't reconcile",
+	})
 
 	// One rule per reserved prefix, so the message names the prefix that was
 	// matched. A single rule over all three could not, without

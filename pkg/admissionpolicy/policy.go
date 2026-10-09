@@ -45,7 +45,7 @@ const (
 	datadoghqGroup = "datadoghq.com"
 )
 
-// target is one kind and the rules that apply to it. Each kind needs its own
+// Target is one kind and the rules that apply to it. Each kind needs its own
 // policy: the expressions are written against that kind's paths.
 type Target struct {
 	name       string

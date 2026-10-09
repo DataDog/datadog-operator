@@ -104,8 +104,8 @@ func CompileRules(rules []common.ValidationRule, gvk schema.GroupVersionKind, gv
 	var errs []error
 	good := make([]common.ValidationRule, 0, len(rules))
 	for _, rule := range rules {
-		if err := compileOne(envSet, rule); err != nil {
-			errs = append(errs, fmt.Errorf("skipping rule %q: %w", rule.Message, err))
+		if compileErr := compileOne(envSet, rule); compileErr != nil {
+			errs = append(errs, fmt.Errorf("skipping rule %q: %w", rule.Message, compileErr))
 			continue
 		}
 		good = append(good, rule)
