@@ -11,6 +11,7 @@ package componenthealth
 
 import (
 	"fmt"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 
@@ -92,6 +93,14 @@ type ComponentIssue struct {
 	Severity     Severity
 	Namespace    string
 	AffectedPods []string // names of the pods currently exhibiting the issue
+
+	// Lifecycle metadata, populated by the controller and reported to the backend
+	// (health-platform PersistedIssue). FirstSeen is when the issue first appeared,
+	// LastSeen is the last time it was observed active. ResolvedAt is set only for
+	// resolved issues (zero otherwise).
+	FirstSeen  time.Time
+	LastSeen   time.Time
+	ResolvedAt time.Time
 }
 
 // ManagedComponent returns the cluster-level component name for a pod, or "" if
