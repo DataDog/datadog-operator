@@ -87,6 +87,44 @@ func TestFeatureRulesFire(t *testing.T) {
 				"agent.datadoghq.com/host-profiler-enabled": "true"}),
 		},
 		{name: "no annotations at all", object: dda(credentials, nil)},
+		// One per feature package that registered rules in the sweep, so a
+		// package dropped from the blank-import list in rules_test.go shows up
+		// here rather than silently losing its rules.
+		{
+			name:    "adp annotation mis-cased",
+			object:  dda(credentials, map[string]any{"agent.datadoghq.com/adp-enabled": "True"}),
+			wantErr: "adp-enabled",
+		},
+		{
+			name:    "private action runner annotation mis-cased",
+			object:  dda(credentials, map[string]any{"agent.datadoghq.com/private-action-runner-enabled": "yes"}),
+			wantErr: "private-action-runner-enabled",
+		},
+		{
+			name:    "ksm cache annotation mis-cased",
+			object:  dda(credentials, map[string]any{"agent.datadoghq.com/ksm-use-apiserver-cache": "TRUE"}),
+			wantErr: "ksm-use-apiserver-cache",
+		},
+		{
+			name:    "flight recorder annotation mis-cased",
+			object:  dda(credentials, map[string]any{"agent.datadoghq.com/flightrecorder-enabled": "1"}),
+			wantErr: "flightrecorder-enabled",
+		},
+		{
+			name:    "network crds annotation mis-cased",
+			object:  dda(credentials, map[string]any{"agent.datadoghq.com/network-crds-enabled": "False "}),
+			wantErr: "network-crds-enabled",
+		},
+		{
+			name:    "instrumentation crd annotation mis-cased",
+			object:  dda(credentials, map[string]any{"agent.datadoghq.com/instrumentation-crd-enabled": "t"}),
+			wantErr: "instrumentation-crd-enabled",
+		},
+		{
+			name:    "check runner annotation mis-cased",
+			object:  dda(credentials, map[string]any{"agent.datadoghq.com/check-runner-enabled": "on"}),
+			wantErr: "check-runner-enabled",
+		},
 	}
 
 	for _, tc := range cases {

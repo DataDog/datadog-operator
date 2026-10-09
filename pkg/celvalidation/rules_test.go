@@ -30,8 +30,15 @@ import (
 	// that registers one, or the safeguards below silently stop covering it.
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/checkrunner"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/dataplane"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/flightrecorder"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/hostprofiler"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/instrumentationcrd"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/kubernetesstatecore"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/orchestratorexplorer"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/otlp"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/privateactionrunner"
 )
 
 // repoRoot is this package's directory, two levels below the repository root.
