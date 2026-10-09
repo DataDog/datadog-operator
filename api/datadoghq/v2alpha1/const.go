@@ -35,6 +35,18 @@ const (
 	AnnotationExperimentExpectedSpecHash = "experiment.datadoghq.com/expected-spec-hash"
 )
 
+// AnnotationExperimentalClusterChecksRunnerGroups holds a JSON-encoded
+// []ClusterChecksRunnerGroup declaring additional, dedicated Cluster Checks
+// Runner Deployments, each restricted to a subset of checks.
+const AnnotationExperimentalClusterChecksRunnerGroups = "agent.datadoghq.com/experimental-cluster-checks-runner-groups"
+
+// AnnotationExperimentalKubeChecksRunnerDefault opts in to the built-in
+// kube runner group: when "true", a dedicated kube-family runner group is
+// materialized even with useClusterChecksRunners disabled (mixed mode).
+// Experimental out-of-band config: no validation, versioning or compat
+// guarantees.
+const AnnotationExperimentalKubeChecksRunnerDefault = "agent.datadoghq.com/experimental-kube-checks-runner-default"
+
 // Fleet pending-operation annotations. The fleet daemon writes these
 // annotations to durably track the single in-flight async operation for a DDA
 // so it can recover after restarts.

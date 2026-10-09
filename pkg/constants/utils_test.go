@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/stretchr/testify/assert"
 
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -56,6 +57,49 @@ func TestServiceAccountNameOverride(t *testing.T) {
 					t.Errorf("Service Account Override error = %v, want %v", res[name], tt.want[name])
 				}
 			}
+		})
+	}
+}
+
+func TestCCRPlacement(t *testing.T) {
+	dda := func(clusterChecksEnabled, useRunners bool, annotations map[string]string) *v2alpha1.DatadogAgent {
+		return &v2alpha1.DatadogAgent{
+			ObjectMeta: v1.ObjectMeta{Name: "test-dda", Annotations: annotations},
+			Spec: v2alpha1.DatadogAgentSpec{
+				Features: &v2alpha1.DatadogFeatures{
+					ClusterChecks: &v2alpha1.ClusterChecksFeatureConfig{
+						Enabled:                 new(clusterChecksEnabled),
+						UseClusterChecksRunners: new(useRunners),
+					},
+				},
+			},
+		}
+	}
+	knob := map[string]string{v2alpha1.AnnotationExperimentalKubeChecksRunnerDefault: "true"}
+	httpGroup := map[string]string{v2alpha1.AnnotationExperimentalClusterChecksRunnerGroups: `[{"name":"http","checksInclude":["http_check"]}]`}
+
+	tests := []struct {
+		name         string
+		dda          *v2alpha1.DatadogAgent
+		wantRequired bool
+		wantKSMOnCCR bool
+	}{
+		{"cluster checks disabled, knob on", dda(false, false, knob), false, false},
+		{"runners off, no groups", dda(true, false, nil), false, false},
+		{"runners on, no groups", dda(true, true, nil), true, true},
+		{"runners off, knob on (mixed mode)", dda(true, false, knob), true, true},
+		{"runners off, unrelated user group", dda(true, false, httpGroup), true, false},
+		{"runners off, malformed groups", dda(true, false, map[string]string{v2alpha1.AnnotationExperimentalClusterChecksRunnerGroups: "not-json"}), false, false},
+		{"no cluster checks feature, knob on", &v2alpha1.DatadogAgent{
+			ObjectMeta: v1.ObjectMeta{Name: "test-dda", Annotations: knob},
+			Spec:       v2alpha1.DatadogAgentSpec{Features: &v2alpha1.DatadogFeatures{}},
+		}, false, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.wantRequired, IsCCRComponentRequired(tt.dda, &tt.dda.Spec))
+			assert.Equal(t, tt.wantKSMOnCCR, RunsOnCCR(tt.dda, &tt.dda.Spec, "kubernetes_state_core"))
 		})
 	}
 }

@@ -6,6 +6,8 @@
 package testutils
 
 import (
+	"encoding/json"
+
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -747,6 +749,29 @@ func (builder *DatadogAgentBuilder) WithClusterChecks(enabled bool, useRunners b
 	builder.initCC()
 	builder.datadogAgent.Spec.Features.ClusterChecks.Enabled = new(enabled)
 	builder.datadogAgent.Spec.Features.ClusterChecks.UseClusterChecksRunners = new(useRunners)
+	return builder
+}
+
+// WithClusterChecksRunnerGroups sets the experimental cluster checks runner
+// groups annotation (see v2alpha1.GetEffectiveClusterChecksRunnerGroups).
+func (builder *DatadogAgentBuilder) WithClusterChecksRunnerGroups(groups []v2alpha1.ClusterChecksRunnerGroup) *DatadogAgentBuilder {
+	raw, err := json.Marshal(groups)
+	if err != nil {
+		panic(err)
+	}
+	return builder.withAnnotation(v2alpha1.AnnotationExperimentalClusterChecksRunnerGroups, string(raw))
+}
+
+// WithKubeChecksRunnerDefault enables the experimental built-in kube runner group.
+func (builder *DatadogAgentBuilder) WithKubeChecksRunnerDefault() *DatadogAgentBuilder {
+	return builder.withAnnotation(v2alpha1.AnnotationExperimentalKubeChecksRunnerDefault, "true")
+}
+
+func (builder *DatadogAgentBuilder) withAnnotation(key, value string) *DatadogAgentBuilder {
+	if builder.datadogAgent.Annotations == nil {
+		builder.datadogAgent.Annotations = map[string]string{}
+	}
+	builder.datadogAgent.Annotations[key] = value
 	return builder
 }
 
