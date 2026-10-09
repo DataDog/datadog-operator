@@ -7,6 +7,7 @@ package celvalidation
 
 import (
 	"fmt"
+	"slices"
 	"testing"
 
 	"github.com/google/cel-go/cel"
@@ -20,6 +21,7 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 )
 
 // perRuleCostCeiling is the share of the API server's per-expression limit one
@@ -51,7 +53,7 @@ const totalCostCeiling = celconfig.RuntimeCELCostBudget / 10
 // signal rather than the real figure; envtest is what would produce that.
 func TestRuleCostsStayWellBelowLimits(t *testing.T) {
 	t.Run("DatadogAgent", func(t *testing.T) {
-		assertRuleCosts(t, v2alpha1.DatadogAgentValidationRules(), largeDatadogAgent())
+		assertRuleCosts(t, slices.Concat(v2alpha1.DatadogAgentValidationRules(), feature.ValidationRules()), largeDatadogAgent())
 	})
 
 	t.Run("DatadogAgentProfile", func(t *testing.T) {

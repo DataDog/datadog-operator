@@ -98,3 +98,40 @@ func HumanList(items []string) string {
 	}
 	return strings.Join(items[:len(items)-1], ", ") + " and " + items[len(items)-1]
 }
+
+// AnnotationValueRule requires an annotation, where present, to hold one of
+// allowed.
+//
+// The rule holds when the annotation is absent: whether a feature must be
+// configured at all is a different question. It only rejects a value the
+// reader would not understand.
+func AnnotationValueRule(key string, allowed []string, message string) ValidationRule {
+	const annotations = "object.metadata.annotations"
+	return ValidationRule{
+		Expression: fmt.Sprintf(
+			"!has(object.metadata) || !has(%s) || !('%s' in %s) || %s['%s'] in [%s]",
+			annotations, key, annotations, annotations, key, QuotedCELList(allowed),
+		),
+		Message: message,
+	}
+}
+
+// BoolAnnotationValues are the only values a feature enable/disable annotation
+// may hold. HasFeatureEnableAnnotation compares against "true" exactly, so
+// anything else silently leaves the feature off.
+var BoolAnnotationValues = []string{"true", "false"}
+
+// ParseBoolAnnotationValues are the values strconv.ParseBool accepts, for the
+// annotations read that way. Narrower than this would reject configurations
+// that work today.
+var ParseBoolAnnotationValues = []string{
+	"1", "t", "T", "TRUE", "true", "True",
+	"0", "f", "F", "FALSE", "false", "False",
+}
+
+// EnableAnnotationRule is the Decided 16 rule for a feature enable/disable
+// annotation.
+func EnableAnnotationRule(key string) ValidationRule {
+	return AnnotationValueRule(key, BoolAnnotationValues,
+		fmt.Sprintf("annotation %s must be exactly \"true\" or \"false\"; any other value leaves the feature off", key))
+}

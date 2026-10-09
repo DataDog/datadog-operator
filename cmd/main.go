@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"os"
 	goruntime "runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -45,6 +46,7 @@ import (
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/metrics"
 	"github.com/DataDog/datadog-operator/pkg/admissionpolicy"
 	"github.com/DataDog/datadog-operator/pkg/celvalidation"
@@ -507,8 +509,11 @@ func run(opts *options) error {
 	// rules are compiled into the binary, so this is an operator bug, and
 	// blocking every reconcile over it is worse than running without the
 	// checks. CompileRules skips only the rules it could not compile.
+	// Non-feature rules plus every feature's own, which the feature packages
+	// registered from init(). They compile and run together: a feature rule is
+	// evaluated in exactly the same place as a non-feature one (doc Decided 10).
 	ddaValidationRules, err := celvalidation.CompileRules(
-		datadoghqv2alpha1.DatadogAgentValidationRules(),
+		slices.Concat(datadoghqv2alpha1.DatadogAgentValidationRules(), feature.ValidationRules()),
 		datadoghqv2alpha1.GroupVersion.WithKind("DatadogAgent"),
 		datadoghqv2alpha1.GroupVersion.WithResource("datadogagents"),
 	)

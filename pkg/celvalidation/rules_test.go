@@ -9,6 +9,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -24,8 +25,13 @@ import (
 	"sigs.k8s.io/yaml"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	// Features register their rules from init(). Blank-import every package
+	// that registers one, or the safeguards below silently stop covering it.
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/hostprofiler"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/otlp"
 )
 
 // repoRoot is this package's directory, two levels below the repository root.
@@ -42,7 +48,7 @@ var exampleDirs = []string{
 func ddaRules(t *testing.T) *CompiledRules {
 	t.Helper()
 	rules, err := CompileRules(
-		v2alpha1.DatadogAgentValidationRules(),
+		slices.Concat(v2alpha1.DatadogAgentValidationRules(), feature.ValidationRules()),
 		v2alpha1.GroupVersion.WithKind("DatadogAgent"),
 		v2alpha1.GroupVersion.WithResource("datadogagents"),
 	)
@@ -241,7 +247,7 @@ func TestRulesDeclareOnlyObject(t *testing.T) {
 		kind  string
 		rules []apicommon.ValidationRule
 	}{
-		{"DatadogAgent", v2alpha1.DatadogAgentValidationRules()},
+		{"DatadogAgent", slices.Concat(v2alpha1.DatadogAgentValidationRules(), feature.ValidationRules())},
 		{"DatadogAgentProfile", v1alpha1.DatadogAgentProfileValidationRules()},
 	}
 
