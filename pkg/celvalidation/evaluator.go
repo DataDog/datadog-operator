@@ -55,7 +55,16 @@ import (
 //
 // Raise this with the minimum Kubernetes version pkg/admissionpolicy installs
 // on, not with the operator's k8s.io dependency.
-var CompatibilityVersion = version.MajorMinor(1, 29)
+var CompatibilityVersion = MinimumKubernetesVersion.SubtractMinor(1)
+
+// MinimumKubernetesVersion is the oldest cluster the operator installs a policy
+// on: ValidatingAdmissionPolicy reached v1 in 1.30. It is not the pin, and the
+// two must not be confused in anything a user reads - a 1.29 cluster gets no
+// policy at all. Raise this and CompatibilityVersion follows.
+//
+// Whether a given cluster actually serves the API is discovered at runtime
+// rather than inferred from its version; this is for reporting.
+var MinimumKubernetesVersion = version.MajorMinor(1, 30)
 
 // CompiledRules is a rule set compiled once and evaluated many times.
 //

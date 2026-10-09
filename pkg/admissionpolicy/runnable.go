@@ -129,7 +129,7 @@ func (c *Controller) apply(ctx context.Context) error {
 	if !ok {
 		if c.supported == nil || *c.supported {
 			c.logger.Info("Cluster does not serve admissionregistration.k8s.io/v1 validatingadmissionpolicies, skipping admission policy",
-				"requiredKubernetesVersion", celvalidation.CompatibilityVersion.String())
+				"requiredKubernetesVersion", celvalidation.MinimumKubernetesVersion.String())
 		}
 		c.supported = &ok
 		return nil
