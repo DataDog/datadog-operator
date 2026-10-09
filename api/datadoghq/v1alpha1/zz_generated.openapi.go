@@ -3001,7 +3001,7 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogCSIDriverAPMConfig(re
 							},
 						},
 						SchemaProps: spec.SchemaProps{
-							Description: "PullSecrets are kubernetes.io/dockerconfigjson Secrets used to download APM libraries from private registries. When empty, the CSI driver falls back to csiDriverImage.pullSecrets; legacy kubernetes.io/dockercfg Secrets are ignored for APM authentication in that fallback path. Restart the CSI DaemonSet after rotating these Secrets. Not supported on GKE Autopilot.",
+							Description: "PullSecrets are kubernetes.io/dockerconfigjson Secrets used to download APM libraries from private registries. When empty, the CSI driver falls back to csiDriverImage.pullSecrets; legacy kubernetes.io/dockercfg Secrets are ignored for APM authentication in that fallback path. Restart the CSI DaemonSet after rotating these Secrets.",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -3020,7 +3020,7 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogCSIDriverAPMConfig(re
 							},
 						},
 						SchemaProps: spec.SchemaProps{
-							Description: "RegistryAllowList restricts which registries can be used for DatadogLibrary volumes. An empty list allows all registries. When managed by a DatadogAgent, it is set from spec.features.admissionController.registryAllowList. Not supported on GKE Autopilot. (Requires Datadog CSI Driver 1.3.0+)",
+							Description: "RegistryAllowList restricts which registries can be used for DatadogLibrary volumes. An empty list allows all registries. When managed by a DatadogAgent, it is set from spec.features.admissionController.registryAllowList. (Requires Datadog CSI Driver 1.3.0+)",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{

@@ -617,10 +617,8 @@ func registryAuthSecrets(instance *datadoghqv1alpha1.DatadogCSIDriver) (secrets 
 }
 
 // buildRegistryAllowListEnvVars emits DD_REGISTRY_ALLOW_LIST, matching the Helm chart.
-// Skipped on GKE Autopilot (not covered by the published WorkloadAllowlist).
 func buildRegistryAllowListEnvVars(instance *datadoghqv1alpha1.DatadogCSIDriver) []corev1.EnvVar {
-	if instance.Spec.APM == nil || len(instance.Spec.APM.RegistryAllowList) == 0 ||
-		experimental.IsAutopilotEnabled(instance) {
+	if instance.Spec.APM == nil || len(instance.Spec.APM.RegistryAllowList) == 0 {
 		return nil
 	}
 	return []corev1.EnvVar{{
@@ -630,10 +628,9 @@ func buildRegistryAllowListEnvVars(instance *datadoghqv1alpha1.DatadogCSIDriver)
 }
 
 // buildRegistryAuthEnvVars emits DD_APM_REGISTRY_AUTH_<n> secret references, matching the
-// Helm chart. Skipped when APM is disabled or on GKE Autopilot (not covered by the
-// published WorkloadAllowlist).
+// Helm chart. Skipped when APM is disabled.
 func buildRegistryAuthEnvVars(instance *datadoghqv1alpha1.DatadogCSIDriver) []corev1.EnvVar {
-	if !getAPMEnabled(instance) || experimental.IsAutopilotEnabled(instance) {
+	if !getAPMEnabled(instance) {
 		return nil
 	}
 

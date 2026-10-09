@@ -729,7 +729,7 @@ spec:
                             RegistryAllowList restricts which registries can be used for APM library injection.
                             When non-empty, the admission controller only injects libraries from the listed
                             registries, for all injection modes. It is also enforced by the DatadogCSIDriver managed
-                            by the operator (except on GKE Autopilot). An empty list allows all registries.
+                            by the operator. An empty list allows all registries.
                             (Requires Cluster Agent 7.80.0+ and Datadog CSI Driver 1.3.0+)
                           items:
                             type: string
@@ -2986,7 +2986,6 @@ spec:
                                 PullSecrets are kubernetes.io/dockerconfigjson Secrets used to download APM
                                 libraries from private registries. Propagated to the managed DatadogCSIDriver as
                                 spec.apm.pullSecrets. Restart the CSI DaemonSet after rotating these Secrets.
-                                Not supported on GKE Autopilot.
                               items:
                                 description: |-
                                   LocalObjectReference contains enough information to let you locate the
@@ -10036,7 +10035,7 @@ spec:
                                 RegistryAllowList restricts which registries can be used for APM library injection.
                                 When non-empty, the admission controller only injects libraries from the listed
                                 registries, for all injection modes. It is also enforced by the DatadogCSIDriver managed
-                                by the operator (except on GKE Autopilot). An empty list allows all registries.
+                                by the operator. An empty list allows all registries.
                                 (Requires Cluster Agent 7.80.0+ and Datadog CSI Driver 1.3.0+)
                               items:
                                 type: string

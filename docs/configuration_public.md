@@ -83,7 +83,7 @@ spec:
 : Defines an image registry for the admission controller.
 
 `features.admissionController.registryAllowList`
-: RegistryAllowList restricts which registries can be used for APM library injection. When non-empty, the admission controller only injects libraries from the listed registries, for all injection modes. It is also enforced by the DatadogCSIDriver managed by the operator (except on GKE Autopilot). An empty list allows all registries. (Requires Cluster Agent 7.80.0+ and Datadog CSI Driver 1.3.0+)
+: RegistryAllowList restricts which registries can be used for APM library injection. When non-empty, the admission controller only injects libraries from the listed registries, for all injection modes. It is also enforced by the DatadogCSIDriver managed by the operator. An empty list allows all registries. (Requires Cluster Agent 7.80.0+ and Datadog CSI Driver 1.3.0+)
 
 `features.admissionController.serviceName`
 : ServiceName corresponds to the webhook service name.
@@ -515,7 +515,7 @@ spec:
 : Path to the container runtime socket (if different from Docker).
 
 `global.csi.apm.pullSecrets`
-: PullSecrets are kubernetes.io/dockerconfigjson Secrets used to download APM libraries from private registries. Propagated to the managed DatadogCSIDriver as spec.apm.pullSecrets. Restart the CSI DaemonSet after rotating these Secrets. Not supported on GKE Autopilot.
+: PullSecrets are kubernetes.io/dockerconfigjson Secrets used to download APM libraries from private registries. Propagated to the managed DatadogCSIDriver as spec.apm.pullSecrets. Restart the CSI DaemonSet after rotating these Secrets.
 
 `global.csi.autoManage`
 : AutoManage controls whether the operator automatically manages the DatadogCSIDriver custom resource on behalf of this DatadogAgent. Set to false to hand ownership over to a DatadogCSIDriver CR that you maintain yourself (useful for migrations where you need customizations not exposed on the DatadogAgent spec). When toggled from true to false, the operator cleans up the DDA-owned DatadogCSIDriver CR; you are then responsible for providing a replacement so CSI continues to work. Default: true

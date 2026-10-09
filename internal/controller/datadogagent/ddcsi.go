@@ -107,8 +107,8 @@ func (r *Reconciler) buildDesiredDatadogCSIDriver(instance *v2alpha1.DatadogAgen
 		if annotations == nil {
 			annotations = map[string]string{}
 		}
-		// Stamp the provider annotation so the CSI controller can skip registry
-		// authentication env vars that are not covered by the WorkloadAllowlist.
+		// Stamp the provider annotation so the CSI controller forces the GCR image
+		// required by the WorkloadAllowlist.
 		annotations[kubernetes.ProviderAnnotationKey] = kubernetes.GKEAutopilotProvider
 	}
 
