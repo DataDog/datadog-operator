@@ -144,6 +144,19 @@ properties:
             verbs:
             - get
           - apiGroups:
+            - ""
+            resources:
+            - pods/eviction
+            - pods/exec
+            verbs:
+            - create
+          - apiGroups:
+            - ""
+            resources:
+            - pods/resize
+            verbs:
+            - patch
+          - apiGroups:
             - '*'
             resources:
             - '*/scale'
@@ -353,7 +366,6 @@ properties:
             - datadogmonitors/finalizers
             - datadogslos
             - datadogslos/finalizers
-            - extendeddaemonsets
             verbs:
             - create
             - delete
@@ -420,15 +432,6 @@ properties:
             verbs:
             - '*'
           - apiGroups:
-            - datadoghq.com
-            resources:
-            - extendeddaemonsetreplicasets
-            verbs:
-            - delete
-            - get
-            - list
-            - watch
-          - apiGroups:
             - discovery.k8s.io
             resources:
             - endpointslices
@@ -459,6 +462,18 @@ properties:
           - apiGroups:
             - gateway.networking.k8s.io
             resources:
+            - backendtlspolicies
+            - grpcroutes
+            - listenersets
+            - tcproutes
+            - tlsroutes
+            - udproutes
+            verbs:
+            - list
+            - watch
+          - apiGroups:
+            - gateway.networking.k8s.io
+            resources:
             - gatewayclasses
             - gateways
             - httproutes
@@ -470,21 +485,29 @@ properties:
           - apiGroups:
             - gateway.networking.k8s.io
             resources:
-            - grpcroutes
-            - listenersets
-            - tlsroutes
-            verbs:
-            - list
-            - watch
-          - apiGroups:
-            - gateway.networking.k8s.io
-            resources:
             - referencegrants
             verbs:
             - create
             - delete
             - get
+            - list
             - patch
+            - watch
+          - apiGroups:
+            - inference.networking.k8s.io
+            resources:
+            - inferencepools
+            verbs:
+            - list
+            - watch
+          - apiGroups:
+            - inference.networking.x-k8s.io
+            resources:
+            - inferencepoolimports
+            - inferencepools
+            verbs:
+            - list
+            - watch
           - apiGroups:
             - k8s.nginx.org
             resources:
@@ -506,12 +529,27 @@ properties:
             - update
             - watch
           - apiGroups:
+            - kubeai.org
+            resources:
+            - models
+            verbs:
+            - list
+            - watch
+          - apiGroups:
             - kustomize.toolkit.fluxcd.io
             resources:
             - kustomizations
             verbs:
             - list
             - watch
+          - apiGroups:
+            - networking.gke.io
+            resources:
+            - gcptrafficextensions
+            verbs:
+            - create
+            - delete
+            - get
           - apiGroups:
             - networking.istio.io
             resources:
@@ -568,6 +606,19 @@ properties:
             - update
             - watch
           - apiGroups:
+            - nvidia.com
+            resources:
+            - dynamocheckpoints
+            - dynamocomponentdeployments
+            - dynamographdeploymentrequests
+            - dynamographdeployments
+            - dynamographdeploymentscalingadapters
+            - dynamomodels
+            - dynamoworkermetadatas
+            verbs:
+            - list
+            - watch
+          - apiGroups:
             - policy
             resources:
             - poddisruptionbudgets
@@ -586,6 +637,16 @@ properties:
             verbs:
             - get
             - list
+          - apiGroups:
+            - ray.io
+            resources:
+            - rayclusters
+            - raycronjobs
+            - rayjobs
+            - rayservices
+            verbs:
+            - list
+            - watch
           - apiGroups:
             - rbac.authorization.k8s.io
             resources:
@@ -622,6 +683,24 @@ properties:
             verbs:
             - use
           - apiGroups:
+            - serving.kserve.io
+            resources:
+            - clusterservingruntimes
+            - clusterstoragecontainers
+            - inferencegraphs
+            - inferenceservices
+            - llminferenceserviceconfigs
+            - llminferenceservices
+            - localmodelcaches
+            - localmodelnamespacecaches
+            - localmodelnodegroups
+            - localmodelnodes
+            - servingruntimes
+            - trainedmodels
+            verbs:
+            - list
+            - watch
+          - apiGroups:
             - source.toolkit.fluxcd.io
             resources:
             - buckets
@@ -631,15 +710,6 @@ properties:
             - helmrepositories
             - ocirepositories
             verbs:
-            - list
-            - watch
-          - apiGroups:
-            - storage.k8s.io
-            resources:
-            - storageclasses
-            - volumeattachments
-            verbs:
-            - get
             - list
             - watch
           - apiGroups:
@@ -662,25 +732,21 @@ properties:
             - patch
             - update
           - apiGroups:
+            - storage.k8s.io
+            resources:
+            - storageclasses
+            - volumeattachments
+            verbs:
+            - get
+            - list
+            - watch
+          - apiGroups:
             - traefik.io
             resources:
             - ingressroutes
             verbs:
             - list
             - watch
-          - apiGroups:
-            - ""
-            resources:
-            - pods/exec
-            - pods/eviction
-            verbs:
-            - create
-          - apiGroups:
-            - ""
-            resources:
-            - pods/resize
-            verbs:
-            - patch
 required:
 - name
 - namespace
