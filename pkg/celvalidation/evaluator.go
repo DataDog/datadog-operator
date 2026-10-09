@@ -25,8 +25,10 @@ import (
 	"fmt"
 
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/version"
 	"k8s.io/apiserver/pkg/admission"
 	plugincel "k8s.io/apiserver/pkg/admission/plugin/cel"
@@ -34,6 +36,7 @@ import (
 	celconfig "k8s.io/apiserver/pkg/apis/cel"
 	"k8s.io/apiserver/pkg/cel/environment"
 	"k8s.io/utils/ptr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/common"
 )
@@ -272,4 +275,38 @@ func (c *CompiledRules) ruleName(i int) string {
 		return "(unknown)"
 	}
 	return c.rules[i].Message
+}
+
+// ValidateStored reads the object's stored form through reader, as
+// unstructured, and validates that rather than the typed object the caller
+// holds.
+//
+// This is what keeps the two evaluations honest. The API server evaluates the
+// rules against the request body; a typed Go struct cannot reproduce it,
+// because decoding JSON into one drops and adds things - an empty struct where
+// the user wrote nothing, null for a nil map, a quantity rewritten to its
+// canonical form - so the same rule can answer differently on each side.
+// Reading the stored object gives the operator the bytes the API server last
+// saw.
+//
+// reader must be cache-backed. Through the normal client an unstructured read
+// is not cached by default and would cost an API request per reconcile.
+//
+// A nil reader, or a read that fails, falls back to validating fallback, the
+// typed object. That keeps validation running when the cache cannot answer, at
+// the cost of the round-trip differences above; it is not the normal path.
+func (c *CompiledRules) ValidateStored(ctx context.Context, reader client.Reader, fallback runtime.Object, namespace, name string) error {
+	if c == nil || len(c.rules) == 0 {
+		return nil
+	}
+	if reader == nil {
+		return c.ValidateObject(ctx, fallback, namespace, name)
+	}
+
+	stored := &unstructured.Unstructured{}
+	stored.SetGroupVersionKind(c.gvk)
+	if err := reader.Get(ctx, types.NamespacedName{Namespace: namespace, Name: name}, stored); err != nil {
+		return c.ValidateObject(ctx, fallback, namespace, name)
+	}
+	return c.ValidateObject(ctx, stored, namespace, name)
 }

@@ -20,6 +20,7 @@ import (
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
@@ -94,19 +95,19 @@ func AssignNodesToProfile(profile metav1.ObjectMeta, profileRequirements []*labe
 // rules are the compiled DatadogAgentProfile CEL rules, built once at startup
 // and passed in rather than reached for globally. A nil set validates nothing,
 // which is what a compile failure at startup leaves behind.
-func ValidateProfileAndReturnRequirements(ctx context.Context, profile *v1alpha1.DatadogAgentProfile, rules *celvalidation.CompiledRules) ([]*labels.Requirement, error) {
-	if err := validateProfile(ctx, profile, rules); err != nil {
+func ValidateProfileAndReturnRequirements(ctx context.Context, profile *v1alpha1.DatadogAgentProfile, rules *celvalidation.CompiledRules, reader client.Reader) ([]*labels.Requirement, error) {
+	if err := validateProfile(ctx, profile, rules, reader); err != nil {
 		return nil, err
 	}
 	return parseProfileRequirements(profile)
 }
 
 // validateProfile validates a profile's name and spec
-func validateProfile(ctx context.Context, profile *v1alpha1.DatadogAgentProfile, rules *celvalidation.CompiledRules) error {
+func validateProfile(ctx context.Context, profile *v1alpha1.DatadogAgentProfile, rules *celvalidation.CompiledRules, reader client.Reader) error {
 	if err := validateProfileName(profile.Name); err != nil {
 		return fmt.Errorf("profile name is invalid: %w", err)
 	}
-	if err := rules.ValidateObject(ctx, profile, profile.Namespace, profile.Name); err != nil {
+	if err := rules.ValidateStored(ctx, reader, profile, profile.Namespace, profile.Name); err != nil {
 		return fmt.Errorf("profile spec is invalid: %w", err)
 	}
 	// Not a CEL rule; see ValidateOverridesDefined.

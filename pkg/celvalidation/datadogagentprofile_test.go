@@ -441,20 +441,20 @@ func validateSpec(t *testing.T, spec *v1alpha1.DatadogAgentProfileSpec) error {
 	return v1alpha1.ValidateOverridesDefined(profile)
 }
 
-// TestEmptyDisallowedFieldIsAdmissionOnly pins down where the two evaluation
-// points differ, and it is the one user-visible change from validating in Go.
+// TestTypedRoundTripLosesAnEmptyField pins down why the operator reads the
+// stored object rather than the typed one it already holds.
 //
 // Every field in these structs is omitempty. The API server evaluates the rules
-// against the request body, so `nodeSelector: {}` is present and the rule fires.
-// The operator evaluates them against the stored object converted from Go, and
-// that conversion drops an empty map, so the same spec reads as unset and the
-// rule does not fire. The Go validator this replaced used reflect.IsNil and
-// caught both.
+// against the request body, so `nodeSelector: {}` is present and the rule
+// fires. Converting the same spec from Go drops the empty map, so it reads as
+// unset and the rule does not. The Go validator this replaced used
+// reflect.IsNil and caught both.
 //
-// The practical effect is that an explicitly empty disallowed field is reported
-// at kubectl apply and ignored at reconcile. An empty override has nothing to
-// apply, so nothing is misconfigured as a result.
-func TestEmptyDisallowedFieldIsAdmissionOnly(t *testing.T) {
+// ValidateStored is what closes the gap in production: it reads the object as
+// unstructured, so both sides see the same bytes. This test keeps the
+// difference visible, because the fallback path in ValidateStored still
+// evaluates the typed object when the cache cannot answer.
+func TestTypedRoundTripLosesAnEmptyField(t *testing.T) {
 	rules := dapRules(t)
 
 	const message = "component node selector override is not supported"

@@ -45,7 +45,9 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 	// This runs before defaulting on purpose: the API server evaluates the same
 	// CEL rules against the DatadogAgent as the user wrote it, and a rule that
 	// saw defaulted values here would not agree with itself between the two.
-	if err := r.options.DatadogAgentValidationRules.ValidateObject(ctx, instance, instance.Namespace, instance.Name); err != nil {
+	// ValidateStored reads the object as unstructured for the same reason; see
+	// its comment.
+	if err := r.options.DatadogAgentValidationRules.ValidateStored(ctx, r.options.ValidationReader, instance, instance.Namespace, instance.Name); err != nil {
 		return result, err
 	}
 	if instance.Spec.Global != nil {

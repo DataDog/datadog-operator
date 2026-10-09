@@ -16,9 +16,11 @@ import (
 	"github.com/google/cel-go/cel"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apiserver/pkg/cel/environment"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/yaml"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
@@ -268,4 +270,69 @@ func TestRulesDeclareOnlyObject(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestValidateStoredReadsTheStoredObject checks that ValidateStored evaluates
+// the object it reads through the reader, not the typed one it is handed, and
+// that it falls back to the typed one when the reader cannot answer.
+//
+// It cannot demonstrate the difference that motivates the change - an
+// explicitly empty disallowed field, see TestTypedRoundTripLosesAnEmptyField.
+// The fake client converts stored objects through the typed scheme, so
+// `nodeSelector: {}` comes back as `nodeAgent: {}` and both sides agree again.
+// Showing that difference needs a real API server, which is one more thing on
+// the envtest list.
+func TestValidateStoredReadsTheStoredObject(t *testing.T) {
+	const message = "component node selector override is not supported"
+
+	scheme := runtime.NewScheme()
+	require.NoError(t, v1alpha1.AddToScheme(scheme))
+
+	// Stored: a disallowed field, set to a value the fake client preserves.
+	stored := &unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": "datadoghq.com/v1alpha1",
+		"kind":       "DatadogAgentProfile",
+		"metadata":   map[string]any{"name": "profile", "namespace": "ns"},
+		"spec": map[string]any{
+			"profileAffinity": map[string]any{
+				"profileNodeAffinity": []any{
+					map[string]any{"key": "app", "operator": "In", "values": []any{"dd"}},
+				},
+			},
+			"config": map[string]any{
+				"override": map[string]any{
+					"nodeAgent": map[string]any{"nodeSelector": map[string]any{"disk": "ssd"}},
+				},
+			},
+		},
+	}}
+
+	// What the caller holds: valid, and without that field. If ValidateStored
+	// evaluated this instead, nothing would fail.
+	fallback := &v1alpha1.DatadogAgentProfile{
+		ObjectMeta: metav1.ObjectMeta{Name: "profile", Namespace: "ns"},
+		Spec: v1alpha1.DatadogAgentProfileSpec{
+			ProfileAffinity: validProfileAffinity(),
+			Config:          &v2alpha1.DatadogAgentSpec{},
+		},
+	}
+
+	rules := dapRules(t)
+
+	t.Run("evaluates what the reader returns", func(t *testing.T) {
+		reader := fake.NewClientBuilder().WithScheme(scheme).WithObjects(stored).Build()
+		err := rules.ValidateStored(context.Background(), reader, fallback, "ns", "profile")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), message)
+	})
+
+	t.Run("falls back to the typed object without a reader", func(t *testing.T) {
+		assert.NoError(t, rules.ValidateStored(context.Background(), nil, fallback, "ns", "profile"))
+	})
+
+	t.Run("falls back when the read fails", func(t *testing.T) {
+		empty := fake.NewClientBuilder().WithScheme(scheme).Build()
+		assert.NoError(t, rules.ValidateStored(context.Background(), empty, fallback, "ns", "missing"),
+			"a failed read must not fail the reconcile")
+	})
 }

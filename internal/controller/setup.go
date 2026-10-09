@@ -124,6 +124,9 @@ func startDatadogAgent(logger logr.Logger, mgr manager.Manager, pInfo kubernetes
 			ClusterProviderDetector:            options.ClusterProviderDetector,
 			DatadogAgentValidationRules:        options.DatadogAgentValidationRules,
 			DatadogAgentProfileValidationRules: options.DatadogAgentProfileValidationRules,
+			// The manager's cache, so the unstructured reads the rules need are
+			// served locally rather than costing an API request per reconcile.
+			ValidationReader: mgr.GetCache(),
 		},
 	}).SetupWithManager(mgr, metricForwardersMgr)
 }

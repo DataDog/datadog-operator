@@ -116,6 +116,11 @@ type ReconcilerOptions struct {
 	// at startup leaves behind: one bad rule must not stop every reconcile.
 	DatadogAgentValidationRules        *celvalidation.CompiledRules
 	DatadogAgentProfileValidationRules *celvalidation.CompiledRules
+	// ValidationReader reads DatadogAgents and DatadogAgentProfiles as
+	// unstructured so the rules see the stored object rather than a typed
+	// round trip. It must be cache-backed; the manager's cache is. Nil falls
+	// back to validating the typed object.
+	ValidationReader client.Reader
 	// APIReader is an uncached, direct-to-apiserver reader used to validate
 	// experiment rollback targets. A cached/informer-backed client's stale
 	// NotFound could be mistaken for a permanently-lost baseline revision.
