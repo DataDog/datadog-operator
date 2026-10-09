@@ -76,11 +76,6 @@ type DatadogInstrumentationCheckConfig struct {
 	// +kubebuilder:validation:Enum=low;orchestrator;high
 	CheckTagCardinality string `json:"checkTagCardinality,omitempty"`
 
-	// JMXMetrics contains integration-specific jmx_metrics definitions.
-	// +optional
-	// +listType=atomic
-	JMXMetrics []runtime.RawExtension `json:"jmxMetrics,omitempty"`
-
 	// InitConfig is the integration-specific Autodiscovery init_config payload.
 	// +optional
 	// +kubebuilder:pruning:PreserveUnknownFields

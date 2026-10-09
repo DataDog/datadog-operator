@@ -261,13 +261,6 @@ spec:
                           integration:
                             description: Integration is the Datadog integration name, for example redisdb.
                             type: string
-                          jmxMetrics:
-                            description: JMXMetrics contains integration-specific jmx_metrics definitions.
-                            items:
-                              type: object
-                              x-kubernetes-preserve-unknown-fields: true
-                            type: array
-                            x-kubernetes-list-type: atomic
                         required:
                           - integration
                         type: object
