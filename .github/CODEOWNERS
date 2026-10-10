@@ -65,6 +65,14 @@ README.md                                       @DataDog/container-platform
 
 /api/**/datadogpodautoscaler*.go              @DataDog/container-autoscaling  @DataDog/container-platform
 
+# BYOC
+/api/**/datadogbyoccluster*.go                                @DataDog/logs-cloudprem  @DataDog/container-platform
+/config/**/*datadogbyocclusters*                              @DataDog/logs-cloudprem  @DataDog/container-platform
+/internal/controller/datadogbyoccluster/                      @DataDog/logs-cloudprem  @DataDog/container-platform
+/api/**/datadogobservabilitypipelinesworker*.go               @DataDog/logs-cloudprem  @DataDog/container-platform
+/config/**/*datadogobservabilitypipelinesworkers*             @DataDog/logs-cloudprem  @DataDog/container-platform
+/internal/controller/datadogobservabilitypipelinesworker/     @DataDog/logs-cloudprem  @DataDog/container-platform
+
 # kubectl plugin
 /cmd/kubectl-datadog/autoscaling/             @DataDog/container-autoscaling  @DataDog/container-platform
 
