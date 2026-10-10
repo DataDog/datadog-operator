@@ -13,9 +13,26 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
+// DatadogBYOCClusterType is the telemetry type stored by a BYOC cluster.
+type DatadogBYOCClusterType string
+
+const (
+	// DatadogBYOCClusterTypeLogs stores logs.
+	DatadogBYOCClusterTypeLogs DatadogBYOCClusterType = "logs"
+	// DatadogBYOCClusterTypeTraces stores traces.
+	DatadogBYOCClusterTypeTraces DatadogBYOCClusterType = "traces"
+)
+
 // DatadogBYOCClusterSpec defines the desired state of DatadogBYOCCluster.
 // +k8s:openapi-gen=true
 type DatadogBYOCClusterSpec struct {
+	// Type is the telemetry type stored by the cluster.
+	// When set to traces, the default node configuration creates the traces index.
+	// +optional
+	// +kubebuilder:default=logs
+	// +kubebuilder:validation:Enum=logs;traces
+	Type *DatadogBYOCClusterType `json:"type,omitempty"`
+
 	// Release identifies the BYOC release artifact.
 	// When both images are fully specified, the release artifact is not fetched, even if Release is set.
 	// +optional

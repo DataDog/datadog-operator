@@ -2393,6 +2393,13 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterSpec(ref c
 				Description: "DatadogBYOCClusterSpec defines the desired state of DatadogBYOCCluster.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
+					"type": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Type is the telemetry type stored by the cluster. When set to traces, the default node configuration creates the traces index.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 					"release": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Release identifies the BYOC release artifact. When both images are fully specified, the release artifact is not fetched, even if Release is set.",
