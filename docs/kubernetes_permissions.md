@@ -13,7 +13,7 @@ This document explains how and why the Operator requires RBAC permissions for Ku
 
 The [Datadog Operator ClusterRole](../config/rbac/role.yaml) is automatically generated using [kubebuilder markers](https://book.kubebuilder.io/reference/markers/rbac) listed in `_controller` files: [datadogagent_controller.go](../internal/controller/datadogagent_controller.go), for example. For a given controller, a controller can only grant a RBAC permission if the Operator itself already has that permission. This means that in order for the `DatadogAgent` controller to create the Agent DaemonSet, the Operator itself needs to be granted this permission.
 
-The permissions of the `DatadogBYOCCluster` controller are generated into a separate [ClusterRole](../config/rbac/byoc/role.yaml) from the markers in [datadogbyoccluster/controller.go](../internal/controller/datadogbyoccluster/controller.go). It only needs to be bound to the Operator service account when the controller is enabled.
+The permissions of the `DatadogBYOCCluster` and `DatadogObservabilityPipelinesWorker` controllers are generated into a separate [ClusterRole](../config/rbac/byoc/role.yaml) from the markers in [datadogbyoccluster/controller.go](../internal/controller/datadogbyoccluster/controller.go) and [datadogobservabilitypipelinesworker/controller.go](../internal/controller/datadogobservabilitypipelinesworker/controller.go). It only needs to be bound to the Operator service account when the controllers are enabled.
 
 ## Minimal set of permissions needed by the Datadog Operator
 
