@@ -37,7 +37,6 @@ const (
 	byocUpdatedReleaseTag = "updated"
 	byocFailureReleaseTag = "failure"
 	byocPipelineID        = "pipeline-id"
-	testDeletionFinalizer = "test.datadoghq.com/deletion"
 )
 
 var _ = Describe("DatadogBYOCCluster Controller", func() {
@@ -325,27 +324,25 @@ var _ = Describe("DatadogBYOCCluster Controller", func() {
 				return k8sClient.Get(context.Background(), client.ObjectKeyFromObject(indexer), indexer)
 			}, timeout, interval).Should(Succeed())
 
-			By("holding the indexer so the deletion phase can be observed")
-			addBYOCTestFinalizer(indexer)
-
 			By("deleting the parent")
 			currentCluster := &datadoghqv1alpha1.DatadogBYOCCluster{}
 			Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(cluster), currentCluster)).To(Succeed())
 			Expect(k8sClient.Delete(context.Background(), currentCluster)).To(Succeed())
 
-			By("verifying that indexer deletion starts before parent deletion finishes")
+			By("verifying that foreground indexer deletion starts before parent deletion finishes")
 			Eventually(func(g Gomega) {
 				currentIndexer := &appsv1.StatefulSet{}
 				g.Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(indexer), currentIndexer)).To(Succeed())
 				g.Expect(currentIndexer.DeletionTimestamp.IsZero()).To(BeFalse())
+				g.Expect(currentIndexer.Finalizers).To(ContainElement(metav1.FinalizerDeleteDependents))
 
 				currentCluster := &datadoghqv1alpha1.DatadogBYOCCluster{}
 				g.Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(cluster), currentCluster)).To(Succeed())
 				g.Expect(currentCluster.Finalizers).To(ContainElement("finalizer.datadoghq.com/datadogbyoccluster"))
 			}, timeout, interval).Should(Succeed())
 
-			By("allowing indexer and parent deletion to finish")
-			removeBYOCTestFinalizers(indexer, testDeletionFinalizer)
+			By("finishing the foreground deletion as the garbage collector would")
+			removeBYOCTestFinalizers(indexer, metav1.FinalizerDeleteDependents)
 			waitForBYOCTestDeletion(indexer)
 			waitForBYOCTestDeletion(cluster)
 		})
@@ -650,20 +647,6 @@ func byocTestPipeline() *datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSp
 			{Name: "otlp-http", Port: 4318, Protocol: corev1.ProtocolTCP},
 		},
 	}
-}
-
-func addBYOCTestFinalizer(object client.Object) {
-	Eventually(func() error {
-		current := object.DeepCopyObject().(client.Object)
-		if err := k8sClient.Get(context.Background(), client.ObjectKeyFromObject(object), current); err != nil {
-			return err
-		}
-		if slices.Contains(current.GetFinalizers(), testDeletionFinalizer) {
-			return nil
-		}
-		current.SetFinalizers(append(current.GetFinalizers(), testDeletionFinalizer))
-		return k8sClient.Update(context.Background(), current)
-	}, timeout, interval).Should(Succeed())
 }
 
 func removeBYOCTestFinalizers(object client.Object, finalizers ...string) {

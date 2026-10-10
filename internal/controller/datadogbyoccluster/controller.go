@@ -157,7 +157,8 @@ func (r *Reconciler) finalize(ctx context.Context, cluster *datadoghqv1alpha1.Da
 	}
 	indexer := &appsv1.StatefulSet{ObjectMeta: metav1.ObjectMeta{Name: byocresources.ComponentResourceName(cluster.Name, byocresources.IndexerComponentName), Namespace: cluster.Namespace}}
 	// The cache may not have observed a recently created indexer yet.
-	deleted, err := r.deleteIfControlled(ctx, r.APIReader, cluster, indexer)
+	// Foreground deletion keeps the StatefulSet until its pods terminate, so the resources they use outlive them.
+	deleted, err := r.deleteIfControlled(ctx, r.APIReader, cluster, indexer, client.PropagationPolicy(metav1.DeletePropagationForeground))
 	if err != nil {
 		return err
 	}
@@ -205,8 +206,8 @@ func (r *Reconciler) applyObject(ctx context.Context, owner *datadoghqv1alpha1.D
 }
 
 // deleteIfControlled deletes the object when it is controlled by owner and reports whether a deletion was requested.
-// The ownership check reads the object through reader.
-func (r *Reconciler) deleteIfControlled(ctx context.Context, reader client.Reader, owner client.Object, object client.Object) (bool, error) {
+// The ownership check reads the object through reader, and the deletion fails if the object changed since that read.
+func (r *Reconciler) deleteIfControlled(ctx context.Context, reader client.Reader, owner client.Object, object client.Object, opts ...client.DeleteOption) (bool, error) {
 	key := client.ObjectKeyFromObject(object)
 	if err := reader.Get(ctx, key, object); err != nil {
 		if apierrors.IsNotFound(err) {
@@ -217,7 +218,9 @@ func (r *Reconciler) deleteIfControlled(ctx context.Context, reader client.Reade
 	if !metav1.IsControlledBy(object, owner) {
 		return false, nil
 	}
-	if err := r.Client.Delete(ctx, object); err != nil {
+	uid, resourceVersion := object.GetUID(), object.GetResourceVersion()
+	opts = append(opts, client.Preconditions{UID: &uid, ResourceVersion: &resourceVersion})
+	if err := r.Client.Delete(ctx, object, opts...); err != nil {
 		if apierrors.IsNotFound(err) {
 			return false, nil
 		}
