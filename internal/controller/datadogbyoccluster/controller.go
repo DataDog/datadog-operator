@@ -17,14 +17,12 @@ import (
 	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	corev1 "k8s.io/api/core/v1"
 	policyv1 "k8s.io/api/policy/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
@@ -32,6 +30,7 @@ import (
 	byocdefaults "github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/defaults"
 	byocimage "github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/image"
 	byocresources "github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/resources"
+	byocutils "github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/utils"
 	byocvalidation "github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/validation"
 )
 
@@ -64,9 +63,6 @@ type Reconciler struct {
 
 	ImageResolver byocimage.ImageResolver
 }
-
-// errObjectConflict reports an existing object with a managed name that the cluster does not control.
-var errObjectConflict = errors.New("exists and is not controlled by this DatadogBYOCCluster")
 
 // reconcileFailure is the condition reported as False when reconciliation fails.
 type reconcileFailure struct {
@@ -134,16 +130,16 @@ func (r *Reconciler) reconcileResources(ctx context.Context, cluster *datadoghqv
 		return false, &reconcileFailure{conditionType: conditionReconciled, reason: reasonInvalidConfiguration, err: err, terminal: true}
 	}
 	for _, object := range resources.Objects() {
-		if err := r.applyObject(ctx, cluster, object); err != nil {
+		if err := byocutils.ApplyControlled(ctx, r.Client, r.APIReader, r.Scheme, cluster, object, datadogBYOCClusterFieldOwner); err != nil {
 			reason := reasonApplyFailed
-			if errors.Is(err, errObjectConflict) {
+			if errors.Is(err, byocutils.ErrObjectConflict) {
 				reason = reasonConflict
 			}
 			return false, &reconcileFailure{conditionType: conditionReconciled, reason: reason, err: fmt.Errorf("apply %T %s: %w", object, client.ObjectKeyFromObject(object), err)}
 		}
 	}
 	for _, object := range resources.ObsoleteObjects() {
-		if _, err := r.deleteIfControlled(ctx, r.Client, cluster, object); err != nil {
+		if _, err := byocutils.DeleteIfControlled(ctx, r.Client, r.Client, cluster, object); err != nil {
 			return false, &reconcileFailure{conditionType: conditionReconciled, reason: reasonCleanupFailed, err: err}
 		}
 	}
@@ -158,7 +154,7 @@ func (r *Reconciler) finalize(ctx context.Context, cluster *datadoghqv1alpha1.Da
 	indexer := &appsv1.StatefulSet{ObjectMeta: metav1.ObjectMeta{Name: byocresources.ComponentResourceName(cluster.Name, byocresources.IndexerComponentName), Namespace: cluster.Namespace}}
 	// The cache may not have observed a recently created indexer yet.
 	// Foreground deletion keeps the StatefulSet until its pods terminate, so the resources they use outlive them.
-	deleted, err := r.deleteIfControlled(ctx, r.APIReader, cluster, indexer, client.PropagationPolicy(metav1.DeletePropagationForeground))
+	deleted, err := byocutils.DeleteIfControlled(ctx, r.Client, r.APIReader, cluster, indexer, client.PropagationPolicy(metav1.DeletePropagationForeground))
 	if err != nil {
 		return err
 	}
@@ -171,62 +167,6 @@ func (r *Reconciler) finalize(ctx context.Context, cluster *datadoghqv1alpha1.Da
 		return fmt.Errorf("remove finalizer: %w", err)
 	}
 	return nil
-}
-
-// getFresh reads the object from the cache, and from the API server when the cache does not have it.
-func (r *Reconciler) getFresh(ctx context.Context, object client.Object) error {
-	key := client.ObjectKeyFromObject(object)
-	err := r.Client.Get(ctx, key, object)
-	if !apierrors.IsNotFound(err) {
-		return err
-	}
-	// The cache may not have observed an object that was just created.
-	return r.APIReader.Get(ctx, key, object)
-}
-
-func (r *Reconciler) applyObject(ctx context.Context, owner *datadoghqv1alpha1.DatadogBYOCCluster, desired client.Object) error {
-	current := desired.DeepCopyObject().(client.Object)
-	switch err := r.getFresh(ctx, current); {
-	case apierrors.IsNotFound(err):
-	case err != nil:
-		return err
-	case !metav1.IsControlledBy(current, owner):
-		// The forced apply would otherwise overwrite the object and adopt it.
-		return errObjectConflict
-	}
-	if err := controllerutil.SetControllerReference(owner, desired, r.Scheme); err != nil {
-		return err
-	}
-	gvk, err := apiutil.GVKForObject(desired, r.Scheme)
-	if err != nil {
-		return err
-	}
-	desired.GetObjectKind().SetGroupVersionKind(gvk)
-	return r.Client.Patch(ctx, desired, client.Apply, client.ForceOwnership, client.FieldOwner(datadogBYOCClusterFieldOwner))
-}
-
-// deleteIfControlled deletes the object when it is controlled by owner and reports whether a deletion was requested.
-// The ownership check reads the object through reader, and the deletion fails if the object changed since that read.
-func (r *Reconciler) deleteIfControlled(ctx context.Context, reader client.Reader, owner client.Object, object client.Object, opts ...client.DeleteOption) (bool, error) {
-	key := client.ObjectKeyFromObject(object)
-	if err := reader.Get(ctx, key, object); err != nil {
-		if apierrors.IsNotFound(err) {
-			return false, nil
-		}
-		return false, fmt.Errorf("get %T %s: %w", object, key, err)
-	}
-	if !metav1.IsControlledBy(object, owner) {
-		return false, nil
-	}
-	uid, resourceVersion := object.GetUID(), object.GetResourceVersion()
-	opts = append(opts, client.Preconditions{UID: &uid, ResourceVersion: &resourceVersion})
-	if err := r.Client.Delete(ctx, object, opts...); err != nil {
-		if apierrors.IsNotFound(err) {
-			return false, nil
-		}
-		return false, fmt.Errorf("delete %T %s: %w", object, key, err)
-	}
-	return true, nil
 }
 
 func setConditions(cluster *datadoghqv1alpha1.DatadogBYOCCluster, available bool, failure *reconcileFailure) {

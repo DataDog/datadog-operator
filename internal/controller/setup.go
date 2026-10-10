@@ -20,6 +20,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster"
 	byocimage "github.com/DataDog/datadog-operator/internal/controller/datadogbyoccluster/image"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogobservabilitypipelinesworker"
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
@@ -34,6 +35,7 @@ const (
 	dashboardControllerName       = "DatadogDashboard"
 	genericResourceControllerName = "DatadogGenericResource"
 	byocClusterControllerName     = "DatadogBYOCCluster"
+	workerControllerName          = "DatadogObservabilityPipelinesWorker"
 	csiDriverControllerName       = "DatadogCSIDriver"
 )
 
@@ -78,6 +80,7 @@ var controllerStarters = map[string]starterFunc{
 	dashboardControllerName:       startDatadogDashboard,
 	genericResourceControllerName: startDatadogGenericResource,
 	byocClusterControllerName:     startDatadogBYOCCluster,
+	workerControllerName:          startDatadogObservabilityPipelinesWorker,
 	csiDriverControllerName:       startDatadogCSIDriver,
 	untaintControllerName:         startUntaint,
 	componentHealthControllerName: startComponentHealth,
@@ -222,6 +225,19 @@ func startDatadogBYOCCluster(logger logr.Logger, mgr manager.Manager, _ kubernet
 		APIReader:     mgr.GetAPIReader(),
 		Scheme:        mgr.GetScheme(),
 		ImageResolver: options.BYOCImageResolver,
+	}).SetupWithManager(mgr)
+}
+
+func startDatadogObservabilityPipelinesWorker(logger logr.Logger, mgr manager.Manager, _ kubernetes.PlatformInfo, options SetupOptions, _ datadog.MetricsForwardersManager) error {
+	if !options.DatadogBYOCClusterEnabled {
+		logger.Info("Feature disabled, not starting the controller", "controller", workerControllerName)
+		return nil
+	}
+
+	return (&datadogobservabilitypipelinesworker.Reconciler{
+		Client:    mgr.GetClient(),
+		APIReader: mgr.GetAPIReader(),
+		Scheme:    mgr.GetScheme(),
 	}).SetupWithManager(mgr)
 }
 
