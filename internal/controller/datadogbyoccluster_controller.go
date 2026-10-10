@@ -202,7 +202,7 @@ func (r *DatadogBYOCClusterReconciler) applyObject(ctx context.Context, owner *d
 }
 
 // deleteIfControlled deletes the object when it is controlled by owner and reports whether a deletion was requested.
-// The ownership check reads the object through reader.
+// The ownership check reads the object through reader, and the deletion fails if the object changed since that read.
 func (r *DatadogBYOCClusterReconciler) deleteIfControlled(ctx context.Context, reader client.Reader, owner client.Object, object client.Object) (bool, error) {
 	key := client.ObjectKeyFromObject(object)
 	if err := reader.Get(ctx, key, object); err != nil {
@@ -214,7 +214,8 @@ func (r *DatadogBYOCClusterReconciler) deleteIfControlled(ctx context.Context, r
 	if !metav1.IsControlledBy(object, owner) {
 		return false, nil
 	}
-	if err := r.Client.Delete(ctx, object); err != nil {
+	uid, resourceVersion := object.GetUID(), object.GetResourceVersion()
+	if err := r.Client.Delete(ctx, object, client.Preconditions{UID: &uid, ResourceVersion: &resourceVersion}); err != nil {
 		if apierrors.IsNotFound(err) {
 			return false, nil
 		}
