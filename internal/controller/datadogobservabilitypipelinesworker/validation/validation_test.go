@@ -163,6 +163,82 @@ func TestValidateWorkerSpec(t *testing.T) {
 			},
 		},
 		{
+			name: "reserved names",
+			spec: datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerSpec{
+				DatadogBYOCClusterPipelineComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{
+					Ports: []datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerPort{
+						{Name: "api", Port: 9000},
+						{Name: "otlp-http", Port: 8686},
+						{Name: "syslog", Port: 8686, Protocol: corev1.ProtocolUDP},
+					},
+					DatadogBYOCClusterStatefulComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterStatefulComponentSpec{
+						DatadogBYOCClusterComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterComponentSpec{
+							InitContainers: []corev1.Container{{Name: "worker"}},
+							Volumes:        []corev1.Volume{{Name: "data"}},
+							VolumeMounts:   []corev1.VolumeMount{{Name: "certificates", MountPath: "/var/lib/observability-pipelines-worker/"}},
+						},
+					},
+				},
+				Image: &datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerImageSpec{
+					Repository: ptr.To("registry.example.com/worker"),
+					Tag:        ptr.To("v1"),
+				},
+			},
+			want: []string{
+				"spec.ports[0].name: is reserved for the Worker API port",
+				"spec.ports[1].port: is reserved for the Worker API port",
+				"spec.initContainers[0].name: is reserved for the Worker container",
+				"spec.volumes[0].name: is reserved for a built-in volume",
+				"spec.volumeMounts[0].mountPath: is reserved for a built-in volume mount",
+			},
+		},
+		{
+			name: "duplicate ports",
+			spec: datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerSpec{
+				DatadogBYOCClusterPipelineComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{
+					Ports: []datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerPort{
+						{Name: "splunk-tcp", Port: 9000},
+						{Name: "logstash", Port: 9000, Protocol: corev1.ProtocolTCP},
+						{Name: "syslog", Port: 9000, Protocol: corev1.ProtocolUDP},
+					},
+				},
+				Image: &datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerImageSpec{
+					Repository: ptr.To("registry.example.com/worker"),
+					Tag:        ptr.To("v1"),
+				},
+			},
+			want: []string{"spec.ports[1].port: duplicates the port and protocol of another port"},
+		},
+		{
+			name: "empty API key Secret name",
+			spec: datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerSpec{
+				Datadog: &datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerDatadogSpec{
+					APIKeySecretRef: &corev1.SecretKeySelector{Key: "api-key"},
+				},
+				Image: &datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerImageSpec{
+					Repository: ptr.To("registry.example.com/worker"),
+					Tag:        ptr.To("v1"),
+				},
+			},
+			want: []string{"spec.datadog.apiKeySecretRef.name: name must be specified"},
+		},
+		{
+			name: "API key Secret with name",
+			spec: datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerSpec{
+				Datadog: &datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerDatadogSpec{
+					APIKeySecretRef: &corev1.SecretKeySelector{
+						LocalObjectReference: corev1.LocalObjectReference{Name: "datadog-secret"},
+						Key:                  "api-key",
+					},
+				},
+				Image: &datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerImageSpec{
+					Repository: ptr.To("registry.example.com/worker"),
+					Tag:        ptr.To("v1"),
+				},
+			},
+			want: nil,
+		},
+		{
 			name: "missing image preserves component errors",
 			spec: datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerSpec{
 				DatadogBYOCClusterPipelineComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{
