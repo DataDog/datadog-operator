@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"os"
 	goruntime "runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -45,7 +46,10 @@ import (
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/metrics"
+	"github.com/DataDog/datadog-operator/pkg/admissionpolicy"
+	"github.com/DataDog/datadog-operator/pkg/celvalidation"
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/debug"
@@ -142,6 +146,7 @@ type options struct {
 	rolloutOnConfigMapChangeEnabled     bool
 	defaultDataPlaneLinuxEnabled        bool
 	componentHealthEnabled              bool
+	admissionPolicyEnabled              bool
 
 	// Secret Backend options
 	secretBackendCommand  string
@@ -198,6 +203,8 @@ func (opts *options) Parse() {
 	flag.BoolVar(&opts.defaultDataPlaneLinuxEnabled, "defaultDataPlaneLinuxEnabled", false, "Enable the Agent Data Plane by default on Linux")
 	flag.BoolVar(&opts.componentHealthEnabled, "componentHealthEnabled", false,
 		"Enable the ComponentHealth controller, which monitors the managed cluster-level components (cluster-agent, cluster-checks-runner) for Kubernetes health issues (OOMKills, crash loops, scheduling failures, image-pull failures) (beta). Retains Pod status in the cache, increasing the operator's memory usage.")
+	flag.BoolVar(&opts.admissionPolicyEnabled, "admissionPolicyEnabled", false,
+		"Create ValidatingAdmissionPolicy objects that run the DatadogAgent and DatadogAgentProfile validation rules at admission time, so errors surface at kubectl apply (requires Kubernetes 1.30+). The policies only warn; they never reject a request, and the operator evaluates the same rules at reconcile either way (experimental).")
 
 	// DatadogAgentInternal
 	flag.BoolVar(&opts.createControllerRevisions, "createControllerRevisions", false, "Enable creation of ControllerRevision snapshots on each DDA spec change")
@@ -235,6 +242,7 @@ func (opts *options) Parse() {
 		boolEnv(&opts.createControllerRevisions, "DD_CREATE_CONTROLLER_REVISIONS"),
 		boolEnv(&opts.rolloutOnConfigMapChangeEnabled, "DD_ROLLOUT_ON_CONFIGMAP_CHANGE_ENABLED"),
 		boolEnv(&opts.defaultDataPlaneLinuxEnabled, "DD_DEFAULT_DATA_PLANE_LINUX_ENABLED"),
+		boolEnv(&opts.admissionPolicyEnabled, "DD_ADMISSION_POLICY_ENABLED"),
 	})
 
 	// Parsing flags
@@ -495,30 +503,58 @@ func run(opts *options) error {
 		return setupErrorf(setupLog, err, "Unable to setup cluster provider detector")
 	}
 
+	// Compile the CEL validation rules once, so a bad rule is reported here
+	// rather than on the first reconcile, and pass the compiled sets to the
+	// controllers that run them. A failure does not stop the operator: the
+	// rules are compiled into the binary, so this is an operator bug, and
+	// blocking every reconcile over it is worse than running without the
+	// checks. CompileRules skips only the rules it could not compile.
+	// Non-feature rules plus every feature's own, which the feature packages
+	// registered from init(). They compile and run together: a feature rule is
+	// evaluated in exactly the same place as a non-feature one (doc Decided 10).
+	ddaValidationRules, err := celvalidation.CompileRules(
+		slices.Concat(datadoghqv2alpha1.DatadogAgentValidationRules(), feature.ValidationRules()),
+		datadoghqv2alpha1.GroupVersion.WithKind("DatadogAgent"),
+		datadoghqv2alpha1.GroupVersion.WithResource("datadogagents"),
+	)
+	if err != nil {
+		setupLog.Error(err, "Unable to compile some DatadogAgent validation rules, continuing without them")
+	}
+	dapValidationRules, err := celvalidation.CompileRules(
+		datadoghqv1alpha1.DatadogAgentProfileValidationRules(),
+		datadoghqv1alpha1.GroupVersion.WithKind("DatadogAgentProfile"),
+		datadoghqv1alpha1.GroupVersion.WithResource("datadogagentprofiles"),
+	)
+	if err != nil {
+		setupLog.Error(err, "Unable to compile some DatadogAgentProfile validation rules, continuing without them")
+	}
+
 	options := controller.SetupOptions{
-		SupportCilium:                     opts.supportCilium,
-		CredsManager:                      credsManager,
-		DatadogAgentEnabled:               opts.datadogAgentEnabled,
-		CreateControllerRevisions:         opts.createControllerRevisions && opts.datadogAgentEnabled,
-		DatadogMonitorEnabled:             opts.datadogMonitorEnabled,
-		DatadogMonitorMaxWorkers:          opts.datadogMonitorMaxWorkers,
-		DatadogMonitorRequeue:             opts.datadogMonitorRequeuePeriod,
-		DatadogSLOEnabled:                 opts.datadogSLOEnabled,
-		OperatorMetricsEnabled:            opts.operatorMetricsEnabled,
-		V2APIEnabled:                      true,
-		IntrospectionEnabled:              opts.introspectionEnabled,
-		DatadogAgentProfileEnabled:        opts.datadogAgentProfileEnabled,
-		DatadogDashboardEnabled:           opts.datadogDashboardEnabled,
-		DatadogGenericResourceEnabled:     opts.datadogGenericResourceEnabled,
-		DatadogGenericResourceMaxWorkers:  opts.datadogGenericResourceMaxWorkers,
-		DatadogGenericResourceRequeue:     opts.datadogGenericResourceRequeuePeriod,
-		DatadogCSIDriverEnabled:           opts.datadogCSIDriverEnabled,
-		UntaintControllerEnabled:          opts.untaintControllerEnabled,
-		UntaintControllerWaitForCSIDriver: opts.untaintControllerWaitForCSIDriver,
-		RolloutOnConfigMapChangeEnabled:   opts.rolloutOnConfigMapChangeEnabled,
-		DefaultDataPlaneLinuxEnabled:      opts.defaultDataPlaneLinuxEnabled,
-		ComponentHealthEnabled:            opts.componentHealthEnabled,
-		ClusterProviderDetector:           providerDetector,
+		SupportCilium:                      opts.supportCilium,
+		CredsManager:                       credsManager,
+		DatadogAgentEnabled:                opts.datadogAgentEnabled,
+		CreateControllerRevisions:          opts.createControllerRevisions && opts.datadogAgentEnabled,
+		DatadogMonitorEnabled:              opts.datadogMonitorEnabled,
+		DatadogMonitorMaxWorkers:           opts.datadogMonitorMaxWorkers,
+		DatadogMonitorRequeue:              opts.datadogMonitorRequeuePeriod,
+		DatadogSLOEnabled:                  opts.datadogSLOEnabled,
+		OperatorMetricsEnabled:             opts.operatorMetricsEnabled,
+		V2APIEnabled:                       true,
+		IntrospectionEnabled:               opts.introspectionEnabled,
+		DatadogAgentProfileEnabled:         opts.datadogAgentProfileEnabled,
+		DatadogDashboardEnabled:            opts.datadogDashboardEnabled,
+		DatadogGenericResourceEnabled:      opts.datadogGenericResourceEnabled,
+		DatadogGenericResourceMaxWorkers:   opts.datadogGenericResourceMaxWorkers,
+		DatadogGenericResourceRequeue:      opts.datadogGenericResourceRequeuePeriod,
+		DatadogCSIDriverEnabled:            opts.datadogCSIDriverEnabled,
+		UntaintControllerEnabled:           opts.untaintControllerEnabled,
+		UntaintControllerWaitForCSIDriver:  opts.untaintControllerWaitForCSIDriver,
+		RolloutOnConfigMapChangeEnabled:    opts.rolloutOnConfigMapChangeEnabled,
+		DefaultDataPlaneLinuxEnabled:       opts.defaultDataPlaneLinuxEnabled,
+		ComponentHealthEnabled:             opts.componentHealthEnabled,
+		ClusterProviderDetector:            providerDetector,
+		DatadogAgentValidationRules:        ddaValidationRules,
+		DatadogAgentProfileValidationRules: dapValidationRules,
 	}
 
 	versionInfo, platformInfo, err := getVersionAndPlatformInfo(rest.CopyConfig(mgr.GetConfig()))
@@ -536,6 +572,14 @@ func run(opts *options) error {
 	// START controllers setup
 	if err = controller.SetupControllers(setupLog, mgr, platformInfo, options); err != nil {
 		return setupErrorf(setupLog, err, "Unable to start controllers")
+	}
+
+	// Register the admission policy controller as a manager Runnable. It is a
+	// no-op on clusters that do not serve validatingadmissionpolicies.
+	if opts.admissionPolicyEnabled {
+		if err = setupAndStartAdmissionPolicy(setupLog, mgr); err != nil {
+			return setupErrorf(setupLog, err, "Unable to setup admission policy controller")
+		}
 	}
 
 	// Register Helm metadata forwarder as a manager Runnable
@@ -830,6 +874,18 @@ func setupFleetDaemon(logger logr.Logger, mgr manager.Manager, rcClient remoteco
 
 func (opts *options) operatorManagedAgentInstallationEnabled(identity fleet.ManagedAgentInstallationIdentity) bool {
 	return identity.Configured() && identity.Validate() == nil && opts.managedAgentInstallationEnabled && opts.remoteConfigEnabled && opts.remoteUpdatesEnabled && opts.datadogAgentEnabled && opts.datadogAgentProfileEnabled && opts.createControllerRevisions
+}
+
+// setupAndStartAdmissionPolicy registers the admission policy controller as a
+// leader-only manager Runnable. It checks for
+// admissionregistration.k8s.io/v1 support itself and does nothing when the
+// cluster does not serve it, so registering it is safe on any cluster.
+func setupAndStartAdmissionPolicy(logger logr.Logger, mgr manager.Manager) error {
+	c, err := admissionpolicy.NewController(mgr, logger)
+	if err != nil {
+		return err
+	}
+	return mgr.Add(c)
 }
 
 // setupAndStartProviderDetector registers the cluster-provider detector as a

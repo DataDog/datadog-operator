@@ -30,6 +30,16 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
+
+	// Decided 16: these annotations are read with an exact "true" or
+	// "false" comparison, so any other value silently leaves the feature
+	// in its default state with no error and no log.
+	if err := feature.RegisterValidationRules(feature.KubernetesStateCoreIDType, []apicommon.ValidationRule{
+		apicommon.EnableAnnotationRule(featureutils.EnableKSMApiServerCacheAnnotation),
+	}); err != nil {
+		panic(err)
+	}
+
 }
 
 func buildKSMFeature(options *feature.Options) feature.Feature {

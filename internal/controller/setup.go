@@ -18,6 +18,7 @@ import (
 
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal"
+	"github.com/DataDog/datadog-operator/pkg/celvalidation"
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
@@ -60,6 +61,11 @@ type SetupOptions struct {
 	DefaultDataPlaneLinuxEnabled      bool
 	ComponentHealthEnabled            bool
 	ClusterProviderDetector           datadogagent.ProviderReader
+	// DatadogAgentValidationRules and DatadogAgentProfileValidationRules are the
+	// CEL rule sets compiled at startup in cmd/main.go. Nil means the rules
+	// could not be compiled and validation is skipped; see celvalidation.
+	DatadogAgentValidationRules        *celvalidation.CompiledRules
+	DatadogAgentProfileValidationRules *celvalidation.CompiledRules
 }
 
 type starterFunc func(logr.Logger, manager.Manager, kubernetes.PlatformInfo, SetupOptions, datadog.MetricsForwardersManager) error
@@ -108,14 +114,19 @@ func startDatadogAgent(logger logr.Logger, mgr manager.Manager, pInfo kubernetes
 		Scheme:       mgr.GetScheme(),
 		Recorder:     mgr.GetEventRecorderFor(agentControllerName),
 		Options: datadogagent.ReconcilerOptions{
-			SupportCilium:              options.SupportCilium,
-			OperatorMetricsEnabled:     options.OperatorMetricsEnabled,
-			IntrospectionEnabled:       options.IntrospectionEnabled,
-			DatadogAgentProfileEnabled: options.DatadogAgentProfileEnabled,
-			UntaintControllerEnabled:   options.UntaintControllerEnabled,
-			DatadogCSIDriverEnabled:    options.DatadogCSIDriverEnabled,
-			CreateControllerRevisions:  options.CreateControllerRevisions,
-			ClusterProviderDetector:    options.ClusterProviderDetector,
+			SupportCilium:                      options.SupportCilium,
+			OperatorMetricsEnabled:             options.OperatorMetricsEnabled,
+			IntrospectionEnabled:               options.IntrospectionEnabled,
+			DatadogAgentProfileEnabled:         options.DatadogAgentProfileEnabled,
+			UntaintControllerEnabled:           options.UntaintControllerEnabled,
+			DatadogCSIDriverEnabled:            options.DatadogCSIDriverEnabled,
+			CreateControllerRevisions:          options.CreateControllerRevisions,
+			ClusterProviderDetector:            options.ClusterProviderDetector,
+			DatadogAgentValidationRules:        options.DatadogAgentValidationRules,
+			DatadogAgentProfileValidationRules: options.DatadogAgentProfileValidationRules,
+			// The manager's cache, so the unstructured reads the rules need are
+			// served locally rather than costing an API request per reconcile.
+			ValidationReader: mgr.GetCache(),
 		},
 	}).SetupWithManager(mgr, metricForwardersMgr)
 }

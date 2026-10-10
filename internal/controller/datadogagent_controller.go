@@ -70,6 +70,11 @@ type DatadogAgentReconciler struct {
 // ControllerRevision snapshots
 // +kubebuilder:rbac:groups=apps,resources=controllerrevisions,verbs=get;list;watch;create;patch;delete
 
+// Validating admission policies for DatadogAgent and DatadogAgentProfile
+// (pkg/admissionpolicy). Cluster-scoped singletons with no owner reference, so
+// delete is needed for explicit cleanup rather than garbage collection.
+// +kubebuilder:rbac:groups=admissionregistration.k8s.io,resources=validatingadmissionpolicies;validatingadmissionpolicybindings,verbs=get;list;watch;create;update;patch;delete
+
 // Configure Admission Controller
 // +kubebuilder:rbac:groups=admissionregistration.k8s.io,resources=validatingwebhookconfigurations;mutatingwebhookconfigurations,verbs=*
 // +kubebuilder:rbac:groups=apps,resources=daemonsets,verbs=get

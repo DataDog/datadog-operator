@@ -19,6 +19,7 @@ import (
 
 func init() {
 	featureBuilders = map[IDType]BuildFunc{}
+	featureValidationRules = map[IDType][]common.ValidationRule{}
 }
 
 // Register use to register a Feature to the Feature factory.
@@ -93,5 +94,47 @@ func BuildFeatures(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, ddaRCS
 
 var (
 	featureBuilders map[IDType]BuildFunc
-	builderMutex    sync.RWMutex
+	// featureValidationRules holds each feature's CEL rules, guarded by the
+	// same mutex as featureBuilders since both are written from init().
+	featureValidationRules map[IDType][]common.ValidationRule
+	builderMutex           sync.RWMutex
 )
+
+// RegisterValidationRules registers a feature's CEL validation rules, the same
+// way Register registers its builder. A feature with no rules calls nothing.
+//
+// The rules are data; the feature never evaluates them. The DatadogAgent
+// controller collects them with ValidationRules and the operator compiles them
+// once at startup, so a rule here is evaluated in exactly the same place as a
+// non-feature one.
+func RegisterValidationRules(id IDType, rules []common.ValidationRule) error {
+	builderMutex.Lock()
+	defer builderMutex.Unlock()
+
+	if _, found := featureValidationRules[id]; found {
+		return fmt.Errorf("validation rules for the Feature %s are registered already", id)
+	}
+	featureValidationRules[id] = rules
+	return nil
+}
+
+// ValidationRules returns every registered feature rule, ordered by feature ID
+// so the rule set, and so the policy object, is stable between runs.
+func ValidationRules() []common.ValidationRule {
+	builderMutex.RLock()
+	defer builderMutex.RUnlock()
+
+	ids := make([]IDType, 0, len(featureValidationRules))
+	total := 0
+	for id, rules := range featureValidationRules {
+		ids = append(ids, id)
+		total += len(rules)
+	}
+	slices.Sort(ids)
+
+	out := make([]common.ValidationRule, 0, total)
+	for _, id := range ids {
+		out = append(out, featureValidationRules[id]...)
+	}
+	return out
+}

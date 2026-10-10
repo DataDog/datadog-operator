@@ -38,6 +38,31 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
+	if err := feature.RegisterValidationRules(feature.HostProfilerIDType, validationRules()); err != nil {
+		panic(err)
+	}
+}
+
+// validationRules are the host profiler's CEL rules.
+//
+// The seccomp rule is doc Decided 12: an unparseable value is logged and
+// treated as enabled today, which gives the user behaviour they did not ask
+// for. It allows exactly what strconv.ParseBool allows, since narrowing it
+// further would reject values that work today.
+//
+// The enable annotations are doc Decided 16: read with an exact "true"
+// comparison, so a typo like "True" silently leaves the feature off.
+func validationRules() []apicommon.ValidationRule {
+	return []apicommon.ValidationRule{
+		apicommon.AnnotationValueRule(
+			featureutils.EnableHostProfilerSeccompAnnotation,
+			apicommon.ParseBoolAnnotationValues,
+			"annotation "+featureutils.EnableHostProfilerSeccompAnnotation+" must be a boolean; an unparseable value would silently enable the seccomp profile",
+		),
+		apicommon.EnableAnnotationRule(featureutils.EnableHostProfilerAnnotation),
+		apicommon.EnableAnnotationRule(featureutils.EnableHostProfilerLoggingSeccompAnnotation),
+		apicommon.EnableAnnotationRule(featureutils.EnableHostProfilerNonRootAnnotation),
+	}
 }
 
 func buildHostProfilerFeature(options *feature.Options) feature.Feature {

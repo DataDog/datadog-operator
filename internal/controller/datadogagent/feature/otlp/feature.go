@@ -42,6 +42,37 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
+	if err := feature.RegisterValidationRules(feature.OTLPIDType, validationRules()); err != nil {
+		panic(err)
+	}
+}
+
+// validationRules are the OTLP feature's CEL rules.
+//
+// This is validateOTLPGRPCEndpoint phrased on the DatadogAgent as written.
+// It is marginally stricter than the Go check, which only runs when gRPC is
+// enabled: enablement comes from defaulting, which the API server never sees,
+// so the rule fires whenever the endpoint is set. Setting an unsupported
+// endpoint and relying on the feature being off is not a configuration worth
+// preserving.
+func validationRules() []apicommon.ValidationRule {
+	const endpoint = "object.spec.features.otlp.receiver.protocols.grpc.endpoint"
+	guard := apicommon.ValidationGuard(
+		"object.spec",
+		"object.spec.features",
+		"object.spec.features.otlp",
+		"object.spec.features.otlp.receiver",
+		"object.spec.features.otlp.receiver.protocols",
+		"object.spec.features.otlp.receiver.protocols.grpc",
+		endpoint,
+	)
+	return []apicommon.ValidationRule{
+		{
+			Expression: apicommon.ValidationOr(guard, fmt.Sprintf(
+				"!%s.startsWith('unix:') && !%s.startsWith('unix-abstract:')", endpoint, endpoint)),
+			Message: "spec.features.otlp.receiver.protocols.grpc.endpoint: the \"unix\" and \"unix-abstract\" protocols are not currently supported",
+		},
+	}
 }
 
 func buildOTLPFeature(options *feature.Options) feature.Feature {

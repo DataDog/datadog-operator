@@ -3,13 +3,16 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-package v2alpha1
+package celvalidation
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"k8s.io/utils/ptr"
+
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 )
 
 func TestValidateDatadogAgent_CommonLabels_ReservedKeys(t *testing.T) {
@@ -95,17 +98,17 @@ func TestValidateDatadogAgent_CommonLabels_ReservedKeys(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			dda := &DatadogAgent{
-				Spec: DatadogAgentSpec{
-					Global: &GlobalConfig{
-						Credentials: &DatadogCredentials{
+			dda := &v2alpha1.DatadogAgent{
+				Spec: v2alpha1.DatadogAgentSpec{
+					Global: &v2alpha1.GlobalConfig{
+						Credentials: &v2alpha1.DatadogCredentials{
 							APIKey: ptr.To("key"),
 						},
 						CommonLabels: tt.labels,
 					},
 				},
 			}
-			err := ValidateDatadogAgent(dda)
+			err := validateDatadogAgent(t, dda)
 			if tt.wantErr {
 				assert.Error(t, err)
 				if tt.errMsgContains != "" {
@@ -116,4 +119,18 @@ func TestValidateDatadogAgent_CommonLabels_ReservedKeys(t *testing.T) {
 			}
 		})
 	}
+}
+
+// validateDatadogAgent runs the two halves of DatadogAgent validation the way
+// the reconciler does: the CEL rules, then the label-syntax check that stayed
+// in Go because IsQualifiedName and IsValidLabelValue are more than a regex.
+func validateDatadogAgent(t *testing.T, dda *v2alpha1.DatadogAgent) error {
+	t.Helper()
+	if err := ddaRules(t).ValidateObject(context.Background(), dda, dda.Namespace, dda.Name); err != nil {
+		return err
+	}
+	if dda.Spec.Global != nil {
+		return v2alpha1.ValidateCommonLabelSyntax(dda.Spec.Global.CommonLabels)
+	}
+	return nil
 }
