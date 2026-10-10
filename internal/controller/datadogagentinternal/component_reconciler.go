@@ -139,7 +139,7 @@ func (r *ComponentRegistry) ReconcileComponents(ctx context.Context, params *Rec
 
 	for _, comp := range r.components {
 		// Check if component is enabled and if there's a conflict
-		enabled, conflict := comp.IsEnabled(params.RequiredComponents, params.DDAI.Spec.Override)
+		enabled, conflict := isComponentEnabled(comp, params)
 
 		var res reconcile.Result
 		var err error
@@ -182,6 +182,17 @@ func (r *ComponentRegistry) ReconcileComponents(ctx context.Context, params *Rec
 	}
 
 	return result, nil
+}
+
+// isComponentEnabled returns (enabled, conflict) for a component on the given DDAI.
+// Cluster-wide components are only deployed from the default DDAI; profile DDAIs only
+// manage their node agent DaemonSet, so their component overrides are left as the user
+// configured them on the DDA instead of being force-disabled.
+func isComponentEnabled(comp ComponentReconciler, params *ReconcileComponentParams) (enabled bool, conflict bool) {
+	if isDDAILabeledWithProfile(params.DDAI) {
+		return false, false
+	}
+	return comp.IsEnabled(params.RequiredComponents, params.DDAI.Spec.Override)
 }
 
 // reconcileComponent reconciles a single component

@@ -2458,15 +2458,6 @@ func Test_DDAI_Reconcile(t *testing.T) {
 				profileDDAI.Name = "foo-profile"
 				profileDDAI.Labels[constants.ProfileLabelKey] = "foo-profile"
 				profileDDAI.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
-					v2alpha1.ClusterAgentComponentName: {
-						Disabled: ptr.To(true),
-					},
-					v2alpha1.ClusterChecksRunnerComponentName: {
-						Disabled: ptr.To(true),
-					},
-					v2alpha1.OtelAgentGatewayComponentName: {
-						Disabled: ptr.To(true),
-					},
 					v2alpha1.NodeAgentComponentName: {
 						Name: ptr.To("foo-profile-agent"),
 						Labels: map[string]string{

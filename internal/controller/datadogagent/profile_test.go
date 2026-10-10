@@ -196,7 +196,7 @@ func Test_computeProfileMerge(t *testing.T) {
 					Name:      "foo-profile",
 					Namespace: "bar",
 					Annotations: map[string]string{
-						constants.MD5DDAIDeploymentAnnotationKey: "a9033f6ffba89ddf862136d39a5db466",
+						constants.MD5DDAIDeploymentAnnotationKey: "199e03ab4c6e50d35694d40476436752",
 					},
 				},
 				Spec: v2alpha1.DatadogAgentSpec{
@@ -255,15 +255,6 @@ func Test_computeProfileMerge(t *testing.T) {
 							Labels: map[string]string{
 								constants.ProfileLabelKey: "foo-profile",
 							},
-						},
-						v2alpha1.ClusterAgentComponentName: {
-							Disabled: ptr.To(true),
-						},
-						v2alpha1.ClusterChecksRunnerComponentName: {
-							Disabled: ptr.To(true),
-						},
-						v2alpha1.OtelAgentGatewayComponentName: {
-							Disabled: ptr.To(true),
 						},
 					},
 				},
@@ -378,6 +369,89 @@ func Test_computeProfileMergeEnforcesAutopilotRegistry(t *testing.T) {
 			require.NotNil(t, mergedDDAI.Spec.Global.Registry)
 			assert.Equal(t, images.GCRContainerRegistry, *mergedDDAI.Spec.Global.Registry)
 			assert.NotEmpty(t, mergedDDAI.Annotations[constants.MD5DDAIDeploymentAnnotationKey])
+		})
+	}
+}
+
+// Profile DDAIs must carry the user's cluster-wide component overrides as-is, so that
+// features reading override.<component>.disabled see the real config. Profile DDAIs are
+// prevented from deploying those components by the DDAI controller, not by the override.
+func Test_computeProfileMergeKeepsUserComponentOverrides(t *testing.T) {
+	sch := k8sruntime.NewScheme()
+	require.NoError(t, scheme.AddToScheme(sch))
+	require.NoError(t, v1alpha1.AddToScheme(sch))
+	require.NoError(t, v2alpha1.AddToScheme(sch))
+	require.NoError(t, corev1.AddToScheme(sch))
+	require.NoError(t, apiextensionsv1.AddToScheme(sch))
+
+	tests := []struct {
+		name         string
+		ddaOverride  map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride
+		wantDisabled *bool
+	}{
+		{
+			name:         "cluster agent not disabled on the DDA",
+			wantDisabled: nil,
+		},
+		{
+			name: "cluster agent disabled on the DDA",
+			ddaOverride: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+				v2alpha1.ClusterAgentComponentName: {Disabled: ptr.To(true)},
+			},
+			wantDisabled: ptr.To(true),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ddai := &v1alpha1.DatadogAgentInternal{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "foo",
+					Namespace: "bar",
+				},
+				Spec: v2alpha1.DatadogAgentSpec{
+					Override: tt.ddaOverride,
+				},
+			}
+			profile := &v1alpha1.DatadogAgentProfile{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "foo-profile",
+					Namespace: "bar",
+				},
+				Spec: v1alpha1.DatadogAgentProfileSpec{
+					Config: &v2alpha1.DatadogAgentSpec{},
+				},
+			}
+
+			crd, err := getDDAICRDFromConfig(sch)
+			require.NoError(t, err)
+			fakeClient := fake.NewClientBuilder().WithScheme(sch).WithObjects(ddai, crd).Build()
+			fieldManager, err := newFieldManager(fakeClient, sch, v1alpha1.GroupVersion.WithKind("DatadogAgentInternal"))
+			require.NoError(t, err)
+			r := &Reconciler{
+				client:       fakeClient,
+				scheme:       sch,
+				fieldManager: fieldManager,
+			}
+
+			mergedDDAI, err := r.computeProfileMerge(ddai, profile)
+			require.NoError(t, err)
+			assert.Equal(t, "foo-profile", mergedDDAI.Labels[constants.ProfileLabelKey])
+			for _, name := range []v2alpha1.ComponentName{
+				v2alpha1.ClusterAgentComponentName,
+				v2alpha1.ClusterChecksRunnerComponentName,
+				v2alpha1.OtelAgentGatewayComponentName,
+			} {
+				var gotDisabled *bool
+				if o := mergedDDAI.Spec.Override[name]; o != nil {
+					gotDisabled = o.Disabled
+				}
+				want := (*bool)(nil)
+				if name == v2alpha1.ClusterAgentComponentName {
+					want = tt.wantDisabled
+				}
+				assert.Equal(t, want, gotDisabled, "override.%s.disabled", name)
+			}
 		})
 	}
 }
@@ -596,15 +670,6 @@ func Test_setProfileSpec(t *testing.T) {
 							Labels: map[string]string{
 								constants.ProfileLabelKey: "foo-profile",
 							},
-						},
-						v2alpha1.ClusterAgentComponentName: {
-							Disabled: ptr.To(true),
-						},
-						v2alpha1.ClusterChecksRunnerComponentName: {
-							Disabled: ptr.To(true),
-						},
-						v2alpha1.OtelAgentGatewayComponentName: {
-							Disabled: ptr.To(true),
 						},
 					},
 				},
