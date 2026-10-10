@@ -60,6 +60,23 @@ func Test_orchestratorExplorerFeature_Configure(t *testing.T) {
 			WantConfigure: true,
 		},
 		{
+			Name: "orchestrator explorer enabled but cluster agent disabled",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithOrchestratorExplorerEnabled(true).
+				WithClusterAgentDisabled(true).
+				Build(),
+			WantConfigure: true,
+			WantDependenciesFunc: func(t testing.TB, sc store.StoreClient) {
+				_, found := sc.Get(kubernetes.ClusterRolesKind, "", "-orch-exp-dca")
+				assert.False(t, found, "should not create a ClusterRole bound to a nonexistent cluster agent ServiceAccount")
+			},
+			Agent: test.NewDefaultComponentTest().WithWantFunc(func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+				mgr := mgrInterface.(*fake.PodTemplateManagers)
+				envVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
+				assert.Contains(t, envVars, &corev1.EnvVar{Name: DDOrchestratorExplorerEnabled, Value: "false"})
+			}),
+		},
+		{
 			Name: "orchestrator explorer enabled",
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithOrchestratorExplorerEnabled(true).

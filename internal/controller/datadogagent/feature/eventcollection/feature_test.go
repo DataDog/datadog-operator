@@ -35,6 +35,14 @@ func Test_eventCollectionFeature_Configure(t *testing.T) {
 			WantConfigure: false,
 		},
 		{
+			Name: "Event Collection enabled but cluster agent disabled",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithEventCollectionKubernetesEvents(true).
+				WithClusterAgentDisabled(true).
+				Build(),
+			WantConfigure: false,
+		},
+		{
 			Name: "Event Collection enabled",
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithName("ddaDCA").

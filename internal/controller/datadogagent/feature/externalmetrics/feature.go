@@ -77,6 +77,12 @@ func (f *externalMetricsFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.
 	f.owner = dda
 	em := ddaSpec.Features.ExternalMetricsServer
 
+	// The external metrics server is served by the Cluster Agent; without one there's
+	// nothing to back the APIService or create RBAC for.
+	if clusterAgent, ok := ddaSpec.Override[v2alpha1.ClusterAgentComponentName]; ok && apiutils.BoolValue(clusterAgent.Disabled) {
+		return reqComp
+	}
+
 	if em != nil && apiutils.BoolValue(em.Enabled) {
 		// By default, we register the external metrics endpoint
 		f.registerAPIService = em.RegisterAPIService == nil || apiutils.BoolValue(em.RegisterAPIService)

@@ -106,6 +106,43 @@ func TestAPMConfigureSSIWithoutNodeAPM(t *testing.T) {
 	assert.True(t, feat.shouldEnableLanguageDetection())
 }
 
+// TestAPMConfigureSSIClusterAgentDisabled verifies that SSI (including language detection,
+// which runs on the Cluster Agent admission controller path) is not configured when the
+// Cluster Agent is disabled via override, even though admissionController and SSI are both
+// otherwise enabled. This is handled by validateSSISharedComponentPrerequisites (checked via
+// shouldConfigureSSI), not by a dedicated override check in this feature.
+func TestAPMConfigureSSIClusterAgentDisabled(t *testing.T) {
+	dda := &v2alpha1.DatadogAgent{
+		ObjectMeta: v1.ObjectMeta{
+			Name:      "datadog",
+			Namespace: "default",
+		},
+		Spec: v2alpha1.DatadogAgentSpec{
+			Features: &v2alpha1.DatadogFeatures{
+				AdmissionController: &v2alpha1.AdmissionControllerFeatureConfig{Enabled: ptr.To(true)},
+				APM: &v2alpha1.APMFeatureConfig{
+					Enabled: ptr.To(false),
+					SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
+						Enabled:           ptr.To(true),
+						LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: ptr.To(true)},
+					},
+				},
+			},
+			Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+				v2alpha1.ClusterAgentComponentName: {
+					Disabled: ptr.To(true),
+				},
+			},
+		},
+	}
+
+	feat := buildAPMFeature(&feature.Options{}).(*apmFeature)
+	reqComp := feat.Configure(dda, &dda.Spec, nil)
+
+	assert.False(t, reqComp.ClusterAgent.IsEnabled())
+	assert.False(t, feat.shouldEnableLanguageDetection())
+}
+
 func TestAPMFeature(t *testing.T) {
 	tests := test.FeatureTestSuite{
 		{

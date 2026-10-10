@@ -105,6 +105,18 @@ func TestExternalMetricsFeature(t *testing.T) {
 	tests.Run(t, buildExternalMetricsFeature)
 }
 
+func TestExternalMetricsFeature_ClusterAgentDisabled(t *testing.T) {
+	dda := newAgent(true, true, false, false, v2alpha1.DatadogCredentials{})
+	dda.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+		v2alpha1.ClusterAgentComponentName: {Disabled: ptr.To(true)},
+	}
+
+	f := buildExternalMetricsFeature(nil)
+	reqComp := f.Configure(dda, &dda.Spec, nil)
+
+	assert.False(t, reqComp.IsEnabled(), "external metrics should not be enabled when the cluster agent is disabled")
+}
+
 func newAgent(enabled, registerAPIService, useDDM, wpaController bool, secret v2alpha1.DatadogCredentials) *v2alpha1.DatadogAgent {
 	return &v2alpha1.DatadogAgent{
 		Spec: v2alpha1.DatadogAgentSpec{

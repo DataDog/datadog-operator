@@ -84,6 +84,17 @@ func Test_cspmFeature_Configure(t *testing.T) {
 			WantConfigure: false,
 		},
 		{
+			Name: "CSPM enabled but cluster agent disabled",
+			DDA: func() *v2alpha1.DatadogAgent {
+				dda := ddaCSPMEnabled.DeepCopy()
+				dda.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+					v2alpha1.ClusterAgentComponentName: {Disabled: ptr.To(true)},
+				}
+				return dda
+			}(),
+			WantConfigure: false,
+		},
+		{
 			Name:          "CSPM enabled",
 			DDA:           ddaCSPMEnabled,
 			WantConfigure: true,

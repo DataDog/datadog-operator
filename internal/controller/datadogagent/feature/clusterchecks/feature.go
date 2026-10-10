@@ -58,6 +58,10 @@ func (f *clusterChecksFeature) ID() feature.IDType {
 }
 
 func (f *clusterChecksFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
+	if clusterAgent, ok := ddaSpec.Override[v2alpha1.ClusterAgentComponentName]; ok && apiutils.BoolValue(clusterAgent.Disabled) {
+		return reqComp
+	}
+
 	if apiutils.BoolValue(ddaSpec.Features.ClusterChecks.Enabled) {
 		f.updateConfigHash(dda, ddaSpec)
 		f.owner = dda

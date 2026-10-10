@@ -64,12 +64,19 @@ func (f *prometheusScrapeFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.D
 					apicommon.CoreAgentContainerName,
 				},
 			},
-			ClusterAgent: feature.RequiredComponent{
+		}
+
+		clusterAgentDisabled := false
+		if clusterAgent, ok := ddaSpec.Override[v2alpha1.ClusterAgentComponentName]; ok {
+			clusterAgentDisabled = apiutils.BoolValue(clusterAgent.Disabled)
+		}
+		if !clusterAgentDisabled {
+			reqComp.ClusterAgent = feature.RequiredComponent{
 				IsRequired: new(true),
 				Containers: []apicommon.AgentContainerName{
 					apicommon.ClusterAgentContainerName,
 				},
-			},
+			}
 		}
 	}
 

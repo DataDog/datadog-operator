@@ -167,6 +167,16 @@ func TestRender_Golden(t *testing.T) {
 			provider: kubernetes.TalosProvider,
 			golden:   "testdata/golden/talos-talos.golden.yaml",
 		},
+		{
+			// Regression fixture for the no-cluster-agent use case: cluster agent
+			// disabled via override while several cluster-agent-dependent features
+			// (kubeStateMetricsCore, orchestratorExplorer, serviceDiscovery) are also
+			// enabled. Locks in that no Cluster Agent Deployment/RBAC/Service is
+			// rendered and that DD_CLUSTER_AGENT_ENABLED resolves to "false" node-side.
+			name:    "no cluster agent, baseline (no provider)",
+			ddaFile: "testdata/no-cluster-agent-dda.yaml",
+			golden:  "testdata/golden/no-cluster-agent-baseline.golden.yaml",
+		},
 		// OpenShift cases. Provider strings are the real node-label-derived values:
 		// detection yields "openshift-<os_id>", never a bare "openshift".
 		{

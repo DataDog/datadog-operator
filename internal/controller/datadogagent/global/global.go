@@ -240,8 +240,16 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 	// Credentials
 	credentialResource(ddaMeta, ddaSpec, manager)
 
-	// DCA token
-	if requiredComponents.ClusterAgent.IsEnabled() {
+	// DCA token. requiredComponents.ClusterAgent.IsEnabled() reflects feature
+	// requirements only; it stays true even when override.clusterAgent.disabled
+	// is set, since that override is resolved later at the component-reconcile
+	// layer. Check it directly here so the node agent doesn't reference a token
+	// Secret that will never be created.
+	clusterAgentDisabled := false
+	if override, ok := ddaSpec.Override[v2alpha1.ClusterAgentComponentName]; ok {
+		clusterAgentDisabled = apiutils.BoolValue(override.Disabled)
+	}
+	if requiredComponents.ClusterAgent.IsEnabled() && !clusterAgentDisabled {
 		dcaTokenResource(ddaMeta, ddaSpec, resourcesManager, manager)
 	}
 

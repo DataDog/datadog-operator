@@ -56,6 +56,10 @@ func (f *asmFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.DatadogAgentSp
 		return feature.RequiredComponents{}
 	}
 
+	if clusterAgent, ok := ddaSpec.Override[v2alpha1.ClusterAgentComponentName]; ok && apiutils.BoolValue(clusterAgent.Disabled) {
+		return feature.RequiredComponents{}
+	}
+
 	f.threatsEnabled = apiutils.BoolValue(asm.Threats.Enabled)
 	f.iastEnabled = apiutils.BoolValue(asm.IAST.Enabled)
 	f.scaEnabled = apiutils.BoolValue(asm.SCA.Enabled)

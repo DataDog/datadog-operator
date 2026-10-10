@@ -37,6 +37,14 @@ func Test_admissionControllerFeature_Configure(t *testing.T) {
 			WantConfigure: false,
 		},
 		{
+			Name: "Admission Controller enabled but cluster agent disabled",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithAdmissionControllerEnabled(true).
+				WithClusterAgentDisabled(true).
+				Build(),
+			WantConfigure: false,
+		},
+		{
 			Name: "Admission Controller enabled grants CSI driver RBAC unconditionally",
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithAdmissionControllerEnabled(true).

@@ -49,6 +49,14 @@ func Test_ksmFeature_Configure(t *testing.T) {
 			WantConfigure: false,
 		},
 		{
+			Name: "ksm-core enabled but cluster agent disabled",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithKSMEnabled(true).
+				WithClusterAgentDisabled(true).
+				Build(),
+			WantConfigure: false,
+		},
+		{
 			Name: "ksm-core enabled",
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithKSMEnabled(true).

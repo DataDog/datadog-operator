@@ -80,7 +80,14 @@ func (f *cspmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgen
 
 	cspmConfig := ddaSpec.Features.CSPM
 
-	if cspmConfig != nil && apiutils.BoolValue(cspmConfig.Enabled) {
+	// CSPM dispatches its checks via the Cluster Agent; without one there's no RBAC to
+	// create and the node-side check has nothing to report through.
+	clusterAgentDisabled := false
+	if clusterAgent, ok := ddaSpec.Override[v2alpha1.ClusterAgentComponentName]; ok {
+		clusterAgentDisabled = apiutils.BoolValue(clusterAgent.Disabled)
+	}
+
+	if !clusterAgentDisabled && cspmConfig != nil && apiutils.BoolValue(cspmConfig.Enabled) {
 		f.enable = true
 		f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda.GetName(), ddaSpec)
 

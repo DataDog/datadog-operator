@@ -110,6 +110,12 @@ func (f *appsecFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAg
 		return feature.RequiredComponents{}
 	}
 
+	// AppSec injection is configured and served by the Cluster Agent; without one there's
+	// nothing to create RBAC for.
+	if clusterAgent, ok := ddaSpec.Override[v2alpha1.ClusterAgentComponentName]; ok && apiutils.BoolValue(clusterAgent.Disabled) {
+		return feature.RequiredComponents{}
+	}
+
 	var inj *v2alpha1.AppsecInjectorConfig
 	if ddaSpec.Features != nil && ddaSpec.Features.Appsec != nil {
 		inj = ddaSpec.Features.Appsec.Injector

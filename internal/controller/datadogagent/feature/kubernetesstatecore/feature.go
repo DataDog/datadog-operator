@@ -94,6 +94,14 @@ func (f *ksmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 	f.owner = dda
 	var output feature.RequiredComponents
 
+	// This check only ever runs inside the Cluster Agent (or Cluster Check Runners it
+	// dispatches to) — without a live Cluster Agent there's no code path for it to run at
+	// all, and creating its RBAC/ConfigMap would just leave them bound to a nonexistent
+	// ServiceAccount.
+	if clusterAgent, ok := ddaSpec.Override[v2alpha1.ClusterAgentComponentName]; ok && apiutils.BoolValue(clusterAgent.Disabled) {
+		return output
+	}
+
 	if ddaSpec.Features != nil && ddaSpec.Features.KubeStateMetricsCore != nil && apiutils.BoolValue(ddaSpec.Features.KubeStateMetricsCore.Enabled) {
 		output.ClusterAgent.IsRequired = new(true)
 		output.ClusterAgent.Containers = []apicommon.AgentContainerName{apicommon.ClusterAgentContainerName}

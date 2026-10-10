@@ -49,9 +49,35 @@ func Test_rcFeature_Configure(t *testing.T) {
 			Agent:         rcAgentNodeWantFunc(false),
 			ClusterAgent:  rcClusterAgentNodeWantFunc(false),
 		},
+		{
+			Name: "RC enabled but cluster agent disabled",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithRemoteConfigEnabled(true).
+				WithClusterAgentDisabled(true).
+				Build(),
+			WantConfigure: true,
+			Agent:         rcAgentNodeWantFunc(true),
+		},
 	}
 
 	tests.Run(t, buildRCFeature)
+}
+
+// Test_rcFeature_Configure_ClusterAgentDisabled verifies that, when the cluster agent is
+// disabled via override, Configure does not require it or declare it configured, even though
+// remote config is enabled and still runs node-side.
+func Test_rcFeature_Configure_ClusterAgentDisabled(t *testing.T) {
+	dda := testutils.NewDatadogAgentBuilder().
+		WithRemoteConfigEnabled(true).
+		WithClusterAgentDisabled(true).
+		Build()
+
+	f := buildRCFeature(nil)
+	reqComp := f.Configure(dda, &dda.Spec, nil)
+
+	assert.False(t, reqComp.ClusterAgent.IsEnabled())
+	assert.Empty(t, reqComp.ClusterAgent.Containers)
+	assert.True(t, reqComp.Agent.IsEnabled())
 }
 
 func rcAgentNodeWantFunc(rcEnabled bool) *test.ComponentTest {

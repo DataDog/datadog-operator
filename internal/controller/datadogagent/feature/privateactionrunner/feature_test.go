@@ -711,6 +711,36 @@ func Test_privateActionRunnerFeature_ConfigureClusterAgent(t *testing.T) {
 	}
 }
 
+// Test_privateActionRunnerFeature_ConfigureClusterAgent_ClusterAgentDisabled verifies that the
+// cluster-side annotation is ignored when the Cluster Agent is disabled via override, so this
+// feature doesn't require a Cluster Agent or create its ConfigMap/RBAC with nothing to deploy
+// them onto.
+func Test_privateActionRunnerFeature_ConfigureClusterAgent_ClusterAgentDisabled(t *testing.T) {
+	f := buildPrivateActionRunnerFeature(nil)
+	dda := &v2alpha1.DatadogAgent{
+		ObjectMeta: metav1.ObjectMeta{
+			Annotations: map[string]string{
+				"cluster-agent.datadoghq.com/private-action-runner-enabled": "true",
+			},
+		},
+	}
+	ddaSpec := &v2alpha1.DatadogAgentSpec{
+		Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+			v2alpha1.ClusterAgentComponentName: {
+				Disabled: new(true),
+			},
+		},
+	}
+
+	reqComp := f.Configure(dda, ddaSpec, nil)
+
+	assert.False(t, reqComp.ClusterAgent.IsEnabled())
+
+	parFeat, ok := f.(*privateActionRunnerFeature)
+	require.True(t, ok)
+	assert.Nil(t, parFeat.clusterConfig, "clusterConfig should not be set when the cluster agent is disabled")
+}
+
 func Test_privateActionRunnerFeature_ManageClusterAgent_ConfigMap(t *testing.T) {
 	testScheme := runtime.NewScheme()
 	_ = corev1.AddToScheme(testScheme)
