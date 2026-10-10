@@ -210,6 +210,35 @@ func TestValidateWorkerSpec(t *testing.T) {
 			want: []string{"spec.ports[1].port: duplicates the port and protocol of another port"},
 		},
 		{
+			name: "empty API key Secret name",
+			spec: datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerSpec{
+				Datadog: &datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerDatadogSpec{
+					APIKeySecretRef: &corev1.SecretKeySelector{Key: "api-key"},
+				},
+				Image: &datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerImageSpec{
+					Repository: ptr.To("registry.example.com/worker"),
+					Tag:        ptr.To("v1"),
+				},
+			},
+			want: []string{"spec.datadog.apiKeySecretRef.name: name must be specified"},
+		},
+		{
+			name: "API key Secret with name",
+			spec: datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerSpec{
+				Datadog: &datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerDatadogSpec{
+					APIKeySecretRef: &corev1.SecretKeySelector{
+						LocalObjectReference: corev1.LocalObjectReference{Name: "datadog-secret"},
+						Key:                  "api-key",
+					},
+				},
+				Image: &datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerImageSpec{
+					Repository: ptr.To("registry.example.com/worker"),
+					Tag:        ptr.To("v1"),
+				},
+			},
+			want: nil,
+		},
+		{
 			name: "missing image preserves component errors",
 			spec: datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerSpec{
 				DatadogBYOCClusterPipelineComponentSpec: datadoghqv1alpha1.DatadogBYOCClusterPipelineComponentSpec{

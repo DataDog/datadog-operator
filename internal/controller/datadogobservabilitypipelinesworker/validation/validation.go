@@ -24,13 +24,16 @@ import (
 	workerresources "github.com/DataDog/datadog-operator/internal/controller/datadogobservabilitypipelinesworker/resources"
 )
 
-// ValidateWorkerSpec checks image, component and reserved name rules after defaults are applied.
+// ValidateWorkerSpec checks image, component, API key Secret and reserved name rules after defaults are applied.
 // Single-field constraints, such as minimum lengths, remain in the CRD schema.
 func ValidateWorkerSpec(spec *datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerSpec) field.ErrorList {
 	path := field.NewPath("spec")
 	errs := byocvalidation.ValidateStatefulComponent(&spec.DatadogBYOCClusterStatefulComponentSpec, path)
 	errs = append(errs, validatePorts(spec.Ports, path.Child("ports"))...)
 	errs = append(errs, validateReservedNames(spec, path)...)
+	if spec.Datadog != nil && spec.Datadog.APIKeySecretRef != nil && spec.Datadog.APIKeySecretRef.Name == "" {
+		errs = append(errs, field.Required(path.Child("datadog", "apiKeySecretRef", "name"), "name must be specified"))
+	}
 	imagePath := path.Child("image")
 	if spec.Image == nil {
 		return append(errs, field.Required(imagePath, "image must be specified"))
