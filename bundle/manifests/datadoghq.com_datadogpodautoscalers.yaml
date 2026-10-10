@@ -57,7 +57,7 @@ spec:
     schema:
       openAPIV3Schema:
         description: DatadogPodAutoscaler is the Schema for the datadogpodautoscalers
-          API
+          API.
         properties:
           apiVersion:
             description: |-
@@ -444,8 +444,9 @@ spec:
                                 Queries is a list of timeseries queries to use for the objective.
                                 At least one query must be specified
                               items:
-                                description: TimeseriesQuery is a discriminated union.
-                                  Only Metrics and APMMetrics are supported for autoscaling.
+                                description: DatadogPodAutoscalerTimeseriesQuery is
+                                  a discriminated union. Only Metrics and APMMetrics
+                                  are supported for autoscaling.
                                 properties:
                                   apmMetrics:
                                     description: ApmMetrics is allows to query APM
@@ -808,6 +809,8 @@ spec:
                         description: DesiredResources is the desired resources for
                           containers
                         items:
+                          description: DatadogPodAutoscalerContainerResources defines
+                            resource values for a container.
                           properties:
                             limits:
                               additionalProperties:
@@ -831,6 +834,15 @@ spec:
                                 x-kubernetes-int-or-string: true
                               description: Requests describes the requested amount
                                 of compute resources.
+                              type: object
+                            runtime:
+                              description: Runtime holds extensible runtime configuration
+                                for the container.
+                              properties:
+                                gomemlimit:
+                                  description: Gomemlimit is the GOMEMLIMIT environment
+                                    variable value for the container.
+                                  type: string
                               type: object
                           required:
                           - name
@@ -931,7 +943,7 @@ spec:
     schema:
       openAPIV3Schema:
         description: DatadogPodAutoscaler is the Schema for the datadogpodautoscalers
-          API
+          API.
         properties:
           apiVersion:
             description: |-
@@ -1312,9 +1324,9 @@ spec:
                                         Queries is a list of timeseries queries to use for the objective.
                                         At least one query must be specified
                                       items:
-                                        description: TimeseriesQuery is a discriminated
-                                          union. Only Metrics and APMMetrics are supported
-                                          for autoscaling.
+                                        description: DatadogPodAutoscalerTimeseriesQuery
+                                          is a discriminated union. Only Metrics and
+                                          APMMetrics are supported for autoscaling.
                                         properties:
                                           apmMetrics:
                                             description: ApmMetrics is allows to query
@@ -1593,8 +1605,9 @@ spec:
                                 Queries is a list of timeseries queries to use for the objective.
                                 At least one query must be specified
                               items:
-                                description: TimeseriesQuery is a discriminated union.
-                                  Only Metrics and APMMetrics are supported for autoscaling.
+                                description: DatadogPodAutoscalerTimeseriesQuery is
+                                  a discriminated union. Only Metrics and APMMetrics
+                                  are supported for autoscaling.
                                 properties:
                                   apmMetrics:
                                     description: ApmMetrics is allows to query APM
@@ -1782,7 +1795,6 @@ spec:
                   required:
                   - type
                   type: object
-                minItems: 1
                 type: array
                 x-kubernetes-list-type: atomic
               options:
@@ -2014,6 +2026,8 @@ spec:
                         description: DesiredResources is the desired resources for
                           containers
                         items:
+                          description: DatadogPodAutoscalerContainerResources defines
+                            resource values for a container.
                           properties:
                             limits:
                               additionalProperties:
@@ -2037,6 +2051,15 @@ spec:
                                 x-kubernetes-int-or-string: true
                               description: Requests describes the requested amount
                                 of compute resources.
+                              type: object
+                            runtime:
+                              description: Runtime holds extensible runtime configuration
+                                for the container.
+                              properties:
+                                gomemlimit:
+                                  description: Gomemlimit is the GOMEMLIMIT environment
+                                    variable value for the container.
+                                  type: string
                               type: object
                           required:
                           - name

@@ -90,6 +90,8 @@ func (s *autoscalingSuite) extractClusterInfo() {
 	s.kubeconfigPath = kubeconfigFile.Name()
 
 	s.clusterName = s.Env().KubernetesCluster.ClusterName
+	require.Lenf(t, s.clusterName, maxSupportedClusterNameLength,
+		"cluster name %q is not the longest supported length; check longClusterStackName()", s.clusterName)
 
 	cfg, err := config.LoadDefaultConfig(t.Context())
 	require.NoError(t, err, "Failed to load AWS config")
@@ -146,7 +148,7 @@ func (s *autoscalingSuite) deployTestWorkload(ctx context.Context) {
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{{
 						Name:  "pause",
-						Image: "registry.k8s.io/pause",
+						Image: "registry.k8s.io/pause:3.10",
 						Resources: corev1.ResourceRequirements{
 							Requests: corev1.ResourceList{
 								corev1.ResourceCPU:    resource.MustParse("100m"),
