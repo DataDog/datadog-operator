@@ -113,7 +113,7 @@ var _ = Describe("DatadogBYOCCluster Controller", func() {
 					Name:       "byoc",
 					Namespace:  namespace.Name,
 					Generation: 1,
-					Finalizers: []string{datadogBYOCClusterFinalizer},
+					Finalizers: []string{"finalizer.datadoghq.com/datadogbyoccluster"},
 				},
 				Spec: datadoghqv1alpha1.DatadogBYOCClusterSpec{
 					Release: &datadoghqv1alpha1.DatadogBYOCClusterReleaseSpec{
@@ -161,21 +161,21 @@ var _ = Describe("DatadogBYOCCluster Controller", func() {
 				Status: datadoghqv1alpha1.DatadogBYOCClusterStatus{
 					Conditions: []metav1.Condition{
 						{
-							Type:               conditionReleaseResolved,
+							Type:               "ReleaseResolved",
 							Status:             metav1.ConditionTrue,
 							ObservedGeneration: 1,
 							Reason:             "Resolved",
 							Message:            "Workload images resolved successfully",
 						},
 						{
-							Type:               conditionReconciled,
+							Type:               "Reconciled",
 							Status:             metav1.ConditionTrue,
 							ObservedGeneration: 1,
 							Reason:             "Reconciled",
 							Message:            "Managed resources match the desired state",
 						},
 						{
-							Type:               conditionAvailable,
+							Type:               "Available",
 							Status:             metav1.ConditionFalse,
 							ObservedGeneration: 1,
 							Reason:             "WorkloadsUnavailable",
@@ -306,8 +306,8 @@ var _ = Describe("DatadogBYOCCluster Controller", func() {
 			Eventually(func(g Gomega) {
 				current := &datadoghqv1alpha1.DatadogBYOCCluster{}
 				g.Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(cluster), current)).To(Succeed())
-				g.Expect(meta.IsStatusConditionTrue(current.Status.Conditions, conditionReconciled)).To(BeTrue())
-				g.Expect(meta.IsStatusConditionTrue(current.Status.Conditions, conditionAvailable)).To(BeTrue())
+				g.Expect(meta.IsStatusConditionTrue(current.Status.Conditions, "Reconciled")).To(BeTrue())
+				g.Expect(meta.IsStatusConditionTrue(current.Status.Conditions, "Available")).To(BeTrue())
 			}, timeout, interval).Should(Succeed())
 		})
 
@@ -338,7 +338,7 @@ var _ = Describe("DatadogBYOCCluster Controller", func() {
 
 				currentCluster := &datadoghqv1alpha1.DatadogBYOCCluster{}
 				g.Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(cluster), currentCluster)).To(Succeed())
-				g.Expect(currentCluster.Finalizers).To(ContainElement(datadogBYOCClusterFinalizer))
+				g.Expect(currentCluster.Finalizers).To(ContainElement("finalizer.datadoghq.com/datadogbyoccluster"))
 			}, timeout, interval).Should(Succeed())
 
 			By("finishing the foreground deletion as the garbage collector would")
@@ -369,8 +369,8 @@ var _ = Describe("DatadogBYOCCluster Controller", func() {
 			Eventually(func(g Gomega) {
 				current := &datadoghqv1alpha1.DatadogBYOCCluster{}
 				g.Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(cluster), current)).To(Succeed())
-				g.Expect(meta.IsStatusConditionFalse(current.Status.Conditions, conditionReconciled)).To(BeTrue())
-				g.Expect(meta.FindStatusCondition(current.Status.Conditions, conditionReconciled).Reason).To(Equal("Conflict"))
+				g.Expect(meta.IsStatusConditionFalse(current.Status.Conditions, "Reconciled")).To(BeTrue())
+				g.Expect(meta.FindStatusCondition(current.Status.Conditions, "Reconciled").Reason).To(Equal("Conflict"))
 			}, timeout, interval).Should(Succeed())
 
 			By("keeping the unowned ConfigMap unchanged")
@@ -406,7 +406,7 @@ var _ = Describe("DatadogBYOCCluster Controller", func() {
 			Eventually(func(g Gomega) {
 				current := &datadoghqv1alpha1.DatadogBYOCCluster{}
 				g.Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(cluster), current)).To(Succeed())
-				g.Expect(current.Finalizers).To(ContainElement(datadogBYOCClusterFinalizer))
+				g.Expect(current.Finalizers).To(ContainElement("finalizer.datadoghq.com/datadogbyoccluster"))
 			}, timeout, interval).Should(Succeed())
 
 			By("deleting the cluster")
@@ -435,9 +435,9 @@ var _ = Describe("DatadogBYOCCluster Controller", func() {
 			Eventually(func(g Gomega) {
 				current := &datadoghqv1alpha1.DatadogBYOCCluster{}
 				g.Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(cluster), current)).To(Succeed())
-				g.Expect(meta.IsStatusConditionFalse(current.Status.Conditions, conditionReconciled)).To(BeTrue())
-				g.Expect(meta.FindStatusCondition(current.Status.Conditions, conditionReconciled).Reason).To(Equal("InvalidConfiguration"))
-				g.Expect(meta.IsStatusConditionFalse(current.Status.Conditions, conditionAvailable)).To(BeTrue())
+				g.Expect(meta.IsStatusConditionFalse(current.Status.Conditions, "Reconciled")).To(BeTrue())
+				g.Expect(meta.FindStatusCondition(current.Status.Conditions, "Reconciled").Reason).To(Equal("InvalidConfiguration"))
+				g.Expect(meta.IsStatusConditionFalse(current.Status.Conditions, "Available")).To(BeTrue())
 				g.Expect(byocTerminalReconcileErrors()).To(BeNumerically(">", terminalErrorsBefore))
 			}, timeout, interval).Should(Succeed())
 		})
@@ -459,7 +459,7 @@ var _ = Describe("DatadogBYOCCluster Controller", func() {
 					Name:       "byoc",
 					Namespace:  namespace.Name,
 					Generation: 1,
-					Finalizers: []string{datadogBYOCClusterFinalizer},
+					Finalizers: []string{"finalizer.datadoghq.com/datadogbyoccluster"},
 				},
 				Spec: datadoghqv1alpha1.DatadogBYOCClusterSpec{
 					Release: &datadoghqv1alpha1.DatadogBYOCClusterReleaseSpec{
@@ -507,21 +507,21 @@ var _ = Describe("DatadogBYOCCluster Controller", func() {
 				Status: datadoghqv1alpha1.DatadogBYOCClusterStatus{
 					Conditions: []metav1.Condition{
 						{
-							Type:               conditionReleaseResolved,
+							Type:               "ReleaseResolved",
 							Status:             metav1.ConditionFalse,
 							ObservedGeneration: 1,
 							Reason:             "ResolutionFailed",
 							Message:            "release unavailable",
 						},
 						{
-							Type:               conditionReconciled,
+							Type:               "Reconciled",
 							Status:             metav1.ConditionFalse,
 							ObservedGeneration: 1,
 							Reason:             "ResolutionFailed",
 							Message:            "release unavailable",
 						},
 						{
-							Type:               conditionAvailable,
+							Type:               "Available",
 							Status:             metav1.ConditionFalse,
 							ObservedGeneration: 1,
 							Reason:             "ResolutionFailed",

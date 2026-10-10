@@ -3,7 +3,10 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-package controller
+// Package datadogbyoccluster implements the DatadogBYOCCluster controller. It lives in its own package so its RBAC
+// markers are generated into a dedicated ClusterRole (config/rbac/byoc) instead of manager-role, letting deployments
+// grant BYOC permissions only when the controller is enabled.
+package datadogbyoccluster
 
 import (
 	"context"
@@ -52,8 +55,8 @@ const (
 	datadogBYOCClusterFieldOwner = "datadog-byoccluster-controller"
 )
 
-// DatadogBYOCClusterReconciler reconciles a DatadogBYOCCluster object.
-type DatadogBYOCClusterReconciler struct {
+// Reconciler reconciles a DatadogBYOCCluster object.
+type Reconciler struct {
 	Client client.Client
 	// APIReader reads directly from the API server for decisions that a stale cache must not drive.
 	APIReader client.Reader
@@ -83,7 +86,7 @@ type reconcileFailure struct {
 // +kubebuilder:rbac:groups=policy,resources=poddisruptionbudgets,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile resolves the requested release and converges all managed resources.
-func (r *DatadogBYOCClusterReconciler) Reconcile(ctx context.Context, request ctrl.Request) (ctrl.Result, error) {
+func (r *Reconciler) Reconcile(ctx context.Context, request ctrl.Request) (ctrl.Result, error) {
 	cluster := &datadoghqv1alpha1.DatadogBYOCCluster{}
 	if err := r.Client.Get(ctx, request.NamespacedName, cluster); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
@@ -116,7 +119,7 @@ func (r *DatadogBYOCClusterReconciler) Reconcile(ctx context.Context, request ct
 }
 
 // reconcileResources converges the managed resources and reports whether all workloads are available.
-func (r *DatadogBYOCClusterReconciler) reconcileResources(ctx context.Context, cluster *datadoghqv1alpha1.DatadogBYOCCluster) (bool, *reconcileFailure) {
+func (r *Reconciler) reconcileResources(ctx context.Context, cluster *datadoghqv1alpha1.DatadogBYOCCluster) (bool, *reconcileFailure) {
 	if err := byocvalidation.ValidateClusterSpec(&cluster.Spec).ToAggregate(); err != nil {
 		return false, &reconcileFailure{conditionType: conditionReconciled, reason: reasonInvalidConfiguration, err: err, terminal: true}
 	}
@@ -148,7 +151,7 @@ func (r *DatadogBYOCClusterReconciler) reconcileResources(ctx context.Context, c
 	return updateComponentStatus(cluster, resources), nil
 }
 
-func (r *DatadogBYOCClusterReconciler) finalize(ctx context.Context, cluster *datadoghqv1alpha1.DatadogBYOCCluster) error {
+func (r *Reconciler) finalize(ctx context.Context, cluster *datadoghqv1alpha1.DatadogBYOCCluster) error {
 	if !controllerutil.ContainsFinalizer(cluster, datadogBYOCClusterFinalizer) {
 		return nil
 	}
@@ -171,7 +174,7 @@ func (r *DatadogBYOCClusterReconciler) finalize(ctx context.Context, cluster *da
 }
 
 // getFresh reads the object from the cache, and from the API server when the cache does not have it.
-func (r *DatadogBYOCClusterReconciler) getFresh(ctx context.Context, object client.Object) error {
+func (r *Reconciler) getFresh(ctx context.Context, object client.Object) error {
 	key := client.ObjectKeyFromObject(object)
 	err := r.Client.Get(ctx, key, object)
 	if !apierrors.IsNotFound(err) {
@@ -181,7 +184,7 @@ func (r *DatadogBYOCClusterReconciler) getFresh(ctx context.Context, object clie
 	return r.APIReader.Get(ctx, key, object)
 }
 
-func (r *DatadogBYOCClusterReconciler) applyObject(ctx context.Context, owner *datadoghqv1alpha1.DatadogBYOCCluster, desired client.Object) error {
+func (r *Reconciler) applyObject(ctx context.Context, owner *datadoghqv1alpha1.DatadogBYOCCluster, desired client.Object) error {
 	current := desired.DeepCopyObject().(client.Object)
 	switch err := r.getFresh(ctx, current); {
 	case apierrors.IsNotFound(err):
@@ -204,7 +207,7 @@ func (r *DatadogBYOCClusterReconciler) applyObject(ctx context.Context, owner *d
 
 // deleteIfControlled deletes the object when it is controlled by owner and reports whether a deletion was requested.
 // The ownership check reads the object through reader, and the deletion fails if the object changed since that read.
-func (r *DatadogBYOCClusterReconciler) deleteIfControlled(ctx context.Context, reader client.Reader, owner client.Object, object client.Object, opts ...client.DeleteOption) (bool, error) {
+func (r *Reconciler) deleteIfControlled(ctx context.Context, reader client.Reader, owner client.Object, object client.Object, opts ...client.DeleteOption) (bool, error) {
 	key := client.ObjectKeyFromObject(object)
 	if err := reader.Get(ctx, key, object); err != nil {
 		if apierrors.IsNotFound(err) {
@@ -317,7 +320,7 @@ func deploymentStatus(deployment *appsv1.Deployment) (*datadoghqv1alpha1.Datadog
 }
 
 // SetupWithManager creates the DatadogBYOCCluster controller and its owned-resource watches.
-func (r *DatadogBYOCClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *Reconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&datadoghqv1alpha1.DatadogBYOCCluster{}).
 		Owns(&corev1.ConfigMap{}).
