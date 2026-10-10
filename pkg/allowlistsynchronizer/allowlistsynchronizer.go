@@ -23,13 +23,13 @@ import (
 const DefaultWorkloadAllowlistVersion = "v1.0.6"
 
 // DefaultCSIWorkloadAllowlistVersion is the default version of the Datadog CSI
-// driver daemonset WorkloadAllowlist. v1.1.1 allows the registrar image from
-// registry.k8s.io.
-const DefaultCSIWorkloadAllowlistVersion = "v1.1.1"
+// driver daemonset WorkloadAllowlist. v1.1.2 allows the APM registry auth and
+// registry allow list env vars.
+const DefaultCSIWorkloadAllowlistVersion = "v1.1.2"
 
 // previousCSIWorkloadAllowlistVersion remains synchronized while the new
 // default propagates across GKE node versions.
-const previousCSIWorkloadAllowlistVersion = "v1.1.0"
+const previousCSIWorkloadAllowlistVersion = "v1.1.1"
 
 const allowlistSynchronizerFieldOwner = "datadog-operator-allowlist-synchronizer"
 

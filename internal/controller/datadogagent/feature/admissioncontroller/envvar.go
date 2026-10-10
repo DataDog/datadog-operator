@@ -28,6 +28,7 @@ const (
 	DDAdmissionControllerFailurePolicy                                          = "DD_ADMISSION_CONTROLLER_FAILURE_POLICY"
 	DDAdmissionControllerWebhookName                                            = "DD_ADMISSION_CONTROLLER_WEBHOOK_NAME"
 	DDAdmissionControllerRegistryName                                           = "DD_ADMISSION_CONTROLLER_CONTAINER_REGISTRY"
+	DDAdmissionControllerRegistryAllowList                                      = "DD_ADMISSION_CONTROLLER_AUTO_INSTRUMENTATION_CONTAINER_REGISTRY_ALLOW_LIST"
 	DDAdmissionControllerCWSInstrumentationEnabled                              = "DD_ADMISSION_CONTROLLER_CWS_INSTRUMENTATION_ENABLED"
 	DDAdmissionControllerCWSInstrumentationMode                                 = "DD_ADMISSION_CONTROLLER_CWS_INSTRUMENTATION_MODE"
 	DDAdmissionControllerKubernetesAdmissionEventsEnabled                       = "DD_ADMISSION_CONTROLLER_KUBERNETES_ADMISSION_EVENTS_ENABLED"

@@ -93,6 +93,34 @@ func Test_admissionControllerFeature_Configure(t *testing.T) {
 				admissionControllerWantFunc(false, false, "", "featureRegistry", false)),
 		},
 		{
+			Name: "Admission Controller enabled with registry allow list",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithAdmissionControllerEnabled(true).
+				WithAdmissionControllerRegistryAllowList("public.ecr.aws/datadog", "gcr.io/datadoghq").
+				Build(),
+			WantConfigure: true,
+			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+					mgr := mgrInterface.(*fake.PodTemplateManagers)
+					dcaEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.ClusterAgentContainerName]
+					want := append(getACEnvVars(false, false, "", "", false), &corev1.EnvVar{
+						Name:  DDAdmissionControllerRegistryAllowList,
+						Value: "public.ecr.aws/datadog,gcr.io/datadoghq",
+					})
+					assert.ElementsMatch(t, dcaEnvVars, want, "DCA envvars \ndiff = %s", cmp.Diff(dcaEnvVars, want))
+				}),
+		},
+		{
+			Name: "Admission Controller enabled with empty registry allow list",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithAdmissionControllerEnabled(true).
+				WithAdmissionControllerRegistryAllowList().
+				Build(),
+			WantConfigure: true,
+			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
+				admissionControllerWantFunc(false, false, "", "", false)),
+		},
+		{
 			Name: "Admission Controller enabled with apm uds",
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithAdmissionControllerEnabled(true).
