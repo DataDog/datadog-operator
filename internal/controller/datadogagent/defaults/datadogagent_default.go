@@ -42,22 +42,21 @@ const (
 
 	defaultGPUMonitoringEnabled bool = false
 
-	defaultAPMEnabled                   bool   = true
-	defaultAPMHostPortEnabled           bool   = false
-	defaultAPMHostPort                  int32  = 8126
-	defaultAPMSocketEnabled             bool   = true
-	defaultAPMSocketHostPath            string = common.DogstatsdAPMSocketHostPath + "/" + common.APMSocketName
-	defaultAPMSingleStepInstrEnabled    bool   = false
-	defaultLanguageDetectionEnabled     bool   = true
-	defaultCSPMEnabled                  bool   = false
-	defaultCSPMHostBenchmarksEnabled    bool   = true
-	defaultCWSEnabled                   bool   = false
-	defaultCWSSyscallMonitorEnabled     bool   = false
-	defaultCWSDirectSendFromSystemProbe bool   = false
-	defaultCWSNetworkEnabled            bool   = true
-	defaultCWSSecurityProfilesEnabled   bool   = true
-	defaultCWSEnforcementEnabled        bool   = true
-	defaultAPMErrorTrackingStandalone   bool   = false
+	defaultAPMEnabled                 bool   = true
+	defaultAPMHostPortEnabled         bool   = false
+	defaultAPMHostPort                int32  = 8126
+	defaultAPMSocketEnabled           bool   = true
+	defaultAPMSocketHostPath          string = common.DogstatsdAPMSocketHostPath + "/" + common.APMSocketName
+	defaultAPMSingleStepInstrEnabled  bool   = false
+	defaultLanguageDetectionEnabled   bool   = true
+	defaultCSPMEnabled                bool   = false
+	defaultCSPMHostBenchmarksEnabled  bool   = true
+	defaultCWSEnabled                 bool   = false
+	defaultCWSSyscallMonitorEnabled   bool   = false
+	defaultCWSNetworkEnabled          bool   = true
+	defaultCWSSecurityProfilesEnabled bool   = true
+	defaultCWSEnforcementEnabled      bool   = true
+	defaultAPMErrorTrackingStandalone bool   = false
 
 	defaultNPMEnabled         bool = false
 	defaultNPMEnableConntrack bool = true
@@ -411,7 +410,6 @@ func defaultFeaturesConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.CWS.SyscallMonitorEnabled, defaultCWSSyscallMonitorEnabled)
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.CWS.Network.Enabled, defaultCWSNetworkEnabled)
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.CWS.SecurityProfiles.Enabled, defaultCWSSecurityProfilesEnabled)
-		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.CWS.DirectSendFromSystemProbe, defaultCWSDirectSendFromSystemProbe)
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.CWS.Enforcement.Enabled, defaultCWSEnforcementEnabled)
 	}
 

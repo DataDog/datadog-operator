@@ -12,6 +12,7 @@ import (
 
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/defaults"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -21,6 +22,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
+	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/providercaps"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 
@@ -34,7 +36,8 @@ func Test_cwsFeature_Configure(t *testing.T) {
 		Spec: v2alpha1.DatadogAgentSpec{
 			Features: &v2alpha1.DatadogFeatures{
 				CWS: &v2alpha1.CWSFeatureConfig{
-					Enabled: ptr.To(false),
+					Enabled:                   ptr.To(false),
+					DirectSendFromSystemProbe: ptr.To(false),
 					Enforcement: &v2alpha1.CWSEnforcementConfig{
 						Enabled: ptr.To(false),
 					},
@@ -129,6 +132,15 @@ func Test_cwsFeature_Configure(t *testing.T) {
 	tests.Run(t, buildCWSFeature)
 }
 
+// configSyncEnvVars are the env vars direct send needs so that the system-probe, which cannot
+// resolve secret handles itself, receives a resolved api_key from the core agent.
+func configSyncEnvVars() []*corev1.EnvVar {
+	return []*corev1.EnvVar{
+		{Name: common.DDAgentIpcPort, Value: featureutils.DefaultAgentIpcPort},
+		{Name: common.DDAgentIpcConfigRefreshInterval, Value: featureutils.DefaultAgentIpcConfigRefreshInterval},
+	}
+}
+
 func cwsAgentNodeWantFunc(withSubFeatures bool, directSendFromSysProbe bool, enforcementEnabled bool) *test.ComponentTest {
 	return test.NewDefaultComponentTest().WithWantFunc(
 		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
@@ -196,6 +208,7 @@ func cwsAgentNodeWantFunc(withSubFeatures bool, directSendFromSysProbe bool, enf
 						Value: "true",
 					},
 				)
+				sysProbeWant = append(sysProbeWant, configSyncEnvVars()...)
 			}
 			sysProbeWant = append(
 				sysProbeWant,
@@ -213,6 +226,16 @@ func cwsAgentNodeWantFunc(withSubFeatures bool, directSendFromSysProbe bool, enf
 			}
 			sysProbeEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.SystemProbeContainerName]
 			assert.True(t, apiutils.IsEqualStruct(sysProbeEnvVars, sysProbeWant), "System probe envvars \ndiff = %s", cmp.Diff(sysProbeEnvVars, sysProbeWant))
+
+			// config sync is served by the core agent, so it needs the same env vars
+			coreAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
+			if directSendFromSysProbe {
+				assert.Subset(t, coreAgentEnvVars, configSyncEnvVars())
+			} else {
+				for _, envVar := range configSyncEnvVars() {
+					assert.NotContains(t, coreAgentEnvVars, envVar)
+				}
+			}
 
 			// check volume mounts
 			securityWantVolumeMount := []corev1.VolumeMount{
@@ -434,4 +457,66 @@ func Test_cwsFeature_NodeAgentProviderCapabilities(t *testing.T) {
 		assert.Contains(t, volumeNames(tmpl), common.GroupVolumeName)
 		assert.NotContains(t, volumeNames(tmpl), common.TracefsVolumeName)
 	})
+}
+
+// Remote Configuration can enable CWS after the defaulting pass has run. DirectSendFromSystemProbe is
+// defaulted in Configure, after the merge, so a remotely enabled CWS sends from the system-probe too.
+func Test_cwsFeature_ConfigureFromRemoteConfig(t *testing.T) {
+	dda := &v2alpha1.DatadogAgent{
+		Status: v2alpha1.DatadogAgentStatus{
+			RemoteConfigConfiguration: &v2alpha1.RemoteConfigConfiguration{
+				Features: &v2alpha1.DatadogFeatures{
+					CWS: &v2alpha1.CWSFeatureConfig{Enabled: ptr.To(true)},
+				},
+			},
+		},
+	}
+	defaults.DefaultDatadogAgentSpec(&dda.Spec)
+	require.False(t, *dda.Spec.Features.CWS.Enabled, "CWS is off in the spec before the merge")
+
+	f := &cwsFeature{}
+	reqComp := f.Configure(dda, &dda.Spec, dda.Status.RemoteConfigConfiguration)
+
+	assert.True(t, f.directSendFromSystemProbe)
+	assert.Equal(t, []apicommon.AgentContainerName{apicommon.SystemProbeContainerName}, reqComp.Agent.Containers)
+}
+
+func Test_cwsFeature_DirectSendFromSystemProbeDefault(t *testing.T) {
+	tests := []struct {
+		name                      string
+		agentTag                  string
+		directSendFromSystemProbe *bool
+		want                      bool
+	}{
+		{name: "unset, no Agent image override", want: true},
+		{name: "unset, Agent too old", agentTag: "7.62.0", want: false},
+		{name: "unset, Agent recent enough", agentTag: "7.63.0", want: true},
+		{name: "unset, unparsable Agent tag is assumed recent enough", agentTag: "latest", want: true},
+		{name: "explicit false wins", directSendFromSystemProbe: ptr.To(false), want: false},
+		{name: "explicit true wins on an older Agent", agentTag: "7.62.0", directSendFromSystemProbe: ptr.To(true), want: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dda := &v2alpha1.DatadogAgent{
+				Spec: v2alpha1.DatadogAgentSpec{
+					Features: &v2alpha1.DatadogFeatures{
+						CWS: &v2alpha1.CWSFeatureConfig{Enabled: ptr.To(true), DirectSendFromSystemProbe: tt.directSendFromSystemProbe},
+					},
+				},
+			}
+			if tt.agentTag != "" {
+				dda.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+					v2alpha1.NodeAgentComponentName: {Image: &v2alpha1.AgentImageConfig{Tag: tt.agentTag}},
+				}
+			}
+
+			f := &cwsFeature{}
+			f.Configure(dda, &dda.Spec, nil)
+
+			assert.Equal(t, tt.want, f.directSendFromSystemProbe)
+			require.NotNil(t, dda.Spec.Features.CWS.DirectSendFromSystemProbe)
+			assert.Equal(t, tt.want, *dda.Spec.Features.CWS.DirectSendFromSystemProbe)
+		})
+	}
 }
