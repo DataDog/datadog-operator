@@ -266,7 +266,7 @@ func (f *otlpFeature) ManageDependencies(managers feature.ResourceManagers) erro
 	return nil
 }
 
-func applyOTLPDDASharedDependencies(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ metav1.Object, ddaiSpec *v2alpha1.DatadogAgentSpec, managers feature.ResourceManagers) error {
+func applyOTLPDDASharedDependencies(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ metav1.Object, ddaiSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.DatadogAgentSpec, managers feature.ResourceManagers) error {
 	ports, err := otlpLocalAgentServicePorts(ddaiSpec)
 	if err != nil {
 		return err

@@ -40,7 +40,7 @@ func (r *Reconciler) setupDDADependenciesStore(instance *v2alpha1.DatadogAgent, 
 	return depsStore, resourceManagers
 }
 
-func (r *Reconciler) manageDDADependenciesWithDDAI(ctx context.Context, logger logr.Logger, instance *v2alpha1.DatadogAgent, newDDAStatus *v2alpha1.DatadogAgentStatus, ddais []*v1alpha1.DatadogAgentInternal) error {
+func (r *Reconciler) manageDDADependenciesWithDDAI(ctx context.Context, logger logr.Logger, instance *v2alpha1.DatadogAgent, newDDAStatus *v2alpha1.DatadogAgentStatus, ddais []*v1alpha1.DatadogAgentInternal, defaultDDAISpec *v2alpha1.DatadogAgentSpec) error {
 	// Use a store marked as DDA controller store so resources are labeled
 	// with ManagedByDDAControllerLabelKey and won't be cleaned up by DDAI controller.
 	depsStore, resourceManagers := r.setupDDADependenciesStore(instance, logger)
@@ -75,7 +75,7 @@ func (r *Reconciler) manageDDADependenciesWithDDAI(ctx context.Context, logger l
 
 	// Dependencies that can get configs from DDA and DDAI
 	// Example: agent local service for APM, DSD, and OTLP
-	if err := r.addDDASharedDependencies(instance, ddais, resourceManagers); err != nil {
+	if err := r.addDDASharedDependencies(instance, ddais, defaultDDAISpec, resourceManagers); err != nil {
 		return err
 	}
 
@@ -101,11 +101,11 @@ func (r *Reconciler) manageDDADependenciesWithDDAI(ctx context.Context, logger l
 	return nil
 }
 
-func (r *Reconciler) addDDASharedDependencies(dda *v2alpha1.DatadogAgent, ddais []*v1alpha1.DatadogAgentInternal, managers feature.ResourceManagers) error {
+func (r *Reconciler) addDDASharedDependencies(dda *v2alpha1.DatadogAgent, ddais []*v1alpha1.DatadogAgentInternal, defaultDDAISpec *v2alpha1.DatadogAgentSpec, managers feature.ResourceManagers) error {
 	var errs []error
 
 	for _, ddai := range ddais {
-		if err := feature.ApplyDDASharedDependencies(dda, &dda.Spec, ddai, &ddai.Spec, managers); err != nil {
+		if err := feature.ApplyDDASharedDependencies(dda, &dda.Spec, ddai, &ddai.Spec, defaultDDAISpec, managers); err != nil {
 			errs = append(errs, fmt.Errorf("%s/%s DDA shared dependencies failed: %w", ddai.Namespace, ddai.Name, err))
 		}
 	}

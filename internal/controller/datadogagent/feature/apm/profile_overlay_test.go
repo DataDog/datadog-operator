@@ -503,7 +503,7 @@ func TestAPMProfileSharedConfigOverlay(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			dst := tt.dst.DeepCopy()
-			err := applyAPMProfileSharedConfigOverlay(dst, tt.dst.DeepCopy(), tt.profile)
+			err := applyAPMOverlayForTest(dst, tt.dst.DeepCopy(), tt.profile)
 			if tt.wantErr != "" {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.wantErr)
@@ -519,30 +519,139 @@ func TestAPMProfileSharedConfigOverlay(t *testing.T) {
 	}
 }
 
-func TestAPMProfileSharedConfigOverlayDefaultedBaseOnDemand(t *testing.T) {
+func TestAPMProfileSharedConfigOverlaySingletonPrecedence(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		dda, dap *bool
+		want     bool
+		wantErr  bool
+	}{
+		{name: "both unset", want: true},
+		{name: "DDA set DAP unset", dda: ptr.To(false), want: false},
+		{name: "DDA unset DAP set", dap: ptr.To(false), want: false},
+		{name: "same explicit values", dda: ptr.To(false), dap: ptr.To(false), want: false},
+		{name: "different explicit values", dda: ptr.To(true), dap: ptr.To(false), wantErr: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			rawBase := testProfileOverlayBaseSpec(true)
+			rawBase.Features.APM.SingleStepInstrumentation.LanguageDetection = &v2alpha1.LanguageDetectionConfig{Enabled: tc.dda}
+			dst := rawBase.DeepCopy()
+			defaults.DefaultDatadogAgentSpec(dst)
+			profile := testProfileOverlayProfileSpec(&v2alpha1.SingleStepInstrumentation{
+				Enabled:           ptr.To(true),
+				LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: tc.dap},
+			})
+			err := applyAPMOverlayForTest(dst, rawBase, profile)
+			if tc.wantErr {
+				require.ErrorContains(t, err, "languageDetection.enabled has conflicting values")
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, ptr.To(tc.want), dst.Features.APM.SingleStepInstrumentation.LanguageDetection.Enabled)
+		})
+	}
+}
+
+func TestAPMProfileSharedConfigOverlayDefaultConflicts(t *testing.T) {
 	for _, baseSSIEnabled := range []bool{false, true} {
 		t.Run(fmt.Sprintf("base SSI enabled=%t", baseSSIEnabled), func(t *testing.T) {
-			base := &v2alpha1.DatadogAgentSpec{
+			rawBase := &v2alpha1.DatadogAgentSpec{
 				Features: &v2alpha1.DatadogFeatures{
 					APM: &v2alpha1.APMFeatureConfig{
 						SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{Enabled: ptr.To(baseSSIEnabled)},
 					},
 				},
 			}
-			defaults.DefaultDatadogAgentSpec(base)
+			defaultedBase := rawBase.DeepCopy()
+			defaults.DefaultDatadogAgentSpec(defaultedBase)
+			require.Equal(t, ptr.To(true), defaultedBase.Features.APM.SingleStepInstrumentation.LanguageDetection.Enabled)
 
-			dst := base.DeepCopy()
 			profile := testProfileOverlayProfileSpec(&v2alpha1.SingleStepInstrumentation{
-				Enabled:  ptr.To(true),
-				OnDemand: ptr.To(false),
+				Enabled:           ptr.To(true),
+				LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: ptr.To(false)},
 			})
-			require.NoError(t, applyAPMProfileSharedConfigOverlay(dst, base, profile))
-			assert.Equal(t, ptr.To(false), dst.Features.APM.SingleStepInstrumentation.OnDemand)
+			require.NoError(t, applyAPMOverlayForTest(defaultedBase, rawBase, profile))
+			assert.Equal(t, ptr.To(false), defaultedBase.Features.APM.SingleStepInstrumentation.LanguageDetection.Enabled)
 		})
 	}
+
+	t.Run("explicit base value still conflicts", func(t *testing.T) {
+		rawBase := testProfileOverlayBaseSpec(true)
+		rawBase.Features.APM.SingleStepInstrumentation.LanguageDetection = &v2alpha1.LanguageDetectionConfig{Enabled: ptr.To(true)}
+		defaultedBase := rawBase.DeepCopy()
+		defaults.DefaultDatadogAgentSpec(defaultedBase)
+
+		profile := testProfileOverlayProfileSpec(&v2alpha1.SingleStepInstrumentation{
+			Enabled:           ptr.To(true),
+			LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: ptr.To(false)},
+		})
+		err := applyAPMOverlayForTest(defaultedBase, rawBase, profile)
+		require.ErrorContains(t, err, "features.apm.instrumentation.languageDetection.enabled has conflicting values")
+	})
+
+	t.Run("accepted profile value conflicts", func(t *testing.T) {
+		rawBase := testProfileOverlayBaseSpec(false)
+		defaultedBase := rawBase.DeepCopy()
+		defaults.DefaultDatadogAgentSpec(defaultedBase)
+		acceptedProfile := testProfileOverlayProfileSpec(&v2alpha1.SingleStepInstrumentation{
+			Enabled:           ptr.To(true),
+			LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: ptr.To(true)},
+		})
+		currentProfile := testProfileOverlayProfileSpec(&v2alpha1.SingleStepInstrumentation{
+			Enabled:           ptr.To(true),
+			LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: ptr.To(false)},
+		})
+
+		shared := rawBase.DeepCopy()
+		require.NoError(t, applyAPMProfileSharedConfigOverlay(shared, defaultedBase.DeepCopy(), defaultedBase, acceptedProfile))
+		err := applyAPMProfileSharedConfigOverlay(shared, defaultedBase.DeepCopy(), defaultedBase, currentProfile)
+		require.ErrorContains(t, err, "features.apm.instrumentation.languageDetection.enabled has conflicting values")
+	})
 }
 
 func TestAPMProfileSharedConfigOverlayLocalAgentServicePortConflict(t *testing.T) {
+
+	for _, tc := range []struct {
+		name        string
+		basePort    *int32
+		profilePort *int32
+		wantPort    int32
+		wantErr     bool
+	}{
+		{name: "both unset", wantPort: 8126},
+		{name: "DDA set DAP unset", basePort: ptr.To[int32](9126), wantPort: 9126},
+		{name: "DDA unset DAP set", profilePort: ptr.To[int32](9126), wantPort: 9126},
+		{name: "same explicit values", basePort: ptr.To[int32](9126), profilePort: ptr.To[int32](9126), wantPort: 9126},
+		{name: "different explicit values", basePort: ptr.To[int32](8126), profilePort: ptr.To[int32](9126), wantErr: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			rawBase := &v2alpha1.DatadogAgentSpec{}
+			if tc.basePort != nil {
+				rawBase = testProfileOverlayProfileAPMSpec(*tc.basePort)
+			}
+			dst := rawBase.DeepCopy()
+			defaults.DefaultDatadogAgentSpec(dst)
+			profile := testProfileOverlayProfileAPMSpec(8126)
+			profile.Features.APM.Enabled = nil
+			if tc.profilePort == nil {
+				profile.Features.APM.HostPortConfig = nil
+			} else {
+				profile.Features.APM.HostPortConfig.Port = tc.profilePort
+			}
+			before := dst.DeepCopy()
+			err := applyAPMOverlayForTest(dst, rawBase, profile)
+			if tc.wantErr {
+				require.ErrorContains(t, err, `local Agent Service port "traceport" conflicts`)
+				assert.Equal(t, before, dst)
+				return
+			}
+			require.NoError(t, err)
+			port, ok := profileLocalAgentServicePort(dst)
+			require.True(t, ok)
+			assert.Equal(t, tc.wantPort, port)
+		})
+	}
+
 	t.Run("defaulted base port already covers profile default port without enabling base host port", func(t *testing.T) {
 		base := testProfileOverlayBaseSpec(false)
 		base.Features.APM.Enabled = ptr.To(true)
@@ -552,24 +661,60 @@ func TestAPMProfileSharedConfigOverlayLocalAgentServicePortConflict(t *testing.T
 		}
 		dst := base.DeepCopy()
 
-		require.NoError(t, applyAPMProfileSharedConfigOverlay(dst, base, testProfileOverlayProfileAPMSpec(8126)))
+		require.NoError(t, applyAPMOverlayForTest(dst, base, testProfileOverlayProfileAPMSpec(8126)))
 		require.NotNil(t, dst.Features.APM.HostPortConfig)
 		assert.False(t, ptr.Deref(dst.Features.APM.HostPortConfig.Enabled, true))
 		assert.Equal(t, int32(8126), ptr.Deref(dst.Features.APM.HostPortConfig.Port, 0))
 	})
 
+	t.Run("omitted profile port does not conflict with an explicit profile port", func(t *testing.T) {
+		rawBase := &v2alpha1.DatadogAgentSpec{}
+		dst := rawBase.DeepCopy()
+		defaults.DefaultDatadogAgentSpec(dst)
+		omitted := testProfileOverlayProfileAPMSpec(8126)
+		omitted.Features.APM.HostPortConfig = nil
+		explicit := testProfileOverlayProfileAPMSpec(9126)
+		shared := rawBase.DeepCopy()
+		base := dst.DeepCopy()
+		require.NoError(t, applyAPMProfileSharedConfigOverlay(shared, dst, base, omitted))
+		require.NoError(t, applyAPMProfileSharedConfigOverlay(shared, dst, base, explicit))
+		require.NoError(t, applyAPMProfileSharedConfigOverlay(shared, dst, base, omitted))
+		// Both candidates are updated by each accepted overlay.
+		assert.Equal(t, ptr.To[int32](9126), shared.Features.APM.HostPortConfig.Port)
+		assert.Equal(t, ptr.To[int32](9126), dst.Features.APM.HostPortConfig.Port)
+	})
+
 	t.Run("prior profile contributes port, later profile conflicts", func(t *testing.T) {
 		base := testProfileOverlayBaseSpec(false)
-		dst := base.DeepCopy()
+		shared := base.DeepCopy()
+		profile := testProfileOverlayProfileAPMSpec(8126)
+		require.NoError(t, applyAPMProfileSharedConfigOverlay(shared, base.DeepCopy(), base, profile))
+		require.NoError(t, applyAPMProfileSharedConfigOverlay(shared, base.DeepCopy(), base, profile))
+		err := applyAPMProfileSharedConfigOverlay(shared, base.DeepCopy(), base, testProfileOverlayProfileAPMSpec(9126))
+		require.ErrorContains(t, err, `local Agent Service port "traceport" conflicts`)
+		assert.Equal(t, ptr.To[int32](8126), configuredServicePort(shared.Features.APM))
+	})
 
-		require.NoError(t, applyAPMProfileSharedConfigOverlay(dst, base, testProfileOverlayProfileAPMSpec(8126)))
-		assert.Equal(t, int32(8126), ptr.Deref(dst.Features.APM.HostPortConfig.Port, 0))
+	t.Run("omitted profile port preserves default node host-port settings", func(t *testing.T) {
+		raw := &v2alpha1.DatadogAgentSpec{}
+		base := raw.DeepCopy()
+		defaults.DefaultDatadogAgentSpec(base)
+		profile := testProfileOverlayProfileAPMSpec(8126)
+		profile.Features.APM.HostPortConfig = nil
+		require.NoError(t, applyAPMOverlayForTest(base, raw, profile))
+		assert.False(t, *base.Features.APM.HostPortConfig.Enabled)
+		assert.Equal(t, ptr.To[int32](8126), base.Features.APM.HostPortConfig.Port)
+	})
 
-		require.NoError(t, applyAPMProfileSharedConfigOverlay(dst, base, testProfileOverlayProfileAPMSpec(8126)))
-
-		err := applyAPMProfileSharedConfigOverlay(dst, base, testProfileOverlayProfileAPMSpec(9126))
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), `local Agent Service port "traceport" conflicts`)
+	t.Run("explicit default port remains a constraint without enabling default host ports", func(t *testing.T) {
+		raw := &v2alpha1.DatadogAgentSpec{}
+		base := raw.DeepCopy()
+		defaults.DefaultDatadogAgentSpec(base)
+		shared := raw.DeepCopy()
+		require.NoError(t, applyAPMProfileSharedConfigOverlay(shared, base.DeepCopy(), base, testProfileOverlayProfileAPMSpec(8126)))
+		assert.False(t, *shared.Features.APM.HostPortConfig.Enabled)
+		err := applyAPMProfileSharedConfigOverlay(shared.DeepCopy(), base.DeepCopy(), base, testProfileOverlayProfileAPMSpec(9126))
+		require.ErrorContains(t, err, `local Agent Service port "traceport" conflicts`)
 	})
 
 	t.Run("base DDA has host port, profile tries different port", func(t *testing.T) {
@@ -581,16 +726,14 @@ func TestAPMProfileSharedConfigOverlayLocalAgentServicePortConflict(t *testing.T
 		}
 		dst := base.DeepCopy()
 
-		err := applyAPMProfileSharedConfigOverlay(dst, base, testProfileOverlayProfileAPMSpec(9126))
+		err := applyAPMOverlayForTest(dst, base, testProfileOverlayProfileAPMSpec(9126))
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), `local Agent Service port "traceport" conflicts`)
 	})
 }
 
-// Profile SSI overlays should render the same Cluster Agent config as direct
-// base-DDA SSI config. Node Agent config is intentionally out of scope because
-// profile-owned APM config renders on the profile DDAI instead of the default
-// DDAI.
+// Profile SSI settings should produce the same Cluster Agent config as DDA SSI settings.
+// Each profile's node Agent config is rendered separately.
 func TestAPMProfileSharedConfigOverlayMatchesDirectDDAClusterAgentConfig(t *testing.T) {
 	tests := []struct {
 		name string
@@ -636,7 +779,7 @@ func TestAPMProfileSharedConfigOverlayMatchesDirectDDAClusterAgentConfig(t *test
 
 			overlayDDA := testProfileOverlayBaseSpec(false)
 			profile := testProfileOverlayProfileSpec(tt.ssi.DeepCopy())
-			require.NoError(t, applyAPMProfileSharedConfigOverlay(overlayDDA, overlayDDA.DeepCopy(), profile))
+			require.NoError(t, applyAPMOverlayForTest(overlayDDA, overlayDDA.DeepCopy(), profile))
 
 			assert.Equal(
 				t,
@@ -702,4 +845,109 @@ func testProfileOverlayProfileAPMSpec(port int32) *v2alpha1.DatadogAgentSpec {
 		Port:    ptr.To(port),
 	}
 	return spec
+}
+
+// applyAPMOverlayForTest commits the generated candidate only on success.
+func applyAPMOverlayForTest(dst, rawBase, profile *v2alpha1.DatadogAgentSpec) error {
+	rawCandidate := rawBase.DeepCopy()
+	ddaiCandidate := dst.DeepCopy()
+	if err := applyAPMProfileSharedConfigOverlay(rawCandidate, ddaiCandidate, dst, profile); err != nil {
+		return err
+	}
+	*dst = *ddaiCandidate
+	return nil
+}
+
+// Defaults must not become explicit constraints on profiles, even after an
+// earlier accepted profile has inherited them.
+func TestAPMProfileSharedConfigOverlayDefaultsBeforeMultipleProfiles(t *testing.T) {
+	validationSpec := testProfileOverlayBaseSpec(true)
+	validationSpec.Features.APM.Enabled = ptr.To(true)
+	validationSpec.Features.APM.SingleStepInstrumentation.LanguageDetection = nil
+	defaultDDAISpec := validationSpec.DeepCopy()
+	defaults.DefaultDatadogAgentSpec(defaultDDAISpec)
+	originalDefaultDDAISpec := defaultDDAISpec.DeepCopy()
+	require.Equal(t, ptr.To(true), defaultDDAISpec.Features.APM.SingleStepInstrumentation.LanguageDetection.Enabled)
+
+	omitted := testProfileOverlayProfileSpec(&v2alpha1.SingleStepInstrumentation{Enabled: ptr.To(true)})
+	require.NoError(t, applyAPMProfileSharedConfigOverlay(validationSpec, defaultDDAISpec, originalDefaultDDAISpec, omitted))
+	require.Nil(t, validationSpec.Features.APM.SingleStepInstrumentation.LanguageDetection)
+
+	explicit := testProfileOverlayProfileSpec(&v2alpha1.SingleStepInstrumentation{
+		Enabled: ptr.To(true), LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: ptr.To(false)},
+	})
+	require.NoError(t, applyAPMProfileSharedConfigOverlay(validationSpec, defaultDDAISpec, originalDefaultDDAISpec, explicit))
+	require.NoError(t, applyAPMProfileSharedConfigOverlay(validationSpec, defaultDDAISpec, originalDefaultDDAISpec, omitted))
+	assert.Equal(t, ptr.To(false), defaultDDAISpec.Features.APM.SingleStepInstrumentation.LanguageDetection.Enabled)
+
+	conflicting := explicit.DeepCopy()
+	conflicting.Features.APM.SingleStepInstrumentation.LanguageDetection.Enabled = ptr.To(true)
+	err := applyAPMProfileSharedConfigOverlay(validationSpec.DeepCopy(), defaultDDAISpec.DeepCopy(), originalDefaultDDAISpec, conflicting)
+	require.ErrorContains(t, err, "languageDetection.enabled has conflicting values")
+}
+
+func TestAPMProfileSharedConfigOverlayDefaultedBaseOnDemand(t *testing.T) {
+	for _, baseSSIEnabled := range []bool{false, true} {
+		for _, earlyDefault := range []bool{false, true} {
+			t.Run(fmt.Sprintf("base SSI enabled=%t/early default=%t", baseSSIEnabled, earlyDefault), func(t *testing.T) {
+				raw := &v2alpha1.DatadogAgentSpec{
+					Features: &v2alpha1.DatadogFeatures{
+						APM: &v2alpha1.APMFeatureConfig{
+							SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{Enabled: ptr.To(baseSSIEnabled)},
+						},
+					},
+				}
+				dst := raw.DeepCopy()
+				defaults.DefaultDatadogAgentSpec(dst)
+				if earlyDefault {
+					// Also support defaulting onDemand before applying profiles.
+					dst.Features.APM.SingleStepInstrumentation.OnDemand = ptr.To(true)
+				}
+				base := dst.DeepCopy()
+				omitted := testProfileOverlayProfileSpec(&v2alpha1.SingleStepInstrumentation{Enabled: ptr.To(true)})
+				require.NoError(t, applyAPMProfileSharedConfigOverlay(raw, dst, base, omitted))
+				require.Nil(t, raw.Features.APM.SingleStepInstrumentation.OnDemand)
+
+				profile := testProfileOverlayProfileSpec(&v2alpha1.SingleStepInstrumentation{
+					Enabled: ptr.To(true), OnDemand: ptr.To(false),
+				})
+				require.NoError(t, applyAPMProfileSharedConfigOverlay(raw, dst, base, profile))
+				assert.Equal(t, ptr.To(false), dst.Features.APM.SingleStepInstrumentation.OnDemand)
+				assert.Equal(t, ptr.To(false), raw.Features.APM.SingleStepInstrumentation.OnDemand)
+				assert.Contains(t, renderAPMClusterAgentEnvVars(t, dst), &corev1.EnvVar{Name: DDAPMInstrumentationOnDemand, Value: "false"})
+			})
+		}
+	}
+}
+
+func TestAPMProfileSharedConfigOverlayProfileEnablesAPM(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		apm  *v2alpha1.APMFeatureConfig
+	}{
+		{name: "SSI", apm: &v2alpha1.APMFeatureConfig{SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{Enabled: ptr.To(true)}}},
+		{name: "standalone error tracking", apm: &v2alpha1.APMFeatureConfig{ErrorTrackingStandalone: &v2alpha1.ErrorTrackingStandalone{Enabled: ptr.To(true)}}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			validationSpec := testProfileOverlayBaseSpec(false)
+			defaultDDAISpec := validationSpec.DeepCopy()
+			defaults.DefaultDatadogAgentSpec(defaultDDAISpec)
+			base := defaultDDAISpec.DeepCopy()
+			profile := &v2alpha1.DatadogAgentSpec{Features: &v2alpha1.DatadogFeatures{APM: tc.apm.DeepCopy()}}
+			profile.Features.APM.HostPortConfig = &v2alpha1.HostPortConfig{Enabled: ptr.To(true), Port: ptr.To[int32](9126)}
+
+			require.NoError(t, applyAPMProfileSharedConfigOverlay(validationSpec, defaultDDAISpec, base, profile))
+			require.NotNil(t, validationSpec.Features.APM.HostPortConfig)
+			assert.Equal(t, ptr.To[int32](9126), validationSpec.Features.APM.HostPortConfig.Port)
+			require.NotNil(t, defaultDDAISpec.Features.APM.HostPortConfig)
+			assert.Equal(t, ptr.To[int32](9126), defaultDDAISpec.Features.APM.HostPortConfig.Port)
+			assert.Equal(t, ptr.To(false), defaultDDAISpec.Features.APM.Enabled)
+			assert.Nil(t, profile.Features.APM.Enabled)
+
+			conflicting := profile.DeepCopy()
+			conflicting.Features.APM.HostPortConfig.Port = ptr.To[int32](10126)
+			err := applyAPMProfileSharedConfigOverlay(validationSpec.DeepCopy(), defaultDDAISpec.DeepCopy(), base, conflicting)
+			require.ErrorContains(t, err, "conflicts with existing port")
+		})
+	}
 }
