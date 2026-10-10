@@ -14,7 +14,9 @@ import (
 
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
+	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	corev1 "k8s.io/api/core/v1"
+	policyv1 "k8s.io/api/policy/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
@@ -55,6 +57,7 @@ var (
 	agentObj           = &datadoghqv2alpha1.DatadogAgent{}
 	dashboardObj       = &datadoghqv1alpha1.DatadogDashboard{}
 	genericResourceObj = &datadoghqv1alpha1.DatadogGenericResource{}
+	byocClusterObj     = &datadoghqv1alpha1.DatadogBYOCCluster{}
 	monitorObj         = &datadoghqv1alpha1.DatadogMonitor{}
 	sloObj             = &datadoghqv1alpha1.DatadogSLO{}
 	profileObj         = &datadoghqv1alpha1.DatadogAgentProfile{}
@@ -63,6 +66,16 @@ var (
 	csiDaemonSetObj    = &appsv1.DaemonSet{}
 	podObj             = &corev1.Pod{}
 	nodeObj            = &corev1.Node{}
+
+	byocOwnedObjs = []client.Object{
+		&corev1.ConfigMap{},
+		&corev1.ServiceAccount{},
+		&corev1.Service{},
+		&appsv1.Deployment{},
+		&appsv1.StatefulSet{},
+		&autoscalingv2.HorizontalPodAutoscaler{},
+		&policyv1.PodDisruptionBudget{},
+	}
 )
 
 type WatchOptions struct {
@@ -73,6 +86,7 @@ type WatchOptions struct {
 	IntrospectionEnabled              bool
 	DatadogDashboardEnabled           bool
 	DatadogGenericResourceEnabled     bool
+	DatadogBYOCClusterEnabled         bool
 	DatadogCSIDriverEnabled           bool
 	UntaintControllerEnabled          bool
 	UntaintControllerWaitForCSIDriver bool
@@ -116,6 +130,19 @@ func CacheOptions(logger logr.Logger, opts WatchOptions) cache.Options {
 		logger.Info("DatadogGenericResource Enabled", "watching namespaces", slices.Collect(maps.Keys(genericResourceNamespaces)))
 		byObject[genericResourceObj] = cache.ByObject{
 			Namespaces: genericResourceNamespaces,
+		}
+	}
+
+	if opts.DatadogBYOCClusterEnabled {
+		byocClusterNamespaces := GetWatchNamespacesFromEnv(logger, WatchNamespaceEnvVar)
+		logger.Info("DatadogBYOCCluster Enabled", "watching namespaces", slices.Collect(maps.Keys(byocClusterNamespaces)))
+		byObject[byocClusterObj] = cache.ByObject{Namespaces: byocClusterNamespaces}
+		// Resources owned by DatadogBYOCCluster live in its namespace, which may differ from the agent
+		// namespace covered by DefaultNamespaces. Merge both so neither controller loses its cache coverage.
+		for _, obj := range byocOwnedObjs {
+			ownedNamespaces := maps.Clone(agentNamespaces)
+			maps.Copy(ownedNamespaces, byocClusterNamespaces)
+			byObject[obj] = cache.ByObject{Namespaces: ownedNamespaces}
 		}
 	}
 

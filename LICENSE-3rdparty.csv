@@ -101,6 +101,9 @@ core,github.com/cloudflare/circl,BSD-3-Clause
 core,github.com/cyphar/filepath-securejoin,BSD-3-Clause
 core,github.com/cyphar/filepath-securejoin,MPL-2.0
 core,github.com/davecgh/go-spew/spew,ISC
+core,github.com/distribution/reference,Apache-2.0
+core,github.com/docker/cli/cli/config,Apache-2.0
+core,github.com/docker/docker-credential-helpers,MIT
 core,github.com/dsnet/compress,BSD-3-Clause
 core,github.com/ebitengine/purego,Apache-2.0
 core,github.com/emicklei/go-restful/v3,MIT
@@ -139,7 +142,7 @@ core,github.com/google/btree,Apache-2.0
 core,github.com/google/cel-go,Apache-2.0
 core,github.com/google/cel-go,BSD-3-Clause
 core,github.com/google/gnostic-models,Apache-2.0
-core,github.com/google/go-containerregistry/pkg/name,Apache-2.0
+core,github.com/google/go-containerregistry,Apache-2.0
 core,github.com/google/pprof/profile,Apache-2.0
 core,github.com/google/uuid,BSD-3-Clause
 core,github.com/gorilla/websocket,BSD-2-Clause
@@ -217,6 +220,7 @@ core,github.com/santhosh-tekuri/jsonschema/v6,Apache-2.0
 core,github.com/secure-systems-lab/go-securesystemslib/cjson,MIT
 core,github.com/shirou/gopsutil/v4,BSD-3-Clause
 core,github.com/shopspring/decimal,MIT
+core,github.com/sirupsen/logrus,MIT
 core,github.com/spaolacci/murmur3,BSD-3-Clause
 core,github.com/spf13/cast,MIT
 core,github.com/spf13/cobra,Apache-2.0
