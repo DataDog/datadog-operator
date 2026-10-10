@@ -18,10 +18,11 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/DataDog/dd-trace-go/v2/ddtrace/tracer"
+	"github.com/DataDog/dd-trace-go/v2/profiler"
 	"github.com/go-logr/logr"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
-	"gopkg.in/DataDog/dd-trace-go.v1/profiler"
 	storagev1 "k8s.io/api/storage/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -55,6 +56,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/remoteconfig"
 	"github.com/DataDog/datadog-operator/pkg/secrets"
+	"github.com/DataDog/datadog-operator/pkg/trace"
 	"github.com/DataDog/datadog-operator/pkg/utils"
 	"github.com/DataDog/datadog-operator/pkg/version"
 
@@ -108,6 +110,7 @@ type options struct {
 	metricsAddr      string
 	secureMetrics    bool
 	profilingEnabled bool
+	tracingEnabled   bool
 	logLevel         *zapcore.Level
 	logEncoder       string
 	printVersion     bool
@@ -156,6 +159,7 @@ func (opts *options) Parse() {
 	flag.StringVar(&opts.metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
 	flag.BoolVar(&opts.secureMetrics, "metrics-secure", false, "If true, the metrics endpoint is served securely via HTTPS. Use false to use HTTP instead.")
 	flag.BoolVar(&opts.profilingEnabled, "profiling-enabled", false, "Enable Datadog profile in the Datadog Operator process.")
+	flag.BoolVar(&opts.tracingEnabled, "tracing-enabled", false, "Enable Datadog APM tracing in the Datadog Operator process.")
 	opts.logLevel = zap.LevelFlag("loglevel", zapcore.InfoLevel, "Set log level")
 	flag.StringVar(&opts.logEncoder, "logEncoder", "json", "log encoding ('json' or 'console')")
 	flag.BoolVar(&opts.printVersion, "version", false, "Print version and exit")
@@ -208,6 +212,7 @@ func (opts *options) Parse() {
 		stringEnv(&opts.metricsAddr, "DD_METRICS_ADDR"),
 		boolEnv(&opts.secureMetrics, "DD_METRICS_SECURE"),
 		boolEnv(&opts.profilingEnabled, "DD_PROFILING_ENABLED"),
+		boolEnv(&opts.tracingEnabled, "DD_TRACING_ENABLED"),
 		boolEnv(&opts.pprofActive, "DD_PPROF_ENABLED"),
 		boolEnv(&opts.enableLeaderElection, "DD_LEADER_ELECTION_ENABLED"),
 		durationEnv(&opts.leaderElectionLeaseDuration, "DD_LEADER_ELECTION_LEASE_DURATION"),
@@ -290,6 +295,14 @@ func durationEnv(dst *time.Duration, envVar string) envOption {
 	return envOptionFor(dst, envVar, time.ParseDuration)
 }
 
+// ddServiceName returns the service name reported to Datadog APM.
+func ddServiceName() string {
+	if svc := os.Getenv("DD_SERVICE"); svc != "" {
+		return svc
+	}
+	return "datadog-operator"
+}
+
 func main() {
 	var opts options
 	opts.Parse()
@@ -341,6 +354,18 @@ func run(opts *options) error {
 		defer profiler.Stop()
 	}
 
+	if opts.tracingEnabled {
+		setupLog.Info("Starting datadog APM tracer")
+		if err := trace.Start(
+			tracer.WithService(ddServiceName()),
+			tracer.WithServiceVersion(version.Version),
+		); err != nil {
+			setupLog.Error(err, "Unable to start datadog APM tracer, continuing without tracing")
+		} else {
+			defer trace.Stop()
+		}
+	}
+
 	// Dispatch CLI flags to each package
 	if err := configureSecretBackend(opts); err != nil {
 		setupLog.Error(err, "Invalid -secretBackendConfig JSON, ignoring")
@@ -390,6 +415,9 @@ func run(opts *options) error {
 
 	restConfig := ctrl.GetConfigOrDie()
 	restConfig.UserAgent = "datadog-operator/" + version.Version
+	if trace.Enabled() {
+		restConfig.Wrap(trace.WrapTransport)
+	}
 	mgr, err := ctrl.NewManager(restConfig, ctrl.Options{
 		Scheme:                     scheme,
 		Metrics:                    metricsServerOptions,
