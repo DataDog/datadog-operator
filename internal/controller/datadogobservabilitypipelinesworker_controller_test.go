@@ -245,6 +245,7 @@ var _ = Describe("DatadogObservabilityPipelinesWorker Controller", func() {
 				g.Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(conflicting), current)).To(Succeed())
 				g.Expect(meta.IsStatusConditionFalse(current.Status.Conditions, "Reconciled")).To(BeTrue())
 				g.Expect(meta.FindStatusCondition(current.Status.Conditions, "Reconciled").Reason).To(Equal("Conflict"))
+				g.Expect(meta.FindStatusCondition(current.Status.Conditions, "Reconciled").Message).To(Equal("apply *v1.ServiceAccount " + namespace.Name + "/conflicting-worker: exists and is not controlled by DatadogObservabilityPipelinesWorker conflicting-worker"))
 			}, timeout, interval).Should(Succeed())
 
 			By("keeping the unowned ServiceAccount unchanged")
