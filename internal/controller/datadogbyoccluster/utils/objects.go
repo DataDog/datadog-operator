@@ -21,7 +21,7 @@ import (
 )
 
 // ErrObjectConflict reports an existing object with a managed name that the owner does not control.
-var ErrObjectConflict = errors.New("exists and is not controlled by the owner")
+var ErrObjectConflict = errors.New("exists and is not controlled by")
 
 // GetFresh reads the object from the cache, and from the API server when the cache does not have it.
 func GetFresh(ctx context.Context, cache, apiReader client.Reader, object client.Object) error {
@@ -35,7 +35,8 @@ func GetFresh(ctx context.Context, cache, apiReader client.Reader, object client
 }
 
 // ApplyControlled sets owner as the controller of desired and applies desired with a forced server-side apply.
-// It returns ErrObjectConflict without writing when an object with the same name exists and owner does not control it.
+// It returns an error wrapping ErrObjectConflict without writing when an object with the same name exists and owner
+// does not control it.
 func ApplyControlled(ctx context.Context, c client.Client, apiReader client.Reader, scheme *runtime.Scheme, owner, desired client.Object, fieldOwner string) error {
 	current := desired.DeepCopyObject().(client.Object)
 	switch err := GetFresh(ctx, c, apiReader, current); {
@@ -44,7 +45,11 @@ func ApplyControlled(ctx context.Context, c client.Client, apiReader client.Read
 		return err
 	case !metav1.IsControlledBy(current, owner):
 		// The forced apply would otherwise overwrite the object and adopt it.
-		return ErrObjectConflict
+		ownerGVK, gvkErr := apiutil.GVKForObject(owner, scheme)
+		if gvkErr != nil {
+			return gvkErr
+		}
+		return fmt.Errorf("%w %s %s", ErrObjectConflict, ownerGVK.Kind, owner.GetName())
 	}
 	if err := controllerutil.SetControllerReference(owner, desired, scheme); err != nil {
 		return err
