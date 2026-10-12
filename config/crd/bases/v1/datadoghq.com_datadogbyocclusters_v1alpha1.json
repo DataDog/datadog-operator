@@ -34419,7 +34419,7 @@
           },
           "type": "object"
         },
-        "type": {
+        "signal": {
           "default": "logs",
           "enum": [
             "logs",
