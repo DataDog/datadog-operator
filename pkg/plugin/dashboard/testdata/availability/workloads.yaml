@@ -1,0 +1,193 @@
+# The rollingUpdate.maxUnavailable budgets are larger than the unavailable
+# counts: they are rollout budgets and must not hide them.
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: datadog-agent-agent
+  namespace: datadog
+  uid: ds-default-uid
+  generation: 4
+  labels:
+    agent.datadoghq.com/name: datadog-agent
+    agent.datadoghq.com/component: agent
+  ownerReferences:
+    - apiVersion: datadoghq.com/v1alpha1
+      kind: DatadogAgentInternal
+      name: datadog-agent
+      uid: ddai-default-uid
+      controller: true
+spec:
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 50%
+status:
+  observedGeneration: 4
+  desiredNumberScheduled: 2
+  currentNumberScheduled: 2
+  numberReady: 1
+  numberAvailable: 1
+  numberUnavailable: 1
+  updatedNumberScheduled: 2
+---
+apiVersion: apps/v1
+kind: ControllerRevision
+metadata:
+  name: datadog-agent-agent-a1b2c3
+  namespace: datadog
+  creationTimestamp: "2026-10-05T07:00:00Z"
+  labels:
+    controller-revision-hash: a1b2c3
+  ownerReferences:
+    - apiVersion: apps/v1
+      kind: DaemonSet
+      name: datadog-agent-agent
+      uid: ds-default-uid
+      controller: true
+revision: 4
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: datadog-agent-cluster-agent
+  namespace: datadog
+  uid: dca-uid
+  generation: 3
+  labels:
+    agent.datadoghq.com/name: datadog-agent
+    agent.datadoghq.com/component: cluster-agent
+  ownerReferences:
+    - apiVersion: datadoghq.com/v1alpha1
+      kind: DatadogAgentInternal
+      name: datadog-agent
+      uid: ddai-default-uid
+      controller: true
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
+status:
+  observedGeneration: 3
+  replicas: 2
+  readyReplicas: 1
+  availableReplicas: 1
+  unavailableReplicas: 1
+  updatedReplicas: 2
+  conditions:
+    - type: Available
+      status: "True"
+      reason: MinimumReplicasAvailable
+      lastTransitionTime: "2026-10-01T09:01:00Z"
+    - type: Progressing
+      status: "True"
+      reason: NewReplicaSetAvailable
+      lastTransitionTime: "2026-10-05T11:59:00Z"
+---
+apiVersion: apps/v1
+kind: ReplicaSet
+metadata:
+  name: datadog-agent-cluster-agent-9e8d7c
+  namespace: datadog
+  creationTimestamp: "2026-10-05T11:58:00Z"
+  labels:
+    pod-template-hash: 9e8d7c
+  annotations:
+    deployment.kubernetes.io/revision: "3"
+  ownerReferences:
+    - apiVersion: apps/v1
+      kind: Deployment
+      name: datadog-agent-cluster-agent
+      uid: dca-uid
+      controller: true
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: large-agent
+  namespace: datadog
+  uid: ds-large-uid
+  generation: 2
+  labels:
+    agent.datadoghq.com/name: datadog-agent
+    agent.datadoghq.com/component: agent
+  ownerReferences:
+    - apiVersion: datadoghq.com/v1alpha1
+      kind: DatadogAgentInternal
+      name: large
+      uid: ddai-large-uid
+      controller: true
+spec:
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 10%
+status:
+  observedGeneration: 2
+  desiredNumberScheduled: 807
+  currentNumberScheduled: 807
+  numberReady: 799
+  numberAvailable: 799
+  numberUnavailable: 8
+  updatedNumberScheduled: 807
+---
+apiVersion: apps/v1
+kind: ControllerRevision
+metadata:
+  name: large-agent-d4e5f6
+  namespace: datadog
+  creationTimestamp: "2026-10-05T09:00:00Z"
+  labels:
+    controller-revision-hash: d4e5f6
+  ownerReferences:
+    - apiVersion: apps/v1
+      kind: DaemonSet
+      name: large-agent
+      uid: ds-large-uid
+      controller: true
+revision: 2
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: small-agent
+  namespace: datadog
+  uid: ds-small-uid
+  generation: 1
+  labels:
+    agent.datadoghq.com/name: datadog-agent
+    agent.datadoghq.com/component: agent
+  ownerReferences:
+    - apiVersion: datadoghq.com/v1alpha1
+      kind: DatadogAgentInternal
+      name: small
+      uid: ddai-small-uid
+      controller: true
+spec:
+  updateStrategy:
+    type: RollingUpdate
+status:
+  observedGeneration: 1
+  desiredNumberScheduled: 3
+  currentNumberScheduled: 3
+  numberReady: 3
+  numberAvailable: 3
+  updatedNumberScheduled: 3
+---
+apiVersion: apps/v1
+kind: ControllerRevision
+metadata:
+  name: small-agent-0a1b2c
+  namespace: datadog
+  creationTimestamp: "2026-10-04T09:00:00Z"
+  labels:
+    controller-revision-hash: 0a1b2c
+  ownerReferences:
+    - apiVersion: apps/v1
+      kind: DaemonSet
+      name: small-agent
+      uid: ds-small-uid
+      controller: true
+revision: 1

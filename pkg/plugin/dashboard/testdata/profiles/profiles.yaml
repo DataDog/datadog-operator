@@ -1,0 +1,55 @@
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgentProfile
+metadata:
+  name: canary
+  namespace: datadog
+  annotations:
+    agent.datadoghq.com/cluster-provider: gke-cos
+spec:
+  profileAffinity:
+    profileNodeAffinity:
+      - key: pool
+        operator: In
+        values: [canary]
+status:
+  valid: "True"
+  applied: "True"
+  conditions:
+    - type: Valid
+      status: "True"
+      reason: Valid
+      lastTransitionTime: "2026-10-05T11:50:00Z"
+    - type: Applied
+      status: "True"
+      reason: Applied
+      lastTransitionTime: "2026-10-05T11:50:00Z"
+---
+# Overlaps canary: not applied, no DDAI, no DS row.
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgentProfile
+metadata:
+  name: dup
+  namespace: datadog
+status:
+  valid: "True"
+  applied: "False"
+  conditions:
+    - type: Valid
+      status: "True"
+      reason: Valid
+      lastTransitionTime: "2026-10-05T11:55:00Z"
+    - type: Applied
+      status: "False"
+      reason: Conflict
+      message: conflict with existing profile canary
+      lastTransitionTime: "2026-10-05T11:55:00Z"
+---
+# DAPs can live in any namespace; their DDAI is in the DDA namespace.
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgentProfile
+metadata:
+  name: gpu
+  namespace: team-a
+status:
+  valid: "True"
+  applied: "True"

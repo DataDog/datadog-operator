@@ -1,0 +1,10 @@
+# Many profiles, several of them stale (0 desired), for --hide-empty and
+# --sort=desired: healthy empty profiles, empty profiles with a problem, a
+# conflict, a profile without status, a DS not found yet and desired ties.
+apiVersion: fixture.dashboard.datadoghq.com/v1
+kind: Fixture
+taken: "2026-10-05T12:00:00Z"
+cluster:
+  context: kind-ddtui
+  serverVersion: v1.35.1
+  pluginVersion: v1.22.0-test

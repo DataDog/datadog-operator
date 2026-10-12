@@ -1,0 +1,543 @@
+# Healthy profiles with 0 desired are hidden by --hide-empty.
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgentProfile
+metadata:
+  name: alpha
+  namespace: datadog
+status:
+  valid: "True"
+  applied: "True"
+  conditions:
+    - type: Valid
+      status: "True"
+      reason: Valid
+      lastTransitionTime: "2026-10-02T08:00:00Z"
+    - type: Applied
+      status: "True"
+      reason: Applied
+      lastTransitionTime: "2026-10-02T08:00:00Z"
+---
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgentInternal
+metadata:
+  name: alpha
+  namespace: datadog
+  uid: ddai-alpha-uid
+  labels:
+    agent.datadoghq.com/datadogagentprofile: alpha
+  ownerReferences:
+    - apiVersion: datadoghq.com/v2alpha1
+      kind: DatadogAgent
+      name: datadog-agent
+      uid: dda-uid
+      controller: true
+status:
+  conditions:
+    - type: AgentReconcile
+      status: "True"
+      reason: AgentReconcileOK
+      lastTransitionTime: "2026-10-02T08:00:00Z"
+  agent:
+    desired: 0
+    ready: 0
+    upToDate: 0
+    daemonsetName: alpha-agent
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: alpha-agent
+  namespace: datadog
+  uid: ds-alpha-uid
+  generation: 1
+  labels:
+    agent.datadoghq.com/name: datadog-agent
+  ownerReferences:
+    - kind: DatadogAgentInternal
+      name: alpha
+      uid: ddai-alpha-uid
+spec:
+  updateStrategy:
+    type: RollingUpdate
+status:
+  observedGeneration: 1
+  desiredNumberScheduled: 0
+  numberReady: 0
+  numberAvailable: 0
+  updatedNumberScheduled: 0
+---
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgentProfile
+metadata:
+  name: beta
+  namespace: datadog
+status:
+  valid: "True"
+  applied: "True"
+  conditions:
+    - type: Valid
+      status: "True"
+      reason: Valid
+      lastTransitionTime: "2026-10-02T08:00:00Z"
+    - type: Applied
+      status: "True"
+      reason: Applied
+      lastTransitionTime: "2026-10-02T08:00:00Z"
+---
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgentInternal
+metadata:
+  name: beta
+  namespace: datadog
+  uid: ddai-beta-uid
+  labels:
+    agent.datadoghq.com/datadogagentprofile: beta
+  ownerReferences:
+    - apiVersion: datadoghq.com/v2alpha1
+      kind: DatadogAgent
+      name: datadog-agent
+      uid: dda-uid
+      controller: true
+status:
+  conditions:
+    - type: AgentReconcile
+      status: "True"
+      reason: AgentReconcileOK
+      lastTransitionTime: "2026-10-02T08:00:00Z"
+  agent:
+    desired: 5
+    ready: 5
+    upToDate: 5
+    daemonsetName: beta-agent
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: beta-agent
+  namespace: datadog
+  uid: ds-beta-uid
+  generation: 1
+  labels:
+    agent.datadoghq.com/name: datadog-agent
+  ownerReferences:
+    - kind: DatadogAgentInternal
+      name: beta
+      uid: ddai-beta-uid
+spec:
+  updateStrategy:
+    type: RollingUpdate
+status:
+  observedGeneration: 1
+  desiredNumberScheduled: 5
+  numberReady: 5
+  numberAvailable: 5
+  updatedNumberScheduled: 5
+---
+# 0 desired but a reconcile error: never hidden.
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgentProfile
+metadata:
+  name: broken
+  namespace: datadog
+status:
+  valid: "True"
+  applied: "True"
+  conditions:
+    - type: Valid
+      status: "True"
+      reason: Valid
+      lastTransitionTime: "2026-10-02T08:00:00Z"
+    - type: Applied
+      status: "True"
+      reason: Applied
+      lastTransitionTime: "2026-10-02T08:00:00Z"
+---
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgentInternal
+metadata:
+  name: broken
+  namespace: datadog
+  uid: ddai-broken-uid
+  labels:
+    agent.datadoghq.com/datadogagentprofile: broken
+  ownerReferences:
+    - apiVersion: datadoghq.com/v2alpha1
+      kind: DatadogAgent
+      name: datadog-agent
+      uid: dda-uid
+      controller: true
+status:
+  conditions:
+    - type: AgentReconcile
+      status: "False"
+      reason: AgentReconcileError
+      message: "failed to update DaemonSet broken-agent: admission webhook denied the request"
+      lastTransitionTime: "2026-10-05T11:30:00Z"
+  agent:
+    desired: 0
+    ready: 0
+    upToDate: 0
+    daemonsetName: broken-agent
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: broken-agent
+  namespace: datadog
+  uid: ds-broken-uid
+  generation: 1
+  labels:
+    agent.datadoghq.com/name: datadog-agent
+  ownerReferences:
+    - kind: DatadogAgentInternal
+      name: broken
+      uid: ddai-broken-uid
+spec:
+  updateStrategy:
+    type: RollingUpdate
+status:
+  observedGeneration: 1
+  desiredNumberScheduled: 0
+  numberReady: 0
+  numberAvailable: 0
+  updatedNumberScheduled: 0
+---
+# Conflict: no DDAI, desired unknown, never hidden.
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgentProfile
+metadata:
+  name: conflict
+  namespace: datadog
+status:
+  valid: "True"
+  applied: "False"
+  conditions:
+    - type: Valid
+      status: "True"
+      reason: Valid
+      lastTransitionTime: "2026-10-05T11:00:00Z"
+    - type: Applied
+      status: "False"
+      reason: Conflict
+      message: conflict with existing profile beta
+      lastTransitionTime: "2026-10-05T11:00:00Z"
+---
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgentProfile
+metadata:
+  name: delta
+  namespace: datadog
+status:
+  valid: "True"
+  applied: "True"
+  conditions:
+    - type: Valid
+      status: "True"
+      reason: Valid
+      lastTransitionTime: "2026-10-02T08:00:00Z"
+    - type: Applied
+      status: "True"
+      reason: Applied
+      lastTransitionTime: "2026-10-02T08:00:00Z"
+---
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgentInternal
+metadata:
+  name: delta
+  namespace: datadog
+  uid: ddai-delta-uid
+  labels:
+    agent.datadoghq.com/datadogagentprofile: delta
+  ownerReferences:
+    - apiVersion: datadoghq.com/v2alpha1
+      kind: DatadogAgent
+      name: datadog-agent
+      uid: dda-uid
+      controller: true
+status:
+  conditions:
+    - type: AgentReconcile
+      status: "True"
+      reason: AgentReconcileOK
+      lastTransitionTime: "2026-10-02T08:00:00Z"
+  agent:
+    desired: 0
+    ready: 0
+    upToDate: 0
+    daemonsetName: delta-agent
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: delta-agent
+  namespace: datadog
+  uid: ds-delta-uid
+  generation: 1
+  labels:
+    agent.datadoghq.com/name: datadog-agent
+  ownerReferences:
+    - kind: DatadogAgentInternal
+      name: delta
+      uid: ddai-delta-uid
+spec:
+  updateStrategy:
+    type: RollingUpdate
+status:
+  observedGeneration: 1
+  desiredNumberScheduled: 0
+  numberReady: 0
+  numberAvailable: 0
+  updatedNumberScheduled: 0
+---
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgentProfile
+metadata:
+  name: gamma
+  namespace: datadog
+status:
+  valid: "True"
+  applied: "True"
+  conditions:
+    - type: Valid
+      status: "True"
+      reason: Valid
+      lastTransitionTime: "2026-10-02T08:00:00Z"
+    - type: Applied
+      status: "True"
+      reason: Applied
+      lastTransitionTime: "2026-10-02T08:00:00Z"
+---
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgentInternal
+metadata:
+  name: gamma
+  namespace: datadog
+  uid: ddai-gamma-uid
+  labels:
+    agent.datadoghq.com/datadogagentprofile: gamma
+  ownerReferences:
+    - apiVersion: datadoghq.com/v2alpha1
+      kind: DatadogAgent
+      name: datadog-agent
+      uid: dda-uid
+      controller: true
+status:
+  conditions:
+    - type: AgentReconcile
+      status: "True"
+      reason: AgentReconcileOK
+      lastTransitionTime: "2026-10-02T08:00:00Z"
+  agent:
+    desired: 2
+    ready: 2
+    upToDate: 2
+    daemonsetName: gamma-agent
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: gamma-agent
+  namespace: datadog
+  uid: ds-gamma-uid
+  generation: 1
+  labels:
+    agent.datadoghq.com/name: datadog-agent
+  ownerReferences:
+    - kind: DatadogAgentInternal
+      name: gamma
+      uid: ddai-gamma-uid
+spec:
+  updateStrategy:
+    type: RollingUpdate
+status:
+  observedGeneration: 1
+  desiredNumberScheduled: 2
+  numberReady: 2
+  numberAvailable: 2
+  updatedNumberScheduled: 2
+---
+# No status (profiles controller not running?): never hidden.
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgentProfile
+metadata:
+  name: nostatus
+  namespace: datadog
+---
+# DDAI without its DaemonSet yet: desired unknown, never hidden.
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgentProfile
+metadata:
+  name: pending
+  namespace: datadog
+status:
+  valid: "True"
+  applied: "True"
+  conditions:
+    - type: Valid
+      status: "True"
+      reason: Valid
+      lastTransitionTime: "2026-10-02T08:00:00Z"
+    - type: Applied
+      status: "True"
+      reason: Applied
+      lastTransitionTime: "2026-10-02T08:00:00Z"
+---
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgentInternal
+metadata:
+  name: pending
+  namespace: datadog
+  uid: ddai-pending-uid
+  labels:
+    agent.datadoghq.com/datadogagentprofile: pending
+  ownerReferences:
+    - apiVersion: datadoghq.com/v2alpha1
+      kind: DatadogAgent
+      name: datadog-agent
+      uid: dda-uid
+      controller: true
+status:
+  conditions:
+    - type: AgentReconcile
+      status: "True"
+      reason: AgentReconcileOK
+      lastTransitionTime: "2026-10-02T08:00:00Z"
+  agent:
+    desired: 1
+    ready: 1
+    upToDate: 1
+---
+# 0 desired with a spec change not yet observed: never hidden.
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgentProfile
+metadata:
+  name: rolling
+  namespace: datadog
+status:
+  valid: "True"
+  applied: "True"
+  conditions:
+    - type: Valid
+      status: "True"
+      reason: Valid
+      lastTransitionTime: "2026-10-02T08:00:00Z"
+    - type: Applied
+      status: "True"
+      reason: Applied
+      lastTransitionTime: "2026-10-02T08:00:00Z"
+---
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgentInternal
+metadata:
+  name: rolling
+  namespace: datadog
+  uid: ddai-rolling-uid
+  labels:
+    agent.datadoghq.com/datadogagentprofile: rolling
+  ownerReferences:
+    - apiVersion: datadoghq.com/v2alpha1
+      kind: DatadogAgent
+      name: datadog-agent
+      uid: dda-uid
+      controller: true
+status:
+  conditions:
+    - type: AgentReconcile
+      status: "True"
+      reason: AgentReconcileOK
+      lastTransitionTime: "2026-10-02T08:00:00Z"
+  agent:
+    desired: 0
+    ready: 0
+    upToDate: 0
+    daemonsetName: rolling-agent
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: rolling-agent
+  namespace: datadog
+  uid: ds-rolling-uid
+  generation: 2
+  labels:
+    agent.datadoghq.com/name: datadog-agent
+  ownerReferences:
+    - kind: DatadogAgentInternal
+      name: rolling
+      uid: ddai-rolling-uid
+spec:
+  updateStrategy:
+    type: RollingUpdate
+status:
+  observedGeneration: 1
+  desiredNumberScheduled: 0
+  numberReady: 0
+  numberAvailable: 0
+  updatedNumberScheduled: 0
+---
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgentProfile
+metadata:
+  name: zeta
+  namespace: datadog
+status:
+  valid: "True"
+  applied: "True"
+  conditions:
+    - type: Valid
+      status: "True"
+      reason: Valid
+      lastTransitionTime: "2026-10-02T08:00:00Z"
+    - type: Applied
+      status: "True"
+      reason: Applied
+      lastTransitionTime: "2026-10-02T08:00:00Z"
+---
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgentInternal
+metadata:
+  name: zeta
+  namespace: datadog
+  uid: ddai-zeta-uid
+  labels:
+    agent.datadoghq.com/datadogagentprofile: zeta
+  ownerReferences:
+    - apiVersion: datadoghq.com/v2alpha1
+      kind: DatadogAgent
+      name: datadog-agent
+      uid: dda-uid
+      controller: true
+status:
+  conditions:
+    - type: AgentReconcile
+      status: "True"
+      reason: AgentReconcileOK
+      lastTransitionTime: "2026-10-02T08:00:00Z"
+  agent:
+    desired: 2
+    ready: 2
+    upToDate: 2
+    daemonsetName: zeta-agent
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: zeta-agent
+  namespace: datadog
+  uid: ds-zeta-uid
+  generation: 1
+  labels:
+    agent.datadoghq.com/name: datadog-agent
+  ownerReferences:
+    - kind: DatadogAgentInternal
+      name: zeta
+      uid: ddai-zeta-uid
+spec:
+  updateStrategy:
+    type: RollingUpdate
+status:
+  observedGeneration: 1
+  desiredNumberScheduled: 2
+  numberReady: 2
+  numberAvailable: 2
+  updatedNumberScheduled: 2

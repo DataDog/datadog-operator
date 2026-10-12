@@ -1,0 +1,23 @@
+[1mkubectl datadog dashboard[m[2m · [m[2mctx[m kind-ddtui[2m · [m[2mns[m datadog[2m · [m[2mk8s[m v1.35.1[2m · [m[2mplugin[m v1.22.0-test[2m · [m[2mprovider[m eks (detected)
+  [2moperator[m 1.22.0 [32m✓ 1/1 ready[m [2mleader[m datadog-operator-7c9d_1a2b (10s ago)[2m · [m[2mrefreshed[m 12:00:00
+┌─ [1mDatadogAgent datadog/datadog-agent[m[2m · [m[2mage[m 4d3h ──────────────────────────────────────────────────────────────────────┐
+│                                                                                                                      │
+│ [33m⚠ Degraded[m[2m · [m[2magents[m 803/812 ready[2m · [m812/812 up-to-date[2m · [m[33m9 unavailable[m[2m · [m[2mrollout[m [32m█████████[m[36m▒[m  98% [32mComplete[m            │
+│                                                                                                                      │
+│ [2m                                           READY      UPD  UNAV  ROLLOUT[m                                             │
+│ [33m⚠[m [2mDDA[m datadog-agent                                                                                                  │
+│ ├─ [32m✓[m [2mDDAI[m datadog-agent (default)                                                                                    │
+│ │  ├─ [32m✓[m [2magent[m datadog-agent-agent            1/2      2/2     [33m1[m  [32m█████[m[36m▒▒▒▒▒[m  50% [32mComplete[m                            │
+│ │  ├─ [32m✓[m [2mDCA[m datadog-agent-cluster-agent      1/2      2/2     [33m1[m  [32m█████[m[36m▒▒▒▒▒[m  50% [32mComplete[m                            │
+│ │  ├─ [2m– CCR not enabled[m                                                                                              │
+│ │  └─ [2m– OTel not enabled[m                                                                                             │
+│ ├─ [33m⚠[m [2mDAP[m datadog/large[2m · [mvalid [32m✓[m applied [32m✓[m                                                                           │
+│ │  └─ [33m⚠[m [2mDDAI[m large                                                                                                   │
+│ │     └─ [33m⚠[m [2magent[m large-agent             799/807  807/807     [33m8[m  [32m█████████[m[36m▒[m  99% [32mComplete[m                            │
+│ └─ [32m✓[m [2mDAP[m datadog/small[2m · [mvalid [32m✓[m applied [32m✓[m                                                                           │
+│    └─ [32m✓[m [2mDDAI[m small                                                                                                   │
+│       └─ [32m✓[m [2magent[m small-agent                 3/3      3/3     0  [32m██████████[m 100% [32mComplete[m [2m(RollingUpdate)[m            │
+│                                                                                                                      │
+│ [33m⚠ Warn [m  [2mDS[m large-agent  Unavailable (AvailabilityBelowThreshold): 8 unavailable (> 1 allowed)                       │
+└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+[2m█ updated+ready  ▒ updated, not ready  ░ not updated   % = updated+ready / desired[m

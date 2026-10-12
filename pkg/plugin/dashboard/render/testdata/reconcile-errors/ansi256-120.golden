@@ -1,0 +1,33 @@
+[1mkubectl datadog dashboard[m[2m · [m[2mctx[m kind-ddtui[2m · [m[2mns[m datadog[2m · [m[2mk8s[m v1.35.1[2m · [m[2mplugin[m v1.22.0-test[2m · [m[2mprovider[m none
+  [2moperator[m [2mnot found[m[2m · [m[2mrefreshed[m 12:00:00
+┌─ [1mDatadogAgent datadog/datadog-agent[m[2m · [m[2mage[m 4d3h ──────────────────────────────────────────────────────────────────────┐
+│                                                                                                                      │
+│ [1;31m✗ Error[m[2m · [m[2magents[m 4/4 ready[2m · [m4/4 up-to-date[2m · [m0 unavailable[2m · [m[2mrollout[m [32m██████████[m 100% [32mComplete[m                       │
+│                                                                                                                      │
+│ [2m                                   READY  UPD  UNAV  ROLLOUT[m                                                         │
+│ [1;31m✗[m [2mDDA[m datadog-agent                                                                                                  │
+│ ├─ [1;31m✗[m [2mDDAI[m datadog-agent (default)                                                                                    │
+│ │  ├─ [32m✓[m [2magent[m datadog-agent-agent    2/2  2/2     0  [32m██████████[m 100% [32mComplete[m [2m(RollingUpdate)[m                        │
+│ │  ├─ [2m– DCA not enabled[m                                                                                              │
+│ │  ├─ [2m– CCR not enabled[m                                                                                              │
+│ │  └─ [2m– OTel not enabled[m                                                                                             │
+│ ├─ [1;31m✗[m [2mDAP[m datadog/badspec[2m · [mvalid [1;31m✗[m applied [1;31m✗[m                                                                         │
+│ │  └─ [2m– no DDAI[m                                                                                                      │
+│ ├─ [1;31m✗[m [2mDAP[m datadog/canary[2m · [mvalid [32m✓[m applied [32m✓[m                                                                          │
+│ │  └─ [1;31m✗[m [2mDDAI[m canary                                                                                                  │
+│ │     └─ [32m✓[m [2magent[m canary-agent        1/1  1/1     0  [32m██████████[m 100% [32mComplete[m [2m(RollingUpdate)[m                        │
+│ └─ [1;31m✗[m [2mDAP[m datadog/legacy[2m · [mvalid [32m✓[m applied [32m✓[m                                                                          │
+│    └─ [1;31m✗[m [2mDDAI[m legacy                                                                                                  │
+│       └─ [32m✓[m [2magent[m legacy-agent        1/1  1/1     0  [32m██████████[m 100% [32mComplete[m [2m(RollingUpdate)[m                        │
+│                                                                                                                      │
+│ [1;31m✗ Error[m  [2mDDAI[m canary  DatadogAgentReconcileError: invalid override: image tag 7.99.0 not found                       │
+│ [1;31m✗ Error[m  [2mDDAI[m datadog-agent  AgentReconcile=False (agent feature error): npm: system-probe requires a privileged se… │
+│ [1;31m✗ Error[m  [2mDDAI[m datadog-agent  DatadogAgentReconcileError: failed to create ClusterRole: forbidden                     │
+│ [1;31m✗ Error[m  [2mDDAI[m legacy  DatadogAgentReconcileError: boom                                                               │
+│ [1;31m✗ Error[m  [2mDAP[m badspec  Valid=False (Invalid): profileAffinity must be set                                             │
+│ [1;31m✗ Error[m  [2mDAP[m legacy  DatadogAgentInternalReconcileError: DDAI legacy failed with boom                                │
+│ [33m⚠ Warn [m  [2mDDA[m datadog-agent  DeprecatedConfigInUse (DeprecatedField): spec.global.kubelet.hostCAPath is deprecated, … │
+│ [33m⚠ Warn [m  [2mDDAI[m datadog-agent  OverrideReconcileConflict (OverrideConflict): nodeAgent override conflicts with featur… │
+│ [33m⚠ Warn [m  [2mDAP[m badspec  Applied=False (Invalid): profile is invalid                                                    │
+└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+[2m█ updated+ready  ▒ updated, not ready  ░ not updated   % = updated+ready / desired[m

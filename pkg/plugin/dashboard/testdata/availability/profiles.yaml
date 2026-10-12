@@ -1,0 +1,35 @@
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgentProfile
+metadata:
+  name: large
+  namespace: datadog
+status:
+  valid: "True"
+  applied: "True"
+  conditions:
+    - type: Valid
+      status: "True"
+      reason: Valid
+      lastTransitionTime: "2026-10-05T09:00:00Z"
+    - type: Applied
+      status: "True"
+      reason: Applied
+      lastTransitionTime: "2026-10-05T09:00:00Z"
+---
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgentProfile
+metadata:
+  name: small
+  namespace: datadog
+status:
+  valid: "True"
+  applied: "True"
+  conditions:
+    - type: Valid
+      status: "True"
+      reason: Valid
+      lastTransitionTime: "2026-10-04T09:00:00Z"
+    - type: Applied
+      status: "True"
+      reason: Applied
+      lastTransitionTime: "2026-10-04T09:00:00Z"

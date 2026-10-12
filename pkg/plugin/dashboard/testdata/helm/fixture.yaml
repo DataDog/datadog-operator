@@ -1,0 +1,21 @@
+# Helm-managed DDA rolling out after a chart upgrade, with readable release
+# history, and a Helm-managed DAP without history.
+apiVersion: fixture.dashboard.datadoghq.com/v1
+kind: Fixture
+taken: "2026-10-05T12:00:00Z"
+cluster:
+  context: kind-ddtui
+  serverVersion: v1.35.1
+  pluginVersion: v1.22.0-test
+helm:
+  datadog/datadog:
+    - chart: datadog
+      chartVersion: 3.70.0
+      revision: 5
+      status: deployed
+      lastDeployed: "2026-10-05T11:55:00Z"
+    - chart: datadog
+      chartVersion: 3.69.0
+      revision: 4
+      status: superseded
+      lastDeployed: "2026-10-01T09:00:00Z"

@@ -1,0 +1,21 @@
+kubectl datadog dashboard - ctx kind-ddtui - ns datadog - k8s v1.35.1 - plugin v1.22.0-test - provider none (detected)
+  operator not found - refreshed 12:00:00
++- DatadogAgent datadog/datadog - age 4d3h ----------------------------------------------------------------------------+
+|                                                                                                                      |
+| ~ Progressing - agents 10/11 ready - 5/11 up-to-date - 1 unavailable - rollout [###+......]  36% Rolling 4m30s       |
+|   chart datadog 3.69.0 -> 3.70.0 - release datadog/datadog rev 4 -> 5                                                |
+|                                                                                                                      |
+|                                READY   UPD  UNAV  ROLLOUT                                                            |
+| ~ DDA datadog                                                                                                        |
+| |- ~ DDAI datadog (default)                                                                                          |
+| |  |- ~ agent datadog-agent     9/10  4/10     1  [###+......]  30% Rolling 4m30s (RollingUpdate)                    |
+| |  |- - DCA not enabled                                                                                              |
+| |  |- - CCR not enabled                                                                                              |
+| |  `- - OTel not enabled                                                                                             |
+| `- + DAP datadog/canary - valid + applied + - chart datadog-profiles 0.4.1 - release datadog/profiles                |
+|    `- + DDAI canary                                                                                                  |
+|       `- + agent canary-agent    1/1   1/1     0  [##########] 100% Complete (RollingUpdate)                         |
+|                                                                                                                      |
+| + no issues                                                                                                          |
++----------------------------------------------------------------------------------------------------------------------+
+# updated+ready  + updated, not ready  . not updated   % = updated+ready / desired

@@ -1,0 +1,9 @@
+# Operator older than 1.21: no DDAI CRD. The DAP CRD is optional.
+apiVersion: fixture.dashboard.datadoghq.com/v1
+kind: Fixture
+sources:
+  ddai: {state: NotInstalled}
+---
+apiVersion: datadoghq.com/v2alpha1
+kind: DatadogAgent
+metadata: {name: datadog-agent, namespace: datadog}

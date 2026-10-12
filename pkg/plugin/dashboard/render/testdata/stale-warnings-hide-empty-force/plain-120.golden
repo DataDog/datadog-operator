@@ -1,0 +1,25 @@
+kubectl datadog dashboard · ctx kind-ddtui · ns datadog · k8s v1.35.1 · plugin v1.22.0-test · provider none
+  operator not found · refreshed 12:00:00
+┌─ DatadogAgent datadog/datadog-agent · age 4d3h ──────────────────────────────────────────────────────────────────────┐
+│                                                                                                                      │
+│ ⚠ Degraded · agents 7/7 ready · 7/7 up-to-date · 0 unavailable · rollout ██████████ 100% Complete                    │
+│                                                                                                                      │
+│                                    READY  UPD  UNAV  ROLLOUT                                                         │
+│ ⚠ DDA datadog-agent                                                                                                  │
+│ ├─ ✓ DDAI datadog-agent (default)                                                                                    │
+│ │  ├─ ✓ agent datadog-agent-agent    3/3  3/3     0  ██████████ 100% Complete (RollingUpdate)                        │
+│ │  ├─ – DCA not enabled                                                                                              │
+│ │  ├─ – CCR not enabled                                                                                              │
+│ │  └─ – OTel not enabled                                                                                             │
+│ ├─ ⚠ DAP datadog/dup · valid ✓ applied ✗                                                                             │
+│ │  └─ – no DDAI                                                                                                      │
+│ ├─ ⚠ DAP datadog/web · valid ✓ applied ✓                                                                             │
+│ │  └─ ⚠ DDAI web                                                                                                     │
+│ │     └─ ✓ agent web-agent           4/4  4/4     0  ██████████ 100% Complete (RollingUpdate)                        │
+│ └─ – 7 profiles hidden (0 desired): 2 without warnings · 5 with warnings · --hide-empty-force                        │
+│                                                                                                                      │
+│ ⚠ Warn   DDAI web  OverrideReconcileConflict (OverrideConflict): clusterChecksRunner component is set to disabled    │
+│ ⚠ Warn   DAP dup  Applied=False (Conflict): conflict with existing profile web                                       │
+│ • Info   DDA datadog-agent  DatadogAgentReconcileSuccess (ReconcileSucceeded)                                        │
+└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+█ updated+ready  ▒ updated, not ready  ░ not updated   % = updated+ready / desired

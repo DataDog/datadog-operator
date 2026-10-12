@@ -1,0 +1,111 @@
+apiVersion: datadoghq.com/v2alpha1
+kind: DatadogAgent
+metadata:
+  name: datadog
+  namespace: datadog
+  uid: dda-uid
+  creationTimestamp: "2026-10-01T09:00:00Z"
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: datadog-3.70.0
+  annotations:
+    meta.helm.sh/release-name: datadog
+    meta.helm.sh/release-namespace: datadog
+status:
+  conditions:
+    - type: ClusterProviderDetected
+      status: "True"
+      reason: NoProviderDetected
+      lastTransitionTime: "2026-10-01T09:00:10Z"
+---
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgentInternal
+metadata:
+  name: datadog
+  namespace: datadog
+  uid: ddai-default-uid
+  ownerReferences:
+    - kind: DatadogAgent
+      name: datadog
+      uid: dda-uid
+status:
+  agent:
+    daemonsetName: datadog-agent
+---
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgentInternal
+metadata:
+  name: canary
+  namespace: datadog
+  uid: ddai-canary-uid
+  labels:
+    agent.datadoghq.com/datadogagentprofile: canary
+  ownerReferences:
+    - kind: DatadogAgent
+      name: datadog
+      uid: dda-uid
+status:
+  agent:
+    daemonsetName: canary-agent
+---
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgentProfile
+metadata:
+  name: canary
+  namespace: datadog
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: datadog-profiles-0.4.1
+  annotations:
+    meta.helm.sh/release-name: profiles
+status:
+  valid: "True"
+  applied: "True"
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: datadog-agent
+  namespace: datadog
+  uid: ds-default-uid
+  generation: 8
+  ownerReferences:
+    - kind: DatadogAgentInternal
+      name: datadog
+      uid: ddai-default-uid
+status:
+  observedGeneration: 8
+  desiredNumberScheduled: 10
+  numberReady: 9
+  numberAvailable: 9
+  numberUnavailable: 1
+  updatedNumberScheduled: 4
+---
+apiVersion: apps/v1
+kind: ControllerRevision
+metadata:
+  name: datadog-agent-9a8b7c
+  namespace: datadog
+  creationTimestamp: "2026-10-05T11:55:30Z"
+  labels:
+    controller-revision-hash: 9a8b7c
+  ownerReferences:
+    - kind: DaemonSet
+      name: datadog-agent
+      uid: ds-default-uid
+revision: 6
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: canary-agent
+  namespace: datadog
+  ownerReferences:
+    - kind: DatadogAgentInternal
+      name: canary
+      uid: ddai-canary-uid
+status:
+  desiredNumberScheduled: 1
+  numberReady: 1
+  numberAvailable: 1
+  updatedNumberScheduled: 1

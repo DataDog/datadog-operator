@@ -224,6 +224,11 @@ golden-test: ## Verify operator-render golden files match the current reconciler
 golden-update: ## Regenerate operator-render golden files (review the diff before committing)
 	go test ./internal/controller/testutils/renderer/ -run TestRender_Golden -update -count=1
 
+.PHONY: dashboard-golden-update
+dashboard-golden-update: ## Regenerate kubectl datadog dashboard golden files (review the diff before committing)
+	go test ./pkg/plugin/dashboard/ -run TestGolden -update -count=1
+	go test ./pkg/plugin/dashboard/render/ -run TestTextGolden -update -count=1
+
 .PHONY: integration-tests
 integration-tests: $(ENVTEST) ## Run integration tests with reconciler
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(ROOT)/bin/$(PLATFORM) -p path)" go test --tags=integration github.com/DataDog/datadog-operator/internal/controller -coverprofile cover_integration.out

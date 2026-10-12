@@ -1,0 +1,9 @@
+# Error mirroring and dedup (DDA and DAP mirrors of DDAI errors, the DDA
+# rollup error, exact dedup, an unknown mirror format) and an invalid DAP.
+apiVersion: fixture.dashboard.datadoghq.com/v1
+kind: Fixture
+taken: "2026-10-05T12:00:00Z"
+cluster:
+  context: kind-ddtui
+  serverVersion: v1.35.1
+  pluginVersion: v1.22.0-test

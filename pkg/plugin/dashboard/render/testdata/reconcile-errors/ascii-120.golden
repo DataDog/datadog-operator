@@ -1,0 +1,33 @@
+kubectl datadog dashboard - ctx kind-ddtui - ns datadog - k8s v1.35.1 - plugin v1.22.0-test - provider none
+  operator not found - refreshed 12:00:00
++- DatadogAgent datadog/datadog-agent - age 4d3h ----------------------------------------------------------------------+
+|                                                                                                                      |
+| x Error - agents 4/4 ready - 4/4 up-to-date - 0 unavailable - rollout [##########] 100% Complete                     |
+|                                                                                                                      |
+|                                    READY  UPD  UNAV  ROLLOUT                                                         |
+| x DDA datadog-agent                                                                                                  |
+| |- x DDAI datadog-agent (default)                                                                                    |
+| |  |- + agent datadog-agent-agent    2/2  2/2     0  [##########] 100% Complete (RollingUpdate)                      |
+| |  |- - DCA not enabled                                                                                              |
+| |  |- - CCR not enabled                                                                                              |
+| |  `- - OTel not enabled                                                                                             |
+| |- x DAP datadog/badspec - valid x applied x                                                                         |
+| |  `- - no DDAI                                                                                                      |
+| |- x DAP datadog/canary - valid + applied +                                                                          |
+| |  `- x DDAI canary                                                                                                  |
+| |     `- + agent canary-agent        1/1  1/1     0  [##########] 100% Complete (RollingUpdate)                      |
+| `- x DAP datadog/legacy - valid + applied +                                                                          |
+|    `- x DDAI legacy                                                                                                  |
+|       `- + agent legacy-agent        1/1  1/1     0  [##########] 100% Complete (RollingUpdate)                      |
+|                                                                                                                      |
+| x Error  DDAI canary  DatadogAgentReconcileError: invalid override: image tag 7.99.0 not found                       |
+| x Error  DDAI datadog-agent  AgentReconcile=False (agent feature error): npm: system-probe requires a privileged ... |
+| x Error  DDAI datadog-agent  DatadogAgentReconcileError: failed to create ClusterRole: forbidden                     |
+| x Error  DDAI legacy  DatadogAgentReconcileError: boom                                                               |
+| x Error  DAP badspec  Valid=False (Invalid): profileAffinity must be set                                             |
+| x Error  DAP legacy  DatadogAgentInternalReconcileError: DDAI legacy failed with boom                                |
+| ! Warn   DDA datadog-agent  DeprecatedConfigInUse (DeprecatedField): spec.global.kubelet.hostCAPath is deprecated... |
+| ! Warn   DDAI datadog-agent  OverrideReconcileConflict (OverrideConflict): nodeAgent override conflicts with feat... |
+| ! Warn   DAP badspec  Applied=False (Invalid): profile is invalid                                                    |
++----------------------------------------------------------------------------------------------------------------------+
+# updated+ready  + updated, not ready  . not updated   % = updated+ready / desired

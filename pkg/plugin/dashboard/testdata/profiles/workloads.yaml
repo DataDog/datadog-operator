@@ -1,0 +1,114 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: datadog-agent-agent
+  namespace: datadog
+  uid: ds-default-uid
+  generation: 1
+  labels:
+    agent.datadoghq.com/name: datadog-agent
+  ownerReferences:
+    - kind: DatadogAgentInternal
+      name: datadog-agent
+      uid: ddai-default-uid
+spec:
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+status:
+  observedGeneration: 1
+  desiredNumberScheduled: 2
+  numberReady: 2
+  numberAvailable: 2
+  updatedNumberScheduled: 2
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: canary-agent
+  namespace: datadog
+  uid: ds-canary-uid
+  generation: 2
+  labels:
+    agent.datadoghq.com/name: datadog-agent
+  ownerReferences:
+    - kind: DatadogAgentInternal
+      name: canary
+      uid: ddai-canary-uid
+spec:
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+status:
+  observedGeneration: 2
+  desiredNumberScheduled: 4
+  numberReady: 3
+  numberAvailable: 3
+  numberUnavailable: 1
+  updatedNumberScheduled: 1
+---
+apiVersion: apps/v1
+kind: ControllerRevision
+metadata:
+  name: canary-agent-c4n4ry
+  namespace: datadog
+  creationTimestamp: "2026-10-05T11:50:00Z"
+  labels:
+    controller-revision-hash: c4n4ry
+  ownerReferences:
+    - kind: DaemonSet
+      name: canary-agent
+      uid: ds-canary-uid
+revision: 2
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: gpu-agent
+  namespace: datadog
+  uid: ds-gpu-uid
+  labels:
+    agent.datadoghq.com/name: datadog-agent
+  ownerReferences:
+    - kind: DatadogAgentInternal
+      name: gpu
+      uid: ddai-gpu-uid
+spec:
+  updateStrategy:
+    type: OnDelete
+status:
+  desiredNumberScheduled: 1
+  numberReady: 1
+  numberAvailable: 1
+  updatedNumberScheduled: 1
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: ghost-agent
+  namespace: datadog
+  uid: ds-ghost-uid
+  labels:
+    agent.datadoghq.com/name: datadog-agent
+  ownerReferences:
+    - kind: DatadogAgentInternal
+      name: ghost
+      uid: ddai-ghost-uid
+status:
+  desiredNumberScheduled: 1
+  numberReady: 1
+  numberAvailable: 1
+  updatedNumberScheduled: 1
+---
+# Carries the DDA label but no owner: unattached workload.
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: stray-agent
+  namespace: datadog
+  labels:
+    agent.datadoghq.com/name: datadog-agent
+status:
+  desiredNumberScheduled: 0

@@ -1,0 +1,187 @@
+apiVersion: datadoghq.com/v2alpha1
+kind: DatadogAgent
+metadata:
+  name: datadog-agent
+  namespace: datadog
+  uid: dda-uid
+  creationTimestamp: "2026-10-01T09:00:00Z"
+status:
+  experiment:
+    phase: running
+    id: exp-42
+    startedAt: "2026-10-05T10:55:00Z"
+---
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgentInternal
+metadata:
+  name: datadog-agent
+  namespace: datadog
+  uid: ddai-default-uid
+  ownerReferences:
+    - kind: DatadogAgent
+      name: datadog-agent
+      uid: dda-uid
+status:
+  agent:
+    daemonsetName: datadog-agent-agent
+  clusterAgent:
+    deploymentName: datadog-agent-cluster-agent
+---
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgentInternal
+metadata:
+  name: legacy-nodes
+  namespace: datadog
+  uid: ddai-legacy-uid
+  labels:
+    agent.datadoghq.com/datadogagentprofile: legacy-nodes
+  ownerReferences:
+    - kind: DatadogAgent
+      name: datadog-agent
+      uid: dda-uid
+status:
+  agent:
+    daemonsetName: legacy-nodes-agent
+---
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgentProfile
+metadata:
+  name: legacy-nodes
+  namespace: datadog
+status:
+  valid: "True"
+  applied: "True"
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: datadog-agent-agent
+  namespace: datadog
+  uid: ds-default-uid
+  generation: 7
+  ownerReferences:
+    - kind: DatadogAgentInternal
+      name: datadog-agent
+      uid: ddai-default-uid
+spec:
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+status:
+  observedGeneration: 7
+  desiredNumberScheduled: 3
+  numberReady: 2
+  numberAvailable: 2
+  numberUnavailable: 1
+  updatedNumberScheduled: 1
+---
+apiVersion: apps/v1
+kind: ControllerRevision
+metadata:
+  name: datadog-agent-agent-n3w123
+  namespace: datadog
+  creationTimestamp: "2026-10-05T11:00:00Z"
+  labels:
+    controller-revision-hash: n3w123
+  ownerReferences:
+    - kind: DaemonSet
+      name: datadog-agent-agent
+      uid: ds-default-uid
+revision: 7
+---
+apiVersion: apps/v1
+kind: ControllerRevision
+metadata:
+  name: datadog-agent-agent-0ld456
+  namespace: datadog
+  creationTimestamp: "2026-10-01T09:00:00Z"
+  labels:
+    controller-revision-hash: 0ld456
+  ownerReferences:
+    - kind: DaemonSet
+      name: datadog-agent-agent
+      uid: ds-default-uid
+revision: 6
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: datadog-agent-cluster-agent
+  namespace: datadog
+  uid: dca-uid
+  generation: 4
+  ownerReferences:
+    - kind: DatadogAgentInternal
+      name: datadog-agent
+      uid: ddai-default-uid
+spec:
+  replicas: 2
+status:
+  observedGeneration: 4
+  replicas: 3
+  readyReplicas: 2
+  availableReplicas: 2
+  updatedReplicas: 1
+  unavailableReplicas: 1
+  conditions:
+    - type: Available
+      status: "True"
+      reason: MinimumReplicasAvailable
+      lastTransitionTime: "2026-10-01T09:01:00Z"
+    - type: Progressing
+      status: "False"
+      reason: ProgressDeadlineExceeded
+      message: ReplicaSet "datadog-agent-cluster-agent-77aa" has timed out progressing.
+      lastTransitionTime: "2026-10-05T11:10:00Z"
+---
+apiVersion: apps/v1
+kind: ReplicaSet
+metadata:
+  name: datadog-agent-cluster-agent-77aa
+  namespace: datadog
+  creationTimestamp: "2026-10-05T11:00:00Z"
+  labels:
+    pod-template-hash: 77aa
+  annotations:
+    deployment.kubernetes.io/revision: "4"
+  ownerReferences:
+    - kind: Deployment
+      name: datadog-agent-cluster-agent
+      uid: dca-uid
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: legacy-nodes-agent
+  namespace: datadog
+  uid: ds-legacy-uid
+  generation: 3
+  ownerReferences:
+    - kind: DatadogAgentInternal
+      name: legacy-nodes
+      uid: ddai-legacy-uid
+spec:
+  updateStrategy:
+    type: OnDelete
+status:
+  observedGeneration: 3
+  desiredNumberScheduled: 2
+  numberReady: 1
+  numberAvailable: 1
+  numberUnavailable: 1
+  updatedNumberScheduled: 1
+---
+apiVersion: apps/v1
+kind: ControllerRevision
+metadata:
+  name: legacy-nodes-agent-l3g4cy
+  namespace: datadog
+  creationTimestamp: "2026-10-05T10:00:00Z"
+  labels:
+    controller-revision-hash: l3g4cy
+  ownerReferences:
+    - kind: DaemonSet
+      name: legacy-nodes-agent
+      uid: ds-legacy-uid
+revision: 3

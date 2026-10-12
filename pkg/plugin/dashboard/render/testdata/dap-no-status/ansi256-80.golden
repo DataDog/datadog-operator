@@ -1,0 +1,24 @@
+[1mkubectl datadog dashboard[m[2m · [m[2mctx[m kind-ddtui[2m · [m[2mns[m datadog[2m · [m[2mk8s[m v1.35.1
+  [2mplugin[m v1.22.0-test[2m · [m[2mprovider[m eks (detected)
+  [2moperator[m 1.22.0 [32m✓ 1/1 ready[m [2mleader[m datadog-operator-7c9d_1a2b (10s ago)
+  [2mrefreshed[m 12:00:00
+┌─ [1mDatadogAgent datadog/datadog-agent[m[2m · [m[2mage[m 4d3h ──────────────────────────────┐
+│                                                                              │
+│ [32m✓ Healthy[m[2m · [m[2magents[m 3/3 ready[2m · [m3/3 up-to-date[2m · [m0 unavailable                │
+│   [2mrollout[m [32m██████████[m 100% [32mComplete[m                                           │
+│                                                                              │
+│ [2m                                       READY  UPD  UNAV  ROLLOUT[m             │
+│ [32m✓[m [2mDDA[m datadog-agent                                                          │
+│ ├─ [32m✓[m [2mDDAI[m datadog-agent (default)                                            │
+│ │  ├─ [32m✓[m [2magent[m datadog-agent-agent        3/3  3/3     0  [32m█████[m 100% [32mComplete[m │
+│ │  ├─ [32m✓[m [2mDCA[m datadog-agent-cluster-ag…    1/1  1/1     0  [32m█████[m 100% [32mComplete[m │
+│ │  ├─ [32m✓[m [2mCCR[m datadog-agent-cluster-ch…    2/2  2/2     0  [32m█████[m 100% [32mComplete[m │
+│ │  └─ [2m– OTel not enabled[m                                                     │
+│ ├─ [2m?[m [2mDAP[m datadog/canary[2m · [m[2mstatus unknown (profiles controller not running?)[m  │
+│ │  └─ [2m– no DDAI[m                                                              │
+│ └─ [2m?[m [2mDAP[m team-a/gpu[2m · [m[2mstatus unknown (profiles controller not running?)[m      │
+│    └─ [2m– no DDAI[m                                                              │
+│                                                                              │
+│ [32m✓ no issues[m                                                                  │
+└──────────────────────────────────────────────────────────────────────────────┘
+[2m█ updated+ready  ▒ updated, not ready  ░ not updated   % = updated+ready/desired[m

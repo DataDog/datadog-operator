@@ -1,0 +1,24 @@
+# Summary panel for the 8 kinds: OK, errors, a forbidden kind, a kind not
+# installed (BYOC, no objects), poll countdown and notices.
+apiVersion: fixture.dashboard.datadoghq.com/v1
+kind: Fixture
+taken: "2026-10-05T12:00:00Z"
+cluster:
+  context: kind-ddtui
+  serverVersion: v1.35.1
+  pluginVersion: v1.22.0-test
+sources:
+  dap:
+    state: OK
+    notice: "DatadogAgentProfiles: listed in the DDA namespace only"
+  sum/DatadogMonitor:
+    state: OK
+    mode: Poll
+    nextPoll: "2026-10-05T12:00:25Z"
+  sum/DatadogDashboard:
+    state: OK
+    mode: Poll
+    nextPoll: "2026-10-05T12:00:20Z"
+  sum/DatadogSLO:
+    state: Forbidden
+    err: 'datadogslos.datadoghq.com is forbidden: User "dev" cannot list resource "datadogslos"'

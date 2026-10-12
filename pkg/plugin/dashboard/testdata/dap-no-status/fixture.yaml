@@ -1,0 +1,9 @@
+# DAP CRD installed but the operator profile controller disabled: the DAPs
+# have no status and no DDAI.
+apiVersion: fixture.dashboard.datadoghq.com/v1
+kind: Fixture
+taken: "2026-10-05T12:00:00Z"
+cluster:
+  context: kind-ddtui
+  serverVersion: v1.35.1
+  pluginVersion: v1.22.0-test

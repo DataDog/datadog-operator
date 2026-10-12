@@ -1,0 +1,96 @@
+apiVersion: datadoghq.com/v2alpha1
+kind: DatadogAgent
+metadata:
+  name: datadog-agent
+  namespace: datadog
+  uid: dda-uid
+  creationTimestamp: "2026-10-01T09:00:00Z"
+  generation: 3
+  managedFields:
+    - manager: kubectl
+      operation: Apply
+  annotations:
+    kubectl.kubernetes.io/last-applied-configuration: '{"secret":"must be stripped"}'
+spec:
+  global:
+    credentials:
+      apiSecret:
+        secretName: datadog-secret
+        keyName: api-key
+status:
+  clusterProvider: eks
+  conditions:
+    - type: ClusterProviderDetected
+      status: "True"
+      reason: ProviderDetected
+      message: eks
+      lastTransitionTime: "2026-10-01T09:00:10Z"
+    - type: DatadogAgentReconcileError
+      status: "False"
+      reason: DatadogAgent_reconcile_ok
+      message: DatadogAgent reconcile ok
+      lastTransitionTime: "2026-10-01T09:00:10Z"
+  # Dead field: never populated by the operator, ignored by the dashboard.
+  agentList: []
+  agent:
+    desired: 3
+    current: 3
+    ready: 3
+    available: 3
+    upToDate: 3
+    state: Running
+    status: Running (3/3/3)
+---
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgentInternal
+metadata:
+  name: datadog-agent
+  namespace: datadog
+  uid: ddai-default-uid
+  labels:
+    agent.datadoghq.com/datadogagent: datadog-agent
+  ownerReferences:
+    - apiVersion: datadoghq.com/v2alpha1
+      kind: DatadogAgent
+      name: datadog-agent
+      uid: dda-uid
+      controller: true
+status:
+  conditions:
+    - type: AgentReconcile
+      status: "True"
+      reason: AgentReconcileOK
+      lastTransitionTime: "2026-10-01T09:00:10Z"
+    - type: ClusterAgentReconcile
+      status: "True"
+      reason: ClusterAgentReconcileOK
+      lastTransitionTime: "2026-10-01T09:00:10Z"
+    - type: ClusterChecksRunnerReconcile
+      status: "True"
+      reason: ClusterChecksRunnerReconcileOK
+      lastTransitionTime: "2026-10-01T09:00:10Z"
+    - type: DatadogAgentReconcileError
+      status: "False"
+      reason: DatadogAgent_reconcile_ok
+      lastTransitionTime: "2026-10-01T09:00:10Z"
+  agent:
+    desired: 3
+    current: 3
+    ready: 3
+    available: 3
+    upToDate: 3
+    state: Running
+    daemonsetName: datadog-agent-agent
+  clusterAgent:
+    replicas: 1
+    readyReplicas: 1
+    availableReplicas: 1
+    updatedReplicas: 1
+    deploymentName: datadog-agent-cluster-agent
+    generatedToken: must-never-be-copied
+  clusterChecksRunner:
+    replicas: 2
+    readyReplicas: 2
+    availableReplicas: 2
+    updatedReplicas: 2
+    deploymentName: datadog-agent-cluster-checks-runner

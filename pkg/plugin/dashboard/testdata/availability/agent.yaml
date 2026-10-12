@@ -1,0 +1,105 @@
+apiVersion: datadoghq.com/v2alpha1
+kind: DatadogAgent
+metadata:
+  name: datadog-agent
+  namespace: datadog
+  uid: dda-uid
+  creationTimestamp: "2026-10-01T09:00:00Z"
+  generation: 4
+status:
+  clusterProvider: eks
+  conditions:
+    - type: ClusterProviderDetected
+      status: "True"
+      reason: ProviderDetected
+      message: eks
+      lastTransitionTime: "2026-10-01T09:00:10Z"
+---
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgentInternal
+metadata:
+  name: datadog-agent
+  namespace: datadog
+  uid: ddai-default-uid
+  ownerReferences:
+    - apiVersion: datadoghq.com/v2alpha1
+      kind: DatadogAgent
+      name: datadog-agent
+      uid: dda-uid
+      controller: true
+status:
+  conditions:
+    - type: AgentReconcile
+      status: "True"
+      reason: AgentReconcileOK
+      lastTransitionTime: "2026-10-05T07:00:00Z"
+    - type: ClusterAgentReconcile
+      status: "True"
+      reason: ClusterAgentReconcileOK
+      lastTransitionTime: "2026-10-05T11:58:00Z"
+  agent:
+    desired: 2
+    ready: 1
+    available: 1
+    upToDate: 2
+    daemonsetName: datadog-agent-agent
+  clusterAgent:
+    replicas: 2
+    readyReplicas: 1
+    availableReplicas: 1
+    updatedReplicas: 2
+    deploymentName: datadog-agent-cluster-agent
+---
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgentInternal
+metadata:
+  name: large
+  namespace: datadog
+  uid: ddai-large-uid
+  labels:
+    agent.datadoghq.com/datadogagentprofile: large
+  ownerReferences:
+    - apiVersion: datadoghq.com/v2alpha1
+      kind: DatadogAgent
+      name: datadog-agent
+      uid: dda-uid
+      controller: true
+status:
+  conditions:
+    - type: AgentReconcile
+      status: "True"
+      reason: AgentReconcileOK
+      lastTransitionTime: "2026-10-05T09:00:00Z"
+  agent:
+    desired: 807
+    ready: 799
+    available: 799
+    upToDate: 807
+    daemonsetName: large-agent
+---
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgentInternal
+metadata:
+  name: small
+  namespace: datadog
+  uid: ddai-small-uid
+  labels:
+    agent.datadoghq.com/datadogagentprofile: small
+  ownerReferences:
+    - apiVersion: datadoghq.com/v2alpha1
+      kind: DatadogAgent
+      name: datadog-agent
+      uid: dda-uid
+      controller: true
+status:
+  conditions:
+    - type: AgentReconcile
+      status: "True"
+      reason: AgentReconcileOK
+      lastTransitionTime: "2026-10-04T09:00:00Z"
+  agent:
+    desired: 3
+    ready: 3
+    available: 3
+    upToDate: 3
+    daemonsetName: small-agent

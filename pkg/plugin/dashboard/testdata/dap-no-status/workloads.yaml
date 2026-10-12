@@ -1,0 +1,165 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: datadog-agent-agent
+  namespace: datadog
+  uid: ds-default-uid
+  generation: 3
+  labels:
+    agent.datadoghq.com/name: datadog-agent
+    agent.datadoghq.com/component: agent
+  ownerReferences:
+    - apiVersion: datadoghq.com/v1alpha1
+      kind: DatadogAgentInternal
+      name: datadog-agent
+      uid: ddai-default-uid
+      controller: true
+spec:
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 10%
+status:
+  observedGeneration: 3
+  desiredNumberScheduled: 3
+  currentNumberScheduled: 3
+  numberReady: 3
+  numberAvailable: 3
+  updatedNumberScheduled: 3
+---
+apiVersion: apps/v1
+kind: ControllerRevision
+metadata:
+  name: datadog-agent-agent-7f9c4d
+  namespace: datadog
+  creationTimestamp: "2026-10-02T10:00:00Z"
+  labels:
+    agent.datadoghq.com/name: datadog-agent
+    controller-revision-hash: 7f9c4d
+  ownerReferences:
+    - apiVersion: apps/v1
+      kind: DaemonSet
+      name: datadog-agent-agent
+      uid: ds-default-uid
+      controller: true
+revision: 3
+data:
+  spec:
+    template: {}
+---
+apiVersion: apps/v1
+kind: ControllerRevision
+metadata:
+  name: datadog-agent-agent-5b8e21
+  namespace: datadog
+  creationTimestamp: "2026-10-01T09:00:20Z"
+  labels:
+    agent.datadoghq.com/name: datadog-agent
+    controller-revision-hash: 5b8e21
+  ownerReferences:
+    - apiVersion: apps/v1
+      kind: DaemonSet
+      name: datadog-agent-agent
+      uid: ds-default-uid
+      controller: true
+revision: 2
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: datadog-agent-cluster-agent
+  namespace: datadog
+  uid: dca-uid
+  generation: 2
+  labels:
+    agent.datadoghq.com/name: datadog-agent
+    agent.datadoghq.com/component: cluster-agent
+  ownerReferences:
+    - apiVersion: datadoghq.com/v1alpha1
+      kind: DatadogAgentInternal
+      name: datadog-agent
+      uid: ddai-default-uid
+      controller: true
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+status:
+  observedGeneration: 2
+  replicas: 1
+  readyReplicas: 1
+  availableReplicas: 1
+  updatedReplicas: 1
+  conditions:
+    - type: Available
+      status: "True"
+      reason: MinimumReplicasAvailable
+      lastTransitionTime: "2026-10-01T09:01:00Z"
+    - type: Progressing
+      status: "True"
+      reason: NewReplicaSetAvailable
+      lastTransitionTime: "2026-10-02T10:01:00Z"
+---
+apiVersion: apps/v1
+kind: ReplicaSet
+metadata:
+  name: datadog-agent-cluster-agent-6d5f8b
+  namespace: datadog
+  creationTimestamp: "2026-10-02T10:00:00Z"
+  labels:
+    agent.datadoghq.com/name: datadog-agent
+    pod-template-hash: 6d5f8b
+  annotations:
+    deployment.kubernetes.io/revision: "2"
+  ownerReferences:
+    - apiVersion: apps/v1
+      kind: Deployment
+      name: datadog-agent-cluster-agent
+      uid: dca-uid
+      controller: true
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: datadog-agent-cluster-checks-runner
+  namespace: datadog
+  uid: ccr-uid
+  generation: 1
+  labels:
+    agent.datadoghq.com/name: datadog-agent
+    agent.datadoghq.com/component: cluster-checks-runner
+  ownerReferences:
+    - apiVersion: datadoghq.com/v1alpha1
+      kind: DatadogAgentInternal
+      name: datadog-agent
+      uid: ddai-default-uid
+      controller: true
+spec:
+  replicas: 2
+status:
+  observedGeneration: 1
+  replicas: 2
+  readyReplicas: 2
+  availableReplicas: 2
+  updatedReplicas: 2
+---
+apiVersion: apps/v1
+kind: ReplicaSet
+metadata:
+  name: datadog-agent-cluster-checks-runner-84c2aa
+  namespace: datadog
+  creationTimestamp: "2026-10-01T09:00:30Z"
+  labels:
+    agent.datadoghq.com/name: datadog-agent
+    pod-template-hash: 84c2aa
+  annotations:
+    deployment.kubernetes.io/revision: "1"
+  ownerReferences:
+    - apiVersion: apps/v1
+      kind: Deployment
+      name: datadog-agent-cluster-checks-runner
+      uid: ccr-uid
+      controller: true
