@@ -31,6 +31,19 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
+
+	// Decided 16: these annotations are read with an exact "true" or
+	// "false" comparison, so any other value silently leaves the feature
+	// in its default state with no error and no log.
+	if err := feature.RegisterValidationRules(feature.PrivateActionRunnerIDType, []apicommon.ValidationRule{
+		apicommon.EnableAnnotationRule(featureutils.EnablePrivateActionRunnerAnnotation),
+		apicommon.EnableAnnotationRule(featureutils.EnablePrivateActionRunnerSplitAnnotation),
+		apicommon.EnableAnnotationRule(featureutils.EnableClusterAgentPrivateActionRunnerAnnotation),
+		apicommon.EnableAnnotationRule(featureutils.ClusterAgentPrivateActionRunnerK8sRemediationEnabled),
+	}); err != nil {
+		panic(err)
+	}
+
 }
 
 func buildPrivateActionRunnerFeature(options *feature.Options) feature.Feature {

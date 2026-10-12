@@ -41,8 +41,20 @@ func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv
 	var result reconcile.Result
 
 	// 1. Validate the resource.
-	if err := datadoghqv2alpha1.ValidateDatadogAgent(instance); err != nil {
+	//
+	// This runs before defaulting on purpose: the API server evaluates the same
+	// CEL rules against the DatadogAgent as the user wrote it, and a rule that
+	// saw defaulted values here would not agree with itself between the two.
+	// ValidateStored reads the object as unstructured for the same reason; see
+	// its comment.
+	if err := r.options.DatadogAgentValidationRules.ValidateStored(ctx, r.options.ValidationReader, instance, instance.Namespace, instance.Name); err != nil {
 		return result, err
+	}
+	if instance.Spec.Global != nil {
+		// Not a CEL rule; see ValidateCommonLabelSyntax.
+		if err := datadoghqv2alpha1.ValidateCommonLabelSyntax(instance.Spec.Global.CommonLabels); err != nil {
+			return result, err
+		}
 	}
 
 	// 2. Handle finalizer logic.
