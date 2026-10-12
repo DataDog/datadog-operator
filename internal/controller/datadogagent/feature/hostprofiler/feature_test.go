@@ -57,8 +57,136 @@ func Test_hostProfilerFeature_Configure(t *testing.T) {
 			WantConfigure: true,
 			Agent:         testExpectedAgent(apicommon.HostProfiler, defaultVolumeMounts),
 		},
+		{
+			Name: "host profiler enabled via spec",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithHostProfilerEnabled(true).
+				Build(),
+			WantConfigure: true,
+			Agent:         testExpectedAgent(apicommon.HostProfiler, defaultVolumeMounts),
+		},
+		{
+			Name: "host profiler disabled via spec takes precedence over annotation",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithAnnotations(map[string]string{"agent.datadoghq.com/host-profiler-enabled": "true"}).
+				WithHostProfilerEnabled(false).
+				Build(),
+			WantConfigure: false,
+		},
+		{
+			Name: "host profiler enabled via spec takes precedence over annotation",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithAnnotations(map[string]string{"agent.datadoghq.com/host-profiler-enabled": "false"}).
+				WithHostProfilerEnabled(true).
+				Build(),
+			WantConfigure: true,
+			Agent:         testExpectedAgent(apicommon.HostProfiler, defaultVolumeMounts),
+		},
 	}
 	tests.Run(t, buildHostProfilerFeature)
+}
+
+func Test_hostProfilerFeature_SpecAndAnnotationPrecedence(t *testing.T) {
+	allAnnotations := map[string]string{
+		featureutils.EnableHostProfilerAnnotation:               "true",
+		featureutils.EnableHostProfilerSeccompAnnotation:        "false",
+		featureutils.EnableHostProfilerLoggingSeccompAnnotation: "true",
+		featureutils.EnableHostProfilerNonRootAnnotation:        "true",
+		featureutils.HostProfilerSELinuxTypeAnnotation:          "annotation_t",
+	}
+
+	tests := []struct {
+		name            string
+		annotations     map[string]string
+		config          *v2alpha1.HostProfilerFeatureConfig
+		wantSeccomp     bool
+		wantLogging     bool
+		wantNonRoot     bool
+		wantSELinuxType string
+	}{
+		{
+			name:            "spec only, defaults",
+			config:          &v2alpha1.HostProfilerFeatureConfig{Enabled: ptr.To(true)},
+			wantSeccomp:     true,
+			wantSELinuxType: defaultSELinuxType,
+		},
+		{
+			name: "spec only, all settings",
+			config: &v2alpha1.HostProfilerFeatureConfig{
+				Enabled:      ptr.To(true),
+				RunAsNonRoot: ptr.To(true),
+				SELinuxType:  ptr.To("spec_t"),
+				Seccomp: &v2alpha1.HostProfilerSeccompConfig{
+					Enabled:        ptr.To(false),
+					LoggingEnabled: ptr.To(true),
+				},
+			},
+			wantLogging:     true,
+			wantNonRoot:     true,
+			wantSELinuxType: "spec_t",
+		},
+		{
+			name:            "annotations only",
+			annotations:     allAnnotations,
+			wantLogging:     true,
+			wantNonRoot:     true,
+			wantSELinuxType: "annotation_t",
+		},
+		{
+			name:        "spec enabled, unset settings fall back to annotations",
+			annotations: allAnnotations,
+			config: &v2alpha1.HostProfilerFeatureConfig{
+				Enabled: ptr.To(true),
+				Seccomp: &v2alpha1.HostProfilerSeccompConfig{},
+			},
+			wantLogging:     true,
+			wantNonRoot:     true,
+			wantSELinuxType: "annotation_t",
+		},
+		{
+			name:        "spec settings take precedence over annotations",
+			annotations: allAnnotations,
+			config: &v2alpha1.HostProfilerFeatureConfig{
+				RunAsNonRoot: ptr.To(false),
+				SELinuxType:  ptr.To("spec_t"),
+				Seccomp: &v2alpha1.HostProfilerSeccompConfig{
+					Enabled:        ptr.To(true),
+					LoggingEnabled: ptr.To(false),
+				},
+			},
+			wantSeccomp:     true,
+			wantSELinuxType: "spec_t",
+		},
+		{
+			name:        "empty spec selinux type falls back to annotation",
+			annotations: allAnnotations,
+			config: &v2alpha1.HostProfilerFeatureConfig{
+				SELinuxType: ptr.To(""),
+			},
+			wantLogging:     true,
+			wantNonRoot:     true,
+			wantSELinuxType: "annotation_t",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dda := testutils.NewDatadogAgentBuilder().WithAnnotations(tt.annotations).Build()
+			if dda.Spec.Features == nil {
+				dda.Spec.Features = &v2alpha1.DatadogFeatures{}
+			}
+			dda.Spec.Features.HostProfiler = tt.config
+
+			feat := buildHostProfilerFeature(nil).(*hostProfilerFeature)
+			reqComp := feat.Configure(dda, &dda.Spec, nil)
+			require.True(t, reqComp.IsEnabled())
+
+			assert.Equal(t, tt.wantSeccomp, feat.seccompEnabled, "seccompEnabled")
+			assert.Equal(t, tt.wantLogging, feat.loggingSeccomp, "loggingSeccomp")
+			assert.Equal(t, tt.wantNonRoot, feat.hostProfilerNonRoot, "hostProfilerNonRoot")
+			assert.Equal(t, tt.wantSELinuxType, feat.selinuxType, "selinuxType")
+		})
+	}
 }
 
 func Test_hostProfilerFeature_InvalidSeccompAnnotation(t *testing.T) {

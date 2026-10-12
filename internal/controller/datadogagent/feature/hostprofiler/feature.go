@@ -54,16 +54,36 @@ func (o *hostProfilerFeature) ID() feature.IDType {
 	return feature.HostProfilerIDType
 }
 
-func (o *hostProfilerFeature) Configure(dda metav1.Object, _ *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) feature.RequiredComponents {
+func (o *hostProfilerFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) feature.RequiredComponents {
 	o.owner = dda
 
-	if !featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnableHostProfilerAnnotation) {
+	// Settings are read from spec.features.hostProfiler first. The deprecated annotations are used
+	// as a fallback for any setting not defined in the spec.
+	// todo (mackjmr): remove annotation fallback once annotation support is removed.
+	var hpConfig *v2alpha1.HostProfilerFeatureConfig
+	if ddaSpec != nil && ddaSpec.Features != nil {
+		hpConfig = ddaSpec.Features.HostProfiler
+	}
+	var seccompConfig *v2alpha1.HostProfilerSeccompConfig
+	if hpConfig != nil {
+		seccompConfig = hpConfig.Seccomp
+	}
+
+	enabled := featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnableHostProfilerAnnotation)
+	if hpConfig != nil && hpConfig.Enabled != nil {
+		enabled = *hpConfig.Enabled
+	} else if enabled {
+		o.logger.Info("host profiler: enabling via annotation is deprecated, use spec.features.hostProfiler instead", "annotation", featureutils.EnableHostProfilerAnnotation)
+	}
+	if !enabled {
 		return feature.RequiredComponents{}
 	}
 
-	// Seccomp profile is enabled by default; opt out via the seccomp annotation set to "false".
+	// Seccomp profile is enabled by default.
 	o.seccompEnabled = true
-	if str, ok := dda.GetAnnotations()[featureutils.EnableHostProfilerSeccompAnnotation]; ok {
+	if seccompConfig != nil && seccompConfig.Enabled != nil {
+		o.seccompEnabled = *seccompConfig.Enabled
+	} else if str, ok := dda.GetAnnotations()[featureutils.EnableHostProfilerSeccompAnnotation]; ok {
 		value, err := strconv.ParseBool(str)
 		if err != nil {
 			o.logger.Info("host profiler: invalid seccomp annotation value, defaulting to enabled", "value", str)
@@ -72,16 +92,26 @@ func (o *hostProfilerFeature) Configure(dda metav1.Object, _ *v2alpha1.DatadogAg
 		}
 	}
 
-	o.loggingSeccomp = featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnableHostProfilerLoggingSeccompAnnotation)
+	if seccompConfig != nil && seccompConfig.LoggingEnabled != nil {
+		o.loggingSeccomp = *seccompConfig.LoggingEnabled
+	} else {
+		o.loggingSeccomp = featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnableHostProfilerLoggingSeccompAnnotation)
+	}
 	if o.loggingSeccomp && !o.seccompEnabled {
-		o.logger.V(1).Info("host profiler: logging-seccomp annotation has no effect when seccomp is disabled")
+		o.logger.V(1).Info("host profiler: logging seccomp has no effect when seccomp is disabled")
 	}
 
-	o.hostProfilerNonRoot = featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnableHostProfilerNonRootAnnotation)
+	if hpConfig != nil && hpConfig.RunAsNonRoot != nil {
+		o.hostProfilerNonRoot = *hpConfig.RunAsNonRoot
+	} else {
+		o.hostProfilerNonRoot = featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnableHostProfilerNonRootAnnotation)
+	}
 
-	// SELinux type defaults to spc_t; override via the selinux-type annotation.
+	// SELinux type defaults to spc_t.
 	o.selinuxType = defaultSELinuxType
-	if str, ok := dda.GetAnnotations()[featureutils.HostProfilerSELinuxTypeAnnotation]; ok && str != "" {
+	if hpConfig != nil && hpConfig.SELinuxType != nil && *hpConfig.SELinuxType != "" {
+		o.selinuxType = *hpConfig.SELinuxType
+	} else if str, ok := dda.GetAnnotations()[featureutils.HostProfilerSELinuxTypeAnnotation]; ok && str != "" {
 		o.selinuxType = str
 	}
 
@@ -160,7 +190,7 @@ func (o *hostProfilerFeature) ManageNodeAgent(managers feature.PodTemplateManage
 		Add:  defaultCapabilities(),
 	}
 
-	// Seccomp profile and its setup init container are gated on the seccomp annotation (default enabled).
+	// Seccomp profile and its setup init container are gated on spec.features.hostProfiler.seccomp.enabled (default enabled).
 	// When disabled, the container runs Unconfined and the init container that installs the profile on
 	// the node is omitted.
 	if o.seccompEnabled {
@@ -188,8 +218,8 @@ func (o *hostProfilerFeature) ManageNodeAgent(managers feature.PodTemplateManage
 	managers.Annotation().AddAnnotation(common.AppArmorAnnotationKey+"/"+string(apicommon.HostProfiler), "unconfined")
 
 	// SELinux: run as the super-privileged container type (spc_t by default) so SELinux-enforcing
-	// nodes don't block the cross-process /proc access the host-profiler needs. Overridable via the
-	// host-profiler-selinux-type annotation.
+	// nodes don't block the cross-process /proc access the host-profiler needs. Overridable via
+	// spec.features.hostProfiler.seLinuxType.
 	sc.SELinuxOptions = &corev1.SELinuxOptions{
 		Type: o.selinuxType,
 	}

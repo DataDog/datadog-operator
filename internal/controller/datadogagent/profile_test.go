@@ -382,6 +382,103 @@ func Test_computeProfileMergeEnforcesAutopilotRegistry(t *testing.T) {
 	}
 }
 
+func Test_computeProfileMergeHostProfiler(t *testing.T) {
+	sch := k8sruntime.NewScheme()
+	require.NoError(t, scheme.AddToScheme(sch))
+	require.NoError(t, v1alpha1.AddToScheme(sch))
+	require.NoError(t, v2alpha1.AddToScheme(sch))
+	require.NoError(t, corev1.AddToScheme(sch))
+	require.NoError(t, apiextensionsv1.AddToScheme(sch))
+
+	tests := []struct {
+		name        string
+		ddaFeatures *v2alpha1.DatadogFeatures
+		profileHP   *v2alpha1.HostProfilerFeatureConfig
+		want        *v2alpha1.HostProfilerFeatureConfig
+	}{
+		{
+			name: "profile enables host profiler",
+			profileHP: &v2alpha1.HostProfilerFeatureConfig{
+				Enabled:      ptr.To(true),
+				RunAsNonRoot: ptr.To(true),
+				SELinuxType:  ptr.To("custom_t"),
+				Seccomp: &v2alpha1.HostProfilerSeccompConfig{
+					Enabled:        ptr.To(false),
+					LoggingEnabled: ptr.To(true),
+				},
+			},
+			want: &v2alpha1.HostProfilerFeatureConfig{
+				Enabled:      ptr.To(true),
+				RunAsNonRoot: ptr.To(true),
+				SELinuxType:  ptr.To("custom_t"),
+				Seccomp: &v2alpha1.HostProfilerSeccompConfig{
+					Enabled:        ptr.To(false),
+					LoggingEnabled: ptr.To(true),
+				},
+			},
+		},
+		{
+			name: "profile disables host profiler enabled in DDA, other DDA settings are kept",
+			ddaFeatures: &v2alpha1.DatadogFeatures{
+				HostProfiler: &v2alpha1.HostProfilerFeatureConfig{
+					Enabled:     ptr.To(true),
+					SELinuxType: ptr.To("custom_t"),
+				},
+			},
+			profileHP: &v2alpha1.HostProfilerFeatureConfig{
+				Enabled: ptr.To(false),
+			},
+			want: &v2alpha1.HostProfilerFeatureConfig{
+				Enabled:     ptr.To(false),
+				SELinuxType: ptr.To("custom_t"),
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ddai := &v1alpha1.DatadogAgentInternal{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "foo",
+					Namespace: "bar",
+				},
+				Spec: v2alpha1.DatadogAgentSpec{
+					Features: tt.ddaFeatures,
+				},
+			}
+			profile := &v1alpha1.DatadogAgentProfile{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "foo-profile",
+					Namespace: "bar",
+				},
+				Spec: v1alpha1.DatadogAgentProfileSpec{
+					Config: &v2alpha1.DatadogAgentSpec{
+						Features: &v2alpha1.DatadogFeatures{
+							HostProfiler: tt.profileHP,
+						},
+					},
+				},
+			}
+
+			crd, err := getDDAICRDFromConfig(sch)
+			require.NoError(t, err)
+			fakeClient := fake.NewClientBuilder().WithScheme(sch).WithObjects(ddai, crd).Build()
+			fieldManager, err := newFieldManager(fakeClient, sch, v1alpha1.GroupVersion.WithKind("DatadogAgentInternal"))
+			require.NoError(t, err)
+			r := &Reconciler{
+				client:       fakeClient,
+				scheme:       sch,
+				fieldManager: fieldManager,
+			}
+
+			mergedDDAI, err := r.computeProfileMerge(ddai, profile)
+			require.NoError(t, err)
+			require.NotNil(t, mergedDDAI.Spec.Features)
+			assert.Equal(t, tt.want, mergedDDAI.Spec.Features.HostProfiler)
+		})
+	}
+}
+
 func Test_setProfileSpec(t *testing.T) {
 	testCases := []struct {
 		name    string

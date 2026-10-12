@@ -1962,6 +1962,41 @@ spec:
                             Default: {}
                           type: object
                       type: object
+                    hostProfiler:
+                      description: HostProfiler configuration.
+                      properties:
+                        enabled:
+                          description: |-
+                            Enabled enables the Host Profiler.
+                            Default: false
+                          type: boolean
+                        runAsNonRoot:
+                          description: |-
+                            RunAsNonRoot runs the Host Profiler container as the dd-agent user (UID/GID 100) with runAsNonRoot set.
+                            Default: false
+                          type: boolean
+                        seLinuxType:
+                          description: |-
+                            SELinuxType sets the SELinux type for the Host Profiler container and its seccomp setup init container.
+                            Default: spc_t
+                          type: string
+                        seccomp:
+                          description: Seccomp configures the seccomp profile applied to the Host Profiler container.
+                          properties:
+                            enabled:
+                              description: |-
+                                Enabled applies the Host Profiler localhost seccomp profile and adds the init container that installs it on the node.
+                                When disabled, the Host Profiler container runs with an Unconfined seccomp profile.
+                                Default: true
+                              type: boolean
+                            loggingEnabled:
+                              description: |-
+                                LoggingEnabled uses the logging seccomp profile instead of the default one.
+                                Has no effect when the seccomp profile is disabled.
+                                Default: false
+                              type: boolean
+                          type: object
+                      type: object
                     kubeStateMetricsCore:
                       description: KubeStateMetricsCore check configuration.
                       properties:
@@ -11396,6 +11431,41 @@ spec:
                                 ValuesAsTags collects Helm values from a release and uses them as tags
                                 (Requires Agent and Cluster Agent 7.40.0+).
                                 Default: {}
+                              type: object
+                          type: object
+                        hostProfiler:
+                          description: HostProfiler configuration.
+                          properties:
+                            enabled:
+                              description: |-
+                                Enabled enables the Host Profiler.
+                                Default: false
+                              type: boolean
+                            runAsNonRoot:
+                              description: |-
+                                RunAsNonRoot runs the Host Profiler container as the dd-agent user (UID/GID 100) with runAsNonRoot set.
+                                Default: false
+                              type: boolean
+                            seLinuxType:
+                              description: |-
+                                SELinuxType sets the SELinux type for the Host Profiler container and its seccomp setup init container.
+                                Default: spc_t
+                              type: string
+                            seccomp:
+                              description: Seccomp configures the seccomp profile applied to the Host Profiler container.
+                              properties:
+                                enabled:
+                                  description: |-
+                                    Enabled applies the Host Profiler localhost seccomp profile and adds the init container that installs it on the node.
+                                    When disabled, the Host Profiler container runs with an Unconfined seccomp profile.
+                                    Default: true
+                                  type: boolean
+                                loggingEnabled:
+                                  description: |-
+                                    LoggingEnabled uses the logging seccomp profile instead of the default one.
+                                    Has no effect when the seccomp profile is disabled.
+                                    Default: false
+                                  type: boolean
                               type: object
                           type: object
                         kubeStateMetricsCore:

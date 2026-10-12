@@ -1955,6 +1955,40 @@
               },
               "type": "object"
             },
+            "hostProfiler": {
+              "additionalProperties": false,
+              "description": "HostProfiler configuration.",
+              "properties": {
+                "enabled": {
+                  "description": "Enabled enables the Host Profiler.\nDefault: false",
+                  "type": "boolean"
+                },
+                "runAsNonRoot": {
+                  "description": "RunAsNonRoot runs the Host Profiler container as the dd-agent user (UID/GID 100) with runAsNonRoot set.\nDefault: false",
+                  "type": "boolean"
+                },
+                "seLinuxType": {
+                  "description": "SELinuxType sets the SELinux type for the Host Profiler container and its seccomp setup init container.\nDefault: spc_t",
+                  "type": "string"
+                },
+                "seccomp": {
+                  "additionalProperties": false,
+                  "description": "Seccomp configures the seccomp profile applied to the Host Profiler container.",
+                  "properties": {
+                    "enabled": {
+                      "description": "Enabled applies the Host Profiler localhost seccomp profile and adds the init container that installs it on the node.\nWhen disabled, the Host Profiler container runs with an Unconfined seccomp profile.\nDefault: true",
+                      "type": "boolean"
+                    },
+                    "loggingEnabled": {
+                      "description": "LoggingEnabled uses the logging seccomp profile instead of the default one.\nHas no effect when the seccomp profile is disabled.\nDefault: false",
+                      "type": "boolean"
+                    }
+                  },
+                  "type": "object"
+                }
+              },
+              "type": "object"
+            },
             "kubeStateMetricsCore": {
               "additionalProperties": false,
               "description": "KubeStateMetricsCore check configuration.",
@@ -10844,6 +10878,40 @@
                         "type": "string"
                       },
                       "description": "ValuesAsTags collects Helm values from a release and uses them as tags\n(Requires Agent and Cluster Agent 7.40.0+).\nDefault: {}",
+                      "type": "object"
+                    }
+                  },
+                  "type": "object"
+                },
+                "hostProfiler": {
+                  "additionalProperties": false,
+                  "description": "HostProfiler configuration.",
+                  "properties": {
+                    "enabled": {
+                      "description": "Enabled enables the Host Profiler.\nDefault: false",
+                      "type": "boolean"
+                    },
+                    "runAsNonRoot": {
+                      "description": "RunAsNonRoot runs the Host Profiler container as the dd-agent user (UID/GID 100) with runAsNonRoot set.\nDefault: false",
+                      "type": "boolean"
+                    },
+                    "seLinuxType": {
+                      "description": "SELinuxType sets the SELinux type for the Host Profiler container and its seccomp setup init container.\nDefault: spc_t",
+                      "type": "string"
+                    },
+                    "seccomp": {
+                      "additionalProperties": false,
+                      "description": "Seccomp configures the seccomp profile applied to the Host Profiler container.",
+                      "properties": {
+                        "enabled": {
+                          "description": "Enabled applies the Host Profiler localhost seccomp profile and adds the init container that installs it on the node.\nWhen disabled, the Host Profiler container runs with an Unconfined seccomp profile.\nDefault: true",
+                          "type": "boolean"
+                        },
+                        "loggingEnabled": {
+                          "description": "LoggingEnabled uses the logging seccomp profile instead of the default one.\nHas no effect when the seccomp profile is disabled.\nDefault: false",
+                          "type": "boolean"
+                        }
+                      },
                       "type": "object"
                     }
                   },
