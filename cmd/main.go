@@ -144,6 +144,7 @@ type options struct {
 	defaultDataPlaneLinuxEnabled        bool
 	componentHealthEnabled              bool
 	componentHealthIntakeEnabled        bool
+	componentHealthIntakeURL            string
 	componentHealthSnapshotInterval     time.Duration
 
 	// Secret Backend options
@@ -205,6 +206,8 @@ func (opts *options) Parse() {
 		"Requires --componentHealthEnabled. When set, the ComponentHealth controller reports current-state HealthReport snapshots to the Datadog agenthealth intake on a fixed cadence, instead of only logging them.")
 	flag.DurationVar(&opts.componentHealthSnapshotInterval, "componentHealthSnapshotInterval", defaultComponentHealthSnapshotInterval,
 		"Cadence at which the ComponentHealth controller emits current-state snapshots (log or intake), for example 60s.")
+	flag.StringVar(&opts.componentHealthIntakeURL, "componentHealthIntakeURL", "",
+		"Override the full agenthealth intake URL the ComponentHealth controller POSTs to (including path, e.g. http://host:port/api/v2/agenthealth). Intended for testing/QA against a fakeintake; empty derives the URL from the configured site.")
 
 	// DatadogAgentInternal
 	flag.BoolVar(&opts.createControllerRevisions, "createControllerRevisions", false, "Enable creation of ControllerRevision snapshots on each DDA spec change")
@@ -240,6 +243,7 @@ func (opts *options) Parse() {
 		boolEnv(&opts.untaintControllerWaitForCSIDriver, "DD_UNTAINT_CONTROLLER_WAIT_FOR_CSI_DRIVER"),
 		boolEnv(&opts.componentHealthEnabled, "DD_COMPONENT_HEALTH_ENABLED"),
 		boolEnv(&opts.componentHealthIntakeEnabled, "DD_COMPONENT_HEALTH_INTAKE_ENABLED"),
+		stringEnv(&opts.componentHealthIntakeURL, "DD_COMPONENT_HEALTH_INTAKE_URL"),
 		durationEnv(&opts.componentHealthSnapshotInterval, "DD_COMPONENT_HEALTH_SNAPSHOT_INTERVAL"),
 		boolEnv(&opts.createControllerRevisions, "DD_CREATE_CONTROLLER_REVISIONS"),
 		boolEnv(&opts.rolloutOnConfigMapChangeEnabled, "DD_ROLLOUT_ON_CONFIGMAP_CHANGE_ENABLED"),
@@ -528,6 +532,7 @@ func run(opts *options) error {
 		DefaultDataPlaneLinuxEnabled:      opts.defaultDataPlaneLinuxEnabled,
 		ComponentHealthEnabled:            opts.componentHealthEnabled,
 		ComponentHealthIntakeEnabled:      opts.componentHealthIntakeEnabled,
+		ComponentHealthIntakeURL:          opts.componentHealthIntakeURL,
 		ComponentHealthSnapshotInterval:   opts.componentHealthSnapshotInterval,
 		ClusterProviderDetector:           providerDetector,
 	}

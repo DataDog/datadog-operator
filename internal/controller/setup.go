@@ -60,6 +60,7 @@ type SetupOptions struct {
 	DefaultDataPlaneLinuxEnabled      bool
 	ComponentHealthEnabled            bool
 	ComponentHealthIntakeEnabled      bool
+	ComponentHealthIntakeURL          string
 	ComponentHealthSnapshotInterval   time.Duration
 	ClusterProviderDetector           datadogagent.ProviderReader
 }
@@ -263,8 +264,13 @@ func startComponentHealth(logger logr.Logger, mgr manager.Manager, _ kubernetes.
 		if options.CredsManager == nil {
 			return fmt.Errorf("%s: intake emitter requires a credentials manager", componentHealthControllerName)
 		}
-		reconciler.emitter = newSnapshotEmitter(log.WithName("snapshot-emitter"), mgr.GetClient(), options.CredsManager)
-		logger.Info("ComponentHealth intake emitter enabled: reporting snapshots to the agenthealth intake", "controller", componentHealthControllerName)
+		emitter := newSnapshotEmitter(log.WithName("snapshot-emitter"), mgr.GetClient(), options.CredsManager)
+		// When set, override the derived agenthealth intake URL (testing/QA against a
+		// fakeintake). Empty keeps the production URL derived from the site.
+		emitter.intakeURL = options.ComponentHealthIntakeURL
+		reconciler.emitter = emitter
+		logger.Info("ComponentHealth intake emitter enabled: reporting snapshots to the agenthealth intake",
+			"controller", componentHealthControllerName, "intakeURLOverride", options.ComponentHealthIntakeURL)
 	}
 
 	return reconciler.SetupWithManager(mgr)
