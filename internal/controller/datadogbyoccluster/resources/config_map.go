@@ -41,9 +41,14 @@ func newConfigMap(cluster *datadoghqv1alpha1.DatadogBYOCCluster) (*corev1.Config
 	if cluster.Spec.Components.ReadOnlyMetastore != nil {
 		searcher[quickwitUseReadOnlyMetastoreConfigKey] = true
 	}
-	if cluster.Spec.Type != nil && *cluster.Spec.Type == datadoghqv1alpha1.DatadogBYOCClusterTypeTraces {
-		config["cloudprem"].(map[string]any)["create_dd_traces_index"] = true
+	signal := datadoghqv1alpha1.DatadogBYOCClusterSignalLogs
+	if cluster.Spec.Signal != nil {
+		signal = *cluster.Spec.Signal
 	}
+	// Set both keys explicitly: CloudPrem treats a missing create_dd_logs_index as true.
+	cloudprem := config["cloudprem"].(map[string]any)
+	cloudprem["create_dd_logs_index"] = signal == datadoghqv1alpha1.DatadogBYOCClusterSignalLogs
+	cloudprem["create_dd_traces_index"] = signal == datadoghqv1alpha1.DatadogBYOCClusterSignalTraces
 	storage := cluster.Spec.Components.Indexer.Storage
 	if storage != nil && storage.VolumeClaimTemplate != nil {
 		indexer := config[quickwitIndexerServiceName].(map[string]any)

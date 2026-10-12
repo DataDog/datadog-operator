@@ -2393,9 +2393,9 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogBYOCClusterSpec(ref c
 				Description: "DatadogBYOCClusterSpec defines the desired state of DatadogBYOCCluster.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
-					"type": {
+					"signal": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Type is the telemetry type stored by the cluster. When set to traces, the default node configuration creates the traces index.",
+							Description: "Signal is the telemetry signal stored by the cluster. The default node configuration creates only the index for this signal.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
