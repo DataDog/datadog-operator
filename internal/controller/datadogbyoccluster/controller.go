@@ -17,6 +17,7 @@ import (
 	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	corev1 "k8s.io/api/core/v1"
 	policyv1 "k8s.io/api/policy/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -49,6 +50,7 @@ const (
 	reasonConflict             = "Conflict"
 	reasonApplyFailed          = "ApplyFailed"
 	reasonCleanupFailed        = "CleanupFailed"
+	reasonCleanupInProgress    = "CleanupInProgress"
 	reasonReconciled           = "Reconciled"
 	reasonAvailable            = "Available"
 	reasonWorkloadsUnavailable = "WorkloadsUnavailable"
@@ -66,6 +68,9 @@ type Reconciler struct {
 	ImageResolver byocimage.ImageResolver
 }
 
+// errWorkerDeleting reports a desired worker that is still being deleted.
+var errWorkerDeleting = errors.New("worker is being deleted")
+
 // reconcileFailure is the condition reported as False when reconciliation fails.
 type reconcileFailure struct {
 	conditionType string
@@ -78,6 +83,7 @@ type reconcileFailure struct {
 // +kubebuilder:rbac:groups=datadoghq.com,resources=datadogbyocclusters,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=datadoghq.com,resources=datadogbyocclusters/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=datadoghq.com,resources=datadogbyocclusters/finalizers,verbs=update
+// +kubebuilder:rbac:groups=datadoghq.com,resources=datadogobservabilitypipelinesworkers,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="",resources=configmaps;serviceaccounts;services,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=apps,resources=deployments;statefulsets,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=autoscaling,resources=horizontalpodautoscalers,verbs=get;list;watch;create;update;patch;delete
@@ -100,8 +106,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, request ctrl.Request) (ctrl.
 	}
 
 	cluster = byocdefaults.Apply(cluster)
-	available, failure := r.reconcileResources(ctx, cluster)
-	setConditions(cluster, available, failure)
+	available, deletingWorkers, failure := r.reconcileResources(ctx, cluster)
+	setConditions(cluster, available, deletingWorkers, failure)
 
 	var err error
 	if failure != nil {
@@ -116,45 +122,68 @@ func (r *Reconciler) Reconcile(ctx context.Context, request ctrl.Request) (ctrl.
 	return ctrl.Result{}, err
 }
 
-// reconcileResources converges the managed resources and reports whether all workloads are available.
-func (r *Reconciler) reconcileResources(ctx context.Context, cluster *datadoghqv1alpha1.DatadogBYOCCluster) (bool, *reconcileFailure) {
+// reconcileResources converges the managed resources and workers. It reports whether all workloads are available
+// and whether obsolete workers are still being deleted.
+func (r *Reconciler) reconcileResources(ctx context.Context, cluster *datadoghqv1alpha1.DatadogBYOCCluster) (available, deletingWorkers bool, failure *reconcileFailure) {
 	if err := byocvalidation.ValidateClusterSpec(&cluster.Spec).ToAggregate(); err != nil {
-		return false, &reconcileFailure{conditionType: conditionReconciled, reason: reasonInvalidConfiguration, err: err, terminal: true}
+		return false, false, &reconcileFailure{conditionType: conditionReconciled, reason: reasonInvalidConfiguration, err: err, terminal: true}
 	}
 	images, err := r.ImageResolver.Resolve(ctx, cluster.Spec.Release, cluster.Spec.ImageOverrides)
 	if err != nil {
-		return false, &reconcileFailure{conditionType: conditionReleaseResolved, reason: reasonResolutionFailed, err: err}
+		return false, false, &reconcileFailure{conditionType: conditionReleaseResolved, reason: reasonResolutionFailed, err: err}
 	}
 	setCondition(cluster, conditionReleaseResolved, metav1.ConditionTrue, reasonResolved, "Workload images resolved successfully")
 
 	resources, err := byocresources.BuildResources(cluster, images)
 	if err != nil {
-		return false, &reconcileFailure{conditionType: conditionReconciled, reason: reasonInvalidConfiguration, err: err, terminal: true}
+		return false, false, &reconcileFailure{conditionType: conditionReconciled, reason: reasonInvalidConfiguration, err: err, terminal: true}
 	}
+	workers := make([]*datadoghqv1alpha1.DatadogObservabilityPipelinesWorker, 0, len(cluster.Spec.Components.Pipelines))
+	for _, pipeline := range cluster.Spec.Components.Pipelines {
+		worker, err := byocresources.BuildObservabilityPipelinesWorker(cluster, &pipeline, images.ObservabilityPipelinesWorker)
+		if err != nil {
+			return false, false, &reconcileFailure{conditionType: conditionReconciled, reason: reasonInvalidConfiguration, err: fmt.Errorf("pipeline %s: %w", pipeline.Name, err), terminal: true}
+		}
+		workers = append(workers, worker)
+	}
+
 	for _, object := range resources.Objects() {
 		if err := byocutils.ApplyControlled(ctx, r.Client, r.APIReader, r.Scheme, cluster, object, datadogBYOCClusterFieldOwner); err != nil {
-			reason := reasonApplyFailed
-			if errors.Is(err, byocutils.ErrObjectConflict) {
-				reason = reasonConflict
-			}
-			return false, &reconcileFailure{conditionType: conditionReconciled, reason: reason, err: fmt.Errorf("apply %T %s: %w", object, client.ObjectKeyFromObject(object), err)}
+			return false, false, applyFailure(object, err)
+		}
+	}
+	for _, worker := range workers {
+		if err := r.applyWorker(ctx, cluster, worker); err != nil {
+			return false, false, applyFailure(worker, err)
 		}
 	}
 	for _, object := range resources.ObsoleteObjects() {
 		if _, err := byocutils.DeleteIfControlled(ctx, r.Client, r.Client, cluster, object); err != nil {
-			return false, &reconcileFailure{conditionType: conditionReconciled, reason: reasonCleanupFailed, err: err}
+			return false, false, &reconcileFailure{conditionType: conditionReconciled, reason: reasonCleanupFailed, err: err}
 		}
 	}
+	deleting, cleanupErr := r.deleteObsoleteWorkers(ctx, r.Client, cluster, workers)
+	if cleanupErr != nil {
+		return false, false, &reconcileFailure{conditionType: conditionReconciled, reason: reasonCleanupFailed, err: cleanupErr}
+	}
 	// The applied objects hold the live status returned by the server-side apply.
-	return updateComponentStatus(cluster, resources), nil
+	return updateComponentStatus(cluster, resources, workers), deleting, nil
 }
 
 func (r *Reconciler) finalize(ctx context.Context, cluster *datadoghqv1alpha1.DatadogBYOCCluster) error {
 	if !controllerutil.ContainsFinalizer(cluster, datadogBYOCClusterFinalizer) {
 		return nil
 	}
+	// The cache may not have observed recently created workers or indexer yet.
+	deletingWorkers, err := r.deleteObsoleteWorkers(ctx, r.APIReader, cluster, nil)
+	if err != nil {
+		return err
+	}
+	if deletingWorkers {
+		// The worker deletion events requeue the cluster once the workers are gone.
+		return nil
+	}
 	indexer := &appsv1.StatefulSet{ObjectMeta: metav1.ObjectMeta{Name: byocresources.ComponentResourceName(cluster.Name, byocresources.IndexerComponentName), Namespace: cluster.Namespace}}
-	// The cache may not have observed a recently created indexer yet.
 	// Foreground deletion keeps the StatefulSet until its pods terminate, so the resources they use outlive them.
 	deleted, err := byocutils.DeleteIfControlled(ctx, r.Client, r.APIReader, cluster, indexer, client.PropagationPolicy(metav1.DeletePropagationForeground))
 	if err != nil {
@@ -171,20 +200,81 @@ func (r *Reconciler) finalize(ctx context.Context, cluster *datadoghqv1alpha1.Da
 	return nil
 }
 
-func setConditions(cluster *datadoghqv1alpha1.DatadogBYOCCluster, available bool, failure *reconcileFailure) {
-	switch {
-	case failure != nil:
+// applyWorker applies the desired worker unless the existing one is not controlled by the cluster or is being deleted.
+func (r *Reconciler) applyWorker(ctx context.Context, cluster *datadoghqv1alpha1.DatadogBYOCCluster, desired *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker) error {
+	current := &datadoghqv1alpha1.DatadogObservabilityPipelinesWorker{ObjectMeta: metav1.ObjectMeta{Name: desired.Name, Namespace: desired.Namespace}}
+	switch err := byocutils.GetFresh(ctx, r.Client, r.APIReader, current); {
+	case apierrors.IsNotFound(err):
+	case err != nil:
+		return err
+	case metav1.IsControlledBy(current, cluster) && !current.DeletionTimestamp.IsZero():
+		return errWorkerDeleting
+	}
+	return byocutils.ApplyControlled(ctx, r.Client, r.APIReader, r.Scheme, cluster, desired, datadogBYOCClusterFieldOwner)
+}
+
+// deleteObsoleteWorkers deletes owned workers absent from desired and reports whether deletion is still pending.
+// An empty desired list deletes all owned workers, including during cluster finalization.
+// The workers are listed through reader.
+func (r *Reconciler) deleteObsoleteWorkers(ctx context.Context, reader client.Reader, cluster *datadoghqv1alpha1.DatadogBYOCCluster, desired []*datadoghqv1alpha1.DatadogObservabilityPipelinesWorker) (bool, error) {
+	wanted := make(map[string]struct{}, len(desired))
+	for _, worker := range desired {
+		wanted[worker.Name] = struct{}{}
+	}
+	workers := &datadoghqv1alpha1.DatadogObservabilityPipelinesWorkerList{}
+	if err := reader.List(ctx, workers, client.InNamespace(cluster.Namespace)); err != nil {
+		return false, fmt.Errorf("list DatadogObservabilityPipelinesWorkers: %w", err)
+	}
+	deleting := false
+	for i := range workers.Items {
+		worker := &workers.Items[i]
+		if !metav1.IsControlledBy(worker, cluster) {
+			continue
+		}
+		if _, keep := wanted[worker.Name]; keep {
+			continue
+		}
+		deleting = true
+		if !worker.DeletionTimestamp.IsZero() {
+			continue
+		}
+		if err := r.Client.Delete(ctx, worker, client.PropagationPolicy(metav1.DeletePropagationForeground), client.Preconditions{
+			UID:             &worker.UID,
+			ResourceVersion: &worker.ResourceVersion,
+		}); err != nil && !apierrors.IsNotFound(err) {
+			return deleting, fmt.Errorf("delete DatadogObservabilityPipelinesWorker %s: %w", client.ObjectKeyFromObject(worker), err)
+		}
+	}
+	return deleting, nil
+}
+
+// applyFailure reports a failure to apply object, distinguishing objects with a managed name that are not controlled.
+func applyFailure(object client.Object, err error) *reconcileFailure {
+	reason := reasonApplyFailed
+	if errors.Is(err, byocutils.ErrObjectConflict) {
+		reason = reasonConflict
+	}
+	return &reconcileFailure{conditionType: conditionReconciled, reason: reason, err: fmt.Errorf("apply %T %s: %w", object, client.ObjectKeyFromObject(object), err)}
+}
+
+func setConditions(cluster *datadoghqv1alpha1.DatadogBYOCCluster, available, deletingWorkers bool, failure *reconcileFailure) {
+	if failure != nil {
 		message := failure.err.Error()
 		setCondition(cluster, failure.conditionType, metav1.ConditionFalse, failure.reason, message)
 		if failure.conditionType == conditionReleaseResolved {
 			setCondition(cluster, conditionReconciled, metav1.ConditionFalse, failure.reason, message)
 		}
 		setCondition(cluster, conditionAvailable, metav1.ConditionFalse, failure.reason, message)
-	case available:
+		return
+	}
+	if deletingWorkers {
+		setCondition(cluster, conditionReconciled, metav1.ConditionFalse, reasonCleanupInProgress, "Waiting for obsolete workers to be deleted")
+	} else {
 		setCondition(cluster, conditionReconciled, metav1.ConditionTrue, reasonReconciled, "Managed resources match the desired state")
+	}
+	if available {
 		setCondition(cluster, conditionAvailable, metav1.ConditionTrue, reasonAvailable, "All workloads are available")
-	default:
-		setCondition(cluster, conditionReconciled, metav1.ConditionTrue, reasonReconciled, "Managed resources match the desired state")
+	} else {
 		setCondition(cluster, conditionAvailable, metav1.ConditionFalse, reasonWorkloadsUnavailable, "One or more workloads are not yet available")
 	}
 }
@@ -199,8 +289,8 @@ func setCondition(cluster *datadoghqv1alpha1.DatadogBYOCCluster, conditionType s
 	})
 }
 
-// updateComponentStatus reports the status of each enabled component and clears it for disabled ones.
-func updateComponentStatus(cluster *datadoghqv1alpha1.DatadogBYOCCluster, resources *byocresources.Resources) bool {
+// updateComponentStatus reports the status of each enabled component and worker, and clears it for disabled components.
+func updateComponentStatus(cluster *datadoghqv1alpha1.DatadogBYOCCluster, resources *byocresources.Resources, workers []*datadoghqv1alpha1.DatadogObservabilityPipelinesWorker) bool {
 	status := &cluster.Status
 	statefulSets := []struct {
 		name   string
@@ -237,7 +327,21 @@ func updateComponentStatus(cluster *datadoghqv1alpha1.DatadogBYOCCluster, resour
 			allAvailable = allAvailable && available
 		}
 	}
+	status.Pipelines = make([]datadoghqv1alpha1.DatadogBYOCClusterPipelineStatus, len(workers))
+	for i, worker := range workers {
+		status.Pipelines[i] = datadoghqv1alpha1.DatadogBYOCClusterPipelineStatus{
+			Name:       cluster.Spec.Components.Pipelines[i].Name,
+			WorkerName: worker.Name,
+		}
+		allAvailable = allAvailable && isWorkerAvailable(worker)
+	}
 	return allAvailable
+}
+
+func isWorkerAvailable(worker *datadoghqv1alpha1.DatadogObservabilityPipelinesWorker) bool {
+	condition := meta.FindStatusCondition(worker.Status.Conditions, conditionAvailable)
+	return worker.DeletionTimestamp.IsZero() &&
+		condition != nil && condition.ObservedGeneration == worker.Generation && condition.Status == metav1.ConditionTrue
 }
 
 func statefulSetStatus(statefulSet *appsv1.StatefulSet) (*datadoghqv1alpha1.DatadogBYOCClusterStatefulSetStatus, bool) {
@@ -267,6 +371,7 @@ func (r *Reconciler) SetupWithManager(mgr ctrl.Manager) error {
 		// Status updates do not bump the generation, so this skips requeues caused by the controller's own status writes.
 		// Owned resources stay unfiltered: workload status changes drive availability and drift must still be detected.
 		For(&datadoghqv1alpha1.DatadogBYOCCluster{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
+		Owns(&datadoghqv1alpha1.DatadogObservabilityPipelinesWorker{}).
 		Owns(&corev1.ConfigMap{}).
 		Owns(&corev1.ServiceAccount{}).
 		Owns(&corev1.Service{}).
