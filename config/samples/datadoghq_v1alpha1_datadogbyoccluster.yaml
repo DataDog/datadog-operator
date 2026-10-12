@@ -8,6 +8,7 @@ spec:
     repository: public.ecr.aws/datadog/byoc-release
     tag: "0.1.32"
   # Optional: mirror workload images while retaining release-selected versions.
+  # See docs/datadog_byoc_cluster.md for fully specified images that skip release resolution.
   # imageOverrides:
   #   byoc:
   #     repository: registry.example.com/datadog/byoc
