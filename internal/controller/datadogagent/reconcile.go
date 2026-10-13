@@ -31,15 +31,13 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/condition"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
-	pkgutils "github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/trace"
 )
 
 func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv2alpha1.DatadogAgent) (reconcile.Result, error) {
-	reqLogger := ctrl.LoggerFrom(ctx).WithValues("datadogagent", pkgutils.GetNamespacedName(instance))
-	ctx = ctrl.LoggerInto(ctx, reqLogger)
+	reqLogger := ctrl.LoggerFrom(ctx)
 	reqLogger.Info("Reconciling DatadogAgent")
 	var result reconcile.Result
 
