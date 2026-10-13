@@ -76,6 +76,15 @@ func Test_cspmFeature_Configure(t *testing.T) {
 		ddaCSPMDirectSendEnabled.Spec.Features.CSPM.RunInSystemProbe = ptr.To(true)
 	}
 
+	ddaCSPMDBBenchmarksEnabled := ddaCSPMDisabled.DeepCopy()
+	{
+		ddaCSPMDBBenchmarksEnabled.Spec.Features.CSPM.Enabled = ptr.To(true)
+		ddaCSPMDBBenchmarksEnabled.Spec.Features.CSPM.DatabaseBenchmarks = &v2alpha1.CSPMDatabaseBenchmarksConfig{Enabled: ptr.To(true)}
+	}
+
+	ddaCSPMDBBenchmarksInSystemProbe := ddaCSPMDBBenchmarksEnabled.DeepCopy()
+	ddaCSPMDBBenchmarksInSystemProbe.Spec.Features.CSPM.RunInSystemProbe = ptr.To(true)
+
 	tests := test.FeatureTestSuite{
 
 		{
@@ -97,9 +106,123 @@ func Test_cspmFeature_Configure(t *testing.T) {
 			ClusterAgent:  cspmClusterAgentWantFunc(),
 			Agent:         cspmAgentNodeWantFunc(true),
 		},
+		{
+			Name:          "CSPM enabled with database benchmarks",
+			DDA:           ddaCSPMDBBenchmarksEnabled,
+			WantConfigure: true,
+			Agent:         cspmDBBenchmarksAgentNodeWantFunc(false),
+		},
+		{
+			Name:          "CSPM enabled with database benchmarks and runInSystemProbe",
+			DDA:           ddaCSPMDBBenchmarksInSystemProbe,
+			WantConfigure: true,
+			Agent:         cspmDBBenchmarksAgentNodeWantFunc(true),
+		},
 	}
 
 	tests.Run(t, buildCSPMFeature)
+}
+
+func Test_cspmFeature_RequiredNodeContainers(t *testing.T) {
+	tests := []struct {
+		name               string
+		runInSystemProbe   bool
+		databaseBenchmarks bool
+		want               []apicommon.AgentContainerName
+	}{
+		{
+			name: "security agent",
+			want: []apicommon.AgentContainerName{apicommon.SecurityAgentContainerName},
+		},
+		{
+			name:             "system probe",
+			runInSystemProbe: true,
+			want:             []apicommon.AgentContainerName{apicommon.SystemProbeContainerName},
+		},
+		{
+			name:               "security agent with database benchmarks",
+			databaseBenchmarks: true,
+			want:               []apicommon.AgentContainerName{apicommon.SecurityAgentContainerName, apicommon.SystemProbeContainerName},
+		},
+		{
+			name:               "system probe with database benchmarks",
+			runInSystemProbe:   true,
+			databaseBenchmarks: true,
+			want:               []apicommon.AgentContainerName{apicommon.SystemProbeContainerName},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dda := &v2alpha1.DatadogAgent{
+				Spec: v2alpha1.DatadogAgentSpec{
+					Features: &v2alpha1.DatadogFeatures{
+						CSPM: &v2alpha1.CSPMFeatureConfig{
+							Enabled:            ptr.To(true),
+							RunInSystemProbe:   ptr.To(tt.runInSystemProbe),
+							DatabaseBenchmarks: &v2alpha1.CSPMDatabaseBenchmarksConfig{Enabled: ptr.To(tt.databaseBenchmarks)},
+						},
+					},
+				},
+			}
+
+			f := buildCSPMFeature(nil)
+			reqComp := f.Configure(dda, &dda.Spec, nil)
+			assert.Equal(t, tt.want, reqComp.Agent.Containers)
+		})
+	}
+}
+
+func cspmDBBenchmarksAgentNodeWantFunc(runInSystemProbe bool) *test.ComponentTest {
+	return test.NewDefaultComponentTest().WithWantFunc(
+		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+			mgr := mgrInterface.(*fake.PodTemplateManagers)
+
+			dbBenchmarksEnvVar := &corev1.EnvVar{
+				Name:  DDComplianceDBBenchmarksEnabled,
+				Value: "true",
+			}
+			sysProbeSocketEnvVar := &corev1.EnvVar{
+				Name:  common.DDSystemProbeSocket,
+				Value: common.DefaultSystemProbeSocketPath,
+			}
+
+			// The System Probe always gets the setting, as it enables its compliance module,
+			// and the Core Agent gets it for config streaming.
+			for _, container := range []apicommon.AgentContainerName{apicommon.CoreAgentContainerName, apicommon.SystemProbeContainerName} {
+				assert.Contains(t, mgr.EnvVarMgr.EnvVarsByC[container], dbBenchmarksEnvVar, "container %s", container)
+			}
+
+			securityAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.SecurityAgentContainerName]
+			securityAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommon.SecurityAgentContainerName]
+			systemProbeVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommon.SystemProbeContainerName]
+
+			readOnlySocketVolumeMount := &corev1.VolumeMount{
+				Name:      common.SystemProbeSocketVolumeName,
+				MountPath: common.SystemProbeSocketVolumePath,
+				ReadOnly:  true,
+			}
+			socketVolumeMount := &corev1.VolumeMount{
+				Name:      common.SystemProbeSocketVolumeName,
+				MountPath: common.SystemProbeSocketVolumePath,
+			}
+
+			if runInSystemProbe {
+				// The checks run in the System Probe, no need to reach it through its socket.
+				assert.Empty(t, securityAgentEnvVars)
+				assert.NotContains(t, systemProbeVolumeMounts, socketVolumeMount)
+				assert.NotContains(t, mgr.EnvVarMgr.EnvVarsByC[apicommon.SystemProbeContainerName], sysProbeSocketEnvVar)
+				return
+			}
+
+			// The Security Agent fetches the database configurations from the System Probe.
+			assert.Contains(t, securityAgentEnvVars, dbBenchmarksEnvVar)
+			assert.Contains(t, securityAgentEnvVars, sysProbeSocketEnvVar)
+			assert.Contains(t, mgr.EnvVarMgr.EnvVarsByC[apicommon.SystemProbeContainerName], sysProbeSocketEnvVar)
+			assert.Contains(t, securityAgentVolumeMounts, readOnlySocketVolumeMount)
+			assert.Contains(t, systemProbeVolumeMounts, socketVolumeMount)
+		},
+	)
 }
 
 func cspmClusterAgentWantFunc() *test.ComponentTest {
