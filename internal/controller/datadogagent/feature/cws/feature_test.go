@@ -21,6 +21,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
+	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/providercaps"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 
@@ -34,7 +35,8 @@ func Test_cwsFeature_Configure(t *testing.T) {
 		Spec: v2alpha1.DatadogAgentSpec{
 			Features: &v2alpha1.DatadogFeatures{
 				CWS: &v2alpha1.CWSFeatureConfig{
-					Enabled: ptr.To(false),
+					Enabled:                   ptr.To(false),
+					DirectSendFromSystemProbe: ptr.To(false),
 					Enforcement: &v2alpha1.CWSEnforcementConfig{
 						Enabled: ptr.To(false),
 					},
@@ -129,6 +131,15 @@ func Test_cwsFeature_Configure(t *testing.T) {
 	tests.Run(t, buildCWSFeature)
 }
 
+// configSyncEnvVars are the env vars direct send needs so that the system-probe, which cannot
+// resolve secret handles itself, receives a resolved api_key from the core agent.
+func configSyncEnvVars() []*corev1.EnvVar {
+	return []*corev1.EnvVar{
+		{Name: common.DDAgentIpcPort, Value: featureutils.DefaultAgentIpcPort},
+		{Name: common.DDAgentIpcConfigRefreshInterval, Value: featureutils.DefaultAgentIpcConfigRefreshInterval},
+	}
+}
+
 func cwsAgentNodeWantFunc(withSubFeatures bool, directSendFromSysProbe bool, enforcementEnabled bool) *test.ComponentTest {
 	return test.NewDefaultComponentTest().WithWantFunc(
 		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
@@ -196,6 +207,7 @@ func cwsAgentNodeWantFunc(withSubFeatures bool, directSendFromSysProbe bool, enf
 						Value: "true",
 					},
 				)
+				sysProbeWant = append(sysProbeWant, configSyncEnvVars()...)
 			}
 			sysProbeWant = append(
 				sysProbeWant,
@@ -213,6 +225,16 @@ func cwsAgentNodeWantFunc(withSubFeatures bool, directSendFromSysProbe bool, enf
 			}
 			sysProbeEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.SystemProbeContainerName]
 			assert.True(t, apiutils.IsEqualStruct(sysProbeEnvVars, sysProbeWant), "System probe envvars \ndiff = %s", cmp.Diff(sysProbeEnvVars, sysProbeWant))
+
+			// config sync is served by the core agent, so it needs the same env vars
+			coreAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
+			if directSendFromSysProbe {
+				assert.Subset(t, coreAgentEnvVars, configSyncEnvVars())
+			} else {
+				for _, envVar := range configSyncEnvVars() {
+					assert.NotContains(t, coreAgentEnvVars, envVar)
+				}
+			}
 
 			// check volume mounts
 			securityWantVolumeMount := []corev1.VolumeMount{

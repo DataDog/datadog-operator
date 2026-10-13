@@ -17,6 +17,7 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/configmap"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/providercaps"
@@ -361,6 +362,15 @@ func (f *cspmFeature) ManageNodeAgent(managers feature.PodTemplateManagers) erro
 		Value: apiutils.BoolToString(&f.runInSystemProbe),
 	}
 	managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.CoreAgentContainerName, targetContainer}, runInSystemProbeEnvVar)
+
+	if f.runInSystemProbe {
+		// The system-probe submits the compliance payloads itself and cannot resolve a
+		// secret-backed api_key on its own, so it needs config sync to get the resolved value.
+		featureutils.EnableConfigSyncForDirectSend(managers, []apicommon.AgentContainerName{
+			apicommon.CoreAgentContainerName,
+			apicommon.SystemProbeContainerName,
+		})
+	}
 
 	return nil
 }
