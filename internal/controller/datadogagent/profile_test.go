@@ -2,6 +2,7 @@ package datadogagent
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -24,6 +25,7 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/defaults"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/experimental"
 	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	agenttestutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/testutils"
@@ -1169,7 +1171,7 @@ func Test_reconcileProfiles(t *testing.T) {
 			}
 			maxUnavailable := intstr.FromInt(1)
 			defaultDDAI := &v1alpha1.DatadogAgentInternal{}
-			appliedProfiles, err := r.reconcileProfiles(ctx, dsNSName, maxUnavailable, defaultDDAI)
+			appliedProfiles, err := r.reconcileProfiles(ctx, dsNSName, maxUnavailable, defaultDDAI, defaultDDAI.Spec.DeepCopy())
 
 			assert.Equal(t, tt.wantErr, err)
 			assert.Equal(t, tt.wantAppliedProfiles, len(appliedProfiles))
@@ -1222,7 +1224,7 @@ func Test_reconcileProfiles_APMSharedOverlayMatrix(t *testing.T) {
 		},
 	}
 
-	tests := []struct {
+	type overlayTest struct {
 		name                string
 		description         string
 		baseSpec            func() *v2alpha1.DatadogAgentSpec
@@ -1232,7 +1234,8 @@ func Test_reconcileProfiles_APMSharedOverlayMatrix(t *testing.T) {
 		wantProfileMessages map[string]string
 		assertAPM           func(*testing.T, *v2alpha1.APMFeatureConfig)
 		assertSSI           func(*testing.T, *v2alpha1.SingleStepInstrumentation)
-	}{
+	}
+	tests := []overlayTest{
 		{
 			name:        "base APM off admission on DAP SSI on",
 			description: "Expect the DAP to apply and enable SSI on the default DDAI even though base APM is disabled.",
@@ -1703,6 +1706,48 @@ func Test_reconcileProfiles_APMSharedOverlayMatrix(t *testing.T) {
 		},
 	}
 
+	for _, baseEnabled := range []bool{false, true} {
+		tests = append(tests, overlayTest{
+			name:        fmt.Sprintf("defaulted language detection with base SSI enabled=%t", baseEnabled),
+			description: "An omitted language detection setting does not conflict; a rejected profile does not contribute its language detection value.",
+			baseSpec: func() *v2alpha1.DatadogAgentSpec {
+				spec := testAPMMatrixBaseSpec()
+				spec.Features.APM.SingleStepInstrumentation.Enabled = ptr.To(baseEnabled)
+				spec.Features.APM.SingleStepInstrumentation.LanguageDetection = nil
+				return spec
+			},
+			profiles: []*v1alpha1.DatadogAgentProfile{
+				testAPMMatrixProfile(namespace, "omitted", baseTime, noMatchProfileRequirement("omitted"), testAPMMatrixLibVersionConfig("java", "1.43.0")),
+				testAPMMatrixProfile(namespace, "rejected", metav1.NewTime(baseTime.Add(time.Second)), noMatchProfileRequirement("rejected"), &v2alpha1.APMFeatureConfig{
+					Enabled:        ptr.To(true),
+					HostPortConfig: &v2alpha1.HostPortConfig{Enabled: ptr.To(true), Port: ptr.To[int32](9126)},
+					SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
+						Enabled:           ptr.To(true),
+						LibVersions:       map[string]string{"java": "1.44.0"},
+						LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: ptr.To(true)},
+					},
+				}),
+				testAPMMatrixProfile(namespace, "explicit", metav1.NewTime(baseTime.Add(2*time.Second)), noMatchProfileRequirement("explicit"), testAPMMatrixLanguageDetectionConfig(false)),
+			},
+			wantProfileApplied: map[string]metav1.ConditionStatus{
+				"omitted":  metav1.ConditionTrue,
+				"rejected": metav1.ConditionFalse,
+				"explicit": metav1.ConditionTrue,
+			},
+			wantProfileMessages: map[string]string{"rejected": `libVersions["java"] has conflicting values`},
+			assertAPM: func(t *testing.T, apm *v2alpha1.APMFeatureConfig) {
+				require.NotNil(t, apm.HostPortConfig)
+				assert.Equal(t, ptr.To[int32](8126), apm.HostPortConfig.Port, "keep the accepted SSI profile's default port, not the rejected profile's port")
+			},
+			assertSSI: func(t *testing.T, ssi *v2alpha1.SingleStepInstrumentation) {
+				require.NotNil(t, ssi)
+				require.NotNil(t, ssi.LanguageDetection)
+				assert.Equal(t, ptr.To(false), ssi.LanguageDetection.Enabled)
+				assert.Equal(t, map[string]string{"java": "1.43.0"}, ssi.LibVersions)
+			},
+		})
+	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Log(tt.description)
@@ -1735,9 +1780,13 @@ func Test_reconcileProfiles_APMSharedOverlayMatrix(t *testing.T) {
 			if tt.baseSpec != nil {
 				baseSpec = tt.baseSpec()
 			}
-			defaultDDAI := &v1alpha1.DatadogAgentInternal{Spec: *baseSpec}
-			appliedProfiles, err := r.reconcileProfiles(ctx, types.NamespacedName{Namespace: namespace, Name: "datadog-agent"}, intstr.FromInt(1), defaultDDAI)
+			defaultDDAI := &v1alpha1.DatadogAgentInternal{Spec: *baseSpec.DeepCopy()}
+			defaults.DefaultDatadogAgentSpec(&defaultDDAI.Spec)
+			originalDefaultSpec := defaultDDAI.Spec.DeepCopy()
+			appliedProfiles, err := r.reconcileProfiles(ctx, types.NamespacedName{Namespace: namespace, Name: "datadog-agent"}, intstr.FromInt(1), defaultDDAI, baseSpec.DeepCopy())
 			require.NoError(t, err)
+			assert.Equal(t, originalDefaultSpec.Global, defaultDDAI.Spec.Global, "preserve generated global settings")
+			assert.Equal(t, originalDefaultSpec.Override, defaultDDAI.Spec.Override, "preserve generated overrides")
 
 			wantAppliedCount := 1
 			for _, status := range tt.wantProfileApplied {
