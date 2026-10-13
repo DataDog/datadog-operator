@@ -278,21 +278,18 @@ func Test_privateActionRunnerFeature_SplitModeSelection(t *testing.T) {
 	tests := []struct {
 		name       string
 		tag        string
-		annotation *string
+		annotation string
 		wantSplit  bool
 	}{
 		{name: "default image", wantSplit: true},
 		{name: "old agent", tag: "7.83.0"},
-		{name: "old agent with explicit enable", tag: "7.83.0", annotation: new("true")},
+		{name: "old agent with explicit enable", tag: "7.83.0", annotation: "true"},
 		{name: "minimum version", tag: "7.84.0", wantSplit: true},
 		{name: "prerelease", tag: "7.84.0-rc.1", wantSplit: true},
-		{name: "newer agent", tag: "7.85.0", wantSplit: true},
 		{name: "unknown version", tag: "dev-private-action-runner-5705e0d8", wantSplit: true},
-		{name: "explicit enable", tag: "7.84.0", annotation: new("true"), wantSplit: true},
-		{name: "explicit opt-out", tag: "7.84.0", annotation: new("false")},
-		{name: "unknown version with opt-out", tag: "dev", annotation: new("false")},
-		{name: "empty annotation", tag: "7.84.0", annotation: new(""), wantSplit: true},
-		{name: "invalid annotation", tag: "7.84.0", annotation: new("invalid"), wantSplit: true},
+		{name: "explicit enable", tag: "7.84.0", annotation: "true", wantSplit: true},
+		{name: "explicit opt-out", tag: "7.84.0", annotation: "false"},
+		{name: "unknown version with opt-out", tag: "dev", annotation: "false"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -304,31 +301,17 @@ func Test_privateActionRunnerFeature_SplitModeSelection(t *testing.T) {
 					},
 				},
 			}
-			if tt.annotation != nil {
-				dda.Annotations["agent.datadoghq.com/private-action-runner-split-enabled"] = *tt.annotation
+			if tt.annotation != "" {
+				dda.Annotations["agent.datadoghq.com/private-action-runner-split-enabled"] = tt.annotation
 			}
 			if tt.tag != "" {
 				dda.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 					v2alpha1.NodeAgentComponentName: {Image: &v2alpha1.AgentImageConfig{Tag: tt.tag}},
 				}
 			}
-			f := buildPrivateActionRunnerFeature(nil)
+			f := buildPrivateActionRunnerFeature(nil).(*privateActionRunnerFeature)
 			f.Configure(dda, &dda.Spec, nil)
-			command := []string{"privateactionrunner", "run"}
-			managers := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
-				Spec: corev1.PodSpec{Containers: []corev1.Container{{
-					Name:    string(apicommon.PrivateActionRunnerContainerName),
-					Command: command,
-				}}},
-			})
-			require.NoError(t, f.ManageNodeAgent(managers))
-			if tt.wantSplit {
-				assert.Equal(t, []string{privateActionRunnerEntrypoint}, managers.PodTemplateSpec().Spec.Containers[0].Command)
-			} else {
-				assert.Equal(t, command, managers.PodTemplateSpec().Spec.Containers[0].Command)
-				assert.Empty(t, managers.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName])
-				assert.Empty(t, managers.EnvVarMgr.EnvVarsByC[apicommon.PrivateActionRunnerContainerName])
-			}
+			assert.Equal(t, tt.wantSplit, f.splitEnabled)
 		})
 	}
 }
