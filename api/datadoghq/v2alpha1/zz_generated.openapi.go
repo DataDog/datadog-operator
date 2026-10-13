@@ -77,7 +77,7 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_CSIAPMConfig(ref common.Refe
 							},
 						},
 						SchemaProps: spec.SchemaProps{
-							Description: "PullSecrets are kubernetes.io/dockerconfigjson Secrets used to download APM libraries from private registries. Propagated to the managed DatadogCSIDriver as spec.apm.pullSecrets. Restart the CSI DaemonSet after rotating these Secrets. Not supported on GKE Autopilot.",
+							Description: "PullSecrets are kubernetes.io/dockerconfigjson Secrets used to download APM libraries from private registries. Propagated to the managed DatadogCSIDriver as spec.apm.pullSecrets. Restart the CSI DaemonSet after rotating these Secrets.",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{

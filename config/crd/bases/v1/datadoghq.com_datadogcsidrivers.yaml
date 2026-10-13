@@ -62,7 +62,7 @@ spec:
                         libraries from private registries. When empty, the CSI driver falls back to
                         csiDriverImage.pullSecrets; legacy kubernetes.io/dockercfg Secrets are ignored
                         for APM authentication in that fallback path. Restart the CSI DaemonSet after
-                        rotating these Secrets. Not supported on GKE Autopilot.
+                        rotating these Secrets.
                       items:
                         description: |-
                           LocalObjectReference contains enough information to let you locate the
@@ -81,6 +81,16 @@ spec:
                         x-kubernetes-map-type: atomic
                       type: array
                       x-kubernetes-list-type: atomic
+                    registryAllowList:
+                      description: |-
+                        RegistryAllowList restricts which registries can be used for DatadogLibrary volumes.
+                        An empty list allows all registries. When managed by a DatadogAgent, it is set from
+                        spec.features.admissionController.registryAllowList.
+                        (Requires Datadog CSI Driver 1.3.0+)
+                      items:
+                        type: string
+                      type: array
+                      x-kubernetes-list-type: set
                   type: object
                 apmSocketPath:
                   description: |-
