@@ -116,6 +116,56 @@ spec:
                 cpu: 256m
 ```
 
+## Ordered rollouts (preview)
+
+By default, a DatadogAgent change updates the default Agent DaemonSet and every profile DaemonSet in parallel. You can instead roll a change through the DaemonSets in priority order by setting `spec.rolloutStrategy` on the DatadogAgent and `spec.rollout` on DatadogAgentProfiles:
+
+```yaml
+apiVersion: datadoghq.com/v2alpha1
+kind: DatadogAgent
+spec:
+  rolloutStrategy:
+    priority: 0          # default DaemonSet; keep it at 0
+    stepTimeout: 30m     # 0 or omitted: no timeout
+    stepSoak: 2m         # time a step must stay healthy before the next priority starts
+    maxUnavailable: 1%   # unavailable pods tolerated for a step to be complete
+    onStepTimeout: Continue  # or Halt
+---
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgentProfile
+metadata:
+  name: canary
+spec:
+  rollout:
+    priority: 0
+---
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgentProfile
+metadata:
+  name: large-pool
+spec:
+  rollout:
+    priority: 10
+```
+
+Lower priorities roll first and steps with the same priority roll in parallel. A step is complete when its DatadogAgentInternal was applied and its Agent DaemonSet is fully updated with at most `maxUnavailable` unavailable pods, for `stepSoak`. Profile steps inherit `stepTimeout`, `stepSoak`, `maxUnavailable` and `onStepTimeout` from the DatadogAgent; `priority` defaults to `0`. `spec.config.rolloutStrategy` is not supported on a DatadogAgentProfile.
+
+Manual controls, read from annotations and never modified by the operator:
+
+- `agent.datadoghq.com/rollout-hold: "true"` on the DatadogAgent holds every step with a pending change; on a DatadogAgentProfile it holds that profile and later priorities.
+- `agent.datadoghq.com/rollout-skip: "true"` on a DatadogAgentProfile leaves its DaemonSet on the current spec and lets later priorities proceed.
+- `agent.datadoghq.com/rollout-bypass: "<value>"` on the DatadogAgent rolls the current changes in parallel, ignoring priorities and holds. Each new value bypasses once.
+
+Progress is reported in `status.rollout` on the DatadogAgent and the DatadogAgentProfiles, in `RolloutProgressing`, `RolloutComplete`, `RolloutHeld` and `RolloutTimedOut` conditions, and in events.
+
+Limits:
+
+- `maxUnavailable: 0` is strict: on large fleets, one persistently unavailable pod blocks later priorities until it recovers or you skip, bypass or set a timeout. Status shows a `NoStepTimeout` warning when a blocking step has no timeout.
+- The default DatadogAgentInternal also owns shared dependencies and the Cluster Agent, Cluster Checks Runner and OTel Agent Gateway. Keep the default at priority `0`; if profiles roll first, their Agents can start before those are updated. Status shows a `DefaultNotFirst` warning from the moment such a profile starts rolling until the default step completes.
+- New profile DaemonSets are created immediately. Only updates are ordered.
+- DatadogAgent-level dependencies (secrets, Cluster Agent token, install info) are applied before the rollout gate. ConfigMap checksum rollouts, node relabeling, profile creation strategy and profile deletion move pods independently of the ordering.
+- Fleet Automation experiments are not special-cased: their spec changes and restores roll through the same ordering and holds. An experiment may only reach the priorities that complete before it times out or is promoted. To restore urgently under a hold, remove the hold or use the bypass annotation.
+
 ## Supported Settings
 
 | Setting | Operator Version | Note |

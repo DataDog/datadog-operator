@@ -72,6 +72,10 @@ func validateConfig(spec *v2alpha1.DatadogAgentSpec) error {
 	if spec.Global != nil {
 		return unsupportedError("global")
 	}
+	// rollout ordering is configured with spec.rollout
+	if spec.RolloutStrategy != nil {
+		return fmt.Errorf("config.rolloutStrategy is not supported, use spec.rollout")
+	}
 	for component, override := range spec.Override {
 		if err := validateOverride(component, override); err != nil {
 			return err

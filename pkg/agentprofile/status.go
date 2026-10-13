@@ -7,6 +7,7 @@ package agentprofile
 
 import (
 	"github.com/go-logr/logr"
+	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	v1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
@@ -112,7 +113,8 @@ func IsEqualStatus(current *v1alpha1.DatadogAgentProfileStatus, newStatus *v1alp
 		current.Applied != newStatus.Applied {
 		return false
 	}
-	if !isEqualCreateStrategy(current.CreateStrategy, newStatus.CreateStrategy) {
+	if !isEqualCreateStrategy(current.CreateStrategy, newStatus.CreateStrategy) ||
+		!apiequality.Semantic.DeepEqual(current.Rollout, newStatus.Rollout) {
 		return false
 	}
 	return condition.IsEqualConditions(current.Conditions, newStatus.Conditions)

@@ -99,6 +99,7 @@ func (r *Reconciler) reconcileProfiles(ctx context.Context, dsNSName types.Names
 			setProfileCondition(&profile, agentprofile.ValidConditionType, metav1.ConditionFalse, now, agentprofile.InvalidConditionReason, err.Error())
 			setProfileCondition(&profile, agentprofile.AppliedConditionType, metav1.ConditionUnknown, now, agentprofile.InvalidConditionReason, "Profile is invalid")
 			logger.Error(err, "unable to reconcile profile", "datadogagentprofile", profile.Name, "datadogagentprofile_namespace", profile.Namespace)
+			profile.Status.Rollout = nil
 			r.syncProfileStatus(ctx, &profile, originalStatus, now)
 			continue
 		}
@@ -108,6 +109,7 @@ func (r *Reconciler) reconcileProfiles(ctx context.Context, dsNSName types.Names
 		if err := agentprofile.CheckProfileNodeConflicts(profile.ObjectMeta, requirements, nodeList, profilesByNode); err != nil {
 			setProfileCondition(&profile, agentprofile.AppliedConditionType, metav1.ConditionFalse, now, agentprofile.ConflictConditionReason, "Conflict with existing profile")
 			logger.Error(err, "unable to reconcile profile", "datadogagentprofile", profile.Name, "datadogagentprofile_namespace", profile.Namespace)
+			profile.Status.Rollout = nil
 			r.syncProfileStatus(ctx, &profile, originalStatus, now)
 			continue
 		}
@@ -120,6 +122,7 @@ func (r *Reconciler) reconcileProfiles(ctx context.Context, dsNSName types.Names
 		if err := feature.ApplyProfileSharedConfigOverlays(candidateDefaultSpec, baseDefaultSpec, profile.Spec.Config); err != nil {
 			setProfileCondition(&profile, agentprofile.AppliedConditionType, metav1.ConditionFalse, now, agentprofile.ConflictConditionReason, err.Error())
 			logger.Error(err, "unable to reconcile profile", "datadogagentprofile", profile.Name, "datadogagentprofile_namespace", profile.Namespace)
+			profile.Status.Rollout = nil
 			r.syncProfileStatus(ctx, &profile, originalStatus, now)
 			continue
 		}
@@ -262,6 +265,7 @@ func (r *Reconciler) computeProfileMerge(ddai *v1alpha1.DatadogAgentInternal, pr
 	if experimental.IsAutopilotEnabled(typedObj) {
 		ensureGCRAutopilotRegistry(&typedObj.Spec)
 	}
+	typedObj.Spec.RolloutStrategy = nil
 
 	// Set spec hash
 	if _, err := comparison.SetMD5GenerationAnnotation(&typedObj.ObjectMeta, typedObj.Spec, constants.MD5DDAIDeploymentAnnotationKey); err != nil {

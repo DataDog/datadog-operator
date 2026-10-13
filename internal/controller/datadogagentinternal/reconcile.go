@@ -137,6 +137,9 @@ func (r *Reconciler) reconcileInstance(ctx context.Context, instance *v1alpha1.D
 		}
 	}
 
+	// Only a fully successful reconcile acknowledges the generation.
+	newStatus.ObservedGeneration = instance.Generation
+
 	// Always requeue
 	if result.IsZero() {
 		result.RequeueAfter = defaultRequeuePeriod

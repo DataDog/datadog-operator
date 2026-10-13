@@ -34,6 +34,9 @@ type DatadogAgentInternalStatus struct {
 	// RemoteConfigConfiguration stores the configuration received from RemoteConfig.
 	// +optional
 	RemoteConfigConfiguration *v2alpha1.RemoteConfigConfiguration `json:"remoteConfigConfiguration,omitempty"`
+	// ObservedGeneration is the most recent generation successfully reconciled.
+	// +optional
+	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 }
 
 // DatadogAgentInternal is the Schema for the datadogagentinternals API

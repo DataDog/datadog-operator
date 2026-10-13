@@ -1134,6 +1134,7 @@ metadata:
   annotations:
     agent.datadoghq.com/cluster-provider: gke-autopilot
     agent.datadoghq.com/ddaispechash: a28a2523c1d919bda559301b793425d2
+    agent.datadoghq.com/rollout-target-hash: ed36db168cab2692814fc03333bccf16ef7f4edf23242ea4f777217565f92c20
     experimental.agent.datadoghq.com/autopilot: "true"
   finalizers:
   - finalizer.datadoghq.com/datadogagentinternal

@@ -404,6 +404,13 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogAgentInternalStatus(r
 							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.RemoteConfigConfiguration"),
 						},
 					},
+					"observedGeneration": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ObservedGeneration is the most recent generation successfully reconciled.",
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
 				},
 			},
 		},
@@ -521,11 +528,17 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogAgentProfileStatus(re
 							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.CreateStrategy"),
 						},
 					},
+					"rollout": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Rollout is the ordered rollout state of this profile's DatadogAgentInternal.",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.RolloutStepStatus"),
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.CreateStrategy", "k8s.io/apimachinery/pkg/apis/meta/v1.Condition", "k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
+			"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.CreateStrategy", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.RolloutStepStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.Condition", "k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
 	}
 }
 

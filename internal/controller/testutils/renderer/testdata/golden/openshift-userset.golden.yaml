@@ -1192,6 +1192,7 @@ metadata:
   annotations:
     agent.datadoghq.com/cluster-provider: openshift-rhcos
     agent.datadoghq.com/ddaispechash: 75451e588b76974a5c386c3bc60ccb6b
+    agent.datadoghq.com/rollout-target-hash: b1771ce4bc4f0c698a691a00781b1ddaefd31ef4c0c682dab6270bcb3bdce3e8
   finalizers:
   - finalizer.datadoghq.com/datadogagentinternal
   labels:

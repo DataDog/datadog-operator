@@ -75,6 +75,16 @@ const (
 	// was aborted because its rollback baseline could not be proven safe
 	// (TerminationReason baseline_missing or baseline_not_found).
 	ExperimentConfigStrandedConditionType = "ExperimentConfigStranded"
+	// RolloutProgressingConditionType reports that an ordered rollout is progressing.
+	RolloutProgressingConditionType = "RolloutProgressing"
+	// RolloutHeldConditionType reports that rollout steps are held by an annotation.
+	RolloutHeldConditionType = "RolloutHeld"
+	// RolloutTimedOutConditionType reports that rollout steps exceeded their timeout.
+	RolloutTimedOutConditionType = "RolloutTimedOut"
+	// RolloutStalledConditionType is reserved for future no-progress detection.
+	RolloutStalledConditionType = "RolloutStalled"
+	// RolloutCompleteConditionType reports that every rollout step is complete.
+	RolloutCompleteConditionType = "RolloutComplete"
 )
 
 const (

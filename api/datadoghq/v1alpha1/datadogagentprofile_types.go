@@ -28,6 +28,10 @@ const (
 type DatadogAgentProfileSpec struct {
 	ProfileAffinity *ProfileAffinity           `json:"profileAffinity,omitempty"`
 	Config          *v2alpha1.DatadogAgentSpec `json:"config,omitempty"`
+	// Rollout configures the ordered rollout of this profile's DatadogAgentInternal.
+	// Unset fields other than priority inherit from the DatadogAgent rolloutStrategy.
+	// +optional
+	Rollout *v2alpha1.RolloutStrategy `json:"rollout,omitempty"`
 }
 
 type ProfileAffinity struct {
@@ -62,6 +66,10 @@ type DatadogAgentProfileStatus struct {
 	// CreateStrategy is the state of the create strategy feature.
 	// +optional
 	CreateStrategy *CreateStrategy `json:"createStrategy,omitempty"`
+
+	// Rollout is the ordered rollout state of this profile's DatadogAgentInternal.
+	// +optional
+	Rollout *v2alpha1.RolloutStepStatus `json:"rollout,omitempty"`
 }
 
 // CreateStrategy defines the observed state of the create strategy feature based on the agent deployment.
@@ -95,6 +103,7 @@ type CreateStrategy struct {
 // +kubebuilder:resource:path=datadogagentprofiles,shortName=dap
 // +kubebuilder:printcolumn:name="valid",type="string",JSONPath=".status.valid"
 // +kubebuilder:printcolumn:name="applied",type="string",JSONPath=".status.applied"
+// +kubebuilder:printcolumn:name="rollout",type="string",JSONPath=".status.rollout.phase"
 // +kubebuilder:printcolumn:name="age",type="date",JSONPath=".metadata.creationTimestamp"
 // +k8s:openapi-gen=true
 type DatadogAgentProfile struct {

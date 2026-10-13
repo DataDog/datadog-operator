@@ -1251,6 +1251,7 @@ metadata:
   annotations:
     agent.datadoghq.com/cluster-provider: aks
     agent.datadoghq.com/ddaispechash: 4aa209cbf559d486dc4dfdf461eaba01
+    agent.datadoghq.com/rollout-target-hash: e6b93a583ff51419d5a7d4ecd2da8c0b1ababa45329a05f2ac33ef84247ae7de
   finalizers:
   - finalizer.datadoghq.com/datadogagentinternal
   labels:
