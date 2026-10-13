@@ -24,11 +24,14 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/providercaps"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	"github.com/DataDog/datadog-operator/pkg/utils"
 )
 
-// defaultDirectSendFromSystemProbe is the value used for features.cws.directSendFromSystemProbe
-// when the field is unset.
-const defaultDirectSendFromSystemProbe = false
+// directSendFromSystemProbeMinVersion is the first Agent release shipping
+// runtime_security_config.direct_send_from_system_probe. DirectSendFromSystemProbe only defaults to
+// true from this version on: on an older Agent the security-agent would be dropped with nothing
+// taking over sending the events.
+const directSendFromSystemProbeMinVersion = "7.63.0-0"
 
 func init() {
 	err := feature.Register(feature.CWSIDType, buildCWSFeature)
@@ -96,7 +99,7 @@ func (f *cwsFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 	if cwsConfig != nil && apiutils.BoolValue(cwsConfig.Enabled) {
 		f.syscallMonitorEnabled = apiutils.BoolValue(cwsConfig.SyscallMonitorEnabled)
 		if cwsConfig.DirectSendFromSystemProbe == nil {
-			cwsConfig.DirectSendFromSystemProbe = new(defaultDirectSendFromSystemProbe)
+			cwsConfig.DirectSendFromSystemProbe = new(agentSupportsDirectSendFromSystemProbe(dda))
 		}
 		f.directSendFromSystemProbe = *cwsConfig.DirectSendFromSystemProbe
 
@@ -160,6 +163,13 @@ func mergeConfigs(ddaSpec *v2alpha1.DatadogAgentSpec, ddaRCStatus *v2alpha1.Remo
 	if ddaRCStatus.Features.CWS.Enabled != nil {
 		ddaSpec.Features.CWS.Enabled = ddaRCStatus.Features.CWS.Enabled
 	}
+}
+
+// agentSupportsDirectSendFromSystemProbe reports whether the node Agent is recent enough to send the
+// events from the system-probe. A version the Operator cannot parse is assumed recent enough.
+func agentSupportsDirectSendFromSystemProbe(dda metav1.Object) bool {
+	defaultIfVersionUnknown := true
+	return utils.IsAboveMinVersion(common.GetComponentVersion(dda, v2alpha1.NodeAgentComponentName), directSendFromSystemProbeMinVersion, &defaultIfVersionUnknown)
 }
 
 // ManageDependencies allows a feature to manage its dependencies.
