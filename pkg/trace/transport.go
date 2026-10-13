@@ -25,7 +25,7 @@ const kubernetesComponentName = "k8s.io/client-go/kubernetes"
 // generating a UUID of its own only when it is absent. The apiserver truncates
 // the ID to 64 characters before putting it on its own trace spans, so the
 // value below stays well under that.
-const auditIDHeader = "Audit-ID"
+const auditIDHeader = "Audit-Id"
 
 // WrapTransport traces Kubernetes API requests made within an active span.
 func WrapTransport(rt http.RoundTripper) http.RoundTripper {
