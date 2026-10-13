@@ -131,6 +131,17 @@ func Test_kueueFeature_Configure(t *testing.T) {
 			ClusterAgent:         clusterAgentWantFunc(basicVolume(defaultConfigMapName)),
 		},
 		{
+			Name: "Kueue enabled with empty custom config data",
+			DDA: testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+				WithKueueEnabled(true).
+				WithKueueCustomConf(&v2alpha1.CustomConfig{ConfigData: new("")}).
+				WithClusterChecksEnabled(true).
+				Build(),
+			WantConfigure:        true,
+			WantDependenciesFunc: checkDepsWantFunc(defaultConfigMapName, kueueCheckConfig(defaultMetricsServiceName, defaultMetricsServiceNamespace, true), true),
+			ClusterAgent:         clusterAgentWantFunc(basicVolume(defaultConfigMapName)),
+		},
+		{
 			Name: "Kueue enabled with custom ConfigMap",
 			DDA: testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 				WithKueueEnabled(true).

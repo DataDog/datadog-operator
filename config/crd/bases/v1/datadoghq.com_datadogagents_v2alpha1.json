@@ -2330,7 +2330,7 @@
                   "type": "object"
                 },
                 "enabled": {
-                  "description": "Enabled enables Kueue metadata collection in the Cluster Agent and the Kueue check,\nwhich runs as an endpoints check against each Kueue controller pod.\nThe check requires `features.clusterChecks.enabled` and a node Agent scheduled on the Kueue controller nodes.\n(Requires Agent and Cluster Agent 7.82.0+. Kueue with more than one replica requires Agent 7.86.0+.)\nDefault: false",
+                  "description": "Enabled enables Kueue metadata collection in the Cluster Agent and the Kueue check,\nwhich runs as an endpoints check against each Kueue controller pod.\nThe check requires `features.clusterChecks.enabled` and a node Agent scheduled on the Kueue controller nodes.\nWith `global.disableNonResourceRules`, the node Agent service account must be granted `get` on the `/metrics`\nnon-resource URL separately, as Kueue authorizes metrics scrapes against it.\n(Requires Agent and Cluster Agent 7.82.0+. Kueue with more than one replica requires Agent 7.86.0+.)\nDefault: false",
                   "type": "boolean"
                 },
                 "metricsService": {
@@ -11464,7 +11464,7 @@
                       "type": "object"
                     },
                     "enabled": {
-                      "description": "Enabled enables Kueue metadata collection in the Cluster Agent and the Kueue check,\nwhich runs as an endpoints check against each Kueue controller pod.\nThe check requires `features.clusterChecks.enabled` and a node Agent scheduled on the Kueue controller nodes.\n(Requires Agent and Cluster Agent 7.82.0+. Kueue with more than one replica requires Agent 7.86.0+.)\nDefault: false",
+                      "description": "Enabled enables Kueue metadata collection in the Cluster Agent and the Kueue check,\nwhich runs as an endpoints check against each Kueue controller pod.\nThe check requires `features.clusterChecks.enabled` and a node Agent scheduled on the Kueue controller nodes.\nWith `global.disableNonResourceRules`, the node Agent service account must be granted `get` on the `/metrics`\nnon-resource URL separately, as Kueue authorizes metrics scrapes against it.\n(Requires Agent and Cluster Agent 7.82.0+. Kueue with more than one replica requires Agent 7.86.0+.)\nDefault: false",
                       "type": "boolean"
                     },
                     "metricsService": {

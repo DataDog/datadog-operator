@@ -19,7 +19,7 @@ func (f *kueueFeature) buildKueueCheckConfigMap() (*corev1.ConfigMap, error) {
 	if f.customConfig != nil && f.customConfig.ConfigMap != nil {
 		return nil, nil
 	}
-	if f.customConfig != nil && f.customConfig.ConfigData != nil {
+	if f.customConfig != nil && f.customConfig.ConfigData != nil && *f.customConfig.ConfigData != "" {
 		return configmap.BuildConfigMapConfigData(f.owner.GetNamespace(), f.customConfig.ConfigData, f.configMapName, kueueConfFileName)
 	}
 

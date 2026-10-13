@@ -338,7 +338,7 @@ spec:
 : Is the name of the ConfigMap.
 
 `features.kueue.enabled`
-: Enables Kueue metadata collection in the Cluster Agent and the Kueue check, which runs as an endpoints check against each Kueue controller pod. The check requires `features.clusterChecks.enabled` and a node Agent scheduled on the Kueue controller nodes. (Requires Agent and Cluster Agent 7.82.0+. Kueue with more than one replica requires Agent 7.86.0+.) Default: false
+: Enables Kueue metadata collection in the Cluster Agent and the Kueue check, which runs as an endpoints check against each Kueue controller pod. The check requires `features.clusterChecks.enabled` and a node Agent scheduled on the Kueue controller nodes. With `global.disableNonResourceRules`, the node Agent service account must be granted `get` on the `/metrics` non-resource URL separately, as Kueue authorizes metrics scrapes against it. (Requires Agent and Cluster Agent 7.82.0+. Kueue with more than one replica requires Agent 7.86.0+.) Default: false
 
 `features.kueue.metricsService.name`
 : Is the name of the Kueue metrics Service. Default: kueue-controller-manager-metrics-service

@@ -96,6 +96,10 @@ func (f *kueueFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAge
 	reqComp.Agent.Containers = []apicommon.AgentContainerName{apicommon.CoreAgentContainerName}
 	f.agentServiceAccountName = constants.GetAgentServiceAccount(dda.GetName(), ddaSpec)
 
+	if ddaSpec.Global != nil && apiutils.BoolValue(ddaSpec.Global.DisableNonResourceRules) {
+		f.logger.Info("Warning: global.disableNonResourceRules removes the node Agent permission on the /metrics non-resource URL; the Kueue check will get 403 errors unless it is granted separately")
+	}
+
 	f.collectWorkloadEvents = kueue.CollectWorkloadEvents == nil || *kueue.CollectWorkloadEvents
 	f.serviceName = defaultMetricsServiceName
 	f.serviceNamespace = defaultMetricsServiceNamespace
