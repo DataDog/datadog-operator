@@ -128,6 +128,45 @@ func TestRender_WithDAP(t *testing.T) {
 	}, kindSequence(string(out)))
 }
 
+// TestRender_DAPKeepsExplicitlyDisabledAPMHostPort checks that a profile APM
+// host port does not enable host ports on default nodes when the DDA disables
+// them explicitly. The profile may be rejected or applied to its own nodes.
+func TestRender_DAPKeepsExplicitlyDisabledAPMHostPort(t *testing.T) {
+	dda, err := LoadDDA("testdata/apm-hostport-disabled-dda.yaml")
+	require.NoError(t, err)
+
+	daps, err := LoadDAPs([]string{"testdata/apm-hostport-profile.yaml"})
+	require.NoError(t, err)
+
+	objects, _, err := Render(Options{
+		DDA:            dda,
+		DAPs:           daps,
+		ProfileEnabled: true,
+	})
+	require.NoError(t, err)
+
+	traceHostPorts := map[string]int32{}
+	for _, obj := range objects {
+		ds, ok := obj.(*appsv1.DaemonSet)
+		if !ok {
+			continue
+		}
+		for _, c := range ds.Spec.Template.Spec.Containers {
+			for _, p := range c.Ports {
+				if c.Name == "trace-agent" && p.Name == "traceport" {
+					traceHostPorts[ds.Name] = p.HostPort
+				}
+			}
+		}
+	}
+
+	require.Contains(t, traceHostPorts, "datadog-agent-agent", "default DaemonSet has no trace-agent traceport")
+	assert.Zero(t, traceHostPorts["datadog-agent-agent"], "default DaemonSet must keep the DDA's disabled APM host port")
+	if hostPort, ok := traceHostPorts["apm-hostport-profile-agent"]; ok {
+		assert.Equal(t, int32(9126), hostPort, "applied profile DaemonSet should use the profile host port")
+	}
+}
+
 func TestRender_AppArmorProfileVersionGate(t *testing.T) {
 	tests := []struct {
 		name              string

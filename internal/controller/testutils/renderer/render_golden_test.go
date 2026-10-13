@@ -85,7 +85,12 @@ func TestRender_Golden(t *testing.T) {
 		// means "not authorized", under which the OpenShift ServiceAccount wiring must
 		// make no change at all.
 		sccAllowed bool
-		golden     string
+		// daps are DatadogAgentProfile fixtures; profileEnabled toggles profile reconciliation.
+		daps           []string
+		profileEnabled bool
+		// inputStatuses appends DDA/DDAI/DAP statuses, including timestamps.
+		inputStatuses bool
+		golden        string
 	}{
 		{
 			name:      "comprehensive dda, autopilot",
@@ -212,6 +217,31 @@ func TestRender_Golden(t *testing.T) {
 			sccAllowed: true,
 			golden:     "testdata/golden/comprehensive-baseline.golden.yaml",
 		},
+		// APM host port profile cases. The DDA explicitly disables the APM host port.
+		{
+			name:          "apm host port disabled dda, profiles disabled",
+			ddaFile:       "testdata/apm-hostport-disabled-dda.yaml",
+			daps:          []string{"testdata/apm-hostport-profile.yaml"},
+			inputStatuses: true,
+			golden:        "testdata/golden/apm-hostport-profiles-disabled.golden.yaml",
+		},
+		{
+			name:           "apm host port disabled dda, override-only profile",
+			ddaFile:        "testdata/apm-hostport-disabled-dda.yaml",
+			daps:           []string{"testdata/linux-profile.yaml"},
+			profileEnabled: true,
+			inputStatuses:  true,
+			golden:         "testdata/golden/apm-hostport-override-profile.golden.yaml",
+		},
+		{
+			// The profile host port must not enable host ports for default nodes.
+			name:           "apm host port disabled dda, apm host port profile",
+			ddaFile:        "testdata/apm-hostport-disabled-dda.yaml",
+			daps:           []string{"testdata/apm-hostport-profile.yaml"},
+			profileEnabled: true,
+			inputStatuses:  true,
+			golden:         "testdata/golden/apm-hostport-profile.golden.yaml",
+		},
 	}
 
 	for _, tt := range tests {
@@ -230,10 +260,13 @@ func TestRender_Golden(t *testing.T) {
 			}
 			pinImageTags(dda)
 
-			objects, scheme, err := Render(Options{DDA: dda, SCCAllowed: tt.sccAllowed})
+			daps, err := LoadDAPs(tt.daps)
 			require.NoError(t, err)
 
-			out, err := Serialize(objects, scheme, "yaml", false)
+			objects, scheme, err := Render(Options{DDA: dda, SCCAllowed: tt.sccAllowed, DAPs: daps, ProfileEnabled: tt.profileEnabled, IncludeInputStatuses: tt.inputStatuses})
+			require.NoError(t, err)
+
+			out, err := Serialize(objects, scheme, "yaml", tt.inputStatuses)
 			require.NoError(t, err)
 
 			assertGolden(t, tt.golden, out)
