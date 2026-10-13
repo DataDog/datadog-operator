@@ -100,7 +100,7 @@ func TestPoliciesAgainstRealAPIServer(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("the API server accepts every policy and binding", func(t *testing.T) {
-		for _, target := range Targets() {
+		for _, target := range testTargets() {
 			// Create, not apply: a rejection here is the failure we want, and
 			// it carries the API server's own reason for it.
 			require.NoErrorf(t, cl.Create(ctx, BuildPolicy(target)),
@@ -137,6 +137,39 @@ func TestPoliciesAgainstRealAPIServer(t *testing.T) {
 			time.Sleep(2 * time.Second)
 		}
 		t.Fatalf("no warning containing %q after 90s; last warnings: %v", want, warnings.take())
+	})
+
+	t.Run("a feature annotation typo is warned about", func(t *testing.T) {
+		// The regression case for the feature rules reaching the policy at all.
+		// This object is valid apart from the annotation: credentials are set,
+		// so a warning here can only come from a rule a feature registered.
+		// Until Targets took its rules from the caller, nothing warned.
+		const want = "adp-enabled"
+
+		var lastErr error
+		deadline := time.Now().Add(90 * time.Second)
+		for attempt := 0; time.Now().Before(deadline); attempt++ {
+			warnings.take()
+			dda := &v2alpha1.DatadogAgent{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace:   namespace.Name,
+					Name:        "annotation-typo-" + string(rune('a'+attempt%26)) + "-" + time.Now().Format("150405.000000"),
+					Annotations: map[string]string{"agent.datadoghq.com/adp-enabled": "True"},
+				},
+				Spec: v2alpha1.DatadogAgentSpec{
+					Global: &v2alpha1.GlobalConfig{
+						Credentials: &v2alpha1.DatadogCredentials{APIKey: ptrTo("key")},
+					},
+				},
+			}
+			lastErr = cl.Create(ctx, dda)
+			require.NoError(t, lastErr)
+			if warnings.contains(want) {
+				return
+			}
+			time.Sleep(2 * time.Second)
+		}
+		t.Fatalf("no warning mentioning %q after 90s; last warnings: %v", want, warnings.take())
 	})
 
 	t.Run("a valid DatadogAgent is not warned about", func(t *testing.T) {

@@ -512,8 +512,14 @@ func run(opts *options) error {
 	// Non-feature rules plus every feature's own, which the feature packages
 	// registered from init(). They compile and run together: a feature rule is
 	// evaluated in exactly the same place as a non-feature one (doc Decided 10).
+	// Both sets are named rather than inlined because the admission policy is
+	// built from these same slices, which is what keeps the two evaluators from
+	// drifting apart (doc Decided 7: one copy of each rule).
+	ddaRules := slices.Concat(datadoghqv2alpha1.DatadogAgentValidationRules(), feature.ValidationRules())
+	dapRules := datadoghqv1alpha1.DatadogAgentProfileValidationRules()
+
 	ddaValidationRules, err := celvalidation.CompileRules(
-		slices.Concat(datadoghqv2alpha1.DatadogAgentValidationRules(), feature.ValidationRules()),
+		ddaRules,
 		datadoghqv2alpha1.GroupVersion.WithKind("DatadogAgent"),
 		datadoghqv2alpha1.GroupVersion.WithResource("datadogagents"),
 	)
@@ -521,7 +527,7 @@ func run(opts *options) error {
 		setupLog.Error(err, "Unable to compile some DatadogAgent validation rules, continuing without them")
 	}
 	dapValidationRules, err := celvalidation.CompileRules(
-		datadoghqv1alpha1.DatadogAgentProfileValidationRules(),
+		dapRules,
 		datadoghqv1alpha1.GroupVersion.WithKind("DatadogAgentProfile"),
 		datadoghqv1alpha1.GroupVersion.WithResource("datadogagentprofiles"),
 	)
@@ -577,7 +583,7 @@ func run(opts *options) error {
 	// Register the admission policy controller as a manager Runnable. It is a
 	// no-op on clusters that do not serve validatingadmissionpolicies.
 	if opts.admissionPolicyEnabled {
-		if err = setupAndStartAdmissionPolicy(setupLog, mgr); err != nil {
+		if err = setupAndStartAdmissionPolicy(setupLog, mgr, admissionpolicy.Targets(ddaRules, dapRules)); err != nil {
 			return setupErrorf(setupLog, err, "Unable to setup admission policy controller")
 		}
 	}
@@ -880,8 +886,8 @@ func (opts *options) operatorManagedAgentInstallationEnabled(identity fleet.Mana
 // leader-only manager Runnable. It checks for
 // admissionregistration.k8s.io/v1 support itself and does nothing when the
 // cluster does not serve it, so registering it is safe on any cluster.
-func setupAndStartAdmissionPolicy(logger logr.Logger, mgr manager.Manager) error {
-	c, err := admissionpolicy.NewController(mgr, logger)
+func setupAndStartAdmissionPolicy(logger logr.Logger, mgr manager.Manager, targets []admissionpolicy.Target) error {
+	c, err := admissionpolicy.NewController(mgr, logger, targets)
 	if err != nil {
 		return err
 	}

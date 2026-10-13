@@ -24,8 +24,6 @@ import (
 	"k8s.io/utils/ptr"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/common"
-	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
-	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
@@ -54,24 +52,35 @@ type Target struct {
 	rules      []common.ValidationRule
 }
 
-// Targets returns the policies to maintain, in a stable order.
+// Targets returns the policies to maintain, in a stable order, for the rule
+// sets it is given.
+//
+// The rules are arguments rather than something this package collects. A
+// DatadogAgent's rules include every feature's own, and that registry lives in
+// internal/controller/datadogagent/feature, which this package must not import:
+// doc section 4 leaves assembling the sets to the caller. That caller is
+// cmd/main.go, which hands the same slices to the operator-side evaluator.
+//
+// Sourcing them here instead is what kept the 15 feature annotation rules out
+// of the policy while the operator went on evaluating them, against doc
+// Decided 7 ("one copy of each rule") and Decided 16.
 //
 // Only the one served version of each CRD is matched. A policy that matched a
 // version the rules were not written against would evaluate expressions over
 // paths that do not exist there.
-func Targets() []Target {
+func Targets(ddaRules, dapRules []common.ValidationRule) []Target {
 	return []Target{
 		{
 			name:       DDAPolicyName,
 			apiVersion: "v2alpha1",
 			resource:   "datadogagents",
-			rules:      v2alpha1.DatadogAgentValidationRules(),
+			rules:      ddaRules,
 		},
 		{
 			name:       DAPPolicyName,
 			apiVersion: "v1alpha1",
 			resource:   "datadogagentprofiles",
-			rules:      v1alpha1.DatadogAgentProfileValidationRules(),
+			rules:      dapRules,
 		},
 	}
 }

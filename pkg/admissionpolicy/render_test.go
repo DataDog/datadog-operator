@@ -18,7 +18,7 @@ import (
 //
 //	go test ./pkg/admissionpolicy/ -run TestRenderPolicyYAML -v
 func TestRenderPolicyYAML(t *testing.T) {
-	for _, target := range Targets() {
+	for _, target := range testTargets() {
 		for _, obj := range []any{BuildPolicy(target), BuildBinding(target)} {
 			b, err := yaml.Marshal(obj)
 			require.NoError(t, err)

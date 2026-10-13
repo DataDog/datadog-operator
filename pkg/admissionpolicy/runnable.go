@@ -48,6 +48,10 @@ type Controller struct {
 	discovery discovery.DiscoveryInterface
 	logger    logr.Logger
 
+	// targets is the policies to maintain, with their rules already assembled
+	// by the caller. See Targets.
+	targets []Target
+
 	// supported records the last capability check, so an unsupported cluster
 	// logs once rather than on every refresh.
 	supported *bool
@@ -59,9 +63,9 @@ var (
 	_ manager.LeaderElectionRunnable = &Controller{}
 )
 
-// NewController builds the policy Controller from the manager. It creates its own
-// uncached client; see the apiClient field.
-func NewController(mgr manager.Manager, logger logr.Logger) (*Controller, error) {
+// NewController builds the policy Controller from the manager, for the given
+// targets. It creates its own uncached client; see the apiClient field.
+func NewController(mgr manager.Manager, logger logr.Logger, targets []Target) (*Controller, error) {
 	apiClient, err := client.New(mgr.GetConfig(), client.Options{Scheme: mgr.GetScheme()})
 	if err != nil {
 		return nil, fmt.Errorf("unable to build admission policy client: %w", err)
@@ -74,6 +78,7 @@ func NewController(mgr manager.Manager, logger logr.Logger) (*Controller, error)
 		apiClient: apiClient,
 		discovery: dc,
 		logger:    logger.WithName("admission-policy"),
+		targets:   targets,
 	}, nil
 }
 
@@ -135,7 +140,15 @@ func (c *Controller) apply(ctx context.Context) error {
 		return nil
 	}
 	if c.supported == nil || !*c.supported {
-		c.logger.Info("Applying admission policies", "action", "Warn")
+		// The rule count per policy is logged because it is the one number that
+		// distinguishes a policy carrying every rule from one carrying a subset,
+		// which is otherwise invisible until someone applies a bad object and
+		// nothing warns.
+		counts := make(map[string]int, len(c.targets))
+		for _, t := range c.targets {
+			counts[t.name] = len(t.rules)
+		}
+		c.logger.Info("Applying admission policies", "action", "Warn", "rules", counts)
 	}
 	c.supported = &ok
 
@@ -143,7 +156,7 @@ func (c *Controller) apply(ctx context.Context) error {
 	// does not exist is inert, whereas a policy with no binding is simply not
 	// enforced. Ordering it this way means no window where the binding
 	// references something missing.
-	for _, t := range Targets() {
+	for _, t := range c.targets {
 		if err := c.serverSideApply(ctx, BuildPolicy(t)); err != nil {
 			return fmt.Errorf("unable to apply ValidatingAdmissionPolicy %s: %w", t.name, err)
 		}
@@ -194,7 +207,7 @@ func (c *Controller) policiesSupported() (bool, error) {
 // in OLM is an open question; the function exists so the decision is not blocked
 // on writing it.
 func (c *Controller) Cleanup(ctx context.Context) error {
-	for _, t := range Targets() {
+	for _, t := range c.targets {
 		for _, obj := range []client.Object{BuildBinding(t), BuildPolicy(t)} {
 			if err := c.apiClient.Delete(ctx, obj); err != nil && !apierrors.IsNotFound(err) {
 				return err
