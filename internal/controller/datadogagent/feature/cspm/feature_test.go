@@ -391,3 +391,37 @@ func configSyncEnvVars() []*corev1.EnvVar {
 		{Name: common.DDAgentIpcConfigRefreshInterval, Value: featureutils.DefaultAgentIpcConfigRefreshInterval},
 	}
 }
+
+// RunInSystemProbe is resolved in Configure rather than in the defaulting pass, so that a CSPM
+// enabled through Remote Configuration gets the same value as one enabled in the spec. The resolved
+// value is written back to the spec, where the system-probe seccomp profile reads it.
+func Test_cspmFeature_RunInSystemProbeDefault(t *testing.T) {
+	tests := []struct {
+		name             string
+		runInSystemProbe *bool
+		want             bool
+	}{
+		{name: "unset resolves to the default", want: defaultRunInSystemProbe},
+		{name: "explicit false is kept", runInSystemProbe: ptr.To(false), want: false},
+		{name: "explicit true is kept", runInSystemProbe: ptr.To(true), want: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dda := &v2alpha1.DatadogAgent{
+				Spec: v2alpha1.DatadogAgentSpec{
+					Features: &v2alpha1.DatadogFeatures{
+						CSPM: &v2alpha1.CSPMFeatureConfig{Enabled: ptr.To(true), RunInSystemProbe: tt.runInSystemProbe},
+					},
+				},
+			}
+
+			f := &cspmFeature{}
+			f.Configure(dda, &dda.Spec, nil)
+
+			assert.Equal(t, tt.want, f.runInSystemProbe)
+			require.NotNil(t, dda.Spec.Features.CSPM.RunInSystemProbe)
+			assert.Equal(t, tt.want, *dda.Spec.Features.CSPM.RunInSystemProbe)
+		})
+	}
+}

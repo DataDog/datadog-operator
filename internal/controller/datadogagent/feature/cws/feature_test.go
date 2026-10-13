@@ -457,3 +457,37 @@ func Test_cwsFeature_NodeAgentProviderCapabilities(t *testing.T) {
 		assert.NotContains(t, volumeNames(tmpl), common.TracefsVolumeName)
 	})
 }
+
+// DirectSendFromSystemProbe is resolved in Configure rather than in the defaulting pass, so that a
+// CWS enabled through Remote Configuration gets the same value as one enabled in the spec. The
+// resolved value is written back to the spec.
+func Test_cwsFeature_DirectSendFromSystemProbeDefault(t *testing.T) {
+	tests := []struct {
+		name                      string
+		directSendFromSystemProbe *bool
+		want                      bool
+	}{
+		{name: "unset resolves to the default", want: defaultDirectSendFromSystemProbe},
+		{name: "explicit false is kept", directSendFromSystemProbe: ptr.To(false), want: false},
+		{name: "explicit true is kept", directSendFromSystemProbe: ptr.To(true), want: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dda := &v2alpha1.DatadogAgent{
+				Spec: v2alpha1.DatadogAgentSpec{
+					Features: &v2alpha1.DatadogFeatures{
+						CWS: &v2alpha1.CWSFeatureConfig{Enabled: ptr.To(true), DirectSendFromSystemProbe: tt.directSendFromSystemProbe},
+					},
+				},
+			}
+
+			f := &cwsFeature{}
+			f.Configure(dda, &dda.Spec, nil)
+
+			assert.Equal(t, tt.want, f.directSendFromSystemProbe)
+			require.NotNil(t, dda.Spec.Features.CWS.DirectSendFromSystemProbe)
+			assert.Equal(t, tt.want, *dda.Spec.Features.CWS.DirectSendFromSystemProbe)
+		})
+	}
+}
