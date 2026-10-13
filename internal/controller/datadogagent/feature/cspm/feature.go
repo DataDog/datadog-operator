@@ -25,6 +25,9 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
+// defaultRunInSystemProbe is the value used for features.cspm.runInSystemProbe when the field is unset.
+const defaultRunInSystemProbe = false
+
 func init() {
 	err := feature.Register(feature.CSPMIDType, buildCSPMFeature)
 	if err != nil {
@@ -98,7 +101,11 @@ func (f *cspmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgen
 			f.hostBenchmarksEnabled = true
 		}
 
-		f.runInSystemProbe = apiutils.BoolValue(cspmConfig.RunInSystemProbe)
+		if cspmConfig.RunInSystemProbe == nil {
+			// Written back to the spec, as the system-probe seccomp profile reads it from there.
+			cspmConfig.RunInSystemProbe = new(defaultRunInSystemProbe)
+		}
+		f.runInSystemProbe = *cspmConfig.RunInSystemProbe
 
 		// Determine which container to use for CSPM on the node
 		var nodeContainer apicommon.AgentContainerName

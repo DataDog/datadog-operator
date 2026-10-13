@@ -26,6 +26,10 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
+// defaultDirectSendFromSystemProbe is the value used for features.cws.directSendFromSystemProbe
+// when the field is unset.
+const defaultDirectSendFromSystemProbe = false
+
 func init() {
 	err := feature.Register(feature.CWSIDType, buildCWSFeature)
 	if err != nil {
@@ -91,7 +95,10 @@ func (f *cwsFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgent
 
 	if cwsConfig != nil && apiutils.BoolValue(cwsConfig.Enabled) {
 		f.syscallMonitorEnabled = apiutils.BoolValue(cwsConfig.SyscallMonitorEnabled)
-		f.directSendFromSystemProbe = apiutils.BoolValue(cwsConfig.DirectSendFromSystemProbe)
+		if cwsConfig.DirectSendFromSystemProbe == nil {
+			cwsConfig.DirectSendFromSystemProbe = new(defaultDirectSendFromSystemProbe)
+		}
+		f.directSendFromSystemProbe = *cwsConfig.DirectSendFromSystemProbe
 
 		if cwsConfig.CustomPolicies != nil {
 			f.customConfig = cwsConfig.CustomPolicies
