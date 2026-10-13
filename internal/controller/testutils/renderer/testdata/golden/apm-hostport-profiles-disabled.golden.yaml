@@ -1280,7 +1280,7 @@ status:
     currentHash: eb24d8f6476671882e1ee4e795753e76
     daemonsetName: datadog-agent-agent
     desired: 0
-    lastUpdate: "2026-10-13T18:29:40Z"
+    lastUpdate: "2026-10-13T18:32:05Z"
     ready: 0
     state: Running
     status: Running (0/0/0)
@@ -1288,16 +1288,16 @@ status:
   clusterAgent:
     currentHash: 5a8914c4c5bc653a073d466b016e4759
     deploymentName: datadog-agent-cluster-agent
-    lastUpdate: "2026-10-13T18:29:40Z"
+    lastUpdate: "2026-10-13T18:32:05Z"
     state: Progressing
     status: Progressing (0/0/0)
   conditions:
-  - lastTransitionTime: "2026-10-13T18:29:40Z"
+  - lastTransitionTime: "2026-10-13T18:32:05Z"
     message: reconcile succeed
     reason: reconcile_succeed
     status: "True"
     type: ClusterAgentReconcile
-  - lastTransitionTime: "2026-10-13T18:29:40Z"
+  - lastTransitionTime: "2026-10-13T18:32:05Z"
     message: reconcile succeed
     reason: reconcile_succeed
     status: "True"

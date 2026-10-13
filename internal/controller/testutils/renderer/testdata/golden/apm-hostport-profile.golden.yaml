@@ -1076,7 +1076,7 @@ spec:
   internalTrafficPolicy: Local
   ports:
   - name: traceport
-    port: 8126
+    port: 9126
     protocol: TCP
     targetPort: 8126
   - name: dogstatsdport
@@ -1122,7 +1122,212 @@ apiVersion: datadoghq.com/v1alpha1
 kind: DatadogAgentInternal
 metadata:
   annotations:
-    agent.datadoghq.com/ddaispechash: e89097c5b0a917228b26d5d5968da68b
+    agent.datadoghq.com/ddaispechash: 9aa66525e44282c3a1706f53657d9ad9
+  finalizers:
+  - finalizer.datadoghq.com/datadogagentinternal
+  labels:
+    agent.datadoghq.com/datadogagent: datadog-agent
+    agent.datadoghq.com/datadogagentprofile: apm-hostport-profile
+  name: apm-hostport-profile
+  ownerReferences:
+  - apiVersion: datadoghq.com/v2alpha1
+    blockOwnerDeletion: true
+    controller: true
+    kind: DatadogAgent
+    name: datadog-agent
+    uid: ""
+spec:
+  features:
+    admissionController:
+      cwsInstrumentation:
+        enabled: false
+      enabled: true
+      kubernetesAdmissionEvents:
+        enabled: false
+      mutateUnlabelled: false
+      mutation:
+        enabled: true
+      serviceName: datadog-admission-controller
+      validation:
+        enabled: true
+    apm:
+      enabled: true
+      errorTrackingStandalone:
+        enabled: false
+      hostPortConfig:
+        enabled: true
+        hostPort: 9126
+      instrumentation:
+        enabled: false
+        injector: {}
+        languageDetection:
+          enabled: true
+      unixDomainSocketConfig:
+        enabled: true
+        path: /var/run/datadog/apm.socket
+    asm:
+      iast:
+        enabled: false
+      sca:
+        enabled: false
+      threats:
+        enabled: false
+    clusterChecks:
+      enabled: true
+      useClusterChecksRunners: false
+    controlPlaneMonitoring:
+      enabled: true
+    cspm:
+      enabled: false
+    cws:
+      enabled: false
+    dataPlane:
+      dogstatsd:
+        enabled: true
+    dogstatsd:
+      hostPortConfig:
+        enabled: false
+      nonLocalTraffic: true
+      originDetectionEnabled: false
+      unixDomainSocketConfig:
+        enabled: true
+        path: /var/run/datadog/dsd.socket
+    dynamicInstrumentation:
+      enabled: false
+    ebpfCheck:
+      enabled: false
+    eventCollection:
+      collectKubernetesEvents: true
+    externalMetricsServer:
+      enabled: false
+    gpu:
+      enabled: false
+    helmCheck:
+      enabled: false
+    kubeStateMetricsCore:
+      enabled: true
+    liveContainerCollection:
+      enabled: true
+    liveProcessCollection:
+      enabled: false
+    logCollection:
+      enabled: false
+    npm:
+      enabled: false
+    oomKill:
+      enabled: false
+    orchestratorExplorer:
+      enabled: true
+      scrubContainers: true
+    otelCollector:
+      enabled: false
+    otlp:
+      receiver:
+        protocols:
+          grpc:
+            enabled: false
+            endpoint: 0.0.0.0:4317
+          http:
+            enabled: false
+            endpoint: 0.0.0.0:4318
+    processDiscovery:
+      enabled: true
+    prometheusScrape:
+      enabled: false
+    remoteConfiguration:
+      enabled: true
+    serviceDiscovery: {}
+    tcpQueueLength:
+      enabled: false
+    usm:
+      enabled: false
+  global:
+    clusterAgentTokenSecret:
+      keyName: token
+      secretName: datadog-agent-token
+    clusterName: test-cluster
+    containerStrategy: optimized
+    credentials:
+      apiSecret:
+        keyName: api-key
+        secretName: datadog-secret
+      appSecret:
+        keyName: app-key
+        secretName: datadog-secret
+    fips:
+      enabled: false
+    kubelet:
+      podResourcesSocketPath: /var/lib/kubelet/pod-resources/
+      tlsVerify: false
+    logLevel: info
+    registry: registry.datadoghq.com
+    site: datadoghq.com
+    useFIPSAgent: false
+  override:
+    clusterAgent:
+      annotations:
+        checksum/dca-token-custom-config: 3f6998966e6de63b16d45512e01ccc84
+      disabled: true
+      image:
+        tag: 7.80.0
+    clusterChecksRunner:
+      disabled: true
+    nodeAgent:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/os
+                operator: In
+                values:
+                - linux
+              - key: agent.datadoghq.com/datadogagentprofile
+                operator: In
+                values:
+                - apm-hostport-profile
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: agent.datadoghq.com/component
+                operator: In
+                values:
+                - agent
+            topologyKey: kubernetes.io/hostname
+      annotations:
+        checksum/dca-token-custom-config: 3f6998966e6de63b16d45512e01ccc84
+      image:
+        tag: 7.80.0
+      labels:
+        agent.datadoghq.com/datadogagentprofile: apm-hostport-profile
+      name: apm-hostport-profile-agent
+    otelAgentGateway:
+      disabled: true
+status:
+  agent:
+    available: 0
+    current: 0
+    currentHash: 835ff78966a57bb5910040dab8e0418b
+    daemonsetName: apm-hostport-profile-agent
+    desired: 0
+    lastUpdate: "2026-10-13T18:32:05Z"
+    ready: 0
+    state: Running
+    status: Running (0/0/0)
+    upToDate: 0
+  conditions:
+  - lastTransitionTime: "2026-10-13T18:32:05Z"
+    message: reconcile succeed
+    reason: reconcile_succeed
+    status: "True"
+    type: AgentReconcile
+---
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgentInternal
+metadata:
+  annotations:
+    agent.datadoghq.com/ddaispechash: 8204e0583fe8f4aedb0eeb713eed3a49
   finalizers:
   - finalizer.datadoghq.com/datadogagentinternal
   labels:
@@ -1154,8 +1359,8 @@ spec:
       errorTrackingStandalone:
         enabled: false
       hostPortConfig:
-        enabled: false
-        hostPort: 8126
+        enabled: true
+        hostPort: 9126
       instrumentation:
         enabled: false
         injector: {}
@@ -1293,10 +1498,10 @@ status:
   agent:
     available: 0
     current: 0
-    currentHash: a6e061c3239bcfb5d3e61546824676e8
+    currentHash: 82253db5079ab58bc929348f85eb44ee
     daemonsetName: datadog-agent-agent
     desired: 0
-    lastUpdate: "2026-10-13T18:29:40Z"
+    lastUpdate: "2026-10-13T18:32:05Z"
     ready: 0
     state: Running
     status: Running (0/0/0)
@@ -1304,16 +1509,16 @@ status:
   clusterAgent:
     currentHash: 5a8914c4c5bc653a073d466b016e4759
     deploymentName: datadog-agent-cluster-agent
-    lastUpdate: "2026-10-13T18:29:40Z"
+    lastUpdate: "2026-10-13T18:32:05Z"
     state: Progressing
     status: Progressing (0/0/0)
   conditions:
-  - lastTransitionTime: "2026-10-13T18:29:40Z"
+  - lastTransitionTime: "2026-10-13T18:32:05Z"
     message: reconcile succeed
     reason: reconcile_succeed
     status: "True"
     type: ClusterAgentReconcile
-  - lastTransitionTime: "2026-10-13T18:29:40Z"
+  - lastTransitionTime: "2026-10-13T18:32:05Z"
     message: reconcile succeed
     reason: reconcile_succeed
     status: "True"
@@ -1323,7 +1528,546 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: a6e061c3239bcfb5d3e61546824676e8
+    agent.datadoghq.com/agentspechash: 835ff78966a57bb5910040dab8e0418b
+  labels:
+    agent.datadoghq.com/component: agent
+    agent.datadoghq.com/datadogagentprofile: apm-hostport-profile
+    agent.datadoghq.com/name: datadog-agent
+    app.kubernetes.io/component: agent
+    app.kubernetes.io/instance: apm-hostport-profile-agent
+    app.kubernetes.io/managed-by: datadog-operator
+    app.kubernetes.io/name: datadog-agent-deployment
+    app.kubernetes.io/part-of: -datadog--agent
+    app.kubernetes.io/version: ""
+  name: apm-hostport-profile-agent
+  ownerReferences:
+  - apiVersion: datadoghq.com/v1alpha1
+    blockOwnerDeletion: true
+    controller: true
+    kind: DatadogAgentInternal
+    name: apm-hostport-profile
+    uid: ""
+spec:
+  selector:
+    matchLabels:
+      agent.datadoghq.com/component: agent
+      app.kubernetes.io/instance: apm-hostport-profile-agent
+  template:
+    metadata:
+      annotations:
+        agent.datadoghq.com/configmapshash: 2e0fb9e7949d41a5
+        checksum/dca-token-custom-config: 3f6998966e6de63b16d45512e01ccc84
+        container.apparmor.security.beta.kubernetes.io/system-probe: unconfined
+      labels:
+        agent.datadoghq.com/component: agent
+        agent.datadoghq.com/datadogagentprofile: apm-hostport-profile
+        agent.datadoghq.com/name: datadog-agent
+        app.kubernetes.io/component: agent
+        app.kubernetes.io/instance: apm-hostport-profile-agent
+        app.kubernetes.io/managed-by: datadog-operator
+        app.kubernetes.io/name: datadog-agent-deployment
+        app.kubernetes.io/part-of: -datadog--agent
+        app.kubernetes.io/version: ""
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/os
+                operator: In
+                values:
+                - linux
+              - key: agent.datadoghq.com/datadogagentprofile
+                operator: In
+                values:
+                - apm-hostport-profile
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: agent.datadoghq.com/component
+                operator: In
+                values:
+                - agent
+            topologyKey: kubernetes.io/hostname
+      containers:
+      - command:
+        - agent
+        - run
+        env:
+        - name: DD_HEALTH_PORT
+          value: "5555"
+        - name: DD_CONTAINER_IMAGE_ENABLED
+          value: "true"
+        - name: KUBERNETES
+          value: "yes"
+        - name: DD_CLUSTER_AGENT_ENABLED
+          value: "true"
+        - name: DD_CLUSTER_AGENT_KUBERNETES_SERVICE_NAME
+          value: datadog-agent-cluster-agent
+        - name: DD_KUBERNETES_USE_ENDPOINT_SLICES
+          value: "true"
+        - name: DD_CLUSTER_AGENT_TOKEN_NAME
+          value: datadog-agent-token
+        - name: DD_AUTH_TOKEN_FILE_PATH
+          value: /etc/datadog-agent/auth/token
+        - name: DD_KUBERNETES_KUBELET_HOST
+          valueFrom:
+            fieldRef:
+              fieldPath: status.hostIP
+        - name: DD_CLUSTER_NAME
+          value: test-cluster
+        - name: DD_SITE
+          value: datadoghq.com
+        - name: DD_LOG_LEVEL
+          value: info
+        - name: DD_API_KEY
+          valueFrom:
+            secretKeyRef:
+              key: api-key
+              name: datadog-secret
+        - name: DD_APP_KEY
+          valueFrom:
+            secretKeyRef:
+              key: app-key
+              name: datadog-secret
+        - name: DD_CLUSTER_AGENT_AUTH_TOKEN
+          valueFrom:
+            secretKeyRef:
+              key: token
+              name: datadog-agent-token
+        - name: DD_KUBELET_TLS_VERIFY
+          value: "false"
+        - name: DD_LANGUAGE_DETECTION_REPORTING_ENABLED
+          value: "false"
+        - name: DD_EXTRA_CONFIG_PROVIDERS
+          value: clusterchecks endpointschecks
+        - name: DD_DOGSTATSD_NON_LOCAL_TRAFFIC
+          value: "true"
+        - name: DD_DOGSTATSD_SOCKET
+          value: /var/run/datadog/dsd.socket
+        - name: DD_IGNORE_AUTOCONF
+          value: kubernetes_state
+        - name: DD_PROCESS_CONFIG_RUN_IN_CORE_AGENT_ENABLED
+          value: "true"
+        - name: DD_PROCESS_CONFIG_CONTAINER_COLLECTION_ENABLED
+          value: "true"
+        - name: DD_ORCHESTRATOR_EXPLORER_ENABLED
+          value: "true"
+        - name: DD_ORCHESTRATOR_EXPLORER_CONTAINER_SCRUBBING_ENABLED
+          value: "true"
+        - name: DD_PROCESS_CONFIG_PROCESS_DISCOVERY_ENABLED
+          value: "true"
+        - name: DD_REMOTE_CONFIGURATION_ENABLED
+          value: "true"
+        - name: DD_DISCOVERY_ENABLED
+          value: "true"
+        - name: DD_SYSPROBE_SOCKET
+          value: /var/run/sysprobe/sysprobe.sock
+        image: registry.datadoghq.com/agent:7.80.0
+        livenessProbe:
+          failureThreshold: 6
+          httpGet:
+            path: /live
+            port: 5555
+          initialDelaySeconds: 15
+          periodSeconds: 15
+          successThreshold: 1
+          timeoutSeconds: 5
+        name: agent
+        ports:
+        - containerPort: 8125
+          name: dogstatsdport
+          protocol: UDP
+        readinessProbe:
+          failureThreshold: 6
+          httpGet:
+            path: /ready
+            port: 5555
+          initialDelaySeconds: 15
+          periodSeconds: 15
+          successThreshold: 1
+          timeoutSeconds: 5
+        resources: {}
+        securityContext:
+          readOnlyRootFilesystem: true
+        startupProbe:
+          failureThreshold: 6
+          httpGet:
+            path: /startup
+            port: 5555
+          initialDelaySeconds: 15
+          periodSeconds: 15
+          successThreshold: 1
+          timeoutSeconds: 5
+        volumeMounts:
+        - mountPath: /var/log/datadog
+          name: logdatadog
+        - mountPath: /etc/datadog-agent/auth
+          name: datadog-agent-auth
+        - mountPath: /etc/datadog-agent/install_info
+          name: installinfo
+          readOnly: true
+          subPath: install_info
+        - mountPath: /etc/datadog-agent
+          name: config
+        - mountPath: /host/proc
+          name: procdir
+          readOnly: true
+        - mountPath: /host/sys/fs/cgroup
+          name: cgroups
+          readOnly: true
+        - mountPath: /var/run/datadog
+          name: dsdsocket
+        - mountPath: /host/var/run
+          name: runtimesocketdir
+          readOnly: true
+        - mountPath: /opt/datadog-agent/run
+          name: datadogrun
+        - mountPath: /tmp
+          name: tmpdir
+        - mountPath: /etc/passwd
+          name: passwd
+          readOnly: true
+        - mountPath: /var/run/sysprobe
+          name: sysprobe-socket-dir
+          readOnly: true
+      - command:
+        - trace-loader
+        - /etc/datadog-agent/datadog.yaml
+        - trace-agent
+        - --config=/etc/datadog-agent/datadog.yaml
+        env:
+        - name: DD_INSTRUMENTATION_INSTALL_ID
+          valueFrom:
+            configMapKeyRef:
+              key: install_id
+              name: datadog-apm-telemetry-kpi
+        - name: DD_INSTRUMENTATION_INSTALL_TIME
+          valueFrom:
+            configMapKeyRef:
+              key: install_time
+              name: datadog-apm-telemetry-kpi
+        - name: DD_INSTRUMENTATION_INSTALL_TYPE
+          valueFrom:
+            configMapKeyRef:
+              key: install_type
+              name: datadog-apm-telemetry-kpi
+        - name: KUBERNETES
+          value: "yes"
+        - name: DD_CLUSTER_AGENT_ENABLED
+          value: "true"
+        - name: DD_CLUSTER_AGENT_KUBERNETES_SERVICE_NAME
+          value: datadog-agent-cluster-agent
+        - name: DD_KUBERNETES_USE_ENDPOINT_SLICES
+          value: "true"
+        - name: DD_CLUSTER_AGENT_TOKEN_NAME
+          value: datadog-agent-token
+        - name: DD_AUTH_TOKEN_FILE_PATH
+          value: /etc/datadog-agent/auth/token
+        - name: DD_KUBERNETES_KUBELET_HOST
+          valueFrom:
+            fieldRef:
+              fieldPath: status.hostIP
+        - name: DD_CLUSTER_NAME
+          value: test-cluster
+        - name: DD_SITE
+          value: datadoghq.com
+        - name: DD_LOG_LEVEL
+          value: info
+        - name: DD_API_KEY
+          valueFrom:
+            secretKeyRef:
+              key: api-key
+              name: datadog-secret
+        - name: DD_APP_KEY
+          valueFrom:
+            secretKeyRef:
+              key: app-key
+              name: datadog-secret
+        - name: DD_CLUSTER_AGENT_AUTH_TOKEN
+          valueFrom:
+            secretKeyRef:
+              key: token
+              name: datadog-agent-token
+        - name: DD_KUBELET_TLS_VERIFY
+          value: "false"
+        - name: DD_APM_ENABLED
+          value: "true"
+        - name: DD_APM_NON_LOCAL_TRAFFIC
+          value: "true"
+        - name: DD_APM_RECEIVER_PORT
+          value: "8126"
+        - name: DD_APM_RECEIVER_SOCKET
+          value: /var/run/datadog/apm.socket
+        - name: DD_DOGSTATSD_SOCKET
+          value: /var/run/datadog/dsd.socket
+        - name: DD_REMOTE_CONFIGURATION_ENABLED
+          value: "true"
+        image: registry.datadoghq.com/agent:7.80.0
+        livenessProbe:
+          initialDelaySeconds: 15
+          periodSeconds: 15
+          tcpSocket:
+            port: 8126
+          timeoutSeconds: 5
+        name: trace-agent
+        ports:
+        - containerPort: 8126
+          hostPort: 9126
+          name: traceport
+          protocol: TCP
+        resources: {}
+        securityContext:
+          readOnlyRootFilesystem: true
+        volumeMounts:
+        - mountPath: /var/log/datadog
+          name: logdatadog
+        - mountPath: /host/proc
+          name: procdir
+          readOnly: true
+        - mountPath: /host/sys/fs/cgroup
+          name: cgroups
+          readOnly: true
+        - mountPath: /etc/datadog-agent/auth
+          name: datadog-agent-auth
+          readOnly: true
+        - mountPath: /etc/datadog-agent
+          name: config
+        - mountPath: /var/run/datadog
+          name: apmsocket
+        - mountPath: /host/var/run
+          name: runtimesocketdir
+          readOnly: true
+        - mountPath: /tmp
+          name: tmpdir
+      - command:
+        - system-probe
+        - --config=/etc/datadog-agent/system-probe.yaml
+        env:
+        - name: KUBERNETES
+          value: "yes"
+        - name: DD_CLUSTER_AGENT_ENABLED
+          value: "true"
+        - name: DD_CLUSTER_AGENT_KUBERNETES_SERVICE_NAME
+          value: datadog-agent-cluster-agent
+        - name: DD_KUBERNETES_USE_ENDPOINT_SLICES
+          value: "true"
+        - name: DD_CLUSTER_AGENT_TOKEN_NAME
+          value: datadog-agent-token
+        - name: DD_AUTH_TOKEN_FILE_PATH
+          value: /etc/datadog-agent/auth/token
+        - name: DD_KUBERNETES_KUBELET_HOST
+          valueFrom:
+            fieldRef:
+              fieldPath: status.hostIP
+        - name: DD_CLUSTER_NAME
+          value: test-cluster
+        - name: DD_SITE
+          value: datadoghq.com
+        - name: DD_LOG_LEVEL
+          value: info
+        - name: DD_API_KEY
+          valueFrom:
+            secretKeyRef:
+              key: api-key
+              name: datadog-secret
+        - name: DD_APP_KEY
+          valueFrom:
+            secretKeyRef:
+              key: app-key
+              name: datadog-secret
+        - name: DD_CLUSTER_AGENT_AUTH_TOKEN
+          valueFrom:
+            secretKeyRef:
+              key: token
+              name: datadog-agent-token
+        - name: DD_KUBELET_TLS_VERIFY
+          value: "false"
+        - name: DD_DOGSTATSD_SOCKET
+          value: /var/run/datadog/dsd.socket
+        - name: DD_REMOTE_CONFIGURATION_ENABLED
+          value: "true"
+        - name: DD_DISCOVERY_ENABLED
+          value: "true"
+        - name: DD_DISCOVERY_USE_SYSTEM_PROBE_LITE
+          value: "true"
+        - name: DD_SYSPROBE_SOCKET
+          value: /var/run/sysprobe/sysprobe.sock
+        image: registry.datadoghq.com/agent:7.80.0
+        name: system-probe
+        resources: {}
+        securityContext:
+          capabilities:
+            add:
+            - CHOWN
+            - DAC_READ_SEARCH
+            - IPC_LOCK
+            - NET_ADMIN
+            - NET_BROADCAST
+            - NET_RAW
+            - SYS_ADMIN
+            - SYS_PTRACE
+            - SYS_RESOURCE
+          readOnlyRootFilesystem: true
+          seccompProfile:
+            localhostProfile: system-probe
+            type: Localhost
+        volumeMounts:
+        - mountPath: /var/log/datadog
+          name: logdatadog
+        - mountPath: /etc/datadog-agent/auth
+          name: datadog-agent-auth
+          readOnly: true
+        - mountPath: /etc/datadog-agent
+          name: config
+        - mountPath: /host/proc
+          name: procdir
+          readOnly: true
+        - mountPath: /opt/datadog-agent/run
+          name: datadogrun
+        - mountPath: /tmp
+          name: tmpdir
+        - mountPath: /var/run/datadog
+          name: dsdsocket
+        - mountPath: /host/sys/fs/cgroup
+          name: cgroups
+          readOnly: true
+        - mountPath: /var/run/sysprobe
+          name: sysprobe-socket-dir
+      initContainers:
+      - args:
+        - cp -vnr /etc/datadog-agent /opt
+        command:
+        - bash
+        - -c
+        image: registry.datadoghq.com/agent:7.80.0
+        name: init-volume
+        resources: {}
+        volumeMounts:
+        - mountPath: /opt/datadog-agent
+          name: config
+      - args:
+        - for script in $(find /etc/cont-init.d/ -type f -name '*.sh' | sort) ; do
+          bash $script ; done
+        command:
+        - bash
+        - -c
+        env:
+        - name: DD_HEALTH_PORT
+          value: "5555"
+        - name: DD_CONTAINER_IMAGE_ENABLED
+          value: "true"
+        - name: KUBERNETES
+          value: "yes"
+        - name: DD_CLUSTER_AGENT_ENABLED
+          value: "true"
+        - name: DD_CLUSTER_AGENT_KUBERNETES_SERVICE_NAME
+          value: datadog-agent-cluster-agent
+        - name: DD_KUBERNETES_USE_ENDPOINT_SLICES
+          value: "true"
+        - name: DD_CLUSTER_AGENT_TOKEN_NAME
+          value: datadog-agent-token
+        - name: DD_AUTH_TOKEN_FILE_PATH
+          value: /etc/datadog-agent/auth/token
+        - name: DD_KUBERNETES_KUBELET_HOST
+          valueFrom:
+            fieldRef:
+              fieldPath: status.hostIP
+        - name: DD_DISCOVERY_ENABLED
+          value: "true"
+        image: registry.datadoghq.com/agent:7.80.0
+        name: init-config
+        resources: {}
+        volumeMounts:
+        - mountPath: /var/log/datadog
+          name: logdatadog
+        - mountPath: /checks.d
+          name: checksd
+          readOnly: true
+        - mountPath: /etc/datadog-agent/auth
+          name: datadog-agent-auth
+        - mountPath: /conf.d
+          name: confd
+          readOnly: true
+        - mountPath: /etc/datadog-agent
+          name: config
+        - mountPath: /host/proc
+          name: procdir
+          readOnly: true
+        - mountPath: /host/var/run
+          name: runtimesocketdir
+          readOnly: true
+      - command:
+        - cp
+        - /etc/config/system-probe-seccomp.json
+        - /host/var/lib/kubelet/seccomp/system-probe
+        image: registry.datadoghq.com/agent:7.80.0
+        name: seccomp-setup
+        resources: {}
+        volumeMounts:
+        - mountPath: /etc/config
+          name: datadog-agent-security
+          readOnly: true
+        - mountPath: /host/var/lib/kubelet/seccomp
+          name: seccomp-root
+      securityContext:
+        runAsUser: 0
+      serviceAccountName: datadog-agent-agent
+      volumes:
+      - emptyDir: {}
+        name: logdatadog
+      - emptyDir: {}
+        name: datadog-agent-auth
+      - configMap:
+          name: datadog-agent-install-info
+        name: installinfo
+      - emptyDir: {}
+        name: checksd
+      - emptyDir: {}
+        name: confd
+      - emptyDir: {}
+        name: config
+      - hostPath:
+          path: /proc
+        name: procdir
+      - hostPath:
+          path: /sys/fs/cgroup
+        name: cgroups
+      - hostPath:
+          path: /var/run/datadog
+          type: DirectoryOrCreate
+        name: dsdsocket
+      - hostPath:
+          path: /var/run
+        name: runtimesocketdir
+      - emptyDir: {}
+        name: datadogrun
+      - emptyDir: {}
+        name: tmpdir
+      - configMap:
+          name: datadog-agent-system-probe-seccomp
+        name: datadog-agent-security
+      - hostPath:
+          path: /var/lib/kubelet/seccomp
+        name: seccomp-root
+      - hostPath:
+          path: /var/run/datadog
+          type: DirectoryOrCreate
+        name: apmsocket
+      - hostPath:
+          path: /etc/passwd
+        name: passwd
+      - emptyDir: {}
+        name: sysprobe-socket-dir
+  updateStrategy: {}
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  annotations:
+    agent.datadoghq.com/agentspechash: 82253db5079ab58bc929348f85eb44ee
   labels:
     agent.datadoghq.com/component: agent
     agent.datadoghq.com/name: datadog-agent
@@ -1584,6 +2328,8 @@ spec:
           value: "true"
         - name: DD_APM_NON_LOCAL_TRAFFIC
           value: "true"
+        - name: DD_APM_RECEIVER_PORT
+          value: "8126"
         - name: DD_APM_RECEIVER_SOCKET
           value: /var/run/datadog/apm.socket
         - name: DD_DOGSTATSD_SOCKET
@@ -1600,6 +2346,7 @@ spec:
         name: trace-agent
         ports:
         - containerPort: 8126
+          hostPort: 9126
           name: traceport
           protocol: TCP
         resources: {}
@@ -2124,21 +2871,20 @@ spec:
       values:
       - linux
 status:
-  applied: "False"
+  applied: "True"
   conditions:
-  - lastTransitionTime: "2026-10-13T18:29:40Z"
+  - lastTransitionTime: "2026-10-13T18:32:05Z"
     message: Valid manifest
     reason: Valid
     status: "True"
     type: Valid
-  - lastTransitionTime: "2026-10-13T18:29:40Z"
-    message: 'apm profile shared config overlay failed: local Agent Service port "traceport"
-      conflicts with existing port'
-    reason: Conflict
-    status: "False"
+  - lastTransitionTime: "2026-10-13T18:32:05Z"
+    message: Profile applied
+    reason: Applied
+    status: "True"
     type: Applied
   currentHash: 337d32bebf3c93f69ac9f5201873af1b
-  lastUpdate: "2026-10-13T18:29:40Z"
+  lastUpdate: "2026-10-13T18:32:05Z"
   valid: "True"
 ---
 apiVersion: datadoghq.com/v2alpha1

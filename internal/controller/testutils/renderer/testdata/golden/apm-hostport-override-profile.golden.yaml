@@ -1296,7 +1296,7 @@ status:
     currentHash: a6e061c3239bcfb5d3e61546824676e8
     daemonsetName: datadog-agent-agent
     desired: 0
-    lastUpdate: "2026-10-13T18:29:40Z"
+    lastUpdate: "2026-10-13T18:32:05Z"
     ready: 0
     state: Running
     status: Running (0/0/0)
@@ -1304,16 +1304,16 @@ status:
   clusterAgent:
     currentHash: 5a8914c4c5bc653a073d466b016e4759
     deploymentName: datadog-agent-cluster-agent
-    lastUpdate: "2026-10-13T18:29:40Z"
+    lastUpdate: "2026-10-13T18:32:05Z"
     state: Progressing
     status: Progressing (0/0/0)
   conditions:
-  - lastTransitionTime: "2026-10-13T18:29:40Z"
+  - lastTransitionTime: "2026-10-13T18:32:05Z"
     message: reconcile succeed
     reason: reconcile_succeed
     status: "True"
     type: ClusterAgentReconcile
-  - lastTransitionTime: "2026-10-13T18:29:40Z"
+  - lastTransitionTime: "2026-10-13T18:32:05Z"
     message: reconcile succeed
     reason: reconcile_succeed
     status: "True"
@@ -1517,13 +1517,13 @@ status:
     currentHash: 9aae5b1bda4b06538ad3b02ca9b2ac6c
     daemonsetName: linux-profile-agent
     desired: 0
-    lastUpdate: "2026-10-13T18:29:40Z"
+    lastUpdate: "2026-10-13T18:32:05Z"
     ready: 0
     state: Running
     status: Running (0/0/0)
     upToDate: 0
   conditions:
-  - lastTransitionTime: "2026-10-13T18:29:40Z"
+  - lastTransitionTime: "2026-10-13T18:32:05Z"
     message: reconcile succeed
     reason: reconcile_succeed
     status: "True"
@@ -2911,16 +2911,16 @@ spec:
 status:
   applied: "True"
   conditions:
-  - lastTransitionTime: "2026-10-13T18:29:40Z"
+  - lastTransitionTime: "2026-10-13T18:32:05Z"
     message: Valid manifest
     reason: Valid
     status: "True"
     type: Valid
-  - lastTransitionTime: "2026-10-13T18:29:40Z"
+  - lastTransitionTime: "2026-10-13T18:32:05Z"
     message: Profile applied
     reason: Applied
     status: "True"
     type: Applied
   currentHash: c17fbbbab9797b4037a98e2a6d2a622e
-  lastUpdate: "2026-10-13T18:29:40Z"
+  lastUpdate: "2026-10-13T18:32:05Z"
   valid: "True"
