@@ -2630,8 +2630,8 @@ func (in *HostProfilerFeatureConfig) DeepCopyInto(out *HostProfilerFeatureConfig
 		*out = new(HostProfilerSeccompConfig)
 		(*in).DeepCopyInto(*out)
 	}
-	if in.RunAsNonRoot != nil {
-		in, out := &in.RunAsNonRoot, &out.RunAsNonRoot
+	if in.RunAsRoot != nil {
+		in, out := &in.RunAsRoot, &out.RunAsRoot
 		*out = new(bool)
 		**out = **in
 	}

@@ -171,9 +171,9 @@ func TestIsValidDatadogAgentProfile(t *testing.T) {
 		Config: &v2alpha1.DatadogAgentSpec{
 			Features: &v2alpha1.DatadogFeatures{
 				HostProfiler: &v2alpha1.HostProfilerFeatureConfig{
-					Enabled:      ptr.To(true),
-					RunAsNonRoot: ptr.To(true),
-					SELinuxType:  ptr.To("custom_t"),
+					Enabled:     ptr.To(true),
+					RunAsRoot:   ptr.To(false),
+					SELinuxType: ptr.To("custom_t"),
 					Seccomp: &v2alpha1.HostProfilerSeccompConfig{
 						Enabled:        ptr.To(true),
 						LoggingEnabled: ptr.To(true),

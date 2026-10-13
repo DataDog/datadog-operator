@@ -113,9 +113,9 @@ func Test_hostProfilerFeature_SpecAndAnnotationPrecedence(t *testing.T) {
 		{
 			name: "spec only, all settings",
 			config: &v2alpha1.HostProfilerFeatureConfig{
-				Enabled:      ptr.To(true),
-				RunAsNonRoot: ptr.To(true),
-				SELinuxType:  ptr.To("spec_t"),
+				Enabled:     ptr.To(true),
+				RunAsRoot:   ptr.To(false),
+				SELinuxType: ptr.To("spec_t"),
 				Seccomp: &v2alpha1.HostProfilerSeccompConfig{
 					Enabled:        ptr.To(false),
 					LoggingEnabled: ptr.To(true),
@@ -147,8 +147,8 @@ func Test_hostProfilerFeature_SpecAndAnnotationPrecedence(t *testing.T) {
 			name:        "spec settings take precedence over annotations",
 			annotations: allAnnotations,
 			config: &v2alpha1.HostProfilerFeatureConfig{
-				RunAsNonRoot: ptr.To(false),
-				SELinuxType:  ptr.To("spec_t"),
+				RunAsRoot:   ptr.To(true),
+				SELinuxType: ptr.To("spec_t"),
 				Seccomp: &v2alpha1.HostProfilerSeccompConfig{
 					Enabled:        ptr.To(true),
 					LoggingEnabled: ptr.To(false),

@@ -192,7 +192,7 @@ spec:
 | features.helmCheck.enabled | Enables the Helm check. Default: false |
 | features.helmCheck.valuesAsTags | ValuesAsTags collects Helm values from a release and uses them as tags (Requires Agent and Cluster Agent 7.40.0+). Default: {} |
 | features.hostProfiler.enabled | Enables the Host Profiler. Default: false |
-| features.hostProfiler.runAsNonRoot | RunAsNonRoot runs the Host Profiler container as the dd-agent user (UID/GID 100) with runAsNonRoot set. Default: false |
+| features.hostProfiler.runAsRoot | RunAsRoot runs the Host Profiler container as root. When false, the container runs as the dd-agent user (UID/GID 100) with runAsNonRoot set. Default: true |
 | features.hostProfiler.seLinuxType | SELinuxType sets the SELinux type for the Host Profiler container and its seccomp setup init container. Default: spc_t |
 | features.hostProfiler.seccomp.enabled | Applies the Host Profiler localhost seccomp profile and adds the init container that installs it on the node. When disabled, the Host Profiler container runs with an Unconfined seccomp profile. Default: true |
 | features.hostProfiler.seccomp.loggingEnabled | LoggingEnabled uses the logging seccomp profile instead of the default one. Has no effect when the seccomp profile is disabled. Default: false |

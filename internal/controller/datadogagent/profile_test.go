@@ -399,18 +399,18 @@ func Test_computeProfileMergeHostProfiler(t *testing.T) {
 		{
 			name: "profile enables host profiler",
 			profileHP: &v2alpha1.HostProfilerFeatureConfig{
-				Enabled:      ptr.To(true),
-				RunAsNonRoot: ptr.To(true),
-				SELinuxType:  ptr.To("custom_t"),
+				Enabled:     ptr.To(true),
+				RunAsRoot:   ptr.To(false),
+				SELinuxType: ptr.To("custom_t"),
 				Seccomp: &v2alpha1.HostProfilerSeccompConfig{
 					Enabled:        ptr.To(false),
 					LoggingEnabled: ptr.To(true),
 				},
 			},
 			want: &v2alpha1.HostProfilerFeatureConfig{
-				Enabled:      ptr.To(true),
-				RunAsNonRoot: ptr.To(true),
-				SELinuxType:  ptr.To("custom_t"),
+				Enabled:     ptr.To(true),
+				RunAsRoot:   ptr.To(false),
+				SELinuxType: ptr.To("custom_t"),
 				Seccomp: &v2alpha1.HostProfilerSeccompConfig{
 					Enabled:        ptr.To(false),
 					LoggingEnabled: ptr.To(true),

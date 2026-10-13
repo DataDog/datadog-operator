@@ -1966,10 +1966,11 @@ spec:
                                 Enabled enables the Host Profiler.
                                 Default: false
                               type: boolean
-                            runAsNonRoot:
+                            runAsRoot:
                               description: |-
-                                RunAsNonRoot runs the Host Profiler container as the dd-agent user (UID/GID 100) with runAsNonRoot set.
-                                Default: false
+                                RunAsRoot runs the Host Profiler container as root. When false, the container runs as the
+                                dd-agent user (UID/GID 100) with runAsNonRoot set.
+                                Default: true
                               type: boolean
                             seLinuxType:
                               description: |-

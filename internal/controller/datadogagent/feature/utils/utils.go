@@ -77,7 +77,7 @@ const (
 	//
 	// Deprecated: use spec.features.hostProfiler.seLinuxType.
 	HostProfilerSELinuxTypeAnnotation = "agent.datadoghq.com/host-profiler-selinux-type"
-	// Deprecated: use spec.features.hostProfiler.runAsNonRoot.
+	// Deprecated: use spec.features.hostProfiler.runAsRoot (inverted: "true" here means runAsRoot: false).
 	EnableHostProfilerNonRootAnnotation = "agent.datadoghq.com/host-profiler-non-root-enabled"
 )
 

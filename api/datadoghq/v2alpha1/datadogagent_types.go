@@ -1384,10 +1384,11 @@ type HostProfilerFeatureConfig struct {
 	// +optional
 	Seccomp *HostProfilerSeccompConfig `json:"seccomp,omitempty"`
 
-	// RunAsNonRoot runs the Host Profiler container as the dd-agent user (UID/GID 100) with runAsNonRoot set.
-	// Default: false
+	// RunAsRoot runs the Host Profiler container as root. When false, the container runs as the
+	// dd-agent user (UID/GID 100) with runAsNonRoot set.
+	// Default: true
 	// +optional
-	RunAsNonRoot *bool `json:"runAsNonRoot,omitempty"`
+	RunAsRoot *bool `json:"runAsRoot,omitempty"`
 
 	// SELinuxType sets the SELinux type for the Host Profiler container and its seccomp setup init container.
 	// Default: spc_t

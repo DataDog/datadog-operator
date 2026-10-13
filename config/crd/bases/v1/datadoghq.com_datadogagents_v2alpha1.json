@@ -1963,8 +1963,8 @@
                   "description": "Enabled enables the Host Profiler.\nDefault: false",
                   "type": "boolean"
                 },
-                "runAsNonRoot": {
-                  "description": "RunAsNonRoot runs the Host Profiler container as the dd-agent user (UID/GID 100) with runAsNonRoot set.\nDefault: false",
+                "runAsRoot": {
+                  "description": "RunAsRoot runs the Host Profiler container as root. When false, the container runs as the\ndd-agent user (UID/GID 100) with runAsNonRoot set.\nDefault: true",
                   "type": "boolean"
                 },
                 "seLinuxType": {
@@ -11038,8 +11038,8 @@
                       "description": "Enabled enables the Host Profiler.\nDefault: false",
                       "type": "boolean"
                     },
-                    "runAsNonRoot": {
-                      "description": "RunAsNonRoot runs the Host Profiler container as the dd-agent user (UID/GID 100) with runAsNonRoot set.\nDefault: false",
+                    "runAsRoot": {
+                      "description": "RunAsRoot runs the Host Profiler container as root. When false, the container runs as the\ndd-agent user (UID/GID 100) with runAsNonRoot set.\nDefault: true",
                       "type": "boolean"
                     },
                     "seLinuxType": {

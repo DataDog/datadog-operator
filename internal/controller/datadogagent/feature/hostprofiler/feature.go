@@ -101,8 +101,8 @@ func (o *hostProfilerFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Dat
 		o.logger.V(1).Info("host profiler: logging seccomp has no effect when seccomp is disabled")
 	}
 
-	if hpConfig != nil && hpConfig.RunAsNonRoot != nil {
-		o.hostProfilerNonRoot = *hpConfig.RunAsNonRoot
+	if hpConfig != nil && hpConfig.RunAsRoot != nil {
+		o.hostProfilerNonRoot = !*hpConfig.RunAsRoot
 	} else {
 		o.hostProfilerNonRoot = featureutils.HasFeatureEnableAnnotation(dda, featureutils.EnableHostProfilerNonRootAnnotation)
 	}
