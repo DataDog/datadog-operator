@@ -13,7 +13,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/DataDog/dd-trace-go/v2/ddtrace/tracer"
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
@@ -164,7 +163,7 @@ func (r *Reconciler) createOrUpdateDeployment(parentLogger logr.Logger, dda *v2a
 }
 
 func (r *Reconciler) createOrUpdateDDAI(ctx context.Context, ddai *v1alpha1.DatadogAgentInternal) (err error) {
-	span, ctx := trace.StartSpan(ctx, tracer.Tag("object.name", ddai.Name))
+	span, ctx := trace.StartSpan(ctx, trace.Tag("object.name", ddai.Name))
 	defer trace.FinishSpan(span, &err)
 
 	logger := ctrl.LoggerFrom(ctx)

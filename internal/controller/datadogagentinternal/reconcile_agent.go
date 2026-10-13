@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/DataDog/dd-trace-go/v2/ddtrace/tracer"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -37,7 +36,7 @@ import (
 
 func (r *Reconciler) reconcileV2Agent(ctx context.Context, requiredComponents feature.RequiredComponents, features []feature.Feature,
 	ddai *datadoghqv1alpha1.DatadogAgentInternal, resourcesManager feature.ResourceManagers, newStatus *datadoghqv1alpha1.DatadogAgentInternalStatus, provider string) (result reconcile.Result, err error) {
-	span, ctx := trace.StartSpan(ctx, tracer.Tag(trace.TagAgentComponent, string(datadoghqv2alpha1.NodeAgentComponentName)))
+	span, ctx := trace.StartSpan(ctx, trace.Tag(trace.TagAgentComponent, string(datadoghqv2alpha1.NodeAgentComponentName)))
 	defer trace.FinishSpan(span, &err)
 	var daemonset *appsv1.DaemonSet
 	var podManagers feature.PodTemplateManagers

@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/DataDog/dd-trace-go/v2/ddtrace/tracer"
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -188,7 +187,7 @@ func (r *ComponentRegistry) ReconcileComponents(ctx context.Context, params *Rec
 
 // reconcileComponent reconciles a single component
 func (r *ComponentRegistry) reconcileComponent(ctx context.Context, params *ReconcileComponentParams, component ComponentReconciler) (result reconcile.Result, err error) {
-	span, ctx := trace.StartSpan(ctx, tracer.Tag(trace.TagAgentComponent, string(component.Name())))
+	span, ctx := trace.StartSpan(ctx, trace.Tag(trace.TagAgentComponent, string(component.Name())))
 	defer trace.FinishSpan(span, &err)
 	now := metav1.NewTime(time.Now())
 
@@ -269,7 +268,7 @@ func (r *ComponentRegistry) reconcileComponent(ctx context.Context, params *Reco
 
 // Cleanup removes the component deployment, associated resources and updates status
 func (r *ComponentRegistry) Cleanup(ctx context.Context, params *ReconcileComponentParams, component ComponentReconciler) (_ reconcile.Result, err error) {
-	span, ctx := trace.StartSpan(ctx, tracer.Tag(trace.TagAgentComponent, string(component.Name())))
+	span, ctx := trace.StartSpan(ctx, trace.Tag(trace.TagAgentComponent, string(component.Name())))
 	defer trace.FinishSpan(span, &err)
 	deployment := component.GetNewDeploymentFunc()(params.DDAI, &params.DDAI.Spec)
 

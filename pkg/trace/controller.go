@@ -55,6 +55,12 @@ func StartSpan(ctx context.Context, extraTags ...tracer.StartSpanOption) (*trace
 	return startSpan(ctx, callerFuncName(1), extraTags...)
 }
 
+// Tag returns a span option that sets a tag, so callers don't need to import
+// the tracer package.
+func Tag(key string, value any) tracer.StartSpanOption {
+	return tracer.Tag(key, value)
+}
+
 // FinishSpan finishes span, recording *errp as the span error.
 func FinishSpan(span *tracer.Span, errp *error) {
 	var err error

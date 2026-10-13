@@ -201,7 +201,9 @@ func TestWrapTransport(t *testing.T) {
 			}
 			mt := startMockTracer(t)
 
+			var auditIDs []string
 			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				auditIDs = append(auditIDs, r.Header.Get("Audit-Id"))
 				switch r.URL.Path {
 				case "/api/v1/namespaces/ns/pods/missing":
 					w.WriteHeader(http.StatusNotFound)
@@ -237,6 +239,20 @@ func TestWrapTransport(t *testing.T) {
 			assert.Equal(t, "GET namespaces/{namespace}/pods/{name}", notFound.Tag(ext.ResourceName))
 			assert.Nil(t, notFound.Tag(ext.ErrorMsg), "404 should not be flagged as an error")
 			assert.NotNil(t, serverErr.Tag(ext.ErrorMsg), "5xx should be flagged as an error")
+			assert.Equal(t, kubernetesComponentName, notFound.Tag(ext.Component))
+
+			// Audit IDs stay unique per request, so the apiserver can still pair
+			// each request's audit events, but carry the trace that made them.
+			require.Len(t, auditIDs, 3)
+			assert.Empty(t, auditIDs[0], "an untraced request shouldn't set an audit ID")
+			assert.NotEqual(t, auditIDs[1], auditIDs[2])
+			traceID := parent.Context().TraceID()
+			for _, auditID := range auditIDs[1:] {
+				assert.True(t, strings.HasPrefix(auditID, traceID+"-"), "%q should start with the trace ID", auditID)
+				// The apiserver truncates past this before tagging its own spans.
+				assert.LessOrEqual(t, len(auditID), 64)
+			}
+			assert.Equal(t, auditIDs[1], notFound.Tag("kubernetes.audit_id"))
 		})
 	}
 }
