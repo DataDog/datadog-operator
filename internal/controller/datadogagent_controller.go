@@ -265,6 +265,10 @@ type DatadogAgentReconciler struct {
 
 // Reconcile loop for DatadogAgent.
 func (r *DatadogAgentReconciler) Reconcile(ctx context.Context, dda *v2alpha1.DatadogAgent) (ctrl.Result, error) {
+	// Get the logger from context (already has namespace, name, reconcileID from controller-runtime)
+	// Add our controller name - this enriched logger will be available to all downstream functions
+	logger := ctrl.LoggerFrom(ctx).WithName("controllers").WithName("DatadogAgent")
+	ctx = ctrl.LoggerInto(ctx, logger)
 	return r.internal.Reconcile(ctx, dda)
 }
 
@@ -338,19 +342,7 @@ func (r *DatadogAgentReconciler) SetupWithManager(mgr ctrl.Manager, metricForwar
 	}
 
 	or := reconcile.AsReconciler[*v2alpha1.DatadogAgent](r.Client, r)
-	// WithLogConstructor replaces the default log constructor. The default one adds
-	// both a nested "DatadogAgent":{name, namespace} object and flat
-	// "namespace"/"name" fields, which the reconcile logs then repeat as
-	// "datadogagent". Emit "datadogagent" alone, so the object appears once and
-	// keeps the key these logs have always used.
-	logConstructor := func(req *reconcile.Request) logr.Logger {
-		log := mgr.GetLogger().WithName("controllers").WithName("DatadogAgent")
-		if req != nil {
-			log = log.WithValues("datadogagent", req.NamespacedName)
-		}
-		return log
-	}
-	if err := builder.For(&v2alpha1.DatadogAgent{}, builderOptions...).WithEventFilter(predicate.Or(predicate.GenerationChangedPredicate{}, datadogAnnotationChangedPredicate(), experimentPhaseChangedPredicate())).WithLogConstructor(logConstructor).Complete(or); err != nil {
+	if err := builder.For(&v2alpha1.DatadogAgent{}, builderOptions...).WithEventFilter(predicate.Or(predicate.GenerationChangedPredicate{}, datadogAnnotationChangedPredicate(), experimentPhaseChangedPredicate())).Complete(or); err != nil {
 		return err
 	}
 
