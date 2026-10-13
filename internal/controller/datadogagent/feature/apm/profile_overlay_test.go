@@ -609,7 +609,90 @@ func TestAPMProfileSharedConfigOverlayDefaultConflicts(t *testing.T) {
 	})
 }
 
+func TestAPMProfileSharedConfigOverlayIsolation(t *testing.T) {
+	bools := []*bool{nil, ptr.To(false), ptr.To(true)}
+	boolNames := []string{"omitted", "disabled", "enabled"}
+	profileModes := []string{"absent", "inherit", "disabled", "enabled", "SSI", "error tracking"}
+	profileHostPorts := []*v2alpha1.HostPortConfig{
+		nil,
+		{Enabled: ptr.To(true)},
+		{Enabled: ptr.To(true), Port: ptr.To[int32](8126)},
+		{Enabled: ptr.To(true), Port: ptr.To[int32](9126)},
+		{Enabled: ptr.To(false), Port: ptr.To[int32](9126)},
+	}
+	portNames := []string{"omitted", "enabled-port-omitted", "enabled-8126", "enabled-9126", "disabled-9126"}
+	for apmIndex, enabled := range bools {
+		for hostIndex, hostEnabled := range bools {
+			for _, mode := range profileModes {
+				for portIndex, hostPort := range profileHostPorts {
+					t.Run(fmt.Sprintf("baseAPM=%s/baseHostPort=%s/profile=%s/hostPort=%s", boolNames[apmIndex], boolNames[hostIndex], mode, portNames[portIndex]), func(t *testing.T) {
+						raw := testProfileOverlayBaseSpec(false)
+						raw.Features.APM.Enabled = enabled
+						if hostEnabled != nil {
+							raw.Features.APM.HostPortConfig = &v2alpha1.HostPortConfig{Enabled: hostEnabled}
+						}
+						before := raw.DeepCopy()
+						defaults.DefaultDatadogAgentSpec(before)
+						profile := testProfileOverlayProfileSpec(nil)
+						profile.Global = &v2alpha1.GlobalConfig{ClusterName: ptr.To("profile-only")}
+						profile.Features.LogCollection = &v2alpha1.LogCollectionFeatureConfig{Enabled: ptr.To(true)}
+						profile.Features.APM.HostPortConfig = hostPort
+						profile.Features.APM.UnixDomainSocketConfig = &v2alpha1.UnixDomainSocketConfig{Enabled: ptr.To(false), Path: ptr.To("/profile-only.socket")}
+						switch mode {
+						case "absent":
+							profile.Features.APM = nil
+						case "disabled":
+							profile.Features.APM.Enabled = ptr.To(false)
+						case "enabled":
+							profile.Features.APM.Enabled = ptr.To(true)
+						case "SSI":
+							profile.Features.APM.SingleStepInstrumentation = &v2alpha1.SingleStepInstrumentation{Enabled: ptr.To(true)}
+						case "error tracking":
+							profile.Features.APM.ErrorTrackingStandalone = &v2alpha1.ErrorTrackingStandalone{Enabled: ptr.To(true)}
+						}
+						rawBefore, profileBefore := raw.DeepCopy(), profile.DeepCopy()
+						dst := before.DeepCopy()
+						err := applyAPMOverlayForTest(dst, raw, profile)
+						assert.Equal(t, rawBefore, raw, "raw input must remain unchanged")
+						assert.Equal(t, profileBefore, profile, "profile input must remain unchanged")
+						if err != nil {
+							assert.Equal(t, before, dst, "rejected overlays must not contribute settings")
+							return
+						}
+						if hostEnabled != nil && !*hostEnabled && ptr.Deref(enabled, true) {
+							assert.Equal(t, before.Features.APM.HostPortConfig, dst.Features.APM.HostPortConfig, "explicitly disabled base host ports must be preserved")
+						}
+						// Only shared Service and SSI settings may change on the default spec.
+						dst.Features.APM.HostPortConfig = before.Features.APM.HostPortConfig.DeepCopy()
+						dst.Features.APM.SingleStepInstrumentation = before.Features.APM.SingleStepInstrumentation.DeepCopy()
+						assert.Equal(t, before, dst, "profile-local settings must not reach the default spec")
+					})
+				}
+			}
+		}
+	}
+}
+
 func TestAPMProfileSharedConfigOverlayLocalAgentServicePortConflict(t *testing.T) {
+	t.Run("explicitly disabled base host ports constrain the Service port", func(t *testing.T) {
+		for _, port := range []int32{8126, 9126} {
+			raw := &v2alpha1.DatadogAgentSpec{Features: &v2alpha1.DatadogFeatures{APM: &v2alpha1.APMFeatureConfig{
+				Enabled:        ptr.To(true),
+				HostPortConfig: &v2alpha1.HostPortConfig{Enabled: ptr.To(false)},
+			}}}
+			base := raw.DeepCopy()
+			defaults.DefaultDatadogAgentSpec(base)
+			dst := base.DeepCopy()
+			err := applyAPMOverlayForTest(dst, raw, testProfileOverlayProfileAPMSpec(port))
+			if port == 9126 {
+				require.ErrorContains(t, err, `local Agent Service port "traceport" conflicts`)
+				assert.Equal(t, base, dst)
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, base.Features.APM.HostPortConfig, dst.Features.APM.HostPortConfig)
+			}
+		}
+	})
 
 	for _, tc := range []struct {
 		name        string

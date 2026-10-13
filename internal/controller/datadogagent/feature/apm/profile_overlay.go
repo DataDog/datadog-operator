@@ -80,6 +80,14 @@ func mergeProfileLocalAgentServicePort(validationSpec, defaultDDAISpec, original
 		existing = configuredServicePort(validationSpec.Features.APM)
 	}
 	basePort, baseHasService := profileLocalAgentServicePort(originalDefaultDDAISpec)
+	// Explicitly disabling host ports fixes the base Service port at 8126,
+	// even when no port was provided. Do not treat a defaulted false as a constraint.
+	if existing == nil && baseHasService && validationSpec.Features != nil && validationSpec.Features.APM != nil {
+		baseHostPort := validationSpec.Features.APM.HostPortConfig
+		if baseHostPort != nil && baseHostPort.Enabled != nil && !*baseHostPort.Enabled {
+			existing = &basePort
+		}
+	}
 	if port != nil && existing != nil && *port != *existing {
 		return fmt.Errorf("local Agent Service port %q conflicts with existing port", constants.DefaultApmPortName)
 	}
