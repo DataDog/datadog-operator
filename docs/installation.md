@@ -199,7 +199,7 @@ log options (`--loglevel`, `--logEncoder`), secret backend options
 (`--secretBackend*`, `--secretRefreshInterval`), and `--version` are only
 configurable using CLI flags in the shipped manifests.
 
-When tracing is enabled, the Datadog Operator reports traces of DatadogAgent and DatadogAgentInternal reconciles under the service name specified by `DD_SERVICE` (default: `datadog-operator`). Configure `DD_AGENT_HOST` or `DD_TRACE_AGENT_URL` in the Operator environment, or mount the Agent's APM socket at `/var/run/datadog/apm.socket`, to point to a Datadog Agent with APM enabled.
+When tracing is enabled, the Datadog Operator reports traces of DatadogAgent and DatadogAgentInternal reconciles under the service name specified by `DD_SERVICE` (default: `datadog-operator`). Configure `DD_AGENT_HOST` or `DD_TRACE_AGENT_URL` in the Operator environment, or mount the Agent's APM socket at `/var/run/datadog/apm.socket`, to point to a Datadog Agent with APM enabled. Traced Kubernetes API requests also set the `Audit-ID` header to `<trace ID>-<span ID>`, so audit log entries can be traced back to the reconcile that caused them while keeping one audit ID per request.
 
 ExtendedDaemonSet flags were removed. If they are present in a custom
 Deployment manifest, remove them before upgrading. See the
