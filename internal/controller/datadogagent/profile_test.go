@@ -463,7 +463,7 @@ func Test_computeProfileMergeHostProfiler(t *testing.T) {
 			crd, err := getDDAICRDFromConfig(sch)
 			require.NoError(t, err)
 			fakeClient := fake.NewClientBuilder().WithScheme(sch).WithObjects(ddai, crd).Build()
-			fieldManager, err := newFieldManager(fakeClient, sch, v1alpha1.GroupVersion.WithKind("DatadogAgentInternal"))
+			fieldManager, err := newFieldManager(context.Background(), fakeClient, sch, v1alpha1.GroupVersion.WithKind("DatadogAgentInternal"))
 			require.NoError(t, err)
 			r := &Reconciler{
 				client:       fakeClient,
