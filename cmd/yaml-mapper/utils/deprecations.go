@@ -8,7 +8,7 @@ package utils
 import (
 	"log/slog"
 
-	"helm.sh/helm/v3/pkg/chartutil"
+	chartutil "helm.sh/helm/v4/pkg/chart/common"
 )
 
 // DepAction Action to perform on deprecated keys

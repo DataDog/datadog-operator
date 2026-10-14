@@ -8,7 +8,7 @@ package utils
 import (
 	"strings"
 
-	"helm.sh/helm/v3/pkg/chartutil"
+	chartutil "helm.sh/helm/v4/pkg/chart/common"
 )
 
 // InsertAtPath inserts a value into a nested map at a dotted path, creating

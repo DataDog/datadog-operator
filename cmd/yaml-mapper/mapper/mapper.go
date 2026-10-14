@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	"helm.sh/helm/v3/pkg/chartutil"
+	chartutil "helm.sh/helm/v4/pkg/chart/common"
 
 	"github.com/DataDog/datadog-operator/cmd/yaml-mapper/constants"
 	"github.com/DataDog/datadog-operator/cmd/yaml-mapper/utils"

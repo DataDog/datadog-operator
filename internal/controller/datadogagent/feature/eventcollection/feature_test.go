@@ -103,16 +103,16 @@ func unbundledEventsDependencies(t testing.TB, store store.StoreClient) {
 		expectedCM := map[string]string{
 			"kubernetes_apiserver.yaml": `init_config: null
 instances:
-- collected_event_types:
-  - kind: Pod
-    reasons:
-    - Killing
-    - Created
-    - Deleted
-  - kind: Node
-    reasons:
-    - NodeNotReady
-  unbundle_events: true
+    - collected_event_types:
+        - kind: Pod
+          reasons:
+            - Killing
+            - Created
+            - Deleted
+        - kind: Node
+          reasons:
+            - NodeNotReady
+      unbundle_events: true
 `,
 		}
 
